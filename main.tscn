@@ -295,7 +295,6 @@ script = ExtResource("2_l24ox")
 texture = ExtResource("2_wwg48")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
-scale = Vector2(1, 1)
 shape = SubResource("RectangleShape2D_jk8bx")
 
 [node name="Camera2D" type="Camera2D" parent="."]
@@ -323,4 +322,8 @@ position = Vector2(79, -80)
 
 [node name="Spikes4" parent="." instance=ExtResource("7_fkcp6")]
 position = Vector2(144, -123)
+rotation = -1.5708
+
+[node name="Spikes5" parent="." instance=ExtResource("7_fkcp6")]
+position = Vector2(-16, -79)
 rotation = -1.5708
