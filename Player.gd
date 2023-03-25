@@ -18,8 +18,10 @@ var wall_jumping = 0.0
 const BUFFER_TIME = 0.25
 var buffered_jump = 0.0
 
-const COYOTE_TIME = 0.25
+const COYOTE_TIME = 0.01
 var coyoting = 0.0
+var coyoted = false
+
 
 var manual_control = true
 
@@ -65,8 +67,9 @@ func _physics_process(delta):
 
 	# Add the gravity.
 	if not is_on_floor():
-		if coyoting <= 0.0:
+		if coyoting <= 0.0 and not coyoted:
 			coyoting = COYOTE_TIME
+			coyoted = true
 		
 		if (dashing <= 0):
 			velocity.y += gravity * delta
@@ -76,10 +79,14 @@ func _physics_process(delta):
 			buffered_jump = 0.0
 			velocity.y = JUMP_VELOCITY	
 		refresh_dash()
+		coyoted = false
+	
+	if dashing > 0:
+		coyoting = 0.0
 
 	# Handle Jump.
 	if Input.is_action_just_pressed("Jump"):
-		if (is_on_floor() or walled or coyoting):
+		if (is_on_floor() or walled or (coyoting > 0)):
 			velocity.y = JUMP_VELOCITY	
 			coyoting = 0.0
 			if (walled and not is_on_floor()):
