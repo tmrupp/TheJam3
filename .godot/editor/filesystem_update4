@@ -1,2 +1,3 @@
-res://Player.gd
 res://main.tscn
+res://menu.tscn
+res://newGame.gd
