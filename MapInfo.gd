@@ -30,9 +30,9 @@ func _ready():
 			
 	queue_redraw()
 
-var enabled = true
+var enabled = false
 func _input(event):
-	if event.is_action_pressed("Jump"):
+	if event.is_action_pressed("ShowMap"):
 		enabled = !enabled
 		queue_redraw()
 			
