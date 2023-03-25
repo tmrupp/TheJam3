@@ -15,7 +15,20 @@ const WALL_JUMP_SPEED = 200.0
 const WALL_JUMP_TIME = 0.25
 var wall_jumping = 0.0
 
+const BUFFER_TIME = 0.25
+var buffered_jump = 0.0
+
 var manual_control = true
+
+enum State {
+	# grounded
+	IDLE,
+	RUNNING,
+	
+	# airborn
+	JUMPING,
+	DASHING,
+}
 
 @onready var tile_map = $"../TileMap"
 
@@ -45,28 +58,29 @@ func _physics_process(delta):
 		if (col.get_normal().x != 0):
 			walled = true
 			wall_normal = col.get_normal()
-		
-		if (col.get_collider() == tile_map):
-			var tile_pos = tile_map.local_to_map(tile_map.to_local(position)) - Vector2i(col.get_normal())
-			var tile = tile_map.get_cell_tile_data(0, tile_pos)
-			if tile != null:
-				# print("tile.get_custom_data(\"example\")=", tile.get_custom_data("example"))
-				if (tile.get_custom_data("death")):
-					die()
 
 
 	# Add the gravity.
 	if not is_on_floor():
-		velocity.y += gravity * delta
+		if (dashing <= 0):
+			velocity.y += gravity * delta
 	else:
+		if (buffered_jump > 0.0):
+			print(" buffered_jump=",buffered_jump)
+			buffered_jump = 0.0
+			velocity.y = JUMP_VELOCITY	
 		refresh_dash()
 
 	# Handle Jump.
-	if Input.is_action_just_pressed("Jump") and (is_on_floor() or walled):
-		velocity.y = JUMP_VELOCITY	
-		if (walled and not is_on_floor()):
-			velocity.x = wall_normal.x*WALL_JUMP_SPEED
-			wall_jumping = WALL_JUMP_TIME
+	if Input.is_action_just_pressed("Jump"):
+		if (is_on_floor() or walled):
+			velocity.y = JUMP_VELOCITY	
+			if (walled and not is_on_floor()):
+				velocity.x = wall_normal.x * WALL_JUMP_SPEED
+				wall_jumping = WALL_JUMP_TIME
+		else:
+			buffered_jump = BUFFER_TIME
+			
 
 	# Get the input direction and handle the movement/deceleration.
 	# As good practice, you should replace UI actions with custom gameplay actions.
@@ -89,8 +103,13 @@ func _physics_process(delta):
 	
 	if dashing > 0:
 		dashing -= delta
+		if dashing <= 0:
+			velocity = Vector2.ZERO
 
 	if wall_jumping > 0:
 		wall_jumping -= delta
+		
+	if buffered_jump > 0:
+		buffered_jump -= delta
 
 	move_and_slide()
