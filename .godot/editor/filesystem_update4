@@ -1,0 +1,6 @@
+res://main.tscn
+res://tile_map.tscn
+res://TileMap.gd
+res://Player.gd
+res://Diamond.gd
+res://Spikes.gd

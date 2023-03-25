@@ -1,0 +1,16 @@
+[gd_scene load_steps=4 format=3 uid="uid://b5ci8jwo8g40w"]
+
+[ext_resource type="Script" path="res://Diamond.gd" id="1_5fu3g"]
+[ext_resource type="Texture2D" uid="uid://b2b5vesa6orpg" path="res://diamond.png" id="2_e2opg"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_hy8e6"]
+
+[node name="Diamond" type="Area2D"]
+position = Vector2(82, -193)
+script = ExtResource("1_5fu3g")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_hy8e6")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("2_e2opg")
