@@ -50,7 +50,7 @@ func _physics_process(delta):
 			var tile_pos = tile_map.local_to_map(tile_map.to_local(position)) - Vector2i(col.get_normal())
 			var tile = tile_map.get_cell_tile_data(0, tile_pos)
 			if tile != null:
-				print("tile.get_custom_data(\"example\")=", tile.get_custom_data("example"))
+				# print("tile.get_custom_data(\"example\")=", tile.get_custom_data("example"))
 				if (tile.get_custom_data("death")):
 					die()
 
