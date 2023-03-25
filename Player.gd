@@ -22,6 +22,10 @@ const COYOTE_TIME = 0.01
 var coyoting = 0.0
 var coyoted = false
 
+const HANG_TIME = 1
+const HANG_FACTOR = 0.5
+var hanging = 0.0
+var hanged = true
 
 var manual_control = true
 
@@ -52,6 +56,13 @@ func die():
 	position = respawn.position
 	velocity = Vector2.ZERO
 	
+func jump():
+	velocity.y = JUMP_VELOCITY
+	hanged = false
+	
+func dash():
+	velocity = dash_direction * DASH_SPEED
+	
 func _physics_process(delta):
 	if position.y > 300:
 		die()
@@ -72,14 +83,21 @@ func _physics_process(delta):
 			coyoted = true
 		
 		if (dashing <= 0):
-			velocity.y += gravity * delta
+			var factor = 1.0 if hanging <= 0.0 else HANG_FACTOR
+			velocity.y += gravity * factor * delta
+		
+		print("abs(velocity.y)=", abs(velocity.y))
+		if (abs(velocity.y) <= 100 and not hanged):
+			hanging = HANG_TIME
+			hanged = true
 	else:
 		if (buffered_jump > 0.0):
 			# print(" buffered_jump=",buffered_jump)
 			buffered_jump = 0.0
-			velocity.y = JUMP_VELOCITY	
+			jump()
 		refresh_dash()
 		coyoted = false
+		hanged = false
 	
 	if dashing > 0:
 		coyoting = 0.0
@@ -87,7 +105,7 @@ func _physics_process(delta):
 	# Handle Jump.
 	if Input.is_action_just_pressed("Jump"):
 		if (is_on_floor() or walled or (coyoting > 0)):
-			velocity.y = JUMP_VELOCITY	
+			jump()
 			coyoting = 0.0
 			if (walled and not is_on_floor()):
 				velocity.x = wall_normal.x * WALL_JUMP_SPEED
@@ -113,7 +131,7 @@ func _physics_process(delta):
 		has_dash = false
 		dashing = DASH_TIME
 		dash_direction = direction
-		velocity = dash_direction * DASH_SPEED
+		dash()
 	
 	if dashing > 0:
 		dashing -= delta
@@ -128,5 +146,9 @@ func _physics_process(delta):
 		
 	if coyoting > 0:
 		coyoting -= delta
+		
+	if hanging > 0:
+		hanging -= delta
+		print("hanging=", hanging, " velocity.y=", velocity.y)
 
 	move_and_slide()
