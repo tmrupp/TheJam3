@@ -286,7 +286,7 @@ layer_0/tile_data = PackedInt32Array(-65546, 0, 0, -10, 0, 1, 65526, 0, 2, -1310
 script = ExtResource("2_nyxbp")
 
 [node name="Player" type="CharacterBody2D" parent="."]
-position = Vector2(-29, -190)
+position = Vector2(-265, -86)
 scale = Vector2(0.2, 0.2)
 disable_mode = 2
 script = ExtResource("2_l24ox")
