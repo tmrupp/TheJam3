@@ -18,6 +18,9 @@ var wall_jumping = 0.0
 const BUFFER_TIME = 0.25
 var buffered_jump = 0.0
 
+const COYOTE_TIME = 0.25
+var coyoting = 0.0
+
 var manual_control = true
 
 enum State {
@@ -62,19 +65,23 @@ func _physics_process(delta):
 
 	# Add the gravity.
 	if not is_on_floor():
+		if coyoting <= 0.0:
+			coyoting = COYOTE_TIME
+		
 		if (dashing <= 0):
 			velocity.y += gravity * delta
 	else:
 		if (buffered_jump > 0.0):
-			print(" buffered_jump=",buffered_jump)
+			# print(" buffered_jump=",buffered_jump)
 			buffered_jump = 0.0
 			velocity.y = JUMP_VELOCITY	
 		refresh_dash()
 
 	# Handle Jump.
 	if Input.is_action_just_pressed("Jump"):
-		if (is_on_floor() or walled):
+		if (is_on_floor() or walled or coyoting):
 			velocity.y = JUMP_VELOCITY	
+			coyoting = 0.0
 			if (walled and not is_on_floor()):
 				velocity.x = wall_normal.x * WALL_JUMP_SPEED
 				wall_jumping = WALL_JUMP_TIME
@@ -111,5 +118,8 @@ func _physics_process(delta):
 		
 	if buffered_jump > 0:
 		buffered_jump -= delta
+		
+	if coyoting > 0:
+		coyoting -= delta
 
 	move_and_slide()
