@@ -149,6 +149,6 @@ func _physics_process(delta):
 		
 	if hanging > 0:
 		hanging -= delta
-		print("hanging=", hanging, " velocity.y=", velocity.y)
+		# print("hanging=", hanging, " velocity.y=", velocity.y)
 
 	move_and_slide()
