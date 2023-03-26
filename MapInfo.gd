@@ -21,6 +21,7 @@ var top_left = Vector2i(0, 0)
 const CHUNK_SIZE = 10
 
 var discovered_chunks = {}
+@onready var tile_map = $"../../TileMap"
 
 func get_random_chunk():
 	return Vector2i(randi_range(0,map_size.x/CHUNK_SIZE-1), randi_range(0,map_size.y/CHUNK_SIZE-1))
@@ -38,7 +39,11 @@ func _ready():
 			var r = randi_range(0,1)
 			# print(r)
 			row.append(Cell.new(r))
+			if row[j].type == Type.GROUND:
+				tile_map.set_cells_terrain_connect(0, [Vector2i(i,j)], 0, 0)
 		cells.append(row)
+		
+	
 		
 			
 	queue_redraw()
