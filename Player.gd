@@ -40,24 +40,33 @@ enum State {
 }
 
 @onready var tile_map = $"../TileMap"
+@onready var sprite = $"big bossanova"
+@onready var animation_player = $"big bossanova/AnimationPlayer"
 
 # Get the gravity from the project settings to be synced with RigidBody nodes.
 var gravity = ProjectSettings.get_setting("physics/2d/default_gravity")
 
 func refresh_dash ():
 	has_dash = true
-	
+
+func animation_finished(animation):
+	print("finished, ", animation)
+	pass
+
 var respawn
 func _ready():
 	respawn = $"../Respawn"
+	animation_player.connect("animation_started", animation_finished)
 
 func die():
 	print("i died")
 	position = respawn.position
-	velocity = Vector2.ZERO
-	
+	velocity = Vector2.ZERO	
+
 func jump():
 	velocity.y = JUMP_VELOCITY
+	animation_player.play("hop", -1, 4)
+	animation_player.clear_queue()
 	hanged = false
 	hanging = 0.0
 	
