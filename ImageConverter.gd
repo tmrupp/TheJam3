@@ -13,7 +13,7 @@ func to_array(path):
 			var pixel = image.get_pixel(i, j)
 			if pixel not in uniques:
 				uniques[pixel] = len(uniques.keys())
-			print("pixel @ (", i, ", ", j, ") = ", pixel, " value=", uniques[pixel])
+#			print("pixel @ (", i, ", ", j, ") = ", pixel, " value=", uniques[pixel])
 			row.append(uniques[pixel])
 		values.append(row)
 		
