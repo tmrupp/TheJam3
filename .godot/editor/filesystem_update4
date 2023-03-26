@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 res://Player.gd
 res://main.tscn
 res://menu.tscn
@@ -10,3 +11,6 @@ res://ImageConverter.gd
 res://RandomSeed.gd
 res://Regenerate.gd
 res://Diamond.gd
+=======
+res://julia.tscn
+>>>>>>> Stashed changes
