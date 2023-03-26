@@ -3,8 +3,8 @@
 [ext_resource type="Texture2D" uid="uid://csb7dsidgvahr" path="res://TerrainJam3 (32x32).png" id="1_gj4jo"]
 [ext_resource type="Script" path="res://Player.gd" id="2_l24ox"]
 [ext_resource type="Script" path="res://TileMap.gd" id="2_nyxbp"]
-[ext_resource type="Texture2D" uid="uid://dyho3orymgg41" path="res://icon.svg" id="2_wwg48"]
 [ext_resource type="PackedScene" uid="uid://b5ci8jwo8g40w" path="res://diamond.tscn" id="5_6soeb"]
+[ext_resource type="PackedScene" uid="uid://do6pc8fn6e1dp" path="res://julia.tscn" id="5_p0v6g"]
 [ext_resource type="Texture2D" uid="uid://c5p6vet241ayk" path="res://Spikes.png" id="6_pbn17"]
 [ext_resource type="PackedScene" uid="uid://d2qggqmyrywnr" path="res://spikes.tscn" id="7_fkcp6"]
 [ext_resource type="PackedScene" uid="uid://bbest6niwe1h3" path="res://map_shard.tscn" id="8_u6cko"]
@@ -533,8 +533,8 @@ scale = Vector2(0.2, 0.2)
 disable_mode = 2
 script = ExtResource("2_l24ox")
 
-[node name="Sprite2D" type="Sprite2D" parent="Player"]
-texture = ExtResource("2_wwg48")
+[node name="big bossanova" parent="Player" instance=ExtResource("5_p0v6g")]
+scale = Vector2(0.2, 0.2)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
 shape = SubResource("RectangleShape2D_jk8bx")
@@ -583,6 +583,7 @@ anchors_preset = 0
 script = ExtResource("8_yenc1")
 
 [node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer"]
+custom_minimum_size = Vector2(0, 50)
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0

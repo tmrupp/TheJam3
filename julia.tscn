@@ -292,7 +292,6 @@ tracks/23/keys = {
 [sub_resource type="Animation" id="Animation_1pnoo"]
 resource_name = "hop"
 length = 2.0
-loop_mode = 1
 tracks/0/type = "bezier"
 tracks/0/imported = false
 tracks/0/enabled = true
