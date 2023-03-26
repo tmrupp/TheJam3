@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3 uid="uid://dqufsaiouuh3d"]
+[gd_scene load_steps=15 format=3 uid="uid://dqufsaiouuh3d"]
 
 [ext_resource type="Texture2D" uid="uid://bhyc1nxrw6odj" path="res://Terrain (32x32).png" id="1_f7n23"]
 [ext_resource type="Script" path="res://Player.gd" id="2_l24ox"]
@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" uid="uid://b5ci8jwo8g40w" path="res://diamond.tscn" id="5_6soeb"]
 [ext_resource type="Texture2D" uid="uid://c5p6vet241ayk" path="res://Spikes.png" id="6_pbn17"]
 [ext_resource type="PackedScene" uid="uid://d2qggqmyrywnr" path="res://spikes.tscn" id="7_fkcp6"]
+[ext_resource type="PackedScene" uid="uid://bbest6niwe1h3" path="res://map_shard.tscn" id="8_u6cko"]
 [ext_resource type="Script" path="res://MapInfo.gd" id="8_yenc1"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_oaxeo"]
@@ -514,13 +515,13 @@ sources/2 = SubResource("TileSetAtlasSource_5evmg")
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_jk8bx"]
 size = Vector2(130, 130)
 
-[node name="Node2D" type="Node2D"]
+[node name="Main" type="Node2D"]
 
 [node name="TileMap" type="TileMap" parent="."]
 tile_set = SubResource("TileSet_m5irb")
 cell_quadrant_size = 32
 format = 2
-layer_0/tile_data = PackedInt32Array(-65546, 0, 0, -10, 0, 1, 65526, 0, 2, -131061, 131072, 0, -65525, 131072, 1, 11, 131072, 2, -65544, 65536, 0, -65543, 65536, 0, -65542, 65536, 0, -65541, 65536, 0, -65540, 65536, 0, -65538, 65536, 0, -65537, 65536, 0, -131072, 589824, 0, -131071, 65536, 0, -131070, 65536, 0, -131069, 65536, 0, -131068, 65536, 0, -131067, 65536, 0, -131066, 65536, 0, -131065, 458752, 1, -131064, 393216, 1, -131063, 65536, 0, 65528, 65536, 2, 65529, 65536, 2, 65530, 65536, 2, 65531, 65536, 2, 65532, 65536, 2, 65533, 65536, 2, 65534, 65536, 2, 65535, 65536, 2, 0, 65536, 2, 1, 65536, 2, 2, 65536, 2, 3, 65536, 2, 4, 65536, 2, 5, 65536, 2, 6, 65536, 2, 7, 65536, 2, 8, 65536, 2, 9, 65536, 2, -65545, 65536, 0, -131062, 65536, 0, 65527, 65536, 2, 10, 65536, 2, -3, 65536, 1, -4, 65536, 1, -5, 65536, 1, -6, 65536, 1, -7, 65536, 1, -8, 65536, 1, -9, 65536, 1, -2, 65536, 1, -1, 65536, 1, -65536, 65536, 1, -65535, 65536, 1, -65534, 65536, 1, -65533, 65536, 1, -65532, 65536, 1, -65531, 65536, 1, -65530, 65536, 1, -65529, 65536, 1, -65528, 65536, 1, -65527, 65536, 1, -65526, 65536, 1, -262144, 262144, 0, -196608, 262144, 1, -393211, 262144, 0, -327675, 262144, 1, -262139, 983040, 4, -196611, 262144, 0, -131075, 262144, 1, -65539, 589824, 0, -262138, 65536, 4, -262137, 655360, 3, -262136, 589824, 3, -262135, 65536, 4, -262134, 131072, 4, -196601, 0, 1, -196600, 131072, 1)
+layer_0/tile_data = PackedInt32Array(-65546, 0, 0, -10, 0, 1, 65526, 0, 2, -131061, 131072, 0, -65525, 131072, 1, 11, 131072, 2, -65544, 65536, 0, -65543, 65536, 0, -65542, 65536, 0, -65541, 65536, 0, -65540, 65536, 0, -65538, 65536, 0, -65537, 65536, 0, -131072, 589824, 0, -131071, 65536, 0, -131070, 65536, 0, -131069, 65536, 0, -131068, 65536, 0, -131067, 65536, 0, -131066, 65536, 0, -131065, 458752, 1, -131064, 393216, 1, -131063, 65536, 0, 65528, 65536, 2, 65529, 65536, 2, 65530, 65536, 2, 65531, 65536, 2, 65532, 65536, 2, 65533, 65536, 2, 65534, 65536, 2, 65535, 65536, 2, 0, 65536, 2, 1, 65536, 2, 2, 65536, 2, 3, 65536, 2, 4, 65536, 2, 5, 65536, 2, 6, 65536, 2, 7, 65536, 2, 8, 65536, 2, 9, 65536, 2, -65545, 65536, 0, -131062, 65536, 0, 65527, 65536, 2, 10, 65536, 2, -3, 65536, 1, -4, 65536, 1, -5, 65536, 1, -6, 65536, 1, -7, 65536, 1, -8, 65536, 1, -9, 65536, 1, -2, 65536, 1, -1, 65536, 1, -65536, 65536, 1, -65535, 65536, 1, -65534, 65536, 1, -65533, 65536, 1, -65532, 65536, 1, -65531, 65536, 1, -65530, 65536, 1, -65529, 65536, 1, -65528, 65536, 1, -65527, 65536, 1, -65526, 65536, 1, -262144, 262144, 0, -196608, 262144, 1, -393211, 262144, 0, -327675, 262144, 1, -262139, 983040, 4, -196611, 262144, 0, -131075, 262144, 1, -65539, 589824, 0, -262138, 65536, 4, -262137, 655360, 3, -262136, 589824, 3, -262135, 65536, 4, -262134, 131072, 4, -196601, 0, 1, -196600, 131072, 1, -524295, 262144, 4, -458758, 262144, 4, -524291, 131072, 0, -458755, 393216, 1, -458754, 131072, 0, -524292, 0, 0, -458756, 0, 1, -393220, 0, 2, -393219, 655360, 1, -393218, 131072, 2, -327683, 262144, 2)
 script = ExtResource("2_nyxbp")
 
 [node name="Player" type="CharacterBody2D" parent="."]
@@ -536,7 +537,6 @@ texture = ExtResource("2_wwg48")
 shape = SubResource("RectangleShape2D_jk8bx")
 
 [node name="Camera2D" type="Camera2D" parent="Player"]
-position = Vector2(0, -585)
 scale = Vector2(5, 5)
 zoom = Vector2(1.378, 1.378)
 
@@ -567,13 +567,18 @@ rotation = -1.5708
 position = Vector2(-16, -79)
 rotation = -1.5708
 
+[node name="MapShard" parent="." instance=ExtResource("8_u6cko")]
+position = Vector2(175, -216)
+
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
 [node name="MapInfo" type="Control" parent="CanvasLayer"]
 layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("8_yenc1")

@@ -65,8 +65,8 @@ func dash():
 	velocity = dash_direction * DASH_SPEED
 	
 func _physics_process(delta):
-	if position.y > 300:
-		die()
+	# if position.y > 300:
+	# 	die()
 
 	var walled = false
 	var wall_normal

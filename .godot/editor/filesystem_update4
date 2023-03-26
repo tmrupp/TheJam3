@@ -3,3 +3,6 @@ res://main.tscn
 res://menu.tscn
 res://MapInfo.gd
 res://NickTest.tscn
+res://map_shard.tscn
+res://map_shard.gd
+res://diamond.tscn
