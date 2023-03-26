@@ -15,4 +15,5 @@ func setup(_map_info):
 func touch(other):
 	if other == player:
 		map_info.discover_random_chunk()
+		map_info.remove_element(self)
 		queue_free()

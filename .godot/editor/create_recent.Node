@@ -1,10 +1,14 @@
+Button
+LineEdit
+Label
+TextEdit
+HBoxContainer
 Node
 CanvasLayer
 Control
 CenterContainer
 TextureRect
 VBoxContainer
-HBoxContainer
 MarginContainer
 CollisionShape2D
 Sprite2D

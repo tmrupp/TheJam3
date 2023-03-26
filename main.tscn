@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3 uid="uid://dqufsaiouuh3d"]
+[gd_scene load_steps=18 format=3 uid="uid://dqufsaiouuh3d"]
 
 [ext_resource type="Texture2D" uid="uid://bhyc1nxrw6odj" path="res://Terrain (32x32).png" id="1_f7n23"]
 [ext_resource type="Script" path="res://Player.gd" id="2_l24ox"]
@@ -10,6 +10,8 @@
 [ext_resource type="PackedScene" uid="uid://bbest6niwe1h3" path="res://map_shard.tscn" id="8_u6cko"]
 [ext_resource type="Script" path="res://MapInfo.gd" id="8_yenc1"]
 [ext_resource type="Script" path="res://ImageConverter.gd" id="10_682fp"]
+[ext_resource type="Script" path="res://RandomSeed.gd" id="10_lmuma"]
+[ext_resource type="Script" path="res://Regenerate.gd" id="11_4ip40"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_oaxeo"]
 
@@ -577,6 +579,40 @@ position = Vector2(175, -216)
 layout_mode = 3
 anchors_preset = 0
 script = ExtResource("8_yenc1")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -530.0
+offset_bottom = 40.0
+grow_horizontal = 0
+
+[node name="RandomSeed" type="Button" parent="CanvasLayer/HBoxContainer"]
+layout_mode = 2
+text = "Random Seed"
+script = ExtResource("10_lmuma")
+
+[node name="Regenerate" type="Button" parent="CanvasLayer/HBoxContainer"]
+layout_mode = 2
+text = "Regenerate"
+script = ExtResource("11_4ip40")
+
+[node name="WorldSeedLabel" type="Label" parent="CanvasLayer/HBoxContainer"]
+layout_mode = 2
+text = "World Seed"
+
+[node name="WorldSeed" type="LineEdit" parent="CanvasLayer/HBoxContainer"]
+layout_mode = 2
+text = "9999"
+
+[node name="MapSeedLabel" type="Label" parent="CanvasLayer/HBoxContainer"]
+layout_mode = 2
+text = "Map Seed"
+
+[node name="MapSeed" type="LineEdit" parent="CanvasLayer/HBoxContainer"]
+layout_mode = 2
+text = "9999"
 
 [node name="ImageConverter" type="Node" parent="."]
 script = ExtResource("10_682fp")
