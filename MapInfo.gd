@@ -17,7 +17,9 @@ var cells = []
 # const?
 var map_size = Vector2i(100, 100)
 const SPACING = 10.0
-var top_left = Vector2i(0, 0)
+
+var map_local_size = map_size*SPACING
+var top_left = Vector2i(100, 100)
 
 const CHUNK_SIZE = 10
 
@@ -68,6 +70,7 @@ func _ready():
 				ms.setup(self)
 				
 		cells.append(row)
+
 			
 	queue_redraw()
 
@@ -87,6 +90,7 @@ func draw_cell(x, y, cell):
 	draw_rect(Rect2(x*SPACING+top_left.x, y*SPACING+top_left.y, SPACING, SPACING), color)
 
 func _draw():
+	top_left = get_viewport_rect().size/2-map_local_size/2
 	if (enabled):
 		for i in len(cells):
 			for j in len(cells[i]):
