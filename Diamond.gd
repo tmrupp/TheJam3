@@ -4,9 +4,11 @@ const TIMER = 2.0
 var disabled = 0.0
 var touchable = true
 
+@onready var player = $"../Player"
+
 func touch(other):
 	print("i've been touched by", other)
-	if (touchable):
+	if (touchable and other == player):
 		other.refresh_dash()
 		touchable = false
 		disabled = TIMER
