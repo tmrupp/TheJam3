@@ -6,3 +6,4 @@ res://NickTest.tscn
 res://map_shard.tscn
 res://map_shard.gd
 res://diamond.tscn
+res://ImageConverter.gd

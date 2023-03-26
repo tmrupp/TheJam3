@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3 uid="uid://dqufsaiouuh3d"]
+[gd_scene load_steps=16 format=3 uid="uid://dqufsaiouuh3d"]
 
 [ext_resource type="Texture2D" uid="uid://bhyc1nxrw6odj" path="res://Terrain (32x32).png" id="1_f7n23"]
 [ext_resource type="Script" path="res://Player.gd" id="2_l24ox"]
@@ -9,6 +9,7 @@
 [ext_resource type="PackedScene" uid="uid://d2qggqmyrywnr" path="res://spikes.tscn" id="7_fkcp6"]
 [ext_resource type="PackedScene" uid="uid://bbest6niwe1h3" path="res://map_shard.tscn" id="8_u6cko"]
 [ext_resource type="Script" path="res://MapInfo.gd" id="8_yenc1"]
+[ext_resource type="Script" path="res://ImageConverter.gd" id="10_682fp"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_oaxeo"]
 
@@ -576,3 +577,6 @@ position = Vector2(175, -216)
 layout_mode = 3
 anchors_preset = 0
 script = ExtResource("8_yenc1")
+
+[node name="ImageConverter" type="Node" parent="."]
+script = ExtResource("10_682fp")
