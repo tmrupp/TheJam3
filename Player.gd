@@ -59,6 +59,7 @@ func die():
 func jump():
 	velocity.y = JUMP_VELOCITY
 	hanged = false
+	hanging = 0.0
 	
 func dash():
 	velocity = dash_direction * DASH_SPEED
@@ -86,7 +87,7 @@ func _physics_process(delta):
 			var factor = 1.0 if hanging <= 0.0 else HANG_FACTOR
 			velocity.y += gravity * factor * delta
 		
-		print("abs(velocity.y)=", abs(velocity.y))
+#		print("abs(velocity.y)=", abs(velocity.y))
 		if (abs(velocity.y) <= 100 and not hanged):
 			hanging = HANG_TIME
 			hanged = true
