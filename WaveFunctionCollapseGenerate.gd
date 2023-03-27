@@ -10,7 +10,6 @@ var patternWeights:Array[int] # elements are pairwise with 'patterns'; represent
 var totalWeight:int # the sum of the elements of 'patternWeights'; calculated once when sample array is read then never changed
 
 var directionList:Array[Vector2i] # a list of all the valid direction offsets to compare one pattern to another; filled initially and never changed
-
 # Array[Array[Array[int]]] x/y grid and for each cell a list that is a set of indicies
 var currentOptions:Array # The current options possible for every grid square, actively changing while the algorithm runs, holds indicies into 'patterns'
 
@@ -18,18 +17,26 @@ var currentOptions:Array # The current options possible for every grid square, a
 var currentEntropy:Array
 
 var f_time = {}
-@onready var c_time = Time.get_ticks_msec()
+var f_count = {}
+@onready var c_time = Time.get_ticks_usec()
 var c_f = null
+var f_enabled = true
 func f_next():
-	var n_time = Time.get_ticks_msec()
+	if not f_enabled:
+		return
+		
+	var n_time = Time.get_ticks_usec()
 	var d_time = n_time - c_time
-	c_time = n_time
 	if (c_f != null):
 		if c_f not in f_time:
 			f_time[c_f] = 0.0
+			f_count[c_f] = 0
 		f_time[c_f] += d_time
-		print ("function ", c_f, " latest:", d_time, " total=", f_time[c_f])
+		f_count[c_f] += 1
+		
+		print ("function ", c_f, " latest:", d_time, " total=", f_time[c_f], " count=", f_count[c_f], " per=", float(f_time[c_f])/float(f_count[c_f]))
 	c_f = get_stack()[1]["function"]
+	c_time = Time.get_ticks_usec()
 	
 
 class Pattern:
@@ -103,6 +110,7 @@ class Pattern:
 			for y in range(size):
 				if not (x == 0 && y == 0):
 					directions.append(Vector2i(x, y))
+					
 		return directions
 
 # modifies 'patterns', 'patternWeights'
@@ -187,8 +195,40 @@ func getWeightedRandomCellOption(pos:Vector2i) -> int:
 	
 	return currentOptions[pos.x][pos.y][-1]
 
+var meshes = {}
+func cleanMeshWithMemoDict(parentOpt, opt, dir):
+	f_next()
+	if parentOpt not in meshes:
+		meshes[parentOpt] = {}
+	
+	if opt not in meshes[parentOpt]:
+		meshes[parentOpt][opt] = {}
+		
+	if dir not in meshes[parentOpt][opt]:
+		meshes[parentOpt][opt][dir] = patterns[parentOpt].cleanlyMeshesWith(patterns[opt], indexToDirection(dir))
+		
+	return meshes[parentOpt][opt][dir]
+	
+var meshList = []
+func cleanMeshWithMemoList(parentOpt, opt, dir):
+	f_next()
+	return meshList[parentOpt][opt][dir]
+	
+func cleanMeshWithMemoListConstruct():
+	f_next()
+	for i in range(len(patterns)):
+		var row = []
+		for j in range(len(patterns)):
+			var col = []
+			for dir in range(len(directionList)):
+				col.append(patterns[i].cleanlyMeshesWith(patterns[j], directionList[dir]))
+			row.append(col)
+		meshList.append(row)
+	
+				
+		
 # returns bool; true if the propagate was successful, false if we reached a contradiction (a cell is left with no options)
-func propagate(pos:Vector2i, parentPos:Vector2i, direction:Vector2i, remainingRecursionDepth:int) -> bool:
+func propagate(pos:Vector2i, parentPos:Vector2i, directionIndex:int, remainingRecursionDepth:int) -> bool:
 	f_next()
 	# early exit if this isn't a usable position
 #	print("propogating, pos=", pos, " parentPos=", parentPos, " direction=", direction)
@@ -205,7 +245,9 @@ func propagate(pos:Vector2i, parentPos:Vector2i, direction:Vector2i, remainingRe
 	for option in currentOptions[pos.x][pos.y]:
 		var foundWorkingOption:bool = false
 		for parentOption in currentOptions[parentPos.x][parentPos.y]:
-			if patterns[parentOption].cleanlyMeshesWith(patterns[option], direction):
+#			if cleanMeshWithMemoDict(parentOption, option, directionIndex):
+#			if patterns[parentOption].cleanlyMeshesWith(patterns[option], direction):
+			if cleanMeshWithMemoList(parentOption, option, directionIndex):
 				foundWorkingOption = true
 				break;
 		if not foundWorkingOption:
@@ -220,12 +262,15 @@ func propagate(pos:Vector2i, parentPos:Vector2i, direction:Vector2i, remainingRe
 	if currentOptions[pos.x][pos.y].size() < optionCountAtStart:
 		currentEntropy[pos.x][pos.y] = getEntropy(pos.x, pos.y)
 		if remainingRecursionDepth > 0:
-			for dir in directionList:
-				if not propagate(pos + dir, pos, dir, remainingRecursionDepth - 1):
+			for dir in range(len(directionList)):
+				if not propagate(pos + indexToDirection(dir), pos, dir, remainingRecursionDepth - 1):
 #					print("could not propagate at " + str(pos))
 					return false
 	
 	return true
+
+func indexToDirection(i):
+	return directionList[i]
 
 # returns bool
 func collapse(pos:Vector2i) -> bool:
@@ -241,8 +286,8 @@ func collapse(pos:Vector2i) -> bool:
 		
 		var propagateFailed:bool = false
 		# propagate to neighbors
-		for direction in directionList:
-			if not propagate(pos + direction, pos, direction, maximumRecursionDepth):
+		for directionIndex in range(len(directionList)):
+			if not propagate(pos + indexToDirection(directionIndex), pos, directionIndex, maximumRecursionDepth):
 				print("could not propagate: " + str(collapsedValue) + " at " + str(pos))
 				restoreFromBackup(backup[0], backup[1])
 				currentOptions[pos.x][pos.y].erase(collapsedValue)
@@ -311,6 +356,7 @@ func do():
 	var sampleImage = imageConverter.to_array("res://pixil-frame-0.png")
 	parseSampleForPatterns(sampleImage, patternSize)
 	directionList = Pattern.generateDirectionListFromSize(patternSize)
+	cleanMeshWithMemoListConstruct()
 	generateTerrainGrid(width, height)
 	
 	for x in range(width):
