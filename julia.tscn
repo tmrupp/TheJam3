@@ -1563,12 +1563,12 @@ rest = Transform2D(1, 0, 0, 1, -247, 24)
 
 [node name="legrootBR" type="Bone2D" parent="Skeleton2D/root"]
 position = Vector2(-501, 119)
-scale = Vector2(0.999999, 0.999999)
+scale = Vector2(0.999998, 0.999998)
 rest = Transform2D(1, 0, 0, 1, -501, 119)
 
 [node name="legmidBR" type="Bone2D" parent="Skeleton2D/root/legrootBR"]
 position = Vector2(-231, 105)
-scale = Vector2(0.999999, 0.999999)
+scale = Vector2(0.999998, 0.999998)
 rest = Transform2D(1, 0, 0, 1, -231, 105)
 
 [node name="legbotBR" type="Bone2D" parent="Skeleton2D/root/legrootBR/legmidBR"]

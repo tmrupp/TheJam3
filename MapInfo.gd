@@ -82,15 +82,25 @@ func generate(new_seed):
 			row.append(Cell.new(r))
 		cells.append(row)
 	return cells
-
-func generate_all(world_seed, map_seed):
-#	clear_terrain()
-	setup_chunks()
-	map_cells = generate(map_seed)
-	world_cells = generate(world_seed)
 	
-	for i in range(map_size.x):
-		for j in range(map_size.y):
+func load_map(cells):
+	map_cells = cells
+	
+func load_world(cells):
+	world_cells = cells
+	
+func load_all(_world_cells, _map_cells):
+	clear_terrain()
+	load_map(_map_cells)
+	load_world(_world_cells)
+	
+	construct_all()
+	
+func construct_all():
+	setup_chunks()
+	
+	for i in range(len(world_cells)):
+		for j in range(len(world_cells[i])):
 			var cell = world_cells[i][j]
 			if cell.type == Type.GROUND:
 				tile_map.set_cells_terrain_connect(0, [Vector2i(i,j)], 0, 0)
@@ -102,6 +112,13 @@ func generate_all(world_seed, map_seed):
 				elements.append(ms)
 				
 	queue_redraw()
+
+func generate_all(world_seed, map_seed):
+#	clear_terrain()
+	map_cells = generate(map_seed)
+	world_cells = generate(world_seed)
+	
+	construct_all()
 
 var enabled = false
 func _input(event):
