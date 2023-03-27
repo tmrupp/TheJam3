@@ -80,7 +80,10 @@ func dash():
 func _physics_process(delta):
 	# if position.y > 300:
 	# 	die()
-
+	
+#	print("tick")
+#	print("here? animation=", animation_player.current_animation)
+	
 	var walled = false
 	var wall_normal
 
@@ -114,13 +117,15 @@ func _physics_process(delta):
 			hanged = true
 
 		if (not animating_jumping):
-			animation_player.stop()
 			animation_player.play("falling")
 	else:
 		animating_jumping = false
 		if direction.x != 0:
 			animation_player.play("scuttle")
 		else:
+			if animation_player.current_animation == "falling":
+				animation_player.stop()
+#			print("here? animation=", animation_player.assigned_animation)
 			animation_player.play("idle")
 
 		if (buffered_jump > 0.0):

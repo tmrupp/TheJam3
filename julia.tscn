@@ -361,7 +361,6 @@ tracks/29/keys = {
 
 [sub_resource type="Animation" id="Animation_u763l"]
 resource_name = "falling"
-loop_mode = 1
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -917,7 +916,6 @@ tracks/22/keys = {
 [sub_resource type="Animation" id="Animation_djimu"]
 resource_name = "idle"
 length = 2.0
-loop_mode = 1
 tracks/0/type = "bezier"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -1519,7 +1517,6 @@ bone_angle = -182.022
 
 [node name="wingR" type="Bone2D" parent="Skeleton2D/root/wing root"]
 position = Vector2(-19, 0)
-scale = Vector2(1, 1)
 rest = Transform2D(1, 0, 0, 1, -19, 0)
 auto_calculate_length_and_angle = false
 length = 378.073
@@ -1527,7 +1524,6 @@ bone_angle = 165.843
 
 [node name="wingL" type="Bone2D" parent="Skeleton2D/root/wing root"]
 position = Vector2(0, -36)
-scale = Vector2(1, 1)
 rest = Transform2D(1, 0, 0, 1, 0, -36)
 auto_calculate_length_and_angle = false
 length = 470.028
@@ -1535,7 +1531,6 @@ bone_angle = -190.112
 
 [node name="legrootFR" type="Bone2D" parent="Skeleton2D/root"]
 position = Vector2(115, 181)
-scale = Vector2(1, 1)
 rest = Transform2D(1, 0, 0, 1, 115, 181)
 
 [node name="legtopFR" type="Bone2D" parent="Skeleton2D/root/legrootFR"]
@@ -1552,7 +1547,6 @@ rest = Transform2D(1, 0, 0, 1, 140, 78)
 
 [node name="legrootMR" type="Bone2D" parent="Skeleton2D/root"]
 position = Vector2(-100, 181)
-scale = Vector2(1, 1)
 rest = Transform2D(1, 0, 0, 1, -100, 181)
 
 [node name="legtopMR" type="Bone2D" parent="Skeleton2D/root/legrootMR"]
@@ -1569,10 +1563,12 @@ rest = Transform2D(1, 0, 0, 1, -247, 24)
 
 [node name="legrootBR" type="Bone2D" parent="Skeleton2D/root"]
 position = Vector2(-501, 119)
+scale = Vector2(0.999999, 0.999999)
 rest = Transform2D(1, 0, 0, 1, -501, 119)
 
 [node name="legmidBR" type="Bone2D" parent="Skeleton2D/root/legrootBR"]
 position = Vector2(-231, 105)
+scale = Vector2(0.999999, 0.999999)
 rest = Transform2D(1, 0, 0, 1, -231, 105)
 
 [node name="legbotBR" type="Bone2D" parent="Skeleton2D/root/legrootBR/legmidBR"]
@@ -1581,6 +1577,7 @@ rest = Transform2D(1, 0, 0, 1, -145, 262)
 
 [node name="legrootFL" type="Bone2D" parent="Skeleton2D/root"]
 position = Vector2(362, 12)
+scale = Vector2(0.999999, 0.999999)
 rest = Transform2D(1, 0, 0, 1, 362, 12)
 
 [node name="legmidFL" type="Bone2D" parent="Skeleton2D/root/legrootFL"]
@@ -1597,6 +1594,7 @@ rest = Transform2D(1, 0, 0, 1, 93, 69)
 [node name="legrootML" type="Bone2D" parent="Skeleton2D/root"]
 position = Vector2(-62, -131)
 rotation = -0.240855
+scale = Vector2(0.999999, 0.999999)
 rest = Transform2D(1, 0, 0, 1, -62, -131)
 
 [node name="legtopML" type="Bone2D" parent="Skeleton2D/root/legrootML"]
