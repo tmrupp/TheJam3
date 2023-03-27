@@ -128,6 +128,13 @@ func _physics_process(delta):
 	# As good practice, you should replace UI actions with custom gameplay actions.
 	var direction = Vector2.RIGHT * Input.get_axis("Left", "Right") + Vector2.DOWN * Input.get_axis("Up", "Down")
 	
+	if direction.x != 0:
+		if direction.x > 0:
+			sprite.scale.x = abs(sprite.scale.x)
+		else:
+			sprite.scale.x = -abs(sprite.scale.x)
+		
+	
 	manual_control = not (dashing > 0 or wall_jumping > 0)
 
 	if (manual_control):
