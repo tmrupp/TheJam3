@@ -20,7 +20,7 @@ var f_time = {}
 var f_count = {}
 @onready var c_time = Time.get_ticks_usec()
 var c_f = null
-var f_enabled = true
+var f_enabled = false
 func f_next():
 	if not f_enabled:
 		return
@@ -368,4 +368,5 @@ func do():
 	
 # Called when the node enters the scene tree for the first time.
 func _ready():
+	do()
 	pass

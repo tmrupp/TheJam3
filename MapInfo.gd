@@ -102,6 +102,7 @@ func load_world(cells):
 func load_all(_world_cells, _map_cells):
 	clear_terrain()
 	load_map(_map_cells)
+#	print("_map_cells=", len(_map_cells), "map_cells=", len(map_cells))
 	load_world(_world_cells)
 	
 	construct_all()
@@ -112,6 +113,7 @@ func construct_all():
 	for i in range(len(world_cells)):
 		for j in range(len(world_cells[i])):
 			var cell = world_cells[i][j]
+#			print("Setting a tile @=", Vector2i(i,j), " cell.type=", cell.type)
 			if cell.type == Type.GROUND:
 				tile_map.set_cells_terrain_connect(0, [Vector2i(i,j)], 0, 0)
 			elif cell.type == Type.SHARD:
@@ -120,6 +122,7 @@ func construct_all():
 				ms.position = tile_map.map_to_local(Vector2i(i,j))
 				ms.setup(self)
 				elements.append(ms)
+			
 				
 	queue_redraw()
 
