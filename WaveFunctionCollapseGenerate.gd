@@ -97,8 +97,10 @@ class Pattern:
 	# returns Array[Vector2i]
 	static func generateDirectionListFromSize(size:int) -> Array[Vector2i]:
 		var directions:Array[Vector2i] = []
-		for x in range(-(size-1), size):
-			for y in range(-(size-1), size):
+#		for x in range(-(size-1), size):
+#			for y in range(-(size-1), size):
+		for x in range(size):
+			for y in range(size):
 				if not (x == 0 && y == 0):
 					directions.append(Vector2i(x, y))
 		return directions
@@ -136,6 +138,9 @@ func parseSampleForPatterns(sampleArray:Array, patternSize:int):
 
 func getEntropy(x:int, y:int) -> float:
 	f_next()
+	if currentOptions[x][y].size() == 1:
+		return 0
+	
 	var entropy:float = 0
 	
 	for optionIndex in currentOptions[x][y]:
@@ -217,7 +222,7 @@ func propagate(pos:Vector2i, parentPos:Vector2i, direction:Vector2i, remainingRe
 		if remainingRecursionDepth > 0:
 			for dir in directionList:
 				if not propagate(pos + dir, pos, dir, remainingRecursionDepth - 1):
-					print("could not propagate at " + str(pos))
+#					print("could not propagate at " + str(pos))
 					return false
 	
 	return true
@@ -225,17 +230,31 @@ func propagate(pos:Vector2i, parentPos:Vector2i, direction:Vector2i, remainingRe
 # returns bool
 func collapse(pos:Vector2i) -> bool:
 	f_next()
-	var collapsedValue:int = getWeightedRandomCellOption(pos)
-	currentOptions[pos.x][pos.y] = [collapsedValue]
-	currentEntropy[pos.x][pos.y] = 0
-	
-	# propagate to neighbors
-	for direction in directionList:
-		if not propagate(pos + direction, pos, direction, maximumRecursionDepth):
-			print("could not propagate: " + str(collapsedValue) + " at " + str(pos))
-			return false
-	
-	return true
+	var backup:Array = makeBackupOfOptionsAndEntropies()
+
+	while currentOptions[pos.x][pos.y].size() > 0:
+		var collapsedValue:int = getWeightedRandomCellOption(pos)
+		currentOptions[pos.x][pos.y] = [collapsedValue]
+		currentEntropy[pos.x][pos.y] = 0
+		
+		print("attempting to collapse " + str(pos) + " to " + str(collapsedValue))
+		
+		var propagateFailed:bool = false
+		# propagate to neighbors
+		for direction in directionList:
+			if not propagate(pos + direction, pos, direction, maximumRecursionDepth):
+				print("could not propagate: " + str(collapsedValue) + " at " + str(pos))
+				restoreFromBackup(backup[0], backup[1])
+				currentOptions[pos.x][pos.y].erase(collapsedValue)
+				propagateFailed = true
+				break
+				
+		if not propagateFailed:
+			print("successfully collapsed " + str(pos))
+			return true
+		
+	print("algorithm failed, all options at " + str(pos) + " resulted in contradiction")
+	return false
 
 func initializeGrid():
 	f_next()
@@ -267,6 +286,14 @@ func generateTerrainGrid(width:int, height:int):
 			print("reached contradiction, trying again")
 			initializeGrid()
 
+# we assume sizes are correct
+func restoreFromBackup(backupOptions:Array, backupEntropies:Array):
+	currentOptions = backupOptions.duplicate(true)
+	currentEntropy = backupEntropies.duplicate(true)
+	
+func makeBackupOfOptionsAndEntropies():
+	return [currentOptions.duplicate(true), currentEntropy.duplicate(true)]
+
 func _input(event):
 	if event.is_action_pressed("Jump"):
 		do()
@@ -285,7 +312,6 @@ func do():
 	var mapInfo = get_tree().get_root().get_child(0).find_child("CanvasLayer").find_child("MapInfo")
 	mapInfo.load_all(currentOptions, currentOptions)
 	
-
 # Called when the node enters the scene tree for the first time.
 func _ready():
 	pass
