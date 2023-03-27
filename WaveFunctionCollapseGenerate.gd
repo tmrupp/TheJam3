@@ -20,7 +20,8 @@ var f_time = {}
 var f_count = {}
 @onready var c_time = Time.get_ticks_usec()
 var c_f = null
-var f_enabled = false
+var f_enabled = true
+var f_verbose = false
 func f_next():
 	if not f_enabled:
 		return
@@ -34,9 +35,15 @@ func f_next():
 		f_time[c_f] += d_time
 		f_count[c_f] += 1
 		
-		print ("function ", c_f, " latest:", d_time, " total=", f_time[c_f], " count=", f_count[c_f], " per=", float(f_time[c_f])/float(f_count[c_f]))
+		if (f_verbose):
+			print ("function ", c_f, " latest:", d_time, " total=", f_time[c_f], " count=", f_count[c_f], " per=", float(f_time[c_f])/float(f_count[c_f]))
 	c_f = get_stack()[1]["function"]
 	c_time = Time.get_ticks_usec()
+	
+func f_print_all():
+	print("***ALL***")
+	for c_f in f_time.keys():
+		print ("function ", c_f, " total=", f_time[c_f], " count=", f_count[c_f], " per=", float(f_time[c_f])/float(f_count[c_f]))
 	
 
 class Pattern:
@@ -209,7 +216,9 @@ func cleanMeshWithMemoDict(parentOpt, opt, dir):
 		
 	return meshes[parentOpt][opt][dir]
 	
-var meshList = []
+#var meshList = []
+# Array[Array[Array]]]
+var meshList : Array
 func cleanMeshWithMemoList(parentOpt, opt, dir):
 	f_next()
 	return meshList[parentOpt][opt][dir]
@@ -217,9 +226,9 @@ func cleanMeshWithMemoList(parentOpt, opt, dir):
 func cleanMeshWithMemoListConstruct():
 	f_next()
 	for i in range(len(patterns)):
-		var row = []
+		var row:Array = []
 		for j in range(len(patterns)):
-			var col = []
+			var col:Array = []
 			for dir in range(len(directionList)):
 				col.append(patterns[i].cleanlyMeshesWith(patterns[j], directionList[dir]))
 			row.append(col)
@@ -330,6 +339,7 @@ func initializeGrid():
 func generateTerrainGrid(width:int, height:int):
 	f_next()
 	initializeGrid()
+	seed(9999)
 	
 	while not isEveryCellDecided():
 		var pos:Vector2i = getLeastNonzeroEntropy()
@@ -369,4 +379,5 @@ func do():
 # Called when the node enters the scene tree for the first time.
 func _ready():
 	do()
+	f_print_all()
 	pass
