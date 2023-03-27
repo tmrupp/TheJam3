@@ -20,7 +20,7 @@ var f_time = {}
 var f_count = {}
 @onready var c_time = Time.get_ticks_usec()
 var c_f = null
-var f_enabled = false
+var f_enabled = true
 var f_verbose = false
 func f_next():
 	if not f_enabled:
@@ -338,7 +338,7 @@ func initializeGrid():
 func generateTerrainGrid(width:int, height:int):
 	f_next()
 	initializeGrid()
-	seed(9999)
+	seed(999899)
 	
 	while not isEveryCellDecided():
 		var pos:Vector2i = getLeastNonzeroEntropy()
