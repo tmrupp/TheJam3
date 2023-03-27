@@ -1,17 +1,15 @@
-[gd_scene load_steps=18 format=3 uid="uid://dqufsaiouuh3d"]
+[gd_scene load_steps=16 format=3 uid="uid://dqufsaiouuh3d"]
 
 [ext_resource type="Texture2D" uid="uid://csb7dsidgvahr" path="res://TerrainJam3 (32x32).png" id="1_gj4jo"]
 [ext_resource type="Script" path="res://Player.gd" id="2_l24ox"]
 [ext_resource type="Script" path="res://TileMap.gd" id="2_nyxbp"]
-[ext_resource type="PackedScene" uid="uid://b5ci8jwo8g40w" path="res://diamond.tscn" id="5_6soeb"]
 [ext_resource type="PackedScene" uid="uid://do6pc8fn6e1dp" path="res://julia.tscn" id="5_p0v6g"]
 [ext_resource type="Texture2D" uid="uid://c5p6vet241ayk" path="res://Spikes.png" id="6_pbn17"]
-[ext_resource type="PackedScene" uid="uid://d2qggqmyrywnr" path="res://spikes.tscn" id="7_fkcp6"]
-[ext_resource type="PackedScene" path="res://map_shard.tscn" id="8_u6cko"]
 [ext_resource type="Script" path="res://MapInfo.gd" id="8_yenc1"]
 [ext_resource type="Script" path="res://ImageConverter.gd" id="10_682fp"]
 [ext_resource type="Script" path="res://RandomSeed.gd" id="10_lmuma"]
 [ext_resource type="Script" path="res://Regenerate.gd" id="11_4ip40"]
+[ext_resource type="Script" path="res://WaveFunctionCollapseGenerate.gd" id="13_hg4ow"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_oaxeo"]
 
@@ -524,11 +522,10 @@ size = Vector2(130, 130)
 tile_set = SubResource("TileSet_m5irb")
 cell_quadrant_size = 32
 format = 2
-layer_0/tile_data = PackedInt32Array(-65546, 0, 0, -10, 0, 1, 65526, 0, 2, -131061, 131072, 0, -65525, 131072, 1, 11, 131072, 2, -65544, 65536, 0, -65543, 65536, 0, -65542, 65536, 0, -65541, 65536, 0, -65540, 65536, 0, -65538, 65536, 0, -65537, 65536, 0, -131072, 589824, 0, -131071, 65536, 0, -131070, 65536, 0, -131069, 65536, 0, -131068, 65536, 0, -131067, 65536, 0, -131066, 65536, 0, -131065, 458752, 1, -131064, 393216, 1, -131063, 65536, 0, 65528, 65536, 2, 65529, 65536, 2, 65530, 65536, 2, 65531, 65536, 2, 65532, 65536, 2, 65533, 65536, 2, 65534, 65536, 2, 65535, 65536, 2, 0, 65536, 2, 1, 65536, 2, 2, 65536, 2, 3, 65536, 2, 4, 65536, 2, 5, 65536, 2, 6, 65536, 2, 7, 65536, 2, 8, 65536, 2, 9, 65536, 2, -65545, 65536, 0, -131062, 65536, 0, 65527, 65536, 2, 10, 65536, 2, -3, 65536, 1, -4, 65536, 1, -5, 65536, 1, -6, 65536, 1, -7, 65536, 1, -8, 65536, 1, -9, 65536, 1, -2, 65536, 1, -1, 65536, 1, -65536, 65536, 1, -65535, 65536, 1, -65534, 65536, 1, -65533, 65536, 1, -65532, 65536, 1, -65531, 65536, 1, -65530, 65536, 1, -65529, 65536, 1, -65528, 65536, 1, -65527, 65536, 1, -65526, 65536, 1, -262144, 262144, 0, -196608, 262144, 1, -393211, 262144, 0, -327675, 262144, 1, -262139, 983040, 4, -196611, 262144, 0, -131075, 262144, 1, -65539, 589824, 0, -262138, 65536, 4, -262137, 655360, 3, -262136, 589824, 3, -262135, 65536, 4, -262134, 131072, 4, -196601, 0, 1, -196600, 131072, 1, -524295, 262144, 4, -458758, 262144, 4, -524291, 131072, 0, -458755, 393216, 1, -458754, 131072, 0, -524292, 0, 0, -458756, 0, 1, -393220, 0, 2, -393219, 655360, 1, -393218, 131072, 2, -327683, 262144, 2)
 script = ExtResource("2_nyxbp")
 
 [node name="Player" type="CharacterBody2D" parent="."]
-position = Vector2(-436, -153)
+position = Vector2(58.0001, -202)
 rotation = -6.28319
 scale = Vector2(0.2, 0.2)
 disable_mode = 2
@@ -541,40 +538,12 @@ scale = Vector2(0.2, 0.2)
 shape = SubResource("RectangleShape2D_jk8bx")
 
 [node name="Camera2D" type="Camera2D" parent="Player"]
+position = Vector2(-10, 9.99994)
 scale = Vector2(5, 5)
-zoom = Vector2(1.378, 1.378)
-
-[node name="Diamond" parent="." instance=ExtResource("5_6soeb")]
-position = Vector2(548, -419)
-
-[node name="Diamond2" parent="." instance=ExtResource("5_6soeb")]
-position = Vector2(-334, -313)
-
-[node name="Diamond3" parent="." instance=ExtResource("5_6soeb")]
-position = Vector2(153, -473)
+zoom = Vector2(0.5, 0.5)
 
 [node name="Respawn" type="Node2D" parent="."]
-position = Vector2(-585, -182)
-
-[node name="Spikes" parent="." instance=ExtResource("7_fkcp6")]
-position = Vector2(-48, -144)
-
-[node name="Spikes2" parent="." instance=ExtResource("7_fkcp6")]
-position = Vector2(-80, -144)
-
-[node name="Spikes3" parent="." instance=ExtResource("7_fkcp6")]
-position = Vector2(81, -144)
-
-[node name="Spikes4" parent="." instance=ExtResource("7_fkcp6")]
-position = Vector2(304, -221)
-rotation = -1.5708
-
-[node name="Spikes5" parent="." instance=ExtResource("7_fkcp6")]
-position = Vector2(-16, -143)
-rotation = -1.5708
-
-[node name="MapShard" parent="." instance=ExtResource("8_u6cko")]
-position = Vector2(39, -307)
+position = Vector2(100, -100)
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
@@ -620,3 +589,10 @@ text = "9999"
 
 [node name="ImageConverter" type="Node" parent="."]
 script = ExtResource("10_682fp")
+
+[node name="WaveFunctionCollapse" type="Node" parent="."]
+script = ExtResource("13_hg4ow")
+width = 5
+height = 5
+patternSize = 3
+maximumRecursionDepth = 50

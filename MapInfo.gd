@@ -58,7 +58,8 @@ var map_shard = preload("res://map_shard.tscn")
 @onready var main = $"../.."
 # Called when the node enters the scene tree for the first time.
 func _ready():
-	generate_all(9999, 9999)
+	# generate_all(9999, 9999)
+	pass # more like ass
 
 func remove_element(elem):
 	elements.erase(elem)
@@ -83,15 +84,36 @@ func generate(new_seed):
 		cells.append(row)
 	return cells
 
-func generate_all(world_seed, map_seed):
-#	clear_terrain()
-	setup_chunks()
-	map_cells = generate(map_seed)
-	world_cells = generate(world_seed)
+func convert_to_cells(cells):
+	var new_cells = []
+	for i in len(cells):
+		var row = []
+		for j in len(cells[i]):
+			row.append(Cell.new(cells[i][j]))
+		new_cells.append(row)
+	return new_cells
+
+func load_map(cells):
+	map_cells = convert_to_cells(cells)
 	
-	for i in range(map_size.x):
-		for j in range(map_size.y):
+func load_world(cells):
+	world_cells = convert_to_cells(cells)
+	
+func load_all(_world_cells, _map_cells):
+	clear_terrain()
+	load_map(_map_cells)
+#	print("_map_cells=", len(_map_cells), "map_cells=", len(map_cells))
+	load_world(_world_cells)
+	
+	construct_all()
+	
+func construct_all():
+	setup_chunks()
+	
+	for i in range(len(world_cells)):
+		for j in range(len(world_cells[i])):
 			var cell = world_cells[i][j]
+			print("Setting a tile @=", Vector2i(i,j), " cell.type=", cell.type)
 			if cell.type == Type.GROUND:
 				tile_map.set_cells_terrain_connect(0, [Vector2i(i,j)], 0, 0)
 			elif cell.type == Type.SHARD:
@@ -100,8 +122,16 @@ func generate_all(world_seed, map_seed):
 				ms.position = tile_map.map_to_local(Vector2i(i,j))
 				ms.setup(self)
 				elements.append(ms)
+			
 				
 	queue_redraw()
+
+func generate_all(world_seed, map_seed):
+#	clear_terrain()
+	map_cells = generate(map_seed)
+	world_cells = generate(world_seed)
+	
+	construct_all()
 
 var enabled = false
 func _input(event):
