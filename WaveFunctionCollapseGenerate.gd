@@ -361,7 +361,7 @@ func do():
 	
 	for x in range(width):
 		for y in range(height):
-			currentOptions[x][y] = currentOptions[x][y][0]
+			currentOptions[x][y] = patterns[currentOptions[x][y][0]].data[0][0]
 	
 	var mapInfo = get_tree().get_root().get_child(0).find_child("CanvasLayer").find_child("MapInfo")
 	mapInfo.load_all(currentOptions, currentOptions)
