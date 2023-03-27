@@ -103,7 +103,7 @@ func load_all(_world_cells, _map_cells):
 	clear_terrain()
 	load_map(_map_cells)
 	load_world(_world_cells)
-	print("_world_cells=", len(_world_cells), "world_cells=", len(world_cells))
+	print("_world_cells=", len(_world_cells), "x", len(_world_cells[0]), " world_cells=", len(world_cells), "x", len(world_cells[0]))
 	
 	construct_all()
 	
