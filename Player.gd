@@ -50,7 +50,9 @@ func refresh_dash ():
 	has_dash = true
 
 func animation_finished(animation):
-	print("finished, ", animation)
+	# print("finished, ", animation)
+	if (animation == "hop"):
+		animating_jumping = false
 	pass
 
 var respawn
@@ -63,12 +65,14 @@ func die():
 	position = respawn.position
 	velocity = Vector2.ZERO	
 
+var animating_jumping = false
 func jump():
 	velocity.y = JUMP_VELOCITY
 	animation_player.play("hop", -1, 4)
-	animation_player.clear_queue()
+	animation_player.queue("falling")
 	hanged = false
 	hanging = 0.0
+	animating_jumping = true
 	
 func dash():
 	velocity = dash_direction * DASH_SPEED
@@ -79,12 +83,20 @@ func _physics_process(delta):
 
 	var walled = false
 	var wall_normal
+
+	var direction = Vector2.RIGHT * Input.get_axis("Left", "Right") + Vector2.DOWN * Input.get_axis("Up", "Down")
+	
+	if direction.x != 0:
+		if direction.x > 0:
+			sprite.scale.x = abs(sprite.scale.x)
+		else:
+			sprite.scale.x = -abs(sprite.scale.x)
+
 	for i in get_slide_collision_count():
 		var col = get_slide_collision(i)
 		if (col.get_normal().x != 0):
 			walled = true
 			wall_normal = col.get_normal()
-
 
 	# Add the gravity.
 	if not is_on_floor():
@@ -100,7 +112,17 @@ func _physics_process(delta):
 		if (abs(velocity.y) <= 100 and not hanged):
 			hanging = HANG_TIME
 			hanged = true
+
+		if (not animating_jumping):
+			animation_player.stop()
+			animation_player.play("falling")
 	else:
+		animating_jumping = false
+		if direction.x != 0:
+			animation_player.play("scuttle")
+		else:
+			animation_player.play("idle")
+
 		if (buffered_jump > 0.0):
 			# print(" buffered_jump=",buffered_jump)
 			buffered_jump = 0.0
@@ -108,6 +130,7 @@ func _physics_process(delta):
 		refresh_dash()
 		coyoted = false
 		hanged = false
+		
 	
 	if dashing > 0:
 		coyoting = 0.0
@@ -126,13 +149,7 @@ func _physics_process(delta):
 
 	# Get the input direction and handle the movement/deceleration.
 	# As good practice, you should replace UI actions with custom gameplay actions.
-	var direction = Vector2.RIGHT * Input.get_axis("Left", "Right") + Vector2.DOWN * Input.get_axis("Up", "Down")
 	
-	if direction.x != 0:
-		if direction.x > 0:
-			sprite.scale.x = abs(sprite.scale.x)
-		else:
-			sprite.scale.x = -abs(sprite.scale.x)
 		
 	
 	manual_control = not (dashing > 0 or wall_jumping > 0)
