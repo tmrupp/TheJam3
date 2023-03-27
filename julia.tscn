@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://do6pc8fn6e1dp"]
+[gd_scene load_steps=8 format=3 uid="uid://do6pc8fn6e1dp"]
 
 [ext_resource type="Texture2D" uid="uid://b4bdm2gge5xd5" path="res://sprites/bigbossref.png" id="1_ykfv7"]
 [ext_resource type="Texture2D" uid="uid://bpr1sbg8w3qds" path="res://sprites/bigbossspritesheet.png" id="2_aetg7"]
@@ -311,6 +311,40 @@ tracks/25/keys = {
 "transitions": PackedFloat32Array(1),
 "update": 0,
 "values": [Vector2(1, 1)]
+}
+tracks/26/type = "bezier"
+tracks/26/imported = false
+tracks/26/enabled = true
+tracks/26/path = NodePath("Skeleton2D/root:scale:x")
+tracks/26/interp = 1
+tracks/26/loop_wrap = true
+tracks/26/keys = {
+"handle_modes": PackedInt32Array(0),
+"points": PackedFloat32Array(1.00901, -0.25, 0, 0.25, 0),
+"times": PackedFloat32Array(0)
+}
+tracks/27/type = "bezier"
+tracks/27/imported = false
+tracks/27/enabled = true
+tracks/27/path = NodePath("Skeleton2D/root:scale:y")
+tracks/27/interp = 1
+tracks/27/loop_wrap = true
+tracks/27/keys = {
+"handle_modes": PackedInt32Array(0),
+"points": PackedFloat32Array(0.990987, -0.25, 0, 0.25, 0),
+"times": PackedFloat32Array(0)
+}
+tracks/28/type = "value"
+tracks/28/imported = false
+tracks/28/enabled = true
+tracks/28/path = NodePath("Skeleton2D/root/headbot/mandibles:rotation")
+tracks/28/interp = 1
+tracks/28/loop_wrap = true
+tracks/28/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
 }
 
 [sub_resource type="Animation" id="Animation_1pnoo"]
@@ -855,10 +889,84 @@ tracks/21/keys = {
 "values": [0.0, 0.322886, 0.0]
 }
 
+[sub_resource type="Animation" id="Animation_djimu"]
+resource_name = "idle"
+length = 2.0
+loop_mode = 1
+tracks/0/type = "bezier"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Skeleton2D/root:position:x")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0, -0.25, 0, 0.25, 0, 0, -0.25, 0, 0.25, 0, 0, -0.25, 0, 0.25, 0, 0, -0.25, 0, 0.25, 0, 0, -0.25, 0, 0.25, 0),
+"times": PackedFloat32Array(0, 0.6, 1.1, 1.6, 2)
+}
+tracks/1/type = "bezier"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Skeleton2D/root:position:y")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0, -0.25, 0, 0, -7, -10, -0.25, 0, 0.25, 0, 0, 0, -7, 0, 6, 10, -0.25, 0, 0.25, 0, 0, 0, 7, 0.25, 0),
+"times": PackedFloat32Array(0, 0.6, 1.1, 1.6, 2)
+}
+tracks/2/type = "bezier"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Skeleton2D/root:scale:x")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0),
+"points": PackedFloat32Array(1, -0.25, 0, 0.25, 0, 0.99, -0.25, 0, 0.25, 0, 1, -0.25, 0, 0.25, 0, 1.01, -0.25, 0, 0.25, 0, 1, -0.25, 0, 0.25, 0),
+"times": PackedFloat32Array(0, 0.6, 1.1, 1.6, 2)
+}
+tracks/3/type = "bezier"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Skeleton2D/root:scale:y")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0),
+"points": PackedFloat32Array(1, -0.25, 0, 0.25, 0, 1.01, -0.25, 0, 0.25, 0, 1, -0.25, 0, 0.25, 0, 0.99, -0.25, 0, 0.25, 0, 1, -0.25, 0, 0.25, 0),
+"times": PackedFloat32Array(0, 0.6, 1.1, 1.6, 2)
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Skeleton2D/root/eye:scale")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 0.7, 0.8, 1.1, 1.2, 1.3, 1.4, 1.7, 1.8, 2),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(1, 1), Vector2(1, 1), Vector2(1, 1e-05), Vector2(1, 1e-05), Vector2(1, 1), Vector2(1, 1), Vector2(1, 1e-05), Vector2(1, 1e-05), Vector2(1, 1), Vector2(1, 1)]
+}
+tracks/5/type = "value"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("Skeleton2D/root/headbot/mandibles:rotation")
+tracks/5/interp = 1
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 0.1, 0.2, 0.3, 0.4, 0.5, 2),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [0.0, -0.966912, 0.0, 0.0, -0.966912, 0.0, 0.0]
+}
+
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_hsitu"]
 _data = {
 "RESET": SubResource("Animation_rautg"),
 "hop": SubResource("Animation_1pnoo"),
+"idle": SubResource("Animation_djimu"),
 "scuttle": SubResource("Animation_hkqta")
 }
 
@@ -1068,12 +1176,12 @@ bones = ["root", PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 [node name="Skeleton2D" type="Skeleton2D" parent="."]
 
 [node name="root" type="Bone2D" parent="Skeleton2D"]
-scale = Vector2(1, 1)
+scale = Vector2(1.00901, 0.990987)
+skew = 0.0157298
 rest = Transform2D(1, 0, 0, 1, 57, -350)
 
 [node name="headtop" type="Bone2D" parent="Skeleton2D/root"]
 position = Vector2(257, -22)
-scale = Vector2(1, 1)
 rest = Transform2D(1, 0, 0, 1, 257, -22)
 auto_calculate_length_and_angle = false
 length = 584.972
@@ -1152,12 +1260,10 @@ rest = Transform2D(1, 0, 0, 1, -100, 181)
 
 [node name="legtopMR" type="Bone2D" parent="Skeleton2D/root/legrootMR"]
 position = Vector2(-76, 0)
-scale = Vector2(1, 1)
 rest = Transform2D(1, 0, 0, 1, -76, 0)
 
 [node name="legmidMR" type="Bone2D" parent="Skeleton2D/root/legrootMR/legtopMR"]
 position = Vector2(-183, 162)
-scale = Vector2(1, 1)
 rest = Transform2D(1, 0, 0, 1, -183, 162)
 
 [node name="legbotMR" type="Bone2D" parent="Skeleton2D/root/legrootMR/legtopMR/legmidMR"]
@@ -1166,6 +1272,7 @@ rest = Transform2D(1, 0, 0, 1, -247, 24)
 
 [node name="legrootBR" type="Bone2D" parent="Skeleton2D/root"]
 position = Vector2(-501, 119)
+scale = Vector2(1, 1)
 rest = Transform2D(1, 0, 0, 1, -501, 119)
 
 [node name="legmidBR" type="Bone2D" parent="Skeleton2D/root/legrootBR"]
@@ -1179,6 +1286,7 @@ rest = Transform2D(1, 0, 0, 1, -145, 262)
 
 [node name="legrootFL" type="Bone2D" parent="Skeleton2D/root"]
 position = Vector2(362, 12)
+scale = Vector2(1, 1)
 rest = Transform2D(1, 0, 0, 1, 362, 12)
 
 [node name="legmidFL" type="Bone2D" parent="Skeleton2D/root/legrootFL"]
@@ -1195,6 +1303,7 @@ rest = Transform2D(1, 0, 0, 1, 93, 69)
 [node name="legrootML" type="Bone2D" parent="Skeleton2D/root"]
 position = Vector2(-62, -131)
 rotation = -0.240855
+scale = Vector2(1, 1)
 rest = Transform2D(1, 0, 0, 1, -62, -131)
 
 [node name="legtopML" type="Bone2D" parent="Skeleton2D/root/legrootML"]
