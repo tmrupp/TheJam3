@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://do6pc8fn6e1dp"]
+[gd_scene load_steps=9 format=3 uid="uid://do6pc8fn6e1dp"]
 
 [ext_resource type="Texture2D" uid="uid://b4bdm2gge5xd5" path="res://sprites/bigbossref.png" id="1_ykfv7"]
 [ext_resource type="Texture2D" uid="uid://bpr1sbg8w3qds" path="res://sprites/bigbossspritesheet.png" id="2_aetg7"]
@@ -962,9 +962,25 @@ tracks/5/keys = {
 "values": [0.0, -0.966912, 0.0, 0.0, -0.966912, 0.0, 0.0]
 }
 
+[sub_resource type="Animation" id="Animation_u763l"]
+resource_name = "falling"
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Skeleton2D/root:scale")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(),
+"transitions": PackedFloat32Array(),
+"update": 0,
+"values": []
+}
+
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_hsitu"]
 _data = {
 "RESET": SubResource("Animation_rautg"),
+"falling": SubResource("Animation_u763l"),
 "hop": SubResource("Animation_1pnoo"),
 "idle": SubResource("Animation_djimu"),
 "scuttle": SubResource("Animation_hkqta")
