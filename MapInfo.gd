@@ -112,9 +112,6 @@ func construct_all():
 	for i in range(len(world_cells)):
 		for j in range(len(world_cells[i])):
 			var cell = world_cells[i][j]
-			
-			print("cell=", cell)
-			
 			if cell.type == Type.GROUND:
 				tile_map.set_cells_terrain_connect(0, [Vector2i(i,j)], 0, 0)
 			elif cell.type == Type.SHARD:

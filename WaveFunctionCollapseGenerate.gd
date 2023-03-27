@@ -17,18 +17,36 @@ var currentOptions:Array # The current options possible for every grid square, a
 # Array[Array[int]] x/y grid and for each cell its entropy
 var currentEntropy:Array
 
+var f_time = {}
+@onready var c_time = Time.get_ticks_msec()
+var c_f = null
+func f_next():
+	var n_time = Time.get_ticks_msec()
+	var d_time = n_time - c_time
+	c_time = n_time
+	if (c_f != null):
+		if c_f not in f_time:
+			f_time[c_f] = 0.0
+		f_time[c_f] += d_time
+		print ("function ", c_f, " latest:", d_time, " total=", f_time[c_f])
+	c_f = get_stack()[1]["function"]
+	
+
 class Pattern:
 	# all patterns are square, this is the side length of the square
 	var size:int
 	# double subscripted array of length size x size
 	var data
+	var wfc
 	
-	func _init(_size:int, _data):
+	func _init(_size:int, _data, _wfc):
 		size = _size
 		data = _data
+		wfc = _wfc
 	
 	# returns true when this pattern and 'other' can be laid on top of each other when offseting 'other' by 'direction'
 	func cleanlyMeshesWith(other:Pattern, direction:Vector2i):
+		wfc.f_next()
 		# early exit for non-overlapping patterns
 		if \
 		# if the other pattern is further in the +x than ours is long in the +x
@@ -88,6 +106,7 @@ class Pattern:
 # modifies 'patterns', 'patternWeights'
 # sampleArray: Array[Array[int]] x/y grid and for each cell is an int identifying what type that cell is
 func parseSampleForPatterns(sampleArray:Array, patternSize:int):
+	f_next()
 	patterns = []
 	patternWeights = []
 	# for each row
@@ -108,7 +127,7 @@ func parseSampleForPatterns(sampleArray:Array, patternSize:int):
 					patternWeights[p] += 1
 					break
 			if not matchFound:
-				patterns.append(Pattern.new(patternSize, pattern))
+				patterns.append(Pattern.new(patternSize, pattern, self))
 				patternWeights.append(1)
 				
 	totalWeight = 0
@@ -116,6 +135,7 @@ func parseSampleForPatterns(sampleArray:Array, patternSize:int):
 		totalWeight += i
 
 func getEntropy(x:int, y:int) -> float:
+	f_next()
 	var entropy:float = 0
 	
 	for optionIndex in currentOptions[x][y]:
@@ -125,6 +145,7 @@ func getEntropy(x:int, y:int) -> float:
 	return -entropy
 
 func isEveryCellDecided():
+	f_next()
 	for x in range(width):
 		for y in range(height):
 			if currentOptions.size() > 1:
@@ -133,6 +154,7 @@ func isEveryCellDecided():
 
 # returns Vector2i of coords of entry in grid with least entropy
 func getLeastNonzeroEntropy() -> Vector2i:
+	f_next()
 	var least:float = INF
 	var coordWithLeast:Vector2i = Vector2i(-1, -1)
 	for x in range(width):
@@ -143,6 +165,7 @@ func getLeastNonzeroEntropy() -> Vector2i:
 	return coordWithLeast
 
 func getWeightedRandomCellOption(pos:Vector2i) -> int:
+	f_next()
 	var totalCurrentWeight:int = 0
 	for pattern in currentOptions[pos.x][pos.y]:
 		totalCurrentWeight += patternWeights[pattern]
@@ -151,7 +174,7 @@ func getWeightedRandomCellOption(pos:Vector2i) -> int:
 	
 	var current:int = 0
 	var currentWeight:int = 0
-	while current < currentOptions.size():
+	while current < currentOptions[pos.x][pos.y].size():
 		if rand <= currentWeight:
 			return currentOptions[pos.x][pos.y][current]
 		currentWeight += patternWeights[currentOptions[pos.x][pos.y][current]]
@@ -161,7 +184,9 @@ func getWeightedRandomCellOption(pos:Vector2i) -> int:
 
 # returns bool; true if the propagate was successful, false if we reached a contradiction (a cell is left with no options)
 func propagate(pos:Vector2i, parentPos:Vector2i, direction:Vector2i, remainingRecursionDepth:int) -> bool:
+	f_next()
 	# early exit if this isn't a usable position
+#	print("propogating, pos=", pos, " parentPos=", parentPos, " direction=", direction)
 	if pos.x < 0 || pos.y < 0 || pos.x >= width || pos.y >= height:
 		return true
 	
@@ -199,6 +224,7 @@ func propagate(pos:Vector2i, parentPos:Vector2i, direction:Vector2i, remainingRe
 
 # returns bool
 func collapse(pos:Vector2i) -> bool:
+	f_next()
 	var collapsedValue:int = getWeightedRandomCellOption(pos)
 	currentOptions[pos.x][pos.y] = [collapsedValue]
 	currentEntropy[pos.x][pos.y] = 0
@@ -212,6 +238,7 @@ func collapse(pos:Vector2i) -> bool:
 	return true
 
 func initializeGrid():
+	f_next()
 	# fill 'possibleOptions' grid with all possible options, i.e. [0, 1, 2, ..., patterns.size()] for each cell
 	currentOptions = []
 	for x in range(width):
@@ -231,6 +258,7 @@ func initializeGrid():
 # modifies 'currentOptions'
 # modifies 'currentEntropy'
 func generateTerrainGrid(width:int, height:int):
+	f_next()
 	initializeGrid()
 	
 	while not isEveryCellDecided():
@@ -239,8 +267,11 @@ func generateTerrainGrid(width:int, height:int):
 			print("reached contradiction, trying again")
 			initializeGrid()
 
-# Called when the node enters the scene tree for the first time.
-func _ready():
+func _input(event):
+	if event.is_action_pressed("Jump"):
+		do()
+
+func do():
 	var imageConverter = get_tree().get_root().get_child(0).find_child("ImageConverter")
 	var sampleImage = imageConverter.to_array("res://pixil-frame-0.png")
 	parseSampleForPatterns(sampleImage, patternSize)
@@ -253,3 +284,8 @@ func _ready():
 	
 	var mapInfo = get_tree().get_root().get_child(0).find_child("CanvasLayer").find_child("MapInfo")
 	mapInfo.load_all(currentOptions, currentOptions)
+	
+
+# Called when the node enters the scene tree for the first time.
+func _ready():
+	pass
