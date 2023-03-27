@@ -58,7 +58,8 @@ var map_shard = preload("res://map_shard.tscn")
 @onready var main = $"../.."
 # Called when the node enters the scene tree for the first time.
 func _ready():
-	generate_all(9999, 9999)
+	# generate_all(9999, 9999)
+	pass # more like ass
 
 func remove_element(elem):
 	elements.erase(elem)
