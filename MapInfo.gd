@@ -83,12 +83,21 @@ func generate(new_seed):
 			row.append(Cell.new(r))
 		cells.append(row)
 	return cells
-	
+
+func convert_to_cells(cells):
+	var new_cells = []
+	for i in len(cells):
+		var row = []
+		for j in len(cells[i]):
+			row.append(Cell.new(cells[i][j]))
+		new_cells.append(row)
+	return new_cells
+
 func load_map(cells):
-	map_cells = cells
+	map_cells = convert_to_cells(cells)
 	
 func load_world(cells):
-	world_cells = cells
+	world_cells = convert_to_cells(cells)
 	
 func load_all(_world_cells, _map_cells):
 	clear_terrain()
@@ -103,6 +112,9 @@ func construct_all():
 	for i in range(len(world_cells)):
 		for j in range(len(world_cells[i])):
 			var cell = world_cells[i][j]
+			
+			print("cell=", cell)
+			
 			if cell.type == Type.GROUND:
 				tile_map.set_cells_terrain_connect(0, [Vector2i(i,j)], 0, 0)
 			elif cell.type == Type.SHARD:
