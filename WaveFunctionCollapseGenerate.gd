@@ -291,6 +291,12 @@ func collapse(pos:Vector2i) -> bool:
 				print("could not propagate: " + str(collapsedValue) + " at " + str(pos))
 				restoreFromBackup(backup[0], backup[1])
 				currentOptions[pos.x][pos.y].erase(collapsedValue)
+				# alter the backup to include this change, so that if we fail again on the next try
+				# we restore to this point instead of the point before we tried anything for this cell
+				backup[0][pos.x][pos.y].erase(collapsedValue)
+				# we can call getEntropy (which uses the values in the currentOptions rather than
+				# the backup) because at this moment, they are in sync
+				backup[1][pos.x][pos.y] = getEntropy(pos.x, pos.y)
 				propagateFailed = true
 				break
 				
@@ -327,6 +333,8 @@ func generateTerrainGrid(width:int, height:int):
 	
 	while not isEveryCellDecided():
 		var pos:Vector2i = getLeastNonzeroEntropy()
+		if pos.x == -1: # getLeastNonzeroEntropy returns (-1, -1) if all cells have entropy 0
+			break
 		if not collapse(pos):
 			print("reached contradiction, trying again")
 			initializeGrid()
