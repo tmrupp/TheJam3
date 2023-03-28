@@ -7,13 +7,13 @@ func to_array(path):
 	var values = []
 	var uniques = {}
 	
-	for i in image.get_size().x:
+	for j in image.get_size().x:
 		var row = []
-		for j in image.get_size().y:
+		for i in image.get_size().y:
 			var pixel = image.get_pixel(i, j)
 			if pixel not in uniques:
 				uniques[pixel] = len(uniques.keys())
-#			print("pixel @ (", i, ", ", j, ") = ", pixel, " value=", uniques[pixel])
+			print("pixel @ (", i, ", ", j, ") = ", pixel, " value=", uniques[pixel])
 			row.append(uniques[pixel])
 		values.append(row)
 		
@@ -22,5 +22,5 @@ func to_array(path):
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
-	to_array(icon_path)
+#	to_array(icon_path)
 	pass # Replace with function body.

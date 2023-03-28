@@ -61,6 +61,14 @@ class Pattern:
 		size = _size
 		data = _data
 		wfc = _wfc
+		
+	func output():
+		var output = ""
+		for x in len(data):
+			for y in len(data[x]):
+				output += str(data[x][y])
+			output += "\n"
+		return output
 	
 	# returns true when this pattern and 'other' can be laid on top of each other when offseting 'other' by 'direction'
 	func cleanlyMeshesWith(other:Pattern, direction:Vector2i):
@@ -112,6 +120,11 @@ class Pattern:
 					return false
 		return true
 
+func print_patterns():
+	for pat in len(patterns):
+		print("pattern ", pat, "=>\n", patterns[pat].output())
+		
+
 # modifies 'patterns', 'patternWeights'
 # sampleArray: Array[Array[int]] x/y grid and for each cell is an int identifying what type that cell is
 func parseSampleForPatterns(sampleArray:Array, patternSize:int):
@@ -142,6 +155,8 @@ func parseSampleForPatterns(sampleArray:Array, patternSize:int):
 	totalWeight = 0
 	for i in patternWeights:
 		totalWeight += i
+		
+	print_patterns()
 
 func getEntropy(x:int, y:int) -> float:
 	f_next()
@@ -222,7 +237,10 @@ func cleanMeshWithMemoListConstruct():
 		for i in range(len(patterns)):
 			var row:Array = []
 			for j in range(len(patterns)):
-					row.append(patterns[i].cleanlyMeshesWith(patterns[j], directionList[dir]))
+					if patterns[i].cleanlyMeshesWith(patterns[j], directionList[dir]):
+						row.append(j)
+					if (i == 16 and j == 28):
+						print("mesh? ", row[-1], " pi=", i, " pj=", j, " dir=", directionList[dir])
 			direction.append(row)
 		meshList.append(direction)
 	
@@ -238,11 +256,12 @@ func propagate():
 			if neighborPos.x < 0 || neighborPos.y < 0 || neighborPos.x >= width || neighborPos.y >= height:
 				continue
 			
-			for p in range(meshList[d][propagateStack[-1][1]].size()):
-				if meshList[d][propagateStack[-1][1]][p]:
-					compatible[neighborPos.x][neighborPos.y][p][d] -= 1
-					if compatible[neighborPos.x][neighborPos.y][p][d] == 0:
-						ban(neighborPos, p)
+			for p in meshList[d][propagateStack[-1][1]]:
+#				print("compatible[neighborPos.x][neighborPos.y][p][d]=", compatible[neighborPos.x][neighborPos.y][p][d])
+				compatible[neighborPos.x][neighborPos.y][p][d] -= 1
+				if compatible[neighborPos.x][neighborPos.y][p][d] == 0:
+#					print("banned here!")
+					ban(neighborPos, p)
 		propagateStack.pop_back()
 
 func indexToDirection(i):
@@ -250,7 +269,11 @@ func indexToDirection(i):
 
 func ban(pos:Vector2i, patternIndex:int):
 #	print("banning " + str(patternIndex) + " at " + str(pos))
+	if (currentOptions[pos.x][pos.y].size()==1):
+		print("could banning the last one! currentOptions[", pos.x, "][", pos.y, "] patternIndex=", patternIndex, " currentOptions[pos.x][pos.y]=", currentOptions[pos.x][pos.y])
 	currentOptions[pos.x][pos.y].erase(patternIndex)
+	if (currentOptions[pos.x][pos.y].size()==0):
+		print("actually")
 	currentEntropy[pos.x][pos.y] = getEntropy(pos.x, pos.y)
 	
 	for d in range(directionList.size()):
@@ -323,7 +346,11 @@ func initializeCompatible():
 				compatible[-1][-1].append([])
 				for d in range(directionList.size()):
 					compatible[-1][-1][-1].append(meshList[(d + 2) % 4][p].size())
-
+					print("x=", x, " y=", y, " p=", p, " d=", d, " Adding, compatible=> p=", p, " compatible[-1][-1][-1]=", compatible[-1][-1][-1], "\n", patterns[p].output())
+#					for meshed in meshList[(d + 2) % 4][p]:
+#						print("meshed, ", meshed, " \n", patterns[meshed].output())
+					
+@onready var tile_map = $"../TileMap"
 func do():
 	var imageConverter = get_tree().get_root().get_child(0).find_child("ImageConverter")
 	var sampleImage = imageConverter.to_array("res://pixil-frame-0.png")
@@ -339,6 +366,7 @@ func do():
 	
 	var mapInfo = get_tree().get_root().get_child(0).find_child("CanvasLayer").find_child("MapInfo")
 	mapInfo.load_all(currentOptionsClone, currentOptionsClone)
+	tile_map.display(currentOptions, patterns)
 	
 # Called when the node enters the scene tree for the first time.
 func _ready():
