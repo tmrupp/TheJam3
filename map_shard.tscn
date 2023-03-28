@@ -1,16 +1,17 @@
 [gd_scene load_steps=4 format=3 uid="uid://bbest6niwe1h3"]
 
 [ext_resource type="Script" path="res://map_shard.gd" id="1_bpxlg"]
-[ext_resource type="Texture2D" uid="uid://dm6jq0dv0ym8r" path="res://map_shard.png" id="2_qvrxx"]
+[ext_resource type="Texture2D" uid="uid://bvwc6umdq78lg" path="res://mapshardart.png" id="2_h62kc"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_hy8e6"]
 
 [node name="MapShard" type="Area2D"]
-position = Vector2(82, -193)
+position = Vector2(84, -192)
 script = ExtResource("1_bpxlg")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_hy8e6")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
-texture = ExtResource("2_qvrxx")
+scale = Vector2(0.03, 0.03)
+texture = ExtResource("2_h62kc")

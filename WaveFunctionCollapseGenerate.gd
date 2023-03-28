@@ -378,6 +378,6 @@ func do():
 	
 # Called when the node enters the scene tree for the first time.
 func _ready():
-	do()
-	f_print_all()
+#	do()
+#	f_print_all()
 	pass
