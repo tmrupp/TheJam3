@@ -1,14 +1,17 @@
-[gd_scene load_steps=16 format=3 uid="uid://dqufsaiouuh3d"]
+[gd_scene load_steps=19 format=3 uid="uid://dqufsaiouuh3d"]
 
 [ext_resource type="Texture2D" uid="uid://csb7dsidgvahr" path="res://TerrainJam3 (32x32).png" id="1_gj4jo"]
 [ext_resource type="Script" path="res://Player.gd" id="2_l24ox"]
 [ext_resource type="Script" path="res://TileMap.gd" id="2_nyxbp"]
 [ext_resource type="PackedScene" uid="uid://do6pc8fn6e1dp" path="res://julia.tscn" id="5_p0v6g"]
 [ext_resource type="Texture2D" uid="uid://c5p6vet241ayk" path="res://Spikes.png" id="6_pbn17"]
+[ext_resource type="Texture2D" uid="uid://bntdacghcahec" path="res://mapart.png" id="7_eae5t"]
 [ext_resource type="Script" path="res://MapInfo.gd" id="8_yenc1"]
 [ext_resource type="Script" path="res://ImageConverter.gd" id="10_682fp"]
 [ext_resource type="Script" path="res://RandomSeed.gd" id="10_lmuma"]
 [ext_resource type="Script" path="res://Regenerate.gd" id="11_4ip40"]
+[ext_resource type="Texture2D" uid="uid://c7l068d7hbki5" path="res://backgroundjam3.png" id="12_tr7ca"]
+[ext_resource type="Script" path="res://Background.gd" id="13_0vhsp"]
 [ext_resource type="Script" path="res://WaveFunctionCollapseGenerate.gd" id="13_hg4ow"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_oaxeo"]
@@ -540,7 +543,7 @@ shape = SubResource("RectangleShape2D_jk8bx")
 [node name="Camera2D" type="Camera2D" parent="Player"]
 position = Vector2(-10, 9.99994)
 scale = Vector2(5, 5)
-zoom = Vector2(0.5, 0.5)
+zoom = Vector2(2, 2)
 
 [node name="Respawn" type="Node2D" parent="."]
 position = Vector2(100, -100)
@@ -551,6 +554,12 @@ position = Vector2(100, -100)
 layout_mode = 3
 anchors_preset = 0
 script = ExtResource("8_yenc1")
+
+[node name="MapSprite" type="Sprite2D" parent="CanvasLayer/MapInfo"]
+visible = false
+z_index = -1
+scale = Vector2(0.45, 0.45)
+texture = ExtResource("7_eae5t")
 
 [node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer"]
 custom_minimum_size = Vector2(0, 50)
@@ -592,7 +601,12 @@ script = ExtResource("10_682fp")
 
 [node name="WaveFunctionCollapse" type="Node" parent="."]
 script = ExtResource("13_hg4ow")
-width = 5
-height = 5
-patternSize = 3
-maximumRecursionDepth = 50
+width = 100
+height = 100
+patternSize = 2
+maximumRecursionDepth = -1
+
+[node name="Background" type="Sprite2D" parent="."]
+z_index = -2
+texture = ExtResource("12_tr7ca")
+script = ExtResource("13_0vhsp")

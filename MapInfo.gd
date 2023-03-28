@@ -15,10 +15,10 @@ class Cell:
 
 var world_cells = []
 var map_cells = []
-
+@onready var map_sprite = $MapSprite
 # const?
 var map_size = Vector2i(100, 100)
-const SPACING = 10.0
+const SPACING = 6.0
 
 var map_local_size = map_size*SPACING
 var top_left = Vector2i(100, 100)
@@ -58,7 +58,7 @@ var map_shard = preload("res://map_shard.tscn")
 @onready var main = $"../.."
 # Called when the node enters the scene tree for the first time.
 func _ready():
-	# generate_all(9999, 9999)
+	generate_all(9999, 9999)
 	pass # more like ass
 
 func remove_element(elem):
@@ -102,8 +102,8 @@ func load_world(cells):
 func load_all(_world_cells, _map_cells):
 	clear_terrain()
 	load_map(_map_cells)
-#	print("_map_cells=", len(_map_cells), "map_cells=", len(map_cells))
 	load_world(_world_cells)
+	print("_world_cells=", len(_world_cells), "x", len(_world_cells[0]), " world_cells=", len(world_cells), "x", len(world_cells[0]))
 	
 	construct_all()
 	
@@ -113,7 +113,7 @@ func construct_all():
 	for i in range(len(world_cells)):
 		for j in range(len(world_cells[i])):
 			var cell = world_cells[i][j]
-			print("Setting a tile @=", Vector2i(i,j), " cell.type=", cell.type)
+#			print("Setting a tile @=", Vector2i(i,j), " cell.type=", cell.type)
 			if cell.type == Type.GROUND:
 				tile_map.set_cells_terrain_connect(0, [Vector2i(i,j)], 0, 0)
 			elif cell.type == Type.SHARD:
@@ -156,6 +156,8 @@ func draw_cell(x, y, cell):
 
 func _draw():
 	top_left = get_viewport_rect().size/2-map_local_size/2
+	map_sprite.visible = enabled
+	map_sprite.position = get_viewport_rect().size/2 - Vector2.RIGHT*8
 	if (enabled):
 		for i in len(map_cells):
 			for j in len(map_cells[i]):

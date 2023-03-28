@@ -113,10 +113,9 @@ class Pattern:
 		var directions:Array[Vector2i] = []
 #		for x in range(-(size-1), size):
 #			for y in range(-(size-1), size):
-		for x in range(size):
-			for y in range(size):
-				if not (x == 0 && y == 0):
-					directions.append(Vector2i(x, y))
+#				if not (x == 0 && y == 0):
+#					directions.append(Vector2i(x, y))
+		directions = [Vector2i(-1, 0), Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1)]
 					
 		return directions
 
@@ -264,13 +263,13 @@ func propagate(pos:Vector2i, parentPos:Vector2i, directionIndex:int, remainingRe
 	
 	# if we're out of options, the original collapse wasn't something we could do and have a solvable output
 	if currentOptions[pos.x][pos.y].is_empty():
-		print("reached contradiction at: " + str(pos))
+#		print("reached contradiction at: " + str(pos))
 		return false
 	
 	# if we've altered this cell's options, we have to recurse to our neighbors
 	if currentOptions[pos.x][pos.y].size() < optionCountAtStart:
 		currentEntropy[pos.x][pos.y] = getEntropy(pos.x, pos.y)
-		if remainingRecursionDepth > 0:
+		if remainingRecursionDepth > 0 || remainingRecursionDepth == -1:
 			for dir in range(len(directionList)):
 				if not propagate(pos + indexToDirection(dir), pos, dir, remainingRecursionDepth - 1):
 #					print("could not propagate at " + str(pos))
@@ -291,13 +290,13 @@ func collapse(pos:Vector2i) -> bool:
 		currentOptions[pos.x][pos.y] = [collapsedValue]
 		currentEntropy[pos.x][pos.y] = 0
 		
-		print("attempting to collapse " + str(pos) + " to " + str(collapsedValue))
+#		print("attempting to collapse " + str(pos) + " to " + str(collapsedValue))
 		
 		var propagateFailed:bool = false
 		# propagate to neighbors
 		for directionIndex in range(len(directionList)):
 			if not propagate(pos + indexToDirection(directionIndex), pos, directionIndex, maximumRecursionDepth):
-				print("could not propagate: " + str(collapsedValue) + " at " + str(pos))
+#				print("could not propagate: " + str(collapsedValue) + " at " + str(pos))
 				restoreFromBackup(backup[0], backup[1])
 				currentOptions[pos.x][pos.y].erase(collapsedValue)
 				# alter the backup to include this change, so that if we fail again on the next try
@@ -310,7 +309,7 @@ func collapse(pos:Vector2i) -> bool:
 				break
 				
 		if not propagateFailed:
-			print("successfully collapsed " + str(pos))
+#			print("successfully collapsed " + str(pos))
 			return true
 		
 	print("algorithm failed, all options at " + str(pos) + " resulted in contradiction")
@@ -339,14 +338,14 @@ func initializeGrid():
 func generateTerrainGrid(width:int, height:int):
 	f_next()
 	initializeGrid()
-	seed(9999)
+	seed(999899)
 	
 	while not isEveryCellDecided():
 		var pos:Vector2i = getLeastNonzeroEntropy()
 		if pos.x == -1: # getLeastNonzeroEntropy returns (-1, -1) if all cells have entropy 0
 			break
 		if not collapse(pos):
-			print("reached contradiction, trying again")
+#			print("reached contradiction, trying again")
 			initializeGrid()
 
 # we assume sizes are correct
@@ -358,8 +357,9 @@ func makeBackupOfOptionsAndEntropies():
 	return [currentOptions.duplicate(true), currentEntropy.duplicate(true)]
 
 func _input(event):
-	if event.is_action_pressed("Jump"):
-		do()
+#	if event.is_action_pressed("Jump"):
+#		do()
+	pass
 
 func do():
 	var imageConverter = get_tree().get_root().get_child(0).find_child("ImageConverter")
@@ -378,6 +378,6 @@ func do():
 	
 # Called when the node enters the scene tree for the first time.
 func _ready():
-	do()
-	f_print_all()
+#	do()
+#	f_print_all()
 	pass
