@@ -11,7 +11,7 @@ func to_uniques(data):
 			var pixel = data[i][j]
 			if pixel not in uniques:
 				uniques[pixel] = len(uniques.keys())
-			print("pixel @ (", i, ", ", j, ") = ", pixel, " value=", uniques[pixel])
+			#print("pixel @ (", i, ", ", j, ") = ", pixel, " value=", uniques[pixel])
 			row.append(uniques[pixel])
 		values.append(row)
 		
@@ -21,5 +21,10 @@ func to_uniques(data):
 func _ready():
 	var mapInfo = get_tree().get_root().get_child(0).find_child("CanvasLayer").find_child("MapInfo")
 	var map = to_uniques(collapse())
+	while len(map) == 0:
+		seed = randi()
+		print("regening seed=", seed)
+		map = to_uniques(collapse())
+		
 	mapInfo.load_all(map, map)
 	pass
