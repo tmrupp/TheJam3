@@ -607,9 +607,10 @@ script = ExtResource("13_0vhsp")
 
 [node name="WaveFunctionCollapse" type="WaveFunctionCollapse" parent="."]
 output_size = Vector2i(256, 256)
-seed = 345
-symmetry = 1
+seed = 543523
+symmetry = 4
 pattern_size = 3
+visible = false
 position = Vector2(12.1313, 0.0576079)
 texture = ExtResource("13_uw3jp")
 script = ExtResource("13_sfuc8")
