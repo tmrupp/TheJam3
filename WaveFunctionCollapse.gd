@@ -2,17 +2,18 @@ extends WaveFunctionCollapse
 
 
 func to_uniques(data):
-	var uniques = {0:0} # 0 is always 0
+	var uniques = {255:0} # 0 is always 0
 	
 	var values = []
-	for j in range(len(data)):
+	for i in range(len(data)):
 		var row = []
-		for i in range(len(data[j])):
+		for j in range(len(data[i])):
 			var pixel = data[i][j]
 			if pixel not in uniques:
 				uniques[pixel] = len(uniques.keys())
 #			print("pixel @ (", i, ", ", j, ") = ", pixel, " value=", uniques[pixel])
 			row.append(uniques[pixel])
+		print("len(row)=", len(row))
 		values.append(row)
 		
 	return values

@@ -70,13 +70,16 @@ int WaveFunctionCollapse::get_pattern_size() {return pattern_size;}
 void WaveFunctionCollapse::set_pattern_size(int _pattern_size) {pattern_size = _pattern_size;}
 
 Array WaveFunctionCollapse::collapse() {
-    auto im = get_texture()->get_image();
+    Ref<Image> im = get_texture()->get_image();
+
     Array2D<int32_t>* m = new Array2D<int32_t>(im->get_width(), im->get_height());
-    for (size_t i = 0; i < im->get_width(); i++) {
-        for (size_t j = 0; j < im->get_height(); j++) {
-            Color c = im->get_pixel(i,j);
+    for (size_t i = 0; i < m->height; i++) {
+        for (size_t j = 0; j < m->width; j++) {
+            Color c = im->get_pixel(i, j);
             int32_t wfcc = int32_t{c.get_r8()};
-            m->data[i*im->get_width()+j] = wfcc;
+            // m->data[i*im->get_width()+j] = wfcc;
+            // UtilityFunctions::print("pixel @ i=", i, " j=", j, " is ", c);
+            m->get(i, j) = wfcc;
         }
     }
 
@@ -87,10 +90,11 @@ Array WaveFunctionCollapse::collapse() {
     Array result = Array();
 
     if (success.has_value()) {
-        for (size_t i = 0; i < success->width; i++) {
+        for (size_t i = 0; i < success->height; i++) {
             Array row = Array();
-            for (size_t j = 0; j < success->height; j++) {
-                uint32_t c = success->data[i*success->width+j];
+            for (size_t j = 0; j < success->width; j++) {
+                // uint32_t c = success->data[i*success->width+j];
+                uint32_t c = success->get(i, j);
                 row.append(Variant(c));
             }
             result.append(Variant(row));

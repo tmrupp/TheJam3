@@ -12,7 +12,7 @@
 [ext_resource type="Script" path="res://Regenerate.gd" id="11_4ip40"]
 [ext_resource type="Texture2D" uid="uid://c7l068d7hbki5" path="res://backgroundjam3.png" id="12_tr7ca"]
 [ext_resource type="Script" path="res://Background.gd" id="13_0vhsp"]
-[ext_resource type="Texture2D" uid="uid://d1yejrkcoud0e" path="res://levelSample4.png" id="13_07u78"]
+[ext_resource type="Texture2D" uid="uid://dtvy6g8angwok" path="res://levelSample3.png" id="13_ju8r0"]
 [ext_resource type="Script" path="res://WaveFunctionCollapse.gd" id="13_sfuc8"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_oaxeo"]
@@ -606,11 +606,11 @@ texture = ExtResource("12_tr7ca")
 script = ExtResource("13_0vhsp")
 
 [node name="WaveFunctionCollapse" type="WaveFunctionCollapse" parent="."]
-output_size = Vector2i(48, 48)
-seed = 71
+output_size = Vector2i(64, 32)
+seed = 356
 symmetry = 1
 pattern_size = 3
 visible = false
 position = Vector2(12.1313, 0.0576079)
-texture = ExtResource("13_07u78")
+texture = ExtResource("13_ju8r0")
 script = ExtResource("13_sfuc8")

@@ -9,12 +9,13 @@
 [node name="WaveFunctionCollapse" type="WaveFunctionCollapse" parent="."]
 output_size = Vector2i(32, 32)
 seed = 460
-symmetry = 0
+symmetry = -883616154
+pattern_size = 32759
 position = Vector2(19.0346, 18.4519)
 texture = ExtResource("1_jvh20")
 script = ExtResource("2_7j775")
 
 [node name="GDExample" type="GDExample" parent="."]
 visible = false
-position = Vector2(12.9581, 18.4717)
+position = Vector2(4.0095, 19.5425)
 texture = ExtResource("3_vo1pm")
