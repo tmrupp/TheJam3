@@ -3,7 +3,7 @@
 [ext_resource type="Texture2D" uid="uid://csb7dsidgvahr" path="res://TerrainJam3 (32x32).png" id="1_gj4jo"]
 [ext_resource type="Script" path="res://Player.gd" id="2_l24ox"]
 [ext_resource type="Script" path="res://tile_map.gd" id="3_a67d3"]
-[ext_resource type="PackedScene" uid="uid://do6pc8fn6e1dp" path="res://julia.tscn" id="5_p0v6g"]
+[ext_resource type="PackedScene" path="res://julia.tscn" id="5_p0v6g"]
 [ext_resource type="Texture2D" uid="uid://c5p6vet241ayk" path="res://Spikes.png" id="6_pbn17"]
 [ext_resource type="Texture2D" uid="uid://bntdacghcahec" path="res://mapart.png" id="7_eae5t"]
 [ext_resource type="Script" path="res://MapInfo.gd" id="8_yenc1"]
@@ -544,7 +544,7 @@ shape = SubResource("RectangleShape2D_jk8bx")
 [node name="Camera2D" type="Camera2D" parent="Player"]
 position = Vector2(-10, 9.99994)
 scale = Vector2(5, 5)
-zoom = Vector2(0.5, 0.5)
+zoom = Vector2(0.2, 0.2)
 
 [node name="Respawn" type="Node2D" parent="."]
 position = Vector2(100, -100)
@@ -607,7 +607,7 @@ script = ExtResource("13_0vhsp")
 
 [node name="WaveFunctionCollapse" type="WaveFunctionCollapse" parent="."]
 output_size = Vector2i(256, 256)
-seed = 543523
+seed = 1
 symmetry = 4
 pattern_size = 3
 visible = false
