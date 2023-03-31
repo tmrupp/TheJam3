@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3 uid="uid://cblacrp41qlee"]
+[gd_scene load_steps=20 format=3 uid="uid://cblacrp41qlee"]
 
 [ext_resource type="Texture2D" uid="uid://csb7dsidgvahr" path="res://TerrainJam3 (32x32).png" id="1_gj4jo"]
 [ext_resource type="Script" path="res://Player.gd" id="2_l24ox"]
@@ -12,7 +12,8 @@
 [ext_resource type="Script" path="res://Regenerate.gd" id="11_4ip40"]
 [ext_resource type="Texture2D" uid="uid://c7l068d7hbki5" path="res://backgroundjam3.png" id="12_tr7ca"]
 [ext_resource type="Script" path="res://Background.gd" id="13_0vhsp"]
-[ext_resource type="Script" path="res://WaveFunctionCollapseGenerate.gd" id="13_hg4ow"]
+[ext_resource type="Script" path="res://WaveFunctionCollapse.gd" id="13_sfuc8"]
+[ext_resource type="Texture2D" uid="uid://ba4krkt0snw4r" path="res://levelSample1.png" id="13_uw3jp"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_oaxeo"]
 
@@ -599,14 +600,16 @@ text = "9999"
 [node name="ImageConverter" type="Node" parent="."]
 script = ExtResource("10_682fp")
 
-[node name="WaveFunctionCollapse" type="Node" parent="."]
-script = ExtResource("13_hg4ow")
-width = 48
-height = 48
-patternSize = 3
-maximumRecursionDepth = -1
-
 [node name="Background" type="Sprite2D" parent="."]
 z_index = -2
 texture = ExtResource("12_tr7ca")
 script = ExtResource("13_0vhsp")
+
+[node name="WaveFunctionCollapse" type="WaveFunctionCollapse" parent="."]
+output_size = Vector2i(256, 256)
+seed = 345
+symmetry = 1
+pattern_size = 3
+position = Vector2(12.1313, 0.0576079)
+texture = ExtResource("13_uw3jp")
+script = ExtResource("13_sfuc8")
