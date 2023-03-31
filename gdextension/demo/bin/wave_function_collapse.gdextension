@@ -1,0 +1,9 @@
+[configuration]
+
+entry_symbol = "example_library_init"
+
+[libraries]
+
+linux.64="res://gdextension/demo/bin/libgdexample.template_debug.linux.64.so"
+windows.x86_64="res://gdextension/demo/bin/libgdexample.windows.template_debug.x86_64.dll"
+macos="res://gdextension/demo/bin/libgdexample.macos.framework"
