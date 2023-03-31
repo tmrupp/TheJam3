@@ -601,8 +601,8 @@ script = ExtResource("10_682fp")
 
 [node name="WaveFunctionCollapse" type="Node" parent="."]
 script = ExtResource("13_hg4ow")
-width = 20
-height = 20
+width = 48
+height = 48
 patternSize = 3
 maximumRecursionDepth = -1
 

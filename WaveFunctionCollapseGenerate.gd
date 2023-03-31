@@ -353,7 +353,7 @@ func initializeCompatible():
 @onready var tile_map = $"../TileMap"
 func do():
 	var imageConverter = get_tree().get_root().get_child(0).find_child("ImageConverter")
-	var sampleImage = imageConverter.to_array("res://pixil-frame-0.png")
+	var sampleImage = imageConverter.to_array("res://sprite-0002.png")
 	parseSampleForPatterns(sampleImage, patternSize)
 	cleanMeshWithMemoListConstruct()
 	initializeCompatible()
