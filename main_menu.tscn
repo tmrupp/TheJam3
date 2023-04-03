@@ -1,0 +1,84 @@
+[gd_scene load_steps=5 format=3 uid="uid://cgej8hbtwfuhu"]
+
+[ext_resource type="Texture2D" uid="uid://dbrvewc2tde7e" path="res://big_boss_menu.png" id="1_fxhfv"]
+[ext_resource type="Theme" uid="uid://0va2tdybcl4b" path="res://main_menu_theme.tres" id="2_5q6q7"]
+[ext_resource type="Script" path="res://StartGame.gd" id="3_3nx0o"]
+[ext_resource type="Script" path="res://Exit.gd" id="4_gau3l"]
+
+[node name="Node2D" type="Node2D"]
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+follow_viewport_enabled = true
+
+[node name="BigBossMenu" type="Sprite2D" parent="CanvasLayer"]
+position = Vector2(959.5, 540)
+scale = Vector2(0.49974, 0.5)
+texture = ExtResource("1_fxhfv")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -81.5
+offset_top = -20.0
+offset_right = 81.5
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Start" type="Button" parent="CanvasLayer/VBoxContainer"]
+layout_mode = 2
+theme = ExtResource("2_5q6q7")
+text = "Start Game
+"
+script = ExtResource("3_3nx0o")
+
+[node name="World Seed" type="HBoxContainer" parent="CanvasLayer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="CanvasLayer/VBoxContainer/World Seed"]
+layout_mode = 2
+size_flags_vertical = 1
+theme = ExtResource("2_5q6q7")
+text = "World Seed
+"
+
+[node name="LineEdit" type="LineEdit" parent="CanvasLayer/VBoxContainer/World Seed"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "9999"
+
+[node name="Map Seed" type="HBoxContainer" parent="CanvasLayer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="CanvasLayer/VBoxContainer/Map Seed"]
+layout_mode = 2
+size_flags_vertical = 1
+theme = ExtResource("2_5q6q7")
+text = "Map Seed
+"
+
+[node name="LineEdit" type="LineEdit" parent="CanvasLayer/VBoxContainer/Map Seed"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "9999"
+
+[node name="Exit" type="Button" parent="CanvasLayer/VBoxContainer"]
+layout_mode = 2
+theme = ExtResource("2_5q6q7")
+text = "Exit"
+script = ExtResource("4_gau3l")
+
+[node name="Button2" type="Button" parent="CanvasLayer/VBoxContainer"]
+visible = false
+layout_mode = 2
+theme = ExtResource("2_5q6q7")
+text = "Generate"
+
+[node name="ProgressBar" type="ProgressBar" parent="CanvasLayer/VBoxContainer"]
+visible = false
+layout_mode = 2
+theme = ExtResource("2_5q6q7")
+value = 56.0

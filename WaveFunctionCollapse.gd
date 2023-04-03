@@ -2,7 +2,7 @@ extends WaveFunctionCollapse
 
 
 func to_uniques(data):
-	var uniques = {255:0} # 0 is always 0
+	var uniques = {255:0} # 255 is always 0
 	
 	var values = []
 	for i in range(len(data)):

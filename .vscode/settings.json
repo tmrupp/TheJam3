@@ -1,6 +1,12 @@
 {
     "files.associations": {
         "optional": "cpp",
-        "random": "cpp"
+        "random": "cpp",
+        "charconv": "cpp",
+        "sstream": "cpp",
+        "xhash": "cpp",
+        "xlocnum": "cpp",
+        "xmemory": "cpp",
+        "xtree": "cpp"
     }
 }

@@ -544,7 +544,6 @@ shape = SubResource("RectangleShape2D_jk8bx")
 [node name="Camera2D" type="Camera2D" parent="Player"]
 position = Vector2(-10, 9.99994)
 scale = Vector2(5, 5)
-zoom = Vector2(0.2, 0.2)
 
 [node name="Respawn" type="Node2D" parent="."]
 position = Vector2(100, -100)
@@ -606,9 +605,9 @@ texture = ExtResource("12_tr7ca")
 script = ExtResource("13_0vhsp")
 
 [node name="WaveFunctionCollapse" type="WaveFunctionCollapse" parent="."]
-output_size = Vector2i(64, 32)
-seed = 356
-symmetry = 1
+output_size = Vector2i(256, 256)
+seed = 1
+symmetry = 5
 pattern_size = 3
 visible = false
 position = Vector2(12.1313, 0.0576079)
