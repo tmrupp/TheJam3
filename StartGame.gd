@@ -2,7 +2,6 @@ extends Button
 
 @onready var world_seed = $"../World Seed/LineEdit"
 @onready var map_seed = $"../World Seed/LineEdit"
-@onready var game_scene = preload("res://main.tscn")
 var player = preload("res://player.tscn")
 var player_instance
 
