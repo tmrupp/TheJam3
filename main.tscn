@@ -1,15 +1,12 @@
-[gd_scene load_steps=20 format=3 uid="uid://cblacrp41qlee"]
+[gd_scene load_steps=16 format=3 uid="uid://cblacrp41qlee"]
 
 [ext_resource type="Texture2D" uid="uid://csb7dsidgvahr" path="res://TerrainJam3 (32x32).png" id="1_gj4jo"]
-[ext_resource type="Script" path="res://Player.gd" id="2_l24ox"]
+[ext_resource type="PackedScene" uid="uid://yp7u1y7i8sf0" path="res://menu.tscn" id="1_phoxq"]
 [ext_resource type="Script" path="res://tile_map.gd" id="3_a67d3"]
-[ext_resource type="PackedScene" uid="uid://do6pc8fn6e1dp" path="res://julia.tscn" id="5_p0v6g"]
 [ext_resource type="Texture2D" uid="uid://c5p6vet241ayk" path="res://Spikes.png" id="6_pbn17"]
 [ext_resource type="Texture2D" uid="uid://bntdacghcahec" path="res://mapart.png" id="7_eae5t"]
 [ext_resource type="Script" path="res://MapInfo.gd" id="8_yenc1"]
 [ext_resource type="Script" path="res://ImageConverter.gd" id="10_682fp"]
-[ext_resource type="Script" path="res://RandomSeed.gd" id="10_lmuma"]
-[ext_resource type="Script" path="res://Regenerate.gd" id="11_4ip40"]
 [ext_resource type="Texture2D" uid="uid://c7l068d7hbki5" path="res://backgroundjam3.png" id="12_tr7ca"]
 [ext_resource type="Script" path="res://Background.gd" id="13_0vhsp"]
 [ext_resource type="Texture2D" uid="uid://dtvy6g8angwok" path="res://levelSample3.png" id="13_ju8r0"]
@@ -517,33 +514,15 @@ custom_data_layer_1/type = 2
 sources/0 = SubResource("TileSetAtlasSource_jk0xx")
 sources/2 = SubResource("TileSetAtlasSource_5evmg")
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_jk8bx"]
-size = Vector2(130, 130)
-
 [node name="Main" type="Node2D"]
+
+[node name="Menu" parent="." instance=ExtResource("1_phoxq")]
 
 [node name="TileMap" type="TileMap" parent="."]
 tile_set = SubResource("TileSet_m5irb")
 cell_quadrant_size = 32
 format = 2
 script = ExtResource("3_a67d3")
-
-[node name="Player" type="CharacterBody2D" parent="."]
-position = Vector2(58.0001, -202)
-rotation = -6.28319
-scale = Vector2(0.2, 0.2)
-disable_mode = 2
-script = ExtResource("2_l24ox")
-
-[node name="big bossanova" parent="Player" instance=ExtResource("5_p0v6g")]
-scale = Vector2(0.2, 0.2)
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
-shape = SubResource("RectangleShape2D_jk8bx")
-
-[node name="Camera2D" type="Camera2D" parent="Player"]
-position = Vector2(-10, 9.99994)
-scale = Vector2(5, 5)
 
 [node name="Respawn" type="Node2D" parent="."]
 position = Vector2(100, -100)
@@ -561,41 +540,6 @@ z_index = -1
 scale = Vector2(0.45, 0.45)
 texture = ExtResource("7_eae5t")
 
-[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer"]
-custom_minimum_size = Vector2(0, 50)
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -530.0
-offset_bottom = 40.0
-grow_horizontal = 0
-
-[node name="RandomSeed" type="Button" parent="CanvasLayer/HBoxContainer"]
-layout_mode = 2
-text = "Random Seed"
-script = ExtResource("10_lmuma")
-
-[node name="Regenerate" type="Button" parent="CanvasLayer/HBoxContainer"]
-layout_mode = 2
-text = "Regenerate"
-script = ExtResource("11_4ip40")
-
-[node name="WorldSeedLabel" type="Label" parent="CanvasLayer/HBoxContainer"]
-layout_mode = 2
-text = "World Seed"
-
-[node name="WorldSeed" type="LineEdit" parent="CanvasLayer/HBoxContainer"]
-layout_mode = 2
-text = "9999"
-
-[node name="MapSeedLabel" type="Label" parent="CanvasLayer/HBoxContainer"]
-layout_mode = 2
-text = "Map Seed"
-
-[node name="MapSeed" type="LineEdit" parent="CanvasLayer/HBoxContainer"]
-layout_mode = 2
-text = "9999"
-
 [node name="ImageConverter" type="Node" parent="."]
 script = ExtResource("10_682fp")
 
@@ -605,7 +549,7 @@ texture = ExtResource("12_tr7ca")
 script = ExtResource("13_0vhsp")
 
 [node name="WaveFunctionCollapse" type="WaveFunctionCollapse" parent="."]
-output_size = Vector2i(256, 256)
+output_size = Vector2i(32, 32)
 seed = 1
 symmetry = 5
 pattern_size = 3

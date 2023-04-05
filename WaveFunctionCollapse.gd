@@ -1,6 +1,5 @@
 extends WaveFunctionCollapse
 
-
 func to_uniques(data):
 	var uniques = {255:0} # 255 is always 0
 	
@@ -17,9 +16,8 @@ func to_uniques(data):
 		values.append(row)
 		
 	return values
-
-# Called when the node enters the scene tree for the first time.
-func _ready():
+	
+func generate():
 	var mapInfo = get_tree().get_root().get_child(0).find_child("CanvasLayer").find_child("MapInfo")
 	var map = to_uniques(collapse())
 	while len(map) == 0:
@@ -28,4 +26,8 @@ func _ready():
 		map = to_uniques(collapse())
 		
 	mapInfo.load_all(map, map)
+
+# Called when the node enters the scene tree for the first time.
+func _ready():
+	
 	pass
