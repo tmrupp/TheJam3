@@ -1,17 +1,9 @@
-[gd_scene load_steps=12 format=3 uid="uid://cblacrp41qlee"]
+[gd_scene load_steps=4 format=3 uid="uid://bckjvc1p4mveg"]
 
-[ext_resource type="PackedScene" uid="uid://yp7u1y7i8sf0" path="res://menu.tscn" id="1_bh48f"]
-[ext_resource type="Texture2D" uid="uid://csb7dsidgvahr" path="res://TerrainJam3 (32x32).png" id="1_gj4jo"]
-[ext_resource type="Texture2D" uid="uid://bntdacghcahec" path="res://mapart.png" id="7_eae5t"]
-[ext_resource type="Script" path="res://MapInfo.gd" id="8_yenc1"]
-[ext_resource type="Script" path="res://ImageConverter.gd" id="10_682fp"]
-[ext_resource type="Texture2D" uid="uid://c7l068d7hbki5" path="res://backgroundjam3.png" id="12_tr7ca"]
-[ext_resource type="Script" path="res://Background.gd" id="13_0vhsp"]
-[ext_resource type="Texture2D" uid="uid://dtvy6g8angwok" path="res://levelSample3.png" id="13_ju8r0"]
-[ext_resource type="Script" path="res://WaveFunctionCollapse.gd" id="13_sfuc8"]
+[ext_resource type="Texture2D" uid="uid://csb7dsidgvahr" path="res://TerrainJam3 (32x32).png" id="1_y0mvc"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_rcwvb"]
-texture = ExtResource("1_gj4jo")
+texture = ExtResource("1_y0mvc")
 texture_region_size = Vector2i(64, 64)
 0:0/0 = 0
 0:0/0/terrain_set = 0
@@ -492,45 +484,7 @@ terrain_set_0/terrain_0/name = "Terrain 0"
 terrain_set_0/terrain_0/color = Color(0.5, 0.34375, 0.25, 1)
 sources/0 = SubResource("TileSetAtlasSource_rcwvb")
 
-[node name="Main" type="Node2D"]
-
-[node name="Menu" parent="." instance=ExtResource("1_bh48f")]
-
-[node name="Respawn" type="Node2D" parent="."]
-position = Vector2(100, -100)
-
-[node name="CanvasLayer" type="CanvasLayer" parent="."]
-
-[node name="MapInfo" type="Control" parent="CanvasLayer"]
-layout_mode = 3
-anchors_preset = 0
-script = ExtResource("8_yenc1")
-
-[node name="MapSprite" type="Sprite2D" parent="CanvasLayer/MapInfo"]
-visible = false
-z_index = -1
-scale = Vector2(0.45, 0.45)
-texture = ExtResource("7_eae5t")
-
-[node name="ImageConverter" type="Node" parent="."]
-script = ExtResource("10_682fp")
-
-[node name="Background" type="Sprite2D" parent="."]
-z_index = -2
-texture = ExtResource("12_tr7ca")
-script = ExtResource("13_0vhsp")
-
-[node name="WaveFunctionCollapse" type="WaveFunctionCollapse" parent="."]
-output_size = Vector2i(32, 32)
-seed = 1
-symmetry = 5
-pattern_size = 3
-visible = false
-position = Vector2(12.1313, 0.0576079)
-texture = ExtResource("13_ju8r0")
-script = ExtResource("13_sfuc8")
-
-[node name="TileMap" type="TileMap" parent="."]
+[node name="TileMap" type="TileMap"]
 tile_set = SubResource("TileSet_w46jo")
 cell_quadrant_size = 64
 format = 2
