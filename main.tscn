@@ -46,3 +46,6 @@ texture = ExtResource("13_ju8r0")
 script = ExtResource("13_sfuc8")
 
 [node name="TileMap" parent="." instance=ExtResource("9_qh1ky")]
+
+[node name="Respawn" type="Node2D" parent="."]
+position = Vector2(82, -98)
