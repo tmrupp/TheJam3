@@ -78,12 +78,6 @@ func dash():
 	velocity = dash_direction * DASH_SPEED
 	
 func _physics_process(delta):
-	# if position.y > 300:
-	# 	die()
-	
-#	print("tick")
-#	print("here? animation=", animation_player.current_animation)
-	
 	var walled = false
 	var wall_normal
 
@@ -150,12 +144,6 @@ func _physics_process(delta):
 				wall_jumping = WALL_JUMP_TIME
 		else:
 			buffered_jump = BUFFER_TIME
-			
-
-	# Get the input direction and handle the movement/deceleration.
-	# As good practice, you should replace UI actions with custom gameplay actions.
-	
-		
 	
 	manual_control = not (dashing > 0 or wall_jumping > 0)
 
