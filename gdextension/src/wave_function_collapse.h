@@ -9,9 +9,9 @@
 #include <godot_cpp/core/binder_common.hpp>
 
 #include <godot_cpp/core/class_db.hpp>
-#include <godot_cpp/variant/Array.hpp>
-#include <godot_cpp/classes/Texture2D.hpp>
-#include <godot_cpp/classes/Image.hpp>
+#include <godot_cpp/variant/array.hpp>
+#include <godot_cpp/classes/texture2d.hpp>
+#include <godot_cpp/classes/image.hpp>
 
 // #include "utils/array2D.hpp"
 // #include "utils/array3D.hpp"
