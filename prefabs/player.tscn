@@ -1,4 +1,4 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=4 format=3 uid="uid://ckf4x087yd0n5"]
 
 [ext_resource type="Script" path="res://scripts/Player.gd" id="1_yuot3"]
 [ext_resource type="PackedScene" uid="uid://do6pc8fn6e1dp" path="res://prefabs/scenes/julia.tscn" id="2_mxmb0"]

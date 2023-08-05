@@ -1,27 +1,37 @@
 extends CharacterBody2D
 
-
+# SPEED: how quickly the player moves
 const SPEED = 300.0
+# JUMP_VELOCITY: how quickly and high the player jumps
 const JUMP_VELOCITY = -400.0
 
-
+# DASH_SPEED: how quickly the player dashes
+# DASH_TIME: how long the dash takes
 const DASH_SPEED = 600.0
 const DASH_TIME = 0.25
 var has_dash = true
 var dashing = 0.0
 var dash_direction
 
+# WALL_JUMP_SPEED: how quickly and high the player jumps
+# WALL_JUMP_TIME: how long manual control is overriden 
+# (feels better when pushing into wall to jump and then jumps away)
 const WALL_JUMP_SPEED = 200.0
 const WALL_JUMP_TIME = 0.25
 var wall_jumping = 0.0
 
+# BUFFER_TIME: how long before hitting the ground can the player 
+# can buffer their next jump
 const BUFFER_TIME = 0.25
 var buffered_jump = 0.0
 
+# COYOTE_TIME: how long after leaving grounded state can the player still input a jump
 const COYOTE_TIME = 0.01
 var coyoting = 0.0
 var coyoted = false
 
+# HANG_TIME: how long at thje apex of a jump does gravity distortion take place
+# HANG_FACTOR: by how much is gravity distorted when hanging
 const HANG_TIME = 1
 const HANG_FACTOR = 0.5
 var hanging = 0.0
