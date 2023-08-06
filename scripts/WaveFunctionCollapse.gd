@@ -16,18 +16,21 @@ func to_uniques(data):
 		values.append(row)
 		
 	return values
-	
-func generate():
-	var mapInfo = get_tree().get_root().get_child(0).find_child("CanvasLayer").find_child("MapInfo")
+
+func generate(seed: int):
+	set_seed(seed)
+	seed(seed)
 	var map = to_uniques(collapse())
 	while len(map) == 0:
 		seed = randi()
-		print("regening seed=", seed)
 		map = to_uniques(collapse())
-		
-	mapInfo.load_all(map, map)
+	return map
+
+	
+func generate_all(world_seed: int, map_seed: int):
+	var mapInfo = get_tree().get_root().get_child(0).find_child("CanvasLayer").find_child("MapInfo")
+	mapInfo.load_all(generate(world_seed), generate(map_seed))
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
-	
 	pass

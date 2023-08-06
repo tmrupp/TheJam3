@@ -23,6 +23,8 @@ const SPACING = 6.0
 var map_local_size = map_size*SPACING
 var top_left = Vector2i(100, 100)
 
+
+const START_REVEALED = true
 const CHUNK_SIZE = 10
 
 var undiscovered_chunks = []
@@ -52,7 +54,12 @@ func get_random_chunk():
 func discover_random_chunk():
 	discover_chunk(get_random_chunk())
 	queue_redraw()
-	
+
+func discover_all():
+	for i in range(len(map_cells)):
+		for j in range(len(map_cells[i])):
+			map_cells[i][j].discovered = true
+
 func discover_chunk(v):
 	for i in range(v.x*CHUNK_SIZE, v.x*CHUNK_SIZE+CHUNK_SIZE):
 		for j in range(v.y*CHUNK_SIZE, v.y*CHUNK_SIZE+CHUNK_SIZE):
@@ -110,12 +117,19 @@ func load_all(_world_cells, _map_cells):
 	print("_world_cells=", len(_world_cells), "x", len(_world_cells[0]), " world_cells=", len(world_cells), "x", len(world_cells[0]))
 	
 	construct_all()
+
+	if (START_REVEALED):
+		discover_all()
+
+	map_image = Image.create(map_size.x, map_size.y, true, Image.FORMAT_RGBA8)
+	map_texture = ImageTexture.new()
 	
 func construct_all():
 	setup_chunks()
 	
 	var dimX = len(world_cells)
 	var dimY = len(world_cells[0])
+	map_size = Vector2i(len(world_cells), len(world_cells[0]))
 	
 	for i in range(dimX):
 		for j in range(dimY):
@@ -171,19 +185,37 @@ var cell_colors = {
 	Type.EMPTY: Color.LIGHT_BLUE,
 	Type.SHARD: Color.RED,
 }
-			
+
+@onready var map_contents = $MapContents
+var map_image : Image
+var map_texture : ImageTexture
+
+func compose_texture():
+	for i in len(map_cells):
+		for j in len(map_cells[i]):
+			draw_cell(i, j, map_cells[i][j])
+
 func draw_cell(x, y, cell):
 #	print("cell.type=", cell.type)
 	var color = Color.BLACK if not cell.discovered else cell_colors[cell.type]
 	color.a = .5
-	draw_rect(Rect2(x*SPACING+top_left.x, y*SPACING+top_left.y, SPACING, SPACING), color)
+	map_image.set_pixel(x, y, color)
+
+func inverse(v):
+	return Vector2(1/float(v.x), 1/float(v.y))
 
 func _draw():
 	top_left = get_viewport_rect().size/2-map_local_size/2
 	map_sprite.visible = enabled
 	map_sprite.position = get_viewport_rect().size/2 - Vector2.RIGHT*8
+
+	map_contents.visible = enabled
+	map_contents.position = get_viewport_rect().size/2
 	if (enabled):
 		for i in len(map_cells):
 			for j in len(map_cells[i]):
 				# print("i=", i, " j=", j, " cell=", cells[i][j].type)
 				draw_cell(i, j, map_cells[i][j])
+		map_texture.image = map_image
+		map_contents.texture = map_texture
+		map_contents.scale =  inverse(map_contents.texture.get_image().get_size()) * 19 * 32

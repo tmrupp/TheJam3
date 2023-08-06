@@ -13,8 +13,8 @@ var player_instance
 @onready var main = $".."
 
 func start_game():
-	wfc.set_seed(get_seed(world_seed))
-	wfc.generate()
+	# wfc.set_seed(get_seed(world_seed))
+	wfc.generate_all(get_seed(world_seed), get_seed(map_seed))
 	
 	visible = false
 	if player_instance == null:

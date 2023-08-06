@@ -21,6 +21,11 @@ layout_mode = 3
 anchors_preset = 0
 script = ExtResource("2_j20rq")
 
+[node name="MapContents" type="Sprite2D" parent="CanvasLayer/MapInfo"]
+texture_filter = 1
+position = Vector2(0.23, 0)
+scale = Vector2(20, 20)
+
 [node name="MapSprite" type="Sprite2D" parent="CanvasLayer/MapInfo"]
 visible = false
 z_index = -1
@@ -36,7 +41,7 @@ texture = ExtResource("5_kkgpg")
 script = ExtResource("6_oklsh")
 
 [node name="WaveFunctionCollapse" type="WaveFunctionCollapse" parent="."]
-output_size = Vector2i(32, 32)
+output_size = Vector2i(128, 128)
 seed = 1
 symmetry = 5
 pattern_size = 3
