@@ -121,7 +121,7 @@ func _physics_process(delta):
 			sprite.scale.x = -abs(sprite.scale.x)
 
 	# checks all current collisions and checks to see if colliding with a wall,
-	# wall normal must be in the x direction (up-down) to be considered walled for wall jumping
+	# wall normal must be in the x direction (an up-down wall) to be considered walled for wall jumping
 	for i in get_slide_collision_count():
 		var col = get_slide_collision(i)
 		if (col.get_normal().x != 0):
