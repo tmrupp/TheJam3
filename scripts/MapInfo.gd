@@ -136,7 +136,7 @@ func construct_all():
 
 # Enclose the map in a "box" so the player can't fall into nothingness
 func enclose_map(dimX, dimY):
-	for i in range(-X_MARGIN, dimX + X_MARGIN + 1):
+	for i in range(-X_MARGIN, dimX + X_MARGIN):
 		var to_add = [
 			Vector2i(i, dimY), #bottom of map
 			Vector2i(i, -TOP_MARGIN), #top of map
@@ -146,7 +146,7 @@ func enclose_map(dimX, dimY):
 	for j in range(-TOP_MARGIN + 1, dimY):
 		var to_add = [
 			Vector2i(-X_MARGIN, j), #left of map
-			Vector2i(dimX + X_MARGIN, j), #right of map
+			Vector2i(dimX + X_MARGIN - 1, j), #right of map
 		]
 		tile_map.set_cells_terrain_connect(0, to_add, 0, 0)
 
