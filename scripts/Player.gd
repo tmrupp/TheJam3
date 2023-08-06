@@ -5,37 +5,59 @@ const SPEED = 300.0
 # JUMP_VELOCITY: how quickly and high the player jumps
 const JUMP_VELOCITY = -400.0
 
+class ActionTimer:
+	var MAX_TIME = 1.0
+	var acting = 0.0
+	var acted = false
+
+	func _init(_MAX_TIME):
+		MAX_TIME = _MAX_TIME
+
+	func enable(force=false):
+		if force or (acting <= 0.0 and not acted):
+			acting = MAX_TIME
+			acted = true
+
+	func elapse(t):
+		if acting > 0:
+			acting -= t
+
+	func end():
+		acting = 0.0
+
+	func refresh():
+		acted = false
+
+	func is_acting():
+		return acting > 0
+
 # DASH_SPEED: how quickly the player dashes
 # DASH_TIME: how long the dash takes
 const DASH_SPEED = 600.0
-const DASH_TIME = 0.25
-var has_dash = true
-var dashing = 0.0
 var dash_direction
+var dash = ActionTimer.new(0.25)
 
 # WALL_JUMP_SPEED: how quickly and high the player jumps
 # WALL_JUMP_TIME: how long manual control is overriden 
 # (feels better when pushing into wall to jump and then jumps away)
+# WALL_JUMP_Y_FACTOR: by how much the y component of a normal jump is factored when wall jumping
 const WALL_JUMP_SPEED = 200.0
-const WALL_JUMP_TIME = 0.25
-var wall_jumping = 0.0
+const WALL_JUMP_Y_FACTOR = 0.75
+var wall_jump = ActionTimer.new(0.25)
 
 # BUFFER_TIME: how long before hitting the ground can the player 
 # can buffer their next jump
-const BUFFER_TIME = 0.25
-var buffered_jump = 0.0
+var buffer_jump = ActionTimer.new(0.25)
 
 # COYOTE_TIME: how long after leaving grounded state can the player still input a jump
-const COYOTE_TIME = 0.01
-var coyoting = 0.0
-var coyoted = false
+var coyote = ActionTimer.new(0.1)
 
 # HANG_TIME: how long at thje apex of a jump does gravity distortion take place
 # HANG_FACTOR: by how much is gravity distorted when hanging
-const HANG_TIME = 1
 const HANG_FACTOR = 0.5
-var hanging = 0.0
-var hanged = true
+var hang = ActionTimer.new(1)
+
+var timers = [dash, wall_jump, buffer_jump, coyote, hang]
 
 var manual_control = true
 
@@ -56,9 +78,6 @@ enum State {
 # Get the gravity from the project settings to be synced with RigidBody nodes.
 var gravity = ProjectSettings.get_setting("physics/2d/default_gravity")
 
-func refresh_dash ():
-	has_dash = true
-
 func animation_finished(animation):
 	# print("finished, ", animation)
 	if (animation == "hop"):
@@ -71,20 +90,18 @@ func _ready():
 	animation_player.connect("animation_started", animation_finished)
 
 func die():
-	print("i died")
 	position = respawn.position
 	velocity = Vector2.ZERO	
 
 var animating_jumping = false
-func jump():
-	velocity.y = JUMP_VELOCITY
+func jump(factor=1.0):
+	velocity.y = JUMP_VELOCITY * factor
 	animation_player.play("hop", -1, 4)
 	animation_player.queue("falling")
-	hanged = false
-	hanging = 0.0
+
 	animating_jumping = true
 	
-func dash():
+func do_dash():
 	velocity = dash_direction * DASH_SPEED
 	
 func _physics_process(delta):
@@ -107,18 +124,15 @@ func _physics_process(delta):
 
 	# Add the gravity.
 	if not is_on_floor():
-		if coyoting <= 0.0 and not coyoted:
-			coyoting = COYOTE_TIME
-			coyoted = true
+		coyote.enable()
 		
-		if (dashing <= 0):
-			var factor = 1.0 if hanging <= 0.0 else HANG_FACTOR
+		if (not dash.is_acting()):
+			var factor = 1.0 if not hang.is_acting() else HANG_FACTOR
 			velocity.y += gravity * factor * delta
 		
 #		print("abs(velocity.y)=", abs(velocity.y))
-		if (abs(velocity.y) <= 100 and not hanged):
-			hanging = HANG_TIME
-			hanged = true
+		if (abs(velocity.y) <= 100):
+			hang.enable()
 
 		if (not animating_jumping):
 			animation_player.play("falling")
@@ -132,60 +146,47 @@ func _physics_process(delta):
 #			print("here? animation=", animation_player.assigned_animation)
 			animation_player.play("idle")
 
-		if (buffered_jump > 0.0):
-			# print(" buffered_jump=",buffered_jump)
-			buffered_jump = 0.0
+		if (buffer_jump.is_acting()):
+			buffer_jump.end()
 			jump()
-		refresh_dash()
-		coyoted = false
-		hanged = false
+
+		dash.refresh()
+		coyote.refresh()
+		hang.refresh()
 		
 	
-	if dashing > 0:
-		coyoting = 0.0
+	if dash.is_acting():
+		coyote.end()
 
 	# Handle Jump.
 	if Input.is_action_just_pressed("Jump"):
-		if (is_on_floor() or walled or (coyoting > 0)):
+		if (is_on_floor() or coyote.is_acting()):
+			coyote.end()
 			jump()
-			coyoting = 0.0
-			if (walled and not is_on_floor()):
-				velocity.x = wall_normal.x * WALL_JUMP_SPEED
-				wall_jumping = WALL_JUMP_TIME
+		elif (walled and not is_on_floor()):
+			coyote.end()
+			jump(WALL_JUMP_Y_FACTOR)
+			velocity.x = wall_normal.x * WALL_JUMP_SPEED
+			wall_jump.enable(true)
 		else:
-			buffered_jump = BUFFER_TIME
+			buffer_jump.enable(true)
 	
-	manual_control = not (dashing > 0 or wall_jumping > 0)
+	print("wall_jump=", wall_jump.is_acting())
+	manual_control = not (dash.is_acting() or wall_jump.is_acting())
 
 	if (manual_control):
 		if direction:
 			velocity.x = direction.x * SPEED
 		else:
 			velocity.x = move_toward(velocity.x, 0, SPEED)
-		
 	
-	if Input.is_action_just_pressed("Dash") and has_dash:
-		has_dash = false
-		dashing = DASH_TIME
-		dash_direction = direction
-		dash()
-	
-	if dashing > 0:
-		dashing -= delta
-		if dashing <= 0:
-			velocity = Vector2.ZERO
+	if Input.is_action_just_pressed("Dash"):
+		if not dash.acted:
+			dash.enable()
+			dash_direction = direction
+			do_dash()
 
-	if wall_jumping > 0:
-		wall_jumping -= delta
-		
-	if buffered_jump > 0:
-		buffered_jump -= delta
-		
-	if coyoting > 0:
-		coyoting -= delta
-		
-	if hanging > 0:
-		hanging -= delta
-		# print("hanging=", hanging, " velocity.y=", velocity.y)
+	for timer in timers:
+		timer.elapse(delta)
 
 	move_and_slide()
