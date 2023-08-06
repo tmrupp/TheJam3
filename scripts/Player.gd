@@ -11,9 +11,11 @@ class ActionTimer:
 	var MAX_TIME = 1.0
 	var acting = 0.0
 	var acted = false
+	var end_callback
 
-	func _init(_MAX_TIME):
+	func _init(_MAX_TIME, f=func f (): pass):
 		MAX_TIME = _MAX_TIME
+		end_callback = f
 
 	func enable(force=false):
 		if force or (acting <= 0.0 and not acted):
@@ -23,6 +25,8 @@ class ActionTimer:
 	func elapse(t):
 		if acting > 0:
 			acting -= t
+			if acting <= 0:
+				end_callback.call()
 
 	func end():
 		acting = 0.0
@@ -37,8 +41,10 @@ class ActionTimer:
 # DASH_TIME: how long the dash takes
 # Y_DASH_FACTOR: how much the dash is diminished in the Y direction
 const DASH_SPEED = 600.0
-const Y_DASH_FACTOR = 0.6
-var dash = ActionTimer.new(0.25)
+const Y_DASH_FACTOR = 1.0
+func dash_end():
+	velocity = Vector2.ZERO	
+var dash = ActionTimer.new(0.25, dash_end)
 
 # WALL_JUMP_SPEED: how quickly and high the player jumps
 # WALL_JUMP_TIME: how long manual control is overriden 
