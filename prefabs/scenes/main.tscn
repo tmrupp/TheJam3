@@ -8,7 +8,7 @@
 [ext_resource type="Script" path="res://scripts/Background.gd" id="6_oklsh"]
 [ext_resource type="Texture2D" uid="uid://dtvy6g8angwok" path="res://wfc_images/levelSample3.png" id="7_r8iwv"]
 [ext_resource type="Script" path="res://scripts/WaveFunctionCollapse.gd" id="8_vwnae"]
-[ext_resource type="PackedScene" uid="uid://denfbxpbrrhqg" path="res://prefabs/tile_map.tscn" id="9_qh1ky"]
+[ext_resource type="PackedScene" path="res://prefabs/tile_map.tscn" id="9_qh1ky"]
 
 [node name="Main" type="Node2D"]
 
@@ -49,3 +49,5 @@ script = ExtResource("8_vwnae")
 
 [node name="Respawn" type="Node2D" parent="."]
 position = Vector2(82, -98)
+
+[node name="Camera2D" type="Camera2D" parent="."]

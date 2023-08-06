@@ -1,7 +1,8 @@
-[gd_scene load_steps=4 format=3 uid="uid://ckf4x087yd0n5"]
+[gd_scene load_steps=5 format=3 uid="uid://bs73erk5s6hsk"]
 
 [ext_resource type="Script" path="res://scripts/Player.gd" id="1_yuot3"]
 [ext_resource type="PackedScene" uid="uid://do6pc8fn6e1dp" path="res://prefabs/scenes/julia.tscn" id="2_mxmb0"]
+[ext_resource type="Script" path="res://scripts/CameraControl.gd" id="3_t5s4g"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_jk8bx"]
 size = Vector2(130, 130)
@@ -19,4 +20,5 @@ scale = Vector2(0.2, 0.2)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_jk8bx")
 
-[node name="Camera2D" type="Camera2D" parent="."]
+[node name="CameraControl" type="Node" parent="."]
+script = ExtResource("3_t5s4g")
