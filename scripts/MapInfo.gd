@@ -114,11 +114,11 @@ func load_all(_world_cells, _map_cells):
 func construct_all():
 	setup_chunks()
 	
-	var dimX = len(world_cells)
-	var dimY = len(world_cells[0])
+	var dim_x = len(world_cells)
+	var dim_y = len(world_cells[0])
 	
-	for i in range(dimX):
-		for j in range(dimY):
+	for i in range(dim_x):
+		for j in range(dim_y):
 			var cell = world_cells[i][j]
 #			print("Setting a tile @=", Vector2i(i,j), " cell.type=", cell.type)
 			if cell.type == Type.GROUND:
@@ -130,23 +130,23 @@ func construct_all():
 				ms.setup(self)
 				elements.append(ms)
 	
-	enclose_map(dimX, dimY)
+	enclose_map(dim_x, dim_y)
 	
 	queue_redraw()
 
 # Enclose the map in a "box" so the player can't fall into nothingness
-func enclose_map(dimX, dimY):
-	for i in range(-X_MARGIN, dimX + X_MARGIN):
+func enclose_map(dim_x, dim_y):
+	for i in range(-X_MARGIN, dim_x + X_MARGIN):
 		var to_add = [
-			Vector2i(i, dimY), #bottom of map
+			Vector2i(i, dim_y), #bottom of map
 			Vector2i(i, -TOP_MARGIN), #top of map
 			]
 		tile_map.set_cells_terrain_connect(0, to_add, 0, 0)
 	
-	for j in range(-TOP_MARGIN + 1, dimY):
+	for j in range(-TOP_MARGIN + 1, dim_y):
 		var to_add = [
 			Vector2i(-X_MARGIN, j), #left of map
-			Vector2i(dimX + X_MARGIN - 1, j), #right of map
+			Vector2i(dim_x + X_MARGIN - 1, j), #right of map
 		]
 		tile_map.set_cells_terrain_connect(0, to_add, 0, 0)
 
