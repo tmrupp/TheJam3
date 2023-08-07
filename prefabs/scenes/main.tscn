@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3 uid="uid://b8f4aco46sx36"]
+[gd_scene load_steps=12 format=3 uid="uid://cxvuh48afmfp4"]
 
 [ext_resource type="PackedScene" uid="uid://d07pxhxu1ug5i" path="res://prefabs/menu.tscn" id="1_u4qe6"]
 [ext_resource type="Script" path="res://scripts/MapInfo.gd" id="2_j20rq"]
@@ -9,6 +9,8 @@
 [ext_resource type="Texture2D" uid="uid://dtvy6g8angwok" path="res://wfc_images/levelSample3.png" id="7_r8iwv"]
 [ext_resource type="Script" path="res://scripts/WaveFunctionCollapse.gd" id="8_vwnae"]
 [ext_resource type="PackedScene" uid="uid://denfbxpbrrhqg" path="res://prefabs/tile_map.tscn" id="9_qh1ky"]
+[ext_resource type="AudioStream" uid="uid://c6lx43etq2b44" path="res://music/big_bossanova.wav" id="10_yprvw"]
+[ext_resource type="Script" path="res://scripts/MusicPlayer.gd" id="11_hqvrv"]
 
 [node name="Main" type="Node2D"]
 
@@ -56,3 +58,14 @@ script = ExtResource("8_vwnae")
 position = Vector2(82, -98)
 
 [node name="Camera2D" type="Camera2D" parent="."]
+
+[node name="Music" type="Node" parent="."]
+script = ExtResource("11_hqvrv")
+
+[node name="MusicPlayer1" type="AudioStreamPlayer" parent="Music"]
+stream = ExtResource("10_yprvw")
+volume_db = -5.842
+
+[node name="MusicPlayer2" type="AudioStreamPlayer" parent="Music"]
+stream = ExtResource("10_yprvw")
+volume_db = -5.842
