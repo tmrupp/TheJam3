@@ -13,19 +13,52 @@ class Cell:
 	func _init(_type=Type.GROUND):
 		type = _type
 
-var world_cells = []
-var map_cells = []
+class World:
+	var cells
+	var size = Vector2i.ZERO
+	var rng
+
+	func get_cell (v):
+		return cells[v.x][v.y]
+
+	func set_cell (v, cell):
+		cells[v.x][v.y] = cell
+
+	func discover (v):
+		get_cell(v).discovered = true
+
+	func get_random_cell ():
+		return Vector2i(rng.randi_range(0, size.x - 1), rng.randi_range(0, size.y - 1))
+
+	func _init (_cells, _seed):
+		rng = RandomNumberGenerator.new()
+		rng.seed = _seed
+		size = Vector2i(len(_cells), len(_cells[0]))
+		cells = []
+		for i in len(_cells):
+			var row = []
+			for j in len(_cells[i]):
+				row.append(Cell.new(_cells[i][j]))
+			cells.append(row)
+	
+		var chunks = (size.x*size.y)/(CHUNK_SIZE*CHUNK_SIZE)
+		for i in range(chunks):
+			var v = get_random_cell()
+			while get_cell(v).type != Type.EMPTY:
+				v = get_random_cell()
+			set_cell(v, Cell.new(Type.SHARD))
+
+var world
+var map
 @onready var map_sprite = $MapSprite
 # const?
-var map_size = Vector2i(100, 100)
 const SPACING = 6.0
 
-var map_local_size = map_size*SPACING
+var map_local_size= Vector2(100,100)
 var top_left = Vector2i(100, 100)
 
-
-const START_REVEALED = true
-const CHUNK_SIZE = 10
+const START_REVEALED = false
+const CHUNK_SIZE = 8
 
 var undiscovered_chunks = []
 @onready var tile_map = $"../../TileMap"
@@ -38,8 +71,8 @@ const TOP_MARGIN = 5
 
 func setup_chunks():
 	undiscovered_chunks = []
-	for i in range(0,map_size.x/CHUNK_SIZE):
-		for j in range(0,map_size.y/CHUNK_SIZE):
+	for i in range(0,map.size.x/CHUNK_SIZE):
+		for j in range(0,map.size.y/CHUNK_SIZE):
 			undiscovered_chunks.append(Vector2i(i, j))
 
 func get_random_chunk():
@@ -49,6 +82,7 @@ func get_random_chunk():
 	var i = randi_range(0, len(undiscovered_chunks)-1)
 	var chunk = undiscovered_chunks[i]
 	undiscovered_chunks.remove_at(i)
+	
 	return chunk
 
 func discover_random_chunk():
@@ -56,14 +90,14 @@ func discover_random_chunk():
 	queue_redraw()
 
 func discover_all():
-	for i in range(len(map_cells)):
-		for j in range(len(map_cells[i])):
-			map_cells[i][j].discovered = true
+	for i in range(map.size.x):
+		for j in range(map.size.y):
+			map.discover(Vector2i(i,j))
 
 func discover_chunk(v):
 	for i in range(v.x*CHUNK_SIZE, v.x*CHUNK_SIZE+CHUNK_SIZE):
 		for j in range(v.y*CHUNK_SIZE, v.y*CHUNK_SIZE+CHUNK_SIZE):
-			map_cells[i][j].discovered = true
+			map.discover(Vector2i(i,j))
 			
 var map_shard = preload("res://prefabs/map_shard.tscn")
 @onready var main = $"../.."
@@ -76,75 +110,50 @@ func remove_element(elem):
 	elements.erase(elem)
 
 func clear_terrain():
-	for i in range(map_size.x):
-		for j in range(map_size.y):
+	if world == null:
+		return
+		
+	for i in range(world.size.x):
+		for j in range(world.size.y):
 			tile_map.clear()
 			
 	for elem in elements:
 		elem.queue_free()
 	elements.clear()
-
-func generate(new_seed):
-	var cells = []
-	seed(new_seed)
-	for i in range(map_size.x):
-		var row = []
-		for j in range(map_size.y):
-			var r = randi_range(0, Type.size()-1)
-			row.append(Cell.new(r))
-		cells.append(row)
-	return cells
-
-func convert_to_cells(cells):
-	var new_cells = []
-	for i in len(cells):
-		var row = []
-		for j in len(cells[i]):
-			row.append(Cell.new(cells[i][j]))
-		new_cells.append(row)
-	return new_cells
-
-func load_map(cells):
-	map_cells = convert_to_cells(cells)
 	
-func load_world(cells):
-	world_cells = convert_to_cells(cells)
-	
-func load_all(_world_cells, _map_cells):
+func load_all(world_cells, world_seed, map_cells, map_seed):
 	clear_terrain()
-	load_map(_map_cells)
-	load_world(_world_cells)
-	print("_world_cells=", len(_world_cells), "x", len(_world_cells[0]), " world_cells=", len(world_cells), "x", len(world_cells[0]))
+	map = World.new(map_cells, map_seed)
+	world = World.new(world_cells, world_seed)
+	map_local_size = map.size*SPACING
+	# print("_world_cells=", len(_world_cells), "x", len(_world_cells[0]), " world_cells=", len(world_cells), "x", len(world_cells[0]))
 	
-	construct_all()
+	construct_world()
 
 	if (START_REVEALED):
 		discover_all()
 
-	map_image = Image.create(map_size.x, map_size.y, true, Image.FORMAT_RGBA8)
+	map_image = Image.create(map.size.x, map.size.y, true, Image.FORMAT_RGBA8)
 	map_texture = ImageTexture.new()
 	
-func construct_all():
+func construct_world():
 	setup_chunks()
 	
-	var dim_x = len(world_cells)
-	var dim_y = len(world_cells[0])
-	map_size = Vector2i(len(world_cells), len(world_cells[0]))
-	
-	for i in range(dim_x):
-		for j in range(dim_y):
-			var cell = world_cells[i][j]
+	for i in range(world.size.x):
+		for j in range(world.size.y):
+			var v = Vector2i(i,j)
+			var cell = world.get_cell(v)
 #			print("Setting a tile @=", Vector2i(i,j), " cell.type=", cell.type)
 			if cell.type == Type.GROUND:
-				tile_map.set_cells_terrain_connect(0, [Vector2i(i,j)], 0, 0)
+				tile_map.set_cells_terrain_connect(0, [v], 0, 0)
 			elif cell.type == Type.SHARD:
 				var ms = map_shard.instantiate()
 				main.add_child.call_deferred(ms)
-				ms.position = tile_map.map_to_local(Vector2i(i,j))
+				ms.position = tile_map.to_global(tile_map.map_to_local(v))
 				ms.setup(self)
 				elements.append(ms)
 	
-	enclose_map(dim_x, dim_y)
+	enclose_map(world.size.x, world.size.y)
 	
 	queue_redraw()
 
@@ -163,13 +172,6 @@ func enclose_map(dim_x, dim_y):
 			Vector2i(dim_x + X_MARGIN - 1, j), #right of map
 		]
 		tile_map.set_cells_terrain_connect(0, to_add, 0, 0)
-
-func generate_all(world_seed, map_seed):
-#	clear_terrain()
-	map_cells = generate(map_seed)
-	world_cells = generate(world_seed)
-	
-	construct_all()
 
 var enabled = false
 func _input(event):
@@ -191,9 +193,9 @@ var map_image : Image
 var map_texture : ImageTexture
 
 func compose_texture():
-	for i in len(map_cells):
-		for j in len(map_cells[i]):
-			draw_cell(i, j, map_cells[i][j])
+	for i in map.size.x:
+		for j in map.size.y:
+			draw_cell(i, j, map.get_cell(Vector2i(i, j)))
 
 func draw_cell(x, y, cell):
 #	print("cell.type=", cell.type)
@@ -212,10 +214,10 @@ func _draw():
 	map_contents.visible = enabled
 	map_contents.position = get_viewport_rect().size/2
 	if (enabled):
-		for i in len(map_cells):
-			for j in len(map_cells[i]):
+		for i in map.size.x:
+			for j in map.size.y:
 				# print("i=", i, " j=", j, " cell=", cells[i][j].type)
-				draw_cell(i, j, map_cells[i][j])
+				draw_cell(i, j, map.get_cell(Vector2i(i, j)))
 		map_texture.image = map_image
 		map_contents.texture = map_texture
 		map_contents.scale =  inverse(map_contents.texture.get_image().get_size()) * 19 * 32

@@ -29,7 +29,7 @@ func generate(seed: int):
 	
 func generate_all(world_seed: int, map_seed: int):
 	var mapInfo = get_tree().get_root().get_child(0).find_child("CanvasLayer").find_child("MapInfo")
-	mapInfo.load_all(generate(world_seed), generate(map_seed))
+	mapInfo.load_all(generate(world_seed), world_seed, generate(map_seed), map_seed)
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
