@@ -51,10 +51,10 @@ class World:
 			set_cell(v, Cell.new(Type.SHARD))
 			
 		# find a place for the goal
-		#var v = get_random_cell()
-		#while get_cell(v).type != Type.EMPTY:
-			#v = get_random_cell()
-		var v = Vector2i(4, 0)
+		var v = get_random_cell()
+		while get_cell(v).type != Type.EMPTY:
+			v = get_random_cell()
+#		var v = Vector2i(4, 0)
 		set_cell(v, Cell.new(Type.GOAL))
 
 		next_seed = rng.randi()
