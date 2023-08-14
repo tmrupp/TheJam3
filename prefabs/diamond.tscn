@@ -6,6 +6,7 @@
 [sub_resource type="CircleShape2D" id="CircleShape2D_hy8e6"]
 
 [node name="Diamond" type="Area2D"]
+texture_filter = 1
 position = Vector2(82, -193)
 script = ExtResource("1_5fu3g")
 
@@ -13,4 +14,5 @@ script = ExtResource("1_5fu3g")
 shape = SubResource("CircleShape2D_hy8e6")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
 texture = ExtResource("2_e2opg")

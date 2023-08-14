@@ -7,19 +7,13 @@ extends CanvasLayer
 @onready var world_seed = $"VBoxContainer/World Seed/LineEdit"
 @onready var map_seed = $"VBoxContainer/Map Seed/LineEdit"
 
-var player = preload("res://prefabs/player.tscn")
-var player_instance
-
 @onready var main = $".."
+@onready var wfc_thread = Thread.new()
 
 func start_game():
-	# wfc.set_seed(get_seed(world_seed))
-	wfc.generate_all(get_seed(world_seed), get_seed(map_seed))
+	wfc_thread.start(wfc.generate_all.bind(get_seed(world_seed), get_seed(map_seed), wfc_thread))
 	
 	visible = false
-	if player_instance == null:
-		player_instance = player.instantiate()
-		main.add_child(player_instance)
 	pass
 	
 func exit_game():
@@ -31,7 +25,7 @@ func get_seed(input):
 
 func _input(event):
 	if event.is_action_pressed("Menu"):
-		if player_instance != null:
+		if main.has_node("Player"): #!= null:
 			visible = !visible
 
 # Called when the node enters the scene tree for the first time.

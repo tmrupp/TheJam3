@@ -1,5 +1,6 @@
 extends CharacterBody2D
 
+@onready var collider = $CollisionShape2D
 # SPEED: how quickly the player moves
 const SPEED = 300.0
 # JUMP_VELOCITY: how quickly and high the player jumps
@@ -93,10 +94,14 @@ func _ready():
 	respawn = $"../Respawn"
 	animation_player.connect("animation_started", animation_finished)
 
-# kills the player and puts them back at respawn
-func die():
+#puts the player back at the spawn location
+func reset_position():
 	position = respawn.position
 	velocity = Vector2.ZERO	
+
+# kills the player and puts them back at respawn
+func die():
+	reset_position()
 
 # does a jump and triggers the jumping animation
 var animating_jumping = false

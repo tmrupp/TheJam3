@@ -4,6 +4,7 @@ enum Type {
 	EMPTY,
 	GROUND,
 	SHARD,
+	GOAL,
 }
 
 class Cell:
@@ -17,6 +18,7 @@ class World:
 	var cells
 	var size = Vector2i.ZERO
 	var rng
+	var next_seed
 
 	func get_cell (v):
 		return cells[v.x][v.y]
@@ -47,17 +49,32 @@ class World:
 			while get_cell(v).type != Type.EMPTY:
 				v = get_random_cell()
 			set_cell(v, Cell.new(Type.SHARD))
+			
+		# find a place for the goal
+		#var v = get_random_cell()
+		#while get_cell(v).type != Type.EMPTY:
+			#v = get_random_cell()
+		var v = Vector2i(4, 0)
+		set_cell(v, Cell.new(Type.GOAL))
 
+		next_seed = rng.randi()
+		
+var goal_shift = 0
 var world
 var map
+@onready var wfc = $"../../WaveFunctionCollapse"
+@onready var player
 @onready var map_sprite = $MapSprite
 # const?
 const SPACING = 6.0
 
-var map_local_size= Vector2(100,100)
+var wfc_world_thread = Thread.new()
+var wfc_map_thread = Thread.new()
+
+var map_local_size = Vector2(100,100)
 var top_left = Vector2i(100, 100)
 
-const START_REVEALED = false
+const START_REVEALED = true
 const CHUNK_SIZE = 8
 
 var undiscovered_chunks = []
@@ -68,6 +85,17 @@ var elements = []
 # constants for "box" to contain the generated map
 const X_MARGIN = 2
 const TOP_MARGIN = 5
+
+@onready var wfc_thread = Thread.new()
+
+var generating = false
+func generate():
+	player.reset_position()
+	main.remove_child(player)
+	player.queue_free()
+	# player = null
+	# player.set_physics_process(false)
+	wfc_thread.start(wfc.generate_all.bind(world.next_seed, map.next_seed, wfc_thread))
 
 func setup_chunks():
 	undiscovered_chunks = []
@@ -100,6 +128,7 @@ func discover_chunk(v):
 			map.discover(Vector2i(i,j))
 			
 var map_shard = preload("res://prefabs/map_shard.tscn")
+var goal = preload("res://prefabs/goal.tscn")
 @onready var main = $"../.."
 # Called when the node enters the scene tree for the first time.
 func _ready():
@@ -120,11 +149,16 @@ func clear_terrain():
 	for elem in elements:
 		elem.queue_free()
 	elements.clear()
-	
+
+var player_prefab = preload("res://prefabs/player.tscn")
+
 func load_all(world_cells, world_seed, map_cells, map_seed):
 	clear_terrain()
+	print("loading")
+	
 	map = World.new(map_cells, map_seed)
 	world = World.new(world_cells, world_seed)
+	goal_shift+=1
 	map_local_size = map.size*SPACING
 	# print("_world_cells=", len(_world_cells), "x", len(_world_cells[0]), " world_cells=", len(world_cells), "x", len(world_cells[0]))
 	
@@ -135,6 +169,14 @@ func load_all(world_cells, world_seed, map_cells, map_seed):
 
 	map_image = Image.create(map.size.x, map.size.y, true, Image.FORMAT_RGBA8)
 	map_texture = ImageTexture.new()
+	# main.add_child(player)
+	
+	if player == null:
+		player = player_prefab.instantiate()
+
+	if player.get_parent() == null:
+		main.add_child(player)
+		
 	
 func construct_world():
 	setup_chunks()
@@ -152,6 +194,12 @@ func construct_world():
 				ms.position = tile_map.to_global(tile_map.map_to_local(v))
 				ms.setup(self)
 				elements.append(ms)
+			elif cell.type == Type.GOAL:
+				var g = goal.instantiate()
+				main.add_child.call_deferred(g)
+				g.position = tile_map.to_global(tile_map.map_to_local(v))
+				# g.setup(self)
+				elements.append(g)
 	
 	enclose_map(world.size.x, world.size.y)
 	
@@ -165,6 +213,7 @@ func enclose_map(dim_x, dim_y):
 			Vector2i(i, -TOP_MARGIN), #top of map
 			]
 		tile_map.set_cells_terrain_connect(0, to_add, 0, 0)
+		# print("to_add=", to_add, " dim_x=", dim_x)
 	
 	for j in range(-TOP_MARGIN + 1, dim_y):
 		var to_add = [
@@ -172,6 +221,7 @@ func enclose_map(dim_x, dim_y):
 			Vector2i(dim_x + X_MARGIN - 1, j), #right of map
 		]
 		tile_map.set_cells_terrain_connect(0, to_add, 0, 0)
+		# print("to_add=", to_add, " dim_y=", dim_y)
 
 var enabled = false
 func _input(event):
@@ -183,9 +233,10 @@ func _input(event):
 		discover_random_chunk()
 			
 var cell_colors = {
-	Type.GROUND: Color.DARK_OLIVE_GREEN,
-	Type.EMPTY: Color.LIGHT_BLUE,
-	Type.SHARD: Color.RED,
+	Type.GROUND: 	Color.DARK_OLIVE_GREEN,
+	Type.EMPTY: 	Color.LIGHT_BLUE,
+	Type.SHARD: 	Color.RED,
+	Type.GOAL: 		Color.GREEN,
 }
 
 @onready var map_contents = $MapContents
