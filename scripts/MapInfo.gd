@@ -91,10 +91,7 @@ const TOP_MARGIN = 5
 var generating = false
 func generate():
 	player.reset_position()
-	main.remove_child(player)
-	player.queue_free()
-	# player = null
-	# player.set_physics_process(false)
+	player.set_physics_process(false)
 	wfc_thread.start(wfc.generate_all.bind(world.next_seed, map.next_seed, wfc_thread))
 
 func setup_chunks():
@@ -176,6 +173,8 @@ func load_all(world_cells, world_seed, map_cells, map_seed):
 
 	if player.get_parent() == null:
 		main.add_child(player)
+	
+	player.set_physics_process(true)
 		
 	
 func construct_world():
