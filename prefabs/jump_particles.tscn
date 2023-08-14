@@ -1,0 +1,47 @@
+[gd_scene load_steps=8 format=3 uid="uid://b05ill0a2605a"]
+
+[ext_resource type="Texture2D" uid="uid://1yd1gepnb8n6" path="res://sprites/DustCloud1.png" id="1_4vi7l"]
+[ext_resource type="Script" path="res://scripts/jump_particles.gd" id="2_7545t"]
+
+[sub_resource type="Gradient" id="Gradient_tua3s"]
+offsets = PackedFloat32Array(0, 0.548148)
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_sxfys"]
+gradient = SubResource("Gradient_tua3s")
+
+[sub_resource type="Curve" id="Curve_ie1v2"]
+_data = [Vector2(0, 0.236364), 0.0, 0.745455, 0, 0, Vector2(1, 0.963636), 0.722472, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="CurveTexture" id="CurveTexture_wj7d7"]
+curve = SubResource("Curve_ie1v2")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_0j15o"]
+particle_flag_disable_z = true
+direction = Vector3(0, 1, 0)
+spread = 70.0
+gravity = Vector3(0, 0, 0)
+initial_velocity_min = 246.9
+initial_velocity_max = 246.9
+orbit_velocity_min = 0.0
+orbit_velocity_max = 0.0
+damping_min = 72.86
+damping_max = 72.86
+scale_min = 1.2
+scale_max = 1.2
+scale_curve = SubResource("CurveTexture_wj7d7")
+color_ramp = SubResource("GradientTexture1D_sxfys")
+
+[node name="JumpParticles" type="GPUParticles2D"]
+z_index = 1
+emitting = false
+amount = 12
+process_material = SubResource("ParticleProcessMaterial_0j15o")
+texture = ExtResource("1_4vi7l")
+lifetime = 4.0
+one_shot = true
+speed_scale = 4.42
+explosiveness = 1.0
+randomness = 0.8
+script = ExtResource("2_7545t")

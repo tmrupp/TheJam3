@@ -111,6 +111,8 @@ func jump(factor=1.0):
 	animation_player.queue("falling")
 
 	animating_jumping = true
+	
+	$"ParticleController".Jump()
 
 # does a dash moving rapidly in one direction
 func do_dash(dash_direction):

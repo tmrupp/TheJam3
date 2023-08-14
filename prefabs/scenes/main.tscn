@@ -8,8 +8,8 @@
 [ext_resource type="Script" path="res://scripts/Background.gd" id="6_oklsh"]
 [ext_resource type="Texture2D" uid="uid://dtvy6g8angwok" path="res://wfc_images/levelSample3.png" id="7_r8iwv"]
 [ext_resource type="Script" path="res://scripts/WaveFunctionCollapse.gd" id="8_vwnae"]
-[ext_resource type="PackedScene" uid="uid://denfbxpbrrhqg" path="res://prefabs/tile_map.tscn" id="9_qh1ky"]
-[ext_resource type="AudioStream" uid="uid://dl3u7v333oha2" path="res://music/big_bossanova.wav" id="10_yprvw"]
+[ext_resource type="PackedScene" path="res://prefabs/tile_map.tscn" id="9_qh1ky"]
+[ext_resource type="AudioStream" uid="uid://c6lx43etq2b44" path="res://music/big_bossanova.wav" id="10_yprvw"]
 [ext_resource type="Script" path="res://scripts/MusicPlayer.gd" id="11_hqvrv"]
 
 [node name="Main" type="Node2D"]
