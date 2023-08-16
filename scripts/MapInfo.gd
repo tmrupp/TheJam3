@@ -259,10 +259,8 @@ func _input(event):
 			
 var cell_colors = {
 	Type.GROUND: 	Color.DARK_OLIVE_GREEN,
-	Type.EMPTY: 	Color.LIGHT_BLUE,
 	Type.SHARD: 	Color.RED,
 	Type.GOAL: 		Color.GREEN,
-	Type.SPIKES: 	Color.DARK_OLIVE_GREEN,
 }
 
 @onready var map_contents = $MapContents
@@ -276,7 +274,7 @@ func compose_texture():
 
 func draw_cell(x, y, cell):
 #	print("cell.type=", cell.type)
-	var color = Color.BLACK if not cell.discovered else cell_colors[cell.type]
+	var color = Color.BLACK if not cell.discovered else (Color.LIGHT_BLUE if cell.type not in cell_colors else cell_colors[cell.type])
 	color.a = .5
 	map_image.set_pixel(x, y, color)
 
