@@ -12,10 +12,13 @@ var offset_rotation = {
 }
 
 var world
+var map_info
 func setup(_map_info, v):
 	world = _map_info.world
+	map_info = _map_info
 	var ns = world.get_neighbors(v)
 	if len(ns) == 0:
+		map_info.remove_element(self)
 		queue_free()
 	else:
 		for n in ns:
@@ -24,6 +27,7 @@ func setup(_map_info, v):
 				position = position - Vector2(offset)*16
 				rotation_degrees = offset_rotation[offset]
 				return
+	map_info.remove_element(self)
 	queue_free()
 
 func _ready() -> void:

@@ -167,7 +167,8 @@ func clear_terrain():
 			tile_map.clear()
 			
 	for elem in elements:
-		elem.queue_free()
+		if elem != null:
+			elem.queue_free()
 	elements.clear()
 
 var player_prefab = preload("res://prefabs/player.tscn")
@@ -261,6 +262,7 @@ var cell_colors = {
 	Type.EMPTY: 	Color.LIGHT_BLUE,
 	Type.SHARD: 	Color.RED,
 	Type.GOAL: 		Color.GREEN,
+	Type.SPIKES: 	Color.DARK_OLIVE_GREEN,
 }
 
 @onready var map_contents = $MapContents
