@@ -5,6 +5,7 @@ enum Type {
 	GROUND,
 	SHARD,
 	GOAL,
+	SPIKES,
 }
 
 class Cell:
@@ -19,6 +20,22 @@ class World:
 	var size = Vector2i.ZERO
 	var rng
 	var next_seed
+	var empties = []
+	
+	func is_valid (v):
+		return not (v.x >= size.x or v.x < 0 or v.y >= size.y or v.y < 0)
+	
+	var neighbor_offsets = [Vector2i(-1,0),Vector2i(1,0),Vector2i(0,1),Vector2i(0,-1)]
+	func get_neighbors (v):
+		var vs = []
+		for offset in neighbor_offsets:
+			var n = v + offset
+			if is_valid(n):
+				vs.append(n)
+		return vs
+		
+	func is_ground (v):
+		return get_cell(v).type == Type.GROUND
 
 	func get_cell (v):
 		return cells[v.x][v.y]
@@ -31,6 +48,12 @@ class World:
 
 	func get_random_cell ():
 		return Vector2i(rng.randi_range(0, size.x - 1), rng.randi_range(0, size.y - 1))
+		
+	func pop_random_empty ():
+		var i = rng.randi_range(0, len(empties) - 1)
+		var v = empties[i]
+		empties.remove_at(i)
+		return v
 
 	func _init (_cells, _seed):
 		rng = RandomNumberGenerator.new()
@@ -41,21 +64,20 @@ class World:
 			var row = []
 			for j in len(_cells[i]):
 				row.append(Cell.new(_cells[i][j]))
+				if _cells[i][j] == Type.EMPTY:
+					empties.append(Vector2i(i,j))
 			cells.append(row)
 	
 		var chunks = (size.x*size.y)/(CHUNK_SIZE*CHUNK_SIZE)
 		for i in range(chunks):
-			var v = get_random_cell()
-			while get_cell(v).type != Type.EMPTY:
-				v = get_random_cell()
-			set_cell(v, Cell.new(Type.SHARD))
+			set_cell(pop_random_empty(), Cell.new(Type.SHARD))
 			
 		# find a place for the goal
-		var v = get_random_cell()
-		while get_cell(v).type != Type.EMPTY:
-			v = get_random_cell()
-#		var v = Vector2i(4, 0)
-		set_cell(v, Cell.new(Type.GOAL))
+		set_cell(pop_random_empty(), Cell.new(Type.GOAL))
+		
+#		for i in range(rng.randi_range(8,32)):
+		for i in range(100):
+			set_cell(pop_random_empty(), Cell.new(Type.SPIKES))
 
 		next_seed = rng.randi()
 		
@@ -74,7 +96,7 @@ var wfc_map_thread = Thread.new()
 var map_local_size = Vector2(100,100)
 var top_left = Vector2i(100, 100)
 
-const START_REVEALED = true
+const START_REVEALED = false
 const CHUNK_SIZE = 8
 
 var undiscovered_chunks = []
@@ -125,6 +147,7 @@ func discover_chunk(v):
 			map.discover(Vector2i(i,j))
 			
 var map_shard = preload("res://prefabs/map_shard.tscn")
+var spikes = preload("res://prefabs/spikes.tscn")
 var goal = preload("res://prefabs/goal.tscn")
 @onready var main = $"../.."
 # Called when the node enters the scene tree for the first time.
@@ -175,30 +198,32 @@ func load_all(world_cells, world_seed, map_cells, map_seed):
 		main.add_child(player)
 	
 	player.set_physics_process(true)
-		
-	
+
+var cell_to_prefab = {
+	Type.SHARD: map_shard,
+	Type.GOAL: goal,
+	Type.SPIKES: spikes,
+}
+
+func place_cell(v, type):
+	var cell = cell_to_prefab[type].instantiate()
+	main.add_child.call_deferred(cell)
+	cell.position = tile_map.to_global(tile_map.map_to_local(v))
+	cell.setup(self, v)
+	elements.append(cell)
+
 func construct_world():
 	setup_chunks()
 	
 	for i in range(world.size.x):
 		for j in range(world.size.y):
 			var v = Vector2i(i,j)
-			var cell = world.get_cell(v)
+			var cell : Cell = world.get_cell(v)
 #			print("Setting a tile @=", Vector2i(i,j), " cell.type=", cell.type)
 			if cell.type == Type.GROUND:
 				tile_map.set_cells_terrain_connect(0, [v], 0, 0)
-			elif cell.type == Type.SHARD:
-				var ms = map_shard.instantiate()
-				main.add_child.call_deferred(ms)
-				ms.position = tile_map.to_global(tile_map.map_to_local(v))
-				ms.setup(self)
-				elements.append(ms)
-			elif cell.type == Type.GOAL:
-				var g = goal.instantiate()
-				main.add_child.call_deferred(g)
-				g.position = tile_map.to_global(tile_map.map_to_local(v))
-				# g.setup(self)
-				elements.append(g)
+			elif cell.type != Type.EMPTY:
+				place_cell(v, cell.type)
 	
 	enclose_map(world.size.x, world.size.y)
 	

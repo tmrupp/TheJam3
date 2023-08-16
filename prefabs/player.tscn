@@ -10,7 +10,6 @@ size = Vector2(130, 130)
 
 [node name="Player" type="CharacterBody2D"]
 position = Vector2(58.0001, -202)
-rotation = -6.28319
 scale = Vector2(0.2, 0.2)
 disable_mode = 2
 script = ExtResource("1_yuot3")
