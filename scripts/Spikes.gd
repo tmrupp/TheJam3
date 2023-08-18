@@ -1,8 +1,12 @@
 extends Area2D
 @onready var player = $"../Player"
+@onready var collider = $"CollisionShape2D"
+var knock_back_factor = 400
 func touch(other):
 	if other == player:
-		other.die()
+		print("other.position=", other.position, " position=", position+collider.position, " normalized=", (other.position - position).normalized())
+		var d = (other.position - (position+collider.position)).normalized()
+		other.hurt(-1, d * knock_back_factor)
 
 var offset_rotation = {
 	Vector2i(-1,0) : -90,

@@ -1,6 +1,44 @@
 extends CharacterBody2D
 
 @onready var collider = $CollisionShape2D
+@onready var health = $Health
+
+func refresh_self (timer):
+	timer.refresh()
+	
+var invulnerable = ActionTimer.new(2, refresh_self)
+var knock_back = ActionTimer.new(0.25, refresh_self)
+var knock = Vector2.ZERO
+
+func show_hurt():
+	var r = 0
+	while r < 1.0:
+		print("sup, r=", r)
+		await get_tree().create_timer(0.1).timeout
+		r += 0.1
+		sprite.modulate.g = r
+		sprite.modulate.b = r
+		
+func show_invulnerable():
+	var d = 0
+	var step = .1
+	var min = .4
+	var period = 0.5
+	while invulnerable.is_acting():
+		await get_tree().create_timer(step).timeout
+		d+=step
+		sprite.modulate.a = ((sin(d*180*period)+1)/2)*(1-min) + (min)
+#		print("sprite.modulate.a=", sprite.modulate.a, " sin(d*180*period)=", sin(d*180*period), " d=", d)
+
+func hurt (damage, v):
+	if not invulnerable.is_acting():
+		health.modify_health(damage)
+		invulnerable.enable()
+		knock_back.enable()
+		knock = v
+		show_hurt()
+		show_invulnerable()
+
 # SPEED: how quickly the player moves
 const SPEED = 300.0
 # JUMP_VELOCITY: how quickly and high the player jumps
@@ -14,7 +52,7 @@ class ActionTimer:
 	var acted = false
 	var end_callback
 
-	func _init(_MAX_TIME, f=func f (): pass):
+	func _init(_MAX_TIME, f=func f (timer): pass):
 		MAX_TIME = _MAX_TIME
 		end_callback = f
 
@@ -27,7 +65,7 @@ class ActionTimer:
 		if acting > 0:
 			acting -= t
 			if acting <= 0:
-				end_callback.call()
+				end_callback.bind(self).call()
 
 	func end():
 		acting = 0.0
@@ -43,7 +81,7 @@ class ActionTimer:
 # Y_DASH_FACTOR: how much the dash is diminished in the Y direction
 const DASH_SPEED = 600.0
 const Y_DASH_FACTOR = 1.0
-func dash_end():
+func dash_end(timer):
 	velocity = Vector2.ZERO	
 var dash = ActionTimer.new(0.25, dash_end)
 
@@ -70,7 +108,7 @@ const HANG_SPEED_TARGET = 100
 var hang = ActionTimer.new(1000)
 
 # all of the timers (for decrementing)
-var timers = [dash, wall_jump, buffer_jump, coyote, hang]
+var timers = [dash, wall_jump, buffer_jump, coyote, hang, invulnerable, knock_back]
 
 # whether or not the player has control
 var manual_control = true
@@ -98,6 +136,7 @@ func _ready():
 func reset_position():
 	position = respawn.position
 	velocity = Vector2.ZERO	
+	knock = Vector2.ZERO
 
 # kills the player and puts them back at respawn
 func die():
@@ -203,15 +242,19 @@ func _physics_process(delta):
 			buffer_jump.enable(true)
 	
 	# no manual control while dashing or wall jumping (prevents jumping over and over on a wall)
-	manual_control = not (dash.is_acting() or wall_jump.is_acting())
+	manual_control = not (dash.is_acting() or wall_jump.is_acting() or knock_back.is_acting())
 
 	# if has manual control set the velocity correctly
 	if (manual_control):
 		if direction:
 			velocity.x = direction.x * SPEED
 		else:
-			velocity.x = move_toward(velocity.x, 0, SPEED)
-	
+			velocity.x = move_toward(velocity.x, 0, SPEED/10)
+			
+	if knock != Vector2.ZERO:
+		velocity = knock
+		knock = Vector2.ZERO
+		
 	# get dash input and dash if necessary
 	if Input.is_action_just_pressed("Dash"):
 		if not dash.acted:
