@@ -22,11 +22,11 @@ func show_invulnerable():
 	var d = 0
 	var step = .01
 	var min = .4
-	var period = 0.5
+	var period = 0.25
 	while invulnerable.is_acting():
 		await get_tree().create_timer(step).timeout
-		d+=step
-		sprite.modulate.a = ((sin(d*180*period)+1)/2)*(1-min) + (min)
+		d += step
+		sprite.modulate.a = ((sin(d*2*PI/period)+1)/2)*(1-min) + (min)
 #		print("sprite.modulate.a=", sprite.modulate.a, " sin(d*180*period)=", sin(d*180*period), " d=", d)
 	sprite.modulate.a = 1
 
