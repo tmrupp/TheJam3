@@ -13,7 +13,6 @@ var knock = Vector2.ZERO
 func show_hurt():
 	var r = 0
 	while r < 1.0:
-		print("sup, r=", r)
 		await get_tree().create_timer(0.1).timeout
 		r += 0.1
 		sprite.modulate.g = r
@@ -21,7 +20,7 @@ func show_hurt():
 		
 func show_invulnerable():
 	var d = 0
-	var step = .1
+	var step = .01
 	var min = .4
 	var period = 0.5
 	while invulnerable.is_acting():
@@ -29,6 +28,7 @@ func show_invulnerable():
 		d+=step
 		sprite.modulate.a = ((sin(d*180*period)+1)/2)*(1-min) + (min)
 #		print("sprite.modulate.a=", sprite.modulate.a, " sin(d*180*period)=", sin(d*180*period), " d=", d)
+	sprite.modulate.a = 1
 
 func hurt (damage, v):
 	if not invulnerable.is_acting():
