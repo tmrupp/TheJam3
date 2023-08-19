@@ -12,13 +12,40 @@ const BR_LERP_SMOOTHNESS = 0.0001
 const BR_LOWER_THRESHOLD = 20
 var currently_lerping = false
 
+# hard camera boundaries
+var level_bounds_low = Vector2()
+var level_bounds_high = Vector2()
+var boundary_buffer = Vector2i(800, 450)
+
 @onready var camera = $"../../Camera2D"
 @onready var player = $"../"
+
+func _ready():
+	var level_size = $"../../WaveFunctionCollapse".output_size * $"../../TileMap".cell_quadrant_size
+	level_bounds_low.x = -1 * $"../../CanvasLayer/MapInfo".X_MARGIN * $"../../TileMap".cell_quadrant_size
+	level_bounds_high.x = level_size.x + $"../../CanvasLayer/MapInfo".X_MARGIN * $"../../TileMap".cell_quadrant_size
+	level_bounds_low.y = -1 * $"../../CanvasLayer/MapInfo".TOP_MARGIN * $"../../TileMap".cell_quadrant_size
+	level_bounds_high.y = level_size.y
+	
+	
+	
+	print(level_size)
 
 # Set the position of the camera to lerp the player's position over time
 func _process(delta):
 	smooth_lerp(delta, LERP_SMOOTHNESS)
 	# bounding_radius_lerping(delta)
+	
+	# enforce camera position boundaries so the area past the level isn't shown
+#	if camera.position.x < level_bounds_low.x + boundary_buffer.x:
+#		camera.position.x = level_bounds_low.x + boundary_buffer.x
+#	elif camera.position.x > level_bounds_high.x - boundary_buffer.x:
+#		camera.position.x = level_bounds_high.x - boundary_buffer.x
+#
+#	if camera.position.y < level_bounds_low.y + boundary_buffer.y:
+#		camera.position.y = level_bounds_low.y + boundary_buffer.y
+#	elif camera.position.y > level_bounds_high.y - boundary_buffer.y:
+#		camera.position.y = level_bounds_high.y - boundary_buffer.y
 
 # Move the camera towards the position of the player
 func smooth_lerp(delta, smoothness):
