@@ -1,11 +1,9 @@
-[gd_scene load_steps=12 format=3 uid="uid://cxvuh48afmfp4"]
+[gd_scene load_steps=10 format=3 uid="uid://cxvuh48afmfp4"]
 
 [ext_resource type="PackedScene" uid="uid://d07pxhxu1ug5i" path="res://prefabs/menu.tscn" id="1_u4qe6"]
 [ext_resource type="Script" path="res://scripts/MapInfo.gd" id="2_j20rq"]
 [ext_resource type="Texture2D" uid="uid://bntdacghcahec" path="res://sprites/mapart.png" id="3_aatww"]
 [ext_resource type="Script" path="res://scripts/ImageConverter.gd" id="4_cp0ds"]
-[ext_resource type="Texture2D" uid="uid://c7l068d7hbki5" path="res://sprites/backgroundjam3.png" id="5_kkgpg"]
-[ext_resource type="Script" path="res://scripts/Background.gd" id="6_oklsh"]
 [ext_resource type="Texture2D" uid="uid://dtvy6g8angwok" path="res://wfc_images/levelSample3.png" id="7_r8iwv"]
 [ext_resource type="Script" path="res://scripts/WaveFunctionCollapse.gd" id="8_vwnae"]
 [ext_resource type="PackedScene" path="res://prefabs/tile_map.tscn" id="9_qh1ky"]
@@ -45,11 +43,6 @@ texture = ExtResource("3_aatww")
 [node name="ImageConverter" type="Node" parent="."]
 script = ExtResource("4_cp0ds")
 
-[node name="Background" type="Sprite2D" parent="."]
-z_index = -2
-texture = ExtResource("5_kkgpg")
-script = ExtResource("6_oklsh")
-
 [node name="WaveFunctionCollapse" type="WaveFunctionCollapse" parent="."]
 output_size = Vector2i(64, 64)
 seed = 1
@@ -66,6 +59,7 @@ script = ExtResource("8_vwnae")
 position = Vector2(82, -98)
 
 [node name="Camera2D" type="Camera2D" parent="."]
+zoom = Vector2(1.5, 1.5)
 
 [node name="Music" type="Node" parent="."]
 script = ExtResource("11_hqvrv")
