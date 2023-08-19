@@ -12,24 +12,15 @@ const BR_LERP_SMOOTHNESS = 0.0001
 const BR_LOWER_THRESHOLD = 20
 var currently_lerping = false
 
-# hard camera boundaries
-var level_bounds_low = Vector2()
-var level_bounds_high = Vector2()
-var boundary_buffer = Vector2i(800, 450)
-
 @onready var camera = $"../../Camera2D"
 @onready var player = $"../"
 
 func _ready():
 	var level_size = $"../../WaveFunctionCollapse".output_size * $"../../TileMap".cell_quadrant_size
-	level_bounds_low.x = -1 * $"../../CanvasLayer/MapInfo".X_MARGIN * $"../../TileMap".cell_quadrant_size
-	level_bounds_high.x = level_size.x + $"../../CanvasLayer/MapInfo".X_MARGIN * $"../../TileMap".cell_quadrant_size
-	level_bounds_low.y = -1 * $"../../CanvasLayer/MapInfo".TOP_MARGIN * $"../../TileMap".cell_quadrant_size
-	level_bounds_high.y = level_size.y
-	
-	
-	
-	print(level_size)
+	camera.limit_left = -1 * $"../../CanvasLayer/MapInfo".X_MARGIN * $"../../TileMap".cell_quadrant_size
+	camera.limit_right = level_size.x + $"../../CanvasLayer/MapInfo".X_MARGIN * $"../../TileMap".cell_quadrant_size
+	camera.limit_top = -1 * $"../../CanvasLayer/MapInfo".TOP_MARGIN * $"../../TileMap".cell_quadrant_size
+	camera.limit_bottom = level_size.y + 1 * $"../../TileMap".cell_quadrant_size
 
 # Set the position of the camera to lerp the player's position over time
 func _process(delta):
