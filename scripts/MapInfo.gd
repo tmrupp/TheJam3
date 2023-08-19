@@ -21,6 +21,8 @@ class World:
 	var rng
 	var next_seed
 	var empties = []
+	var grounds = []
+	var objects = []
 	
 	func is_valid (v):
 		return not (v.x >= size.x or v.x < 0 or v.y >= size.y or v.y < 0)
@@ -49,11 +51,15 @@ class World:
 	func get_random_cell ():
 		return Vector2i(rng.randi_range(0, size.x - 1), rng.randi_range(0, size.y - 1))
 		
-	func pop_random_empty ():
+	func pop_if_random_empty (f=func(v): return true):
 		var i = rng.randi_range(0, len(empties) - 1)
 		var v = empties[i]
-		empties.remove_at(i)
-		return v
+		if f.bind(v).call():
+			empties.remove_at(i)
+			objects.append(v)
+			return v
+		else:
+			return null
 
 	func _init (_cells, _seed):
 		rng = RandomNumberGenerator.new()
@@ -66,18 +72,20 @@ class World:
 				row.append(Cell.new(_cells[i][j]))
 				if _cells[i][j] == Type.EMPTY:
 					empties.append(Vector2i(i,j))
+				else:
+					grounds.append(Vector2i(i,j))
 			cells.append(row)
 	
 		var chunks = (size.x*size.y)/(CHUNK_SIZE*CHUNK_SIZE)
 		for i in range(chunks):
-			set_cell(pop_random_empty(), Cell.new(Type.SHARD))
+			set_cell(pop_if_random_empty(), Cell.new(Type.SHARD))
 			
 		# find a place for the goal
-		set_cell(pop_random_empty(), Cell.new(Type.GOAL))
+		set_cell(pop_if_random_empty(), Cell.new(Type.GOAL))
 		
 #		for i in range(rng.randi_range(8,32)):
 		for i in range(100):
-			set_cell(pop_random_empty(), Cell.new(Type.SPIKES))
+			set_cell(pop_if_random_empty(), Cell.new(Type.SPIKES))
 
 		next_seed = rng.randi()
 		
@@ -179,9 +187,10 @@ func load_all(world_cells, world_seed, map_cells, map_seed):
 	
 	map = World.new(map_cells, map_seed)
 	world = World.new(world_cells, world_seed)
-	goal_shift+=1
 	map_local_size = map.size*SPACING
 	# print("_world_cells=", len(_world_cells), "x", len(_world_cells[0]), " world_cells=", len(world_cells), "x", len(world_cells[0]))
+	
+	print("loaded")
 	
 	construct_world()
 
@@ -216,15 +225,11 @@ func place_cell(v, type):
 func construct_world():
 	setup_chunks()
 	
-	for i in range(world.size.x):
-		for j in range(world.size.y):
-			var v = Vector2i(i,j)
-			var cell : Cell = world.get_cell(v)
-#			print("Setting a tile @=", Vector2i(i,j), " cell.type=", cell.type)
-			if cell.type == Type.GROUND:
-				tile_map.set_cells_terrain_connect(0, [v], 0, 0)
-			elif cell.type != Type.EMPTY:
-				place_cell(v, cell.type)
+	tile_map.set_cells_terrain_connect(0, world.grounds, 0, 0)
+	
+	for v in world.objects:
+		var cell : Cell = world.get_cell(v)
+		place_cell(v, cell.type)
 	
 	enclose_map(world.size.x, world.size.y)
 	
