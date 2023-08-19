@@ -26,17 +26,6 @@ func _ready():
 func _process(delta):
 	smooth_lerp(delta, LERP_SMOOTHNESS)
 	# bounding_radius_lerping(delta)
-	
-	# enforce camera position boundaries so the area past the level isn't shown
-#	if camera.position.x < level_bounds_low.x + boundary_buffer.x:
-#		camera.position.x = level_bounds_low.x + boundary_buffer.x
-#	elif camera.position.x > level_bounds_high.x - boundary_buffer.x:
-#		camera.position.x = level_bounds_high.x - boundary_buffer.x
-#
-#	if camera.position.y < level_bounds_low.y + boundary_buffer.y:
-#		camera.position.y = level_bounds_low.y + boundary_buffer.y
-#	elif camera.position.y > level_bounds_high.y - boundary_buffer.y:
-#		camera.position.y = level_bounds_high.y - boundary_buffer.y
 
 # Move the camera towards the position of the player
 func smooth_lerp(delta, smoothness):
