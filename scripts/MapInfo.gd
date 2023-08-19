@@ -228,7 +228,20 @@ func construct_world():
 	
 	enclose_map(world.size.x, world.size.y)
 	
+	draw_background(world.size.x, world.size.y)
+	
 	queue_redraw()
+
+# Draw on the layer behind the foreground tiles
+# We assume negative y values are sky and positive are dirt
+func draw_background(dim_x, dim_y):
+	for i in range(-X_MARGIN, dim_x + X_MARGIN):
+		for j in range(-TOP_MARGIN, dim_y):
+			# arg1: layer, layer 1 is the Background layer
+			# arg2: location
+			# arg3: source_id, the tileset source_id for which ID:1 is the background tiles on this tilemap
+			# arg4: atlas coords, the tile by grid location in the atlas, (0,0) is dirt, (1,0) is sky
+			tile_map.set_cell(1, Vector2i(i, j), 1, Vector2i(1 if j < 0 else 0, 0))
 
 # Enclose the map in a "box" so the player can't fall into nothingness
 func enclose_map(dim_x, dim_y):
