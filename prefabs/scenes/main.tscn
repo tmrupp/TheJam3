@@ -15,9 +15,14 @@
 [node name="Main" type="Node2D"]
 texture_filter = 1
 
-[node name="Menu" parent="." instance=ExtResource("1_u4qe6")]
-
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="TopHUD" type="HBoxContainer" parent="CanvasLayer"]
+anchors_preset = 10
+anchor_right = 1.0
+offset_right = 128.0
+offset_bottom = 128.0
+grow_horizontal = 2
 
 [node name="MapInfo" type="Control" parent="CanvasLayer"]
 layout_mode = 3
@@ -34,6 +39,8 @@ visible = false
 z_index = -1
 scale = Vector2(0.45, 0.45)
 texture = ExtResource("3_aatww")
+
+[node name="Menu" parent="." instance=ExtResource("1_u4qe6")]
 
 [node name="ImageConverter" type="Node" parent="."]
 script = ExtResource("4_cp0ds")

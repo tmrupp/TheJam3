@@ -96,7 +96,7 @@ var wfc_map_thread = Thread.new()
 var map_local_size = Vector2(100,100)
 var top_left = Vector2i(100, 100)
 
-const START_REVEALED = false
+const START_REVEALED = true
 const CHUNK_SIZE = 8
 
 var undiscovered_chunks = []
