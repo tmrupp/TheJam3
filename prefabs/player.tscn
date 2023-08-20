@@ -1,10 +1,10 @@
-[gd_scene load_steps=7 format=3 uid="uid://bs73erk5s6hsk"]
+[gd_scene load_steps=7 format=3 uid="uid://d2g60ykg4f0u3"]
 
 [ext_resource type="Script" path="res://scripts/Player.gd" id="1_yuot3"]
 [ext_resource type="PackedScene" uid="uid://do6pc8fn6e1dp" path="res://prefabs/scenes/julia.tscn" id="2_mxmb0"]
 [ext_resource type="Script" path="res://scripts/CameraControl.gd" id="3_t5s4g"]
 [ext_resource type="Script" path="res://scripts/ParticleController.gd" id="4_puykc"]
-[ext_resource type="Script" path="res://prefabs/Health.gd" id="5_3uqdc"]
+[ext_resource type="Script" path="res://scripts/Health.gd" id="5_21lv8"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_jk8bx"]
 size = Vector2(130, 130)
@@ -29,4 +29,4 @@ script = ExtResource("3_t5s4g")
 script = ExtResource("4_puykc")
 
 [node name="Health" type="Node" parent="."]
-script = ExtResource("5_3uqdc")
+script = ExtResource("5_21lv8")

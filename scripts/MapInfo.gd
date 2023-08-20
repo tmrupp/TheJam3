@@ -6,6 +6,7 @@ enum Type {
 	SHARD,
 	GOAL,
 	SPIKES,
+	ENEMY,
 }
 
 class Cell:
@@ -84,8 +85,13 @@ class World:
 		set_cell(pop_if_random_empty(), Cell.new(Type.GOAL))
 		
 #		for i in range(rng.randi_range(8,32)):
-		for i in range(100):
+		for i in range(1000):
 			set_cell(pop_if_random_empty(), Cell.new(Type.SPIKES))
+		
+		var v = Vector2i(5,-3)
+		set_cell(v, Cell.new(Type.ENEMY))
+		empties.erase(v)
+		objects.append(v)
 
 		next_seed = rng.randi()
 		
@@ -157,6 +163,7 @@ func discover_chunk(v):
 var map_shard = preload("res://prefabs/map_shard.tscn")
 var spikes = preload("res://prefabs/spikes.tscn")
 var goal = preload("res://prefabs/goal.tscn")
+var enemy_prefab = preload("res://prefabs/enemy.tscn")
 @onready var main = $"../.."
 # Called when the node enters the scene tree for the first time.
 func _ready():
@@ -213,6 +220,7 @@ var cell_to_prefab = {
 	Type.SHARD: map_shard,
 	Type.GOAL: goal,
 	Type.SPIKES: spikes,
+	Type.ENEMY: enemy_prefab,
 }
 
 func place_cell(v, type):

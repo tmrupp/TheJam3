@@ -1,0 +1,68 @@
+[gd_scene load_steps=6 format=3 uid="uid://bkom6s13fjmwx"]
+
+[ext_resource type="Texture2D" uid="uid://dyho3orymgg41" path="res://icon.svg" id="1_sfoj0"]
+[ext_resource type="PackedScene" uid="uid://dakcksbubrdwc" path="res://prefabs/damager.tscn" id="2_kkq6h"]
+
+[sub_resource type="GDScript" id="GDScript_7yfas"]
+script/source = "extends RigidBody2D
+
+
+const SPEED = 100.0
+const JUMP_VELOCITY = -400.0
+var gravity = ProjectSettings.get_setting(\"physics/2d/default_gravity\")
+
+@onready var sprite = $Sprite2D
+@onready var tilemap = $\"/root/Main/TileMap\" # $\"../TileMap\"
+@onready var cast = $RayCast2D
+
+func setup (_map_info, _v):
+	pass
+
+var direction = 1
+func _physics_process(delta):
+	var collision = move_and_collide(Vector2(SPEED, 0)*delta*direction)
+	
+	if not cast.is_colliding():
+		direction *= -1
+		cast.position *= -1
+		
+	if direction != 0:
+		if direction > 0:
+			sprite.scale.x = abs(sprite.scale.x)
+		else:
+			sprite.scale.x = -abs(sprite.scale.x)
+	pass
+	
+"
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_kmk84"]
+size = Vector2(32, 32)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_agprl"]
+size = Vector2(34, 34)
+
+[node name="Enemy" type="RigidBody2D"]
+collision_layer = 2
+collision_mask = 2
+max_contacts_reported = 2
+contact_monitor = true
+lock_rotation = true
+script = SubResource("GDScript_7yfas")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("1_sfoj0")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_kmk84")
+
+[node name="RayCast2D" type="RayCast2D" parent="."]
+position = Vector2(18, 0)
+target_position = Vector2(0, 25)
+
+[node name="Area2D" type="Area2D" parent="."]
+
+[node name="Damager" parent="Area2D" instance=ExtResource("2_kkq6h")]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+shape = SubResource("RectangleShape2D_agprl")

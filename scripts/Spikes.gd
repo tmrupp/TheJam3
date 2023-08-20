@@ -1,12 +1,4 @@
 extends Area2D
-@onready var player = $"../Player"
-@onready var collider = $"CollisionShape2D"
-var knock_back_factor = 400
-func touch(other):
-	if other == player:
-		print("other.position=", other.position, " position=", position+collider.position, " normalized=", (other.position - position).normalized())
-		var d = (other.position - (position+collider.position)).normalized()
-		other.hurt(-1, d * knock_back_factor)
 
 var offset_rotation = {
 	Vector2i(-1,0) : -90,
@@ -34,5 +26,3 @@ func setup(_map_info, v):
 	map_info.remove_element(self)
 	queue_free()
 
-func _ready() -> void:
-	connect("body_entered", touch)

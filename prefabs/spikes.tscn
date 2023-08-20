@@ -1,7 +1,8 @@
-[gd_scene load_steps=4 format=3 uid="uid://di70tjoppqp58"]
+[gd_scene load_steps=5 format=3 uid="uid://di70tjoppqp58"]
 
 [ext_resource type="Script" path="res://scripts/Spikes.gd" id="1_txtxh"]
 [ext_resource type="Texture2D" uid="uid://c5p6vet241ayk" path="res://sprites/Spikes.png" id="2_6msc1"]
+[ext_resource type="PackedScene" uid="uid://dakcksbubrdwc" path="res://prefabs/damager.tscn" id="3_aschd"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_g3l2u"]
 size = Vector2(31, 17)
@@ -15,3 +16,5 @@ texture = ExtResource("2_6msc1")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 position = Vector2(-0.5, 8.5)
 shape = SubResource("RectangleShape2D_g3l2u")
+
+[node name="Damager" parent="." instance=ExtResource("3_aschd")]

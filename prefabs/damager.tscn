@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dakcksbubrdwc"]
+
+[ext_resource type="Script" path="res://scripts/Damager.gd" id="1_3n0q7"]
+
+[node name="Damager" type="Node"]
+script = ExtResource("1_3n0q7")
