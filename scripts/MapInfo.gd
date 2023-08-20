@@ -84,8 +84,8 @@ class World:
 		# find a place for the goal
 		set_cell(pop_if_random_empty(), Cell.new(Type.GOAL))
 		
-#		for i in range(rng.randi_range(8,32)):
-		for i in range(1000):
+		# TODO: add filter function to pop if
+		for i in range(len(empties)*0.1):
 			set_cell(pop_if_random_empty(), Cell.new(Type.SPIKES))
 		
 		var v = Vector2i(5,-3)

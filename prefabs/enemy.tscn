@@ -68,7 +68,7 @@ target_position = Vector2(0, 25)
 
 [node name="SideCast" type="RayCast2D" parent="."]
 position = Vector2(18, 10)
-target_position = Vector2(1, 0)
+target_position = Vector2(2, 0)
 collide_with_areas = true
 
 [node name="Area2D" type="Area2D" parent="."]
