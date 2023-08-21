@@ -44,13 +44,21 @@ class World:
 		return cells[v.x][v.y]
 
 	func set_cell (v, cell):
-		cells[v.x][v.y] = cell
+		if v != null:
+			cells[v.x][v.y] = cell
 
 	func discover (v):
 		get_cell(v).discovered = true
 
 	func get_random_cell ():
 		return Vector2i(rng.randi_range(0, size.x - 1), rng.randi_range(0, size.y - 1))
+		
+	func ground_adjacent (v):
+		return get_neighbors(v).any(is_ground)
+		
+	func ground_below (v):
+		var n = v+Vector2i(0,1)
+		return is_valid(n) and is_ground(n)
 		
 	func pop_if_random_empty (f=func(v): return true):
 		var i = rng.randi_range(0, len(empties) - 1)
@@ -86,14 +94,14 @@ class World:
 		
 		# TODO: add filter function to pop if
 		for i in range(len(empties)*0.1):
-			set_cell(pop_if_random_empty(), Cell.new(Type.SPIKES))
+			set_cell(pop_if_random_empty(ground_adjacent), Cell.new(Type.SPIKES))
 		
 #		var v = Vector2i(5,-3)
 #		set_cell(v, Cell.new(Type.ENEMY))
 #		empties.erase(v)
 #		objects.append(v)
 		for i in range(len(empties)*0.05):
-			set_cell(pop_if_random_empty(), Cell.new(Type.ENEMY))
+			set_cell(pop_if_random_empty(ground_below), Cell.new(Type.ENEMY))
 
 		next_seed = rng.randi()
 		
