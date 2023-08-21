@@ -92,14 +92,9 @@ class World:
 		# find a place for the goal
 		set_cell(pop_if_random_empty(), Cell.new(Type.GOAL))
 		
-		# TODO: add filter function to pop if
 		for i in range(len(empties)*0.1):
 			set_cell(pop_if_random_empty(ground_adjacent), Cell.new(Type.SPIKES))
-		
-#		var v = Vector2i(5,-3)
-#		set_cell(v, Cell.new(Type.ENEMY))
-#		empties.erase(v)
-#		objects.append(v)
+			
 		for i in range(len(empties)*0.05):
 			set_cell(pop_if_random_empty(ground_below), Cell.new(Type.ENEMY))
 
