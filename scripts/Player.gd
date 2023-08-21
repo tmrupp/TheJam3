@@ -82,7 +82,8 @@ class ActionTimer:
 const DASH_SPEED = 600.0
 const Y_DASH_FACTOR = 1.0
 func dash_end(timer):
-	velocity = Vector2.ZERO	
+	velocity = Vector2.ZERO
+	$"DashTrail".stop_trail()
 var dash = ActionTimer.new(0.25, dash_end)
 
 # WALL_JUMP_SPEED: how quickly and high the player jumps
@@ -157,6 +158,7 @@ func jump(factor=1.0):
 func do_dash(dash_direction):
 	velocity = dash_direction * DASH_SPEED
 	velocity.y *= Y_DASH_FACTOR
+	$"DashTrail".make_trail()
 	
 func _physics_process(delta):
 	var walled = false
