@@ -8,6 +8,8 @@
 size = Vector2(31, 16)
 
 [node name="Spikes" type="Area2D"]
+collision_layer = 4
+collision_mask = 5
 script = ExtResource("1_txtxh")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
