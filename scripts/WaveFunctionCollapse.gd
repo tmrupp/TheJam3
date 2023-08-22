@@ -26,7 +26,6 @@ func generate(seed: int):
 	return map
 
 func finish_generation(world, world_seed, map, map_seed, thread):
-	print("here!")
 	if thread != null:
 		thread.wait_to_finish()
 	var mapInfo = get_tree().get_root().get_child(0).find_child("CanvasLayer").find_child("MapInfo")
@@ -36,7 +35,6 @@ func generate_all(world_seed: int, map_seed: int, thread=null):
 	var world = generate(world_seed)
 	var map = generate(map_seed)
 	self.call_deferred("finish_generation", world, world_seed, map, map_seed, thread)
-	print("done here")
 	return
 
 # Called when the node enters the scene tree for the first time.

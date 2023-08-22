@@ -32,8 +32,8 @@ func try_shoot ():
 	query.collide_with_areas = true
 	var result = space_state.intersect_ray(query)
 	
-	print("range_box=", range_box)
-	print("trying shoot result", result, " shoot_point.global_position=", shoot_point.global_position, " to player.global_position=", player.global_position)
+#	print("range_box=", range_box)
+#	print("trying shoot result", result, " shoot_point.global_position=", shoot_point.global_position, " to player.global_position=", player.global_position)
 	
 	if result.collider == player:
 		var projectile = projectile_prefab.instantiate()

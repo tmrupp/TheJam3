@@ -204,14 +204,11 @@ var player_prefab = preload("res://prefabs/player.tscn")
 
 func load_all(world_cells, world_seed, map_cells, map_seed):
 	clear_terrain()
-	print("loading")
 	
 	map = World.new(map_cells, map_seed)
 	world = World.new(world_cells, world_seed)
 	map_local_size = map.size*SPACING
 	# print("_world_cells=", len(_world_cells), "x", len(_world_cells[0]), " world_cells=", len(world_cells), "x", len(world_cells[0]))
-	
-	print("loaded")
 	
 	construct_world()
 
@@ -240,7 +237,7 @@ var cell_to_prefab = {
 
 func place_cell(v, type):
 	var cell = cell_to_prefab[type].instantiate()
-	print("making, ", type, " at ", v)
+	# print("making, ", type, " at ", v)
 	main.add_child.call_deferred(cell)
 	cell.position = tile_map.to_global(tile_map.map_to_local(v))
 	cell.setup(self, v)
