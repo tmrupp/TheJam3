@@ -60,12 +60,15 @@ class World:
 		var n = v+Vector2i(0,1)
 		return is_valid(n) and is_ground(n)
 		
+	func add_object_at (v):
+		empties.erase(v)
+		objects.append(v)
+		
 	func pop_if_random_empty (f=func(v): return true):
 		var i = rng.randi_range(0, len(empties) - 1)
 		var v = empties[i]
 		if f.bind(v).call():
-			empties.remove_at(i)
-			objects.append(v)
+			add_object_at(v)
 			return v
 		else:
 			return null
@@ -95,8 +98,17 @@ class World:
 		for i in range(len(empties)*0.1):
 			set_cell(pop_if_random_empty(ground_adjacent), Cell.new(Type.SPIKES))
 			
-		for i in range(len(empties)*0.05):
+		for i in range(len(empties)*0.2):
 			set_cell(pop_if_random_empty(ground_below), Cell.new(Type.ENEMY))
+			
+#		for i in range(len(empties)*0.2):
+#			set_cell(pop_if_random_empty(), Cell.new(Type.ENEMY))
+#		for i in range(2):
+#			var v = Vector2i(5, 14+i)
+#			print("setting, v=", v)
+#			set_cell(v, Cell.new(Type.ENEMY))
+#			add_object_at(v)
+			
 
 		next_seed = rng.randi()
 		
@@ -230,6 +242,7 @@ var cell_to_prefab = {
 
 func place_cell(v, type):
 	var cell = cell_to_prefab[type].instantiate()
+	print("making, ", type, " at ", v)
 	main.add_child.call_deferred(cell)
 	cell.position = tile_map.to_global(tile_map.map_to_local(v))
 	cell.setup(self, v)
