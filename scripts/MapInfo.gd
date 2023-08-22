@@ -7,6 +7,7 @@ enum Type {
 	GOAL,
 	SPIKES,
 	ENEMY,
+	SHOOTER,
 }
 
 class Cell:
@@ -101,13 +102,8 @@ class World:
 		for i in range(len(empties)*0.2):
 			set_cell(pop_if_random_empty(ground_below), Cell.new(Type.ENEMY))
 			
-#		for i in range(len(empties)*0.2):
-#			set_cell(pop_if_random_empty(), Cell.new(Type.ENEMY))
-#		for i in range(2):
-#			var v = Vector2i(5, 14+i)
-#			print("setting, v=", v)
-#			set_cell(v, Cell.new(Type.ENEMY))
-#			add_object_at(v)
+		for i in range(len(empties)*0.1):
+			set_cell(pop_if_random_empty(ground_below), Cell.new(Type.SHOOTER))
 			
 
 		next_seed = rng.randi()
@@ -181,6 +177,7 @@ var map_shard = preload("res://prefabs/map_shard.tscn")
 var spikes = preload("res://prefabs/spikes.tscn")
 var goal = preload("res://prefabs/goal.tscn")
 var enemy_prefab = preload("res://prefabs/enemy.tscn")
+var shooter_prefab = preload("res://prefabs/shooter.tscn")
 @onready var main = $"../.."
 # Called when the node enters the scene tree for the first time.
 func _ready():
@@ -238,6 +235,7 @@ var cell_to_prefab = {
 	Type.GOAL: goal,
 	Type.SPIKES: spikes,
 	Type.ENEMY: enemy_prefab,
+	Type.SHOOTER: shooter_prefab,
 }
 
 func place_cell(v, type):
