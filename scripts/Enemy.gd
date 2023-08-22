@@ -1,22 +1,33 @@
-extends CharacterBody2D
+extends RigidBody2D
 
-const SPEED = 300.0
+
+const SPEED = 100.0
 const JUMP_VELOCITY = -400.0
-
-# Get the gravity from the project settings to be synced with RigidBody nodes.
 var gravity = ProjectSettings.get_setting("physics/2d/default_gravity")
 
-func 
+@onready var sprite = $Sprite2D
+@onready var tilemap = $"/root/Main/TileMap" # $\"../TileMap\"
+@onready var dcast = $DownCast
+@onready var scast = $SideCast
 
+func setup (_map_info, _v):
+	pass
+
+var direction = 1
 func _physics_process(delta):
-	# Add the gravity.
-	if not is_on_floor():
-		velocity.y += gravity * delta
-
-	var direction = -1
-	if direction:
-		velocity.x = direction * SPEED
-	else:
-		velocity.x = move_toward(velocity.x, 0, SPEED)
-
-	move_and_slide()
+	
+	if not dcast.is_colliding() or scast.is_colliding():
+		direction *= -1
+		
+		dcast.position *= -1
+		
+		scast.position.x *= -1
+		scast.target_position.x *= -1
+		
+	if direction != 0:
+		if direction > 0:
+			sprite.scale.x = abs(sprite.scale.x)
+		else:
+			sprite.scale.x = -abs(sprite.scale.x)
+			
+	var collision = move_and_collide(Vector2(SPEED, 0)*delta*direction)
