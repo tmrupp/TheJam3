@@ -20,7 +20,6 @@ func generate(seed: int):
 	set_seed(seed)
 	seed(seed)
 	var map = collapse()
-	print("map[0][0]=", map[0][0])
 	while len(map) == 0:
 		seed = randi()
 		map = collapse()
