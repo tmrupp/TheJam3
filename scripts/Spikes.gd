@@ -7,6 +7,7 @@ var offset_rotation = {
 	Vector2i(0,-1) : 0,
 }
 
+@onready var collider = $CollisionShape2D
 var world
 var map_info
 func setup(_map_info, v):
@@ -20,7 +21,8 @@ func setup(_map_info, v):
 		for n in ns:
 			if world.is_ground(n):
 				var offset = v - n
-				position = position - Vector2(offset)*16
+				# print("$CollisionShape2D.position.y=", $CollisionShape2D.position.y, " scale.y=", scale.y)
+				position = position # - (Vector2(offset)*$CollisionShape2D.position.y)
 				rotation_degrees = offset_rotation[offset]
 				return
 	map_info.remove_element(self)

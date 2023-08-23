@@ -5,9 +5,10 @@
 [ext_resource type="PackedScene" uid="uid://dakcksbubrdwc" path="res://prefabs/damager.tscn" id="3_aschd"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_g3l2u"]
-size = Vector2(31, 16)
+size = Vector2(31.5, 16)
 
 [node name="Spikes" type="Area2D"]
+scale = Vector2(2, 2)
 collision_layer = 4
 collision_mask = 5
 script = ExtResource("1_txtxh")
@@ -16,7 +17,7 @@ script = ExtResource("1_txtxh")
 texture = ExtResource("2_6msc1")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-position = Vector2(-0.5, 8)
+position = Vector2(0, 8)
 shape = SubResource("RectangleShape2D_g3l2u")
 
 [node name="Damager" parent="." instance=ExtResource("3_aschd")]
