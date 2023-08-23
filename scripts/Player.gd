@@ -193,10 +193,8 @@ func _physics_process(delta):
 		if (not dash.is_acting()):
 			var factor = 1.0 if not hang.is_acting() else HANG_FACTOR
 			factor *= 1.0 if not jumping else JUMP_GRAVITY_FACTOR
-
 			velocity.y += gravity * factor * delta
-			print("factor=", factor, " jumping=", jumping, " hang.is_acting()=", hang.is_acting(), " velocity.y=", velocity.y, " gravity * factor * delta=", gravity * factor * delta)
-		
+			
 		# damp once velocity hits a certain amount
 		if (velocity.y < 0 and velocity.y > -HANG_SPEED_TARGET):
 			jumping = false
