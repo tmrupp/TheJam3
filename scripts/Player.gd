@@ -150,7 +150,7 @@ var jumping = false
 func jump(factor=1.0):
 	velocity.y = JUMP_VELOCITY * factor
 	animation_player.play("hop", -1, 4)
-	animation_player.queue("falling")
+	# animation_player.queue("falling")
 	jumping = true
 
 	animating_jumping = true
@@ -205,7 +205,7 @@ func _physics_process(delta):
 		if (velocity.y > 0 and velocity.y > HANG_SPEED_TARGET):
 			hang.end()
 
-		if (not animating_jumping):
+		if (velocity.y > 0):
 			animation_player.play("falling")
 	else: # on the ground
 		animating_jumping = false

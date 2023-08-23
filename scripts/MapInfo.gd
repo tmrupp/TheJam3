@@ -8,6 +8,7 @@ enum Type {
 	SPIKES,
 	ENEMY,
 	SHOOTER,
+	COIN,
 }
 
 class Cell:
