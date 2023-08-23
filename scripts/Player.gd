@@ -42,7 +42,8 @@ func hurt (damage, v):
 # SPEED: how quickly the player moves
 const SPEED = 300.0
 # JUMP_VELOCITY: how quickly and high the player jumps
-const JUMP_VELOCITY = -400.0
+const JUMP_VELOCITY = -300.0
+const JUMP_GRAVITY_FACTOR = 0.35
 
 # this class is the generalized behavior of a time-based action
 # deals with actions that take a certain duration and can be refreshed
@@ -104,8 +105,8 @@ var coyote = ActionTimer.new(0.1)
 # HANG_TIME: how long at thje apex of a jump does gravity distortion take place
 # HANG_FACTOR: by how much is gravity distorted when hanging
 # HANG_SPEED_TARGET: which speed to dampen gravity between (symmetrical)
-const HANG_FACTOR = 0.5
-const HANG_SPEED_TARGET = 100
+const HANG_FACTOR = 0.8
+const HANG_SPEED_TARGET = 40
 var hang = ActionTimer.new(1000)
 
 # all of the timers (for decrementing)
@@ -145,10 +146,12 @@ func die():
 
 # does a jump and triggers the jumping animation
 var animating_jumping = false
+var jumping = false
 func jump(factor=1.0):
 	velocity.y = JUMP_VELOCITY * factor
 	animation_player.play("hop", -1, 4)
 	animation_player.queue("falling")
+	jumping = true
 
 	animating_jumping = true
 	
@@ -189,10 +192,14 @@ func _physics_process(delta):
 		
 		if (not dash.is_acting()):
 			var factor = 1.0 if not hang.is_acting() else HANG_FACTOR
+			factor *= 1.0 if not jumping else JUMP_GRAVITY_FACTOR
+
 			velocity.y += gravity * factor * delta
+			print("factor=", factor, " jumping=", jumping, " hang.is_acting()=", hang.is_acting(), " velocity.y=", velocity.y, " gravity * factor * delta=", gravity * factor * delta)
 		
 		# damp once velocity hits a certain amount
 		if (velocity.y < 0 and velocity.y > -HANG_SPEED_TARGET):
+			jumping = false
 			hang.enable()
 		# undamp once velocity exitys symmetrical range
 		if (velocity.y > 0 and velocity.y > HANG_SPEED_TARGET):
@@ -202,6 +209,7 @@ func _physics_process(delta):
 			animation_player.play("falling")
 	else: # on the ground
 		animating_jumping = false
+		jumping = false
 		if direction.x != 0:
 			# if user is inputing a direction animate "moving"
 			animation_player.play("scuttle")
@@ -242,6 +250,11 @@ func _physics_process(delta):
 		else:
 		# if not walled or grounded, buffer a jump
 			buffer_jump.enable(true)
+
+	if Input.is_action_just_released("Jump"):
+		print("released jump, jumping=", jumping)
+		jumping = false
+		pass
 	
 	# no manual control while dashing or wall jumping (prevents jumping over and over on a wall)
 	manual_control = not (dash.is_acting() or wall_jump.is_acting() or knock_back.is_acting())
