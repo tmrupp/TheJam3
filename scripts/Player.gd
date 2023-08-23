@@ -21,12 +21,12 @@ func show_hurt():
 func show_invulnerable():
 	var d = 0
 	var step = .01
-	var min = .4
+	var min_value = .4
 	var period = 0.25
 	while invulnerable.is_acting():
 		await get_tree().create_timer(step).timeout
 		d += step
-		sprite.modulate.a = ((sin(d*2*PI/period)+1)/2)*(1-min) + (min)
+		sprite.modulate.a = ((sin(d*2*PI/period)+1)/2)*(1-min_value) + (min_value)
 #		print("sprite.modulate.a=", sprite.modulate.a, " sin(d*180*period)=", sin(d*180*period), " d=", d)
 	sprite.modulate.a = 1
 
@@ -52,7 +52,7 @@ class ActionTimer:
 	var acted = false
 	var end_callback
 
-	func _init(_MAX_TIME, f=func f (timer): pass):
+	func _init(_MAX_TIME, f=func f (_timer): pass):
 		MAX_TIME = _MAX_TIME
 		end_callback = f
 
@@ -81,7 +81,7 @@ class ActionTimer:
 # Y_DASH_FACTOR: how much the dash is diminished in the Y direction
 const DASH_SPEED = 600.0
 const Y_DASH_FACTOR = 1.0
-func dash_end(timer):
+func dash_end(_timer):
 	velocity = Vector2.ZERO
 	$"DashTrail".stop_trail()
 var dash = ActionTimer.new(0.25, dash_end)

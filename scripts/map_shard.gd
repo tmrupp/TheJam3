@@ -9,7 +9,7 @@ func _ready() -> void:
 #	print(main)
 
 var map_info
-func setup(_map_info, v):
+func setup(_map_info, _v):
 	map_info = _map_info
 
 func touch(other):

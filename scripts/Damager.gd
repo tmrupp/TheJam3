@@ -20,7 +20,7 @@ func _ready() -> void:
 	top.connect("body_entered", touch)
 	top.connect("body_exited", stop_touch)
 	
-func _physics_process(delta):
+func _physics_process(_delta):
 	if touching_player:
 		if player in top.get_overlapping_bodies():
 			var d = (player.position - collider.get_global_position()).normalized()

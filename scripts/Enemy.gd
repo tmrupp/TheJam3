@@ -30,4 +30,4 @@ func _physics_process(delta):
 		else:
 			sprite.scale.x = -abs(sprite.scale.x)
 			
-	var collision = move_and_collide(Vector2(SPEED, 0)*delta*direction)
+	var _collision = move_and_collide(Vector2(SPEED, 0)*delta*direction)

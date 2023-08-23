@@ -75,7 +75,7 @@ class World:
 		empties.erase(v)
 		objects.append(v)
 		
-	func pop_if_random_empty (f=func(v): return true):
+	func pop_if_random_empty (f=func(_v): return true):
 		var i = rng.randi_range(0, len(empties) - 1)
 		var v = empties[i]
 		if f.bind(v).call():

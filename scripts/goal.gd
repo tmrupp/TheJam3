@@ -4,7 +4,7 @@ extends Area2D
 @onready var map_info = $"../CanvasLayer/MapInfo"
 @onready var main = get_tree().get_root().get_child(0)
 
-func setup(_map_info, v):
+func setup(_map_info, _v):
 	pass
 
 func touch(other):

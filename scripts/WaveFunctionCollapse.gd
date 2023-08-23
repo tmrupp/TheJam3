@@ -16,9 +16,9 @@ extends WaveFunctionCollapse
 		
 # 	return values
 
-func generate(seed: int):
-	set_seed(seed)
-	seed(seed)
+func generate(in_seed: int):
+	set_seed(in_seed)
+	seed(in_seed)
 	var map = collapse()
 	while len(map) == 0:
 		seed = randi()

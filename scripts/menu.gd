@@ -4,7 +4,7 @@ extends CanvasLayer
 @onready var exit : Button = $VBoxContainer/Exit
 @onready var wfc : WaveFunctionCollapse = $"../WaveFunctionCollapse"
 
-@onready var randomize : Button = $"VBoxContainer/World Seed/Randomize"
+@onready var randomize_button : Button = $"VBoxContainer/World Seed/Randomize"
 @onready var copy : Button = $"VBoxContainer/World Seed/Copy"
 @onready var paste : Button = $"VBoxContainer/Map Seed/Paste"
 
@@ -16,13 +16,10 @@ extends CanvasLayer
 
 func start_game():
 	wfc_thread.start(wfc.generate_all.bind(get_seed(world_seed), get_seed(map_seed), wfc_thread))
-	
 	visible = false
-	pass
 	
 func exit_game():
 	get_tree().quit()
-	pass
 
 func get_seed(input):
 	return int(input.text)
@@ -45,12 +42,10 @@ func paste_seed ():
 func _ready():
 	start.pressed.connect(start_game)
 	exit.pressed.connect(exit_game)
-	randomize.pressed.connect(randomize_seed)
+	randomize_button.pressed.connect(randomize_seed)
 	copy.pressed.connect(copy_seed)
 	paste.pressed.connect(paste_seed)
-	pass # Replace with function body.
-
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta):
+func _process(_delta):
 	pass

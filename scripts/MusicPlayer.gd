@@ -19,9 +19,10 @@ func _ready():
 	# this is to prevent what I accidentally did to myself where a divide by 0
 	# made the sound incredibly loud
 	if LOOP_WINDOW <= 0:
+		@warning_ignore("assert_always_false")
 		assert(0)
 	
-func _process(delta):
+func _process(_delta):
 	if player1_is_primary:
 		control_fade_in_fade_out(music_player1, music_player2)
 	else:
