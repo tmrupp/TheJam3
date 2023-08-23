@@ -42,9 +42,19 @@ text = "World Seed
 "
 
 [node name="LineEdit" type="LineEdit" parent="VBoxContainer/World Seed"]
+custom_minimum_size = Vector2(300, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "9999"
+
+[node name="Randomize" type="Button" parent="VBoxContainer/World Seed"]
+layout_mode = 2
+text = "Randomize"
+
+[node name="Copy" type="Button" parent="VBoxContainer/World Seed"]
+layout_mode = 2
+text = "Copy
+"
 
 [node name="Map Seed" type="HBoxContainer" parent="VBoxContainer"]
 layout_mode = 2
@@ -60,6 +70,11 @@ text = "Map Seed
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "9999"
+
+[node name="Paste" type="Button" parent="VBoxContainer/Map Seed"]
+layout_mode = 2
+text = "Paste
+"
 
 [node name="Exit" type="Button" parent="VBoxContainer"]
 layout_mode = 2
