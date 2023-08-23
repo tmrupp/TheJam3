@@ -14,8 +14,9 @@ class Cell:
 	var type = Type.GROUND
 	var discovered = false
 	
-	func _init(_type=Type.GROUND):
+	func _init(_type: Type):
 		type = _type
+		
 
 class World:
 	var cells
@@ -25,6 +26,15 @@ class World:
 	var empties = []
 	var grounds = []
 	var objects = []
+	
+	var color_to_type = {
+		Color.WHITE: 	Type.EMPTY,
+		Color.BLACK: 	Type.GROUND,
+		Color.RED: 		Type.SPIKES,
+	}
+	
+	func new_cell_by_color (c: Color):
+		return Cell.new(color_to_type[Color(c)])
 	
 	func is_valid (v):
 		return not (v.x >= size.x or v.x < 0 or v.y >= size.y or v.y < 0)
@@ -73,6 +83,14 @@ class World:
 			return v
 		else:
 			return null
+			
+	func add_cell_to_container (v, cell):
+		if cell.type == Type.EMPTY:
+			empties.append(v)
+		elif cell.type == Type.GROUND:
+			grounds.append(v)
+		else:
+			objects.append(v)
 
 	func _init (_cells, _seed):
 		rng = RandomNumberGenerator.new()
@@ -82,11 +100,9 @@ class World:
 		for i in len(_cells):
 			var row = []
 			for j in len(_cells[i]):
-				row.append(Cell.new(_cells[i][j]))
-				if _cells[i][j] == Type.EMPTY:
-					empties.append(Vector2i(i,j))
-				else:
-					grounds.append(Vector2i(i,j))
+				var cell = new_cell_by_color(_cells[i][j])
+				row.append(cell)
+				add_cell_to_container(Vector2i(i, j), cell)
 			cells.append(row)
 	
 		var chunks = (size.x*size.y)/(CHUNK_SIZE*CHUNK_SIZE)
@@ -96,8 +112,8 @@ class World:
 		# find a place for the goal
 		set_cell(pop_if_random_empty(), Cell.new(Type.GOAL))
 		
-		for i in range(len(empties)*0.1):
-			set_cell(pop_if_random_empty(ground_adjacent), Cell.new(Type.SPIKES))
+#		for i in range(len(empties)*0.1):
+#			set_cell(pop_if_random_empty(ground_adjacent), Cell.new(Type.SPIKES))
 			
 		for i in range(len(empties)*0.2):
 			set_cell(pop_if_random_empty(ground_below), Cell.new(Type.ENEMY))

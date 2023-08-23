@@ -10,7 +10,7 @@ func setup(v, ignore):
 
 func touch (other):
 	if other not in exclude:
-		print("bullet colliding with=", other)
+#		print("bullet colliding with=", other)
 		queue_free()
 
 func _ready() -> void:

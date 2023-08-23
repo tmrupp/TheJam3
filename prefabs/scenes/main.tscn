@@ -1,10 +1,10 @@
-[gd_scene load_steps=10 format=3 uid="uid://c1oi01lt0ta3b"]
+[gd_scene load_steps=10 format=3 uid="uid://bdd54s8wdfdsc"]
 
 [ext_resource type="PackedScene" uid="uid://d07pxhxu1ug5i" path="res://prefabs/menu.tscn" id="1_u4qe6"]
 [ext_resource type="Script" path="res://scripts/MapInfo.gd" id="2_j20rq"]
 [ext_resource type="Texture2D" uid="uid://bntdacghcahec" path="res://sprites/mapart.png" id="3_aatww"]
 [ext_resource type="Script" path="res://scripts/ImageConverter.gd" id="4_cp0ds"]
-[ext_resource type="Texture2D" uid="uid://dtvy6g8angwok" path="res://wfc_images/levelSample3.png" id="7_r8iwv"]
+[ext_resource type="Texture2D" uid="uid://bsvj6kbku0k16" path="res://wfc_images/levelSample3-spikes.png" id="5_3ptxv"]
 [ext_resource type="Script" path="res://scripts/WaveFunctionCollapse.gd" id="8_vwnae"]
 [ext_resource type="PackedScene" uid="uid://bf08akeilq3j1" path="res://prefabs/tile_map.tscn" id="9_qh1ky"]
 [ext_resource type="AudioStream" uid="uid://dl3u7v333oha2" path="res://music/big_bossanova.wav" id="10_yprvw"]
@@ -50,7 +50,7 @@ symmetry = 5
 pattern_size = 3
 visible = false
 position = Vector2(12.1313, 0.0576079)
-texture = ExtResource("7_r8iwv")
+texture = ExtResource("5_3ptxv")
 script = ExtResource("8_vwnae")
 
 [node name="TileMap" parent="." instance=ExtResource("9_qh1ky")]

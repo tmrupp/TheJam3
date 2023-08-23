@@ -75,11 +75,11 @@ Array WaveFunctionCollapse::collapse() {
     Array2D<int32_t>* m = new Array2D<int32_t>(im->get_width(), im->get_height());
     for (size_t i = 0; i < m->height; i++) {
         for (size_t j = 0; j < m->width; j++) {
-            Color c = im->get_pixel(i, j);
-            int32_t wfcc = int32_t{c.get_r8()};
+            // Color c = im->get_pixel(i, j);
+            // int32_t wfcc = c.to_rgba32(); // int32_t{c.get_r8()};
             // m->data[i*im->get_width()+j] = wfcc;
             // UtilityFunctions::print("pixel @ i=", i, " j=", j, " is ", c);
-            m->get(i, j) = wfcc;
+            m->get(i, j) = im->get_pixel(i, j).to_rgba32();
         }
     }
 
@@ -95,7 +95,7 @@ Array WaveFunctionCollapse::collapse() {
             for (size_t j = 0; j < success->width; j++) {
                 // uint32_t c = success->data[i*success->width+j];
                 uint32_t c = success->get(i, j);
-                row.append(Variant(c));
+                row.append(Variant(Color::hex(c)));
             }
             result.append(Variant(row));
         }

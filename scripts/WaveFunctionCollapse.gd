@@ -1,28 +1,29 @@
 extends WaveFunctionCollapse
 
-func to_uniques(data):
-	var uniques = {255:0} # 255 is always 0
+# func to_uniques(data):
+# 	var uniques = {255:0} # 255 is always 0
 	
-	var values = []
-	for i in range(len(data)):
-		var row = []
-		for j in range(len(data[i])):
-			var pixel = data[i][j]
-			if pixel not in uniques:
-				uniques[pixel] = len(uniques.keys())
-#			print("pixel @ (", i, ", ", j, ") = ", pixel, " value=", uniques[pixel])
-			row.append(uniques[pixel])
-		values.append(row)
+# 	var values = []
+# 	for i in range(len(data)):
+# 		var row = []
+# 		for j in range(len(data[i])):
+# 			var pixel = data[i][j]
+# 			if pixel not in uniques:
+# 				uniques[pixel] = len(uniques.keys())
+# #			print("pixel @ (", i, ", ", j, ") = ", pixel, " value=", uniques[pixel])
+# 			row.append(uniques[pixel])
+# 		values.append(row)
 		
-	return values
+# 	return values
 
 func generate(seed: int):
 	set_seed(seed)
 	seed(seed)
-	var map = to_uniques(collapse())
+	var map = collapse()
+	print("map[0][0]=", map[0][0])
 	while len(map) == 0:
 		seed = randi()
-		map = to_uniques(collapse())
+		map = collapse()
 	return map
 
 func finish_generation(world, world_seed, map, map_seed, thread):

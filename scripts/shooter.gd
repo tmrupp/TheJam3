@@ -35,7 +35,7 @@ func try_shoot ():
 #	print("range_box=", range_box)
 #	print("trying shoot result", result, " shoot_point.global_position=", shoot_point.global_position, " to player.global_position=", player.global_position)
 	
-	if result.collider == player:
+	if len(result) != 0 and result.collider == player:
 		var projectile = projectile_prefab.instantiate()
 		
 		main.add_child.call_deferred(projectile)
