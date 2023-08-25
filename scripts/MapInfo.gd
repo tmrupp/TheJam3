@@ -40,7 +40,7 @@ class World:
 	func is_valid (v):
 		return not (v.x >= size.x or v.x < 0 or v.y >= size.y or v.y < 0)
 	
-	var neighbor_offsets = [Vector2i(-1,0),Vector2i(1,0),Vector2i(0,1),Vector2i(0,-1)]
+	var neighbor_offsets = [Vector2i(0,1), Vector2i(0,-1), Vector2i(1,0), Vector2i(-1,0)]
 	func get_neighbors (v):
 		var vs = []
 		for offset in neighbor_offsets:
@@ -115,7 +115,9 @@ class World:
 		
 #		for i in range(len(empties)*0.1):
 #			set_cell(pop_if_random_empty(ground_adjacent), Cell.new(Type.SPIKES))
-			
+		for i in range(len(empties)*0.2):
+			set_cell(pop_if_random_empty(), Cell.new(Type.COIN))
+
 		for i in range(len(empties)*0.2):
 			set_cell(pop_if_random_empty(ground_below), Cell.new(Type.ENEMY))
 			
@@ -195,6 +197,7 @@ var spikes = preload("res://prefabs/spikes.tscn")
 var goal = preload("res://prefabs/goal.tscn")
 var enemy_prefab = preload("res://prefabs/enemy.tscn")
 var shooter_prefab = preload("res://prefabs/shooter.tscn")
+var coin_prefab = preload("res://prefabs/coin.tscn")
 @onready var main = $"../.."
 # Called when the node enters the scene tree for the first time.
 func _ready():
@@ -250,6 +253,7 @@ var cell_to_prefab = {
 	Type.SPIKES: spikes,
 	Type.ENEMY: enemy_prefab,
 	Type.SHOOTER: shooter_prefab,
+	Type.COIN: coin_prefab,
 }
 
 func place_cell(v, type):

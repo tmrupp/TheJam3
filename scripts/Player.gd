@@ -2,6 +2,10 @@ extends CharacterBody2D
 
 @onready var collider = $CollisionShape2D
 @onready var health = $Health
+@onready var coins = $Coins
+
+func collect (x):
+	coins.modify(x)
 
 func refresh_self (timer):
 	timer.refresh()
