@@ -222,7 +222,6 @@ func _physics_process(delta):
 			buffer_jump.enable(true)
 
 	if Input.is_action_just_released("Jump"):
-		print("released jump, jumping=", jumping)
 		jumping = false
 		pass
 	

@@ -1,5 +1,6 @@
-[gd_scene load_steps=11 format=3 uid="uid://bdd54s8wdfdsc"]
+[gd_scene load_steps=12 format=3 uid="uid://bdd54s8wdfdsc"]
 
+[ext_resource type="PackedScene" uid="uid://bnktmhuvbbhqv" path="res://prefabs/upgrade_menu.tscn" id="1_c23vw"]
 [ext_resource type="Texture2D" uid="uid://dyho3orymgg41" path="res://icon.svg" id="1_em40g"]
 [ext_resource type="PackedScene" uid="uid://d07pxhxu1ug5i" path="res://prefabs/menu.tscn" id="1_u4qe6"]
 [ext_resource type="Script" path="res://scripts/MapInfo.gd" id="2_j20rq"]
@@ -51,6 +52,9 @@ visible = false
 z_index = -1
 scale = Vector2(0.45, 0.45)
 texture = ExtResource("3_aatww")
+
+[node name="UpgradeMenu" parent="." instance=ExtResource("1_c23vw")]
+visible = false
 
 [node name="Menu" parent="." instance=ExtResource("1_u4qe6")]
 

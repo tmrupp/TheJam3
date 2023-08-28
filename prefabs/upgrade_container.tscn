@@ -1,0 +1,33 @@
+[gd_scene load_steps=4 format=3 uid="uid://6pvu0cx6pdb6"]
+
+[ext_resource type="Script" path="res://scripts/UpgradeContainer.gd" id="1_k363m"]
+[ext_resource type="Texture2D" uid="uid://dyho3orymgg41" path="res://icon.svg" id="2_7g5at"]
+
+[sub_resource type="Theme" id="Theme_4j5hm"]
+default_font_size = 30
+
+[node name="UpgradeContainer" type="MarginContainer"]
+script = ExtResource("1_k363m")
+
+[node name="Button" type="Button" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+icon_alignment = 1
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="TextureRect" type="TextureRect" parent="VBoxContainer"]
+custom_minimum_size = Vector2(600, 600)
+layout_mode = 2
+mouse_filter = 2
+texture = ExtResource("2_7g5at")
+expand_mode = 2
+
+[node name="Label" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+theme = SubResource("Theme_4j5hm")
+text = "{name}\\nCost:{cost}\\n{description}"
+horizontal_alignment = 1
+autowrap_mode = 3

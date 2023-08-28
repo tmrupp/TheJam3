@@ -1,0 +1,54 @@
+[gd_scene load_steps=5 format=3 uid="uid://bnktmhuvbbhqv"]
+
+[ext_resource type="Script" path="res://scripts/upgrade_menu.gd" id="1_3jj08"]
+[ext_resource type="PackedScene" uid="uid://6pvu0cx6pdb6" path="res://prefabs/upgrade_container.tscn" id="1_r22c7"]
+[ext_resource type="Script" path="res://scripts/UpgradeManager.gd" id="3_thhfv"]
+
+[sub_resource type="Theme" id="Theme_81x73"]
+default_font_size = 60
+
+[node name="UpgradeMenu" type="CanvasLayer"]
+process_mode = 3
+script = ExtResource("1_3jj08")
+
+[node name="ColorRect" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0470588, 0.180392, 0.341176, 1)
+
+[node name="VBoxContainer" type="VBoxContainer" parent="ColorRect"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -196.0
+offset_top = -122.5
+offset_right = 196.0
+offset_bottom = 122.5
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="ColorRect/VBoxContainer"]
+layout_mode = 2
+
+[node name="UpgradeContainer" parent="ColorRect/VBoxContainer/HBoxContainer" instance=ExtResource("1_r22c7")]
+layout_mode = 2
+
+[node name="UpgradeContainer2" parent="ColorRect/VBoxContainer/HBoxContainer" instance=ExtResource("1_r22c7")]
+layout_mode = 2
+
+[node name="UpgradeContainer3" parent="ColorRect/VBoxContainer/HBoxContainer" instance=ExtResource("1_r22c7")]
+layout_mode = 2
+
+[node name="Done" type="Button" parent="ColorRect/VBoxContainer"]
+layout_mode = 2
+theme = SubResource("Theme_81x73")
+text = "Exit Shop"
+
+[node name="UpgradeManager" type="Node" parent="."]
+script = ExtResource("3_thhfv")

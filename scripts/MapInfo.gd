@@ -1,5 +1,8 @@
 extends Control
 
+const START_REVEALED = false
+const CLOSE_GOAL = false
+
 enum Type {
 	EMPTY,
 	GROUND,
@@ -74,6 +77,7 @@ class World:
 		
 	func add_object_at (v):
 		empties.erase(v)
+		grounds.erase(v)
 		objects.append(v)
 		
 	func pop_if_random_empty (f=func(_v): return true):
@@ -111,7 +115,12 @@ class World:
 			set_cell(pop_if_random_empty(), Cell.new(Type.SHARD))
 			
 		# find a place for the goal
-		set_cell(pop_if_random_empty(), Cell.new(Type.GOAL))
+		if CLOSE_GOAL:
+			var v = Vector2i(4,0)
+			set_cell(v, Cell.new(Type.GOAL))
+			add_object_at(v)
+		else:
+			set_cell(pop_if_random_empty(), Cell.new(Type.GOAL))
 		
 #		for i in range(len(empties)*0.1):
 #			set_cell(pop_if_random_empty(ground_adjacent), Cell.new(Type.SPIKES))
@@ -142,7 +151,6 @@ var wfc_map_thread = Thread.new()
 var map_local_size = Vector2(100,100)
 var top_left = Vector2i(100, 100)
 
-const START_REVEALED = true
 const CHUNK_SIZE = 8
 
 var undiscovered_chunks = []
