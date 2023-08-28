@@ -4,6 +4,9 @@ extends CharacterBody2D
 @onready var health = $Health
 @onready var coins = $Coins
 
+signal astral_projection_signal
+signal elapse_ability_time_signal(time)
+
 func collect (x):
 	coins.modify(x)
 
@@ -136,6 +139,9 @@ func do_dash(dash_direction):
 	$"DashTrail".make_trail()
 	
 func _physics_process(delta):
+	if Input.is_action_just_pressed("AstralProjection"):
+		astral_projection_signal.emit()
+	
 	var walled = false
 	var wall_normal
 
@@ -248,6 +254,7 @@ func _physics_process(delta):
 	# elapse the time in all timers
 	for timer in timers:
 		timer.elapse(delta)
+	elapse_ability_time_signal.emit(delta)
 
 	# this uses veolcity and calculates collisions for next frame
 	move_and_slide()
