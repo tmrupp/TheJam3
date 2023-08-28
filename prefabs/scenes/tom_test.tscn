@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3 uid="uid://di205v3usw3w5"]
+
+[ext_resource type="PackedScene" uid="uid://bf08akeilq3j1" path="res://prefabs/tile_map.tscn" id="1_nkrij"]
+[ext_resource type="PackedScene" uid="uid://bkom6s13fjmwx" path="res://prefabs/enemy.tscn" id="2_8yj44"]
+
+[node name="Main" type="Node2D"]
+
+[node name="TileMap" parent="." instance=ExtResource("1_nkrij")]
+layer_0/tile_data = PackedInt32Array(-7, 262144, 0, 65529, 983040, 4, 65530, 65536, 4, 65531, 65536, 4, 65532, 65536, 4, 65533, 65536, 4, 65534, 65536, 4, 65535, 65536, 4, 0, 65536, 4, 1, 65536, 4, 2, 65536, 4, 3, 65536, 4, 4, 1048576, 4, -65532, 262144, 0)
+
+[node name="RigidBody2D2" parent="." instance=ExtResource("2_8yj44")]
+position = Vector2(6, -91)
+
+[node name="RigidBody2D" parent="." instance=ExtResource("2_8yj44")]
+position = Vector2(21, -33)
+
+[node name="Camera2D" type="Camera2D" parent="."]
