@@ -51,12 +51,16 @@ const SPEED = 300.0
 # JUMP_VELOCITY: how quickly and high the player jumps
 const JUMP_VELOCITY = -300.0
 const JUMP_GRAVITY_FACTOR = 0.35
+var jumps = 1
+var MAX_JUMPS = 1
+
 
 # DASH_SPEED: how quickly the player dashes
 # DASH_TIME: how long the dash takes
 # Y_DASH_FACTOR: how much the dash is diminished in the Y direction
 const DASH_SPEED = 600.0
 const Y_DASH_FACTOR = 1.0
+var blink_enabled = false
 func dash_end(_timer):
 	velocity = Vector2.ZERO
 	$"DashTrail".stop_trail()
@@ -137,7 +141,8 @@ func do_dash(dash_direction):
 	velocity = dash_direction * DASH_SPEED
 	velocity.y *= Y_DASH_FACTOR
 	$"DashTrail".make_trail()
-	
+var dash_ability = do_dash
+
 func _physics_process(delta):
 	if Input.is_action_just_pressed("AstralProjection"):
 		astral_projection_signal.emit()
@@ -186,6 +191,7 @@ func _physics_process(delta):
 	else: # on the ground
 		animating_jumping = false
 		jumping = false
+		jumps = MAX_JUMPS
 		if direction.x != 0:
 			# if user is inputing a direction animate "moving"
 			animation_player.play("scuttle")
@@ -213,9 +219,10 @@ func _physics_process(delta):
 	# Handle Jump.
 	if Input.is_action_just_pressed("Jump"):
 		# normal jump, stop coyoting on a jump
-		if (is_on_floor() or coyote.is_acting()):
+		if (is_on_floor() or coyote.is_acting() or jumps > 0):
 			coyote.end()
 			jump()
+			jumps -= 1
 		# wall jump, damped normal jump and move away from wall
 		# takes away manual control
 		elif (walled and not is_on_floor()):
@@ -249,7 +256,7 @@ func _physics_process(delta):
 	if Input.is_action_just_pressed("Dash"):
 		if not dash.acted:
 			dash.enable()
-			do_dash(direction)
+			dash_ability.bind(direction).call()
 	
 	# elapse the time in all timers
 	for timer in timers:

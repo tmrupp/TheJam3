@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3 uid="uid://d2g60ykg4f0u3"]
+[gd_scene load_steps=11 format=3 uid="uid://d2g60ykg4f0u3"]
 
 [ext_resource type="Script" path="res://scripts/Player.gd" id="1_yuot3"]
 [ext_resource type="PackedScene" uid="uid://do6pc8fn6e1dp" path="res://prefabs/scenes/julia.tscn" id="2_mxmb0"]
@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/DashTrail.gd" id="6_dxsj5"]
 [ext_resource type="Script" path="res://scripts/Coins.gd" id="7_7tfam"]
 [ext_resource type="Script" path="res://scripts/AstralProjection.gd" id="8_0iwh1"]
+[ext_resource type="PackedScene" uid="uid://biedrvv172uqq" path="res://prefabs/upgrades/Blink.tscn" id="9_dm1om"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_jk8bx"]
 size = Vector2(130, 130)
@@ -43,3 +44,5 @@ script = ExtResource("7_7tfam")
 
 [node name="AstralProjection" type="Node" parent="."]
 script = ExtResource("8_0iwh1")
+
+[node name="Blink" parent="." instance=ExtResource("9_dm1om")]

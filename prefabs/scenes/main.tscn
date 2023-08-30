@@ -57,6 +57,7 @@ texture = ExtResource("3_aatww")
 visible = false
 
 [node name="Menu" parent="." instance=ExtResource("1_u4qe6")]
+process_mode = 3
 
 [node name="ImageConverter" type="Node" parent="."]
 script = ExtResource("4_cp0ds")

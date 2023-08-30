@@ -1,3 +1,10 @@
-[gd_scene format=3 uid="uid://biedrvv172uqq"]
+[gd_scene load_steps=2 format=3 uid="uid://biedrvv172uqq"]
 
-[node name="DoubleJump" type="Node"]
+[ext_resource type="Script" path="res://scripts/Upgrades/Blink.gd" id="1_8qia6"]
+
+[node name="Blink" type="Node"]
+script = ExtResource("1_8qia6")
+
+[node name="Area2D" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 14

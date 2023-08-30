@@ -8,7 +8,7 @@ size = Vector2(128.5, 128.5)
 
 [node name="Coin" type="Area2D"]
 scale = Vector2(0.15, 0.15)
-collision_layer = 4
+collision_layer = 0
 collision_mask = 5
 script = ExtResource("1_jbbq5")
 
