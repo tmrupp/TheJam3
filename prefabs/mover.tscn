@@ -1,0 +1,18 @@
+[gd_scene load_steps=2 format=3 uid="uid://srow07xjq3hd"]
+
+[ext_resource type="Script" path="res://scripts/Mover.gd" id="4_svw3i"]
+
+[node name="Mover" type="Node2D"]
+script = ExtResource("4_svw3i")
+
+[node name="DownCast" type="RayCast2D" parent="."]
+position = Vector2(18, 12)
+target_position = Vector2(0, 12)
+
+[node name="Line2D2" type="Line2D" parent="DownCast"]
+visible = false
+position = Vector2(4, 0)
+scale = Vector2(0.857143, 4.91361)
+points = PackedVector2Array(-4.66666, -2.27065e-08, -4.66666, 1.90149, -4.66666, 4.57143)
+width = 2.0
+default_color = Color(1, 0, 0, 1)

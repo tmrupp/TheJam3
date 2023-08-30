@@ -6,6 +6,7 @@ extends CharacterBody2D
 
 signal astral_projection_signal
 signal elapse_ability_time_signal(time)
+signal parry
 
 func collect (x):
 	coins.modify(x)
@@ -37,7 +38,7 @@ func show_invulnerable():
 #		print("sprite.modulate.a=", sprite.modulate.a, " sin(d*180*period)=", sin(d*180*period), " d=", d)
 	sprite.modulate.a = 1
 
-func hurt (damage, v):
+func normal_hurt (damage, v, attacker):
 	if not invulnerable.is_acting():
 		health.modify_health(damage)
 		invulnerable.enable()
@@ -45,6 +46,11 @@ func hurt (damage, v):
 		knock = v
 		show_hurt()
 		show_invulnerable()
+		
+func hurt (damage, v, attacker):
+	hurt_ability.bind(damage, v, attacker).call()
+	
+var hurt_ability = normal_hurt
 
 # SPEED: how quickly the player moves
 const SPEED = 300.0
@@ -146,6 +152,9 @@ var dash_ability = do_dash
 func _physics_process(delta):
 	if Input.is_action_just_pressed("AstralProjection"):
 		astral_projection_signal.emit()
+		
+	if Input.is_action_just_pressed("Parry"):
+		parry.emit()
 	
 	var walled = false
 	var wall_normal

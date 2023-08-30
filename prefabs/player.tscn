@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3 uid="uid://d2g60ykg4f0u3"]
+[gd_scene load_steps=12 format=3 uid="uid://d2g60ykg4f0u3"]
 
 [ext_resource type="Script" path="res://scripts/Player.gd" id="1_yuot3"]
 [ext_resource type="PackedScene" uid="uid://do6pc8fn6e1dp" path="res://prefabs/scenes/julia.tscn" id="2_mxmb0"]
@@ -8,12 +8,13 @@
 [ext_resource type="Script" path="res://scripts/DashTrail.gd" id="6_dxsj5"]
 [ext_resource type="Script" path="res://scripts/Coins.gd" id="7_7tfam"]
 [ext_resource type="Script" path="res://scripts/AstralProjection.gd" id="8_0iwh1"]
+[ext_resource type="Script" path="res://scripts/Parry.gd" id="9_moyvf"]
+[ext_resource type="Texture2D" uid="uid://dyho3orymgg41" path="res://icon.svg" id="10_7ngpo"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_jk8bx"]
 size = Vector2(130, 130)
 
 [node name="Player" type="CharacterBody2D"]
-position = Vector2(58.0001, -202)
 rotation = -6.28319
 scale = Vector2(0.2, 0.2)
 disable_mode = 2
@@ -43,3 +44,17 @@ script = ExtResource("7_7tfam")
 
 [node name="AstralProjection" type="Node" parent="."]
 script = ExtResource("8_0iwh1")
+
+[node name="Parry" type="Node2D" parent="."]
+script = ExtResource("9_moyvf")
+
+[node name="Area2D" type="Area2D" parent="Parry"]
+position = Vector2(58.0001, -202)
+scale = Vector2(0.2, 0.2)
+collision_layer = 0
+
+[node name="Sprite2D" type="Sprite2D" parent="Parry"]
+visible = false
+modulate = Color(1, 1, 0, 0.243137)
+scale = Vector2(3, 3)
+texture = ExtResource("10_7ngpo")

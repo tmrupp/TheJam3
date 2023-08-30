@@ -203,8 +203,8 @@ func discover_chunk(v):
 var map_shard = preload("res://prefabs/map_shard.tscn")
 var spikes = preload("res://prefabs/spikes.tscn")
 var goal = preload("res://prefabs/goal.tscn")
-var enemy_prefab = preload("res://prefabs/enemy.tscn")
-var shooter_prefab = preload("res://prefabs/shooter.tscn")
+var enemy_prefab = preload("res://prefabs/mover_enemy.tscn")
+var shooter_prefab = preload("res://prefabs/shooter_enemy.tscn")
 var coin_prefab = preload("res://prefabs/coin.tscn")
 @onready var main = $"../.."
 # Called when the node enters the scene tree for the first time.

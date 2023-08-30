@@ -1,4 +1,4 @@
-extends RigidBody2D
+extends Node2D
 
 var cooldown = 0.2
 var SPEED = 100
@@ -7,6 +7,8 @@ var projectile_prefab = preload("res://prefabs/bullet.tscn")
 @onready var range_box = $RangeBox
 @onready var player = $"/root/Main/Player"
 @onready var main = $"/root/Main"
+@onready var rb = $".."
+var stunned = false
 
 func setup (_map_info, _v):
 	pass
@@ -21,7 +23,7 @@ func check_player_in_range():
 
 func shooting ():
 	while (check_player_in_range()):
-		if try_shoot():
+		if not stunned and try_shoot():
 			await get_tree().create_timer(cooldown).timeout
 		await get_tree().process_frame
 	
@@ -40,7 +42,7 @@ func try_shoot ():
 		
 		main.add_child.call_deferred(projectile)
 		projectile.position = shoot_point.global_position
-		projectile.setup((player.global_position - shoot_point.global_position).normalized()*SPEED, [self])
+		projectile.setup((player.global_position - shoot_point.global_position).normalized()*SPEED, [rb], rb)
 		return true
 	return false
 	
@@ -58,7 +60,7 @@ func range_stop_touch (other):
 func _ready():
 	range_box.connect("body_entered", range_touch)
 	range_box.connect("body_exited", range_stop_touch)
-	modulate = Color.ORANGE_RED
+	$"..".modulate = Color.ORANGE_RED
 	pass # Replace with function body.
 
 

@@ -1,23 +1,17 @@
-[gd_scene load_steps=5 format=3 uid="uid://cwx0u2wm5ddqf"]
+[gd_scene load_steps=4 format=3 uid="uid://cwx0u2wm5ddqf"]
 
 [ext_resource type="Script" path="res://scripts/bullet.gd" id="1_d67wi"]
 [ext_resource type="Texture2D" uid="uid://dyho3orymgg41" path="res://icon.svg" id="2_pppo0"]
-[ext_resource type="PackedScene" uid="uid://dakcksbubrdwc" path="res://prefabs/damager.tscn" id="3_s4xjx"]
+[ext_resource type="PackedScene" uid="uid://drbq47lw8o8mv" path="res://prefabs/hit_box.tscn" id="3_oa65r"]
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_g3l2u"]
-size = Vector2(60, 60)
-
-[node name="Bullet" type="Area2D"]
+[node name="Bullet" type="Node2D"]
 scale = Vector2(0.1, 0.1)
-collision_layer = 0
-collision_mask = 15
 script = ExtResource("1_d67wi")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
+scale = Vector2(1, 1)
 texture = ExtResource("2_pppo0")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-position = Vector2(1.19209e-06, 1.19209e-06)
-shape = SubResource("RectangleShape2D_g3l2u")
-
-[node name="Damager" parent="." instance=ExtResource("3_s4xjx")]
+[node name="HitBox" parent="." instance=ExtResource("3_oa65r")]
+collision_layer = 0
+collision_mask = 15

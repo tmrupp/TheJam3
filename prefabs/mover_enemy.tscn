@@ -1,0 +1,14 @@
+[gd_scene load_steps=5 format=3 uid="uid://c0klk58ft8wu"]
+
+[ext_resource type="PackedScene" uid="uid://bkom6s13fjmwx" path="res://prefabs/enemy.tscn" id="1_y4w3d"]
+[ext_resource type="PackedScene" uid="uid://drbq47lw8o8mv" path="res://prefabs/hit_box.tscn" id="2_xqqlj"]
+[ext_resource type="PackedScene" uid="uid://srow07xjq3hd" path="res://prefabs/mover.tscn" id="3_r0oi6"]
+[ext_resource type="PackedScene" uid="uid://cfju2r1ttqwwm" path="res://prefabs/stunner.tscn" id="4_ae00j"]
+
+[node name="MoverEnemy" instance=ExtResource("1_y4w3d")]
+
+[node name="Mover" parent="." index="2" instance=ExtResource("3_r0oi6")]
+
+[node name="HitBox" parent="." index="3" instance=ExtResource("2_xqqlj")]
+
+[node name="Stunner" parent="." index="4" instance=ExtResource("4_ae00j")]
