@@ -16,9 +16,7 @@ func stop_parry ():
 	sprite.visible = false
 
 func parry (damage, v, origin):
-	print("origin.attacker=", origin.attacker, " origin=", origin)
-	var stunner = origin.attacker.get_node("Stunner")
-	print("parried!")
+	var stunner = origin.attacker.get_node_or_null("Stunner")
 	if stunner:
 		stunner.stun()
 
