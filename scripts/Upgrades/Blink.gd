@@ -1,10 +1,14 @@
 extends Node
 
+@onready var map_info = $"/root/Main/CanvasLayer/MapInfo"
 @onready var player = $".."
+#@onready var player = $".."
 @onready var area = $Area2D
 const DISTANCE = 300
 const GRANULARITY = 0.1
 
+# note: potential 'optimization', instantiate all areas along path simultaneously
+# only takes one 'tick' but could potentially spawn a lot of colliders
 func blink (direction):
 	var max_destination = player.position + direction.normalized()*DISTANCE
 	var destination = max_destination
@@ -12,11 +16,12 @@ func blink (direction):
 	
 	player.get_node("DashTrail").make_trail()
 	while x < 1:
-		area.global_position = destination
-		await get_tree().physics_frame
-		if not (area.has_overlapping_areas() or area.has_overlapping_bodies()):
-			player.position = destination
-			return
+		if map_info.in_bounds(destination):
+			area.global_position = destination
+			await get_tree().physics_frame
+			if not (area.has_overlapping_areas() or area.has_overlapping_bodies()):
+				player.position = destination
+				return
 		destination = max_destination.lerp(player.position, x)
 		x += GRANULARITY
 
