@@ -9,6 +9,8 @@ func blink (direction):
 	var max_destination = player.position + direction.normalized()*DISTANCE
 	var destination = max_destination
 	var x = 0.0
+	
+	player.get_node("DashTrail").make_trail()
 	while x < 1:
 		area.global_position = destination
 		await get_tree().physics_frame
