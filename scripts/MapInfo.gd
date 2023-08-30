@@ -292,14 +292,19 @@ func in_bounds (v):
 	var max_bounds = tile_map.to_global(tile_map.map_to_local(Vector2i(world.size.x + X_MARGIN, world.size.y + TOP_MARGIN)))
 	var min_bounds = tile_map.to_global(tile_map.map_to_local(Vector2i(-X_MARGIN, -TOP_MARGIN)))
 	
-#	print("trying: v=", v, " max_bounds=", max_bounds, " min_bounds=", min_bounds)
-	
 	if v.x > max_bounds.x or v.y > max_bounds.y:
 		return false
 	if v.x < min_bounds.x or v.y < min_bounds.y:
 		return false
 		
 	return true
+
+func clamp_bounds (v):
+	var max_bounds = tile_map.to_global(tile_map.map_to_local(Vector2i(world.size.x + X_MARGIN, world.size.y + TOP_MARGIN)))
+	var min_bounds = tile_map.to_global(tile_map.map_to_local(Vector2i(-X_MARGIN, -TOP_MARGIN)))
+
+	return Vector2(clamp(v.x, min_bounds.x, max_bounds.x), clamp(v.y, min_bounds.y, max_bounds.y))
+
 
 # Draw on the layer behind the foreground tiles
 # We assume negative y values are sky and positive are dirt
