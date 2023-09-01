@@ -1,12 +1,20 @@
 extends Node
 
 @onready var player = $"../"
+@onready var main = $"/root/Main"
+@onready var visual = $"../big bossanova" # someday, this reference will break
 
 var projection_timer = ActionTimer.new(5.0, end_projection)
+
+# holds a reference to the projection we create, if one exists currently
+var false_player_origin
+
+var held_color
 
 func _ready():
 	player.astral_projection_signal.connect(project)
 	player.elapse_ability_time_signal.connect(elapse)
+	false_player_origin = null
 	
 func elapse(delta):
 	projection_timer.elapse(delta)
@@ -15,16 +23,28 @@ func project():
 	print("projection started")
 	projection_timer.enable()
 	
-	#copy the player in the hierarchy and hold a reference to it
-	#disable the original player's controls/movement/physics
-	#link the camera in the scene to the new player copy
+	# clone the visual
+	false_player_origin = visual.duplicate()
+	main.add_child(false_player_origin)
+	false_player_origin.position = player.position
+	false_player_origin.scale = Vector2(0.2 * 0.2, 0.2 * 0.2)
 	
-	pass
+	# turn off own collision
+	# TODO
+	
+	# alter our own visual to look all projection-y
+	held_color = visual.modulate
+	visual.modulate = Color.CYAN
 
 func end_projection(_timer):
 	print("projection ended")
+	projection_timer.refresh()
 	
-	#link the camera back to the original player
-	#destroy the newly made copy
+	# reset our position to the visual clone's
+	player.position = false_player_origin.position
 	
-	pass
+	# reset our color
+	visual.modulate = held_color
+	
+	# destroy the visual clone
+	false_player_origin.queue_free()
