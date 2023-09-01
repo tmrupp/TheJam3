@@ -1,0 +1,30 @@
+[gd_scene load_steps=6 format=3 uid="uid://cb4btnwv1dr1c"]
+
+[ext_resource type="Script" path="res://scripts/door.gd" id="1_jhy8q"]
+[ext_resource type="Texture2D" uid="uid://dyho3orymgg41" path="res://icon.svg" id="1_t8dow"]
+[ext_resource type="Script" path="res://scripts/Unlock.gd" id="2_00e43"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_rt2ta"]
+size = Vector2(128, 128)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_v706d"]
+size = Vector2(149, 147)
+
+[node name="Door" type="StaticBody2D"]
+scale = Vector2(0.5, 0.5)
+collision_layer = 15
+script = ExtResource("1_jhy8q")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_rt2ta")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+modulate = Color(0.443137, 0.278431, 0.941176, 1)
+texture = ExtResource("1_t8dow")
+
+[node name="Unlock" type="Area2D" parent="."]
+script = ExtResource("2_00e43")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Unlock"]
+position = Vector2(0.5, -0.5)
+shape = SubResource("RectangleShape2D_v706d")

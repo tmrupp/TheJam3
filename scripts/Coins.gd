@@ -1,7 +1,7 @@
 extends Node
 
 var coins = 100
-@onready var amount = $"/root/Main/CanvasLayer/TopHUD/CoinAmount"
+@onready var amount = $"/root/Main/CanvasLayer/HUD/TopHUD/CoinAmount"
 
 func modify (delta):
 	coins += delta

@@ -2,6 +2,7 @@ extends Control
 
 const START_REVEALED = false
 const CLOSE_GOAL = false
+const CLOSE_ONE_KEY = false
 
 enum Type {
 	EMPTY,
@@ -12,15 +13,16 @@ enum Type {
 	ENEMY,
 	SHOOTER,
 	COIN,
+	KEY,
+	DOOR,
 }
-
+	
 class Cell:
 	var type = Type.GROUND
 	var discovered = false
 	
 	func _init(_type: Type):
 		type = _type
-		
 
 class World:
 	var cells
@@ -30,6 +32,16 @@ class World:
 	var empties = []
 	var grounds = []
 	var objects = []
+	var code = ""
+	var keys = []
+	
+	# acts like a static method
+	var code_digits = ['<', '>', '^', 'v']
+	func generate_code (length=8):
+		var new_code = ""
+		for i in range(length):
+			new_code += code_digits[rng.randi_range(0, len(code_digits)-1)]
+		return new_code
 	
 	var color_to_type = {
 		Color.WHITE: 	Type.EMPTY,
@@ -113,6 +125,20 @@ class World:
 		var chunks = (size.x*size.y)/(CHUNK_SIZE*CHUNK_SIZE)
 		for i in range(chunks):
 			set_cell(pop_if_random_empty(), Cell.new(Type.SHARD))
+		
+		if CLOSE_ONE_KEY:
+			var v = Vector2i(6,0)
+			set_cell(v, Cell.new(Type.KEY))
+			keys.append(generate_code())
+			add_object_at(v)
+		else:
+			for i in range(len(empties)*0.05):
+				set_cell(pop_if_random_empty(), Cell.new(Type.KEY))
+				keys.append(generate_code())
+#			print("keys=", keys)
+			
+		for i in range(len(empties)*0.05):
+			set_cell(pop_if_random_empty(), Cell.new(Type.DOOR))
 			
 		# find a place for the goal
 		if CLOSE_GOAL:
@@ -133,6 +159,8 @@ class World:
 		for i in range(len(empties)*0.1):
 			set_cell(pop_if_random_empty(ground_below), Cell.new(Type.SHOOTER))
 			
+		
+		code = generate_code()
 
 		next_seed = rng.randi()
 		
@@ -142,6 +170,7 @@ var map
 @onready var wfc = $"../../WaveFunctionCollapse"
 @onready var player
 @onready var map_sprite = $MapSprite
+@onready var keys = $"../HUD/Keys"
 # const?
 const SPACING = 6.0
 
@@ -206,6 +235,8 @@ var goal = preload("res://prefabs/goal.tscn")
 var enemy_prefab = preload("res://prefabs/mover_enemy.tscn")
 var shooter_prefab = preload("res://prefabs/shooter_enemy.tscn")
 var coin_prefab = preload("res://prefabs/coin.tscn")
+var key_prefab = preload("res://prefabs/key.tscn")
+var door_prefab = preload("res://prefabs/door.tscn")
 @onready var main = $"../.."
 # Called when the node enters the scene tree for the first time.
 func _ready():
@@ -229,12 +260,20 @@ func clear_terrain():
 	elements.clear()
 
 var player_prefab = preload("res://prefabs/player.tscn")
+var valid_keys = []
+
+func remove_valid_key (key):
+	valid_keys.erase(key)
 
 func load_all(world_cells, world_seed, map_cells, map_seed):
 	clear_terrain()
 	
 	map = World.new(map_cells, map_seed)
 	world = World.new(world_cells, world_seed)
+	
+	valid_keys.append_array(map.keys)
+	# print("valid keys=", valid_keys)
+	
 	map_local_size = map.size*SPACING
 	# print("_world_cells=", len(_world_cells), "x", len(_world_cells[0]), " world_cells=", len(world_cells), "x", len(world_cells[0]))
 	
@@ -262,6 +301,8 @@ var cell_to_prefab = {
 	Type.ENEMY: enemy_prefab,
 	Type.SHOOTER: shooter_prefab,
 	Type.COIN: coin_prefab,
+	Type.KEY: key_prefab,
+	Type.DOOR: door_prefab,
 }
 
 func place_cell(v, type):
@@ -305,6 +346,8 @@ func clamp_bounds (v):
 
 	return Vector2(clamp(v.x, min_bounds.x, max_bounds.x), clamp(v.y, min_bounds.y, max_bounds.y))
 
+func get_next_key ():
+	return world.keys.pop_back()
 
 # Draw on the layer behind the foreground tiles
 # We assume negative y values are sky and positive are dirt
@@ -372,6 +415,8 @@ func _draw():
 	top_left = get_viewport_rect().size/2-map_local_size/2
 	map_sprite.visible = enabled
 	map_sprite.position = get_viewport_rect().size/2 - Vector2.RIGHT*8
+	
+	keys.visible = enabled
 
 	map_contents.visible = enabled
 	map_contents.position = get_viewport_rect().size/2

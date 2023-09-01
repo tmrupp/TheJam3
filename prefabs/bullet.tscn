@@ -9,7 +9,6 @@ scale = Vector2(0.1, 0.1)
 script = ExtResource("1_d67wi")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
-scale = Vector2(1, 1)
 texture = ExtResource("2_pppo0")
 
 [node name="HitBox" parent="." instance=ExtResource("3_oa65r")]

@@ -1,7 +1,7 @@
 extends Node
 
 @onready var player = $".."
-@onready var hud = $"/root/Main/CanvasLayer/TopHUD"
+@onready var hud = $"/root/Main/CanvasLayer/HUD/TopHUD"
 
 var max_health = 3
 var health : int = 3
