@@ -347,7 +347,9 @@ func clamp_bounds (v):
 	return Vector2(clamp(v.x, min_bounds.x, max_bounds.x), clamp(v.y, min_bounds.y, max_bounds.y))
 
 func get_next_key ():
-	return world.keys.pop_back()
+	if len(world.keys) > 0:
+		return world.keys.pop_back()
+	return null
 
 # Draw on the layer behind the foreground tiles
 # We assume negative y values are sky and positive are dirt

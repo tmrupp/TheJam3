@@ -4,9 +4,12 @@ extends CharacterBody2D
 @onready var health = $Health
 @onready var coins = $Coins
 
+@onready var corpse_prefab = preload("res://prefabs/corpse.tscn") 
+
 signal astral_projection_signal
 signal elapse_ability_time_signal(time)
 signal parry
+signal died
 
 func collect (x):
 	coins.modify(x)
@@ -125,9 +128,21 @@ func reset_position():
 	velocity = Vector2.ZERO	
 	knock = Vector2.ZERO
 
+func setup_corpse (pos):
+	var corpse = corpse_prefab.instantiate()
+	corpse.position = pos
+	$"/root/Main".add_child(corpse)
+	var sub = ceil(coins.coins/2.0)
+	corpse.setup(sub)
+	collect(-sub)
+
 # kills the player and puts them back at respawn
 func die():
+	died.emit()
+	var pos = position
 	reset_position()
+	await get_tree().physics_frame
+	setup_corpse(pos)
 
 # does a jump and triggers the jumping animation
 var animating_jumping = false
