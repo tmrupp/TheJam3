@@ -1,0 +1,21 @@
+[gd_scene load_steps=3 format=3 uid="uid://dooh0gst13h6a"]
+
+[ext_resource type="Texture2D" uid="uid://c56slbbe06ref" path="res://sprites/circle_progress.png" id="1_3vp45"]
+[ext_resource type="Script" path="res://scripts/Cooldown.gd" id="2_3f321"]
+
+[node name="Cooldown" type="TextureProgressBar"]
+visible = false
+offset_right = 256.0
+offset_bottom = 256.0
+scale = Vector2(0.06, 0.06)
+size_flags_horizontal = 3
+size_flags_vertical = 3
+value = 26.0
+fill_mode = 4
+texture_under = ExtResource("1_3vp45")
+texture_over = ExtResource("1_3vp45")
+texture_progress = ExtResource("1_3vp45")
+tint_under = Color(0.741176, 0.741176, 0.741176, 1)
+tint_over = Color(1, 1, 0, 0)
+tint_progress = Color(0, 1, 0, 1)
+script = ExtResource("2_3f321")

@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3 uid="uid://cfju2r1ttqwwm"]
+[gd_scene load_steps=4 format=3 uid="uid://cfju2r1ttqwwm"]
 
 [ext_resource type="Script" path="res://scripts/Stunner.gd" id="1_uv84n"]
 [ext_resource type="Texture2D" uid="uid://dyho3orymgg41" path="res://icon.svg" id="2_3vcjd"]
+[ext_resource type="PackedScene" uid="uid://dooh0gst13h6a" path="res://prefabs/cooldown.tscn" id="3_yo20q"]
 
 [node name="Stunner" type="Node2D"]
 script = ExtResource("1_uv84n")
@@ -12,3 +13,17 @@ modulate = Color(0.792157, 0.788235, 0, 1)
 position = Vector2(0, -32)
 scale = Vector2(0.125, 0.125)
 texture = ExtResource("2_3vcjd")
+
+[node name="Cooldown" parent="." instance=ExtResource("3_yo20q")]
+visible = true
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -8.0
+offset_top = -32.0
+offset_right = 248.0
+offset_bottom = 224.0
+grow_horizontal = 2
+grow_vertical = 2

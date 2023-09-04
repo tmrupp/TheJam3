@@ -7,6 +7,9 @@
 
 [node name="ShooterEnemy" instance=ExtResource("2_7d4ps")]
 
+[node name="Sprite2D" parent="." index="0"]
+self_modulate = Color(1, 0.0431373, 0.0431373, 1)
+
 [node name="Shooter" parent="." index="2" instance=ExtResource("3_ffi16")]
 
 [node name="Stunner" parent="." index="3" instance=ExtResource("3_k1yj5")]

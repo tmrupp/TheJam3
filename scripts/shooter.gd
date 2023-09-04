@@ -8,6 +8,7 @@ var projectile_prefab = preload("res://prefabs/bullet.tscn")
 @onready var player = $"/root/Main/Player"
 @onready var main = $"/root/Main"
 @onready var rb = $".."
+@onready var cooldown_indicator = $Cooldown
 var stunned = false
 
 func setup (_map_info, _v):
@@ -24,6 +25,7 @@ func check_player_in_range():
 func shooting ():
 	while (check_player_in_range()):
 		if not stunned and try_shoot():
+			cooldown_indicator.enable(cooldown, Color.RED)
 			await get_tree().create_timer(cooldown).timeout
 		await get_tree().process_frame
 	
@@ -60,7 +62,6 @@ func range_stop_touch (other):
 func _ready():
 	range_box.connect("body_entered", range_touch)
 	range_box.connect("body_exited", range_stop_touch)
-	$"..".modulate = Color.ORANGE_RED
 	pass # Replace with function body.
 
 
