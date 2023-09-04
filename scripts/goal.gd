@@ -17,7 +17,7 @@ func crack (_code):
 
 func touch(other):
 	if (other == player and other.get_parent() != null):
-		code_menu.enable(map_info.map.code, [map_info.map.code], crack)
+		code_menu.enable(map_info.world.code, [map_info.map.code], crack)
 		
 func _ready() -> void:
 	connect("body_entered", touch)

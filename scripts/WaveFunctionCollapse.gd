@@ -21,6 +21,7 @@ func generate(in_seed: int):
 	seed(in_seed)
 	var map = collapse()
 	while len(map) == 0:
+		print("trying again")
 		seed = randi()
 		map = collapse()
 	return map
