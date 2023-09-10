@@ -1,6 +1,7 @@
 extends Node
 
 @onready var dash_trail_sprite = preload("res://prefabs/DashTrailSprite.tscn")
+@onready var sprite2d_to_use = $"../Sprite2D"
 @onready var player = $"../"
 @onready var root = $"../../"
 
@@ -20,5 +21,7 @@ func stop_trail():
 	
 func make_trail_element():
 	var trail = dash_trail_sprite.instantiate()
+	var sprite_copy = sprite2d_to_use.duplicate()
 	trail.position = player.position
+	trail.add_child(sprite_copy)
 	root.add_child(trail)

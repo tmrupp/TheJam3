@@ -12,7 +12,7 @@
 [ext_resource type="PackedScene" uid="uid://cswjtlvri7bui" path="res://prefabs/parry.tscn" id="9_bwkb5"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_jk8bx"]
-size = Vector2(40, 64)
+size = Vector2(30, 48)
 
 [node name="Player" type="CharacterBody2D"]
 rotation = -6.28319
@@ -27,12 +27,11 @@ scale = Vector2(0.2, 0.2)
 [node name="Sprite2D" type="Sprite2D" parent="."]
 z_index = 1
 texture_filter = 1
-scale = Vector2(2, 2)
+scale = Vector2(1.5, 1.5)
 texture = ExtResource("3_40yyn")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-position = Vector2(-4, 7.62939e-06)
-scale = Vector2(1, 1)
+position = Vector2(-3, -1.33991e-05)
 shape = SubResource("RectangleShape2D_jk8bx")
 
 [node name="CameraControl" type="Node" parent="."]

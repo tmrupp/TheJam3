@@ -1,12 +1,15 @@
 [gd_scene load_steps=3 format=3 uid="uid://di2qvgcbxuho0"]
 
 [ext_resource type="Script" path="res://scripts/DashTrailSprite.gd" id="1_d33fc"]
-[ext_resource type="Texture2D" uid="uid://b2b5vesa6orpg" path="res://sprites/diamond.png" id="1_d2735"]
+[ext_resource type="Texture2D" uid="uid://cup2ylxamytc5" path="res://sprites/TestCharacter.png" id="2_rkuj2"]
 
 [node name="DashTrailSprite" type="Node2D"]
+texture_filter = 1
 script = ExtResource("1_d33fc")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
+visible = false
 z_index = -1
+texture_filter = 1
 scale = Vector2(2, 2)
-texture = ExtResource("1_d2735")
+texture = ExtResource("2_rkuj2")
