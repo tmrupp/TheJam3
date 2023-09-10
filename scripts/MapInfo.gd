@@ -386,8 +386,8 @@ func _input(event):
 		enabled = !enabled
 		queue_redraw()
 		
-	if event.is_action_pressed("Discover"):
-		discover_random_chunk()
+	# if event.is_action_pressed("Discover"):
+	# 	discover_random_chunk()
 			
 var cell_colors = {
 	Type.GROUND: 	Color.DARK_OLIVE_GREEN,
