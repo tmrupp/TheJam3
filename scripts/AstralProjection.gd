@@ -2,7 +2,7 @@ extends Node
 
 @onready var player = $"../"
 @onready var main = $"/root/Main"
-@onready var visual = $"../big bossanova" # someday, this reference will break
+@onready var visual = $"../Sprite2D" # someday, this reference will break
 
 var projection_timer = ActionTimer.new(5.0, end_projection)
 
@@ -27,7 +27,6 @@ func project():
 	false_player_origin = visual.duplicate()
 	main.add_child(false_player_origin)
 	false_player_origin.position = player.position
-	false_player_origin.scale = Vector2(0.2 * 0.2, 0.2 * 0.2)
 	
 	# turn off own collision
 	# TODO
