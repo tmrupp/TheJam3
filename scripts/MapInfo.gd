@@ -180,7 +180,7 @@ var wfc_map_thread = Thread.new()
 var map_local_size = Vector2(100,100)
 var top_left = Vector2i(100, 100)
 
-const CHUNK_SIZE = 8
+const CHUNK_SIZE = 16
 
 var undiscovered_chunks = []
 @onready var tile_map = $"../../TileMap"
