@@ -288,9 +288,11 @@ func load_all(world_cells, world_seed, map_cells, map_seed):
 	
 	if player == null:
 		player = player_prefab.instantiate()
+		
 
 	if player.get_parent() == null:
 		main.add_child(player)
+		player.position = $"../../Respawn".position
 	
 	player.set_physics_process(true)
 
