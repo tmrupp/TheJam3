@@ -1,6 +1,6 @@
 extends Node2D
 
-var cooldown = 0.2
+var cooldown = 1.0
 var SPEED = 100
 var projectile_prefab = preload("res://prefabs/bullet.tscn")
 @onready var shoot_point = $ShootPoint
