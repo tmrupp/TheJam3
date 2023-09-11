@@ -27,6 +27,8 @@ grow_vertical = 2
 
 [node name="Start" type="Button" parent="VBoxContainer"]
 layout_mode = 2
+focus_neighbor_top = NodePath("../Exit")
+focus_neighbor_bottom = NodePath("../World Seed/Copy")
 theme = ExtResource("3_6o404")
 text = "Start Game
 "
@@ -45,14 +47,24 @@ text = "World Seed
 custom_minimum_size = Vector2(300, 0)
 layout_mode = 2
 size_flags_horizontal = 3
+focus_neighbor_top = NodePath("../../Start")
+focus_neighbor_right = NodePath("../Randomize")
+focus_neighbor_bottom = NodePath("../../Map Seed/LineEdit")
 placeholder_text = "9999"
 
 [node name="Randomize" type="Button" parent="VBoxContainer/World Seed"]
 layout_mode = 2
+focus_neighbor_left = NodePath("../LineEdit")
+focus_neighbor_top = NodePath("../../Start")
+focus_neighbor_right = NodePath("../Copy")
+focus_neighbor_bottom = NodePath("../../Exit")
 text = "Randomize"
 
 [node name="Copy" type="Button" parent="VBoxContainer/World Seed"]
 layout_mode = 2
+focus_neighbor_left = NodePath("../Randomize")
+focus_neighbor_top = NodePath("../../Start")
+focus_neighbor_bottom = NodePath("../../Map Seed/Paste")
 text = "Copy
 "
 
@@ -69,14 +81,22 @@ text = "Map Seed
 [node name="LineEdit" type="LineEdit" parent="VBoxContainer/Map Seed"]
 layout_mode = 2
 size_flags_horizontal = 3
+focus_neighbor_top = NodePath("../../World Seed/LineEdit")
+focus_neighbor_right = NodePath("../Paste")
+focus_neighbor_bottom = NodePath("../../Exit")
 placeholder_text = "9999"
 
 [node name="Paste" type="Button" parent="VBoxContainer/Map Seed"]
 layout_mode = 2
+focus_neighbor_left = NodePath("../LineEdit")
+focus_neighbor_top = NodePath("../../World Seed/Copy")
+focus_neighbor_bottom = NodePath("../../Exit")
 text = "Paste
 "
 
 [node name="Exit" type="Button" parent="VBoxContainer"]
 layout_mode = 2
+focus_neighbor_top = NodePath("../Map Seed/Paste")
+focus_neighbor_bottom = NodePath("../Start")
 theme = ExtResource("3_6o404")
 text = "Exit"

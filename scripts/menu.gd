@@ -28,6 +28,7 @@ func _input(event):
 	if event.is_action_pressed("Menu"):
 		if main.has_node("Player"): #!= null:
 			visible = !visible
+			get_tree().paused = visible
 
 func randomize_seed ():
 	world_seed.text = str(randi())
@@ -45,7 +46,4 @@ func _ready():
 	randomize_button.pressed.connect(randomize_seed)
 	copy.pressed.connect(copy_seed)
 	paste.pressed.connect(paste_seed)
-
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(_delta):
-	pass
+	start.grab_focus()
