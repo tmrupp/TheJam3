@@ -21,6 +21,9 @@ texture_filter = 1
 [node name="CodeMenu" parent="." instance=ExtResource("6_pee7n")]
 visible = false
 
+[node name="UpgradeMenu" parent="." instance=ExtResource("1_c23vw")]
+visible = false
+
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 process_mode = 3
 
@@ -71,9 +74,6 @@ script = ExtResource("4_di2xy")
 
 [node name="KeyEntry" parent="CanvasLayer/HUD/Keys" instance=ExtResource("4_r7eab")]
 layout_mode = 2
-
-[node name="UpgradeMenu" parent="." instance=ExtResource("1_c23vw")]
-visible = false
 
 [node name="Menu" parent="." instance=ExtResource("1_u4qe6")]
 process_mode = 3
