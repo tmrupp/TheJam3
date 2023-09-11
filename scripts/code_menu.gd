@@ -40,7 +40,7 @@ func _input(event):
 			check_code()
 	
 	#TODO: should be 'back' or something
-	if event.is_action_pressed("Discover"):
+	if event.is_action_pressed("Back"):
 		if len(current_code) == 0:
 			exit()
 		else:
