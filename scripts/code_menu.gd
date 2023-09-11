@@ -37,7 +37,9 @@ func _input(event):
 		if event.is_action_pressed(input):
 			current_code += input_map[input]
 			input_label.text = current_code
-			check_code()
+	
+	if event.is_action_pressed("Discover"):
+		check_code()
 	
 	#TODO: should be 'back' or something
 	if event.is_action_pressed("Back"):
