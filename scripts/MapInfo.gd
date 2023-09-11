@@ -237,6 +237,8 @@ var shooter_prefab = preload("res://prefabs/shooter_enemy.tscn")
 var coin_prefab = preload("res://prefabs/coin.tscn")
 var key_prefab = preload("res://prefabs/key.tscn")
 var door_prefab = preload("res://prefabs/door.tscn")
+
+var basic_sprite_prefab = preload("res://prefabs/sprite_2d.tscn")
 @onready var main = $"../.."
 # Called when the node enters the scene tree for the first time.
 func _ready():
@@ -330,10 +332,16 @@ func construct_world():
 	
 	queue_redraw()
 
+func get_max_bounds ():
+	return tile_map.to_global(tile_map.map_to_local(Vector2i(world.size.x + X_MARGIN - 1, world.size.y)))
+	
+func get_min_bounds ():
+	return tile_map.to_global(tile_map.map_to_local(Vector2i(-X_MARGIN, -TOP_MARGIN)))
+
 func in_bounds (v):
 	#	world.size.x, world.size.y
-	var max_bounds = tile_map.to_global(tile_map.map_to_local(Vector2i(world.size.x + X_MARGIN, world.size.y + TOP_MARGIN)))
-	var min_bounds = tile_map.to_global(tile_map.map_to_local(Vector2i(-X_MARGIN, -TOP_MARGIN)))
+	var max_bounds = get_max_bounds()
+	var min_bounds = get_min_bounds()
 	
 	if v.x > max_bounds.x or v.y > max_bounds.y:
 		return false
@@ -343,8 +351,8 @@ func in_bounds (v):
 	return true
 
 func clamp_bounds (v):
-	var max_bounds = tile_map.to_global(tile_map.map_to_local(Vector2i(world.size.x + X_MARGIN, world.size.y + TOP_MARGIN)))
-	var min_bounds = tile_map.to_global(tile_map.map_to_local(Vector2i(-X_MARGIN, -TOP_MARGIN)))
+	var max_bounds = get_max_bounds()
+	var min_bounds = get_min_bounds()
 
 	return Vector2(clamp(v.x, min_bounds.x, max_bounds.x), clamp(v.y, min_bounds.y, max_bounds.y))
 
