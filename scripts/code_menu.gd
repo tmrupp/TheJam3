@@ -21,6 +21,13 @@ var input_map = {
 	"Down": 'v',
 }
 
+var input_released = {
+	"Left": true,
+	"Right": true,
+	"Up": true,
+	"Down": true,
+}
+
 func check_code ():
 #	for secret in secrets:
 #		print("secret:", secret, " len(secret)=", len(secrets), " current_code=", current_code, " ==:", current_code == secret)
@@ -34,9 +41,13 @@ func exit ():
 
 func _input(event):
 	for input in input_map:
-		if event.is_action_pressed(input):
+		if event.is_action_pressed(input) and input_released[input]:
 			current_code += input_map[input]
 			input_label.text = current_code
+			input_released[input] = false
+			
+		if event.is_action_released(input):
+			input_released[input] = true
 	
 	if event.is_action_pressed("Discover"):
 		check_code()
