@@ -58,8 +58,9 @@ var hurt_ability = normal_hurt
 # SPEED: how quickly the player moves
 const SPEED = 300.0
 # JUMP_VELOCITY: how quickly and high the player jumps
-const JUMP_VELOCITY = -300.0
-const JUMP_GRAVITY_FACTOR = 0.35
+const JUMP_VELOCITY = -400.0
+const JUMP_GRAVITY_FACTOR = 0.7
+const JUMP_END_CUT_FACTOR = 0.5
 var jumps = 1
 var MAX_JUMPS = 1
 
@@ -79,8 +80,8 @@ var dash = ActionTimer.new(0.25, dash_end)
 # WALL_JUMP_TIME: how long manual control is overriden 
 # (feels better when pushing into wall to jump and then jumps away)
 # WALL_JUMP_Y_FACTOR: by how much the y component of a normal jump is factored when wall jumping
-const WALL_JUMP_SPEED = 300.0
-const WALL_JUMP_Y_FACTOR = 0.5
+const WALL_JUMP_SPEED = 400.0
+const WALL_JUMP_Y_FACTOR = 0.6
 var wall_jump = ActionTimer.new(0.25)
 
 # BUFFER_TIME: how long before hitting the ground can the player 
@@ -93,7 +94,7 @@ var coyote = ActionTimer.new(0.1)
 # HANG_TIME: how long at thje apex of a jump does gravity distortion take place
 # HANG_FACTOR: by how much is gravity distorted when hanging
 # HANG_SPEED_TARGET: which speed to dampen gravity between (symmetrical)
-const HANG_FACTOR = 0.8
+const HANG_FACTOR = 0.9
 const HANG_SPEED_TARGET = 40
 var hang = ActionTimer.new(1000)
 
@@ -199,7 +200,6 @@ func _physics_process(delta):
 		
 		if (not dash.is_acting()):
 			var factor = 1.0 if not hang.is_acting() else HANG_FACTOR
-			factor *= 1.0 if not jumping else JUMP_GRAVITY_FACTOR
 			velocity.y += gravity * factor * delta
 			
 		# damp once velocity hits a certain amount
@@ -259,6 +259,8 @@ func _physics_process(delta):
 			buffer_jump.enable(true)
 
 	if Input.is_action_just_released("Jump"):
+		if jumping:
+			velocity.y *= JUMP_END_CUT_FACTOR
 		jumping = false
 		pass
 	
