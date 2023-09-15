@@ -1,30 +1,33 @@
 extends Node2D
 
-var duration = 0.75
+var duration = 0.3
 @onready var player = $".."
 @onready var area = $"Area2D"
 @onready var sprite = $Sprite2D
 @onready var collider
 var scaling = 1.1
-var timer
-@onready var cooldown = ActionTimer.new(1.0, player.refresh_self)
+@onready var timer = $Timer
+@onready var cooldown = ActionTimer.new(2.0, player.refresh_self)
 var old_hurt
 
 func stop_parry ():
 	player.hurt_ability = player.normal_hurt
 	collider.disabled = true
 	sprite.visible = false
+	print("stopped parry")
 
 func parry (damage, v, origin):
 	var stunner = origin.attacker.get_node_or_null("Stunner")
 	if stunner:
 		stunner.stun()
+		stop_parry()
+		cooldown.refresh()
+		timer.stop()
 
 func check_parry ():
 	player.hurt_ability = parry
 	sprite.visible = true
-	await get_tree().create_timer(duration).timeout
-	stop_parry()
+	timer.start(duration)
 
 func execute ():
 	if not cooldown.acted:
@@ -36,6 +39,9 @@ func execute ():
 func _ready():
 	player.parry.connect(execute)
 	player.timers.append(cooldown)
+	
+	timer.connect("timeout", stop_parry)
+	timer.one_shot = true
 	
 	area.scale = player.scale*scaling
 	collider = player.get_node("CollisionShape2D").duplicate()

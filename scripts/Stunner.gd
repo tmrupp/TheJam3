@@ -11,7 +11,7 @@ func set_stuns (value):
 		if node:
 			node.stunned = value
 
-func stun (duration=0.5):
+func stun (duration=2.0):
 	set_stuns(true)
 	cooldown.enable(duration, Color.GREEN_YELLOW, Color.DARK_SLATE_GRAY)
 	await get_tree().create_timer(duration).timeout
