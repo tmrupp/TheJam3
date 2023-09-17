@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3 uid="uid://bdd54s8wdfdsc"]
+[gd_scene load_steps=15 format=3 uid="uid://bdd54s8wdfdsc"]
 
 [ext_resource type="PackedScene" uid="uid://bnktmhuvbbhqv" path="res://prefabs/upgrade_menu.tscn" id="1_c23vw"]
 [ext_resource type="Texture2D" uid="uid://dyho3orymgg41" path="res://icon.svg" id="1_em40g"]
