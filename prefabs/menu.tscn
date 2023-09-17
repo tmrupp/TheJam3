@@ -8,9 +8,9 @@
 script = ExtResource("1_g0r38")
 
 [node name="BigBossMenu" type="Sprite2D" parent="."]
-position = Vector2(960, 540)
-scale = Vector2(0.5, 0.5)
+scale = Vector2(0.084, 0.084)
 texture = ExtResource("2_bc6bt")
+centered = false
 
 [node name="VBoxContainer" type="VBoxContainer" parent="."]
 anchors_preset = 8
@@ -18,12 +18,14 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -123.0
-offset_top = -107.0
-offset_right = 123.0
-offset_bottom = 107.0
+offset_left = -80.0
+offset_top = -40.0
+offset_right = 549.0
+offset_bottom = 174.0
 grow_horizontal = 2
 grow_vertical = 2
+scale = Vector2(0.25, 0.25)
+size_flags_horizontal = 4
 
 [node name="Start" type="Button" parent="VBoxContainer"]
 layout_mode = 2

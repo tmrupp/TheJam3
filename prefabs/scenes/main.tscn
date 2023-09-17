@@ -26,6 +26,8 @@ visible = false
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 process_mode = 3
+scale = Vector2(0.25, 0.25)
+transform = Transform2D(0.25, 0, 0, 0.25, 0, 0)
 
 [node name="MapInfo" type="Control" parent="CanvasLayer"]
 layout_mode = 3
@@ -44,11 +46,8 @@ scale = Vector2(0.45, 0.45)
 texture = ExtResource("3_aatww")
 
 [node name="HUD" type="VBoxContainer" parent="CanvasLayer"]
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+offset_right = 300.0
+offset_bottom = 159.0
 
 [node name="TopHUD" type="HBoxContainer" parent="CanvasLayer/HUD"]
 layout_mode = 2
@@ -97,7 +96,7 @@ script = ExtResource("8_vwnae")
 position = Vector2(42, -53)
 
 [node name="Camera2D" type="Camera2D" parent="."]
-zoom = Vector2(1.5, 1.5)
+zoom = Vector2(0.25, 0.25)
 
 [node name="Music" type="Node" parent="."]
 script = ExtResource("11_hqvrv")
