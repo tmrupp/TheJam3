@@ -1,12 +1,10 @@
 [gd_scene load_steps=2 format=3 uid="uid://d3x2egwr42wpm"]
 
-[sub_resource type="Theme" id="Theme_8gcqo"]
-default_font_size = 64
+[ext_resource type="Theme" uid="uid://0va2tdybcl4b" path="res://themes/main_menu_theme.tres" id="1_44si4"]
 
 [node name="KeyEntry" type="PanelContainer"]
 
 [node name="Label" type="Label" parent="."]
-custom_minimum_size = Vector2(300, 0)
 layout_mode = 2
-theme = SubResource("Theme_8gcqo")
+theme = ExtResource("1_44si4")
 text = "Keys"

@@ -2,9 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/UpgradeContainer.gd" id="1_k363m"]
 [ext_resource type="Texture2D" uid="uid://dyho3orymgg41" path="res://icon.svg" id="2_7g5at"]
-
-[sub_resource type="Theme" id="Theme_4j5hm"]
-default_font_size = 30
+[ext_resource type="Theme" uid="uid://0va2tdybcl4b" path="res://themes/main_menu_theme.tres" id="3_wuohh"]
 
 [node name="UpgradeContainer" type="MarginContainer"]
 script = ExtResource("1_k363m")
@@ -19,7 +17,7 @@ layout_mode = 2
 mouse_filter = 2
 
 [node name="TextureRect" type="TextureRect" parent="VBoxContainer"]
-custom_minimum_size = Vector2(600, 600)
+custom_minimum_size = Vector2(64, 64)
 layout_mode = 2
 mouse_filter = 2
 texture = ExtResource("2_7g5at")
@@ -27,7 +25,7 @@ expand_mode = 2
 
 [node name="Label" type="Label" parent="VBoxContainer"]
 layout_mode = 2
-theme = SubResource("Theme_4j5hm")
-text = "{name}\\nCost:{cost}\\n{description}"
+theme = ExtResource("3_wuohh")
+text = "Something"
 horizontal_alignment = 1
 autowrap_mode = 3

@@ -23,12 +23,17 @@ func select ():
 	button.disabled = true
 	player.collect(-upgrade.cost)
 	upgrade.attach(player)
-	
+
+func focused ():
+	button.grab_focus()
+
 # Called when the node enters the scene tree for the first time.
 func _ready():
 	upgrade = upgrader.get_upgrade()
 	label.text = upgrade_text.format(upgrade.format())
 	button.connect("button_down", select)
+	
+	connect("focus_entered", focused)
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta):

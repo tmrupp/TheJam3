@@ -3,9 +3,7 @@
 [ext_resource type="Script" path="res://scripts/upgrade_menu.gd" id="1_3jj08"]
 [ext_resource type="PackedScene" uid="uid://6pvu0cx6pdb6" path="res://prefabs/upgrade_container.tscn" id="1_r22c7"]
 [ext_resource type="Script" path="res://scripts/UpgradeManager.gd" id="3_thhfv"]
-
-[sub_resource type="Theme" id="Theme_81x73"]
-default_font_size = 60
+[ext_resource type="Theme" uid="uid://0va2tdybcl4b" path="res://themes/main_menu_theme.tres" id="3_xd5a7"]
 
 [node name="UpgradeMenu" type="CanvasLayer"]
 process_mode = 3
@@ -26,29 +24,44 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -196.0
-offset_top = -122.5
-offset_right = 196.0
-offset_bottom = 122.5
+offset_left = -100.0
+offset_top = -54.5
+offset_right = 100.0
+offset_bottom = 54.5
 grow_horizontal = 2
 grow_vertical = 2
 
 [node name="HBoxContainer" type="HBoxContainer" parent="ColorRect/VBoxContainer"]
 layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 6
 
 [node name="UpgradeContainer" parent="ColorRect/VBoxContainer/HBoxContainer" instance=ExtResource("1_r22c7")]
 layout_mode = 2
+focus_neighbor_left = NodePath("../UpgradeContainer3")
+focus_neighbor_right = NodePath("../UpgradeContainer2")
+focus_neighbor_bottom = NodePath("../../Done")
+focus_mode = 2
 
 [node name="UpgradeContainer2" parent="ColorRect/VBoxContainer/HBoxContainer" instance=ExtResource("1_r22c7")]
 layout_mode = 2
+focus_neighbor_left = NodePath("../UpgradeContainer")
+focus_neighbor_right = NodePath("../UpgradeContainer3")
+focus_neighbor_bottom = NodePath("../../Done")
+focus_mode = 2
 
 [node name="UpgradeContainer3" parent="ColorRect/VBoxContainer/HBoxContainer" instance=ExtResource("1_r22c7")]
 layout_mode = 2
+focus_neighbor_left = NodePath("../UpgradeContainer2")
+focus_neighbor_right = NodePath("../UpgradeContainer")
+focus_neighbor_bottom = NodePath("../../Done")
+focus_mode = 2
 
 [node name="Done" type="Button" parent="ColorRect/VBoxContainer"]
 layout_mode = 2
-theme = SubResource("Theme_81x73")
-text = "Exit Shop"
+focus_neighbor_top = NodePath("../HBoxContainer/UpgradeContainer2")
+theme = ExtResource("3_xd5a7")
+text = "Done"
 
 [node name="UpgradeManager" type="Node" parent="."]
 script = ExtResource("3_thhfv")

@@ -4,3 +4,4 @@
 
 [node name="Heart" type="TextureRect"]
 texture = ExtResource("1_p140d")
+expand_mode = 3

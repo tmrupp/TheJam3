@@ -396,8 +396,9 @@ func _input(event):
 		enabled = !enabled
 		queue_redraw()
 		
-	# if event.is_action_pressed("Discover"):
-	# 	discover_random_chunk()
+	if event.is_action_pressed("Discover"):
+		print("discovered")
+		discover_random_chunk()
 			
 var cell_colors = {
 	Type.GROUND: 	Color.DARK_OLIVE_GREEN,
@@ -409,11 +410,6 @@ var cell_colors = {
 var map_image : Image
 var map_texture : ImageTexture
 
-func compose_texture():
-	for i in map.size.x:
-		for j in map.size.y:
-			draw_cell(i, j, map.get_cell(Vector2i(i, j)))
-
 func draw_cell(x, y, cell):
 #	print("cell.type=", cell.type)
 	var color = Color.BLACK if not cell.discovered else (Color.LIGHT_BLUE if cell.type not in cell_colors else cell_colors[cell.type])
@@ -424,14 +420,11 @@ func inverse(v):
 	return Vector2(1/float(v.x), 1/float(v.y))
 
 func _draw():
-	top_left = get_viewport_rect().size/2-map_local_size/2
 	map_sprite.visible = enabled
-	map_sprite.position = get_viewport_rect().size/2 - Vector2.RIGHT*8
 	
 	keys.visible = enabled
 
 	map_contents.visible = enabled
-	map_contents.position = get_viewport_rect().size/2
 	if (enabled):
 		for i in map.size.x:
 			for j in map.size.y:
@@ -439,4 +432,4 @@ func _draw():
 				draw_cell(i, j, map.get_cell(Vector2i(i, j)))
 		map_texture.image = map_image
 		map_contents.texture = map_texture
-		map_contents.scale =  inverse(map_contents.texture.get_image().get_size()) * 19 * 32
+		# map_contents.scale =  inverse(map_contents.texture.get_image().get_size())

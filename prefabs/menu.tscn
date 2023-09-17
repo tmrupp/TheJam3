@@ -18,14 +18,14 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -80.0
-offset_top = -40.0
-offset_right = 549.0
-offset_bottom = 174.0
+offset_left = -155.0
+offset_top = -74.0
+offset_right = 155.0
+offset_bottom = 74.0
 grow_horizontal = 2
 grow_vertical = 2
-scale = Vector2(0.25, 0.25)
-size_flags_horizontal = 4
+size_flags_horizontal = 3
+size_flags_vertical = 3
 
 [node name="Start" type="Button" parent="VBoxContainer"]
 layout_mode = 2
@@ -42,16 +42,16 @@ layout_mode = 2
 layout_mode = 2
 size_flags_vertical = 1
 theme = ExtResource("3_6o404")
-text = "World Seed
+text = "World
 "
 
 [node name="LineEdit" type="LineEdit" parent="VBoxContainer/World Seed"]
-custom_minimum_size = Vector2(300, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 focus_neighbor_top = NodePath("../../Start")
 focus_neighbor_right = NodePath("../Randomize")
 focus_neighbor_bottom = NodePath("../../Map Seed/LineEdit")
+theme = ExtResource("3_6o404")
 placeholder_text = "9999"
 
 [node name="Randomize" type="Button" parent="VBoxContainer/World Seed"]
@@ -60,6 +60,7 @@ focus_neighbor_left = NodePath("../LineEdit")
 focus_neighbor_top = NodePath("../../Start")
 focus_neighbor_right = NodePath("../Copy")
 focus_neighbor_bottom = NodePath("../../Exit")
+theme = ExtResource("3_6o404")
 text = "Randomize"
 
 [node name="Copy" type="Button" parent="VBoxContainer/World Seed"]
@@ -67,6 +68,7 @@ layout_mode = 2
 focus_neighbor_left = NodePath("../Randomize")
 focus_neighbor_top = NodePath("../../Start")
 focus_neighbor_bottom = NodePath("../../Map Seed/Paste")
+theme = ExtResource("3_6o404")
 text = "Copy
 "
 
@@ -77,7 +79,7 @@ layout_mode = 2
 layout_mode = 2
 size_flags_vertical = 1
 theme = ExtResource("3_6o404")
-text = "Map Seed
+text = "Map
 "
 
 [node name="LineEdit" type="LineEdit" parent="VBoxContainer/Map Seed"]
@@ -86,6 +88,7 @@ size_flags_horizontal = 3
 focus_neighbor_top = NodePath("../../World Seed/LineEdit")
 focus_neighbor_right = NodePath("../Paste")
 focus_neighbor_bottom = NodePath("../../Exit")
+theme = ExtResource("3_6o404")
 placeholder_text = "9999"
 
 [node name="Paste" type="Button" parent="VBoxContainer/Map Seed"]
@@ -93,6 +96,7 @@ layout_mode = 2
 focus_neighbor_left = NodePath("../LineEdit")
 focus_neighbor_top = NodePath("../../World Seed/Copy")
 focus_neighbor_bottom = NodePath("../../Exit")
+theme = ExtResource("3_6o404")
 text = "Paste
 "
 

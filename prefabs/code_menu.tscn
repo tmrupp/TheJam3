@@ -1,12 +1,16 @@
-[gd_scene load_steps=4 format=3 uid="uid://cywny0yr2evn6"]
+[gd_scene load_steps=6 format=3 uid="uid://cywny0yr2evn6"]
 
 [ext_resource type="Script" path="res://scripts/code_menu.gd" id="1_7ufk5"]
+[ext_resource type="FontFile" uid="uid://cv1jogguaocpv" path="res://fonts/m5x7.ttf" id="2_u5sly"]
+
+[sub_resource type="Theme" id="Theme_a0sr3"]
+default_font = ExtResource("2_u5sly")
 
 [sub_resource type="Theme" id="Theme_50h1s"]
-default_font_size = 64
+default_font_size = 32
 
 [sub_resource type="Theme" id="Theme_qqxfb"]
-default_font_size = 64
+default_font_size = 32
 
 [node name="CodeMenu" type="CanvasLayer"]
 process_mode = 3
@@ -18,6 +22,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme = SubResource("Theme_a0sr3")
 color = Color(0.0470588, 0.180392, 0.341176, 1)
 
 [node name="VBoxContainer" type="VBoxContainer" parent="ColorRect"]
@@ -49,7 +54,7 @@ theme = SubResource("Theme_50h1s")
 text = "Input:  "
 
 [node name="Input" type="Label" parent="ColorRect/VBoxContainer/MarginContainer/HBoxContainer"]
-custom_minimum_size = Vector2(500, 0)
+custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 theme = SubResource("Theme_qqxfb")
 text = "^^^^"
