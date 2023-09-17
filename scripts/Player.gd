@@ -105,8 +105,7 @@ var timers = [dash, wall_jump, buffer_jump, coyote, hang, invulnerable, knock_ba
 var manual_control = true
 
 @onready var tile_map = $"../TileMap"
-@onready var sprite = $"big bossanova"
-@onready var animation_player = $"big bossanova/AnimationPlayer"
+@onready var sprite = $"Sprite2D"
 
 # Get the gravity from the project settings to be synced with RigidBody nodes.
 var gravity = ProjectSettings.get_setting("physics/2d/default_gravity")
@@ -121,7 +120,7 @@ func animation_finished(animation):
 var respawn
 func _ready():
 	respawn = $"../Respawn"
-	animation_player.connect("animation_started", animation_finished)
+	# animation_player.connect("animation_started", animation_finished)
 
 #puts the player back at the spawn location
 func reset_position():
@@ -150,7 +149,7 @@ var animating_jumping = false
 var jumping = false
 func jump(factor=1.0):
 	velocity.y = JUMP_VELOCITY * factor
-	animation_player.play("hop", -1, 4)
+	# animation_player.play("hop", -1, 4)
 	# animation_player.queue("falling")
 	jumping = true
 
@@ -211,20 +210,23 @@ func _physics_process(delta):
 			hang.end()
 
 		if (velocity.y > 0):
-			animation_player.play("falling")
+			# animation_player.play("falling")
+			pass
 	else: # on the ground
 		animating_jumping = false
 		jumping = false
 		jumps = MAX_JUMPS
 		if direction.x != 0:
 			# if user is inputing a direction animate "moving"
-			animation_player.play("scuttle")
+			# animation_player.play("scuttle")
+			pass
 		else:
 			# if on the ground stop falling and play idle
-			if animation_player.current_animation == "falling":
-				animation_player.stop()
+			# if animation_player.current_animation == "falling":
+				# animation_player.stop()
 #			print("here? animation=", animation_player.assigned_animation)
-			animation_player.play("idle")
+			# animation_player.play("idle")
+			pass
 		
 		# if a jump was buffered, jump
 		if (buffer_jump.is_acting()):

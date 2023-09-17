@@ -1,11 +1,10 @@
-[gd_scene load_steps=15 format=3 uid="uid://bdd54s8wdfdsc"]
+[gd_scene load_steps=14 format=3 uid="uid://bdd54s8wdfdsc"]
 
 [ext_resource type="PackedScene" uid="uid://bnktmhuvbbhqv" path="res://prefabs/upgrade_menu.tscn" id="1_c23vw"]
 [ext_resource type="Texture2D" uid="uid://dyho3orymgg41" path="res://icon.svg" id="1_em40g"]
 [ext_resource type="PackedScene" uid="uid://d07pxhxu1ug5i" path="res://prefabs/menu.tscn" id="1_u4qe6"]
 [ext_resource type="Script" path="res://scripts/MapInfo.gd" id="2_j20rq"]
 [ext_resource type="Texture2D" uid="uid://bntdacghcahec" path="res://sprites/mapart.png" id="3_aatww"]
-[ext_resource type="Script" path="res://scripts/ImageConverter.gd" id="4_cp0ds"]
 [ext_resource type="Script" path="res://scripts/Keys.gd" id="4_di2xy"]
 [ext_resource type="PackedScene" uid="uid://d3x2egwr42wpm" path="res://prefabs/key_entry.tscn" id="4_r7eab"]
 [ext_resource type="Texture2D" uid="uid://bsvj6kbku0k16" path="res://wfc_images/levelSample3-spikes.png" id="5_3ptxv"]
@@ -76,9 +75,6 @@ layout_mode = 2
 
 [node name="Menu" parent="." instance=ExtResource("1_u4qe6")]
 process_mode = 3
-
-[node name="ImageConverter" type="Node" parent="."]
-script = ExtResource("4_cp0ds")
 
 [node name="WaveFunctionCollapse" type="WaveFunctionCollapse" parent="."]
 output_size = Vector2i(64, 64)
