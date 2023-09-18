@@ -11,12 +11,21 @@ extends CanvasLayer
 @onready var world_seed = $"VBoxContainer/World Seed/LineEdit"
 @onready var map_seed = $"VBoxContainer/Map Seed/LineEdit"
 
+@onready var world_seed_container = $"VBoxContainer/World Seed"
+@onready var map_seed_container = $"VBoxContainer/Map Seed"
+
 @onready var main = $".."
 @onready var wfc_thread = Thread.new()
 
 func start_game():
 	wfc_thread.start(wfc.generate_all.bind(get_seed(world_seed), get_seed(map_seed), wfc_thread))
 	visible = false
+	start.text = "Resume"
+	start.pressed.disconnect(start_game)
+	start.pressed.connect(resume_game)
+	
+	world_seed_container.visible = false
+	map_seed_container.visible = false
 	
 func exit_game():
 	get_tree().quit()
@@ -26,9 +35,13 @@ func get_seed(input):
 
 func _input(event):
 	if event.is_action_pressed("Menu"):
-		if main.has_node("Player"): #!= null:
+		resume_game()
+
+func resume_game():
+	if main.has_node("Player"): #!= null:
 			visible = !visible
 			get_tree().paused = visible
+			start.grab_focus()
 
 func randomize_seed ():
 	world_seed.text = str(randi())
