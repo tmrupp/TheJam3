@@ -20,10 +20,11 @@ extends CanvasLayer
 func start_game():
 	wfc_thread.start(wfc.generate_all.bind(get_seed(world_seed), get_seed(map_seed), wfc_thread))
 	visible = false
+	
+	# We're repurposing the menu now from a 'main menu' to a 'pause menu'
 	start.text = "Resume"
 	start.pressed.disconnect(start_game)
-	start.pressed.connect(resume_game)
-	
+	start.pressed.connect(pause_resume_game)
 	world_seed_container.visible = false
 	map_seed_container.visible = false
 	
@@ -35,13 +36,15 @@ func get_seed(input):
 
 func _input(event):
 	if event.is_action_pressed("Menu"):
-		resume_game()
+		pause_resume_game()
 
-func resume_game():
+func pause_resume_game():
+	# this check prevents the user from deactivating the menu when the game hasn't started
+	# by checking if the scene has a 'player' in it
 	if main.has_node("Player"): #!= null:
-			visible = !visible
-			get_tree().paused = visible
-			start.grab_focus()
+		visible = !visible
+		get_tree().paused = visible
+		start.grab_focus()
 
 func randomize_seed ():
 	world_seed.text = str(randi())
