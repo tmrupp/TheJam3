@@ -15,12 +15,19 @@ var currently_lerping = false
 @onready var camera = $"../../Camera2D"
 @onready var player = $"../"
 
+# position we track to with the camera
+var target_location
+const HORIZONTAL_OFFSET = 200
+const VERTICAL_OFFSET = 100
+
 func _ready():
 	var level_size = $"../../WaveFunctionCollapse".output_size * $"../../TileMap".cell_quadrant_size
 	camera.limit_left = -1 * $"../../CanvasLayer/MapInfo".X_MARGIN * $"../../TileMap".cell_quadrant_size
 	camera.limit_right = level_size.x + $"../../CanvasLayer/MapInfo".X_MARGIN * $"../../TileMap".cell_quadrant_size
 	camera.limit_top = -1 * $"../../CanvasLayer/MapInfo".TOP_MARGIN * $"../../TileMap".cell_quadrant_size
 	camera.limit_bottom = level_size.y + 1 * $"../../TileMap".cell_quadrant_size
+	player.direction_signal.connect(update_target)
+	target_location = player.position
 
 # Set the position of the camera to lerp the player's position over time
 func _process(delta):
@@ -29,11 +36,11 @@ func _process(delta):
 
 # Move the camera towards the position of the player
 func smooth_lerp(delta, smoothness):
-	camera.position = lerp(camera.position, player.position, 1 - pow(smoothness, delta))
+	camera.position = lerp(camera.position, target_location, 1 - pow(smoothness, delta))
 
 # Check if the player/camera distance is above a threshold, lerp if so until we rest on the character again
 func bounding_radius_lerping(delta):
-	var diff = camera.position - player.position
+	var diff = camera.position - target_location
 	print(diff.length())
 	if currently_lerping || diff.length() > BOUNDING_RADIUS:
 		smooth_lerp(delta, BR_LERP_SMOOTHNESS)
@@ -41,3 +48,22 @@ func bounding_radius_lerping(delta):
 		
 		if diff.length() < BR_LOWER_THRESHOLD:
 			currently_lerping = false
+
+# change place camera is looking based on direction player is facing
+func update_target(direction):
+	var horizontal_multiplier = 0
+	if direction.x > 0.1:
+		horizontal_multiplier = 1
+	elif direction.x < -0.1:
+		horizontal_multiplier = -1
+		
+	var vertical_multiplier = 0
+	if direction.y < -0.1:
+		vertical_multiplier = -1
+	elif direction.y > 0.1:
+		vertical_multiplier = 1
+		
+	target_location = player.position + Vector2(0, VERTICAL_OFFSET * vertical_multiplier)
+	
+	if horizontal_multiplier != 0:
+		target_location += Vector2(HORIZONTAL_OFFSET * horizontal_multiplier, 0)

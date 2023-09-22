@@ -10,6 +10,7 @@ signal astral_projection_signal
 signal elapse_ability_time_signal(time)
 signal parry
 signal died
+signal direction_signal(direction)
 
 func collect (x):
 	coins.modify(x)
@@ -176,6 +177,8 @@ func _physics_process(delta):
 
 	# get input from the user to establish direction
 	var direction = Vector2.RIGHT * Input.get_axis("Left", "Right") + Vector2.DOWN * Input.get_axis("Up", "Down")
+	
+	direction_signal.emit(direction)
 	
 	# makes the sprite face which direction the user is pointing towards
 	if direction.x != 0:
