@@ -21,11 +21,12 @@ const HORIZONTAL_OFFSET = 200
 const VERTICAL_OFFSET = 100
 
 func _ready():
-	var level_size = $"../../WaveFunctionCollapse".output_size * $"../../TileMap".cell_quadrant_size
-	camera.limit_left = -1 * $"../../CanvasLayer/MapInfo".X_MARGIN * $"../../TileMap".cell_quadrant_size
-	camera.limit_right = level_size.x + $"../../CanvasLayer/MapInfo".X_MARGIN * $"../../TileMap".cell_quadrant_size
-	camera.limit_top = -1 * $"../../CanvasLayer/MapInfo".TOP_MARGIN * $"../../TileMap".cell_quadrant_size
-	camera.limit_bottom = level_size.y + 1 * $"../../TileMap".cell_quadrant_size
+	var tilemap_scale = Vector2i($"../../TileMap".scale)
+	var level_size = $"../../WaveFunctionCollapse".output_size * $"../../TileMap".tile_set.tile_size * tilemap_scale
+	camera.limit_left = -1 * $"../../CanvasLayer/MapInfo".X_MARGIN * $"../../TileMap".tile_set.tile_size.x * tilemap_scale.x
+	camera.limit_right = level_size.x + $"../../CanvasLayer/MapInfo".X_MARGIN * $"../../TileMap".tile_set.tile_size.x * tilemap_scale.x
+	camera.limit_top = -1 * $"../../CanvasLayer/MapInfo".TOP_MARGIN * $"../../TileMap".tile_set.tile_size.y * tilemap_scale.y
+	camera.limit_bottom = level_size.y + 1 * $"../../TileMap".tile_set.tile_size.y * tilemap_scale.y
 	player.direction_signal.connect(update_target)
 	target_location = player.position
 

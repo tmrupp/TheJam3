@@ -59,7 +59,7 @@ var hurt_ability = normal_hurt
 # SPEED: how quickly the player moves
 const SPEED = 300.0
 # JUMP_VELOCITY: how quickly and high the player jumps
-const JUMP_VELOCITY = -400.0
+const JUMP_VELOCITY = -600.0
 const JUMP_GRAVITY_FACTOR = 0.7
 const JUMP_END_CUT_FACTOR = 0.5
 var jumps = 1
