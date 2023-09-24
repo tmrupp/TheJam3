@@ -7,10 +7,14 @@
 [node name="Menu" type="CanvasLayer"]
 script = ExtResource("1_g0r38")
 
-[node name="BigBossMenu" type="Sprite2D" parent="."]
-scale = Vector2(0.084, 0.084)
+[node name="BigBossMenu" type="TextureRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 texture = ExtResource("2_bc6bt")
-centered = false
+expand_mode = 1
 
 [node name="VBoxContainer" type="VBoxContainer" parent="."]
 anchors_preset = 8

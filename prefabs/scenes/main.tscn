@@ -108,6 +108,7 @@ texture = ExtResource("5_3ptxv")
 script = ExtResource("8_vwnae")
 
 [node name="TileMap" parent="." instance=ExtResource("9_qh1ky")]
+scale = Vector2(4, 4)
 
 [node name="Respawn" type="Node2D" parent="."]
 position = Vector2(42, -53)
