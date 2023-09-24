@@ -33,6 +33,7 @@ shape = SubResource("RectangleShape2D_jk8bx")
 script = ExtResource("3_t5s4g")
 
 [node name="ParticleController" type="Node2D" parent="."]
+position = Vector2(0, 8)
 script = ExtResource("4_puykc")
 
 [node name="Health" type="Node" parent="."]
