@@ -25,6 +25,8 @@ func start_game():
 	start.text = "Resume"
 	start.pressed.disconnect(start_game)
 	start.pressed.connect(pause_resume_game)
+	start.focus_neighbor_bottom = exit.get_path()
+	exit.focus_neighbor_top = start.get_path()
 	world_seed_container.visible = false
 	map_seed_container.visible = false
 	
