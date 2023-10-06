@@ -312,7 +312,7 @@ var cell_to_prefab = {
 func place_cell(v, type):
 	var cell = cell_to_prefab[type].instantiate()
 	# print("making, ", type, " at ", v)
-	main.add_child.call_deferred(cell)
+	$"../../MapElements".add_child.call_deferred(cell)
 	cell.position = tile_map.to_global(tile_map.map_to_local(v))
 	cell.setup(self, v)
 	elements.append(cell)

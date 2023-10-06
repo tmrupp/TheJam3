@@ -1,6 +1,6 @@
 extends Area2D
 
-@onready var player = $"../Player"
+@onready var player = $"/root/Main/Player"
 
 @onready var keys = $"/root/Main/CanvasLayer/HUD/Keys"
 

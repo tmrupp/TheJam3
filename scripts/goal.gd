@@ -1,7 +1,7 @@
 extends Area2D
 
-@onready var player = $"../Player"
-@onready var map_info = $"../CanvasLayer/MapInfo"
+@onready var player = $"/root/Main/Player"
+@onready var map_info = $"/root/Main/CanvasLayer/MapInfo"
 
 @onready var upgrade_menu = $"/root/Main/UpgradeMenu"
 @onready var code_menu = $"/root/Main/CodeMenu"
