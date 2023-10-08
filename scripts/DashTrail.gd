@@ -23,5 +23,6 @@ func make_trail_element():
 	var trail = dash_trail_sprite.instantiate()
 	var sprite_copy = sprite2d_to_use.duplicate()
 	trail.position = player.position
+	trail.scale = player.scale
 	trail.add_child(sprite_copy)
 	root.add_child(trail)
