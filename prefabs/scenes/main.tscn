@@ -126,5 +126,3 @@ volume_db = -5.842
 [node name="MusicPlayer2" type="AudioStreamPlayer" parent="Music"]
 stream = ExtResource("10_yprvw")
 volume_db = -5.842
-
-[node name="MapElements" type="Node" parent="."]

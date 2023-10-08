@@ -3,6 +3,7 @@ extends Control
 const START_REVEALED = false
 const CLOSE_GOAL = false
 const CLOSE_ONE_KEY = false
+const TERRAIN_UNDER_SPAWN = true
 
 enum Type {
 	EMPTY,
@@ -114,6 +115,10 @@ class World:
 		rng.seed = _seed
 		size = Vector2i(len(_cells), len(_cells[0]))
 		cells = []
+
+		if TERRAIN_UNDER_SPAWN:
+			_cells[0][0] = Color.BLACK
+
 		for i in len(_cells):
 			var row = []
 			for j in len(_cells[i]):
@@ -165,12 +170,11 @@ class World:
 		next_seed = rng.randi()
 		
 var goal_shift = 0
-var world
-var map
 @onready var wfc = $"../../WaveFunctionCollapse"
 @onready var player
 @onready var map_sprite = $MapSprite
 @onready var keys = $"../HUD/Keys"
+@onready var respawn = $"/root/Main/Respawn"
 # const?
 const SPACING = 6.0
 
@@ -185,8 +189,6 @@ const CHUNK_SIZE = 16
 var undiscovered_chunks = []
 @onready var tile_map = $"../../TileMap"
 
-var elements = []
-
 # constants for "box" to contain the generated map
 const X_MARGIN = 2
 const TOP_MARGIN = 5
@@ -197,7 +199,11 @@ var generating = false
 func generate():
 	player.reset_position()
 	player.set_physics_process(false)
-	wfc_thread.start(wfc.generate_all.bind(world.next_seed, map.next_seed, wfc_thread))
+
+	if world_index < len(worlds)-1:
+		load_world(world_index+1)
+	else:
+		wfc_thread.start(wfc.generate_all.bind(world.next_seed, map.next_seed, wfc_thread))
 
 func setup_chunks():
 	undiscovered_chunks = []
@@ -238,16 +244,30 @@ var coin_prefab = preload("res://prefabs/coin.tscn")
 var key_prefab = preload("res://prefabs/key.tscn")
 var door_prefab = preload("res://prefabs/door.tscn")
 
+var map_elements_prefab = preload("res://prefabs/map_elements.tscn")
+
 var basic_sprite_prefab = preload("res://prefabs/sprite_2d.tscn")
-@onready var main = $"../.."
-# Called when the node enters the scene tree for the first time.
-func _ready():
-#	generate_all(9999, 9999)
-	pass # more like ass
+@onready var main = $"/root/Main"
+	
+var world_index = -1
+var worlds = []
+var maps = []
+var world_scenes = []
+var world
+var map
 
-func remove_element(elem):
-	elements.erase(elem)
+func load_world (i):
+	clear_terrain()
+	
+	world_index = i
+	world = worlds[i]
+	map = worlds[i]
 
+	next_world()
+	await get_tree().physics_frame
+	map_elements = world_scenes[i].instantiate()
+	main.add_child(map_elements)
+	
 func clear_terrain():
 	if world == null:
 		return
@@ -255,11 +275,15 @@ func clear_terrain():
 	for i in range(world.size.x):
 		for j in range(world.size.y):
 			tile_map.clear()
-			
-	for elem in elements:
-		if elem != null:
-			elem.queue_free()
-	elements.clear()
+	
+	var packed_scene = PackedScene.new()
+	packed_scene.pack(map_elements)
+	if world_index < len(world_scenes):
+		world_scenes[world_index] = packed_scene
+	else:
+		world_scenes.append(packed_scene)
+		
+	map_elements.queue_free()
 
 var player_prefab = preload("res://prefabs/player.tscn")
 var valid_keys = []
@@ -267,18 +291,8 @@ var valid_keys = []
 func remove_valid_key (key):
 	valid_keys.erase(key)
 
-func load_all(world_cells, world_seed, map_cells, map_seed):
-	clear_terrain()
-	
-	map = World.new(map_cells, map_seed)
-	world = World.new(world_cells, world_seed)
-	
-	valid_keys.append_array(map.keys)
-	# print("valid keys=", valid_keys)
-	
+func next_world ():
 	map_local_size = map.size*SPACING
-	# print("_world_cells=", len(_world_cells), "x", len(_world_cells[0]), " world_cells=", len(world_cells), "x", len(world_cells[0]))
-	
 	construct_world()
 
 	if (START_REVEALED):
@@ -291,12 +305,35 @@ func load_all(world_cells, world_seed, map_cells, map_seed):
 	if player == null:
 		player = player_prefab.instantiate()
 		
-
 	if player.get_parent() == null:
 		main.add_child(player)
-		player.position = $"../../Respawn".position
+
+	player.position = respawn.position
 	
 	player.set_physics_process(true)
+
+var map_elements
+func load_all(world_cells, world_seed, map_cells, map_seed):
+	clear_terrain()
+	
+	maps.append(World.new(map_cells, map_seed))
+	worlds.append(World.new(world_cells, world_seed))
+	world_index += 1
+	
+	map = maps[world_index]
+	world = worlds[world_index]
+	
+	valid_keys.append_array(map.keys)
+
+	map_elements = map_elements_prefab.instantiate()
+	main.add_child(map_elements)
+
+	for v in world.objects:
+		var cell : Cell = world.get_cell(v)
+		place_cell(v, cell.type)
+
+	next_world()
+	
 
 var cell_to_prefab = {
 	Type.SHARD: map_shard,
@@ -312,19 +349,15 @@ var cell_to_prefab = {
 func place_cell(v, type):
 	var cell = cell_to_prefab[type].instantiate()
 	# print("making, ", type, " at ", v)
-	$"../../MapElements".add_child.call_deferred(cell)
+	map_elements.add_child.call_deferred(cell)
+	cell.set_owner.call_deferred(map_elements)
 	cell.position = tile_map.to_global(tile_map.map_to_local(v))
 	cell.setup(self, v)
-	elements.append(cell)
 
 func construct_world():
 	setup_chunks()
 	
 	tile_map.set_cells_terrain_connect(0, world.grounds, 0, 0)
-	
-	for v in world.objects:
-		var cell : Cell = world.get_cell(v)
-		place_cell(v, cell.type)
 	
 	enclose_map(world.size.x, world.size.y)
 	
@@ -399,6 +432,9 @@ func _input(event):
 	if event.is_action_pressed("Discover"):
 		print("discovered")
 		discover_random_chunk()
+	
+	if event.is_action_pressed("Debug-Back"):
+		load_world(world_index-1)
 			
 var cell_colors = {
 	Type.GROUND: 	Color.DARK_OLIVE_GREEN,
