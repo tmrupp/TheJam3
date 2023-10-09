@@ -119,15 +119,13 @@ func animation_finished(animation):
 
 # gets the respawn and saves it
 var respawn
-func _ready():
-	respawn = $"../Respawn"
-	# animation_player.connect("animation_started", animation_finished)
 
 #puts the player back at the spawn location
 func reset_position():
 	position = respawn.position
 	velocity = Vector2.ZERO	
 	knock = Vector2.ZERO
+	await get_tree().physics_frame
 
 func setup_corpse (pos):
 	var corpse = corpse_prefab.instantiate()
@@ -142,7 +140,6 @@ func die():
 	died.emit()
 	var pos = position
 	reset_position()
-	await get_tree().physics_frame
 	setup_corpse(pos)
 
 # does a jump and triggers the jumping animation

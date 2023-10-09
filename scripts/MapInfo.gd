@@ -1,9 +1,9 @@
 extends Control
 
 const START_REVEALED = false
-const CLOSE_GOAL = false
+#const CLOSE_GOAL = true
 const CLOSE_ONE_KEY = false
-const TERRAIN_UNDER_SPAWN = true
+const DEBUG_DISCOVERABLE = false
 
 enum Type {
 	EMPTY,
@@ -16,6 +16,7 @@ enum Type {
 	COIN,
 	KEY,
 	DOOR,
+	RESPAWN,
 }
 	
 class Cell:
@@ -93,14 +94,17 @@ class World:
 		grounds.erase(v)
 		objects.append(v)
 		
-	func pop_if_random_empty (f=func(_v): return true):
-		var i = rng.randi_range(0, len(empties) - 1)
-		var v = empties[i]
-		if f.bind(v).call():
-			add_object_at(v)
-			return v
-		else:
-			return null
+	func pop_if_random_empty (f=func(_v): return true, force=false):
+		while (true):
+			var i = rng.randi_range(0, len(empties) - 1)
+			var v = empties[i]
+			if f.bind(v).call():
+				add_object_at(v)
+				return v
+			if not force:
+				break
+
+		return null
 			
 	func add_cell_to_container (v, cell):
 		if cell.type == Type.EMPTY:
@@ -115,8 +119,8 @@ class World:
 		rng.seed = _seed
 		size = Vector2i(len(_cells), len(_cells[0]))
 		cells = []
-
-		if TERRAIN_UNDER_SPAWN:
+		
+		if CLOSE_GOAL:
 			_cells[0][0] = Color.BLACK
 
 		for i in len(_cells):
@@ -150,8 +154,14 @@ class World:
 			var v = Vector2i(4,0)
 			set_cell(v, Cell.new(Type.GOAL))
 			add_object_at(v)
+
+			
+			v = Vector2i(0,-1)
+			set_cell(v, Cell.new(Type.RESPAWN))
+			add_object_at(v)
 		else:
 			set_cell(pop_if_random_empty(), Cell.new(Type.GOAL))
+			set_cell(pop_if_random_empty(ground_below, true), Cell.new(Type.RESPAWN))
 		
 #		for i in range(len(empties)*0.1):
 #			set_cell(pop_if_random_empty(ground_adjacent), Cell.new(Type.SPIKES))
@@ -174,7 +184,6 @@ var goal_shift = 0
 @onready var player
 @onready var map_sprite = $MapSprite
 @onready var keys = $"../HUD/Keys"
-@onready var respawn = $"/root/Main/Respawn"
 # const?
 const SPACING = 6.0
 
@@ -197,9 +206,9 @@ const TOP_MARGIN = 5
 
 var generating = false
 func generate():
-	player.reset_position()
 	player.set_physics_process(false)
-
+	player.reset_position()
+	
 	if world_index < len(worlds)-1:
 		load_world(world_index+1)
 	else:
@@ -243,6 +252,7 @@ var shooter_prefab = preload("res://prefabs/shooter_enemy.tscn")
 var coin_prefab = preload("res://prefabs/coin.tscn")
 var key_prefab = preload("res://prefabs/key.tscn")
 var door_prefab = preload("res://prefabs/door.tscn")
+var respawn_prefab = preload("res://prefabs/respawn.tscn")
 
 var map_elements_prefab = preload("res://prefabs/map_elements.tscn")
 
@@ -256,17 +266,11 @@ var world_scenes = []
 var world
 var map
 
-func load_world (i):
-	clear_terrain()
+func can_backtrack ():
+	return world_index > 0
 	
-	world_index = i
-	world = worlds[i]
-	map = worlds[i]
-
-	next_world()
-	await get_tree().physics_frame
-	map_elements = world_scenes[i].instantiate()
-	main.add_child(map_elements)
+func backtrack ():
+	load_world(world_index-1)
 	
 func clear_terrain():
 	if world == null:
@@ -302,15 +306,9 @@ func next_world ():
 	map_texture = ImageTexture.new()
 	# main.add_child(player)
 	
-	if player == null:
-		player = player_prefab.instantiate()
-		
-	if player.get_parent() == null:
-		main.add_child(player)
-
-	player.position = respawn.position
-	
+	player.reset_position()
 	player.set_physics_process(true)
+#	player.collide(true)
 
 var map_elements
 func load_all(world_cells, world_seed, map_cells, map_seed):
@@ -324,6 +322,12 @@ func load_all(world_cells, world_seed, map_cells, map_seed):
 	world = worlds[world_index]
 	
 	valid_keys.append_array(map.keys)
+	
+	if player == null:
+		player = player_prefab.instantiate()
+		
+	if player.get_parent() == null:
+		main.add_child(player)
 
 	map_elements = map_elements_prefab.instantiate()
 	main.add_child(map_elements)
@@ -334,6 +338,17 @@ func load_all(world_cells, world_seed, map_cells, map_seed):
 
 	next_world()
 	
+func load_world (i):
+	clear_terrain()
+	
+	world_index = i
+	world = worlds[i]
+	map = worlds[i]
+
+	map_elements = world_scenes[i].instantiate()
+	main.add_child(map_elements)
+	
+	next_world()
 
 var cell_to_prefab = {
 	Type.SHARD: map_shard,
@@ -344,13 +359,17 @@ var cell_to_prefab = {
 	Type.COIN: coin_prefab,
 	Type.KEY: key_prefab,
 	Type.DOOR: door_prefab,
+	Type.RESPAWN: respawn_prefab,
 }
 
 func place_cell(v, type):
 	var cell = cell_to_prefab[type].instantiate()
-	# print("making, ", type, " at ", v)
-	map_elements.add_child.call_deferred(cell)
-	cell.set_owner.call_deferred(map_elements)
+	if type == Type.RESPAWN:
+		map_elements.add_child(cell)
+		cell.set_owner(map_elements)
+	else:
+		map_elements.add_child.call_deferred(cell)
+		cell.set_owner.call_deferred(map_elements)
 	cell.position = tile_map.to_global(tile_map.map_to_local(v))
 	cell.setup(self, v)
 
@@ -430,8 +449,8 @@ func _input(event):
 		queue_redraw()
 		
 	if event.is_action_pressed("Discover"):
-		print("discovered")
-		discover_random_chunk()
+		if DEBUG_DISCOVERABLE:
+			discover_random_chunk()
 	
 	if event.is_action_pressed("Debug-Back"):
 		load_world(world_index-1)

@@ -1,0 +1,19 @@
+[gd_scene load_steps=4 format=3 uid="uid://c078uwf5ak2tu"]
+
+[ext_resource type="Script" path="res://scripts/respawn.gd" id="1_meqr3"]
+[ext_resource type="Texture2D" uid="uid://b2b5vesa6orpg" path="res://sprites/diamond.png" id="2_bd8yk"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_hy8e6"]
+
+[node name="Respawn" type="Area2D"]
+texture_filter = 1
+scale = Vector2(2, 2)
+script = ExtResource("1_meqr3")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_hy8e6")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+modulate = Color(0.482353, 1, 0.109804, 1)
+texture_filter = 1
+texture = ExtResource("2_bd8yk")
