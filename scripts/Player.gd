@@ -120,9 +120,15 @@ func animation_finished(animation):
 # gets the respawn and saves it
 var respawn
 
-func set_collision (disabled):
-	$CollisionShape2D.set("disabled", disabled)
+func set_collision (enabled):
+	if (enabled):
+		await get_tree().physics_frame
+		await get_tree().physics_frame
+	$CollisionShape2D.set_deferred("disabled", not enabled)
 	await get_tree().physics_frame
+
+func get_collision ():
+	return not $CollisionShape2D.disabled
 	
 #puts the player back at the spawn location
 func reset_position():

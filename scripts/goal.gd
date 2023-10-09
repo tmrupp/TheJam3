@@ -17,6 +17,7 @@ func crack (_code):
 
 func touch(other):
 	if (other == player and other.get_parent() != null):
+#		print("self=", self, " player.position=", player.position, " collision=", player.get_collision())
 		code_menu.enable(map_info.world.code, [map_info.map.code], crack)
 		
 func _ready() -> void:

@@ -207,8 +207,7 @@ const TOP_MARGIN = 5
 var generating = false
 func generate():
 	player.set_physics_process(false)
-	# TODO: This works (probably without bugs), but is not pretty
-	player.position = Vector2(-1000, -1000)
+	player.set_collision(false)
 	
 	if world_index < len(worlds)-1:
 		load_world(world_index+1)
@@ -308,8 +307,8 @@ func next_world ():
 	# main.add_child(player)
 	
 	player.reset_position()
+	player.set_collision(true)
 	player.set_physics_process(true)
-#	player.collide(true)
 
 var map_elements
 func load_all(world_cells, world_seed, map_cells, map_seed):
@@ -365,12 +364,8 @@ var cell_to_prefab = {
 
 func place_cell(v, type):
 	var cell = cell_to_prefab[type].instantiate()
-	if type == Type.RESPAWN:
-		map_elements.add_child(cell)
-		cell.set_owner(map_elements)
-	else:
-		map_elements.add_child.call_deferred(cell)
-		cell.set_owner.call_deferred(map_elements)
+	map_elements.add_child(cell)
+	cell.set_owner(map_elements)
 	cell.position = tile_map.to_global(tile_map.map_to_local(v))
 	cell.setup(self, v)
 
