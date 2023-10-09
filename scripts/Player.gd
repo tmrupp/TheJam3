@@ -121,11 +121,11 @@ func animation_finished(animation):
 var respawn
 
 func set_collision (enabled):
+	# ensures all normal and physics processing are done
 	if (enabled):
 		await get_tree().physics_frame
-		await get_tree().physics_frame
+		await get_tree().process_frame
 	$CollisionShape2D.set_deferred("disabled", not enabled)
-	await get_tree().physics_frame
 
 func get_collision ():
 	return not $CollisionShape2D.disabled
