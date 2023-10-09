@@ -42,7 +42,7 @@ func show_invulnerable():
 #		print("sprite.modulate.a=", sprite.modulate.a, " sin(d*180*period)=", sin(d*180*period), " d=", d)
 	sprite.modulate.a = 1
 
-func normal_hurt (damage, v, attacker):
+func normal_hurt (damage, v, _attacker):
 	if not invulnerable.is_acting():
 		health.modify_health(damage)
 		invulnerable.enable()

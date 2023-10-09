@@ -34,7 +34,3 @@ func _ready():
 	button.connect("button_down", select)
 	
 	connect("focus_entered", focused)
-
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta):
-	pass

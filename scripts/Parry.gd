@@ -15,7 +15,7 @@ func stop_parry ():
 	collider.disabled = true
 	sprite.visible = false
 
-func parry (damage, v, origin):
+func parry (_damage, _v, origin):
 	var stunner = origin.attacker.get_node_or_null("Stunner")
 	if stunner:
 		stunner.stun()
