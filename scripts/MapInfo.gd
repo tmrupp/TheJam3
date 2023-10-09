@@ -207,7 +207,8 @@ const TOP_MARGIN = 5
 var generating = false
 func generate():
 	player.set_physics_process(false)
-	player.reset_position()
+	# TODO: This works (probably without bugs), but is not pretty
+	player.position = Vector2(-1000, -1000)
 	
 	if world_index < len(worlds)-1:
 		load_world(world_index+1)
