@@ -1,7 +1,7 @@
 extends Control
 
 const START_REVEALED = false
-#const CLOSE_GOAL = true
+const CLOSE_GOAL = false
 const CLOSE_ONE_KEY = false
 const DEBUG_DISCOVERABLE = false
 
