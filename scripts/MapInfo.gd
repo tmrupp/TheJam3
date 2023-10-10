@@ -67,7 +67,7 @@ class World:
 		return vs
 		
 	func is_ground (v):
-		return get_cell(v).type == Type.GROUND
+		return is_valid(v) and get_cell(v).type == Type.GROUND
 
 	func get_cell (v):
 		return cells[v.x][v.y]
@@ -85,9 +85,18 @@ class World:
 	func ground_adjacent (v):
 		return get_neighbors(v).any(is_ground)
 		
+	func ground_flanking (v):
+		for n in range(0, 2, len(neighbor_offsets)):
+			var a = v+neighbor_offsets[n]
+			var b = v+neighbor_offsets[n+1]
+			if is_ground(a) and is_ground(b):
+				return true
+			
+		return false
+		
 	func ground_below (v):
 		var n = v+Vector2i(0,1)
-		return is_valid(n) and is_ground(n)
+		return is_ground(n)
 		
 	func add_object_at (v):
 		empties.erase(v)
@@ -144,17 +153,15 @@ class World:
 			for i in range(len(empties)*0.05):
 				set_cell(pop_if_random_empty(), Cell.new(Type.KEY))
 				keys.append(generate_code())
-#			print("keys=", keys)
 			
-		for i in range(len(empties)*0.05):
-			set_cell(pop_if_random_empty(), Cell.new(Type.DOOR))
+		for i in range(len(empties)*0.1):
+			set_cell(pop_if_random_empty(ground_flanking), Cell.new(Type.DOOR))
 			
 		# find a place for the goal
 		if CLOSE_GOAL:
 			var v = Vector2i(4,0)
 			set_cell(v, Cell.new(Type.GOAL))
 			add_object_at(v)
-
 			
 			v = Vector2i(0,-1)
 			set_cell(v, Cell.new(Type.RESPAWN))
