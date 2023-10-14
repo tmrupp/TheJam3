@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3 uid="uid://bdbdf2w2cb06y"]
 
 [ext_resource type="Script" path="res://scripts/Coin.gd" id="1_jbbq5"]
-[ext_resource type="Texture2D" uid="uid://dyho3orymgg41" path="res://icon.svg" id="2_yco75"]
+[ext_resource type="Texture2D" uid="uid://cs5d3rqv0t3o0" path="res://sprites/Tiles/tile_0151.png" id="2_21vd5"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_g3l2u"]
 size = Vector2(128.5, 128.5)
@@ -13,8 +13,8 @@ collision_mask = 5
 script = ExtResource("1_jbbq5")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
-modulate = Color(0.639216, 0.662745, 0, 1)
-texture = ExtResource("2_yco75")
+scale = Vector2(24, 24)
+texture = ExtResource("2_21vd5")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 position = Vector2(0.25, -0.25)
