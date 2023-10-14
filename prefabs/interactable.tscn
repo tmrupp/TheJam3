@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3 uid="uid://pwmevy3urxq6"]
+
+[ext_resource type="Script" path="res://scripts/Interactable.gd" id="1_04ie6"]
+[ext_resource type="Texture2D" uid="uid://tor1nkayccom" path="res://input_prompts/tile_0087.png" id="2_46cab"]
+
+[node name="Interactable" type="Node2D"]
+script = ExtResource("1_04ie6")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("2_46cab")

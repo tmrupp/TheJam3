@@ -7,22 +7,15 @@ var offset_rotation = {
 	Vector2i(0,-1) : 0,
 }
 
-@onready var collider = $CollisionShape2D
-var world
-var map_info
 func setup(_map_info, v):
-	world = _map_info.world
-	map_info = _map_info
+	var world = _map_info.world
 	var ns = world.get_neighbors(v)
 	if len(ns) == 0:
 		queue_free()
 	else:
 		for n in ns:
 			if world.is_ground(n):
-				var offset = v - n
-				# print("$CollisionShape2D.position.y=", $CollisionShape2D.position.y, " scale.y=", scale.y)
-				position = position # - (Vector2(offset)*$CollisionShape2D.position.y)
-				rotation_degrees = offset_rotation[offset]
+				rotation_degrees = offset_rotation[v - n]
 				return
 	queue_free()
 

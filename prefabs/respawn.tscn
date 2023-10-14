@@ -1,7 +1,8 @@
-[gd_scene load_steps=4 format=3 uid="uid://c078uwf5ak2tu"]
+[gd_scene load_steps=5 format=3 uid="uid://c078uwf5ak2tu"]
 
 [ext_resource type="Script" path="res://scripts/respawn.gd" id="1_meqr3"]
 [ext_resource type="Texture2D" uid="uid://b2b5vesa6orpg" path="res://sprites/diamond.png" id="2_bd8yk"]
+[ext_resource type="PackedScene" uid="uid://pwmevy3urxq6" path="res://prefabs/interactable.tscn" id="3_qujmu"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_hy8e6"]
 
@@ -17,3 +18,5 @@ shape = SubResource("CircleShape2D_hy8e6")
 modulate = Color(0.482353, 1, 0.109804, 1)
 texture_filter = 1
 texture = ExtResource("2_bd8yk")
+
+[node name="Interactable" parent="." instance=ExtResource("3_qujmu")]

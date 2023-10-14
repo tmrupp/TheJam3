@@ -17,6 +17,7 @@ enum Type {
 	KEY,
 	DOOR,
 	RESPAWN,
+	CHECKPOINT,
 }
 	
 class Cell:
@@ -141,7 +142,7 @@ class World:
 			cells.append(row)
 	
 		var chunks = (size.x*size.y)/(CHUNK_SIZE*CHUNK_SIZE)
-		for i in range(chunks):
+		for i in range(2*chunks):
 			set_cell(pop_if_random_empty(), Cell.new(Type.SHARD))
 		
 		if CLOSE_ONE_KEY:
@@ -181,6 +182,8 @@ class World:
 		for i in range(len(empties)*0.1):
 			set_cell(pop_if_random_empty(ground_below), Cell.new(Type.SHOOTER))
 			
+		for i in range(len(empties)*0.25):
+			set_cell(pop_if_random_empty(ground_below), Cell.new(Type.CHECKPOINT))
 		
 		code = generate_code()
 
@@ -260,6 +263,7 @@ var coin_prefab = preload("res://prefabs/coin.tscn")
 var key_prefab = preload("res://prefabs/key.tscn")
 var door_prefab = preload("res://prefabs/door.tscn")
 var respawn_prefab = preload("res://prefabs/respawn.tscn")
+var checkpoint_prefab = preload("res://prefabs/checkpoint.tscn")
 
 var map_elements_prefab = preload("res://prefabs/map_elements.tscn")
 
@@ -367,6 +371,7 @@ var cell_to_prefab = {
 	Type.KEY: key_prefab,
 	Type.DOOR: door_prefab,
 	Type.RESPAWN: respawn_prefab,
+	Type.CHECKPOINT: checkpoint_prefab,
 }
 
 func place_cell(v, type):
