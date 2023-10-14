@@ -7,7 +7,7 @@
 
 [node name="MapShard" type="Area2D"]
 texture_filter = 1
-scale = Vector2(1.5, 1.5)
+scale = Vector2(4, 4)
 script = ExtResource("1_bpxlg")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
