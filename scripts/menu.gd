@@ -18,7 +18,12 @@ extends CanvasLayer
 @onready var wfc_thread = Thread.new()
 
 func start_game():
-	wfc_thread.start(wfc.generate_all.bind(get_seed(world_seed), get_seed(map_seed), wfc_thread))
+
+
+	wfc_thread.start(wfc.generate_all.bind(
+		MapInfo.default_def(get_seed(world_seed)), 
+		MapInfo.default_def(get_seed(map_seed)), 
+		wfc_thread))
 	visible = false
 	
 	# We're repurposing the menu now from a 'main menu' to a 'pause menu'

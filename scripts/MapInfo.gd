@@ -1,9 +1,12 @@
 extends Control
 
+class_name MapInfo
+
 const START_REVEALED = false
-const CLOSE_GOAL = false
+const CLOSE_GOAL = true
 const CLOSE_ONE_KEY = false
 const DEBUG_DISCOVERABLE = false
+const CODE_LENGTH = 4 # 8 is more reasonable
 
 enum Type {
 	EMPTY,
@@ -19,6 +22,17 @@ enum Type {
 	RESPAWN,
 	CHECKPOINT,
 }
+
+class NextWorldDef:
+	var gen_seed : int = 0
+	var region : String
+
+	func _init(s, r):
+		gen_seed = s
+		region = r
+
+static func default_def (gen_seed):
+	return NextWorldDef.new(gen_seed, "res://wfc_images/levelSample3-spikes.png")
 	
 class Cell:
 	var type = Type.GROUND
@@ -31,16 +45,30 @@ class World:
 	var cells
 	var size = Vector2i.ZERO
 	var rng
-	var next_seed
 	var empties = []
 	var grounds = []
 	var objects = []
-	var code = ""
+	
+	# codes maps code -> NextWorldDef (seed and wfc image)
+	var codes = {}
 	var keys = []
+	
+	var prev_world_index = -1
+	var next_world_indices = {}
+
+	var regions = {
+		"tunnels" : "res://wfc_images/levelSample3-spikes.png",
+		"islands" : "res://wfc_images/floating_islands.png",
+	}
+	
+	var code_index = 0
+	func next_code ():
+		code_index += 1
+		return codes.keys()[code_index-1]
 	
 	# acts like a static method
 	var code_digits = ['<', '>', '^', 'v']
-	func generate_code (length=8):
+	func generate_code (length=CODE_LENGTH):
 		var new_code = ""
 		for i in range(length):
 			new_code += code_digits[rng.randi_range(0, len(code_digits)-1)]
@@ -72,10 +100,17 @@ class World:
 
 	func get_cell (v):
 		return cells[v.x][v.y]
+		
+	func random_region ():
+		return regions.values()[rng.randi_range(0, len(regions.values())-1)]
 
 	func set_cell (v, cell):
 		if v != null:
 			cells[v.x][v.y] = cell
+			
+			if cell.type == Type.GOAL:
+				codes[generate_code()] = NextWorldDef.new(rng.randi(), random_region())
+				
 
 	func discover (v):
 		get_cell(v).discovered = true
@@ -124,11 +159,13 @@ class World:
 		else:
 			objects.append(v)
 
-	func _init (_cells, _seed):
+	func _init (_cells, def):
 		rng = RandomNumberGenerator.new()
-		rng.seed = _seed
+		rng.seed = def.gen_seed
 		size = Vector2i(len(_cells), len(_cells[0]))
 		cells = []
+		
+		var goals = 2
 		
 		if CLOSE_GOAL:
 			_cells[0][0] = Color.BLACK
@@ -160,16 +197,18 @@ class World:
 			
 		# find a place for the goal
 		if CLOSE_GOAL:
-			var v = Vector2i(4,0)
-			set_cell(v, Cell.new(Type.GOAL))
-			add_object_at(v)
+			for i in range(goals):
+				var v = Vector2i(4+i,0)
+				set_cell(v, Cell.new(Type.GOAL))
+				add_object_at(v)
 			
-			v = Vector2i(0,-1)
+			var v = Vector2i(0,-1)
 			set_cell(v, Cell.new(Type.RESPAWN))
 			add_object_at(v)
 		else:
-			set_cell(pop_if_random_empty(), Cell.new(Type.GOAL))
-			set_cell(pop_if_random_empty(ground_below, true), Cell.new(Type.RESPAWN))
+			for i in range(goals):
+				set_cell(pop_if_random_empty(), Cell.new(Type.GOAL))
+				set_cell(pop_if_random_empty(ground_below, true), Cell.new(Type.RESPAWN))
 		
 #		for i in range(len(empties)*0.1):
 #			set_cell(pop_if_random_empty(ground_adjacent), Cell.new(Type.SPIKES))
@@ -184,10 +223,6 @@ class World:
 			
 		for i in range(len(empties)*0.25):
 			set_cell(pop_if_random_empty(ground_below), Cell.new(Type.CHECKPOINT))
-		
-		code = generate_code()
-
-		next_seed = rng.randi()
 		
 var goal_shift = 0
 @onready var wfc = $"../../WaveFunctionCollapse"
@@ -215,14 +250,18 @@ const TOP_MARGIN = 5
 @onready var wfc_thread = Thread.new()
 
 var generating = false
-func generate():
+func generate(world_code, map_code):
 	player.set_physics_process(false)
 	player.set_collision(false)
 	
-	if world_index < len(worlds)-1:
-		load_world(world_index+1)
+	if world_code in world.next_world_indices:
+		# go to the next world, already generated
+		load_world(world.next_world_indices[world_code])
 	else:
-		wfc_thread.start(wfc.generate_all.bind(world.next_seed, map.next_seed, wfc_thread))
+		# have to generate a new world
+		world.next_world_indices[world_code] = len(worlds)
+		wfc_thread.start(wfc.generate_all.bind(world.codes[world_code], all_map_codes[map_code], wfc_thread))
+		all_map_codes.erase(map_code)
 
 func setup_chunks():
 	undiscovered_chunks = []
@@ -271,17 +310,20 @@ var basic_sprite_prefab = preload("res://prefabs/sprite_2d.tscn")
 @onready var main = $"/root/Main"
 	
 var world_index = -1
+
 var worlds = []
 var maps = []
 var world_scenes = []
 var world
 var map
 
+var all_map_codes = {}
+
 func can_backtrack ():
-	return world_index > 0
+	return world.prev_world_index >= 0
 	
 func backtrack ():
-	load_world(world_index-1)
+	load_world(world.prev_world_index)
 	
 func clear_terrain():
 	if world == null:
@@ -322,15 +364,25 @@ func next_world ():
 	player.set_physics_process(true)
 
 var map_elements
+# result of generating a new world
 func load_all(world_cells, world_seed, map_cells, map_seed):
 	clear_terrain()
 	
+	# log old world index
+	var prev_world_index = world_index
+	# set current world index to the end of the list
+	world_index = len(worlds)
 	maps.append(World.new(map_cells, map_seed))
 	worlds.append(World.new(world_cells, world_seed))
-	world_index += 1
 	
 	map = maps[world_index]
 	world = worlds[world_index]
+	world.prev_world_index = prev_world_index
+
+	for code in map.codes.keys():
+		if code in all_map_codes:
+			printerr("yo we already made this")
+		all_map_codes[code] = map.codes[code]
 	
 	valid_keys.append_array(map.keys)
 	
@@ -353,6 +405,7 @@ func load_world (i):
 	clear_terrain()
 	
 	world_index = i
+	print("loading, i=", i)
 	world = worlds[i]
 	map = worlds[i]
 
