@@ -21,6 +21,7 @@ enum Type {
 	DOOR,
 	RESPAWN,
 	CHECKPOINT,
+	PORTAL,
 }
 
 class NextWorldDef:
@@ -37,6 +38,7 @@ static func default_def (gen_seed):
 class Cell:
 	var type = Type.GROUND
 	var discovered = false
+	var extra_info = null
 	
 	func _init(_type: Type):
 		type = _type
@@ -223,6 +225,16 @@ class World:
 			
 		for i in range(len(empties)*0.25):
 			set_cell(pop_if_random_empty(ground_below), Cell.new(Type.CHECKPOINT))
+
+		for i in range(1):
+			var pos1 = pop_if_random_empty(ground_below, true)
+			var pos2 = pop_if_random_empty(ground_below, true)
+			var portal1 = Cell.new(Type.PORTAL)
+			var portal2 = Cell.new(Type.PORTAL)
+			portal1.extra_info = pos2
+			portal2.extra_info = pos1
+			set_cell(pos1, portal1)
+			set_cell(pos2, portal2)
 		
 var goal_shift = 0
 @onready var wfc = $"../../WaveFunctionCollapse"
@@ -303,6 +315,7 @@ var key_prefab = preload("res://prefabs/key.tscn")
 var door_prefab = preload("res://prefabs/door.tscn")
 var respawn_prefab = preload("res://prefabs/respawn.tscn")
 var checkpoint_prefab = preload("res://prefabs/checkpoint.tscn")
+var portal_prefab = preload("res://prefabs/portal.tscn")
 
 var map_elements_prefab = preload("res://prefabs/map_elements.tscn")
 
@@ -397,7 +410,7 @@ func load_all(world_cells, world_seed, map_cells, map_seed):
 
 	for v in world.objects:
 		var cell : Cell = world.get_cell(v)
-		place_cell(v, cell.type)
+		place_cell(v, cell)
 
 	next_world()
 	
@@ -425,14 +438,18 @@ var cell_to_prefab = {
 	Type.DOOR: door_prefab,
 	Type.RESPAWN: respawn_prefab,
 	Type.CHECKPOINT: checkpoint_prefab,
+	Type.PORTAL: portal_prefab,
 }
 
-func place_cell(v, type):
-	var cell = cell_to_prefab[type].instantiate()
+func place_cell(v, _cell):
+	var cell = cell_to_prefab[_cell.type].instantiate()
 	map_elements.add_child(cell)
 	cell.set_owner(map_elements)
 	cell.position = tile_map.to_global(tile_map.map_to_local(v))
-	cell.setup(self, v)
+	if _cell.extra_info != null:
+		cell.setup(self, v, _cell.extra_info)
+	else:
+		cell.setup(self, v)
 
 func construct_world():
 	setup_chunks()
