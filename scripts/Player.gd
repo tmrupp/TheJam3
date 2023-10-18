@@ -173,9 +173,6 @@ func do_dash(dash_direction):
 var dash_ability = do_dash
 
 func _physics_process(delta):
-	if Input.is_action_just_pressed("AstralProjection"):
-		astral_projection_signal.emit()
-		
 	if Input.is_action_just_pressed("Parry"):
 		parry.emit()
 	

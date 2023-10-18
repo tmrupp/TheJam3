@@ -1,0 +1,26 @@
+[gd_scene load_steps=5 format=3 uid="uid://6b838ftlafkm"]
+
+[ext_resource type="Script" path="res://scripts/astral_projection_point.gd" id="1_ffkca"]
+[ext_resource type="Texture2D" uid="uid://bumq7k6f00hwp" path="res://sprites/Tiles/tile_0127.png" id="2_53215"]
+[ext_resource type="PackedScene" uid="uid://pwmevy3urxq6" path="res://prefabs/interactable.tscn" id="3_utwb0"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_osds8"]
+size = Vector2(14, 18)
+
+[node name="astral_projection_point" type="Node2D"]
+scale = Vector2(4, 4)
+script = ExtResource("1_ffkca")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+modulate = Color(0, 0.356863, 0.611765, 0.54902)
+position = Vector2(0, 8)
+texture = ExtResource("2_53215")
+
+[node name="Area2D" type="Area2D" parent="."]
+position = Vector2(0, 8)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+position = Vector2(0, 0.5)
+shape = SubResource("RectangleShape2D_osds8")
+
+[node name="Interactable" parent="Area2D" instance=ExtResource("3_utwb0")]

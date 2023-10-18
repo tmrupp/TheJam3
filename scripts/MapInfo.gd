@@ -22,6 +22,7 @@ enum Type {
 	RESPAWN,
 	CHECKPOINT,
 	PORTAL,
+	ASTRAL_PROJECTION_POINT,
 }
 
 class NextWorldDef:
@@ -226,6 +227,8 @@ class World:
 		for i in range(len(empties)*0.25):
 			set_cell(pop_if_random_empty(ground_below), Cell.new(Type.CHECKPOINT))
 
+		#place pairs of portals in the stage and connect them to each other
+		#by telling each portal the coords of its partner in the extra_info
 		for i in range(1):
 			var pos1 = pop_if_random_empty(ground_below, true)
 			var pos2 = pop_if_random_empty(ground_below, true)
@@ -235,6 +238,9 @@ class World:
 			portal2.extra_info = pos1
 			set_cell(pos1, portal1)
 			set_cell(pos2, portal2)
+
+		for i in range(len(empties)*0.05):
+			set_cell(pop_if_random_empty(ground_below), Cell.new(Type.ASTRAL_PROJECTION_POINT))
 		
 var goal_shift = 0
 @onready var wfc = $"../../WaveFunctionCollapse"
@@ -316,6 +322,7 @@ var door_prefab = preload("res://prefabs/door.tscn")
 var respawn_prefab = preload("res://prefabs/respawn.tscn")
 var checkpoint_prefab = preload("res://prefabs/checkpoint.tscn")
 var portal_prefab = preload("res://prefabs/portal.tscn")
+var astral_projection_point_prefab = preload("res://prefabs/astral_projection_point.tscn")
 
 var map_elements_prefab = preload("res://prefabs/map_elements.tscn")
 
@@ -439,6 +446,7 @@ var cell_to_prefab = {
 	Type.RESPAWN: respawn_prefab,
 	Type.CHECKPOINT: checkpoint_prefab,
 	Type.PORTAL: portal_prefab,
+	Type.ASTRAL_PROJECTION_POINT: astral_projection_point_prefab,
 }
 
 func place_cell(v, _cell):

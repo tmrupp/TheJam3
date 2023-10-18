@@ -27,13 +27,14 @@ func project():
 	false_player_origin = visual.duplicate()
 	main.add_child(false_player_origin)
 	false_player_origin.position = player.position
+	false_player_origin.scale = player.scale
 	
 	# turn off own collision
 	# TODO
 	
 	# alter our own visual to look all projection-y
 	held_color = visual.modulate
-	visual.modulate = Color.CYAN
+	visual.modulate = Color(0, 1, 1, 0.5)
 
 func end_projection(_timer):
 	print("projection ended")
