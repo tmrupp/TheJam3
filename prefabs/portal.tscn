@@ -1,6 +1,6 @@
-[gd_scene load_steps=5 format=3 uid="uid://bqixi4i2qielo"]
+[gd_scene load_steps=5 format=3 uid="uid://dmgqos3a4gv36"]
 
-[ext_resource type="Script" path="res://prefabs/portal.gd" id="1_gqoih"]
+[ext_resource type="Script" path="res://scripts/portal.gd" id="1_2ywdo"]
 [ext_resource type="Texture2D" uid="uid://br72ja084yprt" path="res://input_prompts/tile_0000.png" id="1_p11qq"]
 [ext_resource type="PackedScene" uid="uid://pwmevy3urxq6" path="res://prefabs/interactable.tscn" id="2_pjv4r"]
 
@@ -9,7 +9,7 @@ size = Vector2(14, 28)
 
 [node name="portal" type="Node2D"]
 scale = Vector2(4, 4)
-script = ExtResource("1_gqoih")
+script = ExtResource("1_2ywdo")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 modulate = Color(0.329412, 0, 0.329412, 1)
