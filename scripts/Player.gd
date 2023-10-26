@@ -172,6 +172,9 @@ func do_dash(dash_direction):
 	$"DashTrail".make_trail()
 var dash_ability = do_dash
 
+func drop ():
+	position.y += 1
+
 func _physics_process(delta):
 	if Input.is_action_just_pressed("Parry"):
 		parry.emit()
@@ -252,7 +255,9 @@ func _physics_process(delta):
 	# Handle Jump.
 	if Input.is_action_just_pressed("Jump"):
 		# normal jump, stop coyoting on a jump
-		if (is_on_floor() or coyote.is_acting() or jumps > 0):
+		if (is_on_floor() and direction.y > 0):
+			drop()
+		elif (is_on_floor() or coyote.is_acting() or jumps > 0):
 			coyote.end()
 			jump()
 			jumps -= 1

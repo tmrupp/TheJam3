@@ -23,6 +23,7 @@ enum Type {
 	CHECKPOINT,
 	PORTAL,
 	ASTRAL_PROJECTION_POINT,
+	PLATFORM,
 }
 
 class NextWorldDef:
@@ -217,6 +218,10 @@ class World:
 #			set_cell(pop_if_random_empty(ground_adjacent), Cell.new(Type.SPIKES))
 		for i in range(len(empties)*0.2):
 			set_cell(pop_if_random_empty(), Cell.new(Type.COIN))
+			
+		
+		for i in range(len(empties)*0.2):
+			set_cell(pop_if_random_empty(), Cell.new(Type.PLATFORM))
 
 		for i in range(len(empties)*0.2):
 			set_cell(pop_if_random_empty(ground_below), Cell.new(Type.ENEMY))
@@ -323,6 +328,7 @@ var respawn_prefab = preload("res://prefabs/respawn.tscn")
 var checkpoint_prefab = preload("res://prefabs/checkpoint.tscn")
 var portal_prefab = preload("res://prefabs/portal.tscn")
 var astral_projection_point_prefab = preload("res://prefabs/astral_projection_point.tscn")
+var platform_prefab = preload("res://prefabs/platform.tscn")
 
 var map_elements_prefab = preload("res://prefabs/map_elements.tscn")
 
@@ -447,6 +453,7 @@ var cell_to_prefab = {
 	Type.CHECKPOINT: checkpoint_prefab,
 	Type.PORTAL: portal_prefab,
 	Type.ASTRAL_PROJECTION_POINT: astral_projection_point_prefab,
+	Type.PLATFORM: platform_prefab,
 }
 
 func place_cell(v, _cell):
@@ -454,6 +461,7 @@ func place_cell(v, _cell):
 	map_elements.add_child(cell)
 	cell.set_owner(map_elements)
 	cell.position = tile_map.to_global(tile_map.map_to_local(v))
+	
 	if _cell.extra_info != null:
 		cell.setup(self, v, _cell.extra_info)
 	else:
