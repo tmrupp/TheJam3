@@ -1,8 +1,8 @@
 extends MarginContainer
 
-@onready var button = $Button
-@onready var upgrader = $"../../../../UpgradeManager"
-@onready var label = $VBoxContainer/Label
+@onready var button: Button = $Button
+@onready var upgrader: UpgradeManager = $"../../../../UpgradeManager"
+@onready var label: Label = $VBoxContainer/Label
 var upgrade
 var player
 

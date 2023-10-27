@@ -7,26 +7,26 @@ var acting = 0.0
 var acted = false
 var end_callback
 
-func _init(_MAX_TIME, f=func f (_timer): pass):
+func _init(_MAX_TIME, f=func f (_timer): pass) -> void:
 	MAX_TIME = _MAX_TIME
 	end_callback = f
 
-func enable(force=false):
+func enable(force=false) -> void:
 	if force or (acting <= 0.0 and not acted):
 		acting = MAX_TIME
 		acted = true
 
-func elapse(t):
+func elapse(t) -> void:
 	if acting > 0:
 		acting -= t
 		if acting <= 0:
 			end_callback.bind(self).call()
 
-func end():
+func end() -> void:
 	acting = 0.0
 
-func refresh():
+func refresh() -> void:
 	acted = false
 
-func is_acting():
+func is_acting() -> bool:
 	return acting > 0

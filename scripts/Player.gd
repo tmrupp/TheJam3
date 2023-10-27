@@ -1,7 +1,9 @@
 extends CharacterBody2D
 
-@onready var collider = $CollisionShape2D
-@onready var health = $Health
+class_name Player
+
+@onready var collider: CollisionShape2D = $CollisionShape2D
+@onready var health := $Health
 @onready var coins = $Coins
 
 @onready var corpse_prefab = preload("res://prefabs/corpse.tscn") 
