@@ -457,15 +457,16 @@ var cell_to_prefab = {
 }
 
 func place_cell(v, _cell):
-	var cell = cell_to_prefab[_cell.type].instantiate()
+	var cell: Node = cell_to_prefab[_cell.type].instantiate()
 	map_elements.add_child(cell)
 	cell.set_owner(map_elements)
 	cell.position = tile_map.to_global(tile_map.map_to_local(v))
 	
-	if _cell.extra_info != null:
-		cell.setup(self, v, _cell.extra_info)
-	else:
-		cell.setup(self, v)
+	if cell.has_method("setup"):
+		if _cell.extra_info != null:
+			cell.setup(self, v, _cell.extra_info)
+		else:
+			cell.setup(self, v)
 
 func construct_world():
 	setup_chunks()

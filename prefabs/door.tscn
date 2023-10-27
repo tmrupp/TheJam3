@@ -1,6 +1,5 @@
-[gd_scene load_steps=7 format=3 uid="uid://cb4btnwv1dr1c"]
+[gd_scene load_steps=6 format=3 uid="uid://cb4btnwv1dr1c"]
 
-[ext_resource type="Script" path="res://scripts/door.gd" id="1_jhy8q"]
 [ext_resource type="Script" path="res://scripts/Unlock.gd" id="2_00e43"]
 [ext_resource type="Texture2D" uid="uid://cbfvy2bvkgsqb" path="res://sprites/Tiles/tile_0028.png" id="2_cf302"]
 [ext_resource type="PackedScene" uid="uid://pwmevy3urxq6" path="res://prefabs/interactable.tscn" id="4_ebgxk"]
@@ -13,7 +12,6 @@ size = Vector2(149, 147)
 
 [node name="Door" type="StaticBody2D"]
 collision_layer = 15
-script = ExtResource("1_jhy8q")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_rt2ta")
