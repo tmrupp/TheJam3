@@ -1,26 +1,25 @@
 extends Node
 
-@onready var player = $"../"
-@onready var main = $"/root/Main"
-@onready var visual = $"../Sprite2D" # someday, this reference will break
+@onready var player: Player = $"../"
+@onready var main: Node = $"/root/Main"
+@onready var visual: Sprite2D = $"../Sprite2D" # someday, this reference will break
 
-var projection_timer = ActionTimer.new(5.0, end_projection)
+var projection_timer: ActionTimer = ActionTimer.new(5.0, end_projection)
 
 # holds a reference to the projection we create, if one exists currently
-var false_player_origin
+var false_player_origin: Sprite2D
 
-var held_color
+var held_color: Color
 
-func _ready():
+func _ready() -> void:
 	player.astral_projection_signal.connect(project)
 	player.elapse_ability_time_signal.connect(elapse)
 	false_player_origin = null
 	
-func elapse(delta):
+func elapse(delta: float) -> void:
 	projection_timer.elapse(delta)
 
-func project():
-	print("projection started")
+func project() -> void:
 	projection_timer.enable()
 	
 	# clone the visual
@@ -36,8 +35,7 @@ func project():
 	held_color = visual.modulate
 	visual.modulate = Color(0, 1, 1, 0.5)
 
-func end_projection(_timer):
-	print("projection ended")
+func end_projection(_timer: ActionTimer) -> void:
 	projection_timer.refresh()
 	
 	# reset our position to the visual clone's

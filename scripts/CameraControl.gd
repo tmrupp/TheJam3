@@ -36,7 +36,7 @@ func _process(delta: float) -> void:
 	# bounding_radius_lerping(delta)
 
 # Move the camera towards the position of the player
-func smooth_lerp(delta: float, smoothness) -> void:
+func smooth_lerp(delta: float, smoothness: float) -> void:
 	camera.position = lerp(camera.position, target_location, 1 - pow(smoothness, delta))
 
 # Check if the player/camera distance is above a threshold, lerp if so until we rest on the character again
@@ -50,14 +50,14 @@ func bounding_radius_lerping(delta: float) -> void:
 			currently_lerping = false
 
 # change place camera is looking based on direction player is facing
-func update_target(direction):
-	var horizontal_multiplier = 0
+func update_target(direction: Vector2) -> void:
+	var horizontal_multiplier: int = 0
 	if direction.x > 0.1:
 		horizontal_multiplier = 1
 	elif direction.x < -0.1:
 		horizontal_multiplier = -1
 		
-	var vertical_multiplier = 0
+	var vertical_multiplier: int = 0
 	if direction.y < -0.1:
 		vertical_multiplier = -1
 	elif direction.y > 0.1:

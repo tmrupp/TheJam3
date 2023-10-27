@@ -1,9 +1,13 @@
 extends TextureProgressBar
 
-var duration = 0.0
-var elapsed = 0.0
+var duration: float = 0.0
+var elapsed: float = 0.0
 
-func enable (_duration, progress=Color.DARK_GREEN, under=Color.GRAY, over=Color.hex(0x0)):
+func enable (_duration: float, 
+	progress: Color=Color.DARK_GREEN, 
+	under: Color=Color.GRAY, 
+	over: Color=Color.hex(0x0)) -> void:
+
 	tint_over = over
 	tint_progress = progress
 	tint_under = under
@@ -13,14 +17,10 @@ func enable (_duration, progress=Color.DARK_GREEN, under=Color.GRAY, over=Color.
 	elapsed = 0.0
 	visible = true
 	
-func disable ():
+func disable () -> void:
 	visible = false
 	
-func _ready():
-#	enable(10.0)
-	pass
-	
-func _process(delta):
+func _process(delta: float) -> void:
 	if visible:
 		if (elapsed >= duration):
 			disable()

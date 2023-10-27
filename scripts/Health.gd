@@ -1,14 +1,16 @@
 extends Node
 
-@onready var player = $".."
-@onready var hud = $"/root/Main/CanvasLayer/HUD/TopHUD"
+class_name Health
 
-var max_health = 3
-var health : int = 3
-var health_icons = []
-var heart_prefab = preload("res://prefabs/heart.tscn")
+@onready var player: Player = $".."
+@onready var hud: Node = $"/root/Main/CanvasLayer/HUD/TopHUD"
 
-func modify_health (delta):
+var max_health: int = 3
+var health: int = 3
+var health_icons: Array[Node]  = []
+var heart_prefab: Resource = preload("res://prefabs/heart.tscn")
+
+func modify_health (delta: int) -> void:
 	health += delta
 	
 	if health <= 0:
@@ -17,30 +19,20 @@ func modify_health (delta):
 		
 	display_health()
 
-func display_health ():
-	var d = len(health_icons) - health
+func display_health () -> void:
+	var d: int = len(health_icons) - health
 	
 	if d > 0:
-		for i in range(d):
-			var hi = health_icons[-1]
+		for i: int in range(d):
+			var hi: Node = health_icons[-1]
 			health_icons.erase(hi)
 			hi.queue_free()
 	else:
-		for i in range(-d):
-			var hi = heart_prefab.instantiate()
+		for i: int in range(-d):
+			var hi: Node = heart_prefab.instantiate()
 			health_icons.append(hi)
 			hud.add_child(hi)
 
 # Called when the node enters the scene tree for the first time.
-func _ready():
+func _ready() -> void:
 	display_health()
-	pass # Replace with function body.
-
-
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(_delta):
-#	if Input.is_action_just_pressed("Jump"):
-#		health -= 1
-#		display_health()
-		
-	pass

@@ -1,14 +1,14 @@
 extends Node
 
-var coins = 100
-@onready var amount = $"/root/Main/CanvasLayer/HUD/TopHUD/CoinAmount"
+var coins: int = 100
+@onready var amount: Label = $"/root/Main/CanvasLayer/HUD/TopHUD/CoinAmount"
 
-func modify (delta):
+func modify (delta: int) -> void:
 	coins += delta
 	display()
 
-func display ():
+func display () -> void:
 	amount.text = ": " + str(coins)
 
-func _ready ():
+func _ready () -> void:
 	display()

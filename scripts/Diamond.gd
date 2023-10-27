@@ -1,12 +1,12 @@
 extends Area2D
 
-const TIMER = 2.0
-var disabled = 0.0
-var touchable = true
+const TIMER: float = 2.0
+var disabled: float = 0.0
+var touchable: bool = true
 
-@onready var player = $"../Player"
+@onready var player: Player = $"../Player"
 
-func touch(other):
+func touch(other: Node) -> void:
 	print("i've been touched by", other)
 	if (touchable and other == player):
 		other.refresh_dash()
@@ -16,7 +16,7 @@ func touch(other):
 func _ready() -> void:
 	connect("body_entered", touch)
 
-func _process(delta):
+func _process(delta: float) -> void:
 	if touchable:
 		modulate = Color.WHITE
 	else:

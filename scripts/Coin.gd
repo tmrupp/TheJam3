@@ -1,15 +1,12 @@
 extends Area2D
 
-@onready var player = $"/root/Main/Player"
+@onready var player: Player = $"/root/Main/Player"
 
-func touch (other):
+func touch (other: Node) -> void:
 	if other == player:
 		player.collect(1)
 		queue_free()
-		
-func setup (_map_info, _v):
-	pass
 	
 # Called when the node enters the scene tree for the first time.
-func _ready():
+func _ready() -> void:
 	connect("body_entered", touch)

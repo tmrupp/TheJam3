@@ -1,11 +1,11 @@
 extends CanvasLayer
-@onready var input_label = $ColorRect/VBoxContainer/MarginContainer/HBoxContainer/Input
-@onready var code_label = $ColorRect/VBoxContainer/MarginContainer2/HBoxContainer/Code
-var current_code = ""
-var secrets = []
-var crack
+@onready var input_label: Label = $ColorRect/VBoxContainer/MarginContainer/HBoxContainer/Input
+@onready var code_label: Label = $ColorRect/VBoxContainer/MarginContainer2/HBoxContainer/Code
+var current_code: String = ""
+var secrets: Array[String] = []
+var crack: Callable
 
-func enable (display_code, possible_secrets, on_crack):
+func enable (display_code: String, possible_secrets: Array[String], on_crack: Callable) -> void:
 	code_label.text = display_code
 	current_code = ""
 	input_label.text = current_code
@@ -14,33 +14,33 @@ func enable (display_code, possible_secrets, on_crack):
 	visible = true
 	get_tree().paused = true
 	
-var input_map = {
+var input_map: Dictionary = {
 	"Left": '<',
 	"Right": '>',
 	"Up": '^',
 	"Down": 'v',
 }
 
-var input_released = {
+var input_released: Dictionary = {
 	"Left": true,
 	"Right": true,
 	"Up": true,
 	"Down": true,
 }
 
-func check_code ():
+func check_code () -> void:
 #	for secret in secrets:
 #		print("secret:", secret, " len(secret)=", len(secrets), " current_code=", current_code, " ==:", current_code == secret)
 	if secrets.find(current_code) != -1:
 		crack.bind(current_code).call_deferred()
 		exit()
 
-func exit ():
+func exit () -> void:
 	visible = false
 	get_tree().paused = false
 
-func _input(event):
-	for input in input_map:
+func _input(event: InputEvent) -> void:
+	for input: String in input_map:
 		if event.is_action_pressed(input) and input_released[input]:
 			current_code += input_map[input]
 			input_label.text = current_code

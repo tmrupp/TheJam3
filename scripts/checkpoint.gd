@@ -4,7 +4,7 @@ class_name Checkpoint
 
 @onready var player: Player = $"/root/Main/Player"
 
-func enabled (val) -> void:
+func enabled (val: bool) -> void:
 	$Sprite2D.self_modulate = Color.GREEN_YELLOW if val else Color.WHITE
 
 func interacted () -> void:
