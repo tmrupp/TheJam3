@@ -1,9 +1,9 @@
 extends Node
 
-var jump_particles = preload("res://prefabs/jump_particles.tscn")
+var jump_particles: Resource = preload("res://prefabs/jump_particles.tscn")
 
-func Jump():
+func Jump() -> void:
 	#print("In ParticleController.Jump")
-	var jp = jump_particles.instantiate()
+	var jp: GPUParticles2D = jump_particles.instantiate()
 	add_child(jp)
 	jp.emitting = true

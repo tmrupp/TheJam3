@@ -1,5 +1,7 @@
 extends Node
 
+class_name Stunner
+
 var stunnable_nodes = ["Mover", "Shooter", "HitBox"]
 @onready var top = $".."
 @onready var sprite = $Sprite2D

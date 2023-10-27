@@ -2,10 +2,10 @@ extends CanvasLayer
 @onready var input_label: Label = $ColorRect/VBoxContainer/MarginContainer/HBoxContainer/Input
 @onready var code_label: Label = $ColorRect/VBoxContainer/MarginContainer2/HBoxContainer/Code
 var current_code: String = ""
-var secrets: Array[String] = []
+var secrets: Array = []
 var crack: Callable
 
-func enable (display_code: String, possible_secrets: Array[String], on_crack: Callable) -> void:
+func enable (display_code: String, possible_secrets: Array, on_crack: Callable) -> void:
 	code_label.text = display_code
 	current_code = ""
 	input_label.text = current_code

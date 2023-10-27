@@ -343,7 +343,7 @@ var world_scenes = []
 var world
 var map
 
-var all_map_codes = {}
+var all_map_codes: Dictionary = {}
 
 func can_backtrack ():
 	return world.prev_world_index >= 0
