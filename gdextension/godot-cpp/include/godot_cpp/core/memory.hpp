@@ -107,7 +107,7 @@ void memdelete(T *p_class, typename std::enable_if<!std::is_base_of_v<godot::Wra
 
 template <class T, std::enable_if_t<std::is_base_of_v<godot::Wrapped, T>, bool> = true>
 void memdelete(T *p_class) {
-	godot::internal::gde_interface->object_destroy(p_class->_owner);
+	godot::internal::gdextension_interface_object_destroy(p_class->_owner);
 }
 
 template <class T, class A>
@@ -146,7 +146,7 @@ T *memnew_arr_template(size_t p_elements, const char *p_descr = "") {
 	size_t len = sizeof(T) * p_elements;
 	uint64_t *mem = (uint64_t *)Memory::alloc_static(len, true);
 	T *failptr = nullptr; // Get rid of a warning.
-	ERR_FAIL_COND_V(!mem, failptr);
+	ERR_FAIL_NULL_V(mem, failptr);
 	*(mem - 1) = p_elements;
 
 	if (!std::is_trivially_destructible<T>::value) {

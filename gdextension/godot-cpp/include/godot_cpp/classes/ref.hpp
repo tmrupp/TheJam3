@@ -63,7 +63,7 @@ class Ref {
 	}
 
 	void ref_pointer(T *p_ref) {
-		ERR_FAIL_COND(!p_ref);
+		ERR_FAIL_NULL(p_ref);
 
 		if (p_ref->init_ref()) {
 			reference = p_ref;
@@ -88,26 +88,15 @@ public:
 		return reference != p_r.reference;
 	}
 
-	_FORCE_INLINE_ T *operator->() {
+	_FORCE_INLINE_ T *operator*() const {
 		return reference;
 	}
 
-	_FORCE_INLINE_ T *operator*() {
+	_FORCE_INLINE_ T *operator->() const {
 		return reference;
 	}
 
-	_FORCE_INLINE_ const T *operator->() const {
-		return reference;
-	}
-
-	_FORCE_INLINE_ const T *ptr() const {
-		return reference;
-	}
-	_FORCE_INLINE_ T *ptr() {
-		return reference;
-	}
-
-	_FORCE_INLINE_ const T *operator*() const {
+	_FORCE_INLINE_ T *ptr() const {
 		return reference;
 	}
 
@@ -230,7 +219,7 @@ public:
 
 	// Used exclusively in the bindings to recreate the Ref Godot encapsulates in return values,
 	// without adding to the refcount.
-	inline static Ref<T> ___internal_constructor(Object *obj) {
+	inline static Ref<T> _gde_internal_constructor(Object *obj) {
 		Ref<T> r;
 		r.reference = (T *)obj;
 		return r;
@@ -241,10 +230,8 @@ template <class T>
 struct PtrToArg<Ref<T>> {
 	_FORCE_INLINE_ static Ref<T> convert(const void *p_ptr) {
 		GDExtensionRefPtr ref = (GDExtensionRefPtr)p_ptr;
-		ERR_FAIL_NULL_V(ref, Ref<T>());
-
-		T *obj = reinterpret_cast<T *>(godot::internal::gde_interface->object_get_instance_binding(godot::internal::gde_interface->ref_get_object(ref), godot::internal::token, &T::___binding_callbacks));
-		return Ref<T>(obj);
+		ERR_FAIL_NULL_V(p_ptr, Ref<T>());
+		return Ref<T>(reinterpret_cast<T *>(godot::internal::get_object_instance_binding(godot::internal::gdextension_interface_ref_get_object(ref))));
 	}
 
 	typedef Ref<T> EncodeT;
@@ -256,7 +243,7 @@ struct PtrToArg<Ref<T>> {
 		// This code assumes that p_ptr points to an unset Ref<T> variable on the Godot side
 		// so we only set it if we have an object to set.
 		if (p_val.is_valid()) {
-			godot::internal::gde_interface->ref_set_object(ref, p_val->_owner);
+			godot::internal::gdextension_interface_ref_set_object(ref, p_val->_owner);
 		}
 	}
 };
@@ -266,7 +253,9 @@ struct PtrToArg<const Ref<T> &> {
 	typedef Ref<T> EncodeT;
 
 	_FORCE_INLINE_ static Ref<T> convert(const void *p_ptr) {
-		return Ref<T>(reinterpret_cast<T *>(godot::internal::gde_interface->object_get_instance_binding(*reinterpret_cast<GDExtensionObjectPtr *>(const_cast<void *>(p_ptr)), godot::internal::token, &T::___binding_callbacks)));
+		GDExtensionRefPtr ref = const_cast<GDExtensionRefPtr>(p_ptr);
+		ERR_FAIL_NULL_V(p_ptr, Ref<T>());
+		return Ref<T>(reinterpret_cast<T *>(godot::internal::get_object_instance_binding(godot::internal::gdextension_interface_ref_get_object(ref))));
 	}
 };
 

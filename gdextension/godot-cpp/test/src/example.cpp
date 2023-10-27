@@ -9,31 +9,32 @@
 
 #include <godot_cpp/classes/global_constants.hpp>
 #include <godot_cpp/classes/label.hpp>
+#include <godot_cpp/classes/multiplayer_api.hpp>
+#include <godot_cpp/classes/multiplayer_peer.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 using namespace godot;
 
-int ExampleRef::instance_count = 0;
-int ExampleRef::last_id = 0;
+void ExampleRef::set_id(int p_id) {
+	id = p_id;
+}
 
 int ExampleRef::get_id() const {
 	return id;
 }
 
 void ExampleRef::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("set_id", "id"), &ExampleRef::set_id);
 	ClassDB::bind_method(D_METHOD("get_id"), &ExampleRef::get_id);
+
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "id"), "set_id", "get_id");
 }
 
 ExampleRef::ExampleRef() {
-	id = ++last_id;
-	instance_count++;
-
-	UtilityFunctions::print("ExampleRef ", itos(id), " created, current instance count: ", itos(instance_count));
+	id = 0;
 }
 
 ExampleRef::~ExampleRef() {
-	instance_count--;
-	UtilityFunctions::print("ExampleRef ", itos(id), " destroyed, current instance count: ", itos(instance_count));
 }
 
 int Example::test_static(int p_a, int p_b) {
@@ -41,7 +42,7 @@ int Example::test_static(int p_a, int p_b) {
 }
 
 void Example::test_static2() {
-	UtilityFunctions::print("  void static");
+	//UtilityFunctions::print("  void static");
 }
 
 int Example::def_args(int p_a, int p_b) {
@@ -49,7 +50,15 @@ int Example::def_args(int p_a, int p_b) {
 }
 
 void Example::_notification(int p_what) {
-	UtilityFunctions::print("Notification: ", String::num(p_what));
+	if (p_what == NOTIFICATION_READY) {
+		Dictionary opts;
+		opts["rpc_mode"] = MultiplayerAPI::RPC_MODE_AUTHORITY;
+		opts["transfer_mode"] = MultiplayerPeer::TRANSFER_MODE_RELIABLE;
+		opts["call_local"] = true;
+		opts["channel"] = 0;
+		rpc_config("test_rpc", opts);
+	}
+	//UtilityFunctions::print("Notification: ", String::num(p_what));
 }
 
 bool Example::_set(const StringName &p_name, const Variant &p_value) {
@@ -112,6 +121,10 @@ void Example::_bind_methods() {
 	// Methods.
 	ClassDB::bind_method(D_METHOD("simple_func"), &Example::simple_func);
 	ClassDB::bind_method(D_METHOD("simple_const_func"), &Example::simple_const_func);
+	ClassDB::bind_method(D_METHOD("custom_ref_func", "ref"), &Example::custom_ref_func);
+	ClassDB::bind_method(D_METHOD("custom_const_ref_func", "ref"), &Example::custom_const_ref_func);
+	ClassDB::bind_method(D_METHOD("image_ref_func", "image"), &Example::image_ref_func);
+	ClassDB::bind_method(D_METHOD("image_const_ref_func", "image"), &Example::image_const_ref_func);
 	ClassDB::bind_method(D_METHOD("return_something"), &Example::return_something);
 	ClassDB::bind_method(D_METHOD("return_something_const"), &Example::return_something_const);
 	ClassDB::bind_method(D_METHOD("return_empty_ref"), &Example::return_empty_ref);
@@ -124,9 +137,28 @@ void Example::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("test_dictionary"), &Example::test_dictionary);
 	ClassDB::bind_method(D_METHOD("test_node_argument"), &Example::test_node_argument);
 	ClassDB::bind_method(D_METHOD("test_string_ops"), &Example::test_string_ops);
+	ClassDB::bind_method(D_METHOD("test_str_utility"), &Example::test_str_utility);
+	ClassDB::bind_method(D_METHOD("test_string_is_fourty_two"), &Example::test_string_is_fourty_two);
 	ClassDB::bind_method(D_METHOD("test_vector_ops"), &Example::test_vector_ops);
 
+	ClassDB::bind_method(D_METHOD("test_object_cast_to_node", "object"), &Example::test_object_cast_to_node);
+	ClassDB::bind_method(D_METHOD("test_object_cast_to_control", "object"), &Example::test_object_cast_to_control);
+	ClassDB::bind_method(D_METHOD("test_object_cast_to_example", "object"), &Example::test_object_cast_to_example);
+
+	ClassDB::bind_method(D_METHOD("test_variant_vector2i_conversion", "variant"), &Example::test_variant_vector2i_conversion);
+	ClassDB::bind_method(D_METHOD("test_variant_int_conversion", "variant"), &Example::test_variant_int_conversion);
+	ClassDB::bind_method(D_METHOD("test_variant_float_conversion", "variant"), &Example::test_variant_float_conversion);
+
+	ClassDB::bind_method(D_METHOD("test_add_child", "node"), &Example::test_add_child);
+	ClassDB::bind_method(D_METHOD("test_set_tileset", "tilemap", "tileset"), &Example::test_set_tileset);
+
+	ClassDB::bind_method(D_METHOD("test_variant_call", "variant"), &Example::test_variant_call);
+
 	ClassDB::bind_method(D_METHOD("test_bitfield", "flags"), &Example::test_bitfield);
+
+	ClassDB::bind_method(D_METHOD("test_rpc", "value"), &Example::test_rpc);
+	ClassDB::bind_method(D_METHOD("test_send_rpc", "value"), &Example::test_send_rpc);
+	ClassDB::bind_method(D_METHOD("return_last_rpc_arg"), &Example::return_last_rpc_arg);
 
 	ClassDB::bind_method(D_METHOD("def_args", "a", "b"), &Example::def_args, DEFVAL(100), DEFVAL(200));
 
@@ -179,29 +211,43 @@ void Example::_bind_methods() {
 }
 
 Example::Example() {
-	UtilityFunctions::print("Constructor.");
+	//UtilityFunctions::print("Constructor.");
 }
 
 Example::~Example() {
-	UtilityFunctions::print("Destructor.");
+	//UtilityFunctions::print("Destructor.");
 }
 
 // Methods.
 void Example::simple_func() {
-	UtilityFunctions::print("  Simple func called.");
+	emit_custom_signal("simple_func", 3);
 }
 
 void Example::simple_const_func() const {
-	UtilityFunctions::print("  Simple const func called.");
+	((Example *)this)->emit_custom_signal("simple_const_func", 4);
+}
+
+int Example::custom_ref_func(Ref<ExampleRef> p_ref) {
+	return p_ref.is_valid() ? p_ref->get_id() : -1;
+}
+
+int Example::custom_const_ref_func(const Ref<ExampleRef> &p_ref) {
+	return p_ref.is_valid() ? p_ref->get_id() : -1;
+}
+
+String Example::image_ref_func(Ref<Image> p_image) {
+	return p_image.is_valid() ? String("valid") : String("invalid");
+}
+
+String Example::image_const_ref_func(const Ref<Image> &p_image) {
+	return p_image.is_valid() ? String("valid") : String("invalid");
 }
 
 String Example::return_something(const String &base) {
-	UtilityFunctions::print("  Return something called.");
-	return base;
+	return base + String("42");
 }
 
 Viewport *Example::return_something_const() const {
-	UtilityFunctions::print("  Return something const called.");
 	if (is_inside_tree()) {
 		Viewport *result = get_viewport();
 		return result;
@@ -221,32 +267,23 @@ ExampleRef *Example::return_extended_ref() const {
 	return memnew(ExampleRef());
 }
 
-Example *Example::test_node_argument(Example *p_node) const {
-	UtilityFunctions::print("  Test node argument called with ", p_node ? String::num(p_node->get_instance_id()) : "null");
-	return p_node;
-}
-
 Ref<ExampleRef> Example::extended_ref_checks(Ref<ExampleRef> p_ref) const {
 	// This is therefor the prefered way of instancing and returning a refcounted object:
 	Ref<ExampleRef> ref;
 	ref.instantiate();
-
-	UtilityFunctions::print("  Example ref checks called with value: ", p_ref->get_instance_id(), ", returning value: ", ref->get_instance_id());
 	return ref;
 }
 
 Variant Example::varargs_func(const Variant **args, GDExtensionInt arg_count, GDExtensionCallError &error) {
-	UtilityFunctions::print("  Varargs (Variant return) called with ", String::num((double)arg_count), " arguments");
 	return arg_count;
 }
 
 int Example::varargs_func_nv(const Variant **args, GDExtensionInt arg_count, GDExtensionCallError &error) {
-	UtilityFunctions::print("  Varargs (int return) called with ", String::num((double)arg_count), " arguments");
-	return 42;
+	return 42 + arg_count;
 }
 
 void Example::varargs_func_void(const Variant **args, GDExtensionInt arg_count, GDExtensionCallError &error) {
-	UtilityFunctions::print("  Varargs (no return) called with ", String::num((double)arg_count), " arguments");
+	emit_custom_signal("varargs_func_void", arg_count + 1);
 }
 
 void Example::emit_custom_signal(const String &name, int value) {
@@ -272,6 +309,14 @@ String Example::test_string_ops() const {
 	return s;
 }
 
+String Example::test_str_utility() const {
+	return UtilityFunctions::str("Hello, ", "World", "! The answer is ", 42);
+}
+
+bool Example::test_string_is_fourty_two(const String &p_string) const {
+	return strcmp(p_string.utf8().ptr(), "fourty two") == 0;
+}
+
 int Example::test_vector_ops() const {
 	PackedInt32Array arr;
 	arr.push_back(10);
@@ -285,10 +330,12 @@ int Example::test_vector_ops() const {
 	return ret;
 }
 
-void Example::test_tarray_arg(const TypedArray<int64_t> &p_array) {
+int Example::test_tarray_arg(const TypedArray<int64_t> &p_array) {
+	int sum = 0;
 	for (int i = 0; i < p_array.size(); i++) {
-		UtilityFunctions::print(p_array[i]);
+		sum += (int)p_array[i];
 	}
+	return sum;
 }
 
 TypedArray<Vector2> Example::test_tarray() const {
@@ -310,9 +357,60 @@ Dictionary Example::test_dictionary() const {
 	return dict;
 }
 
+Example *Example::test_node_argument(Example *p_node) const {
+	return p_node;
+}
+
+bool Example::test_object_cast_to_node(Object *p_object) const {
+	return Object::cast_to<Node>(p_object) != nullptr;
+}
+
+bool Example::test_object_cast_to_control(Object *p_object) const {
+	return Object::cast_to<Control>(p_object) != nullptr;
+}
+
+bool Example::test_object_cast_to_example(Object *p_object) const {
+	return Object::cast_to<Example>(p_object) != nullptr;
+}
+
+Vector2i Example::test_variant_vector2i_conversion(const Variant &p_variant) const {
+	return p_variant;
+}
+
+int Example::test_variant_int_conversion(const Variant &p_variant) const {
+	return p_variant;
+}
+
+float Example::test_variant_float_conversion(const Variant &p_variant) const {
+	return p_variant;
+}
+
+void Example::test_add_child(Node *p_node) {
+	add_child(p_node);
+}
+
+void Example::test_set_tileset(TileMap *p_tilemap, const Ref<TileSet> &p_tileset) const {
+	p_tilemap->set_tileset(p_tileset);
+}
+
+Variant Example::test_variant_call(Variant p_variant) {
+	return p_variant.call("test", "hello");
+}
+
 BitField<Example::Flags> Example::test_bitfield(BitField<Flags> flags) {
-	UtilityFunctions::print("  Got BitField: ", String::num_int64(flags));
 	return flags;
+}
+
+void Example::test_rpc(int p_value) {
+	last_rpc_arg = p_value;
+}
+
+void Example::test_send_rpc(int p_value) {
+	rpc("test_rpc", p_value);
+}
+
+int Example::return_last_rpc_arg() {
+	return last_rpc_arg;
 }
 
 // Properties.
@@ -334,4 +432,11 @@ bool Example::_has_point(const Vector2 &point) const {
 	label->set_text("Got point: " + Variant(point).stringify());
 
 	return false;
+}
+
+void Example::_input(const Ref<InputEvent> &event) {
+	const InputEventKey *key_event = Object::cast_to<const InputEventKey>(*event);
+	if (key_event) {
+		emit_custom_signal(String("_input: ") + key_event->get_key_label(), key_event->get_unicode());
+	}
 }
