@@ -1,6 +1,5 @@
 extends TileMap
 
-var coordLabel = preload("res://coord_label.tscn")
 @onready var main = $"../.."
 
 func display(cells, patterns):

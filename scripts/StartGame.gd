@@ -2,7 +2,6 @@ extends Button
 
 @onready var world_seed = $"../World Seed/LineEdit"
 @onready var map_seed = $"../World Seed/LineEdit"
-var player = preload("res://player.tscn")
 var player_instance
 
 @onready var menu = $"../.."
@@ -32,8 +31,3 @@ func _pressed():
 	wfc.generate()
 	
 	menu.visible = false
-	if player_instance == null:
-		player_instance = player.instantiate()
-		main.add_child(player_instance)
-#	game_scene.
-	pass
