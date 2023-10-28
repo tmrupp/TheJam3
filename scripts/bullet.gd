@@ -2,9 +2,9 @@ extends Node2D
 @onready var area: Area2D = $HitBox
 @onready var player: Player = $"/root/Main/Player"
 var velocity: Vector2 = Vector2(1, 1).normalized()
-var exclude: Array[Node]
+var exclude: Array
 
-func setup(v: Vector2, ignore: Array[Node], sender: Node) -> void:
+func setup(v: Vector2, ignore: Array, sender: Node) -> void:
 	velocity = v
 	exclude = ignore
 	$HitBox/Damager.attacker = sender
