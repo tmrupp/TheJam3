@@ -7,7 +7,7 @@ func use_portal() -> void:
 	print("used the portal named " + name)
 	player.position = go_to_pos
 
-func setup(map_info: MapInfo, coord: Vector2, partner_coord: Vector2) -> void:
+func setup(map_info: MapInfo, _coord: Vector2, partner_coord: Vector2) -> void:
 	#print("hello, I am a portal at: " + str(coord) + " whose partner is at: " + str(partner_coord))
 	go_to_pos = map_info.tile_map.to_global(map_info.tile_map.map_to_local(partner_coord))
 

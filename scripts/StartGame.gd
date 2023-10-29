@@ -11,8 +11,6 @@ var wfc
 
 func _ready():
 	wfc = main.find_child("WaveFunctionCollapse")
-	
-	pass
 
 func get_seed(input):
 	return int(input.text)
