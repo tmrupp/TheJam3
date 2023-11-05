@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://d2g60ykg4f0u3"]
+[gd_scene load_steps=12 format=3 uid="uid://d2g60ykg4f0u3"]
 
 [ext_resource type="Script" path="res://scripts/Player.gd" id="1_yuot3"]
 [ext_resource type="Texture2D" uid="uid://44lhga6fen5t" path="res://sprites/Wizstronaut.png" id="3_kmhsc"]
@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/DashTrail.gd" id="6_dxsj5"]
 [ext_resource type="Script" path="res://scripts/Coins.gd" id="7_7tfam"]
 [ext_resource type="Script" path="res://scripts/AstralProjection.gd" id="8_0iwh1"]
+[ext_resource type="AudioStream" uid="uid://5cyb02lgq4f0" path="res://music/SoundEffects/pickupCoin.wav" id="8_q3x3t"]
 [ext_resource type="PackedScene" uid="uid://cswjtlvri7bui" path="res://prefabs/parry.tscn" id="9_bwkb5"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_jk8bx"]
@@ -45,6 +46,10 @@ script = ExtResource("6_dxsj5")
 
 [node name="Coins" type="Node" parent="."]
 script = ExtResource("7_7tfam")
+
+[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="Coins"]
+stream = ExtResource("8_q3x3t")
+bus = &"SoundEffects"
 
 [node name="AstralProjection" type="Node" parent="."]
 script = ExtResource("8_0iwh1")
