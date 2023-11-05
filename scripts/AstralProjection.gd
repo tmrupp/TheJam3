@@ -11,6 +11,10 @@ var false_player_origin: Sprite2D
 
 var held_color: Color
 
+# the function we assign to the player's 'hurt_ability' when using astral projection
+func astral_hurt (damage: int, v: Vector2, _attacker: Node) -> void:
+	pass
+
 func _ready() -> void:
 	player.astral_projection_signal.connect(project)
 	player.elapse_ability_time_signal.connect(elapse)
@@ -28,8 +32,11 @@ func project() -> void:
 	false_player_origin.position = player.position
 	false_player_origin.scale = player.scale
 	
-	# turn off own collision
-	# TODO
+	# turn off own collision with bullets
+	player.set_collision_layer_value(6, false)
+	
+	# override player's hurt ability with ours
+	player.hurt_ability = astral_hurt
 	
 	# alter our own visual to look all projection-y
 	held_color = visual.modulate
@@ -43,6 +50,12 @@ func end_projection(_timer: ActionTimer) -> void:
 	
 	# reset our color
 	visual.modulate = held_color
+	
+	# reset our collision layers
+	player.set_collision_layer_value(6, true)
+	
+	# reset the player's ability to take damage
+	player.hurt_ability = player.normal_hurt
 	
 	# destroy the visual clone
 	false_player_origin.queue_free()
