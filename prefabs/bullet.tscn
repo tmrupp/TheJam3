@@ -12,5 +12,5 @@ script = ExtResource("1_d67wi")
 texture = ExtResource("2_pppo0")
 
 [node name="HitBox" parent="." instance=ExtResource("3_oa65r")]
-collision_layer = 0
-collision_mask = 15
+collision_layer = 8
+collision_mask = 32

@@ -17,7 +17,8 @@ size = Vector2(22.1139, 23.2384)
 rotation = -6.28319
 scale = Vector2(4, 4)
 disable_mode = 2
-collision_mask = 5
+collision_layer = 97
+collision_mask = 30
 script = ExtResource("1_yuot3")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]

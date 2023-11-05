@@ -1,8 +1,8 @@
 [gd_scene load_steps=5 format=3 uid="uid://b1wwutraxrtli"]
 
 [ext_resource type="PackedScene" uid="uid://drbq47lw8o8mv" path="res://prefabs/hit_box.tscn" id="1_cf145"]
-[ext_resource type="PackedScene" path="res://prefabs/enemy.tscn" id="2_7d4ps"]
-[ext_resource type="PackedScene" path="res://prefabs/shooter.tscn" id="3_ffi16"]
+[ext_resource type="PackedScene" uid="uid://dyvck7ac1yito" path="res://prefabs/enemy.tscn" id="2_7d4ps"]
+[ext_resource type="PackedScene" uid="uid://b36uidanugdmc" path="res://prefabs/shooter.tscn" id="3_ffi16"]
 [ext_resource type="PackedScene" uid="uid://cfju2r1ttqwwm" path="res://prefabs/stunner.tscn" id="3_k1yj5"]
 
 [node name="ShooterEnemy" instance=ExtResource("2_7d4ps")]

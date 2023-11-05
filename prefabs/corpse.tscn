@@ -8,8 +8,8 @@ size = Vector2(128.5, 128.5)
 
 [node name="Corpse" type="Area2D"]
 scale = Vector2(0.25, 0.25)
-collision_layer = 0
-collision_mask = 5
+collision_layer = 16
+collision_mask = 64
 script = ExtResource("1_bk2nv")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
