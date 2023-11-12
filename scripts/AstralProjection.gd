@@ -32,8 +32,9 @@ func project() -> void:
 	false_player_origin.position = player.position
 	false_player_origin.scale = player.scale
 	
-	# turn off own collision with bullets
+	# turn off own collision with bullets and spikes
 	player.set_collision_layer_value(6, false)
+	player.set_collision_layer_value(8, false)
 	
 	# override player's hurt ability with ours
 	player.hurt_ability = astral_hurt
@@ -53,6 +54,7 @@ func end_projection(_timer: ActionTimer) -> void:
 	
 	# reset our collision layers
 	player.set_collision_layer_value(6, true)
+	player.set_collision_layer_value(8, true)
 	
 	# reset the player's ability to take damage
 	player.hurt_ability = player.normal_hurt

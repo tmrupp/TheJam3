@@ -2,7 +2,7 @@ extends Node
 
 var coins: int = 100
 @onready var amount: Label = $"/root/Main/CanvasLayer/HUD/TopHUD/CoinAmount"
-@onready var coin_collect_sfx = $AudioStreamPlayer
+@onready var coin_collect_sfx: AudioStreamPlayer = $AudioStreamPlayer
 
 func modify (delta: int) -> void:
 	coins += delta

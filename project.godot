@@ -159,6 +159,7 @@ Debug-Back={
 2d_physics/layer_5="Collectible"
 2d_physics/layer_6="Bullet_Receiver"
 2d_physics/layer_7="Collectible_Receiver"
+2d_physics/layer_8="Hazard_Receiver"
 
 [rendering]
 

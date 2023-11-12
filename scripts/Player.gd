@@ -6,7 +6,11 @@ class_name Player
 @onready var health := $Health
 @onready var coins = $Coins
 
-@onready var corpse_prefab = preload("res://prefabs/corpse.tscn") 
+@onready var corpse_prefab = preload("res://prefabs/corpse.tscn")
+
+@onready var jump_sfx: AudioStreamPlayer = $JumpSFX
+@onready var dash_sfx: AudioStreamPlayer = $DashSFX
+@onready var death_sfx: AudioStreamPlayer = $DeathSFX
 
 signal astral_projection_signal
 signal elapse_ability_time_signal(time)
@@ -153,6 +157,7 @@ func die():
 	var pos = position
 	reset_position()
 	setup_corpse(pos)
+	death_sfx.play()
 
 # does a jump and triggers the jumping animation
 var animating_jumping = false
@@ -166,12 +171,15 @@ func jump(factor=1.0):
 	animating_jumping = true
 	
 	$"ParticleController".Jump()
+	jump_sfx.play()
+	$"../Camera2D".shake(1, Vector2.RIGHT)
 
 # does a dash moving rapidly in one direction
 func do_dash(dash_direction):
 	velocity = dash_direction * DASH_SPEED
 	velocity.y *= Y_DASH_FACTOR
 	$"DashTrail".make_trail()
+	dash_sfx.play()
 var dash_ability = do_dash
 
 func drop ():

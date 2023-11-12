@@ -9,6 +9,8 @@ var scaling: float = 1.1
 @onready var timer: Timer = $Timer
 @onready var cooldown: ActionTimer = ActionTimer.new(2.0, player.refresh_self)
 
+@onready var parry_sfx: AudioStreamPlayer = $AudioStreamPlayer
+
 func stop_parry () -> void:
 	player.hurt_ability = player.normal_hurt
 	collider.disabled = true
@@ -21,6 +23,7 @@ func parry (_damage: int, _v: Vector2, origin: Node) -> void:
 		stop_parry()
 		cooldown.refresh()
 		timer.stop()
+		parry_sfx.play()
 
 func check_parry () -> void:
 	player.hurt_ability = parry

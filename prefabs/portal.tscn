@@ -1,8 +1,9 @@
-[gd_scene load_steps=5 format=3 uid="uid://dmgqos3a4gv36"]
+[gd_scene load_steps=6 format=3 uid="uid://dmgqos3a4gv36"]
 
 [ext_resource type="Script" path="res://scripts/portal.gd" id="1_2ywdo"]
 [ext_resource type="Texture2D" uid="uid://br72ja084yprt" path="res://input_prompts/tile_0000.png" id="1_p11qq"]
 [ext_resource type="PackedScene" uid="uid://pwmevy3urxq6" path="res://prefabs/interactable.tscn" id="2_pjv4r"]
+[ext_resource type="AudioStream" uid="uid://bsppool2d7idm" path="res://music/SoundEffects/energy_blast.wav" id="4_8funm"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_osds8"]
 size = Vector2(14, 28)
@@ -22,3 +23,7 @@ texture = ExtResource("1_p11qq")
 shape = SubResource("RectangleShape2D_osds8")
 
 [node name="Interactable" parent="Area2D" instance=ExtResource("2_pjv4r")]
+
+[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("4_8funm")
+bus = &"SoundEffects"

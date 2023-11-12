@@ -235,7 +235,7 @@ class World:
 
 		#place pairs of portals in the stage and connect them to each other
 		#by telling each portal the coords of its partner in the extra_info
-		for i: int in range(1):
+		for i: int in range(4):
 			var pos1: Variant = pop_if_random_empty(ground_below, true)
 			var pos2: Variant = pop_if_random_empty(ground_below, true)
 			var portal1: Cell = Cell.new(Type.PORTAL)

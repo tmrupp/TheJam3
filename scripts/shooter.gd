@@ -9,6 +9,7 @@ var projectile_prefab: Resource = preload("res://prefabs/bullet.tscn")
 @onready var main: Node = $"/root/Main"
 @onready var rb: RigidBody2D = $".."
 @onready var cooldown_indicator: TextureProgressBar = $Cooldown
+@onready var shoot_sfx: AudioStreamPlayer = $AudioStreamPlayer
 var stunned: bool = false
 
 func check_player_in_range() -> bool:
@@ -39,6 +40,7 @@ func try_shoot () -> bool:
 		main.add_child.call_deferred(projectile)
 		projectile.position = shoot_point.global_position
 		projectile.setup((player.global_position - shoot_point.global_position).normalized()*SPEED, [rb], rb)
+		shoot_sfx.play()
 		return true
 	return false
 	

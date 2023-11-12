@@ -1,15 +1,20 @@
-[gd_scene load_steps=12 format=3 uid="uid://d2g60ykg4f0u3"]
+[gd_scene load_steps=17 format=3 uid="uid://d2g60ykg4f0u3"]
 
 [ext_resource type="Script" path="res://scripts/Player.gd" id="1_yuot3"]
 [ext_resource type="Texture2D" uid="uid://44lhga6fen5t" path="res://sprites/Wizstronaut.png" id="3_kmhsc"]
 [ext_resource type="Script" path="res://scripts/CameraControl.gd" id="3_t5s4g"]
 [ext_resource type="Script" path="res://scripts/ParticleController.gd" id="4_puykc"]
 [ext_resource type="Script" path="res://scripts/Health.gd" id="5_21lv8"]
+[ext_resource type="AudioStream" uid="uid://dnkjltt7uke4j" path="res://music/SoundEffects/hitHurt.wav" id="6_40dmk"]
 [ext_resource type="Script" path="res://scripts/DashTrail.gd" id="6_dxsj5"]
 [ext_resource type="Script" path="res://scripts/Coins.gd" id="7_7tfam"]
 [ext_resource type="Script" path="res://scripts/AstralProjection.gd" id="8_0iwh1"]
 [ext_resource type="AudioStream" uid="uid://5cyb02lgq4f0" path="res://music/SoundEffects/pickupCoin.wav" id="8_q3x3t"]
 [ext_resource type="PackedScene" uid="uid://cswjtlvri7bui" path="res://prefabs/parry.tscn" id="9_bwkb5"]
+[ext_resource type="AudioStream" uid="uid://0rh8b5ecpw8n" path="res://music/SoundEffects/jump.wav" id="11_h52fk"]
+[ext_resource type="AudioStream" uid="uid://4wpkkq1rjkil" path="res://music/SoundEffects/sword-clash-1-trimmed.wav" id="12_pnhg0"]
+[ext_resource type="AudioStream" uid="uid://bo4ee3148kcfn" path="res://music/SoundEffects/whoosh_short_high_trimmed.wav" id="13_4xoeb"]
+[ext_resource type="AudioStream" uid="uid://dm1stefv3ci10" path="res://music/SoundEffects/521105__matrixxx__retro-explosion-07.wav" id="14_swv2c"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_jk8bx"]
 size = Vector2(22.1139, 23.2384)
@@ -41,6 +46,10 @@ script = ExtResource("4_puykc")
 [node name="Health" type="Node" parent="."]
 script = ExtResource("5_21lv8")
 
+[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="Health"]
+stream = ExtResource("6_40dmk")
+bus = &"SoundEffects"
+
 [node name="DashTrail" type="Node" parent="."]
 script = ExtResource("6_dxsj5")
 
@@ -55,3 +64,20 @@ bus = &"SoundEffects"
 script = ExtResource("8_0iwh1")
 
 [node name="Parry" parent="." instance=ExtResource("9_bwkb5")]
+
+[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="Parry"]
+stream = ExtResource("12_pnhg0")
+bus = &"SoundEffects"
+
+[node name="JumpSFX" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("11_h52fk")
+bus = &"SoundEffects"
+
+[node name="DashSFX" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("13_4xoeb")
+volume_db = 12.315
+bus = &"SoundEffects"
+
+[node name="DeathSFX" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("14_swv2c")
+bus = &"SoundEffects"

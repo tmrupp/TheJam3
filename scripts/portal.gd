@@ -1,11 +1,13 @@
 extends Node2D
 
 @onready var player: Player = $"/root/Main/Player"
+@onready var portal_sfx: AudioStreamPlayer = $AudioStreamPlayer
 var go_to_pos: Vector2
 
 func use_portal() -> void:
-	print("used the portal named " + name)
+	#print("used the portal named " + name)
 	player.position = go_to_pos
+	portal_sfx.play()
 
 func setup(map_info: MapInfo, _coord: Vector2, partner_coord: Vector2) -> void:
 	#print("hello, I am a portal at: " + str(coord) + " whose partner is at: " + str(partner_coord))
