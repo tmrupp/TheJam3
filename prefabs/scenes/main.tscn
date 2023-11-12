@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3 uid="uid://bdd54s8wdfdsc"]
+[gd_scene load_steps=16 format=3 uid="uid://bdd54s8wdfdsc"]
 
 [ext_resource type="PackedScene" uid="uid://bnktmhuvbbhqv" path="res://prefabs/upgrade_menu.tscn" id="1_c23vw"]
 [ext_resource type="PackedScene" uid="uid://d07pxhxu1ug5i" path="res://prefabs/menu.tscn" id="1_u4qe6"]
@@ -14,6 +14,7 @@
 [ext_resource type="PackedScene" uid="uid://bf08akeilq3j1" path="res://prefabs/tile_map.tscn" id="9_qh1ky"]
 [ext_resource type="AudioStream" uid="uid://dl3u7v333oha2" path="res://music/big_bossanova.wav" id="10_yprvw"]
 [ext_resource type="Script" path="res://scripts/MusicPlayer.gd" id="11_hqvrv"]
+[ext_resource type="Script" path="res://prefabs/scenes/CameraEffects.gd" id="13_e5huw"]
 
 [node name="Main" type="Node2D"]
 texture_filter = 1
@@ -112,6 +113,7 @@ scale = Vector2(4, 4)
 
 [node name="Camera2D" type="Camera2D" parent="."]
 zoom = Vector2(0.25, 0.25)
+script = ExtResource("13_e5huw")
 
 [node name="Music" type="Node" parent="."]
 script = ExtResource("11_hqvrv")
