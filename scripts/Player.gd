@@ -172,7 +172,6 @@ func jump(factor=1.0):
 	
 	$"ParticleController".Jump()
 	jump_sfx.play()
-	$"../Camera2D".shake(1, Vector2.RIGHT)
 
 # does a dash moving rapidly in one direction
 func do_dash(dash_direction):
