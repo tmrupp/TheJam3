@@ -182,6 +182,7 @@ class World:
 				add_cell_to_container(Vector2i(i, j), cell)
 			cells.append(row)
 	
+		@warning_ignore("integer_division")
 		var chunks: int = (size.x*size.y)/(CHUNK_SIZE*CHUNK_SIZE)
 		for i: int in range(2*chunks):
 			set_cell(pop_if_random_empty(), Cell.new(Type.SHARD))
@@ -286,8 +287,11 @@ func generate(world_code: String, map_code: String) -> void:
 
 func setup_chunks() -> void:
 	undiscovered_chunks = []
-	for i: int in range(0,map.size.x/CHUNK_SIZE):
-		for j: int in range(0,map.size.y/CHUNK_SIZE):
+	
+	var map_chunks: Vector2i = map.size/CHUNK_SIZE
+	
+	for i: int in range(0, map_chunks.x):
+		for j: int in range(0, map_chunks.y):
 			undiscovered_chunks.append(Vector2i(i, j))
 
 func get_random_chunk() -> Vector2i:
