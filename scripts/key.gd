@@ -25,7 +25,7 @@ func touch(other: Node) -> void:
 		# wait to destroy self until after sfx finish playing
 		destroy_on_finish_sfx()
 		
-func destroy_on_finish_sfx():
+func destroy_on_finish_sfx() -> void:
 	collect_sfx.play()
 	await collect_sfx.finished
 	queue_free()

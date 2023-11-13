@@ -1,5 +1,7 @@
 extends TextureProgressBar
 
+class_name Cooldown
+
 var duration: float = 0.0
 var elapsed: float = 0.0
 

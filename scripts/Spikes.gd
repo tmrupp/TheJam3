@@ -9,11 +9,11 @@ var offset_rotation: Dictionary = {
 
 func setup(_map_info: MapInfo, v: Vector2i) -> void:
 	var world: MapInfo.World = _map_info.world
-	var ns = world.get_neighbors(v)
+	var ns: Array[Vector2i] = world.get_neighbors(v)
 	if len(ns) == 0:
 		queue_free()
 	else:
-		for n in ns:
+		for n: Vector2i in ns:
 			if world.is_ground(n):
 				rotation_degrees = offset_rotation[v - n]
 				return

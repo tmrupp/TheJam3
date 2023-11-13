@@ -4,7 +4,7 @@ func generate(def: MapInfo.NextWorldDef) -> Array:
 	set_seed(def.gen_seed)
 	seed(def.gen_seed)
 	texture = load(def.region)
-	var map = collapse()
+	var map: Array = collapse()
 	while len(map) == 0:
 		seed = randi()
 		map = collapse()

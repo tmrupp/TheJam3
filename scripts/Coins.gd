@@ -1,5 +1,7 @@
 extends Node
 
+class_name Coins
+
 var coins: int = 100
 @onready var amount: Label = $"/root/Main/CanvasLayer/HUD/TopHUD/CoinAmount"
 @onready var coin_collect_sfx: AudioStreamPlayer = $AudioStreamPlayer

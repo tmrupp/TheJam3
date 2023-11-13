@@ -3,44 +3,44 @@ extends CharacterBody2D
 class_name Player
 
 @onready var collider: CollisionShape2D = $CollisionShape2D
-@onready var health := $Health
-@onready var coins = $Coins
+@onready var health: Health = $Health
+@onready var coins: Coins = $Coins
 
-@onready var corpse_prefab = preload("res://prefabs/corpse.tscn")
+@onready var corpse_prefab: Resource = preload("res://prefabs/corpse.tscn")
 
 @onready var jump_sfx: AudioStreamPlayer = $JumpSFX
 @onready var dash_sfx: AudioStreamPlayer = $DashSFX
 @onready var death_sfx: AudioStreamPlayer = $DeathSFX
 
 signal astral_projection_signal
-signal elapse_ability_time_signal(time)
+signal elapse_ability_time_signal(time: float)
 signal parry
 signal died
-signal direction_signal(direction)
+signal direction_signal(direction: Vector2)
 
-func collect (x):
+func collect (x: int) -> void:
 	coins.modify(x)
 
-func refresh_self (timer):
+func refresh_self (timer: ActionTimer) -> void:
 	timer.refresh()
 	
-var invulnerable = ActionTimer.new(2, refresh_self)
-var knock_back = ActionTimer.new(0.25, refresh_self)
-var knock = Vector2.ZERO
+var invulnerable: ActionTimer = ActionTimer.new(2, refresh_self)
+var knock_back: ActionTimer = ActionTimer.new(0.25, refresh_self)
+var knock: Vector2 = Vector2.ZERO
 
-func show_hurt():
-	var r = 0
+func show_hurt() -> void:
+	var r: float = 0
 	while r < 1.0:
 		await get_tree().create_timer(0.1).timeout
 		r += 0.1
 		sprite.modulate.g = r
 		sprite.modulate.b = r
 		
-func show_invulnerable():
-	var d = 0
-	var step = .01
-	var min_value = .4
-	var period = 0.25
+func show_invulnerable() -> void:
+	var d: float = 0
+	var step: float = .01
+	var min_value: float = .4
+	var period: float = 0.25
 	while invulnerable.is_acting():
 		await get_tree().create_timer(step).timeout
 		d += step
@@ -57,112 +57,111 @@ func normal_hurt (damage: int, v: Vector2, _attacker: Node) -> void:
 		show_hurt()
 		show_invulnerable()
 		
-func hurt (damage, v, attacker):
+func hurt (damage: int, v: Vector2, attacker: Node) -> void:
 	hurt_ability.bind(damage, v, attacker).call()
 	
-var hurt_ability = normal_hurt
+var hurt_ability: Callable = normal_hurt
 
 # SPEED: how quickly the player moves
-const SPEED = 300.0
+const SPEED: float = 300.0
 # JUMP_VELOCITY: how quickly and high the player jumps
-const JUMP_VELOCITY = -600.0
-const JUMP_GRAVITY_FACTOR = 0.7
-const JUMP_END_CUT_FACTOR = 0.5
-var jumps = 1
-var MAX_JUMPS = 1
+const JUMP_VELOCITY: float = -600.0
+const JUMP_GRAVITY_FACTOR: float = 0.7
+const JUMP_END_CUT_FACTOR: float = 0.5
+var jumps: int = 1
+var MAX_JUMPS: int = 1
 
 
 # DASH_SPEED: how quickly the player dashes
 # DASH_TIME: how long the dash takes
 # Y_DASH_FACTOR: how much the dash is diminished in the Y direction
-const DASH_SPEED = 600.0
-const Y_DASH_FACTOR = 1.0
-var blink_enabled = false
-func dash_end(_timer):
+const DASH_SPEED: float = 600.0
+const Y_DASH_FACTOR: float = 1.0
+var blink_enabled: bool = false
+func dash_end(_timer: ActionTimer) -> void:
 	velocity = Vector2.ZERO
 	$"DashTrail".stop_trail()
-var dash = ActionTimer.new(0.25, dash_end)
+var dash: ActionTimer = ActionTimer.new(0.25, dash_end)
 
 # WALL_JUMP_SPEED: how quickly and high the player jumps
 # WALL_JUMP_TIME: how long manual control is overriden 
 # (feels better when pushing into wall to jump and then jumps away)
 # WALL_JUMP_Y_FACTOR: by how much the y component of a normal jump is factored when wall jumping
-const WALL_JUMP_SPEED = 400.0
-const WALL_JUMP_Y_FACTOR = 0.6
-var wall_jump = ActionTimer.new(0.25)
+const WALL_JUMP_SPEED: float = 400.0
+const WALL_JUMP_Y_FACTOR: float = 0.6
+var wall_jump: ActionTimer = ActionTimer.new(0.25)
 
 # BUFFER_TIME: how long before hitting the ground can the player 
 # can buffer their next jump
-var buffer_jump = ActionTimer.new(0.25)
+var buffer_jump: ActionTimer = ActionTimer.new(0.25)
 
 # COYOTE_TIME: how long after leaving grounded state can the player still input a jump
-var coyote = ActionTimer.new(0.1)
+var coyote: ActionTimer = ActionTimer.new(0.1)
 
 # HANG_TIME: how long at thje apex of a jump does gravity distortion take place
 # HANG_FACTOR: by how much is gravity distorted when hanging
 # HANG_SPEED_TARGET: which speed to dampen gravity between (symmetrical)
-const HANG_FACTOR = 0.9
-const HANG_SPEED_TARGET = 40
-var hang = ActionTimer.new(1000)
+const HANG_FACTOR: float = 0.9
+const HANG_SPEED_TARGET: float = 40
+var hang: ActionTimer = ActionTimer.new(1000)
 
 # all of the timers (for decrementing)
-var timers = [dash, wall_jump, buffer_jump, coyote, hang, invulnerable, knock_back]
+var timers: Array[ActionTimer] = [dash, wall_jump, buffer_jump, coyote, hang, invulnerable, knock_back]
 
 # whether or not the player has control
-var manual_control = true
+var manual_control: bool = true
 
-@onready var tile_map = $"../TileMap"
-@onready var sprite = $"Sprite2D"
+@onready var tile_map: TileMap = $"../TileMap"
+@onready var sprite: Sprite2D = $"Sprite2D"
 
 # Get the gravity from the project settings to be synced with RigidBody nodes.
-var gravity = ProjectSettings.get_setting("physics/2d/default_gravity")
+var gravity: float = ProjectSettings.get_setting("physics/2d/default_gravity")
 
 # called when an animation is finished
-func animation_finished(animation):
+func animation_finished(animation: String) -> void:
 	if (animation == "hop"):
 		animating_jumping = false
-	pass
 
 # gets the respawn and saves it
-var respawn
+var respawn: Node2D
 
-func set_collision (enabled):
+func set_collision (enabled: bool) -> void:
 	# ensures all normal and physics processing are done
 	if (enabled):
 		await get_tree().physics_frame
 		await get_tree().process_frame
 	$CollisionShape2D.set_deferred("disabled", not enabled)
 
-func get_collision ():
+func get_collision () -> bool:
 	return not $CollisionShape2D.disabled
 	
 #puts the player back at the spawn location
-func reset_position():
+func reset_position() -> void:
 	position = respawn.position
 	velocity = Vector2.ZERO	
 	knock = Vector2.ZERO
 	await get_tree().physics_frame
 
-func setup_corpse (pos):
-	var corpse = corpse_prefab.instantiate()
+func setup_corpse (pos: Vector2) -> void:
+	var corpse: Node2D = corpse_prefab.instantiate()
 	corpse.position = pos
 	$"/root/Main".add_child(corpse)
-	var sub = ceil(coins.coins/2.0)
+	var sub: int = ceil(coins.coins/2.0)
 	corpse.setup(sub)
 	collect(-sub)
 
 # kills the player and puts them back at respawn
-func die():
+func die() -> void:
 	died.emit()
-	var pos = position
+	var pos: Vector2 = position
 	reset_position()
 	setup_corpse(pos)
 	death_sfx.play()
 
 # does a jump and triggers the jumping animation
-var animating_jumping = false
-var jumping = false
-func jump(factor=1.0):
+var animating_jumping: bool = false
+var jumping: bool = false
+func jump(factor: float=1.0) -> void:
 	velocity.y = JUMP_VELOCITY * factor
 	# animation_player.play("hop", -1, 4)
 	# animation_player.queue("falling")
@@ -174,25 +173,25 @@ func jump(factor=1.0):
 	jump_sfx.play()
 
 # does a dash moving rapidly in one direction
-func do_dash(dash_direction):
+func do_dash(dash_direction: Vector2) -> void:
 	velocity = dash_direction * DASH_SPEED
 	velocity.y *= Y_DASH_FACTOR
 	$"DashTrail".make_trail()
 	dash_sfx.play()
-var dash_ability = do_dash
+var dash_ability: Callable = do_dash
 
-func drop ():
+func drop () -> void:
 	position.y += 1
 
-func _physics_process(delta):
+func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("Parry"):
 		parry.emit()
 	
-	var walled = false
-	var wall_normal
+	var walled: bool = false
+	var wall_normal: Vector2
 
 	# get input from the user to establish direction
-	var direction = Vector2.RIGHT * Input.get_axis("Left", "Right") + Vector2.DOWN * Input.get_axis("Up", "Down")
+	var direction: Vector2 = Vector2.RIGHT * Input.get_axis("Left", "Right") + Vector2.DOWN * Input.get_axis("Up", "Down")
 	
 	direction_signal.emit(direction)
 	
@@ -205,8 +204,8 @@ func _physics_process(delta):
 
 	# checks all current collisions and checks to see if colliding with a wall,
 	# wall normal must be in the x direction (an up-down wall) to be considered walled for wall jumping
-	for i in get_slide_collision_count():
-		var col = get_slide_collision(i)
+	for i: int in get_slide_collision_count():
+		var col: KinematicCollision2D = get_slide_collision(i)
 		if (col.get_normal().x != 0):
 			walled = true
 			wall_normal = col.get_normal()
@@ -217,7 +216,7 @@ func _physics_process(delta):
 		coyote.enable()
 		
 		if (not dash.is_acting()):
-			var factor = 1.0 if not hang.is_acting() else HANG_FACTOR
+			var factor: float = 1.0 if not hang.is_acting() else HANG_FACTOR
 			velocity.y += gravity * factor * delta
 			
 		# damp once velocity hits a certain amount
@@ -308,7 +307,7 @@ func _physics_process(delta):
 			dash_ability.bind(direction).call()
 	
 	# elapse the time in all timers
-	for timer in timers:
+	for timer: ActionTimer in timers:
 		timer.elapse(delta)
 	elapse_ability_time_signal.emit(delta)
 

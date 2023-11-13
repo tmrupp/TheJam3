@@ -1,4 +1,7 @@
 extends CanvasLayer
+
+class_name CodeMenu
+
 @onready var input_label: Label = $ColorRect/VBoxContainer/MarginContainer/HBoxContainer/Input
 @onready var code_label: Label = $ColorRect/VBoxContainer/MarginContainer2/HBoxContainer/Code
 var current_code: String = ""

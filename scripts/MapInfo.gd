@@ -494,9 +494,9 @@ func in_bounds (v: Vector2) -> bool:
 		
 	return true
 
-func clamp_bounds (v):
-	var max_bounds = get_max_bounds()
-	var min_bounds = get_min_bounds()
+func clamp_bounds (v: Vector2) -> Vector2:
+	var max_bounds: Vector2 = get_max_bounds()
+	var min_bounds: Vector2 = get_min_bounds()
 
 	return Vector2(clamp(v.x, min_bounds.x, max_bounds.x), clamp(v.y, min_bounds.y, max_bounds.y))
 
@@ -507,9 +507,9 @@ func get_next_key () -> Variant:
 
 # Draw on the layer behind the foreground tiles
 # We assume negative y values are sky and positive are dirt
-func draw_background(dim_x, dim_y):
-	for i in range(-X_MARGIN, dim_x + X_MARGIN):
-		for j in range(-TOP_MARGIN, dim_y):
+func draw_background(dim_x: int, dim_y: int) -> void:
+	for i: int in range(-X_MARGIN, dim_x + X_MARGIN):
+		for j: int in range(-TOP_MARGIN, dim_y):
 			# arg1: layer, layer 1 is the Background layer
 			# arg2: location
 			# arg3: source_id, the tileset source_id for which ID:1 is the background tiles on this tilemap
@@ -517,24 +517,24 @@ func draw_background(dim_x, dim_y):
 			tile_map.set_cell(1, Vector2i(i, j), 1, Vector2i(1 if j < 0 else 0, 0))
 
 # Enclose the map in a "box" so the player can't fall into nothingness
-func enclose_map(dim_x, dim_y):
-	for i in range(-X_MARGIN, dim_x + X_MARGIN):
-		var to_add = [
+func enclose_map(dim_x: int, dim_y: int) -> void:
+	for i: int in range(-X_MARGIN, dim_x + X_MARGIN):
+		var to_add: Array[Vector2i] = [
 			Vector2i(i, dim_y), #bottom of map
 			Vector2i(i, -TOP_MARGIN), #top of map
 			]
 		tile_map.set_cells_terrain_connect(0, to_add, 0, 0)
 		# print("to_add=", to_add, " dim_x=", dim_x)
 	
-	for j in range(-TOP_MARGIN + 1, dim_y):
-		var to_add = [
+	for j: int in range(-TOP_MARGIN + 1, dim_y):
+		var to_add: Array[Vector2i] = [
 			Vector2i(-X_MARGIN, j), #left of map
 			Vector2i(dim_x + X_MARGIN - 1, j), #right of map
 		]
 		tile_map.set_cells_terrain_connect(0, to_add, 0, 0)
 		# print("to_add=", to_add, " dim_y=", dim_y)
 
-var enabled = false
+var enabled: bool = false
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ShowMap"):
 		enabled = !enabled
@@ -547,34 +547,34 @@ func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("Debug-Back"):
 		load_world(world_index-1)
 			
-var cell_colors = {
+var cell_colors: Dictionary = {
 	Type.GROUND: 	Color.DARK_OLIVE_GREEN,
 	Type.SHARD: 	Color.RED,
 	Type.GOAL: 		Color.GREEN,
 }
 
-@onready var map_contents = $MapContents
+@onready var map_contents: TextureRect = $MapContents
 var map_image : Image
 var map_texture : ImageTexture
 
-func draw_cell(x, y, cell):
+func draw_cell(x: int, y: int, cell: Cell) -> void:
 #	print("cell.type=", cell.type)
-	var color = Color.BLACK if not cell.discovered else (Color.LIGHT_BLUE if cell.type not in cell_colors else cell_colors[cell.type])
+	var color: Color = Color.BLACK if not cell.discovered else (Color.LIGHT_BLUE if cell.type not in cell_colors else cell_colors[cell.type])
 	color.a = .5
 	map_image.set_pixel(x, y, color)
 
-func inverse(v):
+func inverse(v: Vector2) -> Vector2:
 	return Vector2(1/float(v.x), 1/float(v.y))
 
-func _draw():
+func _draw() -> void:
 	map_sprite.visible = enabled
 	
 	keys.visible = enabled
 
 	map_contents.visible = enabled
 	if (enabled):
-		for i in map.size.x:
-			for j in map.size.y:
+		for i: int in map.size.x:
+			for j: int in map.size.y:
 				# print("i=", i, " j=", j, " cell=", cells[i][j].type)
 				draw_cell(i, j, map.get_cell(Vector2i(i, j)))
 		map_texture.image = map_image

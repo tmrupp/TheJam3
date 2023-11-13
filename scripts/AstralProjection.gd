@@ -12,7 +12,7 @@ var false_player_origin: Sprite2D
 var held_color: Color
 
 # the function we assign to the player's 'hurt_ability' when using astral projection
-func astral_hurt (damage: int, v: Vector2, _attacker: Node) -> void:
+func astral_hurt (_damage: int, _v: Vector2, _attacker: Node) -> void:
 	pass
 
 func _ready() -> void:

@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3 uid="uid://d2g60ykg4f0u3"]
+[gd_scene load_steps=18 format=3 uid="uid://d2g60ykg4f0u3"]
 
 [ext_resource type="Script" path="res://scripts/Player.gd" id="1_yuot3"]
 [ext_resource type="Texture2D" uid="uid://44lhga6fen5t" path="res://sprites/Wizstronaut.png" id="3_kmhsc"]
@@ -15,6 +15,7 @@
 [ext_resource type="AudioStream" uid="uid://4wpkkq1rjkil" path="res://music/SoundEffects/sword-clash-1-trimmed.wav" id="12_pnhg0"]
 [ext_resource type="AudioStream" uid="uid://bo4ee3148kcfn" path="res://music/SoundEffects/whoosh_short_high_trimmed.wav" id="13_4xoeb"]
 [ext_resource type="AudioStream" uid="uid://dm1stefv3ci10" path="res://music/SoundEffects/521105__matrixxx__retro-explosion-07.wav" id="14_swv2c"]
+[ext_resource type="Script" path="res://scripts/WallClimb.gd" id="16_q140x"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_jk8bx"]
 size = Vector2(22.1139, 23.2384)
@@ -81,3 +82,6 @@ bus = &"SoundEffects"
 [node name="DeathSFX" type="AudioStreamPlayer" parent="."]
 stream = ExtResource("14_swv2c")
 bus = &"SoundEffects"
+
+[node name="WallClimb" type="Node2D" parent="."]
+script = ExtResource("16_q140x")

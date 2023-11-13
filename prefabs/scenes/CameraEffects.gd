@@ -1,12 +1,12 @@
 extends Camera2D
 
 var stored_delta: float = 0
-var rng = RandomNumberGenerator.new()
+var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	
-func _process(delta):
+func _process(delta: float) -> void:
 	stored_delta = delta
 
-func shake(intensity: float, direction: Vector2 = Vector2.ZERO) -> void:
+func shake(intensity: float, _direction: Vector2 = Vector2.ZERO) -> void:
 	while intensity > 0.01:
 		print("intensity: " + str(intensity))
 		offset = Vector2(rng.randf_range(-intensity, intensity), rng.randf_range(-intensity, intensity))
