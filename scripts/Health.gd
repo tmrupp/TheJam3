@@ -5,6 +5,7 @@ class_name Health
 @onready var player: Player = $".."
 @onready var hud: Node = $"/root/Main/CanvasLayer/HUD/TopHUD"
 @onready var hurt_sfx: AudioStreamPlayer = $AudioStreamPlayer
+@onready var camera: Camera2D = $/root/Main/Camera2D
 
 var max_health: int = 3
 var health: int = 3
@@ -16,6 +17,7 @@ func modify_health (delta: int) -> void:
 	
 	if delta < 0:
 		hurt_sfx.play()
+		camera.shake(15, 0.5)
 	
 	if health <= 0:
 		health = max_health

@@ -11,6 +11,8 @@ var scaling: float = 1.1
 
 @onready var parry_sfx: AudioStreamPlayer = $AudioStreamPlayer
 
+@onready var camera: Camera2D = $/root/Main/Camera2D
+
 func stop_parry () -> void:
 	player.hurt_ability = player.normal_hurt
 	collider.disabled = true
@@ -24,6 +26,7 @@ func parry (_damage: int, _v: Vector2, origin: Node) -> void:
 		cooldown.refresh()
 		timer.stop()
 		parry_sfx.play()
+		camera.shake(10, 0.2)
 
 func check_parry () -> void:
 	player.hurt_ability = parry
