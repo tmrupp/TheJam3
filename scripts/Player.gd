@@ -101,12 +101,21 @@ var coyote: ActionTimer = ActionTimer.new(0.1)
 # HANG_TIME: how long at thje apex of a jump does gravity distortion take place
 # HANG_FACTOR: by how much is gravity distorted when hanging
 # HANG_SPEED_TARGET: which speed to dampen gravity between (symmetrical)
+# TODO: still able to climb
 const HANG_FACTOR: float = 0.9
 const HANG_SPEED_TARGET: float = 40
 var hang: ActionTimer = ActionTimer.new(1000)
 
+# CLIMB_SPEED: how fast the player can climb
+# TODO: CLIMB_TIME: how long the player can hold onto a wall
+# climable: whether or not climbing is enabled
+const CLIMB_SPEED: float = 200.0
+const CLIMB_TIME: float = 3.0
+var climable: bool = true
+var climb: ActionTimer = ActionTimer.new(CLIMB_TIME)
+
 # all of the timers (for decrementing)
-var timers: Array[ActionTimer] = [dash, wall_jump, buffer_jump, coyote, hang, invulnerable, knock_back]
+var timers: Array[ActionTimer] = [dash, wall_jump, buffer_jump, coyote, hang, invulnerable, knock_back, climb]
 
 # whether or not the player has control
 var manual_control: bool = true
@@ -161,6 +170,7 @@ func die() -> void:
 # does a jump and triggers the jumping animation
 var animating_jumping: bool = false
 var jumping: bool = false
+var jump_held: bool = false
 func jump(factor: float=1.0) -> void:
 	velocity.y = JUMP_VELOCITY * factor
 	# animation_player.play("hop", -1, 4)
@@ -182,6 +192,13 @@ var dash_ability: Callable = do_dash
 
 func drop () -> void:
 	position.y += 1
+	
+func do_wall_jump (wall_normal: Vector2) -> void:
+	coyote.end()
+	jump(WALL_JUMP_Y_FACTOR)
+	velocity.x = wall_normal.x * WALL_JUMP_SPEED
+	wall_jump.enable(true)
+	
 
 func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("Parry"):
@@ -209,27 +226,34 @@ func _physics_process(delta: float) -> void:
 		if (col.get_normal().x != 0):
 			walled = true
 			wall_normal = col.get_normal()
+	
+	if climable and climb.actable() and jump_held and walled and wall_normal.x:
+		climb.enable()
 
 	# Add the gravity.
 	# in the air
 	if not is_on_floor():
 		coyote.enable()
 		
-		if (not dash.is_acting()):
-			var factor: float = 1.0 if not hang.is_acting() else HANG_FACTOR
-			velocity.y += gravity * factor * delta
+		if climb.is_acting():
+			if not walled:
+				#climb.end()
+				climb.pause()
+			else:
+				velocity.y = direction.y * SPEED
+		else:
+			if (not dash.is_acting()):
+				var factor: float = 1.0 if not hang.is_acting() else HANG_FACTOR
+				velocity.y += gravity * factor * delta
+				
+			# damp once velocity hits a certain amount
+			if (velocity.y < 0 and velocity.y > -HANG_SPEED_TARGET):
+				jumping = false
+				hang.enable()
+			# undamp once velocity exitys symmetrical range
+			if (velocity.y > 0 and velocity.y > HANG_SPEED_TARGET):
+				hang.end()
 			
-		# damp once velocity hits a certain amount
-		if (velocity.y < 0 and velocity.y > -HANG_SPEED_TARGET):
-			jumping = false
-			hang.enable()
-		# undamp once velocity exitys symmetrical range
-		if (velocity.y > 0 and velocity.y > HANG_SPEED_TARGET):
-			hang.end()
-
-		if (velocity.y > 0):
-			# animation_player.play("falling")
-			pass
 	else: # on the ground
 		animating_jumping = false
 		jumping = false
@@ -255,6 +279,7 @@ func _physics_process(delta: float) -> void:
 		dash.refresh()
 		coyote.refresh()
 		hang.refresh()
+		climb.refresh()
 		
 	# cannot dash then exploit coyote jump
 	if dash.is_acting():
@@ -262,6 +287,7 @@ func _physics_process(delta: float) -> void:
 
 	# Handle Jump.
 	if Input.is_action_just_pressed("Jump"):
+		jump_held = true
 		# normal jump, stop coyoting on a jump
 		if (is_on_floor() and direction.y > 0):
 			drop()
@@ -272,15 +298,19 @@ func _physics_process(delta: float) -> void:
 		# wall jump, damped normal jump and move away from wall
 		# takes away manual control
 		elif (walled and not is_on_floor()):
-			coyote.end()
-			jump(WALL_JUMP_Y_FACTOR)
-			velocity.x = wall_normal.x * WALL_JUMP_SPEED
-			wall_jump.enable(true)
+			do_wall_jump(wall_normal)
 		else:
 		# if not walled or grounded, buffer a jump
 			buffer_jump.enable(true)
 
 	if Input.is_action_just_released("Jump"):
+		jump_held = false
+		if climb.is_acting():
+			if (direction.x):
+				do_wall_jump(wall_normal)
+			#climb.end()
+			climb.pause()
+			
 		if jumping:
 			velocity.y *= JUMP_END_CUT_FACTOR
 		jumping = false

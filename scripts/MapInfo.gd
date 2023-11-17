@@ -287,7 +287,6 @@ func generate(world_code: String, map_code: String) -> void:
 
 func setup_chunks() -> void:
 	undiscovered_chunks = []
-	
 	var map_chunks: Vector2i = map.size/CHUNK_SIZE
 	
 	for i: int in range(0, map_chunks.x):
