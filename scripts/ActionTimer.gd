@@ -22,7 +22,7 @@ func enable(force: bool=false) -> void:
 		acted = true
 
 func elapse(t: float) -> void:
-	if acted and acting > 0 and not paused:
+	if acting > 0 and not paused:
 		acting -= t
 		if acting <= 0:
 			end_callback.bind(self).call()
