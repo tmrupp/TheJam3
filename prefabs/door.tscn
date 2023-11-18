@@ -1,32 +1,60 @@
-[gd_scene load_steps=6 format=3 uid="uid://cb4btnwv1dr1c"]
+[gd_scene load_steps=10 format=3 uid="uid://cb4btnwv1dr1c"]
 
+[ext_resource type="Texture2D" uid="uid://cnjjq0huj1j0q" path="res://sprites/door.png" id="1_ke5o0"]
 [ext_resource type="Script" path="res://scripts/Unlock.gd" id="2_00e43"]
-[ext_resource type="Texture2D" uid="uid://cbfvy2bvkgsqb" path="res://sprites/Tiles/tile_0028.png" id="2_cf302"]
 [ext_resource type="PackedScene" uid="uid://pwmevy3urxq6" path="res://prefabs/interactable.tscn" id="4_ebgxk"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_rt2ta"]
-size = Vector2(128, 128)
+size = Vector2(31.5, 32.5)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6rq0o"]
+atlas = ExtResource("1_ke5o0")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ptr0t"]
+atlas = ExtResource("1_ke5o0")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5u4cg"]
+atlas = ExtResource("1_ke5o0")
+region = Rect2(64, 0, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_5lcyh"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6rq0o")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ptr0t")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5u4cg")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_v706d"]
-size = Vector2(149, 147)
+size = Vector2(37, 37)
 
 [node name="Door" type="StaticBody2D"]
+scale = Vector2(4, 4)
 collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_rt2ta")
 
-[node name="Sprite2D" type="Sprite2D" parent="."]
-position = Vector2(1.90735e-06, 1.90735e-06)
-scale = Vector2(7.11111, 7.11111)
-texture = ExtResource("2_cf302")
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+sprite_frames = SubResource("SpriteFrames_5lcyh")
+autoplay = "default"
 
 [node name="Unlock" type="Area2D" parent="."]
 script = ExtResource("2_00e43")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Unlock"]
-position = Vector2(0.5, -0.5)
 shape = SubResource("RectangleShape2D_v706d")
 
 [node name="Interactable" parent="Unlock" instance=ExtResource("4_ebgxk")]
