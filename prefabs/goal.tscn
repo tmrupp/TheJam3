@@ -1,18 +1,19 @@
-[gd_scene load_steps=4 format=3 uid="uid://bcp7na3h7uyc2"]
+[gd_scene load_steps=5 format=3 uid="uid://xn5njx26bnud"]
 
-[ext_resource type="Script" path="res://scripts/goal.gd" id="1_07xy1"]
-[ext_resource type="Texture2D" uid="uid://b2b5vesa6orpg" path="res://sprites/diamond.png" id="2_1ok2v"]
+[ext_resource type="Script" path="res://scripts/goal.gd" id="1_ocfcj"]
+[ext_resource type="Texture2D" uid="uid://b2b5vesa6orpg" path="res://sprites/diamond.png" id="2_digce"]
+[ext_resource type="PackedScene" uid="uid://pwmevy3urxq6" path="res://prefabs/interactable.tscn" id="3_hhhxx"]
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_hy8e6"]
+[sub_resource type="CircleShape2D" id="CircleShape2D_ymkoh"]
 
 [node name="Goal" type="Area2D"]
-texture_filter = 1
-scale = Vector2(2, 2)
-script = ExtResource("1_07xy1")
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-shape = SubResource("CircleShape2D_hy8e6")
+scale = Vector2(4, 4)
+script = ExtResource("1_ocfcj")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
-texture_filter = 1
-texture = ExtResource("2_1ok2v")
+texture = ExtResource("2_digce")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_ymkoh")
+
+[node name="Interactable" parent="." instance=ExtResource("3_hhhxx")]
