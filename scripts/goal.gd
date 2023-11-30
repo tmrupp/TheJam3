@@ -14,10 +14,12 @@ func setup(_map_info: MapInfo, _v: Vector2i) -> void:
 func crack (map_code: String) -> void:
 	upgrade_menu.present()
 	map_info.generate(code, map_code)
-	
-func interacted () -> void:
-	code_menu.enable(code, map_info.all_map_codes.keys(), crack)
+
+func touch(other: Node) -> void:
+	if (other == player and other.get_parent() != null):
+#		print("self=", self, " player.position=", player.position, " collision=", player.get_collision())
+		code_menu.enable(code, map_info.all_map_codes.keys(), crack)
 		
 func _ready() -> void:
-	$Interactable.connect("interacted", interacted)
+	connect("body_entered", touch)
 	
