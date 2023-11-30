@@ -20,7 +20,6 @@ func _input(event: InputEvent) -> void:
 		if player_instance != null:
 			menu.visible = !menu.visible
 			
-
 func _pressed() -> void:
 	print("world seed=", get_seed(world_seed))
 	print(main)

@@ -16,6 +16,10 @@ extends CanvasLayer
 
 @onready var main: Node = $".."
 @onready var wfc_thread: Thread = Thread.new()
+@onready var upgrade_menu: Node = $"/root/Main/UpgradeMenu"
+
+var player_prefab: Resource = preload("res://prefabs/player.tscn")
+var old_focus: Control = null
 
 func start_game() -> void:
 	wfc_thread.start(wfc.generate_all.bind(
@@ -33,6 +37,11 @@ func start_game() -> void:
 	world_seed_container.visible = false
 	map_seed_container.visible = false
 	
+	var player: Player = player_prefab.instantiate()
+	main.add_child(player)
+
+	upgrade_menu.present(true)
+	
 func exit_game() -> void:
 	get_tree().quit()
 
@@ -47,9 +56,13 @@ func pause_resume_game() -> void:
 	# this check prevents the user from deactivating the menu when the game hasn't started
 	# by checking if the scene has a 'player' in it
 	if main.has_node("Player"): #!= null:
+		if not visible:
+			old_focus = get_viewport().gui_get_focus_owner()
+			start.grab_focus()
+		if visible and old_focus != null:
+			old_focus.grab_focus()
 		visible = !visible
 		get_tree().paused = visible
-		start.grab_focus()
 
 func randomize_seed () -> void:
 	world_seed.text = str(randi())

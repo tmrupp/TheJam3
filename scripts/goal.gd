@@ -12,7 +12,7 @@ func setup(_map_info: MapInfo, _v: Vector2i) -> void:
 
 # code will be useful with branching
 func crack (map_code: String) -> void:
-	upgrade_menu.present()
+	# upgrade_menu.present()
 	map_info.generate(code, map_code)
 
 func interacted () -> void:

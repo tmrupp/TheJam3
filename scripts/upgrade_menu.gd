@@ -7,11 +7,13 @@ func done () -> void:
 	visible = false
 	get_tree().paused = false
 
-func present () -> void:
+func present (choose_one:bool=false) -> void:
 	done_button.grab_focus()
 	visible = true
+	var i: int = 0
 	for option: Node in $ColorRect/VBoxContainer/HBoxContainer.get_children():
-		option.setup()
+		option.setup(choose_one, i)
+		i += 1
 	await get_tree().process_frame
 	get_tree().paused = true
 		

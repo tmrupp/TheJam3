@@ -111,7 +111,7 @@ var hang: ActionTimer = ActionTimer.new(1000)
 # climable: whether or not climbing is enabled
 const CLIMB_SPEED: float = 200.0
 const CLIMB_TIME: float = 3.0
-var climable: bool = true
+var climable: bool = false
 var climb: ActionTimer = ActionTimer.new(CLIMB_TIME)
 
 # all of the timers (for decrementing)

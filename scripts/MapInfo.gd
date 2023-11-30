@@ -369,7 +369,7 @@ func clear_terrain() -> void:
 		
 	map_elements.queue_free()
 
-var player_prefab: Resource = preload("res://prefabs/player.tscn")
+
 var valid_keys: Array[String] = []
 
 func remove_valid_key (key: String) -> void:
@@ -412,12 +412,9 @@ func load_all(world_cells: Array, world_seed: NextWorldDef, map_cells: Array, ma
 		all_map_codes[code] = map.codes[code]
 	
 	valid_keys.append_array(map.keys)
-	
+
 	if player == null:
-		player = player_prefab.instantiate()
-		
-	if player.get_parent() == null:
-		main.add_child(player)
+		player = $"/root/Main/Player"
 
 	map_elements = map_elements_prefab.instantiate()
 	main.add_child(map_elements)

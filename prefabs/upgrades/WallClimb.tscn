@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://4m5upy4efmdp"]
+
+[ext_resource type="Script" path="res://scripts/WallClimb.gd" id="1_tvxpi"]
+
+[node name="WallClimb" type="Node"]
+script = ExtResource("1_tvxpi")
