@@ -104,7 +104,7 @@ seed = 28
 symmetry = 5
 pattern_size = 3
 visible = false
-position = Vector2(5.38903, 7.62671)
+position = Vector2(3.44828, 19.3688)
 texture = ExtResource("5_3ptxv")
 script = ExtResource("8_vwnae")
 

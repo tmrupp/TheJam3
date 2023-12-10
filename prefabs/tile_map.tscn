@@ -1,7 +1,7 @@
 [gd_scene load_steps=6 format=3 uid="uid://bf08akeilq3j1"]
 
 [ext_resource type="Texture2D" uid="uid://bhyc1nxrw6odj" path="res://sprites/tilemap/Terrain (32x32).png" id="1_3mxyl"]
-[ext_resource type="Texture2D" uid="uid://gcodstqokovb" path="res://sprites/tilemap/Background1 (32x32).png" id="2_1yf4y"]
+[ext_resource type="Texture2D" uid="uid://b3auiln6yrorv" path="res://sprites/tilemap/Background1_duplicated.png" id="2_2llr5"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_rcwvb"]
 texture = ExtResource("1_3mxyl")
@@ -478,7 +478,7 @@ texture_region_size = Vector2i(32, 32)
 16:3/0/terrains_peering_bit/left_side = 0
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_f0tct"]
-texture = ExtResource("2_1yf4y")
+texture = ExtResource("2_2llr5")
 texture_region_size = Vector2i(32, 32)
 0:0/0 = 0
 0:0/0/physics_layer_0/linear_velocity = Vector2(0, 0)
