@@ -3,6 +3,7 @@ extends CanvasLayer
 const CONTOUR = preload("res://scripts/FourierContours.gd")
 const FIELD_SHADER: Shader = preload("res://shaders/fourier_field.gdshader")
 @export var enabled: bool = false
+@export var solid_shapes: bool = false
 @export var reduced_motion: bool = false
 @export_range(2, 4) var line_count: int = 4
 @export var spacing_pixels: float = 1.25
@@ -80,7 +81,7 @@ func _process(delta: float) -> void:
 			motion = Vector2.ZERO
 		var entry: Dictionary = {"points": points, "bounds": bounds, "center": transform.origin,
 			"motion": motion, "inner": visual.inner_color * tint, "outer": visual.outer_color * tint,
-			"unresolved": 0.0 if reduced_motion else 1.0 - visual.convergence}
+			"unresolved": 0.0 if reduced_motion else maxf(1.0 - visual.convergence, visual.effect_pulse)}
 		var group: StringName = visual.merge_group
 		if not groups.has(group):
 			groups[group] = []
@@ -151,5 +152,6 @@ func _draw_entries(entries: Array, index: int, screen: Rect2) -> int:
 	ink.set_shader_parameter("merge_radius", max(merge_radius_pixels, 0.001))
 	ink.set_shader_parameter("max_distortion", 0.0 if reduced_motion else max_distortion_pixels)
 	ink.set_shader_parameter("phase", elapsed)
+	ink.set_shader_parameter("solid_shapes", solid_shapes)
 	rect.show()
 	return index + 1

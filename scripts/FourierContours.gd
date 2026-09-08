@@ -3,7 +3,7 @@ extends ColorRect
 ## Fourier reconstruction of radial or closed silhouettes. No texture or native extension needed.
 ## Place as a child of a portal, pickup, UI panel, or a Node2D.
 
-enum Outline { ROUNDED_DIAMOND, ROUNDED_SQUARE, ORBITAL, HUMANOID }
+enum Outline { ROUNDED_DIAMOND, ROUNDED_SQUARE, ORBITAL, HUMANOID, CIRCLE }
 
 @export var outline: Outline = Outline.ROUNDED_DIAMOND:
 	set(value):
@@ -69,6 +69,8 @@ func _ready() -> void:
 	_update_uniforms()
 
 func _target_radius(angle: float) -> float:
+	if outline == Outline.CIRCLE:
+		return 0.23
 	if outline == Outline.ORBITAL:
 		return 0.225 + 0.035 * cos(3.0 * angle + 0.4) + 0.018 * sin(5.0 * angle)
 	var rotated: float = angle + (PI / 4.0 if outline == Outline.ROUNDED_DIAMOND else 0.0)

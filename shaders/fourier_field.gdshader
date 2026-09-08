@@ -14,12 +14,14 @@ uniform float line_width = 0.65;
 uniform float merge_radius = 10.0;
 uniform float max_distortion = 7.0;
 uniform float phase;
+uniform bool solid_shapes = false;
 
 void fragment() {
     vec2 p = UV * rect_size;
     float field = 100000.0;
     vec4 inner = vec4(0.0);
     vec4 outer = vec4(0.0);
+    float activity = 0.0;
     for (int object = 0; object < 4; object++) {
         if (object >= object_count) { break; }
         float speed = length(motion[object]);
@@ -49,6 +51,7 @@ void fragment() {
         field = mix(distance, field, h) - merge_radius * h * (1.0 - h);
         inner = mix(inner_colors[object], inner, h);
         outer = mix(outer_colors[object], outer, h);
+        activity = mix(clamp(speed + unresolved[object], 0.0, 1.0), activity, h);
     }
     vec3 ink_sum = vec3(0.0);
     float coverage = 0.0;
@@ -59,8 +62,18 @@ void fragment() {
         float stroke = 1.0 - smoothstep(line_width * 0.5, line_width * 0.5 + aa, d);
         vec4 ink = mix(inner, outer, float(ring) / float(max(line_count - 1, 1)));
         float alpha = (stroke + 0.07 * exp(-d / 1.3)) * ink.a;
+        if (solid_shapes) { alpha *= smoothstep(0.02, 0.65, activity); }
         ink_sum += ink.rgb * alpha;
         coverage += alpha;
     }
-    COLOR = vec4(ink_sum / max(coverage, 0.0001), clamp(coverage, 0.0, 1.0)) * COLOR;
+    if (solid_shapes) {
+        float fill_alpha = (1.0 - smoothstep(-aa, aa, field)) * inner.a;
+        vec3 fill_color = mix(inner.rgb, outer.rgb, 0.12);
+        float line_alpha = clamp(coverage, 0.0, 1.0) * (1.0 - fill_alpha);
+        float alpha = fill_alpha + line_alpha;
+        vec3 color = (fill_color * fill_alpha + ink_sum / max(coverage, 0.0001) * line_alpha) / max(alpha, 0.0001);
+        COLOR = vec4(color, alpha) * COLOR;
+    } else {
+        COLOR = vec4(ink_sum / max(coverage, 0.0001), clamp(coverage, 0.0, 1.0)) * COLOR;
+    }
 }

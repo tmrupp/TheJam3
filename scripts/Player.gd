@@ -50,6 +50,7 @@ func show_invulnerable() -> void:
 
 func normal_hurt (damage: int, v: Vector2, _attacker: Node) -> void:
 	if not invulnerable.is_acting():
+		pulse_fourier(0.9)
 		health.modify_health(damage)
 		invulnerable.enable()
 		knock_back.enable()
@@ -156,6 +157,12 @@ func reset_fourier_motion() -> void:
 	var visual: Node = get_node_or_null("FourierVisual")
 	if visual != null:
 		visual.reset_motion()
+		visual.pulse(0.7)
+
+func pulse_fourier(strength: float) -> void:
+	var visual: Node = get_node_or_null("FourierVisual")
+	if visual != null:
+		visual.pulse(strength)
 
 func setup_corpse (pos: Vector2) -> void:
 	var corpse: Node2D = corpse_prefab.instantiate()
@@ -178,6 +185,7 @@ var animating_jumping: bool = false
 var jumping: bool = false
 var jump_held: bool = false
 func jump(factor: float=1.0) -> void:
+	pulse_fourier(0.55)
 	velocity.y = JUMP_VELOCITY * factor
 	# animation_player.play("hop", -1, 4)
 	# animation_player.queue("falling")
