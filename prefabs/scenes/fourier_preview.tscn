@@ -1,0 +1,77 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/FourierPreview.gd" id="1_preview"]
+[ext_resource type="PackedScene" path="res://prefabs/fourier_contours.tscn" id="2_effect"]
+
+[sub_resource type="Theme" id="Theme_preview"]
+default_font_size = 9
+
+[node name="FourierPreview" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = SubResource("Theme_preview")
+script = ExtResource("1_preview")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+color = Color(0.024, 0.016, 0.04, 1)
+
+[node name="Effect" parent="." instance=ExtResource("2_effect")]
+layout_mode = 0
+line_width = 0.65
+glow = 0.12
+outline = 3
+spacing = 0.008
+animate = false
+convergence = 1.0
+
+[node name="Panel" type="MarginContainer" parent="."]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 8.0
+offset_right = 104.0
+offset_bottom = 164.0
+
+[node name="Controls" type="VBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="Title" type="Label" parent="Panel/Controls"]
+layout_mode = 2
+text = "FOURIER FIELD"
+
+[node name="Subtitle" type="Label" parent="Panel/Controls"]
+layout_mode = 2
+modulate = Color(0.65, 0.58, 0.71, 1)
+text = "Drag either shape.\nFaster = distortion."
+
+[node name="Outline" type="OptionButton" parent="Panel/Controls"]
+layout_mode = 2
+
+[node name="Animate" type="CheckButton" parent="Panel/Controls"]
+layout_mode = 2
+button_pressed = false
+text = "Converge"
+
+[node name="Move" type="CheckButton" parent="Panel/Controls"]
+layout_mode = 2
+button_pressed = true
+text = "Motion"
+
+[node name="Label" type="Label" parent="Panel/Controls"]
+layout_mode = 2
+text = "Convergence"
+
+[node name="Convergence" type="HSlider" parent="Panel/Controls"]
+layout_mode = 2
+max_value = 1.0
+step = 0.01
+value = 1.0
