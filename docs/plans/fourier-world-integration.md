@@ -1,6 +1,6 @@
 # Fourier field integration plan
 
-Status: proposed; implementation is not authorized by this planning document.
+Status: implementation authorized by the user's follow-up. An opt-in playable slice is implemented; see `docs/FOURIER_INTEGRATION.md` for verified scope and remaining rollout gates.
 Branch: `design/fourier-world-integration`, based on `main` at `9d08e5c`.
 Date: 2026-09-08.
 
@@ -103,7 +103,7 @@ Exit: no disappearance at capacity, no popping selection, and a documented perfo
 
 ## Branch and rollout strategy
 
-This branch contains the plan only. Implementation can continue here in reviewable commits: (1) prototype baseline/tests, (2) provider and player adapter, (3) merge-room slice, (4) lifecycle/ability handling, (5) capacity/performance and rollout. Do not mix the seeded-progression redesign or engine upgrades into these commits.
+The branch began with the plan-only commit and now includes the prototype and playable integration. Continue in reviewable commits; do not mix the seeded-progression redesign or engine upgrades into them. The opt-in integration reaches the first playable checkpoint below with lifecycle hooks and a conservative capacity fallback; dense-scene/art rollout remains gated.
 
 Keep the visual feature opt-in until the playable slice and performance gates pass. Turning it off restores original sprites and disables field processing; collisions, generation, and saves require no migration. No push or pull request is part of this planning task.
 
