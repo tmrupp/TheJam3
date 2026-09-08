@@ -7,6 +7,7 @@ var go_to_pos: Vector2
 func use_portal() -> void:
 	#print("used the portal named " + name)
 	player.position = go_to_pos
+	player.reset_fourier_motion()
 	portal_sfx.play()
 
 func setup(map_info: MapInfo, _coord: Vector2, partner_coord: Vector2) -> void:

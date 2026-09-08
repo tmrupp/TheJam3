@@ -19,6 +19,7 @@ func blink (direction: Vector2) -> void:
 		await get_tree().physics_frame
 		if not (area.has_overlapping_areas() or area.has_overlapping_bodies()):
 			player.position = destination
+			player.reset_fourier_motion()
 			return
 		destination = max_destination.lerp(player.position, float(s)/float(STEPS))
 

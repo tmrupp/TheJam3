@@ -48,6 +48,7 @@ func end_projection(_timer: ActionTimer) -> void:
 	
 	# reset our position to the visual clone's
 	player.position = false_player_origin.position
+	player.reset_fourier_motion()
 	
 	# reset our color
 	visual.modulate = held_color

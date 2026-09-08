@@ -9,7 +9,7 @@ var field: ColorRect
 var second: ColorRect
 var motion_time: float = 0.0
 var dragging: ColorRect
-var drag_offset := Vector2.ZERO
+var drag_offset: Vector2 = Vector2.ZERO
 
 func _ready() -> void:
 	field = ColorRect.new()
@@ -48,7 +48,7 @@ func _layout_effect() -> void:
 
 func _place_objects() -> void:
 	var separation: float = size.x * (0.055 + 0.09 * (0.5 + 0.5 * cos(motion_time * 1.6)))
-	var center := Vector2(size.x * 0.69, size.y * 0.54)
+	var center: Vector2 = Vector2(size.x * 0.69, size.y * 0.54)
 	effect.position = center - Vector2(separation, 0.0) - effect.size * 0.5
 	second.position = center + Vector2(separation, sin(motion_time * 1.6) * size.y * 0.06) - second.size * 0.5
 

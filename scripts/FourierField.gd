@@ -24,24 +24,25 @@ func reset_motion() -> void:
 
 func _process(delta: float) -> void:
 	elapsed += delta
-	var points := PackedVector2Array()
+	var points: PackedVector2Array = PackedVector2Array()
 	points.resize(512)
-	var centers := PackedVector2Array()
-	var motion := PackedVector2Array()
-	var inner := PackedColorArray()
-	var outer := PackedColorArray()
-	var unresolved := PackedFloat32Array()
+	var centers: PackedVector2Array = PackedVector2Array()
+	var motion: PackedVector2Array = PackedVector2Array()
+	var inner: PackedColorArray = PackedColorArray()
+	var outer: PackedColorArray = PackedColorArray()
+	var unresolved: PackedFloat32Array = PackedFloat32Array()
 	centers.resize(4)
 	motion.resize(4)
 	inner.resize(4)
 	outer.resize(4)
 	unresolved.resize(4)
 	var count: int = 0
-	for child in get_children():
+	for child: Variant in get_children():
 		if not child is CONTOUR:
 			continue
 		child.hide() # Only the shared field draws; children still update their harmonics.
 		if count == 4:
+			child.show() # Capacity fallback: keep extra objects independently visible.
 			continue
 		var transform: Transform2D = child.get_transform()
 		var center: Vector2 = transform * (child.size * 0.5)
@@ -57,7 +58,7 @@ func _process(delta: float) -> void:
 		outer[count] = child.outer_color
 		unresolved[count] = 1.0 - float(child.material.get_shader_parameter("convergence"))
 		var contour: PackedVector2Array = child.get_field_contour()
-		for index in range(128):
+		for index: Variant in range(128):
 			points[count * 128 + index] = transform * (child.size * 0.5 + contour[index] * min(child.size.x, child.size.y))
 		count += 1
 	material.set_shader_parameter("object_count", count)

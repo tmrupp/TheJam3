@@ -147,9 +147,15 @@ func get_collision () -> bool:
 #puts the player back at the spawn location
 func reset_position() -> void:
 	position = respawn.position
+	reset_fourier_motion()
 	velocity = Vector2.ZERO	
 	knock = Vector2.ZERO
 	await get_tree().physics_frame
+
+func reset_fourier_motion() -> void:
+	var visual: Node = get_node_or_null("FourierVisual")
+	if visual != null:
+		visual.reset_motion()
 
 func setup_corpse (pos: Vector2) -> void:
 	var corpse: Node2D = corpse_prefab.instantiate()

@@ -38,7 +38,7 @@ const HUMANOID_POINTS: Array[Vector2] = [
 	Vector2(-0.055, -0.23), Vector2(-0.065, -0.27), Vector2(-0.045, -0.305),
 ]
 var elapsed: float = 0.0
-var contour_mean := Vector2.ZERO
+var contour_mean: Vector2 = Vector2.ZERO
 var contour_cos: Array[Vector2] = []
 var contour_sin: Array[Vector2] = []
 var cached_resolution: float = -1.0
@@ -46,14 +46,14 @@ var cached_resolution: float = -1.0
 func get_field_contour() -> PackedVector2Array:
 	if outline == Outline.HUMANOID:
 		return material.get_shader_parameter("contour_points")
-	var points := PackedVector2Array()
+	var points: PackedVector2Array = PackedVector2Array()
 	var coefficients: PackedVector2Array = material.get_shader_parameter("coefficients")
 	var resolved: float = material.get_shader_parameter("convergence")
 	var mean: float = material.get_shader_parameter("mean_radius")
-	for index in range(128):
+	for index: Variant in range(128):
 		var angle: float = TAU * float(index) / 128.0
 		var radius: float = mean
-		for harmonic in range(12):
+		for harmonic: Variant in range(12):
 			var n: float = harmonic + 1.0
 			radius += smoothstep(n - 1.0, n, resolved * 13.0) * coefficients[harmonic].dot(Vector2(cos(n * angle), sin(n * angle)))
 		points.append(Vector2(cos(angle), sin(angle)) * radius)
@@ -98,22 +98,22 @@ func _update_coefficients() -> void:
 func _build_closed_contour() -> void:
 	# Arc-length sampling retains neck/underarm concavities that a radial graph cannot.
 	var lengths: Array[float] = [0.0]
-	for index in range(HUMANOID_POINTS.size()):
+	for index: Variant in range(HUMANOID_POINTS.size()):
 		lengths.append(lengths[-1] + HUMANOID_POINTS[index].distance_to(HUMANOID_POINTS[(index + 1) % HUMANOID_POINTS.size()]))
 	contour_mean = Vector2.ZERO
 	contour_cos.clear()
 	contour_sin.clear()
-	for harmonic in range(HARMONICS):
+	for harmonic: Variant in range(HARMONICS):
 		contour_cos.append(Vector2.ZERO)
 		contour_sin.append(Vector2.ZERO)
 	var edge: int = 0
-	for sample_index in range(SAMPLE_COUNT):
+	for sample_index: Variant in range(SAMPLE_COUNT):
 		var distance: float = lengths[-1] * float(sample_index) / SAMPLE_COUNT
 		while edge < HUMANOID_POINTS.size() - 1 and lengths[edge + 1] < distance:
 			edge += 1
 		var point: Vector2 = HUMANOID_POINTS[edge].lerp(HUMANOID_POINTS[(edge + 1) % HUMANOID_POINTS.size()], (distance - lengths[edge]) / (lengths[edge + 1] - lengths[edge]))
 		contour_mean += point / SAMPLE_COUNT
-		for harmonic in range(HARMONICS):
+		for harmonic: Variant in range(HARMONICS):
 			var angle: float = TAU * float(sample_index) / SAMPLE_COUNT * (harmonic + 1)
 			contour_cos[harmonic] += point * (2.0 * cos(angle) / SAMPLE_COUNT)
 			contour_sin[harmonic] += point * (2.0 * sin(angle) / SAMPLE_COUNT)
@@ -123,11 +123,11 @@ func _update_closed_contour(resolved: float) -> void:
 	if is_equal_approx(cached_resolution, resolved):
 		return
 	cached_resolution = resolved
-	var points := PackedVector2Array()
-	for index in range(128):
+	var points: PackedVector2Array = PackedVector2Array()
+	for index: Variant in range(128):
 		var angle: float = TAU * float(index) / 128.0
 		var point: Vector2 = contour_mean
-		for harmonic in range(HARMONICS):
+		for harmonic: Variant in range(HARMONICS):
 			var n: float = float(harmonic + 1)
 			var weight: float = smoothstep(n - 1.0, n, 1.0 + resolved * HARMONICS)
 			point += weight * (contour_cos[harmonic] * cos(n * angle) + contour_sin[harmonic] * sin(n * angle))
