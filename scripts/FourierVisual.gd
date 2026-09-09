@@ -1,4 +1,5 @@
 extends Node2D
+signal motion_reset
 ## Presentation-only provider. Never reparents or hides its gameplay owner.
 @export_enum("Diamond", "Square", "Orbital", "Humanoid", "Circle") var outline: int = 3
 @export var contour_size: Vector2 = Vector2(32, 32)
@@ -26,6 +27,7 @@ func _ready() -> void:
 func reset_motion() -> void:
 	reset_pending = true
 	world_velocity = Vector2.ZERO
+	motion_reset.emit()
 
 func _physics_process(delta: float) -> void:
 	effect_pulse = maxf(0.0, effect_pulse - delta * 1.8)

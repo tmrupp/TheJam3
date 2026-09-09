@@ -75,10 +75,10 @@ func _process(_delta: float) -> void:
 	identities.queue_redraw()
 
 func _draw_identities() -> void:
-	var center: Vector2 = player.get_node("FourierVisual").get_global_transform_with_canvas().origin
+	var transform: Transform2D = player.get_node("FourierVisual").get_global_transform_with_canvas()
 	var color: Color = Color(0.13, 0.12, 0.2, player.get_node("Sprite2D").modulate.a)
-	identities.draw_circle(center + Vector2(-7, -4), 2.4, color)
-	identities.draw_circle(center + Vector2(7, -4), 2.4, color)
+	identities.draw_circle(transform * Vector2(-2.3, -1.3), 2.4, color)
+	identities.draw_circle(transform * Vector2(2.3, -1.3), 2.4, color)
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	# Keep the new art visible: F1 changes contour intensity, not the base art style.
