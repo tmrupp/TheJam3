@@ -6,14 +6,17 @@ var locomotion: Node2D
 var old_scale: Vector2i
 var old_snap_transforms: bool
 var old_snap_vertices: bool
+var old_msaa: int
 
 func _ready() -> void:
 	old_scale = get_window().content_scale_size
 	old_snap_transforms = get_viewport().snap_2d_transforms_to_pixel
 	old_snap_vertices = get_viewport().snap_2d_vertices_to_pixel
+	old_msaa = get_viewport().msaa_2d
 	get_window().content_scale_size = Vector2i(960, 540)
 	get_viewport().snap_2d_transforms_to_pixel = false
 	get_viewport().snap_2d_vertices_to_pixel = false
+	get_viewport().msaa_2d = Viewport.MSAA_4X
 	super._ready()
 	$Camera2D.zoom = Vector2(0.75, 0.75)
 	$CanvasLayer.hide()
@@ -101,3 +104,4 @@ func _exit_tree() -> void:
 	get_window().content_scale_size = old_scale
 	get_viewport().snap_2d_transforms_to_pixel = old_snap_transforms
 	get_viewport().snap_2d_vertices_to_pixel = old_snap_vertices
+	get_viewport().msaa_2d = old_msaa

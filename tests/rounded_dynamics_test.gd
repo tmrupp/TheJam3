@@ -25,6 +25,14 @@ func run() -> void:
 	var geometry: Array = gait.envelope_geometry()
 	assert(geometry.size() == 3 and geometry[0].points.size() == 129)
 	assert(geometry[0].points[0] == geometry[0].points[-1], "Contours must close")
+	var center: Vector2 = visual.get_global_transform_with_canvas().origin
+	for index: int in range(128):
+		var inner: Vector2 = geometry[0].points[index] - center
+		var middle: Vector2 = geometry[1].points[index] - center
+		var outer: Vector2 = geometry[2].points[index] - center
+		assert(absf(inner.normalized().cross(outer.normalized())) < 0.001, "All rings share radial center")
+		assert(absf(middle.length() - inner.length() - 3.0) < 0.001, "Concentric spacing")
+		assert(absf(outer.length() - middle.length() - 3.0) < 0.001, "No displaced ring centers")
 	var strength: float = gait.envelope_strength
 	visual.world_velocity = Vector2(-400, 0)
 	gait._update_dynamics(1.0 / 60.0, true, 0.0)

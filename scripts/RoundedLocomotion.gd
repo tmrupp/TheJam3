@@ -8,6 +8,7 @@ var stride_blend: float = 0.0
 var facing: float = 1.0
 var grounded_override: int = -1 # Art capture/tests only; gameplay reads is_on_floor().
 var rings: Node2D
+var limbs: Node2D
 var body_spring: Vector2 = Vector2(1.0, 0.0) # Width stretch, lean shear.
 var body_rate: Vector2 = Vector2.ZERO
 var previous_velocity: Vector2 = Vector2.ZERO
@@ -15,6 +16,7 @@ var was_grounded: bool = true
 var envelope_direction: Vector2 = Vector2.RIGHT
 var envelope_strength: float = 0.0
 var reversing: bool = false
+var filtered_acceleration: Vector2 = Vector2.ZERO
 
 func setup(actor: CharacterBody2D, renderer: CanvasLayer) -> void:
 	player = actor
@@ -27,12 +29,16 @@ func setup(actor: CharacterBody2D, renderer: CanvasLayer) -> void:
 	rings = Node2D.new()
 	tail_layer.add_child(rings)
 	rings.draw.connect(_draw_rings)
+	limbs = Node2D.new()
+	tail_layer.add_child(limbs)
+	limbs.draw.connect(_draw_limbs)
 	reset_dynamics()
 
 func reset_dynamics() -> void:
 	body_spring = Vector2(1.0, 0.0)
 	body_rate = Vector2.ZERO
 	previous_velocity = Vector2.ZERO
+	filtered_acceleration = Vector2.ZERO
 	was_grounded = player.is_on_floor()
 	envelope_strength = 0.0
 	reversing = false
@@ -51,16 +57,22 @@ func _process(delta: float) -> void:
 	_update_dynamics(delta, grounded, bob)
 	queue_redraw()
 	rings.queue_redraw()
+	limbs.queue_redraw()
 
 func _update_dynamics(delta: float, grounded: bool, bob: float) -> void:
 	var velocity: Vector2 = visual.world_velocity
 	var acceleration: Vector2 = (velocity - previous_velocity) / maxf(delta, 0.001)
+	filtered_acceleration = filtered_acceleration.lerp(acceleration.limit_length(8000.0), 1.0 - exp(-20.0 * delta))
 	var horizontal: float = clampf(absf(velocity.x) / 600.0, 0.0, 1.0)
 	var vertical: float = clampf(absf(velocity.y) / 600.0, 0.0, 1.0)
-	var target: Vector2 = Vector2(1.0 + 0.12 * horizontal - (0.14 * vertical if not grounded else 0.0),
-		clampf(velocity.x / 600.0 * 0.2 + acceleration.x / 6000.0 * 0.1, -0.28, 0.28))
+	# Continuous load response: push-off stretches; braking/support compresses.
+	var inertial_load: float = clampf(filtered_acceleration.dot(velocity.normalized()) / 6000.0, -1.0, 1.0)
+	var support_load: float = pow(absf(cos(gait_phase * TAU * 2.0)), 6.0) * stride_blend if grounded else 0.0
+	var target: Vector2 = Vector2(1.0 + 0.13 * horizontal - (0.22 * vertical if not grounded else 0.0)
+		- 0.04 * inertial_load + 0.035 * support_load,
+		clampf(velocity.x / 600.0 * 0.22 + filtered_acceleration.x / 6000.0 * 0.13, -0.3, 0.3))
 	if grounded and not was_grounded and previous_velocity.y > 80.0:
-		body_rate.x += minf(previous_velocity.y / 300.0, 2.0) * 2.0
+		body_rate.x += minf(previous_velocity.y / 300.0, 2.0) * 3.0
 	previous_velocity = velocity
 	was_grounded = grounded
 	if world.reduced_motion:
@@ -75,7 +87,7 @@ func _update_dynamics(delta: float, grounded: bool, bob: float) -> void:
 		for step: int in range(steps):
 			body_rate += ((target - body_spring) * 324.0 - body_rate * 27.0) * dt
 			body_spring += body_rate * dt
-		body_spring.x = clampf(body_spring.x, 0.84, 1.18)
+		body_spring.x = clampf(body_spring.x, 0.8, 1.24)
 		body_spring.y = clampf(body_spring.y, -0.3, 0.3)
 		_update_envelope(delta, velocity)
 	# Area-preserving stretch + hip-pivoted shear: top lags, feet remain independent.
@@ -118,24 +130,38 @@ func foot_position(leg: int) -> Vector2:
 		lift = sin(swing * PI) * 3.0
 	return Vector2(side * 2.3 + x * facing * stride_blend, 6.8 - lift * stride_blend)
 
-func _draw() -> void:
+func _draw_limbs() -> void:
 	if not is_instance_valid(player):
 		return
 	var transform: Transform2D = player.get_global_transform_with_canvas()
 	var tint: Color = visual.presentation_tint()
 	for leg: int in range(2):
 		var side: float = -1.0 if leg == 0 else 1.0
-		var hip: Vector2 = Vector2(side * 2.3, 2.7)
-		var foot: Vector2 = foot_position(leg)
-		var knee: Vector2 = hip.lerp(foot, 0.55) + Vector2(facing * 1.0, 0.0)
-		var color: Color = Color(0.78, 0.37, 0.3) if leg == 0 else Color(1.0, 0.64, 0.43)
+		var hip: Vector2 = visual.get_global_transform_with_canvas() * Vector2(side * 2.8, 6.0)
+		var foot: Vector2 = transform * foot_position(leg)
+		var bend: Vector2 = hip.lerp(foot, 0.52) + transform.x * facing * 0.8
+		var color: Color = visual.inner_color.lerp(visual.outer_color, 0.12)
+		if leg == 0:
+			color = color.darkened(0.07)
 		color *= tint
-		var width: float = transform.x.length() * 1.7
-		draw_line(transform * hip, transform * knee, color, width, true)
-		draw_line(transform * knee, transform * foot, color, width, true)
-		draw_circle(transform * knee, width * 0.5, color)
-		draw_line(transform * foot, transform * (foot + Vector2(facing * 1.5, 0.0)), color, width, true)
-		draw_circle(transform * foot, width * 0.5, color)
+		var left: PackedVector2Array = PackedVector2Array()
+		var right: PackedVector2Array = PackedVector2Array()
+		# A tapered curved limb blends into the body, without visible stick joints.
+		for sample_index: int in range(17):
+			var t: float = float(sample_index) / 16.0
+			var point: Vector2 = hip * pow(1.0 - t, 2.0) + bend * (2.0 * t * (1.0 - t)) + foot * t * t
+			var tangent: Vector2 = ((bend - hip) * (1.0 - t) + (foot - bend) * t).normalized()
+			var radius: float = transform.x.length() * lerpf(2.2, 0.9, smoothstep(0.0, 1.0, t))
+			left.append(point + tangent.orthogonal() * radius)
+			right.append(point - tangent.orthogonal() * radius)
+		right.reverse()
+		left.append_array(right)
+		limbs.draw_colored_polygon(left, color)
+		var sole: PackedVector2Array = PackedVector2Array()
+		for sample_index: int in range(48):
+			var angle: float = TAU * sample_index / 48.0
+			sole.append(foot + transform.x * (facing * 0.45 + cos(angle) * 1.55) + transform.y * sin(angle) * 0.85)
+		limbs.draw_colored_polygon(sole, color)
 
 func envelope_geometry() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
@@ -151,10 +177,13 @@ func envelope_geometry() -> Array[Dictionary]:
 			var relative: Vector2 = transform * (point * visual.contour_size) - center
 			var normal: Vector2 = relative.normalized()
 			var rear: float = smoothstep(-0.5, 0.8, -normal.dot(direction))
-			var gap: float = 2.0 + ring * 2.7
-			var tail: float = envelope_strength * (4.0 + ring * ring * 9.0)
-			points.append(center + relative + normal * gap - direction * rear * tail)
-			weights.append(lerpf(0.2, 1.0, rear))
+			var gap: float = 2.5 + ring * 3.0
+			# One common radial profile, offset concentrically. No per-ring translation.
+			# A narrow rear lobe makes a comet taper without widening the whole wake.
+			var alignment: float = maxf(0.0, -normal.dot(direction))
+			var tail: float = envelope_strength * 48.0 * pow(alignment, 6.0)
+			points.append(center + normal * (relative.length() + gap + tail))
+			weights.append(lerpf(0.35, 1.0, rear) * (1.0 - 0.45 * pow(alignment, 8.0)))
 		points.append(points[0])
 		weights.append(weights[0])
 		result.append({"points": points, "weights": weights})
