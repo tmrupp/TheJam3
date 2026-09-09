@@ -11,8 +11,11 @@ paths = sorted(args.frames.glob("frame_*.png"))
 if len(paths) != 240:
     raise SystemExit(f"Expected 240 capture frames, found {len(paths)}")
 # A common palette prevents color shimmer between frames.
-with Image.open(paths[60]) as representative:
-    palette = representative.convert("RGB").quantize(colors=192)
+swatches = Image.new("RGB", (960, 180))
+for index, path in enumerate(paths[::20]):
+    with Image.open(path) as sample:
+        swatches.paste(sample.convert("RGB").resize((160, 90)), ((index % 6) * 160, (index // 6) * 90))
+palette = swatches.quantize(colors=192)
 frames = []
 for path in paths:
     with Image.open(path) as source:

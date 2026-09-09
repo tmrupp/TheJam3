@@ -10,6 +10,9 @@ const TIME_BETWEEN_ELEMENTS: float = 0.05
 var continue_making_trail: bool = false
 	
 func make_trail() -> void:
+	# Rounded presentation owns its contour echoes; do not spawn hidden pixel copies.
+	if sprite2d_to_use.visibility_layer == 0:
+		return
 	continue_making_trail = true
 	make_trail_element()
 	while continue_making_trail:

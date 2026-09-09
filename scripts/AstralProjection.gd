@@ -24,6 +24,10 @@ func elapse(delta: float) -> void:
 	projection_timer.elapse(delta)
 
 func project() -> void:
+	# Do not orphan the existing origin or overwrite its return state.
+	if is_instance_valid(false_player_origin):
+		return
+	player.visual_event.emit(&"projection_start", player.global_position)
 	projection_timer.enable()
 	
 	# clone the visual
@@ -44,6 +48,9 @@ func project() -> void:
 	visual.modulate = Color(0, 1, 1, 0.5)
 
 func end_projection(_timer: ActionTimer) -> void:
+	if not is_instance_valid(false_player_origin):
+		return
+	player.visual_event.emit(&"projection_end", false_player_origin.global_position)
 	projection_timer.refresh()
 	
 	# reset our position to the visual clone's
@@ -62,3 +69,4 @@ func end_projection(_timer: ActionTimer) -> void:
 	
 	# destroy the visual clone
 	false_player_origin.queue_free()
+	false_player_origin = null

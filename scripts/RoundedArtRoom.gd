@@ -1,6 +1,7 @@
 extends "res://scripts/FourierRoom.gd"
 ## Art-direction study: no raster sprites or pixel-grid presentation.
 var identities: Node2D
+var feedback: Node2D
 var old_scale: Vector2i
 var old_snap_transforms: bool
 var old_snap_vertices: bool
@@ -45,6 +46,10 @@ func _ready() -> void:
 	identity_layer.layer = 2
 	add_child(identity_layer)
 	identity_layer.add_child(identities)
+	feedback = Node2D.new()
+	feedback.set_script(preload("res://scripts/RoundedFeedback.gd"))
+	identity_layer.add_child(feedback)
+	feedback.setup(player, $FourierWorld)
 	identities.draw.connect(_draw_identities)
 	var heading: Label = Label.new()
 	heading.position = Vector2(40, 36)
@@ -55,7 +60,7 @@ func _ready() -> void:
 	var note: Label = Label.new()
 	note.position = Vector2(40, 75)
 	note.add_theme_font_size_override("font_size", 15)
-	note.text = "Move + jump: existing controls    E: portal    F2: reduced motion    R: reset"
+	note.text = "Move / jump / dash    E: portal    P: project/return    H: hit    K: death    F2: reduced motion"
 	note.modulate = Color(0.5, 0.53, 0.63)
 	identity_layer.add_child(note)
 
@@ -75,6 +80,16 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	# Keep the new art visible: F1 changes contour intensity, not the base art style.
 	if event is InputEventKey and event.pressed and event.keycode == KEY_F1:
 		$FourierWorld.reduced_motion = not $FourierWorld.reduced_motion
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_P:
+		var projection: Node = player.get_node("AstralProjection")
+		if is_instance_valid(projection.false_player_origin):
+			projection.end_projection(projection.projection_timer)
+		else:
+			projection.project()
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_H:
+		player.hurt(-1, Vector2.ZERO, null)
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_K:
+		player.die()
 	else:
 		super._unhandled_key_input(event)
 

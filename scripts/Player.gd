@@ -16,6 +16,8 @@ signal astral_projection_signal
 signal elapse_ability_time_signal(time: float)
 signal parry
 signal died
+signal visual_event(kind: StringName, world_position: Vector2)
+signal corpse_created(corpse: Node2D)
 signal direction_signal(direction: Vector2)
 
 func collect (x: int) -> void:
@@ -50,6 +52,7 @@ func show_invulnerable() -> void:
 
 func normal_hurt (damage: int, v: Vector2, _attacker: Node) -> void:
 	if not invulnerable.is_acting():
+		visual_event.emit(&"hurt", global_position)
 		pulse_fourier(0.9)
 		health.modify_health(damage)
 		invulnerable.enable()
@@ -170,10 +173,12 @@ func setup_corpse (pos: Vector2) -> void:
 	$"/root/Main".add_child(corpse)
 	var sub: int = ceil(coins.coins/2.0)
 	corpse.setup(sub)
+	corpse_created.emit(corpse)
 	collect(-sub)
 
 # kills the player and puts them back at respawn
 func die() -> void:
+	visual_event.emit(&"death", global_position)
 	died.emit()
 	var pos: Vector2 = position
 	reset_position()
@@ -185,6 +190,7 @@ var animating_jumping: bool = false
 var jumping: bool = false
 var jump_held: bool = false
 func jump(factor: float=1.0) -> void:
+	visual_event.emit(&"jump", global_position)
 	pulse_fourier(0.55)
 	velocity.y = JUMP_VELOCITY * factor
 	# animation_player.play("hop", -1, 4)
@@ -198,6 +204,7 @@ func jump(factor: float=1.0) -> void:
 
 # does a dash moving rapidly in one direction
 func do_dash(dash_direction: Vector2) -> void:
+	visual_event.emit(&"dash", global_position)
 	velocity = dash_direction * DASH_SPEED
 	velocity.y *= Y_DASH_FACTOR
 	$"DashTrail".make_trail()
