@@ -12,7 +12,7 @@ func run() -> void:
 	await process_frame
 	await process_frame
 	assert(feedback.events_seen.get(&"dash", 0) == 1)
-	assert(not feedback.traces.is_empty())
+	assert(feedback.traces.is_empty(), "Dash uses velocity rings, not stored echoes")
 	room.player.get_node("DashTrail").stop_trail()
 	var projection: Node = room.player.get_node("AstralProjection")
 	projection.project()

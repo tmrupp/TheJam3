@@ -80,6 +80,7 @@ func _process(delta: float) -> void:
 		if reduced_motion:
 			motion = Vector2.ZERO
 		var entry: Dictionary = {"points": points, "bounds": bounds, "center": transform.origin,
+			"hole": minf(transform.x.length() * visual.contour_size.x, transform.y.length() * visual.contour_size.y) * 0.23 * visual.opening_ratio,
 			"motion": motion, "inner": visual.inner_color * tint, "outer": visual.outer_color * tint,
 			"unresolved": 0.0 if reduced_motion else maxf(1.0 - visual.convergence, visual.effect_pulse)}
 		var group: StringName = visual.merge_group
@@ -120,12 +121,14 @@ func _draw_entries(entries: Array, index: int, screen: Rect2) -> int:
 	var inner: PackedColorArray = PackedColorArray()
 	var outer: PackedColorArray = PackedColorArray()
 	var unresolved: PackedFloat32Array = PackedFloat32Array()
+	var holes: PackedFloat32Array = PackedFloat32Array()
 	points.resize(512)
 	centers.resize(4)
 	motion.resize(4)
 	inner.resize(4)
 	outer.resize(4)
 	unresolved.resize(4)
+	holes.resize(4)
 	for object: Variant in range(entries.size()):
 		var entry: Dictionary = entries[object]
 		for point: Variant in range(128):
@@ -135,6 +138,7 @@ func _draw_entries(entries: Array, index: int, screen: Rect2) -> int:
 		inner[object] = entry.inner
 		outer[object] = entry.outer
 		unresolved[object] = entry.unresolved
+		holes[object] = entry.hole
 	rect.position = bounds.position
 	rect.size = bounds.size
 	var ink: ShaderMaterial = rect.material
@@ -144,6 +148,7 @@ func _draw_entries(entries: Array, index: int, screen: Rect2) -> int:
 	ink.set_shader_parameter("inner_colors", inner)
 	ink.set_shader_parameter("outer_colors", outer)
 	ink.set_shader_parameter("unresolved", unresolved)
+	ink.set_shader_parameter("hole_radius", holes)
 	ink.set_shader_parameter("object_count", entries.size())
 	ink.set_shader_parameter("rect_size", rect.size)
 	ink.set_shader_parameter("line_count", line_count)

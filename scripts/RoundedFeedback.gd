@@ -5,8 +5,6 @@ var world: CanvasLayer
 var traces: Array[Dictionary] = []
 var projection: Dictionary = {}
 var remnant_refs: Array[WeakRef] = []
-var dash_remaining: float = 0.0
-var sample_remaining: float = 0.0
 var events_seen: Dictionary = {}
 var held_palette: Array[Color] = []
 
@@ -19,18 +17,17 @@ func setup(actor: CharacterBody2D, renderer: CanvasLayer) -> void:
 func snapshot(at: Vector2, color: Color, lifetime: float, kind: StringName) -> Dictionary:
 	var visual: Node2D = player.get_node("FourierVisual")
 	var transform: Transform2D = visual.global_transform
-	transform.origin = at
+	transform.origin = at + visual.global_position - player.global_position
 	var vertices: PackedVector2Array = PackedVector2Array()
 	for point: Vector2 in world.contour_for(visual.outline, 1.0):
 		vertices.append(transform * (point * visual.contour_size))
-	return {"points": vertices, "center": at, "color": color, "age": 0.0, "life": lifetime, "kind": kind}
+	return {"points": vertices, "center": transform.origin, "color": color, "age": 0.0, "life": lifetime, "kind": kind}
 
 func on_event(kind: StringName, at: Vector2) -> void:
 	events_seen[kind] = int(events_seen.get(kind, 0)) + 1
 	match kind:
 		&"dash":
-			dash_remaining = 0.25
-			sample_remaining = 0.0
+			pass # Locomotion draws instantaneous velocity rings, never stored echoes.
 		&"projection_start":
 			projection = snapshot(at, Color(0.52, 0.9, 1.0, 0.75), 1.0, kind)
 			var visual: Node = player.get_node("FourierVisual")
@@ -67,12 +64,6 @@ func _process(delta: float) -> void:
 		traces[index].age += delta
 		if traces[index].age >= traces[index].life:
 			traces.remove_at(index)
-	if dash_remaining > 0.0:
-		dash_remaining -= delta
-		sample_remaining -= delta
-		if sample_remaining <= 0.0 and not world.reduced_motion:
-			sample_remaining = 0.04
-			traces.append(snapshot(player.global_position, Color(1.0, 0.54, 0.62, 0.55), 0.38, &"ghost"))
 	for index: int in range(remnant_refs.size() - 1, -1, -1):
 		if remnant_refs[index].get_ref() == null:
 			remnant_refs.remove_at(index)

@@ -2,6 +2,7 @@ extends "res://scripts/FourierRoom.gd"
 ## Art-direction study: no raster sprites or pixel-grid presentation.
 var identities: Node2D
 var feedback: Node2D
+var locomotion: Node2D
 var old_scale: Vector2i
 var old_snap_transforms: bool
 var old_snap_vertices: bool
@@ -22,7 +23,8 @@ func _ready() -> void:
 	$FourierWorld.max_distortion_pixels = 6.0
 	var visual: Node2D = player.get_node("FourierVisual")
 	visual.outline = 1
-	visual.contour_size = Vector2(38, 48)
+	visual.contour_size = Vector2(38, 40)
+	visual.position.y = -5.0
 	visual.inner_color = Color(1.0, 0.66, 0.44)
 	visual.outer_color = Color(1.0, 0.35, 0.62)
 	# Visibility masks hide pixels without overriding gameplay visibility/modulation.
@@ -35,6 +37,7 @@ func _ready() -> void:
 		var portal_visual: Node2D = portal.get_node("FourierVisual")
 		portal_visual.outline = 4
 		portal_visual.contour_size = Vector2(52, 52)
+		portal_visual.opening_ratio = 0.76
 		portal_visual.inner_color = Color(0.47, 0.9, 0.8)
 		portal_visual.outer_color = Color(0.43, 0.6, 1.0)
 	var violet: Node = portals[1].get_node("FourierVisual")
@@ -46,6 +49,10 @@ func _ready() -> void:
 	identity_layer.layer = 2
 	add_child(identity_layer)
 	identity_layer.add_child(identities)
+	locomotion = Node2D.new()
+	locomotion.set_script(preload("res://scripts/RoundedLocomotion.gd"))
+	identity_layer.add_child(locomotion)
+	locomotion.setup(player, $FourierWorld)
 	feedback = Node2D.new()
 	feedback.set_script(preload("res://scripts/RoundedFeedback.gd"))
 	identity_layer.add_child(feedback)
@@ -68,13 +75,10 @@ func _process(_delta: float) -> void:
 	identities.queue_redraw()
 
 func _draw_identities() -> void:
-	var center: Vector2 = player.get_global_transform_with_canvas().origin
+	var center: Vector2 = player.get_node("FourierVisual").get_global_transform_with_canvas().origin
 	var color: Color = Color(0.13, 0.12, 0.2, player.get_node("Sprite2D").modulate.a)
 	identities.draw_circle(center + Vector2(-7, -4), 2.4, color)
 	identities.draw_circle(center + Vector2(7, -4), 2.4, color)
-	for portal: Node2D in portals:
-		var origin: Vector2 = portal.get_global_transform_with_canvas().origin
-		identities.draw_arc(origin, 13.0, 0.0, TAU, 64, Color(0.08, 0.11, 0.2, 0.65), 2.0, true)
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	# Keep the new art visible: F1 changes contour intensity, not the base art style.

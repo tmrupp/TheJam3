@@ -7,6 +7,7 @@ extends Node2D
 @export var merge_group: StringName = &"friendly"
 @export var source_visual: NodePath = NodePath("../Sprite2D")
 @export_range(0.0, 1.0) var convergence: float = 1.0
+@export_range(0.0, 0.9) var opening_ratio: float = 0.0
 var world_velocity: Vector2 = Vector2.ZERO
 var previous_position: Vector2 = Vector2.ZERO
 var reset_pending: bool = true

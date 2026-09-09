@@ -7,6 +7,7 @@ uniform vec2 motion[4];
 uniform vec4 inner_colors[4];
 uniform vec4 outer_colors[4];
 uniform float unresolved[4];
+uniform float hole_radius[4];
 uniform int object_count = 0;
 uniform int line_count = 4;
 uniform float spacing = 2.0;
@@ -28,11 +29,13 @@ void fragment() {
         vec2 direction = motion[object] / max(speed, 0.0001);
         vec2 relative = p - centers[object];
         // Stretch along travel and add speed-scaled waves, even at full convergence.
-        vec2 q = p - direction * dot(relative, direction) * (0.22 * speed);
+        vec2 q = solid_shapes ? p : p - direction * dot(relative, direction) * (0.22 * speed);
         float amplitude = max_distortion * speed + 2.5 * unresolved[object];
         // Lengthen waves as amplitude grows to avoid folding the contour into fragments.
         float wavelength_scale = 1.0 / (1.0 + amplitude * 0.1);
-        q += amplitude * vec2(sin(relative.y * 0.14 * wavelength_scale + phase * 5.0), sin(relative.x * 0.12 * wavelength_scale - phase * 4.0)) * 0.65;
+        if (!solid_shapes) {
+            q += amplitude * vec2(sin(relative.y * 0.14 * wavelength_scale + phase * 5.0), sin(relative.x * 0.12 * wavelength_scale - phase * 4.0)) * 0.65;
+        }
         float distance = 100000.0;
         bool inside = false;
         for (int i = 0; i < 128; i++) {
@@ -46,12 +49,16 @@ void fragment() {
             }
         }
         if (inside) { distance = -distance; }
+        // True annular geometry: the opening is transparent, not a painted disk.
+        if (hole_radius[object] > 0.0) {
+            distance = max(distance, hole_radius[object] - length(relative));
+        }
         // Smooth union removes internal overlapping outlines and blends their colors.
         float h = clamp(0.5 + 0.5 * (distance - field) / merge_radius, 0.0, 1.0);
         field = mix(distance, field, h) - merge_radius * h * (1.0 - h);
         inner = mix(inner_colors[object], inner, h);
         outer = mix(outer_colors[object], outer, h);
-        activity = mix(clamp(speed + unresolved[object], 0.0, 1.0), activity, h);
+        activity = mix(clamp((solid_shapes ? 0.0 : speed) + unresolved[object], 0.0, 1.0), activity, h);
     }
     vec3 ink_sum = vec3(0.0);
     float coverage = 0.0;
