@@ -4,6 +4,8 @@ The new direction is intentionally quieter: a peach capsule with short procedura
 
 ## Locomotion pass
 
+Latest spacing adjustment: the inner contour starts 0.6 viewport pixels from the body with only 8% of the tail extension; the outer contour retains its previous 8.5-pixel offset and full tail extension. The middle contour is halfway between them at every angle. This widens the gaps without moving the outer boundary. The latest review is `art-captures/rounded-spaced-rings.gif` in the workspace.
+
 `RoundedLocomotion.gd` advances its gait from actual horizontal distance/speed. Feet alternate a planted stance and a raised return swing, blend to rest when stopped, reverse with travel, and tuck while airborne. A small optional body bob follows the gait. These are visual limbs: player collision geometry is unchanged and foot placement is tuned to the test room's flat floor, not slope-aware IK.
 
 Three concentric contours surround the body's current deformed silhouette. They share one radial center/profile with constant radial gaps; a narrow rear lobe forms a comet taper, rather than independently translating each ring. Leading edges stay close-fitting, and the far tip fades. Direction changes are smoothed; reversals shorten the envelope before redirecting it rather than sweeping a long tail through the body. This stores a filtered direction/strength, not a history of silhouette echoes. Reduced motion removes the envelope.

@@ -31,8 +31,14 @@ func run() -> void:
 		var middle: Vector2 = geometry[1].points[index] - center
 		var outer: Vector2 = geometry[2].points[index] - center
 		assert(absf(inner.normalized().cross(outer.normalized())) < 0.001, "All rings share radial center")
-		assert(absf(middle.length() - inner.length() - 3.0) < 0.001, "Concentric spacing")
-		assert(absf(outer.length() - middle.length() - 3.0) < 0.001, "No displaced ring centers")
+		assert(absf((middle.length() - inner.length()) - (outer.length() - middle.length())) < 0.001, "Even radial spacing")
+		var contour: PackedVector2Array = room.get_node("FourierWorld").contour_for(visual.outline, visual.convergence)
+		var relative: Vector2 = visual.get_global_transform_with_canvas() * (contour[index] * visual.contour_size) - center
+		var canvas: Transform2D = room.player.get_canvas_transform()
+		var direction: Vector2 = (canvas * gait.envelope_direction - canvas.origin).normalized()
+		var tail: float = gait.envelope_strength * 48.0 * pow(maxf(0.0, -relative.normalized().dot(direction)), 6.0)
+		assert(absf(outer.length() - (relative.length() + 8.5 + tail)) < 0.001, "Outermost ring stays fixed")
+		assert(absf(inner.length() - (relative.length() + 0.6 + tail * 0.08)) < 0.001, "Inner ring hugs body")
 	var strength: float = gait.envelope_strength
 	visual.world_velocity = Vector2(-400, 0)
 	gait._update_dynamics(1.0 / 60.0, true, 0.0)

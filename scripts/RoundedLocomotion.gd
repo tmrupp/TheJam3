@@ -177,12 +177,14 @@ func envelope_geometry() -> Array[Dictionary]:
 			var relative: Vector2 = transform * (point * visual.contour_size) - center
 			var normal: Vector2 = relative.normalized()
 			var rear: float = smoothstep(-0.5, 0.8, -normal.dot(direction))
-			var gap: float = 2.5 + ring * 3.0
-			# One common radial profile, offset concentrically. No per-ring translation.
+			# Common radial center with nested profiles. No per-ring translation.
 			# A narrow rear lobe makes a comet taper without widening the whole wake.
 			var alignment: float = maxf(0.0, -normal.dot(direction))
 			var tail: float = envelope_strength * 48.0 * pow(alignment, 6.0)
-			points.append(center + normal * (relative.length() + gap + tail))
+			# Preserve the outer boundary; pull the inner contour toward the body,
+			# including at the trailing tip, and evenly distribute the middle one.
+			var offset: float = lerpf(0.6 + tail * 0.08, 8.5 + tail, float(ring) / 2.0)
+			points.append(center + normal * (relative.length() + offset))
 			weights.append(lerpf(0.35, 1.0, rear) * (1.0 - 0.45 * pow(alignment, 8.0)))
 		points.append(points[0])
 		weights.append(weights[0])
