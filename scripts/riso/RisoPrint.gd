@@ -37,10 +37,10 @@ const GLOWS: Dictionary = {
 }
 ## Print-detail stops: heavy 0, medium 50, fine 80, extra fine 100 (sizes in 720p pixels).
 const DETAIL_STOPS: Array[Array] = [
-	[0.0, 5.8, 1.7, 0.32, 1.6, 0.24],
-	[50.0, 4.4, 1.0, 0.2, 1.1, 0.16],
-	[80.0, 3.4, 0.55, 0.1, 0.7, 0.1],
-	[100.0, 2.6, 0.35, 0.06, 0.5, 0.07],
+	[0.0, 5.8, 1.7, 0.34, 1.8, 0.25],
+	[50.0, 4.4, 1.0, 0.22, 1.3, 0.17],
+	[80.0, 3.4, 0.6, 0.14, 1.0, 0.12],
+	[100.0, 2.6, 0.4, 0.1, 0.8, 0.09],
 ]
 ## Base misregistration per plate, in 720p pixels.
 const REGISTRATION: Array[Vector2] = [Vector2(-0.9, -0.8), Vector2(-1.7, 1.5), Vector2(2.2, -1.3), Vector2(1.1, 2.0), Vector2(0.5, 0.7), Vector2(0.6, 0.8)]
@@ -68,6 +68,7 @@ var overlay_rect: TextureRect
 var print_material: ShaderMaterial
 var background: Node2D
 var terrain: Node2D
+var hud: Node2D
 var panel: Control
 
 var sheet_index: int = 0
@@ -118,6 +119,7 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	if _started:
 		_restore_viewport()
+		RisoTheme.restore()
 	if instance == self:
 		instance = null
 
@@ -171,6 +173,10 @@ func _build() -> void:
 	terrain.name = "RisoTerrain"
 	terrain.set_script(preload("res://scripts/riso/RisoTerrain.gd"))
 	main.add_child.call_deferred(terrain)
+	hud = Node2D.new()
+	hud.name = "RisoHud"
+	hud.set_script(preload("res://scripts/riso/RisoHud.gd"))
+	main.add_child.call_deferred(hud)
 	_build_panel()
 
 
@@ -183,6 +189,8 @@ func _make_viewport(mask: int) -> SubViewport:
 	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	vp.snap_2d_transforms_to_pixel = false
 	vp.snap_2d_vertices_to_pixel = false
+	# Antialiased coverage: soft edges become dot ramps in the print, as on a real screen.
+	vp.msaa_2d = Viewport.MSAA_4X
 	vp.size = _screen_size()
 	add_child(vp)
 	return vp
@@ -219,6 +227,23 @@ func _apply_enabled() -> void:
 	for art: Node in get_tree().get_nodes_in_group(&"riso_art"):
 		if art is CanvasItem:
 			(art as CanvasItem).visible = enabled
+	_apply_ui()
+
+
+## Menus take the riso theme; the pixel HUD and title art give way to the printed HUD and sky.
+func _apply_ui() -> void:
+	if enabled:
+		RisoTheme.apply(realm)
+	else:
+		RisoTheme.restore()
+	var main: Node = get_parent()
+	for path: String in ["CanvasLayer/HUD/TopHUD", "Menu/BigBossMenu"]:
+		var item: CanvasItem = main.get_node_or_null(path) as CanvasItem
+		if item != null:
+			item.visible = not enabled
+	var keys: CanvasItem = main.get_node_or_null("CanvasLayer/HUD/Keys") as CanvasItem
+	if keys != null:
+		keys.modulate.a = 0.0 if enabled else 1.0
 
 
 func _apply_zoom() -> void:
@@ -382,6 +407,8 @@ func set_realm(r: StringName) -> void:
 		realm = r
 		if background != null:
 			background.queue_redraw()
+		if enabled and _started:
+			RisoTheme.apply(realm)
 		_sync_panel()
 
 

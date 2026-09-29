@@ -121,15 +121,16 @@ func _portal() -> void:
 
 
 func _door() -> void:
-	# As in the prototype: a screened blue frame, a solid blue panel, a sunflower keyhole.
+	# As in the prototype: a tall 2:3 arch, screened blue frame around a solid blue panel. It is set
+	# into screened jambs that fill the rest of the cell, so the whole blocked doorway reads.
 	var g: float = _ground()
-	var frame: PackedVector2Array = RisoShapes.arch(-60, g - 128, 120, 128, 12)
-	var panel: PackedVector2Array = RisoShapes.arch(-52, g - 120, 104, 120, 12)
-	ink.ink(RisoPrint.BLUE, 0.5, [frame])
+	var top: float = g - 2.0 * half
+	ink.ink(RisoPrint.BLUE, 0.5, [PackedVector2Array([Vector2(-half, top), Vector2(-40, top), Vector2(-40, g), Vector2(-half, g)]),
+		PackedVector2Array([Vector2(40, top), Vector2(half, top), Vector2(half, g), Vector2(40, g)])])
+	ink.ink(RisoPrint.BLUE, 0.5, [RisoShapes.arch(-44, g - 124, 88, 124, 14)])
+	var panel: PackedVector2Array = RisoShapes.arch(-34, g - 114, 68, 114, 14)
 	ink.knock([RisoPrint.NIGHT], [panel])
 	ink.ink(RisoPrint.BLUE, 1.0, [panel])
-	ink.ink(RisoPrint.NIGHT, 0.2, [RisoShapes.arch(-52, g - 120, 26, 120, 8)], false)
-	ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.crescent(Vector2(24, g - 58), 8.0, Vector2(3.5, -2))])
 
 
 func _lantern() -> void:
@@ -187,8 +188,54 @@ func _orb() -> void:
 
 
 func _ledge() -> void:
-	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-63, -64, 126, 34, 12)])
-	ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.rrect(-60, -67, 120, 12, 6)])
+	# Neighbouring platforms (or rock) on the same row join into one ledge: joined ends run to
+	# the cell edge and stay square; free ends are rounded.
+	var left: bool = _ledge_joined(-1)
+	var right: bool = _ledge_joined(1)
+	var x0: float = -half if left else -half + 1.0
+	var x1: float = half if right else half - 1.0
+	ink.ink(RisoPrint.BLUE, 1.0, [_bar(x0, -64.0, x1, -30.0, 12.0, not left, not right)])
+	ink.ink(RisoPrint.ACCENT, 1.0, [_bar(x0 + (0.0 if left else 3.0), -67.0, x1 - (0.0 if right else 3.0), -55.0, 6.0, not left, not right)])
+
+
+func _ledge_joined(side: int) -> bool:
+	var target: Vector2 = host.global_position + Vector2(float(side) * half * 2.0, 0.0)
+	for other: Node in host.get_parent().get_children():
+		if other != host and other.scene_file_path == host.scene_file_path and (other as Node2D).global_position.distance_to(target) < 2.0:
+			return true
+	var tm: TileMap = get_node_or_null("/root/Main/TileMap") as TileMap
+	if tm != null:
+		return tm.get_cell_source_id(0, tm.local_to_map(tm.to_local(target))) != -1
+	return false
+
+
+## A horizontal bar whose left/right ends are rounded only when free.
+func _bar(x0: float, y0: float, x1: float, y1: float, r: float, round_left: bool, round_right: bool) -> PackedVector2Array:
+	r = minf(r, (y1 - y0) * 0.5)
+	var out: PackedVector2Array = PackedVector2Array()
+	if round_left:
+		for s: int in range(5):
+			var t: float = PI + PI * 0.5 * float(s) / 4.0
+			out.append(Vector2(x0 + r, y0 + r) + Vector2(cos(t), sin(t)) * r)
+	else:
+		out.append(Vector2(x0, y0))
+	if round_right:
+		for s: int in range(5):
+			var t: float = -PI * 0.5 + PI * 0.5 * float(s) / 4.0
+			out.append(Vector2(x1 - r, y0 + r) + Vector2(cos(t), sin(t)) * r)
+		for s: int in range(5):
+			var t: float = PI * 0.5 * float(s) / 4.0
+			out.append(Vector2(x1 - r, y1 - r) + Vector2(cos(t), sin(t)) * r)
+	else:
+		out.append(Vector2(x1, y0))
+		out.append(Vector2(x1, y1))
+	if round_left:
+		for s: int in range(5):
+			var t: float = PI * 0.5 + PI * 0.5 * float(s) / 4.0
+			out.append(Vector2(x0 + r, y1 - r) + Vector2(cos(t), sin(t)) * r)
+	else:
+		out.append(Vector2(x0, y1))
+	return out
 
 
 func _thorns() -> void:

@@ -31,6 +31,11 @@ Defaults: twilight realm, fine detail, new sheet registration at 8 sheets/s, rep
 - **Background** (`RisoBackground.gd`) follows the camera: a night flood, parallax stars and a few abstract shapes per realm.
 - **Props** (`RisoProp.gd`) are attached by a dresser keyed on prefab path: star motes, moon shard, crescent key, portals, door, lantern checkpoint (an ember when unclaimed, fully lit when it is your respawn), moon gate goal (a lit doorway), altar, astral orb, floating ledge, straight thorns (rotated with the spikes), recovery relic, Wisp nightmare (stunned eyes close), the watching eye shooter, and shard bullets. Interaction prompts and cooldown rings move to the overlay so they stay readable. Only on-screen props animate.
 
+## Interface
+
+- **Printed HUD** (`RisoHud.gd`): a bare-paper label in the top-left corner, printed with the art. It shows a coin mote and count in night-ink serif, health as ember beads (spent ones become a faint screen), and each collected key as a crescent with its code. It lives on the ink plates and follows the camera, laid out in the 320×180 UI space. The pixel HUD hides while printing, but its data and scripts still run.
+- **Menus** (`RisoTheme.gd`): the shared `main_menu_theme.tres` is restyled at runtime in the realm's inks: blue ink buttons that turn to the accent on hover and focus, paper input fields, night panels, a serif face and no borders. It is restored exactly when the print is off. The title image hides so the printed sky shows behind the main menu.
+
 ## Tests and captures
 
 ```

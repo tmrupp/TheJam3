@@ -39,6 +39,9 @@ func run() -> void:
 		await process_frame
 	var riso: RisoPrint = RisoPrint.instance
 	check(riso != null and riso.enabled, "RisoPrint present and on")
+	check(not (main.get_node("CanvasLayer/HUD/TopHUD") as CanvasItem).visible, "pixel HUD hidden while printing")
+	check(main.get_node_or_null("RisoHud") != null, "printed HUD present")
+	check((load(RisoTheme.MENU_THEME) as Theme).default_font is SystemFont, "menus use the riso theme")
 	check(riso.plates.size() == RisoPrint.PLATE_COUNT, "six ink plates")
 	check(riso.print_layer.visible, "print layer visible")
 	check(root.content_scale_mode == Window.CONTENT_SCALE_MODE_CANVAS_ITEMS, "canvas_items stretch while printing")
@@ -102,6 +105,8 @@ func run() -> void:
 	check(root.content_scale_mode == original_mode, "stretch mode restored when off")
 	check(root.canvas_cull_mask == original_mask & ~(RisoPrint.overlay_mask() | 0x3F000), "cull mask restored when off")
 	check(not wizard.visible, "ink art hidden when off")
+	check((main.get_node("CanvasLayer/HUD/TopHUD") as CanvasItem).visible, "pixel HUD back when off")
+	check((load(RisoTheme.MENU_THEME) as Theme).default_font is FontFile, "menu theme restored when off")
 	check(is_equal_approx(cam.zoom.x, 0.25), "camera zoom restored when off")
 	riso.set_enabled(true)
 	await process_frame

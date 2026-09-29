@@ -12,12 +12,20 @@ func capture() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
+	var output: String = ProjectSettings.globalize_path("res://../art-captures/riso-frames")
+	DirAccess.make_dir_recursive_absolute(output)
+	for f: String in DirAccess.get_files_at(output):
+		DirAccess.remove_absolute(output.path_join(f))
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	menu.map_seed.text = "28"
+	for i: int in range(20):
+		await process_frame
+	root.get_texture().get_image().save_png(output.path_join("still_menu.png"))
 	menu.start_game()
-	await process_frame
-	await process_frame
+	for i: int in range(20):
+		await process_frame
+	root.get_texture().get_image().save_png(output.path_join("still_upgrade.png"))
 	main.get_node("UpgradeMenu").done()
 	var info: Node = main.get_node("CanvasLayer/MapInfo")
 	var deadline: int = Time.get_ticks_msec() + 20000
@@ -25,10 +33,6 @@ func capture() -> void:
 		await process_frame
 	for i: int in range(30):
 		await process_frame
-	var output: String = ProjectSettings.globalize_path("res://../art-captures/riso-frames")
-	DirAccess.make_dir_recursive_absolute(output)
-	for f: String in DirAccess.get_files_at(output):
-		DirAccess.remove_absolute(output.path_join(f))
 	var saved: int = 0
 	for frame: int in range(360):
 		var time: float = float(frame) / 60.0
@@ -52,6 +56,12 @@ func capture() -> void:
 			saved += 1
 	Input.action_release("Right")
 	print("CAPTURED ", saved, " frames to ", output)
+	menu.pause_resume_game()
+	for i: int in range(6):
+		await process_frame
+	root.get_texture().get_image().save_png(output.path_join("still_pause.png"))
+	menu.pause_resume_game()
+	await process_frame
 	# Stills framed on the props that must sit on the ground.
 	var player: Node2D = main.get_node("Player") as Node2D
 	player.set_physics_process(false)

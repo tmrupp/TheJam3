@@ -32,7 +32,8 @@ func _process(_delta: float) -> void:
 	# HTML-space (480 x 270) point to local space.
 	var at: Callable = func(x: float, y: float) -> Vector2: return Vector2((x - 240.0) * k, (y - 135.0) * k)
 	ink.begin()
-	ink.ink(RisoPrint.NIGHT, 0.99, [PackedVector2Array([-half, Vector2(half.x, -half.y), half, Vector2(-half.x, half.y)])], false)
+	# A dense screen rather than a solid: the night keeps a fine texture of paper, as in the prototype.
+	ink.ink(RisoPrint.NIGHT, 0.94, [PackedVector2Array([-half, Vector2(half.x, -half.y), half, Vector2(-half.x, half.y)])], false)
 	if realm == &"twilight":
 		var sun: Vector2 = at.call(330.0, 118.0)
 		var rays: Array[PackedVector2Array] = []

@@ -10,10 +10,8 @@ const HEMX: Array[float] = [-8.8, -4.5, 0.0, 4.5, 8.8]
 const VX_SCALE: float = 88.0 / 300.0
 const VY_SCALE: float = 0.5
 const ALL: Array[int] = [0, 1, 2, 3, 4, 5]
-## Art scale around the feet. Level cells are 128 px while the player collider is ~62 px,
-## so the prototype's proportions (body about one tile tall) need the art a little larger
-## than the collider. Collision is unchanged.
-const ART_SCALE: float = 1.3
+## Art scale around the feet: at 0.8 the robe fits the ~62 px collider. Collision is unchanged.
+const ART_SCALE: float = 0.8
 
 var player: Player
 var body: InkCanvas
@@ -231,7 +229,7 @@ func _draw_body() -> void:
 	var cyc: float = fposmod(t, 3.9)
 	var blink: bool = cyc < 0.11 or (int(t / 3.9) % 3 == 0 and cyc > 0.2 and cyc < 0.3)
 	var m: Transform2D = Transform2D(Vector2(1.0 / squash, 0), Vector2(0, squash), Vector2.ZERO) * Transform2D(lean, Vector2.ZERO)
-	var mh: Transform2D = m * Transform2D(hat_a + lean * 0.4, Vector2(fsc * 0.2, -21.3 + hy))
+	var mh: Transform2D = m * Transform2D(hat_a + lean * 0.4, Vector2(fsc * 0.05, -21.3 + hy))
 	var hem: Array[Vector2] = []
 	for i: int in range(5):
 		var hy_i: float = _soft(hem_y[i], 1.5) if hem_y[i] > 0.0 else _soft(hem_y[i], 5.5)
@@ -264,11 +262,11 @@ func _draw_body() -> void:
 	var collar: PackedVector2Array = m * RisoShapes.smooth(PackedVector2Array([
 		Vector2(-4.9, -14.9 + bob), Vector2(-3.2, -17.6 + bob), Vector2(-0.8, -16.4 + bob), Vector2(0.8, -16.4 + bob),
 		Vector2(3.2, -17.6 + bob), Vector2(4.9, -14.9 + bob), Vector2(0, -13.6 + bob)]))
-	var face: PackedVector2Array = m * RisoShapes.ellipse(Vector2(fsc * 0.9, -18.5 + hy), 3.8 * (0.72 + 0.28 * af), 3.3, 22)
-	var look: float = fsc * 0.35 * sp
+	var face: PackedVector2Array = m * RisoShapes.ellipse(Vector2(fsc * 0.35, -18.5 + hy), 3.8 * (0.72 + 0.28 * af), 3.3, 22)
+	var look: float = fsc * 0.25 * sp
 	var gap: float = 1.45 * (0.8 + 0.2 * af)
 	var eye_ry: float = 0.45 + 0.55 * af
-	var eye_c: Array[Vector2] = [Vector2(fsc * 1.6 + look - gap, -18.5 + hy), Vector2(fsc * 1.6 + look + gap, -18.5 + hy)]
+	var eye_c: Array[Vector2] = [Vector2(fsc * 0.9 + look - gap, -18.5 + hy), Vector2(fsc * 0.9 + look + gap, -18.5 + hy)]
 	var ta: float = 1.1 * tanh(tip_a / 1.1)
 	var d2: Vector2 = Vector2(sin(ta), -cos(ta))
 	var pp: Vector2 = Vector2(cos(ta), sin(ta))
