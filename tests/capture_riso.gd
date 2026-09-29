@@ -52,4 +52,27 @@ func capture() -> void:
 			saved += 1
 	Input.action_release("Right")
 	print("CAPTURED ", saved, " frames to ", output)
+	# Stills framed on the props that must sit on the ground.
+	var player: Node2D = main.get_node("Player") as Node2D
+	player.set_physics_process(false)
+	player.get_node("CameraControl").set_process(false)
+	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
+	var wanted: Dictionary = {"door.tscn": "door", "spikes.tscn": "spikes", "checkpoint.tscn": "lantern", "goal.tscn": "gate"}
+	var lit_one: bool = false
+	for node: Node in info.map_elements.get_children():
+		var file: String = node.scene_file_path.get_file()
+		if not wanted.has(file):
+			continue
+		var target: Node2D = node as Node2D
+		var label: String = wanted[file]
+		wanted.erase(file)
+		if file == "checkpoint.tscn" and not lit_one:
+			player.set("respawn", target)
+			lit_one = true
+		player.global_position = target.global_position + Vector2(-220, -40)
+		camera.global_position = target.global_position
+		camera.reset_smoothing()
+		for i: int in range(20):
+			await process_frame
+		root.get_texture().get_image().save_png(output.path_join("still_%s.png" % label))
 	quit()

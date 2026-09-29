@@ -90,8 +90,11 @@ func run() -> void:
 		await process_frame
 	check(riso.sheet_index > before or riso.sheet_rate == 0.0, "new sheets are printed")
 	# Realm follows the world and cycles.
+	check(riso.realm == &"twilight" and riso.reprint_on_motion and riso.blend_sheets and riso.sheet_rate == 8.0, "defaults: twilight, 8/s, reprint on motion, blend")
+	var cam: Camera2D = main.get_node("Camera2D") as Camera2D
+	check(is_equal_approx(cam.zoom.x, 0.25 * riso.zoom_factor), "camera zoomed out while printing")
 	riso.cycle_realm()
-	check(riso.realm == &"twilight", "realm cycles")
+	check(riso.realm == &"aurora", "realm cycles")
 	# Off switch restores the original presentation.
 	riso.set_enabled(false)
 	await process_frame
@@ -99,6 +102,7 @@ func run() -> void:
 	check(root.content_scale_mode == original_mode, "stretch mode restored when off")
 	check(root.canvas_cull_mask == original_mask & ~(RisoPrint.overlay_mask() | 0x3F000), "cull mask restored when off")
 	check(not wizard.visible, "ink art hidden when off")
+	check(is_equal_approx(cam.zoom.x, 0.25), "camera zoom restored when off")
 	riso.set_enabled(true)
 	await process_frame
 	check(riso.print_layer.visible and wizard.visible, "print back on")

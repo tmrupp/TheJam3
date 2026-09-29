@@ -10,6 +10,7 @@ var ink: InkCanvas
 var host: Node2D
 var t: float = 0.0
 var phase: float = 0.0
+var half: float = 64.0
 
 
 func _ready() -> void:
@@ -17,6 +18,9 @@ func _ready() -> void:
 	if host != null and host.scale.x != 0.0 and host.scale.y != 0.0:
 		scale = Vector2(1.0 / host.scale.x, 1.0 / host.scale.y)
 	phase = RisoShapes.hash1(float(host.get_instance_id() % 997)) * TAU if host != null else 0.0
+	var tm: TileMap = get_node_or_null("/root/Main/TileMap") as TileMap
+	if tm != null and tm.tile_set != null:
+		half = float(tm.tile_set.tile_size.y) * tm.global_scale.y * 0.5
 	ink = InkCanvas.new()
 	add_child(ink)
 	z_index = 2
@@ -34,6 +38,16 @@ func _process(delta: float) -> void:
 		if d.x > reach.x or d.y > reach.y:
 			return
 	_redraw()
+
+
+## Distance from the host's origin down to the ground surface of its cell, in world pixels.
+## Measured live because some prefabs (checkpoints) shift themselves after spawning.
+func _ground() -> float:
+	var tm: TileMap = get_node_or_null("/root/Main/TileMap") as TileMap
+	if tm == null or host == null:
+		return half
+	var cell: Vector2i = tm.local_to_map(tm.to_local(host.global_position))
+	return tm.to_global(tm.map_to_local(cell)).y + half - host.global_position.y
 
 
 func _redraw() -> void:
@@ -107,20 +121,22 @@ func _portal() -> void:
 
 
 func _door() -> void:
-	var frame: PackedVector2Array = RisoShapes.arch(-62, -66, 124, 130, 12)
-	var panel: PackedVector2Array = RisoShapes.arch(-50, -54, 100, 118, 12)
+	var g: float = _ground()
+	var frame: PackedVector2Array = RisoShapes.arch(-62, g - 130, 124, 130, 12)
+	var panel: PackedVector2Array = RisoShapes.arch(-50, g - 118, 100, 118, 12)
 	ink.ink(RisoPrint.BLUE, 1.0, [frame])
 	ink.ink(RisoPrint.PINK, 1.0, [panel])
-	ink.ink(RisoPrint.NIGHT, 0.3, [PackedVector2Array([Vector2(-50, 10), Vector2(50, 10), Vector2(50, 64), Vector2(-50, 64)])], false)
-	ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.crescent(Vector2(0, -8), 12.0, Vector2(5, -3))])
+	ink.ink(RisoPrint.NIGHT, 0.3, [PackedVector2Array([Vector2(-50, g - 54), Vector2(50, g - 54), Vector2(50, g), Vector2(-50, g)])], false)
+	ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.crescent(Vector2(0, g - 72), 12.0, Vector2(5, -3))])
 
 
 func _lantern() -> void:
 	var player: Node = host.get_node_or_null("/root/Main/Player")
-	var lit: bool = player != null and player.get("respawn") == host
+	var lit: bool = player != null and is_same(player.get("respawn"), host)
 	var sw: float = sin(t * 2.2 + phase) * 0.12
-	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-5, -70, 10, 102, 5), RisoShapes.rrect(-4, -72, 40, 8, 4)])
-	var hang: Transform2D = Transform2D(sw, Vector2(30, -66))
+	var g: float = _ground()
+	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-5, g - 110, 10, 110, 5), RisoShapes.rrect(-4, g - 112, 40, 8, 4)])
+	var hang: Transform2D = Transform2D(sw, Vector2(30, g - 106))
 	ink.ink(RisoPrint.BLUE, 1.0, [hang * RisoShapes.rrect(-2, 0, 4, 18, 2), hang * RisoShapes.rrect(-14, 14, 28, 8, 4)])
 	var glass: PackedVector2Array = hang * RisoShapes.rrect(-12, 20, 24, 28, 10)
 	if lit:
@@ -129,30 +145,37 @@ func _lantern() -> void:
 		ink.ink(RisoPrint.EYE, 1.0, [glass], false)
 		ink.knock([RisoPrint.EYE], [hang * RisoShapes.rrect(-4, 28, 8, 12, 4)])
 	else:
-		ink.ink(RisoPrint.BLUE, 1.0, [glass])
-		ink.ink(RisoPrint.NIGHT, 0.4, [glass], false)
+		# Unclaimed: a low ember behind the glass, waiting to be lit.
+		var flick: float = 0.8 + 0.2 * sin(t * 7.0 + phase)
+		ink.ink(RisoPrint.EYE, 0.12, [hang * RisoShapes.circle(Vector2(0, 34), 24.0 * flick, 24)])
+		ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT], [glass])
+		ink.ink(RisoPrint.EYE, 0.5, [glass], false)
+		ink.ink(RisoPrint.BLUE, 0.35, [glass], false)
 
 
 func _gate() -> void:
 	var pulse: float = 1.0 + 0.08 * sin(t * 2.5 + phase)
-	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.arch(-58, -90, 116, 122, 14)])
-	ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.arch(-44, -76, 88, 108, 14)])
-	ink.ink(RisoPrint.EYE, 0.25, [RisoShapes.circle(Vector2(0, -26), 30.0 * pulse, 28)])
-	var star: PackedVector2Array = Transform2D(t * 0.4, Vector2(0, -26)) * RisoShapes.sparkle(Vector2.ZERO, 20.0 * pulse)
+	var g: float = _ground()
+	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.arch(-58, g - 122, 116, 122, 14)])
+	ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.arch(-44, g - 108, 88, 108, 14)])
+	ink.ink(RisoPrint.EYE, 0.25, [RisoShapes.circle(Vector2(0, g - 58), 30.0 * pulse, 28)])
+	var star: PackedVector2Array = Transform2D(t * 0.4, Vector2(0, g - 58)) * RisoShapes.sparkle(Vector2.ZERO, 20.0 * pulse)
 	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT], [star])
 	ink.ink(RisoPrint.EYE, 1.0, [star], false)
 
 
 func _altar() -> void:
-	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-26, 8, 52, 24, 8)])
-	ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.rrect(-22, 4, 44, 8, 4), RisoShapes.crescent(Vector2(0, -14), 12.0, Vector2(5, -3))])
+	var g: float = _ground()
+	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-26, g - 24, 52, 24, 8)])
+	ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.rrect(-22, g - 28, 44, 8, 4), RisoShapes.crescent(Vector2(0, g - 46), 12.0, Vector2(5, -3))])
 
 
 func _orb() -> void:
 	var active: bool = bool(host.get("active"))
 	var pulse: float = 1.0 + 0.1 * sin(t * 3.0 + phase)
-	var o: Vector2 = Vector2(0, -6 + sin(t * 1.6 + phase) * 4.0)
-	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-20, 12, 40, 20, 8)])
+	var g: float = _ground()
+	var o: Vector2 = Vector2(0, g - 66 + sin(t * 1.6 + phase) * 4.0)
+	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-20, g - 20, 40, 20, 8)])
 	ink.ink(RisoPrint.ACCENT, 0.15 if active else 0.3, [RisoShapes.circle(o, 34.0 * pulse, 28)])
 	ink.ink(RisoPrint.ACCENT, 0.5 if active else 1.0, [RisoShapes.circle(o, 16.0, 24)])
 	ink.ink(RisoPrint.BLUE, 0.5, [RisoShapes.crescent(o, 16.0, Vector2(7, -4))])
@@ -167,7 +190,7 @@ func _thorns() -> void:
 	var spikes: Array[PackedVector2Array] = []
 	for i: int in range(4):
 		var x: float = -47.25 + float(i) * 31.5
-		spikes.append(RisoShapes.tri(Vector2(x - 13, 32), Vector2(x, -6), Vector2(x + 13, 32)))
+		spikes.append(RisoShapes.tri(Vector2(x - 13, half + 2.0), Vector2(x, half - 40.0), Vector2(x + 13, half + 2.0)))
 	ink.ink(RisoPrint.PINK, 1.0, spikes)
 
 

@@ -50,10 +50,14 @@ static var instance: RisoPrint
 @export var enabled: bool = true
 var detail: float = 80.0
 var sheet_rate: float = 8.0
-var reprint_on_motion: bool = false
-var blend_sheets: bool = false
+var reprint_on_motion: bool = true
+var blend_sheets: bool = true
 var registration: StringName = &"sheet"
-var realm: StringName = &"deep"
+var realm: StringName = &"twilight"
+## Camera zoom while printing, relative to the scene's own zoom (smaller shows more).
+var zoom_factor: float = 0.72
+var _camera: Camera2D
+var _base_zoom: Vector2 = Vector2.ZERO
 var glow_ability: StringName = &"dash"
 
 var plates: Array[SubViewport] = []
@@ -207,6 +211,7 @@ func _apply_enabled() -> void:
 		root.snap_2d_transforms_to_pixel = false
 	else:
 		_restore_viewport()
+	_apply_zoom()
 	print_layer.visible = enabled
 	for vp: SubViewport in plates:
 		vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if enabled else SubViewport.UPDATE_DISABLED
@@ -214,6 +219,20 @@ func _apply_enabled() -> void:
 	for art: Node in get_tree().get_nodes_in_group(&"riso_art"):
 		if art is CanvasItem:
 			(art as CanvasItem).visible = enabled
+
+
+func _apply_zoom() -> void:
+	if _camera == null or not is_instance_valid(_camera):
+		_camera = get_viewport().get_camera_2d()
+		if _camera == null:
+			return
+		_base_zoom = _camera.zoom
+	_camera.zoom = _base_zoom * (zoom_factor if enabled else 1.0)
+
+
+func set_zoom_factor(value: float) -> void:
+	zoom_factor = value
+	_apply_zoom()
 
 
 func _restore_viewport() -> void:
@@ -372,9 +391,8 @@ func cycle_realm() -> void:
 
 
 ## Called by MapInfo when a world has been laid out.
-func world_built(map_info: Node, world_index: int) -> void:
+func world_built(map_info: Node, _world_index: int) -> void:
 	_map_info = map_info
-	set_realm(REALM_ORDER[posmod(world_index, REALM_ORDER.size())])
 	if terrain != null and is_instance_valid(terrain):
 		terrain.call("rebuild", map_info.get("tile_map"))
 
@@ -461,6 +479,7 @@ func _lift_to_overlay(node: Node) -> void:
 
 var _detail_label: Label
 var _rate_label: Label
+var _zoom_label: Label
 var _options: Dictionary = {}
 
 
@@ -481,6 +500,7 @@ func _build_panel() -> void:
 	box.add_child(title)
 	_detail_label = _slider_row(box, "Print detail", 0.0, 100.0, 1.0, detail, _on_detail)
 	_rate_label = _slider_row(box, "Sheet rate", 0.0, 24.0, 1.0, sheet_rate, _on_rate)
+	_zoom_label = _slider_row(box, "Zoom", 0.5, 1.0, 0.02, zoom_factor, _on_zoom)
 	_option_row(box, &"registration", "Registration", ["New sheet", "Locked", "Drift"], _on_registration)
 	_option_row(box, &"reprint", "Reprint on", ["Clock", "Motion"], _on_reprint)
 	_option_row(box, &"between", "Between sheets", ["Cut", "Blend"], _on_between)
@@ -495,6 +515,11 @@ func _on_detail(v: float) -> void:
 
 func _on_rate(v: float) -> void:
 	sheet_rate = v
+	_sync_panel()
+
+
+func _on_zoom(v: float) -> void:
+	set_zoom_factor(v)
 	_sync_panel()
 
 
@@ -559,5 +584,10 @@ func _sync_panel() -> void:
 		return
 	_detail_label.text = "Heavy" if detail < 25.0 else ("Medium" if detail < 65.0 else ("Fine" if detail < 90.0 else "Extra fine"))
 	_rate_label.text = "held" if sheet_rate <= 0.0 else "%d / s" % int(sheet_rate)
+	_zoom_label.text = "%d%%" % roundi(100.0 / zoom_factor)
 	if _options.has(&"realm"):
 		(_options[&"realm"] as OptionButton).select(REALM_ORDER.find(realm))
+	if _options.has(&"reprint"):
+		(_options[&"reprint"] as OptionButton).select(1 if reprint_on_motion else 0)
+	if _options.has(&"between"):
+		(_options[&"between"] as OptionButton).select(1 if blend_sheets else 0)

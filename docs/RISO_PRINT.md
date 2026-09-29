@@ -7,10 +7,12 @@ The main game is presented as a risograph "tarot print": flat ink shapes drawn i
 | Key | Action |
 | --- | --- |
 | F6 | Print on/off (off restores the original sprites, stretch mode and cull mask) |
-| F7 | Print controls: print detail, sheet rate, registration (new sheet / locked / drift), reprint on clock or motion, cut or blend between sheets, realm |
+| F7 | Print controls: print detail, sheet rate, zoom, registration (new sheet / locked / drift), reprint on clock or motion, cut or blend between sheets, realm |
 | F8 | Cycle realm (deep night, twilight, aurora) |
 
-Launch with `godot --path . -- --no-riso` to start with the print off. Each generated world picks the next realm in turn.
+Launch with `godot --path . -- --no-riso` to start with the print off.
+
+Defaults: twilight realm, fine detail, new sheet registration at 8 sheets/s, reprint on motion (landings, take-offs, dashes, hits and portals print a fresh sheet), blending between sheets, and the camera zoomed out to 0.72× of the scene zoom (restored when the print is off).
 
 ## How it works
 
@@ -27,7 +29,7 @@ Launch with `godot --path . -- --no-riso` to start with the print off. Each gene
 - **Dash** leaves a continuous smear that fades from the tail. **Hits** flash the whole figure pink. **Astral projection** holds a glowing silhouette at the return point.
 - **Terrain** (`RisoTerrain.gd`) is rebuilt from the TileMap's ground layer when `MapInfo` finishes a world. It is one contiguous mass with rounded outer corners, concave fillets, a cap strip per walkable run, and a light band of night ink deeper in. It knocks the sky out beneath itself.
 - **Background** (`RisoBackground.gd`) follows the camera: a night flood, parallax stars and a few abstract shapes per realm.
-- **Props** (`RisoProp.gd`) are attached by a dresser keyed on prefab path: star motes, moon shard, crescent key, portals, door, lantern checkpoint (lit when it is your respawn), moon gate goal, altar, astral orb, floating ledge, straight thorns (rotated with the spikes), recovery relic, Wisp nightmare (stunned eyes close), the watching eye shooter, and shard bullets. Interaction prompts and cooldown rings move to the overlay so they stay readable. Only on-screen props animate.
+- **Props** (`RisoProp.gd`) are attached by a dresser keyed on prefab path: star motes, moon shard, crescent key, portals, door, lantern checkpoint (an ember when unclaimed, fully lit when it is your respawn), moon gate goal, altar, astral orb, floating ledge, straight thorns (rotated with the spikes), recovery relic, Wisp nightmare (stunned eyes close), the watching eye shooter, and shard bullets. Interaction prompts and cooldown rings move to the overlay so they stay readable. Only on-screen props animate.
 
 ## Tests and captures
 
@@ -42,4 +44,4 @@ The headless test boots seed 28 and checks plates, stretch mode, cull mask, dres
 
 - Presentation only: no collision, physics or generation changes. The only gameplay-file edit is one notify call at the end of `MapInfo.next_world()`.
 - The HUD, menus and the map overlay keep their pixel art.
-- Prop art is sized to the current prefab scales (tiles are 64 world px). A prefab added later needs an entry in `RisoPrint.DRESS` and a drawing in `RisoProp.gd`, or it stays invisible under the print.
+- Prop art is sized to the current prefab scales (cells are 128 world px). Standing props measure their own ground each redraw, because checkpoints shift themselves after spawning; spikes stand on the surface they are rotated toward. A prefab added later needs an entry in `RisoPrint.DRESS` and a drawing in `RisoProp.gd`, or it stays invisible under the print.
