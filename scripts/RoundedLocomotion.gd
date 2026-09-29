@@ -17,6 +17,12 @@ var envelope_direction: Vector2 = Vector2.RIGHT
 var envelope_strength: float = 0.0
 var reversing: bool = false
 var filtered_acceleration: Vector2 = Vector2.ZERO
+var foot_anchors: Array[Vector2] = [Vector2.ZERO, Vector2.ZERO]
+var swing_origins: Array[Vector2] = [Vector2.ZERO, Vector2.ZERO]
+var foot_poses: Array[Vector2] = [Vector2.ZERO, Vector2.ZERO]
+var foot_stance: Array[bool] = [false, false]
+var feet_ready: bool = false
+var envelope_load: float = 0.0
 
 func setup(actor: CharacterBody2D, renderer: CanvasLayer) -> void:
 	player = actor
@@ -42,6 +48,10 @@ func reset_dynamics() -> void:
 	was_grounded = player.is_on_floor()
 	envelope_strength = 0.0
 	reversing = false
+	feet_ready = false
+	gait_phase = 0.0
+	stride_blend = 0.0
+	envelope_load = 0.0
 	visual.transform = Transform2D(Vector2.RIGHT, Vector2.DOWN, Vector2(0, -5))
 
 func _process(delta: float) -> void:
@@ -53,7 +63,8 @@ func _process(delta: float) -> void:
 	stride_blend = lerpf(stride_blend, target, 1.0 - exp(-delta * 18.0))
 	if grounded and speed > 5.0:
 		gait_phase = fmod(gait_phase + speed * delta / 80.0, 1.0)
-	var bob: float = absf(sin(gait_phase * TAU * 2.0)) * stride_blend * 0.35
+	_update_feet(grounded)
+	var bob: float = absf(sin(gait_phase * TAU * 2.0)) * stride_blend * 0.18
 	_update_dynamics(delta, grounded, bob)
 	queue_redraw()
 	rings.queue_redraw()
@@ -68,9 +79,11 @@ func _update_dynamics(delta: float, grounded: bool, bob: float) -> void:
 	# Continuous load response: push-off stretches; braking/support compresses.
 	var inertial_load: float = clampf(filtered_acceleration.dot(velocity.normalized()) / 6000.0, -1.0, 1.0)
 	var support_load: float = pow(absf(cos(gait_phase * TAU * 2.0)), 6.0) * stride_blend if grounded else 0.0
-	var target: Vector2 = Vector2(1.0 + 0.13 * horizontal - (0.22 * vertical if not grounded else 0.0)
-		- 0.04 * inertial_load + 0.035 * support_load,
-		clampf(velocity.x / 600.0 * 0.22 + filtered_acceleration.x / 6000.0 * 0.13, -0.3, 0.3))
+	var target: Vector2 = Vector2(1.0 + 0.035 * horizontal - (0.22 * vertical if not grounded else 0.0)
+		- 0.065 * inertial_load + 0.012 * support_load,
+		clampf(velocity.x / 600.0 * 0.07 + filtered_acceleration.x / 6000.0 * 0.24, -0.3, 0.3))
+	if not grounded and was_grounded and velocity.y < -80.0:
+		body_rate.x -= minf(-velocity.y / 300.0, 2.0) * 1.8
 	if grounded and not was_grounded and previous_velocity.y > 80.0:
 		body_rate.x += minf(previous_velocity.y / 300.0, 2.0) * 3.0
 	previous_velocity = velocity
@@ -97,6 +110,10 @@ func _update_dynamics(delta: float, grounded: bool, bob: float) -> void:
 	visual.transform = Transform2D(basis_x, basis_y, hip - basis_y * 8.0)
 
 func _update_envelope(delta: float, velocity: Vector2) -> void:
+	# Signed load tightens on acceleration and compresses on braking. Speed
+	# remains the source of tail length; no positional echoes are accumulated.
+	var load_target: float = clampf(filtered_acceleration.dot(envelope_direction) / 3000.0, -1.0, 1.0)
+	envelope_load = lerpf(envelope_load, load_target, 1.0 - exp(-18.0 * delta))
 	var target_strength: float = clampf(velocity.length() / 600.0, 0.0, 1.0)
 	if velocity.length() > 5.0:
 		var desired: Vector2 = velocity.normalized()
@@ -114,7 +131,43 @@ func _update_envelope(delta: float, velocity: Vector2) -> void:
 			envelope_direction = envelope_direction.rotated(envelope_direction.angle_to(desired) * (1.0 - exp(-16.0 * delta)))
 	envelope_strength = lerpf(envelope_strength, target_strength, 1.0 - exp(-14.0 * delta))
 
+func _update_feet(grounded: bool) -> void:
+	for leg: int in range(2):
+		var cycle: float = fmod(gait_phase + float(leg) * 0.5, 1.0)
+		var stance: bool = grounded and (cycle < 0.5 or stride_blend < 0.05)
+		var nominal: Vector2 = _nominal_foot_position(leg)
+		if not feet_ready:
+			foot_poses[leg] = nominal
+			foot_anchors[leg] = player.to_global(nominal)
+			swing_origins[leg] = foot_anchors[leg]
+		if not grounded:
+			foot_poses[leg] = nominal
+			swing_origins[leg] = player.to_global(nominal)
+		elif stance:
+			if not foot_stance[leg] and feet_ready:
+				foot_anchors[leg] = player.to_global(nominal)
+			foot_poses[leg] = player.to_local(foot_anchors[leg])
+		else:
+			if foot_stance[leg]:
+				swing_origins[leg] = foot_anchors[leg]
+			var swing: float = (cycle - 0.5) * 2.0
+			var side: float = -1.0 if leg == 0 else 1.0
+			var landing: Vector2 = Vector2(side * 2.3 + 5.0 * facing * stride_blend, 6.8)
+			foot_poses[leg] = player.to_local(swing_origins[leg]).lerp(landing, smoothstep(0.0, 1.0, swing))
+			foot_poses[leg].y = 6.8 - sin(swing * PI) * 3.0 * stride_blend
+		foot_stance[leg] = stance
+	feet_ready = true
+
 func foot_position(leg: int) -> Vector2:
+	return foot_poses[leg] if feet_ready else _nominal_foot_position(leg)
+
+func foot_roll(leg: int) -> float:
+	var cycle: float = fmod(gait_phase + float(leg) * 0.5, 1.0)
+	if not foot_stance[leg]:
+		return -facing * sin(clampf((cycle - 0.5) * 2.0, 0.0, 1.0) * TAU) * 0.25 * stride_blend
+	return -facing * smoothstep(0.30, 0.5, cycle) * 0.35 * stride_blend
+
+func _nominal_foot_position(leg: int) -> Vector2:
 	var grounded: bool = player.is_on_floor() if grounded_override < 0 else grounded_override == 1
 	var side: float = -1.0 if leg == 0 else 1.0
 	if not grounded:
@@ -158,9 +211,12 @@ func _draw_limbs() -> void:
 		left.append_array(right)
 		limbs.draw_colored_polygon(left, color)
 		var sole: PackedVector2Array = PackedVector2Array()
+		var roll: float = foot_roll(leg)
+		var toe: Vector2 = Vector2(facing * 1.55, 0.0)
 		for sample_index: int in range(48):
 			var angle: float = TAU * sample_index / 48.0
-			sole.append(foot + transform.x * (facing * 0.45 + cos(angle) * 1.55) + transform.y * sin(angle) * 0.85)
+			var local: Vector2 = (Vector2(cos(angle) * 1.55, sin(angle) * 0.85) - toe).rotated(roll) + toe
+			sole.append(foot + transform.x * (facing * 0.45 + local.x) + transform.y * local.y)
 		limbs.draw_colored_polygon(sole, color)
 
 func envelope_geometry() -> Array[Dictionary]:
@@ -180,12 +236,14 @@ func envelope_geometry() -> Array[Dictionary]:
 			# Common radial center with nested profiles. No per-ring translation.
 			# A narrow rear lobe makes a comet taper without widening the whole wake.
 			var alignment: float = maxf(0.0, -normal.dot(direction))
-			var tail: float = envelope_strength * 48.0 * pow(alignment, 6.0)
+			var tail: float = envelope_strength * 48.0 * (1.0 + minf(envelope_load, 0.0) * 0.45) * pow(alignment, 6.0)
 			# Preserve the outer boundary; pull the inner contour toward the body,
 			# including at the trailing tip, and evenly distribute the middle one.
-			var offset: float = lerpf(0.6 + tail * 0.08, 8.5 + tail, float(ring) / 2.0)
+			var front: float = pow(maxf(0.0, normal.dot(direction)), 2.0)
+			var clearance: float = 8.5 * (1.0 - front * 0.60) * (1.0 - maxf(envelope_load, 0.0) * 0.15)
+			var offset: float = lerpf(0.6 + tail * 0.08, clearance + tail, float(ring) / 2.0)
 			points.append(center + normal * (relative.length() + offset))
-			weights.append(lerpf(0.35, 1.0, rear) * (1.0 - 0.45 * pow(alignment, 8.0)))
+			weights.append(lerpf(0.45, 1.0, rear) * (1.0 - 0.92 * pow(alignment, 12.0)))
 		points.append(points[0])
 		weights.append(weights[0])
 		result.append({"points": points, "weights": weights})
@@ -205,4 +263,20 @@ func _draw_rings() -> void:
 			var color: Color = visual.inner_color.lerp(visual.outer_color, float(ring) / 2.0)
 			color.a = (0.2 + 0.65 * envelope_strength) * weight * (1.0 - ring * 0.18) * tint.a
 			colors.append(color)
-		rings.draw_polyline_colors(points, colors, 1.6 - ring * 0.18, true)
+		# A continuous ribbon supports real width taper without dotted segments.
+		var outside: PackedVector2Array = PackedVector2Array()
+		var inside: PackedVector2Array = PackedVector2Array()
+		var ribbon_colors: PackedColorArray = PackedColorArray()
+		for index: int in range(points.size()):
+			var sample: int = index % (points.size() - 1)
+			var count: int = points.size() - 1
+			var tangent: Vector2 = (points[(sample + 1) % count] - points[(sample + count - 1) % count]).normalized()
+			var half_width: float = (0.8 - ring * 0.09) * lerpf(0.12, 1.0, weights[index])
+			outside.append(points[index] + tangent.orthogonal() * half_width)
+			inside.append(points[index] - tangent.orthogonal() * half_width)
+			ribbon_colors.append(colors[index])
+		inside.reverse()
+		outside.append_array(inside)
+		colors.reverse()
+		ribbon_colors.append_array(colors)
+		rings.draw_polygon(outside, ribbon_colors)

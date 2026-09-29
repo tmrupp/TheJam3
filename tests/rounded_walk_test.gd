@@ -24,6 +24,10 @@ func run() -> void:
 	var foot_a: Vector2 = gait.foot_position(0)
 	var foot_b: Vector2 = gait.foot_position(1)
 	assert(absf(foot_a.y - foot_b.y) > 0.1, "Feet must alternate stance and swing")
+	var planted: Vector2 = room.player.to_global(gait.foot_position(0))
+	room.player.position.x += 3.0
+	gait._process(0.02)
+	assert(room.player.to_global(gait.foot_position(0)).distance_to(planted) < 0.001, "Supporting foot must not slide in world space")
 	visual.world_velocity = Vector2(-150, 0)
 	gait._process(0.1)
 	assert(gait.facing == -1.0)

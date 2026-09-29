@@ -49,6 +49,16 @@ python tests/encode_art_gif.py ../art-captures/feedback-frames ../art-captures/r
 
 ## Animated review
 
+### Weight and flow refinement
+
+The latest locomotion pass plants supporting feet in world space, interpolates the lifted foot toward its next contact, and rolls the sole about its toe near push-off. Hip roots remain hidden beneath the body. This is a flat-floor presentation gait, not terrain-raycast or moving-platform foot IK; gameplay collision remains unchanged.
+
+Cruise stretch, lean, and step bob are deliberately quieter. Acceleration drives stronger transient lean, takeoff adds vertical stretch, and landing adds compression through the same damped, area-preserving spring. Motion resets also clear foot contacts.
+
+The three concentric rings retain a close inner contour and the previous rear boundary at steady speed. Front spacing is tighter than rear spacing. Speed determines wake length; signed acceleration tightens the envelope and braking shortens it. Reversal still collapses before redirecting. Continuous colored ribbons taper both width and opacity at the rear tip, without positional echoes.
+
+Latest scripted eight-second review: `../art-captures/rounded-weight-and-flow.gif`. The walk test now verifies world-space stance contact; dynamics tests cover quiet cruise, takeoff, acceleration versus cruise lean, braking, and tail-tip fading in addition to the existing checks.
+
 `tests/capture_rounded_art.gd` renders a deterministic eight-second reel: rest, acceleration through a portal, separation, a jump-like return, a stationary effect pulse, then rest. The motion is scripted for art review, not a claim of recorded player input. It produces 240 PNG frames at 30 fps in the workspace's `art-captures/rounded-frames` directory.
 
 ```

@@ -37,12 +37,15 @@ func run() -> void:
 		var canvas: Transform2D = room.player.get_canvas_transform()
 		var direction: Vector2 = (canvas * gait.envelope_direction - canvas.origin).normalized()
 		var tail: float = gait.envelope_strength * 48.0 * pow(maxf(0.0, -relative.normalized().dot(direction)), 6.0)
-		assert(absf(outer.length() - (relative.length() + 8.5 + tail)) < 0.001, "Outermost ring stays fixed")
+		var front: float = pow(maxf(0.0, relative.normalized().dot(direction)), 2.0)
+		assert(absf(outer.length() - (relative.length() + 8.5 * (1.0 - front * 0.6) + tail)) < 0.001, "Front tightens; rear boundary stays fixed at cruise")
 		assert(absf(inner.length() - (relative.length() + 0.6 + tail * 0.08)) < 0.001, "Inner ring hugs body")
 	var strength: float = gait.envelope_strength
+	assert(gait.body_spring.x < 1.04 and gait.body_spring.y < 0.06, "Cruise deformation should remain quiet")
 	visual.world_velocity = Vector2(-400, 0)
 	gait._update_dynamics(1.0 / 60.0, true, 0.0)
 	assert(gait.envelope_strength < strength and gait.reversing, "Reversal must shorten before turning")
+	assert(gait.envelope_load < 0.0, "Braking compresses the envelope")
 	for step: int in range(60):
 		gait._update_dynamics(1.0 / 60.0, true, 0.0)
 	assert(gait.envelope_direction.x < -0.9)
@@ -56,6 +59,26 @@ func run() -> void:
 	for step: int in range(120):
 		gait._update_dynamics(1.0 / 60.0, true, 0.0)
 	assert(gait.body_spring.distance_to(Vector2(1, 0)) < 0.001, "Body must settle at rest")
+	gait.reset_dynamics()
+	gait.was_grounded = true
+	visual.world_velocity = Vector2(0, -450)
+	gait._update_dynamics(1.0 / 30.0, false, 0.0)
+	assert(gait.body_spring.x < 1.0, "Takeoff stretches vertically")
+	gait.reset_dynamics()
+	gait.envelope_direction = Vector2.RIGHT
+	visual.world_velocity = Vector2(400, 0)
+	gait._update_dynamics(1.0 / 30.0, true, 0.0)
+	assert(gait.envelope_load > 0.0, "Acceleration tightens envelope")
+	for step: int in range(4):
+		gait._update_dynamics(1.0 / 30.0, true, 0.0)
+	assert(gait.body_spring.y > results[0].y, "Acceleration lean exceeds steady cruise")
+	geometry = gait.envelope_geometry()
+	var faintest: float = 1.0
+	var strongest: float = 0.0
+	for weight: float in geometry[2].weights:
+		faintest = minf(faintest, weight)
+		strongest = maxf(strongest, weight)
+	assert(faintest < 0.12 and strongest > 0.5, "Tail tip fades distinctly from shoulders")
 	room.get_node("FourierWorld").reduced_motion = true
 	visual.world_velocity = Vector2(600, -600)
 	gait._update_dynamics(0.1, false, 0.3)
