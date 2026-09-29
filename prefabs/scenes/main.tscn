@@ -1,6 +1,7 @@
-[gd_scene load_steps=17 format=3 uid="uid://bdd54s8wdfdsc"]
+[gd_scene load_steps=18 format=3 uid="uid://bdd54s8wdfdsc"]
 
 [ext_resource type="Script" path="res://scripts/FourierWorld.gd" id="20_fourier"]
+[ext_resource type="Script" path="res://scripts/riso/RisoPrint.gd" id="21_riso"]
 
 [ext_resource type="PackedScene" uid="uid://bnktmhuvbbhqv" path="res://prefabs/upgrade_menu.tscn" id="1_c23vw"]
 [ext_resource type="PackedScene" uid="uid://d07pxhxu1ug5i" path="res://prefabs/menu.tscn" id="1_u4qe6"]
@@ -20,6 +21,9 @@
 
 [node name="Main" type="Node2D"]
 texture_filter = 1
+
+[node name="RisoPrint" type="Node" parent="."]
+script = ExtResource("21_riso")
 
 [node name="CodeMenu" parent="." instance=ExtResource("6_pee7n")]
 visible = false

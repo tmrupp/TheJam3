@@ -389,6 +389,8 @@ func next_world () -> void:
 	player.reset_position()
 	player.set_collision(true)
 	player.set_physics_process(true)
+	if RisoPrint.instance != null:
+		RisoPrint.instance.world_built(self, world_index)
 
 var map_elements: Node
 # result of generating a new world
