@@ -121,13 +121,15 @@ func _portal() -> void:
 
 
 func _door() -> void:
+	# As in the prototype: a screened blue frame, a solid blue panel, a sunflower keyhole.
 	var g: float = _ground()
-	var frame: PackedVector2Array = RisoShapes.arch(-62, g - 130, 124, 130, 12)
-	var panel: PackedVector2Array = RisoShapes.arch(-50, g - 118, 100, 118, 12)
-	ink.ink(RisoPrint.BLUE, 1.0, [frame])
-	ink.ink(RisoPrint.PINK, 1.0, [panel])
-	ink.ink(RisoPrint.NIGHT, 0.3, [PackedVector2Array([Vector2(-50, g - 54), Vector2(50, g - 54), Vector2(50, g), Vector2(-50, g)])], false)
-	ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.crescent(Vector2(0, g - 72), 12.0, Vector2(5, -3))])
+	var frame: PackedVector2Array = RisoShapes.arch(-60, g - 128, 120, 128, 12)
+	var panel: PackedVector2Array = RisoShapes.arch(-52, g - 120, 104, 120, 12)
+	ink.ink(RisoPrint.BLUE, 0.5, [frame])
+	ink.knock([RisoPrint.NIGHT], [panel])
+	ink.ink(RisoPrint.BLUE, 1.0, [panel])
+	ink.ink(RisoPrint.NIGHT, 0.2, [RisoShapes.arch(-52, g - 120, 26, 120, 8)], false)
+	ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.crescent(Vector2(24, g - 58), 8.0, Vector2(3.5, -2))])
 
 
 func _lantern() -> void:
@@ -135,7 +137,7 @@ func _lantern() -> void:
 	var lit: bool = player != null and is_same(player.get("respawn"), host)
 	var sw: float = sin(t * 2.2 + phase) * 0.12
 	var g: float = _ground()
-	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-5, g - 110, 10, 110, 5), RisoShapes.rrect(-4, g - 112, 40, 8, 4)])
+	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-4, g - 110, 8, 110, 4), RisoShapes.rrect(-3, g - 111, 38, 6, 3)])
 	var hang: Transform2D = Transform2D(sw, Vector2(30, g - 106))
 	ink.ink(RisoPrint.BLUE, 1.0, [hang * RisoShapes.rrect(-2, 0, 4, 18, 2), hang * RisoShapes.rrect(-14, 14, 28, 8, 4)])
 	var glass: PackedVector2Array = hang * RisoShapes.rrect(-12, 20, 24, 28, 10)
@@ -156,9 +158,12 @@ func _lantern() -> void:
 func _gate() -> void:
 	var pulse: float = 1.0 + 0.08 * sin(t * 2.5 + phase)
 	var g: float = _ground()
-	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.arch(-58, g - 122, 116, 122, 14)])
-	ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.arch(-44, g - 108, 88, 108, 14)])
-	ink.ink(RisoPrint.EYE, 0.25, [RisoShapes.circle(Vector2(0, g - 58), 30.0 * pulse, 28)])
+	# A lit doorway: blue frame, an opening cleared to paper and washed with eye yellow, a solid star.
+	var opening: PackedVector2Array = RisoShapes.arch(-44, g - 110, 88, 110, 14)
+	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.arch(-52, g - 118, 104, 118, 14)])
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], [opening])
+	ink.ink(RisoPrint.EYE, 0.3, [opening], false)
+	ink.ink(RisoPrint.EYE, 0.35, [RisoShapes.circle(Vector2(0, g - 58), 30.0 * pulse, 28)], false)
 	var star: PackedVector2Array = Transform2D(t * 0.4, Vector2(0, g - 58)) * RisoShapes.sparkle(Vector2.ZERO, 20.0 * pulse)
 	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT], [star])
 	ink.ink(RisoPrint.EYE, 1.0, [star], false)

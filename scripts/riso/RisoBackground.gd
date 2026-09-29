@@ -41,7 +41,9 @@ func _process(_delta: float) -> void:
 			rays.append(PackedVector2Array([sun, sun + Vector2(cos(a0), sin(a0)) * view.x * 1.6, sun + Vector2(cos(a0 + TAU / 40.0), sin(a0 + TAU / 40.0)) * view.x * 1.6]))
 		ink.ink(RisoPrint.ACCENT, 0.15, rays)
 		ink.ink(RisoPrint.PINK, 0.15, [RisoShapes.circle(at.call(118.0 + sin(t * 0.07) * 26.0, 78.0), 40.0 * k, 40)])
-		ink.ink(RisoPrint.PINK, 0.1, [PackedVector2Array([Vector2(-half.x, 40.0 * k), Vector2(half.x, 40.0 * k), Vector2(half.x, half.y), Vector2(-half.x, half.y)])])
+		# Dusk warms toward the bottom of the sheet: a graded pink screen, no hard edge.
+		var top: float = -10.0 * k
+		ink.ink_graded(RisoPrint.PINK, [PackedVector2Array([Vector2(-half.x, top), Vector2(half.x, top), Vector2(half.x, half.y), Vector2(-half.x, half.y)])], [PackedFloat32Array([0.0, 0.0, 0.2, 0.2])])
 		ink.ink(RisoPrint.ACCENT, 0.5, [RisoShapes.circle(sun, 20.0 * k, 32)])
 	elif realm == &"aurora":
 		for i: int in range(3):

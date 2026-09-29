@@ -10,6 +10,10 @@ const HEMX: Array[float] = [-8.8, -4.5, 0.0, 4.5, 8.8]
 const VX_SCALE: float = 88.0 / 300.0
 const VY_SCALE: float = 0.5
 const ALL: Array[int] = [0, 1, 2, 3, 4, 5]
+## Art scale around the feet. Level cells are 128 px while the player collider is ~62 px,
+## so the prototype's proportions (body about one tile tall) need the art a little larger
+## than the collider. Collision is unchanged.
+const ART_SCALE: float = 1.3
 
 var player: Player
 var body: InkCanvas
@@ -48,6 +52,7 @@ var _was_climbing: bool = false
 func _ready() -> void:
 	player = get_parent() as Player
 	position = Vector2(0, _feet_offset())
+	scale = Vector2(ART_SCALE, ART_SCALE)
 	z_index = 10
 	body = InkCanvas.new()
 	add_child(body)
@@ -332,7 +337,7 @@ func _draw_body() -> void:
 
 
 func _draw_world() -> void:
-	var s: float = player.global_scale.y
+	var s: float = player.global_scale.y * ART_SCALE
 	world.begin()
 	# Dash smear: a continuous ribbon along the dash path (oldest point first), thin and faint at
 	# the tail, full height at the wizard. Built from per-segment quads offset along each
