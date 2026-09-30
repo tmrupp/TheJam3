@@ -72,6 +72,7 @@ var print_material: ShaderMaterial
 var background: Node2D
 var terrain: Node2D
 var hud: Node2D
+var map_view: Node2D
 var panel: Control
 
 var sheet_index: int = 0
@@ -207,6 +208,10 @@ func _build() -> void:
 	hud.name = "RisoHud"
 	hud.set_script(preload("res://scripts/riso/RisoHud.gd"))
 	main.add_child.call_deferred(hud)
+	map_view = Node2D.new()
+	map_view.name = "RisoMap"
+	map_view.set_script(preload("res://scripts/riso/RisoMap.gd"))
+	main.add_child.call_deferred(map_view)
 	var fx: Node2D = Node2D.new()
 	fx.name = "RisoFx"
 	fx.set_script(preload("res://scripts/riso/RisoFx.gd"))

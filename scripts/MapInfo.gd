@@ -2,7 +2,6 @@ extends Control
 
 class_name MapInfo
 
-const START_REVEALED: bool = false
 const CLOSE_ONE_KEY: bool = false
 const DEBUG_DISCOVERABLE: bool = false
 const CODE_LENGTH: int = 4 # 8 is more reasonable
@@ -49,7 +48,6 @@ class NextWorldDef:
 
 class Cell:
 	var type: Type = Type.GROUND
-	var discovered: bool = false
 	var extra_info: Variant = null
 
 	func _init(_type: Type) -> void:
@@ -99,9 +97,6 @@ class World:
 	func set_cell (v: Variant, cell: Cell) -> void:
 		if v != null:
 			cells[v.x][v.y] = cell
-
-	func discover (v: Vector2i) -> void:
-		get_cell(v).discovered = true
 
 	func get_random_cell () -> Vector2i:
 		return Vector2i(rng.randi_range(0, size.x - 1), rng.randi_range(0, size.y - 1))
@@ -371,17 +366,11 @@ class World:
 var goal_shift: int = 0
 @onready var wfc: WaveFunctionCollapse = $"../../WaveFunctionCollapse"
 @onready var player: Player
-@onready var map_sprite: TextureRect = $MapSprite
-@onready var keys: Node = $"../HUD/Keys"
 # const?
-const SPACING: float = 6.0
 
-var map_local_size: Vector2 = Vector2(100,100)
-var top_left: Vector2 = Vector2i(100, 100)
 
 const CHUNK_SIZE: int = 16
 
-var undiscovered_chunks: Array[Vector2i] = []
 @onready var tile_map: TileMap = $"../../TileMap"
 
 # constants for "box" to contain the generated map
@@ -833,37 +822,94 @@ func _level_ready (cells: Array, def: NextWorldDef) -> void:
 	_spawn_ghost()
 	next_world()
 
-func setup_chunks() -> void:
-	undiscovered_chunks = []
-	var map_chunks: Vector2i = map.size/CHUNK_SIZE
+# ------------------------------------------------------------------ what the map has seen
+# Each level's record keeps a byte per cell: 1 once seen. The player sees a few cells around
+# them as they move; a moon shard shows a whole chunk. The printed map (RisoMap) draws from it.
 
-	for i: int in range(0, map_chunks.x):
-		for j: int in range(0, map_chunks.y):
-			undiscovered_chunks.append(Vector2i(i, j))
+const SEE_RADIUS: int = 5
+## Bumped whenever something new is seen, so the map knows to redraw.
+var seen_version: int = 0
+var _last_seen_cell: Vector2i = Vector2i(-9999, -9999)
 
-func get_random_chunk() -> Vector2i:
-	if (undiscovered_chunks.is_empty()):
-		return Vector2i.ZERO
+func seen () -> PackedByteArray:
+	var rec: Dictionary = record()
+	var n: int = world.size.x * world.size.y if world != null else 0
+	if not rec.has("seen") or (rec["seen"] as PackedByteArray).size() != n:
+		var fresh: PackedByteArray = PackedByteArray()
+		fresh.resize(n)
+		rec["seen"] = fresh
+	return rec["seen"]
 
-	var i: int = randi_range(0, len(undiscovered_chunks)-1)
-	var chunk: Vector2i = undiscovered_chunks[i]
-	undiscovered_chunks.remove_at(i)
+func is_seen (v: Vector2i) -> bool:
+	if world == null or not world.is_valid(v):
+		return false
+	return seen()[v.x * world.size.y + v.y] != 0
 
-	return chunk
+func seen_count () -> int:
+	var n: int = 0
+	for b: int in seen():
+		n += b
+	return n
 
-func discover_random_chunk() -> void:
-	discover_chunk(get_random_chunk())
-	queue_redraw()
+## Mark every cell within `radius` of `at` as seen.
+func reveal (at: Vector2i, radius: int = SEE_RADIUS) -> void:
+	if world == null:
+		return
+	var bytes: PackedByteArray = seen()
+	var changed: bool = false
+	for x: int in range(at.x - radius, at.x + radius + 1):
+		for y: int in range(at.y - radius, at.y + radius + 1):
+			var v: Vector2i = Vector2i(x, y)
+			if world.is_valid(v) and (v - at).length_squared() <= radius * radius:
+				var i: int = x * world.size.y + y
+				if bytes[i] == 0:
+					bytes[i] = 1
+					changed = true
+	if changed:
+		record()["seen"] = bytes
+		seen_version += 1
 
-func discover_all() -> void:
-	for i: int in range(map.size.x):
-		for j: int in range(map.size.y):
-			map.discover(Vector2i(i,j))
+## A moon shard: show the chunk nearest the wizard that is still mostly unseen (or, when every
+## chunk is mostly seen, the one with the most left).
+func discover_random_chunk () -> void:
+	if world == null:
+		return
+	var bytes: PackedByteArray = seen()
+	var near: Vector2i = cell_at(player.global_position) / CHUNK_SIZE if player != null else Vector2i.ZERO
+	var best: Vector2i = Vector2i.ZERO
+	var best_score: float = -INF
+	@warning_ignore("integer_division")
+	var chunks: Vector2i = Vector2i((world.size.x + CHUNK_SIZE - 1) / CHUNK_SIZE, (world.size.y + CHUNK_SIZE - 1) / CHUNK_SIZE)
+	for cx: int in range(chunks.x):
+		for cy: int in range(chunks.y):
+			var unseen: int = 0
+			for x: int in range(cx * CHUNK_SIZE, mini((cx + 1) * CHUNK_SIZE, world.size.x)):
+				for y: int in range(cy * CHUNK_SIZE, mini((cy + 1) * CHUNK_SIZE, world.size.y)):
+					if bytes[x * world.size.y + y] == 0:
+						unseen += 1
+			var score: float = float(unseen)
+			if unseen * 2 >= CHUNK_SIZE * CHUNK_SIZE:
+				score = 100000.0 - float((Vector2i(cx, cy) - near).length_squared())
+			if unseen > 0 and score > best_score:
+				best_score = score
+				best = Vector2i(cx, cy)
+	for x: int in range(best.x * CHUNK_SIZE, mini((best.x + 1) * CHUNK_SIZE, world.size.x)):
+		for y: int in range(best.y * CHUNK_SIZE, mini((best.y + 1) * CHUNK_SIZE, world.size.y)):
+			bytes[x * world.size.y + y] = 1
+	record()["seen"] = bytes
+	seen_version += 1
 
-func discover_chunk(v: Vector2i) -> void:
-	for i: int in range(v.x*CHUNK_SIZE, v.x*CHUNK_SIZE+CHUNK_SIZE):
-		for j: int in range(v.y*CHUNK_SIZE, v.y*CHUNK_SIZE+CHUNK_SIZE):
-			map.discover(Vector2i(i,j))
+## The level cell a world position falls in.
+func cell_at (pos: Vector2) -> Vector2i:
+	return tile_map.local_to_map(tile_map.to_local(pos))
+
+func _physics_process (_delta: float) -> void:
+	if world == null or travelling or player == null or not is_instance_valid(player):
+		return
+	var c: Vector2i = cell_at(player.global_position)
+	if c != _last_seen_cell:
+		_last_seen_cell = c
+		reveal(c)
 
 var map_shard: Resource = preload("res://prefabs/map_shard.tscn")
 var spikes: Resource = preload("res://prefabs/spikes.tscn")
@@ -896,14 +942,9 @@ func clear_terrain() -> void:
 		map_elements.queue_free()
 
 func next_world () -> void:
-	map_local_size = map.size*SPACING
 	construct_world()
-
-	if (START_REVEALED):
-		discover_all()
-
-	map_image = Image.create(map.size.x, map.size.y, true, Image.FORMAT_RGBA8)
-	map_texture = ImageTexture.new()
+	_last_seen_cell = Vector2i(-9999, -9999)
+	seen_version += 1
 	# Arrive at the matching exit; a new run starts at its lit start lantern, a respawn at the lantern.
 	var at: Vector2i = world.exits.get(Exit.BACK, Vector2i.ZERO)
 	if arrival >= 0 and world.exits.has(arrival):
@@ -982,15 +1023,11 @@ func place_cell(v: Vector2i, _cell: Cell) -> void:
 			cell.setup(self, v)
 
 func construct_world() -> void:
-	setup_chunks()
-
 	tile_map.set_cells_terrain_connect(0, world.grounds, 0, 0)
 
 	enclose_map(world.size.x, world.size.y)
 
 	draw_background(world.size.x, world.size.y)
-
-	queue_redraw()
 
 func get_max_bounds () -> Vector2:
 	return tile_map.to_global(tile_map.map_to_local(Vector2i(world.size.x + X_MARGIN - 1, world.size.y)))
@@ -1045,49 +1082,10 @@ func enclose_map(dim_x: int, dim_y: int) -> void:
 		tile_map.set_cells_terrain_connect(0, to_add, 0, 0)
 		# print("to_add=", to_add, " dim_y=", dim_y)
 
-var enabled: bool = false
 func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("ShowMap"):
-		enabled = !enabled
-		queue_redraw()
-
 	if event.is_action_pressed("Discover"):
 		if DEBUG_DISCOVERABLE:
 			discover_random_chunk()
 
 	if event.is_action_pressed("Debug-Back"):
 		travel(Exit.BACK)
-
-var cell_colors: Dictionary = {
-	Type.GROUND: 	Color.DARK_OLIVE_GREEN,
-	Type.SHARD: 	Color.RED,
-	Type.EXIT: 		Color.GREEN,
-}
-
-@onready var map_contents: TextureRect = $MapContents
-var map_image : Image
-var map_texture : ImageTexture
-
-func draw_cell(x: int, y: int, cell: Cell) -> void:
-#	print("cell.type=", cell.type)
-	var color: Color = Color.BLACK if not cell.discovered else (Color.LIGHT_BLUE if cell.type not in cell_colors else cell_colors[cell.type])
-	color.a = .5
-	map_image.set_pixel(x, y, color)
-
-func inverse(v: Vector2) -> Vector2:
-	return Vector2(1/float(v.x), 1/float(v.y))
-
-func _draw() -> void:
-	map_sprite.visible = enabled
-
-	keys.visible = enabled
-
-	map_contents.visible = enabled
-	if (enabled):
-		for i: int in map.size.x:
-			for j: int in map.size.y:
-				# print("i=", i, " j=", j, " cell=", cells[i][j].type)
-				draw_cell(i, j, map.get_cell(Vector2i(i, j)))
-		map_texture.image = map_image
-		map_contents.texture = map_texture
-		# map_contents.scale =  inverse(map_contents.texture.get_image().get_size())

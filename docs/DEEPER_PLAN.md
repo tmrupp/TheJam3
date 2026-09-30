@@ -98,7 +98,7 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 - **Pre-generation:** one worker thread runs the WFC, one level at a time.
   - The level being travelled to always goes first. Otherwise the worker generates the current level's neighbours (deeper, right, left, back) into a 12-level cache.
   - A transition into a cached level takes a frame. Cached terrain is identical to fresh terrain, and the test checks this.
-- **Map screen:** replaces the pixel map overlay; see §7.
+- **Map screen:** see §7.
 
 ## What changes in the code
 
@@ -112,30 +112,26 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
   - `Upgrade` gets tiers.
 - **New:** an exit prefab (deeper / back / lateral), a shrine prefab, a level record store, a save file, a start menu, the map screen, and riso art for the exits, shrine and ghost.
 
-## 7. Map screen (planned)
+## 7. Map screen
 
-Today the map is MapInfo's pixel overlay: the current level's cells, revealed a chunk at a time by moon shards. It is replaced by a printed map with two views, toggled by `ShowMap` and switched with a second press or a shoulder button.
+`scripts/riso/RisoMap.gd` replaces MapInfo's pixel overlay. `ShowMap` (M, or the pad's Y) cycles through the level view, the world view, and closed. The map pauses the game while open, and Menu closes it. It is printed on the ink plates like the HUD, in the 320×180 UI space, so it needs the print on.
 
-- **Level view:** the current level on paper, in the same inks as the world.
-  - **Reveal:** cells within a few cells of the player reveal as you move, and a moon shard reveals a whole chunk.
-  - **Persistence:** what's revealed is stored in the level record, so a revisit keeps its map.
-  - **Marks:**
-    - exits: their direction, and a price or lock colour until open
-    - the shrine: offered or spent
-    - lanterns: lit, and which one is your respawn
-    - doors by colour, and dropped keys
-    - the ghost, and the player
-- **World view:** visited levels as tiles on the (world, depth) grid, with the current one highlighted.
-  - **Links:** open side doors and paid deeper doors are drawn as links between tiles.
-  - **Marks:** the respawn lantern's level, the ghost's level, and spent shrines.
-  - **Shareable:** each tile is labelled `world · depth`, so coordinates can be shared.
-- **Build:** a `RisoMap.gd` node printed like the HUD (UI space, on the plates), fed by the level records. The old `MapSprite` and `MapContents` nodes and the pixel `_draw` go.
-- **Tests:**
-  - reveal radius and shard chunks
-  - reveal persists across a revisit
-  - world-view tiles and links match the records
-  - a still of each view
-- **Pausing:** opening the map pauses the game, as the pause menu does.
+- **Level view:** the current level on paper, as far as it has been seen.
+  - **Seen:** each level's record holds `seen`, a byte per cell (`MapInfo.reveal`, `is_seen`).
+  - **Reveal:** cells within 5 of the wizard reveal as they move. A moon shard reveals the nearest mostly-unseen 16×16 chunk, or the chunk with the most left when every chunk is mostly seen.
+  - **Persistence:** seen cells are kept across revisits and in the save.
+  - **Ink:** rock prints as solid blue ink and explored open ground as a light blue screen. They are two one-texel-per-cell textures, rebuilt only when something new is seen.
+  - **Marks, where seen:**
+    - exits: a chevron on a paper disc, plus a key-colour dot while locked or a star while unpaid
+    - the shrine: an arch, dim once spent
+    - lanterns: yellow dots, with a halo on your respawn
+    - doors: key-colour bars
+    - keys: key-colour dots
+  - **Always marked:** the ghost, and the wizard (a pink hat).
+- **World view:** each visited level is a tile labelled `world · depth` on the grid, centred on the current one, which is highlighted.
+  - **Links:** opened side doors and paid deeper doors are drawn as bars between tiles.
+  - **Marks:** the respawn lantern's level, spent shrines, and the ghost.
+- `tests/map_test.gd` covers the reveal radius, shard chunks, reveal persisting across a revisit, the open, cycle and close states with pausing, and the world tiles and links. `tests/capture_map.gd` takes stills of both views.
 
 ## 8. A damaging spell (planned)
 
@@ -172,7 +168,7 @@ Enemies can only be stunned today (parry). A spell gives the wizard a way to des
 
 ## Phases
 
-Status: phases 1–5 are implemented (`tests/deeper_test.gd`, `tests/death_test.gd`, `tests/keys_test.gd`, `tests/shrine_test.gd`, `tests/interface_test.gd`). The HUD already shows the current world and depth (`world 28 · depth 1`), and names the ghost's world when it is elsewhere.
+Status: phases 1–6 are implemented (`tests/deeper_test.gd`, `tests/death_test.gd`, `tests/keys_test.gd`, `tests/shrine_test.gd`, `tests/interface_test.gd`, `tests/map_test.gd`). The HUD already shows the current world and depth (`world 28 · depth 1`), and names the ghost's world when it is elsewhere.
 
 1. **The grid:** `Level(seed, depth)`, deterministic generation, the four exits with transitions, arrival lanterns, and level records. Remove codes, goals, backtracking, the map WFC and packing.
    - Test: the same `(seed, depth)` always gives the same level fingerprint.

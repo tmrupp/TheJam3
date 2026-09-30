@@ -36,6 +36,7 @@ Defaults: twilight realm, fine detail, new sheet registration at 8 sheets/s, rep
 
 ## Interface
 
+- **Printed map** (`RisoMap.gd`): a paper sheet over the view, opened with M. The level view prints seen rock in blue ink and explored ground as a light blue screen, from one-texel-per-cell textures on the blue plate. It marks exits, the shrine, lanterns, doors, keys, the ghost and the wizard. The world view prints visited levels as labelled tiles joined by opened doors. See `docs/DEEPER_PLAN.md` §7.
 - **Printed HUD** (`RisoHud.gd`): a bare-paper label in the top-left corner, printed with the art. It shows a coin mote and count in night-ink serif, health as ember beads (spent ones become a faint screen), and the carried key. A tag in the top-right corner names the level being played (`world 28 · depth 1`). Under it, a strip shows each ability you know as its shrine mark, with a pip per tier. While a ghost exists, a second label shows the ghost, its stars and an arrow toward it and, when it is in another level, that level's world and depth. While vulnerable, that label turns pink and adds a cracked star with the fresh stars still needed, and the hat bead splits into two pink halves. A run's end prints a card with the seed and the deepest depth reached. It lives on the ink plates and follows the camera, laid out in the 320×180 UI space. The pixel HUD hides while printing, but its data and scripts still run.
 - **Menus** (`RisoTheme.gd`): the shared `main_menu_theme.tres` is restyled at runtime in the realm's inks: blue ink buttons that turn to the accent on hover and focus, paper input fields, night panels, a serif face and no borders. It is restored exactly when the print is off. The title image hides so the printed sky shows behind the main menu.
 
@@ -51,5 +52,5 @@ The headless test boots seed 28 and checks plates, stretch mode, cull mask, dres
 ## Limits
 
 - Presentation only: no collision, physics or generation changes. The only gameplay-file edit is one notify call at the end of `MapInfo.next_world()`.
-- The HUD, menus and the map overlay keep their pixel art.
+- Menus keep their Godot controls, restyled by `RisoTheme`.
 - Prop art is sized to the current prefab scales (cells are 128 world px). Standing props measure their own ground each redraw, because checkpoints shift themselves after spawning; spikes stand on the surface they are rotated toward. A prefab added later needs an entry in `RisoPrint.DRESS` and a drawing in `RisoProp.gd`, or it stays invisible under the print.

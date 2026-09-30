@@ -1,11 +1,10 @@
-[gd_scene load_steps=17 format=3 uid="uid://bdd54s8wdfdsc"]
+[gd_scene load_steps=16 format=3 uid="uid://bdd54s8wdfdsc"]
 
 [ext_resource type="Script" path="res://scripts/FourierWorld.gd" id="20_fourier"]
 [ext_resource type="Script" path="res://scripts/riso/RisoPrint.gd" id="21_riso"]
 
 [ext_resource type="PackedScene" uid="uid://d07pxhxu1ug5i" path="res://prefabs/menu.tscn" id="1_u4qe6"]
 [ext_resource type="Script" path="res://scripts/MapInfo.gd" id="2_j20rq"]
-[ext_resource type="Texture2D" uid="uid://bntdacghcahec" path="res://sprites/mapart.png" id="3_aatww"]
 [ext_resource type="Script" path="res://scripts/Keys.gd" id="4_di2xy"]
 [ext_resource type="PackedScene" uid="uid://d3x2egwr42wpm" path="res://prefabs/key_entry.tscn" id="4_r7eab"]
 [ext_resource type="Texture2D" uid="uid://bsvj6kbku0k16" path="res://wfc_images/levelSample3-spikes.png" id="5_3ptxv"]
@@ -43,32 +42,6 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("2_j20rq")
-
-[node name="MapSprite" type="TextureRect" parent="CanvasLayer/MapInfo"]
-custom_minimum_size = Vector2(180, 180)
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-grow_horizontal = 2
-grow_vertical = 2
-texture = ExtResource("3_aatww")
-expand_mode = 1
-stretch_mode = 4
-
-[node name="MapContents" type="TextureRect" parent="CanvasLayer/MapInfo"]
-custom_minimum_size = Vector2(128, 128)
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-grow_horizontal = 2
-grow_vertical = 2
-expand_mode = 3
 
 [node name="HUD" type="VBoxContainer" parent="CanvasLayer"]
 offset_right = 300.0
