@@ -380,6 +380,25 @@ var respawn_coord: Vector2i = Vector2i.ZERO
 var respawn_cell: Vector2i = Vector2i.ZERO
 var respawn_marker: Node2D
 
+## The seed this run started on (coord.x drifts as the player moves sideways) and the deepest
+## depth reached.
+var run_seed: int = 0
+var deepest: int = 0
+## Dying drops every star into a ghost and leaves the player vulnerable. Recovering the ghost,
+## or collecting recover_need fresh stars, ends that; dying again while vulnerable ends the run.
+var vulnerable: bool = false
+var fresh_stars: int = 0
+var recover_need: int = 0
+var has_ghost: bool = false
+var ghost_coord: Vector2i = Vector2i.ZERO
+var ghost_pos: Vector2 = Vector2.ZERO
+var ghost_stars: int = 0
+var ghost_node: Node2D
+## Seconds left on the end-of-run card (0 while playing).
+var run_ending: float = 0.0
+const RUN_END_SECONDS: float = 3.0
+var ghost_prefab: Resource = preload("res://prefabs/corpse.tscn")
+
 ## Deterministic per-level seed from the run seed and depth (independent of engine hashing).
 static func level_seed (run_seed: int, depth: int) -> int:
 	var h: int = (run_seed * 73856093) ^ (depth * 19349663) ^ 0x5bd1e995
@@ -393,6 +412,10 @@ static func deeper_price (depth: int) -> int:
 	return roundi(8.0 * pow(1.4, depth))
 
 ## Minimum distance in cells between a level's way back and its deeper exit.
+## Fresh stars that end the vulnerable state without the ghost: half the deeper price.
+static func recover_price (depth: int) -> int:
+	return maxi(1, ceili(deeper_price(depth) / 2.0))
+
 static func exit_distance (depth: int) -> int:
 	return clampi(24 + 4 * depth, 24, 96)
 
@@ -416,10 +439,15 @@ func mark_opened (node: Node) -> void:
 		record()["opened"][node.get_meta(&"cell")] = true
 
 ## Begin a run at depth 0 of `run_seed`; its start lantern is lit.
-func start_run (run_seed: int) -> void:
-	coord = Vector2i(run_seed, 0)
+func start_run (seed_value: int) -> void:
+	run_seed = seed_value
+	deepest = 0
+	coord = Vector2i(seed_value, 0)
 	arrival = -1
 	records.clear()
+	vulnerable = false
+	fresh_stars = 0
+	_clear_ghost()
 	_load_level()
 
 ## Leave through `exit` and arrive at the opposite exit of the next level.
@@ -427,7 +455,9 @@ func travel (exit: int) -> void:
 	if travelling:
 		return
 	match exit:
-		Exit.DEEPER: coord.y += 1
+		Exit.DEEPER:
+			coord.y += 1
+			deepest = maxi(deepest, coord.y)
 		Exit.BACK: coord.y = maxi(0, coord.y - 1)
 		Exit.LEFT: coord.x -= 1
 		Exit.RIGHT: coord.x += 1
@@ -461,6 +491,88 @@ func _set_respawn (at: Vector2i, cell: Vector2i) -> void:
 	if player != null:
 		player.respawn = respawn_marker
 
+# ------------------------------------------------------------------ death, the ghost, the end
+
+## Called by the player on death. Not vulnerable: every star goes into a ghost where they fell
+## (replacing any earlier ghost), and they respawn vulnerable. Vulnerable: the run ends.
+func player_died (pos: Vector2) -> void:
+	if run_ending > 0.0 or travelling:
+		return
+	if vulnerable:
+		end_run()
+		return
+	_clear_ghost()
+	has_ghost = true
+	ghost_coord = coord
+	ghost_pos = pos
+	ghost_stars = player.coins.coins
+	player.collect(-ghost_stars)
+	vulnerable = true
+	fresh_stars = 0
+	recover_need = recover_price(coord.y)
+	_spawn_ghost()
+	player.reset_position()
+
+## Touching the ghost returns its stars and ends the vulnerable state.
+func recover_ghost () -> void:
+	if not has_ghost:
+		return
+	var stars: int = ghost_stars
+	var at: Vector2 = ghost_pos
+	_clear_ghost()
+	vulnerable = false
+	player.collect(stars)
+	RisoFx.burst(&"gain", at, Vector2.ZERO, [RisoPrint.GLOW, RisoPrint.ACCENT])
+
+## Fresh stars count toward leaving the vulnerable state; the ghost stays where it is.
+func star_found (count: int) -> void:
+	if not vulnerable:
+		return
+	fresh_stars += count
+	if fresh_stars >= recover_need:
+		vulnerable = false
+		if player != null:
+			RisoFx.burst(&"gain", player.global_position, Vector2.ZERO, [RisoPrint.GLOW, RisoPrint.EYE])
+
+## The run is over: show the card, then start again at depth 0 of the run's seed with a fresh
+## character and no records (the levels themselves are unchanged).
+func end_run () -> void:
+	if run_ending > 0.0:
+		return
+	run_ending = RUN_END_SECONDS
+	player.set_physics_process(false)
+	player.velocity = Vector2.ZERO
+	player.visible = false
+	while run_ending > 0.0:
+		await get_tree().process_frame
+		run_ending = maxf(0.0, run_ending - get_process_delta_time())
+	player.collect(-player.coins.coins)
+	if player.has_meta(&"carried_key"):
+		player.remove_meta(&"carried_key")
+	player.health.health = player.health.max_health
+	player.health.display_health()
+	player.visible = true
+	start_run(run_seed)
+
+func _spawn_ghost () -> void:
+	if not has_ghost or ghost_coord != coord or map_elements == null or not is_instance_valid(map_elements):
+		return
+	if ghost_node != null and is_instance_valid(ghost_node):
+		ghost_node.queue_free()
+	ghost_node = ghost_prefab.instantiate()
+	ghost_node.position = ghost_pos
+	ghost_node.set("stars", ghost_stars)
+	map_elements.add_child(ghost_node)
+	if player != null:
+		player.corpse_created.emit(ghost_node)
+
+func _clear_ghost () -> void:
+	has_ghost = false
+	ghost_stars = 0
+	if ghost_node != null and is_instance_valid(ghost_node):
+		ghost_node.queue_free()
+	ghost_node = null
+
 func cell_position (v: Vector2i) -> Vector2:
 	return tile_map.to_global(tile_map.map_to_local(v))
 
@@ -493,6 +605,7 @@ func _level_ready (cells: Array, def: NextWorldDef) -> void:
 	_doors_dealt = 0
 	for v: Vector2i in world.objects:
 		place_cell(v, world.get_cell(v))
+	_spawn_ghost()
 	next_world()
 
 func setup_chunks() -> void:

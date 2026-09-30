@@ -6,7 +6,6 @@ class_name Player
 @onready var health: Health = $Health
 @onready var coins: Coins = $Coins
 
-@onready var corpse_prefab: Resource = preload("res://prefabs/corpse.tscn")
 
 @onready var jump_sfx: AudioStreamPlayer = $JumpSFX
 @onready var dash_sfx: AudioStreamPlayer = $DashSFX
@@ -173,24 +172,17 @@ func pulse_fourier(strength: float) -> void:
 	if visual != null:
 		visual.pulse(strength)
 
-func setup_corpse (pos: Vector2) -> void:
-	var corpse: Node2D = corpse_prefab.instantiate()
-	corpse.position = pos
-	var level: Node = MapInfo.instance.map_elements if MapInfo.instance != null and is_instance_valid(MapInfo.instance.map_elements) else $"/root/Main"
-	level.add_child(corpse)
-	var sub: int = ceil(coins.coins/2.0)
-	corpse.setup(sub)
-	corpse_created.emit(corpse)
-	collect(-sub)
-
 # kills the player and puts them back at respawn
 func die() -> void:
 	visual_event.emit(&"death", global_position)
 	died.emit()
 	var pos: Vector2 = position
-	reset_position()
-	setup_corpse(pos)
 	death_sfx.play()
+	# MapInfo drops the ghost, marks the player vulnerable, or ends the run.
+	if MapInfo.instance != null:
+		MapInfo.instance.player_died(pos)
+	else:
+		reset_position()
 
 # does a jump and triggers the jumping animation
 var animating_jumping: bool = false

@@ -3,11 +3,17 @@ extends Node2D
 ## health as ember beads, and collected keys with their codes. It lives on the ink plates
 ## (it follows the camera in the world canvas), so it goes through the same riso print as the
 ## art. Laid out in the 320 x 180 UI space; the legacy HUD is hidden while the print is on.
+## Below it, while there is a ghost: its stars and an arrow toward it, and while vulnerable the
+## fresh stars still needed. When a run ends, a card in the middle of the sheet.
 
 const TEXT_PX: int = 64
 var ink: InkCanvas
 var coin_label: Label
 var key_labels: Array[Label] = []
+var ghost_label: Label
+var need_label: Label
+var end_title: Label
+var end_sub: Label
 var font: SystemFont
 var t: float = 0.0
 
@@ -21,14 +27,21 @@ func _ready() -> void:
 	add_child(ink)
 	font = RisoTheme.serif()
 	coin_label = _make_label()
+	ghost_label = _make_label()
+	need_label = _make_label()
+	end_title = _make_label(15.0)
+	end_sub = _make_label(8.0)
+	for label: Label in [end_title, end_sub]:
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.size = Vector2(150.0 / label.scale.x, float(TEXT_PX) * 1.4)
 
 
-func _make_label() -> Label:
+func _make_label(px: float = 10.0) -> Label:
 	var label: Label = Label.new()
 	label.add_theme_font_override("font", font)
 	label.add_theme_font_size_override("font_size", TEXT_PX)
 	label.add_theme_color_override("font_color", Color.WHITE)
-	label.scale = Vector2.ONE * (10.0 / float(TEXT_PX))
+	label.scale = Vector2.ONE * (px / float(TEXT_PX))
 	label.visibility_layer = RisoPrint.plate_mask(RisoPrint.NIGHT)
 	add_child(label)
 	return label
@@ -48,7 +61,8 @@ func _process(delta: float) -> void:
 	var player: Player = get_node_or_null("/root/Main/Player") as Player
 	ink.begin()
 	if player == null:
-		coin_label.visible = false
+		for label: Label in [coin_label, ghost_label, need_label, end_title, end_sub]:
+			label.visible = false
 		for label: Label in key_labels:
 			label.visible = false
 		ink.finish()
@@ -84,7 +98,59 @@ func _process(delta: float) -> void:
 		var at: Vector2 = Vector2(56.0 + 11.0 * float(hp_max) + 4.0, 15.0)
 		for plate: int in RisoPrint.key_inks(int(player.get_meta(&"carried_key"))):
 			ink.ink(plate, 1.0, RisoProp.key_shape(at, 0.33), false)
+	_run_state(player)
 	ink.finish()
+
+
+func _run_state(player: Player) -> void:
+	var info: MapInfo = MapInfo.instance
+	ghost_label.visible = info != null and info.has_ghost
+	need_label.visible = info != null and info.has_ghost and info.vulnerable
+	end_title.visible = info != null and info.run_ending > 0.0
+	end_sub.visible = end_title.visible
+	if info == null:
+		return
+	if info.has_ghost:
+		var width: float = 100.0 if info.vulnerable else 56.0
+		var chip: PackedVector2Array = RisoShapes.rrect(4, 30, width, 20, 7)
+		ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], [chip])
+		ink.ink(RisoPrint.PINK if info.vulnerable else RisoPrint.BLUE, 0.2 if info.vulnerable else 0.12, [chip], false)
+		var bob: float = sin(t * 2.0) * 0.8
+		ink.ink(RisoPrint.GLOW, 1.0, RisoProp.ghost_shape(Transform2D(0.0, Vector2(0.42, 0.42), 0.0, Vector2(14, 48.5 + bob))), false)
+		ghost_label.text = str(info.ghost_stars)
+		ghost_label.position = Vector2(23, 32)
+		var dir: Vector2 = _ghost_dir(info, player)
+		if dir != Vector2.ZERO:
+			var at: Vector2 = Vector2(48, 40) + dir * sin(t * 4.0) * 0.8
+			var side: Vector2 = Vector2(-dir.y, dir.x)
+			var head: PackedVector2Array = PackedVector2Array([at + dir * 5.5, at + side * 4.2 - dir * 0.5, at - side * 4.2 - dir * 0.5])
+			var shaft: PackedVector2Array = PackedVector2Array([at + side * 1.3, at + side * 1.3 - dir * 5.5, at - side * 1.3 - dir * 5.5, at - side * 1.3])
+			ink.ink(RisoPrint.NIGHT, 1.0, [head, shaft], false)
+		if info.vulnerable:
+			# A cracked star: the fresh stars still needed to shake off the vulnerable state.
+			var star: PackedVector2Array = RisoShapes.sparkle(Vector2(66, 40), 6.0)
+			ink.ink(RisoPrint.PINK, 1.0, [star], false)
+			ink.knock([RisoPrint.PINK], [Transform2D(0.9, Vector2(66, 40)) * RisoShapes.rrect(-7, -0.5, 14, 1.0, 0.5)])
+			need_label.text = "%d/%d" % [info.fresh_stars, info.recover_need]
+			need_label.position = Vector2(74, 32)
+	if info.run_ending > 0.0:
+		var card: PackedVector2Array = RisoShapes.rrect(85, 58, 150, 58, 10)
+		ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], [card])
+		ink.ink(RisoPrint.PINK, 0.18, [card], false)
+		ink.ink(RisoPrint.GLOW, 1.0, RisoProp.ghost_shape(Transform2D(0.0, Vector2(0.5, 0.5), 0.0, Vector2(160, 75))), false)
+		end_title.text = "the run ends"
+		end_title.position = Vector2(85, 76)
+		end_sub.text = "seed %d  ·  deepest %d" % [info.run_seed, info.deepest]
+		end_sub.position = Vector2(85, 99)
+
+
+## Toward the ghost: by level (deeper is down, the next seed is right) when it is elsewhere,
+## otherwise straight at it. Zero when the player is standing on it.
+func _ghost_dir(info: MapInfo, player: Player) -> Vector2:
+	if info.ghost_coord != info.coord:
+		return Vector2(signf(info.ghost_coord.x - info.coord.x), signf(info.ghost_coord.y - info.coord.y)).normalized()
+	var v: Vector2 = info.ghost_pos - player.global_position
+	return v.normalized() if v.length() > 48.0 else Vector2.ZERO
 
 
 func _key_codes() -> Array[String]:

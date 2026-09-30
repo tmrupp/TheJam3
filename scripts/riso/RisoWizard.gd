@@ -405,13 +405,10 @@ func _draw_body() -> void:
 	body.ink(RisoPrint.ACCENT, 1.0, [band])
 	var pulse: float = 1.0 + 0.08 * sin(t * 3.0)
 	var ready: bool = not player.dash.acted
-	body.ink(RisoPrint.GLOW, 0.15, [RisoShapes.circle(bead, (4.6 + flare_amount * 7.0) * pulse, 24)])
-	body.ink(RisoPrint.GLOW, 0.25, [RisoShapes.circle(bead, (3.2 + flare_amount * 4.0) * pulse, 20)])
-	body.ink(RisoPrint.GLOW, 0.5, [RisoShapes.circle(bead, 2.2 + flare_amount * 1.5, 16)])
-	body.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE], [RisoShapes.circle(bead, 1.35, 12)])
-	body.ink(RisoPrint.GLOW, 1.0 if ready else 0.5, [RisoShapes.circle(bead, 1.35, 12)], false)
-	if ready:
-		body.knock([RisoPrint.GLOW], [RisoShapes.circle(bead - Vector2(0.3, 0.3), 0.5 + flare_amount * 0.3, 8)])
+	if MapInfo.instance != null and MapInfo.instance.vulnerable:
+		_cracked_bead(bead)
+	else:
+		_bead(bead, pulse, ready)
 	if hurt:
 		var pieces: Array[PackedVector2Array] = []
 		pieces.append_array(boots)
@@ -424,6 +421,34 @@ func _draw_body() -> void:
 			whites.append(_sm(m * RisoShapes.circle(c, 1.0, 10)))
 		body.knock([RisoPrint.PINK], whites)
 	body.finish()
+
+
+func _bead(bead: Vector2, pulse: float, ready: bool) -> void:
+	body.ink(RisoPrint.GLOW, 0.15, [RisoShapes.circle(bead, (4.6 + flare_amount * 7.0) * pulse, 24)])
+	body.ink(RisoPrint.GLOW, 0.25, [RisoShapes.circle(bead, (3.2 + flare_amount * 4.0) * pulse, 20)])
+	body.ink(RisoPrint.GLOW, 0.5, [RisoShapes.circle(bead, 2.2 + flare_amount * 1.5, 16)])
+	body.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE], [RisoShapes.circle(bead, 1.35, 12)])
+	body.ink(RisoPrint.GLOW, 1.0 if ready else 0.5, [RisoShapes.circle(bead, 1.35, 12)], false)
+	if ready:
+		body.knock([RisoPrint.GLOW], [RisoShapes.circle(bead - Vector2(0.3, 0.3), 0.5 + flare_amount * 0.3, 8)])
+
+
+## Vulnerable: the hat's glow is out. The bead splits into two pink halves with a gap between
+## them, and the glow only sputters back now and then.
+func _cracked_bead(bead: Vector2) -> void:
+	var sputter: float = maxf(0.0, sin(t * 5.3) * sin(t * 2.1 + 1.0))
+	if sputter > 0.05:
+		body.ink(RisoPrint.GLOW, 0.3 * sputter, [RisoShapes.circle(bead, 3.4, 20)])
+	var halves: Array[PackedVector2Array] = []
+	for side: float in [-1.0, 1.0]:
+		var half_disc: PackedVector2Array = PackedVector2Array()
+		for i: int in range(9):
+			var a: float = side * PI * 0.5 + PI * float(i) / 8.0
+			half_disc.append(Vector2(cos(a), sin(a)) * 1.6)
+		var nudge: Vector2 = Vector2(-side * 0.45, -side * 0.2)
+		halves.append(Transform2D(0.25, bead + nudge) * half_disc)
+	body.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], halves)
+	body.ink(RisoPrint.PINK, 1.0, halves, false)
 
 
 func _draw_world() -> void:

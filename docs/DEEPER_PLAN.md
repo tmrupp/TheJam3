@@ -39,6 +39,7 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 - **Die (not vulnerable):** all carried stars go into a ghost at the death spot, recorded in that level. Any previous ghost and its stars are lost. You respawn at your last lit lantern and become vulnerable.
 - **While vulnerable:** you can leave the state in two ways. Recover the ghost to get all its stars back, or collect `R(d)` fresh stars, which is suggested as half the current deeper price. The second way leaves the ghost waiting where it is.
 - **Die while vulnerable:** the run ends. The seed's levels are unchanged, since they are generated. Your character and level records reset.
+- **Arming:** a ghost can only be recovered once the player has stepped off it, so dying on the respawn lantern doesn't hand the stars straight back.
 - **Presentation:** the vulnerable state shows on the wizard (for example a dimmed or cracked hat glow) and in the HUD. The ghost uses the printed astral-silhouette style, and the HUD points toward it when it is in another level.
 
 ## 3. Keys
@@ -90,6 +91,8 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 - **New:** an exit prefab (deeper / back / lateral), a shrine prefab, a level record store, a save file, a start menu, the map screen, and riso art for the exits, shrine and ghost.
 
 ## Phases
+
+Status: phases 1 and 2 are implemented (`tests/deeper_test.gd`, `tests/death_test.gd`).
 
 1. **The grid:** `Level(seed, depth)`, deterministic generation, the four exits with transitions, arrival lanterns, and level records. Remove codes, goals, backtracking, the map WFC and packing.
    - Test: the same `(seed, depth)` always gives the same level fingerprint.

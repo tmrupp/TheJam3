@@ -75,7 +75,7 @@ func _redraw() -> void:
 		&"ledge": _ledge()
 		&"lift": _lift()
 		&"thorns": _thorns()
-		&"relic": _relic()
+		&"ghost": _ghost()
 		&"wisp": _wisp()
 		&"watcher": _watcher()
 		&"shard": _shard()
@@ -110,10 +110,36 @@ func _moon() -> void:
 	ink.ink(RisoPrint.BLUE, 0.5, [shard])
 
 
-func _relic() -> void:
-	var o: Vector2 = Vector2(0, sin(t * 2.0 + phase) * 3.0)
-	ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.crescent(o, 13.0, Vector2(6, -3))])
-	ink.ink(RisoPrint.PINK, 1.0, [RisoShapes.circle(o + Vector2(4, 0), 3.5, 10)])
+## The wizard's astral silhouette where they died, in glow ink, with the stars it holds circling.
+static func ghost_shape(at: Transform2D, facing: float = 1.0) -> Array[PackedVector2Array]:
+	return [
+		at * RisoShapes.smooth(PackedVector2Array([Vector2(-3.8, -15), Vector2(-6.6, -7), Vector2(-9, -2.2), Vector2(9, -2.2), Vector2(6.6, -7), Vector2(3.8, -15)])),
+		at * RisoShapes.smooth(PackedVector2Array([Vector2(-5, -21.4), Vector2(-2.9, -28.4), Vector2(-facing * 4.6, -37), Vector2(2.9, -28.4), Vector2(5, -21.4)])),
+	]
+
+
+func _ghost() -> void:
+	var s: float = 3.2
+	var drift: float = sin(t * 1.7 + phase) * 5.0
+	var at: Transform2D = Transform2D(sin(t * 1.1 + phase) * 0.04, Vector2(s, s), 0.0, Vector2(0, 34 + drift))
+	var body: Array[PackedVector2Array] = RisoProp.ghost_shape(at)
+	ink.ink(RisoPrint.GLOW, 0.12, [RisoShapes.circle(Vector2(0, -30 + drift), 70.0 * (1.0 + 0.05 * sin(t * 2.3)), 32)])
+	ink.ink(RisoPrint.GLOW, 0.45, body)
+	# The faceless hood between robe and hat, dark, with the eyes still lit inside it.
+	var hood: PackedVector2Array = at * RisoShapes.smooth(PackedVector2Array([Vector2(-3.8, -14.4), Vector2(-5.0, -18.0), Vector2(-5.4, -22.0), Vector2(5.4, -22.0), Vector2(5.0, -18.0), Vector2(3.8, -14.4)]))
+	ink.ink(RisoPrint.NIGHT, 0.7, [hood])
+	ink.ink(RisoPrint.GLOW, 0.2, [hood], false)
+	var eyes: Array[PackedVector2Array] = [RisoShapes.circle(at * Vector2(-1.4, -18.5), 3.0, 10), RisoShapes.circle(at * Vector2(1.4, -18.5), 3.0, 10)]
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.GLOW], eyes)
+	ink.ink(RisoPrint.EYE, 1.0, eyes, false)
+	var count: int = mini(int(host.get("stars")), 8)
+	var motes: Array[PackedVector2Array] = []
+	for i: int in range(count):
+		var a: float = t * 1.3 + TAU * float(i) / float(count)
+		var c: Vector2 = Vector2(0, -30 + drift) + Vector2(cos(a) * 52.0, sin(a) * 22.0)
+		motes.append(RisoShapes.sparkle(c, 8.0))
+	if not motes.is_empty():
+		ink.ink(RisoPrint.ACCENT, 1.0, motes)
 
 
 # ------------------------------------------------------------------ places
