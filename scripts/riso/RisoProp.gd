@@ -3,7 +3,17 @@ extends Node2D
 ## Drawn in world pixels (the owner's scale is cancelled); the owner's rotation still applies,
 ## so wall and ceiling spikes point the right way. Presentation only.
 
+class_name RisoProp
 const STATIC_KINDS: Array[StringName] = [&"door", &"ledge", &"thorns", &"altar"]
+
+
+## A crescent-bowed key, in world pixels, centred near `o`.
+static func key_shape(o: Vector2, s: float) -> Array[PackedVector2Array]:
+	return [
+		RisoShapes.crescent(o + Vector2(-10, 0) * s, 11.0 * s, Vector2(5, -2) * s),
+		RisoShapes.rrect(o.x - 3.0 * s, o.y - 3.5 * s, 24.0 * s, 7.0 * s, 3.5 * s),
+		RisoShapes.rrect(o.x + 12.0 * s, o.y, 6.0 * s, 11.0 * s, 3.0 * s),
+	]
 
 var kind: StringName = &""
 var ink: InkCanvas
@@ -63,6 +73,7 @@ func _redraw() -> void:
 		&"altar": _altar()
 		&"orb": _orb()
 		&"ledge": _ledge()
+		&"lift": _lift()
 		&"thorns": _thorns()
 		&"relic": _relic()
 		&"wisp": _wisp()
@@ -86,12 +97,9 @@ func _key() -> void:
 	if sprite != null and not sprite.visible:
 		return
 	var o: Vector2 = Vector2(0, sin(t * 3.0 + phase) * 4.0)
-	var shape: Array[PackedVector2Array] = [
-		RisoShapes.crescent(o + Vector2(-10, 0), 11.0, Vector2(5, -2)),
-		RisoShapes.rrect(o.x - 3.0, o.y - 3.5, 24.0, 7.0, 3.5),
-		RisoShapes.rrect(o.x + 12.0, o.y, 6.0, 11.0, 3.0),
-	]
-	ink.ink(RisoPrint.ACCENT, 1.0, shape)
+	var shape: Array[PackedVector2Array] = RisoProp.key_shape(o, 1.0)
+	for plate: int in RisoPrint.key_inks(int(host.get_meta(&"key_color", 0))):
+		ink.ink(plate, 1.0, shape)
 
 
 func _moon() -> void:
@@ -131,6 +139,11 @@ func _door() -> void:
 	var panel: PackedVector2Array = RisoShapes.arch(-34, g - 114, 68, 114, 14)
 	ink.knock([RisoPrint.NIGHT], [panel])
 	ink.ink(RisoPrint.BLUE, 1.0, [panel])
+	# The lock shows the colour of key the door needs.
+	var lock: Array[PackedVector2Array] = RisoProp.key_shape(Vector2(-6, g - 58), 0.8)
+	ink.knock([RisoPrint.BLUE], lock)
+	for plate: int in RisoPrint.key_inks(int(host.get_meta(&"key_color", 0))):
+		ink.ink(plate, 1.0, lock, false)
 
 
 func _lantern() -> void:
@@ -198,6 +211,30 @@ func _ledge() -> void:
 	ink.ink(RisoPrint.ACCENT, 1.0, [_bar(x0 + (0.0 if left else 3.0), -67.0, x1 - (0.0 if right else 3.0), -55.0, 6.0, not left, not right)])
 
 
+## A moving ledge: the static ledge's bar and cap, a pink rune glowing beneath, and its track
+## printed as a faint dotted line that stays put while the ledge slides along it.
+func _lift() -> void:
+	var n: int = int(host.get("length"))
+	var x1: float = -half + float(n) * half * 2.0
+	var mid: Vector2 = Vector2(float(n - 1) * half, -half + 17.0)
+	var start: Vector2 = host.get("start") as Vector2
+	var holder: Node2D = host.get_parent() as Node2D
+	var a: Vector2 = to_local(holder.to_global(start) if holder != null else start) + mid
+	var b: Vector2 = a + (host.get("axis") as Vector2) * float(host.get("travel"))
+	var dots: Array[PackedVector2Array] = []
+	var steps: int = maxi(1, int(a.distance_to(b) / 26.0))
+	for i: int in range(steps + 1):
+		dots.append(RisoShapes.circle(a.lerp(b, float(i) / float(steps)), 3.5, 8))
+	ink.ink(RisoPrint.BLUE, 0.35, dots)
+	var pulse: float = 0.8 + 0.2 * sin(t * 3.0 + phase)
+	for i: int in range(n):
+		var c: Vector2 = Vector2(float(i) * half * 2.0, -half + 44.0)
+		ink.ink(RisoPrint.PINK, 0.25, [RisoShapes.ellipse(c, 26.0 * pulse, 9.0 * pulse, 20)])
+		ink.ink(RisoPrint.PINK, 1.0, [RisoShapes.almond(c, 10.0, 4.0, 8)])
+	ink.ink(RisoPrint.BLUE, 1.0, [_bar(-half + 1.0, -half, x1 - 1.0, -half + 34.0, 12.0, true, true)])
+	ink.ink(RisoPrint.ACCENT, 1.0, [_bar(-half + 1.0, -half - 3.0, x1 - 1.0, -half + 14.0, 8.0, true, true)])
+
+
 func _ledge_joined(side: int) -> bool:
 	var target: Vector2 = host.global_position + Vector2(float(side) * half * 2.0, 0.0)
 	for other: Node in host.get_parent().get_children():
@@ -248,23 +285,6 @@ func _thorns() -> void:
 
 # ------------------------------------------------------------------ nightmares
 
-func _paper_eyes(xf: Transform2D, eyes: Array[Vector2], rx: float, ry: float, look: float) -> void:
-	var whites: Array[PackedVector2Array] = []
-	var pupils: Array[PackedVector2Array] = []
-	for e: Vector2 in eyes:
-		whites.append(xf * RisoShapes.ellipse(e, rx, ry, 14))
-		pupils.append(xf * RisoShapes.circle(e + Vector2(look * rx * 0.35, 0.15), minf(rx, ry) * 0.55, 10))
-	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], whites)
-	ink.ink(RisoPrint.BLUE, 1.0, pupils)
-
-
-func _look_dir() -> float:
-	var player: Node2D = host.get_node_or_null("/root/Main/Player") as Node2D
-	if player == null:
-		return 1.0
-	return signf(player.global_position.x - host.global_position.x)
-
-
 func _wisp() -> void:
 	var mover: Node = host.get_node_or_null("Mover")
 	var dir: float = 1.0
@@ -272,41 +292,77 @@ func _wisp() -> void:
 	if mover != null:
 		dir = float(mover.get("direction"))
 		stunned = bool(mover.get("stunned"))
-	var k: float = 2.4
+	var k: float = 3.6
 	var bob: float = -3.0 - sin(t * 3.0 + phase) * 1.6
-	var xf: Transform2D = Transform2D(0.0, Vector2(dir * k, k), 0.0, Vector2(0, 14.0 + bob * k))
-	var speed: float = 0.3 if stunned else 1.0
-	var w: Array[float] = []
-	for j: int in range(4):
-		w.append(sin(t * 6.0 * speed - float(j)) * 1.4)
-	var body: PackedVector2Array = xf * RisoShapes.smooth(PackedVector2Array([
-		Vector2(5.6, -9), Vector2(4.6, -4.6), Vector2(1.6, -3), Vector2(-2, -3.8 + w[1] * 0.3), Vector2(-5.6, -4.8 + w[1]),
-		Vector2(-9, -6.6 + w[2]), Vector2(-12.4, -8.6 + w[3]), Vector2(-8.8, -9.6 + w[2]), Vector2(-5.2, -11 + w[1] * 0.6),
-		Vector2(-1.4, -13.2), Vector2(2.6, -13.4)]))
-	ink.ink(RisoPrint.PINK, 1.0, [body])
-	ink.ink(RisoPrint.BLUE, 0.5, [body])
-	if stunned:
-		ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE], [xf * RisoShapes.rrect(2.4, -9.4, 2, 0.5, 0.25, 2), xf * RisoShapes.rrect(-0.3, -9.6, 2, 0.5, 0.25, 2)])
-	else:
-		_paper_eyes(xf, [Vector2(3.4, -9.2), Vector2(0.7, -9.4)], 1.0, 1.35, _look_dir() * dir)
+	# Flattened to 60% height, centred where the taller wisp used to float.
+	var xf: Transform2D = Transform2D(0.0, Vector2(dir * k * 1.1, k * 0.6), 0.0, Vector2(0, 14.0 - 3.3 * k + bob * k * 0.7))
+	var speed: float = 0.3 if stunned else 0.7
+	var flicker: float = 0.85 + 0.15 * sin(t * 5.3 + phase) * sin(t * 2.1 + phase * 1.7)
+	# The glow trails the wisp: strongest behind the head, thinning out past the tail.
+	ink.ink(RisoPrint.PINK, 0.06 * flicker, [xf * RisoShapes.ellipse(Vector2(-10.5, -8.4), 11.0, 7.5, 28)])
+	ink.ink(RisoPrint.PINK, 0.1 * flicker, [xf * RisoShapes.ellipse(Vector2(-6.0, -8.2), 9.5, 8.0, 28)])
+	# Two lagging after-veils behind the body, then the body; each fades toward its tail.
+	for layer: int in [2, 1, 0]:
+		var lag: float = float(layer) * 0.55
+		var w: Array[float] = []
+		for j: int in range(4):
+			w.append(sin(t * 6.0 * speed - float(j) - lag) * 1.4)
+		var back: Vector2 = Vector2(-2.6, -0.4) * float(layer)
+		var pts: PackedVector2Array = RisoShapes.smooth(PackedVector2Array([
+			Vector2(5.6, -9), Vector2(4.6, -4.6), Vector2(1.6, -3), Vector2(-2, -3.8 + w[1] * 0.3), Vector2(-5.6, -4.8 + w[1]),
+			Vector2(-9, -6.6 + w[2]), Vector2(-12.4, -8.6 + w[3]), Vector2(-8.8, -9.6 + w[2]), Vector2(-5.2, -11 + w[1] * 0.6),
+			Vector2(-1.4, -13.2), Vector2(2.6, -13.4)]))
+		var fade: PackedFloat32Array = PackedFloat32Array()
+		var top: float = (0.8 if layer == 0 else 0.3 / float(layer)) * flicker
+		for p: Vector2 in pts:
+			fade.append(top * lerpf(0.15, 1.0, clampf((p.x + 12.4) / 13.0, 0.0, 1.0)))
+		var poly: PackedVector2Array = xf * (Transform2D(0.0, back) * pts)
+		ink.ink_graded(RisoPrint.PINK, [poly], [fade])
+		if layer == 0:
+			var cool: PackedFloat32Array = PackedFloat32Array()
+			for a: float in fade:
+				cool.append(a * 0.4)
+			ink.ink_graded(RisoPrint.BLUE, [poly], [cool])
+	var eyes: Array[PackedVector2Array] = []
+	for e: Vector2 in [Vector2(3.4, -9.2), Vector2(0.7, -9.4)]:
+		eyes.append(xf * (RisoShapes.rrect(e.x - 1.0, e.y - 0.4, 2.0, 0.8, 0.4, 2) if stunned else RisoShapes.ellipse(e, 0.9, 1.9, 14)))
+	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], eyes)
+
+
+var _last_shot: float = -10.0
+var _was_firing: bool = false
 
 
 func _watcher() -> void:
 	var shooter: Node = host.get_node_or_null("Shooter")
-	var at: Vector2 = Vector2(0, -14.3)
-	var open: float = 0.55
+	var at: Vector2 = Vector2(0, -26.0)
+	var charge: float = 0.0
+	var recoil: float = 0.0
+	var stunned: bool = false
+	var fired: bool = false
 	if shooter != null:
 		var point: Node2D = shooter.get_node_or_null("ShootPoint") as Node2D
 		if point != null:
-			at = to_local(point.global_position)
-		if bool(shooter.get("player_in_range")):
-			open = 1.0
+			at = to_local(point.global_position) + Vector2(0, -4)
 		var sfx: AudioStreamPlayer = shooter.get_node_or_null("AudioStreamPlayer") as AudioStreamPlayer
-		if sfx != null and sfx.playing:
-			open = 0.15
-		if bool(shooter.get("stunned")):
-			open = 0.08
-	var k: float = 2.6
+		var firing: bool = sfx != null and sfx.playing
+		fired = firing and not _was_firing
+		if fired:
+			_last_shot = t
+		_was_firing = firing
+		# As in the prototype: while the player is in range the eye charges toward its next shot,
+		# widening and growing a ball of ink at the muzzle, then squints on the recoil.
+		var cooldown: float = maxf(0.1, float(shooter.get("cooldown")))
+		var since: float = t - _last_shot
+		if bool(shooter.get("player_in_range")):
+			charge = clampf(since / cooldown, 0.0, 1.0)
+		recoil = clampf(1.0 - since * 5.0, 0.0, 1.0)
+		stunned = bool(shooter.get("stunned"))
+	var open: float = clampf(0.5 + 0.5 * charge - recoil * 0.6, 0.08, 1.0)
+	if stunned:
+		open = 0.08
+		charge = 0.0
+	var k: float = 2.8
 	var xf: Transform2D = Transform2D(0.0, Vector2(k, k), 0.0, at + Vector2(0, sin(t * 2.0 + phase) * 3.0))
 	var drips: Array[PackedVector2Array] = []
 	for j: int in range(3):
@@ -314,9 +370,10 @@ func _watcher() -> void:
 		var l: float = 4.0 + sin(t * 2.0 + float(j)) * 1.5
 		drips.append(xf * PackedVector2Array([Vector2(x - 1.4, 3), Vector2(x, 6 + l), Vector2(x + 1.4, 3)]))
 	var lid: PackedVector2Array = xf * RisoShapes.almond(Vector2.ZERO, 10.0, 5.6, 12)
+	# Solid pink over solid blue: the deep purple lid of the prototype.
 	ink.ink(RisoPrint.PINK, 1.0, [lid])
 	ink.ink(RisoPrint.PINK, 1.0, drips)
-	ink.ink(RisoPrint.BLUE, 0.5, [lid])
+	ink.ink(RisoPrint.BLUE, 1.0, [lid])
 	var yo: float = lerpf(2.0, 0.0, open)
 	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], [xf * RisoShapes.almond(Vector2(0, yo), 8.2, maxf(0.3, 4.4 * open), 12)])
 	var player: Node2D = host.get_node_or_null("/root/Main/Player") as Node2D
@@ -326,6 +383,19 @@ func _watcher() -> void:
 		look = Vector2(clampf(d.x / 200.0, -1.0, 1.0) * 2.6, clampf(d.y / 200.0, -1.0, 1.0) * 1.2)
 	ink.ink(RisoPrint.PINK, 1.0, [xf * RisoShapes.circle(look + Vector2(0, yo), 3.0 * maxf(0.35, open), 14)])
 	ink.ink(RisoPrint.BLUE, 1.0, [xf * RisoShapes.circle(look + Vector2(0, yo), 1.3 * maxf(0.35, open), 10)])
+	if fired and player != null:
+		var side: float = signf(look.x) if look.x != 0.0 else -1.0
+		var from: Vector2 = xf * Vector2(side * 9.6, -0.6)
+		RisoFx.burst(&"shot", to_global(from), (player.global_position - to_global(from)).normalized())
+	if charge > 0.0:
+		# The charge: a solid eye-yellow ball swelling at the corner of the eye nearest the player.
+		var aim: float = signf(look.x) if look.x != 0.0 else -1.0
+		var ball: float = (0.35 + charge * charge * 2.0) * k
+		var corner: Vector2 = xf * Vector2(aim * 9.6, -0.6)
+		var core: PackedVector2Array = RisoShapes.circle(corner, ball, 20)
+		ink.ink(RisoPrint.EYE, 0.2, [RisoShapes.circle(corner, ball * 1.6, 24)])
+		ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT], [core])
+		ink.ink(RisoPrint.EYE, 1.0, [core], false)
 
 
 func _shard() -> void:

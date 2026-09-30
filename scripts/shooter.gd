@@ -1,6 +1,6 @@
 extends Node2D
 
-var cooldown: float = 1.0
+var cooldown: float = 2.2
 var SPEED: int = 100
 var projectile_prefab: Resource = preload("res://prefabs/bullet.tscn")
 @onready var shoot_point: Node2D = $ShootPoint
@@ -8,7 +8,6 @@ var projectile_prefab: Resource = preload("res://prefabs/bullet.tscn")
 @onready var player: Player = $"/root/Main/Player"
 @onready var main: Node = $"/root/Main"
 @onready var rb: RigidBody2D = $".."
-@onready var cooldown_indicator: TextureProgressBar = $Cooldown
 @onready var shoot_sfx: AudioStreamPlayer = $AudioStreamPlayer
 var stunned: bool = false
 
@@ -23,7 +22,6 @@ func check_player_in_range() -> bool:
 func shooting () -> void:
 	while (check_player_in_range()):
 		if not stunned and try_shoot():
-			cooldown_indicator.enable(cooldown, Color.RED)
 			await get_tree().create_timer(cooldown).timeout
 		await get_tree().process_frame
 	

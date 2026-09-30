@@ -8,4 +8,5 @@ func _ready() -> void:
 func touch(other: Node) -> void:
 	if other == player:
 		$"/root/Main/CanvasLayer/MapInfo".discover_random_chunk()
+		RisoFx.burst(&"gain", global_position, Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
 		queue_free()

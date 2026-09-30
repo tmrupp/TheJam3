@@ -5,6 +5,7 @@ extends Area2D
 func touch (other: Node) -> void:
 	if other == player:
 		player.collect(1)
+		RisoFx.burst(&"gain", global_position)
 		queue_free()
 	
 # Called when the node enters the scene tree for the first time.

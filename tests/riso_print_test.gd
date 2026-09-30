@@ -39,6 +39,7 @@ func run() -> void:
 		await process_frame
 	var riso: RisoPrint = RisoPrint.instance
 	check(riso != null and riso.enabled, "RisoPrint present and on")
+	check(not main.get_node("UpgradeMenu").visible and not paused, "game starts without the upgrade shop")
 	check(not (main.get_node("CanvasLayer/HUD/TopHUD") as CanvasItem).visible, "pixel HUD hidden while printing")
 	check(main.get_node_or_null("RisoHud") != null, "printed HUD present")
 	check((load(RisoTheme.MENU_THEME) as Theme).default_font is SystemFont, "menus use the riso theme")
@@ -64,8 +65,23 @@ func run() -> void:
 		if art.get("kind") != null:
 			kinds[art.get("kind")] = true
 	print("dressed kinds: ", kinds.keys())
+	var lift: Node2D = null
+	for node: Node in info.map_elements.get_children():
+		if node.scene_file_path == "res://prefabs/moving_platform.tscn":
+			lift = node as Node2D
+			break
+	check(lift != null, "moving platforms generated")
+	if lift != null:
+		var was: Vector2 = lift.global_position
+		for i: int in range(10):
+			await physics_frame
+		check(lift.global_position != was, "moving platform moves")
+	var fx: RisoFx = RisoFx.instance
+	check(fx != null, "particle layer present")
 	# Wizard reacts to real player events without errors.
 	player.jump()
+	await process_frame
+	check(fx != null and fx.parts.size() > 0, "jump kicks up particles")
 	player.dash.enable()
 	player.do_dash(Vector2.RIGHT)
 	for i: int in range(12):
@@ -87,11 +103,49 @@ func run() -> void:
 	await process_frame
 	check((wizard.get("ghosts") as Array).size() > 0, "astral projection leaves a ghost")
 	projection.end_projection(projection.projection_timer)
-	# Sheets advance on the clock.
+	# Sheets advance on the clock (motion gating off, so an idle player can't stall the check).
 	var before: int = riso.sheet_index
+	riso.reprint_on_motion = false
 	for i: int in range(40):
 		await process_frame
+	riso.reprint_on_motion = true
 	check(riso.sheet_index > before or riso.sheet_rate == 0.0, "new sheets are printed")
+	# Keys: carried one at a time, open only doors of their colour.
+	var key_node: Node = null
+	var door_node: Node = null
+	for node: Node in info.map_elements.get_children():
+		if key_node == null and node.scene_file_path == "res://prefabs/key.tscn":
+			key_node = node
+	for node: Node in info.map_elements.get_children():
+		if door_node == null and node.scene_file_path == "res://prefabs/door.tscn" and key_node != null and int(node.get_meta(&"key_color", -1)) == int(key_node.get_meta(&"key_color", -2)):
+			door_node = node
+	check(key_node != null and door_node != null, "a key and a door of the same colour exist")
+	if key_node != null and door_node != null:
+		if player.has_meta(&"carried_key"):
+			player.remove_meta(&"carried_key")
+		key_node.call("touch", player)
+		check(player.has_meta(&"carried_key") and int(player.get_meta(&"carried_key")) == int(key_node.get_meta(&"key_color")), "picking up a key carries its colour")
+		var other_key: Node = null
+		for node: Node in info.map_elements.get_children():
+			if node != key_node and node.scene_file_path == "res://prefabs/key.tscn" and is_instance_valid(node) and int(node.get_meta(&"key_color", -1)) != int(key_node.get_meta(&"key_color")):
+				other_key = node
+				break
+		if other_key != null:
+			other_key.call("touch", player)
+			check(int(player.get_meta(&"carried_key")) == int(other_key.get_meta(&"key_color")), "a new key replaces the carried one")
+			key_node.call("touch", player)
+			check(int(player.get_meta(&"carried_key")) == int(other_key.get_meta(&"key_color")), "a collected key cannot be picked up again")
+			player.set_meta(&"carried_key", int(key_node.get_meta(&"key_color")))
+		var wrong: Node = null
+		for node: Node in info.map_elements.get_children():
+			if node.scene_file_path == "res://prefabs/door.tscn" and int(node.get_meta(&"key_color", -1)) != int(player.get_meta(&"carried_key")):
+				wrong = node
+				break
+		if wrong != null:
+			wrong.get_node("Unlock").call("try_open")
+			check(is_instance_valid(wrong) and not wrong.is_queued_for_deletion() and player.has_meta(&"carried_key"), "a door of another colour stays shut")
+		door_node.get_node("Unlock").call("try_open")
+		check(door_node.is_queued_for_deletion() and not player.has_meta(&"carried_key"), "the matching door opens and uses the key")
 	# Realm follows the world and cycles.
 	check(riso.realm == &"twilight" and riso.reprint_on_motion and riso.blend_sheets and riso.sheet_rate == 8.0, "defaults: twilight, 8/s, reprint on motion, blend")
 	var cam: Camera2D = main.get_node("Camera2D") as Camera2D

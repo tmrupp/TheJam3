@@ -1,16 +1,24 @@
 extends Area2D
 
 @onready var player: Player = $"/root/Main/Player"
-@onready var code_menu: CodeMenu = $"/root/Main/CodeMenu"
-@onready var map_info: MapInfo = $"/root/Main/CanvasLayer/MapInfo"
 @onready var door: Node = $".."
 
-func crack (key: String) -> void:
-	map_info.remove_valid_key(key)
-	door.queue_free()
+## The door's colour (set by MapInfo when it is placed); only a key of the same colour opens it.
+func door_color() -> int:
+	return int(door.get_meta(&"key_color", 0))
+
+func try_open() -> void:
+	if player.has_meta(&"carried_key") and int(player.get_meta(&"carried_key")) == door_color():
+		player.remove_meta(&"carried_key")
+		door.queue_free()
 
 func interacted () -> void:
-	code_menu.enable("", map_info.valid_keys, crack)
+	try_open()
+
+func touch (other: Node) -> void:
+	if other == player:
+		try_open()
 
 func _ready() -> void:
 	$Interactable.connect("interacted", interacted)
+	connect("body_entered", touch)

@@ -43,7 +43,10 @@ const DETAIL_STOPS: Array[Array] = [
 	[100.0, 2.6, 0.4, 0.1, 0.8, 0.09],
 ]
 ## Base misregistration per plate, in 720p pixels.
-const REGISTRATION: Array[Vector2] = [Vector2(-0.9, -0.8), Vector2(-1.7, 1.5), Vector2(2.2, -1.3), Vector2(1.1, 2.0), Vector2(0.5, 0.7), Vector2(0.6, 0.8)]
+## Kept within ~1px of blue (night prints at blue's offset) so paper rims beside shapes stay slight.
+const REGISTRATION: Array[Vector2] = [Vector2(-0.4, -0.35), Vector2(-0.35, 0.3), Vector2(0.35, -0.2), Vector2(0.15, 0.55), Vector2(0.0, 0.15), Vector2(0.05, 0.2)]
+## Key colours as overprints of the realm inks: sun, ember (sun over pink), moss (sun over blue), plum (pink over blue).
+const KEY_COLORS: Array[Array] = [[ACCENT], [ACCENT, PINK], [ACCENT, BLUE], [PINK, BLUE]]
 
 static var instance: RisoPrint
 
@@ -80,6 +83,13 @@ var _old_snap: bool = false
 var _player: Player
 var _map_info: Node
 var _started: bool = false
+
+
+static func key_inks(color: int) -> Array[int]:
+	var out: Array[int] = []
+	for plate: int in KEY_COLORS[posmod(color, KEY_COLORS.size())]:
+		out.append(plate)
+	return out
 
 
 static func plate_mask(p: int) -> int:
@@ -177,6 +187,10 @@ func _build() -> void:
 	hud.name = "RisoHud"
 	hud.set_script(preload("res://scripts/riso/RisoHud.gd"))
 	main.add_child.call_deferred(hud)
+	var fx: Node2D = Node2D.new()
+	fx.name = "RisoFx"
+	fx.set_script(preload("res://scripts/riso/RisoFx.gd"))
+	main.add_child.call_deferred(fx)
 	_build_panel()
 
 
@@ -305,6 +319,11 @@ func _track_player() -> void:
 
 
 func _on_player_event(kind: StringName, _at: Vector2) -> void:
+	if kind == &"jump":
+		var feet: Node2D = _player.get_node_or_null("RisoWizard") as Node2D
+		RisoFx.burst(&"jump", feet.global_position if feet != null else _at)
+	elif kind == &"hurt":
+		RisoFx.burst(&"hit", _at + Vector2(0, -20), -_player.velocity.normalized())
 	if kind == &"projection_start":
 		flare(&"astral")
 	elif kind == &"jump" and _player != null and _player.MAX_JUMPS > 1 and _player.jumps < _player.MAX_JUMPS and not _player.is_on_floor():
@@ -337,14 +356,15 @@ func _advance_sheet(delta: float) -> void:
 		if on_floor and not _was_on_floor and sheet_rate > 0.0:
 			_new_sheet()
 		_was_on_floor = on_floor
-	sheet_frac += rate * delta
+	# Each sheet lasts a random 0.6x-1.8x of the nominal interval, so reprints never fall into a beat.
+	sheet_frac += rate * delta / (0.6 + RisoShapes.hash1(float(sheet_index) * 0.37 + 5.1) * 1.2)
 	while sheet_frac >= 1.0:
 		sheet_index += 1
 		sheet_frac -= 1.0
 
 
 func _sheet_seed(i: int) -> float:
-	return float(posmod(i, 97)) * 1.37 + 3.1
+	return RisoShapes.hash1(float(i) * 0.6180339 + 11.3) * 97.0 + 1.0
 
 
 func _sheet_mix() -> float:
@@ -388,7 +408,7 @@ func _update_uniforms(size: Vector2) -> void:
 	for i: int in range(PLATE_COUNT):
 		var o: Vector2 = REGISTRATION[i]
 		if registration == &"sheet":
-			o += _jitter(sheet_index, i).lerp(_jitter(sheet_index + 1, i), m) * 1.6
+			o += _jitter(sheet_index, i).lerp(_jitter(sheet_index + 1, i), m) * 0.45
 		elif registration == &"drift":
 			o += Vector2(sin(t * 0.7 + float(i) * 2.1), cos(t * 0.53 + float(i) * 1.3)) * 1.2
 		print_material.set_shader_parameter("off%d" % i, o * s)
@@ -421,7 +441,13 @@ func cycle_realm() -> void:
 func world_built(map_info: Node, _world_index: int) -> void:
 	_map_info = map_info
 	if terrain != null and is_instance_valid(terrain):
-		terrain.call("rebuild", map_info.get("tile_map"))
+		var ledges: Array[Vector2] = []
+		var elements: Node = map_info.get("map_elements") as Node
+		if elements != null:
+			for node: Node in elements.get_children():
+				if node.scene_file_path == "res://prefabs/platform.tscn":
+					ledges.append((node as Node2D).global_position)
+		terrain.call("rebuild", map_info.get("tile_map"), ledges)
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -452,9 +478,9 @@ const DRESS: Dictionary = {
 	"res://prefabs/goal.tscn": &"gate",
 	"res://prefabs/respawn.tscn": &"altar",
 	"res://prefabs/astral_projection_point.tscn": &"orb",
-	"res://prefabs/platform.tscn": &"ledge",
 	"res://prefabs/spikes.tscn": &"thorns",
 	"res://prefabs/corpse.tscn": &"relic",
+	"res://prefabs/moving_platform.tscn": &"lift",
 }
 
 
@@ -467,7 +493,9 @@ func _dress_existing(node: Node) -> void:
 func _on_node_added(node: Node) -> void:
 	if node.scene_file_path != "" and DRESS.has(node.scene_file_path):
 		_dress.call_deferred(node, DRESS[node.scene_file_path])
-	elif node.name == "Interactable" or node.name == "Cooldown":
+	elif node.name == "Interactable":
+		_add_prompt.call_deferred(node)
+	elif node.name == "Cooldown":
 		_lift_to_overlay.call_deferred(node)
 
 
@@ -490,7 +518,20 @@ func _dress(node: Node, kind: StringName) -> void:
 	share_layers(art)
 
 
-## Interaction prompts and cooldown rings stay readable above the print.
+func _add_prompt(interactable: Node) -> void:
+	if not is_instance_valid(interactable) or not (interactable.get_parent() is Node2D):
+		return
+	var host: Node2D = interactable.get_parent() as Node2D
+	if host.has_node("RisoPrompt"):
+		return
+	var prompt: Node2D = Node2D.new()
+	prompt.name = "RisoPrompt"
+	prompt.set_script(preload("res://scripts/riso/RisoPrompt.gd"))
+	prompt.set("interactable", interactable)
+	host.add_child(prompt)
+
+
+## Cooldown rings stay readable above the print.
 func _lift_to_overlay(node: Node) -> void:
 	if not is_instance_valid(node):
 		return

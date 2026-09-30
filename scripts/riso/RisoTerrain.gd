@@ -23,12 +23,17 @@ func _ready() -> void:
 		rebuild(map)
 
 
-func rebuild(tile_map: TileMap) -> void:
+func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = []) -> void:
 	if tile_map == null:
 		return
 	var solid: Dictionary = {}
 	for v: Vector2i in tile_map.get_used_cells(0):
 		solid[v] = true
+	# Floating platforms print with the rock: a thin bar across the top of their cell that joins
+	# neighbouring platforms and rock, and shares the rock's cap strip.
+	var ledges: Dictionary = {}
+	for p: Vector2 in ledge_positions:
+		ledges[tile_map.local_to_map(tile_map.to_local(p))] = true
 	var half: float = float(tile_map.tile_set.tile_size.x) * tile_map.global_scale.x * 0.5
 	var radius: float = half * 0.32
 	var body: Array[PackedVector2Array] = []
@@ -44,7 +49,9 @@ func rebuild(tile_map: TileMap) -> void:
 		var down: bool = solid.has(v + Vector2i.DOWN)
 		var left: bool = solid.has(v + Vector2i.LEFT)
 		var right: bool = solid.has(v + Vector2i.RIGHT)
-		body.append(_cell(c, half, radius, not up and not left, not up and not right, not down and not right, not down and not left))
+		var ledge_l: bool = ledges.has(v + Vector2i.LEFT)
+		var ledge_r: bool = ledges.has(v + Vector2i.RIGHT)
+		body.append(_cell(c, half, radius, not up and not left and not ledge_l, not up and not right and not ledge_r, not down and not right, not down and not left))
 		for pair: Array in [[near, SHADE_NEAR], [far, SHADE_FAR]]:
 			var d: float = float(pair[1])
 			var inset: PackedVector2Array = _inset(c, half, d, radius, up, down, left, right)
@@ -62,10 +69,20 @@ func rebuild(tile_map: TileMap) -> void:
 					fillets.append(_fillet(corner, Vector2(-sx, -sy), radius))
 					near_pies.append(_pie(corner, Vector2(-sx, -sy), SHADE_NEAR + radius * 0.5))
 					far_pies.append(_pie(corner, Vector2(-sx, -sy), SHADE_FAR))
+	for v: Vector2i in ledges:
+		if solid.has(v):
+			continue
+		var c: Vector2 = tile_map.to_global(tile_map.map_to_local(v))
+		var joins_l: bool = solid.has(v + Vector2i.LEFT) or ledges.has(v + Vector2i.LEFT)
+		var joins_r: bool = solid.has(v + Vector2i.RIGHT) or ledges.has(v + Vector2i.RIGHT)
+		body.append(_box(Vector2(c.x, c.y - half + 17.0), half, 17.0, 12.0, not joins_l, not joins_r, not joins_r, not joins_l))
 	var caps: Array[PackedVector2Array] = []
 	var tops: Array[Vector2i] = []
 	for v: Vector2i in solid:
 		if not solid.has(v + Vector2i.UP):
+			tops.append(v)
+	for v: Vector2i in ledges:
+		if not solid.has(v) and not solid.has(v + Vector2i.UP):
 			tops.append(v)
 	tops.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y or (a.y == b.y and a.x < b.x))
 	var i: int = 0
@@ -75,9 +92,22 @@ func rebuild(tile_map: TileMap) -> void:
 			j += 1
 		var a: Vector2 = tile_map.to_global(tile_map.map_to_local(tops[i]))
 		var b: Vector2 = tile_map.to_global(tile_map.map_to_local(tops[j]))
-		var x0: float = a.x - half + 2.0
-		var x1: float = b.x + half - 2.0
-		caps.append(RisoShapes.rrect(x0, a.y - half - 3.0, x1 - x0, 17.0, 8.0, 3))
+		var y0: float = a.y - half - 3.0
+		# Ends against a rising wall stop short of the fillet with a rounded tip; open ends run
+		# to the edge and are trimmed to the rock's (or ledge's) own corner curve.
+		var wall_l: bool = solid.has(tops[i] + Vector2i.LEFT)
+		var wall_r: bool = solid.has(tops[j] + Vector2i.RIGHT)
+		var stop_l: bool = wall_l and solid.has(tops[i])
+		var stop_r: bool = wall_r and solid.has(tops[j])
+		var x0: float = a.x - half + (radius if stop_l else 0.0)
+		var x1: float = b.x + half - (radius if stop_r else 0.0)
+		var cap: PackedVector2Array = _box(Vector2((x0 + x1) * 0.5, y0 + 8.5), (x1 - x0) * 0.5, 8.5, 8.0, stop_l, stop_r, stop_r, stop_l)
+		if not wall_l:
+			cap = _trim(cap, _fillet(Vector2(x0, y0), Vector2(1, 1), radius if solid.has(tops[i]) else 12.0))
+		if not wall_r:
+			cap = _trim(cap, _fillet(Vector2(x1, y0), Vector2(-1, 1), radius if solid.has(tops[j]) else 12.0))
+		if cap.size() > 2:
+			caps.append(cap)
 		i = j + 1
 	ink.begin()
 	body.append_array(fillets)
@@ -91,6 +121,27 @@ func rebuild(tile_map: TileMap) -> void:
 	ink.knock([RisoPrint.NIGHT], near_pies)
 	ink.ink(RisoPrint.ACCENT, 1.0, caps)
 	ink.finish()
+
+
+## `poly` with the `cut` region removed (largest remaining piece).
+func _trim(poly: PackedVector2Array, cut: PackedVector2Array) -> PackedVector2Array:
+	var best: PackedVector2Array = poly
+	var best_area: float = -1.0
+	for piece: PackedVector2Array in Geometry2D.clip_polygons(poly, cut):
+		var area: float = absf(_area(piece))
+		if area > best_area:
+			best = piece
+			best_area = area
+	return best
+
+
+func _area(poly: PackedVector2Array) -> float:
+	var s: float = 0.0
+	for k: int in range(poly.size()):
+		var p: Vector2 = poly[k]
+		var q: Vector2 = poly[(k + 1) % poly.size()]
+		s += p.x * q.y - q.x * p.y
+	return s * 0.5
 
 
 ## The part of a cell at least `d` from any exposed edge; corners facing open air are rounded.

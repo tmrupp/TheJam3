@@ -39,8 +39,6 @@ func start_game() -> void:
 	
 	var player: Player = player_prefab.instantiate()
 	main.add_child(player)
-
-	upgrade_menu.present(true)
 	
 func exit_game() -> void:
 	get_tree().quit()

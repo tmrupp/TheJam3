@@ -7,6 +7,10 @@ const CLOSE_GOAL: bool = true
 const CLOSE_ONE_KEY: bool = false
 const DEBUG_DISCOVERABLE: bool = false
 const CODE_LENGTH: int = 4 # 8 is more reasonable
+## Keys and doors are dealt these colours in turn; a key opens doors of its own colour.
+const KEY_COLOR_COUNT: int = 4
+## Share of platform runs (up to 3 cells long) that glide along a track instead of staying put.
+const MOVING_PLATFORM_CHANCE: float = 0.35
 
 enum Type {
 	EMPTY,
@@ -24,6 +28,7 @@ enum Type {
 	PORTAL,
 	ASTRAL_PROJECTION_POINT,
 	PLATFORM,
+	MOVING_PLATFORM,
 }
 
 class NextWorldDef:
@@ -142,6 +147,32 @@ class World:
 		empties.erase(v)
 		grounds.erase(v)
 		objects.append(v)
+
+	## Turns a platform run into one moving platform (stored on its leftmost cell), if the track
+	## it would sweep, 2-4 cells right or down, is open. The track is kept clear of other objects.
+	func make_moving (run_cells: Array[Vector2i]) -> void:
+		run_cells.sort()
+		var left: Vector2i = run_cells[0]
+		var axis: Vector2i = Vector2i(1, 0) if rng.randf() < 0.5 else Vector2i(0, 1)
+		var travel: int = rng.randi_range(2, 4)
+		var track: Array[Vector2i] = []
+		for k: int in range(1, travel + 1):
+			if axis.x != 0:
+				track.append(run_cells[-1] + Vector2i(k, 0))
+			else:
+				for c: Vector2i in run_cells:
+					track.append(c + Vector2i(0, k))
+		for p: Vector2i in track:
+			if not is_valid(p) or get_cell(p).type != Type.EMPTY or not empties.has(p):
+				return
+		for p: Vector2i in track:
+			empties.erase(p)
+		for c: Vector2i in run_cells.slice(1):
+			cells[c.x][c.y] = Cell.new(Type.EMPTY)
+			objects.erase(c)
+		var mover: Cell = Cell.new(Type.MOVING_PLATFORM)
+		mover.extra_info = [run_cells.size(), axis, travel]
+		set_cell(left, mover)
 		
 	func pop_if_random_empty (f: Callable=func(_v: Vector2i) -> bool: return true, force: bool=false) -> Variant:
 		while (true):
@@ -222,8 +253,25 @@ class World:
 			set_cell(pop_if_random_empty(), Cell.new(Type.COIN))
 			
 		
-		for i: int in range(len(empties)*0.2):
-			set_cell(pop_if_random_empty(), Cell.new(Type.PLATFORM))
+		# Platforms are laid in horizontal runs of 2-5 cells so they read as continuous ledges.
+		var platform_budget: int = int(len(empties)*0.2)
+		while platform_budget > 0 and len(empties) > 0:
+			var start: Variant = pop_if_random_empty()
+			set_cell(start, Cell.new(Type.PLATFORM))
+			platform_budget -= 1
+			var step: Vector2i = Vector2i(1, 0) if rng.randf() < 0.5 else Vector2i(-1, 0)
+			var run: Vector2i = start
+			var run_cells: Array[Vector2i] = [start]
+			for _j: int in range(rng.randi_range(1, 4)):
+				run += step
+				if platform_budget <= 0 or not is_valid(run) or get_cell(run).type != Type.EMPTY or not empties.has(run):
+					break
+				set_cell(run, Cell.new(Type.PLATFORM))
+				add_object_at(run)
+				run_cells.append(run)
+				platform_budget -= 1
+			if run_cells.size() <= 3 and rng.randf() < MOVING_PLATFORM_CHANCE:
+				make_moving(run_cells)
 
 		for i: int in range(len(empties)*0.2):
 			set_cell(pop_if_random_empty(ground_below), Cell.new(Type.ENEMY))
@@ -330,6 +378,7 @@ var checkpoint_prefab: Resource = preload("res://prefabs/checkpoint.tscn")
 var portal_prefab: Resource = preload("res://prefabs/portal.tscn")
 var astral_projection_point_prefab: Resource = preload("res://prefabs/astral_projection_point.tscn")
 var platform_prefab: Resource = preload("res://prefabs/platform.tscn")
+var moving_platform_prefab: Resource = preload("res://prefabs/moving_platform.tscn")
 
 var map_elements_prefab: Resource = preload("res://prefabs/map_elements.tscn")
 
@@ -393,6 +442,8 @@ func next_world () -> void:
 		RisoPrint.instance.world_built(self, world_index)
 
 var map_elements: Node
+var _keys_dealt: int = 0
+var _doors_dealt: int = 0
 # result of generating a new world
 func load_all(world_cells: Array, world_seed: NextWorldDef, map_cells: Array, map_seed: NextWorldDef) -> void:
 	clear_terrain()
@@ -421,6 +472,8 @@ func load_all(world_cells: Array, world_seed: NextWorldDef, map_cells: Array, ma
 	map_elements = map_elements_prefab.instantiate()
 	main.add_child(map_elements)
 
+	_keys_dealt = 0
+	_doors_dealt = 0
 	for v: Vector2i in world.objects:
 		var cell : Cell = world.get_cell(v)
 		place_cell(v, cell)
@@ -453,13 +506,24 @@ var cell_to_prefab: Dictionary = {
 	Type.PORTAL: portal_prefab,
 	Type.ASTRAL_PROJECTION_POINT: astral_projection_point_prefab,
 	Type.PLATFORM: platform_prefab,
+	Type.MOVING_PLATFORM: moving_platform_prefab,
 }
 
 func place_cell(v: Vector2i, _cell: Cell) -> void:
 	var cell: Node = cell_to_prefab[_cell.type].instantiate()
+	if _cell.type == Type.KEY:
+		cell.set_meta(&"key_color", _keys_dealt % KEY_COLOR_COUNT)
+		_keys_dealt += 1
+	elif _cell.type == Type.DOOR:
+		cell.set_meta(&"key_color", _doors_dealt % KEY_COLOR_COUNT)
+		_doors_dealt += 1
 	map_elements.add_child(cell)
 	cell.set_owner(map_elements)
 	cell.position = tile_map.to_global(tile_map.map_to_local(v))
+	# Floating pickups sit anywhere inside their cell rather than on the grid.
+	if _cell.type in [Type.COIN, Type.KEY, Type.SHARD]:
+		var cell_size: Vector2 = Vector2(tile_map.tile_set.tile_size) * tile_map.global_scale
+		cell.position += Vector2(world.rng.randf_range(-0.3, 0.3), world.rng.randf_range(-0.3, 0.3)) * cell_size
 	
 	if cell.has_method("setup"):
 		if _cell.extra_info != null:

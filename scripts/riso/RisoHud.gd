@@ -55,9 +55,9 @@ func _process(delta: float) -> void:
 		return
 	var hp: int = player.health.health
 	var hp_max: int = player.health.max_health
-	var codes: Array[String] = _key_codes()
-	var width: float = 58.0 + 11.0 * float(hp_max)
-	var height: float = 22.0 + 13.0 * float(codes.size())
+	var carried: bool = player.has_meta(&"carried_key")
+	var width: float = 58.0 + 11.0 * float(hp_max) + (16.0 if carried else 0.0)
+	var height: float = 22.0
 	# Bare-paper label: every plate cleared so the HUD prints as ink on paper.
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], [RisoShapes.rrect(4, 4, width, height, 7)])
 	ink.ink(RisoPrint.BLUE, 0.12, [RisoShapes.rrect(4, 4, width, height, 7)], false)
@@ -80,16 +80,10 @@ func _process(delta: float) -> void:
 	ink.ink(RisoPrint.PINK, 0.35, beads, false)
 	ink.knock([RisoPrint.EYE, RisoPrint.PINK], cores)
 	ink.ink(RisoPrint.NIGHT, 0.25, spent, false)
-	while key_labels.size() < codes.size():
-		key_labels.append(_make_label())
-	for i: int in range(key_labels.size()):
-		var label: Label = key_labels[i]
-		label.visible = i < codes.size()
-		if i < codes.size():
-			var y: float = 28.0 + 13.0 * float(i)
-			ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.crescent(Vector2(12, y + 5), 3.6, Vector2(1.7, -0.7)), RisoShapes.rrect(14, y + 4, 7, 2, 1)], false)
-			label.text = codes[i]
-			label.position = Vector2(23, y - 1)
+	if carried:
+		var at: Vector2 = Vector2(56.0 + 11.0 * float(hp_max) + 4.0, 15.0)
+		for plate: int in RisoPrint.key_inks(int(player.get_meta(&"carried_key"))):
+			ink.ink(plate, 1.0, RisoProp.key_shape(at, 0.33), false)
 	ink.finish()
 
 

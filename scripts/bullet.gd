@@ -12,6 +12,7 @@ func setup(v: Vector2, ignore: Array, sender: Node) -> void:
 func touch (other: Node) -> void:
 	if other not in exclude:
 #		print("bullet colliding with=", other)
+		RisoFx.burst(&"impact", global_position, -velocity.normalized())
 		queue_free()
 
 func _ready() -> void:

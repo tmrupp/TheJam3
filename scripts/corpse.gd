@@ -7,6 +7,7 @@ var value: int = 1
 func touch (other: Node) -> void:
 	if other == player:
 		player.collect(value)
+		RisoFx.burst(&"gain", global_position)
 		queue_free()
 		
 func player_died () -> void:

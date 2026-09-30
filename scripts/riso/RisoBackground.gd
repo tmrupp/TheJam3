@@ -65,8 +65,19 @@ func _process(_delta: float) -> void:
 		var p: Vector2 = Vector2(RisoShapes.hash1(float(i) * 3.31 + 1.0) * span.x, RisoShapes.hash1(float(i) * 7.17 + 2.0) * span.y) - center * 0.25
 		p = Vector2(fposmod(p.x, span.x), fposmod(p.y, span.y)) - span * 0.5
 		var s: float = 0.4 + RisoShapes.hash1(float(i) * 1.93 + 3.0) * 1.2
-		if i < 6:
-			var tw: float = 0.55 + 0.45 * sin(t * (1.3 + s) + float(i) * 2.0)
+		if i < 14:
+			# Twinkles are hashed events, not cycles: each window a star may or may not flash,
+			# at a random moment, strength and length, so no rhythm repeats.
+			var period: float = 1.3 + RisoShapes.hash1(float(i) * 9.1) * 2.9
+			var u: float = t / period + RisoShapes.hash1(float(i) * 2.7) * 7.0
+			var n: float = floorf(u)
+			var f: float = u - n
+			var tw: float = 0.18
+			if RisoShapes.hash1(n * 0.713 + float(i) * 5.31) < 0.6:
+				var peak: float = 0.4 + RisoShapes.hash1(n * 1.37 + float(i) * 3.13) * 0.6
+				var at_f: float = 0.1 + RisoShapes.hash1(n * 2.11 + float(i) * 1.77) * 0.6
+				var width: float = 0.08 + RisoShapes.hash1(n * 3.7 + float(i) * 0.91) * 0.2
+				tw = maxf(tw, peak * clampf(1.0 - absf(f - at_f) / width, 0.0, 1.0))
 			twinkles.append(RisoShapes.sparkle(p, 2.4 * k * tw))
 		else:
 			dots.append(RisoShapes.circle(p, s * k * 0.55, 8))

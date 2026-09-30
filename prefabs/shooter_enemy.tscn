@@ -13,7 +13,7 @@ self_modulate = Color(1, 0.0431373, 0.0431373, 1)
 
 [node name="Shooter" parent="." index="2" instance=ExtResource("3_ffi16")]
 
-[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="Shooter" index="3"]
+[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="Shooter" index="2"]
 stream = ExtResource("3_ettqd")
 bus = &"SoundEffects"
 

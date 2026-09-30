@@ -16,7 +16,11 @@ func crack (map_code: String) -> void:
 	map_info.generate(code, map_code)
 
 func interacted () -> void:
-	code_menu.enable(code, map_info.all_map_codes.keys(), crack)
+	# No code entry: step through to the next world with the first map still available.
+	var map_codes: Array = map_info.all_map_codes.keys()
+	if map_codes.is_empty():
+		return
+	crack(map_codes[0])
 		
 func _ready() -> void:
 	$Interactable.connect("interacted", interacted)

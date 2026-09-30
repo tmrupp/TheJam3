@@ -67,7 +67,8 @@ func capture() -> void:
 	player.set_physics_process(false)
 	player.get_node("CameraControl").set_process(false)
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
-	var wanted: Dictionary = {"door.tscn": "door", "spikes.tscn": "spikes", "checkpoint.tscn": "lantern", "goal.tscn": "gate"}
+	var wanted: Dictionary = {"door.tscn": "door", "spikes.tscn": "spikes", "checkpoint.tscn": "lantern", "goal.tscn": "gate", "mover_enemy.tscn": "wisp", "shooter_enemy.tscn": "watcher", "platform.tscn": "platform", "moving_platform.tscn": "lift"}
+	player.set_meta(&"carried_key", 2)
 	var lit_one: bool = false
 	for node: Node in info.map_elements.get_children():
 		var file: String = node.scene_file_path.get_file()
@@ -79,10 +80,32 @@ func capture() -> void:
 		if file == "checkpoint.tscn" and not lit_one:
 			player.set("respawn", target)
 			lit_one = true
+			target.get_node("Interactable").set("touching", true)
+		if file == "door.tscn":
+			target.get_node("Unlock/Interactable").set("touching", true)
+		if file == "shooter_enemy.tscn":
+			target.get_node("Shooter").set("player_in_range", true)
 		player.global_position = target.global_position + Vector2(-220, -40)
 		camera.global_position = target.global_position
 		camera.reset_smoothing()
 		for i: int in range(20):
 			await process_frame
 		root.get_texture().get_image().save_png(output.path_join("still_%s.png" % label))
+	# Pushing into a wall from the floor.
+	var tm: TileMap = main.get_node("TileMap") as TileMap
+	for v: Vector2i in tm.get_used_cells(0):
+		var open: Vector2i = v + Vector2i.LEFT
+		var at: Vector2 = tm.to_global(tm.map_to_local(open))
+		var crowded: bool = info.map_elements.get_children().any(func(n: Node) -> bool: return (n as Node2D).global_position.distance_to(at) < 300.0)
+		if not crowded and tm.get_cell_source_id(0, v + Vector2i.UP) != -1 and tm.get_cell_source_id(0, open) == -1 and tm.get_cell_source_id(0, open + Vector2i.UP) == -1 and tm.get_cell_source_id(0, open + Vector2i.DOWN) != -1:
+			player.global_position = at
+			player.set_physics_process(true)
+			camera.zoom *= 3.0
+			Input.action_press("Right")
+			for i: int in range(50):
+				camera.global_position = player.global_position
+				await process_frame
+			root.get_texture().get_image().save_png(output.path_join("still_wall.png"))
+			Input.action_release("Right")
+			break
 	quit()

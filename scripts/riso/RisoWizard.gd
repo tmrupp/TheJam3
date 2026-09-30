@@ -44,7 +44,15 @@ var flare_amount: float = 0.0
 var trail: Array[Vector3] = []  # x, y = feet position (world), z = life 0..1
 var ghosts: Array[Vector4] = []  # x, y, facing, life 0..1
 var _was_dashing: bool = false
+var key_pos: Vector2 = Vector2.INF
 var _was_climbing: bool = false
+## Pressed-against-wall pose: `wall` blends 0..1, `wall_side` is +1 when the wall is to the right.
+var wall: float = 0.0
+var wall_side: float = 1.0
+var push_t: float = 0.0
+var climb_y: float = 0.0
+## Wall face in art units: the collider's half-width divided by ART_SCALE.
+const WALL_X: float = 9.2
 
 
 func _ready() -> void:
@@ -116,6 +124,12 @@ func _physics_process(delta: float) -> void:
 		else:
 			ghosts[i] = g
 	flare_amount = maxf(0.0, flare_amount - delta * 2.2)
+	# A carried key trails the wizard on a soft lag, just behind and above the shoulder.
+	var s: float = player.global_scale.y * ART_SCALE
+	var target: Vector2 = global_position + Vector2(-signf(fs) * 11.0, -24.0) * s
+	if key_pos == Vector2.INF or not player.has_meta(&"carried_key"):
+		key_pos = target
+	key_pos = key_pos.lerp(target, minf(1.0, delta * 8.0))
 
 
 func _rig(dt: float, dashing: bool) -> void:
@@ -124,8 +138,17 @@ func _rig(dt: float, dashing: bool) -> void:
 	var ground: bool = player.is_on_floor()
 	var face: float = signf(player.sprite.scale.x) if player.sprite != null else 1.0
 	t += dt
-	ax += (clampf((vx - pvx) / dt, -3000.0, 3000.0) - ax) * minf(1.0, dt * 25.0)
+	var normal: Vector2 = player.get_wall_normal() if player.is_on_wall() else Vector2.ZERO
+	var pushing: bool = absf(normal.x) > 0.5 and Input.get_axis("Left", "Right") * normal.x < -0.1
+	var clinging: bool = absf(normal.x) > 0.5 and player.climb.is_acting()
+	if pushing or clinging:
+		wall_side = -signf(normal.x)
+	wall += ((1.0 if (pushing or clinging) and not dashing else 0.0) - wall) * minf(1.0, dt * 12.0)
+	push_t += dt * wall
+	if clinging:
+		climb_y += absf(vy) * dt
 	var landed: bool = ground and not pg and pvy > 80.0
+	ax += (clampf((vx - pvx) / dt, -3000.0, 3000.0) - ax) * minf(1.0, dt * 25.0)
 	var took: bool = not ground and pg and vy < -100.0
 	if landed:
 		squash_v -= pvy * 0.016
@@ -136,16 +159,22 @@ func _rig(dt: float, dashing: bool) -> void:
 	var ph: float = fposmod(dist / STRIDE, 1.0)
 	var fsn: float = clampf(fs, -1.0, 1.0)
 	var bob_t: float = (-(0.5 - 0.5 * cos(ph * 4.0 * PI)) * 1.1 * sp + (sin(t * 2.1) - 1.0) * 0.3 * (1.0 - sp)) if ground else -0.4
+	# Straining against the wall: sink a little and tremble.
+	bob_t += (-0.5 + sin(t * 41.0) * 0.12 + sin(push_t * 4.4) * 0.2) * wall if ground else 0.0
 	bob += (bob_t - bob) * minf(1.0, dt * 30.0)
 	head_v += ((bob - head_y) * 260.0 - head_v * 18.0) * dt
 	head_y += head_v * dt
 	var lean_t: float = clampf(vx / MAXV, -1.0, 1.0) * 0.07 + clampf(ax / 1500.0, -1.0, 1.0) * 0.06 + (face * 0.16 if dashing else 0.0)
+	lean_t += wall_side * (0.2 if ground else 0.08) * wall
 	lean_v += ((lean_t - lean) * 180.0 - lean_v * 16.0) * dt
 	lean += lean_v * dt
 	var hat_t: float = -clampf(ax / 1500.0, -1.0, 1.0) * 0.2 - clampf(vx / MAXV, -1.0, 1.0) * 0.1 + (0.0 if ground else clampf(vy / 300.0, -1.0, 1.0) * 0.08 * fsn)
+	# The brim meets the wall first, so the hat is shoved back off it.
+	hat_t -= wall_side * 0.24 * wall
 	hat_v += ((hat_t - hat_a) * 150.0 - hat_v * 11.0) * dt
 	hat_a += hat_v * dt
 	var tip_t: float = -fsn * 0.38 - clampf(vx / MAXV, -1.0, 1.0) * 0.28 + (0.0 if ground else -fsn * clampf(-vy / 300.0, -1.0, 1.0) * 0.22) + sin(t * 0.9) * 0.06 * (1.0 - sp) + (-face * 0.4 if dashing else 0.0)
+	tip_t -= wall_side * 0.35 * wall
 	tip_v += ((tip_t - tip_a) * 85.0 - tip_v * 5.5) * dt - hat_v * dt * 7.0
 	tip_a = clampf(tip_a + tip_v * dt, -1.6, 1.6)
 	var spread: float = 0.0 if ground else clampf(vy / 300.0, 0.0, 1.3) * 3.0
@@ -161,6 +190,9 @@ func _rig(dt: float, dashing: bool) -> void:
 		if ground:
 			tx += sin(ph * TAU + float(i) * 0.7) * 0.8 * sp
 			ty += sin(ph * TAU * 2.0 + float(i) * 0.9) * 0.5 * sp
+		elif vy > 0.0:
+			# Sliding down the wall drags the wall-side hem up.
+			ty -= wall * maxf(0.0, side * wall_side) * 2.6 * clampf(vy / 150.0, 0.0, 1.0)
 		if landed:
 			hem_vx[i] += side * 20.0
 			hem_vy[i] += 12.0
@@ -205,11 +237,52 @@ func _feet() -> Array[Vector2]:
 			x = lerpf(-a, a, u * u * (3.0 - 2.0 * u))
 			y = -sin(PI * u) * 1.9
 		out.append(Vector2(lerpf(rest, x * dir + (0.8 if k == 1 else -0.8), sp), y * sp))
+	if wall > 0.01:
+		# Against a wall: braced on the ground (the back foot scrabbles for grip), or one sole
+		# flat on the wall in the air, stepping up it while climbing.
+		var near: int = 1 if wall_side > 0.0 else 0
+		var braced: Array[Vector2] = [Vector2.ZERO, Vector2.ZERO]
+		if pg:
+			var q: float = fposmod(push_t * 1.3, 1.0)
+			var slide: float = q / 0.82 if q < 0.82 else 1.0 - (q - 0.82) / 0.18
+			braced[near] = Vector2(wall_side * 3.4, 0.0)
+			braced[1 - near] = Vector2(-wall_side * (3.0 + 1.6 * slide), -sin(clampf((q - 0.82) / 0.18, 0.0, 1.0) * PI) * 1.3)
+		else:
+			var step: float = sin(climb_y * 0.3)
+			braced[near] = Vector2(wall_side * (WALL_X - 2.4), -3.6 + step * 1.2)
+			braced[1 - near] = Vector2(-wall_side * 0.6, -1.4 - step * 0.8)
+		for k: int in range(2):
+			out[k] = out[k].lerp(braced[k], wall)
 	return out
 
 
 func _soft(v: float, m: float) -> float:
 	return m * tanh(v / m)
+
+
+## Smoosh against the wall: points past a knee near the wall face flatten onto it, and the
+## squeezed-out material spreads up and down along the wall.
+func _smv(v: Vector2) -> Vector2:
+	if wall <= 0.001:
+		return v
+	var knee: float = WALL_X - 3.5
+	var s: float = v.x * wall_side
+	if s <= knee:
+		return v
+	var over: float = s - knee
+	var flat: float = 3.5 * tanh(over / 3.5)
+	var pressed: Vector2 = Vector2(wall_side * (knee + flat), v.y + (v.y + 11.0) * (over - flat) * 0.08)
+	return v.lerp(pressed, wall)
+
+
+func _sm(poly: PackedVector2Array) -> PackedVector2Array:
+	if wall <= 0.001:
+		return poly
+	var out: PackedVector2Array = PackedVector2Array()
+	out.resize(poly.size())
+	for i: int in range(poly.size()):
+		out[i] = _smv(poly[i])
+	return out
 
 
 func _process(_delta: float) -> void:
@@ -229,11 +302,18 @@ func _draw_body() -> void:
 	var cyc: float = fposmod(t, 3.9)
 	var blink: bool = cyc < 0.11 or (int(t / 3.9) % 3 == 0 and cyc > 0.2 and cyc < 0.3)
 	var m: Transform2D = Transform2D(Vector2(1.0 / squash, 0), Vector2(0, squash), Vector2.ZERO) * Transform2D(lean, Vector2.ZERO)
+	# Squeezed against the wall: compressed toward the wall face, which stays put.
+	if wall > 0.001:
+		var anchor: Vector2 = Vector2(wall_side * WALL_X, 0.0)
+		m = Transform2D(0.0, Vector2(1.0 - 0.16 * wall, 1.0 + 0.06 * wall), 0.0, anchor) * Transform2D(0.0, -anchor) * m
 	var mh: Transform2D = m * Transform2D(hat_a + lean * 0.4, Vector2(fsc * 0.05, -21.3 + hy))
 	var hem: Array[Vector2] = []
+	var hem_lim: float = lerpf(20.0, WALL_X - 0.6, wall)
 	for i: int in range(5):
 		var hy_i: float = _soft(hem_y[i], 1.5) if hem_y[i] > 0.0 else _soft(hem_y[i], 5.5)
-		hem.append(Vector2(HEMX[i] + _soft(hem_x[i], 6.0), minf(-0.6, -2.4 + hy_i)))
+		var hx: float = HEMX[i] + _soft(hem_x[i], 6.0)
+		hx = wall_side * minf(hx * wall_side, hem_lim)
+		hem.append(Vector2(hx, minf(-0.6, -2.4 + hy_i)))
 	var robe: PackedVector2Array = RisoShapes.smooth(PackedVector2Array([
 		Vector2(-2.4, -15.9 + bob), Vector2(-4.8, -14.8 + bob), Vector2(-6.3 + (hem[0].x + 8.8) * 0.45, -8.4 + bob * 0.5),
 		Vector2(hem[0].x - 0.5, hem[0].y + 0.3), hem[1], hem[2], hem[3], Vector2(hem[4].x + 0.5, hem[4].y + 0.3),
@@ -256,6 +336,9 @@ func _draw_body() -> void:
 	var ph: float = fposmod(dist / STRIDE, 1.0)
 	var swing: float = -sin(ph * TAU) * 1.7 * sp
 	var hand: Vector2 = Vector2(fsc * 4.4 + swing * f + (-f * 2.5 if dashing else 0.0), (-7.2 if pg else -9.2) + bob * 0.8)
+	# Palm flat on the wall: shoulder height when pushing, reaching up (alternating) when climbing.
+	var plant: Vector2 = Vector2(wall_side * (WALL_X - 2.0), (-11.8 + bob * 0.5) if pg else (-15.2 + sin(climb_y * 0.3 + 1.6) * 1.6))
+	hand = hand.lerp(plant, wall if f == wall_side else 0.0)
 	var sleeve: PackedVector2Array = m * RisoShapes.smooth(PackedVector2Array([
 		Vector2(fsc * 0.8, -14.4 + bob), Vector2(fsc * 4.2, -13.6 + bob), hand + Vector2(f * 1.9, -0.2),
 		hand + Vector2(f * 0.9, 2.0), hand + Vector2(-f * 1.4, 1.7), Vector2(fsc * 1.6, -9.8 + bob)]))
@@ -265,7 +348,7 @@ func _draw_body() -> void:
 	var face: PackedVector2Array = m * RisoShapes.ellipse(Vector2(fsc * 0.35, -18.5 + hy), 3.8 * (0.72 + 0.28 * af), 3.3, 22)
 	var look: float = fsc * 0.25 * sp
 	var gap: float = 1.45 * (0.8 + 0.2 * af)
-	var eye_ry: float = 0.45 + 0.55 * af
+	var eye_ry: float = (0.45 + 0.55 * af) * (1.0 - 0.45 * wall if pg else 1.0)
 	var eye_c: Array[Vector2] = [Vector2(fsc * 0.9 + look - gap, -18.5 + hy), Vector2(fsc * 0.9 + look + gap, -18.5 + hy)]
 	var ta: float = 1.1 * tanh(tip_a / 1.1)
 	var d2: Vector2 = Vector2(sin(ta), -cos(ta))
@@ -274,32 +357,41 @@ func _draw_body() -> void:
 	var cone: PackedVector2Array = mh * RisoShapes.smooth(PackedVector2Array([
 		Vector2(-5.1, -0.25), Vector2(-3.1 + tip.x * 0.3, -7.3), tip - d2 * 1.6 - pp * 1.15, tip + d2 * 0.55,
 		tip - d2 * 1.6 + pp * 1.15, Vector2(3.1 + tip.x * 0.3, -7.3), Vector2(5.1, -0.25), Vector2(0, 0.55)]))
-	var brim: PackedVector2Array = mh * RisoShapes.ellipse(Vector2.ZERO, 9.2, 1.8, 28)
+	var brim: PackedVector2Array = mh * RisoShapes.ellipse(Vector2(-wall_side * 1.6 * wall, 0.0), 9.2 * (1.0 - 0.2 * wall), 1.8, 28)
 	var band: PackedVector2Array = mh * RisoShapes.smooth(PackedVector2Array([Vector2(-5.4, -0.3), Vector2(0, -0.1), Vector2(5.4, -0.3), Vector2(4.6, -3.3), Vector2(0, -3.5), Vector2(-4.6, -3.3)]))
-	var bead: Vector2 = mh * (tip - d2 * 0.6)
+	var bead: Vector2 = _smv(mh * (tip - d2 * 0.6))
 	var boots: Array[PackedVector2Array] = []
 	for p: Vector2 in _feet():
 		var boot: PackedVector2Array = RisoShapes.smooth(PackedVector2Array([Vector2(-1.9, 0.1), Vector2(1.2, 0.1), Vector2(3.3, -0.1), Vector2(3.5, -1.2), Vector2(2.3, -2.0), Vector2(1.0, -2.2), Vector2(0.9, -4.6), Vector2(-1.6, -4.6), Vector2(-2.0, -1.6)]), 3)
-		boots.append(m * (Transform2D(0.0, Vector2(f, 1), 0.0, p) * boot))
-	var robe_m: PackedVector2Array = m * robe
+		boots.append(_sm(m * (Transform2D(0.0, Vector2(f, 1), 0.0, p) * boot)))
+	var robe_m: PackedVector2Array = _sm(m * robe)
+	if wall > 0.001:
+		face = _sm(face)
+		sleeve = _sm(sleeve)
+		collar = _sm(collar)
+		cone = _sm(cone)
+		brim = _sm(brim)
+		band = _sm(band)
+		for i: int in range(folds.size()):
+			folds[i] = _sm(folds[i])
 	body.begin()
 	body.ink(RisoPrint.NIGHT, 1.0, boots, false)
 	body.ink(RisoPrint.BLUE, 1.0, boots, false)
 	body.ink(RisoPrint.BLUE, 1.0, [robe_m])
-	body.ink(RisoPrint.NIGHT, 0.18, [m * back_shade], false)
+	body.ink(RisoPrint.NIGHT, 0.18, [_sm(m * back_shade)], false)
 	body.ink(RisoPrint.NIGHT, 0.42, folds, false)
 	body.ink(RisoPrint.NIGHT, 1.0, [face], false)
 	body.ink(RisoPrint.BLUE, 1.0, [face], false)
 	var eyes: Array[PackedVector2Array] = []
 	for c: Vector2 in eye_c:
-		eyes.append(m * (RisoShapes.ellipse(c, 1.0, 1.0 * eye_ry, 12) if not blink else RisoShapes.rrect(c.x - 1.0, c.y - 0.25, 2.0, 0.5, 0.25, 2)))
+		eyes.append(_sm(m * (RisoShapes.ellipse(c, 1.0, 1.0 * eye_ry, 12) if not blink else RisoShapes.rrect(c.x - 1.0, c.y - 0.25, 2.0, 0.5, 0.25, 2))))
 	if not blink:
 		body.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT], eyes)
 	body.ink(RisoPrint.EYE, 1.0, eyes, false)
 	if not blink and eye_ry > 0.7:
 		var cores: Array[PackedVector2Array] = []
 		for c: Vector2 in eye_c:
-			cores.append(m * RisoShapes.circle(c + Vector2(fsc * 0.25, -0.2), 0.4, 8))
+			cores.append(_sm(m * RisoShapes.circle(c + Vector2(fsc * 0.25, -0.2), 0.4, 8)))
 		body.knock([RisoPrint.EYE], cores)
 	body.knock([RisoPrint.NIGHT, RisoPrint.EYE], [collar])
 	body.ink(RisoPrint.BLUE, 1.0, [collar])
@@ -329,7 +421,7 @@ func _draw_body() -> void:
 			body.ink(RisoPrint.PINK, 1.0, [piece], false)
 		var whites: Array[PackedVector2Array] = []
 		for c: Vector2 in eye_c:
-			whites.append(m * RisoShapes.circle(c, 1.0, 10))
+			whites.append(_sm(m * RisoShapes.circle(c, 1.0, 10)))
 		body.knock([RisoPrint.PINK], whites)
 	body.finish()
 
@@ -374,6 +466,10 @@ func _draw_world() -> void:
 		if origin is Node2D and is_instance_valid(origin):
 			var o: Node2D = origin as Node2D
 			marks.append(Vector4(o.global_position.x, o.global_position.y + _feet_offset() * s, signf(fs), 1.0))
+	if player.has_meta(&"carried_key"):
+		var bob: Vector2 = Vector2(0, sin(t * 3.0) * 3.0)
+		for plate: int in RisoPrint.key_inks(int(player.get_meta(&"carried_key"))):
+			world.ink(plate, 1.0, RisoProp.key_shape(key_pos + bob, 1.0))
 	for g: Vector4 in marks:
 		var at: Transform2D = Transform2D(0.0, Vector2(s, s), 0.0, Vector2(g.x, g.y - (1.0 - g.w) * 6.0 * s))
 		var ghost: Array[PackedVector2Array] = [

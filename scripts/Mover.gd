@@ -1,7 +1,7 @@
 extends Node2D
 
 
-const SPEED: float = 100.0
+const SPEED: float = 60.0
 const JUMP_VELOCITY: float = -400.0
 var gravity: float = ProjectSettings.get_setting("physics/2d/default_gravity")
 
