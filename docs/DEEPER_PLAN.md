@@ -121,7 +121,7 @@ Today the map is MapInfo's pixel overlay: the current level's cells, revealed a 
   - reveal persists across a revisit
   - world-view tiles and links match the records
   - a still of each view
-- **Open:** does the map pause the game? The suggestion is yes, as the pause menu does.
+- **Pausing:** opening the map pauses the game, as the pause menu does.
 
 ## 8. A damaging spell (planned)
 
@@ -135,6 +135,11 @@ Enemies can only be stunned today (parry). A spell gives the wizard a way to des
   - III: +1 damage
   - IV: pierces through its first enemy
 - **Death and records:** slain enemies stay slain in the level record until the player dies, then everything respawns. This is the soulslike reset, and it keeps levels dangerous without farming.
+- **Cracked walls:** the bolt also breaks cracked rock, a metroidvania gate you come back to once you can cast far or often enough.
+  - **Generation:** a few ground cells per level become cracked, chosen by the level seed. They are thin walls, one or two cells thick, with open space on both sides. Some of them seal off a pocket that holds something worth reaching (a key, a lantern, a cluster of stars). No path is guaranteed, as elsewhere.
+  - **Breaking:** a cracked cell is solid until a bolt hits it. It then crumbles in a RisoFx burst of blue ink. The level record keeps it broken; it does not respawn on death, unlike enemies.
+  - **Look:** rock like the rest, crossed by paper-white crack lines knocked out of the blue, so it reads as breakable up close.
+  - **Tests:** cracked cells are deterministic per level; a bolt breaks one and stops there; broken cells stay broken on a revisit and after a death.
 - **Look:**
   - The bolt is a glow-ink comet with a tapering smear, like the dash.
   - The hat bead dims while the bolt recharges.
@@ -148,9 +153,8 @@ Enemies can only be stunned today (parry). A spell gives the wizard a way to des
   - everything respawns after a death
   - charges refill at lanterns
   - tiers apply
-- **Open:**
-  - Should the bolt break anything else (for example cracked walls as metroidvania gates)?
-  - Should slain enemies also respawn when the run's seed changes world?
+  - cracked walls (above)
+- **Open:** should cracked walls gate the side and deeper exits too, or only pockets inside a level?
 
 ## Phases
 
