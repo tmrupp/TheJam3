@@ -438,6 +438,10 @@ func _update_uniforms(size: Vector2) -> void:
 	print_material.set_shader_parameter("seed", _sheet_seed(sheet_index) if registration == &"sheet" else 3.1)
 	print_material.set_shader_parameter("seed2", _sheet_seed(sheet_index + 1))
 	print_material.set_shader_parameter("mixv", m)
+	# Pin the print to the world: the shader adds the camera's pixel offset to every noise lookup.
+	var root: Viewport = get_viewport()
+	var view: Transform2D = root.get_final_transform() * root.canvas_transform
+	print_material.set_shader_parameter("pin", -view.origin)
 
 
 func set_realm(r: StringName) -> void:

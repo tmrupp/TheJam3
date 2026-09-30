@@ -4,6 +4,10 @@ render_mode unshaded, blend_disabled;
 // per-ink misregistration, edge wobble, dot gain, an AM screen whose dots grow with
 // coverage (grain only in tints and edges; solids stay solid), uneven laydown,
 // missed-ink specks and paper texture. Inks multiply over the paper.
+// Every imperfection is evaluated in world-pinned pixels (screen pixel + `pin`, the camera's
+// offset), so the print stays on the paper as the camera moves; only the plates are sampled
+// in screen space. Noise uses an exact integer hash (PCG): the old fract() hash lost float
+// precision at screen-sized coordinates, which lined specks and grain up in bands.
 // Plate order: 0 night, 1 blue, 2 pink, 3 accent, 4 eye yellow, 5 hat glow.
 
 uniform sampler2D plate0 : filter_linear, repeat_disable;
@@ -24,24 +28,37 @@ uniform float lay = 0.1;
 uniform float seed = 3.1;
 uniform float seed2 = 4.47;
 uniform float mixv = 0.0;
+uniform vec2 pin = vec2(0.0);
 
-float h(vec2 p) {
-	p = fract(p * vec2(123.34, 456.21));
-	p += dot(p, p + 45.32);
-	return fract(p.x * p.y);
+// PCG 3D (Jarzynski & Olano): an exact integer hash, uniform at any coordinate.
+uvec3 pcg3(uvec3 v) {
+	v = v * 1664525u + 1013904223u;
+	v.x += v.y * v.z; v.y += v.z * v.x; v.z += v.x * v.y;
+	v ^= v >> 16u;
+	v.x += v.y * v.z; v.y += v.z * v.x; v.z += v.x * v.y;
+	return v;
 }
 
-float vn(vec2 p) {
+// Hash of an integer lattice cell and a seed, in [0, 1).
+float hs(vec2 cell_p, uint sd) {
+	ivec2 c = ivec2(floor(cell_p));
+	return float(pcg3(uvec3(uint(c.x), uint(c.y), sd)).x >> 8u) / 16777216.0;
+}
+
+float vn(vec2 p, uint sd) {
 	vec2 i = floor(p);
 	vec2 f = fract(p);
 	f = f * f * (3.0 - 2.0 * f);
-	return mix(mix(h(i), h(i + vec2(1.0, 0.0)), f.x), mix(h(i + vec2(0.0, 1.0)), h(i + vec2(1.0, 1.0)), f.x), f.y);
+	return mix(mix(hs(i, sd), hs(i + vec2(1.0, 0.0), sd), f.x), mix(hs(i + vec2(0.0, 1.0), sd), hs(i + vec2(1.0, 1.0), sd), f.x), f.y);
 }
 
-// A per-sheet offset from hashing the seed: each new sheet gets unrelated grain, instead of
-// the same grain slid along by the seed (which read as a repetitive shimmer).
-vec2 sheet_offset(float sd) {
-	return vec2(h(vec2(sd * 0.137, 3.7)), h(vec2(9.1, sd * 0.271))) * 97.0;
+// Noise domains are turned off the pixel axes so no lattice direction shows.
+const mat2 R1 = mat2(vec2(0.8253, 0.5646), vec2(-0.5646, 0.8253));
+const mat2 R2 = mat2(vec2(0.3624, -0.9320), vec2(0.9320, 0.3624));
+
+// Each sheet's seed becomes an unrelated integer stream.
+uint seed_u(float sd) {
+	return pcg3(uvec3(uint(sd * 1000.0), 7919u, 104729u)).x;
 }
 
 float coverage(sampler2D s, vec2 q) {
@@ -55,21 +72,26 @@ float print_ink(sampler2D s, vec2 px, vec2 off, float ang, float rot, float sd, 
 	vec2 c = res * 0.5;
 	vec2 p = px - c;
 	p = vec2(cos(rot) * p.x - sin(rot) * p.y, sin(rot) * p.x + cos(rot) * p.y) + c + off;
-	vec2 o = sheet_offset(sd);
+	// World-pinned position of this plate's (misregistered) sample point.
+	vec2 wq = p + pin;
+	uint so = seed_u(sd);
 	// The broad edge wobble is shared by all plates so neighbouring inks drift together (no paper gaps).
-	vec2 ow = sheet_offset(wsd);
-	vec2 w1 = vec2(vn(p * 0.16 + ow), vn(p * 0.16 + ow.yx + 31.0)) - 0.5;
-	vec2 w2 = vec2(vn(p * 0.85 + o * 1.7), vn(p * 0.85 + o.yx * 2.3 + 7.0)) - 0.5;
-	vec2 q = p + w1 * wob * 2.2 + w2 * wob * 0.9;
-	float cv = coverage(s, q);
+	uint sw = seed_u(wsd);
+	vec2 w1 = vec2(vn(R1 * wq * 0.16, sw), vn(R1 * wq * 0.16, sw + 17u)) - 0.5;
+	vec2 w2 = vec2(vn(R2 * wq * 0.85, so), vn(R2 * wq * 0.85, so + 29u)) - 0.5;
+	vec2 d = w1 * wob * 2.2 + w2 * wob * 0.9;
+	float cv = coverage(s, p + d);
+	vec2 qw = wq + d;
+	// The halftone screen is pinned to the paper too.
+	vec2 wp = px + pin;
 	float a = radians(ang);
-	vec2 sp = vec2(cos(a) * px.x - sin(a) * px.y, sin(a) * px.x + cos(a) * px.y) / cell;
+	vec2 sp = vec2(cos(a) * wp.x - sin(a) * wp.y, sin(a) * wp.x + cos(a) * wp.y) / cell;
 	float scr = 0.5 - 0.25 * (cos(6.28318 * sp.x) + cos(6.28318 * sp.y));
 	float solid = smoothstep(0.82, 0.98, cv);
-	float thr = 0.035 + scr * 0.93 + ((h(floor(q * 0.85) + o) - 0.5) * grain + (vn(q * 0.3 + o.yx * 4.0) - 0.5) * grain * 0.6) * (1.0 - solid * 0.75);
+	float thr = 0.035 + scr * 0.93 + ((hs(R2 * qw * 0.85, so + 3u) - 0.5) * grain + (vn(R1 * qw * 0.3, so + 5u) - 0.5) * grain * 0.6) * (1.0 - solid * 0.75);
 	float v = smoothstep(thr - 0.045, thr + 0.045, cv);
-	float laydown = 1.0 - lay + lay * vn(q * 0.42 + o * 3.0);
-	float speck = step(0.9988, h(floor(q * 0.42) + o.yx * 5.0));
+	float laydown = 1.0 - lay + lay * vn(R2 * qw * 0.42, so + 7u);
+	float speck = step(0.9988, hs(R1 * qw * 0.42, so + 11u));
 	return v * laydown * (1.0 - speck * 0.85);
 }
 
@@ -83,8 +105,9 @@ float sheet(sampler2D s, vec2 px, vec2 off, float ang, float rot, float k) {
 
 void fragment() {
 	vec2 px = SCREEN_UV * res;
-	vec2 po = sheet_offset(seed);
-	vec3 col = paper * (0.97 + 0.03 * vn(px * 0.045 + po)) * (1.0 - 0.045 * h(floor(px * 0.8) + po.yx));
+	vec2 wp = px + pin;
+	uint ps = seed_u(seed + 71.0);
+	vec3 col = paper * (0.97 + 0.03 * vn(R1 * wp * 0.045, ps)) * (1.0 - 0.045 * hs(R2 * wp * 0.8, ps + 1u));
 	// Night is registered to blue (same offset, rotation and wobble), like a trapped plate: where
 	// the rock or robe meets the night there is no paper rim, which would read as an outline.
 	col *= mix(vec3(1.0), ink0, sheet(plate0, px, off1, 30.0, 0.0007, 1.0));
