@@ -74,6 +74,9 @@ var background: Node2D
 var terrain: Node2D
 var hud: Node2D
 var map_view: Node2D
+var decor: Node2D
+var light: Node2D
+var ambient: Node2D
 var panel: Control
 
 var sheet_index: int = 0
@@ -205,6 +208,20 @@ func _build() -> void:
 	terrain.name = "RisoTerrain"
 	terrain.set_script(preload("res://scripts/riso/RisoTerrain.gd"))
 	main.add_child.call_deferred(terrain)
+	decor = Node2D.new()
+	decor.name = "RisoDecor"
+	decor.set_script(preload("res://scripts/riso/RisoDecor.gd"))
+	main.add_child.call_deferred(decor)
+	light = Node2D.new()
+	light.name = "RisoLight"
+	light.set_script(preload("res://scripts/riso/RisoLight.gd"))
+	main.add_child.call_deferred(light)
+	ambient = Node2D.new()
+	ambient.name = "RisoAmbient"
+	ambient.set_script(preload("res://scripts/riso/RisoAmbient.gd"))
+	ambient.set("decor", decor)
+	ambient.set("light", light)
+	main.add_child.call_deferred(ambient)
 	hud = Node2D.new()
 	hud.name = "RisoHud"
 	hud.set_script(preload("res://scripts/riso/RisoHud.gd"))
@@ -483,6 +500,10 @@ func world_built(map_info: Node, _world_index: int) -> void:
 				elif node.scene_file_path == "res://prefabs/cracked_wall.tscn":
 					cracked.append((node as Node2D).global_position)
 		terrain.call("rebuild", map_info.get("tile_map"), ledges, cracked)
+		if decor != null and is_instance_valid(decor):
+			decor.call("rebuild", map_info, cracked)
+		if light != null and is_instance_valid(light):
+			light.call("rebuild", map_info)
 
 
 func _unhandled_key_input(event: InputEvent) -> void:

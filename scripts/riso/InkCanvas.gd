@@ -61,6 +61,16 @@ func knock(plates: Array[int], polys: Array[PackedVector2Array]) -> void:
 	_emit(mask, true, 1.0, polys, [])
 
 
+## Lift `cover` (0..1) of the ink already on `plates` inside `polys`: a partial knock, for light.
+func lift_ink(plates: Array[int], cover: float, polys: Array[PackedVector2Array]) -> void:
+	if cover <= 0.001 or polys.is_empty():
+		return
+	var mask: int = 0
+	for p: int in plates:
+		mask |= RisoPrint.plate_mask(p)
+	_emit(mask, true, cover, polys, [])
+
+
 func _emit(mask: int, lift: bool, cover: float, polys: Array[PackedVector2Array], alphas: Array[PackedFloat32Array]) -> void:
 	var op: Node2D
 	if _used < _ops.size():

@@ -36,6 +36,24 @@ Defaults: twilight realm, fine detail, new sheet registration at 8 sheets/s, rep
 
 ## Interface
 
+- **Surface decor** (`RisoDecor.gd`): small printed props that make the grotto feel lived in. They never affect gameplay.
+  - **Floors:** grass tufts, moon-flowers, mushroom clusters, stones.
+  - **Ceilings:** hanging roots, stalactites, ink drips.
+  - **Walls:** leafy vines.
+  - **Deep rock:** soft wavy strata bands, fossils, pale veins and geodes.
+  - **Placement:** every choice is a hash of the level seed and cell, so a level always wears the same decor. The world's RNG is untouched. Props stay inside the level and clear of structures (exits, shrine, doors, lanterns, thorns, portals, orbs, lifts).
+  - **Drawing:** props are sketched and then grown ×2 from where they sprout. They are batched onto one ink canvas per 16×16 chunk and drawn once per level.
+- **Lantern light** (`RisoLight.gd`): the respawn lantern lifts the night ink in a soft, flickering three-ring pool, so the place you return to reads as a destination. Other lanterns give a faint glow. Uses `InkCanvas.lift_ink`, a partial knock.
+- **Ambient life** (`RisoAmbient.gd`), only on screen:
+  - paper-white fireflies fading in and out over flowers and grass
+  - night-ink moths circling the nearest lanterns
+  - ink drops falling from ceiling drips and splashing where they land
+- **Distant skyline** (`RisoBackground.gd`): ruined colonnades, towers and floating islands in a faint blue screen, sliding at a tenth of the camera's speed.
+- **Enemy anchors:** wisps cast a night shadow on the floor, and watchers grow on a swaying stalk rooted in the floor.
+- **Visual language:**
+  - **Colours:** pink is danger (thorns, wisps, watchers), yellow is reward (stars, keys, price plaques), glow ink is the wizard's own (hat, hex, ghost), and blue is the world. Decor uses only blue, night, moss (accent over blue) and bare paper, never pink or yellow.
+  - **Shapes:** points hurt, rounds are collected, arches are ways through.
+  - **Breakables:** cracks are thin night-ink lines, which is why rock strata are broad soft bands and never lines.
 - **Printed map** (`RisoMap.gd`): a paper sheet over the view, opened with M. The level view prints seen rock in blue ink and explored ground as a light blue screen, from one-texel-per-cell textures on the blue plate. It marks exits, the shrine, lanterns, doors, keys, the ghost and the wizard. The world view prints visited levels as labelled tiles joined by opened doors. See `docs/DEEPER_PLAN.md` §7.
 - **Printed HUD** (`RisoHud.gd`): a bare-paper label in the top-left corner, printed with the art. It shows a coin mote and count in night-ink serif, health as ember beads (spent ones become a faint screen), and the carried key. A tag in the top-right corner names the level being played (`world 28 · depth 1`). Under it, a strip shows each ability you know as its shrine mark, with a pip per tier. While a ghost exists, a second label shows the ghost, its stars and an arrow toward it and, when it is in another level, that level's world and depth. While vulnerable, that label turns pink and adds a cracked star with the fresh stars still needed, and the hat bead splits into two pink halves. A run's end prints a card with the seed and the deepest depth reached. It lives on the ink plates and follows the camera, laid out in the 320×180 UI space. The pixel HUD hides while printing, but its data and scripts still run.
 - **Menus** (`RisoTheme.gd`): the shared `main_menu_theme.tres` is restyled at runtime in the realm's inks: blue ink buttons that turn to the accent on hover and focus, paper input fields, night panels, a serif face and no borders. It is restored exactly when the print is off. The title image hides so the printed sky shows behind the main menu.

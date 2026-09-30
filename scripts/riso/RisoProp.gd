@@ -521,6 +521,9 @@ func _wisp() -> void:
 		stunned = bool(mover.get("stunned"))
 	var k: float = 3.6
 	var bob: float = -3.0 - sin(t * 3.0 + phase) * 1.6
+	# Its shadow on the floor, shrinking as it bobs up: it belongs to the ground it haunts.
+	var g: float = _ground()
+	ink.ink(RisoPrint.NIGHT, 0.35, [RisoShapes.ellipse(Vector2(0, g - 3.0), 26.0 + bob * 1.2, 5.0, 16)], false)
 	# Flattened to 60% height, centred where the taller wisp used to float.
 	var xf: Transform2D = Transform2D(0.0, Vector2(dir * k * 1.1, k * 0.6), 0.0, Vector2(0, 14.0 - 3.3 * k + bob * k * 0.7))
 	var speed: float = 0.3 if stunned else 0.7
@@ -591,6 +594,18 @@ func _watcher() -> void:
 		charge = 0.0
 	var k: float = 2.8
 	var xf: Transform2D = Transform2D(0.0, Vector2(k, k), 0.0, at + Vector2(0, sin(t * 2.0 + phase) * 3.0))
+	# A stalk rooted in the floor, swaying under the eye: the watcher grows here.
+	var g: float = _ground()
+	var eye: Vector2 = xf * Vector2(0, 4)
+	if g - eye.y > 12.0:
+		var sway: float = sin(t * 1.6 + phase) * 6.0
+		var stalk: PackedVector2Array = PackedVector2Array()
+		for j: int in range(6):
+			var f: float = float(j) / 5.0
+			stalk.append(Vector2(sway * sin(f * PI) * 0.8, lerpf(g, eye.y, f)))
+		ink.ink(RisoPrint.BLUE, 1.0, RisoDecor.strip(stalk, 9.0, 4.0))
+		ink.ink(RisoPrint.NIGHT, 0.3, RisoDecor.strip(stalk, 9.0, 4.0), false)
+		ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.ellipse(Vector2(0, g - 2.0), 14.0, 5.0, 14)])
 	var drips: Array[PackedVector2Array] = []
 	for j: int in range(3):
 		var x: float = -4.0 + float(j) * 4.0
