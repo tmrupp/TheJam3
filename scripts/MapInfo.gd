@@ -453,6 +453,10 @@ static func recover_price (depth: int) -> int:
 static func exit_distance (depth: int) -> int:
 	return clampi(24 + 4 * depth, 24, 96)
 
+## The key colour that locks a level's left or right exit, dealt by the level seed.
+static func lateral_lock (at: Vector2i, which: int) -> int:
+	return level_seed(level_seed(at.x, at.y), 500 + which) % KEY_COLOR_COUNT
+
 ## How a level is named on screen and when sharing it.
 static func where (at: Vector2i) -> String:
 	return "world %d · depth %d" % [at.x, at.y]
@@ -465,7 +469,7 @@ static func region_for (depth: int) -> String:
 
 func record (at: Vector2i = coord) -> Dictionary:
 	if not records.has(at):
-		records[at] = {"taken": {}, "opened": {}, "deeper_paid": false, "dropped": {}, "next_drop": 0, "shrine_used": false}
+		records[at] = {"taken": {}, "opened": {}, "deeper_paid": false, "dropped": {}, "next_drop": 0, "shrine_used": false, "lateral_open": {}}
 	return records[at]
 
 func mark_taken (node: Node) -> void:
@@ -754,6 +758,9 @@ func next_world () -> void:
 	var at: Vector2i = world.exits.get(Exit.BACK, Vector2i.ZERO)
 	if arrival >= 0 and world.exits.has(arrival):
 		at = world.exits[arrival]
+		# The side door just come through stays open behind the player: the way back is free.
+		if arrival == Exit.LEFT or arrival == Exit.RIGHT:
+			record()["lateral_open"][arrival] = true
 	if arrival == -1:
 		_set_respawn(coord, world.exit_lanterns.get(Exit.BACK, at))
 	elif arrival == -2:

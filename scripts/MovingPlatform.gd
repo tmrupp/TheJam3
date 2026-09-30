@@ -13,7 +13,7 @@ extends AnimatableBody2D
 var t: float = 0.0
 
 
-func setup(map_info: MapInfo, _v: Vector2i, info: Array) -> void:
+func setup(map_info: MapInfo, v: Vector2i, info: Array) -> void:
 	length = int(info[0])
 	axis = Vector2(info[1] as Vector2i)
 	var tm: TileMap = map_info.tile_map
@@ -21,7 +21,9 @@ func setup(map_info: MapInfo, _v: Vector2i, info: Array) -> void:
 	travel = float(info[2]) * cell_size
 	period = 1.8 * float(info[2]) + 1.2
 	phase = map_info.world.rng.randf() * TAU
-	start = position
+	# The track starts at the platform's cell. (Not `position`: a physics-synced body reverts
+	# direct moves until the next physics step, so it still reads as the origin here.)
+	start = tm.to_global(tm.map_to_local(v))
 	var shape: RectangleShape2D = RectangleShape2D.new()
 	shape.size = Vector2(float(length) * cell_size - 2.0, 33.0)
 	var col: CollisionShape2D = $CollisionShape2D
@@ -35,8 +37,16 @@ func setup(map_info: MapInfo, _v: Vector2i, info: Array) -> void:
 	plain.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(plain)
 	plain.owner = owner
-	position = start + offset_at(0.0)
+	_place(start + offset_at(0.0))
 	queue_redraw()
+
+
+## Teleport without sweeping: physics sync is off for the move, so nothing is pushed along
+## the way from wherever the body was.
+func _place(at: Vector2) -> void:
+	sync_to_physics = false
+	position = at
+	sync_to_physics = true
 
 
 func offset_at(time: float) -> Vector2:

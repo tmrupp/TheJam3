@@ -253,6 +253,7 @@ func _exit() -> void:
 	# an unpaid deeper exit stays dark and prints its price. A chevron shows where it leads.
 	var which: int = int(host.get("exit"))
 	var owed: int = int(host.call("price")) if host.has_method("price") else 0
+	var needs: int = int(host.call("lock")) if host.has_method("lock") else -1
 	var pulse: float = 1.0 + 0.08 * sin(t * 2.5 + phase)
 	var g: float = _ground()
 	var opening: PackedVector2Array = RisoShapes.arch(-44, g - 110, 88, 110, 14)
@@ -260,7 +261,15 @@ func _exit() -> void:
 	ink.ink(frame, 1.0, [RisoShapes.arch(-52, g - 118, 104, 118, 14)])
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], [opening])
 	var star: PackedVector2Array = Transform2D(t * 0.4, Vector2(0, g - 58)) * RisoShapes.sparkle(Vector2.ZERO, 20.0 * pulse)
-	if owed > 0:
+	if needs >= 0:
+		# Locked: dark, with a lock in the colour of key it needs, as on the doors.
+		ink.ink(RisoPrint.NIGHT, 1.0, [opening], false)
+		ink.ink(RisoPrint.BLUE, 0.35, [opening], false)
+		var lock: Array[PackedVector2Array] = RisoProp.key_shape(Vector2(-6, g - 58), 0.9)
+		ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], lock)
+		for plate: int in RisoPrint.key_inks(needs):
+			ink.ink(plate, 1.0, lock, false)
+	elif owed > 0:
 		ink.ink(RisoPrint.NIGHT, 1.0, [opening], false)
 		ink.ink(RisoPrint.BLUE, 0.35, [opening], false)
 		# The price on a bare-paper plaque, with a star above it.

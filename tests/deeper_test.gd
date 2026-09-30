@@ -105,6 +105,16 @@ func run() -> void:
 	var stars: int = player.coins.coins
 	check(stars == 1, "the coin paid a star")
 
+	print("moving platforms")
+	var lifts: Array[Node] = placed("moving_platform.tscn")
+	check(lifts.size() > 0, "%d moving platforms" % lifts.size())
+	var on_track: bool = true
+	for lift: Node in lifts:
+		var start: Vector2 = lift.get("start")
+		var along: float = ((lift as Node2D).position - start).dot(lift.get("axis") as Vector2)
+		on_track = on_track and start == info.cell_position(lift.get_meta(&"cell")) and along >= -1.0 and along <= float(lift.get("travel")) + 1.0
+	check(on_track, "each rides its own track from its cell (not the world origin)")
+
 	print("deeper exit price")
 	var exit_node: Node = placed("level_exit.tscn").filter(func(n: Node) -> bool: return int(n.get("exit")) == MapInfo.Exit.DEEPER)[0]
 	check(int(exit_node.call("price")) == MapInfo.deeper_price(0), "deeper costs %d at depth 0" % MapInfo.deeper_price(0))

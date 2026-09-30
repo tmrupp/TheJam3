@@ -8,7 +8,7 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 
 | Topic | Decision |
 | --- | --- |
-| Lateral movement | Infinite. Left and right exits go to `seed − 1` / `seed + 1` at the same depth. |
+| Lateral movement | Infinite. Left and right exits go to `seed − 1` / `seed + 1` at the same depth. Each is locked with a key colour dealt by the level seed. The key is kept, the door stays open, and the side door you arrive through opens behind you. |
 | Exit distance | Grows with depth, physically. Deeper levels place their exits further from the arrival point (and may be larger). |
 | Going back | Always free. |
 | Deeper | Costs stars, paid once per deeper door; the door then stays open. |
@@ -27,7 +27,8 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 - Four exits per level:
   - **Deeper** leads to `(seed, depth + 1)`. It is placed low in the level, costs `P(d)` stars once, then stays open.
   - **Back** leads to `(seed, depth − 1)`. It is placed high in the level and is free.
-  - **Left and right** lead to `(seed ± 1, depth)`. They are placed at the side edges and are free.
+  - **Left and right** lead to `(seed ± 1, depth)`. They are placed at the side edges.
+  - Each side door is locked with a key colour, `lateral_lock(level, side)`, dealt by the level seed. Carrying that colour opens it and you go through; the key is kept. It then stays open in the level record. The side door you arrive through is marked open, so the way back never needs a key.
 - You arrive at the matching exit of the next level: going deeper puts you at its Back exit, and so on.
 - Exits sit at least `D(d)` cells from the arrival point, with `D` growing with depth. Deeper levels can also grow beyond 64×64.
 - Every level spawns an unlit lantern at its arrival point.
@@ -82,7 +83,7 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 
 - **Printed HUD:** coordinates (`seed · depth`, shareable), stars, the current deeper price, the carried key, a ghost hint and the vulnerable state.
 - **Start menu:** a seed field, Random seed, and Continue.
-- **Map screen:** replaces the pixel map overlay. It shows the grid of visited levels, with lanterns, paid deeper doors, your ghost and dropped keys.
+- **Map screen:** replaces the pixel map overlay; see §7.
 - **Save** (`user://`): seed, level records, abilities and tiers, stars, the ghost, the carried key and the last lantern.
 
 ## What changes in the code
@@ -97,6 +98,60 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
   - `Upgrade` gets tiers.
 - **New:** an exit prefab (deeper / back / lateral), a shrine prefab, a level record store, a save file, a start menu, the map screen, and riso art for the exits, shrine and ghost.
 
+## 7. Map screen (planned)
+
+Today the map is MapInfo's pixel overlay: the current level's cells, revealed a chunk at a time by moon shards. It is replaced by a printed map with two views, toggled by `ShowMap` and switched with a second press or a shoulder button.
+
+- **Level view:** the current level on paper, in the same inks as the world.
+  - **Reveal:** cells within a few cells of the player reveal as you move, and a moon shard reveals a whole chunk.
+  - **Persistence:** what's revealed is stored in the level record, so a revisit keeps its map.
+  - **Marks:**
+    - exits: their direction, and a price or lock colour until open
+    - the shrine: offered or spent
+    - lanterns: lit, and which one is your respawn
+    - doors by colour, and dropped keys
+    - the ghost, and the player
+- **World view:** visited levels as tiles on the (world, depth) grid, with the current one highlighted.
+  - **Links:** open side doors and paid deeper doors are drawn as links between tiles.
+  - **Marks:** the respawn lantern's level, the ghost's level, and spent shrines.
+  - **Shareable:** each tile is labelled `world · depth`, so coordinates can be shared.
+- **Build:** a `RisoMap.gd` node printed like the HUD (UI space, on the plates), fed by the level records. The old `MapSprite` and `MapContents` nodes and the pixel `_draw` go.
+- **Tests:**
+  - reveal radius and shard chunks
+  - reveal persists across a revisit
+  - world-view tiles and links match the records
+  - a still of each view
+- **Open:** does the map pause the game? The suggestion is yes, as the pause menu does.
+
+## 8. A damaging spell (planned)
+
+Enemies can only be stunned today (parry). A spell gives the wizard a way to destroy them.
+
+- **Hex bolt:** a new `Cast` action that fires a comet of glow ink from the hat tip. It aims like the dash (input direction, or facing), flies about 8 cells, and stops at rock.
+- **Enemies get health:** wisps and watchers get a small `Wound` component with 1–3 HP, rising with depth. A hit flashes them pink and knocks them back. At 0 HP they burst in a RisoFx splash and drop 1–2 stars, which count as fresh stars toward leaving the vulnerable state. A stunned (parried) enemy takes double damage, so parry and hex combine.
+- **Cost:** a cooldown plus charges. It starts with one charge on a 1.5 s cooldown, and lighting a lantern refills the charges. It does not cost stars, which stay the currency for depth and shrines.
+- **Tiers:** Hex becomes a shrine ability, in `Abilities`. Tier I is known from the start (it's the only way to kill).
+  - II: +1 charge
+  - III: +1 damage
+  - IV: pierces through its first enemy
+- **Death and records:** slain enemies stay slain in the level record until the player dies, then everything respawns. This is the soulslike reset, and it keeps levels dangerous without farming.
+- **Look:**
+  - The bolt is a glow-ink comet with a tapering smear, like the dash.
+  - The hat bead dims while the bolt recharges.
+  - Charges show as small glow pips in the HUD.
+- **Tests:**
+  - cast direction and range
+  - stops at rock
+  - damage, and double damage when stunned
+  - death drops stars that count toward recovery
+  - slain enemies stay slain on a revisit
+  - everything respawns after a death
+  - charges refill at lanterns
+  - tiers apply
+- **Open:**
+  - Should the bolt break anything else (for example cracked walls as metroidvania gates)?
+  - Should slain enemies also respawn when the run's seed changes world?
+
 ## Phases
 
 Status: phases 1–4 are implemented (`tests/deeper_test.gd`, `tests/death_test.gd`, `tests/keys_test.gd`, `tests/shrine_test.gd`). The HUD already shows the current world and depth (`world 28 · depth 1`), and names the ghost's world when it is elsewhere.
@@ -107,8 +162,10 @@ Status: phases 1–4 are implemented (`tests/deeper_test.gd`, `tests/death_test.
 2. **Death and end state:** the persistent ghost with all stars, the vulnerable state, leaving it by the ghost or by fresh stars, and the run ending.
 3. **Keys:** not used up, left where you grab the next one, and working across levels.
 4. **Shrines and tiers:** shrine placement, pay-to-learn, tiered abilities, and removing the upgrade menu.
-5. **Interface:** start modes, HUD additions, the map screen, save and load, and background pre-generation.
-6. **Tuning:** the `P`, `S`, `R` and `D` curves, star density, depth bands for region and realm, and a playtest.
+5. **Interface:** start modes, HUD additions (owned tiers), save and load, and background pre-generation.
+6. **Map screen:** see §7.
+7. **Hex and enemy health:** see §8.
+8. **Tuning:** the `P`, `S`, `R` and `D` curves, star density, depth bands for region and realm, and a playtest.
 
 ## Open for tuning
 

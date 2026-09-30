@@ -125,6 +125,39 @@ func run() -> void:
 		break
 	check(opened and carried() == 0, "the key from world 28 opens a door elsewhere and stays carried")
 
+	print("side doors are locked with a key colour")
+	info.start_run(28)
+	await settle()
+	player.set_physics_process(false)
+	var right: Node = placed("level_exit.tscn").filter(func(n: Node) -> bool: return int(n.get("exit")) == MapInfo.Exit.RIGHT)[0]
+	var needs: int = MapInfo.lateral_lock(Vector2i(28, 0), MapInfo.Exit.RIGHT)
+	check(int(right.call("lock")) == needs, "world 28's right door needs key colour %d" % needs)
+	player.set_meta(&"carried_key", (needs + 1) % MapInfo.KEY_COLOR_COUNT)
+	right.call("interacted")
+	await process_frame
+	check(info.coord == Vector2i(28, 0) and not info.travelling, "the wrong key does not open it")
+	player.remove_meta(&"carried_key")
+	right.call("interacted")
+	await process_frame
+	check(info.coord == Vector2i(28, 0) and not info.travelling, "nor does no key")
+	player.set_meta(&"carried_key", needs)
+	right.call("interacted")
+	await settle()
+	player.set_physics_process(false)
+	check(info.coord == Vector2i(29, 0) and carried() == needs, "the right key opens it, and is kept")
+	var left: Node = placed("level_exit.tscn").filter(func(n: Node) -> bool: return int(n.get("exit")) == MapInfo.Exit.LEFT)[0]
+	check(int(left.call("lock")) == -1, "the door just come through is open behind the player")
+	player.remove_meta(&"carried_key")
+	left.call("interacted")
+	await settle()
+	check(info.coord == Vector2i(28, 0), "so the way back needs no key")
+	right = placed("level_exit.tscn").filter(func(n: Node) -> bool: return int(n.get("exit")) == MapInfo.Exit.RIGHT)[0]
+	check(int(right.call("lock")) == -1, "and the opened door stays open")
+	var colours: Dictionary = {}
+	for x: int in range(20, 40):
+		colours[MapInfo.lateral_lock(Vector2i(x, 0), MapInfo.Exit.RIGHT)] = true
+	check(colours.size() == MapInfo.KEY_COLOR_COUNT, "lock colours vary from world to world")
+
 	if failed:
 		print("FAILED")
 		quit(1)

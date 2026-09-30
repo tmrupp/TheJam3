@@ -48,16 +48,18 @@ func _process(delta: float) -> void:
 	shown = move_toward(shown, 1.0 if near else 0.0, delta * 6.0)
 	ink.begin()
 	var door: Node = host.get_parent() if host != null and host.name == "Unlock" else null
-	label.visible = shown > 0.05 and door == null
+	# Doors, and locked side exits, show the key colour they need instead of the letter.
+	var needs: int = int(door.get_meta(&"key_color", 0)) if door != null else (int(host.call("lock")) if host != null and host.has_method("lock") else -1)
+	label.visible = shown > 0.05 and needs < 0
 	if shown > 0.01:
 		var pop: float = sin(shown * PI * 0.5) * (1.0 + 0.12 * sin(shown * PI))
 		var at: Vector2 = Vector2(0, -118 + sin(t * 3.0) * 3.0)
 		var disc: PackedVector2Array = RisoShapes.circle(at, 30.0 * pop, 28)
 		ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], [disc])
 		ink.ink(RisoPrint.BLUE, 0.12, [disc], false)
-		if door != null and pop > 0.3:
+		if needs >= 0 and pop > 0.3:
 			var key: Array[PackedVector2Array] = [RisoShapes.crescent(at + Vector2(-8, 0), 10.0 * pop, Vector2(4.5, -2) * pop), RisoShapes.rrect(at.x - 6.0, at.y - 3.0, 22.0 * pop, 6.0 * pop, 3.0)]
-			for plate: int in RisoPrint.key_inks(int(door.get_meta(&"key_color", 0))):
+			for plate: int in RisoPrint.key_inks(needs):
 				ink.ink(plate, 1.0, key, false)
 		label.position = at - label.size * 0.5
 		label.scale = Vector2.ONE * pop
