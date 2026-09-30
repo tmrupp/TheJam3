@@ -47,6 +47,7 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 - A held key opens every door of its colour in any level. Opened doors stay open.
 - You carry one key at a time. Grabbing a new one leaves your current key where the new one was, and the level record keeps it there.
 - Door colours are dealt per level. A matching key may be far away, or in another column.
+- A dropped key arms only once the player has stepped off it, so the swap does not immediately grab it back.
 
 ## 4. Shrines and tiered abilities
 
@@ -92,7 +93,7 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 
 ## Phases
 
-Status: phases 1 and 2 are implemented (`tests/deeper_test.gd`, `tests/death_test.gd`).
+Status: phases 1–3 are implemented (`tests/deeper_test.gd`, `tests/death_test.gd`, `tests/keys_test.gd`). The HUD already shows the current world and depth (`world 28 · depth 1`), and names the ghost's world when it is elsewhere.
 
 1. **The grid:** `Level(seed, depth)`, deterministic generation, the four exits with transitions, arrival lanterns, and level records. Remove codes, goals, backtracking, the map WFC and packing.
    - Test: the same `(seed, depth)` always gives the same level fingerprint.

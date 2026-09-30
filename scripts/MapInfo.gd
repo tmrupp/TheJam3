@@ -419,6 +419,10 @@ static func recover_price (depth: int) -> int:
 static func exit_distance (depth: int) -> int:
 	return clampi(24 + 4 * depth, 24, 96)
 
+## How a level is named on screen and when sharing it.
+static func where (at: Vector2i) -> String:
+	return "world %d · depth %d" % [at.x, at.y]
+
 ## The WFC sample for a depth: bands of three levels alternate between tunnels and islands.
 static func region_for (depth: int) -> String:
 	@warning_ignore("integer_division")
@@ -427,12 +431,40 @@ static func region_for (depth: int) -> String:
 
 func record (at: Vector2i = coord) -> Dictionary:
 	if not records.has(at):
-		records[at] = {"taken": {}, "opened": {}, "deeper_paid": false}
+		records[at] = {"taken": {}, "opened": {}, "deeper_paid": false, "dropped": {}, "next_drop": 0}
 	return records[at]
 
 func mark_taken (node: Node) -> void:
 	if node.has_meta(&"cell"):
 		record()["taken"][node.get_meta(&"cell")] = true
+
+## A key was grabbed. A generated key is recorded as taken; a dropped one leaves the record.
+## The key the player was carrying (`had`, -1 for none) is left where the new one was.
+func key_taken (key: Node2D, had: int) -> void:
+	var rec: Dictionary = record()
+	if key.has_meta(&"dropped_id"):
+		(rec["dropped"] as Dictionary).erase(int(key.get_meta(&"dropped_id")))
+	else:
+		mark_taken(key)
+	if had < 0:
+		return
+	var id: int = int(rec["next_drop"])
+	rec["next_drop"] = id + 1
+	rec["dropped"][id] = [key.position, had]
+	_spawn_dropped_key.call_deferred(id, key.position, had)
+
+func _spawn_dropped_key (id: int, pos: Vector2, color: int) -> void:
+	if map_elements == null or not is_instance_valid(map_elements):
+		return
+	var key: Node2D = key_prefab.instantiate()
+	key.set_meta(&"key_color", color)
+	key.set_meta(&"dropped_id", id)
+	key.position = pos
+	map_elements.add_child(key)
+
+## The keys the record keeps in this level.
+func dropped_keys () -> Dictionary:
+	return record()["dropped"]
 
 func mark_opened (node: Node) -> void:
 	if node.has_meta(&"cell"):
@@ -605,6 +637,9 @@ func _level_ready (cells: Array, def: NextWorldDef) -> void:
 	_doors_dealt = 0
 	for v: Vector2i in world.objects:
 		place_cell(v, world.get_cell(v))
+	var dropped: Dictionary = record()["dropped"]
+	for id: int in dropped:
+		_spawn_dropped_key(id, dropped[id][0], dropped[id][1])
 	_spawn_ghost()
 	next_world()
 

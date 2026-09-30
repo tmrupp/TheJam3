@@ -145,7 +145,7 @@ func run() -> void:
 			wrong.get_node("Unlock").call("try_open")
 			check(is_instance_valid(wrong) and not wrong.is_queued_for_deletion() and player.has_meta(&"carried_key"), "a door of another colour stays shut")
 		door_node.get_node("Unlock").call("try_open")
-		check(door_node.is_queued_for_deletion() and not player.has_meta(&"carried_key"), "the matching door opens and uses the key")
+		check(door_node.is_queued_for_deletion() and player.has_meta(&"carried_key"), "the matching door opens and the key is kept")
 	# Realm follows the world and cycles.
 	check(riso.realm == &"twilight" and riso.reprint_on_motion and riso.blend_sheets and riso.sheet_rate == 8.0, "defaults: twilight, 8/s, reprint on motion, blend")
 	var cam: Camera2D = main.get_node("Camera2D") as Camera2D

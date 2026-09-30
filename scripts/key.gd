@@ -1,4 +1,7 @@
 extends Area2D
+## A key. Keys are never used up: the carried key opens every door of its colour, in any level.
+## The player carries one at a time; grabbing another leaves the carried one where the new one
+## was (MapInfo records it there). A dropped key arms only once the player has stepped off it.
 
 @onready var visuals: Sprite2D = $Sprite2D
 
@@ -6,7 +9,8 @@ extends Area2D
 
 @onready var collect_sfx: AudioStreamPlayer = $AudioStreamPlayer
 
-@export var code : String
+var armed: bool = true
+
 func setup(_map_info: MapInfo, _v: Vector2) -> void:
 	pass
 
@@ -15,12 +19,12 @@ func key_color() -> int:
 	return int(get_meta(&"key_color", 0))
 
 func touch(other: Node) -> void:
-	if (other == player and other.get_parent() != null and visuals.visible):
-		# one key at a time: a new key replaces the one being carried
+	if armed and other == player and other.get_parent() != null and visuals.visible:
+		var had: int = int(player.get_meta(&"carried_key", -1))
 		player.set_meta(&"carried_key", key_color())
 		RisoFx.burst(&"gain", global_position, Vector2.ZERO, RisoPrint.key_inks(key_color()))
 		if MapInfo.instance != null:
-			MapInfo.instance.mark_taken(self)
+			MapInfo.instance.key_taken(self, had)
 
 		# make invisible bc we aren't destroying self immediately
 		visuals.visible = false
@@ -32,6 +36,10 @@ func touch(other: Node) -> void:
 		# wait to destroy self until after sfx finish playing
 		destroy_on_finish_sfx()
 
+func left(other: Node) -> void:
+	if other == player:
+		armed = true
+
 func destroy_on_finish_sfx() -> void:
 	collect_sfx.play()
 	await collect_sfx.finished
@@ -39,4 +47,10 @@ func destroy_on_finish_sfx() -> void:
 
 func _ready() -> void:
 	connect("body_entered", touch)
-
+	connect("body_exited", left)
+	if has_meta(&"dropped_id"):
+		armed = false
+		await get_tree().physics_frame
+		await get_tree().physics_frame
+		if is_inside_tree() and not overlaps_body(player):
+			armed = true

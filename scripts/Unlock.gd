@@ -9,7 +9,6 @@ func door_color() -> int:
 
 func try_open() -> void:
 	if player.has_meta(&"carried_key") and int(player.get_meta(&"carried_key")) == door_color():
-		player.remove_meta(&"carried_key")
 		RisoPrint.door_opened(door as Node2D)
 		if MapInfo.instance != null:
 			MapInfo.instance.mark_opened(door)

@@ -65,6 +65,12 @@ func capture() -> void:
 	camera.zoom /= 2.0
 	player.get_node("CameraControl").set_process(true)
 	player.set_physics_process(true)
+	# The ghost in another world: the HUD names it.
+	info.travel(MapInfo.Exit.RIGHT)
+	while info.travelling:
+		await process_frame
+	player.set_meta(&"carried_key", 1)
+	await shot(output, "still_hud_elsewhere.png", 30)
 	player.die()
 	await shot(output, "still_run_end.png", 40)
 	print("CAPTURED death stills to ", output)
