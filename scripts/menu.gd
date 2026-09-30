@@ -16,7 +16,6 @@ extends CanvasLayer
 
 @onready var main: Node = $".."
 @onready var wfc_thread: Thread = Thread.new()
-@onready var upgrade_menu: Node = $"/root/Main/UpgradeMenu"
 
 var player_prefab: Resource = preload("res://prefabs/player.tscn")
 var old_focus: Control = null

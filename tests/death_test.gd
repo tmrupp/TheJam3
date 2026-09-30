@@ -55,7 +55,6 @@ func run() -> void:
 	menu.start_game()
 	await process_frame
 	await process_frame
-	main.get_node("UpgradeMenu").done()
 	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
 	player = main.get_node("Player") as Player
 	await settle()

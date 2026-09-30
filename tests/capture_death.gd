@@ -26,7 +26,6 @@ func capture() -> void:
 	menu.start_game()
 	for i: int in range(10):
 		await process_frame
-	main.get_node("UpgradeMenu").done()
 	var info: MapInfo = main.get_node("CanvasLayer/MapInfo") as MapInfo
 	while info.world == null or info.travelling:
 		await process_frame

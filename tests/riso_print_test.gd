@@ -28,7 +28,6 @@ func run() -> void:
 	menu.start_game()
 	await process_frame
 	await process_frame
-	main.get_node("UpgradeMenu").done()
 	var info: Node = main.get_node("CanvasLayer/MapInfo")
 	var deadline: int = Time.get_ticks_msec() + 20000
 	while info.world == null and Time.get_ticks_msec() < deadline:
@@ -39,7 +38,7 @@ func run() -> void:
 		await process_frame
 	var riso: RisoPrint = RisoPrint.instance
 	check(riso != null and riso.enabled, "RisoPrint present and on")
-	check(not main.get_node("UpgradeMenu").visible and not paused, "game starts without the upgrade shop")
+	check(not main.has_node("UpgradeMenu") and not paused, "game starts without the upgrade shop")
 	check(not (main.get_node("CanvasLayer/HUD/TopHUD") as CanvasItem).visible, "pixel HUD hidden while printing")
 	check(main.get_node_or_null("RisoHud") != null, "printed HUD present")
 	check((load(RisoTheme.MENU_THEME) as Theme).default_font is SystemFont, "menus use the riso theme")

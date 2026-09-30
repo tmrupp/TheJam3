@@ -4,13 +4,14 @@ extends Node
 @onready var player: Player = $".."
 #@onready var player = $".."
 @onready var area: Area2D = $Area2D
-const DISTANCE: int = 300
+## Set by the blink tier (Abilities.apply).
+var distance: int = 300
 const STEPS: int = 10
 
 # note: potential 'optimization', instantiate all areas along path simultaneously
 # only takes one 'tick' but could potentially spawn a lot of colliders
 func blink (direction: Vector2) -> void:
-	var max_destination: Vector2 = map_info.clamp_bounds(player.position + direction.normalized()*DISTANCE)
+	var max_destination: Vector2 = map_info.clamp_bounds(player.position + direction.normalized()*distance)
 	var destination: Vector2 = max_destination
 	
 	player.get_node("DashTrail").make_trail()

@@ -18,7 +18,7 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 | Leaving vulnerability | Recover the ghost, or collect enough fresh stars. |
 | End of a run | Dying while vulnerable ends the run. |
 | Keys | Not used up. You carry one; grabbing another leaves your current key where the new one was. Keys work in any level. |
-| Abilities | Bought at shrines (no shop), and every ability has upgrade tiers. Cheaper deeper. |
+| Abilities | Bought at shrines (no shop), and every ability has upgrade tiers. Cheaper deeper. A shrine offers its ability tier or, instead, healing to full (dearer deeper). |
 | Ways to play | Enter a seed and dig its column, or start at a random seed. |
 
 ## 1. The world: a grid of (seed, depth)
@@ -51,19 +51,25 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 
 ## 4. Shrines and tiered abilities
 
-- One shrine per level, near the deeper exit. Its offer comes from `level_seed`: a new ability, or the next tier of one you own.
-- Interact to buy. The printed prompt shows the ability, tier and price. No menu.
-- Price: `S(d, tier) = max(floor, round(base × 1.6^tier × 0.8^d))`, which is cheaper deeper and dearer per tier.
-- Built on `Upgrade.attach()`, extended with tiers.
+- One shrine per level, standing on two floor cells 3–14 cells from the deeper exit.
+- It offers two things. Taking either one spends the shrine, and the level record keeps it spent:
+  - **The boon:** the next tier of an ability. The ability is picked by `level_seed`, or is the next one along that still has a tier to learn.
+  - **Mending:** healing to full. It is the alternative to the boon and does nothing at full health.
+- **Pay to learn.** There is no menu: interact with the side you want. The plinth prints the ability's name and tier, and the price sits on a tag in the niche. Mending shows its price on its own plaque.
+- **Prices:**
+  - Learning costs `S(d, tier) = max(3, round(10 × 1.6^(tier−1) × 0.8^d))`: cheaper deeper, dearer per tier.
+  - Mending works the other way: `H(d) = round(3 × 1.35^d)`, which is 3 at depth 0 and 13 at depth 5.
+- Tiers live on the player (`Abilities.gd`) and reset when a run ends. The upgrade menu and the old `Upgrade`, `UpgradeManager`, double-jump and wall-climb nodes are gone.
 
-| Ability | Tiers improve |
-| --- | --- |
-| Dash (base) | distance, cooldown |
-| Double jump | extra jumps, height |
-| Wall climb | climb time (3 s base) |
-| Blink | distance (300 px base) |
-| Parry (base) | window (0.3 s base), cooldown |
-| Astral projection | duration (5 s base), range |
+| Ability | Start | Max | Each tier |
+| --- | --- | --- | --- |
+| Dash | I | IV | dashes 0.07 s longer |
+| Double jump | – | III | one more air jump |
+| Wall climb | – | III | I lets you climb (3 s); each further tier adds 1.5 s |
+| Blink | – | III | replaces the dash; reach 300 px, +100 per tier |
+| Parry | I | IV | window +0.1 s, cooldown −0.4 s |
+| Astral projection | I | IV | lasts 2 s longer |
+| Vigor | – | III | +1 max health (and heals 1) |
 
 ## 5. Economy
 
@@ -93,7 +99,7 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 
 ## Phases
 
-Status: phases 1–3 are implemented (`tests/deeper_test.gd`, `tests/death_test.gd`, `tests/keys_test.gd`). The HUD already shows the current world and depth (`world 28 · depth 1`), and names the ghost's world when it is elsewhere.
+Status: phases 1–4 are implemented (`tests/deeper_test.gd`, `tests/death_test.gd`, `tests/keys_test.gd`, `tests/shrine_test.gd`). The HUD already shows the current world and depth (`world 28 · depth 1`), and names the ghost's world when it is elsewhere.
 
 1. **The grid:** `Level(seed, depth)`, deterministic generation, the four exits with transitions, arrival lanterns, and level records. Remove codes, goals, backtracking, the map WFC and packing.
    - Test: the same `(seed, depth)` always gives the same level fingerprint.

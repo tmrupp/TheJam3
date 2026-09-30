@@ -29,6 +29,7 @@ enum Type {
 	PLATFORM,
 	MOVING_PLATFORM,
 	EXIT,
+	SHRINE,
 }
 
 ## A level's four ways out. Deeper and back move along the seed's column; left and right step
@@ -65,6 +66,8 @@ class World:
 	## Exit -> cell, and the lantern cell placed beside each exit (the start lantern at depth 0).
 	var exits: Dictionary = {}
 	var exit_lanterns: Dictionary = {}
+	## The shrine's cell (its boon side; mending is the cell to the right), or (-1, -1).
+	var shrine: Vector2i = Vector2i(-1, -1)
 
 	var color_to_type: Dictionary = {
 		Color.WHITE: 	Type.EMPTY,
@@ -124,8 +127,6 @@ class World:
 		grounds.erase(v)
 		objects.append(v)
 
-	## Turns a platform run into one moving platform (stored on its leftmost cell), if the track
-	## it would sweep, 2-4 cells right or down, is open. The track is kept clear of other objects.
 	## Places the four exits by position: back near the top, deeper near the bottom and at least
 	## exit_distance(depth) cells from back, left and right at the sides. A lantern goes beside each.
 	## At depth 0 there is no way back: that spot holds the run's start lantern instead.
@@ -180,6 +181,37 @@ class World:
 				add_object_at(lantern)
 				set_cell(lantern, Cell.new(Type.CHECKPOINT))
 				exit_lanterns[which] = lantern
+		_place_shrine(spots, chosen, exits[Exit.DEEPER])
+
+	## The shrine stands on two neighbouring floor cells a short walk from the deeper exit.
+	func _place_shrine (spots: Array[Vector2i], chosen: Array[Vector2i], near: Vector2i) -> void:
+		var standing: Dictionary = {}
+		for v: Vector2i in spots:
+			if not chosen.has(v) and empties.has(v):
+				standing[v] = true
+		var pool: Array[Vector2i] = []
+		var fallback: Array[Vector2i] = []
+		for v: Vector2i in standing:
+			if not standing.has(v + Vector2i.RIGHT):
+				continue
+			var d: int = absi(v.x - near.x) + absi(v.y - near.y)
+			if d >= 3 and d <= 14:
+				pool.append(v)
+			else:
+				fallback.append(v)
+		if pool.is_empty():
+			if fallback.is_empty():
+				return
+			fallback.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return absi(a.x - near.x) + absi(a.y - near.y) < absi(b.x - near.x) + absi(b.y - near.y))
+			pool = [fallback[0]]
+		pool.sort()
+		var at: Vector2i = pool[rng.randi_range(0, pool.size() - 1)]
+		shrine = at
+		chosen.append(at)
+		chosen.append(at + Vector2i.RIGHT)
+		add_object_at(at)
+		empties.erase(at + Vector2i.RIGHT)
+		set_cell(at, Cell.new(Type.SHRINE))
 
 	## A random spot passing `test` and not yet chosen; the first free spot if none pass.
 	func _pick_spot (spots: Array[Vector2i], chosen: Array[Vector2i], test: Callable, strict: bool = false) -> Variant:
@@ -207,6 +239,8 @@ class World:
 				best_d = d
 		return best
 
+	## Turns a platform run into one moving platform (stored on its leftmost cell), if the track
+	## it would sweep, 2-4 cells right or down, is open. The track is kept clear of other objects.
 	func make_moving (run_cells: Array[Vector2i]) -> void:
 		run_cells.sort()
 		var left: Vector2i = run_cells[0]
@@ -431,7 +465,7 @@ static func region_for (depth: int) -> String:
 
 func record (at: Vector2i = coord) -> Dictionary:
 	if not records.has(at):
-		records[at] = {"taken": {}, "opened": {}, "deeper_paid": false, "dropped": {}, "next_drop": 0}
+		records[at] = {"taken": {}, "opened": {}, "deeper_paid": false, "dropped": {}, "next_drop": 0, "shrine_used": false}
 	return records[at]
 
 func mark_taken (node: Node) -> void:
@@ -477,6 +511,10 @@ func start_run (seed_value: int) -> void:
 	coord = Vector2i(seed_value, 0)
 	arrival = -1
 	records.clear()
+	if player == null:
+		player = main.get_node_or_null("Player") as Player
+	if player != null:
+		Abilities.reset(player)
 	vulnerable = false
 	fresh_stars = 0
 	_clear_ghost()
@@ -581,8 +619,6 @@ func end_run () -> void:
 	player.collect(-player.coins.coins)
 	if player.has_meta(&"carried_key"):
 		player.remove_meta(&"carried_key")
-	player.health.health = player.health.max_health
-	player.health.display_health()
 	player.visible = true
 	start_run(run_seed)
 
@@ -688,6 +724,7 @@ var astral_projection_point_prefab: Resource = preload("res://prefabs/astral_pro
 var platform_prefab: Resource = preload("res://prefabs/platform.tscn")
 var moving_platform_prefab: Resource = preload("res://prefabs/moving_platform.tscn")
 var level_exit_prefab: Resource = preload("res://prefabs/level_exit.tscn")
+var shrine_prefab: Resource = preload("res://prefabs/shrine.tscn")
 
 var map_elements_prefab: Resource = preload("res://prefabs/map_elements.tscn")
 
@@ -750,6 +787,7 @@ var cell_to_prefab: Dictionary = {
 	Type.PLATFORM: platform_prefab,
 	Type.MOVING_PLATFORM: moving_platform_prefab,
 	Type.EXIT: level_exit_prefab,
+	Type.SHRINE: shrine_prefab,
 }
 
 func place_cell(v: Vector2i, _cell: Cell) -> void:

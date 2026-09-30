@@ -6,7 +6,6 @@ var portals: Array[Node2D] = []
 func _ready() -> void:
 	$Menu.hide()
 	$Menu.set_process_input(false)
-	$UpgradeMenu.hide()
 	$CanvasLayer/MapInfo.hide()
 	$FourierWorld.enabled = true
 	var backdrop: Polygon2D = Polygon2D.new()

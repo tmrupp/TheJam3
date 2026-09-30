@@ -15,7 +15,6 @@ func run() -> void:
 		menu.start_game()
 		await process_frame
 		await process_frame
-		main.get_node("UpgradeMenu").done()
 		var info: Node = main.get_node("CanvasLayer/MapInfo")
 		var deadline: int = Time.get_ticks_msec() + 20000
 		while info.world == null and Time.get_ticks_msec() < deadline:

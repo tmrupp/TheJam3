@@ -21,7 +21,9 @@ var host: Node2D
 var t: float = 0.0
 var phase: float = 0.0
 var half: float = 64.0
-var price_label: Label
+## Printed text (prices, names), reused frame to frame; see _text().
+var labels: Array[Label] = []
+var labels_used: int = 0
 
 
 func _ready() -> void:
@@ -63,6 +65,7 @@ func _ground() -> float:
 
 func _redraw() -> void:
 	ink.begin()
+	labels_used = 0
 	match kind:
 		&"mote": _mote()
 		&"key": _key()
@@ -76,9 +79,12 @@ func _redraw() -> void:
 		&"lift": _lift()
 		&"thorns": _thorns()
 		&"ghost": _ghost()
+		&"shrine": _shrine()
 		&"wisp": _wisp()
 		&"watcher": _watcher()
 		&"shard": _shard()
+	for i: int in range(labels_used, labels.size()):
+		labels[i].visible = false
 	ink.finish()
 
 
@@ -140,6 +146,54 @@ func _ghost() -> void:
 		motes.append(RisoShapes.sparkle(c, 8.0))
 	if not motes.is_empty():
 		ink.ink(RisoPrint.ACCENT, 1.0, motes)
+
+
+## The shrine: a plinth across two cells. Left, a niche where the offered ability's mark floats
+## over its tier pips; right, a bowl with an ember bead (mending). The plaques carved into the
+## plinth name each and its price. Once used, the marks are gone and the trim dims.
+func _shrine() -> void:
+	var g: float = _ground()
+	var used: bool = bool(host.call("used"))
+	var bob: float = sin(t * 2.0 + phase) * 4.0
+	ink.ink(RisoPrint.BLUE, 0.5, [RisoShapes.arch(-46, g - 142, 92, 120, 14)])
+	var niche: PackedVector2Array = RisoShapes.arch(-38, g - 134, 76, 112, 14)
+	ink.knock([RisoPrint.BLUE], [niche])
+	ink.ink(RisoPrint.NIGHT, 1.0, [niche], false)
+	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(118, g - 70, 20, 50, 6), RisoShapes.ellipse(Vector2(128, g - 72), 28.0, 8.0, 22)])
+	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-56, g - 24, 240, 24, 8)])
+	ink.ink(RisoPrint.ACCENT, 0.35 if used else 1.0, [RisoShapes.rrect(-50, g - 29, 228, 8, 4)])
+	if used:
+		return
+	var a: StringName = StringName(host.call("offer"))
+	if a != &"":
+		var c: Vector2 = Vector2(0, g - 98 + bob)
+		ink.ink(RisoPrint.ACCENT, 0.18, [RisoShapes.circle(c, 34.0 * (1.0 + 0.05 * sin(t * 3.0)), 28)])
+		var mark: Array[PackedVector2Array] = RisoProp.glyph(a, c, t)
+		ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK], mark)
+		ink.ink(RisoPrint.ACCENT, 1.0, mark, false)
+		if a == &"vigor":
+			ink.ink(RisoPrint.PINK, 0.4, mark, false)
+		var next: int = int(host.call("offer_tier"))
+		var pips: Array[PackedVector2Array] = []
+		for i: int in range(next):
+			pips.append(RisoShapes.circle(Vector2(float(i) * 12.0 - float(next - 1) * 6.0, g - 60.0), 3.6, 10))
+		ink.ink(RisoPrint.ACCENT, 1.0, pips)
+		# The price on a paper tag at the foot of the niche; the name on the plinth, sliding left
+		# when long so it never meets the mending plaque.
+		_plaque(str(int(host.call("offer_price"))), Vector2(0, g - 38), 26, RisoPrint.ACCENT)
+		var text: String = "%s %s" % [Abilities.NAMES[a], Abilities.roman(next)]
+		_plaque(text, Vector2(minf(0.0, 60.0 - _plaque_width(text, 28) * 0.5), g - 12), 28, RisoPrint.ACCENT)
+	# Mending: an ember bead over the bowl, like the HUD's health beads.
+	var m: Vector2 = Vector2(128, g - 106 + bob * 0.8)
+	var full: bool = not bool(host.call("can_mend"))
+	ink.ink(RisoPrint.EYE, 0.12 if full else 0.25, [RisoShapes.circle(m, 30.0, 28)])
+	var bead: PackedVector2Array = RisoShapes.circle(m, 14.0, 22)
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], [bead])
+	ink.ink(RisoPrint.EYE, 0.5 if full else 1.0, [bead], false)
+	ink.ink(RisoPrint.PINK, 0.35, [bead], false)
+	ink.knock([RisoPrint.EYE, RisoPrint.PINK], [RisoShapes.circle(m + Vector2(-4, -4), 4.5, 12)])
+	var mend: String = "mend · %d" % int(host.call("heal_price"))
+	_plaque(mend, Vector2(maxf(128.0, 72.0 + _plaque_width(mend, 28) * 0.5), g - 12), 28, RisoPrint.PINK)
 
 
 # ------------------------------------------------------------------ places
@@ -233,28 +287,74 @@ func _exit() -> void:
 	var chevron: PackedVector2Array = PackedVector2Array([at + dir * 10.0, at + side * 22.0 - dir * 12.0, at + side * 16.0 - dir * 18.0,
 		at - dir * 2.0, at - side * 16.0 - dir * 18.0, at - side * 22.0 - dir * 12.0])
 	ink.ink(frame, 1.0, [chevron])
-	_price_text(owed, Vector2(0, g - 43))
+	if owed > 0:
+		_text(str(owed), Vector2(0, g - 43), 34)
 
 
-## The stars an unpaid exit costs, printed in night ink on the plaque.
-func _price_text(owed: int, at: Vector2) -> void:
-	if owed <= 0:
-		if price_label != null:
-			price_label.visible = false
-		return
-	if price_label == null:
-		price_label = Label.new()
-		price_label.add_theme_font_override("font", RisoTheme.serif())
-		price_label.add_theme_font_size_override("font_size", 34)
-		price_label.add_theme_color_override("font_color", Color.WHITE)
-		price_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		price_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		price_label.size = Vector2(80, 48)
-		price_label.visibility_layer = RisoPrint.plate_mask(RisoPrint.NIGHT)
-		add_child(price_label)
-	price_label.visible = true
-	price_label.text = str(owed)
-	price_label.position = at - price_label.size * 0.5
+## Night-ink serif text centred on `at` (in this prop's pixels); returns its width.
+func _text(text: String, at: Vector2, px: int) -> float:
+	if labels_used >= labels.size():
+		var label: Label = Label.new()
+		label.add_theme_font_override("font", RisoTheme.serif())
+		label.add_theme_color_override("font_color", Color.WHITE)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.visibility_layer = RisoPrint.plate_mask(RisoPrint.NIGHT)
+		# A same-ink outline thickens the strokes so they print solid instead of screening away.
+		label.add_theme_color_override("font_outline_color", Color.WHITE)
+		add_child(label)
+		labels.append(label)
+	var label: Label = labels[labels_used]
+	labels_used += 1
+	label.add_theme_font_size_override("font_size", px)
+	label.add_theme_constant_override("outline_size", maxi(2, px / 9))
+	var w: float = RisoTheme.serif().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+	label.size = Vector2(w + 8.0, float(px) * 1.4)
+	label.text = text
+	label.position = at - label.size * 0.5
+	label.visible = true
+	return w
+
+
+func _plaque_width(text: String, px: int) -> float:
+	return RisoTheme.serif().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + 22.0
+
+
+## A bare-paper plaque with `text` on it, centred on `at`.
+func _plaque(text: String, at: Vector2, px: int, tint: int) -> void:
+	var w: float = _plaque_width(text, px)
+	var h: float = float(px) * 1.25
+	var plate: PackedVector2Array = RisoShapes.rrect(at.x - w * 0.5, at.y - h * 0.5, w, h, h * 0.35)
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], [plate])
+	ink.ink(tint, 0.2, [plate], false)
+	_text(text, at, px)
+
+
+static func chevron(at: Vector2, dir: Vector2, k: float) -> PackedVector2Array:
+	var side: Vector2 = Vector2(-dir.y, dir.x)
+	return PackedVector2Array([at + dir * 10.0 * k, at + (side * 22.0 - dir * 12.0) * k, at + (side * 16.0 - dir * 18.0) * k,
+		at - dir * 2.0 * k, at + (-side * 16.0 - dir * 18.0) * k, at + (-side * 22.0 - dir * 12.0) * k])
+
+
+## An ability's mark, centred on `c`: what a shrine teaches.
+static func glyph(a: StringName, c: Vector2, t: float) -> Array[PackedVector2Array]:
+	match a:
+		&"dash":
+			return [chevron(c + Vector2(-8, 0), Vector2.RIGHT, 0.8), chevron(c + Vector2(12, 0), Vector2.RIGHT, 0.8)]
+		&"double_jump":
+			return [chevron(c + Vector2(0, -10), Vector2.UP, 0.8), chevron(c + Vector2(0, 12), Vector2.UP, 0.8)]
+		&"wall_climb":
+			return [RisoShapes.rrect(c.x - 22, c.y - 26, 9, 52, 4), RisoShapes.crescent(c + Vector2(6, -4), 14.0, Vector2(-6, 0)), RisoShapes.circle(c + Vector2(4, 18), 5.0, 12)]
+		&"blink":
+			return [RisoShapes.circle(c + Vector2(-18, 0), 7.0, 14), RisoShapes.circle(c + Vector2(-4, 0), 2.5, 8), RisoShapes.circle(c + Vector2(5, 0), 2.5, 8), RisoShapes.circle(c + Vector2(18, 0), 10.0, 18)]
+		&"parry":
+			return [RisoShapes.crescent(c, 22.0, Vector2(9, 0))]
+		&"astral":
+			return ghost_shape(Transform2D(0.0, Vector2(1.5, 1.5), 0.0, c + Vector2(0, 28)))
+		&"vigor":
+			var bead: PackedVector2Array = RisoShapes.circle(c, 17.0, 24)
+			return [bead]
+	return [RisoShapes.sparkle(c, 18.0)]
 
 
 func _orb() -> void:

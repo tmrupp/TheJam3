@@ -498,6 +498,7 @@ const DRESS: Dictionary = {
 	"res://prefabs/door.tscn": &"door",
 	"res://prefabs/checkpoint.tscn": &"lantern",
 	"res://prefabs/level_exit.tscn": &"exit",
+	"res://prefabs/shrine.tscn": &"shrine",
 	"res://prefabs/astral_projection_point.tscn": &"orb",
 	"res://prefabs/spikes.tscn": &"thorns",
 	"res://prefabs/corpse.tscn": &"ghost",

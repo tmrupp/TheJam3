@@ -73,6 +73,8 @@ const JUMP_GRAVITY_FACTOR: float = 0.7
 const JUMP_END_CUT_FACTOR: float = 0.5
 var jumps: int = 1
 var MAX_JUMPS: int = 1
+## Ability tiers learned at shrines (see Abilities).
+var tiers: Dictionary = Abilities.start_tiers()
 
 
 # DASH_SPEED: how quickly the player dashes
