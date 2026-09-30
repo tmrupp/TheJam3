@@ -70,6 +70,7 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 | Blink | – | III | replaces the dash; reach 300 px, +100 per tier |
 | Parry | I | IV | window +0.1 s, cooldown −0.4 s |
 | Astral projection | I | IV | lasts 2 s longer |
+| Hex | I | IV | II +1 charge, III +1 damage, IV pierces |
 | Vigor | – | III | +1 max health (and heals 1) |
 
 ## 5. Economy
@@ -137,42 +138,31 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
   - **Marks:** the respawn lantern's level, spent shrines, and the ghost.
 - `tests/map_test.gd` covers the reveal radius, shard chunks, reveal persisting across a revisit, the open, cycle and close states with pausing, and the world tiles and links. `tests/capture_map.gd` takes stills of both views.
 
-## 8. A damaging spell (planned)
+## 8. The hex bolt, enemy health and cracked walls
 
-Enemies can only be stunned today (parry). A spell gives the wizard a way to destroy them.
-
-- **Hex bolt:** a new `Cast` action that fires a comet of glow ink from the hat tip. It aims like the dash (input direction, or facing), flies about 8 cells, and stops at rock.
-- **Enemies get health:** wisps and watchers get a small `Wound` component with 1–3 HP, rising with depth. A hit flashes them pink and knocks them back. At 0 HP they burst in a RisoFx splash and drop 1–2 stars, which count as fresh stars toward leaving the vulnerable state. A stunned (parried) enemy takes double damage, so parry and hex combine.
-- **Cost:** a cooldown plus charges. It starts with one charge on a 1.5 s cooldown, and lighting a lantern refills the charges. It does not cost stars, which stay the currency for depth and shrines.
-- **Tiers:** Hex becomes a shrine ability, in `Abilities`. Tier I is known from the start (it's the only way to kill).
-  - II: +1 charge
-  - III: +1 damage
-  - IV: pierces through its first enemy
-- **Death and records:** slain enemies stay slain in the level record until the player dies, then everything respawns. This is the soulslike reset, and it keeps levels dangerous without farming.
-- **Cracked walls:** the bolt also breaks cracked rock, a metroidvania gate you come back to once you can cast far or often enough.
-  - **Generation:** a few ground cells per level become cracked, chosen by the level seed. They are thin walls, one or two cells thick, with open space on both sides. Some of them seal off a pocket that holds something worth reaching (a key, a lantern, a cluster of stars). No path is guaranteed, as elsewhere.
-  - **Breaking:** a cracked cell is solid until a bolt hits it. It then crumbles in a RisoFx burst of blue ink. The level record keeps it broken; it does not respawn on death, unlike enemies.
-  - **Look:** rock like the rest, crossed by paper-white crack lines knocked out of the blue, so it reads as breakable up close.
-  - **Tests:** cracked cells are deterministic per level; a bolt breaks one and stops there; broken cells stay broken on a revisit and after a death.
-- **Look:**
-  - The bolt is a glow-ink comet with a tapering smear, like the dash.
-  - The hat bead dims while the bolt recharges.
-  - Charges show as small glow pips in the HUD.
-- **Tests:**
-  - cast direction and range
-  - stops at rock
-  - damage, and double damage when stunned
-  - death drops stars that count toward recovery
-  - slain enemies stay slain on a revisit
-  - everything respawns after a death
-  - charges refill at lanterns
-  - tiers apply
-  - cracked walls (above)
-- **Reach:** cracked walls can block anything the generation places: pockets, shrines, lanterns, and the side, deeper and back exits alike. No route is guaranteed, as with locks and prices.
+- **Hex** (`Hex.gd`, `HexBolt.gd`): `Cast` (F, or the pad's X; the action is added at runtime if the project doesn't define it).
+  - It throws a comet of glow ink from the hat, aimed like the dash: the held direction, else facing.
+  - It flies up to 8 cells. It passes through one-way ledges and moving platforms, and stops at rock and portcullises.
+  - It wounds the first enemy near its path, or breaks a cracked wall.
+  - Charges come back one per 1.5 s, and lighting a lantern refills them. They show as glow sparks after the HUD's health beads.
+- **Tiers:** hex is a shrine ability you start with at tier I. II adds a charge, III adds damage, IV pierces its first enemy.
+- **Enemies** get a `Wound`:
+  - **Health:** 1 HP at depths 0–2, 2 at 3–5, 3 from 6. A stunned (parried) enemy takes double.
+  - **Hits:** a hit bursts pink and knocks the enemy back.
+  - **Death:** the enemy drops 1–2 stars, which count as fresh stars.
+- **Slain until you die:** the level record keeps slain enemies. Dying clears them in every level and reloads the respawn level, so everything is back.
+- **Cracked walls** (`CrackedWall.gd`): up to 10 per level, placed last, so they can block anything.
+  - **Shape:** thin walls, one or two cells thick with open space on both sides. Half are picked within 3 cells of a key, lantern, exit, shrine or ink well.
+  - **Solid:** a cracked cell is not a rock tile but a solid block on the same collision layer.
+  - **Printing:** the terrain prints it as rock (body, shading, grass), and its prop adds paper-white cracks.
+  - **Breaking:** a bolt crumbles it in blue dust, and the rock reprints without it. The record keeps it broken, even across deaths.
+- **Arming** (the ghost and dropped keys): they now arm once the wizard has been more than about a cell away. An overlap test armed them too early while a level reloaded, because the wizard's collision is off then.
+- **Fixed:** `hit_box.gd`'s `stunned` setter never stored the value.
+- `tests/hex_test.gd` covers the hex, charges and lantern refill, wounding, double damage when stunned, star drops, slain until death, rock stopping the bolt, cracked walls (deterministic, not tiles, broken for good) and tiers. `tests/capture_hex.gd` takes stills.
 
 ## Phases
 
-Status: phases 1–6 are implemented (`tests/deeper_test.gd`, `tests/death_test.gd`, `tests/keys_test.gd`, `tests/shrine_test.gd`, `tests/interface_test.gd`, `tests/map_test.gd`). The HUD already shows the current world and depth (`world 28 · depth 1`), and names the ghost's world when it is elsewhere.
+Status: phases 1–7 are implemented (`tests/deeper_test.gd`, `tests/death_test.gd`, `tests/keys_test.gd`, `tests/shrine_test.gd`, `tests/interface_test.gd`, `tests/map_test.gd`, `tests/hex_test.gd`). The HUD already shows the current world and depth (`world 28 · depth 1`), and names the ghost's world when it is elsewhere.
 
 1. **The grid:** `Level(seed, depth)`, deterministic generation, the four exits with transitions, arrival lanterns, and level records. Remove codes, goals, backtracking, the map WFC and packing.
    - Test: the same `(seed, depth)` always gives the same level fingerprint.
@@ -182,7 +172,7 @@ Status: phases 1–6 are implemented (`tests/deeper_test.gd`, `tests/death_test.
 4. **Shrines and tiers:** shrine placement, pay-to-learn, tiered abilities, and removing the upgrade menu.
 5. **Interface:** start modes, HUD additions (owned tiers), save and load, and background pre-generation.
 6. **Map screen:** see §7.
-7. **Hex and enemy health:** see §8.
+7. **Hex, enemy health and cracked walls:** see §8.
 8. **Tuning:** the `P`, `S`, `R` and `D` curves, star density, depth bands for region and realm, and a playtest.
 
 ## Open for tuning

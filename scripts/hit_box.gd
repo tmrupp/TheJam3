@@ -4,4 +4,5 @@ extends Area2D
 var stunned: bool = false : set = set_stunned
 
 func set_stunned (value: bool) -> void:
-	collision.disabled = value
+	stunned = value
+	collision.set_deferred("disabled", value)

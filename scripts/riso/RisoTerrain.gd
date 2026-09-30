@@ -23,12 +23,15 @@ func _ready() -> void:
 		rebuild(map)
 
 
-func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = []) -> void:
+func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_positions: Array[Vector2] = []) -> void:
 	if tile_map == null:
 		return
 	var solid: Dictionary = {}
 	for v: Vector2i in tile_map.get_used_cells(0):
 		solid[v] = true
+	# Cracked walls print as rock (their prop adds the cracks); breaking one reprints without it.
+	for p: Vector2 in cracked_positions:
+		solid[tile_map.local_to_map(tile_map.to_local(p))] = true
 	# Floating platforms print with the rock: a thin bar across the top of their cell that joins
 	# neighbouring platforms and rock, and shares the rock's cap strip.
 	var ledges: Dictionary = {}

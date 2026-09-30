@@ -4,7 +4,7 @@ extends Node2D
 ## so wall and ceiling spikes point the right way. Presentation only.
 
 class_name RisoProp
-const STATIC_KINDS: Array[StringName] = [&"door", &"ledge", &"thorns"]
+const STATIC_KINDS: Array[StringName] = [&"door", &"ledge", &"thorns", &"cracked"]
 
 
 ## A crescent-bowed key, in world pixels, centred near `o`.
@@ -80,6 +80,7 @@ func _redraw() -> void:
 		&"thorns": _thorns()
 		&"ghost": _ghost()
 		&"shrine": _shrine()
+		&"cracked": _cracked()
 		&"wisp": _wisp()
 		&"watcher": _watcher()
 		&"shard": _shard()
@@ -162,6 +163,25 @@ func _ghost() -> void:
 		motes.append(RisoShapes.sparkle(c, 8.0))
 	if not motes.is_empty():
 		ink.ink(RisoPrint.ACCENT, 1.0, motes)
+
+
+## Cracked rock: the terrain prints the cell as rock; this adds paper-white cracks (a seeded
+## zigzag from each of three edges toward the middle), so it reads as breakable up close.
+func _cracked() -> void:
+	var cracks: Array[PackedVector2Array] = []
+	var seed_f: float = host.global_position.x * 0.013 + host.global_position.y * 0.029
+	for k: int in range(3):
+		var a: float = TAU * (float(k) / 3.0 + RisoShapes.hash1(seed_f + float(k)) * 0.2)
+		var p: Vector2 = Vector2(cos(a), sin(a)) * half * 0.95
+		var target: Vector2 = Vector2(RisoShapes.hash1(seed_f + 7.0) - 0.5, RisoShapes.hash1(seed_f + 9.0) - 0.5) * 20.0
+		var width: float = 5.0
+		for s: int in range(4):
+			var q: Vector2 = p.lerp(target, 0.35) + Vector2(RisoShapes.hash1(seed_f + float(k * 5 + s)) - 0.5, RisoShapes.hash1(seed_f + float(k * 5 + s) + 3.0) - 0.5) * 22.0
+			var n: Vector2 = (q - p).normalized().orthogonal()
+			cracks.append(PackedVector2Array([p - n * width, q - n * width * 0.7, q + n * width * 0.7, p + n * width]))
+			p = q
+			width *= 0.7
+	ink.knock([RisoPrint.BLUE, RisoPrint.NIGHT], cracks)
 
 
 ## The shrine: a plinth across two cells. Left, a niche where the offered ability's mark floats
@@ -391,6 +411,8 @@ static func glyph(a: StringName, c: Vector2, t: float) -> Array[PackedVector2Arr
 		&"vigor":
 			var bead: PackedVector2Array = RisoShapes.circle(c, 17.0, 24)
 			return [bead]
+		&"hex":
+			return [RisoShapes.sparkle(c + Vector2(8, -6), 13.0), PackedVector2Array([c + Vector2(2, -9), c + Vector2(-22, 12), c + Vector2(-4, -2)])]
 	return [RisoShapes.sparkle(c, 18.0)]
 
 

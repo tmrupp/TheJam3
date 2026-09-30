@@ -75,7 +75,9 @@ func _process(delta: float) -> void:
 	var hp: int = player.health.health
 	var hp_max: int = player.health.max_health
 	var carried: bool = player.has_meta(&"carried_key")
-	var width: float = 58.0 + 11.0 * float(hp_max) + (16.0 if carried else 0.0)
+	var hex: Hex = player.get_node_or_null("Hex") as Hex
+	var charge_w: float = 9.0 * float(hex.charges_max) + 3.0 if hex != null else 0.0
+	var width: float = 58.0 + 11.0 * float(hp_max) + charge_w + (16.0 if carried else 0.0)
 	var height: float = 22.0
 	# Bare-paper label: every plate cleared so the HUD prints as ink on paper.
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], [RisoShapes.rrect(4, 4, width, height, 7)])
@@ -99,8 +101,15 @@ func _process(delta: float) -> void:
 	ink.ink(RisoPrint.PINK, 0.35, beads, false)
 	ink.knock([RisoPrint.EYE, RisoPrint.PINK], cores)
 	ink.ink(RisoPrint.NIGHT, 0.25, spent, false)
+	# Hex charges: glow sparks, faint while recharging.
+	if hex != null:
+		for i: int in range(hex.charges_max):
+			var c: Vector2 = Vector2(56.0 + 11.0 * float(hp_max) + 1.0 + 9.0 * float(i), 15.0)
+			var ready: bool = i < hex.charges
+			var spark: PackedVector2Array = Transform2D(t * 1.5 if ready else 0.0, c) * RisoShapes.sparkle(Vector2.ZERO, 4.2)
+			ink.ink(RisoPrint.GLOW, 1.0 if ready else 0.3, [spark], false)
 	if carried:
-		var at: Vector2 = Vector2(56.0 + 11.0 * float(hp_max) + 4.0, 15.0)
+		var at: Vector2 = Vector2(56.0 + 11.0 * float(hp_max) + charge_w + 4.0, 15.0)
 		for plate: int in RisoPrint.key_inks(int(player.get_meta(&"carried_key"))):
 			ink.ink(plate, 1.0, RisoProp.key_shape(at, 0.33), false)
 	_run_state(player)

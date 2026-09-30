@@ -1,7 +1,8 @@
 extends Area2D
 ## A key. Keys are never used up: the carried key opens every door of its colour, in any level.
 ## The player carries one at a time; grabbing another leaves the carried one where the new one
-## was (MapInfo records it there). A dropped key arms only once the player has stepped off it.
+## was (MapInfo records it there). A dropped key arms only once the wizard has been more than
+## ARM_DISTANCE from it.
 
 @onready var visuals: Sprite2D = $Sprite2D
 
@@ -10,6 +11,7 @@ extends Area2D
 @onready var collect_sfx: AudioStreamPlayer = $AudioStreamPlayer
 
 var armed: bool = true
+const ARM_DISTANCE: float = 110.0
 
 func setup(_map_info: MapInfo, _v: Vector2) -> void:
 	pass
@@ -36,8 +38,8 @@ func touch(other: Node) -> void:
 		# wait to destroy self until after sfx finish playing
 		destroy_on_finish_sfx()
 
-func left(other: Node) -> void:
-	if other == player:
+func _physics_process(_delta: float) -> void:
+	if not armed and player != null and player.global_position.distance_to(global_position) > ARM_DISTANCE:
 		armed = true
 
 func destroy_on_finish_sfx() -> void:
@@ -47,10 +49,4 @@ func destroy_on_finish_sfx() -> void:
 
 func _ready() -> void:
 	connect("body_entered", touch)
-	connect("body_exited", left)
-	if has_meta(&"dropped_id"):
-		armed = false
-		await get_tree().physics_frame
-		await get_tree().physics_frame
-		if is_inside_tree() and not overlaps_body(player):
-			armed = true
+	armed = not has_meta(&"dropped_id")

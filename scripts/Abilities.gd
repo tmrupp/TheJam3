@@ -3,7 +3,7 @@ class_name Abilities
 ## astral projection are known from the start (tier 1). Each tier improves the ability, and
 ## vigor raises max health. Tiers live on the player and reset when a run ends.
 
-const ORDER: Array[StringName] = [&"dash", &"double_jump", &"wall_climb", &"blink", &"parry", &"astral", &"vigor"]
+const ORDER: Array[StringName] = [&"dash", &"double_jump", &"wall_climb", &"blink", &"parry", &"astral", &"hex", &"vigor"]
 const NAMES: Dictionary = {
 	&"dash": "dash",
 	&"double_jump": "double jump",
@@ -11,10 +11,11 @@ const NAMES: Dictionary = {
 	&"blink": "blink",
 	&"parry": "parry",
 	&"astral": "astral",
+	&"hex": "hex",
 	&"vigor": "vigor",
 }
-const BASE: Dictionary = {&"dash": 1, &"parry": 1, &"astral": 1}
-const MAX: Dictionary = {&"dash": 4, &"double_jump": 3, &"wall_climb": 3, &"blink": 3, &"parry": 4, &"astral": 4, &"vigor": 3}
+const BASE: Dictionary = {&"dash": 1, &"parry": 1, &"astral": 1, &"hex": 1}
+const MAX: Dictionary = {&"dash": 4, &"double_jump": 3, &"wall_climb": 3, &"blink": 3, &"parry": 4, &"astral": 4, &"hex": 4, &"vigor": 3}
 const BLINK_PREFAB: String = "res://prefabs/upgrades/Blink.tscn"
 const BASE_HEALTH: int = 3
 
@@ -107,6 +108,21 @@ static func apply(player: Player) -> void:
 	var projection: Node = player.get_node_or_null("AstralProjection")
 	if projection != null:
 		(projection.get("projection_timer") as ActionTimer).MAX_TIME = 5.0 + 2.0 * float(astral - 1)
+	var hex_tier: int = tier(player, &"hex")
+	var hex: Hex = player.get_node_or_null("Hex") as Hex
+	if hex_tier > 0 and hex == null:
+		hex = Hex.new()
+		hex.name = "Hex"
+		player.add_child(hex)
+	elif hex_tier == 0 and hex != null:
+		player.remove_child(hex)
+		hex.queue_free()
+		hex = null
+	if hex != null:
+		hex.charges_max = 1 + (1 if hex_tier >= 2 else 0)
+		hex.damage = 1 + (1 if hex_tier >= 3 else 0)
+		hex.pierce = hex_tier >= 4
+		hex.charges = mini(hex.charges, hex.charges_max)
 	player.health.max_health = BASE_HEALTH + tier(player, &"vigor")
 	player.health.health = mini(player.health.health, player.health.max_health)
 	player.health.display_health()

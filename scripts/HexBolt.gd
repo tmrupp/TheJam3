@@ -1,0 +1,114 @@
+extends Node2D
+## A hex bolt in flight. Each physics step it sweeps a ray against solid things (rock, doors,
+## cracked walls; one-way ledges are passed through) and checks enemies near its path. It wounds
+## what it meets (Wound.hit / hex_hit), and ends at rock or after RANGE. Printed as a glow-ink
+## comet with a tapering tail.
+
+const SPEED: float = 1100.0
+const RANGE: float = 8.0 * 128.0
+const REACH: float = 44.0
+const SOLID_MASK: int = 4
+
+var dir: Vector2 = Vector2.RIGHT
+var damage: int = 1
+var pierce: bool = false
+var travelled: float = 0.0
+var struck: Array[Node] = []
+var trail: Array[Vector2] = []
+var ink: InkCanvas
+var t: float = 0.0
+
+
+func _ready() -> void:
+	z_index = 3
+	add_to_group(&"riso_art")
+	ink = InkCanvas.new()
+	ink.top_level = true
+	add_child(ink)
+
+
+func _physics_process(delta: float) -> void:
+	t += delta
+	var from: Vector2 = global_position
+	var to: Vector2 = from + dir * SPEED * delta
+	# Enemies along the step, nearest first.
+	var targets: Array[Node] = []
+	for e: Node in get_tree().get_nodes_in_group(&"hex_target"):
+		if e in struck or not is_instance_valid(e) or e.is_queued_for_deletion():
+			continue
+		var p: Vector2 = Geometry2D.get_closest_point_to_segment((e as Node2D).global_position, from, to)
+		if p.distance_to((e as Node2D).global_position) <= REACH:
+			targets.append(e)
+	targets.sort_custom(func(a: Node, b: Node) -> bool: return from.distance_squared_to((a as Node2D).global_position) < from.distance_squared_to((b as Node2D).global_position))
+	var wall: Dictionary = _solid(from, to)
+	var wall_d: float = from.distance_to(wall["position"]) if not wall.is_empty() else INF
+	for e: Node in targets:
+		if from.distance_to((e as Node2D).global_position) > wall_d + REACH:
+			break
+		struck.append(e)
+		var wound: Node = e.get_node_or_null("Wound")
+		if wound != null:
+			wound.call("hit", damage, dir)
+		if not pierce or struck.size() > 1:
+			_end((e as Node2D).global_position)
+			return
+	if not wall.is_empty():
+		var hit: Object = wall["collider"]
+		if hit != null and hit.has_method("hex_hit"):
+			hit.call("hex_hit", damage, dir)
+		_end(wall["position"])
+		return
+	global_position = to
+	travelled += to.distance_to(from)
+	trail.append(from)
+	if trail.size() > 7:
+		trail.pop_front()
+	if travelled >= RANGE:
+		_end(to)
+
+
+## The first rock, door or cracked wall on the step (ledges and moving platforms are skipped).
+func _solid(from: Vector2, to: Vector2) -> Dictionary:
+	var space: PhysicsDirectSpaceState2D = get_world_2d().direct_space_state
+	var query: PhysicsRayQueryParameters2D = PhysicsRayQueryParameters2D.create(from, to, SOLID_MASK)
+	var skip: Array[RID] = []
+	for i: int in range(6):
+		query.exclude = skip
+		var res: Dictionary = space.intersect_ray(query)
+		if res.is_empty():
+			return {}
+		var c: Object = res["collider"]
+		if c is TileMap or c is TileMapLayer or (c != null and c.has_method("hex_hit")) or (c is Node and (c as Node).scene_file_path.get_file() == "door.tscn"):
+			return res
+		skip.append(res["rid"])
+	return {}
+
+
+func _end(at: Vector2) -> void:
+	RisoFx.burst(&"hit", at, -dir, [RisoPrint.GLOW, RisoPrint.PINK])
+	queue_free()
+
+
+func _process(_delta: float) -> void:
+	ink.begin()
+	var head: Vector2 = global_position
+	var pts: Array[Vector2] = []
+	pts.append_array(trail)
+	pts.append(head)
+	var tail: Array[PackedVector2Array] = []
+	for i: int in range(pts.size() - 1):
+		var a: Vector2 = pts[i]
+		var b: Vector2 = pts[i + 1]
+		if a.distance_to(b) < 1.0:
+			continue
+		var n: Vector2 = (b - a).normalized().orthogonal()
+		var wa: float = 2.0 + 10.0 * float(i) / float(pts.size())
+		var wb: float = 2.0 + 10.0 * float(i + 1) / float(pts.size())
+		tail.append(PackedVector2Array([a - n * wa, b - n * wb, b + n * wb, a + n * wa]))
+	ink.ink(RisoPrint.GLOW, 0.5, tail)
+	var pulse: float = 1.0 + 0.15 * sin(t * 40.0)
+	ink.ink(RisoPrint.GLOW, 0.3, [RisoShapes.circle(head, 26.0 * pulse, 20)])
+	var core: PackedVector2Array = Transform2D(t * 9.0, head) * RisoShapes.sparkle(Vector2.ZERO, 16.0 * pulse)
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], [core])
+	ink.ink(RisoPrint.GLOW, 1.0, [core], false)
+	ink.finish()

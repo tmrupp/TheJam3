@@ -7,6 +7,7 @@ const DEBUG_DISCOVERABLE: bool = false
 const CODE_LENGTH: int = 4 # 8 is more reasonable
 ## Keys and doors are dealt these colours in turn; a key opens doors of its own colour.
 const KEY_COLOR_COUNT: int = 4
+const CRACK_COUNT: int = 10
 ## Share of platform runs (up to 3 cells long) that glide along a track instead of staying put.
 const MOVING_PLATFORM_CHANCE: float = 0.35
 
@@ -29,6 +30,7 @@ enum Type {
 	MOVING_PLATFORM,
 	EXIT,
 	SHRINE,
+	CRACKED,
 }
 
 ## A level's four ways out. Deeper and back move along the seed's column; left and right step
@@ -394,6 +396,54 @@ class World:
 		for i: int in range(len(empties)*0.05):
 			set_cell(pop_if_random_empty(ground_below), Cell.new(Type.ASTRAL_PROJECTION_POINT))
 
+		place_cracks(CRACK_COUNT)
+
+	## Cracked walls: thin rock (one or two cells, open on both sides) that a hex bolt breaks.
+	## Half are picked near something worth reaching (a key, lantern, exit, shrine or ink well).
+	## Placed last, so they can block anything the level holds.
+	func place_cracks (count: int) -> void:
+		var valuable: Array[Vector2i] = []
+		for v: Vector2i in objects:
+			if get_cell(v).type in [Type.KEY, Type.CHECKPOINT, Type.EXIT, Type.SHRINE, Type.SHARD]:
+				valuable.append(v)
+		var walls: Array[Array] = []
+		var near: Array[Array] = []
+		for v: Vector2i in grounds:
+			if v.x < 1 or v.y < 1 or v.x >= size.x - 1 or v.y >= size.y - 1:
+				continue
+			for axis: Vector2i in [Vector2i(1, 0), Vector2i(0, 1)]:
+				var wall: Array = []
+				if _open(v - axis) and _open(v + axis):
+					wall = [v]
+				elif _open(v - axis) and is_ground(v + axis) and _open(v + axis * 2):
+					wall = [v, v + axis]
+				if wall.is_empty():
+					continue
+				walls.append(wall)
+				for o: Vector2i in valuable:
+					if absi(o.x - v.x) + absi(o.y - v.y) <= 3:
+						near.append(wall)
+						break
+		var placed: int = 0
+		while placed < count and not walls.is_empty():
+			var pool: Array[Array] = near if placed * 2 < count and not near.is_empty() else walls
+			var wall: Array = pool[rng.randi_range(0, pool.size() - 1)]
+			near.erase(wall)
+			walls.erase(wall)
+			var ok: bool = true
+			for c: Vector2i in wall:
+				ok = ok and is_ground(c)
+			if not ok:
+				continue
+			for c: Vector2i in wall:
+				grounds.erase(c)
+				cells[c.x][c.y] = Cell.new(Type.CRACKED)
+				objects.append(c)
+			placed += 1
+
+	func _open (v: Vector2i) -> bool:
+		return is_valid(v) and get_cell(v).type != Type.GROUND and get_cell(v).type != Type.CRACKED
+
 var goal_shift: int = 0
 @onready var wfc: WaveFunctionCollapse = $"../../WaveFunctionCollapse"
 @onready var player: Player
@@ -495,7 +545,7 @@ static func region_for (depth: int) -> String:
 
 func record (at: Vector2i = coord) -> Dictionary:
 	if not records.has(at):
-		records[at] = {"taken": {}, "opened": {}, "deeper_paid": false, "dropped": {}, "next_drop": 0, "shrine_used": false, "lateral_open": {}}
+		records[at] = {"taken": {}, "opened": {}, "deeper_paid": false, "dropped": {}, "next_drop": 0, "shrine_used": false, "lateral_open": {}, "slain": {}, "broken": {}}
 	return records[at]
 
 func mark_taken (node: Node) -> void:
@@ -530,6 +580,17 @@ func _spawn_dropped_key (id: int, pos: Vector2, color: int) -> void:
 ## The keys the record keeps in this level.
 func dropped_keys () -> Dictionary:
 	return record()["dropped"]
+
+## An enemy the hex bolt destroyed: gone until the player dies.
+func mark_slain (node: Node) -> void:
+	if node.has_meta(&"cell"):
+		record()["slain"][node.get_meta(&"cell")] = true
+
+## A cracked wall broken: gone for good.
+func mark_broken (node: Node) -> void:
+	if node.has_meta(&"cell"):
+		record()["broken"][node.get_meta(&"cell")] = true
+		save_run()
 
 func mark_opened (node: Node) -> void:
 	if node.has_meta(&"cell"):
@@ -570,6 +631,8 @@ func travel (exit: int) -> void:
 func light_lantern (lantern: Node) -> void:
 	if lantern.has_meta(&"cell"):
 		_set_respawn(coord, lantern.get_meta(&"cell"))
+		if player != null and player.has_node("Hex"):
+			(player.get_node("Hex") as Hex).refill()
 		save_run()
 
 func is_respawn_lantern (lantern: Node) -> bool:
@@ -614,9 +677,15 @@ func player_died (pos: Vector2) -> void:
 	vulnerable = true
 	fresh_stars = 0
 	recover_need = recover_price(coord.y)
-	_spawn_ghost()
+	_respawn_everything()
 	save_run()
-	player.reset_position()
+	# The respawn level reloads, so its enemies are back (and the ghost appears if it is there).
+	respawn_in_other_level()
+
+## Death brings every slain enemy back.
+func _respawn_everything () -> void:
+	for c: Vector2i in records:
+		(records[c] as Dictionary)["slain"] = {}
 
 ## Touching the ghost returns its stars and ends the vulnerable state.
 func recover_ghost () -> void:
@@ -964,6 +1033,7 @@ var platform_prefab: Resource = preload("res://prefabs/platform.tscn")
 var moving_platform_prefab: Resource = preload("res://prefabs/moving_platform.tscn")
 var level_exit_prefab: Resource = preload("res://prefabs/level_exit.tscn")
 var shrine_prefab: Resource = preload("res://prefabs/shrine.tscn")
+var cracked_prefab: Resource = preload("res://prefabs/cracked_wall.tscn")
 
 var map_elements_prefab: Resource = preload("res://prefabs/map_elements.tscn")
 
@@ -1027,6 +1097,7 @@ var cell_to_prefab: Dictionary = {
 	Type.MOVING_PLATFORM: moving_platform_prefab,
 	Type.EXIT: level_exit_prefab,
 	Type.SHRINE: shrine_prefab,
+	Type.CRACKED: cracked_prefab,
 }
 
 func place_cell(v: Vector2i, _cell: Cell) -> void:
@@ -1045,12 +1116,19 @@ func place_cell(v: Vector2i, _cell: Cell) -> void:
 		color = _doors_dealt % KEY_COLOR_COUNT
 		_doors_dealt += 1
 	var rec: Dictionary = record()
-	if (rec["taken"] as Dictionary).has(v) or (rec["opened"] as Dictionary).has(v):
-		return
+	for gone: String in ["taken", "opened", "slain", "broken"]:
+		if (rec.get(gone, {}) as Dictionary).has(v):
+			return
 	var cell: Node = cell_to_prefab[_cell.type].instantiate()
 	cell.set_meta(&"cell", v)
 	if color >= 0:
 		cell.set_meta(&"key_color", color)
+	if _cell.type == Type.ENEMY or _cell.type == Type.SHOOTER:
+		var wound: Wound = Wound.new()
+		wound.name = "Wound"
+		wound.hp = Wound.hp_for(coord.y)
+		cell.add_child(wound)
+		cell.add_to_group(&"hex_target")
 	map_elements.add_child(cell)
 	cell.set_owner(map_elements)
 	cell.position = tile_map.to_global(tile_map.map_to_local(v)) + jitter

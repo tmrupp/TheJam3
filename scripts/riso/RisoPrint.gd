@@ -34,6 +34,7 @@ const GLOWS: Dictionary = {
 	&"parry": Color("#ffe800"),
 	&"climb": Color("#00a95c"),
 	&"double_jump": Color("#ff6c2f"),
+	&"hex": Color("#e8335a"),
 }
 ## Print-detail stops: heavy 0, medium 50, fine 80, extra fine 100 (sizes in 720p pixels).
 const DETAIL_STOPS: Array[Array] = [
@@ -471,12 +472,17 @@ func world_built(map_info: Node, _world_index: int) -> void:
 	_map_info = map_info
 	if terrain != null and is_instance_valid(terrain):
 		var ledges: Array[Vector2] = []
+		var cracked: Array[Vector2] = []
 		var elements: Node = map_info.get("map_elements") as Node
 		if elements != null:
 			for node: Node in elements.get_children():
+				if node.is_queued_for_deletion():
+					continue
 				if node.scene_file_path == "res://prefabs/platform.tscn":
 					ledges.append((node as Node2D).global_position)
-		terrain.call("rebuild", map_info.get("tile_map"), ledges)
+				elif node.scene_file_path == "res://prefabs/cracked_wall.tscn":
+					cracked.append((node as Node2D).global_position)
+		terrain.call("rebuild", map_info.get("tile_map"), ledges, cracked)
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -510,6 +516,7 @@ const DRESS: Dictionary = {
 	"res://prefabs/spikes.tscn": &"thorns",
 	"res://prefabs/corpse.tscn": &"ghost",
 	"res://prefabs/moving_platform.tscn": &"lift",
+	"res://prefabs/cracked_wall.tscn": &"cracked",
 }
 
 
