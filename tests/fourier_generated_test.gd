@@ -31,12 +31,7 @@ func run() -> void:
 		for column: Array in info.world.cells:
 			for cell: Variant in column:
 				types.append(cell.type)
-		# Compare serialized values, not NextWorldDef object identities.
-		var destinations: Array = []
-		for code: String in info.world.codes:
-			var destination: Variant = info.world.codes[code]
-			destinations.append([code, destination.gen_seed, destination.region])
-		results.append(hash([types, destinations, info.world.keys]))
+		results.append(hash([types, info.world.exits, info.world.exit_lanterns]))
 		print("GENERATED seed 28 effect=", active, " fingerprint=", results[-1], " registered=", get_nodes_in_group("fourier_visuals").size())
 		# Validate existing projection return and death against the integrated provider.
 		var player: Node = main.get_node("Player")

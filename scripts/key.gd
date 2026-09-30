@@ -8,7 +8,7 @@ extends Area2D
 
 @export var code : String
 func setup(_map_info: MapInfo, _v: Vector2) -> void:
-	code = _map_info.get_next_key()
+	pass
 
 ## The key's colour (set by MapInfo when it is placed); doors of the same colour open with it.
 func key_color() -> int:
@@ -19,6 +19,8 @@ func touch(other: Node) -> void:
 		# one key at a time: a new key replaces the one being carried
 		player.set_meta(&"carried_key", key_color())
 		RisoFx.burst(&"gain", global_position, Vector2.ZERO, RisoPrint.key_inks(key_color()))
+		if MapInfo.instance != null:
+			MapInfo.instance.mark_taken(self)
 
 		# make invisible bc we aren't destroying self immediately
 		visuals.visible = false

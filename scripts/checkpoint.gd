@@ -8,9 +8,9 @@ func enabled (val: bool) -> void:
 	$Sprite2D.self_modulate = Color.GREEN_YELLOW if val else Color.WHITE
 
 func interacted () -> void:
-	if player.respawn is Checkpoint:
-		player.respawn.enabled(false)
-	player.respawn = self
+	# Lighting is optional: the last lantern lit, in any level, is where the player respawns.
+	if MapInfo.instance != null:
+		MapInfo.instance.light_lantern(self)
 	enabled(true)
 
 func _ready() -> void:

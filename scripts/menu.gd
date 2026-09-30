@@ -22,10 +22,6 @@ var player_prefab: Resource = preload("res://prefabs/player.tscn")
 var old_focus: Control = null
 
 func start_game() -> void:
-	wfc_thread.start(wfc.generate_all.bind(
-		MapInfo.default_def(get_seed(world_seed)), 
-		MapInfo.default_def(get_seed(map_seed)), 
-		wfc_thread))
 	visible = false
 	
 	# We're repurposing the menu now from a 'main menu' to a 'pause menu'
@@ -39,6 +35,7 @@ func start_game() -> void:
 	
 	var player: Player = player_prefab.instantiate()
 	main.add_child(player)
+	($"../CanvasLayer/MapInfo" as MapInfo).start_run(get_seed(world_seed))
 	
 func exit_game() -> void:
 	get_tree().quit()

@@ -67,7 +67,7 @@ func capture() -> void:
 	player.set_physics_process(false)
 	player.get_node("CameraControl").set_process(false)
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
-	var wanted: Dictionary = {"door.tscn": "door", "spikes.tscn": "spikes", "checkpoint.tscn": "lantern", "goal.tscn": "gate", "mover_enemy.tscn": "wisp", "shooter_enemy.tscn": "watcher", "platform.tscn": "platform", "moving_platform.tscn": "lift"}
+	var wanted: Dictionary = {"door.tscn": "door", "spikes.tscn": "spikes", "checkpoint.tscn": "lantern", "level_exit.tscn": "exit", "mover_enemy.tscn": "wisp", "shooter_enemy.tscn": "watcher", "platform.tscn": "platform", "moving_platform.tscn": "lift"}
 	player.set_meta(&"carried_key", 2)
 	var lit_one: bool = false
 	for node: Node in info.map_elements.get_children():
@@ -78,7 +78,7 @@ func capture() -> void:
 		var label: String = wanted[file]
 		wanted.erase(file)
 		if file == "checkpoint.tscn" and not lit_one:
-			player.set("respawn", target)
+			MapInfo.instance.light_lantern(target)
 			lit_one = true
 			target.get_node("Interactable").set("touching", true)
 		if file == "door.tscn":

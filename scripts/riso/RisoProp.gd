@@ -4,7 +4,7 @@ extends Node2D
 ## so wall and ceiling spikes point the right way. Presentation only.
 
 class_name RisoProp
-const STATIC_KINDS: Array[StringName] = [&"door", &"ledge", &"thorns", &"altar"]
+const STATIC_KINDS: Array[StringName] = [&"door", &"ledge", &"thorns"]
 
 
 ## A crescent-bowed key, in world pixels, centred near `o`.
@@ -21,6 +21,7 @@ var host: Node2D
 var t: float = 0.0
 var phase: float = 0.0
 var half: float = 64.0
+var price_label: Label
 
 
 func _ready() -> void:
@@ -69,8 +70,7 @@ func _redraw() -> void:
 		&"portal": _portal()
 		&"door": _door()
 		&"lantern": _lantern()
-		&"gate": _gate()
-		&"altar": _altar()
+		&"exit": _exit()
 		&"orb": _orb()
 		&"ledge": _ledge()
 		&"lift": _lift()
@@ -147,8 +147,7 @@ func _door() -> void:
 
 
 func _lantern() -> void:
-	var player: Node = host.get_node_or_null("/root/Main/Player")
-	var lit: bool = player != null and is_same(player.get("respawn"), host)
+	var lit: bool = MapInfo.instance != null and MapInfo.instance.is_respawn_lantern(host)
 	var sw: float = sin(t * 2.2 + phase) * 0.12
 	var g: float = _ground()
 	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-4, g - 110, 8, 110, 4), RisoShapes.rrect(-3, g - 111, 38, 6, 3)])
@@ -169,24 +168,67 @@ func _lantern() -> void:
 		ink.ink(RisoPrint.BLUE, 0.35, [glass], false)
 
 
-func _gate() -> void:
+func _exit() -> void:
+	# A doorway out of the level. Open exits are lit (cleared to paper, washed yellow, a star);
+	# an unpaid deeper exit stays dark and prints its price. A chevron shows where it leads.
+	var which: int = int(host.get("exit"))
+	var owed: int = int(host.call("price")) if host.has_method("price") else 0
 	var pulse: float = 1.0 + 0.08 * sin(t * 2.5 + phase)
 	var g: float = _ground()
-	# A lit doorway: blue frame, an opening cleared to paper and washed with eye yellow, a solid star.
 	var opening: PackedVector2Array = RisoShapes.arch(-44, g - 110, 88, 110, 14)
-	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.arch(-52, g - 118, 104, 118, 14)])
+	var frame: int = RisoPrint.PINK if which == MapInfo.Exit.DEEPER else RisoPrint.BLUE
+	ink.ink(frame, 1.0, [RisoShapes.arch(-52, g - 118, 104, 118, 14)])
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], [opening])
-	ink.ink(RisoPrint.EYE, 0.3, [opening], false)
-	ink.ink(RisoPrint.EYE, 0.35, [RisoShapes.circle(Vector2(0, g - 58), 30.0 * pulse, 28)], false)
 	var star: PackedVector2Array = Transform2D(t * 0.4, Vector2(0, g - 58)) * RisoShapes.sparkle(Vector2.ZERO, 20.0 * pulse)
-	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT], [star])
-	ink.ink(RisoPrint.EYE, 1.0, [star], false)
+	if owed > 0:
+		ink.ink(RisoPrint.NIGHT, 1.0, [opening], false)
+		ink.ink(RisoPrint.BLUE, 0.35, [opening], false)
+		# The price on a bare-paper plaque, with a star above it.
+		var plaque: PackedVector2Array = RisoShapes.rrect(-28, g - 62, 56, 38, 12)
+		ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE], [plaque])
+		ink.ink(RisoPrint.ACCENT, 0.2, [plaque], false)
+		var mote: PackedVector2Array = Transform2D(t * 0.4, Vector2(0, g - 82)) * RisoShapes.sparkle(Vector2.ZERO, 13.0 * pulse)
+		ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], [mote])
+		ink.ink(RisoPrint.ACCENT, 1.0, [mote], false)
+	else:
+		ink.ink(RisoPrint.EYE, 0.3, [opening], false)
+		ink.ink(RisoPrint.EYE, 0.35, [RisoShapes.circle(Vector2(0, g - 58), 30.0 * pulse, 28)], false)
+		ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT], [star])
+		ink.ink(RisoPrint.EYE, 1.0, [star], false)
+	# Chevron above the arch, pointing the way this exit leads.
+	var dir: Vector2 = Vector2.DOWN
+	match which:
+		MapInfo.Exit.BACK: dir = Vector2.UP
+		MapInfo.Exit.LEFT: dir = Vector2.LEFT
+		MapInfo.Exit.RIGHT: dir = Vector2.RIGHT
+	var bob: float = sin(t * 3.0 + phase) * 3.0
+	var at: Vector2 = Vector2(0, g - 140) + dir * bob
+	var side: Vector2 = Vector2(-dir.y, dir.x)
+	var chevron: PackedVector2Array = PackedVector2Array([at + dir * 10.0, at + side * 22.0 - dir * 12.0, at + side * 16.0 - dir * 18.0,
+		at - dir * 2.0, at - side * 16.0 - dir * 18.0, at - side * 22.0 - dir * 12.0])
+	ink.ink(frame, 1.0, [chevron])
+	_price_text(owed, Vector2(0, g - 43))
 
 
-func _altar() -> void:
-	var g: float = _ground()
-	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-26, g - 24, 52, 24, 8)])
-	ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.rrect(-22, g - 28, 44, 8, 4), RisoShapes.crescent(Vector2(0, g - 46), 12.0, Vector2(5, -3))])
+## The stars an unpaid exit costs, printed in night ink on the plaque.
+func _price_text(owed: int, at: Vector2) -> void:
+	if owed <= 0:
+		if price_label != null:
+			price_label.visible = false
+		return
+	if price_label == null:
+		price_label = Label.new()
+		price_label.add_theme_font_override("font", RisoTheme.serif())
+		price_label.add_theme_font_size_override("font_size", 34)
+		price_label.add_theme_color_override("font_color", Color.WHITE)
+		price_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		price_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		price_label.size = Vector2(80, 48)
+		price_label.visibility_layer = RisoPrint.plate_mask(RisoPrint.NIGHT)
+		add_child(price_label)
+	price_label.visible = true
+	price_label.text = str(owed)
+	price_label.position = at - price_label.size * 0.5
 
 
 func _orb() -> void:

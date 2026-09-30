@@ -150,6 +150,12 @@ func get_collision () -> bool:
 	
 #puts the player back at the spawn location
 func reset_position() -> void:
+	# The last lantern lit may be in another level: MapInfo loads it and places the player.
+	if MapInfo.instance != null and MapInfo.instance.respawn_elsewhere():
+		MapInfo.instance.respawn_in_other_level()
+		velocity = Vector2.ZERO
+		knock = Vector2.ZERO
+		return
 	position = respawn.position
 	reset_fourier_motion()
 	velocity = Vector2.ZERO	
@@ -170,7 +176,8 @@ func pulse_fourier(strength: float) -> void:
 func setup_corpse (pos: Vector2) -> void:
 	var corpse: Node2D = corpse_prefab.instantiate()
 	corpse.position = pos
-	$"/root/Main".add_child(corpse)
+	var level: Node = MapInfo.instance.map_elements if MapInfo.instance != null and is_instance_valid(MapInfo.instance.map_elements) else $"/root/Main"
+	level.add_child(corpse)
 	var sub: int = ceil(coins.coins/2.0)
 	corpse.setup(sub)
 	corpse_created.emit(corpse)
