@@ -209,21 +209,55 @@ func _portal() -> void:
 
 
 func _door() -> void:
-	# As in the prototype: a tall 2:3 arch, screened blue frame around a solid blue panel. It is set
-	# into screened jambs that fill the rest of the cell, so the whole blocked doorway reads.
-	var g: float = _ground()
+	RisoProp.portcullis(ink, _ground(), half, int(host.get_meta(&"key_color", 0)), 0.0, 1.0)
+
+
+## A portcullis filling its corridor cell: a header beam at the ceiling, screened guides at the
+## sides, iron bars ending in spikes just above the floor, two cross-rails with rivets, and a
+## paper lock plate showing the key colour it needs. `lift` (0 closed, 1 open) winches the grate
+## up into the header: the bars shorten from the bottom. `fade` scales every ink.
+static func portcullis(ink: InkCanvas, g: float, half: float, key_color: int, lift: float, fade: float) -> void:
 	var top: float = g - 2.0 * half
-	ink.ink(RisoPrint.BLUE, 0.5, [PackedVector2Array([Vector2(-half, top), Vector2(-40, top), Vector2(-40, g), Vector2(-half, g)]),
-		PackedVector2Array([Vector2(40, top), Vector2(half, top), Vector2(half, g), Vector2(40, g)])])
-	ink.ink(RisoPrint.BLUE, 0.5, [RisoShapes.arch(-44, g - 124, 88, 124, 14)])
-	var panel: PackedVector2Array = RisoShapes.arch(-34, g - 114, 68, 114, 14)
-	ink.knock([RisoPrint.NIGHT], [panel])
-	ink.ink(RisoPrint.BLUE, 1.0, [panel])
-	# The lock shows the colour of key the door needs.
-	var lock: Array[PackedVector2Array] = RisoProp.key_shape(Vector2(-6, g - 58), 0.8)
-	ink.knock([RisoPrint.BLUE], lock)
-	for plate: int in RisoPrint.key_inks(int(host.get_meta(&"key_color", 0))):
-		ink.ink(plate, 1.0, lock, false)
+	var bottom: float = lerpf(g - 14.0, top + 14.0, clampf(lift, 0.0, 1.0))
+	var guides: Array[PackedVector2Array] = [RisoShapes.rrect(-half + 2.0, top, 8, 2.0 * half, 3), RisoShapes.rrect(half - 10.0, top, 8, 2.0 * half, 3)]
+	ink.ink(RisoPrint.BLUE, fade, guides)
+	ink.ink(RisoPrint.NIGHT, 0.45 * fade, guides, false)
+	var span: float = bottom - (top + 10.0)
+	if span > 6.0:
+		var bars: Array[PackedVector2Array] = []
+		var shine: Array[PackedVector2Array] = []
+		for k: int in range(5):
+			var x: float = -44.0 + 22.0 * float(k)
+			bars.append(RisoShapes.rrect(x - 5.5, top + 10.0, 11.0, span, 4.0))
+			bars.append(RisoShapes.tri(Vector2(x - 8.0, bottom - 3.0), Vector2(x + 8.0, bottom - 3.0), Vector2(x, bottom + 12.0)))
+			if span > 16.0:
+				shine.append(RisoShapes.rrect(x - 3.5, top + 14.0, 2.5, span - 12.0, 1.2))
+		var rails: Array[PackedVector2Array] = []
+		var rivets: Array[PackedVector2Array] = []
+		for f: float in [0.28, 0.74]:
+			var y: float = top + 10.0 + span * f
+			rails.append(RisoShapes.rrect(-54, y - 5.0, 108, 10, 5))
+			for k: int in range(5):
+				rivets.append(RisoShapes.circle(Vector2(-44.0 + 22.0 * float(k), y), 3.2, 10))
+		ink.ink(RisoPrint.BLUE, fade, bars)
+		# A pale edge down each bar, so the iron reads against the rock behind it.
+		ink.knock([RisoPrint.BLUE, RisoPrint.NIGHT], shine)
+		ink.ink(RisoPrint.BLUE, 0.45 * fade, shine, false)
+		ink.ink(RisoPrint.BLUE, fade, rails)
+		ink.ink(RisoPrint.NIGHT, 0.3 * fade, rails, false)
+		ink.knock([RisoPrint.BLUE, RisoPrint.NIGHT], rivets)
+		ink.ink(RisoPrint.ACCENT, fade, rivets, false)
+		# The lock plate rides between the rails.
+		var ly: float = top + 10.0 + span * 0.51
+		if span > 40.0:
+			var plate: PackedVector2Array = RisoShapes.rrect(-19, ly - 14.0, 38, 28, 8)
+			ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE], [plate])
+			ink.ink(RisoPrint.BLUE, 0.15 * fade, [plate], false)
+			var lock: Array[PackedVector2Array] = RisoProp.key_shape(Vector2(-3, ly), 0.65)
+			for plate_ink: int in RisoPrint.key_inks(key_color):
+				ink.ink(plate_ink, fade, lock, false)
+	ink.ink(RisoPrint.BLUE, fade, [RisoShapes.rrect(-half, top - 2.0, 2.0 * half, 14, 4)])
+	ink.ink(RisoPrint.NIGHT, 0.45 * fade, [RisoShapes.rrect(-half, top + 8.0, 2.0 * half, 4, 2)], false)
 
 
 func _lantern() -> void:

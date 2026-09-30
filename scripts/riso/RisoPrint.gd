@@ -93,11 +93,13 @@ static func door_opened(door: Node2D) -> void:
 	fx.set_script(preload("res://scripts/riso/RisoDoorOpen.gd"))
 	var tm: TileMap = door.get_node_or_null("/root/Main/TileMap") as TileMap
 	var ground: float = 64.0
+	var half: float = 64.0
 	if tm != null and tm.tile_set != null:
-		var half: float = float(tm.tile_set.tile_size.y) * tm.global_scale.y * 0.5
+		half = float(tm.tile_set.tile_size.y) * tm.global_scale.y * 0.5
 		var cell: Vector2i = tm.local_to_map(tm.to_local(door.global_position))
 		ground = tm.to_global(tm.map_to_local(cell)).y + half - door.global_position.y
 	fx.set("ground", ground)
+	fx.set("half", half)
 	fx.set("key_color", int(door.get_meta(&"key_color", 0)))
 	door.get_parent().add_child(fx)
 	fx.global_position = door.global_position
