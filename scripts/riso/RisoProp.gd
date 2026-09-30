@@ -409,10 +409,11 @@ static func glyph(a: StringName, c: Vector2, t: float) -> Array[PackedVector2Arr
 		&"astral":
 			return ghost_shape(Transform2D(0.0, Vector2(1.5, 1.5), 0.0, c + Vector2(0, 28)))
 		&"vigor":
-			var bead: PackedVector2Array = RisoShapes.circle(c, 17.0, 24)
+			var bead: PackedVector2Array = RisoShapes.circle(c, 14.0, 24)
 			return [bead]
 		&"hex":
-			return [RisoShapes.sparkle(c + Vector2(8, -6), 13.0), PackedVector2Array([c + Vector2(2, -9), c + Vector2(-22, 12), c + Vector2(-4, -2)])]
+			# A comet: a bold spark with a tapering tail behind it.
+			return [RisoShapes.sparkle(c + Vector2(7, -5), 17.0), PackedVector2Array([c + Vector2(4, -12), c + Vector2(-22, 14), c + Vector2(-2, 0)])]
 	return [RisoShapes.sparkle(c, 18.0)]
 
 
