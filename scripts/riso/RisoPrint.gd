@@ -58,7 +58,7 @@ var blend_sheets: bool = true
 var registration: StringName = &"sheet"
 var realm: StringName = &"twilight"
 ## Camera zoom while printing, relative to the scene's own zoom (smaller shows more).
-var zoom_factor: float = 0.85
+var zoom_factor: float = 0.72
 var _camera: Camera2D
 var _base_zoom: Vector2 = Vector2.ZERO
 var glow_ability: StringName = &"dash"

@@ -12,7 +12,7 @@ The main game is presented as a risograph "tarot print": flat ink shapes drawn i
 
 Launch with `godot --path . -- --no-riso` to start with the print off.
 
-Defaults: twilight realm, fine detail, new sheet registration at 8 sheets/s, reprint on motion (landings, take-offs, dashes, hits and portals print a fresh sheet), blending between sheets, and the camera zoomed out to 0.85× of the scene zoom (restored when the print is off).
+Defaults: twilight realm, fine detail, new sheet registration at 8 sheets/s, reprint on motion (landings, take-offs, dashes, hits and portals print a fresh sheet), blending between sheets, and the camera zoomed out to 0.72× of the scene zoom (restored when the print is off).
 
 ## How it works
 
@@ -27,7 +27,7 @@ Defaults: twilight realm, fine detail, new sheet registration at 8 sheets/s, rep
 - **Wizard** (`RisoWizard.gd`, on the Player): drawn at 1.3x around the feet so the body is about a tile tall as in the prototype (level cells are 128 px, the collider ~62 px; collision is unchanged). It uses the spring rig from the HTML prototype, driven by the real velocity, floor, dash, climb and invulnerability state. It has planted feet in boots, a cloth hem with folds, a lagging head, a two-spring hat, eased turns, breathing and blinks. The face sits behind the brim and a raised collar, with yellow eyes that have paper-white centres.
 - **Hat glow** follows the ability used last: dash (fluorescent pink), blink (violet), astral projection (aqua), parry (yellow), wall climb (green) and double jump (orange). It flares when the ability fires and dims while the dash is spent.
 - **Dash** leaves a continuous smear that fades from the tail. **Hits** flash the whole figure pink. **Astral projection** holds a glowing silhouette at the return point.
-- **Terrain** (`RisoTerrain.gd`) is rebuilt from the TileMap's ground layer when `MapInfo` finishes a world. It is one contiguous mass with rounded outer corners, concave fillets and a thin cap strip per walkable run. Shading is layered like the prototype's ground: a light band of night ink from 50 px below the surface above, and a deeper one from 110 px. Floating platforms print with the terrain: runs touching rock join it under the shared cap, and free-floating runs are thin pills with their own cap. It knocks the sky out beneath itself.
+- **Terrain** (`RisoTerrain.gd`) is rebuilt from the TileMap's ground layer when `MapInfo` finishes a world. It is one contiguous mass with rounded outer corners, concave fillets and a thin cap strip per walkable run. Shading is two screened night bands inset 22 px and 58 px from every exposed edge, cleared around inside corners, so it follows the outline rather than the cell grid. Floating platforms print with the terrain as bars that join neighbouring platforms and rock and share the cap strip. It knocks the sky out beneath itself.
 - **Background** (`RisoBackground.gd`) follows the camera: a night flood, parallax stars and a few abstract shapes per realm.
 - **Keys and doors**: each key and door is dealt one of four key colours, printed as ink overprints (sun, ember, moss, plum). The carried key trails the wizard and shows in the HUD, and a door's lock shows the colour it needs. Unlocking plays a short printed opening (`RisoDoorOpen.gd`): the panel swings aside and the doorway lights up before fading.
 - **Prompts** (`RisoPrompt.gd`): a printed paper disc with the interact key pops up above anything in reach. On doors it shows the key colour needed instead.
