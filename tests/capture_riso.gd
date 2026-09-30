@@ -12,13 +12,13 @@ func capture() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
+	MapInfo.save_path = "user://test_run.save"
 	var output: String = ProjectSettings.globalize_path("res://../art-captures/riso-frames")
 	DirAccess.make_dir_recursive_absolute(output)
 	for f: String in DirAccess.get_files_at(output):
 		DirAccess.remove_absolute(output.path_join(f))
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
-	menu.map_seed.text = "28"
 	for i: int in range(20):
 		await process_frame
 	root.get_texture().get_image().save_png(output.path_join("still_menu.png"))

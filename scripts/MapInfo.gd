@@ -400,6 +400,12 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	if instance == self:
 		instance = null
+	if wfc_thread.is_started():
+		wfc_thread.wait_to_finish()
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		save_run()
 
 ## The level being played: x is the seed, y is the depth.
 var coord: Vector2i = Vector2i.ZERO
@@ -490,6 +496,7 @@ func key_taken (key: Node2D, had: int) -> void:
 	rec["next_drop"] = id + 1
 	rec["dropped"][id] = [key.position, had]
 	_spawn_dropped_key.call_deferred(id, key.position, had)
+	save_run()
 
 func _spawn_dropped_key (id: int, pos: Vector2, color: int) -> void:
 	if map_elements == null or not is_instance_valid(map_elements):
@@ -541,6 +548,7 @@ func travel (exit: int) -> void:
 func light_lantern (lantern: Node) -> void:
 	if lantern.has_meta(&"cell"):
 		_set_respawn(coord, lantern.get_meta(&"cell"))
+		save_run()
 
 func is_respawn_lantern (lantern: Node) -> bool:
 	return coord == respawn_coord and lantern.has_meta(&"cell") and lantern.get_meta(&"cell") == respawn_cell
@@ -585,6 +593,7 @@ func player_died (pos: Vector2) -> void:
 	fresh_stars = 0
 	recover_need = recover_price(coord.y)
 	_spawn_ghost()
+	save_run()
 	player.reset_position()
 
 ## Touching the ghost returns its stars and ends the vulnerable state.
@@ -597,6 +606,7 @@ func recover_ghost () -> void:
 	vulnerable = false
 	player.collect(stars)
 	RisoFx.burst(&"gain", at, Vector2.ZERO, [RisoPrint.GLOW, RisoPrint.ACCENT])
+	save_run()
 
 ## Fresh stars count toward leaving the vulnerable state; the ghost stays where it is.
 func star_found (count: int) -> void:
@@ -648,6 +658,101 @@ func _clear_ghost () -> void:
 func cell_position (v: Vector2i) -> Vector2:
 	return tile_map.to_global(tile_map.map_to_local(v))
 
+# ------------------------------------------------------------------ saving
+
+## Where the run is saved. Tests point this elsewhere so they never touch a player's save.
+static var save_path: String = "user://deeper_run.save"
+const SAVE_VERSION: int = 1
+
+## Autosaved on arriving in a level, lighting a lantern, dying, recovering the ghost, taking a
+## key, using a shrine, pausing and quitting. Stars picked up since the last save can be lost.
+func save_run () -> void:
+	if player == null or world == null or run_ending > 0.0:
+		return
+	var tiers: Dictionary = {}
+	for a: StringName in player.tiers:
+		tiers[String(a)] = int(player.tiers[a])
+	var data: Dictionary = {
+		"version": SAVE_VERSION, "run_seed": run_seed, "deepest": deepest, "coord": coord, "records": records,
+		"respawn_coord": respawn_coord, "respawn_cell": respawn_cell,
+		"vulnerable": vulnerable, "fresh_stars": fresh_stars, "recover_need": recover_need,
+		"has_ghost": has_ghost, "ghost_coord": ghost_coord, "ghost_pos": ghost_pos, "ghost_stars": ghost_stars,
+		"stars": player.coins.coins, "key": int(player.get_meta(&"carried_key", -1)),
+		"tiers": tiers, "health": player.health.health,
+	}
+	var file: FileAccess = FileAccess.open(save_path, FileAccess.WRITE)
+	if file != null:
+		file.store_var(data)
+
+## The saved run, or {} when there is none (or it is from an older version).
+static func read_save () -> Dictionary:
+	if not FileAccess.file_exists(save_path):
+		return {}
+	var file: FileAccess = FileAccess.open(save_path, FileAccess.READ)
+	if file == null:
+		return {}
+	var data: Variant = file.get_var()
+	if not (data is Dictionary) or int((data as Dictionary).get("version", 0)) != SAVE_VERSION:
+		return {}
+	return data
+
+static func delete_save () -> void:
+	if FileAccess.file_exists(save_path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))
+
+## Resume the saved run at its last lit lantern. False when there is nothing to continue.
+func continue_run () -> bool:
+	var data: Dictionary = read_save()
+	if data.is_empty():
+		return false
+	if player == null:
+		player = main.get_node_or_null("Player") as Player
+	_clear_ghost()
+	run_seed = int(data["run_seed"])
+	deepest = int(data["deepest"])
+	records = data["records"]
+	respawn_coord = data["respawn_coord"]
+	respawn_cell = data["respawn_cell"]
+	vulnerable = bool(data["vulnerable"])
+	fresh_stars = int(data["fresh_stars"])
+	recover_need = int(data["recover_need"])
+	has_ghost = bool(data["has_ghost"])
+	ghost_coord = data["ghost_coord"]
+	ghost_pos = data["ghost_pos"]
+	ghost_stars = int(data["ghost_stars"])
+	player.tiers = Abilities.start_tiers()
+	var tiers: Dictionary = data["tiers"]
+	for a: String in tiers:
+		player.tiers[StringName(a)] = int(tiers[a])
+	Abilities.apply(player)
+	player.health.health = clampi(int(data["health"]), 1, player.health.max_health)
+	player.health.display_health()
+	player.collect(int(data["stars"]) - player.coins.coins)
+	if int(data["key"]) >= 0:
+		player.set_meta(&"carried_key", int(data["key"]))
+	elif player.has_meta(&"carried_key"):
+		player.remove_meta(&"carried_key")
+	coord = respawn_coord
+	arrival = -2
+	_load_level()
+	return true
+
+# ------------------------------------------------------------------ loading and pre-generation
+# One worker thread runs the WFC, one level at a time (the collapse is not shared safely).
+# The level being travelled to always goes first; otherwise the worker pre-generates the
+# current level's neighbours, so most transitions find their terrain already in the cache.
+
+const CACHE_SIZE: int = 12
+var cache: Dictionary = {}
+var cache_order: Array[Vector2i] = []
+var prefetch: Array[Vector2i] = []
+## The level waiting to be shown, or null.
+var wanted: Variant = null
+var gen_busy: bool = false
+
+static func def_for (at: Vector2i) -> NextWorldDef:
+	return NextWorldDef.new(level_seed(at.x, at.y), region_for(at.y), at.y)
+
 func _load_level () -> void:
 	travelling = true
 	if player == null:
@@ -655,17 +760,62 @@ func _load_level () -> void:
 	if player != null:
 		player.set_physics_process(false)
 		player.set_collision(false)
-	var def: NextWorldDef = NextWorldDef.new(level_seed(coord.x, coord.y), region_for(coord.y), coord.y)
+	wanted = coord
+	if cache.has(coord):
+		wanted = null
+		_level_ready.call_deferred(cache[coord], def_for(coord))
+	else:
+		_pump()
+
+## Start the worker on the wanted level, else on the next neighbour not yet cached.
+func _pump () -> void:
+	if gen_busy:
+		return
+	var next: Variant = wanted
+	while next == null and not prefetch.is_empty():
+		var c: Vector2i = prefetch.pop_front()
+		if not cache.has(c):
+			next = c
+	if next == null:
+		return
+	gen_busy = true
 	if wfc_thread.is_started():
 		wfc_thread.wait_to_finish()
-	wfc_thread.start(_generate_threaded.bind(def))
+	wfc_thread.start(_generate_threaded.bind(next as Vector2i))
 
-func _generate_threaded (def: NextWorldDef) -> void:
-	var cells: Array = wfc.generate_level(def)
-	call_deferred("_level_ready", cells, def)
+func _generate_threaded (at: Vector2i) -> void:
+	var cells: Array = wfc.generate_level(def_for(at))
+	_generated.call_deferred(at, cells)
+
+func _generated (at: Vector2i, cells: Array) -> void:
+	wfc_thread.wait_to_finish()
+	gen_busy = false
+	_cache_put(at, cells)
+	if wanted != null and wanted == at:
+		wanted = null
+		_level_ready(cells, def_for(at))
+	_pump()
+
+func _cache_put (at: Vector2i, cells: Array) -> void:
+	cache[at] = cells
+	cache_order.erase(at)
+	cache_order.append(at)
+	while cache_order.size() > CACHE_SIZE:
+		cache.erase(cache_order.pop_front())
+
+## Queue the four neighbours of the current level for the worker.
+func _prefetch_neighbours () -> void:
+	prefetch.clear()
+	for c: Vector2i in [coord + Vector2i(0, 1), coord + Vector2i(1, 0), coord + Vector2i(-1, 0), coord + Vector2i(0, -1)]:
+		if c.y >= 0 and not cache.has(c):
+			prefetch.append(c)
+	# Keep the current level from being evicted by its own neighbours.
+	if cache.has(coord):
+		cache_order.erase(coord)
+		cache_order.append(coord)
+	_pump()
 
 func _level_ready (cells: Array, def: NextWorldDef) -> void:
-	wfc_thread.wait_to_finish()
 	clear_terrain()
 	world = World.new(cells, def)
 	map = world
@@ -775,6 +925,8 @@ func next_world () -> void:
 	travelling = false
 	if RisoPrint.instance != null:
 		RisoPrint.instance.world_built(self, coord.y)
+	save_run()
+	_prefetch_neighbours()
 
 var map_elements: Node
 var _keys_dealt: int = 0

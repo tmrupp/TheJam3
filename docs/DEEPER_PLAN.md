@@ -81,10 +81,24 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 
 ## 6. Interface
 
-- **Printed HUD:** coordinates (`seed · depth`, shareable), stars, the current deeper price, the carried key, a ghost hint and the vulnerable state.
-- **Start menu:** a seed field, Random seed, and Continue.
+- **Start menu:**
+  - **Continue** appears when a run is saved and names where it will resume.
+  - **Begin** starts at the world typed in; a blank field picks a random world.
+  - **Random world** rolls a new world and starts it.
+  - **Roll** puts a random number in the field, and **Paste** takes a bare number or a copied location.
+- **Pause menu:** Resume, Copy location (`world 28 · depth 3`, for sharing), and Save and exit. Pausing also saves.
+- **Printed HUD:**
+  - stars, health, the carried key, and the level (`world · depth`)
+  - the ghost label, while there is a ghost
+  - a strip of the abilities you own, each drawn as its shrine mark with a pip per tier
+- **Save** (`user://deeper_run.save`, versioned): the run seed, the deepest depth, level records, abilities and tiers, stars, health, the carried key, the respawn lantern, the ghost and the vulnerable state.
+  - **Autosave:** on arriving in a level, lighting a lantern, dying, recovering the ghost, taking a key, using a shrine, pausing and quitting. Stars picked up since the last save can be lost.
+  - **Continue** resumes at the last lit lantern. When a run ends, the new run overwrites the save.
+  - Tests use their own save path.
+- **Pre-generation:** one worker thread runs the WFC, one level at a time.
+  - The level being travelled to always goes first. Otherwise the worker generates the current level's neighbours (deeper, right, left, back) into a 12-level cache.
+  - A transition into a cached level takes a frame. Cached terrain is identical to fresh terrain, and the test checks this.
 - **Map screen:** replaces the pixel map overlay; see §7.
-- **Save** (`user://`): seed, level records, abilities and tiers, stars, the ghost, the carried key and the last lantern.
 
 ## What changes in the code
 
@@ -154,11 +168,11 @@ Enemies can only be stunned today (parry). A spell gives the wizard a way to des
   - charges refill at lanterns
   - tiers apply
   - cracked walls (above)
-- **Open:** should cracked walls gate the side and deeper exits too, or only pockets inside a level?
+- **Reach:** cracked walls can block anything the generation places: pockets, shrines, lanterns, and the side, deeper and back exits alike. No route is guaranteed, as with locks and prices.
 
 ## Phases
 
-Status: phases 1–4 are implemented (`tests/deeper_test.gd`, `tests/death_test.gd`, `tests/keys_test.gd`, `tests/shrine_test.gd`). The HUD already shows the current world and depth (`world 28 · depth 1`), and names the ghost's world when it is elsewhere.
+Status: phases 1–5 are implemented (`tests/deeper_test.gd`, `tests/death_test.gd`, `tests/keys_test.gd`, `tests/shrine_test.gd`, `tests/interface_test.gd`). The HUD already shows the current world and depth (`world 28 · depth 1`), and names the ghost's world when it is elsewhere.
 
 1. **The grid:** `Level(seed, depth)`, deterministic generation, the four exits with transitions, arrival lanterns, and level records. Remove codes, goals, backtracking, the map WFC and packing.
    - Test: the same `(seed, depth)` always gives the same level fingerprint.

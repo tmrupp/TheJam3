@@ -22,9 +22,9 @@ func run() -> void:
 	var original_mask: int = root.canvas_cull_mask
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
+	MapInfo.save_path = "user://test_run.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
-	menu.map_seed.text = "28"
 	menu.start_game()
 	await process_frame
 	await process_frame

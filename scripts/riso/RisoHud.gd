@@ -133,6 +133,7 @@ func _run_state(player: Player) -> void:
 		var w: float = _text_width(where_label, where_label.text)
 		_paper(RisoShapes.rrect(316.0 - w - 14.0, 4, w + 14.0, 20, 7), RisoPrint.BLUE, 0.12)
 		where_label.position = Vector2(316.0 - w - 7.0, 6.5)
+		_abilities(player)
 	if info.has_ghost:
 		ghost_label.text = str(info.ghost_stars)
 		ghost_label.position = Vector2(23, 32)
@@ -169,6 +170,31 @@ func _run_state(player: Player) -> void:
 		end_title.position = Vector2(85, 76)
 		end_sub.text = "world %d  ·  deepest %d" % [info.run_seed, info.deepest]
 		end_sub.position = Vector2(85, 99)
+
+
+## Under the world tag: each ability known, as its shrine mark with a pip per tier.
+func _abilities(player: Player) -> void:
+	var owned: Array[StringName] = []
+	for a: StringName in Abilities.ORDER:
+		if Abilities.tier(player, a) > 0:
+			owned.append(a)
+	if owned.is_empty():
+		return
+	var slot: float = 17.0
+	var x0: float = 316.0 - slot * float(owned.size()) - 6.0
+	_paper(RisoShapes.rrect(x0, 28, slot * float(owned.size()) + 6.0, 24, 7), RisoPrint.BLUE, 0.12)
+	for i: int in range(owned.size()):
+		var a: StringName = owned[i]
+		var c: Vector2 = Vector2(x0 + 3.0 + slot * (float(i) + 0.5), 37.0)
+		var mark: Array[PackedVector2Array] = []
+		for poly: PackedVector2Array in RisoProp.glyph(a, Vector2.ZERO, t):
+			mark.append(Transform2D(0.0, Vector2(0.24, 0.24), 0.0, c) * poly)
+		ink.ink(RisoPrint.NIGHT, 1.0, mark, false)
+		var n: int = Abilities.tier(player, a)
+		var pips: Array[PackedVector2Array] = []
+		for k: int in range(n):
+			pips.append(RisoShapes.circle(Vector2(c.x + (float(k) - float(n - 1) * 0.5) * 3.2, 47.0), 1.1, 8))
+		ink.ink(RisoPrint.ACCENT, 1.0, pips, false)
 
 
 ## Toward the ghost: by level (deeper is down, the next seed is right) when it is elsewhere,

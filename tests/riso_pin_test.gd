@@ -13,7 +13,8 @@ func _initialize() -> void:
 func rock_pixels(tm: TileMap, view: Transform2D) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
 	var inv: Transform2D = view.affine_inverse()
-	for y: int in range(120, 600, 3):
+	# Below the HUD labels (they are screen-fixed by design).
+	for y: int in range(230, 600, 3):
 		for x: int in range(160, 1120, 3):
 			var cell: Vector2i = tm.local_to_map(tm.to_local(inv * Vector2(x, y)))
 			var solid: bool = true
@@ -40,6 +41,7 @@ func run() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
+	MapInfo.save_path = "user://test_run.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	for i: int in range(5):

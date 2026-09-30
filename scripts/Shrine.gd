@@ -70,6 +70,7 @@ func _pay(cost: int) -> bool:
 
 func _spend(side: Node2D, inks: Array[int]) -> void:
 	map_info.record()["shrine_used"] = true
+	map_info.save_run()
 	RisoFx.burst(&"gain", side.global_position + Vector2(0, -40), Vector2.ZERO, inks)
 
 

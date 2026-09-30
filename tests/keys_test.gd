@@ -54,6 +54,7 @@ func carried() -> int:
 func run() -> void:
 	main = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
+	MapInfo.save_path = "user://test_run.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	menu.start_game()

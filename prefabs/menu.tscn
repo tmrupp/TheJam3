@@ -22,91 +22,63 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -155.0
-offset_top = -74.0
-offset_right = 155.0
-offset_bottom = 74.0
+offset_left = -110.0
+offset_top = -80.0
+offset_right = 110.0
+offset_bottom = 80.0
 grow_horizontal = 2
 grow_vertical = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
+theme = ExtResource("3_6o404")
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+text = "deeper"
+horizontal_alignment = 1
+
+[node name="Where" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 9
+horizontal_alignment = 1
+
+[node name="Continue" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "Continue"
 
 [node name="Start" type="Button" parent="VBoxContainer"]
 layout_mode = 2
-focus_neighbor_top = NodePath("../Exit")
-focus_neighbor_bottom = NodePath("../World Seed/Copy")
-theme = ExtResource("3_6o404")
-text = "Start Game
-"
+text = "Begin"
 
 [node name="World Seed" type="HBoxContainer" parent="VBoxContainer"]
 layout_mode = 2
 
 [node name="Label" type="Label" parent="VBoxContainer/World Seed"]
 layout_mode = 2
-size_flags_vertical = 1
-theme = ExtResource("3_6o404")
-text = "World
-"
+text = "world"
 
 [node name="LineEdit" type="LineEdit" parent="VBoxContainer/World Seed"]
 layout_mode = 2
 size_flags_horizontal = 3
-focus_neighbor_top = NodePath("../../Start")
-focus_neighbor_right = NodePath("../Randomize")
-focus_neighbor_bottom = NodePath("../../Map Seed/LineEdit")
-theme = ExtResource("3_6o404")
-placeholder_text = "9999"
+placeholder_text = "random"
 
 [node name="Randomize" type="Button" parent="VBoxContainer/World Seed"]
 layout_mode = 2
-focus_neighbor_left = NodePath("../LineEdit")
-focus_neighbor_top = NodePath("../../Start")
-focus_neighbor_right = NodePath("../Copy")
-focus_neighbor_bottom = NodePath("../../Exit")
-theme = ExtResource("3_6o404")
-text = "Randomize"
+text = "Roll"
 
-[node name="Copy" type="Button" parent="VBoxContainer/World Seed"]
+[node name="Paste" type="Button" parent="VBoxContainer/World Seed"]
 layout_mode = 2
-focus_neighbor_left = NodePath("../Randomize")
-focus_neighbor_top = NodePath("../../Start")
-focus_neighbor_bottom = NodePath("../../Map Seed/Paste")
-theme = ExtResource("3_6o404")
-text = "Copy
-"
+text = "Paste"
 
-[node name="Map Seed" type="HBoxContainer" parent="VBoxContainer"]
+[node name="Random" type="Button" parent="VBoxContainer"]
 layout_mode = 2
+text = "Random world"
 
-[node name="Label" type="Label" parent="VBoxContainer/Map Seed"]
+[node name="Copy" type="Button" parent="VBoxContainer"]
+visible = false
 layout_mode = 2
-size_flags_vertical = 1
-theme = ExtResource("3_6o404")
-text = "Map
-"
-
-[node name="LineEdit" type="LineEdit" parent="VBoxContainer/Map Seed"]
-layout_mode = 2
-size_flags_horizontal = 3
-focus_neighbor_top = NodePath("../../World Seed/LineEdit")
-focus_neighbor_right = NodePath("../Paste")
-focus_neighbor_bottom = NodePath("../../Exit")
-theme = ExtResource("3_6o404")
-placeholder_text = "9999"
-
-[node name="Paste" type="Button" parent="VBoxContainer/Map Seed"]
-layout_mode = 2
-focus_neighbor_left = NodePath("../LineEdit")
-focus_neighbor_top = NodePath("../../World Seed/Copy")
-focus_neighbor_bottom = NodePath("../../Exit")
-theme = ExtResource("3_6o404")
-text = "Paste
-"
+text = "Copy location"
 
 [node name="Exit" type="Button" parent="VBoxContainer"]
 layout_mode = 2
-focus_neighbor_top = NodePath("../Map Seed/Paste")
-focus_neighbor_bottom = NodePath("../Start")
-theme = ExtResource("3_6o404")
 text = "Exit"

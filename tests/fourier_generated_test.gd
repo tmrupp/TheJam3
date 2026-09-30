@@ -8,10 +8,10 @@ func run() -> void:
 	for active: bool in [false, true]:
 		var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 		root.add_child(main)
+		MapInfo.save_path = "user://test_run.save"
 		var menu: Node = main.get_node("Menu")
 		main.get_node("FourierWorld").enabled = active
 		menu.world_seed.text = "28"
-		menu.map_seed.text = "28"
 		menu.start_game()
 		await process_frame
 		await process_frame
