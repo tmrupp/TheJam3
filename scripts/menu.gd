@@ -10,6 +10,7 @@ extends CanvasLayer
 @onready var start: Button = $VBoxContainer/Start
 @onready var random_world: Button = $VBoxContainer/Random
 @onready var copy: Button = $VBoxContainer/Copy
+@onready var debug_button: Button = $VBoxContainer/Debug
 @onready var exit: Button = $VBoxContainer/Exit
 
 @onready var randomize_button: Button = $"VBoxContainer/World Seed/Randomize"
@@ -50,7 +51,7 @@ func continue_game() -> void:
 func _enter_play() -> void:
 	visible = false
 	started = true
-	for node: Control in [continue_button, world_seed_container, random_world]:
+	for node: Control in [continue_button, world_seed_container, random_world, debug_button]:
 		node.visible = false
 	copy.visible = true
 	start.text = "Resume"
@@ -97,6 +98,12 @@ func pause_resume_game() -> void:
 	get_tree().paused = visible
 
 
+## Debug runs start rich, with every exit next to the spawn (see MapInfo.debug).
+func set_debug(on: bool) -> void:
+	MapInfo.debug = on
+	debug_button.text = "debug: on" if on else "debug: off"
+
+
 func randomize_seed() -> void:
 	world_seed.text = str(randi_range(1, 99999))
 
@@ -123,6 +130,8 @@ func _ready() -> void:
 	randomize_button.pressed.connect(randomize_seed)
 	copy.pressed.connect(copy_location)
 	paste.pressed.connect(paste_seed)
+	debug_button.toggled.connect(set_debug)
+	set_debug(false)
 	var saved: Dictionary = MapInfo.read_save()
 	continue_button.visible = not saved.is_empty()
 	if saved.is_empty():

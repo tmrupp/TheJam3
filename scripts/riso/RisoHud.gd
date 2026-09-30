@@ -129,7 +129,7 @@ func _run_state(player: Player) -> void:
 		return
 	if where_label.visible:
 		# The level being played, top right: shareable, since levels are the same for everyone.
-		where_label.text = MapInfo.where(info.coord)
+		where_label.text = MapInfo.where(info.coord) + ("  ·  debug" if MapInfo.debug else "")
 		var w: float = _text_width(where_label, where_label.text)
 		_paper(RisoShapes.rrect(316.0 - w - 14.0, 4, w + 14.0, 20, 7), RisoPrint.BLUE, 0.12)
 		where_label.position = Vector2(316.0 - w - 7.0, 6.5)

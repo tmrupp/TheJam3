@@ -74,6 +74,11 @@ text = "Paste"
 layout_mode = 2
 text = "Random world"
 
+[node name="Debug" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+toggle_mode = true
+text = "debug: off"
+
 [node name="Copy" type="Button" parent="VBoxContainer"]
 visible = false
 layout_mode = 2

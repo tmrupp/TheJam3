@@ -127,6 +127,31 @@ func run() -> void:
 	check(not placed("coin.tscn").any(func(n: Node) -> bool: return n.get_meta(&"cell") == coin_cell), "and its level records")
 	check(info.run_seed == s, "on the same world")
 
+	print("debug runs")
+	main.queue_free()
+	await process_frame
+	await process_frame
+	MapInfo.delete_save()
+	await boot()
+	menu.call("set_debug", true)
+	menu.world_seed.text = "28"
+	menu.start_game()
+	player = main.get_node("Player") as Player
+	await settle()
+	check(player.coins.coins == MapInfo.DEBUG_STARS, "a debug run starts with %d stars" % MapInfo.DEBUG_STARS)
+	var back: Vector2i = info.world.exits[MapInfo.Exit.BACK]
+	var spread: int = 0
+	for which: int in info.world.exits:
+		var e: Vector2i = info.world.exits[which]
+		spread = maxi(spread, absi(e.x - back.x) + absi(e.y - back.y))
+	check(spread <= 10, "every exit is within %d cells of the spawn" % spread)
+	check(bool(MapInfo.read_save().get("debug", false)), "the save remembers it is a debug run")
+	info.travel(MapInfo.Exit.DEEPER)
+	await settle()
+	var arrive: Vector2i = info.world.exits[MapInfo.Exit.BACK]
+	check(info.world.exits.values().all(func(e: Vector2i) -> bool: return absi(e.x - arrive.x) + absi(e.y - arrive.y) <= 10), "and so in every level")
+	MapInfo.debug = false
+
 	MapInfo.delete_save()
 	if failed:
 		print("FAILED")

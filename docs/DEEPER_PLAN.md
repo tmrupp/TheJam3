@@ -95,6 +95,10 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
   - **Autosave:** on arriving in a level, lighting a lantern, dying, recovering the ghost, taking a key, using a shrine, pausing and quitting. Stars picked up since the last save can be lost.
   - **Continue** resumes at the last lit lantern. When a run ends, the new run overwrites the save.
   - Tests use their own save path.
+- **Debug mode:** a toggle on the start menu.
+  - Every exit (deeper, both sides, and the shrine near deeper) is generated on the floor spots nearest the spawn, in every level.
+  - The run starts with 9,999 stars, and again whenever the run restarts.
+  - The flag goes into `NextWorldDef` (terrain is unchanged, only placement), is saved with the run, and shows as "· debug" in the HUD's world tag.
 - **Pre-generation:** one worker thread runs the WFC, one level at a time.
   - The level being travelled to always goes first. Otherwise the worker generates the current level's neighbours (deeper, right, left, back) into a 12-level cache.
   - A transition into a cached level takes a frame. Cached terrain is identical to fresh terrain, and the test checks this.
@@ -118,7 +122,7 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 
 - **Level view:** the current level on paper, as far as it has been seen.
   - **Seen:** each level's record holds `seen`, a byte per cell (`MapInfo.reveal`, `is_seen`).
-  - **Reveal:** cells within 5 of the wizard reveal as they move. A moon shard reveals the nearest mostly-unseen 16×16 chunk, or the chunk with the most left when every chunk is mostly seen.
+  - **Reveal:** cells within 5 of the wizard reveal as they move. An ink well (the map pickup) reveals the nearest mostly-unseen 16×16 chunk, or the chunk with the most left when every chunk is mostly seen.
   - **Persistence:** seen cells are kept across revisits and in the save.
   - **Ink:** rock prints as solid blue ink and explored open ground as a light blue screen. They are two one-texel-per-cell textures, rebuilt only when something new is seen.
   - **Marks, where seen:**

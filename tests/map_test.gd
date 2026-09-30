@@ -1,6 +1,6 @@
 extends SceneTree
 ## Phase 6 of docs/DEEPER_PLAN.md: the printed map. What a level has seen grows around the
-## player and with moon shards, and is kept in its record; the map opens on the level, then the
+## player and with ink wells, and is kept in its record; the map opens on the level, then the
 ## world, then closes, pausing the game; the world view's links follow the records.
 ## godot --headless --path . --script res://tests/map_test.gd
 
@@ -57,7 +57,7 @@ func run() -> void:
 	check(info.is_seen(far) and info.seen_count() > before, "walking there reveals it")
 	before = info.seen_count()
 	info.discover_random_chunk()
-	check(info.seen_count() - before >= MapInfo.CHUNK_SIZE * MapInfo.CHUNK_SIZE / 2, "a moon shard reveals a chunk (%d cells)" % (info.seen_count() - before))
+	check(info.seen_count() - before >= MapInfo.CHUNK_SIZE * MapInfo.CHUNK_SIZE / 2, "an ink well reveals a chunk (%d cells)" % (info.seen_count() - before))
 	var count: int = info.seen_count()
 	info.travel(MapInfo.Exit.RIGHT)
 	await settle()

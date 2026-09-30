@@ -69,7 +69,7 @@ func _redraw() -> void:
 	match kind:
 		&"mote": _mote()
 		&"key": _key()
-		&"moon": _moon()
+		&"inkwell": _inkwell()
 		&"portal": _portal()
 		&"door": _door()
 		&"lantern": _lantern()
@@ -108,12 +108,28 @@ func _key() -> void:
 		ink.ink(plate, 1.0, shape)
 
 
-func _moon() -> void:
-	var o: Vector2 = Vector2(0, sin(t * 2.2 + phase) * 6.0)
-	var shard: PackedVector2Array = Transform2D(sin(t) * 0.25, o) * RisoShapes.crescent(Vector2.ZERO, 22.0, Vector2(10, -5))
-	ink.ink(RisoPrint.ACCENT, 0.25, [RisoShapes.circle(o, 34.0, 28)])
-	ink.ink(RisoPrint.ACCENT, 1.0, [shard])
-	ink.ink(RisoPrint.BLUE, 0.5, [shard])
+## An ink well (it inks the map): a squat pot with a gold rim and a paper label, and a drop
+## of ink rising out of it and falling back.
+func _inkwell() -> void:
+	var o: Vector2 = Vector2(0, sin(t * 2.2 + phase) * 5.0)
+	var tilt: Transform2D = Transform2D(sin(t * 1.3 + phase) * 0.08, Vector2(1.25, 1.25), 0.0, o)
+	ink.ink(RisoPrint.ACCENT, 0.22, [RisoShapes.ellipse(o + Vector2(0, -18), 40.0, 52.0, 28)])
+	var pot: PackedVector2Array = tilt * RisoShapes.rrect(-17, -6, 34, 24, 10)
+	var neck: PackedVector2Array = tilt * RisoShapes.rrect(-8, -14, 16, 10, 3)
+	ink.ink(RisoPrint.BLUE, 1.0, [pot, neck])
+	ink.ink(RisoPrint.NIGHT, 0.35, [tilt * RisoShapes.rrect(3, -4, 12, 20, 6)], false)
+	ink.ink(RisoPrint.ACCENT, 1.0, [tilt * RisoShapes.rrect(-10, -17, 20, 5, 2.5)])
+	ink.ink(RisoPrint.NIGHT, 1.0, [tilt * RisoShapes.ellipse(Vector2(0, -16), 6.0, 1.6, 12)])
+	var label: PackedVector2Array = tilt * RisoShapes.rrect(-11, 1, 18, 10, 3)
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], [label])
+	ink.ink(RisoPrint.NIGHT, 1.0, [tilt * RisoShapes.circle(Vector2(-2, 6), 2.4, 10)], false)
+	# The drop: rises from the mouth, hangs, falls back in.
+	var u: float = fmod(t * 0.7 + phase, 1.0)
+	var lift: float = sin(u * PI) * 16.0
+	var d: Vector2 = tilt * Vector2(0, -22.0 - lift)
+	var drop: PackedVector2Array = RisoShapes.smooth(PackedVector2Array([d + Vector2(0, -7), d + Vector2(4.5, 1), d + Vector2(0, 5), d + Vector2(-4.5, 1)]))
+	ink.ink(RisoPrint.BLUE, 1.0, [drop])
+	ink.knock([RisoPrint.BLUE, RisoPrint.ACCENT], [RisoShapes.circle(d + Vector2(-1.5, 0), 1.6, 8)])
 
 
 ## The wizard's astral silhouette where they died, in glow ink, with the stars it holds circling.

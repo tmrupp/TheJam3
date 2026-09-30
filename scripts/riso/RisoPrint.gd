@@ -500,7 +500,7 @@ const DRESS: Dictionary = {
 	"res://prefabs/bullet.tscn": &"shard",
 	"res://prefabs/coin.tscn": &"mote",
 	"res://prefabs/key.tscn": &"key",
-	"res://prefabs/map_shard.tscn": &"moon",
+	"res://prefabs/map_shard.tscn": &"inkwell",
 	"res://prefabs/portal.tscn": &"portal",
 	"res://prefabs/door.tscn": &"door",
 	"res://prefabs/checkpoint.tscn": &"lantern",

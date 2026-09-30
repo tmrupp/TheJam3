@@ -40,11 +40,13 @@ class NextWorldDef:
 	var gen_seed : int = 0
 	var region : String
 	var depth : int = 0
+	var debug : bool = false
 
-	func _init(s: int, r: String, d: int = 0) -> void:
+	func _init(s: int, r: String, d: int = 0, dbg: bool = false) -> void:
 		gen_seed = s
 		region = r
 		depth = d
+		debug = dbg
 
 class Cell:
 	var type: Type = Type.GROUND
@@ -125,7 +127,7 @@ class World:
 	## Places the four exits by position: back near the top, deeper near the bottom and at least
 	## exit_distance(depth) cells from back, left and right at the sides. A lantern goes beside each.
 	## At depth 0 there is no way back: that spot holds the run's start lantern instead.
-	func place_exits (depth: int) -> void:
+	func place_exits (depth: int, debug: bool = false) -> void:
 		var spots: Array[Vector2i] = []
 		for v: Vector2i in empties:
 			if ground_below(v):
@@ -145,6 +147,9 @@ class World:
 		var chosen: Array[Vector2i] = []
 		var back: Vector2i = _pick_spot(spots, chosen, func(v: Vector2i) -> bool: return v.y <= lo.y + band_y)
 		chosen.append(back)
+		if debug:
+			_place_exits_near(spots, chosen, back, depth)
+			return
 		var reach: int = MapInfo.exit_distance(depth)
 		var deeper: Variant = _pick_spot(spots, chosen, func(v: Vector2i) -> bool: return v.y >= hi.y - band_y and absi(v.x - back.x) + absi(v.y - back.y) >= reach, true)
 		if deeper == null:
@@ -160,6 +165,10 @@ class World:
 		var right: Vector2i = _pick_spot(spots, chosen, func(v: Vector2i) -> bool: return v.x >= hi.x - band_x)
 		chosen.append(right)
 		exits = {Exit.BACK: back, Exit.DEEPER: deeper, Exit.LEFT: left, Exit.RIGHT: right}
+		_finish_exits(spots, chosen, depth)
+
+	## Doors (or the start lantern) on the exit cells, a lantern beside each, then the shrine.
+	func _finish_exits (spots: Array[Vector2i], chosen: Array[Vector2i], depth: int) -> void:
 		for which: int in [Exit.BACK, Exit.DEEPER, Exit.LEFT, Exit.RIGHT]:
 			var at: Vector2i = exits[which]
 			add_object_at(at)
@@ -177,6 +186,28 @@ class World:
 				set_cell(lantern, Cell.new(Type.CHECKPOINT))
 				exit_lanterns[which] = lantern
 		_place_shrine(spots, chosen, exits[Exit.DEEPER])
+
+	## Debug runs: deeper, left and right on the floor spots nearest the way back (the spawn), two
+	## cells apart so each still gets its lantern.
+	func _place_exits_near (spots: Array[Vector2i], chosen: Array[Vector2i], back: Vector2i, depth: int) -> void:
+		var near: Array[Vector2i] = spots.duplicate()
+		var md: Callable = func(a: Vector2i, b: Vector2i) -> int: return absi(a.x - b.x) + absi(a.y - b.y)
+		near.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return md.call(a, back) < md.call(b, back) or (md.call(a, back) == md.call(b, back) and a < b))
+		var picks: Array[Vector2i] = []
+		for v: Vector2i in near:
+			if picks.size() == 3:
+				break
+			var clear: bool = true
+			for q: Vector2i in picks + [back]:
+				if md.call(v, q) < 2:
+					clear = false
+			if clear:
+				picks.append(v)
+		while picks.size() < 3:
+			picks.append(_pick_spot(spots, chosen + picks, func(_v: Vector2i) -> bool: return true))
+		chosen.append_array(picks)
+		exits = {Exit.BACK: back, Exit.DEEPER: picks[0], Exit.LEFT: picks[1], Exit.RIGHT: picks[2]}
+		_finish_exits(spots, chosen, depth)
 
 	## The shrine stands on two neighbouring floor cells a short walk from the deeper exit.
 	func _place_shrine (spots: Array[Vector2i], chosen: Array[Vector2i], near: Vector2i) -> void:
@@ -295,7 +326,7 @@ class World:
 			cells.append(row)
 
 		# Exits and their lanterns first, so they get the pick of the level.
-		place_exits(def.depth)
+		place_exits(def.depth, def.debug)
 
 		@warning_ignore("integer_division")
 		var chunks: int = (size.x*size.y)/(CHUNK_SIZE*CHUNK_SIZE)
@@ -515,6 +546,8 @@ func start_run (seed_value: int) -> void:
 		player = main.get_node_or_null("Player") as Player
 	if player != null:
 		Abilities.reset(player)
+		if debug:
+			player.collect(DEBUG_STARS - player.coins.coins)
 	vulnerable = false
 	fresh_stars = 0
 	_clear_ghost()
@@ -649,6 +682,11 @@ func cell_position (v: Vector2i) -> Vector2:
 
 # ------------------------------------------------------------------ saving
 
+## Debug runs (from the start menu): every exit is generated right by the spawn, and the run
+## starts with DEBUG_STARS. Saved with the run and shown in the HUD.
+static var debug: bool = false
+const DEBUG_STARS: int = 9999
+
 ## Where the run is saved. Tests point this elsewhere so they never touch a player's save.
 static var save_path: String = "user://deeper_run.save"
 const SAVE_VERSION: int = 1
@@ -667,7 +705,7 @@ func save_run () -> void:
 		"vulnerable": vulnerable, "fresh_stars": fresh_stars, "recover_need": recover_need,
 		"has_ghost": has_ghost, "ghost_coord": ghost_coord, "ghost_pos": ghost_pos, "ghost_stars": ghost_stars,
 		"stars": player.coins.coins, "key": int(player.get_meta(&"carried_key", -1)),
-		"tiers": tiers, "health": player.health.health,
+		"tiers": tiers, "health": player.health.health, "debug": debug,
 	}
 	var file: FileAccess = FileAccess.open(save_path, FileAccess.WRITE)
 	if file != null:
@@ -697,6 +735,7 @@ func continue_run () -> bool:
 	if player == null:
 		player = main.get_node_or_null("Player") as Player
 	_clear_ghost()
+	debug = bool(data.get("debug", false))
 	run_seed = int(data["run_seed"])
 	deepest = int(data["deepest"])
 	records = data["records"]
@@ -740,7 +779,7 @@ var wanted: Variant = null
 var gen_busy: bool = false
 
 static func def_for (at: Vector2i) -> NextWorldDef:
-	return NextWorldDef.new(level_seed(at.x, at.y), region_for(at.y), at.y)
+	return NextWorldDef.new(level_seed(at.x, at.y), region_for(at.y), at.y, debug)
 
 func _load_level () -> void:
 	travelling = true
