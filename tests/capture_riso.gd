@@ -91,6 +91,13 @@ func capture() -> void:
 		for i: int in range(20):
 			await process_frame
 		root.get_texture().get_image().save_png(output.path_join("still_%s.png" % label))
+		if file == "door.tscn":
+			player.set_meta(&"carried_key", int(target.get_meta(&"key_color", 0)))
+			target.get_node("Unlock").call("try_open")
+			for i: int in range(14):
+				await process_frame
+			root.get_texture().get_image().save_png(output.path_join("still_door_open.png"))
+			player.set_meta(&"carried_key", 2)
 	# Pushing into a wall from the floor.
 	var tm: TileMap = main.get_node("TileMap") as TileMap
 	for v: Vector2i in tm.get_used_cells(0):

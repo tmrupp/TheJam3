@@ -4,9 +4,13 @@ extends Node2D
 ## and two screened bands of night ink inset from every exposed edge, so the shading follows
 ## the rock's outline instead of stepping cell by cell.
 
-const SHADE_NEAR: float = 22.0
-const SHADE_FAR: float = 58.0
-const SHADE_COVER: float = 0.16
+## Night bands begin this far below the rock surface above them (world px), as in the prototype's
+## layered ground: a light band, then a deeper one.
+const BAND_NEAR: float = 50.0
+const BAND_FAR: float = 110.0
+const BAND_COVER: float = 0.2
+## Free-floating platform runs print as thin pills (world px).
+const PILL_HEIGHT: float = 26.0
 
 var ink: InkCanvas
 
@@ -40,8 +44,6 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = []) -> void:
 	var near: Array[PackedVector2Array] = []
 	var far: Array[PackedVector2Array] = []
 	var fillets: Array[PackedVector2Array] = []
-	var near_pies: Array[PackedVector2Array] = []
-	var far_pies: Array[PackedVector2Array] = []
 	var empties: Dictionary = {}
 	for v: Vector2i in solid:
 		var c: Vector2 = tile_map.to_global(tile_map.map_to_local(v))
@@ -52,11 +54,16 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = []) -> void:
 		var ledge_l: bool = ledges.has(v + Vector2i.LEFT)
 		var ledge_r: bool = ledges.has(v + Vector2i.RIGHT)
 		body.append(_cell(c, half, radius, not up and not left and not ledge_l, not up and not right and not ledge_r, not down and not right, not down and not left))
-		for pair: Array in [[near, SHADE_NEAR], [far, SHADE_FAR]]:
-			var d: float = float(pair[1])
-			var inset: PackedVector2Array = _inset(c, half, d, radius, up, down, left, right)
-			if inset.size() > 2:
-				(pair[0] as Array[PackedVector2Array]).append(inset)
+		# How deep this cell sits below the rock surface directly above it.
+		var above: int = 0
+		while solid.has(v + Vector2i.UP * (above + 1)):
+			above += 1
+		var top: float = c.y - half
+		var surface: float = top - float(above) * half * 2.0
+		for pair: Array in [[near, BAND_NEAR], [far, BAND_FAR]]:
+			var y0: float = maxf(top, surface + float(pair[1]))
+			if y0 < c.y + half - 1.0:
+				(pair[0] as Array[PackedVector2Array]).append(PackedVector2Array([Vector2(c.x - half, y0), Vector2(c.x + half, y0), Vector2(c.x + half, c.y + half), Vector2(c.x - half, c.y + half)]))
 		for d: Vector2i in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
 			if not solid.has(v + d):
 				empties[v + d] = true
@@ -67,22 +74,47 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = []) -> void:
 				if solid.has(e + Vector2i(sx, 0)) and solid.has(e + Vector2i(0, sy)) and solid.has(e + Vector2i(sx, sy)):
 					var corner: Vector2 = c + Vector2(sx, sy) * half
 					fillets.append(_fillet(corner, Vector2(-sx, -sy), radius))
-					near_pies.append(_pie(corner, Vector2(-sx, -sy), SHADE_NEAR + radius * 0.5))
-					far_pies.append(_pie(corner, Vector2(-sx, -sy), SHADE_FAR))
+	# Platform runs: those touching rock join it as a bar under the shared cap; free-floating runs
+	# print as one thin pill with its own thin cap, like the prototype's ledge.
+	var pills: Array[PackedVector2Array] = []
+	var pill_caps: Array[PackedVector2Array] = []
+	var free_ledges: Dictionary = {}
+	var ledge_cells: Array[Vector2i] = []
 	for v: Vector2i in ledges:
-		if solid.has(v):
-			continue
-		var c: Vector2 = tile_map.to_global(tile_map.map_to_local(v))
-		var joins_l: bool = solid.has(v + Vector2i.LEFT) or ledges.has(v + Vector2i.LEFT)
-		var joins_r: bool = solid.has(v + Vector2i.RIGHT) or ledges.has(v + Vector2i.RIGHT)
-		body.append(_box(Vector2(c.x, c.y - half + 17.0), half, 17.0, 12.0, not joins_l, not joins_r, not joins_r, not joins_l))
+		if not solid.has(v):
+			ledge_cells.append(v)
+	ledge_cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y or (a.y == b.y and a.x < b.x))
+	var r0: int = 0
+	while r0 < ledge_cells.size():
+		var r1: int = r0
+		while r1 + 1 < ledge_cells.size() and ledge_cells[r1 + 1].y == ledge_cells[r0].y and ledge_cells[r1 + 1].x == ledge_cells[r1].x + 1:
+			r1 += 1
+		var first: Vector2i = ledge_cells[r0]
+		var last: Vector2i = ledge_cells[r1]
+		var a: Vector2 = tile_map.to_global(tile_map.map_to_local(first))
+		var b: Vector2 = tile_map.to_global(tile_map.map_to_local(last))
+		var joins_l: bool = solid.has(first + Vector2i.LEFT)
+		var joins_r: bool = solid.has(last + Vector2i.RIGHT)
+		if joins_l or joins_r:
+			var x0: float = a.x - half
+			var x1: float = b.x + half
+			body.append(_box(Vector2((x0 + x1) * 0.5, a.y - half + 17.0), (x1 - x0) * 0.5, 17.0, 12.0, not joins_l, not joins_r, not joins_r, not joins_l))
+		else:
+			var x0: float = a.x - half + 4.0
+			var x1: float = b.x + half - 4.0
+			var hh: float = PILL_HEIGHT * 0.5
+			pills.append(_box(Vector2((x0 + x1) * 0.5, a.y - half + hh), (x1 - x0) * 0.5, hh, hh, true, true, true, true))
+			pill_caps.append(_box(Vector2((x0 + x1) * 0.5, a.y - half + 3.0), (x1 - x0) * 0.5 - 3.0, 5.0, 5.0, true, true, true, true))
+			for x: int in range(first.x, last.x + 1):
+				free_ledges[Vector2i(x, first.y)] = true
+		r0 = r1 + 1
 	var caps: Array[PackedVector2Array] = []
 	var tops: Array[Vector2i] = []
 	for v: Vector2i in solid:
 		if not solid.has(v + Vector2i.UP):
 			tops.append(v)
 	for v: Vector2i in ledges:
-		if not solid.has(v) and not solid.has(v + Vector2i.UP):
+		if not solid.has(v) and not solid.has(v + Vector2i.UP) and not free_ledges.has(v):
 			tops.append(v)
 	tops.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y or (a.y == b.y and a.x < b.x))
 	var i: int = 0
@@ -112,14 +144,14 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = []) -> void:
 	ink.begin()
 	body.append_array(fillets)
 	# Rock hides the sky behind it: no stars or moons printing through the ground.
+	body.append_array(pills)
 	ink.knock([RisoPrint.PINK, RisoPrint.ACCENT], body)
 	ink.ink(RisoPrint.BLUE, 1.0, body)
-	# Deep band first, cleared around inside corners; then the near band, cleared tighter.
-	ink.ink(RisoPrint.NIGHT, SHADE_COVER, far, false)
-	ink.knock([RisoPrint.NIGHT], far_pies)
-	ink.ink(RisoPrint.NIGHT, SHADE_COVER, near, false)
-	ink.knock([RisoPrint.NIGHT], near_pies)
+	# Layered ground: a light band, then a deeper one, each starting below the surface above it.
+	ink.ink(RisoPrint.NIGHT, BAND_COVER, near, false)
+	ink.ink(RisoPrint.NIGHT, BAND_COVER, far, false)
 	ink.ink(RisoPrint.ACCENT, 1.0, caps)
+	ink.ink(RisoPrint.ACCENT, 1.0, pill_caps)
 	ink.finish()
 
 
@@ -144,28 +176,6 @@ func _area(poly: PackedVector2Array) -> float:
 	return s * 0.5
 
 
-## The part of a cell at least `d` from any exposed edge; corners facing open air are rounded.
-func _inset(c: Vector2, h: float, d: float, r: float, up: bool, down: bool, left: bool, right: bool) -> PackedVector2Array:
-	var x0: float = c.x - h + (0.0 if left else d)
-	var x1: float = c.x + h - (0.0 if right else d)
-	var y0: float = c.y - h + (0.0 if up else d)
-	var y1: float = c.y + h - (0.0 if down else d)
-	if x1 - x0 < 1.0 or y1 - y0 < 1.0:
-		return PackedVector2Array()
-	var hw: float = (x1 - x0) * 0.5
-	var hh: float = (y1 - y0) * 0.5
-	var rr: float = minf(r + d * 0.5, minf(hw, hh))
-	return _box(Vector2((x0 + x1) * 0.5, (y0 + y1) * 0.5), hw, hh, rr, not up and not left, not up and not right, not down and not right, not down and not left)
-
-
-## Three-quarter disc at an inside corner, leaving out the quadrant that faces open air.
-func _pie(corner: Vector2, into_air: Vector2, r: float) -> PackedVector2Array:
-	var a: float = into_air.angle() + PI * 0.25
-	var out: PackedVector2Array = PackedVector2Array([corner])
-	for s: int in range(13):
-		var t: float = a + PI * 1.5 * float(s) / 12.0
-		out.append(corner + Vector2(cos(t), sin(t)) * r)
-	return out
 
 
 func _box(c: Vector2, hw: float, hh: float, r: float, tl: bool, tr: bool, br: bool, bl: bool) -> PackedVector2Array:

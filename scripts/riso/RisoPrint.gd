@@ -58,7 +58,7 @@ var blend_sheets: bool = true
 var registration: StringName = &"sheet"
 var realm: StringName = &"twilight"
 ## Camera zoom while printing, relative to the scene's own zoom (smaller shows more).
-var zoom_factor: float = 0.72
+var zoom_factor: float = 0.85
 var _camera: Camera2D
 var _base_zoom: Vector2 = Vector2.ZERO
 var glow_ability: StringName = &"dash"
@@ -83,6 +83,24 @@ var _old_snap: bool = false
 var _player: Player
 var _map_info: Node
 var _started: bool = false
+
+
+## Called just before an unlocked door is freed: leaves a printed opening in its place.
+static func door_opened(door: Node2D) -> void:
+	if not is_on() or door == null:
+		return
+	var fx: Node2D = Node2D.new()
+	fx.set_script(preload("res://scripts/riso/RisoDoorOpen.gd"))
+	var tm: TileMap = door.get_node_or_null("/root/Main/TileMap") as TileMap
+	var ground: float = 64.0
+	if tm != null and tm.tile_set != null:
+		var half: float = float(tm.tile_set.tile_size.y) * tm.global_scale.y * 0.5
+		var cell: Vector2i = tm.local_to_map(tm.to_local(door.global_position))
+		ground = tm.to_global(tm.map_to_local(cell)).y + half - door.global_position.y
+	fx.set("ground", ground)
+	fx.set("key_color", int(door.get_meta(&"key_color", 0)))
+	door.get_parent().add_child(fx)
+	fx.global_position = door.global_position
 
 
 static func key_inks(color: int) -> Array[int]:

@@ -66,10 +66,10 @@ float print_ink(sampler2D s, vec2 px, vec2 off, float ang, float rot, float sd, 
 	vec2 sp = vec2(cos(a) * px.x - sin(a) * px.y, sin(a) * px.x + cos(a) * px.y) / cell;
 	float scr = 0.5 - 0.25 * (cos(6.28318 * sp.x) + cos(6.28318 * sp.y));
 	float solid = smoothstep(0.82, 0.98, cv);
-	float thr = 0.035 + scr * 0.93 + ((h(floor(q * 0.85) + o) - 0.5) * grain + (vn(q * 0.3 + o.yx * 4.0) - 0.5) * grain * 0.6) * (1.0 - solid * 0.75);
+	float thr = 0.035 + scr * 0.93 + ((h(floor(q * 0.85) + o) - 0.5) * grain + (vn(q * 0.3 + o.yx * 4.0) - 0.5) * grain * 0.6) * (1.0 - solid * 0.92);
 	float v = smoothstep(thr - 0.045, thr + 0.045, cv);
 	float laydown = 1.0 - lay + lay * vn(q * 0.42 + o * 3.0);
-	float speck = step(0.9988, h(floor(q * 0.42) + o.yx * 5.0));
+	float speck = step(0.9994, h(floor(q * 0.42) + o.yx * 5.0));
 	return v * laydown * (1.0 - speck * 0.85);
 }
 
