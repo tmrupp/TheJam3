@@ -212,8 +212,25 @@ func do_dash(dash_direction: Vector2) -> void:
 	dash_sfx.play()
 var dash_ability: Callable = do_dash
 
+## Drop through the one-way ledge underfoot, static or moving: it is ignored for a moment. (A
+## one-pixel nudge alone only cleared the scaled static ledges; a moving platform's unscaled
+## one-way margin caught the wizard straight back.)
 func drop () -> void:
+	for i: int in range(get_slide_collision_count()):
+		var hit: KinematicCollision2D = get_slide_collision(i)
+		var body: CollisionObject2D = hit.get_collider() as CollisionObject2D
+		if body != null and hit.get_normal().y < -0.5 and _one_way(body):
+			add_collision_exception_with(body)
+			get_tree().create_timer(0.3).timeout.connect(func() -> void:
+				if is_instance_valid(body):
+					remove_collision_exception_with(body))
 	position.y += 1
+
+func _one_way (body: CollisionObject2D) -> bool:
+	for child: Node in body.get_children():
+		if child is CollisionShape2D and (child as CollisionShape2D).one_way_collision:
+			return true
+	return false
 	
 func do_wall_jump (wall_normal: Vector2) -> void:
 	coyote.end()

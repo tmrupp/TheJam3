@@ -154,7 +154,7 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 - **Cracked walls** (`CrackedWall.gd`): up to 10 per level, placed last, so they can block anything.
   - **Shape:** thin walls, one or two cells thick with open space on both sides. Half are picked within 3 cells of a key, lantern, exit, shrine or ink well.
   - **Solid:** a cracked cell is not a rock tile but a solid block on the same collision layer.
-  - **Printing:** the terrain prints it as rock (body, shading, grass), and its prop adds paper-white cracks.
+  - **Printing:** the terrain prints it as rock (body, shading, grass), and its prop adds a few fine night-ink cracks, quiet but visible up close.
   - **Breaking:** a bolt crumbles it in blue dust, and the rock reprints without it. The record keeps it broken, even across deaths.
 - **Arming** (the ghost and dropped keys): they now arm once the wizard has been more than about a cell away. An overlap test armed them too early while a level reloaded, because the wizard's collision is off then.
 - **Fixed:** `hit_box.gd`'s `stunned` setter never stored the value.

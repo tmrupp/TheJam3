@@ -115,6 +115,24 @@ func run() -> void:
 		var along: float = ((lift as Node2D).position - start).dot(lift.get("axis") as Vector2)
 		on_track = on_track and start == info.cell_position(lift.get_meta(&"cell")) and along >= -1.0 and along <= float(lift.get("travel")) + 1.0
 	check(on_track, "each rides its own track from its cell (not the world origin)")
+	# A vertical lift: the case that caught the wizard (it rises back into the feet).
+	var level_lifts: Array[Node] = lifts.filter(func(l: Node) -> bool: return (l.get("axis") as Vector2) == Vector2.DOWN)
+	var lift: Node2D = (level_lifts[0] if not level_lifts.is_empty() else lifts[0]) as Node2D
+	var shape: CollisionShape2D = lift.get_node("CollisionShape2D") as CollisionShape2D
+	var top: float = lift.global_position.y + shape.position.y - 16.5
+	player.global_position = Vector2(lift.global_position.x + shape.position.x, top - 60.0)
+	player.velocity = Vector2.ZERO
+	for i: int in range(30):
+		await physics_frame
+	top = lift.global_position.y + shape.position.y - 16.5
+	var riding: bool = player.is_on_floor() and player.global_position.y < top
+	player.drop()
+	for i: int in range(40):
+		await physics_frame
+	top = lift.global_position.y + shape.position.y - 16.5
+	check(riding and player.global_position.y > top + 40.0, "down + jump drops through a moving platform")
+	player.global_position = info.cell_position(info.world.exits[MapInfo.Exit.BACK])
+	await wait_level()
 
 	print("deeper exit price")
 	var exit_node: Node = placed("level_exit.tscn").filter(func(n: Node) -> bool: return int(n.get("exit")) == MapInfo.Exit.DEEPER)[0]
