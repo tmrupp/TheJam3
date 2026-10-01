@@ -36,6 +36,12 @@ Defaults: twilight realm, fine detail, new sheet registration at 8 sheets/s, rep
 
 ## Interface
 
+- **Print texture:** four knobs; the first two are also on the F7 panel.
+  - **Grain touch** (`grain_touch`, default 45%): each tint's screen blends the AM dot grid with clustered stochastic grain, like a riso machine's grain-touch mode. The night flood and the rock's shading bands no longer print as a regular diagonal grid of dots.
+  - **Mottle** (default 30%): soft low-frequency blotches of ink starvation thin true solids (coverage of 0.96 and up), which break into grain at their thinnest. Tints are untouched.
+  - **Feed streaks** (`streak`, default 6%): faint vertical density streaks.
+  - **Paper fibre** (`fibre`, default 5%): long thin fibres and a faint tooth in the paper.
+  - All four are world-pinned like the rest of the texture. `tests/capture_print.gd` prints the same frame with the old print and the new one side by side.
 - **Less paper at edges:** two knobs, also on the F7 panel.
   - **Paper in tints** (`tint_punch`, default 40%): how much night a screened tint lifts. At 100%, glows, haloes, light rays and screened frames printed as sprays of white dots, because the night was lifted evenly and paper showed between the colour's dots. At 40% their dots mostly overprint the dark, so they read darker and warmer, with little white. Solids always lift fully.
   - **Trap** (default 0.8 px at 720p): colour plates spread into their own knockout, so misregistration doesn't open hairline paper rims at the edges of shapes.
