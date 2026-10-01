@@ -29,6 +29,9 @@ uniform float seed = 3.1;
 uniform float seed2 = 4.47;
 uniform float mixv = 0.0;
 uniform vec2 pin = vec2(0.0);
+// Trapping, in pixels: colour plates spread this far into their own knockout in the night, so
+// misregistration doesn't open hairline paper rims at the edges of shapes.
+uniform float trap = 0.0;
 
 // PCG 3D (Jarzynski & Olano): an exact integer hash, uniform at any coordinate.
 uvec3 pcg3(uvec3 v) {
@@ -68,7 +71,7 @@ float coverage(sampler2D s, vec2 q) {
 		+ texture(s, uv + vec2(0.0, g.y)).a + texture(s, uv - vec2(0.0, g.y)).a) * 0.15;
 }
 
-float print_ink(sampler2D s, vec2 px, vec2 off, float ang, float rot, float sd, float wsd) {
+float print_ink(sampler2D s, vec2 px, vec2 off, float ang, float rot, float sd, float wsd, float tr) {
 	vec2 c = res * 0.5;
 	vec2 p = px - c;
 	p = vec2(cos(rot) * p.x - sin(rot) * p.y, sin(rot) * p.x + cos(rot) * p.y) + c + off;
@@ -81,6 +84,13 @@ float print_ink(sampler2D s, vec2 px, vec2 off, float ang, float rot, float sd, 
 	vec2 w2 = vec2(vn(R2 * wq * 0.85, so), vn(R2 * wq * 0.85, so + 29u)) - 0.5;
 	vec2 d = w1 * wob * 2.2 + w2 * wob * 0.9;
 	float cv = coverage(s, p + d);
+	if (tr > 0.01) {
+		vec2 tp = vec2(tr) / res;
+		vec2 uv = (p + d) / res;
+		float spread = max(max(texture(s, uv + vec2(tp.x, 0.0)).a, texture(s, uv - vec2(tp.x, 0.0)).a),
+			max(texture(s, uv + vec2(0.0, tp.y)).a, texture(s, uv - vec2(0.0, tp.y)).a));
+		cv = max(cv, spread * 0.92);
+	}
 	vec2 qw = wq + d;
 	// The halftone screen is pinned to the paper too.
 	vec2 wp = px + pin;
@@ -95,10 +105,10 @@ float print_ink(sampler2D s, vec2 px, vec2 off, float ang, float rot, float sd, 
 	return v * laydown * (1.0 - speck * 0.85);
 }
 
-float sheet(sampler2D s, vec2 px, vec2 off, float ang, float rot, float k) {
-	float d = print_ink(s, px, off, ang, rot, seed + k * 13.1, seed);
+float sheet(sampler2D s, vec2 px, vec2 off, float ang, float rot, float k, float tr) {
+	float d = print_ink(s, px, off, ang, rot, seed + k * 13.1, seed, tr);
 	if (mixv > 0.001) {
-		d = mix(d, print_ink(s, px, off, ang, rot, seed2 + k * 13.1, seed2), mixv);
+		d = mix(d, print_ink(s, px, off, ang, rot, seed2 + k * 13.1, seed2, tr), mixv);
 	}
 	return d;
 }
@@ -110,11 +120,11 @@ void fragment() {
 	vec3 col = paper * (0.97 + 0.03 * vn(R1 * wp * 0.045, ps)) * (1.0 - 0.045 * hs(R2 * wp * 0.8, ps + 1u));
 	// Night is registered to blue (same offset, rotation and wobble), like a trapped plate: where
 	// the rock or robe meets the night there is no paper rim, which would read as an outline.
-	col *= mix(vec3(1.0), ink0, sheet(plate0, px, off1, 30.0, 0.0007, 1.0));
-	col *= mix(vec3(1.0), ink1, sheet(plate1, px, off1, 75.0, 0.0007, 1.0));
-	col *= mix(vec3(1.0), ink2, sheet(plate2, px, off2, 15.0, 0.0001, 2.0));
-	col *= mix(vec3(1.0), ink3, sheet(plate3, px, off3, 45.0, 0.0005, 3.0));
-	col *= mix(vec3(1.0), ink4, sheet(plate4, px, off4, 45.0, 0.0004, 4.0));
-	col *= mix(vec3(1.0), ink5, sheet(plate5, px, off5, 60.0, 0.0004, 5.0));
+	col *= mix(vec3(1.0), ink0, sheet(plate0, px, off1, 30.0, 0.0007, 1.0, 0.0));
+	col *= mix(vec3(1.0), ink1, sheet(plate1, px, off1, 75.0, 0.0007, 1.0, trap));
+	col *= mix(vec3(1.0), ink2, sheet(plate2, px, off2, 15.0, 0.0001, 2.0, trap));
+	col *= mix(vec3(1.0), ink3, sheet(plate3, px, off3, 45.0, 0.0005, 3.0, trap));
+	col *= mix(vec3(1.0), ink4, sheet(plate4, px, off4, 45.0, 0.0004, 4.0, trap));
+	col *= mix(vec3(1.0), ink5, sheet(plate5, px, off5, 60.0, 0.0004, 5.0, trap));
 	COLOR = vec4(col, 1.0);
 }

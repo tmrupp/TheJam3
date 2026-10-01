@@ -36,6 +36,11 @@ Defaults: twilight realm, fine detail, new sheet registration at 8 sheets/s, rep
 
 ## Interface
 
+- **Less paper at edges:** two knobs, also on the F7 panel.
+  - **Paper in tints** (`tint_punch`, default 40%): how much night a screened tint lifts. At 100%, glows, haloes, light rays and screened frames printed as sprays of white dots, because the night was lifted evenly and paper showed between the colour's dots. At 40% their dots mostly overprint the dark, so they read darker and warmer, with little white. Solids always lift fully.
+  - **Trap** (default 0.8 px at 720p): colour plates spread into their own knockout, so misregistration doesn't open hairline paper rims at the edges of shapes.
+  - The respawn lantern's pool is a gentler lift with eye yellow printed into it, warm rather than white.
+  - `tests/capture_rims.gd` prints the same frames with the old look (A), the default (B) and no tint lift at all (C) side by side.
 - **Surface decor** (`RisoDecor.gd`): small printed props that make the grotto feel lived in. They never affect gameplay.
   - **Floors:** grass tufts, moon-flowers, mushroom clusters, stones.
   - **Ceilings:** hanging roots, stalactites, ink drips.
