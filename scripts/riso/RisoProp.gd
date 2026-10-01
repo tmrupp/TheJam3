@@ -74,7 +74,7 @@ func _redraw() -> void:
 		&"door": _door()
 		&"lantern": _lantern()
 		&"exit": _exit()
-		&"orb": _orb()
+		&"moon": _moon()
 		&"ledge": _ledge()
 		&"lift": _lift()
 		&"thorns": _thorns()
@@ -109,28 +109,35 @@ func _key() -> void:
 		ink.ink(plate, 1.0, shape)
 
 
-## An ink well (it inks the map): a squat pot with a gold rim and a paper label, and a drop
-## of ink rising out of it and falling back.
+## The ink well: a squat pot on the floor with a gold rim and a paper label, a drop of ink
+## rising out of it and falling back, and its price on a plaque. Once paid it is dry: no drop,
+## no glow, a dim rim.
 func _inkwell() -> void:
-	var o: Vector2 = Vector2(0, sin(t * 2.2 + phase) * 5.0)
-	var tilt: Transform2D = Transform2D(sin(t * 1.3 + phase) * 0.08, Vector2(1.25, 1.25), 0.0, o)
-	ink.ink(RisoPrint.ACCENT, 0.22, [RisoShapes.ellipse(o + Vector2(0, -18), 40.0, 52.0, 28)])
-	var pot: PackedVector2Array = tilt * RisoShapes.rrect(-17, -6, 34, 24, 10)
-	var neck: PackedVector2Array = tilt * RisoShapes.rrect(-8, -14, 16, 10, 3)
+	var g: float = _ground()
+	var dry: bool = bool(host.call("used")) if host.has_method("used") else false
+	var o: Vector2 = Vector2(0, g - 22.0)
+	var pot_t: Transform2D = Transform2D(0.0, Vector2(1.6, 1.6), 0.0, o)
+	if not dry:
+		ink.ink(RisoPrint.ACCENT, 0.18, [RisoShapes.ellipse(o + Vector2(0, -26), 46.0, 50.0, 28)])
+	var pot: PackedVector2Array = pot_t * RisoShapes.rrect(-17, -10, 34, 24, 10)
+	var neck: PackedVector2Array = pot_t * RisoShapes.rrect(-8, -18, 16, 10, 3)
 	ink.ink(RisoPrint.BLUE, 1.0, [pot, neck])
-	ink.ink(RisoPrint.NIGHT, 0.35, [tilt * RisoShapes.rrect(3, -4, 12, 20, 6)], false)
-	ink.ink(RisoPrint.ACCENT, 1.0, [tilt * RisoShapes.rrect(-10, -17, 20, 5, 2.5)])
-	ink.ink(RisoPrint.NIGHT, 1.0, [tilt * RisoShapes.ellipse(Vector2(0, -16), 6.0, 1.6, 12)])
-	var label: PackedVector2Array = tilt * RisoShapes.rrect(-11, 1, 18, 10, 3)
+	ink.ink(RisoPrint.NIGHT, 0.35, [pot_t * RisoShapes.rrect(3, -8, 12, 20, 6)], false)
+	ink.ink(RisoPrint.ACCENT, 0.4 if dry else 1.0, [pot_t * RisoShapes.rrect(-10, -21, 20, 5, 2.5)])
+	ink.ink(RisoPrint.NIGHT, 1.0, [pot_t * RisoShapes.ellipse(Vector2(0, -20), 6.0, 1.6, 12)])
+	var label: PackedVector2Array = pot_t * RisoShapes.rrect(-11, -3, 18, 10, 3)
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], [label])
-	ink.ink(RisoPrint.NIGHT, 1.0, [tilt * RisoShapes.circle(Vector2(-2, 6), 2.4, 10)], false)
+	ink.ink(RisoPrint.NIGHT, 1.0, [pot_t * RisoShapes.circle(Vector2(-2, 2), 2.4, 10)], false)
+	if dry:
+		return
 	# The drop: rises from the mouth, hangs, falls back in.
 	var u: float = fmod(t * 0.7 + phase, 1.0)
-	var lift: float = sin(u * PI) * 16.0
-	var d: Vector2 = tilt * Vector2(0, -22.0 - lift)
-	var drop: PackedVector2Array = RisoShapes.smooth(PackedVector2Array([d + Vector2(0, -7), d + Vector2(4.5, 1), d + Vector2(0, 5), d + Vector2(-4.5, 1)]))
+	var lift: float = sin(u * PI) * 20.0
+	var d: Vector2 = pot_t * Vector2(0, -26.0) + Vector2(0, -lift)
+	var drop: PackedVector2Array = RisoShapes.smooth(PackedVector2Array([d + Vector2(0, -9), d + Vector2(6, 1), d + Vector2(0, 6), d + Vector2(-6, 1)]))
 	ink.ink(RisoPrint.BLUE, 1.0, [drop])
-	ink.knock([RisoPrint.BLUE, RisoPrint.ACCENT], [RisoShapes.circle(d + Vector2(-1.5, 0), 1.6, 8)])
+	ink.knock([RisoPrint.BLUE, RisoPrint.ACCENT], [RisoShapes.circle(d + Vector2(-2, 0), 2.0, 8)])
+	_plaque("map · %d" % int(host.call("price")), Vector2(0, g - 98.0), 26, RisoPrint.BLUE)
 
 
 ## The wizard's astral silhouette where they died, in glow ink, with the stars it holds circling.
@@ -417,16 +424,19 @@ static func glyph(a: StringName, c: Vector2, t: float) -> Array[PackedVector2Arr
 	return [RisoShapes.sparkle(c, 18.0)]
 
 
-func _orb() -> void:
-	# Dormant (astral not learned): printed dim, as if spent.
-	var active: bool = bool(host.get("active")) or (host.has_method("usable") and not bool(host.call("usable")))
-	var pulse: float = 1.0 + 0.1 * sin(t * 3.0 + phase)
-	var g: float = _ground()
-	var o: Vector2 = Vector2(0, g - 66 + sin(t * 1.6 + phase) * 4.0)
-	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-20, g - 20, 40, 20, 8)])
-	ink.ink(RisoPrint.ACCENT, 0.15 if active else 0.3, [RisoShapes.circle(o, 34.0 * pulse, 28)])
-	ink.ink(RisoPrint.ACCENT, 0.5 if active else 1.0, [RisoShapes.circle(o, 16.0, 24)])
-	ink.ink(RisoPrint.BLUE, 0.5, [RisoShapes.crescent(o, 16.0, Vector2(7, -4))])
+## A moon: a crescent in accent ink inside a soft halo, rocking as it floats. While it wanes
+## (just used) it shrinks to a faint sliver and grows back.
+func _moon() -> void:
+	var full: float = 1.0 - clampf(float(host.get("waning")) / 2.5, 0.0, 1.0)
+	var o: Vector2 = Vector2(0, sin(t * 2.2 + phase) * 6.0)
+	var k: float = lerpf(0.55, 1.0, full)
+	var crescent: PackedVector2Array = Transform2D(sin(t) * 0.25, Vector2(k, k), 0.0, o) * RisoShapes.crescent(Vector2.ZERO, 22.0, Vector2(10, -5))
+	if full >= 1.0:
+		ink.ink(RisoPrint.ACCENT, 0.25, [RisoShapes.circle(o, 34.0, 28)])
+		ink.ink(RisoPrint.ACCENT, 1.0, [crescent])
+		ink.ink(RisoPrint.BLUE, 0.5, [crescent])
+	else:
+		ink.ink(RisoPrint.ACCENT, 0.3 * full + 0.1, [crescent])
 
 
 func _ledge() -> void:

@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/Moon.gd" id="1_moon"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_moon"]
+radius = 34.0
+
+[node name="Moon" type="Area2D"]
+collision_layer = 16
+collision_mask = 64
+script = ExtResource("1_moon")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_moon")

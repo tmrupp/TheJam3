@@ -1,6 +1,6 @@
 extends SceneTree
 ## Phase 6 of docs/DEEPER_PLAN.md: the printed map. What a level has seen grows around the
-## player and with ink wells, and is kept in its record; the map opens on the level, then the
+## player, all at once when its ink well is paid, and is kept in its record; the map opens on the level, then the
 ## world, then closes, pausing the game; the world view's links follow the records.
 ## godot --headless --path . --script res://tests/map_test.gd
 
@@ -55,9 +55,17 @@ func run() -> void:
 	player.global_position = info.cell_position(far)
 	await settle(2)
 	check(info.is_seen(far) and info.seen_count() > before, "walking there reveals it")
-	before = info.seen_count()
-	info.discover_random_chunk()
-	check(info.seen_count() - before >= MapInfo.CHUNK_SIZE * MapInfo.CHUNK_SIZE / 2, "an ink well reveals a chunk (%d cells)" % (info.seen_count() - before))
+	var wells: Array[Node] = info.map_elements.get_children().filter(func(n: Node) -> bool: return n.scene_file_path.get_file() == "inkwell.tscn")
+	check(wells.size() == 1, "one ink well in the level")
+	var well: Node = wells[0]
+	check(int(well.call("price")) == MapInfo.map_price(0) and MapInfo.map_price(4) > MapInfo.map_price(0), "it costs %d stars here, more deeper" % MapInfo.map_price(0))
+	player.collect(-player.coins.coins)
+	well.call("buy")
+	check(not bool(well.call("used")) and info.seen_count() < info.world.size.x * info.world.size.y, "too few stars: the map stays as explored")
+	player.collect(MapInfo.map_price(0))
+	well.call("buy")
+	check(info.seen_count() == info.world.size.x * info.world.size.y and player.coins.coins == 0, "paid: the whole level is inked at once")
+	check(bool(well.call("used")), "and the well is dry")
 	var count: int = info.seen_count()
 	info.travel(MapInfo.Exit.RIGHT)
 	await settle()
@@ -66,6 +74,7 @@ func run() -> void:
 	await settle()
 	player.set_physics_process(false)
 	check(info.seen_count() >= count, "a revisit keeps what was seen")
+	check(bool((info.map_elements.get_children().filter(func(n: Node) -> bool: return n.scene_file_path.get_file() == "inkwell.tscn")[0]).call("used")), "and the well stays dry")
 
 	print("opening the map")
 	map.call("cycle")

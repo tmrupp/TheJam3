@@ -167,6 +167,11 @@ func _level(info: MapInfo) -> void:
 		match file:
 			"level_exit.tscn":
 				_exit_mark(node, at)
+			"inkwell.tscn":
+				var dry: bool = bool(node.call("used"))
+				marks.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(at.x - 2.4, at.y - 2.0, 4.8, 4.4, 1.6)], false)
+				if not dry:
+					marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(at + Vector2(0, -3.6), 1.2, 6)], false)
 			"shrine.tscn":
 				var used: bool = bool(node.call("used"))
 				marks.ink(RisoPrint.ACCENT, 0.35 if used else 1.0, [RisoShapes.arch(at.x - 2.5, at.y - 3.5, 5, 6, 6)], false)

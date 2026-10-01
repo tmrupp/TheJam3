@@ -3,7 +3,6 @@ extends Control
 class_name MapInfo
 
 const CLOSE_ONE_KEY: bool = false
-const DEBUG_DISCOVERABLE: bool = false
 const CODE_LENGTH: int = 4 # 8 is more reasonable
 ## Keys and doors are dealt these colours in turn; a key opens doors of its own colour.
 const KEY_COLOR_COUNT: int = 4
@@ -14,7 +13,7 @@ const MOVING_PLATFORM_CHANCE: float = 0.35
 enum Type {
 	EMPTY,
 	GROUND,
-	SHARD,
+	MOON,
 	GOAL,
 	SPIKES,
 	ENEMY,
@@ -31,6 +30,7 @@ enum Type {
 	EXIT,
 	SHRINE,
 	CRACKED,
+	INKWELL,
 }
 
 ## A level's four ways out. Deeper and back move along the seed's column; left and right step
@@ -332,8 +332,10 @@ class World:
 
 		@warning_ignore("integer_division")
 		var chunks: int = (size.x*size.y)/(CHUNK_SIZE*CHUNK_SIZE)
-		for i: int in range(2*chunks):
-			set_cell(pop_if_random_empty(), Cell.new(Type.SHARD))
+		# Moons (dash resets) hang in the air; one ink well per level stands on a floor.
+		for i: int in range(chunks * 3 / 2):
+			set_cell(pop_if_random_empty(), Cell.new(Type.MOON))
+		set_cell(pop_if_random_empty(ground_below, true), Cell.new(Type.INKWELL))
 
 		if CLOSE_ONE_KEY:
 			var v: Vector2i = Vector2i(6,0)
@@ -393,9 +395,6 @@ class World:
 			set_cell(pos1, portal1)
 			set_cell(pos2, portal2)
 
-		for i: int in range(len(empties)*0.05):
-			set_cell(pop_if_random_empty(ground_below), Cell.new(Type.ASTRAL_PROJECTION_POINT))
-
 		place_cracks(CRACK_COUNT)
 
 	## Cracked walls: thin rock (one or two cells, open on both sides) that a hex bolt breaks.
@@ -404,7 +403,7 @@ class World:
 	func place_cracks (count: int) -> void:
 		var valuable: Array[Vector2i] = []
 		for v: Vector2i in objects:
-			if get_cell(v).type in [Type.KEY, Type.CHECKPOINT, Type.EXIT, Type.SHRINE, Type.SHARD]:
+			if get_cell(v).type in [Type.KEY, Type.CHECKPOINT, Type.EXIT, Type.SHRINE, Type.INKWELL]:
 				valuable.append(v)
 		var walls: Array[Array] = []
 		var near: Array[Array] = []
@@ -533,6 +532,10 @@ static func exit_distance (depth: int) -> int:
 static func lateral_lock (at: Vector2i, which: int) -> int:
 	return level_seed(level_seed(at.x, at.y), 500 + which) % KEY_COLOR_COUNT
 
+## Stars to ink a level's whole map at its ink well.
+static func map_price (depth: int) -> int:
+	return roundi(4.0 * pow(1.3, depth))
+
 ## How a level is named on screen and when sharing it.
 static func where (at: Vector2i) -> String:
 	return "world %d · depth %d" % [at.x, at.y]
@@ -545,7 +548,7 @@ static func region_for (depth: int) -> String:
 
 func record (at: Vector2i = coord) -> Dictionary:
 	if not records.has(at):
-		records[at] = {"taken": {}, "opened": {}, "deeper_paid": false, "dropped": {}, "next_drop": 0, "shrine_used": false, "lateral_open": {}, "slain": {}, "broken": {}}
+		records[at] = {"taken": {}, "opened": {}, "deeper_paid": false, "dropped": {}, "next_drop": 0, "shrine_used": false, "lateral_open": {}, "slain": {}, "broken": {}, "mapped": false}
 	return records[at]
 
 func mark_taken (node: Node) -> void:
@@ -999,35 +1002,16 @@ func reveal (at: Vector2i, radius: int = SEE_RADIUS) -> void:
 		record()["seen"] = bytes
 		seen_version += 1
 
-## A moon shard: show the chunk nearest the wizard that is still mostly unseen (or, when every
-## chunk is mostly seen, the one with the most left).
-func discover_random_chunk () -> void:
+## The ink well: the whole level inked onto the map at once.
+func ink_whole_map () -> void:
 	if world == null:
 		return
 	var bytes: PackedByteArray = seen()
-	var near: Vector2i = cell_at(player.global_position) / CHUNK_SIZE if player != null else Vector2i.ZERO
-	var best: Vector2i = Vector2i.ZERO
-	var best_score: float = -INF
-	@warning_ignore("integer_division")
-	var chunks: Vector2i = Vector2i((world.size.x + CHUNK_SIZE - 1) / CHUNK_SIZE, (world.size.y + CHUNK_SIZE - 1) / CHUNK_SIZE)
-	for cx: int in range(chunks.x):
-		for cy: int in range(chunks.y):
-			var unseen: int = 0
-			for x: int in range(cx * CHUNK_SIZE, mini((cx + 1) * CHUNK_SIZE, world.size.x)):
-				for y: int in range(cy * CHUNK_SIZE, mini((cy + 1) * CHUNK_SIZE, world.size.y)):
-					if bytes[x * world.size.y + y] == 0:
-						unseen += 1
-			var score: float = float(unseen)
-			if unseen * 2 >= CHUNK_SIZE * CHUNK_SIZE:
-				score = 100000.0 - float((Vector2i(cx, cy) - near).length_squared())
-			if unseen > 0 and score > best_score:
-				best_score = score
-				best = Vector2i(cx, cy)
-	for x: int in range(best.x * CHUNK_SIZE, mini((best.x + 1) * CHUNK_SIZE, world.size.x)):
-		for y: int in range(best.y * CHUNK_SIZE, mini((best.y + 1) * CHUNK_SIZE, world.size.y)):
-			bytes[x * world.size.y + y] = 1
+	bytes.fill(1)
 	record()["seen"] = bytes
+	record()["mapped"] = true
 	seen_version += 1
+	save_run()
 
 ## The level cell a world position falls in.
 func cell_at (pos: Vector2) -> Vector2i:
@@ -1041,7 +1025,8 @@ func _physics_process (_delta: float) -> void:
 		_last_seen_cell = c
 		reveal(c)
 
-var map_shard: Resource = preload("res://prefabs/map_shard.tscn")
+var moon_prefab: Resource = preload("res://prefabs/moon.tscn")
+var inkwell_prefab: Resource = preload("res://prefabs/inkwell.tscn")
 var spikes: Resource = preload("res://prefabs/spikes.tscn")
 var enemy_prefab: Resource = preload("res://prefabs/mover_enemy.tscn")
 var shooter_prefab: Resource = preload("res://prefabs/shooter_enemy.tscn")
@@ -1050,7 +1035,6 @@ var key_prefab: Resource = preload("res://prefabs/key.tscn")
 var door_prefab: Resource = preload("res://prefabs/door.tscn")
 var checkpoint_prefab: Resource = preload("res://prefabs/checkpoint.tscn")
 var portal_prefab: Resource = preload("res://prefabs/portal.tscn")
-var astral_projection_point_prefab: Resource = preload("res://prefabs/astral_projection_point.tscn")
 var platform_prefab: Resource = preload("res://prefabs/platform.tscn")
 var moving_platform_prefab: Resource = preload("res://prefabs/moving_platform.tscn")
 var level_exit_prefab: Resource = preload("res://prefabs/level_exit.tscn")
@@ -1107,7 +1091,8 @@ var _keys_dealt: int = 0
 var _doors_dealt: int = 0
 
 var cell_to_prefab: Dictionary = {
-	Type.SHARD: map_shard,
+	Type.MOON: moon_prefab,
+	Type.INKWELL: inkwell_prefab,
 	Type.SPIKES: spikes,
 	Type.ENEMY: enemy_prefab,
 	Type.SHOOTER: shooter_prefab,
@@ -1116,7 +1101,6 @@ var cell_to_prefab: Dictionary = {
 	Type.DOOR: door_prefab,
 	Type.CHECKPOINT: checkpoint_prefab,
 	Type.PORTAL: portal_prefab,
-	Type.ASTRAL_PROJECTION_POINT: astral_projection_point_prefab,
 	Type.PLATFORM: platform_prefab,
 	Type.MOVING_PLATFORM: moving_platform_prefab,
 	Type.EXIT: level_exit_prefab,
@@ -1128,7 +1112,7 @@ func place_cell(v: Vector2i, _cell: Cell) -> void:
 	# Everything that draws from the level's RNG or counters happens before the record can skip
 	# the object, so the rest of the level lands in the same place on every visit.
 	var jitter: Vector2 = Vector2.ZERO
-	if _cell.type in [Type.COIN, Type.KEY, Type.SHARD]:
+	if _cell.type in [Type.COIN, Type.KEY, Type.MOON]:
 		# Floating pickups sit anywhere inside their cell rather than on the grid.
 		var cell_size: Vector2 = Vector2(tile_map.tile_set.tile_size) * tile_map.global_scale
 		jitter = Vector2(world.rng.randf_range(-0.3, 0.3), world.rng.randf_range(-0.3, 0.3)) * cell_size
@@ -1224,9 +1208,5 @@ func enclose_map(dim_x: int, dim_y: int) -> void:
 		# print("to_add=", to_add, " dim_y=", dim_y)
 
 func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("Discover"):
-		if DEBUG_DISCOVERABLE:
-			discover_random_chunk()
-
 	if event.is_action_pressed("Debug-Back"):
 		travel(Exit.BACK)

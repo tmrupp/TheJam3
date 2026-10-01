@@ -24,8 +24,7 @@ func capture() -> void:
 	var output: String = ProjectSettings.globalize_path("res://../art-captures/riso-frames")
 	# A little history: some of the level seen, a lantern lit, doors opened to the side and deeper.
 	player.set_physics_process(false)
-	for i: int in range(5):
-		info.discover_random_chunk()
+	info.ink_whole_map()
 	for which: int in [MapInfo.Exit.DEEPER, MapInfo.Exit.RIGHT]:
 		info.reveal(info.world.exits[which], 4)
 	info.record()["lateral_open"][MapInfo.Exit.RIGHT] = true

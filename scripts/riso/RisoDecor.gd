@@ -34,7 +34,7 @@ const SLOTS: Array[Array] = [
 const KNOCK_ALL: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW]
 const KNOCK_ROCK: Array[int] = [RisoPrint.BLUE, RisoPrint.NIGHT]
 const STRUCTURES: Array[String] = ["level_exit.tscn", "shrine.tscn", "door.tscn", "checkpoint.tscn", "spikes.tscn",
-	"portal.tscn", "astral_projection_point.tscn", "moving_platform.tscn"]
+	"portal.tscn", "inkwell.tscn", "moving_platform.tscn"]
 
 ## The plan: one entry per prop, {kind, cell, at (world), seed}.
 var items: Array[Dictionary] = []

@@ -68,14 +68,9 @@ func run() -> void:
 	var hurt_before: Callable = player.hurt_ability
 	player.get_node("Parry").call("execute")
 	check(player.hurt_ability == hurt_before, "a locked parry does nothing")
-	var orbs: Array[Node] = info.map_elements.get_children().filter(func(n: Node) -> bool: return n.scene_file_path.get_file() == "astral_projection_point.tscn")
-	check(orbs.size() > 0 and not bool(orbs[0].call("usable")), "astral orbs are dormant")
-	orbs[0].call("astral_project")
-	check(not is_instance_valid(player.get_node("AstralProjection").get("false_player_origin")), "and touching one does nothing")
-	Abilities.grant(player, &"astral")
-	check(bool(orbs[0].call("usable")), "until astral is learned")
-	player.tiers[&"astral"] = 0
-	Abilities.apply(player)
+	var projection: Node = player.get_node("AstralProjection")
+	projection.call("toggle")
+	check(not bool(projection.call("projecting")), "astral projection does nothing until learned")
 
 	print("learning at the shrine")
 	var shrine: Node = shrines()[0]

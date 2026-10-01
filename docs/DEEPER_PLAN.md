@@ -60,7 +60,9 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 - **Prices:**
   - Learning costs `S(d, tier) = max(3, round(10 × 1.6^(tier−1) × 0.8^d))`: cheaper deeper, dearer per tier.
   - Mending works the other way: `H(d) = round(3 × 1.35^d)`, which is 3 at depth 0 and 13 at depth 5.
-- **Only the dash is known at the start.** Everything else is found at shrines. A shrine offers an ability not yet known before any upgrade: it starts from the seed's pick and goes round. Until learned, parry does nothing, astral orbs print dim and do nothing, and there is no hex, so no killing enemies or breaking cracked walls.
+- **Only the dash is known at the start.** Everything else is found at shrines. A shrine offers an ability not yet known before any upgrade: it starts from the seed's pick and goes round. Until learned, parry and astral projection do nothing, and there is no hex, so no killing enemies or breaking cracked walls.
+- **Astral projection** is a button (`Astral`: Q, or the pad's left shoulder; the action is added at runtime). Tap it to leave your body and go out as an untouchable projection. Tap again, or get hurt, to snap back to the body. Let it run out and you stay where the projection is. There are no astral orbs any more.
+- **Moons** are dash resets, about 24 per level, hanging in the air. Touching one gives your dash back if you have used it. It then wanes for 2.5 s and returns. Moons are never used up.
 - Tiers live on the player (`Abilities.gd`) and reset when a run ends. The upgrade menu and the old `Upgrade`, `UpgradeManager`, double-jump and wall-climb nodes are gone.
 
 | Ability | Start | Max | Each tier |
@@ -70,7 +72,7 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 | Wall climb | – | III | I lets you climb (3 s); each further tier adds 1.5 s |
 | Blink | – | III | replaces the dash; reach 300 px, +100 per tier |
 | Parry | – | IV | window +0.1 s, cooldown −0.4 s |
-| Astral projection | – | IV | lasts 2 s longer (orbs stay dormant until learned) |
+| Astral projection | – | IV | lasts 2 s longer |
 | Hex | – | IV | II +1 charge, III +1 damage, IV pierces |
 | Vigor | – | III | +1 max health (and heals 1) |
 
@@ -124,7 +126,7 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 
 - **Level view:** the current level on paper, as far as it has been seen.
   - **Seen:** each level's record holds `seen`, a byte per cell (`MapInfo.reveal`, `is_seen`).
-  - **Reveal:** cells within 5 of the wizard reveal as they move. An ink well (the map pickup) reveals the nearest mostly-unseen 16×16 chunk, or the chunk with the most left when every chunk is mostly seen.
+  - **Reveal:** cells within 5 of the wizard reveal as they move. Each level also has one ink well on a floor. Paying it `round(4 × 1.3^depth)` stars inks the whole level onto the map at once, and the well is then dry for good.
   - **Persistence:** seen cells are kept across revisits and in the save.
   - **Ink:** rock prints as solid blue ink and explored open ground as a light blue screen. They are two one-texel-per-cell textures, rebuilt only when something new is seen.
   - **Marks, where seen:**

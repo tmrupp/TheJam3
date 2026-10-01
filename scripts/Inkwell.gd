@@ -1,0 +1,32 @@
+extends Area2D
+## The level's ink well: pay its price to ink the whole level onto your map at once, or keep
+## exploring and the map fills in as you go. Once paid, the record keeps the map inked and the
+## well dry.
+
+@onready var player: Player = $"/root/Main/Player"
+
+var map_info: MapInfo
+
+
+func setup(info: MapInfo, _v: Vector2i) -> void:
+	map_info = info
+
+
+func used() -> bool:
+	return map_info == null or bool(map_info.record().get("mapped", false))
+
+
+func price() -> int:
+	return MapInfo.map_price(map_info.coord.y) if map_info != null else 0
+
+
+func buy() -> void:
+	if used() or player.coins.coins < price():
+		return
+	player.collect(-price())
+	map_info.ink_whole_map()
+	RisoFx.burst(&"gain", global_position + Vector2(0, -30), Vector2.ZERO, [RisoPrint.BLUE, RisoPrint.NIGHT])
+
+
+func _ready() -> void:
+	$Interactable.interacted.connect(buy)
