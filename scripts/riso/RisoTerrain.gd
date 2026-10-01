@@ -39,6 +39,9 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 		ledges[tile_map.local_to_map(tile_map.to_local(p))] = true
 	var half: float = float(tile_map.tile_set.tile_size.x) * tile_map.global_scale.x * 0.5
 	var radius: float = half * 0.32
+	# Top corners stay nearly square: the floor's collision runs right to the cell edge, and a
+	# rounded top made the wizard look like they stood on nothing at a ledge's end.
+	var top_radius: float = 5.0
 	var body: Array[PackedVector2Array] = []
 	var near: Array[PackedVector2Array] = []
 	var far: Array[PackedVector2Array] = []
@@ -54,7 +57,7 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 		var right: bool = solid.has(v + Vector2i.RIGHT)
 		var ledge_l: bool = ledges.has(v + Vector2i.LEFT)
 		var ledge_r: bool = ledges.has(v + Vector2i.RIGHT)
-		body.append(_cell(c, half, radius, not up and not left and not ledge_l, not up and not right and not ledge_r, not down and not right, not down and not left))
+		body.append(_cell(c, half, radius, not up and not left and not ledge_l, not up and not right and not ledge_r, not down and not right, not down and not left, top_radius))
 		for pair: Array in [[near, SHADE_NEAR], [far, SHADE_FAR]]:
 			var d: float = float(pair[1])
 			var inset: PackedVector2Array = _inset(c, half, d, radius, up, down, left, right)
@@ -78,7 +81,8 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 		var c: Vector2 = tile_map.to_global(tile_map.map_to_local(v))
 		var joins_l: bool = solid.has(v + Vector2i.LEFT) or ledges.has(v + Vector2i.LEFT)
 		var joins_r: bool = solid.has(v + Vector2i.RIGHT) or ledges.has(v + Vector2i.RIGHT)
-		body.append(_box(Vector2(c.x, c.y - half + 17.0), half, 17.0, 12.0, not joins_l, not joins_r, not joins_r, not joins_l))
+		body.append(_box(Vector2(c.x, c.y - half + 17.0), half, 17.0, 12.0, false, false, not joins_r, not joins_l))
+		# Square on top (it is walkable to its very end), rounded underneath at free ends.
 	var caps: Array[PackedVector2Array] = []
 	var tops: Array[Vector2i] = []
 	for v: Vector2i in solid:
@@ -106,9 +110,9 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 		var x1: float = b.x + half - (radius if stop_r else 0.0)
 		var cap: PackedVector2Array = _box(Vector2((x0 + x1) * 0.5, y0 + 8.5), (x1 - x0) * 0.5, 8.5, 8.0, stop_l, stop_r, stop_r, stop_l)
 		if not wall_l:
-			cap = _trim(cap, _fillet(Vector2(x0, y0), Vector2(1, 1), radius if solid.has(tops[i]) else 12.0))
+			cap = _trim(cap, _fillet(Vector2(x0, y0), Vector2(1, 1), top_radius))
 		if not wall_r:
-			cap = _trim(cap, _fillet(Vector2(x1, y0), Vector2(-1, 1), radius if solid.has(tops[j]) else 12.0))
+			cap = _trim(cap, _fillet(Vector2(x1, y0), Vector2(-1, 1), top_radius))
 		if cap.size() > 2:
 			caps.append(cap)
 		i = j + 1
@@ -189,18 +193,19 @@ func _box(c: Vector2, hw: float, hh: float, r: float, tl: bool, tr: bool, br: bo
 
 
 ## A cell square whose flagged corners (TL, TR, BR, BL) are rounded.
-func _cell(c: Vector2, h: float, r: float, tl: bool, tr: bool, br: bool, bl: bool) -> PackedVector2Array:
+func _cell(c: Vector2, h: float, r: float, tl: bool, tr: bool, br: bool, bl: bool, r_top: float = -1.0) -> PackedVector2Array:
 	var out: PackedVector2Array = PackedVector2Array()
 	var corners: Array[Vector2] = [c + Vector2(-h, -h), c + Vector2(h, -h), c + Vector2(h, h), c + Vector2(-h, h)]
 	var rounded: Array[bool] = [tl, tr, br, bl]
 	var inward: Array[Vector2] = [Vector2(1, 1), Vector2(-1, 1), Vector2(-1, -1), Vector2(1, -1)]
 	var start: Array[float] = [PI, -PI * 0.5, 0.0, PI * 0.5]
 	for k: int in range(4):
-		if rounded[k]:
-			var q: Vector2 = corners[k] + inward[k] * r
+		var rk: float = r_top if (k < 2 and r_top >= 0.0) else r
+		if rounded[k] and rk > 0.5:
+			var q: Vector2 = corners[k] + inward[k] * rk
 			for s: int in range(5):
 				var t: float = start[k] + (PI * 0.5) * float(s) / 4.0
-				out.append(q + Vector2(cos(t), sin(t)) * r)
+				out.append(q + Vector2(cos(t), sin(t)) * rk)
 		else:
 			out.append(corners[k])
 	return out

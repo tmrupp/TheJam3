@@ -48,7 +48,7 @@ var _solid: Dictionary = {}
 var canvases: Array[InkCanvas] = []
 ## Plants that sway: indexes into `items`, each item holding its polygons ("parts"), the point it
 ## grows from ("anchor"), whether it hangs ("hang") and its spring ("a", "v").
-const SWAY_KINDS: Array[StringName] = [&"tuft", &"flower", &"roots", &"vine"]
+const SWAY_KINDS: Array[StringName] = [&"tuft", &"roots", &"vine"]
 var swaying: Array[int] = []
 var live: InkCanvas
 var t: float = 0.0
@@ -83,13 +83,11 @@ static func plan(solid: Dictionary, occupied: Dictionary, level_seed: int, bound
 		if not solid.has(above) and not occupied.has(above):
 			var r: float = h(level_seed, v, 1)
 			var kind: StringName = &""
-			if r < 0.3:
+			if r < 0.42:
 				kind = &"tuft"
-			elif r < 0.42:
-				kind = &"flower"
-			elif r < 0.49:
+			elif r < 0.58:
 				kind = &"mushroom"
-			elif r < 0.54:
+			elif r < 0.63:
 				kind = &"stones"
 			if kind != &"":
 				out.append({"kind": kind, "cell": above, "base": v})
@@ -296,7 +294,7 @@ func _draw_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 	_sketch_item(item, c, slots, s)
 	var anchor: Variant = null
 	match item["kind"]:
-		&"tuft", &"flower", &"mushroom", &"stones":
+		&"tuft", &"mushroom", &"stones":
 			anchor = Vector2(c.x, c.y + half)
 		&"roots", &"stalactite", &"drip":
 			anchor = Vector2(c.x, c.y - half)
@@ -312,7 +310,7 @@ func _draw_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 	# Spots for ambient life move with their props.
 	if item["kind"] == &"drip" and not drip_spots.is_empty():
 		drip_spots[drip_spots.size() - 1] = grow * drip_spots[drip_spots.size() - 1]
-	if item["kind"] in [&"tuft", &"flower"] and not firefly_spots.is_empty():
+	if item["kind"] == &"tuft" and not firefly_spots.is_empty():
 		firefly_spots[firefly_spots.size() - 1] = grow * firefly_spots[firefly_spots.size() - 1]
 
 
@@ -322,49 +320,52 @@ func _sketch_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 	var ceil_y: float = c.y - half
 	match item["kind"]:
 		&"tuft":
+			# Three kinds of grass, picked per cell: a clump, tall reeds with seed heads, or a low
+			# fuzz of many short blades.
 			var x0: float = c.x + (_r(s, v, 10) - 0.5) * half * 0.6
-			var blades: int = 3 + int(_r(s, v, 11) * 4.0)
+			var style: int = int(_r(s, v, 12) * 3.0)
+			var blades: int = [3 + int(_r(s, v, 11) * 4.0), 2 + int(_r(s, v, 11) * 3.0), 6 + int(_r(s, v, 11) * 4.0)][style]
+			var spread: float = [5.0, 6.5, 3.2][style]
 			for i: int in range(blades):
-				var x: float = x0 + (float(i) - float(blades) * 0.5) * 5.0
-				var tall: float = 12.0 + _r(s, v, 20 + i) * 16.0
-				var lean: float = (_r(s, v, 30 + i) - 0.5) * 12.0
-				var blade: PackedVector2Array = PackedVector2Array([Vector2(x - 2.4, floor_y + 2), Vector2(x + 2.4, floor_y + 2), Vector2(x + lean, floor_y - tall)])
+				var x: float = x0 + (float(i) - float(blades) * 0.5) * spread
+				var tall: float = [12.0 + _r(s, v, 20 + i) * 16.0, 26.0 + _r(s, v, 20 + i) * 18.0, 5.0 + _r(s, v, 20 + i) * 6.0][style]
+				var lean: float = (_r(s, v, 30 + i) - 0.5) * [12.0, 8.0, 7.0][style]
+				var base: float = [2.4, 1.5, 1.8][style]
+				var blade: PackedVector2Array = PackedVector2Array([Vector2(x - base, floor_y + 2), Vector2(x + base, floor_y + 2), Vector2(x + lean, floor_y - tall)])
 				slots[7].append(blade)
 				slots[6].append(blade)
+				if style == 1 and _r(s, v, 40 + i) < 0.6:
+					var head: PackedVector2Array = RisoShapes.almond(Vector2(x + lean, floor_y - tall - 3.0), 1.8, 4.0, 8)
+					slots[4].append(head)
 			firefly_spots.append(Vector2(x0, floor_y - 30.0))
-		&"flower":
-			var x: float = c.x + (_r(s, v, 10) - 0.5) * half * 0.5
-			var tall: float = 34.0 + _r(s, v, 11) * 26.0
-			var sway: float = (_r(s, v, 12) - 0.5) * 16.0
-			var top: Vector2 = Vector2(x + sway, floor_y - tall)
-			var stem: PackedVector2Array = PackedVector2Array([Vector2(x, floor_y + 2), Vector2(x + sway * 0.2, floor_y - tall * 0.4), Vector2(x + sway * 0.7, floor_y - tall * 0.8), top])
-			slots[4].append_array(RisoDecor.strip(stem, 3.2, 2.0))
-			var leaf_at: Vector2 = Vector2(x + sway * 0.2, floor_y - tall * 0.35)
-			var leaf: PackedVector2Array = Transform2D(-0.6, leaf_at) * RisoShapes.almond(Vector2(7, 0), 8.0, 3.0, 8)
-			slots[7].append(leaf)
-			slots[6].append(leaf)
-			# A three-petal cup of bare paper, faintly blue, with a dark heart.
-			for k: int in range(3):
-				var petal: PackedVector2Array = Transform2D(-0.55 + 0.55 * float(k), top) * RisoShapes.almond(Vector2(0, -7), 4.0, 8.0, 10)
-				slots[8].append(petal)
-				slots[9].append(petal)
-			slots[10].append(RisoShapes.circle(top + Vector2(0, -2), 2.2, 8))
-			firefly_spots.append(top + Vector2(0, -20))
 		&"mushroom":
-			var n: int = 1 + int(_r(s, v, 10) * 3.0)
+			# Clusters of one to four, each a dome, a cone or a flat parasol, sized and tilted
+			# per mushroom; domes and parasols are spotted.
+			var n: int = 1 + int(_r(s, v, 10) * 4.0)
 			var x0: float = c.x + (_r(s, v, 11) - 0.5) * half * 0.5
 			for i: int in range(n):
-				var x: float = x0 + float(i) * 16.0 - float(n - 1) * 8.0
-				var tall: float = 5.0 + _r(s, v, 20 + i) * 7.0
-				var w: float = 16.0 + _r(s, v, 30 + i) * 10.0
-				slots[8].append(RisoShapes.rrect(x - 2.8, floor_y - tall, 5.6, tall + 2.0, 2.4))
+				var x: float = x0 + float(i) * 14.0 - float(n - 1) * 7.0
+				var style: int = int(_r(s, v, 50 + i) * 3.0)
+				var tall: float = [5.0 + _r(s, v, 20 + i) * 7.0, 6.0 + _r(s, v, 20 + i) * 8.0, 11.0 + _r(s, v, 20 + i) * 9.0][style]
+				var w: float = [16.0 + _r(s, v, 30 + i) * 10.0, 11.0 + _r(s, v, 30 + i) * 6.0, 20.0 + _r(s, v, 30 + i) * 10.0][style]
+				var tilt: Transform2D = Transform2D((_r(s, v, 60 + i) - 0.5) * 0.4, Vector2(x, floor_y)) * Transform2D(0.0, Vector2(-x, -floor_y))
+				slots[8].append(tilt * RisoShapes.rrect(x - 2.6, floor_y - tall, 5.2, tall + 2.0, 2.2))
+				var top: Vector2 = Vector2(x, floor_y - tall)
 				var cap: PackedVector2Array = PackedVector2Array()
-				for k: int in range(9):
-					var a: float = PI + PI * float(k) / 8.0
-					cap.append(Vector2(x, floor_y - tall) + Vector2(cos(a) * w * 0.5, sin(a) * w * 0.42))
-				slots[11].append(cap)
-				for k: int in range(2):
-					slots[14].append(RisoShapes.circle(Vector2(x + (float(k) - 0.6) * w * 0.3, floor_y - tall - w * (0.16 + 0.06 * float(k))), 1.6, 6))
+				match style:
+					0:
+						for k: int in range(9):
+							var a: float = PI + PI * float(k) / 8.0
+							cap.append(top + Vector2(cos(a) * w * 0.5, sin(a) * w * 0.42))
+					1:
+						cap = RisoShapes.smooth(PackedVector2Array([top + Vector2(-w * 0.5, 1), top + Vector2(-w * 0.18, -w * 0.45), top + Vector2(0, -w * 0.85), top + Vector2(w * 0.18, -w * 0.45), top + Vector2(w * 0.5, 1)]))
+					2:
+						cap = RisoShapes.smooth(PackedVector2Array([top + Vector2(-w * 0.5, 1.5), top + Vector2(-w * 0.32, -w * 0.16), top + Vector2(w * 0.32, -w * 0.16), top + Vector2(w * 0.5, 1.5)]))
+				slots[11].append(tilt * cap)
+				if style != 1:
+					var high: float = 0.16 if style == 0 else 0.07
+					for k: int in range(2 + (1 if style == 2 else 0)):
+						slots[14].append(tilt * RisoShapes.circle(top + Vector2((float(k) - 0.6) * w * 0.28, -w * (high + 0.05 * float(k % 2))), 1.6, 6))
 		&"stones":
 			var x0: float = c.x + (_r(s, v, 10) - 0.5) * half * 0.5
 			for i: int in range(2 + int(_r(s, v, 11) * 2.0)):

@@ -59,7 +59,7 @@ func run() -> void:
 			structures[node.get_meta(&"cell")] = true
 	var clear: bool = true
 	for it: Dictionary in first:
-		if it["kind"] in [&"tuft", &"flower", &"mushroom", &"stones", &"roots", &"stalactite", &"drip", &"vine"] and structures.has(it["cell"]):
+		if it["kind"] in [&"tuft", &"mushroom", &"stones", &"roots", &"stalactite", &"drip", &"vine"] and structures.has(it["cell"]):
 			clear = false
 	check(clear, "none in a cell holding an exit, shrine, door, lantern, thorns, portal or orb")
 	info.travel(MapInfo.Exit.RIGHT)

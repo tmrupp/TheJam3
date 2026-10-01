@@ -781,6 +781,8 @@ func _wisp_place(poly: PackedVector2Array, curl: bool) -> PackedVector2Array:
 
 
 var _last_shot: float = -10.0
+## The watcher's lid: eased toward its shooter's charge, so it opens slowly and closes gently.
+var watch_open: float = 0.1
 var _was_firing: bool = false
 
 
@@ -801,15 +803,16 @@ func _watcher() -> void:
 		if fired:
 			_last_shot = t
 		_was_firing = firing
-		# As in the prototype: while the player is in range the eye charges toward its next shot,
-		# widening and growing a ball of ink at the muzzle, then squints on the recoil.
-		var cooldown: float = maxf(0.1, float(shooter.get("cooldown")))
+		# The eye opens as it charges, which happens only while it can see the wizard; losing
+		# sight resets the charge and the lid drifts shut. A ball of ink swells at the muzzle near
+		# the end, and it squints on the recoil.
+		charge = clampf(float(shooter.get("charge")), 0.0, 1.0)
 		var since: float = t - _last_shot
-		if bool(shooter.get("player_in_range")):
-			charge = clampf(since / cooldown, 0.0, 1.0)
 		recoil = clampf(1.0 - since * 5.0, 0.0, 1.0)
 		stunned = bool(shooter.get("stunned"))
-	var open: float = clampf(0.5 + 0.5 * charge - recoil * 0.6, 0.08, 1.0)
+	var target: float = 0.1 + 0.9 * charge
+	watch_open = move_toward(watch_open, target, _dt * (0.9 if target > watch_open else 1.6))
+	var open: float = clampf(watch_open - recoil * 0.6, 0.06, 1.0)
 	if stunned:
 		open = 0.08
 		charge = 0.0
