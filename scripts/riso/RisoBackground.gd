@@ -36,11 +36,6 @@ func _process(_delta: float) -> void:
 	ink.ink(RisoPrint.NIGHT, 0.94, [PackedVector2Array([-half, Vector2(half.x, -half.y), half, Vector2(-half.x, half.y)])], false)
 	if realm == &"twilight":
 		var sun: Vector2 = at.call(330.0, 118.0)
-		# The sky thins around the sun (paper glows through the night) under a soft yellow halo.
-		for ring: Array in [[80.0, 0.06], [55.0, 0.07], [32.0, 0.08]]:
-			ink.lift_ink([RisoPrint.NIGHT], float(ring[1]), [RisoShapes.circle(sun, float(ring[0]) * 2.0 * k, 48)])
-		for ring: Array in [[56.0, 0.06], [36.0, 0.07]]:
-			ink.ink(RisoPrint.ACCENT, float(ring[1]), [RisoShapes.circle(sun, float(ring[0]) * 2.0 * k, 48)])
 		var rays: Array[PackedVector2Array] = []
 		for i: int in range(0, 16, 2):
 			var a0: float = t * 0.02 + float(i) * TAU / 16.0

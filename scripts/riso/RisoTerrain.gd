@@ -4,12 +4,9 @@ extends Node2D
 ## and two screened bands of night ink inset from every exposed edge, so the shading follows
 ## the rock's outline instead of stepping cell by cell.
 
-## Tone steps, as in the prototype: a lit rim along every exposed edge, then a 22% night band,
-## then a deeper band, so deep rock reads dark (but still blue, never sky) and the rim reads lit.
-const SHADE_NEAR: float = 56.0
-const SHADE_FAR: float = 150.0
-const SHADE_COVER_NEAR: float = 0.22
-const SHADE_COVER_FAR: float = 0.34
+const SHADE_NEAR: float = 22.0
+const SHADE_FAR: float = 58.0
+const SHADE_COVER: float = 0.16
 
 var ink: InkCanvas
 
@@ -73,10 +70,8 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 				if solid.has(e + Vector2i(sx, 0)) and solid.has(e + Vector2i(0, sy)) and solid.has(e + Vector2i(sx, sy)):
 					var corner: Vector2 = c + Vector2(sx, sy) * half
 					fillets.append(_fillet(corner, Vector2(-sx, -sy), radius))
-					# Clipped to rock: on thin walls a wide pie would reach the open air beyond and
-					# clear the sky there.
-					near_pies.append_array(_clip_to_rock(_pie(corner, Vector2(-sx, -sy), SHADE_NEAR + radius * 0.5), solid, tile_map, half))
-					far_pies.append_array(_clip_to_rock(_pie(corner, Vector2(-sx, -sy), SHADE_FAR), solid, tile_map, half))
+					near_pies.append(_pie(corner, Vector2(-sx, -sy), SHADE_NEAR + radius * 0.5))
+					far_pies.append(_pie(corner, Vector2(-sx, -sy), SHADE_FAR))
 	for v: Vector2i in ledges:
 		if solid.has(v):
 			continue
@@ -123,9 +118,9 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 	ink.knock([RisoPrint.PINK, RisoPrint.ACCENT], body)
 	ink.ink(RisoPrint.BLUE, 1.0, body)
 	# Deep band first, cleared around inside corners; then the near band, cleared tighter.
-	ink.ink(RisoPrint.NIGHT, SHADE_COVER_FAR, far, false)
+	ink.ink(RisoPrint.NIGHT, SHADE_COVER, far, false)
 	ink.knock([RisoPrint.NIGHT], far_pies)
-	ink.ink(RisoPrint.NIGHT, SHADE_COVER_NEAR, near, false)
+	ink.ink(RisoPrint.NIGHT, SHADE_COVER, near, false)
 	ink.knock([RisoPrint.NIGHT], near_pies)
 	ink.ink(RisoPrint.ACCENT, 1.0, caps)
 	ink.finish()
@@ -164,25 +159,6 @@ func _inset(c: Vector2, h: float, d: float, r: float, up: bool, down: bool, left
 	var hh: float = (y1 - y0) * 0.5
 	var rr: float = minf(r + d * 0.5, minf(hw, hh))
 	return _box(Vector2((x0 + x1) * 0.5, (y0 + y1) * 0.5), hw, hh, rr, not up and not left, not up and not right, not down and not right, not down and not left)
-
-
-## The parts of `poly` that lie over solid cells.
-func _clip_to_rock(poly: PackedVector2Array, solid: Dictionary, tile_map: TileMap, h: float) -> Array[PackedVector2Array]:
-	var out: Array[PackedVector2Array] = []
-	var box: Rect2 = Rect2(poly[0], Vector2.ZERO)
-	for q: Vector2 in poly:
-		box = box.expand(q)
-	var a: Vector2i = tile_map.local_to_map(tile_map.to_local(box.position))
-	var b: Vector2i = tile_map.local_to_map(tile_map.to_local(box.end))
-	for x: int in range(a.x, b.x + 1):
-		for y: int in range(a.y, b.y + 1):
-			if not solid.has(Vector2i(x, y)):
-				continue
-			var c: Vector2 = tile_map.to_global(tile_map.map_to_local(Vector2i(x, y)))
-			var square: PackedVector2Array = PackedVector2Array([c + Vector2(-h, -h), c + Vector2(h, -h), c + Vector2(h, h), c + Vector2(-h, h)])
-			for piece: PackedVector2Array in Geometry2D.intersect_polygons(poly, square):
-				out.append(piece)
-	return out
 
 
 ## Three-quarter disc at an inside corner, leaving out the quadrant that faces open air.

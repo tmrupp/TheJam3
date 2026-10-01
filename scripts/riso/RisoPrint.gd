@@ -77,11 +77,11 @@ var terrain: Node2D
 var hud: Node2D
 var map_view: Node2D
 ## Paper at edges: see InkCanvas.tint_punch and the shader's trap (pixels at 720p).
-var tint_punch: float = 0.8
+var tint_punch: float = 0.4
 var trap: float = 0.8
 ## Print texture: grain touch (stochastic share of the screen), mottle in solids, feed streaks
 ## and paper fibre. See shaders/riso_print.gdshader.
-var grain_touch: float = 0.15
+var grain_touch: float = 0.45
 var mottle: float = 0.3
 var streak: float = 0.06
 var fibre: float = 0.05

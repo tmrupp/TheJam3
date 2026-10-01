@@ -10,7 +10,7 @@ static var lift_material: CanvasItemMaterial
 ## How much night a screened tint (cover below 1) lifts, as a fraction of its cover. At 1 a
 ## tint lifts the night evenly and paper shows between its dots (pale, white-speckled rims and
 ## haloes); lower, the tint's dots overprint the dark instead. Solids always lift fully.
-static var tint_punch: float = 0.8
+static var tint_punch: float = 0.4
 
 var _ops: Array[Node2D] = []
 var _used: int = 0
