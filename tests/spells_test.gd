@@ -122,12 +122,17 @@ func run() -> void:
 	for i: int in range(30):
 		await process_frame
 		most = maxf(most, absf(decor.lean(plant)))
-	check(most > 0.1, "walking past bends a tuft (lean %.2f)" % most)
+	check(most > 0.3, "walking past bends a tuft well over (lean %.2f)" % most)
 	player.global_position = anchor + Vector2(-2000, -2000)
 	player.velocity = Vector2.ZERO
-	for i: int in range(120):
+	var low: float = 0.0
+	var high: float = 0.0
+	for i: int in range(300):
 		await process_frame
-	check(absf(decor.lean(plant)) < 0.05, "and it springs back")
+		low = minf(low, decor.lean(plant))
+		high = maxf(high, decor.lean(plant))
+	check(low < -0.05 and high > 0.05, "it whips back past upright (%.2f to %.2f)" % [low, high])
+	check(absf(decor.lean(plant)) < 0.05, "and settles")
 
 	if failed:
 		print("FAILED")

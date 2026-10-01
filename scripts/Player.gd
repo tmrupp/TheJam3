@@ -121,7 +121,7 @@ var hang: ActionTimer = ActionTimer.new(1000)
 # TODO: CLIMB_TIME: how long the player can hold onto a wall
 # climable: whether or not climbing is enabled
 const CLIMB_SPEED: float = 200.0
-const CLIMB_TIME: float = 3.0
+const CLIMB_TIME: float = 1.0
 var climable: bool = false
 var climb: ActionTimer = ActionTimer.new(CLIMB_TIME)
 

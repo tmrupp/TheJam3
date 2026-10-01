@@ -121,7 +121,7 @@ func run() -> void:
 	Abilities.grant(player, &"blink")
 	check(is_equal_approx(player.dash.MAX_TIME, 0.32), "dash II dashes longer")
 	check(player.MAX_JUMPS == 2, "double jump I")
-	check(player.climable and is_equal_approx(player.climb.MAX_TIME, 3.0), "wall climb I")
+	check(player.climable and is_equal_approx(player.climb.MAX_TIME, 1.0), "wall climb I holds for 1 s")
 	check(player.has_node("Blink") and int(player.get_node("Blink").get("distance")) == 400, "blink II reaches 400")
 	Abilities.grant(player, &"parry")
 	Abilities.grant(player, &"parry")

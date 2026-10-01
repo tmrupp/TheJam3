@@ -318,15 +318,15 @@ func _brush(at: Vector2, reach: float) -> float:
 		var d: Vector2 = to_global(at) - player.global_position
 		var close: float = clampf(1.0 - d.length() / reach, 0.0, 1.0)
 		if close > 0.0:
-			target = (signf(d.x) * 0.25 - clampf(player.velocity.x / 300.0, -1.0, 1.0) * 0.45) * close
-	brush_v += ((target - brush_a) * 40.0 - brush_v * 3.0) * _dt
+			target = (signf(d.x) * 0.35 - clampf(player.velocity.x / 300.0, -1.0, 1.0) * 0.7) * sqrt(close)
+	brush_v += ((target - brush_a) * 24.0 - brush_v * 1.6) * _dt
 	brush_a += brush_v * _dt
 	return brush_a
 
 
 func _lantern() -> void:
 	var lit: bool = MapInfo.instance != null and MapInfo.instance.is_respawn_lantern(host)
-	var sw: float = sin(t * 2.2 + phase) * 0.12 - _brush(Vector2(30, _ground() - 80.0), 130.0)
+	var sw: float = sin(t * 2.2 + phase) * 0.12 - _brush(Vector2(30, _ground() - 80.0), 190.0)
 	var g: float = _ground()
 	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-4, g - 110, 8, 110, 4), RisoShapes.rrect(-3, g - 111, 38, 6, 3)])
 	var hang: Transform2D = Transform2D(sw, Vector2(30, g - 106))

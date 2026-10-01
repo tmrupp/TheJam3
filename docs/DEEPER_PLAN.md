@@ -65,14 +65,14 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 - **Levitate:** press Spell in the air to stop falling and float. You drift slowly up and down with the stick and sideways at walking pace, until it runs out or you press Spell again. You get one float per landing, and a moon brings it back.
 - **Awareness:** press Spell to sense the level. While it lasts, pointers at the edge of the view show where things are, like the ghost's arrow. A short cooldown follows.
 - **Astral projection** uses the Spell button. Tap it to leave your body and go out as an untouchable projection. Tap again, or get hurt, to snap back to the body. Let it run out and you stay where the projection is. There are no astral orbs any more.
-- **Moons** are dash resets, about 24 per level, hanging in the air. Touching one gives your dash back if you have used it. It then wanes for 2.5 s and returns. Moons are never used up.
+- **Moons** are dash resets, about 12 per level, placed only in open air: clear on every side and below, and at least 6 cells apart. Touching one gives your dash back if you have used it. It then wanes for 2.5 s and returns. Moons are never used up.
 - Tiers live on the player (`Abilities.gd`) and reset when a run ends. The upgrade menu and the old `Upgrade`, `UpgradeManager`, double-jump and wall-climb nodes are gone.
 
 | Ability | Start | Max | Each tier |
 | --- | --- | --- | --- |
 | Dash | I | IV | dashes 0.07 s longer |
 | Double jump | – | III | one more air jump |
-| Wall climb | – | III | I lets you climb (3 s); each further tier adds 1.5 s |
+| Wall climb | – | III | I lets you climb (1 s); each further tier adds 0.5 s |
 | Blink | – | III | replaces the dash; reach 300 px, +100 per tier |
 | Parry | – | IV | window +0.1 s, cooldown −0.4 s |
 | Astral projection | – | IV | lasts 2 s longer |

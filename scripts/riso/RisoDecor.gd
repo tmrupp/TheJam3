@@ -5,7 +5,6 @@ class_name RisoDecor
 ## - Floors: grass tufts, moon-flowers, mushrooms, stones.
 ## - Ceilings: hanging roots, stalactites, ink drips (RisoAmbient drops ink from them).
 ## - Walls: vines down the rock face.
-## - Deep rock: faint strata, fossils, pale veins and geodes.
 ## Plants (tufts, flowers, roots, vines) are drawn live, only on screen, so they can sway: a slow
 ## idle breeze, and a springy push away from the wizard as they pass.
 ## Every choice is a hash of the level seed and the cell, so a level always wears the same
@@ -17,10 +16,10 @@ const CHUNK: int = 16
 
 ## Draw order and ink for each kind of mark. [plate, cover, knock, punch]
 const SLOTS: Array[Array] = [
-	[RisoPrint.NIGHT, 0.13, false, false],  # 0 strata: broad soft bands
-	[RisoPrint.NIGHT, 0.5, false, false],   # 1 fossils
-	[RisoPrint.BLUE, 1.0, true, false],     # 2 vein and geode openings (knocked to paper)
-	[RisoPrint.BLUE, 0.45, false, false],   # 3 vein and geode fill: a pale screened blue
+	[RisoPrint.NIGHT, 0.0, false, false],   # 0-3 unused (the rock stays plain)
+	[RisoPrint.NIGHT, 0.0, false, false],
+	[RisoPrint.BLUE, 0.0, false, false],
+	[RisoPrint.BLUE, 0.0, false, false],
 	[RisoPrint.BLUE, 1.0, false, true],     # 4 roots, stalactites, drips, vines, stems
 	[RisoPrint.NIGHT, 0.3, false, false],   # 5 their shade
 	[RisoPrint.ACCENT, 0.85, false, false], # 6 moss over blue: tufts, leaves, vine leaves
@@ -111,21 +110,6 @@ static func plan(solid: Dictionary, occupied: Dictionary, level_seed: int, bound
 				continue
 			if h(level_seed, v, 3 + side.x) < 0.12:
 				out.append({"kind": &"vine", "cell": open, "base": v, "side": side.x})
-		var deep: bool = true
-		for dx: int in range(-1, 2):
-			for dy: int in range(-1, 2):
-				if not solid.has(v + Vector2i(dx, dy)):
-					deep = false
-		if deep:
-			if h(level_seed, Vector2i(0, v.y), 5) < 0.3:
-				out.append({"kind": &"strata", "cell": v, "base": v})
-			var r: float = h(level_seed, v, 6)
-			if r < 0.02:
-				out.append({"kind": &"fossil", "cell": v, "base": v})
-			elif r < 0.035:
-				out.append({"kind": &"geode", "cell": v, "base": v})
-			elif r < 0.055:
-				out.append({"kind": &"vein", "cell": v, "base": v})
 	return out
 
 
@@ -243,17 +227,20 @@ func _process(delta: float) -> void:
 		if player != null:
 			var reach_y: float = anchor.y + (90.0 if hang else -70.0)
 			var dx: float = anchor.x - player.global_position.x
-			var close: float = clampf(1.0 - absf(dx) / 110.0, 0.0, 1.0) * clampf(1.0 - absf(player.global_position.y - reach_y) / 120.0, 0.0, 1.0)
+			var close: float = clampf(1.0 - absf(dx) / 170.0, 0.0, 1.0) * clampf(1.0 - absf(player.global_position.y - reach_y) / 150.0, 0.0, 1.0)
 			if close > 0.0:
+				# Leans away from the wizard, and is swept along the way they are going.
 				var away: float = signf(dx) * (1.0 if not hang else -1.0)
-				target = (away * 0.45 + clampf(player.velocity.x / 300.0, -1.0, 1.0) * (0.35 if not hang else -0.35)) * close
+				var sweep: float = clampf(player.velocity.x / 300.0, -1.0, 1.0) * (1.0 if not hang else -1.0)
+				target = clampf(away * 0.55 + sweep * 0.6, -0.9, 0.9) * sqrt(close)
 		var a: float = item["a"]
 		var v: float = item["v"]
-		v += ((target - a) * 70.0 - v * 6.0) * dt
+		# A soft spring with little damping: pushed over, it whips back and wobbles to rest.
+		v += ((target - a) * 38.0 - v * 3.5) * dt
 		a += v * dt
 		item["a"] = a
 		item["v"] = v
-		var bend: float = a + sin(t * 1.3 + anchor.x * 0.013) * 0.035
+		var bend: float = a + sin(t * 1.3 + anchor.x * 0.013) * 0.07
 		for part: Array in item["parts"]:
 			var poly: PackedVector2Array = part[1]
 			var bent: PackedVector2Array = PackedVector2Array()
@@ -417,42 +404,3 @@ func _sketch_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 				var leaf: PackedVector2Array = Transform2D(flip * 0.9, pts[k]) * RisoShapes.almond(Vector2(flip * 5.0, 0), 5.5, 2.4, 8)
 				slots[7].append(leaf)
 				slots[6].append(leaf)
-		&"strata":
-			# A layer through the rock: a wide band with wavy edges, shared by the whole row so
-			# neighbouring cells join into one stratum.
-			var y: float = c.y - half * 0.4 + _r(s, Vector2i(0, v.y), 11) * half * 0.8
-			var thick: float = 18.0 + _r(s, Vector2i(0, v.y), 12) * 16.0
-			var top: PackedVector2Array = PackedVector2Array()
-			var bottom: PackedVector2Array = PackedVector2Array()
-			for k: int in range(9):
-				var x: float = c.x - half + half * 2.0 * float(k) / 8.0
-				top.append(Vector2(x, y + sin(x * 0.013 + float(v.y)) * 7.0))
-				bottom.append(Vector2(x, y + thick + sin(x * 0.017 + float(v.y) * 1.7) * 5.0))
-			bottom.reverse()
-			slots[0].append(top + bottom)
-		&"fossil":
-			var pts: PackedVector2Array = PackedVector2Array()
-			var spin: float = _r(s, v, 10) * TAU
-			for k: int in range(28):
-				var f: float = float(k) / 27.0
-				var a: float = spin + f * TAU * 2.2
-				pts.append(c + Vector2(cos(a), sin(a)) * (3.0 + f * 24.0))
-			slots[1].append_array(RisoDecor.strip(pts, 2.4, 5.0))
-		&"geode":
-			var shards: Array[PackedVector2Array] = []
-			for k: int in range(5):
-				var a: float = TAU * float(k) / 5.0 + _r(s, v, 10)
-				var tip: Vector2 = c + Vector2(cos(a), sin(a)) * (16.0 + _r(s, v, 20 + k) * 12.0)
-				shards.append(PackedVector2Array([c + Vector2(cos(a + 0.45), sin(a + 0.45)) * 5.0, tip, c + Vector2(cos(a - 0.45), sin(a - 0.45)) * 5.0]))
-			slots[2].append_array(shards)
-			slots[3].append_array(shards)
-		&"vein":
-			var a: float = (_r(s, v, 10) - 0.5) * 1.2
-			var d: Vector2 = Vector2(cos(a), sin(a))
-			var pts: PackedVector2Array = PackedVector2Array()
-			for k: int in range(7):
-				var f: float = float(k) / 6.0 - 0.5
-				pts.append(c + d * f * half * 1.6 + d.orthogonal() * (_r(s, v, 20 + k) - 0.5) * 10.0)
-			var vein: Array[PackedVector2Array] = RisoDecor.strip(pts, 2.2, 4.0)
-			slots[2].append_array(vein)
-			slots[3].append_array(vein)

@@ -261,11 +261,14 @@ func _build_textures(info: MapInfo) -> void:
 	var rock_img: Image = Image.create(w.size.x, w.size.y, false, Image.FORMAT_LA8)
 	var open_img: Image = Image.create(w.size.x, w.size.y, false, Image.FORMAT_LA8)
 	var bytes: PackedByteArray = info.seen()
+	var broken: Dictionary = info.record().get("broken", {})
 	for x: int in range(w.size.x):
 		for y: int in range(w.size.y):
 			if bytes[x * w.size.y + y] == 0:
 				continue
-			if w.get_cell(Vector2i(x, y)).type == MapInfo.Type.GROUND:
+			var kind: int = w.get_cell(Vector2i(x, y)).type
+			# Cracked walls look like rock on the map until they are broken.
+			if kind == MapInfo.Type.GROUND or (kind == MapInfo.Type.CRACKED and not broken.has(Vector2i(x, y))):
 				rock_img.set_pixel(x, y, Color(1, 1, 1, 1))
 			else:
 				open_img.set_pixel(x, y, Color(1, 1, 1, 1))

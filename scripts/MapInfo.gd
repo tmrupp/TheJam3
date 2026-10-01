@@ -7,6 +7,12 @@ const CODE_LENGTH: int = 4 # 8 is more reasonable
 ## Keys and doors are dealt these colours in turn; a key opens doors of its own colour.
 const KEY_COLOR_COUNT: int = 4
 const CRACK_COUNT: int = 10
+const KEY_COUNT: int = 6
+## Lanterns beyond the ones beside each exit.
+const LANTERN_COUNT: int = 4
+const MOON_COUNT: int = 12
+const MOON_CLEARANCE: int = 1
+const MOON_SPACING: int = 6
 ## Share of platform runs (up to 3 cells long) that glide along a track instead of staying put.
 const MOVING_PLATFORM_CHANCE: float = 0.35
 
@@ -332,9 +338,8 @@ class World:
 
 		@warning_ignore("integer_division")
 		var chunks: int = (size.x*size.y)/(CHUNK_SIZE*CHUNK_SIZE)
-		# Moons (dash resets) hang in the air; one ink well per level stands on a floor.
-		for i: int in range(chunks * 3 / 2):
-			set_cell(pop_if_random_empty(), Cell.new(Type.MOON))
+		# Moons (dash resets) hang in wide open air; one ink well per level stands on a floor.
+		place_moons(MOON_COUNT)
 		set_cell(pop_if_random_empty(ground_below, true), Cell.new(Type.INKWELL))
 
 		if CLOSE_ONE_KEY:
@@ -342,7 +347,8 @@ class World:
 			set_cell(v, Cell.new(Type.KEY))
 			add_object_at(v)
 		else:
-			for i: int in range(len(empties)*0.05):
+			# A few keys: every colour at least once (keys are dealt colours in turn).
+			for i: int in range(KEY_COUNT):
 				set_cell(pop_if_random_empty(), Cell.new(Type.KEY))
 
 		for i: int in range(len(empties)*0.1):
@@ -380,8 +386,8 @@ class World:
 		for i: int in range(len(empties)*0.1):
 			set_cell(pop_if_random_empty(ground_below), Cell.new(Type.SHOOTER))
 
-		for i: int in range(len(empties)*0.25):
-			set_cell(pop_if_random_empty(ground_below), Cell.new(Type.CHECKPOINT))
+		for i: int in range(LANTERN_COUNT):
+			set_cell(pop_if_random_empty(ground_below, true), Cell.new(Type.CHECKPOINT))
 
 		#place pairs of portals in the stage and connect them to each other
 		#by telling each portal the coords of its partner in the extra_info
@@ -439,6 +445,36 @@ class World:
 				cells[c.x][c.y] = Cell.new(Type.CRACKED)
 				objects.append(c)
 			placed += 1
+
+	## Moons only where the air is open: every cell within MOON_CLEARANCE is open, and the cell
+	## below that too (no floor just beneath), with moons spread at least MOON_SPACING apart.
+	func place_moons (count: int) -> void:
+		var spots: Array[Vector2i] = []
+		for v: Vector2i in empties:
+			if _wide_open(v):
+				spots.append(v)
+		spots.sort()
+		var placed: Array[Vector2i] = []
+		while placed.size() < count and not spots.is_empty():
+			var v: Vector2i = spots.pop_at(rng.randi_range(0, spots.size() - 1))
+			if placed.any(func(q: Vector2i) -> bool: return absi(q.x - v.x) + absi(q.y - v.y) < MOON_SPACING):
+				continue
+			placed.append(v)
+			add_object_at(v)
+			set_cell(v, Cell.new(Type.MOON))
+
+	func _wide_open (v: Vector2i) -> bool:
+		for dx: int in range(-MOON_CLEARANCE, MOON_CLEARANCE + 1):
+			for dy: int in range(-MOON_CLEARANCE, MOON_CLEARANCE + 1):
+				var n: Vector2i = v + Vector2i(dx, dy)
+				if not is_valid(n) or get_cell(n).type == Type.GROUND:
+					return false
+		# Hanging in the air, not sitting just above a floor.
+		for dy: int in range(MOON_CLEARANCE + 1, MOON_CLEARANCE + 2):
+			var below: Vector2i = v + Vector2i(0, dy)
+			if not is_valid(below) or get_cell(below).type == Type.GROUND:
+				return false
+		return true
 
 	func _open (v: Vector2i) -> bool:
 		return is_valid(v) and get_cell(v).type != Type.GROUND and get_cell(v).type != Type.CRACKED

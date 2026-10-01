@@ -76,6 +76,23 @@ func run() -> void:
 	check(info.seen_count() >= count, "a revisit keeps what was seen")
 	check(bool((info.map_elements.get_children().filter(func(n: Node) -> bool: return n.scene_file_path.get_file() == "inkwell.tscn")[0]).call("used")), "and the well stays dry")
 
+	print("cracked walls on the map")
+	var cracked: Vector2i = Vector2i(-1, -1)
+	for v: Vector2i in info.world.objects:
+		if info.world.get_cell(v).type == MapInfo.Type.CRACKED:
+			cracked = v
+			break
+	var mapv: Node = main.get_node("RisoMap")
+	info.ink_whole_map()
+	mapv.call("_build_textures", info)
+	var rock_img: Image = ((mapv.get("rock") as Sprite2D).texture as ImageTexture).get_image()
+	check(rock_img.get_pixelv(cracked).a > 0.5, "an unbroken cracked wall is drawn as rock, not passage")
+	info.record()["broken"][cracked] = true
+	mapv.call("_build_textures", info)
+	rock_img = ((mapv.get("rock") as Sprite2D).texture as ImageTexture).get_image()
+	check(rock_img.get_pixelv(cracked).a < 0.5, "once broken it shows as open")
+	(info.record()["broken"] as Dictionary).erase(cracked)
+
 	print("opening the map")
 	map.call("toggle")
 	await process_frame

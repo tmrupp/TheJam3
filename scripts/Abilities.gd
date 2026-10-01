@@ -157,7 +157,7 @@ static func apply(player: Player) -> void:
 	player.jumps = mini(player.jumps, player.MAX_JUMPS)
 	var climb: int = tier(player, &"wall_climb")
 	player.climable = climb > 0
-	player.climb.MAX_TIME = Player.CLIMB_TIME + 1.5 * float(maxi(climb, 1) - 1)
+	player.climb.MAX_TIME = Player.CLIMB_TIME + 0.5 * float(maxi(climb, 1) - 1)
 	var blink: int = tier(player, &"blink")
 	var blink_node: Node = player.get_node_or_null("Blink")
 	if blink > 0 and blink_node == null:

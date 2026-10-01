@@ -45,7 +45,6 @@ Defaults: twilight realm, fine detail, new sheet registration at 8 sheets/s, rep
   - **Floors:** grass tufts, moon-flowers, mushroom clusters, stones.
   - **Ceilings:** hanging roots, stalactites, ink drips.
   - **Walls:** leafy vines.
-  - **Deep rock:** soft wavy strata bands, fossils, pale veins and geodes.
   - **Placement:** every choice is a hash of the level seed and cell, so a level always wears the same decor. The world's RNG is untouched. Props stay inside the level and clear of structures (exits, shrine, doors, lanterns, thorns, portals, orbs, lifts).
   - **Drawing:** props are sketched and then grown ×2 from where they sprout. They are batched onto one ink canvas per 16×16 chunk and drawn once per level.
 - **Sway:** plants (tufts, moon-flowers, roots, vines) are drawn live on screen. They sway in a slow breeze and spring away from the wizard as they brush past, more so when moving fast. Lanterns rock on their hooks the same way. Static decor (stones, mushrooms, strata) stays batched.

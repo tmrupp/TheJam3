@@ -134,6 +134,23 @@ func run() -> void:
 	player.global_position = info.cell_position(info.world.exits[MapInfo.Exit.BACK])
 	await wait_level()
 
+	print("level contents")
+	var lanterns: int = placed("checkpoint.tscn").size()
+	var keys: int = placed("key.tscn").size()
+	check(keys == MapInfo.KEY_COUNT and lanterns <= 4 + MapInfo.LANTERN_COUNT, "%d keys and %d lanterns, not dozens" % [keys, lanterns])
+	var moons: Array[Node] = placed("moon.tscn")
+	check(moons.size() >= 6, "%d moons" % moons.size())
+	var open_air: bool = true
+	for m: Node in moons:
+		var c: Vector2i = m.get_meta(&"cell")
+		for dx: int in range(-1, 2):
+			for dy: int in range(-1, 2):
+				if info.world.is_ground(c + Vector2i(dx, dy)):
+					open_air = false
+		if info.world.is_ground(c + Vector2i(0, 2)):
+			open_air = false
+	check(open_air, "every moon hangs in open air, clear of rock around and below")
+
 	print("deeper exit price")
 	var exit_node: Node = placed("level_exit.tscn").filter(func(n: Node) -> bool: return int(n.get("exit")) == MapInfo.Exit.DEEPER)[0]
 	check(int(exit_node.call("price")) == MapInfo.deeper_price(0), "deeper costs %d at depth 0" % MapInfo.deeper_price(0))
