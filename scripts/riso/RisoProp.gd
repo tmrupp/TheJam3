@@ -623,13 +623,17 @@ func _wisp() -> void:
 	var g: float = _ground()
 	var lift: float = clampf(-loop_at.y / WISP_LOOP_H, 0.0, 1.0)
 	ink.ink(RisoPrint.NIGHT, 0.35 * (1.0 - lift * 0.6), [RisoShapes.ellipse(Vector2(loop_at.x, g - 3.0), (26.0 + bob * 1.2) * (1.0 - lift * 0.4), 5.0, 16)], false)
-	# Flattened to 60% height, centred where the taller wisp used to float.
-	var xf: Transform2D = Transform2D(0.0, Vector2(side * width * k * 1.1, k * 0.6), 0.0, Vector2(0, 14.0 - 3.3 * k + bob * k * 0.7) + loop_at)
+	# Flattened to 60% height, centred where the taller wisp used to float. The shape is scaled
+	# first and only then turned, rigidly, in screen space (no shear); see _wisp_place.
+	_wp_scale = Transform2D(0.0, Vector2(side * width * k * 1.1, k * 0.6), 0.0, Vector2.ZERO)
+	_wp_origin = Vector2(0, 14.0 - 3.3 * k + bob * k * 0.7) + loop_at
+	_wp_angle = -side * spin
+	_wp_curl = -side * turning * 0.45
 	var speed: float = 0.3 if stunned else 0.7
 	var flicker: float = 0.85 + 0.15 * sin(t * 5.3 + phase) * sin(t * 2.1 + phase * 1.7)
 	# The glow trails the wisp: strongest behind the head, thinning out past the tail.
-	ink.ink(RisoPrint.PINK, 0.06 * flicker, [xf * RisoShapes.ellipse(Vector2(-10.5, -8.4), 11.0, 7.5, 28)])
-	ink.ink(RisoPrint.PINK, 0.1 * flicker, [xf * RisoShapes.ellipse(Vector2(-6.0, -8.2), 9.5, 8.0, 28)])
+	ink.ink(RisoPrint.PINK, 0.06 * flicker, [_wisp_place(RisoShapes.ellipse(Vector2(-10.5, -8.4), 11.0, 7.5, 28), true)])
+	ink.ink(RisoPrint.PINK, 0.1 * flicker, [_wisp_place(RisoShapes.ellipse(Vector2(-6.0, -8.2), 9.5, 8.0, 28), true)])
 	# Two lagging after-veils behind the body, then the body. The body is solid ink with only its
 	# tail tip thinning; the veils stay faint.
 	for layer: int in [2, 1, 0]:
@@ -642,9 +646,6 @@ func _wisp() -> void:
 			Vector2(5.6, -9), Vector2(4.6, -4.6), Vector2(1.6, -3), Vector2(-2, -3.8 + w[1] * 0.3), Vector2(-5.6, -4.8 + w[1]),
 			Vector2(-9, -6.6 + w[2]), Vector2(-12.4, -8.6 + w[3]), Vector2(-8.8, -9.6 + w[2]), Vector2(-5.2, -11 + w[1] * 0.6),
 			Vector2(-1.4, -13.2), Vector2(2.6, -13.4)]))
-		# The spiral: everything turns about the head; the tail lags a little mid-turn, so it curls.
-		if spin > 0.0:
-			pts = _wisp_spin(pts, spin, turning)
 		var fade: PackedFloat32Array = PackedFloat32Array()
 		var top: float = (1.0 if layer == 0 else 0.3 / float(layer)) * (1.0 if layer == 0 else flicker)
 		for p: Vector2 in pts:
@@ -653,12 +654,12 @@ func _wisp() -> void:
 			var along: float = clampf((p.x + 12.4) / 18.0, 0.0, 1.0)
 			var solid: float = clampf(along / 0.45, 0.0, 1.0)
 			fade.append(top * (solid * solid * (3.0 - 2.0 * solid) if layer == 0 else lerpf(0.15, 1.0, along)))
-		var poly: PackedVector2Array = xf * (Transform2D(0.0, back) * pts)
+		var poly: PackedVector2Array = _wisp_place(Transform2D(0.0, back) * pts, true)
 		if layer == 0:
 			# Opaque: clear the inks of whatever is behind (grass, light, glow) under the body.
-			ink.knock([RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], [xf * _wisp_spin(RisoShapes.smooth(PackedVector2Array([
+			ink.knock([RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], [_wisp_place(RisoShapes.smooth(PackedVector2Array([
 				Vector2(5.6, -9), Vector2(4.6, -4.6), Vector2(1.6, -3), Vector2(-2, -3.8), Vector2(-4.5, -4.8), Vector2(-4.5, -11),
-				Vector2(-1.4, -13.2), Vector2(2.6, -13.4)])), spin, turning)])
+				Vector2(-1.4, -13.2), Vector2(2.6, -13.4)])), true)])
 		ink.ink_graded(RisoPrint.PINK, [poly], [fade])
 		if layer == 0:
 			var cool: PackedFloat32Array = PackedFloat32Array()
@@ -671,7 +672,7 @@ func _wisp() -> void:
 		# they sit exactly where the upright wisp's eyes do.
 		var ep: Vector2 = Vector2(eye.x, lerpf(eye.y, -16.4 - eye.y, e_eyes)) if spinning else eye
 		var shape: PackedVector2Array = RisoShapes.rrect(ep.x - 1.0, ep.y - 0.4, 2.0, 0.8, 0.4, 2) if stunned else RisoShapes.ellipse(ep, 0.9, 1.9, 14)
-		eyes.append(xf * _wisp_spin(shape, spin, 0.0))
+		eyes.append(_wisp_place(shape, false))
 	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], eyes)
 
 
@@ -757,17 +758,24 @@ static func wisp_loop(e: float) -> Array:
 	return [_loop[i0].lerp(_loop[i0 + 1], t0), lerpf(_loop_heading[i0], _loop_heading[i0 + 1], t0)]
 
 
-## Turn a wisp shape about its head (0, -8.2) by `spin`; points toward the tail lag by up to
-## `lag` x 0.6 rad, so mid-turn the tail curls behind.
-func _wisp_spin(poly: PackedVector2Array, spin: float, lag: float) -> PackedVector2Array:
-	if spin <= 0.0:
-		return poly
-	var pivot: Vector2 = Vector2(0.0, -8.2)
+## Place a wisp shape (local units, facing +x) on screen: scaled first, then turned rigidly about
+## the head by _wp_angle, then moved to _wp_origin. With `curl`, points toward the tail turn a
+## little less (up to _wp_curl at the tip), so mid-turn the tail curls round behind the head.
+var _wp_scale: Transform2D = Transform2D.IDENTITY
+var _wp_origin: Vector2 = Vector2.ZERO
+var _wp_angle: float = 0.0
+var _wp_curl: float = 0.0
+
+
+func _wisp_place(poly: PackedVector2Array, curl: bool) -> PackedVector2Array:
+	var pivot: Vector2 = _wp_scale * Vector2(0.0, -8.2)
 	var out: PackedVector2Array = PackedVector2Array()
 	out.resize(poly.size())
 	for n: int in range(poly.size()):
-		var behind: float = clampf(-poly[n].x / 12.4, 0.0, 1.0)
-		out[n] = pivot + (poly[n] - pivot).rotated(-(spin - lag * 0.6 * behind))
+		var a: float = _wp_angle
+		if curl:
+			a -= _wp_curl * clampf(-poly[n].x / 12.4, 0.0, 1.0)
+		out[n] = _wp_origin + pivot + (_wp_scale * poly[n] - pivot).rotated(a)
 	return out
 
 
