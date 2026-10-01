@@ -23,10 +23,14 @@ var phase: float = 0.0
 var half: float = 64.0
 ## Printed text (prices, names), reused frame to frame; see _text().
 var labels: Array[Label] = []
-## Wisp turning: the head flips at once, and the tail lags, sweeping up over the body and round
-## behind it (wisp_tail eases from the old facing to the new).
-var wisp_face: float = 0.0
-var wisp_tail: float = 0.0
+## Wisp turning, from `wisp_from` to `wisp_to` as `wisp_u` runs 0..1. For the first half it keeps
+## its old facing while its tail rises straight up over its head and its eyes slide to the middle;
+## at the midpoint (nearly symmetric) the facing changes; then the tail comes down behind on the
+## new side. It starts and ends exactly on the normal moving pose.
+const WISP_TURN_TIME: float = 0.75
+var wisp_from: float = 0.0
+var wisp_to: float = 0.0
+var wisp_u: float = 1.0
 ## A springy lean that the wizard sets going as they pass (lanterns).
 var brush_a: float = 0.0
 var brush_v: float = 0.0
@@ -587,22 +591,28 @@ func _wisp() -> void:
 		stunned = bool(mover.get("stunned"))
 	var k: float = 3.6
 	var bob: float = -3.0 - sin(t * 3.0 + phase) * 1.6
-	if wisp_face == 0.0:
-		wisp_face = dir
-		wisp_tail = dir
-	wisp_face = dir
-	wisp_tail = move_toward(wisp_tail, dir, _dt * 2.2)
-	var side: float = dir
-	# 0 when settled, 1 just after a flip: drives the tail sweep and a little squash.
-	var turning: float = absf(dir - wisp_tail) * 0.5
-	var width: float = 1.0 - 0.12 * sin(turning * PI)
+	if wisp_to == 0.0:
+		wisp_from = dir
+		wisp_to = dir
+	if dir != wisp_to:
+		# A new turn; mid-turn, reversing keeps the same pose (u -> 1 - u).
+		wisp_from = wisp_to
+		wisp_to = dir
+		wisp_u = 1.0 - wisp_u if wisp_u < 1.0 else 0.0
+	wisp_u = minf(1.0, wisp_u + _dt / WISP_TURN_TIME)
+	var e: float = wisp_u * wisp_u * (3.0 - 2.0 * wisp_u)
+	var side: float = wisp_from if e < 0.5 else wisp_to
+	# The tail's lift: 0 at rest, PI/2 (straight up) at the midpoint.
+	var swing: float = (e if e < 0.5 else 1.0 - e) * PI
+	# How far the eyes sit toward the head (1) or centred (0, mid-turn).
+	var eye_k: float = absf(1.0 - 2.0 * e)
+	var turning: float = 1.0 - eye_k
+	var width: float = 1.0 - 0.06 * turning
 	# Its shadow on the floor, shrinking as it bobs up: it belongs to the ground it haunts.
 	var g: float = _ground()
 	ink.ink(RisoPrint.NIGHT, 0.35, [RisoShapes.ellipse(Vector2(0, g - 3.0), 26.0 + bob * 1.2, 5.0, 16)], false)
 	# Flattened to 60% height, centred where the taller wisp used to float.
-	var xf: Transform2D = Transform2D(0.0, Vector2(side * width * k * 1.1, k * 0.6 * (1.0 + 0.1 * sin(turning * PI))), 0.0, Vector2(0, 14.0 - 3.3 * k + bob * k * 0.7))
-	# The tail's swing: PI just after a flip (pointing ahead, where it was), easing to 0.
-	var swing: float = turning * turning * (3.0 - 2.0 * turning) * PI
+	var xf: Transform2D = Transform2D(0.0, Vector2(side * width * k * 1.1, k * 0.6 * (1.0 + 0.06 * turning)), 0.0, Vector2(0, 14.0 - 3.3 * k + bob * k * 0.7))
 	var speed: float = 0.3 if stunned else 0.7
 	var flicker: float = 0.85 + 0.15 * sin(t * 5.3 + phase) * sin(t * 2.1 + phase * 1.7)
 	# The glow trails the wisp: strongest behind the head, thinning out past the tail.
@@ -645,8 +655,10 @@ func _wisp() -> void:
 				cool.append(a * 0.35)
 			ink.ink_graded(RisoPrint.BLUE, [poly], [cool])
 	var eyes: Array[PackedVector2Array] = []
-	for e: Vector2 in [Vector2(3.4, -9.2), Vector2(0.7, -9.4)]:
-		eyes.append(xf * (RisoShapes.rrect(e.x - 1.0, e.y - 0.4, 2.0, 0.8, 0.4, 2) if stunned else RisoShapes.ellipse(e, 0.9, 1.9, 14)))
+	for eye: Vector2 in [Vector2(3.4, -9.2), Vector2(0.7, -9.4)]:
+		# The pair is centred on x = 2.05 when facing; mid-turn it slides to the body's middle.
+		var ep: Vector2 = Vector2(eye.x - 2.05 + 2.05 * eye_k, eye.y)
+		eyes.append(xf * (RisoShapes.rrect(ep.x - 1.0, ep.y - 0.4, 2.0, 0.8, 0.4, 2) if stunned else RisoShapes.ellipse(ep, 0.9, 1.9, 14)))
 	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], eyes)
 
 

@@ -39,18 +39,25 @@ func capture() -> void:
 		await process_frame
 	# Wait for the wisp to turn round at a ledge or wall, then record the turn.
 	var start_dir: int = int(mover.get("direction"))
+	var pre: Image = null
 	for f: int in range(600):
 		camera.global_position = wisp.global_position + Vector2(0, -30)
 		camera.reset_smoothing()
 		await process_frame
 		if int(mover.get("direction")) != start_dir:
 			break
-	for f: int in range(64):
+		# Keep the last frame before the turn, to check the turn starts from it.
+		if f % 2 == 0:
+			pre = root.get_texture().get_image().get_region(Rect2i(440, 210, 400, 300))
+	for f: int in range(56):
 		camera.global_position = wisp.global_position + Vector2(0, -30)
 		camera.reset_smoothing()
 		await process_frame
-		if f % 8 == 0:
+		if f % 7 == 0:
 			frames.append(root.get_texture().get_image().get_region(Rect2i(440, 210, 400, 300)))
+	if pre != null:
+		frames.push_front(pre)
+		frames.resize(8)
 	var strip: Image = Image.create(400 * 4, 300 * 2, false, frames[0].get_format())
 	for k: int in range(mini(8, frames.size())):
 		strip.blit_rect(frames[k], Rect2i(0, 0, 400, 300), Vector2i((k % 4) * 400, (k / 4) * 300))
