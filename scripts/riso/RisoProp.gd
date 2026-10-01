@@ -623,12 +623,15 @@ func _wisp() -> void:
 	var g: float = _ground()
 	var lift: float = clampf(-loop_at.y / WISP_LOOP_H, 0.0, 1.0)
 	ink.ink(RisoPrint.NIGHT, 0.35 * (1.0 - lift * 0.6), [RisoShapes.ellipse(Vector2(loop_at.x, g - 3.0), (26.0 + bob * 1.2) * (1.0 - lift * 0.4), 5.0, 16)], false)
-	# Flattened to 60% height, centred where the taller wisp used to float. The shape is scaled
-	# first and only then turned, rigidly, in screen space (no shear); see _wisp_place.
-	_wp_scale = Transform2D(0.0, Vector2(side * width * k * 1.1, k * 0.6), 0.0, Vector2.ZERO)
-	_wp_origin = Vector2(0, 14.0 - 3.3 * k + bob * k * 0.7) + loop_at
-	_wp_angle = -side * spin
-	_wp_curl = -side * turning * 1.4
+	# The body follows the path its head has travelled (see _wisp_place): the head is placed on
+	# its loop, and everything behind it lies along the recorded trail, so mid-turn the tail traces
+	# the head's arc and after the turn it straightens out as the wisp moves off.
+	_wp_k = k
+	_wp_side = side
+	_wp_bob = Vector2(0, bob * k * 0.7)
+	var head: Vector2 = Vector2(0, 14.0 - 3.3 * k - 8.2 * k * 0.6) + loop_at
+	_wp_head_dir = Vector2(side * cos(spin), -sin(spin)) if spinning else Vector2(side, 0)
+	_wisp_trail_add(to_global(head))
 	var speed: float = 0.3 if stunned else 0.7
 	var flicker: float = 0.85 + 0.15 * sin(t * 5.3 + phase) * sin(t * 2.1 + phase * 1.7)
 	# The glow trails the wisp: strongest behind the head, thinning out past the tail.
@@ -758,25 +761,116 @@ static func wisp_loop(e: float) -> Array:
 	return [_loop[i0].lerp(_loop[i0 + 1], t0), lerpf(_loop_heading[i0], _loop_heading[i0 + 1], t0)]
 
 
-## Place a wisp shape (local units, facing +x) on screen: scaled first, then turned rigidly about
-## the head by _wp_angle, then moved to _wp_origin. With `curl`, points toward the tail turn a
-## little less (up to _wp_curl at the tip), so mid-turn the tail curls round behind the head.
-var _wp_scale: Transform2D = Transform2D.IDENTITY
-var _wp_origin: Vector2 = Vector2.ZERO
-var _wp_angle: float = 0.0
-var _wp_curl: float = 0.0
+## Place a wisp shape on screen by following its trail. A point's local x is how far it lies
+## behind the head (x = 0) along the body, and its local y how far it sits off the spine
+## (y = -8.2). Points behind the head go where the head was that distance ago, offset across the
+## trail's direction there; points ahead of it extend along the head's heading. The head's
+## positions are recorded in world space without the bob, which is added to the whole shape.
+const WISP_TRAIL_LEN: float = 260.0
+var _wp_k: float = 3.6
+var _wp_side: float = 1.0
+var _wp_bob: Vector2 = Vector2.ZERO
+var _wp_head_dir: Vector2 = Vector2.RIGHT
+var _trail: PackedVector2Array = PackedVector2Array()
 
 
-func _wisp_place(poly: PackedVector2Array, curl: bool) -> PackedVector2Array:
-	var pivot: Vector2 = _wp_scale * Vector2(0.0, -8.2)
+func _wisp_trail_add(at: Vector2) -> void:
+	# Start (or after a jump, restart) with a straight trail behind the facing.
+	if _trail.is_empty() or _trail[0].distance_to(at) > 120.0:
+		_trail = PackedVector2Array()
+		for n: int in range(66):
+			_trail.append(at - _wp_head_dir * 4.0 * float(n))
+		return
+	if _trail[0].distance_to(at) < 0.5:
+		return
+	_trail.insert(0, at)
+	var total: float = 0.0
+	for n: int in range(1, _trail.size()):
+		total += _trail[n].distance_to(_trail[n - 1])
+		if total > WISP_TRAIL_LEN:
+			_trail.resize(n + 1)
+			break
+
+
+## Where the trail was `d` px behind the head: [position (world), direction of travel there].
+func _trail_at(d: float) -> Array:
+	if d <= 0.0 or _trail.size() < 2:
+		return [_trail[0] - _wp_head_dir * d if not _trail.is_empty() else Vector2.ZERO, _wp_head_dir]
+	var walked: float = 0.0
+	for n: int in range(1, _trail.size()):
+		var a: Vector2 = _trail[n - 1]
+		var b: Vector2 = _trail[n]
+		var seg: float = a.distance_to(b)
+		if walked + seg >= d and seg > 0.0001:
+			var f: float = (d - walked) / seg
+			# Blend the direction toward the head's own heading right at the head, so the front
+			# of the body turns with it.
+			var dir: Vector2 = (a - b).normalized()
+			return [a.lerp(b, f), dir]
+		walked += seg
+	var last: Vector2 = _trail[_trail.size() - 1]
+	var tail_dir: Vector2 = (_trail[_trail.size() - 2] - last).normalized()
+	return [last - tail_dir * (d - walked), tail_dir]
+
+
+func _wisp_place(poly: PackedVector2Array, _curl: bool) -> PackedVector2Array:
+	var sx: float = _wp_k * 1.1
+	var sy: float = _wp_k * 0.6
 	var out: PackedVector2Array = PackedVector2Array()
 	out.resize(poly.size())
 	for n: int in range(poly.size()):
-		var a: float = _wp_angle
-		if curl:
-			# Curling harder toward the tip, so the tail wraps round like a hook.
-			a -= _wp_curl * pow(clampf((1.0 - poly[n].x) / 13.4, 0.0, 1.0), 1.4)
-		out[n] = _wp_origin + pivot + (_wp_scale * poly[n] - pivot).rotated(a)
+		var d: float = -poly[n].x * sx
+		var at: Array = _trail_at(d)
+		var dir: Vector2 = at[1]
+		# Within the first stretch behind the head, ease from the head's heading to the trail's.
+		if d < 14.0:
+			dir = _wp_head_dir.lerp(dir, clampf(d / 14.0, 0.0, 1.0)).normalized()
+		var across: Vector2 = dir.rotated(_wp_side * PI * 0.5)
+		var off: Vector2 = across * ((poly[n].y + 8.2) * sy)
+		# On a tight bend, keep the inside edge within the bend's radius so the body bunches
+		# instead of folding over itself (a folded outline can't be printed).
+		if d > 0.0:
+			var older: Vector2 = _trail_at(d + 6.0)[1]
+			var newer: Vector2 = _trail_at(maxf(0.0, d - 6.0))[1]
+			var turn: float = older.angle_to(newer)
+			if absf(turn) > 0.02:
+				var centre: Vector2 = dir.rotated(signf(turn) * PI * 0.5)
+				if off.dot(centre) > 0.0:
+					off = off.limit_length(0.8 * 12.0 / absf(turn))
+		out[n] = to_local(at[0] as Vector2) + off + _wp_bob
+	# Wide shapes (glow, veils) can still cross over themselves on the tightest bend: print their
+	# outline hull instead of nothing.
+	if Geometry2D.triangulate_polygon(out).is_empty():
+		var hull: PackedVector2Array = Geometry2D.convex_hull(out)
+		if hull.size() > 3:
+			hull.remove_at(hull.size() - 1)
+			return _resample_loop(hull, out.size(), out[0])
+	return out
+
+
+## `loop` resampled evenly to `count` points (so per-vertex shading still lines up), starting
+## at the point nearest `start`.
+func _resample_loop(loop: PackedVector2Array, count: int, start: Vector2) -> PackedVector2Array:
+	var m: int = loop.size()
+	var first: int = 0
+	for n: int in range(m):
+		if loop[n].distance_squared_to(start) < loop[first].distance_squared_to(start):
+			first = n
+	var total: float = 0.0
+	for n: int in range(m):
+		total += loop[n].distance_to(loop[(n + 1) % m])
+	var out: PackedVector2Array = PackedVector2Array()
+	var seg: int = first
+	var walked: float = 0.0
+	var seg_len: float = loop[seg].distance_to(loop[(seg + 1) % m])
+	for n: int in range(count):
+		var want: float = total * float(n) / float(count)
+		while walked + seg_len < want and seg_len >= 0.0:
+			walked += seg_len
+			seg = (seg + 1) % m
+			seg_len = loop[seg].distance_to(loop[(seg + 1) % m])
+		var f: float = (want - walked) / maxf(seg_len, 0.0001)
+		out.append(loop[seg].lerp(loop[(seg + 1) % m], clampf(f, 0.0, 1.0)))
 	return out
 
 

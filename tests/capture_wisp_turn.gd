@@ -49,11 +49,11 @@ func capture() -> void:
 		# Keep the last frame before the turn, to check the turn starts from it.
 		if f % 2 == 0:
 			pre = root.get_texture().get_image().get_region(Rect2i(340, 135, 600, 450))
-	for f: int in range(42):
+	for f: int in range(84):
 		camera.global_position = wisp.global_position + Vector2(0, -50)
 		camera.reset_smoothing()
 		await process_frame
-		if f % 5 == 0:
+		if f % 12 == 0:
 			frames.append(root.get_texture().get_image().get_region(Rect2i(340, 135, 600, 450)))
 	if pre != null:
 		frames.push_front(pre)
