@@ -77,13 +77,18 @@ func run() -> void:
 	var seen: Dictionary = {"fireflies": 0, "moths": 0, "drops": 0}
 	var cam: Camera2D = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
-	var spots: Dictionary = {"fireflies": decor.firefly_spots[0], "moths": light.glass(light.lanterns[0], info), "drops": decor.drip_spots[0]}
+	# Only some spots hold life (fireflies fade in and out), so look at several of each.
+	var spots: Dictionary = {"fireflies": decor.firefly_spots, "moths": PackedVector2Array([light.glass(light.lanterns[0], info)]), "drops": decor.drip_spots}
 	for what: String in spots:
-		cam.global_position = spots[what]
-		cam.reset_smoothing()
-		for i: int in range(240):
-			await process_frame
-			seen[what] = maxi(int(seen[what]), int((ambient.get("counts") as Dictionary)[what]))
+		var list: PackedVector2Array = spots[what]
+		for n: int in range(mini(8, list.size())):
+			if int(seen[what]) > 0:
+				break
+			cam.global_position = list[n]
+			cam.reset_smoothing()
+			for i: int in range(150):
+				await process_frame
+				seen[what] = maxi(int(seen[what]), int((ambient.get("counts") as Dictionary)[what]))
 	check(int(seen["fireflies"]) > 0 and int(seen["moths"]) > 0 and int(seen["drops"]) > 0, "fireflies, moths and ink drops show where they live: %s" % [seen])
 
 	if failed:

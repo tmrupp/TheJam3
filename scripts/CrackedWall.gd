@@ -13,6 +13,7 @@ func hex_hit(_damage: int, dir: Vector2) -> void:
 		MapInfo.instance.mark_broken(self)
 	RisoFx.burst(&"hit", global_position, dir, [RisoPrint.BLUE, RisoPrint.NIGHT])
 	RisoFx.burst(&"gain", global_position, Vector2.ZERO, [RisoPrint.BLUE])
+	Wound.shake(14.0, 0.3)
 	queue_free()
 	# Reprint the rock without this cell.
 	if RisoPrint.instance != null and MapInfo.instance != null:

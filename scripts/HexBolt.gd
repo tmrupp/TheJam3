@@ -86,6 +86,7 @@ func _solid(from: Vector2, to: Vector2) -> Dictionary:
 
 func _end(at: Vector2) -> void:
 	RisoFx.burst(&"hit", at, -dir, [RisoPrint.GLOW, RisoPrint.PINK])
+	Wound.shake(3.0, 0.08)
 	queue_free()
 
 

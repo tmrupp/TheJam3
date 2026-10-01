@@ -23,9 +23,18 @@ func hit(damage: int, dir: Vector2) -> void:
 		return
 	hp -= damage * (2 if stunned() else 1)
 	RisoFx.burst(&"hit", host.global_position, dir, [RisoPrint.PINK, RisoPrint.GLOW])
+	Wound.shake(7.0 if hp > 0 else 12.0, 0.14 if hp > 0 else 0.22)
 	host.global_position += dir * 14.0
 	if hp <= 0:
 		_die(host)
+
+
+## A small camera kick for hits and kills.
+static func shake(intensity: float, sustain: float) -> void:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	var cam: Camera2D = tree.root.get_node_or_null("Main/Camera2D") as Camera2D if tree != null else null
+	if cam != null and cam.has_method("shake"):
+		cam.call("shake", intensity, sustain)
 
 
 func _die(host: Node2D) -> void:

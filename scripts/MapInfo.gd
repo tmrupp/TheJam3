@@ -618,15 +618,36 @@ func start_run (seed_value: int) -> void:
 func travel (exit: int) -> void:
 	if travelling:
 		return
+	var next: Vector2i = coord
+	var way: Vector2 = Vector2.DOWN
 	match exit:
 		Exit.DEEPER:
-			coord.y += 1
-			deepest = maxi(deepest, coord.y)
-		Exit.BACK: coord.y = maxi(0, coord.y - 1)
-		Exit.LEFT: coord.x -= 1
-		Exit.RIGHT: coord.x += 1
+			next.y += 1
+		Exit.BACK:
+			next.y = maxi(0, next.y - 1)
+			way = Vector2.UP
+		Exit.LEFT:
+			next.x -= 1
+			way = Vector2.LEFT
+		Exit.RIGHT:
+			next.x += 1
+			way = Vector2.RIGHT
+	await _pass(way, next)
+	coord = next
+	deepest = maxi(deepest, coord.y)
 	arrival = OPPOSITE[exit]
 	_load_level()
+
+## Freeze the wizard and sweep the printed transition over the view before a level changes.
+func _pass (way: Vector2, next: Vector2i) -> void:
+	travelling = true
+	if player == null:
+		player = main.get_node_or_null("Player") as Player
+	if player != null:
+		player.set_physics_process(false)
+		player.velocity = Vector2.ZERO
+	if RisoTransition.instance != null:
+		await RisoTransition.instance.cover(way, MapInfo.where(next))
 
 func light_lantern (lantern: Node) -> void:
 	if lantern.has_meta(&"cell"):
@@ -643,6 +664,7 @@ func respawn_elsewhere () -> bool:
 	return world != null and respawn_coord != coord
 
 func respawn_in_other_level () -> void:
+	await _pass(Vector2.UP, respawn_coord)
 	coord = respawn_coord
 	arrival = -2
 	_load_level()
@@ -1075,6 +1097,8 @@ func next_world () -> void:
 	travelling = false
 	if RisoPrint.instance != null:
 		RisoPrint.instance.world_built(self, coord.y)
+	if RisoTransition.instance != null:
+		RisoTransition.instance.reveal()
 	save_run()
 	_prefetch_neighbours()
 

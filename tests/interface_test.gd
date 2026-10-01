@@ -82,10 +82,19 @@ func run() -> void:
 	check(fresh == info.cache[Vector2i(s + 1, 0)], "a cached level is exactly the level generated fresh")
 	var frames: int = 0
 	info.travel(MapInfo.Exit.RIGHT)
+	# The printed transition covers the view first; caching should make the rest instant.
+	var sheet: RisoTransition = RisoTransition.instance
+	while sheet != null and sheet.state == RisoTransition.State.COVERING:
+		await process_frame
 	while info.travelling and frames < 600:
 		await process_frame
 		frames += 1
-	check(info.coord == Vector2i(s + 1, 0) and frames <= 3, "travelling to it takes %d frame(s)" % frames)
+	check(info.coord == Vector2i(s + 1, 0) and frames <= 3, "once the sheet covers the view, the cached level is up in %d frame(s)" % frames)
+	var held: int = 0
+	while sheet != null and sheet.state == RisoTransition.State.COVERED and held < 120:
+		await process_frame
+		held += 1
+	check(sheet != null and sheet.state == RisoTransition.State.REVEALING and held > 5, "then holds to show where you are, and sweeps away")
 	info.travel(MapInfo.Exit.LEFT)
 	await settle()
 

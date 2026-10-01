@@ -77,6 +77,7 @@ var map_view: Node2D
 var decor: Node2D
 var light: Node2D
 var ambient: Node2D
+var transition: Node2D
 var panel: Control
 
 var sheet_index: int = 0
@@ -222,6 +223,10 @@ func _build() -> void:
 	ambient.set("decor", decor)
 	ambient.set("light", light)
 	main.add_child.call_deferred(ambient)
+	transition = Node2D.new()
+	transition.name = "RisoTransition"
+	transition.set_script(preload("res://scripts/riso/RisoTransition.gd"))
+	main.add_child.call_deferred(transition)
 	hud = Node2D.new()
 	hud.name = "RisoHud"
 	hud.set_script(preload("res://scripts/riso/RisoHud.gd"))
