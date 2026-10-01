@@ -35,6 +35,8 @@ const GLOWS: Dictionary = {
 	&"climb": Color("#00a95c"),
 	&"double_jump": Color("#ff6c2f"),
 	&"hex": Color("#e8335a"),
+	&"levitate": Color("#7fd6c2"),
+	&"awareness": Color("#f2c14e"),
 }
 ## Print-detail stops: heavy 0, medium 50, fine 80, extra fine 100 (sizes in 720p pixels).
 const DETAIL_STOPS: Array[Array] = [

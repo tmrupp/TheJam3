@@ -29,6 +29,9 @@ var end_title: Label
 var end_sub: Label
 var font: SystemFont
 var t: float = 0.0
+## World-to-UI mapping for this frame (for pointers at the edge of the view).
+var view_origin: Vector2 = Vector2.ZERO
+var view_k: float = 1.0
 
 
 func _ready() -> void:
@@ -111,6 +114,8 @@ func _process(delta: float) -> void:
 		base = Vector2(320, 180)
 	var view: Vector2 = base / cam.zoom
 	global_position = cam.get_screen_center_position() - view * 0.5
+	view_origin = global_position
+	view_k = 320.0 / view.x
 	scale = Vector2.ONE / cam.zoom
 	var player: Player = get_node_or_null("/root/Main/Player") as Player
 	ink.begin()
@@ -119,6 +124,7 @@ func _process(delta: float) -> void:
 	if player != null:
 		_status(player)
 		_run_state(player)
+		_awareness(player)
 	ink.finish()
 
 
@@ -230,6 +236,9 @@ func _top_right(info: MapInfo, player: Player) -> void:
 		var c: Vector2 = Vector2(start + slot * (float(i) + 0.5), y - (2.0 if n > 1 else 0.0))
 		for poly: PackedVector2Array in RisoProp.glyph(a, Vector2.ZERO, t):
 			marks.append(Transform2D(0.0, Vector2(0.2, 0.2), 0.0, c) * poly)
+		# The spell in the slot (the Spell button) is underlined.
+		if a in Abilities.SPELLS:
+			pips.append(RisoShapes.rrect(c.x - 5.0, _row_top(1) + 2.0, 10.0, 1.4, 0.7))
 		if n > 1:
 			for k: int in range(n):
 				pips.append(RisoShapes.circle(Vector2(c.x + (float(k) - float(n - 1) * 0.5) * 3.0, _row_top(1) + ROW_H - 3.2), 1.0, 8))
@@ -276,6 +285,49 @@ func _ghost_row(info: MapInfo, player: Player) -> void:
 		ink.knock([RisoPrint.PINK], [Transform2D(0.9, star_at) * RisoShapes.rrect(-6.5, -0.5, 13, 1.0, 0.5)])
 		x += 12.0
 		_place(need_label, need, x, 1)
+
+
+## Awareness: while sensing, a pointer at the edge of the view for each sensed thing that is off
+## screen, with its mark beside the arrow.
+func _awareness(player: Player) -> void:
+	var aware: Awareness = player.get_node_or_null("Awareness") as Awareness
+	if aware == null or not aware.active():
+		return
+	var fade: float = clampf(aware.sensing, 0.0, 1.0)
+	var inner: Rect2 = Rect2(Vector2(14, 52), Vector2(292, 114))
+	var centre: Vector2 = inner.get_center()
+	var arrows: Array[PackedVector2Array] = []
+	var placed: Array[Vector2] = []
+	for target: Dictionary in aware.targets():
+		var p: Vector2 = ((target["at"] as Vector2) - view_origin) * view_k
+		if inner.grow(-6.0).has_point(p):
+			continue
+		var dir: Vector2 = (p - centre).normalized()
+		# Where the line from the centre meets the inner rectangle.
+		var tx: float = (inner.size.x * 0.5) / maxf(absf(dir.x), 0.001)
+		var ty: float = (inner.size.y * 0.5) / maxf(absf(dir.y), 0.001)
+		var at: Vector2 = centre + dir * minf(tx, ty) + dir * sin(t * 4.0) * 0.8
+		# Never stack pointers: the first one there wins.
+		if placed.any(func(q: Vector2) -> bool: return q.distance_to(at) < 13.0):
+			continue
+		placed.append(at)
+		var side: Vector2 = Vector2(-dir.y, dir.x)
+		arrows.append(PackedVector2Array([at + dir * 5.0, at + side * 3.6 - dir * 1.0, at - side * 3.6 - dir * 1.0]))
+		var mark: Vector2 = at - dir * 8.0
+		_paper(RisoShapes.circle(mark, 5.6, 16), RisoPrint.BLUE, 0.12 * fade)
+		match target["kind"]:
+			&"exit":
+				var which: int = int((target["node"] as Node).get("exit"))
+				ink.ink(RisoPrint.PINK if which == MapInfo.Exit.DEEPER else RisoPrint.NIGHT, fade, [RisoShapes.arch(mark.x - 2.6, mark.y - 3.2, 5.2, 6.0, 6)], false)
+			&"inkwell":
+				ink.ink(RisoPrint.BLUE, fade, [RisoShapes.rrect(mark.x - 2.8, mark.y - 2.2, 5.6, 5.0, 1.8)], false)
+				ink.ink(RisoPrint.ACCENT, fade, [RisoShapes.rrect(mark.x - 2.0, mark.y - 3.4, 4.0, 1.4, 0.6)], false)
+			&"shrine":
+				ink.ink(RisoPrint.ACCENT, fade, [RisoShapes.arch(mark.x - 2.6, mark.y - 3.2, 5.2, 6.0, 6)], false)
+			&"key":
+				for plate: int in RisoPrint.key_inks(int((target["node"] as Node).get_meta(&"key_color", 0))):
+					ink.ink(plate, fade, RisoProp.key_shape(mark, 0.2), false)
+	ink.ink(RisoPrint.NIGHT, fade, arrows, false)
 
 
 ## Toward the ghost: by level (deeper is down, the next seed is right) when it is elsewhere,

@@ -77,16 +77,20 @@ func run() -> void:
 	check(bool((info.map_elements.get_children().filter(func(n: Node) -> bool: return n.scene_file_path.get_file() == "inkwell.tscn")[0]).call("used")), "and the well stays dry")
 
 	print("opening the map")
-	map.call("cycle")
+	map.call("toggle")
 	await process_frame
-	check(int(map.get("view")) == 1 and paused and map.visible, "first press: the level, paused")
-	map.call("cycle")
+	check(int(map.get("view")) == 1 and paused and map.visible, "M opens the level page, paused")
+	map.call("page", 1)
 	await process_frame
-	check(int(map.get("view")) == 2 and paused, "second press: the world")
-	map.call("cycle")
+	check(int(map.get("view")) == 2 and paused, "D turns to the worlds page")
+	map.call("page", 1)
+	check(int(map.get("view")) == 2, "and no further")
+	map.call("page", -1)
+	check(int(map.get("view")) == 1, "A turns back to the level")
+	map.call("toggle")
 	await process_frame
-	check(int(map.get("view")) == 0 and not paused and not map.visible, "third press: closed, playing again")
-	map.call("cycle")
+	check(int(map.get("view")) == 0 and not paused and not map.visible, "M again closes it, playing again")
+	map.call("toggle")
 	map.call("close")
 	await process_frame
 	check(int(map.get("view")) == 0 and not paused, "Menu closes it")

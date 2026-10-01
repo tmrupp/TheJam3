@@ -1,6 +1,6 @@
 extends Area2D
-## A moon: touching it gives your dash back if you have used it, then it wanes for a few seconds
-## and returns. Never used up, so a level's moons are always where they were.
+## A moon: touching it gives your dash (and a spent levitate) back, then it wanes for a few
+## seconds and returns. Never used up, so a level's moons are always where they were.
 
 const WANE: float = 2.5
 
@@ -19,9 +19,13 @@ func setup(_info: MapInfo, _v: Vector2i) -> void:
 
 
 func touch(other: Node) -> void:
-	if other != player or not is_full() or not player.dash.acted:
+	var lev: Levitate = player.get_node_or_null("Levitate") as Levitate if other == player else null
+	var spent_float: bool = lev != null and not lev.charged and not lev.floating()
+	if other != player or not is_full() or not (player.dash.acted or spent_float):
 		return
 	player.dash.refresh()
+	if lev != null:
+		lev.charged = true
 	waning = WANE
 	RisoFx.burst(&"gain", global_position, Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
 

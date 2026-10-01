@@ -491,6 +491,13 @@ func _draw_world() -> void:
 		if origin is Node2D and is_instance_valid(origin):
 			var o: Node2D = origin as Node2D
 			marks.append(Vector4(o.global_position.x, o.global_position.y + _feet_offset() * s, signf(fs), 1.0))
+	if bool(player.get("levitating")):
+		# Levitating: two slow rings of glow turning under the boots.
+		var feet: Vector2 = global_position + Vector2(0, 4.0 * s)
+		for k: int in range(2):
+			var r: float = (9.0 + 4.0 * float(k) + sin(t * 4.0 + float(k)) * 1.2) * s
+			var ring: PackedVector2Array = RisoShapes.ellipse(feet + Vector2(0, float(k) * 3.0 * s), r, r * 0.28, 24)
+			world.ink(RisoPrint.GLOW, 0.5 - 0.2 * float(k), [ring])
 	if player.has_meta(&"carried_key"):
 		var bob: Vector2 = Vector2(0, sin(t * 3.0) * 3.0)
 		for plate: int in RisoPrint.key_inks(int(player.get_meta(&"carried_key"))):

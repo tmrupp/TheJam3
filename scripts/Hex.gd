@@ -1,7 +1,7 @@
 extends Node
 class_name Hex
-## The hex bolt: Cast (F, or the pad's X) throws a comet of glow ink from the hat, aimed like the
-## dash (the held direction, else facing). It has charges that come back one per COOLDOWN, and
+## The hex bolt, a spell: Spell (Q, or the pad's X) throws a comet of glow ink from the hat, aimed
+## like the dash (the held direction, else facing). It has charges that come back one per COOLDOWN, and
 ## lighting a lantern refills them. Tiers (Abilities): II +1 charge, III +1 damage, IV pierces
 ## its first enemy.
 
@@ -17,23 +17,6 @@ var pierce: bool = false
 @onready var player: Player = get_parent() as Player
 
 
-## Adds the Cast action if the project does not define it.
-static func ensure_input() -> void:
-	if InputMap.has_action("Cast"):
-		return
-	InputMap.add_action("Cast")
-	var key: InputEventKey = InputEventKey.new()
-	key.physical_keycode = KEY_F
-	InputMap.action_add_event("Cast", key)
-	var pad: InputEventJoypadButton = InputEventJoypadButton.new()
-	pad.button_index = JOY_BUTTON_X
-	InputMap.action_add_event("Cast", pad)
-
-
-func _ready() -> void:
-	Hex.ensure_input()
-
-
 func refill() -> void:
 	charges = charges_max
 	recharge = 0.0
@@ -45,8 +28,6 @@ func _physics_process(delta: float) -> void:
 		if recharge >= COOLDOWN:
 			charges += 1
 			recharge = 0.0
-	if Input.is_action_just_pressed("Cast") and player.is_physics_processing():
-		cast()
 
 
 ## Throw a bolt. Returns it, or null when out of charges.

@@ -1,5 +1,7 @@
 extends Node2D
-## The printed map. ShowMap (M, or the pad's Y) cycles: the level, then the world, then closed.
+## The printed map. ShowMap (M, or the pad's Y) opens it on the level page and closes it; while it
+## is open, Left/Right (A/D, the arrow keys) turn between the level and worlds pages, and Menu
+## also closes it.
 ## It pauses the game while open. Laid out in the 320 x 180 UI space and printed with the art,
 ## like the HUD.
 ## - Level view: the level as far as it has been seen (MapInfo.seen), rock in blue ink and open
@@ -61,15 +63,26 @@ func is_open() -> bool:
 	return view != View.CLOSED
 
 
-## Level, world, closed. Opening pauses the game; closing resumes it.
-func cycle() -> void:
+## Open on the level page, or close. Opening pauses the game; closing resumes it.
+func toggle() -> void:
+	_show(View.CLOSED if is_open() else View.LEVEL)
+
+
+## Turn the page: +1 toward the worlds page, -1 back to the level.
+func page(step: int) -> void:
+	if is_open():
+		_show(clampi(view + step, View.LEVEL, View.WORLD))
+
+
+func _show(next: int) -> void:
 	var info: MapInfo = MapInfo.instance
-	if info == null or info.world == null or info.travelling or info.run_ending > 0.0:
-		return
-	var menu: CanvasItem = get_node_or_null("/root/Main/Menu") as CanvasItem
-	if menu != null and menu.visible:
-		return
-	view = (view + 1) % 3
+	if next != View.CLOSED:
+		if info == null or info.world == null or info.travelling or info.run_ending > 0.0:
+			return
+		var menu: CanvasItem = get_node_or_null("/root/Main/Menu") as CanvasItem
+		if menu != null and menu.visible:
+			return
+	view = next
 	visible = view != View.CLOSED and RisoPrint.is_on()
 	if view != View.CLOSED and not get_tree().paused:
 		get_tree().paused = true
@@ -81,18 +94,41 @@ func cycle() -> void:
 
 
 func close() -> void:
-	if view != View.CLOSED:
-		view = View.WORLD
-		cycle()
+	_show(View.CLOSED)
 
 
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ShowMap"):
-		cycle()
+		toggle()
 		get_viewport().set_input_as_handled()
-	elif is_open() and event.is_action_pressed("Menu"):
+	elif not is_open():
+		return
+	elif event.is_action_pressed("Menu"):
 		close()
 		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("Left") or event.is_action_pressed("ui_left"):
+		page(-1)
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("Right") or event.is_action_pressed("ui_right"):
+		page(1)
+		get_viewport().set_input_as_handled()
+
+
+## The page tabs, top right: the open page on a tinted tab, with the keys that turn the page.
+func _tabs() -> void:
+	var names: Array[String] = ["level", "worlds"]
+	var x: float = 302.0
+	var spots: Array[float] = []
+	for i: int in range(names.size() - 1, -1, -1):
+		var w: float = font.get_string_size(names[i], HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_PX).x * 8.0 / float(TEXT_PX)
+		spots.push_front(x - w)
+		x -= w + 12.0
+	for i: int in range(names.size()):
+		var w: float = font.get_string_size(names[i], HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_PX).x * 8.0 / float(TEXT_PX)
+		if view == i + 1:
+			marks.ink(RisoPrint.BLUE, 0.25, [RisoShapes.rrect(spots[i] - 4.0, 11.0, w + 8.0, 13.0, 4.0)], false)
+		_text(names[i], Vector2(spots[i], 12.0), 8.0, false)
+	_text("A / D", Vector2(spots[0] - 9.0, 13.0), 7.0, true)
 
 
 func _process(delta: float) -> void:
@@ -147,7 +183,7 @@ func to_map(info: MapInfo, v: Vector2) -> Vector2:
 
 func _level(info: MapInfo) -> void:
 	_text(MapInfo.where(info.coord), Vector2(18, 12), 10.0, false)
-	_text("M: worlds", Vector2(302, 14), 7.0, true)
+	_tabs()
 	if _built_version != info.seen_version or _built_coord != info.coord:
 		_build_textures(info)
 	var k: float = level_scale(info)
@@ -273,7 +309,7 @@ func tile_at(info: MapInfo, c: Vector2i) -> Vector2:
 
 func _world(info: MapInfo) -> void:
 	_text("world %d  ·  deepest %d" % [info.run_seed, info.deepest], Vector2(18, 12), 10.0, false)
-	_text("M: close", Vector2(302, 14), 7.0, true)
+	_tabs()
 	var area: Rect2 = AREA.grow(-2.0)
 	var bars: Array[PackedVector2Array] = []
 	for pair: Array in links(info):

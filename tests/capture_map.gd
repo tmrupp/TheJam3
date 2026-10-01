@@ -39,11 +39,11 @@ func capture() -> void:
 	for i: int in range(10):
 		await process_frame
 	var map: Node = main.get_node("RisoMap")
-	map.call("cycle")
+	map.call("toggle")
 	for i: int in range(20):
 		await process_frame
 	root.get_texture().get_image().save_png(output.path_join("still_map_level.png"))
-	map.call("cycle")
+	map.call("page", 1)
 	for i: int in range(20):
 		await process_frame
 	root.get_texture().get_image().save_png(output.path_join("still_map_world.png"))

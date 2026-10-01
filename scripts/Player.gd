@@ -73,8 +73,14 @@ const JUMP_GRAVITY_FACTOR: float = 0.7
 const JUMP_END_CUT_FACTOR: float = 0.5
 var jumps: int = 1
 var MAX_JUMPS: int = 1
+## Floating on the levitate spell: no gravity, slow vertical drift (see Levitate).
+var levitating: bool = false
+const LEVITATE_DRIFT: float = 140.0
 ## Ability tiers learned at shrines (see Abilities).
 var tiers: Dictionary = Abilities.start_tiers()
+
+func _enter_tree() -> void:
+	Abilities.ensure_input()
 
 
 # DASH_SPEED: how quickly the player dashes
@@ -240,8 +246,9 @@ func do_wall_jump (wall_normal: Vector2) -> void:
 	
 
 func _physics_process(delta: float) -> void:
-	if Input.is_action_just_pressed("Parry") and Abilities.tier(self, &"parry") > 0:
-		parry.emit()
+	# The Spell button uses whatever spell is in the slot.
+	if Input.is_action_just_pressed(Abilities.SPELL_ACTION):
+		Abilities.cast(self)
 	
 	var walled: bool = false
 	var wall_normal: Vector2
@@ -281,7 +288,9 @@ func _physics_process(delta: float) -> void:
 			else:
 				velocity.y = direction.y * SPEED
 		else:
-			if (not dash.is_acting()):
+			if levitating:
+				velocity.y = move_toward(velocity.y, direction.y * LEVITATE_DRIFT, gravity * delta)
+			elif (not dash.is_acting()):
 				var factor: float = 1.0 if not hang.is_acting() else HANG_FACTOR
 				velocity.y += gravity * factor * delta
 				

@@ -87,7 +87,7 @@ func run() -> void:
 	Abilities.grant(player, &"hex")
 	var hex: Hex = player.get_node_or_null("Hex") as Hex
 	check(hex != null and Abilities.tier(player, &"hex") == 1 and hex.charges == 1, "learned: one charge")
-	check(InputMap.has_action("Cast"), "the Cast action exists")
+	check(InputMap.has_action(Abilities.SPELL_ACTION), "the Spell action exists")
 
 	print("wounding enemies")
 	var wisps: Array[Node] = placed("mover_enemy.tscn")

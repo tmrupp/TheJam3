@@ -23,6 +23,10 @@ var phase: float = 0.0
 var half: float = 64.0
 ## Printed text (prices, names), reused frame to frame; see _text().
 var labels: Array[Label] = []
+## A springy lean that the wizard sets going as they pass (lanterns).
+var brush_a: float = 0.0
+var brush_v: float = 0.0
+var _dt: float = 0.0
 var labels_used: int = 0
 
 
@@ -43,6 +47,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	t += delta
+	_dt = minf(delta, 0.05)
 	# Only animate what the camera can see; off-screen art keeps its last print.
 	var cam: Camera2D = get_viewport().get_camera_2d()
 	if cam != null:
@@ -109,16 +114,21 @@ func _key() -> void:
 		ink.ink(plate, 1.0, shape)
 
 
-## The ink well: a squat pot on the floor with a gold rim and a paper label, a drop of ink
-## rising out of it and falling back, and its price on a plaque. Once paid it is dry: no drop,
-## no glow, a dim rim.
+## The ink well: a big gold-rimmed pot on the floor with a paper label, a pulsing halo, a drop of
+## ink rising and falling, a rolled map floating over it with motes circling, and its price on a
+## plaque. Once paid it is dry: no drop, no map, no glow, a dim rim.
 func _inkwell() -> void:
 	var g: float = _ground()
 	var dry: bool = bool(host.call("used")) if host.has_method("used") else false
-	var o: Vector2 = Vector2(0, g - 22.0)
-	var pot_t: Transform2D = Transform2D(0.0, Vector2(1.6, 1.6), 0.0, o)
+	var o: Vector2 = Vector2(0, g - 30.0)
+	var pot_t: Transform2D = Transform2D(0.0, Vector2(2.3, 2.3), 0.0, o)
+	var pulse: float = 1.0 + 0.08 * sin(t * 3.0 + phase)
 	if not dry:
-		ink.ink(RisoPrint.ACCENT, 0.18, [RisoShapes.ellipse(o + Vector2(0, -26), 46.0, 50.0, 28)])
+		# A beam of light rising out of the well, and a bright halo: you can spot it from afar.
+		var beam: PackedVector2Array = PackedVector2Array([o + Vector2(-20, -10), o + Vector2(20, -10), o + Vector2(44 * pulse, -330), o + Vector2(-44 * pulse, -330)])
+		ink.ink_graded(RisoPrint.ACCENT, [beam], [PackedFloat32Array([0.85, 0.85, 0.0, 0.0])])
+		ink.ink(RisoPrint.ACCENT, 0.35, [RisoShapes.ellipse(o + Vector2(0, -50), 84.0 * pulse, 92.0 * pulse, 32)])
+		ink.ink(RisoPrint.ACCENT, 0.6, [RisoShapes.ellipse(o + Vector2(0, -40), 52.0 * pulse, 58.0 * pulse, 28)])
 	var pot: PackedVector2Array = pot_t * RisoShapes.rrect(-17, -10, 34, 24, 10)
 	var neck: PackedVector2Array = pot_t * RisoShapes.rrect(-8, -18, 16, 10, 3)
 	ink.ink(RisoPrint.BLUE, 1.0, [pot, neck])
@@ -132,12 +142,29 @@ func _inkwell() -> void:
 		return
 	# The drop: rises from the mouth, hangs, falls back in.
 	var u: float = fmod(t * 0.7 + phase, 1.0)
-	var lift: float = sin(u * PI) * 20.0
-	var d: Vector2 = pot_t * Vector2(0, -26.0) + Vector2(0, -lift)
-	var drop: PackedVector2Array = RisoShapes.smooth(PackedVector2Array([d + Vector2(0, -9), d + Vector2(6, 1), d + Vector2(0, 6), d + Vector2(-6, 1)]))
+	var lift: float = sin(u * PI) * 24.0
+	var d: Vector2 = pot_t * Vector2(0, -24.0) + Vector2(0, -lift)
+	var drop: PackedVector2Array = RisoShapes.smooth(PackedVector2Array([d + Vector2(0, -11), d + Vector2(7, 1), d + Vector2(0, 7), d + Vector2(-7, 1)]))
 	ink.ink(RisoPrint.BLUE, 1.0, [drop])
-	ink.knock([RisoPrint.BLUE, RisoPrint.ACCENT], [RisoShapes.circle(d + Vector2(-2, 0), 2.0, 8)])
-	_plaque("map · %d" % int(host.call("price")), Vector2(0, g - 98.0), 26, RisoPrint.BLUE)
+	ink.knock([RisoPrint.BLUE, RisoPrint.ACCENT], [RisoShapes.circle(d + Vector2(-2.5, 0), 2.4, 8)])
+	# A rolled map floating above: paper sheet with ink lines, rolled ends in blue.
+	var m: Vector2 = Vector2(0, g - 178.0 + sin(t * 1.8 + phase) * 6.0)
+	var sheet_t: Transform2D = Transform2D(sin(t * 1.1 + phase) * 0.08, m)
+	var sheet: PackedVector2Array = sheet_t * RisoShapes.rrect(-26, -15, 52, 30, 3)
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE], [sheet])
+	ink.ink(RisoPrint.BLUE, 0.15, [sheet], false)
+	var lines: Array[PackedVector2Array] = []
+	for k: int in range(3):
+		lines.append(sheet_t * RisoShapes.rrect(-18, -8 + float(k) * 7.0, 26.0 - float(k) * 6.0, 2.2, 1.1))
+	lines.append(sheet_t * RisoShapes.circle(Vector2(13, 4), 4.0, 10))
+	ink.ink(RisoPrint.NIGHT, 0.8, lines, false)
+	ink.ink(RisoPrint.BLUE, 1.0, [sheet_t * RisoShapes.rrect(-31, -17, 7, 34, 3.5), sheet_t * RisoShapes.rrect(24, -17, 7, 34, 3.5)])
+	var motes: Array[PackedVector2Array] = []
+	for k: int in range(3):
+		var a: float = t * 1.4 + TAU * float(k) / 3.0
+		motes.append(RisoShapes.sparkle(m + Vector2(cos(a) * 44.0, sin(a) * 18.0), 6.0))
+	ink.ink(RisoPrint.ACCENT, 1.0, motes)
+	_plaque("map · %d" % int(host.call("price")), Vector2(0, g - 104.0), 26, RisoPrint.BLUE)
 
 
 ## The wizard's astral silhouette where they died, in glow ink, with the stars it holds circling.
@@ -225,6 +252,8 @@ func _shrine() -> void:
 		# when long so it never meets the mending plaque.
 		_plaque(str(int(host.call("offer_price"))), Vector2(0, g - 38), 26, RisoPrint.ACCENT)
 		var text: String = "%s %s" % [Abilities.NAMES[a], Abilities.roman(next)]
+		if bool(host.call("swap")):
+			text += " · swap"
 		_plaque(text, Vector2(minf(0.0, 60.0 - _plaque_width(text, 28) * 0.5), g - 12), 28, RisoPrint.ACCENT)
 	# Mending: an ember bead over the bowl, like the HUD's health beads.
 	var m: Vector2 = Vector2(128, g - 106 + bob * 0.8)
@@ -281,9 +310,23 @@ static func portcullis(ink: InkCanvas, g: float, half: float, key_color: int, li
 	ink.ink(RisoPrint.BLUE, fade, [RisoShapes.rrect(-half, top - 2.0, 2.0 * half, 14, 4)])
 
 
+## Spring a lean toward `target`, pushed by the wizard passing near `at` (within `reach`).
+func _brush(at: Vector2, reach: float) -> float:
+	var player: Player = host.get_node_or_null("/root/Main/Player") as Player
+	var target: float = 0.0
+	if player != null:
+		var d: Vector2 = to_global(at) - player.global_position
+		var close: float = clampf(1.0 - d.length() / reach, 0.0, 1.0)
+		if close > 0.0:
+			target = (signf(d.x) * 0.25 - clampf(player.velocity.x / 300.0, -1.0, 1.0) * 0.45) * close
+	brush_v += ((target - brush_a) * 40.0 - brush_v * 3.0) * _dt
+	brush_a += brush_v * _dt
+	return brush_a
+
+
 func _lantern() -> void:
 	var lit: bool = MapInfo.instance != null and MapInfo.instance.is_respawn_lantern(host)
-	var sw: float = sin(t * 2.2 + phase) * 0.12
+	var sw: float = sin(t * 2.2 + phase) * 0.12 - _brush(Vector2(30, _ground() - 80.0), 130.0)
 	var g: float = _ground()
 	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-4, g - 110, 8, 110, 4), RisoShapes.rrect(-3, g - 111, 38, 6, 3)])
 	var hang: Transform2D = Transform2D(sw, Vector2(30, g - 106))
@@ -418,6 +461,13 @@ static func glyph(a: StringName, c: Vector2, t: float) -> Array[PackedVector2Arr
 		&"vigor":
 			var bead: PackedVector2Array = RisoShapes.circle(c, 14.0, 24)
 			return [bead]
+		&"levitate":
+			# A feather of three rising arcs over a ring.
+			return [RisoShapes.ellipse(c + Vector2(0, 14), 18.0, 5.0, 18), RisoShapes.almond(c + Vector2(0, -6), 7.0, 18.0, 12),
+				RisoShapes.rrect(c.x - 1.6, c.y - 4, 3.2, 16, 1.6)]
+		&"awareness":
+			# An open eye with a lit pupil.
+			return [RisoShapes.almond(c, 22.0, 11.0, 14), RisoShapes.circle(c, 5.0, 12)]
 		&"hex":
 			# A comet: a bold spark with a tapering tail behind it.
 			return [RisoShapes.sparkle(c + Vector2(7, -5), 17.0), PackedVector2Array([c + Vector2(4, -12), c + Vector2(-22, 14), c + Vector2(-2, 0)])]

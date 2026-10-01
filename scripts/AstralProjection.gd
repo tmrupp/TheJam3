@@ -1,7 +1,6 @@
 extends Node
 class_name AstralProjection
-## Astral projection, an ability learned at a shrine. Astral (Q, or the pad's left shoulder)
-## leaves your body where you stand and sends you out as a glowing projection, untouchable by
+## Astral projection, a spell learned at a shrine. Spell (Q, or the pad's X) leaves your body where you stand and sends you out as a glowing projection, untouchable by
 ## thorns and shots. Press it again, or get hurt, to snap back to your body. Let it run out and
 ## you stay where the projection is: the body is left behind for good. Tiers make it last longer.
 
@@ -17,32 +16,14 @@ var false_player_origin: Sprite2D
 var held_color: Color
 
 
-## Adds the Astral action if the project does not define it.
-static func ensure_input() -> void:
-	if InputMap.has_action("Astral"):
-		return
-	InputMap.add_action("Astral")
-	var key: InputEventKey = InputEventKey.new()
-	key.physical_keycode = KEY_Q
-	InputMap.action_add_event("Astral", key)
-	var pad: InputEventJoypadButton = InputEventJoypadButton.new()
-	pad.button_index = JOY_BUTTON_LEFT_SHOULDER
-	InputMap.action_add_event("Astral", pad)
-
-
 ## Hurt while projected: snap back to the body instead of taking the hit.
 func astral_hurt (_damage: int, _v: Vector2, _attacker: Node) -> void:
 	end_projection(projection_timer)
 
 func _ready() -> void:
-	AstralProjection.ensure_input()
 	player.astral_projection_signal.connect(toggle)
 	player.elapse_ability_time_signal.connect(elapse)
 	false_player_origin = null
-
-func _physics_process(_delta: float) -> void:
-	if Input.is_action_just_pressed("Astral") and player.is_physics_processing():
-		toggle()
 
 func elapse(delta: float) -> void:
 	projection_timer.elapse(delta)

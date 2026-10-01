@@ -44,7 +44,7 @@ func run() -> void:
 
 	print("astral projection")
 	var astral: AstralProjection = player.get_node("AstralProjection") as AstralProjection
-	check(InputMap.has_action("Astral"), "the Astral action exists")
+	check(InputMap.has_action(Abilities.SPELL_ACTION), "the Spell action exists")
 	check(info.map_elements.get_children().all(func(n: Node) -> bool: return n.scene_file_path.get_file() != "astral_projection_point.tscn"), "no astral orbs in the level")
 	astral.toggle()
 	check(not astral.projecting(), "locked until learned")

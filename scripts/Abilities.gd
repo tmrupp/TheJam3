@@ -1,10 +1,14 @@
 class_name Abilities
 ## Tiered abilities, learned at shrines (there is no shop). Tier 0 is not owned; only the dash
-## is known from the start (tier 1). Everything else, including parry, astral projection (the
-## orbs stay dormant until then) and the hex, has to be found. Each tier improves the ability, and
-## vigor raises max health. Tiers live on the player and reset when a run ends.
+## is known from the start (tier 1). Each tier improves the ability. Tiers live on the player and
+## reset when a run ends.
+## - Spells share one slot, on the Spell button (Q, or the pad's X): hex, astral projection,
+##   parry, levitate and awareness. You carry one at a time; learning another at a shrine
+##   replaces it.
+## - Perks stack: double jump, wall climb, blink (replaces the dash) and vigor (max health).
 
-const ORDER: Array[StringName] = [&"dash", &"double_jump", &"wall_climb", &"blink", &"parry", &"astral", &"hex", &"vigor"]
+const ORDER: Array[StringName] = [&"dash", &"double_jump", &"wall_climb", &"blink", &"parry", &"astral", &"hex", &"levitate", &"awareness", &"vigor"]
+const SPELLS: Array[StringName] = [&"hex", &"astral", &"parry", &"levitate", &"awareness"]
 const NAMES: Dictionary = {
 	&"dash": "dash",
 	&"double_jump": "double jump",
@@ -13,12 +17,16 @@ const NAMES: Dictionary = {
 	&"parry": "parry",
 	&"astral": "astral",
 	&"hex": "hex",
+	&"levitate": "levitate",
+	&"awareness": "awareness",
 	&"vigor": "vigor",
 }
 const BASE: Dictionary = {&"dash": 1}
-const MAX: Dictionary = {&"dash": 4, &"double_jump": 3, &"wall_climb": 3, &"blink": 3, &"parry": 4, &"astral": 4, &"hex": 4, &"vigor": 3}
+const MAX: Dictionary = {&"dash": 4, &"double_jump": 3, &"wall_climb": 3, &"blink": 3, &"parry": 4, &"astral": 4, &"hex": 4,
+	&"levitate": 3, &"awareness": 3, &"vigor": 3}
 const BLINK_PREFAB: String = "res://prefabs/upgrades/Blink.tscn"
 const BASE_HEALTH: int = 3
+const SPELL_ACTION: StringName = &"Spell"
 
 
 static func start_tiers() -> Dictionary:
@@ -30,6 +38,14 @@ static func start_tiers() -> Dictionary:
 
 static func tier(player: Player, a: StringName) -> int:
 	return int(player.tiers.get(a, 0))
+
+
+## The spell in the slot, or &"" when it is empty.
+static func spell(player: Player) -> StringName:
+	for a: StringName in SPELLS:
+		if tier(player, a) > 0:
+			return a
+	return &""
 
 
 ## Stars to learn `next_tier` of an ability at `depth`: dearer per tier, cheaper deeper.
@@ -60,12 +76,22 @@ static func offer(level_seed: int, player: Player) -> StringName:
 	return &""
 
 
+## Would learning `a` replace the spell in the slot?
+static func is_swap(player: Player, a: StringName) -> bool:
+	var held: StringName = spell(player)
+	return a in SPELLS and held != &"" and held != a
+
+
 static func roman(n: int) -> String:
 	return ["", "I", "II", "III", "IV", "V"][clampi(n, 0, 5)]
 
 
-## Learn the next tier of `a`.
+## Learn the next tier of `a`. A new spell replaces the one in the slot.
 static func grant(player: Player, a: StringName) -> void:
+	if a in SPELLS:
+		for other: StringName in SPELLS:
+			if other != a:
+				player.tiers[other] = 0
 	player.tiers[a] = mini(tier(player, a) + 1, int(MAX[a]))
 	apply(player)
 	if a == &"vigor":
@@ -79,6 +105,48 @@ static func reset(player: Player) -> void:
 	apply(player)
 	player.health.health = player.health.max_health
 	player.health.display_health()
+
+
+## Adds the Spell action if the project does not define it.
+static func ensure_input() -> void:
+	if InputMap.has_action(SPELL_ACTION):
+		return
+	InputMap.add_action(SPELL_ACTION)
+	var key: InputEventKey = InputEventKey.new()
+	key.physical_keycode = KEY_Q
+	InputMap.action_add_event(SPELL_ACTION, key)
+	var pad: InputEventJoypadButton = InputEventJoypadButton.new()
+	pad.button_index = JOY_BUTTON_X
+	InputMap.action_add_event(SPELL_ACTION, pad)
+
+
+## The Spell button: use whatever is in the slot.
+static func cast(player: Player) -> void:
+	match spell(player):
+		&"hex":
+			(player.get_node("Hex") as Hex).cast()
+		&"astral":
+			player.get_node("AstralProjection").call("toggle")
+		&"parry":
+			player.parry.emit()
+		&"levitate":
+			(player.get_node("Levitate") as Levitate).toggle()
+		&"awareness":
+			(player.get_node("Awareness") as Awareness).ping()
+
+
+## A child node that exists only while its ability is known.
+static func _keep(player: Player, node_name: String, known: bool, make: Callable) -> Node:
+	var node: Node = player.get_node_or_null(node_name)
+	if known and node == null:
+		node = make.call()
+		node.name = node_name
+		player.add_child(node)
+	elif not known and node != null:
+		player.remove_child(node)
+		node.queue_free()
+		node = null
+	return node
 
 
 ## Push every tier into the player's tuning.
@@ -113,21 +181,26 @@ static func apply(player: Player) -> void:
 	var projection: Node = player.get_node_or_null("AstralProjection")
 	if projection != null:
 		(projection.get("projection_timer") as ActionTimer).MAX_TIME = 5.0 + 2.0 * float(astral - 1)
+		# Swapped away mid-projection: snap back.
+		if tier(player, &"astral") == 0 and bool(projection.call("projecting")):
+			projection.call("end_projection", projection.get("projection_timer"))
 	var hex_tier: int = tier(player, &"hex")
-	var hex: Hex = player.get_node_or_null("Hex") as Hex
-	if hex_tier > 0 and hex == null:
-		hex = Hex.new()
-		hex.name = "Hex"
-		player.add_child(hex)
-	elif hex_tier == 0 and hex != null:
-		player.remove_child(hex)
-		hex.queue_free()
-		hex = null
+	var hex: Hex = _keep(player, "Hex", hex_tier > 0, func() -> Node: return Hex.new()) as Hex
 	if hex != null:
 		hex.charges_max = 1 + (1 if hex_tier >= 2 else 0)
 		hex.damage = 1 + (1 if hex_tier >= 3 else 0)
 		hex.pierce = hex_tier >= 4
 		hex.charges = mini(hex.charges, hex.charges_max)
+	var lev_tier: int = tier(player, &"levitate")
+	if lev_tier == 0:
+		player.levitating = false
+	var lev: Levitate = _keep(player, "Levitate", lev_tier > 0, func() -> Node: return Levitate.new()) as Levitate
+	if lev != null:
+		lev.duration = 1.5 + 0.75 * float(lev_tier - 1)
+	var aware_tier: int = tier(player, &"awareness")
+	var aware: Awareness = _keep(player, "Awareness", aware_tier > 0, func() -> Node: return Awareness.new()) as Awareness
+	if aware != null:
+		aware.level = aware_tier
 	player.health.max_health = BASE_HEALTH + tier(player, &"vigor")
 	player.health.health = mini(player.health.health, player.health.max_health)
 	player.health.display_health()

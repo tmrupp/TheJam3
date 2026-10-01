@@ -116,7 +116,7 @@ func run() -> void:
 	print("tiers change the abilities")
 	player.tiers = Abilities.start_tiers()
 	Abilities.apply(player)
-	for a: StringName in [&"dash", &"double_jump", &"wall_climb", &"blink", &"parry", &"astral", &"vigor"]:
+	for a: StringName in [&"dash", &"double_jump", &"wall_climb", &"blink", &"vigor"]:
 		Abilities.grant(player, a)
 	Abilities.grant(player, &"blink")
 	check(is_equal_approx(player.dash.MAX_TIME, 0.32), "dash II dashes longer")
@@ -124,14 +124,19 @@ func run() -> void:
 	check(player.climable and is_equal_approx(player.climb.MAX_TIME, 3.0), "wall climb I")
 	check(player.has_node("Blink") and int(player.get_node("Blink").get("distance")) == 400, "blink II reaches 400")
 	Abilities.grant(player, &"parry")
-	Abilities.grant(player, &"astral")
+	Abilities.grant(player, &"parry")
 	check(is_equal_approx(float(player.get_node("Parry").get("duration")), 0.4), "parry II holds longer")
+	check(Abilities.spell(player) == &"parry", "parry sits in the spell slot")
+	check(Abilities.is_swap(player, &"astral") and not Abilities.is_swap(player, &"parry") and not Abilities.is_swap(player, &"vigor"), "a different spell would be a swap; perks never are")
+	Abilities.grant(player, &"astral")
+	check(Abilities.spell(player) == &"astral" and Abilities.tier(player, &"parry") == 0, "learning astral replaces parry: one spell at a time")
+	Abilities.grant(player, &"astral")
 	check(is_equal_approx((player.get_node("AstralProjection").get("projection_timer") as ActionTimer).MAX_TIME, 7.0), "astral II lasts longer")
+	check(player.has_node("Blink") and player.MAX_JUMPS == 2 and player.climable, "perks are untouched by the swap")
 	check(player.health.max_health == 4, "vigor I adds a heart")
 	for i: int in range(6):
 		Abilities.grant(player, &"double_jump")
 	check(Abilities.tier(player, &"double_jump") == 3, "tiers stop at their max")
-	var only: Dictionary = {}
 	for a: StringName in Abilities.ORDER:
 		player.tiers[a] = int(Abilities.MAX[a])
 	player.tiers[&"astral"] = 2

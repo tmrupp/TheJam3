@@ -31,6 +31,11 @@ func offer_tier() -> int:
 	return Abilities.tier(player, offer()) + 1
 
 
+## Learning the offer would replace the spell in the slot.
+func swap() -> bool:
+	return Abilities.is_swap(player, offer())
+
+
 func offer_price() -> int:
 	return Abilities.price(depth(), offer_tier())
 

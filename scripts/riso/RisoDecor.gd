@@ -6,6 +6,8 @@ class_name RisoDecor
 ## - Ceilings: hanging roots, stalactites, ink drips (RisoAmbient drops ink from them).
 ## - Walls: vines down the rock face.
 ## - Deep rock: faint strata, fossils, pale veins and geodes.
+## Plants (tufts, flowers, roots, vines) are drawn live, only on screen, so they can sway: a slow
+## idle breeze, and a springy push away from the wizard as they pass.
 ## Every choice is a hash of the level seed and the cell, so a level always wears the same
 ## decor for everyone; the world's RNG is never touched. Decor keeps clear of any cell holding
 ## an object, and prints only in blue, night, moss (accent over blue) and bare paper: pink is
@@ -45,6 +47,12 @@ var drip_spots: PackedVector2Array = PackedVector2Array()
 var drip_ends: PackedFloat32Array = PackedFloat32Array()
 var _solid: Dictionary = {}
 var canvases: Array[InkCanvas] = []
+## Plants that sway: indexes into `items`, each item holding its polygons ("parts"), the point it
+## grows from ("anchor"), whether it hangs ("hang") and its spring ("a", "v").
+const SWAY_KINDS: Array[StringName] = [&"tuft", &"flower", &"roots", &"vine"]
+var swaying: Array[int] = []
+var live: InkCanvas
+var t: float = 0.0
 var half: float = 64.0
 
 
@@ -53,6 +61,8 @@ func _ready() -> void:
 	z_as_relative = false
 	add_to_group(&"riso_art")
 	visible = RisoPrint.is_on()
+	live = InkCanvas.new()
+	add_child(live)
 
 
 ## A stable 0..1 hash of the level seed, a cell and a salt.
@@ -149,15 +159,29 @@ func rebuild(info: MapInfo, cracked_positions: Array[Vector2] = []) -> void:
 	drip_spots = PackedVector2Array()
 	drip_ends = PackedFloat32Array()
 	var chunks: Dictionary = {}
-	for item: Dictionary in items:
+	swaying.clear()
+	for index: int in range(items.size()):
+		var item: Dictionary = items[index]
 		var v: Vector2i = item["cell"]
+		if item["kind"] in SWAY_KINDS:
+			var own: Array = _empty_slots()
+			var at: Vector2 = tm.to_global(tm.map_to_local(v))
+			_draw_item(item, at, own, level_seed)
+			var parts: Array = []
+			for i: int in range(own.size()):
+				for poly: PackedVector2Array in own[i]:
+					parts.append([i, poly])
+			var hang: bool = item["kind"] in [&"roots", &"vine"]
+			item["parts"] = parts
+			item["hang"] = hang
+			item["anchor"] = Vector2(at.x - float(item.get("side", 0)) * half, at.y + (-half if hang else half))
+			item["a"] = 0.0
+			item["v"] = 0.0
+			swaying.append(index)
+			continue
 		var key: Vector2i = Vector2i(floori(float(v.x) / CHUNK), floori(float(v.y) / CHUNK))
 		if not chunks.has(key):
-			var slots: Array = []
-			for i: int in range(SLOTS.size()):
-				var polys: Array[PackedVector2Array] = []
-				slots.append(polys)
-			chunks[key] = slots
+			chunks[key] = _empty_slots()
 		var c: Vector2 = tm.to_global(tm.map_to_local(v))
 		_draw_item(item, c, chunks[key], level_seed)
 	for canvas: InkCanvas in canvases:
@@ -168,17 +192,79 @@ func rebuild(info: MapInfo, cracked_positions: Array[Vector2] = []) -> void:
 		add_child(canvas)
 		canvases.append(canvas)
 		canvas.begin()
-		var slots: Array = chunks[key]
-		for i: int in range(SLOTS.size()):
-			var polys: Array[PackedVector2Array] = slots[i]
-			if polys.is_empty():
-				continue
-			var slot: Array = SLOTS[i]
-			if bool(slot[2]):
-				canvas.knock(KNOCK_ALL if i == 8 or i == 14 else KNOCK_ROCK, polys)
-			else:
-				canvas.ink(int(slot[0]), float(slot[1]), polys, bool(slot[3]))
+		_print_slots(canvas, chunks[key])
 		canvas.finish()
+
+
+func _empty_slots() -> Array:
+	var slots: Array = []
+	for i: int in range(SLOTS.size()):
+		var polys: Array[PackedVector2Array] = []
+		slots.append(polys)
+	return slots
+
+
+func _print_slots(canvas: InkCanvas, slots: Array) -> void:
+	for i: int in range(SLOTS.size()):
+		var polys: Array[PackedVector2Array] = slots[i]
+		if polys.is_empty():
+			continue
+		var slot: Array = SLOTS[i]
+		if bool(slot[2]):
+			canvas.knock(KNOCK_ALL if i == 8 or i == 14 else KNOCK_ROCK, polys)
+		else:
+			canvas.ink(int(slot[0]), float(slot[1]), polys, bool(slot[3]))
+
+
+## How far a plant leans at `anchor` (radians-ish shear), for tests and drawing.
+func lean(index: int) -> float:
+	return float(items[index].get("a", 0.0))
+
+
+func _process(delta: float) -> void:
+	t += delta
+	live.begin()
+	var cam: Camera2D = get_viewport().get_camera_2d()
+	var player: Player = get_node_or_null("/root/Main/Player") as Player
+	if cam == null or swaying.is_empty():
+		live.finish()
+		return
+	var view: Rect2 = RisoLight.view_rect(self, cam).grow(200.0)
+	var slots: Array = _empty_slots()
+	var dt: float = minf(delta, 0.05)
+	for index: int in swaying:
+		var item: Dictionary = items[index]
+		var anchor: Vector2 = item["anchor"]
+		if not view.has_point(anchor):
+			continue
+		var hang: bool = item["hang"]
+		# The push: away from the wizard, and along with them, while they brush past.
+		var target: float = 0.0
+		if player != null:
+			var reach_y: float = anchor.y + (90.0 if hang else -70.0)
+			var dx: float = anchor.x - player.global_position.x
+			var close: float = clampf(1.0 - absf(dx) / 110.0, 0.0, 1.0) * clampf(1.0 - absf(player.global_position.y - reach_y) / 120.0, 0.0, 1.0)
+			if close > 0.0:
+				var away: float = signf(dx) * (1.0 if not hang else -1.0)
+				target = (away * 0.45 + clampf(player.velocity.x / 300.0, -1.0, 1.0) * (0.35 if not hang else -0.35)) * close
+		var a: float = item["a"]
+		var v: float = item["v"]
+		v += ((target - a) * 70.0 - v * 6.0) * dt
+		a += v * dt
+		item["a"] = a
+		item["v"] = v
+		var bend: float = a + sin(t * 1.3 + anchor.x * 0.013) * 0.035
+		for part: Array in item["parts"]:
+			var poly: PackedVector2Array = part[1]
+			var bent: PackedVector2Array = PackedVector2Array()
+			bent.resize(poly.size())
+			for k: int in range(poly.size()):
+				var p: Vector2 = poly[k]
+				var h: float = (p.y - anchor.y) if hang else (anchor.y - p.y)
+				bent[k] = Vector2(p.x + bend * h, p.y)
+			(slots[int(part[0])] as Array[PackedVector2Array]).append(bent)
+	_print_slots(live, slots)
+	live.finish()
 
 
 # ------------------------------------------------------------------ the props

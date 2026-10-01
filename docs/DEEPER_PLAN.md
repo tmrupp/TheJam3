@@ -61,7 +61,10 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
   - Learning costs `S(d, tier) = max(3, round(10 × 1.6^(tier−1) × 0.8^d))`: cheaper deeper, dearer per tier.
   - Mending works the other way: `H(d) = round(3 × 1.35^d)`, which is 3 at depth 0 and 13 at depth 5.
 - **Only the dash is known at the start.** Everything else is found at shrines. A shrine offers an ability not yet known before any upgrade: it starts from the seed's pick and goes round. Until learned, parry and astral projection do nothing, and there is no hex, so no killing enemies or breaking cracked walls.
-- **Astral projection** is a button (`Astral`: Q, or the pad's left shoulder; the action is added at runtime). Tap it to leave your body and go out as an untouchable projection. Tap again, or get hurt, to snap back to the body. Let it run out and you stay where the projection is. There are no astral orbs any more.
+- **One spell slot.** Hex, astral projection, parry, levitate and awareness are spells, and all use the Spell button (Q, or the pad's X; the old Parry binding renamed). You carry one at a time: learning a different spell at a shrine replaces it, and the shrine's plaque says "· swap". Perks (dash, double jump, wall climb, blink, vigor) stack.
+- **Levitate:** press Spell in the air to stop falling and float. You drift slowly up and down with the stick and sideways at walking pace, until it runs out or you press Spell again. You get one float per landing, and a moon brings it back.
+- **Awareness:** press Spell to sense the level. While it lasts, pointers at the edge of the view show where things are, like the ghost's arrow. A short cooldown follows.
+- **Astral projection** uses the Spell button. Tap it to leave your body and go out as an untouchable projection. Tap again, or get hurt, to snap back to the body. Let it run out and you stay where the projection is. There are no astral orbs any more.
 - **Moons** are dash resets, about 24 per level, hanging in the air. Touching one gives your dash back if you have used it. It then wanes for 2.5 s and returns. Moons are never used up.
 - Tiers live on the player (`Abilities.gd`) and reset when a run ends. The upgrade menu and the old `Upgrade`, `UpgradeManager`, double-jump and wall-climb nodes are gone.
 
@@ -74,6 +77,8 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 | Parry | – | IV | window +0.1 s, cooldown −0.4 s |
 | Astral projection | – | IV | lasts 2 s longer |
 | Hex | – | IV | II +1 charge, III +1 damage, IV pierces |
+| Levitate | – | III | float 1.5 s, +0.75 s per tier |
+| Awareness | – | III | I exits; II also the ink well and shrine; III also the nearest key of each colour; senses longer each tier |
 | Vigor | – | III | +1 max health (and heals 1) |
 
 ## 5. Economy
@@ -122,7 +127,7 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 
 ## 7. Map screen
 
-`scripts/riso/RisoMap.gd` replaces MapInfo's pixel overlay. `ShowMap` (M, or the pad's Y) cycles through the level view, the world view, and closed. The map pauses the game while open, and Menu closes it. It is printed on the ink plates like the HUD, in the 320×180 UI space, so it needs the print on.
+`scripts/riso/RisoMap.gd` replaces MapInfo's pixel overlay. `ShowMap` (M, or the pad's Y) opens the map on the level page and closes it. A/D (or the arrow keys) turn between the level and worlds pages, shown as tabs. The map pauses the game while open, and Menu closes it. It is printed on the ink plates like the HUD, in the 320×180 UI space, so it needs the print on.
 
 - **Level view:** the current level on paper, as far as it has been seen.
   - **Seen:** each level's record holds `seen`, a byte per cell (`MapInfo.reveal`, `is_seen`).
