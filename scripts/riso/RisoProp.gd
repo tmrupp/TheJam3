@@ -23,12 +23,14 @@ var phase: float = 0.0
 var half: float = 64.0
 ## Printed text (prices, names), reused frame to frame; see _text().
 var labels: Array[Label] = []
-## Wisp turning: while its Mover holds still (turn_left), the wisp flies a loop in space:
-## forward, up and over, and back down facing the other way, its body following the path's
-## heading. The body is symmetric about its spine (y = -8.2), so half a turn of the old facing is
+## Wisp turning: the wisp swoops round a tight circle to face the other way (forward, up and
+## over, back down), its body following the path's heading. Timed by the art's own clock from the
+## moment its facing changes, while its Mover holds still for the same time. The body is symmetric about its spine (y = -8.2), so half a turn of the old facing is
 ## the new facing upright; the eyes slide to their mirrored height on the way so they land exactly.
-const WISP_LOOP_W: float = 70.0
-const WISP_LOOP_H: float = 95.0
+const WISP_LOOP_W: float = 30.0
+const WISP_LOOP_H: float = 44.0
+const WISP_TURN_TIME: float = 0.5
+var wisp_turn_t0: float = -100.0
 static var _loop: PackedVector2Array = PackedVector2Array()
 static var _loop_heading: PackedFloat32Array = PackedFloat32Array()
 var wisp_from: float = 0.0
@@ -603,10 +605,9 @@ func _wisp() -> void:
 		wisp_from = wisp_to
 		wisp_to = dir
 		_fit_loop(wisp_from)
-	# Where along the loop the wisp is, from its Mover's hold (1 when not turning).
-	var left: float = float(mover.get("turn_left")) if mover != null else 0.0
-	var u: float = 1.0 - left / maxf(0.001, float(mover.get("TURN_TIME"))) if mover != null else 1.0
-	var spinning: bool = left > 0.0
+		wisp_turn_t0 = t
+	var u: float = clampf((t - wisp_turn_t0) / WISP_TURN_TIME, 0.0, 1.0)
+	var spinning: bool = u < 1.0
 	var side: float = wisp_from if spinning else wisp_to
 	var loop_at: Vector2 = Vector2.ZERO
 	var spin: float = 0.0
@@ -647,8 +648,11 @@ func _wisp() -> void:
 		var fade: PackedFloat32Array = PackedFloat32Array()
 		var top: float = (1.0 if layer == 0 else 0.3 / float(layer)) * (1.0 if layer == 0 else flicker)
 		for p: Vector2 in pts:
-			var along: float = clampf((p.x + 12.4) / 13.0, 0.0, 1.0)
-			fade.append(top * (minf(1.0, 0.45 + along * 1.6) if layer == 0 else lerpf(0.15, 1.0, along)))
+			# Along the body from the tail tip (0) to the head (1). The body is solid ink from about
+			# the middle forward and tapers to nothing at the tail tip; the veils stay faint.
+			var along: float = clampf((p.x + 12.4) / 18.0, 0.0, 1.0)
+			var solid: float = clampf(along / 0.45, 0.0, 1.0)
+			fade.append(top * (solid * solid * (3.0 - 2.0 * solid) if layer == 0 else lerpf(0.15, 1.0, along)))
 		var poly: PackedVector2Array = xf * (Transform2D(0.0, back) * pts)
 		if layer == 0:
 			# Opaque: clear the inks of whatever is behind (grass, light, glow) under the body.
@@ -683,10 +687,10 @@ func _fit_loop(forward: float) -> void:
 	while open_above < 2 and info.world.is_valid(c + Vector2i(0, -open_above - 1)) and not _wisp_blocked(info, c + Vector2i(0, -open_above - 1)):
 		open_above += 1
 	# The wisp floats in the lower part of its cell: about 50 px clear above it in its own cell.
-	wisp_loop_h = clampf(50.0 + 128.0 * float(open_above) - 24.0, 26.0, WISP_LOOP_H)
+	wisp_loop_h = clampf(50.0 + 128.0 * float(open_above) - 24.0, 24.0, WISP_LOOP_H)
 	var f: Vector2i = Vector2i(int(signf(forward)), 0)
 	if _wisp_blocked(info, c + f) or (open_above > 0 and _wisp_blocked(info, c + f + Vector2i(0, -1))):
-		wisp_loop_w = 22.0
+		wisp_loop_w = 16.0
 
 
 func _wisp_blocked(info: MapInfo, v: Vector2i) -> bool:

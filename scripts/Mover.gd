@@ -10,8 +10,9 @@ var gravity: float = ProjectSettings.get_setting("physics/2d/default_gravity")
 @onready var rb: RigidBody2D = $".."
 @onready var sprite: Sprite2D = $"../Sprite2D"
 var stunned: bool = false
-## Turning round: the wisp holds still for TURN_TIME while its art loops up and over (RisoProp).
-const TURN_TIME: float = 0.9
+## Turning round: the wisp holds still for TURN_TIME while its art swoops round a tight circle
+## (RisoProp.WISP_TURN_TIME matches it).
+const TURN_TIME: float = 0.5
 var turn_left: float = 0.0
 
 func turn () -> void:
