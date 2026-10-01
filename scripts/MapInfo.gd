@@ -49,12 +49,14 @@ class NextWorldDef:
 	var region : String
 	var depth : int = 0
 	var debug : bool = false
+	var size : Vector2i = Vector2i(64, 64)
 
 	func _init(s: int, r: String, d: int = 0, dbg: bool = false) -> void:
 		gen_seed = s
 		region = r
 		depth = d
 		debug = dbg
+		size = MapInfo.level_size(d)
 
 class Cell:
 	var type: Type = Type.GROUND
@@ -490,8 +492,11 @@ const CHUNK_SIZE: int = 16
 @onready var tile_map: TileMap = $"../../TileMap"
 
 # constants for "box" to contain the generated map
-const X_MARGIN: int = 2
-const TOP_MARGIN: int = 5
+## Solid rock around the level, flush against its edges (cells thick).
+const BORDER: int = 3
+## Open space beyond the level's own cells (none: the border rock starts at the edge).
+const X_MARGIN: int = 0
+const TOP_MARGIN: int = 0
 
 @onready var wfc_thread: Thread = Thread.new()
 
@@ -567,6 +572,10 @@ static func exit_distance (depth: int) -> int:
 ## The key colour that locks a level's left or right exit, dealt by the level seed.
 static func lateral_lock (at: Vector2i, which: int) -> int:
 	return level_seed(level_seed(at.x, at.y), 500 + which) % KEY_COLOR_COUNT
+
+## Cells across and down for a level: small near the surface, growing with depth.
+static func level_size (depth: int) -> Vector2i:
+	return Vector2i(clampi(36 + 6 * depth, 36, 80), clampi(30 + 5 * depth, 30, 72))
 
 ## Stars to ink a level's whole map at its ink well.
 static func map_price (depth: int) -> int:
@@ -1191,10 +1200,10 @@ func construct_world() -> void:
 	draw_background(world.size.x, world.size.y)
 
 func get_max_bounds () -> Vector2:
-	return tile_map.to_global(tile_map.map_to_local(Vector2i(world.size.x + X_MARGIN - 1, world.size.y)))
+	return tile_map.to_global(tile_map.map_to_local(Vector2i(world.size.x - 1, world.size.y - 1)))
 
 func get_min_bounds () -> Vector2:
-	return tile_map.to_global(tile_map.map_to_local(Vector2i(-X_MARGIN, -TOP_MARGIN)))
+	return tile_map.to_global(tile_map.map_to_local(Vector2i(0, 0)))
 
 func in_bounds (v: Vector2) -> bool:
 	#	world.size.x, world.size.y
@@ -1225,23 +1234,29 @@ func draw_background(dim_x: int, dim_y: int) -> void:
 			# arg4: atlas coords, the tile by grid location in the atlas, (0,0) is dirt, (1,0) is sky
 			tile_map.set_cell(1, Vector2i(i, j), 1, Vector2i(1 if j < 0 else 0, 0))
 
-# Enclose the map in a "box" so the player can't fall into nothingness
+# Enclose the level in solid rock, BORDER cells thick and flush against its edges, so it reads as
+# a cave cut into rock rather than a box drawn round it. The camera stops at the rock.
 func enclose_map(dim_x: int, dim_y: int) -> void:
-	for i: int in range(-X_MARGIN, dim_x + X_MARGIN):
-		var to_add: Array[Vector2i] = [
-			Vector2i(i, dim_y), #bottom of map
-			Vector2i(i, -TOP_MARGIN), #top of map
-			]
-		tile_map.set_cells_terrain_connect(0, to_add, 0, 0)
-		# print("to_add=", to_add, " dim_x=", dim_x)
+	var rock: Array[Vector2i] = []
+	for i: int in range(-BORDER, dim_x + BORDER):
+		for j: int in range(-BORDER, dim_y + BORDER):
+			if i < 0 or j < 0 or i >= dim_x or j >= dim_y:
+				rock.append(Vector2i(i, j))
+	tile_map.set_cells_terrain_connect(0, rock, 0, 0)
+	_fit_camera(dim_x, dim_y)
 
-	for j: int in range(-TOP_MARGIN + 1, dim_y):
-		var to_add: Array[Vector2i] = [
-			Vector2i(-X_MARGIN, j), #left of map
-			Vector2i(dim_x + X_MARGIN - 1, j), #right of map
-		]
-		tile_map.set_cells_terrain_connect(0, to_add, 0, 0)
-		# print("to_add=", to_add, " dim_y=", dim_y)
+## Keep the camera inside the level plus one cell of its border rock.
+func _fit_camera(dim_x: int, dim_y: int) -> void:
+	var cam: Camera2D = main.get_node_or_null("Camera2D") as Camera2D
+	if cam == null:
+		return
+	var cell: Vector2 = Vector2(tile_map.tile_set.tile_size) * tile_map.global_scale
+	var top_left: Vector2 = tile_map.to_global(tile_map.map_to_local(Vector2i(-1, -1))) - cell * 0.5
+	var bottom_right: Vector2 = tile_map.to_global(tile_map.map_to_local(Vector2i(dim_x, dim_y))) + cell * 0.5
+	cam.limit_left = int(top_left.x)
+	cam.limit_top = int(top_left.y)
+	cam.limit_right = int(bottom_right.x)
+	cam.limit_bottom = int(bottom_right.y)
 
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("Debug-Back"):

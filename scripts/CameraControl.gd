@@ -21,12 +21,7 @@ const HORIZONTAL_OFFSET: int = 200
 const VERTICAL_OFFSET: int = 100
 
 func _ready() -> void:
-	var tilemap_scale: Vector2i = Vector2i($"../../TileMap".scale)
-	var level_size: Vector2i = $"../../WaveFunctionCollapse".output_size * $"../../TileMap".tile_set.tile_size * tilemap_scale
-	camera.limit_left = -1 * $"../../CanvasLayer/MapInfo".X_MARGIN * $"../../TileMap".tile_set.tile_size.x * tilemap_scale.x
-	camera.limit_right = level_size.x + $"../../CanvasLayer/MapInfo".X_MARGIN * $"../../TileMap".tile_set.tile_size.x * tilemap_scale.x
-	camera.limit_top = -1 * $"../../CanvasLayer/MapInfo".TOP_MARGIN * $"../../TileMap".tile_set.tile_size.y * tilemap_scale.y
-	camera.limit_bottom = level_size.y + 1 * $"../../TileMap".tile_set.tile_size.y * tilemap_scale.y
+	# Camera limits are fitted to each level by MapInfo (enclose_map).
 	player.direction_signal.connect(update_target)
 	target_location = player.position
 

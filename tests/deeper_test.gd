@@ -134,6 +134,18 @@ func run() -> void:
 	player.global_position = info.cell_position(info.world.exits[MapInfo.Exit.BACK])
 	await wait_level()
 
+	print("level size")
+	check(info.world.size == MapInfo.level_size(0) and MapInfo.level_size(6).x > MapInfo.level_size(0).x and MapInfo.level_size(6).y > MapInfo.level_size(0).y, "depth 0 is %s; deeper levels are bigger (%s at depth 6)" % [info.world.size, MapInfo.level_size(6)])
+	var tm: TileMap = info.tile_map
+	var walled: bool = true
+	for x: int in range(-MapInfo.BORDER, info.world.size.x + MapInfo.BORDER):
+		for y: int in [-1, -MapInfo.BORDER, info.world.size.y, info.world.size.y + MapInfo.BORDER - 1]:
+			walled = walled and tm.get_cell_source_id(0, Vector2i(x, y)) != -1
+	for y: int in range(-MapInfo.BORDER, info.world.size.y + MapInfo.BORDER):
+		for x: int in [-1, -MapInfo.BORDER, info.world.size.x, info.world.size.x + MapInfo.BORDER - 1]:
+			walled = walled and tm.get_cell_source_id(0, Vector2i(x, y)) != -1
+	check(walled, "a solid border %d cells thick, flush against the level" % MapInfo.BORDER)
+
 	print("level contents")
 	var lanterns: int = placed("checkpoint.tscn").size()
 	var keys: int = placed("key.tscn").size()

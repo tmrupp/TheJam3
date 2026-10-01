@@ -49,7 +49,7 @@ func run() -> void:
 	var kinds: Dictionary = {}
 	for it: Dictionary in first:
 		kinds[it["kind"]] = true
-	check(first.size() > 200 and kinds.size() >= 7, "%d props of %d kinds" % [first.size(), kinds.size()])
+	check(first.size() > info.world.size.x * info.world.size.y / 15 and kinds.size() >= 7, "%d props of %d kinds" % [first.size(), kinds.size()])
 	check(not kinds.has(&"strata") and not kinds.has(&"fossil") and not kinds.has(&"geode") and not kinds.has(&"vein"), "nothing printed inside the rock")
 	var bounds: Rect2i = Rect2i(Vector2i.ZERO, info.world.size)
 	check(first.all(func(it: Dictionary) -> bool: return bounds.has_point(it["base"])), "all inside the level (none on its outer walls)")

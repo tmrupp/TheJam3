@@ -163,6 +163,9 @@ func run() -> void:
 				break
 		if shot.x >= 0:
 			break
+	# Small levels crowd enemies near the walls: keep them out of this bolt's way.
+	for foe: Node in get_nodes_in_group(&"hex_target"):
+		foe.remove_from_group(&"hex_target")
 	fire(shot_from, shot_dir)
 	await wait_physics(6)
 	check(not placed("cracked_wall.tscn").any(func(n: Node) -> bool: return n.get_meta(&"cell") == shot), "a bolt breaks the wall")
