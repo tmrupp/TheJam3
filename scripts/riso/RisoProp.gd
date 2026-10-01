@@ -23,10 +23,10 @@ var phase: float = 0.0
 var half: float = 64.0
 ## Printed text (prices, names), reused frame to frame; see _text().
 var labels: Array[Label] = []
-## Wisp turning, from `wisp_from` to `wisp_to` as `wisp_u` runs 0..1. For the first half it keeps
-## its old facing while its tail rises straight up over its head and its eyes slide to the middle;
-## at the midpoint (nearly symmetric) the facing changes; then the tail comes down behind on the
-## new side. It starts and ends exactly on the normal moving pose.
+## Wisp turning, from `wisp_from` to `wisp_to` as `wisp_u` runs 0..1: it spirals over itself,
+## spinning half a turn about its head (head up and over, the tail sweeping round with a little
+## lag). The body is symmetric about its spine (y = -8.2), so half a turn of the old facing is the
+## new facing upright; the eyes slide to their mirrored height on the way so they land exactly.
 const WISP_TURN_TIME: float = 0.75
 var wisp_from: float = 0.0
 var wisp_to: float = 0.0
@@ -601,13 +601,12 @@ func _wisp() -> void:
 		wisp_u = 1.0 - wisp_u if wisp_u < 1.0 else 0.0
 	wisp_u = minf(1.0, wisp_u + _dt / WISP_TURN_TIME)
 	var e: float = wisp_u * wisp_u * (3.0 - 2.0 * wisp_u)
-	var side: float = wisp_from if e < 0.5 else wisp_to
-	# The tail's lift: 0 at rest, PI/2 (straight up) at the midpoint.
-	var swing: float = (e if e < 0.5 else 1.0 - e) * PI
-	# How far the eyes sit toward the head (1) or centred (0, mid-turn).
-	var eye_k: float = absf(1.0 - 2.0 * e)
-	var turning: float = 1.0 - eye_k
-	var width: float = 1.0 - 0.06 * turning
+	var spinning: bool = wisp_u < 1.0
+	var side: float = wisp_from if spinning else wisp_to
+	# The spin: 0 at rest, PI at the end of the turn (head up and over: negative in y-down).
+	var spin: float = e * PI if spinning else 0.0
+	var turning: float = sin(e * PI) if spinning else 0.0
+	var width: float = 1.0
 	# Its shadow on the floor, shrinking as it bobs up: it belongs to the ground it haunts.
 	var g: float = _ground()
 	ink.ink(RisoPrint.NIGHT, 0.35, [RisoShapes.ellipse(Vector2(0, g - 3.0), 26.0 + bob * 1.2, 5.0, 16)], false)
@@ -630,13 +629,9 @@ func _wisp() -> void:
 			Vector2(5.6, -9), Vector2(4.6, -4.6), Vector2(1.6, -3), Vector2(-2, -3.8 + w[1] * 0.3), Vector2(-5.6, -4.8 + w[1]),
 			Vector2(-9, -6.6 + w[2]), Vector2(-12.4, -8.6 + w[3]), Vector2(-8.8, -9.6 + w[2]), Vector2(-5.2, -11 + w[1] * 0.6),
 			Vector2(-1.4, -13.2), Vector2(2.6, -13.4)]))
-		# The tail swings round after the head: points behind the head rotate about the body's
-		# middle, up over the top (more toward the tip, so it curls) as it sweeps back.
-		if swing > 0.001:
-			var pivot: Vector2 = Vector2(1.0, -8.5)
-			for n: int in range(pts.size()):
-				var behind: float = clampf((1.0 - pts[n].x) / 13.4, 0.0, 1.0)
-				pts[n] = pivot + (pts[n] - pivot).rotated(swing * pow(behind, 0.6))
+		# The spiral: everything turns about the head; the tail lags a little mid-turn, so it curls.
+		if spin > 0.0:
+			pts = _wisp_spin(pts, spin, turning)
 		var fade: PackedFloat32Array = PackedFloat32Array()
 		var top: float = (1.0 if layer == 0 else 0.3 / float(layer)) * (1.0 if layer == 0 else flicker)
 		for p: Vector2 in pts:
@@ -645,9 +640,9 @@ func _wisp() -> void:
 		var poly: PackedVector2Array = xf * (Transform2D(0.0, back) * pts)
 		if layer == 0:
 			# Opaque: clear the inks of whatever is behind (grass, light, glow) under the body.
-			ink.knock([RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], [xf * RisoShapes.smooth(PackedVector2Array([
+			ink.knock([RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], [xf * _wisp_spin(RisoShapes.smooth(PackedVector2Array([
 				Vector2(5.6, -9), Vector2(4.6, -4.6), Vector2(1.6, -3), Vector2(-2, -3.8), Vector2(-4.5, -4.8), Vector2(-4.5, -11),
-				Vector2(-1.4, -13.2), Vector2(2.6, -13.4)]))])
+				Vector2(-1.4, -13.2), Vector2(2.6, -13.4)])), spin, turning)])
 		ink.ink_graded(RisoPrint.PINK, [poly], [fade])
 		if layer == 0:
 			var cool: PackedFloat32Array = PackedFloat32Array()
@@ -656,10 +651,26 @@ func _wisp() -> void:
 			ink.ink_graded(RisoPrint.BLUE, [poly], [cool])
 	var eyes: Array[PackedVector2Array] = []
 	for eye: Vector2 in [Vector2(3.4, -9.2), Vector2(0.7, -9.4)]:
-		# The pair is centred on x = 2.05 when facing; mid-turn it slides to the body's middle.
-		var ep: Vector2 = Vector2(eye.x - 2.05 + 2.05 * eye_k, eye.y)
-		eyes.append(xf * (RisoShapes.rrect(ep.x - 1.0, ep.y - 0.4, 2.0, 0.8, 0.4, 2) if stunned else RisoShapes.ellipse(ep, 0.9, 1.9, 14)))
+		# Mid-spin the eyes slide to their mirrored height about the spine, so after half a turn
+		# they sit exactly where the upright wisp's eyes do.
+		var ep: Vector2 = Vector2(eye.x, lerpf(eye.y, -16.4 - eye.y, e)) if spinning else eye
+		var shape: PackedVector2Array = RisoShapes.rrect(ep.x - 1.0, ep.y - 0.4, 2.0, 0.8, 0.4, 2) if stunned else RisoShapes.ellipse(ep, 0.9, 1.9, 14)
+		eyes.append(xf * _wisp_spin(shape, spin, 0.0))
 	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], eyes)
+
+
+## Turn a wisp shape about its head (0, -8.2) by `spin`; points toward the tail lag by up to
+## `lag` x 0.6 rad, so mid-turn the tail curls behind.
+func _wisp_spin(poly: PackedVector2Array, spin: float, lag: float) -> PackedVector2Array:
+	if spin <= 0.0:
+		return poly
+	var pivot: Vector2 = Vector2(0.0, -8.2)
+	var out: PackedVector2Array = PackedVector2Array()
+	out.resize(poly.size())
+	for n: int in range(poly.size()):
+		var behind: float = clampf(-poly[n].x / 12.4, 0.0, 1.0)
+		out[n] = pivot + (poly[n] - pivot).rotated(-(spin - lag * 0.6 * behind))
+	return out
 
 
 var _last_shot: float = -10.0
