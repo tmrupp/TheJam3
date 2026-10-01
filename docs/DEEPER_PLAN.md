@@ -144,6 +144,9 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 - **World view:** each visited level is a tile labelled `world · depth` on the grid, centred on the current one, which is highlighted.
   - **Links:** opened side doors and paid deeper doors are drawn as bars between tiles.
   - **Marks:** the respawn lantern's level, spent shrines, and the ghost.
+- **Legend:** each page has a legend down its right edge, drawn with the same mark functions as the map, so it always matches.
+  - **Level page:** you, way out, deeper, locked, unpaid, shrine, lantern, respawn, door, key, ink well, ghost.
+  - **Worlds page:** you are here, visited, way opened, respawn, shrine used, ghost.
 - `tests/map_test.gd` covers the reveal radius, shard chunks, reveal persisting across a revisit, the open, cycle and close states with pausing, and the world tiles and links. `tests/capture_map.gd` takes stills of both views.
 
 ## 8. The hex bolt, enemy health and cracked walls

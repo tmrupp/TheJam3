@@ -10,12 +10,14 @@ extends Node2D
 ## - World view: every visited level as a tile on the (world, depth) grid, joined where a side
 ##   door has been opened or a deeper door paid, with the respawn lantern, the ghost and spent
 ##   shrines marked.
+## Each page has a legend down its right edge, drawn with the same marks as the map.
 
 enum View { CLOSED, LEVEL, WORLD }
 
 const TEXT_PX: int = 64
 const PANEL: Rect2 = Rect2(8, 8, 304, 164)
-const AREA: Rect2 = Rect2(16, 30, 288, 136)
+const AREA: Rect2 = Rect2(16, 30, 218, 136)
+const LEGEND: Rect2 = Rect2(242, 30, 64, 136)
 const TILE: Vector2 = Vector2(34, 18)
 const PITCH: Vector2 = Vector2(42, 26)
 
@@ -204,34 +206,35 @@ func _level(info: MapInfo) -> void:
 			"level_exit.tscn":
 				_exit_mark(node, at)
 			"inkwell.tscn":
-				var dry: bool = bool(node.call("used"))
-				marks.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(at.x - 2.4, at.y - 2.0, 4.8, 4.4, 1.6)], false)
-				if not dry:
-					marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(at + Vector2(0, -3.6), 1.2, 6)], false)
+				_mark_inkwell(at, bool(node.call("used")))
 			"shrine.tscn":
-				var used: bool = bool(node.call("used"))
-				marks.ink(RisoPrint.ACCENT, 0.35 if used else 1.0, [RisoShapes.arch(at.x - 2.5, at.y - 3.5, 5, 6, 6)], false)
+				_mark_shrine(at, bool(node.call("used")))
 			"checkpoint.tscn":
-				var lit: bool = info.is_respawn_lantern(node)
-				if lit:
-					marks.ink(RisoPrint.EYE, 0.3, [RisoShapes.circle(at, 4.5, 16)], false)
-				marks.ink(RisoPrint.EYE, 1.0 if lit else 0.5, [RisoShapes.circle(at, 1.6, 10)], false)
+				_mark_lantern(at, info.is_respawn_lantern(node))
 			"door.tscn":
-				for plate: int in RisoPrint.key_inks(int(node.get_meta(&"key_color", 0))):
-					marks.ink(plate, 1.0, [RisoShapes.rrect(at.x - 0.9, at.y - 2.6, 1.8, 5.2, 0.8)], false)
+				_mark_door(at, int(node.get_meta(&"key_color", 0)))
 			"key.tscn":
 				var sprite: CanvasItem = node.get_node_or_null("Sprite2D") as CanvasItem
 				if sprite == null or sprite.visible:
-					for plate: int in RisoPrint.key_inks(int(node.get_meta(&"key_color", 0))):
-						marks.ink(plate, 1.0, [RisoShapes.circle(at, 1.3, 8)], false)
+					_mark_key(at, int(node.get_meta(&"key_color", 0)))
 			"corpse.tscn":
-				var ghost_at: Vector2 = to_map(info, Vector2(info.cell_at((node as Node2D).global_position)) + Vector2(0.5, 0.5))
-				marks.ink(RisoPrint.GLOW, 1.0, RisoProp.ghost_shape(Transform2D(0.0, Vector2(0.22, 0.22), 0.0, ghost_at + Vector2(0, 3))), false)
-	# The wizard, always: a hat over a lit eye, bobbing.
-	var p: Vector2 = to_map(info, Vector2(info.cell_at(info.player.global_position)) + Vector2(0.5, 0.5)) + Vector2(0, sin(t * 4.0) * 0.6)
-	marks.knock([RisoPrint.NIGHT, RisoPrint.BLUE], [RisoShapes.circle(p, 3.6, 14)])
-	marks.ink(RisoPrint.PINK, 1.0, [RisoShapes.tri(p + Vector2(-2.6, 0.6), p + Vector2(2.6, 0.6), p + Vector2(0.4, -4.2))], false)
-	marks.ink(RisoPrint.EYE, 1.0, [RisoShapes.circle(p + Vector2(0, 1.8), 1.1, 8)], false)
+				_mark_ghost(to_map(info, Vector2(info.cell_at((node as Node2D).global_position)) + Vector2(0.5, 0.5)), 0.22)
+	# The wizard, always, bobbing.
+	_mark_wizard(to_map(info, Vector2(info.cell_at(info.player.global_position)) + Vector2(0.5, 0.5)) + Vector2(0, sin(t * 4.0) * 0.6))
+	_legend([
+		["you", _mark_wizard],
+		["way out", func(at: Vector2) -> void: _mark_exit(at, Vector2.RIGHT, false, -1, 0, 0.7)],
+		["deeper", func(at: Vector2) -> void: _mark_exit(at, Vector2.DOWN, true, -1, 0, 0.7)],
+		["locked", func(at: Vector2) -> void: _mark_exit(at, Vector2.RIGHT, false, 1, 0, 0.7)],
+		["unpaid", func(at: Vector2) -> void: _mark_exit(at, Vector2.DOWN, true, -1, 8, 0.7)],
+		["shrine", func(at: Vector2) -> void: _mark_shrine(at, false)],
+		["lantern", func(at: Vector2) -> void: _mark_lantern(at, false)],
+		["respawn", func(at: Vector2) -> void: _mark_lantern(at, true)],
+		["door", func(at: Vector2) -> void: _mark_door(at, 2)],
+		["key", func(at: Vector2) -> void: _mark_key(at, 2)],
+		["ink well", func(at: Vector2) -> void: _mark_inkwell(at, false)],
+		["ghost", func(at: Vector2) -> void: _mark_ghost(at, 0.22)],
+	])
 
 
 func _exit_mark(node: Node, at: Vector2) -> void:
@@ -241,16 +244,66 @@ func _exit_mark(node: Node, at: Vector2) -> void:
 		MapInfo.Exit.BACK: dir = Vector2.UP
 		MapInfo.Exit.LEFT: dir = Vector2.LEFT
 		MapInfo.Exit.RIGHT: dir = Vector2.RIGHT
-	var needs: int = int(node.call("lock"))
-	var owed: int = int(node.call("price"))
-	var ink: int = RisoPrint.PINK if which == MapInfo.Exit.DEEPER else RisoPrint.NIGHT
-	marks.knock([RisoPrint.BLUE, RisoPrint.NIGHT], [RisoShapes.circle(at, 5.2, 16)])
-	marks.ink(ink, 1.0, [RisoProp.chevron(at - dir * 2.0, dir, 0.24)], false)
+	_mark_exit(at, dir, which == MapInfo.Exit.DEEPER, int(node.call("lock")), int(node.call("price")))
+
+
+# ------------------------------------------------------------------ marks (map and legend)
+
+func _mark_exit(at: Vector2, dir: Vector2, deeper: bool, needs: int, owed: int, k: float = 1.0) -> void:
+	marks.knock([RisoPrint.BLUE, RisoPrint.NIGHT], [RisoShapes.circle(at, 5.2 * k, 16)])
+	marks.ink(RisoPrint.PINK if deeper else RisoPrint.NIGHT, 1.0, [RisoProp.chevron(at - dir * 2.0 * k, dir, 0.24 * k)], false)
 	if needs >= 0:
 		for plate: int in RisoPrint.key_inks(needs):
-			marks.ink(plate, 1.0, [RisoShapes.circle(at + Vector2(4.2, -4.2), 1.6, 8)], false)
+			marks.ink(plate, 1.0, [RisoShapes.circle(at + Vector2(4.2, -4.2) * k, 1.6, 8)], false)
 	elif owed > 0:
-		marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.sparkle(at + Vector2(4.2, -4.2), 2.6)], false)
+		marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.sparkle(at + Vector2(4.2, -4.2) * k, 2.6)], false)
+
+
+func _mark_inkwell(at: Vector2, dry: bool) -> void:
+	marks.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(at.x - 2.4, at.y - 2.0, 4.8, 4.4, 1.6)], false)
+	if not dry:
+		marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(at + Vector2(0, -3.6), 1.2, 6)], false)
+
+
+func _mark_shrine(at: Vector2, used: bool) -> void:
+	marks.ink(RisoPrint.ACCENT, 0.35 if used else 1.0, [RisoShapes.arch(at.x - 2.5, at.y - 3.5, 5, 6, 6)], false)
+
+
+func _mark_lantern(at: Vector2, lit: bool) -> void:
+	if lit:
+		marks.ink(RisoPrint.EYE, 0.3, [RisoShapes.circle(at, 4.5, 16)], false)
+	marks.ink(RisoPrint.EYE, 1.0 if lit else 0.5, [RisoShapes.circle(at, 1.6, 10)], false)
+
+
+func _mark_door(at: Vector2, color: int) -> void:
+	for plate: int in RisoPrint.key_inks(color):
+		marks.ink(plate, 1.0, [RisoShapes.rrect(at.x - 0.9, at.y - 2.6, 1.8, 5.2, 0.8)], false)
+
+
+func _mark_key(at: Vector2, color: int) -> void:
+	for plate: int in RisoPrint.key_inks(color):
+		marks.ink(plate, 1.0, [RisoShapes.circle(at, 1.3, 8)], false)
+
+
+func _mark_ghost(at: Vector2, size: float) -> void:
+	marks.ink(RisoPrint.GLOW, 1.0, RisoProp.ghost_shape(Transform2D(0.0, Vector2(size, size), 0.0, at + Vector2(0, 3))), false)
+
+
+## The wizard: a hat over a lit eye.
+func _mark_wizard(at: Vector2) -> void:
+	marks.knock([RisoPrint.NIGHT, RisoPrint.BLUE], [RisoShapes.circle(at, 3.6, 14)])
+	marks.ink(RisoPrint.PINK, 1.0, [RisoShapes.tri(at + Vector2(-2.6, 0.6), at + Vector2(2.6, 0.6), at + Vector2(0.4, -4.2))], false)
+	marks.ink(RisoPrint.EYE, 1.0, [RisoShapes.circle(at + Vector2(0, 1.8), 1.1, 8)], false)
+
+
+## The key down the right edge: each entry's mark beside its name, behind a faint rule.
+func _legend(entries: Array) -> void:
+	marks.ink(RisoPrint.BLUE, 0.3, [RisoShapes.rrect(LEGEND.position.x - 4.0, LEGEND.position.y + 2.0, 0.8, LEGEND.size.y - 4.0, 0.4)], false)
+	var step: float = minf(11.0, (LEGEND.size.y - 6.0) / float(entries.size()))
+	for i: int in range(entries.size()):
+		var y: float = LEGEND.position.y + 6.0 + step * (float(i) + 0.5)
+		(entries[i][1] as Callable).call(Vector2(LEGEND.position.x + 6.0, y))
+		_text(String(entries[i][0]), Vector2(LEGEND.position.x + 15.0, y - 4.6), 6.5, false)
 
 
 ## Seen rock and seen open ground as two one-pixel-per-cell textures on their plates.
@@ -307,7 +360,7 @@ func _link(out: Array[Array], known: Dictionary, pair: Array) -> void:
 
 
 func tile_at(info: MapInfo, c: Vector2i) -> Vector2:
-	return Vector2(160, 98) + Vector2(c - info.coord) * PITCH
+	return AREA.get_center() + Vector2(c - info.coord) * PITCH
 
 
 func _world(info: MapInfo) -> void:
@@ -330,17 +383,36 @@ func _world(info: MapInfo) -> void:
 		var at: Vector2 = tile_at(info, c)
 		if not area.encloses(Rect2(at - TILE * 0.5, TILE)):
 			continue
-		var rect: PackedVector2Array = RisoShapes.rrect(at.x - TILE.x * 0.5, at.y - TILE.y * 0.5, TILE.x, TILE.y, 5)
-		var here: bool = c == info.coord
-		marks.ink(RisoPrint.ACCENT if here else RisoPrint.BLUE, 0.55 if here else 0.25, [rect], false)
+		_mark_tile(at, TILE, c == info.coord)
 		_text("%d · %d" % [c.x, c.y], at + Vector2(0, -3.5), 6.5, false, true)
 		var rec: Dictionary = info.records[c]
 		if c == info.respawn_coord:
-			marks.ink(RisoPrint.EYE, 1.0, [RisoShapes.circle(at + Vector2(-TILE.x * 0.5 + 4.0, TILE.y * 0.5 - 4.0), 1.8, 10)], false)
+			_mark_respawn_level(at + Vector2(-TILE.x * 0.5 + 4.0, TILE.y * 0.5 - 4.0))
 		if bool(rec.get("shrine_used", false)):
-			marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.arch(at.x - 1.8, at.y + TILE.y * 0.5 - 7.0, 3.6, 4.5, 6)], false)
+			_mark_spent_shrine(at + Vector2(0, TILE.y * 0.5 - 4.75))
 		if info.has_ghost and c == info.ghost_coord:
-			marks.ink(RisoPrint.GLOW, 1.0, RisoProp.ghost_shape(Transform2D(0.0, Vector2(0.2, 0.2), 0.0, at + Vector2(TILE.x * 0.5 - 4.0, TILE.y * 0.5 - 1.0))), false)
+			_mark_ghost(at + Vector2(TILE.x * 0.5 - 4.0, TILE.y * 0.5 - 4.0), 0.2)
+	_legend([
+		["you are here", func(at: Vector2) -> void: _mark_tile(at, Vector2(9, 6), true)],
+		["visited", func(at: Vector2) -> void: _mark_tile(at, Vector2(9, 6), false)],
+		["way opened", func(at: Vector2) -> void: marks.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(at.x - 5.0, at.y - 1.6, 10.0, 3.2, 1.6)], false)],
+		["respawn", _mark_respawn_level],
+		["shrine used", _mark_spent_shrine],
+		["ghost", func(at: Vector2) -> void: _mark_ghost(at, 0.2)],
+	])
+
+
+func _mark_tile(at: Vector2, size: Vector2, here: bool) -> void:
+	var rect: PackedVector2Array = RisoShapes.rrect(at.x - size.x * 0.5, at.y - size.y * 0.5, size.x, size.y, minf(5.0, size.y * 0.3))
+	marks.ink(RisoPrint.ACCENT if here else RisoPrint.BLUE, 0.55 if here else 0.25, [rect], false)
+
+
+func _mark_respawn_level(at: Vector2) -> void:
+	marks.ink(RisoPrint.EYE, 1.0, [RisoShapes.circle(at, 1.8, 10)], false)
+
+
+func _mark_spent_shrine(at: Vector2) -> void:
+	marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.arch(at.x - 1.8, at.y - 2.25, 3.6, 4.5, 6)], false)
 
 
 # ------------------------------------------------------------------ text
