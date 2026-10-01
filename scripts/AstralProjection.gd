@@ -24,6 +24,9 @@ func elapse(delta: float) -> void:
 	projection_timer.elapse(delta)
 
 func project() -> void:
+	# Not until astral projection has been learned at a shrine.
+	if Abilities.tier(player, &"astral") <= 0:
+		return
 	# Do not orphan the existing origin or overwrite its return state.
 	if is_instance_valid(false_player_origin):
 		return

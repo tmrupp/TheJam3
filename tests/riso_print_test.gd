@@ -88,6 +88,8 @@ func run() -> void:
 		await process_frame
 	check((wizard.get("trail") as Array).size() > 0, "dash leaves a smear trail")
 	check(riso.glow_ability == &"dash", "hat glow follows the dash")
+	Abilities.grant(player, &"parry")
+	Abilities.grant(player, &"astral")
 	player.parry.emit()
 	await process_frame
 	check(riso.glow_ability == &"parry", "hat glow follows parry")

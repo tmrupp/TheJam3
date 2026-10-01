@@ -36,6 +36,7 @@ func run() -> void:
 		var player: Node = main.get_node("Player")
 		player.set_physics_process(false)
 		var projection: Node = player.get_node("AstralProjection")
+		Abilities.grant(player, &"astral")
 		var origin: Vector2 = player.position
 		projection.project()
 		player.position += Vector2(100, 0)

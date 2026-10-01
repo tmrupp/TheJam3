@@ -240,7 +240,7 @@ func do_wall_jump (wall_normal: Vector2) -> void:
 	
 
 func _physics_process(delta: float) -> void:
-	if Input.is_action_just_pressed("Parry"):
+	if Input.is_action_just_pressed("Parry") and Abilities.tier(self, &"parry") > 0:
 		parry.emit()
 	
 	var walled: bool = false

@@ -418,7 +418,8 @@ static func glyph(a: StringName, c: Vector2, t: float) -> Array[PackedVector2Arr
 
 
 func _orb() -> void:
-	var active: bool = bool(host.get("active"))
+	# Dormant (astral not learned): printed dim, as if spent.
+	var active: bool = bool(host.get("active")) or (host.has_method("usable") and not bool(host.call("usable")))
 	var pulse: float = 1.0 + 0.1 * sin(t * 3.0 + phase)
 	var g: float = _ground()
 	var o: Vector2 = Vector2(0, g - 66 + sin(t * 1.6 + phase) * 4.0)

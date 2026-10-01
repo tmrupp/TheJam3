@@ -1,6 +1,7 @@
 class_name Abilities
-## Tiered abilities, learned at shrines (there is no shop). Tier 0 is not owned; dash, parry and
-## astral projection are known from the start (tier 1). Each tier improves the ability, and
+## Tiered abilities, learned at shrines (there is no shop). Tier 0 is not owned; only the dash
+## is known from the start (tier 1). Everything else, including parry, astral projection (the
+## orbs stay dormant until then) and the hex, has to be found. Each tier improves the ability, and
 ## vigor raises max health. Tiers live on the player and reset when a run ends.
 
 const ORDER: Array[StringName] = [&"dash", &"double_jump", &"wall_climb", &"blink", &"parry", &"astral", &"hex", &"vigor"]
@@ -14,7 +15,7 @@ const NAMES: Dictionary = {
 	&"hex": "hex",
 	&"vigor": "vigor",
 }
-const BASE: Dictionary = {&"dash": 1, &"parry": 1, &"astral": 1, &"hex": 1}
+const BASE: Dictionary = {&"dash": 1}
 const MAX: Dictionary = {&"dash": 4, &"double_jump": 3, &"wall_climb": 3, &"blink": 3, &"parry": 4, &"astral": 4, &"hex": 4, &"vigor": 3}
 const BLINK_PREFAB: String = "res://prefabs/upgrades/Blink.tscn"
 const BASE_HEALTH: int = 3
@@ -41,17 +42,21 @@ static func heal_price(depth: int) -> int:
 	return roundi(3.0 * pow(1.35, depth))
 
 
-## What a level's shrine teaches: an ability picked by the level seed, or the next one along
-## that still has a tier to learn. Dash tiers are not offered once blink replaces the dash.
+## What a level's shrine teaches. Starting from an ability picked by the level seed and going
+## round, the first one not yet known; once everything is known, the first with a tier left to
+## learn. Dash tiers are not offered once blink replaces the dash.
 static func offer(level_seed: int, player: Player) -> StringName:
 	var n: int = ORDER.size()
 	var start: int = level_seed % n
-	for i: int in range(n):
-		var a: StringName = ORDER[(start + i) % n]
-		if a == &"dash" and tier(player, &"blink") > 0:
-			continue
-		if tier(player, a) < int(MAX[a]):
-			return a
+	for pass_new: bool in [true, false]:
+		for i: int in range(n):
+			var a: StringName = ORDER[(start + i) % n]
+			if a == &"dash" and tier(player, &"blink") > 0:
+				continue
+			if pass_new and tier(player, a) > 0:
+				continue
+			if tier(player, a) < int(MAX[a]):
+				return a
 	return &""
 
 

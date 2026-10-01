@@ -34,6 +34,8 @@ func check_parry () -> void:
 	timer.start(duration)
 
 func execute () -> void:
+	if Abilities.tier(player, &"parry") <= 0:
+		return
 	if not cooldown.acted:
 		cooldown.enable()
 		collider.disabled = false

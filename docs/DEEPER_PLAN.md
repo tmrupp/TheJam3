@@ -60,6 +60,7 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 - **Prices:**
   - Learning costs `S(d, tier) = max(3, round(10 × 1.6^(tier−1) × 0.8^d))`: cheaper deeper, dearer per tier.
   - Mending works the other way: `H(d) = round(3 × 1.35^d)`, which is 3 at depth 0 and 13 at depth 5.
+- **Only the dash is known at the start.** Everything else is found at shrines. A shrine offers an ability not yet known before any upgrade: it starts from the seed's pick and goes round. Until learned, parry does nothing, astral orbs print dim and do nothing, and there is no hex, so no killing enemies or breaking cracked walls.
 - Tiers live on the player (`Abilities.gd`) and reset when a run ends. The upgrade menu and the old `Upgrade`, `UpgradeManager`, double-jump and wall-climb nodes are gone.
 
 | Ability | Start | Max | Each tier |
@@ -68,9 +69,9 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 | Double jump | – | III | one more air jump |
 | Wall climb | – | III | I lets you climb (3 s); each further tier adds 1.5 s |
 | Blink | – | III | replaces the dash; reach 300 px, +100 per tier |
-| Parry | I | IV | window +0.1 s, cooldown −0.4 s |
-| Astral projection | I | IV | lasts 2 s longer |
-| Hex | I | IV | II +1 charge, III +1 damage, IV pierces |
+| Parry | – | IV | window +0.1 s, cooldown −0.4 s |
+| Astral projection | – | IV | lasts 2 s longer (orbs stay dormant until learned) |
+| Hex | – | IV | II +1 charge, III +1 damage, IV pierces |
 | Vigor | – | III | +1 max health (and heals 1) |
 
 ## 5. Economy
@@ -145,7 +146,7 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
   - It flies up to 8 cells. It passes through one-way ledges and moving platforms, and stops at rock and portcullises.
   - It wounds the first enemy near its path, or breaks a cracked wall.
   - Charges come back one per 1.5 s, and lighting a lantern refills them. They show as glow sparks after the HUD's health beads.
-- **Tiers:** hex is a shrine ability you start with at tier I. II adds a charge, III adds damage, IV pierces its first enemy.
+- **Tiers:** hex is learned at a shrine (not known at the start). II adds a charge, III adds damage, IV pierces its first enemy.
 - **Enemies** get a `Wound`:
   - **Health:** 1 HP at depths 0–2, 2 at 3–5, 3 from 6. A stunned (parried) enemy takes double.
   - **Hits:** a hit bursts pink and knocks the enemy back.

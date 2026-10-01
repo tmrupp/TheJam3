@@ -62,7 +62,20 @@ func run() -> void:
 	check(info.world.ground_below(cell) and info.world.ground_below(cell + Vector2i.RIGHT), "standing on two floor cells")
 
 	print("starting abilities")
-	check(player.tiers == Abilities.start_tiers() and player.MAX_JUMPS == 1 and not player.climable and player.health.max_health == 3 and not player.has_node("Blink"), "dash, parry and astral only; 3 health")
+	check(player.tiers == Abilities.start_tiers() and Abilities.tier(player, &"dash") == 1 and player.MAX_JUMPS == 1 and not player.climable and player.health.max_health == 3 and not player.has_node("Blink") and not player.has_node("Hex"), "only the dash; 3 health")
+	check(Abilities.ORDER.all(func(a: StringName) -> bool: return a == &"dash" or Abilities.tier(player, a) == 0), "parry, astral, hex and the rest are all still to find")
+	check(Abilities.tier(player, Abilities.offer(MapInfo.level_seed(28, 0), player)) == 0, "a shrine offers something new before upgrades")
+	var hurt_before: Callable = player.hurt_ability
+	player.get_node("Parry").call("execute")
+	check(player.hurt_ability == hurt_before, "a locked parry does nothing")
+	var orbs: Array[Node] = info.map_elements.get_children().filter(func(n: Node) -> bool: return n.scene_file_path.get_file() == "astral_projection_point.tscn")
+	check(orbs.size() > 0 and not bool(orbs[0].call("usable")), "astral orbs are dormant")
+	orbs[0].call("astral_project")
+	check(not is_instance_valid(player.get_node("AstralProjection").get("false_player_origin")), "and touching one does nothing")
+	Abilities.grant(player, &"astral")
+	check(bool(orbs[0].call("usable")), "until astral is learned")
+	player.tiers[&"astral"] = 0
+	Abilities.apply(player)
 
 	print("learning at the shrine")
 	var shrine: Node = shrines()[0]
@@ -115,6 +128,8 @@ func run() -> void:
 	check(player.MAX_JUMPS == 2, "double jump I")
 	check(player.climable and is_equal_approx(player.climb.MAX_TIME, 3.0), "wall climb I")
 	check(player.has_node("Blink") and int(player.get_node("Blink").get("distance")) == 400, "blink II reaches 400")
+	Abilities.grant(player, &"parry")
+	Abilities.grant(player, &"astral")
 	check(is_equal_approx(float(player.get_node("Parry").get("duration")), 0.4), "parry II holds longer")
 	check(is_equal_approx((player.get_node("AstralProjection").get("projection_timer") as ActionTimer).MAX_TIME, 7.0), "astral II lasts longer")
 	check(player.health.max_health == 4, "vigor I adds a heart")

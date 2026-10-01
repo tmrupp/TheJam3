@@ -83,8 +83,10 @@ func run() -> void:
 	await settle()
 
 	print("the hex")
+	check(player.get_node_or_null("Hex") == null, "not known at the start")
+	Abilities.grant(player, &"hex")
 	var hex: Hex = player.get_node_or_null("Hex") as Hex
-	check(hex != null and Abilities.tier(player, &"hex") == 1 and hex.charges == 1, "known from the start, with one charge")
+	check(hex != null and Abilities.tier(player, &"hex") == 1 and hex.charges == 1, "learned: one charge")
 	check(InputMap.has_action("Cast"), "the Cast action exists")
 
 	print("wounding enemies")
@@ -178,6 +180,8 @@ func run() -> void:
 	check(again == cracked, "the same cracked walls every time")
 
 	print("tiers")
+	if not player.has_node("Hex"):
+		Abilities.grant(player, &"hex")
 	hex = player.get_node("Hex") as Hex
 	Abilities.grant(player, &"hex")
 	check(hex.charges_max == 2, "hex II: two charges")
