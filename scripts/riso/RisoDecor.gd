@@ -227,20 +227,20 @@ func _process(delta: float) -> void:
 		if player != null:
 			var reach_y: float = anchor.y + (90.0 if hang else -70.0)
 			var dx: float = anchor.x - player.global_position.x
-			var close: float = clampf(1.0 - absf(dx) / 170.0, 0.0, 1.0) * clampf(1.0 - absf(player.global_position.y - reach_y) / 150.0, 0.0, 1.0)
+			var close: float = clampf(1.0 - absf(dx) / 130.0, 0.0, 1.0) * clampf(1.0 - absf(player.global_position.y - reach_y) / 130.0, 0.0, 1.0)
 			if close > 0.0:
 				# Leans away from the wizard, and is swept along the way they are going.
 				var away: float = signf(dx) * (1.0 if not hang else -1.0)
 				var sweep: float = clampf(player.velocity.x / 300.0, -1.0, 1.0) * (1.0 if not hang else -1.0)
-				target = clampf(away * 0.55 + sweep * 0.6, -0.9, 0.9) * sqrt(close)
+				target = clampf(away * 0.16 + sweep * 0.2, -0.3, 0.3) * sqrt(close)
 		var a: float = item["a"]
 		var v: float = item["v"]
-		# A soft spring with little damping: pushed over, it whips back and wobbles to rest.
-		v += ((target - a) * 38.0 - v * 3.5) * dt
+		# A light spring: brushed aside, it eases back with a small wobble.
+		v += ((target - a) * 30.0 - v * 6.5) * dt
 		a += v * dt
 		item["a"] = a
 		item["v"] = v
-		var bend: float = a + sin(t * 1.3 + anchor.x * 0.013) * 0.07
+		var bend: float = a + sin(t * 1.3 + anchor.x * 0.013) * 0.03
 		for part: Array in item["parts"]:
 			var poly: PackedVector2Array = part[1]
 			var bent: PackedVector2Array = PackedVector2Array()
