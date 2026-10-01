@@ -23,14 +23,19 @@ var phase: float = 0.0
 var half: float = 64.0
 ## Printed text (prices, names), reused frame to frame; see _text().
 var labels: Array[Label] = []
-## Wisp turning, from `wisp_from` to `wisp_to` as `wisp_u` runs 0..1: it spirals over itself,
-## spinning half a turn about its head (head up and over, the tail sweeping round with a little
-## lag). The body is symmetric about its spine (y = -8.2), so half a turn of the old facing is the
-## new facing upright; the eyes slide to their mirrored height on the way so they land exactly.
-const WISP_TURN_TIME: float = 0.75
+## Wisp turning: while its Mover holds still (turn_left), the wisp flies a loop in space:
+## forward, up and over, and back down facing the other way, its body following the path's
+## heading. The body is symmetric about its spine (y = -8.2), so half a turn of the old facing is
+## the new facing upright; the eyes slide to their mirrored height on the way so they land exactly.
+const WISP_LOOP_W: float = 70.0
+const WISP_LOOP_H: float = 95.0
+static var _loop: PackedVector2Array = PackedVector2Array()
+static var _loop_heading: PackedFloat32Array = PackedFloat32Array()
 var wisp_from: float = 0.0
 var wisp_to: float = 0.0
-var wisp_u: float = 1.0
+## This turn's loop size, fitted to the open space around the wisp when the turn starts.
+var wisp_loop_w: float = WISP_LOOP_W
+var wisp_loop_h: float = WISP_LOOP_H
 ## A springy lean that the wizard sets going as they pass (lanterns).
 var brush_a: float = 0.0
 var brush_v: float = 0.0
@@ -595,23 +600,30 @@ func _wisp() -> void:
 		wisp_from = dir
 		wisp_to = dir
 	if dir != wisp_to:
-		# A new turn; mid-turn, reversing keeps the same pose (u -> 1 - u).
 		wisp_from = wisp_to
 		wisp_to = dir
-		wisp_u = 1.0 - wisp_u if wisp_u < 1.0 else 0.0
-	wisp_u = minf(1.0, wisp_u + _dt / WISP_TURN_TIME)
-	var e: float = wisp_u * wisp_u * (3.0 - 2.0 * wisp_u)
-	var spinning: bool = wisp_u < 1.0
+		_fit_loop(wisp_from)
+	# Where along the loop the wisp is, from its Mover's hold (1 when not turning).
+	var left: float = float(mover.get("turn_left")) if mover != null else 0.0
+	var u: float = 1.0 - left / maxf(0.001, float(mover.get("TURN_TIME"))) if mover != null else 1.0
+	var spinning: bool = left > 0.0
 	var side: float = wisp_from if spinning else wisp_to
-	# The spin: 0 at rest, PI at the end of the turn (head up and over: negative in y-down).
-	var spin: float = e * PI if spinning else 0.0
-	var turning: float = sin(e * PI) if spinning else 0.0
+	var loop_at: Vector2 = Vector2.ZERO
+	var spin: float = 0.0
+	if spinning:
+		var e: float = u * u * (3.0 - 2.0 * u)
+		var sample: Array = RisoProp.wisp_loop(e)
+		loop_at = Vector2(side * (sample[0] as Vector2).x * wisp_loop_w, (sample[0] as Vector2).y * wisp_loop_h)
+		spin = float(sample[1])
+	var turning: float = sin(clampf(spin / PI, 0.0, 1.0) * PI)
+	var e_eyes: float = clampf(spin / PI, 0.0, 1.0)
 	var width: float = 1.0
 	# Its shadow on the floor, shrinking as it bobs up: it belongs to the ground it haunts.
 	var g: float = _ground()
-	ink.ink(RisoPrint.NIGHT, 0.35, [RisoShapes.ellipse(Vector2(0, g - 3.0), 26.0 + bob * 1.2, 5.0, 16)], false)
+	var lift: float = clampf(-loop_at.y / WISP_LOOP_H, 0.0, 1.0)
+	ink.ink(RisoPrint.NIGHT, 0.35 * (1.0 - lift * 0.6), [RisoShapes.ellipse(Vector2(loop_at.x, g - 3.0), (26.0 + bob * 1.2) * (1.0 - lift * 0.4), 5.0, 16)], false)
 	# Flattened to 60% height, centred where the taller wisp used to float.
-	var xf: Transform2D = Transform2D(0.0, Vector2(side * width * k * 1.1, k * 0.6 * (1.0 + 0.06 * turning)), 0.0, Vector2(0, 14.0 - 3.3 * k + bob * k * 0.7))
+	var xf: Transform2D = Transform2D(0.0, Vector2(side * width * k * 1.1, k * 0.6), 0.0, Vector2(0, 14.0 - 3.3 * k + bob * k * 0.7) + loop_at)
 	var speed: float = 0.3 if stunned else 0.7
 	var flicker: float = 0.85 + 0.15 * sin(t * 5.3 + phase) * sin(t * 2.1 + phase * 1.7)
 	# The glow trails the wisp: strongest behind the head, thinning out past the tail.
@@ -653,10 +665,92 @@ func _wisp() -> void:
 	for eye: Vector2 in [Vector2(3.4, -9.2), Vector2(0.7, -9.4)]:
 		# Mid-spin the eyes slide to their mirrored height about the spine, so after half a turn
 		# they sit exactly where the upright wisp's eyes do.
-		var ep: Vector2 = Vector2(eye.x, lerpf(eye.y, -16.4 - eye.y, e)) if spinning else eye
+		var ep: Vector2 = Vector2(eye.x, lerpf(eye.y, -16.4 - eye.y, e_eyes)) if spinning else eye
 		var shape: PackedVector2Array = RisoShapes.rrect(ep.x - 1.0, ep.y - 0.4, 2.0, 0.8, 0.4, 2) if stunned else RisoShapes.ellipse(ep, 0.9, 1.9, 14)
 		eyes.append(xf * _wisp_spin(shape, spin, 0.0))
 	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], eyes)
+
+
+## Size the turning loop to the room: lower under a near ceiling, tighter against a wall.
+func _fit_loop(forward: float) -> void:
+	wisp_loop_w = WISP_LOOP_W
+	wisp_loop_h = WISP_LOOP_H
+	var info: MapInfo = MapInfo.instance
+	if info == null or info.world == null:
+		return
+	var c: Vector2i = info.cell_at(host.global_position)
+	var open_above: int = 0
+	while open_above < 2 and info.world.is_valid(c + Vector2i(0, -open_above - 1)) and not _wisp_blocked(info, c + Vector2i(0, -open_above - 1)):
+		open_above += 1
+	# The wisp floats in the lower part of its cell: about 50 px clear above it in its own cell.
+	wisp_loop_h = clampf(50.0 + 128.0 * float(open_above) - 24.0, 26.0, WISP_LOOP_H)
+	var f: Vector2i = Vector2i(int(signf(forward)), 0)
+	if _wisp_blocked(info, c + f) or (open_above > 0 and _wisp_blocked(info, c + f + Vector2i(0, -1))):
+		wisp_loop_w = 22.0
+
+
+func _wisp_blocked(info: MapInfo, v: Vector2i) -> bool:
+	if not info.world.is_valid(v):
+		return true
+	var kind: int = info.world.get_cell(v).type
+	return kind == MapInfo.Type.GROUND or kind == MapInfo.Type.CRACKED
+
+
+## The wisp's turning loop at `e` (0..1): [position (x forward, y up negative, roughly within
+## 0..1 x -1..0), heading in radians (0 forward, PI back)]. The heading sweeps from forward, up
+## over the top, past backward on the way down, and levels out backward; the path is closed so it
+## ends where it began. Built once by integrating the heading.
+static func wisp_loop(e: float) -> Array:
+	if _loop.is_empty():
+		var n: int = 96
+		# Heading theta(u) = PI u + c sin(PI u); pick c so the path comes back down to its start.
+		var lo: float = 0.0
+		var hi: float = 3.0
+		var c: float = 1.0
+		for it: int in range(40):
+			c = (lo + hi) * 0.5
+			var ys: float = 0.0
+			for i: int in range(n):
+				var uu: float = (float(i) + 0.5) / float(n)
+				ys += sin(PI * uu + c * sin(PI * uu))
+			if ys > 0.0:
+				lo = c
+			else:
+				hi = c
+		var pts: PackedVector2Array = PackedVector2Array([Vector2.ZERO])
+		var p: Vector2 = Vector2.ZERO
+		for i: int in range(n):
+			var uu: float = (float(i) + 0.5) / float(n)
+			var th: float = PI * uu + c * sin(PI * uu)
+			p += Vector2(cos(th), -sin(th)) / float(n)
+			pts.append(p)
+		var drift: Vector2 = pts[n]
+		var top: float = 0.001
+		for i: int in range(n + 1):
+			pts[i] -= drift * float(i) / float(n)
+			top = maxf(top, -pts[i].y)
+		var wide: float = 0.001
+		for i: int in range(n + 1):
+			pts[i] /= top
+			wide = maxf(wide, absf(pts[i].x))
+		for i: int in range(n + 1):
+			pts[i].x /= wide
+		_loop = pts
+		_loop_heading = PackedFloat32Array()
+		for i: int in range(n + 1):
+			var a: Vector2 = pts[maxi(0, i - 1)]
+			var b: Vector2 = pts[mini(n, i + 1)]
+			var d: Vector2 = b - a
+			var h: float = atan2(-d.y, d.x)
+			if i > 0 and h < _loop_heading[i - 1] - PI:
+				h += TAU
+			_loop_heading.append(h)
+		_loop_heading[0] = 0.0
+		_loop_heading[n] = PI
+	var f: float = clampf(e, 0.0, 1.0) * float(_loop.size() - 1)
+	var i0: int = mini(int(f), _loop.size() - 2)
+	var t0: float = f - float(i0)
+	return [_loop[i0].lerp(_loop[i0 + 1], t0), lerpf(_loop_heading[i0], _loop_heading[i0 + 1], t0)]
 
 
 ## Turn a wisp shape about its head (0, -8.2) by `spin`; points toward the tail lag by up to

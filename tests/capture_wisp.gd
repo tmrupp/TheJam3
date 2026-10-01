@@ -25,7 +25,7 @@ func capture() -> void:
 	player.get_node("CameraControl").set_process(false)
 	player.global_position = Vector2(-9000, -9000)
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
-	camera.zoom *= 3.0
+	camera.zoom *= 2.0
 	var wisp: Node2D = null
 	for n: Node in info.map_elements.get_children():
 		if n.scene_file_path.get_file() == "mover_enemy.tscn":
@@ -34,33 +34,33 @@ func capture() -> void:
 	var mover: Node = wisp.get_node("Mover")
 	var frames: Array[Image] = []
 	for i: int in range(12):
-		camera.global_position = wisp.global_position + Vector2(0, -30)
+		camera.global_position = wisp.global_position + Vector2(0, -90)
 		camera.reset_smoothing()
 		await process_frame
 	# Wait for the wisp to turn round at a ledge or wall, then record the turn.
 	var start_dir: int = int(mover.get("direction"))
 	var pre: Image = null
 	for f: int in range(600):
-		camera.global_position = wisp.global_position + Vector2(0, -30)
+		camera.global_position = wisp.global_position + Vector2(0, -90)
 		camera.reset_smoothing()
 		await process_frame
 		if int(mover.get("direction")) != start_dir:
 			break
 		# Keep the last frame before the turn, to check the turn starts from it.
 		if f % 2 == 0:
-			pre = root.get_texture().get_image().get_region(Rect2i(440, 210, 400, 300))
-	for f: int in range(56):
-		camera.global_position = wisp.global_position + Vector2(0, -30)
+			pre = root.get_texture().get_image().get_region(Rect2i(340, 135, 600, 450))
+	for f: int in range(64):
+		camera.global_position = wisp.global_position + Vector2(0, -90)
 		camera.reset_smoothing()
 		await process_frame
-		if f % 7 == 0:
-			frames.append(root.get_texture().get_image().get_region(Rect2i(440, 210, 400, 300)))
+		if f % 8 == 0:
+			frames.append(root.get_texture().get_image().get_region(Rect2i(340, 135, 600, 450)))
 	if pre != null:
 		frames.push_front(pre)
 		frames.resize(8)
-	var strip: Image = Image.create(400 * 4, 300 * 2, false, frames[0].get_format())
+	var strip: Image = Image.create(600 * 4, 450 * 2, false, frames[0].get_format())
 	for k: int in range(mini(8, frames.size())):
-		strip.blit_rect(frames[k], Rect2i(0, 0, 400, 300), Vector2i((k % 4) * 400, (k / 4) * 300))
+		strip.blit_rect(frames[k], Rect2i(0, 0, 600, 450), Vector2i((k % 4) * 600, (k / 4) * 450))
 	strip.save_png(ProjectSettings.globalize_path("res://../art-captures/riso-frames").path_join("wisp_turn.png"))
 	print("CAPTURED wisp turn")
 	quit()

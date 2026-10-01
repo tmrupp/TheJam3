@@ -10,10 +10,14 @@ var gravity: float = ProjectSettings.get_setting("physics/2d/default_gravity")
 @onready var rb: RigidBody2D = $".."
 @onready var sprite: Sprite2D = $"../Sprite2D"
 var stunned: bool = false
+## Turning round: the wisp holds still for TURN_TIME while its art loops up and over (RisoProp).
+const TURN_TIME: float = 0.9
+var turn_left: float = 0.0
 
 func turn () -> void:
 	direction *= -1
 	dcast.position.x *= -1
+	turn_left = TURN_TIME
 
 func wait_to_down () -> void:
 	down_wait = true
@@ -26,7 +30,10 @@ var down_wait: bool = false
 func _physics_process(delta: float) -> void:
 	if stunned:
 		return
-		
+	if turn_left > 0.0:
+		turn_left = maxf(0.0, turn_left - delta)
+		return
+
 	var collision: KinematicCollision2D = rb.move_and_collide(Vector2(SPEED, 0)*delta*direction)
 	
 	if collision and collision.get_normal().x != 0:
