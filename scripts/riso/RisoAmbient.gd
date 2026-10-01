@@ -1,10 +1,9 @@
 extends Node2D
 ## Small life, only where the camera looks: paper-white fireflies drifting over the flowers and
-## grass (fading in and out, never yellow: yellow is reward), moths circling lanterns, and drops
+## grass (fading in and out, never yellow: yellow is reward), and drops
 ## of ink falling from the ceiling drips and splashing where they land.
 
 const FIREFLIES: int = 14
-const MOTH_LANTERNS: int = 4
 const DRIPS: int = 6
 const KNOCK_ALL: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW]
 
@@ -36,7 +35,6 @@ func _process(delta: float) -> void:
 		return
 	var view: Rect2 = RisoLight.view_rect(self, cam).grow(80.0)
 	_fireflies(view)
-	_moths(view, info)
 	_drops(view)
 	ink.finish()
 
@@ -63,32 +61,6 @@ func _fireflies(view: Rect2) -> void:
 		ink.lift_ink(KNOCK_ALL, strengths[i], [dots[i]])
 	ink.ink(RisoPrint.BLUE, 0.15, halos, false)
 	counts["fireflies"] = dots.size()
-
-
-func _moths(view: Rect2, info: MapInfo) -> void:
-	if light == null:
-		return
-	var centre: Vector2 = view.get_center()
-	var near: Array[Vector2] = []
-	for lantern: Node2D in light.get("lanterns"):
-		if is_instance_valid(lantern):
-			var at: Vector2 = light.call("glass", lantern, info)
-			if view.has_point(at):
-				near.append(at)
-	near.sort_custom(func(a: Vector2, b: Vector2) -> bool: return a.distance_squared_to(centre) < b.distance_squared_to(centre))
-	var wings: Array[PackedVector2Array] = []
-	var moths: int = 0
-	for i: int in range(mini(near.size(), MOTH_LANTERNS)):
-		for k: int in range(2):
-			var ph: float = RisoShapes.hash1(near[i].x * 0.013 + float(k) * 3.1)
-			var a: float = t * (1.4 + ph) + float(k) * PI
-			var p: Vector2 = near[i] + Vector2(cos(a) * 30.0, sin(a * 1.3) * 16.0)
-			var flap: float = 0.3 + 0.7 * absf(sin(t * 18.0 + ph * 10.0))
-			for side: float in [-1.0, 1.0]:
-				wings.append(PackedVector2Array([p, p + Vector2(side * 6.0, -4.0 * flap), p + Vector2(side * 5.0, 3.0 * flap)]))
-			moths += 1
-	ink.ink(RisoPrint.NIGHT, 0.85, wings, false)
-	counts["moths"] = moths
 
 
 func _drops(view: Rect2) -> void:

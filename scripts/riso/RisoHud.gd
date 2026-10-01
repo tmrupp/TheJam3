@@ -4,7 +4,7 @@ extends Node2D
 ## the print is on.
 ## - Top left: stars, health beads, hex charges and the carried key.
 ## - Under it, while there is a ghost: its stars, an arrow toward it and its world when that is
-##   elsewhere; while vulnerable, pink, with the fresh stars still needed.
+##   elsewhere. A separate lantern plaque shows protection or the need to light another.
 ## - Top right: the world and depth being played, and under it the abilities known.
 ## - When a run ends, a card in the middle of the sheet.
 ## Everything sits on one grid: plaques are ROW_H tall, MARGIN from the screen edge and GAP apart,
@@ -22,7 +22,7 @@ const KNOCK_ALL: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, 
 var ink: InkCanvas
 var coin_label: Label
 var ghost_label: Label
-var need_label: Label
+var lantern_label: Label
 var where_label: Label
 var ghost_where: Label
 var end_title: Label
@@ -44,7 +44,7 @@ func _ready() -> void:
 	font = RisoTheme.serif()
 	coin_label = _make_label(10.0)
 	ghost_label = _make_label(10.0)
-	need_label = _make_label(10.0)
+	lantern_label = _make_label(9.0)
 	where_label = _make_label(9.0)
 	ghost_where = _make_label(8.0)
 	end_title = _make_label(15.0)
@@ -119,7 +119,7 @@ func _process(delta: float) -> void:
 	scale = Vector2.ONE / cam.zoom
 	var player: Player = get_node_or_null("/root/Main/Player") as Player
 	ink.begin()
-	for label: Label in [coin_label, ghost_label, need_label, where_label, ghost_where, end_title, end_sub]:
+	for label: Label in [coin_label, ghost_label, lantern_label, where_label, ghost_where, end_title, end_sub]:
 		label.visible = false
 	if player != null:
 		_status(player)
@@ -194,13 +194,14 @@ func _run_state(player: Player) -> void:
 		return
 	if info.world != null:
 		_top_right(info, player)
+		_lantern_row(info)
 	if info.has_ghost:
 		_ghost_row(info, player)
 	if info.run_ending > 0.0:
 		_paper(RisoShapes.rrect(85, 58, 150, 58, 10), RisoPrint.PINK, 0.18)
 		ink.ink(RisoPrint.GLOW, 1.0, RisoProp.ghost_shape(Transform2D(0.0, Vector2(0.5, 0.5), 0.0, Vector2(160, 75))), false)
 		end_title.visible = true
-		end_title.text = "the run ends"
+		end_title.text = "no lantern left"
 		end_title.position = Vector2(85, 76)
 		end_sub.visible = true
 		end_sub.text = "world %d  ·  deepest %d" % [info.run_seed, info.deepest]
@@ -246,19 +247,15 @@ func _top_right(info: MapInfo, player: Player) -> void:
 	ink.ink(RisoPrint.ACCENT, 1.0, pips, false)
 
 
-## Second row, left: the ghost, its stars, an arrow toward it and its world when elsewhere; while
-## vulnerable the plaque turns pink and adds a cracked star with the fresh stars still needed.
+## Second row, left: the ghost, its stars, an arrow toward it and its world when elsewhere.
 func _ghost_row(info: MapInfo, player: Player) -> void:
 	var y: float = _mid(1)
 	var stars: String = str(info.ghost_stars)
 	var elsewhere: bool = info.ghost_coord != info.coord
 	var where: String = MapInfo.where(info.ghost_coord)
-	var need: String = "%d/%d" % [info.fresh_stars, info.recover_need]
 	var width: float = PAD + 13.0 + _text_width(ghost_label, stars) + 4.0 + 10.0
 	if elsewhere:
 		width += 3.0 + _text_width(ghost_where, where)
-	if info.vulnerable:
-		width += 8.0 + 12.0 + _text_width(need_label, need)
 	width += PAD
 	_plaque(MARGIN, width, 1, RisoPrint.PINK if info.vulnerable else RisoPrint.BLUE, 0.2 if info.vulnerable else 0.12)
 	var x: float = MARGIN + PAD
@@ -278,13 +275,21 @@ func _ghost_row(info: MapInfo, player: Player) -> void:
 	if elsewhere:
 		x += 3.0
 		x += _place(ghost_where, where, x, 1)
-	if info.vulnerable:
-		x += 8.0
-		var star_at: Vector2 = Vector2(x + 5.0, y)
-		ink.ink(RisoPrint.PINK, 1.0, [RisoShapes.sparkle(star_at, 5.5)], false)
-		ink.knock([RisoPrint.PINK], [Transform2D(0.9, star_at) * RisoShapes.rrect(-6.5, -0.5, 13, 1.0, 0.5)])
-		x += 12.0
-		_place(need_label, need, x, 1)
+
+
+## Protection remains visible even after recovering the ghost. Its own row avoids collisions
+## with a long ghost address or the ability marks in the right corner.
+func _lantern_row(info: MapInfo) -> void:
+	var text: String = "light another lantern" if info.vulnerable else "lantern ready"
+	var tint: int = RisoPrint.PINK if info.vulnerable else RisoPrint.BLUE
+	var width: float = PAD * 2.0 + 14.0 + _text_width(lantern_label, text)
+	_plaque(MARGIN, width, 2, tint, 0.2 if info.vulnerable else 0.12)
+	var at: Vector2 = Vector2(MARGIN + PAD + 4.0, _mid(2))
+	ink.ink(tint, 1.0, [RisoShapes.rrect(at.x - 4, at.y - 4, 8, 10, 2), RisoShapes.rrect(at.x - 2, at.y - 7, 4, 3, 1)], false)
+	ink.knock([tint], [RisoShapes.rrect(at.x - 2, at.y - 2, 4, 5, 1)])
+	if not info.vulnerable:
+		ink.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.circle(at + Vector2(0, 1), 1.5, 8)], false)
+	_place(lantern_label, text, MARGIN + PAD + 14.0, 2)
 
 
 ## Awareness: while sensing, a pointer at the edge of the view for each sensed thing that is off

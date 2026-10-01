@@ -367,6 +367,7 @@ func _brush(at: Vector2, reach: float) -> float:
 
 func _lantern() -> void:
 	var lit: bool = MapInfo.instance != null and MapInfo.instance.is_respawn_lantern(host)
+	var spent: bool = MapInfo.instance != null and MapInfo.instance.is_lantern_spent(host)
 	var sw: float = sin(t * 2.2 + phase) * 0.12 - _brush(Vector2(30, _ground() - 80.0), 140.0)
 	var g: float = _ground()
 	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-4, g - 110, 8, 110, 4), RisoShapes.rrect(-3, g - 111, 38, 6, 3)])
@@ -378,6 +379,11 @@ func _lantern() -> void:
 		ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT], [glass])
 		ink.ink(RisoPrint.EYE, 1.0, [glass], false)
 		ink.knock([RisoPrint.EYE], [hang * RisoShapes.rrect(-4, 28, 8, 12, 4)])
+	elif spent:
+		# Empty glass and a charred wick: this lantern has already absorbed a death.
+		ink.ink(RisoPrint.NIGHT, 0.6, [glass], false)
+		ink.ink(RisoPrint.BLUE, 0.5, [hang * RisoShapes.rrect(-3, 38, 6, 6, 2)], false)
+		_plaque("spent", Vector2(30, g - 24), 14, RisoPrint.BLUE)
 	else:
 		# Unclaimed: a low ember behind the glass, waiting to be lit.
 		var flick: float = 0.8 + 0.2 * sin(t * 7.0 + phase)

@@ -44,7 +44,7 @@ func _key_name() -> String:
 
 func _process(delta: float) -> void:
 	t += delta
-	var near: bool = interactable != null and is_instance_valid(interactable) and bool(interactable.get("touching"))
+	var near: bool = interactable != null and is_instance_valid(interactable) and bool(interactable.get("available")) and bool(interactable.get("touching"))
 	shown = move_toward(shown, 1.0 if near else 0.0, delta * 6.0)
 	ink.begin()
 	var door: Node = host.get_parent() if host != null and host.name == "Unlock" else null

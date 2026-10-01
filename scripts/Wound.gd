@@ -1,7 +1,7 @@
 extends Node
 class_name Wound
 ## An enemy's health against the hex bolt. A stunned (parried) enemy takes double damage. At
-## 0 it bursts, drops a star or two (fresh stars, as for leaving the vulnerable state), and the
+## 0 it bursts, drops a star or two, and the
 ## level record keeps it slain until the player dies.
 
 var hp: int = 1

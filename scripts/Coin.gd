@@ -8,7 +8,6 @@ func touch (other: Node) -> void:
 		RisoFx.burst(&"gain", global_position)
 		if MapInfo.instance != null:
 			MapInfo.instance.mark_taken(self)
-			MapInfo.instance.star_found(1)
 		queue_free()
 	
 # Called when the node enters the scene tree for the first time.

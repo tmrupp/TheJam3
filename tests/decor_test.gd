@@ -75,11 +75,11 @@ func run() -> void:
 
 	print("ambient life")
 	var ambient: Node = main.get_node("RisoAmbient")
-	var seen: Dictionary = {"fireflies": 0, "moths": 0, "drops": 0}
+	var seen: Dictionary = {"fireflies": 0, "drops": 0}
 	var cam: Camera2D = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
 	# Only some spots hold life (fireflies fade in and out), so look at several of each.
-	var spots: Dictionary = {"fireflies": decor.firefly_spots, "moths": PackedVector2Array([light.glass(light.lanterns[0], info)]), "drops": decor.drip_spots}
+	var spots: Dictionary = {"fireflies": decor.firefly_spots, "drops": decor.drip_spots}
 	for what: String in spots:
 		var list: PackedVector2Array = spots[what]
 		for n: int in range(mini(8, list.size())):
@@ -90,7 +90,14 @@ func run() -> void:
 			for i: int in range(150):
 				await process_frame
 				seen[what] = maxi(int(seen[what]), int((ambient.get("counts") as Dictionary)[what]))
-	check(int(seen["fireflies"]) > 0 and int(seen["moths"]) > 0 and int(seen["drops"]) > 0, "fireflies, moths and ink drops show where they live: %s" % [seen])
+	check(int(seen["fireflies"]) > 0 and int(seen["drops"]) > 0, "fireflies and ink drops show where they live: %s" % [seen])
+	cam.global_position = light.glass(light.lanterns[0], info)
+	cam.reset_smoothing()
+	var moths_absent: bool = true
+	for i: int in range(60):
+		await process_frame
+		moths_absent = moths_absent and int((ambient.get("counts") as Dictionary)["moths"]) == 0
+	check(moths_absent, "no insects orbit the lantern")
 
 	if failed:
 		print("FAILED")

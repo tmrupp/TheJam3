@@ -186,7 +186,7 @@ func die() -> void:
 	died.emit()
 	var pos: Vector2 = position
 	death_sfx.play()
-	# MapInfo drops the ghost, marks the player vulnerable, or ends the run.
+	# MapInfo burns the lit lantern and drops a ghost, or ends an unprotected run.
 	if MapInfo.instance != null:
 		MapInfo.instance.player_died(pos)
 	else:

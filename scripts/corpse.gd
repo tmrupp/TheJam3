@@ -1,6 +1,7 @@
 extends Area2D
 ## The ghost left where the player died, holding every star they carried. Touching it gives
-## them back and ends the vulnerable state. MapInfo owns it and respawns it with its level.
+## them back. Lantern protection is restored by lighting another lantern. MapInfo owns the
+## ghost and respawns it with its level.
 ## It arms only once the wizard has been clear of it (more than ARM_DISTANCE away), so dying on
 ## the lantern does not hand it straight back. Distance, not overlap: the wizard's collision is
 ## off while a level reloads, so an overlap test would arm it too early.

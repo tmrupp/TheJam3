@@ -13,10 +13,10 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 | Going back | Always free. |
 | Deeper | Costs stars, paid once per deeper door; the door then stays open. |
 | Reachability | Not guaranteed. Exploration of the generated space is the game. |
-| Respawn | At the last lantern you lit. Every level spawns a lantern at its arrival point; lighting it is optional. The run's starting lantern is lit. |
-| Death | You drop all your stars into a ghost and become **vulnerable**. |
-| Leaving vulnerability | Recover the ghost, or collect enough fresh stars. |
-| End of a run | Dying while vulnerable ends the run. |
+| Respawn | At the last lantern you lit. It absorbs one death, then burns out. The run's starting lantern is lit. |
+| Death | A lit lantern brings you back once; you drop all your stars into a ghost. The used lantern becomes spent for the rest of the run. |
+| Restoring protection | Find and light another unspent lantern. Recovering stars or a ghost restores only your currency. |
+| End of a run | Dying without a lit lantern ends the run. |
 | Keys | Not used up. You carry one; grabbing another leaves your current key where the new one was. Keys work in any level. |
 | Abilities | Bought at shrines (no shop), and every ability has upgrade tiers. Cheaper deeper. A shrine offers its ability tier or, instead, healing to full (dearer deeper). |
 | Ways to play | Enter a seed and dig its column, or start at a random seed. |
@@ -39,11 +39,13 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 
 ## 2. Death, the ghost and the end of a run
 
-- **Die (not vulnerable):** all carried stars go into a ghost at the death spot, recorded in that level. Any previous ghost and its stars are lost. You respawn at your last lit lantern and become vulnerable.
-- **While vulnerable:** you can leave the state in two ways. Recover the ghost to get all its stars back, or collect `R(d)` fresh stars, which is suggested as half the current deeper price. The second way leaves the ghost waiting where it is.
-- **Die while vulnerable:** the run ends. The seed's levels are unchanged, since they are generated. Your character and level records reset.
+- **Die with a lit lantern:** all carried stars go into a ghost at the death spot, recorded in that level. Any previous ghost and its stars are lost. The lit lantern absorbs the death, burns out, and brings you back to its location, even if it is in another world.
+- **Spent lanterns:** each lantern can absorb only one death per run. Its cell is recorded as spent in its world's record; travelling away, revisiting, or continuing a saved run cannot relight it. Switching to another lantern before dying does not consume the former one.
+- **Restore protection:** interact with another unspent lantern. It becomes your protected respawn point. Ghost recovery and star collection never restore protection; you can light another lantern without recovering the ghost first.
+- **Die without a lit lantern:** the run ends. The seed's levels are unchanged, since they are generated. Your character and level records reset, and the new run starts with a fresh lit lantern. The ended run's save is deleted immediately.
 - **Arming:** a ghost can only be recovered once the player has stepped off it, so dying on the respawn lantern doesn't hand the stars straight back.
-- **Presentation:** the vulnerable state shows on the wizard (for example a dimmed or cracked hat glow) and in the HUD. The ghost uses the printed astral-silhouette style, and the HUD points toward it when it is in another level.
+- **Presentation:** the HUD says "lantern ready" while protected and "light another lantern" otherwise, including after recovering a ghost. Spent lanterns have empty, dark glass, a charred wick, a "spent" plaque and no light pool. Unspent lanterns keep their low ember. Insects no longer circle lanterns. The ghost uses the printed astral-silhouette style, and the HUD points toward it when it is in another level.
+- **Saves:** existing version-1 saves remain readable. An old unprotected save marks its last respawn lantern spent when loaded. `tests/death_test.gd` covers consumption, relighting rejection, cross-world deaths, star and ghost recovery, revisits, save migration, and run reset.
 
 ## 3. Keys
 
@@ -168,7 +170,7 @@ Watching eyes detect within 1150 pixels (previously 520), while rock still block
 - **Enemies** get a `Wound`:
   - **Health:** 1 HP at depths 0–2, 2 at 3–5, 3 from 6. A stunned (parried) enemy takes double.
   - **Hits:** a hit bursts pink and knocks the enemy back.
-  - **Death:** the enemy drops 1–2 stars, which count as fresh stars.
+  - **Death:** the enemy drops 1–2 stars. Stars buy upgrades and travel; lanterns restore death protection.
 - **Slain until you die:** the level record keeps slain enemies. Dying clears them in every level and reloads the respawn level, so everything is back.
 - **Cracked walls** (`CrackedWall.gd`): up to 10 per level, placed last, so they can block anything.
   - **Shape:** thin walls, one or two cells thick with open space on both sides. Half are picked within 3 cells of a key, lantern, exit, shrine or ink well.
@@ -186,17 +188,17 @@ Status: phases 1–7 are implemented (`tests/deeper_test.gd`, `tests/death_test.
 1. **The grid:** `Level(seed, depth)`, deterministic generation, the four exits with transitions, arrival lanterns, and level records. Remove codes, goals, backtracking, the map WFC and packing.
    - Test: the same `(seed, depth)` always gives the same level fingerprint.
    - Test: revisits keep their record.
-2. **Death and end state:** the persistent ghost with all stars, the vulnerable state, leaving it by the ghost or by fresh stars, and the run ending.
+2. **Death and end state:** the persistent ghost with all stars, lanterns that each absorb one death, finding another lantern to restore protection, and an unprotected death ending the run.
 3. **Keys:** not used up, left where you grab the next one, and working across levels.
 4. **Shrines and tiers:** shrine placement, pay-to-learn, tiered abilities, and removing the upgrade menu.
 5. **Interface:** start modes, HUD additions (owned tiers), save and load, and background pre-generation.
 6. **Map screen:** see §7.
 7. **Hex, enemy health and cracked walls:** see §8.
-8. **Tuning:** the `P`, `S`, `R` and `D` curves, star density, depth bands for region and realm, and a playtest.
+8. **Tuning:** the `P`, `S` and `D` curves, lantern and star density, depth bands for region and realm, and a playtest.
 
 ## Open for tuning
 
-- `R(d)`: how many fresh stars end the vulnerable state (start at half the deeper price).
+- Lantern density and distance between unspent lanterns.
 - `D(d)` and level size growth with depth.
 - Tier counts and the per-tier effect sizes.
 - Whether lateral travel between seeds should ever cost anything at great depths.

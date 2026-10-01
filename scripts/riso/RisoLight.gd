@@ -46,6 +46,8 @@ func _process(delta: float) -> void:
 	for lantern: Node2D in lanterns:
 		if not is_instance_valid(lantern) or lantern.is_queued_for_deletion():
 			continue
+		if info.is_lantern_spent(lantern):
+			continue
 		var at: Vector2 = glass(lantern, info)
 		if not view.has_point(at):
 			continue

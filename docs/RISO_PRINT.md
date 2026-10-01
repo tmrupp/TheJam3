@@ -55,10 +55,9 @@ Defaults: twilight realm, fine detail, new sheet registration at 8 sheets/s, rep
   - **Drawing:** props are sketched and then grown ×2 from where they sprout. They are batched onto one ink canvas per 16×16 chunk and drawn once per level.
 - **Sway:** plants (tufts, moon-flowers, roots, vines) are drawn live on screen. They sway in a slow breeze and spring away from the wizard as they brush past, more so when moving fast. Lanterns rock on their hooks the same way. Static decor (stones, mushrooms) stays batched.
 - **Awareness pointers** (`RisoHud`): arrows at the edge of the view with a mark for each sensed thing off screen. Exit arches are pink for deeper; the ink well, shrine and keys get their own marks. Overlapping pointers are dropped.
-- **Lantern light** (`RisoLight.gd`): the respawn lantern lifts the night ink in a soft, flickering three-ring pool, so the place you return to reads as a destination. Other lanterns give a faint glow. Uses `InkCanvas.lift_ink`, a partial knock.
+- **Lantern light** (`RisoLight.gd`): the lit respawn lantern lifts the night ink in a soft, flickering three-ring pool. It absorbs one death, then stays dark for the rest of the run with empty glass, a charred wick and a "spent" plaque. Other unspent lanterns give a faint glow. Uses `InkCanvas.lift_ink`, a partial knock.
 - **Ambient life** (`RisoAmbient.gd`), only on screen:
   - paper-white fireflies fading in and out over flowers and grass
-  - night-ink moths circling the nearest lanterns
   - ink drops falling from ceiling drips and splashing where they land
 - **Distant skyline** (`RisoBackground.gd`): ruined colonnades, towers and floating islands in a faint blue screen, sliding at a tenth of the camera's speed.
 - **Enemy anchors:** wisps cast a night shadow on the floor, and watchers grow on a swaying stalk rooted in the floor.
@@ -71,7 +70,8 @@ Defaults: twilight realm, fine detail, new sheet registration at 8 sheets/s, rep
 - **Printed map** (`RisoMap.gd`): a paper sheet over the view, opened with M. The level view prints seen rock in blue ink and explored ground as a light blue screen, from one-texel-per-cell textures on the blue plate. It marks exits, the shrine, lanterns, doors, keys, the ghost and the wizard. The world view prints visited levels as labelled tiles joined by opened doors. See `docs/DEEPER_PLAN.md` §7.
 - **Printed HUD** (`RisoHud.gd`): paper plaques on one grid: 18 units tall, 4 from the screen edge and 3 apart. Contents flow at measured widths and are centred on each row's midline, and labels are vertically centred in their row. It lives on the ink plates and follows the camera, in the 320×180 UI space.
   - **Top left:** stars, health beads, hex charges (night-ink sparks, faint while recharging) and the carried key.
-  - **Under it, while there is a ghost:** the ghost, its stars, an arrow toward it and its world when elsewhere. While vulnerable the plaque turns pink and adds a cracked star with the fresh stars still needed.
+  - **Under it, while there is a ghost:** the ghost, its stars, an arrow toward it and its world when elsewhere. While unprotected the plaque turns pink.
+  - **Third row, left:** a lantern mark with "lantern ready" or a pink "light another lantern" reminder. It remains visible after recovering a ghost.
   - **Top right:** the level being played, and under it the abilities known. The two plaques share one width and right edge. Tier I shows the mark alone, and higher tiers add a pip per tier.
   - **Icon ink:** HUD icons are night ink, never glow ink, because the glow plate takes the hat's colour, which can be pink.
   - `tests/capture_hud.gd` takes stills of a fresh HUD and a busy one.

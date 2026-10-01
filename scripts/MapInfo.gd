@@ -717,11 +717,9 @@ var respawn_marker: Node2D
 ## depth reached.
 var run_seed: int = 0
 var deepest: int = 0
-## Dying drops every star into a ghost and leaves the player vulnerable. Recovering the ghost,
-## or collecting recover_need fresh stars, ends that; dying again while vulnerable ends the run.
+## Vulnerable means no lit lantern remains to absorb the next death. A lantern burns out
+## after protecting one death; only lighting an unspent lantern restores protection.
 var vulnerable: bool = false
-var fresh_stars: int = 0
-var recover_need: int = 0
 var has_ghost: bool = false
 var ghost_coord: Vector2i = Vector2i.ZERO
 var ghost_pos: Vector2 = Vector2.ZERO
@@ -745,10 +743,6 @@ static func deeper_price (depth: int) -> int:
 	return roundi(8.0 * pow(1.4, depth))
 
 ## Minimum distance in cells between a level's way back and its deeper exit.
-## Fresh stars that end the vulnerable state without the ghost: half the deeper price.
-static func recover_price (depth: int) -> int:
-	return maxi(1, ceili(deeper_price(depth) / 2.0))
-
 static func exit_distance (depth: int) -> int:
 	return clampi(24 + 4 * depth, 24, 96)
 
@@ -841,7 +835,6 @@ func start_run (seed_value: int) -> void:
 		if debug:
 			player.collect(DEBUG_STARS - player.coins.coins)
 	vulnerable = false
-	fresh_stars = 0
 	_clear_ghost()
 	_load_level()
 
@@ -880,15 +873,31 @@ func _pass (way: Vector2, next: Vector2i) -> void:
 	if RisoTransition.instance != null:
 		await RisoTransition.instance.cover(way, MapInfo.where(next))
 
-func light_lantern (lantern: Node) -> void:
-	if lantern.has_meta(&"cell"):
-		_set_respawn(coord, lantern.get_meta(&"cell"))
-		if player != null and player.has_node("Hex"):
-			(player.get_node("Hex") as Hex).refill()
-		save_run()
+func light_lantern (lantern: Node) -> bool:
+	if travelling or run_ending > 0.0 or not lantern.has_meta(&"cell") or is_lantern_spent(lantern):
+		return false
+	var was_vulnerable: bool = vulnerable
+	_set_respawn(coord, lantern.get_meta(&"cell"))
+	vulnerable = false
+	_refresh_lanterns()
+	if player != null and player.has_node("Hex"):
+		(player.get_node("Hex") as Hex).refill()
+	if was_vulnerable:
+		RisoFx.burst(&"gain", (lantern as Node2D).global_position, Vector2.ZERO, [RisoPrint.EYE, RisoPrint.GLOW])
+	save_run()
+	return true
+
+func is_lantern_spent (lantern: Node) -> bool:
+	return lantern.has_meta(&"cell") and (record().get("spent_lanterns", {}) as Dictionary).has(lantern.get_meta(&"cell"))
+
+func _refresh_lanterns () -> void:
+	if is_instance_valid(map_elements):
+		for node: Node in map_elements.get_children():
+			if node is Checkpoint:
+				(node as Checkpoint).refresh()
 
 func is_respawn_lantern (lantern: Node) -> bool:
-	return coord == respawn_coord and lantern.has_meta(&"cell") and lantern.get_meta(&"cell") == respawn_cell
+	return not vulnerable and coord == respawn_coord and lantern.has_meta(&"cell") and lantern.get_meta(&"cell") == respawn_cell and not is_lantern_spent(lantern)
 
 ## True when the last lit lantern is in another level (the player must travel to respawn).
 func respawn_elsewhere () -> bool:
@@ -913,8 +922,8 @@ func _set_respawn (at: Vector2i, cell: Vector2i) -> void:
 
 # ------------------------------------------------------------------ death, the ghost, the end
 
-## Called by the player on death. Not vulnerable: every star goes into a ghost where they fell
-## (replacing any earlier ghost), and they respawn vulnerable. Vulnerable: the run ends.
+## A lit lantern absorbs one death, burns out, and brings the wizard back to its location.
+## Without another lit lantern, the next death ends the run. Stars still drop into a ghost.
 func player_died (pos: Vector2) -> void:
 	if run_ending > 0.0 or travelling:
 		return
@@ -927,9 +936,12 @@ func player_died (pos: Vector2) -> void:
 	ghost_pos = pos
 	ghost_stars = player.coins.coins
 	player.collect(-ghost_stars)
+	var respawn_record: Dictionary = record(respawn_coord)
+	var spent: Dictionary = respawn_record.get("spent_lanterns", {})
+	spent[respawn_cell] = true
+	respawn_record["spent_lanterns"] = spent
 	vulnerable = true
-	fresh_stars = 0
-	recover_need = recover_price(coord.y)
+	_refresh_lanterns()
 	_respawn_everything()
 	save_run()
 	# The respawn level reloads, so its enemies are back (and the ghost appears if it is there).
@@ -940,33 +952,23 @@ func _respawn_everything () -> void:
 	for c: Vector2i in records:
 		(records[c] as Dictionary)["slain"] = {}
 
-## Touching the ghost returns its stars and ends the vulnerable state.
+## Touching the ghost returns its stars. It cannot restore lantern protection.
 func recover_ghost () -> void:
 	if not has_ghost:
 		return
 	var stars: int = ghost_stars
 	var at: Vector2 = ghost_pos
 	_clear_ghost()
-	vulnerable = false
 	player.collect(stars)
 	RisoFx.burst(&"gain", at, Vector2.ZERO, [RisoPrint.GLOW, RisoPrint.ACCENT])
 	save_run()
-
-## Fresh stars count toward leaving the vulnerable state; the ghost stays where it is.
-func star_found (count: int) -> void:
-	if not vulnerable:
-		return
-	fresh_stars += count
-	if fresh_stars >= recover_need:
-		vulnerable = false
-		if player != null:
-			RisoFx.burst(&"gain", player.global_position, Vector2.ZERO, [RisoPrint.GLOW, RisoPrint.EYE])
 
 ## The run is over: show the card, then start again at depth 0 of the run's seed with a fresh
 ## character and no records (the levels themselves are unchanged).
 func end_run () -> void:
 	if run_ending > 0.0:
 		return
+	delete_save()
 	run_ending = RUN_END_SECONDS
 	player.set_physics_process(false)
 	player.velocity = Vector2.ZERO
@@ -1024,7 +1026,7 @@ func save_run () -> void:
 	var data: Dictionary = {
 		"version": SAVE_VERSION, "run_seed": run_seed, "deepest": deepest, "coord": coord, "records": records,
 		"respawn_coord": respawn_coord, "respawn_cell": respawn_cell,
-		"vulnerable": vulnerable, "fresh_stars": fresh_stars, "recover_need": recover_need,
+		"vulnerable": vulnerable,
 		"has_ghost": has_ghost, "ghost_coord": ghost_coord, "ghost_pos": ghost_pos, "ghost_stars": ghost_stars,
 		"stars": player.coins.coins, "key": int(player.get_meta(&"carried_key", -1)),
 		"tiers": tiers, "health": player.health.health, "debug": debug,
@@ -1064,8 +1066,13 @@ func continue_run () -> bool:
 	respawn_coord = data["respawn_coord"]
 	respawn_cell = data["respawn_cell"]
 	vulnerable = bool(data["vulnerable"])
-	fresh_stars = int(data["fresh_stars"])
-	recover_need = int(data["recover_need"])
+	# Version-1 saves from the old recovery system remain usable: an unprotected save's
+	# last lantern is spent, so resuming cannot turn it into another free life.
+	if vulnerable:
+		var respawn_record: Dictionary = record(respawn_coord)
+		var spent: Dictionary = respawn_record.get("spent_lanterns", {})
+		spent[respawn_cell] = true
+		respawn_record["spent_lanterns"] = spent
 	has_ghost = bool(data["has_ghost"])
 	ghost_coord = data["ghost_coord"]
 	ghost_pos = data["ghost_pos"]
@@ -1308,6 +1315,7 @@ func next_world () -> void:
 		player.set_collision(true)
 		player.set_physics_process(true)
 	travelling = false
+	_refresh_lanterns()
 	if RisoPrint.instance != null:
 		RisoPrint.instance.world_built(self, coord.y)
 	if RisoTransition.instance != null:
