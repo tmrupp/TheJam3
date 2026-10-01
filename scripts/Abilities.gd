@@ -62,18 +62,27 @@ static func heal_price(depth: int) -> int:
 ## round, the first one not yet known; once everything is known, the first with a tier left to
 ## learn. Dash tiers are not offered once blink replaces the dash.
 static func offer(level_seed: int, player: Player) -> StringName:
+	var all: Array[StringName] = offers(level_seed, player, 1)
+	return all[0] if not all.is_empty() else &""
+
+
+## Up to `count` different abilities a shrine offers, in that order (new ones before upgrades).
+static func offers(level_seed: int, player: Player, count: int) -> Array[StringName]:
+	var out: Array[StringName] = []
 	var n: int = ORDER.size()
 	var start: int = level_seed % n
 	for pass_new: bool in [true, false]:
 		for i: int in range(n):
+			if out.size() >= count:
+				return out
 			var a: StringName = ORDER[(start + i) % n]
-			if a == &"dash" and tier(player, &"blink") > 0:
+			if a in out or (a == &"dash" and tier(player, &"blink") > 0):
 				continue
 			if pass_new and tier(player, a) > 0:
 				continue
 			if tier(player, a) < int(MAX[a]):
-				return a
-	return &""
+				out.append(a)
+	return out
 
 
 ## Would learning `a` replace the spell in the slot?

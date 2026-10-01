@@ -59,7 +59,7 @@ func run() -> void:
 	var deeper: Vector2i = info.world.exits[MapInfo.Exit.DEEPER]
 	print("  shrine ", cell, " deeper exit ", deeper)
 	check(absi(cell.x - deeper.x) + absi(cell.y - deeper.y) <= 14, "near the deeper exit")
-	check(info.world.ground_below(cell) and info.world.ground_below(cell + Vector2i.RIGHT), "standing on two floor cells")
+	check(info.world.ground_below(cell) and info.world.ground_below(cell + Vector2i.RIGHT) and info.world.ground_below(cell + Vector2i(2, 0)), "standing on three floor cells")
 
 	print("starting abilities")
 	check(player.tiers == Abilities.start_tiers() and Abilities.tier(player, &"dash") == 1 and player.MAX_JUMPS == 1 and not player.climable and player.health.max_health == 3 and not player.has_node("Blink") and not player.has_node("Hex"), "only the dash; 3 health")
@@ -87,6 +87,27 @@ func run() -> void:
 	player.health.health = 1
 	shrine.call("buy_mend")
 	check(player.health.health == 1 and player.coins.coins == 5, "a spent shrine will not mend")
+
+	print("a second ability instead")
+	info.travel(MapInfo.Exit.DEEPER)
+	await settle()
+	player.set_physics_process(false)
+	shrine = shrines()[0]
+	var first: StringName = shrine.call("offer", 0)
+	var second: StringName = shrine.call("offer", 1)
+	check(first != &"" and second != &"" and first != second, "two different abilities on offer: %s and %s" % [first, second])
+	var before_second: int = Abilities.tier(player, second)
+	player.collect(int(shrine.call("offer_price", 1)))
+	shrine.call("buy_boon", 1)
+	check(Abilities.tier(player, second) == before_second + 1 and Abilities.tier(player, first) == (1 if first == &"dash" else 0) * Abilities.tier(player, first), "taking the second learns it")
+	check(bool(shrine.call("used")), "and spends the shrine")
+	player.collect(100)
+	shrine.call("buy_boon", 0)
+	check(Abilities.tier(player, first) == 0 or first == &"dash", "so the first is no longer for sale")
+	player.collect(-player.coins.coins)
+	info.travel(MapInfo.Exit.BACK)
+	await settle()
+	player.set_physics_process(false)
 
 	print("mending instead")
 	info.travel(MapInfo.Exit.RIGHT)

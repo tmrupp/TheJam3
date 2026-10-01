@@ -32,6 +32,7 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 - You arrive at the matching exit of the next level: going deeper puts you at its Back exit, and so on.
 - Exits sit at least `D(d)` cells from the arrival point, with `D` growing with depth. Deeper levels can also grow beyond 64×64.
 - Every level spawns an unlit lantern at its arrival point.
+- **Connected caves:** after the terrain is generated, open pockets under 6 cells are filled with rock. Every other open region is joined to the largest by carving the shortest tunnel through rock, nearest first, until the level is one cave. So every exit, the shrine, the ink well, keys, lanterns and moons are connected through open space. They are not necessarily reachable: gates (doors, cracked walls, locked or unpaid exits) and abilities (height, gaps) still apply. `tests/connect_test.gd` checks 20 levels across worlds and depths.
 - **Size grows with depth:** `level_size(d)` = (36 + 6d) × (30 + 5d) cells, capped at 80 × 72. That is 36 × 30 at depth 0 and 72 × 60 at depth 6. Each level is enclosed in solid rock three cells thick, flush against its edges, and the camera stops one cell into that rock.
 - **Level record:** each visited level stores only what changed. That is stars taken, doors opened, keys dropped or taken, the deeper door paid, lanterns lit, and the ghost. On a revisit the level regenerates identically and the record is applied on top.
 - **Determinism:** a failed WFC collapse currently retries with `randi()`. It must retry with `hash(level_seed, attempt)` instead. Neighbouring levels pre-generate on the background thread so transitions are instant.
@@ -53,8 +54,8 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 
 ## 4. Shrines and tiered abilities
 
-- One shrine per level, standing on two floor cells 3–14 cells from the deeper exit.
-- It offers two things. Taking either one spends the shrine, and the level record keeps it spent:
+- One shrine per level, standing on three floor cells 3–14 cells from the deeper exit.
+- It offers three things: two different abilities and mending. Taking any one spends the shrine, and the level record keeps it spent:
   - **The boon:** the next tier of an ability. The ability is picked by `level_seed`, or is the next one along that still has a tier to learn.
   - **Mending:** healing to full. It is the alternative to the boon and does nothing at full health.
 - **Pay to learn.** There is no menu: interact with the side you want. The plinth prints the ability's name and tier, and the price sits on a tag in the niche. Mending shows its price on its own plaque.

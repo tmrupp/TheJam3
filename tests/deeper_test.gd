@@ -115,17 +115,29 @@ func run() -> void:
 		var along: float = ((lift as Node2D).position - start).dot(lift.get("axis") as Vector2)
 		on_track = on_track and start == info.cell_position(lift.get_meta(&"cell")) and along >= -1.0 and along <= float(lift.get("travel")) + 1.0
 	check(on_track, "each rides its own track from its cell (not the world origin)")
-	# A vertical lift: the case that caught the wizard (it rises back into the feet).
-	var level_lifts: Array[Node] = lifts.filter(func(l: Node) -> bool: return (l.get("axis") as Vector2) == Vector2.DOWN)
-	var lift: Node2D = (level_lifts[0] if not level_lifts.is_empty() else lifts[0]) as Node2D
-	var shape: CollisionShape2D = lift.get_node("CollisionShape2D") as CollisionShape2D
-	var top: float = lift.global_position.y + shape.position.y - 16.5
-	player.global_position = Vector2(lift.global_position.x + shape.position.x, top - 60.0)
-	player.velocity = Vector2.ZERO
-	for i: int in range(30):
-		await physics_frame
-	top = lift.global_position.y + shape.position.y - 16.5
-	var riding: bool = player.is_on_floor() and player.global_position.y < top
+	# Vertical lifts first (the case that caught the wizard: it rises back into the feet); use the
+	# first one the wizard actually lands on.
+	var ordered: Array[Node] = lifts.filter(func(l: Node) -> bool: return (l.get("axis") as Vector2) == Vector2.DOWN)
+	ordered.append_array(lifts.filter(func(l: Node) -> bool: return (l.get("axis") as Vector2) != Vector2.DOWN))
+	var riding: bool = false
+	var lift: Node2D = null
+	var shape: CollisionShape2D = null
+	var top: float = 0.0
+	for candidate: Node in ordered:
+		lift = candidate as Node2D
+		shape = lift.get_node("CollisionShape2D") as CollisionShape2D
+		for attempt: int in range(3):
+			top = lift.global_position.y + shape.position.y - 16.5
+			player.global_position = Vector2(lift.global_position.x + shape.position.x, top - 40.0)
+			player.velocity = Vector2.ZERO
+			for i: int in range(20):
+				await physics_frame
+			top = lift.global_position.y + shape.position.y - 16.5
+			riding = player.is_on_floor() and absf(player.global_position.y - (top - 31.0)) < 12.0
+			if riding:
+				break
+		if riding:
+			break
 	player.drop()
 	for i: int in range(40):
 		await physics_frame

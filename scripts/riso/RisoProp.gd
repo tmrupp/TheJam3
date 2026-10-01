@@ -240,38 +240,16 @@ func _shrine() -> void:
 	var g: float = _ground()
 	var used: bool = bool(host.call("used"))
 	var bob: float = sin(t * 2.0 + phase) * 4.0
-	ink.ink(RisoPrint.BLUE, 0.5, [RisoShapes.arch(-46, g - 142, 92, 120, 14)])
-	var niche: PackedVector2Array = RisoShapes.arch(-38, g - 134, 76, 112, 14)
-	ink.knock([RisoPrint.BLUE], [niche])
-	ink.ink(RisoPrint.NIGHT, 1.0, [niche], false)
-	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(118, g - 70, 20, 50, 6), RisoShapes.ellipse(Vector2(128, g - 72), 28.0, 8.0, 22)])
-	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-56, g - 24, 240, 24, 8)])
-	ink.ink(RisoPrint.ACCENT, 0.35 if used else 1.0, [RisoShapes.rrect(-50, g - 29, 228, 8, 4)])
+	# The plinth runs under all three: two niches, then the mending bowl.
+	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-56, g - 24, 368, 24, 8)])
+	ink.ink(RisoPrint.ACCENT, 0.35 if used else 1.0, [RisoShapes.rrect(-50, g - 29, 356, 8, 4)])
+	for i: int in range(2):
+		_shrine_niche(128.0 * float(i), i, g, bob * (1.0 if i == 0 else -1.0), used)
+	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(246, g - 70, 20, 50, 6), RisoShapes.ellipse(Vector2(256, g - 72), 28.0, 8.0, 22)])
 	if used:
 		return
-	var a: StringName = StringName(host.call("offer"))
-	if a != &"":
-		var c: Vector2 = Vector2(0, g - 98 + bob)
-		ink.ink(RisoPrint.ACCENT, 0.18, [RisoShapes.circle(c, 34.0 * (1.0 + 0.05 * sin(t * 3.0)), 28)])
-		var mark: Array[PackedVector2Array] = RisoProp.glyph(a, c, t)
-		ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK], mark)
-		ink.ink(RisoPrint.ACCENT, 1.0, mark, false)
-		if a == &"vigor":
-			ink.ink(RisoPrint.PINK, 0.4, mark, false)
-		var next: int = int(host.call("offer_tier"))
-		var pips: Array[PackedVector2Array] = []
-		for i: int in range(next):
-			pips.append(RisoShapes.circle(Vector2(float(i) * 12.0 - float(next - 1) * 6.0, g - 60.0), 3.6, 10))
-		ink.ink(RisoPrint.ACCENT, 1.0, pips)
-		# The price on a paper tag at the foot of the niche; the name on the plinth, sliding left
-		# when long so it never meets the mending plaque.
-		_plaque(str(int(host.call("offer_price"))), Vector2(0, g - 38), 26, RisoPrint.ACCENT)
-		var text: String = "%s %s" % [Abilities.NAMES[a], Abilities.roman(next)]
-		if bool(host.call("swap")):
-			text += " · swap"
-		_plaque(text, Vector2(minf(0.0, 60.0 - _plaque_width(text, 28) * 0.5), g - 12), 28, RisoPrint.ACCENT)
 	# Mending: an ember bead over the bowl, like the HUD's health beads.
-	var m: Vector2 = Vector2(128, g - 106 + bob * 0.8)
+	var m: Vector2 = Vector2(256, g - 106 + bob * 0.8)
 	var full: bool = not bool(host.call("can_mend"))
 	ink.ink(RisoPrint.EYE, 0.12 if full else 0.25, [RisoShapes.circle(m, 30.0, 28)])
 	var bead: PackedVector2Array = RisoShapes.circle(m, 14.0, 22)
@@ -279,8 +257,38 @@ func _shrine() -> void:
 	ink.ink(RisoPrint.EYE, 0.5 if full else 1.0, [bead], false)
 	ink.ink(RisoPrint.PINK, 0.35, [bead], false)
 	ink.knock([RisoPrint.EYE, RisoPrint.PINK], [RisoShapes.circle(m + Vector2(-4, -4), 4.5, 12)])
-	var mend: String = "mend · %d" % int(host.call("heal_price"))
-	_plaque(mend, Vector2(maxf(128.0, 72.0 + _plaque_width(mend, 28) * 0.5), g - 12), 28, RisoPrint.PINK)
+	_plaque("mend · %d" % int(host.call("heal_price")), Vector2(256, g - 12), 20, RisoPrint.PINK)
+
+
+## One of the shrine's two niches at x = `cx`: the ability's mark floating over its tier pips, a
+## price tag at its foot, the name on the plinth, and a "swap" tag above when it would replace
+## the spell in the slot.
+func _shrine_niche(cx: float, i: int, g: float, bob: float, used: bool) -> void:
+	ink.ink(RisoPrint.BLUE, 0.5, [RisoShapes.arch(cx - 46, g - 142, 92, 120, 14)])
+	var niche: PackedVector2Array = RisoShapes.arch(cx - 38, g - 134, 76, 112, 14)
+	ink.knock([RisoPrint.BLUE], [niche])
+	ink.ink(RisoPrint.NIGHT, 1.0, [niche], false)
+	if used:
+		return
+	var a: StringName = StringName(host.call("offer", i))
+	if a == &"":
+		return
+	var c: Vector2 = Vector2(cx, g - 98 + bob)
+	ink.ink(RisoPrint.ACCENT, 0.18, [RisoShapes.circle(c, 34.0 * (1.0 + 0.05 * sin(t * 3.0 + float(i))), 28)])
+	var mark: Array[PackedVector2Array] = RisoProp.glyph(a, c, t)
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK], mark)
+	ink.ink(RisoPrint.ACCENT, 1.0, mark, false)
+	if a == &"vigor":
+		ink.ink(RisoPrint.PINK, 0.4, mark, false)
+	var next: int = int(host.call("offer_tier", i))
+	var pips: Array[PackedVector2Array] = []
+	for k: int in range(next):
+		pips.append(RisoShapes.circle(Vector2(cx + float(k) * 12.0 - float(next - 1) * 6.0, g - 60.0), 3.6, 10))
+	ink.ink(RisoPrint.ACCENT, 1.0, pips)
+	_plaque(str(int(host.call("offer_price", i))), Vector2(cx, g - 38), 24, RisoPrint.ACCENT)
+	_plaque("%s %s" % [Abilities.NAMES[a], Abilities.roman(next)], Vector2(cx, g - 12), 18, RisoPrint.ACCENT)
+	if bool(host.call("swap", i)):
+		_plaque("swap", Vector2(cx, g - 152), 18, RisoPrint.PINK)
 
 
 # ------------------------------------------------------------------ places

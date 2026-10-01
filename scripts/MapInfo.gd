@@ -219,7 +219,114 @@ class World:
 		exits = {Exit.BACK: back, Exit.DEEPER: picks[0], Exit.LEFT: picks[1], Exit.RIGHT: picks[2]}
 		_finish_exits(spots, chosen, depth)
 
-	## The shrine stands on two neighbouring floor cells a short walk from the deeper exit.
+	## Pockets of open space smaller than this are filled with rock rather than tunnelled to.
+	const POCKET: int = 6
+
+	## Join every open space into one cave. Tiny pockets fill with rock; every other open region
+	## is joined to the largest by carving the shortest tunnel through the rock between them,
+	## nearest region first, until one region remains. Deterministic: fixed scan and BFS orders.
+	func connect_caves () -> void:
+		var groups: Array = _open_regions()
+		for g: Array in groups:
+			if g.size() < POCKET:
+				for v: Vector2i in g:
+					_to_rock(v)
+		groups = _open_regions()
+		if groups.size() <= 1:
+			return
+		var main: Dictionary = {}
+		var biggest: Array = groups[0]
+		for g: Array in groups:
+			if g.size() > biggest.size():
+				biggest = g
+		for v: Vector2i in biggest:
+			main[v] = true
+		var guard: int = 0
+		while main.size() < _open_count() and guard < 200:
+			guard += 1
+			# Breadth-first out of the main region, through rock, to the nearest other open cell.
+			var parent: Dictionary = {}
+			var queue: Array[Vector2i] = []
+			var starts: Array = main.keys()
+			starts.sort()
+			for v: Vector2i in starts:
+				parent[v] = v
+				queue.append(v)
+			var found: Variant = null
+			var head: int = 0
+			while head < queue.size() and found == null:
+				var v: Vector2i = queue[head]
+				head += 1
+				for d: Vector2i in neighbor_offsets:
+					var n: Vector2i = v + d
+					if not is_valid(n) or parent.has(n):
+						continue
+					parent[n] = v
+					if _open(n) and not main.has(n):
+						found = n
+						break
+					queue.append(n)
+			if found == null:
+				break
+			# Carve the rock along the way back, then take in the region just reached.
+			var at: Vector2i = parent[found]
+			while not main.has(at):
+				if is_ground(at):
+					_to_open(at)
+				main[at] = true
+				at = parent[at]
+			_flood(found, main)
+
+	func _open_count () -> int:
+		var n: int = 0
+		for x: int in range(size.x):
+			for y: int in range(size.y):
+				if _open(Vector2i(x, y)):
+					n += 1
+		return n
+
+	## Every connected open region (4-neighbour), in scan order.
+	func _open_regions () -> Array:
+		var seen: Dictionary = {}
+		var out: Array = []
+		for x: int in range(size.x):
+			for y: int in range(size.y):
+				var v: Vector2i = Vector2i(x, y)
+				if _open(v) and not seen.has(v):
+					var region: Dictionary = {}
+					_flood(v, region)
+					for c: Vector2i in region:
+						seen[c] = true
+					var cells_in: Array = region.keys()
+					cells_in.sort()
+					out.append(cells_in)
+		return out
+
+	## Add the open region containing `from` to `into`.
+	func _flood (from: Vector2i, into: Dictionary) -> void:
+		var stack: Array[Vector2i] = [from]
+		into[from] = true
+		while not stack.is_empty():
+			var v: Vector2i = stack.pop_back()
+			for d: Vector2i in neighbor_offsets:
+				var n: Vector2i = v + d
+				if is_valid(n) and not into.has(n) and _open(n):
+					into[n] = true
+					stack.append(n)
+
+	func _to_rock (v: Vector2i) -> void:
+		cells[v.x][v.y] = Cell.new(Type.GROUND)
+		empties.erase(v)
+		objects.erase(v)
+		grounds.append(v)
+
+	func _to_open (v: Vector2i) -> void:
+		cells[v.x][v.y] = Cell.new(Type.EMPTY)
+		grounds.erase(v)
+		empties.append(v)
+
+	## The shrine stands on three neighbouring floor cells a short walk from the deeper exit: two
+	## niches offering abilities, and a bowl for mending.
 	func _place_shrine (spots: Array[Vector2i], chosen: Array[Vector2i], near: Vector2i) -> void:
 		var standing: Dictionary = {}
 		for v: Vector2i in spots:
@@ -228,7 +335,7 @@ class World:
 		var pool: Array[Vector2i] = []
 		var fallback: Array[Vector2i] = []
 		for v: Vector2i in standing:
-			if not standing.has(v + Vector2i.RIGHT):
+			if not standing.has(v + Vector2i.RIGHT) or not standing.has(v + Vector2i(2, 0)):
 				continue
 			var d: int = absi(v.x - near.x) + absi(v.y - near.y)
 			if d >= 3 and d <= 14:
@@ -245,8 +352,10 @@ class World:
 		shrine = at
 		chosen.append(at)
 		chosen.append(at + Vector2i.RIGHT)
+		chosen.append(at + Vector2i(2, 0))
 		add_object_at(at)
 		empties.erase(at + Vector2i.RIGHT)
+		empties.erase(at + Vector2i(2, 0))
 		set_cell(at, Cell.new(Type.SHRINE))
 
 	## A random spot passing `test` and not yet chosen; the first free spot if none pass.
@@ -334,6 +443,10 @@ class World:
 				row.append(cell)
 				add_cell_to_container(Vector2i(i, j), cell)
 			cells.append(row)
+
+		# One cave: every open space joined up, so everything placed below is connected to
+		# everything else through open air (gates and abilities aside).
+		connect_caves()
 
 		# Exits and their lanterns first, so they get the pick of the level.
 		place_exits(def.depth, def.debug)

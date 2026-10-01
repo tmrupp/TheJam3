@@ -132,7 +132,7 @@ func rebuild(info: MapInfo, cracked_positions: Array[Vector2] = []) -> void:
 		occupied[c] = true
 		# Tall things (exits, shrines, lanterns, doors) keep their neighbours clear too.
 		if file in ["level_exit.tscn", "shrine.tscn", "checkpoint.tscn", "door.tscn"]:
-			for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i(2, 0)]:
+			for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i(2, 0), Vector2i(3, 0)]:
 				occupied[c + d] = true
 	var level_seed: int = MapInfo.level_seed(info.coord.x, info.coord.y)
 	items = RisoDecor.plan(solid, occupied, level_seed, Rect2i(Vector2i.ZERO, info.world.size))

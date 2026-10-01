@@ -65,10 +65,11 @@ func run() -> void:
 	player.position += Vector2(300, 0)
 	var died_at: Vector2 = player.position
 	player.die()
+	# Checked at once: once respawned, the wizard may pick up a star by the lantern.
+	check(player.coins.coins == 0, "the player carries none")
 	await settle()
 	check(info.vulnerable, "dying leaves the player vulnerable")
 	check(info.has_ghost and info.ghost_stars == 5 and info.ghost_coord == Vector2i(28, 0), "the ghost holds all 5 stars")
-	check(player.coins.coins == 0, "the player carries none")
 	check(ghosts().size() == 1 and (ghosts()[0] as Node2D).position == died_at, "the ghost stands where they died")
 	check(info.recover_need == MapInfo.recover_price(0), "fresh stars needed: %d" % info.recover_need)
 	check(player.global_position.distance_to(info.respawn_marker.global_position) < 80.0, "respawned at the lit lantern")
