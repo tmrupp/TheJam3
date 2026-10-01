@@ -11,3 +11,8 @@ export_presets.cfg
 data_*/
 
 .godot/
+
+# Windows lock/backup copies of loaded binaries
+~*.dll
+*.dll~*
+*.TMP
