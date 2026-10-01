@@ -23,6 +23,10 @@ var phase: float = 0.0
 var half: float = 64.0
 ## Printed text (prices, names), reused frame to frame; see _text().
 var labels: Array[Label] = []
+## Wisp turning: facing eases through -1..1 (the body narrows edge-on as it turns), and the
+## tail lags behind the head, swinging round after it.
+var wisp_face: float = 0.0
+var wisp_tail: float = 0.0
 ## A springy lean that the wizard sets going as they pass (lanterns).
 var brush_a: float = 0.0
 var brush_v: float = 0.0
@@ -583,17 +587,31 @@ func _wisp() -> void:
 		stunned = bool(mover.get("stunned"))
 	var k: float = 3.6
 	var bob: float = -3.0 - sin(t * 3.0 + phase) * 1.6
+	if wisp_face == 0.0:
+		wisp_face = dir
+		wisp_tail = dir
+	# About 0.6 s to turn round; the tail takes about a second to swing after it.
+	wisp_face = move_toward(wisp_face, dir, _dt * 3.4)
+	wisp_tail = move_toward(wisp_tail, dir, _dt * 2.0)
+	var face: float = wisp_face
+	var side: float = signf(face) if face != 0.0 else dir
+	# Edge-on mid-turn: never thinner than 25%, and it rises a touch and stretches tall.
+	var width: float = maxf(0.25, absf(face))
+	var turning: float = 1.0 - absf(face)
 	# Its shadow on the floor, shrinking as it bobs up: it belongs to the ground it haunts.
 	var g: float = _ground()
 	ink.ink(RisoPrint.NIGHT, 0.35, [RisoShapes.ellipse(Vector2(0, g - 3.0), 26.0 + bob * 1.2, 5.0, 16)], false)
 	# Flattened to 60% height, centred where the taller wisp used to float.
-	var xf: Transform2D = Transform2D(0.0, Vector2(dir * k * 1.1, k * 0.6), 0.0, Vector2(0, 14.0 - 3.3 * k + bob * k * 0.7))
+	var xf: Transform2D = Transform2D(0.0, Vector2(side * width * k * 1.1, k * 0.6 * (1.0 + turning * 0.18)), 0.0, Vector2(0, 14.0 - 3.3 * k + bob * k * 0.7 - turning * 6.0))
+	# How far the tail still points the old way (0 settled, up to 2 just after a flip).
+	var lag_turn: float = (face - wisp_tail) * side
 	var speed: float = 0.3 if stunned else 0.7
 	var flicker: float = 0.85 + 0.15 * sin(t * 5.3 + phase) * sin(t * 2.1 + phase * 1.7)
 	# The glow trails the wisp: strongest behind the head, thinning out past the tail.
 	ink.ink(RisoPrint.PINK, 0.06 * flicker, [xf * RisoShapes.ellipse(Vector2(-10.5, -8.4), 11.0, 7.5, 28)])
 	ink.ink(RisoPrint.PINK, 0.1 * flicker, [xf * RisoShapes.ellipse(Vector2(-6.0, -8.2), 9.5, 8.0, 28)])
-	# Two lagging after-veils behind the body, then the body; each fades toward its tail.
+	# Two lagging after-veils behind the body, then the body. The body is solid ink with only its
+	# tail tip thinning; the veils stay faint.
 	for layer: int in [2, 1, 0]:
 		var lag: float = float(layer) * 0.55
 		var w: Array[float] = []
@@ -604,16 +622,26 @@ func _wisp() -> void:
 			Vector2(5.6, -9), Vector2(4.6, -4.6), Vector2(1.6, -3), Vector2(-2, -3.8 + w[1] * 0.3), Vector2(-5.6, -4.8 + w[1]),
 			Vector2(-9, -6.6 + w[2]), Vector2(-12.4, -8.6 + w[3]), Vector2(-8.8, -9.6 + w[2]), Vector2(-5.2, -11 + w[1] * 0.6),
 			Vector2(-1.4, -13.2), Vector2(2.6, -13.4)]))
+		# The tail swings round after the head: points behind the head fold forward while it lags.
+		for n: int in range(pts.size()):
+			var behind: float = clampf(-pts[n].x / 12.4, 0.0, 1.0)
+			pts[n] = Vector2(pts[n].x + lag_turn * behind * behind * 9.0, pts[n].y - lag_turn * behind * 2.0)
 		var fade: PackedFloat32Array = PackedFloat32Array()
-		var top: float = (0.8 if layer == 0 else 0.3 / float(layer)) * flicker
+		var top: float = (1.0 if layer == 0 else 0.3 / float(layer)) * (1.0 if layer == 0 else flicker)
 		for p: Vector2 in pts:
-			fade.append(top * lerpf(0.15, 1.0, clampf((p.x + 12.4) / 13.0, 0.0, 1.0)))
+			var along: float = clampf((p.x + 12.4) / 13.0, 0.0, 1.0)
+			fade.append(top * (minf(1.0, 0.45 + along * 1.6) if layer == 0 else lerpf(0.15, 1.0, along)))
 		var poly: PackedVector2Array = xf * (Transform2D(0.0, back) * pts)
+		if layer == 0:
+			# Opaque: clear the inks of whatever is behind (grass, light, glow) under the body.
+			ink.knock([RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], [xf * RisoShapes.smooth(PackedVector2Array([
+				Vector2(5.6, -9), Vector2(4.6, -4.6), Vector2(1.6, -3), Vector2(-2, -3.8), Vector2(-4.5, -4.8), Vector2(-4.5, -11),
+				Vector2(-1.4, -13.2), Vector2(2.6, -13.4)]))])
 		ink.ink_graded(RisoPrint.PINK, [poly], [fade])
 		if layer == 0:
 			var cool: PackedFloat32Array = PackedFloat32Array()
 			for a: float in fade:
-				cool.append(a * 0.4)
+				cool.append(a * 0.35)
 			ink.ink_graded(RisoPrint.BLUE, [poly], [cool])
 	var eyes: Array[PackedVector2Array] = []
 	for e: Vector2 in [Vector2(3.4, -9.2), Vector2(0.7, -9.4)]:
