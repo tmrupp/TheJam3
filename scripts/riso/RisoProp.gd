@@ -28,7 +28,7 @@ var labels: Array[Label] = []
 ## moment its facing changes, while its Mover holds still for the same time. The body is symmetric about its spine (y = -8.2), so half a turn of the old facing is
 ## the new facing upright; the eyes slide to their mirrored height on the way so they land exactly.
 const WISP_LOOP_W: float = 30.0
-const WISP_LOOP_H: float = 44.0
+const WISP_LOOP_H: float = 26.0
 const WISP_TURN_TIME: float = 0.5
 var wisp_turn_t0: float = -100.0
 static var _loop: PackedVector2Array = PackedVector2Array()
@@ -691,7 +691,7 @@ func _fit_loop(forward: float) -> void:
 	while open_above < 2 and info.world.is_valid(c + Vector2i(0, -open_above - 1)) and not _wisp_blocked(info, c + Vector2i(0, -open_above - 1)):
 		open_above += 1
 	# The wisp floats in the lower part of its cell: about 50 px clear above it in its own cell.
-	wisp_loop_h = clampf(50.0 + 128.0 * float(open_above) - 24.0, 24.0, WISP_LOOP_H)
+	wisp_loop_h = clampf(50.0 + 128.0 * float(open_above) - 24.0, 18.0, WISP_LOOP_H)
 	var f: Vector2i = Vector2i(int(signf(forward)), 0)
 	if _wisp_blocked(info, c + f) or (open_above > 0 and _wisp_blocked(info, c + f + Vector2i(0, -1))):
 		wisp_loop_w = 16.0
