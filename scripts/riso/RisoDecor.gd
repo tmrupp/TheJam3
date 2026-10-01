@@ -158,6 +158,11 @@ func rebuild(info: MapInfo, cracked_positions: Array[Vector2] = []) -> void:
 			var hang: bool = item["kind"] in [&"roots", &"vine"]
 			item["parts"] = parts
 			item["hang"] = hang
+			var tall: float = 1.0
+			for part: Array in parts:
+				for q: Vector2 in part[1]:
+					tall = maxf(tall, absf(q.y - (at.y + (-half if hang else half))))
+			item["tall"] = tall
 			item["anchor"] = Vector2(at.x - float(item.get("side", 0)) * half, at.y + (-half if hang else half))
 			item["a"] = 0.0
 			item["v"] = 0.0
@@ -241,14 +246,18 @@ func _process(delta: float) -> void:
 		item["a"] = a
 		item["v"] = v
 		var bend: float = a + sin(t * 1.3 + anchor.x * 0.013) * 0.03
+		var tall: float = item["tall"]
+		# Bend, don't skew: each point turns about the root by an angle that grows along the
+		# plant, so stems curve and keep their length, and heads tilt with their tips.
+		var turn: float = -bend if hang else bend
 		for part: Array in item["parts"]:
 			var poly: PackedVector2Array = part[1]
 			var bent: PackedVector2Array = PackedVector2Array()
 			bent.resize(poly.size())
 			for k: int in range(poly.size()):
 				var p: Vector2 = poly[k]
-				var h: float = (p.y - anchor.y) if hang else (anchor.y - p.y)
-				bent[k] = Vector2(p.x + bend * h, p.y)
+				var f: float = clampf(absf(p.y - anchor.y) / tall, 0.0, 1.0)
+				bent[k] = anchor + (p - anchor).rotated(turn * f * (2.0 - f))
 			(slots[int(part[0])] as Array[PackedVector2Array]).append(bent)
 	_print_slots(live, slots)
 	live.finish()

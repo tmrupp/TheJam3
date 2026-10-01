@@ -23,8 +23,8 @@ var phase: float = 0.0
 var half: float = 64.0
 ## Printed text (prices, names), reused frame to frame; see _text().
 var labels: Array[Label] = []
-## Wisp turning: facing eases through -1..1 (the body narrows edge-on as it turns), and the
-## tail lags behind the head, swinging round after it.
+## Wisp turning: the head flips at once, and the tail lags, sweeping up over the body and round
+## behind it (wisp_tail eases from the old facing to the new).
 var wisp_face: float = 0.0
 var wisp_tail: float = 0.0
 ## A springy lean that the wizard sets going as they pass (lanterns).
@@ -590,21 +590,19 @@ func _wisp() -> void:
 	if wisp_face == 0.0:
 		wisp_face = dir
 		wisp_tail = dir
-	# About 0.6 s to turn round; the tail takes about a second to swing after it.
-	wisp_face = move_toward(wisp_face, dir, _dt * 3.4)
-	wisp_tail = move_toward(wisp_tail, dir, _dt * 2.0)
-	var face: float = wisp_face
-	var side: float = signf(face) if face != 0.0 else dir
-	# Edge-on mid-turn: never thinner than 25%, and it rises a touch and stretches tall.
-	var width: float = maxf(0.25, absf(face))
-	var turning: float = 1.0 - absf(face)
+	wisp_face = dir
+	wisp_tail = move_toward(wisp_tail, dir, _dt * 2.2)
+	var side: float = dir
+	# 0 when settled, 1 just after a flip: drives the tail sweep and a little squash.
+	var turning: float = absf(dir - wisp_tail) * 0.5
+	var width: float = 1.0 - 0.12 * sin(turning * PI)
 	# Its shadow on the floor, shrinking as it bobs up: it belongs to the ground it haunts.
 	var g: float = _ground()
 	ink.ink(RisoPrint.NIGHT, 0.35, [RisoShapes.ellipse(Vector2(0, g - 3.0), 26.0 + bob * 1.2, 5.0, 16)], false)
 	# Flattened to 60% height, centred where the taller wisp used to float.
-	var xf: Transform2D = Transform2D(0.0, Vector2(side * width * k * 1.1, k * 0.6 * (1.0 + turning * 0.18)), 0.0, Vector2(0, 14.0 - 3.3 * k + bob * k * 0.7 - turning * 6.0))
-	# How far the tail still points the old way (0 settled, up to 2 just after a flip).
-	var lag_turn: float = (face - wisp_tail) * side
+	var xf: Transform2D = Transform2D(0.0, Vector2(side * width * k * 1.1, k * 0.6 * (1.0 + 0.1 * sin(turning * PI))), 0.0, Vector2(0, 14.0 - 3.3 * k + bob * k * 0.7))
+	# The tail's swing: PI just after a flip (pointing ahead, where it was), easing to 0.
+	var swing: float = turning * turning * (3.0 - 2.0 * turning) * PI
 	var speed: float = 0.3 if stunned else 0.7
 	var flicker: float = 0.85 + 0.15 * sin(t * 5.3 + phase) * sin(t * 2.1 + phase * 1.7)
 	# The glow trails the wisp: strongest behind the head, thinning out past the tail.
@@ -622,10 +620,13 @@ func _wisp() -> void:
 			Vector2(5.6, -9), Vector2(4.6, -4.6), Vector2(1.6, -3), Vector2(-2, -3.8 + w[1] * 0.3), Vector2(-5.6, -4.8 + w[1]),
 			Vector2(-9, -6.6 + w[2]), Vector2(-12.4, -8.6 + w[3]), Vector2(-8.8, -9.6 + w[2]), Vector2(-5.2, -11 + w[1] * 0.6),
 			Vector2(-1.4, -13.2), Vector2(2.6, -13.4)]))
-		# The tail swings round after the head: points behind the head fold forward while it lags.
-		for n: int in range(pts.size()):
-			var behind: float = clampf(-pts[n].x / 12.4, 0.0, 1.0)
-			pts[n] = Vector2(pts[n].x + lag_turn * behind * behind * 9.0, pts[n].y - lag_turn * behind * 2.0)
+		# The tail swings round after the head: points behind the head rotate about the body's
+		# middle, up over the top (more toward the tip, so it curls) as it sweeps back.
+		if swing > 0.001:
+			var pivot: Vector2 = Vector2(1.0, -8.5)
+			for n: int in range(pts.size()):
+				var behind: float = clampf((1.0 - pts[n].x) / 13.4, 0.0, 1.0)
+				pts[n] = pivot + (pts[n] - pivot).rotated(swing * pow(behind, 0.6))
 		var fade: PackedFloat32Array = PackedFloat32Array()
 		var top: float = (1.0 if layer == 0 else 0.3 / float(layer)) * (1.0 if layer == 0 else flicker)
 		for p: Vector2 in pts:
