@@ -6,11 +6,15 @@ const CLOSE_ONE_KEY: bool = false
 const CODE_LENGTH: int = 4 # 8 is more reasonable
 ## Keys and doors are dealt these colours in turn; a key opens doors of its own colour.
 const KEY_COLOR_COUNT: int = 4
-const CRACK_COUNT: int = 10
-const KEY_COUNT: int = 6
+## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).
+const KEYS_PER_K: float = 2.0
+const DOORS_PER_K: float = 3.0
 ## Lanterns beyond the ones beside each exit.
-const LANTERN_COUNT: int = 4
-const MOON_COUNT: int = 12
+const LANTERNS_PER_K: float = 1.5
+const MOONS_PER_K: float = 3.0
+const CRACKS_PER_K: float = 2.5
+## Natural teleporter pairs scale with level area, without a fixed cap.
+const PORTAL_PAIRS_PER_K: float = 0.75
 const MOON_CLEARANCE: int = 1
 const MOON_SPACING: int = 6
 ## Share of platform runs (up to 3 cells long) that glide along a track instead of staying put.
@@ -451,10 +455,7 @@ class World:
 		# Exits and their lanterns first, so they get the pick of the level.
 		place_exits(def.depth, def.debug)
 
-		@warning_ignore("integer_division")
-		var chunks: int = (size.x*size.y)/(CHUNK_SIZE*CHUNK_SIZE)
-		# Moons (dash resets) hang in wide open air; one ink well per level stands on a floor.
-		place_moons(MOON_COUNT)
+		# One ink well per level stands on a floor.
 		set_cell(pop_if_random_empty(ground_below, true), Cell.new(Type.INKWELL))
 
 		if CLOSE_ONE_KEY:
@@ -462,12 +463,11 @@ class World:
 			set_cell(v, Cell.new(Type.KEY))
 			add_object_at(v)
 		else:
-			# A few keys: every colour at least once (keys are dealt colours in turn).
-			for i: int in range(KEY_COUNT):
+			# Keys: every colour at least once (keys are dealt colours in turn), more in bigger levels.
+			for i: int in range(maxi(MapInfo.KEY_COLOR_COUNT, per_area(KEYS_PER_K))):
 				set_cell(pop_if_random_empty(), Cell.new(Type.KEY))
 
-		for i: int in range(len(empties)*0.1):
-			set_cell(pop_if_random_empty(ground_flanking), Cell.new(Type.DOOR))
+		place_doors(per_area(DOORS_PER_K))
 
 #		for i in range(len(empties)*0.1):
 #			set_cell(pop_if_random_empty(ground_adjacent), Cell.new(Type.SPIKES))
@@ -495,18 +495,21 @@ class World:
 			if run_cells.size() <= 3 and rng.randf() < MOVING_PLATFORM_CHANCE:
 				make_moving(run_cells)
 
+		# Moons (dash resets) once the ledges are down: open air with nothing to stand on below.
+		place_moons(per_area(MOONS_PER_K))
+
 		for i: int in range(len(empties)*0.2):
 			set_cell(pop_if_random_empty(ground_below), Cell.new(Type.ENEMY))
 
 		for i: int in range(len(empties)*0.1):
 			set_cell(pop_if_random_empty(ground_below), Cell.new(Type.SHOOTER))
 
-		for i: int in range(LANTERN_COUNT):
+		for i: int in range(per_area(LANTERNS_PER_K)):
 			set_cell(pop_if_random_empty(ground_below, true), Cell.new(Type.CHECKPOINT))
 
 		#place pairs of portals in the stage and connect them to each other
 		#by telling each portal the coords of its partner in the extra_info
-		for i: int in range(4):
+		for i: int in range(per_area(PORTAL_PAIRS_PER_K)):
 			var pos1: Variant = pop_if_random_empty(ground_below, true)
 			var pos2: Variant = pop_if_random_empty(ground_below, true)
 			var portal1: Cell = Cell.new(Type.PORTAL)
@@ -516,7 +519,7 @@ class World:
 			set_cell(pos1, portal1)
 			set_cell(pos2, portal2)
 
-		place_cracks(CRACK_COUNT)
+		place_cracks(per_area(CRACKS_PER_K))
 
 	## Cracked walls: thin rock (one or two cells, open on both sides) that a hex bolt breaks.
 	## Half are picked near something worth reaching (a key, lantern, exit, shrine or ink well).
@@ -561,12 +564,42 @@ class World:
 				objects.append(c)
 			placed += 1
 
-	## Moons only where the air is open: every cell within MOON_CLEARANCE is open, and the cell
-	## below that too (no floor just beneath), with moons spread at least MOON_SPACING apart.
-	func place_moons (count: int) -> void:
+	## How many of something for this level: `per_k` per 1000 cells, at least one.
+	func per_area (per_k: float) -> int:
+		return maxi(1, roundi(per_k * float(size.x * size.y) / 1000.0))
+
+	## Gates: portcullis doors across one-cell-tall corridors (rock above and below, open to both
+	## sides), which the cave-joining tunnels often make. Spread out, and never right beside
+	## another door.
+	func place_doors (count: int) -> void:
 		var spots: Array[Vector2i] = []
 		for v: Vector2i in empties:
-			if _wide_open(v):
+			if is_ground(v + Vector2i.UP) and is_ground(v + Vector2i.DOWN) and _open(v + Vector2i.LEFT) and _open(v + Vector2i.RIGHT) \
+					and get_cell(v + Vector2i.LEFT).type == Type.EMPTY and get_cell(v + Vector2i.RIGHT).type == Type.EMPTY:
+				spots.append(v)
+		spots.sort()
+		var placed: Array[Vector2i] = []
+		while placed.size() < count and not spots.is_empty():
+			var v: Vector2i = spots.pop_at(rng.randi_range(0, spots.size() - 1))
+			if placed.any(func(q: Vector2i) -> bool: return absi(q.x - v.x) + absi(q.y - v.y) < 4):
+				continue
+			placed.append(v)
+			add_object_at(v)
+			set_cell(v, Cell.new(Type.DOOR))
+
+	## Moons only where the air is open: every cell within MOON_CLEARANCE is open, and the cell
+	## below that too, with no ledge or lift in the fall below (nothing to stand on), and
+	## at least MOON_SPACING apart. Air over thorns is favoured: such spots are three times as
+	## likely, since a dash reset is most welcome there.
+	func place_moons (count: int) -> void:
+		var supports: Dictionary = _platform_footprint()
+		var spots: Array[Vector2i] = []
+		for v: Vector2i in empties:
+			if not _wide_open(v) or _ledge_below(v, supports):
+				continue
+			spots.append(v)
+			if _thorns_below(v):
+				spots.append(v)
 				spots.append(v)
 		spots.sort()
 		var placed: Array[Vector2i] = []
@@ -574,9 +607,46 @@ class World:
 			var v: Vector2i = spots.pop_at(rng.randi_range(0, spots.size() - 1))
 			if placed.any(func(q: Vector2i) -> bool: return absi(q.x - v.x) + absi(q.y - v.y) < MOON_SPACING):
 				continue
+			if not empties.has(v):
+				continue
 			placed.append(v)
 			add_object_at(v)
 			set_cell(v, Cell.new(Type.MOON))
+
+	## Include every cell a lift can occupy, including its width and its whole track.
+	func _platform_footprint () -> Dictionary:
+		var supports: Dictionary = {}
+		for v: Vector2i in objects:
+			var cell: Cell = get_cell(v)
+			if cell.type == Type.PLATFORM:
+				supports[v] = true
+			elif cell.type == Type.MOVING_PLATFORM:
+				var motion: Array = cell.extra_info
+				for step: int in range(int(motion[2]) + 1):
+					for dx: int in range(int(motion[0])):
+						supports[v + Vector2i(dx, 0) + (motion[1] as Vector2i) * step] = true
+		return supports
+
+	func _ledge_below (v: Vector2i, supports: Dictionary = {}) -> bool:
+		if supports.is_empty():
+			supports = _platform_footprint()
+		for dx: int in range(-1, 2):
+			for dy: int in range(1, size.y - v.y):
+				var n: Vector2i = v + Vector2i(dx, dy)
+				if not is_valid(n) or get_cell(n).type in [Type.GROUND, Type.CRACKED, Type.SPIKES]:
+					break
+				if supports.has(n):
+					return true
+		return false
+
+	func _thorns_below (v: Vector2i) -> bool:
+		for dy: int in range(1, 6):
+			var n: Vector2i = v + Vector2i(0, dy)
+			if not is_valid(n) or get_cell(n).type in [Type.GROUND, Type.CRACKED, Type.PLATFORM, Type.MOVING_PLATFORM]:
+				return false
+			if get_cell(n).type == Type.SPIKES:
+				return true
+		return false
 
 	func _wide_open (v: Vector2i) -> bool:
 		for dx: int in range(-MOON_CLEARANCE, MOON_CLEARANCE + 1):
@@ -1110,6 +1180,7 @@ func _level_ready (cells: Array, def: NextWorldDef) -> void:
 	var dropped: Dictionary = record()["dropped"]
 	for id: int in dropped:
 		_spawn_dropped_key(id, dropped[id][0], dropped[id][1])
+	Rift.restore(self)
 	_spawn_ghost()
 	next_world()
 

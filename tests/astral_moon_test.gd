@@ -68,7 +68,10 @@ func run() -> void:
 
 	print("moons")
 	var moons: Array[Node] = info.map_elements.get_children().filter(func(n: Node) -> bool: return n.scene_file_path.get_file() == "moon.tscn")
-	check(moons.size() > 5, "%d moons in the level" % moons.size())
+	check(not moons.is_empty() and moons.size() <= info.world.per_area(MapInfo.MOONS_PER_K), "%d moons within the level's area budget" % moons.size())
+	if moons.is_empty():
+		quit(1)
+		return
 	var moon: Node = moons[0]
 	player.dash.refresh()
 	moon.call("touch", player)

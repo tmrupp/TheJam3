@@ -63,11 +63,12 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
   - Learning costs `S(d, tier) = max(3, round(10 × 1.6^(tier−1) × 0.8^d))`: cheaper deeper, dearer per tier.
   - Mending works the other way: `H(d) = round(3 × 1.35^d)`, which is 3 at depth 0 and 13 at depth 5.
 - **Only the dash is known at the start.** Everything else is found at shrines. A shrine offers an ability not yet known before any upgrade: it starts from the seed's pick and goes round. Until learned, parry and astral projection do nothing, and there is no hex, so no killing enemies or breaking cracked walls.
-- **One spell slot.** Hex, astral projection, parry, levitate and awareness are spells, and all use the Spell button (Q, or the pad's X; the old Parry binding renamed). You carry one at a time: learning a different spell at a shrine replaces it, and the shrine's plaque says "· swap". Perks (dash, double jump, wall climb, blink, vigor) stack.
+- **One spell slot.** Hex, astral projection, parry, levitate, awareness and rift are spells, and all use the Spell button (Q, or the pad's X; the old Parry binding renamed). You carry one at a time: learning a different spell at a shrine replaces it, and the shrine's plaque says "· swap". Perks (dash, double jump, wall climb, blink, vigor) stack.
 - **Levitate:** press Spell in the air to stop falling and float. You drift slowly up and down with the stick and sideways at walking pace, until it runs out or you press Spell again. You get one float per landing, and a moon brings it back.
 - **Awareness:** press Spell to sense the level. While it lasts, pointers at the edge of the view show where things are, like the ghost's arrow. A short cooldown follows.
 - **Astral projection** uses the Spell button. Tap it to leave your body and go out as an untouchable projection. Tap again, or get hurt, to snap back to the body. Let it run out and you stay where the projection is. There are no astral orbs any more.
-- **Moons** are dash resets, about 12 per level, placed only in open air: clear on every side and below, and at least 6 cells apart. Touching one gives your dash back if you have used it. It then wanes for 2.5 s and returns. Moons are never used up.
+- **Rift:** learn it at a shrine, then press Spell to place an end at your position. A second cast places its partner; interact to travel between them. Casting again deletes both old ends in the current world and starts a new pair. Each world (seed, depth) keeps one spell-created pair in its saved level record: pairs in other worlds remain untouched and return when you revisit. Swapping spells preserves placed pairs; starting a new run clears them. Tier I requires standing on a surface; tier II allows placement in midair; tier III lets you step into an end to travel automatically. Casting a new end or arriving through one waits until you step off before automatic travel arms.
+- **Moons** are dash resets, with a target of 3 per 1000 level cells, placed only in open air: clear on every side and below, and at least 6 cells apart. They reject platforms in the fall below, including the full width and travel of moving platforms, until intervening rock or spikes block the fall. Suitable spots above spikes have triple the selection weight. Touching one gives your dash back if you have used it. It then wanes for 2.5 s and returns. Moons are never used up.
 - Tiers live on the player (`Abilities.gd`) and reset when a run ends. The upgrade menu and the old `Upgrade`, `UpgradeManager`, double-jump and wall-climb nodes are gone.
 
 | Ability | Start | Max | Each tier |
@@ -81,7 +82,12 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 | Hex | – | IV | II +1 charge, III +1 damage, IV pierces |
 | Levitate | – | III | float 1.5 s, +0.75 s per tier |
 | Awareness | – | III | I exits; II also the ink well and shrine; III also the nearest key of each colour; senses longer each tier |
+| Rift | – | III | I place a pair while grounded; II also midair; III automatic travel on entry |
 | Vigor | – | III | +1 max health (and heals 1) |
+
+Spawn budgets follow level area: keys 2, corridor gates 3, extra lanterns 1.5, moons 3, and cracked walls 2.5 per 1000 cells. Keys include at least one of each colour; exits, their lanterns, the shrine and ink well are reserved first. Natural teleporters use 0.75 pairs per 1000 cells, rounded with a minimum of one pair and no fixed cap: one pair at depth 0, three pairs at depth 5, and four pairs in the largest levels. Coins, platforms and enemies use a fraction of available space. Terrain and spacing constraints can leave budgets unfilled.
+
+Watching eyes detect within 1150 pixels (previously 520), while rock still blocks their line of sight. `tests/spawn_balance_test.gd` checks 20 levels across five seeds and both terrain families, plus platform rejection and spike weighting. `tests/rift_test.gd` checks placed-pair lifecycle, spell tiers and actual watcher sight physics.
 
 ## 5. Economy
 

@@ -108,7 +108,15 @@ func run() -> void:
 
 	print("moving platforms")
 	var lifts: Array[Node] = placed("moving_platform.tscn")
-	check(lifts.size() > 0, "%d moving platforms" % lifts.size())
+	# A small generated level may have no lifts. Exercise riding with a real, deterministic
+	# prefab on an unobstructed track outside the level instead of relying on random density.
+	var fixture: Node2D = load("res://prefabs/moving_platform.tscn").instantiate()
+	info.map_elements.add_child(fixture)
+	var fixture_cell: Vector2i = Vector2i(info.world.size.x + 8, 8)
+	fixture.set_meta(&"cell", fixture_cell)
+	fixture.call("setup", info, fixture_cell, [2, Vector2i.DOWN, 3])
+	lifts.push_front(fixture)
+	await physics_frame
 	var on_track: bool = true
 	for lift: Node in lifts:
 		var start: Vector2 = lift.get("start")
@@ -161,9 +169,11 @@ func run() -> void:
 	print("level contents")
 	var lanterns: int = placed("checkpoint.tscn").size()
 	var keys: int = placed("key.tscn").size()
-	check(keys == MapInfo.KEY_COUNT and lanterns <= 4 + MapInfo.LANTERN_COUNT, "%d keys and %d lanterns, not dozens" % [keys, lanterns])
+	var area_k: float = float(info.world.size.x * info.world.size.y) / 1000.0
+	check(keys == maxi(MapInfo.KEY_COLOR_COUNT, roundi(MapInfo.KEYS_PER_K * area_k)) and lanterns <= 4 + roundi(MapInfo.LANTERNS_PER_K * area_k), "%d keys and %d lanterns, in proportion to the level" % [keys, lanterns])
+	check(placed("door.tscn").size() >= 1, "%d gates (doors) across corridors" % placed("door.tscn").size())
 	var moons: Array[Node] = placed("moon.tscn")
-	check(moons.size() >= 6, "%d moons" % moons.size())
+	check(not moons.is_empty() and moons.size() <= info.world.per_area(MapInfo.MOONS_PER_K), "%d moons within the area budget" % moons.size())
 	var open_air: bool = true
 	for m: Node in moons:
 		var c: Vector2i = m.get_meta(&"cell")
@@ -173,6 +183,7 @@ func run() -> void:
 					open_air = false
 		if info.world.is_ground(c + Vector2i(0, 2)):
 			open_air = false
+		open_air = open_air and not info.world._ledge_below(c)
 	check(open_air, "every moon hangs in open air, clear of rock around and below")
 
 	print("deeper exit price")

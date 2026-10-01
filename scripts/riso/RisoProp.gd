@@ -294,6 +294,9 @@ func _shrine_niche(cx: float, i: int, g: float, bob: float, used: bool) -> void:
 # ------------------------------------------------------------------ places
 
 func _portal() -> void:
+	if host.has_meta(&"rift"):
+		_rift()
+		return
 	var r: float = 46.0 * (1.0 + 0.04 * sin(t * 2.0 + phase))
 	var a: float = t * 2.0 * (1.0 if int(phase * 10.0) % 2 == 0 else -1.0)
 	var outer: int = RisoPrint.ACCENT if int(phase * 10.0) % 2 == 0 else RisoPrint.PINK
@@ -301,6 +304,21 @@ func _portal() -> void:
 	ink.ink(outer, 1.0, [RisoShapes.circle(Vector2.ZERO, r, 40)])
 	ink.ink(inner, 1.0, [RisoShapes.circle(Vector2(cos(a), sin(a)) * 7.0, r * 0.7, 36)])
 	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.circle(Vector2(cos(a + 2.0), sin(a + 2.0)) * 5.0, r * 0.4, 28)])
+
+
+## The wizard's own rift: a ring of glow ink (the hat's colour) round a turning night-ink eye;
+## dim and still until its partner is open.
+func _rift() -> void:
+	var linked: bool = bool(host.get("linked"))
+	var r: float = 40.0 * (1.0 + 0.05 * sin(t * 3.0 + phase))
+	var a: float = t * (3.0 if linked else 0.6)
+	ink.ink(RisoPrint.GLOW, 0.3 if linked else 0.15, [RisoShapes.circle(Vector2.ZERO, r * 1.35, 36)])
+	var ring: PackedVector2Array = RisoShapes.circle(Vector2.ZERO, r, 36)
+	ink.ink(RisoPrint.GLOW, 1.0 if linked else 0.5, [ring])
+	var hole: PackedVector2Array = RisoShapes.circle(Vector2(cos(a), sin(a)) * 4.0, r * 0.62, 32)
+	ink.knock([RisoPrint.GLOW], [hole])
+	ink.ink(RisoPrint.NIGHT, 1.0, [hole], false)
+	ink.ink(RisoPrint.GLOW, 0.6, [Transform2D(a, Vector2.ZERO) * RisoShapes.sparkle(Vector2.ZERO, r * 0.35)], false)
 
 
 func _door() -> void:
@@ -488,6 +506,9 @@ static func glyph(a: StringName, c: Vector2, t: float) -> Array[PackedVector2Arr
 			# A feather of three rising arcs over a ring.
 			return [RisoShapes.ellipse(c + Vector2(0, 14), 18.0, 5.0, 18), RisoShapes.almond(c + Vector2(0, -6), 7.0, 18.0, 12),
 				RisoShapes.rrect(c.x - 1.6, c.y - 4, 3.2, 16, 1.6)]
+		&"rift":
+			# Two linked rings.
+			return [RisoShapes.circle(c + Vector2(-11, 0), 9.0, 18), RisoShapes.circle(c + Vector2(11, 0), 9.0, 18), RisoShapes.rrect(c.x - 6, c.y - 1.6, 12, 3.2, 1.6)]
 		&"awareness":
 			# An open eye with a lit pupil.
 			return [RisoShapes.almond(c, 22.0, 11.0, 14), RisoShapes.circle(c, 5.0, 12)]

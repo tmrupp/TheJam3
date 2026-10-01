@@ -3,12 +3,12 @@ class_name Abilities
 ## is known from the start (tier 1). Each tier improves the ability. Tiers live on the player and
 ## reset when a run ends.
 ## - Spells share one slot, on the Spell button (Q, or the pad's X): hex, astral projection,
-##   parry, levitate and awareness. You carry one at a time; learning another at a shrine
+##   parry, levitate, awareness and rift (open your own teleporters). You carry one at a time; learning another at a shrine
 ##   replaces it.
 ## - Perks stack: double jump, wall climb, blink (replaces the dash) and vigor (max health).
 
-const ORDER: Array[StringName] = [&"dash", &"double_jump", &"wall_climb", &"blink", &"parry", &"astral", &"hex", &"levitate", &"awareness", &"vigor"]
-const SPELLS: Array[StringName] = [&"hex", &"astral", &"parry", &"levitate", &"awareness"]
+const ORDER: Array[StringName] = [&"dash", &"double_jump", &"wall_climb", &"blink", &"parry", &"astral", &"hex", &"levitate", &"awareness", &"rift", &"vigor"]
+const SPELLS: Array[StringName] = [&"hex", &"astral", &"parry", &"levitate", &"awareness", &"rift"]
 const NAMES: Dictionary = {
 	&"dash": "dash",
 	&"double_jump": "double jump",
@@ -19,11 +19,12 @@ const NAMES: Dictionary = {
 	&"hex": "hex",
 	&"levitate": "levitate",
 	&"awareness": "awareness",
+	&"rift": "rift",
 	&"vigor": "vigor",
 }
 const BASE: Dictionary = {&"dash": 1}
 const MAX: Dictionary = {&"dash": 4, &"double_jump": 3, &"wall_climb": 3, &"blink": 3, &"parry": 4, &"astral": 4, &"hex": 4,
-	&"levitate": 3, &"awareness": 3, &"vigor": 3}
+	&"levitate": 3, &"awareness": 3, &"rift": 3, &"vigor": 3}
 const BLINK_PREFAB: String = "res://prefabs/upgrades/Blink.tscn"
 const BASE_HEALTH: int = 3
 const SPELL_ACTION: StringName = &"Spell"
@@ -142,6 +143,8 @@ static func cast(player: Player) -> void:
 			(player.get_node("Levitate") as Levitate).toggle()
 		&"awareness":
 			(player.get_node("Awareness") as Awareness).ping()
+		&"rift":
+			(player.get_node("Rift") as Rift).cast()
 
 
 ## A child node that exists only while its ability is known.
@@ -210,6 +213,14 @@ static func apply(player: Player) -> void:
 	var aware: Awareness = _keep(player, "Awareness", aware_tier > 0, func() -> Node: return Awareness.new()) as Awareness
 	if aware != null:
 		aware.level = aware_tier
+	var rift_tier: int = tier(player, &"rift")
+	var rift: Rift = _keep(player, "Rift", rift_tier > 0, func() -> Node: return Rift.new()) as Rift
+	if rift != null:
+		rift.level = rift_tier
+		rift.sync_ends()
+		for e: Node2D in rift.ends:
+			if is_instance_valid(e):
+				e.set("auto", rift_tier >= 3)
 	player.health.max_health = BASE_HEALTH + tier(player, &"vigor")
 	player.health.health = mini(player.health.health, player.health.max_health)
 	player.health.display_health()
