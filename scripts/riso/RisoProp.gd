@@ -628,7 +628,7 @@ func _wisp() -> void:
 	_wp_scale = Transform2D(0.0, Vector2(side * width * k * 1.1, k * 0.6), 0.0, Vector2.ZERO)
 	_wp_origin = Vector2(0, 14.0 - 3.3 * k + bob * k * 0.7) + loop_at
 	_wp_angle = -side * spin
-	_wp_curl = -side * turning * 0.45
+	_wp_curl = -side * turning * 1.4
 	var speed: float = 0.3 if stunned else 0.7
 	var flicker: float = 0.85 + 0.15 * sin(t * 5.3 + phase) * sin(t * 2.1 + phase * 1.7)
 	# The glow trails the wisp: strongest behind the head, thinning out past the tail.
@@ -774,7 +774,8 @@ func _wisp_place(poly: PackedVector2Array, curl: bool) -> PackedVector2Array:
 	for n: int in range(poly.size()):
 		var a: float = _wp_angle
 		if curl:
-			a -= _wp_curl * clampf(-poly[n].x / 12.4, 0.0, 1.0)
+			# Curling harder toward the tip, so the tail wraps round like a hook.
+			a -= _wp_curl * pow(clampf((1.0 - poly[n].x) / 13.4, 0.0, 1.0), 1.4)
 		out[n] = _wp_origin + pivot + (_wp_scale * poly[n] - pivot).rotated(a)
 	return out
 
