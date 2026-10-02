@@ -7,6 +7,11 @@ extends Node2D
 const SPEED: float = 1100.0
 const RANGE: float = 8.0 * 128.0
 const REACH: float = 44.0
+## Each target is struck anywhere along a vertical span through it, from its body centre up to
+## about the top of its printed art, not just at its centre: a wisp's body sits low on the floor
+## while the bolt flies at hat height, so a level shot used to pass over it.
+const SPAN_DOWN: float = 20.0
+const SPAN_UP: float = 56.0
 const SOLID_MASK: int = 4
 
 var dir: Vector2 = Vector2.RIGHT
@@ -36,8 +41,9 @@ func _physics_process(delta: float) -> void:
 	for e: Node in get_tree().get_nodes_in_group(&"hex_target"):
 		if e in struck or not is_instance_valid(e) or e.is_queued_for_deletion():
 			continue
-		var p: Vector2 = Geometry2D.get_closest_point_to_segment((e as Node2D).global_position, from, to)
-		if p.distance_to((e as Node2D).global_position) <= REACH:
+		var at: Vector2 = (e as Node2D).global_position
+		var near: PackedVector2Array = Geometry2D.get_closest_points_between_segments(from, to, at + Vector2(0, SPAN_DOWN), at - Vector2(0, SPAN_UP))
+		if near[0].distance_to(near[1]) <= REACH:
 			targets.append(e)
 	targets.sort_custom(func(a: Node, b: Node) -> bool: return from.distance_squared_to((a as Node2D).global_position) < from.distance_squared_to((b as Node2D).global_position))
 	var wall: Dictionary = _solid(from, to)

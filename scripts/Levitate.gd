@@ -1,11 +1,14 @@
 extends Node
 class_name Levitate
-## Levitate, a spell: press Spell to stop falling and float, drifting with the stick (up and down
-## slowly, sideways at walking pace) until it runs out or you press Spell again. One float per
-## touch of the ground (or a moon). Tiers make it last longer.
+## Levitate, a spell: press Spell in the air to stop falling and hold your height, moving
+## sideways at walking pace, until you press Spell again (or land). One float per touch of the
+## ground (or a moon). Tiers: II lets the stick drift you slowly up and down while floating;
+## III brings the float back without landing.
 
-var duration: float = 1.5
-var left: float = 0.0
+## The stick moves you up and down while floating (tier II).
+var drift: bool = false
+## A new float is ready the moment the last one ends, without landing (tier III).
+var free_recast: bool = false
 ## A float is ready (comes back on landing).
 var charged: bool = true
 
@@ -25,7 +28,6 @@ func toggle() -> void:
 
 func start() -> void:
 	charged = false
-	left = duration
 	player.levitating = true
 	player.velocity.y = 0.0
 	player.visual_event.emit(&"levitate", player.global_position)
@@ -35,16 +37,13 @@ func start() -> void:
 
 func stop() -> void:
 	player.levitating = false
-	left = 0.0
+	if free_recast:
+		charged = true
 
 
-func _physics_process(delta: float) -> void:
+func _physics_process(_delta: float) -> void:
 	if player == null:
 		return
-	if floating():
-		left -= delta
-		if left <= 0.0:
-			stop()
 	if player.is_on_floor():
 		if floating():
 			stop()

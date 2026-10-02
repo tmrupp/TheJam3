@@ -1,7 +1,7 @@
 class_name Abilities
-## Tiered abilities, learned at shrines (there is no shop). Tier 0 is not owned; only the dash
-## is known from the start (tier 1). Each tier improves the ability. Tiers live on the player and
-## reset when a run ends.
+## Tiered abilities, learned at shrines (there is no shop). Tier 0 is not owned; the dash and the
+## hex (the starting spell) are known from the start (tier 1). Each tier improves the ability.
+## Tiers live on the player and reset when a run ends.
 ## - Spells share one slot, on the Spell button (Q, or the pad's X): hex, astral projection,
 ##   parry, levitate, awareness and rift (open your own teleporters). You carry one at a time; learning another at a shrine
 ##   replaces it.
@@ -22,7 +22,7 @@ const NAMES: Dictionary = {
 	&"rift": "rift",
 	&"vigor": "vigor",
 }
-const BASE: Dictionary = {&"dash": 1}
+const BASE: Dictionary = {&"dash": 1, &"hex": 1}
 const MAX: Dictionary = {&"dash": 4, &"double_jump": 3, &"wall_climb": 3, &"blink": 3, &"parry": 4, &"astral": 4, &"hex": 4,
 	&"levitate": 3, &"awareness": 3, &"rift": 3, &"vigor": 3}
 const BLINK_PREFAB: String = "res://prefabs/upgrades/Blink.tscn"
@@ -208,7 +208,8 @@ static func apply(player: Player) -> void:
 		player.levitating = false
 	var lev: Levitate = _keep(player, "Levitate", lev_tier > 0, func() -> Node: return Levitate.new()) as Levitate
 	if lev != null:
-		lev.duration = 1.5 + 0.75 * float(lev_tier - 1)
+		lev.drift = lev_tier >= 2
+		lev.free_recast = lev_tier >= 3
 	var aware_tier: int = tier(player, &"awareness")
 	var aware: Awareness = _keep(player, "Awareness", aware_tier > 0, func() -> Node: return Awareness.new()) as Awareness
 	if aware != null:

@@ -43,9 +43,7 @@ func run() -> void:
 
 	print("the spell slot")
 	check(InputMap.has_action(Abilities.SPELL_ACTION), "one Spell button")
-	check(Abilities.spell(player) == &"", "the slot starts empty")
-	Abilities.cast(player)
-	check(true, "casting an empty slot does nothing")
+	check(Abilities.spell(player) == &"hex" and player.has_node("Hex"), "the slot starts with the hex")
 	for a: StringName in Abilities.SPELLS:
 		Abilities.grant(player, a)
 		var held: int = Abilities.SPELLS.filter(func(s: StringName) -> bool: return Abilities.tier(player, s) > 0).size()
@@ -55,7 +53,7 @@ func run() -> void:
 	print("levitate")
 	Abilities.grant(player, &"levitate")
 	var lev: Levitate = player.get_node("Levitate") as Levitate
-	check(is_equal_approx(lev.duration, 1.5), "levitate I floats for 1.5 s")
+	check(not lev.drift and not lev.free_recast, "levitate I holds height, without drift")
 	player.global_position += Vector2(0, -260)
 	player.velocity = Vector2.ZERO
 	await physics_frame
@@ -63,9 +61,9 @@ func run() -> void:
 	Abilities.cast(player)
 	check(lev.floating() and not lev.charged, "Spell in the air: floating")
 	var y0: float = player.global_position.y
-	for i: int in range(30):
+	for i: int in range(150):
 		await physics_frame
-	check(absf(player.global_position.y - y0) < 12.0, "no falling while floating (moved %.1f px)" % absf(player.global_position.y - y0))
+	check(lev.floating() and absf(player.global_position.y - y0) < 1.0, "holds its height until turned off, well past 1.5 s (moved %.1f px)" % absf(player.global_position.y - y0))
 	Abilities.cast(player)
 	check(not lev.floating(), "Spell again: drop")
 	Abilities.cast(player)
@@ -80,7 +78,9 @@ func run() -> void:
 	await physics_frame
 	check(lev.charged and not lev.floating(), "landing recharges it")
 	Abilities.grant(player, &"levitate")
-	check(is_equal_approx(lev.duration, 2.25), "levitate II floats longer")
+	check(lev.drift and not lev.free_recast, "levitate II drifts with the stick")
+	Abilities.grant(player, &"levitate")
+	check(lev.free_recast, "levitate III recasts without landing")
 
 	print("awareness")
 	Abilities.grant(player, &"awareness")

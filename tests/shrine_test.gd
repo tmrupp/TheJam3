@@ -62,8 +62,8 @@ func run() -> void:
 	check(info.world.ground_below(cell) and info.world.ground_below(cell + Vector2i.RIGHT), "standing on two floor cells")
 
 	print("starting abilities")
-	check(player.tiers == Abilities.start_tiers() and Abilities.tier(player, &"dash") == 1 and player.MAX_JUMPS == 1 and not player.climable and player.health.max_health == 3 and not player.has_node("Blink") and not player.has_node("Hex"), "only the dash; 3 health")
-	check(Abilities.ORDER.all(func(a: StringName) -> bool: return a == &"dash" or Abilities.tier(player, a) == 0), "parry, astral, hex and the rest are all still to find")
+	check(player.tiers == Abilities.start_tiers() and Abilities.tier(player, &"dash") == 1 and player.MAX_JUMPS == 1 and not player.climable and player.health.max_health == 3 and not player.has_node("Blink") and player.has_node("Hex"), "the dash and the hex; 3 health")
+	check(Abilities.ORDER.all(func(a: StringName) -> bool: return a in [&"dash", &"hex"] or Abilities.tier(player, a) == 0), "parry, astral and the rest are all still to find")
 	check(Abilities.tier(player, Abilities.offer(MapInfo.level_seed(28, 0), player)) == 0, "a shrine offers something new before upgrades")
 	var hurt_before: Callable = player.hurt_ability
 	player.get_node("Parry").call("execute")

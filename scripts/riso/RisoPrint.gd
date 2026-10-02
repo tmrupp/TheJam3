@@ -38,16 +38,19 @@ const GLOWS: Dictionary = {
 	&"levitate": Color("#7fd6c2"),
 	&"awareness": Color("#f2c14e"),
 }
-## Print-detail stops: heavy 0, medium 50, fine 80, extra fine 100 (sizes in 720p pixels).
+## Print-detail stops: heavy 0, medium 50, fine 80, extra fine 100 (sizes in 720p pixels):
+## [detail, screen cell, wobble, grain, dot gain, laydown], the prototype's values.
 const DETAIL_STOPS: Array[Array] = [
-	[0.0, 5.8, 1.7, 0.34, 1.8, 0.25],
-	[50.0, 4.4, 1.0, 0.22, 1.3, 0.17],
-	[80.0, 3.4, 0.6, 0.14, 1.0, 0.12],
-	[100.0, 2.6, 0.4, 0.1, 0.8, 0.09],
+	[0.0, 5.8, 1.7, 0.32, 1.6, 0.24],
+	[50.0, 4.4, 1.0, 0.2, 1.1, 0.16],
+	[80.0, 3.4, 0.55, 0.1, 0.7, 0.1],
+	[100.0, 2.6, 0.35, 0.06, 0.5, 0.07],
 ]
-## Base misregistration per plate, in 720p pixels.
-## Kept within ~1px of blue (night prints at blue's offset) so paper rims beside shapes stay slight.
-const REGISTRATION: Array[Vector2] = [Vector2(-0.4, -0.35), Vector2(-0.35, 0.3), Vector2(0.35, -0.2), Vector2(0.15, 0.55), Vector2(0.0, 0.15), Vector2(0.05, 0.2)]
+## Base misregistration per plate, in 720p pixels: the prototype's offsets (night, blue, pink,
+## accent, eye, glow), which are in its world units at about 2.4 px each.
+const REGISTRATION: Array[Vector2] = [Vector2(-0.48, -0.43), Vector2(-0.91, 0.82), Vector2(1.2, -0.72), Vector2(0.58, 1.06), Vector2(0.29, 0.36), Vector2(0.34, 0.43)]
+## How far each new sheet jitters a plate's registration (720p pixels, either way).
+const SHEET_JITTER: float = 1.2
 ## Key colours as overprints of the realm inks: sun, ember (sun over pink), moss (sun over blue), plum (pink over blue).
 const KEY_COLORS: Array[Array] = [[ACCENT], [ACCENT, PINK], [ACCENT, BLUE], [PINK, BLUE]]
 
@@ -59,7 +62,13 @@ var sheet_rate: float = 8.0
 var reprint_on_motion: bool = true
 var blend_sheets: bool = true
 var registration: StringName = &"sheet"
-var realm: StringName = &"twilight"
+var realm: StringName = &"deep"
+## Night trapped to blue and one shared wobble (edges close up), instead of every plate
+## registering on its own (paper slivers and overlaps at the edges, as in the prototype).
+var trapped: bool = false
+## Scales every plate's misregistration (base offset, sheet jitter and drift): 0 prints in
+## perfect register, 1 is the prototype's, 3 is a sloppy press.
+var offset_scale: float = 1.0
 ## Camera zoom while printing, relative to the scene's own zoom (smaller shows more).
 var zoom_factor: float = 0.72
 var _camera: Camera2D
@@ -374,6 +383,8 @@ func _on_player_event(kind: StringName, _at: Vector2) -> void:
 		RisoFx.burst(&"jump", feet.global_position if feet != null else _at)
 	elif kind == &"hurt":
 		RisoFx.burst(&"hit", _at + Vector2(0, -20), -_player.velocity.normalized())
+	if kind in [&"hurt", &"death"] and hud != null and is_instance_valid(hud):
+		hud.set("flash", 1.0)
 	if kind == &"projection_start":
 		flare(&"astral")
 	elif kind == &"jump" and _player != null and _player.MAX_JUMPS > 1 and _player.jumps < _player.MAX_JUMPS and not _player.is_on_floor():
@@ -458,10 +469,10 @@ func _update_uniforms(size: Vector2) -> void:
 	for i: int in range(PLATE_COUNT):
 		var o: Vector2 = REGISTRATION[i]
 		if registration == &"sheet":
-			o += _jitter(sheet_index, i).lerp(_jitter(sheet_index + 1, i), m) * 0.45
+			o += _jitter(sheet_index, i).lerp(_jitter(sheet_index + 1, i), m) * SHEET_JITTER
 		elif registration == &"drift":
 			o += Vector2(sin(t * 0.7 + float(i) * 2.1), cos(t * 0.53 + float(i) * 1.3)) * 1.2
-		print_material.set_shader_parameter("off%d" % i, o * s)
+		print_material.set_shader_parameter("off%d" % i, o * offset_scale * s)
 	print_material.set_shader_parameter("cell", params[0] * s)
 	print_material.set_shader_parameter("wob", params[1] * s)
 	print_material.set_shader_parameter("grain", params[2])
@@ -470,6 +481,7 @@ func _update_uniforms(size: Vector2) -> void:
 	print_material.set_shader_parameter("seed", _sheet_seed(sheet_index) if registration == &"sheet" else 3.1)
 	print_material.set_shader_parameter("seed2", _sheet_seed(sheet_index + 1))
 	print_material.set_shader_parameter("mixv", m)
+	print_material.set_shader_parameter("trapped", 1.0 if trapped else 0.0)
 	# Pin the print to the world: the shader adds the camera's pixel offset to every noise lookup.
 	var root: Viewport = get_viewport()
 	var view: Transform2D = root.get_final_transform() * root.canvas_transform
@@ -612,6 +624,7 @@ func _lift_to_overlay(node: Node) -> void:
 var _detail_label: Label
 var _rate_label: Label
 var _zoom_label: Label
+var _offset_label: Label
 var _options: Dictionary = {}
 
 
@@ -633,10 +646,14 @@ func _build_panel() -> void:
 	_detail_label = _slider_row(box, "Print detail", 0.0, 100.0, 1.0, detail, _on_detail)
 	_rate_label = _slider_row(box, "Sheet rate", 0.0, 24.0, 1.0, sheet_rate, _on_rate)
 	_zoom_label = _slider_row(box, "Zoom", 0.5, 1.0, 0.02, zoom_factor, _on_zoom)
+	_offset_label = _slider_row(box, "Plate offset", 0.0, 3.0, 0.1, offset_scale, func(v: float) -> void:
+		offset_scale = v
+		_sync_panel())
 	_option_row(box, &"registration", "Registration", ["New sheet", "Locked", "Drift"], _on_registration)
 	_option_row(box, &"reprint", "Reprint on", ["Clock", "Motion"], _on_reprint)
 	_option_row(box, &"between", "Between sheets", ["Cut", "Blend"], _on_between)
 	_option_row(box, &"realm", "Realm", ["Deep night", "Twilight", "Aurora"], _on_realm_picked)
+	_option_row(box, &"plates", "Plates", ["Independent", "Trapped"], func(i: int) -> void: trapped = i == 1)
 	_sync_panel()
 
 
@@ -717,9 +734,12 @@ func _sync_panel() -> void:
 	_detail_label.text = "Heavy" if detail < 25.0 else ("Medium" if detail < 65.0 else ("Fine" if detail < 90.0 else "Extra fine"))
 	_rate_label.text = "held" if sheet_rate <= 0.0 else "%d / s" % int(sheet_rate)
 	_zoom_label.text = "%d%%" % roundi(100.0 / zoom_factor)
+	_offset_label.text = "%.1f×" % offset_scale
 	if _options.has(&"realm"):
 		(_options[&"realm"] as OptionButton).select(REALM_ORDER.find(realm))
 	if _options.has(&"reprint"):
 		(_options[&"reprint"] as OptionButton).select(1 if reprint_on_motion else 0)
 	if _options.has(&"between"):
 		(_options[&"between"] as OptionButton).select(1 if blend_sheets else 0)
+	if _options.has(&"plates"):
+		(_options[&"plates"] as OptionButton).select(1 if trapped else 0)

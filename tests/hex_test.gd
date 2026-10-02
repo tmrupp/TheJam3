@@ -83,10 +83,8 @@ func run() -> void:
 	await settle()
 
 	print("the hex")
-	check(player.get_node_or_null("Hex") == null, "not known at the start")
-	Abilities.grant(player, &"hex")
 	var hex: Hex = player.get_node_or_null("Hex") as Hex
-	check(hex != null and Abilities.tier(player, &"hex") == 1 and hex.charges == 1, "learned: one charge")
+	check(hex != null and Abilities.tier(player, &"hex") == 1 and hex.charges == 1 and Abilities.spell(player) == &"hex", "the starting spell: one charge")
 	check(InputMap.has_action(Abilities.SPELL_ACTION), "the Spell action exists")
 
 	print("wounding enemies")
@@ -98,11 +96,13 @@ func run() -> void:
 	var side: Vector2 = pick[1]
 	var cell: Vector2i = e.get_meta(&"cell")
 	var stars_before: int = placed("coin.tscn").size()
-	player.global_position = e.global_position + side * 70.0 + Vector2(0, 44)
+	# Standing on the wisp's own floor (the wisp's body centre is 16 px up, the wizard's 31 px), so
+	# the bolt flies level at hat height, over the wisp's body.
+	player.global_position = e.global_position + side * 150.0 + Vector2(0, 16 - 31)
 	var bolt: Node2D = hex.cast(-side)
 	check(bolt != null and hex.charges == 0, "casting spends the charge")
-	await wait_physics(8)
-	check(not is_instance_valid(e) or e.is_queued_for_deletion(), "the bolt destroys the wisp")
+	await wait_physics(10)
+	check(not is_instance_valid(e) or e.is_queued_for_deletion(), "a level bolt from the same floor destroys the wisp")
 	check((info.record()["slain"] as Dictionary).has(cell), "the level records it slain")
 	check(placed("coin.tscn").size() > stars_before, "it drops stars")
 	check(hex.cast(Vector2.RIGHT) == null, "no charge, no bolt")

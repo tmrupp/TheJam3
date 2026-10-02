@@ -12,7 +12,7 @@ The main game is presented as a risograph "tarot print": flat ink shapes drawn i
 
 Launch with `godot --path . -- --no-riso` to start with the print off.
 
-Defaults: twilight realm, fine detail, new sheet registration at 8 sheets/s, reprint on motion (landings, take-offs, dashes, hits and portals print a fresh sheet), blending between sheets, and the camera zoomed out to 0.72× of the scene zoom (restored when the print is off).
+Defaults: deep night realm, independent plates, fine detail, new sheet registration at 8 sheets/s, reprint on motion (landings, take-offs, dashes, hits and portals print a fresh sheet), blending between sheets, and the camera zoomed out to 0.72× of the scene zoom (restored when the print is off).
 
 ## How it works
 
@@ -21,7 +21,9 @@ Defaults: twilight realm, fine detail, new sheet registration at 8 sheets/s, rep
 - A viewport only renders an item whose ancestors all share its layer, so every `InkCanvas` ORs the ink bits into its ancestors (`RisoPrint.share_layers`). Ancestors draw nothing themselves, and legacy sprites keep only layer 1, so they never reach the plates. The main viewport's cull mask hides the ink bits, and the opaque print covers the legacy art.
 - The print is pinned to the world. `RisoPrint` passes the camera's pixel offset (`pin`), and every imperfection is evaluated at screen pixel + `pin`. That covers the halftone screen, grain, edge wobble, laydown, specks and paper texture. So as the camera moves, they stay on the paper instead of sliding over it. Only a new sheet reprints them. The noise uses an exact integer hash (PCG) with its domains turned off the pixel axes. The earlier `fract()` hash lost float precision at screen-sized coordinates, which lined specks up in columns. `tests/riso_pin_test.gd` (windowed) checks that a camera move shifts the printed rock by exactly the camera's pixel shift.
 - While printing, the window uses `canvas_items` stretch, so the world renders at full resolution while UI keeps its 320×180 layout. Plates are capped at 1080 lines; the shader samples them by UV.
-- The night plate is registered to the blue plate (same offset, rotation and wobble), so rock and robe meet the night without paper rims that would read as outlines.
+- Every plate registers on its own, as in the prototype (pull 10): its own offset, rotation and edge wobble, with the prototype's offsets (about 0.3–1.4 px at 720p) and up to ±0.6 px more per new sheet. Where inks meet, a paper sliver opens on one side and the inks overlap dark on the other, shifting with each sheet. **Plates: Trapped** on the F7 panel instead registers night to blue and shares one wobble across all plates, so those edges close up. `tests/capture_plates.gd` prints the same frame both ways side by side.
+- The print-detail stops (screen size, wobble, grain, dot gain, laydown) are the prototype's.
+- A hit or death prints a 15% pink screen over the whole sheet for a moment (`RisoHud.flash`), on top of the wizard's own pink hit flash.
 
 ## Art
 

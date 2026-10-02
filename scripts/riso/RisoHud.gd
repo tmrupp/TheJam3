@@ -38,6 +38,9 @@ var end_title: Label
 var end_sub: Label
 var font: SystemFont
 var t: float = 0.0
+## Set to 1 by RisoPrint on a hit or death; while above 0.5 the whole sheet takes a 15% pink
+## screen (as in the prototype), fading out in a third of a second.
+var flash: float = 0.0
 ## World-to-UI mapping for this frame (for pointers at the edge of the view).
 var view_origin: Vector2 = Vector2.ZERO
 var view_k: float = 1.0
@@ -143,6 +146,9 @@ func _process(delta: float) -> void:
 		ink = sheet_ink
 		_end_card()
 		_awareness(player)
+	flash = maxf(0.0, flash - delta * 3.0)
+	if flash > 0.5:
+		sheet_ink.ink(RisoPrint.PINK, 0.15, [PackedVector2Array([Vector2(-20, -20), Vector2(340, -20), Vector2(340, 200), Vector2(-20, 200)])], false)
 	corner_ink.finish()
 	sheet_ink.finish()
 

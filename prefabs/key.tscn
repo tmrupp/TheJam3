@@ -1,6 +1,6 @@
 [gd_scene load_steps=5 format=3 uid="uid://c536x3npxuvld"]
 
-[ext_resource type="Script" path="res://scripts/Key.gd" id="1_ot71e"]
+[ext_resource type="Script" path="res://scripts/key.gd" id="1_ot71e"]
 [ext_resource type="Texture2D" uid="uid://8v5qjfyrfxg1" path="res://sprites/Tiles/tile_0027.png" id="2_ayc2b"]
 [ext_resource type="AudioStream" uid="uid://cp3v4ud6nbj1l" path="res://music/SoundEffects/pickupCoinDouble.wav" id="3_tr24g"]
 

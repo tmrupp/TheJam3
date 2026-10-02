@@ -29,6 +29,10 @@ uniform float seed = 3.1;
 uniform float seed2 = 4.47;
 uniform float mixv = 0.0;
 uniform vec2 pin = vec2(0.0);
+// 0: every plate registers and wobbles on its own, as in the prototype, so paper slivers and dark
+// overlaps open and close at the edges where inks meet. 1: night is trapped to blue (same offset,
+// rotation and wobble) and all plates share the broad wobble, so edges close up.
+uniform float trapped = 0.0;
 
 // PCG 3D (Jarzynski & Olano): an exact integer hash, uniform at any coordinate.
 uvec3 pcg3(uvec3 v) {
@@ -75,8 +79,9 @@ float print_ink(sampler2D s, vec2 px, vec2 off, float ang, float rot, float sd, 
 	// World-pinned position of this plate's (misregistered) sample point.
 	vec2 wq = p + pin;
 	uint so = seed_u(sd);
-	// The broad edge wobble is shared by all plates so neighbouring inks drift together (no paper gaps).
-	uint sw = seed_u(wsd);
+	// The broad edge wobble is the plate's own, or (trapped) shared by all plates so neighbouring
+	// inks drift together.
+	uint sw = trapped > 0.5 ? seed_u(wsd) : so + 41u;
 	vec2 w1 = vec2(vn(R1 * wq * 0.16, sw), vn(R1 * wq * 0.16, sw + 17u)) - 0.5;
 	vec2 w2 = vec2(vn(R2 * wq * 0.85, so), vn(R2 * wq * 0.85, so + 29u)) - 0.5;
 	vec2 d = w1 * wob * 2.2 + w2 * wob * 0.9;
@@ -88,11 +93,10 @@ float print_ink(sampler2D s, vec2 px, vec2 off, float ang, float rot, float sd, 
 	vec2 sp = vec2(cos(a) * wp.x - sin(a) * wp.y, sin(a) * wp.x + cos(a) * wp.y) / cell;
 	float scr = 0.5 - 0.25 * (cos(6.28318 * sp.x) + cos(6.28318 * sp.y));
 	float solid = smoothstep(0.82, 0.98, cv);
-	float thr = 0.035 + scr * 0.93 + ((hs(R2 * qw * 0.85, so + 3u) - 0.5) * grain + (vn(R1 * qw * 0.3, so + 5u) - 0.5) * grain * 0.6) * (1.0 - solid * 0.75);
+	float thr = 0.035 + scr * 0.93 + ((hs(R2 * qw * 0.85, so + 3u) - 0.5) * grain + (vn(R1 * qw * 0.3, so + 5u) - 0.5) * grain * 0.6) * (1.0 - solid * 0.9);
 	float v = smoothstep(thr - 0.045, thr + 0.045, cv);
 	float laydown = 1.0 - lay + lay * vn(R2 * qw * 0.42, so + 7u);
-	float speck = step(0.9988, hs(R1 * qw * 0.42, so + 11u));
-	return v * laydown * (1.0 - speck * 0.85);
+	float speck = step(0.9988, hs(R1 * qw * 0.42, so + 11u));	return v * laydown * (1.0 - speck * 0.85);
 }
 
 float sheet(sampler2D s, vec2 px, vec2 off, float ang, float rot, float k) {
@@ -108,13 +112,15 @@ void fragment() {
 	vec2 wp = px + pin;
 	uint ps = seed_u(seed + 71.0);
 	vec3 col = paper * (0.97 + 0.03 * vn(R1 * wp * 0.045, ps)) * (1.0 - 0.045 * hs(R2 * wp * 0.8, ps + 1u));
-	// Night is registered to blue (same offset, rotation and wobble), like a trapped plate: where
-	// the rock or robe meets the night there is no paper rim, which would read as an outline.
-	col *= mix(vec3(1.0), ink0, sheet(plate0, px, off1, 30.0, 0.0007, 1.0));
+	// Night prints on its own registration, rotation and wobble, so where the rock or robe meets
+	// the night a paper sliver opens on one side and the inks overlap dark on the other. Trapped,
+	// it takes blue's (no rim at those edges).
+	bool trap = trapped > 0.5;
+	col *= mix(vec3(1.0), ink0, sheet(plate0, px, trap ? off1 : off0, 30.0, trap ? 0.0007 : 0.0, trap ? 1.0 : 0.0));
 	col *= mix(vec3(1.0), ink1, sheet(plate1, px, off1, 75.0, 0.0007, 1.0));
-	col *= mix(vec3(1.0), ink2, sheet(plate2, px, off2, 15.0, 0.0001, 2.0));
+	col *= mix(vec3(1.0), ink2, sheet(plate2, px, off2, 15.0, -0.0006, 2.0));
 	col *= mix(vec3(1.0), ink3, sheet(plate3, px, off3, 45.0, 0.0005, 3.0));
-	col *= mix(vec3(1.0), ink4, sheet(plate4, px, off4, 45.0, 0.0004, 4.0));
+	col *= mix(vec3(1.0), ink4, sheet(plate4, px, off4, 45.0, -0.0003, 4.0));
 	col *= mix(vec3(1.0), ink5, sheet(plate5, px, off5, 60.0, 0.0004, 5.0));
 	COLOR = vec4(col, 1.0);
 }

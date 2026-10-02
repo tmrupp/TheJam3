@@ -73,7 +73,7 @@ const JUMP_GRAVITY_FACTOR: float = 0.7
 const JUMP_END_CUT_FACTOR: float = 0.5
 var jumps: int = 1
 var MAX_JUMPS: int = 1
-## Floating on the levitate spell: no gravity, slow vertical drift (see Levitate).
+## Floating on the levitate spell: no gravity, holding height (see Levitate).
 var levitating: bool = false
 const LEVITATE_DRIFT: float = 140.0
 ## Ability tiers learned at shrines (see Abilities).
@@ -289,7 +289,9 @@ func _physics_process(delta: float) -> void:
 				velocity.y = direction.y * SPEED
 		else:
 			if levitating:
-				velocity.y = move_toward(velocity.y, direction.y * LEVITATE_DRIFT, gravity * delta)
+				# Hold the height the float began at; from tier II the stick drifts it up and down.
+				var lev: Levitate = get_node_or_null("Levitate") as Levitate
+				velocity.y = direction.y * LEVITATE_DRIFT if lev != null and lev.drift else 0.0
 			elif (not dash.is_acting()):
 				var factor: float = 1.0 if not hang.is_acting() else HANG_FACTOR
 				velocity.y += gravity * factor * delta

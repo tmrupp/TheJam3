@@ -81,15 +81,15 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 | Blink | – | III | replaces the dash; reach 300 px, +100 per tier |
 | Parry | – | IV | window +0.1 s, cooldown −0.4 s |
 | Astral projection | – | IV | lasts 2 s longer |
-| Hex | – | IV | II +1 charge, III +1 damage, IV pierces |
-| Levitate | – | III | float 1.5 s, +0.75 s per tier |
+| Hex | I (the starting spell) | IV | II +1 charge, III +1 damage, IV pierces |
+| Levitate | – | III | I holds your height until you press Spell again; II the stick drifts you up and down; III recasts without landing |
 | Awareness | – | III | I exits; II also the ink well and shrine; III also the nearest key of each colour; senses longer each tier |
 | Rift | – | III | I place a pair while grounded; II also midair; III automatic travel on entry |
 | Vigor | – | III | +1 max health (and heals 1) |
 
 Spawn budgets follow level area: keys 2, corridor gates 3, extra lanterns 1.5, moons 3, and cracked walls 2.5 per 1000 cells. Keys include at least one of each colour; exits, their lanterns, the shrine and ink well are reserved first. Natural teleporters use 0.75 pairs per 1000 cells, rounded with a minimum of one pair and no fixed cap: one pair at depth 0, three pairs at depth 5, and four pairs in the largest levels. Coins, platforms and enemies use a fraction of available space. Terrain and spacing constraints can leave budgets unfilled.
 
-Watching eyes detect within 1150 pixels (previously 520), while rock still blocks their line of sight. `tests/spawn_balance_test.gd` checks 20 levels across five seeds and both terrain families, plus platform rejection and spike weighting. `tests/rift_test.gd` checks placed-pair lifecycle, spell tiers and actual watcher sight physics.
+Watching eyes detect within 1400 pixels (previously 1150, and 520 before that); only rock and the wizard block their line of sight, not stars or other areas. `tests/spawn_balance_test.gd` checks 20 levels across five seeds and both terrain families, plus platform rejection and spike weighting. `tests/rift_test.gd` checks placed-pair lifecycle, spell tiers and actual watcher sight physics.
 
 ## 5. Economy
 
