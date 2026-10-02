@@ -329,8 +329,8 @@ class World:
 		grounds.erase(v)
 		empties.append(v)
 
-	## The shrine stands on three neighbouring floor cells a short walk from the deeper exit: two
-	## niches offering abilities, and a bowl for mending.
+	## The shrine stands on two neighbouring floor cells a short walk from the deeper exit: two
+	## niches offering abilities, and a bowl for mending, side by side across both.
 	func _place_shrine (spots: Array[Vector2i], chosen: Array[Vector2i], near: Vector2i) -> void:
 		var standing: Dictionary = {}
 		for v: Vector2i in spots:
@@ -339,7 +339,7 @@ class World:
 		var pool: Array[Vector2i] = []
 		var fallback: Array[Vector2i] = []
 		for v: Vector2i in standing:
-			if not standing.has(v + Vector2i.RIGHT) or not standing.has(v + Vector2i(2, 0)):
+			if not standing.has(v + Vector2i.RIGHT):
 				continue
 			var d: int = absi(v.x - near.x) + absi(v.y - near.y)
 			if d >= 3 and d <= 14:
@@ -356,10 +356,8 @@ class World:
 		shrine = at
 		chosen.append(at)
 		chosen.append(at + Vector2i.RIGHT)
-		chosen.append(at + Vector2i(2, 0))
 		add_object_at(at)
 		empties.erase(at + Vector2i.RIGHT)
-		empties.erase(at + Vector2i(2, 0))
 		set_cell(at, Cell.new(Type.SHRINE))
 
 	## A random spot passing `test` and not yet chosen; the first free spot if none pass.

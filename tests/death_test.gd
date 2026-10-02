@@ -111,7 +111,7 @@ func run() -> void:
 	check(player.coins.coins == 13 and info.vulnerable and not info.has_ghost, "the ghost returns its stars but leaves the lantern spent")
 	check(ghosts().is_empty(), "the ghost is gone")
 	await process_frame
-	check(main.get_node("RisoHud").get("lantern_label").text == "light another lantern", "the HUD still explains how to restore protection after ghost recovery")
+	check(main.get_node("RisoHud").get("lantern_lit") == false, "the HUD still shows how to restore protection after ghost recovery")
 
 	print("spent lantern saves")
 	info.save_run()

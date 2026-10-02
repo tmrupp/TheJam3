@@ -140,7 +140,7 @@ func run() -> void:
 		await physics_frame
 	check(not bool(eye.call("can_see")), "rock still blocks the expanded sight range")
 	blocker.queue_free()
-	player.global_position = watcher.global_position + Vector2(1300, -14)
+	player.global_position = watcher.global_position + Vector2(1550, -14)
 	for i: int in range(3):
 		await physics_frame
 	check(not bool(eye.call("can_see")), "outside the new radius the eye cannot see the player")

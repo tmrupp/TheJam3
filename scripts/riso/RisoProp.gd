@@ -43,6 +43,11 @@ var brush_a: float = 0.0
 var brush_v: float = 0.0
 var _dt: float = 0.0
 var labels_used: int = 0
+## Shrine labels pop up over an offer while the wizard is within POP_REACH of it (see _pop()).
+const POP_REACH: Vector2 = Vector2(40, 110)
+## Pop-up centre height over the ground: above the interact prompt over the wizard's head.
+const POP_Y: float = 255.0
+var pops: Array[float] = []
 
 
 func _ready() -> void:
@@ -233,39 +238,49 @@ func _cracked() -> void:
 	ink.ink(RisoPrint.NIGHT, 0.7, cracks, false)
 
 
-## The shrine: a plinth across two cells. Left, a niche where the offered ability's mark floats
-## over its tier pips; right, a bowl with an ember bead (mending). The plaques carved into the
-## plinth name each and its price. Once used, the marks are gone and the trim dims.
+## The shrine: a plinth across two cells carrying three stations side by side: two niches where
+## an offered ability's mark floats over its tier pips, then a bowl with an ember bead (mending).
+## Each one's name and price pop up over it as the wizard steps up to it. Once used, the marks
+## are gone and the trim dims.
 func _shrine() -> void:
 	var g: float = _ground()
 	var used: bool = bool(host.call("used"))
-	var bob: float = sin(t * 2.0 + phase) * 4.0
+	var bob: float = sin(t * 2.0 + phase) * 3.0
+	# Station centres come from the scene (Boon, Boon2, Mend), packed across two cells.
+	var xs: Array[float] = []
+	for station: String in ["Boon", "Boon2", "Mend"]:
+		xs.append((host.get_node(station) as Node2D).position.x * host.scale.x)
 	# The plinth runs under all three: two niches, then the mending bowl.
-	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-56, g - 24, 368, 24, 8)])
-	ink.ink(RisoPrint.ACCENT, 0.35 if used else 1.0, [RisoShapes.rrect(-50, g - 29, 356, 8, 4)])
+	var left: float = xs[0] - 40.0
+	var right: float = xs[2] + 40.0
+	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(left, g - 22, right - left, 22, 8)])
+	ink.ink(RisoPrint.ACCENT, 0.35 if used else 1.0, [RisoShapes.rrect(left + 6, g - 27, right - left - 12, 7, 3.5)])
 	for i: int in range(2):
-		_shrine_niche(128.0 * float(i), i, g, bob * (1.0 if i == 0 else -1.0), used)
-	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(246, g - 70, 20, 50, 6), RisoShapes.ellipse(Vector2(256, g - 72), 28.0, 8.0, 22)])
+		_shrine_niche(xs[i], i, g, bob * (1.0 if i == 0 else -1.0), used)
+	var mx: float = xs[2]
+	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(mx - 9, g - 62, 18, 42, 6), RisoShapes.ellipse(Vector2(mx, g - 64), 24.0, 7.0, 22)])
 	if used:
 		return
 	# Mending: an ember bead over the bowl, like the HUD's health beads.
-	var m: Vector2 = Vector2(256, g - 106 + bob * 0.8)
+	var m: Vector2 = Vector2(mx, g - 94 + bob * 0.8)
 	var full: bool = not bool(host.call("can_mend"))
-	ink.ink(RisoPrint.EYE, 0.12 if full else 0.25, [RisoShapes.circle(m, 30.0, 28)])
-	var bead: PackedVector2Array = RisoShapes.circle(m, 14.0, 22)
+	ink.ink(RisoPrint.EYE, 0.12 if full else 0.25, [RisoShapes.circle(m, 25.0, 28)])
+	var bead: PackedVector2Array = RisoShapes.circle(m, 12.0, 22)
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], [bead])
 	ink.ink(RisoPrint.EYE, 0.5 if full else 1.0, [bead], false)
 	ink.ink(RisoPrint.PINK, 0.35, [bead], false)
-	ink.knock([RisoPrint.EYE, RisoPrint.PINK], [RisoShapes.circle(m + Vector2(-4, -4), 4.5, 12)])
-	_plaque("mend · %d" % int(host.call("heal_price")), Vector2(256, g - 12), 20, RisoPrint.PINK)
+	ink.knock([RisoPrint.EYE, RisoPrint.PINK], [RisoShapes.circle(m + Vector2(-3.5, -3.5), 4.0, 12)])
+	var s: float = _pop(2, Vector2(mx, g - 50))
+	if s > 0.0:
+		_plaque("mend · %d" % int(host.call("heal_price")), Vector2(mx, g - POP_Y), 30, RisoPrint.PINK, s)
 
 
-## One of the shrine's two niches at x = `cx`: the ability's mark floating over its tier pips, a
-## price tag at its foot, the name on the plinth, and a "swap" tag above when it would replace
-## the spell in the slot.
+## One of the shrine's two niches at x = `cx`: the ability's mark floating over its tier pips and,
+## while the wizard is at it, a pop-up with its name, tier and price, topped by a "swap" tag when
+## it would replace the spell in the slot.
 func _shrine_niche(cx: float, i: int, g: float, bob: float, used: bool) -> void:
-	ink.ink(RisoPrint.BLUE, 0.5, [RisoShapes.arch(cx - 46, g - 142, 92, 120, 14)])
-	var niche: PackedVector2Array = RisoShapes.arch(cx - 38, g - 134, 76, 112, 14)
+	ink.ink(RisoPrint.BLUE, 0.5, [RisoShapes.arch(cx - 36, g - 122, 72, 100, 12)])
+	var niche: PackedVector2Array = RisoShapes.arch(cx - 29, g - 115, 58, 93, 12)
 	ink.knock([RisoPrint.BLUE], [niche])
 	ink.ink(RisoPrint.NIGHT, 1.0, [niche], false)
 	if used:
@@ -273,9 +288,13 @@ func _shrine_niche(cx: float, i: int, g: float, bob: float, used: bool) -> void:
 	var a: StringName = StringName(host.call("offer", i))
 	if a == &"":
 		return
-	var c: Vector2 = Vector2(cx, g - 98 + bob)
-	ink.ink(RisoPrint.ACCENT, 0.18, [RisoShapes.circle(c, 34.0 * (1.0 + 0.05 * sin(t * 3.0 + float(i))), 28)])
-	var mark: Array[PackedVector2Array] = RisoProp.glyph(a, c, t)
+	var c: Vector2 = Vector2(cx, g - 84 + bob)
+	ink.ink(RisoPrint.ACCENT, 0.18, [RisoShapes.circle(c, 27.0 * (1.0 + 0.05 * sin(t * 3.0 + float(i))), 28)])
+	# The mark at 0.75 size, to fit the narrower niche.
+	var fit: Transform2D = Transform2D(0.0, Vector2(0.75, 0.75), 0.0, c)
+	var mark: Array[PackedVector2Array] = []
+	for poly: PackedVector2Array in RisoProp.glyph(a, Vector2.ZERO, t):
+		mark.append(fit * poly)
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK], mark)
 	ink.ink(RisoPrint.ACCENT, 1.0, mark, false)
 	if a == &"vigor":
@@ -283,12 +302,15 @@ func _shrine_niche(cx: float, i: int, g: float, bob: float, used: bool) -> void:
 	var next: int = int(host.call("offer_tier", i))
 	var pips: Array[PackedVector2Array] = []
 	for k: int in range(next):
-		pips.append(RisoShapes.circle(Vector2(cx + float(k) * 12.0 - float(next - 1) * 6.0, g - 60.0), 3.6, 10))
+		pips.append(RisoShapes.circle(Vector2(cx + float(k) * 10.0 - float(next - 1) * 5.0, g - 52.0), 3.2, 10))
 	ink.ink(RisoPrint.ACCENT, 1.0, pips)
-	_plaque(str(int(host.call("offer_price", i))), Vector2(cx, g - 38), 24, RisoPrint.ACCENT)
-	_plaque("%s %s" % [Abilities.NAMES[a], Abilities.roman(next)], Vector2(cx, g - 12), 18, RisoPrint.ACCENT)
+	# Name, tier and price pop up over the niche only while the wizard stands at it.
+	var s: float = _pop(i, Vector2(cx, g - 50))
+	if s <= 0.0:
+		return
+	_plaque("%s %s · %d" % [Abilities.NAMES[a], Abilities.roman(next), int(host.call("offer_price", i))], Vector2(cx, g - POP_Y), 30, RisoPrint.ACCENT, s)
 	if bool(host.call("swap", i)):
-		_plaque("swap", Vector2(cx, g - 152), 18, RisoPrint.PINK)
+		_plaque("swap", Vector2(cx, g - POP_Y - 40.0 * s), 22, RisoPrint.PINK, s)
 
 
 # ------------------------------------------------------------------ places
@@ -383,7 +405,6 @@ func _lantern() -> void:
 		# Empty glass and a charred wick: this lantern has already absorbed a death.
 		ink.ink(RisoPrint.NIGHT, 0.6, [glass], false)
 		ink.ink(RisoPrint.BLUE, 0.5, [hang * RisoShapes.rrect(-3, 38, 6, 6, 2)], false)
-		_plaque("spent", Vector2(30, g - 24), 14, RisoPrint.BLUE)
 	else:
 		# Unclaimed: a low ember behind the glass, waiting to be lit.
 		var flick: float = 0.8 + 0.2 * sin(t * 7.0 + phase)
@@ -446,7 +467,7 @@ func _exit() -> void:
 
 
 ## Night-ink serif text centred on `at` (in this prop's pixels); returns its width.
-func _text(text: String, at: Vector2, px: int) -> float:
+func _text(text: String, at: Vector2, px: int, s: float = 1.0) -> float:
 	if labels_used >= labels.size():
 		var label: Label = Label.new()
 		label.add_theme_font_override("font", RisoTheme.serif())
@@ -465,23 +486,39 @@ func _text(text: String, at: Vector2, px: int) -> float:
 	var w: float = RisoTheme.serif().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
 	label.size = Vector2(w + 8.0, float(px) * 1.4)
 	label.text = text
-	label.position = at - label.size * 0.5
+	label.scale = Vector2(s, s)
+	label.position = at - label.size * s * 0.5
 	label.visible = true
-	return w
+	return w * s
 
 
 func _plaque_width(text: String, px: int) -> float:
 	return RisoTheme.serif().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + 22.0
 
 
-## A bare-paper plaque with `text` on it, centred on `at`.
-func _plaque(text: String, at: Vector2, px: int, tint: int) -> void:
-	var w: float = _plaque_width(text, px)
-	var h: float = float(px) * 1.25
+## A bare-paper plaque with `text` on it, centred on `at`, scaled by `s`.
+func _plaque(text: String, at: Vector2, px: int, tint: int, s: float = 1.0) -> void:
+	var w: float = _plaque_width(text, px) * s
+	var h: float = float(px) * 1.25 * s
 	var plate: PackedVector2Array = RisoShapes.rrect(at.x - w * 0.5, at.y - h * 0.5, w, h, h * 0.35)
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], [plate])
 	ink.ink(tint, 0.2, [plate], false)
-	_text(text, at, px)
+	_text(text, at, px, s)
+
+
+## Pop-up `i` eased toward 1 while the wizard stands within reach of `at` (local, world pixels)
+## and back to 0 as they leave; returns its scale, with a little overshoot as it opens.
+func _pop(i: int, at: Vector2) -> float:
+	var player: Player = host.get_node_or_null("/root/Main/Player") as Player
+	var target: float = 0.0
+	if player != null:
+		var d: Vector2 = (to_global(at) - player.global_position).abs()
+		target = 1.0 if d.x < POP_REACH.x and d.y < POP_REACH.y else 0.0
+	while pops.size() <= i:
+		pops.append(0.0)
+	pops[i] = move_toward(pops[i], target, _dt * 5.0)
+	var p: float = pops[i] - 1.0
+	return 0.0 if pops[i] < 0.02 else 1.0 + 2.7 * p * p * p + 1.7 * p * p
 
 
 static func chevron(at: Vector2, dir: Vector2, k: float) -> PackedVector2Array:
@@ -631,6 +668,10 @@ func _wisp() -> void:
 	if mover != null:
 		dir = float(mover.get("direction"))
 		stunned = bool(mover.get("stunned"))
+		# Falling (as when it settles after spawning): keep the body straight rather than letting
+		# the trail record the drop and hang it tail-up.
+		if not bool(mover.get("grounded")):
+			_trail = PackedVector2Array()
 	var k: float = 3.6
 	var bob: float = -3.0 - sin(t * 3.0 + phase) * 1.6
 	if wisp_to == 0.0:

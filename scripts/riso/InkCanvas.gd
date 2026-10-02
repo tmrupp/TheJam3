@@ -7,11 +7,6 @@ extends Node2D
 const InkOpScript: GDScript = preload("res://scripts/riso/InkOp.gd")
 static var lift_material: CanvasItemMaterial
 
-## How much night a screened tint (cover below 1) lifts, as a fraction of its cover. At 1 a
-## tint lifts the night evenly and paper shows between its dots (pale, white-speckled rims and
-## haloes); lower, the tint's dots overprint the dark instead. Solids always lift fully.
-static var tint_punch: float = 0.4
-
 var _ops: Array[Node2D] = []
 var _used: int = 0
 
@@ -44,7 +39,7 @@ func ink(plate: int, cover: float, polys: Array[PackedVector2Array], punch: bool
 		return
 	_emit(RisoPrint.plate_mask(plate), false, cover, polys, [])
 	if punch and plate != RisoPrint.NIGHT:
-		_emit(RisoPrint.plate_mask(RisoPrint.NIGHT), true, cover if cover >= 0.99 else cover * tint_punch, polys, [])
+		_emit(RisoPrint.plate_mask(RisoPrint.NIGHT), true, cover, polys, [])
 
 
 ## Ink with per-vertex coverage (for fades such as the dash smear).
@@ -53,15 +48,7 @@ func ink_graded(plate: int, polys: Array[PackedVector2Array], alphas: Array[Pack
 		return
 	_emit(RisoPrint.plate_mask(plate), false, 1.0, polys, alphas)
 	if punch and plate != RisoPrint.NIGHT:
-		var lifts: Array[PackedFloat32Array] = alphas
-		if tint_punch < 1.0:
-			lifts = []
-			for a: PackedFloat32Array in alphas:
-				var scaled: PackedFloat32Array = PackedFloat32Array()
-				for v: float in a:
-					scaled.append(v if v >= 0.99 else v * tint_punch)
-				lifts.append(scaled)
-		_emit(RisoPrint.plate_mask(RisoPrint.NIGHT), true, 1.0, polys, lifts)
+		_emit(RisoPrint.plate_mask(RisoPrint.NIGHT), true, 1.0, polys, alphas)
 
 
 ## Clear the listed plates to paper inside `polys`.

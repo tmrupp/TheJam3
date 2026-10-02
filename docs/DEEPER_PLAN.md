@@ -44,7 +44,7 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 - **Restore protection:** interact with another unspent lantern. It becomes your protected respawn point. Ghost recovery and star collection never restore protection; you can light another lantern without recovering the ghost first.
 - **Die without a lit lantern:** the run ends. The seed's levels are unchanged, since they are generated. Your character and level records reset, and the new run starts with a fresh lit lantern. The ended run's save is deleted immediately.
 - **Arming:** a ghost can only be recovered once the player has stepped off it, so dying on the respawn lantern doesn't hand the stars straight back.
-- **Presentation:** the HUD says "lantern ready" while protected and "light another lantern" otherwise, including after recovering a ghost. Spent lanterns have empty, dark glass, a charred wick, a "spent" plaque and no light pool. Unspent lanterns keep their low ember. Insects no longer circle lanterns. The ghost uses the printed astral-silhouette style, and the HUD points toward it when it is in another level.
+- **Presentation:** the HUD's hanging lantern (beside the health beads) glows with a flame while protected and is an empty, pulsing pink frame otherwise, including after recovering a ghost. Spent lanterns have empty, dark glass, a charred wick and no light pool. Unspent lanterns keep their low ember. Insects no longer circle lanterns. The ghost uses the printed astral-silhouette style, and the HUD points toward it when it is in another level.
 - **Saves:** existing version-1 saves remain readable. An old unprotected save marks its last respawn lantern spent when loaded. `tests/death_test.gd` covers consumption, relighting rejection, cross-world deaths, star and ghost recovery, revisits, save migration, and run reset.
 
 ## 3. Keys
@@ -56,16 +56,16 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 
 ## 4. Shrines and tiered abilities
 
-- One shrine per level, standing on three floor cells 3–14 cells from the deeper exit.
+- One shrine per level, standing on two floor cells (its three stations packed side by side) 3–14 cells from the deeper exit.
 - It offers three things: two different abilities and mending. Taking any one spends the shrine, and the level record keeps it spent:
   - **The boon:** the next tier of an ability. The ability is picked by `level_seed`, or is the next one along that still has a tier to learn.
   - **Mending:** healing to full. It is the alternative to the boon and does nothing at full health.
-- **Pay to learn.** There is no menu: interact with the side you want. The plinth prints the ability's name and tier, and the price sits on a tag in the niche. Mending shows its price on its own plaque.
+- **Pay to learn.** There is no menu: interact with the side you want. The shrine prints no text from afar: stepping up to a niche (or the mending bowl) pops up a larger plaque over it with the ability's name, tier and price (or mending's price).
 - **Prices:**
   - Learning costs `S(d, tier) = max(3, round(10 × 1.6^(tier−1) × 0.8^d))`: cheaper deeper, dearer per tier.
   - Mending works the other way: `H(d) = round(3 × 1.35^d)`, which is 3 at depth 0 and 13 at depth 5.
 - **Only the dash is known at the start.** Everything else is found at shrines. A shrine offers an ability not yet known before any upgrade: it starts from the seed's pick and goes round. Until learned, parry and astral projection do nothing, and there is no hex, so no killing enemies or breaking cracked walls.
-- **One spell slot.** Hex, astral projection, parry, levitate, awareness and rift are spells, and all use the Spell button (Q, or the pad's X; the old Parry binding renamed). You carry one at a time: learning a different spell at a shrine replaces it, and the shrine's plaque says "· swap". Perks (dash, double jump, wall climb, blink, vigor) stack.
+- **One spell slot.** Hex, astral projection, parry, levitate, awareness and rift are spells, and all use the Spell button (Q, or the pad's X; the old Parry binding renamed). You carry one at a time: learning a different spell at a shrine replaces it, and the pop-up over that niche is topped by a "swap" tag. Perks (dash, double jump, wall climb, blink, vigor) stack.
 - **Levitate:** press Spell in the air to stop falling and float. You drift slowly up and down with the stick and sideways at walking pace, until it runs out or you press Spell again. You get one float per landing, and a moon brings it back.
 - **Awareness:** press Spell to sense the level. While it lasts, pointers at the edge of the view show where things are, like the ghost's arrow. A short cooldown follows.
 - **Astral projection** uses the Spell button. Tap it to leave your body and go out as an untouchable projection. Tap again, or get hurt, to snap back to the body. Let it run out and you stay where the projection is. There are no astral orbs any more.

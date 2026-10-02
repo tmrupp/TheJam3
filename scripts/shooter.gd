@@ -26,9 +26,9 @@ func can_see() -> bool:
 	if not (player in range_box.get_overlapping_bodies()):
 		return false
 	var space_state: PhysicsDirectSpaceState2D = get_world_2d().direct_space_state
-	var query: PhysicsRayQueryParameters2D = PhysicsRayQueryParameters2D.create(shoot_point.global_position, player.global_position)
-	query.exclude = [self, range_box]
-	query.collide_with_areas = true
+	# Only the wizard (layer 1) and the environment (layer 3) block the view: stars, pickups and
+	# other areas floating in between used to hide the wizard and cut the eye's real range short.
+	var query: PhysicsRayQueryParameters2D = PhysicsRayQueryParameters2D.create(shoot_point.global_position, player.global_position, 1 | 4, [rb.get_rid()])
 	var result: Dictionary = space_state.intersect_ray(query)
 	return len(result) != 0 and result.collider == player
 

@@ -1,5 +1,5 @@
 extends Node2D
-## A level's shrine, near its deeper exit, across three cells. It offers three things; taking any
+## A level's shrine, near its deeper exit, across two cells. It offers three things; taking any
 ## one spends it:
 ## - two boons: the next tier of two different abilities (picked by the level seed, new ones
 ##   before upgrades), cheaper deeper;

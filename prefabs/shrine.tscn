@@ -4,12 +4,13 @@
 [ext_resource type="PackedScene" uid="uid://pwmevy3urxq6" path="res://prefabs/interactable.tscn" id="2_inter"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_side"]
-size = Vector2(90, 110)
+size = Vector2(78, 110)
 
 [node name="Shrine" type="Node2D"]
 script = ExtResource("1_shrine")
 
 [node name="Boon" type="Area2D" parent="."]
+position = Vector2(-22, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Boon"]
 position = Vector2(0, 9)
@@ -18,7 +19,7 @@ shape = SubResource("RectangleShape2D_side")
 [node name="Interactable" parent="Boon" instance=ExtResource("2_inter")]
 
 [node name="Boon2" type="Area2D" parent="."]
-position = Vector2(128, 0)
+position = Vector2(64, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Boon2"]
 position = Vector2(0, 9)
@@ -27,7 +28,7 @@ shape = SubResource("RectangleShape2D_side")
 [node name="Interactable" parent="Boon2" instance=ExtResource("2_inter")]
 
 [node name="Mend" type="Area2D" parent="."]
-position = Vector2(256, 0)
+position = Vector2(150, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Mend"]
 position = Vector2(0, 9)

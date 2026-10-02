@@ -29,18 +29,6 @@ uniform float seed = 3.1;
 uniform float seed2 = 4.47;
 uniform float mixv = 0.0;
 uniform vec2 pin = vec2(0.0);
-// Trapping, in pixels: colour plates spread this far into their own knockout in the night, so
-// misregistration doesn't open hairline paper rims at the edges of shapes.
-uniform float trap = 0.0;
-// Grain touch: how much of each tint's screen is clustered stochastic grain rather than the
-// regular AM dot grid (riso machines offer both). 0 is pure dots.
-uniform float fm = 0.0;
-// Mottle: soft blotches of ink starvation in big solids, where the solid breaks into grain.
-uniform float mottle = 0.0;
-// Feed streaks: faint density streaks along the paper's path through the drum.
-uniform float streak = 0.0;
-// Paper fibre strength.
-uniform float fibre = 0.0;
 
 // PCG 3D (Jarzynski & Olano): an exact integer hash, uniform at any coordinate.
 uvec3 pcg3(uvec3 v) {
@@ -68,11 +56,6 @@ float vn(vec2 p, uint sd) {
 const mat2 R1 = mat2(vec2(0.8253, 0.5646), vec2(-0.5646, 0.8253));
 const mat2 R2 = mat2(vec2(0.3624, -0.9320), vec2(0.9320, 0.3624));
 
-// Interleaved gradient noise: a uniform, low-discrepancy threshold (reads as fine even grain).
-float ign(vec2 p) {
-	return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715))));
-}
-
 // Each sheet's seed becomes an unrelated integer stream.
 uint seed_u(float sd) {
 	return pcg3(uvec3(uint(sd * 1000.0), 7919u, 104729u)).x;
@@ -85,7 +68,7 @@ float coverage(sampler2D s, vec2 q) {
 		+ texture(s, uv + vec2(0.0, g.y)).a + texture(s, uv - vec2(0.0, g.y)).a) * 0.15;
 }
 
-float print_ink(sampler2D s, vec2 px, vec2 off, float ang, float rot, float sd, float wsd, float tr) {
+float print_ink(sampler2D s, vec2 px, vec2 off, float ang, float rot, float sd, float wsd) {
 	vec2 c = res * 0.5;
 	vec2 p = px - c;
 	p = vec2(cos(rot) * p.x - sin(rot) * p.y, sin(rot) * p.x + cos(rot) * p.y) + c + off;
@@ -98,49 +81,24 @@ float print_ink(sampler2D s, vec2 px, vec2 off, float ang, float rot, float sd, 
 	vec2 w2 = vec2(vn(R2 * wq * 0.85, so), vn(R2 * wq * 0.85, so + 29u)) - 0.5;
 	vec2 d = w1 * wob * 2.2 + w2 * wob * 0.9;
 	float cv = coverage(s, p + d);
-	vec2 qm = wq + d;
-	// Ink starvation: soft low-frequency blotches thin the ink where it is laid heavily, so big
-	// solids are uneven and break into grain at their thinnest.
-	if (mottle > 0.001) {
-		float m = vn(R1 * qm * 0.011, so + 13u) * 0.65 + vn(R2 * qm * 0.033, so + 17u) * 0.35;
-		cv *= 1.0 - mottle * smoothstep(0.38, 0.8, m) * smoothstep(0.96, 1.0, cv);
-	}
-	if (tr > 0.01) {
-		vec2 tp = vec2(tr) / res;
-		vec2 uv = (p + d) / res;
-		float spread = max(max(texture(s, uv + vec2(tp.x, 0.0)).a, texture(s, uv - vec2(tp.x, 0.0)).a),
-			max(texture(s, uv + vec2(0.0, tp.y)).a, texture(s, uv - vec2(0.0, tp.y)).a));
-		cv = max(cv, spread * 0.92);
-	}
 	vec2 qw = wq + d;
 	// The halftone screen is pinned to the paper too.
 	vec2 wp = px + pin;
 	float a = radians(ang);
 	vec2 sp = vec2(cos(a) * wp.x - sin(a) * wp.y, sin(a) * wp.x + cos(a) * wp.y) / cell;
 	float scr = 0.5 - 0.25 * (cos(6.28318 * sp.x) + cos(6.28318 * sp.y));
-	if (fm > 0.001) {
-		// Grain clusters about a third of a screen cell across, in the plate's own screen angle, with a
-		// per-sheet offset so the grain reprints with the sheet.
-		vec2 gp = floor(sp * cell / max(1.0, cell * 0.3) + vec2(float(so % 977u), float((so / 977u) % 977u)));
-		scr = mix(scr, ign(gp), fm);
-	}
 	float solid = smoothstep(0.82, 0.98, cv);
 	float thr = 0.035 + scr * 0.93 + ((hs(R2 * qw * 0.85, so + 3u) - 0.5) * grain + (vn(R1 * qw * 0.3, so + 5u) - 0.5) * grain * 0.6) * (1.0 - solid * 0.75);
 	float v = smoothstep(thr - 0.045, thr + 0.045, cv);
 	float laydown = 1.0 - lay + lay * vn(R2 * qw * 0.42, so + 7u);
-	if (streak > 0.001) {
-		// Vertical streaks: a broad wander plus the odd fine line, varying only across the sheet.
-		float st = (vn(vec2(qw.x * 0.045, 1.5), so + 19u) - 0.5) + (hs(vec2(floor(qw.x * 0.35), 2.0), so + 23u) - 0.5) * 0.6;
-		laydown *= 1.0 + streak * st;
-	}
 	float speck = step(0.9988, hs(R1 * qw * 0.42, so + 11u));
 	return v * laydown * (1.0 - speck * 0.85);
 }
 
-float sheet(sampler2D s, vec2 px, vec2 off, float ang, float rot, float k, float tr) {
-	float d = print_ink(s, px, off, ang, rot, seed + k * 13.1, seed, tr);
+float sheet(sampler2D s, vec2 px, vec2 off, float ang, float rot, float k) {
+	float d = print_ink(s, px, off, ang, rot, seed + k * 13.1, seed);
 	if (mixv > 0.001) {
-		d = mix(d, print_ink(s, px, off, ang, rot, seed2 + k * 13.1, seed2, tr), mixv);
+		d = mix(d, print_ink(s, px, off, ang, rot, seed2 + k * 13.1, seed2), mixv);
 	}
 	return d;
 }
@@ -150,18 +108,13 @@ void fragment() {
 	vec2 wp = px + pin;
 	uint ps = seed_u(seed + 71.0);
 	vec3 col = paper * (0.97 + 0.03 * vn(R1 * wp * 0.045, ps)) * (1.0 - 0.045 * hs(R2 * wp * 0.8, ps + 1u));
-	if (fibre > 0.001) {
-		// Long thin fibres laid mostly one way, and a faint tooth.
-		float f = vn(vec2(wp.x * 0.018, wp.y * 0.34) + vec2(3.0, 9.0), ps + 3u) * 0.6 + vn(R1 * vec2(wp.x * 0.32, wp.y * 0.02), ps + 5u) * 0.4;
-		col *= 1.0 - fibre * (smoothstep(0.55, 0.85, f) * 0.7 + (hs(wp * 0.5, ps + 7u) - 0.5) * 0.3);
-	}
 	// Night is registered to blue (same offset, rotation and wobble), like a trapped plate: where
 	// the rock or robe meets the night there is no paper rim, which would read as an outline.
-	col *= mix(vec3(1.0), ink0, sheet(plate0, px, off1, 30.0, 0.0007, 1.0, 0.0));
-	col *= mix(vec3(1.0), ink1, sheet(plate1, px, off1, 75.0, 0.0007, 1.0, trap));
-	col *= mix(vec3(1.0), ink2, sheet(plate2, px, off2, 15.0, 0.0001, 2.0, trap));
-	col *= mix(vec3(1.0), ink3, sheet(plate3, px, off3, 45.0, 0.0005, 3.0, trap));
-	col *= mix(vec3(1.0), ink4, sheet(plate4, px, off4, 45.0, 0.0004, 4.0, trap));
-	col *= mix(vec3(1.0), ink5, sheet(plate5, px, off5, 60.0, 0.0004, 5.0, trap));
+	col *= mix(vec3(1.0), ink0, sheet(plate0, px, off1, 30.0, 0.0007, 1.0));
+	col *= mix(vec3(1.0), ink1, sheet(plate1, px, off1, 75.0, 0.0007, 1.0));
+	col *= mix(vec3(1.0), ink2, sheet(plate2, px, off2, 15.0, 0.0001, 2.0));
+	col *= mix(vec3(1.0), ink3, sheet(plate3, px, off3, 45.0, 0.0005, 3.0));
+	col *= mix(vec3(1.0), ink4, sheet(plate4, px, off4, 45.0, 0.0004, 4.0));
+	col *= mix(vec3(1.0), ink5, sheet(plate5, px, off5, 60.0, 0.0004, 5.0));
 	COLOR = vec4(col, 1.0);
 }

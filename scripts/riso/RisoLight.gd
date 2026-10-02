@@ -53,14 +53,11 @@ func _process(delta: float) -> void:
 			continue
 		if info.is_respawn_lantern(lantern):
 			var f: float = 1.0 + 0.035 * sin(t * 3.1) * sin(t * 1.7 + 0.6)
-			# Warm, not white: a gentler lift, with eye yellow printed into it.
-			for ring: Array in [[380.0, 0.1], [250.0, 0.12], [140.0, 0.15]]:
-				var disc: PackedVector2Array = RisoShapes.circle(at, float(ring[0]) * f, 40)
-				ink.lift_ink([RisoPrint.NIGHT], float(ring[1]), [disc])
-				ink.ink(RisoPrint.EYE, float(ring[1]) * 0.5, [disc], false)
+			for ring: Array in [[380.0, 0.16], [250.0, 0.18], [140.0, 0.22]]:
+				ink.lift_ink([RisoPrint.NIGHT], float(ring[1]), [RisoShapes.circle(at, float(ring[0]) * f, 40)])
 		else:
 			faint.append(RisoShapes.circle(at, 110.0, 28))
-	ink.lift_ink([RisoPrint.NIGHT], 0.06, faint)
+	ink.lift_ink([RisoPrint.NIGHT], 0.09, faint)
 	ink.finish()
 
 

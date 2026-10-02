@@ -2,27 +2,36 @@ extends Node2D
 ## The HUD, printed: paper plaques in the top corners, on the ink plates, so they go through the
 ## same riso print as the art. Laid out in the 320 x 180 UI space; the legacy HUD is hidden while
 ## the print is on.
-## - Top left: stars, health beads, hex charges and the carried key.
+## - Top left: stars, health beads, a lantern mark for protection, hex charges and the carried key.
 ## - Under it, while there is a ghost: its stars, an arrow toward it and its world when that is
-##   elsewhere. A separate lantern plaque shows protection or the need to light another.
+##   elsewhere.
 ## - Top right: the world and depth being played, and under it the abilities known.
 ## - When a run ends, a card in the middle of the sheet.
 ## Everything sits on one grid: plaques are ROW_H tall, MARGIN from the screen edge and GAP apart,
 ## with contents flowing at measured widths and centred on the row's midline.
+## The corner plaques are laid out at full size inside `corner`, which is drawn at CORNER_SCALE
+## so they keep clear of the play area; the end card and awareness pointers stay full size.
 
 const TEXT_PX: int = 64
+const CORNER_SCALE: float = 0.68
 const MARGIN: float = 4.0
 const ROW_H: float = 18.0
 const GAP: float = 3.0
 const PAD: float = 6.0
 const RADIUS: float = 6.0
-const RIGHT: float = 316.0
+## The right edge of the top-right plaques, in the corner's (unscaled) units.
+const RIGHT: float = 320.0 / CORNER_SCALE - MARGIN
 const KNOCK_ALL: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW]
 
+## The canvas being drawn into: `corner_ink` for the corner plaques, `sheet_ink` otherwise.
 var ink: InkCanvas
+var corner: Node2D
+var corner_ink: InkCanvas
+var sheet_ink: InkCanvas
 var coin_label: Label
 var ghost_label: Label
-var lantern_label: Label
+## Whether the lantern mark shows protection (false: light another lantern).
+var lantern_lit: bool = true
 var where_label: Label
 var ghost_where: Label
 var end_title: Label
@@ -39,23 +48,28 @@ func _ready() -> void:
 	z_as_relative = false
 	add_to_group(&"riso_art")
 	visible = RisoPrint.is_on()
-	ink = InkCanvas.new()
-	add_child(ink)
+	corner = Node2D.new()
+	corner.scale = Vector2.ONE * CORNER_SCALE
+	add_child(corner)
+	corner_ink = InkCanvas.new()
+	corner.add_child(corner_ink)
+	sheet_ink = InkCanvas.new()
+	add_child(sheet_ink)
+	ink = sheet_ink
 	font = RisoTheme.serif()
-	coin_label = _make_label(10.0)
-	ghost_label = _make_label(10.0)
-	lantern_label = _make_label(9.0)
-	where_label = _make_label(9.0)
-	ghost_where = _make_label(8.0)
-	end_title = _make_label(15.0)
-	end_sub = _make_label(8.0)
+	coin_label = _make_label(10.0, corner)
+	ghost_label = _make_label(10.0, corner)
+	where_label = _make_label(9.0, corner)
+	ghost_where = _make_label(8.0, corner)
+	end_title = _make_label(15.0, self)
+	end_sub = _make_label(8.0, self)
 	for label: Label in [end_title, end_sub]:
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 		label.size = Vector2(150.0 / label.scale.x, float(TEXT_PX) * 1.4)
 
 
-func _make_label(px: float) -> Label:
+func _make_label(px: float, parent: Node) -> Label:
 	var label: Label = Label.new()
 	label.add_theme_font_override("font", font)
 	label.add_theme_font_size_override("font_size", TEXT_PX)
@@ -64,7 +78,7 @@ func _make_label(px: float) -> Label:
 	label.scale = Vector2.ONE * (px / float(TEXT_PX))
 	label.visibility_layer = RisoPrint.plate_mask(RisoPrint.NIGHT)
 	label.visible = false
-	add_child(label)
+	parent.add_child(label)
 	return label
 
 
@@ -118,14 +132,19 @@ func _process(delta: float) -> void:
 	view_k = 320.0 / view.x
 	scale = Vector2.ONE / cam.zoom
 	var player: Player = get_node_or_null("/root/Main/Player") as Player
-	ink.begin()
-	for label: Label in [coin_label, ghost_label, lantern_label, where_label, ghost_where, end_title, end_sub]:
+	corner_ink.begin()
+	sheet_ink.begin()
+	for label: Label in [coin_label, ghost_label, where_label, ghost_where, end_title, end_sub]:
 		label.visible = false
 	if player != null:
+		ink = corner_ink
 		_status(player)
 		_run_state(player)
+		ink = sheet_ink
+		_end_card()
 		_awareness(player)
-	ink.finish()
+	corner_ink.finish()
+	sheet_ink.finish()
 
 
 ## Top left: stars, then health, hex charges and the carried key, on one plaque.
@@ -134,11 +153,15 @@ func _status(player: Player) -> void:
 	var hp_max: int = player.health.max_health
 	var hex: Hex = player.get_node_or_null("Hex") as Hex
 	var carried: bool = player.has_meta(&"carried_key")
+	var info: MapInfo = MapInfo.instance
+	var lantern: bool = info != null and info.world != null
 	var y: float = _mid(0)
 	var count: String = str(player.coins.coins)
 	var count_w: float = _text_width(coin_label, count)
 	# The paper goes down first, so size it from the contents.
 	var width: float = PAD + 13.0 + count_w + 8.0 + 10.0 * float(hp_max) - 2.0
+	if lantern:
+		width += 5.0 + 10.0
 	if hex != null:
 		width += 5.0 + 9.0 * float(hex.charges_max)
 	if carried:
@@ -168,6 +191,10 @@ func _status(player: Player) -> void:
 	ink.knock([RisoPrint.EYE, RisoPrint.PINK], cores)
 	ink.ink(RisoPrint.NIGHT, 0.25, spent, false)
 	x += 10.0 * float(hp_max) - 2.0
+	if lantern:
+		x += 5.0
+		_lantern_mark(info, Vector2(x, y))
+		x += 10.0
 	# Hex charges: night-ink sparks, faint while recharging (never pink: pink is danger).
 	if hex != null:
 		x += 5.0
@@ -194,10 +221,14 @@ func _run_state(player: Player) -> void:
 		return
 	if info.world != null:
 		_top_right(info, player)
-		_lantern_row(info)
 	if info.has_ghost:
 		_ghost_row(info, player)
-	if info.run_ending > 0.0:
+
+
+## When a run ends, a card in the middle of the sheet.
+func _end_card() -> void:
+	var info: MapInfo = MapInfo.instance
+	if info != null and info.run_ending > 0.0:
 		_paper(RisoShapes.rrect(85, 58, 150, 58, 10), RisoPrint.PINK, 0.18)
 		ink.ink(RisoPrint.GLOW, 1.0, RisoProp.ghost_shape(Transform2D(0.0, Vector2(0.5, 0.5), 0.0, Vector2(160, 75))), false)
 		end_title.visible = true
@@ -277,19 +308,35 @@ func _ghost_row(info: MapInfo, player: Player) -> void:
 		x += _place(ghost_where, where, x, 1)
 
 
-## Protection remains visible even after recovering the ghost. Its own row avoids collisions
-## with a long ghost address or the ability marks in the right corner.
-func _lantern_row(info: MapInfo) -> void:
-	var text: String = "light another lantern" if info.vulnerable else "lantern ready"
-	var tint: int = RisoPrint.PINK if info.vulnerable else RisoPrint.BLUE
-	var width: float = PAD * 2.0 + 14.0 + _text_width(lantern_label, text)
-	_plaque(MARGIN, width, 2, tint, 0.2 if info.vulnerable else 0.12)
-	var at: Vector2 = Vector2(MARGIN + PAD + 4.0, _mid(2))
-	ink.ink(tint, 1.0, [RisoShapes.rrect(at.x - 4, at.y - 4, 8, 10, 2), RisoShapes.rrect(at.x - 2, at.y - 7, 4, 3, 1)], false)
-	ink.knock([tint], [RisoShapes.rrect(at.x - 2, at.y - 2, 4, 5, 1)])
-	if not info.vulnerable:
-		ink.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.circle(at + Vector2(0, 1), 1.5, 8)], false)
-	_place(lantern_label, text, MARGIN + PAD + 14.0, 2)
+## Protection, as a small hanging lantern beside the health beads (left edge at `at.x`, 10
+## wide), drawn like the ones in the world: a hook, a cap, a framed pane and a base. While a
+## lantern is ready it hangs in night ink with warm glowing glass, a flickering flame and a soft
+## halo; when another must be lit it is an empty, pulsing pink frame with a cold wick. It stays
+## after recovering the ghost, since only lighting a lantern restores protection.
+func _lantern_mark(info: MapInfo, at: Vector2) -> void:
+	lantern_lit = not info.vulnerable
+	var tint: int = RisoPrint.NIGHT if lantern_lit else RisoPrint.PINK
+	var cover: float = 1.0 if lantern_lit else 0.55 + 0.45 * absf(sin(t * 3.0))
+	var cx: float = at.x + 5.0
+	var y: float = at.y
+	if lantern_lit:
+		ink.ink(RisoPrint.EYE, 0.3 * (0.9 + 0.1 * sin(t * 7.0)), [RisoShapes.circle(Vector2(cx, y + 0.5), 7.5, 20)], false)
+	var hook: PackedVector2Array = RisoShapes.circle(Vector2(cx, y - 7.2), 1.8, 10)
+	var cap: PackedVector2Array = PackedVector2Array([Vector2(cx - 4.0, y - 4.0), Vector2(cx - 2.2, y - 6.0), Vector2(cx + 2.2, y - 6.0), Vector2(cx + 4.0, y - 4.0)])
+	var frame: PackedVector2Array = RisoShapes.rrect(cx - 4.0, y - 4.2, 8.0, 9.2, 2.0)
+	var base: PackedVector2Array = RisoShapes.rrect(cx - 4.6, y + 4.6, 9.2, 1.8, 0.9)
+	ink.ink(tint, cover, [hook, cap, frame, base], false)
+	ink.knock([tint], [RisoShapes.circle(Vector2(cx, y - 7.2), 0.8, 8)])
+	var pane: PackedVector2Array = RisoShapes.rrect(cx - 2.8, y - 3.0, 5.6, 6.9, 1.4)
+	ink.knock([tint, RisoPrint.EYE], [pane])
+	if lantern_lit:
+		ink.ink(RisoPrint.EYE, 1.0, [pane], false)
+		# The flame: a paper-white teardrop in the glowing glass.
+		var f: float = 1.0 + 0.12 * sin(t * 9.0)
+		var flame: PackedVector2Array = RisoShapes.smooth(PackedVector2Array([Vector2(cx, y - 2.4 * f), Vector2(cx + 1.6, y + 1.4), Vector2(cx, y + 2.8), Vector2(cx - 1.6, y + 1.4)]), 3)
+		ink.knock([RisoPrint.EYE], [flame])
+	else:
+		ink.ink(RisoPrint.NIGHT, cover, [RisoShapes.rrect(cx - 0.6, y + 1.2, 1.2, 2.4, 0.6)], false)
 
 
 ## Awareness: while sensing, a pointer at the edge of the view for each sensed thing that is off
@@ -299,7 +346,8 @@ func _awareness(player: Player) -> void:
 	if aware == null or not aware.active():
 		return
 	var fade: float = clampf(aware.sensing, 0.0, 1.0)
-	var inner: Rect2 = Rect2(Vector2(14, 52), Vector2(292, 114))
+	# Kept below the corner plaques (two rows at CORNER_SCALE).
+	var inner: Rect2 = Rect2(Vector2(14, 38), Vector2(292, 128))
 	var centre: Vector2 = inner.get_center()
 	var arrows: Array[PackedVector2Array] = []
 	var placed: Array[Vector2] = []

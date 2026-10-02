@@ -76,15 +76,6 @@ var background: Node2D
 var terrain: Node2D
 var hud: Node2D
 var map_view: Node2D
-## Paper at edges: see InkCanvas.tint_punch and the shader's trap (pixels at 720p).
-var tint_punch: float = 0.4
-var trap: float = 0.8
-## Print texture: grain touch (stochastic share of the screen), mottle in solids, feed streaks
-## and paper fibre. See shaders/riso_print.gdshader.
-var grain_touch: float = 0.45
-var mottle: float = 0.3
-var streak: float = 0.06
-var fibre: float = 0.05
 var decor: Node2D
 var light: Node2D
 var ambient: Node2D
@@ -483,12 +474,6 @@ func _update_uniforms(size: Vector2) -> void:
 	var root: Viewport = get_viewport()
 	var view: Transform2D = root.get_final_transform() * root.canvas_transform
 	print_material.set_shader_parameter("pin", -view.origin)
-	print_material.set_shader_parameter("trap", trap * s)
-	print_material.set_shader_parameter("fm", grain_touch)
-	print_material.set_shader_parameter("mottle", mottle)
-	print_material.set_shader_parameter("streak", streak)
-	print_material.set_shader_parameter("fibre", fibre)
-	InkCanvas.tint_punch = tint_punch
 
 
 func set_realm(r: StringName) -> void:
@@ -627,10 +612,6 @@ func _lift_to_overlay(node: Node) -> void:
 var _detail_label: Label
 var _rate_label: Label
 var _zoom_label: Label
-var _tint_label: Label
-var _trap_label: Label
-var _grain_label: Label
-var _mottle_label: Label
 var _options: Dictionary = {}
 
 
@@ -652,10 +633,6 @@ func _build_panel() -> void:
 	_detail_label = _slider_row(box, "Print detail", 0.0, 100.0, 1.0, detail, _on_detail)
 	_rate_label = _slider_row(box, "Sheet rate", 0.0, 24.0, 1.0, sheet_rate, _on_rate)
 	_zoom_label = _slider_row(box, "Zoom", 0.5, 1.0, 0.02, zoom_factor, _on_zoom)
-	_tint_label = _slider_row(box, "Paper in tints", 0.0, 1.0, 0.05, tint_punch, _on_tint)
-	_trap_label = _slider_row(box, "Trap", 0.0, 2.0, 0.1, trap, _on_trap)
-	_grain_label = _slider_row(box, "Grain touch", 0.0, 1.0, 0.05, grain_touch, func(v: float) -> void: grain_touch = v; _sync_panel())
-	_mottle_label = _slider_row(box, "Mottle", 0.0, 0.6, 0.02, mottle, func(v: float) -> void: mottle = v; _sync_panel())
 	_option_row(box, &"registration", "Registration", ["New sheet", "Locked", "Drift"], _on_registration)
 	_option_row(box, &"reprint", "Reprint on", ["Clock", "Motion"], _on_reprint)
 	_option_row(box, &"between", "Between sheets", ["Cut", "Blend"], _on_between)
@@ -671,28 +648,6 @@ func _on_detail(v: float) -> void:
 func _on_rate(v: float) -> void:
 	sheet_rate = v
 	_sync_panel()
-
-
-func _on_tint(v: float) -> void:
-	tint_punch = v
-	_reprint_all()
-	_sync_panel()
-
-
-func _on_trap(v: float) -> void:
-	trap = v
-	_sync_panel()
-
-
-## Re-issue every printed piece of art (static pieces draw once, so they need a nudge when
-## the way ink is laid changes).
-func _reprint_all() -> void:
-	InkCanvas.tint_punch = tint_punch
-	if _map_info != null and is_instance_valid(_map_info):
-		world_built(_map_info, 0)
-	for node: Node in get_tree().get_nodes_in_group(&"riso_art"):
-		if node.has_method("_redraw"):
-			node.call("_redraw")
 
 
 func _on_zoom(v: float) -> void:
@@ -762,10 +717,6 @@ func _sync_panel() -> void:
 	_detail_label.text = "Heavy" if detail < 25.0 else ("Medium" if detail < 65.0 else ("Fine" if detail < 90.0 else "Extra fine"))
 	_rate_label.text = "held" if sheet_rate <= 0.0 else "%d / s" % int(sheet_rate)
 	_zoom_label.text = "%d%%" % roundi(100.0 / zoom_factor)
-	_tint_label.text = "%d%%" % roundi(tint_punch * 100.0)
-	_trap_label.text = "%.1f px" % trap
-	_grain_label.text = "%d%%" % roundi(grain_touch * 100.0)
-	_mottle_label.text = "%d%%" % roundi(mottle * 100.0)
 	if _options.has(&"realm"):
 		(_options[&"realm"] as OptionButton).select(REALM_ORDER.find(realm))
 	if _options.has(&"reprint"):

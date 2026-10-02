@@ -59,7 +59,7 @@ func run() -> void:
 	var deeper: Vector2i = info.world.exits[MapInfo.Exit.DEEPER]
 	print("  shrine ", cell, " deeper exit ", deeper)
 	check(absi(cell.x - deeper.x) + absi(cell.y - deeper.y) <= 14, "near the deeper exit")
-	check(info.world.ground_below(cell) and info.world.ground_below(cell + Vector2i.RIGHT) and info.world.ground_below(cell + Vector2i(2, 0)), "standing on three floor cells")
+	check(info.world.ground_below(cell) and info.world.ground_below(cell + Vector2i.RIGHT), "standing on two floor cells")
 
 	print("starting abilities")
 	check(player.tiers == Abilities.start_tiers() and Abilities.tier(player, &"dash") == 1 and player.MAX_JUMPS == 1 and not player.climable and player.health.max_health == 3 and not player.has_node("Blink") and not player.has_node("Hex"), "only the dash; 3 health")
