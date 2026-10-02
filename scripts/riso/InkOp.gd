@@ -11,31 +11,47 @@ var lift: bool = false
 func _draw() -> void:
 	# Areas are measured in world pixels: the wizard draws in its own small units.
 	var px: float = absf(get_global_transform().determinant())
-	var flat: PackedColorArray = PackedColorArray([Color(1, 1, 1, 1.0 - cover if lift else cover)])
+	var flat: Color = Color(1, 1, 1, 1.0 - cover if lift else cover)
+	# Every polygon goes into one triangle array, drawn with a single command: one draw call
+	# per op and plate however many shapes it holds (the terrain holds thousands).
+	var points: PackedVector2Array = PackedVector2Array()
+	var colors: PackedColorArray = PackedColorArray()
+	var indices: PackedInt32Array = PackedInt32Array()
 	for i: int in range(polys.size()):
 		var poly: PackedVector2Array = polys[i]
 		if poly.size() < 3 or absf(_area(poly)) * px < 8.0:
 			continue
-		var colors: PackedColorArray = flat
-		if i < alphas.size() and alphas[i].size() == poly.size():
-			colors = PackedColorArray()
-			for a: float in alphas[i]:
-				colors.append(Color(1, 1, 1, 1.0 - a if lift else a))
-		var indices: PackedInt32Array = Geometry2D.triangulate_polygon(poly)
-		if not indices.is_empty():
-			RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), indices, poly, colors)
+		var graded: bool = i < alphas.size() and alphas[i].size() == poly.size()
+		var tris: PackedInt32Array = Geometry2D.triangulate_polygon(poly)
+		if not tris.is_empty():
+			var base: int = points.size()
+			points.append_array(poly)
+			for k: int in range(poly.size()):
+				colors.append(Color(1, 1, 1, 1.0 - alphas[i][k] if lift else alphas[i][k]) if graded else flat)
+			for idx: int in tris:
+				indices.append(base + idx)
 			continue
 		# Duplicate or self-crossing points defeat the triangulator; let Clipper untangle the
 		# outline and fill the pieces flat (graded ink takes its mean cover).
-		if colors.size() > 1:
+		var c: Color = flat
+		if graded:
 			var mean: float = 0.0
-			for c: Color in colors:
-				mean += c.a
-			colors = PackedColorArray([Color(1, 1, 1, mean / float(colors.size()))])
+			for a: float in alphas[i]:
+				mean += a
+			mean /= float(alphas[i].size())
+			c = Color(1, 1, 1, 1.0 - mean if lift else mean)
 		for piece: PackedVector2Array in _untangle(poly):
-			var tris: PackedInt32Array = Geometry2D.triangulate_polygon(piece)
-			if not tris.is_empty():
-				RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), tris, piece, colors)
+			var piece_tris: PackedInt32Array = Geometry2D.triangulate_polygon(piece)
+			if piece_tris.is_empty():
+				continue
+			var base: int = points.size()
+			points.append_array(piece)
+			for k: int in range(piece.size()):
+				colors.append(c)
+			for idx: int in piece_tris:
+				indices.append(base + idx)
+	if not indices.is_empty():
+		RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), indices, points, colors)
 
 
 ## Simple outlines covering `poly`, holes dropped (they are rare and tiny in practice).

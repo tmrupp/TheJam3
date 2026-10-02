@@ -85,6 +85,27 @@ func run() -> void:
 	boon.touching = false
 	boon2.touching = false
 
+	print("always a strict upgrade")
+	var all_good: bool = true
+	var saw_swap: bool = false
+	var saved_tiers: Dictionary = player.tiers.duplicate()
+	for setup: int in range(3):
+		# Fresh (hex held), most perks known, and everything but spells maxed.
+		player.tiers = Abilities.start_tiers()
+		if setup >= 1:
+			for a: StringName in [&"double_jump", &"wall_climb", &"vigor", &"speed"]:
+				player.tiers[a] = int(Abilities.MAX[a]) if setup == 2 else 1
+			player.tiers[&"dash"] = int(Abilities.MAX[&"dash"]) if setup == 2 else 1
+			player.tiers[&"blink"] = int(Abilities.MAX[&"blink"]) if setup == 2 else 0
+		for level_seed: int in range(200):
+			var picks: Array[StringName] = Abilities.offers(level_seed, player, 2)
+			saw_swap = saw_swap or picks.any(func(a: StringName) -> bool: return Abilities.is_swap(player, a))
+			if not picks.is_empty() and not picks.any(func(a: StringName) -> bool: return not Abilities.is_swap(player, a)):
+				all_good = false
+	player.tiers = saved_tiers
+	Abilities.apply(player)
+	check(all_good and saw_swap, "every shrine offers at least one strict upgrade (swaps still appear beside one)")
+
 	print("starting abilities")
 	check(player.tiers == Abilities.start_tiers() and Abilities.tier(player, &"dash") == 1 and player.MAX_JUMPS == 1 and not player.climable and player.health.max_health == 3 and not player.has_node("Blink") and player.has_node("Hex"), "the dash and the hex; 3 health")
 	check(Abilities.ORDER.all(func(a: StringName) -> bool: return a in [&"dash", &"hex"] or Abilities.tier(player, a) == 0), "parry, astral and the rest are all still to find")
@@ -186,6 +207,32 @@ func run() -> void:
 		player.tiers[a] = int(Abilities.MAX[a])
 	player.tiers[&"astral"] = 2
 	check(Abilities.offer(MapInfo.level_seed(28, 0), player) == &"astral", "a shrine offers what is still left to learn")
+
+	print("a swap leaves the old spell at the shrine")
+	var stand: Node = shrines()[0]
+	info.record()["shrine_used"] = false
+	info.record().erase("left_spell")
+	for a: StringName in Abilities.ORDER:
+		player.tiers[a] = 0 if a in Abilities.SPELLS else int(Abilities.MAX[a])
+	player.tiers[&"hex"] = 2
+	Abilities.apply(player)
+	player.collect(500)
+	var k: int = -1
+	for i: int in range(2):
+		if bool(stand.call("swap", i)):
+			k = i
+	check(k >= 0, "with hex II held, the shrine offers another spell (a swap)")
+	if k >= 0:
+		var got: StringName = stand.call("offer", k)
+		stand.call("buy_boon", k)
+		check(Abilities.spell(player) == got and stand.call("left_spell", k) == [&"hex", 2] and bool(stand.call("used")), "learning %s leaves hex II in its niche" % got)
+		stand.call("buy_boon", 1 - k)
+		check(Abilities.spell(player) == got, "the spent shrine sells nothing else")
+		var coins_before: int = player.coins.coins
+		stand.call("buy_boon", k)
+		check(Abilities.spell(player) == &"hex" and Abilities.tier(player, &"hex") == 2 and stand.call("left_spell", k) == [got, 1] and player.coins.coins == coins_before, "taking hex back is free, keeps its tier, and leaves %s there" % got)
+		stand.call("buy_boon", k)
+		check(Abilities.spell(player) == got and stand.call("left_spell", k) == [&"hex", 2], "and it swaps back again")
 
 	print("the run ending resets them")
 	player.die()

@@ -363,6 +363,9 @@ func _screen_size() -> Vector2i:
 func set_enabled(value: bool) -> void:
 	enabled = value
 	_apply_enabled()
+	# The level's rock is laid as plain tiles under the print; the sprites need it autotiled.
+	if not enabled and MapInfo.instance != null:
+		MapInfo.instance.retile_for_sprites()
 
 
 func _apply_enabled() -> void:

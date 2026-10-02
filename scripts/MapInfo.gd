@@ -754,7 +754,8 @@ static func lateral_lock (at: Vector2i, which: int) -> int:
 
 ## Cells across and down for a level: small near the surface, growing with depth.
 static func level_size (depth: int) -> Vector2i:
-	return Vector2i(clampi(36 + 6 * depth, 36, 80), clampi(30 + 5 * depth, 30, 72))
+	# Half the old growth (6 and 5 cells a depth, capped at 80 x 72): big levels were slow and long.
+	return Vector2i(clampi(36 + 3 * depth, 36, 60), clampi(30 + (5 * depth) / 2, 30, 48))
 
 ## Stars to ink a level's whole map at its ink well.
 static func map_price (depth: int) -> int:
@@ -1137,67 +1138,90 @@ func _load_level () -> void:
 		player.set_physics_process(false)
 		player.set_collision(false)
 	wanted = coord
-	if cache.has(coord):
+	var built: World = _built(coord)
+	if built != null:
 		wanted = null
-		_level_ready.call_deferred(cache[coord], def_for(coord))
+		_level_ready.call_deferred(built)
 	else:
 		_pump()
 
 ## Start the worker on the wanted level, else on the next neighbour not yet cached.
 func _pump () -> void:
-	if gen_busy:
+	if gen_busy or not is_inside_tree():
 		return
 	var next: Variant = wanted
 	while next == null and not prefetch.is_empty():
 		var c: Vector2i = prefetch.pop_front()
-		if not cache.has(c):
+		if _built(c) == null:
 			next = c
 	if next == null:
 		return
 	gen_busy = true
 	if wfc_thread.is_started():
 		wfc_thread.wait_to_finish()
-	wfc_thread.start(_generate_threaded.bind(next as Vector2i))
+	# Cells already generated are handed over, so the worker only lays the level out.
+	wfc_thread.start(_generate_threaded.bind(next as Vector2i, cache.get(next, [])))
 
-func _generate_threaded (at: Vector2i) -> void:
-	var cells: Array = wfc.generate_level(def_for(at))
-	_generated.call_deferred(at, cells)
+## On the worker: the level's cells (unless given) and its layout, so neither stalls a frame.
+func _generate_threaded (at: Vector2i, cells: Array) -> void:
+	if cells.is_empty():
+		cells = wfc.generate_level(def_for(at))
+	var built: World = World.new(cells, def_for(at))
+	_generated.call_deferred(at, cells, built)
 
-func _generated (at: Vector2i, cells: Array) -> void:
-	wfc_thread.wait_to_finish()
+func _generated (at: Vector2i, cells: Array, built: World) -> void:
+	if wfc_thread.is_started():
+		wfc_thread.wait_to_finish()
 	gen_busy = false
-	_cache_put(at, cells)
+	# Left the scene (back to the start menu, or a test tearing down): the result is not wanted,
+	# and no further work may start, or a thread would outlive this object.
+	if not is_inside_tree():
+		return
+	_cache_put(at, cells, built)
 	if wanted != null and wanted == at:
 		wanted = null
-		_level_ready(cells, def_for(at))
+		_level_ready(built)
 	_pump()
 
 ## Another level's layout, for the map: the level being played, or one rebuilt from its seed
 ## (levels are deterministic). Null while the generator thread is busy (try again next frame).
-var _map_worlds: Dictionary = {}
-
 func world_at (at: Vector2i) -> World:
 	if at == coord and world != null:
 		return world
-	var key: String = "%d:%s:%s" % [run_seed, at, debug]
-	if _map_worlds.has(key):
-		return _map_worlds[key]
+	var w: World = _built(at)
+	if w != null:
+		return w
 	var cells: Variant = cache.get(at)
 	if cells == null:
 		if gen_busy:
 			return null
 		cells = wfc.generate_level(def_for(at))
-		_cache_put(at, cells)
-	var w: World = World.new(cells, def_for(at))
-	_map_worlds[key] = w
+	w = World.new(cells, def_for(at))
+	_cache_put(at, cells, w)
 	return w
 
-func _cache_put (at: Vector2i, cells: Array) -> void:
+## Keep a level's cells, and its laid-out World when there is one (layouts are read-only once
+## built, and depend on the debug flag, so they are kept per flag).
+func _cache_put (at: Vector2i, cells: Array, built: World = null) -> void:
 	cache[at] = cells
+	if built != null:
+		worlds[_world_key(at)] = built
 	cache_order.erase(at)
 	cache_order.append(at)
 	while cache_order.size() > CACHE_SIZE:
-		cache.erase(cache_order.pop_front())
+		var old: Vector2i = cache_order.pop_front()
+		cache.erase(old)
+		worlds.erase(_world_key(old))
+
+## Laid-out levels, by _world_key.
+var worlds: Dictionary = {}
+
+func _world_key (at: Vector2i) -> String:
+	return "%s:%s" % [at, debug]
+
+## The cached layout of level `at`, or null.
+func _built (at: Vector2i) -> World:
+	return worlds.get(_world_key(at))
 
 ## Queue the four neighbours of the current level for the worker.
 func _prefetch_neighbours () -> void:
@@ -1211,9 +1235,9 @@ func _prefetch_neighbours () -> void:
 		cache_order.append(coord)
 	_pump()
 
-func _level_ready (cells: Array, def: NextWorldDef) -> void:
+func _level_ready (built: World) -> void:
 	clear_terrain()
-	world = World.new(cells, def)
+	world = built
 	map = world
 	if player == null:
 		player = main.get_node_or_null("Player") as Player
@@ -1299,6 +1323,79 @@ func _physics_process (_delta: float) -> void:
 	if c != _last_seen_cell:
 		_last_seen_cell = c
 		reveal(c)
+	_sleep_far_chunks()
+
+
+# ------------------------------------------------------------------ chunks
+# The level is cut into CHUNK x CHUNK cell chunks. A few times a second, every chunk is woken or
+# put to sleep by its distance from the camera: everything in a sleeping chunk stops (no
+# processing, its physics bodies out of the world) and is hidden, so a big level costs about what
+# its neighbourhood of the camera does (only things placed with the level; bolts, ghosts and
+# rifts always run). Chunks wake with a margin past the view (wider than a
+# watcher's sight) and only sleep a little further out, so nothing flickers at the edge.
+
+const CHUNK: int = 8
+## Chunks within this many pixels of the view's edge (in world pixels) are awake.
+const CHUNK_WAKE: float = 640.0
+const CHUNK_SLEEP: float = 896.0
+const CHUNK_EVERY: int = 6
+var _chunk_tick: int = 0
+## Chunk -> whether it is awake.
+var _chunk_awake: Dictionary = {}
+
+
+func chunk_of (pos: Vector2) -> Vector2i:
+	var c: Vector2i = cell_at(pos)
+	return Vector2i(floori(float(c.x) / CHUNK), floori(float(c.y) / CHUNK))
+
+
+## Whether `node`'s chunk is awake (things outside every chunk's reach are asleep).
+func is_awake (node: Node2D) -> bool:
+	return bool(_chunk_awake.get(chunk_of(node.global_position), true))
+
+
+func _sleep_far_chunks (force: bool = false, around: Vector2 = Vector2.INF) -> void:
+	_chunk_tick += 1
+	if not force and _chunk_tick % CHUNK_EVERY != 0:
+		return
+	if map_elements == null or not is_instance_valid(map_elements):
+		return
+	var cam: Camera2D = main.get_node_or_null("Camera2D") as Camera2D
+	if cam == null:
+		return
+	var half: Vector2 = Vector2(get_window().content_scale_size) / cam.zoom * 0.5
+	var center: Vector2 = cam.get_screen_center_position() if around == Vector2.INF else around
+	var cell_px: Vector2 = Vector2(tile_map.tile_set.tile_size) * tile_map.global_scale
+	var chunk_px: Vector2 = cell_px * float(CHUNK)
+	var origin: Vector2 = tile_map.to_global(tile_map.map_to_local(Vector2i.ZERO)) - cell_px * 0.5
+	var has_wizard: bool = player != null and is_instance_valid(player)
+	var wizard: Vector2 = player.global_position if has_wizard else Vector2.ZERO
+	# Wake or sleep each chunk by the gap between its rectangle and the view.
+	var states: Dictionary = {}
+	var size: Vector2i = world.size + Vector2i(BORDER, BORDER) * 2
+	for cx: int in range(floori(-float(BORDER) / CHUNK) - 1, ceili(float(size.x) / CHUNK) + 1):
+		for cy: int in range(floori(-float(BORDER) / CHUNK) - 1, ceili(float(size.y) / CHUNK) + 1):
+			var key: Vector2i = Vector2i(cx, cy)
+			var lo: Vector2 = origin + Vector2(key) * chunk_px
+			var gap: Vector2 = (((lo + chunk_px * 0.5) - center).abs() - (chunk_px * 0.5 + half)).max(Vector2.ZERO)
+			var d: float = maxf(gap.x, gap.y)
+			if has_wizard:
+				# Also around the wizard: the camera lags a jump (a rift, a respawn) for a moment.
+				var gap_w: Vector2 = (((lo + chunk_px * 0.5) - wizard).abs() - (chunk_px * 0.5 + half)).max(Vector2.ZERO)
+				d = minf(d, maxf(gap_w.x, gap_w.y))
+			var was: bool = bool(_chunk_awake.get(key, false))
+			states[key] = d < (CHUNK_SLEEP if was else CHUNK_WAKE)
+	_chunk_awake = states
+	for node: Node in map_elements.get_children():
+		var n2: Node2D = node as Node2D
+		# Only the level's own placed things sleep; bolts, ghosts and rifts always run.
+		if n2 == null or node.is_queued_for_deletion() or not node.has_meta(&"cell"):
+			continue
+		var awake: bool = bool(states.get(chunk_of(n2.global_position), false))
+		var mode: Node.ProcessMode = Node.PROCESS_MODE_INHERIT if awake else Node.PROCESS_MODE_DISABLED
+		if node.process_mode != mode:
+			node.process_mode = mode
+			n2.visible = awake
 
 var moon_prefab: Resource = preload("res://prefabs/moon.tscn")
 var inkwell_prefab: Resource = preload("res://prefabs/inkwell.tscn")
@@ -1365,6 +1462,9 @@ func next_world () -> void:
 	if RisoTransition.instance != null:
 		RisoTransition.instance.reveal()
 	save_run()
+	# The new level wakes around the wizard (the camera catches up next frame).
+	_chunk_awake.clear()
+	_sleep_far_chunks(true, player.global_position if player != null else Vector2.INF)
 	_prefetch_neighbours()
 
 var map_elements: Node
@@ -1429,10 +1529,33 @@ func place_cell(v: Vector2i, _cell: Cell) -> void:
 			cell.setup(self, v)
 
 func construct_world() -> void:
-	tile_map.set_cells_terrain_connect(0, world.grounds, 0, 0)
+	_lay_rock(world.grounds)
 
 	enclose_map(world.size.x, world.size.y)
 
+	if not RisoPrint.is_on():
+		draw_background(world.size.x, world.size.y)
+
+## The rock in `cells`. With the print on, its art is printed over the TileMap, so each cell gets
+## the plain centre tile (every rock tile has the same full-square collision): autotiling the rock
+## was the slowest part of loading a big level. With the print off, the autotiled sprites show.
+const PLAIN_ROCK: Vector2i = Vector2i(1, 1)
+
+func _lay_rock (cells: Array[Vector2i]) -> void:
+	if RisoPrint.is_on():
+		for v: Vector2i in cells:
+			tile_map.set_cell(0, v, 0, PLAIN_ROCK)
+	else:
+		tile_map.set_cells_terrain_connect(0, cells, 0, 0)
+
+## The print was switched off: autotile the rock that was laid plain, and draw the background.
+func retile_for_sprites () -> void:
+	if world == null:
+		return
+	var rock: Array[Vector2i] = []
+	for v: Vector2i in tile_map.get_used_cells(0):
+		rock.append(v)
+	tile_map.set_cells_terrain_connect(0, rock, 0, 0)
 	draw_background(world.size.x, world.size.y)
 
 func get_max_bounds () -> Vector2:
@@ -1478,7 +1601,7 @@ func enclose_map(dim_x: int, dim_y: int) -> void:
 		for j: int in range(-BORDER, dim_y + BORDER):
 			if i < 0 or j < 0 or i >= dim_x or j >= dim_y:
 				rock.append(Vector2i(i, j))
-	tile_map.set_cells_terrain_connect(0, rock, 0, 0)
+	_lay_rock(rock)
 	_fit_camera(dim_x, dim_y)
 
 ## Keep the camera inside the level plus one cell of its border rock.

@@ -33,7 +33,7 @@ func run() -> void:
 			check(int(counts.get(MapInfo.Type.KEY, 0)) == maxi(MapInfo.KEY_COLOR_COUNT, w.per_area(MapInfo.KEYS_PER_K)), label + ": keys scale with area")
 			check(int(counts.get(MapInfo.Type.PORTAL, 0)) == 2 * w.per_area(MapInfo.PORTAL_PAIRS_PER_K), label + ": paired portals scale with area")
 			if depth == 9:
-				check(int(counts.get(MapInfo.Type.PORTAL, 0)) > 4, label + ": large worlds can contain more than two generated pairs")
+				check(int(counts.get(MapInfo.Type.PORTAL, 0)) >= 4, label + ": the largest worlds have at least two generated pairs")
 			check(int(counts.get(MapInfo.Type.MOON, 0)) > 0 and int(counts.get(MapInfo.Type.MOON, 0)) <= w.per_area(MapInfo.MOONS_PER_K), label + ": moon budget")
 			for v: Vector2i in w.objects:
 				if w.get_cell(v).type == MapInfo.Type.MOON:

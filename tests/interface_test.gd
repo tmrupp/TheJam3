@@ -136,6 +136,53 @@ func run() -> void:
 	check(not placed("coin.tscn").any(func(n: Node) -> bool: return n.get_meta(&"cell") == coin_cell), "and its level records")
 	check(info.run_seed == s, "on the same world")
 
+	print("controller")
+	var pad: Callable = func(ev: InputEvent) -> void:
+		Input.parse_input_event(ev)
+	var press_button: Callable = func(button: JoyButton, down: bool) -> InputEventJoypadButton:
+		var b: InputEventJoypadButton = InputEventJoypadButton.new()
+		b.button_index = button
+		b.pressed = down
+		return b
+	pad.call(press_button.call(JOY_BUTTON_START, true))
+	await process_frame
+	pad.call(press_button.call(JOY_BUTTON_START, false))
+	await process_frame
+	check(menu.visible and paused and root.gui_get_focus_owner() == menu.start, "Start pauses, with Resume focused")
+	var stick: InputEventJoypadMotion = InputEventJoypadMotion.new()
+	stick.axis = JOY_AXIS_LEFT_Y
+	stick.axis_value = 1.0
+	pad.call(stick)
+	await process_frame
+	var centre: InputEventJoypadMotion = InputEventJoypadMotion.new()
+	centre.axis = JOY_AXIS_LEFT_Y
+	centre.axis_value = 0.0
+	pad.call(centre)
+	await process_frame
+	check(root.gui_get_focus_owner() != menu.start and root.gui_get_focus_owner() is Button, "the left stick moves down the menu (to %s)" % (root.gui_get_focus_owner().name if root.gui_get_focus_owner() != null else "nothing"))
+	pad.call(press_button.call(JOY_BUTTON_B, true))
+	await process_frame
+	pad.call(press_button.call(JOY_BUTTON_B, false))
+	await process_frame
+	check(not menu.visible and not paused, "B backs out of the pause menu")
+
+	print("back to the main menu")
+	menu.pause_resume_game()
+	await process_frame
+	check(menu.main_menu.visible, "the pause menu offers the main menu")
+	menu.main_menu.pressed.emit()
+	await process_frame
+	await process_frame
+	main = root.get_node("Main")
+	menu = main.get_node("Menu")
+	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
+	check(not paused and menu.visible and not menu.started and not main.has_node("Player") and not menu.main_menu.visible, "it opens a fresh start menu, unpaused, with no run going")
+	check(menu.continue_button.visible and root.get_node_or_null("MainLeaving") == null, "with Continue offered, and the old run gone")
+	menu.continue_game()
+	player = main.get_node("Player") as Player
+	await settle()
+	check(info.coord == Vector2i(s, 0) and player.coins.coins == 7, "and Continue picks the run up again")
+
 	print("debug runs")
 	main.queue_free()
 	await process_frame

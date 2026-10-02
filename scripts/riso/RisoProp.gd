@@ -65,21 +65,46 @@ func _ready() -> void:
 	ink = InkCanvas.new()
 	add_child(ink)
 	z_index = 2
-	_redraw()
-	set_process(not STATIC_KINDS.has(kind))
+	# First drawn when it first comes into view (see _process), so a level's hundreds of props are
+	# not all printed in the frame it loads; still kinds then stop processing.
+	set_process(true)
 
 
 func _process(delta: float) -> void:
 	t += delta
 	_dt = minf(delta, 0.05)
-	# Only animate what the camera can see; off-screen art keeps its last print.
-	var cam: Camera2D = get_viewport().get_camera_2d()
-	if cam != null:
-		var reach: Vector2 = Vector2(get_window().content_scale_size) / cam.zoom * 0.6 + Vector2(160, 160)
-		var d: Vector2 = (host.global_position - cam.get_screen_center_position()).abs()
-		if d.x > reach.x or d.y > reach.y:
+	# Only animate what the camera can see; off-screen art keeps its last print. The camera's
+	# reach is worked out once a frame and shared by every prop (a deep level has hundreds).
+	var frame: int = Engine.get_process_frames()
+	if frame != _view_frame:
+		_view_frame = frame
+		var cam: Camera2D = get_viewport().get_camera_2d()
+		_view_on = cam != null
+		if _view_on:
+			_view_reach = Vector2(get_window().content_scale_size) / cam.zoom * 0.6 + Vector2(160, 160)
+			_view_center = cam.get_screen_center_position()
+	if _view_on:
+		var d: Vector2 = (host.global_position - _view_center).abs()
+		if d.x > _view_reach.x or d.y > _view_reach.y:
 			return
+	if not _drawn:
+		_drawn = true
+		_redraw()
+		if STATIC_KINDS.has(kind):
+			set_process(false)
+		return
+	if _star_ink != null:
+		_mote_pose()
+		return
 	_redraw()
+
+
+## Printed at least once (props are first printed as they come into view).
+var _drawn: bool = false
+static var _view_frame: int = -1
+static var _view_on: bool = false
+static var _view_reach: Vector2 = Vector2.ZERO
+static var _view_center: Vector2 = Vector2.ZERO
 
 
 ## Distance from the host's origin down to the ground surface of its cell, in world pixels.
@@ -144,12 +169,28 @@ func _sync_ui() -> void:
 
 # ------------------------------------------------------------------ pickups
 
+## A star: printed once (a halo, and the star on a canvas of its own), then animated by moving the
+## two canvases, bobbing, with the star squashed side to side as it spins. A deep level has
+## hundreds, so they never re-lay their ink.
+var _star_ink: InkCanvas = null
+
+
 func _mote() -> void:
+	if _star_ink == null:
+		ink.ink(RisoPrint.ACCENT, 0.25, [RisoShapes.circle(Vector2.ZERO, 22.0, 24)])
+		_star_ink = InkCanvas.new()
+		add_child(_star_ink)
+		_star_ink.begin()
+		_star_ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.sparkle(Vector2.ZERO, 18.0)])
+		_star_ink.finish()
+	_mote_pose()
+
+
+func _mote_pose() -> void:
 	var y: float = sin(t * 3.0 + phase) * 4.0
-	var spin: float = maxf(0.25, absf(cos(t * 2.4 + phase)))
-	var star: PackedVector2Array = Transform2D(0.0, Vector2(spin, 1.0), 0.0, Vector2(0, y)) * RisoShapes.sparkle(Vector2.ZERO, 18.0)
-	ink.ink(RisoPrint.ACCENT, 0.25, [RisoShapes.circle(Vector2(0, y), 22.0, 24)])
-	ink.ink(RisoPrint.ACCENT, 1.0, [star])
+	ink.position = Vector2(0, y)
+	_star_ink.position = Vector2(0, y)
+	_star_ink.scale = Vector2(maxf(0.25, absf(cos(t * 2.4 + phase))), 1.0)
 
 
 func _key() -> void:
@@ -306,17 +347,41 @@ func _shrine() -> void:
 ## One of the shrine's two niches at x = `cx`: the ability's mark floating over its tier pips and,
 ## while the wizard is at it, a pop-up with its name, tier and price, topped by a "swap" tag when
 ## it would replace the spell in the slot.
+## Once the shrine is spent, a spell a swap left here floats in its niche instead, its pop-up
+## offering to take it back.
 func _shrine_niche(cx: float, i: int, g: float, bob: float, used: bool) -> void:
 	ink.ink(RisoPrint.BLUE, 0.5, [RisoShapes.arch(cx - 36, g - 122, 72, 100, 12)])
 	var niche: PackedVector2Array = RisoShapes.arch(cx - 29, g - 115, 58, 93, 12)
 	ink.knock([RisoPrint.BLUE], [niche])
 	ink.ink(RisoPrint.NIGHT, 1.0, [niche], false)
+	var c: Vector2 = Vector2(cx, g - 84 + bob)
 	if used:
+		# A spell left here by a swap waits in the niche, to be taken back free.
+		var left: Array = host.call("left_spell", i)
+		if left.is_empty():
+			return
+		_niche_mark(left[0], c, i, int(left[1]), cx, g)
+		var sl: float = _pop(i, Vector2(cx, g - 50))
+		if sl > 0.0:
+			_plaque("%s %s · take back" % [Abilities.NAMES[left[0]], Abilities.roman(int(left[1]))], Vector2(cx, g - POP_Y), 30, RisoPrint.ACCENT, sl)
+			_plaque("swap", Vector2(cx, g - POP_Y - 40.0 * sl), 22, RisoPrint.PINK, sl)
 		return
 	var a: StringName = StringName(host.call("offer", i))
 	if a == &"":
 		return
-	var c: Vector2 = Vector2(cx, g - 84 + bob)
+	var next: int = int(host.call("offer_tier", i))
+	_niche_mark(a, c, i, next, cx, g)
+	# Name, tier and price pop up over the niche only while the wizard stands at it.
+	var s: float = _pop(i, Vector2(cx, g - 50))
+	if s <= 0.0:
+		return
+	_plaque("%s %s · %d" % [Abilities.NAMES[a], Abilities.roman(next), int(host.call("offer_price", i))], Vector2(cx, g - POP_Y), 30, RisoPrint.ACCENT, s)
+	if bool(host.call("swap", i)):
+		_plaque("swap", Vector2(cx, g - POP_Y - 40.0 * s), 22, RisoPrint.PINK, s)
+
+
+## An ability's mark floating in a shrine niche at `c`, in a soft halo, over `pips_n` tier pips.
+func _niche_mark(a: StringName, c: Vector2, i: int, pips_n: int, cx: float, g: float) -> void:
 	ink.ink(RisoPrint.ACCENT, 0.18, [RisoShapes.circle(c, 27.0 * (1.0 + 0.05 * sin(t * 3.0 + float(i))), 28)])
 	# The mark at 0.75 size, to fit the narrower niche.
 	var fit: Transform2D = Transform2D(0.0, Vector2(0.75, 0.75), 0.0, c)
@@ -327,18 +392,10 @@ func _shrine_niche(cx: float, i: int, g: float, bob: float, used: bool) -> void:
 	ink.ink(RisoPrint.ACCENT, 1.0, mark, false)
 	if a == &"vigor":
 		ink.ink(RisoPrint.PINK, 0.4, mark, false)
-	var next: int = int(host.call("offer_tier", i))
 	var pips: Array[PackedVector2Array] = []
-	for k: int in range(next):
-		pips.append(RisoShapes.circle(Vector2(cx + float(k) * 10.0 - float(next - 1) * 5.0, g - 52.0), 3.2, 10))
+	for k: int in range(pips_n):
+		pips.append(RisoShapes.circle(Vector2(cx + float(k) * 10.0 - float(pips_n - 1) * 5.0, g - 52.0), 3.2, 10))
 	ink.ink(RisoPrint.ACCENT, 1.0, pips)
-	# Name, tier and price pop up over the niche only while the wizard stands at it.
-	var s: float = _pop(i, Vector2(cx, g - 50))
-	if s <= 0.0:
-		return
-	_plaque("%s %s · %d" % [Abilities.NAMES[a], Abilities.roman(next), int(host.call("offer_price", i))], Vector2(cx, g - POP_Y), 30, RisoPrint.ACCENT, s)
-	if bool(host.call("swap", i)):
-		_plaque("swap", Vector2(cx, g - POP_Y - 40.0 * s), 22, RisoPrint.PINK, s)
 
 
 # ------------------------------------------------------------------ places
@@ -787,6 +844,8 @@ func _wisp() -> void:
 	var head: Vector2 = Vector2(0, 14.0 - 3.3 * k - 8.2 * k * 0.6) + loop_at
 	_wp_head_dir = Vector2(side * cos(spin), -sin(spin)) if spinning else Vector2(side, 0)
 	_wisp_trail_add(to_global(head))
+	# Body, veils and glow reach about 22 art units back, scaled 1.1 k; plus the bend lookahead.
+	_wisp_sample(22.0 * k * 1.1 + 8.0)
 	var speed: float = 0.3 if stunned else 0.7
 	var flicker: float = 0.85 + 0.15 * sin(t * 5.3 + phase) * sin(t * 2.1 + phase * 1.7)
 	# The glow trails the wisp: strongest behind the head, thinning out past the tail.
@@ -937,6 +996,7 @@ func _wisp_trail_add(at: Vector2) -> void:
 		_trail = PackedVector2Array()
 		for n: int in range(66):
 			_trail.append(at - _wp_head_dir * 4.0 * float(n))
+		_trail_measure()
 		return
 	if _trail[0].distance_to(at) < 0.5:
 		return
@@ -947,27 +1007,86 @@ func _wisp_trail_add(at: Vector2) -> void:
 		if total > WISP_TRAIL_LEN:
 			_trail.resize(n + 1)
 			break
+	_trail_measure()
+
+
+## The distance along the trail from the head to each of its points (for _trail_at).
+var _trail_cum: PackedFloat32Array = PackedFloat32Array()
+
+
+func _trail_measure() -> void:
+	_trail_cum.resize(_trail.size())
+	var total: float = 0.0
+	for n: int in range(_trail.size()):
+		if n > 0:
+			total += _trail[n].distance_to(_trail[n - 1])
+		_trail_cum[n] = total
 
 
 ## Where the trail was `d` px behind the head: [position (world), direction of travel there].
+## A binary search over the measured trail (each wisp asks this hundreds of times a frame).
 func _trail_at(d: float) -> Array:
 	if d <= 0.0 or _trail.size() < 2:
 		return [_trail[0] - _wp_head_dir * d if not _trail.is_empty() else Vector2.ZERO, _wp_head_dir]
-	var walked: float = 0.0
-	for n: int in range(1, _trail.size()):
+	if _trail_cum.size() != _trail.size():
+		_trail_measure()
+	var n: int = _trail_cum.bsearch(d)
+	while n < _trail.size() and n > 0 and _trail_cum[n] - _trail_cum[n - 1] <= 0.0001:
+		n += 1
+	if n >= 1 and n < _trail.size():
 		var a: Vector2 = _trail[n - 1]
 		var b: Vector2 = _trail[n]
-		var seg: float = a.distance_to(b)
-		if walked + seg >= d and seg > 0.0001:
-			var f: float = (d - walked) / seg
-			# Blend the direction toward the head's own heading right at the head, so the front
-			# of the body turns with it.
-			var dir: Vector2 = (a - b).normalized()
-			return [a.lerp(b, f), dir]
-		walked += seg
+		var f: float = (d - _trail_cum[n - 1]) / (_trail_cum[n] - _trail_cum[n - 1])
+		return [a.lerp(b, f), (a - b).normalized()]
 	var last: Vector2 = _trail[_trail.size() - 1]
 	var tail_dir: Vector2 = (_trail[_trail.size() - 2] - last).normalized()
-	return [last - tail_dir * (d - walked), tail_dir]
+	return [last - tail_dir * (d - _trail_cum[_trail.size() - 1]), tail_dir]
+
+
+## The trail sampled every WISP_STEP px from the head, once a frame (_wisp_sample): positions in
+## this prop's space and directions of travel. Placing a wisp's hundreds of vertices reads this
+## table instead of walking the trail for each.
+const WISP_STEP: float = 2.0
+var _ts_pos: PackedVector2Array = PackedVector2Array()
+var _ts_dir: PackedVector2Array = PackedVector2Array()
+## How sharply the trail bends at each sample: the turn from 6 px older to 6 px newer.
+var _ts_turn: PackedFloat32Array = PackedFloat32Array()
+var _lk_turn: float = 0.0
+## The last lookup (_wisp_lookup), kept in fields so lookups allocate nothing.
+var _lk_pos: Vector2 = Vector2.ZERO
+var _lk_dir: Vector2 = Vector2.RIGHT
+
+
+func _wisp_sample(max_d: float) -> void:
+	var n: int = ceili(max_d / WISP_STEP) + 2
+	_ts_pos.resize(n)
+	_ts_dir.resize(n)
+	for i: int in range(n):
+		var at: Array = _trail_at(float(i) * WISP_STEP)
+		_ts_pos[i] = to_local(at[0] as Vector2)
+		_ts_dir[i] = at[1]
+	_ts_turn.resize(n)
+	var reach: int = ceili(6.0 / WISP_STEP)
+	for i: int in range(n):
+		var older: Vector2 = _ts_dir[mini(i + reach, n - 1)]
+		var newer: Vector2 = _ts_dir[maxi(i - reach, 0)]
+		_ts_turn[i] = older.angle_to(newer) if i > 0 else 0.0
+
+
+## Where the trail was `d` px behind the head (in this prop's space), and its direction there,
+## into _lk_pos and _lk_dir.
+func _wisp_lookup(d: float) -> void:
+	if d <= 0.0:
+		_lk_dir = _wp_head_dir
+		_lk_pos = _ts_pos[0] - _wp_head_dir * d
+		_lk_turn = 0.0
+		return
+	var f: float = d / WISP_STEP
+	var i: int = mini(int(f), _ts_pos.size() - 2)
+	var u: float = f - float(i)
+	_lk_pos = _ts_pos[i].lerp(_ts_pos[i + 1], u)
+	_lk_dir = _ts_dir[i].lerp(_ts_dir[i + 1], u).normalized()
+	_lk_turn = lerpf(_ts_turn[i], _ts_turn[i + 1], u)
 
 
 func _wisp_place(poly: PackedVector2Array, _curl: bool) -> PackedVector2Array:
@@ -975,26 +1094,23 @@ func _wisp_place(poly: PackedVector2Array, _curl: bool) -> PackedVector2Array:
 	var sy: float = _wp_k * 0.6
 	var out: PackedVector2Array = PackedVector2Array()
 	out.resize(poly.size())
+	var across_turn: float = _wp_side * PI * 0.5
 	for n: int in range(poly.size()):
 		var d: float = -poly[n].x * sx
-		var at: Array = _trail_at(d)
-		var dir: Vector2 = at[1]
+		# On a tight bend, keep the inside edge within the bend's radius so the body bunches
+		# instead of folding over itself (a folded outline can't be printed).
+		_wisp_lookup(d)
+		var turn: float = _lk_turn
+		var dir: Vector2 = _lk_dir
 		# Within the first stretch behind the head, ease from the head's heading to the trail's.
 		if d < 14.0:
 			dir = _wp_head_dir.lerp(dir, clampf(d / 14.0, 0.0, 1.0)).normalized()
-		var across: Vector2 = dir.rotated(_wp_side * PI * 0.5)
-		var off: Vector2 = across * ((poly[n].y + 8.2) * sy)
-		# On a tight bend, keep the inside edge within the bend's radius so the body bunches
-		# instead of folding over itself (a folded outline can't be printed).
-		if d > 0.0:
-			var older: Vector2 = _trail_at(d + 6.0)[1]
-			var newer: Vector2 = _trail_at(maxf(0.0, d - 6.0))[1]
-			var turn: float = older.angle_to(newer)
-			if absf(turn) > 0.02:
-				var centre: Vector2 = dir.rotated(signf(turn) * PI * 0.5)
-				if off.dot(centre) > 0.0:
-					off = off.limit_length(0.8 * 12.0 / absf(turn))
-		out[n] = to_local(at[0] as Vector2) + off + _wp_bob
+		var off: Vector2 = dir.rotated(across_turn) * ((poly[n].y + 8.2) * sy)
+		if absf(turn) > 0.02:
+			var centre: Vector2 = dir.rotated(signf(turn) * PI * 0.5)
+			if off.dot(centre) > 0.0:
+				off = off.limit_length(0.8 * 12.0 / absf(turn))
+		out[n] = _lk_pos + off + _wp_bob
 	# Wide shapes (glow, veils) can still cross over themselves on the tightest bend: print their
 	# outline hull instead of nothing.
 	if Geometry2D.triangulate_polygon(out).is_empty():

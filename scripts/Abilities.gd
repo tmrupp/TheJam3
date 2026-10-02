@@ -72,7 +72,21 @@ static func offer(level_seed: int, player: Player) -> StringName:
 
 
 ## Up to `count` different abilities a shrine offers, in that order (new ones before upgrades).
+## At least one is always a strict upgrade, a gain with nothing given up: a new perk or the next
+## tier of something already known, never a spell that would replace the one in the slot. If
+## every pick would be a swap, the last is traded for the first strict upgrade left.
 static func offers(level_seed: int, player: Player, count: int) -> Array[StringName]:
+	var out: Array[StringName] = _picks(level_seed, player, count, false)
+	if out.is_empty() or out.any(func(a: StringName) -> bool: return not is_swap(player, a)):
+		return out
+	var strict: Array[StringName] = _picks(level_seed, player, 1, true)
+	if not strict.is_empty():
+		out[out.size() - 1] = strict[0]
+	return out
+
+
+## The shrine's picks in order (see offers), only strict upgrades when `strict`.
+static func _picks(level_seed: int, player: Player, count: int, strict: bool) -> Array[StringName]:
 	var out: Array[StringName] = []
 	var n: int = ORDER.size()
 	var start: int = level_seed % n
@@ -84,6 +98,8 @@ static func offers(level_seed: int, player: Player, count: int) -> Array[StringN
 			if a in out or (a == &"dash" and tier(player, &"blink") > 0):
 				continue
 			if pass_new and tier(player, a) > 0:
+				continue
+			if strict and is_swap(player, a):
 				continue
 			if tier(player, a) < int(MAX[a]):
 				out.append(a)

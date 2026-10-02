@@ -70,6 +70,16 @@ Defaults: deep night realm, independent plates, fine detail, new sheet registrat
   - `tests/capture_hud.gd` takes stills of a fresh HUD and a busy one.
 - **Menus** (`RisoTheme.gd`): the shared `main_menu_theme.tres` is restyled at runtime in the realm's inks: blue ink buttons that turn to the accent on hover and focus, paper input fields, night panels, a serif face and no borders. It is restored exactly when the print is off. The title image hides so the printed sky shows behind the main menu.
 
+## Performance
+
+Measured on the largest level (60 × 48, depth 8+) at 1280 × 720 with vsync off: about 15 ms a frame (it was 89 ms on the old 80 × 70 cap); a level change stalls one frame for about 0.2 s (it was 0.66 s). `tests/bench_big_level.gd` times each part of the print; `tests/bench_chunks.gd` times level loads.
+
+- **One draw call per ink operation** (`InkOp.gd`): every shape an op holds goes into one triangle array. The terrain alone holds thousands, which had been thousands of draw calls on each of seven plates.
+- **Chunks** (`MapInfo._sleep_far_chunks`): the level is cut into 8 × 8 cell chunks; a few times a second each chunk wakes or sleeps by its distance from the view, or from the wizard (the camera lags a rift jump or respawn) (awake within 640 px, asleep past 896 px). Everything placed with the level in a sleeping chunk stops processing, leaves the physics world and is hidden. Bolts, ghosts and rifts always run.
+- **Props print as they come into view** (`RisoProp._process`), not all in the frame a level loads; still kinds then stop processing. Stars are printed once and animated by moving their canvases.
+- **Loading:** the layout (`World.new`) is built on the generator thread with the cells, and kept with them for revisits and the map. With the print on, rock is laid as plain tiles instead of autotiled (the print draws its own rock; every rock tile has the same collision), and the hidden background tile layer is skipped; switching the print off (F6) autotiles the level and draws the background.
+- **Wisps** place their bodies from a per-frame table of their trail (positions, directions and bends every 2 px) instead of walking the trail for each vertex: about 0.4 ms a wisp on screen.
+
 ## Tests and captures
 
 ```
