@@ -45,8 +45,8 @@ var hem_y: PackedFloat32Array = PackedFloat32Array([0, 0, 0, 0, 0])
 var hem_vx: PackedFloat32Array = PackedFloat32Array([0, 0, 0, 0, 0])
 var hem_vy: PackedFloat32Array = PackedFloat32Array([0, 0, 0, 0, 0])
 var flare_amount: float = 0.0
-## The wand's tip flare, set when a spell is cast (the hat's flare is the dash's).
-var wand_flare_amount: float = 0.0
+## The orb's flare, set when a spell is cast (the hat's flare is the dash's).
+var orb_flare_amount: float = 0.0
 ## Dash afterimages: x, y = feet (world), z = facing, w = life 1..0. One is left each time the
 ## dash has carried the wizard ECHO_GAP art units on from the last.
 var echoes: Array[Vector4] = []
@@ -95,12 +95,12 @@ func flare() -> void:
 	flare_amount = 1.0
 
 
-## A spell was cast: the wand's tip flares.
-func wand_flare() -> void:
-	wand_flare_amount = 1.0
+## A spell was cast: the orb flares.
+func orb_flare() -> void:
+	orb_flare_amount = 1.0
 
 
-## How ready the spell in the slot is, 0..1 (the wand tip's brightness), or -1 with no spell.
+## How ready the spell in the slot is, 0..1 (the orb's brightness), or -1 with no spell.
 func _spell_ready() -> float:
 	match Abilities.spell(player):
 		&"":
@@ -117,6 +117,11 @@ func _spell_ready() -> float:
 			if cd == null or not cd.acted:
 				return 1.0
 			return 1.0 - clampf(cd.acting / cd.MAX_TIME, 0.0, 1.0) if cd.is_acting() else 0.0
+		&"awareness":
+			# After sensing, the short cooldown before the next ping.
+			var aware: Awareness = player.get_node_or_null("Awareness") as Awareness
+			if aware != null and not aware.active() and aware.cooldown > 0.0:
+				return 1.0 - clampf(aware.cooldown / Awareness.COOLDOWN, 0.0, 1.0)
 	return 1.0
 
 
@@ -170,7 +175,7 @@ func _physics_process(delta: float) -> void:
 		else:
 			ghosts[i] = g
 	flare_amount = maxf(0.0, flare_amount - delta * 2.2)
-	wand_flare_amount = maxf(0.0, wand_flare_amount - delta * 2.2)
+	orb_flare_amount = maxf(0.0, orb_flare_amount - delta * 2.2)
 	# A carried key trails the wizard on a soft lag, just behind and above the shoulder.
 	var s: float = player.global_scale.y * ART_SCALE
 	var target: Vector2 = global_position + Vector2(-signf(fs) * 11.0, -24.0) * s
@@ -448,7 +453,7 @@ func _draw_body() -> void:
 	body.knock(UNDER, [sleeve])
 	body.ink(RisoPrint.ROBE, 1.0, [sleeve], false)
 	body.ink(RisoPrint.NIGHT, TRIM_SHADE, [sleeve], false)
-	_focus(m, hand, f)
+	_orb(m, f)
 	body.knock(UNDER, [cone, brim])
 	body.ink(RisoPrint.ROBE, 1.0, [cone, brim], false)
 	body.ink(RisoPrint.NIGHT, TRIM_SHADE, [cone], false)
@@ -488,90 +493,121 @@ func _bead(bead: Vector2, pulse: float, ready: bool) -> void:
 		body.knock([RisoPrint.GLOW], [RisoShapes.circle(bead - Vector2(0.3, 0.3), 0.5 + flare_amount * 0.3, 8)])
 
 
-## The spell's focus (chosen on the F7 panel: RisoPrint.spell_focus): what carries the spell's
-## readiness, in accent ink, dim when spent and brightening as it recharges, and flares on a cast.
-func _focus(m: Transform2D, hand: Vector2, f: float) -> void:
+## The spell's orb, floating at the shoulder away from the hand, bobbing. It carries the spell in
+## the slot, and its states differ in kind, not just brightness, so they read at a glance:
+## - recharging (hex, parry, awareness's cooldown, a spent levitate): a faint hollow ring of spell light
+##   (accent ink) filling from the bottom like a vial with a light screen of it, no glow; only a
+##   ready orb is solid ink;
+## - ready: a solid, glowing orb with a big four-pointed star turning on it, and the moment it
+##   becomes ready a ring pings outward from it;
+## - running (astral projection, awareness sensing, a levitate float): swollen, with a ring round it
+##   that drains with the time left (full for a float, which is untimed); in the last ORB_WARN
+##   seconds the orb and ring turn pink and blink, faster toward the end.
+## It flares when a spell is cast.
+const ORB_WARN: float = 1.5
+const ORB_PING: float = 0.45
+## When the orb last became ready (the art clock, for its ping), and whether it was ready last frame.
+var _orb_ready_at: float = -99.0
+var _orb_was_ready: bool = true
+
+
+func _orb(m: Transform2D, f: float) -> void:
 	var r: float = _spell_ready()
 	if r < 0.0:
 		return
-	var kind: StringName = RisoPrint.instance.spell_focus if RisoPrint.instance != null else &"orb"
-	match kind:
-		&"orb":
-			_orb(m, f, r)
-		&"book":
-			_book(m, hand, f, r)
-		&"hand":
-			_glowing_hand(m, hand, f, r)
-		_:
-			_wand(m, hand, f, r)
+	var at: Vector2 = m * Vector2(-f * 11.5, -17.5 + sin(t * 2.2) * 1.0)
+	var run: Vector2 = _spell_running()
+	var running: bool = run.x >= 0.0
+	var ready: bool = running or r >= 1.0
+	if ready and not _orb_was_ready:
+		_orb_ready_at = t
+	_orb_was_ready = ready
+	var plate: int = RisoPrint.ACCENT
+	var lit: bool = true
+	if running and run.y < ORB_WARN:
+		plate = RisoPrint.PINK
+		lit = fmod(t * lerpf(9.0, 3.0, run.y / ORB_WARN), 1.0) < 0.6
+	var size: float = 3.9 * (1.12 if running else 1.0)
+	var under: Array[int] = [RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.GLOW, RisoPrint.ROBE]
+	if not ready:
+		# Hollow, filling from the bottom: a rim, and the charge as a level of light inside it.
+		var rim: PackedVector2Array = _arc(at, size - 0.45, 0.45, 1.0)
+		var fill: PackedVector2Array = _filled(at, size - 0.8, r)
+		body.knock(under, [rim])
+		body.ink(plate, 0.6, [rim], false)
+		if fill.size() >= 3:
+			body.knock(under, [fill])
+			body.ink(plate, 0.4, [fill], false)
+		return
+	if lit:
+		body.ink(plate, 0.35 + 0.2 * orb_flare_amount, [RisoShapes.circle(at, size * 2.1 + orb_flare_amount * 5.0, 22)], false)
+	var core: PackedVector2Array = RisoShapes.circle(at, size + orb_flare_amount * 0.6, 18)
+	body.knock(under, [core])
+	body.ink(plate, 1.0 if lit else 0.35, [core], false)
+	if lit:
+		# A big star turning on the orb (not when running: the ring says that).
+		if not running:
+			var star: PackedVector2Array = Transform2D(t * 1.2, at) * RisoShapes.sparkle(Vector2.ZERO, size * 1.3)
+			body.knock([plate], [star])
+		else:
+			body.knock([plate], [RisoShapes.circle(at + Vector2(-0.35, -0.35) * size, 0.45 * size, 10)])
+	if running:
+		# The time left, as a ring draining clockwise from the top.
+		if lit and run.x > 0.01:
+			body.ink(plate, 1.0, [_arc(at, size + 2.2, 0.9, run.x)], false)
+	elif t - _orb_ready_at < ORB_PING:
+		# Just became ready: a ring pings outward and fades.
+		var u: float = (t - _orb_ready_at) / ORB_PING
+		body.ink(plate, 1.0 - u, [_arc(at, size + 1.0 + u * 7.0, 0.7 * (1.0 - u) + 0.2, 1.0)], false)
 
 
-## A spark of spell light at `at` (canvas space): a halo while charged or flaring, a core whose
-## ink grows with readiness `r` (night dims it while spent) and a paper-white heart once ready.
-func _spell_light(at: Vector2, size: float, r: float, star: bool) -> void:
-	var glow: float = r * r
-	if glow > 0.05 or wand_flare_amount > 0.05:
-		body.ink(RisoPrint.ACCENT, 0.15 * glow + 0.2 * wand_flare_amount, [RisoShapes.circle(at, size * 1.8 + wand_flare_amount * 5.0 + glow * 1.0, 20)], false)
-	var core: PackedVector2Array = Transform2D(t * 1.5, at) * RisoShapes.sparkle(Vector2.ZERO, size * (0.7 + 0.3 * r) + wand_flare_amount * 1.2) if star \
-		else RisoShapes.circle(at, size * (0.8 + 0.2 * r) + wand_flare_amount * 0.6, 16)
-	body.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.GLOW, RisoPrint.ROBE], [core])
-	body.ink(RisoPrint.ACCENT, lerpf(0.2, 1.0, r), [core], false)
-	if r < 1.0:
-		body.ink(RisoPrint.NIGHT, 0.5 * (1.0 - r), [core], false)
-	else:
-		body.knock([RisoPrint.ACCENT], [RisoShapes.circle(at + (Vector2.ZERO if star else Vector2(-0.35, -0.35) * size), 0.35 * maxf(1.0, size * 0.5), 8)])
+## The part of a circle of radius `rad` round `c` below a level `frac` of its height up from the
+## bottom (a vial filled to `frac`), or an empty array.
+func _filled(c: Vector2, rad: float, frac: float) -> PackedVector2Array:
+	if frac <= 0.02:
+		return PackedVector2Array()
+	var level: float = c.y + rad - 2.0 * rad * clampf(frac, 0.0, 1.0)
+	var out: PackedVector2Array = PackedVector2Array()
+	for i: int in range(24):
+		var a: float = TAU * float(i) / 24.0
+		var p: Vector2 = c + Vector2(cos(a), sin(a)) * rad
+		out.append(Vector2(p.x, maxf(p.y, level)))
+	return out
 
 
-## An orb of spell light floating at the shoulder away from the hand, bobbing; once ready a mote
-## circles it.
-func _orb(m: Transform2D, f: float, r: float) -> void:
-	var at: Vector2 = m * Vector2(-f * 10.0, -17.5 + sin(t * 2.2) * 1.0)
-	_spell_light(at, 2.8, r, false)
-	if r >= 1.0:
-		var a: float = t * 3.0
-		body.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(at + Vector2(cos(a) * 4.8, sin(a) * 1.8), 0.7, 8)], false)
+## A band `w` thick on a circle of radius `rad` round `c`, from the top clockwise over `frac` of it.
+func _arc(c: Vector2, rad: float, w: float, frac: float) -> PackedVector2Array:
+	var n: int = maxi(2, int(ceil(28.0 * frac)))
+	var outer: PackedVector2Array = PackedVector2Array()
+	var inner: PackedVector2Array = PackedVector2Array()
+	for i: int in range(n + 1):
+		var a: float = -PI * 0.5 + TAU * frac * float(i) / float(n)
+		var d: Vector2 = Vector2(cos(a), sin(a))
+		outer.append(c + d * (rad + w))
+		inner.append(c + d * (rad - w))
+	inner.reverse()
+	outer.append_array(inner)
+	return outer
 
 
-## A small dark tome held in the hand, its page edge bare paper and a rune of spell light on the
-## cover; a cast lifts a rune off the page.
-func _book(m: Transform2D, hand: Vector2, f: float, r: float) -> void:
-	var c: Vector2 = hand + Vector2(f * 1.4, -1.0)
-	var tilt: Transform2D = m * Transform2D(-f * 0.25, c)
-	var cover: PackedVector2Array = tilt * RisoShapes.rrect(-2.0, -1.6, 4.0, 3.2, 0.5)
-	var pages: PackedVector2Array = tilt * RisoShapes.rrect(-1.7, -2.2, 3.4, 0.8, 0.3)
-	body.knock([RisoPrint.PINK, RisoPrint.GLOW, RisoPrint.ROBE], [cover])
-	body.ink(RisoPrint.BLUE, 1.0, [cover], false)
-	body.ink(RisoPrint.NIGHT, 0.7, [cover], false)
-	body.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.GLOW, RisoPrint.ROBE], [pages])
-	_spell_light(tilt * Vector2(0.0, 0.2), 1.1, r, true)
-	if wand_flare_amount > 0.05:
-		var rise: Vector2 = tilt * Vector2(0.0, -2.6) + Vector2(0, -(1.0 - wand_flare_amount) * 6.0)
-		body.ink(RisoPrint.ACCENT, wand_flare_amount, [Transform2D(t * 4.0, rise) * RisoShapes.sparkle(Vector2.ZERO, 1.6)], false)
-
-
-## No object: the palm itself glows, and motes gather round it one by one as the spell charges.
-func _glowing_hand(m: Transform2D, hand: Vector2, f: float, r: float) -> void:
-	var palm: Vector2 = m * (hand + Vector2(f * 0.9, 0.5))
-	_spell_light(palm, 1.3, r, false)
-	var motes: Array[PackedVector2Array] = []
-	for i: int in range(3):
-		if float(i) >= r * 3.0 - 0.001 and r < 1.0:
-			continue
-		var a: float = t * 2.4 + TAU * float(i) / 3.0
-		motes.append(RisoShapes.circle(palm + Vector2(cos(a) * 3.6, sin(a) * 2.4), 0.8, 8))
-	if not motes.is_empty():
-		body.ink(RisoPrint.ACCENT, 1.0, motes, false)
-
-
-## The spell's wand, held in the sleeve's hand and tipped with a spark of spell light (accent
-## ink) whose brightness is the spell's readiness: dim when spent, brightening as it recharges,
-## with a soft halo and a paper-white core once ready. Flares when a spell is cast.
-func _wand(m: Transform2D, hand: Vector2, f: float, r: float) -> void:
-	var a: Vector2 = hand + Vector2(f * 0.6, -0.4)
-	var b: Vector2 = hand + Vector2(f * 4.4, -3.7)
-	var n: Vector2 = (b - a).normalized().orthogonal()
-	body.ink(RisoPrint.NIGHT, 1.0, [m * PackedVector2Array([a - n * 0.5, b - n * 0.32, b + n * 0.32, a + n * 0.5])], false)
-	_spell_light(m * (b + (b - a).normalized() * 0.6), 2.6, r, true)
+## A timed or held spell running now: (fraction of its time left, seconds left), with fraction 1
+## and many seconds for an untimed one (a levitate float); x < 0 when nothing is running.
+func _spell_running() -> Vector2:
+	match Abilities.spell(player):
+		&"astral":
+			var astral: Node = player.get_node_or_null("AstralProjection")
+			if astral != null and bool(astral.call("projecting")):
+				var timer: ActionTimer = astral.get("projection_timer") as ActionTimer
+				return Vector2(clampf(timer.acting / timer.MAX_TIME, 0.0, 1.0), timer.acting)
+		&"awareness":
+			var aware: Awareness = player.get_node_or_null("Awareness") as Awareness
+			if aware != null and aware.active():
+				var total: float = 5.0 + 2.5 * float(aware.level - 1)
+				return Vector2(clampf(aware.sensing / total, 0.0, 1.0), aware.sensing)
+		&"levitate":
+			if bool(player.get("levitating")):
+				return Vector2(1.0, 99.0)
+	return Vector2(-1.0, 0.0)
 
 
 ## Vulnerable: the hat's glow is out. The bead splits into two pink halves with a gap between

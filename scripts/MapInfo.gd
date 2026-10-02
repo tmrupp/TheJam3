@@ -702,6 +702,10 @@ func _notification(what: int) -> void:
 var coord: Vector2i = Vector2i.ZERO
 ## The exit the player arrives at; -1 starts a run, -2 respawns at a lantern.
 var arrival: int = -1
+## Where to arrive when `arrival` is -3 (a tier III rift from another level).
+var arrival_pos: Vector2 = Vector2.ZERO
+## The run's cross-world rift link (Rift tier III): up to two ends, each [coord, position].
+var rift_link: Array = []
 ## What changed in each visited level (coord -> record). Levels regenerate identically, then
 ## their record is applied: pickups taken, doors opened, the deeper exit paid for.
 var records: Dictionary = {}
@@ -826,6 +830,7 @@ func start_run (seed_value: int) -> void:
 	coord = Vector2i(seed_value, 0)
 	arrival = -1
 	records.clear()
+	rift_link.clear()
 	if player == null:
 		player = main.get_node_or_null("Player") as Player
 	if player != null:
@@ -900,6 +905,21 @@ func is_respawn_lantern (lantern: Node) -> bool:
 ## True when the last lit lantern is in another level (the player must travel to respawn).
 func respawn_elsewhere () -> bool:
 	return world != null and respawn_coord != coord
+
+## Step through a tier III rift into level `to`, coming out at `at` (its end of the link).
+func rift_travel (to: Vector2i, at: Vector2) -> void:
+	if travelling or run_ending > 0.0:
+		return
+	var d: Vector2i = to - coord
+	var way: Vector2 = Vector2(signf(d.x), signf(d.y)) if d != Vector2i.ZERO else Vector2.DOWN
+	if absi(d.x) > 0 and absi(d.y) > 0:
+		way = Vector2(0, signf(d.y))
+	await _pass(way, to)
+	coord = to
+	deepest = maxi(deepest, coord.y)
+	arrival = -3
+	arrival_pos = at
+	_load_level()
 
 func respawn_in_other_level () -> void:
 	await _pass(Vector2.UP, respawn_coord)
@@ -1027,7 +1047,7 @@ func save_run () -> void:
 		"vulnerable": vulnerable,
 		"has_ghost": has_ghost, "ghost_coord": ghost_coord, "ghost_pos": ghost_pos, "ghost_stars": ghost_stars,
 		"stars": player.coins.coins, "key": int(player.get_meta(&"carried_key", -1)),
-		"tiers": tiers, "health": player.health.health, "debug": debug,
+		"tiers": tiers, "health": player.health.health, "debug": debug, "rift_link": rift_link,
 	}
 	var file: FileAccess = FileAccess.open(save_path, FileAccess.WRITE)
 	if file != null:
@@ -1061,6 +1081,7 @@ func continue_run () -> bool:
 	run_seed = int(data["run_seed"])
 	deepest = int(data["deepest"])
 	records = data["records"]
+	rift_link = data.get("rift_link", [])
 	respawn_coord = data["respawn_coord"]
 	respawn_cell = data["respawn_cell"]
 	vulnerable = bool(data["vulnerable"])
@@ -1150,6 +1171,26 @@ func _generated (at: Vector2i, cells: Array) -> void:
 		wanted = null
 		_level_ready(cells, def_for(at))
 	_pump()
+
+## Another level's layout, for the map: the level being played, or one rebuilt from its seed
+## (levels are deterministic). Null while the generator thread is busy (try again next frame).
+var _map_worlds: Dictionary = {}
+
+func world_at (at: Vector2i) -> World:
+	if at == coord and world != null:
+		return world
+	var key: String = "%d:%s:%s" % [run_seed, at, debug]
+	if _map_worlds.has(key):
+		return _map_worlds[key]
+	var cells: Variant = cache.get(at)
+	if cells == null:
+		if gen_busy:
+			return null
+		cells = wfc.generate_level(def_for(at))
+		_cache_put(at, cells)
+	var w: World = World.new(cells, def_for(at))
+	_map_worlds[key] = w
+	return w
 
 func _cache_put (at: Vector2i, cells: Array) -> void:
 	cache[at] = cells
@@ -1293,6 +1334,11 @@ func clear_terrain() -> void:
 func next_world () -> void:
 	construct_world()
 	_last_seen_cell = Vector2i(-9999, -9999)
+	if debug:
+		# Debug runs see every level's whole map from the start (its ink well still works).
+		var bytes: PackedByteArray = seen()
+		bytes.fill(1)
+		record()["seen"] = bytes
 	seen_version += 1
 	# Arrive at the matching exit; a new run starts at its lit start lantern, a respawn at the lantern.
 	var at: Vector2i = world.exits.get(Exit.BACK, Vector2i.ZERO)
@@ -1307,7 +1353,7 @@ func next_world () -> void:
 		at = respawn_cell
 		_set_respawn(coord, respawn_cell)
 	if player != null:
-		player.position = cell_position(at)
+		player.position = arrival_pos if arrival == -3 else cell_position(at)
 		player.velocity = Vector2.ZERO
 		player.reset_fourier_motion()
 		player.set_collision(true)

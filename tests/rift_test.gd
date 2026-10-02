@@ -62,20 +62,17 @@ func run() -> void:
 	var third: Node2D = rift.ends[0]
 	check(not bool(third.get("linked")) and not bool(first.get("linked")) and not bool(second.get("linked")), "the new end waits for a partner and old ends stop working immediately")
 	check(natural.all(func(n: Node) -> bool: return is_instance_valid(n) and not n.is_queued_for_deletion()), "recasting leaves generated teleporters alone")
-	Abilities.grant(player, &"rift")
-	check(bool(third.get("auto")), "tier III upgrades the existing end")
 	player.global_position += Vector2(700, 0)
 	Abilities.cast(player)
 	var fourth: Node2D = rift.ends[1]
 	check(third.get("partner") == fourth and fourth.get("partner") == third, "fourth cast completes the new pair, linked both ways")
-	var cast_at: Vector2 = player.global_position
-	fourth.call("_touch", player)
-	check(player.global_position == cast_at, "casting an automatic end does not immediately send the caster away")
-	fourth.call("_leave", player)
-	fourth.call("_touch", player)
-	check(player.global_position == third.global_position, "tier III stepping in travels automatically")
-	third.call("_touch", player)
-	check(player.global_position == third.global_position, "arrival cannot bounce straight back")
+	var stand_at: Vector2 = fourth.global_position
+	player.global_position = stand_at
+	for i: int in range(6):
+		await physics_frame
+	check(player.global_position == stand_at, "standing in a rift does not send you through: E is always needed")
+	fourth.call("use_portal")
+	check(player.global_position == third.global_position, "interacting travels")
 	var pair_a: Array = info.record()["rifts"].duplicate()
 	Abilities.grant(player, &"hex")
 	check(not third.is_queued_for_deletion() and not fourth.is_queued_for_deletion() and not player.has_node("Rift"), "the world keeps its pair when another spell is equipped")
@@ -113,10 +110,31 @@ func run() -> void:
 	check(info.continue_run(), "the saved run resumes")
 	await settle()
 	check(info.coord == world_a and rift.ends.size() == 2 and rift.ends[0].global_position == pair_a[0], "resuming at the lantern restores its world's pair")
+	print("tier III: a link across worlds")
+	player.set_physics_process(false)
+	Abilities.set_tier(player, &"rift", 3)
+	rift = player.get_node("Rift") as Rift
+	var link_a: Node2D = rift.cast()
+	var at_a: Vector2 = link_a.global_position
+	check(info.rift_link.size() == 1 and not bool(link_a.get("linked")) and rift.ends.size() == 2, "tier III opens the link's first end, beside the world's own pair")
+	info.travel(MapInfo.Exit.RIGHT)
+	await settle()
+	player.set_physics_process(false)
+	var link_b: Node2D = rift.cast()
+	check(bool(link_b.get("linked")) and link_b.get_meta(&"rift_far") == [world_a, at_a], "its partner, opened in another world, links back to the first world")
+	check(rift.ends.size() == 2, "world B's own pair is untouched")
+	info.save_run()
+	check((MapInfo.read_save()["rift_link"] as Array).size() == 2, "the link is saved with the run")
+	link_b.call("use_portal")
+	await settle()
+	player.set_physics_process(false)
+	check(info.coord == world_a and absf(player.global_position.x - at_a.x) < 1.0 and player.global_position.distance_to(at_a) < 40.0, "using it travels to the other world, out of the other end (then lands)")
+	var back_end: Array[Node2D] = Rift.link_ends(info)
+	check(back_end.size() == 1 and back_end[0].get_meta(&"rift_far")[0] == world_b, "and the end there leads back")
 	info.start_run(28)
 	await settle()
 	player.set_physics_process(false)
-	check(not player.has_node("Rift") and Rift.current_ends(info).is_empty() and not info.record().has("rifts"), "a new run clears the previous run's placed pairs")
+	check(not player.has_node("Rift") and Rift.current_ends(info).is_empty() and not info.record().has("rifts") and info.rift_link.is_empty(), "a new run clears the previous run's placed pairs and link")
 
 	print("watcher detection")
 	var watcher: RigidBody2D = load("res://prefabs/shooter_enemy.tscn").instantiate()

@@ -35,6 +35,10 @@ var font: SystemFont
 var _built_version: int = -1
 var _built_coord: Vector2i = Vector2i(-99999, -99999)
 var _paused_by_map: bool = false
+## The level the level page shows (the one being played unless picked on the worlds page), and
+## the worlds page's cursor.
+var viewing: Vector2i = Vector2i.ZERO
+var selected: Vector2i = Vector2i.ZERO
 
 
 func _ready() -> void:
@@ -94,6 +98,9 @@ func _show(next: int) -> void:
 		var menu: CanvasItem = get_node_or_null("/root/Main/Menu") as CanvasItem
 		if menu != null and menu.visible:
 			return
+	if view == View.CLOSED and next != View.CLOSED:
+		viewing = info.coord
+		selected = info.coord
 	view = next
 	visible = view != View.CLOSED and RisoPrint.is_on()
 	canvas.visible = visible
@@ -119,12 +126,73 @@ func _input(event: InputEvent) -> void:
 	elif event.is_action_pressed("Menu"):
 		close()
 		get_viewport().set_input_as_handled()
+	elif view == View.WORLD:
+		_world_input(event)
 	elif event.is_action_pressed("Left") or event.is_action_pressed("ui_left"):
 		page(-1)
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("Right") or event.is_action_pressed("ui_right"):
 		page(1)
 		get_viewport().set_input_as_handled()
+
+
+## The worlds page: move the cursor, open the level under it, or click a tile.
+func _world_input(event: InputEvent) -> void:
+	var info: MapInfo = MapInfo.instance
+	if info == null:
+		return
+	var step: Vector2i = Vector2i.ZERO
+	if event.is_action_pressed("Left") or event.is_action_pressed("ui_left"):
+		step = Vector2i.LEFT
+	elif event.is_action_pressed("Right") or event.is_action_pressed("ui_right"):
+		step = Vector2i.RIGHT
+	elif event.is_action_pressed("Up") or event.is_action_pressed("ui_up"):
+		step = Vector2i.UP
+	elif event.is_action_pressed("Down") or event.is_action_pressed("ui_down"):
+		step = Vector2i.DOWN
+	if step != Vector2i.ZERO:
+		var next: Variant = _nearest_tile(info, selected, step)
+		if next != null:
+			selected = next
+		elif step == Vector2i.LEFT:
+			page(-1)
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("Discover") or event.is_action_pressed("Jump") or event.is_action_pressed("ui_accept"):
+		open_level(selected)
+		get_viewport().set_input_as_handled()
+	elif event is InputEventMouseButton and (event as InputEventMouseButton).pressed and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		var at: Vector2 = to_local(get_global_mouse_position())
+		for c: Vector2i in tiles(info):
+			if Rect2(tile_at(info, c) - TILE * 0.5, TILE).has_point(at):
+				selected = c
+				open_level(c)
+				get_viewport().set_input_as_handled()
+				return
+
+
+## Show level `c`'s page (a visited level).
+func open_level(c: Vector2i) -> void:
+	var info: MapInfo = MapInfo.instance
+	if info == null or not info.records.has(c):
+		return
+	viewing = c
+	_show(View.LEVEL)
+
+
+## The visited level nearest `from` in direction `dir` (within a quarter turn of it), or null.
+func _nearest_tile(info: MapInfo, from: Vector2i, dir: Vector2i) -> Variant:
+	var best: Variant = null
+	var best_score: float = INF
+	for c: Vector2i in tiles(info):
+		var d: Vector2 = Vector2(c - from)
+		var along: float = d.dot(Vector2(dir))
+		if along <= 0.0 or absf(d.dot(Vector2(dir).orthogonal())) > along:
+			continue
+		var score: float = d.length() + absf(d.dot(Vector2(dir).orthogonal())) * 2.0
+		if score < best_score:
+			best_score = score
+			best = c
+	return best
 
 
 ## The page tabs, top right: the open page on a tinted tab, with the keys that turn the page.
@@ -197,6 +265,9 @@ func to_map(info: MapInfo, v: Vector2) -> Vector2:
 
 
 func _level(info: MapInfo) -> void:
+	if viewing != info.coord:
+		_other_level(info, viewing)
+		return
 	_text(MapInfo.where(info.coord), Vector2(18, 12), 10.0, false)
 	_tabs()
 	if _built_version != info.seen_version or _built_coord != info.coord:
@@ -247,6 +318,64 @@ func _level(info: MapInfo) -> void:
 		["key", func(at: Vector2) -> void: _mark_key(at, 2)],
 		["ink well", func(at: Vector2) -> void: _mark_inkwell(at, false)],
 		["ghost", func(at: Vector2) -> void: _mark_ghost(at, 0.22)],
+	])
+
+
+## A level other than the one being played, picked on the worlds page: its map as far as it was
+## seen, rebuilt from its seed, with its exits, shrine, ink well and lanterns where seen (from the
+## layout and its record, since its things are not in the scene).
+func _other_level(info: MapInfo, c: Vector2i) -> void:
+	_text(MapInfo.where(c), Vector2(18, 12), 10.0, false)
+	_tabs()
+	var w: MapInfo.World = info.world_at(c)
+	if w == null:
+		rock.visible = false
+		open.visible = false
+		_text("inking…", AREA.get_center() + Vector2(0, -5), 9.0, false, true)
+		return
+	var rec: Dictionary = info.records.get(c, {})
+	var bytes: PackedByteArray = rec.get("seen", PackedByteArray())
+	var stamp: int = bytes.size() + bytes.count(1) * 7919
+	if _built_coord != c or _built_version != stamp:
+		_build_textures_for(w, bytes, rec.get("broken", {}))
+		_built_coord = c
+		_built_version = stamp
+	var k: float = minf(AREA.size.x / float(w.size.x), AREA.size.y / float(w.size.y))
+	var o: Vector2 = AREA.position + (AREA.size - Vector2(w.size) * k) * 0.5
+	for s: Sprite2D in [rock, open]:
+		s.visible = true
+		s.position = o
+		s.scale = Vector2(k, k)
+	var seen: Callable = func(v: Vector2i) -> bool: return v.x * w.size.y + v.y < bytes.size() and bytes[v.x * w.size.y + v.y] != 0
+	var spot: Callable = func(v: Vector2i) -> Vector2: return o + (Vector2(v) + Vector2(0.5, 0.5)) * k
+	for which: int in w.exits:
+		var v: Vector2i = w.exits[which]
+		if not seen.call(v):
+			continue
+		var dir: Vector2 = {MapInfo.Exit.BACK: Vector2.UP, MapInfo.Exit.LEFT: Vector2.LEFT, MapInfo.Exit.RIGHT: Vector2.RIGHT}.get(which, Vector2.DOWN)
+		var deeper: bool = which == MapInfo.Exit.DEEPER
+		_mark_exit(spot.call(v), dir, deeper, -1, 1 if deeper and not bool(rec.get("deeper_paid", false)) else 0)
+	if w.shrine.x >= 0 and seen.call(w.shrine):
+		_mark_shrine(spot.call(w.shrine), bool(rec.get("shrine_used", false)))
+	for x: int in range(w.size.x):
+		for y: int in range(w.size.y):
+			var v: Vector2i = Vector2i(x, y)
+			var kind: int = w.get_cell(v).type
+			if (kind == MapInfo.Type.CHECKPOINT or kind == MapInfo.Type.INKWELL) and seen.call(v):
+				if kind == MapInfo.Type.INKWELL:
+					_mark_inkwell(spot.call(v), bool(rec.get("mapped", false)))
+				else:
+					_mark_lantern(spot.call(v), false)
+	if info.has_ghost and info.ghost_coord == c:
+		_mark_ghost(spot.call(info.cell_at(info.ghost_pos)), 0.22)
+	_text("D: worlds", Vector2(AREA.position.x, AREA.end.y - 6.0), 6.5, false)
+	_legend([
+		["way out", func(at: Vector2) -> void: _mark_exit(at, Vector2.RIGHT, false, -1, 0, 0.7)],
+		["deeper", func(at: Vector2) -> void: _mark_exit(at, Vector2.DOWN, true, -1, 0, 0.7)],
+		["unpaid", func(at: Vector2) -> void: _mark_exit(at, Vector2.DOWN, true, -1, 8, 0.7)],
+		["shrine", func(at: Vector2) -> void: _mark_shrine(at, false)],
+		["lantern", func(at: Vector2) -> void: _mark_lantern(at, false)],
+		["ink well", func(at: Vector2) -> void: _mark_inkwell(at, false)],
 	])
 
 
@@ -321,16 +450,17 @@ func _legend(entries: Array) -> void:
 
 ## Seen rock and seen open ground as two one-pixel-per-cell textures on their plates.
 func _build_textures(info: MapInfo) -> void:
+	_build_textures_for(info.world, info.seen(), info.record().get("broken", {}))
 	_built_version = info.seen_version
 	_built_coord = info.coord
-	var w: MapInfo.World = info.world
+
+
+func _build_textures_for(w: MapInfo.World, bytes: PackedByteArray, broken: Dictionary) -> void:
 	var rock_img: Image = Image.create(w.size.x, w.size.y, false, Image.FORMAT_LA8)
 	var open_img: Image = Image.create(w.size.x, w.size.y, false, Image.FORMAT_LA8)
-	var bytes: PackedByteArray = info.seen()
-	var broken: Dictionary = info.record().get("broken", {})
 	for x: int in range(w.size.x):
 		for y: int in range(w.size.y):
-			if bytes[x * w.size.y + y] == 0:
+			if x * w.size.y + y >= bytes.size() or bytes[x * w.size.y + y] == 0:
 				continue
 			var kind: int = w.get_cell(Vector2i(x, y)).type
 			# Cracked walls look like rock on the map until they are broken.
@@ -372,8 +502,9 @@ func _link(out: Array[Array], known: Dictionary, pair: Array) -> void:
 		out.append(pair)
 
 
-func tile_at(info: MapInfo, c: Vector2i) -> Vector2:
-	return AREA.get_center() + Vector2(c - info.coord) * PITCH
+## Where level `c`'s tile sits on the worlds page, centred on the cursor.
+func tile_at(_info: MapInfo, c: Vector2i) -> Vector2:
+	return AREA.get_center() + Vector2(c - selected) * PITCH
 
 
 func _world(info: MapInfo) -> void:
@@ -405,6 +536,14 @@ func _world(info: MapInfo) -> void:
 			_mark_spent_shrine(at + Vector2(0, TILE.y * 0.5 - 4.75))
 		if info.has_ghost and c == info.ghost_coord:
 			_mark_ghost(at + Vector2(TILE.x * 0.5 - 4.0, TILE.y * 0.5 - 4.0), 0.2)
+	# The cursor: a night-ink frame round the picked level, breathing.
+	var cur: Vector2 = tile_at(info, selected)
+	var grow: float = 2.0 + sin(t * 5.0) * 0.6
+	var outer: PackedVector2Array = RisoShapes.rrect(cur.x - TILE.x * 0.5 - grow, cur.y - TILE.y * 0.5 - grow, TILE.x + grow * 2.0, TILE.y + grow * 2.0, 6.0)
+	var inner: PackedVector2Array = RisoShapes.rrect(cur.x - TILE.x * 0.5 - grow + 1.2, cur.y - TILE.y * 0.5 - grow + 1.2, TILE.x + grow * 2.0 - 2.4, TILE.y + grow * 2.0 - 2.4, 5.0)
+	marks.ink(RisoPrint.NIGHT, 1.0, [outer], false)
+	marks.knock([RisoPrint.NIGHT], [inner])
+	_text("W A S D pick  ·  E open", Vector2(AREA.position.x, AREA.end.y - 6.0), 6.5, false)
 	_legend([
 		["you are here", func(at: Vector2) -> void: _mark_tile(at, Vector2(9, 6), true)],
 		["visited", func(at: Vector2) -> void: _mark_tile(at, Vector2(9, 6), false)],

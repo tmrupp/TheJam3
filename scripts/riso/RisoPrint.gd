@@ -92,10 +92,6 @@ var trapped: bool = false
 var offset_scale: float = 1.0
 ## How much finer than the scene the UI prints, 0 (the same) to 1 (UI_* in full).
 var ui_detail: float = 0.7
-## What shows the spell (its readiness and casts) on the wizard: a wand, an orb, a book or the
-## glowing hand itself (RisoWizard._focus).
-var spell_focus: StringName = &"orb"
-const FOCI: Array[StringName] = [&"wand", &"orb", &"book", &"hand"]
 ## Camera zoom while printing, relative to the scene's own zoom (smaller shows more).
 var zoom_factor: float = 0.72
 var _camera: Camera2D
@@ -494,14 +490,14 @@ func _on_player_event(kind: StringName, _at: Vector2) -> void:
 
 
 ## Movement (dash, blink, climb, double jump) lights the hat, which takes its glow ink; spells
-## light the wand's tip instead (accent ink) and leave the hat's colour alone.
+## light the orb instead (accent ink) and leave the hat's colour alone.
 func flare(ability: StringName) -> void:
 	var wizard: Node = null
 	if _player != null and is_instance_valid(_player):
 		wizard = _player.get_node_or_null("RisoWizard")
 	if ability in Abilities.SPELLS:
 		if wizard != null:
-			wizard.call("wand_flare")
+			wizard.call("orb_flare")
 		return
 	glow_ability = ability
 	if wizard != null:
@@ -653,6 +649,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		set_enabled(not enabled)
 	elif key.keycode == KEY_F7:
 		panel.visible = not panel.visible
+		_sync_panel()
 	elif key.keycode == KEY_F8:
 		cycle_realm()
 
@@ -771,7 +768,19 @@ func _build_panel() -> void:
 	_option_row(box, &"between", "Between sheets", ["Cut", "Blend"], _on_between)
 	_option_row(box, &"realm", "Realm", ["Deep night", "Twilight", "Aurora"], _on_realm_picked)
 	_option_row(box, &"plates", "Plates", ["Independent", "Trapped"], func(i: int) -> void: trapped = i == 1)
-	_option_row(box, &"focus", "Spell focus", ["Wand", "Orb", "Book", "Hand"], func(i: int) -> void: spell_focus = FOCI[i])
+	# Abilities: set any tier outright (a spell above 0 takes the slot).
+	var heading: Label = Label.new()
+	heading.text = "Abilities"
+	heading.add_theme_font_size_override("font_size", 6)
+	box.add_child(heading)
+	for a: StringName in Abilities.ORDER:
+		var items: Array[String] = ["none"]
+		for n: int in range(1, int(Abilities.MAX[a]) + 1):
+			items.append(Abilities.roman(n))
+		_option_row(box, StringName("ability_" + String(a)), String(Abilities.NAMES[a]) + (" (spell)" if a in Abilities.SPELLS else ""), items, func(i: int) -> void:
+			if _player != null and is_instance_valid(_player):
+				Abilities.set_tier(_player, a, i)
+			_sync_panel())
 	_option_row(box, &"robe", "Robe", ["Spell colour", "Blue"], func(i: int) -> void: robe_by_spell = i == 0)
 	_sync_panel()
 
@@ -863,7 +872,10 @@ func _sync_panel() -> void:
 		(_options[&"between"] as OptionButton).select(1 if blend_sheets else 0)
 	if _options.has(&"plates"):
 		(_options[&"plates"] as OptionButton).select(1 if trapped else 0)
-	if _options.has(&"focus"):
-		(_options[&"focus"] as OptionButton).select(FOCI.find(spell_focus))
 	if _options.has(&"robe"):
 		(_options[&"robe"] as OptionButton).select(0 if robe_by_spell else 1)
+	if _player != null and is_instance_valid(_player):
+		for a: StringName in Abilities.ORDER:
+			var key: StringName = StringName("ability_" + String(a))
+			if _options.has(key):
+				(_options[key] as OptionButton).select(Abilities.tier(_player, a))

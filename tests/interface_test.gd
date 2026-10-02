@@ -154,11 +154,13 @@ func run() -> void:
 		var e: Vector2i = info.world.exits[which]
 		spread = maxi(spread, absi(e.x - back.x) + absi(e.y - back.y))
 	check(spread <= 10, "every exit is within %d cells of the spawn" % spread)
+	check(info.seen_count() == info.world.size.x * info.world.size.y and not bool(info.record().get("mapped", false)), "the whole map is seen from the start, and the ink well still sells")
 	check(bool(MapInfo.read_save().get("debug", false)), "the save remembers it is a debug run")
 	info.travel(MapInfo.Exit.DEEPER)
 	await settle()
 	var arrive: Vector2i = info.world.exits[MapInfo.Exit.BACK]
 	check(info.world.exits.values().all(func(e: Vector2i) -> bool: return absi(e.x - arrive.x) + absi(e.y - arrive.y) <= 10), "and so in every level")
+	check(info.seen_count() == info.world.size.x * info.world.size.y, "the next level's map is seen too")
 	MapInfo.debug = false
 
 	MapInfo.delete_save()

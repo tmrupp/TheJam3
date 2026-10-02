@@ -113,6 +113,18 @@ static func grant(player: Player, a: StringName) -> void:
 		player.health.display_health()
 
 
+## Set ability `a` to tier `n` outright (the debug picker on the F7 panel). A spell set above 0
+## takes the slot, emptying the others.
+static func set_tier(player: Player, a: StringName, n: int) -> void:
+	n = clampi(n, 0, int(MAX[a]))
+	if a in SPELLS and n > 0:
+		for other: StringName in SPELLS:
+			if other != a:
+				player.tiers[other] = 0
+	player.tiers[a] = n
+	apply(player)
+
+
 ## Back to a new run's abilities, at full health.
 static func reset(player: Player) -> void:
 	player.tiers = start_tiers()
@@ -223,9 +235,6 @@ static func apply(player: Player) -> void:
 	if rift != null:
 		rift.level = rift_tier
 		rift.sync_ends()
-		for e: Node2D in rift.ends:
-			if is_instance_valid(e):
-				e.set("auto", rift_tier >= 3)
 	player.run_speed = Player.SPEED * (1.0 + SPEED_PER_TIER * float(tier(player, &"speed")))
 	player.health.max_health = BASE_HEALTH + tier(player, &"vigor")
 	player.health.health = mini(player.health.health, player.health.max_health)
