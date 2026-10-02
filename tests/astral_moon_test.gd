@@ -73,21 +73,43 @@ func run() -> void:
 		quit(1)
 		return
 	var moon: Node = moons[0]
+	player.set_physics_process(false)
+	player.global_position = Vector2(-9000, -9000)
+	await physics_frame
 	player.dash.refresh()
 	moon.call("touch", player)
-	check(bool(moon.call("is_full")), "with the dash unused, a moon is left alone")
-	player.dash.end()
-	player.dash.enable()
-	check(player.dash.acted, "dash spent")
-	moon.call("touch", player)
-	check(not player.dash.acted and not bool(moon.call("is_full")), "a moon gives the dash back and wanes")
-	player.dash.end()
-	player.dash.enable()
+	check(not bool(moon.call("is_full")) and bool(moon.get("in_use")) and not player.dash.acted, "touching a moon spends it at once, even with the dash unused")
+	for i: int in range(6):
+		await physics_frame
+	check(float(moon.get("waning")) > 0.0, "once left, it wanes")
+	player.dash.enable(true)
 	moon.call("touch", player)
 	check(player.dash.acted, "a waning moon does nothing")
-	player.global_position = Vector2(-9000, -9000)
 	await create_timer(2.8).timeout
 	check(bool(moon.call("is_full")), "and it comes back")
+	moon.call("touch", player)
+	check(not player.dash.acted, "a full moon gives a spent dash back")
+	for i: int in range(6):
+		await physics_frame
+	await create_timer(2.8).timeout
+	# Inside the moon it keeps giving the dash back, even mid-dash, and wanes only once left.
+	player.global_position = (moon as Node2D).global_position
+	for i: int in range(5):
+		await physics_frame
+	check(bool(moon.get("in_use")) and float(moon.get("waning")) == 0.0, "running into the moon spends it")
+	player.dash.enable(true)
+	check(player.dash.is_acting() and player.dash.acted, "dashing inside the moon")
+	await physics_frame
+	check(not player.dash.acted and player.dash.is_acting(), "mid-dash, the moon gives the dash back at once")
+	player.dash.enable(true)
+	await physics_frame
+	await physics_frame
+	check(not player.dash.acted and float(moon.get("waning")) == 0.0, "still inside: a second dash comes back too, and the moon has not begun to wax")
+	player.global_position = Vector2(-9000, -9000)
+	for i: int in range(6):
+		await physics_frame
+	check(float(moon.get("waning")) > 0.0 and not bool(moon.get("in_use")), "leaving it starts it waxing back")
+	player.set_physics_process(true)
 	info.travel(MapInfo.Exit.RIGHT)
 	await settle()
 	info.travel(MapInfo.Exit.LEFT)

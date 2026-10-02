@@ -61,6 +61,30 @@ func run() -> void:
 	check(absi(cell.x - deeper.x) + absi(cell.y - deeper.y) <= 14, "near the deeper exit")
 	check(info.world.ground_below(cell) and info.world.ground_below(cell + Vector2i.RIGHT), "standing on two floor cells")
 
+	print("one interactable at a time")
+	var stations: Node = shrines()[0]
+	var boon: Interactable = stations.get_node("Boon/Interactable") as Interactable
+	var boon2: Interactable = stations.get_node("Boon2/Interactable") as Interactable
+	boon.touching = true
+	boon2.touching = true
+	player.global_position = (boon2.get_parent() as Node2D).global_position + Vector2(12, 0)
+	check(Interactable.focused(self) == boon2 and boon2.is_focused() and not boon.is_focused(), "touching two stations, only the nearer is focused")
+	var hits: Array[int] = []
+	boon.interacted.connect(func() -> void: hits.append(0))
+	boon2.interacted.connect(func() -> void: hits.append(1))
+	var coins: int = player.coins.coins
+	player.collect(-coins)
+	var press: InputEventAction = InputEventAction.new()
+	press.action = &"Discover"
+	press.pressed = true
+	Input.parse_input_event(press)
+	await process_frame
+	await process_frame
+	check(hits == [1], "one press uses only the focused station (%s)" % [hits])
+	player.collect(coins)
+	boon.touching = false
+	boon2.touching = false
+
 	print("starting abilities")
 	check(player.tiers == Abilities.start_tiers() and Abilities.tier(player, &"dash") == 1 and player.MAX_JUMPS == 1 and not player.climable and player.health.max_health == 3 and not player.has_node("Blink") and player.has_node("Hex"), "the dash and the hex; 3 health")
 	check(Abilities.ORDER.all(func(a: StringName) -> bool: return a in [&"dash", &"hex"] or Abilities.tier(player, a) == 0), "parry, astral and the rest are all still to find")

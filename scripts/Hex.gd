@@ -1,17 +1,20 @@
 extends Node
 class_name Hex
-## The hex bolt, a spell: Spell (Q, or the pad's X) throws a comet of glow ink from the hat, aimed
-## like the dash (the held direction, else facing). It has charges that come back one per COOLDOWN, and
-## lighting a lantern refills them. Tiers (Abilities): II +1 charge, III +1 damage, IV pierces
-## its first enemy.
+## The hex bolt, a spell: Spell (Q, or the pad's X) throws a comet of spell light from the wand,
+## aimed like the dash (the held direction, else facing). It has charges that come back one per
+## COOLDOWN, and lighting a lantern refills them. Tiers (Abilities): I only stuns what it hits;
+## II also wounds (1 damage); III +1 charge; IV +1 damage and pierces its first enemy.
 
-const COOLDOWN: float = 1.5
+const COOLDOWN: float = 6.0
+## How long a hex leaves an enemy stunned.
+const STUN: float = 3.0
 const BOLT: GDScript = preload("res://scripts/HexBolt.gd")
 
 var charges_max: int = 1
 var charges: int = 1
 var recharge: float = 0.0
-var damage: int = 1
+## 0 at tier I: the bolt only stuns.
+var damage: int = 0
 var pierce: bool = false
 
 @onready var player: Player = get_parent() as Player
@@ -20,6 +23,11 @@ var pierce: bool = false
 func refill() -> void:
 	charges = charges_max
 	recharge = 0.0
+
+
+## 0..1 toward the next charge, or 1 while a charge is ready (the wand tip shows it).
+func readiness() -> float:
+	return 1.0 if charges > 0 else clampf(recharge / COOLDOWN, 0.0, 1.0)
 
 
 func _physics_process(delta: float) -> void:

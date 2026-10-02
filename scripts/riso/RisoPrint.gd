@@ -2,8 +2,8 @@ class_name RisoPrint
 extends Node
 ## Tarot-print presentation for the main game.
 ##
-## Art nodes draw ink *coverage* onto six plates (night, blue, pink, accent, eye yellow,
-## hat glow) by living on plate visibility layers. Each plate is a SubViewport that shares the
+## Art nodes draw ink *coverage* onto seven plates (night, blue, pink, accent, eye yellow,
+## hat glow, robe) by living on plate visibility layers. Each plate is a SubViewport that shares the
 ## game World2D and culls to its layer. A full-screen shader then prints the plates like a
 ## risograph (see shaders/riso_print.gdshader). Legacy sprites stay on the default layer, so they
 ## render under the print and reappear when the print is switched off (F6).
@@ -15,10 +15,21 @@ const PINK: int = 2
 const ACCENT: int = 3
 const EYE: int = 4
 const GLOW: int = 5
-const PLATE_COUNT: int = 6
+## The wizard's robe and hat, in the ink of the spell they carry (ROBES).
+const ROBE: int = 6
+const PLATE_COUNT: int = 7
 const PLATE_BIT0: int = 12
-const OVERLAY_BIT: int = 18
+const OVERLAY_BIT: int = 19
 const PRINT_SHADER: Shader = preload("res://shaders/riso_print.gdshader")
+const UI_SHADER: Shader = preload("res://shaders/riso_ui.gdshader")
+## The UI (HUD, interaction prompts) is printed in its own pass, finer than the scene. At full UI
+## detail these scale the scene's screen cell, wobble, grain, dot gain and misregistration for
+## it; at none it prints like the scene (see ui_detail).
+const UI_CELL: float = 0.35
+const UI_WOBBLE: float = 0.1
+const UI_GRAIN: float = 0.4
+const UI_GAIN: float = 0.3
+const UI_REGISTRATION: float = 0.1
 
 const REALMS: Dictionary = {
 	&"deep": {"paper": Color("#e4dfe8"), "inks": [Color("#161b3a"), Color("#3d5588"), Color("#ff48b0"), Color("#ffb511"), Color("#ffe800")]},
@@ -38,6 +49,16 @@ const GLOWS: Dictionary = {
 	&"levitate": Color("#7fd6c2"),
 	&"awareness": Color("#f2c14e"),
 }
+## Robe ink per spell in the slot (real Riso ink colours); no spell is the old federal blue.
+const ROBES: Dictionary = {
+	&"": Color("#3d5588"),
+	&"hex": Color("#914e72"),
+	&"astral": Color("#00838a"),
+	&"parry": Color("#bb8b41"),
+	&"levitate": Color("#67b346"),
+	&"awareness": Color("#ff6c2f"),
+	&"rift": Color("#765ba7"),
+}
 ## Print-detail stops: heavy 0, medium 50, fine 80, extra fine 100 (sizes in 720p pixels):
 ## [detail, screen cell, wobble, grain, dot gain, laydown], the prototype's values.
 const DETAIL_STOPS: Array[Array] = [
@@ -48,7 +69,7 @@ const DETAIL_STOPS: Array[Array] = [
 ]
 ## Base misregistration per plate, in 720p pixels: the prototype's offsets (night, blue, pink,
 ## accent, eye, glow), which are in its world units at about 2.4 px each.
-const REGISTRATION: Array[Vector2] = [Vector2(-0.48, -0.43), Vector2(-0.91, 0.82), Vector2(1.2, -0.72), Vector2(0.58, 1.06), Vector2(0.29, 0.36), Vector2(0.34, 0.43)]
+const REGISTRATION: Array[Vector2] = [Vector2(-0.48, -0.43), Vector2(-0.91, 0.82), Vector2(1.2, -0.72), Vector2(0.58, 1.06), Vector2(0.29, 0.36), Vector2(0.34, 0.43), Vector2(-0.66, 0.58)]
 ## How far each new sheet jitters a plate's registration (720p pixels, either way).
 const SHEET_JITTER: float = 1.2
 ## Key colours as overprints of the realm inks: sun, ember (sun over pink), moss (sun over blue), plum (pink over blue).
@@ -60,7 +81,7 @@ static var instance: RisoPrint
 var detail: float = 80.0
 var sheet_rate: float = 8.0
 var reprint_on_motion: bool = true
-var blend_sheets: bool = true
+var blend_sheets: bool = false
 var registration: StringName = &"sheet"
 var realm: StringName = &"deep"
 ## Night trapped to blue and one shared wobble (edges close up), instead of every plate
@@ -69,17 +90,31 @@ var trapped: bool = false
 ## Scales every plate's misregistration (base offset, sheet jitter and drift): 0 prints in
 ## perfect register, 1 is the prototype's, 3 is a sloppy press.
 var offset_scale: float = 1.0
+## How much finer than the scene the UI prints, 0 (the same) to 1 (UI_* in full).
+var ui_detail: float = 0.7
+## What shows the spell (its readiness and casts) on the wizard: a wand, an orb, a book or the
+## glowing hand itself (RisoWizard._focus).
+var spell_focus: StringName = &"orb"
+const FOCI: Array[StringName] = [&"wand", &"orb", &"book", &"hand"]
 ## Camera zoom while printing, relative to the scene's own zoom (smaller shows more).
 var zoom_factor: float = 0.72
 var _camera: Camera2D
 var _base_zoom: Vector2 = Vector2.ZERO
 var glow_ability: StringName = &"dash"
+## Robe in the spell's ink (ROBES), or always in the realm's blue.
+var robe_by_spell: bool = true
+var robe_color: Color = Color(-1, -1, -1)
 
 var plates: Array[SubViewport] = []
-var overlay: SubViewport
+## The UI's own canvas and plates (six inks, then paper), printed by `ui_material` over the scene.
+## UI art draws under `ui_root` (see ui_canvas()), positioned in the scene's coordinates.
+var ui_world: World2D
+var ui_plates: Array[SubViewport] = []
+var ui_root: Node2D
+var ui_rect: ColorRect
+var ui_material: ShaderMaterial
 var print_layer: CanvasLayer
 var print_rect: ColorRect
-var overlay_rect: TextureRect
 var print_material: ShaderMaterial
 var background: Node2D
 var terrain: Node2D
@@ -122,6 +157,27 @@ static func door_opened(door: Node2D) -> void:
 	fx.global_position = door.global_position
 
 
+## Called as the wizard steps through `portal`: prints the trip from where they stood (`from`,
+## the player's position before) to the far portal at `to`.
+static func portal_used(portal: Node2D, player: Player, from: Vector2, to: Vector2) -> void:
+	if not is_on() or portal == null or player == null:
+		return
+	var art: RisoProp = portal.get_node_or_null("RisoArt") as RisoProp
+	var wizard: Node2D = player.get_node_or_null("RisoWizard") as Node2D
+	if art == null or wizard == null:
+		return
+	var fx: Node2D = Node2D.new()
+	fx.set_script(preload("res://scripts/riso/RisoPortalWarp.gd"))
+	var offset: Vector2 = art.to_global(art.portal_center()) - portal.global_position
+	fx.set("from_center", portal.global_position + offset)
+	fx.set("to_center", to + offset)
+	fx.set("from_feet", from + wizard.global_position - player.global_position)
+	fx.set("facing", 1.0 if float(wizard.get("fs")) >= 0.0 else -1.0)
+	fx.set("art_scale", wizard.global_scale.y)
+	fx.set("ring", EYE if portal.has_meta(&"rift") else ACCENT)
+	portal.get_parent().add_child(fx)
+
+
 static func key_inks(color: int) -> Array[int]:
 	var out: Array[int] = []
 	for plate: int in KEY_COLORS[posmod(color, KEY_COLORS.size())]:
@@ -135,6 +191,26 @@ static func plate_mask(p: int) -> int:
 
 static func overlay_mask() -> int:
 	return 1 << OVERLAY_BIT
+
+
+## The UI canvas's paper plate (plaques and discs the UI sits on). The UI has a canvas of its
+## own, so it reuses the overlay's bit there.
+static func paper_mask() -> int:
+	return 1 << OVERLAY_BIT
+
+
+## A node in the UI's canvas for `host` to draw into (InkCanvas with ui = true, labels on the
+## plates), printed finer than the scene. The host positions it in the scene's coordinates each
+## frame. Falls back to `host` itself when there is no print.
+static func ui_canvas(host: Node2D) -> Node2D:
+	if instance == null or instance.ui_root == null:
+		return host
+	var canvas: Node2D = Node2D.new()
+	canvas.name = host.name + "Canvas"
+	canvas.visibility_layer |= all_ink_bits()
+	instance.ui_root.add_child(canvas)
+	host.tree_exiting.connect(canvas.queue_free)
+	return canvas
 
 
 static func is_on() -> bool:
@@ -189,7 +265,6 @@ func _build() -> void:
 	var main: Node = get_parent()
 	for i: int in range(PLATE_COUNT):
 		plates.append(_make_viewport(plate_mask(i)))
-	overlay = _make_viewport(overlay_mask())
 	print_layer = CanvasLayer.new()
 	print_layer.layer = 1
 	print_layer.name = "RisoPrintLayer"
@@ -203,13 +278,26 @@ func _build() -> void:
 	print_layer.add_child(print_rect)
 	for i: int in range(PLATE_COUNT):
 		print_material.set_shader_parameter("plate%d" % i, plates[i].get_texture())
-	overlay_rect = TextureRect.new()
-	overlay_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	overlay_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	overlay_rect.stretch_mode = TextureRect.STRETCH_SCALE
-	overlay_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	overlay_rect.texture = overlay.get_texture()
-	print_layer.add_child(overlay_rect)
+	# The UI: a canvas of its own (so its plates hold only UI), printed finer, on top.
+	ui_world = World2D.new()
+	for i: int in range(PLATE_COUNT + 1):
+		var vp: SubViewport = _make_viewport(plate_mask(i) if i < PLATE_COUNT else paper_mask())
+		vp.world_2d = ui_world
+		ui_plates.append(vp)
+	ui_root = Node2D.new()
+	ui_root.name = "RisoUI"
+	ui_root.visibility_layer |= all_ink_bits()
+	ui_plates[0].add_child(ui_root)
+	ui_rect = ColorRect.new()
+	ui_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	ui_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui_material = ShaderMaterial.new()
+	ui_material.shader = UI_SHADER
+	ui_rect.material = ui_material
+	for i: int in range(PLATE_COUNT):
+		ui_material.set_shader_parameter("plate%d" % i, ui_plates[i].get_texture())
+	ui_material.set_shader_parameter("plate_paper", ui_plates[PLATE_COUNT].get_texture())
+	print_layer.add_child(ui_rect)
 	background = Node2D.new()
 	background.name = "RisoBackground"
 	background.set_script(preload("res://scripts/riso/RisoBackground.gd"))
@@ -296,7 +384,8 @@ func _apply_enabled() -> void:
 	print_layer.visible = enabled
 	for vp: SubViewport in plates:
 		vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if enabled else SubViewport.UPDATE_DISABLED
-	overlay.render_target_update_mode = SubViewport.UPDATE_ALWAYS if enabled else SubViewport.UPDATE_DISABLED
+	for vp: SubViewport in ui_plates:
+		vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if enabled else SubViewport.UPDATE_DISABLED
 	for art: Node in get_tree().get_nodes_in_group(&"riso_art"):
 		if art is CanvasItem:
 			(art as CanvasItem).visible = enabled
@@ -357,10 +446,12 @@ func _process(delta: float) -> void:
 		if vp.size != plate_size:
 			vp.size = plate_size
 		vp.canvas_transform = xf
-	if overlay.size != plate_size:
-		overlay.size = plate_size
-	overlay.canvas_transform = xf
+	for vp: SubViewport in ui_plates:
+		if vp.size != plate_size:
+			vp.size = plate_size
+		vp.canvas_transform = xf
 	_track_player()
+	_ease_robe(delta)
 	if not get_tree().paused:
 		_advance_sheet(delta)
 	_update_uniforms(Vector2(size))
@@ -377,6 +468,14 @@ func _track_player() -> void:
 			_player.parry.connect(func() -> void: flare(&"parry"))
 
 
+## The robe's ink eases to its spell's over a moment, so learning a spell visibly re-dyes it.
+func _ease_robe(delta: float) -> void:
+	var target: Color = (REALMS[realm]["inks"] as Array)[BLUE]
+	if robe_by_spell and _player != null and is_instance_valid(_player):
+		target = ROBES.get(Abilities.spell(_player), ROBES[&""])
+	robe_color = target if robe_color.r < 0.0 else robe_color.lerp(target, minf(1.0, delta * 4.0))
+
+
 func _on_player_event(kind: StringName, _at: Vector2) -> void:
 	if kind == &"jump":
 		var feet: Node2D = _player.get_node_or_null("RisoWizard") as Node2D
@@ -390,16 +489,21 @@ func _on_player_event(kind: StringName, _at: Vector2) -> void:
 	elif kind == &"jump" and _player != null and _player.MAX_JUMPS > 1 and _player.jumps < _player.MAX_JUMPS and not _player.is_on_floor():
 		flare(&"double_jump")
 	if reprint_on_motion and registration == &"sheet" and sheet_rate > 0.0:
-		if kind in [&"jump", &"dash", &"hurt", &"death", &"projection_start", &"projection_end"]:
+		if kind in [&"jump", &"dash", &"hurt", &"death", &"projection_start", &"projection_end", &"teleport"]:
 			_new_sheet()
 
 
-## Called by the wizard (or ability events) when an ability fires: the hat glow takes its ink.
+## Movement (dash, blink, climb, double jump) lights the hat, which takes its glow ink; spells
+## light the wand's tip instead (accent ink) and leave the hat's colour alone.
 func flare(ability: StringName) -> void:
-	glow_ability = ability
 	var wizard: Node = null
 	if _player != null and is_instance_valid(_player):
 		wizard = _player.get_node_or_null("RisoWizard")
+	if ability in Abilities.SPELLS:
+		if wizard != null:
+			wizard.call("wand_flare")
+		return
+	glow_ability = ability
 	if wizard != null:
 		wizard.call("flare")
 
@@ -464,6 +568,7 @@ func _update_uniforms(size: Vector2) -> void:
 		print_material.set_shader_parameter("ink%d" % i, Vector3(c.r, c.g, c.b))
 	var g: Color = GLOWS.get(glow_ability, GLOWS[&"dash"])
 	print_material.set_shader_parameter("ink5", Vector3(g.r, g.g, g.b))
+	print_material.set_shader_parameter("ink6", Vector3(robe_color.r, robe_color.g, robe_color.b))
 	var t: float = Time.get_ticks_msec() / 1000.0
 	var m: float = _sheet_mix()
 	for i: int in range(PLATE_COUNT):
@@ -486,6 +591,21 @@ func _update_uniforms(size: Vector2) -> void:
 	var root: Viewport = get_viewport()
 	var view: Transform2D = root.get_final_transform() * root.canvas_transform
 	print_material.set_shader_parameter("pin", -view.origin)
+	# The UI's print: the same sheet and inks, finer, and pinned to the screen (the HUD is).
+	for p: String in ["res", "paper", "ink0", "ink1", "ink2", "ink3", "ink4", "ink5", "ink6", "lay", "seed", "seed2", "mixv"]:
+		ui_material.set_shader_parameter(p, print_material.get_shader_parameter(p))
+	for i: int in range(PLATE_COUNT):
+		ui_material.set_shader_parameter("off%d" % i, (print_material.get_shader_parameter("off%d" % i) as Vector2) * _ui_scale(UI_REGISTRATION))
+	ui_material.set_shader_parameter("cell", params[0] * s * _ui_scale(UI_CELL))
+	ui_material.set_shader_parameter("wob", params[1] * s * _ui_scale(UI_WOBBLE))
+	ui_material.set_shader_parameter("grain", params[2] * _ui_scale(UI_GRAIN))
+	ui_material.set_shader_parameter("gain", params[3] * s * _ui_scale(UI_GAIN))
+	ui_material.set_shader_parameter("pin", Vector2.ZERO)
+
+
+## A UI print setting's scale at the current UI detail: from 1 (as the scene) to `finest`.
+func _ui_scale(finest: float) -> float:
+	return lerpf(1.0, finest, ui_detail)
 
 
 func set_realm(r: StringName) -> void:
@@ -571,8 +691,6 @@ func _on_node_added(node: Node) -> void:
 		_dress.call_deferred(node, DRESS[node.scene_file_path])
 	elif node.name == "Interactable":
 		_add_prompt.call_deferred(node)
-	elif node.name == "Cooldown":
-		_lift_to_overlay.call_deferred(node)
 
 
 func _dress(node: Node, kind: StringName) -> void:
@@ -607,24 +725,13 @@ func _add_prompt(interactable: Node) -> void:
 	host.add_child(prompt)
 
 
-## Cooldown rings stay readable above the print.
-func _lift_to_overlay(node: Node) -> void:
-	if not is_instance_valid(node):
-		return
-	var items: Array[Node] = [node]
-	items.append_array(node.get_children())
-	for item: Node in items:
-		if item is CanvasItem:
-			(item as CanvasItem).visibility_layer |= overlay_mask()
-	share_layers(node)
-
-
 # ---------------------------------------------------------------- print controls (F7)
 
 var _detail_label: Label
 var _rate_label: Label
 var _zoom_label: Label
 var _offset_label: Label
+var _ui_detail_label: Label
 var _options: Dictionary = {}
 
 
@@ -636,9 +743,16 @@ func _build_panel() -> void:
 	panel.visible = false
 	panel.position = Vector2(4, 4)
 	layer.add_child(panel)
+	# The rows outgrow the 180-unit UI height, so they scroll (wheel or drag the bar).
+	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(176, 168)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
+	panel.add_child(scroll)
 	var box: VBoxContainer = VBoxContainer.new()
 	box.add_theme_constant_override("separation", 1)
-	panel.add_child(box)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(box)
 	var title: Label = Label.new()
 	title.text = "Riso print  (F6 on/off, F7 panel, F8 realm)"
 	title.add_theme_font_size_override("font_size", 6)
@@ -649,11 +763,16 @@ func _build_panel() -> void:
 	_offset_label = _slider_row(box, "Plate offset", 0.0, 3.0, 0.1, offset_scale, func(v: float) -> void:
 		offset_scale = v
 		_sync_panel())
+	_ui_detail_label = _slider_row(box, "UI detail", 0.0, 1.0, 0.05, ui_detail, func(v: float) -> void:
+		ui_detail = v
+		_sync_panel())
 	_option_row(box, &"registration", "Registration", ["New sheet", "Locked", "Drift"], _on_registration)
 	_option_row(box, &"reprint", "Reprint on", ["Clock", "Motion"], _on_reprint)
 	_option_row(box, &"between", "Between sheets", ["Cut", "Blend"], _on_between)
 	_option_row(box, &"realm", "Realm", ["Deep night", "Twilight", "Aurora"], _on_realm_picked)
 	_option_row(box, &"plates", "Plates", ["Independent", "Trapped"], func(i: int) -> void: trapped = i == 1)
+	_option_row(box, &"focus", "Spell focus", ["Wand", "Orb", "Book", "Hand"], func(i: int) -> void: spell_focus = FOCI[i])
+	_option_row(box, &"robe", "Robe", ["Spell colour", "Blue"], func(i: int) -> void: robe_by_spell = i == 0)
 	_sync_panel()
 
 
@@ -735,6 +854,7 @@ func _sync_panel() -> void:
 	_rate_label.text = "held" if sheet_rate <= 0.0 else "%d / s" % int(sheet_rate)
 	_zoom_label.text = "%d%%" % roundi(100.0 / zoom_factor)
 	_offset_label.text = "%.1f×" % offset_scale
+	_ui_detail_label.text = "%d%%" % roundi(ui_detail * 100.0)
 	if _options.has(&"realm"):
 		(_options[&"realm"] as OptionButton).select(REALM_ORDER.find(realm))
 	if _options.has(&"reprint"):
@@ -743,3 +863,7 @@ func _sync_panel() -> void:
 		(_options[&"between"] as OptionButton).select(1 if blend_sheets else 0)
 	if _options.has(&"plates"):
 		(_options[&"plates"] as OptionButton).select(1 if trapped else 0)
+	if _options.has(&"focus"):
+		(_options[&"focus"] as OptionButton).select(FOCI.find(spell_focus))
+	if _options.has(&"robe"):
+		(_options[&"robe"] as OptionButton).select(0 if robe_by_spell else 1)

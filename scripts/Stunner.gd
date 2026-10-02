@@ -1,11 +1,17 @@
 extends Node
 
 class_name Stunner
+## Stuns its enemy (hex, parry): the listed nodes stop for a while. A new stun extends the
+## current one if it would last longer. The ink art shows it (RisoProp: circling stars over the
+## head, `fraction()` of the stun left); the legacy Cooldown bar is shown when the print is off.
 
 var stunnable_nodes: Array[String] = ["Mover", "Shooter", "HitBox"]
 @onready var top: Node = $".."
 @onready var sprite: Sprite2D = $Sprite2D
 @onready var cooldown: Cooldown = $Cooldown
+## Seconds of stun left, and the length of the current stun.
+var left: float = 0.0
+var total: float = 0.0
 
 func set_stuns (value: bool) -> void:
 #	sprite.visible = value
@@ -16,6 +22,19 @@ func set_stuns (value: bool) -> void:
 
 func stun (duration: float=2.0) -> void:
 	set_stuns(true)
+	if duration > left:
+		left = duration
+		total = duration
 	cooldown.enable(duration, Color.GREEN_YELLOW, Color.DARK_SLATE_GRAY)
-	await get_tree().create_timer(duration).timeout
-	set_stuns(false)
+
+
+## Of the current stun, how much is left (1 just stunned, 0 not stunned).
+func fraction() -> float:
+	return clampf(left / total, 0.0, 1.0) if total > 0.0 and left > 0.0 else 0.0
+
+
+func _process(delta: float) -> void:
+	if left > 0.0:
+		left = maxf(0.0, left - delta)
+		if left == 0.0:
+			set_stuns(false)

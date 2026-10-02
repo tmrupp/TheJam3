@@ -9,6 +9,10 @@ static var lift_material: CanvasItemMaterial
 
 var _ops: Array[Node2D] = []
 var _used: int = 0
+## UI mode (the HUD, interaction prompts), for a canvas under RisoPrint.ui_canvas(): knocks also
+## lay paper on the UI's paper plate, so the plaques and discs the UI sits on print as paper over
+## the scene. Everything else prints as usual, in the UI's own, finer print.
+var ui: bool = false
 
 
 func _init() -> void:
@@ -42,6 +46,12 @@ func ink(plate: int, cover: float, polys: Array[PackedVector2Array], punch: bool
 		_emit(RisoPrint.plate_mask(RisoPrint.NIGHT), true, cover, polys, [])
 
 
+## Several inks printed over one another in the same shapes (the key colours), each in turn.
+func ink_overprint(plates: Array[int], cover: float, polys: Array[PackedVector2Array]) -> void:
+	for plate: int in plates:
+		ink(plate, cover, polys, false)
+
+
 ## Ink with per-vertex coverage (for fades such as the dash smear).
 func ink_graded(plate: int, polys: Array[PackedVector2Array], alphas: Array[PackedFloat32Array], punch: bool = true) -> void:
 	if polys.is_empty():
@@ -59,6 +69,8 @@ func knock(plates: Array[int], polys: Array[PackedVector2Array]) -> void:
 	for p: int in plates:
 		mask |= RisoPrint.plate_mask(p)
 	_emit(mask, true, 1.0, polys, [])
+	if ui:
+		_emit(RisoPrint.paper_mask(), false, 1.0, polys, [])
 
 
 ## Lift `cover` (0..1) of the ink already on `plates` inside `polys`: a partial knock, for light.

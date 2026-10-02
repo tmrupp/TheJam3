@@ -29,7 +29,12 @@ func cast() -> Node2D:
 			end.call("unlink")
 			end.queue_free()
 		ends.clear()
-	var rift: Node2D = _spawn_end(info, player.global_position, level, true)
+	# Standing, the rift opens at its cell's middle, the height a level's own teleporters stand at;
+	# in mid air (tier II), where the wizard is.
+	var at: Vector2 = player.global_position
+	if player.is_on_floor():
+		at.y = info.tile_map.to_global(info.tile_map.map_to_local(info.cell_at(player.global_position))).y
+	var rift: Node2D = _spawn_end(info, at, level, true)
 	ends.append(rift)
 	if ends.size() == 2:
 		ends[0].call("link", ends[1])
@@ -40,7 +45,7 @@ func cast() -> Node2D:
 	info.record()["rifts"] = positions
 	info.record()["rift_tier"] = level
 	info.save_run()
-	RisoFx.burst(&"gain", rift.global_position, Vector2.ZERO, [RisoPrint.GLOW, RisoPrint.BLUE])
+	RisoFx.burst(&"gain", rift.global_position, Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
 	if RisoPrint.instance != null:
 		RisoPrint.instance.flare(&"rift")
 	return rift

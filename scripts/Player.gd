@@ -67,6 +67,8 @@ var hurt_ability: Callable = normal_hurt
 
 # SPEED: how quickly the player moves
 const SPEED: float = 300.0
+## Running speed now: SPEED raised by the speed perk (see Abilities).
+var run_speed: float = SPEED
 # JUMP_VELOCITY: how quickly and high the player jumps
 const JUMP_VELOCITY: float = -600.0
 const JUMP_GRAVITY_FACTOR: float = 0.7
@@ -372,7 +374,7 @@ func _physics_process(delta: float) -> void:
 	# if has manual control set the velocity correctly
 	if (manual_control):
 		if direction:
-			velocity.x = direction.x * SPEED
+			velocity.x = direction.x * run_speed
 		else:
 			velocity.x = move_toward(velocity.x, 0, SPEED/10)
 			
@@ -383,7 +385,9 @@ func _physics_process(delta: float) -> void:
 	# get dash input and dash if necessary
 	if Input.is_action_just_pressed("Dash"):
 		if not dash.acted:
-			dash.enable()
+			# Forced, so a dash given back mid-dash (by a moon) starts a fresh one: full length,
+			# and spent again, rather than only turning the one still running.
+			dash.enable(true)
 			dash_ability.bind(direction).call()
 	
 	# elapse the time in all timers

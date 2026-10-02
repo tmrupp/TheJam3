@@ -32,7 +32,7 @@ const SLOTS: Array[Array] = [
 	[RisoPrint.NIGHT, 0.35, false, false],  # 13 stone shade
 	[RisoPrint.NIGHT, 1.0, true, false],    # 14 paper spots on the caps
 ]
-const KNOCK_ALL: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW]
+const KNOCK_ALL: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE]
 const KNOCK_ROCK: Array[int] = [RisoPrint.BLUE, RisoPrint.NIGHT]
 const STRUCTURES: Array[String] = ["level_exit.tscn", "shrine.tscn", "door.tscn", "checkpoint.tscn", "spikes.tscn",
 	"portal.tscn", "inkwell.tscn", "moving_platform.tscn"]

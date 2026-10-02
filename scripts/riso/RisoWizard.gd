@@ -9,7 +9,11 @@ const MAXV: float = 88.0
 const HEMX: Array[float] = [-8.8, -4.5, 0.0, 4.5, 8.8]
 const VX_SCALE: float = 88.0 / 300.0
 const VY_SCALE: float = 0.5
-const ALL: Array[int] = [0, 1, 2, 3, 4, 5]
+const ALL: Array[int] = [0, 1, 2, 3, 4, 5, 6]
+## Cleared under the robe and hat so the robe ink prints true over whatever is behind.
+const UNDER: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW]
+## Night shade on the collar, sleeve and hat cone, setting them off from the robe.
+const TRIM_SHADE: float = 0.22
 ## Art scale around the feet: at 0.8 the robe fits the ~62 px collider. Collision is unchanged.
 const ART_SCALE: float = 0.8
 
@@ -41,7 +45,16 @@ var hem_y: PackedFloat32Array = PackedFloat32Array([0, 0, 0, 0, 0])
 var hem_vx: PackedFloat32Array = PackedFloat32Array([0, 0, 0, 0, 0])
 var hem_vy: PackedFloat32Array = PackedFloat32Array([0, 0, 0, 0, 0])
 var flare_amount: float = 0.0
-var trail: Array[Vector3] = []  # x, y = feet position (world), z = life 0..1
+## The wand's tip flare, set when a spell is cast (the hat's flare is the dash's).
+var wand_flare_amount: float = 0.0
+## Dash afterimages: x, y = feet (world), z = facing, w = life 1..0. One is left each time the
+## dash has carried the wizard ECHO_GAP art units on from the last.
+var echoes: Array[Vector4] = []
+const ECHO_GAP: float = 12.0
+const ECHO_LIFE: float = 0.3
+const ECHO_COVER: float = 0.55
+## Where this dash left its last afterimage (INF between dashes).
+var _echo_at: Vector2 = Vector2.INF
 var ghosts: Array[Vector4] = []  # x, y, facing, life 0..1
 var _was_dashing: bool = false
 var key_pos: Vector2 = Vector2.INF
@@ -82,13 +95,41 @@ func flare() -> void:
 	flare_amount = 1.0
 
 
+## A spell was cast: the wand's tip flares.
+func wand_flare() -> void:
+	wand_flare_amount = 1.0
+
+
+## How ready the spell in the slot is, 0..1 (the wand tip's brightness), or -1 with no spell.
+func _spell_ready() -> float:
+	match Abilities.spell(player):
+		&"":
+			return -1.0
+		&"hex":
+			var hex: Hex = player.get_node_or_null("Hex") as Hex
+			return hex.readiness() if hex != null else 1.0
+		&"levitate":
+			var lev: Levitate = player.get_node_or_null("Levitate") as Levitate
+			return 1.0 if lev == null or lev.charged or lev.floating() else 0.0
+		&"parry":
+			var parry: Node = player.get_node_or_null("Parry")
+			var cd: ActionTimer = parry.get("cooldown") as ActionTimer if parry != null else null
+			if cd == null or not cd.acted:
+				return 1.0
+			return 1.0 - clampf(cd.acting / cd.MAX_TIME, 0.0, 1.0) if cd.is_acting() else 0.0
+	return 1.0
+
+
 func _on_event(kind: StringName, at: Vector2) -> void:
 	if kind == &"jump":
 		squash_v += 4.5
 	elif kind == &"projection_start":
 		ghosts.append(Vector4(at.x, at.y, signf(fs), 1.0))
-	elif kind == &"dash":
-		squash_v -= 3.0
+	elif kind == &"teleport":
+		# Out of the portal tall and thin; the squash spring settles it back.
+		squash = 1.32
+		squash_v = 0.0
+		key_pos = Vector2.INF
 
 
 func _physics_process(delta: float) -> void:
@@ -108,14 +149,19 @@ func _physics_process(delta: float) -> void:
 	_rig(delta, dashing)
 	var feet: Vector2 = global_position
 	if dashing:
-		trail.append(Vector3(feet.x, feet.y, 1.0))
-	for i: int in range(trail.size() - 1, -1, -1):
-		var pt: Vector3 = trail[i]
-		pt.z -= delta / 0.24
-		if pt.z <= 0.0:
-			trail.remove_at(i)
+		var gap: float = ECHO_GAP * player.global_scale.y * ART_SCALE
+		if _echo_at == Vector2.INF or _echo_at.distance_to(feet) >= gap:
+			echoes.append(Vector4(feet.x, feet.y, signf(fs), 1.0))
+			_echo_at = feet
+	else:
+		_echo_at = Vector2.INF
+	for i: int in range(echoes.size() - 1, -1, -1):
+		var e: Vector4 = echoes[i]
+		e.w -= delta / ECHO_LIFE
+		if e.w <= 0.0:
+			echoes.remove_at(i)
 		else:
-			trail[i] = pt
+			echoes[i] = e
 	for i: int in range(ghosts.size() - 1, -1, -1):
 		var g: Vector4 = ghosts[i]
 		g.w -= delta / 1.4
@@ -124,6 +170,7 @@ func _physics_process(delta: float) -> void:
 		else:
 			ghosts[i] = g
 	flare_amount = maxf(0.0, flare_amount - delta * 2.2)
+	wand_flare_amount = maxf(0.0, wand_flare_amount - delta * 2.2)
 	# A carried key trails the wizard on a soft lag, just behind and above the shoulder.
 	var s: float = player.global_scale.y * ART_SCALE
 	var target: Vector2 = global_position + Vector2(-signf(fs) * 11.0, -24.0) * s
@@ -208,7 +255,8 @@ func _rig(dt: float, dashing: bool) -> void:
 	if took:
 		head_v -= 16.0
 		tip_v -= fsn * 2.0
-	var squash_t: float = 0.8 if dashing else (1.0 if ground else 1.0 + clampf(absf(vy) / 2600.0, 0.0, 0.12))
+	# No squash while dashing: the dash reads through the lean, the hem and the afterimages instead.
+	var squash_t: float = 1.0 if ground or dashing else 1.0 + clampf(absf(vy) / 2600.0, 0.0, 0.12)
 	squash_v += ((squash_t - squash) * 260.0 - squash_v * 15.0) * dt
 	squash = clampf(squash + squash_v * dt, 0.68, 1.32)
 	pvx = vx
@@ -377,7 +425,8 @@ func _draw_body() -> void:
 	body.begin()
 	body.ink(RisoPrint.NIGHT, 1.0, boots, false)
 	body.ink(RisoPrint.BLUE, 1.0, boots, false)
-	body.ink(RisoPrint.BLUE, 1.0, [robe_m])
+	body.knock(UNDER, [robe_m])
+	body.ink(RisoPrint.ROBE, 1.0, [robe_m], false)
 	body.ink(RisoPrint.NIGHT, 0.18, [_sm(m * back_shade)], false)
 	body.ink(RisoPrint.NIGHT, 0.42, folds, false)
 	body.ink(RisoPrint.NIGHT, 1.0, [face], false)
@@ -386,22 +435,23 @@ func _draw_body() -> void:
 	for c: Vector2 in eye_c:
 		eyes.append(_sm(m * (RisoShapes.ellipse(c, 1.0, 1.0 * eye_ry, 12) if not blink else RisoShapes.rrect(c.x - 1.0, c.y - 0.25, 2.0, 0.5, 0.25, 2))))
 	if not blink:
-		body.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT], eyes)
+		body.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.ROBE], eyes)
 	body.ink(RisoPrint.EYE, 1.0, eyes, false)
 	if not blink and eye_ry > 0.7:
 		var cores: Array[PackedVector2Array] = []
 		for c: Vector2 in eye_c:
 			cores.append(_sm(m * RisoShapes.circle(c + Vector2(fsc * 0.25, -0.2), 0.4, 8)))
 		body.knock([RisoPrint.EYE], cores)
-	body.knock([RisoPrint.NIGHT, RisoPrint.EYE], [collar])
-	body.ink(RisoPrint.BLUE, 1.0, [collar])
-	body.ink(RisoPrint.PINK, 0.25, [collar])
-	body.knock([RisoPrint.NIGHT], [sleeve])
-	body.ink(RisoPrint.BLUE, 1.0, [sleeve])
-	body.ink(RisoPrint.PINK, 0.25, [sleeve])
-	body.knock([RisoPrint.NIGHT, RisoPrint.EYE], [cone, brim])
-	body.ink(RisoPrint.BLUE, 1.0, [cone, brim])
-	body.ink(RisoPrint.PINK, 0.25, [cone])
+	body.knock(UNDER, [collar])
+	body.ink(RisoPrint.ROBE, 1.0, [collar], false)
+	body.ink(RisoPrint.NIGHT, TRIM_SHADE, [collar], false)
+	body.knock(UNDER, [sleeve])
+	body.ink(RisoPrint.ROBE, 1.0, [sleeve], false)
+	body.ink(RisoPrint.NIGHT, TRIM_SHADE, [sleeve], false)
+	_focus(m, hand, f)
+	body.knock(UNDER, [cone, brim])
+	body.ink(RisoPrint.ROBE, 1.0, [cone, brim], false)
+	body.ink(RisoPrint.NIGHT, TRIM_SHADE, [cone], false)
 	body.ink(RisoPrint.ACCENT, 1.0, [band])
 	var pulse: float = 1.0 + 0.08 * sin(t * 3.0)
 	var ready: bool = not player.dash.acted
@@ -423,14 +473,105 @@ func _draw_body() -> void:
 	body.finish()
 
 
+## The hat's tip is the dash: lit with its halo while the dash is ready, dark (a dim bead, no
+## halo) from the moment it is used until it comes back (landing, or a moon).
 func _bead(bead: Vector2, pulse: float, ready: bool) -> void:
-	body.ink(RisoPrint.GLOW, 0.15, [RisoShapes.circle(bead, (4.6 + flare_amount * 7.0) * pulse, 24)])
-	body.ink(RisoPrint.GLOW, 0.25, [RisoShapes.circle(bead, (3.2 + flare_amount * 4.0) * pulse, 20)])
-	body.ink(RisoPrint.GLOW, 0.5, [RisoShapes.circle(bead, 2.2 + flare_amount * 1.5, 16)])
-	body.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE], [RisoShapes.circle(bead, 1.35, 12)])
-	body.ink(RisoPrint.GLOW, 1.0 if ready else 0.5, [RisoShapes.circle(bead, 1.35, 12)], false)
+	if ready or flare_amount > 0.05:
+		body.ink(RisoPrint.GLOW, 0.15, [RisoShapes.circle(bead, (4.6 + flare_amount * 7.0) * pulse, 24)])
+		body.ink(RisoPrint.GLOW, 0.25, [RisoShapes.circle(bead, (3.2 + flare_amount * 4.0) * pulse, 20)])
+		body.ink(RisoPrint.GLOW, 0.5, [RisoShapes.circle(bead, 2.2 + flare_amount * 1.5, 16)])
+	body.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.ROBE], [RisoShapes.circle(bead, 1.35, 12)])
+	body.ink(RisoPrint.GLOW, 1.0 if ready else 0.2, [RisoShapes.circle(bead, 1.35, 12)], false)
+	if not ready:
+		body.ink(RisoPrint.NIGHT, 0.45, [RisoShapes.circle(bead, 1.35, 12)], false)
 	if ready:
 		body.knock([RisoPrint.GLOW], [RisoShapes.circle(bead - Vector2(0.3, 0.3), 0.5 + flare_amount * 0.3, 8)])
+
+
+## The spell's focus (chosen on the F7 panel: RisoPrint.spell_focus): what carries the spell's
+## readiness, in accent ink, dim when spent and brightening as it recharges, and flares on a cast.
+func _focus(m: Transform2D, hand: Vector2, f: float) -> void:
+	var r: float = _spell_ready()
+	if r < 0.0:
+		return
+	var kind: StringName = RisoPrint.instance.spell_focus if RisoPrint.instance != null else &"orb"
+	match kind:
+		&"orb":
+			_orb(m, f, r)
+		&"book":
+			_book(m, hand, f, r)
+		&"hand":
+			_glowing_hand(m, hand, f, r)
+		_:
+			_wand(m, hand, f, r)
+
+
+## A spark of spell light at `at` (canvas space): a halo while charged or flaring, a core whose
+## ink grows with readiness `r` (night dims it while spent) and a paper-white heart once ready.
+func _spell_light(at: Vector2, size: float, r: float, star: bool) -> void:
+	var glow: float = r * r
+	if glow > 0.05 or wand_flare_amount > 0.05:
+		body.ink(RisoPrint.ACCENT, 0.15 * glow + 0.2 * wand_flare_amount, [RisoShapes.circle(at, size * 1.8 + wand_flare_amount * 5.0 + glow * 1.0, 20)], false)
+	var core: PackedVector2Array = Transform2D(t * 1.5, at) * RisoShapes.sparkle(Vector2.ZERO, size * (0.7 + 0.3 * r) + wand_flare_amount * 1.2) if star \
+		else RisoShapes.circle(at, size * (0.8 + 0.2 * r) + wand_flare_amount * 0.6, 16)
+	body.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.GLOW, RisoPrint.ROBE], [core])
+	body.ink(RisoPrint.ACCENT, lerpf(0.2, 1.0, r), [core], false)
+	if r < 1.0:
+		body.ink(RisoPrint.NIGHT, 0.5 * (1.0 - r), [core], false)
+	else:
+		body.knock([RisoPrint.ACCENT], [RisoShapes.circle(at + (Vector2.ZERO if star else Vector2(-0.35, -0.35) * size), 0.35 * maxf(1.0, size * 0.5), 8)])
+
+
+## An orb of spell light floating at the shoulder away from the hand, bobbing; once ready a mote
+## circles it.
+func _orb(m: Transform2D, f: float, r: float) -> void:
+	var at: Vector2 = m * Vector2(-f * 10.0, -17.5 + sin(t * 2.2) * 1.0)
+	_spell_light(at, 2.8, r, false)
+	if r >= 1.0:
+		var a: float = t * 3.0
+		body.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(at + Vector2(cos(a) * 4.8, sin(a) * 1.8), 0.7, 8)], false)
+
+
+## A small dark tome held in the hand, its page edge bare paper and a rune of spell light on the
+## cover; a cast lifts a rune off the page.
+func _book(m: Transform2D, hand: Vector2, f: float, r: float) -> void:
+	var c: Vector2 = hand + Vector2(f * 1.4, -1.0)
+	var tilt: Transform2D = m * Transform2D(-f * 0.25, c)
+	var cover: PackedVector2Array = tilt * RisoShapes.rrect(-2.0, -1.6, 4.0, 3.2, 0.5)
+	var pages: PackedVector2Array = tilt * RisoShapes.rrect(-1.7, -2.2, 3.4, 0.8, 0.3)
+	body.knock([RisoPrint.PINK, RisoPrint.GLOW, RisoPrint.ROBE], [cover])
+	body.ink(RisoPrint.BLUE, 1.0, [cover], false)
+	body.ink(RisoPrint.NIGHT, 0.7, [cover], false)
+	body.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.GLOW, RisoPrint.ROBE], [pages])
+	_spell_light(tilt * Vector2(0.0, 0.2), 1.1, r, true)
+	if wand_flare_amount > 0.05:
+		var rise: Vector2 = tilt * Vector2(0.0, -2.6) + Vector2(0, -(1.0 - wand_flare_amount) * 6.0)
+		body.ink(RisoPrint.ACCENT, wand_flare_amount, [Transform2D(t * 4.0, rise) * RisoShapes.sparkle(Vector2.ZERO, 1.6)], false)
+
+
+## No object: the palm itself glows, and motes gather round it one by one as the spell charges.
+func _glowing_hand(m: Transform2D, hand: Vector2, f: float, r: float) -> void:
+	var palm: Vector2 = m * (hand + Vector2(f * 0.9, 0.5))
+	_spell_light(palm, 1.3, r, false)
+	var motes: Array[PackedVector2Array] = []
+	for i: int in range(3):
+		if float(i) >= r * 3.0 - 0.001 and r < 1.0:
+			continue
+		var a: float = t * 2.4 + TAU * float(i) / 3.0
+		motes.append(RisoShapes.circle(palm + Vector2(cos(a) * 3.6, sin(a) * 2.4), 0.8, 8))
+	if not motes.is_empty():
+		body.ink(RisoPrint.ACCENT, 1.0, motes, false)
+
+
+## The spell's wand, held in the sleeve's hand and tipped with a spark of spell light (accent
+## ink) whose brightness is the spell's readiness: dim when spent, brightening as it recharges,
+## with a soft halo and a paper-white core once ready. Flares when a spell is cast.
+func _wand(m: Transform2D, hand: Vector2, f: float, r: float) -> void:
+	var a: Vector2 = hand + Vector2(f * 0.6, -0.4)
+	var b: Vector2 = hand + Vector2(f * 4.4, -3.7)
+	var n: Vector2 = (b - a).normalized().orthogonal()
+	body.ink(RisoPrint.NIGHT, 1.0, [m * PackedVector2Array([a - n * 0.5, b - n * 0.32, b + n * 0.32, a + n * 0.5])], false)
+	_spell_light(m * (b + (b - a).normalized() * 0.6), 2.6, r, true)
 
 
 ## Vulnerable: the hat's glow is out. The bead splits into two pink halves with a gap between
@@ -447,41 +588,22 @@ func _cracked_bead(bead: Vector2) -> void:
 			half_disc.append(Vector2(cos(a), sin(a)) * 1.6)
 		var nudge: Vector2 = Vector2(-side * 0.45, -side * 0.2)
 		halves.append(Transform2D(0.25, bead + nudge) * half_disc)
-	body.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], halves)
+	body.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE], halves)
 	body.ink(RisoPrint.PINK, 1.0, halves, false)
 
 
 func _draw_world() -> void:
 	var s: float = player.global_scale.y * ART_SCALE
 	world.begin()
-	# Dash smear: a continuous ribbon along the dash path (oldest point first), thin and faint at
-	# the tail, full height at the wizard. Built from per-segment quads offset along each
-	# segment's normal, so vertical and diagonal dashes smear correctly and never fold over.
-	if trail.size() > 0:
-		var head: Vector2 = global_position
-		var pts: Array[Vector3] = []
-		pts.append_array(trail)
-		pts.append(Vector3(head.x, head.y, 1.0))
-		var n: int = pts.size()
-		var quads: Array[PackedVector2Array] = []
-		var fades: Array[PackedFloat32Array] = []
-		var lift: Vector2 = Vector2(0, -17.0 * s)
-		for i: int in range(n - 1):
-			var a: Vector2 = Vector2(pts[i].x, pts[i].y) + lift
-			var b: Vector2 = Vector2(pts[i + 1].x, pts[i + 1].y) + lift
-			if a.distance_to(b) < 1.0:
-				continue
-			var nrm: Vector2 = (b - a).normalized().orthogonal()
-			var ua: float = float(i) / float(n - 1)
-			var ub: float = float(i + 1) / float(n - 1)
-			var ha: float = lerpf(2.5, 16.0, pow(ua, 0.8)) * s
-			var hb: float = lerpf(2.5, 16.0, pow(ub, 0.8)) * s
-			var fa: float = 0.72 * pow(ua, 1.3) * pts[i].z
-			var fb: float = 0.72 * pow(ub, 1.3) * pts[i + 1].z
-			quads.append(PackedVector2Array([a - nrm * ha, b - nrm * hb, b + nrm * hb * 0.95, a + nrm * ha * 0.95]))
-			fades.append(PackedFloat32Array([fa, fb, fb, fa]))
-		if not quads.is_empty():
-			world.ink_graded(RisoPrint.BLUE, quads, fades)
+	# Dash afterimages: silhouettes of the wizard left behind along the dash, printed in the hat's
+	# glow ink (the ability's colour) and fading fast, newest strongest. Whole silhouettes read
+	# the same in every direction, so there is no sideways/upward special case.
+	for e: Vector4 in echoes:
+		var at: Transform2D = Transform2D(0.0, Vector2(s, s), 0.0, Vector2(e.x, e.y))
+		world.ink(RisoPrint.GLOW, ECHO_COVER * pow(e.w, 1.5), _silhouette(at, e.z))
+	if not echoes.is_empty():
+		# Not over the wizard: the glow would overprint the blue robe purple.
+		world.knock([RisoPrint.GLOW], _silhouette(Transform2D(0.0, Vector2(s, s) * 1.08, 0.0, global_position), signf(fs)))
 	# Astral projection: a glowing silhouette holds the return point; a short afterimage marks each start.
 	var marks: Array[Vector4] = []
 	marks.append_array(ghosts)
@@ -504,9 +626,13 @@ func _draw_world() -> void:
 			world.ink(plate, 1.0, RisoProp.key_shape(key_pos + bob, 1.0))
 	for g: Vector4 in marks:
 		var at: Transform2D = Transform2D(0.0, Vector2(s, s), 0.0, Vector2(g.x, g.y - (1.0 - g.w) * 6.0 * s))
-		var ghost: Array[PackedVector2Array] = [
-			at * RisoShapes.smooth(PackedVector2Array([Vector2(-3.8, -15), Vector2(-6.6, -7), Vector2(-9, -2.2), Vector2(9, -2.2), Vector2(6.6, -7), Vector2(3.8, -15)])),
-			at * RisoShapes.smooth(PackedVector2Array([Vector2(-5, -21.4), Vector2(-2.9, -28.4), Vector2(-g.z * 4.6, -37), Vector2(2.9, -28.4), Vector2(5, -21.4)])),
-		]
-		world.ink(RisoPrint.GLOW, 0.25 if g.w > 0.5 else 0.15, ghost)
+		world.ink(RisoPrint.GLOW, 0.25 if g.w > 0.5 else 0.15, _silhouette(at, g.z))
 	world.finish()
+
+
+## The wizard's outline (robe and hat, the tip bent toward `facing`), feet at the origin of `at`.
+func _silhouette(at: Transform2D, facing: float) -> Array[PackedVector2Array]:
+	return [
+		at * RisoShapes.smooth(PackedVector2Array([Vector2(-3.8, -15), Vector2(-6.6, -7), Vector2(-9, -2.2), Vector2(9, -2.2), Vector2(6.6, -7), Vector2(3.8, -15)])),
+		at * RisoShapes.smooth(PackedVector2Array([Vector2(-5, -21.4), Vector2(-2.9, -28.4), Vector2(-facing * 4.6, -37), Vector2(2.9, -28.4), Vector2(5, -21.4)])),
+	]

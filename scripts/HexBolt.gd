@@ -1,8 +1,9 @@
 extends Node2D
 ## A hex bolt in flight. Each physics step it sweeps a ray against solid things (rock, doors,
 ## cracked walls; one-way ledges are passed through) and checks enemies near its path. It wounds
-## what it meets (Wound.hit / hex_hit), and ends at rock or after RANGE. Printed as a glow-ink
-## comet with a tapering tail.
+## what it meets (Wound.hit; enemies are stunned too, and at hex I only stunned) and breaks cracked
+## walls (hex_hit) at any tier, and ends at rock or after RANGE. Printed as a comet of spell light
+## (accent ink, like the wand tip) with a tapering tail.
 
 const SPEED: float = 1100.0
 const RANGE: float = 8.0 * 128.0
@@ -52,16 +53,23 @@ func _physics_process(delta: float) -> void:
 		if from.distance_to((e as Node2D).global_position) > wall_d + REACH:
 			break
 		struck.append(e)
+		# Wound first (a stunned enemy takes double, so stunning first would double every hit),
+		# then stun whatever is left.
 		var wound: Node = e.get_node_or_null("Wound")
-		if wound != null:
+		if wound != null and damage > 0:
 			wound.call("hit", damage, dir)
+		elif damage <= 0:
+			RisoFx.burst(&"hit", (e as Node2D).global_position, dir, [RisoPrint.ACCENT, RisoPrint.BLUE])
+		var stunner: Node = e.get_node_or_null("Stunner")
+		if stunner != null and is_instance_valid(e) and not e.is_queued_for_deletion():
+			stunner.call("stun", Hex.STUN)
 		if not pierce or struck.size() > 1:
 			_end((e as Node2D).global_position)
 			return
 	if not wall.is_empty():
 		var hit: Object = wall["collider"]
 		if hit != null and hit.has_method("hex_hit"):
-			hit.call("hex_hit", damage, dir)
+			hit.call("hex_hit", maxi(damage, 1), dir)
 		_end(wall["position"])
 		return
 	global_position = to
@@ -91,7 +99,7 @@ func _solid(from: Vector2, to: Vector2) -> Dictionary:
 
 
 func _end(at: Vector2) -> void:
-	RisoFx.burst(&"hit", at, -dir, [RisoPrint.GLOW, RisoPrint.PINK])
+	RisoFx.burst(&"hit", at, -dir, [RisoPrint.ACCENT, RisoPrint.PINK])
 	Wound.shake(3.0, 0.08)
 	queue_free()
 
@@ -112,10 +120,10 @@ func _process(_delta: float) -> void:
 		var wa: float = 2.0 + 10.0 * float(i) / float(pts.size())
 		var wb: float = 2.0 + 10.0 * float(i + 1) / float(pts.size())
 		tail.append(PackedVector2Array([a - n * wa, b - n * wb, b + n * wb, a + n * wa]))
-	ink.ink(RisoPrint.GLOW, 0.5, tail)
+	ink.ink(RisoPrint.ACCENT, 0.5, tail)
 	var pulse: float = 1.0 + 0.15 * sin(t * 40.0)
-	ink.ink(RisoPrint.GLOW, 0.3, [RisoShapes.circle(head, 26.0 * pulse, 20)])
+	ink.ink(RisoPrint.ACCENT, 0.3, [RisoShapes.circle(head, 26.0 * pulse, 20)])
 	var core: PackedVector2Array = Transform2D(t * 9.0, head) * RisoShapes.sparkle(Vector2.ZERO, 16.0 * pulse)
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], [core])
-	ink.ink(RisoPrint.GLOW, 1.0, [core], false)
+	ink.ink(RisoPrint.ACCENT, 1.0, [core], false)
 	ink.finish()

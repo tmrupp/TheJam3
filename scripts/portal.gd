@@ -21,9 +21,12 @@ func use_portal() -> void:
 	if is_instance_valid(partner):
 		go_to_pos = partner.global_position
 		partner.set("resting", true)
+	var from: Vector2 = player.global_position
 	player.global_position = go_to_pos
 	player.reset_fourier_motion()
 	portal_sfx.play()
+	RisoPrint.portal_used(self, player, from, go_to_pos)
+	player.visual_event.emit(&"teleport", go_to_pos)
 
 func setup(map_info: MapInfo, _coord: Vector2, partner_coord: Vector2) -> void:
 	go_to_pos = map_info.tile_map.to_global(map_info.tile_map.map_to_local(partner_coord))

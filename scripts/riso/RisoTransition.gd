@@ -12,7 +12,7 @@ const REVEAL_TIME: float = 0.38
 ## already cached.
 const HOLD: float = 0.35
 const EDGE: float = 0.08
-const KNOCK_ALL: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW]
+const KNOCK_ALL: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE]
 
 static var instance: RisoTransition
 

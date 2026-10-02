@@ -21,6 +21,10 @@ var host: Node2D
 var t: float = 0.0
 var phase: float = 0.0
 var half: float = 64.0
+## Plaques and their text (prices, names, shrine pop-ups) are UI: they draw in the UI's canvas
+## (RisoPrint.ui_canvas), printed finer than the scene, made the first time a plaque is needed.
+var ui_node: Node2D = null
+var ui_ink: InkCanvas = null
 ## Printed text (prices, names), reused frame to frame; see _text().
 var labels: Array[Label] = []
 ## Wisp turning: the wisp swoops round a tight circle to face the other way (forward, up and
@@ -90,6 +94,9 @@ func _ground() -> float:
 
 func _redraw() -> void:
 	ink.begin()
+	if ui_ink != null:
+		ui_ink.begin()
+		_sync_ui()
 	labels_used = 0
 	match kind:
 		&"mote": _mote()
@@ -112,6 +119,27 @@ func _redraw() -> void:
 	for i: int in range(labels_used, labels.size()):
 		labels[i].visible = false
 	ink.finish()
+	if ui_ink != null:
+		ui_ink.finish()
+
+
+## The UI canvas, made on first use and kept on this node.
+func _ui() -> InkCanvas:
+	if ui_ink == null:
+		ui_node = RisoPrint.ui_canvas(self)
+		ui_node.z_index = 50
+		ui_node.z_as_relative = false
+		ui_ink = InkCanvas.new()
+		ui_ink.ui = true
+		ui_node.add_child(ui_ink)
+		ui_ink.begin()
+		_sync_ui()
+	return ui_ink
+
+
+func _sync_ui() -> void:
+	ui_node.global_transform = global_transform
+	ui_node.visible = is_visible_in_tree()
 
 
 # ------------------------------------------------------------------ pickups
@@ -207,7 +235,7 @@ func _ghost() -> void:
 	ink.ink(RisoPrint.NIGHT, 0.7, [hood])
 	ink.ink(RisoPrint.GLOW, 0.2, [hood], false)
 	var eyes: Array[PackedVector2Array] = [RisoShapes.circle(at * Vector2(-1.4, -18.5), 3.0, 10), RisoShapes.circle(at * Vector2(1.4, -18.5), 3.0, 10)]
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.GLOW], eyes)
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.GLOW, RisoPrint.ROBE], eyes)
 	ink.ink(RisoPrint.EYE, 1.0, eyes, false)
 	var count: int = mini(int(host.get("stars")), 8)
 	var motes: Array[PackedVector2Array] = []
@@ -315,32 +343,76 @@ func _shrine_niche(cx: float, i: int, g: float, bob: float, used: bool) -> void:
 
 # ------------------------------------------------------------------ places
 
+## A circular opening with a luminous rim, a translucent blue centre and one gentle ripple. The
+## wizard's own rifts are rimmed and tinted in eye yellow (not the hat's glow ink, which is pink for
+## the dash): nothing here is dangerous, and pink stays reserved for danger.
+const PORTAL_RADIUS: float = 54.0
+
+
+## The portal's centre in this prop's pixels: generated portals stand on their floor, rifts
+## float where they were opened.
+func portal_center() -> Vector2:
+	return Vector2(0, -6) if host.has_meta(&"rift") else Vector2(0, _ground() - PORTAL_RADIUS)
+
+
 func _portal() -> void:
-	if host.has_meta(&"rift"):
-		_rift()
-		return
-	var r: float = 46.0 * (1.0 + 0.04 * sin(t * 2.0 + phase))
-	var a: float = t * 2.0 * (1.0 if int(phase * 10.0) % 2 == 0 else -1.0)
-	var outer: int = RisoPrint.ACCENT if int(phase * 10.0) % 2 == 0 else RisoPrint.PINK
-	var inner: int = RisoPrint.PINK if outer == RisoPrint.ACCENT else RisoPrint.ACCENT
-	ink.ink(outer, 1.0, [RisoShapes.circle(Vector2.ZERO, r, 40)])
-	ink.ink(inner, 1.0, [RisoShapes.circle(Vector2(cos(a), sin(a)) * 7.0, r * 0.7, 36)])
-	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.circle(Vector2(cos(a + 2.0), sin(a + 2.0)) * 5.0, r * 0.4, 28)])
-
-
-## The wizard's own rift: a ring of glow ink (the hat's colour) round a turning night-ink eye;
-## dim and still until its partner is open.
-func _rift() -> void:
+	var rift: bool = host.has_meta(&"rift")
 	var linked: bool = bool(host.get("linked"))
-	var r: float = 40.0 * (1.0 + 0.05 * sin(t * 3.0 + phase))
-	var a: float = t * (3.0 if linked else 0.6)
-	ink.ink(RisoPrint.GLOW, 0.3 if linked else 0.15, [RisoShapes.circle(Vector2.ZERO, r * 1.35, 36)])
-	var ring: PackedVector2Array = RisoShapes.circle(Vector2.ZERO, r, 36)
-	ink.ink(RisoPrint.GLOW, 1.0 if linked else 0.5, [ring])
-	var hole: PackedVector2Array = RisoShapes.circle(Vector2(cos(a), sin(a)) * 4.0, r * 0.62, 32)
-	ink.knock([RisoPrint.GLOW], [hole])
-	ink.ink(RisoPrint.NIGHT, 1.0, [hole], false)
-	ink.ink(RisoPrint.GLOW, 0.6, [Transform2D(a, Vector2.ZERO) * RisoShapes.sparkle(Vector2.ZERO, r * 0.35)], false)
+	var active: bool = linked or not rift
+	var live: float = 1.0 if active else 0.55
+	var center: Vector2 = portal_center()
+	var radius: float = PORTAL_RADIUS + 1.0 * sin(t * 2.4 + phase)
+	# Rifts ring in eye yellow: theirs is the wizard's own light, and nothing here is dangerous (no
+	# pink, and not the hat's glow ink, which is pink for the dash).
+	var ring: int = RisoPrint.EYE if rift else RisoPrint.ACCENT
+	var interior: Array[PackedVector2Array] = []
+	var tint: Array[PackedFloat32Array] = []
+	var rift_tint: Array[PackedFloat32Array] = []
+	var rim: Array[PackedVector2Array] = []
+	var halo: Array[PackedVector2Array] = []
+	var fades: Array[PackedFloat32Array] = []
+	for segment: int in range(48):
+		var angle_from: float = TAU * float(segment) / 48.0
+		var angle_to: float = TAU * float(segment + 1) / 48.0
+		var direction_from: Vector2 = Vector2(cos(angle_from), sin(angle_from))
+		var direction_to: Vector2 = Vector2(cos(angle_to), sin(angle_to))
+		interior.append(PackedVector2Array([
+			center, center + direction_from * (radius - 4.5), center + direction_to * (radius - 4.5),
+		]))
+		tint.append(PackedFloat32Array([0.82 * live, 0.58 * live, 0.58 * live]))
+		rift_tint.append(PackedFloat32Array([0.4 * live, 0.12 * live, 0.12 * live]))
+		rim.append(PackedVector2Array([
+			center + direction_from * (radius - 4.5), center + direction_from * radius,
+			center + direction_to * radius, center + direction_to * (radius - 4.5),
+		]))
+		halo.append(PackedVector2Array([
+			center + direction_from * radius, center + direction_from * (radius + 12.0),
+			center + direction_to * (radius + 12.0), center + direction_to * radius,
+		]))
+		fades.append(PackedFloat32Array([0.3 * live, 0.0, 0.0, 0.3 * live]))
+	ink.ink_graded(RisoPrint.BLUE, interior, tint)
+	if rift:
+		ink.ink_graded(RisoPrint.EYE, interior, rift_tint, false)
+	if active:
+		var ripple: float = fposmod(t * 0.32 + phase / TAU, 1.0)
+		var ripple_radius: float = lerpf(12.0, radius - 10.0, 1.0 - ripple if rift else ripple)
+		var shimmer: Array[PackedVector2Array] = []
+		for segment: int in range(24):
+			var angle_from: float = TAU * float(segment) / 24.0
+			var angle_to: float = TAU * float(segment + 1) / 24.0
+			var direction_from: Vector2 = Vector2(cos(angle_from), sin(angle_from))
+			var direction_to: Vector2 = Vector2(cos(angle_to), sin(angle_to))
+			shimmer.append(PackedVector2Array([
+				center + direction_from * (ripple_radius - 1.5), center + direction_from * (ripple_radius + 1.5),
+				center + direction_to * (ripple_radius + 1.5), center + direction_to * (ripple_radius - 1.5),
+			]))
+		ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK], 0.4 * sin(PI * ripple), shimmer)
+	ink.ink_graded(ring, halo, fades)
+	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 0.75 + 0.25 * live, rim)
+	ink.ink(ring, 0.8 + 0.2 * live, rim, false)
+	var angle: float = phase + (t * 0.9 if active else 0.0)
+	var mote: Vector2 = center + Vector2(cos(angle), sin(angle)) * radius
+	ink.ink(RisoPrint.EYE, 0.85 * live, [RisoShapes.circle(mote, 2.5, 12)])
 
 
 func _door() -> void:
@@ -477,7 +549,8 @@ func _text(text: String, at: Vector2, px: int, s: float = 1.0) -> float:
 		label.visibility_layer = RisoPrint.plate_mask(RisoPrint.NIGHT)
 		# A same-ink outline thickens the strokes so they print solid instead of screening away.
 		label.add_theme_color_override("font_outline_color", Color.WHITE)
-		add_child(label)
+		_ui()
+		ui_node.add_child(label)
 		labels.append(label)
 	var label: Label = labels[labels_used]
 	labels_used += 1
@@ -501,8 +574,9 @@ func _plaque(text: String, at: Vector2, px: int, tint: int, s: float = 1.0) -> v
 	var w: float = _plaque_width(text, px) * s
 	var h: float = float(px) * 1.25 * s
 	var plate: PackedVector2Array = RisoShapes.rrect(at.x - w * 0.5, at.y - h * 0.5, w, h, h * 0.35)
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], [plate])
-	ink.ink(tint, 0.2, [plate], false)
+	var u: InkCanvas = _ui()
+	u.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE], [plate])
+	u.ink(tint, 0.2, [plate], false)
 	_text(text, at, px, s)
 
 
@@ -555,16 +629,21 @@ static func glyph(a: StringName, c: Vector2, t: float) -> Array[PackedVector2Arr
 		&"awareness":
 			# An open eye with a lit pupil.
 			return [RisoShapes.almond(c, 22.0, 11.0, 14), RisoShapes.circle(c, 5.0, 12)]
+		&"speed":
+			# Three staggered speed lines streaming back from a running bead.
+			return [RisoShapes.circle(c + Vector2(14, 0), 7.0, 14), RisoShapes.rrect(c.x - 20, c.y - 12, 26, 5, 2.5),
+				RisoShapes.rrect(c.x - 26, c.y - 2.5, 32, 5, 2.5), RisoShapes.rrect(c.x - 16, c.y + 7, 22, 5, 2.5)]
 		&"hex":
 			# A comet: a bold spark with a tapering tail behind it.
 			return [RisoShapes.sparkle(c + Vector2(7, -5), 17.0), PackedVector2Array([c + Vector2(4, -12), c + Vector2(-22, 14), c + Vector2(-2, 0)])]
 	return [RisoShapes.sparkle(c, 18.0)]
 
 
-## A moon: a crescent in accent ink inside a soft halo, rocking as it floats. While it wanes
-## (just used) it shrinks to a faint sliver and grows back.
+## A moon: a crescent in accent ink inside a soft halo, rocking as it floats. The moment the
+## wizard touches it, it drops to a faint sliver (spent) until they leave, then grows back as it
+## waxes.
 func _moon() -> void:
-	var full: float = 1.0 - clampf(float(host.get("waning")) / 2.5, 0.0, 1.0)
+	var full: float = 0.0 if bool(host.get("in_use")) else 1.0 - clampf(float(host.get("waning")) / 2.5, 0.0, 1.0)
 	var o: Vector2 = Vector2(0, sin(t * 2.2 + phase) * 6.0)
 	var k: float = lerpf(0.55, 1.0, full)
 	var crescent: PackedVector2Array = Transform2D(sin(t) * 0.25, Vector2(k, k), 0.0, o) * RisoShapes.crescent(Vector2.ZERO, 22.0, Vector2(10, -5))
@@ -752,7 +831,9 @@ func _wisp() -> void:
 		var ep: Vector2 = Vector2(eye.x, lerpf(eye.y, -16.4 - eye.y, e_eyes)) if spinning else eye
 		var shape: PackedVector2Array = RisoShapes.rrect(ep.x - 1.0, ep.y - 0.4, 2.0, 0.8, 0.4, 2) if stunned else RisoShapes.ellipse(ep, 0.9, 1.9, 14)
 		eyes.append(_wisp_place(shape, false))
-	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], eyes)
+	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE], eyes)
+	if stunned:
+		_stun_mark(head + _wp_bob + Vector2(0, -52))
 
 
 ## Size the turning loop to the room: lower under a near ceiling, tighter against a wall.
@@ -956,6 +1037,36 @@ var watch_open: float = 0.1
 var _was_firing: bool = false
 
 
+## Stunned: three small stars of accent ink circle over the head at `c`, the ones passing behind
+## smaller and fainter, circling slowly; they shrink as the stun runs out, and turn pink and blink
+## in its last STUN_WARN seconds, when the enemy is about to wake.
+const STUN_WARN: float = 1.0
+func _stun_mark(c: Vector2) -> void:
+	var stunner: Node = host.get_node_or_null("Stunner")
+	var frac: float = float(stunner.call("fraction")) if stunner != null and stunner.has_method("fraction") else 1.0
+	if frac <= 0.0:
+		return
+	# About to wake: the last STUN_WARN seconds the stars turn pink (danger) and blink, faster and
+	# faster toward the end.
+	var left: float = float(stunner.get("left")) if stunner != null else 99.0
+	var plate: int = RisoPrint.ACCENT
+	if left < STUN_WARN:
+		plate = RisoPrint.PINK
+		var rate: float = lerpf(9.0, 3.0, left / STUN_WARN)
+		if fmod(t * rate, 1.0) > 0.6:
+			return
+	var front: Array[PackedVector2Array] = []
+	var back: Array[PackedVector2Array] = []
+	for i: int in range(3):
+		var a: float = t * 1.3 + TAU * float(i) / 3.0
+		var depth: float = sin(a)
+		var p: Vector2 = c + Vector2(cos(a) * 34.0, depth * 10.0)
+		var star: PackedVector2Array = Transform2D(t * 0.9 + float(i), p) * RisoShapes.sparkle(Vector2.ZERO, (9.0 + 6.0 * frac) * (0.75 + 0.25 * depth))
+		(front if depth >= 0.0 else back).append(star)
+	ink.ink(plate, 0.5, back)
+	ink.ink(plate, 1.0, front)
+
+
 func _watcher() -> void:
 	var shooter: Node = host.get_node_or_null("Shooter")
 	var at: Vector2 = Vector2(0, -26.0)
@@ -1011,7 +1122,7 @@ func _watcher() -> void:
 	ink.ink(RisoPrint.PINK, 1.0, drips)
 	ink.ink(RisoPrint.BLUE, 1.0, [lid])
 	var yo: float = lerpf(2.0, 0.0, open)
-	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], [xf * RisoShapes.almond(Vector2(0, yo), 8.2, maxf(0.3, 4.4 * open), 12)])
+	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE], [xf * RisoShapes.almond(Vector2(0, yo), 8.2, maxf(0.3, 4.4 * open), 12)])
 	var player: Node2D = host.get_node_or_null("/root/Main/Player") as Node2D
 	var look: Vector2 = Vector2.ZERO
 	if player != null:
@@ -1032,6 +1143,8 @@ func _watcher() -> void:
 		ink.ink(RisoPrint.EYE, 0.2, [RisoShapes.circle(corner, ball * 1.6, 24)])
 		ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT], [core])
 		ink.ink(RisoPrint.EYE, 1.0, [core], false)
+	if stunned:
+		_stun_mark(xf * Vector2(0, -16))
 
 
 func _shard() -> void:

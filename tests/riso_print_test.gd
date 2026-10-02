@@ -42,7 +42,7 @@ func run() -> void:
 	check(not (main.get_node("CanvasLayer/HUD/TopHUD") as CanvasItem).visible, "pixel HUD hidden while printing")
 	check(main.get_node_or_null("RisoHud") != null, "printed HUD present")
 	check((load(RisoTheme.MENU_THEME) as Theme).default_font is SystemFont, "menus use the riso theme")
-	check(riso.plates.size() == RisoPrint.PLATE_COUNT, "six ink plates")
+	check(riso.plates.size() == RisoPrint.PLATE_COUNT, "seven ink plates")
 	check(riso.print_layer.visible, "print layer visible")
 	check(root.content_scale_mode == Window.CONTENT_SCALE_MODE_CANVAS_ITEMS, "canvas_items stretch while printing")
 	check((root.canvas_cull_mask & RisoPrint.plate_mask(RisoPrint.BLUE)) == 0, "main view hides plate layers")
@@ -86,13 +86,13 @@ func run() -> void:
 	for i: int in range(12):
 		await physics_frame
 		await process_frame
-	check((wizard.get("trail") as Array).size() > 0, "dash leaves a smear trail")
+	check((wizard.get("echoes") as Array).size() > 0, "dash leaves afterimages")
 	check(riso.glow_ability == &"dash", "hat glow follows the dash")
 	Abilities.grant(player, &"parry")
 	Abilities.grant(player, &"astral")
 	player.parry.emit()
 	await process_frame
-	check(riso.glow_ability == &"parry", "hat glow follows parry")
+	check(riso.glow_ability == &"dash" and float(wizard.get("wand_flare_amount")) > 0.5, "parry lights the wand, and the hat keeps the dash's glow")
 	player.normal_hurt(-1, Vector2.ZERO, null)
 	for i: int in range(8):
 		await physics_frame
@@ -148,7 +148,7 @@ func run() -> void:
 		door_node.get_node("Unlock").call("try_open")
 		check(door_node.is_queued_for_deletion() and player.has_meta(&"carried_key"), "the matching door opens and the key is kept")
 	# Realm follows the world and cycles.
-	check(riso.realm == &"deep" and riso.reprint_on_motion and riso.blend_sheets and riso.sheet_rate == 8.0 and not riso.trapped, "defaults: deep night, 8/s, reprint on motion, blend, independent plates")
+	check(riso.realm == &"deep" and riso.reprint_on_motion and not riso.blend_sheets and riso.sheet_rate == 8.0 and not riso.trapped, "defaults: deep night, 8/s, reprint on motion, cut between sheets, independent plates")
 	var cam: Camera2D = main.get_node("Camera2D") as Camera2D
 	check(is_equal_approx(cam.zoom.x, 0.25 * riso.zoom_factor), "camera zoomed out while printing")
 	riso.cycle_realm()
@@ -158,7 +158,7 @@ func run() -> void:
 	await process_frame
 	check(not riso.print_layer.visible, "print hidden when off")
 	check(root.content_scale_mode == original_mode, "stretch mode restored when off")
-	check(root.canvas_cull_mask == original_mask & ~(RisoPrint.overlay_mask() | 0x3F000), "cull mask restored when off")
+	check(root.canvas_cull_mask == original_mask & ~RisoPrint.all_ink_bits(), "cull mask restored when off")
 	check(not wizard.visible, "ink art hidden when off")
 	check((main.get_node("CanvasLayer/HUD/TopHUD") as CanvasItem).visible, "pixel HUD back when off")
 	check((load(RisoTheme.MENU_THEME) as Theme).default_font is FontFile, "menu theme restored when off")

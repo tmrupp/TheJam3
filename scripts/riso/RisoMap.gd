@@ -27,6 +27,8 @@ var back: InkCanvas
 var rock: Sprite2D
 var open: Sprite2D
 var marks: InkCanvas
+## The node in the UI's canvas holding all the map's art.
+var canvas: Node2D
 var labels: Array[Label] = []
 var labels_used: int = 0
 var font: SystemFont
@@ -41,12 +43,20 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group(&"riso_art")
 	font = RisoTheme.serif()
+	# The map is UI: it draws in the UI's canvas (RisoPrint.ui_canvas), printed finer than the scene
+	# and above the HUD and prompts there, kept on this node.
+	canvas = RisoPrint.ui_canvas(self)
+	canvas.z_index = 70
+	canvas.z_as_relative = false
+	canvas.visible = false
 	back = InkCanvas.new()
-	add_child(back)
+	back.ui = true
+	canvas.add_child(back)
 	open = _layer(RisoPrint.BLUE, 0.22)
 	rock = _layer(RisoPrint.BLUE, 1.0)
 	marks = InkCanvas.new()
-	add_child(marks)
+	marks.ui = true
+	canvas.add_child(marks)
 	visible = false
 
 
@@ -56,7 +66,7 @@ func _layer(plate: int, cover: float) -> Sprite2D:
 	s.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	s.visibility_layer = RisoPrint.plate_mask(plate)
 	s.modulate = Color(1, 1, 1, cover)
-	add_child(s)
+	canvas.add_child(s)
 	RisoPrint.share_layers(s)
 	return s
 
@@ -86,6 +96,7 @@ func _show(next: int) -> void:
 			return
 	view = next
 	visible = view != View.CLOSED and RisoPrint.is_on()
+	canvas.visible = visible
 	if view != View.CLOSED and not get_tree().paused:
 		get_tree().paused = true
 		_paused_by_map = true
@@ -146,13 +157,15 @@ func _process(delta: float) -> void:
 	var size: Vector2 = base / cam.zoom
 	global_position = cam.get_screen_center_position() - size * 0.5
 	scale = Vector2.ONE / cam.zoom
+	canvas.global_position = global_position
+	canvas.scale = scale
 	var info: MapInfo = MapInfo.instance
 	if info == null or info.world == null:
 		return
 	labels_used = 0
 	back.begin()
 	marks.begin()
-	back.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], [RisoShapes.rrect(PANEL.position.x, PANEL.position.y, PANEL.size.x, PANEL.size.y, 10)])
+	back.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE], [RisoShapes.rrect(PANEL.position.x, PANEL.position.y, PANEL.size.x, PANEL.size.y, 10)])
 	back.ink(RisoPrint.BLUE, 0.08, [RisoShapes.rrect(PANEL.position.x, PANEL.position.y, PANEL.size.x, PANEL.size.y, 10)], false)
 	if view == View.LEVEL:
 		_level(info)
@@ -424,7 +437,7 @@ func _text(text: String, at: Vector2, px: float, right: bool, centred: bool = fa
 		label.add_theme_font_size_override("font_size", TEXT_PX)
 		label.add_theme_color_override("font_color", Color.WHITE)
 		label.visibility_layer = RisoPrint.plate_mask(RisoPrint.NIGHT)
-		add_child(label)
+		canvas.add_child(label)
 		labels.append(label)
 	var label: Label = labels[labels_used]
 	labels_used += 1

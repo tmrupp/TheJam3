@@ -82,6 +82,12 @@ func run() -> void:
 	Abilities.grant(player, &"levitate")
 	check(lev.free_recast, "levitate III recasts without landing")
 
+	print("speed")
+	check(is_equal_approx(player.run_speed, Player.SPEED), "base run speed without the perk")
+	Abilities.grant(player, &"speed")
+	Abilities.grant(player, &"speed")
+	check(is_equal_approx(player.run_speed, Player.SPEED * 1.3) and Abilities.spell(player) == &"levitate", "speed II runs 30% faster and leaves the spell slot alone")
+
 	print("awareness")
 	Abilities.grant(player, &"awareness")
 	var aware: Awareness = player.get_node("Awareness") as Awareness

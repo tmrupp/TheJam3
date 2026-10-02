@@ -102,7 +102,14 @@ func run() -> void:
 	var bolt: Node2D = hex.cast(-side)
 	check(bolt != null and hex.charges == 0, "casting spends the charge")
 	await wait_physics(10)
-	check(not is_instance_valid(e) or e.is_queued_for_deletion(), "a level bolt from the same floor destroys the wisp")
+	check(is_instance_valid(e) and not e.is_queued_for_deletion() and bool(e.get_node("Mover").get("stunned")), "hex I only stuns: a level bolt from the same floor leaves the wisp stunned, unhurt")
+	check(is_equal_approx(Hex.COOLDOWN, 6.0) and hex.readiness() < 0.1, "a long cooldown, and the wand shows the hex spent")
+	Abilities.grant(player, &"hex")
+	hex.refill()
+	player.global_position = e.global_position + side * 150.0 + Vector2(0, 16 - 31)
+	bolt = hex.cast(-side)
+	await wait_physics(10)
+	check(not is_instance_valid(e) or e.is_queued_for_deletion(), "hex II wounds: the bolt destroys the wisp")
 	check((info.record()["slain"] as Dictionary).has(cell), "the level records it slain")
 	check(placed("coin.tscn").size() > stars_before, "it drops stars")
 	check(hex.cast(Vector2.RIGHT) == null, "no charge, no bolt")
@@ -186,12 +193,13 @@ func run() -> void:
 	if not player.has_node("Hex"):
 		Abilities.grant(player, &"hex")
 	hex = player.get_node("Hex") as Hex
+	check(Abilities.tier(player, &"hex") == 1 and hex.damage == 0 and hex.charges_max == 1, "hex I: stuns only, one charge")
 	Abilities.grant(player, &"hex")
-	check(hex.charges_max == 2, "hex II: two charges")
+	check(hex.damage == 1 and hex.charges_max == 1, "hex II: wounds (one damage)")
 	Abilities.grant(player, &"hex")
-	check(hex.damage == 2, "hex III: two damage")
+	check(hex.charges_max == 2, "hex III: two charges")
 	Abilities.grant(player, &"hex")
-	check(hex.pierce, "hex IV: pierces")
+	check(hex.damage == 2 and hex.pierce, "hex IV: two damage, pierces")
 
 	if failed:
 		print("FAILED")

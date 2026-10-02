@@ -44,7 +44,7 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 - **Restore protection:** interact with another unspent lantern. It becomes your protected respawn point. Ghost recovery and star collection never restore protection; you can light another lantern without recovering the ghost first.
 - **Die without a lit lantern:** the run ends. The seed's levels are unchanged, since they are generated. Your character and level records reset, and the new run starts with a fresh lit lantern. The ended run's save is deleted immediately.
 - **Arming:** a ghost can only be recovered once the player has stepped off it, so dying on the respawn lantern doesn't hand the stars straight back.
-- **Presentation:** the HUD's hanging lantern (beside the health beads) glows with a flame while protected and is an empty, pulsing pink frame otherwise, including after recovering a ghost. Spent lanterns have empty, dark glass, a charred wick and no light pool. Unspent lanterns keep their low ember. Insects no longer circle lanterns. The ghost uses the printed astral-silhouette style, and the HUD points toward it when it is in another level.
+- **Presentation:** the HUD's flame (beside the health beads) burns yellow while protected and is a hollow, pulsing pink flame otherwise, including after recovering a ghost. Spent lanterns have empty, dark glass, a charred wick and no light pool. Unspent lanterns keep their low ember. Insects no longer circle lanterns. The ghost uses the printed astral-silhouette style, and the HUD points toward it when it is in another level.
 - **Saves:** existing version-1 saves remain readable. An old unprotected save marks its last respawn lantern spent when loaded. `tests/death_test.gd` covers consumption, relighting rejection, cross-world deaths, star and ghost recovery, revisits, save migration, and run reset.
 
 ## 3. Keys
@@ -70,7 +70,7 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 - **Awareness:** press Spell to sense the level. While it lasts, pointers at the edge of the view show where things are, like the ghost's arrow. A short cooldown follows.
 - **Astral projection** uses the Spell button. Tap it to leave your body and go out as an untouchable projection. Tap again, or get hurt, to snap back to the body. Let it run out and you stay where the projection is. There are no astral orbs any more.
 - **Rift:** learn it at a shrine, then press Spell to place an end at your position. A second cast places its partner; interact to travel between them. Casting again deletes both old ends in the current world and starts a new pair. Each world (seed, depth) keeps one spell-created pair in its saved level record: pairs in other worlds remain untouched and return when you revisit. Swapping spells preserves placed pairs; starting a new run clears them. Tier I requires standing on a surface; tier II allows placement in midair; tier III lets you step into an end to travel automatically. Casting a new end or arriving through one waits until you step off before automatic travel arms.
-- **Moons** are dash resets, with a target of 3 per 1000 level cells, placed only in open air: clear on every side and below, and at least 6 cells apart. They reject platforms in the fall below, including the full width and travel of moving platforms, until intervening rock or spikes block the fall. Suitable spots above spikes have triple the selection weight. Touching one gives your dash back if you have used it. It then wanes for 2.5 s and returns. Moons are never used up.
+- **Moons** are dash resets, with a target of 3 per 1000 level cells, placed only in open air: clear on every side and below, and at least 6 cells apart. They reject platforms in the fall below, including the full width and travel of moving platforms, until intervening rock or spikes block the fall. Suitable spots above spikes have triple the selection weight. Touching one spends it at once (it shows as a sliver), whether or not you have used your dash. While you stay inside it gives your dash back, even mid-dash, as often as you use it. Once you leave it waxes back over 2.5 s. Moons are never used up.
 - Tiers live on the player (`Abilities.gd`) and reset when a run ends. The upgrade menu and the old `Upgrade`, `UpgradeManager`, double-jump and wall-climb nodes are gone.
 
 | Ability | Start | Max | Each tier |
@@ -81,11 +81,12 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 | Blink | – | III | replaces the dash; reach 300 px, +100 per tier |
 | Parry | – | IV | window +0.1 s, cooldown −0.4 s |
 | Astral projection | – | IV | lasts 2 s longer |
-| Hex | I (the starting spell) | IV | II +1 charge, III +1 damage, IV pierces |
+| Hex | I (the starting spell) | IV | I stuns only (3 s); II wounds (1 damage) and stuns; III +1 charge; IV 2 damage and pierces. One charge back every 6 s; cracked walls break at any tier |
 | Levitate | – | III | I holds your height until you press Spell again; II the stick drifts you up and down; III recasts without landing |
 | Awareness | – | III | I exits; II also the ink well and shrine; III also the nearest key of each colour; senses longer each tier |
 | Rift | – | III | I place a pair while grounded; II also midair; III automatic travel on entry |
 | Vigor | – | III | +1 max health (and heals 1) |
+| Speed | – | III | runs 15% faster per tier |
 
 Spawn budgets follow level area: keys 2, corridor gates 3, extra lanterns 1.5, moons 3, and cracked walls 2.5 per 1000 cells. Keys include at least one of each colour; exits, their lanterns, the shrine and ink well are reserved first. Natural teleporters use 0.75 pairs per 1000 cells, rounded with a minimum of one pair and no fixed cap: one pair at depth 0, three pairs at depth 5, and four pairs in the largest levels. Coins, platforms and enemies use a fraction of available space. Terrain and spacing constraints can leave budgets unfilled.
 

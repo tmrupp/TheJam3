@@ -5,9 +5,12 @@ class_name Abilities
 ## - Spells share one slot, on the Spell button (Q, or the pad's X): hex, astral projection,
 ##   parry, levitate, awareness and rift (open your own teleporters). You carry one at a time; learning another at a shrine
 ##   replaces it.
-## - Perks stack: double jump, wall climb, blink (replaces the dash) and vigor (max health).
+## - Perks stack: double jump, wall climb, blink (replaces the dash), vigor (max health) and
+##   speed (run speed).
 
-const ORDER: Array[StringName] = [&"dash", &"double_jump", &"wall_climb", &"blink", &"parry", &"astral", &"hex", &"levitate", &"awareness", &"rift", &"vigor"]
+const ORDER: Array[StringName] = [&"dash", &"double_jump", &"wall_climb", &"blink", &"parry", &"astral", &"hex", &"levitate", &"awareness", &"rift", &"vigor", &"speed"]
+## Run speed added per tier of speed, as a fraction of the base.
+const SPEED_PER_TIER: float = 0.15
 const SPELLS: Array[StringName] = [&"hex", &"astral", &"parry", &"levitate", &"awareness", &"rift"]
 const NAMES: Dictionary = {
 	&"dash": "dash",
@@ -21,10 +24,11 @@ const NAMES: Dictionary = {
 	&"awareness": "awareness",
 	&"rift": "rift",
 	&"vigor": "vigor",
+	&"speed": "speed",
 }
 const BASE: Dictionary = {&"dash": 1, &"hex": 1}
 const MAX: Dictionary = {&"dash": 4, &"double_jump": 3, &"wall_climb": 3, &"blink": 3, &"parry": 4, &"astral": 4, &"hex": 4,
-	&"levitate": 3, &"awareness": 3, &"rift": 3, &"vigor": 3}
+	&"levitate": 3, &"awareness": 3, &"rift": 3, &"vigor": 3, &"speed": 3}
 const BLINK_PREFAB: String = "res://prefabs/upgrades/Blink.tscn"
 const BASE_HEALTH: int = 3
 const SPELL_ACTION: StringName = &"Spell"
@@ -199,8 +203,8 @@ static func apply(player: Player) -> void:
 	var hex_tier: int = tier(player, &"hex")
 	var hex: Hex = _keep(player, "Hex", hex_tier > 0, func() -> Node: return Hex.new()) as Hex
 	if hex != null:
-		hex.charges_max = 1 + (1 if hex_tier >= 2 else 0)
-		hex.damage = 1 + (1 if hex_tier >= 3 else 0)
+		hex.charges_max = 1 + (1 if hex_tier >= 3 else 0)
+		hex.damage = (1 if hex_tier >= 2 else 0) + (1 if hex_tier >= 4 else 0)
 		hex.pierce = hex_tier >= 4
 		hex.charges = mini(hex.charges, hex.charges_max)
 	var lev_tier: int = tier(player, &"levitate")
@@ -222,6 +226,7 @@ static func apply(player: Player) -> void:
 		for e: Node2D in rift.ends:
 			if is_instance_valid(e):
 				e.set("auto", rift_tier >= 3)
+	player.run_speed = Player.SPEED * (1.0 + SPEED_PER_TIER * float(tier(player, &"speed")))
 	player.health.max_health = BASE_HEALTH + tier(player, &"vigor")
 	player.health.health = mini(player.health.health, player.health.max_health)
 	player.health.display_health()
