@@ -54,7 +54,7 @@ func run() -> void:
 	var levels: int = 0
 	for world_seed: int in [1, 7, 28, 99]:
 		for depth: int in [0, 3, 6]:
-			var def: MapInfo.NextWorldDef = MapInfo.def_for(Vector2i(world_seed, depth))
+			var def: NextWorldDef = MapInfo.def_for(Vector2i(world_seed, depth))
 			var w: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", def), def)
 			levels += 1
 			var pairs: int = 0
@@ -88,8 +88,8 @@ func run() -> void:
 	var plunge_seed: int = -1
 	for world_seed: int in range(1, 120):
 		for depth: int in [0, 1]:
-			var def: MapInfo.NextWorldDef = MapInfo.def_for(Vector2i(world_seed, depth))
-			var deals: bool = MapInfo.level_seed(def.gen_seed, 777) % 100 < MapInfo.PLUNGE_CHANCE
+			var def: NextWorldDef = MapInfo.def_for(Vector2i(world_seed, depth))
+			var deals: bool = MapInfo.level_seed(def.gen_seed, 777) % 100 < Hyperspace.CHANCE
 			if depth == 0 and deals:
 				surface += 1
 			if depth == 1:
@@ -101,8 +101,8 @@ func run() -> void:
 	check(plunges > tried / 10 and plunges < tried / 3, "the hyperspace door is rare: dealt in %d of %d depth-1 levels" % [plunges, tried])
 	var dw: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", MapInfo.def_for(Vector2i(plunge_seed, 1))), MapInfo.def_for(Vector2i(plunge_seed, 1)))
 	var d0: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", MapInfo.def_for(Vector2i(plunge_seed, 0))), MapInfo.def_for(Vector2i(plunge_seed, 0)))
-	check(dw.plunge.x >= 0 and dw.get_cell(dw.plunge).type == MapInfo.Type.EXIT and int(dw.get_cell(dw.plunge).extra_info) == MapInfo.Exit.PLUNGE and d0.plunge.x < 0, "a dealt level has its hyperspace door; depth 0 never does")
-	check(MapInfo.plunge_price(3) == roundi(MapInfo.deeper_price(3) * MapInfo.PLUNGE_PRICE), "it costs %d at depth 3 (the deeper exit costs %d)" % [MapInfo.plunge_price(3), MapInfo.deeper_price(3)])
+	check(dw.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1)).x >= 0 and dw.get_cell(dw.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1))).type == MapInfo.Type.EXIT and int(dw.get_cell(dw.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1))).extra_info) == Worlds.door(Worlds.kind_of(Hyperspace)) and d0.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1)).x < 0, "a dealt level has its hyperspace door; depth 0 never does")
+	check(Worlds.proto(Worlds.kind_of(Hyperspace)).entry_price(3) == roundi(MapInfo.deeper_price(3) * Hyperspace.PRICE), "it costs %d at depth 3 (the deeper exit costs %d)" % [Worlds.proto(Worlds.kind_of(Hyperspace)).entry_price(3), MapInfo.deeper_price(3)])
 
 	print("switches in play")
 	var menu: Node = main.get_node("Menu")
@@ -152,20 +152,20 @@ func run() -> void:
 	info.travel(MapInfo.Exit.DEEPER)
 	await settle()
 	player.set_physics_process(false)
-	var jump: Array[Node] = placed("level_exit.tscn").filter(func(n: Node) -> bool: return int(n.get("exit")) == MapInfo.Exit.PLUNGE)
+	var jump: Array[Node] = placed("level_exit.tscn").filter(func(n: Node) -> bool: return int(n.get("exit")) == Worlds.door(Worlds.kind_of(Hyperspace)))
 	check(info.coord == Vector2i(plunge_seed, 1) and jump.size() == 1, "the dealt level shows its hyperspace door")
 	var owed: int = int(jump[0].call("price"))
-	check(owed == MapInfo.plunge_price(1), "it asks %d stars" % owed)
+	check(owed == Worlds.proto(Worlds.kind_of(Hyperspace)).entry_price(1), "it asks %d stars" % owed)
 	player.collect(owed - player.coins.coins)
 	jump[0].call("interacted")
 	await settle()
 	player.set_physics_process(false)
-	check(info.coord == MapInfo.chasm_coord(Vector2i(plunge_seed, 1)) and MapInfo.is_chasm(info.coord), "paying enters hyperspace, the door's own world")
+	check(info.coord == Worlds.side_at(Worlds.kind_of(Hyperspace), Vector2i(plunge_seed, 1)) and Worlds.is_side(info.coord), "paying enters hyperspace, the door's own world")
 	check(player.global_position.distance_to(info.cell_position(info.world.exits[MapInfo.Exit.BACK])) < 80.0 and player.coins.coins == 0, "arriving by its way back, the stars spent")
 	info.travel(MapInfo.Exit.DEEPER)
 	await settle()
 	player.set_physics_process(false)
-	check(info.coord == MapInfo.chasm_landing(MapInfo.chasm_coord(Vector2i(plunge_seed, 1))) and info.deepest == 1 + MapInfo.PLUNGE_DEPTH, "its gate drops %d levels at once, to depth %d" % [MapInfo.PLUNGE_DEPTH, info.coord.y])
+	check(info.coord == (MapInfo.def_for(Worlds.side_at(Worlds.kind_of(Hyperspace), Vector2i(plunge_seed, 1))) as SideWorld).destination() and info.deepest == 1 + Hyperspace.DROP, "its gate drops %d levels at once, to depth %d" % [Hyperspace.DROP, info.coord.y])
 	check(player.global_position.distance_to(info.cell_position(info.world.exits[MapInfo.Exit.BACK])) < 80.0, "arriving by that level's way back")
 
 	print("parry")

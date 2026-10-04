@@ -3,7 +3,7 @@ extends SceneTree
 ## caverns joined by shafts, ceilings hung with teeth, floors broken by thorn-bottomed pits and
 ## capped with runs of thorns, and floating rock islands. White is open, black rock, red thorns,
 ## like the other samples, and every thorn touches rock.
-## godot --headless --path . --script res://tests/make_chasm_sample.gd
+## godot --headless --path . --script res://tests/make_hyperspace_sample.gd
 
 const N: int = 32
 const OPEN: int = 0

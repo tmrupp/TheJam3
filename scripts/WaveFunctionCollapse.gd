@@ -2,7 +2,7 @@ extends WaveFunctionCollapse
 
 ## Collapses the terrain for one level. A failed collapse retries on a seed derived from the
 ## level seed and the attempt, so the same (seed, depth) always gives the same level.
-func generate_level(def: MapInfo.NextWorldDef) -> Array:
+func generate_level(def: NextWorldDef) -> Array:
 	texture = load(def.region)
 	output_size = def.size
 	var map: Array = []
@@ -11,7 +11,7 @@ func generate_level(def: MapInfo.NextWorldDef) -> Array:
 		map = collapse()
 		if len(map) > 0:
 			break
-	if map.is_empty() and def.chasm:
-		# The chasm's collapse never settled: an empty strip, which Chasm dresses all the same.
-		return Chasm.fallback()
+	if map.is_empty():
+		# The collapse never settled: whatever the place falls back to ([] for a level).
+		return def.fallback()
 	return map

@@ -19,7 +19,7 @@ func run() -> void:
 	var wfc: Node = main.get_node("WaveFunctionCollapse")
 	for seed_value: int in [1, 7, 28, 99, 512]:
 		for depth: int in [0, 2, 5, 9]:
-			var def: MapInfo.NextWorldDef = MapInfo.def_for(Vector2i(seed_value, depth))
+			var def: NextWorldDef = MapInfo.def_for(Vector2i(seed_value, depth))
 			var w: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", def), def)
 			fixture = w
 			var counts: Dictionary = {}

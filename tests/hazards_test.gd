@@ -57,15 +57,15 @@ func run() -> void:
 	var wfc: Node = main.get_node("WaveFunctionCollapse")
 
 	print("generation")
-	var shallow: MapInfo.NextWorldDef = MapInfo.def_for(Vector2i(28, 0))
-	var deep: MapInfo.NextWorldDef = MapInfo.def_for(Vector2i(28, 2))
+	var shallow: NextWorldDef = MapInfo.def_for(Vector2i(28, 0))
+	var deep: NextWorldDef = MapInfo.def_for(Vector2i(28, 2))
 	var w0: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", shallow), shallow)
 	var w2: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", deep), deep)
 	check(count(w0, MapInfo.Type.HOPPER) == 0 and count(w2, MapInfo.Type.HOPPER) >= 2, "no hoppers at depth 0, %d at depth 2" % count(w2, MapInfo.Type.HOPPER))
 	check(count(w0, MapInfo.Type.LASER) == 0 and count(w2, MapInfo.Type.LASER) == 0, "no lasers in ordinary levels")
 	var lasers_ok: bool = true
 	for world_seed: int in [1, 7, 28, 99]:
-		var def: MapInfo.NextWorldDef = MapInfo.def_for(MapInfo.chasm_coord(Vector2i(world_seed, 3)))
+		var def: NextWorldDef = MapInfo.def_for(Worlds.side_at(Worlds.kind_of(Hyperspace), Vector2i(world_seed, 3)))
 		var w: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", def), def)
 		var n: int = count(w, MapInfo.Type.LASER)
 		lasers_ok = lasers_ok and n >= 3
@@ -130,7 +130,7 @@ func run() -> void:
 	print("lasers")
 	var plunge_seed: int = -1
 	for world_seed: int in range(1, 120):
-		if MapInfo.level_seed(MapInfo.def_for(Vector2i(world_seed, 1)).gen_seed, 777) % 100 < MapInfo.PLUNGE_CHANCE:
+		if MapInfo.level_seed(MapInfo.def_for(Vector2i(world_seed, 1)).gen_seed, 777) % 100 < Hyperspace.CHANCE:
 			plunge_seed = world_seed
 			break
 	menu.world_seed.text = str(plunge_seed)
@@ -138,8 +138,8 @@ func run() -> void:
 	await settle()
 	info.travel(MapInfo.Exit.DEEPER)
 	await settle()
-	info.record()["plunge_paid"] = true
-	info.travel(MapInfo.Exit.PLUNGE)
+	info.here.pay(Worlds.door(Worlds.kind_of(Hyperspace)), info.record())
+	info.travel(Worlds.door(Worlds.kind_of(Hyperspace)))
 	await settle(10)
 	player.set_physics_process(false)
 	var lasers: Array[Node] = placed("laser.tscn")

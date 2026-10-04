@@ -18,7 +18,7 @@ func run() -> void:
 	var checked: int = 0
 	for world_seed: int in [1, 7, 28, 99, 512]:
 		for depth: int in [0, 2, 5, 8]:
-			var def: MapInfo.NextWorldDef = MapInfo.def_for(Vector2i(world_seed, depth))
+			var def: NextWorldDef = MapInfo.def_for(Vector2i(world_seed, depth))
 			var cells: Array = wfc.call("generate_level", def)
 			var w: MapInfo.World = MapInfo.World.new(cells, def)
 			# Open = anything that is not rock (cracked walls are gates, so they count as open).

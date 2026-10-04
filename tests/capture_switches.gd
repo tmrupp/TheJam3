@@ -27,7 +27,7 @@ func capture() -> void:
 	await process_frame
 	# A world whose depth 1 deals a hyperspace door.
 	var world_seed: int = 1
-	while MapInfo.level_seed(MapInfo.def_for(Vector2i(world_seed, 1)).gen_seed, 777) % 100 >= MapInfo.PLUNGE_CHANCE:
+	while MapInfo.level_seed(MapInfo.def_for(Vector2i(world_seed, 1)).gen_seed, 777) % 100 >= Hyperspace.CHANCE:
 		world_seed += 1
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = str(world_seed)
@@ -61,7 +61,7 @@ func capture() -> void:
 	for i: int in range(90):
 		await process_frame
 	for n: Node in info.map_elements.get_children():
-		if n.scene_file_path.get_file() == "level_exit.tscn" and int(n.get("exit")) == MapInfo.Exit.PLUNGE:
+		if n.scene_file_path.get_file() == "level_exit.tscn" and int(n.get("exit")) == Worlds.door(Worlds.kind_of(Hyperspace)):
 			var art: Node = n.get_node_or_null("RisoArt")
 			shots.append(await shot(camera, (n as Node2D).global_position))
 	var out: Image = Image.create(500 * shots.size(), 500, false, shots[0].get_format())

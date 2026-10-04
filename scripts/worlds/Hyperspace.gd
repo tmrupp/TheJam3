@@ -1,22 +1,24 @@
-class_name Chasm
-extends RefCounted
-## Hyperspace (called the chasm in code): the hyperspace door's own world, one long level strung
-## between a level and the one MapInfo.PLUNGE_DEPTH below it. You come in at the left end (the way
-## back, to the level you paid the door in) and leave by its gate at the right end, which drops you
-## at the far level's way back (and that way back leads here again).
+class_name Hyperspace
+extends SideWorld
+## Hyperspace: a side world (see SideWorld) one long level strung between a level and the one DROP
+## below it (give or take a world sideways, see drift). Its door is rare: from depth 1, in CHANCE %
+## of levels (every level in a debug run), and costs PRICE times the deeper exit. You come in at
+## the left end (the way back, out of the door) and leave by its gate at the right end, which drops
+## you at the far level's way back (and that way back leads here again).
 ##
 ## Its terrain is collapsed like any level's, but from its own, far more dangerous sample
 ## (SAMPLE: thorn-capped floors, thorn-bottomed pits, toothed ceilings, thorned islands) and laid
 ## out as a short strip, 64 cells across and 16 high (a quick crossing, packed with hazards), so the
-## way on is always to the right. This
-## class dresses what the collapse makes: both ends are laid flat and safe, the exits and lanterns
-## (the start, a rest halfway and the gate) go in, gliding ledges and moons fill the big gaps and the
-## tall walls, more are laid wherever a rough reach still can't get on (see _bridge), and
-## watchers, wisps, moons and stars are scattered along it.
-##
-## It is addressed as (seed, -depth), the depth being the level the jump was paid in
-## (see MapInfo.chasm_coord), so it has its own record, tile on the worlds map and place in the
-## save, and the levels it skips are left alone. Everything is a pure function of the level seed.
+## way on is always to the right. populate dresses what the collapse makes: both ends are laid flat
+## and safe, the exits and lanterns (the start, a rest halfway and the gate) go in, gliding ledges
+## and moons fill the big gaps and the tall walls, more are laid wherever a rough reach still can't
+## get on (see _bridge), and watchers, wisps, moons and stars are scattered along it. Everything is
+## a pure function of the level seed.
+
+## Its door: dealt in CHANCE % of levels from depth 1; drops DROP levels; costs PRICE deeper exits.
+const CHANCE: int = 18
+const DROP: int = 4
+const PRICE: float = 5.0
 
 const WIDTH: int = 64
 const HEIGHT: int = 16
@@ -38,12 +40,50 @@ const LASER_MIN_REACH: int = 3
 const RESTS: Array[float] = [0.5]
 
 
-static func size() -> Vector2i:
-	return Vector2i(WIDTH, HEIGHT)
+func _init() -> void:
+	name = "hyperspace"
+	way = Vector2.RIGHT
+	print_realm = &"hyperspace"
+	plants = false
+	price_factor = PRICE
+	cells = Vector2i(WIDTH, HEIGHT)
+	sample = SAMPLE
+
+
+func deals(at: Vector2i) -> bool:
+	return MapInfo.debug or (at.y >= 1 and MapInfo.level_seed(MapInfo.level_seed(at.x, at.y), 777) % 100 < CHANCE)
+
+
+## How many worlds sideways (-1, 0 or +1) the one entered from level `from` comes out, dealt by
+## that level's seed.
+static func drift(from: Vector2i) -> int:
+	return MapInfo.level_seed(MapInfo.level_seed(from.x, from.y), 991) % 3 - 1
+
+
+func destination_for(from: Vector2i) -> Vector2i:
+	return Vector2i(from.x + drift(from), from.y + DROP)
+
+
+## Where two would land in the same level (one drifting onto the other's straight drop), the one
+## straight above wins, then the one from the left.
+func arriving(at: Vector2i) -> Variant:
+	if at.y < DROP:
+		return null
+	for dx: int in [0, -1, 1]:
+		var from: Vector2i = Vector2i(at.x - dx, at.y - DROP)
+		if deals(from) and drift(from) == dx:
+			return from
+	return null
+
+
+## The middle of the drop it spans.
+func depth_for(from: Vector2i) -> int:
+	@warning_ignore("integer_division")
+	return from.y + DROP / 2
 
 
 ## An empty strip, in the generator's colours: what a collapse that never settles falls back to.
-static func fallback() -> Array:
+func fallback() -> Array:
 	var out: Array = []
 	for x: int in range(WIDTH):
 		var column: Array = []
@@ -54,7 +94,7 @@ static func fallback() -> Array:
 
 
 ## Dress a World made from the collapsed terrain: ends, exits, lanterns, hazards, stars.
-static func populate(w: MapInfo.World, _def: MapInfo.NextWorldDef) -> void:
+func populate(w: MapInfo.World) -> void:
 	_lay_ends(w)
 	w.connect_caves()
 	var back: Vector2i = Vector2i(3, FLOOR - 1)

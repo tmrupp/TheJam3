@@ -600,13 +600,13 @@ func _exit() -> void:
 	var pulse: float = 1.0 + 0.08 * sin(t * 2.5 + phase)
 	var g: float = _ground()
 	var opening: PackedVector2Array = RisoShapes.arch(-44, g - 110, 88, 110, 14)
-	# In hyperspace, the way on is its gate, and the way back runs left along it.
-	var in_chasm: bool = MapInfo.instance != null and MapInfo.is_chasm(MapInfo.instance.coord)
-	var plunge: bool = which == MapInfo.Exit.PLUNGE or (in_chasm and which == MapInfo.Exit.DEEPER)
-	var frame: int = RisoPrint.PINK if which == MapInfo.Exit.DEEPER or plunge else RisoPrint.BLUE
-	if plunge:
-		# The hyperspace door: a second, wider frame of accent round the pink one, and a falling cascade of
-		# chevrons over it (below).
+	# Where it leads and how grand it is are up to the place (a side world's door, or its way on).
+	var place: NextWorldDef = MapInfo.instance.here if MapInfo.instance != null else null
+	var grand: bool = place != null and place.exit_grand(which)
+	var frame: int = RisoPrint.PINK if which == MapInfo.Exit.DEEPER or grand else RisoPrint.BLUE
+	if grand:
+		# A grand door: a second, wider frame of accent round the pink one, and a falling cascade
+		# of chevrons over it (below).
 		ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.arch(-64, g - 132, 128, 132, 16)])
 		ink.ink(RisoPrint.NIGHT, 0.5, [RisoShapes.arch(-58, g - 125, 116, 125, 15)], false)
 	ink.ink(frame, 1.0, [RisoShapes.arch(-52, g - 118, 104, 118, 14)])
@@ -636,16 +636,11 @@ func _exit() -> void:
 		ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT], [star])
 		ink.ink(RisoPrint.EYE, 1.0, [star], false)
 	# Chevron above the arch, pointing the way this exit leads.
-	var dir: Vector2 = Vector2.DOWN
-	match which:
-		MapInfo.Exit.BACK: dir = Vector2.LEFT if in_chasm else Vector2.UP
-		MapInfo.Exit.RETURN: dir = Vector2.UP
-		MapInfo.Exit.LEFT: dir = Vector2.LEFT
-		MapInfo.Exit.RIGHT: dir = Vector2.RIGHT
+	var dir: Vector2 = place.exit_dir(which) if place != null else Vector2.DOWN
 	var bob: float = sin(t * 3.0 + phase) * 3.0
 	var at: Vector2 = Vector2(0, g - 140) + dir * bob
 	var side: Vector2 = Vector2(-dir.y, dir.x)
-	if plunge:
+	if grand:
 		# Three chevrons falling one after another, fading as they drop: a long way down.
 		for k: int in range(3):
 			var u: float = fmod(t * 0.9 + float(k) / 3.0, 1.0)

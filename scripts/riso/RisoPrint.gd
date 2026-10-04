@@ -625,15 +625,18 @@ func cycle_realm() -> void:
 	set_realm(REALM_ORDER[(i + 1) % REALM_ORDER.size()])
 
 
-## Called by MapInfo when a world has been laid out. Hyperspace prints in its own realm; leaving
-## it brings back the realm it was entered from.
+## Called by MapInfo when a world has been laid out. A place with a realm of its own
+## (NextWorldDef.realm, as hyperspace has) prints in it; leaving brings back the realm it was
+## entered from.
 func world_built(map_info: Node, _world_index: int) -> void:
 	_map_info = map_info
-	var in_hyperspace: bool = MapInfo.is_chasm(map_info.get("coord"))
-	if in_hyperspace and realm != &"hyperspace":
-		_realm_outside = realm
-		set_realm(&"hyperspace")
-	elif not in_hyperspace and realm == &"hyperspace":
+	var here: NextWorldDef = map_info.get("here") as NextWorldDef
+	var own: StringName = here.realm() if here != null else &""
+	if own != &"" and REALMS.has(own) and realm != own:
+		if REALM_ORDER.has(realm):
+			_realm_outside = realm
+		set_realm(own)
+	elif own == &"" and not REALM_ORDER.has(realm):
 		set_realm(_realm_outside)
 	if terrain != null and is_instance_valid(terrain):
 		var ledges: Array[Vector2] = []

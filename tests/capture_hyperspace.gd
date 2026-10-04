@@ -1,7 +1,7 @@
 extends SceneTree
-## Windowed stills of hyperspace (internally the chasm): its way in, a stretch of hazards, its level map and its
+## Windowed stills of hyperspace: its way in, a stretch of hazards, its level map and its
 ## tile on the worlds map.
-## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_chasm.gd
+## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_hyperspace.gd
 
 func _initialize() -> void:
 	call_deferred("capture")
@@ -16,7 +16,7 @@ func capture() -> void:
 	var menu: Node = main.get_node("Menu")
 	var seed_value: int = 4
 	for s: int in range(1, 120):
-		if MapInfo.level_seed(MapInfo.def_for(Vector2i(s, 1)).gen_seed, 777) % 100 < MapInfo.PLUNGE_CHANCE:
+		if MapInfo.level_seed(MapInfo.def_for(Vector2i(s, 1)).gen_seed, 777) % 100 < Hyperspace.CHANCE:
 			seed_value = s
 			break
 	menu.world_seed.text = str(seed_value)
@@ -31,16 +31,16 @@ func capture() -> void:
 	info.travel(MapInfo.Exit.DEEPER)
 	while info.travelling or info.world == null:
 		await process_frame
-	info.record()["plunge_paid"] = true
-	info.travel(MapInfo.Exit.PLUNGE)
+	info.here.pay(Worlds.door(Worlds.kind_of(Hyperspace)), info.record())
+	info.travel(Worlds.door(Worlds.kind_of(Hyperspace)))
 	while info.travelling:
 		await process_frame
 	for i: int in range(40):
 		await process_frame
-	root.get_texture().get_image().save_png(output.path_join("still_chasm_start.png"))
+	root.get_texture().get_image().save_png(output.path_join("still_hyperspace_start.png"))
 	player.set_physics_process(false)
-	for x: int in [Chasm.WIDTH / 4, Chasm.WIDTH * 2 / 5, Chasm.WIDTH * 3 / 5, Chasm.WIDTH * 3 / 4]:
-		player.global_position = info.cell_position(Vector2i(x, Chasm.FLOOR - 4))
+	for x: int in [Hyperspace.WIDTH / 4, Hyperspace.WIDTH * 2 / 5, Hyperspace.WIDTH * 3 / 5, Hyperspace.WIDTH * 3 / 4]:
+		player.global_position = info.cell_position(Vector2i(x, Hyperspace.FLOOR - 4))
 		var camera: Camera2D = main.get_node("Camera2D") as Camera2D
 		camera.position = player.global_position
 		for n: Node in player.get_children():
@@ -48,16 +48,16 @@ func capture() -> void:
 				n.set("target_location", player.global_position)
 		for i: int in range(20):
 			await process_frame
-		root.get_texture().get_image().save_png(output.path_join("still_chasm_%d.png" % x))
+		root.get_texture().get_image().save_png(output.path_join("still_hyperspace_%d.png" % x))
 	info.ink_whole_map()
 	var map: Node = main.get_node("RisoMap")
 	map.call("toggle")
 	for i: int in range(20):
 		await process_frame
-	root.get_texture().get_image().save_png(output.path_join("still_chasm_map_level.png"))
+	root.get_texture().get_image().save_png(output.path_join("still_hyperspace_map_level.png"))
 	map.call("page", 1)
 	for i: int in range(20):
 		await process_frame
-	root.get_texture().get_image().save_png(output.path_join("still_chasm_map_world.png"))
-	print("CAPTURED chasm stills to ", output)
+	root.get_texture().get_image().save_png(output.path_join("still_hyperspace_map_world.png"))
+	print("CAPTURED hyperspace stills to ", output)
 	quit()

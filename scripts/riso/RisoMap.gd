@@ -163,7 +163,7 @@ func _world_input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton and (event as InputEventMouseButton).pressed and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
 		var at: Vector2 = to_local(get_global_mouse_position())
 		for c: Vector2i in tiles(info):
-			var hit: bool = Geometry2D.is_point_in_polygon(at, _ribbon(chasm_curve(info, c), tile_size(c).x + 4.0)) if MapInfo.is_chasm(c) \
+			var hit: bool = Geometry2D.is_point_in_polygon(at, _ribbon(side_curve(info, c), tile_size(c).x + 4.0)) if Worlds.is_side(c) \
 				else Rect2(tile_at(info, c) - tile_size(c) * 0.5, tile_size(c)).has_point(at)
 			if hit:
 				selected = c
@@ -323,11 +323,19 @@ func _level(info: MapInfo) -> void:
 		["door", func(at: Vector2) -> void: _mark_door(at, 2)],
 		["gate", _mark_gate],
 		["switch", func(at: Vector2) -> void: _mark_switch(at, false)],
-		["hyperspace door", func(at: Vector2) -> void: _mark_plunge(at, 0, 0.7)],
+	] + _door_rows() + [
 		["key", func(at: Vector2) -> void: _mark_key(at, 2)],
 		["ink well", func(at: Vector2) -> void: _mark_inkwell(at, false)],
 		["ghost", func(at: Vector2) -> void: _mark_ghost(at, 0.22)],
 	])
+
+
+## A legend row for each kind of side world's door.
+func _door_rows() -> Array:
+	var rows: Array = []
+	for k: int in range(Worlds.KINDS.size()):
+		rows.append(["%s door" % Worlds.proto(k).name, func(at: Vector2) -> void: _mark_plunge(at, 0, 0.7)])
+	return rows
 
 
 ## A level other than the one being played, picked on the worlds page: its map as far as it was
@@ -357,19 +365,16 @@ func _other_level(info: MapInfo, c: Vector2i) -> void:
 		s.scale = Vector2(k, k)
 	var seen: Callable = func(v: Vector2i) -> bool: return v.x * w.size.y + v.y < bytes.size() and bytes[v.x * w.size.y + v.y] != 0
 	var spot: Callable = func(v: Vector2i) -> Vector2: return o + (Vector2(v) + Vector2(0.5, 0.5)) * k
+	var place: NextWorldDef = MapInfo.def_for(c)
 	for which: int in w.exits:
 		var v: Vector2i = w.exits[which]
 		if not seen.call(v):
 			continue
-		var in_chasm: bool = MapInfo.is_chasm(c)
-		var dir: Vector2 = {MapInfo.Exit.BACK: Vector2.LEFT if in_chasm else Vector2.UP, MapInfo.Exit.RETURN: Vector2.UP, MapInfo.Exit.LEFT: Vector2.LEFT, MapInfo.Exit.RIGHT: Vector2.RIGHT}.get(which, Vector2.DOWN)
-		var deeper: bool = which == MapInfo.Exit.DEEPER
-		if in_chasm and deeper:
-			_mark_plunge(spot.call(v), 0)
+		var owed: int = mini(1, place.price(which, rec))
+		if place.exit_grand(which):
+			_mark_plunge(spot.call(v), owed)
 			continue
-		_mark_exit(spot.call(v), dir, deeper, -1, 1 if deeper and not bool(rec.get("deeper_paid", false)) else 0)
-	if w.plunge.x >= 0 and seen.call(w.plunge):
-		_mark_plunge(spot.call(w.plunge), 0 if bool(rec.get("plunge_paid", false)) else 1)
+		_mark_exit(spot.call(v), place.exit_dir(which), which == MapInfo.Exit.DEEPER, -1, owed)
 	if w.shrine.x >= 0 and seen.call(w.shrine):
 		_mark_shrine(spot.call(w.shrine), bool(rec.get("shrine_used", false)))
 	for x: int in range(w.size.x):
@@ -396,22 +401,17 @@ func _other_level(info: MapInfo, c: Vector2i) -> void:
 
 func _exit_mark(node: Node, at: Vector2) -> void:
 	var which: int = int(node.get("exit"))
-	var in_chasm: bool = MapInfo.is_chasm(MapInfo.instance.coord)
-	var dir: Vector2 = Vector2.DOWN
-	match which:
-		MapInfo.Exit.BACK: dir = Vector2.LEFT if in_chasm else Vector2.UP
-		MapInfo.Exit.RETURN: dir = Vector2.UP
-		MapInfo.Exit.LEFT: dir = Vector2.LEFT
-		MapInfo.Exit.RIGHT: dir = Vector2.RIGHT
-	if which == MapInfo.Exit.PLUNGE or (in_chasm and which == MapInfo.Exit.DEEPER):
+	var place: NextWorldDef = MapInfo.instance.here
+	if place.exit_grand(which):
 		_mark_plunge(at, int(node.call("price")))
 		return
-	_mark_exit(at, dir, which == MapInfo.Exit.DEEPER, int(node.call("lock")), int(node.call("price")))
+	_mark_exit(at, place.exit_dir(which), which == MapInfo.Exit.DEEPER, int(node.call("lock")), int(node.call("price")))
 
 
 # ------------------------------------------------------------------ marks (map and legend)
 
-## The hyperspace door: a deeper mark in an accent ring, with a second chevron.
+## A grand door (a side world's door, or its way on): a deeper mark in an accent ring, with a
+## second chevron.
 func _mark_plunge(at: Vector2, owed: int, k: float = 1.0) -> void:
 	marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(at, 6.4 * k, 18)], false)
 	_mark_exit(at, Vector2.DOWN, true, -1, owed, k)
@@ -518,7 +518,8 @@ func tiles(info: MapInfo) -> Dictionary:
 	return info.records
 
 
-## Pairs of visited levels joined by an opened side door, a paid deeper door or a landing's way up.
+## Pairs of visited levels joined by an opened side door, a paid deeper door or an ordinary way up
+## taken from a level a side world leads into.
 func links(info: MapInfo) -> Array[Array]:
 	var out: Array[Array] = []
 	var known: Dictionary = {}
@@ -531,7 +532,7 @@ func links(info: MapInfo) -> Array[Array]:
 			_link(out, known, [c + Vector2i(-1, 0), c])
 		if bool(rec.get("deeper_paid", false)):
 			_link(out, known, [c, c + Vector2i(0, 1)])
-		if bool(rec.get("return_open", false)):
+		if (rec.get("ways_taken", {}) as Dictionary).has(MapInfo.Exit.RETURN):
 			_link(out, known, [c + Vector2i(0, -1), c])
 	return out
 
@@ -543,19 +544,19 @@ func _link(out: Array[Array], known: Dictionary, pair: Array) -> void:
 		out.append(pair)
 
 
-## Where level `c` sits on the worlds grid, in tiles. Hyperspace hangs centred between the level
-## it is entered from and the one its gate drops to (which may be a world to either side), so it
-## reads as the long way between them rather than as a level of its own depth.
+## Where place `c` sits on the worlds grid, in tiles. A side world hangs where its definition
+## says (NextWorldDef.grid_at): hyperspace centred between the level it is entered from and the
+## one its gate drops to, so it reads as the long way between them.
 func grid_at(c: Vector2i) -> Vector2:
-	if MapInfo.is_chasm(c):
-		return (Vector2(MapInfo.chasm_origin(c)) + Vector2(MapInfo.chasm_landing(c))) * 0.5
-	return Vector2(c)
+	return MapInfo.def_for(c).grid_at() if Worlds.is_side(c) else Vector2(c)
 
 
-## A tile's size: levels are boxes; for hyperspace, x is its ribbon's width and y its span.
+## A tile's size: levels are boxes; for a side world, x is its ribbon's width and y its span.
 func tile_size(c: Vector2i) -> Vector2:
-	if MapInfo.is_chasm(c):
-		return Vector2(9, MapInfo.PLUNGE_DEPTH * PITCH.y - TILE.y - 2.0)
+	if Worlds.is_side(c):
+		var side: SideWorld = MapInfo.def_for(c) as SideWorld
+		var rows: int = absi(side.destination().y - side.origin().y)
+		return Vector2(9, maxf(PITCH.y - TILE.y - 2.0, rows * PITCH.y - TILE.y - 2.0))
 	return TILE
 
 
@@ -580,30 +581,31 @@ func _world(info: MapInfo) -> void:
 		var e: Vector2 = b - d * (TILE.x * 0.5 if d.x != 0.0 else TILE.y * 0.5)
 		bars.append(PackedVector2Array([s + side * 1.6, e + side * 1.6, e - side * 1.6, s - side * 1.6]))
 	marks.ink(RisoPrint.BLUE, 1.0, bars, false)
-	# Chasms first: they run alongside the levels they skip, which print over them.
+	# Side worlds first: they run alongside the levels they skip, which print over them.
 	var order: Array[Vector2i] = []
 	for c: Vector2i in tiles(info):
 		order.append(c)
-	order.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return MapInfo.is_chasm(a) and not MapInfo.is_chasm(b))
+	order.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return Worlds.is_side(a) and not Worlds.is_side(b))
 	for c: Vector2i in order:
 		var at: Vector2 = tile_at(info, c)
 		var size: Vector2 = tile_size(c)
-		if MapInfo.is_chasm(c):
-			var curve: PackedVector2Array = chasm_curve(info, c)
+		if Worlds.is_side(c):
+			var place: SideWorld = MapInfo.def_for(c) as SideWorld
+			var curve: PackedVector2Array = side_curve(info, c)
 			var bounds: Rect2 = Rect2(curve[0], Vector2.ZERO)
 			for p: Vector2 in curve:
 				bounds = bounds.expand(p)
 			if not bounds.grow(6.0).intersects(area):
 				continue
-			_mark_chasm(curve, size.x, c == info.coord, area)
-			# Marks sit on the curve as far along it as they are across hyperspace, on a clear spot.
+			_mark_side(curve, size.x, c == info.coord, area)
+			# Marks sit on the curve as far along it as they are across the world, on a clear spot.
 			if c == info.respawn_coord:
-				var lit: Vector2 = _along(curve, float(info.respawn_cell.x) / float(Chasm.WIDTH - 1))
+				var lit: Vector2 = _along(curve, place.progress(info.respawn_cell))
 				if area.has_point(lit):
 					marks.knock([RisoPrint.ACCENT, RisoPrint.PINK], [RisoShapes.circle(lit, 3.2, 12)])
 					_mark_respawn_level(lit)
 			if info.has_ghost and c == info.ghost_coord:
-				var lost: Vector2 = _along(curve, float(info.cell_at(info.ghost_pos).x) / float(Chasm.WIDTH - 1))
+				var lost: Vector2 = _along(curve, place.progress(info.cell_at(info.ghost_pos)))
 				if area.has_point(lost):
 					marks.knock([RisoPrint.ACCENT, RisoPrint.PINK], [RisoShapes.circle(lost, 6.5, 18)])
 					_mark_ghost(lost, 0.2)
@@ -619,14 +621,14 @@ func _world(info: MapInfo) -> void:
 			_mark_spent_shrine(at + Vector2(0, TILE.y * 0.5 - 4.75))
 		if info.has_ghost and c == info.ghost_coord:
 			_mark_ghost(at + Vector2(TILE.x * 0.5 - 4.0, TILE.y * 0.5 - 4.0), 0.2)
-	# The cursor: a night-ink frame round the picked level (or hyperspace's ribbon), breathing.
+	# The cursor: a night-ink frame round the picked level (or a side world's ribbon), breathing.
 	var cur: Vector2 = tile_at(info, selected)
 	var cur_size: Vector2 = tile_size(selected)
 	var grow: float = 2.0 + sin(t * 5.0) * 0.6
 	var outer: Array[PackedVector2Array] = [RisoShapes.rrect(cur.x - cur_size.x * 0.5 - grow, cur.y - cur_size.y * 0.5 - grow, cur_size.x + grow * 2.0, cur_size.y + grow * 2.0, 6.0)]
 	var inner: Array[PackedVector2Array] = [RisoShapes.rrect(cur.x - cur_size.x * 0.5 - grow + 1.2, cur.y - cur_size.y * 0.5 - grow + 1.2, cur_size.x + grow * 2.0 - 2.4, cur_size.y + grow * 2.0 - 2.4, 5.0)]
-	if MapInfo.is_chasm(selected):
-		var curve: PackedVector2Array = chasm_curve(info, selected)
+	if Worlds.is_side(selected):
+		var curve: PackedVector2Array = side_curve(info, selected)
 		var ring: Array[PackedVector2Array] = [_ribbon(curve, cur_size.x + grow * 2.0, grow)]
 		var hole: Array[PackedVector2Array] = [_ribbon(curve, cur_size.x + grow * 2.0 - 2.4, grow - 1.2)]
 		outer = _clipped(ring, _box(area))
@@ -638,7 +640,7 @@ func _world(info: MapInfo) -> void:
 		["you are here", func(at: Vector2) -> void: _mark_tile(at, Vector2(9, 6), true)],
 		["visited", func(at: Vector2) -> void: _mark_tile(at, Vector2(9, 6), false)],
 		["way opened", func(at: Vector2) -> void: marks.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(at.x - 5.0, at.y - 1.6, 10.0, 3.2, 1.6)], false)],
-		["hyperspace", func(at: Vector2) -> void: _mark_chasm(_bezier(at + Vector2(-1, -5), at + Vector2(3, -2), at + Vector2(3, 2), at + Vector2(-1, 5)), 4.0, false)],
+	] + _side_rows() + [
 		["respawn", _mark_respawn_level],
 		["shrine used", _mark_spent_shrine],
 		["ghost", func(at: Vector2) -> void: _mark_ghost(at, 0.2)],
@@ -650,13 +652,27 @@ func _mark_tile(at: Vector2, size: Vector2, here: bool) -> void:
 	marks.ink(RisoPrint.ACCENT if here else RisoPrint.BLUE, 0.55 if here else 0.25, [rect], false)
 
 
-## Hyperspace on the worlds page: a smooth curve from under the level it is entered from to over
-## the one it drops to, bowing out of the straight line so it runs down the gutter between columns
-## rather than through the levels it skips (away from the landing's column when it drifts).
-func chasm_curve(info: MapInfo, c: Vector2i) -> PackedVector2Array:
-	var a: Vector2 = tile_at(info, MapInfo.chasm_origin(c)) + Vector2(0, TILE.y * 0.5 + 3.5)
-	var b: Vector2 = tile_at(info, MapInfo.chasm_landing(c)) - Vector2(0, TILE.y * 0.5 + 3.5)
-	var drift: int = MapInfo.chasm_landing(c).x - MapInfo.chasm_origin(c).x
+## A legend row for each kind of side world.
+func _side_rows() -> Array:
+	var rows: Array = []
+	for k: int in range(Worlds.KINDS.size()):
+		rows.append([Worlds.proto(k).name, func(at: Vector2) -> void: _mark_side(_bezier(at + Vector2(-1, -5), at + Vector2(3, -2), at + Vector2(3, 2), at + Vector2(-1, 5)), 4.0, false)])
+	return rows
+
+
+## A side world on the worlds page: a smooth curve from under the level it is entered from to over
+## the one its way on leads to, bowing out of the straight line so it runs down the gutter between
+## columns rather than through the levels it skips (away from the far level's column when it
+## drifts). A dead end hangs a short way under its level.
+func side_curve(info: MapInfo, c: Vector2i) -> PackedVector2Array:
+	var place: SideWorld = MapInfo.def_for(c) as SideWorld
+	var from: Vector2i = place.origin()
+	var to: Vector2i = place.destination()
+	var a: Vector2 = tile_at(info, from) + Vector2(0, TILE.y * 0.5 + 3.5)
+	var b: Vector2 = tile_at(info, to) - Vector2(0, TILE.y * 0.5 + 3.5)
+	if to.y <= from.y:
+		b = a + Vector2(0, PITCH.y - TILE.y - 7.0)
+	var drift: int = to.x - from.x
 	var side: float = -float(drift) if drift != 0 else (1.0 if posmod(c.x, 2) == 0 else -1.0)
 	var d: Vector2 = b - a
 	# A cubic's handles bowed out by `bow` peak at 3/4 of it: a straight drop peaks mid-gutter.
@@ -708,9 +724,9 @@ func _box(r: Rect2) -> PackedVector2Array:
 	return PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)])
 
 
-## Hyperspace: a narrow accent ribbon `width` wide along `curve`, with chevrons running down it,
+## A side world: a narrow accent ribbon `width` wide along `curve`, with chevrons running down it,
 ## cut to `clip` when one is given.
-func _mark_chasm(curve: PackedVector2Array, width: float, here: bool, clip: Rect2 = Rect2()) -> void:
+func _mark_side(curve: PackedVector2Array, width: float, here: bool, clip: Rect2 = Rect2()) -> void:
 	var strip: Array[PackedVector2Array] = [_ribbon(curve, width)]
 	var chevrons: Array[PackedVector2Array] = []
 	var last: int = curve.size() - 1
