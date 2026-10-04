@@ -191,8 +191,12 @@ static func ensure_input() -> void:
 
 
 ## The Spell button: use whatever is in the slot. A spell with a cast price (CAST_COST) is only
-## cast when the stars are there, and they are paid only if it works.
+## cast when the stars are there, and they are paid only if it works. Nothing is cast while the
+## wizard is drowsy (in sleep fog).
 static func cast(player: Player) -> void:
+	# Drowsy in sleep fog: no spells.
+	if player.is_drowsy():
+		return
 	var cost: int = cast_price_here(player)
 	if cost > player.coins.coins:
 		return

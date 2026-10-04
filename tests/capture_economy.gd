@@ -1,7 +1,7 @@
 extends SceneTree
 ## Stills for groups 7 and 8: a star cluster, a skeleton key, the lit lantern that can be burned
-## into the mend spell (with the HUD showing a full keyring and skeleton keys), and the pause menu
-## with Give up.
+## into the mend spell (with a full keyring and skeleton keys trailing the wizard), a warp on its
+## way in and out, and the pause menu with Give up.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_economy.gd
 
 func _initialize() -> void:
@@ -77,6 +77,17 @@ func capture() -> void:
 	strip.save_png(output.path_join("economy.png"))
 	# The whole screen, for the HUD.
 	root.get_texture().get_image().save_png(output.path_join("economy_hud.png"))
+	# A warp, mid-trip: drawn into a tear where the wizard stands, then pushed out where they land.
+	Abilities.set_tier(player, &"warp", 1)
+	player.collect(50)
+	var warp: Warp = player.get_node("Warp") as Warp
+	Abilities.cast(player)
+	await create_timer(0.18).timeout
+	root.get_texture().get_image().save_png(output.path_join("economy_warp_in.png"))
+	await create_timer(0.2).timeout
+	root.get_texture().get_image().save_png(output.path_join("economy_warp_out.png"))
+	while warp.warping:
+		await process_frame
 	# The pause menu, with Give up.
 	menu.call("pause_resume_game")
 	for i: int in range(20):

@@ -28,7 +28,8 @@ func run() -> void:
 					counts[cell.type] = int(counts.get(cell.type, 0)) + 1
 			var label: String = "seed %d depth %d" % [seed_value, depth]
 			print("%s %s: gates=%d moons=%d keys=%d lanterns=%d portals=%d" % [label, w.size, counts.get(MapInfo.Type.DOOR, 0), counts.get(MapInfo.Type.MOON, 0), counts.get(MapInfo.Type.KEY, 0), counts.get(MapInfo.Type.CHECKPOINT, 0), counts.get(MapInfo.Type.PORTAL, 0)])
-			check(int(counts.get(MapInfo.Type.DOOR, 0)) > 0, label + ": gates must be present")
+			# A cemetery's open terraces have hardly any one-cell corridors to gate.
+			check(def.cemetery() or int(counts.get(MapInfo.Type.DOOR, 0)) > 0, label + ": gates must be present")
 			check(int(counts.get(MapInfo.Type.DOOR, 0)) <= w.per_area(MapInfo.DOORS_PER_K), label + ": gate budget")
 			# A first level also has its start key (for the side door near the start).
 			var start_key: int = 1 if w.start_side >= 0 else 0

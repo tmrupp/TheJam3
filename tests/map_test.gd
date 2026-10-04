@@ -97,6 +97,19 @@ func run() -> void:
 	map.call("toggle")
 	await process_frame
 	check(int(map.get("view")) == 1 and paused and map.visible, "M opens the level page, paused")
+	# The page is drawn (inked whole above): its marks note their legend rows, and only those are
+	# listed. Teleporters are on the map; this first level has no skeleton key.
+	map.call("_level", info)
+	var shown: Dictionary = map.get("_shown")
+	check(shown.has("teleporter") and (shown.has("deeper") or shown.has("unpaid")) and shown.has("lantern"), "teleporters, exits and lanterns are marked: %s" % [shown.keys()])
+	check(not shown.has("skeleton key") and not shown.has("rift"), "the legend leaves out what the page does not show")
+	var pair: Array[Node] = []
+	for n: Node in info.map_elements.get_children():
+		if n.scene_file_path.get_file() == "portal.tscn" and n.has_meta(&"cell"):
+			pair.append(n)
+	var a_end: Node = pair[0]
+	var b_end: Node = pair.filter(func(n: Node) -> bool: return n.get_meta(&"cell") == info.cell_at(a_end.get("go_to_pos")))[0]
+	check(RisoProp.pair_sigil(a_end.get_meta(&"cell"), b_end.get_meta(&"cell")) == RisoProp.pair_sigil(b_end.get_meta(&"cell"), a_end.get_meta(&"cell")), "both ends of a teleporter pair carry the same sigil")
 	map.call("page", 1)
 	await process_frame
 	check(int(map.get("view")) == 2 and paused, "D turns to the worlds page")

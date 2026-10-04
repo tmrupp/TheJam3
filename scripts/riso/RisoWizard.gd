@@ -38,8 +38,13 @@ var ax: float = 0.0
 var pvx: float = 0.0
 var pvy: float = 0.0
 var pg: bool = true
-var squash: float = 1.0
-var squash_v: float = 0.0
+## The body bows above the waist like cloth on a frame, never squashing: positive bows toward the
+## way the wizard faces (landing throws it forward, taking off back), the more the higher up, so
+## the hat whips furthest (see _bowv). A spring settles it.
+var bow: float = 0.0
+var bow_v: float = 0.0
+## Where the bow bends from, in art units (feet at 0, up is negative).
+const WAIST: float = -7.0
 ## Gone into a portal and not yet out of the far one: the wizard is not printed.
 var vanished: bool = false
 var hem_x: PackedFloat32Array = PackedFloat32Array([0, 0, 0, 0, 0])
@@ -59,7 +64,12 @@ const ECHO_COVER: float = 0.55
 var _echo_at: Vector2 = Vector2.INF
 var ghosts: Array[Vector4] = []  # x, y, facing, life 0..1
 var _was_dashing: bool = false
-var key_pos: Vector2 = Vector2.INF
+## The carried keys trailing the wizard (see _trail_keys): their colours, newest first, then any
+## skeleton keys, and where each is now (empty after a teleport: they start over at the shoulder).
+var key_colors: Array[int] = []
+var key_trail: Array[Vector2] = []
+## How far each key hangs behind the one before it (world pixels, before facing).
+const KEY_LINK: Vector2 = Vector2(-30, 8)
 var _was_climbing: bool = false
 ## Pressed-against-wall pose: `wall` blends 0..1, `wall_side` is +1 when the wall is to the right.
 var wall: float = 0.0
@@ -104,6 +114,9 @@ func orb_flare() -> void:
 
 ## How ready the spell in the slot is, 0..1 (the orb's brightness), or -1 with no spell.
 func _spell_ready() -> float:
+	# Drowsy in sleep fog: the spell is off.
+	if Abilities.spell(player) != &"" and player.is_drowsy():
+		return 0.0
 	if Abilities.spell(player) != &"" and Abilities.cast_price_here(player) > player.coins.coins:
 		# Not enough stars to cast it.
 		return 0.0
@@ -138,14 +151,19 @@ func _spell_ready() -> float:
 
 func _on_event(kind: StringName, at: Vector2) -> void:
 	if kind == &"jump":
-		squash_v += 4.5
+		# Thrown back as the jump lifts the wizard, the hat tip trailing down.
+		bow_v -= 3.2
+		tip_v -= signf(fs) * 1.5
 	elif kind == &"projection_start":
 		ghosts.append(Vector4(at.x, at.y, signf(fs), 1.0))
 	elif kind == &"teleport":
-		# Out of the portal tall and thin; the squash spring settles it back.
-		squash = 1.32
-		squash_v = 0.0
-		key_pos = Vector2.INF
+		# Out of the portal: the robe and hat catch the air like cloth flicked out, and settle.
+		bow_v += 3.5
+		tip_v += signf(fs) * 4.0
+		for i: int in range(hem_vy.size()):
+			hem_vy[i] -= 26.0 + 6.0 * absf(float(i - 2))
+			hem_vx[i] += float(i - 2) * 9.0
+		key_trail.clear()
 
 
 func _physics_process(delta: float) -> void:
@@ -187,12 +205,28 @@ func _physics_process(delta: float) -> void:
 			ghosts[i] = g
 	flare_amount = maxf(0.0, flare_amount - delta * 2.2)
 	orb_flare_amount = maxf(0.0, orb_flare_amount - delta * 2.2)
-	# A carried key trails the wizard on a soft lag, just behind and above the shoulder.
+	_trail_keys(delta)
+
+
+## Every key carried trails the wizard on a soft lag: the newest just behind and above the
+## shoulder, each older one hanging behind the one before it (a chain), skeleton keys last.
+func _trail_keys(delta: float) -> void:
+	var colors: Array[int] = KeyRing.all(player)
+	colors.reverse()
+	for i: int in range(KeyRing.skeletons(player)):
+		colors.append(KeyRing.SKELETON)
+	if colors != key_colors:
+		key_colors = colors
+		key_trail.resize(mini(key_trail.size(), colors.size()))
 	var s: float = player.global_scale.y * ART_SCALE
 	var target: Vector2 = global_position + Vector2(-signf(fs) * 11.0, -24.0) * s
-	if key_pos == Vector2.INF or not player.has_meta(&"carried_key"):
-		key_pos = target
-	key_pos = key_pos.lerp(target, minf(1.0, delta * 8.0))
+	var link: Vector2 = Vector2(KEY_LINK.x * signf(fs), KEY_LINK.y)
+	for i: int in range(colors.size()):
+		if i >= key_trail.size():
+			key_trail.append(target)
+		# Each follows the one before it a little more loosely.
+		key_trail[i] = key_trail[i].lerp(target, minf(1.0, delta * (8.0 - 1.5 * float(mini(i, 3)))))
+		target = key_trail[i] + link
 
 
 func _rig(dt: float, dashing: bool) -> void:
@@ -214,7 +248,8 @@ func _rig(dt: float, dashing: bool) -> void:
 	ax += (clampf((vx - pvx) / dt, -3000.0, 3000.0) - ax) * minf(1.0, dt * 25.0)
 	var took: bool = not ground and pg and vy < -100.0
 	if landed:
-		squash_v -= pvy * 0.016
+		# The weight carries on: the body bows forward over its feet and springs back.
+		bow_v += clampf(pvy * 0.012, 0.0, 9.0)
 	fs += (face - fs) * minf(1.0, dt * 16.0)
 	sp += ((clampf(absf(vx) / MAXV, 0.0, 1.0) if ground else 0.0) - sp) * minf(1.0, dt * 10.0)
 	if ground:
@@ -271,10 +306,11 @@ func _rig(dt: float, dashing: bool) -> void:
 	if took:
 		head_v -= 16.0
 		tip_v -= fsn * 2.0
-	# No squash while dashing: the dash reads through the lean, the hem and the afterimages instead.
-	var squash_t: float = 1.0 if ground or dashing else 1.0 + clampf(absf(vy) / 2600.0, 0.0, 0.12)
-	squash_v += ((squash_t - squash) * 260.0 - squash_v * 15.0) * dt
-	squash = clampf(squash + squash_v * dt, 0.68, 1.32)
+	# The bow springs back to upright (a little back while rising, a little forward while falling,
+	# as the air pushes on the cloth).
+	var bow_t: float = 0.0 if ground else clampf(vy / 900.0, -0.08, 0.08)
+	bow_v += ((bow_t - bow) * 170.0 - bow_v * 12.0) * dt
+	bow = clampf(bow + bow_v * dt, -0.5, 0.5)
 	pvx = vx
 	pvy = vy
 	pg = ground
@@ -324,9 +360,20 @@ func _soft(v: float, m: float) -> float:
 	return m * tanh(v / m)
 
 
-## Smoosh against the wall: points past a knee near the wall face flatten onto it, and the
-## squeezed-out material spreads up and down along the wall.
+## The bow (see `bow`): a point above the waist turns about it, the more the higher it is, so the
+## body curves like cloth over a frame rather than tilting stiffly; below the waist, nothing moves.
+func _bowv(v: Vector2) -> Vector2:
+	var u: float = clampf((WAIST - v.y) / 18.0, 0.0, 1.5)
+	if u <= 0.0 or absf(bow) < 0.0005:
+		return v
+	var pivot: Vector2 = Vector2(0.0, WAIST)
+	return pivot + (v - pivot).rotated(bow * (1.0 if fs >= 0.0 else -1.0) * u * u)
+
+
+## The body bowed, then against the wall: cloth past a knee near the wall face lies flat on it (it
+## never passes through, and is never squeezed out of shape).
 func _smv(v: Vector2) -> Vector2:
+	v = _bowv(v)
 	if wall <= 0.001:
 		return v
 	var knee: float = WALL_X - 3.5
@@ -335,12 +382,11 @@ func _smv(v: Vector2) -> Vector2:
 		return v
 	var over: float = s - knee
 	var flat: float = 3.5 * tanh(over / 3.5)
-	var pressed: Vector2 = Vector2(wall_side * (knee + flat), v.y + (v.y + 11.0) * (over - flat) * 0.08)
-	return v.lerp(pressed, wall)
+	return v.lerp(Vector2(wall_side * (knee + flat), v.y), wall)
 
 
 func _sm(poly: PackedVector2Array) -> PackedVector2Array:
-	if wall <= 0.001:
+	if wall <= 0.001 and absf(bow) < 0.0005:
 		return poly
 	var out: PackedVector2Array = PackedVector2Array()
 	out.resize(poly.size())
@@ -372,11 +418,7 @@ func _draw_body() -> void:
 	var hurt: bool = player.invulnerable.is_acting() and int(t * 16.0) % 2 == 0
 	var cyc: float = fposmod(t, 3.9)
 	var blink: bool = cyc < 0.11 or (int(t / 3.9) % 3 == 0 and cyc > 0.2 and cyc < 0.3)
-	var m: Transform2D = Transform2D(Vector2(1.0 / squash, 0), Vector2(0, squash), Vector2.ZERO) * Transform2D(lean, Vector2.ZERO)
-	# Squeezed against the wall: compressed toward the wall face, which stays put.
-	if wall > 0.001:
-		var anchor: Vector2 = Vector2(wall_side * WALL_X, 0.0)
-		m = Transform2D(0.0, Vector2(1.0 - 0.16 * wall, 1.0 + 0.06 * wall), 0.0, anchor) * Transform2D(0.0, -anchor) * m
+	var m: Transform2D = Transform2D(lean, Vector2.ZERO)
 	var mh: Transform2D = m * Transform2D(hat_a + lean * 0.4, Vector2(fsc * 0.05, -21.3 + hy))
 	var hem: Array[Vector2] = []
 	var hem_lim: float = lerpf(20.0, WALL_X - 0.6, wall)
@@ -436,7 +478,7 @@ func _draw_body() -> void:
 		var boot: PackedVector2Array = RisoShapes.smooth(PackedVector2Array([Vector2(-1.9, 0.1), Vector2(1.2, 0.1), Vector2(3.3, -0.1), Vector2(3.5, -1.2), Vector2(2.3, -2.0), Vector2(1.0, -2.2), Vector2(0.9, -4.6), Vector2(-1.6, -4.6), Vector2(-2.0, -1.6)]), 3)
 		boots.append(_sm(m * (Transform2D(0.0, Vector2(f, 1), 0.0, p) * boot)))
 	var robe_m: PackedVector2Array = _sm(m * robe)
-	if wall > 0.001:
+	if wall > 0.001 or absf(bow) > 0.001:
 		face = _sm(face)
 		sleeve = _sm(sleeve)
 		collar = _sm(collar)
@@ -683,10 +725,11 @@ func _draw_world() -> void:
 			var r: float = (9.0 + 4.0 * float(k) + sin(t * 4.0 + float(k)) * 1.2) * s
 			var ring: PackedVector2Array = RisoShapes.ellipse(feet + Vector2(0, float(k) * 3.0 * s), r, r * 0.28, 24)
 			world.ink(RisoPrint.GLOW, 0.5 - 0.2 * float(k), [ring])
-	if player.has_meta(&"carried_key"):
-		var bob: Vector2 = Vector2(0, sin(t * 3.0) * 3.0)
-		for plate: int in RisoPrint.key_inks(int(player.get_meta(&"carried_key"))):
-			world.ink(plate, 1.0, RisoProp.key_shape(key_pos + bob, 1.0))
+	for i: int in range(mini(key_colors.size(), key_trail.size())):
+		var bob: Vector2 = Vector2(0, sin(t * 3.0 - float(i) * 0.7) * 3.0)
+		var size: float = 1.0 if i == 0 else 0.8
+		for plate: int in RisoPrint.key_inks(key_colors[i]):
+			world.ink(plate, 1.0, RisoProp.key_shape(key_trail[i] + bob, size))
 	for g: Vector4 in marks:
 		var at: Transform2D = Transform2D(0.0, Vector2(s, s), 0.0, Vector2(g.x, g.y - (1.0 - g.w) * 6.0 * s))
 		world.ink(RisoPrint.GLOW, 0.25 if g.w > 0.5 else 0.15, _silhouette(at, g.z))

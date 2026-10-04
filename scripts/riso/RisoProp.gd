@@ -54,6 +54,11 @@ const POP_REACH: Vector2 = Vector2(40, 110)
 ## Pop-up centre height over the ground: above the interact prompt over the wizard's head.
 const POP_Y: float = 255.0
 var pops: Array[float] = []
+## The hopper's bend and its thorns' (see _hopper): springs.
+var hop_bend: float = 0.0
+var hop_bend_v: float = 0.0
+var thorn_a: float = 0.0
+var thorn_v: float = 0.0
 
 
 func _ready() -> void:
@@ -147,6 +152,11 @@ func _redraw() -> void:
 		&"wisp": _wisp()
 		&"watcher": _watcher()
 		&"hopper": _hopper()
+		&"wraith": _wraith()
+		&"bridge": _bridge()
+		&"bell": _bell()
+		&"moths": _moths()
+		&"fog": _fog()
 		&"laser": _laser()
 		&"shard": _shard()
 	for i: int in range(labels_used, labels.size()):
@@ -178,7 +188,7 @@ func _sync_ui() -> void:
 # ------------------------------------------------------------------ pickups
 
 ## A star: printed once (a halo, and the star on a canvas of its own), then animated by moving the
-## two canvases, bobbing, with the star squashed side to side as it spins. A deep level has
+## two canvases, bobbing, with the star rocking to and fro on its points. A deep level has
 ## hundreds, so they never re-lay their ink.
 var _star_ink: InkCanvas = null
 
@@ -198,7 +208,7 @@ func _mote_pose() -> void:
 	var y: float = sin(t * 3.0 + phase) * 4.0
 	ink.position = Vector2(0, y)
 	_star_ink.position = Vector2(0, y)
-	_star_ink.scale = Vector2(maxf(0.25, absf(cos(t * 2.4 + phase))), 1.0)
+	_star_ink.rotation = sin(t * 1.7 + phase) * 0.45
 
 
 func _key() -> void:
@@ -556,12 +566,16 @@ func _pair_sigil() -> int:
 	var info: MapInfo = MapInfo.instance
 	if info == null or not host.has_meta(&"cell"):
 		return 0
-	var a: Vector2i = host.get_meta(&"cell")
-	var b: Vector2i = info.cell_at(host.get("go_to_pos"))
+	_sigil = pair_sigil(host.get_meta(&"cell"), info.cell_at(host.get("go_to_pos")))
+	return _sigil
+
+
+## The sigil a pair of teleporters at cells `a` and `b` shares (0..4, see sigil_shape): the same
+## from either end, so the printed map can match them too.
+static func pair_sigil(a: Vector2i, b: Vector2i) -> int:
 	var lo: Vector2i = a if a < b else b
 	var hi: Vector2i = b if a < b else a
-	_sigil = MapInfo.level_seed(lo.x * 997 + lo.y, hi.x * 991 + hi.y) % 5
-	return _sigil
+	return MapInfo.level_seed(lo.x * 997 + lo.y, hi.x * 991 + hi.y) % 5
 
 
 ## A sigil, about 2 * `r` across: a ring, a triangle, a square, a diamond or a spark.
@@ -766,8 +780,12 @@ func _relic() -> void:
 		var owed: int = int(host.call("price"))
 		var label: String = "%s %s" % [Abilities.NAMES[a], Abilities.roman(int(held[1]))]
 		_plaque(label + (" · %d" % owed if owed > 0 else " · take back"), Vector2(0, g - POP_Y), 30, RisoPrint.ACCENT, sl)
+		var player: Player = host.get_node_or_null("/root/Main/Player") as Player
 		if bool(host.call("swap")):
 			_plaque("swap", Vector2(0, g - POP_Y - 40.0 * sl), 22, RisoPrint.PINK, sl)
+		elif owed > 0 and player != null and Abilities.tier(player, a) > 0:
+			# A move already known: this relic raises it a tier.
+			_plaque("upgrade" if Abilities.tier(player, a) < int(Abilities.MAX[a]) else "already mastered", Vector2(0, g - POP_Y - 40.0 * sl), 22, RisoPrint.BLUE, sl)
 
 
 ## A switch: a stone base on the floor with a lever in it. Before it is thrown the lever leans left
@@ -1625,8 +1643,8 @@ func _watcher() -> void:
 
 
 ## The hopper: a squat pink toad of a nightmare with a ridge of thorns down its back and two
-## paper eye slits. It squashes as it crouches to leap (the slits narrow), stretches in the air
-## over its shadow, and slumps as it lands.
+## paper eye slits. It curls forward as it crouches to leap (the slits narrow), arches through the
+## air over its shadow, and is thrown forward as it lands, its thorns whipping after.
 func _hopper() -> void:
 	var hop: Node = host.get_node_or_null("Hopper")
 	var facing: float = 1.0
@@ -1642,33 +1660,40 @@ func _hopper() -> void:
 		grounded = bool(hop.get("grounded"))
 		landed = float(hop.get("since_landing"))
 		stunned = bool(hop.get("stunned"))
-	var sx: float = 1.0
-	var sy: float = 1.0 + 0.03 * sin(t * 3.0 + phase)
+	# It bends rather than squashing: curled forward over its feet as it crouches, arched nose-up
+	# rising and nose-down falling, thrown forward by its weight on landing, and its thorns whip
+	# after the body on a looser spring.
+	var bend_t: float = 0.0
 	if stunned:
-		pass
+		bend_t = -0.1
 	elif crouch >= 0.0:
-		var c: float = crouch * crouch * (3.0 - 2.0 * crouch)
-		sx = 1.0 + 0.3 * c
-		sy = 1.0 - 0.3 * c
+		bend_t = 0.5 * crouch * crouch * (3.0 - 2.0 * crouch)
 	elif not grounded:
-		sy = 1.0 + 0.22 * clampf(absf(vel.y) / 700.0, 0.0, 1.0)
-		sx = 1.0 / sy
-	elif landed < 0.25:
-		var l: float = 1.0 - landed / 0.25
-		sx = 1.0 + 0.25 * l
-		sy = 1.0 - 0.25 * l
+		bend_t = clampf(vel.y / 700.0, -1.0, 1.0) * 0.32
+	if grounded and landed < _dt * 1.5:
+		hop_bend_v += 6.0
+		thorn_v += 9.0
+	hop_bend_v += ((bend_t - hop_bend) * 140.0 - hop_bend_v * 10.0) * _dt
+	hop_bend += hop_bend_v * _dt
+	thorn_v += ((hop_bend * 1.4 - thorn_a) * 60.0 - thorn_v * 4.0) * _dt
+	thorn_a += thorn_v * _dt
 	var k: float = 1.7
 	var feet: Vector2 = Vector2(0, 16)
-	var xf: Transform2D = Transform2D(0.0, Vector2(sx * facing * k, sy * k), 0.0, feet)
+	var xf: Transform2D = Transform2D(0.0, Vector2(facing * k, k), 0.0, feet)
 	if not grounded:
 		var g: float = _ground()
 		var high: float = clampf((g - feet.y) / 300.0, 0.0, 1.0)
 		ink.ink(RisoPrint.NIGHT, 0.35 * (1.0 - high * 0.6), [RisoShapes.ellipse(Vector2(0, g - 3.0), 26.0 * (1.0 - high * 0.4), 5.0, 16)], false)
-	var body: PackedVector2Array = xf * RisoShapes.smooth(PackedVector2Array([Vector2(-15, 0), Vector2(-16, -7), Vector2(-11, -15),
-		Vector2(-2, -19), Vector2(8, -18), Vector2(15, -11), Vector2(17, -4), Vector2(15, 0)]))
+	var body: PackedVector2Array = xf * _bent(RisoShapes.smooth(PackedVector2Array([Vector2(-15, 0), Vector2(-16, -7), Vector2(-11, -15),
+		Vector2(-2, -19), Vector2(8, -18), Vector2(15, -11), Vector2(17, -4), Vector2(15, 0)])), hop_bend, 19.0)
 	var thorns: Array[PackedVector2Array] = []
 	for spike: Array in [[Vector2(-13, -12), Vector2(-7, -17), Vector2(-13, -23)], [Vector2(-5, -18), Vector2(2, -19), Vector2(-3, -27)], [Vector2(3, -19), Vector2(9, -17), Vector2(6, -25)]]:
-		thorns.append(xf * RisoShapes.tri(spike[0], spike[1], spike[2]))
+		# Each thorn turns about its base with the body, its tip trailing on its own spring.
+		var a: Vector2 = _bent_v(spike[0], hop_bend, 19.0)
+		var b: Vector2 = _bent_v(spike[1], hop_bend, 19.0)
+		var base: Vector2 = (a + b) * 0.5
+		var tip: Vector2 = base + ((spike[2] as Vector2) - ((spike[0] as Vector2) + (spike[1] as Vector2)) * 0.5).rotated(hop_bend + (thorn_a - hop_bend) * 0.8 + sin(t * 3.0 + phase) * 0.04)
+		thorns.append(xf * RisoShapes.tri(a, b, tip))
 	var feet_nubs: Array[PackedVector2Array] = [xf * RisoShapes.ellipse(Vector2(-9, 0), 4.0, 2.0, 10), xf * RisoShapes.ellipse(Vector2(9, 0), 4.0, 2.0, 10)]
 	ink.ink(RisoPrint.NIGHT, 0.8, feet_nubs, false)
 	ink.ink(RisoPrint.PINK, 1.0, thorns)
@@ -1677,7 +1702,8 @@ func _hopper() -> void:
 	ink.ink(RisoPrint.PINK, 1.0, [body])
 	ink.ink(RisoPrint.BLUE, 0.35, [body], false)
 	var eyes: Array[PackedVector2Array] = []
-	for e: Vector2 in [Vector2(8.5, -11.5), Vector2(13.0, -10.5)]:
+	for e0: Vector2 in [Vector2(8.5, -11.5), Vector2(13.0, -10.5)]:
+		var e: Vector2 = _bent_v(e0, hop_bend, 19.0)
 		if stunned:
 			eyes.append(xf * RisoShapes.rrect(e.x - 1.6, e.y - 0.3, 3.2, 0.6, 0.3, 2))
 		elif crouch >= 0.0:
@@ -1687,6 +1713,171 @@ func _hopper() -> void:
 	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE], eyes)
 	if stunned:
 		_stun_mark(xf * Vector2(0, -30))
+
+
+## A wraith: a pale shroud floating over a tattered hem that streams behind it, a dark hood with
+## two pink eyes. Paper lifted out of whatever is behind it, so it reads over the night and, fainter,
+## as a pale shape inside rock (where it can pass).
+func _wraith() -> void:
+	var w: Node = host.get_node_or_null("Wraith")
+	var facing: float = float(w.get("facing")) if w != null else 1.0
+	var stunned: bool = bool(w.get("stunned")) if w != null else false
+	var in_rock: bool = bool(w.call("in_rock")) if w != null else false
+	var vel: Vector2 = w.get("velocity") if w != null else Vector2.ZERO
+	var bob: float = sin(t * 2.0 + phase) * 6.0
+	var lean: float = clampf(vel.x / 200.0, -1.0, 1.0) * 0.18
+	var xf: Transform2D = Transform2D(lean, Vector2(facing, 1.0) * 2.6, 0.0, Vector2(0, -10 + bob))
+	# The shroud: a hood narrowing to the shoulders, widening to a ragged hem that waves.
+	var outline: PackedVector2Array = PackedVector2Array([Vector2(0, -34), Vector2(9, -31), Vector2(13, -22), Vector2(12, -10), Vector2(16, 4), Vector2(19, 18)])
+	for k: int in range(6):
+		var x: float = 19.0 - float(k) * 7.6
+		var wave: float = sin(t * 5.0 + float(k) * 1.3 + phase) * 3.0
+		outline.append(Vector2(x - 3.8, 24.0 + wave + (5.0 if k % 2 == 0 else 0.0)))
+	outline.append_array(PackedVector2Array([Vector2(-19, 18), Vector2(-16, 4), Vector2(-12, -10), Vector2(-13, -22), Vector2(-9, -31)]))
+	# Like cloth, the shroud streams back from the way it drifts, more the lower down: the hood
+	# leads, the hem trails (in its own facing's units, before the turn).
+	var drag: Vector2 = Vector2(-absf(vel.x), -vel.y) / 95.0 * 7.0
+	for k: int in range(outline.size()):
+		var low: float = clampf((outline[k].y + 30.0) / 56.0, 0.0, 1.0)
+		outline[k] += drag * low * low
+	var shroud: PackedVector2Array = xf * RisoShapes.smooth(outline, 2)
+	var lift: float = 0.45 if in_rock else 0.85
+	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], lift, [shroud])
+	ink.ink(RisoPrint.BLUE, 0.18, [shroud], false)
+	var hood: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(2, -20), 7.5, 8.5, 16)
+	ink.ink(RisoPrint.NIGHT, 0.9 if not in_rock else 0.5, [hood], false)
+	var eyes: Array[PackedVector2Array] = []
+	for e: Vector2 in [Vector2(0, -21), Vector2(6, -21)]:
+		eyes.append(xf * (RisoShapes.rrect(e.x - 1.6, e.y - 0.3, 3.2, 0.6, 0.3, 2) if stunned else RisoShapes.ellipse(e, 1.5, 2.1, 10)))
+	ink.ink(RisoPrint.PINK, 1.0, eyes, false)
+	if stunned:
+		_stun_mark(xf * Vector2(0, -44))
+
+
+## One plank of a chasm's bridge (Bridge), across the top of its cell. Laid, two pale boards with
+## dark seams over a rope slung between posts; as it lays itself it drops into place and darkens
+## in. Not yet laid, a faint dashed outline over the chasm, so you know a bridge belongs there.
+func _bridge() -> void:
+	var laid: float = float(host.get("laid")) if host.get("laid") != null else 0.0
+	var top: float = -64.0
+	if laid <= 0.0:
+		var dashes: Array[PackedVector2Array] = []
+		for k: int in range(4):
+			dashes.append(RisoShapes.rrect(-60.0 + float(k) * 32.0, top + 4.0, 22.0, 4.0, 2.0))
+		ink.ink(RisoPrint.ACCENT, 0.35 + 0.1 * sin(t * 2.0 + phase), dashes)
+		return
+	var drop: float = (1.0 - laid) * -40.0
+	var boards: Array[PackedVector2Array] = [RisoShapes.rrect(-66.0, top + drop, 64.0, 16.0, 4.0), RisoShapes.rrect(2.0, top + drop, 64.0, 16.0, 4.0)]
+	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], laid * 0.9, boards)
+	ink.ink(RisoPrint.ACCENT, 0.25 * laid, boards, false)
+	ink.ink(RisoPrint.NIGHT, 0.45 * laid, [RisoShapes.rrect(-66.0, top + drop + 12.0, 132.0, 4.0, 2.0)], false)
+	# The rope rail: a post at the cell's left edge, the rope sagging to the next.
+	if laid >= 1.0:
+		var rope: PackedVector2Array = PackedVector2Array()
+		for k: int in range(9):
+			var u: float = float(k) / 8.0
+			rope.append(Vector2(-64.0 + 128.0 * u, top - 46.0 + sin(u * PI) * 12.0))
+		ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-67.0, top - 52.0, 6.0, 54.0, 3.0)])
+		ink.ink(RisoPrint.NIGHT, 0.8, RisoDecor.strip(rope, 3.0, 3.0), false)
+
+
+## A grave bell on a post by a chasm (Bell): a post and crossbar in blue, the bell in accent ink
+## hanging from it, swaying a little while it waits. Rung, it swings hard and rings out in arcs
+## that fade; one rung on an earlier visit hangs still and dim.
+func _bell() -> void:
+	var g: float = _ground()
+	var rung: bool = bool(host.call("rung"))
+	var since: float = float(host.get("since_rung"))
+	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-5.0, g - 150.0, 10.0, 150.0, 4.0), RisoShapes.rrect(-5.0, g - 150.0, 46.0, 9.0, 4.0)])
+	var swing: float = sin(t * 1.4 + phase) * 0.06
+	if since >= 0.0 and since < 3.0:
+		swing = sin(since * 9.0) * 0.6 * exp(-since * 1.2)
+	elif rung:
+		swing = 0.0
+	var hang: Transform2D = Transform2D(swing, Vector2(1.5, 1.5), 0.0, Vector2(30.0, g - 141.0))
+	if not rung:
+		# Waiting to be rung: a soft halo, so it reads as something to use.
+		ink.ink(RisoPrint.ACCENT, 0.18 + 0.06 * sin(t * 2.5 + phase), [RisoShapes.circle(Vector2(30.0, g - 100.0), 46.0, 28)])
+	var bell: PackedVector2Array = hang * RisoShapes.smooth(PackedVector2Array([Vector2(-4, 2), Vector2(-9, 12), Vector2(-11, 26), Vector2(-17, 36), Vector2(17, 36), Vector2(11, 26), Vector2(9, 12), Vector2(4, 2)]), 3)
+	var cover: float = 0.55 if rung and since < 0.0 else 1.0
+	ink.ink(RisoPrint.BLUE, 1.0, [hang * RisoShapes.rrect(-1.5, -2.0, 3.0, 6.0, 1.5)])
+	ink.ink(RisoPrint.ACCENT, cover, [bell])
+	ink.ink(RisoPrint.NIGHT, 0.3, [hang * RisoShapes.smooth(PackedVector2Array([Vector2(3, 6), Vector2(9, 14), Vector2(11, 26), Vector2(17, 36), Vector2(6, 36)]), 3)], false)
+	ink.ink(RisoPrint.NIGHT, 0.9, [hang * RisoShapes.circle(Vector2(-swing * 30.0, 40.0), 4.5, 10)], false)
+	if since >= 0.0 and since < 1.6:
+		var arcs: Array[PackedVector2Array] = []
+		for k: int in range(3):
+			var u: float = fmod(since * 1.4 + float(k) / 3.0, 1.0)
+			for side: float in [0.0, PI]:
+				arcs.append_array(RisoDecor.strip(_arc_points(hang * Vector2(0, 20), 26.0 + u * 70.0, side - 0.9, side + 0.9), 3.0, 3.0))
+		ink.ink(RisoPrint.ACCENT, 0.7 * (1.0 - since / 1.6), arcs, false)
+
+
+static func _arc_points(c: Vector2, r: float, a0: float, a1: float) -> PackedVector2Array:
+	var out: PackedVector2Array = PackedVector2Array()
+	for k: int in range(9):
+		var a: float = lerpf(a0, a1, float(k) / 8.0)
+		out.append(c + Vector2(cos(a), sin(a)) * r)
+	return out
+
+
+## A swarm of moths: each a pair of pale wings beating round a dark body, dusted with accent; they
+## flutter where the swarm (MothSwarm) puts them, round a lit lantern's glass when it draws them.
+func _moths() -> void:
+	var spots: Array = host.get("spots") if host.get("spots") != null else []
+	var moths: Array = host.get("moths") if host.get("moths") != null else []
+	var wings: Array[PackedVector2Array] = []
+	var bodies: Array[PackedVector2Array] = []
+	for i: int in range(mini(spots.size(), moths.size())):
+		var p: Vector2 = spots[i]
+		# Wings beat on a hinge at the body: each turns up and down about its root, never changing shape.
+		var flap: float = sin(t * 22.0 + float((moths[i] as Array)[4]) * 3.0) * 0.75
+		var heading: float = float((moths[i] as Array)[0]) + PI * 0.5 * signf(float((moths[i] as Array)[2]))
+		var turn: Transform2D = Transform2D(sin(heading) * 0.4, p)
+		for side: float in [-1.0, 1.0]:
+			wings.append(turn * Transform2D(-side * flap, Vector2(side * 1.5, -3.0)) * RisoShapes.ellipse(Vector2(side * 9.0, 0.0), 9.5, 6.0, 12))
+		bodies.append(turn * RisoShapes.rrect(-2.2, -6.0, 4.4, 12.0, 2.2))
+	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 0.85, wings)
+	ink.ink(RisoPrint.ACCENT, 0.45, wings, false)
+	ink.ink(RisoPrint.NIGHT, 1.0, bodies, false)
+
+
+## Sleep fog: a low bank of overlapping, slowly breathing puffs lifting the night toward the paper,
+## with little "z"s drifting up out of it.
+func _fog() -> void:
+	var mid: Vector2 = Vector2(0, -float(SleepFog.RISE))
+	var size: Vector2 = SleepFog.SIZE
+	var puffs: Array[PackedVector2Array] = []
+	for k: int in range(7):
+		var u: float = (float(k) + 0.5) / 7.0
+		var x: float = (u - 0.5) * size.x * 0.82
+		var breathe: float = 1.0 + 0.08 * sin(t * 0.9 + float(k) * 1.7 + phase)
+		var r: float = size.y * (0.32 + 0.14 * sin(float(k) * 2.3 + phase)) * breathe
+		puffs.append(RisoShapes.ellipse(mid + Vector2(x, sin(float(k) * 1.9) * size.y * 0.1), r * 1.25, r * 0.8, 20))
+	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 0.3, puffs)
+	ink.ink(RisoPrint.BLUE, 0.12, puffs, false)
+	var zs: Array[PackedVector2Array] = []
+	for k: int in range(3):
+		var u: float = fmod(t * 0.25 + float(k) / 3.0 + phase, 1.0)
+		var c: Vector2 = mid + Vector2((float(k) - 1.0) * size.x * 0.22 + sin(u * 6.0) * 10.0, -size.y * 0.2 - u * 90.0)
+		var z: float = 9.0 * (1.0 - u * 0.4)
+		zs.append(PackedVector2Array([c + Vector2(-z, -z), c + Vector2(z, -z), c + Vector2(z, -z + 2.5), c + Vector2(-z * 0.4, z - 2.5), c + Vector2(z, z - 2.5), c + Vector2(z, z), c + Vector2(-z, z), c + Vector2(-z, z - 2.5), c + Vector2(z * 0.4, -z + 2.5), c + Vector2(-z, -z + 2.5)]))
+		ink.ink(RisoPrint.BLUE, 0.7 * (1.0 - u), [zs[k]], false)
+
+
+## Bending, for the creatures: a point turns about the feet (the origin) by `amount`, scaled by how
+## high it is over `tall` (squared), so a body curls rather than tilting stiffly or squashing.
+static func _bent_v(p: Vector2, amount: float, tall: float) -> Vector2:
+	var u: float = clampf(-p.y / tall, 0.0, 1.4)
+	return p.rotated(amount * u * u)
+
+
+static func _bent(poly: PackedVector2Array, amount: float, tall: float) -> PackedVector2Array:
+	var out: PackedVector2Array = PackedVector2Array()
+	out.resize(poly.size())
+	for i: int in range(poly.size()):
+		out[i] = _bent_v(poly[i], amount, tall)
+	return out
 
 
 ## A laser set in the rock: a dark housing with a lens. Warming up, a thin flickering sight line

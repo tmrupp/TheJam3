@@ -2,11 +2,12 @@ extends Node2D
 ## A trip through a portal, printed, in two parts either side of the cut to the far portal (see
 ## portal.gd and RisoPrint.portal_depart / portal_arrive). Presentation only.
 ## - In (part 0): the wizard, as a silhouette in their glow ink (as the dash's afterimages are),
-##   is stretched tall and thin and pulled into the portal's core along streaks that converge on
-##   it, while the rim flares; it ends in a flash at the core.
-## - Out (part 1): the far portal's core flashes; a sliver of light there opens into the
-##   silhouette, which drops to where the wizard stands just as they reappear (RisoWizard pops them
-##   out tall and springs them back), and a ring, streaks and motes burst outward.
+##   is whirled into the portal's core like cloth down a drain, curling round it the nearer it
+##   gets (never stretched), along streaks that converge on it, while the rim flares; it ends in
+##   a flash at the core.
+## - Out (part 1): the far portal's core flashes; the silhouette unwinds out of it, uncurling
+##   as it grows to where the wizard stands just as they reappear (RisoWizard flicks their robe
+##   and hat out), and a ring, streaks and motes burst outward.
 
 const IN_TIME: float = 0.3
 const OUT_TIME: float = 0.45
@@ -50,12 +51,23 @@ func _process(delta: float) -> void:
 	ink.finish()
 
 
-## The silhouette, its middle at `mid`, `wide` and `tall` times its size, at `cover`.
-func _silhouette(mid: Vector2, wide: float, tall: float, cover: float) -> void:
-	if wide < 0.04 or cover <= 0.01:
+## The silhouette, its middle at `mid`, at `size` of its own size (the same both ways: it is never
+## stretched), every point turned about the core by `twist`, more the nearer it is (a whirl, so
+## the shape curls round the core like cloth), at `cover`.
+func _silhouette(mid: Vector2, size: float, twist: float, cover: float) -> void:
+	if size < 0.04 or cover <= 0.01:
 		return
-	var at: Transform2D = Transform2D(0.0, Vector2(art_scale * wide, art_scale * tall), 0.0, mid) * Transform2D(0.0, Vector2(0, MID))
+	var at: Transform2D = Transform2D(0.0, Vector2(art_scale * size, art_scale * size), 0.0, mid) * Transform2D(0.0, Vector2(0, MID))
 	var shape: Array[PackedVector2Array] = RisoProp.ghost_shape(at, facing)
+	if absf(twist) > 0.001:
+		var reach: float = MID * art_scale * 1.8
+		for i: int in range(shape.size()):
+			var poly: PackedVector2Array = shape[i]
+			for k: int in range(poly.size()):
+				var d: Vector2 = poly[k] - center
+				var near: float = 1.0 - clampf(d.length() / reach, 0.0, 1.0)
+				poly[k] = center + d.rotated(twist * (0.25 + 0.75 * near * near))
+			shape[i] = poly
 	ink.ink(RisoPrint.GLOW, cover, shape)
 	ink.ink(ring, cover * 0.35, shape, false)
 
@@ -86,10 +98,9 @@ func _flash(r: float) -> void:
 func _in(e: float) -> void:
 	var u: float = clampf(e, 0.0, 1.0)
 	var pull: float = u * u
-	# Drawn up tall and thin, and into the core.
+	# Whirled into the core, shrinking as it curls round it.
 	var mid: Vector2 = (feet + Vector2(0, -MID * art_scale)).lerp(center, pull)
-	var tall: float = (1.0 + 0.8 * u) * (1.0 - pull * pull * 0.9)
-	_silhouette(mid, pow(1.0 - pull, 1.4), tall, 0.95)
+	_silhouette(mid, 1.0 - pull * 0.9, pull * 2.4 * facing, 0.95)
 	# Streaks rushing in to the core.
 	var k: float = lerpf(1.9, 0.25, u)
 	_streaks(k, k + 0.55 * (1.0 - u) + 0.1, 0.9 * (1.0 - u * 0.3), u * 0.8)
@@ -107,13 +118,13 @@ func _out(e: float) -> void:
 	var fade: float = 1.0 - e
 	# The core flashes first.
 	_flash(48.0 * (1.0 - e / 0.3))
-	# A sliver of light opens into the silhouette and drops to the wizard's feet; once the wizard
-	# is seen again it fades off them.
+	# The silhouette unwinds out of the core, uncurling as it grows to the wizard's feet; once the
+	# wizard is seen again it fades off them.
 	var r: float = clampf(e / (REVEAL / OUT_TIME), 0.0, 1.0)
 	var open: float = r * r * (3.0 - 2.0 * r)
 	var mid: Vector2 = center.lerp(feet + Vector2(0, -MID * art_scale), open)
 	var after: float = clampf((e - REVEAL / OUT_TIME) / 0.3, 0.0, 1.0)
-	_silhouette(mid, lerpf(0.08, 1.0, open), lerpf(1.6, 1.0, open), 0.95 * (1.0 - after))
+	_silhouette(mid, lerpf(0.1, 1.0, open), -(1.0 - open) * 2.4 * facing, 0.95 * (1.0 - after))
 	# A ring bursting out past the rim, streaks flying out, and motes.
 	var band: Array[PackedVector2Array] = RisoProp.portal_band(center, lerpf(0.2, 1.5, out), lerpf(0.3, 1.58, out), 32)
 	ink.lift_ink(PAPER_LIFT, 0.6 * fade, band)

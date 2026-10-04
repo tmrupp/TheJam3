@@ -5,6 +5,7 @@ extends WaveFunctionCollapse
 func generate_level(def: NextWorldDef) -> Array:
 	texture = load(def.region)
 	output_size = def.size
+	symmetry = def.symmetry
 	var map: Array = []
 	for attempt: int in range(32):
 		set_seed(def.gen_seed if attempt == 0 else MapInfo.level_seed(def.gen_seed, 1000 + attempt))

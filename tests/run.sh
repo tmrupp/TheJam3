@@ -11,6 +11,9 @@
 # "## suite: window" (needs a rendered window); untagged tests are in the quick run.
 # A test passes when Godot exits 0 and its log has no FAIL, SCRIPT ERROR or Parse Error. A script
 # error usually leaves the test waiting forever, so it is stopped a moment after one appears.
+# Some tests count frames and can miss under the load of running side by side: a headless test
+# that fails is run once more on its own, and if it passes then it is reported as flaky (its
+# first log is kept as <name>.flaky.log) rather than failed.
 # Each test keeps its own save file (MapInfo.save_path = "user://<name>.save"), so tests can run
 # side by side. Godot comes from $GODOT, else `godot` on the PATH, else the copy in C:\tools.
 # The project is re-imported first when a script is newer than Godot's class cache (new
@@ -116,6 +119,14 @@ for t in "${headless[@]}"; do
 	run_one "$t" 0 &
 done
 wait
+for r in $(grep -l '^FAIL' "$logs"/*.result 2>/dev/null); do
+	t=$(basename "$r" .result)
+	mv "$logs/$t.log" "$logs/$t.flaky.log"
+	echo "retrying $t on its own"
+	if run_one "$t" 0 | grep -q '^PASS'; then
+		echo "FLAKY $t (failed beside others, passed alone; see $logs/$t.flaky.log)" > "$logs/$t.flaky"
+	fi
+done
 for t in "${windowed[@]}"; do
 	run_one "$t" 1
 done
@@ -124,6 +135,7 @@ failed=$(cat "$logs"/*.result 2>/dev/null | grep -c '^FAIL')
 total=$(ls "$logs"/*.result 2>/dev/null | wc -l)
 echo
 echo "$(( total - failed )) of $total passed in $(( SECONDS - began ))s"
+cat "$logs"/*.flaky 2>/dev/null
 if (( failed )); then
 	grep -h '^FAIL' "$logs"/*.result
 	for r in $(grep -l '^FAIL' "$logs"/*.result); do

@@ -87,6 +87,9 @@ func _strike(attacker: Node) -> void:
 		var stunner: Stunner = attacker.get_node_or_null("Stunner") as Stunner
 		if stunner != null:
 			stunner.stun(STUN)
+		# A swarm of moths scatters instead.
+		if attacker.has_method("scatter"):
+			attacker.call("scatter", dir)
 
 
 ## Freeze the action for an instant, so the parry lands with weight.

@@ -84,6 +84,26 @@ const PHASE_SPEED: float = 360.0
 const LEVITATE_DRIFT: float = 140.0
 ## Ability tiers learned at shrines (see Abilities).
 var tiers: Dictionary = Abilities.start_tiers()
+## Seconds of drowsiness left (sleep fog, see SleepFog): while drowsy the spell is off.
+var drowsy: float = 0.0
+const DROWSY_LINGER: float = 0.25
+
+
+func is_drowsy() -> bool:
+	return drowsy > 0.0
+
+
+## In sleep fog: drowsy for a moment more. Becoming drowsy ends whatever spell is running.
+func make_drowsy() -> void:
+	if drowsy <= 0.0:
+		levitating = false
+		var projection: Node = get_node_or_null("AstralProjection")
+		if projection != null and bool(projection.call("projecting")):
+			projection.call("end_projection", projection.get("projection_timer"))
+		var aware: Node = get_node_or_null("Awareness")
+		if aware != null:
+			aware.set("sensing", 0.0)
+	drowsy = DROWSY_LINGER
 
 func _enter_tree() -> void:
 	Abilities.ensure_input()
@@ -106,6 +126,8 @@ var dash: ActionTimer = ActionTimer.new(0.25, dash_end)
 # WALL_JUMP_Y_FACTOR: by how much the y component of a normal jump is factored when wall jumping
 const WALL_JUMP_SPEED: float = 400.0
 const WALL_JUMP_Y_FACTOR: float = 0.6
+## Falling while pressed against a wall (holding toward it) slides down it no faster than this.
+const WALL_SLIDE_SPEED: float = 160.0
 var wall_jump: ActionTimer = ActionTimer.new(0.25)
 
 # BUFFER_TIME: how long before hitting the ground can the player 
@@ -252,6 +274,7 @@ func do_wall_jump (wall_normal: Vector2) -> void:
 	
 
 func _physics_process(delta: float) -> void:
+	drowsy = maxf(0.0, drowsy - delta)
 	# The Spell button uses whatever spell is in the slot.
 	if Input.is_action_just_pressed(Abilities.SPELL_ACTION):
 		Abilities.cast(self)
@@ -304,6 +327,9 @@ func _physics_process(delta: float) -> void:
 			elif (not dash.is_acting()):
 				var factor: float = 1.0 if not hang.is_acting() else HANG_FACTOR
 				velocity.y += gravity * factor * delta
+				# Sliding down a wall while holding toward it: the fall is slowed.
+				if walled and direction.x * wall_normal.x < 0.0 and velocity.y > WALL_SLIDE_SPEED:
+					velocity.y = WALL_SLIDE_SPEED
 				
 			# damp once velocity hits a certain amount
 			if (velocity.y < 0 and velocity.y > -HANG_SPEED_TARGET):
@@ -350,14 +376,17 @@ func _physics_process(delta: float) -> void:
 		# normal jump, stop coyoting on a jump
 		if (is_on_floor() and direction.y > 0):
 			drop()
-		elif (is_on_floor() or coyote.is_acting() or jumps > 0):
+		elif (is_on_floor() or coyote.is_acting()):
 			coyote.end()
 			jump()
 			jumps -= 1
 		# wall jump, damped normal jump and move away from wall
-		# takes away manual control
+		# takes away manual control; on a wall it comes before an air jump, which is kept
 		elif (walled and not is_on_floor()):
 			do_wall_jump(wall_normal)
+		elif jumps > 0:
+			jump()
+			jumps -= 1
 		else:
 		# if not walled or grounded, buffer a jump
 			buffer_jump.enable(true)

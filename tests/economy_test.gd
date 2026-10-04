@@ -227,6 +227,9 @@ func casting() -> void:
 	check(warp.recharge > 0.0 and player.coins.coins == 10 - price, "a warp is paid as it is cast")
 	Abilities.cast(player)
 	check(player.coins.coins == 10 - price, "a cast that fails (recharging) costs nothing")
+	while warp.warping:
+		await process_frame
+	player.set_physics_process(false)
 	player.global_position = before
 	await settle(1)
 	player.collect(-player.coins.coins)

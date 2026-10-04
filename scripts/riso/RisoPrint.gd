@@ -22,6 +22,7 @@ const PLATE_BIT0: int = 12
 const OVERLAY_BIT: int = 19
 const PRINT_SHADER: Shader = preload("res://shaders/riso_print.gdshader")
 const UI_SHADER: Shader = preload("res://shaders/riso_ui.gdshader")
+const PORTAL_WARP: GDScript = preload("res://scripts/riso/RisoPortalWarp.gd")
 ## The UI (HUD, interaction prompts) is printed in its own pass, finer than the scene. At full UI
 ## detail these scale the scene's screen cell, wobble, grain, dot gain and misregistration for
 ## it; at none it prints like the scene (see ui_detail).
@@ -37,8 +38,13 @@ const REALMS: Dictionary = {
 	&"aurora": {"paper": Color("#e2eadf"), "inks": [Color("#0f2a2c"), Color("#00838a"), Color("#ff48b0"), Color("#765ba7"), Color("#ffe800")]},
 	## Hyperspace's own: violet rock, aqua stars, on a cold paper (not in the F8 cycle).
 	&"hyperspace": {"paper": Color("#e6e4f0"), "inks": [Color("#0d0a26"), Color("#5a3d9a"), Color("#ff48b0"), Color("#5ec8e5"), Color("#ffe800")]},
+	## The cemetery's own: slate rock, violet stars and candlelight, on bone paper (not in the F8
+	## cycle; NextWorldDef.realm).
+	&"cemetery": {"paper": Color("#e3e1d8"), "inks": [Color("#1d2125"), Color("#5e695e"), Color("#ff48b0"), Color("#9d7ad2"), Color("#ffe800")]},
 }
 const REALM_ORDER: Array[StringName] = [&"deep", &"twilight", &"aurora"]
+## The robe while the wizard is drowsy in sleep fog (SleepFog).
+const DROWSY_ROBE: Color = Color("#8d8f96")
 ## Hat-tip glow ink per ability (real Riso ink colours).
 const GLOWS: Dictionary = {
 	&"dash": Color("#ff48b0"),
@@ -193,6 +199,37 @@ static func portal_arrive(portal: Node2D, exit: Node2D, player: Player, to: Vect
 	if exit != null:
 		exit.set_meta(&"flare_at", Time.get_ticks_msec() / 1000.0)
 	_portal_fx(portal, wizard, center, to + wizard.global_position - player.global_position, 1)
+
+
+## A warp (see Warp): the wizard is drawn into a tear in the air where they stand, as into a
+## portal's core, in the robe's ink (the warp's colour).
+static func warp_depart(player: Player) -> void:
+	var wizard: Node2D = player.get_node_or_null("RisoWizard") as Node2D if player != null else null
+	if not is_on() or wizard == null:
+		return
+	_warp_fx(player, wizard, wizard.global_position, 0)
+	wizard.set("vanished", true)
+
+
+## The far end of a warp: pushed out of a tear in the air over `to`.
+static func warp_arrive(player: Player, to: Vector2) -> void:
+	var wizard: Node2D = player.get_node_or_null("RisoWizard") as Node2D if player != null else null
+	if not is_on() or wizard == null:
+		return
+	_warp_fx(player, wizard, to + wizard.global_position - player.global_position, 1)
+
+
+static func _warp_fx(player: Player, wizard: Node2D, feet: Vector2, part: int) -> void:
+	var fx: Node2D = Node2D.new()
+	fx.set_script(PORTAL_WARP)
+	fx.set("part", part)
+	# The tear is at the wizard's middle, where a portal's core would be.
+	fx.set("center", feet + Vector2(0, -float(PORTAL_WARP.get_script_constant_map()["MID"]) * wizard.global_scale.y))
+	fx.set("feet", feet)
+	fx.set("facing", 1.0 if float(wizard.get("fs")) >= 0.0 else -1.0)
+	fx.set("art_scale", wizard.global_scale.y)
+	fx.set("ring", ROBE)
+	player.get_parent().add_child(fx)
 
 
 ## The wizard is seen again (see portal_depart).
@@ -519,6 +556,9 @@ func _ease_robe(delta: float) -> void:
 	var target: Color = (REALMS[realm]["inks"] as Array)[BLUE]
 	if robe_by_spell and _player != null and is_instance_valid(_player):
 		target = ROBES.get(Abilities.spell(_player), ROBES[&""])
+	# Drowsy in sleep fog: the spell is off, and the robe greys.
+	if _player != null and is_instance_valid(_player) and _player.is_drowsy():
+		target = DROWSY_ROBE
 	robe_color = target if robe_color.r < 0.0 else robe_color.lerp(target, minf(1.0, delta * 4.0))
 
 
@@ -710,9 +750,59 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		set_enabled(not enabled)
 	elif key.keycode == KEY_F7:
 		panel.visible = not panel.visible
+		if panel.visible:
+			_travel_reset()
 		_sync_panel()
 	elif key.keycode == KEY_F8:
 		cycle_realm()
+
+
+## The F7 panel by controller, in debug runs: Back (Select) opens it, pausing the game and focusing
+## its first control so the D-pad or stick moves through it (A picks, left and right move a
+## slider); Back again, or B, closes it and the game goes on.
+var _pad_paused: bool = false
+
+
+func _input(event: InputEvent) -> void:
+	var pad: InputEventJoypadButton = event as InputEventJoypadButton
+	if pad != null and pad.pressed and pad.button_index == JOY_BUTTON_BACK and MapInfo.debug and panel != null:
+		set_pad_panel(not panel.visible)
+		get_viewport().set_input_as_handled()
+	elif _pad_paused and panel.visible and event.is_action_pressed(&"ui_cancel"):
+		set_pad_panel(false)
+		get_viewport().set_input_as_handled()
+
+
+func set_pad_panel(open: bool) -> void:
+	panel.visible = open
+	if open:
+		_travel_reset()
+	_sync_panel()
+	if open:
+		# Not over a pause the menu made: that one stays.
+		_pad_paused = not get_tree().paused
+		get_tree().paused = true
+		var first: Control = _first_focusable(panel)
+		if first != null:
+			first.grab_focus()
+	else:
+		if _pad_paused:
+			get_tree().paused = false
+		_pad_paused = false
+		var focus: Control = get_viewport().gui_get_focus_owner()
+		if focus != null and panel.is_ancestor_of(focus):
+			focus.release_focus()
+
+
+func _first_focusable(node: Node) -> Control:
+	for child: Node in node.get_children():
+		var c: Control = child as Control
+		if c != null and c.focus_mode != Control.FOCUS_NONE and c.is_visible_in_tree():
+			return c
+		var deeper: Control = _first_focusable(child)
+		if deeper != null:
+			return deeper
+	return null
 
 
 # ---------------------------------------------------------------- dressing prefabs
@@ -725,6 +815,11 @@ const DRESS: Dictionary = {
 	"res://prefabs/laser.tscn": &"laser",
 	"res://prefabs/bullet.tscn": &"shard",
 	"res://prefabs/coin.tscn": &"mote",
+	"res://prefabs/moths.tscn": &"moths",
+	"res://prefabs/sleep_fog.tscn": &"fog",
+	"res://prefabs/wraith_enemy.tscn": &"wraith",
+	"res://prefabs/bridge.tscn": &"bridge",
+	"res://prefabs/bell.tscn": &"bell",
 	"res://prefabs/star_cluster.tscn": &"cluster",
 	"res://prefabs/key.tscn": &"key",
 	"res://prefabs/moon.tscn": &"moon",
@@ -813,15 +908,19 @@ func _build_panel() -> void:
 	scroll.custom_minimum_size = Vector2(176, 168)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
+	# Moving through it by controller scrolls to the focused control.
+	scroll.follow_focus = true
 	panel.add_child(scroll)
 	var box: VBoxContainer = VBoxContainer.new()
 	box.add_theme_constant_override("separation", 1)
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(box)
 	var title: Label = Label.new()
-	title.text = "Riso print  (F6 on/off, F7 panel, F8 realm)"
+	title.text = "Riso print  (F6 on/off, F7 panel, F8 realm; pad: Back in debug)"
 	title.add_theme_font_size_override("font_size", 6)
 	box.add_child(title)
+	# First, so a controller lands on it (debug runs only).
+	_build_travel(box)
 	_detail_label = _slider_row(box, "Print detail", 0.0, 100.0, 1.0, detail, _on_detail)
 	_rate_label = _slider_row(box, "Sheet rate", 0.0, 24.0, 1.0, sheet_rate, _on_rate)
 	_zoom_label = _slider_row(box, "Zoom", 0.5, 1.0, 0.02, zoom_factor, _on_zoom)
@@ -855,6 +954,94 @@ func _build_panel() -> void:
 			_sync_panel())
 	_option_row(box, &"robe", "Robe", ["Spell colour", "Blue"], func(i: int) -> void: robe_by_spell = i == 0)
 	_sync_panel()
+
+
+# ---------------------------------------------------------------- debug travel
+
+## Debug runs only: travel straight to any world and depth (MapInfo.debug_travel), or to the
+## nearest band of an archetype, or into hyperspace, from the F7 panel (by controller too).
+var _travel_box: VBoxContainer
+var _travel_world_label: Label
+var _travel_depth_label: Label
+## The place the Go button travels to (set to where you are when the panel opens).
+var _travel_at: Vector2i = Vector2i.ZERO
+
+
+func _build_travel(box: VBoxContainer) -> void:
+	_travel_box = VBoxContainer.new()
+	_travel_box.add_theme_constant_override("separation", 1)
+	box.add_child(_travel_box)
+	var heading: Label = Label.new()
+	heading.text = "Travel (debug)"
+	heading.add_theme_font_size_override("font_size", 6)
+	_travel_box.add_child(heading)
+	_travel_world_label = _stepper_row(_travel_box, "World", func(d: int) -> void: _travel_at.x += d)
+	_travel_depth_label = _stepper_row(_travel_box, "Depth", func(d: int) -> void: _travel_at.y = maxi(0, _travel_at.y + d))
+	var row: HBoxContainer = HBoxContainer.new()
+	_travel_box.add_child(row)
+	_button(row, "Go", func() -> void: _travel(_travel_at))
+	for a: StringName in NextWorldDef.ARCHETYPES:
+		_button(row, String(a).capitalize(), func() -> void: _travel(Vector2i(_travel_at.x, _nearest_band(a, _travel_at.y))))
+	for k: int in range(Worlds.KINDS.size()):
+		var kind: int = k
+		_button(row, Worlds.proto(k).name.capitalize(), func() -> void: _travel(Worlds.side_at(kind, Vector2i(_travel_at.x, maxi(1, _travel_at.y)))))
+
+
+## A row: its name, a "-" button, the value, a "+" button; `on_step` gets -1 or +1.
+func _stepper_row(box: VBoxContainer, text: String, on_step: Callable) -> Label:
+	var row: HBoxContainer = HBoxContainer.new()
+	box.add_child(row)
+	var name_label: Label = Label.new()
+	name_label.text = text
+	name_label.custom_minimum_size = Vector2(52, 0)
+	name_label.add_theme_font_size_override("font_size", 6)
+	row.add_child(name_label)
+	_button(row, "-", func() -> void:
+		on_step.call(-1)
+		_sync_panel())
+	var value: Label = Label.new()
+	value.custom_minimum_size = Vector2(44, 0)
+	value.add_theme_font_size_override("font_size", 6)
+	row.add_child(value)
+	_button(row, "+", func() -> void:
+		on_step.call(1)
+		_sync_panel())
+	return value
+
+
+func _button(row: HBoxContainer, text: String, on_press: Callable) -> Button:
+	var b: Button = Button.new()
+	b.text = text
+	b.add_theme_font_size_override("font_size", 6)
+	b.pressed.connect(on_press)
+	row.add_child(b)
+	return b
+
+
+## The depth nearest `from` (the shallower on a tie) whose levels are of archetype `a`.
+static func _nearest_band(a: StringName, from: int) -> int:
+	for d: int in range(0, 1000):
+		for depth: int in [from - d, from + d]:
+			if depth >= 0 and NextWorldDef.archetype_at(depth) == a:
+				return depth
+	return from
+
+
+func _travel_reset() -> void:
+	if _map_info != null and is_instance_valid(_map_info):
+		var at: Vector2i = _map_info.get("coord")
+		_travel_at = Vector2i(at.x, maxi(0, at.y))
+
+
+## Close the panel (and its pause) and go.
+func _travel(to: Vector2i) -> void:
+	if not MapInfo.debug or MapInfo.instance == null:
+		return
+	if _pad_paused:
+		set_pad_panel(false)
+	else:
+		panel.visible = false
+	MapInfo.instance.debug_travel(to)
 
 
 func _on_detail(v: float) -> void:
@@ -931,6 +1118,10 @@ func _option_row(box: VBoxContainer, key: StringName, text: String, items: Array
 func _sync_panel() -> void:
 	if _detail_label == null:
 		return
+	if _travel_box != null:
+		_travel_box.visible = MapInfo.debug
+		_travel_world_label.text = str(_travel_at.x)
+		_travel_depth_label.text = "%d  (%s)" % [_travel_at.y, NextWorldDef.archetype_at(_travel_at.y)]
 	_detail_label.text = "Heavy" if detail < 25.0 else ("Medium" if detail < 65.0 else ("Fine" if detail < 90.0 else "Extra fine"))
 	_rate_label.text = "held" if sheet_rate <= 0.0 else "%d / s" % int(sheet_rate)
 	_zoom_label.text = "%d%%" % roundi(100.0 / zoom_factor)

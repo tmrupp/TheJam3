@@ -50,6 +50,15 @@ func _process(_delta: float) -> void:
 		var top: float = -10.0 * k
 		ink.ink_graded(RisoPrint.PINK, [PackedVector2Array([Vector2(-half.x, top), Vector2(half.x, top), Vector2(half.x, half.y), Vector2(-half.x, half.y)])], [PackedFloat32Array([0.0, 0.0, 0.2, 0.2])])
 		ink.ink(RisoPrint.ACCENT, 0.5, [RisoShapes.circle(sun, 20.0 * k, 32)])
+	elif realm == &"cemetery":
+		# A pale moon low over the graves, faint through the night, with banks of mist drifting across.
+		var moon: Vector2 = at.call(352.0, 64.0)
+		ink.ink(RisoPrint.ACCENT, 0.1, [RisoShapes.circle(moon, 30.0 * k, 40)])
+		ink.lift_ink([RisoPrint.NIGHT], 0.3, [RisoShapes.circle(moon, 17.0 * k, 40)])
+		ink.ink(RisoPrint.BLUE, 0.15, [RisoShapes.circle(moon + Vector2(-4.0, 3.0) * k, 4.0 * k, 16), RisoShapes.circle(moon + Vector2(5.0, -5.0) * k, 3.0 * k, 12)])
+		for i: int in range(3):
+			var drift: float = fposmod(t * (4.0 + float(i) * 2.0) + float(i) * 170.0, 640.0) - 80.0
+			ink.ink(RisoPrint.BLUE, 0.12, [RisoShapes.almond(at.call(drift, 92.0 + float(i) * 34.0), (90.0 + float(i) * 30.0) * k, 7.0 * k, 16)])
 	elif realm == &"aurora":
 		for i: int in range(3):
 			ink.ink(RisoPrint.PINK if i == 1 else RisoPrint.ACCENT, 0.15, [_aurora(i, t, k)])

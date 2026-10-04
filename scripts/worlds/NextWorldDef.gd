@@ -25,6 +25,22 @@ var arrival_from: Variant = null
 var relic: StringName = &""
 ## Whether a secret room in this level holds a skeleton key (see MapInfo.skeleton_at).
 var skeleton: bool = false
+## What kind of level it is (ARCHETYPES), by its depth: its terrain, look and what lives there.
+## &"" for a side world.
+var archetype: StringName = &""
+## The collapse's symmetry: how many of the sample's patterns' turns and flips it may use (see
+## gdextension/src/overlapping_wfc.hpp). 1 uses them as drawn, so up stays up (the extension's
+## first flip is upside down).
+var symmetry: int = 5
+
+## Archetypes take bands of BAND levels in turn as you go deeper: the garden (the caves you start
+## in) from the surface, then the cemetery, then the garden again, and so on (later archetypes
+## join the turn). The cemetery is a hillside graveyard of terraces (wfc_images/graveyard.png),
+## printed in its own realm, with its own decor, moths, sleep fog and wraiths (see
+## MapInfo.World.populate_cemetery).
+const ARCHETYPES: Array[StringName] = [&"garden", &"cemetery"]
+const BAND: int = 3
+const GRAVEYARD: String = "res://wfc_images/graveyard.png"
 
 
 ## Fill it in for the place at `at`, and return it.
@@ -41,7 +57,21 @@ func setup(at: Vector2i) -> NextWorldDef:
 	arrival_from = Worlds.arriving_at(at)
 	relic = Relics.at(at)
 	skeleton = MapInfo.skeleton_at(at)
+	archetype = archetype_at(depth)
+	if archetype == &"cemetery":
+		region = GRAVEYARD
+		symmetry = 1
 	return self
+
+
+## The archetype of levels `depth` deep.
+static func archetype_at(depth: int) -> StringName:
+	@warning_ignore("integer_division")
+	return ARCHETYPES[(maxi(depth, 0) / BAND) % ARCHETYPES.size()]
+
+
+func cemetery() -> bool:
+	return archetype == &"cemetery"
 
 
 # ------------------------------------------------------------------ making it
@@ -132,7 +162,7 @@ func pay(exit: int, rec: Dictionary) -> void:
 
 ## The print realm (RisoPrint.REALMS) it is printed in, or &"" for the player's own.
 func realm() -> StringName:
-	return &""
+	return &"cemetery" if cemetery() else &""
 
 
 ## Whether plants and the other decor grow in it.
@@ -142,7 +172,7 @@ func grows() -> bool:
 
 ## Its name on screen and when sharing it.
 func title() -> String:
-	return "world %d · depth %d" % [coord.x, coord.y]
+	return "world %d · depth %d" % [coord.x, coord.y] + (" · cemetery" if cemetery() else "")
 
 
 ## The way an exit's chevron points.

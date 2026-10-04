@@ -18,12 +18,12 @@ var stunned: bool = false
 var velocity: Vector2 = Vector2.ZERO
 ## Standing on something (only then does it crouch or leap).
 var grounded: bool = false
-## 0..1 through the crouch before a leap (the art squashes with it), or -1 when not crouching.
+## 0..1 through the crouch before a leap (the art curls forward with it), or -1 when not crouching.
 var crouch: float = -1.0
 var rest: float = 0.0
 ## +1 facing right, -1 left.
 var facing: float = 1.0
-## Seconds since it last landed (the art's landing squash).
+## Seconds since it last landed (the art throws it forward as it lands).
 var since_landing: float = 10.0
 
 

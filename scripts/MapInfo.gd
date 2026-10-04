@@ -26,6 +26,14 @@ const MOVING_PLATFORM_CHANCE: float = 0.35
 const HOPPERS_PER_K: float = 2.0
 ## Share (%) of levels from depth 1 whose secret room holds a skeleton key (see KeyRing).
 const SKELETON_CHANCE: int = 30
+## Cemetery levels (NextWorldDef.archetype): moth swarms (one by each lantern, and these more),
+## banks of sleep fog and wraiths, per 1000 cells.
+const MOTHS_PER_K: float = 0.6
+const FOG_PER_K: float = 0.7
+const WRAITHS_PER_K: float = 0.9
+## A cemetery's gates: chasms cut across its floors, bridged by planks that only appear once their
+## bell is rung (see World.carve_chasms, Bell, Bridge), per 1000 cells (at least one).
+const CHASMS_PER_K: float = 0.5
 
 enum Type {
 	EMPTY,
@@ -54,6 +62,11 @@ enum Type {
 	LASER,
 	RELIC,
 	CLUSTER,
+	MOTHS,
+	FOG,
+	WRAITH,
+	BRIDGE,
+	BELL,
 }
 
 ## A level's ways out. Deeper and back move along the seed's column; left and right step to the
@@ -578,11 +591,14 @@ class World:
 		# One cave: every open space joined up, so everything placed below is connected to
 		# everything else through open air (gates and abilities aside).
 		connect_caves()
+		if def.cemetery():
+			carve_chasms()
 
 		# Exits and their lanterns first, so they get the pick of the level.
 		place_exits(def.depth, def.debug)
 		place_side_doors(def)
 		place_start_key(def)
+		place_bells()
 		if def.arrival_from != null:
 			place_return()
 
@@ -657,8 +673,167 @@ class World:
 		if def.depth >= 1:
 			for i: int in range(per_area(HOPPERS_PER_K)):
 				set_cell(pop_if_random_empty(ground_below, true), Cell.new(Type.HOPPER))
+		if def.cemetery():
+			populate_cemetery(def)
 		place_cluster(def)
 		place_secrets(def)
+
+	## A cemetery's gates. Chasms are cut across long stretches of floor (CHASM_WIDTH cells across,
+	## CHASM_DEPTH deep, with thorns at the bottom and rock under them): too wide to jump without a
+	## move found later. Across the top of each lie the planks of a bridge (Type.BRIDGE, holding the
+	## chasm's number), not there until the chasm's bell is rung (see place_bells). Each is
+	## {"planks": cells, "row": the floor row, "left": the last floor cell before it, "right": the
+	## first after}. Cut right after the caves are joined, so everything else lands round them.
+	var chasms: Array = []
+	const CHASM_WIDTH: Vector2i = Vector2i(5, 7)
+	const CHASM_DEPTH: int = 2
+	## Floor kept whole either side of a chasm: as much as can be, else less.
+	const CHASM_SHORES: Array[int] = [4, 3, 2]
+	## Open air over a chasm kept clear of ledges, lifts, moons and everything else, so nothing but
+	## the bridge (or a move found later) gets you over.
+	const CHASM_CLEAR: int = 4
+
+	func carve_chasms () -> void:
+		var want: int = per_area(MapInfo.CHASMS_PER_K)
+		# Runs of floor: open cells with rock under them, side by side on one row.
+		var runs: Array = []
+		for y: int in range(1, size.y - CHASM_DEPTH - 3):
+			var x: int = 0
+			while x < size.x:
+				if get_cell(Vector2i(x, y)).type == Type.EMPTY and is_ground(Vector2i(x, y + 1)):
+					var from: int = x
+					while x < size.x and get_cell(Vector2i(x, y)).type == Type.EMPTY and is_ground(Vector2i(x, y + 1)):
+						x += 1
+					runs.append([y, from, x - 1])
+				else:
+					x += 1
+		var spots: Array = []
+		for shore: int in CHASM_SHORES:
+			for run: Array in runs:
+				var y: int = run[0]
+				for w: int in range(CHASM_WIDTH.x, CHASM_WIDTH.y + 1):
+					for a: int in range(int(run[1]) + shore, int(run[2]) - shore - w + 2):
+						# Solid rock under the whole cut, so the pit is a pit.
+						var ok: bool = true
+						for x: int in range(a, a + w):
+							for d: int in range(1, CHASM_DEPTH + 2):
+								if not is_valid(Vector2i(x, y + d)) or get_cell(Vector2i(x, y + d)).type == Type.SPIKES:
+									ok = false
+						if ok:
+							spots.append([y, a, w])
+			if not spots.is_empty():
+				break
+		while chasms.size() < want and not spots.is_empty():
+			var pick: Array = spots[rng.randi_range(0, spots.size() - 1)]
+			var y: int = pick[0]
+			var a: int = pick[1]
+			var w: int = pick[2]
+			# Keep clear of chasms already cut.
+			spots = spots.filter(func(sp: Array) -> bool: return absi(int(sp[0]) - y) > CHASM_DEPTH + 2 or int(sp[1]) + int(sp[2]) + CHASM_SHORES[0] < a or a + w + CHASM_SHORES[0] < int(sp[1]))
+			var id: int = chasms.size()
+			var planks: Array[Vector2i] = []
+			for x: int in range(a, a + w):
+				for d: int in range(1, CHASM_DEPTH + 1):
+					_to_open(Vector2i(x, y + d))
+				var bottom: Vector2i = Vector2i(x, y + CHASM_DEPTH + 1)
+				grounds.erase(bottom)
+				empties.erase(bottom)
+				objects.append(bottom)
+				cells[bottom.x][bottom.y] = Cell.new(Type.SPIKES)
+				var under: Vector2i = bottom + Vector2i.DOWN
+				if is_valid(under) and get_cell(under).type != Type.GROUND:
+					_to_rock(under)
+				# The pit and the air over it are kept clear (out of `empties`, so nothing is placed).
+				for d: int in range(-CHASM_CLEAR, CHASM_DEPTH + 1):
+					empties.erase(Vector2i(x, y + d))
+				var plank: Vector2i = Vector2i(x, y + 1)
+				add_object_at(plank)
+				var cell: Cell = Cell.new(Type.BRIDGE)
+				cell.extra_info = id
+				set_cell(plank, cell)
+				planks.append(plank)
+			chasms.append({"planks": planks, "row": y, "left": Vector2i(a - 1, y), "right": Vector2i(a + w, y)})
+
+	## Each chasm's bell, on the floor of the side nearer the way in, a few cells from the edge.
+	func place_bells () -> void:
+		var start: Vector2i = exits.get(Exit.BACK, Vector2i(-1, -1))
+		var md: Callable = func(a: Vector2i, b: Vector2i) -> int: return absi(a.x - b.x) + absi(a.y - b.y)
+		for id: int in range(chasms.size()):
+			var chasm: Dictionary = chasms[id]
+			var near_left: bool = md.call(chasm["left"], start) <= md.call(chasm["right"], start)
+			var edge: Vector2i = chasm["left"] if near_left else chasm["right"]
+			var away: int = -1 if near_left else 1
+			var at: Variant = null
+			for d: int in [2, 3, 1, 4]:
+				var v: Vector2i = edge + Vector2i(away * (d - 1), 0)
+				if is_valid(v) and get_cell(v).type == Type.EMPTY and empties.has(v) and ground_below(v):
+					at = v
+					break
+			if at == null:
+				continue
+			add_object_at(at)
+			var bell: Cell = Cell.new(Type.BELL)
+			bell.extra_info = id
+			set_cell(at, bell)
+
+	## What lives in a cemetery, on top of an ordinary level's dressing (placed after the hoppers,
+	## so the rest of the level lands as it would): a swarm of moths a few cells from each lantern
+	## (they are drawn to a lit one, see MothSwarm) and more in the open air; banks of sleep fog
+	## over floors (SleepFog); and wraiths, which drift through rock at the wizard (Wraith), never
+	## near the way in.
+	func populate_cemetery (def: NextWorldDef) -> void:
+		var start: Vector2i = exits.get(Exit.BACK, Vector2i(-1, -1))
+		var md: Callable = func(a: Vector2i, b: Vector2i) -> int: return absi(a.x - b.x) + absi(a.y - b.y)
+		var air: Array[Vector2i] = []
+		for v: Vector2i in empties:
+			if get_cell(v).type == Type.EMPTY and _wide_open(v):
+				air.append(v)
+		air.sort()
+		var lanterns: Array[Vector2i] = []
+		for v: Vector2i in objects:
+			if get_cell(v).type == Type.CHECKPOINT:
+				lanterns.append(v)
+		lanterns.sort()
+		var swarms: Array[Vector2i] = []
+		for lantern: Vector2i in lanterns:
+			var near: Array[Vector2i] = air.filter(func(v: Vector2i) -> bool: return md.call(v, lantern) >= 3 and md.call(v, lantern) <= 8 and not swarms.has(v))
+			if not near.is_empty():
+				swarms.append(near[rng.randi_range(0, near.size() - 1)])
+		for i: int in range(per_area(MOTHS_PER_K)):
+			var pool: Array[Vector2i] = air.filter(func(v: Vector2i) -> bool: return swarms.all(func(q: Vector2i) -> bool: return md.call(q, v) >= 6))
+			if pool.is_empty():
+				break
+			swarms.append(pool[rng.randi_range(0, pool.size() - 1)])
+		for v: Vector2i in swarms:
+			add_object_at(v)
+			set_cell(v, Cell.new(Type.MOTHS))
+		# Fog lies over floors with room above it, apart from one another.
+		var floors: Array[Vector2i] = []
+		for v: Vector2i in empties:
+			if get_cell(v).type == Type.EMPTY and ground_below(v) and _open(v + Vector2i.UP) and md.call(v, start) >= 5:
+				floors.append(v)
+		floors.sort()
+		var fogs: Array[Vector2i] = []
+		for i: int in range(per_area(FOG_PER_K)):
+			var pool: Array[Vector2i] = floors.filter(func(v: Vector2i) -> bool: return fogs.all(func(q: Vector2i) -> bool: return md.call(q, v) >= 8))
+			if pool.is_empty():
+				break
+			var at: Vector2i = pool[rng.randi_range(0, pool.size() - 1)]
+			fogs.append(at)
+			add_object_at(at)
+			set_cell(at, Cell.new(Type.FOG))
+		# Wraiths wait in the open air, away from the way in.
+		for i: int in range(per_area(WRAITHS_PER_K)):
+			var pool: Array[Vector2i] = []
+			for v: Vector2i in empties:
+				if get_cell(v).type == Type.EMPTY and md.call(v, start) >= 10:
+					pool.append(v)
+			if pool.is_empty():
+				break
+			pool.sort()
+			var at: Vector2i = pool[rng.randi_range(0, pool.size() - 1)]
+			add_object_at(at)
+			set_cell(at, Cell.new(Type.WRAITH))
 
 	## The level's star cluster (worth MapInfo.cluster_value): hung in open air (as a moon is) at
 	## least half the exit distance from the way in, three times as likely over thorns; failing
@@ -1144,7 +1319,7 @@ static func cluster_value (depth: int) -> int:
 static func skeleton_at (at: Vector2i) -> bool:
 	if at.y < 1:
 		return false
-	return level_seed(level_seed(at.x, at.y), 777) % 100 < SKELETON_CHANCE
+	return level_seed(level_seed(at.x, at.y), 4711) % 100 < SKELETON_CHANCE
 
 ## Minimum distance in cells between a level's way back and its deeper exit.
 static func exit_distance (depth: int) -> int:
@@ -1167,11 +1342,12 @@ static func map_price (depth: int) -> int:
 static func where (at: Vector2i) -> String:
 	return def_for(at).title()
 
-## The WFC sample for a depth: bands of three levels alternate between tunnels and islands.
+## The WFC sample for a garden level `depth` deep: its garden bands (see NextWorldDef.archetype_at)
+## alternate between tunnels and islands. (A cemetery has its own, NextWorldDef.GRAVEYARD.)
 static func region_for (depth: int) -> String:
 	@warning_ignore("integer_division")
-	var band: int = depth / 3
-	return "res://wfc_images/levelSample3-spikes.png" if band < 2 or band % 2 == 0 else "res://wfc_images/floating_islands.png"
+	var garden_band: int = (maxi(depth, 0) / NextWorldDef.BAND) / NextWorldDef.ARCHETYPES.size()
+	return "res://wfc_images/levelSample3-spikes.png" if garden_band % 2 == 0 else "res://wfc_images/floating_islands.png"
 
 func record (at: Vector2i = coord) -> Dictionary:
 	if not records.has(at):
@@ -1215,6 +1391,23 @@ func dropped_keys () -> Dictionary:
 func mark_slain (node: Node) -> void:
 	if node.has_meta(&"cell"):
 		record()["slain"][node.get_meta(&"cell")] = true
+
+## The bell of chasm `id` was rung: its bridge stays up for good.
+func ring_bell (id: int) -> void:
+	var rec: Dictionary = record()
+	if not rec.has("bridges"):
+		rec["bridges"] = {}
+	if (rec["bridges"] as Dictionary).has(id):
+		return
+	rec["bridges"][id] = true
+	if map_elements != null and is_instance_valid(map_elements):
+		for node: Node in map_elements.get_children():
+			if node.has_method("raise") and int(node.get("chasm")) == id:
+				node.call("raise")
+	save_run()
+
+func bridge_up (id: int) -> bool:
+	return (record().get("bridges", {}) as Dictionary).has(id)
 
 ## A cracked wall broken: gone for good.
 func mark_broken (node: Node) -> void:
@@ -1429,6 +1622,17 @@ func rift_travel (to: Vector2i, at: Vector2) -> void:
 	deepest = maxi(deepest, coord.y)
 	arrival = -3
 	arrival_pos = at
+	_load_level()
+
+## Debug runs (the F7 panel's Travel rows): go straight to place `to`, a level or a side world,
+## arriving at its way back. Nothing is paid or opened on the way.
+func debug_travel (to: Vector2i) -> void:
+	if not debug or travelling or run_ending > 0.0 or not Worlds.valid(to):
+		return
+	await _pass(Vector2.DOWN, to)
+	coord = to
+	deepest = maxi(deepest, coord.y)
+	arrival = Exit.BACK
 	_load_level()
 
 func respawn_in_other_level () -> void:
@@ -1965,6 +2169,11 @@ var hopper_prefab: Resource = preload("res://prefabs/hopper_enemy.tscn")
 var laser_prefab: Resource = preload("res://prefabs/laser.tscn")
 var relic_prefab: Resource = preload("res://prefabs/relic.tscn")
 var cluster_prefab: Resource = preload("res://prefabs/star_cluster.tscn")
+var moths_prefab: Resource = preload("res://prefabs/moths.tscn")
+var fog_prefab: Resource = preload("res://prefabs/sleep_fog.tscn")
+var wraith_prefab: Resource = preload("res://prefabs/wraith_enemy.tscn")
+var bridge_prefab: Resource = preload("res://prefabs/bridge.tscn")
+var bell_prefab: Resource = preload("res://prefabs/bell.tscn")
 
 var map_elements_prefab: Resource = preload("res://prefabs/map_elements.tscn")
 
@@ -2046,6 +2255,11 @@ var cell_to_prefab: Dictionary = {
 	Type.LASER: laser_prefab,
 	Type.RELIC: relic_prefab,
 	Type.CLUSTER: cluster_prefab,
+	Type.MOTHS: moths_prefab,
+	Type.FOG: fog_prefab,
+	Type.WRAITH: wraith_prefab,
+	Type.BRIDGE: bridge_prefab,
+	Type.BELL: bell_prefab,
 }
 
 func place_cell(v: Vector2i, _cell: Cell) -> void:
@@ -2086,7 +2300,7 @@ func place_cell(v: Vector2i, _cell: Cell) -> void:
 		cell.set_meta(&"key_color", color)
 	if _cell.type == Type.CLUSTER:
 		cell.set("value", cluster_value(here.depth))
-	if _cell.type in [Type.ENEMY, Type.SHOOTER, Type.HOPPER]:
+	if _cell.type in [Type.ENEMY, Type.SHOOTER, Type.HOPPER, Type.WRAITH]:
 		var wound: Wound = Wound.new()
 		wound.name = "Wound"
 		wound.hp = Wound.hp_for(here.depth)

@@ -122,7 +122,9 @@ func run() -> void:
 	var warp: Warp = player.get_node("Warp") as Warp
 	var before: Vector2 = player.global_position
 	var landed: Variant = warp.cast()
-	await frames(2)
+	# The trip takes a moment (Warp.DEPART and ARRIVE).
+	while warp.warping:
+		await process_frame
 	check(landed != null and player.global_position.distance_to(before) > 1.0 and info.world.ground_below(landed) and not info.solid_at(player.global_position), "it lands on a floor (%s)" % [landed])
 	check(warp.cast() == null and warp.readiness() < 0.1, "then it recharges")
 	warp.recharge = 0.0
@@ -130,6 +132,8 @@ func run() -> void:
 	check(info.world.empties.any(func(v: Vector2i) -> bool: return info.world.ground_below(v) and not info.is_seen(v)), "(with floors still unseen)")
 	landed = warp.cast()
 	check(landed != null and not info.is_seen(landed), "tier II lands on a floor not yet seen")
+	while warp.warping:
+		await process_frame
 	info.travel(MapInfo.Exit.RIGHT)
 	await settle()
 	player.set_physics_process(false)
@@ -138,7 +142,8 @@ func run() -> void:
 	warp = player.get_node("Warp") as Warp
 	warp.recharge = 0.0
 	landed = warp.cast()
-	await frames(2)
+	while warp.warping:
+		await process_frame
 	check(landed != null and (info.world.secrets[0]["room"] as Array).has(landed) and (info.record().get("secrets", {}) as Dictionary).has(0), "tier III lands in a secret room not yet opened, and opens it")
 
 	if failed:

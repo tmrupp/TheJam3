@@ -208,7 +208,50 @@ func run() -> void:
 	var arrive: Vector2i = info.world.exits[MapInfo.Exit.BACK]
 	check(info.world.exits.values().all(func(e: Vector2i) -> bool: return absi(e.x - arrive.x) + absi(e.y - arrive.y) <= 10), "and so in every level")
 	check(info.seen_count() == info.world.size.x * info.world.size.y, "the next level's map is seen too")
+
+	print("the F7 panel by controller (debug runs)")
+	var riso: RisoPrint = RisoPrint.instance
+	var select: InputEventJoypadButton = InputEventJoypadButton.new()
+	select.button_index = JOY_BUTTON_BACK
+	select.pressed = true
+	Input.parse_input_event(select)
+	await process_frame
+	await process_frame
+	var focus: Control = root.gui_get_focus_owner()
+	check(riso.panel.visible and paused and focus != null and riso.panel.is_ancestor_of(focus), "Back opens it, paused, with a control focused for the pad")
+	var cancel: InputEventAction = InputEventAction.new()
+	cancel.action = &"ui_cancel"
+	cancel.pressed = true
+	Input.parse_input_event(cancel)
+	await process_frame
+	await process_frame
+	check(not riso.panel.visible and not paused, "B closes it and play goes on")
+
+	print("debug travel")
+	Input.parse_input_event(select)
+	await process_frame
+	await process_frame
+	focus = root.gui_get_focus_owner()
+	check(focus != null and riso._travel_box.is_ancestor_of(focus), "the panel opens on its Travel rows")
+	var from: Vector2i = info.coord
+	check(riso._travel_at == from, "set to where the wizard is")
+	riso._travel(Vector2i(from.x, RisoPrint._nearest_band(&"cemetery", from.y)))
+	await settle()
+	check(not riso.panel.visible and not paused and info.here.cemetery() and info.coord.x == from.x, "Cemetery goes to the nearest cemetery band (%s)" % info.coord)
+	riso._travel(Vector2i(from.x + 5, 7))
+	await settle()
+	check(info.coord == Vector2i(from.x + 5, 7) and player.global_position.distance_to(info.cell_position(info.world.exits[MapInfo.Exit.BACK])) < 200.0, "Go goes to any world and depth, arriving at its way back")
+	riso._travel(Worlds.side_at(0, info.coord))
+	await settle()
+	check(Worlds.kind_at(info.coord) == 0, "and into hyperspace")
 	MapInfo.debug = false
+	riso._travel(Vector2i(1, 1))
+	await settle()
+	check(Worlds.kind_at(info.coord) == 0, "outside debug runs it goes nowhere")
+	Input.parse_input_event(select)
+	await process_frame
+	await process_frame
+	check(not riso.panel.visible and not paused, "outside debug runs Back does nothing")
 
 	MapInfo.delete_save()
 	if failed:

@@ -22,6 +22,11 @@ func check(ok: bool, what: String) -> void:
 		push_error("FAIL " + what)
 
 
+## Each prop's kind and cell (plants also keep their live sway, which depends on timing).
+func layout(items: Array) -> Array:
+	return items.map(func(it: Dictionary) -> Array: return [it["kind"], it["cell"]])
+
+
 func settle() -> void:
 	await process_frame
 	while info.world == null or info.travelling:
@@ -50,6 +55,7 @@ func run() -> void:
 	for it: Dictionary in first:
 		kinds[it["kind"]] = true
 	check(first.size() > info.world.size.x * info.world.size.y / 15 and kinds.size() >= 7, "%d props of %d kinds" % [first.size(), kinds.size()])
+	check(kinds.has(&"fence_run"), "fences stand behind stretches of floor")
 	check(not kinds.has(&"strata") and not kinds.has(&"fossil") and not kinds.has(&"geode") and not kinds.has(&"vein"), "nothing printed inside the rock")
 	var bounds: Rect2i = Rect2i(Vector2i.ZERO, info.world.size)
 	check(first.all(func(it: Dictionary) -> bool: return bounds.has_point(it["base"])), "all inside the level (none on its outer walls)")
@@ -64,10 +70,10 @@ func run() -> void:
 	check(clear, "none in a cell holding an exit, shrine, door, lantern, thorns, portal or orb")
 	info.travel(MapInfo.Exit.RIGHT)
 	await settle()
-	check(decor.items != first, "another level wears different decor")
+	check(layout(decor.items) != layout(first), "another level wears different decor")
 	info.travel(MapInfo.Exit.LEFT)
 	await settle()
-	check(decor.items == first, "the same level always wears the same decor")
+	check(layout(decor.items) == layout(first), "the same level always wears the same decor")
 
 	print("lantern light")
 	var light: RisoLight = main.get_node("RisoLight") as RisoLight
