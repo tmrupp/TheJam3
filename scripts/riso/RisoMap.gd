@@ -685,8 +685,8 @@ func _world(info: MapInfo) -> void:
 		inner = _clipped(hole, _box(area))
 	marks.ink(RisoPrint.NIGHT, 1.0, outer, false)
 	marks.knock([RisoPrint.NIGHT], inner)
-	# Relics a shrine marked: on a visited level, at its corner; on one not yet visited, a faint
-	# tile where it lies, with the mark in the middle; off the page, on its edge, pointing the way.
+	# Relics a shrine marked: on the top right corner of the level's tile (a faint one for a level
+	# not yet visited); off the page, on its edge, pointing the way.
 	var page_in: Rect2 = area.grow(-9.0)
 	for c: Vector2i in info.relic_hints:
 		var at: Vector2 = tile_at(info, c)
@@ -699,11 +699,12 @@ func _world(info: MapInfo) -> void:
 			_mark_relic(edge, info.relic_hints[c], 0.8)
 			marks.ink(RisoPrint.ACCENT, 1.0, [RisoProp.chevron(edge + way * 7.5, way, 0.16)], false)
 			continue
-		if info.records.has(c):
-			_mark_relic(at + Vector2(TILE.x * 0.5 - 4.5, -TILE.y * 0.5 + 4.5), info.relic_hints[c], 0.8)
-		else:
+		# A level not yet visited: a faint tile where it lies, labelled like the rest.
+		if not info.records.has(c):
 			marks.ink(RisoPrint.ACCENT, 0.12, [RisoShapes.rrect(at.x - TILE.x * 0.5, at.y - TILE.y * 0.5, TILE.x, TILE.y, 5.0)], false)
-			_mark_relic(at, info.relic_hints[c])
+			_text("%d · %d" % [c.x, c.y], at + Vector2(0, -3.5), 6.5, false, true)
+		# The mark on the tile's top right corner, clear of its label.
+		_mark_relic(at + Vector2(TILE.x * 0.5 - 1.0, -TILE.y * 0.5 + 1.0), info.relic_hints[c], 0.75)
 	_text("W A S D pick  ·  E open", Vector2(AREA.position.x, AREA.end.y - 6.0), 6.5, false)
 	_legend([
 		["you are here", func(at: Vector2) -> void: _mark_tile(at, Vector2(9, 6), true)],

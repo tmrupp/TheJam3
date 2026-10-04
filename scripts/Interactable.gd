@@ -31,6 +31,9 @@ static func focused(tree: SceneTree) -> Node:
 		var it: Interactable = node as Interactable
 		if it == null or not it.touching or not it.available or it.player == null:
 			continue
+		# Mid-way through a portal (see portal.gd), nothing can be used.
+		if it.player.has_meta(&"portal_trip"):
+			return null
 		var at: Node2D = it.get_parent() as Node2D
 		var d: float = at.global_position.distance_squared_to(it.player.global_position) if at != null else INF
 		if d < best_d:

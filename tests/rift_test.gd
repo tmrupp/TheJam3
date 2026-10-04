@@ -55,6 +55,7 @@ func run() -> void:
 	var world_a: Vector2i = info.coord
 	var natural: Array[Node] = info.map_elements.get_children().filter(func(n: Node) -> bool: return n.scene_file_path.get_file() == "portal.tscn" and not n.has_meta(&"rift"))
 	first.call("use_portal")
+	await Signal(first, &"trip_done")
 	check(player.global_position == second.global_position, "interaction travels to the partner")
 	player.global_position += Vector2(700, 0)
 	Abilities.cast(player)
@@ -72,6 +73,7 @@ func run() -> void:
 		await physics_frame
 	check(player.global_position == stand_at, "standing in a rift does not send you through: E is always needed")
 	fourth.call("use_portal")
+	await Signal(fourth, &"trip_done")
 	check(player.global_position == third.global_position, "interacting travels")
 	var pair_a: Array = info.record()["rifts"].duplicate()
 	Abilities.grant(player, &"hex")
@@ -126,6 +128,7 @@ func run() -> void:
 	info.save_run()
 	check((MapInfo.read_save()["rift_link"] as Array).size() == 2, "the link is saved with the run")
 	link_b.call("use_portal")
+	await Signal(link_b, &"trip_done")
 	await settle()
 	player.set_physics_process(false)
 	check(info.coord == world_a and absf(player.global_position.x - at_a.x) < 1.0 and player.global_position.distance_to(at_a) < 40.0, "using it travels to the other world, out of the other end (then lands)")

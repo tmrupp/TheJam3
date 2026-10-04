@@ -26,6 +26,8 @@ uniform float wob = 0.8;
 uniform float grain = 0.1;
 uniform float gain = 1.0;
 uniform float lay = 0.1;
+// How many missed-ink specks (flecks of bare paper) the print shows: 0 none, 1 the prototype's.
+uniform float specks = 0.0;
 uniform float seed = 3.1;
 uniform float seed2 = 4.47;
 uniform float mixv = 0.0;
@@ -97,7 +99,8 @@ float print_ink(sampler2D s, vec2 px, vec2 off, float ang, float rot, float sd, 
 	float thr = 0.035 + scr * 0.93 + ((hs(R2 * qw * 0.85, so + 3u) - 0.5) * grain + (vn(R1 * qw * 0.3, so + 5u) - 0.5) * grain * 0.6) * (1.0 - solid * 0.9);
 	float v = smoothstep(thr - 0.045, thr + 0.045, cv);
 	float laydown = 1.0 - lay + lay * vn(R2 * qw * 0.42, so + 7u);
-	float speck = step(0.9988, hs(R1 * qw * 0.42, so + 11u));	return v * laydown * (1.0 - speck * 0.85);
+	float speck = specks > 0.0 ? step(1.0 - 0.0012 * specks, hs(R1 * qw * 0.42, so + 11u)) : 0.0;
+	return v * laydown * (1.0 - speck * 0.85);
 }
 
 float sheet(sampler2D s, vec2 px, vec2 off, float ang, float rot, float k) {

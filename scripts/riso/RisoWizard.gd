@@ -40,6 +40,8 @@ var pvy: float = 0.0
 var pg: bool = true
 var squash: float = 1.0
 var squash_v: float = 0.0
+## Gone into a portal and not yet out of the far one: the wizard is not printed.
+var vanished: bool = false
 var hem_x: PackedFloat32Array = PackedFloat32Array([0, 0, 0, 0, 0])
 var hem_y: PackedFloat32Array = PackedFloat32Array([0, 0, 0, 0, 0])
 var hem_vx: PackedFloat32Array = PackedFloat32Array([0, 0, 0, 0, 0])
@@ -343,6 +345,13 @@ func _sm(poly: PackedVector2Array) -> PackedVector2Array:
 
 func _process(_delta: float) -> void:
 	if player == null or not visible:
+		return
+	# Mid-way through a portal (see RisoPortalWarp): nothing of the wizard is printed.
+	if vanished:
+		body.begin()
+		body.finish()
+		world.begin()
+		world.finish()
 		return
 	_draw_body()
 	_draw_world()

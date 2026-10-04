@@ -389,6 +389,54 @@ class World:
 		objects.erase(v)
 		grounds.append(v)
 
+	## Cells across and up each kind of thing takes, from its own cell (the bottom left), where that is
+	## more than one cell: once a place is laid out, rock in the rest of that box is carved out
+	## (make_room), so a tall doorway or portal never prints into the rock over it. Anything new and
+	## big only needs its size here.
+	const SIZES: Dictionary = {
+		Type.EXIT: Vector2i(1, 2),
+		Type.PORTAL: Vector2i(1, 2),
+		Type.SHRINE: Vector2i(2, 2),
+		Type.INKWELL: Vector2i(1, 2),
+		Type.CHECKPOINT: Vector2i(1, 2),
+		Type.RELIC: Vector2i(1, 2),
+	}
+	## The cells make_room carved out.
+	var carved: Array[Vector2i] = []
+
+	## Carve out the rock (and thorns) in every thing's box (see SIZES). Never a secret room's rock or
+	## the rock sealing it (either would give the room away), the rock framing a door or switch gate
+	## above or below it, or the rock a laser is set in.
+	func make_room () -> void:
+		for v: Vector2i in objects.duplicate():
+			var size: Vector2i = SIZES.get(get_cell(v).type, Vector2i.ONE)
+			if size == Vector2i.ONE:
+				continue
+			for dx: int in range(size.x):
+				for dy: int in range(size.y):
+					var c: Vector2i = v + Vector2i(dx, -dy)
+					if c == v or not is_valid(c) or not get_cell(c).type in [Type.GROUND, Type.SPIKES]:
+						continue
+					if _holds_up(c):
+						continue
+					_to_open(c)
+					carved.append(c)
+
+	## Whether rock at `c` frames a door or gate (above or below it), seals a secret room, or has a
+	## laser set in it.
+	func _holds_up (c: Vector2i) -> bool:
+		for d: Vector2i in [Vector2i.UP, Vector2i.DOWN]:
+			if is_valid(c + d) and get_cell(c + d).type in [Type.DOOR, Type.SWITCH_GATE]:
+				return true
+		for d: Vector2i in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+			if not is_valid(c + d):
+				continue
+			var n: Cell = get_cell(c + d)
+			# A laser's mount, or the rock sealing a secret room (its floor, walls and roof).
+			if n.type == Type.LASER or (n.type == Type.CRACKED and n.extra_info != null):
+				return true
+		return false
+
 	func _to_open (v: Vector2i) -> void:
 		cells[v.x][v.y] = Cell.new(Type.EMPTY)
 		grounds.erase(v)
@@ -514,6 +562,8 @@ class World:
 			cells.append(row)
 
 		def.populate(self)
+		# Whatever kind of place it is, big things get room (see SIZES).
+		make_room()
 
 	## Dress an ordinary level (see NextWorldDef.populate).
 	func populate_level (def: NextWorldDef) -> void:

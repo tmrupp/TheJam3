@@ -94,6 +94,13 @@ var trapped: bool = false
 ## Scales every plate's misregistration (base offset, sheet jitter and drift): 0 prints in
 ## perfect register, 1 is the prototype's, 3 is a sloppy press.
 var offset_scale: float = 1.0
+## How many missed-ink specks (flecks of bare paper) the print shows: 0 none (the default), 1 the
+## prototype's.
+var specks: float = 0.0
+## What fills the portals' openings (see RisoProp._portal): bands of TV static (the default), or
+## ripples on a pool of water.
+const PORTAL_STYLES: Array[StringName] = [&"static", &"ripples"]
+var portal_style: StringName = &"static"
 ## How much finer than the scene the UI prints, 0 (the same) to 1 (UI_* in full).
 var ui_detail: float = 0.7
 ## Camera zoom while printing, relative to the scene's own zoom (smaller shows more).
@@ -157,21 +164,48 @@ static func door_opened(door: Node2D) -> void:
 	fx.global_position = door.global_position
 
 
-## Called as the wizard steps through `portal`: prints the trip from where they stood (`from`,
-## the player's position before) to the far portal at `to`.
-static func portal_used(portal: Node2D, player: Player, from: Vector2, to: Vector2) -> void:
+## The wizard steps into `portal` (see portal.gd): prints them drawn into it, and hides them
+## until portal_reveal. The portal flares.
+static func portal_depart(portal: Node2D, player: Player) -> void:
 	if not is_on() or portal == null or player == null:
 		return
 	var art: RisoProp = portal.get_node_or_null("RisoArt") as RisoProp
 	var wizard: Node2D = player.get_node_or_null("RisoWizard") as Node2D
 	if art == null or wizard == null:
 		return
+	portal.set_meta(&"flare_at", Time.get_ticks_msec() / 1000.0)
+	_portal_fx(portal, wizard, art.to_global(art.portal_center()), wizard.global_position, 0)
+	wizard.set("vanished", true)
+
+
+## The wizard comes out of `exit` (the far portal, if known) at `to`: prints them pushed out of
+## it. The far portal flares.
+static func portal_arrive(portal: Node2D, exit: Node2D, player: Player, to: Vector2) -> void:
+	if not is_on() or portal == null or player == null:
+		return
+	var art: RisoProp = (exit if exit != null else portal).get_node_or_null("RisoArt") as RisoProp
+	var wizard: Node2D = player.get_node_or_null("RisoWizard") as Node2D
+	if art == null or wizard == null:
+		return
+	var center: Vector2 = art.to_global(art.portal_center()) if exit != null else to + (art.to_global(art.portal_center()) - portal.global_position)
+	if exit != null:
+		exit.set_meta(&"flare_at", Time.get_ticks_msec() / 1000.0)
+	_portal_fx(portal, wizard, center, to + wizard.global_position - player.global_position, 1)
+
+
+## The wizard is seen again (see portal_depart).
+static func portal_reveal(player: Player) -> void:
+	var wizard: Node2D = player.get_node_or_null("RisoWizard") as Node2D if player != null else null
+	if wizard != null:
+		wizard.set("vanished", false)
+
+
+static func _portal_fx(portal: Node2D, wizard: Node2D, center: Vector2, feet: Vector2, part: int) -> void:
 	var fx: Node2D = Node2D.new()
 	fx.set_script(preload("res://scripts/riso/RisoPortalWarp.gd"))
-	var offset: Vector2 = art.to_global(art.portal_center()) - portal.global_position
-	fx.set("from_center", portal.global_position + offset)
-	fx.set("to_center", to + offset)
-	fx.set("from_feet", from + wizard.global_position - player.global_position)
+	fx.set("part", part)
+	fx.set("center", center)
+	fx.set("feet", feet)
 	fx.set("facing", 1.0 if float(wizard.get("fs")) >= 0.0 else -1.0)
 	fx.set("art_scale", wizard.global_scale.y)
 	fx.set("ring", EYE if portal.has_meta(&"rift") else ACCENT)
@@ -334,6 +368,10 @@ func _build() -> void:
 	map_view.name = "RisoMap"
 	map_view.set_script(preload("res://scripts/riso/RisoMap.gd"))
 	main.add_child.call_deferred(map_view)
+	var menu_print: Node2D = Node2D.new()
+	menu_print.name = "RisoMenu"
+	menu_print.set_script(preload("res://scripts/riso/RisoMenu.gd"))
+	main.add_child.call_deferred(menu_print)
 	var fx: Node2D = Node2D.new()
 	fx.name = "RisoFx"
 	fx.set_script(preload("res://scripts/riso/RisoFx.gd"))
@@ -586,6 +624,7 @@ func _update_uniforms(size: Vector2) -> void:
 	print_material.set_shader_parameter("grain", params[2])
 	print_material.set_shader_parameter("gain", params[3] * s)
 	print_material.set_shader_parameter("lay", params[4])
+	print_material.set_shader_parameter("specks", specks)
 	print_material.set_shader_parameter("seed", _sheet_seed(sheet_index) if registration == &"sheet" else 3.1)
 	print_material.set_shader_parameter("seed2", _sheet_seed(sheet_index + 1))
 	print_material.set_shader_parameter("mixv", m)
@@ -595,7 +634,7 @@ func _update_uniforms(size: Vector2) -> void:
 	var view: Transform2D = root.get_final_transform() * root.canvas_transform
 	print_material.set_shader_parameter("pin", -view.origin)
 	# The UI's print: the same sheet and inks, finer, and pinned to the screen (the HUD is).
-	for p: String in ["res", "paper", "ink0", "ink1", "ink2", "ink3", "ink4", "ink5", "ink6", "lay", "seed", "seed2", "mixv"]:
+	for p: String in ["res", "paper", "ink0", "ink1", "ink2", "ink3", "ink4", "ink5", "ink6", "lay", "specks", "seed", "seed2", "mixv"]:
 		ui_material.set_shader_parameter(p, print_material.get_shader_parameter(p))
 	for i: int in range(PLATE_COUNT):
 		ui_material.set_shader_parameter("off%d" % i, (print_material.get_shader_parameter("off%d" % i) as Vector2) * _ui_scale(UI_REGISTRATION))
@@ -751,6 +790,7 @@ var _rate_label: Label
 var _zoom_label: Label
 var _offset_label: Label
 var _ui_detail_label: Label
+var _specks_label: Label
 var _options: Dictionary = {}
 
 
@@ -782,6 +822,9 @@ func _build_panel() -> void:
 	_offset_label = _slider_row(box, "Plate offset", 0.0, 3.0, 0.1, offset_scale, func(v: float) -> void:
 		offset_scale = v
 		_sync_panel())
+	_specks_label = _slider_row(box, "Specks", 0.0, 1.0, 0.05, specks, func(v: float) -> void:
+		specks = v
+		_sync_panel())
 	_ui_detail_label = _slider_row(box, "UI detail", 0.0, 1.0, 0.05, ui_detail, func(v: float) -> void:
 		ui_detail = v
 		_sync_panel())
@@ -790,6 +833,7 @@ func _build_panel() -> void:
 	_option_row(box, &"between", "Between sheets", ["Cut", "Blend"], _on_between)
 	_option_row(box, &"realm", "Realm", ["Deep night", "Twilight", "Aurora"], _on_realm_picked)
 	_option_row(box, &"plates", "Plates", ["Independent", "Trapped"], func(i: int) -> void: trapped = i == 1)
+	_option_row(box, &"portal", "Portals", ["TV static", "Ripples"], func(i: int) -> void: portal_style = PORTAL_STYLES[i])
 	# Abilities: set any tier outright (a spell above 0 takes the slot).
 	var heading: Label = Label.new()
 	heading.text = "Abilities"
@@ -886,6 +930,9 @@ func _sync_panel() -> void:
 	_zoom_label.text = "%d%%" % roundi(100.0 / zoom_factor)
 	_offset_label.text = "%.1f×" % offset_scale
 	_ui_detail_label.text = "%d%%" % roundi(ui_detail * 100.0)
+	_specks_label.text = "none" if specks <= 0.0 else "%d%%" % roundi(specks * 100.0)
+	if _options.has(&"portal"):
+		(_options[&"portal"] as OptionButton).select(PORTAL_STYLES.find(portal_style))
 	if _options.has(&"realm"):
 		(_options[&"realm"] as OptionButton).select(REALM_ORDER.find(realm))
 	if _options.has(&"reprint"):
