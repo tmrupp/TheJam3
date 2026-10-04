@@ -59,5 +59,20 @@ func capture() -> void:
 	for i: int in range(20):
 		await process_frame
 	root.get_texture().get_image().save_png(output.path_join("still_hyperspace_map_world.png"))
+	# Through the gate, so the worlds page shows hyperspace joined to the levels at both ends.
+	map.call("toggle")
+	for i: int in range(5):
+		await process_frame
+	info.travel(MapInfo.Exit.DEEPER)
+	while info.travelling:
+		await process_frame
+	for i: int in range(20):
+		await process_frame
+	map.call("toggle")
+	map.call("page", 1)
+	map.set("selected", Worlds.side_at(Worlds.kind_of(Hyperspace), Vector2i(seed_value, 1)))
+	for i: int in range(20):
+		await process_frame
+	root.get_texture().get_image().save_png(output.path_join("still_hyperspace_map_joined.png"))
 	print("CAPTURED hyperspace stills to ", output)
 	quit()

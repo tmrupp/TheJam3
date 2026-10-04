@@ -27,10 +27,12 @@ var ui_node: Node2D = null
 var ui_ink: InkCanvas = null
 ## Printed text (prices, names), reused frame to frame; see _text().
 var labels: Array[Label] = []
-## Wisp turning: the wisp swoops round a tight circle to face the other way (forward, up and
-## over, back down), its body following the path's heading. Timed by the art's own clock from the
-## moment its facing changes, while its Mover holds still for the same time. The body is symmetric about its spine (y = -8.2), so half a turn of the old facing is
-## the new facing upright; the eyes slide to their mirrored height on the way so they land exactly.
+## Wisp turning: the wisp turns round in one arc, a half turn that dips under its path (forward,
+## down, back under and up onto its path facing the other way), its body following the path's
+## heading. Timed by the art's own clock from the moment its facing changes, while its Mover holds
+## still for the same time. The body is symmetric about its spine (y = -8.2), so half a turn of the
+## old facing is the new facing upright; the eyes slide to their mirrored height on the way so
+## they land exactly. WISP_LOOP_H is how deep the arc dips, at most (see _fit_loop).
 const WISP_LOOP_W: float = 30.0
 const WISP_LOOP_H: float = 26.0
 const WISP_TURN_TIME: float = 0.5
@@ -131,6 +133,7 @@ func _redraw() -> void:
 		&"door": _door()
 		&"gate": _gate()
 		&"switch": _switch()
+		&"relic": _relic()
 		&"lantern": _lantern()
 		&"exit": _exit()
 		&"moon": _moon()
@@ -299,7 +302,11 @@ func _ghost() -> void:
 
 ## Cracked rock: the terrain prints the cell as rock; this adds a few fine cracks in night ink
 ## (a seeded zigzag from each of three edges toward the middle): quiet, but there if you look.
+## A secret room's cells (its hidden rock and its false-wall entrance) get none: they are plain
+## rock until the room opens.
 func _cracked() -> void:
+	if host.has_meta(&"secret"):
+		return
 	var cracks: Array[PackedVector2Array] = []
 	var seed_f: float = host.global_position.x * 0.013 + host.global_position.y * 0.029
 	for k: int in range(3):
@@ -339,9 +346,26 @@ func _shrine() -> void:
 	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(mx - 9, g - 62, 18, 42, 6), RisoShapes.ellipse(Vector2(mx, g - 64), 24.0, 7.0, 22)])
 	if used:
 		return
-	# Mending: an ember bead over the bowl, like the HUD's health beads.
 	var m: Vector2 = Vector2(mx, g - 94 + bob * 0.8)
 	var full: bool = not bool(host.call("can_mend"))
+	if full and bool(host.call("reads_relic")):
+		# At full health: a small relic medallion with the move of the relic it can point to.
+		var move: StringName = StringName(host.call("relic_move"))
+		var disc: PackedVector2Array = RisoShapes.circle(m, 18.0, 24)
+		ink.ink(RisoPrint.EYE, 0.25, [RisoShapes.circle(m, 28.0, 28)])
+		ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(m, 22.0, 24)])
+		ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE], [disc])
+		ink.ink(RisoPrint.ACCENT, 0.18, [disc], false)
+		var fit: Transform2D = Transform2D(0.0, Vector2(0.55, 0.55), 0.0, m)
+		var mark: Array[PackedVector2Array] = []
+		for poly: PackedVector2Array in RisoProp.glyph(move, Vector2.ZERO, t):
+			mark.append(fit * poly)
+		ink.ink(RisoPrint.NIGHT, 1.0, mark, false)
+		var sr: float = _pop(2, Vector2(mx, g - 50))
+		if sr > 0.0:
+			_plaque("%s relic · where · %d" % [Abilities.NAMES[move], int(host.call("relic_price"))], Vector2(mx, g - POP_Y), 30, RisoPrint.ACCENT, sr)
+		return
+	# Mending: an ember bead over the bowl, like the HUD's health beads.
 	ink.ink(RisoPrint.EYE, 0.12 if full else 0.25, [RisoShapes.circle(m, 25.0, 28)])
 	var bead: PackedVector2Array = RisoShapes.circle(m, 12.0, 22)
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], [bead])
@@ -490,6 +514,44 @@ func _gate() -> void:
 static func switch_emblem(c: Vector2, s: float) -> Array[PackedVector2Array]:
 	return [RisoShapes.rrect(c.x - 9.0 * s, c.y + 2.0 * s, 18.0 * s, 6.0 * s, 3.0 * s), Transform2D(0.55, c + Vector2(0, 3.0) * s) * RisoShapes.rrect(-1.8 * s, -12.0 * s, 3.6 * s, 13.0 * s, 1.8 * s),
 		RisoShapes.circle(c + Vector2(6.6, -7.0) * s, 3.4 * s, 12)]
+
+
+## A relic: a medallion (an accent ring round a disc of bare paper with the move's mark on it)
+## floating over a small plinth in a ring of light, with three motes
+## circling it; its name and tier pop up as the wizard steps up to it ("swap" too, when taking it
+## would replace the spell in the slot).
+func _relic() -> void:
+	var g: float = _ground()
+	var held: Array = host.call("holds")
+	var a: StringName = held[0]
+	var bob: float = sin(t * 2.0 + phase) * 4.0
+	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-30, g - 20, 60, 20, 6)])
+	ink.ink(RisoPrint.NIGHT, 0.6, [RisoShapes.rrect(-20, g - 28, 40, 10, 4)])
+	var c: Vector2 = Vector2(0, g - 86 + bob)
+	var breathe: float = 1.0 + 0.06 * sin(t * 3.0 + phase)
+	ink.ink(RisoPrint.EYE, 0.25, [RisoShapes.circle(c, 54.0 * breathe, 32)], false)
+	# A medallion: a solid accent ring round a disc of bare paper, the move's mark on it.
+	var disc: PackedVector2Array = RisoShapes.circle(c, 33.0, 32)
+	ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(c, 39.0, 32)])
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE], [disc])
+	ink.ink(RisoPrint.ACCENT, 0.18, [disc], false)
+	var fit: Transform2D = Transform2D(0.0, Vector2(1.05, 1.05), 0.0, c)
+	var mark: Array[PackedVector2Array] = []
+	for poly: PackedVector2Array in RisoProp.glyph(a, Vector2.ZERO, t):
+		mark.append(fit * poly)
+	ink.ink(RisoPrint.NIGHT, 1.0, mark, false)
+	var motes: Array[PackedVector2Array] = []
+	for k: int in range(3):
+		var ang: float = t * 1.4 + TAU * float(k) / 3.0
+		motes.append(RisoShapes.sparkle(c + Vector2(cos(ang) * 52.0, sin(ang) * 18.0), 8.0))
+	ink.ink(RisoPrint.ACCENT, 1.0, motes, false)
+	var sl: float = _pop(0, Vector2(0, g - 50))
+	if sl > 0.0:
+		var owed: int = int(host.call("price"))
+		var label: String = "%s %s" % [Abilities.NAMES[a], Abilities.roman(int(held[1]))]
+		_plaque(label + (" · %d" % owed if owed > 0 else " · take back"), Vector2(0, g - POP_Y), 30, RisoPrint.ACCENT, sl)
+		if bool(host.call("swap")):
+			_plaque("swap", Vector2(0, g - POP_Y - 40.0 * sl), 22, RisoPrint.PINK, sl)
 
 
 ## A switch: a stone base on the floor with a lever in it. Before it is thrown the lever leans left
@@ -749,6 +811,10 @@ static func glyph(a: StringName, c: Vector2, t: float) -> Array[PackedVector2Arr
 			# Three staggered speed lines streaming back from a running bead.
 			return [RisoShapes.circle(c + Vector2(14, 0), 7.0, 14), RisoShapes.rrect(c.x - 20, c.y - 12, 26, 5, 2.5),
 				RisoShapes.rrect(c.x - 26, c.y - 2.5, 32, 5, 2.5), RisoShapes.rrect(c.x - 16, c.y + 7, 22, 5, 2.5)]
+		&"warp":
+			# A ring it leaves by, a dotted way across, and the ring it comes out of.
+			return [RisoShapes.circle(c + Vector2(-17, 8), 8.0, 16), RisoShapes.circle(c + Vector2(-5, -1), 2.6, 8), RisoShapes.circle(c + Vector2(4, -6), 2.6, 8),
+				RisoShapes.circle(c + Vector2(16, -6), 11.0, 20)]
 		&"hex":
 			# A comet: a bold spark with a tapering tail behind it.
 			return [RisoShapes.sparkle(c + Vector2(7, -5), 17.0), PackedVector2Array([c + Vector2(4, -12), c + Vector2(-22, 14), c + Vector2(-2, 0)])]
@@ -885,15 +951,17 @@ func _wisp() -> void:
 	if spinning:
 		var e: float = u * u * (3.0 - 2.0 * u)
 		var sample: Array = RisoProp.wisp_loop(e)
-		loop_at = Vector2(side * (sample[0] as Vector2).x * wisp_loop_w, (sample[0] as Vector2).y * wisp_loop_h)
-		spin = float(sample[1])
-	var turning: float = sin(clampf(spin / PI, 0.0, 1.0) * PI)
-	var e_eyes: float = clampf(spin / PI, 0.0, 1.0)
+		# The loop is drawn upside down: the wisp dips under its path rather than rising over it.
+		loop_at = Vector2(side * (sample[0] as Vector2).x * wisp_loop_w, -(sample[0] as Vector2).y * wisp_loop_h)
+		spin = -float(sample[1])
+	var e_eyes: float = clampf(-spin / PI, 0.0, 1.0)
 	var width: float = 1.0
 	# Its shadow on the floor, shrinking as it bobs up: it belongs to the ground it haunts.
 	var g: float = _ground()
 	var lift: float = clampf(-loop_at.y / WISP_LOOP_H, 0.0, 1.0)
-	ink.ink(RisoPrint.NIGHT, 0.35 * (1.0 - lift * 0.6), [RisoShapes.ellipse(Vector2(loop_at.x, g - 3.0), (26.0 + bob * 1.2) * (1.0 - lift * 0.4), 5.0, 16)], false)
+	# And darkening as it swoops down toward it on a turn.
+	var dip: float = clampf(loop_at.y / WISP_LOOP_H, 0.0, 1.0)
+	ink.ink(RisoPrint.NIGHT, 0.35 * (1.0 - lift * 0.6 + dip * 0.5), [RisoShapes.ellipse(Vector2(loop_at.x, g - 3.0), (26.0 + bob * 1.2) * (1.0 - lift * 0.4), 5.0, 16)], false)
 	# The body follows the path its head has travelled (see _wisp_place): the head is placed on
 	# its loop, and everything behind it lies along the recorded trail, so mid-turn the tail traces
 	# the head's arc and after the turn it straightens out as the wisp moves off.
@@ -954,21 +1022,20 @@ func _wisp() -> void:
 		_stun_mark(head + _wp_bob + Vector2(0, -52))
 
 
-## Size the turning loop to the room: lower under a near ceiling, tighter against a wall.
+## Size the turning arc to the room: shallower over a near floor, tighter against a wall. The head
+## floats about WISP_HEAD_Y over the wisp's origin, and dips to WISP_FLOOR_GAP over the floor.
+const WISP_HEAD_Y: float = -23.0
+const WISP_FLOOR_GAP: float = 29.0
+
 func _fit_loop(forward: float) -> void:
 	wisp_loop_w = WISP_LOOP_W
-	wisp_loop_h = WISP_LOOP_H
+	wisp_loop_h = clampf(_ground() - WISP_HEAD_Y - WISP_FLOOR_GAP, 8.0, WISP_LOOP_H)
 	var info: MapInfo = MapInfo.instance
 	if info == null or info.world == null:
 		return
 	var c: Vector2i = info.cell_at(host.global_position)
-	var open_above: int = 0
-	while open_above < 2 and info.world.is_valid(c + Vector2i(0, -open_above - 1)) and not _wisp_blocked(info, c + Vector2i(0, -open_above - 1)):
-		open_above += 1
-	# The wisp floats in the lower part of its cell: about 50 px clear above it in its own cell.
-	wisp_loop_h = clampf(50.0 + 128.0 * float(open_above) - 24.0, 18.0, WISP_LOOP_H)
 	var f: Vector2i = Vector2i(int(signf(forward)), 0)
-	if _wisp_blocked(info, c + f) or (open_above > 0 and _wisp_blocked(info, c + f + Vector2i(0, -1))):
+	if _wisp_blocked(info, c + f):
 		wisp_loop_w = 16.0
 
 

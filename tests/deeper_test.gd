@@ -170,7 +170,9 @@ func run() -> void:
 	var lanterns: int = placed("checkpoint.tscn").size()
 	var keys: int = placed("key.tscn").size()
 	var area_k: float = float(info.world.size.x * info.world.size.y) / 1000.0
-	check(keys == maxi(MapInfo.KEY_COLOR_COUNT, roundi(MapInfo.KEYS_PER_K * area_k)) and lanterns <= 4 + roundi(MapInfo.LANTERNS_PER_K * area_k), "%d keys and %d lanterns, in proportion to the level" % [keys, lanterns])
+	# A first level also has its start key (for the side door near the start).
+	var start_key: int = 1 if info.world.start_side >= 0 else 0
+	check(keys == maxi(MapInfo.KEY_COLOR_COUNT, roundi(MapInfo.KEYS_PER_K * area_k)) + start_key and lanterns <= 4 + roundi(MapInfo.LANTERNS_PER_K * area_k), "%d keys and %d lanterns, in proportion to the level" % [keys, lanterns])
 	check(placed("door.tscn").size() >= 1, "%d gates (doors) across corridors" % placed("door.tscn").size())
 	var moons: Array[Node] = placed("moon.tscn")
 	check(not moons.is_empty() and moons.size() <= info.world.per_area(MapInfo.MOONS_PER_K), "%d moons within the area budget" % moons.size())

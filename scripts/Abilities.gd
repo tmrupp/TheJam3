@@ -1,17 +1,18 @@
 class_name Abilities
-## Tiered abilities, learned at shrines (there is no shop). Tier 0 is not owned; the dash and the
+## Tiered abilities, learned at shrines (there is no shop), except that tier I of the big moves
+## (double jump, wall climb, blink, levitate) only comes from a relic (see Relics). Tier 0 is not owned; the dash and the
 ## hex (the starting spell) are known from the start (tier 1). Each tier improves the ability.
 ## Tiers live on the player and reset when a run ends.
 ## - Spells share one slot, on the Spell button (Q, or the pad's X): hex, astral projection,
-##   parry, levitate, awareness and rift (open your own teleporters). You carry one at a time; learning another at a shrine
+##   parry, levitate, awareness, rift (open your own teleporters) and warp (to a random floor). You carry one at a time; learning another at a shrine
 ##   replaces it.
 ## - Perks stack: double jump, wall climb, blink (replaces the dash), vigor (max health) and
 ##   speed (run speed).
 
-const ORDER: Array[StringName] = [&"dash", &"double_jump", &"wall_climb", &"blink", &"parry", &"astral", &"hex", &"levitate", &"awareness", &"rift", &"vigor", &"speed"]
+const ORDER: Array[StringName] = [&"dash", &"double_jump", &"wall_climb", &"blink", &"parry", &"astral", &"hex", &"levitate", &"awareness", &"rift", &"vigor", &"speed", &"warp"]
 ## Run speed added per tier of speed, as a fraction of the base.
 const SPEED_PER_TIER: float = 0.15
-const SPELLS: Array[StringName] = [&"hex", &"astral", &"parry", &"levitate", &"awareness", &"rift"]
+const SPELLS: Array[StringName] = [&"hex", &"astral", &"parry", &"levitate", &"awareness", &"rift", &"warp"]
 const NAMES: Dictionary = {
 	&"dash": "dash",
 	&"double_jump": "double jump",
@@ -25,10 +26,11 @@ const NAMES: Dictionary = {
 	&"rift": "rift",
 	&"vigor": "vigor",
 	&"speed": "speed",
+	&"warp": "warp",
 }
 const BASE: Dictionary = {&"dash": 1, &"hex": 1}
 const MAX: Dictionary = {&"dash": 4, &"double_jump": 3, &"wall_climb": 3, &"blink": 3, &"parry": 4, &"astral": 4, &"hex": 4,
-	&"levitate": 3, &"awareness": 3, &"rift": 3, &"vigor": 3, &"speed": 3}
+	&"levitate": 3, &"awareness": 3, &"rift": 3, &"vigor": 3, &"speed": 3, &"warp": 3}
 const BLINK_PREFAB: String = "res://prefabs/upgrades/Blink.tscn"
 const BASE_HEALTH: int = 3
 const SPELL_ACTION: StringName = &"Spell"
@@ -96,6 +98,9 @@ static func _picks(level_seed: int, player: Player, count: int, strict: bool) ->
 				return out
 			var a: StringName = ORDER[(start + i) % n]
 			if a in out or (a == &"dash" and tier(player, &"blink") > 0):
+				continue
+			# The big moves are found as relics first (see Relics); then their higher tiers are taught.
+			if a in Relics.MOVES and tier(player, a) == 0:
 				continue
 			if pass_new and tier(player, a) > 0:
 				continue
@@ -177,6 +182,8 @@ static func cast(player: Player) -> void:
 			(player.get_node("Awareness") as Awareness).ping()
 		&"rift":
 			(player.get_node("Rift") as Rift).cast()
+		&"warp":
+			(player.get_node("Warp") as Warp).cast()
 
 
 ## A child node that exists only while its ability is known.
@@ -255,6 +262,10 @@ static func apply(player: Player) -> void:
 	if rift != null:
 		rift.level = rift_tier
 		rift.sync_ends()
+	var warp_tier: int = tier(player, &"warp")
+	var warp: Warp = _keep(player, "Warp", warp_tier > 0, func() -> Node: return Warp.new()) as Warp
+	if warp != null:
+		warp.level = warp_tier
 	player.run_speed = Player.SPEED * (1.0 + SPEED_PER_TIER * float(tier(player, &"speed")))
 	player.health.max_health = BASE_HEALTH + tier(player, &"vigor")
 	player.health.health = mini(player.health.health, player.health.max_health)

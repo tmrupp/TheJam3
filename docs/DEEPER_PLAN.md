@@ -29,6 +29,7 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
   - **Back** leads to `(seed, depth − 1)`. It is placed high in the level and is free.
   - **Left and right** lead to `(seed ± 1, depth)`. They are placed at the side edges.
   - Each side door is locked with a key colour, `lateral_lock(level, side)`, dealt by the level seed. Carrying that colour opens it and you go through; the key is kept. It then stays open in the level record. The side door you arrive through is marked open, so the way back never needs a key.
+  - **A way out of the first level:** at depth 0 one side door (left or right, whichever side of the start it falls on) is placed on the nearest floor at least 5 cells from the start that the wizard can hop to from it, instead of at its side edge. A key in that door's lock colour is laid on a floor hopped to from the start, as near the way to the door as can be (the start key, on top of the level's usual keys). The way from the start to both is kept clear of doors and switch gates (`World.keep_clear`). "Hopped to" is the rough reach shared with hyperspace (`scripts/worlds/Reach.gd`), with hops 3 cells across rather than 4, so it is easy. `tests/start_escape_test.gd` checks 40 first levels.
 - You arrive at the matching exit of the next level: going deeper puts you at its Back exit, and so on.
 - Exits sit at least `D(d)` cells from the arrival point, with `D` growing with depth. Deeper levels can also grow beyond 64×64.
 - Every level spawns an unlit lantern at its arrival point.
@@ -80,24 +81,26 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
   - **Dressing** (`Hyperspace.populate`): both ends (8 cells) are laid flat and safe, with the way back and a lantern at the left, the gate and a lantern at the right, and a rest lantern halfway along. Then the gaps are filled (`Hyperspace._lifts`): a gliding ledge every 4 cells across every wide open stretch, a stack of rising and falling ledges every 3 cells up every tall wall, with moons beside them (at least 4 cells apart). Last, a crossing is made sure of (`Hyperspace._bridge`): the cheapest way through the open air from the way back to the gate is found (keeping to floors, crossing air only where it must, and through thorns only where nothing else gets through: those thorns are cleared), and a rough reach (2 cells up and 4 across a hop, a cell further across per two fallen; a moon caught on the way gives another hop) is followed along it from the way back. Wherever the reach stops, the lift (or, failing that, a floating ledge or a moon) that carries a rider furthest on along the way is laid, until the gate is reached (at most 96). `Hyperspace.crossable` checks the result. Seven watching eyes and five wisps are spread along the floor (one every few cells), with four more moons and 14 stars. Five lasers (`Laser.gd`, `Hyperspace._lasers`) are set in its rock, spread along the way and at least 5 cells apart, each in a ceiling, wall or floor with at least 3 cells of open air in front: on a cadence (0.9 s warming up behind a faint flickering sight line, 0.7 s firing, 1.6 s resting, each out of step with the others) it fires a beam straight out until the first rock (or ledge or lift), which hurts only while it fires. Lasers are only in hyperspace for now.
   - **Theme:** hyperspace prints in a realm of its own (its `print_realm`, `RisoPrint.REALMS.hyperspace`: violet rock, aqua stars, a cold paper), switched to on the way in and back to the realm you came from on the way out. Its sky has no skyline and no still stars: a glow lies ahead and streaks of light rush back past the view, the near ones bare paper (`RisoBackground._warp`). Nothing grows there (no decor or fireflies).
   - **Tests:** `tests/hyperspace_test.gd` covers the addresses, generation (determinism, ends, lanterns, thorns, every one crossable), travel in and out, the landing level's two ways up, and the worlds map. `tests/capture_hyperspace.gd` takes stills.
-  - **Worlds map:** hyperspace, like every side world, is a narrow accent ribbon on a smooth curve from under the level it is entered from to over the one it drops to, bowed out of the straight line between them so it runs down the gutter between columns rather than over the levels it skips (away from the landing's column when it drifts a world sideways). It stands in for the link bar between them, is cut off at the page's edge rather than left out when it runs past it, and the cursor follows its curve; legend rows are named after the kind ("hyperspace", "hyperspace door"). `tests/capture_hyperspace.gd` takes stills.
+  - **Worlds map:** hyperspace, like every side world, is a narrow accent ribbon on a smooth curve out of the middle of the bottom of the level it is entered from and into the middle of the top of the one it drops to. It leaves and arrives straight down and widens into a mouth where it meets each level (`MOUTH`), so it reads as poured from one into the other; in between it bows through a point in the gutter between columns, so it runs past the levels it skips rather than over them (away from the landing's column when it drifts a world sideways). The cursor's frame round it is open at the ends. It stands in for the link bar between them, is cut off at the page's edge rather than left out when it runs past it, and the cursor follows its curve; legend rows are named after the kind ("hyperspace", "hyperspace door"). `tests/capture_hyperspace.gd` takes stills.
+- **Secret rooms and relics:** every level has secret rooms (0.6 per 1000 cells, at least one; `World.place_secrets`, placed last): a pocket of rock, 4, 3 or 2 cells across and 2 high, with rock under it (wholly in rock where there is room), entered at floor height from a floor beside it through a false wall. The room and its false wall are cracked cells holding the room's number, drawn and mapped as plain rock, even on an inked map. The false wall can be walked and shot straight through; stepping into it, a hex bolt striking the rock behind it, an astral projection drifting into it or a warp landing in it opens the whole room for good (`MapInfo.open_secret`; the record keeps it open), and its rewards appear: up to 3 stars, and the level's relic if it has one. **Relics** (`Relics.gd`, `Relic.gd`): tier I of the four big moves (double jump, wall climb, blink, levitate) only comes from a relic; shrines offer their higher tiers once the move is known. From depth 1, 22 % of levels hold one (every level in a debug run), a move dealt by the seed, in a secret room (on an open floor if no room fits). Interact and pay to take it, a lot: 4 times the deeper exit's price in its level (`Relics.price`; 44 stars at depth 1). It teaches the move's next tier; a relic bringing a spell leaves the spell it replaces there to take back free, as at a shrine. It prints as a medallion (an accent ring round a paper disc with the move's mark) over a small plinth. At full health, when there is nothing to mend, a **shrine's** third station sells the whereabouts of the nearest relic neither found nor already marked (searching 8 levels across and down; 1.5 times the deeper price, `Relics.hint_price`; buying it spends the shrine, like mending). It shows that relic's move on a small medallion, and the relic is marked on the worlds map: on an unvisited level, a faint tile you can pick and open, whose page shows where the relic waits; one off the page is pinned to its edge with a chevron pointing the way. `tests/secrets_test.gd` and `tests/phasing_test.gd` cover them; `tests/capture_secrets.gd` takes stills.
 - **Moons** are dash resets, with a target of 3 per 1000 level cells, placed only in open air: clear on every side and below, and at least 6 cells apart. They reject platforms in the fall below, including the full width and travel of moving platforms, until intervening rock or spikes block the fall. Suitable spots above spikes have triple the selection weight. Touching one spends it at once (it shows as a sliver), whether or not you have used your dash. While you stay inside it gives your dash back, even mid-dash, as often as you use it. Once you leave it waxes back over 2.5 s. Moons are never used up.
 - Tiers live on the player (`Abilities.gd`) and reset when a run ends. The upgrade menu and the old `Upgrade`, `UpgradeManager`, double-jump and wall-climb nodes are gone.
 
 | Ability | Start | Max | Each tier |
 | --- | --- | --- | --- |
 | Dash | I | IV | dashes 0.07 s longer |
-| Double jump | – | III | one more air jump |
-| Wall climb | – | III | I lets you climb (1 s); each further tier adds 0.5 s |
-| Blink | – | III | replaces the dash; reach 300 px, +100 per tier |
+| Double jump | – (a relic) | III | one more air jump |
+| Wall climb | – (a relic) | III | I lets you climb (1 s); each further tier adds 0.5 s |
+| Blink | – (a relic) | III | replaces the dash; reach 300 px, +100 per tier |
 | Parry | – | IV | I: a 0.3 s guard; a hit caught is turned aside: a touching enemy takes 1 damage and is stunned 3 s, a shot is reflected at its shooter as a bolt; the dash comes back, the guard is ready again, a moment of invulnerability and a hit-stop; 1.2 s cooldown on a miss. II 0.45 s guard, 0.9 s cooldown; III 2 damage; IV each parry heals 1 |
-| Astral projection | – | IV | lasts 2 s longer |
+| Astral projection | – | IV | I: 5 s floating out of the body, steered on both axes through rock and anything else solid (kept inside the level); drifting into a secret room opens it; ending it inside rock costs a heart and puts you back in your body. Each tier lasts 2 s longer |
 | Hex | I (the starting spell) | IV | I stuns only (3 s); II wounds (1 damage) and stuns; III +1 charge; IV 2 damage and pierces. One charge back every 6 s; cracked walls break at any tier |
-| Levitate | – | III | I holds your height until you press Spell again; II the stick drifts you up and down; III recasts without landing |
+| Levitate | – (a relic) | III | I holds your height until you press Spell again; II the stick drifts you up and down; III recasts without landing |
 | Awareness | – | III | I exits; II also the ink well and shrine; III also the nearest key of each colour; senses longer each tier |
 | Rift | – | III | I place a pair while grounded; II also midair; III the pair becomes the run's one cross-world link (its ends may be in different levels) |
 | Vigor | – | III | +1 max health (and heals 1) |
 | Speed | – | III | runs 15% faster per tier |
+| Warp | – | III | I sends you to a random floor in the level (12 s to recharge); II to one you have not seen while there is one (9 s); III into a secret room not yet opened while there is one, opening it |
 
 Spawn budgets follow level area: keys 2, corridor gates 3, extra lanterns 1.5, moons 3, and cracked walls 2.5 per 1000 cells, and from depth 1 hoppers 2 per 1000 cells (placed last, on floors, so the rest of a level is laid out as before). A hopper (`Hopper.gd`) squats until it sees the wizard within 700 × 400 px with a clear line, crouches for 0.45 s, then leaps (about two cells high) at where the wizard is, resting 1.1 s after each landing; the hex wounds and stuns it like the other nightmares, and the parry catches it. `tests/hazards_test.gd` covers hoppers and lasers. Keys include at least one of each colour; exits, their lanterns, the shrine and ink well are reserved first. Natural teleporters use 0.75 pairs per 1000 cells, rounded with a minimum of one pair and no fixed cap: one pair at depth 0, two at depth 5 and in the largest levels. Coins, platforms and enemies use a fraction of available space. Terrain and spacing constraints can leave budgets unfilled.
 
@@ -232,12 +235,13 @@ Status: phases 1–7 are implemented (`tests/deeper_test.gd`, `tests/death_test.
 ### Ideas:
 - There should be secrets, breakable walls/gates to get to areas that are hidden until opened
 - significantly fewer lanterns
-- 
+- larger star/cluster that gives like 10 stars or something
 - key rarities
 - a lateral door with an easily accessible key should be spawned close to initial spawn in depth 0 (found some spawns are impossible)
 - an ability that makes key management easier
 - an ability to heal
 - an ability to teleport to a random place in the level
+- balancing certain abilities/spells by giving them a cost
 - the option to "kill yourself" if you're stuck in a pit and have a lantern lit
 - astral should allow you to phase through walls
 - certain abilities represent significant area unlocks (double jump, levitate, wall climb, blink) and should be gated, I think these should be rare, but potentially discoverable through things like the inkwell (this would mark a world that isn't your current one) 
@@ -250,4 +254,52 @@ Status: phases 1–7 are implemented (`tests/deeper_test.gd`, `tests/death_test.
   4. sky world
   5. ???
 - Bosses/difficult platforming areas. Might need to be bespoke but I'd really like to keep everything procedural
+
+### MORE IDEAS:
+- the wizard looks generic, we should look into this
+- the portal needs a visual overhaul
+- fewer white specks
+
+### Grouped for implementation
+The thoughts above, grouped by the code they would share. Suggested order: 1, then 2, then 3 together with 4 to 6 as each archetype's content, then 7 and 8 as a tuning pass. 9 can slot in anywhere.
+
+1. **Fix first, on its own: a way out at the start.** *Done (see "A way out of the first level" above).* At depth 0, put a side door near the spawn with a key that's easy to reach, since some spawns currently can't be escaped. This is a bug fix in the level generator's exit and key placement (`place_exits`, key placement).
+2. **Exploration and gating** (the core of the genre, and the biggest gap). *Done (see "Secret rooms and relics" above, and astral projection and warp in the abilities table).*
+   - Rare movement abilities that open up large areas: double jump, levitate, wall climb, blink.
+   - An ink well can reveal where one of them is, even in another world.
+   - Secret areas behind breakable walls or gates.
+   - Astral projection passing through walls.
+   - Teleporting to a random place in the level.
+
+   These are one feature. Secret rooms need something that opens them, and rare abilities need places worth reaching; astral phasing and the random teleport are more ways in. Build the secret room first, then the gates, then the rewards.
+3. **World archetypes, bosses and hard stretches.**
+   - The archetypes: garden (fences and mushrooms), cemetery, hyperspace, sky world, and a fifth still open.
+   - Bosses and hard platforming stretches, kept procedural.
+
+   Both fit the world kinds (`scripts/worlds/`). A boss or a hard stretch can be a side world, as hyperspace is: a procedural strip with an arena at the end. Archetypes need the ordinary level definition (`NextWorldDef`) to vary its sample, its look, its realm and what it holds. Groups 4 to 6 supply each archetype's own hazards and enemies.
+4. **Hazards that fall or move on a timer** (shared trigger, fall and regrow code).
+   - Crumbling ledges and falling spikes both shake when you come near, then fall. The ledges also grow back later.
+   - Thorn vines can reuse the lasers' timing (`Laser.gd`), at close range.
+   - These fit the sky world and the cemetery.
+5. **Zones that take something away** (a shared "standing in it" effect on the wizard).
+   - Ink pools slow you and stop the dash coming back on landing.
+   - Sleep fog turns your spells off.
+   - Both need the same feedback on the robe and the spell orb.
+   - These fit the cemetery and hyperspace.
+6. **Enemies built around parry and hex.**
+   - Shielded enemies, which hex can't get through head-on.
+   - Enemies whose shots rebound, which works well with the parry now reflecting shots.
+   - Do both together so each spell has a clear role.
+7. **Light, lanterns and death** (one balance change).
+   - Significantly fewer lanterns.
+   - Moths drawn to lit lanterns and the orb, which make a lit lantern both protection and a danger (a hex scatters them).
+   - A "give up" option when stuck in a pit with a lantern lit.
+   - A healing ability, which matters more once lanterns are scarce.
+8. **Economy pass** (best done last, once there's content to balance).
+   - A large star cluster worth about 10.
+   - Key rarities, and an ability that makes keys easier to manage.
+   - Costs on certain abilities and spells. Per cast
+9. **Small standalone polish.** *Done.*
+   - The wisp's arc as it turns: it now turns round in one arc that dips under its path (forward, down, back under and up onto its line facing the other way), as deep as the room over the floor allows (`RisoProp._fit_loop`).
+   - Where hyperspace meets the levels on the worlds map: it now pours out of one tile and into the other.
 

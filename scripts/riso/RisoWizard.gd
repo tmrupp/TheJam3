@@ -122,6 +122,9 @@ func _spell_ready() -> float:
 			var aware: Awareness = player.get_node_or_null("Awareness") as Awareness
 			if aware != null and not aware.active() and aware.cooldown > 0.0:
 				return 1.0 - clampf(aware.cooldown / Awareness.COOLDOWN, 0.0, 1.0)
+		&"warp":
+			var warp: Warp = player.get_node_or_null("Warp") as Warp
+			return warp.readiness() if warp != null else 1.0
 	return 1.0
 
 

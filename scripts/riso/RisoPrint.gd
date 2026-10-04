@@ -60,6 +60,7 @@ const ROBES: Dictionary = {
 	&"levitate": Color("#67b346"),
 	&"awareness": Color("#ff6c2f"),
 	&"rift": Color("#765ba7"),
+	&"warp": Color("#aa60bf"),
 }
 ## Print-detail stops: heavy 0, medium 50, fine 80, extra fine 100 (sizes in 720p pixels):
 ## [detail, screen cell, wobble, grain, dot gain, laydown], the prototype's values.
@@ -687,6 +688,7 @@ const DRESS: Dictionary = {
 	"res://prefabs/door.tscn": &"door",
 	"res://prefabs/switch_gate.tscn": &"gate",
 	"res://prefabs/switch.tscn": &"switch",
+	"res://prefabs/relic.tscn": &"relic",
 	"res://prefabs/checkpoint.tscn": &"lantern",
 	"res://prefabs/level_exit.tscn": &"exit",
 	"res://prefabs/shrine.tscn": &"shrine",

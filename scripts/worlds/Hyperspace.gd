@@ -179,7 +179,7 @@ static func _lasers(w: MapInfo.World) -> void:
 			if not w.is_ground(v - d):
 				continue
 			var reach: int = 0
-			while _clear(w, v + d * (reach + 1)):
+			while Reach.clear(w, v + d * (reach + 1)):
 				reach += 1
 			if reach >= LASER_MIN_REACH:
 				spots.append([v, d])
@@ -219,12 +219,6 @@ static func _spread(w: MapInfo.World, count: int, type: MapInfo.Type, phase: flo
 
 # ------------------------------------------------------------------ ledges and moons for the gaps
 
-## One hop, in cells: up to JUMP_UP up and JUMP_ACROSS across (the dash included), a cell further
-## across for every two fallen; from a moon (caught with the jump still rising, and the dash given
-## back) MOON_UP up. A rough reach, used to bridge whatever the strip leaves out of it.
-const JUMP_UP: int = 2
-const MOON_UP: int = 2
-const JUMP_ACROSS: int = 4
 ## Up a tall wall, a lift every WALL_STEP cells.
 const WALL_STEP: int = 3
 const MOON_GAP: int = 4
@@ -237,7 +231,7 @@ const BRIDGE_AHEAD: int = 12
 
 ## Cells of rock to stand on, in a gap's long fall, are what a wide gap lacks: lay gliding ledges
 ## across the big gaps (open stretches with nothing under them for several cells) and stacked up
-## every tall wall, with moons beside them; then bridge every stretch the rough reach still can't
+## every tall wall, with moons beside them; then bridge every stretch the rough reach (Reach) still can't
 ## cross (see _bridge), so the strip can be crossed by timing.
 static func _lifts(w: MapInfo.World) -> void:
 	var free: Dictionary = {}
@@ -281,11 +275,11 @@ static func _lifts(w: MapInfo.World) -> void:
 
 ## Whether the rough reach gets from the way back to the gate.
 static func crossable(w: MapInfo.World) -> bool:
-	var nodes: Dictionary = _footholds(w)
+	var nodes: Dictionary = Reach.footholds(w)
 	var start: Vector2i = w.exits[MapInfo.Exit.BACK]
 	var reach: Dictionary = {start: true}
 	var queue: Array[Vector2i] = [start]
-	_grow(w, nodes, reach, queue)
+	Reach.grow(w, nodes, reach, queue)
 	return reach.has(w.exits[MapInfo.Exit.DEEPER])
 
 
@@ -302,13 +296,13 @@ static func _bridge(w: MapInfo.World, free: Dictionary, placed: Array[Vector2i],
 		# Where the only way on runs through thorns, those thorns go.
 		if w.get_cell(path[i]).type == MapInfo.Type.SPIKES:
 			_unthorn(w, free, path[i])
-	var nodes: Dictionary = _footholds(w)
+	var nodes: Dictionary = Reach.footholds(w)
 	var gate: Vector2i = w.exits[MapInfo.Exit.DEEPER]
 	var start: Vector2i = w.exits[MapInfo.Exit.BACK]
 	var reach: Dictionary = {start: true}
 	var far: Dictionary = {"i": 0}
 	var first: Array[Vector2i] = [start]
-	_grow(w, nodes, reach, first, along, far)
+	Reach.grow(w, nodes, reach, first, along, far)
 	var thinned: int = -1
 	for i: int in range(MAX_BRIDGES):
 		if reach.has(gate):
@@ -339,23 +333,23 @@ static func _bridge(w: MapInfo.World, free: Dictionary, placed: Array[Vector2i],
 							var lands: Array[Vector2i] = []
 							for v: Vector2i in swept:
 								var f: Vector2i = v + Vector2i.UP
-								if _clear(w, f) and not reach.has(f) and not lands.has(f):
+								if Reach.clear(w, f) and not reach.has(f) and not lands.has(f):
 									lands.append(f)
 							var score: int = _onward(w, path, lands, best_score, ahead, false)
-							if score > best_score and _reached_from(w, sources, lands):
+							if score > best_score and Reach.reached_from(w, sources, lands):
 								best_score = score
 								best = [c, axis, travel, swept, lands, width]
 				# A ledge or a moon only where it carries a cell further than any lift.
 				if free.has(c) and w.get_cell(c).type == MapInfo.Type.EMPTY:
 					var alone: Array[Vector2i] = [c]
 					var score: int = _onward(w, path, alone, best_score + 1, ahead, true)
-					if score > best_score + 1 and _reached_from(w, sources, alone):
+					if score > best_score + 1 and Reach.reached_from(w, sources, alone):
 						best_score = score - 1
 						best = [c]
 					var step: Array[Vector2i] = [c + Vector2i.UP]
-					if _clear(w, c + Vector2i.UP) and not reach.has(c + Vector2i.UP):
+					if Reach.clear(w, c + Vector2i.UP) and not reach.has(c + Vector2i.UP):
 						score = _onward(w, path, step, best_score + 1, ahead, false)
-						if score > best_score + 1 and _reached_from(w, sources, step):
+						if score > best_score + 1 and Reach.reached_from(w, sources, step):
 							best_score = score - 1
 							best = [c, step]
 		if best.is_empty():
@@ -368,10 +362,10 @@ static func _bridge(w: MapInfo.World, free: Dictionary, placed: Array[Vector2i],
 					var c: Vector2i = path[j] + d
 					if w.is_valid(c) and w.get_cell(c).type == MapInfo.Type.SPIKES:
 						_unthorn(w, free, c)
-			nodes = _footholds(w)
+			nodes = Reach.footholds(w)
 			reach = {start: true}
 			var again: Array[Vector2i] = [start]
-			_grow(w, nodes, reach, again, along, far)
+			Reach.grow(w, nodes, reach, again, along, far)
 			continue
 		var fresh: Array[Vector2i] = []
 		if best.size() == 1:
@@ -403,10 +397,10 @@ static func _bridge(w: MapInfo.World, free: Dictionary, placed: Array[Vector2i],
 		var queue: Array[Vector2i] = []
 		for n: Vector2i in fresh:
 			var alone: Array[Vector2i] = [n]
-			if _reached_from(w, sources, alone):
+			if Reach.reached_from(w, sources, alone):
 				reach[n] = true
 				queue.append(n)
-		_grow(w, nodes, reach, queue, along, far)
+		Reach.grow(w, nodes, reach, queue, along, far)
 
 
 ## Clear the thorn at `v` to free open air.
@@ -421,7 +415,7 @@ static func _unthorn(w: MapInfo.World, free: Dictionary, v: Vector2i) -> void:
 static func _onward(w: MapInfo.World, path: Array[Vector2i], lands: Array[Vector2i], past: int, ahead: int, from_moon: bool) -> int:
 	for j: int in range(ahead, past, -1):
 		for f: Vector2i in lands:
-			if f == path[j] or _hop(w, f, path[j], from_moon):
+			if f == path[j] or Reach.hop(w, f, path[j], from_moon):
 				return j
 	return past
 
@@ -447,7 +441,7 @@ static func _air_path(w: MapInfo.World) -> Array[Vector2i]:
 				var cost: int = 3
 				if w.get_cell(n).type == MapInfo.Type.SPIKES:
 					cost = 40
-				elif _underfoot(w, n):
+				elif Reach.underfoot(w, n):
 					cost = 1
 				var nd: int = d + cost
 				if nd < int(dist.get(n, 1000000)):
@@ -464,98 +458,6 @@ static func _air_path(w: MapInfo.World) -> Array[Vector2i]:
 		path.append(from[path[-1]])
 	path.reverse()
 	return path
-
-
-## Where the wizard can stand (open, not thorns, on rock or a ledge, or riding a lift anywhere on
-## its track) as false, and the moons as true.
-static func _footholds(w: MapInfo.World) -> Dictionary:
-	var nodes: Dictionary = {}
-	for x: int in range(WIDTH):
-		for y: int in range(HEIGHT):
-			var v: Vector2i = Vector2i(x, y)
-			if _clear(w, v) and _underfoot(w, v):
-				nodes[v] = false
-	for v: Vector2i in w.objects:
-		var cell: MapInfo.Cell = w.get_cell(v)
-		if cell.type == MapInfo.Type.MOON:
-			nodes[v] = true
-		elif cell.type == MapInfo.Type.MOVING_PLATFORM:
-			var motion: Array = cell.extra_info
-			for step: int in range(int(motion[2]) + 1):
-				for dx: int in range(int(motion[0])):
-					var f: Vector2i = v + Vector2i(dx, -1) + (motion[1] as Vector2i) * step
-					if _clear(w, f):
-						nodes[f] = false
-	return nodes
-
-
-## Spread the reach from `queue` hop by hop over every foothold and moon; `far["i"]` keeps the
-## furthest cell of `along` (a way through: cell to index) the wizard gets to.
-static func _grow(w: MapInfo.World, nodes: Dictionary, reach: Dictionary, queue: Array[Vector2i], along: Dictionary = {}, far: Dictionary = {}) -> void:
-	var track: bool = not along.is_empty()
-	while not queue.is_empty():
-		var a: Vector2i = queue.pop_back()
-		var moon: bool = nodes.get(a, false)
-		if track and int(along.get(a, -1)) > int(far["i"]):
-			far["i"] = along[a]
-		for y: int in range(maxi(0, a.y - (MOON_UP if moon else JUMP_UP)), HEIGHT):
-			var across: int = JUMP_ACROSS + maxi(0, y - a.y) / 2
-			for x: int in range(maxi(0, a.x - across), mini(WIDTH, a.x + across + 1)):
-				var b: Vector2i = Vector2i(x, y)
-				var node: bool = nodes.has(b) and not reach.has(b)
-				var onward: bool = track and int(along.get(b, -1)) > int(far["i"])
-				if (node or onward) and _hop(w, a, b, moon):
-					if node:
-						reach[b] = true
-						queue.append(b)
-					if onward:
-						far["i"] = along[b]
-
-
-static func _reached_from(w: MapInfo.World, sources: Array[Vector2i], targets: Array[Vector2i]) -> bool:
-	for b: Vector2i in targets:
-		for a: Vector2i in sources:
-			if _hop(w, a, b, w.get_cell(a).type == MapInfo.Type.MOON):
-				return true
-	return false
-
-
-## One hop from `a` to `b`: in reach, and over clear air (up from `a`, across, down to `b`, either
-## clearing a cell over the higher end or, in a low passage, level with it).
-static func _hop(w: MapInfo.World, a: Vector2i, b: Vector2i, from_moon: bool) -> bool:
-	var rise: int = a.y - b.y
-	if rise > (MOON_UP if from_moon else JUMP_UP):
-		return false
-	if absi(b.x - a.x) > JUMP_ACROSS + maxi(0, -rise) / 2:
-		return false
-	var top: int = mini(a.y, b.y)
-	return (top > 0 and _arc_clear(w, a, b, top - 1)) or _arc_clear(w, a, b, top)
-
-
-static func _arc_clear(w: MapInfo.World, a: Vector2i, b: Vector2i, top: int) -> bool:
-	for y: int in range(top, a.y + 1):
-		if not _clear(w, Vector2i(a.x, y)):
-			return false
-	for y: int in range(top, b.y + 1):
-		if not _clear(w, Vector2i(b.x, y)):
-			return false
-	var step: int = signi(b.x - a.x)
-	if step != 0:
-		for x: int in range(a.x, b.x + step, step):
-			if not _clear(w, Vector2i(x, top)):
-				return false
-	return true
-
-
-## Air the wizard can pass through: not rock and not thorns.
-static func _clear(w: MapInfo.World, v: Vector2i) -> bool:
-	return w.is_valid(v) and not w.get_cell(v).type in [MapInfo.Type.GROUND, MapInfo.Type.CRACKED, MapInfo.Type.SPIKES]
-
-
-## Something to stand on under `v`: rock, a ledge, or the border rock round the strip.
-static func _underfoot(w: MapInfo.World, v: Vector2i) -> bool:
-	var below: Vector2i = v + Vector2i.DOWN
-	return not w.is_valid(below) or w.get_cell(below).type in [MapInfo.Type.GROUND, MapInfo.Type.CRACKED, MapInfo.Type.PLATFORM]
 
 
 ## The cells a lift `width` cells wide at `at` sweeps along `axis` over `travel` cells, or none if
@@ -609,7 +511,7 @@ static func _glider(w: MapInfo.World, free: Dictionary, at: Vector2i, axis: Vect
 ## A moon at `v` if it is free open air with nothing to stand on under it, and no other moon is
 ## within MOON_GAP cells.
 static func _moon(w: MapInfo.World, free: Dictionary, v: Vector2i, moons: Array[Vector2i]) -> bool:
-	if not free.has(v) or w.get_cell(v).type != MapInfo.Type.EMPTY or _underfoot(w, v):
+	if not free.has(v) or w.get_cell(v).type != MapInfo.Type.EMPTY or Reach.underfoot(w, v):
 		return false
 	for m: Vector2i in moons:
 		if absi(m.x - v.x) + absi(m.y - v.y) < MOON_GAP:

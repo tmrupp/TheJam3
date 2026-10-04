@@ -1,0 +1,149 @@
+extends SceneTree
+## Astral projection drifts through rock: nothing solid stops it, it is kept inside the level,
+## drifting into a secret room's rock opens the room, and ending inside rock (run out or snapped
+## back) costs a heart and puts the wizard back in their body. Warp lands on a random floor, then
+## recharges; at tier II on one not yet seen; at tier III in a secret room not yet opened, opening it.
+## godot --headless --path . --script res://tests/phasing_test.gd
+
+var main: Node
+var info: MapInfo
+var player: Player
+var failed: bool = false
+
+
+func _initialize() -> void:
+	call_deferred("run")
+
+
+func check(ok: bool, what: String) -> void:
+	if ok:
+		print("  ok   ", what)
+	else:
+		failed = true
+		push_error("FAIL " + what)
+
+
+func settle(frames: int = 6) -> void:
+	await process_frame
+	var deadline: int = Time.get_ticks_msec() + 30000
+	while (info.world == null or info.travelling) and Time.get_ticks_msec() < deadline:
+		await process_frame
+	for i: int in range(frames):
+		await physics_frame
+		await process_frame
+
+
+func frames(n: int) -> void:
+	for i: int in range(n):
+		await physics_frame
+
+
+## A cell of rock with rock all round it.
+func deep_rock() -> Vector2i:
+	var w: MapInfo.World = info.world
+	for x: int in range(1, w.size.x - 1):
+		for y: int in range(1, w.size.y - 1):
+			var v: Vector2i = Vector2i(x, y)
+			var all: bool = true
+			for dx: int in range(-1, 2):
+				for dy: int in range(-1, 2):
+					all = all and w.get_cell(v + Vector2i(dx, dy)).type == MapInfo.Type.GROUND
+			if all:
+				return v
+	return Vector2i(-1, -1)
+
+
+func run() -> void:
+	main = load("res://prefabs/scenes/main.tscn").instantiate()
+	root.add_child(main)
+	MapInfo.save_path = "user://phasing_test.save"
+	await process_frame
+	var menu: Node = main.get_node("Menu")
+	menu.world_seed.text = "28"
+	menu.start_game()
+	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
+	player = main.get_node("Player") as Player
+	await settle()
+
+	print("astral projection through rock")
+	Abilities.set_tier(player, &"astral", 1)
+	var projection: Node = player.get_node("AstralProjection")
+	var body_at: Vector2 = player.global_position
+	projection.call("toggle")
+	check(bool(projection.call("projecting")) and player.phasing and not player.get_collision_mask_value(3), "projected: phasing, and nothing solid stops it")
+	var rock: Vector2i = deep_rock()
+	player.global_position = info.cell_position(rock)
+	await frames(4)
+	check(info.cell_at(player.global_position) == rock and info.solid_at(player.global_position), "it rests inside solid rock at %s" % rock)
+	player.global_position = Vector2(-99999, -99999)
+	await frames(2)
+	check(info.level_rect().grow(1.0).has_point(player.global_position), "and cannot leave the level")
+	player.global_position = info.cell_position(rock)
+	await frames(2)
+	var hp: int = player.health.health
+	player.invulnerable.end()
+	(projection.get("projection_timer") as ActionTimer).elapse(60.0)
+	await frames(2)
+	check(not bool(projection.call("projecting")) and player.global_position.distance_to(body_at) < 4.0, "running out inside rock puts the wizard back in the body")
+	check(player.health.health == hp - 1, "and costs a heart (%d -> %d)" % [hp, player.health.health])
+	check(not player.phasing and player.get_collision_mask_value(3), "and the body is solid again")
+	await create_timer(1.5).timeout
+	projection.call("toggle")
+	hp = player.health.health
+	var body_now: Vector2 = (projection.get("false_player_origin") as Node2D).global_position
+	player.global_position = info.cell_position(rock)
+	await frames(2)
+	player.invulnerable.end()
+	projection.call("toggle")
+	await frames(2)
+	check(player.health.health == hp - 1 and player.global_position.distance_to(body_now) < 4.0, "snapping back from inside rock costs a heart too (%d -> %d)" % [hp, player.health.health])
+	await create_timer(1.5).timeout
+	projection.call("toggle")
+	hp = player.health.health
+	player.global_position = body_at + Vector2(0, -10)
+	await frames(2)
+	projection.call("toggle")
+	await frames(2)
+	check(player.health.health == hp, "snapping back from open air costs nothing")
+
+	print("drifting into a secret room")
+	check(not info.world.secrets.is_empty(), "the level has a secret room")
+	projection.call("toggle")
+	var room: Array = info.world.secrets[0]["room"]
+	player.global_position = info.cell_position(room[0])
+	await frames(3)
+	check((info.record().get("secrets", {}) as Dictionary).has(0), "a projection drifting into its rock opens it")
+	projection.call("toggle")
+	await frames(2)
+
+	print("warp")
+	Abilities.set_tier(player, &"warp", 1)
+	check(Abilities.spell(player) == &"warp" and Abilities.tier(player, &"astral") == 0, "warp takes the spell slot")
+	var warp: Warp = player.get_node("Warp") as Warp
+	var before: Vector2 = player.global_position
+	var landed: Variant = warp.cast()
+	await frames(2)
+	check(landed != null and player.global_position.distance_to(before) > 1.0 and info.world.ground_below(landed) and not info.solid_at(player.global_position), "it lands on a floor (%s)" % [landed])
+	check(warp.cast() == null and warp.readiness() < 0.1, "then it recharges")
+	warp.recharge = 0.0
+	Abilities.set_tier(player, &"warp", 2)
+	check(info.world.empties.any(func(v: Vector2i) -> bool: return info.world.ground_below(v) and not info.is_seen(v)), "(with floors still unseen)")
+	landed = warp.cast()
+	check(landed != null and not info.is_seen(landed), "tier II lands on a floor not yet seen")
+	info.travel(MapInfo.Exit.RIGHT)
+	await settle()
+	player.set_physics_process(false)
+	check(info.world.secrets.size() > 0, "the next level has a secret room too")
+	Abilities.set_tier(player, &"warp", 3)
+	warp = player.get_node("Warp") as Warp
+	warp.recharge = 0.0
+	landed = warp.cast()
+	await frames(2)
+	check(landed != null and (info.world.secrets[0]["room"] as Array).has(landed) and (info.record().get("secrets", {}) as Dictionary).has(0), "tier III lands in a secret room not yet opened, and opens it")
+
+	if failed:
+		print("FAILED")
+		quit(1)
+	else:
+		print("PASSED")
+		quit()

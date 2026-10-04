@@ -163,6 +163,9 @@ func run() -> void:
 	var shot_from: Vector2 = Vector2.ZERO
 	var shot_dir: Vector2 = Vector2.ZERO
 	for v: Vector2i in cracked:
+		# An ordinary cracked wall (secret rooms are covered by secrets_test).
+		if info.world.get_cell(v).extra_info != null:
+			continue
 		for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
 			if open_cell(v + d):
 				shot = v

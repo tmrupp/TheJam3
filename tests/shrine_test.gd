@@ -122,7 +122,7 @@ func run() -> void:
 	var offer: StringName = shrine.call("offer")
 	var tier: int = Abilities.tier(player, offer)
 	var price: int = int(shrine.call("offer_price"))
-	check(offer == Abilities.offer(MapInfo.level_seed(28, 0), player) and price == Abilities.price(0, tier + 1), "offers %s %s for %d" % [offer, Abilities.roman(tier + 1), price])
+	check(offer == Abilities.offers(MapInfo.level_seed(28, 0), player, 2)[0] and price == Abilities.price(0, tier + 1), "offers %s %s for %d" % [offer, Abilities.roman(tier + 1), price])
 	shrine.call("buy_boon")
 	check(Abilities.tier(player, offer) == tier and not bool(shrine.call("used")), "too few stars: nothing learned")
 	player.collect(price + 5)

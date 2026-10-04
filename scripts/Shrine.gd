@@ -3,7 +3,8 @@ extends Node2D
 ## one spends it:
 ## - two boons: the next tier of two different abilities (picked by the level seed, new ones
 ##   before upgrades), cheaper deeper;
-## - mending: healing to full, dearer deeper.
+## - mending: healing to full, dearer deeper; at full health, the whereabouts of the nearest
+##   relic not yet found instead (see Relics), marked on the worlds map.
 ## Pay to learn. There is no menu: interact with the one you want.
 ## A spell learned in place of the one in the slot leaves the old spell in its niche, at its tier;
 ## interacting there takes it back free (leaving the newer one in turn), even once spent.
@@ -105,12 +106,37 @@ func take_back(i: int) -> void:
 		RisoPrint.instance.flare(left[0])
 
 
+## At full health (nothing to mend), the mending station sells the whereabouts of the nearest relic
+## not yet found or marked instead (see Relics), marked on the worlds map.
+func reads_relic() -> bool:
+	return not can_mend() and map_info != null and map_info.next_relic() != null
+
+
+## The move the relic it would point to holds, or &"".
+func relic_move() -> StringName:
+	var at: Variant = map_info.next_relic() if map_info != null else null
+	return Relics.at(at) if at != null else &""
+
+
+func relic_price() -> int:
+	return Relics.hint_price(depth())
+
+
+## The third station: mend while hurt, else a relic's whereabouts.
 func buy_mend() -> void:
-	if used() or not can_mend() or not _pay(heal_price()):
+	if used():
 		return
-	player.health.health = player.health.max_health
-	player.health.display_health()
-	_spend($Mend as Node2D, [RisoPrint.EYE, RisoPrint.PINK])
+	if can_mend():
+		if not _pay(heal_price()):
+			return
+		player.health.health = player.health.max_health
+		player.health.display_health()
+		_spend($Mend as Node2D, [RisoPrint.EYE, RisoPrint.PINK])
+	elif reads_relic():
+		if not _pay(relic_price()):
+			return
+		map_info.hint_relic()
+		_spend($Mend as Node2D, [RisoPrint.ACCENT, RisoPrint.BLUE])
 
 
 func _pay(cost: int) -> bool:
@@ -131,7 +157,7 @@ func _process(_delta: float) -> void:
 	var spent: bool = used()
 	$Boon/Interactable.available = not spent or not left_spell(0).is_empty()
 	$Boon2/Interactable.available = not spent or not left_spell(1).is_empty()
-	$Mend/Interactable.available = not spent
+	$Mend/Interactable.available = not spent and (can_mend() or reads_relic())
 
 
 func _ready() -> void:

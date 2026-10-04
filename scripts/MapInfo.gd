@@ -49,6 +49,7 @@ enum Type {
 	SWITCH,
 	HOPPER,
 	LASER,
+	RELIC,
 }
 
 ## A level's ways out. Deeper and back move along the seed's column; left and right step to the
@@ -75,6 +76,12 @@ class World:
 	## Exit -> cell, and the lantern cell placed beside each exit (the start lantern at depth 0).
 	var exits: Dictionary = {}
 	var exit_lanterns: Dictionary = {}
+	## At depth 0, the side door placed near the start (Exit.LEFT or RIGHT; -1 for none), the
+	## footholds hopped to from the start (see Reach.tree), and the cells on the way from the start
+	## to that door and its key, which doors and gates keep off (see place_start_key).
+	var start_side: int = -1
+	var start_reach: Dictionary = {}
+	var keep_clear: Dictionary = {}
 	## The shrine's cell (its boon side; mending is the cell to the right), or (-1, -1).
 	var shrine: Vector2i = Vector2i(-1, -1)
 
@@ -169,12 +176,75 @@ class World:
 					best = v
 			deeper = best
 		chosen.append(deeper)
-		var left: Vector2i = _pick_spot(spots, chosen, func(v: Vector2i) -> bool: return v.x <= lo.x + band_x)
-		chosen.append(left)
-		var right: Vector2i = _pick_spot(spots, chosen, func(v: Vector2i) -> bool: return v.x >= hi.x - band_x)
-		chosen.append(right)
+		# At depth 0, one side door stands near the start, on floors the wizard can hop to from it,
+		# so every run can get out of its first level (its key: place_start_key).
+		var near: Variant = _start_door(spots, chosen, back) if depth == 0 else null
+		if near != null:
+			chosen.append(near)
+			start_side = Exit.LEFT if (near as Vector2i).x < back.x else Exit.RIGHT
+		var left: Vector2i = near if start_side == Exit.LEFT else _pick_spot(spots, chosen, func(v: Vector2i) -> bool: return v.x <= lo.x + band_x)
+		if start_side != Exit.LEFT:
+			chosen.append(left)
+		var right: Vector2i = near if start_side == Exit.RIGHT else _pick_spot(spots, chosen, func(v: Vector2i) -> bool: return v.x >= hi.x - band_x)
+		if start_side != Exit.RIGHT:
+			chosen.append(right)
 		exits = {Exit.BACK: back, Exit.DEEPER: deeper, Exit.LEFT: left, Exit.RIGHT: right}
 		_finish_exits(spots, chosen, depth)
+
+	## The start's side door and key: at least START_DOOR cells from the start, and found with hops
+	## START_ACROSS wide, a little short of the wizard's reach, so getting to them is easy.
+	const START_DOOR: int = 5
+	const START_ACROSS: int = 3
+
+	## The floor spot nearest the start (`back`), at least START_DOOR cells from it, that the wizard
+	## can hop to from it; null if there is none.
+	func _start_door (spots: Array[Vector2i], chosen: Array[Vector2i], back: Vector2i) -> Variant:
+		start_reach = Reach.tree(self, back, START_ACROSS)
+		var best: Variant = null
+		var best_d: int = 1 << 30
+		for v: Vector2i in spots:
+			var d: int = absi(v.x - back.x) + absi(v.y - back.y)
+			if d >= START_DOOR and d < best_d and not chosen.has(v) and start_reach.has(v):
+				best_d = d
+				best = v
+		return best
+
+	## A key for the start's side door (in that door's lock colour), on a floor the wizard can hop
+	## to from the start, as near the way to the door as can be; the cells on the way from the start
+	## to the door and to the key are kept clear of doors and gates.
+	func place_start_key (def: NextWorldDef) -> void:
+		if start_side < 0:
+			return
+		var start: Vector2i = exits[Exit.BACK]
+		var door: Vector2i = exits[start_side]
+		var md: Callable = func(a: Vector2i, b: Vector2i) -> int: return absi(a.x - b.x) + absi(a.y - b.y)
+		var floors: Array[Vector2i] = []
+		for v: Vector2i in start_reach:
+			floors.append(v)
+		floors.sort()
+		var best: Variant = null
+		var best_score: int = 1 << 30
+		for v: Vector2i in floors:
+			if get_cell(v).type != Type.EMPTY or not empties.has(v) or md.call(v, start) < 3 or md.call(v, door) < 2:
+				continue
+			if objects.any(func(o: Vector2i) -> bool: return md.call(o, v) < 2):
+				continue
+			var score: int = md.call(v, start) + md.call(v, door)
+			if score < best_score:
+				best_score = score
+				best = v
+		if best != null:
+			var at: Vector2i = best
+			var key: Cell = Cell.new(Type.KEY)
+			key.extra_info = MapInfo.lateral_lock(def.coord, start_side)
+			add_object_at(at)
+			set_cell(at, key)
+			for target: Vector2i in [door, at]:
+				var steps: Array[Vector2i] = Reach.way(start_reach, target)
+				for i: int in range(1, steps.size()):
+					for c: Vector2i in Reach.arc_cells(steps[i - 1], steps[i]):
+						keep_clear[c] = true
+		start_reach = {}
 
 	## Doors (or the start lantern) on the exit cells, a lantern beside each, then the shrine.
 	func _finish_exits (spots: Array[Vector2i], chosen: Array[Vector2i], depth: int) -> void:
@@ -454,6 +524,7 @@ class World:
 		# Exits and their lanterns first, so they get the pick of the level.
 		place_exits(def.depth, def.debug)
 		place_side_doors(def)
+		place_start_key(def)
 		if def.arrival_from != null:
 			place_return()
 
@@ -528,6 +599,98 @@ class World:
 		if def.depth >= 1:
 			for i: int in range(per_area(HOPPERS_PER_K)):
 				set_cell(pop_if_random_empty(ground_below, true), Cell.new(Type.HOPPER))
+		place_secrets(def)
+
+	## Secret rooms: pockets of rock behind a false wall (the entrance) at floor height beside a
+	## floor. The room's cells and its entrance are cracked cells holding the secret's number; all
+	## of them look and map as plain rock (see MapInfo.open_secret), but the entrance can be walked
+	## and shot straight through. Stepping into it, a hex bolt striking the rock behind it, drifting
+	## in as an astral projection or warping in opens the whole room for good, and its rewards
+	## appear: the level's relic (see Relics) if it has one, and stars. Each is {"room": cells,
+	## "entrance": cells, "rewards": [[cell, type, extra], ...]}; placed last of all, so the rest
+	## of the level lands where it always has.
+	var secrets: Array = []
+	const SECRETS_PER_K: float = 0.6
+	## Room sizes (cells across and up) tried in turn, biggest first.
+	const SECRET_SIZES: Array[Vector2i] = [Vector2i(4, 2), Vector2i(3, 2), Vector2i(2, 2)]
+	const SECRET_STARS: int = 3
+
+	func place_secrets (def: NextWorldDef) -> void:
+		var want: int = per_area(SECRETS_PER_K)
+		# Rooms wholly in rock first; then rooms that only need rock under them (a hidden room's
+		# rock is real rock, so another side may face open air).
+		for enclosed: bool in [true, false]:
+			for room: Vector2i in SECRET_SIZES:
+				while secrets.size() < want:
+					var spots: Array = _secret_spots(room, enclosed)
+					if spots.is_empty():
+						break
+					var pick: Array = spots[rng.randi_range(0, spots.size() - 1)]
+					_carve_secret(pick[0], pick[1], def.relic if secrets.is_empty() else &"")
+		# A relic with no room for a secret stands on a floor in the open instead.
+		if def.relic != &"" and secrets.is_empty():
+			var at: Variant = pop_if_random_empty(ground_below, true)
+			var relic: Cell = Cell.new(Type.RELIC)
+			relic.extra_info = def.relic
+			set_cell(at, relic)
+
+	## Every place a `room` (cells across and up) fits: [its rect, its entrance]. The room's floor is
+	## level with a floor spot beside it, through one cell of rock (the entrance, with rock over it),
+	## and the room is solid rock with rock under it (the level's edge counts as rock); when
+	## `enclosed`, with a cell of rock all round it too.
+	func _secret_spots (room: Vector2i, enclosed: bool) -> Array:
+		var floors: Array[Vector2i] = []
+		for v: Vector2i in empties:
+			if ground_below(v) and get_cell(v).type == Type.EMPTY:
+				floors.append(v)
+		floors.sort()
+		var rock: Callable = func(v: Vector2i) -> bool: return not is_valid(v) or is_ground(v)
+		var out: Array = []
+		for o: Vector2i in floors:
+			for side: int in [-1, 1]:
+				var door: Vector2i = o + Vector2i(side, 0)
+				var x0: int = door.x + 1 if side > 0 else door.x - room.x
+				var r: Rect2i = Rect2i(x0, o.y - room.y + 1, room.x, room.y)
+				if r.position.x < 0 or r.position.y < 0 or r.end.x > size.x or r.end.y > size.y:
+					continue
+				var solid: bool = rock.call(door) and rock.call(door + Vector2i.UP)
+				var around: Rect2i = r.grow(1) if enclosed else Rect2i(r.position, r.size + Vector2i(0, 1))
+				for x: int in range(around.position.x, around.end.x):
+					for y: int in range(around.position.y, around.end.y):
+						if not rock.call(Vector2i(x, y)):
+							solid = false
+				if solid:
+					out.append([r, door])
+		return out
+
+	func _carve_secret (r: Rect2i, door: Vector2i, relic: StringName) -> void:
+		var id: int = secrets.size()
+		var room: Array[Vector2i] = []
+		for x: int in range(r.position.x, r.end.x):
+			for y: int in range(r.position.y, r.end.y):
+				room.append(Vector2i(x, y))
+		var floor_cells: Array[Vector2i] = []
+		for x: int in range(r.position.x, r.end.x):
+			floor_cells.append(Vector2i(x, r.end.y - 1))
+		# The far end of the floor first: the reward waits at the back of the room.
+		if door.x < r.position.x:
+			floor_cells.reverse()
+		var rewards: Array = []
+		if relic != &"":
+			rewards.append([floor_cells[0], Type.RELIC, relic])
+		for c: Vector2i in floor_cells:
+			if rewards.size() >= SECRET_STARS + (1 if relic != &"" else 0):
+				break
+			if rewards.all(func(rw: Array) -> bool: return rw[0] != c):
+				rewards.append([c, Type.COIN, null])
+		secrets.append({"room": room, "entrance": [door], "rewards": rewards})
+		for c: Vector2i in room + [door]:
+			grounds.erase(c)
+			objects.append(c)
+			var cell: Cell = Cell.new(Type.CRACKED)
+			cell.extra_info = id
+			cells[c.x][c.y] = cell
+
 	## Cracked walls: thin rock (one or two cells, open on both sides) that a hex bolt breaks.
 	## Half are picked near something worth reaching (a key, lantern, exit, shrine or ink well).
 	## Placed last, so they can block anything the level holds.
@@ -581,7 +744,7 @@ class World:
 	func place_doors (count: int) -> void:
 		var spots: Array[Vector2i] = []
 		for v: Vector2i in empties:
-			if is_ground(v + Vector2i.UP) and is_ground(v + Vector2i.DOWN) and _open(v + Vector2i.LEFT) and _open(v + Vector2i.RIGHT) \
+			if not keep_clear.has(v) and is_ground(v + Vector2i.UP) and is_ground(v + Vector2i.DOWN) and _open(v + Vector2i.LEFT) and _open(v + Vector2i.RIGHT) \
 					and get_cell(v + Vector2i.LEFT).type == Type.EMPTY and get_cell(v + Vector2i.RIGHT).type == Type.EMPTY:
 				spots.append(v)
 		spots.sort()
@@ -606,7 +769,7 @@ class World:
 			return
 		var spots: Array[Vector2i] = []
 		for v: Vector2i in empties:
-			if is_ground(v + Vector2i.UP) and is_ground(v + Vector2i.DOWN) and _open(v + Vector2i.LEFT) and _open(v + Vector2i.RIGHT) \
+			if not keep_clear.has(v) and is_ground(v + Vector2i.UP) and is_ground(v + Vector2i.DOWN) and _open(v + Vector2i.LEFT) and _open(v + Vector2i.RIGHT) \
 					and get_cell(v + Vector2i.LEFT).type == Type.EMPTY and get_cell(v + Vector2i.RIGHT).type == Type.EMPTY:
 				spots.append(v)
 		spots.sort()
@@ -937,6 +1100,79 @@ func mark_broken (node: Node) -> void:
 		record()["broken"][node.get_meta(&"cell")] = true
 		save_run()
 
+# ------------------------------------------------------------------ secret rooms and relics
+
+## The secret room (its number in World.secrets) whose unopened rock is at cell `v`, or -1.
+func secret_at (v: Vector2i) -> int:
+	if world == null or not world.is_valid(v):
+		return -1
+	var cell: Cell = world.get_cell(v)
+	if cell.type != Type.CRACKED or cell.extra_info == null:
+		return -1
+	var id: int = int(cell.extra_info)
+	return -1 if (record().get("secrets", {}) as Dictionary).has(id) else id
+
+## Open secret room `id` for good: its rock (and entrance) crumbles, kept broken in the record,
+## and its rewards appear.
+func open_secret (id: int) -> void:
+	if world == null or id < 0 or id >= world.secrets.size():
+		return
+	var rec: Dictionary = record()
+	if not rec.has("secrets"):
+		rec["secrets"] = {}
+	if (rec["secrets"] as Dictionary).has(id):
+		return
+	rec["secrets"][id] = true
+	var secret: Dictionary = world.secrets[id]
+	var middle: Vector2 = Vector2.ZERO
+	for c: Vector2i in secret["room"] + secret["entrance"]:
+		rec["broken"][c] = true
+		middle += cell_position(c) / float(secret["room"].size() + secret["entrance"].size())
+	if map_elements != null and is_instance_valid(map_elements):
+		for node: Node in map_elements.get_children():
+			if int(node.get_meta(&"secret", -1)) == id:
+				node.queue_free()
+	_spawn_secret_rewards(id)
+	RisoFx.burst(&"gain", middle, Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
+	RisoFx.burst(&"hit", middle, Vector2.UP, [RisoPrint.BLUE, RisoPrint.NIGHT])
+	Wound.shake(14.0, 0.3)
+	# Reprint the rock without the room.
+	if RisoPrint.instance != null:
+		RisoPrint.instance.world_built(self, coord.y)
+	seen_version += 1
+	save_run()
+
+func _spawn_secret_rewards (id: int) -> void:
+	if world == null or id < 0 or id >= world.secrets.size():
+		return
+	for reward: Array in world.secrets[id]["rewards"]:
+		var cell: Cell = Cell.new(reward[1])
+		cell.extra_info = reward[2]
+		place_cell(reward[0], cell)
+
+## Run state: the levels whose relic has been taken, and the levels an ink well has pointed to
+## (coord -> the move the relic holds), shown on the worlds map.
+var relics_found: Dictionary = {}
+var relic_hints: Dictionary = {}
+
+## A relic was taken in this level.
+func relic_taken () -> void:
+	relics_found[coord] = true
+	relic_hints.erase(coord)
+	save_run()
+
+## The relic a shrine would point to: the nearest one neither found nor already marked, or null.
+func next_relic () -> Variant:
+	return Relics.nearest(coord, relics_found.merged(relic_hints))
+
+## A shrine's hint: mark that relic on the worlds map. Returns its level, or null.
+func hint_relic () -> Variant:
+	var at: Variant = next_relic()
+	if at != null:
+		relic_hints[at] = Relics.at(at)
+		save_run()
+	return at
+
 func mark_opened (node: Node) -> void:
 	if node.has_meta(&"cell"):
 		record()["opened"][node.get_meta(&"cell")] = true
@@ -949,6 +1185,8 @@ func start_run (seed_value: int) -> void:
 	arrival = -1
 	records.clear()
 	rift_link.clear()
+	relics_found.clear()
+	relic_hints.clear()
 	if player == null:
 		player = main.get_node_or_null("Player") as Player
 	if player != null:
@@ -1161,6 +1399,7 @@ func save_run () -> void:
 		"has_ghost": has_ghost, "ghost_coord": ghost_coord, "ghost_pos": ghost_pos, "ghost_stars": ghost_stars,
 		"stars": player.coins.coins, "key": int(player.get_meta(&"carried_key", -1)),
 		"tiers": tiers, "health": player.health.health, "debug": debug, "rift_link": rift_link,
+		"relics_found": relics_found, "relic_hints": relic_hints,
 	}
 	var file: FileAccess = FileAccess.open(save_path, FileAccess.WRITE)
 	if file != null:
@@ -1195,6 +1434,8 @@ func continue_run () -> bool:
 	deepest = int(data["deepest"])
 	records = data["records"]
 	rift_link = data.get("rift_link", [])
+	relics_found = data.get("relics_found", {})
+	relic_hints = data.get("relic_hints", {})
 	respawn_coord = data["respawn_coord"]
 	respawn_cell = data["respawn_cell"]
 	vulnerable = bool(data["vulnerable"])
@@ -1361,6 +1602,10 @@ func _level_ready (built: World) -> void:
 	_doors_dealt = 0
 	for v: Vector2i in world.objects:
 		place_cell(v, world.get_cell(v))
+	# Secret rooms already opened: their rewards (the rest of the room stays broken, see
+	# open_secret). After everything else, so the rest of the level lands where it always has.
+	for id: int in (record().get("secrets", {}) as Dictionary):
+		_spawn_secret_rewards(id)
 	var dropped: Dictionary = record()["dropped"]
 	for id: int in dropped:
 		_spawn_dropped_key(id, dropped[id][0], dropped[id][1])
@@ -1426,6 +1671,33 @@ func ink_whole_map () -> void:
 	seen_version += 1
 	save_run()
 
+## The level's area in world pixels (its cells, not the rock border round them).
+func level_rect () -> Rect2:
+	var cell: Vector2 = Vector2(tile_map.tile_set.tile_size) * tile_map.global_scale
+	var top_left: Vector2 = cell_position(Vector2i.ZERO) - cell * 0.5
+	return Rect2(top_left, Vector2(world.size) * cell if world != null else cell)
+
+## Whether world position `pos` is inside something solid: rock (or outside the level), cracked
+## rock not yet broken (a secret's false wall aside), or a shut door or gate.
+func solid_at (pos: Vector2) -> bool:
+	if world == null:
+		return false
+	var v: Vector2i = cell_at(pos)
+	if not world.is_valid(v):
+		return true
+	var cell: Cell = world.get_cell(v)
+	var rec: Dictionary = record()
+	match cell.type:
+		Type.GROUND:
+			return true
+		Type.CRACKED:
+			if (rec["broken"] as Dictionary).has(v):
+				return false
+			return cell.extra_info == null or not (world.secrets[int(cell.extra_info)]["entrance"] as Array).has(v)
+		Type.DOOR, Type.SWITCH_GATE:
+			return not (rec["opened"] as Dictionary).has(v)
+	return false
+
 ## The level cell a world position falls in.
 func cell_at (pos: Vector2) -> Vector2i:
 	return tile_map.local_to_map(tile_map.to_local(pos))
@@ -1437,6 +1709,8 @@ func _physics_process (_delta: float) -> void:
 	if c != _last_seen_cell:
 		_last_seen_cell = c
 		reveal(c)
+		# Stepping into a secret room's false wall (or drifting or warping into its rock) opens it.
+		open_secret(secret_at(c))
 	_sleep_far_chunks()
 
 
@@ -1530,6 +1804,7 @@ var switch_gate_prefab: Resource = preload("res://prefabs/switch_gate.tscn")
 var switch_prefab: Resource = preload("res://prefabs/switch.tscn")
 var hopper_prefab: Resource = preload("res://prefabs/hopper_enemy.tscn")
 var laser_prefab: Resource = preload("res://prefabs/laser.tscn")
+var relic_prefab: Resource = preload("res://prefabs/relic.tscn")
 
 var map_elements_prefab: Resource = preload("res://prefabs/map_elements.tscn")
 
@@ -1609,6 +1884,7 @@ var cell_to_prefab: Dictionary = {
 	Type.CRACKED: cracked_prefab,
 	Type.HOPPER: hopper_prefab,
 	Type.LASER: laser_prefab,
+	Type.RELIC: relic_prefab,
 }
 
 func place_cell(v: Vector2i, _cell: Cell) -> void:
@@ -1621,17 +1897,30 @@ func place_cell(v: Vector2i, _cell: Cell) -> void:
 		jitter = Vector2(world.rng.randf_range(-0.3, 0.3), world.rng.randf_range(-0.3, 0.3)) * cell_size
 	var color: int = -1
 	if _cell.type == Type.KEY:
-		color = _keys_dealt % KEY_COLOR_COUNT
-		_keys_dealt += 1
+		# A key laid for a particular lock (the start's side door) keeps its colour; the rest are
+		# dealt colours in turn.
+		if _cell.extra_info != null:
+			color = int(_cell.extra_info)
+		else:
+			color = _keys_dealt % KEY_COLOR_COUNT
+			_keys_dealt += 1
 	elif _cell.type == Type.DOOR:
 		color = _doors_dealt % KEY_COLOR_COUNT
 		_doors_dealt += 1
 	var rec: Dictionary = record()
 	for gone: String in ["taken", "opened", "slain", "broken"]:
-		if (rec.get(gone, {}) as Dictionary).has(v):
+		# Broken only ever means cracked rock: a secret room's rewards stand on its broken cells.
+		if (gone != "broken" or _cell.type == Type.CRACKED) and (rec.get(gone, {}) as Dictionary).has(v):
 			return
 	var cell: Node = cell_to_prefab[_cell.type].instantiate()
 	cell.set_meta(&"cell", v)
+	if _cell.type == Type.CRACKED and _cell.extra_info != null:
+		# Part of a secret room: hidden rock, or its entrance, a false wall that looks like rock but
+		# is walked (and shot) straight through.
+		cell.set_meta(&"secret", int(_cell.extra_info))
+		cell.set_meta(&"hidden", not (world.secrets[int(_cell.extra_info)]["entrance"] as Array).has(v))
+		if not bool(cell.get_meta(&"hidden")):
+			(cell as CollisionObject2D).collision_layer = 0
 	if color >= 0:
 		cell.set_meta(&"key_color", color)
 	if _cell.type in [Type.ENEMY, Type.SHOOTER, Type.HOPPER]:
@@ -1645,7 +1934,8 @@ func place_cell(v: Vector2i, _cell: Cell) -> void:
 	cell.position = tile_map.to_global(tile_map.map_to_local(v)) + jitter
 
 	if cell.has_method("setup"):
-		if _cell.extra_info != null:
+		# A key's extra info is its colour, already given as key_color; a cracked cell's is its secret.
+		if _cell.extra_info != null and _cell.type != Type.KEY and _cell.type != Type.CRACKED:
 			cell.setup(self, v, _cell.extra_info)
 		else:
 			cell.setup(self, v)

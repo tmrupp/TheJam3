@@ -72,9 +72,14 @@ func run() -> void:
 	if moons.is_empty():
 		quit(1)
 		return
+	# The moon nearest the wizard; "leaving" it means a few hundred pixels off, not far away, so its
+	# chunk stays awake (chunks far from both the camera and the wizard sleep).
 	var moon: Node = moons[0]
+	for m: Node in moons:
+		if (m as Node2D).global_position.distance_to(player.global_position) < (moon as Node2D).global_position.distance_to(player.global_position):
+			moon = m
 	player.set_physics_process(false)
-	player.global_position = Vector2(-9000, -9000)
+	player.global_position = (moon as Node2D).global_position + Vector2(0, -400)
 	await physics_frame
 	player.dash.refresh()
 	moon.call("touch", player)
@@ -105,7 +110,7 @@ func run() -> void:
 	await physics_frame
 	await physics_frame
 	check(not player.dash.acted and float(moon.get("waning")) == 0.0, "still inside: a second dash comes back too, and the moon has not begun to wax")
-	player.global_position = Vector2(-9000, -9000)
+	player.global_position = (moon as Node2D).global_position + Vector2(0, -400)
 	for i: int in range(6):
 		await physics_frame
 	check(float(moon.get("waning")) > 0.0 and not bool(moon.get("in_use")), "leaving it starts it waxing back")

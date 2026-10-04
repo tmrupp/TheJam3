@@ -48,7 +48,7 @@ func run() -> void:
 		Abilities.grant(player, a)
 		var held: int = Abilities.SPELLS.filter(func(s: StringName) -> bool: return Abilities.tier(player, s) > 0).size()
 		check(Abilities.spell(player) == a and held == 1, "learning %s puts it in the slot, alone" % a)
-	check(not player.has_node("Hex") and not player.has_node("Levitate") and not player.has_node("Awareness") and player.has_node("Rift"), "only the slotted spell's node remains")
+	check(not player.has_node("Hex") and not player.has_node("Levitate") and not player.has_node("Awareness") and not player.has_node("Rift") and player.has_node("Warp"), "only the slotted spell's node remains")
 
 	print("levitate")
 	Abilities.grant(player, &"levitate")

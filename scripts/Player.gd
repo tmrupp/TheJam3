@@ -77,6 +77,10 @@ var jumps: int = 1
 var MAX_JUMPS: int = 1
 ## Floating on the levitate spell: no gravity, holding height (see Levitate).
 var levitating: bool = false
+## Projected (see AstralProjection): no gravity and nothing solid in the way. The projection
+## floats wherever the stick points at PHASE_SPEED, kept inside the level.
+var phasing: bool = false
+const PHASE_SPEED: float = 360.0
 const LEVITATE_DRIFT: float = 140.0
 ## Ability tiers learned at shrines (see Abilities).
 var tiers: Dictionary = Abilities.start_tiers()
@@ -251,7 +255,10 @@ func _physics_process(delta: float) -> void:
 	# The Spell button uses whatever spell is in the slot.
 	if Input.is_action_just_pressed(Abilities.SPELL_ACTION):
 		Abilities.cast(self)
-	
+	if phasing:
+		_phase(delta)
+		return
+
 	var walled: bool = false
 	var wall_normal: Vector2
 
@@ -397,3 +404,20 @@ func _physics_process(delta: float) -> void:
 
 	# this uses veolcity and calculates collisions for next frame
 	move_and_slide()
+
+
+## Drifting as an astral projection (see phasing): steered on both axes, through anything solid,
+## but not out of the level.
+func _phase(delta: float) -> void:
+	var steer: Vector2 = Vector2(Input.get_axis("Left", "Right"), Input.get_axis("Up", "Down")).limit_length(1.0)
+	direction_signal.emit(steer)
+	if steer.x != 0.0:
+		sprite.scale.x = absf(sprite.scale.x) * signf(steer.x)
+	velocity = steer * PHASE_SPEED
+	for timer: ActionTimer in timers:
+		timer.elapse(delta)
+	elapse_ability_time_signal.emit(delta)
+	move_and_slide()
+	if MapInfo.instance != null and MapInfo.instance.world != null:
+		var bounds: Rect2 = MapInfo.instance.level_rect()
+		global_position = global_position.clamp(bounds.position, bounds.end)

@@ -1,8 +1,12 @@
 extends Node
 class_name AstralProjection
-## Astral projection, a spell learned at a shrine. Spell (Q, or the pad's X) leaves your body where you stand and sends you out as a glowing projection, untouchable by
-## thorns and shots. Press it again, or get hurt, to snap back to your body. Let it run out and
-## you stay where the projection is: the body is left behind for good. Tiers make it last longer.
+## Astral projection, a spell learned at a shrine. Spell (Q, or the pad's X) leaves your body
+## where you stand and sends you out as a glowing projection, untouchable by thorns and shots. It
+## floats wherever the stick points, through rock and anything else solid (see Player.phasing),
+## and drifting into a secret room's rock opens the room. Press Spell again, or get hurt, to snap
+## back to your body. Let it run out and you stay where the projection is: the body is left
+## behind for good. Ending it inside rock, either way, costs a heart and puts you back in your
+## body. Tiers make it last longer.
 
 @onready var player: Player = $"../"
 @onready var main: Node = $"/root/Main"
@@ -59,6 +63,11 @@ func project() -> void:
 	player.set_collision_layer_value(6, false)
 	player.set_collision_layer_value(8, false)
 
+	# drift through anything solid (see Player.phasing)
+	player.phasing = true
+	player.velocity = Vector2.ZERO
+	player.set_collision_mask_value(3, false)
+
 	# override player's hurt ability with ours
 	player.hurt_ability = astral_hurt
 
@@ -66,22 +75,37 @@ func project() -> void:
 	held_color = visual.modulate
 	visual.modulate = Color(0, 1, 1, 0.5)
 
-## Snap back to the body.
+## Snap back to the body (a heart lost if the projection was inside rock).
 func end_projection(_timer: ActionTimer) -> void:
 	if not projecting():
 		return
+	var stuck: bool = _in_rock()
 	player.visual_event.emit(&"projection_end", false_player_origin.global_position)
 	player.position = false_player_origin.position
 	player.velocity = Vector2.ZERO
 	player.reset_fourier_motion()
 	_finish()
+	if stuck:
+		_rock_hurts()
 
-## Ran out: stay where the projection is, and the body is gone.
+## Ran out: stay where the projection is, and the body is gone; unless it ran out inside rock,
+## when it costs a heart and you are back in your body.
 func expire(_timer: ActionTimer) -> void:
 	if not projecting():
 		return
+	if _in_rock():
+		end_projection(projection_timer)
+		return
 	player.visual_event.emit(&"projection_end", player.global_position)
 	_finish()
+
+## Whether the projection is inside rock (or anything else solid).
+func _in_rock() -> bool:
+	return MapInfo.instance != null and MapInfo.instance.solid_at(player.global_position)
+
+func _rock_hurts() -> void:
+	player.invulnerable.end()
+	player.hurt(-1, Vector2.ZERO, null)
 
 func _finish() -> void:
 	projection_timer.end()
@@ -89,6 +113,8 @@ func _finish() -> void:
 	visual.modulate = held_color
 	player.set_collision_layer_value(6, true)
 	player.set_collision_layer_value(8, true)
+	player.phasing = false
+	player.set_collision_mask_value(3, true)
 	player.hurt_ability = player.normal_hurt
 	false_player_origin.queue_free()
 	false_player_origin = null

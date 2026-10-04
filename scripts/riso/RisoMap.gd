@@ -162,8 +162,8 @@ func _world_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton and (event as InputEventMouseButton).pressed and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
 		var at: Vector2 = to_local(get_global_mouse_position())
-		for c: Vector2i in tiles(info):
-			var hit: bool = Geometry2D.is_point_in_polygon(at, _ribbon(side_curve(info, c), tile_size(c).x + 4.0)) if Worlds.is_side(c) \
+		for c: Vector2i in pickable(info):
+			var hit: bool = Geometry2D.is_point_in_polygon(at, _ribbon(side_curve(info, c), tile_size(c).x + 4.0, 0.0, MOUTH)) if Worlds.is_side(c) \
 				else Rect2(tile_at(info, c) - tile_size(c) * 0.5, tile_size(c)).has_point(at)
 			if hit:
 				selected = c
@@ -175,17 +175,17 @@ func _world_input(event: InputEvent) -> void:
 ## Show level `c`'s page (a visited level).
 func open_level(c: Vector2i) -> void:
 	var info: MapInfo = MapInfo.instance
-	if info == null or not info.records.has(c):
+	if info == null or not (info.records.has(c) or info.relic_hints.has(c)):
 		return
 	viewing = c
 	_show(View.LEVEL)
 
 
-## The visited level nearest `from` in direction `dir` (within a quarter turn of it), or null.
+## The visited (or hinted) level nearest `from` in direction `dir` (within a quarter turn of it), or null.
 func _nearest_tile(info: MapInfo, from: Vector2i, dir: Vector2i) -> Variant:
 	var best: Variant = null
 	var best_score: float = INF
-	for c: Vector2i in tiles(info):
+	for c: Vector2i in pickable(info):
 		var d: Vector2 = grid_at(c) - grid_at(from)
 		var along: float = d.dot(Vector2(dir))
 		if along <= 0.0 or absf(d.dot(Vector2(dir).orthogonal())) > along:
@@ -280,6 +280,7 @@ func _level(info: MapInfo) -> void:
 		s.visible = true
 		s.position = o
 		s.scale = Vector2(k, k)
+	var placed_relic: Node = null
 	for node: Node in info.map_elements.get_children():
 		if node.is_queued_for_deletion() or not (node is Node2D):
 			continue
@@ -301,6 +302,9 @@ func _level(info: MapInfo) -> void:
 				_mark_door(at, int(node.get_meta(&"key_color", 0)))
 			"switch_gate.tscn":
 				_mark_gate(at)
+			"relic.tscn":
+				placed_relic = node
+				_mark_relic(at, StringName((node.call("holds") as Array)[0]))
 			"switch.tscn":
 				_mark_switch(at, bool(node.call("thrown")))
 			"key.tscn":
@@ -309,6 +313,10 @@ func _level(info: MapInfo) -> void:
 					_mark_key(at, int(node.get_meta(&"key_color", 0)))
 			"corpse.tscn":
 				_mark_ghost(to_map(info, Vector2(info.cell_at((node as Node2D).global_position)) + Vector2(0.5, 0.5)), 0.22)
+	# A relic an ink well marked here, even before its room is found.
+	var hinted: Variant = _hinted_relic(info, info.coord, info.world)
+	if hinted != null and placed_relic == null:
+		_mark_relic(to_map(info, Vector2(hinted) + Vector2(0.5, 0.5)), info.relic_hints[info.coord])
 	# The wizard, always, bobbing.
 	_mark_wizard(to_map(info, Vector2(info.cell_at(info.player.global_position)) + Vector2(0.5, 0.5)) + Vector2(0, sin(t * 4.0) * 0.6))
 	_legend([
@@ -323,6 +331,7 @@ func _level(info: MapInfo) -> void:
 		["door", func(at: Vector2) -> void: _mark_door(at, 2)],
 		["gate", _mark_gate],
 		["switch", func(at: Vector2) -> void: _mark_switch(at, false)],
+		["relic", func(at: Vector2) -> void: _mark_relic(at, &"blink")],
 	] + _door_rows() + [
 		["key", func(at: Vector2) -> void: _mark_key(at, 2)],
 		["ink well", func(at: Vector2) -> void: _mark_inkwell(at, false)],
@@ -386,6 +395,9 @@ func _other_level(info: MapInfo, c: Vector2i) -> void:
 					_mark_inkwell(spot.call(v), bool(rec.get("mapped", false)))
 				else:
 					_mark_lantern(spot.call(v), false)
+	var hinted: Variant = _hinted_relic(info, c, w)
+	if hinted != null:
+		_mark_relic(spot.call(hinted), info.relic_hints[c])
 	if info.has_ghost and info.ghost_coord == c:
 		_mark_ghost(spot.call(info.cell_at(info.ghost_pos)), 0.22)
 	_text("D: worlds", Vector2(AREA.position.x, AREA.end.y - 6.0), 6.5, false)
@@ -419,6 +431,18 @@ func _mark_plunge(at: Vector2, owed: int, k: float = 1.0) -> void:
 
 
 ## A switch gate: a bar like a door's, in night ink, with the switch's accent dot.
+## A relic: its move's mark in night ink on a paper disc in an accent ring (it reads on any tile).
+func _mark_relic(at: Vector2, move: StringName, k: float = 1.0) -> void:
+	var disc: PackedVector2Array = RisoShapes.circle(at, 5.0 * k, 16)
+	marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(at, 6.4 * k, 18)], false)
+	marks.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE], [disc])
+	var fit: Transform2D = Transform2D(0.0, Vector2(0.15, 0.15) * k, 0.0, at)
+	var mark: Array[PackedVector2Array] = []
+	for poly: PackedVector2Array in RisoProp.glyph(move, Vector2.ZERO, t):
+		mark.append(fit * poly)
+	marks.ink(RisoPrint.NIGHT, 1.0, mark, false)
+
+
 func _mark_gate(at: Vector2) -> void:
 	marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.rrect(at.x - 0.9, at.y - 2.6, 1.8, 5.2, 0.8)], false)
 	marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(at + Vector2(2.4, -2.4), 1.2, 8)], false)
@@ -516,6 +540,31 @@ func _build_textures_for(w: MapInfo.World, bytes: PackedByteArray, broken: Dicti
 ## Every visited level: coord -> its record.
 func tiles(info: MapInfo) -> Dictionary:
 	return info.records
+
+
+## Every level the cursor can pick: the visited ones, and those an ink well has marked a relic in.
+func pickable(info: MapInfo) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	for c: Vector2i in info.records:
+		out.append(c)
+	for c: Vector2i in info.relic_hints:
+		if not out.has(c):
+			out.append(c)
+	return out
+
+
+## Where level `c`'s relic waits, if an ink well marked it and it is not taken yet; else null.
+func _hinted_relic(info: MapInfo, c: Vector2i, w: MapInfo.World) -> Variant:
+	if w == null or not info.relic_hints.has(c) or info.relics_found.has(c):
+		return null
+	for secret: Dictionary in w.secrets:
+		for reward: Array in secret["rewards"]:
+			if reward[1] == MapInfo.Type.RELIC:
+				return reward[0]
+	for v: Vector2i in w.objects:
+		if w.get_cell(v).type == MapInfo.Type.RELIC:
+			return v
+	return null
 
 
 ## Pairs of visited levels joined by an opened side door, a paid deeper door or an ordinary way up
@@ -629,12 +678,32 @@ func _world(info: MapInfo) -> void:
 	var inner: Array[PackedVector2Array] = [RisoShapes.rrect(cur.x - cur_size.x * 0.5 - grow + 1.2, cur.y - cur_size.y * 0.5 - grow + 1.2, cur_size.x + grow * 2.0 - 2.4, cur_size.y + grow * 2.0 - 2.4, 5.0)]
 	if Worlds.is_side(selected):
 		var curve: PackedVector2Array = side_curve(info, selected)
-		var ring: Array[PackedVector2Array] = [_ribbon(curve, cur_size.x + grow * 2.0, grow)]
-		var hole: Array[PackedVector2Array] = [_ribbon(curve, cur_size.x + grow * 2.0 - 2.4, grow - 1.2)]
+		var ring: Array[PackedVector2Array] = [_ribbon(curve, cur_size.x + grow * 2.0, grow, MOUTH)]
+		# The hole runs on past the ring's ends, so the frame is open where it meets the levels.
+		var hole: Array[PackedVector2Array] = [_ribbon(curve, cur_size.x + grow * 2.0 - 2.4, grow + 3.0, MOUTH)]
 		outer = _clipped(ring, _box(area))
 		inner = _clipped(hole, _box(area))
 	marks.ink(RisoPrint.NIGHT, 1.0, outer, false)
 	marks.knock([RisoPrint.NIGHT], inner)
+	# Relics a shrine marked: on a visited level, at its corner; on one not yet visited, a faint
+	# tile where it lies, with the mark in the middle; off the page, on its edge, pointing the way.
+	var page_in: Rect2 = area.grow(-9.0)
+	for c: Vector2i in info.relic_hints:
+		var at: Vector2 = tile_at(info, c)
+		if info.relics_found.has(c):
+			continue
+		if not area.encloses(Rect2(at - TILE * 0.5, TILE)):
+			var way: Vector2 = (at - page_in.get_center()).normalized()
+			var reach: float = minf(page_in.size.x * 0.5 / maxf(absf(way.x), 0.001), page_in.size.y * 0.5 / maxf(absf(way.y), 0.001))
+			var edge: Vector2 = page_in.get_center() + way * reach
+			_mark_relic(edge, info.relic_hints[c], 0.8)
+			marks.ink(RisoPrint.ACCENT, 1.0, [RisoProp.chevron(edge + way * 7.5, way, 0.16)], false)
+			continue
+		if info.records.has(c):
+			_mark_relic(at + Vector2(TILE.x * 0.5 - 4.5, -TILE.y * 0.5 + 4.5), info.relic_hints[c], 0.8)
+		else:
+			marks.ink(RisoPrint.ACCENT, 0.12, [RisoShapes.rrect(at.x - TILE.x * 0.5, at.y - TILE.y * 0.5, TILE.x, TILE.y, 5.0)], false)
+			_mark_relic(at, info.relic_hints[c])
 	_text("W A S D pick  ·  E open", Vector2(AREA.position.x, AREA.end.y - 6.0), 6.5, false)
 	_legend([
 		["you are here", func(at: Vector2) -> void: _mark_tile(at, Vector2(9, 6), true)],
@@ -642,6 +711,7 @@ func _world(info: MapInfo) -> void:
 		["way opened", func(at: Vector2) -> void: marks.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(at.x - 5.0, at.y - 1.6, 10.0, 3.2, 1.6)], false)],
 	] + _side_rows() + [
 		["respawn", _mark_respawn_level],
+		["relic", func(at: Vector2) -> void: _mark_relic(at, &"blink")],
 		["shrine used", _mark_spent_shrine],
 		["ghost", func(at: Vector2) -> void: _mark_ghost(at, 0.2)],
 	])
@@ -656,28 +726,36 @@ func _mark_tile(at: Vector2, size: Vector2, here: bool) -> void:
 func _side_rows() -> Array:
 	var rows: Array = []
 	for k: int in range(Worlds.KINDS.size()):
-		rows.append([Worlds.proto(k).name, func(at: Vector2) -> void: _mark_side(_bezier(at + Vector2(-1, -5), at + Vector2(3, -2), at + Vector2(3, 2), at + Vector2(-1, 5)), 4.0, false)])
+		rows.append([Worlds.proto(k).name, func(at: Vector2) -> void: _mark_side(_bezier(at + Vector2(-1, -5), at + Vector2(3, -2), at + Vector2(3, 2), at + Vector2(-1, 5)), 4.0, false, Rect2(), 0.0)])
 	return rows
 
 
-## A side world on the worlds page: a smooth curve from under the level it is entered from to over
-## the one its way on leads to, bowing out of the straight line so it runs down the gutter between
-## columns rather than through the levels it skips (away from the far level's column when it
-## drifts). A dead end hangs a short way under its level.
+## A side world on the worlds page: a smooth curve out of the middle of the bottom of the level it
+## is entered from and into the middle of the top of the one its way on leads to, leaving and
+## arriving straight down so it reads as poured from one into the other. In between it bows out
+## of the straight line through a point in the gutter between columns, so it runs past the levels
+## it skips rather than over them (away from the far level's column when it drifts). A dead end
+## hangs a short way under its level.
 func side_curve(info: MapInfo, c: Vector2i) -> PackedVector2Array:
 	var place: SideWorld = MapInfo.def_for(c) as SideWorld
 	var from: Vector2i = place.origin()
 	var to: Vector2i = place.destination()
-	var a: Vector2 = tile_at(info, from) + Vector2(0, TILE.y * 0.5 + 3.5)
-	var b: Vector2 = tile_at(info, to) - Vector2(0, TILE.y * 0.5 + 3.5)
+	# The ends tuck half a unit under the tiles, so no paper shows between.
+	var a: Vector2 = tile_at(info, from) + Vector2(0, TILE.y * 0.5 - 0.5)
 	if to.y <= from.y:
-		b = a + Vector2(0, PITCH.y - TILE.y - 7.0)
+		return _bezier(a, a + Vector2(0, 4), a + Vector2(0, 8), a + Vector2(0, PITCH.y - TILE.y + 6.0))
+	var b: Vector2 = tile_at(info, to) - Vector2(0, TILE.y * 0.5 - 0.5)
 	var drift: int = to.x - from.x
 	var side: float = -float(drift) if drift != 0 else (1.0 if posmod(c.x, 2) == 0 else -1.0)
 	var d: Vector2 = b - a
-	# A cubic's handles bowed out by `bow` peak at 3/4 of it: a straight drop peaks mid-gutter.
-	var bow: Vector2 = d.orthogonal().normalized() * side * (PITCH.x * 0.5 / 0.75 if drift == 0 else PITCH.x * 0.4)
-	return _bezier(a, a + d * 0.25 + bow, a + d * 0.75 + bow, b)
+	var heading: Vector2 = d.normalized()
+	var mid: Vector2 = (a + b) * 0.5 + heading.orthogonal() * side * (PITCH.x * 0.5 if drift == 0 else PITCH.x * 0.3)
+	var reach: float = d.length()
+	var first: PackedVector2Array = _bezier(a, a + Vector2(0, reach * 0.3), mid - heading * reach * 0.22, mid, 16)
+	var second: PackedVector2Array = _bezier(mid, mid + heading * reach * 0.22, b - Vector2(0, reach * 0.3), b, 16)
+	first.remove_at(first.size() - 1)
+	first.append_array(second)
+	return first
 
 
 func _bezier(p0: Vector2, p1: Vector2, p2: Vector2, p3: Vector2, steps: int = 24) -> PackedVector2Array:
@@ -702,17 +780,32 @@ func _along(curve: PackedVector2Array, frac: float) -> Vector2:
 	return curve[curve.size() - 1]
 
 
-## A ribbon `width` wide along `curve`, carried on `extend` past each end.
-func _ribbon(curve: PackedVector2Array, width: float, extend: float = 0.0) -> PackedVector2Array:
+## Where a side world's ribbon meets a level it widens into a mouth: MOUTH times as wide at the
+## tile, easing back to its own width over MOUTH_LEN units.
+const MOUTH: float = 0.9
+const MOUTH_LEN: float = 9.0
+
+
+## A ribbon `width` wide along `curve`, carried on `extend` past each end, and flared by `mouth`
+## at each end (see MOUTH).
+func _ribbon(curve: PackedVector2Array, width: float, extend: float = 0.0, mouth: float = 0.0) -> PackedVector2Array:
 	var pts: PackedVector2Array = curve.duplicate()
 	if extend > 0.0:
-		pts[0] = pts[0] + (pts[0] - pts[1]).normalized() * extend
-		pts[-1] = pts[-1] + (pts[-1] - pts[-2]).normalized() * extend
+		# Carried on as new points, so the curve's own ends keep their place (and their width).
+		pts.insert(0, pts[0] + (pts[0] - pts[1]).normalized() * extend)
+		pts.append(pts[-1] + (pts[-1] - pts[-2]).normalized() * extend)
+	# Distance along the curve, for the flare at each end.
+	var run: PackedFloat32Array = PackedFloat32Array([0.0])
+	for i: int in range(1, pts.size()):
+		run.append(run[i - 1] + pts[i - 1].distance_to(pts[i]))
+	var total: float = run[pts.size() - 1]
 	var left: PackedVector2Array = PackedVector2Array()
 	var right: PackedVector2Array = PackedVector2Array()
 	for i: int in range(pts.size()):
 		var along: Vector2 = (pts[mini(i + 1, pts.size() - 1)] - pts[maxi(i - 1, 0)]).normalized()
-		var n: Vector2 = along.orthogonal() * width * 0.5
+		# Measured from the curve's own ends, so ribbons carried on by different amounts flare alike.
+		var flare: float = 1.0 - smoothstep(0.0, MOUTH_LEN, maxf(0.0, minf(run[i], total - run[i]) - extend))
+		var n: Vector2 = along.orthogonal() * width * 0.5 * (1.0 + mouth * flare)
 		left.append(pts[i] + n)
 		right.append(pts[i] - n)
 	right.reverse()
@@ -724,10 +817,11 @@ func _box(r: Rect2) -> PackedVector2Array:
 	return PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)])
 
 
-## A side world: a narrow accent ribbon `width` wide along `curve`, with chevrons running down it,
+## A side world: a narrow accent ribbon `width` wide along `curve`, flared by `mouth` where it meets
+## the levels, with chevrons running down it,
 ## cut to `clip` when one is given.
-func _mark_side(curve: PackedVector2Array, width: float, here: bool, clip: Rect2 = Rect2()) -> void:
-	var strip: Array[PackedVector2Array] = [_ribbon(curve, width)]
+func _mark_side(curve: PackedVector2Array, width: float, here: bool, clip: Rect2 = Rect2(), mouth: float = MOUTH) -> void:
+	var strip: Array[PackedVector2Array] = [_ribbon(curve, width, 0.0, mouth)]
 	var chevrons: Array[PackedVector2Array] = []
 	var last: int = curve.size() - 1
 	for k: int in range(3):

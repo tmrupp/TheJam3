@@ -30,7 +30,9 @@ func run() -> void:
 			print("%s %s: gates=%d moons=%d keys=%d lanterns=%d portals=%d" % [label, w.size, counts.get(MapInfo.Type.DOOR, 0), counts.get(MapInfo.Type.MOON, 0), counts.get(MapInfo.Type.KEY, 0), counts.get(MapInfo.Type.CHECKPOINT, 0), counts.get(MapInfo.Type.PORTAL, 0)])
 			check(int(counts.get(MapInfo.Type.DOOR, 0)) > 0, label + ": gates must be present")
 			check(int(counts.get(MapInfo.Type.DOOR, 0)) <= w.per_area(MapInfo.DOORS_PER_K), label + ": gate budget")
-			check(int(counts.get(MapInfo.Type.KEY, 0)) == maxi(MapInfo.KEY_COLOR_COUNT, w.per_area(MapInfo.KEYS_PER_K)), label + ": keys scale with area")
+			# A first level also has its start key (for the side door near the start).
+			var start_key: int = 1 if w.start_side >= 0 else 0
+			check(int(counts.get(MapInfo.Type.KEY, 0)) == maxi(MapInfo.KEY_COLOR_COUNT, w.per_area(MapInfo.KEYS_PER_K)) + start_key, label + ": keys scale with area (and the start key)")
 			check(int(counts.get(MapInfo.Type.PORTAL, 0)) == 2 * w.per_area(MapInfo.PORTAL_PAIRS_PER_K), label + ": paired portals scale with area")
 			if depth == 9:
 				check(int(counts.get(MapInfo.Type.PORTAL, 0)) >= 4, label + ": the largest worlds have at least two generated pairs")

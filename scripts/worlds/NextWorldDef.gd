@@ -21,6 +21,8 @@ var doors: Array[int] = []
 ## The side world whose way on leads into this level, or null. Then this level's way back leads
 ## into that world, and the level gets an ordinary way up as well (Exit.RETURN).
 var arrival_from: Variant = null
+## The move the relic in this level holds (see Relics), or &"" for none.
+var relic: StringName = &""
 
 
 ## Fill it in for the place at `at`, and return it.
@@ -35,6 +37,7 @@ func setup(at: Vector2i) -> NextWorldDef:
 		if Worlds.proto(k).deals(at):
 			doors.append(k)
 	arrival_from = Worlds.arriving_at(at)
+	relic = Relics.at(at)
 	return self
 
 
