@@ -4,7 +4,7 @@ extends Node2D
 ## so wall and ceiling spikes point the right way. Presentation only.
 
 class_name RisoProp
-const STATIC_KINDS: Array[StringName] = [&"door", &"ledge", &"thorns", &"cracked"]
+const STATIC_KINDS: Array[StringName] = [&"door", &"ledge", &"thorns", &"cracked", &"gate"]
 
 
 ## A crescent-bowed key, in world pixels, centred near `o`.
@@ -83,7 +83,7 @@ func _process(delta: float) -> void:
 		if _view_on:
 			_view_reach = Vector2(get_window().content_scale_size) / cam.zoom * 0.6 + Vector2(160, 160)
 			_view_center = cam.get_screen_center_position()
-	if _view_on:
+	if _view_on and kind != &"laser":
 		var d: Vector2 = (host.global_position - _view_center).abs()
 		if d.x > _view_reach.x or d.y > _view_reach.y:
 			return
@@ -129,6 +129,8 @@ func _redraw() -> void:
 		&"inkwell": _inkwell()
 		&"portal": _portal()
 		&"door": _door()
+		&"gate": _gate()
+		&"switch": _switch()
 		&"lantern": _lantern()
 		&"exit": _exit()
 		&"moon": _moon()
@@ -140,6 +142,8 @@ func _redraw() -> void:
 		&"cracked": _cracked()
 		&"wisp": _wisp()
 		&"watcher": _watcher()
+		&"hopper": _hopper()
+		&"laser": _laser()
 		&"shard": _shard()
 	for i: int in range(labels_used, labels.size()):
 		labels[i].visible = false
@@ -199,7 +203,12 @@ func _key() -> void:
 		return
 	var o: Vector2 = Vector2(0, sin(t * 3.0 + phase) * 4.0)
 	var shape: Array[PackedVector2Array] = RisoProp.key_shape(o, 1.0)
-	for plate: int in RisoPrint.key_inks(int(host.get_meta(&"key_color", 0))):
+	var inks: Array[int] = RisoPrint.key_inks(int(host.get_meta(&"key_color", 0)))
+	# A halo in the key's own colour, as the stars have.
+	var halo: Array[PackedVector2Array] = [RisoShapes.circle(o + Vector2(-2, 1), 26.0, 24)]
+	for plate: int in inks:
+		ink.ink(plate, 0.25, halo)
+	for plate: int in inks:
 		ink.ink(plate, 1.0, shape)
 
 
@@ -472,6 +481,41 @@ func _portal() -> void:
 	ink.ink(RisoPrint.EYE, 0.85 * live, [RisoShapes.circle(mote, 2.5, 12)])
 
 
+## A switch gate: a portcullis like a door's, its lock plate showing the switch emblem.
+func _gate() -> void:
+	RisoProp.portcullis(ink, _ground(), half, -1, 0.0, 1.0)
+
+
+## The switch emblem (also on its gate): a lever leaning out of a round base, about 20 * `s` wide.
+static func switch_emblem(c: Vector2, s: float) -> Array[PackedVector2Array]:
+	return [RisoShapes.rrect(c.x - 9.0 * s, c.y + 2.0 * s, 18.0 * s, 6.0 * s, 3.0 * s), Transform2D(0.55, c + Vector2(0, 3.0) * s) * RisoShapes.rrect(-1.8 * s, -12.0 * s, 3.6 * s, 13.0 * s, 1.8 * s),
+		RisoShapes.circle(c + Vector2(6.6, -7.0) * s, 3.4 * s, 12)]
+
+
+## A switch: a stone base on the floor with a lever in it. Before it is thrown the lever leans left
+## with a pink knob, swaying a little; thrown, it leans right, its knob and a halo in accent ink.
+func _switch() -> void:
+	var g: float = _ground()
+	var thrown: bool = bool(host.call("thrown")) if host.has_method("thrown") else false
+	var base: PackedVector2Array = RisoShapes.rrect(-34, g - 30, 68, 30, 9)
+	var slot: PackedVector2Array = RisoShapes.rrect(-20, g - 30, 40, 7, 3.5)
+	var tilt: float = (0.6 if thrown else -0.6) + (0.0 if thrown else sin(t * 2.0 + phase) * 0.06)
+	var pivot: Vector2 = Vector2(0, g - 27)
+	var arm: Transform2D = Transform2D(tilt, pivot)
+	var knob: Vector2 = arm * Vector2(0, -70)
+	if thrown:
+		ink.ink(RisoPrint.ACCENT, 0.3, [RisoShapes.circle(knob, 26.0, 22)])
+	# The lever in blue, behind the base, so it reads against the night.
+	ink.ink(RisoPrint.BLUE, 1.0, [arm * RisoShapes.rrect(-4.5, -68.0, 9.0, 68.0, 4.5)])
+	ink.ink(RisoPrint.BLUE, 1.0, [base])
+	ink.ink(RisoPrint.NIGHT, 0.35, [RisoShapes.rrect(-34, g - 10, 68, 10, 5)], false)
+	ink.ink(RisoPrint.NIGHT, 0.6, [slot], false)
+	var ball: PackedVector2Array = RisoShapes.circle(knob, 13.0, 20)
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], [ball])
+	ink.ink(RisoPrint.ACCENT if thrown else RisoPrint.PINK, 1.0, [ball], false)
+	ink.knock([RisoPrint.ACCENT, RisoPrint.PINK], [RisoShapes.circle(knob + Vector2(-2.5, -2.5), 2.6, 8)])
+
+
 func _door() -> void:
 	RisoProp.portcullis(ink, _ground(), half, int(host.get_meta(&"key_color", 0)), 0.0, 1.0)
 
@@ -496,9 +540,13 @@ static func portcullis(ink: InkCanvas, g: float, half: float, key_color: int, li
 		if span > 40.0:
 			var plate: PackedVector2Array = RisoShapes.rrect(-19, ly - 14.0, 38, 28, 8)
 			ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE], [plate])
-			var lock: Array[PackedVector2Array] = RisoProp.key_shape(Vector2(-3, ly), 0.65)
-			for plate_ink: int in RisoPrint.key_inks(key_color):
-				ink.ink(plate_ink, fade, lock, false)
+			if key_color < 0:
+				# A switch gate: the switch's emblem (a lever in a ring) instead of a lock.
+				ink.ink(RisoPrint.NIGHT, fade, RisoProp.switch_emblem(Vector2(0, ly), 0.9), false)
+			else:
+				var lock: Array[PackedVector2Array] = RisoProp.key_shape(Vector2(-3, ly), 0.65)
+				for plate_ink: int in RisoPrint.key_inks(key_color):
+					ink.ink(plate_ink, fade, lock, false)
 	ink.ink(RisoPrint.BLUE, fade, [RisoShapes.rrect(-half, top - 2.0, 2.0 * half, 14, 4)])
 
 
@@ -552,7 +600,15 @@ func _exit() -> void:
 	var pulse: float = 1.0 + 0.08 * sin(t * 2.5 + phase)
 	var g: float = _ground()
 	var opening: PackedVector2Array = RisoShapes.arch(-44, g - 110, 88, 110, 14)
-	var frame: int = RisoPrint.PINK if which == MapInfo.Exit.DEEPER else RisoPrint.BLUE
+	# In hyperspace, the way on is its gate, and the way back runs left along it.
+	var in_chasm: bool = MapInfo.instance != null and MapInfo.is_chasm(MapInfo.instance.coord)
+	var plunge: bool = which == MapInfo.Exit.PLUNGE or (in_chasm and which == MapInfo.Exit.DEEPER)
+	var frame: int = RisoPrint.PINK if which == MapInfo.Exit.DEEPER or plunge else RisoPrint.BLUE
+	if plunge:
+		# The hyperspace door: a second, wider frame of accent round the pink one, and a falling cascade of
+		# chevrons over it (below).
+		ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.arch(-64, g - 132, 128, 132, 16)])
+		ink.ink(RisoPrint.NIGHT, 0.5, [RisoShapes.arch(-58, g - 125, 116, 125, 15)], false)
 	ink.ink(frame, 1.0, [RisoShapes.arch(-52, g - 118, 104, 118, 14)])
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], [opening])
 	var star: PackedVector2Array = Transform2D(t * 0.4, Vector2(0, g - 58)) * RisoShapes.sparkle(Vector2.ZERO, 20.0 * pulse)
@@ -582,15 +638,23 @@ func _exit() -> void:
 	# Chevron above the arch, pointing the way this exit leads.
 	var dir: Vector2 = Vector2.DOWN
 	match which:
-		MapInfo.Exit.BACK: dir = Vector2.UP
+		MapInfo.Exit.BACK: dir = Vector2.LEFT if in_chasm else Vector2.UP
+		MapInfo.Exit.RETURN: dir = Vector2.UP
 		MapInfo.Exit.LEFT: dir = Vector2.LEFT
 		MapInfo.Exit.RIGHT: dir = Vector2.RIGHT
 	var bob: float = sin(t * 3.0 + phase) * 3.0
 	var at: Vector2 = Vector2(0, g - 140) + dir * bob
 	var side: Vector2 = Vector2(-dir.y, dir.x)
-	var chevron: PackedVector2Array = PackedVector2Array([at + dir * 10.0, at + side * 22.0 - dir * 12.0, at + side * 16.0 - dir * 18.0,
-		at - dir * 2.0, at - side * 16.0 - dir * 18.0, at - side * 22.0 - dir * 12.0])
-	ink.ink(frame, 1.0, [chevron])
+	if plunge:
+		# Three chevrons falling one after another, fading as they drop: a long way down.
+		for k: int in range(3):
+			var u: float = fmod(t * 0.9 + float(k) / 3.0, 1.0)
+			var c: Vector2 = Vector2(0, g - 196) + dir * (u * 60.0)
+			ink.ink(RisoPrint.PINK, 1.0 - u * 0.8, [RisoProp.chevron(c, dir, 1.0)])
+	else:
+		var chevron: PackedVector2Array = PackedVector2Array([at + dir * 10.0, at + side * 22.0 - dir * 12.0, at + side * 16.0 - dir * 18.0,
+			at - dir * 2.0, at - side * 16.0 - dir * 18.0, at - side * 22.0 - dir * 12.0])
+		ink.ink(frame, 1.0, [chevron])
 	if owed > 0:
 		_text(str(owed), Vector2(0, g - 43), 34)
 
@@ -1261,6 +1325,106 @@ func _watcher() -> void:
 		ink.ink(RisoPrint.EYE, 1.0, [core], false)
 	if stunned:
 		_stun_mark(xf * Vector2(0, -16))
+
+
+## The hopper: a squat pink toad of a nightmare with a ridge of thorns down its back and two
+## paper eye slits. It squashes as it crouches to leap (the slits narrow), stretches in the air
+## over its shadow, and slumps as it lands.
+func _hopper() -> void:
+	var hop: Node = host.get_node_or_null("Hopper")
+	var facing: float = 1.0
+	var crouch: float = -1.0
+	var vel: Vector2 = Vector2.ZERO
+	var grounded: bool = true
+	var landed: float = 10.0
+	var stunned: bool = false
+	if hop != null:
+		facing = float(hop.get("facing"))
+		crouch = float(hop.get("crouch"))
+		vel = hop.get("velocity")
+		grounded = bool(hop.get("grounded"))
+		landed = float(hop.get("since_landing"))
+		stunned = bool(hop.get("stunned"))
+	var sx: float = 1.0
+	var sy: float = 1.0 + 0.03 * sin(t * 3.0 + phase)
+	if stunned:
+		pass
+	elif crouch >= 0.0:
+		var c: float = crouch * crouch * (3.0 - 2.0 * crouch)
+		sx = 1.0 + 0.3 * c
+		sy = 1.0 - 0.3 * c
+	elif not grounded:
+		sy = 1.0 + 0.22 * clampf(absf(vel.y) / 700.0, 0.0, 1.0)
+		sx = 1.0 / sy
+	elif landed < 0.25:
+		var l: float = 1.0 - landed / 0.25
+		sx = 1.0 + 0.25 * l
+		sy = 1.0 - 0.25 * l
+	var k: float = 1.7
+	var feet: Vector2 = Vector2(0, 16)
+	var xf: Transform2D = Transform2D(0.0, Vector2(sx * facing * k, sy * k), 0.0, feet)
+	if not grounded:
+		var g: float = _ground()
+		var high: float = clampf((g - feet.y) / 300.0, 0.0, 1.0)
+		ink.ink(RisoPrint.NIGHT, 0.35 * (1.0 - high * 0.6), [RisoShapes.ellipse(Vector2(0, g - 3.0), 26.0 * (1.0 - high * 0.4), 5.0, 16)], false)
+	var body: PackedVector2Array = xf * RisoShapes.smooth(PackedVector2Array([Vector2(-15, 0), Vector2(-16, -7), Vector2(-11, -15),
+		Vector2(-2, -19), Vector2(8, -18), Vector2(15, -11), Vector2(17, -4), Vector2(15, 0)]))
+	var thorns: Array[PackedVector2Array] = []
+	for spike: Array in [[Vector2(-13, -12), Vector2(-7, -17), Vector2(-13, -23)], [Vector2(-5, -18), Vector2(2, -19), Vector2(-3, -27)], [Vector2(3, -19), Vector2(9, -17), Vector2(6, -25)]]:
+		thorns.append(xf * RisoShapes.tri(spike[0], spike[1], spike[2]))
+	var feet_nubs: Array[PackedVector2Array] = [xf * RisoShapes.ellipse(Vector2(-9, 0), 4.0, 2.0, 10), xf * RisoShapes.ellipse(Vector2(9, 0), 4.0, 2.0, 10)]
+	ink.ink(RisoPrint.NIGHT, 0.8, feet_nubs, false)
+	ink.ink(RisoPrint.PINK, 1.0, thorns)
+	ink.ink(RisoPrint.NIGHT, 0.45, thorns, false)
+	ink.knock([RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], [body])
+	ink.ink(RisoPrint.PINK, 1.0, [body])
+	ink.ink(RisoPrint.BLUE, 0.35, [body], false)
+	var eyes: Array[PackedVector2Array] = []
+	for e: Vector2 in [Vector2(8.5, -11.5), Vector2(13.0, -10.5)]:
+		if stunned:
+			eyes.append(xf * RisoShapes.rrect(e.x - 1.6, e.y - 0.3, 3.2, 0.6, 0.3, 2))
+		elif crouch >= 0.0:
+			eyes.append(xf * PackedVector2Array([e + Vector2(-1.8, -1.2), e + Vector2(1.8, 0.2), e + Vector2(1.6, 1.0), e + Vector2(-1.8, 0.2)]))
+		else:
+			eyes.append(xf * RisoShapes.ellipse(e, 1.4, 2.2, 12))
+	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE], eyes)
+	if stunned:
+		_stun_mark(xf * Vector2(0, -30))
+
+
+## A laser set in the rock: a dark housing with a lens. Warming up, a thin flickering sight line
+## runs out to the wall and the lens glows; firing, a broad pink beam with a bare-paper core, a
+## flare at the lens and a splash where it strikes; resting, the lens goes dark.
+func _laser() -> void:
+	var dir: Vector2 = host.get("dir")
+	var reach: float = float(host.get("reach"))
+	var state: Array = host.call("phase")
+	var u: float = float(state[1])
+	var xf: Transform2D = Transform2D(dir.angle(), -dir * half)
+	var muzzle: float = 30.0
+	var housing: PackedVector2Array = xf * RisoShapes.rrect(-6.0, -20.0, 30.0, 40.0, 7.0)
+	ink.ink(RisoPrint.BLUE, 1.0, [housing])
+	ink.ink(RisoPrint.NIGHT, 0.45, [housing], false)
+	ink.ink(RisoPrint.NIGHT, 0.8, [xf * RisoShapes.rrect(18.0, -13.0, 8.0, 26.0, 3.0)], false)
+	var lens: PackedVector2Array = xf * RisoShapes.circle(Vector2(muzzle - 4.0, 0.0), 7.0, 16)
+	var far: float = muzzle + reach
+	match state[0]:
+		&"warm":
+			ink.ink(RisoPrint.PINK, 0.15 + 0.3 * u, [xf * RisoShapes.circle(Vector2(muzzle - 4.0, 0.0), 9.0 + 7.0 * u, 20)])
+			ink.ink(RisoPrint.PINK, 1.0, [lens])
+			if fmod(t * 18.0, 1.0) < 0.45 + 0.55 * u:
+				ink.ink(RisoPrint.PINK, 0.3 + 0.4 * u, [xf * RisoShapes.rrect(muzzle, -1.2, reach, 2.4, 1.2)])
+		&"fire":
+			var s: float = clampf(minf(u, 1.0 - u) * 8.0, 0.0, 1.0)
+			var w: float = 26.0 * (0.6 + 0.4 * s) * (1.0 + 0.06 * sin(t * 40.0))
+			ink.ink(RisoPrint.PINK, 0.45 * s, [xf * RisoShapes.rrect(muzzle, -w * 0.85, reach, w * 1.7, w * 0.85)])
+			ink.ink(RisoPrint.PINK, 1.0, [xf * RisoShapes.rrect(muzzle, -w * 0.5, reach, w, w * 0.5)])
+			ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK], 0.9 * s, [xf * RisoShapes.rrect(muzzle, -w * 0.17, reach, w * 0.34, w * 0.17)])
+			ink.ink(RisoPrint.PINK, 0.5 * s, [xf * RisoShapes.circle(Vector2(muzzle, 0.0), w * 1.3, 24), xf * RisoShapes.circle(Vector2(far, 0.0), w * 1.1, 24)])
+			var splash: PackedVector2Array = xf * (Transform2D(t * 6.0, Vector2(far, 0.0)) * RisoShapes.sparkle(Vector2.ZERO, w * 0.9))
+			ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK], 0.8 * s, [splash])
+		_:
+			ink.ink(RisoPrint.NIGHT, 0.6, [lens], false)
 
 
 func _shard() -> void:

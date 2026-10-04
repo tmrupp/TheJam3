@@ -191,7 +191,7 @@ func run() -> void:
 	check(player.has_node("Blink") and int(player.get_node("Blink").get("distance")) == 400, "blink II reaches 400")
 	Abilities.grant(player, &"parry")
 	Abilities.grant(player, &"parry")
-	check(is_equal_approx(float(player.get_node("Parry").get("duration")), 0.4), "parry II holds longer")
+	check(is_equal_approx(float(player.get_node("Parry").get("duration")), 0.45), "parry II holds longer")
 	check(Abilities.spell(player) == &"parry", "parry sits in the spell slot")
 	check(Abilities.is_swap(player, &"astral") and not Abilities.is_swap(player, &"parry") and not Abilities.is_swap(player, &"vigor"), "a different spell would be a swap; perks never are")
 	Abilities.grant(player, &"astral")

@@ -54,14 +54,15 @@ func fire(from: Vector2, dir: Vector2, damage: int = 1) -> Node2D:
 	return bolt
 
 
-## An enemy with open ground beside it, and the side to shoot from.
+## An enemy with open ground beside it, and the side to shoot from: the two cells that way are
+## empty, so nothing else (another enemy, a switch) takes the bolt first.
 func target(scene: String, skip: Array[Node] = []) -> Array:
 	for e: Node in placed(scene):
 		if e in skip:
 			continue
 		var c: Vector2i = e.get_meta(&"cell")
 		for side: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT]:
-			if open_cell(c + side):
+			if open_cell(c + side) and info.world.get_cell(c + side).type == MapInfo.Type.EMPTY and (not info.world.is_valid(c + side * 2) or info.world.get_cell(c + side * 2).type in [MapInfo.Type.EMPTY, MapInfo.Type.GROUND]):
 				return [e, Vector2(side)]
 	return []
 
@@ -173,6 +174,9 @@ func run() -> void:
 	# Small levels crowd enemies near the walls: keep them out of this bolt's way.
 	for foe: Node in get_nodes_in_group(&"hex_target"):
 		foe.remove_from_group(&"hex_target")
+	# Stand there first: the wall's chunk has to be awake (chunks far from the wizard sleep).
+	player.global_position = shot_from
+	await wait_physics(8)
 	fire(shot_from, shot_dir)
 	await wait_physics(6)
 	check(not placed("cracked_wall.tscn").any(func(n: Node) -> bool: return n.get_meta(&"cell") == shot), "a bolt breaks the wall")

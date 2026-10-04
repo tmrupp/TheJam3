@@ -35,6 +35,8 @@ const REALMS: Dictionary = {
 	&"deep": {"paper": Color("#e4dfe8"), "inks": [Color("#161b3a"), Color("#3d5588"), Color("#ff48b0"), Color("#ffb511"), Color("#ffe800")]},
 	&"twilight": {"paper": Color("#ebe1cf"), "inks": [Color("#2a2350"), Color("#3255a4"), Color("#ff48b0"), Color("#ffe800"), Color("#ffe800")]},
 	&"aurora": {"paper": Color("#e2eadf"), "inks": [Color("#0f2a2c"), Color("#00838a"), Color("#ff48b0"), Color("#765ba7"), Color("#ffe800")]},
+	## Hyperspace's own: violet rock, aqua stars, on a cold paper (not in the F8 cycle).
+	&"hyperspace": {"paper": Color("#e6e4f0"), "inks": [Color("#0d0a26"), Color("#5a3d9a"), Color("#ff48b0"), Color("#5ec8e5"), Color("#ffe800")]},
 }
 const REALM_ORDER: Array[StringName] = [&"deep", &"twilight", &"aurora"]
 ## Hat-tip glow ink per ability (real Riso ink colours).
@@ -84,6 +86,7 @@ var reprint_on_motion: bool = true
 var blend_sheets: bool = false
 var registration: StringName = &"sheet"
 var realm: StringName = &"deep"
+var _realm_outside: StringName = &"deep"
 ## Night trapped to blue and one shared wobble (edges close up), instead of every plate
 ## registering on its own (paper slivers and overlaps at the edges, as in the prototype).
 var trapped: bool = false
@@ -622,9 +625,16 @@ func cycle_realm() -> void:
 	set_realm(REALM_ORDER[(i + 1) % REALM_ORDER.size()])
 
 
-## Called by MapInfo when a world has been laid out.
+## Called by MapInfo when a world has been laid out. Hyperspace prints in its own realm; leaving
+## it brings back the realm it was entered from.
 func world_built(map_info: Node, _world_index: int) -> void:
 	_map_info = map_info
+	var in_hyperspace: bool = MapInfo.is_chasm(map_info.get("coord"))
+	if in_hyperspace and realm != &"hyperspace":
+		_realm_outside = realm
+		set_realm(&"hyperspace")
+	elif not in_hyperspace and realm == &"hyperspace":
+		set_realm(_realm_outside)
 	if terrain != null and is_instance_valid(terrain):
 		var ledges: Array[Vector2] = []
 		var cracked: Array[Vector2] = []
@@ -663,6 +673,8 @@ const DRESS: Dictionary = {
 	"res://prefabs/player.tscn": &"wizard",
 	"res://prefabs/mover_enemy.tscn": &"wisp",
 	"res://prefabs/shooter_enemy.tscn": &"watcher",
+	"res://prefabs/hopper_enemy.tscn": &"hopper",
+	"res://prefabs/laser.tscn": &"laser",
 	"res://prefabs/bullet.tscn": &"shard",
 	"res://prefabs/coin.tscn": &"mote",
 	"res://prefabs/key.tscn": &"key",
@@ -670,6 +682,8 @@ const DRESS: Dictionary = {
 	"res://prefabs/inkwell.tscn": &"inkwell",
 	"res://prefabs/portal.tscn": &"portal",
 	"res://prefabs/door.tscn": &"door",
+	"res://prefabs/switch_gate.tscn": &"gate",
+	"res://prefabs/switch.tscn": &"switch",
 	"res://prefabs/checkpoint.tscn": &"lantern",
 	"res://prefabs/level_exit.tscn": &"exit",
 	"res://prefabs/shrine.tscn": &"shrine",

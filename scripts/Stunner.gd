@@ -5,7 +5,7 @@ class_name Stunner
 ## current one if it would last longer. The ink art shows it (RisoProp: circling stars over the
 ## head, `fraction()` of the stun left); the legacy Cooldown bar is shown when the print is off.
 
-var stunnable_nodes: Array[String] = ["Mover", "Shooter", "HitBox"]
+var stunnable_nodes: Array[String] = ["Mover", "Shooter", "Hopper", "HitBox"]
 @onready var top: Node = $".."
 @onready var sprite: Sprite2D = $Sprite2D
 @onready var cooldown: Cooldown = $Cooldown

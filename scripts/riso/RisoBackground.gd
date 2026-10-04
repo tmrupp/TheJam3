@@ -34,6 +34,10 @@ func _process(_delta: float) -> void:
 	ink.begin()
 	# A dense screen rather than a solid: the night keeps a fine texture of paper, as in the prototype.
 	ink.ink(RisoPrint.NIGHT, 0.94, [PackedVector2Array([-half, Vector2(half.x, -half.y), half, Vector2(-half.x, half.y)])], false)
+	if realm == &"hyperspace":
+		_warp(center, view, t)
+		ink.finish()
+		return
 	if realm == &"twilight":
 		var sun: Vector2 = at.call(330.0, 118.0)
 		var rays: Array[PackedVector2Array] = []
@@ -133,6 +137,30 @@ func _skyline(center: Vector2, view: Vector2, half: Vector2) -> void:
 			into.append(RisoShapes.tri(Vector2(x - 14.0, y + 2.0), Vector2(x + 14.0, y + 2.0), Vector2(x + 4.0, y - 70.0 - r2 * 50.0)))
 	ink.ink(RisoPrint.BLUE, 0.07, far, false)
 	ink.ink(RisoPrint.BLUE, 0.11, near, false)
+
+
+## Hyperspace: no skyline and no still stars. A glow lies ahead (the way on is to the right) and
+## streaks of light rush back past the view, the nearer ones longer, faster and bare paper.
+const WARP_STREAKS: int = 56
+
+func _warp(center: Vector2, view: Vector2, t: float) -> void:
+	var ahead: Vector2 = Vector2(view.x * 0.25, -view.y * 0.05)
+	ink.ink(RisoPrint.BLUE, 0.14, [RisoShapes.ellipse(ahead, view.x * 0.55, view.y * 0.42, 48)])
+	ink.ink(RisoPrint.PINK, 0.1, [RisoShapes.ellipse(ahead, view.x * 0.3, view.y * 0.22, 40)])
+	var span: Vector2 = view + Vector2(900, 200)
+	var far: Array[PackedVector2Array] = []
+	var near: Array[PackedVector2Array] = []
+	for i: int in range(WARP_STREAKS):
+		var depth: float = RisoShapes.hash1(float(i) * 5.13 + 0.7)
+		var speed: float = 700.0 + 2600.0 * depth
+		var x: float = fposmod(RisoShapes.hash1(float(i) * 8.91 + 2.2) * span.x - t * speed - center.x * (0.2 + 0.8 * depth), span.x) - span.x * 0.5
+		var y: float = fposmod(RisoShapes.hash1(float(i) * 2.37 + 4.1) * span.y - center.y * (0.1 + 0.3 * depth), span.y) - span.y * 0.5
+		var length: float = view.x * (0.04 + 0.22 * depth * depth)
+		var width: float = view.y * (0.002 + 0.004 * depth)
+		var streak: PackedVector2Array = PackedVector2Array([Vector2(x, y), Vector2(x + length * 0.12, y - width), Vector2(x + length, y), Vector2(x + length * 0.12, y + width)])
+		(near if depth > 0.7 else far).append(streak)
+	ink.ink(RisoPrint.ACCENT, 0.7, far, false)
+	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK], 0.9, near)
 
 
 func _aurora(i: int, t: float, k: float) -> PackedVector2Array:

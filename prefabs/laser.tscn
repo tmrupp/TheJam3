@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/Laser.gd" id="1_laser"]
+[ext_resource type="PackedScene" uid="uid://dakcksbubrdwc" path="res://prefabs/damager.tscn" id="2_damager"]
+
+[node name="Laser" type="Node2D"]
+script = ExtResource("1_laser")
+
+[node name="Beam" type="Area2D" parent="."]
+collision_layer = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Beam"]
+
+[node name="Damager" parent="Beam" instance=ExtResource("2_damager")]

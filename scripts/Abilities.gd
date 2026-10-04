@@ -217,10 +217,14 @@ static func apply(player: Player) -> void:
 	var parry: int = maxi(tier(player, &"parry"), 1)
 	var parry_node: Node = player.get_node_or_null("Parry")
 	if parry_node != null:
-		parry_node.set("duration", 0.3 + 0.1 * float(parry - 1))
+		# I: the guard (0.3 s), 1 damage, reflects shots, refunds the dash. II: 0.45 s and a shorter
+		# cooldown on a miss. III: 2 damage. IV: each parry heals 1.
+		parry_node.set("duration", 0.45 if parry >= 2 else 0.3)
+		parry_node.set("damage", 2 if parry >= 3 else 1)
+		parry_node.set("heals", parry >= 4)
 		var cooldown: ActionTimer = parry_node.get("cooldown") as ActionTimer
 		if cooldown != null:
-			cooldown.MAX_TIME = 2.0 - 0.4 * float(parry - 1)
+			cooldown.MAX_TIME = 0.9 if parry >= 2 else 1.2
 	var astral: int = maxi(tier(player, &"astral"), 1)
 	var projection: Node = player.get_node_or_null("AstralProjection")
 	if projection != null:

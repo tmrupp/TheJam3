@@ -9,6 +9,14 @@ const KEY_COLOR_COUNT: int = 4
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).
 const KEYS_PER_K: float = 2.0
 const DOORS_PER_K: float = 3.0
+## Switch gates: a gate across a corridor, lifted for good by a switch elsewhere in the level.
+const SWITCH_GATES_PER_K: float = 0.6
+## The hyperspace door: a rare second way down (from depth 1, in PLUNGE_CHANCE % of levels) that leads into
+## its own long hazard world (see Chasm), whose gate drops PLUNGE_DEPTH levels at once. It costs
+## PLUNGE_PRICE times the deeper exit's price, paid where it is entered.
+const PLUNGE_CHANCE: int = 18
+const PLUNGE_DEPTH: int = 4
+const PLUNGE_PRICE: float = 5.0
 ## Lanterns beyond the ones beside each exit.
 const LANTERNS_PER_K: float = 1.5
 const MOONS_PER_K: float = 3.0
@@ -19,6 +27,8 @@ const MOON_CLEARANCE: int = 1
 const MOON_SPACING: int = 6
 ## Share of platform runs (up to 3 cells long) that glide along a track instead of staying put.
 const MOVING_PLATFORM_CHANCE: float = 0.35
+## Hoppers (enemies that leap at the wizard) from depth 1, per 1000 cells.
+const HOPPERS_PER_K: float = 2.0
 
 enum Type {
 	EMPTY,
@@ -41,12 +51,16 @@ enum Type {
 	SHRINE,
 	CRACKED,
 	INKWELL,
+	SWITCH_GATE,
+	SWITCH,
+	HOPPER,
+	LASER,
 }
 
 ## A level's four ways out. Deeper and back move along the seed's column; left and right step
 ## to the neighbouring seed at the same depth, as if a run had started there.
-enum Exit { DEEPER, BACK, LEFT, RIGHT }
-const OPPOSITE: Dictionary = {Exit.DEEPER: Exit.BACK, Exit.BACK: Exit.DEEPER, Exit.LEFT: Exit.RIGHT, Exit.RIGHT: Exit.LEFT}
+enum Exit { DEEPER, BACK, LEFT, RIGHT, PLUNGE, RETURN }
+const OPPOSITE: Dictionary = {Exit.DEEPER: Exit.BACK, Exit.BACK: Exit.DEEPER, Exit.LEFT: Exit.RIGHT, Exit.RIGHT: Exit.LEFT, Exit.PLUNGE: Exit.BACK, Exit.RETURN: Exit.DEEPER}
 
 class NextWorldDef:
 	var gen_seed : int = 0
@@ -54,6 +68,13 @@ class NextWorldDef:
 	var depth : int = 0
 	var debug : bool = false
 	var size : Vector2i = Vector2i(64, 64)
+	## Hyperspace, the door's own world, rather than a cave level (see Chasm).
+	var chasm : bool = false
+	## A level hyperspace drops into: it has an extra, ordinary way up (Exit.RETURN), since
+	## its way back leads into the chasm.
+	var landing : bool = false
+	## Whether the level deals a hyperspace door (see MapInfo.deals_plunge).
+	var deals_plunge : bool = false
 
 	func _init(s: int, r: String, d: int = 0, dbg: bool = false) -> void:
 		gen_seed = s
@@ -82,6 +103,8 @@ class World:
 	var exit_lanterns: Dictionary = {}
 	## The shrine's cell (its boon side; mending is the cell to the right), or (-1, -1).
 	var shrine: Vector2i = Vector2i(-1, -1)
+	## The hyperspace door's cell, or (-1, -1) in the levels without one.
+	var plunge: Vector2i = Vector2i(-1, -1)
 
 	var color_to_type: Dictionary = {
 		Color.WHITE: 	Type.EMPTY,
@@ -327,7 +350,9 @@ class World:
 	func _to_open (v: Vector2i) -> void:
 		cells[v.x][v.y] = Cell.new(Type.EMPTY)
 		grounds.erase(v)
-		empties.append(v)
+		objects.erase(v)
+		if not empties.has(v):
+			empties.append(v)
 
 	## The shrine stands on two neighbouring floor cells a short walk from the deeper exit: two
 	## niches offering abilities, and a bowl for mending, side by side across both.
@@ -446,12 +471,19 @@ class World:
 				add_cell_to_container(Vector2i(i, j), cell)
 			cells.append(row)
 
+		if def.chasm:
+			Chasm.populate(self, def)
+			return
+
 		# One cave: every open space joined up, so everything placed below is connected to
 		# everything else through open air (gates and abilities aside).
 		connect_caves()
 
 		# Exits and their lanterns first, so they get the pick of the level.
 		place_exits(def.depth, def.debug)
+		place_plunge(def)
+		if def.landing:
+			place_return()
 
 		# One ink well per level stands on a floor.
 		set_cell(pop_if_random_empty(ground_below, true), Cell.new(Type.INKWELL))
@@ -466,6 +498,7 @@ class World:
 				set_cell(pop_if_random_empty(), Cell.new(Type.KEY))
 
 		place_doors(per_area(DOORS_PER_K))
+		place_switch_gates(maxi(1, per_area(SWITCH_GATES_PER_K)))
 
 #		for i in range(len(empties)*0.1):
 #			set_cell(pop_if_random_empty(ground_adjacent), Cell.new(Type.SPIKES))
@@ -519,6 +552,10 @@ class World:
 
 		place_cracks(per_area(CRACKS_PER_K))
 
+		# Placed last, so everything above lands where it always has.
+		if def.depth >= 1:
+			for i: int in range(per_area(HOPPERS_PER_K)):
+				set_cell(pop_if_random_empty(ground_below, true), Cell.new(Type.HOPPER))
 	## Cracked walls: thin rock (one or two cells, open on both sides) that a hex bolt breaks.
 	## Half are picked near something worth reaching (a key, lantern, exit, shrine or ink well).
 	## Placed last, so they can block anything the level holds.
@@ -584,6 +621,112 @@ class World:
 			placed.append(v)
 			add_object_at(v)
 			set_cell(v, Cell.new(Type.DOOR))
+
+	## Switch gates: a gate across a corridor (rock above and below, open either side, like a door)
+	## and its switch on a floor reachable from the way in without passing that gate, at least
+	## SWITCH_REACH cells from it, so the switch is found first and the gate opens a way (often a
+	## shortcut) for good. Each records the other's cell in extra_info.
+	const SWITCH_REACH: int = 8
+
+	func place_switch_gates (count: int) -> void:
+		var start: Vector2i = exits.get(Exit.BACK, Vector2i(-1, -1))
+		if not is_valid(start):
+			return
+		var spots: Array[Vector2i] = []
+		for v: Vector2i in empties:
+			if is_ground(v + Vector2i.UP) and is_ground(v + Vector2i.DOWN) and _open(v + Vector2i.LEFT) and _open(v + Vector2i.RIGHT) \
+					and get_cell(v + Vector2i.LEFT).type == Type.EMPTY and get_cell(v + Vector2i.RIGHT).type == Type.EMPTY:
+				spots.append(v)
+		spots.sort()
+		var placed: Array[Vector2i] = []
+		while placed.size() < count and not spots.is_empty():
+			var gate: Vector2i = spots.pop_at(rng.randi_range(0, spots.size() - 1))
+			if placed.any(func(q: Vector2i) -> bool: return absi(q.x - gate.x) + absi(q.y - gate.y) < 6):
+				continue
+			# Floors reachable from the way in with this gate shut.
+			var reach: Dictionary = {start: true}
+			var queue: Array[Vector2i] = [start]
+			while not queue.is_empty():
+				var c: Vector2i = queue.pop_back()
+				for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+					var n: Vector2i = c + d
+					if n != gate and _open(n) and not reach.has(n):
+						reach[n] = true
+						queue.append(n)
+			var choices: Array[Vector2i] = []
+			for v: Vector2i in reach:
+				if empties.has(v) and ground_below(v) and absi(v.x - gate.x) + absi(v.y - gate.y) >= SWITCH_REACH:
+					choices.append(v)
+			if choices.is_empty():
+				continue
+			choices.sort()
+			var lever: Vector2i = choices[rng.randi_range(0, choices.size() - 1)]
+			placed.append(gate)
+			add_object_at(gate)
+			add_object_at(lever)
+			var g: Cell = Cell.new(Type.SWITCH_GATE)
+			g.extra_info = lever
+			set_cell(gate, g)
+			var s: Cell = Cell.new(Type.SWITCH)
+			s.extra_info = gate
+			set_cell(lever, s)
+
+	## A level the chasm drops into gets an ordinary way up as well, on a floor a few cells from the
+	## way back (which leads into the chasm).
+	func place_return () -> void:
+		var start: Vector2i = exits.get(Exit.BACK, Vector2i(-1, -1))
+		if not is_valid(start):
+			return
+		var best: Variant = null
+		var best_d: int = 1 << 30
+		var floors: Array[Vector2i] = []
+		for v: Vector2i in empties:
+			if ground_below(v):
+				floors.append(v)
+		floors.sort()
+		for v: Vector2i in floors:
+			var d: int = absi(v.x - start.x) + absi(v.y - start.y)
+			if d < 4 or exits.values().any(func(e: Vector2i) -> bool: return absi(e.x - v.x) + absi(e.y - v.y) < 3):
+				continue
+			if d < best_d:
+				best_d = d
+				best = v
+		if best == null:
+			return
+		exits[Exit.RETURN] = best
+		add_object_at(best)
+		var door: Cell = Cell.new(Type.EXIT)
+		door.extra_info = Exit.RETURN
+		set_cell(best, door)
+
+	## The hyperspace door: a floor far from the way in, in levels that deal one (see deals_plunge). In a debug
+	## run it is on the floor nearest the way in instead, like the other exits.
+	func place_plunge (def: NextWorldDef) -> void:
+		if not def.deals_plunge:
+			return
+		var start: Vector2i = exits.get(Exit.BACK, Vector2i(-1, -1))
+		var best: Variant = null
+		var best_d: int = 1 << 30 if def.debug else -1
+		var floors: Array[Vector2i] = []
+		for v: Vector2i in empties:
+			if ground_below(v):
+				floors.append(v)
+		floors.sort()
+		for v: Vector2i in floors:
+			var d: int = absi(v.x - start.x) + absi(v.y - start.y)
+			# Not crowding another exit.
+			if exits.values().any(func(e: Vector2i) -> bool: return absi(e.x - v.x) + absi(e.y - v.y) < 3):
+				continue
+			if (def.debug and d < best_d) or (not def.debug and d > best_d):
+				best_d = d
+				best = v
+		if best == null:
+			return
+		plunge = best
+		add_object_at(plunge)
+		var door: Cell = Cell.new(Type.EXIT)
+		door.extra_info = Exit.PLUNGE
+		set_cell(plunge, door)
 
 	## Moons only where the air is open: every cell within MOON_CLEARANCE is open, and the cell
 	## below that too, with no ledge or lift in the fall below (nothing to stand on), and
@@ -744,6 +887,57 @@ static func level_seed (run_seed: int, depth: int) -> int:
 static func deeper_price (depth: int) -> int:
 	return roundi(8.0 * pow(1.4, depth))
 
+## Stars to open a level's hyperspace door (see PLUNGE_PRICE).
+static func plunge_price (depth: int) -> int:
+	return roundi(deeper_price(depth) * PLUNGE_PRICE)
+
+## Hyperspace, entered from level (seed, depth): it sits at (seed, -depth - 1). Real
+## levels never have a negative depth, so the addresses are free (and depth 0 has one too, in debug).
+static func chasm_coord (from: Vector2i) -> Vector2i:
+	return Vector2i(from.x, -from.y - 1)
+
+static func is_chasm (at: Vector2i) -> bool:
+	return at.y < 0
+
+## The level a chasm was entered from, and the one its gate drops to.
+static func chasm_origin (at: Vector2i) -> Vector2i:
+	return Vector2i(at.x, -at.y - 1)
+
+static func chasm_landing (at: Vector2i) -> Vector2i:
+	var from: Vector2i = chasm_origin(at)
+	return Vector2i(from.x + plunge_drift(from), from.y + PLUNGE_DEPTH)
+
+## How many worlds sideways (-1, 0 or +1) hyperspace entered from level `from` comes out, dealt by
+## that level's seed.
+static func plunge_drift (from: Vector2i) -> int:
+	return level_seed(level_seed(from.x, from.y), 991) % 3 - 1
+
+## The hyperspace that drops into level `at`, or null. Where two would (one drifting onto the
+## other's straight drop), the one straight above wins, then the one from the left.
+static func landing_chasm (at: Vector2i) -> Variant:
+	if at.y < PLUNGE_DEPTH:
+		return null
+	for dx: int in [0, -1, 1]:
+		var from: Vector2i = Vector2i(at.x - dx, at.y - PLUNGE_DEPTH)
+		if deals_plunge(from) and plunge_drift(from) == dx:
+			return chasm_coord(from)
+	return null
+
+## How deep a place counts as for the things that follow depth (enemy health): a level's own depth,
+## and for the chasm the middle of the drop it spans.
+static func depth_of (at: Vector2i) -> int:
+	@warning_ignore("integer_division")
+	return at.y if at.y >= 0 else chasm_origin(at).y + PLUNGE_DEPTH / 2
+
+## Whether level `at` deals a hyperspace door: in the levels its seed picks from depth 1, and in every
+## level of a debug run.
+static func deals_plunge (at: Vector2i) -> bool:
+	return debug or (at.y >= 1 and level_seed(level_seed(at.x, at.y), 777) % 100 < PLUNGE_CHANCE)
+
+## Whether hyperspace drops into level `at` (see landing_chasm).
+static func is_landing (at: Vector2i) -> bool:
+	return landing_chasm(at) != null
+
 ## Minimum distance in cells between a level's way back and its deeper exit.
 static func exit_distance (depth: int) -> int:
 	return clampi(24 + 4 * depth, 24, 96)
@@ -763,6 +957,8 @@ static func map_price (depth: int) -> int:
 
 ## How a level is named on screen and when sharing it.
 static func where (at: Vector2i) -> String:
+	if is_chasm(at):
+		return "world %d · hyperspace" % at.x
 	return "world %d · depth %d" % [at.x, at.y]
 
 ## The WFC sample for a depth: bands of three levels alternate between tunnels and islands.
@@ -842,28 +1038,56 @@ func start_run (seed_value: int) -> void:
 	_clear_ghost()
 	_load_level()
 
-## Leave through `exit` and arrive at the opposite exit of the next level.
+## Leave through `exit` and arrive at the opposite exit of the next level. The hyperspace door leads into
+## its chasm; the chasm's way back returns to the level it was entered from (arriving at the jump),
+## and its gate drops to the level PLUNGE_DEPTH below, give or take a world (arriving at that level's way back).
 func travel (exit: int) -> void:
 	if travelling:
 		return
 	var next: Vector2i = coord
 	var way: Vector2 = Vector2.DOWN
-	match exit:
-		Exit.DEEPER:
-			next.y += 1
-		Exit.BACK:
-			next.y = maxi(0, next.y - 1)
-			way = Vector2.UP
-		Exit.LEFT:
-			next.x -= 1
-			way = Vector2.LEFT
-		Exit.RIGHT:
-			next.x += 1
-			way = Vector2.RIGHT
+	var arrive: int = OPPOSITE[exit]
+	if is_chasm(coord):
+		match exit:
+			Exit.BACK:
+				next = chasm_origin(coord)
+				way = Vector2.LEFT
+				arrive = Exit.PLUNGE
+			Exit.DEEPER:
+				next = chasm_landing(coord)
+				record()["jumped"] = true
+			_:
+				return
+	else:
+		match exit:
+			Exit.DEEPER:
+				next.y += 1
+			Exit.BACK:
+				if is_landing(coord):
+					# The way back from a level the chasm drops into leads into the chasm, at its gate.
+					next = landing_chasm(coord)
+					way = Vector2.LEFT
+				else:
+					next.y = maxi(0, next.y - 1)
+					way = Vector2.UP
+			Exit.RETURN:
+				# Kept so the worlds map joins the two levels.
+				record()["return_open"] = true
+				next.y = maxi(0, next.y - 1)
+				way = Vector2.UP
+			Exit.LEFT:
+				next.x -= 1
+				way = Vector2.LEFT
+			Exit.RIGHT:
+				next.x += 1
+				way = Vector2.RIGHT
+			Exit.PLUNGE:
+				next = chasm_coord(coord)
+				way = Vector2.RIGHT
 	await _pass(way, next)
 	coord = next
 	deepest = maxi(deepest, coord.y)
-	arrival = OPPOSITE[exit]
+	arrival = arrive
 	_load_level()
 
 ## Freeze the wizard and sweep the printed transition over the view before a level changes.
@@ -1128,7 +1352,14 @@ var wanted: Variant = null
 var gen_busy: bool = false
 
 static func def_for (at: Vector2i) -> NextWorldDef:
-	return NextWorldDef.new(level_seed(at.x, at.y), region_for(at.y), at.y, debug)
+	var def: NextWorldDef = NextWorldDef.new(level_seed(at.x, at.y), region_for(depth_of(at)), depth_of(at), debug)
+	def.landing = is_landing(at)
+	def.deals_plunge = deals_plunge(at) and not is_chasm(at)
+	if is_chasm(at):
+		def.chasm = true
+		def.region = Chasm.SAMPLE
+		def.size = Chasm.size()
+	return def
 
 func _load_level () -> void:
 	travelling = true
@@ -1223,11 +1454,21 @@ func _world_key (at: Vector2i) -> String:
 func _built (at: Vector2i) -> World:
 	return worlds.get(_world_key(at))
 
-## Queue the four neighbours of the current level for the worker.
+## Queue the places the current level leads to for the worker: its four neighbours (and the big
+## jump's chasm, where it has one), or for a chasm its two ends.
 func _prefetch_neighbours () -> void:
 	prefetch.clear()
-	for c: Vector2i in [coord + Vector2i(0, 1), coord + Vector2i(1, 0), coord + Vector2i(-1, 0), coord + Vector2i(0, -1)]:
-		if c.y >= 0 and not cache.has(c):
+	var next: Array[Vector2i] = []
+	if is_chasm(coord):
+		next = [chasm_landing(coord), chasm_origin(coord)]
+	else:
+		next = [coord + Vector2i(0, 1), coord + Vector2i(1, 0), coord + Vector2i(-1, 0), coord + Vector2i(0, -1)]
+		if world != null and world.plunge.x >= 0:
+			next.append(chasm_coord(coord))
+		if is_landing(coord):
+			next.append(landing_chasm(coord))
+	for c: Vector2i in next:
+		if (c.y >= 0 or is_chasm(c)) and not cache.has(c):
 			prefetch.append(c)
 	# Keep the current level from being evicted by its own neighbours.
 	if cache.has(coord):
@@ -1412,6 +1653,10 @@ var moving_platform_prefab: Resource = preload("res://prefabs/moving_platform.ts
 var level_exit_prefab: Resource = preload("res://prefabs/level_exit.tscn")
 var shrine_prefab: Resource = preload("res://prefabs/shrine.tscn")
 var cracked_prefab: Resource = preload("res://prefabs/cracked_wall.tscn")
+var switch_gate_prefab: Resource = preload("res://prefabs/switch_gate.tscn")
+var switch_prefab: Resource = preload("res://prefabs/switch.tscn")
+var hopper_prefab: Resource = preload("res://prefabs/hopper_enemy.tscn")
+var laser_prefab: Resource = preload("res://prefabs/laser.tscn")
 
 var map_elements_prefab: Resource = preload("res://prefabs/map_elements.tscn")
 
@@ -1439,7 +1684,10 @@ func next_world () -> void:
 	seen_version += 1
 	# Arrive at the matching exit; a new run starts at its lit start lantern, a respawn at the lantern.
 	var at: Vector2i = world.exits.get(Exit.BACK, Vector2i.ZERO)
-	if arrival >= 0 and world.exits.has(arrival):
+	if arrival == Exit.PLUNGE and world.plunge.x >= 0:
+		# Back from hyperspace: out of the hyperspace door.
+		at = world.plunge
+	elif arrival >= 0 and world.exits.has(arrival):
 		at = world.exits[arrival]
 		# The side door just come through stays open behind the player: the way back is free.
 		if arrival == Exit.LEFT or arrival == Exit.RIGHT:
@@ -1480,6 +1728,8 @@ var cell_to_prefab: Dictionary = {
 	Type.COIN: coin_prefab,
 	Type.KEY: key_prefab,
 	Type.DOOR: door_prefab,
+	Type.SWITCH_GATE: switch_gate_prefab,
+	Type.SWITCH: switch_prefab,
 	Type.CHECKPOINT: checkpoint_prefab,
 	Type.PORTAL: portal_prefab,
 	Type.PLATFORM: platform_prefab,
@@ -1487,6 +1737,8 @@ var cell_to_prefab: Dictionary = {
 	Type.EXIT: level_exit_prefab,
 	Type.SHRINE: shrine_prefab,
 	Type.CRACKED: cracked_prefab,
+	Type.HOPPER: hopper_prefab,
+	Type.LASER: laser_prefab,
 }
 
 func place_cell(v: Vector2i, _cell: Cell) -> void:
@@ -1512,10 +1764,10 @@ func place_cell(v: Vector2i, _cell: Cell) -> void:
 	cell.set_meta(&"cell", v)
 	if color >= 0:
 		cell.set_meta(&"key_color", color)
-	if _cell.type == Type.ENEMY or _cell.type == Type.SHOOTER:
+	if _cell.type in [Type.ENEMY, Type.SHOOTER, Type.HOPPER]:
 		var wound: Wound = Wound.new()
 		wound.name = "Wound"
-		wound.hp = Wound.hp_for(coord.y)
+		wound.hp = Wound.hp_for(depth_of(coord))
 		cell.add_child(wound)
 		cell.add_to_group(&"hex_target")
 	map_elements.add_child(cell)

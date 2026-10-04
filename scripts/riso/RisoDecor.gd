@@ -136,6 +136,9 @@ func rebuild(info: MapInfo, cracked_positions: Array[Vector2] = []) -> void:
 				occupied[c + d] = true
 	var level_seed: int = MapInfo.level_seed(info.coord.x, info.coord.y)
 	items = RisoDecor.plan(solid, occupied, level_seed, Rect2i(Vector2i.ZERO, info.world.size))
+	# Nothing grows in hyperspace.
+	if MapInfo.is_chasm(info.coord):
+		items.clear()
 	_solid = solid
 	firefly_spots = PackedVector2Array()
 	drip_spots = PackedVector2Array()

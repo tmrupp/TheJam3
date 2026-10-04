@@ -11,4 +11,7 @@ func generate_level(def: MapInfo.NextWorldDef) -> Array:
 		map = collapse()
 		if len(map) > 0:
 			break
+	if map.is_empty() and def.chasm:
+		# The chasm's collapse never settled: an empty strip, which Chasm dresses all the same.
+		return Chasm.fallback()
 	return map

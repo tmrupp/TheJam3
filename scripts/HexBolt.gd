@@ -63,6 +63,9 @@ func _physics_process(delta: float) -> void:
 		var stunner: Node = e.get_node_or_null("Stunner")
 		if stunner != null and is_instance_valid(e) and not e.is_queued_for_deletion():
 			stunner.call("stun", Hex.STUN)
+		# Things that are not enemies answer the bolt themselves (a switch throws).
+		if wound == null and e.has_method("hex_hit"):
+			e.call("hex_hit", damage, dir)
 		if not pierce or struck.size() > 1:
 			_end((e as Node2D).global_position)
 			return
@@ -81,7 +84,8 @@ func _physics_process(delta: float) -> void:
 		_end(to)
 
 
-## The first rock, door or cracked wall on the step (ledges and moving platforms are skipped).
+## The first rock, door, switch gate or cracked wall on the step (ledges and moving platforms are
+## skipped).
 func _solid(from: Vector2, to: Vector2) -> Dictionary:
 	var space: PhysicsDirectSpaceState2D = get_world_2d().direct_space_state
 	var query: PhysicsRayQueryParameters2D = PhysicsRayQueryParameters2D.create(from, to, SOLID_MASK)
@@ -92,7 +96,7 @@ func _solid(from: Vector2, to: Vector2) -> Dictionary:
 		if res.is_empty():
 			return {}
 		var c: Object = res["collider"]
-		if c is TileMap or c is TileMapLayer or (c != null and c.has_method("hex_hit")) or (c is Node and (c as Node).scene_file_path.get_file() == "door.tscn"):
+		if c is TileMap or c is TileMapLayer or (c != null and c.has_method("hex_hit")) or (c is Node and (c as Node).scene_file_path.get_file() in ["door.tscn", "switch_gate.tscn"]):
 			return res
 		skip.append(res["rid"])
 	return {}
