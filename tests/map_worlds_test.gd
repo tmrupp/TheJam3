@@ -1,4 +1,5 @@
 extends SceneTree
+## suite: window (reads back the rendered screen, so it needs a real window: full run only)
 ## The worlds page picks another visited level and shows its map; the F7 ability picker sets tiers.
 ## godot --path . --windowed --script res://tests/map_worlds_test.gd
 
@@ -29,7 +30,7 @@ func run() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://test_run.save"
+	MapInfo.save_path = "user://map_worlds_test.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	for i: int in range(5):

@@ -311,6 +311,8 @@ func _level(info: MapInfo) -> void:
 				var sprite: CanvasItem = node.get_node_or_null("Sprite2D") as CanvasItem
 				if sprite == null or sprite.visible:
 					_mark_key(at, int(node.get_meta(&"key_color", 0)))
+			"star_cluster.tscn":
+				_mark_cluster(at)
 			"corpse.tscn":
 				_mark_ghost(to_map(info, Vector2(info.cell_at((node as Node2D).global_position)) + Vector2(0.5, 0.5)), 0.22)
 	# A relic an ink well marked here, even before its room is found.
@@ -334,6 +336,8 @@ func _level(info: MapInfo) -> void:
 		["relic", func(at: Vector2) -> void: _mark_relic(at, &"blink")],
 	] + _door_rows() + [
 		["key", func(at: Vector2) -> void: _mark_key(at, 2)],
+		["skeleton key", func(at: Vector2) -> void: _mark_key(at, KeyRing.SKELETON)],
+		["star cluster", _mark_cluster],
 		["ink well", func(at: Vector2) -> void: _mark_inkwell(at, false)],
 		["ghost", func(at: Vector2) -> void: _mark_ghost(at, 0.22)],
 	])
@@ -488,6 +492,11 @@ func _mark_door(at: Vector2, color: int) -> void:
 func _mark_key(at: Vector2, color: int) -> void:
 	for plate: int in RisoPrint.key_inks(color):
 		marks.ink(plate, 1.0, [RisoShapes.circle(at, 1.3, 8)], false)
+
+
+## A star cluster: a small star in accent ink.
+func _mark_cluster(at: Vector2) -> void:
+	marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.sparkle(at, 2.8)], false)
 
 
 func _mark_ghost(at: Vector2, size: float) -> void:

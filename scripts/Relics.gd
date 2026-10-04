@@ -2,18 +2,18 @@ class_name Relics
 extends RefCounted
 ## Relics: the big movement abilities (MOVES), which open up whole areas, are not taught at
 ## shrines until found. Tier I of each only comes from a relic, which lies in a secret room (see
-## MapInfo.World.place_secrets) in rare levels: from depth 1, CHANCE % of them, each holding one
-## of MOVES dealt by its seed (every level of a debug run holds one). Once a move is known, shrines
-## offer its higher tiers as usual. At full health, a shrine's mending station sells the whereabouts
-## of the nearest relic not yet found instead (HINT_PRICE times its level's deeper price), marked on the
-## worlds map (see nearest).
+## MapInfo.World.place_secrets) in rare levels: from depth 1, CHANCE % of them (about one in 20, so a
+## big move means going out of your way), each holding one of MOVES dealt by its seed (every level
+## of a debug run holds one). Once a move is known, shrines offer its higher tiers as usual. At
+## full health, a shrine's mending station sells the whereabouts of the nearest relic not yet found
+## instead (HINT_PRICE times its level's deeper price), marked on the worlds map (see nearest).
 
 const MOVES: Array[StringName] = [&"double_jump", &"wall_climb", &"blink", &"levitate"]
-const CHANCE: int = 22
+const CHANCE: int = 5
 const PRICE: float = 4.0
 const HINT_PRICE: float = 1.5
 ## How far (in levels, across and down) a shrine looks for a relic.
-const SEARCH: int = 8
+const SEARCH: int = 12
 
 
 ## The move the relic in level `at` holds, or &"" for a level without one.

@@ -2,7 +2,8 @@ extends CanvasLayer
 ## The start menu, then the pause menu.
 ## Start: continue the saved run (at its last lit lantern), begin at the world typed in (a random
 ## one when blank), or begin at a random world. Worlds are shareable: the same number gives the
-## same levels for everyone. Paused: resume, copy where you are, save and go back to the start menu,
+## same levels for everyone. Paused: resume, copy where you are, give up (while a lantern protects
+## you: a death, back to the lantern, for when you are stuck), save and go back to the start menu,
 ## or save and exit. Works by controller: D-pad or left stick to move, A to choose, Start to pause,
 ## B to back out of the pause menu.
 
@@ -12,6 +13,7 @@ extends CanvasLayer
 @onready var start: Button = $VBoxContainer/Start
 @onready var random_world: Button = $VBoxContainer/Random
 @onready var copy: Button = $VBoxContainer/Copy
+@onready var give_up_button: Button = $VBoxContainer/GiveUp
 @onready var main_menu: Button = $VBoxContainer/MainMenu
 @onready var debug_button: Button = $VBoxContainer/Debug
 @onready var exit: Button = $VBoxContainer/Exit
@@ -144,6 +146,7 @@ func pause_resume_game() -> void:
 		old_focus = get_viewport().gui_get_focus_owner()
 		map_info().save_run()
 		where.text = MapInfo.where(map_info().coord)
+		give_up_button.visible = map_info().can_give_up()
 		start.grab_focus()
 	elif old_focus != null and is_instance_valid(old_focus):
 		old_focus.grab_focus()
@@ -159,6 +162,15 @@ func set_debug(on: bool) -> void:
 
 func randomize_seed() -> void:
 	world_seed.text = str(randi_range(1, 99999))
+
+
+## Stuck (say, down a pit): die on purpose and come back at the lit lantern. Only offered while a
+## lantern protects the wizard (see MapInfo.give_up).
+func give_up() -> void:
+	if not map_info().can_give_up():
+		return
+	pause_resume_game()
+	map_info().give_up()
 
 
 ## Copies "world 28 · depth 3", so a place can be shared.
@@ -183,6 +195,7 @@ func _ready() -> void:
 	exit.pressed.connect(exit_game)
 	randomize_button.pressed.connect(randomize_seed)
 	copy.pressed.connect(copy_location)
+	give_up_button.pressed.connect(give_up)
 	main_menu.pressed.connect(return_to_menu)
 	paste.pressed.connect(paste_seed)
 	debug_button.toggled.connect(set_debug)

@@ -22,9 +22,10 @@ func run() -> void:
 	var original_mask: int = root.canvas_cull_mask
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://test_run.save"
+	MapInfo.save_path = "user://riso_print_test.save"
 	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
+	# A world whose first level has lifts (they are rare: about one per level).
+	menu.world_seed.text = "27"
 	menu.start_game()
 	await process_frame
 	await process_frame

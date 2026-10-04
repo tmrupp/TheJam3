@@ -23,6 +23,8 @@ var doors: Array[int] = []
 var arrival_from: Variant = null
 ## The move the relic in this level holds (see Relics), or &"" for none.
 var relic: StringName = &""
+## Whether a secret room in this level holds a skeleton key (see MapInfo.skeleton_at).
+var skeleton: bool = false
 
 
 ## Fill it in for the place at `at`, and return it.
@@ -38,6 +40,7 @@ func setup(at: Vector2i) -> NextWorldDef:
 			doors.append(k)
 	arrival_from = Worlds.arriving_at(at)
 	relic = Relics.at(at)
+	skeleton = MapInfo.skeleton_at(at)
 	return self
 
 

@@ -24,19 +24,9 @@ This is a playable opt-in slice, not completion of the entire art rollout. Proxi
 
 The fixed room deliberately does not exercise WFC generation, upgrades, or the seed progression loop. Use the normal main scene for those. Blink's reset hook is implemented but its full upgrade/interactability flow still needs manual playtesting. Godot 4.2 itself and low-end/mobile hardware have not been verified.
 
-## Reproducible verification
+## Verification
 
-Use a Godot build compatible with the bundled native WFC extension and import the project before running these commands from the repository:
-
-```
-godot --headless --path . --script res://tests/fourier_world_test.gd
-godot --headless --path . --script res://tests/fourier_generated_test.gd
-godot --path . --rendering-method mobile --script res://tests/fourier_world_test.gd
-godot --path . --rendering-method gl_compatibility --script res://tests/fourier_world_test.gd
-godot --path . --rendering-method mobile --script res://tests/fourier_benchmark.gd
-```
-
-World tests check real movement/jump, camera invariance, cached outlines, portal/respawn reset, hidden/freed providers, tint, pause, reduced motion, capacity fallback, feature-off sprites, and cleanup. Generated tests run seed 28 twice, compare serialized terrain types/destinations/keys, and exercise projection return and death reset. Rendered world tests save screenshots to `user://fourier-room.png` and `user://fourier-room-test.png`.
+The Fourier tests (`fourier_world_test`, `fourier_generated_test`, `fourier_benchmark`) were removed; nothing in the regression suite covers this integration now.
 
 ## Results recorded 2026-09-08
 

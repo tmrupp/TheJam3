@@ -7,15 +7,19 @@ extends Area2D
 func door_color() -> int:
 	return int(door.get_meta(&"key_color", 0))
 
-func try_open() -> void:
-	if player.has_meta(&"carried_key") and int(player.get_meta(&"carried_key")) == door_color():
-		RisoPrint.door_opened(door as Node2D)
-		if MapInfo.instance != null:
-			MapInfo.instance.mark_opened(door)
-		door.queue_free()
+## Open with a carried key of the door's colour; when `skeleton`, failing that, with a skeleton key
+## (used up). Touching the door never spends a skeleton key; interacting with it does.
+func try_open(skeleton: bool = false) -> void:
+	if not KeyRing.has(player, door_color()) and not (skeleton and KeyRing.spend_skeleton(player)):
+		return
+	RisoPrint.door_opened(door as Node2D)
+	if MapInfo.instance != null:
+		MapInfo.instance.mark_opened(door)
+		MapInfo.instance.save_run()
+	door.queue_free()
 
 func interacted () -> void:
-	try_open()
+	try_open(true)
 
 func touch (other: Node) -> void:
 	if other == player:

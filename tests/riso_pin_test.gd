@@ -1,4 +1,5 @@
 extends SceneTree
+## suite: window (reads back the rendered screen, so it needs a real window: full run only)
 ## The print's imperfections are pinned to the world: with the sheet held still, moving the
 ## camera must slide the whole printed image by exactly the camera's pixel shift (grain,
 ## specks and halftone included), not leave the grain fixed to the screen.
@@ -41,7 +42,7 @@ func run() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://test_run.save"
+	MapInfo.save_path = "user://riso_pin_test.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	for i: int in range(5):

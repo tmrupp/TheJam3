@@ -104,9 +104,15 @@ func orb_flare() -> void:
 
 ## How ready the spell in the slot is, 0..1 (the orb's brightness), or -1 with no spell.
 func _spell_ready() -> float:
+	if Abilities.spell(player) != &"" and Abilities.cast_price_here(player) > player.coins.coins:
+		# Not enough stars to cast it.
+		return 0.0
 	match Abilities.spell(player):
 		&"":
 			return -1.0
+		&"mend":
+			var mend: Mend = player.get_node_or_null("Mend") as Mend
+			return mend.readiness() if mend != null else 1.0
 		&"hex":
 			var hex: Hex = player.get_node_or_null("Hex") as Hex
 			return hex.readiness() if hex != null else 1.0
@@ -528,6 +534,15 @@ func _orb(m: Transform2D, f: float) -> void:
 	if r < 0.0:
 		return
 	var at: Vector2 = m * Vector2(-f * 11.5, -17.5 + sin(t * 2.2) * 1.0)
+	var mend: Mend = player.get_node_or_null("Mend") as Mend
+	if mend != null:
+		# Mend's draughts left, as ember beads under the orb.
+		var n: int = mend.draughts()
+		var beads: Array[PackedVector2Array] = []
+		for k: int in range(n):
+			beads.append(RisoShapes.circle(at + Vector2((float(k) - float(n - 1) * 0.5) * 2.6, 6.2), 0.9, 8))
+		if not beads.is_empty():
+			body.ink(RisoPrint.EYE, 1.0, beads)
 	var run: Vector2 = _spell_running()
 	var running: bool = run.x >= 0.0
 	var ready: bool = running or r >= 1.0

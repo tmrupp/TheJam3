@@ -127,6 +127,7 @@ func _redraw() -> void:
 	labels_used = 0
 	match kind:
 		&"mote": _mote()
+		&"cluster": _cluster()
 		&"key": _key()
 		&"inkwell": _inkwell()
 		&"portal": _portal()
@@ -213,6 +214,28 @@ func _key() -> void:
 		ink.ink(plate, 0.25, halo)
 	for plate: int in inks:
 		ink.ink(plate, 1.0, shape)
+	if int(host.get_meta(&"key_color", 0)) == KeyRing.SKELETON:
+		# A skeleton key: paper eye holes in its bow and a twinkle turning over it, so it reads as
+		# rarer than the coloured keys.
+		ink.knock(inks, [RisoShapes.circle(o + Vector2(-13, -2), 2.6, 10), RisoShapes.circle(o + Vector2(-7, -2), 2.6, 10)])
+		ink.ink(RisoPrint.EYE, 1.0, [Transform2D(t * 1.5, o + Vector2(-10, -22)) * RisoShapes.sparkle(Vector2.ZERO, 7.0)])
+
+
+## A star cluster: a big star turning in a wide halo with smaller stars wheeling round it, all
+## bobbing; the big star has a paper glint so it reads as more than a star.
+func _cluster() -> void:
+	var o: Vector2 = Vector2(0, sin(t * 2.4 + phase) * 5.0)
+	var pulse: float = 1.0 + 0.06 * sin(t * 4.0 + phase)
+	ink.ink(RisoPrint.ACCENT, 0.2, [RisoShapes.circle(o, 54.0 * pulse, 32)])
+	var big: PackedVector2Array = Transform2D(t * 0.5 + phase, o) * RisoShapes.sparkle(Vector2.ZERO, 34.0 * pulse)
+	var stars: Array[PackedVector2Array] = [big]
+	for k: int in range(5):
+		var a: float = t * 0.9 + TAU * float(k) / 5.0 + phase
+		var at: Vector2 = o + Vector2(cos(a) * 44.0, sin(a) * 26.0)
+		stars.append(Transform2D(-a, at) * RisoShapes.sparkle(Vector2.ZERO, 12.0 + 3.0 * float(k % 2)))
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], stars)
+	ink.ink(RisoPrint.ACCENT, 1.0, stars, false)
+	ink.knock([RisoPrint.ACCENT], [RisoShapes.circle(o + Vector2(-4, -4), 4.0, 10)])
 
 
 ## The ink well: a big gold-rimmed pot on the floor with a paper label, a pulsing halo, a drop of
@@ -409,6 +432,10 @@ func _shrine_niche(cx: float, i: int, g: float, bob: float, used: bool) -> void:
 	if s <= 0.0:
 		return
 	_plaque("%s %s · %d" % [Abilities.NAMES[a], Abilities.roman(next), int(host.call("offer_price", i))], Vector2(cx, g - POP_Y), 30, RisoPrint.ACCENT, s)
+	var per_cast: int = Abilities.cast_price(a, int(host.call("depth")))
+	if per_cast > 0:
+		# A spell that costs stars to cast says so under its price.
+		_plaque("%d a cast" % per_cast, Vector2(cx, g - POP_Y + 38.0 * s), 20, RisoPrint.BLUE, s)
 	if bool(host.call("swap", i)):
 		_plaque("swap", Vector2(cx, g - POP_Y - 40.0 * s), 22, RisoPrint.PINK, s)
 
@@ -829,6 +856,13 @@ func _lantern() -> void:
 		ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT], [glass])
 		ink.ink(RisoPrint.EYE, 1.0, [glass], false)
 		ink.knock([RisoPrint.EYE], [hang * RisoShapes.rrect(-4, 28, 8, 12, 4)])
+		if MapInfo.instance.can_burn(host):
+			# It can be burned into the mend spell: a drop of its light rises and falls over it.
+			var rise: float = fmod(t * 0.6 + phase, 1.0)
+			var c: Vector2 = Vector2(30, g - 78.0 - rise * 26.0)
+			var drop: Array[PackedVector2Array] = [RisoShapes.circle(c, 7.0, 14), RisoShapes.tri(c + Vector2(-6, -2.5), c + Vector2(6, -2.5), c + Vector2(0, -16))]
+			ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], drop)
+			ink.ink(RisoPrint.PINK, 1.0 - rise * 0.6, drop, false)
 	elif spent:
 		# Empty glass and a charred wick: this lantern has already absorbed a death.
 		ink.ink(RisoPrint.NIGHT, 0.6, [glass], false)
@@ -1007,6 +1041,18 @@ static func glyph(a: StringName, c: Vector2, t: float) -> Array[PackedVector2Arr
 		&"hex":
 			# A comet: a bold spark with a tapering tail behind it.
 			return [RisoShapes.sparkle(c + Vector2(7, -5), 17.0), PackedVector2Array([c + Vector2(4, -12), c + Vector2(-22, 14), c + Vector2(-2, 0)])]
+		&"mend":
+			# A drop of light over a bead: a draught that heals.
+			return [RisoShapes.circle(c + Vector2(0, 9), 12.0, 22), RisoShapes.almond(c + Vector2(0, -14), 6.0, 11.0, 12),
+				RisoShapes.rrect(c.x - 1.8, c.y - 26, 3.6, 8, 1.8)]
+		&"keyring":
+			# A ring with two keys hanging from it.
+			var ring: Array[PackedVector2Array] = [RisoShapes.crescent(c + Vector2(0, -12), 11.0, Vector2(0, 4))]
+			for side: float in [-1.0, 1.0]:
+				var xf: Transform2D = Transform2D(PI * 0.5 + side * 0.35, c + Vector2(side * 9.0, 2.0))
+				for poly: PackedVector2Array in key_shape(Vector2.ZERO, 0.55):
+					ring.append(xf * poly)
+			return ring
 	return [RisoShapes.sparkle(c, 18.0)]
 
 

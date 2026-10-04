@@ -101,6 +101,16 @@ func run() -> void:
 					relic_in_room += 1
 					if depth == 1 and relic_seed < 0:
 						relic_seed = world_seed
+	# Relics are rare (about one level in 20): if the sample had none at depth 1, find one.
+	if relic_seed < 0:
+		relic_seed = 1
+		while Relics.at(Vector2i(relic_seed, 1)) == &"":
+			relic_seed += 1
+		var def: NextWorldDef = MapInfo.def_for(Vector2i(relic_seed, 1))
+		var w: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", def), def)
+		relic_levels += 1
+		if w.secrets.any(func(s: Dictionary) -> bool: return (s["rewards"] as Array).any(func(r: Array) -> bool: return r[1] == MapInfo.Type.RELIC and StringName(r[2]) == def.relic)):
+			relic_in_room += 1
 	print("  %d levels, %d with a secret room; %d relic levels, %d with the relic in a room" % [levels, with_secret, relic_levels, relic_in_room])
 	check(with_secret >= levels * 9 / 10, "nearly every level has a secret room")
 	check(formed, "every room is a pocket of rock with rock under it, its entrance beside a floor")

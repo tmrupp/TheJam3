@@ -11,8 +11,9 @@ const KEYS_PER_K: float = 2.0
 const DOORS_PER_K: float = 3.0
 ## Switch gates: a gate across a corridor, lifted for good by a switch elsewhere in the level.
 const SWITCH_GATES_PER_K: float = 0.6
-## Lanterns beyond the ones beside each exit.
-const LANTERNS_PER_K: float = 1.5
+## Lanterns beyond the one at the way back (the arrival going deeper): scarce, so a lit one is
+## worth keeping (at least one per level).
+const LANTERNS_PER_K: float = 0.4
 const MOONS_PER_K: float = 3.0
 const CRACKS_PER_K: float = 2.5
 ## Natural teleporter pairs scale with level area, without a fixed cap.
@@ -23,6 +24,8 @@ const MOON_SPACING: int = 6
 const MOVING_PLATFORM_CHANCE: float = 0.35
 ## Hoppers (enemies that leap at the wizard) from depth 1, per 1000 cells.
 const HOPPERS_PER_K: float = 2.0
+## Share (%) of levels from depth 1 whose secret room holds a skeleton key (see KeyRing).
+const SKELETON_CHANCE: int = 30
 
 enum Type {
 	EMPTY,
@@ -50,6 +53,7 @@ enum Type {
 	HOPPER,
 	LASER,
 	RELIC,
+	CLUSTER,
 }
 
 ## A level's ways out. Deeper and back move along the seed's column; left and right step to the
@@ -141,8 +145,9 @@ class World:
 		objects.append(v)
 
 	## Places the four exits by position: back near the top, deeper near the bottom and at least
-	## exit_distance(depth) cells from back, left and right at the sides. A lantern goes beside each.
-	## At depth 0 there is no way back: that spot holds the run's start lantern instead.
+	## exit_distance(depth) cells from back, left and right at the sides. A lantern goes beside the
+	## way back, where a dive arrives. At depth 0 there is no way back: that spot holds the run's
+	## start lantern instead.
 	func place_exits (depth: int, debug: bool = false) -> void:
 		var spots: Array[Vector2i] = []
 		for v: Vector2i in empties:
@@ -246,7 +251,8 @@ class World:
 						keep_clear[c] = true
 		start_reach = {}
 
-	## Doors (or the start lantern) on the exit cells, a lantern beside each, then the shrine.
+	## Doors (or the start lantern) on the exit cells, a lantern beside the way back, then the shrine.
+	## Lanterns are scarce: the other exits have none.
 	func _finish_exits (spots: Array[Vector2i], chosen: Array[Vector2i], depth: int) -> void:
 		for which: int in [Exit.BACK, Exit.DEEPER, Exit.LEFT, Exit.RIGHT]:
 			var at: Vector2i = exits[which]
@@ -258,6 +264,8 @@ class World:
 			var door: Cell = Cell.new(Type.EXIT)
 			door.extra_info = which
 			set_cell(at, door)
+			if which != Exit.BACK:
+				continue
 			var lantern: Variant = _nearest_free(spots, at, chosen)
 			if lantern != null:
 				chosen.append(lantern)
@@ -267,7 +275,7 @@ class World:
 		_place_shrine(spots, chosen, exits[Exit.DEEPER])
 
 	## Debug runs: deeper, left and right on the floor spots nearest the way back (the spawn), two
-	## cells apart so each still gets its lantern.
+	## cells apart.
 	func _place_exits_near (spots: Array[Vector2i], chosen: Array[Vector2i], back: Vector2i, depth: int) -> void:
 		var near: Array[Vector2i] = spots.duplicate()
 		var md: Callable = func(a: Vector2i, b: Vector2i) -> int: return absi(a.x - b.x) + absi(a.y - b.y)
@@ -649,7 +657,44 @@ class World:
 		if def.depth >= 1:
 			for i: int in range(per_area(HOPPERS_PER_K)):
 				set_cell(pop_if_random_empty(ground_below, true), Cell.new(Type.HOPPER))
+		place_cluster(def)
 		place_secrets(def)
+
+	## The level's star cluster (worth MapInfo.cluster_value): hung in open air (as a moon is) at
+	## least half the exit distance from the way in, three times as likely over thorns; failing
+	## that, on the floor furthest from the way in.
+	func place_cluster (def: NextWorldDef) -> void:
+		var start: Vector2i = exits.get(Exit.BACK, Vector2i(-1, -1))
+		@warning_ignore("integer_division")
+		var far: int = MapInfo.exit_distance(def.depth) / 2
+		var md: Callable = func(v: Vector2i) -> int: return absi(v.x - start.x) + absi(v.y - start.y)
+		var spots: Array[Vector2i] = []
+		for v: Vector2i in empties:
+			if get_cell(v).type != Type.EMPTY or not _wide_open(v) or md.call(v) < far:
+				continue
+			spots.append(v)
+			if _thorns_below(v):
+				spots.append(v)
+				spots.append(v)
+		spots.sort()
+		var at: Variant = null
+		if not spots.is_empty():
+			at = spots[rng.randi_range(0, spots.size() - 1)]
+		else:
+			var best: int = -1
+			var floors: Array[Vector2i] = []
+			for v: Vector2i in empties:
+				if ground_below(v) and get_cell(v).type == Type.EMPTY:
+					floors.append(v)
+			floors.sort()
+			for v: Vector2i in floors:
+				if md.call(v) > best:
+					best = md.call(v)
+					at = v
+		if at == null:
+			return
+		add_object_at(at)
+		set_cell(at, Cell.new(Type.CLUSTER))
 
 	## Secret rooms: pockets of rock behind a false wall (the entrance) at floor height beside a
 	## floor. The room's cells and its entrance are cracked cells holding the secret's number; all
@@ -683,6 +728,21 @@ class World:
 			var relic: Cell = Cell.new(Type.RELIC)
 			relic.extra_info = def.relic
 			set_cell(at, relic)
+		# A skeleton key takes the place of one of the last room's stars (the one nearest its door).
+		if def.skeleton:
+			var placed: bool = false
+			if not secrets.is_empty():
+				var rewards: Array = secrets[secrets.size() - 1]["rewards"]
+				for i: int in range(rewards.size() - 1, -1, -1):
+					if rewards[i][1] == Type.COIN:
+						rewards[i] = [rewards[i][0], Type.KEY, KeyRing.SKELETON]
+						placed = true
+						break
+			if not placed:
+				var at: Variant = pop_if_random_empty(ground_below, true)
+				var key: Cell = Cell.new(Type.KEY)
+				key.extra_info = KeyRing.SKELETON
+				set_cell(at, key)
 
 	## Every place a `room` (cells across and up) fits: [its rect, its entrance]. The room's floor is
 	## level with a floor spot beside it, through one cell of rock (the entrance, with rock over it),
@@ -1074,6 +1134,18 @@ static func level_seed (run_seed: int, depth: int) -> int:
 static func deeper_price (depth: int) -> int:
 	return roundi(8.0 * pow(1.4, depth))
 
+## Stars a level's star cluster is worth: about 10 at the surface, more deeper (stars per level
+## grow too).
+static func cluster_value (depth: int) -> int:
+	return roundi(10.0 * pow(1.25, maxi(depth, 0)))
+
+## Whether a secret room in the level at `at` holds a skeleton key: SKELETON_CHANCE % of levels
+## from depth 1, dealt by the level seed.
+static func skeleton_at (at: Vector2i) -> bool:
+	if at.y < 1:
+		return false
+	return level_seed(level_seed(at.x, at.y), 777) % 100 < SKELETON_CHANCE
+
 ## Minimum distance in cells between a level's way back and its deeper exit.
 static func exit_distance (depth: int) -> int:
 	return clampi(24 + 4 * depth, 24, 96)
@@ -1291,6 +1363,43 @@ func light_lantern (lantern: Node) -> bool:
 	save_run()
 	return true
 
+## Whether the lit lantern `lantern` can be burned into the mend spell (see burn_lantern).
+func can_burn (lantern: Node) -> bool:
+	if travelling or run_ending > 0.0 or player == null or not is_respawn_lantern(lantern):
+		return false
+	var mend: Mend = player.get_node_or_null("Mend") as Mend
+	return mend != null and mend.draughts() < mend.draughts_max()
+
+## Burn the lit lantern into the mend spell: its draughts fill up, but the lantern is spent and no
+## longer protects the wizard (light another to be protected again).
+func burn_lantern (lantern: Node) -> bool:
+	if not can_burn(lantern):
+		return false
+	var spent: Dictionary = record().get("spent_lanterns", {})
+	spent[lantern.get_meta(&"cell")] = true
+	record()["spent_lanterns"] = spent
+	vulnerable = true
+	(player.get_node("Mend") as Mend).refill()
+	_refresh_lanterns()
+	RisoFx.burst(&"gain", (lantern as Node2D).global_position, Vector2.ZERO, [RisoPrint.EYE, RisoPrint.PINK])
+	if RisoPrint.instance != null:
+		RisoPrint.instance.flare(&"mend")
+	save_run()
+	return true
+
+## Give up (the pause menu), when stuck: only while a lantern protects the wizard. It is a death
+## like any other: the stars drop into a ghost and the lantern burns out, bringing them back to it.
+func can_give_up () -> bool:
+	return player != null and world != null and not vulnerable and not travelling and run_ending <= 0.0
+
+func give_up () -> bool:
+	if not can_give_up():
+		return false
+	player.health.health = player.health.max_health
+	player.health.display_health()
+	player.die()
+	return true
+
 func is_lantern_spent (lantern: Node) -> bool:
 	return lantern.has_meta(&"cell") and (record().get("spent_lanterns", {}) as Dictionary).has(lantern.get_meta(&"cell"))
 
@@ -1396,8 +1505,7 @@ func end_run () -> void:
 		await get_tree().process_frame
 		run_ending = maxf(0.0, run_ending - get_process_delta_time())
 	player.collect(-player.coins.coins)
-	if player.has_meta(&"carried_key"):
-		player.remove_meta(&"carried_key")
+	KeyRing.clear(player)
 	player.visible = true
 	start_run(run_seed)
 
@@ -1448,6 +1556,7 @@ func save_run () -> void:
 		"vulnerable": vulnerable,
 		"has_ghost": has_ghost, "ghost_coord": ghost_coord, "ghost_pos": ghost_pos, "ghost_stars": ghost_stars,
 		"stars": player.coins.coins, "key": int(player.get_meta(&"carried_key", -1)),
+		"keys": KeyRing.all(player), "skeleton_keys": KeyRing.skeletons(player), "mend_draughts": Mend.stored(player),
 		"tiers": tiers, "health": player.health.health, "debug": debug, "rift_link": rift_link,
 		"relics_found": relics_found, "relic_hints": relic_hints,
 	}
@@ -1508,10 +1617,10 @@ func continue_run () -> bool:
 	player.health.health = clampi(int(data["health"]), 1, player.health.max_health)
 	player.health.display_health()
 	player.collect(int(data["stars"]) - player.coins.coins)
-	if int(data["key"]) >= 0:
-		player.set_meta(&"carried_key", int(data["key"]))
-	elif player.has_meta(&"carried_key"):
-		player.remove_meta(&"carried_key")
+	# Saves from before the keyring hold one key.
+	KeyRing.set_all(player, data.get("keys", [int(data["key"])]))
+	KeyRing.set_skeletons(player, int(data.get("skeleton_keys", 0)))
+	Mend.restore(player, int(data.get("mend_draughts", -1)))
 	coord = respawn_coord
 	arrival = -2
 	_load_level()
@@ -1855,6 +1964,7 @@ var switch_prefab: Resource = preload("res://prefabs/switch.tscn")
 var hopper_prefab: Resource = preload("res://prefabs/hopper_enemy.tscn")
 var laser_prefab: Resource = preload("res://prefabs/laser.tscn")
 var relic_prefab: Resource = preload("res://prefabs/relic.tscn")
+var cluster_prefab: Resource = preload("res://prefabs/star_cluster.tscn")
 
 var map_elements_prefab: Resource = preload("res://prefabs/map_elements.tscn")
 
@@ -1935,6 +2045,7 @@ var cell_to_prefab: Dictionary = {
 	Type.HOPPER: hopper_prefab,
 	Type.LASER: laser_prefab,
 	Type.RELIC: relic_prefab,
+	Type.CLUSTER: cluster_prefab,
 }
 
 func place_cell(v: Vector2i, _cell: Cell) -> void:
@@ -1973,6 +2084,8 @@ func place_cell(v: Vector2i, _cell: Cell) -> void:
 			(cell as CollisionObject2D).collision_layer = 0
 	if color >= 0:
 		cell.set_meta(&"key_color", color)
+	if _cell.type == Type.CLUSTER:
+		cell.set("value", cluster_value(here.depth))
 	if _cell.type in [Type.ENEMY, Type.SHOOTER, Type.HOPPER]:
 		var wound: Wound = Wound.new()
 		wound.name = "Wound"

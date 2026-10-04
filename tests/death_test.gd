@@ -53,7 +53,7 @@ func lanterns() -> Array[Node]:
 func run() -> void:
 	main = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://test_run.save"
+	MapInfo.save_path = "user://death_test.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	menu.start_game()
@@ -105,10 +105,12 @@ func run() -> void:
 	check(info.is_lantern_spent(start_lantern) and not info.light_lantern(start_lantern), "revisiting does not renew a spent lantern")
 
 	print("recovering the ghost")
+	# Relative: arriving back may have picked up a star lying by the door.
+	var before_ghost: int = player.coins.coins
 	ghosts()[0].set("armed", true)
 	ghosts()[0].call("touch", player)
 	await settle(1)
-	check(player.coins.coins == 13 and info.vulnerable and not info.has_ghost, "the ghost returns its stars but leaves the lantern spent")
+	check(player.coins.coins == before_ghost + 5 and info.vulnerable and not info.has_ghost, "the ghost returns its stars but leaves the lantern spent")
 	check(ghosts().is_empty(), "the ghost is gone")
 	await process_frame
 	check(main.get_node("RisoHud").get("lantern_lit") == false, "the HUD still shows how to restore protection after ghost recovery")

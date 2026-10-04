@@ -37,6 +37,8 @@ func run() -> void:
 	for i: int in range(30):
 		await physics_frame
 	Abilities.grant(player, &"rift")
+	# Each end placed costs stars (Abilities.cast_price).
+	player.collect(500)
 	var rift: Rift = player.get_node("Rift") as Rift
 	check(player.is_on_floor(), "standing to cast tier I")
 	Abilities.cast(player)

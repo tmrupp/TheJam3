@@ -3,7 +3,8 @@ extends Node2D
 ## (RisoPrint.ui_canvas), which is printed over the scene with finer dots, wobble and
 ## registration, so small marks and text stay legible. Laid out in the 320 x 180 UI space; the
 ## legacy HUD is hidden while the print is on.
-## - Top left: stars, health beads, a flame for the lantern's protection and the carried key.
+## - Top left: stars, health beads, a flame for the lantern's protection, the carried keys (more
+##   than one with the keyring) and any skeleton keys.
 ## - Under it, while there is a ghost: its stars, an arrow toward it and its world when that is
 ##   elsewhere.
 ## - Top right: the world and depth being played, and under it the abilities known.
@@ -20,6 +21,8 @@ const ROW_H: float = 18.0
 const GAP: float = 3.0
 const PAD: float = 6.0
 const RADIUS: float = 6.0
+## Room for each key carried, side by side after the lantern.
+const KEY_STEP: float = 15.0
 ## The right edge of the top-right plaques, in the corner's (unscaled) units.
 const RIGHT: float = 320.0 / CORNER_SCALE - MARGIN
 const KNOCK_ALL: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE]
@@ -170,7 +173,9 @@ func _process(delta: float) -> void:
 func _status(player: Player) -> void:
 	var hp: int = player.health.health
 	var hp_max: int = player.health.max_health
-	var carried: bool = player.has_meta(&"carried_key")
+	var keys: Array[int] = KeyRing.all(player)
+	# Skeleton keys are drawn one by one; they are rare (beyond a few, the rest are not shown).
+	var skeletons: int = mini(KeyRing.skeletons(player), 4)
 	var info: MapInfo = MapInfo.instance
 	var lantern: bool = info != null and info.world != null
 	var y: float = _mid(0)
@@ -180,8 +185,8 @@ func _status(player: Player) -> void:
 	var width: float = PAD + 13.0 + count_w + 8.0 + 10.0 * float(hp_max) - 2.0
 	if lantern:
 		width += 5.0 + 10.0
-	if carried:
-		width += 6.0 + 12.0
+	if not keys.is_empty() or skeletons > 0:
+		width += 6.0 + KEY_STEP * float(keys.size() + skeletons) - 3.0
 	width += PAD
 	_plaque(MARGIN, width, 0)
 	var x: float = MARGIN + PAD
@@ -211,9 +216,15 @@ func _status(player: Player) -> void:
 		x += 5.0
 		_lantern_mark(info, Vector2(x, y))
 		x += 10.0
-	if carried:
+	if not keys.is_empty() or skeletons > 0:
 		x += 6.0
-		ink.ink_overprint(RisoPrint.key_inks(int(player.get_meta(&"carried_key"))), 1.0, RisoProp.key_shape(Vector2(x + 5.0, y), 0.3))
+	for k: int in keys:
+		ink.ink_overprint(RisoPrint.key_inks(k), 1.0, RisoProp.key_shape(Vector2(x + 5.0, y), 0.3))
+		x += KEY_STEP
+	for i: int in range(skeletons):
+		ink.ink_overprint(RisoPrint.key_inks(KeyRing.SKELETON), 1.0, RisoProp.key_shape(Vector2(x + 5.0, y), 0.3))
+		ink.knock(RisoPrint.key_inks(KeyRing.SKELETON), [RisoShapes.circle(Vector2(x + 2.0, y - 0.6), 0.8, 8)])
+		x += KEY_STEP
 
 
 func _run_state(player: Player) -> void:

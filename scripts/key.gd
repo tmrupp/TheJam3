@@ -1,8 +1,9 @@
 extends Area2D
-## A key. Keys are never used up: the carried key opens every door of its colour, in any level.
-## The player carries one at a time; grabbing another leaves the carried one where the new one
-## was (MapInfo records it there). A dropped key arms only once the wizard has been more than
-## ARM_DISTANCE from it.
+## A key. Keys are never used up: a carried key opens every door of its colour, in any level.
+## The player carries one at a time (more with the keyring, see KeyRing); grabbing another with
+## no room leaves the oldest carried one where the new one was (MapInfo records it there). A key of
+## a colour already carried is left lying. A skeleton key (KeyRing.SKELETON) goes in the pocket
+## instead. A dropped key arms only once the wizard has been more than ARM_DISTANCE from it.
 
 @onready var visuals: Sprite2D = $Sprite2D
 
@@ -22,8 +23,15 @@ func key_color() -> int:
 
 func touch(other: Node) -> void:
 	if armed and other == player and other.get_parent() != null and visuals.visible:
-		var had: int = int(player.get_meta(&"carried_key", -1))
-		player.set_meta(&"carried_key", key_color())
+		var had: int = -1
+		if key_color() == KeyRing.SKELETON:
+			# A skeleton key goes in the pocket, apart from the ring.
+			KeyRing.set_skeletons(player, KeyRing.skeletons(player) + 1)
+		elif KeyRing.has(player, key_color()):
+			# Already carried: it stays where it lies.
+			return
+		else:
+			had = KeyRing.take(player, key_color())
 		RisoFx.burst(&"gain", global_position, Vector2.ZERO, RisoPrint.key_inks(key_color()))
 		if MapInfo.instance != null:
 			MapInfo.instance.key_taken(self, had)

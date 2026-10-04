@@ -4,15 +4,18 @@ class_name Abilities
 ## hex (the starting spell) are known from the start (tier 1). Each tier improves the ability.
 ## Tiers live on the player and reset when a run ends.
 ## - Spells share one slot, on the Spell button (Q, or the pad's X): hex, astral projection,
-##   parry, levitate, awareness, rift (open your own teleporters) and warp (to a random floor). You carry one at a time; learning another at a shrine
-##   replaces it.
-## - Perks stack: double jump, wall climb, blink (replaces the dash), vigor (max health) and
-##   speed (run speed).
+##   parry, levitate, awareness, rift (open your own teleporters), warp (to a random floor) and mend
+##   (heal from draughts a burned lantern fills, see Mend). You carry one at a time; learning another
+##   at a shrine replaces it. Warp and rift cost stars each cast (cast_price).
+## - Perks stack: double jump, wall climb, blink (replaces the dash), vigor (max health),
+##   speed (run speed) and keyring (carry more keys, see KeyRing).
 
-const ORDER: Array[StringName] = [&"dash", &"double_jump", &"wall_climb", &"blink", &"parry", &"astral", &"hex", &"levitate", &"awareness", &"rift", &"vigor", &"speed", &"warp"]
+const ORDER: Array[StringName] = [&"dash", &"double_jump", &"wall_climb", &"blink", &"parry", &"astral", &"hex", &"levitate", &"awareness", &"rift", &"vigor", &"speed", &"warp", &"mend", &"keyring"]
 ## Run speed added per tier of speed, as a fraction of the base.
 const SPEED_PER_TIER: float = 0.15
-const SPELLS: Array[StringName] = [&"hex", &"astral", &"parry", &"levitate", &"awareness", &"rift", &"warp"]
+const SPELLS: Array[StringName] = [&"hex", &"astral", &"parry", &"levitate", &"awareness", &"rift", &"warp", &"mend"]
+## Stars each cast of these spells costs at depth 0 (see cast_price); the others are free.
+const CAST_COST: Dictionary = {&"warp": 2.0, &"rift": 1.0}
 const NAMES: Dictionary = {
 	&"dash": "dash",
 	&"double_jump": "double jump",
@@ -27,10 +30,12 @@ const NAMES: Dictionary = {
 	&"vigor": "vigor",
 	&"speed": "speed",
 	&"warp": "warp",
+	&"mend": "mend",
+	&"keyring": "keyring",
 }
 const BASE: Dictionary = {&"dash": 1, &"hex": 1}
 const MAX: Dictionary = {&"dash": 4, &"double_jump": 3, &"wall_climb": 3, &"blink": 3, &"parry": 4, &"astral": 4, &"hex": 4,
-	&"levitate": 3, &"awareness": 3, &"rift": 3, &"vigor": 3, &"speed": 3, &"warp": 3}
+	&"levitate": 3, &"awareness": 3, &"rift": 3, &"vigor": 3, &"speed": 3, &"warp": 3, &"mend": 3, &"keyring": 3}
 const BLINK_PREFAB: String = "res://prefabs/upgrades/Blink.tscn"
 const BASE_HEALTH: int = 3
 const SPELL_ACTION: StringName = &"Spell"
@@ -58,6 +63,20 @@ static func spell(player: Player) -> StringName:
 ## Stars to learn `next_tier` of an ability at `depth`: dearer per tier, cheaper deeper.
 static func price(depth: int, next_tier: int) -> int:
 	return maxi(3, roundi(10.0 * pow(1.6, next_tier - 1) * pow(0.8, depth)))
+
+
+## Stars a cast of spell `a` costs at `depth` (0 for a free spell): a little dearer deeper, as
+## stars get more plentiful.
+static func cast_price(a: StringName, depth: int) -> int:
+	if not CAST_COST.has(a):
+		return 0
+	return maxi(1, roundi(float(CAST_COST[a]) * pow(1.25, maxi(depth, 0))))
+
+
+## What a cast of the spell in the slot costs where the wizard is.
+static func cast_price_here(player: Player) -> int:
+	var depth: int = MapInfo.instance.here.depth if MapInfo.instance != null else 0
+	return cast_price(spell(player), depth)
 
 
 ## Stars to heal to full at `depth`: the opposite of learning, dearer deeper.
@@ -132,6 +151,9 @@ static func grant(player: Player, a: StringName) -> void:
 	if a == &"vigor":
 		player.health.health = mini(player.health.health + 1, player.health.max_health)
 		player.health.display_health()
+	elif a == &"mend":
+		# Learning a tier fills the draughts.
+		(player.get_node("Mend") as Mend).refill()
 
 
 ## Set ability `a` to tier `n` outright (the debug picker on the F7 panel). A spell set above 0
@@ -149,6 +171,7 @@ static func set_tier(player: Player, a: StringName, n: int) -> void:
 ## Back to a new run's abilities, at full health.
 static func reset(player: Player) -> void:
 	player.tiers = start_tiers()
+	Mend.restore(player, -1)
 	apply(player)
 	player.health.health = player.health.max_health
 	player.health.display_health()
@@ -167,8 +190,13 @@ static func ensure_input() -> void:
 	InputMap.action_add_event(SPELL_ACTION, pad)
 
 
-## The Spell button: use whatever is in the slot.
+## The Spell button: use whatever is in the slot. A spell with a cast price (CAST_COST) is only
+## cast when the stars are there, and they are paid only if it works.
 static func cast(player: Player) -> void:
+	var cost: int = cast_price_here(player)
+	if cost > player.coins.coins:
+		return
+	var done: bool = true
 	match spell(player):
 		&"hex":
 			(player.get_node("Hex") as Hex).cast()
@@ -181,9 +209,13 @@ static func cast(player: Player) -> void:
 		&"awareness":
 			(player.get_node("Awareness") as Awareness).ping()
 		&"rift":
-			(player.get_node("Rift") as Rift).cast()
+			done = (player.get_node("Rift") as Rift).cast() != null
 		&"warp":
-			(player.get_node("Warp") as Warp).cast()
+			done = (player.get_node("Warp") as Warp).cast() != null
+		&"mend":
+			(player.get_node("Mend") as Mend).cast()
+	if done and cost > 0:
+		player.collect(-cost)
 
 
 ## A child node that exists only while its ability is known.
@@ -266,6 +298,10 @@ static func apply(player: Player) -> void:
 	var warp: Warp = _keep(player, "Warp", warp_tier > 0, func() -> Node: return Warp.new()) as Warp
 	if warp != null:
 		warp.level = warp_tier
+	var mend_tier: int = tier(player, &"mend")
+	var mend: Mend = _keep(player, "Mend", mend_tier > 0, func() -> Node: return Mend.new()) as Mend
+	if mend != null:
+		mend.level = mend_tier
 	player.run_speed = Player.SPEED * (1.0 + SPEED_PER_TIER * float(tier(player, &"speed")))
 	player.health.max_health = BASE_HEALTH + tier(player, &"vigor")
 	player.health.health = mini(player.health.health, player.health.max_health)

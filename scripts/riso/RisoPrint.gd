@@ -50,6 +50,7 @@ const GLOWS: Dictionary = {
 	&"hex": Color("#e8335a"),
 	&"levitate": Color("#7fd6c2"),
 	&"awareness": Color("#f2c14e"),
+	&"keyring": Color("#ffb511"),
 }
 ## Robe ink per spell in the slot (real Riso ink colours); no spell is the old federal blue.
 const ROBES: Dictionary = {
@@ -61,6 +62,7 @@ const ROBES: Dictionary = {
 	&"awareness": Color("#ff6c2f"),
 	&"rift": Color("#765ba7"),
 	&"warp": Color("#aa60bf"),
+	&"mend": Color("#ff665e"),
 }
 ## Print-detail stops: heavy 0, medium 50, fine 80, extra fine 100 (sizes in 720p pixels):
 ## [detail, screen cell, wobble, grain, dot gain, laydown], the prototype's values.
@@ -213,6 +215,9 @@ static func _portal_fx(portal: Node2D, wizard: Node2D, center: Vector2, feet: Ve
 
 
 static func key_inks(color: int) -> Array[int]:
+	# A skeleton key prints in eye yellow alone, which no key colour uses: it opens any door.
+	if color == KeyRing.SKELETON:
+		return [EYE]
 	var out: Array[int] = []
 	for plate: int in KEY_COLORS[posmod(color, KEY_COLORS.size())]:
 		out.append(plate)
@@ -720,6 +725,7 @@ const DRESS: Dictionary = {
 	"res://prefabs/laser.tscn": &"laser",
 	"res://prefabs/bullet.tscn": &"shard",
 	"res://prefabs/coin.tscn": &"mote",
+	"res://prefabs/star_cluster.tscn": &"cluster",
 	"res://prefabs/key.tscn": &"key",
 	"res://prefabs/moon.tscn": &"moon",
 	"res://prefabs/inkwell.tscn": &"inkwell",

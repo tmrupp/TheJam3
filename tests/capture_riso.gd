@@ -12,7 +12,7 @@ func capture() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://test_run.save"
+	MapInfo.save_path = "user://capture_riso.save"
 	var output: String = ProjectSettings.globalize_path("res://../art-captures/riso-frames")
 	DirAccess.make_dir_recursive_absolute(output)
 	for f: String in DirAccess.get_files_at(output):
