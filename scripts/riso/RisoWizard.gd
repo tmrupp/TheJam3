@@ -410,12 +410,13 @@ func _process(_delta: float) -> void:
 
 
 func _draw_body() -> void:
+	body.coverage = AstralProjection.PROJECTION_COVER if player.phasing else 1.0
 	var f: float = 1.0 if fs >= 0.0 else -1.0
 	var af: float = absf(clampf(fs, -1.0, 1.0))
 	var fsc: float = clampf(fs, -1.0, 1.0)
 	var hy: float = head_y
 	var dashing: bool = player.dash.is_acting()
-	var hurt: bool = player.is_invulnerable() and int(t * 16.0) % 2 == 0
+	var hurt: bool = not player.phasing and player.is_invulnerable() and int(t * 16.0) % 2 == 0
 	var cyc: float = fposmod(t, 3.9)
 	var blink: bool = cyc < 0.11 or (int(t / 3.9) % 3 == 0 and cyc > 0.2 and cyc < 0.3)
 	var m: Transform2D = Transform2D(lean, Vector2.ZERO)
@@ -513,7 +514,6 @@ func _draw_body() -> void:
 	body.knock(UNDER, [sleeve])
 	body.ink(RisoPrint.ROBE, 1.0, [sleeve], false)
 	body.ink(RisoPrint.NIGHT, TRIM_SHADE, [sleeve], false)
-	_orb(m, f)
 	body.knock(UNDER, [cone, brim])
 	body.ink(RisoPrint.ROBE, 1.0, [cone, brim], false)
 	body.ink(RisoPrint.NIGHT, TRIM_SHADE, [cone], false)
@@ -535,6 +535,11 @@ func _draw_body() -> void:
 		for c: Vector2 in eye_c:
 			whites.append(_sm(m * RisoShapes.circle(c, 1.0, 10)))
 		body.knock([RisoPrint.PINK], whites)
+	# The spell light remains solid even when the wizard projects through the scene.
+	var figure_coverage: float = body.coverage
+	body.coverage = 1.0
+	_orb(m, f)
+	body.coverage = figure_coverage
 	body.finish()
 
 
@@ -561,7 +566,7 @@ func _bead(bead: Vector2, pulse: float, ready: bool) -> void:
 ## - ready: a solid, glowing orb with a big four-pointed star turning on it, and the moment it
 ##   becomes ready a ring pings outward from it;
 ## - running (astral projection, awareness sensing, a levitate float): swollen, with a ring round it
-##   that drains with the time left (full for a float, which is untimed); in the last ORB_WARN
+##   that drains with the time left; in the last ORB_WARN
 ##   seconds the orb and ring turn pink and blink, faster toward the end.
 ## It flares when a spell is cast.
 const ORB_WARN: float = 1.5
@@ -659,8 +664,7 @@ func _arc(c: Vector2, rad: float, w: float, frac: float) -> PackedVector2Array:
 	return outer
 
 
-## A timed or held spell running now: (fraction of its time left, seconds left), with fraction 1
-## and many seconds for an untimed one (a levitate float); x < 0 when nothing is running.
+## A spell running now: (fraction of its time left, seconds left); x < 0 when nothing is running.
 func _spell_running() -> Vector2:
 	match Abilities.spell(player):
 		&"astral":
@@ -674,8 +678,9 @@ func _spell_running() -> Vector2:
 				var total: float = 5.0 + 2.5 * float(aware.level - 1)
 				return Vector2(clampf(aware.sensing / total, 0.0, 1.0), aware.sensing)
 		&"levitate":
-			if bool(player.get("levitating")):
-				return Vector2(1.0, 99.0)
+			var lev: Levitate = player.get_node_or_null("Levitate") as Levitate
+			if lev != null and lev.floating():
+				return Vector2(clampf(lev.remaining / Levitate.FLOAT_TIME, 0.0, 1.0), lev.remaining)
 	return Vector2(-1.0, 0.0)
 
 

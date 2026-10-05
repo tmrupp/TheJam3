@@ -45,9 +45,10 @@ func show_invulnerable() -> void:
 	while is_invulnerable() and is_inside_tree():
 		await get_tree().create_timer(step).timeout
 		d += step
-		sprite.modulate.a = ((sin(d*2*PI/period)+1)/2)*(1-min_value) + (min_value)
+		if not phasing:
+			sprite.modulate.a = ((sin(d*2*PI/period)+1)/2)*(1-min_value) + (min_value)
 #		print("sprite.modulate.a=", sprite.modulate.a, " sin(d*180*period)=", sin(d*180*period), " d=", d)
-	sprite.modulate.a = 1
+	sprite.modulate.a = AstralProjection.PROJECTION_COVER if phasing else 1.0
 
 ## A short spell of invulnerability on arriving somewhere: out of a portal or rift, through a door
 ## into another level, or back at a lantern after dying, so nothing waiting there hits the wizard
@@ -61,9 +62,9 @@ func grace() -> void:
 	if not showing:
 		show_invulnerable()
 
-## Whether nothing can hurt the wizard just now: after a hit, or in the grace on arriving.
+## Whether nothing can hurt the wizard just now: projected, after a hit, or in the grace on arriving.
 func is_invulnerable() -> bool:
-	return invulnerable.is_acting() or graced.is_acting()
+	return phasing or invulnerable.is_acting() or graced.is_acting()
 
 ## Hittable again at once: ends a hit's invulnerability and the grace alike.
 func end_invulnerable() -> void:
@@ -82,6 +83,8 @@ func normal_hurt (damage: int, v: Vector2, _attacker: Node) -> void:
 		show_invulnerable()
 		
 func hurt (damage: int, v: Vector2, attacker: Node) -> void:
+	if phasing:
+		return
 	# Dashing through an enemy is an attack, not a hit taken (DashStrike).
 	var strike: DashStrike = get_node_or_null("DashStrike") as DashStrike
 	if strike != null and strike.guards(attacker):
@@ -153,8 +156,11 @@ var dash_rest: float = 0.0
 # WALL_JUMP_TIME: how long manual control is overriden 
 # (feels better when pushing into wall to jump and then jumps away)
 # WALL_JUMP_Y_FACTOR: by how much the y component of a normal jump is factored when wall jumping
-const WALL_JUMP_SPEED: float = 400.0
+const WALL_JUMP_SPEED: float = 600.0
 const WALL_JUMP_Y_FACTOR: float = 0.6
+## The side last jumped from in this flight. Landing or jumping from the opposite side restores
+## the upward boost; repeated jumps from the same side push away without lifting the wizard.
+var last_wall_jump_side: float = 0.0
 ## Falling while pressed against a wall (holding toward it) slides down it no faster than this.
 const WALL_SLIDE_SPEED: float = 160.0
 var wall_jump: ActionTimer = ActionTimer.new(0.25)
@@ -333,10 +339,20 @@ func _one_way (body: CollisionObject2D) -> CollisionShape2D:
 			return child as CollisionShape2D
 	return null
 	
+## Every wall jump pushes away. A new side also lifts the wizard; the same side keeps their
+## falling speed, so a lone wall cannot be climbed by jumping repeatedly.
 func do_wall_jump (wall_normal: Vector2) -> void:
+	if wall_normal.x == 0.0:
+		return
+	var new_side: bool = signf(wall_normal.x) != last_wall_jump_side
+	var falling_speed: float = maxf(velocity.y, 0.0)
+	last_wall_jump_side = signf(wall_normal.x)
 	coyote.end()
 	jumps = mini(jumps, MAX_JUMPS - 1)
-	jump(WALL_JUMP_Y_FACTOR)
+	jump(WALL_JUMP_Y_FACTOR if new_side else 0.0)
+	if not new_side:
+		velocity.y = falling_speed
+		jumping = false
 	velocity.x = wall_normal.x * WALL_JUMP_SPEED
 	wall_jump.enable(true)
 	
@@ -406,6 +422,7 @@ func _physics_process(delta: float) -> void:
 				hang.end()
 			
 	else: # on the ground
+		last_wall_jump_side = 0.0
 		animating_jumping = false
 		jumping = false
 		jumps = MAX_JUMPS
@@ -457,7 +474,7 @@ func _physics_process(delta: float) -> void:
 			jumps -= 1
 		# wall jump, damped normal jump and move away from wall
 		# takes away manual control; on a wall it comes before an air jump, which is kept
-		elif (walled and not is_on_floor()):
+		elif walled and not is_on_floor():
 			do_wall_jump(wall_normal)
 		elif jumps > 0:
 			jump()

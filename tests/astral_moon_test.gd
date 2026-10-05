@@ -1,5 +1,5 @@
 extends SceneTree
-## Astral projection as an ability (toggle out and back; hurt snaps you back; running out
+## Astral projection as an ability (toggle out and back; hits pass through; running out
 ## leaves you where the projection is) and moons as dash resets.
 ## godot --headless --path . --script res://tests/astral_moon_test.gd
 
@@ -41,6 +41,8 @@ func run() -> void:
 	player = main.get_node("Player") as Player
 	await settle()
 	player.set_physics_process(false)
+	player.end_invulnerable()
+	await create_timer(0.03).timeout
 
 	print("astral projection")
 	var astral: AstralProjection = player.get_node("AstralProjection") as AstralProjection
@@ -52,19 +54,35 @@ func run() -> void:
 	var home: Vector2 = player.position
 	astral.toggle()
 	check(astral.projecting(), "tap: projecting, body left behind")
+	check(is_equal_approx(astral.projection_timer.MAX_TIME, 1.5), "astral I lasts 1.5 seconds")
+	check(player.is_invulnerable() and is_equal_approx(player.sprite.modulate.a, AstralProjection.PROJECTION_COVER), "the projection is translucent and invulnerable")
+	var wizard: Node = player.get_node("RisoWizard")
+	wizard.call("_draw_body")
+	check(is_equal_approx((wizard.get("body") as InkCanvas).coverage, AstralProjection.PROJECTION_COVER), "the printed wizard is translucent too")
+	var ink_ops: Array = (wizard.get("body") as InkCanvas).get("_ops")
+	check(ink_ops.any(func(op: Node2D) -> bool: return op.visible and not bool(op.get("lift")) and is_equal_approx(float(op.get("cover")), 1.0)), "the astral spell orb still prints solid ink")
 	player.position += Vector2(300, -40)
 	astral.toggle()
 	check(not astral.projecting() and player.position == home, "tap again: back in the body")
 	astral.toggle()
 	player.position += Vector2(200, 0)
+	var projected_at: Vector2 = player.position
+	var hp: int = player.health.health
 	player.hurt(-1, Vector2.RIGHT, null)
-	check(not astral.projecting() and player.position == home and player.health.health == player.health.max_health, "hurt while projected: back in the body, unhurt")
+	player.normal_hurt(-1, Vector2.RIGHT, null)
+	check(astral.projecting() and player.position == projected_at and player.health.health == hp and not player.knock_back.is_acting(), "hits leave the projection active, in place and unhurt")
+	astral.toggle()
 	astral.toggle()
 	var away: Vector2 = home + Vector2(250, -30)
 	player.position = away
 	astral.projection_timer.elapse(astral.projection_timer.MAX_TIME + 0.1)
 	check(not astral.projecting() and player.position == away, "run out: stay where the projection is")
 	check(player.hurt_ability == player.normal_hurt and player.get_collision_layer_value(6), "and vulnerable again")
+	wizard.call("_draw_body")
+	check(is_equal_approx(player.sprite.modulate.a, 1.0) and is_equal_approx((wizard.get("body") as InkCanvas).coverage, 1.0), "normal opacity returns when astral ends")
+	player.end_invulnerable()
+	player.hurt(-1, Vector2.ZERO, null)
+	check(player.health.health == hp - 1, "hits damage the player again after astral ends")
 
 	print("moons")
 	var moons: Array[Node] = info.map_elements.get_children().filter(func(n: Node) -> bool: return n.scene_file_path.get_file() == "moon.tscn")

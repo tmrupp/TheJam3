@@ -23,7 +23,8 @@ sample image, then dressed with exits, keys, enemies and hazards by `MapInfo.Wor
 - `tests/`: `*_test.gd` regressions, `capture_*.gd` stills (written to `../art-captures/`),
   `make_*_sample.gd` sample generators.
 
-Level bands cycle by depth (`NextWorldDef.ARCHETYPES`, `BAND` = 3): garden → cemetery → sky.
+Level bands cycle by depth (`NextWorldDef.ARCHETYPES`, `BAND` = 6): garden → cemetery → sky. Tests
+that need a band's levels use `NextWorldDef.first_depth(&"cemetery")` rather than a fixed depth.
 
 ## Running and testing
 

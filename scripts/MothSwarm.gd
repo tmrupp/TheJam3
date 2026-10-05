@@ -1,10 +1,10 @@
 extends Node2D
 class_name MothSwarm
 ## A swarm of moths, in cemetery levels. They flutter round where they were laid until a light draws
-## them: a lit lantern within DRAW of their home (so the lantern that keeps you safe draws danger
-## to it), or failing that the wizard's spell orb, within ORB_PULL (only while a spell is in the
-## slot, and not in sleep fog). A moth that touches the wizard stings (a heart, like any hit). A
-## hex bolt through the swarm, or a parry, scatters it: the moths burst outward and sting no one,
+## them: the nearby wizard's spell orb within ORB_PULL (with a spell equipped and not drowsy), else a lit lantern
+## within DRAW of their home (so the lantern that keeps you safe draws danger to it).
+## A moth that touches the wizard stings (a heart, like any hit). A dash, hex bolt through the
+## swarm, or a parry, scatters it: the moths burst outward and sting no one,
 ## then flutter back together after SCATTER_TIME. They are never killed and never counted slain.
 
 const COUNT: int = 6
@@ -46,19 +46,19 @@ func _ready() -> void:
 		spots.append(Vector2.ZERO)
 
 
-## Where the swarm is headed: the lit lantern, the wizard's orb, or home.
+## Where the swarm is headed: the nearby wizard's lit spell orb, else a lit lantern, else home.
 func target() -> Vector2:
+	if player != null and is_instance_valid(player) and Abilities.spell(player) != &"" and not player.is_drowsy():
+		var orb: Vector2 = player.global_position + Vector2(0, -70)
+		if orb.distance_to(global_position) <= ORB_PULL:
+			drawn_to = &"orb"
+			return orb
 	var info: MapInfo = MapInfo.instance
 	if info != null and info.world != null and not info.vulnerable and info.respawn_coord == info.coord:
 		var lantern: Vector2 = info.cell_position(info.respawn_cell) + GLASS
 		if lantern.distance_to(home) <= DRAW:
 			drawn_to = &"lantern"
 			return lantern
-	if player != null and is_instance_valid(player) and Abilities.spell(player) != &"" and not player.is_drowsy():
-		var orb: Vector2 = player.global_position + Vector2(0, -70)
-		if orb.distance_to(global_position) <= ORB_PULL:
-			drawn_to = &"orb"
-			return orb
 	drawn_to = &"home"
 	return home
 

@@ -1,8 +1,8 @@
 extends Node
 class_name Levitate
 ## Levitate, a spell: press Spell in the air to stop falling and hold your height, moving
-## sideways at walking pace, until you press Spell again (or land). One float per touch of the
-## ground (or a moon). Tiers: II lets the stick drift you slowly up and down while floating;
+## sideways at walking pace, for up to six seconds, until you press Spell again (or land).
+## One float per touch of the ground (or a moon). Tiers: II lets the stick drift you slowly up and down while floating;
 ## III brings the float back without landing.
 
 ## The stick moves you up and down while floating (tier II).
@@ -11,8 +11,26 @@ var drift: bool = false
 var free_recast: bool = false
 ## A float is ready (comes back on landing).
 var charged: bool = true
+## The longest a float can hold the wizard up.
+const FLOAT_TIME: float = 6.0
+## Seconds left in this float, shown by the spell orb's draining ring.
+var remaining: float = 0.0
 
 @onready var player: Player = get_parent() as Player
+
+
+func _ready() -> void:
+	player.elapse_ability_time_signal.connect(elapse)
+
+
+## A float runs out even when the wizard keeps still.
+func elapse(delta: float) -> void:
+	if not floating():
+		remaining = 0.0
+		return
+	remaining = maxf(0.0, remaining - delta)
+	if remaining <= 0.0:
+		stop()
 
 
 func floating() -> bool:
@@ -28,6 +46,7 @@ func toggle() -> void:
 
 func start() -> void:
 	charged = false
+	remaining = FLOAT_TIME
 	player.levitating = true
 	player.velocity.y = 0.0
 	player.visual_event.emit(&"levitate", player.global_position)
@@ -37,6 +56,7 @@ func start() -> void:
 
 func stop() -> void:
 	player.levitating = false
+	remaining = 0.0
 	if free_recast:
 		charged = true
 

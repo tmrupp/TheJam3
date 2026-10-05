@@ -2,18 +2,31 @@ class_name Relics
 extends RefCounted
 ## Relics: the big movement abilities (MOVES), which open up whole areas, are not taught at
 ## shrines until found. Tier I of each only comes from a relic, which lies in a secret room (see
-## MapInfo.World.place_secrets) in rare levels: from depth 1, CHANCE % of them (about one in 20, so a
-## big move means going out of your way), each holding one of MOVES dealt by its seed (every level
+## MapInfo.World.place_secrets) or behind a bone gate in rare levels: from depth MIN_DEPTH, CHANCE %
+## of them rising to CHANCE_MAX deeper (see chance; about one in 15, so a big move means going out
+## of your way), each holding one of MOVES dealt by its seed (every level
 ## of a debug run holds one). Once a move is known, shrines offer its higher tiers as usual. At
 ## full health, a shrine's mending station sells the whereabouts of the nearest relic not yet found
 ## instead (HINT_PRICE times its level's deeper price), marked on the worlds map (see nearest).
 
 const MOVES: Array[StringName] = [&"double_jump", &"wall_climb", &"blink", &"levitate"]
 const CHANCE: int = 5
+## Relics lie no shallower than this; from there the chance rises a point every two levels, up to
+## CHANCE_MAX, so a run meets about as many as before, only deeper.
+const MIN_DEPTH: int = 3
+const CHANCE_MAX: int = 8
 const PRICE: float = 4.0
 const HINT_PRICE: float = 1.5
 ## How far (in levels, across and down) a shrine looks for a relic.
 const SEARCH: int = 12
+
+
+## The share (%) of levels `depth` deep that hold a relic (0 above MIN_DEPTH).
+static func chance(depth: int) -> int:
+	if depth < MIN_DEPTH:
+		return 0
+	@warning_ignore("integer_division")
+	return mini(CHANCE + (depth - MIN_DEPTH) / 2, CHANCE_MAX)
 
 
 ## The move the relic in level `at` holds, or &"" for a level without one.
@@ -21,7 +34,7 @@ static func at(at: Vector2i) -> StringName:
 	if at.y < 0:
 		return &""
 	var h: int = MapInfo.level_seed(MapInfo.level_seed(at.x, at.y), 4242)
-	if not MapInfo.debug and (at.y < 1 or h % 100 >= CHANCE):
+	if not MapInfo.debug and (at.y < MIN_DEPTH or h % 100 >= chance(at.y)):
 		return &""
 	@warning_ignore("integer_division")
 	return MOVES[(h / 100) % MOVES.size()]

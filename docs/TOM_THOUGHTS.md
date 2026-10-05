@@ -40,11 +40,15 @@ DO NOT MODIFY
 
 - * the skeleton key should be white and look like a bone with teeth
 
-- players can jump over and over on a wall to slowly climb. I still want to retain the ability to wall jump up (back and forth) from a 2-wide gap. Maybe more lateral speed when wall jumping
+- * players can jump over and over on a wall to slowly climb. I still want to retain the ability to wall jump up (back and forth) from a 2-wide gap. Maybe more lateral speed when wall jumping
 
-- levitate should have a time limit, but still be long
+- * levitate should have a time limit, but still be long
 
-- astral should make the player translucent, should have a much shorter timer and cannot take damage while active
+- * astral should make the player translucent, should have a much shorter timer and cannot take damage while active
+
+- * moths seem broken
+
+- we need to introduce submenus/collapsing for f7 menu (it is getting too big)
 
 - deeper levels and hyperspace should be likely to require relics to fully traverse (relax the traversability guarantees in later levels/hyperspace)
 

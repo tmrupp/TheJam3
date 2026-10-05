@@ -66,13 +66,13 @@ func run() -> void:
 	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
 	player = main.get_node("Player") as Player
 	await settle()
-	info.coord = Vector2i(28, 3)
+	info.coord = Vector2i(28, NextWorldDef.first_depth(&"cemetery"))
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	await settle()
 	player.set_physics_process(false)
 	print("in a cemetery")
-	check(info.here.cemetery() and MapInfo.where(info.coord) == "world 28 · depth 3", "cemetery world label shows only world and depth")
+	check(info.here.cemetery() and MapInfo.where(info.coord) == "world 28 · depth %d" % NextWorldDef.first_depth(&"cemetery"), "cemetery world label shows only world and depth")
 	if RisoPrint.instance != null:
 		check(RisoPrint.instance.realm == &"cemetery", "printed in the cemetery's realm")
 
@@ -92,22 +92,25 @@ func run() -> void:
 
 func bands() -> void:
 	print("archetypes by depth")
+	var b: int = NextWorldDef.BAND
 	var kinds: Array[StringName] = []
-	for d: int in range(9):
+	for d: int in [0, b - 1, b, 2 * b - 1, 2 * b, 3 * b - 1, 3 * b]:
 		kinds.append(NextWorldDef.archetype_at(d))
-	check(kinds == [&"garden", &"garden", &"garden", &"cemetery", &"cemetery", &"cemetery", &"sky", &"sky", &"sky"], "garden, then cemetery, then sky, a band of %d each: %s" % [NextWorldDef.BAND, kinds])
-	var def: NextWorldDef = MapInfo.def_for(Vector2i(28, 4))
+	check(b == 6 and kinds == [&"garden", &"garden", &"cemetery", &"cemetery", &"sky", &"sky", &"garden"], "garden, then cemetery, then sky, a band of %d each, then round again: %s" % [b, kinds])
+	check(NextWorldDef.first_depth(&"cemetery") == b and NextWorldDef.first_depth(&"sky") == 2 * b, "each band's first depth")
+	var def: NextWorldDef = MapInfo.def_for(Vector2i(28, NextWorldDef.first_depth(&"cemetery") + 1))
 	check(def.region == NextWorldDef.GRAVEYARD and def.symmetry == 1 and def.realm() == &"cemetery", "a cemetery collapses the graveyard sample, unturned, and prints in its realm")
 	var garden: NextWorldDef = MapInfo.def_for(Vector2i(28, 1))
 	check(garden.region != NextWorldDef.GRAVEYARD and garden.realm() == &"garden" and not garden.title().contains("cemetery"), "a garden level has its own terrain and realm")
-	check(MapInfo.region_for(0) == MapInfo.region_for(9) and MapInfo.region_for(0) != NextWorldDef.ISLANDS, "garden bands are the tunnels (the islands are the sky's)")
-	var side: NextWorldDef = MapInfo.def_for(Worlds.side_at(0, Vector2i(28, 4)))
+	check(MapInfo.region_for(0) == MapInfo.region_for(3 * NextWorldDef.BAND) and MapInfo.region_for(0) != NextWorldDef.ISLANDS, "garden bands are the tunnels (the islands are the sky's)")
+	var side: NextWorldDef = MapInfo.def_for(Worlds.side_at(0, Vector2i(28, NextWorldDef.first_depth(&"cemetery") + 1)))
 	check(not side.cemetery(), "a side world under a cemetery is not one")
 
 
 func generation(wfc: Node) -> void:
 	print("generation")
-	for at: Vector2i in [Vector2i(1, 3), Vector2i(7, 4), Vector2i(28, 3), Vector2i(28, 5), Vector2i(99, 3)]:
+	var c0: int = NextWorldDef.first_depth(&"cemetery")
+	for at: Vector2i in [Vector2i(1, c0), Vector2i(7, c0 + 1), Vector2i(28, c0), Vector2i(28, c0 + 2), Vector2i(99, c0)]:
 		var def: NextWorldDef = MapInfo.def_for(at)
 		var cells: Array = wfc.call("generate_level", def)
 		check(not cells.is_empty(), "%s collapses" % at)
@@ -309,10 +312,12 @@ func moths() -> void:
 	if swarm == null:
 		return
 	# Near enough that this part of the level is awake, too far to be stung.
-	player.global_position = glass + Vector2(0, -420)
+	var to_glass: Vector2 = glass + MothSwarm.GLASS - swarm.global_position
+	player.global_position = swarm.global_position + to_glass * 0.5 + to_glass.normalized().orthogonal() * (MothSwarm.ORB_PULL + 150.0)
 	info.light_lantern(lantern)
 	var before: float = swarm.global_position.distance_to(swarm.target())
 	for i: int in range(60):
+		swarm._physics_process(1.0 / 60.0)
 		await physics_frame
 	check(swarm.drawn_to == &"lantern" and swarm.global_position.distance_to(swarm.target()) < before, "a lit lantern draws it")
 	# A moth touching the wizard stings.

@@ -1,7 +1,8 @@
 extends SceneTree
 ## Walls: falling while pressed against a wall (holding toward it) slides down it no faster than
 ## Player.WALL_SLIDE_SPEED, and a jump in the air against a wall is a wall jump, before an air
-## jump (which is kept for later).
+## jump (which is kept for later). Repeated jumps from the same side keep pushing away without
+## lifting the wizard or slowing their fall; alternating sides lifts them through a two-cell gap.
 ## godot --headless --path . --script res://tests/wall_test.gd
 
 var main: Node
@@ -59,6 +60,40 @@ func hold(action: StringName, frames: int) -> void:
 	for i: int in range(frames):
 		await physics_frame
 	Input.action_release(action)
+
+
+## A tall, empty wall or two-cell shaft, clear of the generated level's hazards.
+func test_wall(at: Vector2, size: Vector2) -> void:
+	var solid: StaticBody2D = StaticBody2D.new()
+	solid.collision_layer = 4
+	solid.collision_mask = 0
+	var shape: CollisionShape2D = CollisionShape2D.new()
+	var rect: RectangleShape2D = RectangleShape2D.new()
+	rect.size = size
+	shape.shape = rect
+	solid.add_child(shape)
+	main.add_child(solid)
+	solid.global_position = at
+
+
+func jump_press() -> void:
+	var event: InputEventAction = InputEventAction.new()
+	event.action = &"Jump"
+	event.pressed = true
+	Input.parse_input_event(event)
+	await physics_frame
+	await process_frame
+	await physics_frame
+
+
+## Wait until the movement has reached the requested side of the shaft.
+func reach_wall(side: float) -> bool:
+	for i: int in range(90):
+		await physics_frame
+		await process_frame
+		if player.is_on_wall() and signf(player.get_wall_normal().x) == side:
+			return true
+	return false
 
 
 func run() -> void:
@@ -121,6 +156,75 @@ func run() -> void:
 	Input.action_release(&"Jump")
 	check(player.velocity.x < 0.0 and player.wall_jump.is_acting(), "a jump against the wall springs off it (%s)" % player.velocity)
 	check(player.jumps == 1, "and the air jump is kept for later")
+
+	print("one wall cannot be climbed by repeated jumps")
+	var origin: Vector2 = Vector2(-10000, -10000)
+	test_wall(origin + Vector2(272, 0), Vector2(32, 3000))
+	player.global_position = origin + Vector2(220, 0)
+	player.velocity = Vector2.ZERO
+	player.MAX_JUMPS = 1
+	player.jumps = 0
+	player.last_wall_jump_side = 0.0
+	player.wall_jump.end()
+	player.coyote.end()
+	Input.action_press(&"Right")
+	check(await reach_wall(-1.0), "touching the isolated right wall")
+	await jump_press()
+	check(player.wall_jump.is_acting() and player.velocity.x < -500.0, "the wall jump launches sideways at 600 px/s")
+	Input.action_release(&"Jump")
+	check(await reach_wall(-1.0), "steering back reaches the same wall")
+	var repeat_y: float = player.global_position.y
+	player.MAX_JUMPS = 2
+	player.jumps = 1
+	for i: int in range(3):
+		var falling_speed: float = player.velocity.y
+		await jump_press()
+		check(player.wall_jump.is_acting() and player.velocity.x < -500.0, "same-wall jump %d still pushes away" % (i + 1))
+		check(player.velocity.y >= clampf(falling_speed, 0.0, Player.WALL_SLIDE_SPEED), "same-wall jump %d adds no height or falling slowdown beyond the wall slide" % (i + 1))
+		check(player.jumps == 1, "same-wall jump %d keeps the learned air jump" % (i + 1))
+		Input.action_release(&"Jump")
+		check(await reach_wall(-1.0), "return %d reaches the same wall" % (i + 1))
+		check(player.global_position.y >= repeat_y, "repeat %d cannot climb the wall" % (i + 1))
+	player.MAX_JUMPS = 1
+	player.jumps = 0
+	Input.action_release(&"Right")
+	player.velocity.y = 200.0
+	player.do_wall_jump(Vector2.LEFT)
+	check(is_equal_approx(player.velocity.y, 200.0) and not player.jumping, "the sideways kick preserves falling speed and cannot cut it on release")
+	player.velocity.y = -200.0
+	player.do_wall_jump(Vector2.LEFT)
+	check(player.velocity.y == 0.0, "another kick from the same wall cannot carry upward motion into a climb")
+
+	print("alternating walls climbs a two-cell shaft")
+	test_wall(origin + Vector2(-16, 0), Vector2(32, 3000))
+	test_wall(origin + Vector2(128, 500), Vector2(256, 32))
+	player.global_position = origin + Vector2(220, 0)
+	player.velocity = Vector2.ZERO
+	player.last_wall_jump_side = 0.0
+	Input.action_press(&"Right")
+	check(await reach_wall(-1.0), "at the right side of a 256 px gap")
+	var start_y: float = player.global_position.y
+	var side: float = -1.0
+	for i: int in range(4):
+		Input.action_release(&"Jump")
+		await physics_frame
+		await process_frame
+		await jump_press()
+		check(player.wall_jump.is_acting(), "alternating jump %d is allowed" % (i + 1))
+		Input.action_release(&"Right" if side < 0.0 else &"Left")
+		Input.action_press(&"Left" if side < 0.0 else &"Right")
+		side = -side
+		check(await reach_wall(side), "jump %d reaches the opposite wall" % (i + 1))
+	check(player.global_position.y < start_y - 100.0, "four alternating jumps climb the shaft (%.1f px)" % (start_y - player.global_position.y))
+	Input.action_release(&"Jump")
+	Input.action_release(&"Left")
+	Input.action_release(&"Right")
+	player.global_position = origin + Vector2(128, 440)
+	player.velocity = Vector2.ZERO
+	for i: int in range(20):
+		await physics_frame
+		await process_frame
+	check(player.is_on_floor() and player.last_wall_jump_side == 0.0, "landing permits jumps from either wall again")
 
 	MapInfo.delete_save()
 	if failed:

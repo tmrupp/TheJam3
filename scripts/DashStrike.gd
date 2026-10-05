@@ -9,6 +9,7 @@ class_name DashStrike
 ## Dashing into a cracked wall breaks it (not a secret room's hidden rock: that is found by
 ## walking in). A blink strikes everything along the way it jumps, and hands back the dash for
 ## each full moon it passes (Blink.gd).
+## Moth swarms scatter for six seconds when struck, and cannot sting through the dash.
 
 const STUN: float = 2.5
 ## How near the wizard's path an enemy has to be (past its centre) to be struck.
@@ -52,7 +53,7 @@ func _physics_process(delta: float) -> void:
 ## Whether touching `attacker` (a contact hit box, Damager) should not hurt the wizard just now.
 func guards(attacker: Node) -> bool:
 	var enemy: Node = attacker.get("attacker") as Node if attacker != null and "attacker" in attacker else null
-	if enemy == null or enemy.get_node_or_null("Stunner") == null:
+	if enemy == null or (enemy.get_node_or_null("Stunner") == null and not enemy.has_method("scatter")):
 		return false
 	return player.dash.is_acting() or (guard_left > 0.0 and enemy in struck)
 
@@ -62,7 +63,9 @@ func sweep(from: Vector2, to: Vector2) -> void:
 	var dir: Vector2 = (to - from).normalized() if to != from else player.velocity.normalized()
 	var targets: Array[Node] = []
 	for e: Node in get_tree().get_nodes_in_group(&"hex_target"):
-		if e in struck or not is_instance_valid(e) or e.is_queued_for_deletion() or e.get_node_or_null("Stunner") == null:
+		if e in struck or not is_instance_valid(e) or e.is_queued_for_deletion():
+			continue
+		if e.get_node_or_null("Stunner") == null and not e.has_method("scatter"):
 			continue
 		var at: Vector2 = (e as Node2D).global_position
 		var near: PackedVector2Array = Geometry2D.get_closest_points_between_segments(from, to, at + Vector2(0, SPAN_DOWN), at - Vector2(0, SPAN_UP))
@@ -77,6 +80,9 @@ func sweep(from: Vector2, to: Vector2) -> void:
 
 ## Strike `e` heading `dir`. False when a shield stopped the dash.
 func strike(e: Node, dir: Vector2) -> bool:
+	if e.has_method("scatter"):
+		e.call("scatter", dir)
+		return true
 	var shield: Shield = Shield.of(e)
 	if shield != null and shield.absorb(false, dir):
 		player.dash.end()

@@ -41,6 +41,14 @@ func first(file: String) -> Node2D:
 			return node as Node2D
 	return null
 
+## How many other interactables stand within 200 px of `object`.
+func crowd(object: Node) -> int:
+	var n: int = 0
+	for other: Node in get_nodes_in_group(&"interactables"):
+		if not other.is_ancestor_of(object) and not object.is_ancestor_of(other) and (other as Node2D).global_position.distance_to((object as Node2D).global_position) < 200.0:
+			n += 1
+	return n
+
 func focus(object: Node2D) -> Interactable:
 	for node: Node in get_nodes_in_group(&"interactables"):
 		(node as Interactable).touching = false
@@ -122,13 +130,17 @@ func run() -> void:
 	await settle(90)
 	await shot("equal_keyring")
 	KeyRing.set_all(player, [])
-	info.coord = Vector2i(28, 3)
+	info.coord = Vector2i(28, NextWorldDef.first_depth(&"cemetery"))
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	await loaded()
 	var captured: Dictionary = {}
-	for node: Node in info.map_elements.get_children():
-		if node.scene_file_path.get_file() != "bell.tscn":
+	# Bells with nothing else to interact with close by first, so focus is the bell's alone.
+	var bells: Array[Node] = info.map_elements.get_children().filter(func(n: Node) -> bool: return n.scene_file_path.get_file() == "bell.tscn")
+	bells.sort_custom(func(a: Node, b: Node) -> bool: return crowd(a) < crowd(b))
+	for node: Node in bells:
+		# A bell whose chasm is already bridged (its partner rung) has nothing left to do.
+		if bool(node.call("rung")):
 			continue
 		var lock: int = int(node.get("lock"))
 		var kind: String = "switch" if lock < 0 else "key"

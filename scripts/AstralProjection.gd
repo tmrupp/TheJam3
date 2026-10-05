@@ -3,7 +3,8 @@ class_name AstralProjection
 ## Astral projection, a spell learned at a shrine. Spell (Q, or the pad's X) leaves your body
 ## where you stand and sends you out as a glowing projection, untouchable by thorns and shots. It
 ## floats wherever the stick points, through rock and anything else solid (see Player.phasing),
-## and drifting into a secret room's rock opens the room. Press Spell again, or get hurt, to snap
+## and drifting into a secret room's rock opens the room. Hits cannot hurt or interrupt it.
+## Press Spell again to snap
 ## back to your body. Let it run out and you stay where the projection is: the body is left
 ## behind for good. Ending it inside rock, either way, costs a heart and puts you back in your
 ## body. Tiers make it last longer.
@@ -12,7 +13,12 @@ class_name AstralProjection
 @onready var main: Node = $"/root/Main"
 @onready var visual: Sprite2D = $"../Sprite2D" # someday, this reference will break
 
-var projection_timer: ActionTimer = ActionTimer.new(5.0, expire)
+## A brief projection, growing from 1.5 to 3 seconds with its four tiers.
+const PROJECTION_TIME: float = 1.5
+const TIER_TIME: float = 0.5
+## The projection prints with less than half its usual ink, letting the scene show through.
+const PROJECTION_COVER: float = 0.4
+var projection_timer: ActionTimer = ActionTimer.new(PROJECTION_TIME, expire)
 
 # holds a reference to the body left behind, if one exists currently
 var false_player_origin: Sprite2D
@@ -20,9 +26,9 @@ var false_player_origin: Sprite2D
 var held_color: Color
 
 
-## Hurt while projected: snap back to the body instead of taking the hit.
+## Hits pass through the projection without ending it.
 func astral_hurt (_damage: int, _v: Vector2, _attacker: Node) -> void:
-	end_projection(projection_timer)
+	pass
 
 func _ready() -> void:
 	player.astral_projection_signal.connect(toggle)
@@ -73,7 +79,7 @@ func project() -> void:
 
 	# alter our own visual to look all projection-y
 	held_color = visual.modulate
-	visual.modulate = Color(0, 1, 1, 0.5)
+	visual.modulate = Color(0, 1, 1, PROJECTION_COVER)
 
 ## Snap back to the body (a heart lost if the projection was inside rock).
 func end_projection(_timer: ActionTimer) -> void:

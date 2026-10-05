@@ -13,6 +13,9 @@ var _used: int = 0
 ## lay paper on the UI's paper plate, so the plaques and discs the UI sits on print as paper over
 ## the scene. Everything else prints as usual, in the UI's own, finer print.
 var ui: bool = false
+## Fraction of the canvas's ink and clearing to print, so a translucent figure leaves the
+## scene beneath it visible on every plate.
+var coverage: float = 1.0
 
 
 func _init() -> void:
@@ -107,7 +110,14 @@ func _emit(mask: int, lift: bool, cover: float, polys: Array[PackedVector2Array]
 	op.visibility_layer = mask
 	op.material = lift_material if lift else null
 	op.set("polys", polys)
-	op.set("alphas", alphas)
-	op.set("cover", cover)
+	var faded: Array[PackedFloat32Array] = []
+	if coverage < 1.0:
+		for values: PackedFloat32Array in alphas:
+			var scaled: PackedFloat32Array = values.duplicate()
+			for i: int in range(scaled.size()):
+				scaled[i] *= coverage
+			faded.append(scaled)
+	op.set("alphas", faded if coverage < 1.0 else alphas)
+	op.set("cover", cover * coverage)
 	op.set("lift", lift)
 	op.queue_redraw()

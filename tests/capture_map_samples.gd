@@ -38,8 +38,9 @@ func capture() -> void:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = PICK_SEED
 	for i: int in range(SAMPLES):
-		# Depths spread over every band (garden, cemetery, sky) and the first two cycles.
-		var at: Vector2i = Vector2i(rng.randi_range(1, 999), i % 12)
+		# Depths spread evenly over the first cycle of bands (garden, cemetery, sky).
+		@warning_ignore("integer_division")
+		var at: Vector2i = Vector2i(rng.randi_range(1, 999), i * NextWorldDef.ARCHETYPES.size() * NextWorldDef.BAND / SAMPLES)
 		info.coord = at
 		info.arrival = MapInfo.Exit.BACK
 		info._load_level()

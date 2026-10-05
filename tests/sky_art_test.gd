@@ -50,7 +50,7 @@ func run() -> void:
 	var info: MapInfo = main.get_node("CanvasLayer/MapInfo")
 	while info.world == null or info.travelling:
 		await process_frame
-	info.coord = Vector2i(28, 6)
+	info.coord = Vector2i(28, NextWorldDef.first_depth(&"sky"))
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	while info.travelling:

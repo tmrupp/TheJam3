@@ -25,7 +25,7 @@ func run() -> void:
 	player.get_node("CameraControl").set_process(false)
 	player.invulnerable.enable()
 	await loaded()
-	info.coord = Vector2i(28, 3)
+	info.coord = Vector2i(28, NextWorldDef.first_depth(&"cemetery"))
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	await loaded()

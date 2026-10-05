@@ -63,7 +63,11 @@ func run() -> void:
 	var y0: float = player.global_position.y
 	for i: int in range(150):
 		await physics_frame
-	check(lev.floating() and absf(player.global_position.y - y0) < 1.0, "holds its height until turned off, well past 1.5 s (moved %.1f px)" % absf(player.global_position.y - y0))
+	check(lev.floating() and absf(player.global_position.y - y0) < 1.0, "holds its height well past 1.5 s (moved %.1f px)" % absf(player.global_position.y - y0))
+	check(is_equal_approx(Levitate.FLOAT_TIME, 6.0) and lev.remaining > 3.0 and lev.remaining < Levitate.FLOAT_TIME, "the six-second float counts down")
+	var wizard: Node = player.get_node("RisoWizard")
+	var running: Vector2 = wizard.call("_spell_running")
+	check(running.x < 1.0 and is_equal_approx(running.y, lev.remaining), "the orb shows the float's remaining time")
 	Abilities.cast(player)
 	check(not lev.floating(), "Spell again: drop")
 	Abilities.cast(player)
@@ -72,15 +76,39 @@ func run() -> void:
 	player.dash.refresh()
 	moon.call("touch", player)
 	check(lev.charged, "a moon brings the float back")
-	var deadline: int = Time.get_ticks_msec() + 5000
-	while not player.is_on_floor() and Time.get_ticks_msec() < deadline:
+	lev.start()
+	lev.elapse(Levitate.FLOAT_TIME - 0.1)
+	check(lev.floating(), "a float lasts almost six seconds")
+	lev.elapse(0.2)
+	check(not lev.floating() and not lev.charged and lev.remaining == 0.0, "running out ends the float without recharging it")
+	# Land on a known floor rather than hoping the generated cave has one under the float.
+	var returned_to: Vector2 = player.global_position
+	var floor_body: StaticBody2D = StaticBody2D.new()
+	floor_body.collision_layer = 4
+	floor_body.collision_mask = 0
+	var floor_shape: CollisionShape2D = CollisionShape2D.new()
+	var floor_rect: RectangleShape2D = RectangleShape2D.new()
+	floor_rect.size = Vector2(256, 32)
+	floor_shape.shape = floor_rect
+	floor_body.add_child(floor_shape)
+	main.add_child(floor_body)
+	floor_body.global_position = Vector2(-10000, -9900)
+	player.global_position = Vector2(-10000, -10000)
+	player.velocity = Vector2.ZERO
+	for i: int in range(45):
 		await physics_frame
-	await physics_frame
-	check(lev.charged and not lev.floating(), "landing recharges it")
+		await process_frame
+	check(player.is_on_floor() and lev.charged and not lev.floating(), "landing recharges it")
+	player.global_position = returned_to
+	player.velocity = Vector2.ZERO
+	floor_body.queue_free()
 	Abilities.grant(player, &"levitate")
 	check(lev.drift and not lev.free_recast, "levitate II drifts with the stick")
 	Abilities.grant(player, &"levitate")
 	check(lev.free_recast, "levitate III recasts without landing")
+	lev.start()
+	lev.elapse(Levitate.FLOAT_TIME)
+	check(not lev.floating() and lev.charged, "tier III still expires and permits a new float")
 
 	print("speed")
 	check(is_equal_approx(player.run_speed, Player.SPEED), "base run speed without the perk")

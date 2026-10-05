@@ -41,7 +41,7 @@ var symmetry: int = 5
 ## (wfc_images/sky_islands.png, drawn by tests/make_sky_sample.gd) over an open drop, with jump pads, clouds that give way,
 ## updrafts, shielded enemies and watchers whose shots rebound (see MapInfo.World.populate_sky).
 const ARCHETYPES: Array[StringName] = [&"garden", &"cemetery", &"sky"]
-const BAND: int = 3
+const BAND: int = 6
 const GRAVEYARD: String = "res://wfc_images/graveyard.png"
 const ISLANDS: String = "res://wfc_images/sky_islands.png"
 ## A sky level is this much bigger than a cave level of its depth (MapInfo.level_size), across and
@@ -72,6 +72,12 @@ func setup(at: Vector2i) -> NextWorldDef:
 		symmetry = 1
 		size = Vector2i((Vector2(size) * SKY_SCALE).round())
 	return self
+
+
+## The first depth of the first band of `kind` (one of ARCHETYPES), or -1.
+static func first_depth(kind: StringName) -> int:
+	var i: int = ARCHETYPES.find(kind)
+	return i * BAND if i >= 0 else -1
 
 
 ## The archetype of levels `depth` deep.

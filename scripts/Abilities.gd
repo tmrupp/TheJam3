@@ -273,7 +273,7 @@ static func apply(player: Player) -> void:
 	var astral: int = maxi(tier(player, &"astral"), 1)
 	var projection: Node = player.get_node_or_null("AstralProjection")
 	if projection != null:
-		(projection.get("projection_timer") as ActionTimer).MAX_TIME = 5.0 + 2.0 * float(astral - 1)
+		(projection.get("projection_timer") as ActionTimer).MAX_TIME = AstralProjection.PROJECTION_TIME + AstralProjection.TIER_TIME * float(astral - 1)
 		# Swapped away mid-projection: snap back.
 		if tier(player, &"astral") == 0 and bool(projection.call("projecting")):
 			projection.call("end_projection", projection.get("projection_timer"))

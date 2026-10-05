@@ -67,7 +67,7 @@ func capture() -> void:
 	for i: int in range(90):
 		await process_frame
 	root.get_texture().get_image().save_png(output.path_join("garden_gate.png"))
-	info.coord = Vector2i(28, 3)
+	info.coord = Vector2i(28, NextWorldDef.first_depth(&"cemetery"))
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	while info.world == null or info.travelling:

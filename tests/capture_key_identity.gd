@@ -41,7 +41,7 @@ func run() -> void:
 	await settle(50)
 	await shot("keys_and_locks")
 	gallery.queue_free()
-	info.coord = Vector2i(28, 3)
+	info.coord = Vector2i(28, NextWorldDef.first_depth(&"cemetery"))
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	await loaded()

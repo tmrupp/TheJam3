@@ -87,7 +87,7 @@ func run() -> void:
 	var relic_in_room: int = 0
 	var relic_seed: int = -1
 	for world_seed: int in range(1, 26):
-		for depth: int in [0, 1, 3]:
+		for depth: int in [0, 1, Relics.MIN_DEPTH]:
 			var def: NextWorldDef = MapInfo.def_for(Vector2i(world_seed, depth))
 			var w: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", def), def)
 			levels += 1
@@ -102,14 +102,14 @@ func run() -> void:
 				if held or gated:
 					relic_in_room += 1
 				if held:
-					if depth == 1 and relic_seed < 0:
+					if depth == Relics.MIN_DEPTH and relic_seed < 0 and gives_hints(Vector2i(world_seed, depth)):
 						relic_seed = world_seed
-	# Relics are rare (about one level in 20): if the sample had none at depth 1, find one.
+	# Relics are rare: if the sample had none at their first depth, find one.
 	if relic_seed < 0:
 		relic_seed = 1
-		while Relics.at(Vector2i(relic_seed, 1)) == &"" or MapInfo.relic_gated_at(Vector2i(relic_seed, 1)):
+		while Relics.at(Vector2i(relic_seed, Relics.MIN_DEPTH)) == &"" or MapInfo.relic_gated_at(Vector2i(relic_seed, Relics.MIN_DEPTH)) or not gives_hints(Vector2i(relic_seed, Relics.MIN_DEPTH)):
 			relic_seed += 1
-		var def: NextWorldDef = MapInfo.def_for(Vector2i(relic_seed, 1))
+		var def: NextWorldDef = MapInfo.def_for(Vector2i(relic_seed, Relics.MIN_DEPTH))
 		var w: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", def), def)
 		relic_levels += 1
 		if w.secrets.any(func(s: Dictionary) -> bool: return (s["rewards"] as Array).any(func(r: Array) -> bool: return r[1] == MapInfo.Type.RELIC and StringName(r[2]) == def.relic)):
@@ -157,10 +157,12 @@ func run() -> void:
 
 	print("a false wall")
 	player.collect(100)
-	info.travel(MapInfo.Exit.DEEPER)
+	info.coord = Vector2i(relic_seed, Relics.MIN_DEPTH)
+	info.arrival = MapInfo.Exit.BACK
+	info._load_level()
 	await settle()
 	player.set_physics_process(false)
-	check(info.coord == Vector2i(relic_seed, 1) and not info.world.secrets.is_empty(), "level (%d, 1) has a secret room" % relic_seed)
+	check(info.coord == Vector2i(relic_seed, Relics.MIN_DEPTH) and not info.world.secrets.is_empty(), "level (%d, %d) has a secret room" % [relic_seed, Relics.MIN_DEPTH])
 	var secret: Dictionary = info.world.secrets[0]
 	var hidden: Array[Node] = placed("cracked_wall.tscn").filter(func(n: Node) -> bool: return int(n.get_meta(&"secret", -1)) == 0 and bool(n.get_meta(&"hidden")))
 	var door_node: Array[Node] = placed("cracked_wall.tscn").filter(func(n: Node) -> bool: return int(n.get_meta(&"secret", -1)) == 0 and not bool(n.get_meta(&"hidden")))
@@ -192,7 +194,7 @@ func run() -> void:
 	var move: StringName = info.here.relic
 	var before: int = Abilities.tier(player, move)
 	var cost: int = int(relics[0].call("price"))
-	check(cost == Relics.price(1) and cost >= 4 * MapInfo.deeper_price(1), "it costs %d stars, a lot" % cost)
+	check(cost == Relics.price(Relics.MIN_DEPTH) and cost >= 4 * MapInfo.deeper_price(Relics.MIN_DEPTH), "it costs %d stars, a lot" % cost)
 	player.collect(cost - 1 - player.coins.coins)
 	relics[0].call("take")
 	await process_frame
@@ -235,6 +237,13 @@ func run() -> void:
 	else:
 		print("PASSED")
 		quit()
+
+
+## Whether the shrine in level `at` sells a relic's whereabouts rather than a skeleton key, even
+## once one relic is marked (the shrine part below buys one, then asks again).
+func gives_hints(at: Vector2i) -> bool:
+	var shrine_script: GDScript = preload("res://scripts/Shrine.gd")
+	return not bool(shrine_script.call("sells_skeleton_at", at, true))
 
 
 func menu_start(world_seed: int) -> void:

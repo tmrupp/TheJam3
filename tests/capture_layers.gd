@@ -76,7 +76,7 @@ func capture() -> void:
 		await process_frame
 	await decor_shots([&"fence_run", &"mushroom", &"stones"], "garden")
 	await prop_shots(["door.tscn", "checkpoint.tscn", "level_exit.tscn"], "garden")
-	info.coord = Vector2i(28, 3)
+	info.coord = Vector2i(28, NextWorldDef.first_depth(&"cemetery"))
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	while info.world == null or info.travelling:

@@ -130,8 +130,15 @@ func sells_skeleton() -> bool:
 		return false
 	if map_info.next_relic() == null:
 		return true
-	var chance: int = SKELETON_SALE_HINTED if not map_info.relic_hints.is_empty() else SKELETON_SALE
-	return MapInfo.level_seed(MapInfo.level_seed(map_info.coord.x, map_info.coord.y), 6100) % 100 < chance
+	return sells_skeleton_at(map_info.coord, not map_info.relic_hints.is_empty())
+
+
+## Whether the shrine in level `at` sells a skeleton key over a relic's whereabouts (at full
+## health, with a relic left to point to), dealt by the level seed; `hinted` while a relic already
+## marked waits to be found.
+static func sells_skeleton_at(at: Vector2i, hinted: bool) -> bool:
+	var chance: int = SKELETON_SALE_HINTED if hinted else SKELETON_SALE
+	return MapInfo.level_seed(MapInfo.level_seed(at.x, at.y), 6100) % 100 < chance
 
 
 func skeleton_price() -> int:

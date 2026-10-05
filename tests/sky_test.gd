@@ -66,7 +66,7 @@ func run() -> void:
 	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
 	player = main.get_node("Player") as Player
 	await settle()
-	info.coord = Vector2i(28, 6)
+	info.coord = Vector2i(28, NextWorldDef.first_depth(&"sky"))
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	await settle()
@@ -105,15 +105,17 @@ func run() -> void:
 
 func bands() -> void:
 	print("bands")
-	check(NextWorldDef.archetype_at(6) == &"sky" and NextWorldDef.archetype_at(8) == &"sky" and NextWorldDef.archetype_at(9) == &"garden", "the sky takes the third band, then the garden comes round again")
-	var def: NextWorldDef = MapInfo.def_for(Vector2i(28, 6))
+	var s0: int = NextWorldDef.first_depth(&"sky")
+	check(NextWorldDef.archetype_at(s0) == &"sky" and NextWorldDef.archetype_at(s0 + NextWorldDef.BAND - 1) == &"sky" and NextWorldDef.archetype_at(s0 + NextWorldDef.BAND) == &"garden", "the sky takes the third band, then the garden comes round again")
+	var def: NextWorldDef = MapInfo.def_for(Vector2i(28, s0))
 	check(def.region == NextWorldDef.ISLANDS and def.realm() == &"sky" and def.chasmed(), "a sky level collapses the floating islands, prints in its realm and is gated by chasms")
 
 
 func generation(wfc: Node) -> void:
 	print("generation")
 	var totals: Dictionary = {"pads": 0, "puffs": 0, "drafts": 0, "shields": 0, "bounces": 0, "birds": 0}
-	for at: Vector2i in [Vector2i(28, 6), Vector2i(7, 7), Vector2i(99, 8)]:
+	var s0: int = NextWorldDef.first_depth(&"sky")
+	for at: Vector2i in [Vector2i(28, s0), Vector2i(7, s0 + 1), Vector2i(99, s0 + 2)]:
 		var def: NextWorldDef = MapInfo.def_for(at)
 		var cells: Array = wfc.call("generate_level", def)
 		check(not cells.is_empty(), "%s collapses" % at)

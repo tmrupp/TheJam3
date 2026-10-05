@@ -198,7 +198,7 @@ func run() -> void:
 	Abilities.grant(player, &"astral")
 	check(Abilities.spell(player) == &"astral" and Abilities.tier(player, &"parry") == 0, "learning astral replaces parry: one spell at a time")
 	Abilities.grant(player, &"astral")
-	check(is_equal_approx((player.get_node("AstralProjection").get("projection_timer") as ActionTimer).MAX_TIME, 7.0), "astral II lasts longer")
+	check(is_equal_approx((player.get_node("AstralProjection").get("projection_timer") as ActionTimer).MAX_TIME, 2.0), "astral II lasts two seconds")
 	check(player.has_node("Blink") and player.MAX_JUMPS == 2 and player.climable, "perks are untouched by the swap")
 	check(player.health.max_health == 4, "vigor I adds a heart")
 	for i: int in range(6):
