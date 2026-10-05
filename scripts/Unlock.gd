@@ -7,6 +7,9 @@ extends Area2D
 func door_color() -> int:
 	return int(door.get_meta(&"key_color", 0))
 
+func interaction_hint() -> Dictionary:
+	return {"key_color": door_color()}
+
 ## Open with a carried key of the door's colour; when `skeleton`, failing that, with a skeleton key
 ## (used up). Touching the door never spends a skeleton key; interacting with it does.
 func try_open(skeleton: bool = false) -> void:

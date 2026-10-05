@@ -4,13 +4,26 @@ extends Node2D
 ## so wall and ceiling spikes point the right way. Presentation only.
 
 class_name RisoProp
+const FOG_ART: GDScript = preload("res://scripts/riso/RisoFog.gd")
 const STATIC_KINDS: Array[StringName] = [&"door", &"ledge", &"thorns", &"cracked", &"gate"]
 
 
-## A crescent-bowed key, in world pixels, centred near `o`.
-static func key_shape(o: Vector2, s: float) -> Array[PackedVector2Array]:
+## The same colour-to-shape identity on keys, lock faces and map marks.
+## Sun = square, ember = triangle, moss = circle, plum = diamond; skeleton keys have a skull.
+static func key_bow(c: Vector2, r: float, color: int) -> PackedVector2Array:
+	if color == KeyRing.SKELETON:
+		return Transform2D(0.0, Vector2(r, r), 0.0, c) * RisoShapes.smooth(PackedVector2Array([Vector2(-0.6, 1), Vector2(-0.6, 0.5), Vector2(-1, 0.3), Vector2(-1, -0.6), Vector2(-0.5, -1), Vector2(0.5, -1), Vector2(1, -0.6), Vector2(1, 0.3), Vector2(0.6, 0.5), Vector2(0.6, 1)]))
+	match posmod(color, MapInfo.KEY_COLOR_COUNT):
+		1: return RisoShapes.tri(c + Vector2(0, -r), c + Vector2(r, r), c + Vector2(-r, r))
+		2: return RisoShapes.circle(c, r, 24)
+		3: return PackedVector2Array([c + Vector2(0, -r), c + Vector2(r, 0), c + Vector2(0, r), c + Vector2(-r, 0)])
+	return RisoShapes.rrect(c.x - r, c.y - r, r * 2.0, r * 2.0, r * 0.12)
+
+
+## A key with a colour-specific bow, in world pixels, centred near `o`.
+static func key_shape(o: Vector2, s: float, color: int = 0) -> Array[PackedVector2Array]:
 	return [
-		RisoShapes.crescent(o + Vector2(-10, 0) * s, 11.0 * s, Vector2(5, -2) * s),
+		key_bow(o + Vector2(-10, 0) * s, 11.0 * s, color),
 		RisoShapes.rrect(o.x - 3.0 * s, o.y - 3.5 * s, 24.0 * s, 7.0 * s, 3.5 * s),
 		RisoShapes.rrect(o.x + 12.0 * s, o.y, 6.0 * s, 11.0 * s, 3.0 * s),
 	]
@@ -216,7 +229,7 @@ func _key() -> void:
 	if sprite != null and not sprite.visible:
 		return
 	var o: Vector2 = Vector2(0, sin(t * 3.0 + phase) * 4.0)
-	var shape: Array[PackedVector2Array] = RisoProp.key_shape(o, 1.0)
+	var shape: Array[PackedVector2Array] = RisoProp.key_shape(o, 1.0, int(host.get_meta(&"key_color", 0)))
 	var inks: Array[int] = RisoPrint.key_inks(int(host.get_meta(&"key_color", 0)))
 	# A halo in the key's own colour, as the stars have.
 	var halo: Array[PackedVector2Array] = [RisoShapes.circle(o + Vector2(-2, 1), 26.0, 24)]
@@ -249,8 +262,8 @@ func _cluster() -> void:
 
 
 ## The ink well: a big gold-rimmed pot on the floor with a paper label, a pulsing halo, a drop of
-## ink rising and falling, a rolled map floating over it with motes circling, and its price on a
-## plaque. Once paid it is dry: no drop, no map, no glow, a dim rim.
+## ink rising and falling and a quill resting in its mouth. Its price is a focused interaction
+## tooltip. Once paid it is dry: no drop, no glow, a dim rim.
 func _inkwell() -> void:
 	var g: float = _ground()
 	var dry: bool = bool(host.call("used")) if host.has_method("used") else false
@@ -265,6 +278,16 @@ func _inkwell() -> void:
 		ink.ink(RisoPrint.ACCENT, 0.6, [RisoShapes.ellipse(o + Vector2(0, -40), 52.0 * pulse, 58.0 * pulse, 28)])
 	var pot: PackedVector2Array = pot_t * RisoShapes.rrect(-17, -10, 34, 24, 10)
 	var neck: PackedVector2Array = pot_t * RisoShapes.rrect(-8, -18, 16, 10, 3)
+	# A quill tucked into the neck, its shaft and feather behind the pot's lip.
+	var quill_t: Transform2D = Transform2D(0.5, o + Vector2(0, -46))
+	var feather: PackedVector2Array = quill_t * RisoShapes.almond(Vector2(0, -48), 11.0, 27.0, 20)
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], [feather])
+	ink.ink(RisoPrint.BLUE, 0.25 if dry else 0.45, [feather], false)
+	var quill_lines: Array[PackedVector2Array] = [quill_t * RisoShapes.rrect(-1.5, -72, 3, 82, 1.5)]
+	for k: int in range(4):
+		var y: float = -60.0 + float(k) * 9.0
+		quill_lines.append_array(RisoDecor.strip(PackedVector2Array([quill_t * Vector2(-7, y - 5), quill_t * Vector2(0, y), quill_t * Vector2(7, y - 5)]), 1.4, 1.4))
+	ink.ink(RisoPrint.NIGHT, 0.85, quill_lines, false)
 	ink.ink(RisoPrint.BLUE, 1.0, [pot, neck])
 	ink.ink(RisoPrint.NIGHT, 0.35, [pot_t * RisoShapes.rrect(3, -8, 12, 20, 6)], false)
 	ink.ink(RisoPrint.ACCENT, 0.4 if dry else 1.0, [pot_t * RisoShapes.rrect(-10, -21, 20, 5, 2.5)])
@@ -281,24 +304,6 @@ func _inkwell() -> void:
 	var drop: PackedVector2Array = RisoShapes.smooth(PackedVector2Array([d + Vector2(0, -11), d + Vector2(7, 1), d + Vector2(0, 7), d + Vector2(-7, 1)]))
 	ink.ink(RisoPrint.BLUE, 1.0, [drop])
 	ink.knock([RisoPrint.BLUE, RisoPrint.ACCENT], [RisoShapes.circle(d + Vector2(-2.5, 0), 2.4, 8)])
-	# A rolled map floating above: paper sheet with ink lines, rolled ends in blue.
-	var m: Vector2 = Vector2(0, g - 178.0 + sin(t * 1.8 + phase) * 6.0)
-	var sheet_t: Transform2D = Transform2D(sin(t * 1.1 + phase) * 0.08, m)
-	var sheet: PackedVector2Array = sheet_t * RisoShapes.rrect(-26, -15, 52, 30, 3)
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE], [sheet])
-	ink.ink(RisoPrint.BLUE, 0.15, [sheet], false)
-	var lines: Array[PackedVector2Array] = []
-	for k: int in range(3):
-		lines.append(sheet_t * RisoShapes.rrect(-18, -8 + float(k) * 7.0, 26.0 - float(k) * 6.0, 2.2, 1.1))
-	lines.append(sheet_t * RisoShapes.circle(Vector2(13, 4), 4.0, 10))
-	ink.ink(RisoPrint.NIGHT, 0.8, lines, false)
-	ink.ink(RisoPrint.BLUE, 1.0, [sheet_t * RisoShapes.rrect(-31, -17, 7, 34, 3.5), sheet_t * RisoShapes.rrect(24, -17, 7, 34, 3.5)])
-	var motes: Array[PackedVector2Array] = []
-	for k: int in range(3):
-		var a: float = t * 1.4 + TAU * float(k) / 3.0
-		motes.append(RisoShapes.sparkle(m + Vector2(cos(a) * 44.0, sin(a) * 18.0), 6.0))
-	ink.ink(RisoPrint.ACCENT, 1.0, motes)
-	_plaque("map · %d" % int(host.call("price")), Vector2(0, g - 104.0), 26, RisoPrint.BLUE)
 
 
 ## The wizard's astral silhouette where they died, in glow ink, with the stars it holds circling.
@@ -881,9 +886,10 @@ func _lantern() -> void:
 			ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], drop)
 			ink.ink(RisoPrint.PINK, 1.0 - rise * 0.6, drop, false)
 	elif spent:
-		# Empty glass and a charred wick: this lantern has already absorbed a death.
+		# Empty glass, a charred wick and a thin smoke thread: the lantern has burned out.
 		ink.ink(RisoPrint.NIGHT, 0.6, [glass], false)
 		ink.ink(RisoPrint.BLUE, 0.5, [hang * RisoShapes.rrect(-3, 38, 6, 6, 2)], false)
+		smoke_thread(ink, hang.translated_local(Vector2(0, 38)), t + phase, 44.0, 3.2, 4.0, true)
 	else:
 		# Unclaimed: a low ember behind the glass, waiting to be lit.
 		var flick: float = 0.8 + 0.2 * sin(t * 7.0 + phase)
@@ -891,6 +897,33 @@ func _lantern() -> void:
 		ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT], [glass])
 		ink.ink(RisoPrint.EYE, 0.5, [glass], false)
 		ink.ink(RisoPrint.BLUE, 0.35, [glass], false)
+
+
+## One narrow curling strand, attached to the wick and fading away as it rises. Used both on
+## burned-out lanterns in the world and on the HUD's extinguished protection candle.
+static func smoke_thread(canvas: InkCanvas, frame: Transform2D, time: float, height: float,
+		width: float, drift: float, punch: bool = false) -> void:
+	var points: PackedVector2Array = PackedVector2Array()
+	var widths: PackedFloat32Array = PackedFloat32Array()
+	var covers: PackedFloat32Array = PackedFloat32Array()
+	const SECTIONS: int = 24
+	for i: int in range(SECTIONS + 1):
+		var u: float = float(i) / float(SECTIONS)
+		var curl: float = drift * pow(u, 0.7) * sin(u * TAU - time * 1.8)
+		points.append(Vector2(curl, -height * u))
+		widths.append(width * 0.5 * lerpf(1.0, 0.35, u))
+		covers.append(0.45 * (1.0 - smoothstep(0.4, 1.0, u)))
+	# Keep the whole strand in one polygon: the print renderer discards tiny isolated shapes,
+	# so individual cross-sections would disappear even when the full thread is visible.
+	var outline: PackedVector2Array = PackedVector2Array()
+	var alpha: PackedFloat32Array = PackedFloat32Array()
+	for i: int in range(SECTIONS + 1):
+		outline.append(points[i] + Vector2(-widths[i], 0))
+		alpha.append(covers[i])
+	for i: int in range(SECTIONS, -1, -1):
+		outline.append(points[i] + Vector2(widths[i], 0))
+		alpha.append(covers[i])
+	canvas.ink_graded(RisoPrint.PINK, [frame * outline], [alpha], punch)
 
 
 func _exit() -> void:
@@ -918,10 +951,7 @@ func _exit() -> void:
 		# Locked: dark, with a lock in the colour of key it needs, as on the doors.
 		ink.ink(RisoPrint.NIGHT, 1.0, [opening], false)
 		ink.ink(RisoPrint.BLUE, 0.35, [opening], false)
-		var lock: Array[PackedVector2Array] = RisoProp.key_shape(Vector2(-6, g - 58), 0.9)
-		ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], lock)
-		for plate: int in RisoPrint.key_inks(needs):
-			ink.ink(plate, 1.0, lock, false)
+		RisoProp.padlock(ink, Vector2(0, g - 68), needs, 1.6, 1.0)
 	elif owed > 0:
 		ink.ink(RisoPrint.NIGHT, 1.0, [opening], false)
 		ink.ink(RisoPrint.BLUE, 0.35, [opening], false)
@@ -1067,7 +1097,7 @@ static func glyph(a: StringName, c: Vector2, t: float) -> Array[PackedVector2Arr
 			var ring: Array[PackedVector2Array] = [RisoShapes.crescent(c + Vector2(0, -12), 11.0, Vector2(0, 4))]
 			for side: float in [-1.0, 1.0]:
 				var xf: Transform2D = Transform2D(PI * 0.5 + side * 0.35, c + Vector2(side * 9.0, 2.0))
-				for poly: PackedVector2Array in key_shape(Vector2.ZERO, 0.55):
+				for poly: PackedVector2Array in key_shape(Vector2.ZERO, 0.55, 0 if side < 0 else 1):
 					ring.append(xf * poly)
 			return ring
 	return [RisoShapes.sparkle(c, 18.0)]
@@ -1750,8 +1780,12 @@ func _wraith() -> void:
 	var eyes: Array[PackedVector2Array] = []
 	var glows: Array[PackedVector2Array] = []
 	for e: Vector2 in [Vector2(0, -21), Vector2(6, -21)]:
-		var big: float = 1.35 if chasing else 1.0
-		eyes.append(xf * (RisoShapes.rrect(e.x - 1.6, e.y - 0.3, 3.2, 0.6, 0.3, 2) if stunned else RisoShapes.ellipse(e, 1.5 * big, 2.1 * big, 10)))
+		var eye: PackedVector2Array = RisoShapes.ellipse(e, 1.5, 2.1, 10)
+		if chasing:
+			eye = RisoShapes.circle(e, 2.1, 16)
+		elif stunned:
+			eye = RisoShapes.rrect(e.x - 1.6, e.y - 0.3, 3.2, 0.6, 0.3, 2)
+		eyes.append(xf * eye)
 		glows.append(xf * RisoShapes.circle(e, 3.6 + 0.5 * sin(t * 8.0 + phase), 12))
 	if chasing:
 		# Lit: the pink lifts the hood's night under it, so it shines out of the dark.
@@ -1885,7 +1919,7 @@ static func chain(ink: InkCanvas, path: PackedVector2Array, link: float, w: floa
 
 ## A padlock on `c` (its body's top middle), `s` its size: a pale body tinted with its key's
 ## colour (pale, so it reads even on something of that colour), a dark shackle and keyhole.
-## Bells and the garden's gates hang the same one.
+## Bells, lateral exits and the garden's gates hang the same one.
 static func padlock(ink: InkCanvas, c: Vector2, color: int, s: float, fade: float) -> void:
 	var body: PackedVector2Array = RisoShapes.rrect(c.x - 11.0 * s, c.y, 22.0 * s, 17.0 * s, 4.0 * s)
 	var shackle: Array[PackedVector2Array] = RisoDecor.strip(PackedVector2Array([c + Vector2(-6.5, 1) * s, c + Vector2(-6.5, -7) * s, c + Vector2(0, -12) * s, c + Vector2(6.5, -7) * s, c + Vector2(6.5, 1) * s]), 3.4 * s, 3.4 * s)
@@ -1893,7 +1927,7 @@ static func padlock(ink: InkCanvas, c: Vector2, color: int, s: float, fade: floa
 	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], 0.9 * fade, [body])
 	for plate: int in RisoPrint.key_inks(color):
 		ink.ink(plate, 0.8 * fade, [body], false)
-	ink.ink(RisoPrint.NIGHT, fade, [RisoShapes.circle(c + Vector2(0, 6.5) * s, 2.4 * s, 10), RisoShapes.tri(c + Vector2(-1.8, 7.5) * s, c + Vector2(1.8, 7.5) * s, c + Vector2(0, 13.0) * s)], false)
+	ink.ink(RisoPrint.NIGHT, fade, [key_bow(c + Vector2(0, 6.5) * s, 4.5 * s, color)], false)
 
 
 ## A switch's plate on `c` where a padlock would hang: a dark plate with the switch emblem.
@@ -1945,6 +1979,14 @@ func _moths() -> void:
 ## steps (an outer wisp, then denser toward the middle), sliding to and fro at their own pace;
 ## a faint pink wash low down and a few pink motes rising through it say it is not harmless.
 func _fog() -> void:
+	var style: StringName = RisoPrint.instance.fog_style if RisoPrint.instance != null else &"shroud"
+	if style == &"original":
+		_fog_original()
+	else:
+		FOG_ART.draw(ink, t, phase, style)
+
+
+func _fog_original() -> void:
 	var mid: Vector2 = Vector2(0, -float(SleepFog.RISE))
 	var size: Vector2 = SleepFog.SIZE
 	var lift: Array[PackedVector2Array] = []

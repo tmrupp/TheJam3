@@ -83,6 +83,16 @@ func lift_ink(plates: Array[int], cover: float, polys: Array[PackedVector2Array]
 	_emit(mask, true, cover, polys, [])
 
 
+## A partial knock with per-vertex coverage, for light or mist fading along a shape.
+func lift_ink_graded(plates: Array[int], polys: Array[PackedVector2Array], alphas: Array[PackedFloat32Array]) -> void:
+	if polys.is_empty():
+		return
+	var mask: int = 0
+	for p: int in plates:
+		mask |= RisoPrint.plate_mask(p)
+	_emit(mask, true, 1.0, polys, alphas)
+
+
 func _emit(mask: int, lift: bool, cover: float, polys: Array[PackedVector2Array], alphas: Array[PackedFloat32Array]) -> void:
 	var op: Node2D
 	if _used < _ops.size():

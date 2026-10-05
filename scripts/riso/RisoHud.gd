@@ -305,8 +305,8 @@ func _ghost_row(info: MapInfo, player: Player) -> void:
 
 ## Protection, as a flame beside the health beads (left edge at `at.x`, 10 wide). While a lantern
 ## protects the wizard it burns: eye yellow, warmed with pink at its root, a paper-white core and
-## a soft halo, flickering. When another must be lit it is an empty pink flame over a cold wick,
-## pulsing. It stays after recovering the ghost, since only lighting a lantern restores protection.
+## a soft halo, flickering. When another must be lit a thin pink smoke thread rises from the cold
+## wick. It stays after recovering the ghost, since only lighting a lantern restores protection.
 func _lantern_mark(info: MapInfo, at: Vector2) -> void:
 	lantern_lit = not info.vulnerable
 	var cx: float = at.x + 5.0
@@ -315,7 +315,8 @@ func _lantern_mark(info: MapInfo, at: Vector2) -> void:
 	var sway: float = sin(t * 6.0) * 0.7
 	var outer: PackedVector2Array = RisoShapes.smooth(PackedVector2Array([
 		Vector2(cx + sway, y - 7.0 * flick), Vector2(cx + 3.4, y + 1.0), Vector2(cx, y + 5.0), Vector2(cx - 3.4, y + 1.0)]), 4)
-	var wick: PackedVector2Array = RisoShapes.rrect(cx - 0.5, y + 4.2, 1.0, 2.6, 0.5)
+	var wick_width: float = 1.0 if lantern_lit else 2.0
+	var wick: PackedVector2Array = RisoShapes.rrect(cx - wick_width * 0.5, y + 4.2, wick_width, 2.6 if lantern_lit else 3.0, 0.5)
 	if lantern_lit:
 		ink.ink(RisoPrint.EYE, 0.25 * flick, [RisoShapes.circle(Vector2(cx, y), 8.0, 20)], false)
 		ink.ink(RisoPrint.EYE, 1.0, [outer], false)
@@ -325,11 +326,7 @@ func _lantern_mark(info: MapInfo, at: Vector2) -> void:
 		ink.knock([RisoPrint.EYE, RisoPrint.PINK], [core])
 		ink.ink(RisoPrint.NIGHT, 1.0, [wick], false)
 	else:
-		var pulse: float = 0.55 + 0.45 * absf(sin(t * 3.0))
-		var hollow: PackedVector2Array = RisoShapes.smooth(PackedVector2Array([
-			Vector2(cx + sway * 0.6, y - 4.4), Vector2(cx + 1.9, y + 1.4), Vector2(cx, y + 3.6), Vector2(cx - 1.9, y + 1.4)]), 3)
-		ink.ink(RisoPrint.PINK, pulse, [outer], false)
-		ink.knock([RisoPrint.PINK], [hollow])
+		RisoProp.smoke_thread(ink, Transform2D(0.0, Vector2(cx, y + 4.2)), t, 11.2, 1.8, 1.8)
 		ink.ink(RisoPrint.NIGHT, 1.0, [wick], false)
 
 
@@ -372,7 +369,8 @@ func _awareness(player: Player) -> void:
 			&"shrine":
 				ink.ink(RisoPrint.ACCENT, fade, [RisoShapes.arch(mark.x - 2.6, mark.y - 3.2, 5.2, 6.0, 6)], false)
 			&"key":
-				ink.ink_overprint(RisoPrint.key_inks(int((target["node"] as Node).get_meta(&"key_color", 0))), fade, RisoProp.key_shape(mark, 0.2))
+				var color: int = int((target["node"] as Node).get_meta(&"key_color", 0))
+				ink.ink_overprint(RisoPrint.key_inks(color), fade, RisoProp.key_shape(mark, 0.2, color))
 	ink.ink(RisoPrint.NIGHT, fade, arrows, false)
 
 

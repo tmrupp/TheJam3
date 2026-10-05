@@ -46,6 +46,13 @@ func is_focused() -> bool:
 	return touching and available and is_inside_tree() and Interactable.focused(get_tree()) == self
 
 
+## Optional focused tooltip supplied by the object: text, key_color, or switch.
+## All interactables use the same focus and pop-up presentation.
+func prompt_hint() -> Dictionary:
+	var object: Node = get_parent()
+	return object.call("interaction_hint") if object.has_method("interaction_hint") else {}
+
+
 func _process(_delta: float) -> void:
 	sprite.visible = is_focused()
 

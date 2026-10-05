@@ -268,6 +268,7 @@ func _one_way (body: CollisionObject2D) -> bool:
 	
 func do_wall_jump (wall_normal: Vector2) -> void:
 	coyote.end()
+	jumps = mini(jumps, MAX_JUMPS - 1)
 	jump(WALL_JUMP_Y_FACTOR)
 	velocity.x = wall_normal.x * WALL_JUMP_SPEED
 	wall_jump.enable(true)
@@ -311,8 +312,6 @@ func _physics_process(delta: float) -> void:
 	# Add the gravity.
 	# in the air
 	if not is_on_floor():
-		coyote.enable()
-		
 		if climb.is_acting():
 			if not walled:
 				#climb.end()
@@ -355,26 +354,34 @@ func _physics_process(delta: float) -> void:
 			# animation_player.play("idle")
 			pass
 		
+		# Arm coyote time only while grounded. Taking a jump spends it; falling cannot rearm it.
+		dash.refresh()
+		coyote.enable(true)
+		hang.refresh()
+		climb.refresh()
+
 		# if a jump was buffered, jump
 		if (buffer_jump.is_acting()):
 			buffer_jump.end()
+			coyote.end()
 			jump()
-
-		# refresh grounded actions
-		dash.refresh()
-		coyote.refresh()
-		hang.refresh()
-		climb.refresh()
+			jumps -= 1
 		
 	# cannot dash then exploit coyote jump
 	if dash.is_acting():
 		coyote.end()
+	# Once the ledge grace period ends, only learned air jumps remain. The ground jump cannot
+	# be saved indefinitely by walking off instead of jumping.
+	if not is_on_floor() and not coyote.is_acting():
+		jumps = mini(jumps, MAX_JUMPS - 1)
 
 	# Handle Jump.
 	if Input.is_action_just_pressed("Jump"):
 		jump_held = true
 		# normal jump, stop coyoting on a jump
 		if (is_on_floor() and direction.y > 0):
+			coyote.end()
+			jumps = mini(jumps, MAX_JUMPS - 1)
 			drop()
 		elif (is_on_floor() or coyote.is_acting()):
 			coyote.end()

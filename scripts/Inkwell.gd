@@ -20,6 +20,10 @@ func price() -> int:
 	return MapInfo.map_price(map_info.coord.y) if map_info != null else 0
 
 
+func interaction_hint() -> Dictionary:
+	return {"text": "map · %d" % price()} if not used() else {}
+
+
 func buy() -> void:
 	if used() or player.coins.coins < price():
 		return
@@ -30,3 +34,7 @@ func buy() -> void:
 
 func _ready() -> void:
 	$Interactable.interacted.connect(buy)
+
+
+func _process(_delta: float) -> void:
+	$Interactable.available = not used()

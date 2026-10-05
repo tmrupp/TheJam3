@@ -512,7 +512,7 @@ func _mark_exit(at: Vector2, dir: Vector2, deeper: bool, needs: int, owed: int, 
 	marks.ink(RisoPrint.PINK if deeper else RisoPrint.NIGHT, 1.0, [RisoProp.chevron(at - dir * 2.0 * k, dir, 0.24 * k)], false)
 	if needs >= 0:
 		for plate: int in RisoPrint.key_inks(needs):
-			marks.ink(plate, 1.0, [RisoShapes.circle(at + Vector2(4.2, -4.2) * k, 1.6, 8)], false)
+			marks.ink(plate, 1.0, [RisoProp.key_bow(at + Vector2(4.2, -4.2) * k, 2.0 * k, needs)], false)
 	elif owed > 0:
 		marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.sparkle(at + Vector2(4.2, -4.2) * k, 2.6)], false)
 
@@ -553,12 +553,13 @@ func _mark_door(at: Vector2, color: int) -> void:
 	_note("door")
 	for plate: int in RisoPrint.key_inks(color):
 		marks.ink(plate, 1.0, [RisoShapes.rrect(at.x - 0.9, at.y - 2.6, 1.8, 5.2, 0.8)], false)
+		marks.ink(plate, 1.0, [RisoProp.key_bow(at + Vector2(2.6, -2.6), 1.8, color)], false)
 
 
 func _mark_key(at: Vector2, color: int) -> void:
 	_note("skeleton key" if color == KeyRing.SKELETON else "key")
 	for plate: int in RisoPrint.key_inks(color):
-		marks.ink(plate, 1.0, [RisoShapes.circle(at, 1.3, 8)], false)
+		marks.ink(plate, 1.0, [RisoProp.key_bow(at, 2.0, color)], false)
 
 
 ## A plank of a chasm's bridge: a night bar once its bell is rung; before, a faint accent dash.
@@ -577,7 +578,7 @@ func _mark_bell(at: Vector2, rung: bool, lock: int = -2) -> void:
 	marks.ink(RisoPrint.ACCENT, 0.35 if rung else 1.0, [RisoShapes.circle(at, 1.8, 10)], false)
 	if lock >= 0:
 		for plate: int in RisoPrint.key_inks(lock):
-			marks.ink(plate, 1.0, [RisoShapes.circle(at + Vector2(2.8, -2.8), 1.2, 8)], false)
+			marks.ink(plate, 1.0, [RisoProp.key_bow(at + Vector2(2.8, -2.8), 1.8, lock)], false)
 	elif lock == -1:
 		marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.circle(at + Vector2(2.8, -2.8), 1.2, 8)], false)
 

@@ -44,6 +44,12 @@ func lock_state() -> int:
 	return -2 if unchained() else lock
 
 
+func interaction_hint() -> Dictionary:
+	if unchained():
+		return {}
+	return {"switch": true} if lock == SWITCH_LOCK else {"key_color": lock}
+
+
 ## Interact: unlock the padlock with a key if it has one, then ring.
 func use() -> void:
 	if map_info == null or rung():

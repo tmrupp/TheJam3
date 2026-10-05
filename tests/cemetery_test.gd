@@ -72,7 +72,7 @@ func run() -> void:
 	await settle()
 	player.set_physics_process(false)
 	print("in a cemetery")
-	check(info.here.cemetery() and MapInfo.where(info.coord) == "world 28 · depth 3 · cemetery", "world 28 depth 3 is a cemetery, and says so")
+	check(info.here.cemetery() and MapInfo.where(info.coord) == "world 28 · depth 3", "cemetery world label shows only world and depth")
 	if RisoPrint.instance != null:
 		check(RisoPrint.instance.realm == &"cemetery", "printed in the cemetery's realm")
 

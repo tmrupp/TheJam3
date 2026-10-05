@@ -47,7 +47,7 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 - **Burning a lantern:** holding the mend spell short of draughts, interact with the lantern you lit to burn it into the spell (`MapInfo.burn_lantern`): the draughts fill, but the lantern is spent and you are unprotected until you light another. A drop of pink light rises over a lantern that can be burned. With lanterns scarce, that is the choice: a life kept in the lantern, or hearts now.
 - **Die without a lit lantern:** the run ends. The seed's levels are unchanged, since they are generated. Your character and level records reset, and the new run starts with a fresh lit lantern. The ended run's save is deleted immediately.
 - **Arming:** a ghost can only be recovered once the player has stepped off it, so dying on the respawn lantern doesn't hand the stars straight back.
-- **Presentation:** the HUD's flame (beside the health beads) burns yellow while protected and is a hollow, pulsing pink flame otherwise, including after recovering a ghost. Spent lanterns have empty, dark glass, a charred wick and no light pool. Unspent lanterns keep their low ember. Insects no longer circle lanterns. The ghost uses the printed astral-silhouette style, and the HUD points toward it when it is in another level.
+- **Presentation:** the HUD's flame (beside the health beads) burns yellow while protected and becomes a thin, curling pink smoke thread otherwise, including after recovering a ghost. Spent lanterns have empty, dark glass, a charred wick, the same fading smoke thread and no light pool. Unspent lanterns keep their low ember. Insects no longer circle lanterns. The ghost uses the printed astral-silhouette style, and the HUD points toward it when it is in another level.
 - **Saves:** existing version-1 saves remain readable. An old unprotected save marks its last respawn lantern spent when loaded. `tests/death_test.gd` covers consumption, relighting rejection, cross-world deaths, star and ghost recovery, revisits, save migration, and run reset.
 
 ## 3. Keys
@@ -340,4 +340,3 @@ The thoughts above, grouped by the code they would share. Suggested order: 1, th
     - Burning a lantern as a cost in its own right: it may suit more than mend (refilling hex charges, resetting warp's recharge, powering a big spell), or other spells could cost a lantern burn outright.
     - The numbers: cast prices (`Abilities.CAST_COST`, the 1.25^d growth), the star cluster's worth (`cluster_value`), the skeleton key's 30 %, keyring and mend prices at shrines, and lantern density now that lanterns are scarce.
     - Relic rarity (5 %) against how often the shrine's hint is bought, and whether relics should cost less now that reaching one is the effort.
-

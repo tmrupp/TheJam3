@@ -1,8 +1,8 @@
 extends Node2D
 ## Printed interaction prompt: a bare-paper disc with an interact symbol (a pointing hand, tapping)
 ## in night ink that pops up above an Interactable while it is the focused one (the nearest the
-## player is touching; see Interactable.focused). On doors it shows the key colour the door needs
-## instead. Replaces the pixel-art prompt sprite. It draws in the UI's canvas
+## player is touching; see Interactable.focused). The object's interaction_hint supplies optional
+## text or the key/switch it needs. Replaces the pixel-art prompt sprite. It draws in the UI's canvas
 ## (RisoPrint.ui_canvas), printed finer than the scene, kept on this node.
 
 var canvas: Node2D
@@ -12,6 +12,7 @@ var host: Node2D
 var ink: InkCanvas
 var shown: float = 0.0
 var t: float = 0.0
+var hint_label: Label
 
 
 func _ready() -> void:
@@ -28,6 +29,17 @@ func _ready() -> void:
 	ink = InkCanvas.new()
 	ink.ui = true
 	canvas.add_child(ink)
+	hint_label = Label.new()
+	hint_label.add_theme_font_override("font", RisoTheme.serif())
+	hint_label.add_theme_font_size_override("font_size", 26)
+	hint_label.add_theme_color_override("font_color", Color.WHITE)
+	hint_label.add_theme_color_override("font_outline_color", Color.WHITE)
+	hint_label.add_theme_constant_override("outline_size", 2)
+	hint_label.visibility_layer = RisoPrint.plate_mask(RisoPrint.NIGHT)
+	hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	hint_label.visible = false
+	canvas.add_child(hint_label)
 
 
 ## The interact symbol: a hand pointing down at the thing below, like a cursor clicking. A blue
@@ -65,9 +77,9 @@ func _process(delta: float) -> void:
 	var near: bool = interactable != null and is_instance_valid(interactable) and interactable.has_method("is_focused") and bool(interactable.call("is_focused"))
 	shown = move_toward(shown, 1.0 if near else 0.0, delta * 6.0)
 	ink.begin()
-	var door: Node = host.get_parent() if host != null and host.name == "Unlock" else null
-	# Doors, and locked side exits, show the key colour they need instead of the hand.
-	var needs: int = int(door.get_meta(&"key_color", 0)) if door != null else (int(host.call("lock")) if host != null and host.has_method("lock") else -1)
+	var hint: Dictionary = interactable.call("prompt_hint") if is_instance_valid(interactable) and interactable.has_method("prompt_hint") else {}
+	var needs: int = int(hint.get("key_color", -1))
+	hint_label.visible = false
 	if shown > 0.01:
 		var pop: float = sin(shown * PI * 0.5) * (1.0 + 0.12 * sin(shown * PI))
 		var at: Vector2 = Vector2(0, -118 + sin(t * 3.0) * 3.0)
@@ -76,11 +88,24 @@ func _process(delta: float) -> void:
 		ink.ink(RisoPrint.BLUE, 0.12, [disc], false)
 		if pop > 0.3:
 			if needs >= 0:
-				var key: Array[PackedVector2Array] = [RisoShapes.crescent(at + Vector2(-8, 0), 10.0 * pop, Vector2(4.5, -2) * pop), RisoShapes.rrect(at.x - 6.0, at.y - 3.0, 22.0 * pop, 6.0 * pop, 3.0)]
-				ink.ink_overprint(RisoPrint.key_inks(needs), 1.0, key)
+				ink.ink_overprint(RisoPrint.key_inks(needs), 1.0, RisoProp.key_shape(at, pop, needs))
+			elif bool(hint.get("switch", false)):
+				ink.ink(RisoPrint.NIGHT, 1.0, RisoProp.switch_emblem(at, pop), false)
 			else:
 				# A press about every 0.8 s: down quickly, a moment on the spot, then back up.
 				var u: float = fmod(t * 1.25, 1.0)
 				var tap: float = smoothstep(0.0, 0.25, u) * (1.0 - smoothstep(0.55, 0.85, u))
 				_hand(at, pop * 0.95, tap)
+			var text: String = str(hint.get("text", ""))
+			if not text.is_empty():
+				var w: float = RisoTheme.serif().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x + 22.0
+				var centre: Vector2 = at + Vector2(0, -60)
+				var plaque: PackedVector2Array = RisoShapes.rrect(centre.x - w * pop * 0.5, centre.y - 18.0 * pop, w * pop, 36.0 * pop, 10.0 * pop)
+				ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE], [plaque])
+				ink.ink(RisoPrint.BLUE, 0.2, [plaque], false)
+				hint_label.text = text
+				hint_label.size = Vector2(w, 36)
+				hint_label.scale = Vector2.ONE * pop
+				hint_label.position = centre - hint_label.size * pop * 0.5
+				hint_label.visible = true
 	ink.finish()

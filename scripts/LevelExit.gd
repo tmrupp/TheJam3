@@ -28,6 +28,10 @@ func lock() -> int:
 		return -1
 	return MapInfo.lateral_lock(map_info.coord, exit)
 
+func interaction_hint() -> Dictionary:
+	var needs: int = lock()
+	return {"key_color": needs} if needs >= 0 else {}
+
 func interacted() -> void:
 	if map_info == null or map_info.travelling:
 		return

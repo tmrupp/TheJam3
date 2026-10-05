@@ -172,7 +172,7 @@ func grows() -> bool:
 
 ## Its name on screen and when sharing it.
 func title() -> String:
-	return "world %d · depth %d" % [coord.x, coord.y] + (" · cemetery" if cemetery() else "")
+	return "world %d · depth %d" % [coord.x, coord.y]
 
 
 ## The way an exit's chevron points.

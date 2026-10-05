@@ -105,13 +105,17 @@ var trapped: bool = false
 ## Scales every plate's misregistration (base offset, sheet jitter and drift): 0 prints in
 ## perfect register, 1 is the prototype's, 3 is a sloppy press.
 var offset_scale: float = 1.0
-## How many missed-ink specks (flecks of bare paper) the print shows: 0 none (the default), 1 the
+## How many missed-ink specks (flecks of bare paper) the print shows: 0 none, 0.2 the default, 1 the
 ## prototype's.
-var specks: float = 0.0
+var specks: float = 0.2
 ## What fills the portals' openings (see RisoProp._portal): bands of TV static (the default), or
 ## ripples on a pool of water.
 const PORTAL_STYLES: Array[StringName] = [&"static", &"ripples"]
 var portal_style: StringName = &"static"
+## Cemetery fog experiments: switching changes only the art, with the same sleep volume.
+const FOG_STYLES: Array[StringName] = [&"original", &"shroud", &"breath", &"bleed", &"faces", &"incense", &"shroud_breath"]
+const FOG_STYLE_NAMES: Array[String] = ["Original bands", "Torn ribbons", "Billowing bank", "Ragged ink", "Spectral billows", "Smoke plumes", "Billows & ribbons"]
+var fog_style: StringName = &"shroud"
 ## How much finer than the scene the UI prints, 0 (the same) to 1 (UI_* in full).
 var ui_detail: float = 0.7
 ## Camera zoom while printing, relative to the scene's own zoom (smaller shows more).
@@ -752,17 +756,14 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if key.keycode == KEY_F6:
 		set_enabled(not enabled)
 	elif key.keycode == KEY_F7:
-		panel.visible = not panel.visible
-		if panel.visible:
-			_travel_reset()
-		_sync_panel()
+		set_pad_panel(not panel.visible)
 	elif key.keycode == KEY_F8:
 		cycle_realm()
 
 
 ## The F7 panel by controller, in debug runs: Back (Select) opens it, pausing the game and focusing
-## its first control so the D-pad or stick moves through it (A picks, left and right move a
-## slider); Back again, or B, closes it and the game goes on.
+## its first control so the D-pad or stick moves through it (A picks, left and right change
+## sliders or choices); Back again, or B, closes it and the game goes on. F7 shares this focus.
 var _pad_paused: bool = false
 
 
@@ -771,7 +772,7 @@ func _input(event: InputEvent) -> void:
 	if pad != null and pad.pressed and pad.button_index == JOY_BUTTON_BACK and MapInfo.debug and panel != null:
 		set_pad_panel(not panel.visible)
 		get_viewport().set_input_as_handled()
-	elif _pad_paused and panel.visible and event.is_action_pressed(&"ui_cancel"):
+	elif panel != null and panel.visible and event.is_action_pressed(&"ui_cancel"):
 		set_pad_panel(false)
 		get_viewport().set_input_as_handled()
 
@@ -783,8 +784,9 @@ func set_pad_panel(open: bool) -> void:
 	_sync_panel()
 	if open:
 		# Not over a pause the menu made: that one stays.
-		_pad_paused = not get_tree().paused
+		_pad_paused = _pad_paused or not get_tree().paused
 		get_tree().paused = true
+		_wire_panel_focus()
 		var first: Control = _first_focusable(panel)
 		if first != null:
 			first.grab_focus()
@@ -800,12 +802,45 @@ func set_pad_panel(open: bool) -> void:
 func _first_focusable(node: Node) -> Control:
 	for child: Node in node.get_children():
 		var c: Control = child as Control
-		if c != null and c.focus_mode != Control.FOCUS_NONE and c.is_visible_in_tree():
+		# The scroll container's scrollbar is focusable too; open on an actual setting.
+		if (c is BaseButton or c is Slider) and c.focus_mode != Control.FOCUS_NONE and c.is_visible_in_tree():
 			return c
 		var deeper: Control = _first_focusable(child)
 		if deeper != null:
 			return deeper
 	return null
+
+
+## Explicit links keep navigation in the panel and preserve the column across neighbouring
+## rows. Geometry-based focus can skip these tiny controls or choose the scrollbar instead.
+func _wire_panel_focus() -> void:
+	var rows: Array[Array] = []
+	_panel_focus_rows(panel, rows)
+	for i: int in range(rows.size()):
+		var row: Array = rows[i]
+		for j: int in range(row.size()):
+			var control: Control = row[j]
+			var above: Array = rows[maxi(0, i - 1)]
+			var below: Array = rows[mini(rows.size() - 1, i + 1)]
+			control.focus_neighbor_left = control.get_path_to(row[maxi(0, j - 1)])
+			control.focus_neighbor_right = control.get_path_to(row[mini(row.size() - 1, j + 1)])
+			control.focus_neighbor_top = control.get_path_to(above[mini(j, above.size() - 1)])
+			control.focus_neighbor_bottom = control.get_path_to(below[mini(j, below.size() - 1)])
+
+
+func _panel_focus_rows(node: Node, rows: Array[Array]) -> void:
+	for child: Node in node.get_children():
+		if child is Control and not (child as Control).visible:
+			continue
+		if child is HBoxContainer:
+			var controls: Array = []
+			for item: Node in child.get_children():
+				if (item is BaseButton or item is Slider) and (item as Control).focus_mode != Control.FOCUS_NONE:
+					controls.append(item)
+			if not controls.is_empty():
+				rows.append(controls)
+		else:
+			_panel_focus_rows(child, rows)
 
 
 # ---------------------------------------------------------------- dressing prefabs
@@ -942,6 +977,7 @@ func _build_panel() -> void:
 	_option_row(box, &"realm", "Realm", ["Deep night", "Twilight", "Aurora"], _on_realm_picked)
 	_option_row(box, &"plates", "Plates", ["Independent", "Trapped"], func(i: int) -> void: trapped = i == 1)
 	_option_row(box, &"portal", "Portals", ["TV static", "Ripples"], func(i: int) -> void: portal_style = PORTAL_STYLES[i])
+	_option_row(box, &"fog", "Fog shape", FOG_STYLE_NAMES, func(i: int) -> void: fog_style = FOG_STYLES[i])
 	# Abilities: set any tier outright (a spell above 0 takes the slot).
 	var heading: Label = Label.new()
 	heading.text = "Abilities"
@@ -1114,6 +1150,17 @@ func _option_row(box: VBoxContainer, key: StringName, text: String, items: Array
 	for item: String in items:
 		pick.add_item(item)
 	pick.item_selected.connect(on_pick)
+	pick.gui_input.connect(func(event: InputEvent) -> void:
+		var direction: int = 0
+		if event.is_action_pressed(&"ui_left"):
+			direction = -1
+		elif event.is_action_pressed(&"ui_right"):
+			direction = 1
+		if direction != 0:
+			var next: int = wrapi(pick.selected + direction, 0, pick.item_count)
+			pick.select(next)
+			pick.item_selected.emit(next)
+			pick.accept_event())
 	row.add_child(pick)
 	_options[key] = pick
 
@@ -1133,6 +1180,8 @@ func _sync_panel() -> void:
 	_specks_label.text = "none" if specks <= 0.0 else "%d%%" % roundi(specks * 100.0)
 	if _options.has(&"portal"):
 		(_options[&"portal"] as OptionButton).select(PORTAL_STYLES.find(portal_style))
+	if _options.has(&"fog"):
+		(_options[&"fog"] as OptionButton).select(FOG_STYLES.find(fog_style))
 	if _options.has(&"realm"):
 		(_options[&"realm"] as OptionButton).select(REALM_ORDER.find(realm))
 	if _options.has(&"reprint"):

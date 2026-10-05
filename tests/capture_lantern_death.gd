@@ -20,7 +20,13 @@ func settle() -> void:
 	info.map_elements.process_mode = Node.PROCESS_MODE_DISABLED
 
 func shot(name: String) -> void:
+	while RisoTransition.instance != null and RisoTransition.instance.busy():
+		await process_frame
 	camera.reset_smoothing()
+	# The level is frozen for the capture; refresh the lantern art after its state changes.
+	for node: Node in info.map_elements.get_children():
+		if node is Checkpoint and node.has_node("RisoArt"):
+			node.get_node("RisoArt").call("_redraw")
 	for i: int in range(12):
 		await process_frame
 	await RenderingServer.frame_post_draw
@@ -49,6 +55,7 @@ func capture() -> void:
 	player.die()
 	await settle()
 	player.invulnerable.end()
+	player.global_position += Vector2(-100, 0)
 	camera.global_position = info.cell_position(info.respawn_cell) + Vector2(0, -45)
 	await shot("spent")
 	info.recover_ghost()
