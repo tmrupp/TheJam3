@@ -148,7 +148,8 @@ func generation(wfc: Node) -> void:
 					totals["shields"] += 1
 				if cell.mods.has("bounces"):
 					totals["bounces"] += 1
-		check(crosswinds == w.chasms.size() and count(w, MapInfo.Type.VANE) >= w.chasms.size(), "%s: a crosswind over every chasm (%d), and vanes by them (%d)" % [at, crosswinds, count(w, MapInfo.Type.VANE)])
+		var blown: int = w.chasms.size() - w.relic_chasms.size()
+		check(crosswinds == blown and count(w, MapInfo.Type.VANE) >= blown, "%s: a crosswind over every chasm but those left to relics (%d of %d), and vanes by them (%d)" % [at, crosswinds, w.chasms.size(), count(w, MapInfo.Type.VANE)])
 		check(count(w, MapInfo.Type.SHOOTER) == 0 or w.objects.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == MapInfo.Type.SHOOTER).all(func(v: Vector2i) -> bool: return w.get_cell(v).mods.has("bounces")), "%s: every watcher's shots rebound (%d watchers)" % [at, count(w, MapInfo.Type.SHOOTER)])
 		totals["birds"] += count(w, MapInfo.Type.BIRD)
 		check(_portals_apart(w), "%s: each pair of teleporters at least %d cells apart" % [at, w.portal_apart()])

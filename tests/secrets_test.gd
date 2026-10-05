@@ -134,6 +134,10 @@ func run() -> void:
 			if a in Relics.MOVES:
 				gated = false
 	check(gated, "no shrine offers a move not yet found")
+	var astral: int = 0
+	for s: int in range(1, 2000):
+		astral += 1 if Relics.at(Vector2i(s, Relics.MIN_DEPTH + 2)) == &"astral" else 0
+	check(&"astral" in Relics.MOVES and astral > 0, "astral projection is a relic move (%d of 2000 levels hold it)" % astral)
 
 	print("a hex bolt reveals a secret room")
 	check(not info.world.secrets.is_empty(), "the first level has a secret room")

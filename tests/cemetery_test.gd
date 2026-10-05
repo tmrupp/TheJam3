@@ -132,6 +132,9 @@ func generation(wfc: Node) -> void:
 		check(w.chasms.size() >= MapInfo.CHASMS_MIN, "%s: %d chasms, and as many bells" % [at, w.chasms.size()])
 		for id: int in range(w.chasms.size()):
 			var chasm: Dictionary = w.chasms[id]
+			if id in w.relic_chasms:
+				# Left to the relic moves (relics_needed_test): no planks, bells or switches.
+				continue
 			var planks: Array = chasm["planks"]
 			var row: int = chasm["row"]
 			var shaped: bool = planks.size() >= MapInfo.World.CHASM_WIDTH.x and planks.size() <= MapInfo.World.CHASM_WIDTH.y
@@ -242,7 +245,7 @@ func bridges() -> void:
 		check(bool(bell.call("unchained")), "throwing its switch frees it")
 	check(info.bell_free(bell.get_meta(&"cell")), "the record keeps it free")
 	var other: Node = bells.filter(func(b: Node) -> bool: return b != bell and int(b.get("chasm")) == id)[0]
-	check(not bool(other.call("unchained")), "the bell across the chasm is still chained: each has its own chain")
+	check(not info.bell_free(other.get_meta(&"cell")), "the bell across the chasm is still chained: each has its own chain")
 	bell.call("hex_hit", 1, Vector2.RIGHT)
 	check(bool(bell.call("rung")) and info.bridge_up(id), "then a hex bolt rings the bell, and the record keeps it")
 	for i: int in range(60):

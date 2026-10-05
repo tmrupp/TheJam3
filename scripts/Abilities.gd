@@ -1,6 +1,6 @@
 class_name Abilities
 ## Tiered abilities, learned at shrines (there is no shop), except that tier I of the big moves
-## (double jump, wall climb, blink, levitate) only comes from a relic (see Relics). Tier 0 is not owned; only the dash
+## (double jump, wall climb, blink, levitate, astral projection) only comes from a relic (see Relics). Tier 0 is not owned; only the dash
 ## is known from the start (tier 1), and the spell slot starts empty. The dash is the wizard's
 ## attack (DashStrike); the strike perk makes it wound. Each tier improves the ability.
 ## Tiers live on the player and reset when a run ends.

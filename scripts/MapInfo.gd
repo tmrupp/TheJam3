@@ -41,6 +41,13 @@ const SKELETON_CHANCE: int = 30
 ## whose relic waits behind a bone gate instead of in a secret room; and from SKELETON_DOOR_DEPTH,
 ## the share of corridor doors on the way that are bone gates.
 const BONE_VAULT_CHANCE: int = 25
+## Deeper down, some crossings are left to the relic moves (double jump, blink, levitate, wall
+## climb): from RELIC_NEED_FROM, relic_need(depth) % of a level's chasms and sky gaps have no bell
+## or vane (World.relax_crossings), and hyperspace that drops that deep may leave one stretch
+## unbridged (Hyperspace._relic_gap). It rises RELIC_NEED_STEP a level, up to RELIC_NEED_MAX.
+const RELIC_NEED_FROM: int = 6
+const RELIC_NEED_STEP: int = 10
+const RELIC_NEED_MAX: int = 60
 const RELIC_GATE_CHANCE: int = 50
 const SKELETON_DOOR_DEPTH: int = 6
 const SKELETON_DOOR_CHANCE: int = 15
@@ -819,6 +826,45 @@ class World:
 		place_cluster(def)
 		place_secrets(def)
 		place_vaults(def)
+		relax_crossings(def)
+
+	## Chasms (and sky gaps) with no bell or vane, which only a relic move gets over (see
+	## relax_crossings); and in hyperspace, the stretches left unbridged (Hyperspace._relic_gap).
+	var relic_chasms: Array[int] = []
+	var relic_gaps: Array[Rect2i] = []
+	const RELIC_DEAL: int = 9500
+
+	## Deep down (MapInfo.relic_need), some chasms and gaps are left to the relic moves: their bells
+	## or vanes go, with the switches that free them, and their bridge's planks or their wind. Dealt
+	## by the level seed per chasm, never the world RNG, and done last: the level is laid out as it
+	## always was, then these are taken away.
+	func relax_crossings (def: NextWorldDef) -> void:
+		var need: int = MapInfo.relic_need(def.depth)
+		if need <= 0:
+			return
+		for id: int in range(chasms.size()):
+			if MapInfo.level_seed(seed_for_colors, RELIC_DEAL + id) % 100 < need:
+				relic_chasms.append(id)
+		if relic_chasms.is_empty():
+			return
+		var gone: Dictionary = {}
+		for v: Vector2i in objects:
+			var cell: Cell = get_cell(v)
+			var chasm: int = -1
+			if cell.type in [Type.BELL, Type.VANE]:
+				chasm = int((cell.extra_info as Array)[0])
+			elif cell.type == Type.BRIDGE:
+				chasm = int(cell.extra_info)
+			elif cell.type == Type.WIND and cell.extra_info is Dictionary and (cell.extra_info as Dictionary).has("chasm"):
+				chasm = int((cell.extra_info as Dictionary)["chasm"])
+			if chasm in relic_chasms:
+				gone[v] = true
+		for v: Vector2i in objects:
+			var cell: Cell = get_cell(v)
+			if cell.type == Type.SWITCH and cell.extra_info is Vector2i and gone.has(cell.extra_info):
+				gone[v] = true
+		for v: Vector2i in gone:
+			_to_open(v)
 
 	## A cemetery's gates. Chasms are cut across long stretches of floor (CHASM_WIDTH cells across,
 	## CHASM_DEPTH deep, with thorns at the bottom and rock under them): too wide to jump without a
@@ -2404,6 +2450,12 @@ static func skeleton_at (at: Vector2i) -> bool:
 ## Minimum distance in cells between a level's way back and its deeper exit.
 static func exit_distance (depth: int) -> int:
 	return clampi(24 + 4 * depth, 24, 96)
+
+## The share (%) of crossings left to the relic moves `depth` deep (see RELIC_NEED_FROM).
+static func relic_need (depth: int) -> int:
+	if depth < RELIC_NEED_FROM:
+		return 0
+	return mini(RELIC_NEED_STEP * (depth - RELIC_NEED_FROM + 1), RELIC_NEED_MAX)
 
 ## Whether level `at` has a bone vault of loot (BONE_VAULT_CHANCE % of levels from depth 1), and
 ## whether its relic, if it has one, waits behind a bone gate (RELIC_GATE_CHANCE %); both dealt by

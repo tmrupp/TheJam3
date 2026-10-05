@@ -123,6 +123,46 @@ func populate(w: MapInfo.World) -> void:
 	w.place_moons(MOONS)
 	for i: int in range(STARS):
 		w.set_cell(w.pop_if_random_empty(), MapInfo.Cell.new(MapInfo.Type.COIN))
+	if MapInfo.level_seed(w.seed_for_colors, RELIC_DEAL) % 100 < MapInfo.relic_need(origin().y + DROP):
+		_relic_gap(w)
+
+
+## Hyperspace that drops deep is likely to need a relic move somewhere along it (MapInfo.relic_need
+## of the depth it drops to): one stretch RELIC_GAP cells wide loses the lifts, ledges and moons laid
+## across it, but only where the rough reach then fails to cross and a relic's longer reach
+## (RELIC_ACROSS cells a hop, as a double jump, blink or levitate gives) still gets over. Stretches
+## are tried from one dealt by the seed, in turn; one that does not work is put back. Done last, so
+## the strip is laid out as it always was. Kept in w.relic_gaps.
+const RELIC_GAP: int = 6
+const RELIC_ACROSS: int = 7
+const RELIC_DEAL: int = 9600
+
+static func _relic_gap(w: MapInfo.World) -> void:
+	var lo: int = ENDS + 4
+	var hi: int = WIDTH - ENDS - 4 - RELIC_GAP
+	var starts: Array[int] = []
+	for x: int in range(lo, hi + 1, 2):
+		starts.append(x)
+	if starts.is_empty():
+		return
+	var first: int = MapInfo.level_seed(w.seed_for_colors, RELIC_DEAL + 1) % starts.size()
+	for k: int in range(starts.size()):
+		var x0: int = starts[(first + k) % starts.size()]
+		var saved: Dictionary = {}
+		for v: Vector2i in w.objects:
+			if v.x >= x0 and v.x < x0 + RELIC_GAP and w.get_cell(v).type in [MapInfo.Type.MOVING_PLATFORM, MapInfo.Type.PLATFORM, MapInfo.Type.MOON]:
+				saved[v] = w.get_cell(v)
+		if saved.is_empty():
+			continue
+		for v: Vector2i in saved:
+			w._to_open(v)
+		if not crossable(w) and crossable(w, RELIC_ACROSS):
+			w.relic_gaps.append(Rect2i(x0, 0, RELIC_GAP, HEIGHT))
+			return
+		for v: Vector2i in saved:
+			w.cells[v.x][v.y] = saved[v]
+			w.empties.erase(v)
+			w.objects.append(v)
 
 
 static func _put(w: MapInfo.World, v: Vector2i, type: MapInfo.Type, extra: Variant = null) -> void:
@@ -278,13 +318,13 @@ static func _lifts(w: MapInfo.World) -> void:
 	_bridge(w, free, placed, moons)
 
 
-## Whether the rough reach gets from the way back to the gate.
-static func crossable(w: MapInfo.World) -> bool:
+## Whether the rough reach (hops `across` cells wide) gets from the way back to the gate.
+static func crossable(w: MapInfo.World, across: int = Reach.ACROSS) -> bool:
 	var nodes: Dictionary = Reach.footholds(w)
 	var start: Vector2i = w.exits[MapInfo.Exit.BACK]
 	var reach: Dictionary = {start: true}
 	var queue: Array[Vector2i] = [start]
-	Reach.grow(w, nodes, reach, queue)
+	Reach.grow(w, nodes, reach, queue, {}, {}, across)
 	return reach.has(w.exits[MapInfo.Exit.DEEPER])
 
 

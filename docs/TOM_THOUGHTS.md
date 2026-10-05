@@ -53,7 +53,10 @@ DO NOT MODIFY
 - sometimes the player gets stuck
 - we might need to continue iterating on walljump
 
-- deeper levels and hyperspace should be likely to require relics to fully traverse (relax the traversability guarantees in later levels/hyperspace)
+- * deeper levels and hyperspace should be likely to require relics to fully traverse (relax the traversability guarantees in later levels/hyperspace)
+
+- can go up or down, going up goes to cliffs and craggs -> sky
+- going down goes to cemetery -> catacombs
 
 
 # bosses, possibly guarding relics, must be defeated

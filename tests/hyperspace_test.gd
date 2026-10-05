@@ -92,7 +92,8 @@ func run() -> void:
 				linear_ok = false
 			if count(w, MapInfo.Type.SPIKES) < 30 or count(w, MapInfo.Type.SHOOTER) < 3 or count(w, MapInfo.Type.CHECKPOINT) < 3 or count(w, MapInfo.Type.EXIT) != 2:
 				hazards_ok = false
-			if not Hyperspace.crossable(w):
+			# Deep hyperspace may leave one stretch to the relic moves (relics_needed_test).
+			if not Hyperspace.crossable(w) and (w.relic_gaps.is_empty() or not Hyperspace.crossable(w, Hyperspace.RELIC_ACROSS)):
 				uncrossed.append(Vector2i(world_seed, depth))
 			for v: Vector2i in w.objects:
 				if w.get_cell(v).type == MapInfo.Type.CHECKPOINT:
@@ -100,7 +101,7 @@ func run() -> void:
 	check(linear_ok, "all %d chasms run from a way back at the left to a gate at the right" % made)
 	check(hazards_ok, "each is thick with thorns and watchers, with a lantern at the start, the end and halfway")
 	check(lanterns_grounded, "every lantern stands on solid floor in all 15 hyperspace layouts")
-	check(uncrossed.is_empty(), "lifts, ledges and moons make each crossable from the way back to the gate (not: %s)" % [uncrossed])
+	check(uncrossed.is_empty(), "lifts, ledges and moons make each crossable from the way back to the gate, but for a stretch left to the relics (not: %s)" % [uncrossed])
 	var def_a: NextWorldDef = MapInfo.def_for(at)
 	var def_b: NextWorldDef = MapInfo.def_for(Worlds.side_at(Worlds.kind_of(Hyperspace), Vector2i(29, 3)))
 	var a1: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", def_a), def_a)

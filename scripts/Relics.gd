@@ -1,15 +1,15 @@
 class_name Relics
 extends RefCounted
-## Relics: the big movement abilities (MOVES), which open up whole areas, are not taught at
-## shrines until found. Tier I of each only comes from a relic, which lies in a secret room (see
-## MapInfo.World.place_secrets) or behind a bone gate in rare levels: from depth MIN_DEPTH, CHANCE %
-## of them rising to CHANCE_MAX deeper (see chance; about one in 15, so a big move means going out
-## of your way), each holding one of MOVES dealt by its seed (every level
-## of a debug run holds one). Once a move is known, shrines offer its higher tiers as usual. At
-## full health, a shrine's mending station sells the whereabouts of the nearest relic not yet found
+## Relics: the big movement abilities and astral projection (MOVES), which open up whole areas,
+## are not taught at shrines until found. Tier I of each only comes from a relic, which lies in a
+## secret room (see MapInfo.World.place_secrets) or behind a bone gate in rare levels: from depth
+## MIN_DEPTH, CHANCE % of them rising to CHANCE_MAX deeper (see chance; about one in 15, so a big
+## move means going out of your way), each holding one of MOVES dealt by its seed (every level of a
+## debug run holds one). Once a move is known, shrines offer its higher tiers as usual. At full
+## health, a shrine's mending station sells the whereabouts of the nearest relic not yet found
 ## instead (HINT_PRICE times its level's deeper price), marked on the worlds map (see nearest).
 
-const MOVES: Array[StringName] = [&"double_jump", &"wall_climb", &"blink", &"levitate"]
+const MOVES: Array[StringName] = [&"double_jump", &"wall_climb", &"blink", &"levitate", &"astral"]
 const CHANCE: int = 5
 ## Relics lie no shallower than this; from there the chance rises a point every two levels, up to
 ## CHANCE_MAX, so a run meets about as many as before, only deeper.
