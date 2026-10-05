@@ -84,8 +84,10 @@ func run() -> void:
 	await settle()
 
 	print("the hex")
+	check(Abilities.spell(player) == &"" and player.get_node_or_null("Hex") == null, "no spell to start with: the hex is learned")
+	Abilities.grant(player, &"hex")
 	var hex: Hex = player.get_node_or_null("Hex") as Hex
-	check(hex != null and Abilities.tier(player, &"hex") == 1 and hex.charges == 1 and Abilities.spell(player) == &"hex", "the starting spell: one charge")
+	check(hex != null and Abilities.tier(player, &"hex") == 1 and hex.charges == 1 and Abilities.spell(player) == &"hex", "learned: one charge")
 	check(InputMap.has_action(Abilities.SPELL_ACTION), "the Spell action exists")
 
 	print("wounding enemies")

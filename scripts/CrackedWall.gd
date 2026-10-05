@@ -1,5 +1,6 @@
 extends StaticBody2D
-## Cracked rock: solid like the rest until a hex bolt hits it, then it crumbles for good (the
+class_name CrackedWall
+## Cracked rock: solid like the rest until a hex bolt or a dash hits it (DashStrike), then it crumbles for good (the
 ## level record keeps it broken, even across deaths). A secret room's cells are cracked rock too
 ## (meta "secret", see MapInfo.World.place_secrets), with no cracks: they look like plain rock.
 ## Its entrance is a false wall, walked and shot straight through; stepping into it, or a bolt

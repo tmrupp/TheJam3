@@ -90,8 +90,9 @@ func run() -> void:
 	var saw_swap: bool = false
 	var saved_tiers: Dictionary = player.tiers.duplicate()
 	for setup: int in range(3):
-		# Fresh (hex held), most perks known, and everything but spells maxed.
+		# Fresh but for a spell held, most perks known, and everything but spells maxed.
 		player.tiers = Abilities.start_tiers()
+		player.tiers[&"hex"] = 1
 		if setup >= 1:
 			for a: StringName in [&"double_jump", &"wall_climb", &"vigor", &"speed"]:
 				player.tiers[a] = int(Abilities.MAX[a]) if setup == 2 else 1
@@ -107,7 +108,7 @@ func run() -> void:
 	check(all_good and saw_swap, "every shrine offers at least one strict upgrade (swaps still appear beside one)")
 
 	print("starting abilities")
-	check(player.tiers == Abilities.start_tiers() and Abilities.tier(player, &"dash") == 1 and player.MAX_JUMPS == 1 and not player.climable and player.health.max_health == 3 and not player.has_node("Blink") and player.has_node("Hex"), "the dash and the hex; 3 health")
+	check(player.tiers == Abilities.start_tiers() and Abilities.tier(player, &"dash") == 1 and player.MAX_JUMPS == 1 and not player.climable and player.health.max_health == 3 and not player.has_node("Blink") and not player.has_node("Hex") and Abilities.spell(player) == &"" and player.has_node("DashStrike"), "the dash (which strikes) and no spell; 3 health")
 	check(Abilities.ORDER.all(func(a: StringName) -> bool: return a in [&"dash", &"hex"] or Abilities.tier(player, a) == 0), "parry, astral and the rest are all still to find")
 	check(Abilities.tier(player, Abilities.offer(MapInfo.level_seed(28, 0), player)) == 0, "a shrine offers something new before upgrades")
 	var hurt_before: Callable = player.hurt_ability

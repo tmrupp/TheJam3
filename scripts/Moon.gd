@@ -37,6 +37,16 @@ func touch(other: Node) -> void:
 		lev.charged = true
 
 
+## A blink jumped through it (Blink.gd): if full, it is spent at once and gives back what is
+## spent, as a touch would, and starts waxing straight away (the wizard is already past it).
+func pass_through() -> void:
+	if waning > 0.0 or in_use:
+		return
+	touch(player)
+	in_use = false
+	waning = WANE
+
+
 func _physics_process(delta: float) -> void:
 	if waning > 0.0:
 		waning = maxf(0.0, waning - delta)

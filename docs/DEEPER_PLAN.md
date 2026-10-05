@@ -96,13 +96,13 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 
 | Ability | Start | Max | Each tier |
 | --- | --- | --- | --- |
-| Dash | I | IV | dashes at 750 px/s (25 % further than the old 600), 0.25 s; each tier 0.07 s longer |
+| Dash | I | IV | dashes at 750 px/s (25 % further than the old 600), 0.25 s; each tier 0.07 s longer. It is the wizard's attack (§8, "The dash strikes"). In the air it comes back on landing or from a moon; on the ground only 0.75 s after the last dash began (`Player.DASH_GROUND_COOLDOWN`) |
 | Double jump | – (a relic) | III | one more air jump |
 | Wall climb | – (a relic) | III | I lets you climb (1 s); each further tier adds 0.5 s. (Anyone can wall jump, and holding toward a wall while falling slides down it at `Player.WALL_SLIDE_SPEED`; in the air against a wall, a jump is a wall jump before an air jump, which is kept) |
-| Blink | – (a relic) | III | replaces the dash; reach 300 px, +100 per tier |
+| Blink | – (a relic) | III | replaces the dash; reach 300 px, +100 per tier. Strikes everything on its way as a dash does, and every full moon on its way is spent and gives the dash back |
 | Parry | – | IV | I: a 0.3 s guard; a hit caught is turned aside: a touching enemy takes 1 damage and is stunned 3 s, a shot is reflected at its shooter as a bolt; the dash comes back, the guard is ready again, a moment of invulnerability and a hit-stop; 1.2 s cooldown on a miss. II 0.45 s guard, 0.9 s cooldown; III 2 damage; IV each parry heals 1 |
 | Astral projection | – | IV | I: 5 s floating out of the body, steered on both axes through rock and anything else solid (kept inside the level); drifting into a secret room opens it; ending it inside rock costs a heart and puts you back in your body. Each tier lasts 2 s longer |
-| Hex | I (the starting spell) | IV | I stuns only (3 s); II wounds (1 damage) and stuns; III +1 charge; IV 2 damage and pierces. One charge back every 6 s; cracked walls break at any tier |
+| Hex | – | IV | I stuns only (3 s); II wounds (1 damage) and stuns; III +1 charge; IV 2 damage and pierces. One charge back every 6 s; cracked walls break at any tier |
 | Levitate | – (a relic) | III | I holds your height until you press Spell again; II the stick drifts you up and down; III recasts without landing |
 | Awareness | – | III | I exits; II also the ink well and shrine; III also the nearest key of each colour; senses longer each tier |
 | Rift | – | III | I place a pair while grounded; II also midair; III the pair becomes the run's one cross-world link (its ends may be in different levels). Each end placed costs stars (below) |
@@ -111,6 +111,7 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 | Warp | – | III | I sends you to a random floor in the level (12 s to recharge); II to one you have not seen while there is one (9 s); III into a secret room not yet opened while there is one, opening it. Each warp costs stars (below). A warp takes a moment, like a portal trip: the wizard is drawn into a tear in the air where they stand, the view cuts, and they are pushed out of a tear where they land (`Warp.DEPART`, `ARRIVE`; printed by `RisoPrint.warp_depart`, `warp_arrive` in the robe's ink) |
 | Mend | – | III | a spell: press Spell to heal a heart, using a draught; I holds one draught, II two, III three. Learning a tier fills them, and so does burning the lantern you lit (§2); nothing else does, and swapping the spell away and back does not. Its draughts show as ember beads under the spell orb (`Mend.gd`) |
 | Keyring | – | III | a perk: carry one more key per tier (§3) |
+| Strike | – | III | a perk: the dash (and blink) wounds what it strikes, 1 damage per tier (§8) |
 
 **Cast costs:** warp and rift cost stars each cast (`Abilities.CAST_COST`, `cast_price`): `round(base × 1.25^d)`, at least 1, with base 2 for warp and 1 for rift (warp 2 at depth 0, 6 at depth 5). A cast is only made when the stars are there and is paid only if it works (a warp still recharging costs nothing). The spell orb goes dim while you can't afford it, and a shrine's pop-up for them shows the price of a cast under the price to learn. The other spells are free: their cost is a cooldown, charges or mend's draughts.
 
@@ -233,7 +234,15 @@ The third band (depths 6–8, 15–17, ...) is clusters of floating islands of c
   - It flies up to 8 cells. It passes through one-way ledges and moving platforms, and stops at rock and portcullises.
   - It wounds the first enemy near its path, or breaks a cracked wall.
   - Charges come back one per 1.5 s, and lighting a lantern refills them. They show as glow sparks after the HUD's health beads.
-- **Tiers:** hex is learned at a shrine (not known at the start). II adds a charge, III adds damage, IV pierces its first enemy.
+- **Tiers:** hex is learned at a shrine (not known at the start: a run starts with the spell slot empty). II adds a charge, III adds damage, IV pierces its first enemy.
+- **The dash strikes** (`DashStrike.gd`), so a wizard with any spell, or none, can still fight:
+  - While dashing the wizard passes through enemies (their bodies stop blocking: physics layer 2, "Enemy"), and each enemy the dash passes within 64 px of is struck once a dash: stunned 2.5 s (`DashStrike.STUN`).
+  - On its own the dash only stuns. The **strike** perk (shrines, up to III) wounds first, 1 damage per tier; a stunned enemy takes double, as from the hex.
+  - Touching an enemy never hurts mid-dash, nor for 0.3 s after from one it struck (`GUARD`). Shots, thorns, lasers and moths still do.
+  - A shield takes the dash whole (a hit off it, no wound or stun), ends the dash and throws the wizard back.
+  - Dashing into a cracked wall breaks it. A secret room's hidden rock is left alone: secrets are found by walking in (or with the hex).
+  - A blink happens while the dash runs, so it strikes everything along the way it jumps.
+  - `tests/dash_strike_test.gd` covers it.
 - **Enemies** get a `Wound`:
   - **Health:** 1 HP at depths 0–2, 2 at 3–5, 3 from 6. A stunned (parried) enemy takes double.
   - **Hits:** a hit bursts pink and knocks the enemy back.

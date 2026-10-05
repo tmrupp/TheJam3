@@ -63,6 +63,7 @@ const GLOWS: Dictionary = {
 	&"levitate": Color("#7fd6c2"),
 	&"awareness": Color("#f2c14e"),
 	&"keyring": Color("#ffb511"),
+	&"strike": Color("#ff48b0"),
 }
 ## Robe ink per spell in the slot (real Riso ink colours); no spell is the old federal blue.
 const ROBES: Dictionary = {

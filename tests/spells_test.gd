@@ -43,7 +43,7 @@ func run() -> void:
 
 	print("the spell slot")
 	check(InputMap.has_action(Abilities.SPELL_ACTION), "one Spell button")
-	check(Abilities.spell(player) == &"hex" and player.has_node("Hex"), "the slot starts with the hex")
+	check(Abilities.spell(player) == &"" and not player.has_node("Hex"), "the slot starts empty")
 	for a: StringName in Abilities.SPELLS:
 		Abilities.grant(player, a)
 		var held: int = Abilities.SPELLS.filter(func(s: StringName) -> bool: return Abilities.tier(player, s) > 0).size()

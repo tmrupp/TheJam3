@@ -82,6 +82,10 @@ func normal_hurt (damage: int, v: Vector2, _attacker: Node) -> void:
 		show_invulnerable()
 		
 func hurt (damage: int, v: Vector2, attacker: Node) -> void:
+	# Dashing through an enemy is an attack, not a hit taken (DashStrike).
+	var strike: DashStrike = get_node_or_null("DashStrike") as DashStrike
+	if strike != null and strike.guards(attacker):
+		return
 	hurt_ability.bind(damage, v, attacker).call()
 	
 var hurt_ability: Callable = normal_hurt
@@ -140,6 +144,10 @@ func dash_end(_timer: ActionTimer) -> void:
 	velocity = Vector2.ZERO
 	$"DashTrail".stop_trail()
 var dash: ActionTimer = ActionTimer.new(0.25, dash_end)
+## On the ground the dash comes back only this long after the last one began, so it is not an
+## attack to spam; in the air it comes back on landing (once this has passed), or from a moon.
+const DASH_GROUND_COOLDOWN: float = 0.75
+var dash_rest: float = 0.0
 
 # WALL_JUMP_SPEED: how quickly and high the player jumps
 # WALL_JUMP_TIME: how long manual control is overriden 
@@ -414,7 +422,8 @@ func _physics_process(delta: float) -> void:
 			pass
 		
 		# Arm coyote time only while grounded. Taking a jump spends it; falling cannot rearm it.
-		dash.refresh()
+		if dash_rest <= 0.0:
+			dash.refresh()
 		coyote.enable(true)
 		hang.refresh()
 		climb.refresh()
@@ -490,11 +499,13 @@ func _physics_process(delta: float) -> void:
 			# Forced, so a dash given back mid-dash (by a moon) starts a fresh one: full length,
 			# and spent again, rather than only turning the one still running.
 			dash.enable(true)
+			dash_rest = DASH_GROUND_COOLDOWN
 			dash_ability.bind(direction).call()
 	
 	# elapse the time in all timers
 	for timer: ActionTimer in timers:
 		timer.elapse(delta)
+	dash_rest = maxf(0.0, dash_rest - delta)
 	elapse_ability_time_signal.emit(delta)
 
 	# The wind (sky levels): an updraft eases the rise toward its speed; a crosswind carries the

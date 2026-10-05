@@ -1105,6 +1105,9 @@ static func glyph(a: StringName, c: Vector2, t: float) -> Array[PackedVector2Arr
 			# A ring it leaves by, a dotted way across, and the ring it comes out of.
 			return [RisoShapes.circle(c + Vector2(-17, 8), 8.0, 16), RisoShapes.circle(c + Vector2(-5, -1), 2.6, 8), RisoShapes.circle(c + Vector2(4, -6), 2.6, 8),
 				RisoShapes.circle(c + Vector2(16, -6), 11.0, 20)]
+		&"strike":
+			# The dash's chevron driving into a burst.
+			return [chevron(c + Vector2(-10, 0), Vector2.RIGHT, 0.8), RisoShapes.sparkle(c + Vector2(14, 0), 15.0)]
 		&"hex":
 			# A comet: a bold spark with a tapering tail behind it.
 			return [RisoShapes.sparkle(c + Vector2(7, -5), 17.0), PackedVector2Array([c + Vector2(4, -12), c + Vector2(-22, 14), c + Vector2(-2, 0)])]

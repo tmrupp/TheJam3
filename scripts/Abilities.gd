@@ -1,16 +1,17 @@
 class_name Abilities
 ## Tiered abilities, learned at shrines (there is no shop), except that tier I of the big moves
-## (double jump, wall climb, blink, levitate) only comes from a relic (see Relics). Tier 0 is not owned; the dash and the
-## hex (the starting spell) are known from the start (tier 1). Each tier improves the ability.
+## (double jump, wall climb, blink, levitate) only comes from a relic (see Relics). Tier 0 is not owned; only the dash
+## is known from the start (tier 1), and the spell slot starts empty. The dash is the wizard's
+## attack (DashStrike); the strike perk makes it wound. Each tier improves the ability.
 ## Tiers live on the player and reset when a run ends.
 ## - Spells share one slot, on the Spell button (Q, or the pad's X): hex, astral projection,
 ##   parry, levitate, awareness, rift (open your own teleporters), warp (to a random floor) and mend
 ##   (heal from draughts a burned lantern fills, see Mend). You carry one at a time; learning another
 ##   at a shrine replaces it. Warp and rift cost stars each cast (cast_price).
 ## - Perks stack: double jump, wall climb, blink (replaces the dash), vigor (max health),
-##   speed (run speed) and keyring (carry more keys, see KeyRing).
+##   speed (run speed), keyring (carry more keys, see KeyRing) and strike (the dash wounds).
 
-const ORDER: Array[StringName] = [&"dash", &"double_jump", &"wall_climb", &"blink", &"parry", &"astral", &"hex", &"levitate", &"awareness", &"rift", &"vigor", &"speed", &"warp", &"mend", &"keyring"]
+const ORDER: Array[StringName] = [&"dash", &"double_jump", &"wall_climb", &"blink", &"parry", &"astral", &"hex", &"levitate", &"awareness", &"rift", &"vigor", &"speed", &"warp", &"mend", &"keyring", &"strike"]
 ## Run speed added per tier of speed, as a fraction of the base.
 const SPEED_PER_TIER: float = 0.15
 const SPELLS: Array[StringName] = [&"hex", &"astral", &"parry", &"levitate", &"awareness", &"rift", &"warp", &"mend"]
@@ -32,10 +33,11 @@ const NAMES: Dictionary = {
 	&"warp": "warp",
 	&"mend": "mend",
 	&"keyring": "keyring",
+	&"strike": "strike",
 }
-const BASE: Dictionary = {&"dash": 1, &"hex": 1}
+const BASE: Dictionary = {&"dash": 1}
 const MAX: Dictionary = {&"dash": 4, &"double_jump": 3, &"wall_climb": 3, &"blink": 3, &"parry": 4, &"astral": 4, &"hex": 4,
-	&"levitate": 3, &"awareness": 3, &"rift": 3, &"vigor": 3, &"speed": 3, &"warp": 3, &"mend": 3, &"keyring": 3}
+	&"levitate": 3, &"awareness": 3, &"rift": 3, &"vigor": 3, &"speed": 3, &"warp": 3, &"mend": 3, &"keyring": 3, &"strike": 3}
 const BLINK_PREFAB: String = "res://prefabs/upgrades/Blink.tscn"
 const BASE_HEALTH: int = 3
 const SPELL_ACTION: StringName = &"Spell"
@@ -275,6 +277,9 @@ static func apply(player: Player) -> void:
 		# Swapped away mid-projection: snap back.
 		if tier(player, &"astral") == 0 and bool(projection.call("projecting")):
 			projection.call("end_projection", projection.get("projection_timer"))
+	# The dash strikes whatever it passes through; each tier of strike wounds 1 more.
+	var strike: DashStrike = _keep(player, "DashStrike", true, func() -> Node: return DashStrike.new()) as DashStrike
+	strike.damage = tier(player, &"strike")
 	var hex_tier: int = tier(player, &"hex")
 	var hex: Hex = _keep(player, "Hex", hex_tier > 0, func() -> Node: return Hex.new()) as Hex
 	if hex != null:
