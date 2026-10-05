@@ -59,6 +59,14 @@ func _process(_delta: float) -> void:
 		for i: int in range(3):
 			var drift: float = fposmod(t * (4.0 + float(i) * 2.0) + float(i) * 170.0, 640.0) - 80.0
 			ink.ink(RisoPrint.BLUE, 0.12, [_cloud(at.call(drift, 92.0 + float(i) * 34.0), (90.0 + float(i) * 30.0) * k, (16.0 + float(i) * 4.0) * k, i)])
+	elif realm == &"sky":
+		# Up among the clouds: a thin crescent moon high up, and banks of cloud drifting far below
+		# and between, in the islands' own pale ink, the lowest the faintest.
+		ink.ink(RisoPrint.ACCENT, 0.4, [RisoShapes.crescent(at.call(96.0, 52.0), 16.0 * k, Vector2(7.0, -4.0) * k, 48)])
+		for i: int in range(5):
+			var drift: float = fposmod(t * (3.0 + float(i) * 1.6) + float(i) * 131.0, 700.0) - 110.0
+			var y: float = 70.0 + float(i) * 38.0
+			ink.ink(RisoPrint.BLUE, 0.16 - 0.02 * float(i), [_cloud(at.call(drift, y), (110.0 + float(i) * 24.0) * k, (18.0 + float(i) * 3.0) * k, i + 3)])
 	elif realm == &"aurora":
 		for i: int in range(3):
 			ink.ink(RisoPrint.PINK if i == 1 else RisoPrint.ACCENT, 0.15, [_aurora(i, t, k)])

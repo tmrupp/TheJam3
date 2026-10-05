@@ -72,6 +72,7 @@ func _reflect(shot: Node2D, attacker: Node) -> void:
 	bolt.set_script(preload("res://scripts/HexBolt.gd"))
 	bolt.set("dir", aim)
 	bolt.set("damage", damage)
+	bolt.set("reflected", true)
 	var level: Node = MapInfo.instance.map_elements if MapInfo.instance != null and is_instance_valid(MapInfo.instance.map_elements) else player.get_parent()
 	level.add_child(bolt)
 	bolt.global_position = from

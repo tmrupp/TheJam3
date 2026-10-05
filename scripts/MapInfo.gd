@@ -36,6 +36,23 @@ const WRAITHS_PER_K: float = 0.9
 ## many as fit).
 const CHASMS_PER_K: float = 1.2
 const CHASMS_MIN: int = 2
+## Sky levels (NextWorldDef.archetype) have chasms too, crossed on the wind a vane sets blowing
+## (Vane, Wind). On top of that: jump pads on floors (Pad) and updrafts up open shafts (Wind), per
+## 1000 cells; the share of ledge runs that are clouds giving way under you (Puff); and the shares
+## of wisps and hoppers carrying a shield (Shield) and of watchers whose shots rebound (bullet.gd).
+const PADS_PER_K: float = 1.5
+const UPDRAFTS_PER_K: float = 0.8
+const PUFF_SHARE: float = 0.5
+const SHIELD_SHARE: float = 0.4
+## Every watcher in the sky fires rebounding shots, and there are this many more of them.
+const BOUNCE_SHARE: float = 1.0
+const SKY_WATCHERS_PER_K: float = 1.2
+## Swooping birds (Bird) patrolling stretches of open sky.
+const BIRDS_PER_K: float = 0.9
+## Hits a shield takes before it breaks (a parried shot breaks it at once), and the walls a
+## rebounding shot bounces off before it bursts.
+const SHIELD_HP: int = 3
+const BOUNCES: int = 2
 
 enum Type {
 	EMPTY,
@@ -69,6 +86,11 @@ enum Type {
 	WRAITH,
 	BRIDGE,
 	BELL,
+	PAD,
+	PUFF,
+	VANE,
+	WIND,
+	BIRD,
 }
 
 ## A level's ways out. Deeper and back move along the seed's column; left and right step to the
@@ -80,6 +102,9 @@ enum Exit { DEEPER, BACK, LEFT, RIGHT, RETURN }
 class Cell:
 	var type: Type = Type.GROUND
 	var extra_info: Variant = null
+	## How an enemy here differs from the usual: {"shield": hits} (Shield), {"bounces": walls}
+	## (a watcher's rebounding shots).
+	var mods: Dictionary = {}
 
 	func _init(_type: Type) -> void:
 		type = _type
@@ -550,16 +575,25 @@ class World:
 		mover.extra_info = [run_cells.size(), axis, travel]
 		set_cell(left, mover)
 
+	## A random empty cell passing `f`, taken out of `empties` (into `objects`), or null. Unforced, it
+	## draws once; forced, it keeps drawing, and after FORCE_DRAWS misses takes the first match in
+	## order, or gives up (null) if no cell passes (a sparse sky level can run out of floors).
+	const FORCE_DRAWS: int = 200
+
 	func pop_if_random_empty (f: Callable=func(_v: Vector2i) -> bool: return true, force: bool=false) -> Variant:
-		while (true):
+		if empties.is_empty():
+			return null
+		for draw: int in range(FORCE_DRAWS if force else 1):
 			var i: int = rng.randi_range(0, len(empties) - 1)
 			var v: Vector2i = empties[i]
 			if f.bind(v).call():
 				add_object_at(v)
 				return v
-			if not force:
-				break
-
+		if force:
+			for v: Vector2i in empties:
+				if f.bind(v).call():
+					add_object_at(v)
+					return v
 		return null
 
 	func add_cell_to_container (v: Vector2i, cell: Cell) -> void:
@@ -590,10 +624,14 @@ class World:
 
 	## Dress an ordinary level (see NextWorldDef.populate).
 	func populate_level (def: NextWorldDef) -> void:
+		sky = def.sky()
+		if sky:
+			cluster_islands()
+			map_isles()
 		# One cave: every open space joined up, so everything placed below is connected to
 		# everything else through open air (gates and abilities aside).
 		connect_caves()
-		if def.cemetery():
+		if def.chasmed():
 			carve_chasms()
 
 		# Exits and their lanterns first, so they get the pick of the level.
@@ -621,16 +659,21 @@ class World:
 
 #		for i in range(len(empties)*0.1):
 #			set_cell(pop_if_random_empty(ground_adjacent), Cell.new(Type.SPIKES))
+		# Stars: in the sky, only in and near the clusters of islands.
 		for i: int in range(len(empties)*0.2):
-			set_cell(pop_if_random_empty(), Cell.new(Type.COIN))
+			set_cell(pop_if_random_empty(func(v: Vector2i) -> bool: return not sky or in_isle(v, 3)), Cell.new(Type.COIN))
 
 
 		# Platforms are laid in horizontal runs of 2-5 cells so they read as continuous ledges.
-		var platform_budget: int = int(len(empties)*0.2)
+		# In the sky, only in and about the clusters of islands, so the gaps between stay open.
+		var ledge_room: Callable = func(v: Vector2i) -> bool: return not sky or in_isle(v, 1)
+		var platform_budget: int = int(float(empties.filter(ledge_room).size()) * 0.2)
 		while platform_budget > 0 and len(empties) > 0:
-			var start: Variant = pop_if_random_empty()
-			set_cell(start, Cell.new(Type.PLATFORM))
+			var start: Variant = pop_if_random_empty(ledge_room)
 			platform_budget -= 1
+			if start == null:
+				continue
+			set_cell(start, Cell.new(Type.PLATFORM))
 			var step: Vector2i = Vector2i(1, 0) if rng.randf() < 0.5 else Vector2i(-1, 0)
 			var run: Vector2i = start
 			var run_cells: Array[Vector2i] = [start]
@@ -662,6 +705,11 @@ class World:
 		for i: int in range(per_area(PORTAL_PAIRS_PER_K)):
 			var pos1: Variant = pop_if_random_empty(ground_below, true)
 			var pos2: Variant = pop_if_random_empty(ground_below, true)
+			# Out of floors for a pair (a sparse sky level): no more portals.
+			if pos1 == null or pos2 == null:
+				if pos1 != null:
+					_to_open(pos1)
+				break
 			var portal1: Cell = Cell.new(Type.PORTAL)
 			var portal2: Cell = Cell.new(Type.PORTAL)
 			portal1.extra_info = pos2
@@ -677,6 +725,8 @@ class World:
 				set_cell(pop_if_random_empty(ground_below, true), Cell.new(Type.HOPPER))
 		if def.cemetery():
 			populate_cemetery(def)
+		if def.sky():
+			populate_sky(def)
 		place_cluster(def)
 		place_secrets(def)
 
@@ -687,6 +737,9 @@ class World:
 	## {"planks": cells, "row": the floor row, "left": the last floor cell before it, "right": the
 	## first after}. Cut right after the caves are joined, so everything else lands round them.
 	var chasms: Array = []
+	## A sky level: its chasms are crossed on a vane's wind (one current over each, Type.WIND), not a
+	## bridge, and its vanes stand where a cemetery's bells would.
+	var sky: bool = false
 	const CHASM_WIDTH: Vector2i = Vector2i(8, 10)
 	const CHASM_DEPTH: int = 2
 	## Floor kept whole either side of a chasm: as much as can be, else less.
@@ -697,6 +750,14 @@ class World:
 
 	func carve_chasms () -> void:
 		var want: int = maxi(MapInfo.CHASMS_MIN, per_area(MapInfo.CHASMS_PER_K))
+		# The sky's islands are too small and scattered for long floors to cut into: it takes the
+		# gaps between them that are already wide enough, then builds the rest (_build_gaps).
+		if sky:
+			_span_gaps(want)
+			_build_gaps(want)
+			# Shores laid and air cleared can shut off a pocket of air: join (or fill) it again.
+			connect_caves()
+			return
 		# Which cells are floors (open, with rock under), looked up many times below.
 		_floors = PackedByteArray()
 		_floors.resize(size.x * size.y)
@@ -763,12 +824,427 @@ class World:
 				for d: int in range(-CHASM_CLEAR, CHASM_DEPTH + 1):
 					empties.erase(Vector2i(x, y + d))
 				var plank: Vector2i = Vector2i(x, y + 1)
+				if sky:
+					planks.append(plank)
+					# One current spans the chasm, held in its first cell: {chasm, width}.
+					if x == a:
+						add_object_at(plank)
+						var gust: Cell = Cell.new(Type.WIND)
+						gust.extra_info = {"chasm": id, "width": w}
+						set_cell(plank, gust)
+					continue
 				add_object_at(plank)
 				var cell: Cell = Cell.new(Type.BRIDGE)
 				cell.extra_info = id
 				set_cell(plank, cell)
 				planks.append(plank)
 			chasms.append({"planks": planks, "row": y, "left": Vector2i(a - 1, y), "right": Vector2i(a + w, y)})
+
+	## Shore kept whole either side of an island gap taken as a chasm, and the narrowest gap taken
+	## (a run, a jump and a dash cover under 6 cells).
+	const GAP_SHORE: int = 2
+	const GAP_MIN: int = 7
+
+	## Sky levels: gaps between islands already about as wide as a chasm (GAP_MIN to CHASM_WIDTH and
+	## a cell or two more), from the end of one floor (GAP_SHORE cells of it) to the start of the next
+	## on the same row or the one below, with nothing but open air across the gap from the row over
+	## the floor to the row under it: a drop. Taken as chasms (crossed on a vane's wind) before any
+	## is cut, up to `want`. Each is laid out as a cut chasm is, its first cell the row under the
+	## floor.
+	func _span_gaps (want: int) -> void:
+		var floor_at: Callable = func(v: Vector2i) -> bool: return is_valid(v) and get_cell(v).type == Type.EMPTY and is_ground(v + Vector2i.DOWN)
+		var air: Callable = func(v: Vector2i) -> bool: return is_valid(v) and get_cell(v).type == Type.EMPTY
+		var found: Array = []
+		for y: int in range(3, size.y - 3):
+			for l: int in range(GAP_SHORE, size.x - 1):
+				var left: Vector2i = Vector2i(l, y)
+				var ok: bool = true
+				for k: int in range(GAP_SHORE):
+					ok = ok and floor_at.call(left - Vector2i(k, 0))
+				if not ok or floor_at.call(left + Vector2i.RIGHT):
+					continue
+				# Across: open air in every column until the next floor on this row or the next.
+				var x: int = l + 1
+				var land: int = -1
+				while x < size.x:
+					if floor_at.call(Vector2i(x, y)):
+						land = y
+						break
+					if floor_at.call(Vector2i(x, y + 1)):
+						land = y + 1
+						break
+					var clear: bool = true
+					for d: int in range(-1, 2):
+						clear = clear and air.call(Vector2i(x, y + d))
+					if not clear:
+						break
+					x += 1
+				var w: int = x - l - 1
+				if land < 0 or w < GAP_MIN or w > CHASM_WIDTH.y + 2:
+					continue
+				for k: int in range(GAP_SHORE):
+					ok = ok and floor_at.call(Vector2i(x + k, land))
+				if ok:
+					found.append([y, l + 1, w])
+		found.sort()
+		while chasms.size() < want and not found.is_empty():
+			var pick: Array = found[rng.randi_range(0, found.size() - 1)]
+			var y: int = pick[0]
+			var a: int = pick[1]
+			var w: int = pick[2]
+			found = _apart(found, y, a, w)
+			var id: int = chasms.size()
+			var planks: Array[Vector2i] = []
+			for x: int in range(a, a + w):
+				planks.append(Vector2i(x, y + 1))
+				# The air over the gap is kept clear, as over a cut chasm.
+				for d: int in range(-CHASM_CLEAR, CHASM_DEPTH + 1):
+					empties.erase(Vector2i(x, y + d))
+			add_object_at(planks[0])
+			var gust: Cell = Cell.new(Type.WIND)
+			gust.extra_info = {"chasm": id, "width": w}
+			set_cell(planks[0], gust)
+			chasms.append({"planks": planks, "row": y, "left": Vector2i(a - 1, y), "right": Vector2i(a + w, y)})
+
+	## The sky's islands come in clusters with wide gaps of open air between (cluster_islands): each
+	## [centre, radii] of an ellipse of the collapsed islands kept, the rest of the rock cleared.
+	var isles: Array = []
+	const ISLE_RX: Vector2i = Vector2i(6, 9)
+	const ISLE_RY: Vector2i = Vector2i(4, 6)
+	## The cells a causeway or its updraft uses (stones, the air over them, the shaft): kept as they are
+	## by everything built after (the gaps, _build_gaps).
+	var lanes: Dictionary = {}
+	## Causeways laid (link_isles): one fewer than the clusters when every cluster is reached.
+	var links: int = 0
+	## Open air at least this wide between clusters side by side, or this tall between stacked ones.
+	const ISLE_GAP: Vector2i = Vector2i(8, 6)
+	## A cluster with less rock than this share of its area gets more islands (_stamp_islands).
+	const ISLE_ROCK: float = 0.28
+
+	## Per cell, the least growth (0..ISLE_REACH) of some cluster's ellipse that takes it in, 255 if
+	## none does (map_isles): in_isle looks it up once the clusters are settled.
+	var _isle_map: PackedByteArray = PackedByteArray()
+	const ISLE_REACH: int = 5
+
+	func map_isles () -> void:
+		_isle_map = PackedByteArray()
+		_isle_map.resize(size.x * size.y)
+		_isle_map.fill(255)
+		for isle: Array in isles:
+			var c: Vector2i = isle[0]
+			var r: Vector2i = isle[1]
+			for x: int in range(maxi(0, c.x - r.x - ISLE_REACH), mini(size.x, c.x + r.x + ISLE_REACH + 1)):
+				for y: int in range(maxi(0, c.y - r.y - ISLE_REACH), mini(size.y, c.y + r.y + ISLE_REACH + 1)):
+					var i: int = x * size.y + y
+					for g: int in range(0, mini(ISLE_REACH, _isle_map[i]) + 1):
+						var d: Vector2 = Vector2(float(x - c.x) / float(r.x + g), float(y - c.y) / float(r.y + g))
+						if d.length_squared() <= 1.0:
+							_isle_map[i] = g
+							break
+
+	## Whether `v` lies in a cluster of islands (its ellipse grown by `grow` cells).
+	func in_isle (v: Vector2i, grow: int = 0) -> bool:
+		if not _isle_map.is_empty() and grow <= ISLE_REACH:
+			return is_valid(v) and _isle_map[v.x * size.y + v.y] <= grow
+		for isle: Array in isles:
+			var c: Vector2i = isle[0]
+			var r: Vector2i = isle[1] + Vector2i(grow, grow)
+			var d: Vector2 = Vector2(float(v.x - c.x) / float(r.x), float(v.y - c.y) / float(r.y))
+			if d.length_squared() <= 1.0:
+				return true
+		return false
+
+	## Sky levels: keep the collapsed islands only in clusters (ellipses ISLE_RX by ISLE_RY cells,
+	## thrown at random and kept ISLE_GAP apart), clearing the rest to open air; fill out a thin
+	## cluster with more islands (_stamp_islands); then link the clusters (link_isles).
+	func cluster_islands () -> void:
+		for attempt: int in range(maxi(600, size.x * size.y / 4)):
+			var r: Vector2i = Vector2i(rng.randi_range(ISLE_RX.x, ISLE_RX.y), rng.randi_range(ISLE_RY.x, ISLE_RY.y))
+			if size.x - 2 * r.x - 4 <= 0 or size.y - 2 * r.y - 6 <= 0:
+				continue
+			var c: Vector2i = Vector2i(rng.randi_range(r.x + 2, size.x - r.x - 3), rng.randi_range(r.y + 2, size.y - r.y - 4))
+			var apart: bool = true
+			for isle: Array in isles:
+				var o: Vector2i = isle[0]
+				var q: Vector2i = isle[1]
+				var gx: int = absi(c.x - o.x) - r.x - q.x
+				var gy: int = absi(c.y - o.y) - r.y - q.y
+				if gx < ISLE_GAP.x and gy < ISLE_GAP.y:
+					apart = false
+					break
+			if apart:
+				isles.append([c, r])
+		for x: int in range(size.x):
+			for y: int in range(size.y):
+				var v: Vector2i = Vector2i(x, y)
+				if get_cell(v).type != Type.EMPTY and not in_isle(v):
+					_to_open(v)
+		for isle: Array in isles:
+			var c: Vector2i = isle[0]
+			var r: Vector2i = isle[1]
+			var rock: int = 0
+			var area: int = 0
+			for x: int in range(c.x - r.x, c.x + r.x + 1):
+				for y: int in range(c.y - r.y, c.y + r.y + 1):
+					if in_isle(Vector2i(x, y)):
+						area += 1
+						if is_ground(Vector2i(x, y)):
+							rock += 1
+			if float(rock) < float(area) * ISLE_ROCK:
+				_stamp_islands(c, r, int(float(area) * ISLE_ROCK) - rock)
+		link_isles()
+
+	## Islands laid in the cluster at `c` (radii `r`) until about `want` more cells of rock: each as
+	## the sample draws them (tests/make_sky_sample.gd), a flat top 3 to 7 cells wide over a body that
+	## tapers a cell each side per row below the first (2 or 3 rows), with two cells of air beside it,
+	## three rows over it and two under it clear of any other rock.
+	func _stamp_islands (c: Vector2i, r: Vector2i, want: int) -> void:
+		for attempt: int in range(120):
+			if want <= 0:
+				return
+			var w: int = rng.randi_range(3, 7)
+			var h: int = rng.randi_range(2, 3)
+			var at: Vector2i = Vector2i(rng.randi_range(c.x - r.x, c.x + r.x - w), rng.randi_range(c.y - r.y + 3, c.y + r.y - h))
+			var fits: bool = true
+			for x: int in range(at.x - 2, at.x + w + 2):
+				for y: int in range(at.y - 3, at.y + h + 2):
+					var v: Vector2i = Vector2i(x, y)
+					if not is_valid(v) or get_cell(v).type != Type.EMPTY:
+						fits = false
+			for x: int in [at.x, at.x + w - 1]:
+				fits = fits and in_isle(Vector2i(x, at.y))
+			if not fits:
+				continue
+			for d: int in range(h):
+				for x: int in range(at.x + maxi(0, d - 1), at.x + w - maxi(0, d - 1)):
+					_to_rock(Vector2i(x, at.y + d))
+					want -= 1
+
+	## The floors (open, rock under) of cluster `i`.
+	func _isle_floors (i: int) -> Array[Vector2i]:
+		var c: Vector2i = isles[i][0]
+		var r: Vector2i = isles[i][1]
+		var out: Array[Vector2i] = []
+		for x: int in range(c.x - r.x, c.x + r.x + 1):
+			for y: int in range(c.y - r.y - 1, c.y + r.y + 1):
+				var v: Vector2i = Vector2i(x, y)
+				if is_valid(v) and get_cell(v).type == Type.EMPTY and is_ground(v + Vector2i.DOWN) and is_valid(v + Vector2i.UP) and get_cell(v + Vector2i.UP).type == Type.EMPTY:
+					out.append(v)
+		return out
+
+	## Link the clusters so every one can be reached: along the shortest links between them (a
+	## spanning tree, stacked clusters counting as further apart), a causeway of cloud stepping
+	## stones (Puff, two cells wide, a hop apart) from a floor of one to a floor of the other, and
+	## an updraft (Wind) where the far floor is too high above to hop up to. A cluster no causeway
+	## can reach is cleared away.
+	func link_isles () -> void:
+		var dropped: Array[int] = []
+		var linked: Array[int] = [0]
+		var left: Array[int] = []
+		for i: int in range(1, isles.size()):
+			left.append(i)
+		var gap: Callable = func(i: int, j: int) -> int:
+			var a: Vector2i = isles[i][0]
+			var b: Vector2i = isles[j][0]
+			return absi(a.x - b.x) + 2 * absi(a.y - b.y)
+		while not left.is_empty() and not isles.is_empty():
+			var best: Array = []
+			for i: int in linked:
+				for j: int in left:
+					if best.is_empty() or gap.call(i, j) < int(best[0]):
+						best = [gap.call(i, j), i, j]
+			var j: int = best[2]
+			left.erase(j)
+			# From the nearest cluster already linked, else the next nearest, until one can be laid.
+			var from: Array[int] = linked.duplicate()
+			from.sort_custom(func(p: int, q: int) -> bool: return gap.call(p, j) < gap.call(q, j))
+			var laid: bool = false
+			for i: int in from:
+				if _causeway(i, j):
+					laid = true
+					break
+			if laid:
+				links += 1
+				linked.append(j)
+			else:
+				dropped.append(j)
+		# A cluster no causeway reaches is cleared away, so nothing is placed out of reach.
+		dropped.sort()
+		dropped.reverse()
+		for j: int in dropped:
+			var c: Vector2i = isles[j][0]
+			var r: Vector2i = isles[j][1]
+			isles.remove_at(j)
+			for x: int in range(c.x - r.x, c.x + r.x + 1):
+				for y: int in range(c.y - r.y, c.y + r.y + 1):
+					var v: Vector2i = Vector2i(x, y)
+					if is_valid(v) and is_ground(v) and not in_isle(v):
+						var d: Vector2 = Vector2(float(v.x - c.x) / float(r.x), float(v.y - c.y) / float(r.y))
+						if d.length_squared() <= 1.0:
+							_to_open(v)
+
+	## A causeway between clusters `i` and `j`: from a floor of one up or across to a floor of the
+	## other (the lower of the two to the higher). Tries the nearest pairs of floors; false if none
+	## can be laid.
+	func _causeway (i: int, j: int) -> bool:
+		var lo: int = i if (isles[i][0] as Vector2i).y >= (isles[j][0] as Vector2i).y else j
+		var hi: int = j if lo == i else i
+		var from: Array[Vector2i] = _isle_floors(lo)
+		var to: Array[Vector2i] = _isle_floors(hi)
+		var pairs: Array = []
+		for a: Vector2i in from:
+			for b: Vector2i in to:
+				# Always built upward, from the lower floor: every hop can be taken either way.
+				if a.y >= b.y:
+					pairs.append([absi(a.x - b.x) + absi(a.y - b.y), a, b])
+				else:
+					pairs.append([absi(a.x - b.x) + absi(a.y - b.y), b, a])
+		pairs.sort()
+		for k: int in range(pairs.size()):
+			if _stones(pairs[k][1], pairs[k][2]):
+				return true
+		return false
+
+	## Stepping stones from standing at `a` up or across to standing at `b` (no lower): hops of three
+	## cells across, or two across and one up, each as easily taken back down; where `b` is two or
+	## more above with little room across left, an updraft beside it lifts the wizard up to it.
+	## Every stone, the cell over it and the one over that must be open air; false (nothing laid)
+	## if they are not.
+	func _stones (a: Vector2i, b: Vector2i) -> bool:
+		var dir: int = 1 if b.x >= a.x else -1
+		var stands: Array[Vector2i] = []
+		var shaft: Vector2i = Vector2i(-1, -1)
+		var shaft_up: int = 0
+		var cur: Vector2i = a
+		for guard: int in range(40):
+			var dx: int = b.x - cur.x
+			var dy: int = b.y - cur.y
+			# Within a last hop.
+			if absi(dx) <= 2 and dy >= -1 or absi(dx) <= 3 and dy >= 0:
+				break
+			if dy <= -2 and absi(dx) <= 3:
+				# Too high to hop up to: over to the column beside it, then an updraft.
+				if absi(dx) > 1:
+					cur = Vector2i(b.x - dir, cur.y)
+					stands.append(cur)
+				shaft = cur
+				shaft_up = cur.y - b.y + 2
+				break
+			var step: Vector2i = Vector2i(2 * dir, -1) if dy < 0 else Vector2i(mini(3, absi(dx)) * dir, 0)
+			cur += step
+			stands.append(cur)
+		if stands.is_empty() and shaft.x < 0:
+			return false
+		var open: Callable = func(v: Vector2i) -> bool: return is_valid(v) and get_cell(v).type == Type.EMPTY
+		var stones: Array[Vector2i] = []
+		for st: Vector2i in stands:
+			for c: Vector2i in [st, st + Vector2i.UP, st + Vector2i.DOWN, st + Vector2i(dir, 1)]:
+				if not open.call(c):
+					return false
+			stones.append(st + Vector2i.DOWN)
+			stones.append(st + Vector2i(dir, 1))
+		if shaft.x >= 0:
+			for d: int in range(0, shaft_up + 1):
+				if not open.call(shaft + Vector2i(0, -d)):
+					return false
+		for st: Vector2i in stands:
+			lanes[st] = true
+			lanes[st + Vector2i.UP] = true
+		for c: Vector2i in stones:
+			lanes[c] = true
+			add_object_at(c)
+			set_cell(c, Cell.new(Type.PUFF))
+		if shaft.x >= 0:
+			add_object_at(shaft)
+			var draft: Cell = Cell.new(Type.WIND)
+			draft.extra_info = {"up": shaft_up}
+			set_cell(shaft, draft)
+			for d: int in range(0, shaft_up + 2):
+				lanes[shaft + Vector2i(0, -d)] = true
+				empties.erase(shaft + Vector2i(0, -d))
+		return true
+
+	## Floor laid either side of a gap the sky builds.
+	const BUILT_SHORE: int = 3
+
+	## Sky levels, when the islands' own gaps are too few: build them. A gap is CHASM_WIDTH cells of
+	## open air (from two rows over the floor's row to two under it) between two shores of
+	## BUILT_SHORE cells of floor, rock laid under each and air cleared over it. Spots are taken
+	## from those needing the fewest cells changed, so a gap mostly follows the islands already
+	## there, and kept apart as cut chasms are.
+	func _build_gaps (want: int) -> void:
+		if chasms.size() >= want:
+			return
+		# Where a gap could go, in tiers: between two clusters of islands (shores at their edges, the
+		# gap in the air between: a shortcut from one to the next), else by a cluster, else anywhere.
+		var tiers: Array = [[], [], []]
+		for y: int in range(CHASM_CLEAR + 1, size.y - 4):
+			for w: int in [CHASM_WIDTH.x, CHASM_WIDTH.y]:
+				for a: int in range(BUILT_SHORE + 1, size.x - BUILT_SHORE - w - 1):
+					@warning_ignore("integer_division")
+					var tier: int = 0 if in_isle(Vector2i(a - 1, y), 2) and in_isle(Vector2i(a + w, y), 2) and not in_isle(Vector2i(a + w / 2, y)) else (1 if in_isle(Vector2i(a - 1, y), 4) and in_isle(Vector2i(a + w, y), 4) else 2)
+					tiers[tier].append([y, a, w])
+		# Costed only in the first tier with any spot left.
+		var spots: Array = []
+		for tier: Array in tiers:
+			for sp: Array in tier:
+				var y: int = sp[0]
+				var a: int = sp[1]
+				var w: int = sp[2]
+				var cost: int = 0
+				for x: int in range(a - BUILT_SHORE, a + w + BUILT_SHORE):
+					var shore: bool = x < a or x >= a + w
+					for d: int in range(-2, 3 if not shore else 2):
+						var c: Vector2i = Vector2i(x, y + d)
+						# Never across a causeway or its updraft.
+						if lanes.has(c):
+							cost = -1
+							break
+						if (get_cell(c).type != Type.EMPTY) != (shore and d == 1):
+							cost += 1
+					if cost < 0:
+						break
+				if cost >= 0:
+					spots.append([cost, y, a, w])
+			if not spots.is_empty():
+				break
+		spots.sort()
+		for chasm: Dictionary in chasms:
+			spots = _apart(spots, chasm["row"], (chasm["left"] as Vector2i).x + 1, (chasm["planks"] as Array).size())
+		while chasms.size() < want and not spots.is_empty():
+			# Among the cheapest few, by the level's draw.
+			var pick: Array = spots[rng.randi_range(0, mini(spots.size(), 8) - 1)]
+			var y: int = pick[1]
+			var a: int = pick[2]
+			var w: int = pick[3]
+			spots = _apart(spots, y, a, w)
+			for x: int in range(a - BUILT_SHORE, a + w + BUILT_SHORE):
+				var shore: bool = x < a or x >= a + w
+				for d: int in range(-2, 3 if not shore else 2):
+					var c: Vector2i = Vector2i(x, y + d)
+					if shore and d == 1:
+						if get_cell(c).type != Type.GROUND:
+							_to_rock(c)
+					elif get_cell(c).type != Type.EMPTY:
+						_to_open(c)
+			var id: int = chasms.size()
+			var planks: Array[Vector2i] = []
+			for x: int in range(a, a + w):
+				planks.append(Vector2i(x, y + 1))
+				for d: int in range(-CHASM_CLEAR, CHASM_DEPTH + 1):
+					empties.erase(Vector2i(x, y + d))
+			add_object_at(planks[0])
+			var gust: Cell = Cell.new(Type.WIND)
+			gust.extra_info = {"chasm": id, "width": w}
+			set_cell(planks[0], gust)
+			chasms.append({"planks": planks, "row": y, "left": Vector2i(a - 1, y), "right": Vector2i(a + w, y)})
+
+	## `spots` ([.., row, first cell, width] at the end of each) less those too near a chasm on row
+	## `y` from `a`, `w` cells wide.
+	func _apart (spots: Array, y: int, a: int, w: int) -> Array:
+		return spots.filter(func(sp: Array) -> bool:
+			var n: int = sp.size()
+			return absi(int(sp[n - 3]) - y) > CHASM_DEPTH + 3 or int(sp[n - 2]) + int(sp[n - 1]) + CHASM_SHORES[0] < a or a + w + CHASM_SHORES[0] < int(sp[n - 2]))
 
 	## Which cells are floors, one byte per cell (see carve_chasms).
 	var _floors: PackedByteArray = PackedByteArray()
@@ -803,6 +1279,8 @@ class World:
 	## (throwing it frees that bell). A bell's cell holds [chasm, lock]: lock is the key colour, or -1
 	## for a switch.
 	const BELL_SWITCH: int = 6
+	## How far from its vane a sky level looks for a vane's switch.
+	const SKY_SWITCH_REACH: int = 24
 
 	func place_bells () -> void:
 		for id: int in range(chasms.size()):
@@ -827,7 +1305,7 @@ class World:
 						var s: Cell = Cell.new(Type.SWITCH)
 						s.extra_info = at
 						set_cell(lever, s)
-				var bell: Cell = Cell.new(Type.BELL)
+				var bell: Cell = Cell.new(Type.VANE if sky else Type.BELL)
 				bell.extra_info = [id, lock]
 				set_cell(at, bell)
 
@@ -848,11 +1326,17 @@ class World:
 			for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
 				var n: Vector2i = c + d
 				if _open(n) and not blocked.has(n) and not reach.has(n):
+					# The sky is one wide open space: a switch near its vane will do.
+					if sky and absi(n.x - bell.x) + absi(n.y - bell.y) > SKY_SWITCH_REACH:
+						continue
 					reach[n] = true
 					queue.append(n)
+		var free: Dictionary = {}
+		for v: Vector2i in empties:
+			free[v] = true
 		var choices: Array[Vector2i] = []
 		for v: Vector2i in reach:
-			if empties.has(v) and get_cell(v).type == Type.EMPTY and ground_below(v) and absi(v.x - bell.x) + absi(v.y - bell.y) >= BELL_SWITCH:
+			if free.has(v) and get_cell(v).type == Type.EMPTY and ground_below(v) and absi(v.x - bell.x) + absi(v.y - bell.y) >= BELL_SWITCH:
 				choices.append(v)
 		if choices.is_empty():
 			return null
@@ -917,6 +1401,162 @@ class World:
 			var at: Vector2i = pool[rng.randi_range(0, pool.size() - 1)]
 			add_object_at(at)
 			set_cell(at, Cell.new(Type.WRAITH))
+
+	## What lives in the sky, on top of an ordinary level's dressing (placed after the hoppers, so
+	## the rest of the level lands as it would):
+	## - a share of the ledge runs (PUFF_SHARE) are clouds that give way once stood on (Puff);
+	## - jump pads (Pad) on floors with a ledge or rock shelf within a pad's reach above;
+	## - updrafts (Wind, {"up": cells}) up open shafts, each rising from a floor to just over a
+	##   floor beside the shaft, so it lifts you onto a ledge;
+	## - shields on a share of the wisps and hoppers, and rebounding shots for a share of watchers.
+	const UPDRAFT_MIN: int = 4
+	const UPDRAFT_MAX: int = 9
+	## How high a pad throws the wizard, in cells (see Pad.LAUNCH).
+	const PAD_REACH: int = 4
+	## The shortest stretch of open sky a bird patrols.
+	const BIRD_SPAN: int = 10
+
+	func populate_sky (def: NextWorldDef) -> void:
+		var start: Vector2i = exits.get(Exit.BACK, Vector2i(-1, -1))
+		var md: Callable = func(a: Vector2i, b: Vector2i) -> int: return absi(a.x - b.x) + absi(a.y - b.y)
+		# Clouds that give way: whole runs of ledge at a time.
+		var ledges: Array[Vector2i] = []
+		for v: Vector2i in objects:
+			if get_cell(v).type == Type.PLATFORM:
+				ledges.append(v)
+		ledges.sort()
+		var seen: Dictionary = {}
+		for v: Vector2i in ledges:
+			if seen.has(v):
+				continue
+			var run: Array[Vector2i] = []
+			var c: Vector2i = v
+			while is_valid(c) and get_cell(c).type == Type.PLATFORM:
+				run.append(c)
+				seen[c] = true
+				c += Vector2i.RIGHT
+			if rng.randf() < MapInfo.PUFF_SHARE:
+				for r: Vector2i in run:
+					set_cell(r, Cell.new(Type.PUFF))
+		# Pads: on a floor with headroom, a shelf to land on within reach above.
+		var pads: Array[Vector2i] = []
+		var shelf: Callable = func(v: Vector2i) -> bool:
+			for d: int in range(1, 3):
+				if not _open(v + Vector2i(0, -d)):
+					return false
+			for dy: int in range(2, PAD_REACH + 1):
+				for dx: int in [-2, -1, 1, 2]:
+					var top: Vector2i = v + Vector2i(dx, -dy)
+					if _open(top) and not _open(top + Vector2i.DOWN):
+						return true
+			return false
+		var floors: Array[Vector2i] = []
+		for v: Vector2i in empties:
+			if get_cell(v).type == Type.EMPTY and ground_below(v) and md.call(v, start) >= 3 and shelf.call(v):
+				floors.append(v)
+		floors.sort()
+		for i: int in range(per_area(MapInfo.PADS_PER_K)):
+			var pool: Array[Vector2i] = floors.filter(func(v: Vector2i) -> bool: return pads.all(func(q: Vector2i) -> bool: return md.call(q, v) >= 6))
+			if pool.is_empty():
+				break
+			var at: Vector2i = pool[rng.randi_range(0, pool.size() - 1)]
+			pads.append(at)
+			add_object_at(at)
+			set_cell(at, Cell.new(Type.PAD))
+		# At least one in every level: failing a floor under a shelf, any floor with headroom.
+		if pads.is_empty():
+			var open_floors: Array[Vector2i] = []
+			for v: Vector2i in empties:
+				if get_cell(v).type == Type.EMPTY and ground_below(v) and _open(v + Vector2i.UP) and _open(v + Vector2i(0, -2)) and md.call(v, start) >= 3:
+					open_floors.append(v)
+			open_floors.sort()
+			if not open_floors.is_empty():
+				var at: Vector2i = open_floors[rng.randi_range(0, open_floors.size() - 1)]
+				pads.append(at)
+				add_object_at(at)
+				set_cell(at, Cell.new(Type.PAD))
+		# Updrafts: a shaft of open air over a floor, rising to just over a floor beside it.
+		var shafts: Array = []
+		for v: Vector2i in empties:
+			if get_cell(v).type != Type.EMPTY or not ground_below(v) or md.call(v, start) < 3:
+				continue
+			for h: int in range(UPDRAFT_MIN, UPDRAFT_MAX + 1):
+				var top: Vector2i = v + Vector2i(0, -h)
+				var clear: bool = true
+				for d: int in range(0, h + 2):
+					var c: Vector2i = v + Vector2i(0, -d)
+					if not is_valid(c) or get_cell(c).type != Type.EMPTY:
+						clear = false
+						break
+				if not clear:
+					break
+				if [Vector2i.LEFT, Vector2i.RIGHT].any(func(sd: Vector2i) -> bool: return _open(top + sd) and not _open(top + sd + Vector2i.DOWN)):
+					shafts.append([v, h])
+					break
+		shafts.sort()
+		var drafts: Array[Vector2i] = []
+		for i: int in range(per_area(MapInfo.UPDRAFTS_PER_K)):
+			var pool: Array = shafts.filter(func(sh: Array) -> bool: return not drafts.has(sh[0]) and drafts.all(func(q: Vector2i) -> bool: return absi(q.x - (sh[0] as Vector2i).x) >= 4 or absi(q.y - (sh[0] as Vector2i).y) > int(sh[1]) + 2))
+			if pool.is_empty():
+				break
+			var pick: Array = pool[rng.randi_range(0, pool.size() - 1)]
+			var at: Vector2i = pick[0]
+			if not empties.has(at):
+				continue
+			drafts.append(at)
+			add_object_at(at)
+			var draft: Cell = Cell.new(Type.WIND)
+			draft.extra_info = {"up": int(pick[1]) + 1}
+			set_cell(at, draft)
+			# Nothing is placed in the shaft afterwards.
+			for d: int in range(1, int(pick[1]) + 2):
+				empties.erase(at + Vector2i(0, -d))
+		# More watchers, on floors in the clusters (their shots rebound, below).
+		for i: int in range(per_area(MapInfo.SKY_WATCHERS_PER_K)):
+			var at: Variant = pop_if_random_empty(func(v: Vector2i) -> bool: return ground_below(v) and md.call(v, start) >= 6, true)
+			if at == null:
+				break
+			set_cell(at, Cell.new(Type.SHOOTER))
+		# Swooping birds: each on a stretch of open sky (a row of open air, out of the clusters, at
+		# least BIRD_SPAN cells long), away from the way in and from one another.
+		var runs: Array = []
+		for y: int in range(2, size.y - 4):
+			var x: int = 0
+			while x < size.x:
+				var from: int = x
+				while x < size.x and get_cell(Vector2i(x, y)).type == Type.EMPTY and not in_isle(Vector2i(x, y), 1):
+					x += 1
+				if x - from >= BIRD_SPAN:
+					runs.append([y, from + 1, x - 2])
+				x += 1
+		runs.sort()
+		var birds: Array[Vector2i] = []
+		for i: int in range(per_area(MapInfo.BIRDS_PER_K)):
+			var pool: Array = runs.filter(func(r: Array) -> bool:
+				@warning_ignore("integer_division")
+				var mid: Vector2i = Vector2i((int(r[1]) + int(r[2])) / 2, int(r[0]))
+				return md.call(mid, start) >= 10 and birds.all(func(q: Vector2i) -> bool: return absi(q.y - mid.y) >= 5 or absi(q.x - mid.x) >= 12))
+			if pool.is_empty():
+				break
+			var run: Array = pool[rng.randi_range(0, pool.size() - 1)]
+			@warning_ignore("integer_division")
+			var at: Vector2i = Vector2i((int(run[1]) + int(run[2])) / 2, int(run[0]))
+			if not empties.has(at):
+				continue
+			birds.append(at)
+			add_object_at(at)
+			var bird: Cell = Cell.new(Type.BIRD)
+			bird.extra_info = [int(run[1]), int(run[2])]
+			set_cell(at, bird)
+		# Shields and rebounding shots.
+		var foes: Array[Vector2i] = objects.duplicate()
+		foes.sort()
+		for v: Vector2i in foes:
+			var cell: Cell = get_cell(v)
+			if cell.type in [Type.ENEMY, Type.HOPPER] and rng.randf() < MapInfo.SHIELD_SHARE:
+				cell.mods["shield"] = MapInfo.SHIELD_HP
+			elif cell.type == Type.SHOOTER and rng.randf() < MapInfo.BOUNCE_SHARE:
+				cell.mods["bounces"] = MapInfo.BOUNCES
 
 	## The level's star cluster (worth MapInfo.cluster_value): hung in open air (as a moon is) at
 	## least half the exit distance from the way in, three times as likely over thorns; failing
@@ -1059,7 +1699,8 @@ class World:
 			cell.extra_info = id
 			cells[c.x][c.y] = cell
 
-	## Cracked walls: thin rock (one or two cells, open on both sides) that a hex bolt breaks.
+	## Cracked walls: thin rock (one or two cells, open on both sides, holding up no thorns) that a
+	## hex bolt breaks.
 	## Half are picked near something worth reaching (a key, lantern, exit, shrine or ink well).
 	## Placed last, so they can block anything the level holds.
 	func place_cracks (count: int) -> void:
@@ -1078,7 +1719,8 @@ class World:
 					wall = [v]
 				elif _open(v - axis) and is_ground(v + axis) and _open(v + axis * 2):
 					wall = [v, v + axis]
-				if wall.is_empty():
+				# Never rock that thorns hang from (a chasm's floor, say): they would be left in the air.
+				if wall.is_empty() or wall.any(func(c: Vector2i) -> bool: return neighbor_offsets.any(func(d: Vector2i) -> bool: return is_valid(c + d) and get_cell(c + d).type == Type.SPIKES)):
 					continue
 				walls.append(wall)
 				for o: Vector2i in valuable:
@@ -1425,12 +2067,10 @@ static func map_price (depth: int) -> int:
 static func where (at: Vector2i) -> String:
 	return def_for(at).title()
 
-## The WFC sample for a garden level `depth` deep: its garden bands (see NextWorldDef.archetype_at)
-## alternate between tunnels and islands. (A cemetery has its own, NextWorldDef.GRAVEYARD.)
-static func region_for (depth: int) -> String:
-	@warning_ignore("integer_division")
-	var garden_band: int = (maxi(depth, 0) / NextWorldDef.BAND) / NextWorldDef.ARCHETYPES.size()
-	return "res://wfc_images/levelSample3-spikes.png" if garden_band % 2 == 0 else "res://wfc_images/floating_islands.png"
+## The WFC sample for a garden level `depth` deep: the tunnels. (The cemetery and the sky have their
+## own, NextWorldDef.GRAVEYARD and ISLANDS.)
+static func region_for (_depth: int) -> String:
+	return "res://wfc_images/levelSample3-spikes.png"
 
 func record (at: Vector2i = coord) -> Dictionary:
 	if not records.has(at):
@@ -1493,6 +2133,22 @@ func ring_bell (id: int, from: Vector2i = Vector2i(-1, -1)) -> void:
 func bridge_up (id: int) -> bool:
 	return (record().get("bridges", {}) as Dictionary).has(id)
 
+## A vane of chasm `id` was turned (at cell `from`): the wind over the chasm blows from that side
+## to the other, and keeps blowing (turning the vane on the far side sends it back).
+func turn_vane (id: int, from: Vector2i) -> void:
+	var rec: Dictionary = record()
+	if not rec.has("bridges"):
+		rec["bridges"] = {}
+	if not rec.has("winds"):
+		rec["winds"] = {}
+	rec["bridges"][id] = true
+	rec["winds"][id] = from
+	save_run()
+
+## The cell of the vane chasm `id`'s wind blows from, or null while it is still.
+func wind_from (id: int) -> Variant:
+	return (record().get("winds", {}) as Dictionary).get(id)
+
 ## The chain on the bell at `cell` is off (by its key or its switch): for good.
 func free_bell (cell: Vector2i) -> void:
 	var rec: Dictionary = record()
@@ -1516,7 +2172,7 @@ func mark_broken (node: Node) -> void:
 ## a relic, a bell, a switch or a teleporter. They always keep something under them: where rock
 ## under one is broken (a cracked wall, a secret room's rock), a ledge (a platform) appears in its
 ## place, at once, or as the level loads for rock broken before.
-const STANDERS: Array[Type] = [Type.EXIT, Type.SHRINE, Type.CHECKPOINT, Type.INKWELL, Type.RELIC, Type.BELL, Type.SWITCH, Type.PORTAL]
+const STANDERS: Array[Type] = [Type.EXIT, Type.SHRINE, Type.CHECKPOINT, Type.INKWELL, Type.RELIC, Type.BELL, Type.SWITCH, Type.PORTAL, Type.VANE, Type.PAD]
 ## Cells given a ledge in the level as loaded now.
 var _props: Dictionary = {}
 
@@ -2279,6 +2935,16 @@ func _sleep_far_chunks (force: bool = false, around: Vector2 = Vector2.INF) -> v
 		if n2 == null or node.is_queued_for_deletion() or not node.has_meta(&"cell"):
 			continue
 		var awake: bool = bool(states.get(chunk_of(n2.global_position), false))
+		# Something spread over several chunks (a wind, Wind.extent) is awake if any of them is.
+		if not awake and node.has_method("extent"):
+			var r: Rect2 = node.call("extent")
+			var x: float = r.position.x
+			while not awake and x <= r.end.x + chunk_px.x:
+				var y: float = r.position.y
+				while not awake and y <= r.end.y + chunk_px.y:
+					awake = bool(states.get(chunk_of(Vector2(minf(x, r.end.x), minf(y, r.end.y))), false))
+					y += chunk_px.y
+				x += chunk_px.x
 		var mode: Node.ProcessMode = Node.PROCESS_MODE_INHERIT if awake else Node.PROCESS_MODE_DISABLED
 		if node.process_mode != mode:
 			node.process_mode = mode
@@ -2310,6 +2976,11 @@ var fog_prefab: Resource = preload("res://prefabs/sleep_fog.tscn")
 var wraith_prefab: Resource = preload("res://prefabs/wraith_enemy.tscn")
 var bridge_prefab: Resource = preload("res://prefabs/bridge.tscn")
 var bell_prefab: Resource = preload("res://prefabs/bell.tscn")
+var pad_prefab: Resource = preload("res://prefabs/pad.tscn")
+var puff_prefab: Resource = preload("res://prefabs/puff.tscn")
+var vane_prefab: Resource = preload("res://prefabs/vane.tscn")
+var wind_prefab: Resource = preload("res://prefabs/wind.tscn")
+var bird_prefab: Resource = preload("res://prefabs/bird_enemy.tscn")
 
 var map_elements_prefab: Resource = preload("res://prefabs/map_elements.tscn")
 
@@ -2396,6 +3067,11 @@ var cell_to_prefab: Dictionary = {
 	Type.WRAITH: wraith_prefab,
 	Type.BRIDGE: bridge_prefab,
 	Type.BELL: bell_prefab,
+	Type.PAD: pad_prefab,
+	Type.PUFF: puff_prefab,
+	Type.VANE: vane_prefab,
+	Type.WIND: wind_prefab,
+	Type.BIRD: bird_prefab,
 }
 
 func place_cell(v: Vector2i, _cell: Cell) -> void:
@@ -2436,12 +3112,19 @@ func place_cell(v: Vector2i, _cell: Cell) -> void:
 		cell.set_meta(&"key_color", color)
 	if _cell.type == Type.CLUSTER:
 		cell.set("value", cluster_value(here.depth))
-	if _cell.type in [Type.ENEMY, Type.SHOOTER, Type.HOPPER, Type.WRAITH]:
+	if _cell.type in [Type.ENEMY, Type.SHOOTER, Type.HOPPER, Type.WRAITH, Type.BIRD]:
 		var wound: Wound = Wound.new()
 		wound.name = "Wound"
 		wound.hp = Wound.hp_for(here.depth)
 		cell.add_child(wound)
 		cell.add_to_group(&"hex_target")
+	if _cell.mods.has("shield"):
+		var shield: Shield = Shield.new()
+		shield.name = "Shield"
+		shield.hp = int(_cell.mods["shield"])
+		cell.add_child(shield)
+	if _cell.mods.has("bounces"):
+		cell.set_meta(&"bounces", int(_cell.mods["bounces"]))
 	map_elements.add_child(cell)
 	cell.set_owner(map_elements)
 	cell.position = tile_map.to_global(tile_map.map_to_local(v)) + jitter
@@ -2456,7 +3139,7 @@ func place_cell(v: Vector2i, _cell: Cell) -> void:
 func construct_world() -> void:
 	_lay_rock(world.grounds)
 
-	enclose_map(world.size.x, world.size.y)
+	enclose_map(world.size.x, world.size.y, here != null and here.sky())
 
 	if not RisoPrint.is_on():
 		draw_background(world.size.x, world.size.y)
@@ -2519,8 +3202,15 @@ func draw_background(dim_x: int, dim_y: int) -> void:
 			tile_map.set_cell(1, Vector2i(i, j), 1, Vector2i(1 if j < 0 else 0, 0))
 
 # Enclose the level in solid rock, BORDER cells thick and flush against its edges, so it reads as
-# a cave cut into rock rather than a box drawn round it. The camera stops at the rock.
-func enclose_map(dim_x: int, dim_y: int) -> void:
+# a cave cut into rock rather than a box drawn round it. The camera stops at the rock. A sky level
+# (`open`) has none at all: open sky all round, and a drop below (see Player.fall_back); its camera
+# goes SKY_MARGIN cells past the edges, so the sky beyond shows.
+const SKY_MARGIN: int = 6
+
+func enclose_map(dim_x: int, dim_y: int, open: bool = false) -> void:
+	if open:
+		_fit_camera(dim_x, dim_y, SKY_MARGIN)
+		return
 	var rock: Array[Vector2i] = []
 	for i: int in range(-BORDER, dim_x + BORDER):
 		for j: int in range(-BORDER, dim_y + BORDER):
@@ -2529,14 +3219,14 @@ func enclose_map(dim_x: int, dim_y: int) -> void:
 	_lay_rock(rock)
 	_fit_camera(dim_x, dim_y)
 
-## Keep the camera inside the level plus one cell of its border rock.
-func _fit_camera(dim_x: int, dim_y: int) -> void:
+## Keep the camera inside the level plus one cell of its border rock (or `margin` cells of sky).
+func _fit_camera(dim_x: int, dim_y: int, margin: int = 1) -> void:
 	var cam: Camera2D = main.get_node_or_null("Camera2D") as Camera2D
 	if cam == null:
 		return
 	var cell: Vector2 = Vector2(tile_map.tile_set.tile_size) * tile_map.global_scale
-	var top_left: Vector2 = tile_map.to_global(tile_map.map_to_local(Vector2i(-1, -1))) - cell * 0.5
-	var bottom_right: Vector2 = tile_map.to_global(tile_map.map_to_local(Vector2i(dim_x, dim_y))) + cell * 0.5
+	var top_left: Vector2 = tile_map.to_global(tile_map.map_to_local(Vector2i(-margin, -margin))) - cell * 0.5
+	var bottom_right: Vector2 = tile_map.to_global(tile_map.map_to_local(Vector2i(dim_x + margin - 1, dim_y + margin - 1))) + cell * 0.5
 	cam.limit_left = int(top_left.x)
 	cam.limit_top = int(top_left.y)
 	cam.limit_right = int(bottom_right.x)

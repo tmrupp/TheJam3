@@ -18,6 +18,8 @@ const SOLID_MASK: int = 4
 var dir: Vector2 = Vector2.RIGHT
 var damage: int = 1
 var pierce: bool = false
+## A shot turned back by a parry (Parry): it breaks a shield (Shield) at once.
+var reflected: bool = false
 var travelled: float = 0.0
 var struck: Array[Node] = []
 var trail: Array[Vector2] = []
@@ -53,6 +55,11 @@ func _physics_process(delta: float) -> void:
 		if from.distance_to((e as Node2D).global_position) > wall_d + REACH:
 			break
 		struck.append(e)
+		# A shield takes the bolt whole: no wound, no stun.
+		var shield: Shield = Shield.of(e)
+		if shield != null and shield.absorb(reflected, dir):
+			_end((e as Node2D).global_position - dir * Shield.RADIUS * 0.8)
+			return
 		# Wound first (a stunned enemy takes double, so stunning first would double every hit),
 		# then stun whatever is left.
 		var wound: Node = e.get_node_or_null("Wound")

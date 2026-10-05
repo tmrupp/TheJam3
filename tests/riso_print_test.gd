@@ -148,12 +148,15 @@ func run() -> void:
 			check(is_instance_valid(wrong) and not wrong.is_queued_for_deletion() and player.has_meta(&"carried_key"), "a door of another colour stays shut")
 		door_node.get_node("Unlock").call("try_open")
 		check(door_node.is_queued_for_deletion() and player.has_meta(&"carried_key"), "the matching door opens and the key is kept")
-	# Realm follows the world and cycles.
-	check(riso.realm == &"deep" and riso.reprint_on_motion and not riso.blend_sheets and riso.sheet_rate == 8.0 and not riso.trapped, "defaults: deep night, 8/s, reprint on motion, cut between sheets, independent plates")
+	# A garden level prints in the garden's own realm (NextWorldDef.realm).
+	check(riso.realm == &"garden" and riso.reprint_on_motion and not riso.blend_sheets and riso.sheet_rate == 8.0 and not riso.trapped, "defaults: the garden's realm, 8/s, reprint on motion, cut between sheets, independent plates")
 	var cam: Camera2D = main.get_node("Camera2D") as Camera2D
 	check(is_equal_approx(cam.zoom.x, 0.25 * riso.zoom_factor), "camera zoomed out while printing")
+	# F8 cycles the realms (from a world's own, to the first of the cycle).
 	riso.cycle_realm()
-	check(riso.realm == &"twilight", "realm cycles")
+	check(riso.realm == &"deep", "realm cycles from the world's own")
+	riso.cycle_realm()
+	check(riso.realm == &"twilight", "and on round")
 	# Off switch restores the original presentation.
 	riso.set_enabled(false)
 	await process_frame

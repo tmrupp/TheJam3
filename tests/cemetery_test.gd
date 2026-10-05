@@ -95,19 +95,19 @@ func bands() -> void:
 	var kinds: Array[StringName] = []
 	for d: int in range(9):
 		kinds.append(NextWorldDef.archetype_at(d))
-	check(kinds == [&"garden", &"garden", &"garden", &"cemetery", &"cemetery", &"cemetery", &"garden", &"garden", &"garden"], "garden, then cemetery, a band of %d each: %s" % [NextWorldDef.BAND, kinds])
+	check(kinds == [&"garden", &"garden", &"garden", &"cemetery", &"cemetery", &"cemetery", &"sky", &"sky", &"sky"], "garden, then cemetery, then sky, a band of %d each: %s" % [NextWorldDef.BAND, kinds])
 	var def: NextWorldDef = MapInfo.def_for(Vector2i(28, 4))
 	check(def.region == NextWorldDef.GRAVEYARD and def.symmetry == 1 and def.realm() == &"cemetery", "a cemetery collapses the graveyard sample, unturned, and prints in its realm")
 	var garden: NextWorldDef = MapInfo.def_for(Vector2i(28, 1))
 	check(garden.region != NextWorldDef.GRAVEYARD and garden.realm() == &"garden" and not garden.title().contains("cemetery"), "a garden level has its own terrain and realm")
-	check(MapInfo.region_for(0) != MapInfo.region_for(6), "garden bands still alternate tunnels and islands")
+	check(MapInfo.region_for(0) == MapInfo.region_for(9) and MapInfo.region_for(0) != NextWorldDef.ISLANDS, "garden bands are the tunnels (the islands are the sky's)")
 	var side: NextWorldDef = MapInfo.def_for(Worlds.side_at(0, Vector2i(28, 4)))
 	check(not side.cemetery(), "a side world under a cemetery is not one")
 
 
 func generation(wfc: Node) -> void:
 	print("generation")
-	for at: Vector2i in [Vector2i(1, 3), Vector2i(7, 4), Vector2i(28, 5), Vector2i(99, 3)]:
+	for at: Vector2i in [Vector2i(1, 3), Vector2i(7, 4), Vector2i(28, 3), Vector2i(28, 5), Vector2i(99, 3)]:
 		var def: NextWorldDef = MapInfo.def_for(at)
 		var cells: Array = wfc.call("generate_level", def)
 		check(not cells.is_empty(), "%s collapses" % at)
@@ -185,6 +185,43 @@ func bridges() -> void:
 	# Below where the planks' tops would be (130 px under the start, less half a cell).
 	check(player.global_position.y > over.y + 160.0, "the wizard falls into it")
 	player.set_physics_process(false)
+	# A run up, a jump at the edge and a dash: still short of the far side.
+	var shore: Vector2 = info.cell_position(info.cell_at((planks[0] as Node2D).global_position) + Vector2i(-3, -1))
+	var far: float = info.cell_position(info.cell_at((planks[planks.size() - 1] as Node2D).global_position) + Vector2i(1, -1)).x
+	player.global_position = shore
+	player.velocity = Vector2.ZERO
+	player.invulnerable.end()
+	player.health.health = player.health.max_health
+	var hp: int = player.health.health
+	player.dash.refresh()
+	player.set_physics_process(true)
+	Input.action_press(&"Right")
+	var jumped: bool = false
+	var dashed: int = -1
+	var reached: bool = false
+	for i: int in range(120):
+		await physics_frame
+		if not jumped and player.global_position.x > shore.x + 300.0:
+			jumped = true
+			var jump: InputEventAction = InputEventAction.new()
+			jump.action = &"Jump"
+			jump.pressed = true
+			Input.parse_input_event(jump)
+			dashed = i + 10
+		if i == dashed:
+			var dash: InputEventAction = InputEventAction.new()
+			dash.action = &"Dash"
+			dash.pressed = true
+			Input.parse_input_event(dash)
+		if player.is_on_floor() and player.global_position.x > far - 64.0 and player.health.health == hp:
+			reached = true
+	Input.action_release(&"Right")
+	Input.action_release(&"Jump")
+	Input.action_release(&"Dash")
+	player.set_physics_process(false)
+	check(jumped and not reached, "a run, a jump and a dash do not get the wizard over it unhurt")
+	player.health.health = player.health.max_health
+	player.invulnerable.enable()
 	# Chained up: struck or rung, it only rattles.
 	KeyRing.clear(player)
 	bell.call("hex_hit", 1, Vector2.RIGHT)

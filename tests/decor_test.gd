@@ -62,12 +62,15 @@ func run() -> void:
 	var structures: Dictionary = {}
 	for node: Node in info.map_elements.get_children():
 		if node.scene_file_path.get_file() in RisoDecor.STRUCTURES and node.has_meta(&"cell"):
-			structures[node.get_meta(&"cell")] = true
+			var c: Vector2i = node.get_meta(&"cell")
+			for d: int in [-1, 0, 1]:
+				structures[c + Vector2i(d, 0)] = true
 	var clear: bool = true
 	for it: Dictionary in first:
-		if it["kind"] in [&"tuft", &"mushroom", &"stones", &"roots", &"stalactite", &"drip", &"vine"] and structures.has(it["cell"]):
-			clear = false
-	check(clear, "none in a cell holding an exit, shrine, door, lantern, thorns, portal or orb")
+		for c: Vector2i in it.get("cells", [it["cell"]]):
+			if structures.has(c):
+				clear = false
+	check(clear, "none in or beside a cell holding an exit, shrine, door, lantern, thorns, portal, bell, switch or key")
 	info.travel(MapInfo.Exit.RIGHT)
 	await settle()
 	check(layout(decor.items) != layout(first), "another level wears different decor")

@@ -34,13 +34,19 @@ var archetype: StringName = &""
 var symmetry: int = 5
 
 ## Archetypes take bands of BAND levels in turn as you go deeper: the garden (the caves you start
-## in) from the surface, then the cemetery, then the garden again, and so on (later archetypes
-## join the turn). The cemetery is a hillside graveyard of terraces (wfc_images/graveyard.png),
-## printed in its own realm, with its own decor, moths, sleep fog and wraiths (see
-## MapInfo.World.populate_cemetery).
-const ARCHETYPES: Array[StringName] = [&"garden", &"cemetery"]
+## in) from the surface, then the cemetery, then the sky, then the garden again, and so on (later
+## archetypes join the turn). The cemetery is a hillside graveyard of terraces
+## (wfc_images/graveyard.png), printed in its own realm, with its own decor, moths, sleep fog and
+## wraiths (see MapInfo.World.populate_cemetery). The sky is clusters of floating islands of cloud
+## (wfc_images/sky_islands.png, drawn by tests/make_sky_sample.gd) over an open drop, with jump pads, clouds that give way,
+## updrafts, shielded enemies and watchers whose shots rebound (see MapInfo.World.populate_sky).
+const ARCHETYPES: Array[StringName] = [&"garden", &"cemetery", &"sky"]
 const BAND: int = 3
 const GRAVEYARD: String = "res://wfc_images/graveyard.png"
+const ISLANDS: String = "res://wfc_images/sky_islands.png"
+## A sky level is this much bigger than a cave level of its depth (MapInfo.level_size), across and
+## down: wide open sky with no walls round it.
+const SKY_SCALE: Vector2 = Vector2(1.8, 1.6)
 
 
 ## Fill it in for the place at `at`, and return it.
@@ -61,6 +67,10 @@ func setup(at: Vector2i) -> NextWorldDef:
 	if archetype == &"cemetery":
 		region = GRAVEYARD
 		symmetry = 1
+	elif archetype == &"sky":
+		region = ISLANDS
+		symmetry = 1
+		size = Vector2i((Vector2(size) * SKY_SCALE).round())
 	return self
 
 
@@ -72,6 +82,16 @@ static func archetype_at(depth: int) -> StringName:
 
 func cemetery() -> bool:
 	return archetype == &"cemetery"
+
+
+func sky() -> bool:
+	return archetype == &"sky"
+
+
+## Whether the level's chasms are its gates (bridged by bells in a cemetery, blown over by a vane's
+## wind in the sky; see MapInfo.World.carve_chasms).
+func chasmed() -> bool:
+	return cemetery() or sky()
 
 
 # ------------------------------------------------------------------ making it
@@ -162,7 +182,9 @@ func pay(exit: int, rec: Dictionary) -> void:
 
 ## The print realm (RisoPrint.REALMS) it is printed in, or &"" for the player's own.
 func realm() -> StringName:
-	return &"cemetery" if cemetery() else (&"garden" if archetype == &"garden" else &"")
+	if archetype in [&"cemetery", &"garden", &"sky"]:
+		return archetype
+	return &""
 
 
 ## Whether plants and the other decor grow in it.

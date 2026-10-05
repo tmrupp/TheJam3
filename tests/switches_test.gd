@@ -53,8 +53,9 @@ func run() -> void:
 	var reach_ok: bool = true
 	var levels: int = 0
 	for world_seed: int in [1, 7, 28, 99]:
-		# Garden levels: a cemetery's open terraces have hardly any corridors for gates.
-		for depth: int in [0, 1, 6]:
+		# Garden levels: a cemetery's open terraces and the sky's islands have hardly any corridors
+		# for gates.
+		for depth: int in [0, 1, 9]:
 			var def: NextWorldDef = MapInfo.def_for(Vector2i(world_seed, depth))
 			var w: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", def), def)
 			levels += 1

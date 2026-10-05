@@ -438,8 +438,58 @@ func _physics_process(delta: float) -> void:
 		timer.elapse(delta)
 	elapse_ability_time_signal.emit(delta)
 
+	# The wind (sky levels): an updraft eases the rise toward its speed; a crosswind carries the
+	# wizard along (a move of its own, so it never builds up in the velocity) and holds them up.
+	var push: Vector2 = Wind.push_at(get_tree(), global_position)
+	if push.y < 0.0 and not dash.is_acting():
+		velocity.y = move_toward(velocity.y, push.y, Wind.LIFT_ACCEL * delta)
+		jumping = false
+	if push.x != 0.0:
+		if not is_on_floor() and velocity.y > Wind.GLIDE:
+			velocity.y = Wind.GLIDE
+		move_and_collide(Vector2(push.x * delta, 0.0))
+
 	# this uses veolcity and calculates collisions for next frame
 	move_and_slide()
+	_footing()
+
+
+## Sky levels: the last rock the wizard stood on (`footing`, in the level `footing_at`). Falling out
+## of the bottom of the level (FALL_MARGIN below its last row) costs a heart and puts them back
+## there (fall_back).
+const FALL_MARGIN: float = 200.0
+var footing: Vector2 = Vector2.ZERO
+var footing_at: Vector2i = Vector2i(-99999, -99999)
+
+
+func _footing() -> void:
+	var info: MapInfo = MapInfo.instance
+	if info == null or info.world == null or info.travelling or not info.here.sky():
+		return
+	if is_on_floor():
+		for i: int in range(get_slide_collision_count()):
+			var hit: KinematicCollision2D = get_slide_collision(i)
+			if hit.get_normal().y < -0.5 and hit.get_collider() is TileMap:
+				footing = global_position
+				footing_at = info.coord
+	if global_position.y > info.level_rect().end.y + FALL_MARGIN:
+		fall_back()
+
+
+## Out of the bottom of a sky level: back on the last rock stood on (or at the way in, if none in
+## this level yet), a heart the poorer.
+func fall_back() -> void:
+	var info: MapInfo = MapInfo.instance
+	velocity = Vector2.ZERO
+	knock = Vector2.ZERO
+	if info != null and footing_at == info.coord:
+		global_position = footing
+	else:
+		position = respawn.position
+	visual_event.emit(&"hurt", global_position)
+	invulnerable.enable()
+	show_invulnerable()
+	health.modify_health(-1)
 
 
 ## Drifting as an astral projection (see phasing): steered on both axes, through anything solid,

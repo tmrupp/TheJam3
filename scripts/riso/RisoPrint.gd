@@ -44,6 +44,9 @@ const REALMS: Dictionary = {
 	## The cemetery's own: slate rock, violet stars and candlelight, on bone paper (not in the F8
 	## cycle; NextWorldDef.realm).
 	&"cemetery": {"paper": Color("#e3e1d8"), "inks": [Color("#1d2125"), Color("#5e695e"), Color("#ff48b0"), Color("#9d7ad2"), Color("#ffe800")]},
+	## The sky's own: islands of pale cloud and sun-gold stars under a deep indigo night, on a cool
+	## white paper (not in the F8 cycle; NextWorldDef.realm).
+	&"sky": {"paper": Color("#eef0f3"), "inks": [Color("#18203f"), Color("#8597c4"), Color("#ff48b0"), Color("#ffb511"), Color("#ffe800")]},
 }
 const REALM_ORDER: Array[StringName] = [&"deep", &"twilight", &"aurora"]
 ## The robe while the wizard is drowsy in sleep fog (SleepFog).
@@ -858,6 +861,11 @@ const DRESS: Dictionary = {
 	"res://prefabs/wraith_enemy.tscn": &"wraith",
 	"res://prefabs/bridge.tscn": &"bridge",
 	"res://prefabs/bell.tscn": &"bell",
+	"res://prefabs/vane.tscn": &"vane",
+	"res://prefabs/pad.tscn": &"pad",
+	"res://prefabs/puff.tscn": &"puff",
+	"res://prefabs/wind.tscn": &"wind",
+	"res://prefabs/bird_enemy.tscn": &"bird",
 	"res://prefabs/star_cluster.tscn": &"cluster",
 	"res://prefabs/key.tscn": &"key",
 	"res://prefabs/moon.tscn": &"moon",

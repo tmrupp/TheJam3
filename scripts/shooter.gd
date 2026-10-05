@@ -38,6 +38,8 @@ func shoot() -> void:
 	main.add_child.call_deferred(projectile)
 	projectile.position = shoot_point.global_position
 	projectile.setup((player.global_position - shoot_point.global_position).normalized() * SPEED, [rb], rb)
+	# A sky level's watcher fires shots that rebound off walls (MapInfo.World.populate_sky).
+	projectile.set("bounces", int(rb.get_meta(&"bounces", 0)))
 	shoot_sfx.play()
 
 

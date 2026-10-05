@@ -105,6 +105,10 @@ func _process(delta: float) -> void:
 			_view_center = cam.get_screen_center_position()
 	if _view_on and kind != &"laser":
 		var d: Vector2 = (host.global_position - _view_center).abs()
+		# Something spread wide (a wind, Wind.extent): by its nearest edge, not its middle.
+		if host.has_method("extent"):
+			var r: Rect2 = host.call("extent")
+			d = ((r.get_center() - _view_center).abs() - r.size * 0.5).max(Vector2.ZERO)
 		if d.x > _view_reach.x or d.y > _view_reach.y:
 			return
 	if not _drawn:
@@ -168,6 +172,11 @@ func _redraw() -> void:
 		&"wraith": _wraith()
 		&"bridge": _bridge()
 		&"bell": _bell()
+		&"vane": _vane()
+		&"pad": _pad()
+		&"puff": _puff()
+		&"wind": _wind()
+		&"bird": _bird()
 		&"moths": _moths()
 		&"fog": _fog()
 		&"laser": _laser()
@@ -1667,6 +1676,13 @@ func _watcher() -> void:
 		ink.ink(RisoPrint.EYE, 0.2, [RisoShapes.circle(corner, ball * 1.6, 24)])
 		ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT], [core])
 		ink.ink(RisoPrint.EYE, 1.0, [core], false)
+	if int(host.get_meta(&"bounces", 0)) > 0:
+		# Its shots rebound: two pellets of sun circle the eye.
+		var pellets: Array[PackedVector2Array] = []
+		for j: int in range(2):
+			var a: float = t * 2.4 + phase + PI * float(j)
+			pellets.append(RisoShapes.circle(xf * Vector2(cos(a) * 15.0, sin(a) * 7.0), 5.0, 12))
+		ink.ink(RisoPrint.ACCENT, 1.0, pellets)
 	if stunned:
 		_stun_mark(xf * Vector2(0, -16))
 
@@ -1863,6 +1879,205 @@ func _bell() -> void:
 			for side: float in [0.0, PI]:
 				arcs.append_array(RisoDecor.strip(_arc_points(hang * Vector2(0, 20), 26.0 + u * 70.0, side - 0.9, side + 0.9), 3.0, 3.0))
 		ink.ink(RisoPrint.ACCENT, 0.7 * (1.0 - since / 1.6), arcs, false)
+
+
+## A swooping bird (Bird): a pink swallow, its body an almond with a forked tail and a paper eye,
+## its wings beating as it patrols and swept back as it swoops, a soft pink trail behind the dive.
+## Stunned, its wings hang and stars circle it.
+func _bird() -> void:
+	var b: Node = host.get_node_or_null("Bird")
+	var facing: float = float(b.get("facing")) if b != null else 1.0
+	var stunned: bool = bool(b.get("stunned")) if b != null else false
+	var diving: bool = b != null and bool(b.call("swooping"))
+	var vel: Vector2 = b.get("velocity") if b != null else Vector2.ZERO
+	var pitch: float = clampf(vel.y / 600.0, -0.7, 0.7) * (1.0 if not diving else 1.3)
+	var xf: Transform2D = Transform2D(pitch * facing, Vector2(facing, 1.0) * 2.4, 0.0, Vector2(0, -8 + (0.0 if diving else sin(t * 3.0 + phase) * 3.0)))
+	var body: PackedVector2Array = xf * RisoShapes.almond(Vector2.ZERO, 13.0, 5.0, 12)
+	var tail: PackedVector2Array = xf * PackedVector2Array([Vector2(-9, -1), Vector2(-21, -7), Vector2(-16, 0), Vector2(-21, 6), Vector2(-9, 2)])
+	var beat: float = sin(t * 14.0 + phase)
+	var wings: Array[PackedVector2Array] = []
+	if diving:
+		# Swept back along the body.
+		wings.append(xf * PackedVector2Array([Vector2(4, -3), Vector2(-14, -9), Vector2(-6, -2)]))
+		wings.append(xf * PackedVector2Array([Vector2(4, 3), Vector2(-14, 9), Vector2(-6, 2)]))
+	else:
+		var lift: float = -3.0 if stunned else beat * 15.0
+		wings.append(xf * PackedVector2Array([Vector2(6, -2), Vector2(-2, -4 - 16.0 * absf(beat) * (0.0 if stunned else 1.0) - maxf(lift, 0.0)), Vector2(-10, -2 - lift * 0.6), Vector2(-4, 0)]))
+		wings.append(xf * PackedVector2Array([Vector2(4, 0), Vector2(-4, 3 + lift * 0.4), Vector2(-9, 2)]))
+	if diving:
+		var trail: Array[PackedVector2Array] = []
+		for k: int in range(3):
+			trail.append(RisoShapes.circle(-vel.normalized() * (26.0 + 18.0 * float(k)), 6.0 - 1.5 * float(k), 10))
+		ink.ink(RisoPrint.PINK, 0.25, trail)
+	ink.ink(RisoPrint.PINK, 1.0, [body, tail])
+	ink.ink(RisoPrint.PINK, 1.0, wings)
+	ink.ink(RisoPrint.NIGHT, 0.35, wings, false)
+	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE], [xf * RisoShapes.circle(Vector2(7, -1.2), 1.6, 8)])
+	ink.ink(RisoPrint.ACCENT, 1.0, [xf * PackedVector2Array([Vector2(12, -1), Vector2(17, 0.5), Vector2(12, 1.5)])], false)
+	if stunned:
+		_stun_mark(xf * Vector2(0, -12))
+
+
+## A jump pad (Pad): a squat cushion of cloud on the floor, printed bare paper with a sun band
+## through it and two chevrons of sun bobbing over it, pointing up. Throwing, it squashes flat and
+## springs back, and the chevrons shoot up and fade.
+func _pad() -> void:
+	var g: float = _ground()
+	var since: float = float(host.get("since_launch")) if host.get("since_launch") != null else 99.0
+	var squash: float = 0.0
+	if since < 0.5:
+		squash = sin(since * 26.0) * exp(-since * 7.0)
+	var sy: float = 1.0 - 0.35 * squash
+	var sx: float = 1.0 + 0.2 * squash
+	var puffs: Array[PackedVector2Array] = []
+	for k: int in range(3):
+		var x: float = (-22.0 + 22.0 * float(k)) * sx
+		var r: float = (17.0 if k == 1 else 14.0) * sx
+		puffs.append(RisoShapes.ellipse(Vector2(x, g - 13.0 * sy - (5.0 if k == 1 else 0.0) * sy), r, r * 0.8 * sy, 18))
+	puffs.append(RisoShapes.rrect(-40.0 * sx, g - 14.0 * sy, 80.0 * sx, 14.0 * sy, 6.0))
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], puffs)
+	ink.ink(RisoPrint.BLUE, 0.25, [RisoShapes.rrect(-40.0 * sx, g - 7.0 * sy, 80.0 * sx, 7.0 * sy, 3.0)], false)
+	ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.rrect(-34.0 * sx, g - 18.0 * sy, 68.0 * sx, 4.0, 2.0)], false)
+	var lift: float = clampf(since * 3.0, 0.0, 1.0) if since < 0.4 else 0.0
+	var chevrons: Array[PackedVector2Array] = []
+	for k: int in range(2):
+		var y: float = g - 52.0 - 18.0 * float(k) + sin(t * 3.0 + phase + float(k)) * 4.0 - lift * 60.0
+		chevrons.append(PackedVector2Array([Vector2(-14, y + 8), Vector2(0, y - 4), Vector2(14, y + 8), Vector2(14, y + 14), Vector2(0, y + 2), Vector2(-14, y + 14)]))
+	ink.ink(RisoPrint.ACCENT, 0.85 * (1.0 - lift), chevrons)
+
+
+## A cloud that gives way (Puff), across the top of its cell where a ledge would be: a row of
+## overlapping puffs, pale (lifted night and a blue tint). Stood on, it trembles and thins as it
+## wears; once it gives way it is gone, and gathers again faintly in its last second away.
+func _puff() -> void:
+	var worn: float = float(host.call("worn")) if host.has_method("worn") else 0.0
+	var gone: float = float(host.get("gone")) if host.get("gone") != null else -1.0
+	var top: float = -64.0
+	var grow: float = 1.0
+	if gone >= 0.0:
+		grow = clampf((gone - (Puff.REFORM - 1.0)) / 1.0, 0.0, 1.0)
+		if grow <= 0.0:
+			return
+	var shake: float = sin(t * 40.0) * 3.0 * worn * worn
+	var blobs: Array[PackedVector2Array] = []
+	for k: int in range(5):
+		var x: float = -52.0 + 26.0 * float(k) + shake
+		var r: float = (16.0 + 5.0 * sin(float(k) * 2.3 + phase)) * (1.0 - 0.35 * worn) * (0.5 + 0.5 * grow)
+		blobs.append(RisoShapes.circle(Vector2(x, top + 14.0 - 4.0 * sin(float(k) * 1.7 + phase)), r, 16))
+	blobs.append(RisoShapes.rrect(-60.0 + shake, top + 8.0, 120.0, 18.0 * (1.0 - 0.4 * worn), 9.0))
+	var solid: float = (0.85 - 0.45 * worn) * (0.35 if gone >= 0.0 else 1.0) * grow
+	ink.lift_ink([RisoPrint.NIGHT], solid, blobs)
+	ink.ink(RisoPrint.BLUE, 0.3 * grow, blobs, false)
+	ink.ink(RisoPrint.NIGHT, 0.12 * grow, [RisoShapes.rrect(-56.0 + shake, top + 20.0, 112.0, 6.0, 3.0)], false)
+
+
+## A wind vane on its post by a chasm (Vane): a blue post and, on top, an arrow in sun ink with a
+## tail fin, and a little cross of cups under it. While its chasm's wind blows from it, the arrow
+## points across the chasm and the cups spin; otherwise it idles on the breeze. Chained like a
+## grave bell (padlock or switch plate); freed and still, a soft halo shows it waits to be turned.
+func _vane() -> void:
+	var g: float = _ground()
+	var blowing: bool = bool(host.call("rung"))
+	var chained: bool = not bool(host.call("unchained"))
+	var since: float = float(host.get("since_rung"))
+	var rattle: float = float(host.get("since_rattle"))
+	var freed: float = float(host.get("since_freed"))
+	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-5.0, g - 160.0, 10.0, 160.0, 4.0)])
+	var head: Vector2 = Vector2(0, g - 168.0)
+	# Which way it points: across its chasm while the wind blows from it.
+	var across: float = 1.0
+	var wind: Node = _chasm_wind(int(host.get("chasm")))
+	if wind != null:
+		across = 1.0 if (wind as Wind).rect.get_center().x > host.global_position.x else -1.0
+	var swing: float = sin(t * 0.9 + phase) * 0.5 if not blowing else 0.0
+	if rattle < 0.8:
+		swing += sin(rattle * 38.0) * 0.2 * exp(-rattle * 5.0)
+	var face: float = across if blowing else signf(cos(swing * 2.0 + phase)) * (0.4 + 0.6 * absf(cos(swing * 2.0 + phase)))
+	if since >= 0.0 and since < 0.6:
+		face = across * (1.0 - 2.0 * exp(-since * 9.0) * cos(since * 20.0)) * 0.5 + across * 0.5
+	if not blowing and not chained:
+		ink.ink(RisoPrint.ACCENT, 0.18 + 0.06 * sin(t * 2.5 + phase), [RisoShapes.circle(head + Vector2(0, 30), 50.0, 28)])
+	var xf: Transform2D = Transform2D(0.0, Vector2(face, 1.0), 0.0, head)
+	var arrow: PackedVector2Array = PackedVector2Array([Vector2(-34, -3), Vector2(22, -3), Vector2(22, -10), Vector2(40, 0), Vector2(22, 10), Vector2(22, 3), Vector2(-34, 3)])
+	var fin: PackedVector2Array = PackedVector2Array([Vector2(-34, -3), Vector2(-46, -16), Vector2(-26, -16), Vector2(-20, -3)])
+	var fin2: PackedVector2Array = PackedVector2Array([Vector2(-34, 3), Vector2(-46, 16), Vector2(-26, 16), Vector2(-20, 3)])
+	ink.ink(RisoPrint.ACCENT, 1.0, [xf * arrow, xf * fin, xf * fin2])
+	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.circle(head, 6.0, 14)])
+	# The cups: a cross that spins while the wind blows from it.
+	var spin: float = t * (9.0 if blowing else 0.6) + phase
+	var cups: Array[PackedVector2Array] = []
+	for k: int in range(4):
+		var a: float = spin + PI * 0.5 * float(k)
+		var d: Vector2 = Vector2(cos(a) * 22.0, sin(a) * 6.0)
+		cups.append_array(RisoDecor.strip(PackedVector2Array([head + Vector2(0, 26), head + Vector2(0, 26) + d]), 2.5, 2.5))
+		cups.append(RisoShapes.circle(head + Vector2(0, 26) + d, 5.0, 10))
+	ink.ink(RisoPrint.BLUE, 1.0, cups)
+	if chained or freed < 0.7:
+		_bell_chain(Transform2D(0.0, Vector2(2.0, 2.0), 0.0, Vector2(0.0, g - 120.0)), g, chained, freed)
+	if blowing:
+		var gusts: Array[PackedVector2Array] = []
+		for k: int in range(3):
+			var u: float = fmod(t * 1.2 + float(k) / 3.0, 1.0)
+			var y: float = head.y - 12.0 + 12.0 * float(k)
+			var x: float = across * (50.0 + u * 70.0)
+			gusts.append(RisoShapes.almond(Vector2(x, y), 16.0 * (1.0 - u) + 4.0, 2.4, 10))
+		ink.ink(RisoPrint.ACCENT, 0.6, gusts, false)
+
+
+## The crosswind over chasm `id`, if this level has one.
+func _chasm_wind(id: int) -> Node:
+	for node: Node in get_tree().get_nodes_in_group(&"wind"):
+		if int(node.get("chasm")) == id:
+			return node
+	return null
+
+
+## Moving air (Wind): streaks of lifted night drifting the way it blows, an updraft's rising up its
+## shaft, a crosswind's across its chasm (with a sun glint here and there). A crosswind still
+## waiting for its vane shows only a few faint motes hanging over the chasm.
+func _wind() -> void:
+	var w: Wind = host as Wind
+	if w == null:
+		return
+	var r: Rect2 = Rect2(w.rect.position - host.global_position, w.rect.size)
+	var streaks: Array[PackedVector2Array] = []
+	var glints: Array[PackedVector2Array] = []
+	if w.up > 0:
+		var n: int = 4 + w.up * 2
+		for k: int in range(n):
+			var u: float = fmod(t * 0.55 + RisoShapes.hash1(float(k) * 1.7 + phase), 1.0)
+			var x: float = r.position.x + r.size.x * (0.2 + 0.6 * RisoShapes.hash1(float(k) * 3.1 + phase))
+			x += sin(t * 2.0 + float(k)) * 6.0
+			var y: float = r.end.y - u * r.size.y
+			var fade: float = sin(u * PI)
+			streaks.append(RisoShapes.almond(Vector2(x, y), 4.0, 26.0 * fade + 4.0, 10))
+			if k % 3 == 0:
+				glints.append(RisoShapes.circle(Vector2(x, y - 26.0), 3.0 * fade, 8))
+		ink.lift_ink([RisoPrint.NIGHT], 0.65, streaks)
+		ink.ink(RisoPrint.ACCENT, 0.5, glints, false)
+		# The floor it rises from: a pale lip of cloud.
+		ink.lift_ink([RisoPrint.NIGHT], 0.4, [RisoShapes.ellipse(Vector2(r.get_center().x, r.end.y - 6.0), r.size.x * 0.4, 8.0, 16)])
+		return
+	var dir: float = w.blowing()
+	if dir == 0.0:
+		var motes: Array[PackedVector2Array] = []
+		for k: int in range(7):
+			var x: float = r.position.x + r.size.x * RisoShapes.hash1(float(k) * 2.3 + phase)
+			var y: float = r.position.y + r.size.y * (0.3 + 0.6 * RisoShapes.hash1(float(k) * 5.9 + phase)) + sin(t * 1.3 + float(k)) * 5.0
+			motes.append(RisoShapes.circle(Vector2(x, y), 3.0, 8))
+		ink.lift_ink([RisoPrint.NIGHT], 0.3, motes)
+		return
+	var count: int = 4 + w.width * 2
+	for k: int in range(count):
+		var u: float = fmod(t * 0.7 + RisoShapes.hash1(float(k) * 1.3 + phase), 1.0)
+		var x: float = r.position.x + r.size.x * (u if dir > 0.0 else 1.0 - u)
+		var y: float = r.position.y + r.size.y * (0.15 + 0.75 * RisoShapes.hash1(float(k) * 4.7 + phase)) + sin(t * 2.0 + float(k)) * 4.0
+		var fade: float = sin(u * PI)
+		streaks.append(RisoShapes.almond(Vector2(x, y), 30.0 * fade + 4.0, 4.0, 10))
+		if k % 4 == 0:
+			glints.append(RisoShapes.circle(Vector2(x + dir * 30.0, y), 3.0 * fade, 8))
+	ink.lift_ink([RisoPrint.NIGHT], 0.65, streaks)
+	ink.ink(RisoPrint.ACCENT, 0.5, glints, false)
 
 
 ## The chain on a bell: wound twice across it, then pulled taut down to an iron ring set in the
@@ -2082,6 +2297,14 @@ func _shard() -> void:
 	var v: Variant = host.get("velocity")
 	var ang: float = (v as Vector2).angle() if v is Vector2 else 0.0
 	var xf: Transform2D = Transform2D(ang, Vector2.ZERO)
+	if int(host.get("bounces")) > 0 or float(host.get("since_bounce")) < 99.0:
+		# A rebounding shot: a round pellet of sun with a pink core and a short tail, flashing
+		# as it glances off a wall.
+		var flash: float = clampf(1.0 - float(host.get("since_bounce")) / 0.15, 0.0, 1.0)
+		ink.ink(RisoPrint.ACCENT, 0.4, [xf * RisoShapes.almond(Vector2(-16, 0), 16.0, 5.0, 12)])
+		ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(Vector2.ZERO, 9.0 + 6.0 * flash, 16)])
+		ink.ink(RisoPrint.PINK, 1.0, [RisoShapes.circle(Vector2.ZERO, 4.0, 10)])
+		return
 	ink.ink(RisoPrint.PINK, 0.5, [xf * RisoShapes.rrect(-34, -3, 30, 6, 3)])
 	ink.ink(RisoPrint.PINK, 1.0, [xf * RisoShapes.sparkle(Vector2.ZERO, 10.0, 1.7)])
 	ink.ink(RisoPrint.ACCENT, 1.0, [xf * RisoShapes.circle(Vector2(2, 0), 4.0, 10)])
