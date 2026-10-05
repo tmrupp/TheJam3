@@ -42,15 +42,36 @@ func show_invulnerable() -> void:
 	var step: float = .01
 	var min_value: float = .4
 	var period: float = 0.25
-	while invulnerable.is_acting():
+	while is_invulnerable() and is_inside_tree():
 		await get_tree().create_timer(step).timeout
 		d += step
 		sprite.modulate.a = ((sin(d*2*PI/period)+1)/2)*(1-min_value) + (min_value)
 #		print("sprite.modulate.a=", sprite.modulate.a, " sin(d*180*period)=", sin(d*180*period), " d=", d)
 	sprite.modulate.a = 1
 
+## A short spell of invulnerability on arriving somewhere: out of a portal or rift, through a door
+## into another level, or back at a lantern after dying, so nothing waiting there hits the wizard
+## before they can move. It never cuts short a longer one already running (after a hit).
+const GRACE_TIME: float = 1.0
+var graced: ActionTimer = ActionTimer.new(GRACE_TIME, refresh_self)
+
+func grace() -> void:
+	var showing: bool = is_invulnerable()
+	graced.enable(true)
+	if not showing:
+		show_invulnerable()
+
+## Whether nothing can hurt the wizard just now: after a hit, or in the grace on arriving.
+func is_invulnerable() -> bool:
+	return invulnerable.is_acting() or graced.is_acting()
+
+## Hittable again at once: ends a hit's invulnerability and the grace alike.
+func end_invulnerable() -> void:
+	invulnerable.end()
+	graced.end()
+
 func normal_hurt (damage: int, v: Vector2, _attacker: Node) -> void:
-	if not invulnerable.is_acting():
+	if not is_invulnerable():
 		visual_event.emit(&"hurt", global_position)
 		pulse_fourier(0.9)
 		health.modify_health(damage)
@@ -154,7 +175,7 @@ var climable: bool = false
 var climb: ActionTimer = ActionTimer.new(CLIMB_TIME)
 
 # all of the timers (for decrementing)
-var timers: Array[ActionTimer] = [dash, wall_jump, buffer_jump, coyote, hang, invulnerable, knock_back, climb]
+var timers: Array[ActionTimer] = [dash, wall_jump, buffer_jump, coyote, hang, invulnerable, graced, knock_back, climb]
 
 # whether or not the player has control
 var manual_control: bool = true
@@ -260,22 +281,49 @@ func drop () -> void:
 			under.append(body)
 	# A lift going down can have moved off the feet since the last step (no collision this frame):
 	# look just under them too.
-	var below: KinematicCollision2D = move_and_collide(Vector2(0, 12), true)
+	var below: KinematicCollision2D = move_and_collide(Vector2(0, DROP_PROBE), true)
 	if below != null and below.get_normal().y < -0.5 and below.get_collider() is CollisionObject2D:
 		under.append(below.get_collider() as CollisionObject2D)
 	for body: CollisionObject2D in under:
-		if _one_way(body):
+		if _one_way(body) != null:
 			add_collision_exception_with(body)
-			get_tree().create_timer(0.3).timeout.connect(func() -> void:
-				if is_instance_valid(body):
-					remove_collision_exception_with(body))
+			_drop_clear(body)
 	position.y += 1
 
-func _one_way (body: CollisionObject2D) -> bool:
+## Dropping through a ledge lets the wizard pass it for at least DROP_TIME, and on until their feet
+## are below it (a lift heading down about as fast as the wizard falls would catch them again),
+## but no longer than DROP_MAX_TIME.
+const DROP_TIME: float = 0.3
+## How far under the feet a drop looks for a lift that has sunk away from them (one heading down
+## faster than the wizard falls can be most of a step below).
+const DROP_PROBE: float = 24.0
+const DROP_MAX_TIME: float = 1.5
+
+func _drop_clear (body: CollisionObject2D) -> void:
+	var waited: float = 0.0
+	while is_instance_valid(body) and is_inside_tree() and waited < DROP_MAX_TIME:
+		await get_tree().physics_frame
+		waited += get_physics_process_delta_time()
+		var ledge: CollisionShape2D = _one_way(body) if is_instance_valid(body) else null
+		if waited >= DROP_TIME and (ledge == null or _feet_y() > _bottom_y(ledge)):
+			break
+	if is_instance_valid(body):
+		remove_collision_exception_with(body)
+
+func _feet_y () -> float:
+	var rect: RectangleShape2D = collider.shape as RectangleShape2D
+	return collider.global_position.y + (rect.size.y * 0.5 * absf(collider.global_scale.y) if rect != null else 0.0)
+
+func _bottom_y (ledge: CollisionShape2D) -> float:
+	var rect: RectangleShape2D = ledge.shape as RectangleShape2D
+	return ledge.global_position.y + (rect.size.y * 0.5 * absf(ledge.global_scale.y) if rect != null else 0.0)
+
+## The one-way shape of `body` (a ledge, or a lift), or null.
+func _one_way (body: CollisionObject2D) -> CollisionShape2D:
 	for child: Node in body.get_children():
 		if child is CollisionShape2D and (child as CollisionShape2D).one_way_collision:
-			return true
-	return false
+			return child as CollisionShape2D
+	return null
 	
 func do_wall_jump (wall_normal: Vector2) -> void:
 	coyote.end()

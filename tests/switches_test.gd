@@ -188,7 +188,7 @@ func run() -> void:
 	shot.call("setup", Vector2(-100, 0), [shooter], shooter)
 	await process_frame
 	var bolts_before: int = info.map_elements.get_children().filter(func(n: Node) -> bool: return n.get_script() == preload("res://scripts/HexBolt.gd")).size()
-	player.invulnerable.end()
+	player.end_invulnerable()
 	player.parry.emit()
 	player.hurt(-1, Vector2.RIGHT * 100.0, shot.get_node("HitBox/Damager"))
 	var bolts_after: int = info.map_elements.get_children().filter(func(n: Node) -> bool: return n.get_script() == preload("res://scripts/HexBolt.gd")).size()

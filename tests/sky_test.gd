@@ -179,7 +179,7 @@ func falling() -> void:
 			break
 	player.global_position = rock
 	player.velocity = Vector2.ZERO
-	player.invulnerable.end()
+	player.end_invulnerable()
 	player.health.health = player.health.max_health
 	player.set_physics_process(true)
 	for i: int in range(20):

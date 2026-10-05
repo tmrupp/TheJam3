@@ -156,7 +156,7 @@ func run() -> void:
 		await physics_frame
 	top = lift.global_position.y + shape.position.y - 16.5
 	top = lift.global_position.y + shape.position.y - 16.5
-	check(riding and player.global_position.y > top + 40.0, "down + jump drops through a moving platform")
+	check(riding and player.global_position.y > top + 40.0, "down + jump drops through a moving platform (riding %s, %.0f below its top, axis %s)" % [riding, player.global_position.y - top, lift.get("axis")])
 	player.global_position = info.cell_position(info.world.exits[MapInfo.Exit.BACK])
 	await wait_level()
 
@@ -178,7 +178,7 @@ func run() -> void:
 	var area_k: float = float(info.world.size.x * info.world.size.y) / 1000.0
 	# A first level also has its start key (for the side door near the start).
 	var start_key: int = 1 if info.world.start_side >= 0 else 0
-	check(keys == maxi(MapInfo.KEY_COLOR_COUNT, roundi(MapInfo.KEYS_PER_K * area_k)) + start_key and lanterns <= 1 + maxi(1, roundi(MapInfo.LANTERNS_PER_K * area_k)), "%d keys and %d lanterns, in proportion to the level" % [keys, lanterns])
+	check(keys == maxi(MapInfo.KEYS_MIN, roundi(MapInfo.KEYS_PER_K * area_k)) + start_key and lanterns <= 1 + maxi(1, roundi(MapInfo.LANTERNS_PER_K * area_k)), "%d keys and %d lanterns, in proportion to the level" % [keys, lanterns])
 	check(placed("door.tscn").size() >= 1, "%d gates (doors) across corridors" % placed("door.tscn").size())
 	var moons: Array[Node] = placed("moon.tscn")
 	check(not moons.is_empty() and moons.size() <= info.world.per_area(MapInfo.MOONS_PER_K), "%d moons within the area budget" % moons.size())

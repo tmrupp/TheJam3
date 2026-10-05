@@ -455,31 +455,20 @@ func _other_level(info: MapInfo, c: Vector2i) -> void:
 	_legend(_level_rows())
 
 
-## The colour of each key and door laid out in `w` ({cell: colour}): as MapInfo.place_cell deals
-## them, in the order the level places its things, keys and doors each in turn (a key laid for a
-## particular lock, or a skeleton key, keeps its own).
+## The colour of each key and door laid out in `w` ({cell: colour}), as the level dealt them
+## (MapInfo.World.deal_colors).
 static func dealt_colors(w: MapInfo.World) -> Dictionary:
 	var out: Dictionary = {}
-	var keys_dealt: int = 0
-	var doors_dealt: int = 0
 	for v: Vector2i in w.objects:
 		var cell: MapInfo.Cell = w.get_cell(v)
-		if cell.type == MapInfo.Type.KEY:
-			if cell.extra_info != null:
-				out[v] = int(cell.extra_info)
-			else:
-				out[v] = keys_dealt % MapInfo.KEY_COLOR_COUNT
-				keys_dealt += 1
-		elif cell.type == MapInfo.Type.DOOR:
-			out[v] = doors_dealt % MapInfo.KEY_COLOR_COUNT
-			doors_dealt += 1
+		if cell.type in [MapInfo.Type.KEY, MapInfo.Type.DOOR]:
+			out[v] = int(cell.extra_info) if cell.extra_info != null else 0
 	return out
 
 
 ## Another level's keys, doors, gates, switches, relic and star cluster where seen, as its record
-## leaves them (taken, opened, thrown), and the keys dropped there. Key and door colours are dealt in
-## the order the level places its things (MapInfo.place_cell), so they are dealt again here in that
-## order. Whether a relic was marked comes back.
+## leaves them (taken, opened, thrown), and the keys dropped there. Whether a relic was marked comes
+## back.
 func _other_things(info: MapInfo, w: MapInfo.World, rec: Dictionary, seen: Callable, spot: Callable) -> bool:
 	var taken: Dictionary = rec.get("taken", {})
 	var opened: Dictionary = rec.get("opened", {})

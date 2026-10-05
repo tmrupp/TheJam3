@@ -190,7 +190,7 @@ func bridges() -> void:
 	var far: float = info.cell_position(info.cell_at((planks[planks.size() - 1] as Node2D).global_position) + Vector2i(1, -1)).x
 	player.global_position = shore
 	player.velocity = Vector2.ZERO
-	player.invulnerable.end()
+	player.end_invulnerable()
 	player.health.health = player.health.max_health
 	var hp: int = player.health.health
 	player.dash.refresh()
@@ -316,7 +316,7 @@ func moths() -> void:
 		await physics_frame
 	check(swarm.drawn_to == &"lantern" and swarm.global_position.distance_to(swarm.target()) < before, "a lit lantern draws it")
 	# A moth touching the wizard stings.
-	player.invulnerable.end()
+	player.end_invulnerable()
 	var hp: int = player.health.health
 	player.global_position = swarm.global_position + swarm.spots[0] + Vector2(0, 40)
 	await physics_frame
@@ -334,7 +334,7 @@ func moths() -> void:
 		if n != swarm and (n.has_node("Wound") or n.scene_file_path.get_file() == "spikes.tscn") and (n as Node2D).global_position.distance_to(swarm.global_position) < 500.0:
 			n.queue_free()
 	await physics_frame
-	player.invulnerable.end()
+	player.end_invulnerable()
 	hp = player.health.health
 	player.global_position = swarm.global_position + Vector2(0, 40)
 	for i: int in range(10):

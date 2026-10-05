@@ -58,7 +58,7 @@ func capture() -> void:
 	info.map_elements.process_mode = Node.PROCESS_MODE_DISABLED
 	for i: int in range(30):
 		await process_frame
-	player.invulnerable.end()
+	player.end_invulnerable()
 	await shot(output, "still_vulnerable.png", 3)
 	camera.zoom /= 1.5
 	info.map_elements.process_mode = Node.PROCESS_MODE_INHERIT

@@ -155,9 +155,11 @@ func run() -> void:
 	right = placed("level_exit.tscn").filter(func(n: Node) -> bool: return int(n.get("exit")) == MapInfo.Exit.RIGHT)[0]
 	check(int(right.call("lock")) == -1, "and the opened door stays open")
 	var colours: Dictionary = {}
-	for x: int in range(20, 40):
-		colours[MapInfo.lateral_lock(Vector2i(x, 0), MapInfo.Exit.RIGHT)] = true
+	for x: int in range(0, 200):
+		var c: int = MapInfo.lateral_lock(Vector2i(x, 0), MapInfo.Exit.RIGHT)
+		colours[c] = int(colours.get(c, 0)) + 1
 	check(colours.size() == MapInfo.KEY_COLOR_COUNT, "lock colours vary from world to world")
+	check(int(colours.get(0, 0)) > int(colours.get(1, 0)) and int(colours.get(1, 0)) > int(colours.get(3, 0)), "common colours lock side doors more often than rare ones (%s)" % colours)
 
 	if failed:
 		print("FAILED")

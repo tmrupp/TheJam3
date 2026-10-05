@@ -94,6 +94,7 @@ func run() -> void:
 	player.parry.emit()
 	await process_frame
 	check(riso.glow_ability == &"dash" and float(wizard.get("orb_flare_amount")) > 0.5, "parry lights the orb, and the hat keeps the dash's glow")
+	player.end_invulnerable()
 	player.normal_hurt(-1, Vector2.ZERO, null)
 	for i: int in range(8):
 		await physics_frame

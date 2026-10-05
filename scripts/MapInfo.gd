@@ -4,10 +4,20 @@ class_name MapInfo
 
 const CLOSE_ONE_KEY: bool = false
 const CODE_LENGTH: int = 4 # 8 is more reasonable
-## Keys and doors are dealt these colours in turn; a key opens doors of its own colour.
+## Keys and doors come in this many colours; a key opens doors of its own colour.
 const KEY_COLOR_COUNT: int = 4
+## How common each key colour is, in order of rarity: sun (about 62 %), ember (24 %), moss (10 %),
+## then plum (about one in 30). Keys, corridor doors, side-door locks and padlocks are all dealt by these
+## weights (see rarity_color), so a common key opens a lot and a rare one seldom; vaults (see
+## World.place_vaults) are the exception, and pay out by their lock's rarity.
+const KEY_RARITY: Array[int] = [18, 7, 3, 1]
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).
-const KEYS_PER_K: float = 2.0
+## Keys are scarce: KEYS_PER_K, at least KEYS_MIN (World.key_count). Spots are still drawn for
+## KEY_SPOTS_PER_K (at least one per colour), as they always were, so the rest of the level lands
+## where it did; once it is laid out only the first key_count of them keep their key (deal_colors).
+const KEYS_PER_K: float = 1.0
+const KEYS_MIN: int = 2
+const KEY_SPOTS_PER_K: float = 2.0
 const DOORS_PER_K: float = 3.0
 ## Switch gates: a gate across a corridor, lifted for good by a switch elsewhere in the level.
 const SWITCH_GATES_PER_K: float = 0.6
@@ -124,6 +134,8 @@ class World:
 	## footholds hopped to from the start (see Reach.tree), and the cells on the way from the start
 	## to that door and its key, which doors and gates keep off (see place_start_key).
 	var start_side: int = -1
+	## The start key's cell (see place_start_key), or (-1, -1).
+	var start_key: Vector2i = Vector2i(-1, -1)
 	var start_reach: Dictionary = {}
 	var keep_clear: Dictionary = {}
 	## The shrine's cell (its boon side; mending is the cell to the right), or (-1, -1).
@@ -284,6 +296,7 @@ class World:
 			key.extra_info = MapInfo.lateral_lock(def.coord, start_side)
 			add_object_at(at)
 			set_cell(at, key)
+			start_key = at
 			for target: Vector2i in [door, at]:
 				var steps: Array[Vector2i] = Reach.way(start_reach, target)
 				for i: int in range(1, steps.size()):
@@ -453,8 +466,8 @@ class World:
 	var carved: Array[Vector2i] = []
 
 	## Carve out the rock (and thorns) in every thing's box (see SIZES). Never a secret room's rock or
-	## the rock sealing it (either would give the room away), the rock framing a door or switch gate
-	## above or below it, or the rock a laser is set in.
+	## the rock sealing it (either would give the room away), a vault's walls, the rock framing a door
+	## or switch gate above or below it, or the rock a laser is set in.
 	func make_room () -> void:
 		for v: Vector2i in objects.duplicate():
 			var size: Vector2i = SIZES.get(get_cell(v).type, Vector2i.ONE)
@@ -470,9 +483,11 @@ class World:
 					_to_open(c)
 					carved.append(c)
 
-	## Whether rock at `c` frames a door or gate (above or below it), seals a secret room, has a
-	## laser set in it, is the footing of a gap's shore, or holds up something stood at.
+	## Whether rock at `c` walls a vault, frames a door or gate (above or below it), seals a secret
+	## room, has a laser set in it, is the footing of a gap's shore, or holds up something stood at.
 	func _holds_up (c: Vector2i) -> bool:
+		if vault_walls.has(c):
+			return true
 		for d: Vector2i in [Vector2i.UP, Vector2i.DOWN]:
 			if is_valid(c + d) and get_cell(c + d).type in [Type.DOOR, Type.SWITCH_GATE]:
 				return true
@@ -617,9 +632,13 @@ class World:
 		else:
 			objects.append(v)
 
+	## The level's seed, which deals its key and door colours (deal_colors).
+	var seed_for_colors: int = 0
+
 	func _init (_cells: Array, def: NextWorldDef) -> void:
 		rng = RandomNumberGenerator.new()
 		rng.seed = def.gen_seed
+		seed_for_colors = def.gen_seed
 		size = Vector2i(len(_cells), len(_cells[0]))
 		cells = []
 
@@ -634,6 +653,42 @@ class World:
 		def.populate(self)
 		# Whatever kind of place it is, big things get room (see SIZES).
 		make_room()
+		deal_colors()
+
+	## Salts for the level seed when dealing key and door colours (deal_colors).
+	const KEY_DEAL: int = 7000
+	const DOOR_DEAL: int = 8000
+
+	## How many keys a level keeps (besides the start key and skeleton keys): MapInfo.KEYS_PER_K,
+	## at least MapInfo.KEYS_MIN.
+	func key_count () -> int:
+		return maxi(MapInfo.KEYS_MIN, per_area(MapInfo.KEYS_PER_K))
+
+	## Every key and corridor door not laid for a particular lock is dealt its colour by rarity
+	## (MapInfo.rarity_color), from the level's seed and its place in the order things were laid,
+	## never from the world RNG. The level's first key is always the commonest colour, so every level
+	## holds a key to its commonest doors. The colour is kept as the cell's extra_info. Only the first
+	## key_count keys are kept; the spots of the rest are left open air. Done last, so it changes no
+	## placement.
+	func deal_colors () -> void:
+		var keys: int = 0
+		var doors: int = 0
+		var spare: Array[Vector2i] = []
+		for v: Vector2i in objects:
+			var cell: Cell = get_cell(v)
+			if cell.extra_info != null:
+				continue
+			if cell.type == Type.KEY:
+				if keys >= key_count():
+					spare.append(v)
+					continue
+				cell.extra_info = 0 if keys == 0 else MapInfo.rarity_color(MapInfo.level_seed(seed_for_colors, KEY_DEAL + keys))
+				keys += 1
+			elif cell.type == Type.DOOR:
+				cell.extra_info = MapInfo.rarity_color(MapInfo.level_seed(seed_for_colors, DOOR_DEAL + doors))
+				doors += 1
+		for v: Vector2i in spare:
+			_to_open(v)
 
 	## Dress an ordinary level (see NextWorldDef.populate).
 	func populate_level (def: NextWorldDef) -> void:
@@ -663,8 +718,8 @@ class World:
 			set_cell(v, Cell.new(Type.KEY))
 			add_object_at(v)
 		else:
-			# Keys: every colour at least once (keys are dealt colours in turn), more in bigger levels.
-			for i: int in range(maxi(MapInfo.KEY_COLOR_COUNT, per_area(KEYS_PER_K))):
+			# Spots for keys: more than are kept (see MapInfo.KEYS_PER_K and deal_colors).
+			for i: int in range(maxi(MapInfo.KEY_COLOR_COUNT, per_area(MapInfo.KEY_SPOTS_PER_K))):
 				set_cell(pop_if_random_empty(), Cell.new(Type.KEY))
 
 		place_doors(per_area(DOORS_PER_K))
@@ -747,6 +802,7 @@ class World:
 			populate_sky(def)
 		place_cluster(def)
 		place_secrets(def)
+		place_vaults()
 
 	## A cemetery's gates. Chasms are cut across long stretches of floor (CHASM_WIDTH cells across,
 	## CHASM_DEPTH deep, with thorns at the bottom and rock under them): too wide to jump without a
@@ -1373,7 +1429,8 @@ class World:
 				if at == null:
 					continue
 				add_object_at(at)
-				var lock: int = rng.randi_range(0, MapInfo.KEY_COLOR_COUNT - 1)
+				# One draw, as randi_range was, so the rest of the level lands where it did.
+				var lock: int = MapInfo.rarity_color(int(rng.randi()))
 				if rng.randf() < 0.5:
 					var lever: Variant = _bell_switch(at)
 					if lever != null:
@@ -1776,6 +1833,151 @@ class World:
 			cell.extra_info = id
 			cells[c.x][c.y] = cell
 
+	## Vaults: small rooms sealed in the rock behind a locked corridor door, at floor height beside a
+	## floor (found as secret rooms are, see _secret_spots), their loot in plain sight through the
+	## bars. A vault's lock is dealt evenly among the key colours, unlike every other lock (see
+	## MapInfo.KEY_RARITY), and the rarer its colour the better what it holds (VAULT_LOOT): a rare key
+	## seldom opens anything, but what it opens is worth having. VAULTS_PER_K per 1000 cells, as many
+	## as fit; placed last of all, so the rest of the level lands where it always has. Each is
+	## {"room": cells, "door": cell, "color": key colour}.
+	var vaults: Array = []
+	const VAULTS_PER_K: float = 0.5
+	## Room sizes (cells across and up) tried in turn, biggest first.
+	## Low rooms (one cell high, like the corridors doors stand in) fit where tall ones don't.
+	const VAULT_SIZES: Array[Vector2i] = [Vector2i(4, 2), Vector2i(3, 2), Vector2i(2, 2), Vector2i(3, 1), Vector2i(2, 1)]
+	## What a vault holds, by its lock's colour in order of rarity, each thing as [type, extra info]:
+	## a half-sized star cluster (sun), a star cluster (ember), a cluster and a half (moss), a star
+	## cluster and a skeleton key (plum). A cluster's extra info is its share of a full cluster's
+	## worth (see MapInfo.place_cell). Laid from the back of the room's floor, then along its upper
+	## row; two things at most, so it fits the smallest room.
+	const VAULT_LOOT: Array = [
+		[[Type.CLUSTER, 0.5]],
+		[[Type.CLUSTER, 1.0]],
+		[[Type.CLUSTER, 1.5]],
+		[[Type.CLUSTER, 1.0], [Type.KEY, KeyRing.SKELETON]],
+	]
+	## An ember vault also holds a moss key (the next colour up) this share (%) of the time, dealt by
+	## the level seed and the vault's door, never the world RNG.
+	const VAULT_KEY_CHANCE: int = 40
+	const VAULT_KEY_DEAL: int = 9000
+
+	## Everything the vault behind `door`, locked in `color`, holds (see VAULT_LOOT).
+	func vault_loot (color: int, door: Vector2i) -> Array:
+		var loot: Array = (VAULT_LOOT[color] as Array).duplicate()
+		if color == 1 and MapInfo.level_seed(seed_for_colors, VAULT_KEY_DEAL + door.x * 1000 + door.y) % 100 < VAULT_KEY_CHANCE:
+			loot.append([Type.KEY, 2])
+		return loot
+	## The rock round every vault, which make_room leaves whole (it would let you in past the door).
+	var vault_walls: Dictionary = {}
+
+	func place_vaults () -> void:
+		var want: int = per_area(VAULTS_PER_K)
+		for room: Vector2i in VAULT_SIZES:
+			while vaults.size() < want:
+				# Walled in the level's own rock, never its edge.
+				var spots: Array = _secret_spots(room, true).filter(func(spot: Array) -> bool: return Rect2i(Vector2i.ZERO, size).encloses((spot[0] as Rect2i).grow(1)))
+				if spots.is_empty():
+					break
+				var pick: Array = spots[rng.randi_range(0, spots.size() - 1)]
+				_carve_vault(pick[0], pick[1], rng.randi_range(0, MapInfo.KEY_COLOR_COUNT - 1))
+		# No rock thick enough to carve one into (a sky level's islands are thin): build one, a
+		# strongbox of rock on a floor.
+		if vaults.is_empty():
+			var spots: Array = _strongbox_spots()
+			if not spots.is_empty():
+				var pick: Array = spots[rng.randi_range(0, spots.size() - 1)]
+				for c: Vector2i in pick[2]:
+					_to_rock(c)
+				_carve_vault(pick[0], pick[1], rng.randi_range(0, MapInfo.KEY_COLOR_COUNT - 1))
+
+	## A strongbox: a vault built out of open air, STRONGBOX (cells across and up) inside, its door
+	## beside a floor spot, walled, roofed and floored in rock (its floor may be rock already, or it
+	## hangs off the floor's edge, as a ledge does). Only where every cell it takes is free,
+	## STRONGBOX_HEADROOM rows of open air lie over it and a row under any floor it builds (so it
+	## never shuts a way, it is only gone round), and no chasm or gap is near. Each is [its room, its
+	## door, the cells to turn to rock].
+	const STRONGBOX: Vector2i = Vector2i(2, 1)
+	const STRONGBOX_HEADROOM: int = 2
+
+	func _strongbox_spots () -> Array:
+		var free: Dictionary = {}
+		for v: Vector2i in empties:
+			free[v] = true
+		var near_chasm: Callable = func(c: Vector2i) -> bool:
+			for chasm: Dictionary in chasms:
+				for plank: Vector2i in chasm["planks"]:
+					if absi(plank.x - c.x) <= 2 and c.y >= int(chasm["row"]) - CHASM_CLEAR - 1 and c.y <= int(chasm["row"]) + CHASM_DEPTH + 1:
+						return true
+			return false
+		var floors: Array[Vector2i] = []
+		for v: Vector2i in empties:
+			if ground_below(v) and get_cell(v).type == Type.EMPTY:
+				floors.append(v)
+		floors.sort()
+		var out: Array = []
+		for o: Vector2i in floors:
+			for side: int in [-1, 1]:
+				var door: Vector2i = o + Vector2i(side, 0)
+				var x0: int = door.x + 1 if side > 0 else door.x - STRONGBOX.x
+				var r: Rect2i = Rect2i(x0, o.y - STRONGBOX.y + 1, STRONGBOX.x, STRONGBOX.y)
+				var box: Rect2i = Rect2i(mini(door.x, x0 - 1) if side < 0 else door.x, r.position.y - 1, STRONGBOX.x + 2, STRONGBOX.y + 1)
+				if not Rect2i(Vector2i(1, 1), size - Vector2i(2, 2)).encloses(box.grow_individual(0, STRONGBOX_HEADROOM, 0, 2)):
+					continue
+				var ok: bool = true
+				var walls: Array[Vector2i] = []
+				for x: int in range(box.position.x, box.end.x):
+					# Rock to stand on under all of it (built where there is none, with air under it);
+					# open air over it.
+					var under: Vector2i = Vector2i(x, box.end.y)
+					if not is_ground(under):
+						ok = ok and free.has(under) and get_cell(under).type == Type.EMPTY and not keep_clear.has(under) and not near_chasm.call(under) 								and _open(under + Vector2i.DOWN) and not keep_clear.has(under + Vector2i.DOWN)
+						walls.append(under)
+					for h: int in range(1, STRONGBOX_HEADROOM + 1):
+						ok = ok and _open(Vector2i(x, box.position.y - h)) and not keep_clear.has(Vector2i(x, box.position.y - h))
+					for y: int in range(box.position.y, box.end.y):
+						var c: Vector2i = Vector2i(x, y)
+						ok = ok and free.has(c) and get_cell(c).type == Type.EMPTY and not keep_clear.has(c) and not near_chasm.call(c)
+						if c != door and not r.has_point(c):
+							walls.append(c)
+					if not ok:
+						break
+				if ok:
+					out.append([r, door, walls])
+		return out
+
+	func _carve_vault (r: Rect2i, door: Vector2i, color: int) -> void:
+		for x: int in range(r.position.x - 1, r.end.x + 1):
+			for y: int in range(r.position.y - 1, r.end.y + 1):
+				if is_ground(Vector2i(x, y)):
+					vault_walls[Vector2i(x, y)] = true
+		vault_walls.erase(door)
+		var room: Array[Vector2i] = []
+		for x: int in range(r.position.x, r.end.x):
+			for y: int in range(r.position.y, r.end.y):
+				room.append(Vector2i(x, y))
+				_to_open(Vector2i(x, y))
+		add_object_at(door)
+		var lock: Cell = Cell.new(Type.DOOR)
+		lock.extra_info = color
+		set_cell(door, lock)
+		# The back of the floor first, then the row over it: the loot waits at the back of the room.
+		var slots: Array[Vector2i] = []
+		for y: int in range(r.end.y - 1, r.position.y - 1, -1):
+			var row: Array[Vector2i] = []
+			for x: int in range(r.position.x, r.end.x):
+				row.append(Vector2i(x, y))
+			if door.x < r.position.x:
+				row.reverse()
+			slots.append_array(row)
+		var loot: Array = vault_loot(color, door)
+		for i: int in range(mini(loot.size(), slots.size())):
+			var at: Vector2i = slots[i]
+			add_object_at(at)
+			var item: Cell = Cell.new(loot[i][0])
+			item.extra_info = loot[i][1]
+			set_cell(at, item)
+		vaults.append({"room": room, "door": door, "color": color})
+
 	## Cracked walls: thin rock (one or two cells, open on both sides, holding up no thorns) that a
 	## hex bolt breaks.
 	## Half are picked near something worth reaching (a key, lantern, exit, shrine or ink well).
@@ -2129,7 +2331,20 @@ static func exit_distance (depth: int) -> int:
 
 ## The key colour that locks a level's left or right exit, dealt by the level seed.
 static func lateral_lock (at: Vector2i, which: int) -> int:
-	return level_seed(level_seed(at.x, at.y), 500 + which) % KEY_COLOR_COUNT
+	return rarity_color(level_seed(level_seed(at.x, at.y), 500 + which))
+
+## The key colour a draw of `roll` (any int) deals, by KEY_RARITY: common colours come up often,
+## rare ones seldom.
+static func rarity_color (roll: int) -> int:
+	var total: int = 0
+	for w: int in KEY_RARITY:
+		total += w
+	var r: int = posmod(roll, total)
+	for c: int in range(KEY_RARITY.size()):
+		r -= KEY_RARITY[c]
+		if r < 0:
+			return c
+	return 0
 
 ## Cells across and down for a level: small near the surface, growing with depth.
 static func level_size (depth: int) -> Vector2i:
@@ -2829,8 +3044,6 @@ func _level_ready (built: World) -> void:
 		player = main.get_node_or_null("Player") as Player
 	map_elements = map_elements_prefab.instantiate()
 	main.add_child(map_elements)
-	_keys_dealt = 0
-	_doors_dealt = 0
 	for v: Vector2i in world.objects:
 		place_cell(v, world.get_cell(v))
 	# Secret rooms already opened: their rewards (the rest of the room stays broken, see
@@ -3103,6 +3316,7 @@ func next_world () -> void:
 		player.reset_fourier_motion()
 		player.set_collision(true)
 		player.set_physics_process(true)
+		player.grace()
 	travelling = false
 	_refresh_lanterns()
 	if RisoPrint.instance != null:
@@ -3116,8 +3330,6 @@ func next_world () -> void:
 	_prefetch_neighbours()
 
 var map_elements: Node
-var _keys_dealt: int = 0
-var _doors_dealt: int = 0
 
 var cell_to_prefab: Dictionary = {
 	Type.MOON: moon_prefab,
@@ -3161,18 +3373,10 @@ func place_cell(v: Vector2i, _cell: Cell) -> void:
 		# Floating pickups sit anywhere inside their cell rather than on the grid.
 		var cell_size: Vector2 = Vector2(tile_map.tile_set.tile_size) * tile_map.global_scale
 		jitter = Vector2(world.rng.randf_range(-0.3, 0.3), world.rng.randf_range(-0.3, 0.3)) * cell_size
+	# A key's or door's colour was dealt with the level (World.deal_colors).
 	var color: int = -1
-	if _cell.type == Type.KEY:
-		# A key laid for a particular lock (the start's side door) keeps its colour; the rest are
-		# dealt colours in turn.
-		if _cell.extra_info != null:
-			color = int(_cell.extra_info)
-		else:
-			color = _keys_dealt % KEY_COLOR_COUNT
-			_keys_dealt += 1
-	elif _cell.type == Type.DOOR:
-		color = _doors_dealt % KEY_COLOR_COUNT
-		_doors_dealt += 1
+	if _cell.type in [Type.KEY, Type.DOOR]:
+		color = int(_cell.extra_info) if _cell.extra_info != null else 0
 	var rec: Dictionary = record()
 	for gone: String in ["taken", "opened", "slain", "broken"]:
 		# Broken only ever means cracked rock: a secret room's rewards stand on its broken cells.
@@ -3190,7 +3394,9 @@ func place_cell(v: Vector2i, _cell: Cell) -> void:
 	if color >= 0:
 		cell.set_meta(&"key_color", color)
 	if _cell.type == Type.CLUSTER:
-		cell.set("value", cluster_value(here.depth))
+		# A vault's lesser cluster is worth a share of a full one (World.VAULT_LOOT).
+		var share: float = float(_cell.extra_info) if _cell.extra_info != null else 1.0
+		cell.set("value", maxi(2, roundi(cluster_value(here.depth) * share)))
 	if _cell.type in [Type.ENEMY, Type.SHOOTER, Type.HOPPER, Type.WRAITH, Type.BIRD]:
 		var wound: Wound = Wound.new()
 		wound.name = "Wound"
@@ -3209,8 +3415,9 @@ func place_cell(v: Vector2i, _cell: Cell) -> void:
 	cell.position = tile_map.to_global(tile_map.map_to_local(v)) + jitter
 
 	if cell.has_method("setup"):
-		# A key's extra info is its colour, already given as key_color; a cracked cell's is its secret.
-		if _cell.extra_info != null and _cell.type != Type.KEY and _cell.type != Type.CRACKED:
+		# A key's or door's extra info is its colour, already given as key_color; a cracked cell's is
+		# its secret.
+		if _cell.extra_info != null and not _cell.type in [Type.KEY, Type.DOOR, Type.CRACKED]:
 			cell.setup(self, v, _cell.extra_info)
 		else:
 			cell.setup(self, v)

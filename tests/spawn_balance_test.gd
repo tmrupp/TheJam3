@@ -27,13 +27,20 @@ func run() -> void:
 				for cell: MapInfo.Cell in column:
 					counts[cell.type] = int(counts.get(cell.type, 0)) + 1
 			var label: String = "seed %d depth %d" % [seed_value, depth]
+			# A vault's door and loot are its own (vaults_test); the rest keep to their budgets.
+			counts[MapInfo.Type.DOOR] = int(counts.get(MapInfo.Type.DOOR, 0)) - w.vaults.size()
+			for vault: Dictionary in w.vaults:
+				for v: Vector2i in vault["room"]:
+					var t: MapInfo.Type = w.get_cell(v).type
+					if t != MapInfo.Type.EMPTY:
+						counts[t] = int(counts.get(t, 0)) - 1
 			print("%s %s: gates=%d moons=%d keys=%d lanterns=%d portals=%d" % [label, w.size, counts.get(MapInfo.Type.DOOR, 0), counts.get(MapInfo.Type.MOON, 0), counts.get(MapInfo.Type.KEY, 0), counts.get(MapInfo.Type.CHECKPOINT, 0), counts.get(MapInfo.Type.PORTAL, 0)])
 			# A cemetery's open terraces have hardly any one-cell corridors to gate.
 			check(def.chasmed() or int(counts.get(MapInfo.Type.DOOR, 0)) > 0, label + ": gates must be present")
 			check(int(counts.get(MapInfo.Type.DOOR, 0)) <= w.per_area(MapInfo.DOORS_PER_K), label + ": gate budget")
 			# A first level also has its start key (for the side door near the start).
 			var start_key: int = 1 if w.start_side >= 0 else 0
-			check(int(counts.get(MapInfo.Type.KEY, 0)) == maxi(MapInfo.KEY_COLOR_COUNT, w.per_area(MapInfo.KEYS_PER_K)) + start_key, label + ": keys scale with area (and the start key)")
+			check(int(counts.get(MapInfo.Type.KEY, 0)) == w.key_count() + start_key and w.key_count() == maxi(MapInfo.KEYS_MIN, w.per_area(MapInfo.KEYS_PER_K)), label + ": keys scale with area (and the start key)")
 			check(int(counts.get(MapInfo.Type.PORTAL, 0)) == 2 * w.per_area(MapInfo.PORTAL_PAIRS_PER_K), label + ": paired portals scale with area")
 			if depth == 9:
 				check(int(counts.get(MapInfo.Type.PORTAL, 0)) >= 4, label + ": the largest worlds have at least two generated pairs")

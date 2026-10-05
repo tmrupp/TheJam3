@@ -415,7 +415,7 @@ func _draw_body() -> void:
 	var fsc: float = clampf(fs, -1.0, 1.0)
 	var hy: float = head_y
 	var dashing: bool = player.dash.is_acting()
-	var hurt: bool = player.invulnerable.is_acting() and int(t * 16.0) % 2 == 0
+	var hurt: bool = player.is_invulnerable() and int(t * 16.0) % 2 == 0
 	var cyc: float = fposmod(t, 3.9)
 	var blink: bool = cyc < 0.11 or (int(t / 3.9) % 3 == 0 and cyc > 0.2 and cyc < 0.3)
 	var m: Transform2D = Transform2D(lean, Vector2.ZERO)

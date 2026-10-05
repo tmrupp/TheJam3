@@ -20,13 +20,24 @@ static func key_bow(c: Vector2, r: float, color: int) -> PackedVector2Array:
 	return RisoShapes.rrect(c.x - r, c.y - r, r * 2.0, r * 2.0, r * 0.12)
 
 
-## A key with a colour-specific bow, in world pixels, centred near `o`.
+## Teeth past the bit of a rarer key, one per step of rarity (MapInfo.KEY_RARITY): how far down
+## each hangs, in turn.
+const KEY_TEETH: Array[float] = [8.0, 10.0, 7.0]
+
+
+## A key with a colour-specific bow, in world pixels, centred near `o`. The rarer its colour, the
+## longer its shaft and the more teeth on its bit (a plum key has four), so rarity reads at a glance.
 static func key_shape(o: Vector2, s: float, color: int = 0) -> Array[PackedVector2Array]:
-	return [
-		key_bow(o + Vector2(-10, 0) * s, 11.0 * s, color),
-		RisoShapes.rrect(o.x - 3.0 * s, o.y - 3.5 * s, 24.0 * s, 7.0 * s, 3.5 * s),
-		RisoShapes.rrect(o.x + 12.0 * s, o.y, 6.0 * s, 11.0 * s, 3.0 * s),
+	var extra: int = 0 if color == KeyRing.SKELETON else clampi(color, 0, KEY_TEETH.size())
+	var c: Vector2 = o - Vector2(2.5 * extra, 0) * s
+	var out: Array[PackedVector2Array] = [
+		key_bow(c + Vector2(-10, 0) * s, 11.0 * s, color),
+		RisoShapes.rrect(c.x - 3.0 * s, c.y - 3.5 * s, (24.0 + 5.0 * extra) * s, 7.0 * s, 3.5 * s),
+		RisoShapes.rrect(c.x + 12.0 * s, c.y, 6.0 * s, 11.0 * s, 3.0 * s),
 	]
+	for k: int in range(extra):
+		out.append(RisoShapes.rrect(c.x + (20.0 + 5.0 * k) * s, c.y, 3.0 * s, KEY_TEETH[k] * s, 1.5 * s))
+	return out
 
 var kind: StringName = &""
 var ink: InkCanvas

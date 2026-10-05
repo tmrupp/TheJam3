@@ -55,7 +55,7 @@ func run() -> void:
 			player.move_and_slide()
 			moved = maxf(moved, player.global_position.distance_to(home))
 	check(moved < 1.0, "fast hopper contact does not shove or carry the wizard (%.1f px)" % moved)
-	player.invulnerable.end()
+	player.end_invulnerable()
 	player.invulnerable.refresh()
 	player.health.health = player.health.max_health
 	var before: int = player.health.health

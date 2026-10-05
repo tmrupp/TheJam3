@@ -54,7 +54,7 @@ func capture() -> void:
 	player.global_position += Vector2(300, 0)
 	player.die()
 	await settle()
-	player.invulnerable.end()
+	player.end_invulnerable()
 	player.global_position += Vector2(-100, 0)
 	camera.global_position = info.cell_position(info.respawn_cell) + Vector2(0, -45)
 	await shot("spent")

@@ -104,7 +104,7 @@ func _in_rock() -> bool:
 	return MapInfo.instance != null and MapInfo.instance.solid_at(player.global_position)
 
 func _rock_hurts() -> void:
-	player.invulnerable.end()
+	player.end_invulnerable()
 	player.hurt(-1, Vector2.ZERO, null)
 
 func _finish() -> void:

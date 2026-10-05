@@ -52,6 +52,7 @@ func use_portal() -> void:
 	player.visual_event.emit(&"teleport", to)
 	await get_tree().create_timer(ARRIVE - REVEAL).timeout
 	player.set_physics_process(moving)
+	player.grace()
 	player.remove_meta(&"portal_trip")
 	trip_done.emit()
 

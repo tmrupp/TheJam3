@@ -79,6 +79,20 @@ func count(w: MapInfo.World, type: MapInfo.Type) -> int:
 	return n
 
 
+## Whether `v` is inside one of the level's vaults (whose loot is checked in vaults_test).
+func in_vault(w: MapInfo.World, v: Vector2i) -> bool:
+	return w.vaults.any(func(vault: Dictionary) -> bool: return (vault["room"] as Array).has(v))
+
+
+func vault_count(w: MapInfo.World, type: MapInfo.Type) -> int:
+	var n: int = 0
+	for vault: Dictionary in w.vaults:
+		for v: Vector2i in vault["room"]:
+			if w.get_cell(v).type == type:
+				n += 1
+	return n
+
+
 func run() -> void:
 	main = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
@@ -125,17 +139,17 @@ func generation(wfc: Node) -> void:
 			most_lanterns = maxi(most_lanterns, lit)
 			check(lit <= 1 + w.per_area(MapInfo.LANTERNS_PER_K), label + ": %d lanterns, one at the way back and a few more" % lit)
 			check(w.exit_lanterns.keys() == [MapInfo.Exit.BACK], label + ": only the way back has a lantern beside it")
-			check(count(w, MapInfo.Type.CLUSTER) == 1, label + ": one star cluster")
+			check(count(w, MapInfo.Type.CLUSTER) - vault_count(w, MapInfo.Type.CLUSTER) == 1, label + ": one star cluster (besides any in vaults)")
 			var keys: int = 0
 			for v: Vector2i in w.objects:
 				var cell: MapInfo.Cell = w.get_cell(v)
-				if cell.type == MapInfo.Type.KEY and cell.extra_info != null and int(cell.extra_info) == KeyRing.SKELETON:
+				if cell.type == MapInfo.Type.KEY and cell.extra_info != null and int(cell.extra_info) == KeyRing.SKELETON and not in_vault(w, v):
 					keys += 1
 			for secret: Dictionary in w.secrets:
 				for reward: Array in secret["rewards"]:
 					if reward[1] == MapInfo.Type.KEY and int(reward[2]) == KeyRing.SKELETON:
 						keys += 1
-			check(keys == (1 if def.skeleton else 0), label + ": a skeleton key only where dealt (%d)" % keys)
+			check(keys == (1 if def.skeleton else 0), label + ": a skeleton key only where dealt, besides vaults (%d)" % keys)
 	check(most_lanterns <= 3, "no level has more than 3 lanterns (%d)" % most_lanterns)
 	var dealt: int = 0
 	for x: int in range(100):
@@ -299,8 +313,8 @@ func giving_up() -> void:
 
 func cluster() -> void:
 	print("the star cluster")
-	var found: Array[Node] = placed("star_cluster.tscn")
-	check(found.size() == 1, "one star cluster in the level")
+	var found: Array[Node] = placed("star_cluster.tscn").filter(func(n: Node) -> bool: return not in_vault(info.world, n.get_meta(&"cell")))
+	check(found.size() == 1, "one star cluster in the level (besides any in vaults)")
 	if found.is_empty():
 		return
 	var c: Node = found[0]

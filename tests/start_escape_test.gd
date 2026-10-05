@@ -65,9 +65,8 @@ func run() -> void:
 			near += 1
 		var colour: int = MapInfo.lateral_lock(at, w.start_side)
 		var key: Variant = null
-		for v: Vector2i in w.objects:
-			if w.get_cell(v).type == MapInfo.Type.KEY and w.get_cell(v).extra_info != null and int(w.get_cell(v).extra_info) == colour:
-				key = v
+		if w.is_valid(w.start_key) and w.get_cell(w.start_key).type == MapInfo.Type.KEY and int(w.get_cell(w.start_key).extra_info) == colour:
+			key = w.start_key
 		if key == null:
 			continue
 		keyed += 1
@@ -99,7 +98,7 @@ func run() -> void:
 	for n: Node in info.map_elements.get_children():
 		if n.scene_file_path.get_file() == "level_exit.tscn" and int(n.get("exit")) == side:
 			door_node = n
-		if n.scene_file_path.get_file() == "key.tscn" and n.has_meta(&"cell") and info.world.get_cell(n.get_meta(&"cell")).extra_info != null:
+		if n.scene_file_path.get_file() == "key.tscn" and n.has_meta(&"cell") and n.get_meta(&"cell") == info.world.start_key:
 			key_node = n
 	check(door_node != null and key_node != null and int(key_node.get_meta(&"key_color")) == int(door_node.call("lock")), "the key by the start is the colour the door's lock asks for")
 	if failed:

@@ -172,7 +172,7 @@ func run() -> void:
 		player.visual_event.connect(func(kind: StringName, _at: Vector2) -> void: hurt[0] = hurt[0] or kind == &"hurt")
 		while not bool(laser.call("firing")):
 			await physics_frame
-		player.invulnerable.end()
+		player.end_invulnerable()
 		player.global_position = beam.global_position + dir * minf(reach * 0.5, 200.0)
 		for i: int in range(6):
 			await physics_frame

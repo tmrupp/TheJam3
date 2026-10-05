@@ -81,7 +81,7 @@ func run() -> void:
 	player.global_position = info.cell_position(rock)
 	await frames(2)
 	var hp: int = player.health.health
-	player.invulnerable.end()
+	player.end_invulnerable()
 	(projection.get("projection_timer") as ActionTimer).elapse(60.0)
 	await frames(2)
 	check(not bool(projection.call("projecting")) and player.global_position.distance_to(body_at) < 4.0, "running out inside rock puts the wizard back in the body")
@@ -93,7 +93,7 @@ func run() -> void:
 	var body_now: Vector2 = (projection.get("false_player_origin") as Node2D).global_position
 	player.global_position = info.cell_position(rock)
 	await frames(2)
-	player.invulnerable.end()
+	player.end_invulnerable()
 	projection.call("toggle")
 	await frames(2)
 	check(player.health.health == hp - 1 and player.global_position.distance_to(body_now) < 4.0, "snapping back from inside rock costs a heart too (%d -> %d)" % [hp, player.health.health])

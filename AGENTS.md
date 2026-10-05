@@ -70,8 +70,8 @@ bash tests/run.sh sky_test        # just these, headless
   re-check `cemetery_test`, `deeper_test`, `economy_test` and `sky_test` when a draw is added
   upstream.
 - Decor never touches the world RNG: it hashes the seed and cell (`RisoDecor.h`).
-- Key and door colours are dealt in `world.objects` order at load (`MapInfo.place_cell`).
-  `RisoMap.dealt_colors` replays that order for the map.
+- Key and door colours are dealt by rarity once a level is laid out (`World.deal_colors`, hashing
+  the level seed, no RNG) and kept in each cell's `extra_info`; `RisoMap.dealt_colors` reads them.
 - Placement helpers live on `World`: `pop_if_random_empty(filter, force)`, `add_object_at`,
   `set_cell`, `_to_rock`, `_to_open`, `per_area(per_k)` (counts scale with level area).
 
