@@ -9,7 +9,7 @@ class_name RisoDecor
 ## broken, flat ledgers), crosses, obelisks, urns, angels, grave flowers, bare trees and dry grass
 ## on its floors, cobwebs and roots under its ceilings, ivy on its walls.
 ## Behind them, in a lighter ink on a layer of their own, fences run along stretches of floor
-## (fence_runs): wooden pickets in the garden, iron railings between stone posts in a cemetery.
+## (fence_runs): white wooden pickets in the garden, iron railings between stone posts in a cemetery.
 ## Plants (tufts, flowers, roots, vines) are drawn live, only on screen, so they can sway: a slow
 ## idle breeze, and a springy push away from the wizard as they pass.
 ## Every choice is a hash of the level seed and the cell, so a level always wears the same
@@ -36,11 +36,12 @@ const SLOTS: Array[Array] = [
 	[RisoPrint.BLUE, 0.85, false, true],    # 12 stones
 	[RisoPrint.NIGHT, 0.35, false, false],  # 13 stone shade
 	[RisoPrint.NIGHT, 1.0, true, false],    # 14 paper spots on the caps
-	[RisoPrint.BLUE, 0.8, false, false],    # 15 background fences
-	[RisoPrint.NIGHT, 0.18, false, false],  # 16 their shade
+	[RisoPrint.NIGHT, 1.0, true, false],    # 15 background fences: the garden's white pickets
+	[RisoPrint.BLUE, 0.8, false, false],    # 16 the cemetery's iron railings
+	[RisoPrint.NIGHT, 0.18, false, false],  # 17 their shade
 ]
 ## Slots printed on the background layer, behind the rest of the decor.
-const BACK_SLOTS: Array[int] = [15, 16]
+const BACK_SLOTS: Array[int] = [15, 16, 17]
 const KNOCK_ALL: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE]
 const KNOCK_ROCK: Array[int] = [RisoPrint.BLUE, RisoPrint.NIGHT]
 const STRUCTURES: Array[String] = ["level_exit.tscn", "shrine.tscn", "door.tscn", "checkpoint.tscn", "spikes.tscn",
@@ -305,7 +306,7 @@ func _print_slots(canvas: InkCanvas, slots: Array, back: bool = false) -> void:
 			continue
 		var slot: Array = SLOTS[i]
 		if bool(slot[2]):
-			canvas.knock(KNOCK_ALL if i == 8 or i == 14 else KNOCK_ROCK, polys)
+			canvas.knock(KNOCK_ALL if i == 8 or i == 14 or i == 15 else KNOCK_ROCK, polys)
 		else:
 			canvas.ink(int(slot[0]), float(slot[1]), polys, bool(slot[3]))
 
@@ -594,25 +595,25 @@ func _sketch_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 					slots[15].append(lean * RisoShapes.arch(x - 3.2 * k, floor_y - tall, 6.4 * k, tall + 2.0, 6))
 				for rail: float in [21.0, 9.0]:
 					slots[15].append(RisoShapes.rrect(x0 + 2.0, floor_y - rail * k, x1 - x0 - 4.0, 3.4 * k, 1.2 * k))
-				slots[16].append(RisoShapes.rrect(x0 + 2.0, floor_y - 9.0 * k, x1 - x0 - 4.0, 3.4 * k, 1.2 * k))
+				slots[17].append(RisoShapes.rrect(x0 + 2.0, floor_y - 9.0 * k, x1 - x0 - 4.0, 3.4 * k, 1.2 * k))
 			else:
 				# Iron railings, spear-tipped, between stone posts at each end and every few cells.
 				var n: int = int((x1 - x0) / (8.0 * k))
 				for i: int in range(n):
 					var x: float = x0 + (4.0 + float(i) * 8.0) * k
 					var tall: float = 30.0 * k
-					slots[15].append(RisoShapes.rrect(x - 1.0 * k, floor_y - tall, 2.0 * k, tall + 2.0, 0.8 * k))
-					slots[15].append(RisoShapes.tri(Vector2(x - 2.2 * k, floor_y - tall + 2.0), Vector2(x + 2.2 * k, floor_y - tall + 2.0), Vector2(x, floor_y - tall - 5.0 * k)))
+					slots[16].append(RisoShapes.rrect(x - 1.0 * k, floor_y - tall, 2.0 * k, tall + 2.0, 0.8 * k))
+					slots[16].append(RisoShapes.tri(Vector2(x - 2.2 * k, floor_y - tall + 2.0), Vector2(x + 2.2 * k, floor_y - tall + 2.0), Vector2(x, floor_y - tall - 5.0 * k)))
 				for rail: float in [7.0, 24.0]:
-					slots[15].append(RisoShapes.rrect(x0, floor_y - rail * k, x1 - x0, 2.2 * k, 0.8 * k))
+					slots[16].append(RisoShapes.rrect(x0, floor_y - rail * k, x1 - x0, 2.2 * k, 0.8 * k))
 				var posts: Array[float] = [x0 + 3.0 * k, x1 - 3.0 * k]
 				for j: int in range(1, cells.size()):
 					if j % 3 == 0:
 						posts.append(x0 + float(j) * half * 2.0)
 				for px: float in posts:
-					slots[15].append(RisoShapes.rrect(px - 4.5 * k, floor_y - 36.0 * k, 9.0 * k, 36.0 * k + 2.0, 1.5 * k))
-					slots[15].append(RisoShapes.rrect(px - 6.0 * k, floor_y - 40.0 * k, 12.0 * k, 5.0 * k, 1.5 * k))
-					slots[16].append(RisoShapes.rrect(px, floor_y - 36.0 * k, 4.5 * k, 36.0 * k + 2.0, 1.5 * k))
+					slots[16].append(RisoShapes.rrect(px - 4.5 * k, floor_y - 36.0 * k, 9.0 * k, 36.0 * k + 2.0, 1.5 * k))
+					slots[16].append(RisoShapes.rrect(px - 6.0 * k, floor_y - 40.0 * k, 12.0 * k, 5.0 * k, 1.5 * k))
+					slots[17].append(RisoShapes.rrect(px, floor_y - 36.0 * k, 4.5 * k, 36.0 * k + 2.0, 1.5 * k))
 		&"cross":
 			var x: float = c.x + (_r(s, v, 10) - 0.5) * half * 0.6
 			var tall: float = 26.0 + _r(s, v, 11) * 12.0

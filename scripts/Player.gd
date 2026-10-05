@@ -112,7 +112,7 @@ func _enter_tree() -> void:
 # DASH_SPEED: how quickly the player dashes
 # DASH_TIME: how long the dash takes
 # Y_DASH_FACTOR: how much the dash is diminished in the Y direction
-const DASH_SPEED: float = 600.0
+const DASH_SPEED: float = 750.0
 const Y_DASH_FACTOR: float = 1.0
 var blink_enabled: bool = false
 func dash_end(_timer: ActionTimer) -> void:

@@ -29,11 +29,13 @@ const SKELETON_CHANCE: int = 30
 ## Cemetery levels (NextWorldDef.archetype): moth swarms (one by each lantern, and these more),
 ## banks of sleep fog and wraiths, per 1000 cells.
 const MOTHS_PER_K: float = 0.6
-const FOG_PER_K: float = 0.7
+const FOG_PER_K: float = 2.0
 const WRAITHS_PER_K: float = 0.9
 ## A cemetery's gates: chasms cut across its floors, bridged by planks that only appear once their
-## bell is rung (see World.carve_chasms, Bell, Bridge), per 1000 cells (at least one).
-const CHASMS_PER_K: float = 0.5
+## bell is rung (see World.carve_chasms, Bell, Bridge), per 1000 cells (at least CHASMS_MIN, as
+## many as fit).
+const CHASMS_PER_K: float = 1.2
+const CHASMS_MIN: int = 2
 
 enum Type {
 	EMPTY,
@@ -685,7 +687,7 @@ class World:
 	## {"planks": cells, "row": the floor row, "left": the last floor cell before it, "right": the
 	## first after}. Cut right after the caves are joined, so everything else lands round them.
 	var chasms: Array = []
-	const CHASM_WIDTH: Vector2i = Vector2i(5, 7)
+	const CHASM_WIDTH: Vector2i = Vector2i(8, 10)
 	const CHASM_DEPTH: int = 2
 	## Floor kept whole either side of a chasm: as much as can be, else less.
 	const CHASM_SHORES: Array[int] = [4, 3, 2]
@@ -694,42 +696,56 @@ class World:
 	const CHASM_CLEAR: int = 4
 
 	func carve_chasms () -> void:
-		var want: int = per_area(MapInfo.CHASMS_PER_K)
-		# Runs of floor: open cells with rock under them, side by side on one row.
-		var runs: Array = []
-		for y: int in range(1, size.y - CHASM_DEPTH - 3):
-			var x: int = 0
-			while x < size.x:
-				if get_cell(Vector2i(x, y)).type == Type.EMPTY and is_ground(Vector2i(x, y + 1)):
-					var from: int = x
-					while x < size.x and get_cell(Vector2i(x, y)).type == Type.EMPTY and is_ground(Vector2i(x, y + 1)):
-						x += 1
-					runs.append([y, from, x - 1])
-				else:
-					x += 1
-		var spots: Array = []
+		var want: int = maxi(MapInfo.CHASMS_MIN, per_area(MapInfo.CHASMS_PER_K))
+		# Which cells are floors (open, with rock under), looked up many times below.
+		_floors = PackedByteArray()
+		_floors.resize(size.x * size.y)
+		for v: Vector2i in empties:
+			if get_cell(v).type == Type.EMPTY and is_ground(v + Vector2i.DOWN):
+				_floors[v.x * size.y + v.y] = 1
+		# Spots for each width of shore, widest first: a chasm takes the widest shores left. A spot
+		# is a stretch of floor (shore, chasm, shore) whose every column has its floor within a cell
+		# of one row: cutting it levels the floor to that row (see _level_floor), so the graveyard's
+		# stepping terraces still have room for wide chasms.
+		var by_shore: Array = []
 		for shore: int in CHASM_SHORES:
-			for run: Array in runs:
-				var y: int = run[0]
+			var spots: Array = []
+			for y: int in range(2, size.y - CHASM_DEPTH - 3):
 				for w: int in range(CHASM_WIDTH.x, CHASM_WIDTH.y + 1):
-					for a: int in range(int(run[1]) + shore, int(run[2]) - shore - w + 2):
-						# Solid rock under the whole cut, so the pit is a pit.
+					for a: int in range(shore, size.x - shore - w + 1):
 						var ok: bool = true
+						for x: int in range(a - shore, a + w + shore):
+							if _floor_near(x, y) == -1:
+								ok = false
+								break
+						if not ok:
+							continue
+						# Under the cut, nothing but rock or air (no thorns), down to the pit's floor.
 						for x: int in range(a, a + w):
 							for d: int in range(1, CHASM_DEPTH + 2):
 								if not is_valid(Vector2i(x, y + d)) or get_cell(Vector2i(x, y + d)).type == Type.SPIKES:
 									ok = false
 						if ok:
-							spots.append([y, a, w])
-			if not spots.is_empty():
+							spots.append([y, a, w, shore])
+			by_shore.append(spots)
+		while chasms.size() < want:
+			var spots: Array = []
+			for list: Array in by_shore:
+				if not list.is_empty():
+					spots = list
+					break
+			if spots.is_empty():
 				break
-		while chasms.size() < want and not spots.is_empty():
 			var pick: Array = spots[rng.randi_range(0, spots.size() - 1)]
 			var y: int = pick[0]
 			var a: int = pick[1]
 			var w: int = pick[2]
+			var shore: int = pick[3]
+			for x: int in range(a - shore, a + w + shore):
+				_level_floor(x, y)
 			# Keep clear of chasms already cut.
-			spots = spots.filter(func(sp: Array) -> bool: return absi(int(sp[0]) - y) > CHASM_DEPTH + 2 or int(sp[1]) + int(sp[2]) + CHASM_SHORES[0] < a or a + w + CHASM_SHORES[0] < int(sp[1]))
+			for i: int in range(by_shore.size()):
+				by_shore[i] = (by_shore[i] as Array).filter(func(sp: Array) -> bool: return absi(int(sp[0]) - y) > CHASM_DEPTH + 2 or int(sp[1]) + int(sp[2]) + CHASM_SHORES[0] < a or a + w + CHASM_SHORES[0] < int(sp[1]))
 			var id: int = chasms.size()
 			var planks: Array[Vector2i] = []
 			for x: int in range(a, a + w):
@@ -754,27 +770,94 @@ class World:
 				planks.append(plank)
 			chasms.append({"planks": planks, "row": y, "left": Vector2i(a - 1, y), "right": Vector2i(a + w, y)})
 
-	## Each chasm's bell, on the floor of the side nearer the way in, a few cells from the edge.
+	## Which cells are floors, one byte per cell (see carve_chasms).
+	var _floors: PackedByteArray = PackedByteArray()
+
+	## The row of the floor (an open cell with rock under it) in column `x` at `y`, a cell above or a
+	## cell below; -1 if there is none.
+	func _floor_near (x: int, y: int) -> int:
+		if x < 0 or x >= size.x:
+			return -1
+		for r: int in [y, y - 1, y + 1]:
+			if r < 0 or r >= size.y:
+				continue
+			if _floors[x * size.y + r] == 1:
+				# Room to stand over the levelled floor.
+				if r == y + 1 and get_cell(Vector2i(x, y)).type != Type.EMPTY:
+					continue
+				return r
+		return -1
+
+	## Level column `x`'s floor to row `y`: a step up is cut away, a step down filled in.
+	func _level_floor (x: int, y: int) -> void:
+		var r: int = _floor_near(x, y)
+		if r == y - 1:
+			_to_open(Vector2i(x, y))
+		elif r == y + 1:
+			_to_rock(Vector2i(x, y + 1))
+
+	## Each chasm's bells: one on the floor of each side, a few cells from the edge, so it can be
+	## bridged from either side. Each is chained up on its own: by a padlock in a key colour (any key
+	## of it, or a skeleton key, frees it), or, about half the time, to a switch on a floor on its own
+	## side (reachable from the bell without crossing any chasm), at least BELL_SWITCH cells off
+	## (throwing it frees that bell). A bell's cell holds [chasm, lock]: lock is the key colour, or -1
+	## for a switch.
+	const BELL_SWITCH: int = 6
+
 	func place_bells () -> void:
-		var start: Vector2i = exits.get(Exit.BACK, Vector2i(-1, -1))
-		var md: Callable = func(a: Vector2i, b: Vector2i) -> int: return absi(a.x - b.x) + absi(a.y - b.y)
 		for id: int in range(chasms.size()):
 			var chasm: Dictionary = chasms[id]
-			var near_left: bool = md.call(chasm["left"], start) <= md.call(chasm["right"], start)
-			var edge: Vector2i = chasm["left"] if near_left else chasm["right"]
-			var away: int = -1 if near_left else 1
-			var at: Variant = null
-			for d: int in [2, 3, 1, 4]:
-				var v: Vector2i = edge + Vector2i(away * (d - 1), 0)
-				if is_valid(v) and get_cell(v).type == Type.EMPTY and empties.has(v) and ground_below(v):
-					at = v
-					break
-			if at == null:
-				continue
-			add_object_at(at)
-			var bell: Cell = Cell.new(Type.BELL)
-			bell.extra_info = id
-			set_cell(at, bell)
+			for side: int in [-1, 1]:
+				var edge: Vector2i = chasm["left"] if side < 0 else chasm["right"]
+				var at: Variant = null
+				for d: int in [2, 3, 1, 4]:
+					var v: Vector2i = edge + Vector2i(side * (d - 1), 0)
+					if is_valid(v) and get_cell(v).type == Type.EMPTY and empties.has(v) and ground_below(v):
+						at = v
+						break
+				if at == null:
+					continue
+				add_object_at(at)
+				var lock: int = rng.randi_range(0, MapInfo.KEY_COLOR_COUNT - 1)
+				if rng.randf() < 0.5:
+					var lever: Variant = _bell_switch(at)
+					if lever != null:
+						lock = -1
+						add_object_at(lever)
+						var s: Cell = Cell.new(Type.SWITCH)
+						s.extra_info = at
+						set_cell(lever, s)
+				var bell: Cell = Cell.new(Type.BELL)
+				bell.extra_info = [id, lock]
+				set_cell(at, bell)
+
+	## A floor for the switch that frees the bell at `bell`: on its side, reachable from it through
+	## open air without crossing any chasm, at least BELL_SWITCH cells off; null if there is none.
+	func _bell_switch (bell: Vector2i) -> Variant:
+		var start: Vector2i = bell
+		var blocked: Dictionary = {}
+		for chasm: Dictionary in chasms:
+			var row: int = chasm["row"]
+			for plank: Vector2i in chasm["planks"]:
+				for d: int in range(-CHASM_CLEAR - 1, CHASM_DEPTH + 2):
+					blocked[Vector2i(plank.x, row + d)] = true
+		var reach: Dictionary = {start: true}
+		var queue: Array[Vector2i] = [start]
+		while not queue.is_empty():
+			var c: Vector2i = queue.pop_back()
+			for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+				var n: Vector2i = c + d
+				if _open(n) and not blocked.has(n) and not reach.has(n):
+					reach[n] = true
+					queue.append(n)
+		var choices: Array[Vector2i] = []
+		for v: Vector2i in reach:
+			if empties.has(v) and get_cell(v).type == Type.EMPTY and ground_below(v) and absi(v.x - bell.x) + absi(v.y - bell.y) >= BELL_SWITCH:
+				choices.append(v)
+		if choices.is_empty():
+			return null
+		choices.sort()
+		return choices[rng.randi_range(0, choices.size() - 1)]
 
 	## What lives in a cemetery, on top of an ordinary level's dressing (placed after the hoppers,
 	## so the rest of the level lands as it would): a swarm of moths a few cells from each lantern
@@ -815,7 +898,7 @@ class World:
 		floors.sort()
 		var fogs: Array[Vector2i] = []
 		for i: int in range(per_area(FOG_PER_K)):
-			var pool: Array[Vector2i] = floors.filter(func(v: Vector2i) -> bool: return fogs.all(func(q: Vector2i) -> bool: return md.call(q, v) >= 8))
+			var pool: Array[Vector2i] = floors.filter(func(v: Vector2i) -> bool: return fogs.all(func(q: Vector2i) -> bool: return md.call(q, v) >= 5))
 			if pool.is_empty():
 				break
 			var at: Vector2i = pool[rng.randi_range(0, pool.size() - 1)]
@@ -1392,8 +1475,9 @@ func mark_slain (node: Node) -> void:
 	if node.has_meta(&"cell"):
 		record()["slain"][node.get_meta(&"cell")] = true
 
-## The bell of chasm `id` was rung: its bridge stays up for good.
-func ring_bell (id: int) -> void:
+## A bell of chasm `id` was rung (at cell `from`): its bridge lays itself from that side, and stays
+## up for good.
+func ring_bell (id: int, from: Vector2i = Vector2i(-1, -1)) -> void:
 	var rec: Dictionary = record()
 	if not rec.has("bridges"):
 		rec["bridges"] = {}
@@ -1403,17 +1487,65 @@ func ring_bell (id: int) -> void:
 	if map_elements != null and is_instance_valid(map_elements):
 		for node: Node in map_elements.get_children():
 			if node.has_method("raise") and int(node.get("chasm")) == id:
-				node.call("raise")
+				node.call("raise", from)
 	save_run()
 
 func bridge_up (id: int) -> bool:
 	return (record().get("bridges", {}) as Dictionary).has(id)
 
-## A cracked wall broken: gone for good.
+## The chain on the bell at `cell` is off (by its key or its switch): for good.
+func free_bell (cell: Vector2i) -> void:
+	var rec: Dictionary = record()
+	if not rec.has("bells_free"):
+		rec["bells_free"] = {}
+	rec["bells_free"][cell] = true
+	save_run()
+
+func bell_free (cell: Vector2i) -> bool:
+	return (record().get("bells_free", {}) as Dictionary).has(cell)
+
+## A cracked wall broken: gone for good. If something you stand at stood on it, a ledge takes
+## its place (prop_up).
 func mark_broken (node: Node) -> void:
 	if node.has_meta(&"cell"):
 		record()["broken"][node.get_meta(&"cell")] = true
+		prop_up([node.get_meta(&"cell")])
 		save_run()
+
+## Things you stand at to use them: an exit, the shrine (both its cells), a lantern, the ink well,
+## a relic, a bell, a switch or a teleporter. They always keep something under them: where rock
+## under one is broken (a cracked wall, a secret room's rock), a ledge (a platform) appears in its
+## place, at once, or as the level loads for rock broken before.
+const STANDERS: Array[Type] = [Type.EXIT, Type.SHRINE, Type.CHECKPOINT, Type.INKWELL, Type.RELIC, Type.BELL, Type.SWITCH, Type.PORTAL]
+## Cells given a ledge in the level as loaded now.
+var _props: Dictionary = {}
+
+## Whether broken cell `c` held up something you stand at.
+func holds_up_stander (c: Vector2i) -> bool:
+	if world == null:
+		return false
+	var above: Vector2i = c + Vector2i.UP
+	if not world.is_valid(above):
+		return false
+	if world.get_cell(above).type in STANDERS:
+		return true
+	# The shrine stands across two cells: its own and the one to its right.
+	var left: Vector2i = above + Vector2i.LEFT
+	return world.is_valid(left) and world.get_cell(left).type == Type.SHRINE
+
+## A ledge in each of `cells` (broken rock) that held up something you stand at.
+func prop_up (cells: Array) -> void:
+	if map_elements == null or not is_instance_valid(map_elements):
+		return
+	for c: Vector2i in cells:
+		if _props.has(c) or not holds_up_stander(c):
+			continue
+		_props[c] = true
+		var ledge: Node2D = platform_prefab.instantiate()
+		ledge.set_meta(&"cell", c)
+		ledge.set_meta(&"prop", true)
+		map_elements.add_child(ledge)
+		ledge.position = cell_position(c)
 
 # ------------------------------------------------------------------ secret rooms and relics
 
@@ -1448,6 +1580,7 @@ func open_secret (id: int) -> void:
 			if int(node.get_meta(&"secret", -1)) == id:
 				node.queue_free()
 	_spawn_secret_rewards(id)
+	prop_up(secret["room"] + secret["entrance"])
 	RisoFx.burst(&"gain", middle, Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
 	RisoFx.burst(&"hit", middle, Vector2.UP, [RisoPrint.BLUE, RisoPrint.NIGHT])
 	Wound.shake(14.0, 0.3)
@@ -1973,6 +2106,9 @@ func _level_ready (built: World) -> void:
 	for id: int in dropped:
 		_spawn_dropped_key(id, dropped[id][0], dropped[id][1])
 	Rift.restore(self)
+	# Rock broken before, under things you stand at: their ledges.
+	_props.clear()
+	prop_up((record()["broken"] as Dictionary).keys())
 	_spawn_ghost()
 	next_world()
 

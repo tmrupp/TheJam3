@@ -323,7 +323,7 @@ func _level(info: MapInfo) -> void:
 			"bridge.tscn":
 				_mark_bridge(at, bool(node.call("up")))
 			"bell.tscn":
-				_mark_bell(at, bool(node.call("rung")))
+				_mark_bell(at, bool(node.call("rung")), int(node.call("lock_state")))
 			"corpse.tscn":
 				_mark_ghost(to_map(info, Vector2(info.cell_at((node as Node2D).global_position)) + Vector2(0.5, 0.5)), 0.22)
 	# A relic an ink well marked here, even before its room is found.
@@ -419,12 +419,14 @@ func _other_level(info: MapInfo, c: Vector2i) -> void:
 			var kind: int = w.get_cell(v).type
 			if not (kind in [MapInfo.Type.CHECKPOINT, MapInfo.Type.INKWELL, MapInfo.Type.PORTAL, MapInfo.Type.BRIDGE, MapInfo.Type.BELL]) or not seen.call(v):
 				continue
-			if kind == MapInfo.Type.BRIDGE or kind == MapInfo.Type.BELL:
-				var up: bool = (rec.get("bridges", {}) as Dictionary).has(int(w.get_cell(v).extra_info))
-				if kind == MapInfo.Type.BRIDGE:
-					_mark_bridge(spot.call(v), up)
-				else:
-					_mark_bell(spot.call(v), up)
+			if kind == MapInfo.Type.BRIDGE:
+				_mark_bridge(spot.call(v), (rec.get("bridges", {}) as Dictionary).has(int(w.get_cell(v).extra_info)))
+				continue
+			if kind == MapInfo.Type.BELL:
+				var bell: Array = w.get_cell(v).extra_info
+				var id: int = int(bell[0])
+				var free: bool = (rec.get("bells_free", {}) as Dictionary).has(v)
+				_mark_bell(spot.call(v), (rec.get("bridges", {}) as Dictionary).has(id), -2 if free else int(bell[1]))
 				continue
 			if kind == MapInfo.Type.INKWELL:
 				_mark_inkwell(spot.call(v), bool(rec.get("mapped", false)))
@@ -452,9 +454,9 @@ func _exit_mark(node: Node, at: Vector2) -> void:
 
 
 # ------------------------------------------------------------------ marks (map and legend)
-# Each mark is a small print of the thing itself (a doorway, a lantern on its post, a key), about a
-# cell across on a big level, so the map stays readable where things crowd. While a page is drawn,
-# each mark notes its legend row (see _note), and the legend lists only what is on the page.
+# Marks are abstract and printed over whatever is under them (rock, ground, each other), never
+# knocking it out: they overlap and intersect as the plates do. While a page is drawn, each mark
+# notes its legend row (see _note), and the legend lists only what is on the page.
 
 ## Legend rows the page being drawn has shown (see _legend), and whether marks note theirs now.
 var _shown: Dictionary = {}
@@ -466,24 +468,22 @@ func _note(row: String) -> void:
 		_shown[row] = true
 
 
-## A grand door (a side world's door, or its way on): a deeper doorway inside an accent arch, with
-## a second chevron falling under the first.
+## A grand door (a side world's door, or its way on): a deeper mark in an accent ring, with a
+## second chevron.
 func _mark_plunge(at: Vector2, owed: int, k: float = 1.0) -> void:
 	_note("plunge")
-	marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.arch(at.x - 3.4 * k, at.y - 4.2 * k, 6.8 * k, 7.0 * k, 8)], false)
+	marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(at, 6.4 * k, 18)], false)
 	var was: bool = _noting
 	_noting = false
 	_mark_exit(at, Vector2.DOWN, true, -1, owed, k)
 	_noting = was
-	marks.ink(RisoPrint.PINK, 1.0, [RisoProp.chevron(at + Vector2(0, -3.6) * k, Vector2.DOWN, 0.08 * k)], false)
+	marks.ink(RisoPrint.PINK, 1.0, [RisoProp.chevron(at + Vector2(0, 2.2) * k, Vector2.DOWN, 0.2 * k)], false)
 
 
-## A relic: its move's mark in night ink on a paper disc in an accent ring (it reads on any tile).
+## A relic: its move's mark in night ink over an accent ring.
 func _mark_relic(at: Vector2, move: StringName, k: float = 1.0) -> void:
 	_note("relic")
-	var disc: PackedVector2Array = RisoShapes.circle(at, 5.0 * k, 16)
 	marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(at, 6.4 * k, 18)], false)
-	marks.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE], [disc])
 	var fit: Transform2D = Transform2D(0.0, Vector2(0.15, 0.15) * k, 0.0, at)
 	var mark: Array[PackedVector2Array] = []
 	for poly: PackedVector2Array in RisoProp.glyph(move, Vector2.ZERO, t):
@@ -491,137 +491,101 @@ func _mark_relic(at: Vector2, move: StringName, k: float = 1.0) -> void:
 	marks.ink(RisoPrint.NIGHT, 1.0, mark, false)
 
 
-## A portcullis: a bar with the grille's slits in paper, in `plates`.
-func _portcullis(at: Vector2, plates: Array[int]) -> void:
-	var bar: PackedVector2Array = RisoShapes.rrect(at.x - 1.1, at.y - 2.6, 2.2, 5.2, 0.6)
-	for plate: int in plates:
-		marks.ink(plate, 1.0, [bar], false)
-	marks.knock(plates, [RisoShapes.rrect(at.x - 0.8, at.y - 1.1, 1.6, 0.45, 0.2), RisoShapes.rrect(at.x - 0.8, at.y + 0.6, 1.6, 0.45, 0.2)])
-
-
-## A switch gate: a portcullis in night ink, with the switch's accent knob.
+## A switch gate: a bar like a door's, in night ink, with the switch's accent dot.
 func _mark_gate(at: Vector2) -> void:
 	_note("gate")
-	_portcullis(at, [RisoPrint.NIGHT])
-	marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(at + Vector2(2.2, -2.4), 0.9, 8)], false)
+	marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.rrect(at.x - 0.9, at.y - 2.6, 1.8, 5.2, 0.8)], false)
+	marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(at + Vector2(2.4, -2.4), 1.2, 8)], false)
 
 
-## A switch: a little lever on its base, pink before it is thrown, accent after.
+## A switch: a little lever, pink before it is thrown, accent after.
 func _mark_switch(at: Vector2, thrown: bool) -> void:
 	_note("switch")
-	marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.rrect(at.x - 2.0, at.y + 0.8, 4.0, 1.4, 0.7), Transform2D(0.5 if thrown else -0.5, at + Vector2(0, 1.0)) * RisoShapes.rrect(-0.4, -3.4, 0.8, 3.6, 0.4)], false)
-	marks.ink(RisoPrint.ACCENT if thrown else RisoPrint.PINK, 1.0, [RisoShapes.circle(at + Vector2(1.6 if thrown else -1.6, -2.6), 0.9, 8)], false)
+	marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.rrect(at.x - 2.4, at.y + 0.6, 4.8, 1.8, 0.9), Transform2D(0.5 if thrown else -0.5, at + Vector2(0, 1.0)) * RisoShapes.rrect(-0.5, -4.0, 1.0, 4.2, 0.5)], false)
+	marks.ink(RisoPrint.ACCENT if thrown else RisoPrint.PINK, 1.0, [RisoShapes.circle(at + Vector2(1.9 if thrown else -1.9, -3.2), 1.1, 8)], false)
 
 
-## A doorway: an arch in night ink (pink for deeper) with its opening in paper, a chevron over it
-## pointing where it leads. Open, the opening is lit; locked, it holds a key of the colour it needs;
-## unpaid, a star.
+## A way out: a chevron the way it leads (pink for deeper), with a key-colour dot while locked or
+## a star while unpaid.
 func _mark_exit(at: Vector2, dir: Vector2, deeper: bool, needs: int, owed: int, k: float = 1.0) -> void:
 	_note("locked" if needs >= 0 else ("unpaid" if owed > 0 else ("deeper" if deeper else "way out")))
-	var ink_of: int = RisoPrint.PINK if deeper else RisoPrint.NIGHT
-	var frame: PackedVector2Array = RisoShapes.arch(at.x - 2.4 * k, at.y - 2.8 * k, 4.8 * k, 5.4 * k, 8)
-	var opening: PackedVector2Array = RisoShapes.arch(at.x - 1.4 * k, at.y - 1.8 * k, 2.8 * k, 4.4 * k, 8)
-	# Clear of the rock behind it.
-	marks.knock([RisoPrint.BLUE, RisoPrint.NIGHT], [RisoShapes.arch(at.x - 3.0 * k, at.y - 3.4 * k, 6.0 * k, 6.4 * k, 8)])
-	marks.ink(ink_of, 1.0, [frame], false)
-	marks.knock([ink_of], [opening])
-	var inside: Vector2 = at + Vector2(0, 0.6) * k
+	marks.ink(RisoPrint.PINK if deeper else RisoPrint.NIGHT, 1.0, [RisoProp.chevron(at - dir * 2.0 * k, dir, 0.24 * k)], false)
 	if needs >= 0:
 		for plate: int in RisoPrint.key_inks(needs):
-			marks.ink(plate, 1.0, [RisoShapes.circle(inside, 1.0 * k, 8)], false)
+			marks.ink(plate, 1.0, [RisoShapes.circle(at + Vector2(4.2, -4.2) * k, 1.6, 8)], false)
 	elif owed > 0:
-		marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.sparkle(inside, 1.3 * k)], false)
-	else:
-		marks.ink(RisoPrint.EYE, 0.5, [opening], false)
-	# Side ways point from the doorway's shoulder; up and down from over its top.
-	var over: Vector2 = at + (Vector2(dir.x * 4.6, -0.4) if dir.x != 0.0 else Vector2(0, -4.6 - 0.6 * dir.y)) * k
-	marks.ink(ink_of, 1.0, [RisoProp.chevron(over, dir, 0.075 * k)], false)
+		marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.sparkle(at + Vector2(4.2, -4.2) * k, 2.6)], false)
 
 
-## An ink well: a blue pot with a paper label and an accent rim, and a drop over it until it is dry.
 func _mark_inkwell(at: Vector2, dry: bool) -> void:
 	_note("ink well")
-	marks.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(at.x - 2.0, at.y - 1.4, 4.0, 3.4, 1.3)], false)
-	marks.knock([RisoPrint.BLUE], [RisoShapes.rrect(at.x - 1.1, at.y - 0.4, 2.2, 1.1, 0.3)])
-	marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.rrect(at.x - 1.4, at.y - 2.2, 2.8, 0.9, 0.45)], false)
+	marks.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(at.x - 2.4, at.y - 2.0, 4.8, 4.4, 1.6)], false)
 	if not dry:
-		marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(at + Vector2(0, -3.6), 0.8, 8), RisoShapes.tri(at + Vector2(-0.7, -3.8), at + Vector2(0.7, -3.8), at + Vector2(0, -5.2))], false)
+		marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(at + Vector2(0, -3.6), 1.2, 6)], false)
 
 
-## The shrine: two niches and the mending bowl on one plinth, in accent ink (dim once spent).
 func _mark_shrine(at: Vector2, used: bool) -> void:
 	_note("shrine")
-	var cover: float = 0.35 if used else 1.0
-	marks.ink(RisoPrint.ACCENT, cover, [RisoShapes.rrect(at.x - 3.0, at.y + 1.4, 6.0, 1.0, 0.5),
-		RisoShapes.arch(at.x - 2.9, at.y - 2.6, 1.5, 3.6, 6), RisoShapes.arch(at.x - 0.8, at.y - 2.6, 1.5, 3.6, 6),
-		RisoShapes.ellipse(at + Vector2(2.2, 0.7), 0.8, 0.45, 8)], false)
+	marks.ink(RisoPrint.ACCENT, 0.35 if used else 1.0, [RisoShapes.arch(at.x - 2.5, at.y - 3.5, 5, 6, 6)], false)
 
 
-## A lantern on its post: the glass lit eye yellow in a halo for the respawn lantern, a low ember
-## for one waiting to be lit, dark once spent.
+## A lantern: an eye-yellow dot, haloed on your respawn; a night dot once spent.
 func _mark_lantern(at: Vector2, lit: bool, spent: bool = false) -> void:
 	_note("respawn" if lit else ("spent lantern" if spent else "lantern"))
 	if lit:
-		marks.ink(RisoPrint.EYE, 0.3, [RisoShapes.circle(at + Vector2(0.6, -1.2), 3.4, 14)], false)
-	marks.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(at.x - 1.6, at.y - 3.2, 0.6, 5.2, 0.3), RisoShapes.rrect(at.x - 1.6, at.y - 3.2, 2.6, 0.5, 0.25)], false)
-	var glass: PackedVector2Array = RisoShapes.rrect(at.x - 0.2, at.y - 2.4, 1.8, 2.4, 0.7)
-	marks.knock([RisoPrint.BLUE, RisoPrint.NIGHT], [glass])
+		marks.ink(RisoPrint.EYE, 0.3, [RisoShapes.circle(at, 4.5, 16)], false)
 	if spent:
-		marks.ink(RisoPrint.NIGHT, 0.6, [glass], false)
+		marks.ink(RisoPrint.NIGHT, 0.6, [RisoShapes.circle(at, 1.6, 10)], false)
 	else:
-		marks.ink(RisoPrint.EYE, 1.0 if lit else 0.5, [glass], false)
+		marks.ink(RisoPrint.EYE, 1.0 if lit else 0.5, [RisoShapes.circle(at, 1.6, 10)], false)
 
 
-## A door: a portcullis in its key's colour.
-func _mark_door(at: Vector2, color: int) -> void:
-	_note("door")
-	_portcullis(at, RisoPrint.key_inks(color))
-
-
-## A key, in its colour (eye yellow for a skeleton key).
-func _mark_key(at: Vector2, color: int) -> void:
-	_note("skeleton key" if color == KeyRing.SKELETON else "key")
-	var shape: Array[PackedVector2Array] = RisoProp.key_shape(at + Vector2(-0.4, 0), 0.11)
-	for plate: int in RisoPrint.key_inks(color):
-		marks.ink(plate, 1.0, shape, false)
-
-
-## A teleporter: an upright stadium ring, as the portals are, in accent ink with its pair's sigil
-## inside (so the two ends of a pair can be matched); a rift the wizard opened is eye yellow, without.
+## A teleporter: a screened accent disc with its pair's sigil in night ink (the two ends of a pair
+## share it, RisoProp.pair_sigil); a rift the wizard opened is an eye-yellow disc.
 func _mark_portal(at: Vector2, sigil: int, rift: bool) -> void:
 	_note("rift" if rift else "teleporter")
-	var plate: int = RisoPrint.EYE if rift else RisoPrint.ACCENT
-	var ring: PackedVector2Array = RisoShapes.rrect(at.x - 1.9, at.y - 3.0, 3.8, 5.8, 1.9)
-	marks.knock([RisoPrint.BLUE, RisoPrint.NIGHT], [ring])
-	marks.ink(plate, 1.0, [ring], false)
-	marks.knock([plate], [RisoShapes.rrect(at.x - 1.1, at.y - 2.2, 2.2, 4.2, 1.1)])
+	marks.ink(RisoPrint.EYE if rift else RisoPrint.ACCENT, 0.55, [RisoShapes.circle(at, 3.0, 14)], false)
 	if not rift:
-		marks.ink(RisoPrint.NIGHT, 1.0, [RisoProp.sigil_shape(sigil, at + Vector2(0, -0.1), 0.85)], false)
+		marks.ink(RisoPrint.NIGHT, 1.0, [RisoProp.sigil_shape(sigil, at, 1.5)], false)
 
 
-## A plank of a chasm's bridge: a pale board with a rope over it once its bell is rung; before,
-## a dashed accent line where it will be.
+func _mark_door(at: Vector2, color: int) -> void:
+	_note("door")
+	for plate: int in RisoPrint.key_inks(color):
+		marks.ink(plate, 1.0, [RisoShapes.rrect(at.x - 0.9, at.y - 2.6, 1.8, 5.2, 0.8)], false)
+
+
+func _mark_key(at: Vector2, color: int) -> void:
+	_note("skeleton key" if color == KeyRing.SKELETON else "key")
+	for plate: int in RisoPrint.key_inks(color):
+		marks.ink(plate, 1.0, [RisoShapes.circle(at, 1.3, 8)], false)
+
+
+## A plank of a chasm's bridge: a night bar once its bell is rung; before, a faint accent dash.
 func _mark_bridge(at: Vector2, up: bool) -> void:
 	_note("bridge" if up else "unrung bridge")
-	var top: float = at.y - 1.6
 	if up:
-		marks.knock([RisoPrint.BLUE, RisoPrint.NIGHT], [RisoShapes.rrect(at.x - 2.4, top, 4.8, 1.4, 0.5)])
-		marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.rrect(at.x - 2.4, top - 1.6, 4.8, 0.45, 0.2)], false)
+		marks.ink(RisoPrint.NIGHT, 0.8, [RisoShapes.rrect(at.x - 2.6, at.y - 2.0, 5.2, 1.0, 0.5)], false)
 	else:
-		marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.rrect(at.x - 1.2, top + 0.2, 2.4, 0.8, 0.4)], false)
+		marks.ink(RisoPrint.ACCENT, 0.7, [RisoShapes.rrect(at.x - 1.2, at.y - 2.0, 2.4, 0.8, 0.4)], false)
 
 
-## A grave bell on its post, in accent ink (dim once rung).
-func _mark_bell(at: Vector2, rung: bool) -> void:
+## A grave bell: an accent dot (faint once rung), with the key-colour dot of its padlock, or an
+## accent ring if a switch holds its chain (`lock`: a key colour, -1 a switch, -2 free).
+func _mark_bell(at: Vector2, rung: bool, lock: int = -2) -> void:
 	_note("bell")
-	marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.rrect(at.x - 2.2, at.y - 3.2, 0.6, 5.2, 0.3), RisoShapes.rrect(at.x - 2.2, at.y - 3.2, 3.2, 0.5, 0.25)], false)
-	marks.ink(RisoPrint.ACCENT, 0.4 if rung else 1.0, [RisoShapes.smooth(PackedVector2Array([at + Vector2(0.4, -2.8), at + Vector2(-0.6, -0.6), at + Vector2(-1.0, 0.6), at + Vector2(2.4, 0.6), at + Vector2(2.0, -0.6), at + Vector2(1.0, -2.8)]), 2)], false)
+	marks.ink(RisoPrint.ACCENT, 0.35 if rung else 1.0, [RisoShapes.circle(at, 1.8, 10)], false)
+	if lock >= 0:
+		for plate: int in RisoPrint.key_inks(lock):
+			marks.ink(plate, 1.0, [RisoShapes.circle(at + Vector2(2.8, -2.8), 1.2, 8)], false)
+	elif lock == -1:
+		marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.circle(at + Vector2(2.8, -2.8), 1.2, 8)], false)
 
 
-## A star cluster: a star with two little ones beside it, in accent ink.
+## A star cluster: a small star in accent ink.
 func _mark_cluster(at: Vector2) -> void:
 	_note("star cluster")
-	marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.sparkle(at, 2.4), RisoShapes.sparkle(at + Vector2(2.4, -1.8), 0.9), RisoShapes.sparkle(at + Vector2(-2.2, 1.6), 0.8)], false)
+	marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.sparkle(at, 2.8)], false)
 
 
 func _mark_ghost(at: Vector2, size: float) -> void:
@@ -631,9 +595,8 @@ func _mark_ghost(at: Vector2, size: float) -> void:
 
 ## The wizard: a hat over a lit eye.
 func _mark_wizard(at: Vector2) -> void:
-	marks.knock([RisoPrint.NIGHT, RisoPrint.BLUE], [RisoShapes.circle(at, 3.0, 14)])
-	marks.ink(RisoPrint.PINK, 1.0, [RisoShapes.tri(at + Vector2(-2.2, 0.5), at + Vector2(2.2, 0.5), at + Vector2(0.4, -3.6))], false)
-	marks.ink(RisoPrint.EYE, 1.0, [RisoShapes.circle(at + Vector2(0, 1.5), 0.9, 8)], false)
+	marks.ink(RisoPrint.PINK, 1.0, [RisoShapes.tri(at + Vector2(-2.6, 0.6), at + Vector2(2.6, 0.6), at + Vector2(0.4, -4.2))], false)
+	marks.ink(RisoPrint.EYE, 1.0, [RisoShapes.circle(at + Vector2(0, 1.8), 1.1, 8)], false)
 
 
 ## The key down the right edge: each entry's mark beside its name, behind a faint rule.

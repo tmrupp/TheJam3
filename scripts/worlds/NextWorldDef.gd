@@ -162,7 +162,7 @@ func pay(exit: int, rec: Dictionary) -> void:
 
 ## The print realm (RisoPrint.REALMS) it is printed in, or &"" for the player's own.
 func realm() -> StringName:
-	return &"cemetery" if cemetery() else &""
+	return &"cemetery" if cemetery() else (&"garden" if archetype == &"garden" else &"")
 
 
 ## Whether plants and the other decor grow in it.

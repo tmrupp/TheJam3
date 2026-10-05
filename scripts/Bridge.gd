@@ -28,17 +28,14 @@ func up() -> bool:
 	return laid >= 1.0 or laying
 
 
-## The bell was rung: lay this plank, after the ones nearer the bell.
-func raise() -> void:
+## A bell was rung (at cell `from`): lay this plank, after the ones nearer that bell.
+func raise(from: Vector2i = Vector2i(-1, -1)) -> void:
 	if up():
 		return
 	laying = true
 	var order: int = 0
-	if map_info != null and has_meta(&"cell"):
-		var me: Vector2i = get_meta(&"cell")
-		for node: Node in map_info.map_elements.get_children():
-			if node.has_method("ring") and int(node.get("chasm")) == chasm and node.has_meta(&"cell"):
-				order = absi(me.x - (node.get_meta(&"cell") as Vector2i).x)
+	if from.x >= 0 and has_meta(&"cell"):
+		order = absi((get_meta(&"cell") as Vector2i).x - from.x)
 	wait = STAGGER * float(order)
 	_sync()
 

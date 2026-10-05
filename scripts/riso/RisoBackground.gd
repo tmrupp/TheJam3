@@ -58,7 +58,7 @@ func _process(_delta: float) -> void:
 		ink.ink(RisoPrint.BLUE, 0.15, [RisoShapes.circle(moon + Vector2(-4.0, 3.0) * k, 4.0 * k, 16), RisoShapes.circle(moon + Vector2(5.0, -5.0) * k, 3.0 * k, 12)])
 		for i: int in range(3):
 			var drift: float = fposmod(t * (4.0 + float(i) * 2.0) + float(i) * 170.0, 640.0) - 80.0
-			ink.ink(RisoPrint.BLUE, 0.12, [RisoShapes.almond(at.call(drift, 92.0 + float(i) * 34.0), (90.0 + float(i) * 30.0) * k, 7.0 * k, 16)])
+			ink.ink(RisoPrint.BLUE, 0.12, [_cloud(at.call(drift, 92.0 + float(i) * 34.0), (90.0 + float(i) * 30.0) * k, (16.0 + float(i) * 4.0) * k, i)])
 	elif realm == &"aurora":
 		for i: int in range(3):
 			ink.ink(RisoPrint.PINK if i == 1 else RisoPrint.ACCENT, 0.15, [_aurora(i, t, k)])
@@ -98,6 +98,23 @@ func _process(_delta: float) -> void:
 	ink.ink(RisoPrint.ACCENT, 1.0, dots)
 	ink.ink(RisoPrint.ACCENT, 1.0, twinkles)
 	ink.finish()
+
+
+## A cloud `w` across and about `h` high, its base on `c`: flat underneath, billowing on top in a
+## row of rounded heaps (bigger in the middle), the same shape every time for `which`.
+static func _cloud(c: Vector2, w: float, h: float, which: int) -> PackedVector2Array:
+	var heaps: int = 4 + which % 2
+	var pts: PackedVector2Array = PackedVector2Array([c + Vector2(w * 0.5, 0.0), c + Vector2(-w * 0.5, 0.0)])
+	for i: int in range(heaps):
+		var u: float = (float(i) + 0.5) / float(heaps)
+		var middle: float = 1.0 - absf(u - 0.5) * 1.2
+		var r: float = (w / float(heaps)) * (0.55 + 0.25 * RisoShapes.hash1(float(which * 7 + i) * 1.3))
+		var top: float = h * (0.45 + 0.55 * middle)
+		var cx: float = c.x - w * 0.5 + u * w
+		for k: int in range(7):
+			var a: float = PI + PI * float(k) / 6.0
+			pts.append(Vector2(cx + cos(a) * r, c.y - top + r * 0.5 + sin(a) * minf(r, top)))
+	return RisoShapes.smooth(pts, 2)
 
 
 ## Far off, in a faint blue screen: a band of ruined arches, towers and floating islands that

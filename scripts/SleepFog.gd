@@ -6,7 +6,7 @@ class_name SleepFog
 ## greys and the spell orb dims. It wears off a moment after leaving the fog.
 
 ## Its size (an ellipse, centred a little over the floor), and how far and how slowly it drifts.
-const SIZE: Vector2 = Vector2(520, 230)
+const SIZE: Vector2 = Vector2(600, 240)
 const RISE: float = 50.0
 const DRIFT: float = 220.0
 const PERIOD: float = 14.0

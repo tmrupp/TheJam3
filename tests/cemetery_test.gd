@@ -1,7 +1,7 @@
 extends SceneTree
 ## The cemetery archetype (docs/DEEPER_PLAN.md, group 3): bands of depths, its own terrain sample
 ## (collapsed with no symmetry), realm and decor, its gates (chasms bridged once their bell is
-## rung), and what lives there: moths drawn to a lit lantern and scattered by a hex, sleep fog that
+## freed from its chain, by a key or a switch, and rung), and what lives there: moths drawn to a lit lantern and scattered by a hex, sleep fog that
 ## switches the spell off, and wraiths that drift through rock at the wizard.
 ## godot --headless --path . --script res://tests/cemetery_test.gd
 
@@ -99,7 +99,7 @@ func bands() -> void:
 	var def: NextWorldDef = MapInfo.def_for(Vector2i(28, 4))
 	check(def.region == NextWorldDef.GRAVEYARD and def.symmetry == 1 and def.realm() == &"cemetery", "a cemetery collapses the graveyard sample, unturned, and prints in its realm")
 	var garden: NextWorldDef = MapInfo.def_for(Vector2i(28, 1))
-	check(garden.region != NextWorldDef.GRAVEYARD and garden.realm() == &"" and not garden.title().contains("cemetery"), "a garden level is as before")
+	check(garden.region != NextWorldDef.GRAVEYARD and garden.realm() == &"garden" and not garden.title().contains("cemetery"), "a garden level has its own terrain and realm")
 	check(MapInfo.region_for(0) != MapInfo.region_for(6), "garden bands still alternate tunnels and islands")
 	var side: NextWorldDef = MapInfo.def_for(Worlds.side_at(0, Vector2i(28, 4)))
 	check(not side.cemetery(), "a side world under a cemetery is not one")
@@ -126,7 +126,7 @@ func generation(wfc: Node) -> void:
 		for item: Dictionary in RisoDecor.plan(solid, {}, def.gen_seed, Rect2i(Vector2i.ZERO, w.size), def.archetype):
 			kinds[item["kind"]] = true
 		check(kinds.has(&"headstone") and not kinds.has(&"mushroom"), "%s: graveyard decor (%s)" % [at, kinds.keys()])
-		check(not w.chasms.is_empty(), "%s: %d chasms" % [at, w.chasms.size()])
+		check(w.chasms.size() >= MapInfo.CHASMS_MIN, "%s: %d chasms, and as many bells" % [at, w.chasms.size()])
 		for id: int in range(w.chasms.size()):
 			var chasm: Dictionary = w.chasms[id]
 			var planks: Array = chasm["planks"]
@@ -137,16 +137,30 @@ func generation(wfc: Node) -> void:
 				for d: int in range(-MapInfo.World.CHASM_CLEAR, MapInfo.World.CHASM_DEPTH):
 					# Open, and nothing placed in it (no ledge, lift or moon to cross on).
 					var c: Vector2i = v + Vector2i(0, d)
-					shaped = shaped and (d == 0 or not w.is_valid(c) or w.get_cell(c).type in [MapInfo.Type.EMPTY, MapInfo.Type.GROUND])
+					shaped = shaped and (d == 0 or not w.is_valid(c) or w.get_cell(c).type in [MapInfo.Type.EMPTY, MapInfo.Type.GROUND, MapInfo.Type.CRACKED])
 				shaped = shaped and w.get_cell(v + Vector2i(0, MapInfo.World.CHASM_DEPTH)).type == MapInfo.Type.SPIKES
-			shaped = shaped and w.is_ground((chasm["left"] as Vector2i) + Vector2i.DOWN) and w.is_ground((chasm["right"] as Vector2i) + Vector2i.DOWN)
+			for edge: Vector2i in [chasm["left"], chasm["right"]]:
+				shaped = shaped and w.get_cell(edge + Vector2i.DOWN).type in [MapInfo.Type.GROUND, MapInfo.Type.CRACKED]
 			check(shaped, "%s: chasm %d is %d across between floors, thorns at its bottom, planks over it" % [at, id, planks.size()])
 			var bells: int = 0
+			var sides: Dictionary = {}
 			for v: Vector2i in w.objects:
-				if w.get_cell(v).type == MapInfo.Type.BELL and int(w.get_cell(v).extra_info) == id:
+				if w.get_cell(v).type == MapInfo.Type.BELL and int((w.get_cell(v).extra_info as Array)[0]) == id:
 					bells += 1
-					check(v.y == row and w.ground_below(v), "%s: its bell stands on the floor beside it" % at)
-			check(bells == 1, "%s: chasm %d has one bell" % [at, id])
+					sides[signi(v.x - (planks[0] as Vector2i).x)] = true
+					# Rock under it (maybe cracked: broken, a ledge takes its place, MapInfo.prop_up).
+					check(v.y == row and w.get_cell(v + Vector2i.DOWN).type in [MapInfo.Type.GROUND, MapInfo.Type.CRACKED], "%s: its bell stands on the floor beside it" % at)
+					var lock: int = int((w.get_cell(v).extra_info as Array)[1])
+					if lock == -1:
+						var levers: int = 0
+						for q: Vector2i in w.objects:
+							if w.get_cell(q).type == MapInfo.Type.SWITCH and w.get_cell(q).extra_info == v:
+								levers += 1
+								check(absi(q.x - v.x) + absi(q.y - v.y) >= MapInfo.World.BELL_SWITCH and w.ground_below(q), "%s: its switch stands on a floor away from it" % at)
+						check(levers == 1, "%s: a bell chained to a switch has one" % at)
+					else:
+						check(lock < MapInfo.KEY_COLOR_COUNT, "%s: or a padlock in a key colour (%d)" % [at, lock])
+			check(bells == 2 and sides.has(-1) and sides.has(1), "%s: chasm %d has a bell on each side" % [at, id])
 	var garden_def: NextWorldDef = MapInfo.def_for(Vector2i(28, 1))
 	var garden: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", garden_def), garden_def)
 	check(count(garden, MapInfo.Type.MOTHS) + count(garden, MapInfo.Type.FOG) + count(garden, MapInfo.Type.WRAITH) == 0, "none of it in the garden")
@@ -171,8 +185,26 @@ func bridges() -> void:
 	# Below where the planks' tops would be (130 px under the start, less half a cell).
 	check(player.global_position.y > over.y + 160.0, "the wizard falls into it")
 	player.set_physics_process(false)
+	# Chained up: struck or rung, it only rattles.
+	KeyRing.clear(player)
 	bell.call("hex_hit", 1, Vector2.RIGHT)
-	check(bool(bell.call("rung")) and info.bridge_up(id), "a hex bolt rings the bell, and the record keeps it")
+	bell.call("use")
+	check(not bool(bell.call("unchained")) and not bool(bell.call("rung")) and not info.bridge_up(id), "chained, the bell only rattles")
+	var lock: int = int(bell.get("lock"))
+	if lock >= 0:
+		# Its padlock opens to a key of its colour (kept, as keys are).
+		KeyRing.set_all(player, [lock])
+		bell.call("use")
+		check(bool(bell.call("unchained")) and KeyRing.has(player, lock), "a key of the padlock's colour frees it")
+	else:
+		var lever: Node = placed("switch.tscn").filter(func(n: Node) -> bool: return n.get("gate_cell") == bell.get_meta(&"cell"))[0]
+		lever.call("flip")
+		check(bool(bell.call("unchained")), "throwing its switch frees it")
+	check(info.bell_free(bell.get_meta(&"cell")), "the record keeps it free")
+	var other: Node = bells.filter(func(b: Node) -> bool: return b != bell and int(b.get("chasm")) == id)[0]
+	check(not bool(other.call("unchained")), "the bell across the chasm is still chained: each has its own chain")
+	bell.call("hex_hit", 1, Vector2.RIGHT)
+	check(bool(bell.call("rung")) and info.bridge_up(id), "then a hex bolt rings the bell, and the record keeps it")
 	for i: int in range(60):
 		await physics_frame
 	check(planks.all(func(n: Node) -> bool: return bool(n.call("up")) and not bool((n.get_node("CollisionShape2D") as CollisionShape2D).disabled)), "the bridge lays itself across")
@@ -222,22 +254,25 @@ func fog() -> void:
 
 func moths() -> void:
 	print("moths")
-	var lantern: Node = null
-	for n: Node in info.map_elements.get_children():
-		if n is Checkpoint and not info.is_lantern_spent(n):
-			lantern = n
-			break
 	var swarms: Array[Node] = placed("moths.tscn")
 	check(not swarms.is_empty(), "moth swarms in the level")
+	# An unspent lantern with a swarm near enough for it to draw.
+	var lantern: Node = null
 	var swarm: MothSwarm = null
-	var glass: Vector2 = (lantern as Node2D).global_position
-	for s: Node in swarms:
-		if (s as MothSwarm).home.distance_to(glass) <= MothSwarm.DRAW:
-			swarm = s as MothSwarm
-	check(swarm != null, "one waits near the lantern")
+	var glass: Vector2 = Vector2.ZERO
+	for n: Node in info.map_elements.get_children():
+		if not (n is Checkpoint) or info.is_lantern_spent(n):
+			continue
+		for s: Node in swarms:
+			if swarm == null and (s as MothSwarm).home.distance_to((n as Node2D).global_position) <= MothSwarm.DRAW - 100.0:
+				swarm = s as MothSwarm
+				lantern = n
+				glass = (n as Node2D).global_position
+	check(swarm != null, "one waits near a lantern")
 	if swarm == null:
 		return
-	player.global_position = glass + Vector2(0, -3000)
+	# Near enough that this part of the level is awake, too far to be stung.
+	player.global_position = glass + Vector2(0, -420)
 	info.light_lantern(lantern)
 	var before: float = swarm.global_position.distance_to(swarm.target())
 	for i: int in range(60):
@@ -253,6 +288,10 @@ func moths() -> void:
 	player.health.health = player.health.max_health
 	swarm.hex_hit(1, Vector2.RIGHT)
 	check(swarm.is_scattered(), "a hex scatters them")
+	# Any other swarm the lantern drew is scattered too, so only these moths are near the wizard.
+	for other: Node in swarms:
+		if other != swarm:
+			(other as MothSwarm).scatter(Vector2.LEFT)
 	player.invulnerable.end()
 	hp = player.health.health
 	player.global_position = swarm.global_position + Vector2(0, 40)

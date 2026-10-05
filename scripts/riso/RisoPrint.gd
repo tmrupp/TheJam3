@@ -38,6 +38,9 @@ const REALMS: Dictionary = {
 	&"aurora": {"paper": Color("#e2eadf"), "inks": [Color("#0f2a2c"), Color("#00838a"), Color("#ff48b0"), Color("#765ba7"), Color("#ffe800")]},
 	## Hyperspace's own: violet rock, aqua stars, on a cold paper (not in the F8 cycle).
 	&"hyperspace": {"paper": Color("#e6e4f0"), "inks": [Color("#0d0a26"), Color("#5a3d9a"), Color("#ff48b0"), Color("#5ec8e5"), Color("#ffe800")]},
+	## The garden's own: green rock and sun-gold stars under a deep green night, on a warm paper
+	## (not in the F8 cycle; NextWorldDef.realm).
+	&"garden": {"paper": Color("#e7e6d6"), "inks": [Color("#13241c"), Color("#3f7a4c"), Color("#ff48b0"), Color("#ffb511"), Color("#ffe800")]},
 	## The cemetery's own: slate rock, violet stars and candlelight, on bone paper (not in the F8
 	## cycle; NextWorldDef.realm).
 	&"cemetery": {"paper": Color("#e3e1d8"), "inks": [Color("#1d2125"), Color("#5e695e"), Color("#ff48b0"), Color("#9d7ad2"), Color("#ffe800")]},

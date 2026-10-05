@@ -59,6 +59,14 @@ func capture() -> void:
 	for i: int in range(90):
 		await process_frame
 	root.get_texture().get_image().save_png(output.path_join("garden_fences.png"))
+	# A gate in the garden, padlocked in its key's colour.
+	for n: Node in info.map_elements.get_children():
+		if n.scene_file_path.get_file() == "door.tscn":
+			player.global_position = (n as Node2D).global_position + Vector2(-150, 0)
+			break
+	for i: int in range(90):
+		await process_frame
+	root.get_texture().get_image().save_png(output.path_join("garden_gate.png"))
 	info.coord = Vector2i(28, 3)
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
@@ -73,6 +81,12 @@ func capture() -> void:
 	var wraith: Node2D = first("wraith_enemy.tscn")
 	if wraith != null:
 		await look(wraith.global_position, "cemetery_wraith.png")
+		# Chasing: its eyes light up pink.
+		player.global_position = wraith.global_position + Vector2(380, 0)
+		player.invulnerable.enable()
+		for i: int in range(20):
+			await physics_frame
+		await look(wraith.global_position, "cemetery_wraith_chasing.png", 5)
 	# Light the lantern by the way in: the moths come to it.
 	var lantern: Node2D = null
 	for n: Node in info.map_elements.get_children():
@@ -85,6 +99,12 @@ func capture() -> void:
 		for i: int in range(600):
 			await physics_frame
 		await look(lantern.global_position + Vector2(0, -60), "cemetery_moths.png", 10)
+		# Scattered by a hex: faint, a pink point where they will gather.
+		for n: Node in info.map_elements.get_children():
+			if n is MothSwarm and (n as MothSwarm).drawn_to == &"lantern":
+				(n as MothSwarm).scatter(Vector2.RIGHT)
+		await create_timer(0.6).timeout
+		await look(lantern.global_position + Vector2(0, -60), "cemetery_moths_scattered.png", 5)
 	var fog: Node2D = first("sleep_fog.tscn")
 	if fog != null:
 		Abilities.grant(player, &"hex")
@@ -104,6 +124,8 @@ func capture() -> void:
 			if n.scene_file_path.get_file() == "bridge.tscn" and int(n.get("chasm")) == int(bell.get("chasm")):
 				span = span.lerp((n as Node2D).global_position, 0.5)
 		await look(span + Vector2(0, -60), "cemetery_chasm.png")
+		await look(bell.global_position + Vector2(40, -80), "cemetery_bell.png", 10)
+		bell.call("open")
 		bell.call("ring")
 		await create_timer(0.35).timeout
 		root.get_texture().get_image().save_png(output.path_join("cemetery_bridge_laying.png"))
