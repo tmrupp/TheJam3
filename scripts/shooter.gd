@@ -3,8 +3,9 @@ extends Node2D
 ## charging toward a shot; when the charge is full it fires and starts again. The moment it loses
 ## sight the charge resets, so breaking line of sight buys a full cooldown.
 
-var cooldown: float = 2.2
-var SPEED: int = 100
+## Seconds of charge (in sight) to a shot, and the shot's speed (px/s): few shots, but quick ones.
+var cooldown: float = 3.5
+var SPEED: int = 260
 var projectile_prefab: Resource = preload("res://prefabs/bullet.tscn")
 @onready var shoot_point: Node2D = $ShootPoint
 @onready var range_box: Area2D = $RangeBox

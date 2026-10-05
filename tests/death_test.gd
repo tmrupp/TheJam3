@@ -72,11 +72,13 @@ func run() -> void:
 	player.collect(5)
 	player.position += Vector2(300, 0)
 	var died_at: Vector2 = player.position
-	player.die()
+	player.health.modify_health(-player.health.health)
 	# Checked at once: once respawned, the wizard may pick up a star by the lantern.
 	check(player.coins.coins == 0, "the player carries none")
 	await settle()
 	player.set_physics_process(false)
+	check(player.health.health == 1 and player.health.health_icons.size() == 1, "lethal damage respawns with one heart, including the HUD")
+	check(int(MapInfo.read_save().get("health", 0)) == 1, "the death save stores one heart")
 	check(info.vulnerable, "death consumes the lantern's protection")
 	check(info.has_ghost and info.ghost_stars == 5 and info.ghost_coord == Vector2i(28, 0), "the ghost holds all 5 stars")
 	check(ghosts().size() == 1 and (ghosts()[0] as Node2D).position == died_at, "the ghost stands where they died")
@@ -86,6 +88,14 @@ func run() -> void:
 	check(player.global_position.distance_to(info.respawn_marker.global_position) < 80.0, "respawned at the lantern that absorbed the death")
 	start_lantern.call("interacted")
 	check(info.vulnerable and info.is_lantern_spent(start_lantern), "the same lantern cannot be relit for a free life")
+	check(info.continue_run(), "the wounded respawn can be continued")
+	await settle()
+	player.set_physics_process(false)
+	check(player.health.health == 1, "save/reload keeps the respawn at one heart")
+	Abilities.grant(player, &"mend")
+	var mend: Mend = player.get_node("Mend") as Mend
+	check(mend.cast() and player.health.health == 2 and info.has_ghost, "Mend can heal a respawn heart before corpse retrieval")
+	Abilities.set_tier(player, &"mend", 0)
 
 	print("fresh stars")
 	for i: int in range(8):
@@ -111,6 +121,7 @@ func run() -> void:
 	ghosts()[0].call("touch", player)
 	await settle(1)
 	check(player.coins.coins == before_ghost + 5 and info.vulnerable and not info.has_ghost, "the ghost returns its stars but leaves the lantern spent")
+	check(player.health.health == player.health.max_health and player.health.health_icons.size() == player.health.max_health, "corpse retrieval restores full health and its HUD")
 	check(ghosts().is_empty(), "the ghost is gone")
 	await process_frame
 	check(main.get_node("RisoHud").get("lantern_lit") == false, "the HUD still shows how to restore protection after ghost recovery")
@@ -154,6 +165,7 @@ func run() -> void:
 	player.set_physics_process(false)
 	other = lanterns().filter(func(n: Node) -> bool: return n.get_meta(&"cell") == other_cell)[0]
 	check(info.coord == other_coord and info.vulnerable and info.is_lantern_spent(other), "death in another world burns the lit respawn lantern and returns there")
+	check(player.health.health == 1, "a direct cross-world death also respawns with one heart")
 	check(info.has_ghost and info.ghost_coord == start_coord and info.ghost_stars == carried, "its ghost stays in the world where the player died")
 	info.travel(MapInfo.Exit.LEFT)
 	await settle()
@@ -161,6 +173,7 @@ func run() -> void:
 	fresh = lanterns().filter(func(n: Node) -> bool: return not info.is_lantern_spent(n))[0]
 	fresh.call("interacted")
 	check(not info.vulnerable and info.has_ghost, "a different lantern protects another death without needing the ghost")
+	check(player.health.health == 1, "lighting another lantern does not heal the respawn")
 	player.global_position = (fresh as Node2D).global_position
 	player.collect(3)
 	player.die()
@@ -182,6 +195,7 @@ func run() -> void:
 	check(info.coord == Vector2i(28, 0), "a new run starts at (28, 0)")
 	check(player.coins.coins == 0 and not player.has_meta(&"carried_key"), "with no stars and no key")
 	check(not info.vulnerable and not info.has_ghost and ghosts().is_empty(), "no ghost, not vulnerable")
+	check(player.health.health == player.health.max_health, "a fresh run starts at full health")
 	check(lanterns().any(info.is_respawn_lantern) and not info.record().has("spent_lanterns"), "the new run starts with a fresh lit lantern")
 	check(coins().size() > 0 and info.records.size() == 1, "and fresh level records")
 	check(player.visible and player.is_physics_processing(), "the wizard is back in play")

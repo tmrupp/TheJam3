@@ -100,7 +100,12 @@ func populate(w: MapInfo.World) -> void:
 	var back: Vector2i = Vector2i(3, FLOOR - 1)
 	var gate: Vector2i = Vector2i(WIDTH - 5, FLOOR - 1)
 	var back_lantern: Vector2i = back + Vector2i(4, 0)
-	var gate_lantern: Vector2i = gate - Vector2i(4, 0)
+	# The previous four-cell offset put this just outside the flattened end, over random air.
+	var gate_lantern: Vector2i = Vector2i(WIDTH - ENDS, FLOOR - 1)
+	# Cave joining can tunnel through an end's floor; keep a permanent footing under its lantern.
+	for lantern: Vector2i in [back_lantern, gate_lantern]:
+		if not w.is_ground(lantern + Vector2i.DOWN):
+			w._to_rock(lantern + Vector2i.DOWN)
 	_put(w, back, MapInfo.Type.EXIT, MapInfo.Exit.BACK)
 	_put(w, back_lantern, MapInfo.Type.CHECKPOINT)
 	_put(w, gate, MapInfo.Type.EXIT, MapInfo.Exit.DEEPER)

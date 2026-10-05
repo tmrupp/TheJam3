@@ -329,6 +329,11 @@ func moths() -> void:
 	for other: Node in swarms:
 		if other != swarm:
 			(other as MothSwarm).scatter(Vector2.LEFT)
+	# Nothing else that stings near where the wizard will stand (whatever the level put there).
+	for n: Node in info.map_elements.get_children():
+		if n != swarm and (n.has_node("Wound") or n.scene_file_path.get_file() == "spikes.tscn") and (n as Node2D).global_position.distance_to(swarm.global_position) < 500.0:
+			n.queue_free()
+	await physics_frame
 	player.invulnerable.end()
 	hp = player.health.health
 	player.global_position = swarm.global_position + Vector2(0, 40)

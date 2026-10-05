@@ -7,7 +7,7 @@ The main game is presented as a risograph "tarot print": flat ink shapes drawn i
 | Key | Action |
 | --- | --- |
 | F6 | Print on/off (off restores the original sprites, stretch mode and cull mask) |
-| F7 | Print controls (scrolls): print detail, sheet rate, zoom, plate offset, UI detail, specks (missed-ink flecks of bare paper; 20% by default), registration (new sheet / locked / drift), reprint on clock or motion, cut or blend between sheets, realm, plates (independent / trapped), portals (TV static / ripples), cemetery fog, and an Abilities section that sets any ability's tier outright (a spell above none takes the slot) |
+| F7 | Print controls (scrolls): print detail, sheet rate, zoom, plate offset, UI detail, specks (missed-ink flecks of bare paper; 20% by default), registration (new sheet / locked / drift), reprint on clock or motion, cut or blend between sheets, realm, plates (independent / trapped), portals (TV static / ripples), cemetery fog, sky bottoms (Roots, Clouds, Clouds & roots; live cosmetic changes), a Keys section to equip or remove each shaped key and adjust skeleton keys (respecting keyring capacity), and an Abilities section that sets any ability's tier outright (a spell above none takes the slot) |
 | F8 | Cycle realm (deep night, twilight, aurora) |
 
 Launch with `godot --path . -- --no-riso` to start with the print off.
@@ -48,10 +48,10 @@ Torn ribbons and the ribbons in the blend have a wider pink band along their upp
 ## Interface
 
 - **Surface decor** (`RisoDecor.gd`): small printed props that make the grotto feel lived in. They never affect gameplay.
-  - **Floors:** grass tufts, moon-flowers, mushroom clusters, stones.
+  - **Floors:** grass tufts, moon-flowers, mushroom clusters, stones; in the garden, hedges in runs of 2–5 cells along stretches of floor (a band of moss leafage with rounded tops, behind the fences).
   - **Ceilings:** hanging roots, stalactites, ink drips.
   - **Walls:** leafy vines.
-  - **Placement:** every choice is a hash of the level seed and cell, so a level always wears the same decor. The world's RNG is untouched. Props stay inside the level and clear of structures (exits, shrine, doors, lanterns, thorns, portals, orbs, lifts, bells, switches, switch gates, keys, relics) and the cells either side of them, with a wider stretch kept clear by the tall ones. Decor is background: it prints at z -15 (fences at -16), under the lantern light (-12), every prop (2), the wizard's trail (9) and the wizard (10), so keeping it off structures means nothing of it shows over or through them.
+  - **Placement:** every choice is a hash of the level seed and cell, so a level always wears the same decor. The world's RNG is untouched. Props stay inside the level and clear of structures (exits, shrine, doors, lanterns, thorns, portals, orbs, lifts, bells, switches, switch gates, keys, relics) and the cells either side of them, with a wider stretch kept clear by the tall ones. Decor is background: it prints at z -15 (fences at -16, the garden's hedges behind them at -17), under the lantern light (-12), every prop (2), the wizard's trail (9) and the wizard (10), so keeping it off structures means nothing of it shows over or through them.
   - **Drawing:** props are sketched and then grown ×2 from where they sprout. They are batched onto one ink canvas per 16×16 chunk and drawn once per level.
 - **Sway:** plants (tufts, moon-flowers, roots, vines) are drawn live on screen. They sway in a slow breeze and spring away from the wizard as they brush past, more so when moving fast. Lanterns rock on their hooks the same way. Static decor (stones, mushrooms) stays batched.
 - **Awareness pointers** (`RisoHud`): arrows at the edge of the view with a mark for each sensed thing off screen. Exit arches are pink for deeper; the ink well, shrine and keys get their own marks. Overlapping pointers are dropped.

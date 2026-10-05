@@ -20,16 +20,16 @@ func modify_health (delta: int) -> void:
 		camera.shake(15, 0.5)
 	
 	if health <= 0:
-		health = max_health
 		player.die()
 		
 	display_health()
 
 func display_health () -> void:
-	var d: int = len(health_icons) - health
+	# Never fewer than no hearts (two hits in one moment can take health below zero).
+	var d: int = len(health_icons) - maxi(health, 0)
 	
 	if d > 0:
-		for i: int in range(d):
+		for i: int in range(mini(d, len(health_icons))):
 			var hi: Node = health_icons[-1]
 			health_icons.erase(hi)
 			hi.queue_free()

@@ -575,6 +575,14 @@ class World:
 		mover.extra_info = [run_cells.size(), axis, travel]
 		set_cell(left, mover)
 
+	## How far apart (cells, across plus down) the two ends of a pair of teleporters are at least: a
+	## quarter of the level's width and height together, at least PORTAL_APART.
+	const PORTAL_APART: int = 12
+
+	func portal_apart () -> int:
+		@warning_ignore("integer_division")
+		return maxi(PORTAL_APART, (size.x + size.y) / 4)
+
 	## A random empty cell passing `f`, taken out of `empties` (into `objects`), or null. Unforced, it
 	## draws once; forced, it keeps drawing, and after FORCE_DRAWS misses takes the first match in
 	## order, or gives up (null) if no cell passes (a sparse sky level can run out of floors).
@@ -702,9 +710,14 @@ class World:
 
 		#place pairs of portals in the stage and connect them to each other
 		#by telling each portal the coords of its partner in the extra_info
+		# The two ends of a pair at least portal_apart() cells apart (no pair where no floor is that far).
+		var apart: int = portal_apart()
 		for i: int in range(per_area(PORTAL_PAIRS_PER_K)):
 			var pos1: Variant = pop_if_random_empty(ground_below, true)
-			var pos2: Variant = pop_if_random_empty(ground_below, true)
+			var pos2: Variant = null
+			if pos1 != null:
+				var first: Vector2i = pos1
+				pos2 = pop_if_random_empty(func(v: Vector2i) -> bool: return ground_below(v) and absi(v.x - first.x) + absi(v.y - first.y) >= apart, true)
 			# Out of floors for a pair (a sparse sky level): no more portals.
 			if pos1 == null or pos2 == null:
 				if pos1 != null:
@@ -852,7 +865,7 @@ class World:
 	## is cut, up to `want`. Each is laid out as a cut chasm is, its first cell the row under the
 	## floor.
 	func _span_gaps (want: int) -> void:
-		var floor_at: Callable = func(v: Vector2i) -> bool: return is_valid(v) and get_cell(v).type == Type.EMPTY and is_ground(v + Vector2i.DOWN)
+		var floor_at: Callable = func(v: Vector2i) -> bool: return is_valid(v) and get_cell(v).type == Type.EMPTY and is_ground(v + Vector2i.DOWN) and _open(v + Vector2i.UP)
 		var air: Callable = func(v: Vector2i) -> bool: return is_valid(v) and get_cell(v).type == Type.EMPTY
 		var found: Array = []
 		for y: int in range(3, size.y - 3):
@@ -893,6 +906,12 @@ class World:
 			var a: int = pick[1]
 			var w: int = pick[2]
 			found = _apart(found, y, a, w)
+			# A gust holds its passenger level. Bring the landing shore up to that row, so a
+			# lower shelf with rock behind it cannot trap them against its wall in midair.
+			for x: int in range(a + w, a + w + GAP_SHORE):
+				_to_open(Vector2i(x, y - 1))
+				_to_open(Vector2i(x, y))
+				_to_rock(Vector2i(x, y + 1))
 			var id: int = chasms.size()
 			var planks: Array[Vector2i] = []
 			for x: int in range(a, a + w):
@@ -917,9 +936,9 @@ class World:
 	## Causeways laid (link_isles): one fewer than the clusters when every cluster is reached.
 	var links: int = 0
 	## Open air at least this wide between clusters side by side, or this tall between stacked ones.
-	const ISLE_GAP: Vector2i = Vector2i(8, 6)
+	const ISLE_GAP: Vector2i = Vector2i(4, 3)
 	## A cluster with less rock than this share of its area gets more islands (_stamp_islands).
-	const ISLE_ROCK: float = 0.28
+	const ISLE_ROCK: float = 0.42
 
 	## Per cell, the least growth (0..ISLE_REACH) of some cluster's ellipse that takes it in, 255 if
 	## none does (map_isles): in_isle looks it up once the clusters are settled.
@@ -995,19 +1014,19 @@ class World:
 		link_isles()
 
 	## Islands laid in the cluster at `c` (radii `r`) until about `want` more cells of rock: each as
-	## the sample draws them (tests/make_sky_sample.gd), a flat top 3 to 7 cells wide over a body that
-	## tapers a cell each side per row below the first (2 or 3 rows), with two cells of air beside it,
-	## three rows over it and two under it clear of any other rock.
+	## the sample draws them (tests/make_sky_sample.gd), a flat top 3 to 6 cells wide over a body that
+	## tapers a cell each side per row below the first (2 or 3 rows). One cell beside and below,
+	## and two rows above stay open, leaving headroom and hops between the denser shelves.
 	func _stamp_islands (c: Vector2i, r: Vector2i, want: int) -> void:
-		for attempt: int in range(120):
+		for attempt: int in range(350):
 			if want <= 0:
 				return
-			var w: int = rng.randi_range(3, 7)
+			var w: int = rng.randi_range(3, 6)
 			var h: int = rng.randi_range(2, 3)
-			var at: Vector2i = Vector2i(rng.randi_range(c.x - r.x, c.x + r.x - w), rng.randi_range(c.y - r.y + 3, c.y + r.y - h))
+			var at: Vector2i = Vector2i(rng.randi_range(c.x - r.x, c.x + r.x - w), rng.randi_range(c.y - r.y + 2, c.y + r.y - h))
 			var fits: bool = true
-			for x: int in range(at.x - 2, at.x + w + 2):
-				for y: int in range(at.y - 3, at.y + h + 2):
+			for x: int in range(at.x - 1, at.x + w + 1):
+				for y: int in range(at.y - 2, at.y + h + 1):
 					var v: Vector2i = Vector2i(x, y)
 					if not is_valid(v) or get_cell(v).type != Type.EMPTY:
 						fits = false
@@ -2377,8 +2396,6 @@ func can_give_up () -> bool:
 func give_up () -> bool:
 	if not can_give_up():
 		return false
-	player.health.health = player.health.max_health
-	player.health.display_health()
 	player.die()
 	return true
 
@@ -2451,6 +2468,8 @@ func player_died (pos: Vector2) -> void:
 	if vulnerable:
 		end_run()
 		return
+	player.health.health = 1
+	player.health.display_health()
 	_clear_ghost()
 	has_ghost = true
 	ghost_coord = coord
@@ -2473,7 +2492,7 @@ func _respawn_everything () -> void:
 	for c: Vector2i in records:
 		(records[c] as Dictionary)["slain"] = {}
 
-## Touching the ghost returns its stars. It cannot restore lantern protection.
+## Touching the ghost returns its stars and restores full health, but not lantern protection.
 func recover_ghost () -> void:
 	if not has_ghost:
 		return
@@ -2481,6 +2500,8 @@ func recover_ghost () -> void:
 	var at: Vector2 = ghost_pos
 	_clear_ghost()
 	player.collect(stars)
+	player.health.health = player.health.max_health
+	player.health.display_health()
 	RisoFx.burst(&"gain", at, Vector2.ZERO, [RisoPrint.GLOW, RisoPrint.ACCENT])
 	save_run()
 

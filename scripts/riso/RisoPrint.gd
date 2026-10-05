@@ -119,6 +119,10 @@ var portal_style: StringName = &"static"
 const FOG_STYLES: Array[StringName] = [&"original", &"shroud", &"breath", &"bleed", &"faces", &"incense", &"shroud_breath"]
 const FOG_STYLE_NAMES: Array[String] = ["Original bands", "Torn ribbons", "Billowing bank", "Ragged ink", "Spectral billows", "Smoke plumes", "Billows & ribbons"]
 var fog_style: StringName = &"shroud"
+## Sky underside experiments change only printed geometry, never the terrain's collisions.
+const SKY_BOTTOM_STYLES: Array[StringName] = [&"roots", &"clouds", &"clouds_roots"]
+const SKY_BOTTOM_NAMES: Array[String] = ["Roots", "Clouds", "Clouds & roots"]
+var sky_bottom_style: StringName = &"roots"
 ## How much finer than the scene the UI prints, 0 (the same) to 1 (UI_* in full).
 var ui_detail: float = 0.7
 ## Camera zoom while printing, relative to the scene's own zoom (smaller shows more).
@@ -733,6 +737,10 @@ func world_built(map_info: Node, _world_index: int) -> void:
 		set_realm(own)
 	elif own == &"" and not REALM_ORDER.has(realm):
 		set_realm(_realm_outside)
+	_rebuild_ground(map_info)
+
+
+func _rebuild_ground(map_info: Node) -> void:
 	if terrain != null and is_instance_valid(terrain):
 		var ledges: Array[Vector2] = []
 		var cracked: Array[Vector2] = []
@@ -938,6 +946,8 @@ var _zoom_label: Label
 var _offset_label: Label
 var _ui_detail_label: Label
 var _specks_label: Label
+var _skeleton_label: Label
+var _key_capacity_label: Label
 var _options: Dictionary = {}
 
 
@@ -986,6 +996,24 @@ func _build_panel() -> void:
 	_option_row(box, &"plates", "Plates", ["Independent", "Trapped"], func(i: int) -> void: trapped = i == 1)
 	_option_row(box, &"portal", "Portals", ["TV static", "Ripples"], func(i: int) -> void: portal_style = PORTAL_STYLES[i])
 	_option_row(box, &"fog", "Fog shape", FOG_STYLE_NAMES, func(i: int) -> void: fog_style = FOG_STYLES[i])
+	_option_row(box, &"sky_bottoms", "Sky bottoms", SKY_BOTTOM_NAMES, func(i: int) -> void:
+		sky_bottom_style = SKY_BOTTOM_STYLES[i]
+		if _map_info != null and is_instance_valid(_map_info) and (_map_info.get("here") as NextWorldDef).sky():
+			_rebuild_ground(_map_info)
+		_sync_panel())
+	var key_heading: Label = Label.new()
+	key_heading.text = "Keys"
+	key_heading.add_theme_font_size_override("font_size", 6)
+	box.add_child(key_heading)
+	_key_capacity_label = Label.new()
+	_key_capacity_label.add_theme_font_size_override("font_size", 6)
+	box.add_child(_key_capacity_label)
+	var shapes: Array[String] = ["Square", "Triangle", "Circle", "Diamond"]
+	for color: int in range(MapInfo.KEY_COLOR_COUNT):
+		_option_row(box, StringName("key_" + str(color)), shapes[color] + " key", ["None", "Equipped"], func(i: int) -> void: _equip_panel_key(color, i == 1))
+	_skeleton_label = _stepper_row(box, "Skeleton keys", func(d: int) -> void:
+		if _player != null and is_instance_valid(_player):
+			KeyRing.set_skeletons(_player, maxi(0, KeyRing.skeletons(_player) + d)))
 	# Abilities: set any tier outright (a spell above 0 takes the slot).
 	var heading: Label = Label.new()
 	heading.text = "Abilities"
@@ -998,8 +1026,22 @@ func _build_panel() -> void:
 		_option_row(box, StringName("ability_" + String(a)), String(Abilities.NAMES[a]) + (" (spell)" if a in Abilities.SPELLS else ""), items, func(i: int) -> void:
 			if _player != null and is_instance_valid(_player):
 				Abilities.set_tier(_player, a, i)
+				if a == &"keyring":
+					KeyRing.set_all(_player, KeyRing.all(_player))
 			_sync_panel())
 	_option_row(box, &"robe", "Robe", ["Spell colour", "Blue"], func(i: int) -> void: robe_by_spell = i == 0)
+	_sync_panel()
+
+
+## Debug equipment uses the same ring as pickups: a full ring replaces its oldest key.
+func _equip_panel_key(color: int, equipped: bool) -> void:
+	if _player == null or not is_instance_valid(_player):
+		return
+	if equipped:
+		if not KeyRing.has(_player, color):
+			KeyRing.take(_player, color)
+	else:
+		KeyRing.set_all(_player, KeyRing.all(_player).filter(func(c: int) -> bool: return c != color))
 	_sync_panel()
 
 
@@ -1190,6 +1232,8 @@ func _sync_panel() -> void:
 		(_options[&"portal"] as OptionButton).select(PORTAL_STYLES.find(portal_style))
 	if _options.has(&"fog"):
 		(_options[&"fog"] as OptionButton).select(FOG_STYLES.find(fog_style))
+	if _options.has(&"sky_bottoms"):
+		(_options[&"sky_bottoms"] as OptionButton).select(SKY_BOTTOM_STYLES.find(sky_bottom_style))
 	if _options.has(&"realm"):
 		(_options[&"realm"] as OptionButton).select(REALM_ORDER.find(realm))
 	if _options.has(&"reprint"):
@@ -1201,6 +1245,10 @@ func _sync_panel() -> void:
 	if _options.has(&"robe"):
 		(_options[&"robe"] as OptionButton).select(0 if robe_by_spell else 1)
 	if _player != null and is_instance_valid(_player):
+		_key_capacity_label.text = "Ring: %d / %d  (Keyring adds slots)" % [KeyRing.all(_player).size(), KeyRing.capacity(_player)]
+		_skeleton_label.text = str(KeyRing.skeletons(_player))
+		for color: int in range(MapInfo.KEY_COLOR_COUNT):
+			(_options[StringName("key_" + str(color))] as OptionButton).select(1 if KeyRing.has(_player, color) else 0)
 		for a: StringName in Abilities.ORDER:
 			var key: StringName = StringName("ability_" + String(a))
 			if _options.has(key):

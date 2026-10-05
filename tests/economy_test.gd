@@ -279,6 +279,11 @@ func giving_up() -> void:
 	menu.call("pause_resume_game")
 	check(bool(menu.get("give_up_button").visible), "in the pause menu")
 	player.collect(4)
+	# The level's stars are all taken already, so the wizard picks none up on the way back.
+	for n: Node in info.map_elements.get_children():
+		if n.scene_file_path.get_file() == "coin.tscn" and n.has_meta(&"cell"):
+			info.record()["taken"][n.get_meta(&"cell")] = true
+			n.queue_free()
 	player.global_position += Vector2(200, 0)
 	menu.call("give_up")
 	check(not paused, "giving up closes the menu")
@@ -289,7 +294,7 @@ func giving_up() -> void:
 	check(info.vulnerable and info.is_lantern_spent(lantern), "it is a death: the lantern burns out")
 	check(info.has_ghost and info.ghost_stars == 4 and player.coins.coins == 0, "the stars drop into a ghost")
 	check(player.global_position.distance_to(info.respawn_marker.global_position) < 80.0, "back at the lantern")
-	check(player.health.health == player.health.max_health, "at full health")
+	check(player.health.health == 1, "giving up respawns at one heart")
 
 
 func cluster() -> void:

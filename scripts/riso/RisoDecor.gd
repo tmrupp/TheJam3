@@ -2,14 +2,15 @@ extends Node2D
 class_name RisoDecor
 ## Decor for the surface grotto: small printed props that make the rock feel lived in, never
 ## part of the gameplay.
-## - Floors: grass tufts, moon-flowers, mushrooms, stones.
+## - Floors: grass tufts, moon-flowers, mushrooms, stones; and hedges (shrub_runs): low runs of
+##   rounded leafage along stretches of floor, as long as the stretch allows, behind the fences.
 ## - Ceilings: hanging roots, stalactites, ink drips (RisoAmbient drops ink from them).
 ## - Walls: vines down the rock face.
 ## A cemetery (NextWorldDef.archetype) has its own: headstones (rounded, gothic, cross-topped,
 ## broken, flat ledgers), crosses, obelisks, urns, angels, grave flowers, bare trees and dry grass
 ## on its floors, cobwebs and roots under its ceilings, ivy on its walls.
 ## The sky has its own too: grass, flowers and stones on its islands, standing stones, stone piles
-## and windsocks where there is headroom, roots and wisps of cloud hanging under them, vines down
+## and windsocks where there is headroom, scattered roots and wisps under them, vines down
 ## their sides.
 ## Behind them, in a lighter ink on a layer of their own, fences run along stretches of floor
 ## (fence_runs): white wooden pickets in the garden, iron railings between stone posts in a cemetery,
@@ -46,9 +47,14 @@ const SLOTS: Array[Array] = [
 	[RisoPrint.ACCENT, 0.9, false, true],   # 18 the sky's peace flags: sun (and moss over blue)
 	[RisoPrint.PINK, 0.55, false, true],    # 19 the sky's peace flags: plum (over blue)
 	[RisoPrint.BLUE, 0.9, false, true],     # 20 the sky's flags' blue, their poles and stone piles
+	[RisoPrint.BLUE, 1.0, false, true],     # 21 hedges: moss base (blue under the accent)
+	[RisoPrint.ACCENT, 0.85, false, false], # 22 hedges: moss
+	[RisoPrint.NIGHT, 0.3, false, false],   # 23 hedges: shade at their foot
 ]
-## Slots printed on the background layer, behind the rest of the decor.
+## Fence slots, between the hedges and the rest of the decor.
 const BACK_SLOTS: Array[int] = [15, 16, 17, 18, 19, 20]
+## Hedge slots, behind everything else (the fences in front of them).
+const HEDGE_SLOTS: Array[int] = [21, 22, 23]
 const KNOCK_ALL: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE]
 const KNOCK_ROCK: Array[int] = [RisoPrint.BLUE, RisoPrint.NIGHT]
 const STRUCTURES: Array[String] = ["level_exit.tscn", "shrine.tscn", "door.tscn", "checkpoint.tscn", "spikes.tscn",
@@ -91,7 +97,7 @@ static func h(level_seed: int, v: Vector2i, salt: int) -> float:
 
 
 ## Work out every prop for a level (pure: the same inputs always give the same plan).
-static func plan(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, archetype: StringName = &"garden") -> Array[Dictionary]:
+static func plan(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, archetype: StringName = &"garden", sky_bottom_style: StringName = &"roots") -> Array[Dictionary]:
 	if archetype == &"cemetery":
 		var graves: Array[Dictionary] = plan_cemetery(solid, occupied, level_seed, bounds)
 		for run: Dictionary in fence_runs(solid, occupied, level_seed, bounds):
@@ -99,12 +105,13 @@ static func plan(solid: Dictionary, occupied: Dictionary, level_seed: int, bound
 			graves.append(run)
 		return graves
 	if archetype == &"sky":
-		var isles: Array[Dictionary] = plan_sky(solid, occupied, level_seed, bounds)
+		var isles: Array[Dictionary] = plan_sky(solid, occupied, level_seed, bounds, sky_bottom_style)
 		for run: Dictionary in fence_runs(solid, occupied, level_seed, bounds):
 			run["bunting"] = true
 			isles.append(run)
 		return isles
 	var out: Array[Dictionary] = fence_runs(solid, occupied, level_seed, bounds)
+	out.append_array(shrub_runs(solid, occupied, level_seed, bounds))
 	var cells: Array = solid.keys()
 	cells.sort()
 	for v: Vector2i in cells:
@@ -140,6 +147,38 @@ static func plan(solid: Dictionary, occupied: Dictionary, level_seed: int, bound
 				continue
 			if h(level_seed, v, 3 + side.x) < 0.12:
 				out.append({"kind": &"vine", "cell": open, "base": v, "side": side.x})
+	return out
+
+
+## Hedges, in the garden: along stretches of floor (as fences are, but dealt on their own) at least
+## SHRUB_MIN long, about half of them, in lengths of up to SHRUB_MAX cells with a gap between. Each
+## is {kind: shrub_run, cell: its first cell, cells: its cells, base: the rock under the first}.
+const SHRUB_MIN: int = 2
+const SHRUB_MAX: int = 5
+
+
+static func shrub_runs(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var floor_at: Callable = func(v: Vector2i) -> bool: return bounds.has_point(v + Vector2i.DOWN) and not solid.has(v) and not occupied.has(v) and solid.has(v + Vector2i.DOWN)
+	for y: int in range(bounds.position.y, bounds.end.y):
+		var x: int = bounds.position.x
+		while x < bounds.end.x:
+			if not floor_at.call(Vector2i(x, y)):
+				x += 1
+				continue
+			var from: int = x
+			while x < bounds.end.x and floor_at.call(Vector2i(x, y)):
+				x += 1
+			if x - from < SHRUB_MIN or h(level_seed, Vector2i(from, y), 60) >= 0.5:
+				continue
+			var at: int = from + int(h(level_seed, Vector2i(from, y), 61) * 2.0)
+			while x - at >= SHRUB_MIN:
+				var long: int = mini(x - at, SHRUB_MIN + int(h(level_seed, Vector2i(at, y), 62) * float(SHRUB_MAX - SHRUB_MIN + 1)))
+				var cells: Array[Vector2i] = []
+				for k: int in range(long):
+					cells.append(Vector2i(at + k, y))
+				out.append({"kind": &"shrub_run", "cell": cells[0], "cells": cells, "base": cells[0] + Vector2i.DOWN})
+				at += long + 1
 	return out
 
 
@@ -229,7 +268,7 @@ static func plan_cemetery(solid: Dictionary, occupied: Dictionary, level_seed: i
 
 
 ## The sky's props (see plan).
-static func plan_sky(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i) -> Array[Dictionary]:
+static func plan_sky(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, bottom_style: StringName = &"roots") -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var cells: Array = solid.keys()
 	cells.sort()
@@ -255,16 +294,19 @@ static func plan_sky(solid: Dictionary, occupied: Dictionary, level_seed: int, b
 				kind = &"windsock"
 			if kind != &"":
 				out.append({"kind": kind, "cell": above, "base": v})
-		# Under an island (open below it, and inside the level, not hanging into the drop).
-		if not solid.has(below) and not occupied.has(below) and bounds.has_point(below):
+		# Short, scattered roots leave breathing room. Cloud-only bottoms have no hanging props;
+		# the mixed version is sparser still. None of this decor has collision.
+		if bottom_style != &"clouds" and not solid.has(below) and not occupied.has(below) and bounds.has_point(below):
 			var r: float = h(level_seed, v, 2)
-			var kind: StringName = &""
-			if r < 0.18:
-				kind = &"roots"
-			elif r < 0.4:
-				kind = &"tendril"
-			if kind != &"":
-				out.append({"kind": kind, "cell": below, "base": v})
+			var clearance: int = 0
+			for d: int in range(4):
+				var at: Vector2i = below + Vector2i(0, d)
+				if solid.has(at) or occupied.has(at) or not bounds.has_point(at):
+					break
+				clearance += 1
+			var root_share: float = 0.38 if bottom_style == &"roots" else 0.18
+			if r < root_share + 0.08:
+				out.append({"kind": &"sky_roots" if r < root_share else &"tendril", "cell": below, "base": v, "clearance": clearance})
 		for side: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT]:
 			var open: Vector2i = v + side
 			if solid.has(open) or occupied.has(open) or not solid.has(above):
@@ -302,7 +344,8 @@ func rebuild(info: MapInfo, cracked_positions: Array[Vector2] = []) -> void:
 			for d: Vector2i in [Vector2i(-2, 0), Vector2i(2, 0), Vector2i(3, 0)]:
 				occupied[c + d] = true
 	var level_seed: int = MapInfo.level_seed(info.coord.x, info.coord.y)
-	items = RisoDecor.plan(solid, occupied, level_seed, Rect2i(Vector2i.ZERO, info.world.size), info.here.archetype)
+	var bottoms: StringName = RisoPrint.instance.sky_bottom_style if RisoPrint.instance != null else &"roots"
+	items = RisoDecor.plan(solid, occupied, level_seed, Rect2i(Vector2i.ZERO, info.world.size), info.here.archetype, bottoms)
 	# Nothing grows in some side worlds (NextWorldDef.grows).
 	if not info.here.grows():
 		items.clear()
@@ -345,14 +388,14 @@ func rebuild(info: MapInfo, cracked_positions: Array[Vector2] = []) -> void:
 		canvas.queue_free()
 	canvases.clear()
 	for key: Vector2i in chunks:
-		# The background fences on a canvas of their own, behind the rest.
-		for back: bool in [true, false]:
+		# Hedges at the back, fences in front of them, then the rest of the decor.
+		for layer: int in [LAYER_HEDGE, LAYER_BACK, LAYER_FRONT]:
 			var canvas: InkCanvas = InkCanvas.new()
 			add_child(canvas)
-			canvas.z_index = -1 if back else 0
+			canvas.z_index = layer - LAYER_FRONT
 			canvases.append(canvas)
 			canvas.begin()
-			_print_slots(canvas, chunks[key], back)
+			_print_slots(canvas, chunks[key], layer)
 			canvas.finish()
 
 
@@ -364,11 +407,24 @@ func _empty_slots() -> Array:
 	return slots
 
 
-## Print the slots into `canvas`: the background ones (BACK_SLOTS) when `back`, else the rest.
-func _print_slots(canvas: InkCanvas, slots: Array, back: bool = false) -> void:
+## The decor's layers, back to front: hedges (HEDGE_SLOTS), fences (BACK_SLOTS), the rest.
+const LAYER_HEDGE: int = 0
+const LAYER_BACK: int = 1
+const LAYER_FRONT: int = 2
+
+
+## The layer slot `i` prints on.
+static func layer_of(i: int) -> int:
+	if i in HEDGE_SLOTS:
+		return LAYER_HEDGE
+	return LAYER_BACK if i in BACK_SLOTS else LAYER_FRONT
+
+
+## Print the slots of `layer` into `canvas`.
+func _print_slots(canvas: InkCanvas, slots: Array, layer: int = LAYER_FRONT) -> void:
 	for i: int in range(SLOTS.size()):
 		var polys: Array[PackedVector2Array] = slots[i]
-		if polys.is_empty() or (i in BACK_SLOTS) != back:
+		if polys.is_empty() or layer_of(i) != layer:
 			continue
 		var slot: Array = SLOTS[i]
 		if bool(slot[2]):
@@ -487,7 +543,7 @@ func _draw_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 	match item["kind"]:
 		&"tuft", &"mushroom", &"stones", &"headstone", &"cross", &"fence", &"dead_tree", &"obelisk", &"urn", &"angel", &"flowers", &"windsock", &"cairn", &"menhir":
 			anchor = Vector2(c.x, c.y + half)
-		&"roots", &"stalactite", &"drip", &"cobweb", &"tendril":
+		&"roots", &"sky_roots", &"stalactite", &"drip", &"cobweb", &"tendril":
 			anchor = Vector2(c.x, c.y - half)
 		&"vine":
 			anchor = Vector2(c.x - float(item["side"]) * half, c.y - half)
@@ -659,6 +715,23 @@ func _sketch_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 				var stem: PackedVector2Array = PackedVector2Array([Vector2(x, floor_y + 1.0), Vector2(x + droop * 0.3, floor_y - tall), Vector2(x + droop, floor_y - tall + 3.0)])
 				slots[4].append_array(RisoDecor.strip(stem, 1.6, 1.0))
 				slots[8].append(RisoShapes.almond(Vector2(x + droop, floor_y - tall + 5.0), 2.6, 3.4, 8))
+		&"shrub_run":
+			# A hedge the length of the run (HEDGE_SLOTS, behind the fences), drawn at full size: a
+			# low band of leafage with a row of rounded tops along it, shaded at its foot.
+			var k: float = PROP_SCALE
+			var cells: Array = item["cells"]
+			var x0: float = c.x - half + 3.0 * k
+			var x1: float = c.x - half + float(cells.size()) * half * 2.0 - 3.0 * k
+			var tall: float = (19.0 + _r(s, v, 70) * 5.0) * k
+			slots[21].append(RisoShapes.rrect(x0, floor_y - tall * 0.5, x1 - x0, tall * 0.5 + 2.0, 4.0 * k))
+			var n: int = maxi(2, int((x1 - x0) / (15.0 * k)) + 1)
+			for i: int in range(n):
+				var x: float = lerpf(x0 + 7.0 * k, x1 - 7.0 * k, float(i) / float(n - 1))
+				var r: float = (8.0 + _r(s, v, 80 + i) * 2.0) * k
+				slots[21].append(RisoShapes.circle(Vector2(x, floor_y - tall + r + _r(s, v, 120 + i) * 2.0 * k), r, 16))
+			slots[22].append_array(slots[21].slice(slots[21].size() - n - 1))
+			slots[23].append(RisoShapes.rrect(x0, floor_y - tall * 0.22, x1 - x0, tall * 0.22 + 2.0, 3.0 * k))
+			firefly_spots.append(Vector2((x0 + x1) * 0.5, floor_y - tall - 20.0))
 		&"fence_run":
 			# Behind the rest: a fence the length of the run (BACK_SLOTS), drawn at full size (it is
 			# not grown about one end like the other props).
@@ -798,6 +871,30 @@ func _sketch_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 			var slab: PackedVector2Array = tilt * RisoShapes.smooth(PackedVector2Array([Vector2(x - wide * 0.5, floor_y + 1.0), Vector2(x - wide * 0.55, floor_y - tall * 0.6), Vector2(x - wide * 0.3, floor_y - tall), Vector2(x + wide * 0.35, floor_y - tall * 0.95), Vector2(x + wide * 0.5, floor_y - tall * 0.5), Vector2(x + wide * 0.45, floor_y + 1.0)]), 3)
 			slots[12].append(slab)
 			slots[13].append(tilt * PackedVector2Array([Vector2(x + wide * 0.1, floor_y + 1.0), Vector2(x + wide * 0.1, floor_y - tall * 0.9), Vector2(x + wide * 0.35, floor_y - tall * 0.95), Vector2(x + wide * 0.5, floor_y - tall * 0.5), Vector2(x + wide * 0.45, floor_y + 1.0)]))
+		&"sky_roots":
+			# Seeded, uneven bundles: long curling roots, fine forks and occasional hanging leaves.
+			# Static chunk geometry keeps the abundant curtains inexpensive to print.
+			var reach: float = half * (float(item["clearance"]) - 0.15)
+			var strands: int = 2 + int(_r(s, v, 10) * 3.0)
+			for i: int in range(strands):
+				var salt: int = 30 + i * 9
+				var x: float = c.x + (_r(s, v, salt) - 0.5) * half * 0.7
+				var long: float = minf(reach, 25.0 + _r(s, v, salt + 1) * 65.0)
+				var curl: float = 3.0 + _r(s, v, salt + 2) * 7.0
+				var phase: float = _r(s, v, salt + 3) * TAU
+				var pts: PackedVector2Array = PackedVector2Array()
+				for k: int in range(10):
+					var f: float = float(k) / 9.0
+					pts.append(Vector2(x + sin(f * 5.0 + phase) * curl * f, ceil_y - 1.0 + long * f))
+				slots[4].append_array(strip(pts, 1.5 + _r(s, v, salt + 4) * 1.4, 0.45))
+				for k: int in [4, 7]:
+					var side: float = 1.0 if (i + k) % 2 == 0 else -1.0
+					var tip: Vector2 = pts[k] + Vector2(side * (4.0 + _r(s, v, salt + 5) * 5.0), long * 0.06)
+					slots[4].append_array(strip(PackedVector2Array([pts[k], tip]), 1.2, 0.45))
+					if _r(s, v, salt + k) < 0.2:
+						var leaf: PackedVector2Array = Transform2D(side * 0.6, tip) * RisoShapes.almond(Vector2.ZERO, 3.8, 1.8, 8)
+						slots[7].append(leaf)
+						slots[6].append(leaf)
 		&"tendril":
 			# A wisp of cloud trailing from under an island: puffs dwindling as they hang.
 			var x: float = c.x + (_r(s, v, 10) - 0.5) * half * 0.6

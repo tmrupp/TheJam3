@@ -77,6 +77,7 @@ func run() -> void:
 	print("generation")
 	var linear_ok: bool = true
 	var hazards_ok: bool = true
+	var lanterns_grounded: bool = true
 	var uncrossed: Array[Vector2i] = []
 	var made: int = 0
 	for world_seed: int in [1, 7, 28, 99, 123]:
@@ -93,8 +94,12 @@ func run() -> void:
 				hazards_ok = false
 			if not Hyperspace.crossable(w):
 				uncrossed.append(Vector2i(world_seed, depth))
+			for v: Vector2i in w.objects:
+				if w.get_cell(v).type == MapInfo.Type.CHECKPOINT:
+					lanterns_grounded = lanterns_grounded and w.is_ground(v + Vector2i.DOWN)
 	check(linear_ok, "all %d chasms run from a way back at the left to a gate at the right" % made)
 	check(hazards_ok, "each is thick with thorns and watchers, with a lantern at the start, the end and halfway")
+	check(lanterns_grounded, "every lantern stands on solid floor in all 15 hyperspace layouts")
 	check(uncrossed.is_empty(), "lifts, ledges and moons make each crossable from the way back to the gate (not: %s)" % [uncrossed])
 	var def_a: NextWorldDef = MapInfo.def_for(at)
 	var def_b: NextWorldDef = MapInfo.def_for(Worlds.side_at(Worlds.kind_of(Hyperspace), Vector2i(29, 3)))

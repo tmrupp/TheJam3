@@ -30,6 +30,11 @@ var since_landing: float = 10.0
 func _ready() -> void:
 	rb.freeze_mode = RigidBody2D.FREEZE_MODE_KINEMATIC
 	rb.freeze = true
+	# Damage comes from HitBox. The leaping solid body must not carry the wizard or shove them
+	# out of overlaps while they are invulnerable; it still collides with terrain normally.
+	if player != null:
+		rb.add_collision_exception_with(player)
+		player.add_collision_exception_with(rb)
 	# Spawned at its cell's centre: settle onto the floor at once.
 	rb.move_and_collide(Vector2(0, 128))
 

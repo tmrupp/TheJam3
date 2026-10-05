@@ -118,6 +118,9 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 		i = j + 1
 	ink.begin()
 	body.append_array(fillets)
+	var info: MapInfo = MapInfo.instance
+	if info != null and info.here != null and info.here.sky() and RisoPrint.instance != null and RisoPrint.instance.sky_bottom_style != &"roots":
+		body.append_array(_cloud_bottoms(tile_map, solid, half, MapInfo.level_seed(info.coord.x, info.coord.y)))
 	# Rock hides the sky behind it: no stars or moons printing through the ground.
 	ink.knock([RisoPrint.PINK, RisoPrint.ACCENT], body)
 	ink.ink(RisoPrint.BLUE, 1.0, body)
@@ -128,6 +131,48 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 	ink.knock([RisoPrint.NIGHT], near_pies)
 	ink.ink(RisoPrint.ACCENT, 1.0, caps)
 	ink.finish()
+
+
+## Contiguous, seeded scallops along exposed bottom runs. Printed as part of the ground mass,
+## so these are cloud-shaped island silhouettes rather than hanging props; no tiles change.
+static func _cloud_bottoms(tile_map: TileMap, solid: Dictionary, half: float, seed_value: int) -> Array[PackedVector2Array]:
+	var bottoms: Array[Vector2i] = []
+	for v: Vector2i in solid:
+		if not solid.has(v + Vector2i.DOWN):
+			bottoms.append(v)
+	bottoms.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y or (a.y == b.y and a.x < b.x))
+	var out: Array[PackedVector2Array] = []
+	var i: int = 0
+	while i < bottoms.size():
+		var first: Vector2i = bottoms[i]
+		var j: int = i
+		while j + 1 < bottoms.size() and bottoms[j + 1].y == first.y and bottoms[j + 1].x == bottoms[j].x + 1:
+			j += 1
+		var a: Vector2 = tile_map.to_global(tile_map.map_to_local(first))
+		var b: Vector2 = tile_map.to_global(tile_map.map_to_local(bottoms[j]))
+		var x0: float = a.x - half
+		var x1: float = b.x + half
+		var y: float = a.y + half
+		var lobes: Array[Vector3] = []
+		var x: float = x0
+		while x < x1 - 0.01:
+			var k: int = lobes.size()
+			var width: float = minf(x1 - x, half * (1.1 + RisoDecor.h(seed_value, first, 100 + k) * 1.2))
+			# Distribute a very short remainder into the last puff rather than a tiny sliver.
+			if x1 - x - width < half * 0.3:
+				width = x1 - x
+			var depth: float = minf(width * 0.42, half * (0.3 + RisoDecor.h(seed_value, first, 200 + k) * 0.3))
+			lobes.append(Vector3(x + width * 0.5, width * 0.5, depth))
+			x += width
+		var poly: PackedVector2Array = PackedVector2Array([Vector2(x0, y - half * 0.35), Vector2(x1, y - half * 0.35)])
+		for k: int in range(lobes.size() - 1, -1, -1):
+			var lobe: Vector3 = lobes[k]
+			for s: int in range(9):
+				var angle: float = PI * float(s) / 8.0
+				poly.append(Vector2(lobe.x + cos(angle) * lobe.y, y + sin(angle) * lobe.z))
+		out.append(poly)
+		i = j + 1
+	return out
 
 
 ## `poly` with the `cut` region removed (largest remaining piece).

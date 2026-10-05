@@ -3,16 +3,20 @@ extends Node2D
 ## A swooping bird, in sky levels (MapInfo.World.populate_sky): it patrols back and forth along its
 ## own height, a stretch of open sky between two ends (`span`), wings beating. When the wizard passes
 ## below it, within REACH across and DROP down, and it has rested REST since its last swoop, it folds
-## its wings and swoops: down through where the wizard was and up the far side in an arc, back to
-## its patrol height, then patrols on. It only swoops where the arc is clear of rock. Its touch
+## its wings and swoops: down through where the wizard was (DIVE past them, so it sweeps their whole
+## height) and up the far side in an arc, back to its patrol height, then patrols on. The longer the
+## dive, the longer the swoop takes (SWOOP_TIME, plus SWOOP_PER_PX of the way down). It only swoops where the arc is clear of rock. Its touch
 ## hurts, like any enemy's (its HitBox); the hex wounds it and the hex or a parry stuns it, in the
 ## air where it is. Moved only from here: its body is a frozen kinematic RigidBody2D that collides
 ## with nothing, as a wraith's.
 
 const SPEED: float = 170.0
-const REACH: float = 300.0
-const DROP: float = 560.0
-const SWOOP_TIME: float = 1.4
+const REACH: float = 320.0
+const DROP: float = 360.0
+const SCREEN_MARGIN: float = 48.0
+const DIVE: float = 70.0
+const SWOOP_TIME: float = 1.0
+const SWOOP_PER_PX: float = 0.0012
 const REST: float = 1.5
 
 @onready var rb: RigidBody2D = $".."
@@ -25,8 +29,10 @@ var dir: float = 1.0
 ## +1 facing right, -1 left (the art).
 var facing: float = 1.0
 var velocity: Vector2 = Vector2.ZERO
-## How far through a swoop (0..1), or -1 while patrolling; and its arc (start, low point, end).
+## How far through a swoop (0..1), or -1 while patrolling; how long this one takes; and its arc
+## (start, low point, end).
 var swoop: float = -1.0
+var swoop_time: float = SWOOP_TIME
 var arc: Array[Vector2] = []
 var since_swoop: float = 99.0
 var t: float = 0.0
@@ -62,7 +68,7 @@ func _physics_process(delta: float) -> void:
 		return
 	var was: Vector2 = rb.global_position
 	if swoop >= 0.0:
-		swoop = minf(1.0, swoop + delta / SWOOP_TIME)
+		swoop = minf(1.0, swoop + delta / swoop_time)
 		rb.global_position = _on_arc(swoop)
 		if swoop >= 1.0:
 			swoop = -1.0
@@ -91,10 +97,20 @@ func _look() -> void:
 	if since_swoop < REST or player == null or not is_instance_valid(player):
 		return
 	var at: Vector2 = rb.global_position
-	var target: Vector2 = player.global_position + Vector2(0, -30)
+	var target: Vector2 = player.global_position + Vector2(0, DIVE - 30.0)
 	var d: Vector2 = target - at
 	if absf(d.x) > REACH or d.y < 80.0 or d.y > DROP:
 		return
+	# A nearby bird can still be outside a lagging camera. Let the player see it before it dives.
+	var cam: Camera2D = get_viewport().get_camera_2d()
+	if cam != null:
+		var base: Vector2 = Vector2(get_window().content_scale_size)
+		if base.x < 1.0:
+			base = get_viewport_rect().size
+		var view: Vector2 = base / cam.zoom
+		var screen: Rect2 = Rect2(cam.get_screen_center_position() - view * 0.5, view).grow(-SCREEN_MARGIN)
+		if not screen.has_point(at):
+			return
 	var end_x: float = clampf(at.x + 2.0 * d.x if absf(d.x) > 40.0 else at.x + dir * 160.0, span.x, span.y)
 	var path: Array[Vector2] = [at, target, Vector2(end_x, height)]
 	var info: MapInfo = MapInfo.instance
@@ -107,6 +123,7 @@ func _look() -> void:
 				return
 	arc = path
 	swoop = 0.0
+	swoop_time = SWOOP_TIME + d.y * SWOOP_PER_PX
 
 
 ## The point `u` (0..1) along its swoop: a curve from the start through the low point (at half

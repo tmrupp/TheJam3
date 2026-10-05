@@ -7,7 +7,7 @@ extends Node2D
 ## paper glint; each hit leaves a jagged paper crack glowing pink in a slow pulse; breaking, it
 ## bursts into shards.
 
-const RADIUS: float = 66.0
+const RADIUS: float = 46.0
 
 var hp: int = MapInfo.SHIELD_HP
 ## Hits it can take when whole (the cracks are drawn by how many it has taken).
@@ -86,11 +86,11 @@ func _bubble() -> void:
 		var a: float = 0.9 + float(k) * 2.2
 		var d: Vector2 = Vector2(cos(a), sin(a))
 		var n: Vector2 = Vector2(-d.y, d.x)
-		var pts: PackedVector2Array = PackedVector2Array([d * (r + 2.0), d * (r - 14.0) + n * 8.0, d * (r - 26.0) - n * 5.0, d * (r - 40.0) + n * 6.0])
-		cracks.append_array(RisoDecor.strip(pts, 5.5, 2.0))
+		var pts: PackedVector2Array = PackedVector2Array([d * (r + 2.0), d * (r - 10.0) + n * 6.0, d * (r - 19.0) - n * 4.0, d * (r - 29.0) + n * 4.0])
+		cracks.append_array(RisoDecor.strip(pts, 4.6, 1.6))
 		# A branch off the middle.
-		cracks.append_array(RisoDecor.strip(PackedVector2Array([d * (r - 14.0) + n * 8.0, d * (r - 24.0) + n * 20.0]), 3.6, 1.2))
-		glows.append_array(RisoDecor.strip(pts, 18.0, 9.0))
+		cracks.append_array(RisoDecor.strip(PackedVector2Array([d * (r - 10.0) + n * 6.0, d * (r - 17.0) + n * 14.0]), 3.0, 1.0))
+		glows.append_array(RisoDecor.strip(pts, 14.0, 7.0))
 	if not cracks.is_empty():
 		var pulse: float = 0.5 + 0.5 * sin(t * 4.0)
 		ink.ink(RisoPrint.PINK, 0.45 + 0.45 * pulse, glows, false)
@@ -102,7 +102,7 @@ func _shards(u: float) -> void:
 	for i: int in range(10):
 		var a: float = TAU * float(i) / 10.0 + 0.3
 		var d: Vector2 = Vector2(cos(a), sin(a))
-		var at: Vector2 = d * (RADIUS + 60.0 * u) + Vector2(0, 80.0 * u * u)
-		var s: float = 10.0 * (1.0 - u)
+		var at: Vector2 = d * (RADIUS + 50.0 * u) + Vector2(0, 70.0 * u * u)
+		var s: float = 8.0 * (1.0 - u)
 		pieces.append(PackedVector2Array([at + d * s, at + Vector2(-d.y, d.x) * s * 0.6, at - d * s * 0.5]))
 	ink.ink(RisoPrint.PINK, 0.8 * (1.0 - u), pieces, false)

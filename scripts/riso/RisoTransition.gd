@@ -12,6 +12,8 @@ const REVEAL_TIME: float = 0.38
 ## already cached.
 const HOLD: float = 0.35
 const EDGE: float = 0.08
+## Beyond the view on both sides: ink registration and paper wobble shift the printed plates.
+const OVERSCAN: float = 16.0
 const KNOCK_ALL: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE]
 
 static var instance: RisoTransition
@@ -133,7 +135,7 @@ func _draw_sheet() -> void:
 	var front: PackedVector2Array = PackedVector2Array()
 	var back: PackedVector2Array = PackedVector2Array()
 	for i: int in range(steps + 1):
-		var w: float = across * float(i) / float(steps)
+		var w: float = -OVERSCAN + (across + 2.0 * OVERSCAN) * float(i) / float(steps)
 		var ragged: float = (RisoShapes.hash1(float(i) * 3.7 + 1.3) - 0.5) * EDGE * length + sin(w * 0.09 + t * 3.0) * 2.0
 		front.append(to_view.call(clampf(lead * length + ragged, -4.0, length + 40.0), w))
 		var tail: float = -40.0 if trail <= 0.0 else trail * length + (RisoShapes.hash1(float(i) * 5.1 + 7.7) - 0.5) * EDGE * length

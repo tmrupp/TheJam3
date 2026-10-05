@@ -130,6 +130,10 @@ func generation(wfc: Node) -> void:
 			if not w.in_isle(v, 4):
 				outside += 1
 		check(w.isles.size() >= 3 and float(outside) <= float(rock) * 0.1, "%s: %d clusters of islands, the rock all in them (%d of %d cells outside)" % [at, w.isles.size(), outside, rock])
+		check(float(rock) / float(w.size.x * w.size.y) >= 0.065, "%s: denser island shelves (%d terrain cells)" % [at, rock])
+		check(w.chasms.all(func(gap: Dictionary) -> bool:
+			var shore: Vector2i = gap["right"]
+			return not w.is_ground(shore) and not w.is_ground(shore + Vector2i.UP) and w.get_cell(shore + Vector2i.DOWN).type in [MapInfo.Type.GROUND, MapInfo.Type.CRACKED]), "%s: wind landing shores are level with clear headroom" % at)
 		check(w.links == w.isles.size() - 1, "%s: every cluster linked to the rest by a causeway (%d of %d)" % [at, w.links, w.isles.size() - 1])
 		var crosswinds: int = 0
 		for column: Array in w.cells:
@@ -145,9 +149,24 @@ func generation(wfc: Node) -> void:
 		check(crosswinds == w.chasms.size() and count(w, MapInfo.Type.VANE) >= w.chasms.size(), "%s: a crosswind over every chasm (%d), and vanes by them (%d)" % [at, crosswinds, count(w, MapInfo.Type.VANE)])
 		check(count(w, MapInfo.Type.SHOOTER) == 0 or w.objects.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == MapInfo.Type.SHOOTER).all(func(v: Vector2i) -> bool: return w.get_cell(v).mods.has("bounces")), "%s: every watcher's shots rebound (%d watchers)" % [at, count(w, MapInfo.Type.SHOOTER)])
 		totals["birds"] += count(w, MapInfo.Type.BIRD)
+		check(_portals_apart(w), "%s: each pair of teleporters at least %d cells apart" % [at, w.portal_apart()])
 		totals["pads"] += count(w, MapInfo.Type.PAD)
 		totals["puffs"] += count(w, MapInfo.Type.PUFF)
+	var garden_def: NextWorldDef = MapInfo.def_for(Vector2i(28, 1))
+	var garden: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", garden_def), garden_def)
+	check(count(garden, MapInfo.Type.PORTAL) > 0 and _portals_apart(garden), "a garden level's teleporters are as far apart (%d pairs, %d cells)" % [count(garden, MapInfo.Type.PORTAL) / 2, garden.portal_apart()])
 	check(totals.values().all(func(n: int) -> bool: return n > 0), "pads, clouds that give way, updrafts, shields, rebounding shots and birds are all dealt: %s" % totals)
+
+
+## Whether every teleporter in `w` is at least portal_apart() from its partner.
+func _portals_apart(w: MapInfo.World) -> bool:
+	for v: Vector2i in w.objects:
+		var cell: MapInfo.Cell = w.get_cell(v)
+		if cell.type == MapInfo.Type.PORTAL:
+			var other: Vector2i = cell.extra_info
+			if absi(other.x - v.x) + absi(other.y - v.y) < w.portal_apart():
+				return false
+	return true
 
 
 ## Stood on rock, then out of the bottom of the level: back on the rock, a heart down.
@@ -222,6 +241,17 @@ func puffs() -> void:
 	player.set_physics_process(false)
 	await create_timer(Puff.REFORM + 0.3).timeout
 	check(puff.holds(), "it gathers again %.0f s later" % Puff.REFORM)
+	# Touched and left at once: it still goes.
+	player.global_position = puff.global_position + Vector2(0, -100)
+	player.velocity = Vector2.ZERO
+	player.set_physics_process(true)
+	while not puff.worn() > 0.0:
+		await physics_frame
+	player.global_position = puff.global_position + Vector2(400, -2000)
+	player.set_physics_process(false)
+	for i: int in range(int(Puff.STAND * 60.0) + 10):
+		await physics_frame
+	check(not puff.holds(), "touched once and left, it gives way all the same")
 
 
 func vanes() -> void:
@@ -435,15 +465,23 @@ func birds() -> void:
 	# The wizard below: it swoops down at them and back up to its height.
 	bird.set("since_swoop", 99.0)
 	player.global_position = rb.global_position + Vector2(60, 300)
+	# Observe the bird: swoops now begin only inside the camera's view.
+	var camera: Camera2D = main.get_node("Camera2D")
+	player.get_node("CameraControl").set("target_location", player.global_position)
+	camera.global_position = player.global_position
+	camera.reset_smoothing()
+	camera.force_update_scroll()
 	player.invulnerable.enable()
 	var low: float = rb.global_position.y
 	var swooped: bool = false
-	for i: int in range(int(Bird.SWOOP_TIME * 60.0) + 30):
+	for i: int in range(300):
 		await physics_frame
 		swooped = swooped or bool(bird.call("swooping"))
 		low = maxf(low, rb.global_position.y)
+		if swooped and not bool(bird.call("swooping")):
+			break
 	player.global_position = rb.global_position + Vector2(0, -300)
-	check(swooped and low > float(bird.get("height")) + 150.0, "with the wizard below, it swoops down (%d px)" % int(low - float(bird.get("height"))))
+	check(swooped and low > float(bird.get("height")) + 300.0, "with the wizard 300 px below, it swoops down past them (%d px)" % int(low - float(bird.get("height"))))
 	for i: int in range(60):
 		await physics_frame
 	check(not bool(bird.call("swooping")) and absf(rb.global_position.y - float(bird.get("height"))) < 8.0, "and climbs back to its height")

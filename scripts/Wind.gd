@@ -8,12 +8,14 @@ extends Node2D
 ##   and holding them up as they go. Turning the vane on the far side sends it back.
 ## The wizard asks push_at each physics step (Player): an updraft eases their rise toward
 ## LIFT_SPEED; a crosswind carries them CARRY px/s along and lets them sink no faster than GLIDE
-## (not at all: they float level across).
+## (not at all: they float level across). Up/down steers at STEER_SPEED within a crosswind, so
+## the wizard can descend out of it before reaching the far side.
 
 const LIFT_SPEED: float = 430.0
 const LIFT_ACCEL: float = 2600.0
 const CARRY: float = 360.0
 const GLIDE: float = 0.0
+const STEER_SPEED: float = 240.0
 
 var map_info: MapInfo
 ## Cells the updraft rises (0 for a crosswind).

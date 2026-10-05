@@ -108,6 +108,14 @@ func run() -> void:
 	check(root.gui_get_focus_owner() != fog, "up still moves to another row")
 	await button(JOY_BUTTON_DPAD_DOWN)
 	check(root.gui_get_focus_owner() == fog, "down returns to the fog row")
+	var sky_bottoms: OptionButton = riso._options[&"sky_bottoms"]
+	sky_bottoms.grab_focus()
+	await button(JOY_BUTTON_DPAD_RIGHT)
+	check(riso.sky_bottom_style == &"clouds", "controller selects cloud-shaped sky bottoms")
+	await button(JOY_BUTTON_DPAD_RIGHT)
+	check(riso.sky_bottom_style == &"clouds_roots", "controller selects clouds with sparse roots")
+	await button(JOY_BUTTON_DPAD_RIGHT)
+	check(riso.sky_bottom_style == &"roots", "sky bottom choices wrap to roots")
 
 	var specks: HSlider = riso._specks_label.get_parent().get_child(1)
 	specks.grab_focus()
@@ -117,6 +125,42 @@ func run() -> void:
 	check(is_equal_approx(riso.specks, before + specks.step), "D-pad right increases a slider")
 	await stick(-1.0)
 	check(is_equal_approx(riso.specks, before), "left stick left decreases a slider")
+	var player: Player = main.get_node("Player")
+	KeyRing.clear(player)
+	Abilities.set_tier(player, &"keyring", 0)
+	riso._sync_panel()
+	var square: OptionButton = riso._options[&"key_0"]
+	square.grab_focus()
+	await button(JOY_BUTTON_DPAD_RIGHT)
+	check(KeyRing.all(player) == [0] and square.selected == 1, "F7 equips a square key using the controller")
+	var triangle: OptionButton = riso._options[&"key_1"]
+	triangle.grab_focus()
+	await button(JOY_BUTTON_DPAD_RIGHT)
+	check(KeyRing.all(player) == [1] and square.selected == 0, "a full ring replaces its oldest key and refreshes all choices")
+	var ring: OptionButton = riso._options[&"ability_keyring"]
+	ring.select(3)
+	ring.item_selected.emit(3)
+	for color: int in [0, 2, 3]:
+		var pick: OptionButton = riso._options[StringName("key_" + str(color))]
+		pick.grab_focus()
+		await button(JOY_BUTTON_DPAD_RIGHT)
+	check(KeyRing.all(player).size() == 4, "the keyring perk allows all four shaped keys")
+	var circle: OptionButton = riso._options[&"key_2"]
+	circle.grab_focus()
+	await button(JOY_BUTTON_DPAD_LEFT)
+	check(not KeyRing.has(player, 2) and KeyRing.all(player).size() == 3, "F7 can unequip an individual key")
+	var more_skeletons: Button = riso._skeleton_label.get_parent().get_child(3)
+	more_skeletons.grab_focus()
+	await button(JOY_BUTTON_A)
+	check(KeyRing.skeletons(player) == 1 and riso._skeleton_label.text == "1", "controller equips a skeleton key")
+	var fewer_skeletons: Button = riso._skeleton_label.get_parent().get_child(1)
+	fewer_skeletons.grab_focus()
+	await button(JOY_BUTTON_A)
+	await button(JOY_BUTTON_A)
+	check(KeyRing.skeletons(player) == 0, "skeleton key count cannot become negative")
+	ring.select(0)
+	ring.item_selected.emit(0)
+	check(KeyRing.all(player).size() == 1, "reducing keyring capacity trims older equipped keys")
 	await button(JOY_BUTTON_B)
 	check(not riso.panel.visible and not paused, "B closes the panel and resumes play")
 	MapInfo.debug = false

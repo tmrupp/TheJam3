@@ -56,6 +56,8 @@ func run() -> void:
 		kinds[it["kind"]] = true
 	check(first.size() > info.world.size.x * info.world.size.y / 15 and kinds.size() >= 7, "%d props of %d kinds" % [first.size(), kinds.size()])
 	check(kinds.has(&"fence_run"), "fences stand behind stretches of floor")
+	check(kinds.has(&"shrub_run") and not kinds.has(&"bush") and not kinds.has(&"shrub"), "garden floors grow hedges, in runs along stretches of floor")
+	check(first.filter(func(it: Dictionary) -> bool: return it["kind"] == &"shrub_run").all(func(it: Dictionary) -> bool: return (it["cells"] as Array).size() >= RisoDecor.SHRUB_MIN and (it["cells"] as Array).size() <= RisoDecor.SHRUB_MAX), "each hedge %d to %d cells long" % [RisoDecor.SHRUB_MIN, RisoDecor.SHRUB_MAX])
 	check(not kinds.has(&"strata") and not kinds.has(&"fossil") and not kinds.has(&"geode") and not kinds.has(&"vein"), "nothing printed inside the rock")
 	var bounds: Rect2i = Rect2i(Vector2i.ZERO, info.world.size)
 	check(first.all(func(it: Dictionary) -> bool: return bounds.has_point(it["base"])), "all inside the level (none on its outer walls)")

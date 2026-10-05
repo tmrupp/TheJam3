@@ -138,10 +138,15 @@ func run() -> void:
 			top = lift.global_position.y + shape.position.y - 16.5
 			player.global_position = Vector2(lift.global_position.x + shape.position.x, top - 40.0)
 			player.velocity = Vector2.ZERO
+			# Riding: carried just over its top through the last frames (a lift going down does not
+			# always count as floor underfoot, but the wizard goes down with it).
+			var held: int = 0
 			for i: int in range(20):
 				await physics_frame
-			top = lift.global_position.y + shape.position.y - 16.5
-			riding = player.is_on_floor() and absf(player.global_position.y - (top - 31.0)) < 12.0
+				top = lift.global_position.y + shape.position.y - 16.5
+				if i >= 10 and player.global_position.y < top and player.global_position.y > top - 75.0:
+					held += 1
+			riding = held == 10
 			if riding:
 				break
 		if riding:
@@ -149,6 +154,7 @@ func run() -> void:
 	player.drop()
 	for i: int in range(40):
 		await physics_frame
+	top = lift.global_position.y + shape.position.y - 16.5
 	top = lift.global_position.y + shape.position.y - 16.5
 	check(riding and player.global_position.y > top + 40.0, "down + jump drops through a moving platform")
 	player.global_position = info.cell_position(info.world.exits[MapInfo.Exit.BACK])

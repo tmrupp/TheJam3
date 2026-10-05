@@ -218,6 +218,8 @@ func die() -> void:
 	if MapInfo.instance != null:
 		MapInfo.instance.player_died(pos)
 	else:
+		health.health = 1
+		health.display_health()
 		reset_position()
 
 # does a jump and triggers the jumping animation
@@ -250,10 +252,19 @@ var dash_ability: Callable = do_dash
 ## one-pixel nudge alone only cleared the scaled static ledges; a moving platform's unscaled
 ## one-way margin caught the wizard straight back.)
 func drop () -> void:
+	var under: Array[CollisionObject2D] = []
 	for i: int in range(get_slide_collision_count()):
 		var hit: KinematicCollision2D = get_slide_collision(i)
 		var body: CollisionObject2D = hit.get_collider() as CollisionObject2D
-		if body != null and hit.get_normal().y < -0.5 and _one_way(body):
+		if body != null and hit.get_normal().y < -0.5:
+			under.append(body)
+	# A lift going down can have moved off the feet since the last step (no collision this frame):
+	# look just under them too.
+	var below: KinematicCollision2D = move_and_collide(Vector2(0, 12), true)
+	if below != null and below.get_normal().y < -0.5 and below.get_collider() is CollisionObject2D:
+		under.append(below.get_collider() as CollisionObject2D)
+	for body: CollisionObject2D in under:
+		if _one_way(body):
 			add_collision_exception_with(body)
 			get_tree().create_timer(0.3).timeout.connect(func() -> void:
 				if is_instance_valid(body):
@@ -440,6 +451,7 @@ func _physics_process(delta: float) -> void:
 
 	# The wind (sky levels): an updraft eases the rise toward its speed; a crosswind carries the
 	# wizard along (a move of its own, so it never builds up in the velocity) and holds them up.
+	# Up/down moves within that gust; steering out through its bottom restores normal falling.
 	var push: Vector2 = Wind.push_at(get_tree(), global_position)
 	if push.y < 0.0 and not dash.is_acting():
 		velocity.y = move_toward(velocity.y, push.y, Wind.LIFT_ACCEL * delta)
@@ -448,6 +460,10 @@ func _physics_process(delta: float) -> void:
 		if not is_on_floor() and velocity.y > Wind.GLIDE:
 			velocity.y = Wind.GLIDE
 		move_and_collide(Vector2(push.x * delta, 0.0))
+		if manual_control and not is_on_floor() and direction.y != 0.0:
+			# Separate moves preserve sideways carry when vertical steering meets a floor or ceiling.
+			# Steering is displacement too: releasing the stick leaves no vertical drift behind.
+			move_and_collide(Vector2(0.0, direction.y * Wind.STEER_SPEED * delta))
 
 	# this uses veolcity and calculates collisions for next frame
 	move_and_slide()
