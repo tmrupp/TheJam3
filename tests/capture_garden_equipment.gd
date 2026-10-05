@@ -39,7 +39,7 @@ func capture() -> void:
 	camera.limit_right = 100000
 	camera.limit_bottom = 100000
 	var decor: RisoDecor = main.get_node("RisoDecor")
-	for kind: StringName in [&"shrub_run"]:
+	for kind: StringName in [&"shrub_run", &"leafy"]:
 		var plants: Array[Dictionary] = decor.items.filter(func(it: Dictionary) -> bool: return it["kind"] == kind)
 		var fenced: Array[Dictionary] = plants.filter(func(it: Dictionary) -> bool:
 			return decor.items.any(func(fence: Dictionary) -> bool: return fence["kind"] == &"fence_run" and it["cell"] in fence["cells"]))

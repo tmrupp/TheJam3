@@ -89,7 +89,7 @@ func run() -> void:
 		var picker: OptionButton = riso._options[&"sky_bottoms"]
 		var tiles: Array[Vector2i] = info.tile_map.get_used_cells(0)
 		var previous_body: Array = riso.terrain.get("ink")._ops[0].polys.duplicate()
-		for style: int in [1, 2]:
+		for style: int in [1, 2, 3]:
 			picker.select(style)
 			picker.item_selected.emit(style)
 			for i: int in range(6):

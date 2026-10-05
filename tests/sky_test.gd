@@ -462,23 +462,32 @@ func birds() -> void:
 		await physics_frame
 	var span: Vector2 = bird.get("span")
 	check(absf(rb.global_position.y - float(bird.get("height"))) < 8.0 and rb.global_position.x != start.x and rb.global_position.x >= span.x - 1.0 and rb.global_position.x <= span.y + 1.0, "it patrols along its height")
-	# The wizard below: it swoops down at them and back up to its height.
-	bird.set("since_swoop", 99.0)
-	player.global_position = rb.global_position + Vector2(60, 300)
-	# Observe the bird: swoops now begin only inside the camera's view.
+	# The wizard below: it swoops down at them and back up to its height. A bird only swoops where
+	# its arc is clear of rock (the islands' keels can be in the way), so try each until one does.
 	var camera: Camera2D = main.get_node("Camera2D")
-	player.get_node("CameraControl").set("target_location", player.global_position)
-	camera.global_position = player.global_position
-	camera.reset_smoothing()
-	camera.force_update_scroll()
 	player.invulnerable.enable()
-	var low: float = rb.global_position.y
+	var low: float = 0.0
 	var swooped: bool = false
-	for i: int in range(300):
-		await physics_frame
-		swooped = swooped or bool(bird.call("swooping"))
-		low = maxf(low, rb.global_position.y)
-		if swooped and not bool(bird.call("swooping")):
+	for candidate: Node in flock:
+		rb = candidate as Node2D
+		bird = rb.get_node("Bird")
+		bird.set("since_swoop", 99.0)
+		player.global_position = rb.global_position + Vector2(60, 300)
+		# Observe the bird: swoops begin only inside the camera's view.
+		player.get_node("CameraControl").set("target_location", player.global_position)
+		camera.global_position = player.global_position
+		camera.reset_smoothing()
+		camera.force_update_scroll()
+		low = rb.global_position.y
+		for i: int in range(300):
+			await physics_frame
+			swooped = swooped or bool(bird.call("swooping"))
+			low = maxf(low, rb.global_position.y)
+			if swooped and not bool(bird.call("swooping")):
+				break
+			if not swooped and i > 60:
+				break
+		if swooped:
 			break
 	player.global_position = rb.global_position + Vector2(0, -300)
 	check(swooped and low > float(bird.get("height")) + 300.0, "with the wizard 300 px below, it swoops down past them (%d px)" % int(low - float(bird.get("height"))))

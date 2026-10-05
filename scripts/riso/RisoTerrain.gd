@@ -119,8 +119,12 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 	ink.begin()
 	body.append_array(fillets)
 	var info: MapInfo = MapInfo.instance
-	if info != null and info.here != null and info.here.sky() and RisoPrint.instance != null and RisoPrint.instance.sky_bottom_style != &"roots":
-		body.append_array(_cloud_bottoms(tile_map, solid, half, MapInfo.level_seed(info.coord.x, info.coord.y)))
+	if info != null and info.here != null and info.here.sky() and RisoPrint.instance != null:
+		var style: StringName = RisoPrint.instance.sky_bottom_style
+		if style == &"tapered":
+			body.append_array(_tapers(tile_map, solid, half))
+		elif style != &"roots":
+			body.append_array(_cloud_bottoms(tile_map, solid, half, MapInfo.level_seed(info.coord.x, info.coord.y)))
 	# Rock hides the sky behind it: no stars or moons printing through the ground.
 	ink.knock([RisoPrint.PINK, RisoPrint.ACCENT], body)
 	ink.ink(RisoPrint.BLUE, 1.0, body)
@@ -131,6 +135,33 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 	ink.knock([RisoPrint.NIGHT], near_pies)
 	ink.ink(RisoPrint.ACCENT, 1.0, caps)
 	ink.finish()
+
+
+## Floating islands' tapered undersides (MapInfo.World.taper_islands lays them as rock a row at a
+## time): each step under an overhang filled on the diagonal, so the sides run smoothly in to the
+## keel, and a point under the last cell of each keel. Printed with the ground; no tiles change
+## (the wedges only fill the corner of a cell under rock and beside it, where nothing stands).
+static func _tapers(tile_map: TileMap, solid: Dictionary, half: float) -> Array[PackedVector2Array]:
+	var out: Array[PackedVector2Array] = []
+	var checked: Dictionary = {}
+	for v: Vector2i in solid:
+		if solid.has(v + Vector2i.DOWN):
+			continue
+		var c: Vector2 = tile_map.to_global(tile_map.map_to_local(v))
+		# A keel's point: the last cell, with open air beside it and below.
+		if solid.has(v + Vector2i.UP) and not solid.has(v + Vector2i.LEFT) and not solid.has(v + Vector2i.RIGHT):
+			out.append(PackedVector2Array([Vector2(c.x - half * 0.75, c.y + half - 2.0), Vector2(c.x + half * 0.75, c.y + half - 2.0), Vector2(c.x, c.y + half * 1.8)]))
+		# The steps beside it: an empty cell under rock with rock on one side gets the diagonal.
+		for side: int in [-1, 1]:
+			var e: Vector2i = v + Vector2i(side, 0)
+			if checked.has(e) or solid.has(e) or not solid.has(e + Vector2i.UP) or solid.has(e + Vector2i.DOWN):
+				continue
+			checked[e] = true
+			var ec: Vector2 = tile_map.to_global(tile_map.map_to_local(e))
+			var near_x: float = ec.x - float(side) * half
+			var far_x: float = ec.x + float(side) * half
+			out.append(PackedVector2Array([Vector2(near_x, ec.y - half - 1.0), Vector2(far_x, ec.y - half - 1.0), Vector2(near_x, ec.y + half)]))
+	return out
 
 
 ## Contiguous, seeded scallops along exposed bottom runs. Printed as part of the ground mass,

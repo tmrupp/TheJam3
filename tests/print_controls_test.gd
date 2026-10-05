@@ -111,11 +111,13 @@ func run() -> void:
 	var sky_bottoms: OptionButton = riso._options[&"sky_bottoms"]
 	sky_bottoms.grab_focus()
 	await button(JOY_BUTTON_DPAD_RIGHT)
+	check(riso.sky_bottom_style == &"roots", "controller selects root-hung sky bottoms")
+	await button(JOY_BUTTON_DPAD_RIGHT)
 	check(riso.sky_bottom_style == &"clouds", "controller selects cloud-shaped sky bottoms")
 	await button(JOY_BUTTON_DPAD_RIGHT)
 	check(riso.sky_bottom_style == &"clouds_roots", "controller selects clouds with sparse roots")
 	await button(JOY_BUTTON_DPAD_RIGHT)
-	check(riso.sky_bottom_style == &"roots", "sky bottom choices wrap to roots")
+	check(riso.sky_bottom_style == &"tapered", "sky bottom choices wrap to tapered islands")
 
 	var specks: HSlider = riso._specks_label.get_parent().get_child(1)
 	specks.grab_focus()

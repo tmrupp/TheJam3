@@ -2,7 +2,7 @@ extends Node2D
 class_name RisoDecor
 ## Decor for the surface grotto: small printed props that make the rock feel lived in, never
 ## part of the gameplay.
-## - Floors: grass tufts, moon-flowers, mushrooms, stones; and hedges (shrub_runs): low runs of
+## - Floors: grass tufts, broad-leaved plants, moon-flowers, mushrooms, stones; and hedges (shrub_runs): low runs of
 ##   rounded leafage along stretches of floor, as long as the stretch allows, behind the fences.
 ## - Ceilings: hanging roots, stalactites, ink drips (RisoAmbient drops ink from them).
 ## - Walls: vines down the rock face.
@@ -74,7 +74,7 @@ var _solid: Dictionary = {}
 var canvases: Array[InkCanvas] = []
 ## Plants that sway: indexes into `items`, each item holding its polygons ("parts"), the point it
 ## grows from ("anchor"), whether it hangs ("hang") and its spring ("a", "v").
-const SWAY_KINDS: Array[StringName] = [&"tuft", &"roots", &"vine"]
+const SWAY_KINDS: Array[StringName] = [&"tuft", &"leafy", &"roots", &"vine"]
 var swaying: Array[int] = []
 var live: InkCanvas
 var t: float = 0.0
@@ -122,11 +122,13 @@ static func plan(solid: Dictionary, occupied: Dictionary, level_seed: int, bound
 		if not solid.has(above) and not occupied.has(above):
 			var r: float = h(level_seed, v, 1)
 			var kind: StringName = &""
-			if r < 0.42:
+			if r < 0.36:
 				kind = &"tuft"
-			elif r < 0.58:
+			elif r < 0.47:
+				kind = &"leafy"
+			elif r < 0.6:
 				kind = &"mushroom"
-			elif r < 0.63:
+			elif r < 0.65:
 				kind = &"stones"
 			if kind != &"":
 				out.append({"kind": kind, "cell": above, "base": v})
@@ -541,7 +543,7 @@ func _draw_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 	_sketch_item(item, c, slots, s)
 	var anchor: Variant = null
 	match item["kind"]:
-		&"tuft", &"mushroom", &"stones", &"headstone", &"cross", &"fence", &"dead_tree", &"obelisk", &"urn", &"angel", &"flowers", &"windsock", &"cairn", &"menhir":
+		&"tuft", &"leafy", &"mushroom", &"stones", &"headstone", &"cross", &"fence", &"dead_tree", &"obelisk", &"urn", &"angel", &"flowers", &"windsock", &"cairn", &"menhir":
 			anchor = Vector2(c.x, c.y + half)
 		&"roots", &"sky_roots", &"stalactite", &"drip", &"cobweb", &"tendril":
 			anchor = Vector2(c.x, c.y - half)
@@ -566,6 +568,28 @@ func _sketch_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 	var floor_y: float = c.y + half
 	var ceil_y: float = c.y - half
 	match item["kind"]:
+		&"leafy":
+			# A broad-leaved plant: two to four long stalks fanning out from one root, each holding
+			# a big leaf (a pointed oval with a darker midrib), their count, height, lean, size and
+			# angle dealt per cell.
+			var x: float = c.x + (_r(s, v, 10) - 0.5) * half * 0.4
+			var n: int = 2 + int(_r(s, v, 11) * 3.0)
+			var fan: float = 18.0 + _r(s, v, 12) * 14.0
+			for i: int in range(n):
+				var f: float = float(i) / float(n - 1) - 0.5
+				var tall: float = 14.0 + _r(s, v, 20 + i) * 16.0
+				var tip: Vector2 = Vector2(x + f * fan, floor_y - tall)
+				var stalk: PackedVector2Array = PackedVector2Array([Vector2(x, floor_y + 1.0), Vector2(x + f * fan * 0.3, floor_y - tall * 0.55), tip])
+				slots[4].append_array(strip(stalk, 1.8, 1.0))
+				var size: float = 7.5 + _r(s, v, 30 + i) * 5.5
+				# Mostly upright, tipped out a little to the side its stalk leans.
+				var turn: float = f * 0.9 + (_r(s, v, 40 + i) - 0.5) * 0.4
+				var xf: Transform2D = Transform2D(turn, tip)
+				var length: float = size * 2.3
+				var leaf: PackedVector2Array = xf * RisoShapes.smooth(PackedVector2Array([Vector2(0, 1), Vector2(size * 0.55, -length * 0.25), Vector2(size * 0.45, -length * 0.62), Vector2(0, -length), Vector2(-size * 0.45, -length * 0.62), Vector2(-size * 0.55, -length * 0.25)]), 3)
+				slots[7].append(leaf)
+				slots[6].append(leaf)
+				slots[5].append_array(strip(xf * PackedVector2Array([Vector2(0, 0), Vector2(0, -length * 0.82)]), 1.1, 0.4))
 		&"tuft":
 			# Three kinds of grass, picked per cell: a clump, tall reeds with seed heads, or a low
 			# fuzz of many short blades.

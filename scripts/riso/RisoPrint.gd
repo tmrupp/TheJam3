@@ -120,9 +120,9 @@ const FOG_STYLES: Array[StringName] = [&"original", &"shroud", &"breath", &"blee
 const FOG_STYLE_NAMES: Array[String] = ["Original bands", "Torn ribbons", "Billowing bank", "Ragged ink", "Spectral billows", "Smoke plumes", "Billows & ribbons"]
 var fog_style: StringName = &"shroud"
 ## Sky underside experiments change only printed geometry, never the terrain's collisions.
-const SKY_BOTTOM_STYLES: Array[StringName] = [&"roots", &"clouds", &"clouds_roots"]
-const SKY_BOTTOM_NAMES: Array[String] = ["Roots", "Clouds", "Clouds & roots"]
-var sky_bottom_style: StringName = &"roots"
+const SKY_BOTTOM_STYLES: Array[StringName] = [&"tapered", &"roots", &"clouds", &"clouds_roots"]
+const SKY_BOTTOM_NAMES: Array[String] = ["Tapered", "Roots", "Clouds", "Clouds & roots"]
+var sky_bottom_style: StringName = &"tapered"
 ## How much finer than the scene the UI prints, 0 (the same) to 1 (UI_* in full).
 var ui_detail: float = 0.7
 ## Camera zoom while printing, relative to the scene's own zoom (smaller shows more).

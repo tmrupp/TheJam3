@@ -470,11 +470,16 @@ class World:
 					_to_open(c)
 					carved.append(c)
 
-	## Whether rock at `c` frames a door or gate (above or below it), seals a secret room, or has a
-	## laser set in it.
+	## Whether rock at `c` frames a door or gate (above or below it), seals a secret room, has a
+	## laser set in it, is the footing of a gap's shore, or holds up something stood at.
 	func _holds_up (c: Vector2i) -> bool:
 		for d: Vector2i in [Vector2i.UP, Vector2i.DOWN]:
 			if is_valid(c + d) and get_cell(c + d).type in [Type.DOOR, Type.SWITCH_GATE]:
+				return true
+		if is_valid(c + Vector2i.UP) and get_cell(c + Vector2i.UP).type in MapInfo.STANDERS:
+			return true
+		for chasm: Dictionary in chasms:
+			if c == (chasm["left"] as Vector2i) + Vector2i.DOWN or c == (chasm["right"] as Vector2i) + Vector2i.DOWN:
 				return true
 		for d: Vector2i in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
 			if not is_valid(c + d):
@@ -770,6 +775,15 @@ class World:
 			_build_gaps(want)
 			# Shores laid and air cleared can shut off a pocket of air: join (or fill) it again.
 			connect_caves()
+			# Joining pockets can tunnel through a shore's footing (the islands' keels leave many
+			# pockets): every gap's two shores get rock under them and air on and over them again.
+			for chasm: Dictionary in chasms:
+				for shore: Vector2i in [chasm["left"], chasm["right"]]:
+					if not is_ground(shore + Vector2i.DOWN):
+						_to_rock(shore + Vector2i.DOWN)
+					for d: Vector2i in [Vector2i.ZERO, Vector2i.UP]:
+						if is_ground(shore + d):
+							_to_open(shore + d)
 			return
 		# Which cells are floors (open, with rock under), looked up many times below.
 		_floors = PackedByteArray()
@@ -1011,7 +1025,51 @@ class World:
 							rock += 1
 			if float(rock) < float(area) * ISLE_ROCK:
 				_stamp_islands(c, r, int(float(area) * ISLE_ROCK) - rock)
+		taper_islands()
 		link_isles()
+
+	## Rows of air kept clear under a keel (over whatever rock is below it).
+	const KEEL_CLEAR: int = 2
+
+	## Floating islands taper underneath: under every run of rock with open air below it (each
+	## stretch of an island's underside, as the islands lie before any keel), rows of rock narrowing
+	## toward a point, a cell off each side a row (now and then a side holds), as deep as the run
+	## allows. A keel stops before it strays past its cluster, meets anything, or comes within
+	## KEEL_CLEAR rows of rock below (room to stand on what is beneath). Laid before the clusters
+	## are linked, so the causeways go round them.
+	func taper_islands () -> void:
+		var runs: Array = []
+		for y: int in range(size.y - 1):
+			var x: int = 0
+			while x < size.x:
+				var under: Callable = func(cx: int) -> bool: return is_ground(Vector2i(cx, y)) and get_cell(Vector2i(cx, y + 1)).type == Type.EMPTY
+				if not under.call(x):
+					x += 1
+					continue
+				var from: int = x
+				while x < size.x and under.call(x):
+					x += 1
+				runs.append([from, x - 1, y + 1])
+		for run: Array in runs:
+			_keel(int(run[0]), int(run[1]), int(run[2]))
+
+	## A keel under the run of rock from `a` to `b` on the row over `y`.
+	func _keel (a: int, b: int, y: int) -> void:
+		while true:
+			a += 1 if rng.randf() < 0.8 else 0
+			b -= 1 if rng.randf() < 0.8 else 0
+			if a > b:
+				return
+			for x: int in range(a, b + 1):
+				var v: Vector2i = Vector2i(x, y)
+				if not is_valid(v) or get_cell(v).type != Type.EMPTY or not in_isle(v, 4):
+					return
+				for d: int in range(1, KEEL_CLEAR + 1):
+					if is_valid(v + Vector2i(0, d)) and get_cell(v + Vector2i(0, d)).type != Type.EMPTY:
+						return
+			for x: int in range(a, b + 1):
+				_to_rock(Vector2i(x, y))
+			y += 1
 
 	## Islands laid in the cluster at `c` (radii `r`) until about `want` more cells of rock: each as
 	## the sample draws them (tests/make_sky_sample.gd), a flat top 3 to 6 cells wide over a body that

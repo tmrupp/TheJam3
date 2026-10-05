@@ -324,6 +324,8 @@ func _level(info: MapInfo) -> void:
 				_mark_bridge(at, bool(node.call("up")))
 			"bell.tscn":
 				_mark_bell(at, bool(node.call("rung")), int(node.call("lock_state")))
+			"vane.tscn":
+				_mark_bell(at, bool(node.call("rung")), int(node.call("lock_state")), "vane")
 			"corpse.tscn":
 				_mark_ghost(to_map(info, Vector2(info.cell_at((node as Node2D).global_position)) + Vector2(0.5, 0.5)), 0.22)
 	# A relic an ink well marked here, even before its room is found.
@@ -352,6 +354,7 @@ func _level_rows() -> Array:
 		["gate", _mark_gate, "gate"],
 		["switch", func(at: Vector2) -> void: _mark_switch(at, false), "switch"],
 		["bell", func(at: Vector2) -> void: _mark_bell(at, false), "bell"],
+		["vane", func(at: Vector2) -> void: _mark_bell(at, false, -2, "vane"), "vane"],
 		["bridge", func(at: Vector2) -> void: _mark_bridge(at, true), "bridge"],
 		["unrung bridge", func(at: Vector2) -> void: _mark_bridge(at, false), "unrung bridge"],
 		["relic", func(at: Vector2) -> void: _mark_relic(at, &"blink", 0.7), "relic"],
@@ -373,8 +376,9 @@ func _door_rows() -> Array:
 
 
 ## A level other than the one being played, picked on the worlds page: its map as far as it was
-## seen, rebuilt from its seed, with its exits, shrine, ink well and lanterns where seen (from the
-## layout and its record, since its things are not in the scene).
+## seen, rebuilt from its seed, with what is in it where seen (exits, shrine, ink well, lanterns,
+## teleporters, keys, doors, gates, switches, relics, star clusters, bells and vanes, bridges),
+## from the layout and its record, since its things are not in the scene.
 func _other_level(info: MapInfo, c: Vector2i) -> void:
 	_text(MapInfo.where(c), Vector2(18, 12), 10.0, false)
 	_tabs()
@@ -413,11 +417,12 @@ func _other_level(info: MapInfo, c: Vector2i) -> void:
 		_mark_exit(spot.call(v), place.exit_dir(which), which == MapInfo.Exit.DEEPER, -1, owed)
 	if w.shrine.x >= 0 and seen.call(w.shrine):
 		_mark_shrine(spot.call(w.shrine), bool(rec.get("shrine_used", false)))
+	var relic_shown: bool = _other_things(info, w, rec, seen, spot)
 	for x: int in range(w.size.x):
 		for y: int in range(w.size.y):
 			var v: Vector2i = Vector2i(x, y)
 			var kind: int = w.get_cell(v).type
-			if not (kind in [MapInfo.Type.CHECKPOINT, MapInfo.Type.INKWELL, MapInfo.Type.PORTAL, MapInfo.Type.BRIDGE, MapInfo.Type.BELL]) or not seen.call(v):
+			if not (kind in [MapInfo.Type.CHECKPOINT, MapInfo.Type.INKWELL, MapInfo.Type.PORTAL, MapInfo.Type.BRIDGE, MapInfo.Type.BELL, MapInfo.Type.VANE]) or not seen.call(v):
 				continue
 			if kind == MapInfo.Type.BRIDGE:
 				_mark_bridge(spot.call(v), (rec.get("bridges", {}) as Dictionary).has(int(w.get_cell(v).extra_info)))
@@ -428,6 +433,12 @@ func _other_level(info: MapInfo, c: Vector2i) -> void:
 				var free: bool = (rec.get("bells_free", {}) as Dictionary).has(v)
 				_mark_bell(spot.call(v), (rec.get("bridges", {}) as Dictionary).has(id), -2 if free else int(bell[1]))
 				continue
+			if kind == MapInfo.Type.VANE:
+				var vane: Array = w.get_cell(v).extra_info
+				var blowing: bool = (rec.get("winds", {}) as Dictionary).get(int(vane[0])) == v
+				var unchained: bool = (rec.get("bells_free", {}) as Dictionary).has(v) or blowing
+				_mark_bell(spot.call(v), blowing, -2 if unchained else int(vane[1]), "vane")
+				continue
 			if kind == MapInfo.Type.INKWELL:
 				_mark_inkwell(spot.call(v), bool(rec.get("mapped", false)))
 			elif kind == MapInfo.Type.PORTAL:
@@ -436,12 +447,74 @@ func _other_level(info: MapInfo, c: Vector2i) -> void:
 				var lit: bool = info.respawn_coord == c and info.respawn_cell == v and not info.vulnerable
 				_mark_lantern(spot.call(v), lit, (rec.get("spent_lanterns", {}) as Dictionary).has(v))
 	var hinted: Variant = _hinted_relic(info, c, w)
-	if hinted != null:
+	if hinted != null and not relic_shown:
 		_mark_relic(spot.call(hinted), info.relic_hints[c], 0.7)
 	if info.has_ghost and info.ghost_coord == c:
 		_mark_ghost(spot.call(info.cell_at(info.ghost_pos)), 0.22)
 	_text("D: worlds", Vector2(AREA.position.x, AREA.end.y - 6.0), 6.5, false)
 	_legend(_level_rows())
+
+
+## The colour of each key and door laid out in `w` ({cell: colour}): as MapInfo.place_cell deals
+## them, in the order the level places its things, keys and doors each in turn (a key laid for a
+## particular lock, or a skeleton key, keeps its own).
+static func dealt_colors(w: MapInfo.World) -> Dictionary:
+	var out: Dictionary = {}
+	var keys_dealt: int = 0
+	var doors_dealt: int = 0
+	for v: Vector2i in w.objects:
+		var cell: MapInfo.Cell = w.get_cell(v)
+		if cell.type == MapInfo.Type.KEY:
+			if cell.extra_info != null:
+				out[v] = int(cell.extra_info)
+			else:
+				out[v] = keys_dealt % MapInfo.KEY_COLOR_COUNT
+				keys_dealt += 1
+		elif cell.type == MapInfo.Type.DOOR:
+			out[v] = doors_dealt % MapInfo.KEY_COLOR_COUNT
+			doors_dealt += 1
+	return out
+
+
+## Another level's keys, doors, gates, switches, relic and star cluster where seen, as its record
+## leaves them (taken, opened, thrown), and the keys dropped there. Key and door colours are dealt in
+## the order the level places its things (MapInfo.place_cell), so they are dealt again here in that
+## order. Whether a relic was marked comes back.
+func _other_things(info: MapInfo, w: MapInfo.World, rec: Dictionary, seen: Callable, spot: Callable) -> bool:
+	var taken: Dictionary = rec.get("taken", {})
+	var opened: Dictionary = rec.get("opened", {})
+	var switched: Dictionary = rec.get("switched", {})
+	var colors: Dictionary = dealt_colors(w)
+	var relic_shown: bool = false
+	for v: Vector2i in w.objects:
+		var cell: MapInfo.Cell = w.get_cell(v)
+		match cell.type:
+			MapInfo.Type.KEY:
+				if not taken.has(v) and seen.call(v):
+					_mark_key(spot.call(v), int(colors[v]))
+			MapInfo.Type.DOOR:
+				if not opened.has(v) and seen.call(v):
+					_mark_door(spot.call(v), int(colors[v]))
+			MapInfo.Type.SWITCH_GATE:
+				if not opened.has(v) and seen.call(v):
+					_mark_gate(spot.call(v))
+			MapInfo.Type.SWITCH:
+				if seen.call(v):
+					_mark_switch(spot.call(v), switched.has(v))
+			MapInfo.Type.RELIC:
+				if not taken.has(v) and seen.call(v):
+					_mark_relic(spot.call(v), StringName(cell.extra_info), 0.7)
+					relic_shown = true
+			MapInfo.Type.CLUSTER:
+				if not taken.has(v) and seen.call(v):
+					_mark_cluster(spot.call(v))
+	var dropped: Dictionary = rec.get("dropped", {})
+	for id: Variant in dropped:
+		var drop: Array = dropped[id]
+		var v: Vector2i = info.cell_at(drop[0])
+		if w.is_valid(v) and seen.call(v):
+			_mark_key(spot.call(v), int(drop[1]))
+	return relic_shown
 
 
 func _exit_mark(node: Node, at: Vector2) -> void:
@@ -573,8 +646,8 @@ func _mark_bridge(at: Vector2, up: bool) -> void:
 
 ## A grave bell: an accent dot (faint once rung), with the key-colour dot of its padlock, or an
 ## accent ring if a switch holds its chain (`lock`: a key colour, -1 a switch, -2 free).
-func _mark_bell(at: Vector2, rung: bool, lock: int = -2) -> void:
-	_note("bell")
+func _mark_bell(at: Vector2, rung: bool, lock: int = -2, row: String = "bell") -> void:
+	_note(row)
 	marks.ink(RisoPrint.ACCENT, 0.35 if rung else 1.0, [RisoShapes.circle(at, 1.8, 10)], false)
 	if lock >= 0:
 		for plate: int in RisoPrint.key_inks(lock):

@@ -32,6 +32,13 @@ DO NOT MODIFY
 - inkwell does not need the floating paper above it, maybe a quill inside it, "map X" shoulld only pop up when interacting (this should be a generic feature)
 - same padlock should be on lateral level doors as well
 
+# PLACES
+
+- caves
+- crypts
+- MORE
+
+
 # FUTURE
 
 - the wizard looks generic, we should look into this
