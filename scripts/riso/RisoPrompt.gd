@@ -88,7 +88,11 @@ func _process(delta: float) -> void:
 		ink.ink(RisoPrint.BLUE, 0.12, [disc], false)
 		if pop > 0.3:
 			if needs >= 0:
-				ink.ink_overprint(RisoPrint.key_inks(needs), 1.0, RisoProp.key_shape(at, pop, needs))
+				if needs == KeyRing.SKELETON:
+					# On the prompt's paper disc a bone-white key would vanish: print it in night.
+					ink.ink(RisoPrint.NIGHT, 1.0, RisoProp.key_shape(at, pop, needs), false)
+				else:
+					ink.ink_overprint(RisoPrint.key_inks(needs), 1.0, RisoProp.key_shape(at, pop, needs))
 			elif bool(hint.get("switch", false)):
 				ink.ink(RisoPrint.NIGHT, 1.0, RisoProp.switch_emblem(at, pop), false)
 			else:

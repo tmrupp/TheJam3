@@ -613,15 +613,23 @@ func _mark_portal(at: Vector2, sigil: int, rift: bool) -> void:
 
 func _mark_door(at: Vector2, color: int) -> void:
 	_note("door")
-	for plate: int in RisoPrint.key_inks(color):
-		marks.ink(plate, 1.0, [RisoShapes.rrect(at.x - 0.9, at.y - 2.6, 1.8, 5.2, 0.8)], false)
-		marks.ink(plate, 1.0, [RisoProp.key_bow(at + Vector2(2.6, -2.6), 1.8, color)], false)
+	_key_ink(color, [RisoShapes.rrect(at.x - 0.9, at.y - 2.6, 1.8, 5.2, 0.8)])
+	_key_ink(color, [RisoProp.key_bow(at + Vector2(2.6, -2.6), 1.8, color)])
 
 
 func _mark_key(at: Vector2, color: int) -> void:
 	_note("skeleton key" if color == KeyRing.SKELETON else "key")
+	_key_ink(color, [RisoProp.key_bow(at, 2.0, color)])
+
+
+## A map mark in a key's colour: its inks, or for a skeleton key (bone white, which paper would
+## hide) a grey screen of night.
+func _key_ink(color: int, polys: Array[PackedVector2Array]) -> void:
+	if color == KeyRing.SKELETON:
+		marks.ink(RisoPrint.NIGHT, 0.5, polys, false)
+		return
 	for plate: int in RisoPrint.key_inks(color):
-		marks.ink(plate, 1.0, [RisoProp.key_bow(at, 2.0, color)], false)
+		marks.ink(plate, 1.0, polys, false)
 
 
 ## A plank of a chasm's bridge: a night bar once its bell is rung; before, a faint accent dash.

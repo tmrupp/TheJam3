@@ -4,7 +4,8 @@ extends Node2D
 ## - two boons: the next tier of two different abilities (picked by the level seed, new ones
 ##   before upgrades), cheaper deeper;
 ## - mending: healing to full, dearer deeper; at full health, the whereabouts of the nearest
-##   relic not yet found instead (see Relics), marked on the worlds map.
+##   relic not yet found instead (see Relics), marked on the worlds map, or a skeleton key
+##   (sells_skeleton), laid somewhere in the level for the wizard to find.
 ## Pay to learn. There is no menu: interact with the one you want.
 ## A spell learned in place of the one in the slot leaves the old spell in its niche, at its tier;
 ## interacting there takes it back free (leaving the newer one in turn), even once spent.
@@ -107,9 +108,34 @@ func take_back(i: int) -> void:
 
 
 ## At full health (nothing to mend), the mending station sells the whereabouts of the nearest relic
-## not yet found or marked instead (see Relics), marked on the worlds map.
+## not yet found or marked instead (see Relics), marked on the worlds map, unless it sells a
+## skeleton key (sells_skeleton).
 func reads_relic() -> bool:
-	return not can_mend() and map_info != null and map_info.next_relic() != null
+	return not can_mend() and map_info != null and map_info.next_relic() != null and not sells_skeleton()
+
+
+## Shares (%) of shrines whose mending station sells a skeleton key at full health instead of a
+## relic's whereabouts: SKELETON_SALE, or SKELETON_SALE_HINTED while a relic already marked waits
+## to be found. With no relic left to point to, it always does. Its price is SKELETON_PRICE times
+## the level's deeper price.
+const SKELETON_SALE: int = 30
+const SKELETON_SALE_HINTED: int = 70
+const SKELETON_PRICE: float = 2.0
+
+
+## At full health, the mending station sells a skeleton key: bought, one is laid on a floor
+## somewhere in the level (MapInfo.lay_sold_skeleton), shown on the map.
+func sells_skeleton() -> bool:
+	if can_mend() or map_info == null:
+		return false
+	if map_info.next_relic() == null:
+		return true
+	var chance: int = SKELETON_SALE_HINTED if not map_info.relic_hints.is_empty() else SKELETON_SALE
+	return MapInfo.level_seed(MapInfo.level_seed(map_info.coord.x, map_info.coord.y), 6100) % 100 < chance
+
+
+func skeleton_price() -> int:
+	return roundi(SKELETON_PRICE * float(MapInfo.deeper_price(depth())))
 
 
 ## The move the relic it would point to holds, or &"".
@@ -122,7 +148,7 @@ func relic_price() -> int:
 	return Relics.hint_price(depth())
 
 
-## The third station: mend while hurt, else a relic's whereabouts.
+## The third station: mend while hurt, else a relic's whereabouts or a skeleton key.
 func buy_mend() -> void:
 	if used():
 		return
@@ -137,6 +163,11 @@ func buy_mend() -> void:
 			return
 		map_info.hint_relic()
 		_spend($Mend as Node2D, [RisoPrint.ACCENT, RisoPrint.BLUE])
+	elif sells_skeleton():
+		if not _pay(skeleton_price()):
+			return
+		map_info.lay_sold_skeleton()
+		_spend($Mend as Node2D, [RisoPrint.EYE, RisoPrint.BLUE])
 
 
 func _pay(cost: int) -> bool:
@@ -157,7 +188,7 @@ func _process(_delta: float) -> void:
 	var spent: bool = used()
 	$Boon/Interactable.available = not spent or not left_spell(0).is_empty()
 	$Boon2/Interactable.available = not spent or not left_spell(1).is_empty()
-	$Mend/Interactable.available = not spent and (can_mend() or reads_relic())
+	$Mend/Interactable.available = not spent and (can_mend() or reads_relic() or sells_skeleton())
 
 
 func _ready() -> void:

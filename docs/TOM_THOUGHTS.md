@@ -32,15 +32,19 @@ DO NOT MODIFY
 - * inkwell does not need the floating paper above it, maybe a quill inside it, "map X" shoulld only pop up when interacting (this should be a generic feature)
 - * same padlock should be on lateral level doors as well
 
-- some gates should require a skeleton key (a relic can spawn there instead of a false wall as an alternative)
-- skeleton key could be an alternative purchase when full health (random spawn instead of relic location), more likely when a relic is uncollected but revealed
-- relics need to spawn deeper
-- the world bands should be larger (garden is 5-8 deep), can dial this in more
+- * some gates should require a skeleton key (a relic can spawn there instead of a false wall as an alternative)
+- * skeleton key could be an alternative purchase when full health (random spawn instead of relic location), more likely when a relic is uncollected but revealed
+- * relics need to spawn deeper
+- * the world bands should be larger (garden is 5-8 deep), can dial this in more
 - * the hex bolt right now is quite awkward it feels bad to throw it away for any spell
 
-- players can jump over and over on a wall to slowly climb. I still want the ability to wall jump up (back and forth) from a 2-wide gap. Maybe more lateral speed when wall jumping
+- * the skeleton key should be white and look like a bone with teeth
 
-- levitate should have a time limit
+- players can jump over and over on a wall to slowly climb. I still want to retain the ability to wall jump up (back and forth) from a 2-wide gap. Maybe more lateral speed when wall jumping
+
+- levitate should have a time limit, but still be long
+
+- astral should make the player translucent, should have a much shorter timer and cannot take damage while active
 
 - deeper levels and hyperspace should be likely to require relics to fully traverse (relax the traversability guarantees in later levels/hyperspace)
 

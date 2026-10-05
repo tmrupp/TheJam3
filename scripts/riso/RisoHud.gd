@@ -370,7 +370,7 @@ func _awareness(player: Player) -> void:
 				ink.ink(RisoPrint.ACCENT, fade, [RisoShapes.arch(mark.x - 2.6, mark.y - 3.2, 5.2, 6.0, 6)], false)
 			&"key":
 				var color: int = int((target["node"] as Node).get_meta(&"key_color", 0))
-				ink.ink_overprint(RisoPrint.key_inks(color), fade, RisoProp.key_shape(mark, 0.2, color))
+				RisoPrint.ink_key(ink, color, fade, RisoProp.key_shape(mark, 0.2, color))
 	ink.ink(RisoPrint.NIGHT, fade, arrows, false)
 
 

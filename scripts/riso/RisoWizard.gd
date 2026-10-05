@@ -727,8 +727,7 @@ func _draw_world() -> void:
 			world.ink(RisoPrint.GLOW, 0.5 - 0.2 * float(k), [ring])
 	for i: int in range(mini(key_colors.size(), key_trail.size())):
 		var bob: Vector2 = Vector2(0, sin(t * 3.0 - float(i) * 0.7) * 3.0)
-		for plate: int in RisoPrint.key_inks(key_colors[i]):
-			world.ink(plate, 1.0, RisoProp.key_shape(key_trail[i] + bob, 1.0, key_colors[i]))
+		RisoPrint.ink_key(world, key_colors[i], 1.0, RisoProp.key_shape(key_trail[i] + bob, 1.0, key_colors[i]))
 	for g: Vector4 in marks:
 		var at: Transform2D = Transform2D(0.0, Vector2(s, s), 0.0, Vector2(g.x, g.y - (1.0 - g.w) * 6.0 * s))
 		world.ink(RisoPrint.GLOW, 0.25 if g.w > 0.5 else 0.15, _silhouette(at, g.z))

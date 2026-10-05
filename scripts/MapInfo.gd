@@ -36,6 +36,14 @@ const MOVING_PLATFORM_CHANCE: float = 0.35
 const HOPPERS_PER_K: float = 2.0
 ## Share (%) of levels from depth 1 whose secret room holds a skeleton key (see KeyRing).
 const SKELETON_CHANCE: int = 30
+## Bone gates, which only a skeleton key opens (World.place_bone_vault, deal_colors): the share (%)
+## of levels from depth 1 with a bone vault holding rich loot (BONE_LOOT); the share of relic levels
+## whose relic waits behind a bone gate instead of in a secret room; and from SKELETON_DOOR_DEPTH,
+## the share of corridor doors on the way that are bone gates.
+const BONE_VAULT_CHANCE: int = 25
+const RELIC_GATE_CHANCE: int = 50
+const SKELETON_DOOR_DEPTH: int = 6
+const SKELETON_DOOR_CHANCE: int = 15
 ## Cemetery levels (NextWorldDef.archetype): moth swarms (one by each lantern, and these more),
 ## banks of sleep fog and wraiths, per 1000 cells.
 const MOTHS_PER_K: float = 0.6
@@ -634,11 +642,14 @@ class World:
 
 	## The level's seed, which deals its key and door colours (deal_colors).
 	var seed_for_colors: int = 0
+	## The level's depth, for the rules that change with it (bone gates on the way, deal_colors).
+	var depth: int = 0
 
 	func _init (_cells: Array, def: NextWorldDef) -> void:
 		rng = RandomNumberGenerator.new()
 		rng.seed = def.gen_seed
 		seed_for_colors = def.gen_seed
+		depth = def.depth
 		size = Vector2i(len(_cells), len(_cells[0]))
 		cells = []
 
@@ -685,7 +696,12 @@ class World:
 				cell.extra_info = 0 if keys == 0 else MapInfo.rarity_color(MapInfo.level_seed(seed_for_colors, KEY_DEAL + keys))
 				keys += 1
 			elif cell.type == Type.DOOR:
-				cell.extra_info = MapInfo.rarity_color(MapInfo.level_seed(seed_for_colors, DOOR_DEAL + doors))
+				var roll: int = MapInfo.level_seed(seed_for_colors, DOOR_DEAL + doors)
+				# Deep down, some doors on the way are bone gates.
+				if depth >= MapInfo.SKELETON_DOOR_DEPTH and (roll / 100) % 100 < MapInfo.SKELETON_DOOR_CHANCE:
+					cell.extra_info = KeyRing.SKELETON
+				else:
+					cell.extra_info = MapInfo.rarity_color(roll)
 				doors += 1
 		for v: Vector2i in spare:
 			_to_open(v)
@@ -802,7 +818,7 @@ class World:
 			populate_sky(def)
 		place_cluster(def)
 		place_secrets(def)
-		place_vaults()
+		place_vaults(def)
 
 	## A cemetery's gates. Chasms are cut across long stretches of floor (CHASM_WIDTH cells across,
 	## CHASM_DEPTH deep, with thorns at the bottom and rock under them): too wide to jump without a
@@ -1738,11 +1754,15 @@ class World:
 	## of the level lands where it always has.
 	var secrets: Array = []
 	const SECRETS_PER_K: float = 0.6
+	## The level's relic waits behind a bone gate rather than in a secret room
+	## (MapInfo.RELIC_GATE_CHANCE; see place_bone_vault).
+	var relic_gated: bool = false
 	## Room sizes (cells across and up) tried in turn, biggest first.
 	const SECRET_SIZES: Array[Vector2i] = [Vector2i(4, 2), Vector2i(3, 2), Vector2i(2, 2)]
 	const SECRET_STARS: int = 3
 
 	func place_secrets (def: NextWorldDef) -> void:
+		relic_gated = def.relic != &"" and MapInfo.relic_gated_at(def.coord)
 		var want: int = per_area(SECRETS_PER_K)
 		# Rooms wholly in rock first; then rooms that only need rock under them (a hidden room's
 		# rock is real rock, so another side may face open air).
@@ -1753,9 +1773,9 @@ class World:
 					if spots.is_empty():
 						break
 					var pick: Array = spots[rng.randi_range(0, spots.size() - 1)]
-					_carve_secret(pick[0], pick[1], def.relic if secrets.is_empty() else &"")
+					_carve_secret(pick[0], pick[1], def.relic if secrets.is_empty() and not relic_gated else &"")
 		# A relic with no room for a secret stands on a floor in the open instead.
-		if def.relic != &"" and secrets.is_empty():
+		if def.relic != &"" and secrets.is_empty() and not relic_gated:
 			var at: Variant = pop_if_random_empty(ground_below, true)
 			var relic: Cell = Cell.new(Type.RELIC)
 			relic.extra_info = def.relic
@@ -1863,14 +1883,24 @@ class World:
 
 	## Everything the vault behind `door`, locked in `color`, holds (see VAULT_LOOT).
 	func vault_loot (color: int, door: Vector2i) -> Array:
+		if color == KeyRing.SKELETON:
+			return [[Type.RELIC, bone_relic]] if bone_relic != &"" else BONE_LOOT.duplicate()
 		var loot: Array = (VAULT_LOOT[color] as Array).duplicate()
 		if color == 1 and MapInfo.level_seed(seed_for_colors, VAULT_KEY_DEAL + door.x * 1000 + door.y) % 100 < VAULT_KEY_CHANCE:
 			loot.append([Type.KEY, 2])
 		return loot
 	## The rock round every vault, which make_room leaves whole (it would let you in past the door).
 	var vault_walls: Dictionary = {}
+	## A bone vault's loot, a step above a plum vault's: a hoard worth three star clusters.
+	const BONE_LOOT: Array = [[Type.CLUSTER, 3.0]]
+	## The relic a bone vault holds instead (relic_gated), or &"".
+	var bone_relic: StringName = &""
+	## Room sizes for a bone vault: two high, so a relic stands in it.
+	const BONE_SIZES: Array[Vector2i] = [Vector2i(3, 2), Vector2i(2, 2)]
+	## A bone strongbox's inside, where no rock is thick enough (see _strongbox_spots).
+	const BONE_STRONGBOX: Vector2i = Vector2i(2, 2)
 
-	func place_vaults () -> void:
+	func place_vaults (def: NextWorldDef) -> void:
 		var want: int = per_area(VAULTS_PER_K)
 		for room: Vector2i in VAULT_SIZES:
 			while vaults.size() < want:
@@ -1883,14 +1913,52 @@ class World:
 		# No rock thick enough to carve one into (a sky level's islands are thin): build one, a
 		# strongbox of rock on a floor.
 		if vaults.is_empty():
-			var spots: Array = _strongbox_spots()
+			var spots: Array = _strongbox_spots(STRONGBOX)
 			if not spots.is_empty():
 				var pick: Array = spots[rng.randi_range(0, spots.size() - 1)]
 				for c: Vector2i in pick[2]:
 					_to_rock(c)
 				_carve_vault(pick[0], pick[1], rng.randi_range(0, MapInfo.KEY_COLOR_COUNT - 1))
+		place_bone_vault(def)
 
-	## A strongbox: a vault built out of open air, STRONGBOX (cells across and up) inside, its door
+	## A bone vault: a vault behind a bone gate, which only a skeleton key opens. In BONE_VAULT_CHANCE
+	## % of levels from depth 1 it holds BONE_LOOT; in a level whose relic is gated (relic_gated) it
+	## holds the relic instead. Placed after the other vaults. A gated relic with no room for a bone
+	## vault goes back to the level's first secret room (in place of a star), or, with no secret room
+	## either, stands on a floor in the open.
+	func place_bone_vault (def: NextWorldDef) -> void:
+		if not relic_gated and not MapInfo.bone_vault_at(def.coord):
+			return
+		bone_relic = def.relic if relic_gated else &""
+		for room: Vector2i in BONE_SIZES:
+			var spots: Array = _secret_spots(room, true).filter(func(spot: Array) -> bool: return Rect2i(Vector2i.ZERO, size).encloses((spot[0] as Rect2i).grow(1)))
+			if not spots.is_empty():
+				var pick: Array = spots[rng.randi_range(0, spots.size() - 1)]
+				_carve_vault(pick[0], pick[1], KeyRing.SKELETON)
+				return
+		# No rock to carve one into (a cemetery's terraces, the sky's islands): build a strongbox,
+		# two high so a relic stands in it.
+		var built: Array = _strongbox_spots(BONE_STRONGBOX)
+		if not built.is_empty():
+			var pick: Array = built[rng.randi_range(0, built.size() - 1)]
+			for c: Vector2i in pick[2]:
+				_to_rock(c)
+			_carve_vault(pick[0], pick[1], KeyRing.SKELETON)
+			return
+		if not relic_gated:
+			return
+		if not secrets.is_empty():
+			var rewards: Array = secrets[0]["rewards"]
+			rewards[0] = [rewards[0][0], Type.RELIC, def.relic]
+		else:
+			var at: Variant = pop_if_random_empty(ground_below, true)
+			var relic: Cell = Cell.new(Type.RELIC)
+			relic.extra_info = def.relic
+			set_cell(at, relic)
+		relic_gated = false
+
+	## A strongbox: a vault built out of open air, `inside` (cells across and up; STRONGBOX for a
+	## keyed vault) inside, its door
 	## beside a floor spot, walled, roofed and floored in rock (its floor may be rock already, or it
 	## hangs off the floor's edge, as a ledge does). Only where every cell it takes is free,
 	## STRONGBOX_HEADROOM rows of open air lie over it and a row under any floor it builds (so it
@@ -1899,7 +1967,7 @@ class World:
 	const STRONGBOX: Vector2i = Vector2i(2, 1)
 	const STRONGBOX_HEADROOM: int = 2
 
-	func _strongbox_spots () -> Array:
+	func _strongbox_spots (inside: Vector2i) -> Array:
 		var free: Dictionary = {}
 		for v: Vector2i in empties:
 			free[v] = true
@@ -1918,9 +1986,9 @@ class World:
 		for o: Vector2i in floors:
 			for side: int in [-1, 1]:
 				var door: Vector2i = o + Vector2i(side, 0)
-				var x0: int = door.x + 1 if side > 0 else door.x - STRONGBOX.x
-				var r: Rect2i = Rect2i(x0, o.y - STRONGBOX.y + 1, STRONGBOX.x, STRONGBOX.y)
-				var box: Rect2i = Rect2i(mini(door.x, x0 - 1) if side < 0 else door.x, r.position.y - 1, STRONGBOX.x + 2, STRONGBOX.y + 1)
+				var x0: int = door.x + 1 if side > 0 else door.x - inside.x
+				var r: Rect2i = Rect2i(x0, o.y - inside.y + 1, inside.x, inside.y)
+				var box: Rect2i = Rect2i(mini(door.x, x0 - 1) if side < 0 else door.x, r.position.y - 1, inside.x + 2, inside.y + 1)
 				if not Rect2i(Vector2i(1, 1), size - Vector2i(2, 2)).encloses(box.grow_individual(0, STRONGBOX_HEADROOM, 0, 2)):
 					continue
 				var ok: bool = true
@@ -1930,13 +1998,14 @@ class World:
 					# open air over it.
 					var under: Vector2i = Vector2i(x, box.end.y)
 					if not is_ground(under):
-						ok = ok and free.has(under) and get_cell(under).type == Type.EMPTY and not keep_clear.has(under) and not near_chasm.call(under) 								and _open(under + Vector2i.DOWN) and not keep_clear.has(under + Vector2i.DOWN)
+						ok = ok and _buildable(under, free) and not keep_clear.has(under) and not near_chasm.call(under) \
+								and _open(under + Vector2i.DOWN) and not keep_clear.has(under + Vector2i.DOWN)
 						walls.append(under)
 					for h: int in range(1, STRONGBOX_HEADROOM + 1):
 						ok = ok and _open(Vector2i(x, box.position.y - h)) and not keep_clear.has(Vector2i(x, box.position.y - h))
 					for y: int in range(box.position.y, box.end.y):
 						var c: Vector2i = Vector2i(x, y)
-						ok = ok and free.has(c) and get_cell(c).type == Type.EMPTY and not keep_clear.has(c) and not near_chasm.call(c)
+						ok = ok and _buildable(c, free) and not keep_clear.has(c) and not near_chasm.call(c)
 						if c != door and not r.has_point(c):
 							walls.append(c)
 					if not ok:
@@ -1944,6 +2013,11 @@ class World:
 				if ok:
 					out.append([r, door, walls])
 		return out
+
+	## Whether a strongbox may take cell `c`: open air with nothing in it, or only a star or a piece
+	## of a ledge that stays put (which it takes the place of). `free` holds the open cells.
+	func _buildable (c: Vector2i, free: Dictionary) -> bool:
+		return (free.has(c) and get_cell(c).type == Type.EMPTY) or get_cell(c).type in [Type.COIN, Type.PLATFORM]
 
 	func _carve_vault (r: Rect2i, door: Vector2i, color: int) -> void:
 		for x: int in range(r.position.x - 1, r.end.x + 1):
@@ -1956,6 +2030,8 @@ class World:
 			for y: int in range(r.position.y, r.end.y):
 				room.append(Vector2i(x, y))
 				_to_open(Vector2i(x, y))
+		# A strongbox's door may stand where a star was: it is listed once.
+		objects.erase(door)
 		add_object_at(door)
 		var lock: Cell = Cell.new(Type.DOOR)
 		lock.extra_info = color
@@ -2329,6 +2405,15 @@ static func skeleton_at (at: Vector2i) -> bool:
 static func exit_distance (depth: int) -> int:
 	return clampi(24 + 4 * depth, 24, 96)
 
+## Whether level `at` has a bone vault of loot (BONE_VAULT_CHANCE % of levels from depth 1), and
+## whether its relic, if it has one, waits behind a bone gate (RELIC_GATE_CHANCE %); both dealt by
+## the level seed.
+static func bone_vault_at (at: Vector2i) -> bool:
+	return at.y >= 1 and level_seed(level_seed(at.x, at.y), 4811) % 100 < BONE_VAULT_CHANCE
+
+static func relic_gated_at (at: Vector2i) -> bool:
+	return level_seed(level_seed(at.x, at.y), 4911) % 100 < RELIC_GATE_CHANCE
+
 ## The key colour that locks a level's left or right exit, dealt by the level seed.
 static func lateral_lock (at: Vector2i, which: int) -> int:
 	return rarity_color(level_seed(level_seed(at.x, at.y), 500 + which))
@@ -2388,6 +2473,35 @@ func key_taken (key: Node2D, had: int) -> void:
 	rec["dropped"][id] = [key.position, had]
 	_spawn_dropped_key.call_deferred(id, key.position, had)
 	save_run()
+
+## How far (cells) from the shrine a skeleton key it sold is laid, at least (where the level allows).
+const SOLD_KEY_APART: int = 10
+const SOLD_KEY_DEAL: int = 6200
+
+## A shrine sold a skeleton key: it is laid on a floor of this level, dealt by the level seed, at
+## least SOLD_KEY_APART cells from the shrine where there is such a floor (never in a vault). It is
+## kept as a dropped key (the record keeps it until taken, and the map shows it). Returns where.
+func lay_sold_skeleton () -> Vector2:
+	var vaulted: Dictionary = {}
+	for vault: Dictionary in world.vaults:
+		for c: Vector2i in vault["room"]:
+			vaulted[c] = true
+	var floors: Array[Vector2i] = []
+	for v: Vector2i in world.empties:
+		if world.ground_below(v) and world.get_cell(v).type == Type.EMPTY and not vaulted.has(v):
+			floors.append(v)
+	floors.sort()
+	var far: Array[Vector2i] = floors.filter(func(v: Vector2i) -> bool: return absi(v.x - world.shrine.x) + absi(v.y - world.shrine.y) >= SOLD_KEY_APART)
+	var pool: Array[Vector2i] = far if not far.is_empty() else floors
+	var at: Vector2i = pool[level_seed(level_seed(coord.x, coord.y), SOLD_KEY_DEAL) % pool.size()] if not pool.is_empty() else world.shrine
+	var pos: Vector2 = cell_position(at)
+	var rec: Dictionary = record()
+	var id: int = int(rec["next_drop"])
+	rec["next_drop"] = id + 1
+	rec["dropped"][id] = [pos, KeyRing.SKELETON]
+	_spawn_dropped_key(id, pos, KeyRing.SKELETON)
+	save_run()
+	return pos
 
 func _spawn_dropped_key (id: int, pos: Vector2, color: int) -> void:
 	if map_elements == null or not is_instance_valid(map_elements):

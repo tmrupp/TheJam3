@@ -266,10 +266,25 @@ static func _portal_fx(portal: Node2D, wizard: Node2D, center: Vector2, feet: Ve
 	portal.get_parent().add_child(fx)
 
 
-static func key_inks(color: int) -> Array[int]:
-	# A skeleton key prints in eye yellow alone, which no key colour uses: it opens any door.
+## Every plate: knocking or lifting them all leaves bare paper.
+const ALL_PLATES: Array[int] = [NIGHT, BLUE, PINK, ACCENT, EYE, GLOW, ROBE]
+
+
+## Print a key of `color` in `shapes` on `canvas`: overprinted in its colour's inks, or, for a
+## skeleton key, bare paper, so it reads bone white.
+static func ink_key(canvas: InkCanvas, color: int, cover: float, shapes: Array[PackedVector2Array]) -> void:
 	if color == KeyRing.SKELETON:
-		return [EYE]
+		canvas.lift_ink(ALL_PLATES, cover, shapes)
+		return
+	for plate: int in key_inks(color):
+		canvas.ink(plate, cover, shapes)
+
+
+static func key_inks(color: int) -> Array[int]:
+	# A skeleton key prints as bare paper (ink_key); where it needs an ink (its map marks, sparks)
+	# it is night, screened to grey on the map.
+	if color == KeyRing.SKELETON:
+		return [NIGHT]
 	var out: Array[int] = []
 	for plate: int in KEY_COLORS[posmod(color, KEY_COLORS.size())]:
 		out.append(plate)

@@ -97,14 +97,17 @@ func run() -> void:
 			if def.relic != &"":
 				relic_levels += 1
 				var held: bool = w.secrets.any(func(s: Dictionary) -> bool: return (s["rewards"] as Array).any(func(r: Array) -> bool: return r[1] == MapInfo.Type.RELIC and StringName(r[2]) == def.relic))
-				if held:
+				# Or behind a bone gate instead (bones_test).
+				var gated: bool = w.vaults.any(func(v: Dictionary) -> bool: return int(v["color"]) == KeyRing.SKELETON and (v["room"] as Array).any(func(c: Vector2i) -> bool: return w.get_cell(c).type == MapInfo.Type.RELIC))
+				if held or gated:
 					relic_in_room += 1
+				if held:
 					if depth == 1 and relic_seed < 0:
 						relic_seed = world_seed
 	# Relics are rare (about one level in 20): if the sample had none at depth 1, find one.
 	if relic_seed < 0:
 		relic_seed = 1
-		while Relics.at(Vector2i(relic_seed, 1)) == &"":
+		while Relics.at(Vector2i(relic_seed, 1)) == &"" or MapInfo.relic_gated_at(Vector2i(relic_seed, 1)):
 			relic_seed += 1
 		var def: NextWorldDef = MapInfo.def_for(Vector2i(relic_seed, 1))
 		var w: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", def), def)
@@ -114,7 +117,7 @@ func run() -> void:
 	print("  %d levels, %d with a secret room; %d relic levels, %d with the relic in a room" % [levels, with_secret, relic_levels, relic_in_room])
 	check(with_secret >= levels * 9 / 10, "nearly every level has a secret room")
 	check(formed, "every room is a pocket of rock with rock under it, its entrance beside a floor")
-	check(relic_levels > 0 and relic_in_room == relic_levels, "every relic waits in a secret room")
+	check(relic_levels > 0 and relic_in_room == relic_levels, "every relic waits in a secret room, or behind a bone gate")
 	var depth0: int = 0
 	for s: int in range(1, 200):
 		if Relics.at(Vector2i(s, 0)) != &"":

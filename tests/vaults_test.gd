@@ -103,7 +103,7 @@ func run() -> void:
 						keys[int(cell.extra_info)] += 1
 						if first_key < 0:
 							first_key = int(cell.extra_info)
-				elif cell.type == MapInfo.Type.DOOR and not vault_doors.has(v):
+				elif cell.type == MapInfo.Type.DOOR and not vault_doors.has(v) and int(cell.extra_info) != KeyRing.SKELETON:
 					doors[int(cell.extra_info)] += 1
 			check(first_key == 0, label + ": the first key is the commonest colour")
 			if not w.vaults.is_empty():
@@ -112,7 +112,9 @@ func run() -> void:
 				print("  no vault: ", label)
 			for vault: Dictionary in w.vaults:
 				var color: int = vault["color"]
-				vault_colors[color] = int(vault_colors.get(color, 0)) + 1
+				# Bone vaults are bones_test's.
+				if color < MapInfo.KEY_COLOR_COUNT:
+					vault_colors[color] = int(vault_colors.get(color, 0)) + 1
 				if color == 1:
 					ember_vaults += 1
 					if w.vault_loot(color, vault["door"]).has([MapInfo.Type.KEY, 2]):
@@ -148,8 +150,9 @@ func run() -> void:
 	player.set_physics_process(false)
 	var vault: Dictionary = {}
 	for step: int in range(4):
-		if not info.world.vaults.is_empty():
-			vault = info.world.vaults[0]
+		var keyed: Array = info.world.vaults.filter(func(vt: Dictionary) -> bool: return int(vt["color"]) < MapInfo.KEY_COLOR_COUNT)
+		if not keyed.is_empty():
+			vault = keyed[0]
 			break
 		info.travel(MapInfo.Exit.RIGHT)
 		await settle()

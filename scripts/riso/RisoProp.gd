@@ -9,10 +9,10 @@ const STATIC_KINDS: Array[StringName] = [&"door", &"ledge", &"thorns", &"cracked
 
 
 ## The same colour-to-shape identity on keys, lock faces and map marks.
-## Sun = square, ember = triangle, moss = circle, plum = diamond; skeleton keys have a skull.
+## Sun = square, ember = triangle, moss = circle, plum = diamond; skeleton keys are a bone.
 static func key_bow(c: Vector2, r: float, color: int) -> PackedVector2Array:
 	if color == KeyRing.SKELETON:
-		return Transform2D(0.0, Vector2(r, r), 0.0, c) * RisoShapes.smooth(PackedVector2Array([Vector2(-0.6, 1), Vector2(-0.6, 0.5), Vector2(-1, 0.3), Vector2(-1, -0.6), Vector2(-0.5, -1), Vector2(0.5, -1), Vector2(1, -0.6), Vector2(1, 0.3), Vector2(0.6, 0.5), Vector2(0.6, 1)]))
+		return bone(c, r, r * 0.7)
 	match posmod(color, MapInfo.KEY_COLOR_COUNT):
 		1: return RisoShapes.tri(c + Vector2(0, -r), c + Vector2(r, r), c + Vector2(-r, r))
 		2: return RisoShapes.circle(c, r, 24)
@@ -23,18 +23,35 @@ static func key_bow(c: Vector2, r: float, color: int) -> PackedVector2Array:
 ## Teeth past the bit of a rarer key, one per step of rarity (MapInfo.KEY_RARITY): how far down
 ## each hangs, in turn.
 const KEY_TEETH: Array[float] = [8.0, 10.0, 7.0]
+## Teeth past a skeleton key's bit, as a moss key's (see KEY_TEETH).
+const SKELETON_TEETH: int = 2
+
+
+## A bone `hw` across and `hh` high from its middle out, centred on `c`: a bar with two round knobs
+## at each end.
+static func bone(c: Vector2, hw: float, hh: float) -> PackedVector2Array:
+	return Transform2D(0.0, Vector2(hw, hh), 0.0, c) * RisoShapes.smooth(PackedVector2Array([
+		Vector2(-0.62, -0.42), Vector2(0.62, -0.42), Vector2(0.78, -1.0), Vector2(1.0, -0.62), Vector2(0.9, 0.0),
+		Vector2(1.0, 0.62), Vector2(0.78, 1.0), Vector2(0.62, 0.42), Vector2(-0.62, 0.42), Vector2(-0.78, 1.0),
+		Vector2(-1.0, 0.62), Vector2(-0.9, 0.0), Vector2(-1.0, -0.62), Vector2(-0.78, -1.0)]))
 
 
 ## A key with a colour-specific bow, in world pixels, centred near `o`. The rarer its colour, the
 ## longer its shaft and the more teeth on its bit (a plum key has four), so rarity reads at a glance.
 static func key_shape(o: Vector2, s: float, color: int = 0) -> Array[PackedVector2Array]:
-	var extra: int = 0 if color == KeyRing.SKELETON else clampi(color, 0, KEY_TEETH.size())
+	# A skeleton key has the bit of a rare key (three teeth) and a bone's knobbed base for its bow.
+	var skeleton: bool = color == KeyRing.SKELETON
+	var extra: int = SKELETON_TEETH if skeleton else clampi(color, 0, KEY_TEETH.size())
 	var c: Vector2 = o - Vector2(2.5 * extra, 0) * s
-	var out: Array[PackedVector2Array] = [
-		key_bow(c + Vector2(-10, 0) * s, 11.0 * s, color),
-		RisoShapes.rrect(c.x - 3.0 * s, c.y - 3.5 * s, (24.0 + 5.0 * extra) * s, 7.0 * s, 3.5 * s),
-		RisoShapes.rrect(c.x + 12.0 * s, c.y, 6.0 * s, 11.0 * s, 3.0 * s),
-	]
+	var out: Array[PackedVector2Array] = []
+	if skeleton:
+		out.append(RisoShapes.circle(c + Vector2(-14, -5) * s, 6.0 * s, 16))
+		out.append(RisoShapes.circle(c + Vector2(-14, 5) * s, 6.0 * s, 16))
+		out.append(RisoShapes.rrect(c.x - 15.0 * s, c.y - 3.5 * s, 14.0 * s, 7.0 * s, 3.5 * s))
+	else:
+		out.append(key_bow(c + Vector2(-10, 0) * s, 11.0 * s, color))
+	out.append(RisoShapes.rrect(c.x - 3.0 * s, c.y - 3.5 * s, (24.0 + 5.0 * extra) * s, 7.0 * s, 3.5 * s))
+	out.append(RisoShapes.rrect(c.x + 12.0 * s, c.y, 6.0 * s, 11.0 * s, 3.0 * s))
 	for k: int in range(extra):
 		out.append(RisoShapes.rrect(c.x + (20.0 + 5.0 * k) * s, c.y, 3.0 * s, KEY_TEETH[k] * s, 1.5 * s))
 	return out
@@ -249,19 +266,20 @@ func _key() -> void:
 	if sprite != null and not sprite.visible:
 		return
 	var o: Vector2 = Vector2(0, sin(t * 3.0 + phase) * 4.0)
-	var shape: Array[PackedVector2Array] = RisoProp.key_shape(o, 1.0, int(host.get_meta(&"key_color", 0)))
-	var inks: Array[int] = RisoPrint.key_inks(int(host.get_meta(&"key_color", 0)))
-	# A halo in the key's own colour, as the stars have.
+	var color: int = int(host.get_meta(&"key_color", 0))
+	var shape: Array[PackedVector2Array] = RisoProp.key_shape(o, 1.0, color)
+	# A halo in the key's own colour, as the stars have (a skeleton key's is pale light).
 	var halo: Array[PackedVector2Array] = [RisoShapes.circle(o + Vector2(-2, 1), 26.0, 24)]
-	for plate: int in inks:
-		ink.ink(plate, 0.25, halo)
-	for plate: int in inks:
-		ink.ink(plate, 1.0, shape)
-	if int(host.get_meta(&"key_color", 0)) == KeyRing.SKELETON:
-		# A skeleton key: paper eye holes in its bow and a twinkle turning over it, so it reads as
-		# rarer than the coloured keys.
-		ink.knock(inks, [RisoShapes.circle(o + Vector2(-13, -2), 2.6, 10), RisoShapes.circle(o + Vector2(-7, -2), 2.6, 10)])
-		ink.ink(RisoPrint.EYE, 1.0, [Transform2D(t * 1.5, o + Vector2(-10, -22)) * RisoShapes.sparkle(Vector2.ZERO, 7.0)])
+	if color == KeyRing.SKELETON:
+		# Round the bone's whole length.
+		ink.lift_ink(RisoPrint.ALL_PLATES, 0.3, [RisoShapes.circle(o + Vector2(1, 1), 29.0, 26)])
+	else:
+		for plate: int in RisoPrint.key_inks(color):
+			ink.ink(plate, 0.25, halo)
+	RisoPrint.ink_key(ink, color, 1.0, shape)
+	if color == KeyRing.SKELETON:
+		# A bone-white skeleton key, with a paper twinkle turning over it: rarer than the coloured keys.
+		ink.lift_ink(RisoPrint.ALL_PLATES, 1.0, [Transform2D(t * 1.5, o + Vector2(-18, -20)) * RisoShapes.sparkle(Vector2.ZERO, 6.0)])
 
 
 ## A star cluster: a big star turning in a wide halo with smaller stars wheeling round it, all
@@ -422,6 +440,17 @@ func _shrine() -> void:
 		var sr: float = _pop(2, Vector2(mx, g - 50))
 		if sr > 0.0:
 			_plaque("%s relic · where · %d" % [Abilities.NAMES[move], int(host.call("relic_price"))], Vector2(mx, g - POP_Y), 30, RisoPrint.ACCENT, sr)
+		return
+	if full and bool(host.call("sells_skeleton")):
+		# At full health: a skeleton key on a paper medallion.
+		var plate: PackedVector2Array = RisoShapes.circle(m, 20.0, 24)
+		ink.ink(RisoPrint.EYE, 0.25, [RisoShapes.circle(m, 28.0, 28)])
+		ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.circle(m, 23.0, 24)])
+		ink.knock(RisoPrint.ALL_PLATES, [plate])
+		ink.ink(RisoPrint.NIGHT, 1.0, key_shape(m + Vector2(0, -2), 0.75, KeyRing.SKELETON), false)
+		var sk: float = _pop(2, Vector2(mx, g - 50))
+		if sk > 0.0:
+			_plaque("skeleton key · %d" % int(host.call("skeleton_price")), Vector2(mx, g - POP_Y), 30, RisoPrint.ACCENT, sk)
 		return
 	# Mending: an ember bead over the bowl, like the HUD's health beads.
 	ink.ink(RisoPrint.EYE, 0.12 if full else 0.25, [RisoShapes.circle(m, 25.0, 28)])
@@ -857,7 +886,7 @@ static func portcullis(ink: InkCanvas, g: float, half: float, key_color: int, li
 			iron.append(RisoShapes.tri(Vector2(x - 8.0, bottom - 3.0), Vector2(x + 8.0, bottom - 3.0), Vector2(x, bottom + 12.0)))
 		var ly: float = top + 10.0 + span * 0.5
 		iron.append(RisoShapes.rrect(-52, ly - 6.0, 104, 12, 6))
-		ink.ink(RisoPrint.BLUE, fade, iron)
+		_gate_iron(ink, key_color, fade, iron)
 		if span > 40.0:
 			if key_color < 0:
 				# A switch gate: the switch's emblem (a lever in a ring) on a paper plate.
@@ -867,7 +896,15 @@ static func portcullis(ink: InkCanvas, g: float, half: float, key_color: int, li
 			else:
 				# A padlock in its key's colour hangs from the cross-rail, as on a cemetery's bells.
 				RisoProp.padlock(ink, Vector2(0, ly - 4.0), key_color, 1.6, fade)
-	ink.ink(RisoPrint.BLUE, fade, [RisoShapes.rrect(-half, top - 2.0, 2.0 * half, 14, 4)])
+	_gate_iron(ink, key_color, fade, [RisoShapes.rrect(-half, top - 2.0, 2.0 * half, 14, 4)])
+
+
+## A gate's ironwork: blue, or for a bone gate (a skeleton lock), pale bone grey.
+static func _gate_iron(ink: InkCanvas, key_color: int, fade: float, polys: Array[PackedVector2Array]) -> void:
+	if key_color == KeyRing.SKELETON:
+		ink.lift_ink(RisoPrint.ALL_PLATES, 0.72 * fade, polys)
+	else:
+		ink.ink(RisoPrint.BLUE, fade, polys)
 
 
 ## Spring a lean toward `target`, pushed by the wizard passing near `at` (within `reach`).
@@ -2167,9 +2204,11 @@ static func padlock(ink: InkCanvas, c: Vector2, color: int, s: float, fade: floa
 	var shackle: Array[PackedVector2Array] = RisoDecor.strip(PackedVector2Array([c + Vector2(-6.5, 1) * s, c + Vector2(-6.5, -7) * s, c + Vector2(0, -12) * s, c + Vector2(6.5, -7) * s, c + Vector2(6.5, 1) * s]), 3.4 * s, 3.4 * s)
 	ink.ink(RisoPrint.NIGHT, fade, shackle, false)
 	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], 0.9 * fade, [body])
-	for plate: int in RisoPrint.key_inks(color):
-		ink.ink(plate, 0.8 * fade, [body], false)
-	ink.ink(RisoPrint.NIGHT, fade, [key_bow(c + Vector2(0, 6.5) * s, 4.5 * s, color)], false)
+	# A skeleton lock's body stays bare bone-white; the rest are tinted with their colour.
+	if color != KeyRing.SKELETON:
+		for plate: int in RisoPrint.key_inks(color):
+			ink.ink(plate, 0.8 * fade, [body], false)
+	ink.ink(RisoPrint.NIGHT, fade, [key_bow(c + Vector2(0, 6.5) * s, 4.5 * s * (1.3 if color == KeyRing.SKELETON else 1.0), color)], false)
 
 
 ## A switch's plate on `c` where a padlock would hang: a dark plate with the switch emblem.
