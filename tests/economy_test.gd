@@ -1,4 +1,4 @@
-extends SceneTree
+extends TestKit
 ## Groups 7 and 8 of docs/DEEPER_PLAN.md ("Grouped for implementation"): light, lanterns and death,
 ## and the economy pass.
 ## - Lanterns are scarce: one at the way back (the start lantern at depth 0) and LANTERNS_PER_K more.
@@ -8,46 +8,6 @@ extends SceneTree
 ## - The keyring carries more keys; a skeleton key opens any one door, then crumbles.
 ## - Warp and rift cost stars each cast, paid only when they work.
 ## godot --headless --path . --script res://tests/economy_test.gd
-
-var main: Node
-var info: MapInfo
-var player: Player
-var failed: bool = false
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
-
-
-func settle(frames: int = 4) -> void:
-	await process_frame
-	var deadline: int = Time.get_ticks_msec() + 30000
-	while (info.world == null or info.travelling or info.run_ending > 0.0) and Time.get_ticks_msec() < deadline:
-		await process_frame
-	for i: int in range(frames):
-		await physics_frame
-		await process_frame
-
-
-func placed(scene: String) -> Array[Node]:
-	var found: Array[Node] = []
-	for node: Node in info.map_elements.get_children():
-		if node.scene_file_path.get_file() == scene and not node.is_queued_for_deletion() and (node.get_node_or_null("Sprite2D") == null or node.get_node("Sprite2D").visible):
-			found.append(node)
-	return found
-
-
-func colored(scene: String, color: int) -> Array[Node]:
-	return placed(scene).filter(func(n: Node) -> bool: return int(n.get_meta(&"key_color", -1)) == color)
-
 
 ## A key of `color` laid far from the wizard (so it is not grabbed by walking past it).
 func spawn_key(color: int) -> Node2D:
@@ -94,20 +54,8 @@ func vault_count(w: MapInfo.World, type: MapInfo.Type) -> int:
 
 
 func run() -> void:
-	main = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	MapInfo.save_path = "user://test_economy.save"
-	await process_frame
-	generation(main.get_node("WaveFunctionCollapse"))
-
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	menu.start_game()
-	await process_frame
-	await process_frame
-	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	player = main.get_node("Player") as Player
-	await settle()
+	generation()
+	await boot(28)
 	player.set_physics_process(false)
 
 	await keys()
@@ -118,22 +66,17 @@ func run() -> void:
 	saving()
 
 	MapInfo.delete_save()
-	if failed:
-		print("FAILED")
-		quit(1)
-	else:
-		print("PASS: lanterns, giving up, mend, clusters, keys and cast costs")
-		quit()
+	finish("lanterns, giving up, mend, clusters, keys and cast costs")
 
 
 ## Generated levels: few lanterns, one cluster each, skeleton keys in some.
-func generation(wfc: Node) -> void:
+func generation() -> void:
 	print("generation")
 	var most_lanterns: int = 0
 	for seed_value: int in [1, 7, 28, 99, 512]:
 		for depth: int in [0, 2, 5]:
 			var def: NextWorldDef = MapInfo.def_for(Vector2i(seed_value, depth))
-			var w: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", def), def)
+			var w: MapInfo.World = MapInfo.World.new(collapse(def.coord), def)
 			var label: String = "seed %d depth %d" % [seed_value, depth]
 			var lit: int = count(w, MapInfo.Type.CHECKPOINT)
 			most_lanterns = maxi(most_lanterns, lit)

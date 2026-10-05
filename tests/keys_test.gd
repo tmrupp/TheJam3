@@ -1,47 +1,7 @@
-extends SceneTree
+extends TestKit
 ## Phase 3 of docs/DEEPER_PLAN.md: keys are not used up, the player carries one, grabbing
 ## another leaves the carried key where the new one was, and keys open doors in any level.
 ## godot --headless --path . --script res://tests/keys_test.gd
-
-var main: Node
-var info: MapInfo
-var player: Player
-var failed: bool = false
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
-
-
-func settle(frames: int = 4) -> void:
-	await process_frame
-	var deadline: int = Time.get_ticks_msec() + 30000
-	while (info.world == null or info.travelling) and Time.get_ticks_msec() < deadline:
-		await process_frame
-	for i: int in range(frames):
-		await physics_frame
-		await process_frame
-
-
-func placed(scene: String) -> Array[Node]:
-	var found: Array[Node] = []
-	for node: Node in info.map_elements.get_children():
-		if node.scene_file_path.get_file() == scene and not node.is_queued_for_deletion() and (node.get_node_or_null("Sprite2D") == null or node.get_node("Sprite2D").visible):
-			found.append(node)
-	return found
-
-
-func colored(scene: String, color: int) -> Array[Node]:
-	return placed(scene).filter(func(n: Node) -> bool: return int(n.get_meta(&"key_color", -1)) == color)
-
 
 func dropped() -> Array[Node]:
 	return placed("key.tscn").filter(func(n: Node) -> bool: return n.has_meta(&"dropped_id"))
@@ -52,17 +12,7 @@ func carried() -> int:
 
 
 func run() -> void:
-	main = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	MapInfo.save_path = "user://keys_test.save"
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	menu.start_game()
-	await process_frame
-	await process_frame
-	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	player = main.get_node("Player") as Player
-	await settle()
+	await boot(28)
 	player.set_physics_process(false)
 
 	print("a key is not used up")
@@ -161,9 +111,4 @@ func run() -> void:
 	check(colours.size() == MapInfo.KEY_COLOR_COUNT, "lock colours vary from world to world")
 	check(int(colours.get(0, 0)) > int(colours.get(1, 0)) and int(colours.get(1, 0)) > int(colours.get(3, 0)), "common colours lock side doors more often than rare ones (%s)" % colours)
 
-	if failed:
-		print("FAILED")
-		quit(1)
-	else:
-		print("PASS: deeper phase 3")
-		quit()
+	finish("deeper phase 3")

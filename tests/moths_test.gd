@@ -1,42 +1,11 @@
-extends SceneTree
+extends TestKit
 ## Moths follow a nearby wizard's lit spell orb, prefer it over a lit lantern, and
 ## scatter harmlessly when a real dash crosses them. They gather again rather than dying.
 ## godot --headless --path . --script res://tests/moths_test.gd
 
-var failed: bool = false
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
-
-
-func frames(count: int) -> void:
-	for i: int in range(count):
-		await physics_frame
-		await process_frame
-
-
 func run() -> void:
 	seed(28)
-	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	MapInfo.save_path = "user://moths_test.save"
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	menu.start_game()
-	var info: MapInfo = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	while info.world == null or info.travelling:
-		await process_frame
-	await frames(4)
-	var player: Player = main.get_node("Player") as Player
+	await boot(28)
 	player.set_physics_process(false)
 	var lantern: Node = null
 	for node: Node in info.map_elements.get_children():
@@ -45,7 +14,7 @@ func run() -> void:
 			break
 	check(lantern != null and info.light_lantern(lantern), "a lantern is lit")
 	if lantern == null:
-		quit(1)
+		finish()
 		return
 	var glass: Vector2 = info.cell_position(info.respawn_cell) + MothSwarm.GLASS
 	var swarm: MothSwarm = load("res://prefabs/moths.tscn").instantiate() as MothSwarm
@@ -112,5 +81,4 @@ func run() -> void:
 	strike.guard_left = 0.0
 	check(not strike.guards(swarm), "the moths can sting again once the dash and guard end")
 	MapInfo.delete_save()
-	print("FAILED" if failed else "PASS: moth chase and dash")
-	quit(1 if failed else 0)
+	finish("moth chase and dash")

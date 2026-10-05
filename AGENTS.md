@@ -46,6 +46,14 @@ bash tests/run.sh sky_test        # just these, headless
 - Captures: `godot --path . --windowed --resolution 1280x720 --script res://tests/capture_x.gd`.
 - Known failures: `rounded_feedback_test` (old). `sky_art_test`'s transition-edge check is flaky.
 - Each test sets its own `MapInfo.save_path` (`user://<test>.save`), so they can run in parallel.
+- New tests extend `TestKit` (`tests/kit/TestKit.gd`): override `run()`, end with `finish()`, and
+  use its `check`/`check_eq`, `boot(seed)` (starts a run, keeps the save apart), `until(cond)` and
+  `settle()` rather than counting frames, and `placed`/`colored`. For the level generator alone,
+  `build(at)` lays a place out without the game scene, which is far faster than booting the game.
+  Older tests still carry their own copies of these; move them onto the kit when touching them.
+- `unit_test` checks the plain rules (seeds, prices by depth, key rarity, side-world places,
+  archetype bands, where exits lead, shrine offers, the keyring) without the scene, in a second
+  or two. Put a rule there when it needs no level.
 
 ## Code conventions
 
@@ -69,7 +77,9 @@ bash tests/run.sh sky_test        # just these, headless
   `pop_if_random_empty`) shifts every later placement in every level, and that breaks
   layout-sensitive tests. Put new passes last, draw from the RNG only where needed, and expect to
   re-check `cemetery_test`, `deeper_test`, `economy_test` and `sky_test` when a draw is added
-  upstream.
+  upstream. `layout_fingerprint_test` says so first: it fingerprints the terrain and the dressing
+  of a few levels per archetype and a side world, and names which one changed. When a change to
+  the layouts is meant, copy the fingerprints it prints into its `GOLDEN` and say so in the report.
 - Decor never touches the world RNG: it hashes the seed and cell (`RisoDecor.h`).
 - Key and door colours are dealt by rarity once a level is laid out (`World.deal_colors`, hashing
   the level seed, no RNG) and kept in each cell's `extra_info`; `RisoMap.dealt_colors` reads them.
