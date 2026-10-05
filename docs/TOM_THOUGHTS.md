@@ -50,7 +50,7 @@ DO NOT MODIFY
 
 - we need to introduce submenus/collapsing for f7 menu (it is getting too big)
 
-- sometimes the player gets stuck
+- sometimes the player gets stuck when dashing
 - we might need to continue iterating on walljump
 
 - * deeper levels and hyperspace should be likely to require relics to fully traverse (relax the traversability guarantees in later levels/hyperspace)

@@ -127,6 +127,18 @@ func run() -> void:
 	check((player.global_position - e.global_position).dot(-side) > 0.0, "having passed right through it")
 	check(player.get_collision_mask_value(DashStrike.ENEMY_LAYER), "enemies block again once the dash is over")
 
+	print("a dash ending inside an enemy")
+	player.set_collision_mask_value(DashStrike.ENEMY_LAYER, false)
+	player.global_position = e.global_position + Vector2(20, -20)
+	player.velocity = Vector2.ZERO
+	player.set_physics_process(true)
+	await wait_physics(6)
+	check(not player.get_collision_mask_value(DashStrike.ENEMY_LAYER), "enemies stay passable while the wizard is inside one")
+	check(player.global_position.distance_to(e.global_position) < 200.0, "so the wizard is not flung out of it (%.0f px off)" % player.global_position.distance_to(e.global_position))
+	player.global_position = e.global_position + side * 220.0 + Vector2(0, 16 - 31)
+	await wait_physics(3)
+	check(player.get_collision_mask_value(DashStrike.ENEMY_LAYER), "and block again once the wizard is clear")
+
 	print("guarded while dashing")
 	var damager: Node = e.get_node("HitBox/Damager")
 	player.dash.enable(true)

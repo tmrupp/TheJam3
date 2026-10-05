@@ -1,7 +1,7 @@
 extends Node
 class_name DashStrike
 ## The dash is the wizard's attack. The wizard passes through enemies while dashing (their
-## bodies stop blocking, ENEMY_LAYER), and dashing (or blinking) through an enemy stuns it for STUN
+## bodies stop blocking, ENEMY_LAYER, until the wizard is clear of them after it), and dashing (or blinking) through an enemy stuns it for STUN
 ## seconds, and with the strike perk wounds it first (Abilities: I 1 damage, II 2, III 3; a
 ## stunned enemy takes double, see Wound). Each enemy is struck once a dash. Touching an enemy
 ## never hurts the wizard while they dash, nor for GUARD seconds after from one they struck. A
@@ -45,9 +45,26 @@ func _physics_process(delta: float) -> void:
 		_break_walls()
 	elif was_dashing:
 		guard_left = GUARD
+	# Enemies block the wizard again once the dash is over, but only when no enemy's body is where
+	# the wizard is: turned back on with the wizard inside one, the push out could wedge them in
+	# the rock or fling them across the level.
+	if not dashing and not player.get_collision_mask_value(ENEMY_LAYER) and not _inside_enemy():
 		player.set_collision_mask_value(ENEMY_LAYER, true)
 	was_dashing = dashing
 	guard_left = maxf(0.0, guard_left - delta)
+
+
+## Whether the wizard's body overlaps an enemy's.
+func _inside_enemy() -> bool:
+	var shape: CollisionShape2D = player.collider
+	if shape == null or shape.shape == null:
+		return false
+	var query: PhysicsShapeQueryParameters2D = PhysicsShapeQueryParameters2D.new()
+	query.shape = shape.shape
+	query.transform = shape.global_transform
+	query.collision_mask = 1 << (ENEMY_LAYER - 1)
+	query.exclude = [player.get_rid()]
+	return not player.get_world_2d().direct_space_state.intersect_shape(query, 1).is_empty()
 
 
 ## Whether touching `attacker` (a contact hit box, Damager) should not hurt the wizard just now.

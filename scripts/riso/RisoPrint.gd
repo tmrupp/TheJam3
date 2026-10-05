@@ -792,16 +792,17 @@ func set_pad_panel(open: bool) -> void:
 			focus.release_focus()
 
 
-func _first_focusable(node: Node) -> Control:
+func _first_focusable(node: Node, headers: bool = false) -> Control:
 	for child: Node in node.get_children():
 		var c: Control = child as Control
-		# The scroll container's scrollbar is focusable too; open on an actual setting.
-		if (c is BaseButton or c is Slider) and c.focus_mode != Control.FOCUS_NONE and c.is_visible_in_tree():
+		# The scroll container's scrollbar is focusable too; open on an actual setting (a section's
+		# header only when every section is folded shut).
+		if (c is BaseButton or c is Slider) and c.focus_mode != Control.FOCUS_NONE and c.is_visible_in_tree() and (headers or not c.has_meta(&"section")):
 			return c
-		var deeper: Control = _first_focusable(child)
+		var deeper: Control = _first_focusable(child, headers)
 		if deeper != null:
 			return deeper
-	return null
+	return null if headers or node != panel else _first_focusable(node, true)
 
 
 ## Explicit links keep navigation in the panel and preserve the column across neighbouring
@@ -958,60 +959,106 @@ func _build_panel() -> void:
 	box.add_child(title)
 	# First, so a controller lands on it (debug runs only).
 	_build_travel(box)
-	_detail_label = _slider_row(box, "Print detail", 0.0, 100.0, 1.0, detail, _on_detail)
-	_rate_label = _slider_row(box, "Sheet rate", 0.0, 24.0, 1.0, sheet_rate, _on_rate)
-	_zoom_label = _slider_row(box, "Zoom", 0.5, 1.0, 0.02, zoom_factor, _on_zoom)
-	_offset_label = _slider_row(box, "Plate offset", 0.0, 3.0, 0.1, offset_scale, func(v: float) -> void:
+	var print_box: VBoxContainer = _section(box, "Print", true)
+	_detail_label = _slider_row(print_box, "Print detail", 0.0, 100.0, 1.0, detail, _on_detail)
+	_rate_label = _slider_row(print_box, "Sheet rate", 0.0, 24.0, 1.0, sheet_rate, _on_rate)
+	_zoom_label = _slider_row(print_box, "Zoom", 0.5, 1.0, 0.02, zoom_factor, _on_zoom)
+	_offset_label = _slider_row(print_box, "Plate offset", 0.0, 3.0, 0.1, offset_scale, func(v: float) -> void:
 		offset_scale = v
 		_sync_panel())
-	_specks_label = _slider_row(box, "Specks", 0.0, 1.0, 0.05, specks, func(v: float) -> void:
+	_specks_label = _slider_row(print_box, "Specks", 0.0, 1.0, 0.05, specks, func(v: float) -> void:
 		specks = v
 		_sync_panel())
-	_ui_detail_label = _slider_row(box, "UI detail", 0.0, 1.0, 0.05, ui_detail, func(v: float) -> void:
+	_ui_detail_label = _slider_row(print_box, "UI detail", 0.0, 1.0, 0.05, ui_detail, func(v: float) -> void:
 		ui_detail = v
 		_sync_panel())
-	_option_row(box, &"registration", "Registration", ["New sheet", "Locked", "Drift"], _on_registration)
-	_option_row(box, &"reprint", "Reprint on", ["Clock", "Motion"], _on_reprint)
-	_option_row(box, &"between", "Between sheets", ["Cut", "Blend"], _on_between)
-	_option_row(box, &"realm", "Realm", ["Deep night", "Twilight", "Aurora"], _on_realm_picked)
-	_option_row(box, &"plates", "Plates", ["Independent", "Trapped"], func(i: int) -> void: trapped = i == 1)
-	_option_row(box, &"portal", "Portals", ["TV static", "Ripples"], func(i: int) -> void: portal_style = PORTAL_STYLES[i])
-	_option_row(box, &"fog", "Fog shape", FOG_STYLE_NAMES, func(i: int) -> void: fog_style = FOG_STYLES[i])
-	_option_row(box, &"sky_bottoms", "Sky bottoms", SKY_BOTTOM_NAMES, func(i: int) -> void:
+	_option_row(print_box, &"registration", "Registration", ["New sheet", "Locked", "Drift"], _on_registration)
+	_option_row(print_box, &"reprint", "Reprint on", ["Clock", "Motion"], _on_reprint)
+	_option_row(print_box, &"between", "Between sheets", ["Cut", "Blend"], _on_between)
+	_option_row(print_box, &"plates", "Plates", ["Independent", "Trapped"], func(i: int) -> void: trapped = i == 1)
+	var look: VBoxContainer = _section(box, "Look", false)
+	_option_row(look, &"realm", "Realm", ["Deep night", "Twilight", "Aurora"], _on_realm_picked)
+	_option_row(look, &"portal", "Portals", ["TV static", "Ripples"], func(i: int) -> void: portal_style = PORTAL_STYLES[i])
+	_option_row(look, &"fog", "Fog shape", FOG_STYLE_NAMES, func(i: int) -> void: fog_style = FOG_STYLES[i])
+	_option_row(look, &"robe", "Robe", ["Spell colour", "Blue"], func(i: int) -> void: robe_by_spell = i == 0)
+	_option_row(look, &"sky_bottoms", "Sky bottoms", SKY_BOTTOM_NAMES, func(i: int) -> void:
 		sky_bottom_style = SKY_BOTTOM_STYLES[i]
 		if _map_info != null and is_instance_valid(_map_info) and (_map_info.get("here") as NextWorldDef).sky():
 			_rebuild_ground(_map_info)
 		_sync_panel())
-	var key_heading: Label = Label.new()
-	key_heading.text = "Keys"
-	key_heading.add_theme_font_size_override("font_size", 6)
-	box.add_child(key_heading)
+	var keys: VBoxContainer = _section(box, "Keys", false)
 	_key_capacity_label = Label.new()
 	_key_capacity_label.add_theme_font_size_override("font_size", 6)
-	box.add_child(_key_capacity_label)
+	keys.add_child(_key_capacity_label)
 	var shapes: Array[String] = ["Square", "Triangle", "Circle", "Diamond"]
 	for color: int in range(MapInfo.KEY_COLOR_COUNT):
-		_option_row(box, StringName("key_" + str(color)), shapes[color] + " key", ["None", "Equipped"], func(i: int) -> void: _equip_panel_key(color, i == 1))
-	_skeleton_label = _stepper_row(box, "Skeleton keys", func(d: int) -> void:
+		_option_row(keys, StringName("key_" + str(color)), shapes[color] + " key", ["None", "Equipped"], func(i: int) -> void: _equip_panel_key(color, i == 1))
+	_skeleton_label = _stepper_row(keys, "Skeleton keys", func(d: int) -> void:
 		if _player != null and is_instance_valid(_player):
 			KeyRing.set_skeletons(_player, maxi(0, KeyRing.skeletons(_player) + d)))
 	# Abilities: set any tier outright (a spell above 0 takes the slot).
-	var heading: Label = Label.new()
-	heading.text = "Abilities"
-	heading.add_theme_font_size_override("font_size", 6)
-	box.add_child(heading)
+	var abilities: VBoxContainer = _section(box, "Abilities", false)
 	for a: StringName in Abilities.ORDER:
 		var items: Array[String] = ["none"]
 		for n: int in range(1, int(Abilities.MAX[a]) + 1):
 			items.append(Abilities.roman(n))
-		_option_row(box, StringName("ability_" + String(a)), String(Abilities.NAMES[a]) + (" (spell)" if a in Abilities.SPELLS else ""), items, func(i: int) -> void:
+		_option_row(abilities, StringName("ability_" + String(a)), String(Abilities.NAMES[a]) + (" (spell)" if a in Abilities.SPELLS else ""), items, func(i: int) -> void:
 			if _player != null and is_instance_valid(_player):
 				Abilities.set_tier(_player, a, i)
 				if a == &"keyring":
 					KeyRing.set_all(_player, KeyRing.all(_player))
 			_sync_panel())
-	_option_row(box, &"robe", "Robe", ["Spell colour", "Blue"], func(i: int) -> void: robe_by_spell = i == 0)
 	_sync_panel()
+
+
+## The panel's sections, by title: [its header button, its rows]. Each folds open or shut from its
+## header (a click, or A on a controller), so the panel stays short; which are open is remembered
+## while the game runs (it is rebuilt with each scene). Travel and Print start open.
+var _sections: Dictionary = {}
+static var _section_open: Dictionary = {}
+
+
+## A section titled `title` in `box`: its header, and the box its rows go in (returned).
+func _section(box: VBoxContainer, title: String, open: bool) -> VBoxContainer:
+	var row: HBoxContainer = HBoxContainer.new()
+	box.add_child(row)
+	var header: Button = Button.new()
+	header.flat = true
+	header.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_theme_font_size_override("font_size", 6)
+	header.set_meta(&"section", title)
+	row.add_child(header)
+	var rows: VBoxContainer = VBoxContainer.new()
+	rows.add_theme_constant_override("separation", 1)
+	box.add_child(rows)
+	_sections[title] = [header, rows]
+	if not _section_open.has(title):
+		_section_open[title] = open
+	header.pressed.connect(func() -> void: set_section(title, not bool(_section_open[title])))
+	_show_section(title)
+	return rows
+
+
+## Fold section `title` open or shut.
+func set_section(title: String, open: bool) -> void:
+	if not _sections.has(title):
+		return
+	_section_open[title] = open
+	_show_section(title)
+	if panel != null and panel.visible:
+		_wire_panel_focus()
+
+
+func section_open(title: String) -> bool:
+	return bool(_section_open.get(title, false))
+
+
+func _show_section(title: String) -> void:
+	var parts: Array = _sections[title]
+	var open: bool = bool(_section_open[title])
+	(parts[1] as Control).visible = open
+	(parts[0] as Button).text = ("- " if open else "+ ") + title
 
 
 ## Debug equipment uses the same ring as pickups: a full ring replaces its oldest key.
@@ -1041,14 +1088,11 @@ func _build_travel(box: VBoxContainer) -> void:
 	_travel_box = VBoxContainer.new()
 	_travel_box.add_theme_constant_override("separation", 1)
 	box.add_child(_travel_box)
-	var heading: Label = Label.new()
-	heading.text = "Travel (debug)"
-	heading.add_theme_font_size_override("font_size", 6)
-	_travel_box.add_child(heading)
-	_travel_world_label = _stepper_row(_travel_box, "World", func(d: int) -> void: _travel_at.x += d)
-	_travel_depth_label = _stepper_row(_travel_box, "Depth", func(d: int) -> void: _travel_at.y = maxi(0, _travel_at.y + d))
+	var rows: VBoxContainer = _section(_travel_box, "Travel (debug)", true)
+	_travel_world_label = _stepper_row(rows, "World", func(d: int) -> void: _travel_at.x += d)
+	_travel_depth_label = _stepper_row(rows, "Depth", func(d: int) -> void: _travel_at.y = maxi(0, _travel_at.y + d))
 	var row: HBoxContainer = HBoxContainer.new()
-	_travel_box.add_child(row)
+	rows.add_child(row)
 	_button(row, "Go", func() -> void: _travel(_travel_at))
 	for a: StringName in NextWorldDef.ARCHETYPES:
 		_button(row, String(a).capitalize(), func() -> void: _travel(Vector2i(_travel_at.x, _nearest_band(a, _travel_at.y))))

@@ -84,6 +84,28 @@ func run() -> void:
 	await button(JOY_BUTTON_DPAD_LEFT)
 	check(root.gui_get_focus_owner() == focus, "D-pad left returns to the previous travel button")
 
+	print("sections")
+	check(riso.section_open("Travel (debug)") and riso.section_open("Print") and not riso.section_open("Abilities") and not riso.section_open("Keys"), "travel and print start open; keys and abilities folded")
+	var abilities: Array = riso._sections["Abilities"]
+	var header: Button = abilities[0]
+	check(header.text == "+ Abilities" and not (abilities[1] as Control).visible and not (riso._options[&"ability_dash"] as Control).is_visible_in_tree(), "a folded section shows only its header")
+	header.grab_focus()
+	await button(JOY_BUTTON_A)
+	check(riso.section_open("Abilities") and header.text == "- Abilities" and (riso._options[&"ability_dash"] as Control).is_visible_in_tree(), "A on its header opens it")
+	await button(JOY_BUTTON_DPAD_DOWN)
+	check(root.gui_get_focus_owner() != header and (abilities[1] as Node).is_ancestor_of(root.gui_get_focus_owner()), "down from an open header goes into its rows")
+	header.grab_focus()
+	await button(JOY_BUTTON_A)
+	check(not riso.section_open("Abilities"), "and A again folds it")
+	await button(JOY_BUTTON_DPAD_UP)
+	var above: Control = root.gui_get_focus_owner()
+	check(above != null and above.is_visible_in_tree(), "navigation skips folded rows")
+	await f7()
+	await f7()
+	check(not riso.section_open("Abilities") and riso.section_open("Print"), "which sections are open is remembered when the panel closes")
+	for title: String in riso._sections:
+		riso.set_section(title, true)
+
 	var fog: OptionButton = riso._options[&"fog"]
 	fog.grab_focus()
 	await frames()

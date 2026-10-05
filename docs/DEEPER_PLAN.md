@@ -265,6 +265,7 @@ The third band (depths 12–17, 30–35, ...) is clusters of floating islands of
   - **Breaking:** a bolt crumbles it in blue dust, and the rock reprints without it. The record keeps it broken, even across deaths.
 - **Arming** (the ghost and dropped keys): they now arm once the wizard has been more than about a cell away. An overlap test armed them too early while a level reloaded, because the wizard's collision is off then.
 - **Fixed:** `hit_box.gd`'s `stunned` setter never stored the value.
+- **Fixed: stuck after a dash.** A dash ending inside an enemy turned enemy collision straight back on, and the push out of the enemy's body could wedge the wizard or fling them across the level. Enemies now block again only once the wizard is clear of every enemy body (`DashStrike._inside_enemy`).
 - `tests/hex_test.gd` covers the hex, charges and lantern refill, wounding, double damage when stunned, star drops, slain until death, rock stopping the bolt, cracked walls (deterministic, not tiles, broken for good) and tiers. `tests/capture_hex.gd` takes stills.
 
 ## Phases
