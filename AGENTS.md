@@ -44,7 +44,7 @@ bash tests/run.sh sky_test        # just these, headless
 - `run.sh` re-imports first. After adding a `class_name` script or an image outside it, run
   `godot --headless --path . --import`.
 - Captures: `godot --path . --windowed --resolution 1280x720 --script res://tests/capture_x.gd`.
-- Known failures: `rounded_feedback_test` (old). `sky_art_test`'s transition-edge check is flaky.
+- Known flaky: `sky_art_test`'s transition-edge check.
 - Each test sets its own `MapInfo.save_path` (`user://<test>.save`), so they can run in parallel.
 - New tests extend `TestKit` (`tests/kit/TestKit.gd`): override `run()`, end with `finish()`, and
   use its `check`/`check_eq`, `boot(seed)` (starts a run, keeps the save apart), `until(cond)` and
@@ -81,6 +81,9 @@ bash tests/run.sh sky_test        # just these, headless
   of a few levels per archetype and a side world, and names which one changed. When a change to
   the layouts is meant, copy the fingerprints it prints into its `GOLDEN` and say so in the report.
 - Decor never touches the world RNG: it hashes the seed and cell (`RisoDecor.h`).
+- Nor does anything once a level is laid out. Its `World` is kept and reused on later visits, so
+  loading it (`MapInfo.place_cell`, a prefab's `setup`) must hash the seed and cell rather than
+  draw from `world.rng`, or it differs from one visit to the next (`revisit_test`).
 - Key and door colours are dealt by rarity once a level is laid out (`World.deal_colors`, hashing
   the level seed, no RNG) and kept in each cell's `extra_info`; `RisoMap.dealt_colors` reads them.
 - Placement helpers live on `World`: `pop_if_random_empty(filter, force)`, `add_object_at`,

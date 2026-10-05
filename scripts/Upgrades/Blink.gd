@@ -18,14 +18,12 @@ func blink (direction: Vector2) -> void:
 	var max_destination: Vector2 = map_info.clamp_bounds(player.position + direction.normalized()*distance)
 	var destination: Vector2 = max_destination
 	
-	player.get_node("DashTrail").make_trail()
 	for s: int in range(1, STEPS):
 		area.global_position = destination
 		await get_tree().physics_frame
 		if not (area.has_overlapping_areas() or area.has_overlapping_bodies()):
 			var from: Vector2 = player.global_position
 			player.position = destination
-			player.reset_fourier_motion()
 			_moons(from, player.global_position)
 			return
 		destination = max_destination.lerp(player.position, float(s)/float(STEPS))

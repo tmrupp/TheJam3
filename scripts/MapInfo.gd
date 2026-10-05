@@ -2,8 +2,6 @@ extends Control
 
 class_name MapInfo
 
-const CLOSE_ONE_KEY: bool = false
-const CODE_LENGTH: int = 4 # 8 is more reasonable
 ## Keys and doors come in this many colours; a key opens doors of its own colour.
 const KEY_COLOR_COUNT: int = 4
 ## How common each key colour is, in order of rarity: sun (about 62 %), ember (24 %), moss (10 %),
@@ -186,21 +184,6 @@ class World:
 	func set_cell (v: Variant, cell: Cell) -> void:
 		if v != null:
 			cells[v.x][v.y] = cell
-
-	func get_random_cell () -> Vector2i:
-		return Vector2i(rng.randi_range(0, size.x - 1), rng.randi_range(0, size.y - 1))
-
-	func ground_adjacent (v: Vector2i) -> bool:
-		return get_neighbors(v).any(is_ground)
-
-	func ground_flanking (v: Vector2i) -> bool:
-		for n: int in range(0, 2, len(neighbor_offsets)):
-			var a: Vector2i = v+neighbor_offsets[n]
-			var b: Vector2i = v+neighbor_offsets[n+1]
-			if is_ground(a) and is_ground(b):
-				return true
-
-		return false
 
 	func ground_below (v: Vector2i) -> bool:
 		var n: Vector2i = v+Vector2i(0,1)
@@ -647,7 +630,8 @@ class World:
 		else:
 			objects.append(v)
 
-	## The level's seed, which deals its key and door colours (deal_colors).
+	## The level's seed, which deals what is hashed rather than drawn from the world RNG: key and
+	## door colours (deal_colors), and where a pickup sits in its cell (MapInfo.place_cell).
 	var seed_for_colors: int = 0
 	## The level's depth, for the rules that change with it (bone gates on the way, deal_colors).
 	var depth: int = 0
@@ -736,20 +720,13 @@ class World:
 		# One ink well per level stands on a floor.
 		set_cell(pop_if_random_empty(ground_below, true), Cell.new(Type.INKWELL))
 
-		if CLOSE_ONE_KEY:
-			var v: Vector2i = Vector2i(6,0)
-			set_cell(v, Cell.new(Type.KEY))
-			add_object_at(v)
-		else:
-			# Spots for keys: more than are kept (see MapInfo.KEYS_PER_K and deal_colors).
-			for i: int in range(maxi(MapInfo.KEY_COLOR_COUNT, per_area(MapInfo.KEY_SPOTS_PER_K))):
-				set_cell(pop_if_random_empty(), Cell.new(Type.KEY))
+		# Spots for keys: more than are kept (see MapInfo.KEYS_PER_K and deal_colors).
+		for i: int in range(maxi(MapInfo.KEY_COLOR_COUNT, per_area(MapInfo.KEY_SPOTS_PER_K))):
+			set_cell(pop_if_random_empty(), Cell.new(Type.KEY))
 
 		place_doors(per_area(DOORS_PER_K))
 		place_switch_gates(maxi(1, per_area(SWITCH_GATES_PER_K)))
 
-#		for i in range(len(empties)*0.1):
-#			set_cell(pop_if_random_empty(ground_adjacent), Cell.new(Type.SPIKES))
 		# Stars: in the sky, only in and near the clusters of islands.
 		for i: int in range(len(empties)*0.2):
 			set_cell(pop_if_random_empty(func(v: Vector2i) -> bool: return not sky or in_isle(v, 3)), Cell.new(Type.COIN))
@@ -2351,22 +2328,14 @@ class World:
 	func _open (v: Vector2i) -> bool:
 		return is_valid(v) and get_cell(v).type != Type.GROUND and get_cell(v).type != Type.CRACKED
 
-var goal_shift: int = 0
 @onready var wfc: WaveFunctionCollapse = $"../../WaveFunctionCollapse"
 @onready var player: Player
-# const?
-
-
-const CHUNK_SIZE: int = 16
 
 @onready var tile_map: TileMap = $"../../TileMap"
 
 # constants for "box" to contain the generated map
 ## Solid rock around the level, flush against its edges (cells thick).
 const BORDER: int = 3
-## Open space beyond the level's own cells (none: the border rock starts at the edge).
-const X_MARGIN: int = 0
-const TOP_MARGIN: int = 0
 
 @onready var wfc_thread: Thread = Thread.new()
 
@@ -2908,7 +2877,6 @@ func player_died (pos: Vector2) -> void:
 		end_run()
 		return
 	player.health.health = 1
-	player.health.display_health()
 	_clear_ghost()
 	has_ghost = true
 	ghost_coord = coord
@@ -2940,7 +2908,6 @@ func recover_ghost () -> void:
 	_clear_ghost()
 	player.collect(stars)
 	player.health.health = player.health.max_health
-	player.health.display_health()
 	RisoFx.burst(&"gain", at, Vector2.ZERO, [RisoPrint.GLOW, RisoPrint.ACCENT])
 	save_run()
 
@@ -2971,8 +2938,6 @@ func _spawn_ghost () -> void:
 	ghost_node.position = ghost_pos
 	ghost_node.set("stars", ghost_stars)
 	map_elements.add_child(ghost_node)
-	if player != null:
-		player.corpse_created.emit(ghost_node)
 
 func _clear_ghost () -> void:
 	has_ghost = false
@@ -3068,7 +3033,6 @@ func continue_run () -> bool:
 		player.tiers[StringName(a)] = int(tiers[a])
 	Abilities.apply(player)
 	player.health.health = clampi(int(data["health"]), 1, player.health.max_health)
-	player.health.display_health()
 	player.collect(int(data["stars"]) - player.coins.coins)
 	# Saves from before the keyring hold one key.
 	KeyRing.set_all(player, data.get("keys", [int(data["key"])]))
@@ -3479,7 +3443,6 @@ func next_world () -> void:
 	if player != null:
 		player.position = arrival_pos if arrival == -3 else cell_position(at)
 		player.velocity = Vector2.ZERO
-		player.reset_fourier_motion()
 		player.set_collision(true)
 		player.set_physics_process(true)
 		player.grace()
@@ -3531,14 +3494,20 @@ var cell_to_prefab: Dictionary = {
 	Type.BIRD: bird_prefab,
 }
 
+## Salts for where a floating pickup sits in its cell (across, then down; see place_cell).
+const JITTER_DEAL: int = 9800
+## How far a floating pickup may sit from its cell's centre, as a share of the cell.
+const JITTER: float = 0.3
+
 func place_cell(v: Vector2i, _cell: Cell) -> void:
-	# Everything that draws from the level's RNG or counters happens before the record can skip
-	# the object, so the rest of the level lands in the same place on every visit.
+	# Nothing here draws from the world RNG: a level's World is kept and reused (see _built), so a
+	# draw here would differ from one visit to the next. What varies is hashed from the seed and cell.
 	var jitter: Vector2 = Vector2.ZERO
 	if _cell.type in [Type.COIN, Type.KEY, Type.MOON]:
 		# Floating pickups sit anywhere inside their cell rather than on the grid.
 		var cell_size: Vector2 = Vector2(tile_map.tile_set.tile_size) * tile_map.global_scale
-		jitter = Vector2(world.rng.randf_range(-0.3, 0.3), world.rng.randf_range(-0.3, 0.3)) * cell_size
+		var roll: Vector2 = Vector2(RisoDecor.h(world.seed_for_colors, v, JITTER_DEAL), RisoDecor.h(world.seed_for_colors, v, JITTER_DEAL + 1))
+		jitter = (roll * 2.0 - Vector2.ONE) * JITTER * cell_size
 	# A key's or door's colour was dealt with the level (World.deal_colors).
 	var color: int = -1
 	if _cell.type in [Type.KEY, Type.DOOR]:
@@ -3593,30 +3562,13 @@ func construct_world() -> void:
 
 	enclose_map(world.size.x, world.size.y, here != null and here.sky())
 
-	if not RisoPrint.is_on():
-		draw_background(world.size.x, world.size.y)
-
-## The rock in `cells`. With the print on, its art is printed over the TileMap, so each cell gets
-## the plain centre tile (every rock tile has the same full-square collision): autotiling the rock
-## was the slowest part of loading a big level. With the print off, the autotiled sprites show.
+## The rock in `cells`, each the plain centre tile: the print draws the rock's art over the
+## TileMap, and every rock tile has the same full-square collision.
 const PLAIN_ROCK: Vector2i = Vector2i(1, 1)
 
 func _lay_rock (cells: Array[Vector2i]) -> void:
-	if RisoPrint.is_on():
-		for v: Vector2i in cells:
-			tile_map.set_cell(0, v, 0, PLAIN_ROCK)
-	else:
-		tile_map.set_cells_terrain_connect(0, cells, 0, 0)
-
-## The print was switched off: autotile the rock that was laid plain, and draw the background.
-func retile_for_sprites () -> void:
-	if world == null:
-		return
-	var rock: Array[Vector2i] = []
-	for v: Vector2i in tile_map.get_used_cells(0):
-		rock.append(v)
-	tile_map.set_cells_terrain_connect(0, rock, 0, 0)
-	draw_background(world.size.x, world.size.y)
+	for v: Vector2i in cells:
+		tile_map.set_cell(0, v, 0, PLAIN_ROCK)
 
 func get_max_bounds () -> Vector2:
 	return tile_map.to_global(tile_map.map_to_local(Vector2i(world.size.x - 1, world.size.y - 1)))
@@ -3641,17 +3593,6 @@ func clamp_bounds (v: Vector2) -> Vector2:
 	var min_bounds: Vector2 = get_min_bounds()
 
 	return Vector2(clamp(v.x, min_bounds.x, max_bounds.x), clamp(v.y, min_bounds.y, max_bounds.y))
-
-# Draw on the layer behind the foreground tiles
-# We assume negative y values are sky and positive are dirt
-func draw_background(dim_x: int, dim_y: int) -> void:
-	for i: int in range(-X_MARGIN, dim_x + X_MARGIN):
-		for j: int in range(-TOP_MARGIN, dim_y):
-			# arg1: layer, layer 1 is the Background layer
-			# arg2: location
-			# arg3: source_id, the tileset source_id for which ID:1 is the background tiles on this tilemap
-			# arg4: atlas coords, the tile by grid location in the atlas, (0,0) is dirt, (1,0) is sky
-			tile_map.set_cell(1, Vector2i(i, j), 1, Vector2i(1 if j < 0 else 0, 0))
 
 # Enclose the level in solid rock, BORDER cells thick and flush against its edges, so it reads as
 # a cave cut into rock rather than a box drawn round it. The camera stops at the rock. A sky level

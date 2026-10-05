@@ -152,7 +152,6 @@ static func grant(player: Player, a: StringName) -> void:
 	apply(player)
 	if a == &"vigor":
 		player.health.health = mini(player.health.health + 1, player.health.max_health)
-		player.health.display_health()
 	elif a == &"mend":
 		# Learning a tier fills the draughts.
 		(player.get_node("Mend") as Mend).refill()
@@ -176,7 +175,6 @@ static func reset(player: Player) -> void:
 	Mend.restore(player, -1)
 	apply(player)
 	player.health.health = player.health.max_health
-	player.health.display_health()
 
 
 ## Adds the Spell action if the project does not define it.
@@ -314,4 +312,3 @@ static func apply(player: Player) -> void:
 	player.run_speed = Player.SPEED * (1.0 + SPEED_PER_TIER * float(tier(player, &"speed")))
 	player.health.max_health = BASE_HEALTH + tier(player, &"vigor")
 	player.health.health = mini(player.health.health, player.health.max_health)
-	player.health.display_health()

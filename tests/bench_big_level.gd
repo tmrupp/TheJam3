@@ -92,6 +92,4 @@ func run() -> void:
 	var ms_game: float = await measure("without level objects")
 	print("BENCH   level objects cost %.2f ms" % (base - ms_game))
 	info.map_elements.process_mode = Node.PROCESS_MODE_INHERIT
-	riso.set_enabled(false)
-	await measure("print off")
 	quit()

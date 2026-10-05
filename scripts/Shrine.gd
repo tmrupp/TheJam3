@@ -163,7 +163,6 @@ func buy_mend() -> void:
 		if not _pay(heal_price()):
 			return
 		player.health.health = player.health.max_health
-		player.health.display_health()
 		_spend($Mend as Node2D, [RisoPrint.EYE, RisoPrint.PINK])
 	elif reads_relic():
 		if not _pay(relic_price()):

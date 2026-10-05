@@ -5,9 +5,9 @@ extends Node
 ## Art nodes draw ink *coverage* onto seven plates (night, blue, pink, accent, eye yellow,
 ## hat glow, robe) by living on plate visibility layers. Each plate is a SubViewport that shares the
 ## game World2D and culls to its layer. A full-screen shader then prints the plates like a
-## risograph (see shaders/riso_print.gdshader). Legacy sprites stay on the default layer, so they
-## render under the print and reappear when the print is switched off (F6).
-## F7 opens print controls, F8 cycles the realm. Launch with `-- --no-riso` to start without it.
+## risograph (see shaders/riso_print.gdshader). The print is always on: the prefabs' old sprites
+## stay on the default layer, under the print, where nothing shows them.
+## F7 opens print controls, F8 cycles the realm.
 
 const NIGHT: int = 0
 const BLUE: int = 1
@@ -95,7 +95,6 @@ const KEY_COLORS: Array[Array] = [[ACCENT], [ACCENT, PINK], [ACCENT, BLUE], [PIN
 
 static var instance: RisoPrint
 
-@export var enabled: bool = true
 var detail: float = 80.0
 var sheet_rate: float = 8.0
 var reprint_on_motion: bool = true
@@ -319,8 +318,9 @@ static func ui_canvas(host: Node2D) -> Node2D:
 	return canvas
 
 
+## Whether the print is running: always, wherever the game scene is (not in a bare test tree).
 static func is_on() -> bool:
-	return instance != null and instance.enabled
+	return instance != null
 
 
 ## Every plate/overlay bit, for ancestors of ink art.
@@ -354,8 +354,6 @@ func _exit_tree() -> void:
 
 
 func _ready() -> void:
-	if "--no-riso" in OS.get_cmdline_user_args():
-		enabled = false
 	var root: Viewport = get_viewport()
 	_old_scale_mode = get_window().content_scale_mode
 	_old_cull_mask = root.canvas_cull_mask
@@ -364,7 +362,7 @@ func _ready() -> void:
 	get_tree().node_added.connect(_on_node_added)
 	_dress_existing(get_tree().root)
 	_started = true
-	_apply_enabled()
+	_apply()
 
 
 func _build() -> void:
@@ -474,51 +472,23 @@ func _screen_size() -> Vector2i:
 	return s
 
 
-func set_enabled(value: bool) -> void:
-	enabled = value
-	_apply_enabled()
-	# The level's rock is laid as plain tiles under the print; the sprites need it autotiled.
-	if not enabled and MapInfo.instance != null:
-		MapInfo.instance.retile_for_sprites()
-
-
-func _apply_enabled() -> void:
+## Set the window up for the print: the scale mode and zoom it prints at, the main view hiding the
+## ink layers (the print shows them), the plates rendering, and the menus in the riso theme.
+func _apply() -> void:
 	var root: Viewport = get_viewport()
-	if enabled:
-		get_window().content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
-		var hidden: int = overlay_mask()
-		for i: int in range(PLATE_COUNT):
-			hidden |= plate_mask(i)
-		root.canvas_cull_mask = _old_cull_mask & ~hidden
-		root.snap_2d_transforms_to_pixel = false
-	else:
-		_restore_viewport()
+	get_window().content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
+	var hidden: int = overlay_mask()
+	for i: int in range(PLATE_COUNT):
+		hidden |= plate_mask(i)
+	root.canvas_cull_mask = _old_cull_mask & ~hidden
+	root.snap_2d_transforms_to_pixel = false
 	_apply_zoom()
-	print_layer.visible = enabled
+	print_layer.visible = true
 	for vp: SubViewport in plates:
-		vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if enabled else SubViewport.UPDATE_DISABLED
+		vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	for vp: SubViewport in ui_plates:
-		vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if enabled else SubViewport.UPDATE_DISABLED
-	for art: Node in get_tree().get_nodes_in_group(&"riso_art"):
-		if art is CanvasItem:
-			(art as CanvasItem).visible = enabled
-	_apply_ui()
-
-
-## Menus take the riso theme; the pixel HUD and title art give way to the printed HUD and sky.
-func _apply_ui() -> void:
-	if enabled:
-		RisoTheme.apply(realm)
-	else:
-		RisoTheme.restore()
-	var main: Node = get_parent()
-	for path: String in ["CanvasLayer/HUD/TopHUD", "Menu/BigBossMenu"]:
-		var item: CanvasItem = main.get_node_or_null(path) as CanvasItem
-		if item != null:
-			item.visible = not enabled
-	var keys: CanvasItem = main.get_node_or_null("CanvasLayer/HUD/Keys") as CanvasItem
-	if keys != null:
-		keys.modulate.a = 0.0 if enabled else 1.0
+		vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	RisoTheme.apply(realm)
 
 
 func _apply_zoom() -> void:
@@ -527,7 +497,7 @@ func _apply_zoom() -> void:
 		if _camera == null:
 			return
 		_base_zoom = _camera.zoom
-	_camera.zoom = _base_zoom * (zoom_factor if enabled else 1.0)
+	_camera.zoom = _base_zoom * zoom_factor
 
 
 func set_zoom_factor(value: float) -> void:
@@ -548,8 +518,6 @@ func _restore_viewport() -> void:
 
 
 func _process(delta: float) -> void:
-	if not enabled:
-		return
 	var root: Viewport = get_viewport()
 	var size: Vector2i = _screen_size()
 	var k: float = minf(1.0, 1080.0 / float(size.y))
@@ -730,7 +698,7 @@ func set_realm(r: StringName) -> void:
 		realm = r
 		if background != null:
 			background.queue_redraw()
-		if enabled and _started:
+		if _started:
 			RisoTheme.apply(realm)
 		_sync_panel()
 
@@ -780,9 +748,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	var key: InputEventKey = event as InputEventKey
 	if key == null or not key.pressed or key.echo:
 		return
-	if key.keycode == KEY_F6:
-		set_enabled(not enabled)
-	elif key.keycode == KEY_F7:
+	if key.keycode == KEY_F7:
 		set_pad_panel(not panel.visible)
 	elif key.keycode == KEY_F8:
 		cycle_realm()
@@ -936,7 +902,6 @@ func _dress(node: Node, kind: StringName) -> void:
 		art.set_script(preload("res://scripts/riso/RisoProp.gd"))
 		art.set("kind", kind)
 	art.add_to_group(&"riso_art")
-	art.visible = enabled
 	node.add_child(art)
 	share_layers(art)
 

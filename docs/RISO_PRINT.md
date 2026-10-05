@@ -1,18 +1,15 @@
 # Riso print presentation
 
-The main game is presented as a risograph "tarot print": flat ink shapes drawn in code, printed by a shader with misregistration, wobbling edges, dot gain, a grainy halftone and uneven laydown. It is on by default and switches off live, so the original sprites come back untouched.
+The main game is presented as a risograph "tarot print": flat ink shapes drawn in code, printed by a shader with misregistration, wobbling edges, dot gain, a grainy halftone and uneven laydown. It is always on: the prefabs keep their old sprites, but they sit under the print, unseen.
 
 ## Controls
 
 | Key | Action |
 | --- | --- |
-| F6 | Print on/off (off restores the original sprites, stretch mode and cull mask) |
 | F7 | Print controls (scrolls): print detail, sheet rate, zoom, plate offset, UI detail, specks (missed-ink flecks of bare paper; 20% by default), registration (new sheet / locked / drift), reprint on clock or motion, cut or blend between sheets, realm, plates (independent / trapped), portals (TV static / ripples), cemetery fog, sky bottoms (Roots, Clouds, Clouds & roots; live cosmetic changes), a Keys section to equip or remove each shaped key and adjust skeleton keys (respecting keyring capacity), and an Abilities section that sets any ability's tier outright (a spell above none takes the slot) |
 | F8 | Cycle realm (deep night, twilight, aurora) |
 
-Launch with `godot --path . -- --no-riso` to start with the print off.
-
-Defaults: deep night realm, independent plates, fine detail, new sheet registration at 8 sheets/s, reprint on motion (landings, take-offs, dashes, hits and portals print a fresh sheet), hard cuts between sheets, and the camera zoomed out to 0.72× of the scene zoom (restored when the print is off).
+Defaults: deep night realm, independent plates, fine detail, new sheet registration at 8 sheets/s, reprint on motion (landings, take-offs, dashes, hits and portals print a fresh sheet), hard cuts between sheets, and the camera zoomed out to 0.72× of the scene zoom.
 
 ## How it works
 
@@ -75,7 +72,7 @@ Torn ribbons and the ribbons in the blend have a wider pink band along their upp
   - **Top right:** the level being played, and under it the abilities known. The two plaques share one width and right edge. Tier I shows the mark alone, and higher tiers add a pip per tier.
   - **Icon ink:** HUD icons are night ink, never glow ink, because the glow plate takes the hat's colour, which can be pink.
   - `tests/capture_hud.gd` takes stills of a fresh HUD and a busy one.
-- **Menus** (`RisoMenu.gd`, `RisoTheme.gd`): the start and pause menus print in the UI's riso, as finely as the HUD. Their Godot controls only lay them out and take focus and input (they draw nothing while the print is on); `RisoMenu` prints each visible one like the HUD's plaques, night text on paper: a button is a paper plaque tinted and rimmed in blue, solid accent while focused or hovered, solid blue while pressed; a field is paper with a blinking caret while focused and its placeholder in faint night; labels (the title, the saved run) print as paper over the scene. `RisoTheme` still restyles the shared `main_menu_theme.tres` in the realm's inks, which shows when the print is off. The title image hides so the printed sky shows behind the main menu. `tests/capture_menu.gd` takes stills.
+- **Menus** (`RisoMenu.gd`, `RisoTheme.gd`): the start and pause menus print in the UI's riso, as finely as the HUD. Their Godot controls only lay them out and take focus and input (they draw nothing while the print is on); `RisoMenu` prints each visible one like the HUD's plaques, night text on paper: a button is a paper plaque tinted and rimmed in blue, solid accent while focused or hovered, solid blue while pressed; a field is paper with a blinking caret while focused and its placeholder in faint night; labels (the title, the saved run) print as paper over the scene. `RisoTheme` restyles the shared `main_menu_theme.tres` in the realm's inks. The printed sky shows behind the main menu. `tests/capture_menu.gd` takes stills.
 
 ## Performance
 
@@ -84,7 +81,7 @@ Measured on the largest level (60 × 48, depth 8+) at 1280 × 720 with vsync off
 - **One draw call per ink operation** (`InkOp.gd`): every shape an op holds goes into one triangle array. The terrain alone holds thousands, which had been thousands of draw calls on each of seven plates.
 - **Chunks** (`MapInfo._sleep_far_chunks`): the level is cut into 8 × 8 cell chunks; a few times a second each chunk wakes or sleeps by its distance from the view, or from the wizard (the camera lags a rift jump or respawn) (awake within 640 px, asleep past 896 px). Everything placed with the level in a sleeping chunk stops processing, leaves the physics world and is hidden. Bolts, ghosts and rifts always run.
 - **Props print as they come into view** (`RisoProp._process`), not all in the frame a level loads; still kinds then stop processing. Stars are printed once and animated by moving their canvases.
-- **Loading:** the layout (`World.new`) is built on the generator thread with the cells, and kept with them for revisits and the map. With the print on, rock is laid as plain tiles instead of autotiled (the print draws its own rock; every rock tile has the same collision), and the hidden background tile layer is skipped; switching the print off (F6) autotiles the level and draws the background.
+- **Loading:** the layout (`World.new`) is built on the generator thread with the cells, and kept with them for revisits and the map. Rock is laid as plain tiles (the print draws its own rock; every rock tile has the same collision), and there is no background tile layer.
 - **Wisps** place their bodies from a per-frame table of their trail (positions, directions and bends every 2 px) instead of walking the trail for each vertex: about 0.4 ms a wisp on screen.
 
 ## Tests and captures

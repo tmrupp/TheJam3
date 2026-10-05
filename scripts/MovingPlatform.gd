@@ -11,6 +11,8 @@ extends AnimatableBody2D
 @export var phase: float = 0.0
 @export var cell_size: float = 128.0
 var t: float = 0.0
+## Salt for the lift's phase, hashed from the level seed and its cell (see MapInfo.place_cell).
+const PHASE_DEAL: int = 9900
 
 
 func setup(map_info: MapInfo, v: Vector2i, info: Array) -> void:
@@ -20,7 +22,7 @@ func setup(map_info: MapInfo, v: Vector2i, info: Array) -> void:
 	cell_size = float(tm.tile_set.tile_size.x) * tm.global_scale.x
 	travel = float(info[2]) * cell_size
 	period = 1.8 * float(info[2]) + 1.2
-	phase = map_info.world.rng.randf() * TAU
+	phase = RisoDecor.h(map_info.world.seed_for_colors, v, PHASE_DEAL) * TAU
 	# The track starts at the platform's cell. (Not `position`: a physics-synced body reverts
 	# direct moves until the next physics step, so it still reads as the origin here.)
 	start = tm.to_global(tm.map_to_local(v))

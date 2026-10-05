@@ -1,6 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://dmgqos3a4gv36"]
-
-[ext_resource type="Script" path="res://scripts/FourierVisual.gd" id="20_fourier"]
+[gd_scene load_steps=11 format=3 uid="uid://dmgqos3a4gv36"]
 
 [ext_resource type="Script" path="res://scripts/portal.gd" id="1_2ywdo"]
 [ext_resource type="Texture2D" uid="uid://7k2getj8fvpx" path="res://sprites/portal.png" id="2_pdway"]
@@ -53,14 +51,6 @@ script = ExtResource("1_2ywdo")
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 sprite_frames = SubResource("SpriteFrames_na3yx")
 autoplay = "default"
-
-[node name="FourierVisual" type="Node2D" parent="."]
-script = ExtResource("20_fourier")
-outline = 2
-contour_size = Vector2(48, 60)
-inner_color = Color(0.1, 1, 0.7, 1)
-outer_color = Color(0.2, 0.45, 1, 1)
-source_visual = NodePath("../AnimatedSprite2D")
 
 [node name="Area2D" type="Area2D" parent="."]
 

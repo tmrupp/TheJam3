@@ -89,7 +89,6 @@ func end_projection(_timer: ActionTimer) -> void:
 	player.visual_event.emit(&"projection_end", false_player_origin.global_position)
 	player.position = false_player_origin.position
 	player.velocity = Vector2.ZERO
-	player.reset_fourier_motion()
 	_finish()
 	if stuck:
 		_rock_hurts()

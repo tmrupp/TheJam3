@@ -77,7 +77,7 @@ func run() -> void:
 	check(player.coins.coins == 0, "the player carries none")
 	await settle()
 	player.set_physics_process(false)
-	check(player.health.health == 1 and player.health.health_icons.size() == 1, "lethal damage respawns with one heart, including the HUD")
+	check(player.health.health == 1, "lethal damage respawns with one heart")
 	check(int(MapInfo.read_save().get("health", 0)) == 1, "the death save stores one heart")
 	check(info.vulnerable, "death consumes the lantern's protection")
 	check(info.has_ghost and info.ghost_stars == 5 and info.ghost_coord == Vector2i(28, 0), "the ghost holds all 5 stars")
@@ -124,7 +124,7 @@ func run() -> void:
 	ghosts()[0].call("touch", player)
 	await settle(1)
 	check(player.coins.coins == before_ghost + 5 and info.vulnerable and not info.has_ghost, "the ghost returns its stars but leaves the lantern spent")
-	check(player.health.health == player.health.max_health and player.health.health_icons.size() == player.health.max_health, "corpse retrieval restores full health and its HUD")
+	check(player.health.health == player.health.max_health, "corpse retrieval restores full health")
 	check(ghosts().is_empty(), "the ghost is gone")
 	await process_frame
 	check(main.get_node("RisoHud").get("lantern_lit") == false, "the HUD still shows how to restore protection after ghost recovery")

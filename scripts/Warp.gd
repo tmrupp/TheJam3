@@ -69,7 +69,6 @@ func _trip(info: MapInfo, cell: Vector2i) -> void:
 		return
 	var to: Vector2 = info.cell_position(cell)
 	player.global_position = to
-	player.reset_fourier_motion()
 	_snap_camera()
 	RisoPrint.warp_arrive(player, to)
 	# Landed in a secret room: it opens.

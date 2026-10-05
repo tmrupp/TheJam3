@@ -44,7 +44,6 @@ func use_portal() -> void:
 	var exit: Node2D = _far_end()
 	var to: Vector2 = exit.global_position if exit != null else go_to_pos
 	player.global_position = to
-	player.reset_fourier_motion()
 	_snap_camera()
 	RisoPrint.portal_arrive(self, exit, player, to)
 	await get_tree().create_timer(REVEAL).timeout

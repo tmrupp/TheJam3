@@ -3,12 +3,11 @@ extends Node
 class_name Stunner
 ## Stuns its enemy (hex, parry): the listed nodes stop for a while. A new stun extends the
 ## current one if it would last longer. The ink art shows it (RisoProp: circling stars over the
-## head, `fraction()` of the stun left); the legacy Cooldown bar is shown when the print is off.
+## head, `fraction()` of the stun left).
 
 var stunnable_nodes: Array[String] = ["Mover", "Shooter", "Hopper", "Wraith", "Bird", "HitBox"]
 @onready var top: Node = $".."
 @onready var sprite: Sprite2D = $Sprite2D
-@onready var cooldown: Cooldown = $Cooldown
 ## Seconds of stun left, and the length of the current stun.
 var left: float = 0.0
 var total: float = 0.0
@@ -25,7 +24,6 @@ func stun (duration: float=2.0) -> void:
 	if duration > left:
 		left = duration
 		total = duration
-	cooldown.enable(duration, Color.GREEN_YELLOW, Color.DARK_SLATE_GRAY)
 
 
 ## Of the current stun, how much is left (1 just stunned, 0 not stunned).

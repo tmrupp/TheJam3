@@ -38,7 +38,6 @@ func cast() -> bool:
 		return false
 	player.set_meta(&"mend_draughts", draughts() - 1)
 	player.health.health = mini(player.health.health + HEAL, player.health.max_health)
-	player.health.display_health()
 	player.visual_event.emit(&"mend", player.global_position)
 	RisoFx.burst(&"gain", player.global_position + Vector2(0, -40), Vector2.ZERO, [RisoPrint.EYE, RisoPrint.PINK])
 	if RisoPrint.instance != null:

@@ -48,7 +48,6 @@ func capture() -> void:
 	Abilities.grant(player, &"hex")
 	Abilities.grant(player, &"vigor")
 	player.health.health = 2
-	player.health.display_health()
 	player.die()
 	while info.travelling:
 		await process_frame

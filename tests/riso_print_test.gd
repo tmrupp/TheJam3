@@ -18,8 +18,6 @@ func check(ok: bool, what: String) -> void:
 
 
 func run() -> void:
-	var original_mode: Window.ContentScaleMode = root.content_scale_mode
-	var original_mask: int = root.canvas_cull_mask
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
 	MapInfo.save_path = "user://riso_print_test.save"
@@ -38,9 +36,10 @@ func run() -> void:
 		await physics_frame
 		await process_frame
 	var riso: RisoPrint = RisoPrint.instance
-	check(riso != null and riso.enabled, "RisoPrint present and on")
+	check(riso != null and RisoPrint.is_on() and riso.print_layer.visible, "RisoPrint present and printing")
+	check(root.content_scale_mode == Window.CONTENT_SCALE_MODE_CANVAS_ITEMS and (root.canvas_cull_mask & RisoPrint.all_ink_bits()) == 0, "the window prints: canvas-items scaling, ink layers left to the print")
 	check(not main.has_node("UpgradeMenu") and not paused, "game starts without the upgrade shop")
-	check(not (main.get_node("CanvasLayer/HUD/TopHUD") as CanvasItem).visible, "pixel HUD hidden while printing")
+	check(main.get_node_or_null("CanvasLayer/HUD") == null and main.get_node_or_null("Menu/BigBossMenu") == null, "no pixel HUD or title art")
 	check(main.get_node_or_null("RisoHud") != null, "printed HUD present")
 	check((load(RisoTheme.MENU_THEME) as Theme).default_font is SystemFont, "menus use the riso theme")
 	check(riso.plates.size() == RisoPrint.PLATE_COUNT, "seven ink plates")
@@ -158,19 +157,6 @@ func run() -> void:
 	check(riso.realm == &"deep", "realm cycles from the world's own")
 	riso.cycle_realm()
 	check(riso.realm == &"twilight", "and on round")
-	# Off switch restores the original presentation.
-	riso.set_enabled(false)
-	await process_frame
-	check(not riso.print_layer.visible, "print hidden when off")
-	check(root.content_scale_mode == original_mode, "stretch mode restored when off")
-	check(root.canvas_cull_mask == original_mask & ~RisoPrint.all_ink_bits(), "cull mask restored when off")
-	check(not wizard.visible, "ink art hidden when off")
-	check((main.get_node("CanvasLayer/HUD/TopHUD") as CanvasItem).visible, "pixel HUD back when off")
-	check((load(RisoTheme.MENU_THEME) as Theme).default_font is FontFile, "menu theme restored when off")
-	check(is_equal_approx(cam.zoom.x, 0.25), "camera zoom restored when off")
-	riso.set_enabled(true)
-	await process_frame
-	check(riso.print_layer.visible and wizard.visible, "print back on")
 	main.queue_free()
 	await process_frame
 	await process_frame

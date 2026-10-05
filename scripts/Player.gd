@@ -16,7 +16,6 @@ signal elapse_ability_time_signal(time: float)
 signal parry
 signal died
 signal visual_event(kind: StringName, world_position: Vector2)
-signal corpse_created(corpse: Node2D)
 signal direction_signal(direction: Vector2)
 
 func collect (x: int) -> void:
@@ -74,7 +73,6 @@ func end_invulnerable() -> void:
 func normal_hurt (damage: int, v: Vector2, _attacker: Node) -> void:
 	if not is_invulnerable():
 		visual_event.emit(&"hurt", global_position)
-		pulse_fourier(0.9)
 		health.modify_health(damage)
 		invulnerable.enable()
 		knock_back.enable()
@@ -145,7 +143,6 @@ const Y_DASH_FACTOR: float = 1.0
 var blink_enabled: bool = false
 func dash_end(_timer: ActionTimer) -> void:
 	velocity = Vector2.ZERO
-	$"DashTrail".stop_trail()
 var dash: ActionTimer = ActionTimer.new(0.25, dash_end)
 ## On the ground the dash comes back only this long after the last one began, so it is not an
 ## attack to spam; in the air it comes back on landing (once this has passed), or from a moon.
@@ -227,21 +224,9 @@ func reset_position() -> void:
 		knock = Vector2.ZERO
 		return
 	position = respawn.position
-	reset_fourier_motion()
 	velocity = Vector2.ZERO	
 	knock = Vector2.ZERO
 	await get_tree().physics_frame
-
-func reset_fourier_motion() -> void:
-	var visual: Node = get_node_or_null("FourierVisual")
-	if visual != null:
-		visual.reset_motion()
-		visual.pulse(0.7)
-
-func pulse_fourier(strength: float) -> void:
-	var visual: Node = get_node_or_null("FourierVisual")
-	if visual != null:
-		visual.pulse(strength)
 
 # kills the player and puts them back at respawn
 func die() -> void:
@@ -254,7 +239,6 @@ func die() -> void:
 		MapInfo.instance.player_died(pos)
 	else:
 		health.health = 1
-		health.display_health()
 		reset_position()
 
 # does a jump and triggers the jumping animation
@@ -263,7 +247,6 @@ var jumping: bool = false
 var jump_held: bool = false
 func jump(factor: float=1.0) -> void:
 	visual_event.emit(&"jump", global_position)
-	pulse_fourier(0.55)
 	velocity.y = JUMP_VELOCITY * factor
 	# animation_player.play("hop", -1, 4)
 	# animation_player.queue("falling")
@@ -279,7 +262,6 @@ func do_dash(dash_direction: Vector2) -> void:
 	visual_event.emit(&"dash", global_position)
 	velocity = dash_direction * DASH_SPEED
 	velocity.y *= Y_DASH_FACTOR
-	$"DashTrail".make_trail()
 	dash_sfx.play()
 var dash_ability: Callable = do_dash
 
