@@ -359,7 +359,7 @@ func _pass (way: Vector2, next: Vector2i) -> void:
 		player.set_physics_process(false)
 		player.velocity = Vector2.ZERO
 	if RisoTransition.instance != null:
-		await RisoTransition.instance.cover(way, Rules.where(next))
+		await RisoTransition.instance.cover(way, next)
 
 ## Load the place at `coord` (see LevelLoader), freezing the wizard until it is in the scene.
 func _load_level () -> void:

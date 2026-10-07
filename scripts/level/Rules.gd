@@ -105,6 +105,14 @@ static func map_price (depth: int) -> int:
 static func where (at: Vector2i) -> String:
 	return def_for(at).title()
 
+## A place as numbers, for printing without words (RisoMarks.place_marks): its world (the seed),
+## its depth (a side world's is that of the level it hangs off) and its side world's kind (-1 for
+## a level).
+static func place_numbers (at: Vector2i) -> Vector3i:
+	if Worlds.is_side(at):
+		return Vector3i(at.x, Worlds.origin_of(at).y, Worlds.kind_at(at))
+	return Vector3i(at.x, at.y, -1)
+
 ## The definition of the place at `at`: a level, or a side world (see Worlds).
 static func def_for (at: Vector2i) -> NextWorldDef:
 	return Worlds.def_for(at)

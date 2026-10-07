@@ -90,7 +90,7 @@ func run() -> void:
 	check(player.health.health == player.health.max_health, "corpse retrieval restores full health")
 	check(ghosts().is_empty(), "the ghost is gone")
 	await process_frame
-	check(main.get_node("RisoHud").get("lantern_lit") == false, "the HUD still shows how to restore protection after ghost recovery")
+	check(info.run.vulnerable, "the carried lantern stays unlit after ghost recovery: only lighting a lantern restores protection")
 
 	print("spent lantern saves")
 	info.save_run()

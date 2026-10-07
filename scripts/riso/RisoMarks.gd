@@ -2,7 +2,65 @@ class_name RisoMarks
 extends RefCounted
 ## Printed marks shared by the props, the printed map, the HUD and the prompts: keys and their
 ## bows (one shape per colour), padlocks and gates, the switch emblem, chains, the wizard's ghost,
-## chevrons and a smoke thread. Pure shapes and ink, drawn into whatever InkCanvas is given.
+## chevrons, a smoke thread and the place marks. Pure shapes and ink, drawn into whatever
+## InkCanvas is given.
+
+
+# ------------------------------------------------------------------ places, without words
+# A place reads as marks and numbers only: a world (a globe banded by two paper latitudes) before
+# the world's number, a depth (a thick down arrow) before the depth's, and, in a side world, its
+# door's mark (an upright portal) after them (Rules.place_numbers). Sized by `r`, a mark's half
+# height; the gaps are shares of it.
+
+## The space after a mark before its number, and between the world's number and the depth mark.
+const PLACE_GAP: float = 0.45
+const PLACE_SPACE: float = 1.1
+
+
+## A globe: a disc with two paper latitudes knocked out of it.
+static func world_glyph(ink: InkCanvas, at: Vector2, r: float, plate: int = RisoPrint.NIGHT, cover: float = 1.0) -> void:
+	ink.ink(plate, cover, [RisoShapes.circle(at, r, 22)], false)
+	var bands: Array[PackedVector2Array] = []
+	for k: float in [-0.38, 0.38]:
+		var y: float = at.y + r * k
+		var half: float = sqrt(maxf(0.0, r * r - (r * k) * (r * k))) * 0.86
+		bands.append(RisoShapes.rrect(at.x - half, y - r * 0.09, half * 2.0, r * 0.18, r * 0.09))
+	ink.knock([plate], bands)
+
+
+## Depth: a thick arrow pointing down.
+static func depth_glyph(ink: InkCanvas, at: Vector2, r: float, plate: int = RisoPrint.NIGHT, cover: float = 1.0) -> void:
+	ink.ink(plate, cover, [PackedVector2Array([
+		at + Vector2(-r * 0.36, -r), at + Vector2(r * 0.36, -r), at + Vector2(r * 0.36, 0.0), at + Vector2(r * 0.9, 0.0),
+		at + Vector2(0.0, r), at + Vector2(-r * 0.9, 0.0), at + Vector2(-r * 0.36, 0.0),
+	])], false)
+
+
+## A side world: an upright portal, its middle bare paper.
+static func side_glyph(ink: InkCanvas, at: Vector2, r: float, plate: int = RisoPrint.NIGHT, cover: float = 1.0) -> void:
+	ink.ink(plate, cover, [RisoShapes.rrect(at.x - r * 0.6, at.y - r, r * 1.2, r * 2.0, r * 0.6)], false)
+	ink.knock([plate], [RisoShapes.rrect(at.x - r * 0.3, at.y - r * 0.68, r * 0.6, r * 1.36, r * 0.3)])
+
+
+## How wide a place is printed with marks of half height `r` and numbers `widths` wide (world,
+## depth), with a side world's mark when `side`.
+static func place_width(r: float, widths: Vector2, side: bool) -> float:
+	var w: float = r * 2.0 + r * PLACE_GAP + widths.x + r * PLACE_SPACE + r * 2.0 + r * PLACE_GAP + widths.y
+	return w + (r * PLACE_SPACE + r * 1.2 if side else 0.0)
+
+
+## Print a place's marks from `left`, centred on its y, for numbers `widths` wide; returns where
+## the two numbers start (x of the world's, x of the depth's), for the caller's text.
+static func place_marks(ink: InkCanvas, left: Vector2, r: float, widths: Vector2, side: bool, plate: int = RisoPrint.NIGHT, cover: float = 1.0) -> Vector2:
+	var x: float = left.x
+	world_glyph(ink, Vector2(x + r, left.y), r, plate, cover)
+	var world_x: float = x + r * 2.0 + r * PLACE_GAP
+	x = world_x + widths.x + r * PLACE_SPACE
+	depth_glyph(ink, Vector2(x + r, left.y), r, plate, cover)
+	var depth_x: float = x + r * 2.0 + r * PLACE_GAP
+	if side:
+		side_glyph(ink, Vector2(depth_x + widths.y + r * PLACE_SPACE + r * 0.6, left.y), r, plate, cover)
+	return Vector2(world_x, depth_x)
 
 
 ## The same colour-to-shape identity on keys, lock faces and map marks.

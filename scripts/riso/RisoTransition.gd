@@ -28,11 +28,16 @@ var lead: float = 0.0
 var trail: float = 0.0
 ## The direction the sheet moves across the view.
 var sweep: Vector2 = Vector2.UP
-var text: String = ""
+## Where you are going, printed as marks and numbers (RisoMarks.place_marks).
+var destination: Vector2i = Vector2i.ZERO
+## Half the height of its marks on the card.
+const PLACE_R: float = 5.0
 var covered_at: float = 0.0
 var reveal_wanted: bool = false
 var ink: InkCanvas
-var label: Label
+## The destination's world and depth numbers.
+var world_label: Label
+var depth_label: Label
 var t: float = 0.0
 
 
@@ -53,16 +58,21 @@ func _ready() -> void:
 	visible = RisoPrint.is_on()
 	ink = InkCanvas.new()
 	add_child(ink)
-	label = Label.new()
+	world_label = _make_label()
+	depth_label = _make_label()
+
+
+func _make_label() -> Label:
+	var label: Label = Label.new()
 	label.add_theme_font_override("font", RisoTheme.serif())
 	label.add_theme_font_size_override("font_size", 64)
 	label.add_theme_color_override("font_color", Color.WHITE)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.scale = Vector2.ONE * (11.0 / 64.0)
 	label.visibility_layer = RisoPrint.plate_mask(RisoPrint.NIGHT)
 	label.visible = false
 	add_child(label)
+	return label
 
 
 func busy() -> bool:
@@ -71,11 +81,11 @@ func busy() -> bool:
 
 ## Sweep the sheet over the view; returns once it covers it. `travel` is the way the player is
 ## going (the sheet moves the other way, as scenery would). Instant when the print is off.
-func cover(travel: Vector2, destination: String) -> void:
+func cover(travel: Vector2, to: Vector2i) -> void:
 	if not RisoPrint.is_on() or not is_inside_tree():
 		return
 	sweep = -travel.normalized() if travel != Vector2.ZERO else Vector2.UP
-	text = destination
+	destination = to
 	lead = 0.0
 	trail = 0.0
 	reveal_wanted = false
@@ -106,7 +116,8 @@ func _process(delta: float) -> void:
 			if trail >= 1.0 + EDGE:
 				state = State.IDLE
 	ink.begin()
-	label.visible = false
+	world_label.visible = false
+	depth_label.visible = false
 	if state != State.IDLE:
 		_draw_sheet()
 	ink.finish()
@@ -147,11 +158,23 @@ func _draw_sheet() -> void:
 	ink.ink(RisoPrint.BLUE, 0.25, [sheet], false)
 	# Where you are going, once the sheet has the middle of the view.
 	if state == State.COVERED or (state == State.COVERING and lead > 0.7) or (state == State.REVEALING and trail < 0.3):
-		var w: float = RisoTheme.serif().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 64).x * label.scale.x
+		var n: Vector3i = Rules.place_numbers(destination)
+		var texts: PackedStringArray = PackedStringArray([str(n.x), str(n.y)])
+		var widths: Vector2 = Vector2(_width(texts[0]), _width(texts[1]))
+		var side: bool = Worlds.is_side(destination)
+		var w: float = RisoMarks.place_width(PLACE_R, widths, side)
 		var plate: PackedVector2Array = RisoShapes.rrect(160.0 - w * 0.5 - 9.0, 81.0, w + 18.0, 18.0, 6.0)
 		ink.knock(KNOCK_ALL, [plate])
 		ink.ink(RisoPrint.BLUE, 0.12, [plate], false)
-		label.visible = true
-		label.text = text
-		label.size = Vector2((w + 18.0) / label.scale.x, 18.0 / label.scale.y)
-		label.position = Vector2(160.0 - w * 0.5 - 9.0, 81.0)
+		var xs: Vector2 = RisoMarks.place_marks(ink, Vector2(160.0 - w * 0.5, 90.0), PLACE_R, widths, side)
+		for k: int in range(2):
+			var label: Label = world_label if k == 0 else depth_label
+			label.visible = true
+			label.text = texts[k]
+			label.size = Vector2((widths[k] + 4.0) / label.scale.x, 18.0 / label.scale.y)
+			label.position = Vector2(xs[k], 81.0)
+
+
+## Width of a number on the card, in UI units.
+func _width(text: String) -> float:
+	return RisoTheme.serif().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 64).x * (11.0 / 64.0)

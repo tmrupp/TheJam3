@@ -123,7 +123,7 @@ func run() -> void:
 	sheet.state = RisoTransition.State.COVERED
 	sheet.lead = 1.0 + RisoTransition.EDGE
 	sheet.trail = 0.0
-	sheet.text = "Sky"
+	sheet.destination = Vector2i(28, 1)
 	cam.zoom = Vector2.ONE * 0.25
 	var clean: bool = true
 	for direction: Vector2 in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:

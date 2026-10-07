@@ -108,6 +108,19 @@ const FEATHER_FLICK: Vector3 = Vector3(4.7, 0.7, 0.4)
 const WALL_GLOVE: float = 1.7
 const WALL_PLANT: Vector2 = Vector2(-14.5, -19.0)
 const WALL_LANTERN_LEAN: float = 0.25
+## Sitting (Player.is_sitting): the body sinks this far and the poncho spreads on the ground, the
+## boots stick out in front, the lantern is set down beside them, and the free hand flips a coin.
+const SIT_DROP: float = 5.0
+const SIT_SPREAD: float = 1.25
+const SIT_FEET: Array[Vector2] = [Vector2(2.4, 0.0), Vector2(6.0, 0.0)]
+const SIT_LANTERN: Vector2 = Vector2(13.2, -3.6)
+const COIN_HAND: Vector2 = Vector2(8.4, -10.5)
+## How fast the Fool settles down and gets up again (share of the way per second).
+const SIT_SPEED: Vector2 = Vector2(4.0, 7.0)
+## The coin: radius, how high it is tossed, seconds per toss, share of a toss in the air, spin.
+const COIN: Vector3 = Vector3(1.3, 9.0, 1.1)
+const COIN_AIR: float = 0.72
+const COIN_SPIN: float = 15.0
 ## The wizard supplies the feet, lean, cloth sway, head lag and drawing canvas.
 var wizard: RisoWizard
 ## The current frame turns to face the player's way and follows the body's lean.
@@ -127,6 +140,9 @@ var pole_a: float = 0.0
 var pole_v: float = 0.0
 var head_x: float = 0.0
 var head_v: float = 0.0
+## How far the Fool has sat down (0 standing, 1 seated), and how long the coin has been flipping.
+var sit: float = 0.0
+var coin_t: float = 0.0
 ## The last step's ground contact, fall speed and facing, for landings and turns.
 var _was_ground: bool = true
 var _fall: float = 0.0
@@ -163,10 +179,28 @@ func lantern_position() -> Vector2:
 	_follow()
 	var at: Vector2 = LANTERN_AT.get(wizard.character_style(), Vector2.ZERO) + Vector2(0, bob - 2.0)
 	if wizard.character_style() == &"fool":
-		var hand: Vector2 = _lantern_hand()
-		at = hand + Vector2(0, LANTERN_REACH - 2.0).rotated(lantern_a)
+		at = _lantern_hang() + Vector2(0, LANTERN_REACH - 2.0).rotated(_lantern_tilt())
 	var facing: float = 1.0 if wizard.fs >= 0.0 else -1.0
 	return wizard._smv(Transform2D(lean, Vector2.ZERO) * Vector2(at.x * facing, at.y))
+
+
+## How seated the traveler looks, from 0 standing to 1 sitting (only the Fool has a pose; the
+## others are seated as soon as the player sits).
+func seated() -> float:
+	if wizard.character_style() == &"fool":
+		return smoothstep(0.0, 1.0, sit)
+	return 1.0 if wizard.player != null and wizard.player.is_sitting() else 0.0
+
+
+## Where the lantern's bail hangs from: the glove while it is carried, the ground beside the boots
+## while the Fool sits.
+func _lantern_hang() -> Vector2:
+	return _lantern_hand().lerp(SIT_LANTERN - Vector2(0, LANTERN_REACH), seated())
+
+
+## The lantern's swing, settling upright as it is set down.
+func _lantern_tilt() -> float:
+	return lantern_a * (1.0 - seated())
 
 
 ## The way the head faces. It turns as soon as the player turns, a few frames before the body
@@ -212,6 +246,9 @@ func gait() -> Vector3:
 func step(dt: float) -> void:
 	if wizard.character_style() != &"fool" or dt <= 0.0:
 		return
+	var sitting: bool = wizard.player.is_sitting()
+	sit = move_toward(sit, 1.0 if sitting else 0.0, dt * (SIT_SPEED.x if sitting else SIT_SPEED.y))
+	coin_t = coin_t + dt if sit >= 1.0 else 0.0
 	var facing: float = 1.0 if wizard.fs >= 0.0 else -1.0
 	if facing != _facing:
 		# A turn mirrors the figure; the parts keep swinging the same way in the world.
@@ -271,9 +308,13 @@ func _turned(pivot: Vector2, angle: float) -> Transform2D:
 func _follow() -> void:
 	var m: Vector4 = MOTION.get(wizard.character_style(), Vector4.ONE)
 	bob = wizard.bob * m.x
+	# Sitting lowers the head with the body, in full: only the springs' own motion is softened.
+	var settle: float = 0.0
 	if wizard.character_style() == &"fool":
 		bob += (sin(wizard.t * BREATH.x) - 1.0) * BREATH.y * _idle()
-	head_y = bob + (wizard.head_y - bob) * m.y
+		settle = SIT_DROP * seated()
+	head_y = bob + (wizard.head_y - bob) * m.y + settle
+	bob += settle
 	lean = wizard.lean * m.z
 
 
@@ -402,8 +443,9 @@ func _shaman() -> void:
 func _poncho() -> PackedVector2Array:
 	var b: float = bob
 	var hem: Array[Vector2] = []
+	var s: float = seated()
 	for i: int in range(5):
-		hem.append(_hem(i) + Vector2(FOOL_HEM[i], FOOL_HEM_Y[i]))
+		hem.append(_hem(i) + Vector2(FOOL_HEM[i] * lerpf(1.0, SIT_SPREAD, s), FOOL_HEM_Y[i] + SIT_DROP * s))
 	var w: float = FOOL_SHOULDER
 	var back: Vector2 = Vector2(-w + _hem(0).x * FOOL_CORNER_SWAY, -14.2 + b * 0.8)
 	var front: Vector2 = Vector2(w + _hem(4).x * FOOL_CORNER_SWAY, -14.2 + b * 0.8)
@@ -428,8 +470,9 @@ func _hem(i: int) -> Vector2:
 func _fool() -> void:
 	var b: float = bob
 	var facing: float = 1.0 if wizard.fs >= 0.0 else -1.0
-	for foot: Vector2 in wizard._feet():
-		var at: Vector2 = Vector2(foot.x * facing, foot.y)
+	var feet: Array[Vector2] = wizard._feet()
+	for k: int in range(feet.size()):
+		var at: Vector2 = Vector2(feet[k].x * facing, feet[k].y).lerp(SIT_FEET[k], seated())
 		var leg: PackedVector2Array = _bar(at + Vector2(0.1, -4.2), Vector2(at.x * 0.6 + 0.2, -7.5 + b * 0.5), 2.4)
 		_solid(leg)
 		_over(leg, RisoPrint.NIGHT, LEG_SHADE)
@@ -496,12 +539,30 @@ func _fool() -> void:
 	# widest corner, holds the lantern's bail.
 	_hand(grip, GLOVE_SHADE)
 	# A short sleeve keeps the swinging lantern hand joined to the poncho's corner.
-	var hand: Vector2 = _lantern_hand()
+	# Sitting, it sets the lantern down beside its boots and that glove flips a coin instead.
+	var hang: Vector2 = _lantern_hang()
+	var hand: Vector2 = _lantern_hand().lerp(COIN_HAND, seated())
 	_solid(_bar(Vector2(FOOL_SHOULDER - 1.6, -14.2 + b * 0.8), hand, 2.6))
-	frame = _turned(hand, lantern_a)
-	_lantern(hand + Vector2(0, LANTERN_REACH), true)
+	frame = _turned(hang, _lantern_tilt())
+	_lantern(hang + Vector2(0, LANTERN_REACH), true)
 	frame = body
 	_hand(hand, GLOVE_SHADE)
+	if sit >= 1.0:
+		_coin(hand)
+
+
+## The coin, tossed from the glove at `hand`, spinning (its width narrowing to an edge and back),
+## caught, and tossed again: gold ink, with a paper glint as its face turns to the light.
+func _coin(hand: Vector2) -> void:
+	var u: float = fposmod(coin_t / COIN.z, 1.0)
+	var a: float = u / COIN_AIR
+	var lift: float = 4.0 * COIN.y * a * (1.0 - a) if a < 1.0 else 0.0
+	var turn: float = cos(coin_t * COIN_SPIN) if a < 1.0 else 1.0
+	var at: Vector2 = hand + Vector2(0.2, -2.3 - lift)
+	var face: PackedVector2Array = RisoShapes.ellipse(at, COIN.x * maxf(absf(turn), 0.18), COIN.x, 16)
+	_solid(face, RisoPrint.ACCENT, 1.0, false)
+	if absf(turn) > 0.55:
+		_paper(RisoShapes.circle(at + Vector2(-0.35 * turn, -0.4), 0.42, 8), 0.0)
 
 
 ## A short boot with a rounded toe and a pale turned-down cuff, its sole on the foot's point.

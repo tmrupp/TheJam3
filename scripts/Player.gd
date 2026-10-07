@@ -124,6 +124,25 @@ func is_drowsy() -> bool:
 	return drowsy > 0.0
 
 
+## Holding Down while standing still on the ground for SIT_DELAY, the wizard sits down (the Fool
+## sets its lantern down and flips a coin, and the stars carried show over its head). Only how
+## they look: sitting changes no movement, and Down with Jump still drops through a ledge.
+const SIT_DELAY: float = 0.3
+## How long Down has been held while standing still.
+var sit_held: float = 0.0
+
+
+func is_sitting() -> bool:
+	return sit_held >= SIT_DELAY
+
+
+func _sit(direction: Vector2, delta: float) -> void:
+	if is_on_floor() and direction.y > 0.5 and direction.x == 0.0 and absf(velocity.x) < 1.0 and not dash.is_acting():
+		sit_held += delta
+	else:
+		sit_held = 0.0
+
+
 ## In sleep fog: drowsy for a moment more. Becoming drowsy ends whatever spell is running.
 func make_drowsy() -> void:
 	if drowsy <= 0.0:
@@ -400,6 +419,7 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed(Abilities.SPELL_ACTION):
 		Abilities.cast(self)
 	if phasing:
+		sit_held = 0.0
 		_phase(delta)
 		return
 
@@ -581,6 +601,7 @@ func _physics_process(delta: float) -> void:
 	# this uses veolcity and calculates collisions for next frame
 	move_and_slide()
 	_footing()
+	_sit(direction, delta)
 
 
 ## Sky levels: the last rock the wizard stood on (`footing`, in the level `footing_at`). Falling out

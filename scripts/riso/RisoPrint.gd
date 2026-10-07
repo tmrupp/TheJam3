@@ -863,6 +863,7 @@ const DRESS: Dictionary = {
 	"res://prefabs/player.tscn": &"wizard",
 	"res://prefabs/bullet.tscn": &"shard",
 	"res://prefabs/corpse.tscn": &"ghost",
+	"res://prefabs/signpost.tscn": &"sign",
 }
 
 
