@@ -24,13 +24,13 @@ const PLACES: Array = [
 
 ## label -> [terrain, dressing], as printed by this test.
 const GOLDEN: Dictionary = {
-	"garden": ["3141ca88260d303e", "815ec3a37d04e16d"],
-	"garden deeper": ["fb83f8a8fba7e562", "003864c0d7bf0c19"],
-	"cemetery": ["0708f224adbb179a", "cbeb89b24cd5f247"],
-	"cemetery deeper": ["1c1f236236a24d2c", "bc35aa8a31f35c27"],
-	"sky": ["812e276a39eac712", "1290c2d7ad09c2ff"],
-	"sky deeper": ["7ed6d50689e41962", "8f50ebf9ed02abf9"],
-	"hyperspace": ["2c6df15b39f4e062", "02a1b0331241d7e0"],
+	"garden": ["3141ca88260d303e", "6ed820a086eba3d5"],
+	"garden deeper": ["fb83f8a8fba7e562", "37872ac5fcc1e8a5"],
+	"cemetery": ["0708f224adbb179a", "305c62d0afcfe0ff"],
+	"cemetery deeper": ["1c1f236236a24d2c", "bce73663065d9890"],
+	"sky": ["812e276a39eac712", "4cc4cd5c8bf36df3"],
+	"sky deeper": ["7ed6d50689e41962", "6146631a00d042e2"],
+	"hyperspace": ["2c6df15b39f4e062", "8ac55aedddefeb32"],
 }
 
 
@@ -44,8 +44,8 @@ func run() -> void:
 		check(not cells.is_empty(), "%s %s: the terrain collapses" % [label, at])
 		if cells.is_empty():
 			continue
-		var w: LevelGen = LevelGen.new(cells, MapInfo.def_for(at))
-		var again: LevelGen = LevelGen.new(cells, MapInfo.def_for(at))
+		var w: LevelGen = LevelGen.new(cells, Rules.def_for(at))
+		var again: LevelGen = LevelGen.new(cells, Rules.def_for(at))
 		var terrain: String = _terrain(cells)
 		var dressing: String = _dressing(w)
 		check_eq(_dressing(again), dressing, "%s %s: dressed the same way twice" % [label, at])

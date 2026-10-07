@@ -75,7 +75,7 @@ func generation() -> void:
 	var most_lanterns: int = 0
 	for seed_value: int in [1, 7, 28, 99, 512]:
 		for depth: int in [0, 2, 5]:
-			var def: NextWorldDef = MapInfo.def_for(Vector2i(seed_value, depth))
+			var def: NextWorldDef = Rules.def_for(Vector2i(seed_value, depth))
 			var w: LevelGen = LevelGen.new(collapse(def.coord), def)
 			var label: String = "seed %d depth %d" % [seed_value, depth]
 			var lit: int = count(w, LevelGen.Type.CHECKPOINT)
@@ -96,11 +96,11 @@ func generation() -> void:
 	check(most_lanterns <= 3, "no level has more than 3 lanterns (%d)" % most_lanterns)
 	var dealt: int = 0
 	for x: int in range(100):
-		if MapInfo.skeleton_at(Vector2i(x, 3)):
+		if Rules.skeleton_at(Vector2i(x, 3)):
 			dealt += 1
-	check(dealt >= 15 and dealt <= 45, "skeleton keys in about %d%% of levels (%d of 100)" % [MapInfo.SKELETON_CHANCE, dealt])
-	check(not MapInfo.skeleton_at(Vector2i(28, 0)), "none in first levels")
-	check(MapInfo.cluster_value(0) == 10 and MapInfo.cluster_value(5) > MapInfo.cluster_value(0), "a cluster is worth 10 at the surface, more deeper")
+	check(dealt >= 15 and dealt <= 45, "skeleton keys in about %d%% of levels (%d of 100)" % [Rules.SKELETON_CHANCE, dealt])
+	check(not Rules.skeleton_at(Vector2i(28, 0)), "none in first levels")
+	check(Rules.cluster_value(0) == 10 and Rules.cluster_value(5) > Rules.cluster_value(0), "a cluster is worth 10 at the surface, more deeper")
 
 
 func keys() -> void:
@@ -264,7 +264,7 @@ func cluster() -> void:
 	var cell: Vector2i = c.get_meta(&"cell")
 	var before: int = player.coins.coins
 	c.call("touch", player)
-	check(player.coins.coins == before + MapInfo.cluster_value(0), "it gives %d stars" % MapInfo.cluster_value(0))
+	check(player.coins.coins == before + Rules.cluster_value(0), "it gives %d stars" % Rules.cluster_value(0))
 	check((info.record().taken as Dictionary).has(cell), "and stays taken")
 
 

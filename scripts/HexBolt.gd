@@ -15,6 +15,27 @@ const REACH: float = 44.0
 const SPAN_DOWN: float = 20.0
 const SPAN_UP: float = 56.0
 const SOLID_MASK: int = 4
+## The things that answer a bolt themselves, by their script (or one it extends): each has
+## `hex_hit(damage, dir)`, called when the bolt strikes it. A new one is added here (unit_test
+## checks every script with a hex_hit is listed, and takes those two).
+const ANSWERS: Array[Script] = [
+	preload("res://scripts/Bell.gd"),
+	preload("res://scripts/CrackedWall.gd"),
+	preload("res://scripts/MothSwarm.gd"),
+	preload("res://scripts/Switch.gd"),
+]
+
+
+## Whether `o` answers a bolt itself (see ANSWERS).
+static func answers(o: Object) -> bool:
+	if o == null:
+		return false
+	var script: Script = o.get_script() as Script
+	while script != null:
+		if script in ANSWERS:
+			return true
+		script = script.get_base_script()
+	return false
 
 var dir: Vector2 = Vector2.RIGHT
 var damage: int = 1
@@ -72,14 +93,14 @@ func _physics_process(delta: float) -> void:
 		if stunner != null and is_instance_valid(e) and not e.is_queued_for_deletion():
 			stunner.stun(Hex.STUN)
 		# Things that are not enemies answer the bolt themselves (a switch throws).
-		if wound == null and e.has_method("hex_hit"):
+		if wound == null and answers(e):
 			e.call("hex_hit", damage, dir)
 		if not pierce or struck.size() > 1:
 			_end((e as Node2D).global_position)
 			return
 	if not wall.is_empty():
 		var hit: Object = wall["collider"]
-		if hit != null and hit.has_method("hex_hit"):
+		if answers(hit):
 			hit.call("hex_hit", maxi(damage, 1), dir)
 		_end(wall["position"])
 		return
@@ -104,7 +125,7 @@ func _solid(from: Vector2, to: Vector2) -> Dictionary:
 		if res.is_empty():
 			return {}
 		var c: Object = res["collider"]
-		if c is TileMap or c is TileMapLayer or (c != null and c.has_method("hex_hit")) or (c is Node and Placeables.type_of(c as Node) in [LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE]):
+		if c is TileMap or c is TileMapLayer or answers(c) or (c is Node and Placeables.type_of(c as Node) in [LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE]):
 			return res
 		skip.append(res["rid"])
 	return {}

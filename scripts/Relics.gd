@@ -33,7 +33,7 @@ static func chance(depth: int) -> int:
 static func at(at: Vector2i) -> StringName:
 	if at.y < 0:
 		return &""
-	var h: int = MapInfo.level_seed(MapInfo.level_seed(at.x, at.y), 4242)
+	var h: int = Rules.level_seed(Rules.level_seed(at.x, at.y), 4242)
 	if not MapInfo.debug and (at.y < MIN_DEPTH or h % 100 >= chance(at.y)):
 		return &""
 	@warning_ignore("integer_division")
@@ -58,9 +58,9 @@ static func nearest(from: Vector2i, found: Dictionary) -> Variant:
 
 ## Stars to take the relic in a level `depth` deep.
 static func price(depth: int) -> int:
-	return roundi(MapInfo.deeper_price(depth) * PRICE)
+	return roundi(Rules.deeper_price(depth) * PRICE)
 
 
 ## Stars for a relic's whereabouts at a shrine in a level `depth` deep.
 static func hint_price(depth: int) -> int:
-	return roundi(MapInfo.deeper_price(depth) * HINT_PRICE)
+	return roundi(Rules.deeper_price(depth) * HINT_PRICE)

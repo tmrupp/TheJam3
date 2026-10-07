@@ -1,44 +1,9 @@
-extends SceneTree
+extends TestKit
 ## Bone gates, which only a skeleton key opens: bone vaults of rich loot in some levels, relics
 ## behind a bone gate instead of a secret room in half of relic levels, bone gates on the way deep
 ## down; and the shrine's skeleton key, sold at full health instead of a relic's whereabouts and
 ## laid somewhere in the level.
 ## godot --headless --path . --script res://tests/bones_test.gd
-
-var main: Node
-var info: MapInfo
-var player: Player
-var failed: bool = false
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
-
-
-func settle(frames: int = 6) -> void:
-	await process_frame
-	var deadline: int = Time.get_ticks_msec() + 30000
-	while (info.world == null or info.travelling) and Time.get_ticks_msec() < deadline:
-		await process_frame
-	for i: int in range(frames):
-		await physics_frame
-		await process_frame
-
-
-func placed(scene: String) -> Array[Node]:
-	var found: Array[Node] = []
-	for node: Node in info.map_elements.get_children():
-		if node.scene_file_path.get_file() == scene and not node.is_queued_for_deletion():
-			found.append(node)
-	return found
 
 
 func bone_vaults(w: LevelGen) -> Array:
@@ -50,31 +15,26 @@ func in_room(vault: Dictionary, type: LevelGen.Type, w: LevelGen) -> bool:
 
 
 func run() -> void:
-	main = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	await process_frame
-	var wfc: Node = main.get_node("WaveFunctionCollapse")
-
 	print("dealt by the level seed")
 	var vaulted: int = 0
 	var gated: int = 0
 	var surface: int = 0
 	for x: int in range(400):
-		vaulted += 1 if MapInfo.bone_vault_at(Vector2i(x, 2)) else 0
-		gated += 1 if MapInfo.relic_gated_at(Vector2i(x, 2)) else 0
-		surface += 1 if MapInfo.bone_vault_at(Vector2i(x, 0)) else 0
+		vaulted += 1 if Rules.bone_vault_at(Vector2i(x, 2)) else 0
+		gated += 1 if Rules.relic_gated_at(Vector2i(x, 2)) else 0
+		surface += 1 if Rules.bone_vault_at(Vector2i(x, 0)) else 0
 	check(surface == 0, "no bone vaults in first levels")
-	check(vaulted > 60 and vaulted < 140, "bone vaults in about %d%% of levels (%d of 400)" % [MapInfo.BONE_VAULT_CHANCE, vaulted])
-	check(gated > 150 and gated < 250, "relics gated in about %d%% of relic levels (%d of 400)" % [MapInfo.RELIC_GATE_CHANCE, gated])
+	check(vaulted > 60 and vaulted < 140, "bone vaults in about %d%% of levels (%d of 400)" % [Rules.BONE_VAULT_CHANCE, vaulted])
+	check(gated > 150 and gated < 250, "relics gated in about %d%% of relic levels (%d of 400)" % [Rules.RELIC_GATE_CHANCE, gated])
 
 	print("bone vaults")
 	var seen: int = 0
 	for x: int in range(1, 400):
 		var at: Vector2i = Vector2i(x, 2)
-		if not MapInfo.bone_vault_at(at) or Relics.at(at) != &"":
+		if not Rules.bone_vault_at(at) or Relics.at(at) != &"":
 			continue
-		var def: NextWorldDef = MapInfo.def_for(at)
-		var cells: Array = wfc.call("generate_level", def)
+		var def: NextWorldDef = Rules.def_for(at)
+		var cells: Array = collapse(def.coord)
 		var w: LevelGen = LevelGen.new(cells, def)
 		var bones: Array = bone_vaults(w)
 		if bones.is_empty():
@@ -94,10 +54,10 @@ func run() -> void:
 	var relics: int = 0
 	for x: int in range(1, 4000):
 		var at: Vector2i = Vector2i(x, 3)
-		if Relics.at(at) == &"" or not MapInfo.relic_gated_at(at):
+		if Relics.at(at) == &"" or not Rules.relic_gated_at(at):
 			continue
-		var def: NextWorldDef = MapInfo.def_for(at)
-		var w: LevelGen = LevelGen.new(wfc.call("generate_level", def), def)
+		var def: NextWorldDef = Rules.def_for(at)
+		var w: LevelGen = LevelGen.new(collapse(def.coord), def)
 		var in_secret: bool = w.secrets.any(func(s: Dictionary) -> bool: return (s["rewards"] as Array).any(func(r: Array) -> bool: return r[1] == LevelGen.Type.RELIC))
 		var bones: Array = bone_vaults(w)
 		if bones.is_empty():
@@ -116,36 +76,28 @@ func run() -> void:
 	var deep_doors: int = 0
 	for x: int in [1, 7, 28, 99, 512, 640]:
 		for d: int in [2, 7]:
-			var def: NextWorldDef = MapInfo.def_for(Vector2i(x, d))
-			var w: LevelGen = LevelGen.new(wfc.call("generate_level", def), def)
+			var def: NextWorldDef = Rules.def_for(Vector2i(x, d))
+			var w: LevelGen = LevelGen.new(collapse(def.coord), def)
 			var vault_doors: Array = w.vaults.map(func(v: Dictionary) -> Vector2i: return v["door"])
 			for v: Vector2i in w.objects:
 				var cell: LevelGen.Cell = w.get_cell(v)
 				if cell.type != LevelGen.Type.DOOR or v in vault_doors:
 					continue
 				var bone: bool = int(cell.extra_info) == KeyRing.SKELETON
-				if d < MapInfo.SKELETON_DOOR_DEPTH:
+				if d < Rules.SKELETON_DOOR_DEPTH:
 					shallow += 1 if bone else 0
 				else:
 					deep_doors += 1
 					deep += 1 if bone else 0
-	check(shallow == 0, "none above depth %d" % MapInfo.SKELETON_DOOR_DEPTH)
+	check(shallow == 0, "none above depth %d" % Rules.SKELETON_DOOR_DEPTH)
 	check(deep > 0 and deep < deep_doors, "some doors below it (%d of %d)" % [deep, deep_doors])
 
 	print("in play: a bone gate")
-	RunState.save_path = "user://bones_test.save"
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	menu.start_game()
-	await process_frame
-	await process_frame
-	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	player = main.get_node("Player") as Player
-	await settle()
+	await boot()
 	player.set_physics_process(false)
 	var target: Vector2i = Vector2i(-1, -1)
 	for x: int in range(28, 400):
-		if MapInfo.bone_vault_at(Vector2i(x, 1)) and Relics.at(Vector2i(x, 1)) == &"":
+		if Rules.bone_vault_at(Vector2i(x, 1)) and Relics.at(Vector2i(x, 1)) == &"":
 			target = Vector2i(x, 1)
 			break
 	info.coord = target
@@ -157,12 +109,12 @@ func run() -> void:
 	for n: Node in placed("door.tscn"):
 		if int(n.get_meta(&"key_color", -1)) == KeyRing.SKELETON:
 			gate = n
-	check(gate != null, "a bone gate in %s" % MapInfo.where(target))
+	check(gate != null, "a bone gate in %s" % Rules.where(target))
 	if gate != null:
 		var unlock: Node = gate.get_node("Unlock")
 		check(int((unlock.call("interaction_hint") as Dictionary).get("key_color", -1)) == KeyRing.SKELETON, "its prompt asks for a skeleton key")
 		player.keyring.clear()
-		for c: int in range(MapInfo.KEY_COLOR_COUNT):
+		for c: int in range(Rules.KEY_COLOR_COUNT):
 			player.keyring.take(c)
 		unlock.call("interacted")
 		await process_frame
@@ -204,7 +156,7 @@ func run() -> void:
 			info.run.relics_found[Vector2i(home.x + dx, dy)] = true
 	check(bool(shrine.call("sells_skeleton")) and not bool(shrine.call("reads_relic")), "with no relic to point to, it sells a skeleton key")
 	var price: int = int(shrine.call("skeleton_price"))
-	check(price == roundi(2.0 * MapInfo.deeper_price(home.y)), "for %d stars (twice the deeper price)" % price)
+	check(price == roundi(2.0 * Rules.deeper_price(home.y)), "for %d stars (twice the deeper price)" % price)
 	player.collect(price + 5 - player.coins.coins)
 	var drops_before: int = (info.record().dropped as Dictionary).size()
 	shrine.call("buy_mend")
@@ -222,19 +174,11 @@ func run() -> void:
 		check(absi(cell.x - info.world.shrine.x) + absi(cell.y - info.world.shrine.y) >= MapInfo.SOLD_KEY_APART, "away from the shrine (at %s)" % cell)
 		check(info.world.ground_below(cell), "on a floor")
 		# A dropped key arms on a physics frame once the wizard is well away from it.
-		for i: int in range(30):
-			if bool(sold.get("armed")):
-				break
-			await physics_frame
+		await until(func() -> bool: return bool(sold.get("armed")))
 		check(bool(sold.get("armed")), "it arms (the wizard is away at the shrine)")
 		sold.call("touch", player)
 		await process_frame
 		check(player.keyring.skeletons() == 1 and (info.record().dropped as Dictionary).size() == drops_before, "taken, it goes in the pocket")
 	info.run.relics_found = found
 
-	if failed:
-		print("FAILED")
-		quit(1)
-	else:
-		print("PASSED")
-		quit()
+	finish()

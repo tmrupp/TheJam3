@@ -1,43 +1,13 @@
-extends SceneTree
+extends TestKit
 ## suite: window (reads back the rendered screen, so it needs a real window: full run only)
 ## The worlds page picks another visited level and shows its map; the F7 ability picker sets tiers.
 ## godot --path . --windowed --script res://tests/map_worlds_test.gd
 
-var failed: bool = false
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
-
-
-func settle(info: MapInfo) -> void:
-	await process_frame
-	while info.world == null or info.travelling:
-		await process_frame
-	for i: int in range(10):
-		await process_frame
-
 
 func run() -> void:
 	root.size = Vector2i(1280, 720)
-	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	RunState.save_path = "user://map_worlds_test.save"
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	for i: int in range(5):
-		await process_frame
-	menu.start_game()
-	var info: MapInfo = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	await settle(info)
+	await boot()
+	await settle(10)
 	var first: Vector2i = info.coord
 	info.reveal(info.cell_at(info.player.global_position), 6)
 	# The keys' and doors' colours as the level dealt them, to check the map deals them alike.
@@ -50,7 +20,7 @@ func run() -> void:
 	info.ink_whole_map()
 	var first_seen: int = info.seen_count()
 	info.travel(MapInfo.Exit.RIGHT)
-	await settle(info)
+	await settle(10)
 	var map: Node = RisoPrint.instance.map_view
 	map.call("toggle")
 	map.call("page", 1)
@@ -81,16 +51,10 @@ func run() -> void:
 	await process_frame
 
 	print("ability picker")
-	var player: Player = info.player
 	Abilities.set_tier(player, &"double_jump", 2)
 	check(player.MAX_JUMPS == 3, "setting double jump II gives three jumps")
 	Abilities.set_tier(player, &"astral", 1)
 	check(Abilities.spell(player) == &"astral" and Abilities.tier(player, &"hex") == 0, "setting a spell takes the slot")
 	Abilities.set_tier(player, &"astral", 0)
 	check(Abilities.spell(player) == &"", "setting it to none empties the slot")
-	if failed:
-		print("FAILED")
-		quit(1)
-	else:
-		print("PASSED")
-		quit()
+	finish()

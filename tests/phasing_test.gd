@@ -1,41 +1,9 @@
-extends SceneTree
+extends TestKit
 ## Astral projection drifts through rock: nothing solid stops it, it is kept inside the level,
 ## drifting into a secret room's rock opens the room, and ending inside rock (run out or snapped
 ## back) costs a heart and puts the wizard back in their body. Warp lands on a random floor, then
 ## recharges; at tier II on one not yet seen; at tier III in a secret room not yet opened, opening it.
 ## godot --headless --path . --script res://tests/phasing_test.gd
-
-var main: Node
-var info: MapInfo
-var player: Player
-var failed: bool = false
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
-
-
-func settle(frames: int = 6) -> void:
-	await process_frame
-	var deadline: int = Time.get_ticks_msec() + 30000
-	while (info.world == null or info.travelling) and Time.get_ticks_msec() < deadline:
-		await process_frame
-	for i: int in range(frames):
-		await physics_frame
-		await process_frame
-
-
-func frames(n: int) -> void:
-	for i: int in range(n):
-		await physics_frame
 
 
 ## A cell of rock with rock all round it.
@@ -54,16 +22,7 @@ func deep_rock() -> Vector2i:
 
 
 func run() -> void:
-	main = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	RunState.save_path = "user://phasing_test.save"
-	await process_frame
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	menu.start_game()
-	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	player = main.get_node("Player") as Player
-	await settle()
+	await boot()
 
 	print("astral projection through rock")
 	Abilities.set_tier(player, &"astral", 1)
@@ -135,7 +94,7 @@ func run() -> void:
 	while warp.warping:
 		await process_frame
 	info.travel(MapInfo.Exit.RIGHT)
-	await settle()
+	await settle(6)
 	player.set_physics_process(false)
 	check(info.world.secrets.size() > 0, "the next level has a secret room too")
 	Abilities.set_tier(player, &"warp", 3)
@@ -146,9 +105,4 @@ func run() -> void:
 		await process_frame
 	check(landed != null and (info.world.secrets[0]["room"] as Array).has(landed) and (info.record().secrets as Dictionary).has(0), "tier III lands in a secret room not yet opened, and opens it")
 
-	if failed:
-		print("FAILED")
-		quit(1)
-	else:
-		print("PASSED")
-		quit()
+	finish()

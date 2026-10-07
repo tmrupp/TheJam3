@@ -1,34 +1,7 @@
-extends SceneTree
+extends TestKit
 ## Lanterns protect one death each; burned lanterns stay spent across levels and saves.
 ## Ghosts and stars cannot restore protection. An unprotected death ends the run.
 ## godot --headless --path . --script res://tests/death_test.gd
-
-var main: Node
-var info: MapInfo
-var player: Player
-var failed: bool = false
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
-
-
-func settle(frames: int = 4) -> void:
-	await process_frame
-	var deadline: int = Time.get_ticks_msec() + 30000
-	while (info.world == null or info.travelling) and Time.get_ticks_msec() < deadline:
-		await process_frame
-	for i: int in range(frames):
-		await physics_frame
-		await process_frame
 
 
 func ghosts() -> Array[Node]:
@@ -51,17 +24,7 @@ func lanterns() -> Array[Node]:
 
 
 func run() -> void:
-	main = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	RunState.save_path = "user://death_test.save"
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	menu.start_game()
-	await process_frame
-	await process_frame
-	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	player = main.get_node("Player") as Player
-	await settle()
+	await boot()
 	player.set_physics_process(false)
 	var start_coord: Vector2i = info.coord
 	var start_cell: Vector2i = info.run.respawn_cell
@@ -191,9 +154,7 @@ func run() -> void:
 	await process_frame
 	check(info.run_ending > 0.0, "dying without a lit lantern ends the run")
 	check(RunState.read_save().is_empty(), "quitting during the end card cannot resurrect the ended run")
-	var deadline: int = Time.get_ticks_msec() + 10000
-	while info.run_ending > 0.0 and Time.get_ticks_msec() < deadline:
-		await process_frame
+	await until(func() -> bool: return info.run_ending <= 0.0, 10000)
 	await settle()
 	check(info.coord == Vector2i(28, 0), "a new run starts at (28, 0)")
 	check(player.coins.coins == 0 and player.keyring.newest() < 0, "with no stars and no key")
@@ -203,9 +164,4 @@ func run() -> void:
 	check(coins().size() > 0 and info.run.records.size() == 1, "and fresh level records")
 	check(player.visible and player.is_physics_processing(), "the wizard is back in play")
 
-	if failed:
-		print("FAILED")
-		quit(1)
-	else:
-		print("PASS: deeper phase 2")
-		quit()
+	finish()

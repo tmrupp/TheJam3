@@ -1,35 +1,7 @@
-extends SceneTree
+extends TestKit
 ## Phase 1 of docs/DEEPER_PLAN.md: levels are a pure function of (seed, depth), the four exits
 ## connect them, records survive revisits, and the deeper exit is paid for once.
 ## godot --headless --path . --script res://tests/deeper_test.gd
-
-var main: Node
-var info: MapInfo
-var player: Player
-var failed: bool = false
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
-
-
-func wait_level() -> bool:
-	var deadline: int = Time.get_ticks_msec() + 30000
-	await process_frame
-	while (info.world == null or info.travelling) and Time.get_ticks_msec() < deadline:
-		await process_frame
-	for i: int in range(4):
-		await physics_frame
-		await process_frame
-	return not info.travelling
 
 
 func fingerprint() -> int:
@@ -40,21 +12,13 @@ func fingerprint() -> int:
 	return hash([types, info.world.exits, info.world.exit_lanterns, info.world.objects])
 
 
-func placed(scene: String) -> Array[Node]:
-	var found: Array[Node] = []
-	for node: Node in info.map_elements.get_children():
-		if node.scene_file_path.get_file() == scene and not node.is_queued_for_deletion():
-			found.append(node)
-	return found
-
-
 func has_cell(scene: String, v: Vector2i) -> bool:
 	return placed(scene).any(func(n: Node) -> bool: return n.get_meta(&"cell", Vector2i(-1, -1)) == v)
 
 
 func go(exit: int) -> void:
 	info.travel(exit)
-	await wait_level()
+	await settle()
 
 
 ## Placed at the cell's centre, the player then drops onto its floor (half a cell below).
@@ -68,19 +32,10 @@ func near_exit(which: int) -> bool:
 
 
 func run() -> void:
-	main = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	RunState.save_path = "user://deeper_test.save"
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	menu.start_game()
-	await process_frame
-	await process_frame
-	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	player = main.get_node("Player") as Player
-	if not await wait_level():
-		push_error("level never loaded")
-		quit(1)
+	await boot()
+	if info.world == null:
+		check(false, "the first level loads")
+		finish()
 		return
 
 	print("level (28, 0)")
@@ -152,16 +107,14 @@ func run() -> void:
 		if riding:
 			break
 	player.drop()
-	for i: int in range(40):
-		await physics_frame
-	top = lift.global_position.y + shape.position.y - 16.5
+	await until(func() -> bool: return player.global_position.y > lift.global_position.y + shape.position.y - 16.5 + 40.0, 2000)
 	top = lift.global_position.y + shape.position.y - 16.5
 	check(riding and player.global_position.y > top + 40.0, "down + jump drops through a moving platform (riding %s, %.0f below its top, axis %s)" % [riding, player.global_position.y - top, lift.get("axis")])
 	player.global_position = info.cell_position(info.world.exits[MapInfo.Exit.BACK])
-	await wait_level()
+	await settle()
 
 	print("level size")
-	check(info.world.size == MapInfo.level_size(0) and MapInfo.level_size(6).x > MapInfo.level_size(0).x and MapInfo.level_size(6).y > MapInfo.level_size(0).y, "depth 0 is %s; deeper levels are bigger (%s at depth 6)" % [info.world.size, MapInfo.level_size(6)])
+	check(info.world.size == Rules.level_size(0) and Rules.level_size(6).x > Rules.level_size(0).x and Rules.level_size(6).y > Rules.level_size(0).y, "depth 0 is %s; deeper levels are bigger (%s at depth 6)" % [info.world.size, Rules.level_size(6)])
 	var tm: TileMap = info.tile_map
 	var walled: bool = true
 	for x: int in range(-LevelLoader.BORDER, info.world.size.x + LevelLoader.BORDER):
@@ -196,15 +149,15 @@ func run() -> void:
 
 	print("deeper exit price")
 	var exit_node: Node = placed("level_exit.tscn").filter(func(n: Node) -> bool: return int(n.get("exit")) == MapInfo.Exit.DEEPER)[0]
-	check(int(exit_node.call("price")) == MapInfo.deeper_price(0), "deeper costs %d at depth 0" % MapInfo.deeper_price(0))
+	check(int(exit_node.call("price")) == Rules.deeper_price(0), "deeper costs %d at depth 0" % Rules.deeper_price(0))
 	exit_node.call("interacted")
 	await process_frame
 	check(info.coord.y == 0 and not info.travelling, "too few stars: the deeper exit stays shut")
 	player.collect(20)
 	exit_node.call("interacted")
-	await wait_level()
+	await settle()
 	check(info.coord == Vector2i(28, 1), "paid: now at (28, 1)")
-	check(player.coins.coins == 21 - MapInfo.deeper_price(0), "the price was taken once")
+	check(player.coins.coins == 21 - Rules.deeper_price(0), "the price was taken once")
 	check(near_exit(MapInfo.Exit.BACK), "going deeper arrives at the way back")
 	var f1: int = fingerprint()
 	check(f1 != f0, "depth 1 differs from depth 0")
@@ -233,15 +186,15 @@ func run() -> void:
 
 	print("determinism across runs")
 	info.start_run(29)
-	await wait_level()
+	await settle()
 	check(fingerprint() == f29, "a run started at 29 matches walking there from 28")
 	info.start_run(28)
-	await wait_level()
+	await settle()
 	check(fingerprint() == f0, "a fresh run at 28 matches the first")
 	check(has_cell("coin.tscn", coin_cell), "a new run starts with fresh records")
 	info.coord = Vector2i(28, 0)
 	info.travel(MapInfo.Exit.DEEPER)
-	await wait_level()
+	await settle()
 	check(fingerprint() == f1, "(28, 1) is the same every time")
 
 	print("respawn in another level")
@@ -251,13 +204,8 @@ func run() -> void:
 	check(info.run.respawn_coord == Vector2i(28, 1) and info.run.respawn_cell == lit_cell, "lighting a lantern moves the respawn")
 	await go(MapInfo.Exit.BACK)
 	player.reset_position()
-	await wait_level()
+	await settle()
 	check(info.coord == Vector2i(28, 1), "dying elsewhere reloads the lantern's level")
 	check(in_cell(lit_cell), "and stands the player at the lantern")
 
-	if failed:
-		print("FAILED")
-		quit(1)
-	else:
-		print("PASS: deeper phase 1")
-		quit()
+	finish()

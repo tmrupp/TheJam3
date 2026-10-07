@@ -44,6 +44,11 @@ func readiness() -> float:
 	return 1.0 if charges > 0 else clampf(recharge / COOLDOWN, 0.0, 1.0)
 
 
+## A bolt is thrown and done: never running (see Abilities.running).
+func running() -> Vector2:
+	return Vector2(-1.0, 0.0)
+
+
 func _physics_process(delta: float) -> void:
 	if charges < charges_max:
 		recharge += delta

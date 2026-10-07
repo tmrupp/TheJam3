@@ -18,7 +18,7 @@ func used() -> bool:
 
 
 func price() -> int:
-	return MapInfo.map_price(map_info.coord.y) if map_info != null else 0
+	return Rules.map_price(map_info.coord.y) if map_info != null else 0
 
 
 func interaction_hint() -> Dictionary:

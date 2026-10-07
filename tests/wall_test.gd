@@ -1,36 +1,9 @@
-extends SceneTree
+extends TestKit
 ## Walls: falling while pressed against a wall (holding toward it) slides down it no faster than
 ## Player.WALL_SLIDE_SPEED, and a jump in the air against a wall is a wall jump, before an air
 ## jump (which is kept for later). Repeated jumps from the same side keep pushing away without
 ## lifting the wizard or slowing their fall; alternating sides lifts them through a two-cell gap.
 ## godot --headless --path . --script res://tests/wall_test.gd
-
-var main: Node
-var info: MapInfo
-var player: Player
-var failed: bool = false
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
-
-
-func settle(frames: int = 4) -> void:
-	await process_frame
-	var deadline: int = Time.get_ticks_msec() + 30000
-	while (info.world == null or info.travelling) and Time.get_ticks_msec() < deadline:
-		await process_frame
-	for i: int in range(frames):
-		await physics_frame
-		await process_frame
 
 
 ## An open cell with a wall of rock to its right, and open air under it, for `tall` cells: the
@@ -88,6 +61,7 @@ func jump_press() -> void:
 
 ## Wait until the movement has reached the requested side of the shaft.
 func reach_wall(side: float) -> bool:
+	# Checked a physics frame at a time (the jumps that follow are timed on physics frames).
 	for i: int in range(90):
 		await physics_frame
 		await process_frame
@@ -97,22 +71,12 @@ func reach_wall(side: float) -> bool:
 
 
 func run() -> void:
-	main = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	RunState.save_path = "user://wall_test.save"
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	menu.start_game()
-	await process_frame
-	await process_frame
-	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	player = main.get_node("Player") as Player
-	await settle()
+	await boot()
 
 	var spot: Variant = wall_spot(4)
 	check(spot != null, "a wall to fall down")
 	if spot == null:
-		quit(1)
+		finish()
 		return
 	var top: Vector2 = info.cell_position(spot)
 
@@ -221,15 +185,8 @@ func run() -> void:
 	Input.action_release(&"Right")
 	player.global_position = origin + Vector2(128, 440)
 	player.velocity = Vector2.ZERO
-	for i: int in range(20):
-		await physics_frame
-		await process_frame
+	await until(func() -> bool: return player.is_on_floor() and player.last_wall_jump_side == 0.0)
 	check(player.is_on_floor() and player.last_wall_jump_side == 0.0, "landing permits jumps from either wall again")
 
 	RunState.delete_save()
-	if failed:
-		print("FAILED")
-		quit(1)
-	else:
-		print("PASS: wall slide and wall jump")
-		quit()
+	finish()

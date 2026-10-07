@@ -960,7 +960,7 @@ func _build_panel() -> void:
 	_key_capacity_label.add_theme_font_size_override("font_size", 6)
 	keys.add_child(_key_capacity_label)
 	var shapes: Array[String] = ["Square", "Triangle", "Circle", "Diamond"]
-	for color: int in range(MapInfo.KEY_COLOR_COUNT):
+	for color: int in range(Rules.KEY_COLOR_COUNT):
 		_option_row(keys, StringName("key_" + str(color)), shapes[color] + " key", ["None", "Equipped"], func(i: int) -> void: _equip_panel_key(color, i == 1))
 	_skeleton_label = _stepper_row(keys, "Skeleton keys", func(d: int) -> void:
 		if _player != null and is_instance_valid(_player):
@@ -1241,7 +1241,7 @@ func _sync_panel() -> void:
 	if _player != null and is_instance_valid(_player):
 		_key_capacity_label.text = "Ring: %d / %d  (Keyring adds slots)" % [_player.keyring.all().size(), _player.keyring.capacity()]
 		_skeleton_label.text = str(_player.keyring.skeletons())
-		for color: int in range(MapInfo.KEY_COLOR_COUNT):
+		for color: int in range(Rules.KEY_COLOR_COUNT):
 			(_options[StringName("key_" + str(color))] as OptionButton).select(1 if _player.keyring.has(color) else 0)
 		for a: StringName in Abilities.ids():
 			var key: StringName = StringName("ability_" + String(a))

@@ -125,7 +125,7 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 		if style == &"tapered":
 			body.append_array(_tapers(tile_map, solid, half))
 		elif style != &"roots":
-			body.append_array(_cloud_bottoms(tile_map, solid, half, MapInfo.level_seed(info.coord.x, info.coord.y)))
+			body.append_array(_cloud_bottoms(tile_map, solid, half, Rules.level_seed(info.coord.x, info.coord.y)))
 	# Rock hides the sky behind it: no stars or moons printing through the ground.
 	ink.knock([RisoPrint.PINK, RisoPrint.ACCENT], body)
 	ink.ink(RisoPrint.BLUE, 1.0, body)

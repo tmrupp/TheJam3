@@ -72,7 +72,7 @@ func run() -> void:
 		doors[0].get_node("Unlock").call("try_open")
 		await settle(1)
 		opened = (info.record().opened as Dictionary).has(cell)
-		print("  opened a door in ", MapInfo.where(info.coord))
+		print("  opened a door in ", Rules.where(info.coord))
 		break
 	check(opened and carried() == 0, "the key from world 28 opens a door elsewhere and stays carried")
 
@@ -81,9 +81,9 @@ func run() -> void:
 	await settle()
 	player.set_physics_process(false)
 	var right: Node = placed("level_exit.tscn").filter(func(n: Node) -> bool: return int(n.get("exit")) == MapInfo.Exit.RIGHT)[0]
-	var needs: int = MapInfo.lateral_lock(Vector2i(28, 0), MapInfo.Exit.RIGHT)
+	var needs: int = Rules.lateral_lock(Vector2i(28, 0), MapInfo.Exit.RIGHT)
 	check(int(right.call("lock")) == needs, "world 28's right door needs key colour %d" % needs)
-	player.keyring.set_all([(needs + 1) % MapInfo.KEY_COLOR_COUNT])
+	player.keyring.set_all([(needs + 1) % Rules.KEY_COLOR_COUNT])
 	right.call("interacted")
 	await process_frame
 	check(info.coord == Vector2i(28, 0) and not info.travelling, "the wrong key does not open it")
@@ -106,9 +106,9 @@ func run() -> void:
 	check(int(right.call("lock")) == -1, "and the opened door stays open")
 	var colours: Dictionary = {}
 	for x: int in range(0, 200):
-		var c: int = MapInfo.lateral_lock(Vector2i(x, 0), MapInfo.Exit.RIGHT)
+		var c: int = Rules.lateral_lock(Vector2i(x, 0), MapInfo.Exit.RIGHT)
 		colours[c] = int(colours.get(c, 0)) + 1
-	check(colours.size() == MapInfo.KEY_COLOR_COUNT, "lock colours vary from world to world")
+	check(colours.size() == Rules.KEY_COLOR_COUNT, "lock colours vary from world to world")
 	check(int(colours.get(0, 0)) > int(colours.get(1, 0)) and int(colours.get(1, 0)) > int(colours.get(3, 0)), "common colours lock side doors more often than rare ones (%s)" % colours)
 
 	finish("deeper phase 3")

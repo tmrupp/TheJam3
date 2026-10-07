@@ -82,8 +82,8 @@ func _pump() -> void:
 ## On the worker: the place's cells (unless given) and its layout, so neither stalls a frame.
 func _generate_threaded(at: Vector2i, cells: Array) -> void:
 	if cells.is_empty():
-		cells = info.wfc.generate_level(MapInfo.def_for(at))
-	var built: LevelGen = LevelGen.new(cells, MapInfo.def_for(at))
+		cells = info.wfc.generate_level(Rules.def_for(at))
+	var built: LevelGen = LevelGen.new(cells, Rules.def_for(at))
 	_generated.call_deferred(at, cells, built)
 
 
@@ -112,8 +112,8 @@ func world_at(at: Vector2i) -> LevelGen:
 	if cells == null:
 		if gen_busy:
 			return null
-		cells = info.wfc.generate_level(MapInfo.def_for(at))
-	w = LevelGen.new(cells, MapInfo.def_for(at))
+		cells = info.wfc.generate_level(Rules.def_for(at))
+	w = LevelGen.new(cells, Rules.def_for(at))
 	_cache_put(at, cells, w)
 	return w
 
@@ -243,7 +243,7 @@ func place_cell(v: Vector2i, cell: LevelGen.Cell) -> void:
 	if cell.type == LevelGen.Type.CLUSTER:
 		# A vault's lesser cluster is worth a share of a full one (LevelGen.VAULT_LOOT).
 		var share: float = float(cell.extra_info) if cell.extra_info != null else 1.0
-		(node as Coin).value = maxi(2, roundi(MapInfo.cluster_value(info.here.depth) * share))
+		(node as Coin).value = maxi(2, roundi(Rules.cluster_value(info.here.depth) * share))
 	if Placeables.has_flag(cell.type, &"enemy"):
 		var wound: Wound = Wound.new()
 		wound.name = "Wound"
@@ -260,13 +260,13 @@ func place_cell(v: Vector2i, cell: LevelGen.Cell) -> void:
 	map_elements.add_child(node)
 	node.set_owner(map_elements)
 	node.position = info.cell_position(v) + jitter
-	if node.has_method("setup"):
-		# A key's or door's extra info is its colour, already given as key_color; a cracked cell's is
-		# its secret.
-		if cell.extra_info != null and cell.type != LevelGen.Type.CRACKED and not colored:
-			node.call("setup", info, v, cell.extra_info)
-		else:
+	# Set up as its Placeables entry says. A key's extra info is its colour, already given as
+	# key_color, and a cracked cell's is its secret: theirs take two.
+	match Placeables.setup_args(cell.type):
+		2:
 			node.call("setup", info, v)
+		3:
+			node.call("setup", info, v, cell.extra_info)
 
 
 # ------------------------------------------------------------------ chunks

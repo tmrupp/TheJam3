@@ -51,7 +51,7 @@ func run() -> void:
 	# A bone gate: the first level along with a bone vault.
 	var target: Vector2i = Vector2i(-1, -1)
 	for x: int in range(28, 400):
-		if MapInfo.bone_vault_at(Vector2i(x, 1)) and Relics.at(Vector2i(x, 1)) == &"":
+		if Rules.bone_vault_at(Vector2i(x, 1)) and Relics.at(Vector2i(x, 1)) == &"":
 			target = Vector2i(x, 1)
 			break
 	info.coord = target

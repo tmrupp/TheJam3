@@ -2,24 +2,21 @@ class_name LevelGen
 extends RefCounted
 ## A level as it is laid out: the cell grid collapsed by the WFC, then dressed with exits, keys,
 ## doors, enemies and hazards (populate_level, and each archetype's own pass, see Archetype). Built
-## from the level seed alone (see MapInfo.level_seed), so it is the same on every visit; MapInfo
+## from the level seed alone (see Rules.level_seed), so it is the same on every visit; MapInfo
 ## keeps the built layout and loads it into the scene.
 
 enum Type {
 	EMPTY,
 	GROUND,
 	MOON,
-	GOAL,
 	SPIKES,
 	ENEMY,
 	SHOOTER,
 	COIN,
 	KEY,
 	DOOR,
-	RESPAWN,
 	CHECKPOINT,
 	PORTAL,
-	ASTRAL_PROJECTION_POINT,
 	PLATFORM,
 	MOVING_PLATFORM,
 	EXIT,
@@ -166,6 +163,24 @@ func put_each (at: Array[Vector2i], type: Type) -> void:
 static func dist (a: Vector2i, b: Vector2i) -> int:
 	return absi(a.x - b.x) + absi(a.y - b.y)
 
+## The first of `spots` (in their order) with the least `score(v)`, among those passing `test`;
+## null if none pass. Ties keep the earlier spot. For the furthest of something, negate the score.
+static func best_of (spots: Array, score: Callable, test: Callable = func(_v: Variant) -> bool: return true) -> Variant:
+	var best: Variant = null
+	var best_score: float = INF
+	for v: Variant in spots:
+		if not test.call(v):
+			continue
+		var s: float = score.call(v)
+		if best == null or s < best_score:
+			best = v
+			best_score = s
+	return best
+
+## Whether `v` is within 3 cells of an exit, too near to hold another.
+func _crowds_exit (v: Vector2i) -> bool:
+	return exits.values().any(func(e: Vector2i) -> bool: return dist(e, v) < 3)
+
 ## One of `items`, drawn from the world RNG (a single draw).
 func pick (items: Array) -> Variant:
 	return items[rng.randi_range(0, items.size() - 1)]
@@ -252,7 +267,7 @@ func place_exits (depth: int, debug: bool = false) -> void:
 	if debug:
 		_place_exits_near(spots, chosen, back, depth)
 		return
-	var reach: int = MapInfo.exit_distance(depth)
+	var reach: int = Rules.exit_distance(depth)
 	var deeper: Variant = _pick_spot(spots, chosen, func(v: Vector2i) -> bool: return v.y >= hi.y - band_y and dist(v, back) >= reach, true)
 	if deeper == null:
 		# No spot low and far enough: take the one furthest from the way back.
@@ -286,14 +301,8 @@ const START_ACROSS: int = 3
 ## can hop to from it; null if there is none.
 func _start_door (spots: Array[Vector2i], chosen: Array[Vector2i], back: Vector2i) -> Variant:
 	start_reach = Reach.tree(self, back, START_ACROSS)
-	var best: Variant = null
-	var best_d: int = 1 << 30
-	for v: Vector2i in spots:
-		var d: int = dist(v, back)
-		if d >= START_DOOR and d < best_d and not chosen.has(v) and start_reach.has(v):
-			best_d = d
-			best = v
-	return best
+	return best_of(spots, func(v: Vector2i) -> int: return dist(v, back),
+			func(v: Vector2i) -> bool: return dist(v, back) >= START_DOOR and not chosen.has(v) and start_reach.has(v))
 
 ## A key for the start's side door (in that door's lock colour), on a floor the wizard can hop
 ## to from the start, as near the way to the door as can be; the cells on the way from the start
@@ -307,20 +316,12 @@ func place_start_key (def: NextWorldDef) -> void:
 	for v: Vector2i in start_reach:
 		floors.append(v)
 	floors.sort()
-	var best: Variant = null
-	var best_score: int = 1 << 30
-	for v: Vector2i in floors:
-		if get_cell(v).type != Type.EMPTY or not empties.has(v) or dist(v, start) < 3 or dist(v, door) < 2:
-			continue
-		if objects.any(func(o: Vector2i) -> bool: return dist(o, v) < 2):
-			continue
-		var score: int = dist(v, start) + dist(v, door)
-		if score < best_score:
-			best_score = score
-			best = v
+	var best: Variant = best_of(floors, func(v: Vector2i) -> int: return dist(v, start) + dist(v, door),
+			func(v: Vector2i) -> bool: return get_cell(v).type == Type.EMPTY and empties.has(v) and dist(v, start) >= 3 and dist(v, door) >= 2 \
+				and not objects.any(func(o: Vector2i) -> bool: return dist(o, v) < 2))
 	if best != null:
 		var at: Vector2i = best
-		put(at, Type.KEY, MapInfo.lateral_lock(def.coord, start_side))
+		put(at, Type.KEY, Rules.lateral_lock(def.coord, start_side))
 		start_key = at
 		for target: Vector2i in [door, at]:
 			var steps: Array[Vector2i] = Reach.way(start_reach, target)
@@ -454,15 +455,36 @@ func _open_regions () -> Array:
 
 ## Add the open region containing `from` to `into`.
 func _flood (from: Vector2i, into: Dictionary) -> void:
-	var stack: Array[Vector2i] = [from]
-	into[from] = true
+	reach_from(from, func(_v: Vector2i) -> bool: return true, into)
+
+## Every cell reached from `start` through open air (4-neighbour), where `passable(cell)` also
+## holds; a set (cell -> true), `start` among them. Given `into`, the cells already in it are not
+## walked through again and those found are added to it. The order cells are found in is not
+## kept: sort before drawing.
+func reach_from (start: Vector2i, passable: Callable = func(_v: Vector2i) -> bool: return true, into: Dictionary = {}) -> Dictionary:
+	var stack: Array[Vector2i] = [start]
+	into[start] = true
 	while not stack.is_empty():
 		var v: Vector2i = stack.pop_back()
 		for d: Vector2i in neighbor_offsets:
 			var n: Vector2i = v + d
-			if is_valid(n) and not into.has(n) and _open(n):
+			if not into.has(n) and _open(n) and passable.call(n):
 				into[n] = true
 				stack.append(n)
+	return into
+
+## A free floor (open, nothing in it, rock under it) in `reach`, at least `at_least` cells from
+## `from`, drawn from them sorted (one draw); null, with no draw, if there is none.
+func _pick_floor_in (reach: Dictionary, from: Vector2i, at_least: int) -> Variant:
+	var free: Dictionary = empty_set()
+	var choices: Array[Vector2i] = []
+	for v: Vector2i in reach:
+		if free.has(v) and get_cell(v).type == Type.EMPTY and ground_below(v) and dist(v, from) >= at_least:
+			choices.append(v)
+	if choices.is_empty():
+		return null
+	choices.sort()
+	return pick(choices)
 
 func _to_rock (v: Vector2i) -> void:
 	cells[v.x][v.y] = Cell.new(Type.GROUND)
@@ -569,14 +591,8 @@ func _pick_spot (spots: Array[Vector2i], chosen: Array[Vector2i], test: Callable
 
 ## The closest standing spot to `at` (within 4 cells) that is still free.
 func _nearest_free (spots: Array[Vector2i], at: Vector2i, chosen: Array[Vector2i]) -> Variant:
-	var best: Variant = null
-	var best_d: int = 5
-	for v: Vector2i in spots:
-		var d: int = dist(v, at)
-		if d > 0 and d < best_d and not chosen.has(v) and empties.has(v):
-			best = v
-			best_d = d
-	return best
+	return best_of(spots, func(v: Vector2i) -> int: return dist(v, at),
+			func(v: Vector2i) -> bool: return dist(v, at) > 0 and dist(v, at) <= 4 and not chosen.has(v) and empties.has(v))
 
 ## Turns a platform run into one moving platform (stored on its leftmost cell), if the track
 ## it would sweep, 2-4 cells right or down, is open. The track is kept clear of other objects.
@@ -684,7 +700,7 @@ func key_count () -> int:
 	return maxi(KEYS_MIN, per_area(KEYS_PER_K))
 
 ## Every key and corridor door not laid for a particular lock is dealt its colour by rarity
-## (MapInfo.rarity_color), from the level's seed and its place in the order things were laid,
+## (Rules.rarity_color), from the level's seed and its place in the order things were laid,
 ## never from the world RNG. The level's first key is always the commonest colour, so every level
 ## holds a key to its commonest doors. The colour is kept as the cell's extra_info. Only the first
 ## key_count keys are kept; the spots of the rest are left open air. Done last, so it changes no
@@ -701,15 +717,15 @@ func deal_colors () -> void:
 			if keys >= key_count():
 				spare.append(v)
 				continue
-			cell.extra_info = 0 if keys == 0 else MapInfo.rarity_color(MapInfo.level_seed(seed_for_colors, KEY_DEAL + keys))
+			cell.extra_info = 0 if keys == 0 else Rules.rarity_color(Rules.level_seed(seed_for_colors, KEY_DEAL + keys))
 			keys += 1
 		elif cell.type == Type.DOOR:
-			var roll: int = MapInfo.level_seed(seed_for_colors, DOOR_DEAL + doors)
+			var roll: int = Rules.level_seed(seed_for_colors, DOOR_DEAL + doors)
 			# Deep down, some doors on the way are bone gates.
-			if depth >= MapInfo.SKELETON_DOOR_DEPTH and (roll / 100) % 100 < MapInfo.SKELETON_DOOR_CHANCE:
+			if depth >= Rules.SKELETON_DOOR_DEPTH and (roll / 100) % 100 < Rules.SKELETON_DOOR_CHANCE:
 				cell.extra_info = KeyRing.SKELETON
 			else:
-				cell.extra_info = MapInfo.rarity_color(roll)
+				cell.extra_info = Rules.rarity_color(roll)
 			doors += 1
 	for v: Vector2i in spare:
 		_to_open(v)
@@ -737,7 +753,7 @@ func populate_level (def: NextWorldDef) -> void:
 	put_random(Type.INKWELL, ground_below, true)
 
 	# Spots for keys: more than are kept (see KEYS_PER_K and deal_colors).
-	for i: int in range(maxi(MapInfo.KEY_COLOR_COUNT, per_area(KEY_SPOTS_PER_K))):
+	for i: int in range(maxi(Rules.KEY_COLOR_COUNT, per_area(KEY_SPOTS_PER_K))):
 		put_random(Type.KEY)
 
 	place_doors(per_area(DOORS_PER_K))
@@ -864,23 +880,19 @@ func in_isle (v: Vector2i, grow: int = 0) -> bool:
 			return true
 	return false
 
-## The level's star cluster (worth MapInfo.cluster_value): hung in open air (as a moon is) at
+## The level's star cluster (worth Rules.cluster_value): hung in open air (as a moon is) at
 ## least half the exit distance from the way in, three times as likely over thorns; failing
 ## that, on the floor furthest from the way in.
 func place_cluster (def: NextWorldDef) -> void:
 	var start: Vector2i = exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
 	@warning_ignore("integer_division")
-	var far: int = MapInfo.exit_distance(def.depth) / 2
+	var far: int = Rules.exit_distance(def.depth) / 2
 	var spots: Array[Vector2i] = _air_spots(func(v: Vector2i) -> bool: return get_cell(v).type == Type.EMPTY and _wide_open(v) and dist(v, start) >= far)
 	var at: Variant = null
 	if not spots.is_empty():
 		at = pick(spots)
 	else:
-		var best: int = -1
-		for v: Vector2i in free_floors():
-			if dist(v, start) > best:
-				best = dist(v, start)
-				at = v
+		at = best_of(free_floors(), func(v: Vector2i) -> int: return -dist(v, start))
 	if at == null:
 		return
 	put(at, Type.CLUSTER)
@@ -896,14 +908,14 @@ func place_cluster (def: NextWorldDef) -> void:
 var secrets: Array = []
 const SECRETS_PER_K: float = 0.6
 ## The level's relic waits behind a bone gate rather than in a secret room
-## (MapInfo.RELIC_GATE_CHANCE; see place_bone_vault).
+## (Rules.RELIC_GATE_CHANCE; see place_bone_vault).
 var relic_gated: bool = false
 ## Room sizes (cells across and up) tried in turn, biggest first.
 const SECRET_SIZES: Array[Vector2i] = [Vector2i(4, 2), Vector2i(3, 2), Vector2i(2, 2)]
 const SECRET_STARS: int = 3
 
 func place_secrets (def: NextWorldDef) -> void:
-	relic_gated = def.relic != &"" and MapInfo.relic_gated_at(def.coord)
+	relic_gated = def.relic != &"" and Rules.relic_gated_at(def.coord)
 	var want: int = per_area(SECRETS_PER_K)
 	# Rooms wholly in rock first; then rooms that only need rock under them (a hidden room's
 	# rock is real rock, so another side may face open air).
@@ -941,9 +953,9 @@ func _secret_spots (room: Vector2i, enclosed: bool) -> Array:
 	var out: Array = []
 	for o: Vector2i in floors:
 		for side: int in [-1, 1]:
-			var door: Vector2i = o + Vector2i(side, 0)
-			var x0: int = door.x + 1 if side > 0 else door.x - room.x
-			var r: Rect2i = Rect2i(x0, o.y - room.y + 1, room.x, room.y)
+			var fit: Array = _room_beside(o, side, room)
+			var r: Rect2i = fit[0]
+			var door: Vector2i = fit[1]
 			if r.position.x < 0 or r.position.y < 0 or r.end.x > size.x or r.end.y > size.y:
 				continue
 			var solid: bool = rock.call(door) and rock.call(door + Vector2i.UP)
@@ -955,6 +967,27 @@ func _secret_spots (room: Vector2i, enclosed: bool) -> Array:
 			if solid:
 				out.append([r, door])
 	return out
+
+## A room `inside` (cells across and up) beside floor spot `o`, on its `side` (-1 left, 1 right):
+## [its rect, its door]. The door is the cell next to `o`, and the room's floor is level with it,
+## running on from the door away from `o`.
+func _room_beside (o: Vector2i, side: int, inside: Vector2i) -> Array:
+	var door: Vector2i = o + Vector2i(side, 0)
+	var x0: int = door.x + 1 if side > 0 else door.x - inside.x
+	return [Rect2i(x0, o.y - inside.y + 1, inside.x, inside.y), door]
+
+## Every place a vault `room` (cells across and up) fits, found as secret rooms are (enclosed), but
+## walled in the level's own rock, never its edge: [its rect, its door].
+func _vault_spots (room: Vector2i) -> Array:
+	return _secret_spots(room, true).filter(func(spot: Array) -> bool: return Rect2i(Vector2i.ZERO, size).encloses((spot[0] as Rect2i).grow(1)))
+
+## Build the vault `choice` ([its rect, its door] and, for a strongbox, the cells to turn to rock),
+## locked in `color`.
+func _build_vault (choice: Array, color: int) -> void:
+	if choice.size() > 2:
+		for c: Vector2i in choice[2]:
+			_to_rock(c)
+	_carve_vault(choice[0], choice[1], color)
 
 func _carve_secret (r: Rect2i, door: Vector2i, relic: StringName) -> void:
 	var id: int = secrets.size()
@@ -987,7 +1020,7 @@ func _carve_secret (r: Rect2i, door: Vector2i, relic: StringName) -> void:
 ## Vaults: small rooms sealed in the rock behind a locked corridor door, at floor height beside a
 ## floor (found as secret rooms are, see _secret_spots), their loot in plain sight through the
 ## bars. A vault's lock is dealt evenly among the key colours, unlike every other lock (see
-## MapInfo.KEY_RARITY), and the rarer its colour the better what it holds (VAULT_LOOT): a rare key
+## Rules.KEY_RARITY), and the rarer its colour the better what it holds (VAULT_LOOT): a rare key
 ## seldom opens anything, but what it opens is worth having. VAULTS_PER_K per 1000 cells, as many
 ## as fit; placed last of all, so the rest of the level lands where it always has. Each is
 ## {"room": cells, "door": cell, "color": key colour}.
@@ -1017,7 +1050,7 @@ func vault_loot (color: int, door: Vector2i) -> Array:
 	if color == KeyRing.SKELETON:
 		return [[Type.RELIC, bone_relic]] if bone_relic != &"" else BONE_LOOT.duplicate()
 	var loot: Array = (VAULT_LOOT[color] as Array).duplicate()
-	if color == 1 and MapInfo.level_seed(seed_for_colors, VAULT_KEY_DEAL + door.x * 1000 + door.y) % 100 < VAULT_KEY_CHANCE:
+	if color == 1 and Rules.level_seed(seed_for_colors, VAULT_KEY_DEAL + door.x * 1000 + door.y) % 100 < VAULT_KEY_CHANCE:
 		loot.append([Type.KEY, 2])
 	return loot
 ## The rock round every vault, which make_room leaves whole (it would let you in past the door).
@@ -1035,21 +1068,19 @@ func place_vaults (def: NextWorldDef) -> void:
 	var want: int = per_area(VAULTS_PER_K)
 	for room: Vector2i in VAULT_SIZES:
 		while vaults.size() < want:
-			# Walled in the level's own rock, never its edge.
-			var spots: Array = _secret_spots(room, true).filter(func(spot: Array) -> bool: return Rect2i(Vector2i.ZERO, size).encloses((spot[0] as Rect2i).grow(1)))
+			var spots: Array = _vault_spots(room)
 			if spots.is_empty():
 				break
+			# The spot is drawn first, then the lock's colour.
 			var choice: Array = pick(spots)
-			_carve_vault(choice[0], choice[1], rng.randi_range(0, MapInfo.KEY_COLOR_COUNT - 1))
+			_build_vault(choice, rng.randi_range(0, Rules.KEY_COLOR_COUNT - 1))
 	# No rock thick enough to carve one into (a sky level's islands are thin): build one, a
 	# strongbox of rock on a floor.
 	if vaults.is_empty():
 		var spots: Array = _strongbox_spots(STRONGBOX)
 		if not spots.is_empty():
 			var choice: Array = pick(spots)
-			for c: Vector2i in choice[2]:
-				_to_rock(c)
-			_carve_vault(choice[0], choice[1], rng.randi_range(0, MapInfo.KEY_COLOR_COUNT - 1))
+			_build_vault(choice, rng.randi_range(0, Rules.KEY_COLOR_COUNT - 1))
 	place_bone_vault(def)
 
 ## A bone vault: a vault behind a bone gate, which only a skeleton key opens. In BONE_VAULT_CHANCE
@@ -1058,23 +1089,19 @@ func place_vaults (def: NextWorldDef) -> void:
 ## vault goes back to the level's first secret room (in place of a star), or, with no secret room
 ## either, stands on a floor in the open.
 func place_bone_vault (def: NextWorldDef) -> void:
-	if not relic_gated and not MapInfo.bone_vault_at(def.coord):
+	if not relic_gated and not Rules.bone_vault_at(def.coord):
 		return
 	bone_relic = def.relic if relic_gated else &""
 	for room: Vector2i in BONE_SIZES:
-		var spots: Array = _secret_spots(room, true).filter(func(spot: Array) -> bool: return Rect2i(Vector2i.ZERO, size).encloses((spot[0] as Rect2i).grow(1)))
+		var spots: Array = _vault_spots(room)
 		if not spots.is_empty():
-			var choice: Array = pick(spots)
-			_carve_vault(choice[0], choice[1], KeyRing.SKELETON)
+			_build_vault(pick(spots), KeyRing.SKELETON)
 			return
 	# No rock to carve one into (a cemetery's terraces, the sky's islands): build a strongbox,
 	# two high so a relic stands in it.
 	var built: Array = _strongbox_spots(BONE_STRONGBOX)
 	if not built.is_empty():
-		var choice: Array = pick(built)
-		for c: Vector2i in choice[2]:
-			_to_rock(c)
-		_carve_vault(choice[0], choice[1], KeyRing.SKELETON)
+		_build_vault(pick(built), KeyRing.SKELETON)
 		return
 	if not relic_gated:
 		return
@@ -1097,20 +1124,15 @@ const STRONGBOX_HEADROOM: int = 2
 
 func _strongbox_spots (inside: Vector2i) -> Array:
 	var free: Dictionary = empty_set()
-	var near_chasm: Callable = func(c: Vector2i) -> bool:
-		for chasm: Dictionary in chasms:
-			for plank: Vector2i in chasm["planks"]:
-				if absi(plank.x - c.x) <= 2 and c.y >= int(chasm["row"]) - Chasms.CHASM_CLEAR - 1 and c.y <= int(chasm["row"]) + Chasms.CHASM_DEPTH + 1:
-					return true
-		return false
 	var floors: Array[Vector2i] = free_floors()
 	var out: Array = []
 	for o: Vector2i in floors:
 		for side: int in [-1, 1]:
-			var door: Vector2i = o + Vector2i(side, 0)
-			var x0: int = door.x + 1 if side > 0 else door.x - inside.x
-			var r: Rect2i = Rect2i(x0, o.y - inside.y + 1, inside.x, inside.y)
-			var box: Rect2i = Rect2i(mini(door.x, x0 - 1) if side < 0 else door.x, r.position.y - 1, inside.x + 2, inside.y + 1)
+			var fit: Array = _room_beside(o, side, inside)
+			var r: Rect2i = fit[0]
+			var door: Vector2i = fit[1]
+			# The room with a wall either side (the door is one of them) and a roof.
+			var box: Rect2i = r.grow_individual(1, 1, 1, 0)
 			if not Rect2i(Vector2i(1, 1), size - Vector2i(2, 2)).encloses(box.grow_individual(0, STRONGBOX_HEADROOM, 0, 2)):
 				continue
 			var ok: bool = true
@@ -1120,14 +1142,14 @@ func _strongbox_spots (inside: Vector2i) -> Array:
 				# open air over it.
 				var under: Vector2i = Vector2i(x, box.end.y)
 				if not is_ground(under):
-					ok = ok and _buildable(under, free) and not keep_clear.has(under) and not near_chasm.call(under) \
+					ok = ok and _buildable(under, free) and not keep_clear.has(under) and not Chasms.near(self, under) \
 							and _open(under + Vector2i.DOWN) and not keep_clear.has(under + Vector2i.DOWN)
 					walls.append(under)
 				for h: int in range(1, STRONGBOX_HEADROOM + 1):
 					ok = ok and _open(Vector2i(x, box.position.y - h)) and not keep_clear.has(Vector2i(x, box.position.y - h))
 				for y: int in range(box.position.y, box.end.y):
 					var c: Vector2i = Vector2i(x, y)
-					ok = ok and _buildable(c, free) and not keep_clear.has(c) and not near_chasm.call(c)
+					ok = ok and _buildable(c, free) and not keep_clear.has(c) and not Chasms.near(self, c)
 					if c != door and not r.has_point(c):
 						walls.append(c)
 				if not ok:
@@ -1247,24 +1269,11 @@ func place_switch_gates (count: int) -> void:
 		var gate: Vector2i = pop_pick(spots)
 		if placed.any(func(q: Vector2i) -> bool: return dist(q, gate) < 6):
 			continue
-		# Floors reachable from the way in with this gate shut.
-		var reach: Dictionary = {start: true}
-		var queue: Array[Vector2i] = [start]
-		while not queue.is_empty():
-			var c: Vector2i = queue.pop_back()
-			for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
-				var n: Vector2i = c + d
-				if n != gate and _open(n) and not reach.has(n):
-					reach[n] = true
-					queue.append(n)
-		var choices: Array[Vector2i] = []
-		for v: Vector2i in reach:
-			if empties.has(v) and ground_below(v) and dist(v, gate) >= SWITCH_REACH:
-				choices.append(v)
-		if choices.is_empty():
+		# A floor reachable from the way in with this gate shut.
+		var found: Variant = _pick_floor_in(reach_from(start, func(n: Vector2i) -> bool: return n != gate), gate, SWITCH_REACH)
+		if found == null:
 			continue
-		choices.sort()
-		var lever: Vector2i = pick(choices)
+		var lever: Vector2i = found
 		placed.append(gate)
 		put(gate, Type.SWITCH_GATE, lever)
 		put(lever, Type.SWITCH, gate)
@@ -1275,16 +1284,8 @@ func place_return () -> void:
 	var start: Vector2i = exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
 	if not is_valid(start):
 		return
-	var best: Variant = null
-	var best_d: int = 1 << 30
-	var floors: Array[Vector2i] = empties_where(ground_below)
-	for v: Vector2i in floors:
-		var d: int = dist(v, start)
-		if d < 4 or exits.values().any(func(e: Vector2i) -> bool: return dist(e, v) < 3):
-			continue
-		if d < best_d:
-			best_d = d
-			best = v
+	var best: Variant = best_of(empties_where(ground_below), func(v: Vector2i) -> int: return dist(v, start),
+			func(v: Vector2i) -> bool: return dist(v, start) >= 4 and not _crowds_exit(v))
 	if best == null:
 		return
 	exits[MapInfo.Exit.RETURN] = best
@@ -1296,16 +1297,11 @@ func place_return () -> void:
 func place_side_doors (def: NextWorldDef) -> void:
 	var start: Vector2i = exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
 	var floors: Array[Vector2i] = empties_where(ground_below)
+	var nearest: Callable = func(v: Vector2i) -> int: return dist(v, start)
+	var furthest: Callable = func(v: Vector2i) -> int: return -dist(v, start)
 	for kind: int in def.doors:
-		var best: Variant = null
-		var best_d: int = 1 << 30 if def.debug else -1
-		for v: Vector2i in floors:
-			var d: int = dist(v, start)
-			if get_cell(v).type != Type.EMPTY or exits.values().any(func(e: Vector2i) -> bool: return dist(e, v) < 3):
-				continue
-			if (def.debug and d < best_d) or (not def.debug and d > best_d):
-				best_d = d
-				best = v
+		var best: Variant = best_of(floors, nearest if def.debug else furthest,
+				func(v: Vector2i) -> bool: return get_cell(v).type == Type.EMPTY and not _crowds_exit(v))
 		if best == null:
 			continue
 		var at: Vector2i = best

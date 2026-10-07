@@ -81,6 +81,15 @@ func until(cond: Callable, timeout_ms: int = WAIT_MS) -> bool:
 	return true
 
 
+## A condition for until(): `node` is freed or going away. (A lambda holding the node itself
+## would be handed null, with an error, once the node is freed: this holds its id instead.)
+func gone(node: Node) -> Callable:
+	var id: int = node.get_instance_id()
+	return func() -> bool:
+		var o: Node = instance_from_id(id) as Node
+		return o == null or o.is_queued_for_deletion()
+
+
 ## Wait for `count` physics frames, each followed by a process frame.
 func frames(count: int) -> void:
 	for i: int in range(count):
@@ -113,14 +122,15 @@ func boot(world_seed: int = 28) -> void:
 
 
 ## The objects of the level being played that came from prefab `scene` (a file name such as
-## "key.tscn"), leaving out those going away or hidden.
-func placed(scene: String) -> Array[Node]:
+## "key.tscn"), leaving out those going away, and those hidden (a key being picked up) unless
+## `hidden` (a bridge's planks are hidden until its bell is rung).
+func placed(scene: String, hidden: bool = false) -> Array[Node]:
 	var found: Array[Node] = []
 	for node: Node in info.map_elements.get_children():
 		if node.scene_file_path.get_file() != scene or node.is_queued_for_deletion():
 			continue
 		var sprite: CanvasItem = node.get_node_or_null("Sprite2D") as CanvasItem
-		if sprite == null or sprite.visible:
+		if hidden or sprite == null or sprite.visible:
 			found.append(node)
 	return found
 
@@ -137,7 +147,7 @@ func colored(scene: String, color: int) -> Array[Node]:
 func collapse(at: Vector2i) -> Array:
 	if _wfc == null:
 		_wfc = _make_wfc()
-	return _wfc.call("generate_level", MapInfo.def_for(at))
+	return _wfc.call("generate_level", Rules.def_for(at))
 
 
 ## A terrain generator with the game's own settings, read from the game scene's generator node
@@ -161,7 +171,7 @@ func build(at: Vector2i) -> LevelGen:
 	var cells: Array = collapse(at)
 	if cells.is_empty():
 		return null
-	return LevelGen.new(cells, MapInfo.def_for(at))
+	return LevelGen.new(cells, Rules.def_for(at))
 
 
 ## How many of the objects laid in `w` are of `type`.

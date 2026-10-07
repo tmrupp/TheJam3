@@ -1,35 +1,8 @@
-extends SceneTree
+extends TestKit
 ## Phase 4 of docs/DEEPER_PLAN.md: one shrine per level near the deeper exit, offering the
 ## next tier of an ability (cheaper deeper) or healing to full (dearer deeper); taking either
 ## spends it. Tiers change the abilities and reset when the run ends.
 ## godot --headless --path . --script res://tests/shrine_test.gd
-
-var main: Node
-var info: MapInfo
-var player: Player
-var failed: bool = false
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
-
-
-func settle(frames: int = 4) -> void:
-	await process_frame
-	var deadline: int = Time.get_ticks_msec() + 30000
-	while (info.world == null or info.travelling or info.run_ending > 0.0) and Time.get_ticks_msec() < deadline:
-		await process_frame
-	for i: int in range(frames):
-		await physics_frame
-		await process_frame
 
 
 func shrines() -> Array[Node]:
@@ -41,15 +14,7 @@ func shrines() -> Array[Node]:
 
 
 func run() -> void:
-	main = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	RunState.save_path = "user://shrine_test.save"
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	menu.start_game()
-	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	player = main.get_node("Player") as Player
-	await settle()
+	await boot()
 	player.set_physics_process(false)
 
 	print("placement")
@@ -110,7 +75,7 @@ func run() -> void:
 	print("starting abilities")
 	check(player.tiers == Abilities.start_tiers() and Abilities.tier(player, &"dash") == 1 and player.MAX_JUMPS == 1 and not player.climable and player.health.max_health == 3 and not player.has_node("Blink") and not player.has_node("Hex") and Abilities.spell(player) == &"" and player.has_node("DashStrike"), "the dash (which strikes) and no spell; 3 health")
 	check(Abilities.ids().all(func(a: StringName) -> bool: return a in [&"dash", &"hex"] or Abilities.tier(player, a) == 0), "parry, astral and the rest are all still to find")
-	check(Abilities.tier(player, Abilities.offer(MapInfo.level_seed(28, 0), player)) == 0, "a shrine offers something new before upgrades")
+	check(Abilities.tier(player, Abilities.offer(Rules.level_seed(28, 0), player)) == 0, "a shrine offers something new before upgrades")
 	var hurt_before: Callable = player.hurt_ability
 	player.get_node("Parry").call("execute")
 	check(player.hurt_ability == hurt_before, "a locked parry does nothing")
@@ -123,7 +88,7 @@ func run() -> void:
 	var offer: StringName = shrine.call("offer")
 	var tier: int = Abilities.tier(player, offer)
 	var price: int = int(shrine.call("offer_price"))
-	check(offer == Abilities.offers(MapInfo.level_seed(28, 0), player, 2)[0] and price == Abilities.price(0, tier + 1), "offers %s %s for %d" % [offer, Abilities.roman(tier + 1), price])
+	check(offer == Abilities.offers(Rules.level_seed(28, 0), player, 2)[0] and price == Abilities.price(0, tier + 1), "offers %s %s for %d" % [offer, Abilities.roman(tier + 1), price])
 	shrine.call("buy_boon")
 	check(Abilities.tier(player, offer) == tier and not bool(shrine.call("used")), "too few stars: nothing learned")
 	player.collect(price + 5)
@@ -207,7 +172,7 @@ func run() -> void:
 	for a: StringName in Abilities.ids():
 		player.tiers[a] = Abilities.max_tier(a)
 	player.tiers[&"astral"] = 2
-	check(Abilities.offer(MapInfo.level_seed(28, 0), player) == &"astral", "a shrine offers what is still left to learn")
+	check(Abilities.offer(Rules.level_seed(28, 0), player) == &"astral", "a shrine offers what is still left to learn")
 
 	print("a swap leaves the old spell at the shrine")
 	var stand: Node = shrines()[0]
@@ -243,9 +208,4 @@ func run() -> void:
 	check(player.tiers == Abilities.start_tiers() and not player.has_node("Blink") and player.MAX_JUMPS == 1 and player.health.max_health == 3, "back to the starting abilities")
 	check(info.world.shrine == cell, "and the same shrine in the same place")
 
-	if failed:
-		print("FAILED")
-		quit(1)
-	else:
-		print("PASS: deeper phase 4")
-		quit()
+	finish()

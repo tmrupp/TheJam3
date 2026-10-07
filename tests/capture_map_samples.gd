@@ -54,6 +54,6 @@ func capture() -> void:
 		root.get_texture().get_image().save_png(output.path_join("%03d_%d_%d.png" % [i, at.x, at.y]))
 		map.call("toggle")
 		await frames(3)
-		print("  level ", MapInfo.where(at), ": ", info.world.size, ", vaults ", info.world.vaults.size())
+		print("  level ", Rules.where(at), ": ", info.world.size, ", vaults ", info.world.vaults.size())
 	print("CAPTURED ", SAMPLES, " map samples to ", output)
 	quit()

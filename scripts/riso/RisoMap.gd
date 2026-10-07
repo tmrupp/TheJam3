@@ -270,7 +270,7 @@ func _level(info: MapInfo) -> void:
 	if viewing != info.coord:
 		_other_level(info, viewing)
 		return
-	_text(MapInfo.where(info.coord), Vector2(18, 12), 10.0, false)
+	_text(Rules.where(info.coord), Vector2(18, 12), 10.0, false)
 	_tabs()
 	if _built_version != info.seen_version or _built_coord != info.coord:
 		_build_textures(info)
@@ -280,57 +280,23 @@ func _level(info: MapInfo) -> void:
 		s.visible = true
 		s.position = o
 		s.scale = Vector2(k, k)
-	var placed_relic: Node = null
 	_shown.clear()
 	_noting = true
+	var spot: Callable = func(v: Vector2i) -> Vector2: return o + (Vector2(v) + Vector2(0.5, 0.5)) * k
+	var relic_shown: bool = _mark_level(info, info.coord, info.world, info.record(), info.is_seen, spot)
+	# What only the scene knows: the wizard's rifts (a cross-world link's end among them), and the
+	# ghost where it drifts.
 	for node: Node in info.map_elements.get_children():
 		if node.is_queued_for_deletion() or not (node is Node2D):
 			continue
 		var c: Vector2i = info.cell_at((node as Node2D).global_position)
 		if node == info.ghost_node:
-			_mark_ghost(to_map(info, Vector2(c) + Vector2(0.5, 0.5)), 0.22)
-			continue
-		if not info.is_seen(c):
-			continue
-		var at: Vector2 = to_map(info, Vector2(c) + Vector2(0.5, 0.5))
-		match Placeables.type_of(node):
-			LevelGen.Type.EXIT:
-				_exit_mark(node, at)
-			LevelGen.Type.INKWELL:
-				_mark_inkwell(at, (node as Inkwell).used())
-			LevelGen.Type.SHRINE:
-				_mark_shrine(at, (node as Shrine).used())
-			LevelGen.Type.CHECKPOINT:
-				_mark_lantern(at, info.is_respawn_lantern(node), info.is_lantern_spent(node))
-			LevelGen.Type.PORTAL:
-				if node.has_meta(&"rift"):
-					_mark_portal(at, 0, true)
-				elif node.has_meta(&"cell"):
-					_mark_portal(at, PortalArt.pair_sigil(node.get_meta(&"cell"), info.cell_at((node as Portal).go_to_pos)), false)
-			LevelGen.Type.DOOR:
-				_mark_door(at, int(node.get_meta(&"key_color", 0)))
-			LevelGen.Type.SWITCH_GATE:
-				_mark_gate(at)
-			LevelGen.Type.RELIC:
-				placed_relic = node
-				_mark_relic(at, StringName((node as Relic).holds()[0]), 0.7)
-			LevelGen.Type.SWITCH:
-				_mark_switch(at, (node as Switch).thrown())
-			LevelGen.Type.KEY:
-				var sprite: CanvasItem = node.get_node_or_null("Sprite2D") as CanvasItem
-				if sprite == null or sprite.visible:
-					_mark_key(at, int(node.get_meta(&"key_color", 0)))
-			LevelGen.Type.CLUSTER:
-				_mark_cluster(at)
-			LevelGen.Type.BRIDGE:
-				_mark_bridge(at, (node as Bridge).up())
-			LevelGen.Type.BELL:
-				_mark_bell(at, (node as Bell).rung(), (node as Bell).lock_state())
-			LevelGen.Type.VANE:
-				_mark_bell(at, (node as Vane).rung(), (node as Vane).lock_state(), "vane")
+			_mark_ghost(spot.call(c), 0.22)
+		elif node.has_meta(&"rift") and info.is_seen(c):
+			_mark_portal(spot.call(c), 0, true)
 	# A relic an ink well marked here, even before its room is found.
 	var hinted: Variant = _hinted_relic(info, info.coord, info.world)
-	if hinted != null and placed_relic == null:
+	if hinted != null and not relic_shown:
 		_mark_relic(to_map(info, Vector2(hinted) + Vector2(0.5, 0.5)), info.run.relic_hints[info.coord], 0.7)
 	# The wizard, always, bobbing.
 	_mark_wizard(to_map(info, Vector2(info.cell_at(info.player.global_position)) + Vector2(0.5, 0.5)) + Vector2(0, sin(t * 4.0) * 0.6))
@@ -376,11 +342,10 @@ func _door_rows() -> Array:
 
 
 ## A level other than the one being played, picked on the worlds page: its map as far as it was
-## seen, rebuilt from its seed, with what is in it where seen (exits, shrine, ink well, lanterns,
-## teleporters, keys, doors, gates, switches, relics, star clusters, bells and vanes, bridges),
-## from the layout and its record, since its things are not in the scene.
+## seen, rebuilt from its seed, with what is in it where seen, marked from the layout and its record
+## as the level being played is (_mark_level), and its ghost.
 func _other_level(info: MapInfo, c: Vector2i) -> void:
-	_text(MapInfo.where(c), Vector2(18, 12), 10.0, false)
+	_text(Rules.where(c), Vector2(18, 12), 10.0, false)
 	_tabs()
 	var w: LevelGen = info.world_at(c)
 	if w == null:
@@ -403,49 +368,9 @@ func _other_level(info: MapInfo, c: Vector2i) -> void:
 		s.scale = Vector2(k, k)
 	var seen: Callable = func(v: Vector2i) -> bool: return v.x * w.size.y + v.y < bytes.size() and bytes[v.x * w.size.y + v.y] != 0
 	var spot: Callable = func(v: Vector2i) -> Vector2: return o + (Vector2(v) + Vector2(0.5, 0.5)) * k
-	var place: NextWorldDef = MapInfo.def_for(c)
 	_shown.clear()
 	_noting = true
-	for which: int in w.exits:
-		var v: Vector2i = w.exits[which]
-		if not seen.call(v):
-			continue
-		var owed: int = mini(1, place.price(which, rec))
-		if place.exit_grand(which):
-			_mark_plunge(spot.call(v), owed)
-			continue
-		_mark_exit(spot.call(v), place.exit_dir(which), which == MapInfo.Exit.DEEPER, -1, owed)
-	if w.shrine.x >= 0 and seen.call(w.shrine):
-		_mark_shrine(spot.call(w.shrine), bool(rec.shrine_used))
-	var relic_shown: bool = _other_things(info, w, rec, seen, spot)
-	for x: int in range(w.size.x):
-		for y: int in range(w.size.y):
-			var v: Vector2i = Vector2i(x, y)
-			var kind: int = w.get_cell(v).type
-			if not (kind in [LevelGen.Type.CHECKPOINT, LevelGen.Type.INKWELL, LevelGen.Type.PORTAL, LevelGen.Type.BRIDGE, LevelGen.Type.BELL, LevelGen.Type.VANE]) or not seen.call(v):
-				continue
-			if kind == LevelGen.Type.BRIDGE:
-				_mark_bridge(spot.call(v), (rec.bridges as Dictionary).has(int(w.get_cell(v).extra_info)))
-				continue
-			if kind == LevelGen.Type.BELL:
-				var bell: Array = w.get_cell(v).extra_info
-				var id: int = int(bell[0])
-				var free: bool = (rec.bells_free as Dictionary).has(v)
-				_mark_bell(spot.call(v), (rec.bridges as Dictionary).has(id), -2 if free else int(bell[1]))
-				continue
-			if kind == LevelGen.Type.VANE:
-				var vane: Array = w.get_cell(v).extra_info
-				var blowing: bool = (rec.winds as Dictionary).get(int(vane[0])) == v
-				var unchained: bool = (rec.bells_free as Dictionary).has(v) or blowing
-				_mark_bell(spot.call(v), blowing, -2 if unchained else int(vane[1]), "vane")
-				continue
-			if kind == LevelGen.Type.INKWELL:
-				_mark_inkwell(spot.call(v), bool(rec.mapped))
-			elif kind == LevelGen.Type.PORTAL:
-				_mark_portal(spot.call(v), PortalArt.pair_sigil(v, w.get_cell(v).extra_info), false)
-			else:
-				var lit: bool = info.run.respawn_coord == c and info.run.respawn_cell == v and not info.run.vulnerable
-				_mark_lantern(spot.call(v), lit, (rec.spent_lanterns as Dictionary).has(v))
+	var relic_shown: bool = _mark_level(info, c, w, rec, seen, spot)
 	var hinted: Variant = _hinted_relic(info, c, w)
 	if hinted != null and not relic_shown:
 		_mark_relic(spot.call(hinted), info.run.relic_hints[c], 0.7)
@@ -462,41 +387,35 @@ static func dealt_colors(w: LevelGen) -> Dictionary:
 	for v: Vector2i in w.objects:
 		var cell: LevelGen.Cell = w.get_cell(v)
 		if cell.type in [LevelGen.Type.KEY, LevelGen.Type.DOOR]:
-			out[v] = int(cell.extra_info) if cell.extra_info != null else 0
+			out[v] = _dealt(cell)
 	return out
 
 
-## Another level's keys, doors, gates, switches, relic and star cluster where seen, as its record
-## leaves them (taken, opened, thrown), and the keys dropped there. Whether a relic was marked comes
-## back.
-func _other_things(info: MapInfo, w: LevelGen, rec: LevelRecord, seen: Callable, spot: Callable) -> bool:
-	var taken: Dictionary = rec.taken
-	var opened: Dictionary = rec.opened
-	var switched: Dictionary = rec.switched
-	var colors: Dictionary = dealt_colors(w)
+## Everything laid out in level `w` (place `c`) where `seen`, marked at `spot` as its record `rec`
+## leaves it (taken, opened, thrown, rung, spent, paid): exits, the shrine, the ink well, lanterns,
+## teleporters, keys, doors, gates, switches, relics, star clusters, bells and vanes, bridges, what
+## opened secret rooms hold, and the keys dropped there. The level being played is marked the same
+## way: its record changes the moment its things do. Whether a relic was marked comes back.
+func _mark_level(info: MapInfo, c: Vector2i, w: LevelGen, rec: LevelRecord, seen: Callable, spot: Callable) -> bool:
+	var place: NextWorldDef = info.here if c == info.coord and info.here != null else Rules.def_for(c)
 	var relic_shown: bool = false
+	var done: Dictionary = {}
 	for v: Vector2i in w.objects:
-		var cell: LevelGen.Cell = w.get_cell(v)
-		match cell.type:
-			LevelGen.Type.KEY:
-				if not taken.has(v) and seen.call(v):
-					_mark_key(spot.call(v), int(colors[v]))
-			LevelGen.Type.DOOR:
-				if not opened.has(v) and seen.call(v):
-					_mark_door(spot.call(v), int(colors[v]))
-			LevelGen.Type.SWITCH_GATE:
-				if not opened.has(v) and seen.call(v):
-					_mark_gate(spot.call(v))
-			LevelGen.Type.SWITCH:
-				if seen.call(v):
-					_mark_switch(spot.call(v), switched.has(v))
-			LevelGen.Type.RELIC:
-				if not taken.has(v) and seen.call(v):
-					_mark_relic(spot.call(v), StringName(cell.extra_info), 0.7)
-					relic_shown = true
-			LevelGen.Type.CLUSTER:
-				if not taken.has(v) and seen.call(v):
-					_mark_cluster(spot.call(v))
+		if done.has(v) or not seen.call(v):
+			continue
+		done[v] = true
+		relic_shown = _mark_cell(info, c, v, w.get_cell(v), rec, place, spot) or relic_shown
+	# An opened secret room's rewards, which are not among the layout's cells.
+	for id: int in rec.secrets:
+		if id < 0 or id >= w.secrets.size():
+			continue
+		for reward: Array in w.secrets[id]["rewards"]:
+			var v: Vector2i = reward[0]
+			if not seen.call(v):
+				continue
+			var cell: LevelGen.Cell = LevelGen.Cell.new(reward[1])
+			cell.extra_info = reward[2]
+			relic_shown = _mark_cell(info, c, v, cell, rec, place, spot) or relic_shown
 	var dropped: Dictionary = rec.dropped
 	for id: Variant in dropped:
 		var drop: Array = dropped[id]
@@ -506,13 +425,67 @@ func _other_things(info: MapInfo, w: LevelGen, rec: LevelRecord, seen: Callable,
 	return relic_shown
 
 
-func _exit_mark(node: Node, at: Vector2) -> void:
-	var door: LevelExit = node as LevelExit
-	var place: NextWorldDef = MapInfo.instance.here
-	if place.exit_grand(door.exit):
-		_mark_plunge(at, door.price())
-		return
-	_mark_exit(at, place.exit_dir(door.exit), door.exit == MapInfo.Exit.DEEPER, door.lock(), door.price())
+## The mark for the thing in `cell` at `v` of level `c` (laid out as place `place`), as its record
+## `rec` leaves it; nothing for what the map does not show, or what is gone. Whether it marked a
+## relic comes back.
+func _mark_cell(info: MapInfo, c: Vector2i, v: Vector2i, cell: LevelGen.Cell, rec: LevelRecord, place: NextWorldDef, spot: Callable) -> bool:
+	var at: Vector2 = spot.call(v)
+	var gone: bool = (rec.taken as Dictionary).has(v) or (rec.opened as Dictionary).has(v)
+	match cell.type:
+		LevelGen.Type.EXIT:
+			var which: int = int(cell.extra_info)
+			var owed: int = place.price(which, rec)
+			if place.exit_grand(which):
+				_mark_plunge(at, owed)
+			else:
+				_mark_exit(at, place.exit_dir(which), which == MapInfo.Exit.DEEPER, LevelExit.lock_at(c, which, rec), owed)
+		LevelGen.Type.SHRINE:
+			_mark_shrine(at, bool(rec.shrine_used))
+		LevelGen.Type.INKWELL:
+			_mark_inkwell(at, bool(rec.mapped))
+		LevelGen.Type.CHECKPOINT:
+			var spent: bool = (rec.spent_lanterns as Dictionary).has(v)
+			var lit: bool = not spent and not info.run.vulnerable and info.run.respawn_coord == c and info.run.respawn_cell == v
+			_mark_lantern(at, lit, spent)
+		LevelGen.Type.PORTAL:
+			_mark_portal(at, PortalArt.pair_sigil(v, cell.extra_info), false)
+		LevelGen.Type.KEY:
+			if not gone:
+				_mark_key(at, _dealt(cell))
+		LevelGen.Type.DOOR:
+			if not gone:
+				_mark_door(at, _dealt(cell))
+		LevelGen.Type.SWITCH_GATE:
+			if not gone:
+				_mark_gate(at)
+		LevelGen.Type.SWITCH:
+			_mark_switch(at, (rec.switched as Dictionary).has(v))
+		LevelGen.Type.RELIC:
+			if gone:
+				return false
+			# A spell swapped onto the relic's plinth waits there instead (Relic.holds).
+			var left: Array = rec.relic_left
+			_mark_relic(at, StringName(left[0]) if left.size() == 2 else StringName(cell.extra_info), 0.7)
+			return true
+		LevelGen.Type.CLUSTER:
+			if not gone:
+				_mark_cluster(at)
+		LevelGen.Type.BRIDGE:
+			_mark_bridge(at, (rec.bridges as Dictionary).has(int(cell.extra_info)))
+		LevelGen.Type.BELL:
+			var bell: Array = cell.extra_info
+			var rung: bool = (rec.bridges as Dictionary).has(int(bell[0]))
+			_mark_bell(at, rung, -2 if rung or (rec.bells_free as Dictionary).has(v) else int(bell[1]))
+		LevelGen.Type.VANE:
+			var vane: Array = cell.extra_info
+			var blowing: bool = (rec.winds as Dictionary).get(int(vane[0])) == v
+			_mark_bell(at, blowing, -2 if blowing or (rec.bells_free as Dictionary).has(v) else int(vane[1]), "vane")
+	return false
+
+
+## The key colour a key or door's cell was dealt (LevelGen.deal_colors).
+static func _dealt(cell: LevelGen.Cell) -> int:
+	return int(cell.extra_info) if cell.extra_info != null else 0
 
 
 # ------------------------------------------------------------------ marks (map and legend)
@@ -770,13 +743,13 @@ func _link(out: Array[Array], known: Dictionary, pair: Array) -> void:
 ## says (NextWorldDef.grid_at): hyperspace centred between the level it is entered from and the
 ## one its gate drops to, so it reads as the long way between them.
 func grid_at(c: Vector2i) -> Vector2:
-	return MapInfo.def_for(c).grid_at() if Worlds.is_side(c) else Vector2(c)
+	return Rules.def_for(c).grid_at() if Worlds.is_side(c) else Vector2(c)
 
 
 ## A tile's size: levels are boxes; for a side world, x is its ribbon's width and y its span.
 func tile_size(c: Vector2i) -> Vector2:
 	if Worlds.is_side(c):
-		var side: SideWorld = MapInfo.def_for(c) as SideWorld
+		var side: SideWorld = Rules.def_for(c) as SideWorld
 		var rows: int = absi(side.destination().y - side.origin().y)
 		return Vector2(9, maxf(PITCH.y - TILE.y - 2.0, rows * PITCH.y - TILE.y - 2.0))
 	return TILE
@@ -812,7 +785,7 @@ func _world(info: MapInfo) -> void:
 		var at: Vector2 = tile_at(info, c)
 		var size: Vector2 = tile_size(c)
 		if Worlds.is_side(c):
-			var place: SideWorld = MapInfo.def_for(c) as SideWorld
+			var place: SideWorld = Rules.def_for(c) as SideWorld
 			var curve: PackedVector2Array = side_curve(info, c)
 			var bounds: Rect2 = Rect2(curve[0], Vector2.ZERO)
 			for p: Vector2 in curve:
@@ -911,7 +884,7 @@ func _side_rows() -> Array:
 ## it skips rather than over them (away from the far level's column when it drifts). A dead end
 ## hangs a short way under its level.
 func side_curve(info: MapInfo, c: Vector2i) -> PackedVector2Array:
-	var place: SideWorld = MapInfo.def_for(c) as SideWorld
+	var place: SideWorld = Rules.def_for(c) as SideWorld
 	var from: Vector2i = place.origin()
 	var to: Vector2i = place.destination()
 	# The ends tuck half a unit under the tiles, so no paper shows between.

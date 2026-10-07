@@ -48,6 +48,18 @@ func cast_spell() -> bool:
 	toggle()
 	return true
 
+
+## Always ready: to project, or to snap back.
+func readiness() -> float:
+	return 1.0
+
+
+## While projecting: (the fraction of the projection's time left, seconds left); x < 0 when not.
+func running() -> Vector2:
+	if not projecting():
+		return Vector2(-1.0, 0.0)
+	return Vector2(clampf(projection_timer.acting / projection_timer.MAX_TIME, 0.0, 1.0), projection_timer.acting)
+
 func elapse(delta: float) -> void:
 	projection_timer.elapse(delta)
 

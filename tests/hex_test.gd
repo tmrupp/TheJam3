@@ -1,42 +1,6 @@
-extends SceneTree
+extends TestKit
 ## Phase 7 of docs/DEEPER_PLAN.md: the hex bolt, enemy health and cracked walls.
 ## godot --headless --path . --script res://tests/hex_test.gd
-
-var main: Node
-var info: MapInfo
-var player: Player
-var failed: bool = false
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
-
-
-func settle(frames: int = 4) -> void:
-	await process_frame
-	var deadline: int = Time.get_ticks_msec() + 30000
-	while (info.world == null or info.travelling) and Time.get_ticks_msec() < deadline:
-		await process_frame
-	for i: int in range(frames):
-		await physics_frame
-		await process_frame
-	player.set_physics_process(false)
-
-
-func placed(scene: String) -> Array[Node]:
-	var found: Array[Node] = []
-	for node: Node in info.map_elements.get_children():
-		if node.scene_file_path.get_file() == scene and not node.is_queued_for_deletion():
-			found.append(node)
-	return found
 
 
 func open_cell(v: Vector2i) -> bool:
@@ -67,21 +31,9 @@ func target(scene: String, skip: Array[Node] = []) -> Array:
 	return []
 
 
-func wait_physics(frames: int) -> void:
-	for i: int in range(frames):
-		await physics_frame
-
-
 func run() -> void:
-	main = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	RunState.save_path = "user://hex_test.save"
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	menu.start_game()
-	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	player = main.get_node("Player") as Player
-	await settle()
+	await boot()
+	player.set_physics_process(false)
 
 	print("the hex")
 	check(Abilities.spell(player) == &"" and player.get_node_or_null("Hex") == null, "no spell to start with: the hex is learned")
@@ -104,19 +56,19 @@ func run() -> void:
 	player.global_position = e.global_position + side * 150.0 + Vector2(0, 16 - 31)
 	var bolt: Node2D = hex.cast(-side)
 	check(bolt != null and hex.charges == 0, "casting spends the charge")
-	await wait_physics(10)
+	await until(func() -> bool: return is_instance_valid(e) and bool(e.get_node("Mover").get("stunned")))
 	check(is_instance_valid(e) and not e.is_queued_for_deletion() and bool(e.get_node("Mover").get("stunned")), "hex I only stuns: a level bolt from the same floor leaves the wisp stunned, unhurt")
 	check(is_equal_approx(Hex.COOLDOWN, 6.0) and hex.readiness() < 0.1, "a long cooldown, and the wand shows the hex spent")
 	Abilities.grant(player, &"hex")
 	hex.refill()
 	player.global_position = e.global_position + side * 150.0 + Vector2(0, 16 - 31)
 	bolt = hex.cast(-side)
-	await wait_physics(10)
+	await until(gone(e))
 	check(not is_instance_valid(e) or e.is_queued_for_deletion(), "hex II wounds: the bolt destroys the wisp")
 	check((info.record().slain as Dictionary).has(cell), "the level records it slain")
 	check(placed("coin.tscn").size() > stars_before, "it drops stars")
 	check(hex.cast(Vector2.RIGHT) == null, "no charge, no bolt")
-	await create_timer(Hex.COOLDOWN + 0.2).timeout
+	await until(func() -> bool: return hex.charges == 1, roundi((Hex.COOLDOWN + 1.0) * 1000.0))
 	check(hex.charges == 1, "the charge comes back after %.1f s" % Hex.COOLDOWN)
 	hex.charges = 0
 	placed("checkpoint.tscn")[0].call("interacted")
@@ -128,17 +80,20 @@ func run() -> void:
 	e2.get_node("Wound").set("hp", 2)
 	e2.get_node("Stunner").call("stun", 5.0)
 	e2.get_node("Wound").call("hit", 1, Vector2.RIGHT)
-	await wait_physics(2)
+	await until(gone(e2))
 	check(not is_instance_valid(e2) or e2.is_queued_for_deletion(), "a 2 HP wisp falls to one stunned hit")
 
 	print("slain until death")
 	info.travel(MapInfo.Exit.RIGHT)
 	await settle()
+	player.set_physics_process(false)
 	info.travel(MapInfo.Exit.LEFT)
 	await settle()
+	player.set_physics_process(false)
 	check(not placed("mover_enemy.tscn").any(func(n: Node) -> bool: return n.get_meta(&"cell") == cell), "a revisit keeps it slain")
 	player.die()
 	await settle()
+	player.set_physics_process(false)
 	check(placed("mover_enemy.tscn").any(func(n: Node) -> bool: return n.get_meta(&"cell") == cell), "dying brings it back")
 
 	print("rock stops the bolt")
@@ -150,7 +105,7 @@ func run() -> void:
 			into = Vector2.RIGHT
 			break
 	var stopped: Node2D = fire(from, into)
-	await wait_physics(10)
+	await until(gone(stopped))
 	check(not is_instance_valid(stopped) or stopped.is_queued_for_deletion(), "a bolt into rock ends there")
 
 	print("cracked walls")
@@ -181,16 +136,21 @@ func run() -> void:
 		foe.remove_from_group(&"hex_target")
 	# Stand there first: the wall's chunk has to be awake (chunks far from the wizard sleep).
 	player.global_position = shot_from
-	await wait_physics(8)
+	await frames(8)
 	fire(shot_from, shot_dir)
-	await wait_physics(6)
+	await until(func() -> bool: return not placed("cracked_wall.tscn").any(func(n: Node) -> bool: return n.get_meta(&"cell") == shot))
 	check(not placed("cracked_wall.tscn").any(func(n: Node) -> bool: return n.get_meta(&"cell") == shot), "a bolt breaks the wall")
 	check((info.record().broken as Dictionary).has(shot), "and the record keeps it broken")
+	# A protected death (a fresh lantern lit first): an unprotected one would end the run, and a
+	# new run starts with fresh records.
+	placed("checkpoint.tscn").filter(func(n: Node) -> bool: return not info.is_lantern_spent(n))[0].call("interacted")
 	player.die()
 	await settle()
+	player.set_physics_process(false)
 	check(not placed("cracked_wall.tscn").any(func(n: Node) -> bool: return n.get_meta(&"cell") == shot), "it stays broken after a death")
 	info.start_run(28)
 	await settle()
+	player.set_physics_process(false)
 	var again: Array[Vector2i] = []
 	for v: Vector2i in info.world.objects:
 		if info.world.get_cell(v).type == LevelGen.Type.CRACKED:
@@ -210,9 +170,4 @@ func run() -> void:
 	Abilities.grant(player, &"hex")
 	check(hex.damage == 2 and hex.pierce, "hex IV: two damage, pierces")
 
-	if failed:
-		print("FAILED")
-		quit(1)
-	else:
-		print("PASS: deeper phase 7")
-		quit()
+	finish()

@@ -8,6 +8,9 @@ class_name Awareness
 ## Each tier also senses for longer. A short cooldown between pings.
 
 const COOLDOWN: float = 3.0
+## Seconds a ping senses for at tier I, and more for each tier after.
+const SENSE_TIME: float = 5.0
+const SENSE_PER_TIER: float = 2.5
 
 var level: int = 1
 ## Seconds of sensing left (0 when not sensing).
@@ -28,10 +31,29 @@ func cast_spell() -> bool:
 	return true
 
 
+## Ready unless in the short cooldown after sensing: 0..1 as it runs out (the spell orb shows it).
+func readiness() -> float:
+	if not active() and cooldown > 0.0:
+		return 1.0 - clampf(cooldown / COOLDOWN, 0.0, 1.0)
+	return 1.0
+
+
+## While sensing: (the fraction of its time left, seconds left); x < 0 when not.
+func running() -> Vector2:
+	if not active():
+		return Vector2(-1.0, 0.0)
+	return Vector2(clampf(sensing / sense_time(), 0.0, 1.0), sensing)
+
+
+## How long a ping senses for, at its tier.
+func sense_time() -> float:
+	return SENSE_TIME + SENSE_PER_TIER * float(level - 1)
+
+
 func ping() -> void:
 	if cooldown > 0.0:
 		return
-	sensing = 5.0 + 2.5 * float(level - 1)
+	sensing = sense_time()
 	cooldown = sensing + COOLDOWN
 	player.visual_event.emit(&"awareness", player.global_position)
 	if RisoPrint.instance != null:

@@ -238,7 +238,7 @@ func _end_card() -> void:
 ## Top right: where you are, and under it the abilities you know. Both plaques share one width
 ## and one right edge.
 func _top_right(info: MapInfo, player: Player) -> void:
-	var text: String = MapInfo.where(info.coord) + ("  ·  debug" if MapInfo.debug else "")
+	var text: String = Rules.where(info.coord) + ("  ·  debug" if MapInfo.debug else "")
 	var text_w: float = _text_width(where_label, text)
 	var owned: Array[StringName] = []
 	for a: StringName in Abilities.ids():
@@ -279,7 +279,7 @@ func _ghost_row(info: MapInfo, player: Player) -> void:
 	var y: float = _mid(1)
 	var stars: String = str(info.run.ghost_stars)
 	var elsewhere: bool = info.run.ghost_coord != info.coord
-	var where: String = MapInfo.where(info.run.ghost_coord)
+	var where: String = Rules.where(info.run.ghost_coord)
 	var width: float = PAD + 13.0 + _text_width(ghost_label, stars) + 4.0 + 10.0
 	if elsewhere:
 		width += 3.0 + _text_width(ghost_where, where)

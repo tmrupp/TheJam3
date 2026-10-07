@@ -51,7 +51,7 @@ func run() -> void:
 	for s: int in range(1, 5):
 		coords.append(Worlds.side_at(Worlds.kind_of(Hyperspace), Vector2i(s, 1)))
 	for at: Vector2i in coords:
-		var def: NextWorldDef = MapInfo.def_for(at)
+		var def: NextWorldDef = Rules.def_for(at)
 		var cells: Array = wfc.call("generate_level", def)
 		var w: LevelGen = LevelGen.new(cells, def)
 		places += 1
@@ -61,7 +61,7 @@ func run() -> void:
 			all_clear = false
 			print("  cramped at %s: %s" % [at, left])
 		if at.x <= 3:
-			var again: LevelGen = LevelGen.new(cells, MapInfo.def_for(at))
+			var again: LevelGen = LevelGen.new(cells, Rules.def_for(at))
 			same = same and again.carved == w.carved
 	print("  %d places, %d cells carved" % [places, carved])
 	check(carved > 0, "rock over big things is carved out")

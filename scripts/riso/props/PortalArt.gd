@@ -114,7 +114,7 @@ func _pair_sigil() -> int:
 static func pair_sigil(a: Vector2i, b: Vector2i) -> int:
 	var lo: Vector2i = a if a < b else b
 	var hi: Vector2i = b if a < b else a
-	return MapInfo.level_seed(lo.x * 997 + lo.y, hi.x * 991 + hi.y) % 5
+	return Rules.level_seed(lo.x * 997 + lo.y, hi.x * 991 + hi.y) % 5
 
 
 ## A sigil, about 2 * `r` across: a ring, a triangle, a square, a diamond or a spark.

@@ -1,48 +1,14 @@
-extends SceneTree
+extends TestKit
 ## Phase 6 of docs/DEEPER_PLAN.md: the printed map. What a level has seen grows around the
 ## player, all at once when its ink well is paid, and is kept in its record; the map opens on the level, then the
 ## world, then closes, pausing the game; the world view's links follow the records.
 ## godot --headless --path . --script res://tests/map_test.gd
 
-var main: Node
-var info: MapInfo
-var player: Player
 var map: Node
-var failed: bool = false
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
-
-
-func settle(frames: int = 4) -> void:
-	await process_frame
-	var deadline: int = Time.get_ticks_msec() + 30000
-	while (info.world == null or info.travelling) and Time.get_ticks_msec() < deadline:
-		await process_frame
-	for i: int in range(frames):
-		await physics_frame
-		await process_frame
 
 
 func run() -> void:
-	main = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	RunState.save_path = "user://map_test.save"
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	menu.start_game()
-	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	player = main.get_node("Player") as Player
-	await settle()
+	await boot()
 	player.set_physics_process(false)
 	map = main.get_node("RisoMap")
 
@@ -58,11 +24,11 @@ func run() -> void:
 	var wells: Array[Node] = info.map_elements.get_children().filter(func(n: Node) -> bool: return n.scene_file_path.get_file() == "inkwell.tscn")
 	check(wells.size() == 1, "one ink well in the level")
 	var well: Node = wells[0]
-	check(int(well.call("price")) == MapInfo.map_price(0) and MapInfo.map_price(4) > MapInfo.map_price(0), "it costs %d stars here, more deeper" % MapInfo.map_price(0))
+	check(int(well.call("price")) == Rules.map_price(0) and Rules.map_price(4) > Rules.map_price(0), "it costs %d stars here, more deeper" % Rules.map_price(0))
 	player.collect(-player.coins.coins)
 	well.call("buy")
 	check(not bool(well.call("used")) and info.seen_count() < info.world.size.x * info.world.size.y, "too few stars: the map stays as explored")
-	player.collect(MapInfo.map_price(0))
+	player.collect(Rules.map_price(0))
 	well.call("buy")
 	check(info.seen_count() == info.world.size.x * info.world.size.y and player.coins.coins == 0, "paid: the whole level is inked at once")
 	check(bool(well.call("used")), "and the well is dry")
@@ -103,6 +69,28 @@ func run() -> void:
 	var shown: Dictionary = map.get("_shown")
 	check(shown.has("teleporter") and (shown.has("deeper") or shown.has("unpaid")) and shown.has("lantern"), "teleporters, exits and lanterns are marked: %s" % [shown.keys()])
 	check(not shown.has("skeleton key") and not shown.has("rift"), "the legend leaves out what the page does not show")
+	# The page is marked from the layout and the record, as another level's is: a change to the
+	# record shows at once, before the things in the scene catch up.
+	var rec: LevelRecord = info.record()
+	var lanterns: Array[Vector2i] = info.world.objects_of(LevelGen.Type.CHECKPOINT)
+	var gone: Array[Vector2i] = info.world.objects_of(LevelGen.Type.KEY) + info.world.objects_of(LevelGen.Type.DOOR)
+	for v: Vector2i in lanterns:
+		rec.spent_lanterns[v] = true
+	for v: Vector2i in gone:
+		rec.taken[v] = true
+		rec.opened[v] = true
+	map.call("_level", info)
+	shown = map.get("_shown")
+	check(shown.has("spent lantern") and not shown.has("lantern") and not shown.has("respawn"), "lanterns the record has spent are marked spent at once")
+	check(not shown.has("key") and not shown.has("door"), "keys and doors the record has taken or opened are gone at once (%d)" % gone.size())
+	for v: Vector2i in lanterns:
+		rec.spent_lanterns.erase(v)
+	for v: Vector2i in gone:
+		rec.taken.erase(v)
+		rec.opened.erase(v)
+	map.call("_level", info)
+	shown = map.get("_shown")
+	check(shown.has("lantern") and not shown.has("spent lantern"), "and come back as the record has them")
 	var pair: Array[Node] = []
 	for n: Node in info.map_elements.get_children():
 		if n.scene_file_path.get_file() == "portal.tscn" and n.has_meta(&"cell"):
@@ -135,9 +123,4 @@ func run() -> void:
 	check(pairs.has("(28, 0)>(29, 0)") and pairs.has("(28, 0)>(28, 1)"), "links follow the opened side door and the paid deeper door: %s" % [pairs])
 	check((map.call("tiles", info) as Dictionary).has(Vector2i(28, 1)) and (map.call("tiles", info) as Dictionary).has(Vector2i(29, 0)), "every visited level is a tile")
 
-	if failed:
-		print("FAILED")
-		quit(1)
-	else:
-		print("PASS: deeper phase 6")
-		quit()
+	finish()

@@ -15,9 +15,11 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
     `LevelRecord.gd`: what changed in one place (taken, opened, slain, bridges...), typed.
   - `LevelLoader.gd`: the generator cache and worker thread, building a level in the scene
     (`place_cell`), the rock and camera, and chunk sleeping.
+  - `Rules.gd`: the run-wide rules, static and scene-free (`level_seed`, prices and values by
+    depth, key rarity, what a level holds by its seed, `level_size`, `def_for`, `where`).
 - `scripts/MapInfo.gd`: the place being played (`coord`, `here`, `world`), travel, and what a
   change in the record means in the scene (doors, bells, secret rooms, death). It keeps a
-  `RunState` (`run`) and a `LevelLoader` (`loader`), and the run-wide rules (`level_seed`, prices).
+  `RunState` (`run`) and a `LevelLoader` (`loader`).
 - `scripts/worlds/`: what a place is. `NextWorldDef.gd` (exits, prices, realm), `Archetype.gd`
   and `archetypes/` (one per band: sample, size, gates and its own placement pass), and side
   worlds (`Worlds.gd`, `SideWorld.gd`, `Hyperspace.gd`).
@@ -27,7 +29,8 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
   `RisoWizard`, `RisoMap`, the HUD and menus.
 - `scripts/*.gd`: gameplay (Player, enemies, hazards, spells, pickups). `prefabs/*.tscn` pair
   with them. `Abilities.gd` lists every ability in one table (`ABILITIES`); an ability's node says
-  what its tier does (`set_tier`) and, for a spell, casts (`cast_spell`). `Stage.gd` finds the main
+  what its tier does (`set_tier`) and, for a spell, casts (`cast_spell`) and tells the spell orb
+  how ready it is (`readiness`) and how long it has left (`running`). `Stage.gd` finds the main
   scene's wizard, TileMap, camera and menu (no `/root/Main/...` paths elsewhere).
 - `wfc_images/`: WFC samples (white open, black rock, red thorns). Drawn ones come from
   `tests/make_*_sample.gd`, so edit the script and rerun it rather than editing the PNG.
@@ -63,9 +66,13 @@ bash tests/run.sh sky_test        # just these, headless
 - Each test sets its own `RunState.save_path` (`user://<test>.save`), so they can run in parallel.
 - New tests extend `TestKit` (`tests/kit/TestKit.gd`): override `run()`, end with `finish()`, and
   use its `check`/`check_eq`, `boot(seed)` (starts a run, keeps the save apart), `until(cond)` and
-  `settle()` rather than counting frames, and `placed`/`colored`. For the level generator alone,
-  `build(at)` lays a place out without the game scene, which is far faster than booting the game.
-  Older tests still carry their own copies of these; move them onto the kit when touching them.
+  `settle()` rather than counting frames (`until(gone(node))` for something being freed; a lambda
+  holding the node itself errors once it is), and `placed`/`colored` (`placed(scene, true)` counts
+  hidden things too: the ghost, a bridge's planks before its bell rings). For the level generator
+  alone, `build(at)` and `collapse(at)` lay a place out without the game scene, which is far faster
+  than booting the game. `until` polls on process frames: a step timed in physics frames (a dash, a
+  jump) wants an `await physics_frame` after it. A few small tests still carry their own `check`;
+  move them onto the kit when touching them.
 - `unit_test` checks the plain rules (seeds, prices by depth, key rarity, side-world places,
   archetype bands, where exits lead, shrine offers, the keyring) without the scene, in a second
   or two. Put a rule there when it needs no level.
@@ -80,11 +87,15 @@ bash tests/run.sh sky_test        # just these, headless
 - Constants get a doc comment and a name in `UPPER_SNAKE`. Tuning numbers live in constants, not
   inline.
 - Prefer extending an existing system over adding a parallel one: a new hazard is a prefab, a
-  script, a `LevelGen.Type` with its `Placeables` entry, an art script in `scripts/riso/props/`
-  (listed in `RisoProp.KINDS`), placed in a `populate_*` pass or an archetype's `populate`.
+  script, a `LevelGen.Type` with its `Placeables` entry (with `"setup": 2` or `3` if its prefab
+  has a `setup`), an art script in `scripts/riso/props/` (listed in `RisoProp.KINDS`), placed in a
+  `populate_*` pass or an archetype's `populate`. Something a hex bolt strikes that answers it
+  itself has `hex_hit(damage, dir)` and is listed in `HexBolt.ANSWERS`.
 - Reach other nodes through types, not names: `Stage` for the main scene's nodes, `as SomeClass`
   casts and typed calls rather than `get("x")`, `call("x")` or `has_method("x")`, which fail
-  silently when misspelled.
+  silently when misspelled. The few calls by name left, across scripts with no shared base class
+  (a prefab's `setup`, `hex_hit`, an ability node's `set_tier`, `cast_spell`, `readiness` and
+  `running`), are declared in a table and checked by `unit_test`.
 - Keep each test focused, deterministic (fixed seeds, usually world 28) and printing `ok` lines.
   Add or extend a test for each behaviour change.
 
@@ -108,7 +119,10 @@ bash tests/run.sh sky_test        # just these, headless
 - Placement helpers live on `LevelGen`: `put(v, type, extra)`, `put_random(type, test, force)`,
   `pop_if_random_empty(filter, force)`, `empties_where(test)` and `free_floors()` (sorted),
   `pick(items)` and `pop_pick(items)` (one draw each), `pick_apart` and `spread_out` (spots kept
-  apart), `dist(a, b)`, `_to_rock`, `_to_open`, `per_area(per_k)` (counts scale with level area).
+  apart), `dist(a, b)`, `_to_rock`, `_to_open`, `per_area(per_k)` (counts scale with level area),
+  `reach_from(start, passable)` (the open cells reached from a cell, a set: sort before drawing)
+  and `best_of(spots, score, test)` (the nearest or, with the score negated, furthest spot; no
+  draw, ties keep the earlier spot).
 
 ## Art rules (the riso print): see `docs/RISO_PRINT.md`
 

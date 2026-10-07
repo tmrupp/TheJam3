@@ -1,45 +1,11 @@
-extends SceneTree
+extends TestKit
 ## Astral projection as an ability (toggle out and back; hits pass through; running out
 ## leaves you where the projection is) and moons as dash resets.
 ## godot --headless --path . --script res://tests/astral_moon_test.gd
 
-var main: Node
-var info: MapInfo
-var player: Player
-var failed: bool = false
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
-
-
-func settle() -> void:
-	await process_frame
-	while info.world == null or info.travelling:
-		await process_frame
-	for i: int in range(4):
-		await physics_frame
-		await process_frame
-
 
 func run() -> void:
-	main = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	RunState.save_path = "user://astral_moon_test.save"
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	menu.start_game()
-	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	player = main.get_node("Player") as Player
-	await settle()
+	await boot()
 	player.set_physics_process(false)
 	player.end_invulnerable()
 	await create_timer(0.03).timeout
@@ -88,7 +54,7 @@ func run() -> void:
 	var moons: Array[Node] = info.map_elements.get_children().filter(func(n: Node) -> bool: return n.scene_file_path.get_file() == "moon.tscn")
 	check(not moons.is_empty() and moons.size() <= info.world.per_area(LevelGen.MOONS_PER_K), "%d moons within the level's area budget" % moons.size())
 	if moons.is_empty():
-		quit(1)
+		finish()
 		return
 	# The moon nearest the wizard; "leaving" it means a few hundred pixels off, not far away, so its
 	# chunk stays awake (chunks far from both the camera and the wizard sleep).
@@ -102,23 +68,22 @@ func run() -> void:
 	player.dash.refresh()
 	moon.call("touch", player)
 	check(not bool(moon.call("is_full")) and bool(moon.get("in_use")) and not player.dash.acted, "touching a moon spends it at once, even with the dash unused")
-	for i: int in range(6):
-		await physics_frame
+	await until(func() -> bool: return float(moon.get("waning")) > 0.0)
 	check(float(moon.get("waning")) > 0.0, "once left, it wanes")
 	player.dash.enable(true)
 	moon.call("touch", player)
 	check(player.dash.acted, "a waning moon does nothing")
-	await create_timer(2.8).timeout
+	await until(func() -> bool: return bool(moon.call("is_full")))
 	check(bool(moon.call("is_full")), "and it comes back")
 	moon.call("touch", player)
 	check(not player.dash.acted, "a full moon gives a spent dash back")
-	for i: int in range(6):
-		await physics_frame
-	await create_timer(2.8).timeout
+	# Left, it wanes, then waxes full again.
+	await until(func() -> bool: return bool(moon.call("is_full")))
 	# Inside the moon it keeps giving the dash back, even mid-dash, and wanes only once left.
 	player.global_position = (moon as Node2D).global_position
-	for i: int in range(5):
-		await physics_frame
+	await until(func() -> bool: return bool(moon.get("in_use")))
+	# In step with the physics frames again: each step below is one physics frame of the dash.
+	await physics_frame
 	check(bool(moon.get("in_use")) and float(moon.get("waning")) == 0.0, "running into the moon spends it")
 	player.dash.enable(true)
 	check(player.dash.is_acting() and player.dash.acted, "dashing inside the moon")
@@ -129,8 +94,7 @@ func run() -> void:
 	await physics_frame
 	check(not player.dash.acted and float(moon.get("waning")) == 0.0, "still inside: a second dash comes back too, and the moon has not begun to wax")
 	player.global_position = (moon as Node2D).global_position + Vector2(0, -400)
-	for i: int in range(6):
-		await physics_frame
+	await until(func() -> bool: return float(moon.get("waning")) > 0.0 and not bool(moon.get("in_use")))
 	check(float(moon.get("waning")) > 0.0 and not bool(moon.get("in_use")), "leaving it starts it waxing back")
 	player.set_physics_process(true)
 	info.travel(MapInfo.Exit.RIGHT)
@@ -139,9 +103,4 @@ func run() -> void:
 	await settle()
 	check(info.map_elements.get_children().filter(func(n: Node) -> bool: return n.scene_file_path.get_file() == "moon.tscn").size() == moons.size(), "moons are never used up")
 
-	if failed:
-		print("FAILED")
-		quit(1)
-	else:
-		print("PASS: astral and moons")
-		quit()
+	finish()

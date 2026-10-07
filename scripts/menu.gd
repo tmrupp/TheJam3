@@ -145,7 +145,7 @@ func pause_resume_game() -> void:
 	if not visible:
 		old_focus = get_viewport().gui_get_focus_owner()
 		map_info().save_run()
-		where.text = MapInfo.where(map_info().coord)
+		where.text = Rules.where(map_info().coord)
 		give_up_button.visible = map_info().can_give_up()
 		start.grab_focus()
 	elif old_focus != null and is_instance_valid(old_focus):
@@ -175,7 +175,7 @@ func give_up() -> void:
 
 ## Copies "world 28 · depth 3", so a place can be shared.
 func copy_location() -> void:
-	DisplayServer.clipboard_set(MapInfo.where(map_info().coord))
+	DisplayServer.clipboard_set(Rules.where(map_info().coord))
 
 
 ## Accepts a bare number or a copied location ("world 28 · depth 3" gives 28).
@@ -207,5 +207,5 @@ func _ready() -> void:
 		start.grab_focus()
 	else:
 		var at: Vector2i = saved["respawn_coord"]
-		where.text = "saved: %s  ·  deepest %d" % [MapInfo.where(at), int(saved["deepest"])]
+		where.text = "saved: %s  ·  deepest %d" % [Rules.where(at), int(saved["deepest"])]
 		continue_button.grab_focus()

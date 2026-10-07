@@ -8,7 +8,7 @@ func generate_level(def: NextWorldDef) -> Array:
 	symmetry = def.symmetry
 	var map: Array = []
 	for attempt: int in range(32):
-		set_seed(def.gen_seed if attempt == 0 else MapInfo.level_seed(def.gen_seed, 1000 + attempt))
+		set_seed(def.gen_seed if attempt == 0 else Rules.level_seed(def.gen_seed, 1000 + attempt))
 		map = collapse()
 		if len(map) > 0:
 			break

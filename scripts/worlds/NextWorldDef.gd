@@ -4,7 +4,7 @@ extends RefCounted
 ## each of its exits leads and what it costs, and how it is printed and mapped. This base class is
 ## the ordinary cave level at (seed, depth). Other kinds of world extend it (SideWorld, listed in
 ## Worlds.KINDS), so the rest of the game asks the place's definition rather than knowing which
-## kind it is in. Get one with MapInfo.def_for (or MapInfo.here for the place being played).
+## kind it is in. Get one with Rules.def_for (or MapInfo.here for the place being played).
 
 ## Where it is (see Worlds for where side worlds sit).
 var coord: Vector2i
@@ -23,7 +23,7 @@ var doors: Array[int] = []
 var arrival_from: Variant = null
 ## The move the relic in this level holds (see Relics), or &"" for none.
 var relic: StringName = &""
-## Whether a secret room in this level holds a skeleton key (see MapInfo.skeleton_at).
+## Whether a secret room in this level holds a skeleton key (see Rules.skeleton_at).
 var skeleton: bool = false
 ## What kind of level it is (ARCHETYPES), by its depth: its terrain, look and what lives there.
 ## &"" for a side world.
@@ -51,18 +51,18 @@ func setup(at: Vector2i) -> NextWorldDef:
 	coord = at
 	debug = MapInfo.debug
 	depth = at.y
-	gen_seed = MapInfo.level_seed(at.x, at.y)
+	gen_seed = Rules.level_seed(at.x, at.y)
 	arch = archetype_for(depth)
 	archetype = arch.name
 	region = arch.sample
 	symmetry = arch.symmetry
-	size = Vector2i((Vector2(MapInfo.level_size(depth)) * arch.scale).round())
+	size = Vector2i((Vector2(Rules.level_size(depth)) * arch.scale).round())
 	for k: int in range(Worlds.KINDS.size()):
 		if Worlds.proto(k).deals(at):
 			doors.append(k)
 	arrival_from = Worlds.arriving_at(at)
 	relic = Relics.at(at)
-	skeleton = MapInfo.skeleton_at(at)
+	skeleton = Rules.skeleton_at(at)
 	return self
 
 
@@ -172,7 +172,7 @@ func price(exit: int, rec: LevelRecord) -> int:
 	if kind >= 0:
 		return 0 if rec.doors_paid.has(exit) else Worlds.proto(kind).entry_price(depth)
 	if exit == MapInfo.Exit.DEEPER and not rec.deeper_paid:
-		return MapInfo.deeper_price(depth)
+		return Rules.deeper_price(depth)
 	return 0
 
 
@@ -189,6 +189,11 @@ func pay(exit: int, rec: LevelRecord) -> void:
 ## The print realm (RisoPrint.REALMS) it is printed in, or &"" for the player's own.
 func realm() -> StringName:
 	return arch.realm() if arch != null else &""
+
+
+## The decor plan (RisoDecor.PLANS) it wears: its archetype's, or the garden's for a side world.
+func decor() -> StringName:
+	return arch.decor if arch != null else &"garden"
 
 
 ## Whether plants and the other decor grow in it.

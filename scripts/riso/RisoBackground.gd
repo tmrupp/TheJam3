@@ -34,52 +34,102 @@ func _process(_delta: float) -> void:
 	ink.begin()
 	# A dense screen rather than a solid: the night keeps a fine texture of paper, as in the prototype.
 	ink.ink(RisoPrint.NIGHT, 0.94, [PackedVector2Array([-half, Vector2(half.x, -half.y), half, Vector2(-half.x, half.y)])], false)
-	if realm == &"hyperspace":
-		_warp(center, view, t)
+	var backdrop: Callable = _backdrops.get(realm, _backdrop_night)
+	if not bool(backdrop.call(at, view, half, k, t, center)):
 		ink.finish()
 		return
-	if realm == &"twilight":
-		var sun: Vector2 = at.call(330.0, 118.0)
-		var rays: Array[PackedVector2Array] = []
-		for i: int in range(0, 16, 2):
-			var a0: float = t * 0.02 + float(i) * TAU / 16.0
-			rays.append(PackedVector2Array([sun, sun + Vector2(cos(a0), sin(a0)) * view.x * 1.6, sun + Vector2(cos(a0 + TAU / 40.0), sin(a0 + TAU / 40.0)) * view.x * 1.6]))
-		ink.ink(RisoPrint.ACCENT, 0.15, rays)
-		ink.ink(RisoPrint.PINK, 0.15, [RisoShapes.circle(at.call(118.0 + sin(t * 0.07) * 26.0, 78.0), 40.0 * k, 40)])
-		# Dusk warms toward the bottom of the sheet: a graded pink screen, no hard edge.
-		var top: float = -10.0 * k
-		ink.ink_graded(RisoPrint.PINK, [PackedVector2Array([Vector2(-half.x, top), Vector2(half.x, top), Vector2(half.x, half.y), Vector2(-half.x, half.y)])], [PackedFloat32Array([0.0, 0.0, 0.2, 0.2])])
-		ink.ink(RisoPrint.ACCENT, 0.5, [RisoShapes.circle(sun, 20.0 * k, 32)])
-	elif realm == &"cemetery":
-		# A pale moon low over the graves, faint through the night, with banks of mist drifting across.
-		var moon: Vector2 = at.call(352.0, 64.0)
-		ink.ink(RisoPrint.ACCENT, 0.1, [RisoShapes.circle(moon, 30.0 * k, 40)])
-		ink.lift_ink([RisoPrint.NIGHT], 0.3, [RisoShapes.circle(moon, 17.0 * k, 40)])
-		ink.ink(RisoPrint.BLUE, 0.15, [RisoShapes.circle(moon + Vector2(-4.0, 3.0) * k, 4.0 * k, 16), RisoShapes.circle(moon + Vector2(5.0, -5.0) * k, 3.0 * k, 12)])
-		for i: int in range(3):
-			var drift: float = fposmod(t * (4.0 + float(i) * 2.0) + float(i) * 170.0, 640.0) - 80.0
-			ink.ink(RisoPrint.BLUE, 0.12, [_cloud(at.call(drift, 92.0 + float(i) * 34.0), (90.0 + float(i) * 30.0) * k, (16.0 + float(i) * 4.0) * k, i)])
-	elif realm == &"sky":
-		# Up among the clouds: a thin crescent moon high up, and banks of cloud drifting far below
-		# and between, in the islands' own pale ink, the lowest the faintest.
-		ink.ink(RisoPrint.ACCENT, 0.4, [RisoShapes.crescent(at.call(96.0, 52.0), 16.0 * k, Vector2(7.0, -4.0) * k, 48)])
-		for i: int in range(5):
-			var drift: float = fposmod(t * (3.0 + float(i) * 1.6) + float(i) * 131.0, 700.0) - 110.0
-			var y: float = 70.0 + float(i) * 38.0
-			ink.ink(RisoPrint.BLUE, 0.16 - 0.02 * float(i), [_cloud(at.call(drift, y), (110.0 + float(i) * 24.0) * k, (18.0 + float(i) * 3.0) * k, i + 3)])
-	elif realm == &"aurora":
-		for i: int in range(3):
-			ink.ink(RisoPrint.PINK if i == 1 else RisoPrint.ACCENT, 0.15, [_aurora(i, t, k)])
-		ink.ink(RisoPrint.BLUE, 0.15, [RisoShapes.almond(at.call(240.0, 62.0), 70.0 * k * (1.0 + 0.03 * sin(t * 0.6)), 12.0 * k, 16)])
-		ink.ink(RisoPrint.PINK, 0.25, [RisoShapes.circle(at.call(240.0 + sin(t * 0.3) * 6.0, 62.0), 4.0 * k)])
-	else:
-		var orrery: Vector2 = at.call(380.0, 62.0)
-		ink.ink(RisoPrint.BLUE, 0.12, [RisoShapes.circle(orrery, 44.0 * k, 48)])
-		ink.ink(RisoPrint.BLUE, 0.12, [RisoShapes.circle(orrery + Vector2(cos(t * 0.1) * 9.0, sin(t * 0.1) * 5.0) * k, 28.0 * k, 40)])
-		ink.ink(RisoPrint.PINK, 0.15, [RisoShapes.circle(orrery + Vector2(cos(t * 0.1 + 2.0) * 15.0, sin(t * 0.1 + 2.0) * 8.0) * k, 12.0 * k, 24)])
-		ink.ink(RisoPrint.PINK, 0.25, [RisoShapes.crescent(at.call(96.0, 58.0), 20.0 * k, Vector2(9.0 * cos(t * 0.05), -5.0) * k, 48)])
 	_skyline(center, view, half)
-	# Stars: fixed field that drifts at a quarter of the camera speed and wraps around the view.
+	_stars(center, view, k, t)
+	ink.finish()
+
+
+# ------------------------------------------------------------------ backdrops by realm
+# Each draws a realm's big shapes over the night flood, from: `at` (a point in the prototype's
+# 480 x 270 sheet to local space), the view's size, half the inked area, the sheet's scale `k`, the
+# time `t` and the view's centre. Each says whether the skyline and the drifting stars go over it.
+
+## The backdrops by realm, as RisoPrint.REALMS holds colours by realm; any realm not here (the
+## garden's, the deep) gets the night's (_backdrop_night). A band with a backdrop of its own adds it.
+var _backdrops: Dictionary = {}
+
+
+func _init() -> void:
+	_backdrops = {
+		&"hyperspace": _backdrop_hyperspace,
+		&"twilight": _backdrop_twilight,
+		&"cemetery": _backdrop_cemetery,
+		&"sky": _backdrop_sky,
+		&"aurora": _backdrop_aurora,
+	}
+
+
+## Hyperspace: the warp streaks alone, with no skyline or stars.
+func _backdrop_hyperspace(_at: Callable, view: Vector2, _half: Vector2, _k: float, t: float, center: Vector2) -> bool:
+	_warp(center, view, t)
+	return false
+
+
+## Twilight: a low sun throwing rays, a pink moon, and dusk warming toward the bottom of the sheet.
+func _backdrop_twilight(at: Callable, view: Vector2, half: Vector2, k: float, t: float, _center: Vector2) -> bool:
+	var sun: Vector2 = at.call(330.0, 118.0)
+	var rays: Array[PackedVector2Array] = []
+	for i: int in range(0, 16, 2):
+		var a0: float = t * 0.02 + float(i) * TAU / 16.0
+		rays.append(PackedVector2Array([sun, sun + Vector2(cos(a0), sin(a0)) * view.x * 1.6, sun + Vector2(cos(a0 + TAU / 40.0), sin(a0 + TAU / 40.0)) * view.x * 1.6]))
+	ink.ink(RisoPrint.ACCENT, 0.15, rays)
+	ink.ink(RisoPrint.PINK, 0.15, [RisoShapes.circle(at.call(118.0 + sin(t * 0.07) * 26.0, 78.0), 40.0 * k, 40)])
+	# Dusk warms toward the bottom of the sheet: a graded pink screen, no hard edge.
+	var top: float = -10.0 * k
+	ink.ink_graded(RisoPrint.PINK, [PackedVector2Array([Vector2(-half.x, top), Vector2(half.x, top), Vector2(half.x, half.y), Vector2(-half.x, half.y)])], [PackedFloat32Array([0.0, 0.0, 0.2, 0.2])])
+	ink.ink(RisoPrint.ACCENT, 0.5, [RisoShapes.circle(sun, 20.0 * k, 32)])
+	return true
+
+
+## The cemetery: a pale moon low over the graves, faint through the night, with banks of mist
+## drifting across.
+func _backdrop_cemetery(at: Callable, _view: Vector2, _half: Vector2, k: float, t: float, _center: Vector2) -> bool:
+	var moon: Vector2 = at.call(352.0, 64.0)
+	ink.ink(RisoPrint.ACCENT, 0.1, [RisoShapes.circle(moon, 30.0 * k, 40)])
+	ink.lift_ink([RisoPrint.NIGHT], 0.3, [RisoShapes.circle(moon, 17.0 * k, 40)])
+	ink.ink(RisoPrint.BLUE, 0.15, [RisoShapes.circle(moon + Vector2(-4.0, 3.0) * k, 4.0 * k, 16), RisoShapes.circle(moon + Vector2(5.0, -5.0) * k, 3.0 * k, 12)])
+	for i: int in range(3):
+		var drift: float = fposmod(t * (4.0 + float(i) * 2.0) + float(i) * 170.0, 640.0) - 80.0
+		ink.ink(RisoPrint.BLUE, 0.12, [_cloud(at.call(drift, 92.0 + float(i) * 34.0), (90.0 + float(i) * 30.0) * k, (16.0 + float(i) * 4.0) * k, i)])
+	return true
+
+
+## The sky: up among the clouds, a thin crescent moon high up, and banks of cloud drifting far
+## below and between, in the islands' own pale ink, the lowest the faintest.
+func _backdrop_sky(at: Callable, _view: Vector2, _half: Vector2, k: float, t: float, _center: Vector2) -> bool:
+	ink.ink(RisoPrint.ACCENT, 0.4, [RisoShapes.crescent(at.call(96.0, 52.0), 16.0 * k, Vector2(7.0, -4.0) * k, 48)])
+	for i: int in range(5):
+		var drift: float = fposmod(t * (3.0 + float(i) * 1.6) + float(i) * 131.0, 700.0) - 110.0
+		var y: float = 70.0 + float(i) * 38.0
+		ink.ink(RisoPrint.BLUE, 0.16 - 0.02 * float(i), [_cloud(at.call(drift, y), (110.0 + float(i) * 24.0) * k, (18.0 + float(i) * 3.0) * k, i + 3)])
+	return true
+
+
+## The aurora: curtains of light, and a blue eye with a pink pupil.
+func _backdrop_aurora(at: Callable, _view: Vector2, _half: Vector2, k: float, t: float, _center: Vector2) -> bool:
+	for i: int in range(3):
+		ink.ink(RisoPrint.PINK if i == 1 else RisoPrint.ACCENT, 0.15, [_aurora(i, t, k)])
+	ink.ink(RisoPrint.BLUE, 0.15, [RisoShapes.almond(at.call(240.0, 62.0), 70.0 * k * (1.0 + 0.03 * sin(t * 0.6)), 12.0 * k, 16)])
+	ink.ink(RisoPrint.PINK, 0.25, [RisoShapes.circle(at.call(240.0 + sin(t * 0.3) * 6.0, 62.0), 4.0 * k)])
+	return true
+
+
+## The night, every other realm's: a slow orrery of blue discs with a pink one, and a pink crescent.
+func _backdrop_night(at: Callable, _view: Vector2, _half: Vector2, k: float, t: float, _center: Vector2) -> bool:
+	var orrery: Vector2 = at.call(380.0, 62.0)
+	ink.ink(RisoPrint.BLUE, 0.12, [RisoShapes.circle(orrery, 44.0 * k, 48)])
+	ink.ink(RisoPrint.BLUE, 0.12, [RisoShapes.circle(orrery + Vector2(cos(t * 0.1) * 9.0, sin(t * 0.1) * 5.0) * k, 28.0 * k, 40)])
+	ink.ink(RisoPrint.PINK, 0.15, [RisoShapes.circle(orrery + Vector2(cos(t * 0.1 + 2.0) * 15.0, sin(t * 0.1 + 2.0) * 8.0) * k, 12.0 * k, 24)])
+	ink.ink(RisoPrint.PINK, 0.25, [RisoShapes.crescent(at.call(96.0, 58.0), 20.0 * k, Vector2(9.0 * cos(t * 0.05), -5.0) * k, 48)])
+	return true
+
+
+## Stars: a fixed field that drifts at a quarter of the camera speed and wraps around the view.
+func _stars(center: Vector2, view: Vector2, k: float, t: float) -> void:
 	var span: Vector2 = view + Vector2(200, 200)
 	var dots: Array[PackedVector2Array] = []
 	var twinkles: Array[PackedVector2Array] = []
@@ -105,7 +155,6 @@ func _process(_delta: float) -> void:
 			dots.append(RisoShapes.circle(p, s * k * 0.55, 8))
 	ink.ink(RisoPrint.ACCENT, 1.0, dots)
 	ink.ink(RisoPrint.ACCENT, 1.0, twinkles)
-	ink.finish()
 
 
 ## A cloud `w` across and about `h` high, its base on `c`: flat underneath, billowing on top in a

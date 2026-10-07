@@ -1,41 +1,10 @@
-extends SceneTree
+extends TestKit
 ## Real prefabs: spell placement, pairing, replacement, cleanup and watcher sight range.
 
-var info: MapInfo
-var player: Player
-var failed: bool = false
-
-func _initialize() -> void:
-	call_deferred("run")
-
-func check(ok: bool, message: String) -> void:
-	if ok:
-		print("  ok   ", message)
-	else:
-		failed = true
-		push_error(message)
-
-func settle() -> void:
-	var deadline: int = Time.get_ticks_msec() + 30000
-	await process_frame
-	while (info.world == null or info.travelling) and Time.get_ticks_msec() < deadline:
-		await process_frame
-	for i: int in range(8):
-		await physics_frame
-	check(info.world != null and not info.travelling, "level loaded")
 
 func run() -> void:
-	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	RunState.save_path = "user://rift_test.save"
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	menu.start_game()
-	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	player = main.get_node("Player") as Player
-	await settle()
-	for i: int in range(30):
-		await physics_frame
+	await boot()
+	await frames(30)
 	Abilities.grant(player, &"rift")
 	# Each end placed costs stars (Abilities.cast_price).
 	player.collect(500)
@@ -72,8 +41,7 @@ func run() -> void:
 	check(third.get("partner") == fourth and fourth.get("partner") == third, "fourth cast completes the new pair, linked both ways")
 	var stand_at: Vector2 = fourth.global_position
 	player.global_position = stand_at
-	for i: int in range(6):
-		await physics_frame
+	await frames(6)
 	check(player.global_position == stand_at, "standing in a rift does not send you through: E is always needed")
 	fourth.call("use_portal")
 	await Signal(fourth, &"trip_done")
@@ -85,7 +53,7 @@ func run() -> void:
 	Abilities.grant(player, &"rift")
 	rift = player.get_node("Rift") as Rift
 	info.travel(MapInfo.Exit.RIGHT)
-	await settle()
+	await settle(8)
 	player.set_physics_process(false)
 	var world_b: Vector2i = info.coord
 	check(not is_instance_valid(third) and info.record(world_a).rifts == pair_a, "unloading a world preserves its pair in the record")
@@ -97,7 +65,7 @@ func run() -> void:
 	var pair_b: Array = info.record().rifts.duplicate()
 	check(pair_b.size() == 2 and info.record(world_a).rifts == pair_a, "placing a pair in world B leaves world A's pair intact")
 	info.travel(MapInfo.Exit.LEFT)
-	await settle()
+	await settle(8)
 	player.set_physics_process(false)
 	check(rift.ends.size() == 2 and rift.ends[0].global_position == pair_a[0] and rift.ends[1].global_position == pair_a[1], "returning to world A restores its exact pair")
 	Abilities.cast(player)
@@ -106,14 +74,14 @@ func run() -> void:
 	Abilities.cast(player)
 	pair_a = info.record().rifts.duplicate()
 	info.travel(MapInfo.Exit.RIGHT)
-	await settle()
+	await settle(8)
 	player.set_physics_process(false)
 	check(rift.ends.size() == 2 and rift.ends[0].global_position == pair_b[0] and rift.ends[1].global_position == pair_b[1], "world B's original pair survives recasting elsewhere")
 	info.save_run()
 	var saved: Dictionary = RunState.read_save()
 	check(saved["records"][world_a]["rifts"] == pair_a and saved["records"][world_b]["rifts"] == pair_b, "the saved run contains both worlds' independent pairs")
 	check(info.continue_run(), "the saved run resumes")
-	await settle()
+	await settle(8)
 	check(info.coord == world_a and rift.ends.size() == 2 and rift.ends[0].global_position == pair_a[0], "resuming at the lantern restores its world's pair")
 	print("tier III: a link across worlds")
 	player.set_physics_process(false)
@@ -123,7 +91,7 @@ func run() -> void:
 	var at_a: Vector2 = link_a.global_position
 	check(info.run.rift_link.size() == 1 and not bool(link_a.get("linked")) and rift.ends.size() == 2, "tier III opens the link's first end, beside the world's own pair")
 	info.travel(MapInfo.Exit.RIGHT)
-	await settle()
+	await settle(8)
 	player.set_physics_process(false)
 	var link_b: Node2D = rift.cast()
 	check(bool(link_b.get("linked")) and link_b.get_meta(&"rift_far") == [world_a, at_a], "its partner, opened in another world, links back to the first world")
@@ -132,14 +100,14 @@ func run() -> void:
 	check((RunState.read_save()["rift_link"] as Array).size() == 2, "the link is saved with the run")
 	link_b.call("use_portal")
 	await Signal(link_b, &"trip_done")
-	await settle()
+	await settle(8)
 	player.set_physics_process(false)
 	check(info.coord == world_a and absf(player.global_position.x - at_a.x) < 1.0 and player.global_position.distance_to(at_a) < 40.0, "using it travels to the other world, out of the other end (then lands)")
 	check(player.graced.is_acting(), "with a moment's grace on arriving in another level")
 	var back_end: Array[Portal] = Rift.link_ends(info)
 	check(back_end.size() == 1 and back_end[0].get_meta(&"rift_far")[0] == world_b, "and the end there leads back")
 	info.start_run(28)
-	await settle()
+	await settle(8)
 	player.set_physics_process(false)
 	check(not player.has_node("Rift") and Rift.current_ends(info).is_empty() and info.record().rifts.is_empty() and info.run.rift_link.is_empty(), "a new run clears the previous run's placed pairs and link")
 
@@ -150,8 +118,7 @@ func run() -> void:
 	watcher.global_position = Vector2(20000, -1000)
 	var eye: Node2D = watcher.get_node("Shooter")
 	player.global_position = watcher.global_position + Vector2(800, -14)
-	for i: int in range(5):
-		await physics_frame
+	await until(func() -> bool: return bool(eye.call("can_see")))
 	check(bool(eye.call("can_see")), "eye sees the player at 800 px, beyond the former 520 px radius")
 	var blocker: StaticBody2D = StaticBody2D.new()
 	var collision: CollisionShape2D = CollisionShape2D.new()
@@ -161,13 +128,10 @@ func run() -> void:
 	blocker.add_child(collision)
 	main.add_child(blocker)
 	blocker.global_position = watcher.global_position + Vector2(400, -14)
-	for i: int in range(3):
-		await physics_frame
+	await until(func() -> bool: return not bool(eye.call("can_see")))
 	check(not bool(eye.call("can_see")), "rock still blocks the expanded sight range")
 	blocker.queue_free()
 	player.global_position = watcher.global_position + Vector2(1550, -14)
-	for i: int in range(3):
-		await physics_frame
+	await until(func() -> bool: return not bool(eye.call("can_see")))
 	check(not bool(eye.call("can_see")), "outside the new radius the eye cannot see the player")
-	print("FAILED" if failed else "PASS: rift and watcher detection")
-	quit(1 if failed else 0)
+	finish()

@@ -1,39 +1,23 @@
-extends SceneTree
+extends TestKit
 ## Focus transitions and lock hints. With a renderer, also saves review captures.
 
-var info: MapInfo
-var player: Player
 var camera: Camera2D
-var failed: bool = false
 var output: String
+## Frames a prompt is given to open or close, where nothing says when it has.
+const PROMPT_FRAMES: int = 25
 
-func _initialize() -> void:
-	call_deferred("run")
 
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
-
-func settle(frames: int = 25) -> void:
-	for i: int in range(frames):
-		await physics_frame
-		await process_frame
-
+## Wait for the level, then hold the wizard still and free the camera of the level's limits.
 func loaded() -> void:
-	var deadline: int = Time.get_ticks_msec() + 30000
-	await process_frame
-	while (info.world == null or info.travelling) and Time.get_ticks_msec() < deadline:
-		await process_frame
-	assert(info.world != null and not info.travelling)
+	await settle(0)
+	check(info.world != null and not info.travelling, "the level loads")
 	player.set_physics_process(false)
 	camera.limit_left = -1000000
 	camera.limit_top = -1000000
 	camera.limit_right = 1000000
 	camera.limit_bottom = 1000000
-	await settle(3)
+	await frames(3)
+
 
 func first(file: String) -> Node2D:
 	for node: Node in info.map_elements.get_children():
@@ -59,7 +43,7 @@ func focus(object: Node2D) -> Interactable:
 	camera.reset_smoothing()
 	var it: Interactable = object.get_node("Interactable") as Interactable
 	it.touch(player)
-	await settle()
+	await frames(PROMPT_FRAMES)
 	check(it.is_focused(), "%s gets sole interaction focus" % object.name)
 	return it
 
@@ -70,28 +54,22 @@ func shot(name: String) -> void:
 	root.get_texture().get_image().save_png(output.path_join(name + ".png"))
 
 func run() -> void:
-	root.mode = Window.MODE_WINDOWED
-	root.size = Vector2i(1280, 720)
+	window()
 	output = ProjectSettings.globalize_path("res://../art-captures/interaction-hints")
 	DirAccess.make_dir_recursive_absolute(output)
-	RunState.save_path = "user://interaction_hints_test.save"
-	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	main.get_node("Menu").world_seed.text = "28"
-	main.get_node("Menu").start_game()
+	await boot()
 	player = main.get_node("Player") as Player
 	camera = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
 	player.invulnerable.enable()
 	await loaded()
-	await settle()
+	await frames(PROMPT_FRAMES)
 
 	var well: Node2D = first("inkwell.tscn")
 	player.global_position = well.global_position + Vector2(-300, 0)
 	camera.global_position = well.global_position + Vector2(0, -90)
 	camera.reset_smoothing()
-	await settle()
+	await frames(PROMPT_FRAMES)
 	var prompt: Node = well.get_node("RisoPrompt")
 	check(not (prompt.get("hint_label") as Label).visible, "map price hidden outside interaction focus")
 	await shot("inkwell_idle")
@@ -101,11 +79,11 @@ func run() -> void:
 	await shot("inkwell_focused")
 	player.global_position = well.global_position + Vector2(-300, 0)
 	it.untouch(player)
-	await settle()
+	await until(func() -> bool: return not (prompt.get("hint_label") as Label).visible)
 	check(not (prompt.get("hint_label") as Label).visible, "price closes after leaving")
 	player.collect(100)
 	well.call("buy")
-	await settle()
+	await until(func() -> bool: return not it.available)
 	check(not it.available, "paid inkwell has no further interaction")
 
 	var door: Node2D = first("door.tscn")
@@ -127,7 +105,7 @@ func run() -> void:
 	player.global_position = Vector2(-2000, -2000)
 	camera.global_position = player.global_position + Vector2(0, -90)
 	camera.reset_smoothing()
-	await settle(90)
+	await frames(90)
 	await shot("equal_keyring")
 	player.keyring.set_all([])
 	info.coord = Vector2i(28, NextWorldDef.first_depth(&"cemetery"))
@@ -151,11 +129,10 @@ func run() -> void:
 		check(bool(it.prompt_hint().get("switch", false)) if lock < 0 else int(it.prompt_hint().get("key_color", -1)) == lock, "chained bell shows its %s requirement" % kind)
 		await shot("bell_" + kind)
 		node.call("open")
-		await settle()
+		await until(func() -> bool: return it.prompt_hint().is_empty())
 		check(it.prompt_hint().is_empty(), "freed bell returns to the ring interaction")
 		node.call("ring")
-		await settle()
+		await until(func() -> bool: return not it.available)
 		check(not it.available, "rung bell hides its prompt")
 	check(captured.has("key") and captured.has("switch"), "covered both bell lock types")
-	print("FAIL: interaction hints" if failed else "PASS: interaction hints")
-	quit(1 if failed else 0)
+	finish()

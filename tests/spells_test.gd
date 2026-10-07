@@ -1,45 +1,11 @@
-extends SceneTree
+extends TestKit
 ## The spell slot (one spell at a time on the Spell button), levitate and awareness, and plants
 ## and lanterns swaying as the wizard passes.
 ## godot --headless --path . --script res://tests/spells_test.gd
 
-var main: Node
-var info: MapInfo
-var player: Player
-var failed: bool = false
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
-
-
-func settle() -> void:
-	await process_frame
-	while info.world == null or info.travelling:
-		await process_frame
-	for i: int in range(4):
-		await physics_frame
-		await process_frame
-
 
 func run() -> void:
-	main = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	RunState.save_path = "user://spells_test.save"
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	menu.start_game()
-	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	player = main.get_node("Player") as Player
-	await settle()
+	await boot()
 
 	print("the spell slot")
 	check(InputMap.has_action(Abilities.SPELL_ACTION), "one Spell button")
@@ -65,8 +31,7 @@ func run() -> void:
 		await physics_frame
 	check(lev.floating() and absf(player.global_position.y - y0) < 1.0, "holds its height well past 1.5 s (moved %.1f px)" % absf(player.global_position.y - y0))
 	check(is_equal_approx(Levitate.FLOAT_TIME, 6.0) and lev.remaining > 3.0 and lev.remaining < Levitate.FLOAT_TIME, "the six-second float counts down")
-	var wizard: Node = player.get_node("RisoWizard")
-	var running: Vector2 = wizard.call("_spell_running")
+	var running: Vector2 = Abilities.running(player)
 	check(running.x < 1.0 and is_equal_approx(running.y, lev.remaining), "the orb shows the float's remaining time")
 	Abilities.cast(player)
 	check(not lev.floating(), "Spell again: drop")
@@ -95,9 +60,7 @@ func run() -> void:
 	floor_body.global_position = Vector2(-10000, -9900)
 	player.global_position = Vector2(-10000, -10000)
 	player.velocity = Vector2.ZERO
-	for i: int in range(45):
-		await physics_frame
-		await process_frame
+	await until(func() -> bool: return player.is_on_floor() and lev.charged and not lev.floating())
 	check(player.is_on_floor() and lev.charged and not lev.floating(), "landing recharges it")
 	player.global_position = returned_to
 	player.velocity = Vector2.ZERO
@@ -168,9 +131,4 @@ func run() -> void:
 	check(high - low < 0.4, "it eases back (%.2f to %.2f)" % [low, high])
 	check(absf(decor.lean(plant)) < 0.05, "and settles")
 
-	if failed:
-		print("FAILED")
-		quit(1)
-	else:
-		print("PASS: spells and sway")
-		quit()
+	finish()

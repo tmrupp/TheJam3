@@ -51,13 +51,13 @@ func _init() -> void:
 
 
 func deals(at: Vector2i) -> bool:
-	return MapInfo.debug or (at.y >= 1 and MapInfo.level_seed(MapInfo.level_seed(at.x, at.y), 777) % 100 < CHANCE)
+	return MapInfo.debug or (at.y >= 1 and Rules.level_seed(Rules.level_seed(at.x, at.y), 777) % 100 < CHANCE)
 
 
 ## How many worlds sideways (-1, 0 or +1) the one entered from level `from` comes out, dealt by
 ## that level's seed.
 static func drift(from: Vector2i) -> int:
-	return MapInfo.level_seed(MapInfo.level_seed(from.x, from.y), 991) % 3 - 1
+	return Rules.level_seed(Rules.level_seed(from.x, from.y), 991) % 3 - 1
 
 
 func destination_for(from: Vector2i) -> Vector2i:
@@ -123,11 +123,11 @@ func populate(w: LevelGen) -> void:
 	w.place_moons(MOONS)
 	for i: int in range(STARS):
 		w.put_random(LevelGen.Type.COIN)
-	if MapInfo.level_seed(w.seed_for_colors, RELIC_DEAL) % 100 < MapInfo.relic_need(origin().y + DROP):
+	if Rules.level_seed(w.seed_for_colors, RELIC_DEAL) % 100 < Rules.relic_need(origin().y + DROP):
 		_relic_gap(w)
 
 
-## Hyperspace that drops deep is likely to need a relic move somewhere along it (MapInfo.relic_need
+## Hyperspace that drops deep is likely to need a relic move somewhere along it (Rules.relic_need
 ## of the depth it drops to): one stretch RELIC_GAP cells wide loses the lifts, ledges and moons laid
 ## across it, but only where the rough reach then fails to cross and a relic's longer reach
 ## (RELIC_ACROSS cells a hop, as a double jump, blink or levitate gives) still gets over. Stretches
@@ -145,7 +145,7 @@ static func _relic_gap(w: LevelGen) -> void:
 		starts.append(x)
 	if starts.is_empty():
 		return
-	var first: int = MapInfo.level_seed(w.seed_for_colors, RELIC_DEAL + 1) % starts.size()
+	var first: int = Rules.level_seed(w.seed_for_colors, RELIC_DEAL + 1) % starts.size()
 	for k: int in range(starts.size()):
 		var x0: int = starts[(first + k) % starts.size()]
 		var saved: Dictionary = {}
@@ -198,11 +198,7 @@ static func _standing(w: LevelGen) -> Array[Vector2i]:
 
 
 static func _standing_near(w: LevelGen, x: int) -> Variant:
-	var best: Variant = null
-	for v: Vector2i in _standing(w):
-		if best == null or absi(v.x - x) < absi((best as Vector2i).x - x):
-			best = v
-	return best
+	return LevelGen.best_of(_standing(w), func(v: Vector2i) -> int: return absi(v.x - x))
 
 
 ## LASERS lasers spread along the way between the ends, each set in rock (a ceiling or a wall, or
@@ -225,14 +221,10 @@ static func _lasers(w: LevelGen) -> void:
 	var placed: Array[Vector2i] = []
 	for k: int in range(LASERS):
 		var target: float = ENDS + (float(k) + 0.5) * span
-		var best: Array = []
-		for s: Array in spots:
-			var v: Vector2i = s[0]
-			if placed.any(func(p: Vector2i) -> bool: return LevelGen.dist(p, v) < 5):
-				continue
-			if best.is_empty() or absf(v.x - target) < absf((best[0] as Vector2i).x - target):
-				best = s
-		if not best.is_empty():
+		var found: Variant = LevelGen.best_of(spots, func(s: Array) -> float: return absf((s[0] as Vector2i).x - target),
+				func(s: Array) -> bool: return not placed.any(func(p: Vector2i) -> bool: return LevelGen.dist(p, s[0]) < 5))
+		if found != null:
+			var best: Array = found
 			placed.append(best[0])
 			w.put(best[0], LevelGen.Type.LASER, best[1])
 
@@ -244,10 +236,7 @@ static func _spread(w: LevelGen, count: int, type: LevelGen.Type, phase: float) 
 	var spots: Array[Vector2i] = _standing(w)
 	for k: int in range(count):
 		var target: float = ENDS + (float(k) + phase) * span
-		var best: Variant = null
-		for v: Vector2i in spots:
-			if best == null or absf(v.x - target) < absf((best as Vector2i).x - target):
-				best = v
+		var best: Variant = LevelGen.best_of(spots, func(v: Vector2i) -> float: return absf(v.x - target))
 		if best != null:
 			w.put(best, type)
 			var taken: Vector2i = best

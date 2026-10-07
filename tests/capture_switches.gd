@@ -27,7 +27,7 @@ func capture() -> void:
 	await process_frame
 	# A world whose depth 1 deals a hyperspace door.
 	var world_seed: int = 1
-	while MapInfo.level_seed(MapInfo.def_for(Vector2i(world_seed, 1)).gen_seed, 777) % 100 >= Hyperspace.CHANCE:
+	while Rules.level_seed(Rules.def_for(Vector2i(world_seed, 1)).gen_seed, 777) % 100 >= Hyperspace.CHANCE:
 		world_seed += 1
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = str(world_seed)

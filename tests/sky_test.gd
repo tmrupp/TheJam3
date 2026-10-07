@@ -1,44 +1,9 @@
-extends SceneTree
+extends TestKit
 ## The sky archetype (docs/DEEPER_PLAN.md §4c): its band of depths, terrain sample and realm, the
 ## open drop under it (a fall costs a heart and puts the wizard back on the last rock), and what is
 ## up there: jump pads, clouds that give way, updrafts, chasms crossed on the wind a vane sets
 ## blowing, shielded enemies and watchers whose shots rebound.
 ## godot --headless --path . --script res://tests/sky_test.gd
-
-var main: Node
-var info: MapInfo
-var player: Player
-var failed: bool = false
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
-
-
-func settle(frames: int = 4) -> void:
-	await process_frame
-	var deadline: int = Time.get_ticks_msec() + 30000
-	while (info.world == null or info.travelling or info.run_ending > 0.0) and Time.get_ticks_msec() < deadline:
-		await process_frame
-	for i: int in range(frames):
-		await physics_frame
-		await process_frame
-
-
-func placed(file: String) -> Array[Node]:
-	var found: Array[Node] = []
-	for n: Node in info.map_elements.get_children():
-		if n.scene_file_path.get_file() == file and not n.is_queued_for_deletion():
-			found.append(n)
-	return found
 
 
 func count(w: LevelGen, type: LevelGen.Type) -> int:
@@ -51,21 +16,10 @@ func count(w: LevelGen, type: LevelGen.Type) -> int:
 
 
 func run() -> void:
-	main = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	RunState.save_path = "user://sky_test.save"
-	await process_frame
 	bands()
-	generation(main.get_node("WaveFunctionCollapse"))
+	generation()
 
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	menu.start_game()
-	await process_frame
-	await process_frame
-	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	player = main.get_node("Player") as Player
-	await settle()
+	await boot()
 	info.coord = Vector2i(28, NextWorldDef.first_depth(&"sky"))
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
@@ -83,7 +37,7 @@ func run() -> void:
 		for x: int in [-2, -1, info.world.size.x, info.world.size.x + 1]:
 			round_it.append(info.tile_map.get_cell_source_id(0, Vector2i(x, y)))
 	check(round_it.all(func(id: int) -> bool: return id == -1), "no rock round the level: open sky on every side, and a drop below")
-	check(info.world.size.x > MapInfo.level_size(6).x * 3 / 2 and info.world.size.y > MapInfo.level_size(6).y * 3 / 2, "much bigger than a cave level of its depth (%s to %s)" % [info.world.size, MapInfo.level_size(6)])
+	check(info.world.size.x > Rules.level_size(6).x * 3 / 2 and info.world.size.y > Rules.level_size(6).y * 3 / 2, "much bigger than a cave level of its depth (%s to %s)" % [info.world.size, Rules.level_size(6)])
 
 	await falling()
 	await pads()
@@ -95,34 +49,29 @@ func run() -> void:
 	await birds()
 
 	RunState.delete_save()
-	if failed:
-		print("FAILED")
-		quit(1)
-	else:
-		print("PASS: the sky")
-		quit()
+	finish()
 
 
 func bands() -> void:
 	print("bands")
 	var s0: int = NextWorldDef.first_depth(&"sky")
 	check(NextWorldDef.archetype_at(s0) == &"sky" and NextWorldDef.archetype_at(s0 + NextWorldDef.BAND - 1) == &"sky" and NextWorldDef.archetype_at(s0 + NextWorldDef.BAND) == &"garden", "the sky takes the third band, then the garden comes round again")
-	var def: NextWorldDef = MapInfo.def_for(Vector2i(28, s0))
+	var def: NextWorldDef = Rules.def_for(Vector2i(28, s0))
 	check(def.region == SkyArchetype.SAMPLE and def.realm() == &"sky" and def.chasmed(), "a sky level collapses the floating islands, prints in its realm and is gated by chasms")
 
 
-func generation(wfc: Node) -> void:
+func generation() -> void:
 	print("generation")
 	var totals: Dictionary = {"pads": 0, "puffs": 0, "drafts": 0, "shields": 0, "bounces": 0, "birds": 0}
 	var s0: int = NextWorldDef.first_depth(&"sky")
 	for at: Vector2i in [Vector2i(28, s0), Vector2i(7, s0 + 1), Vector2i(99, s0 + 2)]:
-		var def: NextWorldDef = MapInfo.def_for(at)
-		var cells: Array = wfc.call("generate_level", def)
+		var def: NextWorldDef = Rules.def_for(at)
+		var cells: Array = collapse(def.coord)
 		check(not cells.is_empty(), "%s collapses" % at)
 		if cells.is_empty():
 			continue
 		var w: LevelGen = LevelGen.new(cells, def)
-		var again: LevelGen = LevelGen.new(wfc.call("generate_level", def), def)
+		var again: LevelGen = LevelGen.new(collapse(def.coord), def)
 		check(w.objects == again.objects, "%s: the same every time" % at)
 		check(w.chasms.size() >= Chasms.CHASMS_MIN and count(w, LevelGen.Type.BRIDGE) == 0 and count(w, LevelGen.Type.BELL) == 0, "%s: %d chasms, no bridges or bells" % [at, w.chasms.size()])
 		var rock: int = 0
@@ -155,8 +104,8 @@ func generation(wfc: Node) -> void:
 		check(_portals_apart(w), "%s: each pair of teleporters at least %d cells apart" % [at, w.portal_apart()])
 		totals["pads"] += count(w, LevelGen.Type.PAD)
 		totals["puffs"] += count(w, LevelGen.Type.PUFF)
-	var garden_def: NextWorldDef = MapInfo.def_for(Vector2i(28, 1))
-	var garden: LevelGen = LevelGen.new(wfc.call("generate_level", garden_def), garden_def)
+	var garden_def: NextWorldDef = Rules.def_for(Vector2i(28, 1))
+	var garden: LevelGen = LevelGen.new(collapse(garden_def.coord), garden_def)
 	check(count(garden, LevelGen.Type.PORTAL) > 0 and _portals_apart(garden), "a garden level's teleporters are as far apart (%d pairs, %d cells)" % [count(garden, LevelGen.Type.PORTAL) / 2, garden.portal_apart()])
 	check(totals.values().all(func(n: int) -> bool: return n > 0), "pads, clouds that give way, updrafts, shields, rebounding shots and birds are all dealt: %s" % totals)
 
@@ -185,8 +134,7 @@ func falling() -> void:
 	player.end_invulnerable()
 	player.health.health = player.health.max_health
 	player.set_physics_process(true)
-	for i: int in range(20):
-		await physics_frame
+	await until(func() -> bool: return player.is_on_floor() and player.footing_at == info.coord)
 	var stood: Vector2 = player.global_position
 	check(player.footing_at == info.coord and player.footing.distance_to(stood) < 4.0, "standing on rock is remembered")
 	player.global_position = Vector2(stood.x, info.level_rect().end.y + Player.FALL_MARGIN + 50.0)
@@ -230,26 +178,23 @@ func puffs() -> void:
 	player.global_position = puff.global_position + Vector2(0, -100)
 	player.velocity = Vector2.ZERO
 	player.set_physics_process(true)
-	for i: int in range(20):
-		await physics_frame
+	await until(func() -> bool: return puff.holds() and player.is_on_floor())
 	check(puff.holds() and player.is_on_floor(), "it holds the wizard at first")
 	for i: int in range(int(Puff.STAND * 60.0) + 20):
 		await physics_frame
 	check(not puff.holds(), "stood on for %.1f s, it gives way" % Puff.STAND)
 	var through: float = player.global_position.y
-	for i: int in range(20):
-		await physics_frame
+	await until(func() -> bool: return player.global_position.y > through + 20.0)
 	check(player.global_position.y > through + 20.0, "and the wizard drops through")
 	player.global_position = puff.global_position + Vector2(400, -2000)
 	player.set_physics_process(false)
-	await create_timer(Puff.REFORM + 0.3).timeout
+	await until(func() -> bool: return puff.holds(), roundi((Puff.REFORM + 1.0) * 1000.0))
 	check(puff.holds(), "it gathers again %.0f s later" % Puff.REFORM)
 	# Touched and left at once: it still goes.
 	player.global_position = puff.global_position + Vector2(0, -100)
 	player.velocity = Vector2.ZERO
 	player.set_physics_process(true)
-	while not puff.worn() > 0.0:
-		await physics_frame
+	await until(func() -> bool: return puff.worn() > 0.0)
 	player.global_position = puff.global_position + Vector2(400, -2000)
 	player.set_physics_process(false)
 	for i: int in range(int(Puff.STAND * 60.0) + 10):
@@ -355,8 +300,7 @@ func updrafts() -> void:
 		camera.reset_smoothing()
 		await process_frame
 	var t0: float = float(art.get("t")) if art != null else 0.0
-	for i: int in range(10):
-		await process_frame
+	await until(func() -> bool: return draft.visible and draft.can_process() and (art == null or float(art.get("t")) > t0))
 	check(draft.visible and draft.can_process() and (art == null or float(art.get("t")) > t0), "looking at the top of a %d-cell shaft, its wind still shows and moves" % draft.up)
 	player.global_position = Vector2(draft.rect.get_center().x, draft.rect.end.y - 40.0)
 	player.velocity = Vector2.ZERO
@@ -380,8 +324,7 @@ func _bolt(at: Node2D, offset: Vector2, reflected: bool = false) -> void:
 	bolt.set("reflected", reflected)
 	info.map_elements.add_child(bolt)
 	bolt.global_position = from
-	for i: int in range(20):
-		await physics_frame
+	await until(gone(bolt), 3000)
 
 
 func shields() -> void:
@@ -440,11 +383,11 @@ func rebounds() -> void:
 	shot.global_position = info.cell_position(spot + Vector2i.LEFT)
 	shot.call("setup", Vector2(300, 0), [], player)
 	shot.set("bounces", 2)
-	# Up to a few seconds' frames: it flies a cell and a half to the wall, slower when frames are short.
-	for i: int in range(300):
-		await process_frame
-		if not is_instance_valid(shot) or (shot.get("velocity") as Vector2).x < 0.0:
-			break
+	# Up to five seconds: it flies a cell and a half to the wall, slower when frames are short.
+	var shot_id: int = shot.get_instance_id()
+	await until(func() -> bool:
+		var s: Node2D = instance_from_id(shot_id) as Node2D
+		return s == null or (s.get("velocity") as Vector2).x < 0.0, 5000)
 	check(is_instance_valid(shot) and (shot.get("velocity") as Vector2).x < 0.0 and int(shot.get("bounces")) == 1, "it glances off the wall and comes back")
 	if is_instance_valid(shot):
 		shot.queue_free()
@@ -462,8 +405,7 @@ func birds() -> void:
 	# its reach but near enough that its part of the level stays awake).
 	player.global_position = rb.global_position + Vector2(0, -300)
 	var start: Vector2 = rb.global_position
-	for i: int in range(60):
-		await physics_frame
+	await until(func() -> bool: return absf(rb.global_position.y - float(bird.get("height"))) < 8.0 and rb.global_position.x != start.x)
 	var span: Vector2 = bird.get("span")
 	check(absf(rb.global_position.y - float(bird.get("height"))) < 8.0 and rb.global_position.x != start.x and rb.global_position.x >= span.x - 1.0 and rb.global_position.x <= span.y + 1.0, "it patrols along its height")
 	# The wizard below: it swoops down at them and back up to its height. A bird only swoops where
@@ -495,6 +437,5 @@ func birds() -> void:
 			break
 	player.global_position = rb.global_position + Vector2(0, -300)
 	check(swooped and low > float(bird.get("height")) + 300.0, "with the wizard 300 px below, it swoops down past them (%d px)" % int(low - float(bird.get("height"))))
-	for i: int in range(60):
-		await physics_frame
+	await until(func() -> bool: return not bool(bird.call("swooping")) and absf(rb.global_position.y - float(bird.get("height"))) < 8.0)
 	check(not bool(bird.call("swooping")) and absf(rb.global_position.y - float(bird.get("height"))) < 8.0, "and climbs back to its height")

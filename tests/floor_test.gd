@@ -1,35 +1,8 @@
-extends SceneTree
+extends TestKit
 ## Things you stand at to use them (exits, the shrine, lanterns, the ink well, relics, bells,
 ## switches, teleporters) always keep something under them: where the rock under one is broken, a
 ## ledge appears in its place (MapInfo.prop_up), at once and again whenever the level loads.
 ## godot --headless --path . --script res://tests/floor_test.gd
-
-var main: Node
-var info: MapInfo
-var player: Player
-var failed: bool = false
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
-
-
-func settle(frames: int = 4) -> void:
-	await process_frame
-	var deadline: int = Time.get_ticks_msec() + 30000
-	while (info.world == null or info.travelling) and Time.get_ticks_msec() < deadline:
-		await process_frame
-	for i: int in range(frames):
-		await physics_frame
-		await process_frame
 
 
 func ledges_at(c: Vector2i) -> int:
@@ -41,17 +14,7 @@ func ledges_at(c: Vector2i) -> int:
 
 
 func run() -> void:
-	main = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	RunState.save_path = "user://floor_test.save"
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	menu.start_game()
-	await process_frame
-	await process_frame
-	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	player = main.get_node("Player") as Player
-	await settle()
+	await boot()
 	player.set_physics_process(false)
 
 	var w: LevelGen = info.world
@@ -92,9 +55,4 @@ func run() -> void:
 	check(ledges_at(under_lantern) == 1 and ledges_at(under_shrine) == 1 and ledges_at(bare) == 0, "the ledges are back with the level")
 
 	RunState.delete_save()
-	if failed:
-		print("FAILED")
-		quit(1)
-	else:
-		print("PASS: floors under things you stand at")
-		quit()
+	finish()

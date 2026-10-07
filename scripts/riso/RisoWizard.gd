@@ -113,43 +113,6 @@ func orb_flare() -> void:
 	orb_flare_amount = 1.0
 
 
-## How ready the spell in the slot is, 0..1 (the orb's brightness), or -1 with no spell.
-func _spell_ready() -> float:
-	# Drowsy in sleep fog: the spell is off.
-	if Abilities.spell(player) != &"" and player.is_drowsy():
-		return 0.0
-	if Abilities.spell(player) != &"" and Abilities.cast_price_here(player) > player.coins.coins:
-		# Not enough stars to cast it.
-		return 0.0
-	match Abilities.spell(player):
-		&"":
-			return -1.0
-		&"mend":
-			var mend: Mend = player.get_node_or_null("Mend") as Mend
-			return mend.readiness() if mend != null else 1.0
-		&"hex":
-			var hex: Hex = player.get_node_or_null("Hex") as Hex
-			return hex.readiness() if hex != null else 1.0
-		&"levitate":
-			var lev: Levitate = player.get_node_or_null("Levitate") as Levitate
-			return 1.0 if lev == null or lev.charged or lev.floating() else 0.0
-		&"parry":
-			var parry: Parry = player.get_node_or_null("Parry") as Parry
-			var cd: ActionTimer = parry.cooldown if parry != null else null
-			if cd == null or not cd.acted:
-				return 1.0
-			return 1.0 - clampf(cd.acting / cd.MAX_TIME, 0.0, 1.0) if cd.is_acting() else 0.0
-		&"awareness":
-			# After sensing, the short cooldown before the next ping.
-			var aware: Awareness = player.get_node_or_null("Awareness") as Awareness
-			if aware != null and not aware.active() and aware.cooldown > 0.0:
-				return 1.0 - clampf(aware.cooldown / Awareness.COOLDOWN, 0.0, 1.0)
-		&"warp":
-			var warp: Warp = player.get_node_or_null("Warp") as Warp
-			return warp.readiness() if warp != null else 1.0
-	return 1.0
-
-
 func _on_event(kind: StringName, at: Vector2) -> void:
 	if kind == &"jump":
 		# Thrown back as the jump lifts the wizard, the hat tip trailing down.
@@ -578,7 +541,7 @@ var _orb_was_ready: bool = true
 
 
 func _orb(m: Transform2D, f: float) -> void:
-	var r: float = _spell_ready()
+	var r: float = Abilities.readiness(player)
 	if r < 0.0:
 		return
 	var at: Vector2 = m * Vector2(-f * 11.5, -17.5 + sin(t * 2.2) * 1.0)
@@ -591,7 +554,7 @@ func _orb(m: Transform2D, f: float) -> void:
 			beads.append(RisoShapes.circle(at + Vector2((float(k) - float(n - 1) * 0.5) * 2.6, 6.2), 0.9, 8))
 		if not beads.is_empty():
 			body.ink(RisoPrint.EYE, 1.0, beads)
-	var run: Vector2 = _spell_running()
+	var run: Vector2 = Abilities.running(player)
 	var running: bool = run.x >= 0.0
 	var ready: bool = running or r >= 1.0
 	if ready and not _orb_was_ready:
@@ -663,26 +626,6 @@ func _arc(c: Vector2, rad: float, w: float, frac: float) -> PackedVector2Array:
 	inner.reverse()
 	outer.append_array(inner)
 	return outer
-
-
-## A spell running now: (fraction of its time left, seconds left); x < 0 when nothing is running.
-func _spell_running() -> Vector2:
-	match Abilities.spell(player):
-		&"astral":
-			var astral: AstralProjection = player.get_node_or_null("AstralProjection") as AstralProjection
-			if astral != null and astral.projecting():
-				var timer: ActionTimer = astral.projection_timer
-				return Vector2(clampf(timer.acting / timer.MAX_TIME, 0.0, 1.0), timer.acting)
-		&"awareness":
-			var aware: Awareness = player.get_node_or_null("Awareness") as Awareness
-			if aware != null and aware.active():
-				var total: float = 5.0 + 2.5 * float(aware.level - 1)
-				return Vector2(clampf(aware.sensing / total, 0.0, 1.0), aware.sensing)
-		&"levitate":
-			var lev: Levitate = player.get_node_or_null("Levitate") as Levitate
-			if lev != null and lev.floating():
-				return Vector2(clampf(lev.remaining / Levitate.FLOAT_TIME, 0.0, 1.0), lev.remaining)
-	return Vector2(-1.0, 0.0)
 
 
 ## Vulnerable: the hat's glow is out. The bead splits into two pink halves with a gap between

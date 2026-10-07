@@ -51,7 +51,7 @@ func run() -> void:
 	var worst: int = 0
 	for world_seed: int in range(1, 41):
 		var at: Vector2i = Vector2i(world_seed, 0)
-		var def: NextWorldDef = MapInfo.def_for(at)
+		var def: NextWorldDef = Rules.def_for(at)
 		var w: LevelGen = LevelGen.new(wfc.call("generate_level", def), def)
 		levels += 1
 		if w.start_side < 0:
@@ -63,7 +63,7 @@ func run() -> void:
 		worst = maxi(worst, d)
 		if d <= 16:
 			near += 1
-		var colour: int = MapInfo.lateral_lock(at, w.start_side)
+		var colour: int = Rules.lateral_lock(at, w.start_side)
 		var key: Variant = null
 		if w.is_valid(w.start_key) and w.get_cell(w.start_key).type == LevelGen.Type.KEY and int(w.get_cell(w.start_key).extra_info) == colour:
 			key = w.start_key

@@ -43,6 +43,11 @@ func readiness() -> float:
 	return 1.0 if draughts() > 0 else 0.0
 
 
+## A heal is done at once: never running (see Abilities.running).
+func running() -> Vector2:
+	return Vector2(-1.0, 0.0)
+
+
 ## Heal, if hurt and a draught is left. Returns whether it healed.
 func cast() -> bool:
 	if player == null or draughts() <= 0 or player.health.health >= player.health.max_health:

@@ -33,7 +33,7 @@ func used() -> bool:
 func offers() -> Array[StringName]:
 	if map_info == null:
 		return []
-	return Abilities.offers(MapInfo.level_seed(map_info.coord.x, map_info.coord.y), player, BOONS)
+	return Abilities.offers(Rules.level_seed(map_info.coord.x, map_info.coord.y), player, BOONS)
 
 
 ## The ability in niche `i` (0 or 1), or &"" when there is nothing left to offer there.
@@ -139,11 +139,11 @@ func sells_skeleton() -> bool:
 ## marked waits to be found.
 static func sells_skeleton_at(at: Vector2i, hinted: bool) -> bool:
 	var chance: int = SKELETON_SALE_HINTED if hinted else SKELETON_SALE
-	return MapInfo.level_seed(MapInfo.level_seed(at.x, at.y), 6100) % 100 < chance
+	return Rules.level_seed(Rules.level_seed(at.x, at.y), 6100) % 100 < chance
 
 
 func skeleton_price() -> int:
-	return roundi(SKELETON_PRICE * float(MapInfo.deeper_price(depth())))
+	return roundi(SKELETON_PRICE * float(Rules.deeper_price(depth())))
 
 
 ## The move the relic it would point to holds, or &"".

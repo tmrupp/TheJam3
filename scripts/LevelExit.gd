@@ -23,11 +23,18 @@ func price() -> int:
 
 ## The key colour this exit still needs, or -1 when it is open (only left and right lock).
 func lock() -> int:
-	if map_info == null or not (exit == MapInfo.Exit.LEFT or exit == MapInfo.Exit.RIGHT):
+	if map_info == null:
 		return -1
-	if (map_info.record().lateral_open as Dictionary).has(exit):
+	return lock_at(map_info.coord, exit, map_info.record())
+
+## The key colour exit `which` of the level at `at` still needs, as its record `rec` leaves it, or
+## -1 when it is open (the map asks this of levels not being played too).
+static func lock_at(at: Vector2i, which: int, rec: LevelRecord) -> int:
+	if not (which == MapInfo.Exit.LEFT or which == MapInfo.Exit.RIGHT):
 		return -1
-	return MapInfo.lateral_lock(map_info.coord, exit)
+	if (rec.lateral_open as Dictionary).has(which):
+		return -1
+	return Rules.lateral_lock(at, which)
 
 func interaction_hint() -> Dictionary:
 	var needs: int = lock()

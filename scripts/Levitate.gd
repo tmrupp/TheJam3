@@ -36,6 +36,18 @@ func cast_spell() -> bool:
 	return true
 
 
+## Ready while a float is charged (or one is under way, to let go): 1, else 0.
+func readiness() -> float:
+	return 1.0 if charged or floating() else 0.0
+
+
+## While floating: (the fraction of FLOAT_TIME left, seconds left); x < 0 when not.
+func running() -> Vector2:
+	if not floating():
+		return Vector2(-1.0, 0.0)
+	return Vector2(clampf(remaining / FLOAT_TIME, 0.0, 1.0), remaining)
+
+
 func elapse(delta: float) -> void:
 	if not floating():
 		remaining = 0.0

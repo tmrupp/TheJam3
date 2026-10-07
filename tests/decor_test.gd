@@ -1,25 +1,12 @@
-extends SceneTree
+extends TestKit
 ## The surface decor, lantern light and ambient life: decor is a pure function of the level,
 ## stays inside it and clear of structures, never touches the level's RNG, and the life and
 ## light turn up where they should.
 ## godot --headless --path . --script res://tests/decor_test.gd
 
-var main: Node
-var info: MapInfo
-var player: Player
-var failed: bool = false
 
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
+## How long to watch one spot for its fireflies or ink drops (they fade in and out), in ms.
+const LIFE_WAIT_MS: int = 3000
 
 
 ## Each prop's kind and cell (plants also keep their live sway, which depends on timing).
@@ -27,25 +14,8 @@ func layout(items: Array) -> Array:
 	return items.map(func(it: Dictionary) -> Array: return [it["kind"], it["cell"]])
 
 
-func settle() -> void:
-	await process_frame
-	while info.world == null or info.travelling:
-		await process_frame
-	for i: int in range(4):
-		await physics_frame
-		await process_frame
-
-
 func run() -> void:
-	main = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	RunState.save_path = "user://decor_test.save"
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	menu.start_game()
-	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	player = main.get_node("Player") as Player
-	await settle()
+	await boot()
 	player.set_physics_process(false)
 	var decor: RisoDecor = main.get_node("RisoDecor") as RisoDecor
 
@@ -99,9 +69,9 @@ func run() -> void:
 				break
 			cam.global_position = list[n]
 			cam.reset_smoothing()
-			for i: int in range(150):
-				await process_frame
+			await until(func() -> bool:
 				seen[what] = maxi(int(seen[what]), int((ambient.get("counts") as Dictionary)[what]))
+				return int(seen[what]) > 0, LIFE_WAIT_MS)
 	check(int(seen["fireflies"]) > 0 and int(seen["drops"]) > 0, "fireflies and ink drops show where they live: %s" % [seen])
 	cam.global_position = light.glass(light.lanterns[0], info)
 	cam.reset_smoothing()
@@ -111,9 +81,4 @@ func run() -> void:
 		moths_absent = moths_absent and int((ambient.get("counts") as Dictionary)["moths"]) == 0
 	check(moths_absent, "no insects orbit the lantern")
 
-	if failed:
-		print("FAILED")
-		quit(1)
-	else:
-		print("PASS: decor")
-		quit()
+	finish()

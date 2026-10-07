@@ -20,8 +20,9 @@ class_name Abilities
 ## - "max": its top tier; "base": the tier a run starts with (0 when not given);
 ## - "spell": true for the spells, which share the slot; "cost": stars a cast at depth 0 (see
 ##   cast_price), for a spell that costs any;
-## - "node": the wizard's child that does it, told its tier by `set_tier(n)` (and cast by
-##   `cast_spell() -> bool` when a spell). With "make" (the path of its script, or of its scene)
+## - "node": the wizard's child that does it, told its tier by `set_tier(n)` (and, when a spell,
+##   cast by `cast_spell() -> bool`, asked how ready it is by `readiness() -> float` and how long it
+##   has left by `running() -> Vector2`, for the spell orb). With "make" (the path of its script, or of its scene)
 ##   it exists only while the ability is known (or always, with "always"); without, it is part of
 ##   the wizard's scene.
 const ABILITIES: Dictionary = {
@@ -236,12 +237,36 @@ static func cast(player: Player) -> void:
 	var cost: int = cast_price_here(player)
 	if cost > player.coins.coins:
 		return
-	var a: StringName = spell(player)
-	if a == &"":
-		return
-	var node: Node = player.get_node_or_null(String(ABILITIES[a]["node"]))
+	var node: Node = spell_node(player)
 	if node != null and bool(node.call(&"cast_spell")) and cost > 0:
 		player.collect(-cost)
+
+
+## The node of the spell in the slot, or null when the slot is empty (or its node is not made yet).
+static func spell_node(player: Player) -> Node:
+	var a: StringName = spell(player)
+	if a == &"":
+		return null
+	return player.get_node_or_null(String(ABILITIES[a]["node"]))
+
+
+## How ready the spell in the slot is to cast, 0..1 (1 when it can be), as its node says
+## (`readiness`); -1 when the slot is empty. Drowsy in sleep fog, or short of the stars a cast
+## costs, it is 0.
+static func readiness(player: Player) -> float:
+	if spell(player) == &"":
+		return -1.0
+	if player.is_drowsy() or cast_price_here(player) > player.coins.coins:
+		return 0.0
+	var node: Node = spell_node(player)
+	return float(node.call(&"readiness")) if node != null else 1.0
+
+
+## The spell in the slot while it runs, as its node says (`running`): (the fraction of its time
+## left, seconds left); x < 0 when nothing is running.
+static func running(player: Player) -> Vector2:
+	var node: Node = spell_node(player)
+	return node.call(&"running") as Vector2 if node != null else Vector2(-1.0, 0.0)
 
 
 ## Push every tier into the wizard: its own moves (Player.tune_moves), then each ability's node,

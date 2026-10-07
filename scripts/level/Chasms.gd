@@ -125,6 +125,19 @@ static func _record(planks: Array[Vector2i], y: int, a: int, span: int) -> Dicti
 	return {"planks": planks, "row": y, "left": Vector2i(a - 1, y), "right": Vector2i(a + span, y)}
 
 
+## Whether cell `c` is in or beside any chasm's or gap's kept air: within two columns of a plank,
+## from a row over the air kept clear above it to a row under its pit.
+static func near(w: LevelGen, c: Vector2i) -> bool:
+	for chasm: Dictionary in w.chasms:
+		var row: int = chasm["row"]
+		if c.y < row - CHASM_CLEAR - 1 or c.y > row + CHASM_DEPTH + 1:
+			continue
+		for plank: Vector2i in chasm["planks"]:
+			if absi(plank.x - c.x) <= 2:
+				return true
+	return false
+
+
 ## `spots` ([.., row, first cell, width] at the end of each) less those too near a chasm on row
 ## `y` from `a`, `span` cells wide.
 static func apart(spots: Array, y: int, a: int, span: int) -> Array:
@@ -180,7 +193,7 @@ static func place_bells(w: LevelGen, crossing: LevelGen.Type, switch_reach: int)
 				continue
 			w.add_object_at(at)
 			# One draw, as randi_range was, so the rest of the level lands where it did.
-			var lock: int = MapInfo.rarity_color(int(w.rng.randi()))
+			var lock: int = Rules.rarity_color(int(w.rng.randi()))
 			if w.rng.randf() < 0.5:
 				var lever: Variant = _bell_switch(w, at, switch_reach)
 				if lever != null:
@@ -199,38 +212,20 @@ static func _bell_switch(w: LevelGen, bell: Vector2i, reach_cells: int) -> Varia
 		for plank: Vector2i in chasm["planks"]:
 			for d: int in range(-CHASM_CLEAR - 1, CHASM_DEPTH + 2):
 				blocked[Vector2i(plank.x, row + d)] = true
-	var reach: Dictionary = {bell: true}
-	var queue: Array[Vector2i] = [bell]
-	while not queue.is_empty():
-		var c: Vector2i = queue.pop_back()
-		for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
-			var n: Vector2i = c + d
-			if w._open(n) and not blocked.has(n) and not reach.has(n):
-				if reach_cells >= 0 and LevelGen.dist(n, bell) > reach_cells:
-					continue
-				reach[n] = true
-				queue.append(n)
-	var free: Dictionary = w.empty_set()
-	var choices: Array[Vector2i] = []
-	for v: Vector2i in reach:
-		if free.has(v) and w.get_cell(v).type == LevelGen.Type.EMPTY and w.ground_below(v) and LevelGen.dist(v, bell) >= BELL_SWITCH:
-			choices.append(v)
-	if choices.is_empty():
-		return null
-	choices.sort()
-	return w.pick(choices)
+	var reach: Dictionary = w.reach_from(bell, func(n: Vector2i) -> bool: return not blocked.has(n) and (reach_cells < 0 or LevelGen.dist(n, bell) <= reach_cells))
+	return w._pick_floor_in(reach, bell, BELL_SWITCH)
 
 
-## Deep down (MapInfo.relic_need), some chasms and gaps are left to the relic moves: their bells
+## Deep down (Rules.relic_need), some chasms and gaps are left to the relic moves: their bells
 ## or vanes go, with the switches that free them, and their bridge's planks or their wind. Dealt
 ## by the level seed per chasm, never the world RNG, and done last: the level is laid out as it
 ## always was, then these are taken away. Kept in LevelGen.relic_chasms.
 static func relax_crossings(w: LevelGen, def: NextWorldDef) -> void:
-	var need: int = MapInfo.relic_need(def.depth)
+	var need: int = Rules.relic_need(def.depth)
 	if need <= 0:
 		return
 	for id: int in range(w.chasms.size()):
-		if MapInfo.level_seed(w.seed_for_colors, RELIC_DEAL + id) % 100 < need:
+		if Rules.level_seed(w.seed_for_colors, RELIC_DEAL + id) % 100 < need:
 			w.relic_chasms.append(id)
 	if w.relic_chasms.is_empty():
 		return

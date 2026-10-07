@@ -16,7 +16,7 @@ func capture() -> void:
 	var menu: Node = main.get_node("Menu")
 	var seed_value: int = 4
 	for s: int in range(1, 120):
-		if MapInfo.level_seed(MapInfo.def_for(Vector2i(s, 1)).gen_seed, 777) % 100 < Hyperspace.CHANCE:
+		if Rules.level_seed(Rules.def_for(Vector2i(s, 1)).gen_seed, 777) % 100 < Hyperspace.CHANCE:
 			seed_value = s
 			break
 	menu.world_seed.text = str(seed_value)

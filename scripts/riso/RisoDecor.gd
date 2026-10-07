@@ -6,7 +6,7 @@ class_name RisoDecor
 ##   rounded leafage along stretches of floor, as long as the stretch allows, behind the fences.
 ## - Ceilings: hanging roots, stalactites, ink drips (RisoAmbient drops ink from them).
 ## - Walls: vines down the rock face.
-## A cemetery (NextWorldDef.archetype) has its own: headstones (rounded, gothic, cross-topped,
+## A cemetery has its own plan (PLANS, by Archetype.decor): headstones (rounded, gothic, cross-topped,
 ## broken, flat ledgers), crosses, obelisks, urns, angels, grave flowers, bare trees and dry grass
 ## on its floors, cobwebs and roots under its ceilings, ivy on its walls.
 ## The sky has its own too: grass, flowers and stones on its islands, standing stones, stone piles
@@ -92,24 +92,48 @@ func _ready() -> void:
 
 ## A stable 0..1 hash of the level seed, a cell and a salt.
 static func h(level_seed: int, v: Vector2i, salt: int) -> float:
-	var x: int = MapInfo.level_seed(level_seed ^ (salt * 2654435), v.x * 7919 + v.y * 104729 + salt)
+	var x: int = Rules.level_seed(level_seed ^ (salt * 2654435), v.x * 7919 + v.y * 104729 + salt)
 	return float(x % 100000) / 100000.0
 
 
-## Work out every prop for a level (pure: the same inputs always give the same plan).
-static func plan(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, archetype: StringName = &"garden", sky_bottom_style: StringName = &"roots") -> Array[Dictionary]:
-	if archetype == &"cemetery":
-		var graves: Array[Dictionary] = plan_cemetery(solid, occupied, level_seed, bounds)
-		for run: Dictionary in fence_runs(solid, occupied, level_seed, bounds):
-			run["iron"] = true
-			graves.append(run)
-		return graves
-	if archetype == &"sky":
-		var isles: Array[Dictionary] = plan_sky(solid, occupied, level_seed, bounds, sky_bottom_style)
-		for run: Dictionary in fence_runs(solid, occupied, level_seed, bounds):
-			run["bunting"] = true
-			isles.append(run)
-		return isles
+## The decor plans, by name (Archetype.decor, NextWorldDef.decor): each works out every prop for a
+## level from (solid, occupied, level seed, bounds, the sky's bottom style). A band with a look of
+## its own adds its plan here; any other name gets the garden's.
+static var PLANS: Dictionary = {
+	&"garden": plan_garden,
+	&"cemetery": plan_graveyard,
+	&"sky": plan_isles,
+}
+
+
+## Work out every prop for a level (pure: the same inputs always give the same plan), by the plan
+## named `decor` (see PLANS).
+static func plan(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, decor: StringName = &"garden", sky_bottom_style: StringName = &"roots") -> Array[Dictionary]:
+	var by: Callable = PLANS.get(decor, PLANS[&"garden"])
+	return by.call(solid, occupied, level_seed, bounds, sky_bottom_style)
+
+
+## A cemetery's plan: its graves and props (plan_cemetery), and iron railings along its floors.
+static func plan_graveyard(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, _bottom_style: StringName = &"roots") -> Array[Dictionary]:
+	var graves: Array[Dictionary] = plan_cemetery(solid, occupied, level_seed, bounds)
+	for run: Dictionary in fence_runs(solid, occupied, level_seed, bounds):
+		run["iron"] = true
+		graves.append(run)
+	return graves
+
+
+## The sky's plan: its islands' props (plan_sky), and peace flags strung along their floors.
+static func plan_isles(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, bottom_style: StringName = &"roots") -> Array[Dictionary]:
+	var isles: Array[Dictionary] = plan_sky(solid, occupied, level_seed, bounds, bottom_style)
+	for run: Dictionary in fence_runs(solid, occupied, level_seed, bounds):
+		run["bunting"] = true
+		isles.append(run)
+	return isles
+
+
+## The garden's plan (and any level's without one of its own): fences, hedges, and plants, roots
+## and vines on the rock.
+static func plan_garden(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, _bottom_style: StringName = &"roots") -> Array[Dictionary]:
 	var out: Array[Dictionary] = fence_runs(solid, occupied, level_seed, bounds)
 	out.append_array(shrub_runs(solid, occupied, level_seed, bounds))
 	var cells: Array = solid.keys()
@@ -345,9 +369,9 @@ func rebuild(info: MapInfo, cracked_positions: Array[Vector2] = []) -> void:
 		if file in TALL:
 			for d: Vector2i in [Vector2i(-2, 0), Vector2i(2, 0), Vector2i(3, 0)]:
 				occupied[c + d] = true
-	var level_seed: int = MapInfo.level_seed(info.coord.x, info.coord.y)
+	var level_seed: int = Rules.level_seed(info.coord.x, info.coord.y)
 	var bottoms: StringName = RisoPrint.instance.sky_bottom_style if RisoPrint.instance != null else &"roots"
-	items = RisoDecor.plan(solid, occupied, level_seed, Rect2i(Vector2i.ZERO, info.world.size), info.here.archetype, bottoms)
+	items = RisoDecor.plan(solid, occupied, level_seed, Rect2i(Vector2i.ZERO, info.world.size), info.here.decor(), bottoms)
 	# Nothing grows in some side worlds (NextWorldDef.grows).
 	if not info.here.grows():
 		items.clear()

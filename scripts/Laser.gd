@@ -26,7 +26,7 @@ func setup(map_info: MapInfo, v: Vector2i, info: Variant = null) -> void:
 	if info is Vector2i:
 		dir = Vector2(info as Vector2i)
 	# Out of step with its neighbours, but the same on every visit.
-	t = float(MapInfo.level_seed(v.x, v.y) % 1000) / 1000.0 * PERIOD
+	t = float(Rules.level_seed(v.x, v.y) % 1000) / 1000.0 * PERIOD
 	var tm: TileMap = map_info.tile_map
 	var half: float = float(tm.tile_set.tile_size.x) * tm.global_scale.x * 0.5
 	beam.position = muzzle_offset(half)

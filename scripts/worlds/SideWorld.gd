@@ -37,7 +37,7 @@ func deals(_at: Vector2i) -> bool:
 
 ## Stars for its door in a level `level_depth` deep.
 func entry_price(level_depth: int) -> int:
-	return roundi(MapInfo.deeper_price(level_depth) * price_factor)
+	return roundi(Rules.deeper_price(level_depth) * price_factor)
 
 
 ## Where the way on leads, for the world entered from level `from`.
@@ -62,7 +62,7 @@ func setup(at: Vector2i) -> NextWorldDef:
 	debug = MapInfo.debug
 	kind = Worlds.kind_at(at)
 	depth = depth_for(origin())
-	gen_seed = MapInfo.level_seed(at.x, at.y)
+	gen_seed = Rules.level_seed(at.x, at.y)
 	region = sample if sample != "" else GardenArchetype.SAMPLE
 	size = cells
 	return self

@@ -24,7 +24,7 @@ func run() -> void:
 	camera.zoom = Vector2.ONE * 0.7
 	camera.reset_smoothing()
 	var keys: Array[Node2D] = []
-	for color: int in range(MapInfo.KEY_COLOR_COUNT):
+	for color: int in range(Rules.KEY_COLOR_COUNT):
 		var key: Node2D = load("res://prefabs/key.tscn").instantiate()
 		key.set_meta(&"key_color", color)
 		key.position = base + Vector2((float(color) - 1.5) * 55.0, 0)

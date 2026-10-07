@@ -1,45 +1,10 @@
-extends SceneTree
+extends TestKit
 ## Secret rooms and relics: rooms are pockets of rock behind a false wall beside a floor, hidden
 ## (plain rock, even on the map) until stepped into or struck by a hex bolt; then the room opens
 ## for good and its rewards appear. Relic levels keep a move in theirs; taking it teaches tier I
 ## (for a lot of stars), which shrines never offer; at full health a shrine sells the whereabouts of
 ## the nearest relic not yet found.
 ## godot --headless --path . --script res://tests/secrets_test.gd
-
-var main: Node
-var info: MapInfo
-var player: Player
-var failed: bool = false
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
-
-
-func settle(frames: int = 6) -> void:
-	await process_frame
-	var deadline: int = Time.get_ticks_msec() + 30000
-	while (info.world == null or info.travelling) and Time.get_ticks_msec() < deadline:
-		await process_frame
-	for i: int in range(frames):
-		await physics_frame
-		await process_frame
-
-
-func placed(scene: String) -> Array[Node]:
-	var found: Array[Node] = []
-	for node: Node in info.map_elements.get_children():
-		if node.scene_file_path.get_file() == scene and not node.is_queued_for_deletion():
-			found.append(node)
-	return found
 
 
 ## Whether every secret in `w` is a pocket of rock with rock under it, entered from a floor.
@@ -73,12 +38,6 @@ func well_formed(w: LevelGen) -> bool:
 
 
 func run() -> void:
-	main = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	RunState.save_path = "user://secrets_test.save"
-	await process_frame
-	var wfc: Node = main.get_node("WaveFunctionCollapse")
-
 	print("generation")
 	var levels: int = 0
 	var with_secret: int = 0
@@ -88,8 +47,8 @@ func run() -> void:
 	var relic_seed: int = -1
 	for world_seed: int in range(1, 26):
 		for depth: int in [0, 1, Relics.MIN_DEPTH]:
-			var def: NextWorldDef = MapInfo.def_for(Vector2i(world_seed, depth))
-			var w: LevelGen = LevelGen.new(wfc.call("generate_level", def), def)
+			var def: NextWorldDef = Rules.def_for(Vector2i(world_seed, depth))
+			var w: LevelGen = LevelGen.new(collapse(def.coord), def)
 			levels += 1
 			if not w.secrets.is_empty():
 				with_secret += 1
@@ -107,10 +66,10 @@ func run() -> void:
 	# Relics are rare: if the sample had none at their first depth, find one.
 	if relic_seed < 0:
 		relic_seed = 1
-		while Relics.at(Vector2i(relic_seed, Relics.MIN_DEPTH)) == &"" or MapInfo.relic_gated_at(Vector2i(relic_seed, Relics.MIN_DEPTH)) or not gives_hints(Vector2i(relic_seed, Relics.MIN_DEPTH)):
+		while Relics.at(Vector2i(relic_seed, Relics.MIN_DEPTH)) == &"" or Rules.relic_gated_at(Vector2i(relic_seed, Relics.MIN_DEPTH)) or not gives_hints(Vector2i(relic_seed, Relics.MIN_DEPTH)):
 			relic_seed += 1
-		var def: NextWorldDef = MapInfo.def_for(Vector2i(relic_seed, Relics.MIN_DEPTH))
-		var w: LevelGen = LevelGen.new(wfc.call("generate_level", def), def)
+		var def: NextWorldDef = Rules.def_for(Vector2i(relic_seed, Relics.MIN_DEPTH))
+		var w: LevelGen = LevelGen.new(collapse(def.coord), def)
 		relic_levels += 1
 		if w.secrets.any(func(s: Dictionary) -> bool: return (s["rewards"] as Array).any(func(r: Array) -> bool: return r[1] == LevelGen.Type.RELIC and StringName(r[2]) == def.relic)):
 			relic_in_room += 1
@@ -125,8 +84,7 @@ func run() -> void:
 	check(depth0 == 0, "no relics at depth 0 (outside debug)")
 
 	print("shrines hold the moves back")
-	menu_start(relic_seed)
-	await settle()
+	await boot(relic_seed)
 	player.set_physics_process(false)
 	var gated: bool = true
 	for s: int in range(0, 60):
@@ -152,8 +110,7 @@ func run() -> void:
 	bolt.set("dir", Vector2(entry - stand))
 	info.map_elements.add_child(bolt)
 	bolt.global_position = info.cell_position(stand)
-	for i: int in range(20):
-		await physics_frame
+	await until(func() -> bool: return (info.record().secrets as Dictionary).has(0))
 	check((info.record().secrets as Dictionary).has(0), "a bolt passes the false wall and, striking the rock behind it, opens the room")
 	await process_frame
 	check(placed("cracked_wall.tscn").filter(func(n: Node) -> bool: return int(n.get_meta(&"secret", -1)) == 0).is_empty(), "the whole room crumbles")
@@ -181,12 +138,10 @@ func run() -> void:
 	var door: Vector2i = secret["entrance"][0]
 	check(img.get_pixel(room_cell.x, room_cell.y).a > 0.5 and img.get_pixel(door.x, door.y).a > 0.5, "an inked map shows the room and its false wall as rock")
 	player.global_position = info.cell_position(beside(door))
-	for i: int in range(3):
-		await physics_frame
+	await frames(3)
 	check(not (info.record().secrets as Dictionary).has(0), "standing beside it opens nothing")
 	player.global_position = info.cell_position(door)
-	for i: int in range(3):
-		await physics_frame
+	await until(func() -> bool: return (info.record().secrets as Dictionary).has(0))
 	check((info.record().secrets as Dictionary).has(0), "stepping into the false wall opens the room")
 	await process_frame
 	var relics: Array[Node] = placed("relic.tscn")
@@ -198,7 +153,7 @@ func run() -> void:
 	var move: StringName = info.here.relic
 	var before: int = Abilities.tier(player, move)
 	var cost: int = int(relics[0].call("price"))
-	check(cost == Relics.price(Relics.MIN_DEPTH) and cost >= 4 * MapInfo.deeper_price(Relics.MIN_DEPTH), "it costs %d stars, a lot" % cost)
+	check(cost == Relics.price(Relics.MIN_DEPTH) and cost >= 4 * Rules.deeper_price(Relics.MIN_DEPTH), "it costs %d stars, a lot" % cost)
 	player.collect(cost - 1 - player.coins.coins)
 	relics[0].call("take")
 	await process_frame
@@ -235,12 +190,7 @@ func run() -> void:
 	check(info.next_relic() != next, "the next shrine would point to another one")
 	check(main.get_node("RisoMap").call("pickable", info).has(next), "the marked level can be picked on the worlds map")
 
-	if failed:
-		print("FAILED")
-		quit(1)
-	else:
-		print("PASSED")
-		quit()
+	finish()
 
 
 ## Whether the shrine in level `at` sells a relic's whereabouts rather than a skeleton key, even
@@ -248,14 +198,6 @@ func run() -> void:
 func gives_hints(at: Vector2i) -> bool:
 	var shrine_script: GDScript = preload("res://scripts/Shrine.gd")
 	return not bool(shrine_script.call("sells_skeleton_at", at, true))
-
-
-func menu_start(world_seed: int) -> void:
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = str(world_seed)
-	menu.start_game()
-	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	player = main.get_node("Player") as Player
 
 
 ## The floor spot beside a secret's entrance (outside the room).

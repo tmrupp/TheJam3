@@ -40,6 +40,8 @@ func capture() -> void:
 	camera.zoom *= 1.0
 	RisoPrint.instance.light.visible = false
 	var shots: Array[Image] = []
+	# A run starts with the spell slot empty: learn the hex (its node is made then).
+	Abilities.grant(player, &"hex")
 	var hex: Hex = player.get_node("Hex") as Hex
 	shots.append(await shot(camera, player, 4))
 	hex.charges = 0

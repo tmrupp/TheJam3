@@ -29,6 +29,16 @@ func cast_spell() -> bool:
 	return cast() != null
 
 
+## Always ready (its price in stars is checked apart, see Abilities.cast_price).
+func readiness() -> float:
+	return 1.0
+
+
+## An end is opened at once: never running (see Abilities.running).
+func running() -> Vector2:
+	return Vector2(-1.0, 0.0)
+
+
 func cast() -> Portal:
 	var info: MapInfo = MapInfo.instance
 	if player == null or info == null or info.travelling or info.map_elements == null or not is_instance_valid(info.map_elements):

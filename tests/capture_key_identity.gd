@@ -28,7 +28,7 @@ func run() -> void:
 	main.add_child(gallery)
 	gallery.position = base
 	gallery.begin()
-	for color: int in range(MapInfo.KEY_COLOR_COUNT):
+	for color: int in range(Rules.KEY_COLOR_COUNT):
 		var at: Vector2 = Vector2((float(color) - 1.5) * 135.0, -100)
 		var key: Node2D = load("res://prefabs/key.tscn").instantiate()
 		key.set_meta(&"key_color", color)

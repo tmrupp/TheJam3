@@ -1,49 +1,12 @@
-extends SceneTree
+extends TestKit
 ## The dash is the attack (DashStrike): dashing through an enemy stuns it without hurting the
 ## wizard, the strike perk makes it wound, a shield takes the dash and throws the wizard back,
 ## dashing into a cracked wall breaks it, and on the ground the dash only comes back after
 ## Player.DASH_GROUND_COOLDOWN. A blink strikes along its way and spends the moons it passes.
 ## godot --headless --path . --script res://tests/dash_strike_test.gd
 
-var main: Node
-var info: MapInfo
-var player: Player
-var failed: bool = false
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
-
-
-func settle(frames: int = 4) -> void:
-	await process_frame
-	var deadline: int = Time.get_ticks_msec() + 30000
-	while (info.world == null or info.travelling) and Time.get_ticks_msec() < deadline:
-		await process_frame
-	for i: int in range(frames):
-		await physics_frame
-		await process_frame
-
-
-func wait_physics(frames: int) -> void:
-	for i: int in range(frames):
-		await physics_frame
-
-
-func placed(scene: String) -> Array[Node]:
-	var found: Array[Node] = []
-	for node: Node in info.map_elements.get_children():
-		if node.scene_file_path.get_file() == scene and not node.is_queued_for_deletion():
-			found.append(node)
-	return found
+## Frames the directions are held through a dash (it is over by then).
+const DASH_HOLD: int = 20
 
 
 func open_cell(v: Vector2i) -> bool:
@@ -74,7 +37,8 @@ func press_dash(dir: Vector2 = Vector2.ZERO) -> void:
 	Input.action_press(&"Dash")
 	await physics_frame
 	Input.action_release(&"Dash")
-	await wait_physics(20)
+	# Hold the directions through the dash.
+	await frames(DASH_HOLD)
 	for a: StringName in held:
 		Input.action_release(a)
 
@@ -84,28 +48,18 @@ func stunned(e: Node) -> bool:
 
 
 func run() -> void:
-	main = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	RunState.save_path = "user://dash_strike_test.save"
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	menu.start_game()
-	await process_frame
-	await process_frame
-	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	player = main.get_node("Player") as Player
-	await settle()
+	await boot()
 	player.end_invulnerable()
 	var strike: DashStrike = player.get_node_or_null("DashStrike") as DashStrike
 	check(strike != null and strike.damage == 0 and Abilities.spell(player) == &"", "every wizard's dash strikes; no spell to start with")
 
 	print("on the ground")
 	player.global_position = info.respawn_marker.global_position
-	await wait_physics(30)
+	await until(func() -> bool: return player.is_on_floor() and not player.dash.acted)
 	check(player.is_on_floor() and not player.dash.acted, "standing, the dash is ready")
 	await press_dash()
 	check(player.is_on_floor() and player.dash.acted, "dashed on the ground: not back at once")
-	await wait_physics(roundi((Player.DASH_GROUND_COOLDOWN + 0.1) * 60.0) - 20)
+	await until(func() -> bool: return not player.dash.acted, roundi((Player.DASH_GROUND_COOLDOWN + 0.1) * 1000.0))
 	check(not player.dash.acted, "back after %.2f s" % Player.DASH_GROUND_COOLDOWN)
 
 	print("dashing through a wisp")
@@ -132,11 +86,11 @@ func run() -> void:
 	player.global_position = e.global_position + Vector2(20, -20)
 	player.velocity = Vector2.ZERO
 	player.set_physics_process(true)
-	await wait_physics(6)
+	await frames(6)
 	check(not player.get_collision_mask_value(DashStrike.ENEMY_LAYER), "enemies stay passable while the wizard is inside one")
 	check(player.global_position.distance_to(e.global_position) < 200.0, "so the wizard is not flung out of it (%.0f px off)" % player.global_position.distance_to(e.global_position))
 	player.global_position = e.global_position + side * 220.0 + Vector2(0, 16 - 31)
-	await wait_physics(3)
+	await until(func() -> bool: return player.get_collision_mask_value(DashStrike.ENEMY_LAYER))
 	check(player.get_collision_mask_value(DashStrike.ENEMY_LAYER), "and block again once the wizard is clear")
 
 	print("guarded while dashing")
@@ -207,9 +161,4 @@ func run() -> void:
 	strike.sweep(far.global_position - Vector2(250, 0), far.global_position + Vector2(250, 0))
 	check(stunned(far), "and what lies on its way is struck")
 
-	if failed:
-		print("FAILED")
-		quit(1)
-	else:
-		print("PASSED")
-		quit()
+	finish()

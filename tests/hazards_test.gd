@@ -1,43 +1,11 @@
-extends SceneTree
+extends TestKit
 ## Hoppers (from depth 1: they crouch and leap at the wizard, and a hex wounds them) and lasers
 ## (in hyperspace only: set in rock, firing on a cadence a beam that stops at the first wall,
 ## hurting only while it fires).
 ## godot --headless --path . --script res://tests/hazards_test.gd
 
-var main: Node
-var info: MapInfo
-var player: Player
-var failed: bool = false
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
-
-
-func settle(frames: int = 6) -> void:
-	await process_frame
-	var deadline: int = Time.get_ticks_msec() + 30000
-	while (info.world == null or info.travelling) and Time.get_ticks_msec() < deadline:
-		await process_frame
-	for i: int in range(frames):
-		await physics_frame
-		await process_frame
-
-
-func placed(scene: String) -> Array[Node]:
-	var found: Array[Node] = []
-	for node: Node in info.map_elements.get_children():
-		if node.scene_file_path.get_file() == scene and not node.is_queued_for_deletion():
-			found.append(node)
-	return found
+## How long a hopper is watched for its crouch and leap at the wizard, in ms.
+const HOP_WAIT_MS: int = 6000
 
 
 func count(w: LevelGen, type: int) -> int:
@@ -50,23 +18,17 @@ func count(w: LevelGen, type: int) -> int:
 
 
 func run() -> void:
-	main = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	RunState.save_path = "user://hazards_test.save"
-	await process_frame
-	var wfc: Node = main.get_node("WaveFunctionCollapse")
-
 	print("generation")
-	var shallow: NextWorldDef = MapInfo.def_for(Vector2i(28, 0))
-	var deep: NextWorldDef = MapInfo.def_for(Vector2i(28, 2))
-	var w0: LevelGen = LevelGen.new(wfc.call("generate_level", shallow), shallow)
-	var w2: LevelGen = LevelGen.new(wfc.call("generate_level", deep), deep)
+	var shallow: NextWorldDef = Rules.def_for(Vector2i(28, 0))
+	var deep: NextWorldDef = Rules.def_for(Vector2i(28, 2))
+	var w0: LevelGen = LevelGen.new(collapse(shallow.coord), shallow)
+	var w2: LevelGen = LevelGen.new(collapse(deep.coord), deep)
 	check(count(w0, LevelGen.Type.HOPPER) == 0 and count(w2, LevelGen.Type.HOPPER) >= 2, "no hoppers at depth 0, %d at depth 2" % count(w2, LevelGen.Type.HOPPER))
 	check(count(w0, LevelGen.Type.LASER) == 0 and count(w2, LevelGen.Type.LASER) == 0, "no lasers in ordinary levels")
 	var lasers_ok: bool = true
 	for world_seed: int in [1, 7, 28, 99]:
-		var def: NextWorldDef = MapInfo.def_for(Worlds.side_at(Worlds.kind_of(Hyperspace), Vector2i(world_seed, 3)))
-		var w: LevelGen = LevelGen.new(wfc.call("generate_level", def), def)
+		var def: NextWorldDef = Rules.def_for(Worlds.side_at(Worlds.kind_of(Hyperspace), Vector2i(world_seed, 3)))
+		var w: LevelGen = LevelGen.new(collapse(def.coord), def)
 		var n: int = count(w, LevelGen.Type.LASER)
 		lasers_ok = lasers_ok and n >= 3
 		for x: int in range(w.size.x):
@@ -78,12 +40,8 @@ func run() -> void:
 	check(lasers_ok, "every hyperspace has at least 3 lasers, each set in rock")
 
 	print("the hopper")
+	await boot()
 	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	menu.start_game()
-	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	player = main.get_node("Player") as Player
-	await settle()
 	info.travel(MapInfo.Exit.DEEPER)
 	await settle()
 	info.travel(MapInfo.Exit.DEEPER)
@@ -112,15 +70,17 @@ func run() -> void:
 		var hop: Node = hopper.get_node("Hopper")
 		hop.set("rest", 0.0)
 		var start: Vector2 = hopper.global_position
-		var crouched: bool = false
-		var leapt: bool = false
-		var closest: float = absf(start.x - aim.x)
-		# It may wake asleep at its cell's centre and settle (and rest) before it notices.
-		for i: int in range(200):
-			await physics_frame
-			crouched = crouched or float(hop.get("crouch")) >= 0.0
-			leapt = leapt or hopper.global_position.y < start.y - 40.0
-			closest = minf(closest, absf(hopper.global_position.x - aim.x))
+		# It may wake asleep at its cell's centre and settle (and rest) before it notices. What it
+		# has done so far is kept in `did` (a lambda cannot change the locals round it).
+		var did: Dictionary = {"crouched": false, "leapt": false, "closest": absf(start.x - aim.x)}
+		await until(func() -> bool:
+			did["crouched"] = bool(did["crouched"]) or float(hop.get("crouch")) >= 0.0
+			did["leapt"] = bool(did["leapt"]) or hopper.global_position.y < start.y - 40.0
+			did["closest"] = minf(float(did["closest"]), absf(hopper.global_position.x - aim.x))
+			return bool(did["crouched"]) and bool(did["leapt"]) and float(did["closest"]) < absf(start.x - aim.x) - 100.0, HOP_WAIT_MS)
+		var crouched: bool = did["crouched"]
+		var leapt: bool = did["leapt"]
+		var closest: float = did["closest"]
 		check(crouched and leapt, "it crouches, then leaps")
 		check(closest < absf(start.x - aim.x) - 100.0, "toward the wizard (%d px closer)" % int(absf(start.x - aim.x) - closest))
 		(hopper.get_node("Stunner") as Stunner).stun(3.0)
@@ -130,7 +90,7 @@ func run() -> void:
 	print("lasers")
 	var plunge_seed: int = -1
 	for world_seed: int in range(1, 120):
-		if MapInfo.level_seed(MapInfo.def_for(Vector2i(world_seed, 1)).gen_seed, 777) % 100 < Hyperspace.CHANCE:
+		if Rules.level_seed(Rules.def_for(Vector2i(world_seed, 1)).gen_seed, 777) % 100 < Hyperspace.CHANCE:
 			plunge_seed = world_seed
 			break
 	menu.world_seed.text = str(plunge_seed)
@@ -170,16 +130,9 @@ func run() -> void:
 		# Into the beam while it fires.
 		var hurt: Array[bool] = [false]
 		player.visual_event.connect(func(kind: StringName, _at: Vector2) -> void: hurt[0] = hurt[0] or kind == &"hurt")
-		while not bool(laser.call("firing")):
-			await physics_frame
+		await until(func() -> bool: return bool(laser.call("firing")))
 		player.end_invulnerable()
 		player.global_position = beam.global_position + dir * minf(reach * 0.5, 200.0)
-		for i: int in range(6):
-			await physics_frame
+		await until(func() -> bool: return bool(hurt[0]))
 		check(hurt[0], "the beam hurts")
-	if failed:
-		print("FAILED")
-		quit(1)
-	else:
-		print("PASSED")
-		quit()
+	finish()

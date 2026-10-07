@@ -1,36 +1,9 @@
-extends SceneTree
-## Key rarity and vaults. Key colours are dealt by rarity (MapInfo.KEY_RARITY): keys, corridor
+extends TestKit
+## Key rarity and vaults. Key colours are dealt by rarity (Rules.KEY_RARITY): keys, corridor
 ## doors and padlocks come up in sun most often and plum least, and every level's first key is sun.
 ## Vaults are small rooms sealed in rock behind a locked door, dealt evenly among the colours, and
 ## the rarer the lock the better the loot (LevelGen.VAULT_LOOT).
 ## godot --headless --path . --script res://tests/vaults_test.gd
-
-var main: Node
-var info: MapInfo
-var player: Player
-var failed: bool = false
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
-
-
-func settle(frames: int = 6) -> void:
-	await process_frame
-	var deadline: int = Time.get_ticks_msec() + 30000
-	while (info.world == null or info.travelling) and Time.get_ticks_msec() < deadline:
-		await process_frame
-	for i: int in range(frames):
-		await physics_frame
-		await process_frame
 
 
 ## The things in `w`'s vault, as [type, extra info], in the order they were laid.
@@ -64,17 +37,12 @@ func well_formed(w: LevelGen, vault: Dictionary) -> bool:
 
 
 func run() -> void:
-	main = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	await process_frame
-	var wfc: Node = main.get_node("WaveFunctionCollapse")
-
 	print("rarity")
 	var rolls: Array[int] = [0, 0, 0, 0]
 	for r: int in range(1500):
-		rolls[MapInfo.rarity_color(MapInfo.level_seed(r, 99))] += 1
+		rolls[Rules.rarity_color(Rules.level_seed(r, 99))] += 1
 	check(rolls[0] > rolls[1] and rolls[1] > rolls[2] and rolls[2] > rolls[3] and rolls[3] > 0, "each colour is dealt less often than the one before (%s)" % [rolls])
-	check(MapInfo.rarity_color(-5) >= 0 and MapInfo.rarity_color(-5) < MapInfo.KEY_COLOR_COUNT, "any roll deals a colour")
+	check(Rules.rarity_color(-5) >= 0 and Rules.rarity_color(-5) < Rules.KEY_COLOR_COUNT, "any roll deals a colour")
 
 	print("generated levels")
 	var keys: Array[int] = [0, 0, 0, 0]
@@ -87,8 +55,8 @@ func run() -> void:
 	for seed_value: int in [1, 7, 28, 99, 512]:
 		for depth: int in [0, 2, 4, 7]:
 			var at: Vector2i = Vector2i(seed_value, depth)
-			var def: NextWorldDef = MapInfo.def_for(at)
-			var cells: Array = wfc.call("generate_level", def)
+			var def: NextWorldDef = Rules.def_for(at)
+			var cells: Array = collapse(def.coord)
 			var w: LevelGen = LevelGen.new(cells, def)
 			var label: String = "seed %d depth %d" % [seed_value, depth]
 			levels += 1
@@ -113,7 +81,7 @@ func run() -> void:
 			for vault: Dictionary in w.vaults:
 				var color: int = vault["color"]
 				# Bone vaults are bones_test's.
-				if color < MapInfo.KEY_COLOR_COUNT:
+				if color < Rules.KEY_COLOR_COUNT:
 					vault_colors[color] = int(vault_colors.get(color, 0)) + 1
 				if color == 1:
 					ember_vaults += 1
@@ -131,33 +99,24 @@ func run() -> void:
 	check(keys[0] > keys[1] and keys[1] > keys[3], "keys come in common colours far more than rare ones")
 	check(doors[0] > doors[1] and doors[1] > doors[3], "and so do doors")
 	check(with_vault * 4 >= levels * 3, "most levels have a vault")
-	check(vault_colors.size() == MapInfo.KEY_COLOR_COUNT, "vaults come in every colour")
+	check(vault_colors.size() == Rules.KEY_COLOR_COUNT, "vaults come in every colour")
 	var table: Array = LevelGen.VAULT_LOOT
 	check(table[0] == [[LevelGen.Type.CLUSTER, 0.5]] and table[1] == [[LevelGen.Type.CLUSTER, 1.0]] and table[2] == [[LevelGen.Type.CLUSTER, 1.5]] and (table[3] as Array).has([LevelGen.Type.KEY, KeyRing.SKELETON]), "rarer locks guard better loot: half a cluster, a cluster, a cluster and a half, a cluster and a skeleton key")
 	print("  ember vaults with a moss key: %d of %d" % [ember_keys, ember_vaults])
 	check(ember_vaults == 0 or ember_keys > 0, "ember vaults sometimes hold a moss key")
 
-	print("in play")
-	RunState.save_path = "user://vaults_test.save"
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	menu.start_game()
-	await process_frame
-	await process_frame
-	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	player = main.get_node("Player") as Player
-	await settle()
+	await boot()
 	player.set_physics_process(false)
 	var vault: Dictionary = {}
 	for step: int in range(4):
-		var keyed: Array = info.world.vaults.filter(func(vt: Dictionary) -> bool: return int(vt["color"]) < MapInfo.KEY_COLOR_COUNT)
+		var keyed: Array = info.world.vaults.filter(func(vt: Dictionary) -> bool: return int(vt["color"]) < Rules.KEY_COLOR_COUNT)
 		if not keyed.is_empty():
 			vault = keyed[0]
 			break
 		info.travel(MapInfo.Exit.RIGHT)
-		await settle()
+		await settle(6)
 		player.set_physics_process(false)
-	check(not vault.is_empty(), "found a vault in %s" % MapInfo.where(info.coord))
+	check(not vault.is_empty(), "found a vault in %s" % Rules.where(info.coord))
 	if vault.is_empty():
 		finish()
 		return
@@ -174,7 +133,7 @@ func run() -> void:
 	check(door != null and int(door.get_meta(&"key_color", -1)) == color, "its door is locked in colour %d" % color)
 	check(loot.size() == info.world.vault_loot(color, vault["door"]).size(), "its loot lies inside (%d)" % loot.size())
 	player.keyring.clear()
-	player.keyring.take((color + 1) % MapInfo.KEY_COLOR_COUNT)
+	player.keyring.take((color + 1) % Rules.KEY_COLOR_COUNT)
 	door.get_node("Unlock").call("try_open")
 	await settle(1)
 	check(is_instance_valid(door) and not door.is_queued_for_deletion(), "another colour's key does not open it")
@@ -186,10 +145,3 @@ func run() -> void:
 	finish()
 
 
-func finish() -> void:
-	if failed:
-		print("FAILED")
-		quit(1)
-	else:
-		print("PASSED")
-		quit()

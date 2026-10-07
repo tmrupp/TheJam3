@@ -33,6 +33,11 @@ func readiness() -> float:
 	return 1.0 if recharge <= 0.0 else 1.0 - clampf(recharge / cooldown(), 0.0, 1.0)
 
 
+## The trip is over in a moment: never running (see Abilities.running).
+func running() -> Vector2:
+	return Vector2(-1.0, 0.0)
+
+
 func _physics_process(delta: float) -> void:
 	recharge = maxf(0.0, recharge - delta)
 

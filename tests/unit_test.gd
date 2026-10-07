@@ -31,6 +31,7 @@ func run() -> void:
 	_relics()
 	var p: Player = Player.new()
 	_ability_tables()
+	_protocols()
 	_offers(p)
 	_keyring(p)
 	p.free()
@@ -39,12 +40,12 @@ func run() -> void:
 
 func _seeds() -> void:
 	for at: Vector2i in SEEDS:
-		check_eq(MapInfo.level_seed(at.x, at.y), int(SEEDS[at]), "level_seed%s is unchanged" % at)
+		check_eq(Rules.level_seed(at.x, at.y), int(SEEDS[at]), "level_seed%s is unchanged" % at)
 	var seen: Dictionary = {}
 	var negative: int = 0
 	for x: int in range(-20, 20):
 		for y: int in range(0, 20):
-			var s: int = MapInfo.level_seed(x, y)
+			var s: int = Rules.level_seed(x, y)
 			seen[s] = true
 			if s < 0:
 				negative += 1
@@ -60,27 +61,27 @@ func _by_depth() -> void:
 			if b < a or (strict and b == a):
 				return false
 		return true
-	check(rising.call(MapInfo.deeper_price, true), "the deeper exit costs more at every depth")
-	check(rising.call(MapInfo.map_price, false), "inking the map never gets cheaper deeper")
-	check(rising.call(MapInfo.cluster_value, false), "a star cluster is never worth less deeper")
+	check(rising.call(Rules.deeper_price, true), "the deeper exit costs more at every depth")
+	check(rising.call(Rules.map_price, false), "inking the map never gets cheaper deeper")
+	check(rising.call(Rules.cluster_value, false), "a star cluster is never worth less deeper")
 	check(rising.call(Wound.hp_for, false), "enemies never get weaker deeper")
-	check_eq(MapInfo.cluster_value(-3), MapInfo.cluster_value(0), "a side world's depth below 0 prices clusters as the surface")
+	check_eq(Rules.cluster_value(-3), Rules.cluster_value(0), "a side world's depth below 0 prices clusters as the surface")
 	var hp: Array[int] = []
 	var distance_ok: bool = true
 	var size_ok: bool = true
 	for d: int in range(DEPTHS):
 		hp.append(Wound.hp_for(d))
-		var e: int = MapInfo.exit_distance(d)
+		var e: int = Rules.exit_distance(d)
 		distance_ok = distance_ok and e >= 24 and e <= 96
-		var s: Vector2i = MapInfo.level_size(d)
-		var below: Vector2i = MapInfo.level_size(d + 1)
+		var s: Vector2i = Rules.level_size(d)
+		var below: Vector2i = Rules.level_size(d + 1)
 		size_ok = size_ok and s.x >= 36 and s.x <= 60 and s.y >= 30 and s.y <= 48 and below.x >= s.x and below.y >= s.y
 	check(hp.min() == 1 and hp.max() == 3, "enemy health runs from 1 to 3")
 	check(distance_ok, "the way back and the deeper exit are 24 to 96 cells apart")
 	check(size_ok, "levels grow with depth, from 36 x 30 to at most 60 x 48 cells")
-	check_eq(MapInfo.relic_need(MapInfo.RELIC_NEED_FROM - 1), 0, "no crossing is left to relics before RELIC_NEED_FROM")
-	check_eq(MapInfo.relic_need(MapInfo.RELIC_NEED_FROM), MapInfo.RELIC_NEED_STEP, "then RELIC_NEED_STEP %")
-	check_eq(MapInfo.relic_need(500), MapInfo.RELIC_NEED_MAX, "and never more than RELIC_NEED_MAX %")
+	check_eq(Rules.relic_need(Rules.RELIC_NEED_FROM - 1), 0, "no crossing is left to relics before RELIC_NEED_FROM")
+	check_eq(Rules.relic_need(Rules.RELIC_NEED_FROM), Rules.RELIC_NEED_STEP, "then RELIC_NEED_STEP %")
+	check_eq(Rules.relic_need(500), Rules.RELIC_NEED_MAX, "and never more than RELIC_NEED_MAX %")
 	for a: StringName in Abilities.ids():
 		var free: bool = not Abilities.ABILITIES[a].has("cost")
 		var ok: bool = true
@@ -98,15 +99,15 @@ func _by_depth() -> void:
 
 func _rarity() -> void:
 	var total: int = 0
-	for w: int in MapInfo.KEY_RARITY:
+	for w: int in Rules.KEY_RARITY:
 		total += w
 	var counts: Array[int] = []
-	counts.resize(MapInfo.KEY_RARITY.size())
+	counts.resize(Rules.KEY_RARITY.size())
 	for r: int in range(total):
-		counts[MapInfo.rarity_color(r)] += 1
-	check_eq(counts, MapInfo.KEY_RARITY, "over one turn of draws, each key colour comes up KEY_RARITY times")
-	check_eq(MapInfo.rarity_color(-1), MapInfo.rarity_color(total - 1), "a negative draw deals a colour as well")
-	check_eq(MapInfo.KEY_RARITY.size(), MapInfo.KEY_COLOR_COUNT, "a rarity for every key colour")
+		counts[Rules.rarity_color(r)] += 1
+	check_eq(counts, Rules.KEY_RARITY, "over one turn of draws, each key colour comes up KEY_RARITY times")
+	check_eq(Rules.rarity_color(-1), Rules.rarity_color(total - 1), "a negative draw deals a colour as well")
+	check_eq(Rules.KEY_RARITY.size(), Rules.KEY_COLOR_COUNT, "a rarity for every key colour")
 
 
 func _archetypes() -> void:
@@ -120,12 +121,12 @@ func _archetypes() -> void:
 		check(NextWorldDef.archetype_at(first) == kinds[i] and NextWorldDef.archetype_at(first + band - 1) == kinds[i], "the %s takes depths %d to %d" % [kinds[i], first, first + band - 1])
 		check_eq(NextWorldDef.archetype_at(first + band * kinds.size()), kinds[i], "and comes round again %d deeper" % (band * kinds.size()))
 	for kind: StringName in kinds:
-		var def: NextWorldDef = MapInfo.def_for(Vector2i(28, NextWorldDef.first_depth(kind)))
+		var def: NextWorldDef = Rules.def_for(Vector2i(28, NextWorldDef.first_depth(kind)))
 		check(def.archetype == kind and def.realm() == kind, "a %s level is printed in its own realm" % kind)
 	var sky_depth: int = NextWorldDef.first_depth(&"sky")
-	var sky: NextWorldDef = MapInfo.def_for(Vector2i(28, sky_depth))
-	check_eq(sky.size, Vector2i((Vector2(MapInfo.level_size(sky_depth)) * SkyArchetype.SCALE).round()), "a sky level is SkyArchetype.SCALE times a cave level of its depth")
-	check(sky.chasmed() and MapInfo.def_for(Vector2i(28, NextWorldDef.first_depth(&"cemetery"))).chasmed() and not MapInfo.def_for(Vector2i(28, 0)).chasmed(), "the cemetery and the sky have chasms, the garden none")
+	var sky: NextWorldDef = Rules.def_for(Vector2i(28, sky_depth))
+	check_eq(sky.size, Vector2i((Vector2(Rules.level_size(sky_depth)) * SkyArchetype.SCALE).round()), "a sky level is SkyArchetype.SCALE times a cave level of its depth")
+	check(sky.chasmed() and Rules.def_for(Vector2i(28, NextWorldDef.first_depth(&"cemetery"))).chasmed() and not Rules.def_for(Vector2i(28, 0)).chasmed(), "the cemetery and the sky have chasms, the garden none")
 
 
 func _side_worlds() -> void:
@@ -134,7 +135,7 @@ func _side_worlds() -> void:
 		for from: Vector2i in PLACES:
 			var at: Vector2i = Worlds.side_at(k, from)
 			ok = ok and Worlds.is_side(at) and Worlds.kind_at(at) == k and Worlds.origin_of(at) == from and Worlds.valid(at)
-			ok = ok and MapInfo.def_for(at).get_script() == Worlds.KINDS[k]
+			ok = ok and Rules.def_for(at).get_script() == Worlds.KINDS[k]
 		check(ok, "side world kind %d: entered from a level, it knows its kind and that level" % k)
 		check_eq(Worlds.door_kind(Worlds.door(k)), k, "a door into kind %d leads into it" % k)
 	check_eq(Worlds.kind_at(Vector2i(28, 3)), -1, "a level is no side world")
@@ -146,20 +147,20 @@ func _side_worlds() -> void:
 
 func _exits() -> void:
 	for at: Vector2i in PLACES:
-		var def: NextWorldDef = MapInfo.def_for(at)
+		var def: NextWorldDef = Rules.def_for(at)
 		var left: Dictionary = def.lead(MapInfo.Exit.LEFT)
 		var right: Dictionary = def.lead(MapInfo.Exit.RIGHT)
 		var deeper: Dictionary = def.lead(MapInfo.Exit.DEEPER)
 		check(left["to"] == at + Vector2i.LEFT and int(left["arrive"]) == MapInfo.Exit.RIGHT, "%s: left leads to the next world's right-hand door" % at)
-		check(MapInfo.def_for(right["to"]).lead(MapInfo.Exit.LEFT)["to"] == at, "%s: right, then left, comes back" % at)
+		check(Rules.def_for(right["to"]).lead(MapInfo.Exit.LEFT)["to"] == at, "%s: right, then left, comes back" % at)
 		check(deeper["to"] == at + Vector2i.DOWN and int(deeper["arrive"]) == MapInfo.Exit.BACK, "%s: deeper leads down, arriving at the way back" % at)
-		var below: NextWorldDef = MapInfo.def_for(deeper["to"])
+		var below: NextWorldDef = Rules.def_for(deeper["to"])
 		if below.arrival_from == null:
 			check(below.lead(MapInfo.Exit.BACK)["to"] == at, "%s: deeper, then back, comes back" % at)
 		var near: Array[Vector2i] = def.neighbours()
 		check(not near.has(at) and near.all(func(v: Vector2i) -> bool: return Worlds.valid(v) and near.count(v) == 1), "%s: its neighbours are other places, each once" % at)
 		var rec: LevelRecord = LevelRecord.new()
-		check_eq(def.price(MapInfo.Exit.DEEPER, rec), MapInfo.deeper_price(at.y), "%s: the deeper exit costs deeper_price" % at)
+		check_eq(def.price(MapInfo.Exit.DEEPER, rec), Rules.deeper_price(at.y), "%s: the deeper exit costs deeper_price" % at)
 		def.pay(MapInfo.Exit.DEEPER, rec)
 		check_eq(def.price(MapInfo.Exit.DEEPER, rec), 0, "%s: once, and is then free" % at)
 		check_eq(def.price(MapInfo.Exit.LEFT, rec), 0, "%s: side exits cost no stars" % at)
@@ -193,7 +194,8 @@ func _ability_tables() -> void:
 	var start: Dictionary = Abilities.start_tiers()
 	check(order.all(func(a: StringName) -> bool: return int(start[a]) == (1 if a == &"dash" else 0)), "a run starts with the dash alone")
 	# An ability done by a node: the node says how a tier tunes it (set_tier), and a spell casts
-	# (cast_spell). A misspelled or missing one would only fail when that ability is used.
+	# (cast_spell) and tells the spell orb how ready it is (readiness) and how long it has left
+	# (running). A misspelled or missing one would only fail when that ability is used.
 	var wizard: PackedScene = load("res://prefabs/player.tscn")
 	var scene_nodes: Node = wizard.instantiate()
 	var nodes_ok: bool = true
@@ -212,20 +214,76 @@ func _ability_tables() -> void:
 			script = made
 		elif scene_nodes.has_node(String(entry["node"])):
 			script = scene_nodes.get_node(String(entry["node"])).get_script()
-		var ok: bool = script != null and _defines(script, &"set_tier") and (not Abilities.is_spell(a) or _defines(script, &"cast_spell"))
+		var spell_ok: bool = [&"cast_spell", &"readiness", &"running"].all(func(m: StringName) -> bool: return _defines(script, m)) if script != null else false
+		var ok: bool = script != null and _defines(script, &"set_tier") and (not Abilities.is_spell(a) or spell_ok)
 		if not ok:
-			print("  %s: its node lacks set_tier or cast_spell" % a)
+			print("  %s: its node lacks set_tier, or (a spell) cast_spell, readiness or running" % a)
 		nodes_ok = nodes_ok and ok
 	scene_nodes.free()
-	check(nodes_ok, "every ability's node takes its tier, and every spell's casts (spells all have a node)")
+	check(nodes_ok, "every ability's node takes its tier, and every spell's casts and says how ready it is and how long it runs (spells all have a node)")
 
 
 ## Whether `script` (or a script it extends) defines `method`.
 func _defines(script: Script, method: StringName) -> bool:
+	return not _method(script, method).is_empty()
+
+
+## `method` as `script` (or a script it extends) defines it (see Object.get_method_list), or {}.
+func _method(script: Script, method: StringName) -> Dictionary:
 	for m: Dictionary in script.get_script_method_list():
 		if StringName(m["name"]) == method:
-			return true
-	return false
+			return m
+	return {}
+
+
+## Whether method `m` can be called with `n` arguments (counting those with defaults).
+func _takes(m: Dictionary, n: int) -> bool:
+	var args: int = (m["args"] as Array).size()
+	return args - (m["default_args"] as Array).size() <= n and n <= args
+
+
+## The two things called by name on scripts that share no base class. A prefab's `setup` is
+## called as its Placeables entry says ("setup": how many it takes), so each entry must match its
+## prefab's script. A hex bolt calls `hex_hit(damage, dir)` on the things listed in
+## HexBolt.ANSWERS, so every script with a hex_hit must be one of them and take those two.
+func _protocols() -> void:
+	var setups_ok: bool = true
+	for t: int in Placeables.TABLE:
+		var node: Node = Placeables.scene(t).instantiate()
+		var script: Script = node.get_script() as Script
+		node.free()
+		var want: int = Placeables.setup_args(t)
+		var m: Dictionary = _method(script, &"setup") if script != null else {}
+		if (want == 0) != m.is_empty() or (want > 0 and not _takes(m, want)):
+			print("  %s: its prefab's setup does not take %d" % [LevelGen.Type.find_key(t), want])
+			setups_ok = false
+	check(setups_ok, "every placed thing's prefab has a setup taking what its Placeables entry says, or none")
+	var answering: Array[Script] = []
+	for path: String in _scripts_in("res://scripts"):
+		if FileAccess.get_file_as_string(path).contains("\nfunc hex_hit("):
+			answering.append(load(path) as Script)
+	var hex_ok: bool = not answering.is_empty()
+	for script: Script in answering:
+		var listed: bool = false
+		var s: Script = script
+		while s != null and not listed:
+			listed = s in HexBolt.ANSWERS
+			s = s.get_base_script()
+		if not listed or not _takes(_method(script, &"hex_hit"), 2):
+			print("  %s: its hex_hit is not in HexBolt.ANSWERS, or does not take (damage, dir)" % script.resource_path)
+			hex_ok = false
+	check(hex_ok and HexBolt.ANSWERS.all(func(s: Script) -> bool: return s in answering), "every script a hex bolt answers is in HexBolt.ANSWERS, and each takes (damage, dir) (%d)" % answering.size())
+
+
+## Every GDScript file under `dir`, at any depth.
+func _scripts_in(dir: String) -> Array[String]:
+	var out: Array[String] = []
+	for f: String in DirAccess.get_files_at(dir):
+		if f.ends_with(".gd"):
+			out.append(dir.path_join(f))
+	for d: String in DirAccess.get_directories_at(dir):
+		out.append_array(_scripts_in(dir.path_join(d)))
+	return out
 
 
 ## The shrine's offers (Abilities.offers), over many level seeds and the wizard part of the way

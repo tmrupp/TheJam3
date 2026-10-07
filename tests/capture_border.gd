@@ -47,5 +47,5 @@ func capture() -> void:
 	info.ink_whole_map()
 	map.call("toggle")
 	await shot("border_map_d6.png", 10)
-	print("CAPTURED border sizes ", MapInfo.level_size(0), " ", info.world.size)
+	print("CAPTURED border sizes ", Rules.level_size(0), " ", info.world.size)
 	quit()

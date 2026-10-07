@@ -10,14 +10,14 @@ extends RefCounted
 static func key_bow(c: Vector2, r: float, color: int) -> PackedVector2Array:
 	if color == KeyRing.SKELETON:
 		return bone(c, r, r * 0.7)
-	match posmod(color, MapInfo.KEY_COLOR_COUNT):
+	match posmod(color, Rules.KEY_COLOR_COUNT):
 		1: return RisoShapes.tri(c + Vector2(0, -r), c + Vector2(r, r), c + Vector2(-r, r))
 		2: return RisoShapes.circle(c, r, 24)
 		3: return PackedVector2Array([c + Vector2(0, -r), c + Vector2(r, 0), c + Vector2(0, r), c + Vector2(-r, 0)])
 	return RisoShapes.rrect(c.x - r, c.y - r, r * 2.0, r * 2.0, r * 0.12)
 
 
-## Teeth past the bit of a rarer key, one per step of rarity (MapInfo.KEY_RARITY): how far down
+## Teeth past the bit of a rarer key, one per step of rarity (Rules.KEY_RARITY): how far down
 ## each hangs, in turn.
 const KEY_TEETH: Array[float] = [8.0, 10.0, 7.0]
 ## Teeth past a skeleton key's bit, as a moss key's (see KEY_TEETH).

@@ -7,7 +7,7 @@ extends Archetype
 ## swooping birds, shielded enemies and rebounding shots live there (populate).
 
 const SAMPLE: String = "res://wfc_images/sky_islands.png"
-## A sky level is this much bigger than a cave level of its depth (MapInfo.level_size), across and
+## A sky level is this much bigger than a cave level of its depth (Rules.level_size), across and
 ## down: wide open sky with no walls round it.
 const SCALE: Vector2 = Vector2(1.8, 1.6)
 ## Jump pads on floors (Pad) and updrafts up open shafts (Wind), per 1000 cells; the share of ledge
@@ -61,6 +61,7 @@ const SKY_SWITCH_REACH: int = 24
 
 func _init() -> void:
 	name = &"sky"
+	decor = &"sky"
 	sample = SAMPLE
 	symmetry = 1
 	scale = SCALE

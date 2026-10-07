@@ -118,6 +118,18 @@ func cast_spell() -> bool:
 	player.parry.emit()
 	return true
 
+
+## Ready unless cooling down after a guard: 0..1 as the cooldown runs out (the spell orb shows it).
+func readiness() -> float:
+	if cooldown == null or not cooldown.acted:
+		return 1.0
+	return 1.0 - clampf(cooldown.acting / cooldown.MAX_TIME, 0.0, 1.0) if cooldown.is_acting() else 0.0
+
+
+## The guard is too brief to show: never running (see Abilities.running).
+func running() -> Vector2:
+	return Vector2(-1.0, 0.0)
+
 func execute () -> void:
 	if Abilities.tier(player, &"parry") <= 0:
 		return

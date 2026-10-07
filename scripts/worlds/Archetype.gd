@@ -7,16 +7,20 @@ extends RefCounted
 ##
 ## To add a band: extend this (GardenArchetype is the smallest example, SkyArchetype the fullest),
 ## set its look and feel in _init (the vars below), override the hooks it needs, then list it in
-## NextWorldDef.ARCHETYPES. Art that differs by archetype (RisoDecor.plan, the realm's colours in
-## RisoPrint.REALMS) is keyed by its name, and falls back to the garden's.
+## NextWorldDef.ARCHETYPES. Its art is chosen by name: its decor plan (`decor`, a RisoDecor.PLANS
+## entry) and its realm (its colours in RisoPrint.REALMS, its backdrop in RisoBackground), each
+## falling back to the garden's decor and the night backdrop, so a new band works before it has art
+## of its own.
 
 ## Its name: how levels of it are told apart (NextWorldDef.archetype), and its print realm.
 var name: StringName = &""
+## The decor its levels wear (RisoDecor.PLANS): the garden's unless it sets its own.
+var decor: StringName = &"garden"
 ## The WFC sample its terrain is collapsed from.
 var sample: String = ""
 ## The collapse's symmetry (see NextWorldDef.symmetry): 1 keeps up up.
 var symmetry: int = 5
-## How much bigger than MapInfo.level_size its levels are, across and down.
+## How much bigger than Rules.level_size its levels are, across and down.
 var scale: Vector2 = Vector2.ONE
 ## Whether its levels are gated by chasms (see Chasms), crossed at `crossing`s.
 var chasmed: bool = false
