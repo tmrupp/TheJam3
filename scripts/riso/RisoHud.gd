@@ -1,4 +1,5 @@
 extends Node2D
+class_name RisoHud
 ## The HUD, printed: paper plaques in the top corners. It draws in the UI's own canvas
 ## (RisoPrint.ui_canvas), which is printed over the scene with finer dots, wobble and
 ## registration, so small marks and text stay legible. Laid out in the 320 x 180 UI space; the
@@ -147,7 +148,7 @@ func _process(delta: float) -> void:
 	canvas.global_position = global_position
 	canvas.scale = scale
 	canvas.visible = visible
-	var player: Player = get_node_or_null("/root/Main/Player") as Player
+	var player: Player = Stage.player()
 	corner_ink.begin()
 	sheet_ink.begin()
 	for label: Label in [coin_label, ghost_label, where_label, ghost_where, end_title, end_sub]:
@@ -216,7 +217,7 @@ func _run_state(player: Player) -> void:
 		return
 	if info.world != null:
 		_top_right(info, player)
-	if info.has_ghost:
+	if info.run.has_ghost:
 		_ghost_row(info, player)
 
 
@@ -225,12 +226,12 @@ func _end_card() -> void:
 	var info: MapInfo = MapInfo.instance
 	if info != null and info.run_ending > 0.0:
 		_paper(RisoShapes.rrect(85, 58, 150, 58, 10), RisoPrint.PINK, 0.18)
-		ink.ink(RisoPrint.GLOW, 1.0, RisoProp.ghost_shape(Transform2D(0.0, Vector2(0.5, 0.5), 0.0, Vector2(160, 75))), false)
+		ink.ink(RisoPrint.GLOW, 1.0, RisoMarks.ghost_shape(Transform2D(0.0, Vector2(0.5, 0.5), 0.0, Vector2(160, 75))), false)
 		end_title.visible = true
 		end_title.text = "no lantern left"
 		end_title.position = Vector2(85, 76)
 		end_sub.visible = true
-		end_sub.text = "world %d  ·  deepest %d" % [info.run_seed, info.deepest]
+		end_sub.text = "world %d  ·  deepest %d" % [info.run.run_seed, info.run.deepest]
 		end_sub.position = Vector2(85, 99)
 
 
@@ -240,7 +241,7 @@ func _top_right(info: MapInfo, player: Player) -> void:
 	var text: String = MapInfo.where(info.coord) + ("  ·  debug" if MapInfo.debug else "")
 	var text_w: float = _text_width(where_label, text)
 	var owned: Array[StringName] = []
-	for a: StringName in Abilities.ORDER:
+	for a: StringName in Abilities.ids():
 		if Abilities.tier(player, a) > 0:
 			owned.append(a)
 	var slot: float = 16.0
@@ -261,10 +262,10 @@ func _top_right(info: MapInfo, player: Player) -> void:
 		var n: int = Abilities.tier(player, a)
 		# Tier I shows the mark alone; higher tiers add a pip per tier under it.
 		var c: Vector2 = Vector2(start + slot * (float(i) + 0.5), y - (2.0 if n > 1 else 0.0))
-		for poly: PackedVector2Array in RisoProp.glyph(a, Vector2.ZERO, t):
+		for poly: PackedVector2Array in RisoGlyph.of(a, Vector2.ZERO, t):
 			marks.append(Transform2D(0.0, Vector2(0.2, 0.2), 0.0, c) * poly)
 		# The spell in the slot (the Spell button) is underlined.
-		if a in Abilities.SPELLS:
+		if Abilities.is_spell(a):
 			pips.append(RisoShapes.rrect(c.x - 5.0, _row_top(1) + 2.0, 10.0, 1.4, 0.7))
 		if n > 1:
 			for k: int in range(n):
@@ -276,18 +277,18 @@ func _top_right(info: MapInfo, player: Player) -> void:
 ## Second row, left: the ghost, its stars, an arrow toward it and its world when elsewhere.
 func _ghost_row(info: MapInfo, player: Player) -> void:
 	var y: float = _mid(1)
-	var stars: String = str(info.ghost_stars)
-	var elsewhere: bool = info.ghost_coord != info.coord
-	var where: String = MapInfo.where(info.ghost_coord)
+	var stars: String = str(info.run.ghost_stars)
+	var elsewhere: bool = info.run.ghost_coord != info.coord
+	var where: String = MapInfo.where(info.run.ghost_coord)
 	var width: float = PAD + 13.0 + _text_width(ghost_label, stars) + 4.0 + 10.0
 	if elsewhere:
 		width += 3.0 + _text_width(ghost_where, where)
 	width += PAD
-	_plaque(MARGIN, width, 1, RisoPrint.PINK if info.vulnerable else RisoPrint.BLUE, 0.2 if info.vulnerable else 0.12)
+	_plaque(MARGIN, width, 1, RisoPrint.PINK if info.run.vulnerable else RisoPrint.BLUE, 0.2 if info.run.vulnerable else 0.12)
 	var x: float = MARGIN + PAD
 	var bob: float = sin(t * 2.0) * 0.6
 	# HUD icons are night ink: the glow plate takes the hat's colour, which can be pink (danger).
-	ink.ink(RisoPrint.NIGHT, 1.0, RisoProp.ghost_shape(Transform2D(0.0, Vector2(0.34, 0.34), 0.0, Vector2(x + 5.0, y + 6.5 + bob))), false)
+	ink.ink(RisoPrint.NIGHT, 1.0, RisoMarks.ghost_shape(Transform2D(0.0, Vector2(0.34, 0.34), 0.0, Vector2(x + 5.0, y + 6.5 + bob))), false)
 	x += 13.0
 	x += _place(ghost_label, stars, x, 1) + 4.0
 	var dir: Vector2 = _ghost_dir(info, player)
@@ -308,7 +309,7 @@ func _ghost_row(info: MapInfo, player: Player) -> void:
 ## a soft halo, flickering. When another must be lit a thin pink smoke thread rises from the cold
 ## wick. It stays after recovering the ghost, since only lighting a lantern restores protection.
 func _lantern_mark(info: MapInfo, at: Vector2) -> void:
-	lantern_lit = not info.vulnerable
+	lantern_lit = not info.run.vulnerable
 	var cx: float = at.x + 5.0
 	var y: float = at.y
 	var flick: float = 1.0 + 0.1 * sin(t * 9.0) + 0.05 * sin(t * 23.0)
@@ -326,7 +327,7 @@ func _lantern_mark(info: MapInfo, at: Vector2) -> void:
 		ink.knock([RisoPrint.EYE, RisoPrint.PINK], [core])
 		ink.ink(RisoPrint.NIGHT, 1.0, [wick], false)
 	else:
-		RisoProp.smoke_thread(ink, Transform2D(0.0, Vector2(cx, y + 4.2)), t, 11.2, 1.8, 1.8)
+		RisoMarks.smoke_thread(ink, Transform2D(0.0, Vector2(cx, y + 4.2)), t, 11.2, 1.8, 1.8)
 		ink.ink(RisoPrint.NIGHT, 1.0, [wick], false)
 
 
@@ -361,7 +362,7 @@ func _awareness(player: Player) -> void:
 		_paper(RisoShapes.circle(mark, 5.6, 16), RisoPrint.BLUE, 0.12 * fade)
 		match target["kind"]:
 			&"exit":
-				var which: int = int((target["node"] as Node).get("exit"))
+				var which: int = (target["node"] as LevelExit).exit
 				ink.ink(RisoPrint.PINK if which == MapInfo.Exit.DEEPER else RisoPrint.NIGHT, fade, [RisoShapes.arch(mark.x - 2.6, mark.y - 3.2, 5.2, 6.0, 6)], false)
 			&"inkwell":
 				ink.ink(RisoPrint.BLUE, fade, [RisoShapes.rrect(mark.x - 2.8, mark.y - 2.2, 5.6, 5.0, 1.8)], false)
@@ -370,14 +371,14 @@ func _awareness(player: Player) -> void:
 				ink.ink(RisoPrint.ACCENT, fade, [RisoShapes.arch(mark.x - 2.6, mark.y - 3.2, 5.2, 6.0, 6)], false)
 			&"key":
 				var color: int = int((target["node"] as Node).get_meta(&"key_color", 0))
-				RisoPrint.ink_key(ink, color, fade, RisoProp.key_shape(mark, 0.2, color))
+				RisoPrint.ink_key(ink, color, fade, RisoMarks.key_shape(mark, 0.2, color))
 	ink.ink(RisoPrint.NIGHT, fade, arrows, false)
 
 
 ## Toward the ghost: by level (deeper is down, the next seed is right) when it is elsewhere,
 ## otherwise straight at it. Zero when the player is standing on it.
 func _ghost_dir(info: MapInfo, player: Player) -> Vector2:
-	if info.ghost_coord != info.coord:
-		return Vector2(signf(info.ghost_coord.x - info.coord.x), signf(info.ghost_coord.y - info.coord.y)).normalized()
-	var v: Vector2 = info.ghost_pos - player.global_position
+	if info.run.ghost_coord != info.coord:
+		return Vector2(signf(info.run.ghost_coord.x - info.coord.x), signf(info.run.ghost_coord.y - info.coord.y)).normalized()
+	var v: Vector2 = info.run.ghost_pos - player.global_position
 	return v.normalized() if v.length() > 48.0 else Vector2.ZERO

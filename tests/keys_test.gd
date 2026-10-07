@@ -8,7 +8,7 @@ func dropped() -> Array[Node]:
 
 
 func carried() -> int:
-	return int(player.get_meta(&"carried_key", -1))
+	return player.keyring.newest()
 
 
 func run() -> void:
@@ -57,7 +57,7 @@ func run() -> void:
 	await settle(2)
 	check(carried() == 0, "grabbing the left key back")
 	check(dropped().size() == 1 and int(dropped()[0].get_meta(&"key_color")) == 1, "leaves the colour-1 key in its place")
-	check(info.dropped_keys().size() == 1, "the record holds just that one")
+	check(info.record().dropped.size() == 1, "the record holds just that one")
 
 	print("keys work in any level")
 	var opened: bool = false
@@ -71,7 +71,7 @@ func run() -> void:
 		var cell: Vector2i = doors[0].get_meta(&"cell")
 		doors[0].get_node("Unlock").call("try_open")
 		await settle(1)
-		opened = (info.record()["opened"] as Dictionary).has(cell)
+		opened = (info.record().opened as Dictionary).has(cell)
 		print("  opened a door in ", MapInfo.where(info.coord))
 		break
 	check(opened and carried() == 0, "the key from world 28 opens a door elsewhere and stays carried")
@@ -83,22 +83,22 @@ func run() -> void:
 	var right: Node = placed("level_exit.tscn").filter(func(n: Node) -> bool: return int(n.get("exit")) == MapInfo.Exit.RIGHT)[0]
 	var needs: int = MapInfo.lateral_lock(Vector2i(28, 0), MapInfo.Exit.RIGHT)
 	check(int(right.call("lock")) == needs, "world 28's right door needs key colour %d" % needs)
-	player.set_meta(&"carried_key", (needs + 1) % MapInfo.KEY_COLOR_COUNT)
+	player.keyring.set_all([(needs + 1) % MapInfo.KEY_COLOR_COUNT])
 	right.call("interacted")
 	await process_frame
 	check(info.coord == Vector2i(28, 0) and not info.travelling, "the wrong key does not open it")
-	player.remove_meta(&"carried_key")
+	player.keyring.set_all([])
 	right.call("interacted")
 	await process_frame
 	check(info.coord == Vector2i(28, 0) and not info.travelling, "nor does no key")
-	player.set_meta(&"carried_key", needs)
+	player.keyring.set_all([needs])
 	right.call("interacted")
 	await settle()
 	player.set_physics_process(false)
 	check(info.coord == Vector2i(29, 0) and carried() == needs, "the right key opens it, and is kept")
 	var left: Node = placed("level_exit.tscn").filter(func(n: Node) -> bool: return int(n.get("exit")) == MapInfo.Exit.LEFT)[0]
 	check(int(left.call("lock")) == -1, "the door just come through is open behind the player")
-	player.remove_meta(&"carried_key")
+	player.keyring.set_all([])
 	left.call("interacted")
 	await settle()
 	check(info.coord == Vector2i(28, 0), "so the way back needs no key")

@@ -17,7 +17,7 @@ func capture() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://capture_death.save"
+	RunState.save_path = "user://capture_death.save"
 	var output: String = ProjectSettings.globalize_path("res://../art-captures/riso-frames")
 	DirAccess.make_dir_recursive_absolute(output)
 	var menu: Node = main.get_node("Menu")
@@ -48,7 +48,7 @@ func capture() -> void:
 	player.get_node("CameraControl").set_process(false)
 	player.set_physics_process(false)
 	camera.zoom *= 2.0
-	camera.global_position = info.ghost_pos
+	camera.global_position = info.run.ghost_pos
 	camera.reset_smoothing()
 	await shot(output, "still_ghost.png", 40)
 	camera.zoom *= 1.5
@@ -69,7 +69,7 @@ func capture() -> void:
 	info.travel(MapInfo.Exit.RIGHT)
 	while info.travelling:
 		await process_frame
-	player.set_meta(&"carried_key", 1)
+	player.keyring.set_all([1])
 	await shot(output, "still_hud_elsewhere.png", 30)
 	player.die()
 	await shot(output, "still_run_end.png", 40)

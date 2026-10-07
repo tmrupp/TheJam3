@@ -11,7 +11,7 @@ func check(ok: bool, what: String) -> void:
 	failed = failed or not ok
 
 func run() -> void:
-	MapInfo.save_path = "user://bird_detection_test.save"
+	RunState.save_path = "user://bird_detection_test.save"
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
 	await process_frame
@@ -60,6 +60,6 @@ func run() -> void:
 	bird._look()
 	check(bird.swooping(), "a visible bird starts a dive when the wizard is close below")
 	check(bird.arc.size() == 3 and bird.arc[1].y > player.global_position.y, "the dive still passes through the wizard's height")
-	MapInfo.delete_save()
+	RunState.delete_save()
 	print("FAILED" if failed else "PASS: bird detection")
 	quit(1 if failed else 0)

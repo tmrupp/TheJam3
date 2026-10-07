@@ -2,19 +2,33 @@
 
 A Godot 4.7 platformer: a faceless wizard dives through procedurally generated levels, printed in a
 risograph style. Every level is a cell grid collapsed by wave function collapse (WFC) from a small
-sample image, then dressed with exits, keys, enemies and hazards by `MapInfo.World`.
+sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
 
 ## Where things live
 
-- `scripts/MapInfo.gd`: the level. The `World` inner class builds a layout from collapsed cells
-  (`populate_level`, then a `populate_*` pass per archetype). The rest of the file loads it into
-  the scene (`place_cell`), keeps each level's record (taken, opened, slain...) and handles travel.
-- `scripts/worlds/NextWorldDef.gd`: what a place is (archetype, sample, size, realm, exits).
-  `Worlds.gd`, `SideWorld.gd` and `Hyperspace.gd` cover side worlds.
-- `scripts/riso/`: all the art. `RisoPrint` (plates and the print shader), `RisoProp` (one art node
-  per prefab, by kind), `RisoTerrain`, `RisoDecor`, `RisoWizard`, `RisoMap`, the HUD and menus.
+- `scripts/level/`: a level, apart from how it looks.
+  - `LevelGen.gd`: a level laid out from its collapsed cells (`populate_level`, the `Type` of
+    each cell, `Cell`, and the placement helpers). `Chasms.gd`: chasms and gaps, cut and crossed.
+  - `Placeables.gd`: one table, by `LevelGen.Type`, of each thing's prefab, art kind, box size and
+    flags (enemy, stander, floats, colored). Loading, the art dresser and the map read it.
+  - `RunState.gd`: the run (records, the lantern to come back to, the ghost, relics) and saving it.
+    `LevelRecord.gd`: what changed in one place (taken, opened, slain, bridges...), typed.
+  - `LevelLoader.gd`: the generator cache and worker thread, building a level in the scene
+    (`place_cell`), the rock and camera, and chunk sleeping.
+- `scripts/MapInfo.gd`: the place being played (`coord`, `here`, `world`), travel, and what a
+  change in the record means in the scene (doors, bells, secret rooms, death). It keeps a
+  `RunState` (`run`) and a `LevelLoader` (`loader`), and the run-wide rules (`level_seed`, prices).
+- `scripts/worlds/`: what a place is. `NextWorldDef.gd` (exits, prices, realm), `Archetype.gd`
+  and `archetypes/` (one per band: sample, size, gates and its own placement pass), and side
+  worlds (`Worlds.gd`, `SideWorld.gd`, `Hyperspace.gd`).
+- `scripts/riso/`: all the art. `RisoPrint` (plates and the print shader), `RisoProp` (the base of
+  one art node per prefab) with a script per kind in `props/`, `RisoMarks` (keys, locks, gates,
+  chevrons shared with the map and HUD), `RisoGlyph` (ability marks), `RisoTerrain`, `RisoDecor`,
+  `RisoWizard`, `RisoMap`, the HUD and menus.
 - `scripts/*.gd`: gameplay (Player, enemies, hazards, spells, pickups). `prefabs/*.tscn` pair
-  with them, and `RisoPrint.DRESS` maps each prefab to its art kind.
+  with them. `Abilities.gd` lists every ability in one table (`ABILITIES`); an ability's node says
+  what its tier does (`set_tier`) and, for a spell, casts (`cast_spell`). `Stage.gd` finds the main
+  scene's wizard, TileMap, camera and menu (no `/root/Main/...` paths elsewhere).
 - `wfc_images/`: WFC samples (white open, black rock, red thorns). Drawn ones come from
   `tests/make_*_sample.gd`, so edit the script and rerun it rather than editing the PNG.
 - `gdextension/`: the C++ overlapping-WFC extension (SCons). Rarely touched.
@@ -23,8 +37,9 @@ sample image, then dressed with exits, keys, enemies and hazards by `MapInfo.Wor
 - `tests/`: `*_test.gd` regressions, `capture_*.gd` stills (written to `../art-captures/`),
   `make_*_sample.gd` sample generators.
 
-Level bands cycle by depth (`NextWorldDef.ARCHETYPES`, `BAND` = 6): garden → cemetery → sky. Tests
-that need a band's levels use `NextWorldDef.first_depth(&"cemetery")` rather than a fixed depth.
+Level bands cycle by depth (`NextWorldDef.ARCHETYPES`, `BAND` = 6): garden → cemetery → sky. A new
+band is one script extending `Archetype`, listed there. Tests that need a band's levels use
+`NextWorldDef.first_depth(&"cemetery")` rather than a fixed depth.
 
 ## Running and testing
 
@@ -45,7 +60,7 @@ bash tests/run.sh sky_test        # just these, headless
   `godot --headless --path . --import`.
 - Captures: `godot --path . --windowed --resolution 1280x720 --script res://tests/capture_x.gd`.
 - Known flaky: `sky_art_test`'s transition-edge check.
-- Each test sets its own `MapInfo.save_path` (`user://<test>.save`), so they can run in parallel.
+- Each test sets its own `RunState.save_path` (`user://<test>.save`), so they can run in parallel.
 - New tests extend `TestKit` (`tests/kit/TestKit.gd`): override `run()`, end with `finish()`, and
   use its `check`/`check_eq`, `boot(seed)` (starts a run, keeps the save apart), `until(cond)` and
   `settle()` rather than counting frames, and `placed`/`colored`. For the level generator alone,
@@ -65,7 +80,11 @@ bash tests/run.sh sky_test        # just these, headless
 - Constants get a doc comment and a name in `UPPER_SNAKE`. Tuning numbers live in constants, not
   inline.
 - Prefer extending an existing system over adding a parallel one: a new hazard is a prefab, a
-  script, a `RisoProp` kind and a `MapInfo.Type`, placed in a `populate_*` pass.
+  script, a `LevelGen.Type` with its `Placeables` entry, an art script in `scripts/riso/props/`
+  (listed in `RisoProp.KINDS`), placed in a `populate_*` pass or an archetype's `populate`.
+- Reach other nodes through types, not names: `Stage` for the main scene's nodes, `as SomeClass`
+  casts and typed calls rather than `get("x")`, `call("x")` or `has_method("x")`, which fail
+  silently when misspelled.
 - Keep each test focused, deterministic (fixed seeds, usually world 28) and printing `ok` lines.
   Add or extend a test for each behaviour change.
 
@@ -81,13 +100,15 @@ bash tests/run.sh sky_test        # just these, headless
   of a few levels per archetype and a side world, and names which one changed. When a change to
   the layouts is meant, copy the fingerprints it prints into its `GOLDEN` and say so in the report.
 - Decor never touches the world RNG: it hashes the seed and cell (`RisoDecor.h`).
-- Nor does anything once a level is laid out. Its `World` is kept and reused on later visits, so
-  loading it (`MapInfo.place_cell`, a prefab's `setup`) must hash the seed and cell rather than
+- Nor does anything once a level is laid out. Its `LevelGen` is kept and reused on later visits, so
+  loading it (`LevelLoader.place_cell`, a prefab's `setup`) must hash the seed and cell rather than
   draw from `world.rng`, or it differs from one visit to the next (`revisit_test`).
-- Key and door colours are dealt by rarity once a level is laid out (`World.deal_colors`, hashing
+- Key and door colours are dealt by rarity once a level is laid out (`LevelGen.deal_colors`, hashing
   the level seed, no RNG) and kept in each cell's `extra_info`; `RisoMap.dealt_colors` reads them.
-- Placement helpers live on `World`: `pop_if_random_empty(filter, force)`, `add_object_at`,
-  `set_cell`, `_to_rock`, `_to_open`, `per_area(per_k)` (counts scale with level area).
+- Placement helpers live on `LevelGen`: `put(v, type, extra)`, `put_random(type, test, force)`,
+  `pop_if_random_empty(filter, force)`, `empties_where(test)` and `free_floors()` (sorted),
+  `pick(items)` and `pop_pick(items)` (one draw each), `pick_apart` and `spread_out` (spots kept
+  apart), `dist(a, b)`, `_to_rock`, `_to_open`, `per_area(per_k)` (counts scale with level area).
 
 ## Art rules (the riso print): see `docs/RISO_PRINT.md`
 

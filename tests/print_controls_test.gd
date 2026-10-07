@@ -59,7 +59,7 @@ func f7() -> void:
 
 
 func run() -> void:
-	MapInfo.save_path = "user://print_controls_test.save"
+	RunState.save_path = "user://print_controls_test.save"
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
 	var menu: Node = main.get_node("Menu")
@@ -150,17 +150,17 @@ func run() -> void:
 	await stick(-1.0)
 	check(is_equal_approx(riso.specks, before), "left stick left decreases a slider")
 	var player: Player = main.get_node("Player")
-	KeyRing.clear(player)
+	player.keyring.clear()
 	Abilities.set_tier(player, &"keyring", 0)
 	riso._sync_panel()
 	var square: OptionButton = riso._options[&"key_0"]
 	square.grab_focus()
 	await button(JOY_BUTTON_DPAD_RIGHT)
-	check(KeyRing.all(player) == [0] and square.selected == 1, "F7 equips a square key using the controller")
+	check(player.keyring.all() == [0] and square.selected == 1, "F7 equips a square key using the controller")
 	var triangle: OptionButton = riso._options[&"key_1"]
 	triangle.grab_focus()
 	await button(JOY_BUTTON_DPAD_RIGHT)
-	check(KeyRing.all(player) == [1] and square.selected == 0, "a full ring replaces its oldest key and refreshes all choices")
+	check(player.keyring.all() == [1] and square.selected == 0, "a full ring replaces its oldest key and refreshes all choices")
 	var ring: OptionButton = riso._options[&"ability_keyring"]
 	ring.select(3)
 	ring.item_selected.emit(3)
@@ -168,23 +168,23 @@ func run() -> void:
 		var pick: OptionButton = riso._options[StringName("key_" + str(color))]
 		pick.grab_focus()
 		await button(JOY_BUTTON_DPAD_RIGHT)
-	check(KeyRing.all(player).size() == 4, "the keyring perk allows all four shaped keys")
+	check(player.keyring.all().size() == 4, "the keyring perk allows all four shaped keys")
 	var circle: OptionButton = riso._options[&"key_2"]
 	circle.grab_focus()
 	await button(JOY_BUTTON_DPAD_LEFT)
-	check(not KeyRing.has(player, 2) and KeyRing.all(player).size() == 3, "F7 can unequip an individual key")
+	check(not player.keyring.has(2) and player.keyring.all().size() == 3, "F7 can unequip an individual key")
 	var more_skeletons: Button = riso._skeleton_label.get_parent().get_child(3)
 	more_skeletons.grab_focus()
 	await button(JOY_BUTTON_A)
-	check(KeyRing.skeletons(player) == 1 and riso._skeleton_label.text == "1", "controller equips a skeleton key")
+	check(player.keyring.skeletons() == 1 and riso._skeleton_label.text == "1", "controller equips a skeleton key")
 	var fewer_skeletons: Button = riso._skeleton_label.get_parent().get_child(1)
 	fewer_skeletons.grab_focus()
 	await button(JOY_BUTTON_A)
 	await button(JOY_BUTTON_A)
-	check(KeyRing.skeletons(player) == 0, "skeleton key count cannot become negative")
+	check(player.keyring.skeletons() == 0, "skeleton key count cannot become negative")
 	ring.select(0)
 	ring.item_selected.emit(0)
-	check(KeyRing.all(player).size() == 1, "reducing keyring capacity trims older equipped keys")
+	check(player.keyring.all().size() == 1, "reducing keyring capacity trims older equipped keys")
 	await button(JOY_BUTTON_B)
 	check(not riso.panel.visible and not paused, "B closes the panel and resumes play")
 	MapInfo.debug = false
@@ -197,6 +197,6 @@ func run() -> void:
 	await f7()
 	check(not riso.panel.visible and not paused, "F7 closes its pause cleanly")
 
-	MapInfo.delete_save()
+	RunState.delete_save()
 	print("FAILED" if failed else "PASS: print controls")
 	quit(1 if failed else 0)

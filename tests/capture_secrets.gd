@@ -23,7 +23,7 @@ func capture() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://capture_secrets.save"
+	RunState.save_path = "user://capture_secrets.save"
 	await process_frame
 	# A world whose depth 1 holds a relic.
 	var world_seed: int = 1
@@ -49,7 +49,7 @@ func capture() -> void:
 	var secret: Dictionary = info.world.secrets[0]
 	var door: Vector2i = secret["entrance"][0]
 	var beside: Vector2i = door + Vector2i.LEFT
-	if not info.world.is_valid(beside) or info.world.get_cell(beside).type == MapInfo.Type.GROUND or info.world.get_cell(beside).type == MapInfo.Type.CRACKED:
+	if not info.world.is_valid(beside) or info.world.get_cell(beside).type == LevelGen.Type.GROUND or info.world.get_cell(beside).type == LevelGen.Type.CRACKED:
 		beside = door + Vector2i.RIGHT
 	var middle: Vector2 = (info.cell_position(door) + info.cell_position(secret["room"][0])) * 0.5
 	player.global_position = info.cell_position(beside)

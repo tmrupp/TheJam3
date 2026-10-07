@@ -1,14 +1,15 @@
 extends Node
+class_name Blink
 ## Blink, the move that replaces the dash: the wizard jumps up to `distance` along the held
 ## direction, to the furthest spot there with room for them. Everything on the way is struck as a
 ## dash would strike it (DashStrike: the jump happens while the dash runs), and every full moon on
 ## the way is spent and gives the dash back.
 
-@onready var map_info: MapInfo = $"/root/Main/CanvasLayer/MapInfo"
+@onready var map_info: MapInfo = MapInfo.instance
 @onready var player: Player = $".."
 #@onready var player = $".."
 @onready var area: Area2D = $Area2D
-## Set by the blink tier (Abilities.apply).
+## How far a blink goes, by its tier (set_tier).
 var distance: int = 300
 const STEPS: int = 10
 
@@ -34,10 +35,18 @@ const MOON_REACH: float = 56.0
 ## Spend every full moon near the way from `from` to `to`.
 func _moons(from: Vector2, to: Vector2) -> void:
 	for moon: Node in map_info.map_elements.get_children() if map_info.map_elements != null else []:
-		if moon.has_method("pass_through"):
+		if moon is Moon:
 			var at: Vector2 = (moon as Node2D).global_position
 			if Geometry2D.get_closest_point_to_segment(at, from, to).distance_to(at) <= MOON_REACH:
-				moon.call("pass_through")
+				(moon as Moon).pass_through()
+
+## Its tier (Abilities): I 300 px, and 100 more a tier. At 0 (forgotten) the dash comes back.
+func set_tier(n: int) -> void:
+	if n <= 0:
+		(get_parent() as Player).dash_ability = (get_parent() as Player).do_dash
+		return
+	distance = 300 + 100 * (n - 1)
+
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:

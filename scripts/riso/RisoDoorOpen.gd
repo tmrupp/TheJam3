@@ -1,4 +1,5 @@
 extends Node2D
+class_name RisoDoorOpen
 ## A portcullis opening, printed: the grate winches up into its header with a little shudder,
 ## a puff of blue dust lifts from the floor, then the whole gate fades from the sheet. Spawned
 ## where the door stood.
@@ -36,5 +37,5 @@ func _process(delta: float) -> void:
 		var x: float = -44.0 + 22.0 * float(k)
 		dust.append(RisoShapes.circle(Vector2(x + sin(float(k) * 2.3) * 6.0, ground - 6.0 - rise * 10.0), 6.0 + rise * 8.0, 12))
 	ink.ink(RisoPrint.BLUE, 0.3 * (1.0 - rise) * fade, dust)
-	RisoProp.portcullis(ink, ground + shudder, half, key_color, rise, fade)
+	RisoMarks.portcullis(ink, ground + shudder, half, key_color, rise, fade)
 	ink.finish()

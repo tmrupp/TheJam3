@@ -1,4 +1,5 @@
 extends RefCounted
+class_name RisoFog
 ## Fog options differ in their outer contour and negative space. One print treatment keeps
 ## colour and density consistent, so F7 compares the shape rather than decorative contents.
 

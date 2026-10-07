@@ -1,4 +1,5 @@
 extends Node2D
+class_name Shrine
 ## A level's shrine, near its deeper exit, across two cells. It offers three things; taking any
 ## one spends it:
 ## - two boons: the next tier of two different abilities (picked by the level seed, new ones
@@ -12,7 +13,7 @@ extends Node2D
 
 const BOONS: int = 2
 
-@onready var player: Player = $"/root/Main/Player"
+@onready var player: Player = Stage.player()
 
 var map_info: MapInfo
 
@@ -26,7 +27,7 @@ func depth() -> int:
 
 
 func used() -> bool:
-	return map_info == null or bool(map_info.record().get("shrine_used", false))
+	return map_info == null or bool(map_info.record().shrine_used)
 
 
 func offers() -> Array[StringName]:
@@ -76,7 +77,7 @@ func buy_boon(i: int = 0) -> void:
 		return
 	Abilities.grant(player, a)
 	if dropped != &"":
-		map_info.record()["left_spell"] = [dropped, dropped_tier, i]
+		map_info.record().left_spell = [dropped, dropped_tier, i]
 	_spend(get_node("Boon" if i == 0 else "Boon2") as Node2D, [RisoPrint.ACCENT, RisoPrint.PINK])
 	if RisoPrint.instance != null:
 		RisoPrint.instance.flare({&"wall_climb": &"climb"}.get(a, a))
@@ -84,7 +85,7 @@ func buy_boon(i: int = 0) -> void:
 
 ## The spell left in niche `i` by a swap, as [spell, tier], or an empty array.
 func left_spell(i: int) -> Array:
-	var left: Array = map_info.record().get("left_spell", []) if map_info != null else []
+	var left: Array = map_info.record().left_spell if map_info != null else []
 	return [StringName(left[0]), int(left[1])] if left.size() == 3 and int(left[2]) == i else []
 
 
@@ -98,9 +99,9 @@ func take_back(i: int) -> void:
 	var held_tier: int = Abilities.tier(player, held) if held != &"" else 0
 	Abilities.set_tier(player, left[0], left[1])
 	if held != &"":
-		map_info.record()["left_spell"] = [held, held_tier, i]
+		map_info.record().left_spell = [held, held_tier, i]
 	else:
-		map_info.record().erase("left_spell")
+		map_info.record().left_spell = []
 	map_info.save_run()
 	RisoFx.burst(&"gain", (get_node("Boon" if i == 0 else "Boon2") as Node2D).global_position + Vector2(0, -40), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.PINK])
 	if RisoPrint.instance != null:
@@ -130,7 +131,7 @@ func sells_skeleton() -> bool:
 		return false
 	if map_info.next_relic() == null:
 		return true
-	return sells_skeleton_at(map_info.coord, not map_info.relic_hints.is_empty())
+	return sells_skeleton_at(map_info.coord, not map_info.run.relic_hints.is_empty())
 
 
 ## Whether the shrine in level `at` sells a skeleton key over a relic's whereabouts (at full
@@ -184,7 +185,7 @@ func _pay(cost: int) -> bool:
 
 
 func _spend(side: Node2D, inks: Array[int]) -> void:
-	map_info.record()["shrine_used"] = true
+	map_info.record().shrine_used = true
 	map_info.save_run()
 	RisoFx.burst(&"gain", side.global_position + Vector2(0, -40), Vector2.ZERO, inks)
 

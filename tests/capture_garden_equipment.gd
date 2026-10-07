@@ -20,7 +20,7 @@ func capture() -> void:
 	root.size = Vector2i(1280, 720)
 	output = ProjectSettings.globalize_path("res://../art-captures/garden-equipment")
 	DirAccess.make_dir_recursive_absolute(output)
-	MapInfo.save_path = "user://capture_garden_equipment.save"
+	RunState.save_path = "user://capture_garden_equipment.save"
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
 	await process_frame
@@ -51,8 +51,8 @@ func capture() -> void:
 			await look(at + Vector2(0, -40), String(kind) + ".png")
 	var riso: RisoPrint = RisoPrint.instance
 	Abilities.set_tier(player, &"keyring", 3)
-	KeyRing.set_all(player, [0, 1, 2, 3])
-	KeyRing.set_skeletons(player, 2)
+	player.keyring.set_all([0, 1, 2, 3])
+	player.keyring.set_skeletons(2)
 	riso.set_pad_panel(true)
 	for i: int in range(3):
 		await process_frame
@@ -73,6 +73,6 @@ func capture() -> void:
 	var lantern: Vector2 = info.cell_position(info.world.exit_lanterns[MapInfo.Exit.DEEPER])
 	player.global_position = lantern + Vector2(-180, 0)
 	await look(lantern + Vector2(0, -160), "hyperspace-exit-lantern.png")
-	MapInfo.delete_save()
+	RunState.delete_save()
 	print("CAPTURED garden, keys and grounded hyperspace lantern")
 	quit()

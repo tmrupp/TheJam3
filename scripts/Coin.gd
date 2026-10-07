@@ -1,7 +1,8 @@
 extends Area2D
+class_name Coin
 ## A star (a star cluster gives `value` of them at once; MapInfo sets it, see cluster_value).
 
-@onready var player: Player = $"/root/Main/Player"
+@onready var player: Player = Stage.player()
 
 var value: int = 1
 

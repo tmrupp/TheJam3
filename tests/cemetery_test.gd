@@ -41,10 +41,10 @@ func placed(file: String) -> Array[Node]:
 	return found
 
 
-func count(w: MapInfo.World, type: MapInfo.Type) -> int:
+func count(w: LevelGen, type: LevelGen.Type) -> int:
 	var n: int = 0
 	for column: Array in w.cells:
-		for cell: MapInfo.Cell in column:
+		for cell: LevelGen.Cell in column:
 			if cell.type == type:
 				n += 1
 	return n
@@ -53,7 +53,7 @@ func count(w: MapInfo.World, type: MapInfo.Type) -> int:
 func run() -> void:
 	main = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://cemetery_test.save"
+	RunState.save_path = "user://cemetery_test.save"
 	await process_frame
 	bands()
 	generation(main.get_node("WaveFunctionCollapse"))
@@ -72,7 +72,7 @@ func run() -> void:
 	await settle()
 	player.set_physics_process(false)
 	print("in a cemetery")
-	check(info.here.cemetery() and MapInfo.where(info.coord) == "world 28 · depth %d" % NextWorldDef.first_depth(&"cemetery"), "cemetery world label shows only world and depth")
+	check(info.here.archetype == &"cemetery" and MapInfo.where(info.coord) == "world 28 · depth %d" % NextWorldDef.first_depth(&"cemetery"), "cemetery world label shows only world and depth")
 	if RisoPrint.instance != null:
 		check(RisoPrint.instance.realm == &"cemetery", "printed in the cemetery's realm")
 
@@ -81,7 +81,7 @@ func run() -> void:
 	await moths()
 	await wraiths()
 
-	MapInfo.delete_save()
+	RunState.delete_save()
 	if failed:
 		print("FAILED")
 		quit(1)
@@ -99,12 +99,12 @@ func bands() -> void:
 	check(b == 6 and kinds == [&"garden", &"garden", &"cemetery", &"cemetery", &"sky", &"sky", &"garden"], "garden, then cemetery, then sky, a band of %d each, then round again: %s" % [b, kinds])
 	check(NextWorldDef.first_depth(&"cemetery") == b and NextWorldDef.first_depth(&"sky") == 2 * b, "each band's first depth")
 	var def: NextWorldDef = MapInfo.def_for(Vector2i(28, NextWorldDef.first_depth(&"cemetery") + 1))
-	check(def.region == NextWorldDef.GRAVEYARD and def.symmetry == 1 and def.realm() == &"cemetery", "a cemetery collapses the graveyard sample, unturned, and prints in its realm")
+	check(def.region == CemeteryArchetype.SAMPLE and def.symmetry == 1 and def.realm() == &"cemetery", "a cemetery collapses the graveyard sample, unturned, and prints in its realm")
 	var garden: NextWorldDef = MapInfo.def_for(Vector2i(28, 1))
-	check(garden.region != NextWorldDef.GRAVEYARD and garden.realm() == &"garden" and not garden.title().contains("cemetery"), "a garden level has its own terrain and realm")
-	check(MapInfo.region_for(0) == MapInfo.region_for(3 * NextWorldDef.BAND) and MapInfo.region_for(0) != NextWorldDef.ISLANDS, "garden bands are the tunnels (the islands are the sky's)")
+	check(garden.region == GardenArchetype.SAMPLE and garden.realm() == &"garden" and not garden.title().contains("cemetery"), "a garden level has its own terrain and realm")
+	check(Worlds.def_for(Vector2i(28, 3 * NextWorldDef.BAND)).region == GardenArchetype.SAMPLE and GardenArchetype.SAMPLE != SkyArchetype.SAMPLE, "garden bands come round again with the tunnels (the islands are the sky's)")
 	var side: NextWorldDef = MapInfo.def_for(Worlds.side_at(0, Vector2i(28, NextWorldDef.first_depth(&"cemetery") + 1)))
-	check(not side.cemetery(), "a side world under a cemetery is not one")
+	check(side.archetype == &"" and side.arch == null, "a side world under a cemetery is not one")
 
 
 func generation(wfc: Node) -> void:
@@ -116,12 +116,12 @@ func generation(wfc: Node) -> void:
 		check(not cells.is_empty(), "%s collapses" % at)
 		if cells.is_empty():
 			continue
-		var w: MapInfo.World = MapInfo.World.new(cells, def)
-		var again: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", def), def)
+		var w: LevelGen = LevelGen.new(cells, def)
+		var again: LevelGen = LevelGen.new(wfc.call("generate_level", def), def)
 		check(w.objects == again.objects, "%s: the same every time" % at)
-		var lanterns: int = count(w, MapInfo.Type.CHECKPOINT)
-		check(count(w, MapInfo.Type.MOTHS) >= mini(lanterns, 1) and count(w, MapInfo.Type.FOG) >= 1 and count(w, MapInfo.Type.WRAITH) >= 1,
-			"%s: moths (%d), fog (%d) and wraiths (%d)" % [at, count(w, MapInfo.Type.MOTHS), count(w, MapInfo.Type.FOG), count(w, MapInfo.Type.WRAITH)])
+		var lanterns: int = count(w, LevelGen.Type.CHECKPOINT)
+		check(count(w, LevelGen.Type.MOTHS) >= mini(lanterns, 1) and count(w, LevelGen.Type.FOG) >= 1 and count(w, LevelGen.Type.WRAITH) >= 1,
+			"%s: moths (%d), fog (%d) and wraiths (%d)" % [at, count(w, LevelGen.Type.MOTHS), count(w, LevelGen.Type.FOG), count(w, LevelGen.Type.WRAITH)])
 		var solid: Dictionary = {}
 		for v: Vector2i in w.grounds:
 			solid[v] = true
@@ -129,7 +129,7 @@ func generation(wfc: Node) -> void:
 		for item: Dictionary in RisoDecor.plan(solid, {}, def.gen_seed, Rect2i(Vector2i.ZERO, w.size), def.archetype):
 			kinds[item["kind"]] = true
 		check(kinds.has(&"headstone") and not kinds.has(&"mushroom"), "%s: graveyard decor (%s)" % [at, kinds.keys()])
-		check(w.chasms.size() >= MapInfo.CHASMS_MIN, "%s: %d chasms, and as many bells" % [at, w.chasms.size()])
+		check(w.chasms.size() >= Chasms.CHASMS_MIN, "%s: %d chasms, and as many bells" % [at, w.chasms.size()])
 		for id: int in range(w.chasms.size()):
 			var chasm: Dictionary = w.chasms[id]
 			if id in w.relic_chasms:
@@ -137,39 +137,39 @@ func generation(wfc: Node) -> void:
 				continue
 			var planks: Array = chasm["planks"]
 			var row: int = chasm["row"]
-			var shaped: bool = planks.size() >= MapInfo.World.CHASM_WIDTH.x and planks.size() <= MapInfo.World.CHASM_WIDTH.y
+			var shaped: bool = planks.size() >= Chasms.CHASM_WIDTH.x and planks.size() <= Chasms.CHASM_WIDTH.y
 			for v: Vector2i in planks:
-				shaped = shaped and w.get_cell(v).type == MapInfo.Type.BRIDGE and int(w.get_cell(v).extra_info) == id
-				for d: int in range(-MapInfo.World.CHASM_CLEAR, MapInfo.World.CHASM_DEPTH):
+				shaped = shaped and w.get_cell(v).type == LevelGen.Type.BRIDGE and int(w.get_cell(v).extra_info) == id
+				for d: int in range(-Chasms.CHASM_CLEAR, Chasms.CHASM_DEPTH):
 					# Open, and nothing placed in it (no ledge, lift or moon to cross on).
 					var c: Vector2i = v + Vector2i(0, d)
-					shaped = shaped and (d == 0 or not w.is_valid(c) or w.get_cell(c).type in [MapInfo.Type.EMPTY, MapInfo.Type.GROUND, MapInfo.Type.CRACKED])
-				shaped = shaped and w.get_cell(v + Vector2i(0, MapInfo.World.CHASM_DEPTH)).type == MapInfo.Type.SPIKES
+					shaped = shaped and (d == 0 or not w.is_valid(c) or w.get_cell(c).type in [LevelGen.Type.EMPTY, LevelGen.Type.GROUND, LevelGen.Type.CRACKED])
+				shaped = shaped and w.get_cell(v + Vector2i(0, Chasms.CHASM_DEPTH)).type == LevelGen.Type.SPIKES
 			for edge: Vector2i in [chasm["left"], chasm["right"]]:
-				shaped = shaped and w.get_cell(edge + Vector2i.DOWN).type in [MapInfo.Type.GROUND, MapInfo.Type.CRACKED]
+				shaped = shaped and w.get_cell(edge + Vector2i.DOWN).type in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED]
 			check(shaped, "%s: chasm %d is %d across between floors, thorns at its bottom, planks over it" % [at, id, planks.size()])
 			var bells: int = 0
 			var sides: Dictionary = {}
 			for v: Vector2i in w.objects:
-				if w.get_cell(v).type == MapInfo.Type.BELL and int((w.get_cell(v).extra_info as Array)[0]) == id:
+				if w.get_cell(v).type == LevelGen.Type.BELL and int((w.get_cell(v).extra_info as Array)[0]) == id:
 					bells += 1
 					sides[signi(v.x - (planks[0] as Vector2i).x)] = true
 					# Rock under it (maybe cracked: broken, a ledge takes its place, MapInfo.prop_up).
-					check(v.y == row and w.get_cell(v + Vector2i.DOWN).type in [MapInfo.Type.GROUND, MapInfo.Type.CRACKED], "%s: its bell stands on the floor beside it" % at)
+					check(v.y == row and w.get_cell(v + Vector2i.DOWN).type in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED], "%s: its bell stands on the floor beside it" % at)
 					var lock: int = int((w.get_cell(v).extra_info as Array)[1])
 					if lock == -1:
 						var levers: int = 0
 						for q: Vector2i in w.objects:
-							if w.get_cell(q).type == MapInfo.Type.SWITCH and w.get_cell(q).extra_info == v:
+							if w.get_cell(q).type == LevelGen.Type.SWITCH and w.get_cell(q).extra_info == v:
 								levers += 1
-								check(absi(q.x - v.x) + absi(q.y - v.y) >= MapInfo.World.BELL_SWITCH and w.ground_below(q), "%s: its switch stands on a floor away from it" % at)
+								check(absi(q.x - v.x) + absi(q.y - v.y) >= Chasms.BELL_SWITCH and w.ground_below(q), "%s: its switch stands on a floor away from it" % at)
 						check(levers == 1, "%s: a bell chained to a switch has one" % at)
 					else:
 						check(lock < MapInfo.KEY_COLOR_COUNT, "%s: or a padlock in a key colour (%d)" % [at, lock])
 			check(bells == 2 and sides.has(-1) and sides.has(1), "%s: chasm %d has a bell on each side" % [at, id])
 	var garden_def: NextWorldDef = MapInfo.def_for(Vector2i(28, 1))
-	var garden: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", garden_def), garden_def)
-	check(count(garden, MapInfo.Type.MOTHS) + count(garden, MapInfo.Type.FOG) + count(garden, MapInfo.Type.WRAITH) == 0, "none of it in the garden")
+	var garden: LevelGen = LevelGen.new(wfc.call("generate_level", garden_def), garden_def)
+	check(count(garden, LevelGen.Type.MOTHS) + count(garden, LevelGen.Type.FOG) + count(garden, LevelGen.Type.WRAITH) == 0, "none of it in the garden")
 
 
 func bridges() -> void:
@@ -229,16 +229,16 @@ func bridges() -> void:
 	player.health.health = player.health.max_health
 	player.invulnerable.enable()
 	# Chained up: struck or rung, it only rattles.
-	KeyRing.clear(player)
+	player.keyring.clear()
 	bell.call("hex_hit", 1, Vector2.RIGHT)
 	bell.call("use")
 	check(not bool(bell.call("unchained")) and not bool(bell.call("rung")) and not info.bridge_up(id), "chained, the bell only rattles")
 	var lock: int = int(bell.get("lock"))
 	if lock >= 0:
 		# Its padlock opens to a key of its colour (kept, as keys are).
-		KeyRing.set_all(player, [lock])
+		player.keyring.set_all([lock])
 		bell.call("use")
-		check(bool(bell.call("unchained")) and KeyRing.has(player, lock), "a key of the padlock's colour frees it")
+		check(bool(bell.call("unchained")) and player.keyring.has(lock), "a key of the padlock's colour frees it")
 	else:
 		var lever: Node = placed("switch.tscn").filter(func(n: Node) -> bool: return n.get("gate_cell") == bell.get_meta(&"cell"))[0]
 		lever.call("flip")

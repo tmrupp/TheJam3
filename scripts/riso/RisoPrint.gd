@@ -22,7 +22,6 @@ const PLATE_BIT0: int = 12
 const OVERLAY_BIT: int = 19
 const PRINT_SHADER: Shader = preload("res://shaders/riso_print.gdshader")
 const UI_SHADER: Shader = preload("res://shaders/riso_ui.gdshader")
-const PORTAL_WARP: GDScript = preload("res://scripts/riso/RisoPortalWarp.gd")
 ## The UI (HUD, interaction prompts) is printed in its own pass, finer than the scene. At full UI
 ## detail these scale the scene's screen cell, wobble, grain, dot gain and misregistration for
 ## it; at none it prints like the scene (see ui_detail).
@@ -111,7 +110,7 @@ var offset_scale: float = 1.0
 ## How many missed-ink specks (flecks of bare paper) the print shows: 0 none, 0.2 the default, 1 the
 ## prototype's.
 var specks: float = 0.2
-## What fills the portals' openings (see RisoProp._portal): bands of TV static (the default), or
+## What fills the portals' openings (see PortalArt._portal): bands of TV static (the default), or
 ## ripples on a pool of water.
 const PORTAL_STYLES: Array[StringName] = [&"static", &"ripples"]
 var portal_style: StringName = &"static"
@@ -146,12 +145,12 @@ var print_layer: CanvasLayer
 var print_rect: ColorRect
 var print_material: ShaderMaterial
 var background: Node2D
-var terrain: Node2D
-var hud: Node2D
+var terrain: RisoTerrain
+var hud: RisoHud
 var map_view: Node2D
-var decor: Node2D
-var light: Node2D
-var ambient: Node2D
+var decor: RisoDecor
+var light: RisoLight
+var ambient: RisoAmbient
 var transition: Node2D
 var panel: Control
 
@@ -162,7 +161,7 @@ var _old_scale_mode: Window.ContentScaleMode
 var _old_cull_mask: int = 0
 var _old_snap: bool = false
 var _player: Player
-var _map_info: Node
+var _map_info: MapInfo
 var _started: bool = false
 
 
@@ -170,18 +169,17 @@ var _started: bool = false
 static func door_opened(door: Node2D) -> void:
 	if not is_on() or door == null:
 		return
-	var fx: Node2D = Node2D.new()
-	fx.set_script(preload("res://scripts/riso/RisoDoorOpen.gd"))
-	var tm: TileMap = door.get_node_or_null("/root/Main/TileMap") as TileMap
+	var fx: RisoDoorOpen = RisoDoorOpen.new()
+	var tm: TileMap = Stage.tile_map()
 	var ground: float = 64.0
 	var half: float = 64.0
 	if tm != null and tm.tile_set != null:
 		half = float(tm.tile_set.tile_size.y) * tm.global_scale.y * 0.5
 		var cell: Vector2i = tm.local_to_map(tm.to_local(door.global_position))
 		ground = tm.to_global(tm.map_to_local(cell)).y + half - door.global_position.y
-	fx.set("ground", ground)
-	fx.set("half", half)
-	fx.set("key_color", int(door.get_meta(&"key_color", 0)))
+	fx.ground = ground
+	fx.half = half
+	fx.key_color = int(door.get_meta(&"key_color", 0))
 	door.get_parent().add_child(fx)
 	fx.global_position = door.global_position
 
@@ -191,13 +189,13 @@ static func door_opened(door: Node2D) -> void:
 static func portal_depart(portal: Node2D, player: Player) -> void:
 	if not is_on() or portal == null or player == null:
 		return
-	var art: RisoProp = portal.get_node_or_null("RisoArt") as RisoProp
-	var wizard: Node2D = player.get_node_or_null("RisoWizard") as Node2D
+	var art: PortalArt = portal.get_node_or_null("RisoArt") as PortalArt
+	var wizard: RisoWizard = player.get_node_or_null("RisoWizard") as RisoWizard
 	if art == null or wizard == null:
 		return
 	portal.set_meta(&"flare_at", Time.get_ticks_msec() / 1000.0)
 	_portal_fx(portal, wizard, art.to_global(art.portal_center()), wizard.global_position, 0)
-	wizard.set("vanished", true)
+	wizard.vanished = true
 
 
 ## The wizard comes out of `exit` (the far portal, if known) at `to`: prints them pushed out of
@@ -205,8 +203,8 @@ static func portal_depart(portal: Node2D, player: Player) -> void:
 static func portal_arrive(portal: Node2D, exit: Node2D, player: Player, to: Vector2) -> void:
 	if not is_on() or portal == null or player == null:
 		return
-	var art: RisoProp = (exit if exit != null else portal).get_node_or_null("RisoArt") as RisoProp
-	var wizard: Node2D = player.get_node_or_null("RisoWizard") as Node2D
+	var art: PortalArt = (exit if exit != null else portal).get_node_or_null("RisoArt") as PortalArt
+	var wizard: RisoWizard = player.get_node_or_null("RisoWizard") as RisoWizard
 	if art == null or wizard == null:
 		return
 	var center: Vector2 = art.to_global(art.portal_center()) if exit != null else to + (art.to_global(art.portal_center()) - portal.global_position)
@@ -218,51 +216,49 @@ static func portal_arrive(portal: Node2D, exit: Node2D, player: Player, to: Vect
 ## A warp (see Warp): the wizard is drawn into a tear in the air where they stand, as into a
 ## portal's core, in the robe's ink (the warp's colour).
 static func warp_depart(player: Player) -> void:
-	var wizard: Node2D = player.get_node_or_null("RisoWizard") as Node2D if player != null else null
+	var wizard: RisoWizard = player.get_node_or_null("RisoWizard") as RisoWizard if player != null else null
 	if not is_on() or wizard == null:
 		return
 	_warp_fx(player, wizard, wizard.global_position, 0)
-	wizard.set("vanished", true)
+	wizard.vanished = true
 
 
 ## The far end of a warp: pushed out of a tear in the air over `to`.
 static func warp_arrive(player: Player, to: Vector2) -> void:
-	var wizard: Node2D = player.get_node_or_null("RisoWizard") as Node2D if player != null else null
+	var wizard: RisoWizard = player.get_node_or_null("RisoWizard") as RisoWizard if player != null else null
 	if not is_on() or wizard == null:
 		return
 	_warp_fx(player, wizard, to + wizard.global_position - player.global_position, 1)
 
 
-static func _warp_fx(player: Player, wizard: Node2D, feet: Vector2, part: int) -> void:
-	var fx: Node2D = Node2D.new()
-	fx.set_script(PORTAL_WARP)
-	fx.set("part", part)
+static func _warp_fx(player: Player, wizard: RisoWizard, feet: Vector2, part: int) -> void:
 	# The tear is at the wizard's middle, where a portal's core would be.
-	fx.set("center", feet + Vector2(0, -float(PORTAL_WARP.get_script_constant_map()["MID"]) * wizard.global_scale.y))
-	fx.set("feet", feet)
-	fx.set("facing", 1.0 if float(wizard.get("fs")) >= 0.0 else -1.0)
-	fx.set("art_scale", wizard.global_scale.y)
-	fx.set("ring", ROBE)
-	player.get_parent().add_child(fx)
+	var center: Vector2 = feet + Vector2(0, -RisoPortalWarp.MID * wizard.global_scale.y)
+	player.get_parent().add_child(_warp(wizard, part, center, feet, ROBE))
 
 
 ## The wizard is seen again (see portal_depart).
 static func portal_reveal(player: Player) -> void:
-	var wizard: Node2D = player.get_node_or_null("RisoWizard") as Node2D if player != null else null
+	var wizard: RisoWizard = player.get_node_or_null("RisoWizard") as RisoWizard if player != null else null
 	if wizard != null:
-		wizard.set("vanished", false)
+		wizard.vanished = false
 
 
-static func _portal_fx(portal: Node2D, wizard: Node2D, center: Vector2, feet: Vector2, part: int) -> void:
-	var fx: Node2D = Node2D.new()
-	fx.set_script(preload("res://scripts/riso/RisoPortalWarp.gd"))
-	fx.set("part", part)
-	fx.set("center", center)
-	fx.set("feet", feet)
-	fx.set("facing", 1.0 if float(wizard.get("fs")) >= 0.0 else -1.0)
-	fx.set("art_scale", wizard.global_scale.y)
-	fx.set("ring", EYE if portal.has_meta(&"rift") else ACCENT)
-	portal.get_parent().add_child(fx)
+static func _portal_fx(portal: Node2D, wizard: RisoWizard, center: Vector2, feet: Vector2, part: int) -> void:
+	portal.get_parent().add_child(_warp(wizard, part, center, feet, EYE if portal.has_meta(&"rift") else ACCENT))
+
+
+## The print of the wizard drawn into (`part` 0) or pushed out of (1) a portal's core at `center`,
+## their feet at `feet`, ringed in `ring` ink.
+static func _warp(wizard: RisoWizard, part: int, center: Vector2, feet: Vector2, ring: int) -> RisoPortalWarp:
+	var fx: RisoPortalWarp = RisoPortalWarp.new()
+	fx.part = part
+	fx.center = center
+	fx.feet = feet
+	fx.facing = 1.0 if wizard.fs >= 0.0 else -1.0
+	fx.art_scale = wizard.global_scale.y
+	fx.ring = ring
+	return fx
 
 
 ## Every plate: knocking or lifting them all leaves bare paper.
@@ -408,31 +404,26 @@ func _build() -> void:
 	main.add_child.call_deferred(background)
 	if main is CanvasItem:
 		(main as CanvasItem).visibility_layer |= all_ink_bits()
-	terrain = Node2D.new()
+	terrain = RisoTerrain.new()
 	terrain.name = "RisoTerrain"
-	terrain.set_script(preload("res://scripts/riso/RisoTerrain.gd"))
 	main.add_child.call_deferred(terrain)
-	decor = Node2D.new()
+	decor = RisoDecor.new()
 	decor.name = "RisoDecor"
-	decor.set_script(preload("res://scripts/riso/RisoDecor.gd"))
 	main.add_child.call_deferred(decor)
-	light = Node2D.new()
+	light = RisoLight.new()
 	light.name = "RisoLight"
-	light.set_script(preload("res://scripts/riso/RisoLight.gd"))
 	main.add_child.call_deferred(light)
-	ambient = Node2D.new()
+	ambient = RisoAmbient.new()
 	ambient.name = "RisoAmbient"
-	ambient.set_script(preload("res://scripts/riso/RisoAmbient.gd"))
-	ambient.set("decor", decor)
-	ambient.set("light", light)
+	ambient.decor = decor
+	ambient.light = light
 	main.add_child.call_deferred(ambient)
 	transition = Node2D.new()
 	transition.name = "RisoTransition"
 	transition.set_script(preload("res://scripts/riso/RisoTransition.gd"))
 	main.add_child.call_deferred(transition)
-	hud = Node2D.new()
+	hud = RisoHud.new()
 	hud.name = "RisoHud"
-	hud.set_script(preload("res://scripts/riso/RisoHud.gd"))
 	main.add_child.call_deferred(hud)
 	map_view = Node2D.new()
 	map_view.name = "RisoMap"
@@ -567,7 +558,7 @@ func _on_player_event(kind: StringName, _at: Vector2) -> void:
 	elif kind == &"hurt":
 		RisoFx.burst(&"hit", _at + Vector2(0, -20), -_player.velocity.normalized())
 	if kind in [&"hurt", &"death"] and hud != null and is_instance_valid(hud):
-		hud.set("flash", 1.0)
+		hud.flash = 1.0
 	if kind == &"projection_start":
 		flare(&"astral")
 	elif kind == &"jump" and _player != null and _player.MAX_JUMPS > 1 and _player.jumps < _player.MAX_JUMPS and not _player.is_on_floor():
@@ -580,16 +571,16 @@ func _on_player_event(kind: StringName, _at: Vector2) -> void:
 ## Movement (dash, blink, climb, double jump) lights the hat, which takes its glow ink; spells
 ## light the orb instead (accent ink) and leave the hat's colour alone.
 func flare(ability: StringName) -> void:
-	var wizard: Node = null
+	var wizard: RisoWizard = null
 	if _player != null and is_instance_valid(_player):
-		wizard = _player.get_node_or_null("RisoWizard")
-	if ability in Abilities.SPELLS:
+		wizard = _player.get_node_or_null("RisoWizard") as RisoWizard
+	if Abilities.is_spell(ability):
 		if wizard != null:
-			wizard.call("orb_flare")
+			wizard.orb_flare()
 		return
 	glow_ability = ability
 	if wizard != null:
-		wizard.call("flare")
+		wizard.flare()
 
 
 func _new_sheet() -> void:
@@ -711,9 +702,9 @@ func cycle_realm() -> void:
 ## Called by MapInfo when a world has been laid out. A place with a realm of its own
 ## (NextWorldDef.realm, as hyperspace has) prints in it; leaving brings back the realm it was
 ## entered from.
-func world_built(map_info: Node, _world_index: int) -> void:
+func world_built(map_info: MapInfo, _world_index: int) -> void:
 	_map_info = map_info
-	var here: NextWorldDef = map_info.get("here") as NextWorldDef
+	var here: NextWorldDef = map_info.here
 	var own: StringName = here.realm() if here != null else &""
 	if own != &"" and REALMS.has(own) and realm != own:
 		if REALM_ORDER.has(realm):
@@ -724,24 +715,25 @@ func world_built(map_info: Node, _world_index: int) -> void:
 	_rebuild_ground(map_info)
 
 
-func _rebuild_ground(map_info: Node) -> void:
+func _rebuild_ground(map_info: MapInfo) -> void:
 	if terrain != null and is_instance_valid(terrain):
 		var ledges: Array[Vector2] = []
 		var cracked: Array[Vector2] = []
-		var elements: Node = map_info.get("map_elements") as Node
+		var elements: Node = map_info.map_elements
 		if elements != null:
 			for node: Node in elements.get_children():
 				if node.is_queued_for_deletion():
 					continue
-				if node.scene_file_path == "res://prefabs/platform.tscn":
+				var type: int = Placeables.type_of(node)
+				if type == LevelGen.Type.PLATFORM:
 					ledges.append((node as Node2D).global_position)
-				elif node.scene_file_path == "res://prefabs/cracked_wall.tscn":
+				elif type == LevelGen.Type.CRACKED:
 					cracked.append((node as Node2D).global_position)
-		terrain.call("rebuild", map_info.get("tile_map"), ledges, cracked)
+		terrain.rebuild(map_info.tile_map, ledges, cracked)
 		if decor != null and is_instance_valid(decor):
-			decor.call("rebuild", map_info, cracked)
+			decor.rebuild(map_info, cracked)
 		if light != null and is_instance_valid(light):
-			light.call("rebuild", map_info)
+			light.rebuild(map_info)
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -839,41 +831,19 @@ func _panel_focus_rows(node: Node, rows: Array[Array]) -> void:
 
 # ---------------------------------------------------------------- dressing prefabs
 
+## The ink art for prefabs that are not things a level holds (those are in Placeables.TABLE).
 const DRESS: Dictionary = {
 	"res://prefabs/player.tscn": &"wizard",
-	"res://prefabs/mover_enemy.tscn": &"wisp",
-	"res://prefabs/shooter_enemy.tscn": &"watcher",
-	"res://prefabs/hopper_enemy.tscn": &"hopper",
-	"res://prefabs/laser.tscn": &"laser",
 	"res://prefabs/bullet.tscn": &"shard",
-	"res://prefabs/coin.tscn": &"mote",
-	"res://prefabs/moths.tscn": &"moths",
-	"res://prefabs/sleep_fog.tscn": &"fog",
-	"res://prefabs/wraith_enemy.tscn": &"wraith",
-	"res://prefabs/bridge.tscn": &"bridge",
-	"res://prefabs/bell.tscn": &"bell",
-	"res://prefabs/vane.tscn": &"vane",
-	"res://prefabs/pad.tscn": &"pad",
-	"res://prefabs/puff.tscn": &"puff",
-	"res://prefabs/wind.tscn": &"wind",
-	"res://prefabs/bird_enemy.tscn": &"bird",
-	"res://prefabs/star_cluster.tscn": &"cluster",
-	"res://prefabs/key.tscn": &"key",
-	"res://prefabs/moon.tscn": &"moon",
-	"res://prefabs/inkwell.tscn": &"inkwell",
-	"res://prefabs/portal.tscn": &"portal",
-	"res://prefabs/door.tscn": &"door",
-	"res://prefabs/switch_gate.tscn": &"gate",
-	"res://prefabs/switch.tscn": &"switch",
-	"res://prefabs/relic.tscn": &"relic",
-	"res://prefabs/checkpoint.tscn": &"lantern",
-	"res://prefabs/level_exit.tscn": &"exit",
-	"res://prefabs/shrine.tscn": &"shrine",
-	"res://prefabs/spikes.tscn": &"thorns",
 	"res://prefabs/corpse.tscn": &"ghost",
-	"res://prefabs/moving_platform.tscn": &"lift",
-	"res://prefabs/cracked_wall.tscn": &"cracked",
 }
+
+
+## The ink art a prefab at `path` is dressed in (a RisoProp kind, or &"wizard"), or &"" for none.
+static func art_kind(path: String) -> StringName:
+	if DRESS.has(path):
+		return DRESS[path]
+	return Placeables.art_for_scene(path)
 
 
 func _dress_existing(node: Node) -> void:
@@ -883,8 +853,9 @@ func _dress_existing(node: Node) -> void:
 
 
 func _on_node_added(node: Node) -> void:
-	if node.scene_file_path != "" and DRESS.has(node.scene_file_path):
-		_dress.call_deferred(node, DRESS[node.scene_file_path])
+	var kind: StringName = art_kind(node.scene_file_path) if node.scene_file_path != "" else &""
+	if kind != &"":
+		_dress.call_deferred(node, kind)
 	elif node.name == "Interactable":
 		_add_prompt.call_deferred(node)
 
@@ -894,29 +865,27 @@ func _dress(node: Node, kind: StringName) -> void:
 		return
 	if node.has_node("RisoWizard") or node.has_node("RisoArt"):
 		return
-	var art: Node2D = Node2D.new()
+	var art: Node2D
 	if kind == &"wizard":
+		art = RisoWizard.new()
 		art.name = "RisoWizard"
-		art.set_script(preload("res://scripts/riso/RisoWizard.gd"))
 	else:
+		art = RisoProp.make(kind)
 		art.name = "RisoArt"
-		art.set_script(preload("res://scripts/riso/RisoProp.gd"))
-		art.set("kind", kind)
 	art.add_to_group(&"riso_art")
 	node.add_child(art)
 	share_layers(art)
 
 
 func _add_prompt(interactable: Node) -> void:
-	if not is_instance_valid(interactable) or not (interactable.get_parent() is Node2D):
+	if not is_instance_valid(interactable) or not interactable is Interactable or not (interactable.get_parent() is Node2D):
 		return
 	var host: Node2D = interactable.get_parent() as Node2D
 	if host.has_node("RisoPrompt"):
 		return
-	var prompt: Node2D = Node2D.new()
+	var prompt: RisoPrompt = RisoPrompt.new()
 	prompt.name = "RisoPrompt"
-	prompt.set_script(preload("res://scripts/riso/RisoPrompt.gd"))
-	prompt.set("interactable", interactable)
+	prompt.interactable = interactable as Interactable
 	host.add_child(prompt)
 
 
@@ -983,7 +952,7 @@ func _build_panel() -> void:
 	_option_row(look, &"robe", "Robe", ["Spell colour", "Blue"], func(i: int) -> void: robe_by_spell = i == 0)
 	_option_row(look, &"sky_bottoms", "Sky bottoms", SKY_BOTTOM_NAMES, func(i: int) -> void:
 		sky_bottom_style = SKY_BOTTOM_STYLES[i]
-		if _map_info != null and is_instance_valid(_map_info) and (_map_info.get("here") as NextWorldDef).sky():
+		if _map_info != null and is_instance_valid(_map_info) and _map_info.here.open():
 			_rebuild_ground(_map_info)
 		_sync_panel())
 	var keys: VBoxContainer = _section(box, "Keys", false)
@@ -995,18 +964,18 @@ func _build_panel() -> void:
 		_option_row(keys, StringName("key_" + str(color)), shapes[color] + " key", ["None", "Equipped"], func(i: int) -> void: _equip_panel_key(color, i == 1))
 	_skeleton_label = _stepper_row(keys, "Skeleton keys", func(d: int) -> void:
 		if _player != null and is_instance_valid(_player):
-			KeyRing.set_skeletons(_player, maxi(0, KeyRing.skeletons(_player) + d)))
+			_player.keyring.set_skeletons(maxi(0, _player.keyring.skeletons() + d)))
 	# Abilities: set any tier outright (a spell above 0 takes the slot).
 	var abilities: VBoxContainer = _section(box, "Abilities", false)
-	for a: StringName in Abilities.ORDER:
+	for a: StringName in Abilities.ids():
 		var items: Array[String] = ["none"]
-		for n: int in range(1, int(Abilities.MAX[a]) + 1):
+		for n: int in range(1, Abilities.max_tier(a) + 1):
 			items.append(Abilities.roman(n))
-		_option_row(abilities, StringName("ability_" + String(a)), String(Abilities.NAMES[a]) + (" (spell)" if a in Abilities.SPELLS else ""), items, func(i: int) -> void:
+		_option_row(abilities, StringName("ability_" + String(a)), Abilities.label(a) + (" (spell)" if Abilities.is_spell(a) else ""), items, func(i: int) -> void:
 			if _player != null and is_instance_valid(_player):
 				Abilities.set_tier(_player, a, i)
 				if a == &"keyring":
-					KeyRing.set_all(_player, KeyRing.all(_player))
+					_player.keyring.set_all(_player.keyring.all())
 			_sync_panel())
 	_sync_panel()
 
@@ -1066,10 +1035,10 @@ func _equip_panel_key(color: int, equipped: bool) -> void:
 	if _player == null or not is_instance_valid(_player):
 		return
 	if equipped:
-		if not KeyRing.has(_player, color):
-			KeyRing.take(_player, color)
+		if not _player.keyring.has(color):
+			_player.keyring.take(color)
 	else:
-		KeyRing.set_all(_player, KeyRing.all(_player).filter(func(c: int) -> bool: return c != color))
+		_player.keyring.set_all(_player.keyring.all().filter(func(c: int) -> bool: return c != color))
 	_sync_panel()
 
 
@@ -1094,7 +1063,7 @@ func _build_travel(box: VBoxContainer) -> void:
 	var row: HBoxContainer = HBoxContainer.new()
 	rows.add_child(row)
 	_button(row, "Go", func() -> void: _travel(_travel_at))
-	for a: StringName in NextWorldDef.ARCHETYPES:
+	for a: StringName in NextWorldDef.archetype_names():
 		_button(row, String(a).capitalize(), func() -> void: _travel(Vector2i(_travel_at.x, _nearest_band(a, _travel_at.y))))
 	for k: int in range(Worlds.KINDS.size()):
 		var kind: int = k
@@ -1143,7 +1112,7 @@ static func _nearest_band(a: StringName, from: int) -> int:
 
 func _travel_reset() -> void:
 	if _map_info != null and is_instance_valid(_map_info):
-		var at: Vector2i = _map_info.get("coord")
+		var at: Vector2i = _map_info.coord
 		_travel_at = Vector2i(at.x, maxi(0, at.y))
 
 
@@ -1270,11 +1239,11 @@ func _sync_panel() -> void:
 	if _options.has(&"robe"):
 		(_options[&"robe"] as OptionButton).select(0 if robe_by_spell else 1)
 	if _player != null and is_instance_valid(_player):
-		_key_capacity_label.text = "Ring: %d / %d  (Keyring adds slots)" % [KeyRing.all(_player).size(), KeyRing.capacity(_player)]
-		_skeleton_label.text = str(KeyRing.skeletons(_player))
+		_key_capacity_label.text = "Ring: %d / %d  (Keyring adds slots)" % [_player.keyring.all().size(), _player.keyring.capacity()]
+		_skeleton_label.text = str(_player.keyring.skeletons())
 		for color: int in range(MapInfo.KEY_COLOR_COUNT):
-			(_options[StringName("key_" + str(color))] as OptionButton).select(1 if KeyRing.has(_player, color) else 0)
-		for a: StringName in Abilities.ORDER:
+			(_options[StringName("key_" + str(color))] as OptionButton).select(1 if _player.keyring.has(color) else 0)
+		for a: StringName in Abilities.ids():
 			var key: StringName = StringName("ability_" + String(a))
 			if _options.has(key):
 				(_options[key] as OptionButton).select(Abilities.tier(_player, a))

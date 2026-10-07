@@ -23,7 +23,7 @@ func capture() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://capture_switches.save"
+	RunState.save_path = "user://capture_switches.save"
 	await process_frame
 	# A world whose depth 1 deals a hyperspace door.
 	var world_seed: int = 1

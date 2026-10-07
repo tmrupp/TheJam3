@@ -42,7 +42,7 @@ func run() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://riso_pin_test.save"
+	RunState.save_path = "user://riso_pin_test.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	for i: int in range(5):

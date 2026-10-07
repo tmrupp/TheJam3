@@ -40,7 +40,7 @@ func placed(scene: String) -> Array[Node]:
 	return found
 
 
-func count(w: MapInfo.World, type: int) -> int:
+func count(w: LevelGen, type: int) -> int:
 	var n: int = 0
 	for x: int in range(w.size.x):
 		for y: int in range(w.size.y):
@@ -52,27 +52,27 @@ func count(w: MapInfo.World, type: int) -> int:
 func run() -> void:
 	main = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://hazards_test.save"
+	RunState.save_path = "user://hazards_test.save"
 	await process_frame
 	var wfc: Node = main.get_node("WaveFunctionCollapse")
 
 	print("generation")
 	var shallow: NextWorldDef = MapInfo.def_for(Vector2i(28, 0))
 	var deep: NextWorldDef = MapInfo.def_for(Vector2i(28, 2))
-	var w0: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", shallow), shallow)
-	var w2: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", deep), deep)
-	check(count(w0, MapInfo.Type.HOPPER) == 0 and count(w2, MapInfo.Type.HOPPER) >= 2, "no hoppers at depth 0, %d at depth 2" % count(w2, MapInfo.Type.HOPPER))
-	check(count(w0, MapInfo.Type.LASER) == 0 and count(w2, MapInfo.Type.LASER) == 0, "no lasers in ordinary levels")
+	var w0: LevelGen = LevelGen.new(wfc.call("generate_level", shallow), shallow)
+	var w2: LevelGen = LevelGen.new(wfc.call("generate_level", deep), deep)
+	check(count(w0, LevelGen.Type.HOPPER) == 0 and count(w2, LevelGen.Type.HOPPER) >= 2, "no hoppers at depth 0, %d at depth 2" % count(w2, LevelGen.Type.HOPPER))
+	check(count(w0, LevelGen.Type.LASER) == 0 and count(w2, LevelGen.Type.LASER) == 0, "no lasers in ordinary levels")
 	var lasers_ok: bool = true
 	for world_seed: int in [1, 7, 28, 99]:
 		var def: NextWorldDef = MapInfo.def_for(Worlds.side_at(Worlds.kind_of(Hyperspace), Vector2i(world_seed, 3)))
-		var w: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", def), def)
-		var n: int = count(w, MapInfo.Type.LASER)
+		var w: LevelGen = LevelGen.new(wfc.call("generate_level", def), def)
+		var n: int = count(w, LevelGen.Type.LASER)
 		lasers_ok = lasers_ok and n >= 3
 		for x: int in range(w.size.x):
 			for y: int in range(w.size.y):
-				var cell: MapInfo.Cell = w.get_cell(Vector2i(x, y))
-				if cell.type == MapInfo.Type.LASER:
+				var cell: LevelGen.Cell = w.get_cell(Vector2i(x, y))
+				if cell.type == LevelGen.Type.LASER:
 					var d: Vector2i = cell.extra_info
 					lasers_ok = lasers_ok and w.is_ground(Vector2i(x, y) - d)
 	check(lasers_ok, "every hyperspace has at least 3 lasers, each set in rock")

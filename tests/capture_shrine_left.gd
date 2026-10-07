@@ -12,7 +12,7 @@ func capture() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://capture_shrine_left.save"
+	RunState.save_path = "user://capture_shrine_left.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	for i: int in range(5):
@@ -31,8 +31,8 @@ func capture() -> void:
 	for n: Node in info.map_elements.get_children():
 		if n.scene_file_path.get_file() == "shrine.tscn":
 			shrine = n as Node2D
-	for a: StringName in Abilities.ORDER:
-		player.tiers[a] = 0 if a in Abilities.SPELLS else int(Abilities.MAX[a])
+	for a: StringName in Abilities.ids():
+		player.tiers[a] = 0 if Abilities.is_spell(a) else Abilities.max_tier(a)
 	player.tiers[&"hex"] = 2
 	Abilities.apply(player)
 	player.collect(500)

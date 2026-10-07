@@ -28,25 +28,22 @@ var skeleton: bool = false
 ## What kind of level it is (ARCHETYPES), by its depth: its terrain, look and what lives there.
 ## &"" for a side world.
 var archetype: StringName = &""
+## What that archetype brings (see Archetype), or null for a side world.
+var arch: Archetype = null
 ## The collapse's symmetry: how many of the sample's patterns' turns and flips it may use (see
 ## gdextension/src/overlapping_wfc.hpp). 1 uses them as drawn, so up stays up (the extension's
 ## first flip is upside down).
 var symmetry: int = 5
 
-## Archetypes take bands of BAND levels in turn as you go deeper: the garden (the caves you start
-## in) from the surface, then the cemetery, then the sky, then the garden again, and so on (later
-## archetypes join the turn). The cemetery is a hillside graveyard of terraces
-## (wfc_images/graveyard.png), printed in its own realm, with its own decor, moths, sleep fog and
-## wraiths (see MapInfo.World.populate_cemetery). The sky is clusters of floating islands of cloud
-## (wfc_images/sky_islands.png, drawn by tests/make_sky_sample.gd) over an open drop, with jump pads, clouds that give way,
-## updrafts, shielded enemies and watchers whose shots rebound (see MapInfo.World.populate_sky).
-const ARCHETYPES: Array[StringName] = [&"garden", &"cemetery", &"sky"]
+## Archetypes take bands of BAND levels in turn as you go deeper, in this order: the garden (the
+## caves you start in) from the surface, then the cemetery, then the sky, then the garden again, and
+## so on. Each is a script extending Archetype; a new one joins the turn by being listed here.
+const ARCHETYPES: Array[Script] = [
+	preload("res://scripts/worlds/archetypes/GardenArchetype.gd"),
+	preload("res://scripts/worlds/archetypes/CemeteryArchetype.gd"),
+	preload("res://scripts/worlds/archetypes/SkyArchetype.gd"),
+]
 const BAND: int = 6
-const GRAVEYARD: String = "res://wfc_images/graveyard.png"
-const ISLANDS: String = "res://wfc_images/sky_islands.png"
-## A sky level is this much bigger than a cave level of its depth (MapInfo.level_size), across and
-## down: wide open sky with no walls round it.
-const SKY_SCALE: Vector2 = Vector2(1.8, 1.6)
 
 
 ## Fill it in for the place at `at`, and return it.
@@ -55,55 +52,60 @@ func setup(at: Vector2i) -> NextWorldDef:
 	debug = MapInfo.debug
 	depth = at.y
 	gen_seed = MapInfo.level_seed(at.x, at.y)
-	region = MapInfo.region_for(depth)
-	size = MapInfo.level_size(depth)
+	arch = archetype_for(depth)
+	archetype = arch.name
+	region = arch.sample
+	symmetry = arch.symmetry
+	size = Vector2i((Vector2(MapInfo.level_size(depth)) * arch.scale).round())
 	for k: int in range(Worlds.KINDS.size()):
 		if Worlds.proto(k).deals(at):
 			doors.append(k)
 	arrival_from = Worlds.arriving_at(at)
 	relic = Relics.at(at)
 	skeleton = MapInfo.skeleton_at(at)
-	archetype = archetype_at(depth)
-	if archetype == &"cemetery":
-		region = GRAVEYARD
-		symmetry = 1
-	elif archetype == &"sky":
-		region = ISLANDS
-		symmetry = 1
-		size = Vector2i((Vector2(size) * SKY_SCALE).round())
 	return self
 
 
-## The first depth of the first band of `kind` (one of ARCHETYPES), or -1.
+## The names of the archetypes, in the order their bands come.
+static func archetype_names() -> Array[StringName]:
+	var out: Array[StringName] = []
+	for kind: Script in ARCHETYPES:
+		out.append((kind.new() as Archetype).name)
+	return out
+
+
+## The first depth of the first band of the archetype named `kind`, or -1.
 static func first_depth(kind: StringName) -> int:
-	var i: int = ARCHETYPES.find(kind)
+	var i: int = archetype_names().find(kind)
 	return i * BAND if i >= 0 else -1
 
 
-## The archetype of levels `depth` deep.
-static func archetype_at(depth: int) -> StringName:
+## The archetype of levels `depth` deep (a new one each time: it is small).
+static func archetype_for(depth: int) -> Archetype:
 	@warning_ignore("integer_division")
-	return ARCHETYPES[(maxi(depth, 0) / BAND) % ARCHETYPES.size()]
+	return ARCHETYPES[(maxi(depth, 0) / BAND) % ARCHETYPES.size()].new()
 
 
-func cemetery() -> bool:
-	return archetype == &"cemetery"
+## The name of the archetype of levels `depth` deep.
+static func archetype_at(depth: int) -> StringName:
+	return archetype_for(depth).name
 
 
-func sky() -> bool:
-	return archetype == &"sky"
-
-
-## Whether the level's chasms are its gates (bridged by bells in a cemetery, blown over by a vane's
-## wind in the sky; see MapInfo.World.carve_chasms).
+## Whether the place's chasms are its gates (bridged by bells in a cemetery, blown over by a vane's
+## wind in the sky; see Chasms).
 func chasmed() -> bool:
-	return cemetery() or sky()
+	return arch != null and arch.chasmed
+
+
+## Whether the place lies open to the sky: no rock border, a drop below (see Archetype.open).
+func open() -> bool:
+	return arch != null and arch.open
 
 
 # ------------------------------------------------------------------ making it
 
 ## Dress the collapsed terrain held in `w`: exits, lanterns, keys, doors, enemies, stars.
-func populate(w: MapInfo.World) -> void:
+func populate(w: LevelGen) -> void:
 	w.populate_level(self)
 
 
@@ -165,32 +167,28 @@ func neighbours() -> Array[Vector2i]:
 
 ## Stars still owed to leave by `exit`, given the place's record. The deeper exit costs the
 ## depth's price once; a side door its world's entry price, once.
-func price(exit: int, rec: Dictionary) -> int:
+func price(exit: int, rec: LevelRecord) -> int:
 	var kind: int = Worlds.door_kind(exit)
 	if kind >= 0:
-		return 0 if (rec.get("doors_paid", {}) as Dictionary).has(exit) else Worlds.proto(kind).entry_price(depth)
-	if exit == MapInfo.Exit.DEEPER and not bool(rec.get("deeper_paid", false)):
+		return 0 if rec.doors_paid.has(exit) else Worlds.proto(kind).entry_price(depth)
+	if exit == MapInfo.Exit.DEEPER and not rec.deeper_paid:
 		return MapInfo.deeper_price(depth)
 	return 0
 
 
 ## Record `exit` as paid for.
-func pay(exit: int, rec: Dictionary) -> void:
+func pay(exit: int, rec: LevelRecord) -> void:
 	if Worlds.door_kind(exit) >= 0:
-		if not rec.has("doors_paid"):
-			rec["doors_paid"] = {}
-		rec["doors_paid"][exit] = true
+		rec.doors_paid[exit] = true
 	else:
-		rec["deeper_paid"] = true
+		rec.deeper_paid = true
 
 
 # ------------------------------------------------------------------ how it looks
 
 ## The print realm (RisoPrint.REALMS) it is printed in, or &"" for the player's own.
 func realm() -> StringName:
-	if archetype in [&"cemetery", &"garden", &"sky"]:
-		return archetype
-	return &""
+	return arch.realm() if arch != null else &""
 
 
 ## Whether plants and the other decor grow in it.

@@ -1,9 +1,23 @@
 extends Node
+class_name Damager
+## Hurts the wizard while they touch its body (its parent, an Area2D), on behalf of `attacker`
+## (the enemy, or the shooter of a shot).
 
-@onready var player: Player = $"/root/Main/Player"
+@onready var player: Player = Stage.player()
 @onready var collider: CollisionShape2D = $"../CollisionShape2D"
 @onready var top: Node = $".."
 var attacker: Node = null
+
+
+## The enemy behind a hit on the wizard from `source` (what Player.hurt was given): a Damager's
+## attacker, or a swarm of moths itself; null for hazards (thorns, lasers) that belong to no one.
+static func attacker_of(source: Node) -> Node:
+	if source is Damager:
+		return (source as Damager).attacker
+	if source is MothSwarm:
+		return source
+	return null
+
 
 var knock_back_factor: float = 400
 func touch(other: Node) -> void:

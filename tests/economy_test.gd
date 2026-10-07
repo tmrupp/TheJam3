@@ -21,7 +21,7 @@ func spawn_key(color: int) -> Node2D:
 ## A shut door none of the carried keys opens, or null.
 func locked_door() -> Node:
 	for door: Node in placed("door.tscn"):
-		if not KeyRing.has(player, int(door.get_meta(&"key_color", 0))):
+		if not player.keyring.has(int(door.get_meta(&"key_color", 0))):
 			return door
 	return null
 
@@ -30,21 +30,21 @@ func lanterns() -> Array[Node]:
 	return info.map_elements.get_children().filter(func(n: Node) -> bool: return n is Checkpoint and not n.is_queued_for_deletion())
 
 
-func count(w: MapInfo.World, type: MapInfo.Type) -> int:
+func count(w: LevelGen, type: LevelGen.Type) -> int:
 	var n: int = 0
 	for column: Array in w.cells:
-		for cell: MapInfo.Cell in column:
+		for cell: LevelGen.Cell in column:
 			if cell.type == type:
 				n += 1
 	return n
 
 
 ## Whether `v` is inside one of the level's vaults (whose loot is checked in vaults_test).
-func in_vault(w: MapInfo.World, v: Vector2i) -> bool:
+func in_vault(w: LevelGen, v: Vector2i) -> bool:
 	return w.vaults.any(func(vault: Dictionary) -> bool: return (vault["room"] as Array).has(v))
 
 
-func vault_count(w: MapInfo.World, type: MapInfo.Type) -> int:
+func vault_count(w: LevelGen, type: LevelGen.Type) -> int:
 	var n: int = 0
 	for vault: Dictionary in w.vaults:
 		for v: Vector2i in vault["room"]:
@@ -65,7 +65,7 @@ func run() -> void:
 	await cluster()
 	saving()
 
-	MapInfo.delete_save()
+	RunState.delete_save()
 	finish("lanterns, giving up, mend, clusters, keys and cast costs")
 
 
@@ -76,21 +76,21 @@ func generation() -> void:
 	for seed_value: int in [1, 7, 28, 99, 512]:
 		for depth: int in [0, 2, 5]:
 			var def: NextWorldDef = MapInfo.def_for(Vector2i(seed_value, depth))
-			var w: MapInfo.World = MapInfo.World.new(collapse(def.coord), def)
+			var w: LevelGen = LevelGen.new(collapse(def.coord), def)
 			var label: String = "seed %d depth %d" % [seed_value, depth]
-			var lit: int = count(w, MapInfo.Type.CHECKPOINT)
+			var lit: int = count(w, LevelGen.Type.CHECKPOINT)
 			most_lanterns = maxi(most_lanterns, lit)
-			check(lit <= 1 + w.per_area(MapInfo.LANTERNS_PER_K), label + ": %d lanterns, one at the way back and a few more" % lit)
+			check(lit <= 1 + w.per_area(LevelGen.LANTERNS_PER_K), label + ": %d lanterns, one at the way back and a few more" % lit)
 			check(w.exit_lanterns.keys() == [MapInfo.Exit.BACK], label + ": only the way back has a lantern beside it")
-			check(count(w, MapInfo.Type.CLUSTER) - vault_count(w, MapInfo.Type.CLUSTER) == 1, label + ": one star cluster (besides any in vaults)")
+			check(count(w, LevelGen.Type.CLUSTER) - vault_count(w, LevelGen.Type.CLUSTER) == 1, label + ": one star cluster (besides any in vaults)")
 			var keys: int = 0
 			for v: Vector2i in w.objects:
-				var cell: MapInfo.Cell = w.get_cell(v)
-				if cell.type == MapInfo.Type.KEY and cell.extra_info != null and int(cell.extra_info) == KeyRing.SKELETON and not in_vault(w, v):
+				var cell: LevelGen.Cell = w.get_cell(v)
+				if cell.type == LevelGen.Type.KEY and cell.extra_info != null and int(cell.extra_info) == KeyRing.SKELETON and not in_vault(w, v):
 					keys += 1
 			for secret: Dictionary in w.secrets:
 				for reward: Array in secret["rewards"]:
-					if reward[1] == MapInfo.Type.KEY and int(reward[2]) == KeyRing.SKELETON:
+					if reward[1] == LevelGen.Type.KEY and int(reward[2]) == KeyRing.SKELETON:
 						keys += 1
 			check(keys == (1 if def.skeleton else 0), label + ": a skeleton key only where dealt, besides vaults (%d)" % keys)
 	check(most_lanterns <= 3, "no level has more than 3 lanterns (%d)" % most_lanterns)
@@ -106,27 +106,27 @@ func generation() -> void:
 func keys() -> void:
 	print("the keyring")
 	(colored("key.tscn", 0)[0] as Node).call("touch", player)
-	check(KeyRing.all(player) == [0], "carrying colour 0")
+	check(player.keyring.all() == [0], "carrying colour 0")
 	(colored("key.tscn", 1)[0] as Node).call("touch", player)
 	await settle(1)
-	check(KeyRing.all(player) == [1], "without the keyring, one key: colour 1 replaces colour 0")
+	check(player.keyring.all() == [1], "without the keyring, one key: colour 1 replaces colour 0")
 	check(colored("key.tscn", 0).any(func(n: Node) -> bool: return n.has_meta(&"dropped_id")), "and colour 0 is left where colour 1 was")
 	Abilities.grant(player, &"keyring")
-	check(KeyRing.capacity(player) == 2, "keyring I carries two")
+	check(player.keyring.capacity() == 2, "keyring I carries two")
 	spawn_key(2)
 	await process_frame
 	(colored("key.tscn", 2).back() as Node).call("touch", player)
 	await settle(1)
-	check(KeyRing.all(player) == [1, 2], "colour 2 joins colour 1 on the ring")
+	check(player.keyring.all() == [1, 2], "colour 2 joins colour 1 on the ring")
 	var again: Node = spawn_key(2)
 	await process_frame
 	again.call("touch", player)
-	check(KeyRing.all(player) == [1, 2] and placed("key.tscn").has(again), "a colour already carried is left lying")
+	check(player.keyring.all() == [1, 2] and placed("key.tscn").has(again), "a colour already carried is left lying")
 	var three: Node = spawn_key(3)
 	await process_frame
 	three.call("touch", player)
 	await settle(1)
-	check(KeyRing.all(player) == [2, 3], "a full ring leaves its oldest key behind")
+	check(player.keyring.all() == [2, 3], "a full ring leaves its oldest key behind")
 	var older: Array[Node] = colored("door.tscn", 2)
 	if not older.is_empty():
 		var door: Node = older[0]
@@ -135,15 +135,15 @@ func keys() -> void:
 		check(not is_instance_valid(door) or door.is_queued_for_deletion(), "an older key on the ring opens its doors")
 
 	print("skeleton keys")
-	KeyRing.set_all(player, [3])
+	player.keyring.set_all([3])
 	var shut: Node = locked_door()
-	KeyRing.set_skeletons(player, 1)
+	player.keyring.set_skeletons(1)
 	shut.get_node("Unlock").call("touch", player)
 	await settle(1)
-	check(is_instance_valid(shut) and not shut.is_queued_for_deletion() and KeyRing.skeletons(player) == 1, "walking into a door never spends a skeleton key")
+	check(is_instance_valid(shut) and not shut.is_queued_for_deletion() and player.keyring.skeletons() == 1, "walking into a door never spends a skeleton key")
 	shut.get_node("Unlock").call("interacted")
 	await settle(1)
-	check((not is_instance_valid(shut) or shut.is_queued_for_deletion()) and KeyRing.skeletons(player) == 0, "interacting opens any door with one, and it crumbles")
+	check((not is_instance_valid(shut) or shut.is_queued_for_deletion()) and player.keyring.skeletons() == 0, "interacting opens any door with one, and it crumbles")
 	var other: Node = locked_door()
 	if other != null:
 		other.get_node("Unlock").call("interacted")
@@ -153,13 +153,13 @@ func keys() -> void:
 	var skeleton: Node2D = spawn_key(KeyRing.SKELETON)
 	await process_frame
 	skeleton.call("touch", player)
-	check(KeyRing.skeletons(player) == 1 and KeyRing.all(player) == [3], "a skeleton key is pocketed apart from the ring")
+	check(player.keyring.skeletons() == 1 and player.keyring.all() == [3], "a skeleton key is pocketed apart from the ring")
 	var exits: Array[Node] = placed("level_exit.tscn").filter(func(n: Node) -> bool: return int(n.call("lock")) >= 0 and int(n.call("lock")) != 3)
 	if not exits.is_empty():
 		var side: Node = exits[0]
 		var which: int = int(side.get("exit"))
 		side.call("interacted")
-		check(KeyRing.skeletons(player) == 0 and bool(info.record()["lateral_open"].get(which, false)), "it opens a side door too")
+		check(player.keyring.skeletons() == 0 and bool(info.record().lateral_open.get(which, false)), "it opens a side door too")
 		await settle()
 		player.set_physics_process(false)
 		info.travel(MapInfo.Exit.RIGHT if which == MapInfo.Exit.LEFT else MapInfo.Exit.LEFT)
@@ -216,7 +216,7 @@ func mending() -> void:
 	check(info.can_burn(lit), "the lit lantern can be burned into the spell")
 	lit.call("interacted")
 	check(mend.draughts() == 2, "burning it fills the draughts")
-	check(info.vulnerable and info.is_lantern_spent(lit), "and the lantern is spent: no protection")
+	check(info.run.vulnerable and info.is_lantern_spent(lit), "and the lantern is spent: no protection")
 	check(not info.can_burn(lit) and not info.light_lantern(lit), "a burned lantern cannot be burned or lit again")
 	player.health.health = player.health.max_health
 	Abilities.set_tier(player, &"mend", 0)
@@ -239,7 +239,7 @@ func giving_up() -> void:
 	# The level's stars are all taken already, so the wizard picks none up on the way back.
 	for n: Node in info.map_elements.get_children():
 		if n.scene_file_path.get_file() == "coin.tscn" and n.has_meta(&"cell"):
-			info.record()["taken"][n.get_meta(&"cell")] = true
+			info.record().taken[n.get_meta(&"cell")] = true
 			n.queue_free()
 	player.global_position += Vector2(200, 0)
 	menu.call("give_up")
@@ -248,8 +248,8 @@ func giving_up() -> void:
 	player.set_physics_process(false)
 	# The level reloaded with the respawn: find the lantern again.
 	lantern = lanterns().filter(func(n: Node) -> bool: return n.get_meta(&"cell") == cell)[0]
-	check(info.vulnerable and info.is_lantern_spent(lantern), "it is a death: the lantern burns out")
-	check(info.has_ghost and info.ghost_stars == 4 and player.coins.coins == 0, "the stars drop into a ghost")
+	check(info.run.vulnerable and info.is_lantern_spent(lantern), "it is a death: the lantern burns out")
+	check(info.run.has_ghost and info.run.ghost_stars == 4 and player.coins.coins == 0, "the stars drop into a ghost")
 	check(player.global_position.distance_to(info.respawn_marker.global_position) < 80.0, "back at the lantern")
 	check(player.health.health == 1, "giving up respawns at one heart")
 
@@ -265,24 +265,24 @@ func cluster() -> void:
 	var before: int = player.coins.coins
 	c.call("touch", player)
 	check(player.coins.coins == before + MapInfo.cluster_value(0), "it gives %d stars" % MapInfo.cluster_value(0))
-	check((info.record()["taken"] as Dictionary).has(cell), "and stays taken")
+	check((info.record().taken as Dictionary).has(cell), "and stays taken")
 
 
 func saving() -> void:
 	print("saving")
 	Abilities.grant(player, &"keyring")
-	KeyRing.set_all(player, [0, 1, 2])
-	KeyRing.set_skeletons(player, 2)
+	player.keyring.set_all([0, 1, 2])
+	player.keyring.set_skeletons(2)
 	Abilities.grant(player, &"mend")
-	player.set_meta(&"mend_draughts", 0)
+	player.mend_draughts = 0
 	info.save_run()
-	var data: Dictionary = MapInfo.read_save()
+	var data: Dictionary = RunState.read_save()
 	check(data.get("keys", []) == [0, 1, 2] and int(data.get("skeleton_keys", 0)) == 2 and int(data.get("mend_draughts", -1)) == 0, "the ring, skeleton keys and draughts are saved")
-	KeyRing.clear(player)
+	player.keyring.clear()
 	Mend.restore(player, -1)
-	KeyRing.set_all(player, data["keys"])
-	KeyRing.set_skeletons(player, int(data["skeleton_keys"]))
+	player.keyring.set_all(data["keys"])
+	player.keyring.set_skeletons(int(data["skeleton_keys"]))
 	Mend.restore(player, int(data["mend_draughts"]))
-	check(KeyRing.all(player) == [0, 1, 2] and KeyRing.skeletons(player) == 2 and (player.get_node("Mend") as Mend).draughts() == 0, "and restored")
-	KeyRing.set_all(player, [1])
-	check(KeyRing.all(player) == [1] and not player.has_meta(&"spare_keys"), "an old save's one key loads as before")
+	check(player.keyring.all() == [0, 1, 2] and player.keyring.skeletons() == 2 and (player.get_node("Mend") as Mend).draughts() == 0, "and restored")
+	player.keyring.set_all([1])
+	check(player.keyring.all() == [1] and player.keyring.all().size() <= 1, "an old save's one key loads as before")

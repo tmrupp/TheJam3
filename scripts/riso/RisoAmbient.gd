@@ -1,4 +1,5 @@
 extends Node2D
+class_name RisoAmbient
 ## Small life, only where the camera looks: paper-white fireflies drifting over the flowers and
 ## grass (fading in and out, never yellow: yellow is reward), and drops
 ## of ink falling from the ceiling drips and splashing where they land.
@@ -7,8 +8,8 @@ const FIREFLIES: int = 14
 const DRIPS: int = 6
 const KNOCK_ALL: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE]
 
-var decor: Node2D
-var light: Node2D
+var decor: RisoDecor
+var light: RisoLight
 var ink: InkCanvas
 var t: float = 0.0
 ## How many of each were drawn last frame (for tests).
@@ -40,7 +41,7 @@ func _process(delta: float) -> void:
 
 
 func _fireflies(view: Rect2) -> void:
-	var spots: PackedVector2Array = decor.get("firefly_spots")
+	var spots: PackedVector2Array = decor.firefly_spots
 	var dots: Array[PackedVector2Array] = []
 	var halos: Array[PackedVector2Array] = []
 	var strengths: Array[float] = []
@@ -64,8 +65,8 @@ func _fireflies(view: Rect2) -> void:
 
 
 func _drops(view: Rect2) -> void:
-	var spots: PackedVector2Array = decor.get("drip_spots")
-	var ends: PackedFloat32Array = decor.get("drip_ends")
+	var spots: PackedVector2Array = decor.drip_spots
+	var ends: PackedFloat32Array = decor.drip_ends
 	var drops: Array[PackedVector2Array] = []
 	var splashes: Array[PackedVector2Array] = []
 	var shown: int = 0

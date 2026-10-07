@@ -8,7 +8,7 @@ func run() -> void:
 	root.size = Vector2i(1280, 720)
 	output = ProjectSettings.globalize_path("res://../art-captures/vaults")
 	DirAccess.make_dir_recursive_absolute(output)
-	MapInfo.save_path = "user://capture_vaults.save"
+	RunState.save_path = "user://capture_vaults.save"
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
 	info = main.get_node("CanvasLayer/MapInfo") as MapInfo

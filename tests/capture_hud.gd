@@ -31,7 +31,7 @@ func capture() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://capture_hud.save"
+	RunState.save_path = "user://capture_hud.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	for i: int in range(5):
@@ -43,7 +43,7 @@ func capture() -> void:
 	var player: Player = main.get_node("Player") as Player
 	await shot("hud_fresh.png", 30)
 	player.collect(128)
-	player.set_meta(&"carried_key", 1)
+	player.keyring.set_all([1])
 	Abilities.grant(player, &"double_jump")
 	Abilities.grant(player, &"hex")
 	Abilities.grant(player, &"vigor")

@@ -40,7 +40,7 @@ func placed(scene: String) -> Array[Node]:
 
 
 func open_cell(v: Vector2i) -> bool:
-	return info.world.is_valid(v) and info.world.get_cell(v).type != MapInfo.Type.GROUND and info.world.get_cell(v).type != MapInfo.Type.CRACKED
+	return info.world.is_valid(v) and info.world.get_cell(v).type != LevelGen.Type.GROUND and info.world.get_cell(v).type != LevelGen.Type.CRACKED
 
 
 ## A bolt thrown from `from` toward `dir`, as the Hex ability would.
@@ -62,7 +62,7 @@ func target(scene: String, skip: Array[Node] = []) -> Array:
 			continue
 		var c: Vector2i = e.get_meta(&"cell")
 		for side: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT]:
-			if open_cell(c + side) and info.world.get_cell(c + side).type == MapInfo.Type.EMPTY and (not info.world.is_valid(c + side * 2) or info.world.get_cell(c + side * 2).type in [MapInfo.Type.EMPTY, MapInfo.Type.GROUND]):
+			if open_cell(c + side) and info.world.get_cell(c + side).type == LevelGen.Type.EMPTY and (not info.world.is_valid(c + side * 2) or info.world.get_cell(c + side * 2).type in [LevelGen.Type.EMPTY, LevelGen.Type.GROUND]):
 				return [e, Vector2(side)]
 	return []
 
@@ -75,7 +75,7 @@ func wait_physics(frames: int) -> void:
 func run() -> void:
 	main = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://hex_test.save"
+	RunState.save_path = "user://hex_test.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	menu.start_game()
@@ -113,7 +113,7 @@ func run() -> void:
 	bolt = hex.cast(-side)
 	await wait_physics(10)
 	check(not is_instance_valid(e) or e.is_queued_for_deletion(), "hex II wounds: the bolt destroys the wisp")
-	check((info.record()["slain"] as Dictionary).has(cell), "the level records it slain")
+	check((info.record().slain as Dictionary).has(cell), "the level records it slain")
 	check(placed("coin.tscn").size() > stars_before, "it drops stars")
 	check(hex.cast(Vector2.RIGHT) == null, "no charge, no bolt")
 	await create_timer(Hex.COOLDOWN + 0.2).timeout
@@ -156,7 +156,7 @@ func run() -> void:
 	print("cracked walls")
 	var cracked: Array[Vector2i] = []
 	for v: Vector2i in info.world.objects:
-		if info.world.get_cell(v).type == MapInfo.Type.CRACKED:
+		if info.world.get_cell(v).type == LevelGen.Type.CRACKED:
 			cracked.append(v)
 	cracked.sort()
 	check(cracked.size() > 0 and placed("cracked_wall.tscn").size() == cracked.size(), "%d cracked cells, each a wall" % cracked.size())
@@ -185,7 +185,7 @@ func run() -> void:
 	fire(shot_from, shot_dir)
 	await wait_physics(6)
 	check(not placed("cracked_wall.tscn").any(func(n: Node) -> bool: return n.get_meta(&"cell") == shot), "a bolt breaks the wall")
-	check((info.record()["broken"] as Dictionary).has(shot), "and the record keeps it broken")
+	check((info.record().broken as Dictionary).has(shot), "and the record keeps it broken")
 	player.die()
 	await settle()
 	check(not placed("cracked_wall.tscn").any(func(n: Node) -> bool: return n.get_meta(&"cell") == shot), "it stays broken after a death")
@@ -193,7 +193,7 @@ func run() -> void:
 	await settle()
 	var again: Array[Vector2i] = []
 	for v: Vector2i in info.world.objects:
-		if info.world.get_cell(v).type == MapInfo.Type.CRACKED:
+		if info.world.get_cell(v).type == LevelGen.Type.CRACKED:
 			again.append(v)
 	again.sort()
 	check(again == cracked, "the same cracked walls every time")

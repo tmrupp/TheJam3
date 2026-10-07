@@ -15,7 +15,7 @@ var home: Vector2 = Vector2.ZERO
 var phase: float = 0.0
 var t: float = 0.0
 
-@onready var player: Player = get_node_or_null("/root/Main/Player") as Player
+@onready var player: Player = Stage.player()
 
 
 func setup(_info: MapInfo, v: Vector2i) -> void:

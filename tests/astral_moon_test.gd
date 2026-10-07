@@ -33,7 +33,7 @@ func settle() -> void:
 func run() -> void:
 	main = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://astral_moon_test.save"
+	RunState.save_path = "user://astral_moon_test.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	menu.start_game()
@@ -86,7 +86,7 @@ func run() -> void:
 
 	print("moons")
 	var moons: Array[Node] = info.map_elements.get_children().filter(func(n: Node) -> bool: return n.scene_file_path.get_file() == "moon.tscn")
-	check(not moons.is_empty() and moons.size() <= info.world.per_area(MapInfo.MOONS_PER_K), "%d moons within the level's area budget" % moons.size())
+	check(not moons.is_empty() and moons.size() <= info.world.per_area(LevelGen.MOONS_PER_K), "%d moons within the level's area budget" % moons.size())
 	if moons.is_empty():
 		quit(1)
 		return

@@ -24,7 +24,7 @@ func capture() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://test_capture.save"
+	RunState.save_path = "user://test_capture.save"
 	await process_frame
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
@@ -59,11 +59,11 @@ func capture() -> void:
 	Abilities.grant(player, &"keyring")
 	Abilities.grant(player, &"keyring")
 	Abilities.grant(player, &"keyring")
-	KeyRing.set_all(player, [0, 1, 2, 3])
-	KeyRing.set_skeletons(player, 2)
+	player.keyring.set_all([0, 1, 2, 3])
+	player.keyring.set_skeletons(2)
 	Abilities.grant(player, &"mend")
 	Abilities.grant(player, &"mend")
-	player.set_meta(&"mend_draughts", 1)
+	player.mend_draughts = 1
 	var lantern: Node2D = null
 	for n: Node in info.map_elements.get_children():
 		if n is Checkpoint and info.is_respawn_lantern(n):
@@ -100,6 +100,6 @@ func capture() -> void:
 	for i: int in range(20):
 		await process_frame
 	root.get_texture().get_image().save_png(output.path_join("economy_map.png"))
-	MapInfo.delete_save()
+	RunState.delete_save()
 	print("CAPTURED economy stills to ", output)
 	quit()

@@ -8,7 +8,7 @@ var offset_rotation: Dictionary = {
 }
 
 func setup(_map_info: MapInfo, v: Vector2i) -> void:
-	var world: MapInfo.World = _map_info.world
+	var world: LevelGen = _map_info.world
 	var ns: Array[Vector2i] = world.get_neighbors(v)
 	if len(ns) == 0:
 		queue_free()

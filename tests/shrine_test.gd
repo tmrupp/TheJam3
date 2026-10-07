@@ -43,7 +43,7 @@ func shrines() -> Array[Node]:
 func run() -> void:
 	main = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://shrine_test.save"
+	RunState.save_path = "user://shrine_test.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	menu.start_game()
@@ -95,9 +95,9 @@ func run() -> void:
 		player.tiers[&"hex"] = 1
 		if setup >= 1:
 			for a: StringName in [&"double_jump", &"wall_climb", &"vigor", &"speed"]:
-				player.tiers[a] = int(Abilities.MAX[a]) if setup == 2 else 1
-			player.tiers[&"dash"] = int(Abilities.MAX[&"dash"]) if setup == 2 else 1
-			player.tiers[&"blink"] = int(Abilities.MAX[&"blink"]) if setup == 2 else 0
+				player.tiers[a] = Abilities.max_tier(a) if setup == 2 else 1
+			player.tiers[&"dash"] = Abilities.max_tier(&"dash") if setup == 2 else 1
+			player.tiers[&"blink"] = Abilities.max_tier(&"blink") if setup == 2 else 0
 		for level_seed: int in range(200):
 			var picks: Array[StringName] = Abilities.offers(level_seed, player, 2)
 			saw_swap = saw_swap or picks.any(func(a: StringName) -> bool: return Abilities.is_swap(player, a))
@@ -109,7 +109,7 @@ func run() -> void:
 
 	print("starting abilities")
 	check(player.tiers == Abilities.start_tiers() and Abilities.tier(player, &"dash") == 1 and player.MAX_JUMPS == 1 and not player.climable and player.health.max_health == 3 and not player.has_node("Blink") and not player.has_node("Hex") and Abilities.spell(player) == &"" and player.has_node("DashStrike"), "the dash (which strikes) and no spell; 3 health")
-	check(Abilities.ORDER.all(func(a: StringName) -> bool: return a in [&"dash", &"hex"] or Abilities.tier(player, a) == 0), "parry, astral and the rest are all still to find")
+	check(Abilities.ids().all(func(a: StringName) -> bool: return a in [&"dash", &"hex"] or Abilities.tier(player, a) == 0), "parry, astral and the rest are all still to find")
 	check(Abilities.tier(player, Abilities.offer(MapInfo.level_seed(28, 0), player)) == 0, "a shrine offers something new before upgrades")
 	var hurt_before: Callable = player.hurt_ability
 	player.get_node("Parry").call("execute")
@@ -204,17 +204,17 @@ func run() -> void:
 	for i: int in range(6):
 		Abilities.grant(player, &"double_jump")
 	check(Abilities.tier(player, &"double_jump") == 3, "tiers stop at their max")
-	for a: StringName in Abilities.ORDER:
-		player.tiers[a] = int(Abilities.MAX[a])
+	for a: StringName in Abilities.ids():
+		player.tiers[a] = Abilities.max_tier(a)
 	player.tiers[&"astral"] = 2
 	check(Abilities.offer(MapInfo.level_seed(28, 0), player) == &"astral", "a shrine offers what is still left to learn")
 
 	print("a swap leaves the old spell at the shrine")
 	var stand: Node = shrines()[0]
-	info.record()["shrine_used"] = false
-	info.record().erase("left_spell")
-	for a: StringName in Abilities.ORDER:
-		player.tiers[a] = 0 if a in Abilities.SPELLS else int(Abilities.MAX[a])
+	info.record().shrine_used = false
+	info.record().left_spell = []
+	for a: StringName in Abilities.ids():
+		player.tiers[a] = 0 if Abilities.is_spell(a) else Abilities.max_tier(a)
 	player.tiers[&"hex"] = 2
 	Abilities.apply(player)
 	player.collect(500)

@@ -6,7 +6,7 @@ func run() -> void:
 	root.size = Vector2i(1280, 720)
 	output = ProjectSettings.globalize_path("res://../art-captures/key-identity")
 	DirAccess.make_dir_recursive_absolute(output)
-	MapInfo.save_path = "user://capture_key_identity.save"
+	RunState.save_path = "user://capture_key_identity.save"
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
 	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
@@ -21,9 +21,9 @@ func run() -> void:
 	camera.global_position = base
 	camera.zoom = Vector2.ONE * 0.35
 	camera.reset_smoothing()
-	info.has_ghost = true
-	info.ghost_coord = Vector2i(29, 3)
-	info.ghost_stars = 12
+	info.run.has_ghost = true
+	info.run.ghost_coord = Vector2i(29, 3)
+	info.run.ghost_stars = 12
 	var gallery: InkCanvas = InkCanvas.new()
 	main.add_child(gallery)
 	gallery.position = base
@@ -34,9 +34,9 @@ func run() -> void:
 		key.set_meta(&"key_color", color)
 		key.position = base + at
 		info.map_elements.add_child(key)
-		RisoProp.padlock(gallery, at + Vector2(0, 65), color, 1.6, 1.0)
+		RisoMarks.padlock(gallery, at + Vector2(0, 65), color, 1.6, 1.0)
 		gallery.ink(RisoPrint.EYE, 0.8, [RisoShapes.rrect(at.x - 40, at.y + 125, 80, 54, 12)])
-		gallery.ink(RisoPrint.NIGHT, 1.0, RisoProp.key_shape(at + Vector2(0, 151), 1.0, color), false)
+		gallery.ink(RisoPrint.NIGHT, 1.0, RisoMarks.key_shape(at + Vector2(0, 151), 1.0, color), false)
 	gallery.finish()
 	await settle(50)
 	await shot("keys_and_locks")
@@ -54,9 +54,9 @@ func run() -> void:
 	chase.set("stunned", false)
 	chase.set("velocity", Vector2(95, 0))
 	player.global_position = base + Vector2(140, 0)
-	info.has_ghost = true
-	info.ghost_coord = Vector2i(29, 4)
-	info.ghost_stars = 12
+	info.run.has_ghost = true
+	info.run.ghost_coord = Vector2i(29, 4)
+	info.run.ghost_stars = 12
 	camera.global_position = base + Vector2(0, -40)
 	camera.zoom = Vector2.ONE * 0.35
 	camera.reset_smoothing()

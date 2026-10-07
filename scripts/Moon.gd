@@ -1,4 +1,5 @@
 extends Area2D
+class_name Moon
 ## A moon: touching it spends it at once (it shows as a sliver), whether or not your dash is
 ## used, and gives your dash (and a spent levitate) back, even mid-dash. It keeps giving them back
 ## for as long as you stay inside it; once you leave it waxes back over a few seconds. Never used
@@ -6,7 +7,7 @@ extends Area2D
 
 const WANE: float = 2.5
 
-@onready var player: Player = $"/root/Main/Player"
+@onready var player: Player = Stage.player()
 
 ## Seconds until it is full again (0 when ready).
 var waning: float = 0.0

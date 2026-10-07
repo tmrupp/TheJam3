@@ -43,7 +43,7 @@ func ledges_at(c: Vector2i) -> int:
 func run() -> void:
 	main = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://floor_test.save"
+	RunState.save_path = "user://floor_test.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	menu.start_game()
@@ -54,17 +54,17 @@ func run() -> void:
 	await settle()
 	player.set_physics_process(false)
 
-	var w: MapInfo.World = info.world
+	var w: LevelGen = info.world
 	var under_lantern: Variant = null
 	var under_shrine: Variant = null
 	var bare: Variant = null
 	for v: Vector2i in w.objects:
-		if w.get_cell(v).type == MapInfo.Type.CHECKPOINT and w.is_ground(v + Vector2i.DOWN) and under_lantern == null:
+		if w.get_cell(v).type == LevelGen.Type.CHECKPOINT and w.is_ground(v + Vector2i.DOWN) and under_lantern == null:
 			under_lantern = v + Vector2i.DOWN
-		if w.get_cell(v).type == MapInfo.Type.SHRINE:
+		if w.get_cell(v).type == LevelGen.Type.SHRINE:
 			under_shrine = v + Vector2i(1, 1)
 	for v: Vector2i in w.grounds:
-		if w.is_valid(v + Vector2i.UP) and w.get_cell(v + Vector2i.UP).type == MapInfo.Type.EMPTY:
+		if w.is_valid(v + Vector2i.UP) and w.get_cell(v + Vector2i.UP).type == LevelGen.Type.EMPTY:
 			bare = v
 			break
 	check(under_lantern != null and under_shrine != null and bare != null, "a lantern and the shrine on rock, and bare floor")
@@ -91,7 +91,7 @@ func run() -> void:
 	await settle()
 	check(ledges_at(under_lantern) == 1 and ledges_at(under_shrine) == 1 and ledges_at(bare) == 0, "the ledges are back with the level")
 
-	MapInfo.delete_save()
+	RunState.delete_save()
 	if failed:
 		print("FAILED")
 		quit(1)

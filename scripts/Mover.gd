@@ -1,4 +1,5 @@
-extends Node2D
+extends Stunnable
+class_name Mover
 ## Wisp patrol: walk along the floor, turning round at walls, ledges and other wisps.
 ## The body is a frozen (kinematic) RigidBody2D moved only from here, falling under its own
 ## gravity until it lands, so the physics engine never bounces it on the floor.
@@ -12,13 +13,12 @@ const MAX_FALL: float = 900.0
 const WISP_GAP: float = 60.0
 var gravity: float = ProjectSettings.get_setting("physics/2d/default_gravity")
 
-@onready var tilemap: TileMap = $"/root/Main/TileMap" # $\"../TileMap\"
+@onready var tilemap: TileMap = Stage.tile_map() # $\"../TileMap\"
 @onready var dcast: RayCast2D = $DownCast
 @onready var rb: RigidBody2D = $".."
 @onready var sprite: Sprite2D = $"../Sprite2D"
-var stunned: bool = false
 ## Turning round: the wisp holds still for TURN_TIME while its art swoops round a tight circle
-## (RisoProp.WISP_TURN_TIME matches it).
+## (WispArt.WISP_TURN_TIME matches it).
 const TURN_TIME: float = 0.5
 var turn_left: float = 0.0
 var fall_speed: float = 0.0

@@ -13,8 +13,8 @@ static func hp_for(depth: int) -> int:
 
 
 func stunned() -> bool:
-	var box: Node = get_parent().get_node_or_null("HitBox")
-	return box != null and bool(box.get("stunned"))
+	var box: HitBox = get_parent().get_node_or_null("HitBox") as HitBox
+	return box != null and box.stunned
 
 
 func hit(damage: int, dir: Vector2) -> void:
@@ -31,17 +31,16 @@ func hit(damage: int, dir: Vector2) -> void:
 
 ## A small camera kick for hits and kills.
 static func shake(intensity: float, sustain: float) -> void:
-	var tree: SceneTree = Engine.get_main_loop() as SceneTree
-	var cam: Camera2D = tree.root.get_node_or_null("Main/Camera2D") as Camera2D if tree != null else null
-	if cam != null and cam.has_method("shake"):
-		cam.call("shake", intensity, sustain)
+	var cam: CameraEffects = Stage.camera()
+	if cam != null:
+		cam.shake(intensity, sustain)
 
 
 func _die(host: Node2D) -> void:
 	var info: MapInfo = MapInfo.instance
 	if info != null:
 		info.mark_slain(host)
-		var coin: PackedScene = info.coin_prefab as PackedScene
+		var coin: PackedScene = Placeables.scene(LevelGen.Type.COIN)
 		for i: int in range(randi_range(1, 2)):
 			var star: Node2D = coin.instantiate()
 			info.map_elements.add_child(star)

@@ -8,7 +8,7 @@ func run() -> void:
 	root.size = Vector2i(1280, 720)
 	output = ProjectSettings.globalize_path("res://../art-captures/bones")
 	DirAccess.make_dir_recursive_absolute(output)
-	MapInfo.save_path = "user://capture_bones.save"
+	RunState.save_path = "user://capture_bones.save"
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
 	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
@@ -35,10 +35,10 @@ func run() -> void:
 	for key: Node2D in keys:
 		key.queue_free()
 	# The chain: two coloured keys and two skeleton keys.
-	KeyRing.set_all(player, [0, 2])
-	KeyRing.set_skeletons(player, 2)
+	player.keyring.set_all([0, 2])
+	player.keyring.set_skeletons(2)
 	Abilities.set_tier(player, &"keyring", 1)
-	KeyRing.set_all(player, [0, 2])
+	player.keyring.set_all([0, 2])
 	var floor_at: Vector2 = info.respawn_marker.global_position
 	player.global_position = floor_at
 	player.set_physics_process(true)
@@ -78,9 +78,9 @@ func run() -> void:
 	# A shrine selling a skeleton key: at full health, with no relic left to point to.
 	for dx: int in range(-Relics.SEARCH - 1, Relics.SEARCH + 2):
 		for dy: int in range(0, Relics.SEARCH + 2):
-			info.relics_found[Vector2i(info.coord.x + dx, dy)] = true
+			info.run.relics_found[Vector2i(info.coord.x + dx, dy)] = true
 	player.health.health = player.health.max_health
-	KeyRing.clear(player)
+	player.keyring.clear()
 	var shrine: Node2D = first("shrine.tscn")
 	if shrine != null:
 		var mend: Node2D = shrine.get_node("Mend") as Node2D

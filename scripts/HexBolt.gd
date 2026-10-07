@@ -1,4 +1,5 @@
 extends Node2D
+class_name HexBolt
 ## A hex bolt in flight. Each physics step it sweeps a ray against solid things (rock, doors,
 ## cracked walls; one-way ledges are passed through) and checks enemies near its path. It wounds
 ## what it meets (Wound.hit; enemies are stunned too, and at hex I only stunned) and breaks cracked
@@ -62,14 +63,14 @@ func _physics_process(delta: float) -> void:
 			return
 		# Wound first (a stunned enemy takes double, so stunning first would double every hit),
 		# then stun whatever is left.
-		var wound: Node = e.get_node_or_null("Wound")
+		var wound: Wound = e.get_node_or_null("Wound") as Wound
 		if wound != null and damage > 0:
-			wound.call("hit", damage, dir)
+			wound.hit(damage, dir)
 		elif damage <= 0:
 			RisoFx.burst(&"hit", (e as Node2D).global_position, dir, [RisoPrint.ACCENT, RisoPrint.BLUE])
-		var stunner: Node = e.get_node_or_null("Stunner")
+		var stunner: Stunner = Stunner.of(e)
 		if stunner != null and is_instance_valid(e) and not e.is_queued_for_deletion():
-			stunner.call("stun", Hex.STUN)
+			stunner.stun(Hex.STUN)
 		# Things that are not enemies answer the bolt themselves (a switch throws).
 		if wound == null and e.has_method("hex_hit"):
 			e.call("hex_hit", damage, dir)
@@ -103,7 +104,7 @@ func _solid(from: Vector2, to: Vector2) -> Dictionary:
 		if res.is_empty():
 			return {}
 		var c: Object = res["collider"]
-		if c is TileMap or c is TileMapLayer or (c != null and c.has_method("hex_hit")) or (c is Node and (c as Node).scene_file_path.get_file() in ["door.tscn", "switch_gate.tscn"]):
+		if c is TileMap or c is TileMapLayer or (c != null and c.has_method("hex_hit")) or (c is Node and Placeables.type_of(c as Node) in [LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE]):
 			return res
 		skip.append(res["rid"])
 	return {}

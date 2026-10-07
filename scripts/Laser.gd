@@ -1,4 +1,5 @@
 extends Node2D
+class_name Laser
 ## A laser set in the rock: on a steady cadence it warms up (a faint flickering sight line), fires
 ## a beam straight out from the rock until it meets a wall, then rests. Only the firing beam hurts.
 ## The beam's reach is found by a ray each frame, so ledges and lifts in its way stop it too.

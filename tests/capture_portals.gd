@@ -27,7 +27,7 @@ func capture() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://capture_portals.save"
+	RunState.save_path = "user://capture_portals.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	for i: int in range(5):
@@ -46,7 +46,7 @@ func capture() -> void:
 		if n.scene_file_path.get_file() == "portal.tscn" and not n.has_meta(&"rift"):
 			portal = n as Node2D
 			break
-	var art: RisoProp = portal.get_node("RisoArt") as RisoProp
+	var art: PortalArt = portal.get_node("RisoArt") as PortalArt
 	var gate_at: Vector2 = art.to_global(art.portal_center()) + Vector2(0, -10)
 	player.set_physics_process(false)
 	# A rift waiting for its partner, then linked (opened in mid air at tier II, beside the gate).

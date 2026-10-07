@@ -12,7 +12,7 @@ func capture() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://capture_motion.save"
+	RunState.save_path = "user://capture_motion.save"
 	await process_frame
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
@@ -22,7 +22,7 @@ func capture() -> void:
 		await process_frame
 	var player: Player = main.get_node("Player") as Player
 	# A floor with headroom, three cells of open air over it and to each side.
-	var w: MapInfo.World = info.world
+	var w: LevelGen = info.world
 	for v: Vector2i in w.empties:
 		var open: bool = w.ground_below(v)
 		for dx: int in range(-1, 2):
@@ -76,6 +76,6 @@ func capture() -> void:
 	for k: int in range(shots.size()):
 		warp_strip.blit_rect(shots[k], Rect2i(0, 0, 400, 400), Vector2i(k * 400, 0))
 	warp_strip.save_png(output.path_join("motion_warp.png"))
-	MapInfo.delete_save()
+	RunState.delete_save()
 	print("CAPTURED motion strips to ", output)
 	quit()

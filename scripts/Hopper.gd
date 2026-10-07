@@ -1,4 +1,5 @@
-extends Node2D
+extends Stunnable
+class_name Hopper
 ## The hopper: squats on the floor until it sees the wizard close by, then crouches and leaps at
 ## them, aiming to land where they stood; it rests a moment between leaps. Moved only from here,
 ## like the wisp: a frozen (kinematic) RigidBody2D falling under its own gravity.
@@ -13,8 +14,7 @@ const MAX_FALL: float = 1100.0
 var gravity: float = ProjectSettings.get_setting("physics/2d/default_gravity")
 
 @onready var rb: RigidBody2D = $".."
-@onready var player: Player = get_node_or_null("/root/Main/Player") as Player
-var stunned: bool = false
+@onready var player: Player = Stage.player()
 var velocity: Vector2 = Vector2.ZERO
 ## Standing on something (only then does it crouch or leap).
 var grounded: bool = false

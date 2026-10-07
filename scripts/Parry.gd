@@ -1,4 +1,5 @@
 extends Node2D
+class_name Parry
 ## Parry, a spell: press Spell to raise a guard for a moment. A hit that lands inside it is turned
 ## aside, and pays off:
 ## - a touching enemy takes `damage` (double while stunned, as ever) and, if it lives, is stunned;
@@ -26,7 +27,7 @@ var scaling: float = 1.1
 
 @onready var parry_sfx: AudioStreamPlayer = $AudioStreamPlayer
 
-@onready var camera: Camera2D = $/root/Main/Camera2D
+@onready var camera: Camera2D = Stage.camera()
 
 func stop_parry () -> void:
 	player.hurt_ability = player.normal_hurt
@@ -34,7 +35,7 @@ func stop_parry () -> void:
 	sprite.visible = false
 
 func parry (_damage: int, _v: Vector2, origin: Node) -> void:
-	var attacker: Node = origin.get("attacker") if origin != null else null
+	var attacker: Node = Damager.attacker_of(origin)
 	if attacker == null or not is_instance_valid(attacker):
 		return
 	var shot: Node2D = _shot_of(origin)
@@ -55,24 +56,20 @@ func parry (_damage: int, _v: Vector2, origin: Node) -> void:
 
 
 ## The bullet a damager belongs to, or null for an enemy's own body.
-func _shot_of(origin: Node) -> Node2D:
+func _shot_of(origin: Node) -> Bullet:
 	var box: Node = origin.get_parent()
-	var shot: Node = box.get_parent() if box != null else null
-	if shot != null and shot.get_script() == preload("res://scripts/bullet.gd"):
-		return shot as Node2D
-	return null
+	return box.get_parent() as Bullet if box != null else null
 
 
 ## A shot turned back: the bullet is gone, and a bolt of spell light flies back at its shooter.
-func _reflect(shot: Node2D, attacker: Node) -> void:
+func _reflect(shot: Bullet, attacker: Node) -> void:
 	var from: Vector2 = shot.global_position
-	var aim: Vector2 = ((attacker as Node2D).global_position - from).normalized() if attacker is Node2D else -(shot.get("velocity") as Vector2).normalized()
+	var aim: Vector2 = ((attacker as Node2D).global_position - from).normalized() if attacker is Node2D else -shot.velocity.normalized()
 	shot.queue_free()
-	var bolt: Node2D = Node2D.new()
-	bolt.set_script(preload("res://scripts/HexBolt.gd"))
-	bolt.set("dir", aim)
-	bolt.set("damage", damage)
-	bolt.set("reflected", true)
+	var bolt: HexBolt = HexBolt.new()
+	bolt.dir = aim
+	bolt.damage = damage
+	bolt.reflected = true
 	var level: Node = MapInfo.instance.map_elements if MapInfo.instance != null and is_instance_valid(MapInfo.instance.map_elements) else player.get_parent()
 	level.add_child(bolt)
 	bolt.global_position = from
@@ -81,16 +78,16 @@ func _reflect(shot: Node2D, attacker: Node) -> void:
 ## An enemy that touched the guard: wounded, then stunned if it lives.
 func _strike(attacker: Node) -> void:
 	var dir: Vector2 = ((attacker as Node2D).global_position - player.global_position).normalized() if attacker is Node2D else Vector2.RIGHT
-	var wound: Node = attacker.get_node_or_null("Wound")
+	var wound: Wound = attacker.get_node_or_null("Wound") as Wound
 	if wound != null:
-		wound.call("hit", damage, dir)
+		wound.hit(damage, dir)
 	if is_instance_valid(attacker) and not attacker.is_queued_for_deletion():
-		var stunner: Stunner = attacker.get_node_or_null("Stunner") as Stunner
+		var stunner: Stunner = Stunner.of(attacker)
 		if stunner != null:
 			stunner.stun(STUN)
 		# A swarm of moths scatters instead.
-		if attacker.has_method("scatter"):
-			attacker.call("scatter", dir)
+		if attacker is MothSwarm:
+			(attacker as MothSwarm).scatter(dir)
 
 
 ## Freeze the action for an instant, so the parry lands with weight.
@@ -103,6 +100,23 @@ func check_parry () -> void:
 	player.hurt_ability = parry
 	sprite.visible = true
 	timer.start(duration)
+
+## Its tier (Abilities): I the guard (0.3 s), 1 damage, reflects shots, refunds the dash. II
+## 0.45 s and a shorter cooldown on a miss. III 2 damage. IV each parry heals 1. Untaught it keeps
+## tier I's tuning (it does nothing until learned, see execute).
+func set_tier(n: int) -> void:
+	n = maxi(n, 1)
+	duration = 0.45 if n >= 2 else 0.3
+	damage = 2 if n >= 3 else 1
+	heals = n >= 4
+	if cooldown != null:
+		cooldown.MAX_TIME = 0.9 if n >= 2 else 1.2
+
+
+## The Spell button, with parry in the slot: raise the guard.
+func cast_spell() -> bool:
+	player.parry.emit()
+	return true
 
 func execute () -> void:
 	if Abilities.tier(player, &"parry") <= 0:

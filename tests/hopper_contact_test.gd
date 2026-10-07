@@ -11,7 +11,7 @@ func check(ok: bool, what: String) -> void:
 	failed = failed or not ok
 
 func run() -> void:
-	MapInfo.save_path = "user://hopper_contact_test.save"
+	RunState.save_path = "user://hopper_contact_test.save"
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
 	var menu: Node = main.get_node("Menu")
@@ -77,6 +77,6 @@ func run() -> void:
 	await physics_frame
 	var hit: KinematicCollision2D = hopper.move_and_collide(Vector2(0, 300))
 	check(hit != null and hit.get_collider() == floor_body, "hopper still lands on solid terrain")
-	MapInfo.delete_save()
+	RunState.delete_save()
 	print("FAILED" if failed else "PASS: hopper contact")
 	quit(1 if failed else 0)

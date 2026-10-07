@@ -1,7 +1,7 @@
 extends SceneTree
 ## Draws the WFC sample for sky levels (wfc_images/sky_islands.png): islands of cloud packed close,
 ## two or three cells apart, so a collapse gives dense clusters of them (the level then keeps only
-## clusters, with wide gaps of open air between, MapInfo.World.cluster_islands). Each island has a
+## clusters, with wide gaps of open air between, SkyArchetype.cluster_islands). Each island has a
 ## flat top four to nine cells wide to stand on and tapers underneath (two or three rows), a cell
 ## narrower each side per row below the first; now and then a column of cloud rises from it. Three
 ## rows of headroom over every top, two clear under every island.

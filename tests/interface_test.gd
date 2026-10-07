@@ -49,8 +49,8 @@ func placed(scene: String) -> Array[Node]:
 
 
 func run() -> void:
-	MapInfo.save_path = "user://test_interface.save"
-	MapInfo.delete_save()
+	RunState.save_path = "user://test_interface.save"
+	RunState.delete_save()
 
 	print("start menu")
 	await boot()
@@ -73,13 +73,13 @@ func run() -> void:
 	var s: int = info.coord.x
 	var neighbours: Array[Vector2i] = [Vector2i(s, 1), Vector2i(s + 1, 0), Vector2i(s - 1, 0)]
 	var deadline: int = Time.get_ticks_msec() + 60000
-	while neighbours.any(func(c: Vector2i) -> bool: return not info.cache.has(c)) and Time.get_ticks_msec() < deadline:
+	while neighbours.any(func(c: Vector2i) -> bool: return not info.loader.cache.has(c)) and Time.get_ticks_msec() < deadline:
 		await process_frame
-	check(neighbours.all(func(c: Vector2i) -> bool: return info.cache.has(c)), "deeper, left and right are generated in the background")
-	while info.gen_busy:
+	check(neighbours.all(func(c: Vector2i) -> bool: return info.loader.cache.has(c)), "deeper, left and right are generated in the background")
+	while info.loader.gen_busy:
 		await process_frame
 	var fresh: Array = info.wfc.generate_level(MapInfo.def_for(Vector2i(s + 1, 0)))
-	check(fresh == info.cache[Vector2i(s + 1, 0)], "a cached level is exactly the level generated fresh")
+	check(fresh == info.loader.cache[Vector2i(s + 1, 0)], "a cached level is exactly the level generated fresh")
 	var frames: int = 0
 	info.travel(MapInfo.Exit.RIGHT)
 	# The printed transition covers the view first; caching should make the rest instant.
@@ -111,14 +111,14 @@ func run() -> void:
 	player.die()
 	await settle()
 	player.collect(7)
-	player.set_meta(&"carried_key", 2)
+	player.keyring.set_all([2])
 	player.health.health = 2
 	menu.pause_resume_game()
 	await process_frame
 	menu.pause_resume_game()
-	var saved: Dictionary = MapInfo.read_save()
+	var saved: Dictionary = RunState.read_save()
 	check(not saved.is_empty() and int(saved["run_seed"]) == s, "pausing saved the run")
-	var ghost_stars: int = info.ghost_stars
+	var ghost_stars: int = info.run.ghost_stars
 	main.queue_free()
 	await process_frame
 	await process_frame
@@ -130,11 +130,11 @@ func run() -> void:
 	player = main.get_node("Player") as Player
 	await settle()
 	check(info.coord == Vector2i(s, 0) and player.global_position.distance_to(info.cell_position(lantern_cell)) < 80.0, "resumes at the last lit lantern")
-	check(player.coins.coins == 7 and int(player.get_meta(&"carried_key", -1)) == 2 and player.health.health == 2, "with its stars, key and health")
+	check(player.coins.coins == 7 and player.keyring.newest() == 2 and player.health.health == 2, "with its stars, key and health")
 	check(Abilities.tier(player, &"double_jump") == 1 and player.MAX_JUMPS == 2, "and its abilities")
-	check(info.vulnerable and info.has_ghost and info.ghost_stars == ghost_stars and placed("corpse.tscn").size() == 1, "and its ghost, still vulnerable")
+	check(info.run.vulnerable and info.run.has_ghost and info.run.ghost_stars == ghost_stars and placed("corpse.tscn").size() == 1, "and its ghost, still vulnerable")
 	check(not placed("coin.tscn").any(func(n: Node) -> bool: return n.get_meta(&"cell") == coin_cell), "and its level records")
-	check(info.run_seed == s, "on the same world")
+	check(info.run.run_seed == s, "on the same world")
 
 	print("controller")
 	var pad: Callable = func(ev: InputEvent) -> void:
@@ -187,7 +187,7 @@ func run() -> void:
 	main.queue_free()
 	await process_frame
 	await process_frame
-	MapInfo.delete_save()
+	RunState.delete_save()
 	await boot()
 	menu.call("set_debug", true)
 	menu.world_seed.text = "28"
@@ -201,8 +201,8 @@ func run() -> void:
 		var e: Vector2i = info.world.exits[which]
 		spread = maxi(spread, absi(e.x - back.x) + absi(e.y - back.y))
 	check(spread <= 10, "every exit is within %d cells of the spawn" % spread)
-	check(info.seen_count() == info.world.size.x * info.world.size.y and not bool(info.record().get("mapped", false)), "the whole map is seen from the start, and the ink well still sells")
-	check(bool(MapInfo.read_save().get("debug", false)), "the save remembers it is a debug run")
+	check(info.seen_count() == info.world.size.x * info.world.size.y and not bool(info.record().mapped), "the whole map is seen from the start, and the ink well still sells")
+	check(bool(RunState.read_save().get("debug", false)), "the save remembers it is a debug run")
 	info.travel(MapInfo.Exit.DEEPER)
 	await settle()
 	var arrive: Vector2i = info.world.exits[MapInfo.Exit.BACK]
@@ -237,7 +237,7 @@ func run() -> void:
 	check(riso._travel_at == from, "set to where the wizard is")
 	riso._travel(Vector2i(from.x, RisoPrint._nearest_band(&"cemetery", from.y)))
 	await settle()
-	check(not riso.panel.visible and not paused and info.here.cemetery() and info.coord.x == from.x, "Cemetery goes to the nearest cemetery band (%s)" % info.coord)
+	check(not riso.panel.visible and not paused and info.here.archetype == &"cemetery" and info.coord.x == from.x, "Cemetery goes to the nearest cemetery band (%s)" % info.coord)
 	riso._travel(Vector2i(from.x + 5, 7))
 	await settle()
 	check(info.coord == Vector2i(from.x + 5, 7) and player.global_position.distance_to(info.cell_position(info.world.exits[MapInfo.Exit.BACK])) < 200.0, "Go goes to any world and depth, arriving at its way back")
@@ -253,7 +253,7 @@ func run() -> void:
 	await process_frame
 	check(not riso.panel.visible and not paused, "outside debug runs Back does nothing")
 
-	MapInfo.delete_save()
+	RunState.delete_save()
 	if failed:
 		print("FAILED")
 		quit(1)

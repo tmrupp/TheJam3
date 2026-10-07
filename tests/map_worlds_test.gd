@@ -30,7 +30,7 @@ func run() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://map_worlds_test.save"
+	RunState.save_path = "user://map_worlds_test.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	for i: int in range(5):
@@ -68,7 +68,7 @@ func run() -> void:
 	for i: int in range(4):
 		await process_frame
 	check(int(map.get("view")) == 1 and map.get("viewing") == first, "opening it shows that level's page")
-	var w: MapInfo.World = info.world_at(first)
+	var w: LevelGen = info.world_at(first)
 	check(w != null and w.size.x > 0, "its layout is rebuilt from its seed")
 	check(first_seen > 0 and (map.get("rock") as Sprite2D).visible and (map.get("rock") as Sprite2D).texture != null, "and its seen map is drawn (%d cells seen)" % first_seen)
 	var shown: Dictionary = map.get("_shown")

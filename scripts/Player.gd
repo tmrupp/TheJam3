@@ -5,6 +5,11 @@ class_name Player
 @onready var collider: CollisionShape2D = $CollisionShape2D
 @onready var health: Health = $Health
 @onready var coins: Coins = $Coins
+## The keys carried (see KeyRing), a node of its own made with the wizard.
+var keyring: KeyRing = KeyRing.new()
+## Draughts left in the mend spell (see Mend), or -1 while it holds as many as it can: kept on
+## the wizard, so swapping the spell away at a shrine and back does not fill them.
+var mend_draughts: int = -1
 
 
 @onready var jump_sfx: AudioStreamPlayer = $JumpSFX
@@ -123,13 +128,18 @@ func is_drowsy() -> bool:
 func make_drowsy() -> void:
 	if drowsy <= 0.0:
 		levitating = false
-		var projection: Node = get_node_or_null("AstralProjection")
-		if projection != null and bool(projection.call("projecting")):
-			projection.call("end_projection", projection.get("projection_timer"))
-		var aware: Node = get_node_or_null("Awareness")
+		var projection: AstralProjection = get_node_or_null("AstralProjection") as AstralProjection
+		if projection != null and projection.projecting():
+			projection.end_projection(projection.projection_timer)
+		var aware: Awareness = get_node_or_null("Awareness") as Awareness
 		if aware != null:
-			aware.set("sensing", 0.0)
+			aware.sensing = 0.0
 	drowsy = DROWSY_LINGER
+
+func _init() -> void:
+	keyring.name = "KeyRing"
+	add_child(keyring)
+
 
 func _enter_tree() -> void:
 	Abilities.ensure_input()
@@ -240,6 +250,51 @@ func die() -> void:
 	else:
 		health.health = 1
 		reset_position()
+
+## Tune the wizard's own moves to their tiers (see Abilities; the rest are their nodes'): the
+## dash runs longer, double jump adds jumps in the air, wall climb lets them climb (longer each
+## tier), speed runs faster, vigor adds hearts. Levitation stops when it is not known.
+func tune_moves() -> void:
+	dash.MAX_TIME = 0.25 + 0.07 * float(maxi(Abilities.tier(self, &"dash"), 1) - 1)
+	MAX_JUMPS = 1 + Abilities.tier(self, &"double_jump")
+	jumps = mini(jumps, MAX_JUMPS)
+	var climbing: int = Abilities.tier(self, &"wall_climb")
+	climable = climbing > 0
+	climb.MAX_TIME = CLIMB_TIME + 0.5 * float(maxi(climbing, 1) - 1)
+	if Abilities.tier(self, &"levitate") == 0:
+		levitating = false
+	run_speed = SPEED * (1.0 + Abilities.SPEED_PER_TIER * float(Abilities.tier(self, &"speed")))
+	health.max_health = Abilities.BASE_HEALTH + Abilities.tier(self, &"vigor")
+	health.health = mini(health.health, health.max_health)
+
+
+## The wizard's part of a saved run (see RunState.to_save): stars, keys, abilities, health and
+## mend draughts. ("key", the newest key, is kept for saves from before the keyring.)
+func to_save() -> Dictionary:
+	var tier_names: Dictionary = {}
+	for a: StringName in tiers:
+		tier_names[String(a)] = int(tiers[a])
+	var keys: Array[int] = keyring.all()
+	return {
+		"stars": coins.coins, "key": keys[-1] if not keys.is_empty() else -1, "keys": keys,
+		"skeleton_keys": keyring.skeletons(), "mend_draughts": Mend.stored(self),
+		"tiers": tier_names, "health": health.health,
+	}
+
+
+## Take up the wizard's part of a saved run (see to_save).
+func from_save(data: Dictionary) -> void:
+	tiers = Abilities.start_tiers()
+	var saved: Dictionary = data["tiers"]
+	for a: String in saved:
+		tiers[StringName(a)] = int(saved[a])
+	Abilities.apply(self)
+	health.health = clampi(int(data["health"]), 1, health.max_health)
+	collect(int(data["stars"]) - coins.coins)
+	# Saves from before the keyring hold one key.
+	keyring.set_all(data.get("keys", [int(data["key"])]))
+	keyring.set_skeletons(int(data.get("skeleton_keys", 0)))
+	Mend.restore(self, int(data.get("mend_draughts", -1)))
 
 # does a jump and triggers the jumping animation
 var animating_jumping: bool = false
@@ -538,7 +593,7 @@ var footing_at: Vector2i = Vector2i(-99999, -99999)
 
 func _footing() -> void:
 	var info: MapInfo = MapInfo.instance
-	if info == null or info.world == null or info.travelling or not info.here.sky():
+	if info == null or info.world == null or info.travelling or not info.here.open():
 		return
 	if is_on_floor():
 		for i: int in range(get_slide_collision_count()):

@@ -16,7 +16,7 @@ func run() -> void:
 	if lantern == null:
 		finish()
 		return
-	var glass: Vector2 = info.cell_position(info.respawn_cell) + MothSwarm.GLASS
+	var glass: Vector2 = info.cell_position(info.run.respawn_cell) + MothSwarm.GLASS
 	var swarm: MothSwarm = load("res://prefabs/moths.tscn").instantiate() as MothSwarm
 	swarm.position = glass + Vector2(300, 0)
 	main.add_child(swarm)
@@ -26,10 +26,10 @@ func run() -> void:
 	check(Abilities.spell(player) == &"", "the wizard has no spell equipped")
 	player.global_position = swarm.global_position + Vector2(400, 70)
 	check(swarm.target() == glass and swarm.drawn_to == &"lantern", "without a spell, a nearby wizard does not distract moths from the lantern")
-	var was_vulnerable: bool = info.vulnerable
-	info.vulnerable = true
+	var was_vulnerable: bool = info.run.vulnerable
+	info.run.vulnerable = true
 	check(swarm.target() == swarm.home and swarm.drawn_to == &"home", "without a spell or lit lantern, the swarm stays home")
-	info.vulnerable = was_vulnerable
+	info.run.vulnerable = was_vulnerable
 	Abilities.grant(player, &"hex")
 	var toward: Vector2 = swarm.target()
 	check(swarm.drawn_to == &"orb" and toward == player.global_position + Vector2(0, -70), "equipping a spell makes the nearby orb take priority over the lantern")
@@ -80,5 +80,5 @@ func run() -> void:
 	player.dash.end()
 	strike.guard_left = 0.0
 	check(not strike.guards(swarm), "the moths can sting again once the dash and guard end")
-	MapInfo.delete_save()
+	RunState.delete_save()
 	finish("moth chase and dash")

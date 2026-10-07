@@ -10,7 +10,7 @@ class_name AstralProjection
 ## body. Tiers make it last longer.
 
 @onready var player: Player = $"../"
-@onready var main: Node = $"/root/Main"
+@onready var main: Node = Stage.main()
 @onready var visual: Sprite2D = $"../Sprite2D" # someday, this reference will break
 
 ## A brief projection, growing from 1.5 to 3 seconds with its four tiers.
@@ -34,6 +34,19 @@ func _ready() -> void:
 	player.astral_projection_signal.connect(toggle)
 	player.elapse_ability_time_signal.connect(elapse)
 	false_player_origin = null
+
+## Its tier (Abilities): it lasts PROJECTION_TIME, and TIER_TIME more a tier. Swapped away (0)
+## mid-projection, it snaps back.
+func set_tier(n: int) -> void:
+	projection_timer.MAX_TIME = PROJECTION_TIME + TIER_TIME * float(maxi(n, 1) - 1)
+	if n == 0 and projecting():
+		end_projection(projection_timer)
+
+
+## The Spell button, with astral projection in the slot: project, or snap back.
+func cast_spell() -> bool:
+	toggle()
+	return true
 
 func elapse(delta: float) -> void:
 	projection_timer.elapse(delta)

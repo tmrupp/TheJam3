@@ -1,6 +1,6 @@
 class_name Bird
-extends Node2D
-## A swooping bird, in sky levels (MapInfo.World.populate_sky): it patrols back and forth along its
+extends Stunnable
+## A swooping bird, in sky levels (SkyArchetype.populate): it patrols back and forth along its
 ## own height, a stretch of open sky between two ends (`span`), wings beating. When the wizard passes
 ## below it, within REACH across and DROP down, and it has rested REST since its last swoop, it folds
 ## its wings and swoops: down through where the wizard was (DIVE past them, so it sweeps their whole
@@ -20,8 +20,7 @@ const SWOOP_PER_PX: float = 0.0012
 const REST: float = 1.5
 
 @onready var rb: RigidBody2D = $".."
-@onready var player: Player = get_node_or_null("/root/Main/Player") as Player
-var stunned: bool = false
+@onready var player: Player = Stage.player()
 ## Its patrol: the height it flies at, and the ends of its stretch (world x).
 var height: float = 0.0
 var span: Vector2 = Vector2.ZERO

@@ -74,7 +74,7 @@ func run() -> void:
 	root.size = Vector2i(1280, 720)
 	output = ProjectSettings.globalize_path("res://../art-captures/interaction-hints")
 	DirAccess.make_dir_recursive_absolute(output)
-	MapInfo.save_path = "user://interaction_hints_test.save"
+	RunState.save_path = "user://interaction_hints_test.save"
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
 	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
@@ -122,14 +122,14 @@ func run() -> void:
 	Abilities.grant(player, &"keyring")
 	Abilities.grant(player, &"keyring")
 	Abilities.grant(player, &"keyring")
-	KeyRing.set_all(player, [0, 1, 2, 3])
+	player.keyring.set_all([0, 1, 2, 3])
 	# Keep the whole trailing ring against open sky for the size comparison.
 	player.global_position = Vector2(-2000, -2000)
 	camera.global_position = player.global_position + Vector2(0, -90)
 	camera.reset_smoothing()
 	await settle(90)
 	await shot("equal_keyring")
-	KeyRing.set_all(player, [])
+	player.keyring.set_all([])
 	info.coord = Vector2i(28, NextWorldDef.first_depth(&"cemetery"))
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()

@@ -46,7 +46,7 @@ func start_random() -> void:
 
 
 func continue_game() -> void:
-	if MapInfo.read_save().is_empty():
+	if RunState.read_save().is_empty():
 		return
 	_enter_play()
 	map_info().continue_run()
@@ -200,7 +200,7 @@ func _ready() -> void:
 	paste.pressed.connect(paste_seed)
 	debug_button.toggled.connect(set_debug)
 	set_debug(false)
-	var saved: Dictionary = MapInfo.read_save()
+	var saved: Dictionary = RunState.read_save()
 	continue_button.visible = not saved.is_empty()
 	if saved.is_empty():
 		where.text = "go deeper"

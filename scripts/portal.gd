@@ -1,4 +1,5 @@
 extends Node2D
+class_name Portal
 ## A teleporter: interact to step through to its partner. Generated pairs are linked by the level;
 ## the wizard's own rifts (Rift) link as they are opened. A tier III rift whose partner is in
 ## another level carries `rift_far` ([coord, position]): using it travels to that level.
@@ -13,7 +14,7 @@ const DEPART: float = 0.3
 const REVEAL: float = 0.16
 const ARRIVE: float = 0.32
 
-@onready var player: Player = $"/root/Main/Player"
+@onready var player: Player = Stage.player()
 @onready var portal_sfx: AudioStreamPlayer = $AudioStreamPlayer
 var go_to_pos: Vector2
 var linked: bool = false
@@ -67,13 +68,7 @@ func _far_end() -> Node2D:
 
 ## The view cuts to the far end at once, rather than sweeping across the level.
 func _snap_camera() -> void:
-	var control: Node = player.get_node_or_null("CameraControl")
-	var camera: Camera2D = get_node_or_null("/root/Main/Camera2D") as Camera2D
-	if control != null:
-		control.set("target_location", player.position)
-	if camera != null:
-		camera.position = player.position
-		camera.reset_smoothing()
+	CameraControl.snap(player)
 
 func setup(map_info: MapInfo, _coord: Vector2, partner_coord: Vector2) -> void:
 	go_to_pos = map_info.tile_map.to_global(map_info.tile_map.map_to_local(partner_coord))

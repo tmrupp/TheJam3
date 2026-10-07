@@ -2,7 +2,7 @@ extends SceneTree
 ## Key rarity and vaults. Key colours are dealt by rarity (MapInfo.KEY_RARITY): keys, corridor
 ## doors and padlocks come up in sun most often and plum least, and every level's first key is sun.
 ## Vaults are small rooms sealed in rock behind a locked door, dealt evenly among the colours, and
-## the rarer the lock the better the loot (World.VAULT_LOOT).
+## the rarer the lock the better the loot (LevelGen.VAULT_LOOT).
 ## godot --headless --path . --script res://tests/vaults_test.gd
 
 var main: Node
@@ -34,7 +34,7 @@ func settle(frames: int = 6) -> void:
 
 
 ## The things in `w`'s vault, as [type, extra info], in the order they were laid.
-func loot_of(w: MapInfo.World, vault: Dictionary) -> Array:
+func loot_of(w: LevelGen, vault: Dictionary) -> Array:
 	var out: Array = []
 	for v: Vector2i in w.objects:
 		if (vault["room"] as Array).has(v):
@@ -44,10 +44,10 @@ func loot_of(w: MapInfo.World, vault: Dictionary) -> Array:
 
 ## Whether `vault` is open inside, walled in rock all round but for its door, and entered at floor
 ## height from a floor outside.
-func well_formed(w: MapInfo.World, vault: Dictionary) -> bool:
+func well_formed(w: LevelGen, vault: Dictionary) -> bool:
 	var room: Array = vault["room"]
 	var door: Vector2i = vault["door"]
-	if w.get_cell(door).type != MapInfo.Type.DOOR or int(w.get_cell(door).extra_info) != int(vault["color"]):
+	if w.get_cell(door).type != LevelGen.Type.DOOR or int(w.get_cell(door).extra_info) != int(vault["color"]):
 		return false
 	for c: Vector2i in room:
 		if w.is_ground(c):
@@ -89,7 +89,7 @@ func run() -> void:
 			var at: Vector2i = Vector2i(seed_value, depth)
 			var def: NextWorldDef = MapInfo.def_for(at)
 			var cells: Array = wfc.call("generate_level", def)
-			var w: MapInfo.World = MapInfo.World.new(cells, def)
+			var w: LevelGen = LevelGen.new(cells, def)
 			var label: String = "seed %d depth %d" % [seed_value, depth]
 			levels += 1
 			var first_key: int = -1
@@ -97,13 +97,13 @@ func run() -> void:
 			for vault: Dictionary in w.vaults:
 				vault_doors[vault["door"]] = true
 			for v: Vector2i in w.objects:
-				var cell: MapInfo.Cell = w.get_cell(v)
-				if cell.type == MapInfo.Type.KEY and cell.extra_info != null and int(cell.extra_info) != KeyRing.SKELETON and not w.vaults.any(func(vt: Dictionary) -> bool: return (vt["room"] as Array).has(v)):
+				var cell: LevelGen.Cell = w.get_cell(v)
+				if cell.type == LevelGen.Type.KEY and cell.extra_info != null and int(cell.extra_info) != KeyRing.SKELETON and not w.vaults.any(func(vt: Dictionary) -> bool: return (vt["room"] as Array).has(v)):
 					if v != w.start_key:
 						keys[int(cell.extra_info)] += 1
 						if first_key < 0:
 							first_key = int(cell.extra_info)
-				elif cell.type == MapInfo.Type.DOOR and not vault_doors.has(v) and int(cell.extra_info) != KeyRing.SKELETON:
+				elif cell.type == LevelGen.Type.DOOR and not vault_doors.has(v) and int(cell.extra_info) != KeyRing.SKELETON:
 					doors[int(cell.extra_info)] += 1
 			check(first_key == 0, label + ": the first key is the commonest colour")
 			if not w.vaults.is_empty():
@@ -117,14 +117,14 @@ func run() -> void:
 					vault_colors[color] = int(vault_colors.get(color, 0)) + 1
 				if color == 1:
 					ember_vaults += 1
-					if w.vault_loot(color, vault["door"]).has([MapInfo.Type.KEY, 2]):
+					if w.vault_loot(color, vault["door"]).has([LevelGen.Type.KEY, 2]):
 						ember_keys += 1
 				check(well_formed(w, vault), label + ": vault at %s is sealed in rock behind its door" % vault["door"])
 				check(loot_of(w, vault) == w.vault_loot(color, vault["door"]), label + ": colour %d vault holds its loot %s" % [color, loot_of(w, vault)])
-			var again: MapInfo.World = MapInfo.World.new(cells, def)
+			var again: LevelGen = LevelGen.new(cells, def)
 			var same_colors: bool = true
 			for v: Vector2i in w.objects:
-				if w.get_cell(v).extra_info != again.get_cell(v).extra_info and w.get_cell(v).type in [MapInfo.Type.KEY, MapInfo.Type.DOOR]:
+				if w.get_cell(v).extra_info != again.get_cell(v).extra_info and w.get_cell(v).type in [LevelGen.Type.KEY, LevelGen.Type.DOOR]:
 					same_colors = false
 			check(w.objects == again.objects and w.vaults == again.vaults and same_colors, label + ": vaults and colours are the same every visit")
 	print("  keys by colour %s, doors %s, vaults %s, %d of %d levels with a vault" % [keys, doors, vault_colors, with_vault, levels])
@@ -132,13 +132,13 @@ func run() -> void:
 	check(doors[0] > doors[1] and doors[1] > doors[3], "and so do doors")
 	check(with_vault * 4 >= levels * 3, "most levels have a vault")
 	check(vault_colors.size() == MapInfo.KEY_COLOR_COUNT, "vaults come in every colour")
-	var table: Array = MapInfo.World.VAULT_LOOT
-	check(table[0] == [[MapInfo.Type.CLUSTER, 0.5]] and table[1] == [[MapInfo.Type.CLUSTER, 1.0]] and table[2] == [[MapInfo.Type.CLUSTER, 1.5]] and (table[3] as Array).has([MapInfo.Type.KEY, KeyRing.SKELETON]), "rarer locks guard better loot: half a cluster, a cluster, a cluster and a half, a cluster and a skeleton key")
+	var table: Array = LevelGen.VAULT_LOOT
+	check(table[0] == [[LevelGen.Type.CLUSTER, 0.5]] and table[1] == [[LevelGen.Type.CLUSTER, 1.0]] and table[2] == [[LevelGen.Type.CLUSTER, 1.5]] and (table[3] as Array).has([LevelGen.Type.KEY, KeyRing.SKELETON]), "rarer locks guard better loot: half a cluster, a cluster, a cluster and a half, a cluster and a skeleton key")
 	print("  ember vaults with a moss key: %d of %d" % [ember_keys, ember_vaults])
 	check(ember_vaults == 0 or ember_keys > 0, "ember vaults sometimes hold a moss key")
 
 	print("in play")
-	MapInfo.save_path = "user://vaults_test.save"
+	RunState.save_path = "user://vaults_test.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	menu.start_game()
@@ -173,16 +173,16 @@ func run() -> void:
 	var color: int = vault["color"]
 	check(door != null and int(door.get_meta(&"key_color", -1)) == color, "its door is locked in colour %d" % color)
 	check(loot.size() == info.world.vault_loot(color, vault["door"]).size(), "its loot lies inside (%d)" % loot.size())
-	KeyRing.clear(player)
-	KeyRing.take(player, (color + 1) % MapInfo.KEY_COLOR_COUNT)
+	player.keyring.clear()
+	player.keyring.take((color + 1) % MapInfo.KEY_COLOR_COUNT)
 	door.get_node("Unlock").call("try_open")
 	await settle(1)
 	check(is_instance_valid(door) and not door.is_queued_for_deletion(), "another colour's key does not open it")
-	KeyRing.take(player, color)
+	player.keyring.take(color)
 	door.get_node("Unlock").call("try_open")
 	await settle(1)
 	check(not is_instance_valid(door) or door.is_queued_for_deletion(), "its own colour does")
-	check((info.record()["opened"] as Dictionary).has(vault["door"]), "and it stays open")
+	check((info.record().opened as Dictionary).has(vault["door"]), "and it stays open")
 	finish()
 
 

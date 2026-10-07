@@ -21,7 +21,7 @@ func capture() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://capture_astral.save"
+	RunState.save_path = "user://capture_astral.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	menu.start_game()
@@ -56,6 +56,6 @@ func capture() -> void:
 	for i: int in range(shots.size()):
 		out.blit_rect(shots[i], Rect2i(0, 0, 400, 400), Vector2i(i * 400, 0))
 	out.save_png(ProjectSettings.globalize_path("res://../art-captures/riso-frames/astral_timing.png"))
-	MapInfo.delete_save()
+	RunState.delete_save()
 	print("CAPTURED astral and levitate")
 	quit()

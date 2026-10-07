@@ -1,4 +1,6 @@
 extends Node
+class_name CameraControl
+## Steers the camera after the wizard (to `target_location`, ahead of them the way they face).
 
 # lerp method
 # always lerp the camera to the player
@@ -20,8 +22,18 @@ var target_location: Vector2
 const HORIZONTAL_OFFSET: int = 200
 const VERTICAL_OFFSET: int = 100
 
+## Cut the view to `wizard` at once, rather than sweeping across the level (a teleport, a warp).
+static func snap(wizard: Player) -> void:
+	var control: CameraControl = wizard.get_node_or_null("CameraControl") as CameraControl
+	var view: Camera2D = Stage.camera()
+	if control != null:
+		control.target_location = wizard.position
+	if view != null:
+		view.position = wizard.position
+		view.reset_smoothing()
+
 func _ready() -> void:
-	# Camera limits are fitted to each level by MapInfo (enclose_map).
+	# Camera limits are fitted to each level (LevelLoader.lay_terrain).
 	player.direction_signal.connect(update_target)
 	target_location = player.position
 

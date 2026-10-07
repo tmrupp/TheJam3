@@ -17,6 +17,17 @@ var cooldown: float = 0.0
 @onready var player: Player = get_parent() as Player
 
 
+## Its tier (Abilities): what it senses, and for how long.
+func set_tier(n: int) -> void:
+	level = n
+
+
+## The Spell button, with awareness in the slot: sense the level.
+func cast_spell() -> bool:
+	ping()
+	return true
+
+
 func ping() -> void:
 	if cooldown > 0.0:
 		return
@@ -41,15 +52,15 @@ func targets() -> Array[Dictionary]:
 	for node: Node in info.map_elements.get_children():
 		if not (node is Node2D) or node.is_queued_for_deletion():
 			continue
-		var file: String = node.scene_file_path.get_file()
+		var type: int = Placeables.type_of(node)
 		var kind: StringName = &""
-		if file == "level_exit.tscn":
+		if type == LevelGen.Type.EXIT:
 			kind = &"exit"
-		elif level >= 2 and file == "inkwell.tscn" and not bool(node.call("used")):
+		elif level >= 2 and type == LevelGen.Type.INKWELL and not (node as Inkwell).used():
 			kind = &"inkwell"
-		elif level >= 2 and file == "shrine.tscn" and not bool(node.call("used")):
+		elif level >= 2 and type == LevelGen.Type.SHRINE and not (node as Shrine).used():
 			kind = &"shrine"
-		elif level >= 3 and file == "key.tscn":
+		elif level >= 3 and type == LevelGen.Type.KEY:
 			var sprite: CanvasItem = node.get_node_or_null("Sprite2D") as CanvasItem
 			if sprite == null or sprite.visible:
 				var color: int = int(node.get_meta(&"key_color", 0))

@@ -1,4 +1,5 @@
 extends Node2D
+class_name RisoPortalWarp
 ## A trip through a portal, printed, in two parts either side of the cut to the far portal (see
 ## portal.gd and RisoPrint.portal_depart / portal_arrive). Presentation only.
 ## - In (part 0): the wizard, as a silhouette in their glow ink (as the dash's afterimages are),
@@ -13,7 +14,7 @@ const IN_TIME: float = 0.3
 const OUT_TIME: float = 0.45
 ## Into the out part, when the wizard is seen again (portal.gd REVEAL).
 const REVEAL: float = 0.16
-## The silhouette's middle over its feet, in art units (RisoProp.ghost_shape).
+## The silhouette's middle over its feet, in art units (RisoMarks.ghost_shape).
 const MID: float = 19.0
 const STREAKS: int = 9
 const MOTES: int = 10
@@ -58,7 +59,7 @@ func _silhouette(mid: Vector2, size: float, twist: float, cover: float) -> void:
 	if size < 0.04 or cover <= 0.01:
 		return
 	var at: Transform2D = Transform2D(0.0, Vector2(art_scale * size, art_scale * size), 0.0, mid) * Transform2D(0.0, Vector2(0, MID))
-	var shape: Array[PackedVector2Array] = RisoProp.ghost_shape(at, facing)
+	var shape: Array[PackedVector2Array] = RisoMarks.ghost_shape(at, facing)
 	if absf(twist) > 0.001:
 		var reach: float = MID * art_scale * 1.8
 		for i: int in range(shape.size()):
@@ -79,8 +80,8 @@ func _streaks(k0: float, k1: float, cover: float, turn: float) -> void:
 	var lines: Array[PackedVector2Array] = []
 	for i: int in range(STREAKS):
 		var a: float = TAU * (float(i) + 0.3) / float(STREAKS) + turn
-		var p0: Vector2 = RisoProp.portal_point(center, a, k0)
-		var p1: Vector2 = RisoProp.portal_point(center, a, k1)
+		var p0: Vector2 = PortalArt.portal_point(center, a, k0)
+		var p1: Vector2 = PortalArt.portal_point(center, a, k1)
 		var n: Vector2 = (p1 - p0).normalized().orthogonal()
 		lines.append(PackedVector2Array([p0 - n * 0.8, p1 - n * 2.6, p1 + n * 2.6, p0 + n * 0.8]))
 	ink.lift_ink(PAPER_LIFT, cover * 0.7, lines)
@@ -105,7 +106,7 @@ func _in(e: float) -> void:
 	var k: float = lerpf(1.9, 0.25, u)
 	_streaks(k, k + 0.55 * (1.0 - u) + 0.1, 0.9 * (1.0 - u * 0.3), u * 0.8)
 	# The rim flares, then draws in after the wizard.
-	var band: Array[PackedVector2Array] = RisoProp.portal_band(center, lerpf(1.0, 0.15, pull), lerpf(1.12, 0.3, pull), 32)
+	var band: Array[PackedVector2Array] = PortalArt.portal_band(center, lerpf(1.0, 0.15, pull), lerpf(1.12, 0.3, pull), 32)
 	ink.lift_ink(PAPER_LIFT, 0.5 * (1.0 - u * 0.5), band)
 	ink.ink(ring, 0.6 + 0.4 * u, band, false)
 	# A flash as they go.
@@ -126,7 +127,7 @@ func _out(e: float) -> void:
 	var after: float = clampf((e - REVEAL / OUT_TIME) / 0.3, 0.0, 1.0)
 	_silhouette(mid, lerpf(0.1, 1.0, open), -(1.0 - open) * 2.4 * facing, 0.95 * (1.0 - after))
 	# A ring bursting out past the rim, streaks flying out, and motes.
-	var band: Array[PackedVector2Array] = RisoProp.portal_band(center, lerpf(0.2, 1.5, out), lerpf(0.3, 1.58, out), 32)
+	var band: Array[PackedVector2Array] = PortalArt.portal_band(center, lerpf(0.2, 1.5, out), lerpf(0.3, 1.58, out), 32)
 	ink.lift_ink(PAPER_LIFT, 0.6 * fade, band)
 	ink.ink(ring, 0.9 * fade, band, false)
 	var k: float = lerpf(0.3, 1.9, out)
@@ -136,5 +137,5 @@ func _out(e: float) -> void:
 	if size > 1.2:
 		for i: int in range(MOTES):
 			var a: float = TAU * (float(i) + 0.5) / float(MOTES) + out * 1.2
-			motes.append(RisoShapes.circle(RisoProp.portal_point(center, a, lerpf(0.15, 1.7, out)), size, 10))
+			motes.append(RisoShapes.circle(PortalArt.portal_point(center, a, lerpf(0.15, 1.7, out)), size, 10))
 	ink.ink(RisoPrint.EYE, 0.95, motes)

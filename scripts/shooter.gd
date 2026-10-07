@@ -1,4 +1,5 @@
-extends Node2D
+extends Stunnable
+class_name Shooter
 ## The watcher: while it can see the wizard (in range, with a clear line), its eye slowly opens,
 ## charging toward a shot; when the charge is full it fires and starts again. The moment it loses
 ## sight the charge resets, so breaking line of sight buys a full cooldown.
@@ -9,11 +10,10 @@ var SPEED: int = 260
 var projectile_prefab: Resource = preload("res://prefabs/bullet.tscn")
 @onready var shoot_point: Node2D = $ShootPoint
 @onready var range_box: Area2D = $RangeBox
-@onready var player: Player = $"/root/Main/Player"
-@onready var main: Node = $"/root/Main"
+@onready var player: Player = Stage.player()
+@onready var main: Node = Stage.main()
 @onready var rb: RigidBody2D = $".."
 @onready var shoot_sfx: AudioStreamPlayer = $AudioStreamPlayer
-var stunned: bool = false
 var player_in_range: bool = false
 ## 0..1: how far toward the next shot (the eye's opening follows it).
 var charge: float = 0.0
@@ -39,7 +39,7 @@ func shoot() -> void:
 	main.add_child.call_deferred(projectile)
 	projectile.position = shoot_point.global_position
 	projectile.setup((player.global_position - shoot_point.global_position).normalized() * SPEED, [rb], rb)
-	# A sky level's watcher fires shots that rebound off walls (MapInfo.World.populate_sky).
+	# A sky level's watcher fires shots that rebound off walls (SkyArchetype.populate).
 	projectile.set("bounces", int(rb.get_meta(&"bounces", 0)))
 	shoot_sfx.play()
 

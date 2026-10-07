@@ -2,7 +2,7 @@ extends TestKit
 ## A level looks the same on every visit, down to where each floating pickup (star, key, moon)
 ## sits in its cell and where each lift is along its track. A level's layout is kept and reused
 ## once built, so none of this may be drawn from its RNG as it loads: it is hashed from the level
-## seed and the cell (MapInfo.place_cell, MovingPlatform.setup).
+## seed and the cell (LevelLoader.place_cell, MovingPlatform.setup).
 ## godot --headless --path . --script res://tests/revisit_test.gd
 
 ## The prefabs of the pickups that float anywhere in their cell.
@@ -17,7 +17,7 @@ func run() -> void:
 	var first: Dictionary = _looks()
 	var lifts: int = (first.keys() as Array).filter(func(k: Variant) -> bool: return (k as String).begins_with("lift")).size()
 	check(first.size() - lifts > 10 and lifts > 0, "the level has pickups to compare (%d, and %d lifts)" % [first.size() - lifts, lifts])
-	var built: MapInfo.World = info.world
+	var built: LevelGen = info.world
 	# Load the same level again: its kept layout is reused, as on coming back to it.
 	info.arrival = -2
 	info._load_level()
@@ -34,7 +34,7 @@ func run() -> void:
 	for k: String in first:
 		spread[snappedf((first[k] as Vector2).x, 0.1)] = true
 	check(spread.size() > 5, "pickups do not all sit at the same place in their cells")
-	MapInfo.delete_save()
+	RunState.delete_save()
 	finish()
 
 

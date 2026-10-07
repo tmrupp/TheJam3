@@ -1,7 +1,8 @@
 extends Area2D
-## A jump pad, in sky levels (MapInfo.World.populate_sky): a springy cushion of cloud on a floor,
+class_name Pad
+## A jump pad, in sky levels (SkyArchetype.populate): a springy cushion of cloud on a floor,
 ## placed below a ledge or shelf. Land on it, or walk onto it, and it throws the wizard about
-## MapInfo.World.PAD_REACH cells up (letting go of Jump does not cut it short) and gives the dash
+## SkyArchetype.PAD_REACH cells up (letting go of Jump does not cut it short) and gives the dash
 ## back.
 
 const LAUNCH: float = -1080.0

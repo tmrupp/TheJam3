@@ -1,5 +1,6 @@
 extends StaticBody2D
-## One plank of a chasm's bridge, in cemetery levels (MapInfo.World.carve_chasms). Until the
+class_name Bridge
+## One plank of a chasm's bridge, in cemetery levels (Chasms.carve). Until the
 ## chasm's bell is rung (Bell) it is only a faint outline and nothing stands on it; rung, the
 ## planks lay themselves across one after another from the bell's side and stay, a ledge to stand
 ## on like a platform's (one-way).

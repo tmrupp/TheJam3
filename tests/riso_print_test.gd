@@ -20,7 +20,7 @@ func check(ok: bool, what: String) -> void:
 func run() -> void:
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://riso_print_test.save"
+	RunState.save_path = "user://riso_print_test.save"
 	var menu: Node = main.get_node("Menu")
 	# A world whose first level has lifts (they are rare: about one per level).
 	menu.world_seed.text = "27"
@@ -54,7 +54,7 @@ func run() -> void:
 	var dressed: int = 0
 	var expected: int = 0
 	for node: Node in info.map_elements.get_children():
-		if RisoPrint.DRESS.has(node.scene_file_path):
+		if RisoPrint.art_kind(node.scene_file_path) != &"":
 			expected += 1
 			if node.has_node("RisoArt"):
 				dressed += 1
@@ -123,10 +123,10 @@ func run() -> void:
 			door_node = node
 	check(key_node != null and door_node != null, "a key and a door of the same colour exist")
 	if key_node != null and door_node != null:
-		if player.has_meta(&"carried_key"):
-			player.remove_meta(&"carried_key")
+		if player.keyring.newest() >= 0:
+			player.keyring.set_all([])
 		key_node.call("touch", player)
-		check(player.has_meta(&"carried_key") and int(player.get_meta(&"carried_key")) == int(key_node.get_meta(&"key_color")), "picking up a key carries its colour")
+		check(player.keyring.newest() >= 0 and player.keyring.newest() == int(key_node.get_meta(&"key_color")), "picking up a key carries its colour")
 		var other_key: Node = null
 		for node: Node in info.map_elements.get_children():
 			if node != key_node and node.scene_file_path == "res://prefabs/key.tscn" and is_instance_valid(node) and int(node.get_meta(&"key_color", -1)) != int(key_node.get_meta(&"key_color")):
@@ -134,20 +134,20 @@ func run() -> void:
 				break
 		if other_key != null:
 			other_key.call("touch", player)
-			check(int(player.get_meta(&"carried_key")) == int(other_key.get_meta(&"key_color")), "a new key replaces the carried one")
+			check(player.keyring.newest() == int(other_key.get_meta(&"key_color")), "a new key replaces the carried one")
 			key_node.call("touch", player)
-			check(int(player.get_meta(&"carried_key")) == int(other_key.get_meta(&"key_color")), "a collected key cannot be picked up again")
-			player.set_meta(&"carried_key", int(key_node.get_meta(&"key_color")))
+			check(player.keyring.newest() == int(other_key.get_meta(&"key_color")), "a collected key cannot be picked up again")
+			player.keyring.set_all([int(key_node.get_meta(&"key_color"))])
 		var wrong: Node = null
 		for node: Node in info.map_elements.get_children():
-			if node.scene_file_path == "res://prefabs/door.tscn" and int(node.get_meta(&"key_color", -1)) != int(player.get_meta(&"carried_key")):
+			if node.scene_file_path == "res://prefabs/door.tscn" and int(node.get_meta(&"key_color", -1)) != player.keyring.newest():
 				wrong = node
 				break
 		if wrong != null:
 			wrong.get_node("Unlock").call("try_open")
-			check(is_instance_valid(wrong) and not wrong.is_queued_for_deletion() and player.has_meta(&"carried_key"), "a door of another colour stays shut")
+			check(is_instance_valid(wrong) and not wrong.is_queued_for_deletion() and player.keyring.newest() >= 0, "a door of another colour stays shut")
 		door_node.get_node("Unlock").call("try_open")
-		check(door_node.is_queued_for_deletion() and player.has_meta(&"carried_key"), "the matching door opens and the key is kept")
+		check(door_node.is_queued_for_deletion() and player.keyring.newest() >= 0, "the matching door opens and the key is kept")
 	# A garden level prints in the garden's own realm (NextWorldDef.realm).
 	check(riso.realm == &"garden" and riso.reprint_on_motion and not riso.blend_sheets and riso.sheet_rate == 8.0 and not riso.trapped, "defaults: the garden's realm, 8/s, reprint on motion, cut between sheets, independent plates")
 	var cam: Camera2D = main.get_node("Camera2D") as Camera2D

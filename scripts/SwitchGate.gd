@@ -1,4 +1,5 @@
 extends StaticBody2D
+class_name SwitchGate
 ## A gate across a corridor, lifted for good by its switch elsewhere in the level (Switch). It
 ## has no lock: nothing opens it but the switch. Once open, the level record keeps it open.
 

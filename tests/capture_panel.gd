@@ -15,7 +15,7 @@ func frames(n: int) -> void:
 func capture() -> void:
 	root.mode = Window.MODE_WINDOWED
 	root.size = Vector2i(1280, 720)
-	MapInfo.save_path = "user://capture_panel.save"
+	RunState.save_path = "user://capture_panel.save"
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
 	var menu: Node = main.get_node("Menu")

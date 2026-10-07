@@ -60,7 +60,7 @@ func capture() -> void:
 	root.size = Vector2i(1280, 720)
 	main = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://capture_layers.save"
+	RunState.save_path = "user://capture_layers.save"
 	await process_frame
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
@@ -98,6 +98,6 @@ func capture() -> void:
 	var out: String = ProjectSettings.globalize_path("res://../art-captures/riso-frames")
 	sheet.save_png(out.path_join("layers_sheet.png"))
 	print("ORDER ", names)
-	MapInfo.delete_save()
+	RunState.delete_save()
 	print("CAPTURED layers to ", out)
 	quit()

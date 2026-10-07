@@ -37,6 +37,16 @@ func _physics_process(delta: float) -> void:
 	recharge = maxf(0.0, recharge - delta)
 
 
+## Its tier (Abilities): II to unseen floors (and a shorter cooldown); III into secret rooms.
+func set_tier(n: int) -> void:
+	level = n
+
+
+## The Spell button, with warp in the slot: warp, if ready. Whether it went (stars are paid only then).
+func cast_spell() -> bool:
+	return cast() != null
+
+
 ## Warp, if ready. Returns the cell it will land in (the trip plays out over the next moment), or
 ## null.
 func cast() -> Variant:
@@ -90,22 +100,16 @@ func _done(moving: bool) -> void:
 
 ## The view cuts to the landing at once, rather than sweeping across the level.
 func _snap_camera() -> void:
-	var control: Node = player.get_node_or_null("CameraControl")
-	var camera: Camera2D = get_node_or_null("/root/Main/Camera2D") as Camera2D
-	if control != null:
-		control.set("target_location", player.position)
-	if camera != null:
-		camera.position = player.position
-		camera.reset_smoothing()
+	CameraControl.snap(player)
 
 
 ## Where a warp lands (see the tiers above), or null if there is nowhere.
 func pick(info: MapInfo) -> Variant:
-	var w: MapInfo.World = info.world
+	var w: LevelGen = info.world
 	if level >= 3:
 		var rooms: Array[Vector2i] = []
 		for id: int in range(w.secrets.size()):
-			if (info.record().get("secrets", {}) as Dictionary).has(id):
+			if (info.record().secrets as Dictionary).has(id):
 				continue
 			var room: Array = w.secrets[id]["room"]
 			rooms.append(room[room.size() - 1])
@@ -118,7 +122,7 @@ func pick(info: MapInfo) -> Variant:
 		if v == here or not w.ground_below(v) or info.solid_at(info.cell_position(v)):
 			continue
 		# Not into thorns.
-		if [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.DOWN].any(func(d: Vector2i) -> bool: return w.is_valid(v + d) and w.get_cell(v + d).type == MapInfo.Type.SPIKES):
+		if [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.DOWN].any(func(d: Vector2i) -> bool: return w.is_valid(v + d) and w.get_cell(v + d).type == LevelGen.Type.SPIKES):
 			continue
 		floors.append(v)
 		if level >= 2 and not info.is_seen(v):

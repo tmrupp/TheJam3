@@ -1,6 +1,6 @@
 extends SceneTree
 ## Big things get room: once any kind of place is laid out, rock and thorns in the box each thing
-## takes (MapInfo.World.SIZES) are carved out, so a tall doorway, portal, shrine, lantern or ink well
+## takes (Placeables.size) are carved out, so a tall doorway, portal, shrine, lantern or ink well
 ## never prints into the rock over it. A secret room's rock and the rock sealing it, rock framing a
 ## door or gate, and rock a laser is set in are left alone.
 ## godot --headless --path . --script res://tests/room_test.gd
@@ -21,16 +21,16 @@ func check(ok: bool, what: String) -> void:
 
 
 ## Cells in big things' boxes still holding rock or thorns (outside the cases left alone).
-func cramped(w: MapInfo.World) -> Array[Vector2i]:
+func cramped(w: LevelGen) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
 	for v: Vector2i in w.objects:
-		var size: Vector2i = MapInfo.World.SIZES.get(w.get_cell(v).type, Vector2i.ONE)
+		var size: Vector2i = Placeables.size(w.get_cell(v).type)
 		for dx: int in range(size.x):
 			for dy: int in range(size.y):
 				var c: Vector2i = v + Vector2i(dx, -dy)
 				if c == v or not w.is_valid(c):
 					continue
-				if w.get_cell(c).type in [MapInfo.Type.GROUND, MapInfo.Type.SPIKES] and not w._holds_up(c):
+				if w.get_cell(c).type in [LevelGen.Type.GROUND, LevelGen.Type.SPIKES] and not w._holds_up(c):
 					out.append(c)
 	return out
 
@@ -53,7 +53,7 @@ func run() -> void:
 	for at: Vector2i in coords:
 		var def: NextWorldDef = MapInfo.def_for(at)
 		var cells: Array = wfc.call("generate_level", def)
-		var w: MapInfo.World = MapInfo.World.new(cells, def)
+		var w: LevelGen = LevelGen.new(cells, def)
 		places += 1
 		carved += w.carved.size()
 		var left: Array[Vector2i] = cramped(w)
@@ -61,7 +61,7 @@ func run() -> void:
 			all_clear = false
 			print("  cramped at %s: %s" % [at, left])
 		if at.x <= 3:
-			var again: MapInfo.World = MapInfo.World.new(cells, MapInfo.def_for(at))
+			var again: LevelGen = LevelGen.new(cells, MapInfo.def_for(at))
 			same = same and again.carved == w.carved
 	print("  %d places, %d cells carved" % [places, carved])
 	check(carved > 0, "rock over big things is carved out")

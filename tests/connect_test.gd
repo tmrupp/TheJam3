@@ -20,9 +20,9 @@ func run() -> void:
 		for depth: int in [0, 2, 5, 8]:
 			var def: NextWorldDef = MapInfo.def_for(Vector2i(world_seed, depth))
 			var cells: Array = wfc.call("generate_level", def)
-			var w: MapInfo.World = MapInfo.World.new(cells, def)
+			var w: LevelGen = LevelGen.new(cells, def)
 			# Open = anything that is not rock (cracked walls are gates, so they count as open).
-			var open: Callable = func(v: Vector2i) -> bool: return w.is_valid(v) and w.get_cell(v).type != MapInfo.Type.GROUND
+			var open: Callable = func(v: Vector2i) -> bool: return w.is_valid(v) and w.get_cell(v).type != LevelGen.Type.GROUND
 			var start: Vector2i = w.exits[MapInfo.Exit.BACK]
 			var seen: Dictionary = {start: true}
 			var stack: Array[Vector2i] = [start]
@@ -44,7 +44,7 @@ func run() -> void:
 							missing.append(v)
 			var goals_ok: bool = true
 			for v: Vector2i in w.objects:
-				if w.get_cell(v).type in [MapInfo.Type.EXIT, MapInfo.Type.SHRINE, MapInfo.Type.INKWELL, MapInfo.Type.KEY, MapInfo.Type.CHECKPOINT, MapInfo.Type.MOON] and not seen.has(v):
+				if w.get_cell(v).type in [LevelGen.Type.EXIT, LevelGen.Type.SHRINE, LevelGen.Type.INKWELL, LevelGen.Type.KEY, LevelGen.Type.CHECKPOINT, LevelGen.Type.MOON] and not seen.has(v):
 					goals_ok = false
 			checked += 1
 			var shrine_ok: bool = w.shrine.x >= 0

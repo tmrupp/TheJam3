@@ -67,10 +67,14 @@ func _inside_enemy() -> bool:
 	return not player.get_world_2d().direct_space_state.intersect_shape(query, 1).is_empty()
 
 
+## Its tier (the strike perk, Abilities): each tier wounds 1 more (0 only stuns).
+func set_tier(n: int) -> void:
+	damage = n
+
 ## Whether touching `attacker` (a contact hit box, Damager) should not hurt the wizard just now.
 func guards(attacker: Node) -> bool:
-	var enemy: Node = attacker.get("attacker") as Node if attacker != null and "attacker" in attacker else null
-	if enemy == null or (enemy.get_node_or_null("Stunner") == null and not enemy.has_method("scatter")):
+	var enemy: Node = Damager.attacker_of(attacker)
+	if enemy == null or (Stunner.of(enemy) == null and not enemy is MothSwarm):
 		return false
 	return player.dash.is_acting() or (guard_left > 0.0 and enemy in struck)
 
@@ -82,7 +86,7 @@ func sweep(from: Vector2, to: Vector2) -> void:
 	for e: Node in get_tree().get_nodes_in_group(&"hex_target"):
 		if e in struck or not is_instance_valid(e) or e.is_queued_for_deletion():
 			continue
-		if e.get_node_or_null("Stunner") == null and not e.has_method("scatter"):
+		if Stunner.of(e) == null and not e is MothSwarm:
 			continue
 		var at: Vector2 = (e as Node2D).global_position
 		var near: PackedVector2Array = Geometry2D.get_closest_points_between_segments(from, to, at + Vector2(0, SPAN_DOWN), at - Vector2(0, SPAN_UP))
@@ -97,23 +101,23 @@ func sweep(from: Vector2, to: Vector2) -> void:
 
 ## Strike `e` heading `dir`. False when a shield stopped the dash.
 func strike(e: Node, dir: Vector2) -> bool:
-	if e.has_method("scatter"):
-		e.call("scatter", dir)
+	if e is MothSwarm:
+		(e as MothSwarm).scatter(dir)
 		return true
 	var shield: Shield = Shield.of(e)
 	if shield != null and shield.absorb(false, dir):
 		player.dash.end()
 		player.velocity = -dir * RECOIL
 		return false
-	var wound: Node = e.get_node_or_null("Wound")
+	var wound: Wound = e.get_node_or_null("Wound") as Wound
 	if wound != null and damage > 0:
-		wound.call("hit", damage, dir)
+		wound.hit(damage, dir)
 	else:
 		RisoFx.burst(&"hit", (e as Node2D).global_position, dir, [RisoPrint.ACCENT, RisoPrint.BLUE])
 		Wound.shake(5.0, 0.12)
-	var stunner: Node = e.get_node_or_null("Stunner")
+	var stunner: Stunner = Stunner.of(e)
 	if stunner != null and is_instance_valid(e) and not e.is_queued_for_deletion():
-		stunner.call("stun", STUN)
+		stunner.stun(STUN)
 	return true
 
 

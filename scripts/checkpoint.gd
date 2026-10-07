@@ -5,7 +5,7 @@ class_name Checkpoint
 ## the mend spell short of draughts, interacting with the lantern you lit burns it into the spell
 ## instead (MapInfo.burn_lantern): the draughts fill, the lantern is spent and protects no more.
 
-@onready var player: Player = $"/root/Main/Player"
+@onready var player: Player = Stage.player()
 
 func enabled (val: bool) -> void:
 	var spent: bool = MapInfo.instance != null and MapInfo.instance.is_lantern_spent(self)
@@ -13,7 +13,7 @@ func enabled (val: bool) -> void:
 
 func refresh () -> void:
 	enabled(MapInfo.instance != null and MapInfo.instance.is_respawn_lantern(self))
-	$Interactable.set("available", MapInfo.instance == null or not MapInfo.instance.is_lantern_spent(self))
+	($Interactable as Interactable).available = (MapInfo.instance == null or not MapInfo.instance.is_lantern_spent(self))
 
 func interacted () -> void:
 	# Spent lanterns cannot be relit during this run.

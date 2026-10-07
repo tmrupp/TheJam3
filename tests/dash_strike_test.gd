@@ -47,7 +47,7 @@ func placed(scene: String) -> Array[Node]:
 
 
 func open_cell(v: Vector2i) -> bool:
-	return info.world.is_valid(v) and info.world.get_cell(v).type == MapInfo.Type.EMPTY
+	return info.world.is_valid(v) and info.world.get_cell(v).type == LevelGen.Type.EMPTY
 
 
 ## A wisp with two open cells beside it on one side, and that side.
@@ -86,7 +86,7 @@ func stunned(e: Node) -> bool:
 func run() -> void:
 	main = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://dash_strike_test.save"
+	RunState.save_path = "user://dash_strike_test.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	menu.start_game()
@@ -150,12 +150,12 @@ func run() -> void:
 
 	print("the strike perk")
 	Abilities.grant(player, &"strike")
-	check(strike.damage == 1 and Abilities.MAX[&"strike"] == 3, "strike I wounds 1 (up to III)")
+	check(strike.damage == 1 and Abilities.max_tier(&"strike") == 3, "strike I wounds 1 (up to III)")
 	var cell: Vector2i = e.get_meta(&"cell")
 	strike.struck.clear()
 	strike.sweep(e.global_position - side * 100.0, e.global_position + side * 100.0)
 	check(not is_instance_valid(e) or e.is_queued_for_deletion(), "a struck wisp is slain")
-	check((info.record()["slain"] as Dictionary).has(cell), "and the level records it")
+	check((info.record().slain as Dictionary).has(cell), "and the level records it")
 
 	print("shields")
 	var pick2: Array = target()
@@ -190,7 +190,7 @@ func run() -> void:
 		player.dash_rest = 0.0
 		await press_dash(Vector2(wcell - from))
 		check(not is_instance_valid(wall) or wall.is_queued_for_deletion(), "dashing into it breaks it")
-		check((info.record().get("broken", {}) as Dictionary).has(wcell), "for good")
+		check((info.record().broken as Dictionary).has(wcell), "for good")
 
 	print("blink")
 	Abilities.set_tier(player, &"blink", 1)

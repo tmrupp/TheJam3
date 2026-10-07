@@ -4,7 +4,7 @@ class_name Health
 
 @onready var player: Player = $".."
 @onready var hurt_sfx: AudioStreamPlayer = $AudioStreamPlayer
-@onready var camera: Camera2D = $/root/Main/Camera2D
+@onready var camera: Camera2D = Stage.camera()
 
 var max_health: int = 3
 var health: int = 3

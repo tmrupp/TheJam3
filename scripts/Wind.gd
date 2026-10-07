@@ -1,6 +1,6 @@
 class_name Wind
 extends Node2D
-## Moving air, in sky levels (MapInfo.World.populate_sky, carve_chasms). Two kinds:
+## Moving air, in sky levels (SkyArchetype.populate, carve_chasms). Two kinds:
 ## - an updraft ({"up": cells}): a shaft of rising air over a floor, always blowing, that lifts the
 ##   wizard to just over a floor beside its top;
 ## - the crosswind over a chasm ({"chasm": id, "width": cells}): still until one of the chasm's

@@ -16,7 +16,7 @@ func capture() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://capture_hex.save"
+	RunState.save_path = "user://capture_hex.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	for i: int in range(5):
@@ -36,7 +36,7 @@ func capture() -> void:
 		if e.scene_file_path.get_file() != "mover_enemy.tscn":
 			continue
 		var c: Vector2i = e.get_meta(&"cell")
-		if info.world.get_cell(c + Vector2i(-2, 0)).type == MapInfo.Type.GROUND or info.world.get_cell(c + Vector2i(-1, 0)).type == MapInfo.Type.GROUND:
+		if info.world.get_cell(c + Vector2i(-2, 0)).type == LevelGen.Type.GROUND or info.world.get_cell(c + Vector2i(-1, 0)).type == LevelGen.Type.GROUND:
 			continue
 		e.get_node("Mover").set("stunned", true)
 		player.global_position = (e as Node2D).global_position + Vector2(-260, 0)

@@ -100,7 +100,7 @@ func settle(count: int = 4) -> void:
 ## Start a run in the game on `world_seed` and wait for its first level. The run's save goes to
 ## user://<test name>.save, so tests never touch a player's save or one another's.
 func boot(world_seed: int = 28) -> void:
-	MapInfo.save_path = "user://%s.save" % test_name()
+	RunState.save_path = "user://%s.save" % test_name()
 	main = (load("res://prefabs/scenes/main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
 	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
@@ -157,15 +157,15 @@ static func _make_wfc() -> Node:
 
 ## The place at `at` laid out (terrain collapsed, then dressed), without the game scene; null if
 ## its terrain never settles.
-func build(at: Vector2i) -> MapInfo.World:
+func build(at: Vector2i) -> LevelGen:
 	var cells: Array = collapse(at)
 	if cells.is_empty():
 		return null
-	return MapInfo.World.new(cells, MapInfo.def_for(at))
+	return LevelGen.new(cells, MapInfo.def_for(at))
 
 
 ## How many of the objects laid in `w` are of `type`.
-static func count_of(w: MapInfo.World, type: MapInfo.Type) -> int:
+static func count_of(w: LevelGen, type: LevelGen.Type) -> int:
 	return w.objects.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == type).size()
 
 

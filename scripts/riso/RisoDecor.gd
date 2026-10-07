@@ -461,7 +461,7 @@ func _process(delta: float) -> void:
 	t += delta
 	live.begin()
 	var cam: Camera2D = get_viewport().get_camera_2d()
-	var player: Player = get_node_or_null("/root/Main/Player") as Player
+	var player: Player = Stage.player()
 	if cam == null or swaying.is_empty():
 		live.finish()
 		return

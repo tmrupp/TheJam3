@@ -1,6 +1,6 @@
 extends Area2D
 
-@onready var player: Player = $"/root/Main/Player"
+@onready var player: Player = Stage.player()
 @onready var door: Node = $".."
 
 ## The door's colour (set by MapInfo when it is placed); only a key of the same colour opens it.
@@ -13,7 +13,7 @@ func interaction_hint() -> Dictionary:
 ## Open with a carried key of the door's colour; when `skeleton`, failing that, with a skeleton key
 ## (used up). Touching the door never spends a skeleton key; interacting with it does.
 func try_open(skeleton: bool = false) -> void:
-	if not KeyRing.has(player, door_color()) and not (skeleton and KeyRing.spend_skeleton(player)):
+	if not player.keyring.has(door_color()) and not (skeleton and player.keyring.spend_skeleton()):
 		return
 	RisoPrint.door_opened(door as Node2D)
 	if MapInfo.instance != null:

@@ -11,7 +11,7 @@ func capture() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://capture_dash_up.save"
+	RunState.save_path = "user://capture_dash_up.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	for i: int in range(5):
@@ -37,7 +37,7 @@ func capture() -> void:
 				continue
 			var open: bool = true
 			for d: int in range(5):
-				if w.get_cell(v - Vector2i(0, d)).type in [MapInfo.Type.GROUND, MapInfo.Type.CRACKED, MapInfo.Type.SPIKES]:
+				if w.get_cell(v - Vector2i(0, d)).type in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED, LevelGen.Type.SPIKES]:
 					open = false
 			if open:
 				start = tm.to_global(tm.map_to_local(v))

@@ -10,43 +10,74 @@ class_name Abilities
 ##   at a shrine replaces it. Warp and rift cost stars each cast (cast_price).
 ## - Perks stack: double jump, wall climb, blink (replaces the dash), vigor (max health),
 ##   speed (run speed), keyring (carry more keys, see KeyRing) and strike (the dash wounds).
+##
+## Every ability is one entry in ABILITIES. What a tier does lives with whatever does the ability:
+## a node on the wizard (its `set_tier`, and `cast_spell` for a spell), or, for the wizard's own
+## moves (the dash, double jump, wall climb, speed, vigor), Player.tune_moves. A new ability is an
+## entry here, its node (or a line in tune_moves), and its mark (RisoGlyph).
 
-const ORDER: Array[StringName] = [&"dash", &"double_jump", &"wall_climb", &"blink", &"parry", &"astral", &"hex", &"levitate", &"awareness", &"rift", &"vigor", &"speed", &"warp", &"mend", &"keyring", &"strike"]
+## Every ability, in the order shrines go round them (see offers):
+## - "max": its top tier; "base": the tier a run starts with (0 when not given);
+## - "spell": true for the spells, which share the slot; "cost": stars a cast at depth 0 (see
+##   cast_price), for a spell that costs any;
+## - "node": the wizard's child that does it, told its tier by `set_tier(n)` (and cast by
+##   `cast_spell() -> bool` when a spell). With "make" (the path of its script, or of its scene)
+##   it exists only while the ability is known (or always, with "always"); without, it is part of
+##   the wizard's scene.
+const ABILITIES: Dictionary = {
+	&"dash": {"max": 4, "base": 1},
+	&"double_jump": {"max": 3},
+	&"wall_climb": {"max": 3},
+	&"blink": {"max": 3, "node": "Blink", "make": "res://prefabs/upgrades/Blink.tscn"},
+	&"parry": {"max": 4, "spell": true, "node": "Parry"},
+	&"astral": {"max": 4, "spell": true, "node": "AstralProjection"},
+	&"hex": {"max": 4, "spell": true, "node": "Hex", "make": "res://scripts/Hex.gd"},
+	&"levitate": {"max": 3, "spell": true, "node": "Levitate", "make": "res://scripts/Levitate.gd"},
+	&"awareness": {"max": 3, "spell": true, "node": "Awareness", "make": "res://scripts/Awareness.gd"},
+	&"rift": {"max": 3, "spell": true, "cost": 1.0, "node": "Rift", "make": "res://scripts/Rift.gd"},
+	&"vigor": {"max": 3},
+	&"speed": {"max": 3},
+	&"warp": {"max": 3, "spell": true, "cost": 2.0, "node": "Warp", "make": "res://scripts/Warp.gd"},
+	&"mend": {"max": 3, "spell": true, "node": "Mend", "make": "res://scripts/Mend.gd"},
+	&"keyring": {"max": 3},
+	&"strike": {"max": 3, "node": "DashStrike", "make": "res://scripts/DashStrike.gd", "always": true},
+}
 ## Run speed added per tier of speed, as a fraction of the base.
 const SPEED_PER_TIER: float = 0.15
-const SPELLS: Array[StringName] = [&"hex", &"astral", &"parry", &"levitate", &"awareness", &"rift", &"warp", &"mend"]
-## Stars each cast of these spells costs at depth 0 (see cast_price); the others are free.
-const CAST_COST: Dictionary = {&"warp": 2.0, &"rift": 1.0}
-const NAMES: Dictionary = {
-	&"dash": "dash",
-	&"double_jump": "double jump",
-	&"wall_climb": "wall climb",
-	&"blink": "blink",
-	&"parry": "parry",
-	&"astral": "astral",
-	&"hex": "hex",
-	&"levitate": "levitate",
-	&"awareness": "awareness",
-	&"rift": "rift",
-	&"vigor": "vigor",
-	&"speed": "speed",
-	&"warp": "warp",
-	&"mend": "mend",
-	&"keyring": "keyring",
-	&"strike": "strike",
-}
-const BASE: Dictionary = {&"dash": 1}
-const MAX: Dictionary = {&"dash": 4, &"double_jump": 3, &"wall_climb": 3, &"blink": 3, &"parry": 4, &"astral": 4, &"hex": 4,
-	&"levitate": 3, &"awareness": 3, &"rift": 3, &"vigor": 3, &"speed": 3, &"warp": 3, &"mend": 3, &"keyring": 3, &"strike": 3}
-const BLINK_PREFAB: String = "res://prefabs/upgrades/Blink.tscn"
 const BASE_HEALTH: int = 3
 const SPELL_ACTION: StringName = &"Spell"
 
 
+## Every ability, in order (see ABILITIES).
+static func ids() -> Array[StringName]:
+	var out: Array[StringName] = []
+	for a: StringName in ABILITIES:
+		out.append(a)
+	return out
+
+
+## The spells, in order.
+static func spells() -> Array[StringName]:
+	return ids().filter(func(a: StringName) -> bool: return is_spell(a))
+
+
+static func is_spell(a: StringName) -> bool:
+	return bool(ABILITIES[a].get("spell", false))
+
+
+static func max_tier(a: StringName) -> int:
+	return int(ABILITIES[a]["max"])
+
+
+## How it is named on screen: its id, words apart.
+static func label(a: StringName) -> String:
+	return String(a).replace("_", " ")
+
+
 static func start_tiers() -> Dictionary:
 	var tiers: Dictionary = {}
-	for a: StringName in ORDER:
-		tiers[a] = int(BASE.get(a, 0))
+	for a: StringName in ABILITIES:
+		tiers[a] = int(ABILITIES[a].get("base", 0))
 	return tiers
 
 
@@ -56,7 +87,7 @@ static func tier(player: Player, a: StringName) -> int:
 
 ## The spell in the slot, or &"" when it is empty.
 static func spell(player: Player) -> StringName:
-	for a: StringName in SPELLS:
+	for a: StringName in spells():
 		if tier(player, a) > 0:
 			return a
 	return &""
@@ -70,9 +101,9 @@ static func price(depth: int, next_tier: int) -> int:
 ## Stars a cast of spell `a` costs at `depth` (0 for a free spell): a little dearer deeper, as
 ## stars get more plentiful.
 static func cast_price(a: StringName, depth: int) -> int:
-	if not CAST_COST.has(a):
+	if not ABILITIES.has(a) or not ABILITIES[a].has("cost"):
 		return 0
-	return maxi(1, roundi(float(CAST_COST[a]) * pow(1.25, maxi(depth, 0))))
+	return maxi(1, roundi(float(ABILITIES[a]["cost"]) * pow(1.25, maxi(depth, 0))))
 
 
 ## What a cast of the spell in the slot costs where the wizard is.
@@ -111,13 +142,14 @@ static func offers(level_seed: int, player: Player, count: int) -> Array[StringN
 ## The shrine's picks in order (see offers), only strict upgrades when `strict`.
 static func _picks(level_seed: int, player: Player, count: int, strict: bool) -> Array[StringName]:
 	var out: Array[StringName] = []
-	var n: int = ORDER.size()
+	var order: Array[StringName] = ids()
+	var n: int = order.size()
 	var start: int = level_seed % n
 	for pass_new: bool in [true, false]:
 		for i: int in range(n):
 			if out.size() >= count:
 				return out
-			var a: StringName = ORDER[(start + i) % n]
+			var a: StringName = order[(start + i) % n]
 			if a in out or (a == &"dash" and tier(player, &"blink") > 0):
 				continue
 			# The big moves are found as relics first (see Relics); then their higher tiers are taught.
@@ -127,7 +159,7 @@ static func _picks(level_seed: int, player: Player, count: int, strict: bool) ->
 				continue
 			if strict and is_swap(player, a):
 				continue
-			if tier(player, a) < int(MAX[a]):
+			if tier(player, a) < max_tier(a):
 				out.append(a)
 	return out
 
@@ -135,7 +167,7 @@ static func _picks(level_seed: int, player: Player, count: int, strict: bool) ->
 ## Would learning `a` replace the spell in the slot?
 static func is_swap(player: Player, a: StringName) -> bool:
 	var held: StringName = spell(player)
-	return a in SPELLS and held != &"" and held != a
+	return is_spell(a) and held != &"" and held != a
 
 
 static func roman(n: int) -> String:
@@ -144,11 +176,8 @@ static func roman(n: int) -> String:
 
 ## Learn the next tier of `a`. A new spell replaces the one in the slot.
 static func grant(player: Player, a: StringName) -> void:
-	if a in SPELLS:
-		for other: StringName in SPELLS:
-			if other != a:
-				player.tiers[other] = 0
-	player.tiers[a] = mini(tier(player, a) + 1, int(MAX[a]))
+	_take_slot(player, a)
+	player.tiers[a] = mini(tier(player, a) + 1, max_tier(a))
 	apply(player)
 	if a == &"vigor":
 		player.health.health = mini(player.health.health + 1, player.health.max_health)
@@ -160,13 +189,20 @@ static func grant(player: Player, a: StringName) -> void:
 ## Set ability `a` to tier `n` outright (the debug picker on the F7 panel). A spell set above 0
 ## takes the slot, emptying the others.
 static func set_tier(player: Player, a: StringName, n: int) -> void:
-	n = clampi(n, 0, int(MAX[a]))
-	if a in SPELLS and n > 0:
-		for other: StringName in SPELLS:
-			if other != a:
-				player.tiers[other] = 0
+	n = clampi(n, 0, max_tier(a))
+	if n > 0:
+		_take_slot(player, a)
 	player.tiers[a] = n
 	apply(player)
+
+
+## A spell `a` takes the slot: every other spell is forgotten.
+static func _take_slot(player: Player, a: StringName) -> void:
+	if not is_spell(a):
+		return
+	for other: StringName in spells():
+		if other != a:
+			player.tiers[other] = 0
 
 
 ## Back to a new run's abilities, at full health.
@@ -190,9 +226,9 @@ static func ensure_input() -> void:
 	InputMap.action_add_event(SPELL_ACTION, pad)
 
 
-## The Spell button: use whatever is in the slot. A spell with a cast price (CAST_COST) is only
-## cast when the stars are there, and they are paid only if it works. Nothing is cast while the
-## wizard is drowsy (in sleep fog).
+## The Spell button: cast whatever is in the slot (its node's cast_spell). A spell with a cast
+## price ("cost") is only cast when the stars are there, and they are paid only if it works.
+## Nothing is cast while the wizard is drowsy (in sleep fog).
 static func cast(player: Player) -> void:
 	# Drowsy in sleep fog: no spells.
 	if player.is_drowsy():
@@ -200,115 +236,43 @@ static func cast(player: Player) -> void:
 	var cost: int = cast_price_here(player)
 	if cost > player.coins.coins:
 		return
-	var done: bool = true
-	match spell(player):
-		&"hex":
-			(player.get_node("Hex") as Hex).cast()
-		&"astral":
-			player.get_node("AstralProjection").call("toggle")
-		&"parry":
-			player.parry.emit()
-		&"levitate":
-			(player.get_node("Levitate") as Levitate).toggle()
-		&"awareness":
-			(player.get_node("Awareness") as Awareness).ping()
-		&"rift":
-			done = (player.get_node("Rift") as Rift).cast() != null
-		&"warp":
-			done = (player.get_node("Warp") as Warp).cast() != null
-		&"mend":
-			(player.get_node("Mend") as Mend).cast()
-	if done and cost > 0:
+	var a: StringName = spell(player)
+	if a == &"":
+		return
+	var node: Node = player.get_node_or_null(String(ABILITIES[a]["node"]))
+	if node != null and bool(node.call(&"cast_spell")) and cost > 0:
 		player.collect(-cost)
 
 
-## A child node that exists only while its ability is known.
-static func _keep(player: Player, node_name: String, known: bool, make: Callable) -> Node:
+## Push every tier into the wizard: its own moves (Player.tune_moves), then each ability's node,
+## made or taken away as the ability is known or not, and told its tier.
+static func apply(player: Player) -> void:
+	player.tune_moves()
+	for a: StringName in ABILITIES:
+		var entry: Dictionary = ABILITIES[a]
+		if not entry.has("node"):
+			continue
+		var n: int = tier(player, a)
+		var node: Node = _node_for(player, entry, n > 0 or bool(entry.get("always", false)))
+		if node != null:
+			node.call(&"set_tier", n)
+
+
+## The node of an ability described by `entry`: made when it is `known` (and made on demand),
+## taken away (told it is at tier 0 first) when it is not. Null when there is none.
+static func _node_for(player: Player, entry: Dictionary, known: bool) -> Node:
+	var node_name: String = entry["node"]
 	var node: Node = player.get_node_or_null(node_name)
+	if not entry.has("make"):
+		return node
 	if known and node == null:
-		node = make.call()
+		var made: Resource = load(String(entry["make"]))
+		node = (made as PackedScene).instantiate() if made is PackedScene else (made as GDScript).new()
 		node.name = node_name
 		player.add_child(node)
 	elif not known and node != null:
+		node.call(&"set_tier", 0)
 		player.remove_child(node)
 		node.queue_free()
 		node = null
 	return node
-
-
-## Push every tier into the player's tuning.
-static func apply(player: Player) -> void:
-	var dash: int = tier(player, &"dash")
-	player.dash.MAX_TIME = 0.25 + 0.07 * float(maxi(dash, 1) - 1)
-	player.MAX_JUMPS = 1 + tier(player, &"double_jump")
-	player.jumps = mini(player.jumps, player.MAX_JUMPS)
-	var climb: int = tier(player, &"wall_climb")
-	player.climable = climb > 0
-	player.climb.MAX_TIME = Player.CLIMB_TIME + 0.5 * float(maxi(climb, 1) - 1)
-	var blink: int = tier(player, &"blink")
-	var blink_node: Node = player.get_node_or_null("Blink")
-	if blink > 0 and blink_node == null:
-		blink_node = (load(BLINK_PREFAB) as PackedScene).instantiate()
-		player.add_child(blink_node)
-	elif blink == 0 and blink_node != null:
-		player.remove_child(blink_node)
-		blink_node.queue_free()
-		blink_node = null
-		player.dash_ability = player.do_dash
-	if blink_node != null:
-		blink_node.set("distance", 300 + 100 * (blink - 1))
-	var parry: int = maxi(tier(player, &"parry"), 1)
-	var parry_node: Node = player.get_node_or_null("Parry")
-	if parry_node != null:
-		# I: the guard (0.3 s), 1 damage, reflects shots, refunds the dash. II: 0.45 s and a shorter
-		# cooldown on a miss. III: 2 damage. IV: each parry heals 1.
-		parry_node.set("duration", 0.45 if parry >= 2 else 0.3)
-		parry_node.set("damage", 2 if parry >= 3 else 1)
-		parry_node.set("heals", parry >= 4)
-		var cooldown: ActionTimer = parry_node.get("cooldown") as ActionTimer
-		if cooldown != null:
-			cooldown.MAX_TIME = 0.9 if parry >= 2 else 1.2
-	var astral: int = maxi(tier(player, &"astral"), 1)
-	var projection: Node = player.get_node_or_null("AstralProjection")
-	if projection != null:
-		(projection.get("projection_timer") as ActionTimer).MAX_TIME = AstralProjection.PROJECTION_TIME + AstralProjection.TIER_TIME * float(astral - 1)
-		# Swapped away mid-projection: snap back.
-		if tier(player, &"astral") == 0 and bool(projection.call("projecting")):
-			projection.call("end_projection", projection.get("projection_timer"))
-	# The dash strikes whatever it passes through; each tier of strike wounds 1 more.
-	var strike: DashStrike = _keep(player, "DashStrike", true, func() -> Node: return DashStrike.new()) as DashStrike
-	strike.damage = tier(player, &"strike")
-	var hex_tier: int = tier(player, &"hex")
-	var hex: Hex = _keep(player, "Hex", hex_tier > 0, func() -> Node: return Hex.new()) as Hex
-	if hex != null:
-		hex.charges_max = 1 + (1 if hex_tier >= 3 else 0)
-		hex.damage = (1 if hex_tier >= 2 else 0) + (1 if hex_tier >= 4 else 0)
-		hex.pierce = hex_tier >= 4
-		hex.charges = mini(hex.charges, hex.charges_max)
-	var lev_tier: int = tier(player, &"levitate")
-	if lev_tier == 0:
-		player.levitating = false
-	var lev: Levitate = _keep(player, "Levitate", lev_tier > 0, func() -> Node: return Levitate.new()) as Levitate
-	if lev != null:
-		lev.drift = lev_tier >= 2
-		lev.free_recast = lev_tier >= 3
-	var aware_tier: int = tier(player, &"awareness")
-	var aware: Awareness = _keep(player, "Awareness", aware_tier > 0, func() -> Node: return Awareness.new()) as Awareness
-	if aware != null:
-		aware.level = aware_tier
-	var rift_tier: int = tier(player, &"rift")
-	var rift: Rift = _keep(player, "Rift", rift_tier > 0, func() -> Node: return Rift.new()) as Rift
-	if rift != null:
-		rift.level = rift_tier
-		rift.sync_ends()
-	var warp_tier: int = tier(player, &"warp")
-	var warp: Warp = _keep(player, "Warp", warp_tier > 0, func() -> Node: return Warp.new()) as Warp
-	if warp != null:
-		warp.level = warp_tier
-	var mend_tier: int = tier(player, &"mend")
-	var mend: Mend = _keep(player, "Mend", mend_tier > 0, func() -> Node: return Mend.new()) as Mend
-	if mend != null:
-		mend.level = mend_tier
-	player.run_speed = Player.SPEED * (1.0 + SPEED_PER_TIER * float(tier(player, &"speed")))
-	player.health.max_health = BASE_HEALTH + tier(player, &"vigor")
-	player.health.health = mini(player.health.health, player.health.max_health)

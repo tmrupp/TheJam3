@@ -21,7 +21,7 @@ func check(ok: bool, what: String) -> void:
 func run() -> void:
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://watcher_test.save"
+	RunState.save_path = "user://watcher_test.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	menu.start_game()
@@ -38,7 +38,7 @@ func run() -> void:
 			continue
 		var c: Vector2i = n.get_meta(&"cell")
 		for d: int in [-1, 1]:
-			if info.world.get_cell(c + Vector2i(d, 0)).type != MapInfo.Type.GROUND and info.world.get_cell(c + Vector2i(2 * d, 0)).type != MapInfo.Type.GROUND:
+			if info.world.get_cell(c + Vector2i(d, 0)).type != LevelGen.Type.GROUND and info.world.get_cell(c + Vector2i(2 * d, 0)).type != LevelGen.Type.GROUND:
 				shooter = n.get_node("Shooter")
 				spot = info.cell_position(c + Vector2i(2 * d, 0))
 				break

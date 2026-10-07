@@ -14,7 +14,7 @@ func run() -> void:
 	root.size = Vector2i(1280, 720)
 	output = ProjectSettings.globalize_path("res://../art-captures/fog-shapes")
 	DirAccess.make_dir_recursive_absolute(output)
-	MapInfo.save_path = "user://fog_styles_test.save"
+	RunState.save_path = "user://fog_styles_test.save"
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
 	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
@@ -64,11 +64,11 @@ func run() -> void:
 		picker.item_selected.emit(i)
 		check(riso.fog_style == RisoPrint.FOG_STYLES[i], "F7 selects " + picker.get_item_text(i))
 		if riso.fog_style != &"original":
-			var shapes: Array[PackedVector2Array] = RisoProp.FOG_ART.silhouette(2.0, 0.5, riso.fog_style)
+			var shapes: Array[PackedVector2Array] = RisoFog.silhouette(2.0, 0.5, riso.fog_style)
 			var fingerprint: int = hash(shapes)
 			check(not outlines.has(fingerprint), "cloud has a distinct silhouette")
 			outlines[fingerprint] = true
-			check(shapes != RisoProp.FOG_ART.silhouette(5.0, 0.5, riso.fog_style), "cloud contour animates")
+			check(shapes != RisoFog.silhouette(5.0, 0.5, riso.fog_style), "cloud contour animates")
 		check(fog.covers(inside) and not fog.covers(outside), "style keeps the same sleep boundary")
 		fog._physics_process(0.0)
 		check(player.is_drowsy(), "sleep effect remains active")

@@ -70,7 +70,7 @@ func near_exit(which: int) -> bool:
 func run() -> void:
 	main = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://deeper_test.save"
+	RunState.save_path = "user://deeper_test.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	menu.start_game()
@@ -89,7 +89,7 @@ func run() -> void:
 	check(info.world.exits.size() == 4, "four exits placed: %s" % [info.world.exits])
 	check(placed("level_exit.tscn").size() == 3, "depth 0 has no way back, only three doors")
 	check(placed("checkpoint.tscn").size() >= 2 and info.world.exit_lanterns.keys() == [MapInfo.Exit.BACK], "the start lantern, and lanterns are scarce: none beside the other exits")
-	check(info.respawn_coord == info.coord, "the start lantern is lit")
+	check(info.run.respawn_coord == info.coord, "the start lantern is lit")
 	var back: Vector2i = info.world.exits[MapInfo.Exit.BACK]
 	var deeper: Vector2i = info.world.exits[MapInfo.Exit.DEEPER]
 	print("  exits ", info.world.exits, " back-to-deeper ", absi(back.x - deeper.x) + absi(back.y - deeper.y))
@@ -101,7 +101,7 @@ func run() -> void:
 	coin.call("touch", player)
 	var door: Node = placed("door.tscn")[0]
 	var door_cell: Vector2i = door.get_meta(&"cell")
-	player.set_meta(&"carried_key", int(door.get_meta(&"key_color", 0)))
+	player.keyring.set_all([int(door.get_meta(&"key_color", 0))])
 	door.get_node("Unlock").call("try_open")
 	var stars: int = player.coins.coins
 	check(stars == 1, "the coin paid a star")
@@ -164,13 +164,13 @@ func run() -> void:
 	check(info.world.size == MapInfo.level_size(0) and MapInfo.level_size(6).x > MapInfo.level_size(0).x and MapInfo.level_size(6).y > MapInfo.level_size(0).y, "depth 0 is %s; deeper levels are bigger (%s at depth 6)" % [info.world.size, MapInfo.level_size(6)])
 	var tm: TileMap = info.tile_map
 	var walled: bool = true
-	for x: int in range(-MapInfo.BORDER, info.world.size.x + MapInfo.BORDER):
-		for y: int in [-1, -MapInfo.BORDER, info.world.size.y, info.world.size.y + MapInfo.BORDER - 1]:
+	for x: int in range(-LevelLoader.BORDER, info.world.size.x + LevelLoader.BORDER):
+		for y: int in [-1, -LevelLoader.BORDER, info.world.size.y, info.world.size.y + LevelLoader.BORDER - 1]:
 			walled = walled and tm.get_cell_source_id(0, Vector2i(x, y)) != -1
-	for y: int in range(-MapInfo.BORDER, info.world.size.y + MapInfo.BORDER):
-		for x: int in [-1, -MapInfo.BORDER, info.world.size.x, info.world.size.x + MapInfo.BORDER - 1]:
+	for y: int in range(-LevelLoader.BORDER, info.world.size.y + LevelLoader.BORDER):
+		for x: int in [-1, -LevelLoader.BORDER, info.world.size.x, info.world.size.x + LevelLoader.BORDER - 1]:
 			walled = walled and tm.get_cell_source_id(0, Vector2i(x, y)) != -1
-	check(walled, "a solid border %d cells thick, flush against the level" % MapInfo.BORDER)
+	check(walled, "a solid border %d cells thick, flush against the level" % LevelLoader.BORDER)
 
 	print("level contents")
 	var lanterns: int = placed("checkpoint.tscn").size()
@@ -178,10 +178,10 @@ func run() -> void:
 	var area_k: float = float(info.world.size.x * info.world.size.y) / 1000.0
 	# A first level also has its start key (for the side door near the start).
 	var start_key: int = 1 if info.world.start_side >= 0 else 0
-	check(keys == maxi(MapInfo.KEYS_MIN, roundi(MapInfo.KEYS_PER_K * area_k)) + start_key and lanterns <= 1 + maxi(1, roundi(MapInfo.LANTERNS_PER_K * area_k)), "%d keys and %d lanterns, in proportion to the level" % [keys, lanterns])
+	check(keys == maxi(LevelGen.KEYS_MIN, roundi(LevelGen.KEYS_PER_K * area_k)) + start_key and lanterns <= 1 + maxi(1, roundi(LevelGen.LANTERNS_PER_K * area_k)), "%d keys and %d lanterns, in proportion to the level" % [keys, lanterns])
 	check(placed("door.tscn").size() >= 1, "%d gates (doors) across corridors" % placed("door.tscn").size())
 	var moons: Array[Node] = placed("moon.tscn")
-	check(not moons.is_empty() and moons.size() <= info.world.per_area(MapInfo.MOONS_PER_K), "%d moons within the area budget" % moons.size())
+	check(not moons.is_empty() and moons.size() <= info.world.per_area(LevelGen.MOONS_PER_K), "%d moons within the area budget" % moons.size())
 	var open_air: bool = true
 	for m: Node in moons:
 		var c: Vector2i = m.get_meta(&"cell")
@@ -248,7 +248,7 @@ func run() -> void:
 	var lantern: Node = placed("checkpoint.tscn")[0]
 	lantern.call("interacted")
 	var lit_cell: Vector2i = lantern.get_meta(&"cell")
-	check(info.respawn_coord == Vector2i(28, 1) and info.respawn_cell == lit_cell, "lighting a lantern moves the respawn")
+	check(info.run.respawn_coord == Vector2i(28, 1) and info.run.respawn_cell == lit_cell, "lighting a lantern moves the respawn")
 	await go(MapInfo.Exit.BACK)
 	player.reset_position()
 	await wait_level()

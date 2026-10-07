@@ -1,4 +1,5 @@
 extends Area2D
+class_name KeyPickup
 ## A key. Keys are never used up: a carried key opens every door of its colour, in any level.
 ## The player carries one at a time (more with the keyring, see KeyRing); grabbing another with
 ## no room leaves the oldest carried one where the new one was (MapInfo records it there). A key of
@@ -7,7 +8,7 @@ extends Area2D
 
 @onready var visuals: Sprite2D = $Sprite2D
 
-@onready var player: Player = $"/root/Main/Player"
+@onready var player: Player = Stage.player()
 
 @onready var collect_sfx: AudioStreamPlayer = $AudioStreamPlayer
 
@@ -26,12 +27,12 @@ func touch(other: Node) -> void:
 		var had: int = -1
 		if key_color() == KeyRing.SKELETON:
 			# A skeleton key goes in the pocket, apart from the ring.
-			KeyRing.set_skeletons(player, KeyRing.skeletons(player) + 1)
-		elif KeyRing.has(player, key_color()):
+			player.keyring.set_skeletons(player.keyring.skeletons() + 1)
+		elif player.keyring.has(key_color()):
 			# Already carried: it stays where it lies.
 			return
 		else:
-			had = KeyRing.take(player, key_color())
+			had = player.keyring.take(key_color())
 		# A skeleton key bursts in pale blue (its own night would not show against the dark).
 		var inks: Array[int] = [RisoPrint.BLUE]
 		if key_color() != KeyRing.SKELETON:

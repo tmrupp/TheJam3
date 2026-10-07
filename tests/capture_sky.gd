@@ -35,7 +35,7 @@ func capture() -> void:
 	root.size = Vector2i(1280, 720)
 	main = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://capture_sky.save"
+	RunState.save_path = "user://capture_sky.save"
 	await process_frame
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
@@ -141,6 +141,6 @@ func capture() -> void:
 	for i: int in range(20):
 		await process_frame
 	root.get_texture().get_image().save_png(output.path_join("sky_map.png"))
-	MapInfo.delete_save()
+	RunState.delete_save()
 	print("CAPTURED sky stills to ", output)
 	quit()

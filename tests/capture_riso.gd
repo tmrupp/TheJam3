@@ -12,7 +12,7 @@ func capture() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://capture_riso.save"
+	RunState.save_path = "user://capture_riso.save"
 	var output: String = ProjectSettings.globalize_path("res://../art-captures/riso-frames")
 	DirAccess.make_dir_recursive_absolute(output)
 	for f: String in DirAccess.get_files_at(output):
@@ -67,7 +67,7 @@ func capture() -> void:
 	player.get_node("CameraControl").set_process(false)
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
 	var wanted: Dictionary = {"door.tscn": "door", "spikes.tscn": "spikes", "checkpoint.tscn": "lantern", "level_exit.tscn": "exit", "shrine.tscn": "shrine", "inkwell.tscn": "inkwell", "moon.tscn": "moon", "mover_enemy.tscn": "wisp", "shooter_enemy.tscn": "watcher", "platform.tscn": "platform", "moving_platform.tscn": "lift"}
-	player.set_meta(&"carried_key", 2)
+	player.keyring.set_all([2])
 	var lit_one: bool = false
 	for item: Variant in info.map_elements.get_children():
 		# Pickups the wizard touches while posing are freed mid-loop.
@@ -104,12 +104,12 @@ func capture() -> void:
 				await process_frame
 			root.get_texture().get_image().save_png(output.path_join("still_shrine_used.png"))
 		if file == "door.tscn":
-			player.set_meta(&"carried_key", int(target.get_meta(&"key_color", 0)))
+			player.keyring.set_all([int(target.get_meta(&"key_color", 0))])
 			target.get_node("Unlock").call("try_open")
 			for i: int in range(14):
 				await process_frame
 			root.get_texture().get_image().save_png(output.path_join("still_door_open.png"))
-			player.set_meta(&"carried_key", 2)
+			player.keyring.set_all([2])
 	# Pushing into a wall from the floor.
 	var tm: TileMap = main.get_node("TileMap") as TileMap
 	for v: Vector2i in tm.get_used_cells(0):

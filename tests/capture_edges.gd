@@ -18,7 +18,7 @@ func capture() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://capture_edges.save"
+	RunState.save_path = "user://capture_edges.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	for i: int in range(5):
@@ -31,7 +31,7 @@ func capture() -> void:
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
 	camera.zoom *= 2.0
-	var w: MapInfo.World = info.world
+	var w: LevelGen = info.world
 	# A floor cell whose right neighbour drops away: stand at its very end.
 	for v: Vector2i in w.grounds:
 		var above: Vector2i = v + Vector2i.UP

@@ -44,7 +44,7 @@ func reset_player() -> void:
 
 
 func run() -> void:
-	MapInfo.save_path = "user://gust_steering_test.save"
+	RunState.save_path = "user://gust_steering_test.save"
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
 	var menu: Node = main.get_node("Menu")
@@ -97,6 +97,6 @@ func run() -> void:
 	gust.up = 4
 	await tick(10)
 	check(player.velocity.y < -200.0, "updraft lift still works")
-	MapInfo.delete_save()
+	RunState.delete_save()
 	print("FAILED" if failed else "PASS: gust steering")
 	quit(1 if failed else 0)

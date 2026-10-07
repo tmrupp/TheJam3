@@ -1,4 +1,5 @@
 extends Node2D
+class_name RisoWizard
 ## The faceless wizard, printed in ink. A small spring rig drives it from the real Player:
 ## planted feet, a cloth hem that swings and billows, a two-spring floppy hat, body bob with a
 ## lagging head, eased turns, breathing and blinks. Art units match the HTML prototype
@@ -133,8 +134,8 @@ func _spell_ready() -> float:
 			var lev: Levitate = player.get_node_or_null("Levitate") as Levitate
 			return 1.0 if lev == null or lev.charged or lev.floating() else 0.0
 		&"parry":
-			var parry: Node = player.get_node_or_null("Parry")
-			var cd: ActionTimer = parry.get("cooldown") as ActionTimer if parry != null else null
+			var parry: Parry = player.get_node_or_null("Parry") as Parry
+			var cd: ActionTimer = parry.cooldown if parry != null else null
 			if cd == null or not cd.acted:
 				return 1.0
 			return 1.0 - clampf(cd.acting / cd.MAX_TIME, 0.0, 1.0) if cd.is_acting() else 0.0
@@ -211,9 +212,9 @@ func _physics_process(delta: float) -> void:
 ## Every key carried trails the wizard on a soft lag: the newest just behind and above the
 ## shoulder, each older one hanging behind the one before it (a chain), skeleton keys last.
 func _trail_keys(delta: float) -> void:
-	var colors: Array[int] = KeyRing.all(player)
+	var colors: Array[int] = player.keyring.all()
 	colors.reverse()
-	for i: int in range(KeyRing.skeletons(player)):
+	for i: int in range(player.keyring.skeletons()):
 		colors.append(KeyRing.SKELETON)
 	if colors != key_colors:
 		key_colors = colors
@@ -520,7 +521,7 @@ func _draw_body() -> void:
 	body.ink(RisoPrint.ACCENT, 1.0, [band])
 	var pulse: float = 1.0 + 0.08 * sin(t * 3.0)
 	var ready: bool = not player.dash.acted
-	if MapInfo.instance != null and MapInfo.instance.vulnerable:
+	if MapInfo.instance != null and MapInfo.instance.run.vulnerable:
 		_cracked_bead(bead)
 	else:
 		_bead(bead, pulse, ready)
@@ -668,9 +669,9 @@ func _arc(c: Vector2, rad: float, w: float, frac: float) -> PackedVector2Array:
 func _spell_running() -> Vector2:
 	match Abilities.spell(player):
 		&"astral":
-			var astral: Node = player.get_node_or_null("AstralProjection")
-			if astral != null and bool(astral.call("projecting")):
-				var timer: ActionTimer = astral.get("projection_timer") as ActionTimer
+			var astral: AstralProjection = player.get_node_or_null("AstralProjection") as AstralProjection
+			if astral != null and astral.projecting():
+				var timer: ActionTimer = astral.projection_timer
 				return Vector2(clampf(timer.acting / timer.MAX_TIME, 0.0, 1.0), timer.acting)
 		&"awareness":
 			var aware: Awareness = player.get_node_or_null("Awareness") as Awareness
@@ -717,13 +718,12 @@ func _draw_world() -> void:
 	# Astral projection: a glowing silhouette holds the return point; a short afterimage marks each start.
 	var marks: Array[Vector4] = []
 	marks.append_array(ghosts)
-	var projection: Node = player.get_node_or_null("AstralProjection")
+	var projection: AstralProjection = player.get_node_or_null("AstralProjection") as AstralProjection
 	if projection != null:
-		var origin: Variant = projection.get("false_player_origin")
-		if origin is Node2D and is_instance_valid(origin):
-			var o: Node2D = origin as Node2D
+		var o: Node2D = projection.false_player_origin
+		if o != null and is_instance_valid(o):
 			marks.append(Vector4(o.global_position.x, o.global_position.y + _feet_offset() * s, signf(fs), 1.0))
-	if bool(player.get("levitating")):
+	if player.levitating:
 		# Levitating: two slow rings of glow turning under the boots.
 		var feet: Vector2 = global_position + Vector2(0, 4.0 * s)
 		for k: int in range(2):
@@ -732,7 +732,7 @@ func _draw_world() -> void:
 			world.ink(RisoPrint.GLOW, 0.5 - 0.2 * float(k), [ring])
 	for i: int in range(mini(key_colors.size(), key_trail.size())):
 		var bob: Vector2 = Vector2(0, sin(t * 3.0 - float(i) * 0.7) * 3.0)
-		RisoPrint.ink_key(world, key_colors[i], 1.0, RisoProp.key_shape(key_trail[i] + bob, 1.0, key_colors[i]))
+		RisoPrint.ink_key(world, key_colors[i], 1.0, RisoMarks.key_shape(key_trail[i] + bob, 1.0, key_colors[i]))
 	for g: Vector4 in marks:
 		var at: Transform2D = Transform2D(0.0, Vector2(s, s), 0.0, Vector2(g.x, g.y - (1.0 - g.w) * 6.0 * s))
 		world.ink(RisoPrint.GLOW, 0.25 if g.w > 0.5 else 0.15, _silhouette(at, g.z))

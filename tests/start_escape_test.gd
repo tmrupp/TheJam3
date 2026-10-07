@@ -20,7 +20,7 @@ func check(ok: bool, what: String) -> void:
 
 
 ## Footholds hopped to from `start`, never through a door or a switch gate.
-func reach_from(w: MapInfo.World, start: Vector2i) -> Dictionary:
+func reach_from(w: LevelGen, start: Vector2i) -> Dictionary:
 	var nodes: Dictionary = Reach.footholds(w)
 	var seen: Dictionary = {start: true}
 	var queue: Array[Vector2i] = [start]
@@ -29,9 +29,9 @@ func reach_from(w: MapInfo.World, start: Vector2i) -> Dictionary:
 		for b: Vector2i in nodes:
 			if seen.has(b) or absi(b.x - a.x) > 8 or absi(b.y - a.y) > 8:
 				continue
-			if not Reach.hop(w, a, b, false, MapInfo.World.START_ACROSS):
+			if not Reach.hop(w, a, b, false, LevelGen.START_ACROSS):
 				continue
-			if Reach.arc_cells(a, b).any(func(c: Vector2i) -> bool: return w.is_valid(c) and w.get_cell(c).type in [MapInfo.Type.DOOR, MapInfo.Type.SWITCH_GATE]):
+			if Reach.arc_cells(a, b).any(func(c: Vector2i) -> bool: return w.is_valid(c) and w.get_cell(c).type in [LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE]):
 				continue
 			seen[b] = true
 			queue.append(b)
@@ -52,7 +52,7 @@ func run() -> void:
 	for world_seed: int in range(1, 41):
 		var at: Vector2i = Vector2i(world_seed, 0)
 		var def: NextWorldDef = MapInfo.def_for(at)
-		var w: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", def), def)
+		var w: LevelGen = LevelGen.new(wfc.call("generate_level", def), def)
 		levels += 1
 		if w.start_side < 0:
 			continue
@@ -65,7 +65,7 @@ func run() -> void:
 			near += 1
 		var colour: int = MapInfo.lateral_lock(at, w.start_side)
 		var key: Variant = null
-		if w.is_valid(w.start_key) and w.get_cell(w.start_key).type == MapInfo.Type.KEY and int(w.get_cell(w.start_key).extra_info) == colour:
+		if w.is_valid(w.start_key) and w.get_cell(w.start_key).type == LevelGen.Type.KEY and int(w.get_cell(w.start_key).extra_info) == colour:
 			key = w.start_key
 		if key == null:
 			continue
@@ -83,7 +83,7 @@ func run() -> void:
 
 	print("in play")
 	var menu: Node = main.get_node("Menu")
-	MapInfo.save_path = "user://start_escape_test.save"
+	RunState.save_path = "user://start_escape_test.save"
 	menu.world_seed.text = "28"
 	menu.start_game()
 	var info: MapInfo = main.get_node("CanvasLayer/MapInfo") as MapInfo

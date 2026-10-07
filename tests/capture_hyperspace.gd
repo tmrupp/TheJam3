@@ -12,7 +12,7 @@ func capture() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://capture_hyperspace.save"
+	RunState.save_path = "user://capture_hyperspace.save"
 	var menu: Node = main.get_node("Menu")
 	var seed_value: int = 4
 	for s: int in range(1, 120):

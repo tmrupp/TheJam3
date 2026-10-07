@@ -11,7 +11,7 @@ func run() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://capture_menu.save"
+	RunState.save_path = "user://capture_menu.save"
 	for i: int in range(40):
 		await process_frame
 	var output: String = ProjectSettings.globalize_path("res://../art-captures/riso-frames")

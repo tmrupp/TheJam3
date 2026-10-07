@@ -1,8 +1,9 @@
 extends Area2D
+class_name Switch
 ## A switch: interact with it, or hit it with a hex bolt, and it throws, lifting its gate
 ## (SwitchGate) for good. The level record keeps it thrown, and the gate open.
 
-@onready var player: Player = $"/root/Main/Player"
+@onready var player: Player = Stage.player()
 
 var map_info: MapInfo
 ## The cell of the gate it opens.
@@ -15,19 +16,17 @@ func setup(info: MapInfo, _v: Vector2i, gate: Vector2i) -> void:
 
 
 func thrown() -> bool:
-	return map_info != null and has_meta(&"cell") and (map_info.record().get("switched", {}) as Dictionary).has(get_meta(&"cell"))
+	return map_info != null and has_meta(&"cell") and map_info.record().switched.has(get_meta(&"cell"))
 
 
 func flip() -> void:
 	if map_info == null or thrown():
 		return
-	var switched: Dictionary = map_info.record().get("switched", {})
-	switched[get_meta(&"cell")] = true
-	map_info.record()["switched"] = switched
+	map_info.record().switched[get_meta(&"cell")] = true
 	if is_instance_valid(map_info.map_elements):
 		for node: Node in map_info.map_elements.get_children():
-			if node.has_meta(&"cell") and node.get_meta(&"cell") == gate_cell and node.has_method("open"):
-				node.call("open")
+			if node is SwitchGate and node.get_meta(&"cell", null) == gate_cell:
+				(node as SwitchGate).open()
 	map_info.save_run()
 	RisoFx.burst(&"gain", global_position + Vector2(0, -30), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
 

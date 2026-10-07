@@ -36,7 +36,7 @@ func settle(frames: int = 4) -> void:
 func run() -> void:
 	main = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://map_test.save"
+	RunState.save_path = "user://map_test.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	menu.start_game()
@@ -79,7 +79,7 @@ func run() -> void:
 	print("cracked walls on the map")
 	var cracked: Vector2i = Vector2i(-1, -1)
 	for v: Vector2i in info.world.objects:
-		if info.world.get_cell(v).type == MapInfo.Type.CRACKED:
+		if info.world.get_cell(v).type == LevelGen.Type.CRACKED:
 			cracked = v
 			break
 	var mapv: Node = main.get_node("RisoMap")
@@ -87,11 +87,11 @@ func run() -> void:
 	mapv.call("_build_textures", info)
 	var rock_img: Image = ((mapv.get("rock") as Sprite2D).texture as ImageTexture).get_image()
 	check(rock_img.get_pixelv(cracked).a > 0.5, "an unbroken cracked wall is drawn as rock, not passage")
-	info.record()["broken"][cracked] = true
+	info.record().broken[cracked] = true
 	mapv.call("_build_textures", info)
 	rock_img = ((mapv.get("rock") as Sprite2D).texture as ImageTexture).get_image()
 	check(rock_img.get_pixelv(cracked).a < 0.5, "once broken it shows as open")
-	(info.record()["broken"] as Dictionary).erase(cracked)
+	(info.record().broken as Dictionary).erase(cracked)
 
 	print("opening the map")
 	map.call("toggle")
@@ -109,7 +109,7 @@ func run() -> void:
 			pair.append(n)
 	var a_end: Node = pair[0]
 	var b_end: Node = pair.filter(func(n: Node) -> bool: return n.get_meta(&"cell") == info.cell_at(a_end.get("go_to_pos")))[0]
-	check(RisoProp.pair_sigil(a_end.get_meta(&"cell"), b_end.get_meta(&"cell")) == RisoProp.pair_sigil(b_end.get_meta(&"cell"), a_end.get_meta(&"cell")), "both ends of a teleporter pair carry the same sigil")
+	check(PortalArt.pair_sigil(a_end.get_meta(&"cell"), b_end.get_meta(&"cell")) == PortalArt.pair_sigil(b_end.get_meta(&"cell"), a_end.get_meta(&"cell")), "both ends of a teleporter pair carry the same sigil")
 	map.call("page", 1)
 	await process_frame
 	check(int(map.get("view")) == 2 and paused, "D turns to the worlds page")
@@ -126,8 +126,8 @@ func run() -> void:
 	check(int(map.get("view")) == 0 and not paused, "Menu closes it")
 
 	print("the world view")
-	info.record()["lateral_open"][MapInfo.Exit.RIGHT] = true
-	info.record()["deeper_paid"] = true
+	info.record().lateral_open[MapInfo.Exit.RIGHT] = true
+	info.record().deeper_paid = true
 	info.travel(MapInfo.Exit.DEEPER)
 	await settle()
 	var links: Array = map.call("links", info)

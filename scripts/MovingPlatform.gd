@@ -1,4 +1,5 @@
 extends AnimatableBody2D
+class_name MovingPlatform
 ## A platform run that glides back and forth along an open track. One-way and rideable, like
 ## the static platforms (same collision layer, so dropping through works too).
 
@@ -11,7 +12,7 @@ extends AnimatableBody2D
 @export var phase: float = 0.0
 @export var cell_size: float = 128.0
 var t: float = 0.0
-## Salt for the lift's phase, hashed from the level seed and its cell (see MapInfo.place_cell).
+## Salt for the lift's phase, hashed from the level seed and its cell (see LevelLoader.place_cell).
 const PHASE_DEAL: int = 9900
 
 

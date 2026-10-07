@@ -1,10 +1,11 @@
 extends Node2D
+class_name Bullet
 ## A watcher's shot. It flies straight and bursts on the first rock it meets, unless it rebounds
-## (`bounces` > 0, a sky level's watchers, see MapInfo.World.populate_sky): then it glances off
+## (`bounces` > 0, a sky level's watchers, see SkyArchetype.populate): then it glances off
 ## that many walls first, each bounce found by a sweep ahead of it (its hit box lets rock pass
 ## while it still has bounces). Parried, it turns back on its shooter as ever (Parry).
 @onready var area: Area2D = $HitBox
-@onready var player: Player = $"/root/Main/Player"
+@onready var player: Player = Stage.player()
 var velocity: Vector2 = Vector2(1, 1).normalized()
 var exclude: Array
 ## Walls left to glance off.

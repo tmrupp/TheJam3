@@ -24,6 +24,18 @@ func _ready() -> void:
 
 
 ## A float runs out even when the wizard keeps still.
+## Its tier (Abilities): II drifts up and down; III recasts without landing.
+func set_tier(n: int) -> void:
+	drift = n >= 2
+	free_recast = n >= 3
+
+
+## The Spell button, with levitate in the slot: float, or let go.
+func cast_spell() -> bool:
+	toggle()
+	return true
+
+
 func elapse(delta: float) -> void:
 	if not floating():
 		remaining = 0.0

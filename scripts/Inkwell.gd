@@ -1,9 +1,10 @@
 extends Area2D
+class_name Inkwell
 ## The level's ink well: pay its price to ink the whole level onto your map at once, or keep
 ## exploring and the map fills in as you go. Once paid, the record keeps the map inked and the
 ## well dry.
 
-@onready var player: Player = $"/root/Main/Player"
+@onready var player: Player = Stage.player()
 
 var map_info: MapInfo
 
@@ -13,7 +14,7 @@ func setup(info: MapInfo, _v: Vector2i) -> void:
 
 
 func used() -> bool:
-	return map_info == null or bool(map_info.record().get("mapped", false))
+	return map_info == null or bool(map_info.record().mapped)
 
 
 func price() -> int:

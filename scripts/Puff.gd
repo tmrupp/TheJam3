@@ -1,7 +1,7 @@
 class_name Puff
 extends StaticBody2D
-## A cloud that gives way, in sky levels (MapInfo.World.populate_sky, and the stepping stones of
-## the causeways between clusters, MapInfo.World.link_isles): a ledge of cloud (one-way, like a
+## A cloud that gives way, in sky levels (SkyArchetype.populate, and the stepping stones of
+## the causeways between clusters, SkyArchetype.link_isles): a ledge of cloud (one-way, like a
 ## platform) that holds for STAND seconds once the wizard lands on it, thinning as it goes, then
 ## lets them through: once touched it goes, whether they stay or jump off. It gathers again REFORM
 ## seconds later, once the wizard is clear of it.
@@ -9,7 +9,7 @@ extends StaticBody2D
 const STAND: float = 0.35
 const REFORM: float = 3.0
 
-@onready var player: Player = get_node_or_null("/root/Main/Player") as Player
+@onready var player: Player = Stage.player()
 
 ## Seconds since it was first stood on (0..STAND), or -1 untouched.
 var stood: float = -1.0

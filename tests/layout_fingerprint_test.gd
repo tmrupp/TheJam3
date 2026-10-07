@@ -44,8 +44,8 @@ func run() -> void:
 		check(not cells.is_empty(), "%s %s: the terrain collapses" % [label, at])
 		if cells.is_empty():
 			continue
-		var w: MapInfo.World = MapInfo.World.new(cells, MapInfo.def_for(at))
-		var again: MapInfo.World = MapInfo.World.new(cells, MapInfo.def_for(at))
+		var w: LevelGen = LevelGen.new(cells, MapInfo.def_for(at))
+		var again: LevelGen = LevelGen.new(cells, MapInfo.def_for(at))
 		var terrain: String = _terrain(cells)
 		var dressing: String = _dressing(w)
 		check_eq(_dressing(again), dressing, "%s %s: dressed the same way twice" % [label, at])
@@ -86,14 +86,14 @@ static func _terrain(cells: Array) -> String:
 
 ## The dressing's fingerprint: every cell's type, then each object in the order it was laid, with
 ## what it holds and how it differs from the usual (Cell.mods).
-static func _dressing(w: MapInfo.World) -> String:
+static func _dressing(w: LevelGen) -> String:
 	var types: PackedByteArray = PackedByteArray()
 	for x: int in range(w.size.x):
 		for y: int in range(w.size.y):
 			types.append(w.get_cell(Vector2i(x, y)).type)
 	var laid: PackedStringArray = PackedStringArray()
 	for v: Vector2i in w.objects:
-		var cell: MapInfo.Cell = w.get_cell(v)
+		var cell: LevelGen.Cell = w.get_cell(v)
 		laid.append("%s %d %s %s" % [v, cell.type, var_to_str(cell.extra_info), var_to_str(cell.mods)])
 	return _digest(types + "\n".join(laid).to_utf8_buffer())
 

@@ -95,7 +95,7 @@ func _show(next: int) -> void:
 	if next != View.CLOSED:
 		if info == null or info.world == null or info.travelling or info.run_ending > 0.0:
 			return
-		var menu: CanvasItem = get_node_or_null("/root/Main/Menu") as CanvasItem
+		var menu: CanvasLayer = Stage.menu()
 		if menu != null and menu.visible:
 			return
 	if view == View.CLOSED and next != View.CLOSED:
@@ -175,7 +175,7 @@ func _world_input(event: InputEvent) -> void:
 ## Show level `c`'s page (a visited level).
 func open_level(c: Vector2i) -> void:
 	var info: MapInfo = MapInfo.instance
-	if info == null or not (info.records.has(c) or info.relic_hints.has(c)):
+	if info == null or not (info.run.records.has(c) or info.run.relic_hints.has(c)):
 		return
 	viewing = c
 	_show(View.LEVEL)
@@ -287,51 +287,51 @@ func _level(info: MapInfo) -> void:
 		if node.is_queued_for_deletion() or not (node is Node2D):
 			continue
 		var c: Vector2i = info.cell_at((node as Node2D).global_position)
-		var file: String = node.scene_file_path.get_file()
-		if file != "corpse.tscn" and not info.is_seen(c):
+		if node == info.ghost_node:
+			_mark_ghost(to_map(info, Vector2(c) + Vector2(0.5, 0.5)), 0.22)
+			continue
+		if not info.is_seen(c):
 			continue
 		var at: Vector2 = to_map(info, Vector2(c) + Vector2(0.5, 0.5))
-		match file:
-			"level_exit.tscn":
+		match Placeables.type_of(node):
+			LevelGen.Type.EXIT:
 				_exit_mark(node, at)
-			"inkwell.tscn":
-				_mark_inkwell(at, bool(node.call("used")))
-			"shrine.tscn":
-				_mark_shrine(at, bool(node.call("used")))
-			"checkpoint.tscn":
+			LevelGen.Type.INKWELL:
+				_mark_inkwell(at, (node as Inkwell).used())
+			LevelGen.Type.SHRINE:
+				_mark_shrine(at, (node as Shrine).used())
+			LevelGen.Type.CHECKPOINT:
 				_mark_lantern(at, info.is_respawn_lantern(node), info.is_lantern_spent(node))
-			"portal.tscn":
+			LevelGen.Type.PORTAL:
 				if node.has_meta(&"rift"):
 					_mark_portal(at, 0, true)
 				elif node.has_meta(&"cell"):
-					_mark_portal(at, RisoProp.pair_sigil(node.get_meta(&"cell"), info.cell_at(node.get("go_to_pos"))), false)
-			"door.tscn":
+					_mark_portal(at, PortalArt.pair_sigil(node.get_meta(&"cell"), info.cell_at((node as Portal).go_to_pos)), false)
+			LevelGen.Type.DOOR:
 				_mark_door(at, int(node.get_meta(&"key_color", 0)))
-			"switch_gate.tscn":
+			LevelGen.Type.SWITCH_GATE:
 				_mark_gate(at)
-			"relic.tscn":
+			LevelGen.Type.RELIC:
 				placed_relic = node
-				_mark_relic(at, StringName((node.call("holds") as Array)[0]), 0.7)
-			"switch.tscn":
-				_mark_switch(at, bool(node.call("thrown")))
-			"key.tscn":
+				_mark_relic(at, StringName((node as Relic).holds()[0]), 0.7)
+			LevelGen.Type.SWITCH:
+				_mark_switch(at, (node as Switch).thrown())
+			LevelGen.Type.KEY:
 				var sprite: CanvasItem = node.get_node_or_null("Sprite2D") as CanvasItem
 				if sprite == null or sprite.visible:
 					_mark_key(at, int(node.get_meta(&"key_color", 0)))
-			"star_cluster.tscn":
+			LevelGen.Type.CLUSTER:
 				_mark_cluster(at)
-			"bridge.tscn":
-				_mark_bridge(at, bool(node.call("up")))
-			"bell.tscn":
-				_mark_bell(at, bool(node.call("rung")), int(node.call("lock_state")))
-			"vane.tscn":
-				_mark_bell(at, bool(node.call("rung")), int(node.call("lock_state")), "vane")
-			"corpse.tscn":
-				_mark_ghost(to_map(info, Vector2(info.cell_at((node as Node2D).global_position)) + Vector2(0.5, 0.5)), 0.22)
+			LevelGen.Type.BRIDGE:
+				_mark_bridge(at, (node as Bridge).up())
+			LevelGen.Type.BELL:
+				_mark_bell(at, (node as Bell).rung(), (node as Bell).lock_state())
+			LevelGen.Type.VANE:
+				_mark_bell(at, (node as Vane).rung(), (node as Vane).lock_state(), "vane")
 	# A relic an ink well marked here, even before its room is found.
 	var hinted: Variant = _hinted_relic(info, info.coord, info.world)
 	if hinted != null and placed_relic == null:
-		_mark_relic(to_map(info, Vector2(hinted) + Vector2(0.5, 0.5)), info.relic_hints[info.coord], 0.7)
+		_mark_relic(to_map(info, Vector2(hinted) + Vector2(0.5, 0.5)), info.run.relic_hints[info.coord], 0.7)
 	# The wizard, always, bobbing.
 	_mark_wizard(to_map(info, Vector2(info.cell_at(info.player.global_position)) + Vector2(0.5, 0.5)) + Vector2(0, sin(t * 4.0) * 0.6))
 	_legend([["you", _mark_wizard]] + _level_rows())
@@ -382,17 +382,17 @@ func _door_rows() -> Array:
 func _other_level(info: MapInfo, c: Vector2i) -> void:
 	_text(MapInfo.where(c), Vector2(18, 12), 10.0, false)
 	_tabs()
-	var w: MapInfo.World = info.world_at(c)
+	var w: LevelGen = info.world_at(c)
 	if w == null:
 		rock.visible = false
 		open.visible = false
 		_text("inking…", AREA.get_center() + Vector2(0, -5), 9.0, false, true)
 		return
-	var rec: Dictionary = info.records.get(c, {})
-	var bytes: PackedByteArray = rec.get("seen", PackedByteArray())
+	var rec: LevelRecord = info.run.records.get(c, LevelRecord.new())
+	var bytes: PackedByteArray = rec.seen
 	var stamp: int = bytes.size() + bytes.count(1) * 7919
 	if _built_coord != c or _built_version != stamp:
-		_build_textures_for(w, bytes, rec.get("broken", {}))
+		_build_textures_for(w, bytes, rec.broken)
 		_built_coord = c
 		_built_version = stamp
 	var k: float = minf(AREA.size.x / float(w.size.x), AREA.size.y / float(w.size.y))
@@ -416,52 +416,52 @@ func _other_level(info: MapInfo, c: Vector2i) -> void:
 			continue
 		_mark_exit(spot.call(v), place.exit_dir(which), which == MapInfo.Exit.DEEPER, -1, owed)
 	if w.shrine.x >= 0 and seen.call(w.shrine):
-		_mark_shrine(spot.call(w.shrine), bool(rec.get("shrine_used", false)))
+		_mark_shrine(spot.call(w.shrine), bool(rec.shrine_used))
 	var relic_shown: bool = _other_things(info, w, rec, seen, spot)
 	for x: int in range(w.size.x):
 		for y: int in range(w.size.y):
 			var v: Vector2i = Vector2i(x, y)
 			var kind: int = w.get_cell(v).type
-			if not (kind in [MapInfo.Type.CHECKPOINT, MapInfo.Type.INKWELL, MapInfo.Type.PORTAL, MapInfo.Type.BRIDGE, MapInfo.Type.BELL, MapInfo.Type.VANE]) or not seen.call(v):
+			if not (kind in [LevelGen.Type.CHECKPOINT, LevelGen.Type.INKWELL, LevelGen.Type.PORTAL, LevelGen.Type.BRIDGE, LevelGen.Type.BELL, LevelGen.Type.VANE]) or not seen.call(v):
 				continue
-			if kind == MapInfo.Type.BRIDGE:
-				_mark_bridge(spot.call(v), (rec.get("bridges", {}) as Dictionary).has(int(w.get_cell(v).extra_info)))
+			if kind == LevelGen.Type.BRIDGE:
+				_mark_bridge(spot.call(v), (rec.bridges as Dictionary).has(int(w.get_cell(v).extra_info)))
 				continue
-			if kind == MapInfo.Type.BELL:
+			if kind == LevelGen.Type.BELL:
 				var bell: Array = w.get_cell(v).extra_info
 				var id: int = int(bell[0])
-				var free: bool = (rec.get("bells_free", {}) as Dictionary).has(v)
-				_mark_bell(spot.call(v), (rec.get("bridges", {}) as Dictionary).has(id), -2 if free else int(bell[1]))
+				var free: bool = (rec.bells_free as Dictionary).has(v)
+				_mark_bell(spot.call(v), (rec.bridges as Dictionary).has(id), -2 if free else int(bell[1]))
 				continue
-			if kind == MapInfo.Type.VANE:
+			if kind == LevelGen.Type.VANE:
 				var vane: Array = w.get_cell(v).extra_info
-				var blowing: bool = (rec.get("winds", {}) as Dictionary).get(int(vane[0])) == v
-				var unchained: bool = (rec.get("bells_free", {}) as Dictionary).has(v) or blowing
+				var blowing: bool = (rec.winds as Dictionary).get(int(vane[0])) == v
+				var unchained: bool = (rec.bells_free as Dictionary).has(v) or blowing
 				_mark_bell(spot.call(v), blowing, -2 if unchained else int(vane[1]), "vane")
 				continue
-			if kind == MapInfo.Type.INKWELL:
-				_mark_inkwell(spot.call(v), bool(rec.get("mapped", false)))
-			elif kind == MapInfo.Type.PORTAL:
-				_mark_portal(spot.call(v), RisoProp.pair_sigil(v, w.get_cell(v).extra_info), false)
+			if kind == LevelGen.Type.INKWELL:
+				_mark_inkwell(spot.call(v), bool(rec.mapped))
+			elif kind == LevelGen.Type.PORTAL:
+				_mark_portal(spot.call(v), PortalArt.pair_sigil(v, w.get_cell(v).extra_info), false)
 			else:
-				var lit: bool = info.respawn_coord == c and info.respawn_cell == v and not info.vulnerable
-				_mark_lantern(spot.call(v), lit, (rec.get("spent_lanterns", {}) as Dictionary).has(v))
+				var lit: bool = info.run.respawn_coord == c and info.run.respawn_cell == v and not info.run.vulnerable
+				_mark_lantern(spot.call(v), lit, (rec.spent_lanterns as Dictionary).has(v))
 	var hinted: Variant = _hinted_relic(info, c, w)
 	if hinted != null and not relic_shown:
-		_mark_relic(spot.call(hinted), info.relic_hints[c], 0.7)
-	if info.has_ghost and info.ghost_coord == c:
-		_mark_ghost(spot.call(info.cell_at(info.ghost_pos)), 0.22)
+		_mark_relic(spot.call(hinted), info.run.relic_hints[c], 0.7)
+	if info.run.has_ghost and info.run.ghost_coord == c:
+		_mark_ghost(spot.call(info.cell_at(info.run.ghost_pos)), 0.22)
 	_text("D: worlds", Vector2(AREA.position.x, AREA.end.y - 6.0), 6.5, false)
 	_legend(_level_rows())
 
 
 ## The colour of each key and door laid out in `w` ({cell: colour}), as the level dealt them
-## (MapInfo.World.deal_colors).
-static func dealt_colors(w: MapInfo.World) -> Dictionary:
+## (LevelGen.deal_colors).
+static func dealt_colors(w: LevelGen) -> Dictionary:
 	var out: Dictionary = {}
 	for v: Vector2i in w.objects:
-		var cell: MapInfo.Cell = w.get_cell(v)
-		if cell.type in [MapInfo.Type.KEY, MapInfo.Type.DOOR]:
+		var cell: LevelGen.Cell = w.get_cell(v)
+		if cell.type in [LevelGen.Type.KEY, LevelGen.Type.DOOR]:
 			out[v] = int(cell.extra_info) if cell.extra_info != null else 0
 	return out
 
@@ -469,35 +469,35 @@ static func dealt_colors(w: MapInfo.World) -> Dictionary:
 ## Another level's keys, doors, gates, switches, relic and star cluster where seen, as its record
 ## leaves them (taken, opened, thrown), and the keys dropped there. Whether a relic was marked comes
 ## back.
-func _other_things(info: MapInfo, w: MapInfo.World, rec: Dictionary, seen: Callable, spot: Callable) -> bool:
-	var taken: Dictionary = rec.get("taken", {})
-	var opened: Dictionary = rec.get("opened", {})
-	var switched: Dictionary = rec.get("switched", {})
+func _other_things(info: MapInfo, w: LevelGen, rec: LevelRecord, seen: Callable, spot: Callable) -> bool:
+	var taken: Dictionary = rec.taken
+	var opened: Dictionary = rec.opened
+	var switched: Dictionary = rec.switched
 	var colors: Dictionary = dealt_colors(w)
 	var relic_shown: bool = false
 	for v: Vector2i in w.objects:
-		var cell: MapInfo.Cell = w.get_cell(v)
+		var cell: LevelGen.Cell = w.get_cell(v)
 		match cell.type:
-			MapInfo.Type.KEY:
+			LevelGen.Type.KEY:
 				if not taken.has(v) and seen.call(v):
 					_mark_key(spot.call(v), int(colors[v]))
-			MapInfo.Type.DOOR:
+			LevelGen.Type.DOOR:
 				if not opened.has(v) and seen.call(v):
 					_mark_door(spot.call(v), int(colors[v]))
-			MapInfo.Type.SWITCH_GATE:
+			LevelGen.Type.SWITCH_GATE:
 				if not opened.has(v) and seen.call(v):
 					_mark_gate(spot.call(v))
-			MapInfo.Type.SWITCH:
+			LevelGen.Type.SWITCH:
 				if seen.call(v):
 					_mark_switch(spot.call(v), switched.has(v))
-			MapInfo.Type.RELIC:
+			LevelGen.Type.RELIC:
 				if not taken.has(v) and seen.call(v):
 					_mark_relic(spot.call(v), StringName(cell.extra_info), 0.7)
 					relic_shown = true
-			MapInfo.Type.CLUSTER:
+			LevelGen.Type.CLUSTER:
 				if not taken.has(v) and seen.call(v):
 					_mark_cluster(spot.call(v))
-	var dropped: Dictionary = rec.get("dropped", {})
+	var dropped: Dictionary = rec.dropped
 	for id: Variant in dropped:
 		var drop: Array = dropped[id]
 		var v: Vector2i = info.cell_at(drop[0])
@@ -507,12 +507,12 @@ func _other_things(info: MapInfo, w: MapInfo.World, rec: Dictionary, seen: Calla
 
 
 func _exit_mark(node: Node, at: Vector2) -> void:
-	var which: int = int(node.get("exit"))
+	var door: LevelExit = node as LevelExit
 	var place: NextWorldDef = MapInfo.instance.here
-	if place.exit_grand(which):
-		_mark_plunge(at, int(node.call("price")))
+	if place.exit_grand(door.exit):
+		_mark_plunge(at, door.price())
 		return
-	_mark_exit(at, place.exit_dir(which), which == MapInfo.Exit.DEEPER, int(node.call("lock")), int(node.call("price")))
+	_mark_exit(at, place.exit_dir(door.exit), door.exit == MapInfo.Exit.DEEPER, door.lock(), door.price())
 
 
 # ------------------------------------------------------------------ marks (map and legend)
@@ -539,7 +539,7 @@ func _mark_plunge(at: Vector2, owed: int, k: float = 1.0) -> void:
 	_noting = false
 	_mark_exit(at, Vector2.DOWN, true, -1, owed, k)
 	_noting = was
-	marks.ink(RisoPrint.PINK, 1.0, [RisoProp.chevron(at + Vector2(0, 2.2) * k, Vector2.DOWN, 0.2 * k)], false)
+	marks.ink(RisoPrint.PINK, 1.0, [RisoMarks.chevron(at + Vector2(0, 2.2) * k, Vector2.DOWN, 0.2 * k)], false)
 
 
 ## A relic: its move's mark in night ink over an accent ring.
@@ -548,7 +548,7 @@ func _mark_relic(at: Vector2, move: StringName, k: float = 1.0) -> void:
 	marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(at, 6.4 * k, 18)], false)
 	var fit: Transform2D = Transform2D(0.0, Vector2(0.15, 0.15) * k, 0.0, at)
 	var mark: Array[PackedVector2Array] = []
-	for poly: PackedVector2Array in RisoProp.glyph(move, Vector2.ZERO, t):
+	for poly: PackedVector2Array in RisoGlyph.of(move, Vector2.ZERO, t):
 		mark.append(fit * poly)
 	marks.ink(RisoPrint.NIGHT, 1.0, mark, false)
 
@@ -571,10 +571,10 @@ func _mark_switch(at: Vector2, thrown: bool) -> void:
 ## a star while unpaid.
 func _mark_exit(at: Vector2, dir: Vector2, deeper: bool, needs: int, owed: int, k: float = 1.0) -> void:
 	_note("locked" if needs >= 0 else ("unpaid" if owed > 0 else ("deeper" if deeper else "way out")))
-	marks.ink(RisoPrint.PINK if deeper else RisoPrint.NIGHT, 1.0, [RisoProp.chevron(at - dir * 2.0 * k, dir, 0.24 * k)], false)
+	marks.ink(RisoPrint.PINK if deeper else RisoPrint.NIGHT, 1.0, [RisoMarks.chevron(at - dir * 2.0 * k, dir, 0.24 * k)], false)
 	if needs >= 0:
 		for plate: int in RisoPrint.key_inks(needs):
-			marks.ink(plate, 1.0, [RisoProp.key_bow(at + Vector2(4.2, -4.2) * k, 2.0 * k, needs)], false)
+			marks.ink(plate, 1.0, [RisoMarks.key_bow(at + Vector2(4.2, -4.2) * k, 2.0 * k, needs)], false)
 	elif owed > 0:
 		marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.sparkle(at + Vector2(4.2, -4.2) * k, 2.6)], false)
 
@@ -603,23 +603,23 @@ func _mark_lantern(at: Vector2, lit: bool, spent: bool = false) -> void:
 
 
 ## A teleporter: a screened accent disc with its pair's sigil in night ink (the two ends of a pair
-## share it, RisoProp.pair_sigil); a rift the wizard opened is an eye-yellow disc.
+## share it, PortalArt.pair_sigil); a rift the wizard opened is an eye-yellow disc.
 func _mark_portal(at: Vector2, sigil: int, rift: bool) -> void:
 	_note("rift" if rift else "teleporter")
 	marks.ink(RisoPrint.EYE if rift else RisoPrint.ACCENT, 0.55, [RisoShapes.circle(at, 3.0, 14)], false)
 	if not rift:
-		marks.ink(RisoPrint.NIGHT, 1.0, [RisoProp.sigil_shape(sigil, at, 1.5)], false)
+		marks.ink(RisoPrint.NIGHT, 1.0, [PortalArt.sigil_shape(sigil, at, 1.5)], false)
 
 
 func _mark_door(at: Vector2, color: int) -> void:
 	_note("door")
 	_key_ink(color, [RisoShapes.rrect(at.x - 0.9, at.y - 2.6, 1.8, 5.2, 0.8)])
-	_key_ink(color, [RisoProp.key_bow(at + Vector2(2.6, -2.6), 1.8, color)])
+	_key_ink(color, [RisoMarks.key_bow(at + Vector2(2.6, -2.6), 1.8, color)])
 
 
 func _mark_key(at: Vector2, color: int) -> void:
 	_note("skeleton key" if color == KeyRing.SKELETON else "key")
-	_key_ink(color, [RisoProp.key_bow(at, 2.0, color)])
+	_key_ink(color, [RisoMarks.key_bow(at, 2.0, color)])
 
 
 ## A map mark in a key's colour: its inks, or for a skeleton key (bone white, which paper would
@@ -648,7 +648,7 @@ func _mark_bell(at: Vector2, rung: bool, lock: int = -2, row: String = "bell") -
 	marks.ink(RisoPrint.ACCENT, 0.35 if rung else 1.0, [RisoShapes.circle(at, 1.8, 10)], false)
 	if lock >= 0:
 		for plate: int in RisoPrint.key_inks(lock):
-			marks.ink(plate, 1.0, [RisoProp.key_bow(at + Vector2(2.8, -2.8), 1.8, lock)], false)
+			marks.ink(plate, 1.0, [RisoMarks.key_bow(at + Vector2(2.8, -2.8), 1.8, lock)], false)
 	elif lock == -1:
 		marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.circle(at + Vector2(2.8, -2.8), 1.2, 8)], false)
 
@@ -661,7 +661,7 @@ func _mark_cluster(at: Vector2) -> void:
 
 func _mark_ghost(at: Vector2, size: float) -> void:
 	_note("ghost")
-	marks.ink(RisoPrint.GLOW, 1.0, RisoProp.ghost_shape(Transform2D(0.0, Vector2(size, size), 0.0, at + Vector2(0, 3))), false)
+	marks.ink(RisoPrint.GLOW, 1.0, RisoMarks.ghost_shape(Transform2D(0.0, Vector2(size, size), 0.0, at + Vector2(0, 3))), false)
 
 
 ## The wizard: a hat over a lit eye.
@@ -686,12 +686,12 @@ func _legend(all: Array) -> void:
 
 ## Seen rock and seen open ground as two one-pixel-per-cell textures on their plates.
 func _build_textures(info: MapInfo) -> void:
-	_build_textures_for(info.world, info.seen(), info.record().get("broken", {}))
+	_build_textures_for(info.world, info.seen(), info.record().broken)
 	_built_version = info.seen_version
 	_built_coord = info.coord
 
 
-func _build_textures_for(w: MapInfo.World, bytes: PackedByteArray, broken: Dictionary) -> void:
+func _build_textures_for(w: LevelGen, bytes: PackedByteArray, broken: Dictionary) -> void:
 	var rock_img: Image = Image.create(w.size.x, w.size.y, false, Image.FORMAT_LA8)
 	var open_img: Image = Image.create(w.size.x, w.size.y, false, Image.FORMAT_LA8)
 	for x: int in range(w.size.x):
@@ -700,7 +700,7 @@ func _build_textures_for(w: MapInfo.World, bytes: PackedByteArray, broken: Dicti
 				continue
 			var kind: int = w.get_cell(Vector2i(x, y)).type
 			# Cracked walls look like rock on the map until they are broken.
-			if kind == MapInfo.Type.GROUND or (kind == MapInfo.Type.CRACKED and not broken.has(Vector2i(x, y))):
+			if kind == LevelGen.Type.GROUND or (kind == LevelGen.Type.CRACKED and not broken.has(Vector2i(x, y))):
 				rock_img.set_pixel(x, y, Color(1, 1, 1, 1))
 			else:
 				open_img.set_pixel(x, y, Color(1, 1, 1, 1))
@@ -712,30 +712,30 @@ func _build_textures_for(w: MapInfo.World, bytes: PackedByteArray, broken: Dicti
 
 ## Every visited level: coord -> its record.
 func tiles(info: MapInfo) -> Dictionary:
-	return info.records
+	return info.run.records
 
 
 ## Every level the cursor can pick: the visited ones, and those an ink well has marked a relic in.
 func pickable(info: MapInfo) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
-	for c: Vector2i in info.records:
+	for c: Vector2i in info.run.records:
 		out.append(c)
-	for c: Vector2i in info.relic_hints:
+	for c: Vector2i in info.run.relic_hints:
 		if not out.has(c):
 			out.append(c)
 	return out
 
 
 ## Where level `c`'s relic waits, if an ink well marked it and it is not taken yet; else null.
-func _hinted_relic(info: MapInfo, c: Vector2i, w: MapInfo.World) -> Variant:
-	if w == null or not info.relic_hints.has(c) or info.relics_found.has(c):
+func _hinted_relic(info: MapInfo, c: Vector2i, w: LevelGen) -> Variant:
+	if w == null or not info.run.relic_hints.has(c) or info.run.relics_found.has(c):
 		return null
 	for secret: Dictionary in w.secrets:
 		for reward: Array in secret["rewards"]:
-			if reward[1] == MapInfo.Type.RELIC:
+			if reward[1] == LevelGen.Type.RELIC:
 				return reward[0]
 	for v: Vector2i in w.objects:
-		if w.get_cell(v).type == MapInfo.Type.RELIC:
+		if w.get_cell(v).type == LevelGen.Type.RELIC:
 			return v
 	return null
 
@@ -745,16 +745,16 @@ func _hinted_relic(info: MapInfo, c: Vector2i, w: MapInfo.World) -> Variant:
 func links(info: MapInfo) -> Array[Array]:
 	var out: Array[Array] = []
 	var known: Dictionary = {}
-	for c: Vector2i in info.records:
-		var rec: Dictionary = info.records[c]
-		var open_sides: Dictionary = rec.get("lateral_open", {})
+	for c: Vector2i in info.run.records:
+		var rec: LevelRecord = info.run.records[c]
+		var open_sides: Dictionary = rec.lateral_open
 		if open_sides.has(MapInfo.Exit.RIGHT):
 			_link(out, known, [c, c + Vector2i(1, 0)])
 		if open_sides.has(MapInfo.Exit.LEFT):
 			_link(out, known, [c + Vector2i(-1, 0), c])
-		if bool(rec.get("deeper_paid", false)):
+		if bool(rec.deeper_paid):
 			_link(out, known, [c, c + Vector2i(0, 1)])
-		if (rec.get("ways_taken", {}) as Dictionary).has(MapInfo.Exit.RETURN):
+		if (rec.ways_taken as Dictionary).has(MapInfo.Exit.RETURN):
 			_link(out, known, [c + Vector2i(0, -1), c])
 	return out
 
@@ -788,7 +788,7 @@ func tile_at(_info: MapInfo, c: Vector2i) -> Vector2:
 
 
 func _world(info: MapInfo) -> void:
-	_text("world %d  ·  deepest %d" % [info.run_seed, info.deepest], Vector2(18, 12), 10.0, false)
+	_text("world %d  ·  deepest %d" % [info.run.run_seed, info.run.deepest], Vector2(18, 12), 10.0, false)
 	_tabs()
 	var area: Rect2 = AREA.grow(-2.0)
 	var bars: Array[PackedVector2Array] = []
@@ -821,13 +821,13 @@ func _world(info: MapInfo) -> void:
 				continue
 			_mark_side(curve, size.x, c == info.coord, area)
 			# Marks sit on the curve as far along it as they are across the world, on a clear spot.
-			if c == info.respawn_coord:
-				var lit: Vector2 = _along(curve, place.progress(info.respawn_cell))
+			if c == info.run.respawn_coord:
+				var lit: Vector2 = _along(curve, place.progress(info.run.respawn_cell))
 				if area.has_point(lit):
 					marks.knock([RisoPrint.ACCENT, RisoPrint.PINK], [RisoShapes.circle(lit, 3.2, 12)])
 					_mark_respawn_level(lit)
-			if info.has_ghost and c == info.ghost_coord:
-				var lost: Vector2 = _along(curve, place.progress(info.cell_at(info.ghost_pos)))
+			if info.run.has_ghost and c == info.run.ghost_coord:
+				var lost: Vector2 = _along(curve, place.progress(info.cell_at(info.run.ghost_pos)))
 				if area.has_point(lost):
 					marks.knock([RisoPrint.ACCENT, RisoPrint.PINK], [RisoShapes.circle(lost, 6.5, 18)])
 					_mark_ghost(lost, 0.2)
@@ -836,12 +836,12 @@ func _world(info: MapInfo) -> void:
 			continue
 		_mark_tile(at, TILE, c == info.coord)
 		_text("%d · %d" % [c.x, c.y], at + Vector2(0, -3.5), 6.5, false, true)
-		var rec: Dictionary = info.records[c]
-		if c == info.respawn_coord:
+		var rec: LevelRecord = info.run.records[c]
+		if c == info.run.respawn_coord:
 			_mark_respawn_level(at + Vector2(-TILE.x * 0.5 + 4.0, TILE.y * 0.5 - 4.0))
-		if bool(rec.get("shrine_used", false)):
+		if bool(rec.shrine_used):
 			_mark_spent_shrine(at + Vector2(0, TILE.y * 0.5 - 4.75))
-		if info.has_ghost and c == info.ghost_coord:
+		if info.run.has_ghost and c == info.run.ghost_coord:
 			_mark_ghost(at + Vector2(TILE.x * 0.5 - 4.0, TILE.y * 0.5 - 4.0), 0.2)
 	# The cursor: a night-ink frame round the picked level (or a side world's ribbon), breathing.
 	var cur: Vector2 = tile_at(info, selected)
@@ -861,23 +861,23 @@ func _world(info: MapInfo) -> void:
 	# Relics a shrine marked: on the top right corner of the level's tile (a faint one for a level
 	# not yet visited); off the page, on its edge, pointing the way.
 	var page_in: Rect2 = area.grow(-9.0)
-	for c: Vector2i in info.relic_hints:
+	for c: Vector2i in info.run.relic_hints:
 		var at: Vector2 = tile_at(info, c)
-		if info.relics_found.has(c):
+		if info.run.relics_found.has(c):
 			continue
 		if not area.encloses(Rect2(at - TILE * 0.5, TILE)):
 			var way: Vector2 = (at - page_in.get_center()).normalized()
 			var reach: float = minf(page_in.size.x * 0.5 / maxf(absf(way.x), 0.001), page_in.size.y * 0.5 / maxf(absf(way.y), 0.001))
 			var edge: Vector2 = page_in.get_center() + way * reach
-			_mark_relic(edge, info.relic_hints[c], 0.8)
-			marks.ink(RisoPrint.ACCENT, 1.0, [RisoProp.chevron(edge + way * 7.5, way, 0.16)], false)
+			_mark_relic(edge, info.run.relic_hints[c], 0.8)
+			marks.ink(RisoPrint.ACCENT, 1.0, [RisoMarks.chevron(edge + way * 7.5, way, 0.16)], false)
 			continue
 		# A level not yet visited: a faint tile where it lies, labelled like the rest.
-		if not info.records.has(c):
+		if not info.run.records.has(c):
 			marks.ink(RisoPrint.ACCENT, 0.12, [RisoShapes.rrect(at.x - TILE.x * 0.5, at.y - TILE.y * 0.5, TILE.x, TILE.y, 5.0)], false)
 			_text("%d · %d" % [c.x, c.y], at + Vector2(0, -3.5), 6.5, false, true)
 		# The mark on the tile's top right corner, clear of its label.
-		_mark_relic(at + Vector2(TILE.x * 0.5 - 1.0, -TILE.y * 0.5 + 1.0), info.relic_hints[c], 0.75)
+		_mark_relic(at + Vector2(TILE.x * 0.5 - 1.0, -TILE.y * 0.5 + 1.0), info.run.relic_hints[c], 0.75)
 	_text("W A S D pick  ·  E open", Vector2(AREA.position.x, AREA.end.y - 6.0), 6.5, false)
 	_legend([
 		["you are here", func(at: Vector2) -> void: _mark_tile(at, Vector2(9, 6), true)],
@@ -1001,7 +1001,7 @@ func _mark_side(curve: PackedVector2Array, width: float, here: bool, clip: Rect2
 	for k: int in range(3):
 		var i: int = roundi(float(last) * (0.25 + 0.25 * float(k)))
 		var along: Vector2 = (curve[mini(i + 1, last)] - curve[maxi(i - 1, 0)]).normalized()
-		chevrons.append(RisoProp.chevron(curve[i], along, minf(0.2, width * 0.03)))
+		chevrons.append(RisoMarks.chevron(curve[i], along, minf(0.2, width * 0.03)))
 	if clip.has_area():
 		strip = _clipped(strip, _box(clip))
 		chevrons = _clipped(chevrons, _box(clip))

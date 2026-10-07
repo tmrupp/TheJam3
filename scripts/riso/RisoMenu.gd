@@ -36,7 +36,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	t += delta
-	var menu: CanvasLayer = get_node_or_null("/root/Main/Menu") as CanvasLayer
+	var menu: CanvasLayer = Stage.menu()
 	var printing: bool = RisoPrint.is_on()
 	var cam: Camera2D = get_viewport().get_camera_2d()
 	var showing: bool = printing and menu != null and menu.visible and cam != null

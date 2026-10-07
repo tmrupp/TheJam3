@@ -61,7 +61,7 @@ func leave_ledge() -> void:
 func run() -> void:
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://jump_test.save"
+	RunState.save_path = "user://jump_test.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	menu.start_game()
@@ -130,6 +130,6 @@ func run() -> void:
 	check(player.buffer_jump.is_acting() and player.jumps == 0 and player.velocity.y >= velocity_before,
 		"a buffered jump does not leave an extra jump available")
 
-	MapInfo.delete_save()
+	RunState.delete_save()
 	print("FAILED" if failed else "PASS: jump availability")
 	quit(1 if failed else 0)

@@ -13,7 +13,7 @@ const ACROSS: int = 4
 
 ## Where the wizard can stand (open, not thorns, on rock or a ledge, or riding a lift anywhere on
 ## its track) as false, and the moons as true.
-static func footholds(w: MapInfo.World) -> Dictionary:
+static func footholds(w: LevelGen) -> Dictionary:
 	var nodes: Dictionary = {}
 	for x: int in range(w.size.x):
 		for y: int in range(w.size.y):
@@ -21,10 +21,10 @@ static func footholds(w: MapInfo.World) -> Dictionary:
 			if clear(w, v) and underfoot(w, v):
 				nodes[v] = false
 	for v: Vector2i in w.objects:
-		var cell: MapInfo.Cell = w.get_cell(v)
-		if cell.type == MapInfo.Type.MOON:
+		var cell: LevelGen.Cell = w.get_cell(v)
+		if cell.type == LevelGen.Type.MOON:
 			nodes[v] = true
-		elif cell.type == MapInfo.Type.MOVING_PLATFORM:
+		elif cell.type == LevelGen.Type.MOVING_PLATFORM:
 			var motion: Array = cell.extra_info
 			for step: int in range(int(motion[2]) + 1):
 				for dx: int in range(int(motion[0])):
@@ -36,7 +36,7 @@ static func footholds(w: MapInfo.World) -> Dictionary:
 
 ## Spread the reach from `queue` hop by hop over every foothold and moon; `far["i"]` keeps the
 ## furthest cell of `along` (a way through: cell to index) the wizard gets to.
-static func grow(w: MapInfo.World, nodes: Dictionary, reach: Dictionary, queue: Array[Vector2i], along: Dictionary = {}, far: Dictionary = {}, across: int = ACROSS) -> void:
+static func grow(w: LevelGen, nodes: Dictionary, reach: Dictionary, queue: Array[Vector2i], along: Dictionary = {}, far: Dictionary = {}, across: int = ACROSS) -> void:
 	var track: bool = not along.is_empty()
 	while not queue.is_empty():
 		var a: Vector2i = queue.pop_back()
@@ -61,7 +61,7 @@ static func grow(w: MapInfo.World, nodes: Dictionary, reach: Dictionary, queue: 
 ## Every foothold reached from `start`, hop by hop with hops `across` wide, nearest first: each
 ## mapped to the foothold it was reached from (`start` to itself), so the way to it can be
 ## followed back.
-static func tree(w: MapInfo.World, start: Vector2i, across: int = ACROSS) -> Dictionary:
+static func tree(w: LevelGen, start: Vector2i, across: int = ACROSS) -> Dictionary:
 	var nodes: Dictionary = footholds(w)
 	var parent: Dictionary = {start: start}
 	var queue: Array[Vector2i] = [start]
@@ -90,17 +90,17 @@ static func way(parent: Dictionary, to: Vector2i) -> Array[Vector2i]:
 	return out
 
 
-static func reached_from(w: MapInfo.World, sources: Array[Vector2i], targets: Array[Vector2i]) -> bool:
+static func reached_from(w: LevelGen, sources: Array[Vector2i], targets: Array[Vector2i]) -> bool:
 	for b: Vector2i in targets:
 		for a: Vector2i in sources:
-			if hop(w, a, b, w.get_cell(a).type == MapInfo.Type.MOON):
+			if hop(w, a, b, w.get_cell(a).type == LevelGen.Type.MOON):
 				return true
 	return false
 
 
 ## One hop from `a` to `b`: in reach, and over clear air (up from `a`, across, down to `b`, either
 ## clearing a cell over the higher end or, in a low passage, level with it).
-static func hop(w: MapInfo.World, a: Vector2i, b: Vector2i, from_moon: bool, across: int = ACROSS) -> bool:
+static func hop(w: LevelGen, a: Vector2i, b: Vector2i, from_moon: bool, across: int = ACROSS) -> bool:
 	var rise: int = a.y - b.y
 	if rise > (MOON_UP if from_moon else UP):
 		return false
@@ -112,7 +112,7 @@ static func hop(w: MapInfo.World, a: Vector2i, b: Vector2i, from_moon: bool, acr
 
 
 ## Whether the arc of a hop from `a` to `b` over row `top` is clear air all the way.
-static func arc_clear(w: MapInfo.World, a: Vector2i, b: Vector2i, top: int) -> bool:
+static func arc_clear(w: LevelGen, a: Vector2i, b: Vector2i, top: int) -> bool:
 	for y: int in range(top, a.y + 1):
 		if not clear(w, Vector2i(a.x, y)):
 			return false
@@ -137,11 +137,11 @@ static func arc_cells(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
 
 
 ## Air the wizard can pass through: not rock and not thorns.
-static func clear(w: MapInfo.World, v: Vector2i) -> bool:
-	return w.is_valid(v) and not w.get_cell(v).type in [MapInfo.Type.GROUND, MapInfo.Type.CRACKED, MapInfo.Type.SPIKES]
+static func clear(w: LevelGen, v: Vector2i) -> bool:
+	return w.is_valid(v) and not w.get_cell(v).type in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED, LevelGen.Type.SPIKES]
 
 
 ## Something to stand on under `v`: rock, a ledge, or the border rock round the world.
-static func underfoot(w: MapInfo.World, v: Vector2i) -> bool:
+static func underfoot(w: LevelGen, v: Vector2i) -> bool:
 	var below: Vector2i = v + Vector2i.DOWN
-	return not w.is_valid(below) or w.get_cell(below).type in [MapInfo.Type.GROUND, MapInfo.Type.CRACKED, MapInfo.Type.PLATFORM]
+	return not w.is_valid(below) or w.get_cell(below).type in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED, LevelGen.Type.PLATFORM]

@@ -1,4 +1,5 @@
 extends Node2D
+class_name RisoPrompt
 ## Printed interaction prompt: a bare-paper disc with an interact symbol (a pointing hand, tapping)
 ## in night ink that pops up above an Interactable while it is the focused one (the nearest the
 ## player is touching; see Interactable.focused). The object's interaction_hint supplies optional
@@ -7,7 +8,7 @@ extends Node2D
 
 var canvas: Node2D
 
-var interactable: Node
+var interactable: Interactable
 var host: Node2D
 var ink: InkCanvas
 var shown: float = 0.0
@@ -74,10 +75,10 @@ func _process(delta: float) -> void:
 	t += delta
 	canvas.global_transform = global_transform
 	canvas.visible = is_visible_in_tree()
-	var near: bool = interactable != null and is_instance_valid(interactable) and interactable.has_method("is_focused") and bool(interactable.call("is_focused"))
+	var near: bool = interactable != null and is_instance_valid(interactable) and interactable.is_focused()
 	shown = move_toward(shown, 1.0 if near else 0.0, delta * 6.0)
 	ink.begin()
-	var hint: Dictionary = interactable.call("prompt_hint") if is_instance_valid(interactable) and interactable.has_method("prompt_hint") else {}
+	var hint: Dictionary = interactable.prompt_hint() if interactable != null and is_instance_valid(interactable) else {}
 	var needs: int = int(hint.get("key_color", -1))
 	hint_label.visible = false
 	if shown > 0.01:
@@ -90,11 +91,11 @@ func _process(delta: float) -> void:
 			if needs >= 0:
 				if needs == KeyRing.SKELETON:
 					# On the prompt's paper disc a bone-white key would vanish: print it in night.
-					ink.ink(RisoPrint.NIGHT, 1.0, RisoProp.key_shape(at, pop, needs), false)
+					ink.ink(RisoPrint.NIGHT, 1.0, RisoMarks.key_shape(at, pop, needs), false)
 				else:
-					ink.ink_overprint(RisoPrint.key_inks(needs), 1.0, RisoProp.key_shape(at, pop, needs))
+					ink.ink_overprint(RisoPrint.key_inks(needs), 1.0, RisoMarks.key_shape(at, pop, needs))
 			elif bool(hint.get("switch", false)):
-				ink.ink(RisoPrint.NIGHT, 1.0, RisoProp.switch_emblem(at, pop), false)
+				ink.ink(RisoPrint.NIGHT, 1.0, RisoMarks.switch_emblem(at, pop), false)
 			else:
 				# A press about every 0.8 s: down quickly, a moment on the spot, then back up.
 				var u: float = fmod(t * 1.25, 1.0)

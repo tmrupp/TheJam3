@@ -40,7 +40,7 @@ func run() -> void:
 	root.size = Vector2i(1280, 720)
 	var output: String = ProjectSettings.globalize_path("res://../art-captures/sky-art")
 	DirAccess.make_dir_recursive_absolute(output)
-	MapInfo.save_path = "user://sky_art_test.save"
+	RunState.save_path = "user://sky_art_test.save"
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
 	await process_frame
@@ -146,6 +146,6 @@ func run() -> void:
 					clean = clean and plate.get_pixel(x, y).a < 0.01
 	check(clean, "all four transition directions hide the previous world's edge ink")
 	root.get_texture().get_image().save_png(output.path_join("transition-covered.png"))
-	MapInfo.delete_save()
+	RunState.delete_save()
 	print("FAILED" if failed else "PASS: sky art and transition edges")
 	quit(1 if failed else 0)

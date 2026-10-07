@@ -12,13 +12,24 @@ class_name Rift
 const PORTAL: PackedScene = preload("res://prefabs/portal.tscn")
 
 var level: int = 1
-var ends: Array[Node2D] = []
+var ends: Array[Portal] = []
 
 @onready var player: Player = get_parent() as Player
 
 
 ## Open a rift at the wizard. Returns it, or null when it can't be opened here.
-func cast() -> Node2D:
+## Its tier (Abilities): II opens in midair; III links two levels.
+func set_tier(n: int) -> void:
+	level = n
+	sync_ends()
+
+
+## The Spell button, with rift in the slot: open an end. Whether it opened (stars are paid only then).
+func cast_spell() -> bool:
+	return cast() != null
+
+
+func cast() -> Portal:
 	var info: MapInfo = MapInfo.instance
 	if player == null or info == null or info.travelling or info.map_elements == null or not is_instance_valid(info.map_elements):
 		return null
@@ -29,7 +40,7 @@ func cast() -> Node2D:
 	var at: Vector2 = player.global_position
 	if player.is_on_floor():
 		at.y = info.tile_map.to_global(info.tile_map.map_to_local(info.cell_at(player.global_position))).y
-	var rift: Node2D = _cast_link(info, at) if level >= 3 else _cast_pair(info, at)
+	var rift: Portal = _cast_link(info, at) if level >= 3 else _cast_pair(info, at)
 	info.save_run()
 	RisoFx.burst(&"gain", rift.global_position, Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
 	if RisoPrint.instance != null:
@@ -38,35 +49,35 @@ func cast() -> Node2D:
 
 
 ## Tiers I and II: this world's pair.
-func _cast_pair(info: MapInfo, at: Vector2) -> Node2D:
+func _cast_pair(info: MapInfo, at: Vector2) -> Portal:
 	sync_ends()
 	if ends.size() >= 2:
-		for end: Node2D in ends:
-			end.call("unlink")
+		for end: Portal in ends:
+			end.unlink()
 			end.queue_free()
 		ends.clear()
-	var rift: Node2D = _spawn_end(info, at)
+	var rift: Portal = _spawn_end(info, at)
 	ends.append(rift)
 	if ends.size() == 2:
-		ends[0].call("link", ends[1])
-		ends[1].call("link", ends[0])
+		ends[0].link(ends[1])
+		ends[1].link(ends[0])
 	var positions: Array[Vector2] = []
-	for end: Node2D in ends:
+	for end: Portal in ends:
 		positions.append(end.global_position)
-	info.record()["rifts"] = positions
+	info.record().rifts = positions
 	return rift
 
 
 ## Tier III: the run's cross-world link.
-func _cast_link(info: MapInfo, at: Vector2) -> Node2D:
-	if info.rift_link.size() >= 2:
-		info.rift_link.clear()
-		for end: Node2D in link_ends(info):
-			end.call("unlink")
+func _cast_link(info: MapInfo, at: Vector2) -> Portal:
+	if info.run.rift_link.size() >= 2:
+		info.run.rift_link.clear()
+		for end: Portal in link_ends(info):
+			end.unlink()
 			end.queue_free()
-	info.rift_link.append([info.coord, at])
-	var rift: Node2D = _spawn_end(info, at)
-	rift.set_meta(&"rift_link", info.rift_link.size() - 1)
+	info.run.rift_link.append([info.coord, at])
+	var rift: Portal = _spawn_end(info, at)
+	rift.set_meta(&"rift_link", info.run.rift_link.size() - 1)
 	_wire_link(info)
 	return rift
 
@@ -74,18 +85,18 @@ func _cast_link(info: MapInfo, at: Vector2) -> Node2D:
 ## Link the cross-world ends present in this level: to each other when both are here, else to
 ## the far end's level and position.
 static func _wire_link(info: MapInfo) -> void:
-	var here: Array[Node2D] = link_ends(info)
-	if info.rift_link.size() < 2:
+	var here: Array[Portal] = link_ends(info)
+	if info.run.rift_link.size() < 2:
 		return
-	for end: Node2D in here:
+	for end: Portal in here:
 		var i: int = int(end.get_meta(&"rift_link"))
-		var other: Array = info.rift_link[1 - i]
+		var other: Array = info.run.rift_link[1 - i]
 		if other[0] == info.coord:
-			for mate: Node2D in here:
+			for mate: Portal in here:
 				if mate != end:
-					end.call("link", mate)
+					end.link(mate)
 		else:
-			end.call("link_far", other[0], other[1])
+			end.link_far(other[0], other[1])
 
 
 ## Adopt only this world's own pair (not the cross-world link's ends).
@@ -93,27 +104,27 @@ func sync_ends() -> void:
 	ends = current_ends(MapInfo.instance)
 
 
-static func current_ends(info: MapInfo) -> Array[Node2D]:
-	var out: Array[Node2D] = []
+static func current_ends(info: MapInfo) -> Array[Portal]:
+	var out: Array[Portal] = []
 	if info != null and is_instance_valid(info.map_elements):
 		for node: Node in info.map_elements.get_children():
 			if node.has_meta(&"rift") and not node.has_meta(&"rift_link") and not node.is_queued_for_deletion():
-				out.append(node as Node2D)
+				out.append(node as Portal)
 	return out
 
 
 ## The cross-world link's ends in this level.
-static func link_ends(info: MapInfo) -> Array[Node2D]:
-	var out: Array[Node2D] = []
+static func link_ends(info: MapInfo) -> Array[Portal]:
+	var out: Array[Portal] = []
 	if info != null and is_instance_valid(info.map_elements):
 		for node: Node in info.map_elements.get_children():
 			if node.has_meta(&"rift_link") and not node.is_queued_for_deletion():
-				out.append(node as Node2D)
+				out.append(node as Portal)
 	return out
 
 
-static func _spawn_end(info: MapInfo, at: Vector2) -> Node2D:
-	var end: Node2D = PORTAL.instantiate()
+static func _spawn_end(info: MapInfo, at: Vector2) -> Portal:
+	var end: Portal = PORTAL.instantiate()
 	end.set_meta(&"rift", true)
 	info.map_elements.add_child(end)
 	end.global_position = at
@@ -122,17 +133,17 @@ static func _spawn_end(info: MapInfo, at: Vector2) -> Node2D:
 
 ## This world's pair from its record, and any cross-world link ends that are in this level.
 static func restore(info: MapInfo) -> void:
-	var positions: Array = info.record().get("rifts", [])
-	var restored: Array[Node2D] = []
+	var positions: Array = info.record().rifts
+	var restored: Array[Portal] = []
 	for at: Vector2 in positions.slice(0, 2):
 		restored.append(_spawn_end(info, at))
 	if restored.size() == 2:
-		restored[0].call("link", restored[1])
-		restored[1].call("link", restored[0])
-	for i: int in range(info.rift_link.size()):
-		var entry: Array = info.rift_link[i]
+		restored[0].link(restored[1])
+		restored[1].link(restored[0])
+	for i: int in range(info.run.rift_link.size()):
+		var entry: Array = info.run.rift_link[i]
 		if entry[0] == info.coord:
-			var end: Node2D = _spawn_end(info, entry[1])
+			var end: Portal = _spawn_end(info, entry[1])
 			end.set_meta(&"rift_link", i)
 	_wire_link(info)
 	if info.player != null and info.player.has_node("Rift"):

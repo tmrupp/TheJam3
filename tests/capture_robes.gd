@@ -14,7 +14,7 @@ func capture() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://capture_robes.save"
+	RunState.save_path = "user://capture_robes.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	for i: int in range(5):
@@ -32,7 +32,7 @@ func capture() -> void:
 	var riso: RisoPrint = RisoPrint.instance
 	var shots: Array[Image] = []
 	for look: int in range(LOOKS.size() + 1):
-		for a: StringName in Abilities.SPELLS:
+		for a: StringName in Abilities.spells():
 			player.tiers[a] = 0
 		if look < LOOKS.size() and LOOKS[look] != &"":
 			player.tiers[LOOKS[look]] = 1

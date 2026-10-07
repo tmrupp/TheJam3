@@ -1,11 +1,12 @@
 extends Area2D
+class_name LevelExit
 ## One of a place's exits. Where it leads and what it costs are up to the place's definition
 ## (MapInfo.here, see NextWorldDef.lead and price): in a level, the deeper exit costs stars once,
 ## a side world's door its entry price once, and left and right are locked with a key colour dealt
 ## by the level seed (the key is kept, and the door stays open; a skeleton key opens it too, and is
 ## used up).
 
-@onready var player: Player = $"/root/Main/Player"
+@onready var player: Player = Stage.player()
 
 var map_info: MapInfo
 var exit: int = MapInfo.Exit.DEEPER
@@ -24,7 +25,7 @@ func price() -> int:
 func lock() -> int:
 	if map_info == null or not (exit == MapInfo.Exit.LEFT or exit == MapInfo.Exit.RIGHT):
 		return -1
-	if (map_info.record()["lateral_open"] as Dictionary).has(exit):
+	if (map_info.record().lateral_open as Dictionary).has(exit):
 		return -1
 	return MapInfo.lateral_lock(map_info.coord, exit)
 
@@ -38,9 +39,9 @@ func interacted() -> void:
 	var needs: int = lock()
 	if needs >= 0:
 		# A key of its colour, else a skeleton key (used up), opens it for good.
-		if not KeyRing.has(player, needs) and not KeyRing.spend_skeleton(player):
+		if not player.keyring.has(needs) and not player.keyring.spend_skeleton():
 			return
-		map_info.record()["lateral_open"][exit] = true
+		map_info.record().lateral_open[exit] = true
 	var owed: int = price()
 	if owed > 0:
 		if player.coins.coins < owed:

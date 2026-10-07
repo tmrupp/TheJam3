@@ -1,6 +1,6 @@
 class_name Shield
 extends Node2D
-## A shield an enemy carries, in sky levels (MapInfo.World.populate_sky): a bubble of light round it
+## A shield an enemy carries, in sky levels (SkyArchetype.populate): a bubble of light round it
 ## that takes the hex bolts meant for it, cracking with each, until it breaks after `hp` hits. A
 ## parried shot (a reflected bolt, HexBolt.reflected) breaks it at once. While it holds, bolts
 ## neither wound nor stun what it guards. Printed as a faint veil of pink over its host with a
@@ -9,9 +9,12 @@ extends Node2D
 
 const RADIUS: float = 46.0
 
-var hp: int = MapInfo.SHIELD_HP
+## Hits a shield takes before it breaks (a parried shot breaks it at once).
+const HP: int = 3
+
+var hp: int = HP
 ## Hits it can take when whole (the cracks are drawn by how many it has taken).
-var full: int = MapInfo.SHIELD_HP
+var full: int = HP
 ## Seconds since it was last struck (it flashes), and since it broke (-1 while it holds).
 var since_hit: float = 99.0
 var since_broke: float = -1.0

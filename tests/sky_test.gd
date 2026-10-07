@@ -41,10 +41,10 @@ func placed(file: String) -> Array[Node]:
 	return found
 
 
-func count(w: MapInfo.World, type: MapInfo.Type) -> int:
+func count(w: LevelGen, type: LevelGen.Type) -> int:
 	var n: int = 0
 	for column: Array in w.cells:
-		for cell: MapInfo.Cell in column:
+		for cell: LevelGen.Cell in column:
 			if cell.type == type:
 				n += 1
 	return n
@@ -53,7 +53,7 @@ func count(w: MapInfo.World, type: MapInfo.Type) -> int:
 func run() -> void:
 	main = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://sky_test.save"
+	RunState.save_path = "user://sky_test.save"
 	await process_frame
 	bands()
 	generation(main.get_node("WaveFunctionCollapse"))
@@ -72,7 +72,7 @@ func run() -> void:
 	await settle()
 	player.set_physics_process(false)
 	print("in the sky")
-	check(info.here.sky(), "depth 6 is a sky level")
+	check(info.here.archetype == &"sky", "depth 6 is a sky level")
 	if RisoPrint.instance != null:
 		check(RisoPrint.instance.realm == &"sky", "printed in the sky's realm")
 	var round_it: Array = []
@@ -94,7 +94,7 @@ func run() -> void:
 	await rebounds()
 	await birds()
 
-	MapInfo.delete_save()
+	RunState.delete_save()
 	if failed:
 		print("FAILED")
 		quit(1)
@@ -108,7 +108,7 @@ func bands() -> void:
 	var s0: int = NextWorldDef.first_depth(&"sky")
 	check(NextWorldDef.archetype_at(s0) == &"sky" and NextWorldDef.archetype_at(s0 + NextWorldDef.BAND - 1) == &"sky" and NextWorldDef.archetype_at(s0 + NextWorldDef.BAND) == &"garden", "the sky takes the third band, then the garden comes round again")
 	var def: NextWorldDef = MapInfo.def_for(Vector2i(28, s0))
-	check(def.region == NextWorldDef.ISLANDS and def.realm() == &"sky" and def.chasmed(), "a sky level collapses the floating islands, prints in its realm and is gated by chasms")
+	check(def.region == SkyArchetype.SAMPLE and def.realm() == &"sky" and def.chasmed(), "a sky level collapses the floating islands, prints in its realm and is gated by chasms")
 
 
 func generation(wfc: Node) -> void:
@@ -121,10 +121,10 @@ func generation(wfc: Node) -> void:
 		check(not cells.is_empty(), "%s collapses" % at)
 		if cells.is_empty():
 			continue
-		var w: MapInfo.World = MapInfo.World.new(cells, def)
-		var again: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", def), def)
+		var w: LevelGen = LevelGen.new(cells, def)
+		var again: LevelGen = LevelGen.new(wfc.call("generate_level", def), def)
 		check(w.objects == again.objects, "%s: the same every time" % at)
-		check(w.chasms.size() >= MapInfo.CHASMS_MIN and count(w, MapInfo.Type.BRIDGE) == 0 and count(w, MapInfo.Type.BELL) == 0, "%s: %d chasms, no bridges or bells" % [at, w.chasms.size()])
+		check(w.chasms.size() >= Chasms.CHASMS_MIN and count(w, LevelGen.Type.BRIDGE) == 0 and count(w, LevelGen.Type.BELL) == 0, "%s: %d chasms, no bridges or bells" % [at, w.chasms.size()])
 		var rock: int = 0
 		var outside: int = 0
 		for v: Vector2i in w.grounds:
@@ -135,37 +135,37 @@ func generation(wfc: Node) -> void:
 		check(float(rock) / float(w.size.x * w.size.y) >= 0.065, "%s: denser island shelves (%d terrain cells)" % [at, rock])
 		check(w.chasms.all(func(gap: Dictionary) -> bool:
 			var shore: Vector2i = gap["right"]
-			return not w.is_ground(shore) and not w.is_ground(shore + Vector2i.UP) and w.get_cell(shore + Vector2i.DOWN).type in [MapInfo.Type.GROUND, MapInfo.Type.CRACKED]), "%s: wind landing shores are level with clear headroom" % at)
+			return not w.is_ground(shore) and not w.is_ground(shore + Vector2i.UP) and w.get_cell(shore + Vector2i.DOWN).type in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED]), "%s: wind landing shores are level with clear headroom" % at)
 		check(w.links == w.isles.size() - 1, "%s: every cluster linked to the rest by a causeway (%d of %d)" % [at, w.links, w.isles.size() - 1])
 		var crosswinds: int = 0
 		for column: Array in w.cells:
-			for cell: MapInfo.Cell in column:
-				if cell.type == MapInfo.Type.WIND and (cell.extra_info as Dictionary).has("chasm"):
+			for cell: LevelGen.Cell in column:
+				if cell.type == LevelGen.Type.WIND and (cell.extra_info as Dictionary).has("chasm"):
 					crosswinds += 1
-				elif cell.type == MapInfo.Type.WIND:
+				elif cell.type == LevelGen.Type.WIND:
 					totals["drafts"] += 1
 				if cell.mods.has("shield"):
 					totals["shields"] += 1
 				if cell.mods.has("bounces"):
 					totals["bounces"] += 1
 		var blown: int = w.chasms.size() - w.relic_chasms.size()
-		check(crosswinds == blown and count(w, MapInfo.Type.VANE) >= blown, "%s: a crosswind over every chasm but those left to relics (%d of %d), and vanes by them (%d)" % [at, crosswinds, w.chasms.size(), count(w, MapInfo.Type.VANE)])
-		check(count(w, MapInfo.Type.SHOOTER) == 0 or w.objects.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == MapInfo.Type.SHOOTER).all(func(v: Vector2i) -> bool: return w.get_cell(v).mods.has("bounces")), "%s: every watcher's shots rebound (%d watchers)" % [at, count(w, MapInfo.Type.SHOOTER)])
-		totals["birds"] += count(w, MapInfo.Type.BIRD)
+		check(crosswinds == blown and count(w, LevelGen.Type.VANE) >= blown, "%s: a crosswind over every chasm but those left to relics (%d of %d), and vanes by them (%d)" % [at, crosswinds, w.chasms.size(), count(w, LevelGen.Type.VANE)])
+		check(count(w, LevelGen.Type.SHOOTER) == 0 or w.objects.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.SHOOTER).all(func(v: Vector2i) -> bool: return w.get_cell(v).mods.has("bounces")), "%s: every watcher's shots rebound (%d watchers)" % [at, count(w, LevelGen.Type.SHOOTER)])
+		totals["birds"] += count(w, LevelGen.Type.BIRD)
 		check(_portals_apart(w), "%s: each pair of teleporters at least %d cells apart" % [at, w.portal_apart()])
-		totals["pads"] += count(w, MapInfo.Type.PAD)
-		totals["puffs"] += count(w, MapInfo.Type.PUFF)
+		totals["pads"] += count(w, LevelGen.Type.PAD)
+		totals["puffs"] += count(w, LevelGen.Type.PUFF)
 	var garden_def: NextWorldDef = MapInfo.def_for(Vector2i(28, 1))
-	var garden: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", garden_def), garden_def)
-	check(count(garden, MapInfo.Type.PORTAL) > 0 and _portals_apart(garden), "a garden level's teleporters are as far apart (%d pairs, %d cells)" % [count(garden, MapInfo.Type.PORTAL) / 2, garden.portal_apart()])
+	var garden: LevelGen = LevelGen.new(wfc.call("generate_level", garden_def), garden_def)
+	check(count(garden, LevelGen.Type.PORTAL) > 0 and _portals_apart(garden), "a garden level's teleporters are as far apart (%d pairs, %d cells)" % [count(garden, LevelGen.Type.PORTAL) / 2, garden.portal_apart()])
 	check(totals.values().all(func(n: int) -> bool: return n > 0), "pads, clouds that give way, updrafts, shields, rebounding shots and birds are all dealt: %s" % totals)
 
 
 ## Whether every teleporter in `w` is at least portal_apart() from its partner.
-func _portals_apart(w: MapInfo.World) -> bool:
+func _portals_apart(w: LevelGen) -> bool:
 	for v: Vector2i in w.objects:
-		var cell: MapInfo.Cell = w.get_cell(v)
-		if cell.type == MapInfo.Type.PORTAL:
+		var cell: LevelGen.Cell = w.get_cell(v)
+		if cell.type == LevelGen.Type.PORTAL:
 			var other: Vector2i = cell.extra_info
 			if absi(other.x - v.x) + absi(other.y - v.y) < w.portal_apart():
 				return false
@@ -177,7 +177,7 @@ func falling() -> void:
 	print("the drop")
 	var rock: Vector2 = Vector2.ZERO
 	for v: Vector2i in info.world.empties:
-		if info.world.ground_below(v) and info.world.get_cell(v).type == MapInfo.Type.EMPTY:
+		if info.world.ground_below(v) and info.world.get_cell(v).type == LevelGen.Type.EMPTY:
 			rock = info.cell_position(v)
 			break
 	player.global_position = rock
@@ -221,7 +221,7 @@ func puffs() -> void:
 	var puff: Puff = null
 	for n: Node in placed("puff.tscn"):
 		var above: Vector2i = info.cell_at((n as Node2D).global_position) + Vector2i.UP
-		if info.world.is_valid(above) and info.world.get_cell(above).type == MapInfo.Type.EMPTY:
+		if info.world.is_valid(above) and info.world.get_cell(above).type == LevelGen.Type.EMPTY:
 			puff = n as Puff
 			break
 	check(puff != null, "a cloud in the level")
@@ -272,7 +272,7 @@ func vanes() -> void:
 	check(wind != null and not wind.active(), "its chasm's wind is still")
 	var away0: float = signf(wind.rect.get_center().x - vane.global_position.x)
 	check(not await _cross(wind, away0, true), "still, a run, a jump and a dash do not get the wizard over it")
-	KeyRing.clear(player)
+	player.keyring.clear()
 	vane.call("hex_hit", 1, Vector2.RIGHT)
 	check(not wind.active(), "chained, the vane only rattles")
 	info.free_bell(vane.get_meta(&"cell"))
@@ -407,10 +407,10 @@ func shields() -> void:
 	var from: Vector2 = Vector2(-70, -20)
 	await _bolt(foe, from)
 	var stunned: bool = bool(foe.get_node("HitBox").get("stunned")) if foe.has_node("HitBox") else false
-	check(shield.hp == MapInfo.SHIELD_HP - 1 and wound.hp == hp and not stunned, "a hex bolt cracks the shield, and neither wounds nor stuns what it guards")
-	for i: int in range(MapInfo.SHIELD_HP - 1):
+	check(shield.hp == Shield.HP - 1 and wound.hp == hp and not stunned, "a hex bolt cracks the shield, and neither wounds nor stuns what it guards")
+	for i: int in range(Shield.HP - 1):
 		await _bolt(foe, from)
-	check(not shield.holds() and wound.hp == hp, "after %d hits it breaks" % MapInfo.SHIELD_HP)
+	check(not shield.holds() and wound.hp == hp, "after %d hits it breaks" % Shield.HP)
 	if wound.hp > 1:
 		await _bolt(foe, from)
 		check(not is_instance_valid(wound) or wound.hp < hp, "then bolts wound it")
@@ -432,7 +432,7 @@ func rebounds() -> void:
 	# A shot fired at a wall: it glances off and flies back the other way, then bursts on the next.
 	var spot: Vector2i = Vector2i(-1, -1)
 	for v: Vector2i in info.world.empties:
-		if info.world.is_ground(v + Vector2i.RIGHT) and info.world.get_cell(v).type == MapInfo.Type.EMPTY and info.world.get_cell(v + Vector2i.LEFT).type == MapInfo.Type.EMPTY:
+		if info.world.is_ground(v + Vector2i.RIGHT) and info.world.get_cell(v).type == LevelGen.Type.EMPTY and info.world.get_cell(v + Vector2i.LEFT).type == LevelGen.Type.EMPTY:
 			spot = v
 			break
 	var shot: Node2D = (load("res://prefabs/bullet.tscn") as PackedScene).instantiate()
@@ -440,7 +440,8 @@ func rebounds() -> void:
 	shot.global_position = info.cell_position(spot + Vector2i.LEFT)
 	shot.call("setup", Vector2(300, 0), [], player)
 	shot.set("bounces", 2)
-	for i: int in range(90):
+	# Up to a few seconds' frames: it flies a cell and a half to the wall, slower when frames are short.
+	for i: int in range(300):
 		await process_frame
 		if not is_instance_valid(shot) or (shot.get("velocity") as Vector2).x < 0.0:
 			break

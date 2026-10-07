@@ -36,9 +36,9 @@ func settle(frames: int = 4) -> void:
 ## An open cell with a wall of rock to its right, and open air under it, for `tall` cells: the
 ## wizard can fall down the wall.
 func wall_spot(tall: int) -> Variant:
-	var w: MapInfo.World = info.world
+	var w: LevelGen = info.world
 	# Open air: nothing there, or only a star.
-	var air: Callable = func(c: Vector2i) -> bool: return w.is_valid(c) and w.get_cell(c).type in [MapInfo.Type.EMPTY, MapInfo.Type.COIN]
+	var air: Callable = func(c: Vector2i) -> bool: return w.is_valid(c) and w.get_cell(c).type in [LevelGen.Type.EMPTY, LevelGen.Type.COIN]
 	var spots: Array[Vector2i] = []
 	for v: Vector2i in w.empties:
 		spots.append(v)
@@ -99,7 +99,7 @@ func reach_wall(side: float) -> bool:
 func run() -> void:
 	main = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://wall_test.save"
+	RunState.save_path = "user://wall_test.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	menu.start_game()
@@ -226,7 +226,7 @@ func run() -> void:
 		await process_frame
 	check(player.is_on_floor() and player.last_wall_jump_side == 0.0, "landing permits jumps from either wall again")
 
-	MapInfo.delete_save()
+	RunState.delete_save()
 	if failed:
 		print("FAILED")
 		quit(1)

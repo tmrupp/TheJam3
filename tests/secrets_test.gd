@@ -43,26 +43,26 @@ func placed(scene: String) -> Array[Node]:
 
 
 ## Whether every secret in `w` is a pocket of rock with rock under it, entered from a floor.
-func well_formed(w: MapInfo.World) -> bool:
+func well_formed(w: LevelGen) -> bool:
 	for id: int in range(w.secrets.size()):
 		var s: Dictionary = w.secrets[id]
 		var cells: Dictionary = {}
 		for c: Vector2i in s["room"] + s["entrance"]:
 			cells[c] = true
-			if w.get_cell(c).type != MapInfo.Type.CRACKED or int(w.get_cell(c).extra_info) != id:
+			if w.get_cell(c).type != LevelGen.Type.CRACKED or int(w.get_cell(c).extra_info) != id:
 				return false
 		# Rock under its floor, so it has one once opened.
 		for c: Vector2i in s["room"]:
 			var n: Vector2i = c + Vector2i.DOWN
 			if cells.has(n) or not w.is_valid(n):
 				continue
-			if w.get_cell(n).type != MapInfo.Type.GROUND and w.get_cell(n).type != MapInfo.Type.CRACKED:
+			if w.get_cell(n).type != LevelGen.Type.GROUND and w.get_cell(n).type != LevelGen.Type.CRACKED:
 				return false
 		var door: Vector2i = s["entrance"][0]
 		var beside: bool = false
 		for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT]:
 			var o: Vector2i = door + d
-			if w.is_valid(o) and not cells.has(o) and w.get_cell(o).type != MapInfo.Type.GROUND and w.get_cell(o).type != MapInfo.Type.CRACKED and w.ground_below(o):
+			if w.is_valid(o) and not cells.has(o) and w.get_cell(o).type != LevelGen.Type.GROUND and w.get_cell(o).type != LevelGen.Type.CRACKED and w.ground_below(o):
 				beside = true
 		if not beside:
 			return false
@@ -75,7 +75,7 @@ func well_formed(w: MapInfo.World) -> bool:
 func run() -> void:
 	main = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://secrets_test.save"
+	RunState.save_path = "user://secrets_test.save"
 	await process_frame
 	var wfc: Node = main.get_node("WaveFunctionCollapse")
 
@@ -89,16 +89,16 @@ func run() -> void:
 	for world_seed: int in range(1, 26):
 		for depth: int in [0, 1, Relics.MIN_DEPTH]:
 			var def: NextWorldDef = MapInfo.def_for(Vector2i(world_seed, depth))
-			var w: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", def), def)
+			var w: LevelGen = LevelGen.new(wfc.call("generate_level", def), def)
 			levels += 1
 			if not w.secrets.is_empty():
 				with_secret += 1
 			formed = formed and well_formed(w)
 			if def.relic != &"":
 				relic_levels += 1
-				var held: bool = w.secrets.any(func(s: Dictionary) -> bool: return (s["rewards"] as Array).any(func(r: Array) -> bool: return r[1] == MapInfo.Type.RELIC and StringName(r[2]) == def.relic))
+				var held: bool = w.secrets.any(func(s: Dictionary) -> bool: return (s["rewards"] as Array).any(func(r: Array) -> bool: return r[1] == LevelGen.Type.RELIC and StringName(r[2]) == def.relic))
 				# Or behind a bone gate instead (bones_test).
-				var gated: bool = w.vaults.any(func(v: Dictionary) -> bool: return int(v["color"]) == KeyRing.SKELETON and (v["room"] as Array).any(func(c: Vector2i) -> bool: return w.get_cell(c).type == MapInfo.Type.RELIC))
+				var gated: bool = w.vaults.any(func(v: Dictionary) -> bool: return int(v["color"]) == KeyRing.SKELETON and (v["room"] as Array).any(func(c: Vector2i) -> bool: return w.get_cell(c).type == LevelGen.Type.RELIC))
 				if held or gated:
 					relic_in_room += 1
 				if held:
@@ -110,9 +110,9 @@ func run() -> void:
 		while Relics.at(Vector2i(relic_seed, Relics.MIN_DEPTH)) == &"" or MapInfo.relic_gated_at(Vector2i(relic_seed, Relics.MIN_DEPTH)) or not gives_hints(Vector2i(relic_seed, Relics.MIN_DEPTH)):
 			relic_seed += 1
 		var def: NextWorldDef = MapInfo.def_for(Vector2i(relic_seed, Relics.MIN_DEPTH))
-		var w: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", def), def)
+		var w: LevelGen = LevelGen.new(wfc.call("generate_level", def), def)
 		relic_levels += 1
-		if w.secrets.any(func(s: Dictionary) -> bool: return (s["rewards"] as Array).any(func(r: Array) -> bool: return r[1] == MapInfo.Type.RELIC and StringName(r[2]) == def.relic)):
+		if w.secrets.any(func(s: Dictionary) -> bool: return (s["rewards"] as Array).any(func(r: Array) -> bool: return r[1] == LevelGen.Type.RELIC and StringName(r[2]) == def.relic)):
 			relic_in_room += 1
 	print("  %d levels, %d with a secret room; %d relic levels, %d with the relic in a room" % [levels, with_secret, relic_levels, relic_in_room])
 	check(with_secret >= levels * 9 / 10, "nearly every level has a secret room")
@@ -154,10 +154,10 @@ func run() -> void:
 	bolt.global_position = info.cell_position(stand)
 	for i: int in range(20):
 		await physics_frame
-	check((info.record().get("secrets", {}) as Dictionary).has(0), "a bolt passes the false wall and, striking the rock behind it, opens the room")
+	check((info.record().secrets as Dictionary).has(0), "a bolt passes the false wall and, striking the rock behind it, opens the room")
 	await process_frame
 	check(placed("cracked_wall.tscn").filter(func(n: Node) -> bool: return int(n.get_meta(&"secret", -1)) == 0).is_empty(), "the whole room crumbles")
-	check((first["room"] as Array).all(func(c: Vector2i) -> bool: return (info.record()["broken"] as Dictionary).has(c)), "and stays broken in the record")
+	check((first["room"] as Array).all(func(c: Vector2i) -> bool: return (info.record().broken as Dictionary).has(c)), "and stays broken in the record")
 
 	print("a false wall")
 	player.collect(100)
@@ -175,7 +175,7 @@ func run() -> void:
 	check(placed("relic.tscn").is_empty(), "its relic is not out until it opens")
 	info.ink_whole_map()
 	var map: Node = main.get_node("RisoMap")
-	map.call("_build_textures_for", info.world, info.seen(), info.record().get("broken", {}))
+	map.call("_build_textures_for", info.world, info.seen(), info.record().broken)
 	var img: Image = (map.get("rock") as Sprite2D).texture.get_image()
 	var room_cell: Vector2i = secret["room"][0]
 	var door: Vector2i = secret["entrance"][0]
@@ -183,11 +183,11 @@ func run() -> void:
 	player.global_position = info.cell_position(beside(door))
 	for i: int in range(3):
 		await physics_frame
-	check(not (info.record().get("secrets", {}) as Dictionary).has(0), "standing beside it opens nothing")
+	check(not (info.record().secrets as Dictionary).has(0), "standing beside it opens nothing")
 	player.global_position = info.cell_position(door)
 	for i: int in range(3):
 		await physics_frame
-	check((info.record().get("secrets", {}) as Dictionary).has(0), "stepping into the false wall opens the room")
+	check((info.record().secrets as Dictionary).has(0), "stepping into the false wall opens the room")
 	await process_frame
 	var relics: Array[Node] = placed("relic.tscn")
 	check(relics.size() == 1 and StringName(relics[0].get("ability")) == info.here.relic, "the relic (%s) is out" % info.here.relic)
@@ -206,12 +206,12 @@ func run() -> void:
 	player.collect(1)
 	relics[0].call("take")
 	await process_frame
-	check(Abilities.tier(player, move) == before + 1 and info.relics_found.has(info.coord) and player.coins.coins == 0, "paid: it teaches %s %s" % [move, Abilities.roman(before + 1)])
+	check(Abilities.tier(player, move) == before + 1 and info.run.relics_found.has(info.coord) and player.coins.coins == 0, "paid: it teaches %s %s" % [move, Abilities.roman(before + 1)])
 	var upgrades: bool = false
 	for s: int in range(0, 60):
-		if move in Abilities.offers(s, player, Abilities.ORDER.size()):
+		if move in Abilities.offers(s, player, Abilities.ids().size()):
 			upgrades = true
-	check(upgrades or Abilities.tier(player, move) >= int(Abilities.MAX[move]), "and shrines now offer its higher tiers")
+	check(upgrades or Abilities.tier(player, move) >= Abilities.max_tier(move), "and shrines now offer its higher tiers")
 	info.travel(MapInfo.Exit.BACK)
 	await settle()
 	info.travel(MapInfo.Exit.DEEPER)
@@ -231,7 +231,7 @@ func run() -> void:
 	var hint_cost: int = int(shrine.call("relic_price"))
 	player.collect(hint_cost - player.coins.coins)
 	shrine.call("buy_mend")
-	check(info.relic_hints.has(next) and player.coins.coins == 0 and bool(shrine.call("used")), "bought (%d stars): marked on the worlds map, and the shrine is spent" % hint_cost)
+	check(info.run.relic_hints.has(next) and player.coins.coins == 0 and bool(shrine.call("used")), "bought (%d stars): marked on the worlds map, and the shrine is spent" % hint_cost)
 	check(info.next_relic() != next, "the next shrine would point to another one")
 	check(main.get_node("RisoMap").call("pickable", info).has(next), "the marked level can be picked on the worlds map")
 
@@ -262,6 +262,6 @@ func menu_start(world_seed: int) -> void:
 func beside(door: Vector2i) -> Vector2i:
 	for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT]:
 		var o: Vector2i = door + d
-		if info.world.is_valid(o) and info.world.get_cell(o).type != MapInfo.Type.GROUND and info.world.get_cell(o).type != MapInfo.Type.CRACKED and info.world.ground_below(o):
+		if info.world.is_valid(o) and info.world.get_cell(o).type != LevelGen.Type.GROUND and info.world.get_cell(o).type != LevelGen.Type.CRACKED and info.world.ground_below(o):
 			return o
 	return door

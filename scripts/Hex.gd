@@ -8,7 +8,6 @@ class_name Hex
 const COOLDOWN: float = 6.0
 ## How long a hex leaves an enemy stunned.
 const STUN: float = 3.0
-const BOLT: GDScript = preload("res://scripts/HexBolt.gd")
 
 var charges_max: int = 1
 var charges: int = 1
@@ -18,6 +17,21 @@ var damage: int = 0
 var pierce: bool = false
 
 @onready var player: Player = get_parent() as Player
+
+
+## Its tier (Abilities): I only stuns; II also wounds 1; III one more charge; IV 1 more damage and
+## the bolt pierces its first enemy.
+func set_tier(n: int) -> void:
+	charges_max = 1 + (1 if n >= 3 else 0)
+	damage = (1 if n >= 2 else 0) + (1 if n >= 4 else 0)
+	pierce = n >= 4
+	charges = mini(charges, charges_max)
+
+
+## The Spell button, with the hex in the slot: throw a bolt.
+func cast_spell() -> bool:
+	cast()
+	return true
 
 
 func refill() -> void:
@@ -47,11 +61,10 @@ func cast(dir: Vector2 = Vector2.ZERO) -> Node2D:
 	if dir == Vector2.ZERO:
 		dir = Vector2.RIGHT * signf(player.sprite.scale.x if player.sprite != null else 1.0)
 	charges -= 1
-	var bolt: Node2D = Node2D.new()
-	bolt.set_script(BOLT)
-	bolt.set("dir", dir.normalized())
-	bolt.set("damage", damage)
-	bolt.set("pierce", pierce)
+	var bolt: HexBolt = HexBolt.new()
+	bolt.dir = dir.normalized()
+	bolt.damage = damage
+	bolt.pierce = pierce
 	var level: Node = MapInfo.instance.map_elements if MapInfo.instance != null and is_instance_valid(MapInfo.instance.map_elements) else player.get_parent()
 	level.add_child(bolt)
 	bolt.global_position = player.global_position + Vector2(0, -44)

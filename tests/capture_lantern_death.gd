@@ -37,7 +37,7 @@ func shot(name: String) -> void:
 func capture() -> void:
 	root.mode = Window.MODE_WINDOWED
 	root.size = Vector2i(1280, 720)
-	MapInfo.save_path = "user://lantern_capture.save"
+	RunState.save_path = "user://lantern_capture.save"
 	main = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
 	var menu: Node = main.get_node("Menu")
@@ -48,7 +48,7 @@ func capture() -> void:
 	camera = main.get_node("Camera2D") as Camera2D
 	await settle()
 	camera.zoom = Vector2.ONE * 0.55
-	camera.global_position = info.cell_position(info.respawn_cell) + Vector2(0, -45)
+	camera.global_position = info.cell_position(info.run.respawn_cell) + Vector2(0, -45)
 	await shot("lit")
 	player.collect(8)
 	player.global_position += Vector2(300, 0)
@@ -56,7 +56,7 @@ func capture() -> void:
 	await settle()
 	player.end_invulnerable()
 	player.global_position += Vector2(-100, 0)
-	camera.global_position = info.cell_position(info.respawn_cell) + Vector2(0, -45)
+	camera.global_position = info.cell_position(info.run.respawn_cell) + Vector2(0, -45)
 	await shot("spent")
 	info.recover_ghost()
 	await shot("recovered-still-unprotected")

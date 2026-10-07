@@ -1,4 +1,5 @@
 extends Node2D
+class_name RisoTerrain
 ## Terrain printed from the TileMap's ground layer as one contiguous mass: rounded outer
 ## corners, concave fillets where walls meet floors, one rounded cap strip per walkable run,
 ## and two screened bands of night ink inset from every exposed edge, so the shading follows
@@ -18,7 +19,7 @@ func _ready() -> void:
 	visible = RisoPrint.is_on()
 	ink = InkCanvas.new()
 	add_child(ink)
-	var map: TileMap = get_node_or_null("/root/Main/TileMap") as TileMap
+	var map: TileMap = Stage.tile_map()
 	if map != null and map.get_used_cells(0).size() > 0:
 		rebuild(map)
 
@@ -119,7 +120,7 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 	ink.begin()
 	body.append_array(fillets)
 	var info: MapInfo = MapInfo.instance
-	if info != null and info.here != null and info.here.sky() and RisoPrint.instance != null:
+	if info != null and info.here != null and info.here.open() and RisoPrint.instance != null:
 		var style: StringName = RisoPrint.instance.sky_bottom_style
 		if style == &"tapered":
 			body.append_array(_tapers(tile_map, solid, half))
@@ -137,7 +138,7 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 	ink.finish()
 
 
-## Floating islands' tapered undersides (MapInfo.World.taper_islands lays them as rock a row at a
+## Floating islands' tapered undersides (SkyArchetype.taper_islands lays them as rock a row at a
 ## time): each step under an overhang filled on the diagonal, so the sides run smoothly in to the
 ## keel, and a point under the last cell of each keel. Printed with the ground; no tiles change
 ## (the wedges only fill the corner of a cell under rock and beside it, where nothing stands).

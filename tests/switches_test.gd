@@ -44,7 +44,7 @@ func placed(scene: String) -> Array[Node]:
 func run() -> void:
 	main = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://switches_test.save"
+	RunState.save_path = "user://switches_test.save"
 	await process_frame
 	var wfc: Node = main.get_node("WaveFunctionCollapse")
 
@@ -57,15 +57,15 @@ func run() -> void:
 		# for gates.
 		for depth: int in [0, 1, NextWorldDef.BAND - 1]:
 			var def: NextWorldDef = MapInfo.def_for(Vector2i(world_seed, depth))
-			var w: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", def), def)
+			var w: LevelGen = LevelGen.new(wfc.call("generate_level", def), def)
 			levels += 1
 			var pairs: int = 0
 			for v: Vector2i in w.objects:
-				if w.get_cell(v).type != MapInfo.Type.SWITCH_GATE:
+				if w.get_cell(v).type != LevelGen.Type.SWITCH_GATE:
 					continue
 				pairs += 1
 				var lever: Vector2i = w.get_cell(v).extra_info
-				if w.get_cell(lever).type != MapInfo.Type.SWITCH or w.get_cell(lever).extra_info != v:
+				if w.get_cell(lever).type != LevelGen.Type.SWITCH or w.get_cell(lever).extra_info != v:
 					gates_ok = false
 				# The switch is reachable from the way in with its gate shut.
 				var start: Vector2i = w.exits[MapInfo.Exit.BACK]
@@ -75,7 +75,7 @@ func run() -> void:
 					var c: Vector2i = queue.pop_back()
 					for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
 						var n: Vector2i = c + d
-						if n != v and w.is_valid(n) and w.get_cell(n).type != MapInfo.Type.GROUND and w.get_cell(n).type != MapInfo.Type.CRACKED and not seen.has(n):
+						if n != v and w.is_valid(n) and w.get_cell(n).type != LevelGen.Type.GROUND and w.get_cell(n).type != LevelGen.Type.CRACKED and not seen.has(n):
 							seen[n] = true
 							queue.append(n)
 				if not seen.has(lever):
@@ -101,9 +101,9 @@ func run() -> void:
 					if plunge_seed < 0:
 						plunge_seed = world_seed
 	check(plunges > tried / 10 and plunges < tried / 3, "the hyperspace door is rare: dealt in %d of %d depth-1 levels" % [plunges, tried])
-	var dw: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", MapInfo.def_for(Vector2i(plunge_seed, 1))), MapInfo.def_for(Vector2i(plunge_seed, 1)))
-	var d0: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", MapInfo.def_for(Vector2i(plunge_seed, 0))), MapInfo.def_for(Vector2i(plunge_seed, 0)))
-	check(dw.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1)).x >= 0 and dw.get_cell(dw.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1))).type == MapInfo.Type.EXIT and int(dw.get_cell(dw.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1))).extra_info) == Worlds.door(Worlds.kind_of(Hyperspace)) and d0.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1)).x < 0, "a dealt level has its hyperspace door; depth 0 never does")
+	var dw: LevelGen = LevelGen.new(wfc.call("generate_level", MapInfo.def_for(Vector2i(plunge_seed, 1))), MapInfo.def_for(Vector2i(plunge_seed, 1)))
+	var d0: LevelGen = LevelGen.new(wfc.call("generate_level", MapInfo.def_for(Vector2i(plunge_seed, 0))), MapInfo.def_for(Vector2i(plunge_seed, 0)))
+	check(dw.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1)).x >= 0 and dw.get_cell(dw.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1))).type == LevelGen.Type.EXIT and int(dw.get_cell(dw.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1))).extra_info) == Worlds.door(Worlds.kind_of(Hyperspace)) and d0.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1)).x < 0, "a dealt level has its hyperspace door; depth 0 never does")
 	check(Worlds.proto(Worlds.kind_of(Hyperspace)).entry_price(3) == roundi(MapInfo.deeper_price(3) * Hyperspace.PRICE), "it costs %d at depth 3 (the deeper exit costs %d)" % [Worlds.proto(Worlds.kind_of(Hyperspace)).entry_price(3), MapInfo.deeper_price(3)])
 
 	print("switches in play")
@@ -167,7 +167,7 @@ func run() -> void:
 	info.travel(MapInfo.Exit.DEEPER)
 	await settle()
 	player.set_physics_process(false)
-	check(info.coord == (MapInfo.def_for(Worlds.side_at(Worlds.kind_of(Hyperspace), Vector2i(plunge_seed, 1))) as SideWorld).destination() and info.deepest == 1 + Hyperspace.DROP, "its gate drops %d levels at once, to depth %d" % [Hyperspace.DROP, info.coord.y])
+	check(info.coord == (MapInfo.def_for(Worlds.side_at(Worlds.kind_of(Hyperspace), Vector2i(plunge_seed, 1))) as SideWorld).destination() and info.run.deepest == 1 + Hyperspace.DROP, "its gate drops %d levels at once, to depth %d" % [Hyperspace.DROP, info.coord.y])
 	check(player.global_position.distance_to(info.cell_position(info.world.exits[MapInfo.Exit.BACK])) < 80.0, "arriving by that level's way back")
 
 	print("parry")

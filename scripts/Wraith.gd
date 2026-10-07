@@ -1,4 +1,5 @@
-extends Node2D
+extends Stunnable
+class_name Wraith
 ## A wraith, in cemetery levels: a shrouded shade that hangs still, bobbing, until it senses the
 ## wizard within WAKE (through rock: it needs no line of sight), then drifts at them, straight
 ## through rock (slower inside it). Its touch hurts, like any enemy's, and it falls back a moment
@@ -16,8 +17,7 @@ const RECOIL_TIME: float = 1.2
 const RECOIL_SPEED: float = 160.0
 
 @onready var rb: RigidBody2D = $".."
-@onready var player: Player = get_node_or_null("/root/Main/Player") as Player
-var stunned: bool = false
+@onready var player: Player = Stage.player()
 var home: Vector2 = Vector2.ZERO
 var awake: bool = false
 ## Seconds left falling back after a touch.

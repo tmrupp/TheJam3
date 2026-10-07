@@ -11,7 +11,7 @@ func capture() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://capture_map.save"
+	RunState.save_path = "user://capture_map.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	for i: int in range(5):
@@ -27,8 +27,8 @@ func capture() -> void:
 	info.ink_whole_map()
 	for which: int in [MapInfo.Exit.DEEPER, MapInfo.Exit.RIGHT]:
 		info.reveal(info.world.exits[which], 4)
-	info.record()["lateral_open"][MapInfo.Exit.RIGHT] = true
-	info.record()["deeper_paid"] = true
+	info.record().lateral_open[MapInfo.Exit.RIGHT] = true
+	info.record().deeper_paid = true
 	for step: int in [MapInfo.Exit.RIGHT, MapInfo.Exit.DEEPER, MapInfo.Exit.BACK, MapInfo.Exit.LEFT]:
 		info.travel(step)
 		while info.travelling:

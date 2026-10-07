@@ -4,7 +4,7 @@ class_name Interactable
 ## time: of those the player is touching and that are available, the nearest. Only it shows its
 ## prompt and answers the key, so neighbours that overlap (the shrine's stations) never both act.
 
-@onready var player: Player = $"/root/Main/Player"
+@onready var player: Player = Stage.player()
 signal interacted
 @onready var sprite: Sprite2D = $Sprite2D
 

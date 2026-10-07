@@ -11,7 +11,7 @@ func capture() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://capture_dash.save"
+	RunState.save_path = "user://capture_dash.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	for i: int in range(5):
@@ -44,7 +44,7 @@ func capture() -> void:
 				continue
 			var open: bool = true
 			for d: Vector2i in [Vector2i(0, 0), Vector2i(0, -1), Vector2i(0, -2), Vector2i(0, -3), Vector2i(1, 0), Vector2i(1, -1), Vector2i(1, -2)]:
-				if w.get_cell(v + d).type in [MapInfo.Type.GROUND, MapInfo.Type.CRACKED, MapInfo.Type.SPIKES]:
+				if w.get_cell(v + d).type in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED, LevelGen.Type.SPIKES]:
 					open = false
 			var at: Vector2 = tm.to_global(tm.map_to_local(v))
 			if open and lamps.all(func(l: Vector2) -> bool: return l.distance_to(at) > 450.0):

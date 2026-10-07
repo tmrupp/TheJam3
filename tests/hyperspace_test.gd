@@ -37,7 +37,7 @@ func settle(frames: int = 6) -> void:
 		await process_frame
 
 
-func count(w: MapInfo.World, type: int) -> int:
+func count(w: LevelGen, type: int) -> int:
 	var n: int = 0
 	for x: int in range(w.size.x):
 		for y: int in range(w.size.y):
@@ -57,7 +57,7 @@ func placed(scene: String) -> Array[Node]:
 func run() -> void:
 	main = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://hyperspace_test.save"
+	RunState.save_path = "user://hyperspace_test.save"
 	await process_frame
 	var wfc: Node = main.get_node("WaveFunctionCollapse")
 
@@ -84,19 +84,19 @@ func run() -> void:
 		for depth: int in [1, 4, 9]:
 			var def: NextWorldDef = MapInfo.def_for(Worlds.side_at(Worlds.kind_of(Hyperspace), Vector2i(world_seed, depth)))
 			var cells: Array = wfc.call("generate_level", def)
-			var w: MapInfo.World = MapInfo.World.new(cells, def)
+			var w: LevelGen = LevelGen.new(cells, def)
 			made += 1
 			var back: Vector2i = w.exits[MapInfo.Exit.BACK]
 			var gate: Vector2i = w.exits[MapInfo.Exit.DEEPER]
 			if not (w.size == Vector2i(Hyperspace.WIDTH, Hyperspace.HEIGHT) and back.x < 8 and gate.x > w.size.x - 8 and w.exits.size() == 2):
 				linear_ok = false
-			if count(w, MapInfo.Type.SPIKES) < 30 or count(w, MapInfo.Type.SHOOTER) < 3 or count(w, MapInfo.Type.CHECKPOINT) < 3 or count(w, MapInfo.Type.EXIT) != 2:
+			if count(w, LevelGen.Type.SPIKES) < 30 or count(w, LevelGen.Type.SHOOTER) < 3 or count(w, LevelGen.Type.CHECKPOINT) < 3 or count(w, LevelGen.Type.EXIT) != 2:
 				hazards_ok = false
 			# Deep hyperspace may leave one stretch to the relic moves (relics_needed_test).
 			if not Hyperspace.crossable(w) and (w.relic_gaps.is_empty() or not Hyperspace.crossable(w, Hyperspace.RELIC_ACROSS)):
 				uncrossed.append(Vector2i(world_seed, depth))
 			for v: Vector2i in w.objects:
-				if w.get_cell(v).type == MapInfo.Type.CHECKPOINT:
+				if w.get_cell(v).type == LevelGen.Type.CHECKPOINT:
 					lanterns_grounded = lanterns_grounded and w.is_ground(v + Vector2i.DOWN)
 	check(linear_ok, "all %d chasms run from a way back at the left to a gate at the right" % made)
 	check(hazards_ok, "each is thick with thorns and watchers, with a lantern at the start, the end and halfway")
@@ -104,9 +104,9 @@ func run() -> void:
 	check(uncrossed.is_empty(), "lifts, ledges and moons make each crossable from the way back to the gate, but for a stretch left to the relics (not: %s)" % [uncrossed])
 	var def_a: NextWorldDef = MapInfo.def_for(at)
 	var def_b: NextWorldDef = MapInfo.def_for(Worlds.side_at(Worlds.kind_of(Hyperspace), Vector2i(29, 3)))
-	var a1: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", def_a), def_a)
-	var a2: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", def_a), def_a)
-	var b: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", def_b), def_b)
+	var a1: LevelGen = LevelGen.new(wfc.call("generate_level", def_a), def_a)
+	var a2: LevelGen = LevelGen.new(wfc.call("generate_level", def_a), def_a)
+	var b: LevelGen = LevelGen.new(wfc.call("generate_level", def_b), def_b)
 	var same: bool = true
 	var differs: bool = false
 	for x: int in range(a1.size.x):
@@ -120,14 +120,14 @@ func run() -> void:
 	print("debug runs")
 	MapInfo.debug = true
 	var dd: NextWorldDef = MapInfo.def_for(Vector2i(5, 0))
-	var first: MapInfo.World = MapInfo.World.new(wfc.call("generate_level", dd), dd)
+	var first: LevelGen = LevelGen.new(wfc.call("generate_level", dd), dd)
 	var spawn: Vector2i = first.exits[MapInfo.Exit.BACK]
-	check(first.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1)).x >= 0 and first.get_cell(first.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1))).type == MapInfo.Type.EXIT and int(first.get_cell(first.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1))).extra_info) == Worlds.door(Worlds.kind_of(Hyperspace)), "the first level of a debug run has a chasm door")
+	check(first.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1)).x >= 0 and first.get_cell(first.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1))).type == LevelGen.Type.EXIT and int(first.get_cell(first.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1))).extra_info) == Worlds.door(Worlds.kind_of(Hyperspace)), "the first level of a debug run has a chasm door")
 	check(absi(first.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1)).x - spawn.x) + absi(first.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1)).y - spawn.y) <= 12, "right by the spawn, like the other debug exits")
 	check(Worlds.side_at(Worlds.kind_of(Hyperspace), Vector2i(5, 0)) == Vector2i(5, -1) and Worlds.is_side(Vector2i(5, -1)) and Worlds.origin_of(Vector2i(5, -1)) == Vector2i(5, 0), "its chasm is (5, -1), clear of the level at (5, 0)")
 	MapInfo.debug = false
 	var plain: NextWorldDef = MapInfo.def_for(Vector2i(5, 0))
-	check(not MapInfo.World.new(wfc.call("generate_level", plain), plain).exits.has(Worlds.door(Worlds.kind_of(Hyperspace))), "and an ordinary run's first level has none")
+	check(not LevelGen.new(wfc.call("generate_level", plain), plain).exits.has(Worlds.door(Worlds.kind_of(Hyperspace))), "and an ordinary run's first level has none")
 
 	print("the jump in play")
 	var plunge_seed: int = -1
@@ -153,8 +153,8 @@ func run() -> void:
 	await settle()
 	player.set_physics_process(false)
 	var chasm: Vector2i = Worlds.side_at(Worlds.kind_of(Hyperspace), origin)
-	check(info.coord == chasm and info.deepest == 1, "the jump leads into the chasm, and only %d deep so far" % info.deepest)
-	check(info.records.has(chasm) and info.records.has(origin) and not info.records.has(origin + Vector2i(0, 1)), "it has its own record, and no level of the drop was visited")
+	check(info.coord == chasm and info.run.deepest == 1, "the jump leads into the chasm, and only %d deep so far" % info.run.deepest)
+	check(info.run.records.has(chasm) and info.run.records.has(origin) and not info.run.records.has(origin + Vector2i(0, 1)), "it has its own record, and no level of the drop was visited")
 	check(info.world.size == Vector2i(Hyperspace.WIDTH, Hyperspace.HEIGHT) and info.world.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1)).x < 0, "a chasm of %d x %d cells" % [info.world.size.x, info.world.size.y])
 	check(player.global_position.distance_to(info.cell_position(info.world.exits[MapInfo.Exit.BACK])) < 80.0, "arriving at its way back")
 	check(placed("spikes.tscn").size() > 30 and placed("shooter_enemy.tscn").size() >= 3, "with %d thorns and %d watchers" % [placed("spikes.tscn").size(), placed("shooter_enemy.tscn").size()])
@@ -187,7 +187,7 @@ func run() -> void:
 	await settle()
 	player.set_physics_process(false)
 	check(info.coord == origin and player.global_position.distance_to(info.cell_position(info.world.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1)))) < 80.0, "its way back returns to the level, out of the hyperspace door")
-	check((info.record(chasm).get("ways_taken", {}) as Dictionary).has(MapInfo.Exit.DEEPER) == false and (info.record(origin).get("doors_paid", {}) as Dictionary).has(Worlds.door(Worlds.kind_of(Hyperspace))), "the jump stays paid, and the chasm uncrossed")
+	check((info.record(chasm).ways_taken as Dictionary).has(MapInfo.Exit.DEEPER) == false and (info.record(origin).doors_paid as Dictionary).has(Worlds.door(Worlds.kind_of(Hyperspace))), "the jump stays paid, and the chasm uncrossed")
 	jump = placed("level_exit.tscn").filter(func(n: Node) -> bool: return int(n.get("exit")) == Worlds.door(Worlds.kind_of(Hyperspace)))[0]
 	check(int(jump.call("price")) == 0, "going in again costs nothing")
 	jump.call("interacted")
@@ -198,9 +198,9 @@ func run() -> void:
 	await settle()
 	player.set_physics_process(false)
 	var landing: Vector2i = (MapInfo.def_for(chasm) as SideWorld).destination()
-	check(info.coord == landing and info.deepest == landing.y and not info.records.has(Vector2i(plunge_seed, 3)), "the gate drops to depth %d, skipping the levels between" % landing.y)
+	check(info.coord == landing and info.run.deepest == landing.y and not info.run.records.has(Vector2i(plunge_seed, 3)), "the gate drops to depth %d, skipping the levels between" % landing.y)
 	check(player.global_position.distance_to(info.cell_position(info.world.exits[MapInfo.Exit.BACK])) < 80.0, "arriving by that level's way back")
-	check((info.record(chasm).get("ways_taken", {}) as Dictionary).has(MapInfo.Exit.DEEPER), "and the chasm is marked crossed")
+	check((info.record(chasm).ways_taken as Dictionary).has(MapInfo.Exit.DEEPER), "and the chasm is marked crossed")
 
 	print("the landing level")
 	check(MapInfo.def_for(landing).arrival_from != null and MapInfo.def_for(origin).arrival_from == null, "the level the gate drops into knows a chasm leads to it")
@@ -223,7 +223,7 @@ func run() -> void:
 	nook.setup(Worlds.side_at(0, Vector2i(7, 2)))
 	var out: Dictionary = nook.lead(MapInfo.Exit.DEEPER)
 	check(nook.dead_end() and out["to"] == Vector2i(7, 2) and out["arrive"] == Worlds.door(0) and nook.lead(MapInfo.Exit.BACK)["way"] == Vector2.LEFT, "a dead end's ways both lead out of its door")
-	check(nook.title() == "world 7 · nook" and nook.price(MapInfo.Exit.DEEPER, {}) == 0 and not nook.exit_grand(MapInfo.Exit.DEEPER) and nook.neighbours().size() == 1 and nook.neighbours()[0] == Vector2i(7, 2), "with its name, free exits and its one neighbour, from SideWorld alone")
+	check(nook.title() == "world 7 · nook" and nook.price(MapInfo.Exit.DEEPER, LevelRecord.new()) == 0 and not nook.exit_grand(MapInfo.Exit.DEEPER) and nook.neighbours().size() == 1 and nook.neighbours()[0] == Vector2i(7, 2), "with its name, free exits and its one neighbour, from SideWorld alone")
 	check(is_equal_approx(nook.progress(Vector2i(0, 5)), 0.0) and is_equal_approx(nook.progress(Vector2i(nook.size.x - 1, 5)), 1.0), "its progress runs across it, the way it is crossed")
 	if failed:
 		print("FAILED")

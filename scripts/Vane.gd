@@ -1,6 +1,7 @@
-extends "res://scripts/Bell.gd"
+extends Bell
+class_name Vane
 ## A wind vane on its post, in sky levels, standing by a chasm where a cemetery's bell would
-## (MapInfo.World.place_bells), chained the same way: by a padlock in a key colour or to a switch on
+## (Chasms.place_bells), chained the same way: by a padlock in a key colour or to a switch on
 ## its side. Freed, turn it (interact, or strike it with a hex bolt) and the wind over the chasm
 ## (Wind) blows from its side across, carrying the wizard over. Turn the one on the far side to
 ## send the wind back. The level record keeps it freed, and which way the wind blows.

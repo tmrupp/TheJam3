@@ -30,7 +30,7 @@ func capture() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://capture_portal_warp.save"
+	RunState.save_path = "user://capture_portal_warp.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	for i: int in range(5):
@@ -52,7 +52,7 @@ func capture() -> void:
 	player.global_position = portal.global_position
 	for i: int in range(20):
 		await physics_frame
-	var art: RisoProp = portal.get_node("RisoArt") as RisoProp
+	var art: PortalArt = portal.get_node("RisoArt") as PortalArt
 	var from_center: Vector2 = art.to_global(art.portal_center())
 	var to_center: Vector2 = from_center - portal.global_position + Vector2(portal.get("go_to_pos"))
 	camera.global_position = from_center

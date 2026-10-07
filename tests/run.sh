@@ -14,7 +14,7 @@
 # Some tests count frames and can miss under the load of running side by side: a headless test
 # that fails is run once more on its own, and if it passes then it is reported as flaky (its
 # first log is kept as <name>.flaky.log) rather than failed.
-# Each test keeps its own save file (MapInfo.save_path = "user://<name>.save"), so tests can run
+# Each test keeps its own save file (RunState.save_path = "user://<name>.save"), so tests can run
 # side by side. Godot comes from $GODOT, else `godot` on the PATH, else the copy in C:\tools.
 # The project is re-imported first when a script is newer than Godot's class cache (new
 # class_names are not seen until then).

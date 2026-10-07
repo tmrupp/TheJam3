@@ -63,7 +63,7 @@ func setup(at: Vector2i) -> NextWorldDef:
 	kind = Worlds.kind_at(at)
 	depth = depth_for(origin())
 	gen_seed = MapInfo.level_seed(at.x, at.y)
-	region = sample if sample != "" else MapInfo.region_for(depth)
+	region = sample if sample != "" else GardenArchetype.SAMPLE
 	size = cells
 	return self
 
@@ -98,7 +98,7 @@ func lead(exit: int) -> Dictionary:
 
 
 ## Its exits are free: the door was paid for on the way in.
-func price(_exit: int, _rec: Dictionary) -> int:
+func price(_exit: int, _rec: LevelRecord) -> int:
 	return 0
 
 

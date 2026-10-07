@@ -33,7 +33,7 @@ func settle() -> void:
 func run() -> void:
 	main = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://spells_test.save"
+	RunState.save_path = "user://spells_test.save"
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
 	menu.start_game()
@@ -44,9 +44,9 @@ func run() -> void:
 	print("the spell slot")
 	check(InputMap.has_action(Abilities.SPELL_ACTION), "one Spell button")
 	check(Abilities.spell(player) == &"" and not player.has_node("Hex"), "the slot starts empty")
-	for a: StringName in Abilities.SPELLS:
+	for a: StringName in Abilities.spells():
 		Abilities.grant(player, a)
-		var held: int = Abilities.SPELLS.filter(func(s: StringName) -> bool: return Abilities.tier(player, s) > 0).size()
+		var held: int = Abilities.spells().filter(func(s: StringName) -> bool: return Abilities.tier(player, s) > 0).size()
 		check(Abilities.spell(player) == a and held == 1, "learning %s puts it in the slot, alone" % a)
 	check(not player.has_node("Hex") and not player.has_node("Levitate") and not player.has_node("Awareness") and not player.has_node("Rift") and not player.has_node("Warp") and player.has_node("Mend"), "only the slotted spell's node remains")
 

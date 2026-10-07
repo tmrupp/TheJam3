@@ -26,10 +26,8 @@ var scatter_dir: Vector2 = Vector2.ZERO
 ## What draws it now: &"lantern", &"orb" or &"home" (for the art and tests).
 var drawn_to: StringName = &"home"
 var t: float = 0.0
-## The parry asks a hit's source for its attacker.
-var attacker: Node = self
 
-@onready var player: Player = get_node_or_null("/root/Main/Player") as Player
+@onready var player: Player = Stage.player()
 
 
 func setup(_info: MapInfo, _v: Vector2i) -> void:
@@ -54,8 +52,8 @@ func target() -> Vector2:
 			drawn_to = &"orb"
 			return orb
 	var info: MapInfo = MapInfo.instance
-	if info != null and info.world != null and not info.vulnerable and info.respawn_coord == info.coord:
-		var lantern: Vector2 = info.cell_position(info.respawn_cell) + GLASS
+	if info != null and info.world != null and not info.run.vulnerable and info.run.respawn_coord == info.coord:
+		var lantern: Vector2 = info.cell_position(info.run.respawn_cell) + GLASS
 		if lantern.distance_to(home) <= DRAW:
 			drawn_to = &"lantern"
 			return lantern

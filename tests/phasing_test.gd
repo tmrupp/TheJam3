@@ -40,14 +40,14 @@ func frames(n: int) -> void:
 
 ## A cell of rock with rock all round it.
 func deep_rock() -> Vector2i:
-	var w: MapInfo.World = info.world
+	var w: LevelGen = info.world
 	for x: int in range(1, w.size.x - 1):
 		for y: int in range(1, w.size.y - 1):
 			var v: Vector2i = Vector2i(x, y)
 			var all: bool = true
 			for dx: int in range(-1, 2):
 				for dy: int in range(-1, 2):
-					all = all and w.get_cell(v + Vector2i(dx, dy)).type == MapInfo.Type.GROUND
+					all = all and w.get_cell(v + Vector2i(dx, dy)).type == LevelGen.Type.GROUND
 			if all:
 				return v
 	return Vector2i(-1, -1)
@@ -56,7 +56,7 @@ func deep_rock() -> Vector2i:
 func run() -> void:
 	main = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
-	MapInfo.save_path = "user://phasing_test.save"
+	RunState.save_path = "user://phasing_test.save"
 	await process_frame
 	var menu: Node = main.get_node("Menu")
 	menu.world_seed.text = "28"
@@ -112,7 +112,7 @@ func run() -> void:
 	var room: Array = info.world.secrets[0]["room"]
 	player.global_position = info.cell_position(room[0])
 	await frames(3)
-	check((info.record().get("secrets", {}) as Dictionary).has(0), "a projection drifting into its rock opens it")
+	check((info.record().secrets as Dictionary).has(0), "a projection drifting into its rock opens it")
 	projection.call("toggle")
 	await frames(2)
 
@@ -144,7 +144,7 @@ func run() -> void:
 	landed = warp.cast()
 	while warp.warping:
 		await process_frame
-	check(landed != null and (info.world.secrets[0]["room"] as Array).has(landed) and (info.record().get("secrets", {}) as Dictionary).has(0), "tier III lands in a secret room not yet opened, and opens it")
+	check(landed != null and (info.world.secrets[0]["room"] as Array).has(landed) and (info.record().secrets as Dictionary).has(0), "tier III lands in a secret room not yet opened, and opens it")
 
 	if failed:
 		print("FAILED")

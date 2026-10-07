@@ -1,29 +1,39 @@
 extends Node
 
 class_name Stunner
-## Stuns its enemy (hex, parry): the listed nodes stop for a while. A new stun extends the
-## current one if it would last longer. The ink art shows it (RisoProp: circling stars over the
-## head, `fraction()` of the stun left).
+## Stuns its enemy (hex, parry): what drives it (its Stunnable: Mover, Shooter, Hopper, Wraith, Bird)
+## stops and its touch (HitBox) stops hurting, for a while. A new stun extends the current one if
+## it would last longer. The ink art shows it (RisoProp: circling stars over the head,
+## `fraction()` of the stun left).
 
-var stunnable_nodes: Array[String] = ["Mover", "Shooter", "Hopper", "Wraith", "Bird", "HitBox"]
 @onready var top: Node = $".."
-@onready var sprite: Sprite2D = $Sprite2D
 ## Seconds of stun left, and the length of the current stun.
 var left: float = 0.0
 var total: float = 0.0
 
+
+## The Stunner on `host`, or null.
+static func of(host: Node) -> Stunner:
+	return host.get_node_or_null("Stunner") as Stunner if host != null else null
+
+
 func set_stuns (value: bool) -> void:
-#	sprite.visible = value
-	for n: String in stunnable_nodes:
-		var node: Node = top.get_node_or_null(n)
-		if node:
-			node.stunned = value
+	for node: Node in top.get_children():
+		if node is Stunnable:
+			(node as Stunnable).stunned = value
+		elif node is HitBox:
+			(node as HitBox).stunned = value
 
 func stun (duration: float=2.0) -> void:
 	set_stuns(true)
 	if duration > left:
 		left = duration
 		total = duration
+
+
+## Whether it is stunned now.
+func stunned() -> bool:
+	return left > 0.0
 
 
 ## Of the current stun, how much is left (1 just stunned, 0 not stunned).

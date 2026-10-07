@@ -1,5 +1,6 @@
 extends Area2D
-## A grave bell on its post, in cemetery levels, by a chasm (MapInfo.World.carve_chasms); each
+class_name Bell
+## A grave bell on its post, in cemetery levels, by a chasm (Chasms.carve); each
 ## chasm has one on either side, and either lays its bridge. It hangs chained up: by a padlock in
 ## a key colour, or to a switch on its side of the chasm. Interact while carrying a key of the
 ## padlock's colour (or a skeleton key, which is used up) and the chain comes off; throw its switch
@@ -10,7 +11,7 @@ extends Area2D
 ## `lock` for a bell chained to a switch.
 const SWITCH_LOCK: int = -1
 
-@onready var player: Player = $"/root/Main/Player"
+@onready var player: Player = Stage.player()
 
 var map_info: MapInfo
 ## The number of the chasm it bridges.
@@ -55,7 +56,7 @@ func use() -> void:
 	if map_info == null or rung():
 		return
 	if not unchained():
-		if lock >= 0 and (KeyRing.has(player, lock) or KeyRing.spend_skeleton(player)):
+		if lock >= 0 and (player.keyring.has(lock) or player.keyring.spend_skeleton()):
 			open()
 		else:
 			rattle()

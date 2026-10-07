@@ -81,8 +81,8 @@ func _by_depth() -> void:
 	check_eq(MapInfo.relic_need(MapInfo.RELIC_NEED_FROM - 1), 0, "no crossing is left to relics before RELIC_NEED_FROM")
 	check_eq(MapInfo.relic_need(MapInfo.RELIC_NEED_FROM), MapInfo.RELIC_NEED_STEP, "then RELIC_NEED_STEP %")
 	check_eq(MapInfo.relic_need(500), MapInfo.RELIC_NEED_MAX, "and never more than RELIC_NEED_MAX %")
-	for a: StringName in Abilities.ORDER:
-		var free: bool = not Abilities.CAST_COST.has(a)
+	for a: StringName in Abilities.ids():
+		var free: bool = not Abilities.ABILITIES[a].has("cost")
 		var ok: bool = true
 		for d: int in range(DEPTHS):
 			var c: int = Abilities.cast_price(a, d)
@@ -111,7 +111,7 @@ func _rarity() -> void:
 
 func _archetypes() -> void:
 	var band: int = NextWorldDef.BAND
-	var kinds: Array[StringName] = NextWorldDef.ARCHETYPES
+	var kinds: Array[StringName] = NextWorldDef.archetype_names()
 	check_eq(NextWorldDef.archetype_at(0), kinds[0], "the run starts in the %s" % kinds[0])
 	check_eq(NextWorldDef.archetype_at(-4), kinds[0], "side worlds' depths count as the first band")
 	check_eq(NextWorldDef.first_depth(&"nowhere"), -1, "no first depth for an archetype that does not exist")
@@ -124,7 +124,7 @@ func _archetypes() -> void:
 		check(def.archetype == kind and def.realm() == kind, "a %s level is printed in its own realm" % kind)
 	var sky_depth: int = NextWorldDef.first_depth(&"sky")
 	var sky: NextWorldDef = MapInfo.def_for(Vector2i(28, sky_depth))
-	check_eq(sky.size, Vector2i((Vector2(MapInfo.level_size(sky_depth)) * NextWorldDef.SKY_SCALE).round()), "a sky level is SKY_SCALE times a cave level of its depth")
+	check_eq(sky.size, Vector2i((Vector2(MapInfo.level_size(sky_depth)) * SkyArchetype.SCALE).round()), "a sky level is SkyArchetype.SCALE times a cave level of its depth")
 	check(sky.chasmed() and MapInfo.def_for(Vector2i(28, NextWorldDef.first_depth(&"cemetery"))).chasmed() and not MapInfo.def_for(Vector2i(28, 0)).chasmed(), "the cemetery and the sky have chasms, the garden none")
 
 
@@ -158,7 +158,7 @@ func _exits() -> void:
 			check(below.lead(MapInfo.Exit.BACK)["to"] == at, "%s: deeper, then back, comes back" % at)
 		var near: Array[Vector2i] = def.neighbours()
 		check(not near.has(at) and near.all(func(v: Vector2i) -> bool: return Worlds.valid(v) and near.count(v) == 1), "%s: its neighbours are other places, each once" % at)
-		var rec: Dictionary = {}
+		var rec: LevelRecord = LevelRecord.new()
 		check_eq(def.price(MapInfo.Exit.DEEPER, rec), MapInfo.deeper_price(at.y), "%s: the deeper exit costs deeper_price" % at)
 		def.pay(MapInfo.Exit.DEEPER, rec)
 		check_eq(def.price(MapInfo.Exit.DEEPER, rec), 0, "%s: once, and is then free" % at)
@@ -185,15 +185,47 @@ func _relics() -> void:
 
 
 func _ability_tables() -> void:
-	var order: Array[StringName] = Abilities.ORDER
-	check(order.all(func(a: StringName) -> bool: return Abilities.MAX.has(a) and Abilities.NAMES.has(a) and int(Abilities.MAX[a]) >= 1), "every ability has a name and a top tier")
-	check(Abilities.MAX.size() == order.size() and Abilities.NAMES.size() == order.size(), "and nothing is named or tiered that is not an ability")
-	check(Abilities.SPELLS.all(func(a: StringName) -> bool: return a in order), "every spell is an ability")
-	check(Abilities.CAST_COST.keys().all(func(a: StringName) -> bool: return a in Abilities.SPELLS), "only spells have a cast price")
+	var order: Array[StringName] = Abilities.ids()
+	check(order.size() == Abilities.ABILITIES.size() and order.all(func(a: StringName) -> bool: return Abilities.max_tier(a) >= 1 and Abilities.label(a) != ""), "every ability has a name and a top tier")
+	check(order.all(func(a: StringName) -> bool: return not Abilities.ABILITIES[a].has("cost") or Abilities.is_spell(a)), "only spells have a cast price")
 	check(Relics.MOVES.all(func(a: StringName) -> bool: return a in order), "every relic move is an ability")
-	check(Abilities.BASE.keys().all(func(a: StringName) -> bool: return int(Abilities.BASE[a]) <= int(Abilities.MAX[a])), "nothing starts past its top tier")
+	check(order.all(func(a: StringName) -> bool: return int(Abilities.ABILITIES[a].get("base", 0)) <= Abilities.max_tier(a)), "nothing starts past its top tier")
 	var start: Dictionary = Abilities.start_tiers()
-	check(order.all(func(a: StringName) -> bool: return int(start[a]) == int(Abilities.BASE.get(a, 0))), "a run starts with the dash alone")
+	check(order.all(func(a: StringName) -> bool: return int(start[a]) == (1 if a == &"dash" else 0)), "a run starts with the dash alone")
+	# An ability done by a node: the node says how a tier tunes it (set_tier), and a spell casts
+	# (cast_spell). A misspelled or missing one would only fail when that ability is used.
+	var wizard: PackedScene = load("res://prefabs/player.tscn")
+	var scene_nodes: Node = wizard.instantiate()
+	var nodes_ok: bool = true
+	for a: StringName in order:
+		var entry: Dictionary = Abilities.ABILITIES[a]
+		if not entry.has("node"):
+			nodes_ok = nodes_ok and not Abilities.is_spell(a)
+			continue
+		var script: Script = null
+		var made: Resource = load(String(entry["make"])) if entry.has("make") else null
+		if made is PackedScene:
+			var node: Node = (made as PackedScene).instantiate()
+			script = node.get_script()
+			node.free()
+		elif made is Script:
+			script = made
+		elif scene_nodes.has_node(String(entry["node"])):
+			script = scene_nodes.get_node(String(entry["node"])).get_script()
+		var ok: bool = script != null and _defines(script, &"set_tier") and (not Abilities.is_spell(a) or _defines(script, &"cast_spell"))
+		if not ok:
+			print("  %s: its node lacks set_tier or cast_spell" % a)
+		nodes_ok = nodes_ok and ok
+	scene_nodes.free()
+	check(nodes_ok, "every ability's node takes its tier, and every spell's casts (spells all have a node)")
+
+
+## Whether `script` (or a script it extends) defines `method`.
+func _defines(script: Script, method: StringName) -> bool:
+	for m: Dictionary in script.get_script_method_list():
+		if StringName(m["name"]) == method:
+			return true
+	return false
 
 
 ## The shrine's offers (Abilities.offers), over many level seeds and the wizard part of the way
@@ -201,9 +233,9 @@ func _ability_tables() -> void:
 ## dash once blink replaces it, and at least one a gain with nothing given up whenever there is one.
 func _offers(p: Player) -> void:
 	var states: Array[Dictionary] = [{}, {&"hex": 1}, {&"blink": 1, &"double_jump": 2, &"warp": 1}, {}]
-	for a: StringName in Abilities.ORDER:
+	for a: StringName in Abilities.ids():
 		if a != &"speed":
-			(states[3] as Dictionary)[a] = int(Abilities.MAX[a])
+			(states[3] as Dictionary)[a] = Abilities.max_tier(a)
 	(states[3] as Dictionary)[&"hex"] = 0
 	(states[3] as Dictionary)[&"rift"] = 1
 	for i: int in range(states.size()):
@@ -217,13 +249,13 @@ func _offers(p: Player) -> void:
 			for a: StringName in picks:
 				if picks.count(a) > 1:
 					problems.append("%s twice" % a)
-				if Abilities.tier(p, a) >= int(Abilities.MAX[a]):
+				if Abilities.tier(p, a) >= Abilities.max_tier(a):
 					problems.append("%s past its top tier" % a)
 				if a in Relics.MOVES and Abilities.tier(p, a) == 0:
 					problems.append("%s before its relic" % a)
 				if a == &"dash" and Abilities.tier(p, &"blink") > 0:
 					problems.append("the dash with blink")
-			var gain_left: bool = Abilities.ORDER.any(func(a: StringName) -> bool: return _offerable(p, a) and not Abilities.is_swap(p, a))
+			var gain_left: bool = Abilities.ids().any(func(a: StringName) -> bool: return _offerable(p, a) and not Abilities.is_swap(p, a))
 			if gain_left and picks.all(func(a: StringName) -> bool: return Abilities.is_swap(p, a)):
 				problems.append("only swaps at seed %d" % level_seed)
 		check(problems.is_empty(), "shrine offers, wizard state %d: %s" % [i, "fine over 300 seeds" if problems.is_empty() else ", ".join(problems.slice(0, 3))])
@@ -235,27 +267,27 @@ func _offerable(p: Player, a: StringName) -> bool:
 		return false
 	if a == &"dash" and Abilities.tier(p, &"blink") > 0:
 		return false
-	return Abilities.tier(p, a) < int(Abilities.MAX[a])
+	return Abilities.tier(p, a) < Abilities.max_tier(a)
 
 
 func _keyring(p: Player) -> void:
 	p.tiers = Abilities.start_tiers()
-	KeyRing.clear(p)
-	check_eq(KeyRing.capacity(p), 1, "without the keyring the wizard carries one key")
-	check_eq(KeyRing.take(p, 1), -1, "the first key is simply carried")
-	check_eq(KeyRing.take(p, 2), 1, "a second leaves the first behind")
-	check_eq(KeyRing.all(p), [2] as Array[int], "and is the one carried")
+	p.keyring.clear()
+	check_eq(p.keyring.capacity(), 1, "without the keyring the wizard carries one key")
+	check_eq(p.keyring.take(1), -1, "the first key is simply carried")
+	check_eq(p.keyring.take(2), 1, "a second leaves the first behind")
+	check_eq(p.keyring.all(), [2] as Array[int], "and is the one carried")
 	p.tiers[&"keyring"] = 2
-	check_eq(KeyRing.capacity(p), 3, "each tier of the keyring carries one more")
-	KeyRing.take(p, 0)
-	KeyRing.take(p, 3)
-	check_eq(KeyRing.take(p, 1), 2, "with the ring full, the oldest is left behind")
-	check_eq(KeyRing.all(p), [0, 3, 1] as Array[int], "the rest are kept, oldest first")
-	check(KeyRing.has(p, 3) and not KeyRing.has(p, 2), "has() knows what is carried")
+	check_eq(p.keyring.capacity(), 3, "each tier of the keyring carries one more")
+	p.keyring.take(0)
+	p.keyring.take(3)
+	check_eq(p.keyring.take(1), 2, "with the ring full, the oldest is left behind")
+	check_eq(p.keyring.all(), [0, 3, 1] as Array[int], "the rest are kept, oldest first")
+	check(p.keyring.has(3) and not p.keyring.has(2), "has() knows what is carried")
 	p.tiers[&"keyring"] = 0
-	KeyRing.set_all(p, [0, 3, 1])
-	check_eq(KeyRing.all(p), [1] as Array[int], "set_all trims to the ring, oldest dropped")
-	KeyRing.set_skeletons(p, 2)
-	check(KeyRing.spend_skeleton(p) and KeyRing.spend_skeleton(p) and not KeyRing.spend_skeleton(p), "a skeleton key is spent once each")
-	KeyRing.clear(p)
-	check(KeyRing.all(p).is_empty() and KeyRing.skeletons(p) == 0, "a new run starts empty-handed")
+	p.keyring.set_all([0, 3, 1])
+	check_eq(p.keyring.all(), [1] as Array[int], "set_all trims to the ring, oldest dropped")
+	p.keyring.set_skeletons(2)
+	check(p.keyring.spend_skeleton() and p.keyring.spend_skeleton() and not p.keyring.spend_skeleton(), "a skeleton key is spent once each")
+	p.keyring.clear()
+	check(p.keyring.all().is_empty() and p.keyring.skeletons() == 0, "a new run starts empty-handed")
