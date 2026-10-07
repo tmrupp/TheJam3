@@ -23,5 +23,6 @@ void fragment() {
 	d = sheet(plate4, px, off4, 45.0, -0.0003, 4.0); a = max(a, d); col *= mix(vec3(1.0), ink4, d);
 	d = sheet(plate5, px, off5, 60.0, 0.0004, 5.0); a = max(a, d); col *= mix(vec3(1.0), ink5, d);
 	d = sheet(plate6, px, off6, 75.0, -0.0005, 7.0); a = max(a, d); col *= mix(vec3(1.0), ink6, d);
+	d = sheet(plate7, px, off7, 75.0, 0.0003, 8.0); a = max(a, d); col *= mix(vec3(1.0), ink7, d);
 	COLOR = vec4(col, a);
 }

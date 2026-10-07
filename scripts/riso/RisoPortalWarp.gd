@@ -28,6 +28,9 @@ var art_scale: float = 3.2
 var ring: int = RisoPrint.ACCENT
 var t: float = 0.0
 var ink: InkCanvas
+## The traveler drawn into the portal, with the spell they were carrying at departure.
+var character_style: StringName = &"wizard"
+var spell: StringName = &""
 
 
 func _ready() -> void:
@@ -60,6 +63,8 @@ func _silhouette(mid: Vector2, size: float, twist: float, cover: float) -> void:
 		return
 	var at: Transform2D = Transform2D(0.0, Vector2(art_scale * size, art_scale * size), 0.0, mid) * Transform2D(0.0, Vector2(0, MID))
 	var shape: Array[PackedVector2Array] = RisoMarks.ghost_shape(at, facing)
+	if character_style != &"wizard":
+		shape = RisoCostume.silhouette(character_style, at, facing, spell)
 	if absf(twist) > 0.001:
 		var reach: float = MID * art_scale * 1.8
 		for i: int in range(shape.size()):

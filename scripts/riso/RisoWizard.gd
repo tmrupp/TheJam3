@@ -10,9 +10,9 @@ const MAXV: float = 88.0
 const HEMX: Array[float] = [-8.8, -4.5, 0.0, 4.5, 8.8]
 const VX_SCALE: float = 88.0 / 300.0
 const VY_SCALE: float = 0.5
-const ALL: Array[int] = [0, 1, 2, 3, 4, 5, 6]
+const ALL: Array[int] = [0, 1, 2, 3, 4, 5, 6, 7]
 ## Cleared under the robe and hat so the robe ink prints true over whatever is behind.
-const UNDER: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW]
+const UNDER: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.CLOTH]
 ## Night shade on the collar, sleeve and hat cone, setting them off from the robe.
 const TRIM_SHADE: float = 0.22
 ## Art scale around the feet: at 0.8 the robe fits the ~62 px collider. Collision is unchanged.
@@ -21,6 +21,21 @@ const ART_SCALE: float = 0.8
 var player: Player
 var body: InkCanvas
 var world: InkCanvas
+## The other printed travelers use this same body canvas and spring rig.
+var costume: RisoCostume
+## Positions, age and curl of the pink smoke left by an unprotected traveler's lantern.
+var lantern_smoke: Array[Vector4] = []
+## Smoke thins away in this many seconds and leaves a new point at this interval.
+const SMOKE_LIFE: float = 1.4
+const SMOKE_STEP: float = 0.06
+## The smoke's rise and width in the player's art units.
+const SMOKE_RISE: float = 19.0
+const SMOKE_WIDTH: float = 0.85
+## A gentle sideways drift lets the chest flame's smoke escape past the helmet.
+const SMOKE_DRIFT: float = 20.0
+## Time until the next smoke point, and its deterministic curl phase.
+var _smoke_wait: float = 0.0
+var _smoke_phase: float = 0.0
 
 var t: float = 0.0
 var fs: float = 1.0
@@ -93,6 +108,7 @@ func _ready() -> void:
 	world.z_index = 9
 	world.z_as_relative = false
 	add_child(world)
+	costume = RisoCostume.new(self)
 	if player != null:
 		player.visual_event.connect(_on_event)
 
@@ -121,6 +137,7 @@ func _on_event(kind: StringName, at: Vector2) -> void:
 	elif kind == &"projection_start":
 		ghosts.append(Vector4(at.x, at.y, signf(fs), 1.0))
 	elif kind == &"teleport":
+		lantern_smoke.clear()
 		# Out of the portal: the robe and hat catch the air like cloth flicked out, and settle.
 		bow_v += 3.5
 		tip_v += signf(fs) * 4.0
@@ -145,6 +162,7 @@ func _physics_process(delta: float) -> void:
 		RisoPrint.instance.flare(&"climb")
 	_was_climbing = climbing
 	_rig(delta, dashing)
+	_step_smoke(delta)
 	var feet: Vector2 = global_position
 	if dashing:
 		var gap: float = ECHO_GAP * player.global_scale.y * ART_SCALE
@@ -374,6 +392,9 @@ func _process(_delta: float) -> void:
 
 
 func _draw_body() -> void:
+	if character_style() != &"wizard":
+		costume.draw()
+		return
 	body.coverage = AstralProjection.PROJECTION_COVER if player.phasing else 1.0
 	var f: float = 1.0 if fs >= 0.0 else -1.0
 	var af: float = absf(clampf(fs, -1.0, 1.0))
@@ -649,6 +670,7 @@ func _cracked_bead(bead: Vector2) -> void:
 func _draw_world() -> void:
 	var s: float = player.global_scale.y * ART_SCALE
 	world.begin()
+	_draw_smoke(s)
 	# Dash afterimages: silhouettes of the wizard left behind along the dash, printed in the hat's
 	# glow ink (the ability's colour) and fading fast, newest strongest. Whole silhouettes read
 	# the same in every direction, so there is no sideways/upward special case.
@@ -684,7 +706,63 @@ func _draw_world() -> void:
 
 ## The wizard's outline (robe and hat, the tip bent toward `facing`), feet at the origin of `at`.
 func _silhouette(at: Transform2D, facing: float) -> Array[PackedVector2Array]:
+	if character_style() != &"wizard":
+		return RisoCostume.silhouette(character_style(), at, facing, Abilities.spell(player))
 	return [
 		at * RisoShapes.smooth(PackedVector2Array([Vector2(-3.8, -15), Vector2(-6.6, -7), Vector2(-9, -2.2), Vector2(9, -2.2), Vector2(6.6, -7), Vector2(3.8, -15)])),
 		at * RisoShapes.smooth(PackedVector2Array([Vector2(-5, -21.4), Vector2(-2.9, -28.4), Vector2(-facing * 4.6, -37), Vector2(2.9, -28.4), Vector2(5, -21.4)])),
 	]
+
+
+## The appearance selected in F7, or the original wizard before the print exists.
+func character_style() -> StringName:
+	return RisoPrint.instance.character_style if RisoPrint.instance != null else &"wizard"
+
+
+## Old smoke and echoes belong to the former silhouette, so a change starts them afresh.
+func appearance_changed() -> void:
+	lantern_smoke.clear()
+	echoes.clear()
+	_smoke_wait = 0.0
+	_echo_at = Vector2.INF
+	_draw_body()
+	_draw_world()
+
+
+## Leave smoke at the lantern's past positions, without drawing from the world's RNG.
+func _step_smoke(delta: float) -> void:
+	for i: int in range(lantern_smoke.size() - 1, -1, -1):
+		lantern_smoke[i].z += delta
+		if lantern_smoke[i].z >= SMOKE_LIFE:
+			lantern_smoke.remove_at(i)
+	if vanished or character_style() == &"wizard" or MapInfo.instance == null or not MapInfo.instance.run.vulnerable:
+		_smoke_wait = 0.0
+		return
+	_smoke_wait -= delta
+	if _smoke_wait <= 0.0:
+		_smoke_wait = SMOKE_STEP
+		_smoke_phase += 0.7
+		var at: Vector2 = to_global(costume.lantern_position())
+		lantern_smoke.append(Vector4(at.x, at.y, 0.0, _smoke_phase))
+
+
+## A tapered strand curls upward from the unlit lantern and trails where it has moved.
+func _draw_smoke(s: float) -> void:
+	if lantern_smoke.size() < 2:
+		return
+	var left: PackedVector2Array = PackedVector2Array()
+	var right: PackedVector2Array = PackedVector2Array()
+	var covers: PackedFloat32Array = PackedFloat32Array()
+	for point: Vector4 in lantern_smoke:
+		var age: float = point.z / SMOKE_LIFE
+		var at: Vector2 = Vector2(point.x, point.y) + Vector2(SMOKE_DRIFT * age + sin(point.w + t * 1.3) * age * 2.0, -point.z * SMOKE_RISE) * s
+		var width: float = SMOKE_WIDTH * (1.0 - age * 0.75) * s
+		left.append(at - Vector2(width, 0))
+		right.append(at + Vector2(width, 0))
+		covers.append(0.65 * pow(1.0 - age, 1.5) * (AstralProjection.PROJECTION_COVER if player.phasing else 1.0))
+	right.reverse()
+	left.append_array(right)
+	var back: PackedFloat32Array = covers.duplicate()
+	back.reverse()
+	covers.append_array(back)
+	world.ink_graded(RisoPrint.PINK, [left], [covers])

@@ -1,4 +1,5 @@
 extends Node2D
+class_name RisoInkOp
 ## One ordered print operation on one or more ink plates: either lay ink (coverage in alpha)
 ## or lift ink (multiply blend, so the plate keeps 1 - coverage of what was there).
 

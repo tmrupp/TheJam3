@@ -2,8 +2,8 @@ class_name RisoPrint
 extends Node
 ## Tarot-print presentation for the main game.
 ##
-## Art nodes draw ink *coverage* onto seven plates (night, blue, pink, accent, eye yellow,
-## hat glow, robe) by living on plate visibility layers. Each plate is a SubViewport that shares the
+## Art nodes draw ink *coverage* onto eight plates (night, blue, pink, accent, eye yellow,
+## hat glow, robe, traveler cloth) by living on plate visibility layers. Each plate shares the
 ## game World2D and culls to its layer. A full-screen shader then prints the plates like a
 ## risograph (see shaders/riso_print.gdshader). The print is always on: the prefabs' old sprites
 ## stay on the default layer, under the print, where nothing shows them.
@@ -17,9 +17,13 @@ const EYE: int = 4
 const GLOW: int = 5
 ## The wizard's robe and hat, in the ink of the spell they carry (ROBES).
 const ROBE: int = 6
-const PLATE_COUNT: int = 7
+## The travelers' clothes and glass stay federal blue even in a realm whose terrain ink is green.
+const CLOTH: int = 7
+## Federal blue is independent of the world and of the carried spell's ink.
+const CLOTH_INK: Color = Color("#3d5588")
+const PLATE_COUNT: int = 8
 const PLATE_BIT0: int = 12
-const OVERLAY_BIT: int = 19
+const OVERLAY_BIT: int = 20
 const PRINT_SHADER: Shader = preload("res://shaders/riso_print.gdshader")
 const UI_SHADER: Shader = preload("res://shaders/riso_ui.gdshader")
 ## The UI (HUD, interaction prompts) is printed in its own pass, finer than the scene. At full UI
@@ -86,7 +90,7 @@ const DETAIL_STOPS: Array[Array] = [
 ]
 ## Base misregistration per plate, in 720p pixels: the prototype's offsets (night, blue, pink,
 ## accent, eye, glow), which are in its world units at about 2.4 px each.
-const REGISTRATION: Array[Vector2] = [Vector2(-0.48, -0.43), Vector2(-0.91, 0.82), Vector2(1.2, -0.72), Vector2(0.58, 1.06), Vector2(0.29, 0.36), Vector2(0.34, 0.43), Vector2(-0.66, 0.58)]
+const REGISTRATION: Array[Vector2] = [Vector2(-0.48, -0.43), Vector2(-0.91, 0.82), Vector2(1.2, -0.72), Vector2(0.58, 1.06), Vector2(0.29, 0.36), Vector2(0.34, 0.43), Vector2(-0.66, 0.58), Vector2(-0.55, 0.5)]
 ## How far each new sheet jitters a plate's registration (720p pixels, either way).
 const SHEET_JITTER: float = 1.2
 ## Key colours as overprints of the realm inks: sun, ember (sun over pink), moss (sun over blue), plum (pink over blue).
@@ -132,9 +136,15 @@ var glow_ability: StringName = &"dash"
 ## Robe in the spell's ink (ROBES), or always in the realm's blue.
 var robe_by_spell: bool = true
 var robe_color: Color = Color(-1, -1, -1)
+## The printed player appearances offered in the Look section of F7.
+const CHARACTER_STYLES: Array[StringName] = [&"wizard", &"cosmonaut", &"shaman", &"fool"]
+## The names of those appearances in the print controls.
+const CHARACTER_NAMES: Array[String] = ["Wizard", "Arcane cosmonaut", "Mask shaman", "The Fool"]
+## The chosen appearance lasts through travel and new runs in this scene.
+var character_style: StringName = &"wizard"
 
 var plates: Array[SubViewport] = []
-## The UI's own canvas and plates (six inks, then paper), printed by `ui_material` over the scene.
+## The UI's own canvas and plates (eight inks, then paper), printed by `ui_material` over the scene.
 ## UI art draws under `ui_root` (see ui_canvas()), positioned in the scene's coordinates.
 var ui_world: World2D
 var ui_plates: Array[SubViewport] = []
@@ -258,11 +268,13 @@ static func _warp(wizard: RisoWizard, part: int, center: Vector2, feet: Vector2,
 	fx.facing = 1.0 if wizard.fs >= 0.0 else -1.0
 	fx.art_scale = wizard.global_scale.y
 	fx.ring = ring
+	fx.character_style = wizard.character_style()
+	fx.spell = Abilities.spell(wizard.player)
 	return fx
 
 
 ## Every plate: knocking or lifting them all leaves bare paper.
-const ALL_PLATES: Array[int] = [NIGHT, BLUE, PINK, ACCENT, EYE, GLOW, ROBE]
+const ALL_PLATES: Array[int] = [NIGHT, BLUE, PINK, ACCENT, EYE, GLOW, ROBE, CLOTH]
 
 
 ## Print a key of `color` in `shapes` on `canvas`: overprinted in its colour's inks, or, for a
@@ -543,12 +555,24 @@ func _track_player() -> void:
 ## The robe's ink eases to its spell's over a moment, so learning a spell visibly re-dyes it.
 func _ease_robe(delta: float) -> void:
 	var target: Color = (REALMS[realm]["inks"] as Array)[BLUE]
-	if robe_by_spell and _player != null and is_instance_valid(_player):
+	if (robe_by_spell or character_style != &"wizard") and _player != null and is_instance_valid(_player):
 		target = ROBES.get(Abilities.spell(_player), ROBES[&""])
 	# Drowsy in sleep fog: the spell is off, and the robe greys.
 	if _player != null and is_instance_valid(_player) and _player.is_drowsy():
 		target = DROWSY_ROBE
 	robe_color = target if robe_color.r < 0.0 else robe_color.lerp(target, minf(1.0, delta * 4.0))
+
+
+## Change the player's printed appearance without changing their abilities or collision.
+func set_character_style(style: StringName) -> void:
+	if not CHARACTER_STYLES.has(style):
+		return
+	character_style = style
+	var player: Player = Stage.player()
+	var wizard: RisoWizard = player.get_node_or_null("RisoWizard") as RisoWizard if player != null else null
+	if wizard != null:
+		wizard.appearance_changed()
+	_sync_panel()
 
 
 func _on_player_event(kind: StringName, _at: Vector2) -> void:
@@ -644,6 +668,7 @@ func _update_uniforms(size: Vector2) -> void:
 	var g: Color = GLOWS.get(glow_ability, GLOWS[&"dash"])
 	print_material.set_shader_parameter("ink5", Vector3(g.r, g.g, g.b))
 	print_material.set_shader_parameter("ink6", Vector3(robe_color.r, robe_color.g, robe_color.b))
+	print_material.set_shader_parameter("ink7", Vector3(CLOTH_INK.r, CLOTH_INK.g, CLOTH_INK.b))
 	var t: float = Time.get_ticks_msec() / 1000.0
 	var m: float = _sheet_mix()
 	for i: int in range(PLATE_COUNT):
@@ -668,7 +693,7 @@ func _update_uniforms(size: Vector2) -> void:
 	var view: Transform2D = root.get_final_transform() * root.canvas_transform
 	print_material.set_shader_parameter("pin", -view.origin)
 	# The UI's print: the same sheet and inks, finer, and pinned to the screen (the HUD is).
-	for p: String in ["res", "paper", "ink0", "ink1", "ink2", "ink3", "ink4", "ink5", "ink6", "lay", "specks", "seed", "seed2", "mixv"]:
+	for p: String in ["res", "paper", "ink0", "ink1", "ink2", "ink3", "ink4", "ink5", "ink6", "ink7", "lay", "specks", "seed", "seed2", "mixv"]:
 		ui_material.set_shader_parameter(p, print_material.get_shader_parameter(p))
 	for i: int in range(PLATE_COUNT):
 		ui_material.set_shader_parameter("off%d" % i, (print_material.get_shader_parameter("off%d" % i) as Vector2) * _ui_scale(UI_REGISTRATION))
@@ -946,6 +971,7 @@ func _build_panel() -> void:
 	_option_row(print_box, &"between", "Between sheets", ["Cut", "Blend"], _on_between)
 	_option_row(print_box, &"plates", "Plates", ["Independent", "Trapped"], func(i: int) -> void: trapped = i == 1)
 	var look: VBoxContainer = _section(box, "Look", false)
+	_option_row(look, &"character", "Character", CHARACTER_NAMES, func(i: int) -> void: set_character_style(CHARACTER_STYLES[i]))
 	_option_row(look, &"realm", "Realm", ["Deep night", "Twilight", "Aurora"], _on_realm_picked)
 	_option_row(look, &"portal", "Portals", ["TV static", "Ripples"], func(i: int) -> void: portal_style = PORTAL_STYLES[i])
 	_option_row(look, &"fog", "Fog shape", FOG_STYLE_NAMES, func(i: int) -> void: fog_style = FOG_STYLES[i])
@@ -1238,6 +1264,8 @@ func _sync_panel() -> void:
 		(_options[&"plates"] as OptionButton).select(1 if trapped else 0)
 	if _options.has(&"robe"):
 		(_options[&"robe"] as OptionButton).select(0 if robe_by_spell else 1)
+	if _options.has(&"character"):
+		(_options[&"character"] as OptionButton).select(CHARACTER_STYLES.find(character_style))
 	if _player != null and is_instance_valid(_player):
 		_key_capacity_label.text = "Ring: %d / %d  (Keyring adds slots)" % [_player.keyring.all().size(), _player.keyring.capacity()]
 		_skeleton_label.text = str(_player.keyring.skeletons())

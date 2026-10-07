@@ -1,6 +1,6 @@
 // Shared by riso_print.gdshader (the scene) and riso_ui.gdshader (the UI, printed finer and
 // laid over it).
-// Prints seven ink coverage plates (alpha = coverage) as a risograph sheet:
+// Prints eight ink coverage plates (alpha = coverage) as a risograph sheet:
 // per-ink misregistration, edge wobble, dot gain, an AM screen whose dots grow with
 // coverage (grain only in tints and edges; solids stay solid), uneven laydown,
 // missed-ink specks and paper texture. Inks multiply over the paper.
@@ -8,7 +8,7 @@
 // offset), so the print stays on the paper as the camera moves; only the plates are sampled
 // in screen space. Noise uses an exact integer hash (PCG): the old fract() hash lost float
 // precision at screen-sized coordinates, which lined specks and grain up in bands.
-// Plate order: 0 night, 1 blue, 2 pink, 3 accent, 4 eye yellow, 5 hat glow, 6 robe.
+// Plate order: 0 night, 1 blue, 2 pink, 3 accent, 4 eye yellow, 5 hat glow, 6 robe, 7 traveler cloth.
 
 uniform sampler2D plate0 : filter_linear, repeat_disable;
 uniform sampler2D plate1 : filter_linear, repeat_disable;
@@ -17,10 +17,11 @@ uniform sampler2D plate3 : filter_linear, repeat_disable;
 uniform sampler2D plate4 : filter_linear, repeat_disable;
 uniform sampler2D plate5 : filter_linear, repeat_disable;
 uniform sampler2D plate6 : filter_linear, repeat_disable;
+uniform sampler2D plate7 : filter_linear, repeat_disable;
 uniform vec2 res = vec2(1280.0, 720.0);
 uniform vec3 paper = vec3(0.894, 0.875, 0.91);
-uniform vec3 ink0; uniform vec3 ink1; uniform vec3 ink2; uniform vec3 ink3; uniform vec3 ink4; uniform vec3 ink5; uniform vec3 ink6;
-uniform vec2 off0; uniform vec2 off1; uniform vec2 off2; uniform vec2 off3; uniform vec2 off4; uniform vec2 off5; uniform vec2 off6;
+uniform vec3 ink0; uniform vec3 ink1; uniform vec3 ink2; uniform vec3 ink3; uniform vec3 ink4; uniform vec3 ink5; uniform vec3 ink6; uniform vec3 ink7;
+uniform vec2 off0; uniform vec2 off1; uniform vec2 off2; uniform vec2 off3; uniform vec2 off4; uniform vec2 off5; uniform vec2 off6; uniform vec2 off7;
 uniform float cell = 5.0;
 uniform float wob = 0.8;
 uniform float grain = 0.1;

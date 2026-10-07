@@ -4,10 +4,9 @@ extends Node2D
 ## Mirrors the HTML prototype: ink() lays coverage on a plate and, unless told otherwise,
 ## lifts the same coverage off the night plate; knock() clears plates to bare paper.
 
-const InkOpScript: GDScript = preload("res://scripts/riso/InkOp.gd")
 static var lift_material: CanvasItemMaterial
 
-var _ops: Array[Node2D] = []
+var _ops: Array[RisoInkOp] = []
 var _used: int = 0
 ## UI mode (the HUD, interaction prompts), for a canvas under RisoPrint.ui_canvas(): knocks also
 ## lay paper on the UI's paper plate, so the plaques and discs the UI sits on print as paper over
@@ -97,19 +96,18 @@ func lift_ink_graded(plates: Array[int], polys: Array[PackedVector2Array], alpha
 
 
 func _emit(mask: int, lift: bool, cover: float, polys: Array[PackedVector2Array], alphas: Array[PackedFloat32Array]) -> void:
-	var op: Node2D
+	var op: RisoInkOp
 	if _used < _ops.size():
 		op = _ops[_used]
 	else:
-		op = Node2D.new()
-		op.set_script(InkOpScript)
+		op = RisoInkOp.new()
 		add_child(op)
 		_ops.append(op)
 	_used += 1
 	op.visible = true
 	op.visibility_layer = mask
 	op.material = lift_material if lift else null
-	op.set("polys", polys)
+	op.polys = polys
 	var faded: Array[PackedFloat32Array] = []
 	if coverage < 1.0:
 		for values: PackedFloat32Array in alphas:
@@ -117,7 +115,7 @@ func _emit(mask: int, lift: bool, cover: float, polys: Array[PackedVector2Array]
 			for i: int in range(scaled.size()):
 				scaled[i] *= coverage
 			faded.append(scaled)
-	op.set("alphas", faded if coverage < 1.0 else alphas)
-	op.set("cover", cover * coverage)
-	op.set("lift", lift)
+	op.alphas = faded if coverage < 1.0 else alphas
+	op.cover = cover * coverage
+	op.lift = lift
 	op.queue_redraw()

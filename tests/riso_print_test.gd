@@ -42,7 +42,7 @@ func run() -> void:
 	check(main.get_node_or_null("CanvasLayer/HUD") == null and main.get_node_or_null("Menu/BigBossMenu") == null, "no pixel HUD or title art")
 	check(main.get_node_or_null("RisoHud") != null, "printed HUD present")
 	check((load(RisoTheme.MENU_THEME) as Theme).default_font is SystemFont, "menus use the riso theme")
-	check(riso.plates.size() == RisoPrint.PLATE_COUNT, "seven ink plates")
+	check(riso.plates.size() == RisoPrint.PLATE_COUNT, "eight ink plates, including fixed blue traveler cloth")
 	check(riso.print_layer.visible, "print layer visible")
 	check(root.content_scale_mode == Window.CONTENT_SCALE_MODE_CANVAS_ITEMS, "canvas_items stretch while printing")
 	check((root.canvas_cull_mask & RisoPrint.plate_mask(RisoPrint.BLUE)) == 0, "main view hides plate layers")
