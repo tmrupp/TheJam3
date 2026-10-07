@@ -140,8 +140,10 @@ var robe_color: Color = Color(-1, -1, -1)
 const CHARACTER_STYLES: Array[StringName] = [&"wizard", &"cosmonaut", &"shaman", &"fool"]
 ## The names of those appearances in the print controls.
 const CHARACTER_NAMES: Array[String] = ["Wizard", "Arcane cosmonaut", "Mask shaman", "The Fool"]
+## The appearance a new game starts with: the Fool.
+const DEFAULT_CHARACTER: StringName = &"fool"
 ## The chosen appearance lasts through travel and new runs in this scene.
-var character_style: StringName = &"wizard"
+var character_style: StringName = DEFAULT_CHARACTER
 
 var plates: Array[SubViewport] = []
 ## The UI's own canvas and plates (eight inks, then paper), printed by `ui_material` over the scene.

@@ -14,7 +14,7 @@ func run() -> void:
 	var riso: RisoPrint = RisoPrint.instance
 	var picker: OptionButton = riso._options[&"character"] as OptionButton
 	check_eq(picker.item_count, 4, "F7 offers the wizard and all three travelers")
-	check_eq(picker.get_item_text(picker.selected), "Wizard", "the original wizard remains the default")
+	check_eq(picker.get_item_text(picker.selected), "The Fool", "the Fool is the default appearance")
 	var key: InputEventKey = InputEventKey.new()
 	key.keycode = KEY_F7
 	key.pressed = true
@@ -74,9 +74,10 @@ func run() -> void:
 		wizard._draw_body()
 		check(unprotected != fingerprint(wizard.body), "a spent dash still changes its own mark while unprotected")
 		wizard.lantern_smoke.clear()
+		# A walking pace (about 130 px/s), faster than the smoke drifts away from the traveler.
 		for step: int in range(12):
 			wizard._step_smoke(RisoWizard.SMOKE_STEP)
-			player.position.x += 2.0
+			player.position.x += 8.0
 		check(wizard.lantern_smoke.size() >= 10, "an unlit lantern leaves a trail")
 		check(wizard.lantern_smoke[0].x < wizard.lantern_smoke[-1].x, "smoke stays at the lantern's past positions")
 		wizard._draw_world()
@@ -120,6 +121,52 @@ func run() -> void:
 	check(wizard.lantern_smoke.size() <= int(ceil(RisoWizard.SMOKE_LIFE / RisoWizard.SMOKE_STEP)) + 1, "the smoke trail stays bounded over time")
 	wizard._on_event(&"teleport", wizard.global_position)
 	check(wizard.lantern_smoke.is_empty(), "teleporting clears the former location's smoke")
+	# Standing still, the smoke drifts away from the Fool on whichever side the lantern is.
+	for facing: float in [1.0, -1.0]:
+		wizard.fs = facing
+		wizard.lantern_smoke.clear()
+		for step: int in range(20):
+			wizard._step_smoke(RisoWizard.SMOKE_STEP)
+		var side: bool = true
+		for point: Vector4 in wizard.lantern_smoke:
+			side = side and (point.x - wizard.global_position.x) * facing > 0.0
+		check(side, "smoke stays on the lantern's side facing %d" % int(facing))
+		var oldest: float = (wizard.lantern_smoke[0].x - wizard.global_position.x) * facing
+		var newest: float = (wizard.lantern_smoke[-1].x - wizard.global_position.x) * facing
+		check(oldest > newest + 1.0, "older smoke has drifted farther away facing %d" % int(facing))
+	wizard.fs = 1.0
+	wizard.lantern_smoke.clear()
+	# The necklace stays centred at every heart count; hearts past three hang on a lower strand.
+	for count: int in range(3, 7):
+		var beads: Array[Vector2] = RisoCostume.necklace(count)
+		var middle: float = 0.0
+		for bead: Vector2 in beads:
+			middle += bead.x
+		check(absf(middle) < 0.01, "the %d-bead necklace is centred" % count)
+		if count > 3:
+			check(beads[3].y > beads[0].y + 1.0, "hearts past three hang on a lower strand (%d)" % count)
+	check(is_zero_approx(RisoCostume.necklace(4)[3].x), "a fourth heart hangs as a centred pendant")
+	# At a wall ahead, the Fool's lantern glove plants on it and the lantern leans away from it.
+	wizard.wall_side = 1.0
+	wizard.wall = 1.0
+	wizard.pg = true
+	var hand: Vector2 = wizard.costume._lantern_hand()
+	check(is_equal_approx(hand.x + RisoCostume.WALL_GLOVE, RisoWizard.WALL_X), "at a wall, the lantern glove reaches it")
+	for step: int in range(30):
+		wizard.costume.step(1.0 / 60.0)
+	check(wizard.costume.lantern_a >= RisoCostume.WALL_LANTERN_LEAN - 0.001, "the lantern leans away from a wall ahead")
+	wizard.wall = 0.0
+	# A turn starts with the head: it faces the new way while the body is still swinging round.
+	var sprite_scale: Vector2 = player.sprite.scale
+	player.sprite.scale.x = -absf(sprite_scale.x)
+	wizard.fs = 0.4
+	check_eq(wizard.costume.head_facing(), -1.0, "the head turns first")
+	wizard._draw_body()
+	var turning: int = fingerprint(wizard.body)
+	player.sprite.scale = sprite_scale
+	wizard._draw_body()
+	check(turning != fingerprint(wizard.body), "a head leading a turn is drawn differently")
+	wizard.fs = 1.0
 	var fx: RisoPortalWarp = RisoPrint._warp(wizard, 0, Vector2.ZERO, wizard.global_position, RisoPrint.ACCENT)
 	check_eq(fx.character_style, &"fool", "portal effects carry the chosen silhouette")
 	fx.free()

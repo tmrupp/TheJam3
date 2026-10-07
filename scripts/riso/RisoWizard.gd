@@ -6,6 +6,8 @@ class_name RisoWizard
 ## (the Player's scale of 4 turns them into world pixels). Presentation only; collision is untouched.
 
 const STRIDE: float = 22.0
+## How high the wizard lifts a foot mid-step; a traveler may walk differently (`RisoCostume.gait`).
+const STEP_LIFT: float = 1.9
 const MAXV: float = 88.0
 const HEMX: Array[float] = [-8.8, -4.5, 0.0, 4.5, 8.8]
 const VX_SCALE: float = 88.0 / 300.0
@@ -31,8 +33,12 @@ const SMOKE_STEP: float = 0.06
 ## The smoke's rise and width in the player's art units.
 const SMOKE_RISE: float = 19.0
 const SMOKE_WIDTH: float = 0.85
-## A gentle sideways drift lets the chest flame's smoke escape past the helmet.
-const SMOKE_DRIFT: float = 20.0
+## Smoke drifts sideways away from the traveler, wherever they stand, about this far over its life
+## (art units). "Away" is judged from a point a little in front of the figure, so a centred chest
+## flame's smoke drifts back past the helmet, and from within this distance it eases off.
+const SMOKE_DRIFT: float = 24.0
+const SMOKE_AHEAD: float = 2.0
+const SMOKE_EASE: float = 4.0
 ## Time until the next smoke point, and its deterministic curl phase.
 var _smoke_wait: float = 0.0
 var _smoke_phase: float = 0.0
@@ -162,6 +168,7 @@ func _physics_process(delta: float) -> void:
 		RisoPrint.instance.flare(&"climb")
 	_was_climbing = climbing
 	_rig(delta, dashing)
+	costume.step(delta)
 	_step_smoke(delta)
 	var feet: Vector2 = global_position
 	if dashing:
@@ -236,7 +243,7 @@ func _rig(dt: float, dashing: bool) -> void:
 	sp += ((clampf(absf(vx) / MAXV, 0.0, 1.0) if ground else 0.0) - sp) * minf(1.0, dt * 10.0)
 	if ground:
 		dist += absf(vx) * dt
-	var ph: float = fposmod(dist / STRIDE, 1.0)
+	var ph: float = fposmod(dist / costume.gait().x, 1.0)
 	var fsn: float = clampf(fs, -1.0, 1.0)
 	var bob_t: float = (-(0.5 - 0.5 * cos(ph * 4.0 * PI)) * 1.1 * sp + (sin(t * 2.1) - 1.0) * 0.3 * (1.0 - sp)) if ground else -0.4
 	# Straining against the wall: sink a little and tremble.
@@ -299,13 +306,14 @@ func _rig(dt: float, dashing: bool) -> void:
 
 
 func _feet() -> Array[Vector2]:
-	var ph: float = fposmod(dist / STRIDE, 1.0)
-	var a: float = STRIDE / 4.0
+	var gait: Vector3 = costume.gait()
+	var ph: float = fposmod(dist / gait.x, 1.0)
+	var a: float = gait.x / 4.0
 	var face: float = signf(fs) if fs != 0.0 else 1.0
 	var dir: float = signf(player.velocity.x) if absf(player.velocity.x) > 1.0 else face
 	var out: Array[Vector2] = []
 	for k: int in range(2):
-		var rest: float = 1.9 if k == 1 else -1.9
+		var rest: float = (1.9 if k == 1 else -1.9) * gait.z
 		if not pg:
 			out.append(Vector2(rest * 0.8 + (0.6 if k == 1 else -0.6) * face, -1.5))
 			continue
@@ -317,8 +325,8 @@ func _feet() -> Array[Vector2]:
 		else:
 			var u: float = (phi - 0.5) / 0.5
 			x = lerpf(-a, a, u * u * (3.0 - 2.0 * u))
-			y = -sin(PI * u) * 1.9
-		out.append(Vector2(lerpf(rest, x * dir + (0.8 if k == 1 else -0.8), sp), y * sp))
+			y = -sin(PI * u) * gait.y
+		out.append(Vector2(lerpf(rest, x * dir + (0.8 if k == 1 else -0.8) * gait.z, sp), y * sp))
 	if wall > 0.01:
 		# Against a wall: braced on the ground (the back foot scrabbles for grip), or one sole
 		# flat on the wall in the air, stepping up it while climbing.
@@ -346,10 +354,11 @@ func _soft(v: float, m: float) -> float:
 ## body curves like cloth over a frame rather than tilting stiffly; below the waist, nothing moves.
 func _bowv(v: Vector2) -> Vector2:
 	var u: float = clampf((WAIST - v.y) / 18.0, 0.0, 1.5)
-	if u <= 0.0 or absf(bow) < 0.0005:
+	var amount: float = bow * (costume.bow_scale() if costume != null else 1.0)
+	if u <= 0.0 or absf(amount) < 0.0005:
 		return v
 	var pivot: Vector2 = Vector2(0.0, WAIST)
-	return pivot + (v - pivot).rotated(bow * (1.0 if fs >= 0.0 else -1.0) * u * u)
+	return pivot + (v - pivot).rotated(amount * (1.0 if fs >= 0.0 else -1.0) * u * u)
 
 
 ## The body bowed, then against the wall: cloth past a knee near the wall face lies flat on it (it
@@ -707,7 +716,7 @@ func _draw_world() -> void:
 ## The wizard's outline (robe and hat, the tip bent toward `facing`), feet at the origin of `at`.
 func _silhouette(at: Transform2D, facing: float) -> Array[PackedVector2Array]:
 	if character_style() != &"wizard":
-		return RisoCostume.silhouette(character_style(), at, facing, Abilities.spell(player))
+		return RisoCostume.silhouette(character_style(), at, facing, Abilities.spell(player), costume)
 	return [
 		at * RisoShapes.smooth(PackedVector2Array([Vector2(-3.8, -15), Vector2(-6.6, -7), Vector2(-9, -2.2), Vector2(9, -2.2), Vector2(6.6, -7), Vector2(3.8, -15)])),
 		at * RisoShapes.smooth(PackedVector2Array([Vector2(-5, -21.4), Vector2(-2.9, -28.4), Vector2(-facing * 4.6, -37), Vector2(2.9, -28.4), Vector2(5, -21.4)])),
@@ -716,7 +725,7 @@ func _silhouette(at: Transform2D, facing: float) -> Array[PackedVector2Array]:
 
 ## The appearance selected in F7, or the original wizard before the print exists.
 func character_style() -> StringName:
-	return RisoPrint.instance.character_style if RisoPrint.instance != null else &"wizard"
+	return RisoPrint.instance.character_style if RisoPrint.instance != null else RisoPrint.DEFAULT_CHARACTER
 
 
 ## Old smoke and echoes belong to the former silhouette, so a change starts them afresh.
@@ -729,12 +738,18 @@ func appearance_changed() -> void:
 	_draw_world()
 
 
-## Leave smoke at the lantern's past positions, without drawing from the world's RNG.
+## Leave smoke at the lantern's past positions, drifting away from the traveler, without drawing
+## from the world's RNG.
 func _step_smoke(delta: float) -> void:
+	var s: float = player.global_scale.y * ART_SCALE if player != null else ART_SCALE
+	var from: float = global_position.x + signf(fs if fs != 0.0 else 1.0) * SMOKE_AHEAD * s
 	for i: int in range(lantern_smoke.size() - 1, -1, -1):
 		lantern_smoke[i].z += delta
 		if lantern_smoke[i].z >= SMOKE_LIFE:
 			lantern_smoke.remove_at(i)
+			continue
+		var away: float = tanh((lantern_smoke[i].x - from) / (SMOKE_EASE * s))
+		lantern_smoke[i].x += away * SMOKE_DRIFT / SMOKE_LIFE * delta * s
 	if vanished or character_style() == &"wizard" or MapInfo.instance == null or not MapInfo.instance.run.vulnerable:
 		_smoke_wait = 0.0
 		return
@@ -755,7 +770,7 @@ func _draw_smoke(s: float) -> void:
 	var covers: PackedFloat32Array = PackedFloat32Array()
 	for point: Vector4 in lantern_smoke:
 		var age: float = point.z / SMOKE_LIFE
-		var at: Vector2 = Vector2(point.x, point.y) + Vector2(SMOKE_DRIFT * age + sin(point.w + t * 1.3) * age * 2.0, -point.z * SMOKE_RISE) * s
+		var at: Vector2 = Vector2(point.x, point.y) + Vector2(sin(point.w + t * 1.3) * age * 2.0, -point.z * SMOKE_RISE) * s
 		var width: float = SMOKE_WIDTH * (1.0 - age * 0.75) * s
 		left.append(at - Vector2(width, 0))
 		right.append(at + Vector2(width, 0))

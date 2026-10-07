@@ -12,7 +12,7 @@ func _draw_art() -> void:
 	var s: float = 3.2
 	var drift: float = sin(t * 1.7 + phase) * 5.0
 	var at: Transform2D = Transform2D(sin(t * 1.1 + phase) * 0.04, Vector2(s, s), 0.0, Vector2(0, 34 + drift))
-	var style: StringName = RisoPrint.instance.character_style if RisoPrint.instance != null else &"wizard"
+	var style: StringName = RisoPrint.instance.character_style if RisoPrint.instance != null else RisoPrint.DEFAULT_CHARACTER
 	var player: Player = Stage.player()
 	var spell: StringName = Abilities.spell(player) if player != null else &""
 	var body: Array[PackedVector2Array] = RisoMarks.ghost_shape(at) if style == &"wizard" else RisoCostume.silhouette(style, at, 1.0, spell)
