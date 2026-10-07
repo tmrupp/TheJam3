@@ -48,20 +48,31 @@ DO NOT MODIFY
 
 - * moths seem broken
 
-- we need to introduce submenus/collapsing for f7 menu (it is getting too big)
+- * we need to introduce submenus/collapsing for f7 menu (it is getting too big)
 
-- sometimes the player gets stuck when dashing
+- * sometimes the player gets stuck when dashing
 - we might need to continue iterating on walljump
 
 - * deeper levels and hyperspace should be likely to require relics to fully traverse (relax the traversability guarantees in later levels/hyperspace)
 
 - can go up or down, going up goes to cliffs and craggs -> sky
 - going down goes to cemetery -> catacombs
+- switches that activate moving platforms
+- ability that creates moving platforms
+- parry should be default spell, and we need more visual feedback on its use/active time/success
+- richocet enemy needs to be reworked, it should be on the ceiling or flying
+
+## fool thoughts
+- the poncho should be larger on top and taper
+- the player looks skewed
+- the lantern is too low and the flame should be simplified
+- there should not be gaps in the neck or hands
 
 
 # bosses, possibly guarding relics, must be defeated
 - garden: worm that weaves its way through the level. It has sections, when destroyed in the middle it splits into multiple worms
 - cemetery: perhaps a necromancer that summons skeletons that die on stun but go after the player
+- cliffs: spider that makes webs
 - sky: flying whale that has a digestive system that is another level (like a door)
 
 # PLACES
