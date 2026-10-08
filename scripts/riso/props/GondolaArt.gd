@@ -1,13 +1,17 @@
 extends RisoProp
-## A gondola (Gondola): its cable round the whole circuit with a pulley wheel at each corner, and
+## A gondola (Gondola): its cable along the whole track with a pulley wheel at each turn, and
 ## the car hung from the cable on a hanger with a wheel
-## running along it: a roof and a floor of blue, corner posts, a low screened panel round the lower
-## half, and its lever on the back wall (leaning the way it will run, upright while it stands). Its
-## sides are barred while shut: pink while its rider is shut in (danger), blue otherwise.
+## running along it: a roof and a floor of blue, corner posts, faint grey bars across its back wall
+## (behind whoever rides), and its lever on the back wall (leaning the way it will run, upright
+## while it stands). Its sides come down barred while it runs or holds its rider, pink while its
+## rider is shut in (danger), blue while it runs empty, and lift while it stands.
 
 ## How far over the car's floor the cable runs (cells), and the wheels' size (pixels).
 const CABLE_UP: float = 2.55
 const WHEEL: float = 13.0
+## The bars across its back wall: how many, and how faint (blue cover, over paper).
+const BACK_BARS: int = 7
+const BACK_COVER: float = 0.3
 
 
 ## The Gondola it dresses.
@@ -16,13 +20,14 @@ var car: Gondola:
 		return host as Gondola
 
 
-## The cable runs round the whole level: animate while any of it is in view.
+## The cable runs the length of the level: animate while any of it is in view.
 func view_rect() -> Rect2:
 	if car == null or car.stations.is_empty():
 		return Rect2()
-	var lo: Vector2 = car.world_at(0.0)
-	var hi: Vector2 = car.world_at(float(car.loop.size.y + car.loop.size.x))
-	return Rect2(lo, Vector2.ZERO).expand(hi + Vector2(0.0, -car.cell_px * CABLE_UP)).grow(car.cell_px * 1.5)
+	var r: Rect2 = Rect2(car.world_at(0.0), Vector2.ZERO)
+	for i: int in CragsArchetype.turns(car.path):
+		r = r.expand(car.world_at(float(i))).expand(car.world_at(float(i)) + Vector2(0.0, -car.cell_px * CABLE_UP))
+	return r.grow(car.cell_px * 1.5)
 
 
 func _draw_art() -> void:
@@ -30,13 +35,10 @@ func _draw_art() -> void:
 		return
 	var cell: float = car.cell_px
 	var up: Vector2 = Vector2(0.0, -cell * CABLE_UP)
-	var h: float = float(car.loop.size.y)
-	var w: float = float(car.loop.size.x)
 	var corners: Array[Vector2] = []
-	for along: float in [0.0, h, h + w, h + w + h]:
-		corners.append(to_local(car.world_at(along) + up))
+	for i: int in CragsArchetype.turns(car.path):
+		corners.append(to_local(car.world_at(float(i)) + up))
 	var cable: PackedVector2Array = PackedVector2Array(corners)
-	cable.append(corners[0])
 	ink.ink(RisoPrint.NIGHT, 0.85, RisoDecor.strip(cable, 3.2, 3.2))
 	var wheels: Array[PackedVector2Array] = []
 	var hubs: Array[PackedVector2Array] = []
@@ -58,7 +60,13 @@ func _draw_art() -> void:
 	]
 	body.append_array(RisoDecor.strip(PackedVector2Array([Vector2(sway, -ch - 4.0), on_cable]), 6.0, 4.0))
 	body.append(RisoShapes.circle(on_cable, 8.0, 14))
-	ink.ink(RisoPrint.BLUE, 0.4, [RisoShapes.rrect(-cw * 0.5 + 8.0, -ch * 0.38, cw - 16.0, ch * 0.38 - 6.0, 4.0)])
+	# Faint grey bars across the back wall, the night knocked out under them so they show.
+	var back: Array[PackedVector2Array] = []
+	for b: int in range(BACK_BARS):
+		var x: float = lerpf(-cw * 0.5 + 26.0, cw * 0.5 - 26.0, float(b) / float(BACK_BARS - 1))
+		back.append(RisoShapes.rrect(x - 2.5, -ch + 14.0, 5.0, ch - 22.0, 2.0))
+	back.append(RisoShapes.rrect(-cw * 0.5 + 12.0, -ch * 0.5 - 2.0, cw - 24.0, 4.0, 2.0))
+	ink.ink(RisoPrint.BLUE, BACK_COVER, back)
 	ink.ink(RisoPrint.BLUE, 1.0, body)
 	ink.ink(RisoPrint.NIGHT, 0.4, [RisoShapes.rrect(-cw * 0.5 - 6.0, -ch + 6.0, cw + 12.0, 10.0, 4.0), RisoShapes.rrect(-cw * 0.5, 0.0, cw, 10.0, 4.0)], false)
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], [RisoShapes.circle(on_cable, 3.0, 8)])

@@ -1,6 +1,6 @@
 extends RisoProp
 class_name CreatureArt
-## The nightmares' art (WispArt, WatcherArt, HopperArt, WraithArt, BirdArt): what they share,
+## The nightmares' art (WispArt, WatcherArt, HopperArt, WraithArt, BirdArt, RockBugArt): what they share,
 ## the stars circling a stunned one's head.
 
 

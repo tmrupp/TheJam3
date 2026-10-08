@@ -264,11 +264,13 @@ destroyed.
 ### Crags with castle ruins (rows −4 … −9)
 
 *A first pass is built* (`docs/DEEPER_PLAN.md` §4d): the sample, the structure pass (shafts, keeps,
-towers, caverns), the realm and backdrop, the decor, doors in its passages, and the gondola, a cable
-car running a circuit round the level between many stations, all but one shut by a door, a switch
-gate or a toll gate (it runs from an open station to a shut one, never between two shut ones),
-worked by a lever inside, shutting its rider in and calling up wraiths on each stretch. Not yet:
-updrafts, falling rocks, watchers in the slits, and the spider.
+towers, caverns), the realm and backdrop, the decor, doors in its passages, rock-bugs (crawlers
+that walk along rock and fall off when stunned), and the gondola, a cable car climbing a line of
+stations from the bottom of the level to its top, straight up and up 45° diagonals, all but one
+station shut by a door, a switch gate or a toll gate (it runs from an open station to a shut one,
+never between two shut ones), worked by a lever inside, its rider shut in while it runs and
+rock-bugs climbing on from its track. Not yet: updrafts, falling rocks, watchers in the slits, and
+the spider.
 
 - **Terrain.** Vertical: tall cliff faces with narrow ledges, chimneys and overhangs, collapsed
   from a sample drawn for it (`tests/make_crags_sample.gd`, symmetry 1 so up stays up), taller
