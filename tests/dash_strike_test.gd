@@ -9,8 +9,9 @@ extends TestKit
 const DASH_HOLD: int = 20
 
 
+## Open air the wizard and a wisp can pass through: nothing solid, and no thorns.
 func open_cell(v: Vector2i) -> bool:
-	return info.world.is_valid(v) and info.world.get_cell(v).type == LevelGen.Type.EMPTY
+	return info.world.is_valid(v) and info.world.get_cell(v).type not in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED, LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.SPIKES, LevelGen.Type.LASER]
 
 
 ## A wisp, moved onto open floor with room to dash through it (two open cells either side of it,

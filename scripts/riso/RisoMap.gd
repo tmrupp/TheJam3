@@ -464,10 +464,11 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 			if not gone:
 				_mark_door(at, _dealt(cell))
 		LevelGen.Type.SWITCH_GATE:
-			if not gone:
+			# Shown while down (its switch off).
+			if not (cell.extra_info is Vector2i and Switch.is_on_in(w, rec, cell.extra_info)):
 				_mark_gate(at, w.sigil_at(v))
 		LevelGen.Type.SWITCH:
-			_mark_switch(at, (rec.switched as Dictionary).has(v), w.sigil_at(v))
+			_mark_switch(at, Switch.is_on_in(w, rec, v), w.sigil_at(v))
 		LevelGen.Type.RELIC:
 			if gone:
 				return false
@@ -496,11 +497,11 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 		LevelGen.Type.BELL:
 			var bell: Array = cell.extra_info
 			var rung: bool = (rec.bridges as Dictionary).has(int(bell[0]))
-			_mark_bell(at, rung, -2 if rung or (rec.bells_free as Dictionary).has(v) else int(bell[1]), "bell", w.sigil_at(v))
+			_mark_bell(at, rung, -2 if rung or Bell.free_in(w, rec, v, int(bell[1])) else int(bell[1]), "bell", w.sigil_at(v))
 		LevelGen.Type.VANE:
 			var vane: Array = cell.extra_info
 			var blowing: bool = (rec.winds as Dictionary).get(int(vane[0])) == v
-			_mark_bell(at, blowing, -2 if blowing or (rec.bells_free as Dictionary).has(v) else int(vane[1]), "vane", w.sigil_at(v))
+			_mark_bell(at, blowing, -2 if blowing or Bell.free_in(w, rec, v, int(vane[1])) else int(vane[1]), "vane", w.sigil_at(v))
 	return false
 
 

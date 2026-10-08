@@ -535,9 +535,10 @@ func make_room () -> void:
 				carved.append(c)
 
 ## Whether rock at `c` walls a vault, frames a door or gate (above or below it), seals a secret
-## room, has a laser set in it, is the footing of a gap's shore, or holds up something stood at.
+## room or holds up the floor its way in is taken from (secret_steps), has a laser set in it, is
+## the footing of a gap's shore, or holds up something stood at.
 func _holds_up (c: Vector2i) -> bool:
-	if vault_walls.has(c) or in_shaft(c):
+	if vault_walls.has(c) or in_shaft(c) or secret_steps.has(c):
 		return true
 	for d: Vector2i in [Vector2i.UP, Vector2i.DOWN]:
 		if is_valid(c + d) and get_cell(c + d).type in [Type.DOOR, Type.SWITCH_GATE]:
@@ -1072,7 +1073,8 @@ func _room_beside (o: Vector2i, side: int, inside: Vector2i) -> Array:
 ## Every place a vault `room` (cells across and up) fits, found as secret rooms are (enclosed), but
 ## walled in the level's own rock, never its edge: [its rect, its door].
 func _vault_spots (room: Vector2i) -> Array:
-	return _secret_spots(room, true).filter(func(spot: Array) -> bool: return Rect2i(Vector2i.ZERO, size).encloses((spot[0] as Rect2i).grow(1)))
+	return _secret_spots(room, true).filter(func(spot: Array) -> bool: return Rect2i(Vector2i.ZERO, size).encloses((spot[0] as Rect2i).grow(1)) \
+			and not secret_steps.keys().any(func(c: Vector2i) -> bool: return (spot[0] as Rect2i).grow(1).has_point(c)))
 
 ## Build the vault `choice` ([its rect, its door] and, for a strongbox, the cells to turn to rock),
 ## locked in `color`.
@@ -1082,7 +1084,17 @@ func _build_vault (choice: Array, color: int) -> void:
 			_to_rock(c)
 	_carve_vault(choice[0], choice[1], color)
 
+## Where the wizard stands to walk into each secret room (an open floor beside its way in), and the
+## rock under it. What is placed after the rooms leaves them as they are (a vault or strongbox is
+## not built on them, make_room does not carve them), or a room could not be walked into.
+var secret_steps: Dictionary = {}
+
 func _carve_secret (r: Rect2i, door: Vector2i, relic: StringName) -> void:
+	for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT]:
+		var o: Vector2i = door + d
+		if is_valid(o) and not r.has_point(o) and _open(o) and ground_below(o):
+			secret_steps[o] = true
+			secret_steps[o + Vector2i.DOWN] = true
 	var id: int = secrets.size()
 	var room: Array[Vector2i] = []
 	for x: int in range(r.position.x, r.end.x):
@@ -1254,7 +1266,7 @@ func _strongbox_spots (inside: Vector2i) -> Array:
 ## Whether a strongbox may take cell `c`: open air with nothing in it, or only a star or a piece
 ## of a ledge that stays put (which it takes the place of). `free` holds the open cells.
 func _buildable (c: Vector2i, free: Dictionary) -> bool:
-	if in_shaft(c):
+	if in_shaft(c) or secret_steps.has(c):
 		return false
 	return (free.has(c) and get_cell(c).type == Type.EMPTY) or get_cell(c).type in [Type.COIN, Type.PLATFORM]
 
@@ -1350,10 +1362,8 @@ func _corridors () -> Array[Vector2i]:
 			and _open(v + Vector2i.LEFT) and _open(v + Vector2i.RIGHT) and get_cell(v + Vector2i.LEFT).type == Type.EMPTY and get_cell(v + Vector2i.RIGHT).type == Type.EMPTY)
 
 ## Switch gates: a gate across a corridor (rock above and below, open either side, like a door)
-## and its switch on a floor reachable from the way in without passing that gate, at least
-## SWITCH_REACH cells from it, so the switch is found first and the gate opens a way (often a
-## shortcut) for good. Each records the other's cell in extra_info.
-const SWITCH_REACH: int = 8
+## and its switch on a floor near it (switch_floor) reachable from the way in without passing that
+## gate, so the switch is found on the way to it. Each records the other's cell in extra_info.
 
 func place_switch_gates (count: int) -> void:
 	var start: Vector2i = exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
@@ -1366,13 +1376,33 @@ func place_switch_gates (count: int) -> void:
 		if placed.any(func(q: Vector2i) -> bool: return dist(q, gate) < 6):
 			continue
 		# A floor reachable from the way in with this gate shut.
-		var found: Variant = _pick_floor_in(reach_from(start, func(n: Vector2i) -> bool: return n != gate), gate, SWITCH_REACH)
+		var found: Variant = switch_floor(reach_from(start, func(n: Vector2i) -> bool: return n != gate), gate)
 		if found == null:
 			continue
 		var lever: Vector2i = found
 		placed.append(gate)
 		put(gate, Type.SWITCH_GATE, lever)
 		put(lever, Type.SWITCH, gate)
+
+## Where a switch goes: near what it works. A free floor (open, nothing in it, rock under it) in
+## `reach`, drawn (one draw) from those SWITCH_NEAR_MIN to SWITCH_NEAR cells from `target`; with
+## none so near, the nearest further off (no draw); null, with no draw, if there is none.
+const SWITCH_NEAR: int = 6
+const SWITCH_NEAR_MIN: int = 2
+
+func switch_floor (reach: Dictionary, target: Vector2i) -> Variant:
+	var free: Dictionary = empty_set()
+	var near: Array[Vector2i] = []
+	var far: Array[Vector2i] = []
+	for v: Vector2i in reach:
+		if not free.has(v) or get_cell(v).type != Type.EMPTY or not ground_below(v) or dist(v, target) < SWITCH_NEAR_MIN:
+			continue
+		(near if dist(v, target) <= SWITCH_NEAR else far).append(v)
+	if not near.is_empty():
+		near.sort()
+		return pick(near)
+	far.sort()
+	return best_of(far, func(v: Vector2i) -> int: return dist(v, target))
 
 ## A level a side world leads into gets an ordinary way up as well, on a floor a few cells from
 ## the way back (which leads into that world).

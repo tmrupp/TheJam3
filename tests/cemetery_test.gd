@@ -112,7 +112,7 @@ func generation() -> void:
 						for q: Vector2i in w.objects:
 							if w.get_cell(q).type == LevelGen.Type.SWITCH and w.get_cell(q).extra_info == v:
 								levers += 1
-								check(absi(q.x - v.x) + absi(q.y - v.y) >= Chasms.BELL_SWITCH and w.ground_below(q), "%s: its switch stands on a floor away from it" % at)
+								check(absi(q.x - v.x) + absi(q.y - v.y) >= LevelGen.SWITCH_NEAR_MIN and w.get_cell(q + Vector2i.DOWN).type in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED], "%s: its switch stands on a floor near it" % at)
 						check(levers == 1, "%s: a bell chained to a switch has one" % at)
 					else:
 						check(lock < Rules.KEY_COLOR_COUNT, "%s: or a padlock in a key colour (%d)" % [at, lock])
@@ -196,6 +196,9 @@ func bridges() -> void:
 	player.invulnerable.enable()
 	# Chained up: struck or rung, it only rattles.
 	player.keyring.clear()
+	# Chained to start with (some switches start on).
+	if int(bell.get("lock")) < 0:
+		info.set_switch((bell as Bell).switch_cell, false)
 	bell.call("hex_hit", 1, Vector2.RIGHT)
 	bell.call("use")
 	check(not bool(bell.call("unchained")) and not bool(bell.call("rung")) and not info.bridge_up(id), "chained, the bell only rattles")
@@ -208,8 +211,11 @@ func bridges() -> void:
 	else:
 		var lever: Node = placed("switch.tscn").filter(func(n: Node) -> bool: return n.get("gate_cell") == bell.get_meta(&"cell"))[0]
 		lever.call("flip")
-		check(bool(bell.call("unchained")), "throwing its switch frees it")
-	check(info.bell_free(bell.get_meta(&"cell")), "the record keeps it free")
+		check(bool(bell.call("unchained")), "turning its switch on frees it")
+		lever.call("flip")
+		check(not bool(bell.call("unchained")), "and off chains it again")
+		lever.call("flip")
+	check(info.bell_free(bell.get_meta(&"cell")) if lock >= 0 else info.switch_on((bell as Bell).switch_cell), "the record keeps it free")
 	var other: Node = bells.filter(func(b: Node) -> bool: return b != bell and int(b.get("chasm")) == id)[0]
 	check(not info.bell_free(other.get_meta(&"cell")), "the bell across the chasm is still chained: each has its own chain")
 	bell.call("hex_hit", 1, Vector2.RIGHT)

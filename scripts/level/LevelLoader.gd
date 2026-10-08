@@ -215,7 +215,10 @@ func place_cell(v: Vector2i, cell: LevelGen.Cell) -> void:
 	# and cell.
 	var w: LevelGen = info.world
 	var rec: LevelRecord = info.record()
-	var gone: Array[Dictionary] = [rec.taken, rec.opened, rec.slain]
+	var gone: Array[Dictionary] = [rec.taken, rec.slain]
+	# A switch gate is never gone: up or down, it follows its switch (older saves opened it).
+	if cell.type != LevelGen.Type.SWITCH_GATE:
+		gone.append(rec.opened)
 	# Broken only ever means cracked rock: a secret room's rewards stand on its broken cells.
 	if cell.type == LevelGen.Type.CRACKED:
 		gone.append(rec.broken)

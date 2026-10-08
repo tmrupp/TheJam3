@@ -235,7 +235,21 @@ func _spawn_boss_relics () -> void:
 		relic.global_position = entry[1]
 		relic.setup(self, Vector2i.ZERO, entry[2])
 
-## The chain on the bell at `cell` is off (by its key or its switch): for good.
+## Whether the switch at `cell` here is on (Switch: as last turned, else as it started).
+func switch_on (cell: Vector2i) -> bool:
+	return world != null and Switch.is_on_in(world, record(), cell)
+
+## Turn the switch at `cell` here on or off: the record keeps it.
+func set_switch (cell: Vector2i, on: bool) -> void:
+	record().switched[cell] = on
+	save_run()
+
+## Whether the switch gate at `gate` here is up (its switch on).
+func gate_open (gate: Vector2i) -> bool:
+	var lever: Variant = world.get_cell(gate).extra_info if world != null and world.is_valid(gate) else null
+	return lever is Vector2i and switch_on(lever)
+
+## The chain on the bell at `cell` is off (by its key): for good.
 func free_bell (cell: Vector2i) -> void:
 	record().bells_free[cell] = true
 	save_run()
@@ -758,8 +772,10 @@ func solid_at (pos: Vector2) -> bool:
 			if rec.broken.has(v):
 				return false
 			return cell.extra_info == null or not (world.secrets[int(cell.extra_info)]["entrance"] as Array).has(v)
-		LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE:
+		LevelGen.Type.DOOR:
 			return not rec.opened.has(v)
+		LevelGen.Type.SWITCH_GATE:
+			return not gate_open(v)
 	return false
 
 func _physics_process (_delta: float) -> void:

@@ -1,5 +1,5 @@
 extends SceneTree
-## Stills: a switch gate, its switch before and after it is thrown, and a hyperspace door.
+## Stills: a switch gate down, its switch off and then on, the gate lifted, and a hyperspace door.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_switches.gd
 
 func _initialize() -> void:
@@ -44,14 +44,23 @@ func capture() -> void:
 	var lever: Node2D = null
 	var gate: Node2D = null
 	for n: Node in info.map_elements.get_children():
-		if n.scene_file_path.get_file() == "switch.tscn":
-			lever = n as Node2D
-		elif n.scene_file_path.get_file() == "switch_gate.tscn":
+		if n.scene_file_path.get_file() == "switch_gate.tscn":
 			gate = n as Node2D
+	for n: Node in info.map_elements.get_children():
+		if n is Switch and (n as Switch).gate_cell == gate.get_meta(&"cell"):
+			lever = n as Node2D
+	# Off to begin with (some switches start on), the gate down.
+	if (lever as Switch).is_on():
+		lever.call("flip")
+	for i: int in range(60):
+		await process_frame
 	shots.append(await shot(camera, gate.global_position))
 	shots.append(await shot(camera, lever.global_position))
 	lever.call("flip")
 	shots.append(await shot(camera, lever.global_position))
+	for i: int in range(60):
+		await process_frame
+	shots.append(await shot(camera, gate.global_position))
 	info.travel(MapInfo.Exit.DEEPER)
 	await process_frame
 	while info.world == null or info.travelling:

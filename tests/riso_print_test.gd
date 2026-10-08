@@ -70,7 +70,22 @@ func run() -> void:
 		if node.scene_file_path == "res://prefabs/moving_platform.tscn" and not (node as MovingPlatform).waiting:
 			lift = node as Node2D
 			break
-	check(lift != null, "moving platforms generated")
+	if lift == null:
+		# Every lift here waits for its switch, or the level has none: run one, or make one.
+		for node: Node in info.map_elements.get_children():
+			var parked: MovingPlatform = node as MovingPlatform
+			if parked != null and lift == null:
+				info.set_switch(parked.switch_cell, true)
+				parked.run()
+				lift = parked
+		if lift == null:
+			var made: MovingPlatform = (load("res://prefabs/moving_platform.tscn") as PackedScene).instantiate() as MovingPlatform
+			var home: Vector2i = info.cell_at(player.global_position) + Vector2i(1, -2)
+			made.set_meta(&"cell", home)
+			info.map_elements.add_child(made)
+			made.setup(info, home, [1, Vector2i(1, 0), 2])
+			lift = made
+	check(lift != null, "a moving platform")
 	if lift != null:
 		# Awake where it is (far chunks sleep), so its motion can be seen.
 		info.loader.wake_around(lift.global_position)

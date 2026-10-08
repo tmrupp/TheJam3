@@ -1,6 +1,8 @@
 extends TestKit
-## Switch gates (every level has one; its switch is reachable with the gate shut; throwing it, by
-## hand or with a hex bolt, opens the gate for good), the rare big jump (never at depth 0, about
+## Switch gates (every level has one; its switch is reachable with the gate shut and stands near
+## it; some switches start on; turning it on lifts the gate and off drops it again, never on the
+## wizard; a hex bolt turns one on but never off; the record keeps each as it was left), the rare
+## big jump (never at depth 0, about
 ## PLUNGE_CHANCE % of levels deeper; drops PLUNGE_DEPTH levels for its price) and the parry
 ## (wounds and stuns what it catches, reflects shots, refunds the dash).
 ## godot --headless --path . --script res://tests/switches_test.gd
@@ -11,6 +13,10 @@ func run() -> void:
 	var gates_ok: bool = true
 	var reach_ok: bool = true
 	var levels: int = 0
+	var near: int = 0
+	var far_ok: bool = true
+	var all_switches: int = 0
+	var start_on: int = 0
 	for world_seed: int in [1, 7, 28, 99]:
 		# Garden levels: a cemetery's open terraces and the sky's islands have hardly any corridors
 		# for gates.
@@ -39,10 +45,19 @@ func run() -> void:
 							queue.append(n)
 				if not seen.has(lever):
 					reach_ok = false
+				var apart: int = LevelGen.dist(lever, v)
+				near += 1 if apart <= LevelGen.SWITCH_NEAR else 0
+				far_ok = far_ok and apart >= LevelGen.SWITCH_NEAR_MIN
+			for v: Vector2i in w.objects:
+				if w.get_cell(v).type == LevelGen.Type.SWITCH:
+					all_switches += 1
+					start_on += 1 if Switch.starts_on(w, v) else 0
 			if pairs < 1:
 				gates_ok = false
 	check(gates_ok, "every one of %d levels has a switch gate, paired both ways with its switch" % levels)
 	check(reach_ok, "every switch is reachable from the way in with its gate shut")
+	check(far_ok and near * 4 >= levels * 3, "switches stand near their gates (%d within %d cells, none nearer than %d)" % [near, LevelGen.SWITCH_NEAR, LevelGen.SWITCH_NEAR_MIN])
+	check(start_on * 100 > all_switches * 15 and start_on * 100 < all_switches * 55, "some switches start on (%d of %d)" % [start_on, all_switches])
 	var plunges: int = 0
 	var surface: int = 0
 	var tried: int = 0
@@ -74,40 +89,58 @@ func run() -> void:
 	var switches: Array[Node] = placed("switch.tscn")
 	var gates: Array[Node] = placed("switch_gate.tscn")
 	check(not switches.is_empty() and gates.size() == switches.size(), "the level holds %d switch and gate" % switches.size())
-	var lever: Node = switches[0]
-	var gate: Node = null
+	var lever: Switch = switches[0] as Switch
+	var gate: SwitchGate = null
 	for g: Node in gates:
-		if g.get_meta(&"cell") == lever.get("gate_cell"):
-			gate = g
-	check(gate != null and not bool(lever.call("thrown")), "the switch knows its gate, and starts unthrown")
-	lever.call("flip")
-	await process_frame
-	check(bool(lever.call("thrown")) and (not is_instance_valid(gate) or gate.is_queued_for_deletion()), "throwing it lifts the gate")
-	var gate_cell: Vector2i = lever.get("gate_cell")
+		if g.get_meta(&"cell") == lever.gate_cell:
+			gate = g as SwitchGate
+	check(gate != null and gate.shut() == not lever.is_on(), "the switch knows its gate, which stands as the switch is (down while off)")
+	if lever.is_on():
+		lever.flip()
+	await frames(3)
+	check(not lever.is_on() and gate.shut(), "off, its gate is down")
+	lever.flip()
+	await frames(3)
+	check(lever.is_on() and not gate.shut(), "turned on, it lifts the gate")
+	var gate_cell: Vector2i = lever.gate_cell
+	var lever_cell: Vector2i = lever.get_meta(&"cell")
 	info.travel(MapInfo.Exit.LEFT)
 	await settle()
 	info.travel(MapInfo.Exit.RIGHT)
 	await settle()
 	player.set_physics_process(false)
-	check(not placed("switch_gate.tscn").any(func(n: Node) -> bool: return n.get_meta(&"cell") == gate_cell), "a revisit keeps the gate open")
-	check(placed("switch.tscn").any(func(n: Node) -> bool: return bool(n.call("thrown"))), "and the switch thrown")
-	# A hex bolt throws a switch too.
-	info.travel(MapInfo.Exit.LEFT)
-	await settle()
-	player.set_physics_process(false)
-	var other: Node2D = placed("switch.tscn")[0] as Node2D
-	var bolt: Node2D = Node2D.new()
-	bolt.set_script(preload("res://scripts/HexBolt.gd"))
-	bolt.set("dir", Vector2.RIGHT)
-	info.map_elements.add_child(bolt)
-	# Fired from just beside it, so no rock the level happens to put nearby is in the way.
-	bolt.global_position = other.global_position + Vector2(-40, -20)
-	await until(func() -> bool: return bool(other.call("thrown")))
-	check(bool(other.call("thrown")), "a hex bolt throws a switch")
+	var back: Array[Node] = placed("switch_gate.tscn").filter(func(n: Node) -> bool: return n.get_meta(&"cell") == gate_cell)
+	check(back.size() == 1 and not (back[0] as SwitchGate).shut() and info.switch_on(lever_cell), "a revisit keeps the switch on and the gate up")
+	gate = back[0] as SwitchGate
+	lever = placed("switch.tscn").filter(func(n: Node) -> bool: return n.get_meta(&"cell") == lever_cell)[0] as Switch
+	# Off with the wizard in its way: it waits until they are clear.
+	player.global_position = gate.global_position
+	lever.flip()
+	await frames(5)
+	check(not lever.is_on() and not gate.shut(), "turned off with the wizard under it, the gate waits")
+	player.global_position = info.cell_position(lever_cell)
+	await frames(5)
+	check(gate.shut(), "and drops once they are clear")
+	await until(func() -> bool: return gate.lift <= 0.0, 3000)
+	check(gate.lift == 0.0, "winched all the way down")
+	# A hex bolt turns a switch on, never off.
+	var other: Switch = lever
+	var fire: Callable = func() -> void:
+		var bolt: Node2D = Node2D.new()
+		bolt.set_script(preload("res://scripts/HexBolt.gd"))
+		bolt.set("dir", Vector2.RIGHT)
+		info.map_elements.add_child(bolt)
+		# Fired from just beside it, so no rock the level happens to put nearby is in the way.
+		bolt.global_position = other.global_position + Vector2(-40, -20)
+	fire.call()
+	await until(func() -> bool: return other.is_on())
+	check(other.is_on(), "a hex bolt turns a switch on")
+	await frames(10)
+	fire.call()
+	await frames(10)
+	check(other.is_on(), "but never off")
 
 	print("the hyperspace door")
-	info.travel(MapInfo.Exit.RIGHT)
-	await settle()
 	info.travel(MapInfo.Exit.DEEPER)
 	await settle()
 	player.set_physics_process(false)

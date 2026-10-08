@@ -98,7 +98,7 @@ func run() -> void:
 	player.set_physics_process(false)
 	var target: Vector2i = Vector2i(-1, -1)
 	for x: int in range(28, 400):
-		if Rules.bone_vault_at(Vector2i(x, 1)) and Relics.at(Vector2i(x, 1)) == &"":
+		if Rules.bone_vault_at(Vector2i(x, 1)) and Relics.at(Vector2i(x, 1)) == &"" and build(Vector2i(x, 1)).vaults.any(func(v: Dictionary) -> bool: return int(v["color"]) == KeyRing.SKELETON):
 			target = Vector2i(x, 1)
 			break
 	info.coord = target
@@ -153,8 +153,8 @@ func run() -> void:
 	# Make this shrine sell one: with no relic left to point to, it always does.
 	var found: Dictionary = info.run.relics_found.duplicate()
 	for dx: int in range(-Relics.SEARCH - 1, Relics.SEARCH + 2):
-		for dy: int in range(0, Relics.SEARCH + 2):
-			info.run.relics_found[Vector2i(home.x + dx, dy)] = true
+		for dy: int in range(-Relics.SEARCH - 1, Relics.SEARCH + 2):
+			info.run.relics_found[Vector2i(home.x + dx, home.y + dy)] = true
 	check(bool(shrine.call("sells_skeleton")) and not bool(shrine.call("reads_relic")), "with no relic to point to, it sells a skeleton key")
 	var price: int = int(shrine.call("skeleton_price"))
 	check(price == roundi(2.0 * Rules.deeper_price(home.y)), "for %d stars (twice the deeper price)" % price)

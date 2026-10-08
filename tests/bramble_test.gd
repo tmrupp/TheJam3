@@ -162,7 +162,8 @@ func run() -> void:
 	info.map_elements.add_child(bolt)
 	bolt.global_position = other.global_position + other.way * 200.0
 	bolt.dir = -other.way
-	await frames(10)
+	# Fired from 200 px off: wait for it to arrive rather than a fixed number of frames.
+	await until(func() -> bool: return other.wound.hp <= hp - 2, 3000)
 	check(other.wound.hp == hp - 2, "so does a hex bolt that only stuns")
 	var fed: Array[BrambleVine] = bramble.vines.filter(func(v: BrambleVine) -> bool: return v.bulb == other)
 	other.wound.hit(other.wound.hp, Vector2.RIGHT)

@@ -1,5 +1,5 @@
 extends RisoProp
-## A switch: a lever in a stone base, thrown or not.
+## A switch: a lever in a stone base, on or off.
 
 
 ## The Switch it dresses.
@@ -8,12 +8,12 @@ var lever: Switch:
 		return host as Switch
 
 
-## A switch: a stone base on the floor with a lever in it. Before it is thrown the lever leans left
-## with a pink knob, swaying a little; thrown, it leans right, its knob and a halo in accent ink.
+## A switch: a stone base on the floor with a lever in it. Off, the lever leans left with a pink
+## knob, swaying a little; on, it leans right, its knob and a halo in accent ink.
 ## A paper plate on the front of the base bears its sigil, the one what it works shows too.
 func _draw_art() -> void:
 	var g: float = _ground()
-	var thrown: bool = lever.thrown()
+	var thrown: bool = lever.is_on()
 	var base: PackedVector2Array = RisoShapes.rrect(-44, g - 42, 88, 42, 11)
 	var slot: PackedVector2Array = RisoShapes.rrect(-20, g - 42, 40, 7, 3.5)
 	var tilt: float = (0.6 if thrown else -0.6) + (0.0 if thrown else sin(t * 2.0 + phase) * 0.06)

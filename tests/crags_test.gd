@@ -178,9 +178,14 @@ func ride() -> void:
 	check(g.running and g.bound_for == start, "and pulled again it heads back the way it came")
 	check(await until(func() -> bool: return not g.running and g.at_station == start, 40000), "back at the open station")
 	await rock_bugs()
-	# A toll gate lifts for its price.
+	# A toll gate lifts for its price (one placed here, if this level has none of its own).
 	var tolls: Array[Node] = placed("toll_gate.tscn")
-	check(not tolls.is_empty(), "the level has a toll gate")
+	if tolls.is_empty():
+		var spare: TollGate = Placeables.scene(LevelGen.Type.TOLL).instantiate() as TollGate
+		spare.set_meta(&"cell", Vector2i(-5, -5))
+		info.map_elements.add_child(spare)
+		spare.setup(info, Vector2i(-5, -5), Rules.toll_price(info.here.depth))
+		tolls.append(spare)
 	if not tolls.is_empty():
 		var toll: TollGate = tolls[0] as TollGate
 		player.collect(toll.price - player.coins.coins - 1)
@@ -191,10 +196,17 @@ func ride() -> void:
 		check(toll.is_queued_for_deletion() and player.coins.coins == 0 and info.record().opened.has(toll.get_meta(&"cell")), "and lifts for good for it")
 	# Open the next station and call the car there from its landing: it comes over empty.
 	var gate_cell: Vector2i = g.gates[next]
-	info.record().opened[gate_cell] = true
-	for n: Node in info.map_elements.get_children():
-		if n.get_meta(&"cell", Vector2i(-1, -1)) == gate_cell:
-			n.queue_free()
+	if info.world.get_cell(gate_cell).type == LevelGen.Type.SWITCH_GATE:
+		# A switch gate is up while its switch is on.
+		info.set_switch(info.world.get_cell(gate_cell).extra_info, true)
+		for n: Node in info.map_elements.get_children():
+			if n.get_meta(&"cell", Vector2i(-1, -1)) == gate_cell:
+				(n as SwitchGate).set_up(true)
+	else:
+		info.record().opened[gate_cell] = true
+		for n: Node in info.map_elements.get_children():
+			if n.get_meta(&"cell", Vector2i(-1, -1)) == gate_cell:
+				n.queue_free()
 	player.global_position = info.cell_position(gate_cell + Vector2i(g.inner[next], 0)) + Vector2(0, 20)
 	player.velocity = Vector2.ZERO
 	check(await until(func() -> bool: return g.running), "called from an opened station's landing, it sets off")

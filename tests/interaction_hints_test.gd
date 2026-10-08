@@ -125,10 +125,18 @@ func run() -> void:
 		if captured.has(kind):
 			continue
 		captured[kind] = true
+		var chained_by: Vector2i = (node as Bell).switch_cell
+		if lock < 0:
+			# Chained to start with (some switches start on).
+			info.set_switch(chained_by, false)
 		it = await focus(node as Node2D)
 		check(bool(it.prompt_hint().get("switch", false)) if lock < 0 else int(it.prompt_hint().get("key_color", -1)) == lock, "chained bell shows its %s requirement" % kind)
 		await shot("bell_" + kind)
-		node.call("open")
+		if lock < 0:
+			info.set_switch(chained_by, true)
+			(node as Bell).switched(true)
+		else:
+			node.call("open")
 		await until(func() -> bool: return it.prompt_hint().is_empty())
 		check(it.prompt_hint().is_empty(), "freed bell returns to the ring interaction")
 		node.call("ring")

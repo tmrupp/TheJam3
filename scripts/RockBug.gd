@@ -197,10 +197,15 @@ func _plan_step(going: int) -> bool:
 	return true
 
 
-## Whether cell `v` holds thorns or a gate not yet opened.
+## Whether cell `v` holds thorns or a gate that is shut (a switch gate down, a door or toll gate not
+## yet opened).
 func _blocked(v: Vector2i) -> bool:
 	var w: LevelGen = map_info.world
-	return w.is_valid(v) and w.get_cell(v).type in BLOCKS and not map_info.record().opened.has(v)
+	if not w.is_valid(v) or not w.get_cell(v).type in BLOCKS:
+		return false
+	if w.get_cell(v).type == LevelGen.Type.SWITCH_GATE:
+		return not map_info.gate_open(v)
+	return w.get_cell(v).type == LevelGen.Type.SPIKES or not map_info.record().opened.has(v)
 
 
 ## On a gondola's cable: walk along it to meet the car, and climb in when it is near.

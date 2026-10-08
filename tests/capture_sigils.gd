@@ -81,7 +81,7 @@ func capture() -> void:
 			if n is SwitchGate:
 				var at: Vector2 = (n as Node2D).global_position
 				await shot(at)
-				(n as SwitchGate).open()
+				(n as SwitchGate).set_up(true)
 				for i: int in range(18):
 					await process_frame
 				var opening: Image = root.get_texture().get_image()

@@ -166,10 +166,13 @@ func has_rider() -> bool:
 	return player != null and is_instance_valid(player) and _inside != null and _inside.overlaps_body(player)
 
 
-## Whether station `i` is open: no gate in its doorway, or its gate opened.
+## Whether station `i` is open: no gate in its doorway, or its gate opened (a switch gate: up).
 func is_open(i: int) -> bool:
 	var g: Vector2i = gates[i]
-	return not map_info.world.get_cell(g).type in GATES or map_info.record().opened.has(g)
+	var type: LevelGen.Type = map_info.world.get_cell(g).type
+	if type == LevelGen.Type.SWITCH_GATE:
+		return map_info.gate_open(g)
+	return not type in GATES or map_info.record().opened.has(g)
 
 
 ## The next station on from `from` (cells round), the way `way` runs, and how far that is (cells):
