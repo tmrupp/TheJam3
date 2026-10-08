@@ -917,8 +917,8 @@ static func _bite_out(polys: Array[PackedVector2Array], cut: PackedVector2Array)
 
 
 ## A segment's thorns: pink spikes standing out from the edge of its body on the side they face,
-## longest where the edge faces them squarely (and round the tail's end, on the tail), but none
-## into the rock.
+## longest where the edge faces them squarely (and round the tail's end, on the tail). They show
+## against a wall too, printed over the rock it crawls along, so its thorny side is always seen.
 func _draw_thorns(path: Array[Vector2i], s: WormSegment, front: float, back: float, width: float, tail: bool, pale: bool) -> void:
 	var spikes: Array[PackedVector2Array] = []
 	var edge: Array = []
@@ -944,10 +944,9 @@ func _draw_thorns(path: Array[Vector2i], s: WormSegment, front: float, back: flo
 		var base: Vector2 = e[0]
 		var along: Vector2 = normal.orthogonal() * THORN_BASE
 		var tip: Vector2 = base + normal * WormSegment.THORN_LEN * (0.5 + 0.7 * w)
-		# None stand into the rock it is pressed against.
-		if not passable(map_info.world, map_info.cell_at(tip)):
-			continue
 		spikes.append(PackedVector2Array([base - normal * 3.0 + along, tip, base - normal * 3.0 - along]))
+	# Cleared to paper first, so those over the rock print as bright as those in the open.
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], spikes)
 	ink.ink(RisoPrint.PINK, 0.35 if pale else 1.0, spikes)
 
 

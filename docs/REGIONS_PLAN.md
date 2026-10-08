@@ -170,9 +170,10 @@ through the gate level's tunnels, as Tom described.
   rock).
 - **Thorns.** Every segment but the head has thorns along one flank of the body (left or right of
   the way it heads, `Worm.Piece.side`), printed as pink spikes along the body's edge on that side
-  (none into the rock). Each time a worm comes out of the rock (from a burrow, or out of a wall)
-  it picks the flank facing the wizard (`Worm.side_toward`) and keeps it, bending with the body,
-  until it goes into the rock again; a split's back half keeps its side. They hurt to touch, and
+  (against a wall too, printed over the rock it crawls along, so the thorny side always shows).
+  Each time a worm comes out of the rock (from a burrow, or out of a wall) it picks the flank
+  facing the wizard (`Worm.side_toward`) and keeps it, bending with the body, until it goes into
+  the rock again; a split's back half keeps its side. They hurt to touch, and
   a bolt, dash or parry striking a segment from that side glances off (`WormSegment.guarded`):
   the wizard has to get round to its bare side to cut it. A parry against the thorns only catches
   the hit and pushes off, as off any thorns (they have no health or stun of their own); while the
