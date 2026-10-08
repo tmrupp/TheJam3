@@ -5,6 +5,11 @@ class_name Wound
 ## level record keeps it slain until the player dies.
 
 var hp: int = 1
+## The least a hex bolt or a dash wounds it by, even at a tier that only stuns (0: as the tier
+## says). The worm's soft segments are cut by anything that strikes them (WormWound).
+var least: int = 0
+## Its host has been slain (just before it is freed).
+signal slain
 
 ## Hit points by depth: 2 to start with (so a parry, 1 damage, stuns rather than kills), 3 from
 ## depth 6.
@@ -30,6 +35,13 @@ func hit(damage: int, dir: Vector2) -> void:
 		_die(host)
 
 
+## What a struck part belongs to, so a move (a bolt, a dash) strikes the whole only once: a worm
+## segment's worm (each move cuts one segment), anything else itself.
+static func whole(part: Node) -> Node:
+	var segment: WormSegment = part as WormSegment
+	return segment.worm if segment != null and segment.worm != null else part
+
+
 ## A small camera kick for hits and kills.
 static func shake(intensity: float, sustain: float) -> void:
 	var cam: CameraEffects = Stage.camera()
@@ -38,6 +50,7 @@ static func shake(intensity: float, sustain: float) -> void:
 
 
 func _die(host: Node2D) -> void:
+	slain.emit()
 	var info: MapInfo = MapInfo.instance
 	if info != null:
 		info.mark_slain(host)

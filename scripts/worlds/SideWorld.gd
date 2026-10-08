@@ -50,9 +50,9 @@ func arriving(_at: Vector2i) -> Variant:
 	return null
 
 
-## How deep the world entered from level `from` counts as.
+## How far from the start the world entered from level `from` counts as.
 func depth_for(from: Vector2i) -> int:
-	return from.y
+	return absi(from.y)
 
 
 # ------------------------------------------------------------------ one world of the kind

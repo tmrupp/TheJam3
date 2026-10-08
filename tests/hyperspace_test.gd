@@ -97,6 +97,9 @@ func run() -> void:
 			plunge_seed = world_seed
 			break
 	await boot(plunge_seed)
+	# The garden's gates are what gate_test is for: here they are passed, so its hyperspace opens.
+	info.run.bosses[Bosses.GARDEN_DOWN] = true
+	info.run.bosses[Bosses.GARDEN_UP] = true
 	info.travel(MapInfo.Exit.DEEPER)
 	await settle()
 	player.set_physics_process(false)

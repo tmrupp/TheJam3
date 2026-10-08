@@ -8,6 +8,12 @@ var shot: Bullet:
 		return host as Bullet
 
 
+func _ready() -> void:
+	super()
+	# Over the props (doors, z 2), as the wizard's hex bolts are.
+	z_index = 3
+
+
 func _draw_art() -> void:
 	var ang: float = shot.velocity.angle()
 	var xf: Transform2D = Transform2D(ang, Vector2.ZERO)

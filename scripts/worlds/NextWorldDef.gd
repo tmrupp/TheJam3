@@ -30,6 +30,8 @@ var doors: Array[int] = []
 var arrival_from: Variant = null
 ## The move the relic in this level holds (see Relics), or &"" for none.
 var relic: StringName = &""
+## The boss whose gate its way on is (Bosses), or &"" for a level that is no gate level.
+var gate: StringName = &""
 ## Whether a secret room in this level holds a skeleton key (see Rules.skeleton_at).
 var skeleton: bool = false
 ## What kind of level it is (ARCHETYPES), by its depth: its terrain, look and what lives there.
@@ -76,6 +78,7 @@ func setup(at: Vector2i) -> NextWorldDef:
 		if Worlds.proto(k).deals(at):
 			doors.append(k)
 	arrival_from = Worlds.arriving_at(at)
+	gate = Bosses.gate_at(at.y)
 	relic = Relics.at(at)
 	skeleton = Rules.skeleton_at(at)
 	return self
@@ -228,6 +231,22 @@ func price(exit: int, rec: LevelRecord) -> int:
 	return 0
 
 
+## The boss that seals `exit` while it lives in run `run`, or &"": a gate level's way on, and a side
+## door whose world leads out past a gate (Bosses.crossed), until its boss is slain. Nothing opens
+## a seal but the boss's death: no key, no stars.
+func seal(exit: int, run: RunState) -> StringName:
+	var through: Array[StringName] = []
+	if exit == MapInfo.Exit.DEEPER and gate != &"":
+		through = [gate]
+	var kind: int = Worlds.door_kind(exit)
+	if kind >= 0:
+		through = Bosses.crossed(coord.y, Worlds.proto(kind).destination_for(coord).y)
+	for boss: StringName in through:
+		if run == null or not run.bosses.has(boss):
+			return boss
+	return &""
+
+
 ## Record `exit` as paid for.
 func pay(exit: int, rec: LevelRecord) -> void:
 	if Worlds.door_kind(exit) >= 0:
@@ -241,6 +260,12 @@ func pay(exit: int, rec: LevelRecord) -> void:
 ## Whether `exit` is the start's way up (its way back, unless a side world leads into it).
 func _way_up_from_start(exit: int) -> bool:
 	return coord.y == 0 and exit == MapInfo.Exit.BACK and arrival_from == null
+
+
+## Whether `exit` leads on, away from the start (printed pink, as a way on is): the way on, and
+## the start's way up, which is as much a way on as its way down.
+func leads_on(exit: int) -> bool:
+	return exit == MapInfo.Exit.DEEPER or _way_up_from_start(exit)
 
 
 # ------------------------------------------------------------------ how it looks

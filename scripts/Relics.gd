@@ -31,7 +31,8 @@ static func chance(depth: int) -> int:
 
 ## The move the relic in level `at` holds, or &"" for a level without one.
 static func at(at: Vector2i) -> StringName:
-	if Worlds.is_side(at):
+	# Gate levels hold none of their own: their boss leaves one (Bosses).
+	if Worlds.is_side(at) or Bosses.gate_at(at.y) != &"":
 		return &""
 	var h: int = Rules.level_seed(Rules.level_seed(at.x, at.y), 4242)
 	var d: int = absi(at.y)

@@ -14,6 +14,7 @@ extends RefCounted
 
 const KINDS: Array[Script] = [
 	preload("res://scripts/worlds/Hyperspace.gd"),
+	preload("res://scripts/worlds/Arena.gd"),
 ]
 ## Each kind's span of rows; a side world's origin row lies within half of it either way of 0.
 const STRIDE: int = 100000

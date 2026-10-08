@@ -94,6 +94,9 @@ func _process(delta: float) -> void:
 					ink.ink(RisoPrint.NIGHT, 1.0, RisoMarks.key_shape(at, pop, needs), false)
 				else:
 					ink.ink_overprint(RisoPrint.key_inks(needs), 1.0, RisoMarks.key_shape(at, pop, needs))
+			elif bool(hint.get("sealed", false)):
+				# Sealed by a boss: only its death opens it.
+				RisoMarks.boss_seal(ink, at, 16.0 * pop)
 			elif bool(hint.get("switch", false)):
 				# The switch emblem, and beside it the sigil of the switch to find (Sigils).
 				var sigil_kind: int = int(hint.get("sigil", -1))

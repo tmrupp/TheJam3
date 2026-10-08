@@ -35,6 +35,10 @@ var rift_link: Array = []
 ## move the relic holds), shown on the worlds map.
 var relics_found: Dictionary = {}
 var relic_hints: Dictionary = {}
+## The bosses slain this run (name -> true; see Bosses), and the relics they left that wait still
+## (name -> [the place, the position, the move]).
+var bosses: Dictionary = {}
+var boss_relics: Dictionary = {}
 
 
 ## A fresh run from depth 0 of `seed_value`: no records, no ghost, protected.
@@ -46,6 +50,8 @@ func start(seed_value: int) -> void:
 	rift_link.clear()
 	relics_found.clear()
 	relic_hints.clear()
+	bosses.clear()
+	boss_relics.clear()
 	vulnerable = false
 	clear_ghost()
 
@@ -130,6 +136,7 @@ func to_save(coord: Vector2i, player: Dictionary) -> Dictionary:
 		"has_ghost": has_ghost, "ghost_coord": ghost_coord, "ghost_pos": ghost_pos, "ghost_stars": ghost_stars,
 		"debug": MapInfo.debug, "rift_link": rift_link,
 		"relics_found": relics_found, "relic_hints": relic_hints,
+		"bosses": bosses, "boss_relics": boss_relics,
 	}
 	data.merge(player)
 	return data
@@ -148,6 +155,8 @@ func from_save(data: Dictionary) -> void:
 	rift_link = data.get("rift_link", [])
 	relics_found = data.get("relics_found", {})
 	relic_hints = data.get("relic_hints", {})
+	bosses = data.get("bosses", {})
+	boss_relics = data.get("boss_relics", {})
 	respawn_coord = data["respawn_coord"]
 	respawn_cell = data["respawn_cell"]
 	vulnerable = bool(data["vulnerable"])

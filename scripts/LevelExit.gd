@@ -21,6 +21,12 @@ func price() -> int:
 		return 0
 	return map_info.here.price(exit, map_info.record())
 
+## The boss that seals this exit while it lives (NextWorldDef.seal), or &"".
+func sealed() -> StringName:
+	if map_info == null or map_info.here == null:
+		return &""
+	return map_info.here.seal(exit, map_info.run)
+
 ## The key colour this exit still needs, or -1 when it is open (only left and right lock).
 func lock() -> int:
 	if map_info == null:
@@ -37,11 +43,17 @@ static func lock_at(at: Vector2i, which: int, rec: LevelRecord) -> int:
 	return Rules.lateral_lock(at, which)
 
 func interaction_hint() -> Dictionary:
+	if sealed() != &"":
+		return {"sealed": true}
 	var needs: int = lock()
 	return {"key_color": needs} if needs >= 0 else {}
 
 func interacted() -> void:
 	if map_info == null or map_info.travelling:
+		return
+	# Sealed by a boss: nothing opens it but the boss's death.
+	if sealed() != &"":
+		RisoFx.burst(&"hit", global_position + Vector2(0, -60), Vector2.UP, [RisoPrint.PINK, RisoPrint.NIGHT])
 		return
 	var needs: int = lock()
 	if needs >= 0:

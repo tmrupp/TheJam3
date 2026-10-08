@@ -53,7 +53,8 @@ func run() -> void:
 	print("relics behind bone gates")
 	var relics: int = 0
 	for x: int in range(1, 4000):
-		var at: Vector2i = Vector2i(x, 3)
+		# One row past the garden's gate row (whose levels hold no relic of their own: Bosses).
+		var at: Vector2i = Vector2i(x, Relics.MIN_DEPTH + 1)
 		if Relics.at(at) == &"" or not Rules.relic_gated_at(at):
 			continue
 		var def: NextWorldDef = Rules.def_for(at)

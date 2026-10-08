@@ -177,6 +177,41 @@ func turn_vane (id: int, from: Vector2i) -> void:
 func wind_from (id: int) -> Variant:
 	return record().winds.get(id)
 
+## Boss `boss` died at `pos` (Boss): slain for the rest of the run, so every gate level of its band
+## opens; where it fell, its relic waits (Bosses.relic_for, free), or, with every move known, a
+## skeleton key and a star cluster.
+func boss_slain (boss: StringName, pos: Vector2) -> void:
+	if boss == &"" or run.bosses.has(boss):
+		return
+	run.bosses[boss] = true
+	var move: StringName = Bosses.relic_for(boss, run.run_seed, player)
+	if move != &"":
+		run.boss_relics[boss] = [coord, pos, move]
+		_spawn_boss_relics()
+	else:
+		var id: int = record().drop_key(pos, KeyRing.SKELETON)
+		_spawn_dropped_key(id, pos, KeyRing.SKELETON)
+		var cluster: Coin = Placeables.scene(LevelGen.Type.CLUSTER).instantiate() as Coin
+		cluster.value = Rules.cluster_value(here.depth)
+		map_elements.add_child(cluster)
+		cluster.global_position = pos + Vector2(60, -40)
+	RisoFx.burst(&"gain", pos, Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.PINK])
+	save_run()
+
+## The relics slain bosses left in this place, where they fell, until taken.
+func _spawn_boss_relics () -> void:
+	if map_elements == null or not is_instance_valid(map_elements):
+		return
+	for boss: StringName in run.boss_relics:
+		var entry: Array = run.boss_relics[boss]
+		if entry[0] != coord or map_elements.get_children().any(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == boss):
+			continue
+		var relic: Relic = Placeables.scene(LevelGen.Type.RELIC).instantiate() as Relic
+		relic.set_meta(&"boss", boss)
+		map_elements.add_child(relic)
+		relic.global_position = entry[1]
+		relic.setup(self, Vector2i.ZERO, entry[2])
+
 ## The chain on the bell at `cell` is off (by its key or its switch): for good.
 func free_bell (cell: Vector2i) -> void:
 	record().bells_free[cell] = true
@@ -385,6 +420,7 @@ func _level_ready (built: LevelGen) -> void:
 	for id: int in rec.dropped:
 		_spawn_dropped_key(id, rec.dropped[id][0], rec.dropped[id][1])
 	Rift.restore(self)
+	_spawn_boss_relics()
 	# Rock broken before, under things you stand at: their ledges.
 	_props.clear()
 	prop_up(rec.broken.keys())

@@ -181,7 +181,7 @@ func _strike(attacker: Node) -> void:
 	if is_instance_valid(attacker) and not attacker.is_queued_for_deletion():
 		var stunner: Stunner = Stunner.of(attacker)
 		if stunner != null:
-			stunner.stun(STUN)
+			stunner.stun(STUN, true)
 		# A swarm of moths scatters instead.
 		if attacker is MothSwarm:
 			(attacker as MothSwarm).scatter(dir)

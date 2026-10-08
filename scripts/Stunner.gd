@@ -24,7 +24,14 @@ func set_stuns (value: bool) -> void:
 		elif node is HitBox:
 			(node as HitBox).stunned = value
 
-func stun (duration: float=2.0) -> void:
+## Stunned by nothing but a parry (the worm: only a parried bite to its face stuns it; bolts and
+## dashes still wound it).
+var parry_only: bool = false
+
+## Stun it for `duration` (a `parried` stun is a parry's).
+func stun (duration: float=2.0, parried: bool = false) -> void:
+	if parry_only and not parried:
+		return
 	set_stuns(true)
 	if duration > left:
 		left = duration

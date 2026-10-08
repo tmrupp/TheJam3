@@ -50,6 +50,7 @@ const TABLE: Dictionary = {
 	LevelGen.Type.VANE: {"scene": "res://prefabs/vane.tscn", "art": &"vane", "flags": [&"stander"], "setup": 3},
 	LevelGen.Type.WIND: {"scene": "res://prefabs/wind.tscn", "art": &"wind", "setup": 3},
 	LevelGen.Type.BIRD: {"scene": "res://prefabs/bird_enemy.tscn", "art": &"bird", "flags": [&"enemy"]},
+	LevelGen.Type.BOSS: {"scene": "res://prefabs/boss.tscn", "art": &"wisp", "flags": [&"enemy"], "setup": 3},
 }
 
 ## Prefabs loaded so far, by Type (each is loaded the first time one is placed).

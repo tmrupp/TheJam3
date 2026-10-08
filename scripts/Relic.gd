@@ -30,9 +30,10 @@ func swap() -> bool:
 	return Abilities.is_swap(player, holds()[0])
 
 
-## Stars still owed to take it: its price, or nothing for a spell a swap left here.
+## Stars still owed to take it: its price, or nothing for a spell a swap left here or a boss's
+## relic (the fight was its price).
 func price() -> int:
-	if map_info == null or not map_info.record().relic_left.is_empty():
+	if map_info == null or not map_info.record().relic_left.is_empty() or has_meta(&"boss"):
 		return 0
 	return Relics.price(map_info.here.depth)
 
@@ -57,6 +58,9 @@ func take() -> void:
 	else:
 		map_info.record().relic_left = []
 		map_info.mark_taken(self)
+		# A boss's relic, taken: it waits there no more.
+		if has_meta(&"boss"):
+			map_info.run.boss_relics.erase(get_meta(&"boss"))
 		queue_free()
 	map_info.save_run()
 	RisoFx.burst(&"gain", global_position + Vector2(0, -40), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.PINK])

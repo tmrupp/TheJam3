@@ -6,7 +6,8 @@ guards a relic and the way on to the next region. It builds on `docs/DEEPER_PLAN
 places, archetypes, side worlds, relics) and follows the owner's notes in `docs/TOM_THOUGHTS.md`
 ("can go up or down", "bosses, possibly guarding relics, must be defeated").
 
-Phases 1 (rows both ways) and 2 (climbing levels) are built; the rest is not yet. Each section says what is decided, what
+Phases 1 (rows both ways), 2 (climbing levels) and 3 (the gate, with a stand-in boss) are built,
+and of phase 4 the worm; the rest is not yet. Each section says what is decided, what
 is proposed, and what is still open; the phases at the end give the order of work.
 
 ## 1. Decided
@@ -154,17 +155,61 @@ of thorn and bark with a few **bulbs** (its weak points, accent) set in the wall
 
 ### The worm (garden, down gate, in the level)
 
-A segmented worm that weaves through the gate level's tunnels, as Tom described.
+*Built* (`Worm`, `WormSegment`, `WormWound`, `prefabs/worm.tscn`). A segmented worm that weaves
+through the gate level's tunnels, as Tom described.
 
-- **Segments.** Each is a hex and dash target with a little health. The head bites (pink); the
-  body is harmless to touch but solid, so it walls off tunnels as it passes.
-- **Splitting.** Cutting a middle segment splits the worm into two shorter worms, each growing a
-  head at the cut. Worms of one or two segments burrow away and die. The boss is slain when no worm
-  is left.
-- **Parry.** A parried bite stuns that worm, and its segments go still and pale: a moment to cut it
-  cleanly.
-- **Procedural.** It follows the level's corridors (the same reach the generator already computes),
-  emerging from and sinking into the rock at burrow holes the seed places.
+- **Segments.** 10 segments (`Worm.SEGMENTS`), each as big as a cell of the level. It crawls cell
+  by cell, the body following the head through the cells it has been, and bends there like a pipe:
+  straight through a cell it crosses, round a quarter circle in a cell where it turns, sliding
+  smoothly between steps, and slides cleanly into and out of the rock at a hole's face. It knows
+  the cell after the one its head is going into, so the head bends the way it will turn rather
+  than nosing into the rock, and its rounded front stops at the rock. Each segment takes 3 hits
+  (`SEGMENT_HP`), its hits left printed on it as dark dots. The head bites (pink); its mouth is
+  cut out of the head, so what is behind shows through it. The body, pale flesh, is solid, so it
+  walls off tunnels as it passes (a wizard it moves into is let through it, not wedged in the
+  rock).
+- **Thorns.** Every segment but the head has thorns along one flank of the body (left or right of
+  the way it heads, `Worm.Piece.side`), printed as pink spikes along the body's edge on that side
+  (none into the rock). Each time a worm comes out of the rock (from a burrow, or out of a wall)
+  it picks the flank facing the wizard (`Worm.side_toward`) and keeps it, bending with the body,
+  until it goes into the rock again; a split's back half keeps its side. They hurt to touch, and
+  a bolt, dash or parry striking a segment from that side glances off (`WormSegment.guarded`):
+  the wizard has to get round to its bare side to cut it. A parry against the thorns only catches
+  the hit and pushes off, as off any thorns (they have no health or stun of their own); while the
+  worm is stunned they do not hurt.
+- **No dashing through.** Its body is on a physics layer of its own (`WormSegment.WORM_LAYER`,
+  "Worm"), which the dash does not pass through as it does the enemy layer: a dash stops at the
+  worm, unless it cuts the segment it meets and goes through the gap.
+- **Soft flesh, one cut a move.** Any hex bolt or dash cuts a segment, even at a tier that only
+  stuns (`Wound.least`, 1 for a segment), and a parry too; so the worm can be fought with the
+  moves a run starts with. Each bolt (even a piercing one), dash or parry cuts only one segment,
+  the first it meets (`Wound.whole`: the worm is struck once a move).
+- **Splitting.** A cut head or tail shortens the worm; cutting a middle segment splits it into two
+  shorter worms, the back one growing a head at the cut. Worms of two segments or fewer
+  (`SHORTEST`) burrow away and die. The boss is slain when no worm is left, and its relic waits on
+  the free floor nearest where the last one went down.
+- **Stun.** Only a parried bite, to its face, stuns it (`Stunner.parry_only`; bolts and dashes cut
+  but do not stun), and then the whole worm: its segments go still and pale and take double, and
+  its head does not bite: a moment to cut it cleanly.
+- **Walls and burrows.** It crawls along the walls, floors and ceilings: its lair is every open
+  cell of the level touching rock. Burrow holes are dug all through the level (9 per 1000 cells,
+  at least 6, floors first, dealt by the level seed, 6 cells apart, clear of the exits), printed as
+  a heap of pale earth round a dark mouth as wide as the worm.
+- **Digging.** Chasing the wizard it digs straight through a wall when going round is more than
+  three times as far (a cell of rock counts 3, `ROCK_COST`), cutting a hole in each face it goes in
+  and out by, out of sight and out of reach while in the rock. It never turns back on itself:
+  boxed in, it digs into the rock beside its head and burrows away there.
+- **Waking and stalking.** It lies under the rock by the way on until the wizard comes within 12
+  cells of it (`WAKE_RANGE`), then stalks them through the whole level: it comes up out of a
+  burrow near them (not on them), crawls after them for 8 to 12 s (140 px/s, 185 once after them;
+  the wizard runs at 300), sinks into the nearest burrow and comes up again 1.2 to 2.4 s later.
+- **Warning.** Every time it is about to come out of the rock (from a burrow, or digging out of a
+  wall) it waits 1.2 s (`EMERGE_WARN`): the ground there bulges pink round a dark slit, throbbing
+  faster and swelling, clods of dirt jump, and the screen rumbles every 0.15 s, harder as the
+  moment nears and the nearer the wizard is (felt within 1100 px); then it bursts out with a
+  harder shake.
+- **Procedural.** Its choices come from an RNG of its own, seeded by the level; nothing draws
+  from the world RNG, so layouts are unchanged.
 
 ### The spider (crags / castle, arena: the keep)
 
@@ -266,11 +311,35 @@ Each phase ends with the full suite green and its own tests.
    the way back and in the top part, ledges only in up levels and where they may go, the same every
    build, and they help); `layout_fingerprint_test` re-pinned for the up levels (their dressing
    changed; their terrain and every level below the start did not).
-3. **The gate.** `RunState.bosses`, gate levels, the seal, the relic plinth, the map's seal mark,
-   no skipping a seal, and a stand-in boss (a big wisp with countable health) to prove the loop in
-   both kinds (in the level and in an arena). Tests: sealed until slain; slain once opens every
-   gate level of the band; a lantern death heals it; hyperspace never crosses a seal.
-4. **The bramble and the worm** (the garden's gates, in the level).
+3. **The gate.** *Done.* `Bosses` (which row each boss guards, in the level or in an arena, what a
+   way crosses), `RunState.bosses` and `boss_relics` (saved), `NextWorldDef.gate` and `seal`: a gate
+   level's way on, and a side door whose world leads out past a living boss's gate (a hyperspace),
+   are sealed (pink bars and the boss's eye on the door, the eye on the prompt, a seal mark on the
+   level map). The stand-in (`Boss`: a wisp twice the size, 10 hits shown as pips over it) stands in
+   the worm's and bramble's gate levels (`LevelGen.place_boss`, nearest the way on) and in the arena
+   (`Arena`, a side world: a plain hall, its door free, a dead end) for the rest. Its death
+   (`MapInfo.boss_slain`) opens every gate level of its band for the run and leaves a free relic
+   where it fell (a move not yet known, `Bosses.relic_for`; with every move known, a skeleton key
+   and a star cluster). Gate levels hold no relic of their own. Tests: `gate_test` (the rows and
+   crossings, the seal, a lantern death healing it, the kill, the relic, the other columns, the way
+   up still sealed, the arena, hyperspace sealed then opened, saved); `capture_gate.gd` (stills).
+   Every hyperspace from the garden now waits on a garden boss, since its trip crosses a gate. Not
+   yet: a seal mark on the worlds map's tiles.
+4. **The bramble and the worm** (the garden's gates, in the level). *The worm is done* (§6): its
+   lair and holes, cell-sized segments bending like a pipe, the bite, soft flesh (`Wound.least`, so
+   the starting moves can cut it), stuns holding the whole worm, cuts shortening or splitting it,
+   short worms burrowing away, and its death; one cut a move, only a parried bite stunning it, its
+   body blocking the dash; thorns on the flank facing the wizard as it comes out; crawling the walls of the whole level, burrows all
+   through it, digging through walls, and a warning (a pink bulge, dirt and a rumble) before it
+   comes out of the rock. A built boss is its own prefab (`Bosses.SCENES`,
+   `Bosses.scene`); the rest still fight as the stand-in. Tests: `worm_test` (holes and lair, lying
+   under, the warning and rumble, waking and hunting, the head never in the rock, digging through a
+   wall, its thorns (one flank, picked facing the wizard as it comes out and kept, glancing
+   strikes off), one segment cut a move, only a
+   parry stunning it, its layer, the bite, struck by a dash and a bolt that only stun, cuts, splits,
+   burrowing away, a lantern death healing it, slain, its relic on a floor, never met again);
+   `capture_worm.gd` (stills). `gate_test` and `capture_gate.gd` now show the stand-in at the
+   bramble's gate. Not yet: the bramble.
 5. **Crags and castle**: sample, structure pass, decor, realm; then **the spider** and its keep.
 6. **Catacombs**: sample, darkness, decor, realm; then **the necromancer** (cemetery) and **the
    eldritch beast**.

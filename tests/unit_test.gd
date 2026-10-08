@@ -219,6 +219,7 @@ func _branches() -> void:
 	check(home["to"] == Vector2i(28, 0) and int(home["arrive"]) == MapInfo.Exit.BACK and home["way"] == Vector2.DOWN, "and its way back leads down into the start, at the start's way up")
 	check(Rules.def_for(Vector2i(28, 1)).lead(MapInfo.Exit.BACK)["arrive"] == MapInfo.Exit.DEEPER, "while the first level down leads back up to the start's way down")
 	check(first_up.exit_dir(MapInfo.Exit.DEEPER) == Vector2.UP and first_up.exit_dir(MapInfo.Exit.BACK) == Vector2.DOWN and start.exit_dir(MapInfo.Exit.BACK) == Vector2.UP, "chevrons point the way each exit leads")
+	check(start.leads_on(MapInfo.Exit.BACK) and start.leads_on(MapInfo.Exit.DEEPER) and not first_up.leads_on(MapInfo.Exit.BACK) and first_up.leads_on(MapInfo.Exit.DEEPER) and not Rules.def_for(Vector2i(28, 1)).leads_on(MapInfo.Exit.BACK), "the start's way up is a way on (printed pink), as its way down is; ways back are not")
 	var rec: LevelRecord = LevelRecord.new()
 	check(start.price(MapInfo.Exit.BACK, rec) == Rules.deeper_price(0) and start.price(MapInfo.Exit.DEEPER, rec) == Rules.deeper_price(0), "the start's ways up and down cost the same")
 	start.pay(MapInfo.Exit.BACK, rec)
@@ -321,8 +322,9 @@ func _takes(m: Dictionary, n: int) -> bool:
 
 ## The two things called by name on scripts that share no base class. A prefab's `setup` is
 ## called as its Placeables entry says ("setup": how many it takes), so each entry must match its
-## prefab's script. A hex bolt calls `hex_hit(damage, dir)` on the things listed in
-## HexBolt.ANSWERS, so every script with a hex_hit must be one of them and take those two.
+## prefab's script (a boss's own prefab, Bosses.SCENES, as the boss cell's). A hex bolt calls
+## `hex_hit(damage, dir)` on the things listed in HexBolt.ANSWERS, so every script with a hex_hit
+## must be one of them and take those two.
 func _protocols() -> void:
 	var setups_ok: bool = true
 	for t: int in Placeables.TABLE:
@@ -334,7 +336,15 @@ func _protocols() -> void:
 		if (want == 0) != m.is_empty() or (want > 0 and not _takes(m, want)):
 			print("  %s: its prefab's setup does not take %d" % [LevelGen.Type.find_key(t), want])
 			setups_ok = false
-	check(setups_ok, "every placed thing's prefab has a setup taking what its Placeables entry says, or none")
+	# A boss built for itself is placed as the boss cell is, so its setup takes the same.
+	for boss: StringName in Bosses.SCENES:
+		var node: Node = Bosses.scene(boss).instantiate()
+		var script: Script = node.get_script() as Script
+		node.free()
+		if script == null or not _takes(_method(script, &"setup"), Placeables.setup_args(LevelGen.Type.BOSS)):
+			print("  %s: its prefab's setup does not take what the boss cell's does" % boss)
+			setups_ok = false
+	check(setups_ok, "every placed thing's prefab (and each boss's own) has a setup taking what its Placeables entry says, or none")
 	var answering: Array[Script] = []
 	for path: String in _scripts_in("res://scripts"):
 		if FileAccess.get_file_as_string(path).contains("\nfunc hex_hit("):

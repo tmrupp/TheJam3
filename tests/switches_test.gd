@@ -68,6 +68,9 @@ func run() -> void:
 	print("switches in play")
 	await boot(plunge_seed)
 	player.set_physics_process(false)
+	# The garden's gates are what gate_test is for: here they are passed, so its hyperspace opens.
+	info.run.bosses[Bosses.GARDEN_DOWN] = true
+	info.run.bosses[Bosses.GARDEN_UP] = true
 	var switches: Array[Node] = placed("switch.tscn")
 	var gates: Array[Node] = placed("switch_gate.tscn")
 	check(not switches.is_empty() and gates.size() == switches.size(), "the level holds %d switch and gate" % switches.size())

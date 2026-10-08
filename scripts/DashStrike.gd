@@ -3,9 +3,12 @@ class_name DashStrike
 ## The dash is the wizard's attack. The wizard passes through enemies while dashing (their
 ## bodies stop blocking, ENEMY_LAYER, until the wizard is clear of them after it), and dashing (or blinking) through an enemy stuns it for STUN
 ## seconds, and with the strike perk wounds it first (Abilities: I 1 damage, II 2, III 3; a
-## stunned enemy takes double, see Wound). Each enemy is struck once a dash. Touching an enemy
-## never hurts the wizard while they dash, nor for GUARD seconds after from one they struck. A
-## shield takes the dash whole (a hit off the shield, no wound or stun) and throws the wizard back.
+## stunned enemy takes double, see Wound). Each enemy is struck once a dash. The worm is struck
+## once a dash too, in the first segment met (Wound.whole), which is cut even without the perk
+## (Wound.least) but not stunned; its body blocks the dash (WormSegment), unless the cut opens it.
+## Touching an enemy never hurts the wizard while they dash, nor for GUARD seconds after from one
+## they struck. A shield takes the dash whole (a hit off the shield, no wound or stun) and throws
+## the wizard back.
 ## Dashing into a cracked wall breaks it (not a secret room's hidden rock: that is found by
 ## walking in). A blink strikes everything along the way it jumps, and hands back the dash for
 ## each full moon it passes (Blink.gd).
@@ -76,7 +79,7 @@ func guards(attacker: Node) -> bool:
 	var enemy: Node = Damager.attacker_of(attacker)
 	if enemy == null or (Stunner.of(enemy) == null and not enemy is MothSwarm):
 		return false
-	return player.dash.is_acting() or (guard_left > 0.0 and enemy in struck)
+	return player.dash.is_acting() or (guard_left > 0.0 and Wound.whole(enemy) in struck)
 
 
 ## Strike every enemy near the way from `from` to `to` not yet struck this dash, nearest first.
@@ -84,7 +87,7 @@ func sweep(from: Vector2, to: Vector2) -> void:
 	var dir: Vector2 = (to - from).normalized() if to != from else player.velocity.normalized()
 	var targets: Array[Node] = []
 	for e: Node in get_tree().get_nodes_in_group(&"hex_target"):
-		if e in struck or not is_instance_valid(e) or e.is_queued_for_deletion():
+		if not is_instance_valid(e) or e.is_queued_for_deletion() or Wound.whole(e) in struck:
 			continue
 		if Stunner.of(e) == null and not e is MothSwarm:
 			continue
@@ -94,7 +97,9 @@ func sweep(from: Vector2, to: Vector2) -> void:
 			targets.append(e)
 	targets.sort_custom(func(a: Node, b: Node) -> bool: return from.distance_squared_to((a as Node2D).global_position) < from.distance_squared_to((b as Node2D).global_position))
 	for e: Node in targets:
-		struck.append(e)
+		if Wound.whole(e) in struck:
+			continue
+		struck.append(Wound.whole(e))
 		if not strike(e, dir):
 			return
 
@@ -110,8 +115,8 @@ func strike(e: Node, dir: Vector2) -> bool:
 		player.velocity = -dir * RECOIL
 		return false
 	var wound: Wound = e.get_node_or_null("Wound") as Wound
-	if wound != null and damage > 0:
-		wound.hit(damage, dir)
+	if wound != null and maxi(damage, wound.least) > 0:
+		wound.hit(maxi(damage, wound.least), dir)
 	else:
 		RisoFx.burst(&"hit", (e as Node2D).global_position, dir, [RisoPrint.ACCENT, RisoPrint.BLUE])
 		Wound.shake(5.0, 0.12)

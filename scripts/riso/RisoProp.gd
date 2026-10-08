@@ -213,6 +213,11 @@ func _sync_ui() -> void:
 	ui_node.visible = is_visible_in_tree()
 
 
+## Whether its text (_text) prints in the scene, under the wizard, rather than on the UI's finer
+## print over everything (what is read up close, like a door's price, wants the scene).
+var text_in_scene: bool = false
+
+
 ## Night-ink serif text centred on `at` (in this prop's pixels); returns its width.
 func _text(text: String, at: Vector2, px: int, s: float = 1.0) -> float:
 	if labels_used >= labels.size():
@@ -224,8 +229,11 @@ func _text(text: String, at: Vector2, px: int, s: float = 1.0) -> float:
 		label.visibility_layer = RisoPrint.plate_mask(RisoPrint.NIGHT)
 		# A same-ink outline thickens the strokes so they print solid instead of screening away.
 		label.add_theme_color_override("font_outline_color", Color.WHITE)
-		_ui()
-		ui_node.add_child(label)
+		if text_in_scene:
+			add_child(label)
+		else:
+			_ui()
+			ui_node.add_child(label)
 		labels.append(label)
 	var label: Label = labels[labels_used]
 	labels_used += 1

@@ -54,6 +54,10 @@ func _ready() -> void:
 	add_to_group(&"riso_art")
 	ink = InkCanvas.new()
 	ink.top_level = true
+	# A top-level canvas no longer takes the bolt's z, so it is given its own: over the props
+	# (doors, z 2) and under the wizard.
+	ink.z_as_relative = false
+	ink.z_index = 3
 	add_child(ink)
 
 
@@ -64,7 +68,7 @@ func _physics_process(delta: float) -> void:
 	# Enemies along the step, nearest first.
 	var targets: Array[Node] = []
 	for e: Node in get_tree().get_nodes_in_group(&"hex_target"):
-		if e in struck or not is_instance_valid(e) or e.is_queued_for_deletion():
+		if not is_instance_valid(e) or e.is_queued_for_deletion() or Wound.whole(e) in struck:
 			continue
 		var at: Vector2 = (e as Node2D).global_position
 		var near: PackedVector2Array = Geometry2D.get_closest_points_between_segments(from, to, at + Vector2(0, SPAN_DOWN), at - Vector2(0, SPAN_UP))
@@ -76,7 +80,10 @@ func _physics_process(delta: float) -> void:
 	for e: Node in targets:
 		if from.distance_to((e as Node2D).global_position) > wall_d + REACH:
 			break
-		struck.append(e)
+		# A worm is struck once, in the first segment met (Wound.whole).
+		if Wound.whole(e) in struck:
+			continue
+		struck.append(Wound.whole(e))
 		# A shield takes the bolt whole: no wound, no stun.
 		var shield: Shield = Shield.of(e)
 		if shield != null and shield.absorb(reflected, dir):
@@ -85,9 +92,10 @@ func _physics_process(delta: float) -> void:
 		# Wound first (a stunned enemy takes double, so stunning first would double every hit),
 		# then stun whatever is left.
 		var wound: Wound = e.get_node_or_null("Wound") as Wound
-		if wound != null and damage > 0:
-			wound.hit(damage, dir)
-		elif damage <= 0:
+		var dealt: int = maxi(damage, wound.least) if wound != null else damage
+		if wound != null and dealt > 0:
+			wound.hit(dealt, dir)
+		elif dealt <= 0:
 			RisoFx.burst(&"hit", (e as Node2D).global_position, dir, [RisoPrint.ACCENT, RisoPrint.BLUE])
 		var stunner: Stunner = Stunner.of(e)
 		if stunner != null and is_instance_valid(e) and not e.is_queued_for_deletion():

@@ -46,7 +46,7 @@ func run() -> void:
 	var relic_in_room: int = 0
 	var relic_seed: int = -1
 	for world_seed: int in range(1, 26):
-		for depth: int in [0, 1, Relics.MIN_DEPTH]:
+		for depth: int in [0, 1, Relics.MIN_DEPTH + 1]:
 			var def: NextWorldDef = Rules.def_for(Vector2i(world_seed, depth))
 			var w: LevelGen = LevelGen.new(collapse(def.coord), def)
 			levels += 1
@@ -61,14 +61,16 @@ func run() -> void:
 				if held or gated:
 					relic_in_room += 1
 				if held:
-					if depth == Relics.MIN_DEPTH and relic_seed < 0 and gives_hints(Vector2i(world_seed, depth)):
+					if depth == Relics.MIN_DEPTH + 1 and relic_seed < 0 and gives_hints(Vector2i(world_seed, depth)):
 						relic_seed = world_seed
-	# Relics are rare: if the sample had none at their first depth, find one.
+	# Relics are rare: if the sample had none at their first row, find one (one row past MIN_DEPTH,
+	# which is the garden's gate row, whose levels hold none of their own: Bosses).
+	var first_row: int = Relics.MIN_DEPTH + 1
 	if relic_seed < 0:
 		relic_seed = 1
-		while Relics.at(Vector2i(relic_seed, Relics.MIN_DEPTH)) == &"" or Rules.relic_gated_at(Vector2i(relic_seed, Relics.MIN_DEPTH)) or not gives_hints(Vector2i(relic_seed, Relics.MIN_DEPTH)):
+		while Relics.at(Vector2i(relic_seed, first_row)) == &"" or Rules.relic_gated_at(Vector2i(relic_seed, first_row)) or not gives_hints(Vector2i(relic_seed, first_row)):
 			relic_seed += 1
-		var def: NextWorldDef = Rules.def_for(Vector2i(relic_seed, Relics.MIN_DEPTH))
+		var def: NextWorldDef = Rules.def_for(Vector2i(relic_seed, first_row))
 		var w: LevelGen = LevelGen.new(collapse(def.coord), def)
 		relic_levels += 1
 		if w.secrets.any(func(s: Dictionary) -> bool: return (s["rewards"] as Array).any(func(r: Array) -> bool: return r[1] == LevelGen.Type.RELIC and StringName(r[2]) == def.relic)):
@@ -118,12 +120,12 @@ func run() -> void:
 
 	print("a false wall")
 	player.collect(100)
-	info.coord = Vector2i(relic_seed, Relics.MIN_DEPTH)
+	info.coord = Vector2i(relic_seed, first_row)
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	await settle()
 	player.set_physics_process(false)
-	check(info.coord == Vector2i(relic_seed, Relics.MIN_DEPTH) and not info.world.secrets.is_empty(), "level (%d, %d) has a secret room" % [relic_seed, Relics.MIN_DEPTH])
+	check(info.coord == Vector2i(relic_seed, first_row) and not info.world.secrets.is_empty(), "level (%d, %d) has a secret room" % [relic_seed, first_row])
 	var secret: Dictionary = info.world.secrets[0]
 	var hidden: Array[Node] = placed("cracked_wall.tscn").filter(func(n: Node) -> bool: return int(n.get_meta(&"secret", -1)) == 0 and bool(n.get_meta(&"hidden")))
 	var door_node: Array[Node] = placed("cracked_wall.tscn").filter(func(n: Node) -> bool: return int(n.get_meta(&"secret", -1)) == 0 and not bool(n.get_meta(&"hidden")))
@@ -153,7 +155,7 @@ func run() -> void:
 	var move: StringName = info.here.relic
 	var before: int = Abilities.tier(player, move)
 	var cost: int = int(relics[0].call("price"))
-	check(cost == Relics.price(Relics.MIN_DEPTH) and cost >= 4 * Rules.deeper_price(Relics.MIN_DEPTH), "it costs %d stars, a lot" % cost)
+	check(cost == Relics.price(first_row) and cost >= 4 * Rules.deeper_price(first_row), "it costs %d stars, a lot" % cost)
 	player.collect(cost - 1 - player.coins.coins)
 	relics[0].call("take")
 	await process_frame

@@ -221,13 +221,17 @@ func place_cell(v: Vector2i, cell: LevelGen.Cell) -> void:
 		gone.append(rec.broken)
 	if gone.any(func(d: Dictionary) -> bool: return d.has(v)):
 		return
+	# A boss slain this run is never met again (Bosses).
+	if cell.type == LevelGen.Type.BOSS and info.run.bosses.has(StringName(cell.extra_info)):
+		return
 	var jitter: Vector2 = Vector2.ZERO
 	if Placeables.has_flag(cell.type, &"floats"):
 		# Floating pickups sit anywhere inside their cell rather than on the grid.
 		var cell_size: Vector2 = Vector2(info.tile_map.tile_set.tile_size) * info.tile_map.global_scale
 		var roll: Vector2 = Vector2(RisoDecor.h(w.seed_for_colors, v, JITTER_DEAL), RisoDecor.h(w.seed_for_colors, v, JITTER_DEAL + 1))
 		jitter = (roll * 2.0 - Vector2.ONE) * JITTER * cell_size
-	var node: Node = Placeables.scene(cell.type).instantiate()
+	# A boss is fought as its own prefab once it is built, else as the stand-in (Bosses.scene).
+	var node: Node = (Bosses.scene(StringName(cell.extra_info)) if cell.type == LevelGen.Type.BOSS else Placeables.scene(cell.type)).instantiate()
 	node.set_meta(&"cell", v)
 	# A key's or door's colour was dealt with the level (LevelGen.deal_colors).
 	var colored: bool = Placeables.has_flag(cell.type, &"colored")
@@ -244,7 +248,8 @@ func place_cell(v: Vector2i, cell: LevelGen.Cell) -> void:
 		# A vault's lesser cluster is worth a share of a full one (LevelGen.VAULT_LOOT).
 		var share: float = float(cell.extra_info) if cell.extra_info != null else 1.0
 		(node as Coin).value = maxi(2, roundi(Rules.cluster_value(info.here.depth) * share))
-	if Placeables.has_flag(cell.type, &"enemy"):
+	# The worm keeps its health on its segments (WormSegment), not on itself.
+	if Placeables.has_flag(cell.type, &"enemy") and not node is Worm:
 		var wound: Wound = Wound.new()
 		wound.name = "Wound"
 		wound.hp = Wound.hp_for(info.here.depth)

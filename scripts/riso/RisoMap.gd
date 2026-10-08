@@ -23,6 +23,8 @@ const PITCH: Vector2 = Vector2(42, 26)
 ## The size of a sigil (Sigils) by a switch, gate or bell on the map; a teleporter's is a little
 ## bigger.
 const SIGIL_MARK: float = 1.5
+## The size of a way out's chevron on the level map (RisoMarks.chevron), about a cell across.
+const EXIT_MARK: float = 0.15
 
 var view: int = View.CLOSED
 var t: float = 0.0
@@ -311,6 +313,7 @@ func _level_rows() -> Array:
 	return [
 		["way out", func(at: Vector2) -> void: _mark_exit(at, Vector2.RIGHT, false, -1, 0), "way out"],
 		["deeper", func(at: Vector2) -> void: _mark_exit(at, Vector2.DOWN, true, -1, 0), "deeper"],
+		["sealed", func(at: Vector2) -> void: _mark_exit(at, Vector2.DOWN, true, -1, 0, 1.0, true), "sealed"],
 		["locked", func(at: Vector2) -> void: _mark_exit(at, Vector2.RIGHT, false, 1, 0), "locked"],
 		["unpaid", func(at: Vector2) -> void: _mark_exit(at, Vector2.DOWN, true, -1, 8), "unpaid"],
 		["shrine", func(at: Vector2) -> void: _mark_shrine(at, false), "shrine"],
@@ -441,7 +444,7 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 			if place.exit_grand(which):
 				_mark_plunge(at, owed)
 			else:
-				_mark_exit(at, place.exit_dir(which), which == MapInfo.Exit.DEEPER, LevelExit.lock_at(c, which, rec), owed)
+				_mark_exit(at, place.exit_dir(which), place.leads_on(which), LevelExit.lock_at(c, which, rec), owed, 1.0, place.seal(which, info.run) != &"")
 		LevelGen.Type.SHRINE:
 			_mark_shrine(at, bool(rec.shrine_used))
 		LevelGen.Type.INKWELL:
@@ -510,12 +513,12 @@ func _note(row: String) -> void:
 ## second chevron.
 func _mark_plunge(at: Vector2, owed: int, k: float = 1.0) -> void:
 	_note("plunge")
-	marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(at, 6.4 * k, 18)], false)
+	marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(at, 4.8 * k, 18)], false)
 	var was: bool = _noting
 	_noting = false
 	_mark_exit(at, Vector2.DOWN, true, -1, owed, k)
 	_noting = was
-	marks.ink(RisoPrint.PINK, 1.0, [RisoMarks.chevron(at + Vector2(0, 2.2) * k, Vector2.DOWN, 0.2 * k)], false)
+	marks.ink(RisoPrint.PINK, 1.0, [RisoMarks.chevron(at + Vector2(0, 1.6) * k, Vector2.DOWN, EXIT_MARK * 0.85 * k)], false)
 
 
 ## A relic: its move's mark in night ink over an accent ring.
@@ -551,16 +554,20 @@ func _mark_sigil(at: Vector2, sigil_kind: int) -> void:
 		marks.ink(RisoPrint.NIGHT, 1.0, RisoMarks.sigil(sigil_kind, at, SIGIL_MARK), false)
 
 
-## A way out: a chevron the way it leads (pink for deeper), with a key-colour dot while locked or
-## a star while unpaid.
-func _mark_exit(at: Vector2, dir: Vector2, deeper: bool, needs: int, owed: int, k: float = 1.0) -> void:
-	_note("locked" if needs >= 0 else ("unpaid" if owed > 0 else ("deeper" if deeper else "way out")))
-	marks.ink(RisoPrint.PINK if deeper else RisoPrint.NIGHT, 1.0, [RisoMarks.chevron(at - dir * 2.0 * k, dir, 0.24 * k)], false)
-	if needs >= 0:
+## A way out: a chevron the way it leads (pink for deeper), with a boss's seal while a boss bars it
+## (Bosses), a key-colour dot while locked, or a star while unpaid.
+func _mark_exit(at: Vector2, dir: Vector2, deeper: bool, needs: int, owed: int, k: float = 1.0, sealed: bool = false) -> void:
+	_note("sealed" if sealed else ("locked" if needs >= 0 else ("unpaid" if owed > 0 else ("deeper" if deeper else "way out"))))
+	marks.ink(RisoPrint.PINK if deeper else RisoPrint.NIGHT, 1.0, [RisoMarks.chevron(at + dir * 4.0 * EXIT_MARK * k, dir, EXIT_MARK * k)], false)
+	var badge: Vector2 = at + Vector2(3.2, -3.2) * k
+	if sealed:
+		marks.ink(RisoPrint.PINK, 1.0, [RisoShapes.circle(badge, 1.9 * k, 12)], false)
+		marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.circle(badge, 0.7 * k, 8)], false)
+	elif needs >= 0:
 		for plate: int in RisoPrint.key_inks(needs):
-			marks.ink(plate, 1.0, [RisoMarks.key_bow(at + Vector2(4.2, -4.2) * k, 2.0 * k, needs)], false)
+			marks.ink(plate, 1.0, [RisoMarks.key_bow(badge, 1.6 * k, needs)], false)
 	elif owed > 0:
-		marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.sparkle(at + Vector2(4.2, -4.2) * k, 2.6)], false)
+		marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.sparkle(badge, 2.1 * k)], false)
 
 
 func _mark_inkwell(at: Vector2, dry: bool) -> void:

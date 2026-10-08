@@ -187,6 +187,16 @@ static func padlock(ink: InkCanvas, c: Vector2, color: int, s: float, fade: floa
 	ink.ink(RisoPrint.NIGHT, fade, [key_bow(c + Vector2(0, 6.5) * s, 4.5 * s * (1.3 if color == KeyRing.SKELETON else 1.0), color)], false)
 
 
+## A boss's seal on `c`, `r` across: a pink disc with a night eye watching from it (pink: danger),
+## barring a gate level's way on while the boss lives (Bosses). `fade` scales every ink.
+static func boss_seal(ink: InkCanvas, c: Vector2, r: float, fade: float = 1.0) -> void:
+	var disc: PackedVector2Array = RisoShapes.circle(c, r, 28)
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], [disc])
+	ink.ink(RisoPrint.PINK, fade, [disc], false)
+	ink.knock([RisoPrint.PINK], [RisoShapes.almond(c, r * 0.72, r * 0.42, 14)])
+	ink.ink(RisoPrint.NIGHT, fade, [RisoShapes.circle(c, r * 0.24, 14)], false)
+
+
 ## A switch's plate hung on `c` where a padlock would hang (`c` its top middle, `s` the padlock's
 ## size): the switch emblem and the switch's sigil `sigil_kind` on a paper plate (sigil_plate).
 static func switch_plate(ink: InkCanvas, c: Vector2, s: float, fade: float, sigil_kind: int) -> void:

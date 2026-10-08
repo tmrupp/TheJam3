@@ -36,7 +36,8 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
   `tests/make_*_sample.gd`, so edit the script and rerun it rather than editing the PNG.
 - `gdextension/`: the C++ overlapping-WFC extension (SCons). Rarely touched.
 - `docs/`: `DEEPER_PLAN.md` (design, by system), `REGIONS_PLAN.md` (the plan for going up and
-  down from the garden, the new bands and the bosses at band ends; phases 1 and 2 built),
+  down from the garden, the new bands and the bosses at band ends; phases 1 to 3 built, and the
+  worm of phase 4),
   `RISO_PRINT.md` (the art pipeline and rules), `TOM_THOUGHTS.md` (the owner's notes; see the
   ground rules).
 - `tests/`: `*_test.gd` regressions, `capture_*.gd` stills (written to `../art-captures/`),

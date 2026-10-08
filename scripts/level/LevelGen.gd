@@ -39,6 +39,7 @@ enum Type {
 	VANE,
 	WIND,
 	BIRD,
+	BOSS,
 }
 
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).
@@ -696,6 +697,23 @@ func _init (_cells: Array, def: NextWorldDef) -> void:
 	# Up levels: ledges where the climb from the way back to the way on needs them (Climb), last
 	# and with no RNG draws, so nothing else moves.
 	Climb.aid(self, def)
+	# A gate level whose boss fights in it: the boss (Bosses), placed last, with no RNG draws.
+	if not Worlds.is_side(def.coord) and def.gate != &"" and not Bosses.in_arena(def.gate):
+		place_boss(def.gate)
+
+## A gate level's boss (Bosses.IN_LEVEL): on the free floor nearest the way on it guards, at least
+## BOSS_APART cells from it. The boss is placed in every visit's layout; the loader leaves it out
+## once it is slain (RunState.bosses).
+const BOSS_APART: int = 4
+
+func place_boss (boss: StringName) -> void:
+	if not exits.has(MapInfo.Exit.DEEPER):
+		return
+	var on: Vector2i = exits[MapInfo.Exit.DEEPER]
+	var spot: Variant = best_of(free_floors(), func(v: Vector2i) -> int: return dist(v, on),
+			func(v: Vector2i) -> bool: return dist(v, on) >= BOSS_APART and not _crowds_exit(v))
+	if spot != null:
+		put(spot, Type.BOSS, boss)
 
 ## Some of an ordinary level's lifts wait for a switch: parked at the start of their track until
 ## it is thrown, then running for good (the record keeps it). LIFT_SWITCH_SHARE of them, picked by

@@ -796,6 +796,12 @@ func appearance_changed() -> void:
 ## Leave smoke at the lantern's past positions, drifting away from the traveler, without drawing
 ## from the world's RNG.
 func _step_smoke(delta: float) -> void:
+	# A level change or a respawn moves the traveler far in one step: the old trail would be
+	# strung across the screen to the new place, so it goes and starts afresh on arrival.
+	if MapInfo.instance != null and MapInfo.instance.travelling:
+		lantern_smoke.clear()
+		_smoke_wait = 0.0
+		return
 	var s: float = player.global_scale.y * ART_SCALE if player != null else ART_SCALE
 	var from: float = global_position.x + signf(fs if fs != 0.0 else 1.0) * SMOKE_AHEAD * s
 	for i: int in range(lantern_smoke.size() - 1, -1, -1):
