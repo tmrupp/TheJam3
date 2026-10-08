@@ -76,10 +76,9 @@ const BUG_APART: int = 5
 
 ## What shuts a station (all but the one nearest the way in): a toll gate (TOLL_SHARE), a switch
 ## gate with its switch out in the level (SWITCH_SHARE), else a door in a dealt key colour. A switch
-## is at least SWITCH_REACH cells from its gate, somewhere reached from the way in with it shut.
+## is near its gate (LevelGen.switch_floor), somewhere reached from the way in with it shut.
 const TOLL_SHARE: float = 0.3
 const SWITCH_SHARE: float = 0.3
-const SWITCH_REACH: int = 8
 
 
 func _init() -> void:
@@ -387,7 +386,7 @@ static func shut_stations(w: LevelGen, def: NextWorldDef) -> void:
 			w.put(gate, LevelGen.Type.TOLL, Rules.toll_price(def.depth))
 			continue
 		if r < TOLL_SHARE + SWITCH_SHARE:
-			var lever: Variant = w._pick_floor_in(w.reach_from(start, func(n: Vector2i) -> bool: return n != gate), gate, SWITCH_REACH)
+			var lever: Variant = w.switch_floor(w.reach_from(start, func(n: Vector2i) -> bool: return n != gate), gate)
 			if lever != null:
 				w.put(gate, LevelGen.Type.SWITCH_GATE, lever)
 				w.put(lever, LevelGen.Type.SWITCH, gate)

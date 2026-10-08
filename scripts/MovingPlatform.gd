@@ -2,8 +2,9 @@ extends AnimatableBody2D
 class_name MovingPlatform
 ## A platform run that glides back and forth along an open track. One-way and rideable, like
 ## the static platforms (same collision layer, so dropping through works too). A lift with a
-## switch (LevelGen.place_lift_switches) stays parked at the start of its track until the switch is
-## thrown, then runs for good, starting from where it was parked.
+## switch (LevelGen.place_lift_switches) runs while its switch is on: off as a level is entered,
+## it is parked at the start of its track; turned on, it sets off from where it stands; turned
+## off, it stops where it is.
 
 # Exported so the track survives when the world is packed and revisited.
 @export var length: int = 1
@@ -16,9 +17,11 @@ class_name MovingPlatform
 var t: float = 0.0
 ## Salt for the lift's phase, hashed from the level seed and its cell (see LevelLoader.place_cell).
 const PHASE_DEAL: int = 9900
-## The cell of the switch that starts it (none: it always runs), and whether it is still waiting.
+## The cell of the switch that works it (none: it always runs), and whether it is stopped by it.
 var switch_cell: Vector2i = Vector2i(-1, -1)
 var waiting: bool = false
+## Where it stands while stopped.
+var _held: Vector2 = Vector2.ZERO
 
 
 func setup(map_info: MapInfo, v: Vector2i, info: Array) -> void:
@@ -34,9 +37,9 @@ func setup(map_info: MapInfo, v: Vector2i, info: Array) -> void:
 	start = tm.to_global(tm.map_to_local(v))
 	if info.size() > 3:
 		switch_cell = info[3]
-		waiting = not map_info.record().switched.has(switch_cell)
-		if not waiting:
-			run()
+		# From the start of its track, whether it runs from the first or waits there.
+		t = -phase * period / TAU
+		waiting = not map_info.switch_on(switch_cell)
 	var shape: RectangleShape2D = RectangleShape2D.new()
 	shape.size = Vector2(float(length) * cell_size - 2.0, 33.0)
 	var col: CollisionShape2D = $CollisionShape2D
@@ -50,7 +53,8 @@ func setup(map_info: MapInfo, v: Vector2i, info: Array) -> void:
 	plain.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(plain)
 	plain.owner = owner
-	_place(start if waiting else start + offset_at(t))
+	_held = start + offset_at(t)
+	_place(_held)
 	queue_redraw()
 
 
@@ -66,15 +70,20 @@ func offset_at(time: float) -> Vector2:
 	return axis * travel * (0.5 - 0.5 * cos(time * TAU / period + phase))
 
 
-## Its switch is thrown: start running from the parked spot (the start of the track), without a jump.
+## Its switch is on: run on from where it stands, without a jump.
 func run() -> void:
 	waiting = false
-	t = -phase * period / TAU
+
+
+## Its switch is off: stop where it is.
+func halt() -> void:
+	waiting = true
+	_held = position
 
 
 func _physics_process(delta: float) -> void:
 	if waiting:
-		position = start
+		position = _held
 		return
 	t += delta
 	position = start + offset_at(t)

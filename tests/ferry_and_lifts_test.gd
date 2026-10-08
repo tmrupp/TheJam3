@@ -31,6 +31,8 @@ func run() -> void:
 	var lever_cell: Vector2i = home + Vector2i(-1, 0)
 	lift.set_meta(&"cell", home)
 	info.map_elements.add_child(lift)
+	# Its switch off to begin with (some start on).
+	info.set_switch(lever_cell, false)
 	lift.setup(info, home, [1, Vector2i(1, 0), 3, lever_cell])
 	await physics_frame
 	var parked: Vector2 = lift.position
@@ -42,12 +44,21 @@ func run() -> void:
 	info.map_elements.add_child(lever)
 	lever.setup(info, lever_cell, home)
 	lever.flip()
-	check(not lift.waiting and info.record().switched.has(lever_cell), "throwing its switch starts it, and the record keeps it thrown")
+	check(not lift.waiting and info.switch_on(lever_cell), "turning its switch on starts it, and the record keeps it on")
 	await physics_frame
 	check(lift.position.distance_to(parked) < 4.0, "it sets off from where it was parked, without a jump")
 	for i: int in range(40):
 		await physics_frame
 	check(lift.position.distance_to(parked) > 8.0, "and it runs")
+	lever.flip()
+	var stopped: Vector2 = lift.position
+	for i: int in range(20):
+		await physics_frame
+	check(lift.waiting and not info.switch_on(lever_cell) and lift.position == stopped, "turned off, it stops where it is")
+	lever.flip()
+	for i: int in range(20):
+		await physics_frame
+	check(not lift.waiting and lift.position != stopped, "and on again, it runs on from there")
 	var again: MovingPlatform = (load("res://prefabs/moving_platform.tscn") as PackedScene).instantiate() as MovingPlatform
 	info.map_elements.add_child(again)
 	again.setup(info, home, [1, Vector2i(1, 0), 3, lever_cell])

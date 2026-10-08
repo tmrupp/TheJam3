@@ -8,7 +8,15 @@ extends TestKit
 
 func run() -> void:
 	await boot(28)
-	var wisp: Node2D = placed("mover_enemy.tscn")[0] as Node2D
+	# A wisp with open air over it, so the wizard drops straight onto it.
+	var w: LevelGen = info.world
+	var clear: Callable = func(v: Vector2i) -> bool: return w.is_valid(v) and w.get_cell(v).type in [LevelGen.Type.EMPTY, LevelGen.Type.COIN]
+	var wisp: Node2D = null
+	for e: Node in placed("mover_enemy.tscn"):
+		var at: Vector2i = info.cell_at((e as Node2D).global_position)
+		if wisp == null and clear.call(at + Vector2i.UP) and clear.call(at + Vector2i.UP * 2) and clear.call(at + Vector2i.UP * 3):
+			wisp = e as Node2D
+	check(wisp != null, "a wisp with open air over it")
 	var guard: Parry = player.get_node("Parry") as Parry
 	await until(func() -> bool: return not player.is_invulnerable(), 5000)
 	player.global_position = wisp.global_position + Vector2(0, -260)

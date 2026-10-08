@@ -17,8 +17,6 @@ const CHASM_SHORES: Array[int] = [4, 3, 2]
 ## Open air over a chasm kept clear of ledges, lifts, moons and everything else, so nothing but
 ## the bridge (or a move found later) gets you over.
 const CHASM_CLEAR: int = 4
-## A bell's switch stands at least this many cells from its bell (see place_bells).
-const BELL_SWITCH: int = 6
 ## Salt for the level seed when dealing which crossings are left to relic moves (relax_crossings).
 const RELIC_DEAL: int = 9500
 
@@ -175,8 +173,8 @@ static func _level_floor(w: LevelGen, floors: PackedByteArray, x: int, y: int) -
 ## side, a few cells from the edge, so it can be crossed from either side. Each is chained up on
 ## its own: by a padlock in a key colour (any key of it, or a skeleton key, frees it), or, about
 ## half the time, to a switch on a floor on its own side (reachable from it without crossing any
-## chasm, and within `switch_reach` cells unless that is -1), at least BELL_SWITCH cells off
-## (throwing it frees that one). A crossing's cell holds [chasm, lock]: lock is the key colour, or
+## chasm, and within `switch_reach` cells unless that is -1), near it (LevelGen.switch_floor;
+## turning it on frees that one). A crossing's cell holds [chasm, lock]: lock is the key colour, or
 ## -1 for a switch.
 static func place_bells(w: LevelGen, crossing: LevelGen.Type, switch_reach: int) -> void:
 	for id: int in range(w.chasms.size()):
@@ -203,8 +201,8 @@ static func place_bells(w: LevelGen, crossing: LevelGen.Type, switch_reach: int)
 
 
 ## A floor for the switch that frees the bell at `bell`: on its side, reachable from it through
-## open air without crossing any chasm (and within `reach` cells, unless that is -1), at least
-## BELL_SWITCH cells off; null if there is none.
+## open air without crossing any chasm (and within `reach` cells, unless that is -1), near it
+## (LevelGen.switch_floor); null if there is none.
 static func _bell_switch(w: LevelGen, bell: Vector2i, reach_cells: int) -> Variant:
 	var blocked: Dictionary = {}
 	for chasm: Dictionary in w.chasms:
@@ -213,7 +211,7 @@ static func _bell_switch(w: LevelGen, bell: Vector2i, reach_cells: int) -> Varia
 			for d: int in range(-CHASM_CLEAR - 1, CHASM_DEPTH + 2):
 				blocked[Vector2i(plank.x, row + d)] = true
 	var reach: Dictionary = w.reach_from(bell, func(n: Vector2i) -> bool: return not blocked.has(n) and (reach_cells < 0 or LevelGen.dist(n, bell) <= reach_cells))
-	return w._pick_floor_in(reach, bell, BELL_SWITCH)
+	return w.switch_floor(reach, bell)
 
 
 ## Deep down (Rules.relic_need), some chasms and gaps are left to the relic moves: their bells
