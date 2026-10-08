@@ -1080,7 +1080,8 @@ func _equip_panel_key(color: int, equipped: bool) -> void:
 # ---------------------------------------------------------------- debug travel
 
 ## Debug runs only: travel straight to any world and depth (MapInfo.debug_travel), or to the
-## nearest band of an archetype, or into hyperspace, from the F7 panel (by controller too).
+## nearest band of an archetype, or into hyperspace, from the F7 panel (by controller too); and
+## slay this place's boss at once (MapInfo.slay_boss).
 var _travel_box: VBoxContainer
 var _travel_world_label: Label
 var _travel_depth_label: Label
@@ -1103,6 +1104,11 @@ func _build_travel(box: VBoxContainer) -> void:
 	for k: int in range(Worlds.KINDS.size()):
 		var kind: int = k
 		_button(row, Worlds.proto(k).name.capitalize(), func() -> void: _travel(Worlds.side_at(kind, Vector2i(_travel_at.x, _travel_at.y if _travel_at.y != 0 else 1))))
+	var boss_row: HBoxContainer = HBoxContainer.new()
+	rows.add_child(boss_row)
+	_button(boss_row, "Slay boss", func() -> void:
+		if MapInfo.debug and MapInfo.instance != null:
+			MapInfo.instance.slay_boss())
 
 
 ## A row: its name, a "-" button, the value, a "+" button; `on_step` gets -1 or +1.

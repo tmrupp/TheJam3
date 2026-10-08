@@ -17,6 +17,8 @@ class_name DashStrike
 const STUN: float = 2.5
 ## How near the wizard's path an enemy has to be (past its centre) to be struck.
 const REACH: float = 64.0
+## A pixel of grace at the worm's solid edge, where physics stops the wizard just short of it.
+const CONTACT_SLOP: float = 1.0
 const SPAN_DOWN: float = 20.0
 const SPAN_UP: float = 56.0
 const GUARD: float = 0.3
@@ -93,7 +95,8 @@ func sweep(from: Vector2, to: Vector2) -> void:
 			continue
 		var at: Vector2 = (e as Node2D).global_position
 		var near: PackedVector2Array = Geometry2D.get_closest_points_between_segments(from, to, at + Vector2(0, SPAN_DOWN), at - Vector2(0, SPAN_UP))
-		if near[0].distance_to(near[1]) <= REACH:
+		var meets: bool = _meets_worm(e as WormSegment, from, to) if e is WormSegment else near[0].distance_to(near[1]) <= REACH
+		if meets:
 			targets.append(e)
 	targets.sort_custom(func(a: Node, b: Node) -> bool: return from.distance_squared_to((a as Node2D).global_position) < from.distance_squared_to((b as Node2D).global_position))
 	for e: Node in targets:
@@ -102,6 +105,32 @@ func sweep(from: Vector2, to: Vector2) -> void:
 		struck.append(Wound.whole(e))
 		if not strike(e, dir):
 			return
+
+
+## The wizard's body swept along the dash or blink, touching a worm's round, solid segment.
+## Unlike smaller enemies, the worm stops the wizard before their centres come within REACH.
+func _meets_worm(segment: WormSegment, from: Vector2, to: Vector2) -> bool:
+	var shape: CollisionShape2D = player.collider
+	if shape == null or shape.shape == null:
+		return false
+	var box: Rect2 = shape.shape.get_rect()
+	var points: PackedVector2Array = PackedVector2Array()
+	# Work round the target's origin so polygon tests stay precise across a large level.
+	var start: Vector2 = from - segment.global_position
+	var end: Vector2 = to - segment.global_position
+	for corner: Vector2 in [box.position, Vector2(box.end.x, box.position.y), box.end, Vector2(box.position.x, box.end.y)]:
+		var offset: Vector2 = shape.global_transform * corner - player.global_position
+		points.append(start + offset)
+		points.append(end + offset)
+	var swept: PackedVector2Array = Geometry2D.convex_hull(points)
+	var at: Vector2 = Vector2.ZERO
+	if Geometry2D.is_point_in_polygon(at, swept):
+		return true
+	for i: int in range(swept.size() - 1):
+		var closest: Vector2 = Geometry2D.get_closest_point_to_segment(at, swept[i], swept[i + 1])
+		if at.distance_to(closest) <= segment.radius + player.safe_margin + CONTACT_SLOP:
+			return true
+	return false
 
 
 ## Strike `e` heading `dir`. False when a shield stopped the dash.

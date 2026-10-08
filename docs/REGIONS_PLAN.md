@@ -165,7 +165,11 @@ through the gate level's tunnels, as Tom described.
   the cell after the one its head is going into, so the head bends the way it will turn rather
   than nosing into the rock, and its rounded front stops at the rock. Each segment takes 3 hits
   (`SEGMENT_HP`), its hits left printed on it as dark dots. The head bites (pink); its mouth is
-  cut out of the head, so what is behind shows through it. The body, pale flesh, is solid, so it
+  a shallow Pac-Man wedge ahead of the health dots, cut out of a round nose, whose visible front,
+  solid collider and bite share the
+  same radius. After a bite meets the wizard (even a guarded bite), its piece rests for 0.65 s
+  (`BITE_RECOVERY`): the head closes its mouth and is harmless but solid and open to strikes;
+  its body thorns still hurt. The body, pale flesh, is solid, so it
   walls off tunnels as it passes (a wizard it moves into is let through it, not wedged in the
   rock).
 - **Thorns.** Every segment but the head has thorns along one flank of the body (left or right of
@@ -180,7 +184,8 @@ through the gate level's tunnels, as Tom described.
   worm is stunned they do not hurt.
 - **No dashing through.** Its body is on a physics layer of its own (`WormSegment.WORM_LAYER`,
   "Worm"), which the dash does not pass through as it does the enemy layer: a dash stops at the
-  worm, unless it cuts the segment it meets and goes through the gap.
+  worm, unless it cuts the segment it meets and goes through the gap. Damage checks the wizard's
+  swept body against the segment's circle, so a stopped dash lands from any direction.
 - **Soft flesh, one cut a move.** Any hex bolt or dash cuts a segment, even at a tier that only
   stuns (`Wound.least`, 1 for a segment), and a parry too; so the worm can be fought with the
   moves a run starts with. Each bolt (even a piercing one), dash or parry cuts only one segment,
@@ -201,7 +206,9 @@ through the gate level's tunnels, as Tom described.
   and out by, out of sight and out of reach while in the rock. It never turns back on itself:
   boxed in, it digs into the rock beside its head and burrows away there.
 - **Waking and stalking.** It lies under the rock by the way on until the wizard comes within 12
-  cells of it (`WAKE_RANGE`), then stalks them through the whole level: it comes up out of a
+  cells of it (`WAKE_RANGE`), even if its burrow's chunk is asleep (`tests/worm_wake_test.gd`),
+  then stalks them through the whole level, staying awake even when
+  its original burrow's chunk sleeps: it comes up out of a
   burrow near them (not on them), crawls after them for 8 to 12 s (140 px/s, 185 once after them;
   the wizard runs at 300), sinks into the nearest burrow and comes up again 1.2 to 2.4 s later.
 - **Warning.** Every time it is about to come out of the rock (from a burrow, or digging out of a
@@ -347,7 +354,10 @@ Each phase ends with the full suite green and its own tests.
    parry stunning it, its layer, the bite, struck by a dash and a bolt that only stun, cuts, splits,
    burrowing away, a lantern death healing it, slain, its relic on a floor, never met again);
    `capture_worm.gd` (stills). `gate_test` and `capture_gate.gd` now show the stand-in at the
-   bramble's gate. Not yet: the bramble.
+   bramble's gate. The F7 panel's Travel section has **Slay boss** (`MapInfo.slay_boss`): the
+   boss here (the worm, or a stand-in) dies at once as by any blow, leaving its relic; in a gate
+   level whose boss fights elsewhere, that boss is slain where the wizard stands (`gate_test`).
+   Not yet: the bramble.
 5. **Crags and castle**: *a first pass is done*: sample, structure pass, decor, realm, and the
    gondola (`CragsArchetype`, `Gondola`; `crags_test`, `capture_crags.gd`; the crags' layouts
    changed and `layout_fingerprint_test` was re-pinned for them alone). Then its life (updrafts,

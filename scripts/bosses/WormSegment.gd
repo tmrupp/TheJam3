@@ -18,8 +18,6 @@ const HIT_BOX: PackedScene = preload("res://prefabs/hit_box.tscn")
 ## Its physics layer (project settings: "Worm"; the wizard's prefab collides with it), and its bit.
 const WORM_LAYER: int = 9
 const WORM_BIT: int = 1 << (WORM_LAYER - 1)
-## The side of the HitBox prefab's square, which make_head scales to the head.
-const HIT_BOX_SIDE: float = 34.0
 ## How far its thorns stand out from the body (px), and how squarely a strike must come from the
 ## thorny side to glance off (the dot of its way with the way they face).
 const THORN_LEN: float = 22.0
@@ -38,6 +36,8 @@ var wound: WormWound
 var stunner: Stunner
 ## Its bite, on the head only.
 var bite: HitBox
+## The head has just bitten and is resting, harmless until its worm moves on again.
+var recovering: bool = false
 ## Its thorns (every segment but the head), the touch that hurts on their side, and the way they
 ## face.
 var thorns: Node2D
@@ -92,8 +92,17 @@ func make_head() -> void:
 		thorn_box = null
 	bite = HIT_BOX.instantiate() as HitBox
 	bite.name = "HitBox"
-	bite.scale = Vector2.ONE * (radius * 2.0 / HIT_BOX_SIDE)
+	var reach: CircleShape2D = CircleShape2D.new()
+	reach.radius = radius
+	(bite.get_node("CollisionShape2D") as CollisionShape2D).shape = reach
+	(bite.get_node("Damager") as Damager).touched_player.connect(_bit)
 	add_child(bite)
+
+
+## A bite met the wizard: rest the piece, leaving a moment to strike its head.
+func _bit() -> void:
+	if live and not recovering and worm != null:
+		worm.bit(self)
 
 
 ## Make it live (solid, struck by bolts and dashes, and biting if it is the head) or not.
@@ -118,10 +127,12 @@ func stunned() -> bool:
 	return stunner.stunned()
 
 
-## Keep the head's bite, and the thorns' touch, to when it is live and not stunned. Its Stunner
+## Keep the head's bite to when it is live, not resting and not stunned; thorns stay live during
+## the rest, but not a stun. Its Stunner
 ## turns the bite back on when a stun ends, so this is checked every frame rather than once.
 func sync_touch() -> void:
 	var off: bool = not live or stunned()
 	for box: HitBox in [bite, thorn_box]:
-		if box != null and box.collision != null and box.collision.disabled != off:
-			box.collision.set_deferred("disabled", off)
+		var resting: bool = off or (box == bite and recovering)
+		if box != null and box.collision != null and box.collision.disabled != resting:
+			box.collision.set_deferred("disabled", resting)

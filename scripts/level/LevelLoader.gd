@@ -356,6 +356,11 @@ func sleep_far_chunks(force: bool = false, around: Vector2 = Vector2.INF) -> voi
 		if n2 == null or node.is_queued_for_deletion() or not node.has_meta(&"cell"):
 			continue
 		var awake: bool = bool(states.get(chunk_of(n2.global_position), false))
+		# Its activation range can reach beyond the view's awake chunks: let it check the wizard
+		# there too. Once woken it hunts across the level; its root stays at its original burrow.
+		var worm: Worm = node as Worm
+		if worm != null and (worm.awake or (has_wizard and LevelGen.dist(info.cell_at(wizard), worm.home) <= Worm.WAKE_RANGE)):
+			awake = true
 		# Something spread over several chunks (a wind, Wind.extent) is awake if any of them is.
 		var wind: Wind = node as Wind
 		if not awake and wind != null:

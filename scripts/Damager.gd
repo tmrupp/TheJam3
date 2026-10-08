@@ -7,6 +7,8 @@ class_name Damager
 @onready var collider: CollisionShape2D = $"../CollisionShape2D"
 @onready var top: Node = $".."
 var attacker: Node = null
+## A contact attack has met the wizard, including one caught by their guard.
+signal touched_player
 
 
 ## The enemy behind a hit on the wizard from `source` (what Player.hurt was given): a Damager's
@@ -42,6 +44,7 @@ func _physics_process(_delta: float) -> void:
 		if player in top.get_overlapping_bodies():
 			var d: Vector2 = (player.position - collider.get_global_position()).normalized()
 			player.hurt(-1, d * knock_back_factor, self)
+			touched_player.emit()
 		else:
 			touching_player = false
 		

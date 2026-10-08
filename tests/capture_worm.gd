@@ -3,6 +3,7 @@ extends TestKit
 ## hole, up and crawling after the wizard, half down a hole, then cut in the middle and split in
 ## two (both halves stunned and pale), then one of the short ends burrowing away, and a burrow
 ## hole. Written whole (worm_*.png) and as a sheet of close-ups (worm.png).
+## Also captures the mouth near the wizard and closed during recovery (worm_mouth/recovery.png).
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_worm.gd
 
 const SIZE: int = 420
@@ -39,6 +40,18 @@ func run() -> void:
 	await frames(40)
 	shots.append(await _shot(camera, worm_piece.segments[0].global_position))
 	save_still("worm_up.png")
+	# The mouth and its rest, with the wizard close enough to make it gape but outside the bite.
+	worm.set_physics_process(false)
+	var head: WormSegment = worm_piece.segments[0]
+	var wizard_was: Vector2 = player.global_position
+	player.global_position = head.global_position + head.heading * (head.radius + 40.0)
+	save_still("worm_mouth.png", await _shot(camera, head.global_position))
+	worm.bit(head)
+	save_still("worm_recovery.png", await _shot(camera, head.global_position))
+	worm_piece.recovery = 0.0
+	player.global_position = wizard_was
+	worm._place(worm_piece)
+	worm.set_physics_process(true)
 	# Half down a hole: sent to the nearest.
 	worm_piece.hole = worm._nearest_hole(worm_piece.cells[0])
 	await until(func() -> bool: return worm_piece.state == Worm.DIVING and not worm_piece.segments[3].shown and worm_piece.segments[5].shown, 20000)

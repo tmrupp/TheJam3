@@ -67,6 +67,13 @@ func _process(_delta: float) -> void:
 	ink.finish()
 
 
+## Slain outright (the F7 panel's Slay boss), by the same death as any.
+func slay() -> void:
+	var wound: Wound = get_node_or_null("Wound") as Wound
+	if wound != null:
+		wound.hit(wound.hp + 1, Vector2.UP)
+
+
 func _on_slain() -> void:
 	if map_info != null:
 		map_info.boss_slain(boss, global_position)

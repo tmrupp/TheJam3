@@ -2,7 +2,7 @@ extends TestKit
 ## The gates at the band ends (Bosses, docs/REGIONS_PLAN.md §5): which rows they are and who guards
 ## them, the way on sealed while the boss lives, a lantern death healing it, its death opening its
 ## band's every gate level for the rest of the run and leaving a free relic, an arena boss behind its
-## door, and no hyperspace past a living boss's gate. The rules are shown with the stand-in (Boss),
+## door, no hyperspace past a living boss's gate, and the F7 panel's Slay boss. The rules are shown with the stand-in (Boss),
 ## at the bramble's gate; the worm, which is built, has worm_test.
 ## godot --headless --path . --script res://tests/gate_test.gd
 
@@ -126,11 +126,20 @@ func run() -> void:
 		fresh.bosses[&"worm"] = true
 		check(def.seal(Worlds.door(Worlds.kind_of(Hyperspace)), fresh) == &"", "and opens once it is slain")
 
+	print("slain from the F7 panel")
+	await _go(Vector2i(28, g))
+	check(info.slay_boss() and placed("worm.tscn").is_empty(), "Slay boss kills the worm in its gate level at once")
+	await settle()
+	check(info.run.bosses.has(&"worm") and _exit(MapInfo.Exit.DEEPER).sealed() == &"" and placed("relic.tscn").any(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == &"worm"), "its gate opens and its relic is left")
+	await _go(Vector2i(28, g + 2 * b))
+	check(info.slay_boss() and info.run.bosses.has(&"beast") and _exit(MapInfo.Exit.DEEPER).sealed() == &"", "and slays an arena boss from its gate level")
+	check(not info.slay_boss(), "with nothing left to slay, it does nothing")
+
 	print("saved")
 	var saved: Dictionary = info.run.to_save(info.coord, {})
 	var again: RunState = RunState.new()
 	again.from_save(saved)
-	check(again.bosses.has(&"bramble") and again.bosses.has(&"necromancer"), "the bosses slain are kept with the run")
+	check(again.bosses.has(&"bramble") and again.bosses.has(&"necromancer") and again.bosses.has(&"worm"), "the bosses slain are kept with the run")
 	RunState.delete_save()
 	finish()
 
