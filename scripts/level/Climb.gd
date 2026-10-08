@@ -116,9 +116,10 @@ static func _next_ledge(w: LevelGen, nodes: Dictionary, reach: Dictionary, to_on
 
 ## Whether a ledge may go at `q`: an empty cell (in open air, or on a floor as a step up), with room
 ## to stand on it (only air, a star, a moon or another ledge over it, and open air over that),
-## clear of the doors' corridors and of every chasm's and gap's kept air.
+## clear of the doors' corridors, of every chasm's and gap's kept air, and out of the bramble's
+## shaft (which has ledges of its own).
 static func _ledge_fits(w: LevelGen, q: Vector2i) -> bool:
-	if not w.is_valid(q) or w.get_cell(q).type != LevelGen.Type.EMPTY or w.keep_clear.has(q) or Chasms.near(w, q):
+	if not w.is_valid(q) or w.get_cell(q).type != LevelGen.Type.EMPTY or w.keep_clear.has(q) or Chasms.near(w, q) or w.in_shaft(q):
 		return false
 	var over: Vector2i = q + Vector2i.UP
 	if not w.is_valid(over) or not w.get_cell(over).type in [LevelGen.Type.EMPTY, LevelGen.Type.COIN, LevelGen.Type.MOON, LevelGen.Type.PLATFORM]:

@@ -271,6 +271,10 @@ func place_exits (depth: int, debug: bool = false, climbing: bool = false) -> vo
 	@warning_ignore("integer_division")
 	var band_x: int = maxi(2, size.x / 5)
 	var chosen: Array[Vector2i] = []
+	# The bramble's gate level: the way on stands at the head of its shaft (BrambleShaft).
+	var fixed_on: Variant = shaft.get("on")
+	if fixed_on != null:
+		chosen.append(fixed_on)
 	var near_top: Callable = func(v: Vector2i) -> bool: return v.y <= lo.y + band_y
 	var near_bottom: Callable = func(v: Vector2i) -> bool: return v.y >= hi.y - band_y
 	var back_band: Callable = near_bottom if climbing else near_top
@@ -281,7 +285,9 @@ func place_exits (depth: int, debug: bool = false, climbing: bool = false) -> vo
 		_place_exits_near(spots, chosen, back, depth)
 		return
 	var reach: int = Rules.exit_distance(depth)
-	var deeper: Variant = _pick_spot(spots, chosen, func(v: Vector2i) -> bool: return on_band.call(v) and dist(v, back) >= reach, true)
+	var deeper: Variant = fixed_on
+	if deeper == null:
+		deeper = _pick_spot(spots, chosen, func(v: Vector2i) -> bool: return on_band.call(v) and dist(v, back) >= reach, true)
 	if deeper == null:
 		# No spot in its band and far enough: take the one furthest from the way back.
 		var best: Vector2i = spots[0]
@@ -289,7 +295,8 @@ func place_exits (depth: int, debug: bool = false, climbing: bool = false) -> vo
 			if not chosen.has(v) and dist(v, back) > dist(best, back):
 				best = v
 		deeper = best
-	chosen.append(deeper)
+	if not chosen.has(deeper):
+		chosen.append(deeper)
 	# At depth 0, one side door stands near the start, on floors the wizard can hop to from it,
 	# so every run can get out of its first level (its key: place_start_key).
 	var near: Variant = _start_door(spots, chosen, back) if depth == 0 else null
@@ -386,7 +393,8 @@ const POCKET: int = 6
 ## Join every open space into one cave. Tiny pockets fill with rock; every other open region
 ## is joined to the largest by carving the shortest tunnel through the rock between them,
 ## nearest region first, until one region remains. Deterministic: fixed scan and BFS orders.
-func connect_caves () -> void:
+## No tunnel goes through the cells in `walled` (the bramble's shaft, BrambleShaft).
+func connect_caves (walled: Dictionary = {}) -> void:
 	var groups: Array = _open_regions()
 	for g: Array in groups:
 		if g.size() < POCKET:
@@ -420,7 +428,7 @@ func connect_caves () -> void:
 			head += 1
 			for d: Vector2i in neighbor_offsets:
 				var n: Vector2i = v + d
-				if not is_valid(n) or parent.has(n):
+				if not is_valid(n) or parent.has(n) or walled.has(n):
 					continue
 				parent[n] = v
 				if _open(n) and not main.has(n):
@@ -528,7 +536,7 @@ func make_room () -> void:
 ## Whether rock at `c` walls a vault, frames a door or gate (above or below it), seals a secret
 ## room, has a laser set in it, is the footing of a gap's shore, or holds up something stood at.
 func _holds_up (c: Vector2i) -> bool:
-	if vault_walls.has(c):
+	if vault_walls.has(c) or in_shaft(c):
 		return true
 	for d: Vector2i in [Vector2i.UP, Vector2i.DOWN]:
 		if is_valid(c + d) and get_cell(c + d).type in [Type.DOOR, Type.SWITCH_GATE]:
@@ -710,12 +718,18 @@ func _init (_cells: Array, def: NextWorldDef) -> void:
 		place_boss(def.gate)
 
 ## A gate level's boss (Bosses.IN_LEVEL): on the free floor nearest the way on it guards, at least
-## BOSS_APART cells from it. The boss is placed in every visit's layout; the loader leaves it out
-## once it is slain (RunState.bosses).
+## BOSS_APART cells from it; the bramble in the knot at the head of its shaft (BrambleShaft), its
+## cell the knot's bottom corner beside the landing. The boss is placed in every visit's layout;
+## the loader leaves it out once it is slain (RunState.bosses).
 const BOSS_APART: int = 4
 
 func place_boss (boss: StringName) -> void:
 	if not exits.has(MapInfo.Exit.DEEPER):
+		return
+	if not shaft.is_empty():
+		var knot: Rect2i = shaft["knot"]
+		var beside: int = knot.position.x if knot.position.x > (shaft["inside"] as Rect2i).position.x else knot.end.x - 1
+		put(Vector2i(beside, knot.end.y - 1), Type.BOSS, boss)
 		return
 	var on: Vector2i = exits[MapInfo.Exit.DEEPER]
 	var spot: Variant = best_of(free_floors(), func(v: Vector2i) -> int: return dist(v, on),
@@ -803,6 +817,10 @@ func populate_level (def: NextWorldDef) -> void:
 	# everything else through open air (gates and abilities aside).
 	connect_caves()
 	arch.cut_gates(self)
+	# The garden's way up: the bramble's shaft, cut before anything is placed so the rest lands
+	# round it (only in its gate levels).
+	if BrambleShaft.wanted(def):
+		BrambleShaft.cut(self)
 
 	# Exits and their lanterns first, so they get the pick of the level.
 	place_exits(def.depth, def.debug, def.coord.y < 0)
@@ -897,6 +915,15 @@ var relic_chasms: Array[int] = []
 var relic_gaps: Array[Rect2i] = []
 ## The ledges laid to make an up level climbable (Climb.aid), in the order they were laid.
 var climb_ledges: Array[Vector2i] = []
+
+## The bramble's shaft, in its gate levels (BrambleShaft.cut, which says what it holds); empty in
+## every other level.
+var shaft: Dictionary = {}
+
+## Whether cell `v` is part of the bramble's shaft: inside it, or its walls, roof or floor. Nothing
+## else is built into it (secret rooms, vaults, cracked walls, climbing ledges).
+func in_shaft (v: Vector2i) -> bool:
+	return not shaft.is_empty() and (shaft["inside"] as Rect2i).grow(1).has_point(v)
 
 ## The level's chasms and gaps, its gates where the archetype has them (see Chasms): each
 ## {"planks": cells, "row": the floor row, "left": the last floor cell before it, "right": the
@@ -1014,7 +1041,7 @@ func place_secrets (def: NextWorldDef) -> void:
 ## `enclosed`, with a cell of rock all round it too.
 func _secret_spots (room: Vector2i, enclosed: bool) -> Array:
 	var floors: Array[Vector2i] = free_floors()
-	var rock: Callable = func(v: Vector2i) -> bool: return not is_valid(v) or is_ground(v)
+	var rock: Callable = func(v: Vector2i) -> bool: return not is_valid(v) or (is_ground(v) and not in_shaft(v))
 	var out: Array = []
 	for o: Vector2i in floors:
 		for side: int in [-1, 1]:
@@ -1226,6 +1253,8 @@ func _strongbox_spots (inside: Vector2i) -> Array:
 ## Whether a strongbox may take cell `c`: open air with nothing in it, or only a star or a piece
 ## of a ledge that stays put (which it takes the place of). `free` holds the open cells.
 func _buildable (c: Vector2i, free: Dictionary) -> bool:
+	if in_shaft(c):
+		return false
 	return (free.has(c) and get_cell(c).type == Type.EMPTY) or get_cell(c).type in [Type.COIN, Type.PLATFORM]
 
 func _carve_vault (r: Rect2i, door: Vector2i, color: int) -> void:
@@ -1277,8 +1306,9 @@ func place_cracks (count: int) -> void:
 				wall = [v]
 			elif _open(v - axis) and is_ground(v + axis) and _open(v + axis * 2):
 				wall = [v, v + axis]
-			# Never rock that thorns hang from (a chasm's floor, say): they would be left in the air.
-			if wall.is_empty() or wall.any(func(c: Vector2i) -> bool: return neighbor_offsets.any(func(d: Vector2i) -> bool: return is_valid(c + d) and get_cell(c + d).type == Type.SPIKES)):
+			# Never rock that thorns hang from (a chasm's floor, say): they would be left in the air;
+			# nor the bramble's shaft, which is climbed only from its foot.
+			if wall.is_empty() or wall.any(func(c: Vector2i) -> bool: return in_shaft(c) or neighbor_offsets.any(func(d: Vector2i) -> bool: return is_valid(c + d) and get_cell(c + d).type == Type.SPIKES)):
 				continue
 			walls.append(wall)
 			for o: Vector2i in valuable:

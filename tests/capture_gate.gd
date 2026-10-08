@@ -1,7 +1,8 @@
 extends SceneTree
-## Stills of a gate (Bosses): the bramble's gate level with its stand-in boss (whole, then struck),
-## the sealed way on, the relic it leaves, and an arena with its boss. The worm, which is built, has
-## capture_worm.
+## Stills of a gate (Bosses): the sealed way on at the head of the bramble's shaft, the stand-in
+## boss in the necromancer's arena (whole, then struck, and the arena), the relic it leaves, and the
+## necromancer's way on opened. The worm and the bramble, which are built, have capture_worm and
+## capture_bramble.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_gate.gd
 
 const SIZE: int = 420
@@ -62,7 +63,12 @@ func capture() -> void:
 	camera = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
 	var shots: Array[Image] = []
+	# The sealed way on, at the head of the bramble's shaft.
 	await go(Vector2i(28, -NextWorldDef.GARDEN_ROWS), player)
+	var on: Vector2 = info.cell_position(info.world.exits[MapInfo.Exit.DEEPER])
+	shots.append(await shot(on))
+	# The stand-in, in the necromancer's arena: whole, struck, and the relic it leaves.
+	await go(Worlds.side_at(Worlds.kind_of(Arena), Vector2i(28, NextWorldDef.GARDEN_ROWS + NextWorldDef.BAND)), player)
 	var boss: Boss = node("boss.tscn") as Boss
 	boss.get_node("Mover").set_physics_process(false)
 	shots.append(await shot(boss.global_position))
@@ -70,20 +76,18 @@ func capture() -> void:
 	for i: int in range(4):
 		wound.hit(1, Vector2.RIGHT)
 	shots.append(await shot(boss.global_position))
-	var on: Vector2 = info.cell_position(info.world.exits[MapInfo.Exit.DEEPER])
-	shots.append(await shot(on))
+	shots.append(await shot(boss.global_position + Vector2(-300, 0)))
 	while is_instance_valid(boss) and not boss.is_queued_for_deletion():
 		wound.hit(1, Vector2.RIGHT)
+	await process_frame
 	var relic: Node2D = null
 	for n: Node in info.map_elements.get_children():
 		if n.has_meta(&"boss"):
 			relic = n as Node2D
 	shots.append(await shot(relic.global_position))
-	shots.append(await shot(on))
-	await go(Worlds.side_at(Worlds.kind_of(Arena), Vector2i(28, NextWorldDef.GARDEN_ROWS + NextWorldDef.BAND)), player)
-	var arena_boss: Node2D = node("boss.tscn")
-	arena_boss.get_node("Mover").set_physics_process(false)
-	shots.append(await shot(arena_boss.global_position + Vector2(-300, 0)))
+	# Back out, the necromancer's way on open.
+	await go(Vector2i(28, NextWorldDef.GARDEN_ROWS + NextWorldDef.BAND), player)
+	shots.append(await shot(info.cell_position(info.world.exits[MapInfo.Exit.DEEPER])))
 	var out: Image = Image.create(SIZE * 3, SIZE * 2, false, shots[0].get_format())
 	for k: int in range(shots.size()):
 		out.blit_rect(shots[k], Rect2i(0, 0, SIZE, SIZE), Vector2i((k % 3) * SIZE, (k / 3) * SIZE))

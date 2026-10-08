@@ -248,8 +248,10 @@ func place_cell(v: Vector2i, cell: LevelGen.Cell) -> void:
 		# A vault's lesser cluster is worth a share of a full one (LevelGen.VAULT_LOOT).
 		var share: float = float(cell.extra_info) if cell.extra_info != null else 1.0
 		(node as Coin).value = maxi(2, roundi(Rules.cluster_value(info.here.depth) * share))
-	# The worm keeps its health on its segments (WormSegment), not on itself.
-	if Placeables.has_flag(cell.type, &"enemy") and not node is Worm:
+	# A boss built for itself keeps its health on its parts (the worm's segments, the bramble's
+	# bulbs), not on itself.
+	var own_boss: bool = cell.type == LevelGen.Type.BOSS and Bosses.SCENES.has(StringName(cell.extra_info))
+	if Placeables.has_flag(cell.type, &"enemy") and not own_boss:
 		arm(node, info.here.depth)
 	if cell.mods.has("shield"):
 		var shield: Shield = Shield.new()
