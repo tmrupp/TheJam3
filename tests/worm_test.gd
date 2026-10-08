@@ -79,17 +79,21 @@ func run() -> void:
 	check(not switched, "its thorns keep to one side until it comes out of the rock again")
 	# Its head's rounded front, and so its mouth, never pushes into the rock.
 	var poked: int = 0
+	var beyond_hitbox: int = 0
 	for f: int in range(240):
 		await physics_frame
 		for crawler: Worm.Piece in worm.pieces:
 			var path: Array[Vector2i] = crawler.path()
-			var front: float = crawler.at(0) - 0.5
+			var front: float = crawler.at(0)
 			for nose: PackedVector2Array in worm._cap(path, front, worm.cell * Worm.GIRTH, true):
 				var base: Vector2 = worm.point(path, front)
 				for pt: Vector2 in nose:
+					if pt.distance_to(crawler.segments[0].global_position) > crawler.segments[0].radius + 0.01:
+						beyond_hitbox += 1
 					if not Worm.passable(w, info.cell_at(pt.move_toward(base, 2.0))):
 						poked += 1
 	check(poked == 0, "its head never noses into the rock (%d points in it)" % poked)
+	check(beyond_hitbox == 0, "the head's visible front stays inside its round hitbox")
 
 	print("it digs through walls")
 	var q: Worm.Piece = worm.pieces[0]

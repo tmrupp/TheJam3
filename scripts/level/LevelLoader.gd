@@ -248,8 +248,10 @@ func place_cell(v: Vector2i, cell: LevelGen.Cell) -> void:
 		# A vault's lesser cluster is worth a share of a full one (LevelGen.VAULT_LOOT).
 		var share: float = float(cell.extra_info) if cell.extra_info != null else 1.0
 		(node as Coin).value = maxi(2, roundi(Rules.cluster_value(info.here.depth) * share))
-	# The worm keeps its health on its segments (WormSegment), not on itself.
-	if Placeables.has_flag(cell.type, &"enemy") and not node is Worm:
+	# A boss built for itself keeps its health on its parts (the worm's segments, the bramble's
+	# bulbs), not on itself.
+	var own_boss: bool = cell.type == LevelGen.Type.BOSS and Bosses.SCENES.has(StringName(cell.extra_info))
+	if Placeables.has_flag(cell.type, &"enemy") and not own_boss:
 		arm(node, info.here.depth)
 	if cell.mods.has("shield"):
 		var shield: Shield = Shield.new()
@@ -356,6 +358,11 @@ func sleep_far_chunks(force: bool = false, around: Vector2 = Vector2.INF) -> voi
 		if n2 == null or node.is_queued_for_deletion() or not node.has_meta(&"cell"):
 			continue
 		var awake: bool = bool(states.get(chunk_of(n2.global_position), false))
+		# Its activation range can reach beyond the view's awake chunks: let it check the wizard
+		# there too. Once woken it hunts across the level; its root stays at its original burrow.
+		var worm: Worm = node as Worm
+		if worm != null and (worm.awake or (has_wizard and LevelGen.dist(info.cell_at(wizard), worm.home) <= Worm.WAKE_RANGE)):
+			awake = true
 		# Something spread over several chunks (a wind, Wind.extent) is awake if any of them is.
 		var wind: Wind = node as Wind
 		if not awake and wind != null:

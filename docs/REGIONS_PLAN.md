@@ -6,8 +6,9 @@ guards a relic and the way on to the next region. It builds on `docs/DEEPER_PLAN
 places, archetypes, side worlds, relics) and follows the owner's notes in `docs/TOM_THOUGHTS.md`
 ("can go up or down", "bosses, possibly guarding relics, must be defeated").
 
-Phases 1 (rows both ways), 2 (climbing levels) and 3 (the gate, with a stand-in boss) are built,
-of phase 4 the worm, and of phase 5 a first pass of the crags (no spider yet); the rest is not yet. Each section says what is decided, what
+Phases 1 (rows both ways), 2 (climbing levels), 3 (the gate, with a stand-in boss) and 4 (the
+worm and the bramble) are built, and of phase 5 a first pass of the crags (no spider yet); the
+rest is not yet. Each section says what is decided, what
 is proposed, and what is still open; the phases at the end give the order of work.
 
 ## 1. Decided
@@ -139,19 +140,48 @@ The tuning numbers are first guesses for playtest.
 
 ### The bramble (garden, up gate, in the level)
 
-The way up out of the garden is a tall shaft of thorns. The bramble is rooted at its top: a knot
-of thorn and bark with a few **bulbs** (its weak points, accent) set in the walls of the shaft.
+*Built* (`Bramble`, `BrambleBulb`, `BrambleVine`, `BrambleWound`, `BrambleShaft`,
+`prefabs/bramble.tscn`). The way up out of the garden is a tall shaft of thorns. The bramble is
+rooted at its head: a knot of thorn and bark beside the way on, with a few **bulbs** (its weak
+points, accent) set in the walls of the shaft.
 
-- **Vines.** Thorn vines grow out along the shaft walls and pull back on a cadence (the "thorn
-  vines" hazard from the plan's ideas, reusing the lasers' timing, `Laser.gd`), so the climb is a
-  timing puzzle on wall jumps and ledges. Vines in pink; their shoots warn before they grow.
-- **Bulbs.** 3 to 5 bulbs up the shaft. Each takes hex bolts or a dash strike; a burst bulb withers
-  the vines near it for good. When the last bulb bursts, the knot at the top opens and the bramble
-  dies; the seal on the way up (at the top of the shaft) lifts.
-- **Parry.** A vine's lash can be parried: it recoils and stays back for a few seconds, opening the
-  wall beside it. Seeds it spits upward can be reflected into bulbs.
-- **Procedural.** The shaft is cut through the gate level's rock (like a chasm, `Chasms.carve`),
-  its height from the level's size; bulbs and vine runs are placed along its walls by the seed.
+- **The shaft.** Cut into the gate level's rock near its top (`BrambleShaft.cut`), right after the
+  caves are joined and before anything else is placed, so the rest of the level lands round it
+  (only the bramble's gate levels change). 4 cells wide inside (`WIDTH`), half the level tall
+  (`HEIGHT_SHARE`, at least 12), walled in by rock: roof, walls and floor, with whatever the new
+  walls cut off joined up again round the shaft, never through it (`LevelGen.connect_caves`'s
+  `walled`). At its foot a passage 2 high runs out through both walls to the caves. Ledges climb it
+  from side to side, a hop apart (`LEDGE_EVERY`, as `Reach.UP`). Its head is walled in: the way on
+  stands on a landing against one wall (`LevelGen.place_exits` takes it from the shaft), and the
+  knot fills the rest of the head beside it, 3 rows (`KNOT_ROWS`), so the way on is reached only
+  up the shaft and only once the knot is gone. Nothing else is placed inside it, and no secret room,
+  vault, cracked wall or climbing ledge is built into it (`LevelGen.in_shaft`). Where it goes is the
+  columns whose walls wall over the least of the caves, ties dealt by the level seed; nothing draws
+  from the world RNG.
+- **Vines.** Thorn vines are rooted in the walls every 4 rows (`VINE_APART`), clear of the bulbs,
+  and lash out across the shaft on a cadence like a laser's (`BrambleVine`: rest 1.4 s, the shoots
+  warn pink for 0.8 s, grow out 2.5 cells in 0.25 s, hold 1.1 s, pull back in 0.45 s, each out of
+  step by the seed), so the climb is a timing puzzle on its ledges and walls. Only a vine that is
+  out hurts. Vines in pink; their shoots warn before they grow.
+- **Bulbs.** 3 to 5 bulbs (`BULBS`) up the shaft, one in each of as many bands down the walls,
+  from wall to wall. Each takes 3 hits (`Bramble.BULB_HP`) from hex bolts or a dash, even ones that
+  only stun at their tier (`Wound.least`), and is never stunned. Each vine feeds from the bulb
+  nearest it, and a burst bulb withers its vines for good. Its health shows as accent pips on the
+  knot, one per bulb. When the last bulb bursts, every vine withers, the knot tears open and
+  shrivels away (1.4 s) and the bramble dies; the seal on the way up lifts, and its relic waits on
+  the landing beside the way on.
+- **Parry.** A vine's lash can be parried: it recoils into the rock and stays there for the stun
+  (`Parry.STUN`, 3 s), then rests before it grows again, opening the wall beside it. The bulbs spit
+  seeds at the wizard in sight within 900 px (`BrambleBulb`, every 3 s); a parried seed flies back
+  into the bulb that spat it (the shot's attacker) and wounds it.
+- **The knot.** Solid, on the environment's layer: nothing gets past it to the way on. Its thorns
+  hurt to touch; a parry against them only catches the hit and pushes off.
+- **Procedural.** All of it comes from the level's layout and seed; the bramble's own timing
+  (its vines' phases, its bulbs' first swell) is hashed from the seed and cell.
+- A lantern death brings it back whole, as the level reloads. `tests/bramble_test.gd` covers it,
+  `tests/capture_bramble.gd` takes stills. Of the twelve garden gate levels the test lays out, the
+  way on is reached with the wizard's own hops in ten (the climb helper, `Climb.aid`, sees the
+  shaft's ledges and lends ledges toward its foot, never inside it).
 
 ### The worm (garden, down gate, in the level)
 
@@ -165,7 +195,11 @@ through the gate level's tunnels, as Tom described.
   the cell after the one its head is going into, so the head bends the way it will turn rather
   than nosing into the rock, and its rounded front stops at the rock. Each segment takes 3 hits
   (`SEGMENT_HP`), its hits left printed on it as dark dots. The head bites (pink); its mouth is
-  cut out of the head, so what is behind shows through it. The body, pale flesh, is solid, so it
+  a shallow Pac-Man wedge ahead of the health dots, cut out of a round nose, whose visible front,
+  solid collider and bite share the
+  same radius. After a bite meets the wizard (even a guarded bite), its piece rests for 0.65 s
+  (`BITE_RECOVERY`): the head closes its mouth and is harmless but solid and open to strikes;
+  its body thorns still hurt. The body, pale flesh, is solid, so it
   walls off tunnels as it passes (a wizard it moves into is let through it, not wedged in the
   rock).
 - **Thorns.** Every segment but the head has thorns along one flank of the body (left or right of
@@ -180,7 +214,8 @@ through the gate level's tunnels, as Tom described.
   worm is stunned they do not hurt.
 - **No dashing through.** Its body is on a physics layer of its own (`WormSegment.WORM_LAYER`,
   "Worm"), which the dash does not pass through as it does the enemy layer: a dash stops at the
-  worm, unless it cuts the segment it meets and goes through the gap.
+  worm, unless it cuts the segment it meets and goes through the gap. Damage checks the wizard's
+  swept body against the segment's circle, so a stopped dash lands from any direction.
 - **Soft flesh, one cut a move.** Any hex bolt or dash cuts a segment, even at a tier that only
   stuns (`Wound.least`, 1 for a segment), and a parry too; so the worm can be fought with the
   moves a run starts with. Each bolt (even a piercing one), dash or parry cuts only one segment,
@@ -201,7 +236,9 @@ through the gate level's tunnels, as Tom described.
   and out by, out of sight and out of reach while in the rock. It never turns back on itself:
   boxed in, it digs into the rock beside its head and burrows away there.
 - **Waking and stalking.** It lies under the rock by the way on until the wizard comes within 12
-  cells of it (`WAKE_RANGE`), then stalks them through the whole level: it comes up out of a
+  cells of it (`WAKE_RANGE`), even if its burrow's chunk is asleep (`tests/worm_wake_test.gd`),
+  then stalks them through the whole level, staying awake even when
+  its original burrow's chunk sleeps: it comes up out of a
   burrow near them (not on them), crawls after them for 8 to 12 s (140 px/s, 185 once after them;
   the wizard runs at 300), sinks into the nearest burrow and comes up again 1.2 to 2.4 s later.
 - **Warning.** Every time it is about to come out of the rock (from a burrow, or digging out of a
@@ -348,8 +385,21 @@ Each phase ends with the full suite green and its own tests.
    strikes off), one segment cut a move, only a
    parry stunning it, its layer, the bite, struck by a dash and a bolt that only stun, cuts, splits,
    burrowing away, a lantern death healing it, slain, its relic on a floor, never met again);
-   `capture_worm.gd` (stills). `gate_test` and `capture_gate.gd` now show the stand-in at the
-   bramble's gate. Not yet: the bramble.
+   `capture_worm.gd` (stills). The F7 panel's Travel section has **Slay boss**
+   (`MapInfo.slay_boss`): the boss here (the worm, the bramble, or a stand-in) dies at once as by
+   any blow, leaving its relic; in a gate level whose boss fights elsewhere, that boss is slain
+   where the wizard stands (`gate_test`). *The bramble is done* (§6): its shaft cut near the top of
+   its gate level, walled in, with ledges, a foot open to the caves, and the way on on a landing at
+   its head; the knot walling off the head; vines lashing out on a cadence, a parried lash
+   recoiling; bulbs spitting seeds a parry turns back into them, wounded by any bolt or dash, each
+   feeding the vines nearest it; the knot tearing open with the last. Tests: `bramble_test` (the
+   shaft's walls, foot, landing, knot and ledges, nothing else in it, the same every build and only
+   in its gate levels, reached from the way back; in play the knot, the vines' cadence and sting, a
+   parry recoiling one, seeds spat and parried back, bolts and dashes wounding bulbs, a burst bulb
+   withering its vines, a lantern death healing it, slain, its relic on the landing, never met
+   again); `capture_bramble.gd` (stills). The bramble's gate levels changed (layout); every other
+   level did not. `gate_test` and `capture_gate.gd` now show the stand-in in the necromancer's
+   arena.
 5. **Crags and castle**: *a first pass is done*: sample, structure pass, decor, realm, and the
    gondola (`CragsArchetype`, `Gondola`; `crags_test`, `capture_crags.gd`; the crags' layouts
    changed and `layout_fingerprint_test` was re-pinned for them alone). Then its life (updrafts,
@@ -367,6 +417,6 @@ Each phase ends with the full suite green and its own tests.
 - **What a boss's relic is.** A move not yet known (proposed), or always the same move per boss
   (the bramble wall climb, the worm double jump...), which would make each branch's order of
   abilities designed rather than dealt.
-- **Gate level size.** Whether gate levels are the band's ordinary size or larger, to fit the
-  bramble's shaft and the worm's tunnels.
+- **Gate level size.** Whether gate levels are the band's ordinary size or larger. The worm and
+  the bramble fit in the ordinary size (the bramble's shaft is half the level tall).
 - **The ward and bosses.** Whether boss hits break a ward charge like any hit, or several.

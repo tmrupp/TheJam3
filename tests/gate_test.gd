@@ -2,8 +2,9 @@ extends TestKit
 ## The gates at the band ends (Bosses, docs/REGIONS_PLAN.md §5): which rows they are and who guards
 ## them, the way on sealed while the boss lives, a lantern death healing it, its death opening its
 ## band's every gate level for the rest of the run and leaving a free relic, an arena boss behind its
-## door, and no hyperspace past a living boss's gate. The rules are shown with the stand-in (Boss),
-## at the bramble's gate; the worm, which is built, has worm_test.
+## door, no hyperspace past a living boss's gate, and the F7 panel's Slay boss. The rules are shown
+## with the stand-in (Boss), in the necromancer's arena; the worm and the bramble, which are built,
+## have worm_test and bramble_test.
 ## godot --headless --path . --script res://tests/gate_test.gd
 
 
@@ -44,13 +45,25 @@ func run() -> void:
 	await settle()
 	check(info.coord == Vector2i(28, g), "and no stars open it")
 
-	# The bramble is not built yet: its stand-in (Boss) shows the gate's rules.
-	print("the stand-in, at the bramble's gate")
+	print("the bramble's gate")
 	await _go(Vector2i(28, -g))
+	check(placed("bramble.tscn").size() == 1 and placed("boss.tscn").is_empty(), "in play the bramble itself is there (Bramble; bramble_test fights it)")
+	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"bramble", "its way on is sealed")
+
+	# The bosses fought in an arena are not built yet: their stand-in (Boss) shows the gate's rules.
+	print("the stand-in, in an arena")
+	await _go(Vector2i(28, g + b))
+	check(placed("boss.tscn").is_empty() and _exit(MapInfo.Exit.DEEPER).sealed() == &"necromancer", "the necromancer's gate level is sealed, with no boss in it")
+	var door: int = Worlds.door(Worlds.kind_of(Arena))
+	var doors: Array[Node] = placed("level_exit.tscn").filter(func(n: Node) -> bool: return (n as LevelExit).exit == door)
+	check(doors.size() == 1 and (doors[0] as LevelExit).sealed() == &"" and (doors[0] as LevelExit).price() == 0, "its arena's door is open and free")
+	info.travel(door)
+	await settle()
+	player.set_physics_process(false)
+	var arena_at: Vector2i = info.coord
+	check(Worlds.kind_at(arena_at) == Worlds.kind_of(Arena) and placed("boss.tscn").size() == 1, "inside, the boss")
 	var boss: Boss = placed("boss.tscn")[0] as Boss
-	var way_on: LevelExit = _exit(MapInfo.Exit.DEEPER)
-	check(boss != null and boss.boss == &"bramble" and (boss.get_node("Wound") as Wound).hp == Boss.HP, "in play the bramble's stand-in is there, whole")
-	check(way_on.sealed() == &"bramble", "its way on is sealed")
+	check(boss.boss == &"necromancer" and (boss.get_node("Wound") as Wound).hp == Boss.HP, "the necromancer's stand-in, whole")
 
 	print("a death heals it")
 	var wound: Wound = boss.get_node("Wound") as Wound
@@ -60,9 +73,9 @@ func run() -> void:
 	info.run.vulnerable = false
 	player.die()
 	await settle()
-	await _go(Vector2i(28, -g))
+	await _go(arena_at)
 	boss = placed("boss.tscn")[0] as Boss
-	check((boss.get_node("Wound") as Wound).hp == Boss.HP and not info.run.bosses.has(&"bramble"), "after a lantern death it is whole again")
+	check((boss.get_node("Wound") as Wound).hp == Boss.HP and not info.run.bosses.has(&"necromancer"), "after a lantern death it is whole again")
 
 	print("slain")
 	wound = boss.get_node("Wound") as Wound
@@ -71,44 +84,27 @@ func run() -> void:
 		if is_instance_valid(boss) and not boss.is_queued_for_deletion():
 			wound.hit(1, Vector2.RIGHT)
 	await settle()
-	check(info.run.bosses.has(&"bramble") and placed("boss.tscn").is_empty(), "it dies, slain for the run")
-	var relics: Array[Node] = placed("relic.tscn").filter(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == &"bramble")
+	check(info.run.bosses.has(&"necromancer") and placed("boss.tscn").is_empty(), "it dies, slain for the run")
+	var relics: Array[Node] = placed("relic.tscn").filter(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == &"necromancer")
 	# Each hit knocks it back a little, so it falls a way from where it stood.
-	var where: Vector2 = (info.run.boss_relics.get(&"bramble", [null, Vector2.INF]) as Array)[1]
+	var where: Vector2 = (info.run.boss_relics.get(&"necromancer", [null, Vector2.INF]) as Array)[1]
 	check(relics.size() == 1 and (relics[0] as Node2D).global_position.distance_to(where) < 1.0 and where.distance_to(fell) < 400.0 and (relics[0] as Relic).price() == 0, "leaving a relic where it fell, free")
 	var move: StringName = (relics[0] as Relic).ability
 	check(Relics.MOVES.has(move) and Abilities.tier(player, move) == 0, "a move the wizard does not know (%s)" % move)
 	(relics[0] as Relic).take()
 	# A spell swaps for the one held, which is left on the plinth: the relic stays, holding it.
 	var swapped: bool = not info.record().relic_left.is_empty()
-	check(Abilities.tier(player, move) == 1 and info.run.boss_relics.has(&"bramble") == swapped, "taken, it teaches it, and is gone (or holds the spell it swapped out: %s)" % swapped)
-	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"", "the way on is open")
-	await _go(Vector2i(29, -g))
-	check(placed("boss.tscn").is_empty() and _exit(MapInfo.Exit.DEEPER).sealed() == &"", "and every other gate level of the garden's way up too, with no bramble in it")
-	await _go(Vector2i(28, g))
-	check(placed("worm.tscn").size() == 1 and _exit(MapInfo.Exit.DEEPER).sealed() == &"worm", "the way down still waits on the worm")
-
-	print("an arena")
-	await _go(Vector2i(28, g + b))
-	check(placed("boss.tscn").is_empty() and _exit(MapInfo.Exit.DEEPER).sealed() == &"necromancer", "the necromancer's gate level is sealed, with no boss in it")
-	var door: int = Worlds.door(Worlds.kind_of(Arena))
-	var doors: Array[Node] = placed("level_exit.tscn").filter(func(n: Node) -> bool: return (n as LevelExit).exit == door)
-	check(doors.size() == 1 and (doors[0] as LevelExit).sealed() == &"" and (doors[0] as LevelExit).price() == 0, "its arena's door is open and free")
-	info.travel(door)
-	await settle()
-	player.set_physics_process(false)
-	check(Worlds.kind_at(info.coord) == Worlds.kind_of(Arena) and placed("boss.tscn").size() == 1, "inside, the boss")
-	var arena_boss: Boss = placed("boss.tscn")[0] as Boss
-	wound = arena_boss.get_node("Wound") as Wound
-	for i: int in range(Boss.HP):
-		if is_instance_valid(arena_boss) and not arena_boss.is_queued_for_deletion():
-			wound.hit(1, Vector2.RIGHT)
-	await settle()
-	check(info.run.bosses.has(&"necromancer"), "slain in its arena")
+	check(Abilities.tier(player, move) == 1 and info.run.boss_relics.has(&"necromancer") == swapped, "taken, it teaches it, and is gone (or holds the spell it swapped out: %s)" % swapped)
 	info.travel(MapInfo.Exit.BACK)
 	await settle()
 	player.set_physics_process(false)
 	check(info.coord == Vector2i(28, g + b) and _exit(MapInfo.Exit.DEEPER).sealed() == &"", "back in its gate level, the way on is open")
+	await _go(Vector2i(29, g + b))
+	check(placed("boss.tscn").is_empty() and _exit(MapInfo.Exit.DEEPER).sealed() == &"", "and every other gate level of its band too")
+	await _go(Vector2i(28, g))
+	check(placed("worm.tscn").size() == 1 and _exit(MapInfo.Exit.DEEPER).sealed() == &"worm", "the way down still waits on the worm")
+	await _go(Vector2i(28, -g))
+	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"bramble", "and the way up on the bramble")
 
 	print("no hyperspace past a gate")
 	var hyper: Hyperspace = Worlds.proto(Worlds.kind_of(Hyperspace)) as Hyperspace
@@ -126,11 +122,24 @@ func run() -> void:
 		fresh.bosses[&"worm"] = true
 		check(def.seal(Worlds.door(Worlds.kind_of(Hyperspace)), fresh) == &"", "and opens once it is slain")
 
+	print("slain from the F7 panel")
+	await _go(Vector2i(28, g))
+	check(info.slay_boss() and placed("worm.tscn").is_empty(), "Slay boss kills the worm in its gate level at once")
+	await settle()
+	check(info.run.bosses.has(&"worm") and _exit(MapInfo.Exit.DEEPER).sealed() == &"" and placed("relic.tscn").any(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == &"worm"), "its gate opens and its relic is left")
+	await _go(Vector2i(28, -g))
+	check(info.slay_boss() and placed("bramble.tscn").is_empty(), "and the bramble in its gate level")
+	await settle()
+	check(info.run.bosses.has(&"bramble") and _exit(MapInfo.Exit.DEEPER).sealed() == &"" and placed("relic.tscn").any(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == &"bramble"), "its way up opens and its relic is left")
+	await _go(Vector2i(28, g + 2 * b))
+	check(info.slay_boss() and info.run.bosses.has(&"beast") and _exit(MapInfo.Exit.DEEPER).sealed() == &"", "and slays an arena boss from its gate level")
+	check(not info.slay_boss(), "with nothing left to slay, it does nothing")
+
 	print("saved")
 	var saved: Dictionary = info.run.to_save(info.coord, {})
 	var again: RunState = RunState.new()
 	again.from_save(saved)
-	check(again.bosses.has(&"bramble") and again.bosses.has(&"necromancer"), "the bosses slain are kept with the run")
+	check(again.bosses.has(&"necromancer") and again.bosses.has(&"worm") and again.bosses.has(&"bramble"), "the bosses slain are kept with the run")
 	RunState.delete_save()
 	finish()
 

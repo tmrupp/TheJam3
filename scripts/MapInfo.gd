@@ -198,6 +198,29 @@ func boss_slain (boss: StringName, pos: Vector2) -> void:
 	RisoFx.burst(&"gain", pos, Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.PINK])
 	save_run()
 
+## Debug runs (the F7 panel): slay this place's boss at once. One here in person (the worm, the
+## bramble, or a stand-in) dies as by any blow, leaving its relic; else the boss whose gate this is (an arena
+## boss, fought elsewhere) is slain where the wizard stands. False if there is none to slay.
+func slay_boss () -> bool:
+	if map_elements != null and is_instance_valid(map_elements):
+		for node: Node in map_elements.get_children():
+			if node.is_queued_for_deletion():
+				continue
+			if node is Worm and not (node as Worm).slain:
+				(node as Worm).slay()
+				return true
+			if node is Bramble and not (node as Bramble).slain:
+				(node as Bramble).slay()
+				return true
+			if node is Boss:
+				(node as Boss).slay()
+				return true
+	var gate: StringName = here.gate if here != null else &""
+	if gate != &"" and not run.bosses.has(gate) and player != null:
+		boss_slain(gate, player.global_position)
+		return true
+	return false
+
 ## The relics slain bosses left in this place, where they fell, until taken.
 func _spawn_boss_relics () -> void:
 	if map_elements == null or not is_instance_valid(map_elements):

@@ -13,7 +13,8 @@ extends Node2D
 ## to come out of the rock (from a burrow, or through a wall) it waits EMERGE_WARN first: the hole
 ## throbs pink and spits dirt, and the ground rumbles (the screen shakes, harder the nearer the
 ## wizard is), then it bursts out.
-## - Its head bites (pink). Its body is solid, so it walls off a tunnel as it passes, and every
+## - Its head bites (pink), then its piece rests for BITE_RECOVERY with its head harmless. Its
+##   body is solid, so it walls off a tunnel as it passes, and every
 ##   segment but the head has thorns along one flank (WormSegment): they hurt to touch, and a
 ##   strike from that side glances off, so the wizard has to get round to a segment's bare side to
 ##   cut it. Each time it comes out of the rock it picks the flank facing the wizard, and keeps it
@@ -40,6 +41,8 @@ const GIRTH: float = 0.84
 ## How fast it crawls (px/s), and faster while the wizard is in its lair (the wizard runs at 300).
 const SPEED: float = 140.0
 const HUNT_SPEED: float = 185.0
+## Seconds a piece rests after its head bites: it stays solid, but its head is harmless.
+const BITE_RECOVERY: float = 0.65
 ## How near where it lies (cells, across plus down) the wizard must come to wake it.
 const WAKE_RANGE: int = 12
 ## Burrow holes all through the level: HOLES_PER_K per 1000 cells (at least HOLES_MIN), at least
@@ -90,6 +93,16 @@ const JOINT_SHADE: float = 0.16
 const WEDGE: float = 4.0
 ## How near the wizard the head opens its mouth wide (px).
 const BITE_NEAR: float = 160.0
+## The mouth's wedge: its root ahead of the centre, reach past the nose and half spread, in radii.
+const MOUTH_ROOT: float = 0.2
+const MOUTH_REACH: float = 1.3
+const MOUTH_SPREAD: float = 1.25
+## The share of its opening at a distance, and closed while resting or stunned.
+const MOUTH_CLOSED: float = 0.25
+const MOUTH_REST: float = 0.12
+## How quickly the open mouth works, and the share of its gape that pulses.
+const MOUTH_BEAT: float = 9.0
+const MOUTH_PULSE: float = 0.25
 ## The body's flesh: these covers of pink and green on paper, and the share of them left while it
 ## is stunned (pale). The head is pink in full, and STUNNED_FLESH of it while stunned.
 const FLESH_PINK: float = 0.32
@@ -133,6 +146,8 @@ class Piece:
 	## next rumble.
 	var warn: float = 0.0
 	var rumble: float = 0.0
+	## Seconds left of the rest after biting the wizard.
+	var recovery: float = 0.0
 
 	## The cells its body runs through, from the one after the one its head is going into to the one
 	## its tail has left: position s along it (in cells) is the middle of path()[s].
@@ -203,6 +218,7 @@ func setup(info: MapInfo, v: Vector2i, which: Variant) -> void:
 	origin = info.cell_position(Vector2i.ZERO)
 	var w: LevelGen = info.world
 	rng.seed = Rules.level_seed(w.seed_for_colors, MIND_DEAL)
+	last_at = center(home)
 	_find_lair(w)
 	_dig_holes(w)
 	var worm: Piece = Piece.new()
@@ -368,6 +384,9 @@ func _step(p: Piece, delta: float) -> void:
 				_rumble(p, delta)
 				return
 			if _stunned(p):
+				return
+			if p.recovery > 0.0:
+				p.recovery = maxf(0.0, p.recovery - delta)
 				return
 			if p.state == UP:
 				p.clock -= delta
@@ -677,7 +696,18 @@ func _place(p: Piece) -> void:
 			s.thorns.rotation = s.spikes.angle()
 		s.shown = p.state != UNDER and open_at(path, p.at(k))
 		s.set_live(s.shown and p.state != DYING)
+		s.recovering = k == 0 and p.recovery > 0.0
 		s.sync_touch()
+
+
+## A head has bitten the wizard: hold its piece still and close its mouth for BITE_RECOVERY.
+func bit(head: WormSegment) -> void:
+	for p: Piece in pieces:
+		if not p.segments.is_empty() and p.segments[0] == head and head.live and p.state != DYING:
+			p.recovery = BITE_RECOVERY
+			head.recovering = true
+			head.sync_touch()
+			return
 
 
 ## The worm has moved where the wizard stands: let them through it rather than wedge them in the
@@ -774,6 +804,20 @@ func _die() -> void:
 	queue_free()
 
 
+## Slain outright (the F7 panel's Slay boss): every worm gone at once, and the relic left as for
+## any death.
+func slay() -> void:
+	if slain:
+		return
+	for p: Piece in pieces:
+		for s: WormSegment in p.segments:
+			if s.shown:
+				last_at = s.global_position
+			s.queue_free()
+	pieces.clear()
+	_die()
+
+
 ## How many segments are left in all its worms.
 func segments_left() -> int:
 	var n: int = 0
@@ -786,8 +830,8 @@ func segments_left() -> int:
 
 ## Its holes, then each worm from tail to head: a pipe of pale flesh (bleached to paper while
 ## stunned) bending through its cells, a shadow at each joint, its hits left as dark dots across
-## each segment, a rounded tail, the head pink with a mouth cut out of it that gapes as the wizard
-## comes near, and the stun's stars circling over a stunned head. What is down in a hole is not
+## each segment, a rounded tail, the head pink with a wedge mouth cut out of its round front
+## that gapes as the wizard comes near, and the stun's stars circling over a stunned head. What is down in a hole is not
 ## printed.
 func _process(delta: float) -> void:
 	t += delta
@@ -812,14 +856,16 @@ func _process(delta: float) -> void:
 		for i: int in range(last, -1, -1):
 			var s: WormSegment = p.segments[i]
 			var front: float = p.at(i) - 0.5
+			if i == 0:
+				front = p.at(i)
 			var back: float = p.at(i) + 0.5
 			var flesh: Array[PackedVector2Array] = _pipe(path, front, back, width)
 			if i == last:
 				flesh.append_array(_cap(path, back, width, false))
 			if i == 0:
 				flesh.append_array(_cap(path, front, width, true))
-				if open_at(path, front):
-					flesh = _bite_out(flesh, _jaw(path, front, width, pale, wizard))
+				if s.shown:
+					flesh = _bite_out(flesh, _jaw(s, width, pale, wizard))
 			if flesh.is_empty():
 				continue
 			ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], flesh)
@@ -881,25 +927,46 @@ func _cap(path: Array[Vector2i], s: float, width: float, head: bool) -> Array[Pa
 	for n: int in range(13):
 		var a: float = -PI * 0.5 + PI * float(n) / 12.0
 		half.append(at + side * sin(a) * width * 0.5 + way * cos(a) * depth)
+	# On a bend the sides of the round head can meet rock too, not just its nose.
+	if head:
+		return _clip_to_air(half, at, width * 0.5)
 	return [half]
 
 
-## The head's mouth at its front: a wedge, gaping wider as the wizard comes near (hardly at all
-## while stunned), cut out of the head so what is behind shows through it.
-func _jaw(path: Array[Vector2i], front: float, width: float, pale: bool, wizard: Vector2) -> PackedVector2Array:
-	var at: Vector2 = point(path, front)
-	var way: Vector2 = facing(path, front)
-	var side: Vector2 = way.orthogonal()
+## A rounded head's visible part, clipped to the open cells round its centre.
+func _clip_to_air(poly: PackedVector2Array, at: Vector2, radius: float) -> Array[PackedVector2Array]:
+	var out: Array[PackedVector2Array] = []
+	var lo: Vector2i = map_info.cell_at(at - Vector2.ONE * radius)
+	var hi: Vector2i = map_info.cell_at(at + Vector2.ONE * radius)
+	for x: int in range(lo.x, hi.x + 1):
+		for y: int in range(lo.y, hi.y + 1):
+			var c: Vector2i = Vector2i(x, y)
+			if not passable(map_info.world, c):
+				continue
+			var corner: Vector2 = center(c) - Vector2.ONE * cell * 0.5
+			var square: PackedVector2Array = PackedVector2Array([corner, corner + Vector2(cell, 0), corner + Vector2.ONE * cell, corner + Vector2(0, cell)])
+			out.append_array(Geometry2D.intersect_polygons(poly, square))
+	return out
+
+
+## A wedge cut out of the head's round front, showing what is behind it. It gapes near the wizard
+## and nearly closes while resting or stunned, without extending the head beyond its collider.
+func _jaw(head: WormSegment, width: float, pale: bool, wizard: Vector2) -> PackedVector2Array:
 	var r: float = width * 0.5
 	var near: float = 0.0
-	if wizard != Vector2.INF and not pale:
-		near = clampf(1.0 - at.distance_to(wizard) / BITE_NEAR, 0.0, 1.0)
-	var gape: float = (0.25 + 0.75 * near) * (0.75 + 0.25 * sin(t * 9.0)) if not pale else 0.1
-	return PackedVector2Array([at - way * r * 0.55, at + way * r * 1.3 + side * r * gape * 1.25, at + way * r * 1.3 - side * r * gape * 1.25])
+	if wizard != Vector2.INF and not pale and not head.recovering:
+		near = clampf(1.0 - head.global_position.distance_to(wizard) / BITE_NEAR, 0.0, 1.0)
+	var gape: float = MOUTH_REST if pale or head.recovering else lerpf(MOUTH_CLOSED, 1.0, near)
+	if not pale and not head.recovering:
+		gape *= 1.0 - MOUTH_PULSE + MOUTH_PULSE * sin(t * MOUTH_BEAT)
+	var at: Vector2 = head.global_position
+	var way: Vector2 = head.heading
+	var side: Vector2 = way.orthogonal()
+	return PackedVector2Array([at + way * r * MOUTH_ROOT, at + way * r * MOUTH_REACH + side * r * gape * MOUTH_SPREAD, at + way * r * MOUTH_REACH - side * r * gape * MOUTH_SPREAD])
 
 
-## `polys` with `cut` taken out of them. A piece the cut would leave a hole in (never, as the jaw
-## always reaches past the head's edge) is kept whole rather than printed wrong.
+## Take the mouth out of the flesh. A cut that would leave a hole inside one strip is kept whole
+## instead, so the print never mistakes a hole for another piece of flesh.
 static func _bite_out(polys: Array[PackedVector2Array], cut: PackedVector2Array) -> Array[PackedVector2Array]:
 	var out: Array[PackedVector2Array] = []
 	for poly: PackedVector2Array in polys:
