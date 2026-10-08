@@ -326,9 +326,10 @@ the spider.
 
 - **Terrain.** Tight tunnels and burial chambers, the crypts the cemetery plan set aside: a sample
   of narrow passages, niches and ossuary rooms (`tests/make_catacombs_sample.gd`).
-- **Darkness.** The night is deep here; most of what you see is what your carried lantern lights
+- **Darkness.** *Built* (`Archetype.gloom`, `RisoLight`; see `docs/RISO_PRINT.md`, line of
+  sight). The night is deep here; most of what you see is what your carried lantern lights
   (`RisoLight.CARRIED_RINGS`), and lanterns matter more than ever. Being unprotected (the dim pink
-  pool) is felt.
+  pool) is felt. Every band is shaded out of the wizard's sight; only here is it dark in sight too.
 - **Life.** Moths (drawn to your lantern), wraiths, skeletons that wake as you pass, bone gates
   (skeleton keys) more often.
 - **Realm.** Bone paper, ochre and black.

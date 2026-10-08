@@ -35,6 +35,8 @@ func buy() -> void:
 
 func _ready() -> void:
 	$Interactable.interacted.connect(buy)
+	# Until it is dry, it glows (RisoLight).
+	add_to_group(RisoLight.GLOWS)
 
 
 func _process(_delta: float) -> void:

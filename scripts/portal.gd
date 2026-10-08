@@ -104,3 +104,5 @@ func unlink() -> void:
 
 func _ready() -> void:
 	$Area2D/Interactable.interacted.connect(use_portal)
+	# It glows (RisoLight).
+	add_to_group(RisoLight.GLOWS)

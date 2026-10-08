@@ -71,3 +71,5 @@ func interacted() -> void:
 
 func _ready() -> void:
 	$Interactable.interacted.connect(interacted)
+	# Open, it glows (RisoLight).
+	add_to_group(RisoLight.GLOWS)
