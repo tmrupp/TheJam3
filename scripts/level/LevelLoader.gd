@@ -250,11 +250,7 @@ func place_cell(v: Vector2i, cell: LevelGen.Cell) -> void:
 		(node as Coin).value = maxi(2, roundi(Rules.cluster_value(info.here.depth) * share))
 	# The worm keeps its health on its segments (WormSegment), not on itself.
 	if Placeables.has_flag(cell.type, &"enemy") and not node is Worm:
-		var wound: Wound = Wound.new()
-		wound.name = "Wound"
-		wound.hp = Wound.hp_for(info.here.depth)
-		node.add_child(wound)
-		node.add_to_group(&"hex_target")
+		arm(node, info.here.depth)
 	if cell.mods.has("shield"):
 		var shield: Shield = Shield.new()
 		shield.name = "Shield"
@@ -272,6 +268,17 @@ func place_cell(v: Vector2i, cell: LevelGen.Cell) -> void:
 			node.call("setup", info, v)
 		3:
 			node.call("setup", info, v, cell.extra_info)
+
+
+## Make `node` an enemy of a place `depth` from the start: a Wound with that depth's health (hex
+## bolts and the dash hurt it), and a hex target. Whatever brings an enemy into a level calls it
+## (place_cell, and a gondola calling up its wraiths, Gondola).
+static func arm(node: Node, depth: int) -> void:
+	var wound: Wound = Wound.new()
+	wound.name = "Wound"
+	wound.hp = Wound.hp_for(depth)
+	node.add_child(wound)
+	node.add_to_group(&"hex_target")
 
 
 # ------------------------------------------------------------------ chunks
@@ -360,6 +367,10 @@ func sleep_far_chunks(force: bool = false, around: Vector2 = Vector2.INF) -> voi
 					awake = bool(states.get(chunk_of(Vector2(minf(x, r.end.x), minf(y, r.end.y))), false))
 					y += chunk_px.y
 				x += chunk_px.x
+		# A gondola is awake while either of its stations is, so it can be called from the far one.
+		var gondola: Gondola = node as Gondola
+		if not awake and gondola != null:
+			awake = gondola.stations.any(func(p: Vector2) -> bool: return bool(states.get(chunk_of(p), false)))
 		var mode: Node.ProcessMode = Node.PROCESS_MODE_INHERIT if awake else Node.PROCESS_MODE_DISABLED
 		if node.process_mode != mode:
 			node.process_mode = mode

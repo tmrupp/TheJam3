@@ -12,7 +12,7 @@ const ACROSS: int = 4
 
 
 ## Where the wizard can stand (open, not thorns, on rock or a ledge, or riding a lift anywhere on
-## its track) as false, and the moons as true.
+## its track or a gondola anywhere on its line) as false, and the moons as true.
 static func footholds(w: LevelGen) -> Dictionary:
 	var nodes: Dictionary = {}
 	for x: int in range(w.size.x):
@@ -31,6 +31,12 @@ static func footholds(w: LevelGen) -> Dictionary:
 					var f: Vector2i = v + Vector2i(dx, -1) + (motion[1] as Vector2i) * step
 					if clear(w, f):
 						nodes[f] = false
+		elif cell.type == LevelGen.Type.GONDOLA:
+			var to: Vector2i = cell.extra_info
+			for f: Vector2i in CragsArchetype.line_cells(v, to):
+				if f.y >= to.y and f.y <= v.y and clear(w, f):
+					nodes[f] = false
+			nodes[v] = false
 	return nodes
 
 

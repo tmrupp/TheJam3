@@ -12,6 +12,10 @@ class_name RisoDecor
 ## The sky has its own too: grass, flowers and stones on its islands, standing stones, stone piles
 ## and windsocks where there is headroom, scattered roots and wisps under them, vines down
 ## their sides.
+## The crags have theirs: on the castle's masonry (LevelGen.masonry), dressed stone in courses,
+## arrow slits through its walls, banners and rubble on its floors and battlements along them; on
+## the bare cliff, crag grass, stones, fallen blocks and broken columns, cobwebs and roots under
+## its ledges and ivy down its faces.
 ## Behind them, in a lighter ink on a layer of their own, fences run along stretches of floor
 ## (fence_runs): white wooden pickets in the garden, iron railings between stone posts in a cemetery,
 ## lines of peace flags strung between two stone piles in the sky.
@@ -50,18 +54,23 @@ const SLOTS: Array[Array] = [
 	[RisoPrint.BLUE, 1.0, false, true],     # 21 hedges: moss base (blue under the accent)
 	[RisoPrint.ACCENT, 0.85, false, false], # 22 hedges: moss
 	[RisoPrint.NIGHT, 0.3, false, false],   # 23 hedges: shade at their foot
+	[RisoPrint.BLUE, 0.55, false, true],    # 24 the crags' battlements: pale stone
+	[RisoPrint.NIGHT, 0.25, false, false],  # 25 their shade
+	[RisoPrint.NIGHT, 0.13, false, false],  # 26 dressed stone on masonry: the lighter blocks
+	[RisoPrint.NIGHT, 0.28, false, false],  # 27 the darker blocks
+	[RisoPrint.NIGHT, 0.85, false, false],  # 28 arrow slits
 ]
 ## Fence slots, between the hedges and the rest of the decor.
-const BACK_SLOTS: Array[int] = [15, 16, 17, 18, 19, 20]
+const BACK_SLOTS: Array[int] = [15, 16, 17, 18, 19, 20, 24, 25]
 ## Hedge slots, behind everything else (the fences in front of them).
 const HEDGE_SLOTS: Array[int] = [21, 22, 23]
 const KNOCK_ALL: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE]
 const KNOCK_ROCK: Array[int] = [RisoPrint.BLUE, RisoPrint.NIGHT]
 const STRUCTURES: Array[String] = ["level_exit.tscn", "shrine.tscn", "door.tscn", "checkpoint.tscn", "spikes.tscn",
 	"portal.tscn", "inkwell.tscn", "moving_platform.tscn", "bell.tscn", "switch.tscn", "switch_gate.tscn", "key.tscn",
-	"relic.tscn"]
+	"relic.tscn", "gondola.tscn"]
 ## Structures that stand tall, keeping a wider stretch of floor clear (see rebuild).
-const TALL: Array[String] = ["level_exit.tscn", "shrine.tscn", "checkpoint.tscn", "door.tscn", "bell.tscn"]
+const TALL: Array[String] = ["level_exit.tscn", "shrine.tscn", "checkpoint.tscn", "door.tscn", "bell.tscn", "gondola.tscn"]
 
 ## The plan: one entry per prop, {kind, cell, at (world), seed}.
 var items: Array[Dictionary] = []
@@ -97,24 +106,25 @@ static func h(level_seed: int, v: Vector2i, salt: int) -> float:
 
 
 ## The decor plans, by name (Archetype.decor, NextWorldDef.decor): each works out every prop for a
-## level from (solid, occupied, level seed, bounds, the sky's bottom style). A band with a look of
-## its own adds its plan here; any other name gets the garden's.
+## level from (solid, occupied, level seed, bounds, the sky's bottom style, the masonry). A band with
+## a look of its own adds its plan here; any other name gets the garden's.
 static var PLANS: Dictionary = {
 	&"garden": plan_garden,
 	&"cemetery": plan_graveyard,
 	&"sky": plan_isles,
+	&"crags": plan_crags,
 }
 
 
 ## Work out every prop for a level (pure: the same inputs always give the same plan), by the plan
-## named `decor` (see PLANS).
-static func plan(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, decor: StringName = &"garden", sky_bottom_style: StringName = &"roots") -> Array[Dictionary]:
+## named `decor` (see PLANS). `masonry` is the rock laid as built stone (LevelGen.masonry).
+static func plan(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, decor: StringName = &"garden", sky_bottom_style: StringName = &"roots", masonry: Dictionary = {}) -> Array[Dictionary]:
 	var by: Callable = PLANS.get(decor, PLANS[&"garden"])
-	return by.call(solid, occupied, level_seed, bounds, sky_bottom_style)
+	return by.call(solid, occupied, level_seed, bounds, sky_bottom_style, masonry)
 
 
 ## A cemetery's plan: its graves and props (plan_cemetery), and iron railings along its floors.
-static func plan_graveyard(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, _bottom_style: StringName = &"roots") -> Array[Dictionary]:
+static func plan_graveyard(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, _bottom_style: StringName = &"roots", _masonry: Dictionary = {}) -> Array[Dictionary]:
 	var graves: Array[Dictionary] = plan_cemetery(solid, occupied, level_seed, bounds)
 	for run: Dictionary in fence_runs(solid, occupied, level_seed, bounds):
 		run["iron"] = true
@@ -123,7 +133,7 @@ static func plan_graveyard(solid: Dictionary, occupied: Dictionary, level_seed: 
 
 
 ## The sky's plan: its islands' props (plan_sky), and peace flags strung along their floors.
-static func plan_isles(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, bottom_style: StringName = &"roots") -> Array[Dictionary]:
+static func plan_isles(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, bottom_style: StringName = &"roots", _masonry: Dictionary = {}) -> Array[Dictionary]:
 	var isles: Array[Dictionary] = plan_sky(solid, occupied, level_seed, bounds, bottom_style)
 	for run: Dictionary in fence_runs(solid, occupied, level_seed, bounds):
 		run["bunting"] = true
@@ -133,7 +143,7 @@ static func plan_isles(solid: Dictionary, occupied: Dictionary, level_seed: int,
 
 ## The garden's plan (and any level's without one of its own): fences, hedges, and plants, roots
 ## and vines on the rock.
-static func plan_garden(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, _bottom_style: StringName = &"roots") -> Array[Dictionary]:
+static func plan_garden(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, _bottom_style: StringName = &"roots", _masonry: Dictionary = {}) -> Array[Dictionary]:
 	var out: Array[Dictionary] = fence_runs(solid, occupied, level_seed, bounds)
 	out.append_array(shrub_runs(solid, occupied, level_seed, bounds))
 	var cells: Array = solid.keys()
@@ -342,6 +352,66 @@ static func plan_sky(solid: Dictionary, occupied: Dictionary, level_seed: int, b
 	return out
 
 
+## The crags' plan: battlements along the floors of the castle's masonry (fence runs whose rock is
+## built), and the props of its stone and its cliffs (see the class description).
+static func plan_crags(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, _bottom_style: StringName = &"roots", masonry: Dictionary = {}) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for run: Dictionary in fence_runs(solid, occupied, level_seed, bounds):
+		if masonry.has(run["base"]):
+			run["battlement"] = true
+			out.append(run)
+	var cells: Array = solid.keys()
+	cells.sort()
+	for v: Vector2i in cells:
+		if not bounds.has_point(v):
+			continue
+		var built: bool = masonry.has(v)
+		var above: Vector2i = v + Vector2i.UP
+		var below: Vector2i = v + Vector2i.DOWN
+		if built:
+			out.append({"kind": &"ashlar", "cell": v, "base": v})
+			# An arrow slit through a wall: masonry over and under, open air to one side.
+			if masonry.has(above) and masonry.has(below) and (not solid.has(v + Vector2i.LEFT) or not solid.has(v + Vector2i.RIGHT)) and h(level_seed, v, 5) < 0.35:
+				out.append({"kind": &"slit", "cell": v, "base": v})
+		if not solid.has(above) and not occupied.has(above):
+			var r: float = h(level_seed, v, 1)
+			var tall_room: bool = not solid.has(above + Vector2i.UP)
+			var kind: StringName = &""
+			if built:
+				if r < 0.14 and tall_room:
+					kind = &"banner"
+				elif r < 0.3:
+					kind = &"rubble"
+			elif r < 0.28:
+				kind = &"tuft"
+			elif r < 0.36:
+				kind = &"stones"
+			elif r < 0.42:
+				kind = &"rubble"
+			elif r < 0.46 and tall_room:
+				kind = &"column"
+			if kind != &"":
+				out.append({"kind": kind, "cell": above, "base": v})
+		if not solid.has(below) and not occupied.has(below):
+			var r: float = h(level_seed, v, 2)
+			var kind: StringName = &""
+			if r < 0.12:
+				kind = &"cobweb"
+			elif r < 0.2 and not built:
+				kind = &"roots"
+			elif r < 0.28 and not built:
+				kind = &"stalactite"
+			if kind != &"":
+				out.append({"kind": kind, "cell": below, "base": v})
+		for side: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT]:
+			var open: Vector2i = v + side
+			if built or solid.has(open) or occupied.has(open) or not solid.has(above):
+				continue
+			if h(level_seed, v, 3 + side.x) < 0.1:
+				out.append({"kind": &"vine", "cell": open, "base": v, "side": side.x})
+	return out
+
+
 ## Rebuild for the level MapInfo has just laid out.
 func rebuild(info: MapInfo, cracked_positions: Array[Vector2] = []) -> void:
 	var tm: TileMap = info.tile_map
@@ -371,7 +441,7 @@ func rebuild(info: MapInfo, cracked_positions: Array[Vector2] = []) -> void:
 				occupied[c + d] = true
 	var level_seed: int = Rules.level_seed(info.coord.x, info.coord.y)
 	var bottoms: StringName = RisoPrint.instance.sky_bottom_style if RisoPrint.instance != null else &"roots"
-	items = RisoDecor.plan(solid, occupied, level_seed, Rect2i(Vector2i.ZERO, info.world.size), info.here.decor(), bottoms)
+	items = RisoDecor.plan(solid, occupied, level_seed, Rect2i(Vector2i.ZERO, info.world.size), info.here.decor(), bottoms, info.world.masonry)
 	# Nothing grows in some side worlds (NextWorldDef.grows).
 	if not info.here.grows():
 		items.clear()
@@ -567,7 +637,7 @@ func _draw_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 	_sketch_item(item, c, slots, s)
 	var anchor: Variant = null
 	match item["kind"]:
-		&"tuft", &"leafy", &"mushroom", &"stones", &"headstone", &"cross", &"fence", &"dead_tree", &"obelisk", &"urn", &"angel", &"flowers", &"windsock", &"cairn", &"menhir":
+		&"tuft", &"leafy", &"mushroom", &"stones", &"headstone", &"cross", &"fence", &"dead_tree", &"obelisk", &"urn", &"angel", &"flowers", &"windsock", &"cairn", &"menhir", &"banner", &"rubble", &"column":
 			anchor = Vector2(c.x, c.y + half)
 		&"roots", &"sky_roots", &"stalactite", &"drip", &"cobweb", &"tendril":
 			anchor = Vector2(c.x, c.y - half)
@@ -787,6 +857,21 @@ func _sketch_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 			var cells: Array = item["cells"]
 			var x0: float = c.x - half
 			var x1: float = c.x - half + float(cells.size()) * half * 2.0
+			if item.has("battlement"):
+				# A parapet of pale stone along the edge of a built floor, its top cut into merlons
+				# with gaps between, shaded at its foot and down one side of each merlon.
+				var wall: float = 15.0 * k
+				var merlon: float = 9.0 * k
+				slots[24].append(RisoShapes.rrect(x0 + 1.0, floor_y - wall, x1 - x0 - 2.0, wall + 2.0, 1.5 * k))
+				slots[25].append(RisoShapes.rrect(x0 + 1.0, floor_y - wall * 0.3, x1 - x0 - 2.0, wall * 0.3 + 2.0, 1.0 * k))
+				var n: int = maxi(2, int((x1 - x0) / (16.0 * k)))
+				var pitch: float = (x1 - x0 - 2.0) / float(n)
+				for i: int in range(n):
+					var mx: float = x0 + 1.0 + float(i) * pitch + pitch * 0.18
+					var mw: float = pitch * 0.64
+					slots[24].append(RisoShapes.rrect(mx, floor_y - wall - merlon, mw, merlon + 3.0, 1.2 * k))
+					slots[25].append(RisoShapes.rrect(mx + mw * 0.62, floor_y - wall - merlon, mw * 0.38, merlon + 3.0, 1.0 * k))
+				return
 			if item.has("bunting"):
 				# Peace flags: a line strung between two poles, each standing in a pile of stones,
 				# sagging, hung with triangles in turn of blue, paper, sun, moss (sun over blue) and
@@ -854,6 +939,61 @@ func _sketch_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 					slots[16].append(RisoShapes.rrect(px - 4.5 * k, floor_y - 36.0 * k, 9.0 * k, 36.0 * k + 2.0, 1.5 * k))
 					slots[16].append(RisoShapes.rrect(px - 6.0 * k, floor_y - 40.0 * k, 12.0 * k, 5.0 * k, 1.5 * k))
 					slots[17].append(RisoShapes.rrect(px, floor_y - 36.0 * k, 4.5 * k, 36.0 * k + 2.0, 1.5 * k))
+		&"banner":
+			# A castle banner: a pole with a crossbar, a long swallowtailed cloth hanging from it in
+			# paper with a blue band down its middle, stirring a little.
+			var x: float = c.x + (_r(s, v, 10) - 0.5) * half * 0.4
+			var tall: float = 46.0 + _r(s, v, 11) * 12.0
+			slots[12].append(RisoShapes.rrect(x - 1.3, floor_y - tall, 2.6, tall + 2.0, 1.0))
+			slots[12].append(RisoShapes.rrect(x - 9.0, floor_y - tall + 3.0, 18.0, 2.4, 1.0))
+			slots[12].append(RisoShapes.circle(Vector2(x, floor_y - tall - 1.5), 2.4, 10))
+			var drop: float = 22.0 + _r(s, v, 12) * 8.0
+			var lean: float = (_r(s, v, 13) - 0.5) * 4.0
+			var top: float = floor_y - tall + 5.0
+			var cloth: PackedVector2Array = PackedVector2Array([Vector2(x - 8.0, top), Vector2(x + 8.0, top), Vector2(x + 8.0 + lean, top + drop), Vector2(x + lean, top + drop - 6.0), Vector2(x - 8.0 + lean, top + drop)])
+			slots[8].append(cloth)
+			slots[12].append(PackedVector2Array([Vector2(x - 2.5, top), Vector2(x + 2.5, top), Vector2(x + 2.5 + lean * 0.8, top + drop - 4.6), Vector2(x + lean * 0.8, top + drop - 6.0), Vector2(x - 2.5 + lean * 0.8, top + drop - 4.6)]))
+			slots[13].append(PackedVector2Array([Vector2(x + 3.0, top), Vector2(x + 8.0, top), Vector2(x + 8.0 + lean, top + drop), Vector2(x + 3.0 + lean, top + drop - 3.5)]))
+		&"rubble":
+			# Fallen blocks of dressed stone: two to four, squarish, tumbled, shaded down one side.
+			var x0: float = c.x + (_r(s, v, 10) - 0.5) * half * 0.5
+			for i: int in range(2 + int(_r(s, v, 11) * 3.0)):
+				var w: float = 7.0 + _r(s, v, 20 + i) * 6.0
+				var hgt: float = w * (0.6 + 0.3 * _r(s, v, 30 + i))
+				var at: Vector2 = Vector2(x0 + (float(i) - 1.0) * 8.0, floor_y - hgt * 0.5 + 1.0 - (5.0 if i == 3 else 0.0))
+				var block: PackedVector2Array = Transform2D((_r(s, v, 40 + i) - 0.5) * 0.5, at) * RisoShapes.rrect(-w * 0.5, -hgt * 0.5, w, hgt, 1.5)
+				slots[12].append(block)
+				slots[13].append(Transform2D(0.0, Vector2(0.5, 1.0), 0.0, Vector2(at.x * 0.5 + w * 0.25, 0.0)) * block)
+		&"column":
+			# A broken column: a square base, a shaft shaded down one side, snapped off at a slant.
+			var x: float = c.x + (_r(s, v, 10) - 0.5) * half * 0.4
+			var tall: float = 26.0 + _r(s, v, 11) * 22.0
+			var wide: float = 9.0
+			var cut: float = (_r(s, v, 12) - 0.5) * 10.0
+			slots[8].append(RisoShapes.rrect(x - wide * 0.9, floor_y - 5.0, wide * 1.8, 7.0, 1.0))
+			var shaft: PackedVector2Array = PackedVector2Array([Vector2(x - wide * 0.5, floor_y - 4.0), Vector2(x - wide * 0.5, floor_y - tall - cut), Vector2(x - wide * 0.1, floor_y - tall + 3.0), Vector2(x + wide * 0.2, floor_y - tall - 2.0), Vector2(x + wide * 0.5, floor_y - tall + cut), Vector2(x + wide * 0.5, floor_y - 4.0)])
+			slots[8].append(shaft)
+			slots[13].append(PackedVector2Array([Vector2(x + wide * 0.15, floor_y - 4.0), Vector2(x + wide * 0.15, floor_y - tall - 1.0), Vector2(x + wide * 0.5, floor_y - tall + cut), Vector2(x + wide * 0.5, floor_y - 4.0)]))
+		&"ashlar":
+			# Dressed stone on the castle's masonry, at full size: two courses to a cell, each of two
+			# blocks (the courses' joints staggered), in two tones dealt per block, with a narrow gap
+			# of the bare rock between them.
+			var gap: float = 3.0
+			for course: int in range(2):
+				var y0: float = ceil_y + float(course) * half
+				var shift: float = half * 0.5 if (v.y * 2 + course) % 2 == 1 else 0.0
+				for b: int in range(-1, 2):
+					var bx0: float = maxf(c.x - half, c.x - half + shift + float(b) * half)
+					var bx1: float = minf(c.x + half, c.x - half + shift + float(b + 1) * half)
+					if bx1 - bx0 < gap * 2.0:
+						continue
+					var tone: int = 27 if _r(s, v, 70 + course * 3 + b) < 0.4 else 26
+					slots[tone].append(RisoShapes.rrect(bx0 + gap * 0.5, y0 + gap * 0.5, bx1 - bx0 - gap, half - gap, 2.0))
+		&"slit":
+			# An arrow slit through a castle wall: a tall narrow opening with an arched top, crossed
+			# a third of the way down by a short slot for sighting along.
+			slots[28].append(RisoShapes.arch(c.x - 7.0, c.y - half * 0.66, 14.0, half * 1.3, 8))
+			slots[28].append(RisoShapes.rrect(c.x - 15.0, c.y - half * 0.28, 30.0, 8.0, 3.0))
 		&"cross":
 			var x: float = c.x + (_r(s, v, 10) - 0.5) * half * 0.6
 			var tall: float = 26.0 + _r(s, v, 11) * 12.0

@@ -59,6 +59,7 @@ func _init() -> void:
 		&"twilight": _backdrop_twilight,
 		&"cemetery": _backdrop_cemetery,
 		&"sky": _backdrop_sky,
+		&"crags": _backdrop_crags,
 		&"aurora": _backdrop_aurora,
 	}
 
@@ -107,6 +108,74 @@ func _backdrop_sky(at: Callable, _view: Vector2, _half: Vector2, k: float, t: fl
 		var y: float = 70.0 + float(i) * 38.0
 		ink.ink(RisoPrint.BLUE, 0.16 - 0.02 * float(i), [_cloud(at.call(drift, y), (110.0 + float(i) * 24.0) * k, (18.0 + float(i) * 3.0) * k, i + 3)])
 	return true
+
+
+## The crags: dawn over the mountains. A faint sun just rising at the bottom of the sheet, its
+## warmth rising with it; two ranges of jagged peaks, the nearer with a ruined castle on its summits,
+## sliding a little as the camera climbs; and streaks of cloud torn along by the wind below the
+## cliffs.
+func _backdrop_crags(at: Callable, view: Vector2, half: Vector2, k: float, t: float, center: Vector2) -> bool:
+	# Dawn warms toward the bottom of the sheet: a graded sun-ink screen, no hard edge.
+	var top: float = -40.0 * k
+	ink.ink_graded(RisoPrint.ACCENT, [PackedVector2Array([Vector2(-half.x, top), Vector2(half.x, top), Vector2(half.x, half.y), Vector2(-half.x, half.y)])], [PackedFloat32Array([0.0, 0.0, 0.26, 0.26])])
+	var sun: Vector2 = at.call(388.0, 262.0)
+	ink.ink(RisoPrint.ACCENT, 0.12, [RisoShapes.circle(sun, 64.0 * k, 48)])
+	ink.lift_ink([RisoPrint.NIGHT], 0.2, [RisoShapes.circle(sun, 40.0 * k, 40)])
+	ink.ink(RisoPrint.ACCENT, 0.22, [RisoShapes.circle(sun, 30.0 * k, 40)])
+	# The far range, then the near one with its castle, each sliding a little as the camera moves.
+	var far: float = view.y * 0.18 - center.y * 0.02
+	var near: float = view.y * 0.3 - center.y * 0.035
+	ink.ink(RisoPrint.BLUE, 0.1, [_peaks(center.x * 0.03, far, 90.0 * k, 150.0 * k, half, 1)], false)
+	var ridge: PackedVector2Array = _peaks(center.x * 0.06, near, 70.0 * k, 110.0 * k, half, 2)
+	ink.ink(RisoPrint.BLUE, 0.16, [ridge], false)
+	ink.ink(RisoPrint.BLUE, 0.16, _castle(center.x * 0.06, near, 70.0 * k, half, k), false)
+	# Cloud torn along by the wind, low down: long thin streaks, fast, the lower the fainter.
+	var streaks: Array[PackedVector2Array] = []
+	for i: int in range(6):
+		var length: float = (150.0 + 90.0 * RisoShapes.hash1(float(i) * 3.7)) * k
+		var x: float = fposmod(t * (24.0 + float(i) * 9.0) + float(i) * 211.0 - center.x * 0.08, view.x + length * 2.0) - half.x - length
+		var y: float = view.y * (0.12 + 0.07 * float(i)) - center.y * 0.05
+		streaks.append(RisoShapes.almond(Vector2(x, y), length * 0.5, (3.0 + 2.0 * RisoShapes.hash1(float(i) * 1.9)) * k, 16))
+	ink.ink(RisoPrint.BLUE, 0.13, streaks, false)
+	return true
+
+
+## A range of jagged peaks across the view: a summit every so often (hashed from its place along
+## the range, `which` telling ranges apart), `low` to `high` over the line `base`, and slid by
+## `drift`. Filled down past the bottom of the view.
+static func _peaks(drift: float, base: float, low: float, high: float, half: Vector2, which: int) -> PackedVector2Array:
+	var step: float = (high + low) * 0.45
+	var pts: PackedVector2Array = PackedVector2Array([Vector2(half.x, half.y + 10.0), Vector2(-half.x, half.y + 10.0)])
+	var first: int = floori((-half.x + drift) / step) - 1
+	for n: int in range(first, first + int(half.x * 2.0 / step) + 4):
+		var x: float = float(n) * step - drift
+		var tall: float = lerpf(low, high, RisoShapes.hash1(float(n) * 1.37 + float(which) * 9.1))
+		var lean: float = (RisoShapes.hash1(float(n) * 2.91 + float(which) * 4.3) - 0.5) * step * 0.4
+		pts.append(Vector2(x - step * 0.5, base - tall * 0.35))
+		pts.append(Vector2(x + lean, base - tall))
+	return pts
+
+
+## A ruined castle on the summits of the near range (every fourth one): a keep with a broken top and
+## a thin tower beside it, with the gaps of its battlements cut along their tops.
+static func _castle(drift: float, base: float, low: float, half: Vector2, k: float) -> Array[PackedVector2Array]:
+	var out: Array[PackedVector2Array] = []
+	var high: float = low * 110.0 / 70.0
+	var step: float = (high + low) * 0.45
+	var first: int = floori((-half.x + drift) / step) - 1
+	for n: int in range(first, first + int(half.x * 2.0 / step) + 4):
+		if posmod(n, 4) != 1:
+			continue
+		var x: float = float(n) * step - drift + (RisoShapes.hash1(float(n) * 2.91 + 8.6) - 0.5) * step * 0.4
+		var y: float = base - lerpf(low, high, RisoShapes.hash1(float(n) * 1.37 + 18.2)) + 6.0 * k
+		var w: float = 26.0 * k
+		var tall: float = 30.0 * k
+		out.append(RisoShapes.rrect(x - w * 0.5, y - tall, w, tall + 14.0 * k, 1.0))
+		for m: int in range(3):
+			out.append(RisoShapes.rrect(x - w * 0.5 + float(m) * w * 0.4, y - tall - 5.0 * k, w * 0.2, 6.0 * k, 0.5))
+		out.append(RisoShapes.rrect(x + w * 0.55, y - tall * 1.6, 8.0 * k, tall * 1.6 + 14.0 * k, 1.0))
+		out.append(RisoShapes.tri(Vector2(x + w * 0.55 - 2.0 * k, y - tall * 1.6), Vector2(x + w * 0.55 + 10.0 * k, y - tall * 1.6), Vector2(x + w * 0.55 + 4.0 * k, y - tall * 2.0)))
+	return out
 
 
 ## The aurora: curtains of light, and a blue eye with a pink pupil.

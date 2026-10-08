@@ -40,6 +40,7 @@ enum Type {
 	WIND,
 	BIRD,
 	BOSS,
+	GONDOLA,
 }
 
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).
@@ -99,6 +100,9 @@ var start_side: int = -1
 var start_key: Vector2i = Vector2i(-1, -1)
 var start_reach: Dictionary = {}
 var keep_clear: Dictionary = {}
+## The rock an archetype's structure pass laid as masonry (the crags' keeps, CragsArchetype): built
+## walls and floors rather than raw cliff, which the decor prints as dressed stone (RisoDecor).
+var masonry: Dictionary = {}
 ## The shrine's cell (its boon side; mending is the cell to the right), or (-1, -1).
 var shrine: Vector2i = Vector2i(-1, -1)
 
@@ -544,6 +548,7 @@ func _to_open (v: Vector2i) -> void:
 	cells[v.x][v.y] = Cell.new(Type.EMPTY)
 	grounds.erase(v)
 	objects.erase(v)
+	masonry.erase(v)
 	if not empties.has(v):
 		empties.append(v)
 

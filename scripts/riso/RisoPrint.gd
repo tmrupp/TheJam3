@@ -50,6 +50,9 @@ const REALMS: Dictionary = {
 	## The sky's own: islands of pale cloud and sun-gold stars under a deep indigo night, on a cool
 	## white paper (not in the F8 cycle; NextWorldDef.realm).
 	&"sky": {"paper": Color("#eef0f3"), "inks": [Color("#18203f"), Color("#8597c4"), Color("#ff48b0"), Color("#ffb511"), Color("#ffe800")]},
+	## The crags' own: pale weathered stone and a dawn-orange sun under a dusky violet night, on a warm
+	## paper (not in the F8 cycle; NextWorldDef.realm).
+	&"crags": {"paper": Color("#efe6da"), "inks": [Color("#2b2236"), Color("#9a8f86"), Color("#ff48b0"), Color("#ff9636"), Color("#ffe800")]},
 }
 const REALM_ORDER: Array[StringName] = [&"deep", &"twilight", &"aurora"]
 ## The robe while the wizard is drowsy in sleep fog (SleepFog).

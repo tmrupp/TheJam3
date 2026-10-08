@@ -135,12 +135,11 @@ func _archetypes() -> void:
 	for kind: StringName in firsts:
 		check_eq(NextWorldDef.first_depth(kind), int(firsts[kind]), "the %s's row nearest the start" % kind)
 	check(NextWorldDef.band_row(&"sky", 2) == -(g + 3 + band) and NextWorldDef.band_row(&"cemetery", 2) == g + 3, "band rows count away from the start, up or down")
-	for kind: StringName in [&"garden", &"cemetery", &"sky"]:
+	for kind: StringName in [&"garden", &"cemetery", &"sky", &"crags"]:
 		var def: NextWorldDef = Rules.def_for(Vector2i(28, NextWorldDef.first_depth(kind)))
-		check(def.archetype == kind and def.realm() == kind, "a %s level is printed in its own realm" % kind)
-	# Stand-ins until their own art (docs/REGIONS_PLAN.md): the crags in the sky's realm, the
-	# catacombs in the cemetery's.
-	check(Rules.def_for(Vector2i(28, NextWorldDef.first_depth(&"crags"))).realm() == &"sky" and Rules.def_for(Vector2i(28, NextWorldDef.first_depth(&"catacombs"))).realm() == &"cemetery", "the crags and catacombs stand in with borrowed realms")
+		check(def.archetype == kind and def.realm() == kind and RisoPrint.REALMS.has(kind), "a %s level is printed in its own realm" % kind)
+	# A stand-in until its own art (docs/REGIONS_PLAN.md): the catacombs in the cemetery's realm.
+	check(Rules.def_for(Vector2i(28, NextWorldDef.first_depth(&"catacombs"))).realm() == &"cemetery", "the catacombs stand in with a borrowed realm")
 	var sky_depth: int = NextWorldDef.first_depth(&"sky")
 	var sky: NextWorldDef = Rules.def_for(Vector2i(28, sky_depth))
 	check_eq(sky.depth, absi(sky_depth), "a level's depth is its distance from the start, whichever way")

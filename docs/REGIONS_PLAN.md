@@ -7,7 +7,7 @@ places, archetypes, side worlds, relics) and follows the owner's notes in `docs/
 ("can go up or down", "bosses, possibly guarding relics, must be defeated").
 
 Phases 1 (rows both ways), 2 (climbing levels) and 3 (the gate, with a stand-in boss) are built,
-and of phase 4 the worm; the rest is not yet. Each section says what is decided, what
+of phase 4 the worm, and of phase 5 a first pass of the crags (no spider yet); the rest is not yet. Each section says what is decided, what
 is proposed, and what is still open; the phases at the end give the order of work.
 
 ## 1. Decided
@@ -263,6 +263,11 @@ destroyed.
 
 ### Crags with castle ruins (rows −4 … −9)
 
+*A first pass is built* (`docs/DEEPER_PLAN.md` §4d): the sample, the structure pass (shafts, keeps,
+towers), the realm and backdrop, the decor, doors in its passages, and the gondola, a cable car up
+the cliff that shuts its bars on the wizard and calls up wraiths on the ride. Not yet: updrafts,
+falling rocks, watchers in the slits, and the spider.
+
 - **Terrain.** Vertical: tall cliff faces with narrow ledges, chimneys and overhangs, collapsed
   from a sample drawn for it (`tests/make_crags_sample.gd`, symmetry 1 so up stays up), taller
   than wide (an archetype `scale` such as 0.8 × 1.6).
@@ -341,7 +346,10 @@ Each phase ends with the full suite green and its own tests.
    burrowing away, a lantern death healing it, slain, its relic on a floor, never met again);
    `capture_worm.gd` (stills). `gate_test` and `capture_gate.gd` now show the stand-in at the
    bramble's gate. Not yet: the bramble.
-5. **Crags and castle**: sample, structure pass, decor, realm; then **the spider** and its keep.
+5. **Crags and castle**: *a first pass is done*: sample, structure pass, decor, realm, and the
+   gondola (`CragsArchetype`, `Gondola`; `crags_test`, `capture_crags.gd`; the crags' layouts
+   changed and `layout_fingerprint_test` was re-pinned for them alone). Then its life (updrafts,
+   falling rocks, watchers in the slits), **the spider** and its keep.
 6. **Catacombs**: sample, darkness, decor, realm; then **the necromancer** (cemetery) and **the
    eldritch beast**.
 7. **The whale** and its belly.

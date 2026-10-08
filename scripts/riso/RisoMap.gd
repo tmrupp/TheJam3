@@ -329,6 +329,7 @@ func _level_rows() -> Array:
 		["vane", func(at: Vector2) -> void: _mark_bell(at, false, -2, "vane"), "vane"],
 		["bridge", func(at: Vector2) -> void: _mark_bridge(at, true), "bridge"],
 		["unrung bridge", func(at: Vector2) -> void: _mark_bridge(at, false), "unrung bridge"],
+		["gondola", func(at: Vector2) -> void: _mark_gondola(at, at + Vector2(3.0, -3.0)), "gondola"],
 		["relic", func(at: Vector2) -> void: _mark_relic(at, &"blink", 0.7), "relic"],
 	] + _door_rows() + [
 		["key", func(at: Vector2) -> void: _mark_key(at, 2), "key"],
@@ -478,6 +479,8 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 				_mark_cluster(at)
 		LevelGen.Type.BRIDGE:
 			_mark_bridge(at, (rec.bridges as Dictionary).has(int(cell.extra_info)))
+		LevelGen.Type.GONDOLA:
+			_mark_gondola(at, spot.call(cell.extra_info))
 		LevelGen.Type.BELL:
 			var bell: Array = cell.extra_info
 			var rung: bool = (rec.bridges as Dictionary).has(int(bell[0]))
@@ -630,6 +633,14 @@ func _mark_bridge(at: Vector2, up: bool) -> void:
 		marks.ink(RisoPrint.NIGHT, 0.8, [RisoShapes.rrect(at.x - 2.6, at.y - 2.0, 5.2, 1.0, 0.5)], false)
 	else:
 		marks.ink(RisoPrint.ACCENT, 0.7, [RisoShapes.rrect(at.x - 1.2, at.y - 2.0, 2.4, 0.8, 0.4)], false)
+
+
+## A gondola: its cable from the lower station `at` to the upper one `to`, a fine night line, and
+## the car, a small blue box, waiting at the lower.
+func _mark_gondola(at: Vector2, to: Vector2) -> void:
+	_note("gondola")
+	marks.ink(RisoPrint.NIGHT, 0.7, RisoDecor.strip(PackedVector2Array([at + Vector2(0.5, -1.6), to + Vector2(0.5, -1.6)]), 0.4, 0.4), false)
+	marks.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(at.x - 0.6, at.y - 1.6, 2.2, 1.8, 0.4)], false)
 
 
 ## A grave bell: an accent dot (faint once rung), with the key-colour bow of its padlock, or its
