@@ -35,8 +35,10 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
 - `wfc_images/`: WFC samples (white open, black rock, red thorns). Drawn ones come from
   `tests/make_*_sample.gd`, so edit the script and rerun it rather than editing the PNG.
 - `gdextension/`: the C++ overlapping-WFC extension (SCons). Rarely touched.
-- `docs/`: `DEEPER_PLAN.md` (design, by system), `RISO_PRINT.md` (the art pipeline and rules),
-  `TOM_THOUGHTS.md` (the owner's notes; see the ground rules).
+- `docs/`: `DEEPER_PLAN.md` (design, by system), `REGIONS_PLAN.md` (the plan for going up and
+  down from the garden, the new bands and the bosses at band ends; not built yet),
+  `RISO_PRINT.md` (the art pipeline and rules), `TOM_THOUGHTS.md` (the owner's notes; see the
+  ground rules).
 - `tests/`: `*_test.gd` regressions, `capture_*.gd` stills (written to `../art-captures/`),
   `make_*_sample.gd` sample generators.
 
