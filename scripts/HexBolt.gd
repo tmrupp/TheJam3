@@ -52,6 +52,8 @@ var t: float = 0.0
 func _ready() -> void:
 	z_index = 3
 	add_to_group(&"riso_art")
+	# In flight it glows (RisoLight).
+	add_to_group(RisoLight.GLOWS)
 	ink = InkCanvas.new()
 	ink.top_level = true
 	# A top-level canvas no longer takes the bolt's z, so it is given its own: over the props

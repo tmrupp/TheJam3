@@ -985,6 +985,7 @@ func _build_panel() -> void:
 	_option_row(look, &"realm", "Realm", ["Deep night", "Twilight", "Aurora"], _on_realm_picked)
 	_option_row(look, &"portal", "Portals", ["TV static", "Ripples"], func(i: int) -> void: portal_style = PORTAL_STYLES[i])
 	_option_row(look, &"fog", "Fog shape", FOG_STYLE_NAMES, func(i: int) -> void: fog_style = FOG_STYLES[i])
+	_option_row(look, &"sight", "Light by sight", ["Rock stops it", "Off"], func(i: int) -> void: RisoLight.by_sight = i == 0)
 	_option_row(look, &"robe", "Robe", ["Spell colour", "Blue"], func(i: int) -> void: robe_by_spell = i == 0)
 	_option_row(look, &"sky_bottoms", "Sky bottoms", SKY_BOTTOM_NAMES, func(i: int) -> void:
 		sky_bottom_style = SKY_BOTTOM_STYLES[i]
@@ -1267,6 +1268,8 @@ func _sync_panel() -> void:
 	_specks_label.text = "none" if specks <= 0.0 else "%d%%" % roundi(specks * 100.0)
 	if _options.has(&"portal"):
 		(_options[&"portal"] as OptionButton).select(PORTAL_STYLES.find(portal_style))
+	if _options.has(&"sight"):
+		(_options[&"sight"] as OptionButton).select(0 if RisoLight.by_sight else 1)
 	if _options.has(&"fog"):
 		(_options[&"fog"] as OptionButton).select(FOG_STYLES.find(fog_style))
 	if _options.has(&"sky_bottoms"):

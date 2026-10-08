@@ -26,7 +26,8 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
 - `scripts/riso/`: all the art. `RisoPrint` (plates and the print shader), `RisoProp` (the base of
   one art node per prefab) with a script per kind in `props/`, `RisoMarks` (keys, locks, gates,
   chevrons shared with the map and HUD), `RisoGlyph` (ability marks), `RisoTerrain`, `RisoDecor`,
-  `RisoWizard`, `RisoMap`, the HUD and menus.
+  `RisoWizard`, `RisoMap`, `RisoLight` (light and darkness, cut by line of sight over the cells in
+  `RisoSight`), the HUD and menus.
 - `scripts/*.gd`: gameplay (Player, enemies, hazards, spells, pickups). `prefabs/*.tscn` pair
   with them. `Abilities.gd` lists every ability in one table (`ABILITIES`); an ability's node says
   what its tier does (`set_tier`) and, for a spell, casts (`cast_spell`) and tells the spell orb
@@ -139,7 +140,7 @@ bash tests/run.sh sky_test        # just these, headless
 - Keep backgrounds dark and low-contrast, and put saturation and paper-bright knockouts on gameplay
   objects.
 - Layers (absolute z): sky −40, terrain −20, hedges −17, fences −16, decor −15, lantern light −12,
-  props 2, the wizard's trail 9, the wizard 10, UI 50 and up.
+  props 2, the darkness out of sight 8, the wizard's trail 9, the wizard 10, UI 50 and up.
 - Check art changes with a capture and look at it zoomed in before calling them done.
 
 ## Windows editing pitfalls

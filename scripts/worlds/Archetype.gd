@@ -12,6 +12,9 @@ extends RefCounted
 ## falling back to the garden's decor and the night backdrop, so a new band works before it has art
 ## of its own.
 
+## The night ink over what is out of the wizard's sight (`shade`), unless a band sets its own.
+const SHADE: float = 0.3
+
 ## Its name: how levels of it are told apart (NextWorldDef.archetype), and its print realm.
 var name: StringName = &""
 ## The decor its levels wear (RisoDecor.PLANS): the garden's unless it sets its own.
@@ -31,6 +34,11 @@ var switch_reach: int = -1
 ## Whether its levels lie open to the sky: no rock round them, a drop below (Player.fall_back),
 ## and the camera goes past the edges (LevelLoader.SKY_MARGIN).
 var open: bool = false
+## How dark its levels are (RisoLight): how much night ink lies over what the wizard cannot see past
+## the rock (`shade`), and over everything the lanterns and glowing things do not light, in sight
+## or not (`gloom`, the deep darkness of the catacombs; none elsewhere).
+var shade: float = SHADE
+var gloom: float = 0.0
 
 
 ## The print realm (RisoPrint.REALMS) its levels print in.
