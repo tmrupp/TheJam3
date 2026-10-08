@@ -70,7 +70,7 @@ const LEAVE: int = 3
 const ARRIVE: int = 4
 const LANDING_REACH: int = 8
 ## Rock-bugs on the rock, per 1000 cells, and how far from the way in and from one another (cells).
-const BUGS_PER_K: float = 1.0
+const BUGS_PER_K: float = 0.6
 const BUG_CLEAR: int = 8
 const BUG_APART: int = 5
 

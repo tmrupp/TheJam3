@@ -1,17 +1,17 @@
 extends RisoProp
-## A gondola (Gondola): its cable along the whole track with a pulley wheel at each turn, and
-## the car hung from the cable on a hanger with a wheel
-## running along it: a roof and a floor of blue, corner posts, faint grey bars across its back wall
-## (behind whoever rides), and its lever on the back wall (leaning the way it will run, upright
-## while it stands). Its sides come down barred while it runs or holds its rider, pink while its
-## rider is shut in (danger), blue while it runs empty, and lift while it stands.
+## A gondola (Gondola): its cable along the whole track with a pulley wheel at each turn, and the
+## car hung from the cable on a hanger with a wheel running along it: a roof and a floor of blue and
+## nothing solid between them at its sides (so it reads as open, to step on and off), faint grey bars
+## across its back wall (behind whoever rides), and its lever on the back wall (leaning the way it
+## runs, upright while it stands). Its sides come down barred while it runs, pink with a rider in it
+## (danger) and blue empty, and lift when it stands.
 
 ## How far over the car's floor the cable runs (cells), and the wheels' size (pixels).
 const CABLE_UP: float = 2.55
 const WHEEL: float = 13.0
 ## The bars across its back wall: how many, and how faint (blue cover, over paper).
-const BACK_BARS: int = 7
-const BACK_COVER: float = 0.3
+const BACK_BARS: int = 5
+const BACK_COVER: float = 0.18
 
 
 ## The Gondola it dresses.
@@ -55,8 +55,6 @@ func _draw_art() -> void:
 	var body: Array[PackedVector2Array] = [
 		RisoShapes.rrect(-cw * 0.5 - 6.0, -ch - 6.0, cw + 12.0, 22.0, 9.0),
 		RisoShapes.rrect(-cw * 0.5, -10.0, cw, 20.0, 6.0),
-		RisoShapes.rrect(-cw * 0.5, -ch, 12.0, ch, 4.0),
-		RisoShapes.rrect(cw * 0.5 - 12.0, -ch, 12.0, ch, 4.0),
 	]
 	body.append_array(RisoDecor.strip(PackedVector2Array([Vector2(sway, -ch - 4.0), on_cable]), 6.0, 4.0))
 	body.append(RisoShapes.circle(on_cable, 8.0, 14))
@@ -65,7 +63,6 @@ func _draw_art() -> void:
 	for b: int in range(BACK_BARS):
 		var x: float = lerpf(-cw * 0.5 + 26.0, cw * 0.5 - 26.0, float(b) / float(BACK_BARS - 1))
 		back.append(RisoShapes.rrect(x - 2.5, -ch + 14.0, 5.0, ch - 22.0, 2.0))
-	back.append(RisoShapes.rrect(-cw * 0.5 + 12.0, -ch * 0.5 - 2.0, cw - 24.0, 4.0, 2.0))
 	ink.ink(RisoPrint.BLUE, BACK_COVER, back)
 	ink.ink(RisoPrint.BLUE, 1.0, body)
 	ink.ink(RisoPrint.NIGHT, 0.4, [RisoShapes.rrect(-cw * 0.5 - 6.0, -ch + 6.0, cw + 12.0, 10.0, 4.0), RisoShapes.rrect(-cw * 0.5, 0.0, cw, 10.0, 4.0)], false)

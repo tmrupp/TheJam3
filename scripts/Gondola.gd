@@ -1,9 +1,9 @@
 class_name Gondola
 extends AnimatableBody2D
 ## A gondola, in crag levels (CragsArchetype.lay_circuit, shut_stations): a cable car climbing a line
-## of stations from near the bottom of the level to near its top, straight along the rows and columns
-## of its cells (never slantwise: up a staircase between stations), two cells wide and two high, with
-## a floor, a roof and two sides that shut. Each station is a doorway onto a landing into the level,
+## of stations from near the bottom of the level to near its top, straight up and up 45° diagonals
+## between them, two cells wide and two high, with a floor, a roof and two sides that come down
+## while it runs. Each station is a doorway onto a landing into the level,
 ## where the car stands on an upright run of its track. One is open from the first;
 ## each of the others is shut by a gate across its doorway (a door, a switch gate or a toll gate,
 ## its record kept as any gate's) until opened.
@@ -17,13 +17,12 @@ extends AnimatableBody2D
 ## Standing on the landing of an open station it is not at calls it over, empty, if every stretch on
 ## the way has an open end.
 ##
-## Its sides come down while it runs and lift whenever it stands, at a station or between them. With
-## a rider they come down pink (danger): on each stretch it calls rock-bugs (RockBug) out onto its
-## track ahead of the car, FOES_BASE of them and one more for every FOES_DEPTH rows from the start,
-## which crawl along the cable to meet it and climb in at its rider; where it stops it keeps its
-## rider shut in while any are still on it or its track (stunned, they fall off), or until
-## HOLD_MOST seconds pass, so nobody is shut in for good. Faint grey bars stand across its back
-## wall, behind whoever rides. Riders are carried as on any moving body. Nothing about where it is
+## Its sides come down while it runs (pink with a rider: danger) and always lift when it stands, at
+## a station or between them, so a rider can always step off where it stops. Halfway along each
+## stretch a rider rides it calls a rock-bug (RockBug) out onto its track ahead of the car, which
+## walks along the cable to meet it, climbs in and walks its floor; the bug can be stunned off, or
+## let off when the car stands with its sides up. Faint grey bars stand across its back wall, behind
+## whoever rides. Riders are carried as on any moving body. Nothing about where it is
 ## is kept: on every visit it waits at its open station. Nothing here draws from the world RNG.
 
 const INTERACTABLE: PackedScene = preload("res://prefabs/interactable.tscn")
@@ -34,14 +33,10 @@ const CALL_SPEED: float = 560.0
 const ACCEL: float = 520.0
 ## How long its bars take to come down or lift.
 const SHUT_TIME: float = 0.35
-## The rock-bugs it calls up on each stretch a rider rides: FOES_BASE, and one more for every
-## FOES_DEPTH rows from the start.
-const FOES_BASE: int = 1
-const FOES_DEPTH: int = 4
-## How far ahead of the car along its track each comes out (cells).
+## How far ahead of the car along its track a rock-bug comes out (cells), and how far through the
+## stretch.
 const FOE_AHEAD: float = 4.0
-## The longest its bars stay down where it stops while its rock-bugs are on it (seconds).
-const HOLD_MOST: float = 12.0
+const FOE_DUE: float = 0.5
 ## How near a station's landing the wizard stands to call it there (pixels).
 const CALL_NEAR: float = 330.0
 ## How thick its floor, roof and sides are (pixels).
@@ -81,15 +76,13 @@ var top_speed: float = RIDE_SPEED
 var ridden: bool = false
 ## How far through its run it is (0..1), for when its rock-bugs come out.
 var run_progress: float = 0.0
-## Whether its rider is shut in; whether its left and right sides are shut, and how far their bars
-## are down (0 up, 1 down), for the art.
+## Whether its rider is shut in (it runs with one); whether its left and right sides are down, and
+## how far their bars are down (0 up, 1 down), for the art.
 var sealed: bool = false
 var side_shut: Array[bool] = [true, true]
 var shut: Array[float] = [1.0, 1.0]
-## The rock-bugs called up on this ride, how many a stretch calls, and how long it has held for them.
+## The rock-bugs it has called out.
 var foes: Array[Node2D] = []
-var foe_count: int = 0
-var held: float = 0.0
 var _walls: Array[CollisionShape2D] = []
 var _inside: Area2D
 var _lever: Interactable
@@ -113,8 +106,6 @@ func setup(info: MapInfo, v: Vector2i, circuit: Variant) -> void:
 		stations.append(world_at(float(i)))
 	at_station = int(c["start"])
 	s = stops_s[at_station]
-	@warning_ignore("integer_division")
-	foe_count = FOES_BASE + depth / FOES_DEPTH
 	var wide: float = cell_px * 2.0
 	var tall: float = cell_px * 2.0
 	_slab(Vector2(0.0, SLAB * 0.5), Vector2(wide - 4.0, SLAB))
@@ -207,6 +198,8 @@ func may_run(way: int) -> bool:
 func pull() -> void:
 	if running:
 		running = false
+		ridden = false
+		sealed = false
 		speed = 0.0
 		next_dir = -dir
 		at_station = _station_here()
@@ -241,7 +234,7 @@ func _set_off(way: int, to: int, cells: float, with_rider: bool) -> void:
 	running = true
 	run_progress = 0.0
 	at_station = -1
-	held = 0.0
+	sealed = ridden
 	_set_walls()
 
 
@@ -263,21 +256,9 @@ func _call_to(to: int) -> void:
 	_set_off(way, to, cells, false)
 
 
-## The rock-bugs it called up that are still on it or its track.
-func _about() -> Array[Node2D]:
-	var out: Array[Node2D] = []
-	for i: int in range(foes.size()):
-		if not is_instance_valid(foes[i]) or foes[i].is_queued_for_deletion():
-			continue
-		var bug: RockBug = foes[i].get_node_or_null("RockBug") as RockBug
-		if bug != null and bug.riding(self):
-			out.append(foes[i])
-	return out
-
-
-## Its sides: both down while it runs or holds its rider, both up while it stands otherwise.
+## Its sides: both down while it runs, both up while it stands.
 func _set_walls() -> void:
-	var down: bool = running or sealed
+	var down: bool = running
 	for k: int in range(2):
 		side_shut[k] = down
 		_walls[k].set_deferred(&"disabled", not down)
@@ -300,7 +281,8 @@ func _physics_process(delta: float) -> void:
 		position = world_at(s)
 		if ridden:
 			var now: float = 1.0 - absf(target_s - s) / run_length
-			_call_foes(run_progress, now)
+			if run_progress < FOE_DUE and now >= FOE_DUE:
+				_call_foe()
 			run_progress = now
 		if absf(target_s - s) <= 0.0001:
 			_arrive()
@@ -308,16 +290,6 @@ func _physics_process(delta: float) -> void:
 		position = world_at(s)
 		if not inside and not ridden:
 			_listen_for_calls()
-	foes = _about()
-	# Stopped, the ride is over once its rock-bugs are off it (or it has held long enough).
-	if ridden and not running:
-		held += delta
-		if foes.is_empty() or held >= HOLD_MOST:
-			ridden = false
-	var shut_in: bool = ridden and (running or not foes.is_empty())
-	if shut_in != sealed:
-		sealed = shut_in
-		_set_walls()
 	for k: int in range(2):
 		shut[k] = move_toward(shut[k], 1.0 if side_shut[k] else 0.0, delta / SHUT_TIME)
 	_lever.available = inside
@@ -331,7 +303,8 @@ func _arrive() -> void:
 	s = stops_s[at_station]
 	position = world_at(s)
 	next_dir = dir
-	held = 0.0
+	ridden = false
+	sealed = false
 	_set_walls()
 
 
@@ -347,15 +320,6 @@ func _listen_for_calls() -> void:
 		if player.global_position.distance_to(landing) < CALL_NEAR:
 			_call_to(i)
 			return
-
-
-## Call up the rock-bugs due between `from` and `to` of the way along this run: the k-th of
-## foe_count at (k + 1) / (foe_count + 1) of the way.
-func _call_foes(from: float, to: float) -> void:
-	for k: int in range(foe_count):
-		var due: float = float(k + 1) / float(foe_count + 1)
-		if from < due and to >= due:
-			_call_foe()
 
 
 ## One rock-bug, out onto the track FOE_AHEAD cells ahead of the car (behind it, near the end of the

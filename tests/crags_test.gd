@@ -2,13 +2,16 @@ extends TestKit
 ## The crags (CragsArchetype, docs/REGIONS_PLAN.md §7): their own sample (collapsed unturned),
 ## taller than wide, open (caverns), a structure pass (shafts, keeps and towers, kept as masonry),
 ## the same every build; their realm and decor (battlements and dressed stone on the masonry only);
-## doors in their passages; and the gondola's circuit: carved and kept clear all the way round,
-## counted as somewhere to stand, with at least four stations, each a doorway onto a landing, all
-## shut but one (by a door, a switch gate with its switch, or a toll gate). In play: the lever sets
-## it off, it runs along the circuit with its rider barred in, calls up wraiths, stops at the next
-## station and holds until they are put down; it may run from an open station to a shut one and
-## back, never on from one shut station to the next; the lever stops it on the way and sends it back;
-## a toll gate lifts for its price; and called from an opened station, it comes over empty.
+## doors in their passages; rock-bugs; and the gondola's line: from near the bottom to near the top,
+## straight up and up 45° diagonals only, carved and kept clear, counted as somewhere to stand, at
+## least four stations, each a doorway onto a landing, all shut but one (by a door, a switch gate
+## with its switch, or a toll gate). In play: its sides up while it stands; the lever sets it off
+## with its rider barred in; a rock-bug comes out on its track, climbs in and is let off onto the
+## rock when it stands with its sides up; a bug turns back at its barred sides while it runs; it
+## never holds its rider; it may run from an open station to a shut one and back, never on from one
+## shut station to the next; the lever stops it on the way (its sides lift) and sends it back; a
+## placed rock-bug clings to rock, walks along it round its corners and, stunned, falls and clings
+## again; a toll gate lifts for its price; and called from an opened station, it comes over empty.
 ## godot --headless --path . --script res://tests/crags_test.gd
 
 
@@ -38,8 +41,7 @@ func generation() -> void:
 		check(not w.masonry.is_empty() and w.masonry.keys().all(func(v: Vector2i) -> bool: return w.is_ground(v) or w.get_cell(v).type == LevelGen.Type.CRACKED), "row %d has castle masonry, all of it rock (or cracked rock)" % at.y)
 		check(count_of(w, LevelGen.Type.DOOR) + count_of(w, LevelGen.Type.SWITCH_GATE) > 0, "row %d has doors or switch gates" % at.y)
 		var bugs: Array[Vector2i] = w.objects_of(LevelGen.Type.BUG)
-		var against: int = bugs.filter(func(v: Vector2i) -> bool: return [Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP].any(func(d: Vector2i) -> bool: return w.is_ground(v + d))).size()
-		check(not bugs.is_empty() and against * 2 >= bugs.size(), "row %d has rock-bugs, mostly against rock (%d of %d; the rest fall to it)" % [at.y, against, bugs.size()])
+		check(not bugs.is_empty() and bugs.all(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.BUG), "row %d has rock-bugs (%d; each clings to the rock nearest, or falls to it)" % [at.y, bugs.size()])
 		diagonal += _circuit(w, at)
 		# The decor: battlements and dressed stone only on the castle's masonry.
 		var solid: Dictionary = {}
@@ -139,47 +141,42 @@ func ride() -> void:
 	check(await until(func() -> bool: return not g.running, 40000), "it runs up its track and stops at the station")
 	check(g.global_position.y < from.y - 500.0, "up the cliff")
 	check(g.at_station == next and g.has_rider(), "the wizard still in it")
-	check(g.foes.size() == g.foe_count and g.foes.all(func(f: Node2D) -> bool: return f.is_in_group(&"hex_target") and f.get_node_or_null("RockBug") != null), "it called rock-bugs out onto its track on the way (%d, %d still on it)" % [g.foe_count, g.foes.size()])
-	await frames(10)
-	check(g.sealed, "its bars stay down while they are on it")
-	var climber: RockBug = null
-	check(await until(func() -> bool:
-		for f: Node2D in g.foes:
-			if (f.get_node("RockBug") as RockBug).mode == RockBug.Mode.CAR:
-				climber = f.get_node("RockBug") as RockBug
-				return true
-		return false), "a rock-bug crawls along the cable and climbs into the car")
-	if climber != null:
-		await frames(20)
-		var inside: Vector2 = climber.rb.global_position - g.global_position
-		check(absf(inside.x) < g.cell_px and inside.y < 0.0 and inside.y > -g.cell_px * 2.0, "and crawls round inside it")
-		Stunner.of(climber.rb).stun(3.0)
-		await physics_frame
-		await physics_frame
-		check(climber.mode == RockBug.Mode.FALLING and not climber.riding(g), "stunned, it lets go and falls off")
-	for f: Node2D in g.foes:
-		var wound: Wound = f.get_node("Wound") as Wound
-		wound.hit(wound.hp, Vector2.RIGHT)
-	check(await until(func() -> bool: return not g.sealed), "once none are left on it, its bars lift")
+	check(not g.sealed and not g.side_shut[0] and not g.side_shut[1], "standing, it never holds its rider: both sides lift")
+	check(g.foes.size() == 1 and (g.foes[0] as Node2D).is_in_group(&"hex_target"), "it called one rock-bug out onto its track on the way")
+	var climber: RockBug = (g.foes[0] as Node2D).get_node("RockBug") as RockBug
+	check(await until(func() -> bool: return climber.mode == RockBug.Mode.CAR, 15000), "the rock-bug walks along the cable and climbs into the car")
+	check(await until(func() -> bool: return climber.mode != RockBug.Mode.CAR, 15000) and climber.mode == RockBug.Mode.ROCK, "with its sides up, it walks off the car onto the rock (let off)")
+	check(absf(climber.rb.global_position.x - g.global_position.x) > g.cell_px * 0.9, "beside the car")
 	# Shut here and shut on: the lever balks, and the next pull takes it back.
 	check(not g.is_open(next) and not g.is_open(int(g.next_station(g.s, 1)[0])), "this station is shut, and so is the next")
 	g.pull()
 	check(not g.running and g.next_dir == -1, "from one shut station it will not run on to the next")
 	g.pull()
 	check(g.running and g.bound_for == start, "it runs back to the open station")
-	# Stopped on the way, it stands barred; pulled again, it heads back.
+	# A bug in the car while it runs turns back at its barred sides.
+	check(await until(func() -> bool: return g.foes.size() == 2), "it calls another rock-bug out on this stretch")
+	var rider: RockBug = (g.foes[1] as Node2D).get_node("RockBug") as RockBug
+	await until(func() -> bool: return rider.mode == RockBug.Mode.CAR or not g.running, 15000)
+	if g.running and rider.mode == RockBug.Mode.CAR:
+		rider.car_x = rider._car_edge() - 1.0
+		rider.way = 1
+		await physics_frame
+		await physics_frame
+		check(not g.running or (rider.way == -1 and absf(rider.car_x) <= rider._car_edge() and rider.mode == RockBug.Mode.CAR), "a bug in the running car turns back at its barred side")
+	check(await until(func() -> bool: return not g.running and g.at_station == start, 40000), "back at the open station")
+	# Stopped on the way, its sides lift; pulled again, it heads back. (From the line's end the
+	# lever's first pull balks, and the next goes the other way.)
+	g.pull()
+	if not g.running:
+		g.pull()
+	check(g.running and g.bound_for == next, "the lever sets it off again")
 	await until(func() -> bool: return g.speed > 200.0)
 	g.pull()
 	check(not g.running and g.at_station < 0, "the lever stops it between stations")
-	await until(func() -> bool: return g.shut[0] <= 0.0 or not g.foes.is_empty())
-	check(g.sealed == not g.foes.is_empty() and g.side_shut[0] == g.sealed, "where its sides lift, unless its wraiths are about")
+	check(not g.side_shut[0] and not g.side_shut[1], "where its sides lift")
 	g.pull()
-	check(g.running and g.bound_for == next, "and pulled again it heads back the way it came")
-	g.pull()
-	g.pull()
-	check(g.running and g.bound_for == start, "and again")
+	check(g.running and g.bound_for == start, "and pulled again it heads back the way it came")
 	check(await until(func() -> bool: return not g.running and g.at_station == start, 40000), "back at the open station")
-	await until(func() -> bool: return not g.sealed)
 	await rock_bugs()
 	# A toll gate lifts for its price.
 	var tolls: Array[Node] = placed("toll_gate.tscn")
@@ -214,9 +211,8 @@ func rock_bugs() -> void:
 	if bugs.is_empty():
 		return
 	var bug: RockBug = (bugs[0] as Node2D).get_node("RockBug") as RockBug
-	# The wizard out of its waking range (so it wanders), but near enough that its part of the level
-	# is awake.
-	player.global_position = bug.rb.global_position + Vector2(RockBug.WAKE + 60.0, -40.0)
+	# The wizard a little way off, so its part of the level is awake.
+	player.global_position = bug.rb.global_position + Vector2(600.0, -40.0)
 	player.velocity = Vector2.ZERO
 	player.set_physics_process(false)
 	var clinging: Callable = func() -> bool: return bug.mode == RockBug.Mode.ROCK and info.solid_at(bug.rb.global_position + Vector2(bug.normal) * (RockBug.BODY + 8.0))

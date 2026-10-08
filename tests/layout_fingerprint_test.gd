@@ -38,7 +38,7 @@ const GOLDEN: Dictionary = {
 	"cemetery": ["7650e6c907d3323b", "8f356085be056c25"],
 	"cemetery deeper": ["15d89edbee4a610f", "79f6e37f13e9fd64"],
 	"catacombs": ["ea38d7ba74ac6456", "7c1e0539f17459a2"],
-	"crags": ["1f936f59ae152a07", "ba9b27b95b9aee60"],
+	"crags": ["1f936f59ae152a07", "c85052f244a11dc3"],
 	"sky": ["86785972a609d548", "49a916d3138cd832"],
 	"sky deeper": ["93cd2873db0561dd", "3814b88af44b9020"],
 	"hyperspace": ["e9ba117f74a98ef2", "783bbb3a3067b93e"],
