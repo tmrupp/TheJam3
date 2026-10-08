@@ -6,8 +6,8 @@ guards a relic and the way on to the next region. It builds on `docs/DEEPER_PLAN
 places, archetypes, side worlds, relics) and follows the owner's notes in `docs/TOM_THOUGHTS.md`
 ("can go up or down", "bosses, possibly guarding relics, must be defeated").
 
-Nothing here is built yet. Each section says what is decided, what is proposed, and what is
-still open; the phases at the end give the order of work.
+Phases 1 (rows both ways) and 2 (climbing levels) are built; the rest is not yet. Each section says what is decided, what
+is proposed, and what is still open; the phases at the end give the order of work.
 
 ## 1. Decided
 
@@ -18,6 +18,7 @@ still open; the phases at the end give the order of work.
 | Where a fight happens | Each boss says: some fight in the band's last level itself (the worm, the bramble), others in an arena of their own, a side world behind a door in that level. |
 | How often a boss is beaten | **Once per run.** Until it is slain, every band-end level of its band (in every world column) holds it and is sealed; once slain, all of them open for the rest of the run, and it is never met again. |
 | Crags and castle | One band: vertical cliff levels dressed with castle ruins. The spider's arena is the keep. |
+| Hyperspace across branches | Yes: a hyperspace may cross the start into the other branch (35 % of them), still leading 4 rows further from the start. |
 
 ## 2. The vertical map
 
@@ -49,15 +50,15 @@ the start. Row 0 is where a run begins; rows below it are down, rows above it (n
 Today side worlds hang off the grid at negative rows: kind `k` entered from level `(x, d)` sits
 at `(x, -(k * STRIDE + d) - 1)` (`Worlds.side_at`). The up branch needs those rows.
 
-- **Move the side worlds out.** Side worlds start at `SIDE_BASE` (say 1,000,000) below zero:
-  kind `k` entered from row `r` sits at `(x, -(SIDE_BASE + k * STRIDE * 2 + (r + STRIDE)))`, which
-  also carries a signed origin row (a side door in an up level). `Worlds.is_side`, `kind_at`,
+- **Move the side worlds out.** Side worlds start at `SIDE_BASE` (1,000,000) below zero: kind `k`
+  entered from row `r` sits at `(x, -(SIDE_BASE + k * STRIDE + r + STRIDE / 2))`, which also carries
+  a signed origin row (a side door in an up level). `Worlds.is_side`, `kind_at`,
   `origin_of`, `side_at` and `valid` change; nothing else should know the encoding.
 - **Rows `-SIDE_BASE < y < 0` are up-branch levels**, and `Worlds.valid` admits them.
 - **Saves.** Records, the ghost and the respawn lantern are keyed by place. Bump
   `RunState.SAVE_VERSION` and migrate a version-2 save: re-key every side-world record to the new
   encoding (levels at rows ≥ 0 keep their keys). `RunState.deepest` becomes the furthest distance
-  reached (`|row|`), and a new `highest` row reached is kept for the worlds map.
+  reached (`|row|`), and `furthest_row` the row where it got that far (for the end-of-run card).
 - **The audit.** About 80 places in the code read `coord.y` or `at.y` as depth (relics, prices,
   the ink well, the sign, rifts, the map, decor seeds). Each either wants the distance
   (`def.depth`), the signed row (`coord.y`), or is a "is this a side world" test (`Worlds.is_side`).
@@ -73,8 +74,16 @@ at `(x, -(k * STRIDE + d) - 1)` (`Worlds.side_at`). The up branch needs those ro
 - **Row 0.** The start's way back, a dead end today, becomes the way up: the start level gets both
   a way down and a way up. Every garden level above the start likewise leads up by its way on.
 - **Climbing levels.** In an up level the way on is placed near the top of the level and the way
-  back near the bottom (`LevelGen` exit placement mirrors vertically for the up branch), so the up
-  branch is climbed rather than crossed. The deeper exit's chevron points up there.
+  back near the bottom (`LevelGen.place_exits(…, climbing)`), so the up branch is climbed rather than
+  crossed; the way on's chevron points up there. Climbing is harder than falling (by the rough
+  reach, about 0 to 7 % of up levels could be climbed without help, against 45 to 70 % of down levels
+  crossed), so a light helper (`Climb.aid`) lays at most 12 ledges, each a hop on from somewhere
+  already reached, toward the way on: hops of the wizard's own in the garden, a relic's (about a
+  double jump) beyond it. **Nothing is promised**, as nothing is below the start: some climbs want
+  wall jumps or a relic and a few may not go at all. With it, about 70 % of the garden's up levels
+  can be climbed with the wizard's own hops (as many as its down levels can be crossed), and nearly
+  all the crags and sky with a relic's. No ledge goes in a chasm's or gap's kept air, so the
+  crossings left to relics stay theirs.
 - **Sideways.** Left and right exits still move a world column at the same row, in both branches.
 - **Nothing skips a seal.** Every way that crosses rows without walking them must stop at an
   unslain boss's gate: the hyperspace door (it moves `DROP` rows along the branch, never past a
@@ -241,13 +250,22 @@ from row 4 down (expected: `layout_fingerprint_test` is re-pinned in that phase)
 
 Each phase ends with the full suite green and its own tests.
 
-1. **Rows both ways.** Move the side-world encoding (§3), migrate saves, separate distance from row
-   everywhere, let rows below zero be levels, and open the start's way up. Bands by a table; for
-   now the up branch reuses the garden then the sky. Tests: encoding round trips and migration in
-   `unit_test`; an up level's lead, prices by distance, the transition's direction; the worlds map
-   showing rows above the start.
-2. **Climbing levels.** Exits mirrored for the up branch, the chevron turned, the arrival at the
-   bottom. Tests: the way on lies in the top part of every up level and is reachable.
+1. **Rows both ways.** *Done.* Side worlds moved to `SIDE_BASE` (`Worlds`), version-2 saves
+   migrated (`RunState.from_v2`), distance (`def.depth`) separated from the row everywhere, rows
+   above the start are levels, the start's way back is a paid way up, bands come from a table
+   (`NextWorldDef.GARDEN`, `DOWN`, `UP`) with the crags and catacombs as stand-in archetypes
+   (`CragsArchetype`, `CatacombsArchetype`), hyperspace may cross into the other branch, and the
+   map, place marks (an up arrow for heights), the travel card and the F7 travel picker know
+   heights. Tests: `unit_test` (bands, encoding, migration, the start's way up, hyperspace
+   crossing), `branches_test` (going up and home in play, the crags past the garden, saving above
+   the start), `capture_branches.gd` (stills). Levels from row 4 down, and the start level's
+   dressing (its new door up), changed; `layout_fingerprint_test` was re-pinned.
+2. **Climbing levels.** *Done.* Exits mirrored for the up branch, the chevron turned, the arrival
+   at the bottom, and the climb helper (`Climb`, no promise of a way through; the owner asked for
+   traversability to be relaxed, especially beyond the garden). Tests: `climb_test` (the way on above
+   the way back and in the top part, ledges only in up levels and where they may go, the same every
+   build, and they help); `layout_fingerprint_test` re-pinned for the up levels (their dressing
+   changed; their terrain and every level below the start did not).
 3. **The gate.** `RunState.bosses`, gate levels, the seal, the relic plinth, the map's seal mark,
    no skipping a seal, and a stand-in boss (a big wisp with countable health) to prove the loop in
    both kinds (in the level and in an arena). Tests: sealed until slain; slain once opens every
@@ -264,8 +282,6 @@ Each phase ends with the full suite green and its own tests.
 
 - **Past the last bands.** Below the catacombs and above the sky: a final place where the branches
   meet (hyperspace?), the outer bands repeating harder, or the run won at the bottom or the top.
-- **Hyperspace across branches.** Should a hyperspace trip ever cross the start into the other
-  branch, or only move along its own?
 - **What a boss's relic is.** A move not yet known (proposed), or always the same move per boss
   (the bramble wall climb, the worm double jump...), which would make each branch's order of
   abilities designed rather than dealt.

@@ -10,27 +10,37 @@ extends TestKit
 ## changed (see AGENTS.md, "Level generation").
 ## godot --headless --path . --script res://tests/layout_fingerprint_test.gd
 
-## The places fingerprinted: [label, archetype (or &"side" for side world kind 0), seed, depths
-## into the archetype's first band (or the depth of the level the side world is entered from)].
+## The places fingerprinted: [label, archetype (or &"side" for side world kind 0), seed, rows into
+## the archetype's band counting away from the start (NextWorldDef.band_row; the garden's go down,
+## and a negative count goes up from the start), or, for a side world, the row of the level it is
+## entered from].
 const PLACES: Array = [
 	["garden", &"garden", 28, 0],
 	["garden deeper", &"garden", 7, 3],
+	["garden above", &"garden", 7, -2],
 	["cemetery", &"cemetery", 28, 0],
 	["cemetery deeper", &"cemetery", 99, 4],
+	["catacombs", &"catacombs", 28, 1],
+	["crags", &"crags", 28, 0],
 	["sky", &"sky", 28, 0],
 	["sky deeper", &"sky", 7, 2],
 	["hyperspace", &"side", 28, 3],
+	["hyperspace above", &"side", 28, -5],
 ]
 
 ## label -> [terrain, dressing], as printed by this test.
 const GOLDEN: Dictionary = {
-	"garden": ["3141ca88260d303e", "6ed820a086eba3d5"],
+	"garden": ["3141ca88260d303e", "72f2131de67d8713"],
 	"garden deeper": ["fb83f8a8fba7e562", "568e40e242b83832"],
-	"cemetery": ["0708f224adbb179a", "854439b0df634f9a"],
-	"cemetery deeper": ["1c1f236236a24d2c", "bce73663065d9890"],
-	"sky": ["812e276a39eac712", "4cc4cd5c8bf36df3"],
-	"sky deeper": ["7ed6d50689e41962", "e76d91d278498315"],
-	"hyperspace": ["2c6df15b39f4e062", "8ac55aedddefeb32"],
+	"garden above": ["a22845835c87543e", "a862c8d5003a98b0"],
+	"cemetery": ["7650e6c907d3323b", "8f356085be056c25"],
+	"cemetery deeper": ["15d89edbee4a610f", "79f6e37f13e9fd64"],
+	"catacombs": ["ea38d7ba74ac6456", "7c1e0539f17459a2"],
+	"crags": ["6c441b19985bf375", "f7e445898bfaec8b"],
+	"sky": ["86785972a609d548", "49a916d3138cd832"],
+	"sky deeper": ["93cd2873db0561dd", "3814b88af44b9020"],
+	"hyperspace": ["e9ba117f74a98ef2", "783bbb3a3067b93e"],
+	"hyperspace above": ["a4925ba108552847", "96912b05062f4142"],
 }
 
 
@@ -72,7 +82,7 @@ static func _where(place: Array) -> Vector2i:
 	var kind: StringName = place[1]
 	if kind == &"side":
 		return Worlds.side_at(0, Vector2i(int(place[2]), int(place[3])))
-	return Vector2i(int(place[2]), NextWorldDef.first_depth(kind) + int(place[3]))
+	return Vector2i(int(place[2]), NextWorldDef.band_row(kind, int(place[3])))
 
 
 ## The collapsed terrain's fingerprint: every cell's colour, column by column.

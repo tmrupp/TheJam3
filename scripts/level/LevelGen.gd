@@ -244,11 +244,12 @@ func spread_out (spots: Array[Vector2i], count: int, gap: int, ok: Callable = fu
 		kept.append(v)
 	return kept
 
-## Places the four exits by position: back near the top, deeper near the bottom and at least
-## exit_distance(depth) cells from back, left and right at the sides. A lantern goes beside the
-## way back, where a dive arrives. At depth 0 there is no way back: that spot holds the run's
-## start lantern instead.
-func place_exits (depth: int, debug: bool = false) -> void:
+## Places the four exits by position: the way back near the top and the way on near the bottom, at
+## least exit_distance(depth) cells from it, left and right at the sides. Above the start
+## (`climbing`) it is the other way about, the way back near the bottom and the way on near the top,
+## so the up branch is climbed rather than fallen through. A lantern goes beside the way back, where
+## the wizard arrives (at the start, the start lantern, beside its way up).
+func place_exits (depth: int, debug: bool = false, climbing: bool = false) -> void:
 	var spots: Array[Vector2i] = empties_where(ground_below)
 	if spots.size() < 8:
 		return
@@ -262,15 +263,19 @@ func place_exits (depth: int, debug: bool = false) -> void:
 	@warning_ignore("integer_division")
 	var band_x: int = maxi(2, size.x / 5)
 	var chosen: Array[Vector2i] = []
-	var back: Vector2i = _pick_spot(spots, chosen, func(v: Vector2i) -> bool: return v.y <= lo.y + band_y)
+	var near_top: Callable = func(v: Vector2i) -> bool: return v.y <= lo.y + band_y
+	var near_bottom: Callable = func(v: Vector2i) -> bool: return v.y >= hi.y - band_y
+	var back_band: Callable = near_bottom if climbing else near_top
+	var on_band: Callable = near_top if climbing else near_bottom
+	var back: Vector2i = _pick_spot(spots, chosen, back_band)
 	chosen.append(back)
 	if debug:
 		_place_exits_near(spots, chosen, back, depth)
 		return
 	var reach: int = Rules.exit_distance(depth)
-	var deeper: Variant = _pick_spot(spots, chosen, func(v: Vector2i) -> bool: return v.y >= hi.y - band_y and dist(v, back) >= reach, true)
+	var deeper: Variant = _pick_spot(spots, chosen, func(v: Vector2i) -> bool: return on_band.call(v) and dist(v, back) >= reach, true)
 	if deeper == null:
-		# No spot low and far enough: take the one furthest from the way back.
+		# No spot in its band and far enough: take the one furthest from the way back.
 		var best: Vector2i = spots[0]
 		for v: Vector2i in spots:
 			if not chosen.has(v) and dist(v, back) > dist(best, back):
@@ -330,15 +335,12 @@ func place_start_key (def: NextWorldDef) -> void:
 					keep_clear[c] = true
 	start_reach = {}
 
-## Doors (or the start lantern) on the exit cells, a lantern beside the way back, then the shrine.
-## Lanterns are scarce: the other exits have none.
-func _finish_exits (spots: Array[Vector2i], chosen: Array[Vector2i], depth: int) -> void:
+## Doors on the exit cells (at the start too, whose way back leads up), a lantern beside the way
+## back (the start lantern, at the start), then the shrine. Lanterns are scarce: the other exits
+## have none.
+func _finish_exits (spots: Array[Vector2i], chosen: Array[Vector2i], _depth: int) -> void:
 	for which: int in [MapInfo.Exit.BACK, MapInfo.Exit.DEEPER, MapInfo.Exit.LEFT, MapInfo.Exit.RIGHT]:
 		var at: Vector2i = exits[which]
-		if which == MapInfo.Exit.BACK and depth == 0:
-			put(at, Type.CHECKPOINT)
-			exit_lanterns[which] = at
-			continue
 		put(at, Type.EXIT, which)
 		if which != MapInfo.Exit.BACK:
 			continue
@@ -691,6 +693,9 @@ func _init (_cells: Array, def: NextWorldDef) -> void:
 	deal_colors()
 	if not Worlds.is_side(def.coord):
 		place_lift_switches()
+	# Up levels: ledges where the climb from the way back to the way on needs them (Climb), last
+	# and with no RNG draws, so nothing else moves.
+	Climb.aid(self, def)
 
 ## Some of an ordinary level's lifts wait for a switch: parked at the start of their track until
 ## it is thrown, then running for good (the record keeps it). LIFT_SWITCH_SHARE of them, picked by
@@ -774,7 +779,7 @@ func populate_level (def: NextWorldDef) -> void:
 	arch.cut_gates(self)
 
 	# Exits and their lanterns first, so they get the pick of the level.
-	place_exits(def.depth, def.debug)
+	place_exits(def.depth, def.debug, def.coord.y < 0)
 	place_side_doors(def)
 	place_start_key(def)
 	Chasms.place_bells(self, arch.crossing, arch.switch_reach)
@@ -864,6 +869,8 @@ func populate_level (def: NextWorldDef) -> void:
 ## Chasms.relax_crossings); and in hyperspace, the stretches left unbridged (Hyperspace._relic_gap).
 var relic_chasms: Array[int] = []
 var relic_gaps: Array[Rect2i] = []
+## The ledges laid to make an up level climbable (Climb.aid), in the order they were laid.
+var climb_ledges: Array[Vector2i] = []
 
 ## The level's chasms and gaps, its gates where the archetype has them (see Chasms): each
 ## {"planks": cells, "row": the floor row, "left": the last floor cell before it, "right": the

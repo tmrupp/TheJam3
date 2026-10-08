@@ -83,7 +83,8 @@ func run() -> void:
 	var spawn: Vector2i = first.exits[MapInfo.Exit.BACK]
 	check(first.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1)).x >= 0 and first.get_cell(first.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1))).type == LevelGen.Type.EXIT and int(first.get_cell(first.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1))).extra_info) == Worlds.door(Worlds.kind_of(Hyperspace)), "the first level of a debug run has a chasm door")
 	check(absi(first.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1)).x - spawn.x) + absi(first.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1)).y - spawn.y) <= 12, "right by the spawn, like the other debug exits")
-	check(Worlds.side_at(Worlds.kind_of(Hyperspace), Vector2i(5, 0)) == Vector2i(5, -1) and Worlds.is_side(Vector2i(5, -1)) and Worlds.origin_of(Vector2i(5, -1)) == Vector2i(5, 0), "its chasm is (5, -1), clear of the level at (5, 0)")
+	var chasm_at: Vector2i = Worlds.side_at(Worlds.kind_of(Hyperspace), Vector2i(5, 0))
+	check(Worlds.is_side(chasm_at) and Worlds.origin_of(chasm_at) == Vector2i(5, 0) and not Worlds.is_side(Vector2i(5, -1)), "its chasm is a place of its own, clear of the levels above and below (5, 0)")
 	MapInfo.debug = false
 	var plain: NextWorldDef = Rules.def_for(Vector2i(5, 0))
 	check(not LevelGen.new(collapse(plain.coord), plain).exits.has(Worlds.door(Worlds.kind_of(Hyperspace))), "and an ordinary run's first level has none")

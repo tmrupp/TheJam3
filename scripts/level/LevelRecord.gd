@@ -17,8 +17,10 @@ var broken: Dictionary = {}
 ## colour]; the next one gets `next_drop`.
 var dropped: Dictionary = {}
 var next_drop: int = 0
-## Whether the deeper exit has been paid for, and the side-world doors paid for (by exit).
+## Whether the way on has been paid for (and, at the start, its way up), and the side-world
+## doors paid for (by exit).
 var deeper_paid: bool = false
+var up_paid: bool = false
 var doors_paid: Dictionary = {}
 ## Side doors left open behind the wizard (by exit), and every exit taken (for the worlds map).
 var lateral_open: Dictionary = {}
@@ -46,7 +48,7 @@ var switched: Dictionary = {}
 var rifts: Array = []
 
 ## Every field saved, in the order they are written.
-const FIELDS: Array[StringName] = [&"taken", &"opened", &"slain", &"broken", &"dropped", &"next_drop", &"deeper_paid",
+const FIELDS: Array[StringName] = [&"taken", &"opened", &"slain", &"broken", &"dropped", &"next_drop", &"deeper_paid", &"up_paid",
 	&"doors_paid", &"lateral_open", &"ways_taken", &"shrine_used", &"left_spell", &"relic_left", &"mapped", &"seen",
 	&"bridges", &"winds", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts"]
 

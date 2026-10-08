@@ -110,7 +110,17 @@ func run() -> void:
 		var beam: Area2D = laser.get_node("Beam") as Area2D
 		var reach: float = float(laser.get("reach"))
 		var end: Vector2 = beam.global_position + dir * (reach + 8.0)
-		check(reach > 200.0 and info.world.is_ground(info.cell_at(end)), "its beam reaches %d px, to the first rock" % int(reach))
+		# It stops at the first solid thing in its way (rock, a ledge or a lift), never passing
+		# through rock on the way.
+		var clear: bool = true
+		var step: float = 16.0
+		while step < reach - 8.0:
+			clear = clear and not info.world.is_ground(info.cell_at(beam.global_position + dir * step))
+			step += 16.0
+		var query: PhysicsPointQueryParameters2D = PhysicsPointQueryParameters2D.new()
+		query.position = end
+		var solid: bool = info.world.is_ground(info.cell_at(end)) or not laser.get_world_2d().direct_space_state.intersect_point(query).is_empty()
+		check(reach > 200.0 and clear and solid, "its beam reaches %d px, to the first solid thing, through no rock" % int(reach))
 		var shape: CollisionShape2D = beam.get_node("CollisionShape2D") as CollisionShape2D
 		var fired: int = 0
 		var rested: int = 0

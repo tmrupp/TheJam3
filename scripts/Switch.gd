@@ -1,7 +1,8 @@
 extends Area2D
 class_name Switch
 ## A switch: interact with it, or hit it with a hex bolt, and it throws for good, lifting its gate
-## (SwitchGate) or starting its parked lift (MovingPlatform). The level record keeps it thrown.
+## (SwitchGate), starting its parked lift (MovingPlatform) or freeing the bell or vane chained to it
+## (Bell). The level record keeps it thrown.
 
 @onready var player: Player = Stage.player()
 
@@ -31,6 +32,9 @@ func flip() -> void:
 				(node as SwitchGate).open()
 			elif node is MovingPlatform:
 				(node as MovingPlatform).run()
+			elif node is Bell:
+				# A bell or vane chained to this switch (Vane extends Bell): its chain comes off.
+				(node as Bell).open()
 	map_info.save_run()
 	RisoFx.burst(&"gain", global_position + Vector2(0, -30), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
 

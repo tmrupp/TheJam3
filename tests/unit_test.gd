@@ -17,7 +17,8 @@ const SEEDS: Dictionary = {
 ## Depths swept by the checks of numbers that grow with depth.
 const DEPTHS: int = 40
 ## Places the checks of exits and side worlds look at.
-const PLACES: Array[Vector2i] = [Vector2i(28, 0), Vector2i(28, 3), Vector2i(7, 6), Vector2i(99, 13), Vector2i(0, 25)]
+const PLACES: Array[Vector2i] = [Vector2i(28, 0), Vector2i(28, 3), Vector2i(7, 6), Vector2i(99, 13), Vector2i(0, 25),
+	Vector2i(28, -1), Vector2i(7, -5), Vector2i(99, -12)]
 
 
 func run() -> void:
@@ -28,6 +29,7 @@ func run() -> void:
 	_archetypes()
 	_side_worlds()
 	_exits()
+	_branches()
 	_relics()
 	var p: Player = Player.new()
 	_ability_tables()
@@ -112,20 +114,38 @@ func _rarity() -> void:
 
 func _archetypes() -> void:
 	var band: int = NextWorldDef.BAND
-	var kinds: Array[StringName] = NextWorldDef.archetype_names()
-	check_eq(NextWorldDef.archetype_at(0), kinds[0], "the run starts in the %s" % kinds[0])
-	check_eq(NextWorldDef.archetype_at(-4), kinds[0], "side worlds' depths count as the first band")
-	check_eq(NextWorldDef.first_depth(&"nowhere"), -1, "no first depth for an archetype that does not exist")
-	for i: int in range(kinds.size()):
-		var first: int = NextWorldDef.first_depth(kinds[i])
-		check(NextWorldDef.archetype_at(first) == kinds[i] and NextWorldDef.archetype_at(first + band - 1) == kinds[i], "the %s takes depths %d to %d" % [kinds[i], first, first + band - 1])
-		check_eq(NextWorldDef.archetype_at(first + band * kinds.size()), kinds[i], "and comes round again %d deeper" % (band * kinds.size()))
-	for kind: StringName in kinds:
+	var g: int = NextWorldDef.GARDEN_ROWS
+	# The garden is the hub, both ways from the start; then the bands of each way, in turn.
+	var bands: Array = []
+	for row: int in range(-3 * band - g, 3 * band + g + 1):
+		bands.append(NextWorldDef.archetype_at(row))
+	var want: Array = []
+	for row: int in range(-3 * band - g, 3 * band + g + 1):
+		var d: int = absi(row)
+		if d <= g:
+			want.append(&"garden")
+		elif row > 0:
+			want.append(&"cemetery" if d <= g + band else &"catacombs")
+		else:
+			want.append(&"crags" if d <= g + band else &"sky")
+	check_eq(bands, want, "the garden spans rows -%d to %d; down the cemetery then the catacombs, up the crags then the sky, %d rows each, the outermost going on" % [g, g, band])
+	check_eq(NextWorldDef.archetype_at(0), &"garden", "the run starts in the garden")
+	check_eq(NextWorldDef.first_depth(&"nowhere"), -1, "no band for an archetype that does not exist")
+	var firsts: Dictionary = {&"garden": 0, &"cemetery": g + 1, &"catacombs": g + 1 + band, &"crags": -(g + 1), &"sky": -(g + 1 + band)}
+	for kind: StringName in firsts:
+		check_eq(NextWorldDef.first_depth(kind), int(firsts[kind]), "the %s's row nearest the start" % kind)
+	check(NextWorldDef.band_row(&"sky", 2) == -(g + 3 + band) and NextWorldDef.band_row(&"cemetery", 2) == g + 3, "band rows count away from the start, up or down")
+	for kind: StringName in [&"garden", &"cemetery", &"sky"]:
 		var def: NextWorldDef = Rules.def_for(Vector2i(28, NextWorldDef.first_depth(kind)))
 		check(def.archetype == kind and def.realm() == kind, "a %s level is printed in its own realm" % kind)
+	# Stand-ins until their own art (docs/REGIONS_PLAN.md): the crags in the sky's realm, the
+	# catacombs in the cemetery's.
+	check(Rules.def_for(Vector2i(28, NextWorldDef.first_depth(&"crags"))).realm() == &"sky" and Rules.def_for(Vector2i(28, NextWorldDef.first_depth(&"catacombs"))).realm() == &"cemetery", "the crags and catacombs stand in with borrowed realms")
 	var sky_depth: int = NextWorldDef.first_depth(&"sky")
 	var sky: NextWorldDef = Rules.def_for(Vector2i(28, sky_depth))
-	check_eq(sky.size, Vector2i((Vector2(Rules.level_size(sky_depth)) * SkyArchetype.SCALE).round()), "a sky level is SkyArchetype.SCALE times a cave level of its depth")
+	check_eq(sky.depth, absi(sky_depth), "a level's depth is its distance from the start, whichever way")
+	check_eq(sky.size, Vector2i((Vector2(Rules.level_size(sky.depth)) * SkyArchetype.SCALE).round()), "a sky level is SkyArchetype.SCALE times a cave level of its distance")
+	check(Rules.where(Vector2i(28, -5)) == "world 28 · height 5" and Rules.where(Vector2i(28, 5)) == "world 28 · depth 5", "a level above the start is named by its height")
 	check(sky.chasmed() and Rules.def_for(Vector2i(28, NextWorldDef.first_depth(&"cemetery"))).chasmed() and not Rules.def_for(Vector2i(28, 0)).chasmed(), "the cemetery and the sky have chasms, the garden none")
 
 
@@ -139,6 +159,22 @@ func _side_worlds() -> void:
 		check(ok, "side world kind %d: entered from a level, it knows its kind and that level" % k)
 		check_eq(Worlds.door_kind(Worlds.door(k)), k, "a door into kind %d leads into it" % k)
 	check_eq(Worlds.kind_at(Vector2i(28, 3)), -1, "a level is no side world")
+	check(not Worlds.is_side(Vector2i(28, -12)) and Worlds.valid(Vector2i(28, -12)), "nor is a level above the start")
+	var signed_ok: bool = true
+	for row: int in [-40, -1, 0, 1, 40]:
+		for k: int in range(Worlds.KINDS.size()):
+			var at: Vector2i = Worlds.side_at(k, Vector2i(5, row))
+			signed_ok = signed_ok and Worlds.is_side(at) and Worlds.origin_of(at) == Vector2i(5, row) and Worlds.kind_at(at) == k
+	check(signed_ok, "a side world entered from a level above or below the start knows its kind and that level")
+	# Version-2 saves kept kind k from (seed, depth) at (seed, -(k * STRIDE + depth) - 1).
+	check(Worlds.from_v2(Vector2i(9, -(0 * Worlds.STRIDE + 3) - 1)) == Worlds.side_at(0, Vector2i(9, 3)) and Worlds.from_v2(Vector2i(9, 4)) == Vector2i(9, 4), "a version-2 save's side worlds move to their new place, its levels stay")
+	var old_side: Vector2i = Vector2i(9, -(0 * Worlds.STRIDE + 3) - 1)
+	var v2: Dictionary = {"version": 2, "deepest": 5, "coord": old_side, "respawn_coord": Vector2i(9, 2), "ghost_coord": old_side,
+		"records": {old_side: {}, Vector2i(9, 2): {}}, "rift_link": [[old_side, Vector2(1, 2)]]}
+	var v3: Dictionary = RunState.from_v2(v2)
+	var moved: Vector2i = Worlds.side_at(0, Vector2i(9, 3))
+	check(int(v3["version"]) == RunState.SAVE_VERSION and v3["coord"] == moved and v3["ghost_coord"] == moved and v3["respawn_coord"] == Vector2i(9, 2), "a version-2 save is read with its places moved")
+	check((v3["records"] as Dictionary).has(moved) and (v3["records"] as Dictionary).has(Vector2i(9, 2)) and (v3["rift_link"] as Array)[0][0] == moved and int(v3["furthest_row"]) == 5, "its records, rift and furthest row too")
 	check(not Worlds.valid(Worlds.side_at(Worlds.KINDS.size(), Vector2i(28, 3))), "nor is there a side world of a kind not listed")
 	for e: int in [MapInfo.Exit.DEEPER, MapInfo.Exit.BACK, MapInfo.Exit.LEFT, MapInfo.Exit.RIGHT, MapInfo.Exit.RETURN]:
 		check_eq(Worlds.door_kind(e), -1, "exit %d is no side door" % e)
@@ -153,22 +189,61 @@ func _exits() -> void:
 		var deeper: Dictionary = def.lead(MapInfo.Exit.DEEPER)
 		check(left["to"] == at + Vector2i.LEFT and int(left["arrive"]) == MapInfo.Exit.RIGHT, "%s: left leads to the next world's right-hand door" % at)
 		check(Rules.def_for(right["to"]).lead(MapInfo.Exit.LEFT)["to"] == at, "%s: right, then left, comes back" % at)
-		check(deeper["to"] == at + Vector2i.DOWN and int(deeper["arrive"]) == MapInfo.Exit.BACK, "%s: deeper leads down, arriving at the way back" % at)
+		var on: Vector2i = Vector2i.DOWN if at.y >= 0 else Vector2i.UP
+		check(deeper["to"] == at + on and int(deeper["arrive"]) == MapInfo.Exit.BACK and deeper["way"] == Vector2(on), "%s: the way on leads away from the start, arriving at the way back" % at)
 		var below: NextWorldDef = Rules.def_for(deeper["to"])
 		if below.arrival_from == null:
-			check(below.lead(MapInfo.Exit.BACK)["to"] == at, "%s: deeper, then back, comes back" % at)
+			check(below.lead(MapInfo.Exit.BACK)["to"] == at, "%s: on, then back, comes back" % at)
 		var near: Array[Vector2i] = def.neighbours()
 		check(not near.has(at) and near.all(func(v: Vector2i) -> bool: return Worlds.valid(v) and near.count(v) == 1), "%s: its neighbours are other places, each once" % at)
 		var rec: LevelRecord = LevelRecord.new()
-		check_eq(def.price(MapInfo.Exit.DEEPER, rec), Rules.deeper_price(at.y), "%s: the deeper exit costs deeper_price" % at)
+		check_eq(def.price(MapInfo.Exit.DEEPER, rec), Rules.deeper_price(absi(at.y)), "%s: the way on costs deeper_price of its distance" % at)
 		def.pay(MapInfo.Exit.DEEPER, rec)
 		check_eq(def.price(MapInfo.Exit.DEEPER, rec), 0, "%s: once, and is then free" % at)
 		check_eq(def.price(MapInfo.Exit.LEFT, rec), 0, "%s: side exits cost no stars" % at)
 		for k: int in range(Worlds.KINDS.size()):
 			var door: int = Worlds.door(k)
-			check(def.price(door, rec) == Worlds.proto(k).entry_price(at.y), "%s: a side door costs its world's entry price" % at)
+			check(def.price(door, rec) == Worlds.proto(k).entry_price(absi(at.y)), "%s: a side door costs its world's entry price" % at)
 			def.pay(door, rec)
 			check_eq(def.price(door, rec), 0, "%s: once" % at)
+
+
+## The start's way back leads up; the first level up leads back down into it; hyperspace may cross
+## the start into the other branch.
+func _branches() -> void:
+	var start: NextWorldDef = Rules.def_for(Vector2i(28, 0))
+	var up: Dictionary = start.lead(MapInfo.Exit.BACK)
+	check(up["to"] == Vector2i(28, -1) and int(up["arrive"]) == MapInfo.Exit.BACK and up["way"] == Vector2.UP, "the start's way back leads up, arriving at the way back of the first level up")
+	var first_up: NextWorldDef = Rules.def_for(Vector2i(28, -1))
+	var home: Dictionary = first_up.lead(MapInfo.Exit.BACK)
+	check(home["to"] == Vector2i(28, 0) and int(home["arrive"]) == MapInfo.Exit.BACK and home["way"] == Vector2.DOWN, "and its way back leads down into the start, at the start's way up")
+	check(Rules.def_for(Vector2i(28, 1)).lead(MapInfo.Exit.BACK)["arrive"] == MapInfo.Exit.DEEPER, "while the first level down leads back up to the start's way down")
+	check(first_up.exit_dir(MapInfo.Exit.DEEPER) == Vector2.UP and first_up.exit_dir(MapInfo.Exit.BACK) == Vector2.DOWN and start.exit_dir(MapInfo.Exit.BACK) == Vector2.UP, "chevrons point the way each exit leads")
+	var rec: LevelRecord = LevelRecord.new()
+	check(start.price(MapInfo.Exit.BACK, rec) == Rules.deeper_price(0) and start.price(MapInfo.Exit.DEEPER, rec) == Rules.deeper_price(0), "the start's ways up and down cost the same")
+	start.pay(MapInfo.Exit.BACK, rec)
+	check(start.price(MapInfo.Exit.BACK, rec) == 0 and start.price(MapInfo.Exit.DEEPER, rec) > 0, "paying the way up leaves the way down to pay")
+	check_eq(first_up.price(MapInfo.Exit.BACK, LevelRecord.new()), 0, "a way back toward the start is free")
+	var hyper: Hyperspace = Worlds.proto(Worlds.kind_of(Hyperspace)) as Hyperspace
+	var crossed: int = 0
+	var stayed: int = 0
+	var inverse_ok: bool = true
+	for x: int in range(1, 200):
+		for row: int in [2, -2, 7, -9]:
+			var from: Vector2i = Vector2i(x, row)
+			if not hyper.deals(from):
+				continue
+			var to: Vector2i = hyper.destination_for(from)
+			inverse_ok = inverse_ok and absi(to.y) == absi(row) + Hyperspace.DROP and absi(to.x - x) <= 1
+			if signi(to.y) == signi(row):
+				stayed += 1
+			else:
+				crossed += 1
+			var back: Variant = hyper.arriving(to)
+			inverse_ok = inverse_ok and back != null and hyper.destination_for(back) == to
+	check(inverse_ok, "hyperspace leads %d rows further from the start, and the level it leads to knows a hyperspace that leads there" % Hyperspace.DROP)
+	check(crossed > 0 and stayed > crossed, "most stay in their branch, some cross the start into the other (%d stayed, %d crossed)" % [stayed, crossed])
+	check(not hyper.deals(Vector2i(28, 0)), "there is no hyperspace door at the start")
 
 
 func _relics() -> void:
@@ -182,7 +257,7 @@ func _relics() -> void:
 				found[move] = true
 	check(ok, "a level holds one of the relic moves or none, the same every time")
 	check_eq(found.size(), Relics.MOVES.size(), "every relic move is found somewhere")
-	check_eq(Relics.at(Vector2i(28, -5)), &"", "no relic in a side world")
+	check_eq(Relics.at(Worlds.side_at(0, Vector2i(28, 5))), &"", "no relic in a side world")
 
 
 func _ability_tables() -> void:

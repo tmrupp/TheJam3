@@ -23,7 +23,7 @@ func setup(info: MapInfo, _v: Vector2i) -> void:
 
 
 func depth() -> int:
-	return map_info.coord.y if map_info != null else 0
+	return map_info.here.depth if map_info != null and map_info.here != null else 0
 
 
 func used() -> bool:

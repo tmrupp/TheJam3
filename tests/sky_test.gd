@@ -55,7 +55,7 @@ func run() -> void:
 func bands() -> void:
 	print("bands")
 	var s0: int = NextWorldDef.first_depth(&"sky")
-	check(NextWorldDef.archetype_at(s0) == &"sky" and NextWorldDef.archetype_at(s0 + NextWorldDef.BAND - 1) == &"sky" and NextWorldDef.archetype_at(s0 + NextWorldDef.BAND) == &"garden", "the sky takes the third band, then the garden comes round again")
+	check(NextWorldDef.archetype_at(s0) == &"sky" and NextWorldDef.archetype_at(NextWorldDef.band_row(&"sky", NextWorldDef.BAND - 1)) == &"sky" and NextWorldDef.archetype_at(s0 + 1) == &"crags" and NextWorldDef.archetype_at(NextWorldDef.band_row(&"sky", 40)) == &"sky", "the sky is the second band up, past the crags, and goes on above")
 	var def: NextWorldDef = Rules.def_for(Vector2i(28, s0))
 	check(def.region == SkyArchetype.SAMPLE and def.realm() == &"sky" and def.chasmed(), "a sky level collapses the floating islands, prints in its realm and is gated by chasms")
 
@@ -64,7 +64,7 @@ func generation() -> void:
 	print("generation")
 	var totals: Dictionary = {"pads": 0, "puffs": 0, "drafts": 0, "shields": 0, "bounces": 0, "birds": 0}
 	var s0: int = NextWorldDef.first_depth(&"sky")
-	for at: Vector2i in [Vector2i(28, s0), Vector2i(7, s0 + 1), Vector2i(99, s0 + 2)]:
+	for at: Vector2i in [Vector2i(28, s0), Vector2i(7, NextWorldDef.band_row(&"sky", 1)), Vector2i(99, NextWorldDef.band_row(&"sky", 2))]:
 		var def: NextWorldDef = Rules.def_for(at)
 		var cells: Array = collapse(def.coord)
 		check(not cells.is_empty(), "%s collapses" % at)

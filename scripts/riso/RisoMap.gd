@@ -728,8 +728,9 @@ func _hinted_relic(info: MapInfo, c: Vector2i, w: LevelGen) -> Variant:
 	return null
 
 
-## Pairs of visited levels joined by an opened side door, a paid deeper door or an ordinary way up
-## taken from a level a side world leads into.
+## Pairs of visited levels joined by an opened side door, a paid way on (away from the start, up or
+## down), the start's paid way up, or an ordinary way back taken from a level a side world leads
+## into.
 func links(info: MapInfo) -> Array[Array]:
 	var out: Array[Array] = []
 	var known: Dictionary = {}
@@ -740,10 +741,13 @@ func links(info: MapInfo) -> Array[Array]:
 			_link(out, known, [c, c + Vector2i(1, 0)])
 		if open_sides.has(MapInfo.Exit.LEFT):
 			_link(out, known, [c + Vector2i(-1, 0), c])
+		var on: int = NextWorldDef.away(c.y)
 		if bool(rec.deeper_paid):
-			_link(out, known, [c, c + Vector2i(0, 1)])
+			_link(out, known, [c, c + Vector2i(0, on)])
+		if bool(rec.up_paid):
+			_link(out, known, [c, c + Vector2i(0, -1)])
 		if (rec.ways_taken as Dictionary).has(MapInfo.Exit.RETURN):
-			_link(out, known, [c + Vector2i(0, -1), c])
+			_link(out, known, [c - Vector2i(0, on), c])
 	return out
 
 
@@ -776,7 +780,7 @@ func tile_at(_info: MapInfo, c: Vector2i) -> Vector2:
 
 
 func _world(info: MapInfo) -> void:
-	_text("world %d  ·  deepest %d" % [info.run.run_seed, info.run.deepest], Vector2(18, 12), 10.0, false)
+	_text("world %d  ·  furthest %d" % [info.run.run_seed, info.run.deepest], Vector2(18, 12), 10.0, false)
 	_tabs()
 	var area: Rect2 = AREA.grow(-2.0)
 	var bars: Array[PackedVector2Array] = []
@@ -894,7 +898,8 @@ func _side_rows() -> Array:
 
 ## A side world on the worlds page: a smooth curve out of the middle of the bottom of the level it
 ## is entered from and into the middle of the top of the one its way on leads to, leaving and
-## arriving straight down so it reads as poured from one into the other. In between it bows out
+## arriving straight down so it reads as poured from one into the other (out of the top and into
+## the bottom, rising, when it leads up). In between it bows out
 ## of the straight line through a point in the gutter between columns, so it runs past the levels
 ## it skips rather than over them (away from the far level's column when it drifts). A dead end
 ## hangs a short way under its level.
@@ -904,17 +909,19 @@ func side_curve(info: MapInfo, c: Vector2i) -> PackedVector2Array:
 	var to: Vector2i = place.destination()
 	# The ends tuck half a unit under the tiles, so no paper shows between.
 	var a: Vector2 = tile_at(info, from) + Vector2(0, TILE.y * 0.5 - 0.5)
-	if to.y <= from.y:
+	if place.dead_end():
 		return _bezier(a, a + Vector2(0, 4), a + Vector2(0, 8), a + Vector2(0, PITCH.y - TILE.y + 6.0))
-	var b: Vector2 = tile_at(info, to) - Vector2(0, TILE.y * 0.5 - 0.5)
+	var rise: float = 1.0 if to.y > from.y else -1.0
+	a = tile_at(info, from) + Vector2(0, (TILE.y * 0.5 - 0.5) * rise)
+	var b: Vector2 = tile_at(info, to) - Vector2(0, (TILE.y * 0.5 - 0.5) * rise)
 	var drift: int = to.x - from.x
 	var side: float = -float(drift) if drift != 0 else (1.0 if posmod(c.x, 2) == 0 else -1.0)
 	var d: Vector2 = b - a
 	var heading: Vector2 = d.normalized()
 	var mid: Vector2 = (a + b) * 0.5 + heading.orthogonal() * side * (PITCH.x * 0.5 if drift == 0 else PITCH.x * 0.3)
 	var reach: float = d.length()
-	var first: PackedVector2Array = _bezier(a, a + Vector2(0, reach * 0.3), mid - heading * reach * 0.22, mid, 16)
-	var second: PackedVector2Array = _bezier(mid, mid + heading * reach * 0.22, b - Vector2(0, reach * 0.3), b, 16)
+	var first: PackedVector2Array = _bezier(a, a + Vector2(0, reach * 0.3 * rise), mid - heading * reach * 0.22, mid, 16)
+	var second: PackedVector2Array = _bezier(mid, mid + heading * reach * 0.22, b - Vector2(0, reach * 0.3 * rise), b, 16)
 	first.remove_at(first.size() - 1)
 	first.append_array(second)
 	return first

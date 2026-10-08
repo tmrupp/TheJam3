@@ -1091,7 +1091,7 @@ func _build_travel(box: VBoxContainer) -> void:
 	box.add_child(_travel_box)
 	var rows: VBoxContainer = _section(_travel_box, "Travel (debug)", true)
 	_travel_world_label = _stepper_row(rows, "World", func(d: int) -> void: _travel_at.x += d)
-	_travel_depth_label = _stepper_row(rows, "Depth", func(d: int) -> void: _travel_at.y = maxi(0, _travel_at.y + d))
+	_travel_depth_label = _stepper_row(rows, "Row", func(d: int) -> void: _travel_at.y += d)
 	var row: HBoxContainer = HBoxContainer.new()
 	rows.add_child(row)
 	_button(row, "Go", func() -> void: _travel(_travel_at))
@@ -1099,7 +1099,7 @@ func _build_travel(box: VBoxContainer) -> void:
 		_button(row, String(a).capitalize(), func() -> void: _travel(Vector2i(_travel_at.x, _nearest_band(a, _travel_at.y))))
 	for k: int in range(Worlds.KINDS.size()):
 		var kind: int = k
-		_button(row, Worlds.proto(k).name.capitalize(), func() -> void: _travel(Worlds.side_at(kind, Vector2i(_travel_at.x, maxi(1, _travel_at.y)))))
+		_button(row, Worlds.proto(k).name.capitalize(), func() -> void: _travel(Worlds.side_at(kind, Vector2i(_travel_at.x, _travel_at.y if _travel_at.y != 0 else 1))))
 
 
 ## A row: its name, a "-" button, the value, a "+" button; `on_step` gets -1 or +1.
@@ -1133,19 +1133,20 @@ func _button(row: HBoxContainer, text: String, on_press: Callable) -> Button:
 	return b
 
 
-## The depth nearest `from` (the shallower on a tie) whose levels are of archetype `a`.
+## The row nearest `from` (the higher on a tie) whose levels are of archetype `a`, either side of
+## the start.
 static func _nearest_band(a: StringName, from: int) -> int:
 	for d: int in range(0, 1000):
-		for depth: int in [from - d, from + d]:
-			if depth >= 0 and NextWorldDef.archetype_at(depth) == a:
-				return depth
+		for row: int in [from - d, from + d]:
+			if NextWorldDef.archetype_at(row) == a:
+				return row
 	return from
 
 
 func _travel_reset() -> void:
 	if _map_info != null and is_instance_valid(_map_info):
 		var at: Vector2i = _map_info.coord
-		_travel_at = Vector2i(at.x, maxi(0, at.y))
+		_travel_at = Worlds.origin_of(at) if Worlds.is_side(at) else at
 
 
 ## Close the panel (and its pause) and go.

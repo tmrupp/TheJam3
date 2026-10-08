@@ -35,13 +35,13 @@ func _draw_art() -> void:
 	ink.ink(RisoPrint.BLUE, 0.18, [board], false)
 	var middle: float = g + BOARD.position.y + BOARD.size.y * 0.5
 	RisoMarks.world_glyph(ink, Vector2(-BOARD_MARK - 3.0, middle), BOARD_MARK, RisoPrint.NIGHT, 0.85)
-	RisoMarks.depth_glyph(ink, Vector2(BOARD_MARK + 3.0, middle), BOARD_MARK, RisoPrint.NIGHT, 0.85)
+	var info: MapInfo = MapInfo.instance
+	RisoMarks.depth_glyph(ink, Vector2(BOARD_MARK + 3.0, middle), BOARD_MARK, RisoPrint.NIGHT, 0.85, info != null and info.coord.y < 0)
 	open = move_toward(open, 1.0 if signpost.reading else 0.0, _dt * 5.0)
 	if open < 0.02:
 		return
 	var p: float = open - 1.0
 	var s: float = 1.0 + 2.7 * p * p * p + 1.7 * p * p
-	var info: MapInfo = MapInfo.instance
 	var player: Player = Stage.player()
 	if info == null or player == null:
 		return
@@ -53,7 +53,7 @@ func _draw_art() -> void:
 ## Place `at` on a plaque centred on `centre`: its marks and its two numbers.
 func _place(at: Vector2i, centre: Vector2, s: float) -> void:
 	var n: Vector3i = Rules.place_numbers(at)
-	var texts: PackedStringArray = PackedStringArray([str(n.x), str(n.y)])
+	var texts: PackedStringArray = PackedStringArray([str(n.x), str(absi(n.y))])
 	var font: Font = RisoTheme.serif()
 	var widths: Vector2 = Vector2(font.get_string_size(texts[0], HORIZONTAL_ALIGNMENT_LEFT, -1, NUMBER_PX).x,
 			font.get_string_size(texts[1], HORIZONTAL_ALIGNMENT_LEFT, -1, NUMBER_PX).x) * s
@@ -65,7 +65,7 @@ func _place(at: Vector2i, centre: Vector2, s: float) -> void:
 	var u: InkCanvas = _ui()
 	u.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE], [plate])
 	u.ink(RisoPrint.BLUE, 0.2, [plate], false)
-	var xs: Vector2 = RisoMarks.place_marks(u, Vector2(centre.x - w * 0.5, centre.y), r, widths, side)
+	var xs: Vector2 = RisoMarks.place_marks(u, Vector2(centre.x - w * 0.5, centre.y), r, widths, side, n.y < 0)
 	_text(texts[0], Vector2(xs.x + widths.x * 0.5, centre.y), NUMBER_PX, s)
 	_text(texts[1], Vector2(xs.y + widths.y * 0.5, centre.y), NUMBER_PX, s)
 

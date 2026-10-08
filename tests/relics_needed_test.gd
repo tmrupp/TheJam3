@@ -39,11 +39,11 @@ func run() -> void:
 	var s0: int = NextWorldDef.first_depth(&"sky")
 	for at: Vector2i in [Vector2i(1, c0), Vector2i(7, c0), Vector2i(28, c0 + 1), Vector2i(99, c0 + 1),
 			Vector2i(1, c0 + 5), Vector2i(7, c0 + 5), Vector2i(28, c0 + 4), Vector2i(99, c0 + 4),
-			Vector2i(28, s0), Vector2i(7, s0 + 3)]:
+			Vector2i(28, s0), Vector2i(7, NextWorldDef.band_row(&"sky", 3))]:
 		var def: NextWorldDef = Rules.def_for(at)
 		var cells: Array = wfc.call("generate_level", def)
 		var w: LevelGen = LevelGen.new(cells, def)
-		var tally: Array[int] = shallow if at.y <= c0 + 1 else deep
+		var tally: Array[int] = shallow if absi(at.y) <= c0 + 1 else deep
 		tally[0] += w.relic_chasms.size()
 		tally[1] += w.chasms.size()
 		for id: int in w.relic_chasms:

@@ -40,18 +40,19 @@ func run() -> void:
 
 
 func bands() -> void:
-	print("archetypes by depth")
+	print("archetypes by row")
 	var b: int = NextWorldDef.BAND
+	var g: int = NextWorldDef.GARDEN_ROWS
 	var kinds: Array[StringName] = []
-	for d: int in [0, b - 1, b, 2 * b - 1, 2 * b, 3 * b - 1, 3 * b]:
+	for d: int in [0, g, g + 1, g + b, g + b + 1]:
 		kinds.append(NextWorldDef.archetype_at(d))
-	check(b == 6 and kinds == [&"garden", &"garden", &"cemetery", &"cemetery", &"sky", &"sky", &"garden"], "garden, then cemetery, then sky, a band of %d each, then round again: %s" % [b, kinds])
-	check(NextWorldDef.first_depth(&"cemetery") == b and NextWorldDef.first_depth(&"sky") == 2 * b, "each band's first depth")
+	check(kinds == [&"garden", &"garden", &"cemetery", &"cemetery", &"catacombs"], "down from the start: the garden, then the cemetery for %d rows, then the catacombs: %s" % [b, kinds])
+	check(NextWorldDef.first_depth(&"cemetery") == g + 1, "the cemetery's first row")
 	var def: NextWorldDef = Rules.def_for(Vector2i(28, NextWorldDef.first_depth(&"cemetery") + 1))
 	check(def.region == CemeteryArchetype.SAMPLE and def.symmetry == 1 and def.realm() == &"cemetery", "a cemetery collapses the graveyard sample, unturned, and prints in its realm")
 	var garden: NextWorldDef = Rules.def_for(Vector2i(28, 1))
 	check(garden.region == GardenArchetype.SAMPLE and garden.realm() == &"garden" and not garden.title().contains("cemetery"), "a garden level has its own terrain and realm")
-	check(Worlds.def_for(Vector2i(28, 3 * NextWorldDef.BAND)).region == GardenArchetype.SAMPLE and GardenArchetype.SAMPLE != SkyArchetype.SAMPLE, "garden bands come round again with the tunnels (the islands are the sky's)")
+	check(Worlds.def_for(Vector2i(28, -1)).region == GardenArchetype.SAMPLE and GardenArchetype.SAMPLE != SkyArchetype.SAMPLE, "the garden above the start has the tunnels too (the islands are the sky's)")
 	var side: NextWorldDef = Rules.def_for(Worlds.side_at(0, Vector2i(28, NextWorldDef.first_depth(&"cemetery") + 1)))
 	check(side.archetype == &"" and side.arch == null, "a side world under a cemetery is not one")
 
@@ -128,6 +129,8 @@ func bridges() -> void:
 	var bell: Node = bells[0]
 	var id: int = int(bell.get("chasm"))
 	var planks: Array[Node] = placed("bridge.tscn", true).filter(func(n: Node) -> bool: return int(n.get("chasm")) == id)
+	# Left to right, so the first plank is at the near (left) shore and the last at the far one.
+	planks.sort_custom(func(a: Node, b: Node) -> bool: return (a as Node2D).global_position.x < (b as Node2D).global_position.x)
 	check(not planks.is_empty() and planks.all(func(n: Node) -> bool: return not bool(n.call("up")) and bool((n.get_node("CollisionShape2D") as CollisionShape2D).disabled)), "before the bell is rung, nothing stands over the chasm")
 	# Stand the wizard over the chasm: they fall.
 	var over: Vector2 = (planks[planks.size() / 2] as Node2D).global_position + Vector2(0, -130)
@@ -140,7 +143,22 @@ func bridges() -> void:
 	check(player.global_position.y > over.y + 160.0, "the wizard falls into it")
 	player.set_physics_process(false)
 	# A run up, a jump at the edge and a dash: still short of the far side.
-	var shore: Vector2 = info.cell_position(info.cell_at((planks[0] as Node2D).global_position) + Vector2i(-3, -1))
+	# From the furthest open floor within three cells of the near edge (two to four are kept), and
+	# the jump right at the edge.
+	var first_plank: Vector2i = info.cell_at((planks[0] as Node2D).global_position)
+	var start: Vector2i = first_plank + Vector2i(-1, -1)
+	for back: int in range(2, 4):
+		var v: Vector2i = first_plank + Vector2i(-back, -1)
+		if info.world.get_cell(v).type == LevelGen.Type.GROUND or not info.world.is_ground(v + Vector2i.DOWN):
+			break
+		start = v
+	var shore: Vector2 = info.cell_position(start)
+	var edge: float = info.cell_position(first_plank).x - 64.0
+	# Only the chasm is being measured: an enemy standing on the run-up (they are solid to the
+	# wizard) is taken away first.
+	for n: Node in info.map_elements.get_children():
+		if n.has_node("Wound") and absf((n as Node2D).global_position.y - shore.y) < 200.0 and (n as Node2D).global_position.x > shore.x - 64.0 and (n as Node2D).global_position.x < edge + 1600.0:
+			n.free()
 	var far: float = info.cell_position(info.cell_at((planks[planks.size() - 1] as Node2D).global_position) + Vector2i(1, -1)).x
 	player.global_position = shore
 	player.velocity = Vector2.ZERO
@@ -155,7 +173,7 @@ func bridges() -> void:
 	var reached: bool = false
 	for i: int in range(120):
 		await physics_frame
-		if not jumped and player.global_position.x > shore.x + 300.0:
+		if not jumped and player.global_position.x > edge - 40.0:
 			jumped = true
 			var jump: InputEventAction = InputEventAction.new()
 			jump.action = &"Jump"

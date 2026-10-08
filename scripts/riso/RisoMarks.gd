@@ -29,12 +29,14 @@ static func world_glyph(ink: InkCanvas, at: Vector2, r: float, plate: int = Riso
 	ink.knock([plate], bands)
 
 
-## Depth: a thick arrow pointing down.
-static func depth_glyph(ink: InkCanvas, at: Vector2, r: float, plate: int = RisoPrint.NIGHT, cover: float = 1.0) -> void:
-	ink.ink(plate, cover, [PackedVector2Array([
-		at + Vector2(-r * 0.36, -r), at + Vector2(r * 0.36, -r), at + Vector2(r * 0.36, 0.0), at + Vector2(r * 0.9, 0.0),
-		at + Vector2(0.0, r), at + Vector2(-r * 0.9, 0.0), at + Vector2(-r * 0.36, 0.0),
-	])], false)
+## Depth: a thick arrow pointing down, or, for a height above the start (`up`), pointing up.
+static func depth_glyph(ink: InkCanvas, at: Vector2, r: float, plate: int = RisoPrint.NIGHT, cover: float = 1.0, up: bool = false) -> void:
+	var flip: float = -1.0 if up else 1.0
+	var arrow: PackedVector2Array = PackedVector2Array()
+	for p: Vector2 in [Vector2(-r * 0.36, -r), Vector2(r * 0.36, -r), Vector2(r * 0.36, 0.0), Vector2(r * 0.9, 0.0),
+			Vector2(0.0, r), Vector2(-r * 0.9, 0.0), Vector2(-r * 0.36, 0.0)]:
+		arrow.append(at + Vector2(p.x, p.y * flip))
+	ink.ink(plate, cover, [arrow], false)
 
 
 ## A side world: an upright portal, its middle bare paper.
@@ -51,13 +53,14 @@ static func place_width(r: float, widths: Vector2, side: bool) -> float:
 
 
 ## Print a place's marks from `left`, centred on its y, for numbers `widths` wide; returns where
-## the two numbers start (x of the world's, x of the depth's), for the caller's text.
-static func place_marks(ink: InkCanvas, left: Vector2, r: float, widths: Vector2, side: bool, plate: int = RisoPrint.NIGHT, cover: float = 1.0) -> Vector2:
+## the two numbers start (x of the world's, x of the depth's), for the caller's text. `up` turns
+## the depth mark up, for a height above the start (Rules.place_numbers: a negative row).
+static func place_marks(ink: InkCanvas, left: Vector2, r: float, widths: Vector2, side: bool, up: bool = false, plate: int = RisoPrint.NIGHT, cover: float = 1.0) -> Vector2:
 	var x: float = left.x
 	world_glyph(ink, Vector2(x + r, left.y), r, plate, cover)
 	var world_x: float = x + r * 2.0 + r * PLACE_GAP
 	x = world_x + widths.x + r * PLACE_SPACE
-	depth_glyph(ink, Vector2(x + r, left.y), r, plate, cover)
+	depth_glyph(ink, Vector2(x + r, left.y), r, plate, cover, up)
 	var depth_x: float = x + r * 2.0 + r * PLACE_GAP
 	if side:
 		side_glyph(ink, Vector2(depth_x + widths.y + r * PLACE_SPACE + r * 0.6, left.y), r, plate, cover)

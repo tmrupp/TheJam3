@@ -35,22 +35,26 @@ static func footholds(w: LevelGen) -> Dictionary:
 
 
 ## Spread the reach from `queue` hop by hop over every foothold and moon; `far["i"]` keeps the
-## furthest cell of `along` (a way through: cell to index) the wizard gets to.
-static func grow(w: LevelGen, nodes: Dictionary, reach: Dictionary, queue: Array[Vector2i], along: Dictionary = {}, far: Dictionary = {}, across: int = ACROSS) -> void:
+## furthest cell of `along` (a way through: cell to index) the wizard gets to. Hops climb up to
+## `up` rows (UP for the wizard's own; more for a relic's, see Climb) and fall any way down, or at
+## most `down` rows when that is not negative (a climb has little use for long falls, and they are
+## the slow part in a big open level).
+static func grow(w: LevelGen, nodes: Dictionary, reach: Dictionary, queue: Array[Vector2i], along: Dictionary = {}, far: Dictionary = {}, across: int = ACROSS, up: int = UP, down: int = -1) -> void:
 	var track: bool = not along.is_empty()
 	while not queue.is_empty():
 		var a: Vector2i = queue.pop_back()
 		var moon: bool = nodes.get(a, false)
 		if track and int(along.get(a, -1)) > int(far["i"]):
 			far["i"] = along[a]
-		for y: int in range(maxi(0, a.y - (MOON_UP if moon else UP)), w.size.y):
+		var bottom: int = w.size.y if down < 0 else mini(w.size.y, a.y + down + 1)
+		for y: int in range(maxi(0, a.y - maxi(MOON_UP if moon else 0, up)), bottom):
 			@warning_ignore("integer_division")
 			var span: int = across + maxi(0, y - a.y) / 2
 			for x: int in range(maxi(0, a.x - span), mini(w.size.x, a.x + span + 1)):
 				var b: Vector2i = Vector2i(x, y)
 				var node: bool = nodes.has(b) and not reach.has(b)
 				var onward: bool = track and int(along.get(b, -1)) > int(far["i"])
-				if (node or onward) and hop(w, a, b, moon, across):
+				if (node or onward) and hop(w, a, b, moon, across, up):
 					if node:
 						reach[b] = true
 						queue.append(b)
@@ -98,11 +102,12 @@ static func reached_from(w: LevelGen, sources: Array[Vector2i], targets: Array[V
 	return false
 
 
-## One hop from `a` to `b`: in reach, and over clear air (up from `a`, across, down to `b`, either
-## clearing a cell over the higher end or, in a low passage, level with it).
-static func hop(w: LevelGen, a: Vector2i, b: Vector2i, from_moon: bool, across: int = ACROSS) -> bool:
+## One hop from `a` to `b`: in reach (up to `up` rows up, or MOON_UP from a moon), and over clear
+## air (up from `a`, across, down to `b`, either clearing a cell over the higher end or, in a low
+## passage, level with it).
+static func hop(w: LevelGen, a: Vector2i, b: Vector2i, from_moon: bool, across: int = ACROSS, up: int = UP) -> bool:
 	var rise: int = a.y - b.y
-	if rise > (MOON_UP if from_moon else UP):
+	if rise > maxi(MOON_UP if from_moon else 0, up):
 		return false
 	@warning_ignore("integer_division")
 	if absi(b.x - a.x) > across + maxi(0, -rise) / 2:

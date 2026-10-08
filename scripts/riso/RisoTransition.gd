@@ -148,7 +148,12 @@ func _draw_sheet() -> void:
 	for i: int in range(steps + 1):
 		var w: float = -OVERSCAN + (across + 2.0 * OVERSCAN) * float(i) / float(steps)
 		var ragged: float = (RisoShapes.hash1(float(i) * 3.7 + 1.3) - 0.5) * EDGE * length + sin(w * 0.09 + t * 3.0) * 2.0
-		front.append(to_view.call(clampf(lead * length + ragged, -4.0, length + 40.0), w))
+		var reach: float = lead * length + ragged
+		# Fully over the view, the ragged front runs well past its far edge, so no sliver of the
+		# old place shows there, whatever the plates' misregistration or the camera's last nudge.
+		if lead >= 1.0:
+			reach = maxf(reach, length + OVERSCAN)
+		front.append(to_view.call(clampf(reach, -4.0, length + 40.0), w))
 		var tail: float = -40.0 if trail <= 0.0 else trail * length + (RisoShapes.hash1(float(i) * 5.1 + 7.7) - 0.5) * EDGE * length
 		back.append(to_view.call(clampf(tail, -40.0, length + 40.0), w))
 	back.reverse()
@@ -159,14 +164,14 @@ func _draw_sheet() -> void:
 	# Where you are going, once the sheet has the middle of the view.
 	if state == State.COVERED or (state == State.COVERING and lead > 0.7) or (state == State.REVEALING and trail < 0.3):
 		var n: Vector3i = Rules.place_numbers(destination)
-		var texts: PackedStringArray = PackedStringArray([str(n.x), str(n.y)])
+		var texts: PackedStringArray = PackedStringArray([str(n.x), str(absi(n.y))])
 		var widths: Vector2 = Vector2(_width(texts[0]), _width(texts[1]))
 		var side: bool = Worlds.is_side(destination)
 		var w: float = RisoMarks.place_width(PLACE_R, widths, side)
 		var plate: PackedVector2Array = RisoShapes.rrect(160.0 - w * 0.5 - 9.0, 81.0, w + 18.0, 18.0, 6.0)
 		ink.knock(KNOCK_ALL, [plate])
 		ink.ink(RisoPrint.BLUE, 0.12, [plate], false)
-		var xs: Vector2 = RisoMarks.place_marks(ink, Vector2(160.0 - w * 0.5, 90.0), PLACE_R, widths, side)
+		var xs: Vector2 = RisoMarks.place_marks(ink, Vector2(160.0 - w * 0.5, 90.0), PLACE_R, widths, side, n.y < 0)
 		for k: int in range(2):
 			var label: Label = world_label if k == 0 else depth_label
 			label.visible = true

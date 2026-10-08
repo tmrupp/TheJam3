@@ -66,11 +66,15 @@ func run() -> void:
 	print("dressed kinds: ", kinds.keys())
 	var lift: Node2D = null
 	for node: Node in info.map_elements.get_children():
-		if node.scene_file_path == "res://prefabs/moving_platform.tscn":
+		# One that runs: a lift parked for its switch (MovingPlatform.waiting) holds still.
+		if node.scene_file_path == "res://prefabs/moving_platform.tscn" and not (node as MovingPlatform).waiting:
 			lift = node as Node2D
 			break
 	check(lift != null, "moving platforms generated")
 	if lift != null:
+		# Awake where it is (far chunks sleep), so its motion can be seen.
+		info.loader.wake_around(lift.global_position)
+		await physics_frame
 		var was: Vector2 = lift.global_position
 		for i: int in range(10):
 			await physics_frame

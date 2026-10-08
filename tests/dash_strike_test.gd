@@ -13,15 +13,23 @@ func open_cell(v: Vector2i) -> bool:
 	return info.world.is_valid(v) and info.world.get_cell(v).type == LevelGen.Type.EMPTY
 
 
-## A wisp with two open cells beside it on one side, and that side.
+## A wisp, moved onto open floor with room to dash through it (two open cells either side of it,
+## over ground), and the side to dash from; [] if there is no such floor or wisp. Moved rather than
+## found in place, so the test never depends on where a level happens to put its wisps.
 func target(skip: Array[Node] = []) -> Array:
+	var w: LevelGen = info.world
+	var spot: Variant = null
+	for v: Vector2i in w.free_floors():
+		if open_cell(v + Vector2i.LEFT) and open_cell(v + Vector2i.LEFT * 2) and open_cell(v + Vector2i.RIGHT) and open_cell(v + Vector2i.RIGHT * 2) 				and w.is_ground(v + Vector2i.LEFT + Vector2i.DOWN) and w.is_ground(v + Vector2i.RIGHT + Vector2i.DOWN):
+			spot = v
+			break
+	if spot == null:
+		return []
 	for e: Node in placed("mover_enemy.tscn"):
 		if e in skip:
 			continue
-		var c: Vector2i = e.get_meta(&"cell")
-		for side: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT]:
-			if open_cell(c + side) and open_cell(c + side * 2):
-				return [e, Vector2(side)]
+		(e as Node2D).global_position = info.cell_position(spot)
+		return [e, Vector2.RIGHT]
 	return []
 
 

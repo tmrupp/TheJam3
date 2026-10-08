@@ -8,12 +8,14 @@ extends RefCounted
 
 ## Where the run is saved. Tests point this elsewhere so they never touch a player's save.
 static var save_path: String = "user://deeper_run.save"
-const SAVE_VERSION: int = 2
+const SAVE_VERSION: int = 3
 
-## The seed this run started on (coord.x drifts as the player moves sideways) and the deepest
-## depth reached.
+## The seed this run started on (coord.x drifts as the player moves sideways), the furthest from
+## the start it has been (in rows, either way), and the row where it got that far (negative above
+## the start).
 var run_seed: int = 0
 var deepest: int = 0
+var furthest_row: int = 0
 ## What changed in each visited place (coord -> LevelRecord).
 var records: Dictionary = {}
 ## The last lantern lit, which may be in another level.
@@ -39,6 +41,7 @@ var relic_hints: Dictionary = {}
 func start(seed_value: int) -> void:
 	run_seed = seed_value
 	deepest = 0
+	furthest_row = 0
 	records.clear()
 	rift_link.clear()
 	relics_found.clear()
@@ -59,9 +62,13 @@ func visited(at: Vector2i) -> LevelRecord:
 	return records.get(at)
 
 
-## The deepest depth reached, counting `at`.
+## The furthest from the start reached, counting level `at` (side worlds count as the level they
+## hang off).
 func reached(at: Vector2i) -> void:
-	deepest = maxi(deepest, at.y)
+	var row: int = Worlds.origin_of(at).y if Worlds.is_side(at) else at.y
+	if absi(row) > deepest:
+		deepest = absi(row)
+		furthest_row = row
 
 
 ## The lantern at `cell` in `at` burned out: it protects no more.
@@ -117,7 +124,7 @@ func to_save(coord: Vector2i, player: Dictionary) -> Dictionary:
 	for c: Vector2i in records:
 		recs[c] = (records[c] as LevelRecord).to_dict()
 	var data: Dictionary = {
-		"version": SAVE_VERSION, "run_seed": run_seed, "deepest": deepest, "coord": coord, "records": recs,
+		"version": SAVE_VERSION, "run_seed": run_seed, "deepest": deepest, "furthest_row": furthest_row, "coord": coord, "records": recs,
 		"respawn_coord": respawn_coord, "respawn_cell": respawn_cell,
 		"vulnerable": vulnerable,
 		"has_ghost": has_ghost, "ghost_coord": ghost_coord, "ghost_pos": ghost_pos, "ghost_stars": ghost_stars,
@@ -133,6 +140,7 @@ func from_save(data: Dictionary) -> void:
 	MapInfo.debug = bool(data.get("debug", false))
 	run_seed = int(data["run_seed"])
 	deepest = int(data["deepest"])
+	furthest_row = int(data.get("furthest_row", deepest))
 	records = {}
 	var recs: Dictionary = data["records"]
 	for c: Vector2i in recs:
@@ -159,7 +167,8 @@ static func write_save(data: Dictionary) -> void:
 		file.store_var(data)
 
 
-## The saved run, or {} when there is none (or it is from an older version).
+## The saved run, or {} when there is none (or it is from a version too old to read). A version-2
+## save is brought up to date (from_v2).
 static func read_save() -> Dictionary:
 	if not FileAccess.file_exists(save_path):
 		return {}
@@ -167,9 +176,36 @@ static func read_save() -> Dictionary:
 	if file == null:
 		return {}
 	var data: Variant = file.get_var()
-	if not (data is Dictionary) or int((data as Dictionary).get("version", 0)) != SAVE_VERSION:
+	if not (data is Dictionary):
+		return {}
+	var version: int = int((data as Dictionary).get("version", 0))
+	if version == 2:
+		return from_v2(data)
+	if version != SAVE_VERSION:
 		return {}
 	return data
+
+
+## A version-2 save brought up to version 3: side worlds moved to make room for the rows above the
+## start (Worlds.from_v2), so every place it names (the records, where the wizard is, the lantern,
+## the ghost, the rift's ends) moves with them. Levels keep their places.
+static func from_v2(data: Dictionary) -> Dictionary:
+	var out: Dictionary = data.duplicate(true)
+	var recs: Dictionary = {}
+	var old: Dictionary = data["records"]
+	for c: Vector2i in old:
+		recs[Worlds.from_v2(c)] = old[c]
+	out["records"] = recs
+	for key: String in ["coord", "respawn_coord", "ghost_coord"]:
+		if out.has(key):
+			out[key] = Worlds.from_v2(out[key])
+	var link: Array = []
+	for end: Array in (data.get("rift_link", []) as Array):
+		link.append([Worlds.from_v2(end[0]), end[1]])
+	out["rift_link"] = link
+	out["furthest_row"] = int(data.get("deepest", 0))
+	out["version"] = SAVE_VERSION
+	return out
 
 
 static func delete_save() -> void:

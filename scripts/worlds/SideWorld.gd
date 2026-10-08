@@ -115,8 +115,8 @@ func title() -> String:
 
 
 func exit_dir(exit: int) -> Vector2:
-	if exit == MapInfo.Exit.DEEPER and destination().y > origin().y:
-		return Vector2.DOWN
+	if exit == MapInfo.Exit.DEEPER and destination().y != origin().y:
+		return Vector2.DOWN if destination().y > origin().y else Vector2.UP
 	return -way if exit == MapInfo.Exit.BACK else way
 
 

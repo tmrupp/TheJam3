@@ -34,7 +34,7 @@ func swap() -> bool:
 func price() -> int:
 	if map_info == null or not map_info.record().relic_left.is_empty():
 		return 0
-	return Relics.price(map_info.coord.y)
+	return Relics.price(map_info.here.depth)
 
 
 func take() -> void:

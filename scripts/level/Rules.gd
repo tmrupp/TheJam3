@@ -52,7 +52,7 @@ static func cluster_value (depth: int) -> int:
 ## Whether a secret room in the level at `at` holds a skeleton key: SKELETON_CHANCE % of levels
 ## from depth 1, dealt by the level seed.
 static func skeleton_at (at: Vector2i) -> bool:
-	if at.y < 1:
+	if absi(at.y) < 1:
 		return false
 	return level_seed(level_seed(at.x, at.y), 4711) % 100 < SKELETON_CHANCE
 
@@ -70,7 +70,7 @@ static func relic_need (depth: int) -> int:
 ## whether its relic, if it has one, waits behind a bone gate (RELIC_GATE_CHANCE %); both dealt by
 ## the level seed.
 static func bone_vault_at (at: Vector2i) -> bool:
-	return at.y >= 1 and level_seed(level_seed(at.x, at.y), 4811) % 100 < BONE_VAULT_CHANCE
+	return absi(at.y) >= 1 and level_seed(level_seed(at.x, at.y), 4811) % 100 < BONE_VAULT_CHANCE
 
 static func relic_gated_at (at: Vector2i) -> bool:
 	return level_seed(level_seed(at.x, at.y), 4911) % 100 < RELIC_GATE_CHANCE
@@ -106,8 +106,8 @@ static func where (at: Vector2i) -> String:
 	return def_for(at).title()
 
 ## A place as numbers, for printing without words (RisoMarks.place_marks): its world (the seed),
-## its depth (a side world's is that of the level it hangs off) and its side world's kind (-1 for
-## a level).
+## its row (negative above the start, printed as a height with the depth mark turned up; a side
+## world's is that of the level it hangs off) and its side world's kind (-1 for a level).
 static func place_numbers (at: Vector2i) -> Vector3i:
 	if Worlds.is_side(at):
 		return Vector3i(at.x, Worlds.origin_of(at).y, Worlds.kind_at(at))

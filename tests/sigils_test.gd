@@ -30,7 +30,7 @@ func run() -> void:
 	var lifts: int = 0
 	var crowded: int = 0
 	for world_seed: int in [1, 7, 28, 99]:
-		for depth: int in [0, NextWorldDef.first_depth(&"cemetery"), NextWorldDef.first_depth(&"sky"), NextWorldDef.first_depth(&"sky") + 3]:
+		for depth: int in [0, NextWorldDef.first_depth(&"cemetery"), NextWorldDef.first_depth(&"sky"), NextWorldDef.band_row(&"sky", 3)]:
 			var at: Vector2i = Vector2i(world_seed, depth)
 			var w: LevelGen = build(at)
 			var portal_kinds: Array[int] = []

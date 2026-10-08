@@ -14,7 +14,7 @@ func run() -> void:
 	for world_seed: int in [1, 7, 28, 99]:
 		# Garden levels: a cemetery's open terraces and the sky's islands have hardly any corridors
 		# for gates.
-		for depth: int in [0, 1, NextWorldDef.BAND - 1]:
+		for depth: int in [0, 1, NextWorldDef.GARDEN_ROWS, -NextWorldDef.GARDEN_ROWS]:
 			var def: NextWorldDef = Rules.def_for(Vector2i(world_seed, depth))
 			var w: LevelGen = LevelGen.new(collapse(def.coord), def)
 			levels += 1
@@ -97,7 +97,8 @@ func run() -> void:
 	bolt.set_script(preload("res://scripts/HexBolt.gd"))
 	bolt.set("dir", Vector2.RIGHT)
 	info.map_elements.add_child(bolt)
-	bolt.global_position = other.global_position + Vector2(-120, -20)
+	# Fired from just beside it, so no rock the level happens to put nearby is in the way.
+	bolt.global_position = other.global_position + Vector2(-40, -20)
 	await until(func() -> bool: return bool(other.call("thrown")))
 	check(bool(other.call("thrown")), "a hex bolt throws a switch")
 

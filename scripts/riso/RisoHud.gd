@@ -130,7 +130,7 @@ func _edge(dir: Vector2, still: bool = false) -> Vector2:
 ## The numbers of place `at`, as text for its two labels.
 func _place_texts(at: Vector2i) -> PackedStringArray:
 	var n: Vector3i = Rules.place_numbers(at)
-	return PackedStringArray([str(n.x), str(n.y)])
+	return PackedStringArray([str(n.x), str(absi(n.y))])
 
 
 ## How wide place `at` prints with marks of half height `r`, its numbers in `labels`' size.
@@ -144,7 +144,7 @@ func _place_w(at: Vector2i, r: float, labels: Array[Label]) -> float:
 func _place_row(at: Vector2i, left: Vector2, r: float, labels: Array[Label], h: float = CARD_H) -> void:
 	var texts: PackedStringArray = _place_texts(at)
 	var widths: Vector2 = Vector2(_text_width(labels[0], texts[0]), _text_width(labels[1], texts[1]))
-	var xs: Vector2 = RisoMarks.place_marks(ink, left, r, widths, Worlds.is_side(at))
+	var xs: Vector2 = RisoMarks.place_marks(ink, left, r, widths, Worlds.is_side(at), Rules.place_numbers(at).y < 0)
 	_place(labels[0], texts[0], xs.x, left.y, h)
 	_place(labels[1], texts[1], xs.y, left.y, h)
 
@@ -191,13 +191,13 @@ func _process(delta: float) -> void:
 
 
 ## When a run ends, a card in the middle of the sheet: the ghost, and under it the world and the
-## deepest depth reached.
+## furthest from the start reached (a depth, or a height above the start).
 func _end_card() -> void:
 	var info: MapInfo = MapInfo.instance
 	if info != null and info.run_ending > 0.0:
 		_paper(RisoShapes.rrect(110, 54, 100, 62, 10), RisoPrint.PINK, 0.18)
 		ink.ink(RisoPrint.GLOW, 1.0, RisoMarks.ghost_shape(Transform2D(0.0, Vector2(0.5, 0.5), 0.0, Vector2(160, 84))), false)
-		var at: Vector2i = Vector2i(info.run.run_seed, info.run.deepest)
+		var at: Vector2i = Vector2i(info.run.run_seed, info.run.furthest_row)
 		var labels: Array[Label] = [end_world, end_depth]
 		_place_row(at, Vector2(160.0 - _place_w(at, END_PLACE_R, labels) * 0.5, 104.0), END_PLACE_R, labels, 14.0)
 

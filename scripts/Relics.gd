@@ -31,22 +31,24 @@ static func chance(depth: int) -> int:
 
 ## The move the relic in level `at` holds, or &"" for a level without one.
 static func at(at: Vector2i) -> StringName:
-	if at.y < 0:
+	if Worlds.is_side(at):
 		return &""
 	var h: int = Rules.level_seed(Rules.level_seed(at.x, at.y), 4242)
-	if not MapInfo.debug and (at.y < MIN_DEPTH or h % 100 >= chance(at.y)):
+	var d: int = absi(at.y)
+	if not MapInfo.debug and (d < MIN_DEPTH or h % 100 >= chance(d)):
 		return &""
 	@warning_ignore("integer_division")
 	return MOVES[(h / 100) % MOVES.size()]
 
 
-## The level nearest `from` (by levels across plus levels down or up) holding a relic not in
-## `found`, or null if none is within SEARCH. Ties go to the shallower, then the one to the left.
+## The level nearest `from` (by levels across plus rows down or up, either side of the start)
+## holding a relic not in `found`, or null if none is within SEARCH. Ties go to the higher row,
+## then the one to the left.
 static func nearest(from: Vector2i, found: Dictionary) -> Variant:
 	for d: int in range(SEARCH + 1):
 		for dy: int in range(-d, d + 1):
 			var y: int = from.y + dy
-			if y < 0:
+			if Worlds.is_side(Vector2i(from.x, y)):
 				continue
 			var rest: int = d - absi(dy)
 			for x: int in ([from.x - rest, from.x + rest] if rest > 0 else [from.x]):
@@ -56,11 +58,11 @@ static func nearest(from: Vector2i, found: Dictionary) -> Variant:
 	return null
 
 
-## Stars to take the relic in a level `depth` deep.
+## Stars to take the relic in a level `depth` from the start.
 static func price(depth: int) -> int:
 	return roundi(Rules.deeper_price(depth) * PRICE)
 
 
-## Stars for a relic's whereabouts at a shrine in a level `depth` deep.
+## Stars for a relic's whereabouts at a shrine in a level `depth` from the start.
 static func hint_price(depth: int) -> int:
 	return roundi(Rules.deeper_price(depth) * HINT_PRICE)

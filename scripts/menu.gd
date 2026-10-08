@@ -207,5 +207,5 @@ func _ready() -> void:
 		start.grab_focus()
 	else:
 		var at: Vector2i = saved["respawn_coord"]
-		where.text = "saved: %s  ·  deepest %d" % [Rules.where(at), int(saved["deepest"])]
+		where.text = "saved: %s  ·  furthest %d" % [Rules.where(at), int(saved["deepest"])]
 		continue_button.grab_focus()

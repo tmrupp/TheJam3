@@ -24,18 +24,22 @@ func run() -> void:
 	await settle(1)
 	check(not is_instance_valid(door) or door.is_queued_for_deletion(), "it opens a colour-0 door")
 	check(carried() == 0, "and is still carried")
-	var second_door: Array[Node] = colored("door.tscn", 0)
-	if not second_door.is_empty():
-		second_door[0].get_node("Unlock").call("try_open")
+	var others: Array[Node] = colored("door.tscn", 0)
+	if not others.is_empty():
+		for other: Node in others:
+			other.get_node("Unlock").call("try_open")
 		await settle(1)
-		check(colored("door.tscn", 0).size() == 0, "and every other colour-0 door too")
+		check(colored("door.tscn", 0).size() == 0, "and every other colour-0 door too (%d)" % others.size())
 
 	print("grabbing another key leaves the carried one")
 	var next: Node2D = colored("key.tscn", 1)[0] as Node2D
 	var swap_at: Vector2 = next.position
-	# Walk onto it for real: the physics overlap picks it up.
+	# Walk onto it for real: the physics overlap picks it up (its chunk awake, however busy the
+	# machine is).
 	player.global_position = next.global_position
-	await settle(6)
+	info.loader.wake_around(next.global_position)
+	await until(func() -> bool: return carried() == 1, 3000)
+	await settle(2)
 	check(carried() == 1, "now carrying the colour-1 key")
 	check(dropped().size() == 1 and int(dropped()[0].get_meta(&"key_color")) == 0, "the colour-0 key is left behind")
 	check((dropped()[0] as Node2D).position == swap_at, "exactly where the new one was")

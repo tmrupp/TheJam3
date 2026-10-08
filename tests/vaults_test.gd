@@ -103,7 +103,14 @@ func run() -> void:
 	var table: Array = LevelGen.VAULT_LOOT
 	check(table[0] == [[LevelGen.Type.CLUSTER, 0.5]] and table[1] == [[LevelGen.Type.CLUSTER, 1.0]] and table[2] == [[LevelGen.Type.CLUSTER, 1.5]] and (table[3] as Array).has([LevelGen.Type.KEY, KeyRing.SKELETON]), "rarer locks guard better loot: half a cluster, a cluster, a cluster and a half, a cluster and a skeleton key")
 	print("  ember vaults with a moss key: %d of %d" % [ember_keys, ember_vaults])
-	check(ember_vaults == 0 or ember_keys > 0, "ember vaults sometimes hold a moss key")
+	# The rule itself, over many doors rather than the few ember vaults the levels above happen to
+	# hold: some ember vaults hold a moss key, not all.
+	var probe: LevelGen = build(Vector2i(28, 1))
+	var with_key: int = 0
+	for i: int in range(100):
+		if probe.vault_loot(1, Vector2i(i, i % 7)).has([LevelGen.Type.KEY, 2]):
+			with_key += 1
+	check(with_key > 0 and with_key < 100, "ember vaults sometimes hold a moss key (%d of 100 doors)" % with_key)
 
 	await boot()
 	player.set_physics_process(false)

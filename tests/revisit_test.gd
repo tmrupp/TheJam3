@@ -7,12 +7,10 @@ extends TestKit
 
 ## The prefabs of the pickups that float anywhere in their cell.
 const PICKUPS: Array[String] = ["coin.tscn", "key.tscn", "moon.tscn"]
-## A world whose first level has lifts as well as pickups.
-const WORLD: int = 99
 
 
 func run() -> void:
-	await boot(WORLD)
+	await boot(_world_with_lifts())
 	player.set_physics_process(false)
 	var first: Dictionary = _looks()
 	var lifts: int = (first.keys() as Array).filter(func(k: Variant) -> bool: return (k as String).begins_with("lift")).size()
@@ -51,3 +49,13 @@ func _looks() -> Dictionary:
 		elif scene == "moving_platform.tscn":
 			out["lift %s" % cell] = Vector2(float(node.get("phase")), 0.0)
 	return out
+
+
+## The first world (from 99 on) whose first level has a lift, so lifts are compared as well as
+## pickups, whatever the generator lays out.
+func _world_with_lifts() -> int:
+	for world_seed: int in range(99, 400):
+		var w: LevelGen = build(Vector2i(world_seed, 0))
+		if w != null and not w.objects_of(LevelGen.Type.MOVING_PLATFORM).is_empty():
+			return world_seed
+	return 99

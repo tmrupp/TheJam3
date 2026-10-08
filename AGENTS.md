@@ -36,15 +36,18 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
   `tests/make_*_sample.gd`, so edit the script and rerun it rather than editing the PNG.
 - `gdextension/`: the C++ overlapping-WFC extension (SCons). Rarely touched.
 - `docs/`: `DEEPER_PLAN.md` (design, by system), `REGIONS_PLAN.md` (the plan for going up and
-  down from the garden, the new bands and the bosses at band ends; not built yet),
+  down from the garden, the new bands and the bosses at band ends; phases 1 and 2 built),
   `RISO_PRINT.md` (the art pipeline and rules), `TOM_THOUGHTS.md` (the owner's notes; see the
   ground rules).
 - `tests/`: `*_test.gd` regressions, `capture_*.gd` stills (written to `../art-captures/`),
   `make_*_sample.gd` sample generators.
 
-Level bands cycle by depth (`NextWorldDef.ARCHETYPES`, `BAND` = 6): garden → cemetery → sky. A new
-band is one script extending `Archetype`, listed there. Tests that need a band's levels use
-`NextWorldDef.first_depth(&"cemetery")` rather than a fixed depth.
+Places are (seed, row): row 0 is the start, positive rows go down, negative rows go up, and a
+level's `depth` is its distance `|row|` (side worlds sit below `-Worlds.SIDE_BASE`). Bands come from
+a table in `NextWorldDef` (`BAND` = 6): the garden spans rows −3…+3; down, the cemetery then the
+catacombs; up, the crags then the sky. A new band is one script extending `Archetype`, listed in
+`DOWN` or `UP`. Tests that need a band's levels use `NextWorldDef.band_row(&"cemetery", k)` (row k
+of the band, counting away from the start) rather than a fixed row or `first_depth + k`.
 
 ## Running and testing
 
@@ -64,7 +67,6 @@ bash tests/run.sh sky_test        # just these, headless
 - `run.sh` re-imports first. After adding a `class_name` script or an image outside it, run
   `godot --headless --path . --import`.
 - Captures: `godot --path . --windowed --resolution 1280x720 --script res://tests/capture_x.gd`.
-- Known flaky: `sky_art_test`'s transition-edge check.
 - Each test sets its own `RunState.save_path` (`user://<test>.save`), so they can run in parallel.
 - New tests extend `TestKit` (`tests/kit/TestKit.gd`): override `run()`, end with `finish()`, and
   use its `check`/`check_eq`, `boot(seed)` (starts a run, keeps the save apart), `until(cond)` and
