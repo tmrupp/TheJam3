@@ -57,21 +57,39 @@ DO NOT MODIFY
 
 - can go up or down, going up goes to cliffs and craggs -> sky
 - going down goes to cemetery -> catacombs
-- switches that activate moving platforms
-- ability that creates moving platforms
-- parry should be default spell, and we need more visual feedback on its use/active time/success
-- richocet enemy needs to be reworked, it should be on the ceiling or flying
+
+- * switches that activate moving platforms
+- * ability that creates moving platforms
+- * parry should be default spell, and we need more visual feedback on its use/active time/success
+- * richocet enemy needs to be reworked, it should be on the ceiling or flying
+- * simplify hyperspace connector
+
+- maybe we should world on the light system for lanterns
+- visuals for shield should be improve/reworked
+- rechargable shield should be a spell/perk
+
+- * which switches go to which things need to be more clear somehow, maybe glpyhs like portals
+- * portal glyphs need to be more clear
 
 ## fool thoughts
-- the poncho should be larger on top and taper
-- the player looks skewed
-- the lantern is too low and the flame should be simplified
-- there should not be gaps in the neck or hands
+- * the poncho should be larger on top and taper
+- * the player looks skewed
+- * the lantern is held too low and the flame should be simplified
+- * there should not be gaps in the neck or hands
 
+- * the animations stretch/skew/squash too much
+- * the necklace beads should be larger
+- * the feather looks odd
+
+## hud reduction, we have worked on putting most of the info in the game
+- * sign that when interacted with shows current location when entering a world
+- * someway of showing current gold (when crouching or something player will start flipping a coin and your gold will show up)
+- * when there is a ghost, it shows up on the screen in an arrow (and on map) like the awareness spell
 
 # bosses, possibly guarding relics, must be defeated
 - garden: worm that weaves its way through the level. It has sections, when destroyed in the middle it splits into multiple worms
 - cemetery: perhaps a necromancer that summons skeletons that die on stun but go after the player
+- catacombs: eldritch beast that spawns souls/tentacles/horcruxes on previously visited levels that you need to destroy
 - cliffs: spider that makes webs
 - sky: flying whale that has a digestive system that is another level (like a door)
 
