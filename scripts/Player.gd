@@ -70,13 +70,29 @@ func grace() -> void:
 func is_invulnerable() -> bool:
 	return phasing or invulnerable.is_acting() or graced.is_acting()
 
-## Hittable again at once: ends a hit's invulnerability and the grace alike.
+## Hittable again at once: ends a hit's invulnerability and the grace alike, and resets both, so
+## the next hit makes the wizard untouchable again (ending a timer alone leaves it spent).
 func end_invulnerable() -> void:
 	invulnerable.end()
+	invulnerable.refresh()
 	graced.end()
+	graced.refresh()
+
+## When (real seconds) the wizard last took a hit, wounded or on the ward (Parry.glory reads it).
+var hit_at: float = -INF
 
 func normal_hurt (damage: int, v: Vector2, _attacker: Node) -> void:
 	if not is_invulnerable():
+		hit_at = Time.get_ticks_msec() / 1000.0
+		# The ward perk takes the hit, if it has a charge: knocked back and untouchable, no heart lost.
+		var ward: Ward = get_node_or_null("Ward") as Ward
+		if ward != null and ward.take(v):
+			invulnerable.enable(true)
+			invulnerable.acting = Ward.SAFE
+			knock_back.enable()
+			knock = v
+			show_invulnerable()
+			return
 		visual_event.emit(&"hurt", global_position)
 		health.modify_health(damage)
 		invulnerable.enable()
@@ -155,9 +171,15 @@ func make_drowsy() -> void:
 			aware.sensing = 0.0
 	drowsy = DROWSY_LINGER
 
+## The collision layer enemies' bodies are on. The wizard can land on one, but it is no moving
+## platform: its motion is never carried over, so a bounce off it (a parry) is not cancelled by the
+## enemy's own drift and the push of the wizard's weight on it.
+const ENEMY_LAYER: int = 2
+
 func _init() -> void:
 	keyring.name = "KeyRing"
 	add_child(keyring)
+	platform_floor_layers &= ~ENEMY_LAYER
 
 
 func _enter_tree() -> void:

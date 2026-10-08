@@ -689,6 +689,38 @@ func _init (_cells: Array, def: NextWorldDef) -> void:
 	# Whatever kind of place it is, big things get room (see make_room).
 	make_room()
 	deal_colors()
+	if not Worlds.is_side(def.coord):
+		place_lift_switches()
+
+## Some of an ordinary level's lifts wait for a switch: parked at the start of their track until
+## it is thrown, then running for good (the record keeps it). LIFT_SWITCH_SHARE of them, picked by
+## hashing the level seed and the lift's cell, with the switch on the free floor nearest the lift
+## within LIFT_SWITCH_NEAR cells, reachable from the way in. Ordinary levels never need a lift to
+## get through, so a parked one blocks nothing; side worlds' lifts (hyperspace's crossings) always
+## run. The lift's extra info gains the switch's cell, and the switch holds the lift's. Done last
+## and with no world RNG draws, so nothing else in the level moves.
+const LIFT_SWITCH_SHARE: float = 0.5
+const LIFT_SWITCH_NEAR: int = 6
+const LIFT_SWITCH_DEAL: int = 9100
+
+func place_lift_switches () -> void:
+	var start: Vector2i = exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	if not is_valid(start):
+		return
+	var reach: Dictionary = reach_from(start)
+	for lift: Vector2i in objects_of(Type.MOVING_PLATFORM):
+		var info: Array = get_cell(lift).extra_info
+		if info.size() > 3:
+			continue
+		var roll: int = posmod(Rules.level_seed(seed_for_colors, LIFT_SWITCH_DEAL + lift.x * 977 + lift.y), 1000)
+		if float(roll) / 1000.0 >= LIFT_SWITCH_SHARE:
+			continue
+		var spot: Variant = best_of(free_floors(), func(v: Vector2i) -> int: return dist(v, lift),
+				func(v: Vector2i) -> bool: return reach.has(v) and dist(v, lift) <= LIFT_SWITCH_NEAR and not _crowds_exit(v))
+		if spot == null:
+			continue
+		info.append(spot)
+		put(spot, Type.SWITCH, lift)
 
 ## Salts for the level seed when dealing key and door colours (deal_colors).
 const KEY_DEAL: int = 7000
@@ -1381,3 +1413,14 @@ func _wide_open (v: Vector2i) -> bool:
 
 func _open (v: Vector2i) -> bool:
 	return is_valid(v) and get_cell(v).type != Type.GROUND and get_cell(v).type != Type.CRACKED
+
+## The sigils linking this level's teleporter pairs and switches to what they work (Sigils.deal),
+## dealt the first time one is asked for.
+var _sigils: Variant = null
+
+## The sigil shared by the linked thing at `v` (a teleporter, a switch, or what a switch works),
+## or -1 if it has none.
+func sigil_at (v: Vector2i) -> int:
+	if _sigils == null:
+		_sigils = Sigils.deal(self)
+	return int((_sigils as Dictionary).get(v, -1))

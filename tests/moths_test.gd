@@ -1,6 +1,7 @@
 extends TestKit
-## Moths follow a nearby wizard's lit spell orb, prefer it over a lit lantern, and
-## scatter harmlessly when a real dash crosses them. They gather again rather than dying.
+## Moths follow the lantern a nearby wizard carries while it is lit, prefer it over the lit lantern
+## itself, ignore the spell orb, stay home with no lantern lit, and scatter harmlessly when a real
+## dash crosses them. They gather again rather than dying.
 ## godot --headless --path . --script res://tests/moths_test.gd
 
 func run() -> void:
@@ -23,29 +24,25 @@ func run() -> void:
 	swarm.set_physics_process(false)
 	player.global_position = glass + Vector2(0, -1500)
 	check(swarm.target() == glass and swarm.drawn_to == &"lantern", "a distant wizard leaves the swarm drawn to the lantern")
-	check(Abilities.spell(player) == &"", "the wizard has no spell equipped")
 	player.global_position = swarm.global_position + Vector2(400, 70)
-	check(swarm.target() == glass and swarm.drawn_to == &"lantern", "without a spell, a nearby wizard does not distract moths from the lantern")
-	var was_vulnerable: bool = info.run.vulnerable
-	info.run.vulnerable = true
-	check(swarm.target() == swarm.home and swarm.drawn_to == &"home", "without a spell or lit lantern, the swarm stays home")
-	info.run.vulnerable = was_vulnerable
-	Abilities.grant(player, &"hex")
 	var toward: Vector2 = swarm.target()
-	check(swarm.drawn_to == &"orb" and toward == player.global_position + Vector2(0, -70), "equipping a spell makes the nearby orb take priority over the lantern")
-	player.drowsy = Player.DROWSY_LINGER
-	check(swarm.target() == glass and swarm.drawn_to == &"lantern", "a spell dimmed by sleep fog does not draw moths")
-	player.drowsy = 0.0
+	check(swarm.drawn_to == &"carried" and toward == player.global_position + MothSwarm.CARRIED, "near by, the wizard's lit lantern takes priority over the lantern itself")
+	Abilities.set_tier(player, &"parry", 0)
+	check(Abilities.spell(player) == &"" and swarm.drawn_to == &"carried" and swarm.target() == toward, "with no spell equipped, the lit lantern still draws them")
+	Abilities.grant(player, &"hex")
 	var before: float = swarm.global_position.distance_to(toward)
 	swarm._physics_process(0.5)
-	check(swarm.global_position.distance_to(toward) < before, "the swarm moves toward the wizard carrying a spell")
+	check(swarm.global_position.distance_to(toward) < before, "the swarm moves toward the wizard's lantern")
 	player.global_position += Vector2(0, 200)
 	toward = swarm.target()
 	before = swarm.global_position.distance_to(toward)
 	swarm._physics_process(0.5)
 	check(swarm.global_position.distance_to(toward) < before, "it follows when the wizard moves")
+	var was_vulnerable: bool = info.run.vulnerable
+	info.run.vulnerable = true
+	check(swarm.target() == swarm.home and swarm.drawn_to == &"home", "with no lantern lit, a nearby wizard and their spell orb leave the swarm home")
+	info.run.vulnerable = was_vulnerable
 	Abilities.set_tier(player, &"hex", 0)
-	check(swarm.target() == glass and swarm.drawn_to == &"lantern", "removing the spell ends the chase")
 
 	print("dashing through moths")
 	swarm.global_position = Vector2(-10000, -10000)

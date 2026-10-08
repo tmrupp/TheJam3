@@ -42,7 +42,7 @@ static func level_seed (run_seed: int, depth: int) -> int:
 
 ## Stars to open a level's deeper exit.
 static func deeper_price (depth: int) -> int:
-	return roundi(8.0 * pow(1.4, depth))
+	return roundi(16.0 * pow(1.4, depth))
 
 ## Stars a level's star cluster is worth: about 10 at the surface, more deeper (stars per level
 ## grow too).
@@ -99,7 +99,7 @@ static func level_size (depth: int) -> Vector2i:
 
 ## Stars to ink a level's whole map at its ink well.
 static func map_price (depth: int) -> int:
-	return roundi(4.0 * pow(1.3, depth))
+	return roundi(8.0 * pow(1.3, depth))
 
 ## How a level is named on screen and when sharing it.
 static func where (at: Vector2i) -> String:

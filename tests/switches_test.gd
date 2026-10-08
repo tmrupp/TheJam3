@@ -128,9 +128,15 @@ func run() -> void:
 	var wisp: Node2D = placed("mover_enemy.tscn")[0] as Node2D
 	wisp.get_node("Wound").set("hp", 3)
 	player.dash.acted = true
+	var guard: Parry = player.get_node("Parry") as Parry
 	player.parry.emit()
+	check(guard.guard_left() > 0.9, "raising the guard shows it, full")
 	player.hurt(-1, Vector2.RIGHT * 100.0, wisp.get_node("HitBox/Damager"))
 	check(int(wisp.get_node("Wound").get("hp")) == 2 and bool(wisp.get_node("Mover").get("stunned")), "a parried wisp is wounded (3 -> 2 hp) and stunned")
+	check(guard.guard_left() < 0.0 and guard.glory(), "a catch drops the guard and the wizard shimmers gold, not hurt pink")
+	check(player.knock.is_equal_approx(Vector2(player.WALL_JUMP_SPEED, player.JUMP_VELOCITY * player.WALL_JUMP_Y_FACTOR)), "a catch from the side sends the wizard away and up, just as a wall jump")
+	check(player.invulnerable.acting <= Parry.SAFE + 0.001, "and keeps them untouchable only briefly")
+	check(guard.missed_at < guard.parried_at, "a catch is not a miss")
 	check(not player.dash.acted and player.health.health == player.health.max_health, "the parry refunds the dash and takes no damage")
 	await until(func() -> bool: return is_equal_approx(Engine.time_scale, 1.0), 2000)
 	check(is_equal_approx(Engine.time_scale, 1.0), "the hit-stop passes")
@@ -146,9 +152,45 @@ func run() -> void:
 	player.hurt(-1, Vector2.RIGHT * 100.0, shot.get_node("HitBox/Damager"))
 	var bolts_after: int = info.map_elements.get_children().filter(func(n: Node) -> bool: return n.get_script() == preload("res://scripts/HexBolt.gd")).size()
 	check(shot.is_queued_for_deletion() and bolts_after == bolts_before + 1, "a parried shot is reflected as a bolt at its shooter")
+	player.end_invulnerable()
+	await until(func() -> bool: return not guard.cooldown.acted, 3000)
+	player.parry.emit()
+	await until(func() -> bool: return guard.guard_left() < 0.0, 2000)
+	check(not guard.glory() and guard.missed_at > guard.parried_at, "a guard that catches nothing closes as a miss")
+	# Thorns underfoot: a hazard, caught all the same, bounces the wizard up (a pogo).
+	var thorns: Node = placed("spikes.tscn")[0] if not placed("spikes.tscn").is_empty() else null
+	if thorns != null:
+		player.end_invulnerable()
+		await until(func() -> bool: return not guard.cooldown.acted, 3000)
+		var hp: int = player.health.health
+		player.parry.emit()
+		player.hurt(-1, Vector2.UP * 400.0, thorns.get_node("Damager"))
+		check(player.health.health == hp and is_equal_approx(player.velocity.y, Parry.POGO), "a parry on thorns underfoot bounces the wizard up, unhurt")
+	# No guard while untouchable from a hit taken; a parry's own untouchable moment still allows one.
+	player.end_invulnerable()
+	await until(func() -> bool: return not guard.cooldown.acted, 3000)
+	player.hurt(-1, Vector2.RIGHT * 100.0, wisp.get_node("HitBox/Damager"))
+	check(player.invulnerable.is_acting() and guard.hurt_guarded() and guard.readiness() == 0.0, "hurt, the wizard is untouchable and the parry reads not ready")
+	check(not guard.cast_spell() and guard.guard_left() < 0.0, "and no guard can be raised")
+	player.parry.emit()
+	check(guard.guard_left() < 0.0 and not guard.cooldown.acted, "not by the parry signal either, and the cooldown is not spent")
+	player.end_invulnerable()
+	check(guard.cast_spell() and guard.guard_left() > 0.0, "once that ends, the guard rises again")
+	player.hurt(-1, Vector2.RIGHT * 100.0, wisp.get_node("HitBox/Damager"))
+	Engine.time_scale = 1.0
+	check(guard.glory() and not guard.hurt_guarded() and guard.cast_spell(), "after a catch, its own untouchable moment still allows the next guard")
+	# Landing on an enemy: bounced straight up, keeping control and the way across.
+	player.knock = Vector2.ZERO
+	player.knock_back.end()
+	player.velocity = Vector2(250.0, 650.0)
+	player.hurt(-1, Vector2.UP * 400.0, wisp.get_node("HitBox/Damager"))
+	Engine.time_scale = 1.0
+	check(is_equal_approx(player.velocity.y, Parry.POGO) and is_equal_approx(player.velocity.x, 250.0), "parrying an enemy landed on bounces the wizard up, still heading the same way")
+	check(player.knock == Vector2.ZERO and not player.knock_back.is_acting(), "with control kept")
+	player.end_invulnerable()
 	Abilities.set_tier(player, &"parry", 4)
 	var p: Node = player.get_node("Parry")
-	check(is_equal_approx(float(p.get("duration")), 0.45) and int(p.get("damage")) == 2 and bool(p.get("heals")), "parry IV: a longer guard, 2 damage, and it heals")
+	check(is_equal_approx(float(p.get("duration")), Parry.WINDOW_II) and int(p.get("damage")) == 2 and bool(p.get("heals")), "parry IV: a longer guard, 2 damage, and it heals")
 
 	Engine.time_scale = 1.0
 	finish()

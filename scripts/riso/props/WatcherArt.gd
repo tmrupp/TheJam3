@@ -40,10 +40,20 @@ func _draw_art() -> void:
 		charge = 0.0
 	var k: float = 2.8
 	var xf: Transform2D = Transform2D(0.0, Vector2(k, k), 0.0, at + Vector2(0, sin(t * 2.0 + phase) * 3.0))
-	# A stalk rooted in the floor, swaying under the eye: the watcher grows here.
+	# A stalk rooted in the floor, swaying under the eye: the watcher grows here. A hovering one
+	# (a sky watcher) has none; it beats a pair of thin fins instead.
 	var g: float = _ground()
 	var eye: Vector2 = xf * Vector2(0, 4)
-	if g - eye.y > 12.0:
+	if shooter != null and shooter.hovering:
+		var fins: Array[PackedVector2Array] = []
+		for side: float in [-1.0, 1.0]:
+			var lift: float = 0.35 + sin(t * 7.0 + phase) * 0.45
+			var root: Vector2 = Vector2(side * 9.0, -0.5)
+			var tip: Vector2 = root + Vector2(side * cos(lift), -sin(lift)) * 13.0
+			fins.append(xf * RisoShapes.smooth(PackedVector2Array([root + Vector2(0, -1.6), tip, root + Vector2(side * 4.0, 2.2)]), 3))
+		ink.ink(RisoPrint.BLUE, 1.0, fins)
+		ink.ink(RisoPrint.NIGHT, 0.35, fins, false)
+	elif g - eye.y > 12.0:
 		var sway: float = sin(t * 1.6 + phase) * 6.0
 		var stalk: PackedVector2Array = PackedVector2Array()
 		for j: int in range(6):

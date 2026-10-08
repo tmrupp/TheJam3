@@ -20,6 +20,9 @@ const AREA: Rect2 = Rect2(16, 30, 218, 136)
 const LEGEND: Rect2 = Rect2(242, 30, 64, 136)
 const TILE: Vector2 = Vector2(34, 18)
 const PITCH: Vector2 = Vector2(42, 26)
+## The size of a sigil (Sigils) by a switch, gate or bell on the map; a teleporter's is a little
+## bigger.
+const SIGIL_MARK: float = 1.5
 
 var view: int = View.CLOSED
 var t: float = 0.0
@@ -317,8 +320,8 @@ func _level_rows() -> Array:
 		["teleporter", func(at: Vector2) -> void: _mark_portal(at, 1, false), "teleporter"],
 		["rift", func(at: Vector2) -> void: _mark_portal(at, 0, true), "rift"],
 		["door", func(at: Vector2) -> void: _mark_door(at, 2), "door"],
-		["gate", _mark_gate, "gate"],
-		["switch", func(at: Vector2) -> void: _mark_switch(at, false), "switch"],
+		["gate", func(at: Vector2) -> void: _mark_gate(at, 2), "gate"],
+		["switch", func(at: Vector2) -> void: _mark_switch(at, false, 2), "switch"],
 		["bell", func(at: Vector2) -> void: _mark_bell(at, false), "bell"],
 		["vane", func(at: Vector2) -> void: _mark_bell(at, false, -2, "vane"), "vane"],
 		["bridge", func(at: Vector2) -> void: _mark_bridge(at, true), "bridge"],
@@ -404,7 +407,7 @@ func _mark_level(info: MapInfo, c: Vector2i, w: LevelGen, rec: LevelRecord, seen
 		if done.has(v) or not seen.call(v):
 			continue
 		done[v] = true
-		relic_shown = _mark_cell(info, c, v, w.get_cell(v), rec, place, spot) or relic_shown
+		relic_shown = _mark_cell(info, c, w, v, w.get_cell(v), rec, place, spot) or relic_shown
 	# An opened secret room's rewards, which are not among the layout's cells.
 	for id: int in rec.secrets:
 		if id < 0 or id >= w.secrets.size():
@@ -415,7 +418,7 @@ func _mark_level(info: MapInfo, c: Vector2i, w: LevelGen, rec: LevelRecord, seen
 				continue
 			var cell: LevelGen.Cell = LevelGen.Cell.new(reward[1])
 			cell.extra_info = reward[2]
-			relic_shown = _mark_cell(info, c, v, cell, rec, place, spot) or relic_shown
+			relic_shown = _mark_cell(info, c, w, v, cell, rec, place, spot) or relic_shown
 	var dropped: Dictionary = rec.dropped
 	for id: Variant in dropped:
 		var drop: Array = dropped[id]
@@ -425,10 +428,10 @@ func _mark_level(info: MapInfo, c: Vector2i, w: LevelGen, rec: LevelRecord, seen
 	return relic_shown
 
 
-## The mark for the thing in `cell` at `v` of level `c` (laid out as place `place`), as its record
-## `rec` leaves it; nothing for what the map does not show, or what is gone. Whether it marked a
-## relic comes back.
-func _mark_cell(info: MapInfo, c: Vector2i, v: Vector2i, cell: LevelGen.Cell, rec: LevelRecord, place: NextWorldDef, spot: Callable) -> bool:
+## The mark for the thing in `cell` at `v` of level `c` (laid out as `w`, place `place`), as its
+## record `rec` leaves it; nothing for what the map does not show, or what is gone. Whether it
+## marked a relic comes back.
+func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: LevelGen.Cell, rec: LevelRecord, place: NextWorldDef, spot: Callable) -> bool:
 	var at: Vector2 = spot.call(v)
 	var gone: bool = (rec.taken as Dictionary).has(v) or (rec.opened as Dictionary).has(v)
 	match cell.type:
@@ -448,7 +451,7 @@ func _mark_cell(info: MapInfo, c: Vector2i, v: Vector2i, cell: LevelGen.Cell, re
 			var lit: bool = not spent and not info.run.vulnerable and info.run.respawn_coord == c and info.run.respawn_cell == v
 			_mark_lantern(at, lit, spent)
 		LevelGen.Type.PORTAL:
-			_mark_portal(at, PortalArt.pair_sigil(v, cell.extra_info), false)
+			_mark_portal(at, w.sigil_at(v), false)
 		LevelGen.Type.KEY:
 			if not gone:
 				_mark_key(at, _dealt(cell))
@@ -457,9 +460,9 @@ func _mark_cell(info: MapInfo, c: Vector2i, v: Vector2i, cell: LevelGen.Cell, re
 				_mark_door(at, _dealt(cell))
 		LevelGen.Type.SWITCH_GATE:
 			if not gone:
-				_mark_gate(at)
+				_mark_gate(at, w.sigil_at(v))
 		LevelGen.Type.SWITCH:
-			_mark_switch(at, (rec.switched as Dictionary).has(v))
+			_mark_switch(at, (rec.switched as Dictionary).has(v), w.sigil_at(v))
 		LevelGen.Type.RELIC:
 			if gone:
 				return false
@@ -475,11 +478,11 @@ func _mark_cell(info: MapInfo, c: Vector2i, v: Vector2i, cell: LevelGen.Cell, re
 		LevelGen.Type.BELL:
 			var bell: Array = cell.extra_info
 			var rung: bool = (rec.bridges as Dictionary).has(int(bell[0]))
-			_mark_bell(at, rung, -2 if rung or (rec.bells_free as Dictionary).has(v) else int(bell[1]))
+			_mark_bell(at, rung, -2 if rung or (rec.bells_free as Dictionary).has(v) else int(bell[1]), "bell", w.sigil_at(v))
 		LevelGen.Type.VANE:
 			var vane: Array = cell.extra_info
 			var blowing: bool = (rec.winds as Dictionary).get(int(vane[0])) == v
-			_mark_bell(at, blowing, -2 if blowing or (rec.bells_free as Dictionary).has(v) else int(vane[1]), "vane")
+			_mark_bell(at, blowing, -2 if blowing or (rec.bells_free as Dictionary).has(v) else int(vane[1]), "vane", w.sigil_at(v))
 	return false
 
 
@@ -527,17 +530,25 @@ func _mark_relic(at: Vector2, move: StringName, k: float = 1.0) -> void:
 
 
 ## A switch gate: a bar like a door's, in night ink, with the switch's accent dot.
-func _mark_gate(at: Vector2) -> void:
+## A switch gate: a night bar with its switch's sigil (Sigils) beside it.
+func _mark_gate(at: Vector2, sigil_kind: int) -> void:
 	_note("gate")
 	marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.rrect(at.x - 0.9, at.y - 2.6, 1.8, 5.2, 0.8)], false)
-	marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(at + Vector2(2.4, -2.4), 1.2, 8)], false)
+	_mark_sigil(at + Vector2(2.9, -2.6), sigil_kind)
 
 
-## A switch: a little lever, pink before it is thrown, accent after.
-func _mark_switch(at: Vector2, thrown: bool) -> void:
+## A switch: a little lever, pink before it is thrown, accent after, with its sigil beside it.
+func _mark_switch(at: Vector2, thrown: bool, sigil_kind: int) -> void:
 	_note("switch")
 	marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.rrect(at.x - 2.4, at.y + 0.6, 4.8, 1.8, 0.9), Transform2D(0.5 if thrown else -0.5, at + Vector2(0, 1.0)) * RisoShapes.rrect(-0.5, -4.0, 1.0, 4.2, 0.5)], false)
 	marks.ink(RisoPrint.ACCENT if thrown else RisoPrint.PINK, 1.0, [RisoShapes.circle(at + Vector2(1.9 if thrown else -1.9, -3.2), 1.1, 8)], false)
+	_mark_sigil(at + Vector2(4.4, -1.2), sigil_kind)
+
+
+## The sigil a switch shares with what it works, small, in night ink (nothing for -1).
+func _mark_sigil(at: Vector2, sigil_kind: int) -> void:
+	if sigil_kind >= 0:
+		marks.ink(RisoPrint.NIGHT, 1.0, RisoMarks.sigil(sigil_kind, at, SIGIL_MARK), false)
 
 
 ## A way out: a chevron the way it leads (pink for deeper), with a key-colour dot while locked or
@@ -576,12 +587,12 @@ func _mark_lantern(at: Vector2, lit: bool, spent: bool = false) -> void:
 
 
 ## A teleporter: a screened accent disc with its pair's sigil in night ink (the two ends of a pair
-## share it, PortalArt.pair_sigil); a rift the wizard opened is an eye-yellow disc.
-func _mark_portal(at: Vector2, sigil: int, rift: bool) -> void:
+## share it, Sigils); a rift the wizard opened is an eye-yellow disc.
+func _mark_portal(at: Vector2, sigil_kind: int, rift: bool) -> void:
 	_note("rift" if rift else "teleporter")
 	marks.ink(RisoPrint.EYE if rift else RisoPrint.ACCENT, 0.55, [RisoShapes.circle(at, 3.0, 14)], false)
-	if not rift:
-		marks.ink(RisoPrint.NIGHT, 1.0, [PortalArt.sigil_shape(sigil, at, 1.5)], false)
+	if not rift and sigil_kind >= 0:
+		marks.ink(RisoPrint.NIGHT, 1.0, RisoMarks.sigil(sigil_kind, at, SIGIL_MARK * 1.2), false)
 
 
 func _mark_door(at: Vector2, color: int) -> void:
@@ -614,16 +625,20 @@ func _mark_bridge(at: Vector2, up: bool) -> void:
 		marks.ink(RisoPrint.ACCENT, 0.7, [RisoShapes.rrect(at.x - 1.2, at.y - 2.0, 2.4, 0.8, 0.4)], false)
 
 
-## A grave bell: an accent dot (faint once rung), with the key-colour dot of its padlock, or an
-## accent ring if a switch holds its chain (`lock`: a key colour, -1 a switch, -2 free).
-func _mark_bell(at: Vector2, rung: bool, lock: int = -2, row: String = "bell") -> void:
+## A grave bell: an accent dot (faint once rung), with the key-colour bow of its padlock, or its
+## switch's sigil if a switch holds its chain (`lock`: a key colour, -1 a switch, -2 free).
+func _mark_bell(at: Vector2, rung: bool, lock: int = -2, row: String = "bell", sigil_kind: int = -1) -> void:
 	_note(row)
 	marks.ink(RisoPrint.ACCENT, 0.35 if rung else 1.0, [RisoShapes.circle(at, 1.8, 10)], false)
 	if lock >= 0:
 		for plate: int in RisoPrint.key_inks(lock):
 			marks.ink(plate, 1.0, [RisoMarks.key_bow(at + Vector2(2.8, -2.8), 1.8, lock)], false)
 	elif lock == -1:
-		marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.circle(at + Vector2(2.8, -2.8), 1.2, 8)], false)
+		# Chained to a switch: the switch's sigil, or a night dot.
+		if sigil_kind >= 0:
+			_mark_sigil(at + Vector2(3.0, -3.0), sigil_kind)
+		else:
+			marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.circle(at + Vector2(2.8, -2.8), 1.2, 8)], false)
 
 
 ## A star cluster: a small star in accent ink.
@@ -927,6 +942,8 @@ func _along(curve: PackedVector2Array, frac: float) -> Vector2:
 	return curve[curve.size() - 1]
 
 
+## How wide a side world's spline is drawn on the worlds page.
+const SPLINE_W: float = 1.8
 ## Where a side world's ribbon meets a level it widens into a mouth: MOUTH times as wide at the
 ## tile, easing back to its own width over MOUTH_LEN units.
 const MOUTH: float = 0.9
@@ -964,22 +981,13 @@ func _box(r: Rect2) -> PackedVector2Array:
 	return PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)])
 
 
-## A side world: a narrow accent ribbon `width` wide along `curve`, flared by `mouth` where it meets
-## the levels, with chevrons running down it,
-## cut to `clip` when one is given.
-func _mark_side(curve: PackedVector2Array, width: float, here: bool, clip: Rect2 = Rect2(), mouth: float = MOUTH) -> void:
-	var strip: Array[PackedVector2Array] = [_ribbon(curve, width, 0.0, mouth)]
-	var chevrons: Array[PackedVector2Array] = []
-	var last: int = curve.size() - 1
-	for k: int in range(3):
-		var i: int = roundi(float(last) * (0.25 + 0.25 * float(k)))
-		var along: Vector2 = (curve[mini(i + 1, last)] - curve[maxi(i - 1, 0)]).normalized()
-		chevrons.append(RisoMarks.chevron(curve[i], along, minf(0.2, width * 0.03)))
+## A side world: a plain pink spline along `curve`, a little bolder while you are in it, cut to
+## `clip` when one is given. (Its tile, for picking and the cursor, is still `width` wide.)
+func _mark_side(curve: PackedVector2Array, _width: float, here: bool, clip: Rect2 = Rect2(), _mouth: float = MOUTH) -> void:
+	var line: Array[PackedVector2Array] = [_ribbon(curve, SPLINE_W * (1.4 if here else 1.0))]
 	if clip.has_area():
-		strip = _clipped(strip, _box(clip))
-		chevrons = _clipped(chevrons, _box(clip))
-	marks.ink(RisoPrint.ACCENT, 0.7 if here else 0.35, strip, false)
-	marks.ink(RisoPrint.PINK, 1.0, chevrons, false)
+		line = _clipped(line, _box(clip))
+	marks.ink(RisoPrint.PINK, 1.0, line, false)
 
 
 func _clipped(polys: Array[PackedVector2Array], box: PackedVector2Array) -> Array[PackedVector2Array]:

@@ -79,6 +79,7 @@ const ROBES: Dictionary = {
 	&"rift": Color("#765ba7"),
 	&"warp": Color("#aa60bf"),
 	&"mend": Color("#ff665e"),
+	&"ferry": Color("#5ec8e5"),
 }
 ## Print-detail stops: heavy 0, medium 50, fine 80, extra fine 100 (sizes in 720p pixels):
 ## [detail, screen cell, wobble, grain, dot gain, laydown], the prototype's values.
@@ -192,6 +193,7 @@ static func door_opened(door: Node2D) -> void:
 	fx.ground = ground
 	fx.half = half
 	fx.key_color = int(door.get_meta(&"key_color", 0))
+	fx.sigil_kind = Sigils.of(door)
 	door.get_parent().add_child(fx)
 	fx.global_position = door.global_position
 
@@ -864,6 +866,7 @@ const DRESS: Dictionary = {
 	"res://prefabs/bullet.tscn": &"shard",
 	"res://prefabs/corpse.tscn": &"ghost",
 	"res://prefabs/signpost.tscn": &"sign",
+	"res://prefabs/ferry_raft.tscn": &"ferry",
 }
 
 

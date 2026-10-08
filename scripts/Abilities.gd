@@ -1,15 +1,17 @@
 class_name Abilities
 ## Tiered abilities, learned at shrines (there is no shop), except that tier I of the big moves
-## (double jump, wall climb, blink, levitate, astral projection) only comes from a relic (see Relics). Tier 0 is not owned; only the dash
-## is known from the start (tier 1), and the spell slot starts empty. The dash is the wizard's
-## attack (DashStrike); the strike perk makes it wound. Each tier improves the ability.
+## (double jump, wall climb, blink, levitate, astral projection) only comes from a relic (see
+## Relics). Tier 0 is not owned; a run starts knowing the dash and parry (tier 1), parry in the
+## spell slot. The dash is the wizard's attack (DashStrike); the strike perk makes it wound. Each
+## tier improves the ability.
 ## Tiers live on the player and reset when a run ends.
 ## - Spells share one slot, on the Spell button (Q, or the pad's X): hex, astral projection,
-##   parry, levitate, awareness, rift (open your own teleporters), warp (to a random floor) and mend
-##   (heal from draughts a burned lantern fills, see Mend). You carry one at a time; learning another
+##   parry, levitate, awareness, rift (open your own teleporters), warp (to a random floor), mend
+##   (heal from draughts a burned lantern fills, see Mend) and ferry (a gliding raft, see Ferry). You carry one at a time; learning another
 ##   at a shrine replaces it. Warp and rift cost stars each cast (cast_price).
 ## - Perks stack: double jump, wall climb, blink (replaces the dash), vigor (max health),
-##   speed (run speed), keyring (carry more keys, see KeyRing) and strike (the dash wounds).
+##   speed (run speed), keyring (carry more keys, see KeyRing), strike (the dash wounds) and ward
+##   (a ring of plates that takes a hit and grows back, see Ward).
 ##
 ## Every ability is one entry in ABILITIES. What a tier does lives with whatever does the ability:
 ## a node on the wizard (its `set_tier`, and `cast_spell` for a spell), or, for the wizard's own
@@ -30,18 +32,20 @@ const ABILITIES: Dictionary = {
 	&"double_jump": {"max": 3},
 	&"wall_climb": {"max": 3},
 	&"blink": {"max": 3, "node": "Blink", "make": "res://prefabs/upgrades/Blink.tscn"},
-	&"parry": {"max": 4, "spell": true, "node": "Parry"},
+	&"parry": {"max": 4, "base": 1, "spell": true, "node": "Parry"},
 	&"astral": {"max": 4, "spell": true, "node": "AstralProjection"},
 	&"hex": {"max": 4, "spell": true, "node": "Hex", "make": "res://scripts/Hex.gd"},
 	&"levitate": {"max": 3, "spell": true, "node": "Levitate", "make": "res://scripts/Levitate.gd"},
 	&"awareness": {"max": 3, "spell": true, "node": "Awareness", "make": "res://scripts/Awareness.gd"},
-	&"rift": {"max": 3, "spell": true, "cost": 1.0, "node": "Rift", "make": "res://scripts/Rift.gd"},
+	&"rift": {"max": 3, "spell": true, "cost": 2.0, "node": "Rift", "make": "res://scripts/Rift.gd"},
 	&"vigor": {"max": 3},
 	&"speed": {"max": 3},
-	&"warp": {"max": 3, "spell": true, "cost": 2.0, "node": "Warp", "make": "res://scripts/Warp.gd"},
+	&"warp": {"max": 3, "spell": true, "cost": 4.0, "node": "Warp", "make": "res://scripts/Warp.gd"},
 	&"mend": {"max": 3, "spell": true, "node": "Mend", "make": "res://scripts/Mend.gd"},
 	&"keyring": {"max": 3},
+	&"ferry": {"max": 3, "spell": true, "node": "Ferry", "make": "res://scripts/Ferry.gd"},
 	&"strike": {"max": 3, "node": "DashStrike", "make": "res://scripts/DashStrike.gd", "always": true},
+	&"ward": {"max": 3, "node": "Ward", "make": "res://scripts/Ward.gd"},
 }
 ## Run speed added per tier of speed, as a fraction of the base.
 const SPEED_PER_TIER: float = 0.15
@@ -62,8 +66,10 @@ static func spells() -> Array[StringName]:
 	return ids().filter(func(a: StringName) -> bool: return is_spell(a))
 
 
+## Whether `a` is a spell; false for anything that is not an ability (a glow name such as
+## &"climb", see RisoPrint.flare).
 static func is_spell(a: StringName) -> bool:
-	return bool(ABILITIES[a].get("spell", false))
+	return ABILITIES.has(a) and bool(ABILITIES[a].get("spell", false))
 
 
 static func max_tier(a: StringName) -> int:
@@ -96,7 +102,7 @@ static func spell(player: Player) -> StringName:
 
 ## Stars to learn `next_tier` of an ability at `depth`: dearer per tier, cheaper deeper.
 static func price(depth: int, next_tier: int) -> int:
-	return maxi(3, roundi(10.0 * pow(1.6, next_tier - 1) * pow(0.8, depth)))
+	return maxi(6, roundi(20.0 * pow(1.6, next_tier - 1) * pow(0.8, depth)))
 
 
 ## Stars a cast of spell `a` costs at `depth` (0 for a free spell): a little dearer deeper, as
@@ -115,7 +121,7 @@ static func cast_price_here(player: Player) -> int:
 
 ## Stars to heal to full at `depth`: the opposite of learning, dearer deeper.
 static func heal_price(depth: int) -> int:
-	return roundi(3.0 * pow(1.35, depth))
+	return roundi(6.0 * pow(1.35, depth))
 
 
 ## What a level's shrine teaches. Starting from an ability picked by the level seed and going

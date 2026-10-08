@@ -261,7 +261,7 @@ func moths() -> void:
 		return
 	# Near enough that this part of the level is awake, too far to be stung.
 	var to_glass: Vector2 = glass + MothSwarm.GLASS - swarm.global_position
-	player.global_position = swarm.global_position + to_glass * 0.5 + to_glass.normalized().orthogonal() * (MothSwarm.ORB_PULL + 150.0)
+	player.global_position = swarm.global_position + to_glass * 0.5 + to_glass.normalized().orthogonal() * (MothSwarm.CARRIED_PULL + 150.0)
 	info.light_lantern(lantern)
 	var before: float = swarm.global_position.distance_to(swarm.target())
 	for i: int in range(60):

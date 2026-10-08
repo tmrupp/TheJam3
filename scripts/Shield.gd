@@ -1,13 +1,14 @@
 class_name Shield
 extends Node2D
-## A shield an enemy carries, in sky levels (SkyArchetype.populate): a bubble of light round it
-## that takes the hex bolts meant for it, cracking with each, until it breaks after `hp` hits. A
-## parried shot (a reflected bolt, HexBolt.reflected) breaks it at once. While it holds, bolts
-## neither wound nor stun what it guards. Printed as a faint veil of pink over its host with a
-## paper glint; each hit leaves a jagged paper crack glowing pink in a slow pulse; breaking, it
-## bursts into shards.
+## A shield an enemy carries, in sky levels (SkyArchetype.populate): a ring of pink plates round it
+## (RisoWard), one for each hex bolt it can still take, that takes the bolts meant for it, a plate
+## breaking with each, until the last goes after `hp` hits. A parried shot (a reflected bolt,
+## HexBolt.reflected) breaks it at once. While it holds, bolts neither wound nor stun what it
+## guards.
 
 const RADIUS: float = 46.0
+## How fast the ring of plates turns (radians a second).
+const SPIN: float = 0.6
 
 ## Hits a shield takes before it breaks (a parried shot breaks it at once).
 const HP: int = 3
@@ -20,6 +21,8 @@ var since_hit: float = 99.0
 var since_broke: float = -1.0
 var ink: InkCanvas
 var t: float = 0.0
+## The plates broken so far: [the angle each broke at, seconds since], while their shards fly.
+var _broken: Array[Vector2] = []
 
 
 static func of(host: Node) -> Shield:
@@ -34,8 +37,11 @@ func holds() -> bool:
 func absorb(reflected: bool, dir: Vector2) -> bool:
 	if hp <= 0:
 		return false
+	var was: int = hp
 	hp = 0 if reflected else hp - 1
 	since_hit = 0.0
+	for i: int in range(hp, was):
+		_broken.append(Vector2(RisoWard.plate_angle(i, full, _spin()), 0.0))
 	var at: Vector2 = global_position - dir.normalized() * RADIUS * 0.8
 	if hp <= 0:
 		since_broke = 0.0
@@ -60,52 +66,18 @@ func _process(delta: float) -> void:
 	since_hit += delta
 	if since_broke >= 0.0:
 		since_broke += delta
+	# Centred on what its host's art draws (a wisp's body trails behind its origin), upright.
+	var art: RisoProp = get_parent().get_node_or_null("RisoArt") as RisoProp if get_parent() != null else null
+	ink.global_transform = Transform2D(0.0, art.guard_center() if art != null else global_position)
 	ink.begin()
 	if hp > 0:
-		_bubble()
-	elif since_broke < 0.45:
-		_shards(since_broke / 0.45)
+		RisoWard.plates(ink, Vector2.ZERO, RADIUS, full, hp, _spin(), clampf(1.0 - since_hit / 0.18, 0.0, 1.0), RisoPrint.PINK)
+	for i: int in range(_broken.size()):
+		_broken[i].y += delta
+		RisoWard.shards(ink, Vector2.ZERO, RADIUS, _broken[i].x, _broken[i].y / RisoWard.SHARD_TIME, RisoPrint.PINK)
 	ink.finish()
 
 
-func _bubble() -> void:
-	var flash: float = clampf(1.0 - since_hit / 0.18, 0.0, 1.0)
-	var r: float = RADIUS * (1.0 + 0.025 * sin(t * 3.0) + 0.08 * flash)
-	var body: PackedVector2Array = RisoShapes.circle(Vector2.ZERO, r, 40)
-	# A faint veil of pink, a little stronger toward its edge, and brighter for a moment when struck.
-	ink.ink(RisoPrint.PINK, 0.1 + 0.3 * flash, [body], false)
-	var rim: Array[PackedVector2Array] = []
-	for i: int in range(28):
-		var a0: float = TAU * float(i) / 28.0
-		var a1: float = a0 + TAU / 28.0
-		rim.append(PackedVector2Array([Vector2(cos(a0), sin(a0)) * r, Vector2(cos(a1), sin(a1)) * r, Vector2(cos(a1), sin(a1)) * (r - 7.0), Vector2(cos(a0), sin(a0)) * (r - 7.0)]))
-	ink.ink(RisoPrint.PINK, 0.22, rim, false)
-	ink.knock([RisoPrint.PINK], [RisoShapes.crescent(Vector2(-r * 0.42, -r * 0.42), r * 0.2, Vector2(r * 0.06, r * 0.06), 20)])
-	# Cracks: for each hit taken, a jagged split of bare paper running in from the rim, glowing pink
-	# round it in a slow pulse, so a cracked shield reads at a glance.
-	var cracks: Array[PackedVector2Array] = []
-	var glows: Array[PackedVector2Array] = []
-	for k: int in range(full - hp):
-		var a: float = 0.9 + float(k) * 2.2
-		var d: Vector2 = Vector2(cos(a), sin(a))
-		var n: Vector2 = Vector2(-d.y, d.x)
-		var pts: PackedVector2Array = PackedVector2Array([d * (r + 2.0), d * (r - 10.0) + n * 6.0, d * (r - 19.0) - n * 4.0, d * (r - 29.0) + n * 4.0])
-		cracks.append_array(RisoDecor.strip(pts, 4.6, 1.6))
-		# A branch off the middle.
-		cracks.append_array(RisoDecor.strip(PackedVector2Array([d * (r - 10.0) + n * 6.0, d * (r - 17.0) + n * 14.0]), 3.0, 1.0))
-		glows.append_array(RisoDecor.strip(pts, 14.0, 7.0))
-	if not cracks.is_empty():
-		var pulse: float = 0.5 + 0.5 * sin(t * 4.0)
-		ink.ink(RisoPrint.PINK, 0.45 + 0.45 * pulse, glows, false)
-		ink.knock([RisoPrint.PINK, RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], cracks)
-
-
-func _shards(u: float) -> void:
-	var pieces: Array[PackedVector2Array] = []
-	for i: int in range(10):
-		var a: float = TAU * float(i) / 10.0 + 0.3
-		var d: Vector2 = Vector2(cos(a), sin(a))
-		var at: Vector2 = d * (RADIUS + 50.0 * u) + Vector2(0, 70.0 * u * u)
-		var s: float = 8.0 * (1.0 - u)
-		pieces.append(PackedVector2Array([at + d * s, at + Vector2(-d.y, d.x) * s * 0.6, at - d * s * 0.5]))
-	ink.ink(RisoPrint.PINK, 0.8 * (1.0 - u), pieces, false)
+## How far the ring has turned: slowly, so it reads as a guard rather than a decoration.
+func _spin() -> float:
+	return t * SPIN

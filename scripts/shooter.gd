@@ -3,6 +3,14 @@ class_name Shooter
 ## The watcher: while it can see the wizard (in range, with a clear line), its eye slowly opens,
 ## charging toward a shot; when the charge is full it fires and starts again. The moment it loses
 ## sight the charge resets, so breaking line of sight buys a full cooldown.
+## A sky watcher, whose shots rebound (SkyArchetype), hovers instead of growing from the floor: it
+## rises up to HOVER_UP over the spot it was placed on (less under rock) and drifts slowly from side
+## to side there, bobbing. Its spot in the level is the same, so layouts are unchanged.
+
+## How high a hovering watcher rises, how far it drifts either way, and how fast it goes round.
+const HOVER_UP: float = 170.0
+const HOVER_DRIFT: float = 70.0
+const HOVER_RATE: float = 0.35
 
 ## Seconds of charge (in sight) to a shot, and the shot's speed (px/s): few shots, but quick ones.
 var cooldown: float = 3.5
@@ -19,6 +27,11 @@ var player_in_range: bool = false
 var charge: float = 0.0
 ## Whether it can see the wizard this frame.
 var sees: bool = false
+## Whether it hovers (see HOVER_UP); where it hangs, how far it may drift there, and its own clock.
+var hovering: bool = false
+var home: Vector2 = Vector2.INF
+var drift: float = 0.0
+var hover_t: float = 0.0
 
 
 func can_see() -> bool:
@@ -45,6 +58,8 @@ func shoot() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if hovering and not stunned:
+		_hover(delta)
 	sees = can_see()
 	if not sees:
 		charge = 0.0
@@ -70,3 +85,32 @@ func range_stop_touch(other: Node) -> void:
 func _ready() -> void:
 	range_box.connect("body_entered", range_touch)
 	range_box.connect("body_exited", range_stop_touch)
+	if int(rb.get_meta(&"bounces", 0)) > 0:
+		hovering = true
+		rb.gravity_scale = 0.0
+		rb.freeze_mode = RigidBody2D.FREEZE_MODE_KINEMATIC
+		rb.freeze = true
+
+
+## Hang in the air over its spot, drifting slowly side to side and bobbing. Its height and drift are
+## found the first time, from the rock around it (the level is placed by then), never by chance.
+func _hover(delta: float) -> void:
+	if home == Vector2.INF:
+		_find_home()
+	hover_t += delta
+	rb.global_position = home + Vector2(sin(hover_t * HOVER_RATE * TAU) * drift, sin(hover_t * 1.7) * 8.0)
+
+
+## How high over its spot it can hang, and how far it can drift there, with clear air around it.
+func _find_home() -> void:
+	var at: Vector2 = rb.global_position
+	var info: MapInfo = MapInfo.instance
+	var clear: Callable = func(p: Vector2) -> bool: return info == null or info.world == null or not info.solid_at(p)
+	var up: float = 0.0
+	while up < HOVER_UP and clear.call(at + Vector2(0, -up - 60.0)):
+		up += 10.0
+	home = at + Vector2(0, -up)
+	drift = 0.0
+	while drift < HOVER_DRIFT and clear.call(home + Vector2(drift + 50.0, 0)) and clear.call(home - Vector2(drift + 50.0, 0)):
+		drift += 10.0
+	hover_t = RisoShapes.hash1(at.x * 0.013 + at.y * 0.007) * 10.0

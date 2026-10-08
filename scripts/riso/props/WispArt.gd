@@ -19,6 +19,10 @@ var wisp_to: float = 0.0
 ## This turn's loop size, fitted to the open space around the wisp when the turn starts.
 var wisp_loop_w: float = WISP_LOOP_W
 var wisp_loop_h: float = WISP_LOOP_H
+## The middle of the body as last drawn (world space), where a shield round it centres.
+var _body_middle: Vector2 = Vector2.INF
+## The middle of the body, in its own art units (it runs from the tail tip at x -12.4 to the head).
+const BODY_MIDDLE: Vector2 = Vector2(-3.0, -8.2)
 
 
 func _draw_art() -> void:
@@ -109,6 +113,7 @@ func _draw_art() -> void:
 			for a: float in fade:
 				cool.append(a * 0.35)
 			ink.ink_graded(RisoPrint.BLUE, [poly], [cool])
+	_body_middle = to_global(_wisp_place(PackedVector2Array([BODY_MIDDLE]), false)[0])
 	var eyes: Array[PackedVector2Array] = []
 	for eye: Vector2 in [Vector2(3.4, -9.2), Vector2(0.7, -9.4)]:
 		# Mid-spin the eyes slide to their mirrored height about the spine, so after half a turn
@@ -119,6 +124,11 @@ func _draw_art() -> void:
 	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE], eyes)
 	if stunned:
 		_stun_mark(head + _wp_bob + Vector2(0, -52))
+
+
+## A shield centres on the middle of the body, which trails behind the wisp's origin.
+func guard_center() -> Vector2:
+	return _body_middle if _body_middle != Vector2.INF else super.guard_center()
 
 
 ## Size the turning arc to the room: shallower over a near floor, tighter against a wall. The head

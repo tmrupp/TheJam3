@@ -18,7 +18,7 @@ const BINDLE_FORMS: Dictionary = {
 	&"astral": Vector3(4.0, 6.2, 0.4), &"parry": Vector3(5.7, 4.1, -0.2),
 	&"levitate": Vector3(3.6, 6.8, -0.8), &"awareness": Vector3(5.5, 4.8, 0.6),
 	&"rift": Vector3(5.1, 5.4, -1.0), &"warp": Vector3(4.6, 5.8, 1.0),
-	&"mend": Vector3(4.4, 6.0, 0.0),
+	&"mend": Vector3(4.4, 6.0, 0.0), &"ferry": Vector3(5.9, 4.4, 0.3),
 }
 ## The places the three travelers carry their lantern flame, in art units facing right.
 const LANTERN_AT: Dictionary = {
@@ -170,7 +170,7 @@ func draw() -> void:
 		&"fool": _fool()
 	if not wizard.player.phasing and wizard.player.is_invulnerable() and int(wizard.t * 16.0) % 2 == 0:
 		wizard.body.knock(RisoPrint.ALL_PLATES, figure)
-		wizard.body.ink(RisoPrint.PINK, 1.0, figure, false)
+		wizard.body.ink(RisoPrint.EYE if wizard.parry_glory() else RisoPrint.PINK, 1.0, figure, false)
 	wizard.body.finish()
 
 
@@ -732,6 +732,9 @@ static func mask_shape(spell: StringName, at: Vector2) -> PackedVector2Array:
 		&"levitate": return RisoShapes.ellipse(at, 4.8, 7.4)
 		&"parry": return RisoShapes.smooth(PackedVector2Array([at + Vector2(-6, -5), at + Vector2(6, -5), at + Vector2(5, 3), at + Vector2(0, 7), at + Vector2(-5, 3)]))
 		&"mend": return RisoShapes.almond(at, 5.4, 7.2)
+		&"ferry": return RisoShapes.smooth(PackedVector2Array([
+			at + Vector2(-7, -3), at + Vector2(7, -3), at + Vector2(6, 2), at + Vector2(2, 6), at + Vector2(-2, 6), at + Vector2(-6, 2),
+		]))
 		&"rift": return RisoShapes.smooth(PackedVector2Array([
 			at + Vector2(-6, -6), at + Vector2(-1, -4), at + Vector2(6, -6),
 			at + Vector2(5, 5), at + Vector2(0, 7), at + Vector2(-5, 5),

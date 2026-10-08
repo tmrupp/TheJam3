@@ -9,7 +9,9 @@ var lift: MovingPlatform:
 
 
 ## A moving ledge: the static ledge's bar and cap, a pink rune glowing beneath, and its track
-## printed as a faint dotted line that stays put while the ledge slides along it.
+## printed as a faint dotted line that stays put while the ledge slides along it. A lift parked for
+## its switch has a dark, unlit rune and the switch's emblem and sigil on a paper plate in its
+## middle.
 func _draw_art() -> void:
 	var n: int = lift.length
 	var x1: float = -half + float(n) * half * 2.0
@@ -26,10 +28,15 @@ func _draw_art() -> void:
 	var pulse: float = 0.8 + 0.2 * sin(t * 3.0 + phase)
 	for i: int in range(n):
 		var c: Vector2 = Vector2(float(i) * half * 2.0, -half + 44.0)
+		if lift.waiting:
+			ink.ink(RisoPrint.NIGHT, 0.6, [RisoShapes.almond(c, 10.0, 4.0, 8)])
+			continue
 		ink.ink(RisoPrint.PINK, 0.25, [RisoShapes.ellipse(c, 26.0 * pulse, 9.0 * pulse, 20)])
 		ink.ink(RisoPrint.PINK, 1.0, [RisoShapes.almond(c, 10.0, 4.0, 8)])
 	ink.ink(RisoPrint.BLUE, 1.0, [_bar(-half + 1.0, -half, x1 - 1.0, -half + 34.0, 12.0, true, true)])
 	ink.ink(RisoPrint.ACCENT, 1.0, [_bar(-half + 1.0, -half - 3.0, x1 - 1.0, -half + 14.0, 8.0, true, true)])
+	if lift.waiting:
+		RisoMarks.switch_plate(ink, mid + Vector2(0, -8.0), 1.6, 1.0, Sigils.of(host))
 
 
 ## A horizontal bar whose left/right ends are rounded only when free.

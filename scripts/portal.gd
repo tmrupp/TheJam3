@@ -34,6 +34,9 @@ func use_portal() -> void:
 	portal_sfx.play()
 	RisoPrint.portal_depart(self, player)
 	await get_tree().create_timer(DEPART).timeout
+	# Died on the way (or the run ended): the level is changing, and its arrival ends the trip.
+	if _cut_short():
+		return
 	if has_meta(&"rift_far"):
 		# Out in another level: the level's own transition takes it from here.
 		var far: Array = get_meta(&"rift_far")
@@ -48,13 +51,23 @@ func use_portal() -> void:
 	_snap_camera()
 	RisoPrint.portal_arrive(self, exit, player, to)
 	await get_tree().create_timer(REVEAL).timeout
+	if _cut_short():
+		return
 	RisoPrint.portal_reveal(player)
 	player.visual_event.emit(&"teleport", to)
 	await get_tree().create_timer(ARRIVE - REVEAL).timeout
+	if _cut_short():
+		return
 	player.set_physics_process(moving)
 	player.grace()
 	player.remove_meta(&"portal_trip")
 	trip_done.emit()
+
+## Whether a death or a run's end has cut the trip short: the place is changing (or about to), and
+## MapInfo._arrived ends the trip, showing the wizard again.
+func _cut_short() -> bool:
+	var info: MapInfo = MapInfo.instance
+	return info != null and (info.travelling or info.run_ending > 0.0)
 
 ## The portal at the other end: the partner, or for a level's own pair, the portal standing where
 ## this one leads.

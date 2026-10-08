@@ -12,7 +12,8 @@ var bell: Bell:
 
 ## A grave bell on a post by a chasm (Bell): a post and crossbar in blue, the bell in accent ink
 ## hanging from it. Chained, a night-ink chain is wound round it and down to the post, held by a
-## padlock in its key's colour or a plate with the switch emblem; struck, it rattles. Freed, the
+## padlock in its key's colour or a plate with the switch emblem and the sigil its switch shares;
+## struck, it rattles. Freed, the
 ## chain drops away and the bell sways in a soft halo, waiting. Rung, it swings hard and rings out
 ## in arcs that fade; one rung on an earlier visit hangs still and dim.
 func _draw_art() -> void:
@@ -71,4 +72,4 @@ func _bell_chain(hang: Transform2D, g: float, chained: bool, freed: float) -> vo
 	if lock >= 0:
 		RisoMarks.padlock(ink, lock_at + Vector2(0, drop), lock, 1.7, fade)
 	else:
-		RisoMarks.switch_plate(ink, lock_at + Vector2(0, drop), 1.7, fade)
+		RisoMarks.switch_plate(ink, lock_at + Vector2(0, drop), 1.7, fade, Sigils.of(host))

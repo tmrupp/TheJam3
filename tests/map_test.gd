@@ -97,7 +97,7 @@ func run() -> void:
 			pair.append(n)
 	var a_end: Node = pair[0]
 	var b_end: Node = pair.filter(func(n: Node) -> bool: return n.get_meta(&"cell") == info.cell_at(a_end.get("go_to_pos")))[0]
-	check(PortalArt.pair_sigil(a_end.get_meta(&"cell"), b_end.get_meta(&"cell")) == PortalArt.pair_sigil(b_end.get_meta(&"cell"), a_end.get_meta(&"cell")), "both ends of a teleporter pair carry the same sigil")
+	check(Sigils.of(a_end) >= 0 and Sigils.of(a_end) == Sigils.of(b_end), "both ends of a teleporter pair carry the same sigil")
 	map.call("page", 1)
 	await process_frame
 	check(int(map.get("view")) == 2 and paused, "D turns to the worlds page")

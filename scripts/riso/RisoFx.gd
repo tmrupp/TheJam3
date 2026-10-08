@@ -74,6 +74,15 @@ func _burst(kind: StringName, at: Vector2, dir: Vector2, plates: Array[int]) -> 
 			_add(Shape.BLOOM, RisoPrint.EYE, 0.4, at, Vector2.ZERO, 0.15, 5.0, 0.0, 0.0, 150.0)
 			for i: int in range(6):
 				_add(Shape.SPARKLE, RisoPrint.EYE, 1.0, at, _spray(dir, 0.5, 150.0, 320.0), rng.randf_range(0.25, 0.4), rng.randf_range(4.0, 6.5), 6.0)
+		&"parry":
+			# A catch: a flash of spell light, sparks thrown back the way the hit came from, and a ring
+			# of motes.
+			_add(Shape.BLOOM, RisoPrint.EYE, 0.5, at, Vector2.ZERO, 0.22, 14.0, 0.0, 0.0, 420.0)
+			for i: int in range(10):
+				_add(Shape.SPARKLE, RisoPrint.EYE, 1.0, at, _spray(dir, 0.9, 260.0, 520.0), rng.randf_range(0.3, 0.5), rng.randf_range(6.0, 10.0), 4.0)
+			for i: int in range(12):
+				var a: float = TAU * float(i) / 12.0
+				_add(Shape.DOT, RisoPrint.ACCENT, 1.0, at, Vector2(cos(a), sin(a)) * 320.0, 0.3, 3.5, 5.0)
 		&"impact":
 			_add(Shape.BLOOM, RisoPrint.PINK, 0.3, at, Vector2.ZERO, 0.16, 6.0, 0.0, 0.0, 200.0)
 			for i: int in range(8):

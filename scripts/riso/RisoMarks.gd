@@ -1,8 +1,9 @@
 class_name RisoMarks
 extends RefCounted
 ## Printed marks shared by the props, the printed map, the HUD and the prompts: keys and their
-## bows (one shape per colour), padlocks and gates, the switch emblem, chains, the wizard's ghost,
-## chevrons, a smoke thread and the place marks. Pure shapes and ink, drawn into whatever
+## bows (one shape per colour), padlocks and gates, the switch emblem, the sigils that link a switch
+## or a teleporter to its partner, chains, the wizard's ghost, chevrons, a smoke thread and the place
+## marks. Pure shapes and ink, drawn into whatever
 ## InkCanvas is given.
 
 
@@ -134,9 +135,10 @@ static func switch_emblem(c: Vector2, s: float) -> Array[PackedVector2Array]:
 
 ## A portcullis filling its corridor cell: a header beam at the ceiling, four iron bars ending
 ## in spikes just above the floor, and one cross-rail hung with a padlock in the key colour it
-## needs (padlock; a switch gate shows the switch's emblem on a paper plate instead). `lift` (0 closed, 1 open) winches the grate up into the header: the bars
-## shorten from the bottom. `fade` scales every ink.
-static func portcullis(ink: InkCanvas, g: float, half: float, key_color: int, lift: float, fade: float) -> void:
+## needs (padlock; a switch gate, `key_color` -1, shows the switch's emblem and its switch's
+## sigil `sigil_kind` on a paper plate instead, sigil_plate). `lift` (0 closed, 1 open) winches
+## the grate up into the header: the bars shorten from the bottom. `fade` scales every ink.
+static func portcullis(ink: InkCanvas, g: float, half: float, key_color: int, lift: float, fade: float, sigil_kind: int = -1) -> void:
 	var top: float = g - 2.0 * half
 	var bottom: float = lerpf(g - 14.0, top + 14.0, clampf(lift, 0.0, 1.0))
 	var span: float = bottom - (top + 10.0)
@@ -151,10 +153,8 @@ static func portcullis(ink: InkCanvas, g: float, half: float, key_color: int, li
 		_gate_iron(ink, key_color, fade, iron)
 		if span > 40.0:
 			if key_color < 0:
-				# A switch gate: the switch's emblem (a lever in a ring) on a paper plate.
-				var plate: PackedVector2Array = RisoShapes.rrect(-19, ly - 14.0, 38, 28, 8)
-				ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE], [plate])
-				ink.ink(RisoPrint.NIGHT, fade, switch_emblem(Vector2(0, ly), 0.9), false)
+				# A switch gate: the switch's emblem and its sigil on a paper plate.
+				sigil_plate(ink, Vector2(0, ly), GATE_PLATE_SCALE, fade, sigil_kind, true)
 			else:
 				# A padlock in its key's colour hangs from the cross-rail, as on a cemetery's bells.
 				padlock(ink, Vector2(0, ly - 4.0), key_color, 1.6, fade)
@@ -184,10 +184,103 @@ static func padlock(ink: InkCanvas, c: Vector2, color: int, s: float, fade: floa
 	ink.ink(RisoPrint.NIGHT, fade, [key_bow(c + Vector2(0, 6.5) * s, 4.5 * s * (1.3 if color == KeyRing.SKELETON else 1.0), color)], false)
 
 
-## A switch's plate on `c` where a padlock would hang: a dark plate with the switch emblem.
-static func switch_plate(ink: InkCanvas, c: Vector2, s: float, fade: float) -> void:
-	ink.ink(RisoPrint.NIGHT, fade * 0.9, [RisoShapes.rrect(c.x - 12.0 * s, c.y - 4.0 * s, 24.0 * s, 22.0 * s, 5.0 * s)], false)
-	ink.ink(RisoPrint.ACCENT, fade, switch_emblem(c + Vector2(0, 7.0) * s, 0.55 * s), false)
+## A switch's plate hung on `c` where a padlock would hang (`c` its top middle, `s` the padlock's
+## size): the switch emblem and the switch's sigil `sigil_kind` on a paper plate (sigil_plate).
+static func switch_plate(ink: InkCanvas, c: Vector2, s: float, fade: float, sigil_kind: int) -> void:
+	var k: float = s * SWITCH_PLATE_SCALE
+	sigil_plate(ink, c + Vector2(0, PLATE_H * 0.5 * k), k, fade, sigil_kind, true)
+
+
+# ------------------------------------------------------------------ sigils
+# The shapes that tie linked things together (Sigils): a pair of teleporters, a switch and what it
+# works. Solid and unlike one another at a glance and at the map's size, and none of them a mark
+# that means something else (no chevrons, sparks, keys or hearts).
+
+## How many sigils there are.
+const SIGILS: int = 12
+## A sigil plate's height, and its width with and without the switch emblem, at size 1.
+const PLATE_H: float = 26.0
+const PLATE_W: float = 24.0
+const PLATE_W_EMBLEM: float = 48.0
+## How much smaller than a padlock of the same size a switch's plate is hung.
+const SWITCH_PLATE_SCALE: float = 1.0
+## The size of the plate on a switch gate's cross-rail.
+const GATE_PLATE_SCALE: float = 1.8
+
+
+## Sigil `kind` (0 to SIGILS - 1), about 2 * `r` across, centred on `c`: a disc, a triangle, a
+## square, a diamond, a triangle pointing down, a crescent, a cross, a saltire, a five-pointed
+## star, an hourglass, a dome or three dots.
+static func sigil(kind: int, c: Vector2, r: float) -> Array[PackedVector2Array]:
+	match kind:
+		0:
+			return [RisoShapes.circle(c, r * 0.85, 18)]
+		1:
+			return [RisoShapes.tri(c + Vector2(0, -r), c + Vector2(r, r * 0.75), c + Vector2(-r, r * 0.75))]
+		2:
+			return [RisoShapes.rrect(c.x - r * 0.75, c.y - r * 0.75, r * 1.5, r * 1.5, r * 0.15)]
+		3:
+			return [PackedVector2Array([c + Vector2(0, -r), c + Vector2(r * 0.8, 0), c + Vector2(0, r), c + Vector2(-r * 0.8, 0)])]
+		4:
+			return [RisoShapes.tri(c + Vector2(0, r), c + Vector2(-r, -r * 0.75), c + Vector2(r, -r * 0.75))]
+		5:
+			return [RisoShapes.crescent(c, r * 0.95, Vector2(r * 0.55, -r * 0.25), 36)]
+		6:
+			return [_cross(c, r, 0.0)]
+		7:
+			return [_cross(c, r, PI * 0.25)]
+		8:
+			return [_star(c, r, 5, 0.45)]
+		9:
+			return [RisoShapes.tri(c + Vector2(-r * 0.8, -r), c + Vector2(r * 0.8, -r), c + Vector2(0, -r * 0.06)),
+				RisoShapes.tri(c + Vector2(0, r * 0.06), c + Vector2(r * 0.8, r), c + Vector2(-r * 0.8, r))]
+		10:
+			return [_dome(c, r)]
+	var dots: Array[PackedVector2Array] = []
+	for k: int in range(3):
+		dots.append(RisoShapes.circle(c + Vector2.from_angle(-PI * 0.5 + TAU * float(k) / 3.0) * r * 0.55, r * 0.4, 12))
+	return dots
+
+
+## A cross of two bars, `r` from the middle to the end of each arm, turned by `turn`.
+static func _cross(c: Vector2, r: float, turn: float) -> PackedVector2Array:
+	var a: float = r * 0.3
+	var pts: PackedVector2Array = PackedVector2Array([Vector2(-a, -r), Vector2(a, -r), Vector2(a, -a), Vector2(r, -a), Vector2(r, a), Vector2(a, a),
+		Vector2(a, r), Vector2(-a, r), Vector2(-a, a), Vector2(-r, a), Vector2(-r, -a), Vector2(-a, -a)])
+	return Transform2D(turn, c) * pts
+
+
+## A star of `points` points, `r` to each tip and `inner` of that to the notches, one tip up.
+static func _star(c: Vector2, r: float, points: int, inner: float) -> PackedVector2Array:
+	var out: PackedVector2Array = PackedVector2Array()
+	for i: int in range(points * 2):
+		out.append(c + Vector2.from_angle(-PI * 0.5 + PI * float(i) / float(points)) * r * (1.0 if i % 2 == 0 else inner))
+	return out
+
+
+## A dome: a half disc on a flat base, `r` out either way, standing so it sits centred on `c`.
+static func _dome(c: Vector2, r: float) -> PackedVector2Array:
+	var base: Vector2 = c + Vector2(0, r * 0.45)
+	var out: PackedVector2Array = PackedVector2Array()
+	for i: int in range(17):
+		out.append(base + Vector2.from_angle(PI + PI * float(i) / 16.0) * r)
+	return out
+
+
+## A sigil on a paper plate centred on `c`, `s` its size: sigil `kind` in night ink, with `emblem`
+## the switch emblem before it (on what a switch works: "the switch with this sigil"). A plate
+## with no sigil (-1) shows the emblem alone. `fade` scales every ink.
+static func sigil_plate(ink: InkCanvas, c: Vector2, s: float, fade: float, kind: int, emblem: bool) -> void:
+	var both: bool = emblem and kind >= 0
+	var w: float = (PLATE_W_EMBLEM if both else PLATE_W) * s
+	var plate: PackedVector2Array = RisoShapes.rrect(c.x - w * 0.5, c.y - PLATE_H * 0.5 * s, w, PLATE_H * s, 7.0 * s)
+	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE], fade, [plate])
+	var mark: Vector2 = c + Vector2(w * 0.5 - PLATE_W * 0.5 * s, 0) if both else c
+	if emblem:
+		var lever: Vector2 = c + Vector2(-w * 0.5 + PLATE_W * 0.5 * s, s) if both else c + Vector2(0, s)
+		ink.ink(RisoPrint.NIGHT, fade, switch_emblem(lever, 0.75 * s), false)
+	if kind >= 0:
+		ink.ink(RisoPrint.NIGHT, fade, sigil(kind, mark, 8.5 * s), false)
 
 
 ## A chain along `path`: links `link` long, alternating an open loop seen face on and a bar seen

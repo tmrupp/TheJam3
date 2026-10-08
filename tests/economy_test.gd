@@ -177,7 +177,7 @@ func casting() -> void:
 	Abilities.cast(player)
 	check(warp.recharge == 0.0 and player.global_position == before, "no warp without the stars for it")
 	var price: int = Abilities.cast_price(&"warp", 0)
-	check(price == 2 and Abilities.cast_price(&"warp", 6) > price, "a warp costs 2 at the surface, more deeper")
+	check(price == 4 and Abilities.cast_price(&"warp", 6) > price, "a warp costs 4 at the surface, more deeper")
 	check(Abilities.cast_price(&"hex", 3) == 0 and Abilities.cast_price(&"mend", 3) == 0, "other spells are free to cast")
 	player.collect(10)
 	Abilities.cast(player)

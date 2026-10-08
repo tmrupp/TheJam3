@@ -1,15 +1,19 @@
 extends Node2D
 class_name MothSwarm
 ## A swarm of moths, in cemetery levels. They flutter round where they were laid until a light draws
-## them: the nearby wizard's spell orb within ORB_PULL (with a spell equipped and not drowsy), else a lit lantern
-## within DRAW of their home (so the lantern that keeps you safe draws danger to it).
+## them: the lantern the wizard carries, while it burns (while a lit lantern protects them), within
+## CARRIED_PULL; else that lit lantern itself, within DRAW of their home. So the light that keeps
+## you safe draws danger to it, and to you. With no lantern lit, they stay home.
 ## A moth that touches the wizard stings (a heart, like any hit). A dash, hex bolt through the
 ## swarm, or a parry, scatters it: the moths burst outward and sting no one,
 ## then flutter back together after SCATTER_TIME. They are never killed and never counted slain.
 
 const COUNT: int = 6
 const DRAW: float = 1100.0
-const ORB_PULL: float = 560.0
+## How near the wizard's lit, carried lantern draws them.
+const CARRIED_PULL: float = 560.0
+## Where the wizard carries their lantern, from their feet.
+const CARRIED: Vector2 = Vector2(0, -40)
 const SPEED: float = 170.0
 const SCATTER_TIME: float = 6.0
 const STING: float = 36.0
@@ -23,7 +27,8 @@ var home: Vector2 = Vector2.ZERO
 ## Seconds the swarm stays scattered, and which way it was struck from.
 var scattered: float = 0.0
 var scatter_dir: Vector2 = Vector2.ZERO
-## What draws it now: &"lantern", &"orb" or &"home" (for the art and tests).
+## What draws it now: &"carried" (the wizard's lantern), &"lantern" or &"home" (for the art and
+## tests).
 var drawn_to: StringName = &"home"
 var t: float = 0.0
 
@@ -44,15 +49,17 @@ func _ready() -> void:
 		spots.append(Vector2.ZERO)
 
 
-## Where the swarm is headed: the nearby wizard's lit spell orb, else a lit lantern, else home.
+## Where the swarm is headed: the nearby wizard's lit lantern, else the lit lantern in this level,
+## else home.
 func target() -> Vector2:
-	if player != null and is_instance_valid(player) and Abilities.spell(player) != &"" and not player.is_drowsy():
-		var orb: Vector2 = player.global_position + Vector2(0, -70)
-		if orb.distance_to(global_position) <= ORB_PULL:
-			drawn_to = &"orb"
-			return orb
 	var info: MapInfo = MapInfo.instance
-	if info != null and info.world != null and not info.run.vulnerable and info.run.respawn_coord == info.coord:
+	var lit: bool = info != null and info.run != null and not info.run.vulnerable
+	if lit and player != null and is_instance_valid(player):
+		var carried: Vector2 = player.global_position + CARRIED
+		if carried.distance_to(global_position) <= CARRIED_PULL:
+			drawn_to = &"carried"
+			return carried
+	if lit and info.world != null and info.run.respawn_coord == info.coord:
 		var lantern: Vector2 = info.cell_position(info.run.respawn_cell) + GLASS
 		if lantern.distance_to(home) <= DRAW:
 			drawn_to = &"lantern"

@@ -23,6 +23,8 @@ const ART_SCALE: float = 0.8
 var player: Player
 var body: InkCanvas
 var world: InkCanvas
+## The parry guard, printed over the figure (see _draw_guard).
+var guard: InkCanvas
 ## The other printed travelers use this same body canvas and spring rig.
 var costume: RisoCostume
 ## Positions, age and curl of the pink smoke left by an unprotected traveler's lantern.
@@ -109,6 +111,9 @@ func _ready() -> void:
 	z_index = 10
 	body = InkCanvas.new()
 	add_child(body)
+	guard = InkCanvas.new()
+	guard.z_index = 1
+	add_child(guard)
 	world = InkCanvas.new()
 	world.top_level = true
 	world.z_index = 9
@@ -395,9 +400,12 @@ func _process(_delta: float) -> void:
 		body.finish()
 		world.begin()
 		world.finish()
+		guard.begin()
+		guard.finish()
 		return
 	_draw_body()
 	_draw_world()
+	_draw_guard()
 
 
 func _draw_body() -> void:
@@ -522,13 +530,14 @@ func _draw_body() -> void:
 		var pieces: Array[PackedVector2Array] = []
 		pieces.append_array(boots)
 		pieces.append_array([robe_m, collar, sleeve, face, cone, brim])
+		var flash: int = RisoPrint.EYE if parry_glory() else RisoPrint.PINK
 		for piece: PackedVector2Array in pieces:
 			body.knock(ALL, [piece])
-			body.ink(RisoPrint.PINK, 1.0, [piece], false)
+			body.ink(flash, 1.0, [piece], false)
 		var whites: Array[PackedVector2Array] = []
 		for c: Vector2 in eye_c:
 			whites.append(_sm(m * RisoShapes.circle(c, 1.0, 10)))
-		body.knock([RisoPrint.PINK], whites)
+		body.knock([flash], whites)
 	# The spell light remains solid even when the wizard projects through the scene.
 	var figure_coverage: float = body.coverage
 	body.coverage = 1.0
@@ -710,7 +719,53 @@ func _draw_world() -> void:
 	for g: Vector4 in marks:
 		var at: Transform2D = Transform2D(0.0, Vector2(s, s), 0.0, Vector2(g.x, g.y - (1.0 - g.w) * 6.0 * s))
 		world.ink(RisoPrint.GLOW, 0.25 if g.w > 0.5 else 0.15, _silhouette(at, g.z))
+	# The ward perk's ring of plates (Ward), round the wizard.
+	var ward: Ward = player.get_node_or_null("Ward") as Ward
+	if ward != null and not player.phasing:
+		ward.print_ring(world, player.global_position + Ward.CENTER)
 	world.finish()
+
+
+## The parry guard over the figure (art units): its middle, how far out the gleam reaches, and
+## the gleam band's width.
+const GUARD_AT: Vector2 = Vector2(0, -16)
+const GUARD_R: float = 21.0
+const GLEAM_W: float = 2.6
+
+
+## Parry (see Parry), in front of the figure and the same all round, as it guards every side: a
+## thin bright band of gleam (in a softer, wider one) sweeping across the figure once over the
+## window, as light runs over polished metal, with no bubble or ring round it. (A catch bursts in
+## RisoFx and shimmers the figure gold.)
+func _draw_guard() -> void:
+	guard.begin()
+	var parry: Parry = player.get_node_or_null("Parry") as Parry
+	if parry == null or player.phasing:
+		guard.finish()
+		return
+	var c: Vector2 = GUARD_AT + Vector2(0, bob)
+	var left: float = parry.guard_left()
+	if left >= 0.0:
+		var pop: float = clampf((parry.clock - parry.raised_at) / 0.06, 0.0, 1.0)
+		var r: float = GUARD_R * (1.3 - 0.3 * pop) * (0.9 + 0.1 * left)
+		var x: float = lerpf(-r * 1.4, r * 1.4, 1.0 - left)
+		var disc: PackedVector2Array = RisoShapes.circle(c, r, 32)
+		for k: int in range(2):
+			var w: float = GLEAM_W * (3.0 if k == 0 else 1.0)
+			var band: PackedVector2Array = PackedVector2Array([
+				c + Vector2(x - w - r * 0.5, r * 1.2), c + Vector2(x + w - r * 0.5, r * 1.2),
+				c + Vector2(x + w + r * 0.5, -r * 1.2), c + Vector2(x - w + r * 0.5, -r * 1.2)])
+			var gleam: Array[PackedVector2Array] = Geometry2D.intersect_polygons(band, disc)
+			if k == 1:
+				guard.knock(RisoPrint.ALL_PLATES, gleam)
+			guard.ink(RisoPrint.EYE, 0.35 if k == 0 else 0.8, gleam, false)
+	guard.finish()
+
+
+## Whether the figure's flash is a parry's gold shimmer rather than the hurt pink.
+func parry_glory() -> bool:
+	var parry: Parry = player.get_node_or_null("Parry") as Parry
+	return parry != null and parry.glory()
 
 
 ## The wizard's outline (robe and hat, the tip bent toward `facing`), feet at the origin of `at`.

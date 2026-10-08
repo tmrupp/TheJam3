@@ -54,6 +54,14 @@ func run() -> void:
 	print("lantern light")
 	var light: RisoLight = main.get_node("RisoLight") as RisoLight
 	check(light.lanterns.size() > 0 and light.lanterns.any(func(l: Node) -> bool: return info.is_respawn_lantern(l)), "the lanterns are lit, the respawn among them")
+	await process_frame
+	var near: bool = Vector2(light.carried.x, light.carried.y).distance_to(player.global_position) < 120.0
+	check(near and is_equal_approx(light.carried.z, float(RisoLight.CARRIED_RINGS[0][0])), "the protected wizard's carried lantern throws a warm pool round them")
+	var was_vulnerable: bool = info.run.vulnerable
+	info.run.vulnerable = true
+	await process_frame
+	check(is_equal_approx(light.carried.z, float(RisoLight.UNLIT_RINGS[0][0])), "unprotected, only a dim pool")
+	info.run.vulnerable = was_vulnerable
 
 	print("ambient life")
 	var ambient: Node = main.get_node("RisoAmbient")

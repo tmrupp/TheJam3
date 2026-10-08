@@ -9,6 +9,8 @@ const DURATION: float = 1.1
 var ground: float = 64.0
 var half: float = 64.0
 var key_color: int = 0
+## A switch gate's sigil (Sigils), or -1.
+var sigil_kind: int = -1
 var t: float = 0.0
 var ink: InkCanvas
 
@@ -37,5 +39,5 @@ func _process(delta: float) -> void:
 		var x: float = -44.0 + 22.0 * float(k)
 		dust.append(RisoShapes.circle(Vector2(x + sin(float(k) * 2.3) * 6.0, ground - 6.0 - rise * 10.0), 6.0 + rise * 8.0, 12))
 	ink.ink(RisoPrint.BLUE, 0.3 * (1.0 - rise) * fade, dust)
-	RisoMarks.portcullis(ink, ground + shudder, half, key_color, rise, fade)
+	RisoMarks.portcullis(ink, ground + shudder, half, key_color, rise, fade, sigil_kind)
 	ink.finish()

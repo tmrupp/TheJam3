@@ -1,12 +1,12 @@
 extends Area2D
 class_name Switch
-## A switch: interact with it, or hit it with a hex bolt, and it throws, lifting its gate
-## (SwitchGate) for good. The level record keeps it thrown, and the gate open.
+## A switch: interact with it, or hit it with a hex bolt, and it throws for good, lifting its gate
+## (SwitchGate) or starting its parked lift (MovingPlatform). The level record keeps it thrown.
 
 @onready var player: Player = Stage.player()
 
 var map_info: MapInfo
-## The cell of the gate it opens.
+## The cell of the gate it opens or the lift it starts.
 var gate_cell: Vector2i = Vector2i(-1, -1)
 
 
@@ -25,8 +25,12 @@ func flip() -> void:
 	map_info.record().switched[get_meta(&"cell")] = true
 	if is_instance_valid(map_info.map_elements):
 		for node: Node in map_info.map_elements.get_children():
-			if node is SwitchGate and node.get_meta(&"cell", null) == gate_cell:
+			if node.get_meta(&"cell", null) != gate_cell:
+				continue
+			if node is SwitchGate:
 				(node as SwitchGate).open()
+			elif node is MovingPlatform:
+				(node as MovingPlatform).run()
 	map_info.save_run()
 	RisoFx.burst(&"gain", global_position + Vector2(0, -30), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
 

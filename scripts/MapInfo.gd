@@ -417,6 +417,11 @@ func _arrived () -> void:
 		player.set_collision(true)
 		player.set_physics_process(true)
 		player.grace()
+		# A trip (through a portal, or a warp) cut short by a death or a run's end never got to show
+		# the wizard again, and its portal is gone with the old level: end it here.
+		if player.has_meta(&"portal_trip"):
+			player.remove_meta(&"portal_trip")
+		RisoPrint.portal_reveal(player)
 	travelling = false
 	_refresh_lanterns()
 	if RisoPrint.instance != null:

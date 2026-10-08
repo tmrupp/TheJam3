@@ -431,7 +431,7 @@ func birds() -> void:
 			low = maxf(low, rb.global_position.y)
 			if swooped and not bool(bird.call("swooping")):
 				break
-			if not swooped and i > 60:
+			if not swooped and i > 60 + int(Bird.TELL * 60.0):
 				break
 		if swooped:
 			break

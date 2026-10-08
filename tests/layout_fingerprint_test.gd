@@ -25,11 +25,11 @@ const PLACES: Array = [
 ## label -> [terrain, dressing], as printed by this test.
 const GOLDEN: Dictionary = {
 	"garden": ["3141ca88260d303e", "6ed820a086eba3d5"],
-	"garden deeper": ["fb83f8a8fba7e562", "37872ac5fcc1e8a5"],
-	"cemetery": ["0708f224adbb179a", "305c62d0afcfe0ff"],
+	"garden deeper": ["fb83f8a8fba7e562", "568e40e242b83832"],
+	"cemetery": ["0708f224adbb179a", "854439b0df634f9a"],
 	"cemetery deeper": ["1c1f236236a24d2c", "bce73663065d9890"],
 	"sky": ["812e276a39eac712", "4cc4cd5c8bf36df3"],
-	"sky deeper": ["7ed6d50689e41962", "6146631a00d042e2"],
+	"sky deeper": ["7ed6d50689e41962", "e76d91d278498315"],
 	"hyperspace": ["2c6df15b39f4e062", "8ac55aedddefeb32"],
 }
 

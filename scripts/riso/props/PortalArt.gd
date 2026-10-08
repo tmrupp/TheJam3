@@ -1,7 +1,7 @@
 extends RisoProp
 class_name PortalArt
 ## A portal: a level's teleporter (a gate) or one of the wizard's rifts. Its outline's
-## geometry is shared with the portal trip's print (RisoPortalWarp) and the map's sigils.
+## geometry is shared with the portal trip's print (RisoPortalWarp).
 
 
 ## The Portal it dresses.
@@ -14,7 +14,8 @@ var gate: Portal:
 ## a stadium (half circles top and bottom joined by straight sides). What fills it is the F7
 ## panel's choice (RisoPrint.portal_style): bands of TV static (the default), or ripples on a pool
 ## of water. A level's own portals are gates: a solid accent rim on a stone threshold, light
-## pooled on the floor, and a sigil on top that its partner shares, so a pair can be told apart.
+## pooled on the floor, and a sigil on top that its partner shares and no other pair in the level
+## has while there are sigils to go round (Sigils), so a pair can be told apart.
 ## The wizard's rifts are torn in the air: a rim of flickering eye-yellow dashes (their own light;
 ## nothing here is dangerous, so no pink), no threshold, a spark for a sigil; one still waiting
 ## for its partner is a dim outline with nothing inside. With the wizard right at it (it takes
@@ -24,7 +25,10 @@ const PORTAL_RX: float = 44.0
 const PORTAL_RY: float = 72.0
 ## How far up a gate's oval stands off its threshold.
 const PORTAL_LIFT: float = 8.0
-var _sigil: int = -1
+## The sigil's disc over the rim: its radius, how far it stands above the oval, and the sigil's size.
+const SIGIL_DISC: float = 25.0
+const SIGIL_RISE: float = 32.0
+const SIGIL_R: float = 17.0
 ## while the wizard is right at the portal (as if it waits for them).
 var _portal_clock: float = 0.0
 const PORTAL_SLOW: float = 0.35
@@ -98,39 +102,6 @@ static func portal_oval(center: Vector2, k: float, n: int = 48) -> PackedVector2
 	return out
 
 
-## The pair's sigil (0..4): both ends of a pair of gates get the same one, dealt by their cells.
-func _pair_sigil() -> int:
-	if _sigil >= 0:
-		return _sigil
-	var info: MapInfo = MapInfo.instance
-	if info == null or not host.has_meta(&"cell"):
-		return 0
-	_sigil = pair_sigil(host.get_meta(&"cell"), info.cell_at(gate.go_to_pos))
-	return _sigil
-
-
-## The sigil a pair of teleporters at cells `a` and `b` shares (0..4, see sigil_shape): the same
-## from either end, so the printed map can match them too.
-static func pair_sigil(a: Vector2i, b: Vector2i) -> int:
-	var lo: Vector2i = a if a < b else b
-	var hi: Vector2i = b if a < b else a
-	return Rules.level_seed(lo.x * 997 + lo.y, hi.x * 991 + hi.y) % 5
-
-
-## A sigil, about 2 * `r` across: a ring, a triangle, a square, a diamond or a spark.
-static func sigil_shape(kind: int, c: Vector2, r: float) -> PackedVector2Array:
-	match kind:
-		0:
-			return RisoShapes.circle(c, r * 0.8, 14)
-		1:
-			return PackedVector2Array([c + Vector2(0, -r), c + Vector2(r * 0.95, r * 0.75), c + Vector2(-r * 0.95, r * 0.75)])
-		2:
-			return RisoShapes.rrect(c.x - r * 0.75, c.y - r * 0.75, r * 1.5, r * 1.5, r * 0.2)
-		3:
-			return PackedVector2Array([c + Vector2(0, -r), c + Vector2(r * 0.8, 0), c + Vector2(0, r), c + Vector2(-r * 0.8, 0)])
-	return RisoShapes.sparkle(c, r * 1.2)
-
-
 func _draw_art() -> void:
 	var rift: bool = host.has_meta(&"rift")
 	var linked: bool = gate.linked
@@ -183,12 +154,16 @@ func _draw_art() -> void:
 		var rim: Array[PackedVector2Array] = portal_ring(center, -1.5, 4.5)
 		ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 0.85, rim)
 		ink.ink(ring, minf(1.0, glow), rim, false)
-	# The sigil on top: the pair's shape on a gate, the wizard's spark on a rift.
-	var top: Vector2 = center + Vector2(0, -PORTAL_RY - 14.0)
-	var disc: PackedVector2Array = RisoShapes.circle(top, 10.0, 18)
-	ink.ink(ring, 1.0, [RisoShapes.circle(top, 12.0, 20)])
+	# The sigil on top: the pair's (Sigils) on a gate, the wizard's spark on a rift.
+	var top: Vector2 = center + Vector2(0, -PORTAL_RY - SIGIL_RISE)
+	var disc: PackedVector2Array = RisoShapes.circle(top, SIGIL_DISC, 24)
+	ink.ink(ring, 1.0, [RisoShapes.circle(top, SIGIL_DISC + 3.0, 26)])
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE], [disc])
-	ink.ink(RisoPrint.NIGHT, 1.0, [sigil_shape(4 if rift else _pair_sigil(), top, 6.0)], false)
+	var pair: int = -1 if rift else Sigils.of(host)
+	var mark: Array[PackedVector2Array] = [RisoShapes.sparkle(top, SIGIL_R * 1.1)]
+	if pair >= 0:
+		mark = RisoMarks.sigil(pair, top, SIGIL_R)
+	ink.ink(RisoPrint.NIGHT, 1.0, mark, false)
 
 
 ## Inside, bands of TV static: thin rows of snow (flecks of bare paper and night, faintly tinted in

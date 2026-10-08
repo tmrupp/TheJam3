@@ -95,7 +95,13 @@ func _process(delta: float) -> void:
 				else:
 					ink.ink_overprint(RisoPrint.key_inks(needs), 1.0, RisoMarks.key_shape(at, pop, needs))
 			elif bool(hint.get("switch", false)):
-				ink.ink(RisoPrint.NIGHT, 1.0, RisoMarks.switch_emblem(at, pop), false)
+				# The switch emblem, and beside it the sigil of the switch to find (Sigils).
+				var sigil_kind: int = int(hint.get("sigil", -1))
+				if sigil_kind >= 0:
+					ink.ink(RisoPrint.NIGHT, 1.0, RisoMarks.switch_emblem(at + Vector2(-11.0, 2.0) * pop, 0.8 * pop), false)
+					ink.ink(RisoPrint.NIGHT, 1.0, RisoMarks.sigil(sigil_kind, at + Vector2(12.0, 0.0) * pop, 9.0 * pop), false)
+				else:
+					ink.ink(RisoPrint.NIGHT, 1.0, RisoMarks.switch_emblem(at, pop), false)
 			else:
 				# A press about every 0.8 s: down quickly, a moment on the spot, then back up.
 				var u: float = fmod(t * 1.25, 1.0)

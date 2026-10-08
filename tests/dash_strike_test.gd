@@ -51,7 +51,7 @@ func run() -> void:
 	await boot()
 	player.end_invulnerable()
 	var strike: DashStrike = player.get_node_or_null("DashStrike") as DashStrike
-	check(strike != null and strike.damage == 0 and Abilities.spell(player) == &"", "every wizard's dash strikes; no spell to start with")
+	check(strike != null and strike.damage == 0 and Abilities.spell(player) == &"parry", "every wizard's dash strikes; parry is the spell to start with")
 
 	print("on the ground")
 	player.global_position = info.respawn_marker.global_position

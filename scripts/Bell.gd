@@ -48,7 +48,7 @@ func lock_state() -> int:
 func interaction_hint() -> Dictionary:
 	if unchained():
 		return {}
-	return {"switch": true} if lock == SWITCH_LOCK else {"key_color": lock}
+	return {"switch": true, "sigil": Sigils.of(self)} if lock == SWITCH_LOCK else {"key_color": lock}
 
 
 ## Interact: unlock the padlock with a key if it has one, then ring.

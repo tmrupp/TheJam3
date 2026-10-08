@@ -36,7 +36,7 @@ func run() -> void:
 	player.set_physics_process(false)
 
 	print("the hex")
-	check(Abilities.spell(player) == &"" and player.get_node_or_null("Hex") == null, "no spell to start with: the hex is learned")
+	check(Abilities.spell(player) == &"parry" and player.get_node_or_null("Hex") == null, "parry to start with: the hex is learned")
 	Abilities.grant(player, &"hex")
 	var hex: Hex = player.get_node_or_null("Hex") as Hex
 	check(hex != null and Abilities.tier(player, &"hex") == 1 and hex.charges == 1 and Abilities.spell(player) == &"hex", "learned: one charge")
@@ -45,7 +45,7 @@ func run() -> void:
 	print("wounding enemies")
 	var wisps: Array[Node] = placed("mover_enemy.tscn")
 	check(wisps.size() > 0 and wisps.all(func(e: Node) -> bool: return e.has_node("Wound") and e.is_in_group(&"hex_target")), "%d wisps have wounds" % wisps.size())
-	check(int(wisps[0].get_node("Wound").get("hp")) == Wound.hp_for(0) and Wound.hp_for(0) == 1 and Wound.hp_for(3) == 2 and Wound.hp_for(9) == 3, "1 HP near the surface, up to 3 deeper")
+	check(int(wisps[0].get_node("Wound").get("hp")) == Wound.hp_for(0) and Wound.hp_for(0) == 2 and Wound.hp_for(5) == 2 and Wound.hp_for(6) == 3 and Wound.hp_for(9) == 3, "2 HP near the surface, 3 from depth 6")
 	var pick: Array = target("mover_enemy.tscn")
 	var e: Node2D = pick[0]
 	var side: Vector2 = pick[1]

@@ -76,7 +76,7 @@ func _by_depth() -> void:
 		var s: Vector2i = Rules.level_size(d)
 		var below: Vector2i = Rules.level_size(d + 1)
 		size_ok = size_ok and s.x >= 36 and s.x <= 60 and s.y >= 30 and s.y <= 48 and below.x >= s.x and below.y >= s.y
-	check(hp.min() == 1 and hp.max() == 3, "enemy health runs from 1 to 3")
+	check(hp.min() == 2 and hp.max() == 3, "enemy health runs from 2 to 3")
 	check(distance_ok, "the way back and the deeper exit are 24 to 96 cells apart")
 	check(size_ok, "levels grow with depth, from 36 x 30 to at most 60 x 48 cells")
 	check_eq(Rules.relic_need(Rules.RELIC_NEED_FROM - 1), 0, "no crossing is left to relics before RELIC_NEED_FROM")
@@ -189,10 +189,12 @@ func _ability_tables() -> void:
 	var order: Array[StringName] = Abilities.ids()
 	check(order.size() == Abilities.ABILITIES.size() and order.all(func(a: StringName) -> bool: return Abilities.max_tier(a) >= 1 and Abilities.label(a) != ""), "every ability has a name and a top tier")
 	check(order.all(func(a: StringName) -> bool: return not Abilities.ABILITIES[a].has("cost") or Abilities.is_spell(a)), "only spells have a cast price")
+	# The hat's glow names that are not abilities (climb) ask too (RisoPrint.flare).
+	check(not Abilities.is_spell(&"climb") and Abilities.is_spell(&"hex") and not Abilities.is_spell(&"wall_climb"), "a name that is not an ability is not a spell (no error)")
 	check(Relics.MOVES.all(func(a: StringName) -> bool: return a in order), "every relic move is an ability")
 	check(order.all(func(a: StringName) -> bool: return int(Abilities.ABILITIES[a].get("base", 0)) <= Abilities.max_tier(a)), "nothing starts past its top tier")
 	var start: Dictionary = Abilities.start_tiers()
-	check(order.all(func(a: StringName) -> bool: return int(start[a]) == (1 if a == &"dash" else 0)), "a run starts with the dash alone")
+	check(order.all(func(a: StringName) -> bool: return int(start[a]) == (1 if a in [&"dash", &"parry"] else 0)), "a run starts with the dash and parry")
 	# An ability done by a node: the node says how a tier tunes it (set_tier), and a spell casts
 	# (cast_spell) and tells the spell orb how ready it is (readiness) and how long it has left
 	# (running). A misspelled or missing one would only fail when that ability is used.

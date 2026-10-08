@@ -6,10 +6,11 @@ class_name Wound
 
 var hp: int = 1
 
-## Hit points by depth: 1 in the first three levels, then 2, then 3.
+## Hit points by depth: 2 to start with (so a parry, 1 damage, stuns rather than kills), 3 from
+## depth 6.
 static func hp_for(depth: int) -> int:
 	@warning_ignore("integer_division")
-	return clampi(1 + depth / 3, 1, 3)
+	return clampi(1 + depth / 3, 2, 3)
 
 
 func stunned() -> bool:

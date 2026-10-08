@@ -50,6 +50,17 @@ static func of(a: StringName, c: Vector2, t: float) -> Array[PackedVector2Array]
 			# A drop of light over a bead: a draught that heals.
 			return [RisoShapes.circle(c + Vector2(0, 9), 12.0, 22), RisoShapes.almond(c + Vector2(0, -14), 6.0, 11.0, 12),
 				RisoShapes.rrect(c.x - 1.8, c.y - 26, 3.6, 8, 1.8)]
+		&"ferry":
+			# A raft on two ripples, a chevron over it the way it glides.
+			return [RisoShapes.rrect(c.x - 20, c.y - 4, 40, 9, 4.5), RisoShapes.ellipse(c + Vector2(-8, 13), 10.0, 2.6, 12),
+				RisoShapes.ellipse(c + Vector2(10, 17), 8.0, 2.2, 12), RisoMarks.chevron(c + Vector2(0, -16), Vector2.RIGHT, 0.6)]
+		&"ward":
+			# Three curved plates in a ring round a bead.
+			var guard: Array[PackedVector2Array] = [RisoShapes.circle(c, 6.0, 14)]
+			for i: int in range(3):
+				var mid: float = -PI * 0.5 + TAU * (float(i) + 0.5) / 3.0
+				guard.append(RisoWard.arc(14.0, 22.0, mid - 0.8, mid + 0.8, c))
+			return guard
 		&"keyring":
 			# A ring with two keys hanging from it.
 			var ring: Array[PackedVector2Array] = [RisoShapes.crescent(c + Vector2(0, -12), 11.0, Vector2(0, 4))]

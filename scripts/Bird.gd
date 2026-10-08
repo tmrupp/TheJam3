@@ -2,9 +2,11 @@ class_name Bird
 extends Stunnable
 ## A swooping bird, in sky levels (SkyArchetype.populate): it patrols back and forth along its
 ## own height, a stretch of open sky between two ends (`span`), wings beating. When the wizard passes
-## below it, within REACH across and DROP down, and it has rested REST since its last swoop, it folds
-## its wings and swoops: down through where the wizard was (DIVE past them, so it sweeps their whole
-## height) and up the far side in an arc, back to its patrol height, then patrols on. The longer the
+## below it, within REACH across and DROP down, and it has rested REST since its last swoop, it
+## warns first: it stops, rears up with its wings spread and screeches for TELL seconds, marking the
+## spot it will dive through. Then it folds its wings and swoops: down through that spot (where the
+## wizard was when it warned, DIVE past them, so it sweeps their whole height) and up the far side in
+## an arc, back to its patrol height, then patrols on. Moving off the marked spot dodges it. The longer the
 ## dive, the longer the swoop takes (SWOOP_TIME, plus SWOOP_PER_PX of the way down). It only swoops where the arc is clear of rock. Its touch
 ## hurts, like any enemy's (its HitBox); the hex wounds it and the hex or a parry stuns it, in the
 ## air where it is. Moved only from here: its body is a frozen kinematic RigidBody2D that collides
@@ -18,6 +20,9 @@ const DIVE: float = 70.0
 const SWOOP_TIME: float = 1.0
 const SWOOP_PER_PX: float = 0.0012
 const REST: float = 1.5
+## The warning before a dive, in seconds, and how far it rears up meanwhile.
+const TELL: float = 0.65
+const REAR: float = 22.0
 
 @onready var rb: RigidBody2D = $".."
 @onready var player: Player = Stage.player()
@@ -34,6 +39,10 @@ var swoop: float = -1.0
 var swoop_time: float = SWOOP_TIME
 var arc: Array[Vector2] = []
 var since_swoop: float = 99.0
+## How far through its warning (0..1), or -1; the spot it will dive through, and where it reared from.
+var tell: float = -1.0
+var mark: Vector2 = Vector2.ZERO
+var tell_from: Vector2 = Vector2.ZERO
 var t: float = 0.0
 
 
@@ -57,6 +66,11 @@ func swooping() -> bool:
 	return swoop >= 0.0
 
 
+## Warning that it is about to dive (see TELL).
+func telling() -> bool:
+	return tell >= 0.0
+
+
 func _physics_process(delta: float) -> void:
 	t += delta
 	if height == 0.0:
@@ -64,9 +78,18 @@ func _physics_process(delta: float) -> void:
 		span = Vector2(rb.global_position.x - 384.0, rb.global_position.x + 384.0)
 	if stunned:
 		velocity = Vector2.ZERO
+		tell = -1.0
 		return
 	var was: Vector2 = rb.global_position
-	if swoop >= 0.0:
+	if tell >= 0.0:
+		# Rearing and screeching over the spot it will dive through.
+		tell = minf(1.0, tell + delta / TELL)
+		rb.global_position = tell_from + Vector2(sin(t * 60.0) * 1.5, -REAR * sin(tell * PI * 0.5))
+		facing = signf(mark.x - rb.global_position.x) if absf(mark.x - rb.global_position.x) > 4.0 else facing
+		if tell >= 1.0:
+			tell = -1.0
+			_dive()
+	elif swoop >= 0.0:
 		swoop = minf(1.0, swoop + delta / swoop_time)
 		rb.global_position = _on_arc(swoop)
 		if swoop >= 1.0:
@@ -93,7 +116,7 @@ func _physics_process(delta: float) -> void:
 
 ## The wizard below, in reach, after a rest, with a clear arc: swoop.
 func _look() -> void:
-	if since_swoop < REST or player == null or not is_instance_valid(player):
+	if since_swoop < REST or tell >= 0.0 or player == null or not is_instance_valid(player):
 		return
 	var at: Vector2 = rb.global_position
 	var target: Vector2 = player.global_position + Vector2(0, DIVE - 30.0)
@@ -110,6 +133,18 @@ func _look() -> void:
 		var screen: Rect2 = Rect2(cam.get_screen_center_position() - view * 0.5, view).grow(-SCREEN_MARGIN)
 		if not screen.has_point(at):
 			return
+	if not _plan(at, target):
+		return
+	# Warn first: the dive goes through this spot, wherever the wizard is by then.
+	mark = target
+	tell_from = at
+	tell = 0.0
+
+
+## Lay out a swoop from `at` down through `target` and up the far side; false (keeping the old one)
+## when rock is in the way.
+func _plan(at: Vector2, target: Vector2) -> bool:
+	var d: Vector2 = target - at
 	var end_x: float = clampf(at.x + 2.0 * d.x if absf(d.x) > 40.0 else at.x + dir * 160.0, span.x, span.y)
 	var path: Array[Vector2] = [at, target, Vector2(end_x, height)]
 	var info: MapInfo = MapInfo.instance
@@ -119,10 +154,19 @@ func _look() -> void:
 		for k: int in range(1, 12):
 			if info.solid_at(_on_arc(float(k) / 12.0)):
 				arc = old
-				return
+				return false
 	arc = path
-	swoop = 0.0
 	swoop_time = SWOOP_TIME + d.y * SWOOP_PER_PX
+	return true
+
+
+## The warning is over: dive from where it reared through the marked spot, or, if rock is now in the
+## way, give it up and rest.
+func _dive() -> void:
+	if _plan(rb.global_position, mark):
+		swoop = 0.0
+	else:
+		since_swoop = 0.0
 
 
 ## The point `u` (0..1) along its swoop: a curve from the start through the low point (at half

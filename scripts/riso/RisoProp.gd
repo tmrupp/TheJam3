@@ -43,6 +43,7 @@ const KINDS: Dictionary = {
 	&"laser": "res://scripts/riso/props/LaserArt.gd",
 	&"shard": "res://scripts/riso/props/ShardArt.gd",
 	&"sign": "res://scripts/riso/props/SignArt.gd",
+	&"ferry": "res://scripts/riso/props/FerryArt.gd",
 }
 
 
@@ -83,6 +84,12 @@ var pops: Array[float] = []
 ## Print this frame's art into `ink` (and the UI canvas, through _plaque and _text).
 func _draw_art() -> void:
 	pass
+
+
+## Where a guard round it (an enemy's Shield) should centre, in world space: the middle of what
+## is drawn. The host's own position, unless a kind draws its body away from it (a wisp).
+func guard_center() -> Vector2:
+	return host.global_position if host != null else global_position
 
 
 ## Whether it never changes: printed once, then it stops processing.
