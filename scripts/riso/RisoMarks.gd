@@ -141,6 +141,10 @@ static func switch_emblem(c: Vector2, s: float) -> Array[PackedVector2Array]:
 ## needs (padlock; a switch gate, `key_color` -1, shows the switch's emblem and its switch's
 ## sigil `sigil_kind` on a paper plate instead, sigil_plate). `lift` (0 closed, 1 open) winches
 ## the grate up into the header: the bars shorten from the bottom. `fade` scales every ink.
+## A portcullis's `key_color` for one with no lock or switch plate on it (a toll gate, whose price is
+## printed over it instead).
+const NO_LOCK: int = -2
+
 static func portcullis(ink: InkCanvas, g: float, half: float, key_color: int, lift: float, fade: float, sigil_kind: int = -1) -> void:
 	var top: float = g - 2.0 * half
 	var bottom: float = lerpf(g - 14.0, top + 14.0, clampf(lift, 0.0, 1.0))
@@ -154,7 +158,7 @@ static func portcullis(ink: InkCanvas, g: float, half: float, key_color: int, li
 		var ly: float = top + 10.0 + span * 0.5
 		iron.append(RisoShapes.rrect(-52, ly - 6.0, 104, 12, 6))
 		_gate_iron(ink, key_color, fade, iron)
-		if span > 40.0:
+		if span > 40.0 and key_color != NO_LOCK:
 			if key_color < 0:
 				# A switch gate: the switch's emblem and its sigil on a paper plate.
 				sigil_plate(ink, Vector2(0, ly), GATE_PLATE_SCALE, fade, sigil_kind, true)

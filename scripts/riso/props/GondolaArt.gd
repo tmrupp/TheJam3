@@ -1,12 +1,12 @@
 extends RisoProp
-## A gondola (Gondola): its cable strung between two posts with pulley wheels at its stations, and
-## the car hung from it on a hanger with a wheel running along the cable: a roof and a floor of
-## blue, corner posts, and a low panel round the lower half. While it is shut, pink bars come down
-## across both its open sides from the roof.
+## A gondola (Gondola): its cable round the whole circuit with a pulley wheel at each corner, and
+## the car hung from the cable on a hanger with a wheel
+## running along it: a roof and a floor of blue, corner posts, a low screened panel round the lower
+## half, and its lever on the back wall (leaning the way it will run, upright while it stands). Its
+## sides are barred while shut: pink while its rider is shut in (danger), blue otherwise.
 
-## How far over the car's floor the cable runs (cells), and the posts' and wheels' sizes (pixels).
+## How far over the car's floor the cable runs (cells), and the wheels' size (pixels).
 const CABLE_UP: float = 2.55
-const POST: float = 7.0
 const WHEEL: float = 13.0
 
 
@@ -16,69 +16,70 @@ var car: Gondola:
 		return host as Gondola
 
 
-## The cable reaches far beyond the car: animate while any of it is in view.
+## The cable runs round the whole level: animate while any of it is in view.
 func view_rect() -> Rect2:
-	if car == null or car.stations.size() < 2:
+	if car == null or car.stations.is_empty():
 		return Rect2()
-	var up: Vector2 = Vector2(0.0, -car.cell_px * CABLE_UP)
-	return Rect2(car.stations[0] + up, Vector2.ZERO).expand(car.stations[1] + up).expand(car.stations[0]).expand(car.stations[1]).grow(car.cell_px * 1.5)
+	var lo: Vector2 = car.world_at(0.0)
+	var hi: Vector2 = car.world_at(float(car.loop.size.y + car.loop.size.x))
+	return Rect2(lo, Vector2.ZERO).expand(hi + Vector2(0.0, -car.cell_px * CABLE_UP)).grow(car.cell_px * 1.5)
 
 
 func _draw_art() -> void:
-	if car == null or car.stations.size() < 2:
+	if car == null or car.stations.is_empty():
 		return
 	var cell: float = car.cell_px
 	var up: Vector2 = Vector2(0.0, -cell * CABLE_UP)
-	var ends: Array[Vector2] = [to_local(car.stations[0] + up), to_local(car.stations[1] + up)]
-	# The posts, beside each station (out on the side away from the other station), and the pulleys.
-	var posts: Array[PackedVector2Array] = []
+	var h: float = float(car.loop.size.y)
+	var w: float = float(car.loop.size.x)
+	var corners: Array[Vector2] = []
+	for along: float in [0.0, h, h + w, h + w + h]:
+		corners.append(to_local(car.world_at(along) + up))
+	var cable: PackedVector2Array = PackedVector2Array(corners)
+	cable.append(corners[0])
+	ink.ink(RisoPrint.NIGHT, 0.85, RisoDecor.strip(cable, 3.2, 3.2))
 	var wheels: Array[PackedVector2Array] = []
 	var hubs: Array[PackedVector2Array] = []
-	for i: int in range(2):
-		var floor_at: Vector2 = to_local(car.stations[i])
-		var away: float = signf(car.stations[i].x - car.stations[1 - i].x)
-		var px: float = floor_at.x + (away if away != 0.0 else 1.0) * (cell + POST * 2.0)
-		posts.append(RisoShapes.rrect(px - POST * 0.5, ends[i].y - 4.0, POST, floor_at.y - ends[i].y + 6.0, 2.0))
-		var x0: float = minf(px, ends[i].x)
-		posts.append(RisoShapes.rrect(x0 - 2.0, ends[i].y - 2.0, absf(px - ends[i].x) + 4.0, 5.0, 2.0))
-		wheels.append(RisoShapes.circle(ends[i], WHEEL, 18))
-		hubs.append(RisoShapes.circle(ends[i], WHEEL * 0.35, 10))
-	ink.ink(RisoPrint.BLUE, 0.9, posts)
-	ink.ink(RisoPrint.NIGHT, 0.35, posts, false)
-	# The cable, a little slack between its ends.
-	var cable: PackedVector2Array = PackedVector2Array()
-	for k: int in range(17):
-		var u: float = float(k) / 16.0
-		cable.append(ends[0].lerp(ends[1], u) + Vector2(0.0, sin(u * PI) * 10.0))
-	ink.ink(RisoPrint.NIGHT, 0.9, RisoDecor.strip(cable, 3.2, 3.2))
+	for c: Vector2 in corners:
+		wheels.append(RisoShapes.circle(c, WHEEL, 18))
+		hubs.append(RisoShapes.circle(c, WHEEL * 0.35, 10))
 	ink.ink(RisoPrint.BLUE, 1.0, wheels)
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], hubs)
 	# The car, from its floor (this node's origin) up.
-	var w: float = cell * 2.0
-	var h: float = cell * 2.0
-	var u_here: float = clampf(Vector2.ZERO.distance_to(ends[0] - up) / maxf(1.0, ends[0].distance_to(ends[1])), 0.0, 1.0)
-	var on_cable: Vector2 = Vector2(0.0, -cell * CABLE_UP + sin(u_here * PI) * 10.0)
+	var cw: float = cell * 2.0
+	var ch: float = cell * 2.0
+	var on_cable: Vector2 = Vector2(0.0, -cell * CABLE_UP)
 	var sway: float = sin(t * 1.7 + phase) * 1.5
 	var body: Array[PackedVector2Array] = [
-		RisoShapes.rrect(-w * 0.5 - 6.0, -h - 6.0, w + 12.0, 22.0, 9.0),
-		RisoShapes.rrect(-w * 0.5, -10.0, w, 20.0, 6.0),
-		RisoShapes.rrect(-w * 0.5, -h, 12.0, h, 4.0),
-		RisoShapes.rrect(w * 0.5 - 12.0, -h, 12.0, h, 4.0),
+		RisoShapes.rrect(-cw * 0.5 - 6.0, -ch - 6.0, cw + 12.0, 22.0, 9.0),
+		RisoShapes.rrect(-cw * 0.5, -10.0, cw, 20.0, 6.0),
+		RisoShapes.rrect(-cw * 0.5, -ch, 12.0, ch, 4.0),
+		RisoShapes.rrect(cw * 0.5 - 12.0, -ch, 12.0, ch, 4.0),
 	]
-	var hanger: Array[PackedVector2Array] = RisoDecor.strip(PackedVector2Array([Vector2(sway, -h - 4.0), on_cable]), 6.0, 4.0)
-	ink.ink(RisoPrint.BLUE, 0.4, [RisoShapes.rrect(-w * 0.5 + 8.0, -h * 0.38, w - 16.0, h * 0.38 - 6.0, 4.0)])
-	body.append_array(hanger)
+	body.append_array(RisoDecor.strip(PackedVector2Array([Vector2(sway, -ch - 4.0), on_cable]), 6.0, 4.0))
+	body.append(RisoShapes.circle(on_cable, 8.0, 14))
+	ink.ink(RisoPrint.BLUE, 0.4, [RisoShapes.rrect(-cw * 0.5 + 8.0, -ch * 0.38, cw - 16.0, ch * 0.38 - 6.0, 4.0)])
 	ink.ink(RisoPrint.BLUE, 1.0, body)
-	ink.ink(RisoPrint.NIGHT, 0.4, [RisoShapes.rrect(-w * 0.5 - 6.0, -h + 6.0, w + 12.0, 10.0, 4.0), RisoShapes.rrect(-w * 0.5, 0.0, w, 10.0, 4.0)], false)
-	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.circle(on_cable, 8.0, 14)])
+	ink.ink(RisoPrint.NIGHT, 0.4, [RisoShapes.rrect(-cw * 0.5 - 6.0, -ch + 6.0, cw + 12.0, 10.0, 4.0), RisoShapes.rrect(-cw * 0.5, 0.0, cw, 10.0, 4.0)], false)
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], [RisoShapes.circle(on_cable, 3.0, 8)])
-	# Its bars, coming down across both open sides as it shuts.
-	if car.shut > 0.0:
+	# The lever on the back wall: a post with a handle leaning the way it runs, a paper knob.
+	var lean: float = float(car.dir) * 0.6 if car.running else 0.0
+	var handle: Transform2D = Transform2D(lean, Vector2(0.0, -40.0))
+	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-16.0, -46.0, 32.0, 40.0, 6.0), handle * RisoShapes.rrect(-3.0, -46.0, 6.0, 46.0, 3.0)])
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], [handle * RisoShapes.circle(Vector2(0.0, -48.0), 7.0, 14)])
+	# Its bars, coming down across each side as it shuts.
+	var pink: Array[PackedVector2Array] = []
+	var blue: Array[PackedVector2Array] = []
+	for k: int in range(2):
+		if car.shut[k] <= 0.0:
+			continue
+		var side: float = -1.0 if k == 0 else 1.0
+		var drop: float = (ch - 12.0) * car.shut[k]
 		var bars: Array[PackedVector2Array] = []
-		var drop: float = (h - 12.0) * car.shut
-		for side: float in [-1.0, 1.0]:
-			for k: int in range(3):
-				var x: float = side * (w * 0.5 - 18.0 - float(k) * 11.0)
-				bars.append(RisoShapes.rrect(x - 2.5, -h + 10.0, 5.0, drop, 2.0))
-			bars.append(RisoShapes.rrect(side * (w * 0.5 - 12.0) - (34.0 if side > 0.0 else 0.0), -h + 10.0 + drop * 0.5, 34.0, 4.0, 2.0))
-		ink.ink(RisoPrint.PINK, 1.0, bars)
+		for b: int in range(3):
+			var x: float = side * (cw * 0.5 - 18.0 - float(b) * 11.0)
+			bars.append(RisoShapes.rrect(x - 2.5, -ch + 10.0, 5.0, drop, 2.0))
+		bars.append(RisoShapes.rrect(side * (cw * 0.5 - 12.0) - (34.0 if side > 0.0 else 0.0), -ch + 10.0 + drop * 0.5, 34.0, 4.0, 2.0))
+		(pink if car.sealed else blue).append_array(bars)
+	ink.ink(RisoPrint.PINK, 1.0, pink)
+	ink.ink(RisoPrint.BLUE, 0.9, blue)

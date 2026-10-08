@@ -3,13 +3,13 @@ extends Archetype
 ## The crags: the first band up from the garden (docs/REGIONS_PLAN.md §7), tall cliffs with castle
 ## ruins on them, printed in a realm of their own (pale stone at dawn) with their own decor. The
 ## terrain is collapsed unturned from wfc_images/crags.png (drawn by tests/make_crags_sample.gd),
-## taller than wide (SCALE); then a structure pass (shape) cuts shafts up the cliff, zigzagged with
-## ledges, and builds castle ruins on it: keeps (two halls one over the other, doorways through
-## their walls, a walkable roof) and squat towers standing on its floors, their stone kept as
-## masonry (LevelGen.masonry) for the decor. Its gates are the keeps' and passages' doors and
-## switch gates, and the climb itself. Its own thing is the gondola (cut_gates, Gondola): a cable
-## car up the cliff, which shuts its bars on whoever rides it and calls up the castle's wraiths
-## until they are put down.
+## taller than wide (SCALE); then a structure pass (shape) opens caverns of air in the cliff, cuts
+## shafts up it, zigzagged with ledges, and builds castle ruins on it: keeps (two halls one over
+## the other, doorways through their walls, a walkable roof) and squat towers standing on its
+## floors, their stone kept as masonry (LevelGen.masonry) for the decor. Its gates are the keeps'
+## and passages' doors and switch gates, and the climb itself. Its own thing is the gondola
+## (cut_gates, populate, Gondola): a cable car running a circuit round the level, its stations on
+## the circuit's two sides, all but one shut behind a door, a switch gate or a toll gate.
 
 const SAMPLE: String = "res://wfc_images/crags.png"
 ## A crag level is this much the size of a cave level of its depth (Rules.level_size), across and
@@ -45,14 +45,33 @@ const TOWERS_PER_K: float = 1.2
 const TOWER_WIDE: Vector2i = Vector2i(2, 4)
 const TOWER_TALL: Vector2i = Vector2i(3, 5)
 
-## Gondolas per 1000 cells (at least one): each climbs GONDOLA_RISE rows (from, to) from its lower
-## station to its upper one, and leans at most GONDOLA_LEAN cells across for each row it climbs
-## (so it is steep). The car is two cells wide and two high, with a row for its hanger above.
-const GONDOLAS_PER_K: float = 0.3
-const GONDOLA_RISE: Vector2i = Vector2i(9, 16)
-const GONDOLA_LEAN: float = 0.5
-## How many places for its lower station a gondola is sought among before giving up.
-const GONDOLA_TRIES: int = 40
+## Caverns: CAVERNS_PER_K (at least one) ellipses of open air carved through the cliff, CAVERN_RX
+## cells across from their middle and CAVERN_RY down (from, to), so it is not all rock.
+const CAVERNS_PER_K: float = 1.4
+const CAVERN_RX: Vector2i = Vector2i(3, 6)
+const CAVERN_RY: Vector2i = Vector2i(3, 7)
+
+## The gondola's circuit: a rectangle CIRCUIT_SIDE cells in from the level's left and right edges,
+## CIRCUIT_TOP from its top and CIRCUIT_BOTTOM from its bottom (the car's floor row). The car is two
+## cells wide and two high, with a row for its hanger over it, and the corridor it runs in is carved
+## clear all the way round. Its stations stand on the circuit's two sides (the car's open sides face
+## into the level only there), about STATION_GAP rows apart (give or take STATION_JITTER), at least
+## STATIONS_MIN in all (closer together where the level is short), each a
+## doorway a cell high from the car onto a landing carved into the level until it meets open air
+## (at most LANDING_REACH cells).
+const CIRCUIT_SIDE: int = 3
+const CIRCUIT_TOP: int = 4
+const CIRCUIT_BOTTOM: int = 3
+const STATION_GAP: int = 14
+const STATIONS_MIN: int = 4
+const STATION_JITTER: int = 2
+const LANDING_REACH: int = 8
+## What shuts a station (all but the one nearest the way in): a toll gate (TOLL_SHARE), a switch
+## gate with its switch out in the level (SWITCH_SHARE), else a door in a dealt key colour. A switch
+## is at least SWITCH_REACH cells from its gate, somewhere reached from the way in with it shut.
+const TOLL_SHARE: float = 0.3
+const SWITCH_SHARE: float = 0.3
+const SWITCH_REACH: int = 8
 
 
 func _init() -> void:
@@ -63,18 +82,38 @@ func _init() -> void:
 	scale = SCALE
 
 
-## Cut shafts up the cliff and build the castle ruins on it (see the class description).
+## Open caverns in the cliff, cut shafts up it and build the castle ruins on it (see the class
+## description).
 func shape(w: LevelGen) -> void:
+	open_caverns(w)
 	var shafts: Dictionary = cut_shafts(w)
 	build_keeps(w, shafts)
 	build_towers(w, shafts)
 
 
-## The gondolas, once the caves are joined: each line carved clear and kept clear of everything laid
-## after (see add_gondola).
+## The gondola's circuit, once the caves are joined: its corridor and its stations' landings,
+## carved and kept clear of everything laid after (lay_circuit).
 func cut_gates(w: LevelGen) -> void:
-	for i: int in range(w.per_area(GONDOLAS_PER_K)):
-		add_gondola(w)
+	lay_circuit(w)
+
+
+## Last: what shuts each station but one, and the gondola itself (shut_stations).
+func populate(w: LevelGen, def: NextWorldDef) -> void:
+	shut_stations(w, def)
+
+
+# ------------------------------------------------------------------ caverns
+
+## Carve the caverns (see CAVERNS_PER_K), anywhere in the level.
+static func open_caverns(w: LevelGen) -> void:
+	for i: int in range(w.per_area(CAVERNS_PER_K)):
+		var r: Vector2i = Vector2i(w.rng.randi_range(CAVERN_RX.x, CAVERN_RX.y), w.rng.randi_range(CAVERN_RY.x, CAVERN_RY.y))
+		var c: Vector2i = Vector2i(w.rng.randi_range(2, w.size.x - 3), w.rng.randi_range(2, w.size.y - 3))
+		for x: int in range(c.x - r.x, c.x + r.x + 1):
+			for y: int in range(c.y - r.y, c.y + r.y + 1):
+				var d: Vector2 = Vector2(float(x - c.x) / float(r.x), float(y - c.y) / float(r.y))
+				if d.length_squared() <= 1.0:
+					_open_at(w, Vector2i(x, y))
 
 
 # ------------------------------------------------------------------ shafts
@@ -208,70 +247,156 @@ static func _crosses(r: Rect2i, cells: Dictionary) -> bool:
 	return false
 
 
-# ------------------------------------------------------------------ gondolas
+# ------------------------------------------------------------------ the gondola
 
-## A gondola: its lower station on a floor two cells wide, its upper one GONDOLA_RISE rows up and
-## leaning at most GONDOLA_LEAN across a row (both inside the level, clear of its walls). The line
-## between is carved clear for the car (two cells wide, two high, a row for its hanger), each
-## station gets rock under it and the cells beside it to step in from, and the car's cells along the
-## line, and those beside each station, are kept clear (LevelGen.keep_clear, out of `empties`) of
-## everything laid after. The car
-## waits at the lower station, which holds the gondola, with its upper station's cell. Whether one
-## was laid comes back.
-static func add_gondola(w: LevelGen) -> bool:
-	var free: Dictionary = {}
-	for e: Vector2i in w.empties:
-		free[e] = true
-	var floors: Array[Vector2i] = []
-	for x: int in range(2, w.size.x - 3):
-		for y: int in range(GONDOLA_RISE.x + 4, w.size.y - 2):
-			var v: Vector2i = Vector2i(x, y)
-			if free.has(v) and free.has(v + Vector2i.RIGHT) and w.is_ground(v + Vector2i.DOWN) and w.is_ground(v + Vector2i(1, 1)) and not w.keep_clear.has(v):
-				floors.append(v)
-	for attempt: int in range(GONDOLA_TRIES):
-		if floors.is_empty():
-			return false
-		var a: Vector2i = w.pop_pick(floors)
-		var rise: int = w.rng.randi_range(GONDOLA_RISE.x, mini(GONDOLA_RISE.y, a.y - 4))
-		var lean: int = int(float(rise) * GONDOLA_LEAN)
-		var b: Vector2i = Vector2i(clampi(a.x + w.rng.randi_range(-lean, lean), 2, w.size.x - 4), a.y - rise)
-		if b.y < 4:
-			continue
-		var line: Array[Vector2i] = line_cells(a, b)
-		if line.any(func(c: Vector2i) -> bool: return w.keep_clear.has(c) or (w.get_cell(c).type != LevelGen.Type.EMPTY and w.get_cell(c).type != LevelGen.Type.GROUND)):
-			continue
-		var stepping: Array[Vector2i] = []
-		for station: Vector2i in [a, b]:
-			for dx: int in range(-1, 3):
-				_rock_at(w, station + Vector2i(dx, 1))
-				for dy: int in range(0, 3):
-					_open_at(w, station + Vector2i(dx, -dy))
-					if dx == -1 or dx == 2:
-						stepping.append(station + Vector2i(dx, -dy))
-		# The cells beside each station stay clear too, to step in from.
-		line.append_array(stepping.filter(func(c: Vector2i) -> bool: return _inner(w, c)))
-		for c: Vector2i in line:
+## Carve the gondola's circuit (see CIRCUIT_SIDE) and its stations, keeping the corridor and every
+## station's doorway out of `empties` and in LevelGen.keep_clear, and note them in
+## LevelGen.circuit: {"loop": the rectangle the car's floor cell runs round (its left and top, its
+## width and height in cells), "stops": the car's floor cell at each station, in order round the
+## circuit, "gates": each station's doorway cell, "inner": the way each faces into the level (+1
+## right, -1 left)}. A level too small for one gets none.
+static func lay_circuit(w: LevelGen) -> void:
+	var loop: Rect2i = Rect2i(CIRCUIT_SIDE, CIRCUIT_TOP, w.size.x - CIRCUIT_SIDE * 2 - 2, w.size.y - CIRCUIT_BOTTOM - CIRCUIT_TOP)
+	if loop.size.x < 8 or loop.size.y < STATION_GAP:
+		return
+	for p: Vector2i in loop_cells(loop):
+		for c: Vector2i in car_cells(p):
 			_open_at(w, c)
 			w.empties.erase(c)
 			w.keep_clear[c] = true
-		w.put(a, LevelGen.Type.GONDOLA, b)
-		return true
-	return false
+	var stations: Array = []
+	# Stations stand clear of the top and bottom stretches (whose corridor would take the rock over
+	# or under a doorway): from four rows over the bottom one to three under the top one.
+	var span: int = loop.size.y - 7
+	@warning_ignore("integer_division")
+	var gap: int = mini(STATION_GAP, maxi(4, span / maxi(1, STATIONS_MIN / 2 - 1)))
+	for inner: int in [1, -1]:
+		var x: int = loop.position.x if inner > 0 else loop.end.x
+		var y: int = loop.end.y - 4
+		while y >= loop.position.y + 3:
+			var row: int = clampi(y + w.rng.randi_range(-STATION_JITTER, STATION_JITTER), loop.position.y + 3, loop.end.y - 4)
+			var stop: Vector2i = Vector2i(x, row)
+			var gate: Vector2i = stop + Vector2i(2 if inner > 0 else -1, 0)
+			_landing(w, gate, inner)
+			stations.append([along(loop, stop), stop, gate, inner])
+			y -= gap
+	stations.sort()
+	var stops: Array[Vector2i] = []
+	var gates: Array[Vector2i] = []
+	var inners: Array[int] = []
+	for st: Array in stations:
+		stops.append(st[1])
+		gates.append(st[2])
+		inners.append(st[3])
+	w.circuit = {"loop": loop, "stops": stops, "gates": gates, "inner": inners}
 
 
-## The cells the car takes on its way from `a` to `b` (its lower left cells), with the cell over it
-## and the row above for its hanger, a step at a time.
-static func line_cells(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
+## A station's doorway at `gate` (rock over and under it, kept clear), and its landing on into the
+## level the way `inner` faces: open air two rows high over rock, until it meets air that was open
+## already (at most LANDING_REACH cells).
+static func _landing(w: LevelGen, gate: Vector2i, inner: int) -> void:
+	_rock_at(w, gate + Vector2i.UP)
+	_rock_at(w, gate + Vector2i.DOWN)
+	_open_at(w, gate)
+	w.empties.erase(gate)
+	w.keep_clear[gate] = true
+	for k: int in range(1, LANDING_REACH + 1):
+		var c: Vector2i = gate + Vector2i(inner * k, 0)
+		if not _inner(w, c) or w.keep_clear.has(c):
+			break
+		var was_open: bool = w.get_cell(c).type == LevelGen.Type.EMPTY and w.get_cell(c + Vector2i.UP).type == LevelGen.Type.EMPTY
+		_open_at(w, c)
+		_open_at(w, c + Vector2i.UP)
+		_rock_at(w, c + Vector2i.DOWN)
+		if was_open and k >= 2:
+			break
+
+
+## Shut every station but the one nearest the way in (see TOLL_SHARE), then put the gondola, its
+## car waiting at that open station, on its floor cell: its extra info is LevelGen.circuit and
+## "start", the open station's number.
+static func shut_stations(w: LevelGen, def: NextWorldDef) -> void:
+	if w.circuit.is_empty() or not w.exits.has(MapInfo.Exit.BACK):
+		return
+	var start: Vector2i = w.exits[MapInfo.Exit.BACK]
+	var gates: Array[Vector2i] = w.circuit["gates"]
+	var open: int = 0
+	for i: int in range(gates.size()):
+		if LevelGen.dist(gates[i], start) < LevelGen.dist(gates[open], start):
+			open = i
+	for i: int in range(gates.size()):
+		# The rock over and under every doorway stays whole (no cracked wall to break round a gate).
+		for d: Vector2i in [Vector2i.UP, Vector2i.DOWN]:
+			if w.get_cell(gates[i] + d).type == LevelGen.Type.CRACKED:
+				w._to_rock(gates[i] + d)
+		if i == open:
+			continue
+		var gate: Vector2i = gates[i]
+		var r: float = w.rng.randf()
+		if r < TOLL_SHARE:
+			w.put(gate, LevelGen.Type.TOLL, Rules.toll_price(def.depth))
+			continue
+		if r < TOLL_SHARE + SWITCH_SHARE:
+			var lever: Variant = w._pick_floor_in(w.reach_from(start, func(n: Vector2i) -> bool: return n != gate), gate, SWITCH_REACH)
+			if lever != null:
+				w.put(gate, LevelGen.Type.SWITCH_GATE, lever)
+				w.put(lever, LevelGen.Type.SWITCH, gate)
+				continue
+		w.put(gate, LevelGen.Type.DOOR)
+	var info: Dictionary = w.circuit.duplicate()
+	info["start"] = open
+	w.put((w.circuit["stops"] as Array[Vector2i])[open], LevelGen.Type.GONDOLA, info)
+
+
+## The car's floor cell all the way round `loop`, a cell at a time: up its left side from its
+## bottom left, along its top, down its right side and back along its bottom (each corner once).
+static func loop_cells(loop: Rect2i) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
-	var steps: int = maxi(absi(b.x - a.x), absi(b.y - a.y)) * 2
-	for i: int in range(steps + 1):
-		var p: Vector2 = Vector2(a).lerp(Vector2(b), float(i) / float(steps))
-		var at: Vector2i = Vector2i(roundi(p.x), roundi(p.y))
-		for dx: int in range(2):
-			for dy: int in range(3):
-				var c: Vector2i = at + Vector2i(dx, -dy)
-				if not out.has(c):
-					out.append(c)
+	for i: int in range(perimeter(loop)):
+		out.append(Vector2i(point(loop, float(i)).round()))
+	return out
+
+
+## How far round `loop` it is, in cells.
+static func perimeter(loop: Rect2i) -> int:
+	return 2 * (loop.size.x + loop.size.y)
+
+
+## The car's floor cell (as a point, in cells) `s` cells round `loop` from its bottom left.
+static func point(loop: Rect2i, s: float) -> Vector2:
+	var w: float = float(loop.size.x)
+	var h: float = float(loop.size.y)
+	var u: float = fposmod(s, float(perimeter(loop)))
+	var lo: Vector2 = Vector2(loop.position.x, loop.end.y)
+	if u <= h:
+		return lo + Vector2(0.0, -u)
+	if u <= h + w:
+		return Vector2(loop.position.x + (u - h), loop.position.y)
+	if u <= h + w + h:
+		return Vector2(loop.end.x, loop.position.y + (u - h - w))
+	return Vector2(loop.end.x - (u - h - w - h), loop.end.y)
+
+
+## How far round `loop` (cells from its bottom left) the floor cell `c` on it is.
+static func along(loop: Rect2i, c: Vector2i) -> float:
+	var w: int = loop.size.x
+	var h: int = loop.size.y
+	if c.x == loop.position.x and c.y > loop.position.y:
+		return float(loop.end.y - c.y)
+	if c.y == loop.position.y:
+		return float(h + c.x - loop.position.x)
+	if c.x == loop.end.x:
+		return float(h + w + c.y - loop.position.y)
+	return float(h + w + h + loop.end.x - c.x)
+
+
+## The cells the car takes with its floor cell (the left of the two) at `p`: two across, its two
+## rows and the hanger's row over them.
+static func car_cells(p: Vector2i) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	for dx: int in range(2):
+		for dy: int in range(3):
+			out.append(p + Vector2i(dx, -dy))
 	return out
 
 

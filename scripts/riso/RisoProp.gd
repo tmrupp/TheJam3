@@ -17,6 +17,7 @@ const KINDS: Dictionary = {
 	&"portal": "res://scripts/riso/props/PortalArt.gd",
 	&"door": "res://scripts/riso/props/GateArt.gd",
 	&"gate": "res://scripts/riso/props/GateArt.gd",
+	&"toll": "res://scripts/riso/props/GateArt.gd",
 	&"switch": "res://scripts/riso/props/SwitchArt.gd",
 	&"relic": "res://scripts/riso/props/RelicArt.gd",
 	&"lantern": "res://scripts/riso/props/LanternArt.gd",

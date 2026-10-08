@@ -1,7 +1,8 @@
 extends TestKit
 ## Stills of a crag level (world 28, the band's second row): where you arrive, the whole cliff
 ## zoomed out, the castle's decor (battlements, an arrow slit, a banner, a broken column, rubble), a
-## door, and a gondola waiting, mid-ride (shut, its wraiths about) and at the top.
+## door, a toll gate, and the gondola waiting at its open station, mid-run along its circuit (barred,
+## its wraiths about) and at the next station, shut by its gate.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_crags.gd
 
 var camera: Camera2D
@@ -34,17 +35,25 @@ func run() -> void:
 	var doors: Array[Node] = placed("door.tscn")
 	if not doors.is_empty():
 		await look((doors[0] as Node2D).global_position, "crags_door.png")
-	# A gondola waiting, then ridden: shut, its wraiths called up on the way, and at the top.
+	# A toll gate shutting a station.
+	var tolls: Array[Node] = placed("toll_gate.tscn")
+	if not tolls.is_empty():
+		await look((tolls[0] as Node2D).global_position + Vector2(-100, -40), "crags_toll.png")
+	# The gondola waiting at its open station, then ridden: barred, its wraiths about, and at the
+	# next station, shut by its gate.
 	var gondolas: Array[Node] = placed("gondola.tscn")
 	if not gondolas.is_empty():
 		var g: Gondola = gondolas[0] as Gondola
 		await look(g.center(), "crags_gondola.png")
-		player.global_position = g.global_position + Vector2(0, -60)
+		player.global_position = g.center() + Vector2(0, 40)
 		player.velocity = Vector2.ZERO
-		await until(func() -> bool: return g.state == Gondola.State.RIDING and g.progress > 0.55)
+		await until(func() -> bool: return g.has_rider() and player.is_on_floor())
+		g.pull()
+		await until(func() -> bool: return g.running and g.speed >= Gondola.RIDE_SPEED - 1.0)
+		await frames(40)
 		await look(g.center(), "crags_gondola_ride.png", false)
-		await until(func() -> bool: return g.state != Gondola.State.RIDING)
-		await look(g.center() + Vector2(0, 80), "crags_gondola_top.png", false)
+		await until(func() -> bool: return not g.running, 40000)
+		await look(g.center() + Vector2(g.inner[g.at_station] * 120.0, 0), "crags_gondola_station.png", false)
 	RunState.delete_save()
 	finish()
 

@@ -41,6 +41,7 @@ enum Type {
 	BIRD,
 	BOSS,
 	GONDOLA,
+	TOLL,
 }
 
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).
@@ -103,6 +104,8 @@ var keep_clear: Dictionary = {}
 ## The rock an archetype's structure pass laid as masonry (the crags' keeps, CragsArchetype): built
 ## walls and floors rather than raw cliff, which the decor prints as dressed stone (RisoDecor).
 var masonry: Dictionary = {}
+## The gondola's circuit an archetype laid (CragsArchetype.lay_circuit), or {} for none.
+var circuit: Dictionary = {}
 ## The shrine's cell (its boon side; mending is the cell to the right), or (-1, -1).
 var shrine: Vector2i = Vector2i(-1, -1)
 

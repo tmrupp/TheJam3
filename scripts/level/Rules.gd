@@ -44,6 +44,13 @@ static func level_seed (run_seed: int, depth: int) -> int:
 static func deeper_price (depth: int) -> int:
 	return roundi(16.0 * pow(1.4, depth))
 
+## Stars to lift a toll gate (one shutting a gondola's station, CragsArchetype): TOLL_SHARE of the
+## way on's price there.
+const TOLL_SHARE: float = 0.3
+
+static func toll_price (depth: int) -> int:
+	return maxi(1, roundi(float(deeper_price(depth)) * TOLL_SHARE))
+
 ## Stars a level's star cluster is worth: about 10 at the surface, more deeper (stars per level
 ## grow too).
 static func cluster_value (depth: int) -> int:

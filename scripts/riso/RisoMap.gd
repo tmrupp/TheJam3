@@ -329,7 +329,8 @@ func _level_rows() -> Array:
 		["vane", func(at: Vector2) -> void: _mark_bell(at, false, -2, "vane"), "vane"],
 		["bridge", func(at: Vector2) -> void: _mark_bridge(at, true), "bridge"],
 		["unrung bridge", func(at: Vector2) -> void: _mark_bridge(at, false), "unrung bridge"],
-		["gondola", func(at: Vector2) -> void: _mark_gondola(at, at + Vector2(3.0, -3.0)), "gondola"],
+		["gondola", func(at: Vector2) -> void: _mark_gondola([at + Vector2(-3.0, 2.0), at + Vector2(-3.0, -2.0), at + Vector2(3.0, -2.0), at + Vector2(3.0, 2.0)], [at + Vector2(-3.0, 0.0), at + Vector2(3.0, 0.0)], at + Vector2(-3.0, 0.0)), "gondola"],
+		["toll gate", _mark_toll, "toll gate"],
 		["relic", func(at: Vector2) -> void: _mark_relic(at, &"blink", 0.7), "relic"],
 	] + _door_rows() + [
 		["key", func(at: Vector2) -> void: _mark_key(at, 2), "key"],
@@ -480,7 +481,18 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 		LevelGen.Type.BRIDGE:
 			_mark_bridge(at, (rec.bridges as Dictionary).has(int(cell.extra_info)))
 		LevelGen.Type.GONDOLA:
-			_mark_gondola(at, spot.call(cell.extra_info))
+			var circuit: Dictionary = cell.extra_info
+			var loop: Rect2i = circuit["loop"]
+			var corners: Array[Vector2] = []
+			for corner: Vector2i in [Vector2i(loop.position.x, loop.end.y), loop.position, Vector2i(loop.end.x, loop.position.y), loop.end]:
+				corners.append(spot.call(corner))
+			var stops: Array[Vector2] = []
+			for stop: Vector2i in circuit["stops"]:
+				stops.append(spot.call(stop))
+			_mark_gondola(corners, stops, at)
+		LevelGen.Type.TOLL:
+			if not gone:
+				_mark_toll(at)
 		LevelGen.Type.BELL:
 			var bell: Array = cell.extra_info
 			var rung: bool = (rec.bridges as Dictionary).has(int(bell[0]))
@@ -635,12 +647,28 @@ func _mark_bridge(at: Vector2, up: bool) -> void:
 		marks.ink(RisoPrint.ACCENT, 0.7, [RisoShapes.rrect(at.x - 1.2, at.y - 2.0, 2.4, 0.8, 0.4)], false)
 
 
-## A gondola: its cable from the lower station `at` to the upper one `to`, a fine night line, and
-## the car, a small blue box, waiting at the lower.
-func _mark_gondola(at: Vector2, to: Vector2) -> void:
+## A gondola: its circuit through `corners` (round from the bottom left), a fine night line, a
+## blue tick at each of its `stops`, and the car, a small blue box, at `car` (the station it waits
+## at when the level loads).
+func _mark_gondola(corners: Array[Vector2], stops: Array[Vector2], car: Vector2) -> void:
 	_note("gondola")
-	marks.ink(RisoPrint.NIGHT, 0.7, RisoDecor.strip(PackedVector2Array([at + Vector2(0.5, -1.6), to + Vector2(0.5, -1.6)]), 0.4, 0.4), false)
-	marks.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(at.x - 0.6, at.y - 1.6, 2.2, 1.8, 0.4)], false)
+	var line: PackedVector2Array = PackedVector2Array()
+	for c: Vector2 in corners:
+		line.append(c + Vector2(0.5, -1.6))
+	line.append(line[0])
+	marks.ink(RisoPrint.NIGHT, 0.6, RisoDecor.strip(line, 0.35, 0.35), false)
+	var ticks: Array[PackedVector2Array] = []
+	for s: Vector2 in stops:
+		ticks.append(RisoShapes.rrect(s.x - 0.2, s.y - 2.2, 1.4, 1.2, 0.3))
+	marks.ink(RisoPrint.BLUE, 0.8, ticks, false)
+	marks.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(car.x - 0.6, car.y - 1.6, 2.2, 1.8, 0.4)], false)
+
+
+## A toll gate: a gate's bar with an accent coin beside it.
+func _mark_toll(at: Vector2) -> void:
+	_note("toll gate")
+	marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.rrect(at.x - 0.9, at.y - 2.6, 1.8, 5.2, 0.8)], false)
+	marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(at + Vector2(2.6, -2.2), 1.2, 10)], false)
 
 
 ## A grave bell: an accent dot (faint once rung), with the key-colour bow of its padlock, or its
