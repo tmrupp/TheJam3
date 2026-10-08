@@ -65,8 +65,8 @@ DO NOT MODIFY
 - * simplify hyperspace connector
 
 - maybe we should world on the light system for lanterns
-- visuals for shield should be improve/reworked
-- rechargable shield should be a spell/perk
+- * visuals for shield should be improve/reworked
+- * rechargable shield should be a spell/perk
 
 - * which switches go to which things need to be more clear somehow, maybe glpyhs like portals
 - * portal glyphs need to be more clear
