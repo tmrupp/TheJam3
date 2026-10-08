@@ -3,7 +3,7 @@ extends TestKit
 ## zoomed out, the castle's decor (battlements, an arrow slit, a banner, a broken column, rubble), a
 ## door, a toll gate, and the gondola waiting at its open station, mid-run along its circuit (barred,
 ## its rock-bugs coming along the cable) and at the next station, shut by its gate, with a bug
-## climbed in; and a rock-bug on the rock.
+## climbed in, and held swung on its hinge; and a rock-bug on the rock.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_crags.gd
 
 var camera: Camera2D
@@ -68,6 +68,12 @@ func run() -> void:
 		await until(func() -> bool: return g.foes.any(func(f: Node2D) -> bool: return (f.get_node("RockBug") as RockBug).mode == RockBug.Mode.CAR), 15000)
 		await frames(30)
 		await look(g.center(), "crags_gondola_bugs.png", false)
+		# Held swung on its hinge, its hanger straight down from the wheel.
+		g.set_physics_process(false)
+		g.swing = Gondola.SWING_MAX
+		g._hang()
+		await look(g.center() + Vector2(0, -60), "crags_gondola_swing.png", false)
+		g.set_physics_process(true)
 	RunState.delete_save()
 	finish()
 

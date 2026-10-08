@@ -488,8 +488,8 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 			for i: int in CragsArchetype.turns(track):
 				corners.append(spot.call(track[i]))
 			var stops: Array[Vector2] = []
-			for stop: Vector2i in circuit["stops"]:
-				stops.append(spot.call(stop))
+			for i: int in circuit["stops"]:
+				stops.append(spot.call(track[i]))
 			_mark_gondola(corners, stops, at)
 		LevelGen.Type.TOLL:
 			if not gone:

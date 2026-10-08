@@ -14,18 +14,25 @@ extends AnimatableBody2D
 ## it stands, it sets off (on the way it was going when it last came to a station, or back the
 ## other way after it was stopped on the way); pulled while it runs, it stops it where it is. A
 ## stretch it may not run makes the lever balk (a pink spark), and the next pull tries the other way.
-## Standing on the landing of an open station it is not at calls it over, empty, if every stretch on
-## the way has an open end.
+## Each station (GondolaStation) has a call switch in its doorway: once the station is open, using
+## it calls the car there, empty, from wherever it is. If the car is far off and out of view, it first
+## jumps along its track to just out of view of the station, so the wait is short.
 ##
 ## Its sides come down while it runs (pink with a rider: danger) and always lift when it stands, at
 ## a station or between them, so a rider can always step off where it stops. Halfway along each
-## stretch a rider rides it calls a rock-bug (RockBug) out onto its track ahead of the car, which
-## walks along the cable to meet it, climbs in and walks its floor; the bug can be stunned off, or
-## let off when the car stands with its sides up. Faint grey bars stand across its back wall, behind
-## whoever rides. Riders are carried as on any moving body. Nothing about where it is
+## stretch a rider rides it calls a rock-bug (RockBug) out onto its cable ahead of the car, which
+## clings to it and makes its way along to meet the car, then crawls in through the hatch in its
+## roof and crawls round the inside of the car; the bug can be stunned off, or let off when the car
+## stands with its sides up. Faint grey bars stand across its back wall, behind
+## whoever rides. It hangs from its cable on a hanger that hangs straight down from the wheel, and
+## the car swings on a hinge where the hanger meets its roof: the cable pulling the wheel sideways
+## (setting off or stopping on a diagonal, turning onto or off one) swings the car the other way,
+## and the swing dies away, quickly while it stands. Riders are carried as on any
+## moving body. Nothing about where it is
 ## is kept: on every visit it waits at its open station. Nothing here draws from the world RNG.
 
 const INTERACTABLE: PackedScene = preload("res://prefabs/interactable.tscn")
+const STATION: PackedScene = preload("res://prefabs/gondola_station.tscn")
 ## How fast it runs with a rider, and called empty (pixels a second), and how quickly it gets up to
 ## speed and slows for a station (pixels a second, each second).
 const RIDE_SPEED: float = 360.0
@@ -37,8 +44,27 @@ const SHUT_TIME: float = 0.35
 ## stretch.
 const FOE_AHEAD: float = 4.0
 const FOE_DUE: float = 0.5
-## How near a station's landing the wizard stands to call it there (pixels).
-const CALL_NEAR: float = 330.0
+## How far over the car's floor its cable runs (cells).
+const CABLE_UP: float = 2.55
+## Where the hatch in its roof is, across from its middle (pixels): rock-bugs come in there. How
+## far its rounded roof's crown rises over the top of the car, and how far in from each side the
+## rails its side bars run in stand (pixels): rock-bugs crawl along them.
+const HATCH_X: float = 18.0
+const ROOF_RISE: float = 30.0
+## How far below the crown of its roof the hanger meets it, at the hinge it swings on (pixels).
+const HINGE_DOWN: float = 4.0
+const RAIL_IN: float = 6.0
+## Its swing on the hinge atop its roof: how strongly the wheel's sideways pull swings it (a share
+## of a free pendulum's answer), how quickly a swing dies away while it runs and while it stands (a share
+## of its speed, each second), how far it swings at most (radians), and the pull swinging it back
+## (pixels a second, each second).
+const SWING_PULL: float = 0.12
+const SWING_DAMP_RUN: float = 0.4
+const SWING_DAMP_STAND: float = 1.6
+const SWING_MAX: float = 0.14
+const SWING_G: float = 980.0
+## How far out of view a called car jumps to before it comes (pixels past the view's edge).
+const OFF_VIEW: float = 64.0
 ## How thick its floor, roof and sides are (pixels).
 const SLAB: float = 14.0
 ## What shuts a station: a gate of one of these in its doorway, not yet opened.
@@ -81,8 +107,16 @@ var run_progress: float = 0.0
 var sealed: bool = false
 var side_shut: Array[bool] = [true, true]
 var shut: Array[float] = [1.0, 1.0]
-## The rock-bugs it has called out.
+## How far it is swung on its hinge (radians, clockwise) and how fast it swings; the wheel's last
+## place and sideways speed, for the pull on it (none yet just after it is put down).
+var swing: float = 0.0
+var swing_v: float = 0.0
+var _last_pivot: Vector2 = Vector2.ZERO
+var _last_vx: float = 0.0
+var _swing_ready: bool = false
+## The rock-bugs it has called out, and its stations' call switches.
 var foes: Array[Node2D] = []
+var posts: Array[GondolaStation] = []
 var _walls: Array[CollisionShape2D] = []
 var _inside: Area2D
 var _lever: Interactable
@@ -93,6 +127,9 @@ var _lever: Interactable
 func setup(info: MapInfo, v: Vector2i, circuit: Variant) -> void:
 	map_info = info
 	depth = info.here.depth if info.here != null else 0
+	# Moved by setting its transform each physics step (a kinematic body takes its speed from that,
+	# so riders are carried). Physics sync stays off: it would drop the car's swing (its rotation).
+	sync_to_physics = false
 	var tm: TileMap = info.tile_map
 	cell_px = float(tm.tile_set.tile_size.x) * tm.global_scale.x
 	origin = info.cell_position(Vector2i.ZERO)
@@ -129,7 +166,16 @@ func setup(info: MapInfo, v: Vector2i, circuit: Variant) -> void:
 	_set_walls()
 	for k: int in range(2):
 		shut[k] = 1.0 if side_shut[k] else 0.0
-	_place(world_at(s))
+	_place()
+	# Each station's call switch, in its doorway.
+	for i: int in range(gates.size()):
+		var post: GondolaStation = STATION.instantiate() as GondolaStation
+		post.gondola = self
+		post.index = i
+		post.inner = inner[i]
+		post.position = info.cell_position(gates[i])
+		info.map_elements.add_child.call_deferred(post)
+		posts.append(post)
 
 
 ## A solid slab of the car centred at `at`, `size` across and down.
@@ -143,11 +189,51 @@ func _slab(at: Vector2, size: Vector2) -> CollisionShape2D:
 	return shape
 
 
-## Move without sweeping anything along the way (physics sync off for the move).
-func _place(to: Vector2) -> void:
-	sync_to_physics = false
-	position = to
-	sync_to_physics = true
+## Put it where it is along its track at once, its swing's pull starting afresh.
+func _place() -> void:
+	_hang()
+	_swing_ready = false
+
+
+## Hang it from its cable where it is along its track, swung on its hinge: the hanger hangs straight
+## down from the wheel, and the car turns about the hinge at the hanger's foot.
+func _hang() -> void:
+	rotation = swing
+	position = hinge_at(s) - hinge().rotated(swing)
+
+
+## The hinge atop its roof, where the hanger meets the car, in the car (from the middle of its floor).
+func hinge() -> Vector2:
+	return Vector2(0.0, -cell_px * 2.0 - ROOF_RISE + HINGE_DOWN)
+
+
+## The hinge in world pixels, `along` cells along its track: straight under the wheel.
+func hinge_at(along: float) -> Vector2:
+	return world_at(along) + hinge()
+
+
+## Swing it for a step: a pendulum hung from its hinge (its weight at the middle of the car), pulled
+## the other way as the wheel is pulled sideways, and damped.
+func _swing(delta: float) -> void:
+	var p: Vector2 = pivot_at(s)
+	var vx: float = (p.x - _last_pivot.x) / delta if _swing_ready else 0.0
+	var ax: float = (vx - _last_vx) / delta if _swing_ready else 0.0
+	_last_pivot = p
+	_last_vx = vx
+	_swing_ready = true
+	# From the hinge down to the middle of the car.
+	var length: float = absf(hinge().y + cell_px)
+	var damp: float = SWING_DAMP_RUN if running else SWING_DAMP_STAND
+	swing_v += (-SWING_G / length * sin(swing) - SWING_PULL * ax * cos(swing) / length - damp * swing_v) * delta
+	swing += swing_v * delta
+	if absf(swing) > SWING_MAX:
+		swing = signf(swing) * SWING_MAX
+		swing_v = 0.0
+
+
+## Where its hanger wheel runs on the cable, `along` cells along its track, in world pixels.
+func pivot_at(along: float) -> Vector2:
+	return world_at(along) + Vector2(0.0, -cell_px * CABLE_UP)
 
 
 ## The car's floor (its bottom middle) in world pixels, `along` cells along its track.
@@ -155,9 +241,15 @@ func world_at(along: float) -> Vector2:
 	return origin + CragsArchetype.point(path, along) * cell_px + Vector2(cell_px * 0.5, cell_px * 0.5)
 
 
+## The way its track runs `along` cells along it (a unit vector, up the line).
+func track_dir(along: float) -> Vector2:
+	var i: int = clampi(floori(along), 0, path.size() - 2)
+	return Vector2(path[i + 1] - path[i]).normalized()
+
+
 ## The middle of the car, in world pixels.
 func center() -> Vector2:
-	return global_position + Vector2(0.0, -cell_px)
+	return to_global(Vector2(0.0, -cell_px))
 
 
 ## Whether the wizard is in the car.
@@ -241,22 +333,50 @@ func _set_off(way: int, to: int, cells: float, with_rider: bool) -> void:
 	_set_walls()
 
 
-## Called from the landing of open station `to`: it comes, if every stretch on the way has an open
-## end.
-func _call_to(to: int) -> void:
-	var cells: float = absf(stops_s[to] - s)
-	if cells <= 0.001:
+## Whether the car can be called to station `to`: the station is open, the car is not already
+## standing there, and nobody rides it.
+func may_call(to: int) -> bool:
+	if not is_open(to) or ridden or has_rider():
+		return false
+	return running or at_station != to
+
+
+## Called to open station `to` from its post (see may_call): it comes, empty, from wherever it is,
+## first jumping to just out of view of the station if it is further off and out of view itself.
+func call_to(to: int) -> void:
+	if not may_call(to):
+		return
+	if running and bound_for == to:
 		return
 	var way: int = 1 if stops_s[to] > s else -1
-	var from: int = at_station
-	var here: float = s
-	while absf(stops_s[to] - here) > 0.001:
-		var next: int = int(next_station(here, way)[0])
-		if next < 0 or (from >= 0 and not is_open(from) and not is_open(next)):
-			return
-		from = next
-		here = stops_s[next]
-	_set_off(way, to, cells, false)
+	var near: float = _out_of_view_toward(to, way)
+	if (near - s) * float(way) > 0.0 and not _in_view(s):
+		s = near
+		_place()
+	if running and way != dir:
+		speed = 0.0
+	_set_off(way, to, absf(stops_s[to] - s), false)
+
+
+## How far along its track, coming to station `to` the way `way` runs, the car is nearest the
+## station yet out of view (where it is now, if nowhere on the way is).
+func _out_of_view_toward(to: int, way: int) -> float:
+	var at: float = stops_s[to]
+	while (at - s) * float(way) > 0.0:
+		if not _in_view(at):
+			return at
+		at -= float(way) * 0.25
+	return s
+
+
+## Whether the car `along` cells along its track (and its cable over it) shows in the camera's view.
+func _in_view(along: float) -> bool:
+	var cam: Camera2D = Stage.camera()
+	if cam == null:
+		return false
+	var view: Rect2 = RisoLight.view_rect(self, cam).grow(OFF_VIEW)
+	var floor_at: Vector2 = world_at(along)
+	return view.intersects(Rect2(floor_at + Vector2(-cell_px, -cell_px * CABLE_UP), Vector2(cell_px * 2.0, cell_px * CABLE_UP)))
 
 
 ## Its sides: both down while it runs, both up while it stands.
@@ -281,7 +401,8 @@ func _physics_process(delta: float) -> void:
 		s += float(dir) * step / (cell_px * stretch)
 		if step >= remaining or (target_s - s) * float(dir) < 0.0:
 			s = target_s
-		position = world_at(s)
+		_swing(delta)
+		_hang()
 		if ridden:
 			var now: float = 1.0 - absf(target_s - s) / run_length
 			if run_progress < FOE_DUE and now >= FOE_DUE:
@@ -290,9 +411,8 @@ func _physics_process(delta: float) -> void:
 		if absf(target_s - s) <= 0.0001:
 			_arrive()
 	else:
-		position = world_at(s)
-		if not inside and not ridden:
-			_listen_for_calls()
+		_swing(delta)
+		_hang()
 	for k: int in range(2):
 		shut[k] = move_toward(shut[k], 1.0 if side_shut[k] else 0.0, delta / SHUT_TIME)
 	_lever.available = inside
@@ -304,29 +424,15 @@ func _arrive() -> void:
 	speed = 0.0
 	at_station = bound_for
 	s = stops_s[at_station]
-	position = world_at(s)
+	_hang()
 	next_dir = dir
 	ridden = false
 	sealed = false
 	_set_walls()
 
 
-## Standing empty: the wizard on the landing of an open station it is not at calls it there.
-func _listen_for_calls() -> void:
-	var player: Player = map_info.player
-	if player == null or not is_instance_valid(player) or not player.is_on_floor():
-		return
-	for i: int in range(stations.size()):
-		if i == at_station or not is_open(i):
-			continue
-		var landing: Vector2 = stations[i] + Vector2(float(inner[i]) * cell_px * 1.5, 0.0)
-		if player.global_position.distance_to(landing) < CALL_NEAR:
-			_call_to(i)
-			return
-
-
-## One rock-bug, out onto the track FOE_AHEAD cells ahead of the car (behind it, near the end of the
-## track), to crawl along the cable and climb on.
+## One rock-bug, out onto the cable FOE_AHEAD cells ahead of the car (behind it, near the end of
+## the track), to hang its way along to the car and come in through its roof.
 func _call_foe() -> void:
 	var last: float = float(path.size() - 1)
 	var at: float = s + float(dir) * FOE_AHEAD

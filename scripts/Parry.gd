@@ -37,8 +37,8 @@ const SAFE: float = 0.8
 
 ## How long the guard stays up (seconds): short, so a catch takes timing; a little longer from
 ## tier II.
-const WINDOW: float = 0.1
-const WINDOW_II: float = 0.15
+const WINDOW: float = 0.2
+const WINDOW_II: float = 0.25
 var duration: float = WINDOW
 var damage: int = 1
 var heals: bool = false

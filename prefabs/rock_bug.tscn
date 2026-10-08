@@ -11,6 +11,6 @@
 script = ExtResource("3_bug")
 
 [node name="HitBox" parent="." index="3" instance=ExtResource("2_hitbox")]
-scale = Vector2(2.4, 2.0)
+scale = Vector2(1.4, 1.1)
 
 [node name="Stunner" parent="." index="4" instance=ExtResource("4_stunner")]

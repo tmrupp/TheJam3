@@ -306,8 +306,9 @@ that walk along rock like a wisp, turning back only where they must, and fall of
 and the gondola, a cable car climbing a line of stations from the bottom of the level to its top,
 straight up and up 45° diagonals, all but one station shut by a door, a switch gate or a toll gate
 (it runs from an open station to a shut one, never between two shut ones), worked by a lever
-inside, its sides down only while it runs, a rock-bug climbing on from its track on each stretch
-(stunned off, or let off when it stops). Not yet: updrafts, falling rocks, watchers in the slits, and
+inside and called from a post at each open station, its sides down only while it runs, a
+rock-bug coming along its cable and in through its roof on each stretch (stunned off, or let off
+when it stops). Not yet: updrafts, falling rocks, watchers in the slits, and
 the spider.
 
 - **Terrain.** Vertical: tall cliff faces with narrow ledges, chimneys and overhangs, collapsed
