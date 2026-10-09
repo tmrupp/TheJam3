@@ -64,7 +64,7 @@ func flip() -> void:
 	map_info.set_switch(get_meta(&"cell"), on)
 	if is_instance_valid(map_info.map_elements):
 		for node: Node in map_info.map_elements.get_children():
-			if node.get_meta(&"cell", null) != gate_cell:
+			if not node.has_meta(&"cell") or node.get_meta(&"cell") != gate_cell:
 				continue
 			if node is SwitchGate:
 				(node as SwitchGate).set_up(on)

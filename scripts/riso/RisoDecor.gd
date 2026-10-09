@@ -56,10 +56,13 @@ const SLOTS: Array[Array] = [
 	[RisoPrint.NIGHT, 0.3, false, false],   # 23 hedges: shade at their foot
 	[RisoPrint.BLUE, 0.55, false, true],    # 24 the crags' battlements: pale stone
 	[RisoPrint.NIGHT, 0.25, false, false],  # 25 their shade
-	[RisoPrint.NIGHT, 0.13, false, false],  # 26 dressed stone on masonry: the lighter blocks
-	[RisoPrint.NIGHT, 0.28, false, false],  # 27 the darker blocks
+	[RisoPrint.NIGHT, 0.06, false, false],  # 26 dressed stone on masonry: the lighter blocks
+	[RisoPrint.NIGHT, 0.14, false, false],  # 27 the darker blocks
 	[RisoPrint.NIGHT, 0.85, false, false],  # 28 arrow slits
+	[RisoPrint.NIGHT, 0.6, true, false],    # 29 mortar between the blocks: the stone's inks lifted
 ]
+## What mortar lifts (slot 29): every ink built stone can print in (RisoTerrain.MASONRY_LOOKS).
+const MORTAR_LIFT: Array[int] = [RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.CLOTH, RisoPrint.NIGHT]
 ## Fence slots, between the hedges and the rest of the decor.
 const BACK_SLOTS: Array[int] = [15, 16, 17, 18, 19, 20, 24, 25]
 ## Hedge slots, behind everything else (the fences in front of them).
@@ -68,7 +71,7 @@ const KNOCK_ALL: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, 
 const KNOCK_ROCK: Array[int] = [RisoPrint.BLUE, RisoPrint.NIGHT]
 const STRUCTURES: Array[String] = ["level_exit.tscn", "shrine.tscn", "door.tscn", "checkpoint.tscn", "spikes.tscn",
 	"portal.tscn", "inkwell.tscn", "moving_platform.tscn", "bell.tscn", "switch.tscn", "switch_gate.tscn", "key.tscn",
-	"relic.tscn", "gondola.tscn"]
+	"relic.tscn", "gondola.tscn", "stalactite.tscn"]
 ## Structures that stand tall, keeping a wider stretch of floor clear (see rebuild).
 const TALL: Array[String] = ["level_exit.tscn", "shrine.tscn", "checkpoint.tscn", "door.tscn", "bell.tscn", "gondola.tscn"]
 
@@ -523,7 +526,10 @@ func _print_slots(canvas: InkCanvas, slots: Array, layer: int = LAYER_FRONT) -> 
 		if polys.is_empty() or layer_of(i) != layer:
 			continue
 		var slot: Array = SLOTS[i]
-		if bool(slot[2]):
+		if bool(slot[2]) and float(slot[1]) < 1.0:
+			# Lifted, not cleared: lighter, the paper showing through a little.
+			canvas.lift_ink(MORTAR_LIFT, float(slot[1]), polys)
+		elif bool(slot[2]):
 			canvas.knock(KNOCK_ALL if i == 8 or i == 14 or i == 15 else KNOCK_ROCK, polys)
 		else:
 			canvas.ink(int(slot[0]), float(slot[1]), polys, bool(slot[3]))
@@ -976,12 +982,14 @@ func _sketch_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 			slots[13].append(PackedVector2Array([Vector2(x + wide * 0.15, floor_y - 4.0), Vector2(x + wide * 0.15, floor_y - tall - 1.0), Vector2(x + wide * 0.5, floor_y - tall + cut), Vector2(x + wide * 0.5, floor_y - 4.0)]))
 		&"ashlar":
 			# Dressed stone on the castle's masonry, at full size: two courses to a cell, each of two
-			# blocks (the courses' joints staggered), in two tones dealt per block, with a narrow gap
-			# of the bare rock between them.
+			# blocks (the courses' joints staggered), in two faint tones dealt per block, with pale
+			# mortar in the joints between them (the stone's inks lifted).
 			var gap: float = 3.0
 			for course: int in range(2):
 				var y0: float = ceil_y + float(course) * half
 				var shift: float = half * 0.5 if (v.y * 2 + course) % 2 == 1 else 0.0
+				# The bed joint along the top of the course.
+				slots[29].append(RisoShapes.rrect(c.x - half, y0 - gap * 0.5, half * 2.0, gap, 1.0))
 				for b: int in range(-1, 2):
 					var bx0: float = maxf(c.x - half, c.x - half + shift + float(b) * half)
 					var bx1: float = minf(c.x + half, c.x - half + shift + float(b + 1) * half)
@@ -989,6 +997,9 @@ func _sketch_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 						continue
 					var tone: int = 27 if _r(s, v, 70 + course * 3 + b) < 0.4 else 26
 					slots[tone].append(RisoShapes.rrect(bx0 + gap * 0.5, y0 + gap * 0.5, bx1 - bx0 - gap, half - gap, 2.0))
+					# The head joint at the block's left end, inside the cell.
+					if bx0 > c.x - half + 0.5:
+						slots[29].append(RisoShapes.rrect(bx0 - gap * 0.5, y0, gap, half, 1.0))
 		&"slit":
 			# An arrow slit through a castle wall: a tall narrow opening with an arched top, crossed
 			# a third of the way down by a short slot for sighting along.

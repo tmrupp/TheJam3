@@ -71,6 +71,9 @@ const SLAB: float = 14.0
 const GATES: Array[LevelGen.Type] = [LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.TOLL]
 
 var map_info: MapInfo
+## The level it was laid out in. Once another is loaded in its place (travel, or a death that ends the
+## run) it is stale until it is freed with the old level, and does nothing more.
+var world: LevelGen
 var depth: int = 0
 ## A cell's size in pixels, and the middle of the level's first cell.
 var cell_px: float = 128.0
@@ -129,6 +132,7 @@ var fares: Array[GondolaFare] = []
 ## the open station it waits at.
 func setup(info: MapInfo, v: Vector2i, circuit: Variant) -> void:
 	map_info = info
+	world = info.world
 	depth = info.here.depth if info.here != null else 0
 	# Moved by setting its transform each physics step (a kinematic body takes its speed from that,
 	# so riders are carried). Physics sync stays off: it would drop the car's swing (its rotation).
@@ -198,6 +202,11 @@ func setup(info: MapInfo, v: Vector2i, circuit: Variant) -> void:
 		post.position = info.cell_position(gates[i])
 		info.map_elements.add_child.call_deferred(post)
 		posts.append(post)
+	# Its call switches go when it does.
+	tree_exiting.connect(func() -> void:
+		for p: GondolaStation in posts:
+			if is_instance_valid(p):
+				p.queue_free())
 
 
 ## A solid slab of the car centred at `at`, `size` across and down.
@@ -280,8 +289,15 @@ func has_rider() -> bool:
 	return player != null and is_instance_valid(player) and _inside != null and _inside.overlaps_body(player)
 
 
+## Whether its level is no longer the one loaded (see `world`).
+func stale() -> bool:
+	return map_info == null or map_info.world != world or is_queued_for_deletion()
+
+
 ## Whether station `i` is open: no gate in its doorway, or its gate opened (a switch gate: up).
 func is_open(i: int) -> bool:
+	if stale():
+		return false
 	var g: Vector2i = gates[i]
 	var type: LevelGen.Type = map_info.world.get_cell(g).type
 	if type == LevelGen.Type.SWITCH_GATE:
@@ -313,6 +329,8 @@ func may_run(way: int) -> bool:
 
 ## The lever, pulled: stop if it runs; if it stands, set off (balking if it may not run that way).
 func pull() -> void:
+	if stale():
+		return
 	if running:
 		running = false
 		ridden = false
@@ -358,7 +376,7 @@ func _set_off(way: int, to: int, cells: float, with_rider: bool) -> void:
 ## Whether the car can be called to station `to`: the station is open, the car is not already
 ## standing there, and nobody rides it.
 func may_call(to: int) -> bool:
-	if not is_open(to) or ridden or has_rider():
+	if stale() or not is_open(to) or ridden or has_rider():
 		return false
 	return running or at_station != to
 
@@ -410,7 +428,7 @@ func _set_walls() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if stations.is_empty():
+	if stations.is_empty() or stale():
 		return
 	var inside: bool = has_rider()
 	if running:

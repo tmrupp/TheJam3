@@ -41,7 +41,7 @@ func view_rect() -> Rect2:
 
 
 func _draw_art() -> void:
-	if station == null or station.gondola == null:
+	if station == null or station.gondola == null or not is_instance_valid(station.gondola) or station.gondola.stale():
 		return
 	var g: float = _ground()
 	var cell: float = half * 2.0

@@ -214,12 +214,11 @@ func ride() -> void:
 		check(not g.running or (rider.mode == RockBug.Mode.CAR and rider.face == RockBug.Face.RIGHT and rider.way == -1), "a bug in the running car climbs its barred side rather than leave")
 	check(await until(func() -> bool: return not g.running and g.at_station == start, 40000), "back at the open station")
 	# Stopped on the way, its sides lift; pulled again, it heads back. (From the line's end the
-	# lever's first pull balks, and the next goes the other way; from a station partway along, it
-	# may set off either way.)
+	# lever's first pull balks, and the next goes the other way.)
+	# The lever set to go toward that next station (it goes on the way it last came otherwise).
+	g.next_dir = 1 if g.stops_s[next] > g.s else -1
 	g.pull()
-	if not g.running:
-		g.pull()
-	check(g.running and g.bound_for != start, "the lever sets it off again")
+	check(g.running and g.bound_for == next, "the lever sets it off again")
 	await until(func() -> bool: return g.speed > 200.0)
 	g.pull()
 	check(not g.running and g.at_station < 0, "the lever stops it between stations")
@@ -274,6 +273,7 @@ func ride() -> void:
 	check(not g.may_call(next), "nor can it be called where it stands")
 	await called_from_afar(g)
 	await fare(g)
+	await left_behind(g)
 
 
 ## A toll gate shutting the station the car stands at is paid from inside the car, at the fare box in
@@ -297,7 +297,7 @@ func fare(g: Gondola) -> void:
 	player.global_position = g.to_global(Vector2(float(side) * g.cell_px * 0.6, -40.0))
 	player.velocity = Vector2.ZERO
 	check(await until(func() -> bool: return g.has_rider() and player.is_on_floor()), "the wizard stands in the car, by the station's side")
-	await frames(3)
+	await until(func() -> bool: return Interactable.focused(self) == box.get_node("Interactable"), 3000)
 	var it: Interactable = box.get_node("Interactable") as Interactable
 	check(box.toll() != null and it.available and Interactable.focused(self) == it, "the fare box on that side is offered there, before the lever")
 	check(not (g.fares[1 if side < 0 else 0].get_node("Interactable") as Interactable).available, "the other side's is not")
@@ -389,3 +389,29 @@ func rock_bugs() -> void:
 	# against the rock, and a little leeway on its height.
 	check(bug.rb.global_position.y >= height - RockBug.BODY * 0.25 and await until(clinging, 2000), "below where it let go, against rock")
 	player.set_physics_process(true)
+
+
+## A switch in a level with stations flips (the stations' call switches, which hold no cell, are
+## skipped over); and when another level is loaded in its place (travel, or a death that ends the
+## run), the gondola goes quiet and its call switches go with it.
+func left_behind(g: Gondola) -> void:
+	print("left behind")
+	var switches: Array[Node] = placed("switch.tscn")
+	if not switches.is_empty():
+		var sw: Switch = switches[0] as Switch
+		var was: bool = sw.is_on()
+		sw.flip()
+		check(sw.is_on() != was, "a switch flips beside the stations' call switches")
+		sw.flip()
+	var posts: Array = g.posts.duplicate()
+	info.coord = Vector2i(28, 0)
+	info.arrival = MapInfo.Exit.BACK
+	info._load_level()
+	await settle()
+	check(not is_instance_valid(g) or g.stale(), "another level loaded, the gondola is left behind")
+	for i: int in range(3):
+		await process_frame
+	var left: int = 0
+	for p: Variant in posts:
+		left += 1 if is_instance_valid(p) else 0
+	check(left == 0, "and its call switches are gone with it")
