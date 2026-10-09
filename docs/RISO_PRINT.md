@@ -77,6 +77,7 @@ Torn ribbons and the ribbons in the blend have a wider pink band along their upp
   - ink drops falling from ceiling drips and splashing where they land
 - **Distant skyline** (`RisoBackground.gd`): ruined colonnades, towers and floating islands in a faint blue screen, sliding at a tenth of the camera's speed.
 - **Enemy anchors:** wisps cast a night shadow on the floor, and watchers grow on a swaying stalk rooted in the floor.
+- **A wisp turning round** (`WispArt`): its head runs round a teardrop cut in half by its path, point where it turns and round end ahead, dipping under first and coming back over the top, and the body follows the head's path all the way round (the drop is laid into the trail in 2 px steps, so the tail traces it at any frame rate); its shadow darkens as it dips and fades as it rises.
 - **Visual language:**
   - **Colours:** pink is danger (thorns, wisps, watchers), yellow is reward (stars, keys, price plaques), glow ink is the wizard's own (hat, hex, ghost), and blue is the world. Decor uses only blue, night, moss (accent over blue) and bare paper, never pink or yellow.
   - **Shapes:** points hurt, rounds are collected, arches are ways through.

@@ -8,18 +8,23 @@ class_name Mover
 const SPEED: float = 60.0
 const JUMP_VELOCITY: float = -400.0
 const MAX_FALL: float = 900.0
-## Two wisps bump (and both turn) at this distance, centre to centre: about the length of the
-## printed body, which is twice as long as the collision box, so the art meets nose to nose.
-const WISP_GAP: float = 60.0
+## Two wisps meeting both turn round at this distance, centre to centre, leaving each room for
+## its turning drop (WispArt) in the half of the way between them, so the drops meet nose to nose.
+const WISP_GAP: float = 100.0
+## A wisp turns round when its front comes within WALL_ROOM of a wall, rather than at the wall, so
+## its turning drop (WispArt) swings round in the open instead of into the rock.
+const WALL_ROOM: float = 40.0
+## The wall probe is lifted this far off the floor, so the floor it walks on never reads as a wall.
+const WALL_LIFT: float = 4.0
 var gravity: float = ProjectSettings.get_setting("physics/2d/default_gravity")
 
 @onready var tilemap: TileMap = Stage.tile_map() # $\"../TileMap\"
 @onready var dcast: RayCast2D = $DownCast
 @onready var rb: RigidBody2D = $".."
 @onready var sprite: Sprite2D = $"../Sprite2D"
-## Turning round: the wisp holds still for TURN_TIME while its art swoops round a tight circle
-## (WispArt.WISP_TURN_TIME matches it).
-const TURN_TIME: float = 0.5
+## Turning round: the wisp holds still for TURN_TIME while its art swoops round its turning drop
+## (WispArt times the drop by it).
+const TURN_TIME: float = 0.7
 var turn_left: float = 0.0
 var fall_speed: float = 0.0
 ## Standing on something (only then does it walk, or look for ledges).
@@ -60,7 +65,7 @@ func _physics_process(delta: float) -> void:
 	# Only a wall faced head-on turns it, never a seam or corner of the floor it walks on.
 	if collision and absf(collision.get_normal().x) > 0.7 and signf(collision.get_normal().x) == -float(direction):
 		turn()
-	elif _wisp_ahead():
+	elif _wall_near() or _wisp_ahead():
 		turn()
 	elif not _floor_ahead():
 		if not down_wait:
@@ -89,6 +94,18 @@ func _fall(delta: float) -> void:
 func _floor_ahead() -> bool:
 	var ahead: Transform2D = rb.global_transform.translated(Vector2(absf(dcast.position.x) * 1.8 * float(direction), 0.0))
 	return rb.test_move(ahead, Vector2(0, 10))
+
+
+## What the wall probe last hit (one kept, so probing every frame makes nothing new).
+var _wall_hit: KinematicCollision2D = KinematicCollision2D.new()
+
+
+## A wall in front, within WALL_ROOM of the body: one a head-on bump would turn it at, seen sooner.
+func _wall_near() -> bool:
+	var lifted: Transform2D = rb.global_transform.translated(Vector2(0, -WALL_LIFT))
+	if not rb.test_move(lifted, Vector2(WALL_ROOM * float(direction), 0), _wall_hit):
+		return false
+	return absf(_wall_hit.get_normal().x) > 0.7 and signf(_wall_hit.get_normal().x) == -float(direction)
 
 
 ## Another wisp in front on the same floor, closer than WISP_GAP.
