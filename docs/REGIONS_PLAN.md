@@ -3,8 +3,8 @@
 A plan for turning the single dive into two branches out of the garden, up through the crags to
 the sky and down through the cemetery to the catacombs, with a boss at the end of each band that
 guards a relic and the way on to the next region. It builds on `docs/DEEPER_PLAN.md` (the grid of
-places, archetypes, side worlds, relics) and follows the owner's notes in `docs/TOM_THOUGHTS.md`
-("can go up or down", "bosses, possibly guarding relics, must be defeated").
+places, archetypes, side worlds, relics) and follows the owner's notes, now the task list linked
+from `AGENTS.md` ("can go up or down", "bosses, possibly guarding relics, must be defeated").
 
 Phases 1 (rows both ways), 2 (climbing levels), 3 (the gate, with a stand-in boss) and 4 (the
 worm and the bramble) are built, and of phase 5 a first pass of the crags (no spider yet); the
@@ -330,8 +330,8 @@ the spider.
   of narrow passages, niches and ossuary rooms (`tests/make_catacombs_sample.gd`).
 - **Darkness.** *Built* (`Archetype.gloom`, `RisoLight`; see `docs/RISO_PRINT.md`, line of
   sight). The night is deep here; most of what you see is what your carried lantern lights
-  (`RisoLight.CARRIED_RINGS`), and lanterns matter more than ever. Being unprotected (the dim pink
-  pool) is felt. Every band is shaded out of the wizard's sight; only here is it dark in sight too.
+  (`RisoLight.CARRIED_REACH`), and lanterns matter more than ever. Being unprotected (the short,
+  dim pink light) is felt. Every band is shaded out of the wizard's sight; only here is it dark in sight too.
 - **Life.** Moths (drawn to your lantern), wraiths, skeletons that wake as you pass, bone gates
   (skeleton keys) more often.
 - **Realm.** Bone paper, ochre and black.

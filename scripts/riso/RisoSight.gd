@@ -69,6 +69,21 @@ func polygon(eye: Vector2, bounds: Rect2) -> PackedVector2Array:
 			aims.append(a - GRAZE)
 			aims.append(a)
 			aims.append(a + GRAZE)
+	# And to where a face of rock runs out of the box: a floor or wall that carries on past its edge
+	# turns no corner inside it, and without a ray there the outline would cut across from the face
+	# to the edge, leaving a wedge of what is seen dark.
+	for j: int in range(lo.y + 1, hi.y + 1):
+		var y: float = origin.y + float(j) * cell
+		if solid.has(Vector2i(lo.x, j - 1)) != solid.has(Vector2i(lo.x, j)):
+			aims.append((Vector2(bounds.position.x, y) - eye).angle())
+		if solid.has(Vector2i(hi.x, j - 1)) != solid.has(Vector2i(hi.x, j)):
+			aims.append((Vector2(bounds.end.x, y) - eye).angle())
+	for i: int in range(lo.x + 1, hi.x + 1):
+		var x: float = origin.x + float(i) * cell
+		if solid.has(Vector2i(i - 1, lo.y)) != solid.has(Vector2i(i, lo.y)):
+			aims.append((Vector2(x, bounds.position.y) - eye).angle())
+		if solid.has(Vector2i(i - 1, hi.y)) != solid.has(Vector2i(i, hi.y)):
+			aims.append((Vector2(x, bounds.end.y) - eye).angle())
 	aims.sort()
 	var out: PackedVector2Array = PackedVector2Array()
 	var last: Vector2 = Vector2.INF
@@ -76,7 +91,11 @@ func polygon(eye: Vector2, bounds: Rect2) -> PackedVector2Array:
 		var d: Vector2 = Vector2.from_angle(a)
 		var reach: float = _to_edge(eye, d, bounds)
 		var hit: float = cast(eye, d, reach)
-		var p: Vector2 = eye + d * (hit + FACE if hit < reach else reach)
+		var p: Vector2 = eye + d * reach
+		if hit < reach:
+			# Into the face, but never out the far side of the rock: near a corner the ray only
+			# clips it, and lighting past it would start the corner's shadow away from the corner.
+			p = eye + d * (hit + _depth(eye, d, hit, FACE))
 		if p.distance_squared_to(last) > 0.25:
 			out.append(p)
 			last = p
@@ -136,6 +155,44 @@ func cast(p: Vector2, d: Vector2, reach: float) -> float:
 			at.y += step.y
 			next_y += each_y
 		if t < reach and solid.has(at):
+			return t
+	return reach
+
+
+## How far a ray from `p` along unit `d` that enters rock `hit` px along goes on inside it, up to
+## `most`: it steps cell by cell until it comes out into the open.
+func _depth(p: Vector2, d: Vector2, hit: float, most: float) -> float:
+	var inside: Vector2 = p + d * (hit + 0.01)
+	var through: float = cast_open(inside, d, most)
+	return minf(through + 0.01, most)
+
+
+## How far a ray from `p` (inside rock) along unit `d` goes before it comes out of the rock, up to
+## `reach`: `cast` turned about.
+func cast_open(p: Vector2, d: Vector2, reach: float) -> float:
+	var at: Vector2i = cell_of(p)
+	var step: Vector2i = Vector2i(int(signf(d.x)), int(signf(d.y)))
+	var next_x: float = INF
+	var next_y: float = INF
+	var each_x: float = INF
+	var each_y: float = INF
+	if step.x != 0:
+		next_x = (origin.x + float(at.x + (1 if step.x > 0 else 0)) * cell - p.x) / d.x
+		each_x = cell / absf(d.x)
+	if step.y != 0:
+		next_y = (origin.y + float(at.y + (1 if step.y > 0 else 0)) * cell - p.y) / d.y
+		each_y = cell / absf(d.y)
+	var t: float = 0.0
+	while t < reach:
+		if next_x < next_y:
+			t = next_x
+			at.x += step.x
+			next_x += each_x
+		else:
+			t = next_y
+			at.y += step.y
+			next_y += each_y
+		if t < reach and not solid.has(at):
 			return t
 	return reach
 

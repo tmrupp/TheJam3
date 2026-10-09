@@ -39,8 +39,11 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
 - `docs/`: `DEEPER_PLAN.md` (design, by system), `REGIONS_PLAN.md` (the plan for going up and
   down from the garden, the new bands and the bosses at band ends; phases 1 to 4 built (the worm
   and the bramble), and a first pass of the crags of phase 5),
-  `RISO_PRINT.md` (the art pipeline and rules), `TOM_THOUGHTS.md` (the owner's notes; see the
-  ground rules).
+  `RISO_PRINT.md` (the art pipeline and rules).
+- The owner's task list and notes are a Google Doc, not a file here:
+  [Somnonaut: Tom's Tasks](https://docs.google.com/document/d/11vPYlA0G-_dZY2sdV8aK6qM06c1RAE2r05uHSngRHa8/edit)
+  (see the ground rules). Open tasks are checklists under topic headings; a ticked or struck-through
+  item is done, and finished items are moved to "Done" at the bottom.
 - `tests/`: `*_test.gd` regressions, `capture_*.gd` stills (written to `../art-captures/`),
   `make_*_sample.gd` sample generators.
 
@@ -157,8 +160,9 @@ bash tests/run.sh sky_test        # just these, headless
 
 ## Ground rules
 
-- `docs/TOM_THOUGHTS.md` is the owner's file and begins "DO NOT MODIFY": never edit it. Commit the
-  owner's changes to it only when asked.
+- The owner's task list is the Google Doc linked under "Where things live". Read it for direction
+  (with a Google Docs or Drive tool; if you can't open it, ask for the tasks you need). It is the
+  owner's document: never edit it, tick its boxes or comment on it unless asked.
 - Don't commit or push unless asked. Leave untracked files you didn't create alone.
 - Several sessions may work in this tree at once. Don't revert changes you didn't make. Build on
   them, and report problems in them rather than silently rewriting them.
