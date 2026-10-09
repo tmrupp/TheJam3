@@ -113,9 +113,32 @@ func _circuit(w: LevelGen, at: Vector2i) -> int:
 	return diagonal
 
 
+## The first crag row (world 28) where the station after the open one has open air over rock on
+## the far side from its doorway, beside where the car stands, so a rock-bug in the car can be let
+## off there (RockBug._step_off); 0 if none has.
+func _let_off_row() -> int:
+	for k: int in range(6):
+		var row: int = NextWorldDef.band_row(&"crags", k)
+		var w: LevelGen = build(Vector2i(28, row))
+		var c: Dictionary = w.circuit
+		if c.is_empty():
+			continue
+		var gates: Array = c["gates"]
+		var start: int = range(gates.size()).filter(func(i: int) -> bool: return w.get_cell(gates[i]).type == LevelGen.Type.EMPTY).front()
+		if start + 1 >= gates.size():
+			continue
+		var at: Vector2i = c["path"][c["stops"][start + 1]]
+		var beyond: Vector2i = at + (Vector2i(2, 0) if int(c["inner"][start + 1]) < 0 else Vector2i(-1, 0))
+		if not w.is_ground(beyond) and w.is_ground(beyond + Vector2i.DOWN) and not w.get_cell(beyond).type in Gondola.GATES:
+			return row
+	return 0
+
+
 func ride() -> void:
+	var row: int = _let_off_row()
+	check(row != 0, "a crag level whose next station up from its open one has rock to let a bug off onto (row %d)" % row)
 	await boot()
-	info.coord = Vector2i(28, NextWorldDef.band_row(&"crags", 1))
+	info.coord = Vector2i(28, row)
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	await settle()

@@ -301,7 +301,7 @@ destroyed.
 ### Crags with castle ruins (rows −4 … −9)
 
 *A first pass is built* (`docs/DEEPER_PLAN.md` §4d): the sample, the structure pass (shafts, keeps,
-towers, caverns), the realm and backdrop, the decor, doors in its passages, rock-bugs (crawlers
+towers climbed inside a storey at a time, a few roofed over a hoard of stars, caverns), the realm and backdrop, the decor, doors in its passages, rock-bugs (crawlers
 that walk along rock like a wisp, turning back only where they must, and fall off when stunned),
 and the gondola, a cable car climbing a line of stations from the bottom of the level to its top,
 straight up and up 45° diagonals, all but one station shut by a door, a switch gate or a toll gate
@@ -323,6 +323,13 @@ watchers in the slits, and the spider.
 - **Life.** Updrafts in its chimneys (the sky's `Wind`), falling rocks (the "falling spikes" idea),
   watchers in the arrow slits.
 - **Realm.** Pale stone and dawn colours; wind-torn clouds below the cliffs.
+- **Towers, later.** Ideas for the towers past the first pass: a ruined tower with one wall
+  fallen from some storey up, its stair open to the cliff; a bell tower, its bell on the roof
+  ringing a bridge or gondola station elsewhere; watchers in the windows (the "watchers in the
+  slits" idea, shooting out along the room's floor); a dark tower lit only by a lantern carried
+  in (`RisoLight`); a tower with a stalactite-like hazard of its own (a dropping portcullis over a
+  stair hole); the spider's keep as the tallest tower of all, its storeys the arena's broken
+  floors.
 
 ### Catacombs (rows +10 … +15)
 
