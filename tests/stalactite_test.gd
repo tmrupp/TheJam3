@@ -3,7 +3,8 @@ extends TestKit
 ## hanging from a ceiling of plain rock (not built stone) over open air, clear of the gondola's
 ## line, and other bands have none. In play: one hangs still, harmless, while the wizard is off to
 ## the side; with the wizard under it, it shakes, then falls, hurts on touch and shatters on them; it
-## grows back and hangs again; and one that misses shatters on the floor below it.
+## grows back and hangs again; one that misses shatters on the floor below it; a hex bolt knocks one
+## loose at once; and one landing on an enemy wounds it and shatters on it.
 ## godot --headless --path . --script res://tests/stalactite_test.gd
 
 
@@ -66,6 +67,9 @@ func falling() -> void:
 	check(await until(func() -> bool: return st.state == Stalactite.State.REGROWING, 5000), "and shatters")
 	check(player.health.health < health, "on the wizard, hurting them (%d to %d)" % [health, player.health.health])
 	check(st.position == st.home and st.grown() < 0.2, "and grows back from the ceiling")
+	check(not st.is_in_group(&"hex_target"), "no target for a bolt while it grows")
+	# Away from under it, or it would shake again the moment it hangs whole.
+	player.global_position = st.home + Vector2(Stalactite.REACH * 3.0, cell * 2.0)
 	check(await until(func() -> bool: return st.state == Stalactite.State.HANGING, int(Stalactite.REGROW * 1000.0) + 4000), "until it hangs whole again")
 	print("missing")
 	# Under it for a moment, then away: it falls on the floor beneath, and breaks there.
@@ -81,4 +85,42 @@ func falling() -> void:
 	var floor_y: float = st.home.y + deepest[0] + Stalactite.LENGTH
 	check(deepest[0] >= cell * float(CragsArchetype.STALACTITE_DROP - 1) and info.solid_at(Vector2(st.home.x, floor_y + 40.0)), "on the rock below it (fell %.0f px)" % deepest[0])
 	check(player.health.health == health, "missing the wizard")
+	print("knocked loose")
+	await _regrow(st)
+	var bolt: HexBolt = HexBolt.new()
+	bolt.damage = 0
+	info.map_elements.add_child(bolt)
+	bolt.global_position = st.home + Vector2(-cell * 0.45, 40.0)
+	bolt.dir = Vector2.RIGHT
+	check(await until(func() -> bool: return st.state != Stalactite.State.HANGING, 2000) and st.state == Stalactite.State.FALLING, "a hex bolt knocks it loose, falling at once with no shake")
+	await until(func() -> bool: return st.state == Stalactite.State.REGROWING, 6000)
+	check(player.health.health == health, "with the wizard off to the side, unhurt")
+	print("crushing")
+	await _regrow(st)
+	# A stand-in enemy on the floor under it (woundable, struck as enemies are).
+	var foe: Node2D = Node2D.new()
+	var wound: Wound = Wound.new()
+	wound.name = "Wound"
+	wound.hp = Stalactite.CRUSH + 3
+	foe.add_child(wound)
+	foe.add_to_group(&"hex_target")
+	info.map_elements.add_child(foe)
+	foe.global_position = st.home + Vector2(0.0, cell * float(CragsArchetype.STALACTITE_DROP - 1))
+	deepest[0] = 0.0
+	physics_frame.connect(watch)
+	st.hex_hit(0, Vector2.RIGHT)
+	check(await until(func() -> bool: return st.state == Stalactite.State.REGROWING, 6000), "it falls and shatters")
+	physics_frame.disconnect(watch)
+	check(wound.hp == 3, "on an enemy under it, wounding it by %d (%d left)" % [Stalactite.CRUSH, wound.hp])
+	var low: float = st.home.y + deepest[0] + Stalactite.LENGTH
+	check(low <= foe.global_position.y + Stalactite.CRUSH_REACH + 30.0, "where the enemy is, not on the floor below (tip at %.0f, the enemy at %.0f)" % [low, foe.global_position.y])
+	foe.queue_free()
 	player.set_physics_process(true)
+
+
+## Grown back and hanging again at once (the test does not wait out REGROW each time).
+func _regrow(st: Stalactite) -> void:
+	await until(func() -> bool: return st.state == Stalactite.State.REGROWING, 6000)
+	st.timer = Stalactite.REGROW
+	await until(func() -> bool: return st.state == Stalactite.State.HANGING, 2000)
+

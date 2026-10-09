@@ -308,8 +308,9 @@ straight up and up 45° diagonals, all but one station shut by a door, a switch 
 (it runs from an open station to a shut one, never between two shut ones), worked by a lever
 inside and called from a post at each open station, its sides down only while it runs, a
 rock-bug coming along its cable and in through its roof on each stretch (stunned off, or let off
-when it stops). Not yet: updrafts, falling rocks, watchers in the slits, and
-the spider.
+when it stops), and falling stalactites (the "falling spikes" idea: they shake and fall on whoever
+passes under, crush enemies they land on, and a hex bolt knocks them loose). Not yet: updrafts,
+watchers in the slits, and the spider.
 
 - **Terrain.** Vertical: tall cliff faces with narrow ledges, chimneys and overhangs, collapsed
   from a sample drawn for it (`tests/make_crags_sample.gd`, symmetry 1 so up stays up), taller
@@ -405,8 +406,8 @@ Each phase ends with the full suite green and its own tests.
    arena.
 5. **Crags and castle**: *a first pass is done*: sample, structure pass, decor, realm, and the
    gondola (`CragsArchetype`, `Gondola`; `crags_test`, `capture_crags.gd`; the crags' layouts
-   changed and `layout_fingerprint_test` was re-pinned for them alone). Then its life (updrafts,
-   falling rocks, watchers in the slits), **the spider** and its keep.
+   changed and `layout_fingerprint_test` was re-pinned for them alone). Falling stalactites are built. Then the rest of its life (updrafts,
+   watchers in the slits), **the spider** and its keep.
 6. **Catacombs**: sample, darkness, decor, realm; then **the necromancer** (cemetery) and **the
    eldritch beast**.
 7. **The whale** and its belly.

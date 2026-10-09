@@ -22,6 +22,7 @@ const ANSWERS: Array[Script] = [
 	preload("res://scripts/Bell.gd"),
 	preload("res://scripts/CrackedWall.gd"),
 	preload("res://scripts/MothSwarm.gd"),
+	preload("res://scripts/Stalactite.gd"),
 	preload("res://scripts/Switch.gd"),
 ]
 
