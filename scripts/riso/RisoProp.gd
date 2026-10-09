@@ -49,6 +49,9 @@ const KINDS: Dictionary = {
 	&"station": "res://scripts/riso/props/StationArt.gd",
 	&"rockbug": "res://scripts/riso/props/RockBugArt.gd",
 	&"stalactite": "res://scripts/riso/props/StalactiteArt.gd",
+	&"trapdoor": "res://scripts/riso/props/TrapdoorArt.gd",
+	&"nest": "res://scripts/riso/props/NestArt.gd",
+	&"draught": "res://scripts/riso/props/DraughtArt.gd",
 }
 
 

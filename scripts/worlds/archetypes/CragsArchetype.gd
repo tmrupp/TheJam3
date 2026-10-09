@@ -100,6 +100,19 @@ const STALACTITES_PER_K: float = 1.6
 const STALACTITE_DROP: int = 3
 const STALACTITE_CLEAR: int = 6
 const STALACTITE_APART: int = 3
+## Rock-bug nests (BugNest): one in a room of every tower below its top one, and
+## NESTS_PER_K more out on the cliff's floors, at least NEST_CLEAR cells from the way in and
+## NEST_APART from one another and from the towers' own.
+const NESTS_PER_K: float = 0.4
+const NEST_CLEAR: int = 10
+const NEST_APART: int = 8
+## What a watchtower's top room holds (place_tower_rewards), the towers taking turns down this list
+## from a start dealt by the level seed (TOWER_DEAL, no draw): one of the level's keys, the switch of
+## a switch gate no more than TOWER_SWITCH_NEAR cells from the tower, or a mending draught (Draught).
+## When its turn's has none to bring, it has a draught. (A hoard tower's top room holds its stars.)
+const TOWER_REWARDS: Array[StringName] = [&"key", &"switch", &"draught"]
+const TOWER_DEAL: int = 7310
+const TOWER_SWITCH_NEAR: int = 24
 
 ## What shuts a station (all but the one nearest the way in): a toll gate (TOLL_SHARE), a switch
 ## gate with its switch out in the level (SWITCH_SHARE), else a door in a dealt key colour. A switch
@@ -160,9 +173,12 @@ static func place_bugs(w: LevelGen) -> void:
 
 
 ## Last of all (so nothing else in the level moves for them): its falling stalactites
-## (place_stalactites).
+## (place_stalactites), then what the towers hold (place_tower_rewards) and the rock-bug nests in
+## them and out on the cliff (place_nests).
 func finish(w: LevelGen, _def: NextWorldDef) -> void:
 	place_stalactites(w)
+	place_tower_rewards(w)
+	place_nests(w)
 
 
 ## Stalactites (Stalactite): STALACTITES_PER_K, each in an empty cell under plain rock with at least
@@ -415,6 +431,8 @@ static func _tower(w: LevelGen, box: Rect2i, footing: Array[Vector2i], hoard: bo
 			_unbuild(w, hole)
 			if y != roof:
 				w.interiors[hole] = true
+			else:
+				w.put(hole, LevelGen.Type.TRAPDOOR)
 			holes.append(hole)
 			var ledge: Vector2i = hole + Vector2i.DOWN
 			w.put(ledge, LevelGen.Type.PLATFORM)
@@ -455,6 +473,137 @@ static func place_hoards(w: LevelGen) -> void:
 		for i: int in range(n):
 			@warning_ignore("integer_division")
 			w.put(spots[(i * spots.size()) / n], LevelGen.Type.COIN)
+
+
+## The free floor cells of a tower's room `storey` (0 the top room, counting down): open, holding
+## nothing, over the room's floor (not over a stair hole), in order across.
+static func room_floor(w: LevelGen, tower: Dictionary, storey: int) -> Array[Vector2i]:
+	var box: Rect2i = tower["box"]
+	var y: int = box.position.y + storey * STOREY + 2
+	var out: Array[Vector2i] = []
+	for x: int in range(box.position.x + 1, box.end.x - 1):
+		var v: Vector2i = Vector2i(x, y)
+		if w.get_cell(v).type == LevelGen.Type.EMPTY and w.empties.has(v) and w.is_ground(v + Vector2i.DOWN):
+			out.append(v)
+	return out
+
+
+## What the watchtowers' top rooms hold (see TOWER_REWARDS): a key or a switch is brought in from where it
+## was laid, keeping its place in the order things were laid (so the keys are dealt their colours
+## as before); a draught is new. Over the floor if there is room, else anywhere in the top room.
+static func place_tower_rewards(w: LevelGen) -> void:
+	var turn: int = posmod(Rules.level_seed(w.seed_for_colors, TOWER_DEAL), TOWER_REWARDS.size())
+	for tower: Dictionary in w.towers:
+		if tower["hoard"]:
+			continue
+		var spots: Array[Vector2i] = room_floor(w, tower, 0)
+		if spots.is_empty():
+			# A full floor: over its stair hole, then.
+			var top: Array = tower["top"]
+			for v: Vector2i in top:
+				if w.get_cell(v).type == LevelGen.Type.EMPTY and w.empties.has(v):
+					spots.append(v)
+		if spots.is_empty():
+			continue
+		@warning_ignore("integer_division")
+		var at: Vector2i = spots[spots.size() / 2]
+		var brought: bool = false
+		for k: int in range(TOWER_REWARDS.size()):
+			var kind: StringName = TOWER_REWARDS[(turn + k) % TOWER_REWARDS.size()]
+			if kind == &"draught":
+				break
+			if kind == &"key":
+				brought = _bring_key(w, tower, at)
+			elif kind == &"switch":
+				brought = _bring_switch(w, tower, at)
+			if brought:
+				break
+		turn += 1
+		if not brought:
+			w.put(at, LevelGen.Type.DRAUGHT)
+		tower["reward"] = w.get_cell(at).type
+
+
+## Move one of the keys the level deals (the last of them, not the start key, and not already in
+## a tower) to `at` in `tower`; whether one was moved.
+static func _bring_key(w: LevelGen, tower: Dictionary, at: Vector2i) -> bool:
+	var dealt: Array[Vector2i] = []
+	for v: Vector2i in w.objects:
+		if w.get_cell(v).type == LevelGen.Type.KEY and w.get_cell(v).extra_info == null:
+			dealt.append(v)
+	dealt = dealt.slice(0, w.key_count())
+	for i: int in range(dealt.size() - 1, -1, -1):
+		var v: Vector2i = dealt[i]
+		if v != w.start_key and w.structures.get(v, &"") != &"tower":
+			_move_object(w, v, at)
+			return true
+	return false
+
+
+## Move the switch of the switch gate nearest `tower` (no more than TOWER_SWITCH_NEAR cells from it,
+## and not in a tower's top room already) to `at` in it, if `at` is reached from the way in with
+## that gate shut, so the gate can still be opened from this side; whether one was moved.
+static func _bring_switch(w: LevelGen, tower: Dictionary, at: Vector2i) -> bool:
+	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	if not w.is_valid(start):
+		return false
+	var box: Rect2i = tower["box"]
+	var middle: Vector2i = box.get_center()
+	var gates: Array[Vector2i] = w.objects_of(LevelGen.Type.SWITCH_GATE).filter(func(g: Vector2i) -> bool:
+		return LevelGen.dist(g, middle) <= TOWER_SWITCH_NEAR and w.get_cell(g).extra_info is Vector2i)
+	gates.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return LevelGen.dist(a, middle) < LevelGen.dist(b, middle) or (LevelGen.dist(a, middle) == LevelGen.dist(b, middle) and a < b))
+	for gate: Vector2i in gates:
+		var lever: Vector2i = w.get_cell(gate).extra_info
+		if w.get_cell(lever).type != LevelGen.Type.SWITCH or w.towers.any(func(t: Dictionary) -> bool: return (t["top"] as Array).has(lever)):
+			continue
+		if not w.reach_from(start, func(n: Vector2i) -> bool: return n != gate).has(at):
+			continue
+		_move_object(w, lever, at)
+		w.get_cell(gate).extra_info = at
+		return true
+	return false
+
+
+## Move what is in cell `from` to free cell `to`, keeping its place among the level's objects.
+static func _move_object(w: LevelGen, from: Vector2i, to: Vector2i) -> void:
+	var cell: LevelGen.Cell = w.get_cell(from)
+	w.objects[w.objects.find(from)] = to
+	w.empties.erase(to)
+	w.set_cell(to, cell)
+	w.set_cell(from, LevelGen.Cell.new(LevelGen.Type.EMPTY))
+	w.empties.append(from)
+
+
+## Rock-bug nests (see NESTS_PER_K): one in each tower, on the floor of the highest room under its
+## top one with a free floor (else wherever there is stone over or under it in those rooms), then
+## the rest out on the cliff, on free floors outside the towers.
+static func place_nests(w: LevelGen) -> void:
+	var chosen: Array[Vector2i] = []
+	for tower: Dictionary in w.towers:
+		var box: Rect2i = tower["box"]
+		@warning_ignore("integer_division")
+		var storeys: int = (box.size.y - 1) / STOREY
+		var spots: Array[Vector2i] = []
+		for storey: int in range(1, storeys):
+			if spots.is_empty():
+				spots = room_floor(w, tower, storey)
+		if spots.is_empty():
+			# Every floor below the top is taken: anywhere in those rooms with stone over or under it.
+			for y: int in range(box.position.y + STOREY + 1, box.end.y - 1):
+				for x: int in range(box.position.x + 1, box.end.x - 1):
+					var v: Vector2i = Vector2i(x, y)
+					if w.get_cell(v).type == LevelGen.Type.EMPTY and w.empties.has(v) and (w.is_ground(v + Vector2i.DOWN) or w.is_ground(v + Vector2i.UP)):
+						spots.append(v)
+		if spots.is_empty():
+			continue
+		@warning_ignore("integer_division")
+		var at: Vector2i = spots[spots.size() / 2]
+		w.put(at, LevelGen.Type.NEST)
+		chosen.append(at)
+	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	var floors: Array[Vector2i] = w.free_floors().filter(func(v: Vector2i) -> bool:
+		return LevelGen.dist(v, start) >= NEST_CLEAR and not w.keep_clear.has(v) and not w.structures.has(v))
+	w.put_each(w.pick_apart(floors, w.per_area(NESTS_PER_K), NEST_APART, chosen), LevelGen.Type.NEST)
 
 
 ## Whether `r` takes in any of `cells`.
