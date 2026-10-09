@@ -44,6 +44,9 @@ enum Type {
 	TOLL,
 	BUG,
 	STALACTITE,
+	TRAPDOOR,
+	NEST,
+	DRAUGHT,
 }
 
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).
@@ -106,6 +109,15 @@ var keep_clear: Dictionary = {}
 ## The rock an archetype's structure pass laid as masonry (the crags' keeps, CragsArchetype): built
 ## walls and floors rather than raw cliff, which the decor prints as dressed stone (RisoDecor).
 var masonry: Dictionary = {}
+## The open air inside an archetype's buildings (the crags' keeps' halls and towers' rooms), which
+## RisoTerrain prints with a back wall of stone rather than the sky.
+var interiors: Dictionary = {}
+## The cells an archetype's structure pass has spoken for, each with what holds it (the crags'
+## &"shaft", &"keep" and &"tower" cells), which structures built after keep out of.
+var structures: Dictionary = {}
+## The towers an archetype built (CragsArchetype.build_towers), each a Dictionary (see
+## CragsArchetype._tower).
+var towers: Array[Dictionary] = []
 ## The gondola's circuit an archetype laid (CragsArchetype.lay_circuit), or {} for none.
 var circuit: Dictionary = {}
 ## The shrine's cell (its boon side; mending is the cell to the right), or (-1, -1).

@@ -772,7 +772,7 @@ func solid_at (pos: Vector2) -> bool:
 			if rec.broken.has(v):
 				return false
 			return cell.extra_info == null or not (world.secrets[int(cell.extra_info)]["entrance"] as Array).has(v)
-		LevelGen.Type.DOOR:
+		LevelGen.Type.DOOR, LevelGen.Type.TRAPDOOR:
 			return not rec.opened.has(v)
 		LevelGen.Type.SWITCH_GATE:
 			return not gate_open(v)
