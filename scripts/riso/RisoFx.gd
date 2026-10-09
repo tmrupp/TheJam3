@@ -1,6 +1,6 @@
 class_name RisoFx
 extends Node2D
-## Printed particle bursts in world space: pickups, jumps, hits, shots and impacts.
+## Printed particle bursts in world space: pickups, jumps, hits, shots, impacts and rock breaking.
 ## Presentation only; calls are ignored while the print is off.
 
 enum Shape { DOT, SPARKLE, STREAK, SHARD, BLOOM }
@@ -83,6 +83,13 @@ func _burst(kind: StringName, at: Vector2, dir: Vector2, plates: Array[int]) -> 
 			for i: int in range(12):
 				var a: float = TAU * float(i) / 12.0
 				_add(Shape.DOT, RisoPrint.ACCENT, 1.0, at, Vector2(cos(a), sin(a)) * 320.0, 0.3, 3.5, 5.0)
+		&"rubble":
+			# Rock breaking (a stalactite landing): chips of stone thrown up and out and falling back,
+			# and a puff of dust, in the plates given (the rock's).
+			for i: int in range(12):
+				_add(Shape.SHARD, plates[i % plates.size()], 1.0, at, _spray(dir, 1.3, 140.0, 360.0), rng.randf_range(0.45, 0.75), rng.randf_range(6.0, 11.0), 1.5, 1400.0)
+			for i: int in range(6):
+				_add(Shape.DOT, RisoPrint.NIGHT, 0.35, at + Vector2(rng.randf_range(-20.0, 20.0), -6.0), _spray(dir, 1.5, 30.0, 90.0), rng.randf_range(0.5, 0.8), rng.randf_range(9.0, 15.0), 3.0, -40.0, 30.0)
 		&"impact":
 			_add(Shape.BLOOM, RisoPrint.PINK, 0.3, at, Vector2.ZERO, 0.16, 6.0, 0.0, 0.0, 200.0)
 			for i: int in range(8):

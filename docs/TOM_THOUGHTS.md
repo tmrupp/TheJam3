@@ -55,8 +55,8 @@ DO NOT MODIFY
 
 - * deeper levels and hyperspace should be likely to require relics to fully traverse (relax the traversability guarantees in later levels/hyperspace)
 
-- can go up or down, going up goes to cliffs and craggs -> sky
-- going down goes to cemetery -> catacombs
+- * can go up or down, going up goes to cliffs and craggs -> sky
+- * going down goes to cemetery -> catacombs
 
 - * switches that activate moving platforms
 - * ability that creates moving platforms
@@ -92,6 +92,20 @@ DO NOT MODIFY
 - catacombs: eldritch beast that spawns souls/tentacles/horcruxes on previously visited levels that you need to destroy
 - cliffs: spider that makes webs
 - sky: flying whale that has a digestive system that is another level (like a door)
+
+## worm thoughts:
+- burrows do no seem seamless with ground (should probably be partially green as well)
+- a turn/bend with spikes on the inside looks weird
+- a distinct chomping animation would be good
+
+- Switches should tend to spawn nearby to their connection
+
+- gondola should have a rounded top and more bars, the enclosing bars should be more toward the edge.
+- gondola should have more background bars and a horizontal one like before
+
+- should we have distinct attack animations for easier parrying
+
+- return parries to 0.2s
 
 # PLACES
 

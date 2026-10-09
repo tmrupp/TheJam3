@@ -10,7 +10,8 @@ extends Archetype
 ## and passages' doors and switch gates, and the climb itself. Its own thing is the gondola
 ## (cut_gates, populate, Gondola): a cable car climbing a line of stations from near the bottom of
 ## the level to near its top, in steps along rows and columns, all but one station shut behind a
-## door, a switch gate or a toll gate. Rock-bugs (RockBug) crawl along its rock (place_bugs).
+## door, a switch gate or a toll gate. Rock-bugs (RockBug) crawl along its rock (place_bugs), and
+## stalactites (Stalactite) hang from its ceilings, falling on whoever passes under (finish).
 
 const SAMPLE: String = "res://wfc_images/crags.png"
 ## A crag level is this much the size of a cave level of its depth (Rules.level_size), across and
@@ -34,9 +35,9 @@ const LEDGE_EVERY: int = 3
 ## a keep and a shaft or another keep. A keep is KEEP_TALL rows: a roof, a hall two rows high, a
 ## floor (with a stair gap two cells wide near one end), another hall, and a base.
 const KEEPS_PER_K: float = 0.8
-const KEEP_WIDE: Vector2i = Vector2i(8, 12)
+const KEEP_WIDE: Vector2i = Vector2i(6, 9)
 const KEEP_TALL: int = 7
-const KEEP_APART: int = 2
+const KEEP_APART: int = 1
 ## Rows of open air kept over a keep's roof, so it can be walked along.
 const ROOF_AIR: int = 2
 
@@ -73,6 +74,13 @@ const LANDING_REACH: int = 8
 const BUGS_PER_K: float = 0.6
 const BUG_CLEAR: int = 8
 const BUG_APART: int = 5
+## Falling stalactites, per 1000 cells: each from a ceiling of plain rock (not built stone), over at
+## least STALACTITE_DROP cells of open air, at least STALACTITE_CLEAR cells from the way in and
+## STALACTITE_APART from one another.
+const STALACTITES_PER_K: float = 1.6
+const STALACTITE_DROP: int = 3
+const STALACTITE_CLEAR: int = 6
+const STALACTITE_APART: int = 3
 
 ## What shuts a station (all but the one nearest the way in): a toll gate (TOLL_SHARE), a switch
 ## gate with its switch out in the level (SWITCH_SHARE), else a door in a dealt key colour. A switch
@@ -118,6 +126,30 @@ static func place_bugs(w: LevelGen) -> void:
 	var spots: Array[Vector2i] = w.empties_where(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.EMPTY and LevelGen.dist(v, start) >= BUG_CLEAR \
 			and [Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP].any(func(d: Vector2i) -> bool: return w.is_ground(v + d)))
 	w.put_each(w.pick_apart(spots, w.per_area(BUGS_PER_K), BUG_APART), LevelGen.Type.BUG)
+
+
+## Last of all (so nothing else in the level moves for them): its falling stalactites
+## (place_stalactites).
+func finish(w: LevelGen, _def: NextWorldDef) -> void:
+	place_stalactites(w)
+
+
+## Stalactites (Stalactite): STALACTITES_PER_K, each in an empty cell under plain rock with at least
+## STALACTITE_DROP open cells under it, clear of the gondola's line and the way in (see the consts).
+static func place_stalactites(w: LevelGen) -> void:
+	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	var spots: Array[Vector2i] = w.empties_where(func(v: Vector2i) -> bool:
+		if w.get_cell(v).type != LevelGen.Type.EMPTY or w.keep_clear.has(v) or LevelGen.dist(v, start) < STALACTITE_CLEAR:
+			return false
+		var above: Vector2i = v + Vector2i.UP
+		if not w.is_ground(above) or w.masonry.has(above) or w.get_cell(above).type == LevelGen.Type.CRACKED:
+			return false
+		for k: int in range(1, STALACTITE_DROP + 1):
+			var below: Vector2i = v + Vector2i(0, k)
+			if not w.is_valid(below) or w.is_ground(below) or w.keep_clear.has(below):
+				return false
+		return true)
+	w.put_each(w.pick_apart(spots, w.per_area(STALACTITES_PER_K), STALACTITE_APART), LevelGen.Type.STALACTITE)
 
 
 # ------------------------------------------------------------------ caverns

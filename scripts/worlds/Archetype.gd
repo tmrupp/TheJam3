@@ -68,3 +68,9 @@ func room(_w: LevelGen, _v: Vector2i, _grow: int) -> bool:
 ## lands as it would without it).
 func populate(_w: LevelGen, _def: NextWorldDef) -> void:
 	pass
+
+
+## Its last dressing, once everything else is laid (the secret rooms, vaults and crossings too), so
+## nothing else in the level moves for it.
+func finish(_w: LevelGen, _def: NextWorldDef) -> void:
+	pass

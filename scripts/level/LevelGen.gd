@@ -43,6 +43,7 @@ enum Type {
 	GONDOLA,
 	TOLL,
 	BUG,
+	STALACTITE,
 }
 
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).
@@ -910,6 +911,7 @@ func populate_level (def: NextWorldDef) -> void:
 	place_secrets(def)
 	place_vaults(def)
 	Chasms.relax_crossings(self, def)
+	arch.finish(self, def)
 
 ## Chasms (and sky gaps) with no bell or vane, which only a relic move gets over (see
 ## Chasms.relax_crossings); and in hyperspace, the stretches left unbridged (Hyperspace._relic_gap).

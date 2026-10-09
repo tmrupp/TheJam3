@@ -4,10 +4,25 @@ class_name RisoTerrain
 ## corners, concave fillets where walls meet floors, one rounded cap strip per walkable run,
 ## and two screened bands of night ink inset from every exposed edge, so the shading follows
 ## the rock's outline instead of stepping cell by cell.
+## Built stone (LevelGen.masonry: the crags' castle ruins) prints apart from the bare rock: square
+## cornered, with no fillets where it meets anything, in an ink of its own (MASONRY_LOOKS), and a
+## coping of darker stone along its walkable tops in place of the rock's cap strip.
 
 const SHADE_NEAR: float = 22.0
 const SHADE_FAR: float = 58.0
 const SHADE_COVER: float = 0.16
+## The inks built stone can print in, as [plate, cover] laid one over another: sandstone (the
+## realm's accent over its rock ink, a warm dressed stone), slate (the travelers' federal blue
+## alone, a cool built stone), or dark (night over the rock ink, a weathered grey). `masonry_look`
+## picks one.
+const MASONRY_LOOKS: Dictionary = {
+	&"sandstone": [[RisoPrint.BLUE, 1.0], [RisoPrint.ACCENT, 0.4]],
+	&"slate": [[RisoPrint.CLOTH, 0.85]],
+	&"dark": [[RisoPrint.BLUE, 1.0], [RisoPrint.NIGHT, 0.35]],
+}
+## The coping along built stone's walkable tops: how much night over its stone.
+const COPING_COVER: float = 0.45
+static var masonry_look: StringName = &"sandstone"
 
 var ink: InkCanvas
 
@@ -38,12 +53,15 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 	var ledges: Dictionary = {}
 	for p: Vector2 in ledge_positions:
 		ledges[tile_map.local_to_map(tile_map.to_local(p))] = true
+	var info: MapInfo = MapInfo.instance
+	var masonry: Dictionary = info.world.masonry if info != null and info.world != null else {}
 	var half: float = float(tile_map.tile_set.tile_size.x) * tile_map.global_scale.x * 0.5
 	var radius: float = half * 0.32
 	# Top corners stay nearly square: the floor's collision runs right to the cell edge, and a
 	# rounded top made the wizard look like they stood on nothing at a ledge's end.
 	var top_radius: float = 5.0
 	var body: Array[PackedVector2Array] = []
+	var built: Array[PackedVector2Array] = []
 	var near: Array[PackedVector2Array] = []
 	var far: Array[PackedVector2Array] = []
 	var fillets: Array[PackedVector2Array] = []
@@ -58,7 +76,10 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 		var right: bool = solid.has(v + Vector2i.RIGHT)
 		var ledge_l: bool = ledges.has(v + Vector2i.LEFT)
 		var ledge_r: bool = ledges.has(v + Vector2i.RIGHT)
-		body.append(_cell(c, half, radius, not up and not left and not ledge_l, not up and not right and not ledge_r, not down and not right, not down and not left, top_radius))
+		if masonry.has(v):
+			built.append(_cell(c, half, 0.0, false, false, false, false))
+		else:
+			body.append(_cell(c, half, radius, not up and not left and not ledge_l, not up and not right and not ledge_r, not down and not right, not down and not left, top_radius))
 		for pair: Array in [[near, SHADE_NEAR], [far, SHADE_FAR]]:
 			var d: float = float(pair[1])
 			var inset: PackedVector2Array = _inset(c, half, d, radius, up, down, left, right)
@@ -71,7 +92,9 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 		var c: Vector2 = tile_map.to_global(tile_map.map_to_local(e))
 		for sx: int in [-1, 1]:
 			for sy: int in [-1, 1]:
-				if solid.has(e + Vector2i(sx, 0)) and solid.has(e + Vector2i(0, sy)) and solid.has(e + Vector2i(sx, sy)):
+				var round: Array[Vector2i] = [e + Vector2i(sx, 0), e + Vector2i(0, sy), e + Vector2i(sx, sy)]
+				# Built stone meets things square: no fillet where any of it is built.
+				if round.all(func(n: Vector2i) -> bool: return solid.has(n) and not masonry.has(n)):
 					var corner: Vector2 = c + Vector2(sx, sy) * half
 					fillets.append(_fillet(corner, Vector2(-sx, -sy), radius))
 					near_pies.append(_pie(corner, Vector2(-sx, -sy), SHADE_NEAR + radius * 0.5))
@@ -85,6 +108,7 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 		body.append(_box(Vector2(c.x, c.y - half + 17.0), half, 17.0, 12.0, false, false, not joins_r, not joins_l))
 		# Square on top (it is walkable to its very end), rounded underneath at free ends.
 	var caps: Array[PackedVector2Array] = []
+	var copings: Array[PackedVector2Array] = []
 	var tops: Array[Vector2i] = []
 	for v: Vector2i in solid:
 		if not solid.has(v + Vector2i.UP):
@@ -96,7 +120,8 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 	var i: int = 0
 	while i < tops.size():
 		var j: int = i
-		while j + 1 < tops.size() and tops[j + 1].y == tops[i].y and tops[j + 1].x == tops[j].x + 1:
+		# A run of tops all bare rock or all built stone (each printed its own way).
+		while j + 1 < tops.size() and tops[j + 1].y == tops[i].y and tops[j + 1].x == tops[j].x + 1 and masonry.has(tops[j + 1]) == masonry.has(tops[i]):
 			j += 1
 		var a: Vector2 = tile_map.to_global(tile_map.map_to_local(tops[i]))
 		var b: Vector2 = tile_map.to_global(tile_map.map_to_local(tops[j]))
@@ -115,11 +140,13 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 		if not wall_r:
 			cap = _trim(cap, _fillet(Vector2(x1, y0), Vector2(-1, 1), top_radius))
 		if cap.size() > 2:
-			caps.append(cap)
+			if masonry.has(tops[i]):
+				copings.append(_box(Vector2((a.x - half + b.x + half) * 0.5, y0 + 8.5), (b.x - a.x) * 0.5 + half, 8.5, 0.0, false, false, false, false))
+			else:
+				caps.append(cap)
 		i = j + 1
 	ink.begin()
 	body.append_array(fillets)
-	var info: MapInfo = MapInfo.instance
 	if info != null and info.here != null and info.here.open() and RisoPrint.instance != null:
 		var style: StringName = RisoPrint.instance.sky_bottom_style
 		if style == &"tapered":
@@ -129,12 +156,22 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 	# Rock hides the sky behind it: no stars or moons printing through the ground.
 	ink.knock([RisoPrint.PINK, RisoPrint.ACCENT], body)
 	ink.ink(RisoPrint.BLUE, 1.0, body)
+	var look: Array = MASONRY_LOOKS.get(masonry_look, MASONRY_LOOKS[&"sandstone"])
+	if not built.is_empty():
+		ink.knock([RisoPrint.PINK, RisoPrint.ACCENT], built)
+		for k: int in range(look.size()):
+			ink.ink(int(look[k][0]), float(look[k][1]), built, k == 0)
 	# Deep band first, cleared around inside corners; then the near band, cleared tighter.
 	ink.ink(RisoPrint.NIGHT, SHADE_COVER, far, false)
 	ink.knock([RisoPrint.NIGHT], far_pies)
 	ink.ink(RisoPrint.NIGHT, SHADE_COVER, near, false)
 	ink.knock([RisoPrint.NIGHT], near_pies)
 	ink.ink(RisoPrint.ACCENT, 1.0, caps)
+	if not copings.is_empty():
+		ink.knock([RisoPrint.ACCENT], copings)
+		for k: int in range(look.size()):
+			ink.ink(int(look[k][0]), float(look[k][1]), copings, k == 0)
+		ink.ink(RisoPrint.NIGHT, COPING_COVER, copings, false)
 	ink.finish()
 
 
