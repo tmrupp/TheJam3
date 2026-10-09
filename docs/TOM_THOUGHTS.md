@@ -98,12 +98,20 @@ DO NOT MODIFY
 - a turn/bend with spikes on the inside looks weird
 - a distinct chomping animation would be good
 
-- Switches should tend to spawn nearby to their connection
+- * Switches should tend to spawn nearby to their connection
 
-- gondola should have a rounded top and more bars, the enclosing bars should be more toward the edge.
-- gondola should have more background bars and a horizontal one like before
+- * gondola should have a rounded top and more bars, the enclosing bars should be more toward the edge.
+- * gondola should have more background bars and a horizontal one like before
+
+- light is not behaving properly
+
+- towers dont seem to be having rewards
+
+- when wall jumping with a wall of spikes you just fall when parrying, parrying spikes of another wall facing the opposite way should reset the wall jump
 
 - should we have distinct attack animations for easier parrying
+
+- iterate on the backgrounds
 
 - return parries to 0.2s
 
