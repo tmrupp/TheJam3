@@ -6,7 +6,8 @@ extends RisoProp
 ## edge (so it reads as open, to step on and off; rock-bugs crawl on the rails), faint grey bars across its back wall with a rail across them (behind whoever rides), and its lever on
 ## the back wall (leaning the way it runs, upright while it stands). Its sides come down barred at
 ## their very edges while it runs, pink with a rider in it (danger) and blue empty, and lift when it
-## stands. It swings with its body (Gondola.swing) on the hinge atop its roof, its hanger hanging
+## stands. While it stands at a station shut by a toll gate, a fare box shows on the back wall on
+## that side (GondolaFare), where the toll is paid from inside. It swings with its body (Gondola.swing) on the hinge atop its roof, its hanger hanging
 ## straight down from the wheel on the cable. Its stations are
 ## drawn by StationArt.
 
@@ -20,6 +21,9 @@ const RIM: float = 16.0
 ## inked.
 const RAIL: float = 5.0
 const RAIL_COVER: float = 0.7
+## How high up the back wall a fare box hangs, as a share of the car's height: over the head of
+## whoever rides.
+const FARE_UP: float = 0.72
 ## The bars across its back wall: how many upright, how far down the rail across them is (a share
 ## of the wall's height), and how faint they are (blue cover, over paper).
 const BACK_BARS: int = 13
@@ -101,6 +105,16 @@ func _draw_art() -> void:
 	var handle: Transform2D = Transform2D(lean, Vector2(0.0, -40.0))
 	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-16.0, -46.0, 32.0, 40.0, 6.0), handle * RisoShapes.rrect(-3.0, -46.0, 6.0, 46.0, 3.0)])
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], [handle * RisoShapes.circle(Vector2(0.0, -48.0), 7.0, 14)])
+	# A fare box on the back wall, on the side of a station shut by a toll gate while the car stands
+	# there (GondolaFare): a blue box with a paper slot and an accent coin over it.
+	for fare: GondolaFare in car.fares:
+		if fare.toll() == null:
+			continue
+		var fx: float = float(fare.side) * cw * 0.28
+		var fy: float = -ch * FARE_UP
+		ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(fx - 15.0, fy, 30.0, 34.0, 5.0)])
+		ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], [RisoShapes.rrect(fx - 8.0, fy + 9.0, 16.0, 4.0, 1.5)])
+		ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(Vector2(fx, fy - 12.0 + sin(t * 3.0) * 2.0), 7.0, 14)])
 	# Its bars, coming down across each side, at its very edges, as it shuts.
 	var pink: Array[PackedVector2Array] = []
 	var blue: Array[PackedVector2Array] = []

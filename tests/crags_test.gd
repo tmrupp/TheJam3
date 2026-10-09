@@ -95,6 +95,7 @@ func _circuit(w: LevelGen, at: Vector2i) -> int:
 	var nodes: Dictionary = Reach.footholds(w)
 	check(path.all(func(p: Vector2i) -> bool: return nodes.has(p) or p == gondolas[0]), "its whole track counts as somewhere to stand (riding it)")
 	var shut: int = 0
+	var tolls: int = 0
 	for i: int in range(gates.size()):
 		var g: Vector2i = gates[i]
 		check(w.is_ground(g + Vector2i.UP) and w.is_ground(g + Vector2i.DOWN), "station %d's doorway is a cell high" % i)
@@ -102,14 +103,16 @@ func _circuit(w: LevelGen, at: Vector2i) -> int:
 		if i == int(info["start"]):
 			check(t == LevelGen.Type.EMPTY, "the station nearest the way in is open")
 			continue
-		check(t in Gondola.GATES, "station %d is shut by a %s" % [i, LevelGen.Type.keys()[t]])
+		check(t in [LevelGen.Type.TOLL, LevelGen.Type.SWITCH_GATE], "station %d is shut by a %s (never a door: no key opens a station)" % [i, LevelGen.Type.keys()[t]])
 		shut += 1
+		tolls += 1 if t == LevelGen.Type.TOLL else 0
 		if t == LevelGen.Type.SWITCH_GATE:
 			var lever: Vector2i = w.get_cell(g).extra_info
 			check(w.get_cell(lever).type == LevelGen.Type.SWITCH and w.get_cell(lever).extra_info == g, "its switch is out in the level")
 		if t == LevelGen.Type.TOLL:
 			check(int(w.get_cell(g).extra_info) == Rules.toll_price(absi(at.y)), "its toll is the price for the depth")
 	check(shut == stops.size() - 1, "all its other stations are shut")
+	check(tolls * 2 > shut, "mostly by toll gates (%d of %d)" % [tolls, shut])
 	return diagonal
 
 
@@ -270,6 +273,44 @@ func ride() -> void:
 	check(await until(func() -> bool: return not g.running and g.at_station == next, 40000), "and comes to the wizard")
 	check(not g.may_call(next), "nor can it be called where it stands")
 	await called_from_afar(g)
+	await fare(g)
+
+
+## A toll gate shutting the station the car stands at is paid from inside the car, at the fare box in
+## the half of the car on that station's side; the lever, in the middle, still works the car.
+func fare(g: Gondola) -> void:
+	print("fare")
+	var k: int = -1
+	for i: int in range(g.gates.size()):
+		if info.world.get_cell(g.gates[i]).type == LevelGen.Type.TOLL and not g.is_open(i):
+			k = i
+	check(k >= 0, "a station is still shut by a toll gate")
+	if k < 0:
+		return
+	# The car at that station (set there: the way to it is not the point here).
+	g.s = g.stops_s[k]
+	g.at_station = k
+	g.running = false
+	g._place()
+	var side: int = g.inner[k]
+	var box: GondolaFare = g.fares[0 if side < 0 else 1]
+	player.global_position = g.to_global(Vector2(float(side) * g.cell_px * 0.6, -40.0))
+	player.velocity = Vector2.ZERO
+	check(await until(func() -> bool: return g.has_rider() and player.is_on_floor()), "the wizard stands in the car, by the station's side")
+	await frames(3)
+	var it: Interactable = box.get_node("Interactable") as Interactable
+	check(box.toll() != null and it.available and Interactable.focused(self) == it, "the fare box on that side is offered there, before the lever")
+	check(not (g.fares[1 if side < 0 else 0].get_node("Interactable") as Interactable).available, "the other side's is not")
+	var gate: TollGate = box.toll()
+	player.collect(gate.price - player.coins.coins)
+	it.interacted.emit()
+	check(gate.is_queued_for_deletion() and player.coins.coins == 0 and info.record().opened.has(g.gates[k]), "paid from inside the car, the toll gate lifts for good")
+	check(g.is_open(k), "and the station is open")
+	await frames(3)
+	check(not it.available, "nothing left to pay there")
+	player.global_position = g.to_global(Vector2(0.0, -40.0))
+	await frames(3)
+	check(Interactable.focused(self) == g._lever, "in the middle of the car, the lever")
 
 
 ## Called from a station far along the line while it is out of view, the car first jumps to just

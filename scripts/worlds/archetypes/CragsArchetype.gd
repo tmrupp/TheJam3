@@ -108,17 +108,19 @@ const NEST_CLEAR: int = 10
 const NEST_APART: int = 8
 ## What a watchtower's top room holds (place_tower_rewards), the towers taking turns down this list
 ## from a start dealt by the level seed (TOWER_DEAL, no draw): one of the level's keys, the switch of
-## a switch gate no more than TOWER_SWITCH_NEAR cells from the tower, or a mending draught (Draught).
-## When its turn's has none to bring, it has a draught. (A hoard tower's top room holds its stars.)
-const TOWER_REWARDS: Array[StringName] = [&"key", &"switch", &"draught"]
+## a switch gate no more than TOWER_SWITCH_NEAR cells from the tower, or a mending bowl (MendWell: the
+## shrine's mending station, healing to full for a price). When its turn's has none to bring, it has
+## a mending bowl, if its top room has a floor to stand it on. (A hoard tower's top room holds its
+## stars. The mending draught, Draught, is set aside for now: nothing places it.)
+const TOWER_REWARDS: Array[StringName] = [&"key", &"switch", &"well"]
 const TOWER_DEAL: int = 7310
 const TOWER_SWITCH_NEAR: int = 24
 
-## What shuts a station (all but the one nearest the way in): a toll gate (TOLL_SHARE), a switch
-## gate with its switch out in the level (SWITCH_SHARE), else a door in a dealt key colour. A switch
-## is near its gate (LevelGen.switch_floor), somewhere reached from the way in with it shut.
-const TOLL_SHARE: float = 0.3
-const SWITCH_SHARE: float = 0.3
+## What shuts a station (all but the one nearest the way in): now and then (SWITCH_SHARE) a switch
+## gate with its switch out in the level, near it (LevelGen.switch_floor) and reached from the way in
+## with it shut; else, and wherever no such switch fits, a toll gate. Never a door: no key opens a
+## station.
+const SWITCH_SHARE: float = 0.15
 
 
 func _init() -> void:
@@ -341,7 +343,8 @@ static func build_towers(w: LevelGen) -> void:
 ## Where a tower `size` big drawn at `at` stands, let down onto the first rock under its middle, as
 ## [its box, its footing (_footing)]; null if it does not fit there: its box and the air over its
 ## roof must be clear of every structure (LevelGen.structures; a shaft may stand right beside it),
-## kept KEEP_APART from the keeps and towers (`built`), its doorsteps and walls clear of the
+## kept KEEP_APART from the keeps and towers (`built`), clear of what other towers keep whole
+## (LevelGen.kept_whole: their roof air, footing, doorsteps), its doorsteps and walls clear of the
 ## gondola's line, and its footing on rock.
 static func _site(w: LevelGen, at: Vector2i, size: Vector2i, built: Dictionary) -> Variant:
 	@warning_ignore("integer_division")
@@ -351,22 +354,46 @@ static func _site(w: LevelGen, at: Vector2i, size: Vector2i, built: Dictionary) 
 		base += 1
 	var box: Rect2i = Rect2i(Vector2i(at.x, base - size.y), size)
 	var room: Rect2i = box.grow_individual(0, ROOF_AIR, 0, 0)
-	if box.position.y < ROOF_AIR + 2 or box.end.y > w.size.y - 2 or _crosses(room, w.structures) or _crosses(room.grow(KEEP_APART), built) or _crosses(room.grow_individual(1, 0, 1, 0), w.keep_clear):
+	if box.position.y < ROOF_AIR + 2 or box.end.y > w.size.y - 2 or _crosses(room, w.structures) or _crosses(room, w.kept_whole) or _crosses(room.grow(KEEP_APART), built) or _crosses(room.grow_individual(1, 0, 1, 0), w.keep_clear):
 		return null
 	var footing: Variant = _footing(w, box)
-	if footing == null or (footing as Array).any(func(v: Vector2i) -> bool: return w.structures.has(v) or w.keep_clear.has(v)):
+	if footing == null or (footing as Array).any(func(v: Vector2i) -> bool: return w.structures.has(v) or w.keep_clear.has(v) or w.kept_whole.has(v)):
 		return null
 	return [box, footing]
 
 
-## Build a tower at `site` (from _site), a hoard tower if `hoard`, and keep its cells as built.
+## Build a tower at `site` (from _site), a hoard tower if `hoard`, and keep its cells as built. Its
+## box, footing (and the rock under it), doorsteps and the air over its roof are kept whole (LevelGen.kept_whole: nothing
+## cracks, carves, fills or tunnels through them), and the cells of its two walls (doorways and
+## windows included) are taken out of the free cells, so nothing big is set in a doorway and carves
+## the wall over it.
 static func _raise(w: LevelGen, site: Array, built: Dictionary, hoard: bool, right_first: bool) -> void:
 	var box: Rect2i = site[0]
-	_tower(w, box, site[1], hoard, right_first)
+	var footing: Array[Vector2i] = site[1]
+	_tower(w, box, footing, hoard, right_first)
 	for x: int in range(box.position.x, box.end.x):
 		for y: int in range(box.position.y, box.end.y):
 			w.structures[Vector2i(x, y)] = &"tower"
 			built[Vector2i(x, y)] = true
+			w.kept_whole[Vector2i(x, y)] = true
+		for d: int in range(1, ROOF_AIR + 1):
+			w.kept_whole[Vector2i(x, box.position.y - d)] = true
+	for y: int in range(box.position.y, box.end.y):
+		for x: int in [box.position.x, box.end.x - 1]:
+			w.empties.erase(Vector2i(x, y))
+	var ground: int = box.end.y - 1
+	for x: int in [box.position.x - 1, box.end.x]:
+		for y: int in [ground, ground - 1, ground - 2]:
+			w.kept_whole[Vector2i(x, y)] = true
+	# Its footing, and the rock it stands on under each column.
+	for v: Vector2i in footing:
+		w.kept_whole[v] = true
+	for x: int in range(box.position.x - 1, box.end.x + 1):
+		var under: Vector2i = Vector2i(x, box.end.y)
+		while footing.has(under):
+			under += Vector2i.DOWN
+		if w.is_valid(under):
+			w.kept_whole[under] = true
 
 
 ## The open cells under `box` (and under its doorsteps, a cell either side) down to the rock beneath
@@ -490,7 +517,8 @@ static func room_floor(w: LevelGen, tower: Dictionary, storey: int) -> Array[Vec
 
 ## What the watchtowers' top rooms hold (see TOWER_REWARDS): a key or a switch is brought in from where it
 ## was laid, keeping its place in the order things were laid (so the keys are dealt their colours
-## as before); a draught is new. Over the floor if there is room, else anywhere in the top room.
+## as before); a mending bowl is new, and stands on the room's floor. Over the floor if there is
+## room, else anywhere in the top room (but then no bowl).
 static func place_tower_rewards(w: LevelGen) -> void:
 	var turn: int = posmod(Rules.level_seed(w.seed_for_colors, TOWER_DEAL), TOWER_REWARDS.size())
 	for tower: Dictionary in w.towers:
@@ -510,7 +538,7 @@ static func place_tower_rewards(w: LevelGen) -> void:
 		var brought: bool = false
 		for k: int in range(TOWER_REWARDS.size()):
 			var kind: StringName = TOWER_REWARDS[(turn + k) % TOWER_REWARDS.size()]
-			if kind == &"draught":
+			if kind == &"well":
 				break
 			if kind == &"key":
 				brought = _bring_key(w, tower, at)
@@ -520,7 +548,9 @@ static func place_tower_rewards(w: LevelGen) -> void:
 				break
 		turn += 1
 		if not brought:
-			w.put(at, LevelGen.Type.DRAUGHT)
+			if not w.is_ground(at + Vector2i.DOWN):
+				continue
+			w.put(at, LevelGen.Type.WELL)
 		tower["reward"] = w.get_cell(at).type
 
 
@@ -711,7 +741,7 @@ static func _landing(w: LevelGen, gate: Vector2i, inner: int) -> void:
 			break
 
 
-## Shut every station but the one nearest the way in (see TOLL_SHARE), then put the gondola, its
+## Shut every station but the one nearest the way in (see SWITCH_SHARE), then put the gondola, its
 ## car waiting at that open station, on its floor cell: its extra info is LevelGen.circuit and
 ## "start", the open station's number.
 static func shut_stations(w: LevelGen, def: NextWorldDef) -> void:
@@ -731,17 +761,13 @@ static func shut_stations(w: LevelGen, def: NextWorldDef) -> void:
 		if i == open:
 			continue
 		var gate: Vector2i = gates[i]
-		var r: float = w.rng.randf()
-		if r < TOLL_SHARE:
-			w.put(gate, LevelGen.Type.TOLL, Rules.toll_price(def.depth))
-			continue
-		if r < TOLL_SHARE + SWITCH_SHARE:
+		if w.rng.randf() < SWITCH_SHARE:
 			var lever: Variant = w.switch_floor(w.reach_from(start, func(n: Vector2i) -> bool: return n != gate), gate)
 			if lever != null:
 				w.put(gate, LevelGen.Type.SWITCH_GATE, lever)
 				w.put(lever, LevelGen.Type.SWITCH, gate)
 				continue
-		w.put(gate, LevelGen.Type.DOOR)
+		w.put(gate, LevelGen.Type.TOLL, Rules.toll_price(def.depth))
 	var info: Dictionary = w.circuit.duplicate()
 	info["start"] = open
 	var path: Array[Vector2i] = w.circuit["path"]

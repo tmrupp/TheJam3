@@ -58,6 +58,7 @@ const TABLE: Dictionary = {
 	LevelGen.Type.TRAPDOOR: {"scene": "res://prefabs/trapdoor.tscn", "art": &"trapdoor"},
 	LevelGen.Type.NEST: {"scene": "res://prefabs/bug_nest.tscn", "art": &"nest", "flags": [&"enemy"], "setup": 2},
 	LevelGen.Type.DRAUGHT: {"scene": "res://prefabs/draught.tscn", "art": &"draught", "flags": [&"floats"]},
+	LevelGen.Type.WELL: {"scene": "res://prefabs/mend_well.tscn", "art": &"well", "flags": [&"stander"], "setup": 2},
 }
 
 ## Prefabs loaded so far, by Type (each is loaded the first time one is placed).

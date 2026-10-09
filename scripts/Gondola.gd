@@ -120,6 +120,9 @@ var posts: Array[GondolaStation] = []
 var _walls: Array[CollisionShape2D] = []
 var _inside: Area2D
 var _lever: Interactable
+## Its fare boxes, one in each half of the car (GondolaFare): a toll shutting the station it stands at
+## is paid there, from inside.
+var fares: Array[GondolaFare] = []
 
 
 ## Lay it on its circuit: `circuit` is LevelGen.circuit (CragsArchetype.lay_circuit) with "start",
@@ -163,6 +166,25 @@ func setup(info: MapInfo, v: Vector2i, circuit: Variant) -> void:
 	_inside.add_child(_lever)
 	add_child(_inside)
 	_lever.interacted.connect(pull)
+	# A fare box in each half of the car, nearer than the lever to whoever stands in that half.
+	for side: int in [-1, 1]:
+		var fare: GondolaFare = GondolaFare.new()
+		fare.gondola = self
+		fare.side = side
+		fare.collision_layer = 0
+		fare.collision_mask = 1
+		fare.position = Vector2(float(side) * wide * 0.25, 0.0)
+		var half: CollisionShape2D = CollisionShape2D.new()
+		var half_box: RectangleShape2D = RectangleShape2D.new()
+		half_box.size = Vector2(wide * 0.5 - SLAB - 4.0, tall - SLAB * 2.0)
+		half.shape = half_box
+		half.position = Vector2(0.0, -tall * 0.5)
+		fare.add_child(half)
+		var it: Interactable = INTERACTABLE.instantiate() as Interactable
+		it.name = "Interactable"
+		fare.add_child(it)
+		add_child(fare)
+		fares.append(fare)
 	_set_walls()
 	for k: int in range(2):
 		shut[k] = 1.0 if side_shut[k] else 0.0

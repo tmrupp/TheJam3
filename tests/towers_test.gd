@@ -6,8 +6,10 @@ extends TestKit
 ## own hops (Reach) from the doorway to the top room, and on through the roof's hatch onto the roof
 ## for a watchtower, where a trapdoor shuts the hatch (opened only from below, trapdoor_test). A
 ## hoard tower is roofed over and holds stars in its top room; a watchtower's top room
-## holds one of the level's keys, a switch for a gate nearby, or a draught, and those turn up across
-## the levels. A rock-bug nest sits in a room under the top one, and more out on the cliff, away
+## holds one of the level's keys, a switch for a gate nearby, or a mending bowl (MendWell), and those
+## turn up across the levels. Every tower in the band's levels of several worlds is whole once the
+## level is laid out: nothing later cracks, carves, fills or tunnels through its walls, floors,
+## rooms, doorsteps, footing or the air over its roof, and nothing tall stands in its doorways. A rock-bug nest sits in a room under the top one, and more out on the cliff, away
 ## from the way in. The keeps' halls are interiors too. Two builds of a level are the same.
 ## godot --headless --path . --script res://tests/towers_test.gd
 
@@ -27,7 +29,7 @@ func run() -> void:
 			else:
 				watch += 1
 			_tower(w, tower)
-			if not tower["hoard"]:
+			if not tower["hoard"] and tower.has("reward"):
 				rewards[tower["reward"]] = int(rewards.get(tower["reward"], 0)) + 1
 		_nests(w)
 		check(w.interiors.size() > 0 and w.interiors.keys().all(func(v: Vector2i) -> bool: return not w.masonry.has(v)), "its buildings' air is kept as interiors, none of it masonry")
@@ -35,8 +37,10 @@ func run() -> void:
 		check(again.towers == w.towers and again.interiors == w.interiors, "the same every build")
 	check(hoards > 0 and watch > 0, "watchtowers and hoard towers both turn up (%d and %d)" % [watch, hoards])
 	print("rewards: %s" % rewards)
-	for kind: LevelGen.Type in [LevelGen.Type.KEY, LevelGen.Type.SWITCH, LevelGen.Type.DRAUGHT]:
+	for kind: LevelGen.Type in [LevelGen.Type.KEY, LevelGen.Type.SWITCH, LevelGen.Type.WELL]:
 		check(rewards.has(kind), "a tower's top room holds a %s somewhere" % LevelGen.Type.keys()[kind])
+	check(not rewards.has(LevelGen.Type.DRAUGHT), "and never a draught (set aside)")
+	_whole_everywhere()
 	check(build(Vector2i(28, 0)).towers.is_empty(), "the garden has none")
 	finish()
 
@@ -94,17 +98,99 @@ func _tower(w: LevelGen, tower: Dictionary) -> void:
 		for y: int in range(roof + 1, ground):
 			nest = nest or w.get_cell(Vector2i(x, y)).type == LevelGen.Type.NEST
 	check(nest, "%s: a rock-bug nest inside" % name_of)
-	if tower["hoard"]:
+	if tower["hoard"] or not tower.has("reward"):
 		return
 	var reward: LevelGen.Type = tower["reward"]
 	var held: Array = top.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == reward)
 	# Over the floor, or over its stair hole (taken standing in the hole, on the ledge under it).
-	check(reward in [LevelGen.Type.KEY, LevelGen.Type.SWITCH, LevelGen.Type.DRAUGHT] and not held.is_empty() and (reach.has(held[0]) or reach.has(held[0] + Vector2i.DOWN)), "%s: a %s in its top room, reached" % [name_of, LevelGen.Type.keys()[reward]])
+	check(reward in [LevelGen.Type.KEY, LevelGen.Type.SWITCH, LevelGen.Type.WELL] and not held.is_empty() and (reach.has(held[0]) or reach.has(held[0] + Vector2i.DOWN)), "%s: a %s in its top room, reached" % [name_of, LevelGen.Type.keys()[reward]])
 	if reward == LevelGen.Type.SWITCH:
 		var gate: Vector2i = w.get_cell(held[0]).extra_info
 		check(w.get_cell(gate).type == LevelGen.Type.SWITCH_GATE and w.get_cell(gate).extra_info == held[0], "%s: the switch and its gate know each other" % name_of)
+	if reward == LevelGen.Type.WELL:
+		check(w.is_ground(held[0] + Vector2i.DOWN), "%s: its mending bowl stands on the floor" % name_of)
 	if reward == LevelGen.Type.KEY:
 		check(held[0] != w.start_key and w.get_cell(held[0]).extra_info != null, "%s: its key is one the level deals, dealt a colour" % name_of)
+
+
+## Every tower in every row of the band in several worlds is whole once its level is laid out (see
+## _faults).
+func _whole_everywhere() -> void:
+	var towers: int = 0
+	var faulty: Array[String] = []
+	for world: int in [28, 7, 99, 51]:
+		for k: int in range(NextWorldDef.BAND):
+			var at: Vector2i = Vector2i(world, NextWorldDef.band_row(&"crags", k))
+			var w: LevelGen = build(at)
+			if w == null:
+				continue
+			for tower: Dictionary in w.towers:
+				towers += 1
+				var faults: Array[String] = _faults(w, tower)
+				if not faults.is_empty():
+					faulty.append("%s tower at %s: %s" % [at, (tower["box"] as Rect2i).position, ", ".join(faults.slice(0, 4))])
+	for f: String in faulty:
+		print("  ", f)
+	check(towers > 20 and faulty.is_empty(), "every tower is whole once its level is laid out (%d towers, %d not)" % [towers, faulty.size()])
+
+
+## What is wrong with `tower` in `w`, laid out: a floor (or roof) broken but for its stair holes, a
+## room or the air over the roof filled, a wall broken but for its doorways and windows (or one
+## opening onto rock), cracked stone, the ground row or the rock under it gone, a doorstep filled, a
+## ledge under a stair hole missing, or something set in a doorway.
+func _faults(w: LevelGen, tower: Dictionary) -> Array[String]:
+	var out: Array[String] = []
+	var box: Rect2i = tower["box"]
+	var x0: int = box.position.x
+	var x1: int = box.end.x - 1
+	var roof: int = box.position.y
+	var ground: int = box.end.y - 1
+	var holes: Array = tower["holes"]
+	var stone: Callable = func(v: Vector2i) -> bool: return w.is_ground(v) or w.get_cell(v).type == LevelGen.Type.CRACKED
+	for y: int in range(roof, ground + 1):
+		for x: int in range(x0, x1 + 1):
+			var v: Vector2i = Vector2i(x, y)
+			if w.get_cell(v).type == LevelGen.Type.CRACKED:
+				out.append("cracked %s" % v)
+	for x: int in [x0 - 1, x1 + 1]:
+		if w.get_cell(Vector2i(x, ground)).type == LevelGen.Type.CRACKED:
+			out.append("cracked %s" % Vector2i(x, ground))
+	for y: int in range(roof, ground, CragsArchetype.STOREY):
+		for x: int in range(x0, x1 + 1):
+			var v: Vector2i = Vector2i(x, y)
+			if not holes.has(v) and not stone.call(v):
+				out.append("floor broken %s" % v)
+		for r: int in [y + 1, y + 2]:
+			for x: int in range(x0 + 1, x1):
+				if w.is_ground(Vector2i(x, r)):
+					out.append("room filled %s" % Vector2i(x, r))
+	for y: int in range(roof, ground + 1):
+		for x: int in [x0, x1]:
+			var v: Vector2i = Vector2i(x, y)
+			if stone.call(v):
+				continue
+			var opening: bool = y == ground - 1 or ((y - roof) % CragsArchetype.STOREY == 2)
+			if not opening:
+				out.append("wall broken %s" % v)
+			elif w.is_ground(v + (Vector2i.LEFT if x == x0 else Vector2i.RIGHT)):
+				out.append("opening onto rock %s" % v)
+			elif w.get_cell(v).type != LevelGen.Type.EMPTY:
+				out.append("%s in a doorway %s" % [LevelGen.Type.keys()[w.get_cell(v).type], v])
+	for x: int in range(x0 - 1, x1 + 2):
+		if not stone.call(Vector2i(x, ground)) or (w.is_valid(Vector2i(x, ground + 1)) and not stone.call(Vector2i(x, ground + 1))):
+			out.append("not standing %s" % Vector2i(x, ground))
+	for x: int in [x0 - 1, x1 + 1]:
+		for y: int in [ground - 1, ground - 2]:
+			if w.is_ground(Vector2i(x, y)):
+				out.append("doorstep filled %s" % Vector2i(x, y))
+	for v: Vector2i in tower["ledges"]:
+		if w.get_cell(v).type != LevelGen.Type.PLATFORM:
+			out.append("ledge gone %s" % v)
+	for x: int in range(x0, x1 + 1):
+		for d: int in range(1, CragsArchetype.ROOF_AIR + 1):
+			if w.is_ground(Vector2i(x, roof - d)):
+				out.append("roof buried %s" % Vector2i(x, roof - d))
+	return out
 
 
 ## The nests out on the cliff: some, none near the way in.

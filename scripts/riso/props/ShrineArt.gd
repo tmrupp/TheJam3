@@ -28,11 +28,15 @@ func _draw_art() -> void:
 	for i: int in range(2):
 		_shrine_niche(xs[i], i, g, bob * (1.0 if i == 0 else -1.0), used)
 	var mx: float = xs[2]
-	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(mx - 9, g - 62, 18, 42, 6), RisoShapes.ellipse(Vector2(mx, g - 64), 24.0, 7.0, 22)])
 	if used:
+		_mend_bowl(mx, g, bob, false, true, 0)
 		return
 	var m: Vector2 = Vector2(mx, g - 94 + bob * 0.8)
 	var full: bool = not shrine.can_mend()
+	if not (full and (shrine.reads_relic() or shrine.sells_skeleton())):
+		_mend_bowl(mx, g, bob, full, false, shrine.heal_price())
+		return
+	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(mx - 9, g - 62, 18, 42, 6), RisoShapes.ellipse(Vector2(mx, g - 64), 24.0, 7.0, 22)])
 	if full and shrine.reads_relic():
 		# At full health: a small relic medallion with the move of the relic it can point to.
 		var move: StringName = shrine.relic_move()
@@ -61,7 +65,17 @@ func _draw_art() -> void:
 		if sk > 0.0:
 			_plaque("skeleton key · %d" % shrine.skeleton_price(), Vector2(mx, g - POP_Y), 30, RisoPrint.ACCENT, sk)
 		return
-	# Mending: an ember bead over the bowl, like the HUD's health beads.
+
+
+## The mending station at x = `mx` over ground `g`: a bowl on a post and, unless `used`, an ember
+## bead floating over it like the HUD's health beads (dimmer while `full`: nothing to mend), its
+## name and `price` popping up over it while the wizard stands at it. The shrine's third
+## station, and a mending bowl standing on its own (MendWellArt).
+func _mend_bowl(mx: float, g: float, bob: float, full: bool, used: bool, price: int) -> void:
+	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(mx - 9, g - 62, 18, 42, 6), RisoShapes.ellipse(Vector2(mx, g - 64), 24.0, 7.0, 22)])
+	if used:
+		return
+	var m: Vector2 = Vector2(mx, g - 94 + bob * 0.8)
 	ink.ink(RisoPrint.EYE, 0.12 if full else 0.25, [RisoShapes.circle(m, 25.0, 28)])
 	var bead: PackedVector2Array = RisoShapes.circle(m, 12.0, 22)
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], [bead])
@@ -70,7 +84,7 @@ func _draw_art() -> void:
 	ink.knock([RisoPrint.EYE, RisoPrint.PINK], [RisoShapes.circle(m + Vector2(-3.5, -3.5), 4.0, 12)])
 	var s: float = _pop(2, Vector2(mx, g - 50))
 	if s > 0.0:
-		_plaque("mend · %d" % shrine.heal_price(), Vector2(mx, g - POP_Y), 30, RisoPrint.PINK, s)
+		_plaque("mend · %d" % price, Vector2(mx, g - POP_Y), 30, RisoPrint.PINK, s)
 
 
 ## One of the shrine's two niches at x = `cx`: the ability's mark floating over its tier pips and,

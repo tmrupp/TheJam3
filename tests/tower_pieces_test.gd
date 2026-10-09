@@ -2,20 +2,20 @@ extends TestKit
 ## The crag towers' pieces in play: the trapdoor in a watchtower's roof bears the wizard standing on
 ## it from the roof and stays shut, then swings open for good once the wizard comes up under it
 ## (Trapdoor); a rock-bug nest, an enemy for hex bolts, wakes with the wizard near, hatching bugs, no more than BROOD of its
-## own at once (BugNest); and a mending draught is left alone at full health, then mends the hurt
-## wizard and is taken for good (Draught).
+## own at once (BugNest); and a mending bowl (MendWell) offers nothing at full health, then heals the
+## hurt wizard to full for its price and is spent for good.
 ## godot --headless --path . --script res://tests/tower_pieces_test.gd
 
 
 func run() -> void:
-	# A crag level with all three: a watchtower's trapdoor, a nest and a draught.
+	# A crag level with all three: a watchtower's trapdoor, a nest and a mending bowl.
 	var row: int = 0
 	for k: int in range(NextWorldDef.BAND):
 		var w: LevelGen = build(Vector2i(28, NextWorldDef.band_row(&"crags", k)))
-		if [LevelGen.Type.TRAPDOOR, LevelGen.Type.NEST, LevelGen.Type.DRAUGHT].all(func(t: LevelGen.Type) -> bool: return not w.objects_of(t).is_empty()):
+		if [LevelGen.Type.TRAPDOOR, LevelGen.Type.NEST, LevelGen.Type.WELL].all(func(t: LevelGen.Type) -> bool: return not w.objects_of(t).is_empty()):
 			row = NextWorldDef.band_row(&"crags", k)
 			break
-	check(row != 0, "a crag level holds a trapdoor, a nest and a draught")
+	check(row != 0, "a crag level holds a trapdoor, a nest and a mending bowl")
 	await boot()
 	info.coord = Vector2i(28, row)
 	info.arrival = MapInfo.Exit.BACK
@@ -26,7 +26,7 @@ func run() -> void:
 	var cell: float = float(info.tile_map.tile_set.tile_size.y) * info.tile_map.global_scale.y
 	await trapdoor(cell)
 	await nest(cell)
-	await draught()
+	await well()
 	player.set_physics_process(true)
 	RunState.delete_save()
 	finish()
@@ -83,20 +83,30 @@ func nest(cell: float) -> void:
 	player.set_physics_process(true)
 
 
-func draught() -> void:
-	print("draught")
-	var all: Array[Node] = placed("draught.tscn")
-	check(not all.is_empty(), "the level has a draught")
+func well() -> void:
+	print("mending bowl")
+	var all: Array[Node] = placed("mend_well.tscn")
+	check(not all.is_empty(), "the level has a mending bowl")
 	if all.is_empty():
 		return
-	var drop: Draught = all[0] as Draught
-	var at: Vector2i = drop.get_meta(&"cell")
+	var bowl: MendWell = all[0] as MendWell
+	var it: Interactable = bowl.get_node("Interactable") as Interactable
 	player.set_physics_process(false)
+	player.global_position = bowl.global_position
 	player.health.health = player.health.max_health
-	player.global_position = drop.global_position
-	await frames(20)
-	check(is_instance_valid(drop) and not drop.is_queued_for_deletion(), "at full health it is left be")
+	await frames(5)
+	check(not it.available and not bowl.used(), "at full health it offers nothing")
 	player.health.health = player.health.max_health - 3
-	check(await until(gone(drop)), "hurt, the wizard takes it")
-	check(player.health.health == player.health.max_health - 3 + Draught.HEAL, "and it mends them by %d" % Draught.HEAL)
-	check(info.record().taken.has(at), "and the level record keeps it taken")
+	player.collect(bowl.heal_price() - 1 - player.coins.coins)
+	bowl.buy_mend()
+	check(player.health.health == player.health.max_health - 3 and not bowl.used(), "short of its price, it does nothing")
+	player.collect(1)
+	await frames(2)
+	check(it.available, "hurt, with its price, it is offered")
+	bowl.buy_mend()
+	check(player.health.health == player.health.max_health and player.coins.coins == 0, "and heals to full for its price (%d)" % bowl.heal_price())
+	check(bowl.used() and info.record().mended.has(bowl.get_meta(&"cell")), "spent for good, kept in the level record")
+	player.health.health = player.health.max_health - 1
+	await frames(2)
+	check(not it.available, "and offers nothing after")
+	player.set_physics_process(true)

@@ -47,6 +47,7 @@ enum Type {
 	TRAPDOOR,
 	NEST,
 	DRAUGHT,
+	WELL,
 }
 
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).
@@ -413,7 +414,8 @@ func connect_caves (walled: Dictionary = {}) -> void:
 	for g: Array in groups:
 		if g.size() < POCKET:
 			for v: Vector2i in g:
-				_to_rock(v)
+				if not kept(v):
+					_to_rock(v)
 	groups = _open_regions()
 	if groups.size() <= 1:
 		return
@@ -442,7 +444,7 @@ func connect_caves (walled: Dictionary = {}) -> void:
 			head += 1
 			for d: Vector2i in neighbor_offsets:
 				var n: Vector2i = v + d
-				if not is_valid(n) or parent.has(n) or walled.has(n):
+				if not is_valid(n) or parent.has(n) or walled.has(n) or kept_whole.has(n):
 					continue
 				parent[n] = v
 				if _open(n) and not main.has(n):
@@ -547,11 +549,11 @@ func make_room () -> void:
 				_to_open(c)
 				carved.append(c)
 
-## Whether rock at `c` walls a vault, frames a door or gate (above or below it), seals a secret
-## room or holds up the floor its way in is taken from (secret_steps), has a laser set in it, is
+## Whether rock at `c` walls a vault, frames a door or gate (above or below it), is kept whole
+## (kept), seals a secret room or holds up the floor its way in is taken from (secret_steps), has a laser set in it, is
 ## the footing of a gap's shore, or holds up something stood at.
 func _holds_up (c: Vector2i) -> bool:
-	if vault_walls.has(c) or in_shaft(c) or secret_steps.has(c):
+	if vault_walls.has(c) or kept(c) or secret_steps.has(c):
 		return true
 	for d: Vector2i in [Vector2i.UP, Vector2i.DOWN]:
 		if is_valid(c + d) and get_cell(c + d).type in [Type.DOOR, Type.SWITCH_GATE]:
@@ -941,6 +943,15 @@ var shaft: Dictionary = {}
 func in_shaft (v: Vector2i) -> bool:
 	return not shaft.is_empty() and (shaft["inside"] as Rect2i).grow(1).has_point(v)
 
+## Cells a built structure keeps as they are (a crag tower's stone, rooms, doorsteps, footing and
+## the air over its roof, CragsArchetype): nothing else cracks, carves, fills or tunnels through
+## them, or builds a secret room or vault into them.
+var kept_whole: Dictionary = {}
+
+## Whether cell `v` is kept as it is: the bramble's shaft (in_shaft) or kept_whole.
+func kept (v: Vector2i) -> bool:
+	return kept_whole.has(v) or in_shaft(v)
+
 ## The level's chasms and gaps, its gates where the archetype has them (see Chasms): each
 ## {"planks": cells, "row": the floor row, "left": the last floor cell before it, "right": the
 ## first after}, numbered by their place here.
@@ -1057,7 +1068,7 @@ func place_secrets (def: NextWorldDef) -> void:
 ## `enclosed`, with a cell of rock all round it too.
 func _secret_spots (room: Vector2i, enclosed: bool) -> Array:
 	var floors: Array[Vector2i] = free_floors()
-	var rock: Callable = func(v: Vector2i) -> bool: return not is_valid(v) or (is_ground(v) and not in_shaft(v))
+	var rock: Callable = func(v: Vector2i) -> bool: return not is_valid(v) or (is_ground(v) and not kept(v))
 	var out: Array = []
 	for o: Vector2i in floors:
 		for side: int in [-1, 1]:
@@ -1280,7 +1291,7 @@ func _strongbox_spots (inside: Vector2i) -> Array:
 ## Whether a strongbox may take cell `c`: open air with nothing in it, or only a star or a piece
 ## of a ledge that stays put (which it takes the place of). `free` holds the open cells.
 func _buildable (c: Vector2i, free: Dictionary) -> bool:
-	if in_shaft(c) or secret_steps.has(c):
+	if kept(c) or secret_steps.has(c):
 		return false
 	return (free.has(c) and get_cell(c).type == Type.EMPTY) or get_cell(c).type in [Type.COIN, Type.PLATFORM]
 
@@ -1335,7 +1346,7 @@ func place_cracks (count: int) -> void:
 				wall = [v, v + axis]
 			# Never rock that thorns hang from (a chasm's floor, say): they would be left in the air;
 			# nor the bramble's shaft, which is climbed only from its foot.
-			if wall.is_empty() or wall.any(func(c: Vector2i) -> bool: return in_shaft(c) or neighbor_offsets.any(func(d: Vector2i) -> bool: return is_valid(c + d) and get_cell(c + d).type == Type.SPIKES)):
+			if wall.is_empty() or wall.any(func(c: Vector2i) -> bool: return kept(c) or neighbor_offsets.any(func(d: Vector2i) -> bool: return is_valid(c + d) and get_cell(c + d).type == Type.SPIKES)):
 				continue
 			walls.append(wall)
 			for o: Vector2i in valuable:

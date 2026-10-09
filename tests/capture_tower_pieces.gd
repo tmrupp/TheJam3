@@ -2,8 +2,8 @@ extends TestKit
 ## Stills of the crag towers' pieces close up, in the first crag level holding all three: a
 ## watchtower's roof with its trapdoor shut and the wizard on the roof beside it
 ## (tower_piece_trapdoor.png); a rock-bug nest with the wizard near, as it hatches a bug and once
-## the bug is out (tower_piece_nest_0.png, _1); and a mending draught with the wizard by it
-## (tower_piece_draught.png).
+## the bug is out (tower_piece_nest_0.png, _1); and a mending bowl with the hurt wizard by it
+## (tower_piece_well.png).
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_tower_pieces.gd
 
 var camera: Camera2D
@@ -14,7 +14,7 @@ func run() -> void:
 	var row: int = 0
 	for k: int in range(NextWorldDef.BAND):
 		var w: LevelGen = build(Vector2i(28, NextWorldDef.band_row(&"crags", k)))
-		if [LevelGen.Type.TRAPDOOR, LevelGen.Type.NEST, LevelGen.Type.DRAUGHT].all(func(t: LevelGen.Type) -> bool: return not w.objects_of(t).is_empty()):
+		if [LevelGen.Type.TRAPDOOR, LevelGen.Type.NEST, LevelGen.Type.WELL].all(func(t: LevelGen.Type) -> bool: return not w.objects_of(t).is_empty()):
 			row = NextWorldDef.band_row(&"crags", k)
 			break
 	await boot(28)
@@ -42,9 +42,10 @@ func run() -> void:
 	await until(func() -> bool: return not host.brood.is_empty(), 4000)
 	await frames(20)
 	await look_at(host.global_position, "tower_piece_nest_1.png")
-	var drop: Node2D = placed("draught.tscn")[0] as Node2D
-	player.global_position = drop.global_position + Vector2(-cell, 0.0)
-	await look_at(drop.global_position, "tower_piece_draught.png")
+	var drop: Node2D = placed("mend_well.tscn")[0] as Node2D
+	player.health.health = player.health.max_health - 2
+	player.global_position = drop.global_position + Vector2(-cell * 0.75, 0.0)
+	await look_at(drop.global_position, "tower_piece_well.png")
 	RunState.delete_save()
 	finish()
 

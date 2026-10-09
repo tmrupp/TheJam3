@@ -1,7 +1,7 @@
 extends Area2D
 class_name Draught
-## A mending draught, a reward kept in a crag tower's room (CragsArchetype.place_tower_rewards): a
-## drop of ember light floating in the air. Touched while hurt, it mends HEAL health and is gone
+## A mending draught: a drop of ember light floating in the air. Set aside for now: nothing places it
+## (a crag tower's top room holds a mending bowl, MendWell, in its place; CragsArchetype.TOWER_REWARDS). Touched while hurt, it mends HEAL health and is gone
 ## for good (the level record keeps it taken); at full health it is left where it is, for later.
 
 ## Health it mends.

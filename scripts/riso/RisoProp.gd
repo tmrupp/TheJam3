@@ -52,6 +52,7 @@ const KINDS: Dictionary = {
 	&"trapdoor": "res://scripts/riso/props/TrapdoorArt.gd",
 	&"nest": "res://scripts/riso/props/NestArt.gd",
 	&"draught": "res://scripts/riso/props/DraughtArt.gd",
+	&"well": "res://scripts/riso/props/MendWellArt.gd",
 }
 
 
