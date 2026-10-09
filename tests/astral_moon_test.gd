@@ -1,0 +1,106 @@
+extends TestKit
+## Astral projection as an ability (toggle out and back; hits pass through; running out
+## leaves you where the projection is) and moons as dash resets.
+## godot --headless --path . --script res://tests/astral_moon_test.gd
+
+
+func run() -> void:
+	await boot()
+	player.set_physics_process(false)
+	player.end_invulnerable()
+	await create_timer(0.03).timeout
+
+	print("astral projection")
+	var astral: AstralProjection = player.get_node("AstralProjection") as AstralProjection
+	check(InputMap.has_action(Abilities.SPELL_ACTION), "the Spell action exists")
+	check(info.map_elements.get_children().all(func(n: Node) -> bool: return n.scene_file_path.get_file() != "astral_projection_point.tscn"), "no astral orbs in the level")
+	astral.toggle()
+	check(not astral.projecting(), "locked until learned")
+	Abilities.grant(player, &"astral")
+	var home: Vector2 = player.position
+	astral.toggle()
+	check(astral.projecting(), "tap: projecting, body left behind")
+	check(is_equal_approx(astral.projection_timer.MAX_TIME, 1.5), "astral I lasts 1.5 seconds")
+	check(player.is_invulnerable() and is_equal_approx(player.sprite.modulate.a, AstralProjection.PROJECTION_COVER), "the projection is translucent and invulnerable")
+	var wizard: Node = player.get_node("RisoWizard")
+	wizard.call("_draw_body")
+	check(is_equal_approx((wizard.get("body") as InkCanvas).coverage, AstralProjection.PROJECTION_COVER), "the printed wizard is translucent too")
+	var ink_ops: Array = (wizard.get("body") as InkCanvas).get("_ops")
+	check(ink_ops.any(func(op: Node2D) -> bool: return op.visible and not bool(op.get("lift")) and is_equal_approx(float(op.get("cover")), 1.0)), "the astral spell orb still prints solid ink")
+	player.position += Vector2(300, -40)
+	astral.toggle()
+	check(not astral.projecting() and player.position == home, "tap again: back in the body")
+	astral.toggle()
+	player.position += Vector2(200, 0)
+	var projected_at: Vector2 = player.position
+	var hp: int = player.health.health
+	player.hurt(-1, Vector2.RIGHT, null)
+	player.normal_hurt(-1, Vector2.RIGHT, null)
+	check(astral.projecting() and player.position == projected_at and player.health.health == hp and not player.knock_back.is_acting(), "hits leave the projection active, in place and unhurt")
+	astral.toggle()
+	astral.toggle()
+	var away: Vector2 = home + Vector2(250, -30)
+	player.position = away
+	astral.projection_timer.elapse(astral.projection_timer.MAX_TIME + 0.1)
+	check(not astral.projecting() and player.position == away, "run out: stay where the projection is")
+	check(player.hurt_ability == player.normal_hurt and player.get_collision_layer_value(6), "and vulnerable again")
+	wizard.call("_draw_body")
+	check(is_equal_approx(player.sprite.modulate.a, 1.0) and is_equal_approx((wizard.get("body") as InkCanvas).coverage, 1.0), "normal opacity returns when astral ends")
+	player.end_invulnerable()
+	player.hurt(-1, Vector2.ZERO, null)
+	check(player.health.health == hp - 1, "hits damage the player again after astral ends")
+
+	print("moons")
+	var moons: Array[Node] = info.map_elements.get_children().filter(func(n: Node) -> bool: return n.scene_file_path.get_file() == "moon.tscn")
+	check(not moons.is_empty() and moons.size() <= info.world.per_area(LevelGen.MOONS_PER_K), "%d moons within the level's area budget" % moons.size())
+	if moons.is_empty():
+		finish()
+		return
+	# The moon nearest the wizard; "leaving" it means a few hundred pixels off, not far away, so its
+	# chunk stays awake (chunks far from both the camera and the wizard sleep).
+	var moon: Node = moons[0]
+	for m: Node in moons:
+		if (m as Node2D).global_position.distance_to(player.global_position) < (moon as Node2D).global_position.distance_to(player.global_position):
+			moon = m
+	player.set_physics_process(false)
+	player.global_position = (moon as Node2D).global_position + Vector2(0, -400)
+	await physics_frame
+	player.dash.refresh()
+	moon.call("touch", player)
+	check(not bool(moon.call("is_full")) and bool(moon.get("in_use")) and not player.dash.acted, "touching a moon spends it at once, even with the dash unused")
+	await until(func() -> bool: return float(moon.get("waning")) > 0.0)
+	check(float(moon.get("waning")) > 0.0, "once left, it wanes")
+	player.dash.enable(true)
+	moon.call("touch", player)
+	check(player.dash.acted, "a waning moon does nothing")
+	await until(func() -> bool: return bool(moon.call("is_full")))
+	check(bool(moon.call("is_full")), "and it comes back")
+	moon.call("touch", player)
+	check(not player.dash.acted, "a full moon gives a spent dash back")
+	# Left, it wanes, then waxes full again.
+	await until(func() -> bool: return bool(moon.call("is_full")))
+	# Inside the moon it keeps giving the dash back, even mid-dash, and wanes only once left.
+	player.global_position = (moon as Node2D).global_position
+	await until(func() -> bool: return bool(moon.get("in_use")))
+	# In step with the physics frames again: each step below is one physics frame of the dash.
+	await physics_frame
+	check(bool(moon.get("in_use")) and float(moon.get("waning")) == 0.0, "running into the moon spends it")
+	player.dash.enable(true)
+	check(player.dash.is_acting() and player.dash.acted, "dashing inside the moon")
+	await physics_frame
+	check(not player.dash.acted and player.dash.is_acting(), "mid-dash, the moon gives the dash back at once")
+	player.dash.enable(true)
+	await physics_frame
+	await physics_frame
+	check(not player.dash.acted and float(moon.get("waning")) == 0.0, "still inside: a second dash comes back too, and the moon has not begun to wax")
+	player.global_position = (moon as Node2D).global_position + Vector2(0, -400)
+	await until(func() -> bool: return float(moon.get("waning")) > 0.0 and not bool(moon.get("in_use")))
+	check(float(moon.get("waning")) > 0.0 and not bool(moon.get("in_use")), "leaving it starts it waxing back")
+	player.set_physics_process(true)
+	info.travel(MapInfo.Exit.RIGHT)
+	await settle()
+	info.travel(MapInfo.Exit.LEFT)
+	await settle()
+	check(info.map_elements.get_children().filter(func(n: Node) -> bool: return n.scene_file_path.get_file() == "moon.tscn").size() == moons.size(), "moons are never used up")
+
+	finish()

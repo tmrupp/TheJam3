@@ -1,4 +1,6 @@
 extends Camera2D
+class_name CameraEffects
+## The main camera's effects: a shake on hits and kills (see Wound.shake).
 
 var stored_delta: float = 0
 var rng: RandomNumberGenerator = RandomNumberGenerator.new()

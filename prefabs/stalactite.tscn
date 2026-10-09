@@ -1,0 +1,19 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/Stalactite.gd" id="1_stal"]
+[ext_resource type="PackedScene" uid="uid://dakcksbubrdwc" path="res://prefabs/damager.tscn" id="2_damager"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_tip"]
+size = Vector2(22, 64)
+
+[node name="Stalactite" type="Area2D"]
+collision_layer = 4
+collision_mask = 128
+script = ExtResource("1_stal")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, 58)
+shape = SubResource("RectangleShape2D_tip")
+disabled = true
+
+[node name="Damager" parent="." instance=ExtResource("2_damager")]

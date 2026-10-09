@@ -1,0 +1,16 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/Inkwell.gd" id="1_ink"]
+[ext_resource type="PackedScene" uid="uid://pwmevy3urxq6" path="res://prefabs/interactable.tscn" id="2_inter"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ink"]
+size = Vector2(90, 110)
+
+[node name="Inkwell" type="Area2D"]
+script = ExtResource("1_ink")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, 9)
+shape = SubResource("RectangleShape2D_ink")
+
+[node name="Interactable" parent="." instance=ExtResource("2_inter")]

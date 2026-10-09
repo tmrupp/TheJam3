@@ -1,0 +1,18 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="PackedScene" uid="uid://dyvck7ac1yito" path="res://prefabs/enemy.tscn" id="1_enemy"]
+[ext_resource type="PackedScene" uid="uid://drbq47lw8o8mv" path="res://prefabs/hit_box.tscn" id="2_hitbox"]
+[ext_resource type="Script" path="res://scripts/Bird.gd" id="3_bird"]
+[ext_resource type="PackedScene" uid="uid://cfju2r1ttqwwm" path="res://prefabs/stunner.tscn" id="4_stunner"]
+
+[node name="BirdEnemy" instance=ExtResource("1_enemy")]
+
+[node name="Sprite2D" parent="." index="0"]
+self_modulate = Color(1, 0.5, 0.8, 1)
+
+[node name="Bird" type="Node2D" parent="." index="2"]
+script = ExtResource("3_bird")
+
+[node name="HitBox" parent="." index="3" instance=ExtResource("2_hitbox")]
+
+[node name="Stunner" parent="." index="4" instance=ExtResource("4_stunner")]

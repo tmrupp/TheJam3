@@ -1,0 +1,75 @@
+extends Area2D
+class_name LevelExit
+## One of a place's exits. Where it leads and what it costs are up to the place's definition
+## (MapInfo.here, see NextWorldDef.lead and price): in a level, the deeper exit costs stars once,
+## a side world's door its entry price once, and left and right are locked with a key colour dealt
+## by the level seed (the key is kept, and the door stays open; a skeleton key opens it too, and is
+## used up).
+
+@onready var player: Player = Stage.player()
+
+var map_info: MapInfo
+var exit: int = MapInfo.Exit.DEEPER
+
+func setup(info: MapInfo, _v: Vector2i, which: int) -> void:
+	map_info = info
+	exit = which
+
+## Stars still owed before this exit opens.
+func price() -> int:
+	if map_info == null:
+		return 0
+	return map_info.here.price(exit, map_info.record())
+
+## The boss that seals this exit while it lives (NextWorldDef.seal), or &"".
+func sealed() -> StringName:
+	if map_info == null or map_info.here == null:
+		return &""
+	return map_info.here.seal(exit, map_info.run)
+
+## The key colour this exit still needs, or -1 when it is open (only left and right lock).
+func lock() -> int:
+	if map_info == null:
+		return -1
+	return lock_at(map_info.coord, exit, map_info.record())
+
+## The key colour exit `which` of the level at `at` still needs, as its record `rec` leaves it, or
+## -1 when it is open (the map asks this of levels not being played too).
+static func lock_at(at: Vector2i, which: int, rec: LevelRecord) -> int:
+	if not (which == MapInfo.Exit.LEFT or which == MapInfo.Exit.RIGHT):
+		return -1
+	if (rec.lateral_open as Dictionary).has(which):
+		return -1
+	return Rules.lateral_lock(at, which)
+
+func interaction_hint() -> Dictionary:
+	if sealed() != &"":
+		return {"sealed": true}
+	var needs: int = lock()
+	return {"key_color": needs} if needs >= 0 else {}
+
+func interacted() -> void:
+	if map_info == null or map_info.travelling:
+		return
+	# Sealed by a boss: nothing opens it but the boss's death.
+	if sealed() != &"":
+		RisoFx.burst(&"hit", global_position + Vector2(0, -60), Vector2.UP, [RisoPrint.PINK, RisoPrint.NIGHT])
+		return
+	var needs: int = lock()
+	if needs >= 0:
+		# A key of its colour, else a skeleton key (used up), opens it for good.
+		if not player.keyring.has(needs) and not player.keyring.spend_skeleton():
+			return
+		map_info.record().lateral_open[exit] = true
+	var owed: int = price()
+	if owed > 0:
+		if player.coins.coins < owed:
+			return
+		player.collect(-owed)
+		map_info.here.pay(exit, map_info.record())
+	map_info.travel(exit)
+
+func _ready() -> void:
+	$Interactable.interacted.connect(interacted)
+	# Open, it glows (RisoLight).
+	add_to_group(RisoLight.GLOWS)

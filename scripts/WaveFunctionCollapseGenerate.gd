@@ -1,3 +1,4 @@
+@warning_ignore_start("untyped_declaration", "inferred_declaration")
 extends Node
 
 @export var width:int

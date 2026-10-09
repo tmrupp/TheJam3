@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/Puff.gd" id="1_puff"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_puff"]
+size = Vector2(31.5, 8.25)
+
+[node name="Puff" type="StaticBody2D"]
+scale = Vector2(4, 4)
+collision_layer = 36
+collision_mask = 0
+script = ExtResource("1_puff")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -12)
+shape = SubResource("RectangleShape2D_puff")
+one_way_collision = true

@@ -1,0 +1,164 @@
+extends Node
+class_name DashStrike
+## The dash is the wizard's attack. The wizard passes through enemies while dashing (their
+## bodies stop blocking, ENEMY_LAYER, until the wizard is clear of them after it), and dashing (or blinking) through an enemy stuns it for STUN
+## seconds, and with the strike perk wounds it first (Abilities: I 1 damage, II 2, III 3; a
+## stunned enemy takes double, see Wound). Each enemy is struck once a dash. The worm is struck
+## once a dash too, in the first segment met (Wound.whole), which is cut even without the perk
+## (Wound.least) but not stunned; its body blocks the dash (WormSegment), unless the cut opens it.
+## Touching an enemy never hurts the wizard while they dash, nor for GUARD seconds after from one
+## they struck. A shield takes the dash whole (a hit off the shield, no wound or stun) and throws
+## the wizard back.
+## Dashing into a cracked wall breaks it (not a secret room's hidden rock: that is found by
+## walking in). A blink strikes everything along the way it jumps, and hands back the dash for
+## each full moon it passes (Blink.gd).
+## Moth swarms scatter for six seconds when struck, and cannot sting through the dash.
+
+const STUN: float = 2.5
+## How near the wizard's path an enemy has to be (past its centre) to be struck.
+const REACH: float = 64.0
+## A pixel of grace at the worm's solid edge, where physics stops the wizard just short of it.
+const CONTACT_SLOP: float = 1.0
+const SPAN_DOWN: float = 20.0
+const SPAN_UP: float = 56.0
+const GUARD: float = 0.3
+## How hard a shield throws the wizard back.
+const RECOIL: float = 420.0
+## The physics layer enemy bodies are on (project settings: "Enemy").
+const ENEMY_LAYER: int = 2
+
+## Wounds dealt per strike (0: the dash only stuns). Set by the strike tier (Abilities.apply).
+var damage: int = 0
+## The enemies this dash has struck.
+var struck: Array[Node] = []
+var last: Vector2 = Vector2.ZERO
+var was_dashing: bool = false
+var guard_left: float = 0.0
+
+@onready var player: Player = get_parent() as Player
+
+
+func _physics_process(delta: float) -> void:
+	var dashing: bool = player.dash.is_acting()
+	if dashing and not was_dashing:
+		struck.clear()
+		last = player.global_position
+		player.set_collision_mask_value(ENEMY_LAYER, false)
+	if dashing:
+		sweep(last, player.global_position)
+		last = player.global_position
+		_break_walls()
+	elif was_dashing:
+		guard_left = GUARD
+	# Enemies block the wizard again once the dash is over, but only when no enemy's body is where
+	# the wizard is: turned back on with the wizard inside one, the push out could wedge them in
+	# the rock or fling them across the level.
+	if not dashing and not player.get_collision_mask_value(ENEMY_LAYER) and not _inside_enemy():
+		player.set_collision_mask_value(ENEMY_LAYER, true)
+	was_dashing = dashing
+	guard_left = maxf(0.0, guard_left - delta)
+
+
+## Whether the wizard's body overlaps an enemy's.
+func _inside_enemy() -> bool:
+	var shape: CollisionShape2D = player.collider
+	if shape == null or shape.shape == null:
+		return false
+	var query: PhysicsShapeQueryParameters2D = PhysicsShapeQueryParameters2D.new()
+	query.shape = shape.shape
+	query.transform = shape.global_transform
+	query.collision_mask = 1 << (ENEMY_LAYER - 1)
+	query.exclude = [player.get_rid()]
+	return not player.get_world_2d().direct_space_state.intersect_shape(query, 1).is_empty()
+
+
+## Its tier (the strike perk, Abilities): each tier wounds 1 more (0 only stuns).
+func set_tier(n: int) -> void:
+	damage = n
+
+## Whether touching `attacker` (a contact hit box, Damager) should not hurt the wizard just now.
+func guards(attacker: Node) -> bool:
+	var enemy: Node = Damager.attacker_of(attacker)
+	if enemy == null or (Stunner.of(enemy) == null and not enemy is MothSwarm):
+		return false
+	return player.dash.is_acting() or (guard_left > 0.0 and Wound.whole(enemy) in struck)
+
+
+## Strike every enemy near the way from `from` to `to` not yet struck this dash, nearest first.
+func sweep(from: Vector2, to: Vector2) -> void:
+	var dir: Vector2 = (to - from).normalized() if to != from else player.velocity.normalized()
+	var targets: Array[Node] = []
+	for e: Node in get_tree().get_nodes_in_group(&"hex_target"):
+		if not is_instance_valid(e) or e.is_queued_for_deletion() or Wound.whole(e) in struck:
+			continue
+		if Stunner.of(e) == null and not e is MothSwarm:
+			continue
+		var at: Vector2 = (e as Node2D).global_position
+		var near: PackedVector2Array = Geometry2D.get_closest_points_between_segments(from, to, at + Vector2(0, SPAN_DOWN), at - Vector2(0, SPAN_UP))
+		var meets: bool = _meets_worm(e as WormSegment, from, to) if e is WormSegment else near[0].distance_to(near[1]) <= REACH
+		if meets:
+			targets.append(e)
+	targets.sort_custom(func(a: Node, b: Node) -> bool: return from.distance_squared_to((a as Node2D).global_position) < from.distance_squared_to((b as Node2D).global_position))
+	for e: Node in targets:
+		if Wound.whole(e) in struck:
+			continue
+		struck.append(Wound.whole(e))
+		if not strike(e, dir):
+			return
+
+
+## The wizard's body swept along the dash or blink, touching a worm's round, solid segment.
+## Unlike smaller enemies, the worm stops the wizard before their centres come within REACH.
+func _meets_worm(segment: WormSegment, from: Vector2, to: Vector2) -> bool:
+	var shape: CollisionShape2D = player.collider
+	if shape == null or shape.shape == null:
+		return false
+	var box: Rect2 = shape.shape.get_rect()
+	var points: PackedVector2Array = PackedVector2Array()
+	# Work round the target's origin so polygon tests stay precise across a large level.
+	var start: Vector2 = from - segment.global_position
+	var end: Vector2 = to - segment.global_position
+	for corner: Vector2 in [box.position, Vector2(box.end.x, box.position.y), box.end, Vector2(box.position.x, box.end.y)]:
+		var offset: Vector2 = shape.global_transform * corner - player.global_position
+		points.append(start + offset)
+		points.append(end + offset)
+	var swept: PackedVector2Array = Geometry2D.convex_hull(points)
+	var at: Vector2 = Vector2.ZERO
+	if Geometry2D.is_point_in_polygon(at, swept):
+		return true
+	for i: int in range(swept.size() - 1):
+		var closest: Vector2 = Geometry2D.get_closest_point_to_segment(at, swept[i], swept[i + 1])
+		if at.distance_to(closest) <= segment.radius + player.safe_margin + CONTACT_SLOP:
+			return true
+	return false
+
+
+## Strike `e` heading `dir`. False when a shield stopped the dash.
+func strike(e: Node, dir: Vector2) -> bool:
+	if e is MothSwarm:
+		(e as MothSwarm).scatter(dir)
+		return true
+	var shield: Shield = Shield.of(e)
+	if shield != null and shield.absorb(false, dir):
+		player.dash.end()
+		player.velocity = -dir * RECOIL
+		return false
+	var wound: Wound = e.get_node_or_null("Wound") as Wound
+	if wound != null and maxi(damage, wound.least) > 0:
+		wound.hit(maxi(damage, wound.least), dir)
+	else:
+		RisoFx.burst(&"hit", (e as Node2D).global_position, dir, [RisoPrint.ACCENT, RisoPrint.BLUE])
+		Wound.shake(5.0, 0.12)
+	var stunner: Stunner = Stunner.of(e)
+	if stunner != null and is_instance_valid(e) and not e.is_queued_for_deletion():
+		stunner.stun(STUN)
+	return true
+
+
+## Cracked walls the dash ran into crumble (a secret room's rock is left for the wizard to find).
+func _break_walls() -> void:
+	for i: int in range(player.get_slide_collision_count()):
+		var contact: KinematicCollision2D = player.get_slide_collision(i)
+		var hit: Object = contact.get_collider()
+		if hit is CrackedWall and not (hit as Node).has_meta(&"secret"):
+			(hit as CrackedWall).hex_hit(maxi(damage, 1), -contact.get_normal())

@@ -1,0 +1,121 @@
+DO NOT MODIFY
+
+* = complete 
+
+# SMALL IDEAS:
+
+- * we need a rework of the in world map now that it is higher quality
+    - teleporters should be on map
+    - icons should be smaller, but more detailed
+
+- * warp needs an animation
+
+- * quicker regression
+
+- * falling while sliding should slow you down
+
+- * when you have a keyring they should both follow you, no need for hud element
+- * keys should look more like normal keys, fewer on map
+
+- * f7 menu should be accessible from controller when debug is on
+
+- * wall jump should supercede double jump
+- * finding a duplicate relic should upgrade it
+
+- * fence in gardens should be white and we should change the primary color to be green
+- * ghost eyes should light up pink when chasing
+- * chasms are now traversable by dash (make larger)
+- * bells on both sides of a chasm
+
+- * the type of key/switch is shown for portcullis but not for the bells as a tooltip, also it is clear that the same art is not used for the tooltip and the key itelf
+- * the extra keys on the keyring are smaller, not sure why
+- * inkwell does not need the floating paper above it, maybe a quill inside it, "map X" shoulld only pop up when interacting (this should be a generic feature)
+- * same padlock should be on lateral level doors as well
+
+- * some gates should require a skeleton key (a relic can spawn there instead of a false wall as an alternative)
+- * skeleton key could be an alternative purchase when full health (random spawn instead of relic location), more likely when a relic is uncollected but revealed
+- * relics need to spawn deeper
+- * the world bands should be larger (garden is 5-8 deep), can dial this in more
+- * the hex bolt right now is quite awkward it feels bad to throw it away for any spell
+
+- * the skeleton key should be white and look like a bone with teeth
+
+- * players can jump over and over on a wall to slowly climb. I still want to retain the ability to wall jump up (back and forth) from a 2-wide gap. Maybe more lateral speed when wall jumping
+
+- * levitate should have a time limit, but still be long
+
+- * astral should make the player translucent, should have a much shorter timer and cannot take damage while active
+
+- * moths seem broken
+
+- * we need to introduce submenus/collapsing for f7 menu (it is getting too big)
+
+- * sometimes the player gets stuck when dashing
+- we might need to continue iterating on walljump
+
+- * deeper levels and hyperspace should be likely to require relics to fully traverse (relax the traversability guarantees in later levels/hyperspace)
+
+- * can go up or down, going up goes to cliffs and craggs -> sky
+- * going down goes to cemetery -> catacombs
+
+- * switches that activate moving platforms
+- * ability that creates moving platforms
+- * parry should be default spell, and we need more visual feedback on its use/active time/success
+- * richocet enemy needs to be reworked, it should be on the ceiling or flying
+- * simplify hyperspace connector
+
+- maybe we should world on the light system for lanterns
+- * visuals for shield should be improve/reworked
+- * rechargable shield should be a spell/perk
+
+- * which switches go to which things need to be more clear somehow, maybe glpyhs like portals
+- * portal glyphs need to be more clear
+
+## fool thoughts
+- * the poncho should be larger on top and taper
+- * the player looks skewed
+- * the lantern is held too low and the flame should be simplified
+- * there should not be gaps in the neck or hands
+
+- * the animations stretch/skew/squash too much
+- * the necklace beads should be larger
+- * the feather looks odd
+
+## hud reduction, we have worked on putting most of the info in the game
+- * sign that when interacted with shows current location when entering a world
+- * someway of showing current gold (when crouching or something player will start flipping a coin and your gold will show up)
+- * when there is a ghost, it shows up on the screen in an arrow (and on map) like the awareness spell
+
+# bosses, possibly guarding relics, must be defeated
+- garden: worm that weaves its way through the level. It has sections, when destroyed in the middle it splits into multiple worms
+- cemetery: perhaps a necromancer that summons skeletons that die on stun but go after the player
+- catacombs: eldritch beast that spawns souls/tentacles/horcruxes on previously visited levels that you need to destroy
+- cliffs: spider that makes webs
+- sky: flying whale that has a digestive system that is another level (like a door)
+
+## worm thoughts:
+- burrows do no seem seamless with ground (should probably be partially green as well)
+- a turn/bend with spikes on the inside looks weird
+- a distinct chomping animation would be good
+
+- Switches should tend to spawn nearby to their connection
+
+- gondola should have a rounded top and more bars, the enclosing bars should be more toward the edge.
+- gondola should have more background bars and a horizontal one like before
+
+- should we have distinct attack animations for easier parrying
+
+- return parries to 0.2s
+
+# PLACES
+
+- caves
+- crypts
+- Library
+- flooded, tide pools, drain and fill up pools
+
+
+
+# FUTURE
+
+- the wizard looks generic, we should look into this

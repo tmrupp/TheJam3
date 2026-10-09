@@ -1,4 +1,6 @@
 extends Node
+class_name CameraControl
+## Steers the camera after the wizard (to `target_location`, ahead of them the way they face).
 
 # lerp method
 # always lerp the camera to the player
@@ -20,13 +22,18 @@ var target_location: Vector2
 const HORIZONTAL_OFFSET: int = 200
 const VERTICAL_OFFSET: int = 100
 
+## Cut the view to `wizard` at once, rather than sweeping across the level (a teleport, a warp).
+static func snap(wizard: Player) -> void:
+	var control: CameraControl = wizard.get_node_or_null("CameraControl") as CameraControl
+	var view: Camera2D = Stage.camera()
+	if control != null:
+		control.target_location = wizard.position
+	if view != null:
+		view.position = wizard.position
+		view.reset_smoothing()
+
 func _ready() -> void:
-	var tilemap_scale: Vector2i = Vector2i($"../../TileMap".scale)
-	var level_size: Vector2i = $"../../WaveFunctionCollapse".output_size * $"../../TileMap".tile_set.tile_size * tilemap_scale
-	camera.limit_left = -1 * $"../../CanvasLayer/MapInfo".X_MARGIN * $"../../TileMap".tile_set.tile_size.x * tilemap_scale.x
-	camera.limit_right = level_size.x + $"../../CanvasLayer/MapInfo".X_MARGIN * $"../../TileMap".tile_set.tile_size.x * tilemap_scale.x
-	camera.limit_top = -1 * $"../../CanvasLayer/MapInfo".TOP_MARGIN * $"../../TileMap".tile_set.tile_size.y * tilemap_scale.y
-	camera.limit_bottom = level_size.y + 1 * $"../../TileMap".tile_set.tile_size.y * tilemap_scale.y
+	# Camera limits are fitted to each level (LevelLoader.lay_terrain).
 	player.direction_signal.connect(update_target)
 	target_location = player.position
 

@@ -1,0 +1,28 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/TollGate.gd" id="1_toll"]
+[ext_resource type="PackedScene" uid="uid://pwmevy3urxq6" path="res://prefabs/interactable.tscn" id="2_inter"]
+[ext_resource type="Script" path="res://scripts/TollPay.gd" id="3_pay"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_toll"]
+size = Vector2(126, 130)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_pay"]
+size = Vector2(300, 130)
+
+[node name="TollGate" type="StaticBody2D"]
+collision_layer = 4
+collision_mask = 0
+script = ExtResource("1_toll")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_toll")
+
+[node name="Pay" type="Area2D" parent="."]
+collision_layer = 0
+script = ExtResource("3_pay")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pay"]
+shape = SubResource("RectangleShape2D_pay")
+
+[node name="Interactable" parent="Pay" instance=ExtResource("2_inter")]

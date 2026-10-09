@@ -1,0 +1,16 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="PackedScene" uid="uid://dyvck7ac1yito" path="res://prefabs/enemy.tscn" id="1_enemy"]
+[ext_resource type="PackedScene" uid="uid://drbq47lw8o8mv" path="res://prefabs/hit_box.tscn" id="2_hitbox"]
+[ext_resource type="Script" path="res://scripts/RockBug.gd" id="3_bug"]
+[ext_resource type="PackedScene" uid="uid://cfju2r1ttqwwm" path="res://prefabs/stunner.tscn" id="4_stunner"]
+
+[node name="RockBugEnemy" instance=ExtResource("1_enemy")]
+
+[node name="RockBug" type="Node2D" parent="." index="2"]
+script = ExtResource("3_bug")
+
+[node name="HitBox" parent="." index="3" instance=ExtResource("2_hitbox")]
+scale = Vector2(1.4, 1.1)
+
+[node name="Stunner" parent="." index="4" instance=ExtResource("4_stunner")]
