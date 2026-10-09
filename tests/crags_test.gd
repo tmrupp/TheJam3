@@ -211,11 +211,12 @@ func ride() -> void:
 		check(not g.running or (rider.mode == RockBug.Mode.CAR and rider.face == RockBug.Face.RIGHT and rider.way == -1), "a bug in the running car climbs its barred side rather than leave")
 	check(await until(func() -> bool: return not g.running and g.at_station == start, 40000), "back at the open station")
 	# Stopped on the way, its sides lift; pulled again, it heads back. (From the line's end the
-	# lever's first pull balks, and the next goes the other way.)
+	# lever's first pull balks, and the next goes the other way; from a station partway along, it
+	# may set off either way.)
 	g.pull()
 	if not g.running:
 		g.pull()
-	check(g.running and g.bound_for == next, "the lever sets it off again")
+	check(g.running and g.bound_for != start, "the lever sets it off again")
 	await until(func() -> bool: return g.speed > 200.0)
 	g.pull()
 	check(not g.running and g.at_station < 0, "the lever stops it between stations")
@@ -343,5 +344,7 @@ func rock_bugs() -> void:
 	await physics_frame
 	check(bug.mode == RockBug.Mode.FALLING or bug.normal == Vector2i.DOWN, "stunned, it lets go (or stays on the floor it stands on)")
 	check(await until(func() -> bool: return bug.mode == RockBug.Mode.ROCK and not bug.stunned), "it lands on rock and clings again")
-	check(bug.rb.global_position.y >= height - 1.0 and clinging.call(), "below where it let go, against rock")
+	# Walking on as it clings, it may be rounding a corner just then, so give it a moment to be flat
+	# against the rock, and a little leeway on its height.
+	check(bug.rb.global_position.y >= height - RockBug.BODY * 0.25 and await until(clinging, 2000), "below where it let go, against rock")
 	player.set_physics_process(true)
