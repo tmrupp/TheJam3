@@ -24,6 +24,10 @@ const JITTER: float = 0.3
 
 var info: MapInfo
 var thread: Thread = Thread.new()
+## The worker's own terrain generator: a copy of the scene's (MapInfo.wfc), kept out of the scene
+## tree. A node in the tree may only be touched from the main thread: driven from the worker, the
+## scene's own redrew and signalled off the main thread, which can crash the game or lock it up.
+var _worker_wfc: WaveFunctionCollapse
 ## Collapsed cells by place, and laid-out levels by _world_key.
 var cache: Dictionary = {}
 var cache_order: Array[Vector2i] = []
@@ -46,8 +50,10 @@ func _init(owner_info: MapInfo) -> void:
 
 
 func _exit_tree() -> void:
-	if thread.is_started():
-		thread.wait_to_finish()
+	_join()
+	if _worker_wfc != null:
+		_worker_wfc.free()
+		_worker_wfc = null
 
 
 ## Lay out place `at` (or take it from the cache) and signal ready_to_build when it is.
@@ -59,6 +65,19 @@ func request(at: Vector2i) -> void:
 		ready_to_build.emit.call_deferred(built)
 	else:
 		_pump()
+
+
+## Wait for the worker to finish (if it was started). The terrain generator reads its sample's
+## pixels through the RenderingServer, which a worker can only do once the main thread has served
+## it: so while waiting, keep serving it, or the two would wait on each other for ever (as when the
+## scene is freed, back to the start menu, while a neighbour is still being laid out).
+func _join() -> void:
+	if not thread.is_started():
+		return
+	while thread.is_alive():
+		RenderingServer.force_sync()
+		OS.delay_msec(1)
+	thread.wait_to_finish()
 
 
 ## Start the worker on the wanted place, else on the next neighbour not yet cached.
@@ -73,8 +92,9 @@ func _pump() -> void:
 	if next == null:
 		return
 	gen_busy = true
-	if thread.is_started():
-		thread.wait_to_finish()
+	_join()
+	if _worker_wfc == null:
+		_worker_wfc = info.wfc.duplicate() as WaveFunctionCollapse
 	# Cells already collapsed are handed over, so the worker only lays the level out.
 	thread.start(_generate_threaded.bind(next as Vector2i, cache.get(next, [])))
 
@@ -82,14 +102,13 @@ func _pump() -> void:
 ## On the worker: the place's cells (unless given) and its layout, so neither stalls a frame.
 func _generate_threaded(at: Vector2i, cells: Array) -> void:
 	if cells.is_empty():
-		cells = info.wfc.generate_level(Rules.def_for(at))
+		cells = _worker_wfc.generate_level(Rules.def_for(at))
 	var built: LevelGen = LevelGen.new(cells, Rules.def_for(at))
 	_generated.call_deferred(at, cells, built)
 
 
 func _generated(at: Vector2i, cells: Array, built: LevelGen) -> void:
-	if thread.is_started():
-		thread.wait_to_finish()
+	_join()
 	gen_busy = false
 	# Left the scene (back to the start menu, or a test tearing down): the result is not wanted,
 	# and no further work may start, or a thread would outlive this object.

@@ -68,7 +68,7 @@ func run() -> void:
 	check((info.record().slain as Dictionary).has(cell), "the level records it slain")
 	check(placed("coin.tscn").size() > stars_before, "it drops stars")
 	check(hex.cast(Vector2.RIGHT) == null, "no charge, no bolt")
-	await until(func() -> bool: return hex.charges == 1, roundi((Hex.COOLDOWN + 1.0) * 1000.0))
+	await within(func() -> bool: return hex.charges == 1, Hex.COOLDOWN + 1.0)
 	check(hex.charges == 1, "the charge comes back after %.1f s" % Hex.COOLDOWN)
 	hex.charges = 0
 	placed("checkpoint.tscn")[0].call("interacted")

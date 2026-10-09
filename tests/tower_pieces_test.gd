@@ -76,7 +76,7 @@ func nest(cell: float) -> void:
 	check(await until(func() -> bool: return host.brood.size() == 1, 6000), "with the wizard near, it hatches a rock-bug")
 	var bug: Node2D = host.brood[0]
 	check(bug.get_node("RockBug") is RockBug and not bug.has_meta(&"cell"), "a rock-bug, not one of the level's")
-	check(await until(func() -> bool: return host.brood.size() == BugNest.BROOD, int(BugNest.EVERY * 1000.0) + 4000), "and another, after a while")
+	check(await within(func() -> bool: return host.brood.size() == BugNest.BROOD, BugNest.EVERY + 4.0), "and another, after a while")
 	host.wait = 0.0
 	await frames(int(BugNest.HATCH * 60.0) + 30)
 	check(host.brood.size() <= BugNest.BROOD and host.hatching < 0.0, "but no more than BROOD of its own at once")

@@ -7,6 +7,11 @@ extends TestKit
 func run() -> void:
 	root.size = Vector2i(1280, 720)
 	await boot()
+	# Held still and hard to kill: a wisp's bite on a slow run could otherwise kill the wizard, and
+	# the respawn's travel keeps the map shut.
+	player.set_physics_process(false)
+	player.health.max_health = 99
+	player.health.health = 99
 	await settle(10)
 	var first: Vector2i = info.coord
 	info.reveal(info.cell_at(info.player.global_position), 6)
@@ -21,10 +26,15 @@ func run() -> void:
 	var first_seen: int = info.seen_count()
 	info.travel(MapInfo.Exit.RIGHT)
 	await settle(10)
+	player.set_physics_process(false)
 	var map: Node = RisoPrint.instance.map_view
+	var why: String = "travelling %s, run ending %s, menu up %s, already open in view %s" % [info.travelling, info.run_ending, Stage.menu() != null and Stage.menu().visible, map.get("view")]
 	map.call("toggle")
 	map.call("page", 1)
 	await process_frame
+	if int(map.get("view")) != 2:
+		# Why it would not open, for a failure that only shows on a busy machine.
+		print("  the map stayed shut: ", why)
 	check(int(map.get("view")) == 2 and map.get("selected") == info.coord, "the worlds page opens with the cursor on this level")
 	var left: InputEventAction = InputEventAction.new()
 	left.action = &"Left"

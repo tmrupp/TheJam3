@@ -83,6 +83,8 @@ func _in_game() -> void:
 	print("in the game")
 	await boot(28)
 	await settle()
+	# Landed: the wizard arrives in the air, and sight is worked out from where their eyes are.
+	await until(func() -> bool: return player.is_on_floor())
 	var light: RisoLight = main.get_node("RisoLight") as RisoLight
 	await process_frame
 	check(light.sight != null and light.sight.solid.size() > 0, "the rock is laid out for sight")

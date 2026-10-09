@@ -5,6 +5,11 @@ extends SceneTree
 ## specks and halftone included), not leave the grain fixed to the screen.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/riso_pin_test.gd
 
+## The most the print may differ, aligned to the world, between two views of it: the grain and
+## the sheet's slow wobble leave about 0.02 even when it moves with the world exactly (aligned to
+## the screen instead it differs by about 0.3), so 0.02 itself was right on the edge.
+const PINNED_MAX: float = 0.05
+
 func _initialize() -> void:
 	call_deferred("run")
 
@@ -79,7 +84,7 @@ func run() -> void:
 	var pinned: float = diff(a, b, pts, shift.x, shift.y)
 	var still: float = diff(a, b, pts, 0, 0)
 	print("rock samples ", pts.size(), "  shift ", shift, "  diff when aligned to the world ", snappedf(pinned, 0.0001), "  diff aligned to the screen ", snappedf(still, 0.0001))
-	if pts.size() < 200 or shift == Vector2i.ZERO or pinned > 0.02 or pinned * 4.0 > still:
+	if pts.size() < 200 or shift == Vector2i.ZERO or pinned > PINNED_MAX or pinned * 4.0 > still:
 		push_error("FAIL: the print does not move with the world")
 		print("RISO PIN: FAIL")
 		quit(1)

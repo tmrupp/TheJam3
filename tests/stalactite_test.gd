@@ -68,7 +68,7 @@ func falling() -> void:
 	check(st.position == st.home and st.grown() < 0.2, "and grows back from the ceiling")
 	# Out from under it while it regrows, or it shakes again the moment it hangs, too soon to see.
 	player.global_position = st.home + Vector2(Stalactite.REACH * 3.0, cell * 2.0)
-	check(await until(func() -> bool: return st.state == Stalactite.State.HANGING, int(Stalactite.REGROW * 1000.0) + 4000), "until it hangs whole again")
+	check(await within(func() -> bool: return st.state == Stalactite.State.HANGING, Stalactite.REGROW + 4.0), "until it hangs whole again")
 	print("missing")
 	# Under it for a moment, then away: it falls on the floor beneath, and breaks there.
 	player.global_position = st.home + Vector2(0.0, cell * 2.0)

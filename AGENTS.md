@@ -77,7 +77,12 @@ bash tests/run.sh sky_test        # just these, headless
   hidden things too: the ghost, a bridge's planks before its bell rings). For the level generator
   alone, `build(at)` and `collapse(at)` lay a place out without the game scene, which is far faster
   than booting the game. `until` polls on process frames: a step timed in physics frames (a dash, a
-  jump) wants an `await physics_frame` after it. A few small tests still carry their own `check`;
+  jump) wants an `await physics_frame` after it. `until`'s timeout is wall-clock time; for
+  something the game times itself (a cooldown, a regrowth) use `within(cond, game_seconds)`, which
+  counts physics frames, as a busy machine runs the game slower than the clock. The kit runs one
+  physics step a frame, so a press made with `Input.parse_input_event` always reaches the game
+  before the next physics step, however loaded the machine. `bash tests/run.sh -j 16 full` loads
+  the machine harder, to shake out tests that depend on timing. A few small tests still carry their own `check`;
   move them onto the kit when touching them.
 - `unit_test` checks the plain rules (seeds, prices by depth, key rarity, side-world places,
   archetype bands, where exits lead, shrine offers, the keyring) without the scene, in a second

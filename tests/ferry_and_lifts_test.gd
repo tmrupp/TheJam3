@@ -107,5 +107,5 @@ func run() -> void:
 	Abilities.cast(player)
 	check(ferry.rafts.size() == 2 and is_equal_approx(ferry.speed, 230.0), "ferry III: two rafts at once, faster")
 	var last: FerryRaft = ferry.rafts[-1]
-	check(await until(func() -> bool: return not is_instance_valid(last), int(ferry.life * 1000.0) + 2000), "a raft fades when its life is out")
+	check(await within(func() -> bool: return not is_instance_valid(last), ferry.life + 2.0), "a raft fades when its life is out")
 	finish()

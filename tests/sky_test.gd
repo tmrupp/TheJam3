@@ -133,7 +133,11 @@ func falling() -> void:
 	player.velocity = Vector2.ZERO
 	player.end_invulnerable()
 	player.health.health = player.health.max_health
+	# Forget any rock stood on before, so the wait below is for this landing: under load a process
+	# frame can come before the next physics step, while the floor and footing are still old ones.
+	player.footing_at = Vector2i(-99999, -99999)
 	player.set_physics_process(true)
+	await physics_frame
 	await until(func() -> bool: return player.is_on_floor() and player.footing_at == info.coord)
 	var stood: Vector2 = player.global_position
 	check(player.footing_at == info.coord and player.footing.distance_to(stood) < 4.0, "standing on rock is remembered")
@@ -188,7 +192,7 @@ func puffs() -> void:
 	check(player.global_position.y > through + 20.0, "and the wizard drops through")
 	player.global_position = puff.global_position + Vector2(400, -2000)
 	player.set_physics_process(false)
-	await until(func() -> bool: return puff.holds(), roundi((Puff.REFORM + 1.0) * 1000.0))
+	await within(func() -> bool: return puff.holds(), Puff.REFORM + 1.0)
 	check(puff.holds(), "it gathers again %.0f s later" % Puff.REFORM)
 	# Touched and left at once: it still goes.
 	player.global_position = puff.global_position + Vector2(0, -100)

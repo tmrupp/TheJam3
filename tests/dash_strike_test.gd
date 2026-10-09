@@ -68,7 +68,7 @@ func run() -> void:
 	check(player.is_on_floor() and not player.dash.acted, "standing, the dash is ready")
 	await press_dash()
 	check(player.is_on_floor() and player.dash.acted, "dashed on the ground: not back at once")
-	await until(func() -> bool: return not player.dash.acted, roundi((Player.DASH_GROUND_COOLDOWN + 0.1) * 1000.0))
+	await within(func() -> bool: return not player.dash.acted, Player.DASH_GROUND_COOLDOWN + 0.1)
 	check(not player.dash.acted, "back after %.2f s" % Player.DASH_GROUND_COOLDOWN)
 
 	print("dashing through a wisp")

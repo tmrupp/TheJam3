@@ -26,6 +26,12 @@ const WAIT_MS: int = 30000
 
 
 func _initialize() -> void:
+	# One physics step a frame. Under load the engine otherwise runs several physics steps in one
+	# frame to catch up, while a press made with Input.parse_input_event reaches the game only at
+	# the start of the next frame: a test that pressed, then counted physics frames, could count
+	# them all before the press arrived. With one step a frame, a busy machine runs the game slower
+	# instead, and every test sees the same order of input and physics as on an idle one.
+	Engine.max_physics_steps_per_frame = 1
 	run.call_deferred()
 
 
@@ -79,6 +85,18 @@ func until(cond: Callable, timeout_ms: int = WAIT_MS) -> bool:
 			return false
 		await process_frame
 	return true
+
+
+## Wait until `cond` holds, checking after each physics frame, for at most `seconds` of game time
+## (counted in physics frames, not by the clock); false if it still does not hold. For what the
+## game times itself (a cooldown, a regrowth): a busy machine runs the game slower than the clock,
+## so a wait by the clock can run out before the game's own time has.
+func within(cond: Callable, seconds: float) -> bool:
+	for i: int in range(ceili(seconds * float(Engine.physics_ticks_per_second))):
+		if bool(cond.call()):
+			return true
+		await physics_frame
+	return bool(cond.call())
 
 
 ## A condition for until(): `node` is freed or going away. (A lambda holding the node itself
