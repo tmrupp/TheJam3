@@ -32,6 +32,19 @@ const SIGIL_R: float = 17.0
 ## while the wizard is right at the portal (as if it waits for them).
 var _portal_clock: float = 0.0
 const PORTAL_SLOW: float = 0.35
+## Its outline, rim and halo (at rest, not flaring), kept while it stands where they were worked
+## out (_shape_center): they cost hundreds of square roots to lay out, every frame.
+var _shape_center: Vector2 = Vector2.INF
+var _mouth: PackedVector2Array = PackedVector2Array()
+var _rim: Array[PackedVector2Array] = []
+var _halo: Array[PackedVector2Array] = []
+## The TV static's flecks, kept until the next flicker or a band's brightness changes: what they
+## were made for (the flicker, each row's odds of snow, the centre), then the flecks themselves.
+var _static_tick: float = -1.0
+var _static_odds: PackedFloat32Array = PackedFloat32Array()
+var _static_center: Vector2 = Vector2.INF
+var _snow: Array[PackedVector2Array] = []
+var _dark: Array[PackedVector2Array] = []
 
 
 ## The portal's centre in this prop's pixels: gates stand on their floor, rifts float where they
@@ -123,7 +136,12 @@ func _draw_art() -> void:
 		ink.ink(ring, 0.16 + 0.12 * near, [RisoShapes.ellipse(Vector2(0, g - 3.0), PORTAL_RX + 18.0, 7.0, 24)], false)
 		ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-PORTAL_RX - 10.0, g - PORTAL_LIFT - 4.0, PORTAL_RX * 2.0 + 20.0, PORTAL_LIFT + 4.0, 4.0)])
 		ink.ink(RisoPrint.NIGHT, 0.45, [RisoShapes.rrect(-PORTAL_RX - 4.0, g - PORTAL_LIFT - 4.0, PORTAL_RX * 2.0 + 8.0, 3.0, 1.5)], false)
-	var mouth: PackedVector2Array = portal_oval(center, 1.0)
+	if center != _shape_center:
+		_shape_center = center
+		_mouth = portal_oval(center, 1.0)
+		_rim = portal_ring(center, -1.5, 4.5)
+		_halo = portal_ring(center, 0.0, 16.0)
+	var mouth: PackedVector2Array = _mouth
 	if not active:
 		# Waiting for its partner: a dim outline of dashes, breathing.
 		ink.ink(RisoPrint.BLUE, 0.3, [mouth])
@@ -141,7 +159,7 @@ func _draw_art() -> void:
 		_portal_ripples(center, near, flare, ring, _portal_clock)
 	# The rim: solid on a gate, flickering dashes on a rift; a soft halo out from it.
 	var glow: float = 0.75 + 0.25 * near + 0.5 * flare
-	ink.ink_graded(ring, portal_ring(center, 0.0, 16.0 * (1.0 + flare)), _halo_fades(48, 0.28 * glow))
+	ink.ink_graded(ring, _halo if flare <= 0.0 else portal_ring(center, 0.0, 16.0 * (1.0 + flare)), _halo_fades(48, 0.28 * glow))
 	if rift:
 		var dashes: Array[PackedVector2Array] = []
 		for i: int in range(14):
@@ -151,7 +169,7 @@ func _draw_art() -> void:
 		ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 0.8, dashes)
 		ink.ink(ring, minf(1.0, 0.8 * glow + 0.2), dashes, false)
 	else:
-		var rim: Array[PackedVector2Array] = portal_ring(center, -1.5, 4.5)
+		var rim: Array[PackedVector2Array] = _rim
 		ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 0.85, rim)
 		ink.ink(ring, minf(1.0, glow), rim, false)
 	# The sigil on top: the pair's (Sigils) on a gate, the wizard's spark on a rift.
@@ -171,13 +189,34 @@ func _draw_art() -> void:
 ## brighter or dimmer than the next, rolling down. Right at it, it slows (see _portal_clock) and snows
 ## harder; it floods white as someone comes through.
 func _portal_static(center: Vector2, near: float, flare: float, ring: int, clock: float) -> void:
-	ink.ink(RisoPrint.BLUE, 0.6, [portal_oval(center, 1.0)], false)
-	ink.ink(RisoPrint.NIGHT, 0.45, [portal_oval(center, 1.0)], false)
+	ink.ink(RisoPrint.BLUE, 0.6, [_mouth], false)
+	ink.ink(RisoPrint.NIGHT, 0.45, [_mouth], false)
 	var tick: float = floorf(clock * 18.0)
 	var row: float = 4.0
 	var band: float = row * 4.0
 	var scroll: float = clock * 12.0 + phase * 40.0
 	var rows: int = int(PORTAL_RY * 2.0 / row)
+	# Each row's odds of snow: the band it is in (bands roll down), and how bright that is.
+	var odds_by_row: PackedFloat32Array = PackedFloat32Array()
+	odds_by_row.resize(rows)
+	for r: int in range(rows):
+		var y0: float = -PORTAL_RY + float(r) * row
+		var b: float = floorf((y0 - scroll) / band)
+		var level: float = RisoShapes.hash1(b * 5.13 + phase * 9.0)
+		odds_by_row[r] = (0.72 if level > 0.55 else 0.05 + 0.15 * level) + 0.12 * near + 0.6 * flare
+	if tick != _static_tick or odds_by_row != _static_odds or center != _static_center:
+		_static_tick = tick
+		_static_odds = odds_by_row
+		_static_center = center
+		_static_flecks(center, tick, row, rows, odds_by_row)
+	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 0.95, _snow)
+	ink.ink(ring, 0.15 + 0.2 * near, _snow, false)
+	ink.ink(RisoPrint.NIGHT, 0.9, _dark, false)
+
+
+## The static's flecks for flicker `tick`: rows of cells of hashed widths, each snow (bare paper)
+## at its row's odds, now and then dark, else nothing.
+func _static_flecks(center: Vector2, tick: float, row: float, rows: int, odds_by_row: PackedFloat32Array) -> void:
 	var snow: Array[PackedVector2Array] = []
 	var dark: Array[PackedVector2Array] = []
 	for r: int in range(rows):
@@ -185,10 +224,7 @@ func _portal_static(center: Vector2, near: float, flare: float, ring: int, clock
 		var hw: float = portal_half_width(y0 + row * 0.5) - 2.5
 		if hw < 3.0:
 			continue
-		# The band this row is in (bands roll down), and how bright it is.
-		var b: float = floorf((y0 - scroll) / band)
-		var level: float = RisoShapes.hash1(b * 5.13 + phase * 9.0)
-		var odds: float = (0.72 if level > 0.55 else 0.05 + 0.15 * level) + 0.12 * near + 0.6 * flare
+		var odds: float = odds_by_row[r]
 		var x: float = -hw
 		var i: int = 0
 		while x < hw:
@@ -202,9 +238,8 @@ func _portal_static(center: Vector2, near: float, flare: float, ring: int, clock
 				dark.append(cell)
 			x += w
 			i += 1
-	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 0.95, snow)
-	ink.ink(ring, 0.15 + 0.2 * near, snow, false)
-	ink.ink(RisoPrint.NIGHT, 0.9, dark, false)
+	_snow = snow
+	_dark = dark
 
 
 ## Inside, a pool of water: deep blue, darker below, with rings spreading out from a drip in the
@@ -212,7 +247,7 @@ func _portal_static(center: Vector2, near: float, flare: float, ring: int, clock
 ## The drips come slower right at it (see _portal_clock), and a big ring spreads as someone comes
 ## through.
 func _portal_ripples(center: Vector2, near: float, flare: float, ring: int, clock: float) -> void:
-	ink.ink(RisoPrint.BLUE, 0.75, [portal_oval(center, 1.0)], false)
+	ink.ink(RisoPrint.BLUE, 0.75, [_mouth], false)
 	ink.ink(RisoPrint.NIGHT, 0.35, [portal_oval(center + Vector2(0, PORTAL_RY * 0.25), 0.7, 32)], false)
 	var rate: float = 0.26
 	var tint: Array[PackedVector2Array] = []

@@ -15,6 +15,12 @@ var ui: bool = false
 ## Fraction of the canvas's ink and clearing to print, so a translucent figure leaves the
 ## scene beneath it visible on every plate.
 var coverage: float = 1.0
+## The shapes the last op printed, which the next shares if it prints the same (ink, then the night
+## it punches out).
+var _last_shape: RisoInkOp.Shape = null
+## Its world scale this print (see RisoInkOp.print_shape), read at the first op (-1 until then):
+## its ops sit untransformed under it, so they all share it.
+var _px: float = -1.0
 
 
 func _init() -> void:
@@ -31,6 +37,8 @@ func _ready() -> void:
 
 func begin() -> void:
 	_used = 0
+	_last_shape = null
+	_px = -1.0
 
 
 func finish() -> void:
@@ -104,10 +112,14 @@ func _emit(mask: int, lift: bool, cover: float, polys: Array[PackedVector2Array]
 		add_child(op)
 		_ops.append(op)
 	_used += 1
-	op.visible = true
-	op.visibility_layer = mask
-	op.material = lift_material if lift else null
-	op.polys = polys
+	# Set only what differs: each setting reaches the renderer, for thousands of ops a frame.
+	if not op.visible:
+		op.visible = true
+	if op.visibility_layer != mask:
+		op.visibility_layer = mask
+	var material_now: Material = lift_material if lift else null
+	if op.material != material_now:
+		op.material = material_now
 	var faded: Array[PackedFloat32Array] = []
 	if coverage < 1.0:
 		for values: PackedFloat32Array in alphas:
@@ -115,7 +127,17 @@ func _emit(mask: int, lift: bool, cover: float, polys: Array[PackedVector2Array]
 			for i: int in range(scaled.size()):
 				scaled[i] *= coverage
 			faded.append(scaled)
-	op.alphas = faded if coverage < 1.0 else alphas
-	op.cover = cover * coverage
-	op.lift = lift
-	op.queue_redraw()
+	var cover_by_point: Array[PackedFloat32Array] = faded if coverage < 1.0 else alphas
+	# The same shapes as the last op, or as this op printed last time, are not copied or
+	# triangulated again.
+	var shape: RisoInkOp.Shape
+	if _last_shape != null and _last_shape.same_as(polys, cover_by_point):
+		shape = _last_shape
+	elif op.shape != null and op.shape.same_as(polys, cover_by_point):
+		shape = op.shape
+	else:
+		shape = RisoInkOp.Shape.new(polys, cover_by_point)
+	_last_shape = shape
+	if _px < 0.0:
+		_px = absf(get_global_transform().determinant())
+	op.print_shape(shape, cover * coverage, lift, _px)

@@ -1464,9 +1464,10 @@ func place_side_doors (def: NextWorldDef) -> void:
 ## at least MOON_SPACING apart. Air over thorns is favoured: such spots are three times as
 ## likely, since a dash reset is most welcome there.
 func place_moons (count: int) -> void:
-	var supports: Dictionary = _platform_footprint()
-	var spots: Array[Vector2i] = _air_spots(func(v: Vector2i) -> bool: return _wide_open(v) and not _ledge_below(v, supports))
-	put_each(spread_out(spots, count, MOON_SPACING, func(v: Vector2i) -> bool: return empties.has(v)), Type.MOON)
+	var held: PackedByteArray = _held_up(_platform_footprint())
+	var spots: Array[Vector2i] = _air_spots(func(v: Vector2i) -> bool: return _wide_open(v) and not _ledge_below(v, held))
+	var free: Dictionary = empty_set()
+	put_each(spread_out(spots, count, MOON_SPACING, func(v: Vector2i) -> bool: return free.has(v)), Type.MOON)
 
 ## The free cells passing `test`, sorted, those over thorns listed three times (so a draw from
 ## them is three times as likely to land over thorns, where a moon or a reward is most welcome).
@@ -1496,22 +1497,45 @@ func _platform_footprint () -> Dictionary:
 					supports[v + Vector2i(dx, 0) + (motion[1] as Vector2i) * step] = true
 	return supports
 
-func _ledge_below (v: Vector2i, supports: Dictionary = {}) -> bool:
-	if supports.is_empty():
-		supports = _platform_footprint()
+## What stops a fall before it reaches a ledge (_held_up), and what a fall reaches before thorns
+## (_thorns_below).
+const FALL_STOPS: Array[Type] = [Type.GROUND, Type.CRACKED, Type.SPIKES]
+const THORN_COVER: Array[Type] = [Type.GROUND, Type.CRACKED, Type.PLATFORM, Type.MOVING_PLATFORM]
+
+## Whether a fall from `v`, straight down or a column to either side, lands on a ledge or lift
+## (see _held_up, which `held` is, worked out here if not given).
+func _ledge_below (v: Vector2i, held: PackedByteArray = PackedByteArray()) -> bool:
+	if held.is_empty():
+		held = _held_up(_platform_footprint())
 	for dx: int in range(-1, 2):
-		for dy: int in range(1, size.y - v.y):
-			var n: Vector2i = v + Vector2i(dx, dy)
-			if not is_valid(n) or get_cell(n).type in [Type.GROUND, Type.CRACKED, Type.SPIKES]:
-				break
-			if supports.has(n):
-				return true
+		var n: Vector2i = v + Vector2i(dx, 1)
+		if is_valid(n) and held[n.x * size.y + n.y] == 1:
+			return true
 	return false
+
+## Per cell (x * size.y + y), 1 where a ledge or lift (a cell of `supports`) lies in it or straight
+## below it before rock, cracked rock or thorns stop the fall: each column worked out once, from
+## the bottom up, rather than scanned down from every cell asked about.
+func _held_up (supports: Dictionary) -> PackedByteArray:
+	var out: PackedByteArray = PackedByteArray()
+	out.resize(size.x * size.y)
+	out.fill(0)
+	for x: int in range(size.x):
+		var held: bool = false
+		for y: int in range(size.y - 1, -1, -1):
+			var v: Vector2i = Vector2i(x, y)
+			if (cells[x][y] as Cell).type in FALL_STOPS:
+				held = false
+				continue
+			held = held or supports.has(v)
+			if held:
+				out[x * size.y + y] = 1
+	return out
 
 func _thorns_below (v: Vector2i) -> bool:
 	for dy: int in range(1, 6):
 		var n: Vector2i = v + Vector2i(0, dy)
-		if not is_valid(n) or get_cell(n).type in [Type.GROUND, Type.CRACKED, Type.PLATFORM, Type.MOVING_PLATFORM]:
+		if not is_valid(n) or get_cell(n).type in THORN_COVER:
 			return false
 		if get_cell(n).type == Type.SPIKES:
 			return true

@@ -48,6 +48,10 @@ func run() -> void:
 		await process_frame
 		while info.world == null or info.travelling:
 			await process_frame
+	# Standing still for minutes among enemies: the wizard is healed every frame so they never die
+	# (a respawn rebuilds the level under the measurements; more health would print more beads).
+	var player: Player = main.get_node("Player") as Player
+	process_frame.connect(func() -> void: player.health.health = player.health.max_health)
 	var riso: RisoPrint = RisoPrint.instance
 	var base: float = await measure("depth %d %s all on" % [DEPTH, info.world.size])
 	for part: String in ["terrain", "decor"]:
@@ -74,11 +78,13 @@ func run() -> void:
 		if list.size() < 8:
 			continue
 		for a: Node in list:
-			a.process_mode = Node.PROCESS_MODE_DISABLED
+			if is_instance_valid(a):
+				a.process_mode = Node.PROCESS_MODE_DISABLED
 		var mk: float = await measure("without %s art (%d)" % [k, list.size()])
 		print("BENCH   %s art costs %.2f ms" % [k, base - mk])
 		for a: Node in list:
-			a.process_mode = Node.PROCESS_MODE_INHERIT
+			if is_instance_valid(a):
+				a.process_mode = Node.PROCESS_MODE_INHERIT
 	# Props (every dressed prefab's ink art).
 	var arts: Array[Node] = get_nodes_in_group(&"riso_art").filter(func(n: Node) -> bool: return n.name == "RisoArt")
 	for a: Node in arts:
@@ -86,7 +92,8 @@ func run() -> void:
 	var ms_props: float = await measure("without prop art (%d)" % arts.size())
 	print("BENCH   prop art costs %.2f ms" % (base - ms_props))
 	for a: Node in arts:
-		a.process_mode = Node.PROCESS_MODE_INHERIT
+		if is_instance_valid(a):
+			a.process_mode = Node.PROCESS_MODE_INHERIT
 	# Game objects (enemies, pickups) paused.
 	info.map_elements.process_mode = Node.PROCESS_MODE_DISABLED
 	var ms_game: float = await measure("without level objects")

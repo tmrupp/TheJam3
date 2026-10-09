@@ -121,6 +121,9 @@ static func cluster_islands(w: LevelGen) -> void:
 				break
 		if apart:
 			w.isles.append([c, r])
+	# The clusters are thrown: map them, so telling whether a cell is in one (in_isle, asked tens
+	# of thousands of times below) is a lookup rather than a test against every cluster.
+	w.map_isles()
 	for x: int in range(w.size.x):
 		for y: int in range(w.size.y):
 			var v: Vector2i = Vector2i(x, y)
@@ -202,6 +205,9 @@ static func _stamp_islands(w: LevelGen, c: Vector2i, r: Vector2i, want: int) -> 
 				var v: Vector2i = Vector2i(x, y)
 				if not w.is_valid(v) or w.get_cell(v).type != LevelGen.Type.EMPTY:
 					fits = false
+					break
+			if not fits:
+				break
 		for x: int in [at.x, at.x + span - 1]:
 			fits = fits and w.in_isle(Vector2i(x, at.y))
 		if not fits:
@@ -268,6 +274,7 @@ static func link_isles(w: LevelGen) -> void:
 		var c: Vector2i = w.isles[j][0]
 		var r: Vector2i = w.isles[j][1]
 		w.isles.remove_at(j)
+		w.map_isles()
 		for x: int in range(c.x - r.x, c.x + r.x + 1):
 			for y: int in range(c.y - r.y, c.y + r.y + 1):
 				var v: Vector2i = Vector2i(x, y)

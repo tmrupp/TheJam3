@@ -2,19 +2,61 @@ class_name RisoShapes
 ## Polygon builders for riso art. Every shape is a filled, closed PackedVector2Array.
 
 
+## The shapes that only scale and move (a circle, a rounded corner, a sparkle, an almond) are worked
+## out once at unit size, by their point count, and placed with one transform each time: the art
+## asks for thousands of them a frame. The unit shapes, by kind and point count (see _unit).
+static var _units: Dictionary = {}
+## The kinds of unit shape: a circle, a rounded rectangle's four corners (clockwise from the top
+## right, in order), an almond and a sparkle.
+enum Unit { CIRCLE, CORNER_TOP_RIGHT, CORNER_BOTTOM_RIGHT, CORNER_BOTTOM_LEFT, CORNER_TOP_LEFT, ALMOND, SPARKLE }
+
+
+## The unit shape of kind `kind` (a Unit) with `n` points (a circle) or segments (the rest), made
+## on first use.
+static func _unit(kind: int, n: int) -> PackedVector2Array:
+	var key: int = kind * 100000 + n
+	var unit: Variant = _units.get(key)
+	if unit != null:
+		return unit
+	var out: PackedVector2Array = PackedVector2Array()
+	match kind:
+		Unit.CIRCLE:
+			for i: int in range(n):
+				var t: float = TAU * float(i) / float(n)
+				out.append(Vector2(cos(t), sin(t)))
+		Unit.ALMOND:
+			for k: int in range(n + 1):
+				var u: float = float(k) / float(n)
+				out.append(Vector2(-1.0 + 2.0 * u, -4.0 * u * (1.0 - u)))
+			for k: int in range(n - 1, 0, -1):
+				var u: float = float(k) / float(n)
+				out.append(Vector2(-1.0 + 2.0 * u, 4.0 * u * (1.0 - u)))
+		Unit.SPARKLE:
+			var tips: Array[Vector2] = [Vector2(0, -1), Vector2(1, 0), Vector2(0, 1), Vector2(-1, 0)]
+			for k: int in range(4):
+				var a: Vector2 = tips[k]
+				var b: Vector2 = tips[(k + 1) % 4]
+				for s: int in range(n):
+					var t: float = float(s) / float(n)
+					out.append(a.lerp(Vector2.ZERO, t).lerp(Vector2.ZERO.lerp(b, t), t))
+		_:
+			# A rounded rectangle's corner, a quarter turn from its start (clockwise from the top right).
+			var start: float = -PI * 0.5 + PI * 0.5 * float(kind - Unit.CORNER_TOP_RIGHT)
+			for s: int in range(n + 1):
+				var t: float = start + (PI * 0.5) * float(s) / float(n)
+				out.append(Vector2(cos(t), sin(t)))
+	_units[key] = out
+	return out
+
+
 static func circle(c: Vector2, r: float, n: int = 18) -> PackedVector2Array:
 	return ellipse(c, r, r, n)
 
 
 static func ellipse(c: Vector2, rx: float, ry: float, n: int = 20, rot: float = 0.0) -> PackedVector2Array:
-	var out: PackedVector2Array = PackedVector2Array()
 	var cr: float = cos(rot)
 	var sr: float = sin(rot)
-	for i: int in range(n):
-		var t: float = TAU * float(i) / float(n)
-		var p: Vector2 = Vector2(cos(t) * rx, sin(t) * ry)
-		out.append(c + Vector2(p.x * cr - p.y * sr, p.x * sr + p.y * cr))
-	return out
+	return Transform2D(Vector2(rx * cr, rx * sr), Vector2(-ry * sr, ry * cr), c) * _unit(Unit.CIRCLE, n)
 
 
 ## Closed quadratic spline through the midpoints of `pts` (every corner rounded).
@@ -37,11 +79,8 @@ static func rrect(x: float, y: float, w: float, h: float, r: float, seg: int = 4
 	r = minf(r, minf(w, h) * 0.5)
 	var out: PackedVector2Array = PackedVector2Array()
 	var corners: Array[Vector2] = [Vector2(x + w - r, y + r), Vector2(x + w - r, y + h - r), Vector2(x + r, y + h - r), Vector2(x + r, y + r)]
-	var starts: Array[float] = [-PI * 0.5, 0.0, PI * 0.5, PI]
 	for k: int in range(4):
-		for s: int in range(seg + 1):
-			var t: float = starts[k] + (PI * 0.5) * float(s) / float(seg)
-			out.append(corners[k] + Vector2(cos(t), sin(t)) * r)
+		out.append_array(Transform2D(Vector2(r, 0.0), Vector2(0.0, r), corners[k]) * _unit(Unit.CORNER_TOP_RIGHT + k, seg))
 	return out
 
 
@@ -74,27 +113,12 @@ static func crescent(c: Vector2, r: float, d: Vector2, n: int = 36) -> PackedVec
 
 
 static func almond(c: Vector2, w: float, h: float, seg: int = 10) -> PackedVector2Array:
-	var out: PackedVector2Array = PackedVector2Array()
-	for k: int in range(seg + 1):
-		var u: float = float(k) / float(seg)
-		out.append(c + Vector2(-w + 2.0 * w * u, -h * 4.0 * u * (1.0 - u)))
-	for k: int in range(seg - 1, 0, -1):
-		var u: float = float(k) / float(seg)
-		out.append(c + Vector2(-w + 2.0 * w * u, h * 4.0 * u * (1.0 - u)))
-	return out
+	return Transform2D(Vector2(w, 0.0), Vector2(0.0, h), c) * _unit(Unit.ALMOND, seg)
 
 
 ## Four-point star with concave (quadratic) sides.
 static func sparkle(c: Vector2, r: float, sx: float = 1.0, seg: int = 4) -> PackedVector2Array:
-	var tips: Array[Vector2] = [Vector2(0, -r), Vector2(r * sx, 0), Vector2(0, r), Vector2(-r * sx, 0)]
-	var out: PackedVector2Array = PackedVector2Array()
-	for k: int in range(4):
-		var a: Vector2 = tips[k]
-		var b: Vector2 = tips[(k + 1) % 4]
-		for s: int in range(seg):
-			var t: float = float(s) / float(seg)
-			out.append(c + a.lerp(Vector2.ZERO, t).lerp(Vector2.ZERO.lerp(b, t), t))
-	return out
+	return Transform2D(Vector2(r * sx, 0.0), Vector2(0.0, r), c) * _unit(Unit.SPARKLE, seg)
 
 
 ## Round-topped arch standing on y + h.
