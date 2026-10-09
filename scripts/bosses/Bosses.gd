@@ -6,7 +6,8 @@ extends RefCounted
 ## opens for good, the boss is never met again, and where it fell a relic waits, free. The worm and
 ## the bramble fight in the gate level itself; the others in an arena of their own (Arena), a side
 ## world behind a door in the gate level. Until each boss is built, a stand-in fights for it (Boss);
-## the worm (Worm) and the bramble (Bramble) are built.
+## the worm (Worm), the bramble (Bramble) and the spider (Spider, in its keep: SpiderKeep) are
+## built.
 
 ## Who guards the garden's way down and its way up, and the far end of each band below and above
 ## the garden, in NextWorldDef.DOWN's and UP's order.
@@ -23,6 +24,7 @@ const RELIC_DEAL: int = 5300
 const SCENES: Dictionary = {
 	&"worm": "res://prefabs/worm.tscn",
 	&"bramble": "res://prefabs/bramble.tscn",
+	&"spider": "res://prefabs/spider.tscn",
 }
 
 

@@ -13,6 +13,8 @@ class_name DashStrike
 ## walking in). A blink strikes everything along the way it jumps, and hands back the dash for
 ## each full moon it passes (Blink.gd).
 ## Moth swarms scatter for six seconds when struck, and cannot sting through the dash.
+## A dash (or a blink) tears the spider's webs it passes through (SpiderWeb) and cuts a spider's
+## thread it crosses (Spider), dropping it; its round body is struck only where the wizard meets it.
 
 const STUN: float = 2.5
 ## How near the wizard's path an enemy has to be (past its centre) to be struck.
@@ -87,6 +89,10 @@ func guards(attacker: Node) -> bool:
 ## Strike every enemy near the way from `from` to `to` not yet struck this dash, nearest first.
 func sweep(from: Vector2, to: Vector2) -> void:
 	var dir: Vector2 = (to - from).normalized() if to != from else player.velocity.normalized()
+	SpiderWeb.tear_along(get_tree(), from, to)
+	var thread: Dictionary = Spider.thread_across(get_tree(), from, to, Spider.DASH_THREAD_REACH)
+	if not thread.is_empty():
+		(thread["spider"] as Spider).cut(thread["at"])
 	var targets: Array[Node] = []
 	for e: Node in get_tree().get_nodes_in_group(&"hex_target"):
 		if not is_instance_valid(e) or e.is_queued_for_deletion() or Wound.whole(e) in struck:
@@ -95,7 +101,11 @@ func sweep(from: Vector2, to: Vector2) -> void:
 			continue
 		var at: Vector2 = (e as Node2D).global_position
 		var near: PackedVector2Array = Geometry2D.get_closest_points_between_segments(from, to, at + Vector2(0, SPAN_DOWN), at - Vector2(0, SPAN_UP))
-		var meets: bool = _meets_worm(e as WormSegment, from, to) if e is WormSegment else near[0].distance_to(near[1]) <= REACH
+		var meets: bool = near[0].distance_to(near[1]) <= REACH
+		if e is WormSegment:
+			meets = _meets_worm(e as WormSegment, from, to)
+		elif e is Spider:
+			meets = (e as Spider).struck_by(from, to, Spider.DASH_REACH)
 		if meets:
 			targets.append(e)
 	targets.sort_custom(func(a: Node, b: Node) -> bool: return from.distance_squared_to((a as Node2D).global_position) < from.distance_squared_to((b as Node2D).global_position))

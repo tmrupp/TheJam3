@@ -447,6 +447,8 @@ func _physics_process(delta: float) -> void:
 
 	var walled: bool = false
 	var wall_normal: Vector2
+	# In a spider's web (SpiderWeb): held, and the dash does not come back.
+	var webbed: bool = SpiderWeb.holding(get_tree(), global_position)
 
 	# get input from the user to establish direction
 	var direction: Vector2 = Vector2.RIGHT * Input.get_axis("Left", "Right") + Vector2.DOWN * Input.get_axis("Up", "Down")
@@ -518,7 +520,7 @@ func _physics_process(delta: float) -> void:
 			pass
 		
 		# Arm coyote time only while grounded. Taking a jump spends it; falling cannot rearm it.
-		if dash_rest <= 0.0:
+		if dash_rest <= 0.0 and not webbed:
 			dash.refresh()
 		coyote.enable(true)
 		hang.refresh()
@@ -598,6 +600,12 @@ func _physics_process(delta: float) -> void:
 			dash_rest = DASH_GROUND_COOLDOWN
 			dash_ability.bind(direction).call()
 	
+	# A web holds the wizard: slow across, a jump stalls in it and a fall through it sinks slowly. A
+	# dash goes through, tearing it (DashStrike).
+	if webbed and not dash.is_acting():
+		velocity.x = clampf(velocity.x, -SpiderWeb.WEB_SPEED, SpiderWeb.WEB_SPEED)
+		velocity.y = clampf(velocity.y, -SpiderWeb.WEB_RISE, SpiderWeb.WEB_SINK)
+
 	# elapse the time in all timers
 	for timer: ActionTimer in timers:
 		timer.elapse(delta)

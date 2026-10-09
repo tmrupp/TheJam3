@@ -3,7 +3,9 @@ class_name HexBolt
 ## A hex bolt in flight. Each physics step it sweeps a ray against solid things (rock, doors,
 ## cracked walls; one-way ledges are passed through) and checks enemies near its path. It wounds
 ## what it meets (Wound.hit; enemies are stunned too, and at hex I only stunned) and breaks cracked
-## walls (hex_hit) at any tier, and ends at rock or after RANGE. Printed as a comet of spell light
+## walls (hex_hit) at any tier, and ends at rock or after RANGE. It tears the spider's webs it
+## passes through (SpiderWeb) and flies on, and cuts a spider's thread it crosses (Spider), ending
+## there. Printed as a comet of spell light
 ## (accent ink, like the wand tip) with a tapering tail.
 
 const SPEED: float = 1100.0
@@ -68,19 +70,27 @@ func _physics_process(delta: float) -> void:
 	var from: Vector2 = global_position
 	var to: Vector2 = from + dir * SPEED * delta
 	# Enemies along the step, nearest first.
+	SpiderWeb.tear_along(get_tree(), from, to)
 	var targets: Array[Node] = []
 	for e: Node in get_tree().get_nodes_in_group(&"hex_target"):
 		if not is_instance_valid(e) or e.is_queued_for_deletion() or Wound.whole(e) in struck:
 			continue
 		var at: Vector2 = (e as Node2D).global_position
 		var near: PackedVector2Array = Geometry2D.get_closest_points_between_segments(from, to, at + Vector2(0, SPAN_DOWN), at - Vector2(0, SPAN_UP))
-		if near[0].distance_to(near[1]) <= REACH:
+		# A spider is round, with its thread over it: struck only on its body.
+		var meets: bool = (e as Spider).struck_by(from, to, Spider.BOLT_REACH) if e is Spider else near[0].distance_to(near[1]) <= REACH
+		if meets:
 			targets.append(e)
 	targets.sort_custom(func(a: Node, b: Node) -> bool: return from.distance_squared_to((a as Node2D).global_position) < from.distance_squared_to((b as Node2D).global_position))
 	var wall: Dictionary = _solid(from, to)
 	var wall_d: float = from.distance_to(wall["position"]) if not wall.is_empty() else INF
+	# A spider's thread on the way, short of the rock, is cut where the bolt meets it.
+	var thread: Dictionary = Spider.thread_across(get_tree(), from, to, Spider.THREAD_REACH)
+	var thread_d: float = float(thread["d"]) if not thread.is_empty() and float(thread["d"]) <= wall_d else INF
 	for e: Node in targets:
 		if from.distance_to((e as Node2D).global_position) > wall_d + REACH:
+			break
+		if from.distance_to((e as Node2D).global_position) > thread_d:
 			break
 		# A worm is struck once, in the first segment met (Wound.whole).
 		if Wound.whole(e) in struck:
@@ -108,6 +118,10 @@ func _physics_process(delta: float) -> void:
 		if not pierce or struck.size() > 1:
 			_end((e as Node2D).global_position)
 			return
+	if thread_d < INF:
+		(thread["spider"] as Spider).cut(thread["at"])
+		_end(thread["at"])
+		return
 	if not wall.is_empty():
 		var hit: Object = wall["collider"]
 		if answers(hit):

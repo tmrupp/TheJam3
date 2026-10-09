@@ -1,14 +1,14 @@
 # Regions: up and down, and the bosses that guard them
 
 A plan for turning the single dive into two branches out of the garden, up through the crags to
-the sky and down through the cemetery to the catacombs, with a boss at the end of each band that
+the sky and down through the cemetery to the library, with a boss at the end of each band that
 guards a relic and the way on to the next region. It builds on `docs/DEEPER_PLAN.md` (the grid of
 places, archetypes, side worlds, relics) and follows the owner's notes, now the task list linked
 from `AGENTS.md` ("can go up or down", "bosses, possibly guarding relics, must be defeated").
 
 Phases 1 (rows both ways), 2 (climbing levels), 3 (the gate, with a stand-in boss) and 4 (the
-worm and the bramble) are built, and of phase 5 a first pass of the crags (no spider yet); the
-rest is not yet. Each section says what is decided, what
+worm and the bramble) are built, and of phase 5 a first pass of the crags and of the spider in its
+keep; the rest is not yet. Each section says what is decided, what
 is proposed, and what is still open; the phases at the end give the order of work.
 
 ## 1. Decided
@@ -21,6 +21,8 @@ is proposed, and what is still open; the phases at the end give the order of wor
 | How often a boss is beaten | **Once per run.** Until it is slain, every band-end level of its band (in every world column) holds it and is sealed; once slain, all of them open for the rest of the run, and it is never met again. |
 | Crags and castle | One band: vertical cliff levels dressed with castle ruins. The spider's arena is the keep. |
 | Hyperspace across branches | Yes: a hyperspace may cross the start into the other branch (35 % of them), still leading 4 rows further from the start. |
+| The cemetery | Stays the cemetery: its terraces, decor and bell gates, with crypts (mausoleums, catacomb tunnels) added behind bell gates. Light and darkness start to matter here, within a level rather than by band (§7). |
+| The last band down | The **library**, in place of the catacombs (which become the cemetery's crypts). What it is, beyond strong spellcasting enemies, is open (§7). The eldritch beast stays its boss. |
 
 ## 2. The vertical map
 
@@ -34,7 +36,7 @@ the start. Row 0 is where a run begins; rows below it are down, rows above it (n
         up gate,   row −3:  the bramble (in the level)
         down gate, row +3:  the worm (in the level)
    cemetery        rows  +4 …  +9     necromancer (arena: a crypt)
-   catacombs       rows +10 … +15     eldritch beast (arena: its chamber)
+   library         rows +10 … +15     eldritch beast (arena: its chamber)
 ```
 
 - **Bands.** The garden is 7 rows (three either side of the start); every other band is 6. Each
@@ -44,7 +46,7 @@ the start. Row 0 is where a run begins; rows below it are down, rows above it (n
   values, enemy health, level size, relic chances, key rarity, lantern counts) scales with the
   distance `|row|` instead. A level's definition keeps a `depth` field for this, set to `|row|`,
   and its row in `coord.y`. Crags at rows −4 to −9 are as hard as the cemetery at +4 to +9.
-- **Past the last bands** (below the catacombs, above the sky): open, see §9. Until decided, the
+- **Past the last bands** (below the library, above the sky): open, see §9. Until decided, the
   outermost band repeats, harder, with no further boss.
 
 ## 3. Places and their coordinates
@@ -265,15 +267,46 @@ through the gate level's tunnels, as Tom described.
 
 ### The spider (crags / castle, arena: the keep)
 
-The keep is a tall hall of broken floors. The spider hangs in the dark at its top.
+*A first pass is built* (`Spider`, `SpiderKeep`, `SpiderWeb`, `SpiderWound`,
+`prefabs/spider.tscn`). The spider's arena (`Arena`, the side world behind the boss door in the
+crags' gate level, row −9) lays out its keep instead of the plain hall, printed as the crags' castle
+(their realm and decor).
 
-- **Webs.** It spins webs across the hall between broken floors: standing in one slows the wizard
-  and stops the dash coming back (the "ink pool" idea, made sticky); a hex or a dash tears one.
-  Webs are also its paths: it scuttles along them.
-- **The thread.** It drops on a thread to strike, then climbs back. A hex bolt cuts the thread and
-  drops it to the floor, where it is open to strikes until it climbs a wall again. A parried bite
-  stuns it on the spot.
-- **Health** as eyes: each wound puts out one of its eyes (paper knocked dark).
+- **The keep** (`SpiderKeep.build`, from the arena's own RNG, the same every visit). 22 × 32 cells
+  of masonry: a hall 18 wide, a roost of 8 rows of air under the roof, then 5 broken floors 4 rows
+  apart (`STOREY`) and the ground storey. Every floor is broken by the **well**, a hole 3 wide in
+  the same columns all the way down, and by a **stair hole** on alternate sides of it, with a
+  one-way ledge under it halfway down the storey below, so each floor is climbed in two of the
+  wizard's own hops. The way back and a lantern stand on the ground at the left. What it holds is
+  noted in `LevelGen.keep`.
+- **Webs** (`SpiderWeb`): across every hole of the well and half the stair holes. In one the
+  wizard moves at most 110 px/s across, rises 90 and sinks 55 (a jump stalls, a fall is slow), and
+  the dash does not come back (`Player`). A hex bolt (flying on) or a dash tears one; it is spun
+  again 12 s later. The spider passes through its own webs. Not yet: scuttling along them as
+  paths.
+- **Hunting.** Asleep on its canopy under the roof until the wizard comes within 16 cells; then it
+  crawls along the roof to be over them (or over the hole nearest them, waiting), rears 0.45 s
+  (fangs flashing pink), drops on its thread (1500 px/s) to where they were, holds its bite
+  0.55 s, climbs back (400 px/s) and rests 0.9 s. It drops and climbs only through the middle of a
+  hole (its body is about 140 px across).
+- **Hard back.** A strike glances off unless it is **open**: biting (its face), stunned, or fallen.
+  Open, any bolt, dash or parry (even one that only stuns, `Wound.least`) puts out one eye.
+- **The thread.** A hex bolt or a dash across it cuts it (`Spider.thread_across`; the bolt ends
+  there): it tumbles to the floor below and lies on its back 2.8 s, then scurries along that floor
+  to the nearest spot with a clear line up to the roof (or off into a hole, falling on down) and
+  climbs a new thread, which can be cut again. Its body is a capsule that turns with it
+  (`struck_by`); the thread leaves its abdomen's tip clear of that, so a way over its back cuts
+  the thread rather than glancing off.
+- **Parry.** A parried bite puts out an eye and stuns it on the spot (`Parry.STUN`; nothing else
+  stuns it, `Stunner.parry_only`); when the stun passes it climbs back up.
+- **Health** as eyes: 8 (`EYES`), bare paper, accent while it is open, dark once put out (the small
+  ones at the back first). With the last it curls up, falls, shrivels (1.3 s), and its relic waits
+  on the floor where it lies. A lantern death brings it back whole, webs and all.
+- **Size.** Every size of it follows `Spider.ART` (2.6: its abdomen's tip 156 px behind its middle).
+- `tests/spider_test.gd` covers the keep and the fight; `tests/capture_spider.gd` takes stills.
+- **Status / not yet.** First pass, untuned. Not yet: playtested by hand; webs as its paths; a
+  cue for where it will drop beyond the rear; the spider's size against the 3-row storeys (it
+  fills most of one) wants a look in play.
 
 ### The whale (sky, arena: its belly)
 
@@ -289,26 +322,29 @@ A great slow whale drifts across an open sky arena.
 
 ### The necromancer (cemetery, arena: a crypt)
 
+Its crypt is one of the cemetery's (§7): behind a bell gate, dark inside, its graves the burial
+niches of the crypt's tunnels.
+
 - **Skeletons.** It raises skeletons from graves round the crypt that walk at the wizard. A stun
   kills a skeleton (they "die on stun", as Tom noted), so the parry clears them, and the hex's stun
   does too.
 - **The necromancer** blinks between graves and is shielded (`Shield`) while any skeleton walks;
   when the last falls, it is open for a moment. Its health as candles on its staff.
 
-### The eldritch beast (catacombs, arena: its chamber)
+### The eldritch beast (library, arena: its chamber)
 
 Tom's idea: it spawns souls (tentacles, horcruxes) in levels already visited, which must be
-destroyed.
+destroyed. It stays the boss of the last band down now that the band is the library; how its
+souls fit the library depends on what the library becomes (§7).
 
 - **Souls.** When the wizard first enters its chamber, it sends out one soul per a few levels into
-  catacomb levels the wizard has visited (kept in those levels' records, so they are there on the
+  library levels the wizard has visited (kept in those levels' records, so they are there on the
   next visit). Each soul is a pulsing thing (pink, on the map once sensed, and with awareness) that
   takes a few hits.
 - **The beast** cannot be wounded while any soul lives; with each soul destroyed, one of its eyes
   closes. When all are gone it is vulnerable in its chamber, a short fight of tentacle sweeps to
   jump and parry.
-- This fight sends the wizard back up the band they just came down, which the catacombs' darkness
-  and the carried lantern's light (`RisoLight`) make a journey of its own.
+- This fight sends the wizard back up the band they just came down, a journey of its own.
 
 ## 7. The new bands
 
@@ -338,17 +374,37 @@ the spider.
   watchers in the arrow slits.
 - **Realm.** Pale stone and dawn colours; wind-torn clouds below the cliffs.
 
-### Catacombs (rows +10 … +15)
+### The cemetery: crypts, light and darkness (rows +4 … +9)
 
-- **Terrain.** Tight tunnels and burial chambers, the crypts the cemetery plan set aside: a sample
-  of narrow passages, niches and ossuary rooms (`tests/make_catacombs_sample.gd`).
-- **Darkness.** *Built* (`Archetype.gloom`, `RisoLight`; see `docs/RISO_PRINT.md`, line of
-  sight). The night is deep here; most of what you see is what your carried lantern lights
-  (`RisoLight.CARRIED_REACH`), and lanterns matter more than ever. Being unprotected (the short,
-  dim pink light) is felt. Every band is shaded out of the wizard's sight; only here is it dark in sight too.
-- **Life.** Moths (drawn to your lantern), wraiths, skeletons that wake as you pass, bone gates
-  (skeleton keys) more often.
-- **Realm.** Bone paper, ochre and black.
+The cemetery stays as built (`docs/DEEPER_PLAN.md` §4b): its terraces, realm, decor, moths, fog,
+wraiths, and its chasms gated by bells. What it gains are crypts, and light that matters.
+
+- **Crypts.** Mausoleum fronts stand on the terraces, each barred by a bell gate: ringing its bell
+  (freed as any bell is, by key or switch) opens the crypt. Behind it, catacomb tunnels are cut
+  into the rock by a structure pass (as the crags build their keeps): narrow passages, burial
+  niches, the odd ossuary room. Some crypts hold loot (a vault, a relic, a lantern), some are part
+  of the way through. The decor goes inside too: headstones and urns set in niches, cobwebs and
+  roots; the necromancer's arena is a crypt (§6).
+- **Light by place, not by band.** The terraces stay moonlit (the shade every band has, no gloom);
+  inside a crypt it is deep dark (`Archetype.gloom`, so far only on the band below). The darkness
+  is a property of where the wizard is in the level, not of the whole level.
+- **Light and dark each have their uses.** The carried lantern's flame can be snuffed and lit
+  again, and the cemetery asks for both at different times:
+  - *Lit*, the wizard sees in the crypts, and light-shy things (a crypt-dweller that moves only in
+    the dark) freeze in the flame's light, a lantern's pool or a lit candle.
+  - *Snuffed*, the wizard is hidden from what hunts the flame (wraiths, moths), slips past the
+    sleeping dead in their niches (who wake when light falls on them), and sees what shows only in
+    the dark: ghost planks over a chasm, glowing grave runes, will-o'-wisps marking a hidden crypt.
+- **Places to snuff and to light.** Fonts or draughts that put the flame out; candles, braziers and
+  lit lanterns that light it again (a hex bolt lights a candle, which stays lit in the record).
+- **Snuffing is a risk.** Proposed: while the flame is out the wizard is unprotected (a death ends
+  the run) until it is lit again. Open: whether it should be softer, such as only losing sight.
+
+### The library (rows +10 … +15)
+
+The last band down, in place of the catacombs. The beast stays its boss, and it should have strong
+spellcasting enemies; the rest is being worked out. Until it is built, the band is the stand-in
+(`CatacombsArchetype`: the cemetery's terrain and dressing in deep darkness).
 
 ### The garden widens
 
@@ -420,17 +476,20 @@ Each phase ends with the full suite green and its own tests.
    arena.
 5. **Crags and castle**: *a first pass is done*: sample, structure pass, decor, realm, and the
    gondola (`CragsArchetype`, `Gondola`; `crags_test`, `capture_crags.gd`; the crags' layouts
-   changed and `layout_fingerprint_test` was re-pinned for them alone). Then its life (updrafts,
-   falling rocks, watchers in the slits), **the spider** and its keep.
-6. **Catacombs**: sample, darkness, decor, realm; then **the necromancer** (cemetery) and **the
-   eldritch beast**.
-7. **The whale** and its belly.
-8. **Tuning pass** with playtests: boss health and timing, relic odds now that bosses give one,
+   changed and `layout_fingerprint_test` was re-pinned for them alone). *The spider and its keep:
+   a first pass is done* (§6; `spider_test`, `capture_spider.gd`; no level's layout changed, only
+   the spider's arena). Then its life (updrafts, falling rocks, watchers in the slits), and tuning
+   the spider in play.
+6. **Cemetery crypts and light**: crypts behind bell gates, darkness by place, the flame snuffed
+   and lit; then **the necromancer** in its crypt.
+7. **The library**: once decided (§7); then **the eldritch beast**.
+8. **The whale** and its belly.
+9. **Tuning pass** with playtests: boss health and timing, relic odds now that bosses give one,
    prices by distance.
 
 ## 9. Open
 
-- **Past the last bands.** Below the catacombs and above the sky: a final place where the branches
+- **Past the last bands.** Below the library and above the sky: a final place where the branches
   meet (hyperspace?), the outer bands repeating harder, or the run won at the bottom or the top.
 - **What a boss's relic is.** A move not yet known (proposed), or always the same move per boss
   (the bramble wall climb, the worm double jump...), which would make each branch's order of

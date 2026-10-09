@@ -173,7 +173,7 @@ The third band (depths 12–17, 30–35, ...) is clusters of floating islands of
 
 ## 4d. The crags
 
-The first band up from the garden (rows −4 to −9): tall cliffs with castle ruins on them, climbed (`CragsArchetype`; `docs/REGIONS_PLAN.md` §7). A first pass: its terrain, structures, realm, decor, gates, the gondola and the rock-bugs. Not yet: updrafts in its chimneys, falling rocks, watchers in the arrow slits, and the spider.
+The first band up from the garden (rows −4 to −9): tall cliffs with castle ruins on them, climbed (`CragsArchetype`; `docs/REGIONS_PLAN.md` §7). A first pass: its terrain, structures, realm, decor, gates, the gondola and the rock-bugs. Not yet: updrafts in its chimneys, falling rocks, watchers in the arrow slits. The spider, its boss, fights in its keep behind the gate level's boss door (a first pass: `docs/REGIONS_PLAN.md` §6).
 
 - **Size:** 0.8 times as wide and 1.6 times as tall as a cave level of its depth (`CragsArchetype.SCALE`; 38 × 64 cells at row −4, 48 × 77 at −9), with the ordinary rock border.
 - **Terrain:** collapsed with no symmetry from its own sample, `wfc_images/crags.png` (drawn by `tests/make_crags_sample.gd`, 32 × 40): pillars of rock up the sheet with long straight faces, shafts four to six wide between them, ledges jutting from one face then the other every four rows, chimneys, passages one cell high through the pillars, a keep and a squat tower, a few thorns on ledges. Then a structure pass (`CragsArchetype.shape`, before the caves are joined) builds on it:

@@ -938,6 +938,10 @@ var climb_ledges: Array[Vector2i] = []
 ## every other level.
 var shaft: Dictionary = {}
 
+## The spider's keep, in its arena (SpiderKeep.build, which says what it holds); empty in every
+## other place.
+var keep: Dictionary = {}
+
 ## Whether cell `v` is part of the bramble's shaft: inside it, or its walls, roof or floor. Nothing
 ## else is built into it (secret rooms, vaults, cracked walls, climbing ledges).
 func in_shaft (v: Vector2i) -> bool:

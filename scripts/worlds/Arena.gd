@@ -3,8 +3,10 @@ extends SideWorld
 ## A boss's arena (Bosses.in_arena): a side world behind a door in its gate level, a plain hall,
 ## WIDTH cells across and HEIGHT high, with a flat floor, the way back (and a lantern) at the left
 ## and the boss on the right. It is a dead end: its way back, free like its door, returns to the
-## gate level, whose way on opens once the boss is slain. Until each boss's own arena is built, all
-## of them share this hall, and the stand-in (Boss) fights in it.
+## gate level, whose way on opens once the boss is slain. A boss with an arena of its own lays it
+## out instead: the spider's keep (SpiderKeep), a tall hall of broken floors printed as the crags'
+## castle. The bosses whose arenas are not built yet share this hall, and the stand-in (Boss)
+## fights in it.
 
 const WIDTH: int = 40
 const HEIGHT: int = 16
@@ -35,24 +37,53 @@ func boss() -> StringName:
 	return Bosses.gate_at(origin().y)
 
 
+## Whether it is the spider's keep (SpiderKeep) rather than the plain hall.
+func keep() -> bool:
+	return boss() == &"spider"
+
+
+## The keep is its own size.
+func setup(at: Vector2i) -> NextWorldDef:
+	super(at)
+	if keep():
+		size = SpiderKeep.SIZE
+	return self
+
+
 func title() -> String:
-	return "world %d · %s" % [coord.x, String(boss())]
+	return "world %d · %s" % [coord.x, "the keep" if keep() else String(boss())]
+
+
+## The keep is printed as the crags' castle, dressed as theirs.
+func realm() -> StringName:
+	return &"crags" if keep() else print_realm
+
+
+func decor() -> StringName:
+	return &"crags" if keep() else super()
+
+
+func grows() -> bool:
+	return keep() or plants
 
 
 ## An empty hall, in the generator's colours (the collapse is laid over by populate anyway).
 func fallback() -> Array:
 	var out: Array = []
-	for x: int in range(WIDTH):
+	for x: int in range(size.x):
 		var column: Array = []
-		for y: int in range(HEIGHT):
+		for y: int in range(size.y):
 			column.append(Color.WHITE if _open(Vector2i(x, y)) else Color.BLACK)
 		out.append(column)
 	return out
 
 
 ## The hall, whatever the collapse made: its air open, the rest rock; the way back and a lantern at
-## the left, the boss on the right.
+## the left, the boss on the right. The spider's keep instead (SpiderKeep.build).
 func populate(w: LevelGen) -> void:
+	if keep():
+		SpiderKeep.build(w, boss())
+		return
 	for x: int in range(WIDTH):
 		for y: int in range(HEIGHT):
 			var v: Vector2i = Vector2i(x, y)
