@@ -115,7 +115,7 @@ func _circuit(w: LevelGen, at: Vector2i) -> int:
 
 func ride() -> void:
 	await boot()
-	info.coord = Vector2i(28, NextWorldDef.band_row(&"crags", 1))
+	info.coord = Vector2i(28, NextWorldDef.band_row(&"crags", 0))
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	await settle()

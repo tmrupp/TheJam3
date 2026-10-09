@@ -5,8 +5,10 @@ extends Archetype
 ## terrain is collapsed unturned from wfc_images/crags.png (drawn by tests/make_crags_sample.gd),
 ## taller than wide (SCALE); then a structure pass (shape) opens caverns of air in the cliff, cuts
 ## shafts up it, zigzagged with ledges, and builds castle ruins on it: keeps (two halls one over
-## the other, doorways through their walls, a walkable roof) and squat towers standing on its
-## floors, their stone kept as masonry (LevelGen.masonry) for the decor. Its gates are the keeps'
+## the other, doorways through their walls, a walkable roof) and towers (tall and narrow, a room on
+## each storey, climbed inside by stair holes with ledges under them; most come out on their roof,
+## some are roofed over a hoard of stars), their stone kept as masonry (LevelGen.masonry) for the
+## decor, and the air inside them as LevelGen.interiors. Its gates are the keeps'
 ## and passages' doors and switch gates, and the climb itself. Its own thing is the gondola
 ## (cut_gates, populate, Gondola): a cable car climbing a line of stations from near the bottom of
 ## the level to near its top, in steps along rows and columns, all but one station shut behind a
@@ -41,11 +43,28 @@ const KEEP_APART: int = 1
 ## Rows of open air kept over a keep's roof, so it can be walked along.
 const ROOF_AIR: int = 2
 
-## Towers per 1000 cells: blocks of masonry TOWER_WIDE cells across (from, to) and TOWER_TALL rows
-## high (from, to), standing on a floor with that much open air over it and a row more.
-const TOWERS_PER_K: float = 1.2
-const TOWER_WIDE: Vector2i = Vector2i(2, 4)
-const TOWER_TALL: Vector2i = Vector2i(3, 5)
+## Towers per 1000 cells (at least one): tall, narrow buildings TOWER_WIDE cells across (from, to,
+## walls included) of TOWER_STOREYS storeys (from, to), clear of the shafts (though one may stand
+## right beside a shaft) and kept apart from the keeps and one another as keeps are (KEEP_APART),
+## with ROOF_AIR rows of air over the roof. Each storey is a room
+## two rows high over a floor of masonry (STOREY rows in all). Every floor over a room has a stair
+## hole STAIR cells wide at one end, the ends taking turns up the tower, with a one-way ledge under
+## the hole in the top row of the room below, so each storey is climbed in two of the wizard's own
+## hops. The ground floor has a doorway through each wall, with air outside it, and the tower's
+## footing goes down through open air to the rock under it (at most TOWER_FOOTING rows and never to
+## the level's bottom edge, or it is built elsewhere). A watchtower's stair goes on up through a hatch in its roof onto the roof, and
+## each of its upper rooms has a window a cell high in either wall with open air outside it (a
+## chance of TOWER_WINDOW each). A hoard tower (TOWER_HOARD_SHARE) has no hatch and no windows, and
+## TOWER_HOARD stars in its top room (place_hoards).
+const TOWERS_PER_K: float = 0.7
+const TOWER_WIDE: Vector2i = Vector2i(5, 6)
+const TOWER_STOREYS: Vector2i = Vector2i(2, 4)
+const STOREY: int = 3
+const STAIR: int = 2
+const TOWER_FOOTING: int = 4
+const TOWER_WINDOW: float = 0.3
+const TOWER_HOARD_SHARE: float = 0.35
+const TOWER_HOARD: int = 3
 
 ## Caverns: CAVERNS_PER_K (at least one) ellipses of open air carved through the cliff, CAVERN_RX
 ## cells across from their middle and CAVERN_RY down (from, to), so it is not all rock.
@@ -97,26 +116,38 @@ func _init() -> void:
 	scale = SCALE
 
 
-## Open caverns in the cliff, cut shafts up it and build the castle ruins on it (see the class
-## description).
+## Open caverns in the cliff, cut shafts up it and build its keeps (see the class description; the
+## towers come once the gondola's line is laid, cut_gates).
 func shape(w: LevelGen) -> void:
 	open_caverns(w)
 	var shafts: Dictionary = cut_shafts(w)
+	for v: Vector2i in shafts:
+		w.structures[v] = &"shaft"
 	build_keeps(w, shafts)
-	build_towers(w, shafts)
 
 
 ## The gondola's line, once the caves are joined: its track and its stations' landings, carved and
-## kept clear of everything laid after (lay_circuit).
+## kept clear of everything laid after (lay_circuit). Then the towers, clear of it (build_towers),
+## and the caves joined again round their walls, should a tower have shut any air off.
 func cut_gates(w: LevelGen) -> void:
 	lay_circuit(w)
+	build_towers(w)
+	var walls: Dictionary = {}
+	for tower: Dictionary in w.towers:
+		var box: Rect2i = tower["box"]
+		for x: int in range(box.position.x, box.end.x):
+			for y: int in range(box.position.y, box.end.y):
+				if w.is_ground(Vector2i(x, y)):
+					walls[Vector2i(x, y)] = true
+	w.connect_caves(walls)
 
 
 ## Its rock-bugs (place_bugs), then, last, what shuts each station but one, and the gondola itself
-## (shut_stations).
+## (shut_stations), and the hoard towers' stars (place_hoards).
 func populate(w: LevelGen, def: NextWorldDef) -> void:
 	place_bugs(w)
 	shut_stations(w, def)
+	place_hoards(w)
 
 
 ## Rock-bugs (RockBug): BUGS_PER_K, each in open air against rock (under it, or beside or over it),
@@ -213,7 +244,7 @@ static func cut_shafts(w: LevelGen) -> Dictionary:
 # ------------------------------------------------------------------ castle ruins
 
 ## Build keeps (KEEPS_PER_K) where they fit clear of the shafts and of each other (see the class
-## description), their stone kept as masonry.
+## description), their stone kept as masonry and their cells in LevelGen.structures.
 static func build_keeps(w: LevelGen, shafts: Dictionary) -> void:
 	var keeps: Array[Rect2i] = []
 	var want: int = w.per_area(KEEPS_PER_K)
@@ -228,6 +259,9 @@ static func build_keeps(w: LevelGen, shafts: Dictionary) -> void:
 			continue
 		keeps.append(box)
 		_keep(w, box, w.rng.randf() < 0.5)
+		for x: int in range(box.position.x, box.end.x):
+			for y: int in range(box.position.y, box.end.y):
+				w.structures[Vector2i(x, y)] = &"keep"
 
 
 ## A keep in `box`: masonry all round two halls (rows 1-2 and 4-5 of it), doorways through both its
@@ -244,6 +278,7 @@ static func _keep(w: LevelGen, box: Rect2i, stair_right: bool) -> void:
 		for x: int in range(box.position.x + 1, box.end.x - 1):
 			for y: int in [top, top + 1]:
 				_unbuild(w, Vector2i(x, y))
+				w.interiors[Vector2i(x, y)] = true
 		# A doorway through each wall at the hall's floor, with air outside it.
 		for x: int in [box.position.x, box.end.x - 1]:
 			_unbuild(w, Vector2i(x, top + 1))
@@ -253,39 +288,173 @@ static func _keep(w: LevelGen, box: Rect2i, stair_right: bool) -> void:
 	var gap: int = box.end.x - 4 if stair_right else box.position.x + 2
 	for x: int in [gap, gap + 1]:
 		_unbuild(w, Vector2i(x, box.position.y + 3))
+		w.interiors[Vector2i(x, box.position.y + 3)] = true
 
 
-## Build towers (TOWERS_PER_K) on floors with room over them, clear of the shafts.
-static func build_towers(w: LevelGen, shafts: Dictionary) -> void:
-	var floors: Array[Vector2i] = []
-	for x: int in range(2, w.size.x - 2):
-		for y: int in range(TOWER_TALL.y + 3, w.size.y - 2):
-			var v: Vector2i = Vector2i(x, y)
-			if w.get_cell(v).type == LevelGen.Type.EMPTY and w.is_ground(v + Vector2i.DOWN) and not w.masonry.has(v + Vector2i.DOWN):
-				floors.append(v)
-	var built: int = 0
+## Build towers (TOWERS_PER_K) where they fit (_site): each tried at a spot drawn at random and let
+## down onto the rock under its middle; with none built so, the smallest tower at the first spot
+## it fits, scanning the level (no draw), so every level has one if there is room anywhere. Each is
+## noted in LevelGen.towers and its cells in LevelGen.structures.
+static func build_towers(w: LevelGen) -> void:
 	var want: int = w.per_area(TOWERS_PER_K)
-	for attempt: int in range(want * 20):
-		if built >= want or floors.is_empty():
+	var built: Dictionary = {}
+	for v: Vector2i in w.structures:
+		if w.structures[v] != &"shaft":
+			built[v] = true
+	for attempt: int in range(want * 60):
+		if w.towers.size() >= want:
 			break
-		var at: Vector2i = w.pick(floors)
 		var wide: int = w.rng.randi_range(TOWER_WIDE.x, TOWER_WIDE.y)
-		var tall: int = w.rng.randi_range(TOWER_TALL.x, TOWER_TALL.y)
-		var box: Rect2i = Rect2i(at.x, at.y - tall + 1, wide, tall)
-		if box.end.x > w.size.x - 2 or _crosses(box.grow(1), shafts):
+		var storeys: int = w.rng.randi_range(TOWER_STOREYS.x, TOWER_STOREYS.y)
+		var tall: int = storeys * STOREY + 1
+		var at: Vector2i = Vector2i(w.rng.randi_range(2, w.size.x - wide - 2), w.rng.randi_range(ROOF_AIR + 2, w.size.y - tall - 3))
+		var site: Variant = _site(w, at, Vector2i(wide, tall), built)
+		if site != null:
+			_raise(w, site, built, w.rng.randf() < TOWER_HOARD_SHARE, w.rng.randf() < 0.5)
+	if not w.towers.is_empty():
+		return
+	var least: Vector2i = Vector2i(TOWER_WIDE.x, TOWER_STOREYS.x * STOREY + 1)
+	for y: int in range(ROOF_AIR + 2, w.size.y - least.y - 1):
+		for x: int in range(2, w.size.x - least.x - 1):
+			var site: Variant = _site(w, Vector2i(x, y), least, built)
+			if site != null and (site[0] as Rect2i).position.y == y:
+				_raise(w, site, built, false, x * 2 < w.size.x)
+				return
+
+
+## Where a tower `size` big drawn at `at` stands, let down onto the first rock under its middle, as
+## [its box, its footing (_footing)]; null if it does not fit there: its box and the air over its
+## roof must be clear of every structure (LevelGen.structures; a shaft may stand right beside it),
+## kept KEEP_APART from the keeps and towers (`built`), its doorsteps and walls clear of the
+## gondola's line, and its footing on rock.
+static func _site(w: LevelGen, at: Vector2i, size: Vector2i, built: Dictionary) -> Variant:
+	@warning_ignore("integer_division")
+	var mid: int = at.x + size.x / 2
+	var base: int = at.y + size.y
+	while base < w.size.y - 1 and not w.is_ground(Vector2i(mid, base)):
+		base += 1
+	var box: Rect2i = Rect2i(Vector2i(at.x, base - size.y), size)
+	var room: Rect2i = box.grow_individual(0, ROOF_AIR, 0, 0)
+	if box.position.y < ROOF_AIR + 2 or box.end.y > w.size.y - 2 or _crosses(room, w.structures) or _crosses(room.grow(KEEP_APART), built) or _crosses(room.grow_individual(1, 0, 1, 0), w.keep_clear):
+		return null
+	var footing: Variant = _footing(w, box)
+	if footing == null or (footing as Array).any(func(v: Vector2i) -> bool: return w.structures.has(v) or w.keep_clear.has(v)):
+		return null
+	return [box, footing]
+
+
+## Build a tower at `site` (from _site), a hoard tower if `hoard`, and keep its cells as built.
+static func _raise(w: LevelGen, site: Array, built: Dictionary, hoard: bool, right_first: bool) -> void:
+	var box: Rect2i = site[0]
+	_tower(w, box, site[1], hoard, right_first)
+	for x: int in range(box.position.x, box.end.x):
+		for y: int in range(box.position.y, box.end.y):
+			w.structures[Vector2i(x, y)] = &"tower"
+			built[Vector2i(x, y)] = true
+
+
+## The open cells under `box` (and under its doorsteps, a cell either side) down to the rock beneath
+## it, as an Array[Vector2i] (empty if it stands right on rock); null if any column goes down more
+## than TOWER_FOOTING rows or reaches the level's bottom edge (it would stand on nothing, or on
+## stone the edge can't hold).
+static func _footing(w: LevelGen, box: Rect2i) -> Variant:
+	var cells: Array[Vector2i] = []
+	for x: int in range(box.position.x - 1, box.end.x + 1):
+		var y: int = box.end.y
+		while w.is_valid(Vector2i(x, y)) and not w.is_ground(Vector2i(x, y)):
+			if y - box.end.y >= TOWER_FOOTING or y >= w.size.y - 1:
+				return null
+			cells.append(Vector2i(x, y))
+			y += 1
+	return cells
+
+
+## A tower in `box` (see the consts): masonry all round a room on each storey, its footing
+## (`footing`) built down to the rock, a stair hole in each floor over a room at alternate ends
+## (the lowest at the right if `right_first`) with a ledge under it, doorways at the ground floor
+## with a doorstep outside each, and for a watchtower (not `hoard`) a hatch through the roof and
+## windows. Noted in LevelGen.towers as
+## {"box", "hoard", "holes": each stair hole's cells, "ledges": the cells of the ledges under them,
+## "top": the top room's floor-level cells}.
+static func _tower(w: LevelGen, box: Rect2i, footing: Array[Vector2i], hoard: bool, right_first: bool) -> void:
+	var x0: int = box.position.x
+	var x1: int = box.end.x - 1
+	var roof: int = box.position.y
+	var ground: int = box.end.y - 1
+	for x: int in range(x0, x1 + 1):
+		for y: int in range(roof, ground + 1):
+			_rock_at(w, Vector2i(x, y))
+			w.masonry[Vector2i(x, y)] = true
+		for d: int in range(1, ROOF_AIR + 1):
+			_open_at(w, Vector2i(x, roof - d))
+	for x: int in [x0 - 1, x1 + 1]:
+		_rock_at(w, Vector2i(x, ground))
+		w.masonry[Vector2i(x, ground)] = true
+	for v: Vector2i in footing:
+		_rock_at(w, v)
+		w.masonry[v] = true
+	# The rooms, from the top: two rows of air over each floor.
+	var floors: Array[int] = []
+	for y: int in range(roof, ground, STOREY):
+		floors.append(y)
+		for x: int in range(x0 + 1, x1):
+			for r: int in [y + 1, y + 2]:
+				_unbuild(w, Vector2i(x, r))
+				w.interiors[Vector2i(x, r)] = true
+	# The stair: a hole in each floor over a room (the roof's only for a watchtower), at alternate
+	# ends from the bottom up, with a ledge under it in the top row of the room below.
+	var holes: Array[Vector2i] = []
+	var ledges: Array[Vector2i] = []
+	var right: bool = right_first
+	for i: int in range(floors.size() - 1, -1, -1):
+		var y: int = floors[i]
+		if y == roof and hoard:
+			break
+		for k: int in range(STAIR):
+			var hole: Vector2i = Vector2i(x1 - 1 - k if right else x0 + 1 + k, y)
+			_unbuild(w, hole)
+			if y != roof:
+				w.interiors[hole] = true
+			holes.append(hole)
+			var ledge: Vector2i = hole + Vector2i.DOWN
+			w.put(ledge, LevelGen.Type.PLATFORM)
+			ledges.append(ledge)
+		right = not right
+	# A doorway through each wall at the ground floor, with air outside it.
+	for x: int in [x0, x1]:
+		_unbuild(w, Vector2i(x, ground - 1))
+	for x: int in [x0 - 1, x1 + 1]:
+		_open_at(w, Vector2i(x, ground - 1))
+		_open_at(w, Vector2i(x, ground - 2))
+	# Windows: a cell high, at an upper room's floor (each room but the ground floor's), where open
+	# air is outside already.
+	if not hoard:
+		for i: int in range(floors.size() - 1):
+			var y: int = floors[i] + 2
+			for side: Vector2i in [Vector2i(x0, y), Vector2i(x1, y)]:
+				var out: Vector2i = side + (Vector2i.LEFT if side.x == x0 else Vector2i.RIGHT)
+				if w.rng.randf() < TOWER_WINDOW and w.is_valid(out) and not w.is_ground(out):
+					_unbuild(w, side)
+	var top: Array[Vector2i] = []
+	for x: int in range(x0 + 1, x1):
+		top.append(Vector2i(x, roof + 2))
+	w.towers.append({"box": box, "hoard": hoard, "holes": holes, "ledges": ledges, "top": top})
+
+
+## A hoard tower's stars (TOWER_HOARD), spread along its top room a row over its floor, in cells
+## still free.
+static func place_hoards(w: LevelGen) -> void:
+	for tower: Dictionary in w.towers:
+		if not tower["hoard"]:
 			continue
-		var fits: bool = true
-		for x: int in range(box.position.x, box.end.x):
-			fits = fits and w.is_ground(Vector2i(x, at.y + 1))
-			for y: int in range(box.position.y - 1, box.end.y):
-				fits = fits and w.get_cell(Vector2i(x, y)).type == LevelGen.Type.EMPTY and not w.masonry.has(Vector2i(x, y))
-		if not fits:
-			continue
-		for x: int in range(box.position.x, box.end.x):
-			for y: int in range(box.position.y, box.end.y):
-				_rock_at(w, Vector2i(x, y))
-				w.masonry[Vector2i(x, y)] = true
-		built += 1
+		var spots: Array[Vector2i] = []
+		for v: Vector2i in tower["top"]:
+			if w.get_cell(v).type == LevelGen.Type.EMPTY and w.empties.has(v):
+				spots.append(v)
+		var n: int = mini(TOWER_HOARD, spots.size())
+		for i: int in range(n):
+			@warning_ignore("integer_division")
+			w.put(spots[(i * spots.size()) / n], LevelGen.Type.COIN)
 
 
 ## Whether `r` takes in any of `cells`.

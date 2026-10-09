@@ -7,6 +7,9 @@ class_name RisoTerrain
 ## Built stone (LevelGen.masonry: the crags' castle ruins) prints apart from the bare rock: square
 ## cornered, with no fillets where it meets anything, in an ink of its own (MASONRY_LOOKS), and a
 ## coping of darker stone along its walkable tops in place of the rock's cap strip.
+## The air inside a building (LevelGen.interiors: a keep's halls, a tower's rooms) prints over a back
+## wall of stone in place of the sky: the rock's ink, dimmed with night, in courses two to a cell
+## with their joints staggered, under everything else.
 
 const SHADE_NEAR: float = 22.0
 const SHADE_FAR: float = 58.0
@@ -22,6 +25,12 @@ const MASONRY_LOOKS: Dictionary = {
 }
 ## The coping along built stone's walkable tops: how much night over its stone.
 const COPING_COVER: float = 0.45
+## A building's back wall: how much of the rock's ink, how much night over it, and how much more
+## night in the joints between its blocks (pixels wide: BACK_JOINT).
+const BACK_STONE: float = 0.8
+const BACK_SHADE: float = 0.38
+const BACK_JOINT_COVER: float = 0.25
+const BACK_JOINT: float = 4.0
 static var masonry_look: StringName = &"sandstone"
 
 var ink: InkCanvas
@@ -55,6 +64,7 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 		ledges[tile_map.local_to_map(tile_map.to_local(p))] = true
 	var info: MapInfo = MapInfo.instance
 	var masonry: Dictionary = info.world.masonry if info != null and info.world != null else {}
+	var interiors: Dictionary = info.world.interiors if info != null and info.world != null else {}
 	var half: float = float(tile_map.tile_set.tile_size.x) * tile_map.global_scale.x * 0.5
 	var radius: float = half * 0.32
 	# Top corners stay nearly square: the floor's collision runs right to the cell edge, and a
@@ -146,6 +156,7 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 				caps.append(cap)
 		i = j + 1
 	ink.begin()
+	_back_wall(tile_map, solid, interiors, half)
 	body.append_array(fillets)
 	if info != null and info.here != null and info.here.open() and RisoPrint.instance != null:
 		var style: StringName = RisoPrint.instance.sky_bottom_style
@@ -173,6 +184,32 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 			ink.ink(int(look[k][0]), float(look[k][1]), copings, k == 0)
 		ink.ink(RisoPrint.NIGHT, COPING_COVER, copings, false)
 	ink.finish()
+
+
+## The back wall behind the air inside buildings (`interiors`; see the class description): it hides
+## the sky as rock does.
+func _back_wall(tile_map: TileMap, solid: Dictionary, interiors: Dictionary, half: float) -> void:
+	var back: Array[PackedVector2Array] = []
+	var joints: Array[PackedVector2Array] = []
+	for v: Vector2i in interiors:
+		if solid.has(v):
+			continue
+		var c: Vector2 = tile_map.to_global(tile_map.map_to_local(v))
+		back.append(_cell(c, half, 0.0, false, false, false, false))
+		for course: int in range(2):
+			var y0: float = c.y - half + float(course) * half
+			joints.append(RisoShapes.rrect(c.x - half, y0 - BACK_JOINT * 0.5, half * 2.0, BACK_JOINT, 0.0))
+			var shift: float = half * 0.5 if (v.y * 2 + course) % 2 == 1 else 0.0
+			for b: int in range(2):
+				var x: float = c.x - half + shift + float(b) * half
+				if x > c.x - half and x < c.x + half:
+					joints.append(RisoShapes.rrect(x - BACK_JOINT * 0.5, y0, BACK_JOINT, half, 0.0))
+	if back.is_empty():
+		return
+	ink.knock([RisoPrint.PINK, RisoPrint.ACCENT], back)
+	ink.ink(RisoPrint.BLUE, BACK_STONE, back)
+	ink.ink(RisoPrint.NIGHT, BACK_SHADE, back, false)
+	ink.ink(RisoPrint.NIGHT, BACK_JOINT_COVER, joints, false)
 
 
 ## Floating islands' tapered undersides (SkyArchetype.taper_islands lays them as rock a row at a
