@@ -15,9 +15,10 @@ extends Node2D
 ## wizard is), then it bursts out.
 ## - Its head bites (pink), then its piece rests for BITE_RECOVERY with its head harmless. Its
 ##   body is solid, so it walls off a tunnel as it passes, and every
-##   segment but the head has thorns along one flank (WormSegment): they hurt to touch, and a
-##   strike from that side glances off, so the wizard has to get round to a segment's bare side to
-##   cut it. Each time it comes out of the rock it picks the flank facing the wizard, and keeps it
+##   segment but the head has thorns along one flank (WormSegment), alternating from one segment
+##   to the next: they hurt to touch, and a strike from that side glances off, so the wizard has to
+##   pick a segment whose bare side faces them to cut it. Each time it comes out of the rock the
+##   segment behind its head takes the flank facing the wizard, and the rest alternate from it,
 ##   until it goes into the rock again.
 ## - Each segment takes SEGMENT_HP hits, its hits left printed on it. Its flesh is soft: any bolt or
 ##   dash cuts it (Wound.least), a parry too. A cut head or tail shortens the worm; a cut in the
@@ -39,10 +40,24 @@ const SHORTEST: int = 2
 ## How wide its body is, as a share of a cell.
 const GIRTH: float = 0.84
 ## How fast it crawls (px/s), and faster while the wizard is in its lair (the wizard runs at 300).
-const SPEED: float = 140.0
-const HUNT_SPEED: float = 185.0
+const SPEED: float = 170.0
+const HUNT_SPEED: float = 280.0
 ## Seconds a piece rests after its head bites: it stays solid, but its head is harmless.
 const BITE_RECOVERY: float = 0.65
+## Striking (_strike_reach): it strikes when the wizard is within STRIKE_RANGE cells of its head and
+## ahead of it (the dot of its heading with the way to them at least STRIKE_AHEAD). It pauses,
+## draws its head back PULL_BACK cells, lunges LUNGE_REACH cells on along its path, holds there as
+## its jaws snap shut, and settles back; then waits STRIKE_REST before striking again. Seconds each.
+const STRIKE_RANGE: float = 1.7
+const STRIKE_AHEAD: float = 0.4
+const STRIKE_PAUSE: float = 0.18
+const STRIKE_PULL: float = 0.22
+const STRIKE_LUNGE: float = 0.08
+const STRIKE_HOLD: float = 0.08
+const STRIKE_RETURN: float = 0.22
+const STRIKE_REST: float = 0.6
+const PULL_BACK: float = 0.3
+const LUNGE_REACH: float = 0.8
 ## How near where it lies (cells, across plus down) the wizard must come to wake it.
 const WAKE_RANGE: int = 12
 ## Burrow holes all through the level: HOLES_PER_K per 1000 cells (at least HOLES_MIN), at least
@@ -80,10 +95,23 @@ const SAMPLES: int = 8
 ## How finely a rounded end feels its way out to the rock in front of it (px).
 const CAP_STEP: float = 3.0
 ## Thorns printed along each side of a segment, how wide each is at its foot (half, px), and how
-## squarely an edge must face the way they point to bristle.
+## squarely an edge must face the way they point to bristle fully (they grow in from an edge square
+## to it, so one turning toward or away from it grows or shrinks rather than popping).
 const THORNS_ALONG: int = 4
 const THORN_BASE: float = 8.5
-const THORN_SHOWN: float = 0.2
+const THORN_SHOWN: float = 0.35
+## How much shorter than the body's middle an edge may run (on the inside of a bend) before no
+## thorns grow there; they grow fully only where it runs as long or longer.
+const THORN_BUNCHED: float = 0.45
+## The scales on the thorny half of a segment (_draw_scales): how far out from its middle each row
+## stands (a share of the half width), how many to a row along a segment, each one's radius (px),
+## and the pink and night they print over the flesh: small enough that the print's grain breaks
+## them into a speckle of deeper pink, a rough hide rather than drawn plates.
+const SCALE_ROWS: Array[float] = [0.84, 0.6, 0.36]
+const SCALES_ALONG: int = 6
+const SCALE_R: float = 8.0
+const SCALE_PINK: float = 1.0
+const SCALE_SHADE: float = 0.1
 ## The shadow at the back of each segment, under the one behind: how far along it runs (a share of
 ## a segment) and how dark it is.
 const JOINT: float = 0.22
@@ -100,17 +128,43 @@ const MOUTH_SPREAD: float = 1.25
 ## The share of its opening at a distance, and closed while resting or stunned.
 const MOUTH_CLOSED: float = 0.25
 const MOUTH_REST: float = 0.12
-## How quickly the open mouth works, and the share of its gape that pulses.
-const MOUTH_BEAT: float = 9.0
-const MOUTH_PULSE: float = 0.25
+## Chomping (_gape): chomps a second far off and right at the wizard, and the share of each chomp
+## spent easing open, then snapping shut (the rest it holds shut).
+const CHOMP_SLOW: float = 0.8
+const CHOMP_FAST: float = 2.6
+const CHOMP_OPEN: float = 0.62
+const CHOMP_SNAP: float = 0.1
+## Biting: seconds its jaws take to slam shut, its strokes to fade (_draw_bite), and at the end of
+## its rest to ease back open.
+const BITE_SNAP: float = 0.08
+const BITE_BURST: float = 0.3
+const BITE_EASE: float = 0.15
+## Its teeth (_teeth): where they stand along each jaw's edge (a share of the way from the mouth's
+## root to the round of the head), and how long and how wide at the root (half), in radii.
+const TEETH_UPPER: Array[float] = [0.3, 0.6, 0.88]
+const TEETH_LOWER: Array[float] = [0.45, 0.75]
+const TOOTH_LEN: float = 0.28
+const TOOTH_HALF: float = 0.11
 ## The body's flesh: these covers of pink and green on paper, and the share of them left while it
 ## is stunned (pale). The head is pink in full, and STUNNED_FLESH of it while stunned.
 const FLESH_PINK: float = 0.32
 const FLESH_GREEN: float = 0.2
 const STUNNED_FLESH: float = 0.3
-## How much of the flesh's inks the earth heaped round a burrow hole takes (with a little more
-## green, so it is earth and not worm).
+## How much of the flesh's inks freshly dug earth takes (with a little more green, so it is earth
+## and not worm): the crumbs round a burrow hole and the dirt a coming worm throws up.
 const HOLE_EARTH: float = 0.8
+## The ground pushed up round a burrow hole (_mound): its rims' height over the face (px), how far
+## out it reaches either side (in the worm's radii), and the dark pit's half depth (px).
+const HOLE_RIM: float = 16.0
+const HOLE_REACH: float = 1.8
+const HOLE_PIT: float = 9.0
+## The crumbs on the mound, each across (in radii, from the middle), up off the face (px) and its
+## radius (px).
+const HOLE_CRUMBS: Array[Vector3] = [
+	Vector3(-0.98, 14.0, 4.5), Vector3(0.86, 10.0, 4.0), Vector3(-1.32, 10.0, 4.0),
+	Vector3(1.02, 15.0, 4.5), Vector3(-0.8, 7.0, 3.5), Vector3(1.4, 8.0, 4.0),
+	Vector3(-1.12, 18.0, 3.0), Vector3(0.74, 6.0, 3.0), Vector3(-1.55, 5.0, 3.5),
+]
 ## Salts for the level seed: the holes, and the worm's own choices.
 const HOLE_DEAL: int = 6100
 const MIND_DEAL: int = 6200
@@ -139,8 +193,10 @@ class Piece:
 	var hole: int = -1
 	## Burrowing away: 1 down to 0.
 	var fade: float = 1.0
-	## The flank its thorns are on: 1 the left of the way it heads (Vector2.orthogonal), -1 the
-	## right. Chosen as it comes out of the rock (side_toward), and kept until it goes in again.
+	## The flank the thorns of the segment behind its head are on: 1 the left of the way it heads
+	## (Vector2.orthogonal), -1 the right; the segments behind alternate from it
+	## (WormSegment.flank). Chosen as it comes out of the rock (side_toward), and kept until it
+	## goes in again.
 	var side: float = 1.0
 	## About to come out of the rock: seconds left of the warning (0: not waiting), and until the
 	## next rumble.
@@ -148,6 +204,16 @@ class Piece:
 	var rumble: float = 0.0
 	## Seconds left of the rest after biting the wizard.
 	var recovery: float = 0.0
+	## Striking at the wizard (see _strike_reach): seconds into the strike (-1: not striking), how
+	## far its head reaches past where it lies along its path (cells; less than 0 drawn back), and
+	## seconds left before it may strike again.
+	var strike: float = -1.0
+	var reach: float = 0.0
+	var strike_wait: float = 0.0
+
+	## Where its head lies along path(), in cells, reaching out (or drawn back) as it strikes.
+	func head_at() -> float:
+		return at(0) - reach
 
 	## The cells its body runs through, from the one after the one its head is going into to the one
 	## its tail has left: position s along it (in cells) is the middle of path()[s].
@@ -225,6 +291,7 @@ func setup(info: MapInfo, v: Vector2i, which: Variant) -> void:
 	for i: int in range(SEGMENTS):
 		var segment: WormSegment = WormSegment.new(self, cell * GIRTH * 0.5, SEGMENT_HP)
 		segment.name = "Segment%d" % i
+		segment.flank = 1.0 if i % 2 == 1 else -1.0
 		add_child(segment)
 		worm.segments.append(segment)
 		worm.cells.append(home)
@@ -384,9 +451,26 @@ func _step(p: Piece, delta: float) -> void:
 				_rumble(p, delta)
 				return
 			if _stunned(p):
+				p.strike = -1.0
 				return
+			p.strike_wait = maxf(0.0, p.strike_wait - delta)
+			if p.strike < 0.0:
+				# Its head settles back to where it lies (after a bite, or a strike cut short).
+				p.reach = move_toward(p.reach, 0.0, delta * LUNGE_REACH / STRIKE_RETURN)
 			if p.recovery > 0.0:
 				p.recovery = maxf(0.0, p.recovery - delta)
+				return
+			if p.strike >= 0.0:
+				# Striking: held still while its head draws back and lunges.
+				p.strike += delta
+				p.reach = _strike_reach(p.strike)
+				if p.strike >= STRIKE_PAUSE + STRIKE_PULL + STRIKE_LUNGE + STRIKE_HOLD + STRIKE_RETURN:
+					p.strike = -1.0
+					p.reach = 0.0
+					p.strike_wait = STRIKE_REST
+				return
+			if p.reach == 0.0 and _can_strike(p):
+				p.strike = 0.0
 				return
 			if p.state == UP:
 				p.clock -= delta
@@ -420,11 +504,15 @@ func _stepped(p: Piece) -> void:
 		return
 	var w: LevelGen = map_info.world
 	if not passable(w, head) and passable(w, p.cells[1]):
-		# Digging into a wall: a hole where it goes in.
-		var dug: Hole = holes[_hole_at(head, p.cells[1])]
+		# In the rock, come from the open: there is a hole where it went in (dug as it headed in).
+		_hole_at(head, p.cells[1])
+	p.next = p.after
+	if passable(w, head) and not passable(w, p.next):
+		# Heading into a wall: the hole where it goes in is dug as its nose reaches the face, so
+		# the body never slides into unbroken rock.
+		var dug: Hole = holes[_hole_at(p.next, head)]
 		RisoFx.burst(&"impact", dug.mouth, dug.out, [RisoPrint.BLUE, RisoPrint.NIGHT])
 		_shake(dug.mouth, RUMBLE, 0.2)
-	p.next = p.after
 	p.after = _choose(p, p.next, head)
 	if not passable(w, head) and passable(w, p.next):
 		# About to come out of the rock: wait, rumbling, at the hole it breaks out by.
@@ -688,22 +776,58 @@ func _place(p: Piece) -> void:
 	var path: Array[Vector2i] = p.path()
 	for k: int in range(p.segments.size()):
 		var s: WormSegment = p.segments[k]
-		var at: Vector2 = point(path, p.at(k))
-		s.global_position = at
-		s.heading = facing(path, p.at(k))
-		s.spikes = s.heading.orthogonal() * p.side
+		var along: float = p.head_at() if k == 0 else p.at(k)
+		s.global_position = point(path, along)
+		s.heading = facing(path, along)
+		s.spikes = s.heading.orthogonal() * p.side * s.flank
 		if s.thorns != null:
 			s.thorns.rotation = s.spikes.angle()
-		s.shown = p.state != UNDER and open_at(path, p.at(k))
+		s.shown = p.state != UNDER and open_at(path, along)
 		s.set_live(s.shown and p.state != DYING)
 		s.recovering = k == 0 and p.recovery > 0.0
 		s.sync_touch()
+
+
+## How far a striking head reaches `since` seconds into its strike (cells along its path; less
+## than 0 drawn back): still while it pauses, drawing back, lunging out quicker and quicker, held
+## there, then easing back to where it lies.
+static func _strike_reach(since: float) -> float:
+	var t0: float = since - STRIKE_PAUSE
+	if t0 < 0.0:
+		return 0.0
+	if t0 < STRIKE_PULL:
+		var u: float = t0 / STRIKE_PULL
+		return -PULL_BACK * (1.0 - (1.0 - u) * (1.0 - u))
+	t0 -= STRIKE_PULL
+	if t0 < STRIKE_LUNGE:
+		var u: float = t0 / STRIKE_LUNGE
+		return lerpf(-PULL_BACK, LUNGE_REACH, u * u)
+	t0 -= STRIKE_LUNGE
+	if t0 < STRIKE_HOLD:
+		return LUNGE_REACH
+	t0 -= STRIKE_HOLD
+	return lerpf(LUNGE_REACH, 0.0, smoothstep(0.0, 1.0, minf(t0 / STRIKE_RETURN, 1.0)))
+
+
+## Whether piece `p` strikes now: up and after the wizard, rested from its last strike, its head
+## out in the open, the wizard near and ahead of it, and open air where it would lunge to.
+func _can_strike(p: Piece) -> bool:
+	if p.state != UP or not hunting or p.strike_wait > 0.0 or p.segments.is_empty():
+		return false
+	var head: WormSegment = p.segments[0]
+	var player: Player = map_info.player
+	if not head.live or player == null or not is_instance_valid(player):
+		return false
+	var path: Array[Vector2i] = p.path()
+	var to: Vector2 = player.global_position - head.global_position
+	return to.length() < cell * STRIKE_RANGE and to.normalized().dot(head.heading) >= STRIKE_AHEAD 			and open_at(path, p.at(0) - LUNGE_REACH)
 
 
 ## A head has bitten the wizard: hold its piece still and close its mouth for BITE_RECOVERY.
 func bit(head: WormSegment) -> void:
 	for p: Piece in pieces:
 		if not p.segments.is_empty() and p.segments[0] == head and head.live and p.state != DYING:
+			p.strike = -1.0
 			p.recovery = BITE_RECOVERY
 			head.recovering = true
 			head.sync_touch()
@@ -830,9 +954,9 @@ func segments_left() -> int:
 
 ## Its holes, then each worm from tail to head: a pipe of pale flesh (bleached to paper while
 ## stunned) bending through its cells, a shadow at each joint, its hits left as dark dots across
-## each segment, a rounded tail, the head pink with a wedge mouth cut out of its round front
-## that gapes as the wizard comes near, and the stun's stars circling over a stunned head. What is down in a hole is not
-## printed.
+## each segment, a rounded tail, the head pink with a wedge mouth cut out of its round front, lined
+## with paper teeth, that chomps as the wizard comes near and slams shut as it bites, and the
+## stun's stars circling over a stunned head. What is down in a hole is not printed.
 func _process(delta: float) -> void:
 	t += delta
 	if ink == null:
@@ -857,20 +981,25 @@ func _process(delta: float) -> void:
 			var s: WormSegment = p.segments[i]
 			var front: float = p.at(i) - 0.5
 			if i == 0:
-				front = p.at(i)
+				front = p.head_at()
 			var back: float = p.at(i) + 0.5
 			var flesh: Array[PackedVector2Array] = _pipe(path, front, back, width)
 			if i == last:
 				flesh.append_array(_cap(path, back, width, false))
+			var gape: float = 0.0
 			if i == 0:
 				flesh.append_array(_cap(path, front, width, true))
 				if s.shown:
-					flesh = _bite_out(flesh, _jaw(s, width, pale, wizard))
+					gape = _gape(p, pale, wizard)
+					flesh = _bite_out(flesh, _jaw(s, width, gape))
 			if flesh.is_empty():
 				continue
 			ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], flesh)
 			if i == 0:
 				ink.ink(RisoPrint.PINK, (STUNNED_FLESH if pale else 1.0) * k, flesh, false)
+				if s.shown:
+					ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], _teeth(s, width, gape))
+					_draw_bite(p, width)
 			else:
 				var cover: float = (STUNNED_FLESH if pale else 1.0) * k
 				ink.ink(RisoPrint.PINK, FLESH_PINK * cover, flesh, false)
@@ -878,9 +1007,13 @@ func _process(delta: float) -> void:
 			# The joint behind it, in shadow under the segment ahead's overhang.
 			if i != last:
 				ink.ink(RisoPrint.NIGHT, JOINT_SHADE * k, _pipe(path, back - JOINT, back, width), false)
+			if s.thorns != null:
+				_draw_scales(path, p.side * s.flank, front, back, width, k, pale)
 			if s.shown:
 				_draw_hits(s, width, k)
-			if s.thorns != null and s.live:
+			# Thorns print wherever the flesh beside them is out in the open, each on its own (not the
+			# whole segment by its middle), so they go into and come out of a hole with the flesh.
+			if s.thorns != null:
 				_draw_thorns(path, s, front, back, width, i == last, pale)
 		if pale and p.segments[0].shown and p.state != DYING:
 			_draw_stun(p.segments[0], width)
@@ -949,20 +1082,111 @@ func _clip_to_air(poly: PackedVector2Array, at: Vector2, radius: float) -> Array
 	return out
 
 
-## A wedge cut out of the head's round front, showing what is behind it. It gapes near the wizard
-## and nearly closes while resting or stunned, without extending the head beyond its collider.
-func _jaw(head: WormSegment, width: float, pale: bool, wizard: Vector2) -> PackedVector2Array:
-	var r: float = width * 0.5
+## How far piece `p`'s mouth gapes (0 shut, 1 wide). It chomps: near the wizard its jaws ease open
+## and snap shut, quicker and wider the nearer they are (still and a little open while they are
+## far). Striking, they work with the strike (_strike_gape). Biting, they spring wide and slam shut
+## (BITE_SNAP), stay shut through the rest after, and ease back to a little open at its end.
+## Stunned, it hangs nearly shut.
+func _gape(p: Piece, pale: bool, wizard: Vector2) -> float:
+	if pale:
+		return MOUTH_REST
+	if p.recovery > 0.0:
+		var since: float = BITE_RECOVERY - p.recovery
+		if since < BITE_SNAP:
+			var u: float = since / BITE_SNAP
+			return 1.0 - u * u
+		return lerpf(MOUTH_REST, 0.0, clampf(p.recovery / BITE_EASE, 0.0, 1.0))
+	if p.strike >= 0.0:
+		return _strike_gape(p.strike)
+	var head: WormSegment = p.segments[0]
 	var near: float = 0.0
-	if wizard != Vector2.INF and not pale and not head.recovering:
+	if wizard != Vector2.INF:
 		near = clampf(1.0 - head.global_position.distance_to(wizard) / BITE_NEAR, 0.0, 1.0)
-	var gape: float = MOUTH_REST if pale or head.recovering else lerpf(MOUTH_CLOSED, 1.0, near)
-	if not pale and not head.recovering:
-		gape *= 1.0 - MOUTH_PULSE + MOUTH_PULSE * sin(t * MOUTH_BEAT)
+	var f: float = fposmod(t * lerpf(CHOMP_SLOW, CHOMP_FAST, near) + float(head.get_instance_id() % 97) * 0.13, 1.0)
+	var open: float = 0.0
+	if f < CHOMP_OPEN:
+		var u: float = f / CHOMP_OPEN
+		open = 1.0 - (1.0 - u) * (1.0 - u)
+	elif f < CHOMP_OPEN + CHOMP_SNAP:
+		open = 1.0 - (f - CHOMP_OPEN) / CHOMP_SNAP
+	return lerpf(MOUTH_CLOSED * (1.0 - near), lerpf(MOUTH_CLOSED, 1.0, near), open)
+
+
+## How far a striking head's jaws gape `since` seconds into its strike: closing as it fixes on the
+## wizard, opening wide as it draws back, wide through the lunge, snapping shut at its full reach,
+## and easing a little open again as it settles back.
+static func _strike_gape(since: float) -> float:
+	var t0: float = since
+	if t0 < STRIKE_PAUSE:
+		return MOUTH_CLOSED * (1.0 - t0 / STRIKE_PAUSE)
+	t0 -= STRIKE_PAUSE
+	if t0 < STRIKE_PULL:
+		var u: float = t0 / STRIKE_PULL
+		return 1.0 - (1.0 - u) * (1.0 - u)
+	t0 -= STRIKE_PULL + STRIKE_LUNGE
+	if t0 < 0.0:
+		return 1.0
+	if t0 < STRIKE_HOLD:
+		var u: float = minf(t0 / BITE_SNAP, 1.0)
+		return 1.0 - u * u
+	t0 -= STRIKE_HOLD
+	return MOUTH_CLOSED * minf(t0 / STRIKE_RETURN, 1.0)
+
+
+## A wedge cut out of the head's round front, opened `gape` (see _gape), showing what is behind it,
+## without extending the head beyond its collider.
+func _jaw(head: WormSegment, width: float, gape: float) -> PackedVector2Array:
+	var r: float = width * 0.5
 	var at: Vector2 = head.global_position
 	var way: Vector2 = head.heading
 	var side: Vector2 = way.orthogonal()
 	return PackedVector2Array([at + way * r * MOUTH_ROOT, at + way * r * MOUTH_REACH + side * r * gape * MOUTH_SPREAD, at + way * r * MOUTH_REACH - side * r * gape * MOUTH_SPREAD])
+
+
+## Paper fangs along both edges of the mouth (_jaw), opened `gape`, pointing into it: those of one
+## jaw between those of the other, so shut they mesh in a zigzag along the seam. Only in the open.
+func _teeth(head: WormSegment, width: float, gape: float) -> Array[PackedVector2Array]:
+	var r: float = width * 0.5
+	var at: Vector2 = head.global_position
+	var way: Vector2 = head.heading
+	var side: Vector2 = way.orthogonal()
+	var root: Vector2 = at + way * r * MOUTH_ROOT
+	var out: Array[PackedVector2Array] = []
+	for jaw: float in [1.0, -1.0]:
+		var dir: Vector2 = (way * r * (MOUTH_REACH - MOUTH_ROOT) + side * jaw * r * gape * MOUTH_SPREAD).normalized()
+		# Toward the middle of the mouth, square to the jaw's edge.
+		var into: Vector2 = dir.orthogonal()
+		if into.dot(side * jaw) > 0.0:
+			into = -into
+		# How far along the edge it meets the round of the head.
+		var o: Vector2 = root - at
+		var b: float = o.dot(dir)
+		var reach: float = -b + sqrt(maxf(0.0, b * b - o.length_squared() + r * r))
+		var spots: Array[float] = TEETH_UPPER if jaw > 0.0 else TEETH_LOWER
+		for frac: float in spots:
+			var base: Vector2 = root + dir * reach * frac - into * 2.0
+			var tooth: PackedVector2Array = PackedVector2Array([base - dir * r * TOOTH_HALF, base + into * r * TOOTH_LEN, base + dir * r * TOOTH_HALF])
+			out.append_array(_clip_to_air(tooth, at, r))
+	return out
+
+
+## Pink strokes thrown out from the shut jaws as a head bites, fading over BITE_BURST.
+func _draw_bite(p: Piece, width: float) -> void:
+	var since: float = BITE_RECOVERY - p.recovery
+	if p.recovery <= 0.0 or since >= BITE_BURST:
+		return
+	var u: float = since / BITE_BURST
+	var head: WormSegment = p.segments[0]
+	var r: float = width * 0.5
+	var strokes: Array[PackedVector2Array] = []
+	for i: int in range(5):
+		var dir: Vector2 = head.heading.rotated((float(i) - 2.0) * 0.42)
+		var from: Vector2 = head.global_position + dir * (r * 1.08 + 18.0 * u)
+		var to: Vector2 = from + dir * (8.0 + 14.0 * (1.0 - u))
+		var across: Vector2 = dir.orthogonal() * 2.5
+		strokes.append(PackedVector2Array([from + across, to + across * 0.4, to - across * 0.4, from - across]))
+	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], 1.0 - u, strokes)
+	ink.ink(RisoPrint.PINK, 1.0 - u, strokes, false)
 
 
 ## Take the mouth out of the flesh. A cut that would leave a hole inside one strip is kept whole
@@ -984,37 +1208,104 @@ static func _bite_out(polys: Array[PackedVector2Array], cut: PackedVector2Array)
 
 
 ## A segment's thorns: pink spikes standing out from the edge of its body on the side they face,
-## longest where the edge faces them squarely (and round the tail's end, on the tail). They show
-## against a wall too, printed over the rock it crawls along, so its thorny side is always seen.
+## longest where the edge faces them squarely (and round the tail's end, on the tail). They grow
+## from fixed places along the body (thorn_spots), so they ride along with it as it crawls; round
+## the outside of a bend they fan apart, and on the inside, where the body bunches up, they shrink
+## away smoothly rather than cross. Turning away from the side they face, they shrink too. They
+## show wherever the flesh they grow from is out in the open, each on its own, so they go into and
+## come out of a hole with it; standing out over the rock of a wall it crawls along, they print over
+## it, so its thorny side is always seen. Down in the rock, nothing shows.
 func _draw_thorns(path: Array[Vector2i], s: WormSegment, front: float, back: float, width: float, tail: bool, pale: bool) -> void:
 	var spikes: Array[PackedVector2Array] = []
+	var edge: Array = thorn_spots(path, front, back, width)
+	if tail and open_at(path, back):
+		var end: Vector2 = point(path, back)
+		var way: Vector2 = -facing(path, back)
+		for n: int in range(1, 4):
+			var out: Vector2 = way.rotated(-PI * 0.5 + PI * float(n) / 4.0)
+			edge.append([end + out * width * 0.5, out, 1.0])
+	for e: Array in edge:
+		var normal: Vector2 = e[1]
+		var w: float = normal.dot(s.spikes)
+		var grown: float = float(e[2]) * smoothstep(0.0, THORN_SHOWN, w)
+		if grown < 0.05:
+			continue
+		var base: Vector2 = e[0]
+		var along: Vector2 = normal.orthogonal() * THORN_BASE * grown
+		var tip: Vector2 = base + normal * WormSegment.THORN_LEN * (0.5 + 0.7 * w) * grown
+		spikes.append(PackedVector2Array([base - normal * 3.0 + along, tip, base - normal * 3.0 - along]))
+	# Cleared to paper first, so those over the rock print as bright as those in the open.
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], spikes)
+	ink.ink(RisoPrint.PINK, 0.35 if pale else 1.0, spikes)
+
+
+## Where thorns grow along both edges of the body from `front` to `back` on `path`, `width` across:
+## [point on the edge, the way out from it, how fully grown (0..1)], THORNS_ALONG to a side at fixed
+## shares of the way along, so they move with the body, where it is out in the open. One on the
+## inside of a bend, where the edge
+## runs shorter than the body's middle, is grown less the more it is squeezed, and not at all past
+## THORN_BUNCHED (see _draw_thorns, which keeps those on the side the thorns face).
+func thorn_spots(path: Array[Vector2i], front: float, back: float, width: float) -> Array:
 	var edge: Array = []
+	var ds: float = 0.04
 	for n: int in range(THORNS_ALONG):
 		var at_s: float = lerpf(front, back, (float(n) + 0.5) / float(THORNS_ALONG))
 		if not open_at(path, at_s):
 			continue
 		var at: Vector2 = point(path, at_s)
 		var side: Vector2 = facing(path, at_s).orthogonal()
-		edge.append([at + side * width * 0.5, side])
-		edge.append([at - side * width * 0.5, -side])
-	if tail and open_at(path, back):
-		var end: Vector2 = point(path, back)
-		var way: Vector2 = -facing(path, back)
-		for n: int in range(1, 4):
-			var out: Vector2 = way.rotated(-PI * 0.5 + PI * float(n) / 4.0)
-			edge.append([end + out * width * 0.5, out])
-	for e: Array in edge:
-		var normal: Vector2 = e[1]
-		var w: float = normal.dot(s.spikes)
-		if w < THORN_SHOWN:
-			continue
-		var base: Vector2 = e[0]
-		var along: Vector2 = normal.orthogonal() * THORN_BASE
-		var tip: Vector2 = base + normal * WormSegment.THORN_LEN * (0.5 + 0.7 * w)
-		spikes.append(PackedVector2Array([base - normal * 3.0 + along, tip, base - normal * 3.0 - along]))
-	# Cleared to paper first, so those over the rock print as bright as those in the open.
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], spikes)
-	ink.ink(RisoPrint.PINK, 0.35 if pale else 1.0, spikes)
+		var middle: float = maxf(point(path, at_s - ds).distance_to(point(path, at_s + ds)), 0.0001)
+		for flank: float in [1.0, -1.0]:
+			var a: Vector2 = point(path, at_s - ds) + facing(path, at_s - ds).orthogonal() * flank * width * 0.5
+			var b: Vector2 = point(path, at_s + ds) + facing(path, at_s + ds).orthogonal() * flank * width * 0.5
+			# How much longer the edge runs here than the body's middle: well under 1 on the inside
+			# of a bend.
+			var stretch: float = a.distance_to(b) / middle
+			var grown: float = smoothstep(THORN_BUNCHED, 1.0, stretch)
+			if grown > 0.0:
+				edge.append([at + side * flank * width * 0.5, side * flank, grown])
+	return edge
+
+
+## A segment's scales: on the half of its body toward its thorns (flank `toward`: 1 the left of the
+## way it heads, -1 the right), rows of small plates in the thorns' own pink (danger), so the side
+## that cannot be cut reads as a rough hide and the bare side as soft flesh (scale_plates).
+func _draw_scales(path: Array[Vector2i], toward: float, front: float, back: float, width: float, k: float, pale: bool) -> void:
+	var plates: Array[PackedVector2Array] = scale_plates(path, toward, front, back, width)
+	var cover: float = (STUNNED_FLESH if pale else 1.0) * k
+	ink.ink(RisoPrint.PINK, SCALE_PINK * cover, plates, false)
+	ink.ink(RisoPrint.NIGHT, SCALE_SHADE * cover, plates, false)
+
+
+## The scales on the body from `front` to `back` along `path`, `width` across, on flank `toward`:
+## each a half disc lying back toward the tail, in rows staggered one to the next. Fixed to the body
+## like the thorns, shrinking on the squeezed inside of a bend, and only where the flesh is out in
+## the open.
+func scale_plates(path: Array[Vector2i], toward: float, front: float, back: float, width: float) -> Array[PackedVector2Array]:
+	var plates: Array[PackedVector2Array] = []
+	var ds: float = 0.04
+	for row: int in range(SCALE_ROWS.size()):
+		var off: float = SCALE_ROWS[row] * width * 0.5
+		for n: int in range(SCALES_ALONG):
+			var at_s: float = lerpf(front, back, (float(n) + 0.25 + 0.5 * float(row % 2)) / float(SCALES_ALONG))
+			if not open_at(path, at_s):
+				continue
+			var way: Vector2 = facing(path, at_s)
+			var side: Vector2 = way.orthogonal() * toward
+			# Squeezed on the inside of a bend: smaller, and none past THORN_BUNCHED.
+			var a: Vector2 = point(path, at_s - ds) + facing(path, at_s - ds).orthogonal() * toward * off
+			var b: Vector2 = point(path, at_s + ds) + facing(path, at_s + ds).orthogonal() * toward * off
+			var middle: float = maxf(point(path, at_s - ds).distance_to(point(path, at_s + ds)), 0.0001)
+			var grown: float = smoothstep(THORN_BUNCHED, 1.0, a.distance_to(b) / middle)
+			if grown < 0.05:
+				continue
+			var radius: float = SCALE_R * grown
+			var centre: Vector2 = point(path, at_s) + side * off
+			var plate: PackedVector2Array = PackedVector2Array()
+			for m: int in range(9):
+				plate.append(centre + (-way).rotated(-PI * 0.5 + PI * float(m) / 8.0) * radius)
+			plates.append(plate)
+	return plates
 
 
 ## A segment's hits left, as dark dots in a row across its middle.
@@ -1028,19 +1319,57 @@ func _draw_hits(s: WormSegment, width: float, k: float) -> void:
 	ink.ink(RisoPrint.NIGHT, 0.85 * k, dots, false)
 
 
-## A burrow hole, as wide as the worm: a low heap of pale earth (the worm's own flesh tones)
-## thrown up round a dark mouth across the rock face, with a few crumbs. The worm's body ends at
-## the face, inside the mouth's dark rim.
+## A burrow hole, as wide as the worm: the ground itself pushed up round a dark pit across the rock
+## face, two shoulders of the rock's own ink rising to a rim either side (turfed like the floor's
+## cap strip where the hole is dug in a floor, so the ground runs on over them), with crumbs of the
+## freshly dug earth (the worm's pale flesh tones) on their inner slopes among clods of the ground's
+## own; all of it only over open air, so in a narrow shaft it heaps against the walls. The worm's
+## body ends at the face, inside the pit.
 func _draw_hole(hole: Hole) -> void:
 	var at: Transform2D = Transform2D(hole.out.angle() + PI * 0.5, hole.mouth)
 	var r: float = cell * GIRTH * 0.5
-	var heap: Array[PackedVector2Array] = [at * RisoShapes.almond(Vector2(0, -6), r * 1.25, 14.0, 24)]
-	for c: Vector2 in [Vector2(-r * 1.3, -6), Vector2(r * 1.28, -8), Vector2(-r * 0.9, -18), Vector2(r * 0.95, -19)]:
-		heap.append(RisoShapes.circle(at * c, 4.0, 8))
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], heap)
-	ink.ink(RisoPrint.PINK, FLESH_PINK * HOLE_EARTH, heap, false)
-	ink.ink(RisoPrint.BLUE, FLESH_GREEN * HOLE_EARTH + 0.25, heap, false)
-	ink.ink(RisoPrint.NIGHT, 1.0, [at * RisoShapes.almond(Vector2(0, 2), r + 5.0, 11.0, 24)], false)
+	# Only over open air: in a narrow shaft or tunnel the earth heaps up against its walls rather
+	# than spilling over them.
+	var shoulders: Array[PackedVector2Array] = _clip_to_air(at * _mound(r), hole.mouth, r * HOLE_REACH + HOLE_RIM)
+	# Printed as the terrain prints rock (and, on a floor, its cap strip over it).
+	ink.knock([RisoPrint.PINK, RisoPrint.ACCENT], shoulders)
+	ink.ink(RisoPrint.BLUE, 1.0, shoulders)
+	if hole.out.dot(Vector2.UP) > 0.5:
+		ink.ink(RisoPrint.ACCENT, 1.0, shoulders)
+	ink.ink(RisoPrint.NIGHT, 1.0, [at * RisoShapes.almond(Vector2(0, 0), r * 0.97, HOLE_PIT, 24)], false)
+	var dug: Array[PackedVector2Array] = []
+	var clods: Array[PackedVector2Array] = []
+	for k: int in range(HOLE_CRUMBS.size()):
+		var c: Vector3 = HOLE_CRUMBS[k]
+		var spot: Vector2 = at * Vector2(c.x * r, -c.y)
+		if not passable(map_info.world, map_info.cell_at(spot)):
+			continue
+		var crumb: PackedVector2Array = RisoShapes.circle(spot, c.z, 8)
+		# Every third one a clod of the ground's own; the rest freshly dug earth.
+		if k % 3 == 2:
+			clods.append(crumb)
+		else:
+			dug.append(crumb)
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], dug)
+	ink.ink(RisoPrint.PINK, FLESH_PINK * HOLE_EARTH, dug, false)
+	ink.ink(RisoPrint.BLUE, FLESH_GREEN * HOLE_EARTH + 0.25, dug, false)
+	ink.knock([RisoPrint.PINK, RisoPrint.ACCENT], clods)
+	ink.ink(RisoPrint.BLUE, 1.0, clods)
+	ink.ink(RisoPrint.NIGHT, 0.3, clods, false)
+
+
+## The ground pushed up round a hole, in the hole's frame (across x, out along -y, the mouth at the
+## origin) for a worm of radius `r`: low at the middle, where the pit is, rising to a rim either
+## side at the worm's flanks, and easing back down to the face HOLE_REACH radii out.
+static func _mound(r: float) -> PackedVector2Array:
+	var reach: float = r * HOLE_REACH
+	var out: PackedVector2Array = PackedVector2Array([Vector2(reach, 1.0), Vector2(-reach, 1.0)])
+	for n: int in range(33):
+		var x: float = lerpf(-reach, reach, float(n) / 32.0)
+		var a: float = absf(x)
+		var h: float = HOLE_RIM * pow(a / r, 3.0) if a < r else HOLE_RIM * (0.5 + 0.5 * cos(PI * (a - r) / (reach - r)))
+		out.append(Vector2(x, -h))
+	return out
 
 
 ## A worm about to come out at its face: the ground bulges there in pink (danger), throbbing

@@ -29,9 +29,28 @@ Defaults: deep night realm, independent plates, fine detail, new sheet registrat
 The worm's pink head has a Pac-Man wedge mouth cut out of its rounded front, centered on
 the segment's solid circle, showing what is behind it. The front and bite use that same radius;
 the mouth only removes flesh, so the head never extends past it. The wedge's root stays ahead
-of the centre, clear of the health dots. It gapes near the wizard and
-nearly closes during the 0.65 s rest after biting or while stunned. The front is clipped to the
-open air at rock faces. `tests/worm_test.gd`
+of the centre, clear of the health dots. Paper teeth line both jaws, those of one between those
+of the other, so shut they mesh in a zigzag along the seam (`Worm._teeth`). It chomps
+(`Worm._gape`): near the wizard the jaws ease open and snap shut, quicker and wider the nearer they
+are (`CHOMP_SLOW` to `CHOMP_FAST` a second), and far off hold still a little open. Biting, they
+spring wide and slam shut in 0.08 s (`BITE_SNAP`), throwing pink strokes out from the jaws that
+fade over 0.3 s, and stay shut through the 0.65 s rest after; stunned, they hang nearly shut. The
+front is clipped to the open air at rock faces. Striking (`Worm._strike_reach`, `_strike_gape`), it
+pauses with its jaws shut, draws its head back into its neck as they open wide, lunges out along
+its path and snaps them shut at full reach, then settles back. Its thorns, on alternate flanks
+from one segment to the next, grow from fixed places along the body (four to a cell a side), so they ride along as it crawls: fanned apart round the
+outside of a bend, shrinking smoothly away on its squeezed inside, and growing in or out as the
+flank turns toward or away from the side they face, never popping (`Worm.thorn_spots`). Each shows
+wherever the flesh it grows from is out in the open, so they go into a hole with it, one by one;
+nothing shows through the rock. The half of each segment toward its thorns is speckled with
+small plates of the thorns' pink lying back toward the tail (`Worm.scale_plates`), a rough hide
+where it cannot be cut; the bare half is plain soft flesh. A burrow
+hole is the ground pushed up round a dark pit: shoulders of the rock's own ink rising to a rim
+either side of the worm's width, turfed like the floor's cap strip where the hole is in a floor,
+with crumbs of freshly dug pale earth among clods of the ground's own (`Worm._draw_hole`), all
+only over open air, so at the end of a space a cell wide it heaps against the walls. A hole
+it digs into a wall appears as its nose reaches the face. `tests/capture_worm.gd` takes stills,
+and strips of its chomps, a strike, a crawl round a bend and a dig. `tests/worm_test.gd`
 checks the front against the rock and collider; `tests/worm_combat_test.gd` checks the bite
 shape, recovery and real dash contact; `tests/capture_worm.gd` takes stills.
 
