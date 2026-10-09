@@ -1,32 +1,31 @@
-[gd_scene load_steps=11 format=3 uid="uid://bdd54s8wdfdsc"]
-
-[ext_resource type="Script" path="res://scripts/riso/RisoPrint.gd" id="21_riso"]
+[gd_scene format=3 uid="uid://bdd54s8wdfdsc"]
 
 [ext_resource type="PackedScene" uid="uid://d07pxhxu1ug5i" path="res://prefabs/menu.tscn" id="1_u4qe6"]
-[ext_resource type="Script" path="res://scripts/MapInfo.gd" id="2_j20rq"]
+[ext_resource type="Script" uid="uid://dtow171waltbv" path="res://scripts/MapInfo.gd" id="2_j20rq"]
 [ext_resource type="Texture2D" uid="uid://bsvj6kbku0k16" path="res://wfc_images/levelSample3-spikes.png" id="5_3ptxv"]
 [ext_resource type="PackedScene" uid="uid://cywny0yr2evn6" path="res://prefabs/code_menu.tscn" id="6_pee7n"]
-[ext_resource type="Script" path="res://scripts/WaveFunctionCollapse.gd" id="8_vwnae"]
+[ext_resource type="Script" uid="uid://chkqmuvjo7jja" path="res://scripts/WaveFunctionCollapse.gd" id="8_vwnae"]
 [ext_resource type="PackedScene" uid="uid://bf08akeilq3j1" path="res://prefabs/tile_map.tscn" id="9_qh1ky"]
 [ext_resource type="AudioStream" uid="uid://dl3u7v333oha2" path="res://music/big_bossanova.wav" id="10_yprvw"]
-[ext_resource type="Script" path="res://scripts/MusicPlayer.gd" id="11_hqvrv"]
-[ext_resource type="Script" path="res://prefabs/scenes/CameraEffects.gd" id="13_e5huw"]
+[ext_resource type="Script" uid="uid://bbfpetk7v8x2c" path="res://scripts/MusicPlayer.gd" id="11_hqvrv"]
+[ext_resource type="Script" uid="uid://rtt04jnq5311" path="res://prefabs/scenes/CameraEffects.gd" id="13_e5huw"]
+[ext_resource type="Script" uid="uid://dvw0e6ys1qdpg" path="res://scripts/riso/RisoPrint.gd" id="21_riso"]
 
-[node name="Main" type="Node2D"]
+[node name="Main" type="Node2D" unique_id=911879917]
 texture_filter = 1
 
-[node name="RisoPrint" type="Node" parent="."]
+[node name="RisoPrint" type="Node" parent="." unique_id=1761851537]
 script = ExtResource("21_riso")
 
-[node name="CodeMenu" parent="." instance=ExtResource("6_pee7n")]
-visible = false
+[node name="CodeMenu" parent="." unique_id=1125655424 instance=ExtResource("6_pee7n")]
 layer = 2
+visible = false
 
-[node name="CanvasLayer" type="CanvasLayer" parent="."]
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=788805411]
 process_mode = 3
 layer = 2
 
-[node name="MapInfo" type="Control" parent="CanvasLayer"]
+[node name="MapInfo" type="Control" parent="CanvasLayer" unique_id=1500159235]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -35,34 +34,34 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("2_j20rq")
 
-[node name="Menu" parent="." instance=ExtResource("1_u4qe6")]
+[node name="Menu" parent="." unique_id=570075829 instance=ExtResource("1_u4qe6")]
 process_mode = 3
 layer = 2
 
-[node name="WaveFunctionCollapse" type="WaveFunctionCollapse" parent="."]
+[node name="WaveFunctionCollapse" type="WaveFunctionCollapse" parent="." unique_id=216287758]
 output_size = Vector2i(64, 64)
 seed = 28
 symmetry = 5
 pattern_size = 3
 visible = false
-position = Vector2(3.44828, 19.3688)
+position = Vector2(0.08390665, 17.514223)
 texture = ExtResource("5_3ptxv")
 script = ExtResource("8_vwnae")
 
-[node name="TileMap" parent="." instance=ExtResource("9_qh1ky")]
+[node name="TileMap" parent="." unique_id=1351268669 instance=ExtResource("9_qh1ky")]
 scale = Vector2(4, 4)
 
-[node name="Camera2D" type="Camera2D" parent="."]
+[node name="Camera2D" type="Camera2D" parent="." unique_id=1415580286]
 zoom = Vector2(0.25, 0.25)
 script = ExtResource("13_e5huw")
 
-[node name="Music" type="Node" parent="."]
+[node name="Music" type="Node" parent="." unique_id=1784410341]
 script = ExtResource("11_hqvrv")
 
-[node name="MusicPlayer1" type="AudioStreamPlayer" parent="Music"]
+[node name="MusicPlayer1" type="AudioStreamPlayer" parent="Music" unique_id=1102442599]
 stream = ExtResource("10_yprvw")
 volume_db = -5.842
 
-[node name="MusicPlayer2" type="AudioStreamPlayer" parent="Music"]
+[node name="MusicPlayer2" type="AudioStreamPlayer" parent="Music" unique_id=1983353762]
 stream = ExtResource("10_yprvw")
 volume_db = -5.842
