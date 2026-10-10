@@ -12,8 +12,10 @@ extends Archetype
 ## and passages' doors and switch gates, and the climb itself. Its own thing is the gondola
 ## (cut_gates, populate, Gondola): a cable car climbing a line of stations from near the bottom of
 ## the level to near its top, in steps along rows and columns, all but one station shut behind a
-## door, a switch gate or a toll gate. Rock-bugs (RockBug) crawl along its rock (place_bugs), and
-## stalactites (Stalactite) hang from its ceilings, falling on whoever passes under (finish).
+## door, a switch gate or a toll gate. Rock-bugs (RockBug) crawl along its rock (place_bugs) and
+## hatch from nests out on the cliff (BugNest), stalactites (Stalactite) hang from its ceilings,
+## falling on whoever passes under, and crossbows (Crossbow) built into the towers' and keeps'
+## walls shoot out at the wizard, stopped only from inside (finish).
 
 const SAMPLE: String = "res://wfc_images/crags.png"
 ## A crag level is this much the size of a cave level of its depth (Rules.level_size), across and
@@ -100,12 +102,24 @@ const STALACTITES_PER_K: float = 1.6
 const STALACTITE_DROP: int = 3
 const STALACTITE_CLEAR: int = 6
 const STALACTITE_APART: int = 3
-## Rock-bug nests (BugNest): one in a room of every tower below its top one, and
-## NESTS_PER_K more out on the cliff's floors, at least NEST_CLEAR cells from the way in and
-## NEST_APART from one another and from the towers' own.
+## Rock-bug nests (BugNest): NESTS_PER_K out on the cliff's floors, never in a building, at least
+## NEST_CLEAR cells from the way in and NEST_APART from one another.
 const NESTS_PER_K: float = 0.4
 const NEST_CLEAR: int = 10
 const NEST_APART: int = 8
+## Crossbows built into the towers' walls (Crossbow), shooting out through arrow slits: each spot
+## where one fits (see place_crossbows) holds one by a chance of CROSSBOW_SHARE, dealt by the level
+## seed (CROSSBOW_DEAL, no draw), at most CROSSBOWS_MOST to a tower (more on a harder preset,
+## Difficulty.foes).
+const CROSSBOW_SHARE: float = 0.85
+const CROSSBOW_DEAL: int = 8150
+const CROSSBOWS_MOST: int = 3
+## Crossbows built into the keeps' walls: each spot where one fits (see place_keep_crossbows) holds
+## one by a chance of KEEP_CROSSBOW_SHARE (more on a harder preset, Difficulty.foes), dealt by the
+## level seed (KEEP_CROSSBOW_DEAL, no draw), at least KEEP_CROSSBOW_APART cells from another.
+const KEEP_CROSSBOW_SHARE: float = 0.4
+const KEEP_CROSSBOW_DEAL: int = 8230
+const KEEP_CROSSBOW_APART: int = 3
 ## What a watchtower's top room holds (place_tower_rewards), the towers taking turns down this list
 ## from a start dealt by the level seed (TOWER_DEAL, no draw): one of the level's keys, the switch of
 ## a switch gate no more than TOWER_SWITCH_NEAR cells from the tower, or a mending bowl (MendWell: the
@@ -175,12 +189,15 @@ static func place_bugs(w: LevelGen) -> void:
 
 
 ## Last of all (so nothing else in the level moves for them): its falling stalactites
-## (place_stalactites), then what the towers hold (place_tower_rewards) and the rock-bug nests in
-## them and out on the cliff (place_nests).
+## (place_stalactites), then what the towers hold (place_tower_rewards), the rock-bug nests out on
+## the cliff (place_nests), the crossbows built into the towers' walls (place_crossbows) and the
+## keeps' (place_keep_crossbows).
 func finish(w: LevelGen, _def: NextWorldDef) -> void:
 	place_stalactites(w)
 	place_tower_rewards(w)
 	place_nests(w)
+	place_crossbows(w)
+	place_keep_crossbows(w)
 
 
 ## Stalactites (Stalactite): STALACTITES_PER_K, each in an empty cell under plain rock with at least
@@ -604,36 +621,84 @@ static func _move_object(w: LevelGen, from: Vector2i, to: Vector2i) -> void:
 	w.empties.append(from)
 
 
-## Rock-bug nests (see NESTS_PER_K): one in each tower, on the floor of the highest room under its
-## top one with a free floor (else wherever there is stone over or under it in those rooms), then
-## the rest out on the cliff, on free floors outside the towers.
+## Rock-bug nests (see NESTS_PER_K), out on the cliff on free floors, outside every building.
 static func place_nests(w: LevelGen) -> void:
-	var chosen: Array[Vector2i] = []
-	for tower: Dictionary in w.towers:
-		var box: Rect2i = tower["box"]
-		@warning_ignore("integer_division")
-		var storeys: int = (box.size.y - 1) / STOREY
-		var spots: Array[Vector2i] = []
-		for storey: int in range(1, storeys):
-			if spots.is_empty():
-				spots = room_floor(w, tower, storey)
-		if spots.is_empty():
-			# Every floor below the top is taken: anywhere in those rooms with stone over or under it.
-			for y: int in range(box.position.y + STOREY + 1, box.end.y - 1):
-				for x: int in range(box.position.x + 1, box.end.x - 1):
-					var v: Vector2i = Vector2i(x, y)
-					if w.get_cell(v).type == LevelGen.Type.EMPTY and w.empties.has(v) and (w.is_ground(v + Vector2i.DOWN) or w.is_ground(v + Vector2i.UP)):
-						spots.append(v)
-		if spots.is_empty():
-			continue
-		@warning_ignore("integer_division")
-		var at: Vector2i = spots[spots.size() / 2]
-		w.put(at, LevelGen.Type.NEST)
-		chosen.append(at)
 	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
 	var floors: Array[Vector2i] = w.free_floors().filter(func(v: Vector2i) -> bool:
 		return LevelGen.dist(v, start) >= NEST_CLEAR and not w.keep_clear.has(v) and not w.structures.has(v))
-	w.put_each(w.pick_apart(floors, w.foes_per_area(NESTS_PER_K), NEST_APART, chosen), LevelGen.Type.NEST)
+	w.put_each(w.pick_apart(floors, w.foes_per_area(NESTS_PER_K), NEST_APART), LevelGen.Type.NEST)
+
+
+## Crossbows built into the towers' walls (see CROSSBOW_SHARE). A spot is a cell of a tower's wall
+## that is whole stone (no window or doorway), with open air outside it and a free room cell inside
+## it: the crossbow is set into that stone (the wall stays solid), and takes the room cell before it
+## as its own in the level. One spot to a side of a room, its floor's row first; the top rooms
+## first, down the tower. Its extra info is {"facing": +1 right or -1 left}, the way it shoots.
+static func place_crossbows(w: LevelGen) -> void:
+	var most: int = maxi(1, floori(float(CROSSBOWS_MOST) * Difficulty.foes()))
+	for tower: Dictionary in w.towers:
+		var box: Rect2i = tower["box"]
+		var count: int = 0
+		for y: int in range(box.position.y, box.end.y - 1, STOREY):
+			for side: Array in [[box.position.x, -1], [box.end.x - 1, 1]]:
+				var facing: int = int(side[1])
+				for row: int in [y + 2, y + 1]:
+					var wall: Vector2i = Vector2i(int(side[0]), row)
+					var at: Vector2i = wall - Vector2i(facing, 0)
+					var out: Vector2i = wall + Vector2i(facing, 0)
+					if count >= most or not w.masonry.has(wall) or not w.is_ground(wall):
+						continue
+					if not w.is_valid(out) or w.is_ground(out):
+						continue
+					if w.get_cell(at).type != LevelGen.Type.EMPTY or not w.empties.has(at):
+						continue
+					var roll: int = posmod(Rules.level_seed(w.seed_for_colors, CROSSBOW_DEAL + wall.x * 977 + wall.y * 31), 1000)
+					if float(roll) / 1000.0 < CROSSBOW_SHARE:
+						w.put(at, LevelGen.Type.CROSSBOW, {"facing": facing})
+						count += 1
+					break
+
+
+## Crossbows built into the keeps' walls (see KEEP_CROSSBOW_SHARE), as into the towers': a
+## spot is a cell of a keep's wall that is whole stone, with open air outside it (not another
+## building's room) and a free cell of the keep's hall inside it, and not stone a big thing under it
+## needs for room (LevelGen.make_room carves that later). In order across the level, top to bottom.
+## Its extra info is {"facing": +1 right or -1 left}.
+static func place_keep_crossbows(w: LevelGen) -> void:
+	var share: float = minf(1.0, KEEP_CROSSBOW_SHARE * Difficulty.foes())
+	var walls: Array = w.masonry.keys()
+	walls.sort()
+	var placed: Array[Vector2i] = []
+	for wall: Vector2i in walls:
+		if w.structures.get(wall, &"") != &"keep" or not w.is_ground(wall) or _room_of_big(w, wall):
+			continue
+		for facing: int in [-1, 1]:
+			var at: Vector2i = wall - Vector2i(facing, 0)
+			var out: Vector2i = wall + Vector2i(facing, 0)
+			if not w.interiors.has(at) or w.get_cell(at).type != LevelGen.Type.EMPTY or not w.empties.has(at):
+				continue
+			if not w.is_valid(out) or w.is_ground(out) or w.interiors.has(out):
+				continue
+			if placed.any(func(v: Vector2i) -> bool: return LevelGen.dist(v, at) < KEEP_CROSSBOW_APART):
+				continue
+			var roll: int = posmod(Rules.level_seed(w.seed_for_colors, KEEP_CROSSBOW_DEAL + wall.x * 977 + wall.y * 31), 1000)
+			if float(roll) / 1000.0 < share:
+				w.put(at, LevelGen.Type.CROSSBOW, {"facing": facing})
+				placed.append(at)
+
+
+## Whether cell `c` is within the box of a thing more than a cell big (Placeables.size: across and
+## up from its own cell), which LevelGen.make_room clears of rock.
+static func _room_of_big(w: LevelGen, c: Vector2i) -> bool:
+	for dx: int in range(2):
+		for dy: int in range(3):
+			var o: Vector2i = c + Vector2i(-dx, dy)
+			if (dx == 0 and dy == 0) or not w.is_valid(o):
+				continue
+			var size: Vector2i = Placeables.size(w.get_cell(o).type)
+			if dx < size.x and dy < size.y:
+				return true
+	return false
 
 
 ## Whether `r` takes in any of `cells`.

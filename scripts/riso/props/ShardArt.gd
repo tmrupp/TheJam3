@@ -1,5 +1,6 @@
 extends RisoProp
-## A watcher's shot: a pink shard, or a rebounding pellet of sun; or a bramble's seed.
+## A watcher's shot: a pink shard, or a rebounding pellet of sun; or a bramble's seed; or a
+## crossbow's arrow.
 
 
 ## The Bullet it dresses.
@@ -32,6 +33,13 @@ func _draw_art() -> void:
 		ink.ink(RisoPrint.PINK, 1.0, [spin * RisoShapes.almond(Vector2.ZERO, 21.0, 12.0, 12)])
 		ink.ink(RisoPrint.PINK, 1.0, [spin * RisoShapes.tri(Vector2(17, -6), Vector2(32, 0), Vector2(17, 6))])
 		ink.ink(RisoPrint.NIGHT, 0.7, [spin * RisoShapes.ellipse(Vector2(-1, 0), 7.0, 4.0, 10)], false)
+		return
+	if shot.arrow:
+		# A crossbow's arrow: a pink shaft with a faint trail, pink fletching and a pink head.
+		ink.ink(RisoPrint.PINK, 0.3, [xf * RisoShapes.rrect(-70, -1.5, 30, 3, 1.5)])
+		ink.ink(RisoPrint.PINK, 0.75, [xf * RisoShapes.rrect(-40, -2.5, 44, 5, 2)])
+		ink.ink(RisoPrint.PINK, 1.0, [xf * RisoShapes.tri(Vector2(2, -7), Vector2(18, 0), Vector2(2, 7))])
+		ink.ink(RisoPrint.PINK, 0.8, [xf * RisoShapes.tri(Vector2(-44, -8), Vector2(-30, -2), Vector2(-40, -2)), xf * RisoShapes.tri(Vector2(-44, 8), Vector2(-30, 2), Vector2(-40, 2))])
 		return
 	ink.ink(RisoPrint.PINK, 0.5, [xf * RisoShapes.rrect(-34, -3, 30, 6, 3)])
 	ink.ink(RisoPrint.PINK, 1.0, [xf * RisoShapes.sparkle(Vector2.ZERO, 10.0, 1.7)])

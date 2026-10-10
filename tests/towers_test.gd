@@ -9,8 +9,8 @@ extends TestKit
 ## holds one of the level's keys, a switch for a gate nearby, or a mending bowl (MendWell), and those
 ## turn up across the levels. Every tower in the band's levels of several worlds is whole once the
 ## level is laid out: nothing later cracks, carves, fills or tunnels through its walls, floors,
-## rooms, doorsteps, footing or the air over its roof, and nothing tall stands in its doorways. A rock-bug nest sits in a room under the top one, and more out on the cliff, away
-## from the way in. The keeps' halls are interiors too. Two builds of a level are the same.
+## rooms, doorsteps, footing or the air over its roof, and nothing tall stands in its doorways. No
+## rock-bug nest is in a tower: they sit out on the cliff, away from the way in. The keeps' halls are interiors too. Two builds of a level are the same.
 ## godot --headless --path . --script res://tests/towers_test.gd
 
 
@@ -101,12 +101,12 @@ func _tower(w: LevelGen, tower: Dictionary) -> void:
 		var on_roof: bool = range(x0, x1 + 1).any(func(x: int) -> bool: return reach.has(Vector2i(x, roof - 1)))
 		check(on_roof, "%s: out through the hatch onto its roof" % name_of)
 		check(holes.filter(func(v: Vector2i) -> bool: return v.y == roof).all(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.TRAPDOOR), "%s: a trapdoor in its roof's hatch" % name_of)
-	# What it holds: a nest in a room below the top, and its reward in the top room, reached.
+	# What it holds: no nest (they are out on the cliff), and its reward in the top room, reached.
 	var nest: bool = false
 	for x: int in range(x0 + 1, x1):
 		for y: int in range(roof + 1, ground):
 			nest = nest or w.get_cell(Vector2i(x, y)).type == LevelGen.Type.NEST
-	check(nest, "%s: a rock-bug nest inside" % name_of)
+	check(not nest, "%s: no rock-bug nest inside" % name_of)
 	if tower["hoard"] or not tower.has("reward"):
 		return
 	var reward: LevelGen.Type = tower["reward"]
@@ -207,4 +207,5 @@ func _nests(w: LevelGen) -> void:
 	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
 	var nests: Array[Vector2i] = w.objects_of(LevelGen.Type.NEST)
 	var out: Array[Vector2i] = nests.filter(func(v: Vector2i) -> bool: return not w.structures.has(v))
+	check(out.size() == nests.size(), "no nest in a building")
 	check(out.size() > 0 and nests.all(func(v: Vector2i) -> bool: return LevelGen.dist(v, start) >= CragsArchetype.NEST_CLEAR) and out.all(func(v: Vector2i) -> bool: return w.is_ground(v + Vector2i.DOWN)), "%d nests, %d out on the cliff, all on floors away from the way in" % [nests.size(), out.size()])

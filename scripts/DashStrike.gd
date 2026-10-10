@@ -6,6 +6,7 @@ class_name DashStrike
 ## stunned enemy takes double, see Wound). Each enemy is struck once a dash. The worm is struck
 ## once a dash too, in the first segment met (Wound.whole), which is cut even without the perk
 ## (Wound.least) but not stunned; its body blocks the dash (WormSegment), unless the cut opens it.
+## A crag's rock-bug nest and crossbow, which have nothing to stun, are wounded by it the same way.
 ## Touching an enemy never hurts the wizard while they dash, nor for GUARD seconds after from one
 ## they struck. A shield takes the dash whole (a hit off the shield, no wound or stun) and throws
 ## the wizard back.
@@ -97,7 +98,9 @@ func sweep(from: Vector2, to: Vector2) -> void:
 	for e: Node in get_tree().get_nodes_in_group(&"hex_target"):
 		if not is_instance_valid(e) or e.is_queued_for_deletion() or Wound.whole(e) in struck:
 			continue
-		if Stunner.of(e) == null and not e is MothSwarm:
+		# What can be stunned, a swarm, or what any blow wounds (a nest, a crossbow: Wound.least).
+		var wound: Wound = e.get_node_or_null("Wound") as Wound
+		if Stunner.of(e) == null and not e is MothSwarm and (wound == null or wound.least <= 0):
 			continue
 		var at: Vector2 = (e as Node2D).global_position
 		var near: PackedVector2Array = Geometry2D.get_closest_points_between_segments(from, to, at + Vector2(0, SPAN_DOWN), at - Vector2(0, SPAN_UP))

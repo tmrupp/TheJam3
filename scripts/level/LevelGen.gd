@@ -48,6 +48,7 @@ enum Type {
 	NEST,
 	DRAUGHT,
 	WELL,
+	CROSSBOW,
 }
 
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).

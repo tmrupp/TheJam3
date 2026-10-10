@@ -15,6 +15,9 @@ var since_bounce: float = 99.0
 ## A seed the bramble's bulb spat (BrambleBulb), printed as one; parried, it flies back into the
 ## bulb as any shot does.
 var seed: bool = false
+## An arrow a crag tower's crossbow loosed (Crossbow), printed as one; parried, it flies back as any
+## shot does, only as far as the tower's wall.
+var arrow: bool = false
 ## Bodies its sweep glances off: rock and ledges (as its hit box sees them).
 const SOLID_MASK: int = 32
 

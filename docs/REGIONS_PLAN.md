@@ -380,8 +380,9 @@ or from inside the car) or now and then a switch gate, never a door (it runs fro
 to a shut one, never between two shut ones), worked by a lever
 inside and called from a post at each open station, its sides down only while it runs, a
 rock-bug coming along its cable and in through its roof on each stretch (stunned off, or let off
-when it stops). Not yet: falling rocks, watchers in the slits, and
-the spider.
+when it stops), stalactites that fall on whoever passes under (the falling rocks), rock-bug nests out
+on the cliff, and crossbows built into the towers' and keeps' walls,
+shooting out through arrow slits at the wizard and stopped only from inside (`Crossbow`). The spider has a first pass (§6).
 
 - **Terrain.** Vertical: tall cliff faces with narrow ledges, chimneys and overhangs, collapsed
   from a sample drawn for it (`tests/make_crags_sample.gd`, symmetry 1 so up stays up), taller
@@ -391,7 +392,8 @@ the spider.
   structure pass that squares off some rock into walls and floors.
 - **Gates.** Doors and switch gates fit its built corridors; climbing is its natural gate (wall
   climb and double jump matter here, so the relic from the bramble is often one of them).
-- **Life.** Falling rocks (the "falling spikes" idea), watchers in the arrow slits.
+- **Life.** Falling rocks (stalactites), rock-bugs and their nests, crossbows in the towers' and keeps'
+  walls.
 - **Realm.** Pale stone and dawn colours; wind-torn clouds below the cliffs.
 
 ### The cemetery: crypts, light and darkness (rows +4 … +9)
@@ -601,7 +603,9 @@ Each phase ends with the full suite green and its own tests.
    gondola (`CragsArchetype`, `Gondola`; `crags_test`, `capture_crags.gd`; the crags' layouts
    changed and `layout_fingerprint_test` was re-pinned for them alone). *The spider and its keep:
    a first pass is done* (§6; `spider_test`, `capture_spider.gd`; no level's layout changed, only
-   the spider's arena). Then its life (falling rocks, watchers in the slits), and tuning
+   the spider's arena). *Its life is done*: stalactites (the falling rocks), nests out on the cliff,
+   and crossbows built into the towers' and keeps' walls (`crossbow_test`; the crags' dressing changed and
+   `layout_fingerprint_test` was re-pinned for them alone). Then tuning
    the spider in play.
 6. **Cemetery crypts and light**: crypts behind bell gates, darkness by place, the flame snuffed
    and lit; then **the necromancer** in its crypt.

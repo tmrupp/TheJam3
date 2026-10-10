@@ -1,11 +1,11 @@
 extends Node2D
 class_name BugNest
-## A rock-bug nest, in crag levels (CragsArchetype.place_nests): a burrow in the rock on a floor,
-## in the towers' rooms and out on the cliff. While the wizard is within WAKE cells of it, it
-## hatches a rock-bug (RockBug.crawl_out) every EVERY seconds (the first FIRST seconds after it
-## wakes), as long as fewer than BROOD of its own are still about. It is an enemy itself: hex bolts
-## wound it (its Wound, given as it is placed), and once destroyed the level record keeps it slain
-## until the wizard dies. The bugs it hatches are not part of the level: none are kept, and they are
+## A rock-bug nest, in crag levels (CragsArchetype.place_nests): a burrow in the rock on a floor out
+## on the cliff. While the wizard is within WAKE cells of it, it hatches a rock-bug
+## (RockBug.crawl_out) every EVERY seconds (the first FIRST seconds after it wakes), as long as
+## fewer than BROOD of its own are still about. It is an enemy itself (its Wound, given as it is
+## placed): any hex bolt or dash wounds it, even one that only stuns (Wound.least), and once
+## destroyed the level record keeps it slain until the wizard dies. The bugs it hatches are not part of the level: none are kept, and they are
 ## gone when the level is left. Nothing here draws from the world RNG.
 
 ## How near the wizard wakes it (cells), how soon it hatches its first bug once woken and how
@@ -28,6 +28,10 @@ var hatching: float = -1.0
 func setup(info: MapInfo, v: Vector2i) -> void:
 	map_info = info
 	cell = v
+	# Wounded by any bolt or dash, even one that only stuns: it has nothing to stun.
+	var wound: Wound = get_node_or_null("Wound") as Wound
+	if wound != null:
+		wound.least = 1
 
 
 ## Whether the wizard is near enough to wake it.
