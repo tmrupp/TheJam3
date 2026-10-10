@@ -209,7 +209,12 @@ func _strikes(worm: Worm, p: Worm.Piece) -> void:
 	worm._place(p)
 	var head: WormSegment = p.segments[0]
 	var rest_at: Vector2 = head.global_position
-	player.global_position = rest_at + head.heading * worm.cell * 1.2
+	var side: Vector2 = head.heading.orthogonal()
+	player.global_position = rest_at + head.heading * worm.cell * (Worm.STRIKE_RANGE + 0.3)
+	check(not worm._can_strike(p), "it does not strike at the wizard beyond its lunge")
+	player.global_position = rest_at + head.heading * worm.cell * 0.8 + side * worm.cell * (Worm.STRIKE_ACROSS + 0.3)
+	check(not worm._can_strike(p), "nor at the wizard off to one side")
+	player.global_position = rest_at + head.heading * worm.cell * 0.9
 	if not worm._can_strike(p):
 		check(false, "it strikes at the wizard just ahead (no room to lunge here)")
 		return

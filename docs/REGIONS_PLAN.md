@@ -199,7 +199,8 @@ through the gate level's tunnels, as Tom described.
   (`SEGMENT_HP`), its hits left printed on it as dark dots. The head bites (pink); its mouth is
   a shallow Pac-Man wedge ahead of the health dots, cut out of a round nose, whose visible front,
   solid collider and bite share the
-  same radius. It strikes: with the wizard within 1.7 cells ahead of its head (`STRIKE_RANGE`),
+  same radius. It strikes: only with the wizard where its lunge will reach, less than 1.1 cells
+  ahead of its head (`STRIKE_RANGE`) and 0.45 cells to either side (`STRIKE_ACROSS`),
   it stops, pauses 0.18 s, draws its head back 0.3 cells into its neck as its jaws open wide
   (0.22 s), lunges 0.8 cells on along its path in 0.08 s (`LUNGE_REACH`; the head's body and bite
   go with it), snaps its jaws shut at full reach and settles back, then waits 0.6 s

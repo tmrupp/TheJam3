@@ -93,7 +93,7 @@ func run() -> void:
 	worm_piece.strike_wait = 0.0
 	worm.hunting = true
 	worm._place(worm_piece)
-	player.global_position = head.global_position + head.heading * worm.cell * 1.2
+	player.global_position = head.global_position + head.heading * worm.cell * 0.9
 	if worm._can_strike(worm_piece):
 		worm_piece.strike = 0.0
 		var beats: Array[float] = [0.15, 0.45, 0.65, 0.72, 0.77, 0.86, 1.0, 1.2]

@@ -44,12 +44,13 @@ const SPEED: float = 170.0
 const HUNT_SPEED: float = 280.0
 ## Seconds a piece rests after its head bites: it stays solid, but its head is harmless.
 const BITE_RECOVERY: float = 0.65
-## Striking (_strike_reach): it strikes when the wizard is within STRIKE_RANGE cells of its head and
-## ahead of it (the dot of its heading with the way to them at least STRIKE_AHEAD). It pauses,
+## Striking (_strike_reach): it strikes only when the wizard is where its lunge will reach (its jaws
+## go LUNGE_REACH cells on, plus their own radius): ahead of its head by less than STRIKE_RANGE
+## cells, and less than STRIKE_ACROSS cells to either side of the way it faces. It pauses,
 ## draws its head back PULL_BACK cells, lunges LUNGE_REACH cells on along its path, holds there as
 ## its jaws snap shut, and settles back; then waits STRIKE_REST before striking again. Seconds each.
-const STRIKE_RANGE: float = 1.7
-const STRIKE_AHEAD: float = 0.4
+const STRIKE_RANGE: float = 1.1
+const STRIKE_ACROSS: float = 0.45
 const STRIKE_PAUSE: float = 0.18
 const STRIKE_PULL: float = 0.22
 const STRIKE_LUNGE: float = 0.08
@@ -820,7 +821,10 @@ func _can_strike(p: Piece) -> bool:
 		return false
 	var path: Array[Vector2i] = p.path()
 	var to: Vector2 = player.global_position - head.global_position
-	return to.length() < cell * STRIKE_RANGE and to.normalized().dot(head.heading) >= STRIKE_AHEAD 			and open_at(path, p.at(0) - LUNGE_REACH)
+	var ahead: float = to.dot(head.heading)
+	var across: float = absf(to.cross(head.heading))
+	return ahead > 0.0 and ahead < cell * STRIKE_RANGE and across < cell * STRIKE_ACROSS \
+			and open_at(path, p.at(0) - LUNGE_REACH)
 
 
 ## A head has bitten the wizard: hold its piece still and close its mouth for BITE_RECOVERY.
