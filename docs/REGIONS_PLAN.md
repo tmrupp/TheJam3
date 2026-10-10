@@ -1,7 +1,7 @@
 # Regions: up and down, and the bosses that guard them
 
 A plan for turning the single dive into two branches out of the garden, up through the crags to
-the sky and down through the cemetery to the library, with a boss at the end of each band that
+the sky and down through the cemetery to the institute, with a boss at the end of each band that
 guards a relic and the way on to the next region. It builds on `docs/DEEPER_PLAN.md` (the grid of
 places, archetypes, side worlds, relics) and follows the owner's notes, now the task list linked
 from `AGENTS.md` ("can go up or down", "bosses, possibly guarding relics, must be defeated").
@@ -22,7 +22,8 @@ is proposed, and what is still open; the phases at the end give the order of wor
 | Crags and castle | One band: vertical cliff levels dressed with castle ruins. The spider's arena is the keep. |
 | Hyperspace across branches | Yes: a hyperspace may cross the start into the other branch (35 % of them), still leading 4 rows further from the start. |
 | The cemetery | Stays the cemetery: its terraces, decor and bell gates, with crypts (mausoleums, catacomb tunnels) added behind bell gates. Light and darkness start to matter here, within a level rather than by band (§7). |
-| The last band down | The **library**, in place of the catacombs (which become the cemetery's crypts). What it is, beyond strong spellcasting enemies, is open (§7). The eldritch beast stays its boss. |
+| The last band down | The **institute**, in place of the catacombs (which become the cemetery's crypts): a sunken institute of magic with a library among its wings; students and masters, strong spellcasters, and abominations rising from the deep, all fighting one another as well as the wizard; exams (battles and field trials) as its gates; departments with portals to real levels of other bands, in the same column (§7). The eldritch beast stays its boss. |
+| The far bands' characters | The institute is **humanity** (people, schooling, rivalry); the sky is **the elements** (wind, storm, beasts of the air). Each speeds travel one way: the institute's portals up and down a column, the sky's balloons along a row, on its winds (§7). |
 
 ## 2. The vertical map
 
@@ -36,7 +37,7 @@ the start. Row 0 is where a run begins; rows below it are down, rows above it (n
         up gate,   row −3:  the bramble (in the level)
         down gate, row +3:  the worm (in the level)
    cemetery        rows  +4 …  +9     necromancer (arena: a crypt)
-   library         rows +10 … +15     eldritch beast (arena: its chamber)
+   institute       rows +10 … +15     eldritch beast (arena: its chamber)
 ```
 
 - **Bands.** The garden is 7 rows (three either side of the start); every other band is 6. Each
@@ -46,7 +47,7 @@ the start. Row 0 is where a run begins; rows below it are down, rows above it (n
   values, enemy health, level size, relic chances, key rarity, lantern counts) scales with the
   distance `|row|` instead. A level's definition keeps a `depth` field for this, set to `|row|`,
   and its row in `coord.y`. Crags at rows −4 to −9 are as hard as the cemetery at +4 to +9.
-- **Past the last bands** (below the library, above the sky): open, see §9. Until decided, the
+- **Past the last bands** (below the institute, above the sky): open, see §9. Until decided, the
   outermost band repeats, harder, with no further boss.
 
 ## 3. Places and their coordinates
@@ -92,7 +93,8 @@ at `(x, -(k * STRIDE + d) - 1)` (`Worlds.side_at`). The up branch needs those ro
 - **Nothing skips a seal.** Every way that crosses rows without walking them must stop at an
   unslain boss's gate: the hyperspace door (it moves `DROP` rows along the branch, never past a
   sealed band end; a door that would is not dealt), far rifts (only to levels already visited, so
-  already fine), warp (within a level), the debug picker excepted.
+  already fine), warp (within a level), the debug picker and the institute's portals (§7)
+  excepted.
 - **The worlds map.** Its grid grows rows above the start. A band end whose boss lives shows a seal
   on its tile, the boss's mark once seen (§5).
 
@@ -313,10 +315,23 @@ crags' gate level, row −9) lays out its keep instead of the plain hall, printe
   cue for where it will drop beyond the rear; the spider's size against the 3-row storeys (it
   fills most of one) wants a look in play.
 
-### The whale (sky, arena: its belly)
+### The whale (sky, roaming; arena: its belly)
 
-A great slow whale drifts across an open sky arena.
+The whale is not waiting in the gate level: it roams the sky's levels, and has to be tracked down
+and trapped before it can be fought. Slaying it lifts the seal on the sky's gate levels as any boss
+does.
 
+- **One whale, one place.** It is in one sky level at a time, and the wizard has to find which.
+  Small temples in sky levels reveal where it is, once opened by a sequence of winds (§7).
+- **The top row.** It always stays on the sky's top row (its gate row, −15), moving only from
+  world to world along it.
+- **Driven by the winds.** It moves quickly, from level to level along that row, by the levels'
+  winds (§7: still to begin with, set by their vanes): a level's wind carries it on the way it
+  blows; in a still level it wanders. However it moves, it never goes far from the wizard (in
+  worlds across).
+- **Trapped by opposing winds.** Where strong winds blow against one another round it (the levels
+  either side blowing into its level), it cannot leave, and the fight begins. Setting the winds of
+  a stretch of the row to hem it in is the hunt.
 - **Outside**, it cannot be wounded: hex bolts glance off, and its passes drive birds and gusts at
   the wizard. Its open mouth, on its slow turns, is a door.
 - **Inside**, the belly is a side world of its own (a small dark level of ribs and stomach pools,
@@ -336,20 +351,21 @@ niches of the crypt's tunnels.
 - **The necromancer** blinks between graves and is shielded (`Shield`) while any skeleton walks;
   when the last falls, it is open for a moment. Its health as candles on its staff.
 
-### The eldritch beast (library, arena: its chamber)
+### The eldritch beast (institute, arena: its chamber)
 
 Tom's idea: it spawns souls (tentacles, horcruxes) in levels already visited, which must be
-destroyed. It stays the boss of the last band down now that the band is the library; how its
-souls fit the library depends on what the library becomes (§7).
+destroyed. It stays the boss of the last band down, now the institute (§7); the abominations
+rising into the institute's halls are its.
 
 - **Souls.** When the wizard first enters its chamber, it sends out one soul per a few levels into
-  library levels the wizard has visited (kept in those levels' records, so they are there on the
+  levels the wizard has visited, in any band and any column (kept in those levels' records, so they are there on the
   next visit). Each soul is a pulsing thing (pink, on the map once sensed, and with awareness) that
   takes a few hits.
 - **The beast** cannot be wounded while any soul lives; with each soul destroyed, one of its eyes
   closes. When all are gone it is vulnerable in its chamber, a short fight of tentacle sweeps to
   jump and parry.
-- This fight sends the wizard back up the band they just came down, a journey of its own.
+- This fight sends the wizard back through the run, the institute's portals (§7) taking them to
+  the far bands.
 
 ## 7. The new bands
 
@@ -364,7 +380,7 @@ or from inside the car) or now and then a switch gate, never a door (it runs fro
 to a shut one, never between two shut ones), worked by a lever
 inside and called from a post at each open station, its sides down only while it runs, a
 rock-bug coming along its cable and in through its roof on each stretch (stunned off, or let off
-when it stops). Not yet: updrafts, falling rocks, watchers in the slits, and
+when it stops). Not yet: falling rocks, watchers in the slits, and
 the spider.
 
 - **Terrain.** Vertical: tall cliff faces with narrow ledges, chimneys and overhangs, collapsed
@@ -375,8 +391,7 @@ the spider.
   structure pass that squares off some rock into walls and floors.
 - **Gates.** Doors and switch gates fit its built corridors; climbing is its natural gate (wall
   climb and double jump matter here, so the relic from the bramble is often one of them).
-- **Life.** Updrafts in its chimneys (the sky's `Wind`), falling rocks (the "falling spikes" idea),
-  watchers in the arrow slits.
+- **Life.** Falling rocks (the "falling spikes" idea), watchers in the arrow slits.
 - **Realm.** Pale stone and dawn colours; wind-torn clouds below the cliffs.
 
 ### The cemetery: crypts, light and darkness (rows +4 … +9)
@@ -397,19 +412,122 @@ wraiths, and its chasms gated by bells. What it gains are crypts, and light that
   again, and the cemetery asks for both at different times:
   - *Lit*, the wizard sees in the crypts, and light-shy things (a crypt-dweller that moves only in
     the dark) freeze in the flame's light, a lantern's pool or a lit candle.
-  - *Snuffed*, the wizard is hidden from what hunts the flame (wraiths, moths), slips past the
-    sleeping dead in their niches (who wake when light falls on them), and sees what shows only in
-    the dark: ghost planks over a chasm, glowing grave runes, will-o'-wisps marking a hidden crypt.
-- **Places to snuff and to light.** Fonts or draughts that put the flame out; candles, braziers and
-  lit lanterns that light it again (a hex bolt lights a candle, which stays lit in the record).
-- **Snuffing is a risk.** Proposed: while the flame is out the wizard is unprotected (a death ends
-  the run) until it is lit again. Open: whether it should be softer, such as only losing sight.
+  - *Snuffed*, the wizard is hidden from what hunts the flame (moths), slips past the sleeping dead
+    in their niches (who wake when light falls on them), and sees what shows only in the dark:
+    ghost planks over a chasm, glowing grave runes, will-o'-wisps marking a hidden crypt.
+- **Places to snuff and to light.** Decided: the flame is snuffed and lit only at fixed places in
+  the level, marked on the map, never at will. Places that put it out (fonts, draughts) and places
+  that light it again (candles, braziers, lit lanterns; a hex bolt lights a candle, which stays lit
+  in the record).
+- **Snuffing costs the lantern.** Decided: while the flame is out, the wizard is unprotected, with
+  no lantern to come back to: a death ends the run, until the flame is lit again.
+- **Wraiths** get a new behaviour of their own, something more interesting than drifting through
+  the rock at the wizard; perhaps tied to light. Open.
+- **Still open** (to be worked on later): the light-shy crypt-dweller and the sleeping dead (what
+  they are, what waking them does); ghost planks against the bell gates (proposed: only on optional
+  ways, the main crossings kept to bells); how many crypts a level has, how big, and how many are
+  on the way through; whether the necromancer's fight uses the dark. To build: darkness that
+  changes within a level (dark in a crypt, moonlit outside), where today `RisoLight` takes it from
+  the band.
 
-### The library (rows +10 … +15)
+### The institute (rows +10 … +15)
 
-The last band down, in place of the catacombs. The beast stays its boss, and it should have strong
-spellcasting enemies; the rest is being worked out. Until it is built, the band is the stand-in
-(`CatacombsArchetype`: the cemetery's terrain and dressing in deep darkness).
+The last band down, in place of the catacombs: a sunken institute of magic, with a library among
+its wings. Its students and masters are strong spellcasters; abominations rise into it from the
+deep, where the beast lies. Until it is built, the band is the stand-in (`CatacombsArchetype`: the
+cemetery's terrain and dressing in deep darkness).
+
+- **Terrain.** Halls of different kinds, built by a structure pass (as the crags build their
+  keeps) into a sample of rooms and corridors: lecture halls whose tiered seats climb like stairs,
+  the library's stacks (long galleries one over another, joined by ladders, giving casters long
+  sight lines and shelves to break them), laboratories, cloisters and a bell tower.
+- **Exams: the gate.** The way on, and the rooms worth having, lie behind sealed doors, each opened
+  by passing its exam. For now there are two kinds:
+  - *A battle*: stepping into an exam hall shuts it off (its doors close behind, as an arena), and
+    a master and its students fight the wizard there until the master falls; then the hall opens.
+  - *A field trial* (a fetch): the seal asks for a specimen from another region, found in the
+    level a department's portal leads to (a flower from the garden, a grave lily from the cemetery,
+    a crystal from the crags, a star shard from the sky). The wizard goes through, finds it (on the
+    map once they arrive), brings it back through the way back and lays it at the seal.
+  Other trials may come later: a lesson and exam (a lectern lends a spell for the level, and a
+  seal opens only to that spell used well), a practice range (strike every target before the
+  bell), a timed course.
+- **Students and masters.**
+  - *Students* come in numbers, casting weaker spells that now and then misfire; they scatter
+    when their master falls.
+  - *Masters* are few and strong. Each has mastered one of the wizard's own abilities (`Abilities`),
+    shown by its glyph (`RisoGlyph`), and casts it. A master beaten teaches the wizard a tier of
+    that ability, as a shrine would.
+  - *Staff*: proctors shield the students near them (`Shield`); in the library, librarians cast
+    silence, an aura in which the wizard's spells do nothing (as sleep fog does).
+- **Abominations.** Things of the beast's rise up out of the deep into the institute's halls. They,
+  the students and the masters fight one another as well as the wizard, so a fight has three sides
+  and the wizard can set one against another (lead abominations into a class, or let a master
+  spend itself on them).
+- **Departments and their portals.** Each department studies a region, and its portal leads to a
+  real level there, a place on the grid with its own record: botany to the garden, necrology to
+  the cemetery, geology to the crags, astronomy to the sky. A portal never leaves its column: it
+  leads to a level of that band in the same world (the same `x`), so the institute is the quick way
+  up and down a column, as the sky is the quick way along a row (below). Which of the band's rows
+  it leads to is dealt from the level seed, and is told to the wizard (on the portal and on the
+  map) before they step through. A way back opens where they arrive and lasts until they use it.
+  Portals pay no heed to seals: a geology portal reaches the crags with the bramble alive. (The
+  exception to "nothing skips a seal", §4.)
+- **The beast's souls** can lie in visited levels of any band and any column (§6). The
+  departments' portals shorten the hunt up and down the institute's own column; the rest is walked,
+  or ridden on the sky's balloons.
+- **Look and realm.** Roman-esque architecture (colonnades, round arches, porticoes, coffered
+  vaults, statues in niches) beside stuffy wooden libraries (dark panelling, tall shelves, ladders,
+  reading desks). Deep brown and marble: the rock printed as deep brown wood and earth, the built
+  parts as pale veined marble, gold kept for rewards.
+
+### The sky reworked: the elements (rows −10 … −15)
+
+The sky is built (`docs/DEEPER_PLAN.md` §4c): islands, gaps crossed on a crosswind its vanes set
+blowing, pads, clouds that give way, updrafts, birds, shields and rebounding shots. Its gate is the
+cemetery's in another coat (a vane is a bell, a crosswind a bridge), and it has no hook of its own.
+The rework makes it the band of the elements, where the institute is the band of people.
+
+- **The level's wind, set by its vanes.** Decided: every sky level has one wind, steady, blowing
+  across the whole level, left or right. It starts still (most levels begin with no vane on).
+  - Each vane points one way, left or right, dealt with the level and never changed; it is
+    either off or on, and can be switched back off.
+  - The wind blows one way at a time, the way of the vane last switched on. Its strength is the
+    number of vanes that are on and point that way; vanes on that point the other way do nothing
+    until the wind is turned their way again (by switching one of them on), when the strength
+    becomes their count instead. Switching off a vane that points the wind's way weakens it by
+    one; with none of its way left on, the wind is still.
+  - The level record keeps which vanes are on and which way the wind blows.
+  - This replaces the still crosswind over each gap: a crossing the wind helps, strongly enough,
+    is open; one it fights is shut until the vanes say otherwise. The vanes keep their chains (a
+    key colour, or a switch).
+  - Proposed: the wind pushes the wizard (and birds, rebounding shots, moths) in the open air,
+    harder the stronger it is; the lee of an island (the air its rock shelters downwind) is calm,
+    so the islands are harbours between crossings.
+- **The storm.** Proposed: lightning strikes the highest points now and then (warned pink a moment
+  before), so a vane on a peak is risky to reach; rods on some islands draw it (a strike led to a
+  rod powers a gate or a lift).
+- **Balloons: quick travel along the row.** Decided: balloons moored in sky levels can be ridden,
+  and carry the wizard to another world (another column, the same row) by the level's wind: its way
+  says which way along the row, its strength how far, in coarse steps that are hard to build up
+  (proposed: a world over for every few vanes on, so a strong wind of many vanes carries two or
+  three worlds and a weak one only a little or not at all; tuned so most levels hold enough vanes
+  for one step). In a still level a balloon goes nowhere. The counterpart of the institute's portals
+  up and down a column. Proposed: where a balloon would go is shown before boarding (as a
+  portal's is), and it stays moored where it lands, ready to ride on by that level's wind.
+- **The whale** (§6) roams these levels, driven by their winds: trapping it between opposing
+  winds is how its fight begins. It keeps to the sky's top row.
+- **Temples.** Small temples on some islands reveal where the whale is. Each is shut until a
+  sequence of winds is set: its door shows the way (and perhaps the strength) the wind must blow
+  in each of a run of levels along its row, its own and its neighbours', and it opens when they
+  all match. So opening one means travelling the row (on foot or by balloon), setting each level's
+  vanes in turn.
+- **Realm.** White first: the islands and clouds printed white, the sky's main colour, with the
+  gold of its stars and the pink of its dangers on it, against a dark, stormy sky behind (in
+  keeping with dark, low-contrast backgrounds, `docs/RISO_PRINT.md`), so the islands stand out
+  and the gameplay's knockouts still read.
+- **Drifting islands** were liked but are parked: the terrain is a fixed grid of cells, and
+  islands that move would need it to change as you play (§9).
 
 ### The garden widens
 
@@ -483,18 +601,24 @@ Each phase ends with the full suite green and its own tests.
    gondola (`CragsArchetype`, `Gondola`; `crags_test`, `capture_crags.gd`; the crags' layouts
    changed and `layout_fingerprint_test` was re-pinned for them alone). *The spider and its keep:
    a first pass is done* (§6; `spider_test`, `capture_spider.gd`; no level's layout changed, only
-   the spider's arena). Then its life (updrafts, falling rocks, watchers in the slits), and tuning
+   the spider's arena). Then its life (falling rocks, watchers in the slits), and tuning
    the spider in play.
 6. **Cemetery crypts and light**: crypts behind bell gates, darkness by place, the flame snuffed
    and lit; then **the necromancer** in its crypt.
-7. **The library**: once decided (§7); then **the eldritch beast**.
-8. **The whale** and its belly.
+7. **The institute**: halls and stacks, exams (battles and field trials), students, masters
+   (teaching tiers) and staff, abominations, the departments' portals; then **the eldritch beast**.
+8. **The sky reworked**: the level's wind set by its vanes, balloons riding it along the row,
+   the storm, temples opened by sequences of winds, the white realm; then **the whale**, roaming
+   the top row on the winds, trapped, and its belly.
 9. **Tuning pass** with playtests: boss health and timing, relic odds now that bosses give one,
    prices by distance.
 
 ## 9. Open
 
-- **Past the last bands.** Below the library and above the sky: a final place where the branches
+- **Drifting islands** (the sky): islands moving on currents, gaps opening and closing. Liked, but
+  the terrain is a fixed grid of cells laid out once (WFC, then the passes), and the rock, sight
+  and the map all read it as still; moving islands would need them as bodies of their own.
+- **Past the last bands.** Below the institute and above the sky: a final place where the branches
   meet (hyperspace?), the outer bands repeating harder, or the run won at the bottom or the top.
 - **What a boss's relic is.** A move not yet known (proposed), or always the same move per boss
   (the bramble wall climb, the worm double jump...), which would make each branch's order of
