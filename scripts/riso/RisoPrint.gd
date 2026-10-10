@@ -980,6 +980,18 @@ func _build_panel() -> void:
 	_option_row(print_box, &"reprint", "Reprint on", ["Clock", "Motion"], _on_reprint)
 	_option_row(print_box, &"between", "Between sheets", ["Cut", "Blend"], _on_between)
 	_option_row(print_box, &"plates", "Plates", ["Independent", "Trapped"], func(i: int) -> void: trapped = i == 1)
+	# How hard the game is: a preset changes what levels hold, so the place is laid out again.
+	var hard: VBoxContainer = _section(box, "Difficulty", false)
+	_option_row(hard, &"difficulty", "Preset", Difficulty.NAMES, func(i: int) -> void:
+		if i == Difficulty.preset:
+			return
+		Difficulty.preset = i as Difficulty.Preset
+		if MapInfo.instance != null:
+			if _pad_paused:
+				set_pad_panel(false)
+			else:
+				panel.visible = false
+			MapInfo.instance.lay_out_again())
 	var look: VBoxContainer = _section(box, "Look", false)
 	_option_row(look, &"character", "Character", CHARACTER_NAMES, func(i: int) -> void: set_character_style(CHARACTER_STYLES[i]))
 	_option_row(look, &"realm", "Realm", ["Deep night", "Twilight", "Aurora"], _on_realm_picked)
@@ -1266,6 +1278,8 @@ func _sync_panel() -> void:
 	_offset_label.text = "%.1f×" % offset_scale
 	_ui_detail_label.text = "%d%%" % roundi(ui_detail * 100.0)
 	_specks_label.text = "none" if specks <= 0.0 else "%d%%" % roundi(specks * 100.0)
+	if _options.has(&"difficulty"):
+		(_options[&"difficulty"] as OptionButton).select(Difficulty.preset)
 	if _options.has(&"portal"):
 		(_options[&"portal"] as OptionButton).select(PORTAL_STYLES.find(portal_style))
 	if _options.has(&"sight"):

@@ -171,7 +171,7 @@ static func place_bugs(w: LevelGen) -> void:
 	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
 	var spots: Array[Vector2i] = w.empties_where(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.EMPTY and LevelGen.dist(v, start) >= BUG_CLEAR \
 			and [Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP].any(func(d: Vector2i) -> bool: return w.is_ground(v + d)))
-	w.put_each(w.pick_apart(spots, w.per_area(BUGS_PER_K), BUG_APART), LevelGen.Type.BUG)
+	w.put_each(w.pick_apart(spots, w.foes_per_area(BUGS_PER_K), BUG_APART), LevelGen.Type.BUG)
 
 
 ## Last of all (so nothing else in the level moves for them): its falling stalactites
@@ -198,7 +198,7 @@ static func place_stalactites(w: LevelGen) -> void:
 			if not w.is_valid(below) or w.is_ground(below) or w.keep_clear.has(below):
 				return false
 		return true)
-	w.put_each(w.pick_apart(spots, w.per_area(STALACTITES_PER_K), STALACTITE_APART), LevelGen.Type.STALACTITE)
+	w.put_each(w.pick_apart(spots, w.foes_per_area(STALACTITES_PER_K), STALACTITE_APART), LevelGen.Type.STALACTITE)
 
 
 # ------------------------------------------------------------------ caverns
@@ -633,7 +633,7 @@ static func place_nests(w: LevelGen) -> void:
 	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
 	var floors: Array[Vector2i] = w.free_floors().filter(func(v: Vector2i) -> bool:
 		return LevelGen.dist(v, start) >= NEST_CLEAR and not w.keep_clear.has(v) and not w.structures.has(v))
-	w.put_each(w.pick_apart(floors, w.per_area(NESTS_PER_K), NEST_APART, chosen), LevelGen.Type.NEST)
+	w.put_each(w.pick_apart(floors, w.foes_per_area(NESTS_PER_K), NEST_APART, chosen), LevelGen.Type.NEST)
 
 
 ## Whether `r` takes in any of `cells`.

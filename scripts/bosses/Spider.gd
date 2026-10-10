@@ -359,6 +359,8 @@ func relic_at() -> Vector2:
 func _physics_process(delta: float) -> void:
 	if map_info == null or keep.is_empty() or slain:
 		return
+	# A harder preset runs it faster (Difficulty.haste).
+	delta *= Difficulty.haste()
 	var player: Player = map_info.player if map_info.player != null and is_instance_valid(map_info.player) else null
 	for web: SpiderWeb in webs:
 		web.regrow(delta, player != null and web.rect.has_point(player.global_position))

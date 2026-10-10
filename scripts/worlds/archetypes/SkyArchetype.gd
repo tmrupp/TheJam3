@@ -563,7 +563,7 @@ func populate(w: LevelGen, _def: NextWorldDef) -> void:
 		for d: int in range(1, int(choice[1]) + 2):
 			w.empties.erase(at + Vector2i(0, -d))
 	# More watchers, on floors in the clusters (their shots rebound, below).
-	for i: int in range(w.per_area(SKY_WATCHERS_PER_K)):
+	for i: int in range(w.foes_per_area(SKY_WATCHERS_PER_K)):
 		if w.put_random(LevelGen.Type.SHOOTER, func(v: Vector2i) -> bool: return w.ground_below(v) and LevelGen.dist(v, start) >= 6, true) == null:
 			break
 	# Swooping birds: each on a stretch of open sky (a row of open air, out of the clusters, at
@@ -580,7 +580,7 @@ func populate(w: LevelGen, _def: NextWorldDef) -> void:
 			x += 1
 	runs.sort()
 	var birds: Array[Vector2i] = []
-	for i: int in range(w.per_area(BIRDS_PER_K)):
+	for i: int in range(w.foes_per_area(BIRDS_PER_K)):
 		var pool: Array = runs.filter(func(r: Array) -> bool:
 			@warning_ignore("integer_division")
 			var mid: Vector2i = Vector2i((int(r[1]) + int(r[2])) / 2, int(r[0]))

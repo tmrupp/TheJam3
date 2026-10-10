@@ -36,8 +36,17 @@ func run() -> void:
 		var again: LevelGen = build(at)
 		check(again.towers == w.towers and again.interiors == w.interiors, "the same every build")
 	check(hoards > 0 and watch > 0, "watchtowers and hoard towers both turn up (%d and %d)" % [watch, hoards])
+	# Rewards are dealt by the level: look further afield (other worlds' crags) for any not met yet.
+	var kinds: Array[LevelGen.Type] = [LevelGen.Type.KEY, LevelGen.Type.SWITCH, LevelGen.Type.WELL]
+	for world: int in range(29, 41):
+		if kinds.all(func(kind: LevelGen.Type) -> bool: return rewards.has(kind)):
+			break
+		for k: int in range(NextWorldDef.BAND):
+			for tower: Dictionary in build(Vector2i(world, NextWorldDef.band_row(&"crags", k))).towers:
+				if not tower["hoard"] and tower.has("reward"):
+					rewards[tower["reward"]] = int(rewards.get(tower["reward"], 0)) + 1
 	print("rewards: %s" % rewards)
-	for kind: LevelGen.Type in [LevelGen.Type.KEY, LevelGen.Type.SWITCH, LevelGen.Type.WELL]:
+	for kind: LevelGen.Type in kinds:
 		check(rewards.has(kind), "a tower's top room holds a %s somewhere" % LevelGen.Type.keys()[kind])
 	check(not rewards.has(LevelGen.Type.DRAUGHT), "and never a draught (set aside)")
 	_whole_everywhere()

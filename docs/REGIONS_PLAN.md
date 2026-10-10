@@ -138,7 +138,11 @@ at `(x, -(k * STRIDE + d) - 1)` (`Worlds.side_at`). The up branch needs those ro
 
 ## 6. The bosses
 
-The tuning numbers are first guesses for playtest.
+The tuning numbers are first guesses for playtest. They are Normal's: on a harder difficulty preset
+(`Difficulty`, §"Difficulty presets" in `DEEPER_PLAN.md`) each boss runs its own clock faster
+(`Difficulty.haste`, 1.15 on Hard, the default, and 1.3 on Brutal), so its warnings, bites, rests
+and crawling all come that much sooner: the worm's whole step, the spider's whole step (its webs'
+regrowth too), the bramble's vines' cadence and its bulbs' seeds. A stun's length is not changed.
 
 ### The bramble (garden, up gate, in the level)
 

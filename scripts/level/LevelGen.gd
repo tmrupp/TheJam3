@@ -887,10 +887,10 @@ func populate_level (def: NextWorldDef) -> void:
 	# Moons (dash resets) once the ledges are down: open air with nothing to stand on below.
 	place_moons(per_area(MOONS_PER_K))
 
-	for i: int in range(len(empties)*0.2):
+	for i: int in range(int(len(empties) * 0.2 * Difficulty.foes())):
 		put_random(Type.ENEMY, ground_below)
 
-	for i: int in range(len(empties)*0.1):
+	for i: int in range(int(len(empties) * 0.1 * Difficulty.foes())):
 		put_random(Type.SHOOTER, ground_below)
 
 	for i: int in range(per_area(LANTERNS_PER_K)):
@@ -918,7 +918,7 @@ func populate_level (def: NextWorldDef) -> void:
 
 	# Placed last, so everything above lands where it always has.
 	if def.depth >= 1:
-		for i: int in range(per_area(HOPPERS_PER_K)):
+		for i: int in range(foes_per_area(HOPPERS_PER_K)):
 			put_random(Type.HOPPER, ground_below, true)
 	arch.populate(self, def)
 	place_cluster(def)
@@ -1211,9 +1211,8 @@ func place_vaults (def: NextWorldDef) -> void:
 	# No rock thick enough to carve one into (a sky level's islands are thin): build one, a
 	# strongbox of rock on a floor.
 	if vaults.is_empty():
-		var spots: Array = _strongbox_spots(STRONGBOX)
-		if not spots.is_empty():
-			var choice: Array = pick(spots)
+		var choice: Array = _pick_strongbox(_strongbox_spots(STRONGBOX))
+		if not choice.is_empty():
 			_build_vault(choice, rng.randi_range(0, Rules.KEY_COLOR_COUNT - 1))
 	place_bone_vault(def)
 
@@ -1233,9 +1232,9 @@ func place_bone_vault (def: NextWorldDef) -> void:
 			return
 	# No rock to carve one into (a cemetery's terraces, the sky's islands): build a strongbox,
 	# two high so a relic stands in it.
-	var built: Array = _strongbox_spots(BONE_STRONGBOX)
+	var built: Array = _pick_strongbox(_strongbox_spots(BONE_STRONGBOX))
 	if not built.is_empty():
-		_build_vault(pick(built), KeyRing.SKELETON)
+		_build_vault(built, KeyRing.SKELETON)
 		return
 	if not relic_gated:
 		return
@@ -1291,6 +1290,49 @@ func _strongbox_spots (inside: Vector2i) -> Array:
 			if ok:
 				out.append([r, door, walls])
 	return out
+
+## One of the strongbox `spots`, drawn, that shuts no open air in (see _shuts_in), or [] if none
+## does. Another is drawn only when the one drawn would, so a level where it never would is laid
+## out as before.
+func _pick_strongbox (spots: Array) -> Array:
+	var left: Array = spots.duplicate()
+	while not left.is_empty():
+		var choice: Array = pick(left)
+		if not _shuts_in(choice[2]):
+			return choice
+		left.erase(choice)
+	return []
+
+## Whether turning `walls` to rock would cut open air off from the rest: the open cells beside
+## them (the air under a floor it builds can be a pocket whose only way out was through it) must
+## all still reach one another, with every switch gate shut (a switch must stay reachable with its
+## gate shut, see place_switch_gates).
+func _shuts_in (walls: Array) -> bool:
+	var wall: Dictionary = {}
+	for c: Vector2i in walls:
+		wall[c] = true
+	var open: Callable = func(v: Vector2i) -> bool: return _open(v) and get_cell(v).type != Type.SWITCH_GATE and not wall.has(v)
+	var beside: Dictionary = {}
+	for c: Vector2i in walls:
+		for d: Vector2i in neighbor_offsets:
+			if open.call(c + d):
+				beside[c + d] = true
+	if beside.is_empty():
+		return false
+	var first: Vector2i = beside.keys()[0]
+	var seen: Dictionary = {first: true}
+	var stack: Array[Vector2i] = [first]
+	var found: int = 1
+	while not stack.is_empty() and found < beside.size():
+		var v: Vector2i = stack.pop_back()
+		for d: Vector2i in neighbor_offsets:
+			var n: Vector2i = v + d
+			if not seen.has(n) and open.call(n):
+				seen[n] = true
+				stack.append(n)
+				if beside.has(n):
+					found += 1
+	return found < beside.size()
 
 ## Whether a strongbox may take cell `c`: open air with nothing in it, or only a star or a piece
 ## of a ledge that stays put (which it takes the place of). `free` holds the open cells.
@@ -1377,6 +1419,11 @@ func place_cracks (count: int) -> void:
 ## How many of something for this level: `per_k` per 1000 cells, at least one.
 func per_area (per_k: float) -> int:
 	return maxi(1, roundi(per_k * float(size.x * size.y) / 1000.0))
+
+## How many of a kind of foe (an enemy or a hazard) for this level: `per_k` per 1000 cells at
+## Normal, more at a harder preset (Difficulty.foes), at least one.
+func foes_per_area (per_k: float) -> int:
+	return per_area(per_k * Difficulty.foes())
 
 ## Gates: portcullis doors across one-cell-tall corridors (rock above and below, open to both
 ## sides), which the cave-joining tunnels often make. Spread out, and never right beside

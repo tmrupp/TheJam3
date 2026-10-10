@@ -202,7 +202,8 @@ func _walk_rock(delta: float) -> void:
 			if not _plan_step(-way):
 				return
 			way = -way
-	step_d = minf(step_len, step_d + CRAWL_SPEED * delta)
+	# A little faster on a harder preset (Difficulty.speed).
+	step_d = minf(step_len, step_d + CRAWL_SPEED * Difficulty.speed() * delta)
 	u = step_d / step_len if step_len > 0.0 else 1.0
 	rb.global_position = _along_step(step_d)
 	up = up.lerp(-Vector2(to_normal if u >= 0.5 else normal), minf(1.0, delta * 12.0))

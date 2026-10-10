@@ -138,7 +138,7 @@ func world_at(at: Vector2i) -> LevelGen:
 
 
 ## Keep a place's cells, and its layout when there is one (layouts are read-only once built, and
-## depend on the debug flag, so they are kept per flag).
+## depend on the debug flag and the difficulty preset, so they are kept per flag and preset).
 func _cache_put(at: Vector2i, cells: Array, built: LevelGen = null) -> void:
 	cache[at] = cells
 	if built != null:
@@ -151,8 +151,8 @@ func _cache_put(at: Vector2i, cells: Array, built: LevelGen = null) -> void:
 		worlds.erase(_world_key(old))
 
 
-func _world_key(at: Vector2i) -> String:
-	return "%s:%s" % [at, MapInfo.debug]
+static func _world_key(at: Vector2i) -> String:
+	return "%s:%s:%d" % [at, MapInfo.debug, Difficulty.preset]
 
 
 ## The cached layout of place `at`, or null.

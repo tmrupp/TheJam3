@@ -60,7 +60,8 @@ func _physics_process(delta: float) -> void:
 		turn_left = maxf(0.0, turn_left - delta)
 		return
 
-	var collision: KinematicCollision2D = rb.move_and_collide(Vector2(SPEED, 0)*delta*direction)
+	# A little faster on a harder preset (Difficulty.speed).
+	var collision: KinematicCollision2D = rb.move_and_collide(Vector2(SPEED * Difficulty.speed(), 0)*delta*direction)
 
 	# Only a wall faced head-on turns it, never a seam or corner of the floor it walks on.
 	if collision and absf(collision.get_normal().x) > 0.7 and signf(collision.get_normal().x) == -float(direction):

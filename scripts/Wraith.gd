@@ -54,7 +54,8 @@ func _physics_process(delta: float) -> void:
 		awake = true
 	elif awake and to_wizard.length() > LOSE:
 		awake = false
-	var speed: float = SPEED * (IN_ROCK if in_rock() else 1.0)
+	# A little faster on a harder preset (Difficulty.speed).
+	var speed: float = SPEED * Difficulty.speed() * (IN_ROCK if in_rock() else 1.0)
 	if recoil > 0.0:
 		recoil = maxf(0.0, recoil - delta)
 		velocity = -to_wizard.normalized() * RECOIL_SPEED * (recoil / RECOIL_TIME)

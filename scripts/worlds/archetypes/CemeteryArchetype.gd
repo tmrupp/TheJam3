@@ -36,11 +36,11 @@ func populate(w: LevelGen, _def: NextWorldDef) -> void:
 		var near: Array[Vector2i] = air.filter(func(v: Vector2i) -> bool: return LevelGen.dist(v, lantern) >= 3 and LevelGen.dist(v, lantern) <= 8 and not swarms.has(v))
 		if not near.is_empty():
 			swarms.append(w.pick(near))
-	w.pick_apart(air, w.per_area(MOTHS_PER_K), 6, swarms)
+	w.pick_apart(air, w.foes_per_area(MOTHS_PER_K), 6, swarms)
 	w.put_each(swarms, LevelGen.Type.MOTHS)
 	# Fog lies over floors with room above it, apart from one another.
 	var floors: Array[Vector2i] = w.empties_where(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.EMPTY and w.ground_below(v) and w._open(v + Vector2i.UP) and LevelGen.dist(v, start) >= 5)
-	w.put_each(w.pick_apart(floors, w.per_area(FOG_PER_K), 5), LevelGen.Type.FOG)
+	w.put_each(w.pick_apart(floors, w.foes_per_area(FOG_PER_K), 5), LevelGen.Type.FOG)
 	# Wraiths wait in the open air, away from the way in, each in a cell of its own.
 	var open_air: Array[Vector2i] = w.empties_where(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.EMPTY and LevelGen.dist(v, start) >= 10)
-	w.put_each(w.pick_apart(open_air, w.per_area(WRAITHS_PER_K), 1), LevelGen.Type.WRAITH)
+	w.put_each(w.pick_apart(open_air, w.foes_per_area(WRAITHS_PER_K), 1), LevelGen.Type.WRAITH)

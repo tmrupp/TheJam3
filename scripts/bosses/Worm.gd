@@ -429,8 +429,9 @@ func _physics_process(delta: float) -> void:
 		for p: Piece in pieces:
 			p.clock = WAKE_TIME
 	hunting = here and awake
+	# A harder preset runs it faster (Difficulty.haste).
 	for p: Piece in pieces.duplicate():
-		_step(p, delta)
+		_step(p, delta * Difficulty.haste())
 	for p: Piece in pieces:
 		_hold(p)
 		_place(p)

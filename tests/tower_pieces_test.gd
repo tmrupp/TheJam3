@@ -9,15 +9,19 @@ extends TestKit
 
 func run() -> void:
 	# A crag level with all three: a watchtower's trapdoor, a nest and a mending bowl.
-	var row: int = 0
-	for k: int in range(NextWorldDef.BAND):
-		var w: LevelGen = build(Vector2i(28, NextWorldDef.band_row(&"crags", k)))
-		if [LevelGen.Type.TRAPDOOR, LevelGen.Type.NEST, LevelGen.Type.WELL].all(func(t: LevelGen.Type) -> bool: return not w.objects_of(t).is_empty()):
-			row = NextWorldDef.band_row(&"crags", k)
+	# The first found, world 28's crags first, then other worlds'.
+	var at: Vector2i = Vector2i.ZERO
+	for world: int in range(28, 41):
+		for k: int in range(NextWorldDef.BAND):
+			var w: LevelGen = build(Vector2i(world, NextWorldDef.band_row(&"crags", k)))
+			if [LevelGen.Type.TRAPDOOR, LevelGen.Type.NEST, LevelGen.Type.WELL].all(func(t: LevelGen.Type) -> bool: return not w.objects_of(t).is_empty()):
+				at = Vector2i(world, NextWorldDef.band_row(&"crags", k))
+				break
+		if at != Vector2i.ZERO:
 			break
-	check(row != 0, "a crag level holds a trapdoor, a nest and a mending bowl")
-	await boot()
-	info.coord = Vector2i(28, row)
+	check(at != Vector2i.ZERO, "a crag level holds a trapdoor, a nest and a mending bowl (%s)" % at)
+	await boot(at.x)
+	info.coord = at
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	await settle()
@@ -91,8 +95,13 @@ func well() -> void:
 		return
 	var bowl: MendWell = all[0] as MendWell
 	var it: Interactable = bowl.get_node("Interactable") as Interactable
+	# Nothing about to hurt the wizard by the bowl (the nest's brood, the level's enemies).
+	for n: Node in get_nodes_in_group(&"hex_target"):
+		n.queue_free()
 	player.set_physics_process(false)
 	player.global_position = bowl.global_position
+	# Wake the bowl's chunk now rather than when the camera catches up (asleep, it is not updated).
+	info.loader.wake_around(bowl.global_position)
 	player.health.health = player.health.max_health
 	await frames(5)
 	check(not it.available and not bowl.used(), "at full health it offers nothing")

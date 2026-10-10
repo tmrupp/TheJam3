@@ -54,7 +54,8 @@ func _physics_process(delta: float) -> void:
 		return
 	if brood.size() >= BROOD:
 		return
-	wait -= delta
+	# A harder preset hatches sooner (Difficulty.attack).
+	wait -= delta * Difficulty.attack()
 	if wait <= 0.0:
 		wait = EVERY
 		hatching = 0.0

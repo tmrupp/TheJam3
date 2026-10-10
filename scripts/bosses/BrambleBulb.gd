@@ -87,7 +87,8 @@ func _physics_process(delta: float) -> void:
 	if player == null or not is_instance_valid(player) or not sees(player):
 		charge = maxf(0.0, charge - delta / SEED_EVERY)
 		return
-	charge += delta / SEED_EVERY
+	# A harder preset readies its seeds sooner (Difficulty.haste).
+	charge += delta * Difficulty.haste() / SEED_EVERY
 	if charge >= 1.0:
 		charge = 0.0
 		spit(player.global_position)

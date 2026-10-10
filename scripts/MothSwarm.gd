@@ -72,7 +72,8 @@ func _physics_process(delta: float) -> void:
 	t += delta
 	scattered = maxf(0.0, scattered - delta)
 	if scattered <= 0.0:
-		global_position = global_position.move_toward(target(), SPEED * delta)
+		# A little faster on a harder preset (Difficulty.speed).
+		global_position = global_position.move_toward(target(), SPEED * Difficulty.speed() * delta)
 	# Scattered, the moths fly outward from where they were struck and drift back as it wears off.
 	var spread: float = 1.0 + 5.0 * clampf(scattered / SCATTER_TIME, 0.0, 1.0) * clampf((SCATTER_TIME - scattered) * 3.0, 0.0, 1.0)
 	for i: int in range(moths.size()):

@@ -83,7 +83,8 @@ func _physics_process(delta: float) -> void:
 	var was: Vector2 = rb.global_position
 	if tell >= 0.0:
 		# Rearing and screeching over the spot it will dive through.
-		tell = minf(1.0, tell + delta / TELL)
+		# A harder preset tells and rests for less, and patrols a little faster (Difficulty).
+		tell = minf(1.0, tell + delta * Difficulty.attack() / TELL)
 		rb.global_position = tell_from + Vector2(sin(t * 60.0) * 1.5, -REAR * sin(tell * PI * 0.5))
 		facing = signf(mark.x - rb.global_position.x) if absf(mark.x - rb.global_position.x) > 4.0 else facing
 		if tell >= 1.0:
@@ -97,9 +98,9 @@ func _physics_process(delta: float) -> void:
 			since_swoop = 0.0
 			dir = signf(arc[2].x - arc[0].x) if arc[2].x != arc[0].x else dir
 	else:
-		since_swoop += delta
+		since_swoop += delta * Difficulty.attack()
 		var at: Vector2 = rb.global_position
-		at.x += dir * SPEED * delta
+		at.x += dir * SPEED * Difficulty.speed() * delta
 		if at.x > span.y:
 			at.x = span.y
 			dir = -1.0

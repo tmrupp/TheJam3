@@ -414,6 +414,15 @@ func debug_travel (to: Vector2i) -> void:
 	await _pass(Vector2.DOWN, to)
 	_arrive(to, Exit.BACK)
 
+## The F7 panel's Difficulty row: lay this place out again under the preset now picked (it holds
+## more or fewer foes), arriving at its way back. What the run has noted of the place (things taken
+## or slain) was noted of the old layout, so it may not all line up.
+func lay_out_again () -> void:
+	if travelling or run_ending > 0.0:
+		return
+	await _pass(Vector2.DOWN, coord)
+	_arrive(coord, Exit.BACK)
+
 func respawn_in_other_level () -> void:
 	await _pass(Vector2.UP, run.respawn_coord)
 	coord = run.respawn_coord
