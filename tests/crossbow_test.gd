@@ -5,7 +5,9 @@ extends TestKit
 ## stone, with open air outside and a free room cell inside (its own cell in the level), facing
 ## out, no more than the preset's most to a tower, the keeps' apart, and the same every build; no
 ## nest is in a building. In play: the crossbow sits in the wall, which stays solid; it looses
-## arrows at the wizard outside in front of its slit, and not at the wizard in the room behind it; a
+## arrows dead straight at the wizard outside in front of its slit (not at one well above it, nor
+## at the wizard in the room behind it), the first after its draw and the next only once it has
+## reloaded; an arrow wounds an enemy in its way; a
 ## hex bolt or a dash from outside stops at the wall and leaves it whole; from the room, a dash and
 ## bolts that only stun (no strike perk, hex I) wound it, and it breaks, the level record keeps it
 ## broken, and the wall stays whole. A nest is wounded by a dash and bolts that only stun too, and
@@ -58,6 +60,10 @@ func generation() -> Vector2i:
 			var kept: Array[Vector2i] = []
 			for v: Vector2i in bows:
 				var how: Dictionary = w.get_cell(v).extra_info
+				# The spider's keep's own, shooting into its hall, are spider_test's.
+				if bool(how.get("inward", false)):
+					found -= 1
+					continue
 				var facing: int = int(how["facing"])
 				var wall: Vector2i = v + Vector2i(facing, 0)
 				var out: Vector2i = wall + Vector2i(facing, 0)
@@ -92,7 +98,7 @@ func generation() -> Vector2i:
 			var again: LevelGen = build(place)
 			if again.objects_of(LevelGen.Type.CROSSBOW) != bows or bows.any(func(v: Vector2i) -> bool: return str(again.get_cell(v).extra_info) != str(w.get_cell(v).extra_info)):
 				bad.append("%s: not the same every build" % place)
-			if play == Vector2i.ZERO and not nests.is_empty() and bows.any(func(v: Vector2i) -> bool: return _open_in_front(w, v) and w.structures.get(v + Vector2i(int((w.get_cell(v).extra_info as Dictionary)["facing"]), 0), &"") == &"tower"):
+			if play == Vector2i.ZERO and not nests.is_empty() and bows.any(func(v: Vector2i) -> bool: return not bool((w.get_cell(v).extra_info as Dictionary).get("inward", false)) and _open_in_front(w, v) and w.structures.get(v + Vector2i(int((w.get_cell(v).extra_info as Dictionary)["facing"]), 0), &"") == &"tower"):
 				play = place
 	check(found - in_keeps > levels and in_keeps >= levels, "crossbows turn up across the band, in towers and keeps (%d in towers and %d in keeps in %d levels)" % [found - in_keeps, in_keeps, levels])
 	check(bad.is_empty(), "each set in a tower's wall of whole stone with air outside and a room cell inside, no more than %d to a tower, no nest in a building, the same every build %s" % [most, bad])
@@ -134,7 +140,45 @@ func shooting(cell: float) -> void:
 	info.loader.wake_around(outside)
 	check(await within(func() -> bool: return not _arrows().is_empty(), Crossbow.DRAW + 2.0), "it looses an arrow at the wizard outside")
 	var arrow: Bullet = _arrows()[0] if not _arrows().is_empty() else null
-	check(arrow != null and Damager.attacker_of(arrow.get_node("HitBox/Damager")) == bow and signf(arrow.velocity.x) == f, "an arrow of its own, flying out")
+	check(arrow != null and Damager.attacker_of(arrow.get_node("HitBox/Damager")) == bow and signf(arrow.velocity.x) == f and arrow.velocity.y == 0.0, "an arrow of its own, flying straight out")
+	# Then it reloads before the next.
+	for a: Bullet in _arrows():
+		a.queue_free()
+	check(not bow.loaded(), "it reloads")
+	var early: bool = await within(func() -> bool: return not _arrows().is_empty(), Crossbow.RELOAD * 0.8 / Difficulty.attack())
+	check(not early, "and looses no other arrow for a while")
+	var again: bool = await within(func() -> bool: return not _arrows().is_empty(), Crossbow.RELOAD + Crossbow.DRAW + 1.0)
+	check(again, "then another")
+	# An arrow wounds an enemy in its way.
+	# (The wizard out of its way, no other arrow about, and the wisp held still in it.)
+	player.global_position = Vector2(-9000, -9000)
+	for a: Bullet in _arrows():
+		a.queue_free()
+	var wisp: Node2D = Placeables.scene(LevelGen.Type.ENEMY).instantiate() as Node2D
+	LevelLoader.arm(wisp, info.here.depth)
+	info.map_elements.add_child(wisp)
+	for c: Node in wisp.get_children():
+		if c is Stunnable:
+			c.set_physics_process(false)
+	wisp.global_position = bow.muzzle() + Vector2(f * cell * 0.8, 0.0)
+	var wisp_wound: Wound = wisp.get_node("Wound") as Wound
+	var wisp_hp: int = wisp_wound.hp
+	var shot: Bullet = Crossbow.ARROW.instantiate() as Bullet
+	shot.arrow = true
+	info.map_elements.add_child(shot)
+	shot.global_position = bow.muzzle()
+	shot.setup(Vector2(f * Crossbow.ARROW_SPEED, 0.0), [bow], bow)
+	var struck: bool = await within(func() -> bool: return not is_instance_valid(wisp) or wisp_wound.hp < wisp_hp, 2.0)
+	check(struck and (not is_instance_valid(shot) or shot.is_queued_for_deletion()), "an arrow wounds an enemy in its way, and is spent")
+	if is_instance_valid(wisp):
+		wisp.queue_free()
+	# Not at the wizard well above its slit.
+	for a: Bullet in _arrows():
+		a.queue_free()
+	player.global_position = outside + Vector2(0.0, -cell * 1.5)
+	await frames(2)
+	check(not bow.sees, "nor at one well above its slit")
+	player.global_position = outside
 	# A bolt or a dash from outside stops at the wall: it stays whole.
 	var hp: int = wound.hp
 	_bolt(outside, Vector2(-f, 0.0), 2)
@@ -182,19 +226,27 @@ func nest(cell: float) -> void:
 	# (its brood, the level's other enemies near it).
 	player.global_position = host.global_position + Vector2(0.0, -cell * float(BugNest.WAKE + 4))
 	info.loader.wake_around(from)
-	for n: Node in get_nodes_in_group(&"hex_target"):
-		if n != host and (n as Node2D).global_position.distance_to(host.global_position) < cell * 3.0:
-			n.queue_free()
+	_clear_round(host, cell)
 	await frames(2)
 	_dash(from, host.global_position - Vector2(side * cell * 0.9, 0.0))
 	check(not is_instance_valid(host) or wound.hp == hp - 1, "a dash through it, without the strike perk, wounds it")
 	for i: int in range(hp):
 		if not is_instance_valid(host):
 			break
+		# Anything that has crawled up beside it since is cleared away first.
+		_clear_round(host, cell)
+		await frames(1)
 		_bolt(from, Vector2(-side, 0.0), 0)
 		await frames(20)
 	check(not is_instance_valid(host) or host.is_queued_for_deletion(), "and bolts that only stun destroy it (%d)" % hp)
 	check(info.record().slain.has(at), "the level record keeps it so")
+
+
+## Free every enemy within three cells of `host` but it.
+func _clear_round(host: Node2D, cell: float) -> void:
+	for n: Node in get_nodes_in_group(&"hex_target"):
+		if n != host and (n as Node2D).global_position.distance_to(host.global_position) < cell * 3.0:
+			n.queue_free()
 
 
 ## The crossbows' arrows in flight.

@@ -6,6 +6,8 @@ extends Node2D
 ## does not come back (Player). A hex bolt or a dash through it tears it (tear_along); the bolt
 ## flies on. A torn web is spun again REGROW seconds later, if the wizard is not in it, while the
 ## spider lives (it is the spider's: it goes with it). The spider itself passes through its webs.
+## A splat (a glob the spider spat, WebShot, stuck where it landed: Spider.splat) holds as a web
+## does, but only for its `life`: then, or torn, it is gone, never spun again.
 ## Printed by the spider (Spider._draw_web).
 
 ## The most the wizard moves across, rises and sinks in a web (px/s).
@@ -25,8 +27,8 @@ var rect: Rect2 = Rect2()
 var torn: bool = false
 var torn_for: float = 0.0
 var spun: float = 1.0
-## How it is spun, worked out once by the spider that prints it (Spider._web_pattern).
-var pattern: Dictionary = {}
+## Seconds a splat has left (INF for a web strung across a hole, which lasts).
+var life: float = INF
 
 
 func _init(span: Rect2i, area: Rect2) -> void:
@@ -54,9 +56,22 @@ func tear() -> void:
 	RisoFx.burst(&"hit", rect.get_center(), Vector2.DOWN, [RisoPrint.BLUE, RisoPrint.NIGHT])
 
 
+## Whether it is a splat (see the class description).
+func splat() -> bool:
+	return life < INF
+
+
+## Whether it is a splat that is done: worn out or torn.
+func spent() -> bool:
+	return splat() and (life <= 0.0 or torn)
+
+
 ## Mend it a step (the spider spins it again REGROW after it was torn, unless `blocked`, the wizard
-## in it).
+## in it); a splat only wears away.
 func regrow(delta: float, blocked: bool) -> void:
+	if splat():
+		life -= delta
+		return
 	if torn:
 		torn_for += delta
 		if torn_for >= REGROW and not blocked:

@@ -292,11 +292,27 @@ at its top, part of the crags' castle.
   wizard moves at most 110 px/s across, rises 90 and sinks 55 (a jump stalls, a fall is slow), and
   the dash does not come back (`Player`). A hex bolt (flying on) or a dash tears one; it is spun
   again 12 s later. The spider passes through its own webs. Not yet: scuttling along them as
-  paths. Each web is spun its own way, from a hash of where it is (`docs/RISO_PRINT.md`).
-- **Its look.** Each world's spider is its own, dealt from its level seed (`Spider._deal_look`):
-  its abdomen's shape, its head, its legs' length and thickness, bristles or none, its marking (an
-  hourglass, chevrons, spots or a band) and its fangs. Its size, reach and eyes (its health) stay
-  as they are, so it fights the same.
+  paths. Every web is spun as the decor's cobwebs are, its lines kept evenly spaced as it grows (`docs/RISO_PRINT.md`); one across a hole is two small round webs side by side.
+- **Its look** is one look in every world (a black widow: a pink hourglass, pink fangs), its legs
+  set in poses rather than worked out step by step (`docs/RISO_PRINT.md`).
+- **Spitting.** From the canopy, every 2.8 s (`SPIT_EVERY`, the first 1.5 s after it wakes), while
+  it sees the wizard within 12 cells with no rock between and is not about to drop on them, it
+  rears 0.4 s and spits a glob of web (`WebShot`, 600 px/s, straight). It sticks where it lands,
+  on the wizard or the rock, as a **splat** (`Spider.splat`): a small web 1.4 cells across that
+  holds them as a web does (slowed, the dash not coming back) for 6 s, or until a bolt or a dash
+  tears it. Every third spit (`EGG_EVERY`) is an **egg sac** instead (`EggSac`), lobbed in an arc
+  to come down where the wizard is; landed, it swells 2.5 s and hatches 3 **spiderlings**
+  (`Spiderling`), which run along the floors at the wizard (170 px/s), hop steps and at the wizard
+  just over them, and bite; any blow kills one or bursts a sac (`BroodWound`, no stars), and a
+  spiderling withers after 9 s. No more than 6 of its brood are about at once, and they go when
+  it dies.
+- **The keep's crossbows** (`SpiderKeep.arm`, placed with the spider, no RNG draws): one to each
+  floor, in the row the wizard stands in, on alternate walls, set into the hall's wall and shooting
+  into the hall (a `Crossbow` with `inward`), stone behind, so nothing reaches them to break them.
+  They shoot dead straight along the storey, as every crossbow does (`docs/DEEPER_PLAN.md`), and
+  their arrows **pierce the spider's back** (`Spider.pierce`): an arrow meeting its body puts out an
+  eye whatever it is doing, so luring it into a crossbow's line (it drops on the wizard where they
+  stand) turns the keep against it. They wound its spiderlings and burst its egg sacs too.
 - **Hunting.** Asleep on its canopy under the roof until the wizard comes within 16 cells; then it
   crawls along the roof to be over them (or over the hole nearest them, waiting), rears 0.45 s
   (fangs flashing pink), drops on its thread (1500 px/s) to where they were, holds its bite
@@ -316,7 +332,9 @@ at its top, part of the crags' castle.
   ones at the back first). With the last it curls up, falls, shrivels (1.3 s), and its relic waits
   on the floor where it lies. A lantern death brings it back whole, webs and all.
 - **Size.** Every size of it follows `Spider.ART` (2.6: its abdomen's tip 156 px behind its middle).
-- `tests/spider_test.gd` covers the keep and the fight; `tests/capture_spider.gd` takes stills.
+- `tests/spider_test.gd` covers the keep and the fight (its crossbows, spitting, splats and brood
+  too); `tests/capture_spider.gd`, `capture_spider_walk.gd` and `capture_spider_brood.gd` take
+  stills.
 - **Status / not yet.** First pass, untuned. Not yet: playtested by hand; webs as its paths; a
   cue for where it will drop beyond the rear; the spider's size against the 3-row storeys (it
   fills most of one) wants a look in play.

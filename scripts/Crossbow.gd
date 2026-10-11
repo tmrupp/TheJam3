@@ -3,22 +3,29 @@ extends Node2D
 ## A crossbow built into a crag tower's or keep's wall (CragsArchetype.place_crossbows,
 ## place_keep_crossbows): a block of the wall's
 ## own stone, solid as the rest of it, with the crossbow set in a niche on its inner face and a bore
-## through to an arrow slit on its outer face. While it sees the wizard outside on its side (within
-## RANGE cells, no more than AIM off level, with a clear line from the slit), it winds back its
-## string, the bore glowing pink, and looses an arrow at them every DRAW seconds in sight; the
-## moment it loses sight the draw starts again. From outside it is a cell of stone away: bolts and
+## through to an arrow slit on its outer face. It shoots dead straight out of the slit, level: while
+## it sees the wizard in front of it (on its side, within RANGE cells, no more than LINE above or
+## below its slit, with a clear line from it), it winds back its string over DRAW seconds in sight,
+## the bore glowing pink, and looses; the moment it loses sight the draw starts again. After a shot
+## it reloads for RELOAD seconds (in sight or not) before it can draw again, so the first shot comes
+## quickly and the rest more slowly. Its arrows wound any enemy in their way, too (Bullet). From outside it is a cell of stone away: bolts and
 ## dashes stop at the wall short of it, and a parried arrow flies back only as far as the wall.
 ## From the room inside it is right at the wall's face, an enemy like any (its Wound, given as it
 ## is placed): any hex bolt or dash wounds it, even one that only stuns (Wound.least), and once
 ## broken the level record keeps it so until the wizard dies, the wall left whole. Its cell in the
 ## level is the room cell before the wall; the node sits in the wall. Nothing here draws from the
 ## world RNG.
+## One set in the spider's keep (SpiderKeep.arm, `inward`) shoots into the hall instead: its cell is
+## the hall's cell in front of its slit, and it sits in the wall behind that, with stone, not a
+## room, behind it, so nothing reaches it to break it. Its arrows pierce the spider (Bullet).
 
-## How far it sees (cells), how far off level it can aim (radians either way), how long it takes
-## to draw and loose (seconds in sight), and how fast its arrows fly (pixels a second).
+## How far it sees (cells), how far above or below its slit the wizard may be for it to shoot
+## (pixels), how long it takes to draw and loose (seconds in sight), how long it reloads after a
+## shot (seconds), and how fast its arrows fly (pixels a second).
 const RANGE: int = 9
-const AIM: float = 0.9
-const DRAW: float = 2.4
+const LINE: float = 80.0
+const DRAW: float = 0.8
+const RELOAD: float = 1.6
 const ARROW_SPEED: float = 620.0
 ## How deep in the wall it sits, from the wall's inner face (pixels): within reach of a bolt or a
 ## dash from the room, a cell of stone from one outside.
@@ -33,9 +40,11 @@ var cell: Vector2i = Vector2i.ZERO
 var facing: int = 1
 ## 0..1: how far it has drawn toward the next arrow (the art winds its string back).
 var drawn: float = 0.0
-## Whether it sees the wizard this frame, and seconds since it last loosed (for the art's kick).
+## Whether it sees the wizard this frame, seconds since it last loosed (for the art's kick), and
+## seconds of reloading left.
 var sees: bool = false
 var since_shot: float = 99.0
+var reload_left: float = 0.0
 ## Where it sits in the wall (world pixels); a wound's knock does not move it.
 var anchor: Vector2 = Vector2.ZERO
 ## A level cell's size, in world pixels.
@@ -45,7 +54,8 @@ var cell_px: float = 128.0
 
 
 ## For room cell `v`, as `extra` says: {"facing": +1 right or -1 left}: set into the wall beside it
-## that way.
+## that way; or, with "inward" (the spider's keep), into the wall behind the hall's cell `v`,
+## shooting out over it that way.
 func setup(info: MapInfo, v: Vector2i, extra: Variant) -> void:
 	map_info = info
 	cell = v
@@ -54,6 +64,8 @@ func setup(info: MapInfo, v: Vector2i, extra: Variant) -> void:
 	var tm: TileMap = info.tile_map
 	cell_px = float(tm.tile_set.tile_size.y) * tm.global_scale.y
 	anchor = global_position + Vector2(float(facing) * (cell_px * 0.5 + DEPTH), 0.0)
+	if bool(how.get("inward", false)):
+		anchor = global_position - Vector2(float(facing) * (cell_px * 1.5 - DEPTH), 0.0)
 	global_position = anchor
 	# Wounded by any bolt or dash, even one that only stuns: it has nothing to stun.
 	var wound: Wound = get_node_or_null("Wound") as Wound
@@ -66,7 +78,13 @@ func muzzle() -> Vector2:
 	return anchor + Vector2(float(facing) * (cell_px - DEPTH + LOOSE_OUT), 0.0)
 
 
-## Whether it sees the wizard: outside, on its side, in range, within its aim, with nothing between.
+## Whether it is loaded, a bolt laid on its string, ready to draw.
+func loaded() -> bool:
+	return reload_left <= 0.0
+
+
+## Whether it sees the wizard: outside, on its side, in range, in line with its slit, with nothing
+## between.
 func can_see() -> bool:
 	var player: Player = Stage.player()
 	if player == null or not is_instance_valid(player):
@@ -75,7 +93,7 @@ func can_see() -> bool:
 	var d: Vector2 = player.global_position - from
 	if signf(d.x) != float(facing) or d.length() > float(RANGE) * cell_px:
 		return false
-	if absf(atan2(d.y, absf(d.x))) > AIM:
+	if absf(d.y) > LINE:
 		return false
 	# Only the wizard (layer 1) and the environment (layer 3) block its view, as a watcher's.
 	var query: PhysicsRayQueryParameters2D = PhysicsRayQueryParameters2D.create(from, player.global_position, 1 | 4)
@@ -86,27 +104,27 @@ func can_see() -> bool:
 func _physics_process(delta: float) -> void:
 	global_position = anchor
 	since_shot += delta
+	# A harder preset draws and reloads sooner (Difficulty.attack).
+	reload_left = maxf(0.0, reload_left - delta * Difficulty.attack())
 	sees = can_see()
-	if not sees:
+	if not sees or not loaded():
 		drawn = 0.0
 		return
-	# A harder preset looses more often (Difficulty.attack).
 	drawn += delta * Difficulty.attack() / DRAW
 	if drawn >= 1.0:
 		drawn = 0.0
 		loose()
 
 
-## An arrow, out through the slit at the wizard.
+## An arrow, straight out through the slit; then it reloads.
 func loose() -> void:
-	var player: Player = Stage.player()
-	if player == null or map_info == null:
+	if map_info == null:
 		return
-	var from: Vector2 = muzzle()
 	var arrow: Bullet = ARROW.instantiate() as Bullet
 	arrow.arrow = true
 	map_info.map_elements.add_child(arrow)
-	arrow.global_position = from
-	arrow.setup((player.global_position - from).normalized() * ARROW_SPEED, [self], self)
+	arrow.global_position = muzzle()
+	arrow.setup(Vector2(float(facing) * ARROW_SPEED, 0.0), [self], self)
 	since_shot = 0.0
+	reload_left = RELOAD
 	_sfx.play()

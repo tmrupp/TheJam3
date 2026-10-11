@@ -46,7 +46,7 @@ func run() -> void:
 	var mid: Vector2 = (room + outside) * 0.5
 	await within(func() -> bool: return bow.drawn > 0.7, Crossbow.DRAW + 2.0)
 	await look_at(mid, "crossbow_out.png")
-	await within(func() -> bool: return bow.since_shot < 0.15, Crossbow.DRAW + 2.0)
+	await within(func() -> bool: return bow.since_shot < 0.15, Crossbow.RELOAD + Crossbow.DRAW + 2.0)
 	await frames(3)
 	await look_at(mid, "crossbow_arrow.png")
 	player.global_position = room - Vector2(float(bow.facing) * cell * 0.4, 0.0)

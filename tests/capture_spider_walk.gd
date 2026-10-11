@@ -1,8 +1,8 @@
 extends TestKit
 ## Stills of the spider's legs at work (Spider._legs): walking the canopy under its keep's roof
-## toward the wizard, its feet planted on the roof and stepping in turn (eight frames,
-## spider_walk.png), then dropped to a floor by a cut thread and scurrying off, its feet stepping on
-## the floor (eight frames, spider_scurry.png), each a sheet of close-ups.
+## toward the wizard, its legs swinging in two sets of four (eight frames, spider_walk.png), then
+## dropped to a floor by a cut thread and scurrying the length of the ground storey, seen from the
+## side, its feet stepping on the floor (eight frames, spider_scurry.png), each a sheet of close-ups.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_spider_walk.gd
 
 const SIZE: int = 420
@@ -38,7 +38,13 @@ func run() -> void:
 	player.global_position = Vector2(-9000, -9000)
 	spider.cut(spider.global_position + Vector2(0, -Spider.THREAD_TOP - 20.0))
 	await within(func() -> bool: return spider.state == Spider.State.SCURRY, Spider.DOWNED + 6.0)
-	await frames(6)
+	# Then set on the ground storey's long floor and sent the length of it, so it scurries long
+	# enough to watch.
+	spider.ground_y = info.cell_position(Vector2i(inside.position.x, inside.end.y)).y - spider.cell * 0.5
+	spider.global_position = Vector2(spider.left_x, spider.ground_y - Spider.STAND)
+	spider.goal_x = spider.right_x
+	spider.goal_climbs = true
+	await frames(30)
 	await _sheet(camera, spider, "spider_scurry.png")
 	RunState.delete_save()
 	finish()

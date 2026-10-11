@@ -22,6 +22,14 @@ extends Node2D
 ## - Its webs (SpiderWeb) are strung across the holes of the keep's floors: sticky, slowing the
 ##   wizard and keeping their dash from coming back; a bolt or a dash tears one, and it spins it
 ##   again a while later.
+## - It spits from the canopy: every SPIT_EVERY seconds, while it sees the wizard (within SPIT_RANGE,
+##   nothing but air between) and is not about to drop on them, it rears for SPIT_WARN and spits a
+##   glob of web at them (WebShot), which sticks where it lands, on the wizard or the rock, as a
+##   small web of its own (splat) that holds them a while; every EGG_EVERY-th spit is an egg sac
+##   instead (EggSac), lobbed at them, which hatches spiderlings (Spiderling) that run at the wizard
+##   and wither away after a while. No more than BROOD_MOST of its brood are about at once.
+## - Crossbows set in the keep's walls shoot into the hall at the wizard (SpiderKeep.arm), and their
+##   arrows pierce its back (Bullet, pierce): lure it into their line.
 ## A lantern death brings it back whole, as the keep reloads. Nothing here draws from any RNG: its
 ## choices follow the wizard and the keep's layout.
 
@@ -87,73 +95,80 @@ const CURL_TIME: float = 0.6
 ## they lift, and how wide), and its thread's.
 const BODY_NIGHT: float = 0.92
 const BODY_BLUE: float = 0.55
-const WEB_LIFT: float = 0.62
-const CANOPY_LIFT: float = 0.4
-const STRAND: float = 2.2
+const WEB_LIFT: float = 1.0
+const CANOPY_LIFT: float = 1.0
+const STRAND: float = RisoDecor.WEB_W
 const THREAD_LIFT: float = 0.85
-const THREAD_W: float = 3.0
-## How its orb webs are spun, each its own, from a hash of where it is (no RNG): its spokes (from,
-## to), each turned from the even step between them by up to SPOKE_JITTER of a step; how far out
-## its frame sits on each spoke (a share of the way to the edge, from, to); its spiral's turns (from,
-## to), wound out from SPIRAL_IN of the way to the frame to SPIRAL_OUT, each point on it set off by
-## up to SPIRAL_JITTER; and the share of the spiral's pieces left out (GAPS), as in a real web.
-const SPOKES: Vector2i = Vector2i(9, 13)
-const SPOKE_JITTER: float = 0.35
-const FRAME_AT: Vector2 = Vector2(0.72, 0.96)
-const TURNS: Vector2i = Vector2i(5, 8)
-const SPIRAL_IN: float = 0.14
-const SPIRAL_OUT: float = 0.93
-const SPIRAL_JITTER: float = 0.03
-const GAPS: float = 0.08
-## A corner web under the roof: its spokes (from, to) across the quarter turn, its reach (cells,
-## from, to), and its spiral's rows (from, to).
-const CORNER_SPOKES: Vector2i = Vector2i(5, 8)
-const CORNER_REACH: Vector2 = Vector2(2.4, 3.4)
-const CORNER_ROWS: Vector2i = Vector2i(4, 7)
-## Salt for the hash its webs are spun from.
-const WEB_DEAL: int = 6900
-## Its look, dealt from its level's seed (_deal_look, no RNG), so each world's spider is its own:
-## its abdomen's half-width and half-height (from, to) and how much it tapers to a point behind;
-## its head's half-width (its height follows); its legs' length and thickness (shares of the plain
-## ones, from, to), each leg a little more or less (LEG_VARY); the chance its legs are bristled;
-## the marking on its back (one of MARKS); and its fangs' length (px, from, to).
-const ABDOMEN_W: Vector2 = Vector2(23.0, 31.0)
-const ABDOMEN_H: Vector2 = Vector2(28.0, 38.0)
-const TAPER: Vector2 = Vector2(0.0, 1.0)
-const HEAD_W: Vector2 = Vector2(17.0, 22.0)
-const LEG_LONG: Vector2 = Vector2(0.85, 1.2)
-const LEG_THICK: Vector2 = Vector2(0.8, 1.25)
-const LEG_VARY: float = 0.08
-const BRISTLED: float = 0.5
-const MARKS: Array[StringName] = [&"hourglass", &"chevrons", &"spots", &"band"]
-const FANG: Vector2 = Vector2(13.0, 20.0)
-const LOOK_DEAL: int = 6950
-## How its legs move (worked out as it goes, nothing keyframed). Holding on (to the web of its
-## canopy, where its pose has its feet; to a floor, scurrying, the feet on the floor) each foot
-## stays planted where it last stepped until it is more than STEP_FAR of the leg's reach from where
-## it would rest now (or off the floor), then steps there in STEP_TIME, lifted by STEP_LIFT (off the
-## floor, or down off the canopy) and set down a little ahead of the way the body is going
-## (STEP_LEAD of a step's worth of its speed). A leg steps only while the
-## legs beside it (the next on its side, and the one across from it) are planted, so they go in
-## turn as a spider's do. Its planted feet rest PLANT_SPREAD as far out along the surface as its
-## pose's. Off a surface (on its thread, falling, on its back, stunned, dying) each foot swings on a
-## spring (FREE_PULL, FREE_DAMP) after the pose it would hold, so it trails, kicks and gathers with
-## a lag. Each leg is a femur and a shank (FEMUR, SHANK long, at its look's length), bent at the
-## knee to reach its foot (two-bone IK), the knee bent up off a floor, else away from its body;
-## the shank's last
-## TARSUS is its foot.
-const STEP_FAR: float = 0.3
-const STEP_TIME: float = 0.13
-const STEP_LIFT: float = 22.0
-const STEP_LEAD: float = 0.6
-const PLANT_SPREAD: float = 1.25
-const FREE_PULL: float = 160.0
-const FREE_DAMP: float = 14.0
+const THREAD_W: float = 4.0
+## How its webs are spun (plain_web): as the decor's cobwebs are, their strands as wide
+## (RisoDecor.WEB_W, WEB_RING_W), and their lines WEB_SPREAD times as far apart as the decor's
+## whatever their size, so a big web has more lines than a small one but is never a mesh. Its rings
+## are RisoDecor.WEB_RING_GAP times that apart, the outer one RisoDecor.WEB_RINGS[1] of the way out.
+## Its spokes stay about RisoDecor.WEB_SPOKE_GAP times that apart all the way out, as a real web's
+## do: HUB_SPOKES to a whole turn run in to the hub, and wherever those about a ring have drawn
+## SPLIT times that far apart, a new spoke starts from the ring between each two. Each web is a
+## little uneven, hashed from where it is (no RNG): its spokes turned up to SPOKE_JITTER of a step
+## and each its own length (SPOKE_LONG, of its reach), each ring off true by up to RING_JITTER of
+## their spacing where it meets a spoke, and RING_GAPS of the rings' pieces left out. A web across a
+## hole is two splats side by side; a corner web under the roof a quarter one CORNER_REACH cells
+## long; a splat (a spat glob, stuck) a round one SPLAT cells across.
+const CORNER_REACH: float = 2.8
+const WEB_SPREAD: float = 1.2
+const HUB_SPOKES: int = 6
+const SPLIT: float = 1.4
+const SPOKE_JITTER: float = 0.2
+const SPOKE_LONG: Vector2 = Vector2(0.9, 1.05)
+const RING_JITTER: float = 0.12
+const RING_GAPS: float = 0.06
+## A splat and a hole's webs join what they touch, and only that (_moor): rock or another web no
+## further from their rim than ADJACENT of their rings' spacing. Against rock, each spoke runs to
+## the rock's face (within its reach or just past it) and stops there, the rings past it left off,
+## so the web lies flat against the rock as if spun on it. Two webs that touch share the line where
+## they meet (the one the two circles' edges cross on, or would): each one's spokes run to it and
+## stop, its rings stop short of it, and one thread runs along it (_draw_seams), so they read as one
+## web.
+const ADJACENT: float = 1.0
+## How finely (px) a spoke's way is felt along for rock, before the rock's face is found to a pixel.
+const MOOR_STEP: float = 6.0
+## Its look: its abdomen's half-width and half-height and how much it tapers to a point behind, its
+## head's half-width (its height follows), its legs' thickness, and its fangs' length (px).
+const ABDOMEN: Vector2 = Vector2(27.0, 33.0)
+const TAPER: float = 0.5
+const HEAD_W: float = 19.5
+const LEG_THICK: float = 1.0
+const FANG: float = 16.0
+## How its legs move: set poses, not worked out step by step. Each leg is a femur and a shank
+## (FEMUR, SHANK long), set at fixed angles about its hip (a spread pose, and drawn in, `curl`, on
+## its back, stunned, on its thread, dying), the shank's last TARSUS its foot. On a floor each shank
+## reaches down to the floor instead (blended in as it gets up). Walking (along the canopy or a
+## floor) its legs swing WALK_SWING either way about the pose, in two sets of four in turn, a
+## stride every STRIDE px it goes, lifted STEP_LIFT off a floor as they swing forward. Its curl, its
+## stance on a floor and its walking ease in at POSE_EASE (a second), so it never jumps between poses.
 const FEMUR: float = 38.0
 const SHANK: float = 52.0
 const TARSUS: float = 0.27
+const WALK_SWING: float = 0.3
+const STRIDE: float = 150.0
+const STEP_LIFT: float = 18.0
+const POSE_EASE: float = 10.0
+## How fast it must go (px/s) to walk in full stride; slower, its legs swing less.
+const WALKING: float = 80.0
+## Spitting (see the class description): seconds between spits (the first SPIT_FIRST after it
+## wakes), and rearing before one (the tell); how far it sees to spit (cells); every EGG_EVERY-th
+## spit is an egg sac; how many spiderlings a sac hatches and the most of its brood (sacs and
+## spiderlings) about at once.
+const SPIT_EVERY: float = 2.8
+const SPIT_FIRST: float = 1.5
+const SPIT_WARN: float = 0.4
+const SPIT_RANGE: float = 12.0
+const EGG_EVERY: int = 3
+const BROOD: int = 3
+const BROOD_MOST: int = 6
+## How big a splat is (cells across), and how long it holds before it falls away (seconds).
+const SPLAT: float = 1.4
+const SPLAT_LIFE: float = 6.0
 
-enum State { SLEEP, HUNT, WARN, DROP, BITE, CLIMB, FALL, DOWN, SCURRY, RECLIMB, DYING }
+enum State { SLEEP, HUNT, WARN, DROP, BITE, CLIMB, FALL, DOWN, SCURRY, RECLIMB, DYING, SPIT }
 
 var map_info: MapInfo
 ## Which boss it is (Bosses).
@@ -205,18 +220,26 @@ var _was_stunned: bool = false
 ## The columns (as x) with a clear line from the canopy down to the cell the wizard was last in.
 var _aim_cell: Vector2i = Vector2i(-1, -1)
 var _aims: Array[float] = []
-## Its look (see ABDOMEN_W), dealt once it is set up.
-var look: Dictionary = {}
-## Its legs (see STEP_FAR), left legs first: each foot (world px) and how fast it swings while free;
-## each step's start and end and how far along it is (negative while planted); where its middle was
-## last frame; and this frame's step (seconds).
-var _feet: PackedVector2Array = PackedVector2Array()
-var _foot_v: PackedVector2Array = PackedVector2Array()
-var _step_from: PackedVector2Array = PackedVector2Array()
-var _step_to: PackedVector2Array = PackedVector2Array()
-var _step_u: PackedFloat32Array = PackedFloat32Array()
+## Spitting: seconds until it may spit again, and how many times it has spat (every EGG_EVERY-th
+## is an egg sac).
+var spit_wait: float = SPIT_FIRST
+var spits: int = 0
+## What it has spat still about: globs in flight, egg sacs and spiderlings (they go with it).
+var brood: Array[Node2D] = []
+## Its legs (see FEMUR): how far drawn in, how much it stands on a floor, how much it walks (each
+## easing toward the pose it is in), how fast it is going (px/s, smoothed), how far through its
+## stride, and where its middle was last frame.
+var _curl: float = 0.25
+var _floor_w: float = 0.0
+var _gait: float = 0.0
+var _pace: float = 0.0
+var _stride: float = 0.0
 var _was_at: Vector2 = Vector2.INF
-var _frame_dt: float = 0.0
+## Its webs' strands once spun whole, by where and how big each is (they never change then), so they
+## are worked out once rather than every frame; worked out again when its webs change (a splat stuck
+## or gone, a web torn or spun again), as they are tied on to one another (_webs_now).
+var _spun: Dictionary = {}
+var _webs_now: int = -1
 
 
 func _init() -> void:
@@ -260,7 +283,6 @@ func setup(info: MapInfo, _v: Vector2i, which: Variant) -> void:
 	cell = float(tm.tile_set.tile_size.x) * tm.global_scale.x
 	origin = info.cell_position(Vector2i.ZERO)
 	keep = info.world.keep
-	look = _deal_look(info.world.seed_for_colors)
 	if keep.is_empty():
 		return
 	inside = keep["inside"]
@@ -368,6 +390,22 @@ func cut(at: Vector2) -> void:
 	Wound.shake(6.0, 0.12)
 
 
+## An arrow struck it heading `dir` (Bullet): it pierces its back and puts out an eye, and wakes it.
+func pierce(dir: Vector2) -> void:
+	if state == State.SLEEP:
+		state = State.HUNT
+	wound.pierce(dir)
+
+
+## The first spider whose body a way from `from` to `to` meets (struck_by), or null.
+static func body_across(tree: SceneTree, from: Vector2, to: Vector2) -> Spider:
+	for node: Node in tree.get_nodes_in_group(&"spider"):
+		var spider: Spider = node as Spider
+		if spider != null and not spider.is_queued_for_deletion() and not spider.dying() and spider.struck_by(from, to, 0.0):
+			return spider
+	return null
+
+
 ## The first spider's thread a way from `from` to `to` passes within `reach` of, the nearest to
 ## `from`: {"spider": it, "at": the point on the thread, "d": how far along the way}; else {}.
 static func thread_across(tree: SceneTree, from: Vector2, to: Vector2, reach: float) -> Dictionary:
@@ -398,6 +436,7 @@ func die() -> void:
 	vy = 0.0
 	dead_t = 0.0
 	remove_from_group(&"hex_target")
+	_wither_brood()
 	Wound.shake(14.0, 0.4)
 	RisoFx.burst(&"gain", global_position, Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.PINK])
 
@@ -414,6 +453,7 @@ func slay() -> void:
 ## It is slain: its relic waits on the floor where it lies, and it is gone, webs and all.
 func _slain() -> void:
 	slain = true
+	_wither_brood()
 	if map_info != null:
 		map_info.boss_slain(boss, relic_at())
 	queue_free()
@@ -434,8 +474,15 @@ func _physics_process(delta: float) -> void:
 	# A harder preset runs it faster (Difficulty.haste).
 	delta *= Difficulty.haste()
 	var player: Player = map_info.player if map_info.player != null and is_instance_valid(map_info.player) else null
-	for web: SpiderWeb in webs:
+	for i: int in range(webs.size() - 1, -1, -1):
+		var web: SpiderWeb = webs[i]
 		web.regrow(delta, player != null and web.rect.has_point(player.global_position))
+		if web.spent():
+			webs.remove_at(i)
+			web.queue_free()
+	for i: int in range(brood.size() - 1, -1, -1):
+		if not is_instance_valid(brood[i]) or brood[i].is_queued_for_deletion():
+			brood.remove_at(i)
 	var stun_now: bool = stunned()
 	if _was_stunned and not stun_now:
 		_after_stun()
@@ -455,6 +502,14 @@ func _physics_process(delta: float) -> void:
 				timer -= delta
 				if timer <= 0.0:
 					_drop(player)
+			State.SPIT:
+				global_position.y = canopy_y()
+				timer -= delta
+				if timer <= 0.0:
+					_spit(player)
+					state = State.HUNT
+					timer = REST * 0.5
+					spit_wait = SPIT_EVERY
 			State.DROP:
 				# Judged on the step worked out: read back from the position (kept in 32 bits), it
 				# can fall a hair short of the target.
@@ -486,7 +541,7 @@ func _physics_process(delta: float) -> void:
 ## A stun has passed: from a drop or a bite it climbs back up; rearing, it settles back.
 func _after_stun() -> void:
 	match state:
-		State.WARN:
+		State.WARN, State.SPIT:
 			state = State.HUNT
 			timer = REST
 		State.DROP, State.BITE:
@@ -503,9 +558,14 @@ func _hunt(delta: float, player: Player) -> void:
 	var to: float = clampf(float(aim) if aim != null else _well_x(), left_x, right_x)
 	global_position.x = move_toward(global_position.x, to, CRAWL * delta)
 	global_position.y = canopy_y()
-	if timer <= 0.0 and aim != null and absf(global_position.x - to) < 2.0 and absf(to - at.x) <= DROP_SLACK and at.y > global_position.y:
+	spit_wait = maxf(0.0, spit_wait - delta)
+	var over: bool = aim != null and absf(global_position.x - to) < 2.0 and absf(to - at.x) <= DROP_SLACK and at.y > global_position.y
+	if timer <= 0.0 and over:
 		state = State.WARN
 		timer = WARN
+	elif timer <= 0.0 and spit_wait <= 0.0 and sees(at):
+		state = State.SPIT
+		timer = SPIT_WARN
 
 
 ## The x nearest `at` across from which it can drop to it (nothing but air between the canopy and
@@ -635,6 +695,80 @@ func _dying(delta: float) -> void:
 		_slain()
 
 
+# ------------------------------------------------------------------ spitting
+
+## Where it spits from: its mouth, between its fangs.
+func mouth() -> Vector2:
+	return global_position + Vector2.DOWN.rotated(angle) * BODY_FRONT
+
+
+## Whether it sees `at` to spit at: within SPIT_RANGE of its mouth, with no rock between (ledges and
+## webs let it through).
+func sees(at: Vector2) -> bool:
+	var from: Vector2 = mouth()
+	if from.distance_to(at) > SPIT_RANGE * cell:
+		return false
+	var steps: int = ceili(from.distance_to(at) / (cell * 0.2))
+	for i: int in range(1, steps):
+		if map_info.world.is_ground(map_info.cell_at(from.lerp(at, float(i) / float(steps)))):
+			return false
+	return true
+
+
+## How many of its brood are about: egg sacs and spiderlings (globs in flight are not counted).
+func brood_count() -> int:
+	var n: int = 0
+	for b: Node2D in brood:
+		if is_instance_valid(b) and not b.is_queued_for_deletion() and not b is WebShot:
+			n += 1
+	return n
+
+
+## Spit at the wizard: a glob of web, or every EGG_EVERY-th time an egg sac (while there is room
+## for its brood).
+func _spit(player: Player) -> void:
+	if player == null or map_info == null:
+		return
+	spits += 1
+	var from: Vector2 = mouth()
+	var shot: Node2D
+	if spits % EGG_EVERY == 0 and brood_count() + BROOD <= BROOD_MOST:
+		var sac: EggSac = EggSac.new()
+		sac.spider = self
+		sac.velocity = EggSac.lob(from, player.global_position)
+		shot = sac
+	else:
+		var glob: WebShot = WebShot.new()
+		glob.spider = self
+		glob.velocity = (player.global_position - from).normalized() * WebShot.SPEED
+		shot = glob
+	map_info.map_elements.add_child(shot)
+	shot.global_position = from
+	brood.append(shot)
+	RisoFx.burst(&"hit", from, Vector2.DOWN, [RisoPrint.BLUE, RisoPrint.NIGHT])
+
+
+## A glob of its web stuck at `at`: a splat, SPLAT cells across, holding what is in it for
+## SPLAT_LIFE seconds (or until torn).
+func splat(at: Vector2) -> void:
+	if dying():
+		return
+	var size: Vector2 = Vector2.ONE * SPLAT * cell
+	var web: SpiderWeb = SpiderWeb.new(Rect2i(map_info.cell_at(at), Vector2i.ONE), Rect2(at - size * 0.5, size))
+	web.life = SPLAT_LIFE
+	web.name = "Splat%d" % spits
+	add_child(web)
+	webs.append(web)
+
+
+## Its brood withers with it (dying, slain): globs, egg sacs and spiderlings alike.
+func _wither_brood() -> void:
+	for b: Node2D in brood:
+		if is_instance_valid(b) and not b.is_queued_for_deletion():
+			b.queue_free()
+	brood.clear()
+
+
 # ------------------------------------------------------------------ the print
 
 ## Its canopy and webs, its thread, and itself: strands of web lifted pale off the keep's dark,
@@ -646,15 +780,22 @@ func _process(delta: float) -> void:
 	if ink == null or keep.is_empty():
 		return
 	_turn(delta)
-	_frame_dt = minf(delta, 0.05)
 	ink.global_position = Vector2.ZERO
 	ink.begin()
 	var fade: float = 1.0 - clampf(dead_t / DIE_TIME, 0.0, 1.0) if state == State.DYING else 1.0
 	_draw_canopy(fade)
+	var now: int = webs.size()
 	for web: SpiderWeb in webs:
-		_draw_web(web, fade)
+		now = now * 3 + (1 if web.torn else (2 if web.spun < 1.0 else 0))
+	if now != _webs_now:
+		_webs_now = now
+		_spun.clear()
+	var circles: Array[Vector3] = _web_circles()
+	for web: SpiderWeb in webs:
+		_draw_web(web, fade, circles)
+	_draw_seams(circles, fade)
 	_draw_thread(fade)
-	_draw_body(fade)
+	_draw_body(fade, minf(delta, 0.05))
 	ink.finish()
 
 
@@ -688,13 +829,110 @@ static func festoon(a: Vector2, b: Vector2, sag: float, w: float, steps: int, ou
 		last = p
 
 
-## A number in [0, 1) hashed from `v` and `salt`: what its webs are spun from.
+## A plain web, as the decor's cobwebs are, its lines as far apart all over (see WEB_SPREAD): about
+## `hub`, `radius` long, its spokes across `from`..`to` radians (round the whole turn if `closed`),
+## as far out as `spun` (0..1, while it is spun again), each thinning as it goes, and its rings
+## strung straight from spoke to spoke (each once the spokes reach it). Its unevenness is hashed
+## from `key`. Where `moor` is given (a spoke's way -> how far out it meets what it is tied to, INF
+## for nothing), each spoke stops there (and the rings past it are left off) or reaches out to it.
+## Strands go into `out`.
+static func plain_web(hub: Vector2, radius: float, from: float, to: float, closed: bool, spun: float, key: Vector2i, out: Array[PackedVector2Array], moor: Callable = Callable()) -> void:
+	var span: float = to - from
+	var spoke_gap: float = RisoDecor.WEB_SPOKE_GAP * WEB_SPREAD
+	var ring_gap: float = RisoDecor.WEB_RING_GAP * WEB_SPREAD
+	# Its rings, outermost first.
+	var rings: Array[float] = []
+	var r: float = radius * RisoDecor.WEB_RINGS[1]
+	while r >= ring_gap * 0.9:
+		rings.append(r)
+		r -= ring_gap
+	# The spokes to the hub, then each new set, starting from the ring where those before them have
+	# drawn SPLIT times their spacing apart (-1: from the hub).
+	var hub_n: int = maxi(2, ceili(span * float(HUB_SPOKES) / TAU))
+	var starts: Array[int] = [-1]
+	while not rings.is_empty():
+		var at: float = SPLIT * spoke_gap * float(hub_n * (1 << (starts.size() - 1))) / span
+		if at >= rings[0]:
+			break
+		var from_ring: int = rings.size() - 1
+		for k: int in range(rings.size()):
+			if rings[k] <= at:
+				from_ring = k
+				break
+		starts.append(from_ring)
+	var levels: int = starts.size() - 1
+	var n: int = hub_n << levels
+	var count: int = n if closed else n + 1
+	var dirs: Array[Vector2] = []
+	var begins: Array[int] = []
+	for i: int in range(count):
+		var level: int = 0
+		if i % (1 << levels) != 0:
+			var z: int = 0
+			var j: int = i
+			while j % 2 == 0:
+				@warning_ignore("integer_division")
+				j /= 2
+				z += 1
+			level = levels - z
+		var a: float = from + span * float(i) / float(n)
+		if closed or (i > 0 and i < n):
+			a += (_h(key + Vector2i(i, 0), 41) - 0.5) * 2.0 * SPOKE_JITTER * span / float(n)
+		dirs.append(Vector2.from_angle(a))
+		begins.append(starts[level])
+	# Where each spoke meets each ring, a little off true.
+	var at_ring: Callable = func(k: int, i: int) -> float:
+		return rings[k] + (_h(key + Vector2i(i, k + 1), 43) - 0.5) * 2.0 * RING_JITTER * ring_gap
+	var lengths: Array[float] = []
+	for i: int in range(count):
+		var length: float = radius * lerpf(SPOKE_LONG.x, SPOKE_LONG.y, _h(key + Vector2i(i, 0), 42))
+		if moor.is_valid():
+			var tie: float = float(moor.call(dirs[i]))
+			if tie < INF:
+				length = tie
+		lengths.append(length)
+		var inner: float = 0.0 if begins[i] < 0 else float(at_ring.call(begins[i], i))
+		var outer: float = length * spun
+		if outer > inner:
+			out.append_array(RisoDecor.strip(PackedVector2Array([hub + dirs[i] * inner, hub + dirs[i] * outer]), RisoDecor.WEB_W, RisoDecor.WEB_W * RisoDecor.WEB_TIP))
+	for k: int in range(rings.size()):
+		if rings[k] > radius * spun:
+			continue
+		var here: Array[int] = []
+		for i: int in range(count):
+			if begins[i] < 0 or begins[i] >= k:
+				here.append(i)
+		for j: int in range(here.size() if closed else here.size() - 1):
+			var i0: int = here[j]
+			var i1: int = here[(j + 1) % here.size()]
+			var r0: float = at_ring.call(k, i0)
+			var r1: float = at_ring.call(k, i1)
+			if _h(key + Vector2i(i0, k + 1), 44) < RING_GAPS or r0 > lengths[i0] - 2.0 or r1 > lengths[i1] - 2.0:
+				continue
+			out.append(strand(hub + dirs[i0] * r0, hub + dirs[i1] * r1, RisoDecor.WEB_RING_W))
+
+
+## A plain web (see plain_web) into `out`: worked out once when it is whole and kept (_spun), and
+## afresh while it is being spun again.
+func _web(hub: Vector2, radius: float, from: float, to: float, closed: bool, spun: float, key: Vector2i, out: Array[PackedVector2Array], moor: Callable = Callable()) -> void:
+	if spun < 1.0:
+		plain_web(hub, radius, from, to, closed, spun, key, out, moor)
+		return
+	var at: Vector4 = Vector4(hub.x, hub.y, radius, from)
+	if not _spun.has(at):
+		var strands: Array[PackedVector2Array] = []
+		plain_web(hub, radius, from, to, closed, 1.0, key, strands, moor)
+		_spun[at] = strands
+	out.append_array(_spun[at] as Array[PackedVector2Array])
+
+
+## A number in [0, 1) hashed from `v` and `salt`: how the canopy's festoons hang.
 static func _h(v: Vector2i, salt: int) -> float:
-	return RisoDecor.h(WEB_DEAL, v, salt)
+	return RisoDecor.h(6900, v, salt)
 
 
 ## The canopy under the roof, which it walks on: festoons of web sagging along the roof, each its
-## own length and sag, and an orb web spun into each top corner of the hall, each its own.
+## own length and sag, and a plain web in each top corner of the hall.
 func _draw_canopy(fade: float) -> void:
 	var strands: Array[PackedVector2Array] = []
 	var x0: float = hall_left
@@ -711,118 +949,142 @@ func _draw_canopy(fade: float) -> void:
 			k += 1
 	for side: int in [-1, 1]:
 		var corner: Vector2 = Vector2(x0 if side < 0 else x1, roof_y)
-		_corner_web(corner, side, key + Vector2i(side, 0), strands)
+		var from: float = 0.0 if side < 0 else PI * 0.5
+		_web(corner, CORNER_REACH * cell, from, from + PI * 0.5, false, 1.0, key + Vector2i(side * 50, -50), strands)
 	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], CANOPY_LIFT * fade, strands)
 
 
-## A web spun into a top corner at `corner`, opening away from the wall on `side`: spokes across the
-## quarter turn, each its own length, a frame from end to end, and the spiral's rows strung across
-## the spokes (as such a web is spun, back and forth), all hashed from `key`.
-func _corner_web(corner: Vector2, side: int, key: Vector2i, out: Array[PackedVector2Array]) -> void:
-	var n: int = CORNER_SPOKES.x + int(_h(key, 10) * float(CORNER_SPOKES.y - CORNER_SPOKES.x + 1))
-	var ends: Array[Vector2] = []
-	for i: int in range(n):
-		var u: float = (float(i) + (_h(key, 20 + i) - 0.5) * SPOKE_JITTER) / float(n - 1)
-		var a: float = PI * 0.5 * clampf(u, 0.0, 1.0)
-		var reach: float = cell * lerpf(CORNER_REACH.x, CORNER_REACH.y, _h(key, 40 + i))
-		ends.append(corner + Vector2(-float(side) * cos(a), sin(a)) * reach)
-	for p: Vector2 in ends:
-		out.append(strand(corner, p, STRAND))
-	for i: int in range(n - 1):
-		festoon(ends[i], ends[i + 1], 8.0, STRAND * 0.8, 3, out)
-	var rows: int = CORNER_ROWS.x + int(_h(key, 11) * float(CORNER_ROWS.y - CORNER_ROWS.x + 1))
-	for r: int in range(rows):
-		for i: int in range(n - 1):
-			if _h(key + Vector2i(r, i), 60) < GAPS:
-				continue
-			var f: float = lerpf(0.22, 0.9, float(r) / float(maxi(1, rows - 1)))
-			var fa: float = f + (_h(key + Vector2i(r, i), 61) - 0.5) * SPIRAL_JITTER * 2.0
-			var fb: float = f + (_h(key + Vector2i(r, i + 1), 61) - 0.5) * SPIRAL_JITTER * 2.0
-			festoon(corner.lerp(ends[i], fa), corner.lerp(ends[i + 1], fb), 3.0 + 5.0 * f, STRAND * 0.75, 2, out)
-
-
-## A web across a hole: an orb web of its own (_web_pattern), tied to the floor's ends either side;
-## being spun, its spokes reach out and its spiral winds out after them; torn, ragged strands hang
-## from its edges.
-func _draw_web(web: SpiderWeb, fade: float) -> void:
+## A web: across a hole, two splats' worth of round web side by side (their spokes reaching out and
+## their rings after them as it is spun again; torn, a few ragged strands hanging from its edges);
+## a splat, a small round one, fading as it comes away.
+func _draw_web(web: SpiderWeb, fade: float, circles: Array[Vector3]) -> void:
 	var r: Rect2 = web.rect
 	var strands: Array[PackedVector2Array] = []
+	var hub: Vector2 = r.get_center()
+	if web.splat():
+		var radius: float = r.size.x * 0.5
+		_web(hub, radius, 0.0, TAU, true, 1.0, Vector2i(roundi(hub.x), roundi(hub.y)), strands, _moor(hub, radius, circles))
+		ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], WEB_LIFT * fade * clampf(web.life / 0.6, 0.0, 1.0), strands)
+		return
 	if web.torn:
 		for side: int in [-1, 1]:
 			var edge: float = r.position.x if side < 0 else r.end.x
-			for i: int in range(4):
-				var top: Vector2 = Vector2(edge, r.position.y + 4.0 + float(i) * 12.0)
-				var hang: float = 30.0 + 16.0 * float(i)
+			for i: int in range(2):
+				var top: Vector2 = Vector2(edge, r.position.y + 10.0 + float(i) * 30.0)
 				var sway: float = 6.0 * sin(t * 1.7 + float(i) * 1.3 + float(side))
-				festoon(top, top + Vector2(-float(side) * (22.0 + 12.0 * float(i)) + sway, hang), -8.0, STRAND, 4, strands)
+				festoon(top, top + Vector2(-float(side) * (30.0 + 16.0 * float(i)) + sway, 40.0 + 20.0 * float(i)), -8.0, STRAND, 3, strands)
 		ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], WEB_LIFT * fade, strands)
 		return
-	var pattern: Dictionary = _web_pattern(web)
-	var hub: Vector2 = pattern["hub"]
-	var ends: Array[Vector2] = pattern["ends"]
-	var spiral: Array[Vector2] = pattern["spiral"]
-	var shares: PackedFloat32Array = pattern["shares"]
-	var gaps: PackedByteArray = pattern["gaps"]
-	var reach: float = web.spun
-	for p: Vector2 in ends:
-		strands.append(strand(hub, hub.lerp(p, reach), STRAND))
-	if reach >= 1.0:
-		for i: int in range(ends.size()):
-			festoon(ends[i], ends[(i + 1) % ends.size()], 4.0, STRAND, 2, strands)
-		for moor: Array in (pattern["moorings"] as Array):
-			festoon(moor[0], moor[1], 3.0, STRAND, 2, strands)
-	for i: int in range(spiral.size() - 1):
-		if gaps[i] == 1 or shares[i + 1] > reach:
-			continue
-		festoon(spiral[i], spiral[i + 1], 2.5, STRAND * 0.8, 2, strands)
+	# Two splats' worth, side by side across it, tied on to each other and the floor's ends.
+	var halves: Array[Vector3] = _hole_webs(web)
+	for k: int in range(halves.size()):
+		var at: Vector2 = Vector2(halves[k].x, halves[k].y)
+		_web(at, halves[k].z, 0.0, TAU, true, web.spun, web.cells.position * 4 + Vector2i(k, 0), strands, _moor(at, halves[k].z, circles))
 	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], WEB_LIFT * fade, strands)
 
 
-## How web `web` is spun, worked out once from where it is and kept on it (SpiderWeb.pattern): a hub
-## off its middle; spokes out from it at uneven turns, each ending on its frame short of the hole's
-## edge; threads mooring the frame's sideways ends to the floor's ends either side of the hole;
-## and a spiral wound out across the spokes, a few of its pieces left out. "hub" and "ends" (world
-## points), "moorings" ([from, to] each), "spiral" (its points in order), "shares" (how far out each
-## point is, a share of the way to the frame) and "gaps" (1 for each piece left out).
-func _web_pattern(web: SpiderWeb) -> Dictionary:
-	if not web.pattern.is_empty():
-		return web.pattern
+## The two round webs across hole web `web`, side by side: (middle x, middle y, radius) each.
+func _hole_webs(web: SpiderWeb) -> Array[Vector3]:
 	var r: Rect2 = web.rect
-	var key: Vector2i = web.cells.position
-	var hub: Vector2 = r.position + r.size * Vector2(0.36 + 0.28 * _h(key, 1), 0.42 + 0.26 * _h(key, 2))
-	var n: int = SPOKES.x + int(_h(key, 3) * float(SPOKES.y - SPOKES.x + 1))
-	var start: float = _h(key, 4) * TAU
-	var ends: Array[Vector2] = []
-	var dirs: Array[Vector2] = []
-	for i: int in range(n):
-		var a: float = start + TAU * (float(i) + (_h(key, 10 + i) - 0.5) * 2.0 * SPOKE_JITTER) / float(n)
-		var dir: Vector2 = Vector2(cos(a), sin(a))
-		var out: float = INF
-		if absf(dir.x) > 0.001:
-			out = minf(out, ((r.end.x if dir.x > 0.0 else r.position.x) - hub.x) / dir.x)
-		if absf(dir.y) > 0.001:
-			out = minf(out, ((r.end.y if dir.y > 0.0 else r.position.y) - hub.y) / dir.y)
-		ends.append(hub + dir * out * lerpf(FRAME_AT.x, FRAME_AT.y, _h(key, 40 + i)))
-		dirs.append(dir)
-	var moorings: Array = []
-	for i: int in range(n):
-		if absf(dirs[i].x) < 0.75:
+	var radius: float = minf(SPLAT * cell * 0.5, r.size.x * 0.25)
+	var out: Array[Vector3] = []
+	for k: int in range(2):
+		var at: Vector2 = r.position + Vector2(r.size.x * (0.25 + 0.5 * float(k)), r.size.y * 0.5)
+		out.append(Vector3(at.x, at.y, radius))
+	return out
+
+
+## Every round web of its whole now, to tie others on to: (middle x, middle y, radius) each.
+func _web_circles() -> Array[Vector3]:
+	var out: Array[Vector3] = []
+	for web: SpiderWeb in webs:
+		if web.torn or web.spun < 0.5:
 			continue
-		var edge: float = r.end.x if dirs[i].x > 0.0 else r.position.x
-		var y: float = clampf(ends[i].y + (_h(key, 70 + i) - 0.5) * r.size.y * 0.4, r.position.y + 4.0, r.end.y - 4.0)
-		moorings.append([ends[i], Vector2(edge, y)])
-	var turns: int = TURNS.x + int(_h(key, 5) * float(TURNS.y - TURNS.x + 1))
-	var spiral: Array[Vector2] = []
-	var shares: PackedFloat32Array = PackedFloat32Array()
-	var gaps: PackedByteArray = PackedByteArray()
-	var steps: int = n * turns
-	for st: int in range(steps + 1):
-		var f: float = lerpf(SPIRAL_IN, SPIRAL_OUT, float(st) / float(steps)) + (_h(key + Vector2i(st, 0), 80) - 0.5) * 2.0 * SPIRAL_JITTER
-		spiral.append(hub.lerp(ends[st % n], f))
-		shares.append(f)
-		gaps.append(1 if _h(key + Vector2i(st, 1), 81) < GAPS else 0)
-	web.pattern = {"hub": hub, "ends": ends, "moorings": moorings, "spiral": spiral, "shares": shares, "gaps": gaps}
-	return web.pattern
+		if web.splat():
+			var c: Vector2 = web.rect.get_center()
+			out.append(Vector3(c.x, c.y, web.rect.size.x * 0.5))
+		else:
+			out.append_array(_hole_webs(web))
+	return out
+
+
+## How far past its rim (px) a web reaches to join what is next to it (see ADJACENT).
+func _adjacent() -> float:
+	return RisoDecor.WEB_RING_GAP * WEB_SPREAD * ADJACENT
+
+
+## Where two webs that touch meet (see ADJACENT): for a web about `hub`, `radius` across, and another
+## `o` (middle x, middle y, radius), how far from `hub` toward it the line they share lies (the line
+## their edges cross on, or would), or INF when they do not touch.
+func _seam(hub: Vector2, radius: float, o: Vector3) -> float:
+	var c: Vector2 = Vector2(o.x, o.y)
+	var d: float = hub.distance_to(c)
+	if d < 1.0 or d - radius - o.z > _adjacent():
+		return INF
+	return (d * d + radius * radius - o.z * o.z) / (2.0 * d)
+
+
+## How a web about `hub`, `radius` across, joins what it touches (see ADJACENT): for a spoke's way,
+## how far out it meets the face of rock (found to a pixel), or the line it shares with another of
+## `circles` that touches it, within its reach and the gap it may cross; INF for neither.
+func _moor(hub: Vector2, radius: float, circles: Array[Vector3]) -> Callable:
+	var far: float = radius + _adjacent()
+	var w: LevelGen = map_info.world
+	var info: MapInfo = map_info
+	var seams: Array[Vector3] = []
+	for o: Vector3 in circles:
+		var at: float = _seam(hub, radius, o)
+		if at < INF:
+			var n: Vector2 = (Vector2(o.x, o.y) - hub).normalized()
+			seams.append(Vector3(n.x, n.y, at))
+	return func(dir: Vector2) -> float:
+		var best: float = INF
+		for sm: Vector3 in seams:
+			var along: float = dir.dot(Vector2(sm.x, sm.y))
+			if along > 0.05:
+				var t_at: float = sm.z / along
+				if t_at < far:
+					best = minf(best, t_at)
+		var d: float = MOOR_STEP
+		while d <= minf(far, best):
+			if w.is_ground(info.cell_at(hub + dir * d)):
+				# The rock's face, to a pixel, between the last step in the open and this one.
+				var lo: float = d - MOOR_STEP
+				var hi: float = d
+				while hi - lo > 1.0:
+					var mid: float = (lo + hi) * 0.5
+					if w.is_ground(info.cell_at(hub + dir * mid)):
+						hi = mid
+					else:
+						lo = mid
+				return lo
+			d += MOOR_STEP
+		return best
+
+
+## The threads along which webs that touch meet (see ADJACENT), one to each pair, as long as the
+## spokes that reach it from either side span.
+func _draw_seams(circles: Array[Vector3], fade: float) -> void:
+	var strands: Array[PackedVector2Array] = []
+	for i: int in range(circles.size()):
+		for j: int in range(i + 1, circles.size()):
+			var a: Vector3 = circles[i]
+			var b: Vector3 = circles[j]
+			var hub: Vector2 = Vector2(a.x, a.y)
+			var at: float = _seam(hub, a.z, b)
+			if at == INF:
+				continue
+			var d: float = hub.distance_to(Vector2(b.x, b.y))
+			var n: Vector2 = (Vector2(b.x, b.y) - hub) / d
+			var reach_a: float = a.z + _adjacent()
+			var reach_b: float = b.z + _adjacent()
+			var half: float = minf(sqrt(maxf(reach_a * reach_a - at * at, 0.0)), sqrt(maxf(reach_b * reach_b - (d - at) * (d - at), 0.0)))
+			if half < 2.0:
+				continue
+			var mid: Vector2 = hub + n * at
+			strands.append(strand(mid - n.orthogonal() * half, mid + n.orthogonal() * half, RisoDecor.WEB_RING_W))
+	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], WEB_LIFT * fade, strands)
+
 
 
 ## Its thread, and a cut one's end curling back up to the roof.
@@ -852,9 +1114,14 @@ const EYE_SPOTS: Array[Vector3] = [
 ## Itself: legs, abdomen with its pink hourglass, head, fangs and eyes, in its own frame (head
 ## toward +y) turned by `angle`. Rearing it shivers; biting its fangs spread; on its back its legs
 ## curl and kick; stunned they hang limp and stars circle its head; dying it curls up and shrinks.
-func _draw_body(fade: float) -> void:
+## Rearing to spit it shivers less, its fangs half spread. `dt` is this frame's step (seconds).
+func _draw_body(fade: float, dt: float) -> void:
 	var dying_u: float = clampf(dead_t / DIE_TIME, 0.0, 1.0) if state == State.DYING else 0.0
-	var jitter: Vector2 = Vector2(sin(t * 61.0), cos(t * 47.0)) * 2.5 if state == State.WARN else Vector2.ZERO
+	var jitter: Vector2 = Vector2.ZERO
+	if state == State.WARN:
+		jitter = Vector2(sin(t * 61.0), cos(t * 47.0)) * 2.5
+	elif state == State.SPIT:
+		jitter = Vector2(sin(t * 53.0), cos(t * 41.0)) * 1.5
 	var size: float = ART * (1.0 - 0.45 * dying_u)
 	var xf: Transform2D = Transform2D(angle, global_position + jitter) * Transform2D(0.0, Vector2.ONE * size, 0.0, Vector2.ZERO)
 	var curl: float = 0.25
@@ -864,19 +1131,26 @@ func _draw_body(fade: float) -> void:
 		curl = 0.6 + 0.4 * dying_u
 	elif stunned():
 		curl = 0.45
-	elif state in [State.HUNT, State.SCURRY]:
+	elif state in [State.HUNT, State.SCURRY, State.SPIT]:
 		curl = 0.05
 	var kicking: bool = state == State.DOWN or (state == State.DYING and dying_u < 0.6)
-	if look.is_empty():
-		look = _deal_look(0)
-	var legs: Array[PackedVector2Array] = _legs(xf, size, curl, kicking)
+	# Ease into the pose it is in (see FEMUR), and walk as far as it has gone.
+	var ease: float = clampf(POSE_EASE * dt, 0.0, 1.0)
+	_curl = lerpf(_curl, curl, ease)
+	_floor_w = lerpf(_floor_w, 1.0 if state == State.SCURRY and not stunned() else 0.0, ease)
+	var moved: float = 0.0 if _was_at == Vector2.INF else global_position.distance_to(_was_at)
+	_was_at = global_position
+	# Its pace, smoothed: it moves on physics steps, which not every frame has.
+	_pace = lerpf(_pace, moved / dt if dt > 0.0 else 0.0, ease)
+	_gait = lerpf(_gait, clampf(_pace / WALKING, 0.0, 1.0) if state in [State.HUNT, State.SCURRY] else 0.0, ease)
+	_stride = fposmod(_stride + moved / STRIDE, 1.0)
+	var legs: Array[PackedVector2Array] = _legs(xf, size, kicking)
 	ink.ink(RisoPrint.NIGHT, BODY_NIGHT * fade, legs)
 	ink.ink(RisoPrint.BLUE, BODY_BLUE * 0.8 * fade, legs, false)
-	var size_ab: Vector2 = look["abdomen"]
+	var size_ab: Vector2 = ABDOMEN
 	var middle: Vector2 = Vector2(0.0, -2.0 - size_ab.y * 0.85)
-	var abdomen: PackedVector2Array = xf * _abdomen(middle, size_ab.x, size_ab.y, look["taper"])
-	var head_w: float = look["head"]
-	var head: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(0.0, 8.0), head_w, head_w * 0.9, 18)
+	var abdomen: PackedVector2Array = xf * _abdomen(middle, size_ab.x, size_ab.y, TAPER)
+	var head: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(0.0, 8.0), HEAD_W, HEAD_W * 0.9, 18)
 	var flash: float = clampf(1.0 - (t - eye_t) / FLASH_TIME, 0.0, 1.0)
 	ink.ink(RisoPrint.NIGHT, BODY_NIGHT * fade, [abdomen, head])
 	ink.ink(RisoPrint.BLUE, BODY_BLUE * fade, [abdomen, head], false)
@@ -885,7 +1159,7 @@ func _draw_body(fade: float) -> void:
 	# A gleam on its back, and its hourglass (danger).
 	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 0.3 * fade, [xf * RisoShapes.ellipse(middle + Vector2(-size_ab.x * 0.33, -size_ab.y * 0.45), 7.0, 4.0, 10, -0.5)])
 	var marks: Array[PackedVector2Array] = []
-	for shape: PackedVector2Array in _mark(look["mark"], middle, size_ab.x, size_ab.y):
+	for shape: PackedVector2Array in _hourglass(middle):
 		marks.append(xf * shape)
 	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], fade, marks)
 	ink.ink(RisoPrint.PINK, fade, marks)
@@ -893,11 +1167,13 @@ func _draw_body(fade: float) -> void:
 	var spread: float = 1.0 if state in [State.WARN, State.DROP, State.BITE] else 0.0
 	if state == State.WARN:
 		spread = 0.6 + 0.4 * absf(sin(t * 18.0))
+	elif state == State.SPIT:
+		spread = 0.5
 	var fangs: Array[PackedVector2Array] = []
 	for side: int in [-1, 1]:
 		var s: float = float(side)
 		var base: Vector2 = Vector2(s * 7.0, 22.0)
-		var fang: float = look["fang"]
+		var fang: float = FANG
 		var tip: Vector2 = Vector2(s * lerpf(2.0, 15.0, spread), 22.0 + fang)
 		var bend: Vector2 = Vector2(s * lerpf(10.0, 16.0, spread), 22.0 + fang * 0.56)
 		fangs.append(xf * PackedVector2Array([base + Vector2(-4.5, 0.0), bend + Vector2(-2.0 * s, 0.0), tip, bend + Vector2(2.0 * s, -1.0), base + Vector2(4.5, 0.0)]))
@@ -931,27 +1207,6 @@ func _draw_body(fade: float) -> void:
 		_draw_stun(xf * Vector2(0.0, 34.0))
 
 
-## Its look, hashed from level seed `level_seed` (see ABDOMEN_W): "abdomen" (half-width,
-## half-height), "taper", "head" (half-width), "long" and "thick" (its legs'), "legs" (each leg's
-## own share of the length, left legs first), "bristled", "mark" and "fang".
-static func _deal_look(level_seed: int) -> Dictionary:
-	var h: Callable = func(salt: int) -> float: return RisoDecor.h(level_seed, Vector2i(salt, 0), LOOK_DEAL)
-	var legs: PackedFloat32Array = PackedFloat32Array()
-	for i: int in range(8):
-		legs.append(1.0 + (float(h.call(20 + i)) - 0.5) * 2.0 * LEG_VARY)
-	return {
-		"abdomen": Vector2(lerpf(ABDOMEN_W.x, ABDOMEN_W.y, h.call(1)), lerpf(ABDOMEN_H.x, ABDOMEN_H.y, h.call(2))),
-		"taper": lerpf(TAPER.x, TAPER.y, h.call(3)),
-		"head": lerpf(HEAD_W.x, HEAD_W.y, h.call(4)),
-		"long": lerpf(LEG_LONG.x, LEG_LONG.y, h.call(5)),
-		"thick": lerpf(LEG_THICK.x, LEG_THICK.y, h.call(6)),
-		"legs": legs,
-		"bristled": float(h.call(7)) < BRISTLED,
-		"mark": MARKS[mini(int(float(h.call(8)) * float(MARKS.size())), MARKS.size() - 1)],
-		"fang": lerpf(FANG.x, FANG.y, h.call(9)),
-	}
-
-
 ## Its abdomen about `c`, `rx` by `ry`, drawn out to a point behind (up, -y) by `taper`.
 static func _abdomen(c: Vector2, rx: float, ry: float, taper: float) -> PackedVector2Array:
 	var out: PackedVector2Array = PackedVector2Array()
@@ -962,162 +1217,98 @@ static func _abdomen(c: Vector2, rx: float, ry: float, taper: float) -> PackedVe
 	return out
 
 
-## The marking on its back (`mark`, one of MARKS) on an abdomen about `c`, `rx` by `ry`, in its own
-## space: shapes to print pink on knocked-out paper.
-static func _mark(mark: StringName, c: Vector2, rx: float, ry: float) -> Array[PackedVector2Array]:
+## The hourglass on its back, on an abdomen about `c`, in its own space: shapes to print pink on
+## knocked-out paper.
+static func _hourglass(c: Vector2) -> Array[PackedVector2Array]:
+	return [
+		RisoShapes.tri(Vector2(-9.0, c.y - 16.0), Vector2(9.0, c.y - 16.0), Vector2(0.0, c.y - 2.0)),
+		RisoShapes.tri(Vector2(-9.0, c.y + 12.0), Vector2(9.0, c.y + 12.0), Vector2(0.0, c.y)),
+	]
+
+
+## On a floor, seen from the side: where each leg's foot stands, along the way it goes from its
+## middle (in its own measures, back legs first), and how much nearer the legs on its far side
+## stand; how much longer its legs reach than spread, and how high over its middle its hips sit (in
+## its own measures), so its knees arch up over its back.
+const FLOOR_FEET: Array[float] = [-78.0, -45.0, 35.0, 65.0]
+const FAR_SIDE: float = 0.82
+const FLOOR_LONG: float = 1.35
+const HIP_RISE: float = 12.0
+
+
+## Its eight legs this frame, printed in world space: each femur, shank and foot, its knee, and the
+## bristles along it. `xf` places its body (its size in it, `size`); `kicking` whether its legs kick.
+## Each leg is set at its pose (see FEMUR): spread, drawn in by its curl, swinging as it walks; on a
+## floor, seen from the side, its hips along its body, each knee high and its foot on the floor
+## ahead or behind (FLOOR_FEET), stepping as it goes.
+func _legs(xf: Transform2D, size: float, kicking: bool) -> Array[PackedVector2Array]:
 	var out: Array[PackedVector2Array] = []
-	match mark:
-		&"chevrons":
-			for k: int in range(3):
-				var y: float = c.y - ry * 0.55 + float(k) * ry * 0.4
-				var w: float = rx * (0.55 - 0.1 * float(k))
-				out.append(_limb(Vector2(-w, y - 6.0), Vector2(0.0, y + 4.0), 5.0, 5.0))
-				out.append(_limb(Vector2(0.0, y + 4.0), Vector2(w, y - 6.0), 5.0, 5.0))
-		&"spots":
-			for k: int in range(3):
-				var y: float = c.y - ry * 0.5 + float(k) * ry * 0.42
-				var r: float = 5.0 - float(k)
-				for side: float in [-1.0, 1.0]:
-					out.append(RisoShapes.circle(Vector2(side * rx * 0.36, y), r, 10))
-		&"band":
-			out.append(RisoShapes.rrect(-rx * 0.62, c.y - 4.0, rx * 1.24, 8.0, 3.0))
-			out.append(RisoShapes.tri(Vector2(-5.0, c.y - ry * 0.7), Vector2(5.0, c.y - ry * 0.7), Vector2(0.0, c.y - 6.0)))
-		_:
-			out.append(RisoShapes.tri(Vector2(-9.0, c.y - 16.0), Vector2(9.0, c.y - 16.0), Vector2(0.0, c.y - 2.0)))
-			out.append(RisoShapes.tri(Vector2(-9.0, c.y + 12.0), Vector2(9.0, c.y + 12.0), Vector2(0.0, c.y)))
-	return out
-
-
-## The surface its feet hold to now, as [its height (world y), the way off it (+1 down from the
-## roof, -1 up from a floor)], or [] while they hold to none.
-func _surface() -> Array:
-	if stunned() or dying():
-		return []
-	if state in [State.SLEEP, State.HUNT, State.WARN] and global_position.y <= canopy_y() + 4.0:
-		return [roof_y, 1.0]
-	if state == State.SCURRY:
-		return [ground_y, -1.0]
-	return []
-
-
-## Its eight legs this frame, moved (see STEP_FAR) and printed in world space: each bone, its knee,
-## and its bristles if it has them. `xf` places its body (its size in it, `size`), `curl` how far
-## its free legs draw in, `kicking` whether they kick.
-func _legs(xf: Transform2D, size: float, curl: float, kicking: bool) -> Array[PackedVector2Array]:
-	var long: float = look["long"]
-	var thick: float = look["thick"]
-	var each: PackedFloat32Array = look["legs"]
-	var dt: float = _frame_dt
-	var first: bool = _feet.size() != 8
-	if first:
-		_feet.resize(8)
-		_foot_v.resize(8)
-		_step_from.resize(8)
-		_step_to.resize(8)
-		_step_u.resize(8)
-		_step_u.fill(-1.0)
-	var surface: Array = _surface()
-	var speed: Vector2 = Vector2.ZERO if _was_at == Vector2.INF or dt <= 0.0 else (global_position - _was_at) / dt
-	_was_at = global_position
-	var hips: Array[Vector2] = []
-	var targets: Array[Vector2] = []
-	var bones: PackedFloat32Array = PackedFloat32Array()
+	var joints: Array[PackedVector2Array] = []
+	# On a floor: the way it goes along it, from the way its head points.
+	var ahead: float = signf(xf.basis_xform(Vector2.DOWN).x)
+	if ahead == 0.0:
+		ahead = 1.0
 	for k: int in range(8):
 		var side: float = -1.0 if k < 4 else 1.0
 		var i: int = k % 4
-		var a: float = lerpf(-1.05, 0.95, float(i) / 3.0)
+		var a0: float = lerpf(-1.05, 0.95, float(i) / 3.0)
+		# Two sets of four step in turn: the first and third legs of one side with the second and
+		# fourth of the other.
+		var phase: float = TAU * _stride + (PI if (i % 2 == 0) == (side < 0.0) else 0.0)
+		var a: float = a0 + WALK_SWING * _gait * sin(phase)
 		if kicking:
 			a += sin(t * 22.0 + float(i) * 2.3 + side) * 0.25
 		elif stunned():
 			a += sin(t * 2.0 + float(i)) * 0.06
-		var reach: float = long * each[k]
 		var flip: Vector2 = Vector2(side, 1.0)
-		var hip: Vector2 = Vector2(cos(a) * 16.0, 8.0 + sin(a) * 14.0)
-		var knee: Vector2 = hip + Vector2.from_angle(a - 0.55) * FEMUR * reach * (1.0 - 0.3 * curl)
-		var pose: Vector2 = xf * ((knee + Vector2.from_angle(a + 0.6 + 1.7 * curl) * SHANK * reach * (1.0 - 0.35 * curl)) * flip)
-		# On the canopy its feet grip the web about it where its pose has them; on a floor, the floor.
-		var target: Vector2 = pose
-		if not surface.is_empty() and float(surface[1]) < 0.0:
-			target = Vector2(global_position.x + (pose.x - global_position.x) * PLANT_SPREAD, float(surface[0]))
-		hips.append(xf * (hip * flip))
-		targets.append(target)
-		bones.append(reach * size)
-	for k: int in range(8):
-		var full: float = (FEMUR + SHANK) * bones[k]
-		if first:
-			_feet[k] = targets[k]
-			_foot_v[k] = Vector2.ZERO
-			continue
-		if surface.is_empty():
-			_step_u[k] = -1.0
-			_foot_v[k] += (targets[k] - _feet[k]) * FREE_PULL * dt
-			_foot_v[k] *= exp(-FREE_DAMP * dt)
-			_feet[k] += _foot_v[k] * dt
-			continue
-		_foot_v[k] = Vector2.ZERO
-		if _step_u[k] >= 0.0:
-			_step_u[k] += dt / STEP_TIME
-			if _step_u[k] >= 1.0:
-				_step_u[k] = -1.0
-				_feet[k] = _step_to[k]
-			else:
-				var u: float = _step_u[k]
-				_feet[k] = _step_from[k].lerp(_step_to[k], u * u * (3.0 - 2.0 * u)) + Vector2(0.0, float(surface[1]) * STEP_LIFT * sin(PI * u))
-			continue
-		var off: bool = float(surface[1]) < 0.0 and absf(_feet[k].y - targets[k].y) > 2.0
-		var stretched: bool = hips[k].distance_to(_feet[k]) > full
-		var far: bool = _feet[k].distance_to(targets[k]) > STEP_FAR * full
-		if off or stretched or (far and _neighbors_planted(k)):
-			_step_from[k] = _feet[k]
-			_step_to[k] = targets[k] + speed * STEP_TIME * STEP_LEAD
-			_step_u[k] = 0.0
-	var out: Array[PackedVector2Array] = []
-	var joints: Array[PackedVector2Array] = []
-	for k: int in range(8):
-		var femur: float = FEMUR * bones[k]
-		var shank: float = SHANK * bones[k]
-		var hip: Vector2 = hips[k]
-		var to_foot: Vector2 = _feet[k] - hip
-		var d: float = clampf(to_foot.length(), absf(femur - shank) + 1.0, femur + shank - 0.5)
-		var dir: Vector2 = to_foot.normalized() if to_foot.length() > 0.01 else Vector2.DOWN
-		var bend: float = acos(clampf((femur * femur + d * d - shank * shank) / (2.0 * femur * d), -1.0, 1.0))
-		var k1: Vector2 = hip + dir.rotated(bend) * femur
-		var k2: Vector2 = hip + dir.rotated(-bend) * femur
-		# On a floor the knee bends up, off it; else away from the body.
-		var knee: Vector2 = k1 if k1.distance_squared_to(global_position) > k2.distance_squared_to(global_position) else k2
-		if not surface.is_empty() and float(surface[1]) < 0.0:
-			knee = k1 if k1.y < k2.y else k2
-		var foot: Vector2 = hip + dir * d
+		var femur: float = FEMUR * size * (1.0 - 0.3 * _curl)
+		var shank: float = SHANK * size * (1.0 - 0.35 * _curl)
+		var hip_in: Vector2 = Vector2(cos(a0) * 16.0, 8.0 + sin(a0) * 14.0)
+		var hip: Vector2 = xf * (hip_in * flip)
+		var knee: Vector2 = xf * ((hip_in + Vector2.from_angle(a - 0.55) * FEMUR * (1.0 - 0.3 * _curl)) * flip)
+		var foot: Vector2 = knee + xf.basis_xform(Vector2.from_angle(a + 0.6 + 1.7 * _curl) * flip).normalized() * shank
+		if _floor_w > 0.0:
+			# Seen from the side on a floor: its hips along its body, its feet on the floor.
+			var f_hip: Vector2 = global_position + Vector2(ahead * hip_in.y, -HIP_RISE) * size
+			var far: float = 1.0 if side * ahead < 0.0 else FAR_SIDE
+			var swing: float = sin(phase) * STRIDE / TAU * _gait
+			var lift: float = STEP_LIFT * _gait * maxf(0.0, cos(phase))
+			var f_foot: Vector2 = Vector2(global_position.x + ahead * (FLOOR_FEET[i] * size * far + swing), ground_y - lift)
+			var f_knee: Vector2 = _knee(f_hip, f_foot, femur * FLOOR_LONG, shank * FLOOR_LONG)
+			hip = hip.lerp(f_hip, _floor_w)
+			knee = knee.lerp(f_knee, _floor_w)
+			foot = foot.lerp(f_foot, _floor_w)
 		var ankle: Vector2 = knee.lerp(foot, 1.0 - TARSUS)
-		out.append(_limb(hip, knee, 7.0 * thick * size, 5.0 * thick * size))
-		out.append(_limb(knee, ankle, 5.0 * thick * size, 2.6 * thick * size))
-		out.append(_limb(ankle, foot, 2.6 * thick * size, 1.2 * size))
-		joints.append(RisoShapes.circle(knee, 3.6 * thick * size, 8))
-		if bool(look["bristled"]):
-			# Bristles along its legs, set slanting down each piece, away from its body.
-			for piece: Array in [[hip, knee], [knee, ankle]]:
-				var from: Vector2 = piece[0]
-				var to: Vector2 = piece[1]
-				var along: Vector2 = (to - from).normalized()
-				var outward: Vector2 = along.orthogonal()
-				if outward.dot(from.lerp(to, 0.5) - global_position) < 0.0:
-					outward = -outward
-				for n: int in range(1, 4):
-					var at: Vector2 = from.lerp(to, float(n) / 4.0)
-					out.append(_limb(at, at + (outward + along * 0.6) * 7.0 * size, 1.6 * size, 0.6 * size))
+		out.append(_limb(hip, knee, 7.0 * LEG_THICK * size, 5.0 * LEG_THICK * size))
+		out.append(_limb(knee, ankle, 5.0 * LEG_THICK * size, 2.6 * LEG_THICK * size))
+		out.append(_limb(ankle, foot, 2.6 * LEG_THICK * size, 1.2 * size))
+		joints.append(RisoShapes.circle(knee, 3.6 * LEG_THICK * size, 8))
+		# Bristles along its legs, set slanting down each piece, away from its body.
+		for piece: Array in [[hip, knee], [knee, ankle]]:
+			var from: Vector2 = piece[0]
+			var to: Vector2 = piece[1]
+			var dir: Vector2 = (to - from).normalized()
+			var outward: Vector2 = dir.orthogonal()
+			if outward.dot(from.lerp(to, 0.5) - global_position) < 0.0:
+				outward = -outward
+			for n: int in range(1, 4):
+				var at: Vector2 = from.lerp(to, float(n) / 4.0)
+				out.append(_limb(at, at + (outward + dir * 0.6) * 7.0 * size, 1.6 * size, 0.6 * size))
 	out.append_array(joints)
 	return out
 
 
-## Whether the legs beside leg `k` (the next on its side, and the one across from it) are planted,
-## so it may step.
-func _neighbors_planted(k: int) -> bool:
-	@warning_ignore("integer_division")
-	var side: int = k / 4 * 4
-	for n: int in [k - 1, k + 1]:
-		if n >= side and n < side + 4 and _step_u[n] >= 0.0:
-			return false
-	return _step_u[(k + 4) % 8] < 0.0
+## The knee of a leg from `hip` to `foot`, its femur `femur` long and its shank `shank`, bent up
+## and away from the foot, over the line from hip to foot (a foot never passes under its hip, so
+## it never swaps sides).
+static func _knee(hip: Vector2, foot: Vector2, femur: float, shank: float) -> Vector2:
+	var to: Vector2 = foot - hip
+	var d: float = clampf(to.length(), absf(femur - shank) + 1.0, femur + shank - 0.5)
+	var dir: Vector2 = to.normalized() if to.length() > 0.01 else Vector2.DOWN
+	var bend: float = acos(clampf((femur * femur + d * d - shank * shank) / (2.0 * femur * d), -1.0, 1.0))
+	# The side of the line that is up.
+	var up: Vector2 = dir.orthogonal() if dir.x >= 0.0 else -dir.orthogonal()
+	return hip + dir * cos(bend) * femur + up * sin(bend) * femur
 
 
 ## A leg's piece from `a` to `b`, `wa` wide at `a` tapering to `wb` at `b`.

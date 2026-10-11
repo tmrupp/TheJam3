@@ -197,7 +197,7 @@ func dash_end(_timer: ActionTimer) -> void:
 var dash: ActionTimer = ActionTimer.new(0.25, dash_end)
 ## On the ground the dash comes back only this long after the last one began, so it is not an
 ## attack to spam; in the air it comes back on landing (once this has passed), or from a moon.
-const DASH_GROUND_COOLDOWN: float = 0.75
+const DASH_GROUND_COOLDOWN: float = 2.5
 var dash_rest: float = 0.0
 
 # WALL_JUMP_SPEED: how quickly and high the player jumps

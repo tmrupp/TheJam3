@@ -1,6 +1,8 @@
 extends CreatureArt
 class_name WispArt
-## A wisp, its body following the path its head has travelled.
+## A wisp, its body following the path its head has travelled. Carried by what it stands on (a
+## gondola's car, a lift: Mover.carried), its whole path is carried with it, so being lifted never
+## bends its body as walking would.
 
 
 ## Wisp turning: the wisp turns round along a teardrop lying on its path, the path cutting it in
@@ -38,8 +40,14 @@ func _draw_art() -> void:
 		stunned = mover.stunned
 		# Falling (as when it settles after spawning): keep the body straight rather than letting
 		# the trail record the drop and hang it tail-up.
-		if not mover.grounded:
+		if mover.falling():
 			_trail = PackedVector2Array()
+		# Carried since the last frame: the path it has walked goes with it.
+		var carry: Vector2 = mover.carried - _carried
+		_carried = mover.carried
+		if carry != Vector2.ZERO:
+			for n: int in range(_trail.size()):
+				_trail[n] += carry
 	var k: float = 3.6
 	var bob: float = -3.0 - sin(t * 3.0 + phase) * 1.6
 	if wisp_to == 0.0:
@@ -301,14 +309,17 @@ var _wp_side: float = 1.0
 var _wp_bob: Vector2 = Vector2.ZERO
 var _wp_head_dir: Vector2 = Vector2.RIGHT
 var _trail: PackedVector2Array = PackedVector2Array()
+## How far its Mover had been carried when it was last drawn (see Mover.carried).
+var _carried: Vector2 = Vector2.ZERO
 
 
 func _wisp_trail_add(at: Vector2) -> void:
-	# Start (or after a jump, restart) with a straight trail behind the facing.
+	# Start (or after a jump, restart) with a straight trail lying level behind it, whichever way
+	# its head is heading (mid-turn it may be heading up).
 	if _trail.is_empty() or _trail[0].distance_to(at) > 120.0:
 		_trail = PackedVector2Array()
 		for n: int in range(66):
-			_trail.append(at - _wp_head_dir * 4.0 * float(n))
+			_trail.append(at - Vector2(_wp_side, 0.0) * 4.0 * float(n))
 		_trail_measure()
 		return
 	if _trail[0].distance_to(at) < 0.5:

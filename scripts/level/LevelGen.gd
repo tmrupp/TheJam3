@@ -748,7 +748,8 @@ func _init (_cells: Array, def: NextWorldDef) -> void:
 
 ## A gate level's boss: on the free floor nearest the way on it guards, at least BOSS_APART cells
 ## from it; the bramble in the knot at the head of its shaft (BrambleShaft), its cell the knot's
-## bottom corner beside the landing; the spider in the roost under its keep's roof (SpiderKeep). The boss is placed in every visit's layout;
+## bottom corner beside the landing; the spider in the roost under its keep's roof, and its keep's
+## crossbows with it (SpiderKeep.arm). The boss is placed in every visit's layout;
 ## the loader leaves it out once it is slain (RunState.bosses).
 const BOSS_APART: int = 4
 
@@ -758,6 +759,7 @@ func place_boss (boss: StringName) -> void:
 		return
 	if not keep.is_empty():
 		put(keep["roost"], Type.BOSS, boss)
+		SpiderKeep.arm(self)
 		return
 	if not shaft.is_empty():
 		var knot: Rect2i = shaft["knot"]

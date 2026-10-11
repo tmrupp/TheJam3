@@ -12,7 +12,8 @@ extends RefCounted
 ## - "holes": every hole in the floors (the well's and the stairs'), "stairs": the stair holes alone;
 ## - "ledges": the one-way ledges under the stair holes; "webs": the cells each web spans;
 ## - "on": the way on's cell, on the top floor against a wall; "roost": the spider's cell, under
-##   the roof; "doors": the doorways' cells through its walls.
+##   the roof; "doors": the doorways' cells through its walls; "crossbows": the crossbows' cells
+##   (arm), once the spider is placed.
 ## The hall is HALL cells across inside walls WALL thick, under a roof ROOF rows thick. Under the
 ## roof is the spider's roost, ROOST rows of air; under that FLOORS broken floors, a STOREY apart,
 ## and under the lowest the ground storey and the ground. Every floor is broken twice: by the well,
@@ -56,12 +57,13 @@ const DOOR_REACH: int = 8
 ## open air walled over, when choosing where the keep goes.
 const BUILT_COST: int = 3
 ## Salts for the level seed: where it goes, its well, which side its first stair is on, each
-## stair's place, and each stair's web.
+## stair's place, each stair's web, and which wall its first crossbow is in.
 const PLACE_DEAL: int = 6700
 const WELL_DEAL: int = 6710
 const SIDE_DEAL: int = 6720
 const STAIR_DEAL: int = 6730
 const WEB_DEAL: int = 6740
+const CROSSBOW_DEAL: int = 6750
 
 
 ## Whether the level `def` describes has the spider's keep: the crags' gate level, in every world
@@ -99,6 +101,31 @@ static func cut(w: LevelGen) -> void:
 ## The hall's air and floors in the keep `box`, inside its walls, roof and ground.
 static func _inside(box: Rect2i) -> Rect2i:
 	return Rect2i(box.position + Vector2i(WALL, ROOF), Vector2i(HALL, SIZE.y - ROOF - GROUND))
+
+
+## Arm the keep with crossbows (Crossbow) set into its hall's walls, shooting into the hall: one to a
+## floor, in the row the wizard stands in on it, on alternate walls (the first dealt by the level
+## seed; the other wall where the way on stands against this one). Each takes the hall's cell in
+## front of its slit, with {"facing": the way it shoots, "inward": true}, and their cells are noted
+## in w.keep["crossbows"]. Their arrows pierce the spider (Bullet). Placed with the spider, last
+## (LevelGen.place_boss), with no RNG draws.
+static func arm(w: LevelGen) -> void:
+	if w.keep.is_empty():
+		return
+	var inside: Rect2i = w.keep["inside"]
+	var floors: Array[int] = w.keep["floors"]
+	var left_first: bool = _h(w, inside.position, CROSSBOW_DEAL) < 0.5
+	var bows: Array[Vector2i] = []
+	for k: int in range(floors.size()):
+		var left: bool = (k % 2 == 0) == left_first
+		for side: bool in [left, not left]:
+			var at: Vector2i = Vector2i(inside.position.x if side else inside.end.x - 1, floors[k] - 1)
+			if w.get_cell(at).type != LevelGen.Type.EMPTY:
+				continue
+			w.put(at, LevelGen.Type.CROSSBOW, {"facing": 1 if side else -1, "inward": true})
+			bows.append(at)
+			break
+	w.keep["crossbows"] = bows
 
 
 ## A number in [0, 1) dealt by the level seed and `v` with `salt`.

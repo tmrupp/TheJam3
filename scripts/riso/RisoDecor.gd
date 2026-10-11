@@ -69,6 +69,13 @@ const BACK_SLOTS: Array[int] = [15, 16, 17, 18, 19, 20, 24, 25]
 const HEDGE_SLOTS: Array[int] = [21, 22, 23]
 const KNOCK_ALL: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE]
 const KNOCK_ROCK: Array[int] = [RisoPrint.BLUE, RisoPrint.NIGHT]
+## How a cobweb is spun (in the sketch measures props are drawn at, see PROP_SCALE): a spoke every
+## WEB_TURN radians about its hub, WEB_REACH long on the whole (14 to 24), and rings strung straight
+## across them WEB_RINGS of the way out. The spider's webs are spun to the same density of lines on
+## screen (WEB_RING_GAP and the rest, below; Spider.plain_web).
+const WEB_TURN: float = PI * 0.2
+const WEB_REACH: float = 19.0
+const WEB_RINGS: Array[float] = [0.45, 0.8]
 const STRUCTURES: Array[String] = ["level_exit.tscn", "shrine.tscn", "door.tscn", "checkpoint.tscn", "spikes.tscn",
 	"portal.tscn", "inkwell.tscn", "moving_platform.tscn", "bell.tscn", "switch.tscn", "switch_gate.tscn", "key.tscn",
 	"relic.tscn", "gondola.tscn", "stalactite.tscn"]
@@ -640,6 +647,15 @@ static func strip(pts: PackedVector2Array, w0: float, w1: float) -> Array[Packed
 ## Props on floors, ceilings and walls are drawn at a sketch size, then grown by PROP_SCALE
 ## around where they grow from, so they read next to the wizard.
 const PROP_SCALE: float = 2.0
+## A cobweb's lines as they come out on screen, grown by PROP_SCALE, which the spider's webs share
+## whatever their size (Spider.plain_web): its rings this far apart (px), its spokes this far apart
+## at its outer ring, its spokes this wide where they are tied (thinning to WEB_TIP of that) and its
+## rings this wide.
+const WEB_RING_GAP: float = 0.35 * WEB_REACH * PROP_SCALE
+const WEB_SPOKE_GAP: float = 0.8 * WEB_REACH * WEB_TURN * PROP_SCALE
+const WEB_W: float = 1.0 * PROP_SCALE
+const WEB_TIP: float = 0.6
+const WEB_RING_W: float = 0.8 * PROP_SCALE
 
 
 func _draw_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
@@ -1110,17 +1126,17 @@ func _sketch_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 				y += r * 1.3
 				r *= 0.72
 		&"cobweb":
-			# A web strung under the rock: paper threads, spokes and two rings.
+			# A web strung under the rock: paper threads, five spokes (WEB_TURN apart) and the rings.
 			var x: float = c.x + (_r(s, v, 10) - 0.5) * half * 0.6
 			var top: Vector2 = Vector2(x, ceil_y - 1.0)
 			var reach: float = 14.0 + _r(s, v, 11) * 10.0
 			var ends: Array[Vector2] = []
 			for k: int in range(5):
-				var a: float = PI * (0.1 + 0.8 * float(k) / 4.0)
+				var a: float = PI * 0.1 + WEB_TURN * float(k)
 				ends.append(top + Vector2(cos(a), sin(a)) * reach)
 			for e: Vector2 in ends:
-				slots[8].append_array(RisoDecor.strip(PackedVector2Array([top, e]), 1.0, 0.6))
-			for ring: float in [0.45, 0.8]:
+				slots[8].append_array(RisoDecor.strip(PackedVector2Array([top, e]), WEB_W / PROP_SCALE, WEB_W / PROP_SCALE * WEB_TIP))
+			for ring: float in WEB_RINGS:
 				for k: int in range(4):
 					slots[8].append_array(RisoDecor.strip(PackedVector2Array([top.lerp(ends[k], ring), top.lerp(ends[k + 1], ring)]), 0.8, 0.8))
 		&"vine":

@@ -34,7 +34,8 @@ func _draw_art() -> void:
 	var inner: float = -Crossbow.DEPTH
 	var outer: float = half * 2.0 - Crossbow.DEPTH
 	var kick: float = -KICK * clampf(1.0 - bow.since_shot / KICK_TIME, 0.0, 1.0)
-	var loaded: bool = bow.since_shot > KICK_TIME
+	# Reloading, its string hangs slack with no bolt on it.
+	var loaded: bool = bow.since_shot > KICK_TIME and bow.loaded()
 	# The crossbow itself, drawn SIZE about the wall's inner face.
 	var k: float = SIZE
 	var xs: Transform2D = xf * Transform2D(0.0, Vector2(k, k), 0.0, Vector2(inner * (1.0 - k), 0.0))

@@ -3,8 +3,8 @@ extends Wound
 ## The spider's health (Spider): its eyes. Its back is hard, so a strike glances off it, unless it
 ## is open (Spider.open: biting, stunned, fallen or scurrying on a floor); then any hex bolt, dash
 ## or parry puts out one of its eyes, even one that only stuns at its tier (least 1), and however
-## hard it strikes. With the last eye out it dies (Spider.die): no stars, nothing kept in the
-## level's record.
+## hard it strikes. An arrow (pierce) puts one out whether it is open or not. With the last eye out
+## it dies (Spider.die): no stars, nothing kept in the level's record.
 
 
 func _init() -> void:
@@ -22,6 +22,17 @@ func hit(_damage: int, dir: Vector2) -> void:
 		return
 	if not spider.open():
 		spider.glance(dir)
+		return
+	hp -= 1
+	spider.lose_eye(dir)
+	if hp <= 0:
+		_die(spider)
+
+
+## An arrow put out an eye, through its back or not.
+func pierce(dir: Vector2) -> void:
+	var spider: Spider = get_parent() as Spider
+	if spider == null or spider.dying():
 		return
 	hp -= 1
 	spider.lose_eye(dir)

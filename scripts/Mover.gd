@@ -2,7 +2,10 @@ extends Stunnable
 class_name Mover
 ## Wisp patrol: walk along the floor, turning round at walls, ledges and other wisps.
 ## The body is a frozen (kinematic) RigidBody2D moved only from here, falling under its own
-## gravity until it lands, so the physics engine never bounces it on the floor.
+## gravity until it lands, so the physics engine never bounces it on the floor. Standing on
+## something that moves (a gondola's car, a lift), it is carried with it each step, first of all,
+## so a rising floor never pushes into it and a sinking one never leaves it behind; how far it has
+## been carried all told is kept (carried), so its art can tell being carried from walking.
 
 
 const SPEED: float = 60.0
@@ -29,12 +32,29 @@ var turn_left: float = 0.0
 var fall_speed: float = 0.0
 ## Standing on something (only then does it walk, or look for ledges).
 var grounded: bool = false
+## How fast what it stands on was moving at the last step (px/s), and how far it has been carried
+## by what it stands on, all told (px).
+var under_velocity: Vector2 = Vector2.ZERO
+var carried: Vector2 = Vector2.ZERO
+## How fast it must be dropping (px/s) to be falling, not just stepping off a moving floor; and how
+## far (px) a floor that drops away from under it (a gondola's car slowing on its way up, a lift
+## setting off down) may have gone in a step for it to settle back onto it at once.
+const FALLING: float = 200.0
+const SNAP: float = 12.0
+
+
+## Whether it is falling, not just off its floor for a step.
+func falling() -> bool:
+	return not grounded and fall_speed > FALLING
 
 
 func _ready() -> void:
 	rb.freeze_mode = RigidBody2D.FREEZE_MODE_KINEMATIC
 	rb.freeze = true
 	rb.add_to_group(&"wisps")
+	# Stepped after what it may stand on (a gondola, a lift), so it is carried by this step's motion
+	# rather than lagging a step behind, sunk into a rising floor.
+	process_physics_priority = 1
 	# Spawned at its cell's centre: settle onto the floor at once.
 	rb.move_and_collide(Vector2(0, 128))
 
@@ -53,6 +73,11 @@ func wait_to_down () -> void:
 var direction: int = 1
 var down_wait: bool = false
 func _physics_process(delta: float) -> void:
+	# Carried with what it stands on, before anything else.
+	if grounded and under_velocity != Vector2.ZERO:
+		var carry: Vector2 = under_velocity * delta
+		rb.global_position += carry
+		carried += carry
 	_fall(delta)
 	if stunned or not grounded:
 		return
@@ -85,6 +110,14 @@ func _fall(delta: float) -> void:
 	fall_speed = minf(fall_speed + gravity * delta, MAX_FALL)
 	var hit: KinematicCollision2D = rb.move_and_collide(Vector2(0, fall_speed * delta))
 	grounded = hit != null and hit.get_normal().y < -0.7
+	if not grounded and hit == null and under_velocity != Vector2.ZERO:
+		# Its moving floor dropped away from under it this step: back onto it.
+		var snap: KinematicCollision2D = rb.move_and_collide(Vector2(0, SNAP), true)
+		if snap != null and snap.get_normal().y < -0.7:
+			rb.move_and_collide(Vector2(0, SNAP))
+			hit = snap
+			grounded = true
+	under_velocity = hit.get_collider_velocity() if grounded else Vector2.ZERO
 	if hit != null:
 		fall_speed = 0.0
 
