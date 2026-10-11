@@ -165,17 +165,61 @@ func ring_bell (id: int, from: Vector2i = Vector2i(-1, -1)) -> void:
 func bridge_up (id: int) -> bool:
 	return record().bridges.has(id)
 
-## A vane of chasm `id` was turned (at cell `from`): the wind over the chasm blows from that side
-## to the other, and keeps blowing (turning the vane on the far side sends it back).
-func turn_vane (id: int, from: Vector2i) -> void:
+## The vane at `cell`, pointing `way` (+1 right, -1 left), was switched: on, the level's wind turns
+## its way; off, the wind its way is a vane weaker (Rules.wind_of). Kept in the level record.
+func switch_vane (cell: Vector2i, way: int) -> void:
 	var rec: LevelRecord = record()
-	rec.bridges[id] = true
-	rec.winds[id] = from
+	if rec.vanes_on.has(cell):
+		rec.vanes_on.erase(cell)
+	else:
+		rec.vanes_on[cell] = way
+		rec.wind_way = way
 	save_run()
 
-## The cell of the vane chasm `id`'s wind blows from, or null while it is still.
-func wind_from (id: int) -> Variant:
-	return record().winds.get(id)
+## Whether the vane at `cell` is switched on.
+func vane_on (cell: Vector2i) -> bool:
+	return record().vanes_on.has(cell)
+
+## The level's wind (sky levels; Rules.wind_of): its way times its strength, 0 while still. It
+## blows in gusts (gust_wind).
+func level_wind () -> int:
+	return Rules.wind_of(record())
+
+## Seconds of game time in this place, for its gusts (counted in physics steps, from arriving).
+var gust_clock: float = 0.0
+
+## Whether a gust is blowing now: Wind.STILL seconds of stillness, then Wind.GUST of gust, over again.
+func gusting () -> bool:
+	return fposmod(gust_clock, Wind.STILL + Wind.GUST) >= Wind.STILL
+
+## How near the next gust is (0 until Wind.WARN seconds before it, rising to 1 as it comes; 1 in it),
+## for the art.
+func gust_coming () -> float:
+	var into: float = fposmod(gust_clock, Wind.STILL + Wind.GUST)
+	if into >= Wind.STILL:
+		return 1.0
+	return clampf((into - (Wind.STILL - Wind.WARN)) / Wind.WARN, 0.0, 1.0)
+
+## The level's wind as it blows now: level_wind in a gust, 0 between.
+func gust_wind () -> int:
+	return level_wind() if gusting() else 0
+
+## How fast the level's wind drifts the wizard sideways (px/s, signed) at `pos` in the open air of a
+## sky level, in a gust: Wind.DRIFT a vane, at most Wind.DRIFT_MAX, and none in the lee of rock (rock
+## within Wind.LEE cells upwind on the same row) or between gusts.
+func drift_at (pos: Vector2) -> float:
+	if world == null or here == null or not here.open():
+		return 0.0
+	var wind: int = gust_wind()
+	if wind == 0:
+		return 0.0
+	var way: int = signi(wind)
+	var at: Vector2i = cell_at(pos)
+	for k: int in range(1, Wind.LEE + 1):
+		var up: Vector2i = at - Vector2i(way * k, 0)
+		if world.is_valid(up) and world.is_ground(up):
+			return 0.0
+	return float(way) * minf(Wind.DRIFT * float(absi(wind)), Wind.DRIFT_MAX)
 
 ## Boss `boss` died at `pos` (Boss): slain for the rest of the run, so every gate level of its band
 ## opens; where it fell, its relic waits (Bosses.relic_for, free), or, with every move known, a
@@ -198,9 +242,41 @@ func boss_slain (boss: StringName, pos: Vector2) -> void:
 	RisoFx.burst(&"gain", pos, Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.PINK])
 	save_run()
 
+## The whale (Whale), if it is in this place now (WhaleHunt.here) and not just slain (its heart
+## burst, the wizard spat out here: whale_burst).
+func _spawn_whale () -> void:
+	if not WhaleHunt.here(run, coord) or map_elements == null or _slay_on_arrival == &"whale":
+		return
+	var whale: Whale = (load("res://prefabs/whale.tscn") as PackedScene).instantiate() as Whale
+	map_elements.add_child(whale)
+	whale.setup(self)
+
+## The whale's open mouth took the wizard in: into its belly (Belly), at its way back.
+func enter_belly () -> void:
+	if travelling or run_ending > 0.0:
+		return
+	var to: Vector2i = Worlds.side_at(Worlds.kind_of(Belly), coord)
+	await _pass(Vector2.RIGHT, to)
+	_arrive(to, Exit.BACK)
+
+## The boss to slay as the wizard arrives where it fell (its relic is left there): the whale, whose
+## heart bursts in its belly while its relic waits in its level, by the way on.
+var _slay_on_arrival: StringName = &""
+
+## The whale's heart burst (WhaleHeart): it is slain, and the wizard is spat out of its belly into
+## its level, at the way on, the whale's relic beside it.
+func whale_burst () -> void:
+	if travelling or not Worlds.is_side(coord):
+		return
+	var to: Vector2i = Worlds.origin_of(coord)
+	_slay_on_arrival = &"whale"
+	await _pass(Vector2.LEFT, to)
+	_arrive(to, Exit.DEEPER)
+
 ## Debug runs (the F7 panel): slay this place's boss at once. One here in person (the worm, the
-## bramble, the spider, or a stand-in) dies as by any blow, leaving its relic; else the boss whose gate this is (an arena
-## boss, fought elsewhere) is slain where the wizard stands. False if there is none to slay.
+## bramble, the spider, or a stand-in) dies as by any blow, leaving its relic; else the boss whose
+## gate this is, if it lives (it has no place to stand here), is slain where the wizard stands.
+## False if there is none to slay.
 func slay_boss () -> bool:
 	if map_elements != null and is_instance_valid(map_elements):
 		for node: Node in map_elements.get_children():
@@ -217,6 +293,13 @@ func slay_boss () -> bool:
 				return true
 			if node is Boss:
 				(node as Boss).slay()
+				return true
+			if node is WhaleHeart:
+				(node as WhaleHeart).slay()
+				return true
+			if node is Whale:
+				boss_slain(&"whale", (node as Whale).global_position + Vector2(0, 300))
+				node.queue_free()
 				return true
 	var gate: StringName = here.gate if here != null else &""
 	if gate != &"" and not run.bosses.has(gate) and player != null:
@@ -406,6 +489,16 @@ func rift_travel (to: Vector2i, at: Vector2) -> void:
 	arrival_pos = at
 	_arrive(to, -3)
 
+## Arriving by balloon (Balloon): by the balloon moored in the place arrived at (else its way back).
+const ARRIVE_BALLOON: int = -4
+
+## Ride a balloon (Balloon) along the row to level `to`, coming down by the balloon moored there.
+func balloon_travel (to: Vector2i) -> void:
+	if travelling or run_ending > 0.0:
+		return
+	await _pass(Vector2(signf(float(to.x - coord.x)), 0.0), to)
+	_arrive(to, ARRIVE_BALLOON)
+
 ## Debug runs (the F7 panel's Travel rows): go straight to place `to`, a level or a side world,
 ## arriving at its way back. Nothing is paid or opened on the way.
 func debug_travel (to: Vector2i) -> void:
@@ -429,10 +522,12 @@ func respawn_in_other_level () -> void:
 	arrival = -2
 	_load_level()
 
-## Load place `to`, arriving at `how` (an exit there, or -3 for arrival_pos).
+## Load place `to`, arriving at `how` (an exit there, or -3 for arrival_pos). Coming into a sky
+## level, the whale moves (WhaleHunt.move).
 func _arrive (to: Vector2i, how: int) -> void:
 	coord = to
 	run.reached(coord)
+	WhaleHunt.move(run, coord)
 	arrival = how
 	_load_level()
 
@@ -456,6 +551,7 @@ func _load_level () -> void:
 
 ## The place's layout is ready: build it in the scene as its record leaves it.
 func _level_ready (built: LevelGen) -> void:
+	gust_clock = 0.0
 	if world != null:
 		loader.clear()
 	world = built
@@ -470,6 +566,7 @@ func _level_ready (built: LevelGen) -> void:
 		_spawn_dropped_key(id, rec.dropped[id][0], rec.dropped[id][1])
 	Rift.restore(self)
 	_spawn_boss_relics()
+	_spawn_whale()
 	# Rock broken before, under things you stand at: their ledges.
 	_props.clear()
 	prop_up(rec.broken.keys())
@@ -496,6 +593,8 @@ func _arrived () -> void:
 	elif arrival == -2:
 		at = run.respawn_cell
 		_set_respawn(coord, run.respawn_cell)
+	elif arrival == ARRIVE_BALLOON and world.is_valid(world.balloon):
+		at = world.balloon
 	if player != null:
 		player.position = arrival_pos if arrival == -3 else cell_position(at)
 		player.velocity = Vector2.ZERO
@@ -508,6 +607,10 @@ func _arrived () -> void:
 			player.remove_meta(&"portal_trip")
 		RisoPrint.portal_reveal(player)
 	travelling = false
+	if _slay_on_arrival != &"":
+		var on: Vector2i = world.exits.get(Exit.DEEPER, at)
+		boss_slain(_slay_on_arrival, cell_position(on) + Vector2(-140.0, 0.0))
+		_slay_on_arrival = &""
 	_refresh_lanterns()
 	if RisoPrint.instance != null:
 		RisoPrint.instance.world_built(self, coord.y)
@@ -790,9 +893,10 @@ func solid_at (pos: Vector2) -> bool:
 			return not gate_open(v)
 	return false
 
-func _physics_process (_delta: float) -> void:
+func _physics_process (delta: float) -> void:
 	if world == null or travelling or player == null or not is_instance_valid(player):
 		return
+	gust_clock += delta
 	var c: Vector2i = cell_at(player.global_position)
 	if c != _last_seen_cell:
 		_last_seen_cell = c

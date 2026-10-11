@@ -1,5 +1,5 @@
 extends TestKit
-## Stills of the spider (Spider) in its keep (SpiderKeep): the roost (the spider asleep under the
+## Stills of the spider (Spider) in its keep (SpiderKeep), at the top of the crags' gate level: the roost (the spider asleep under the
 ## roof on its canopy), the hall's broken floors and webs, the spider dropping on the wizard and
 ## biting, its thread cut and the spider fallen on its back (its eyes open to strikes), stunned, a
 ## torn web, eyes put out, and the relic it leaves. Written whole (spider_*.png) and as a sheet of
@@ -12,8 +12,7 @@ const SIZE: int = 420
 func run() -> void:
 	window()
 	await boot(28)
-	var arena_at: Vector2i = Worlds.side_at(Worlds.kind_of(Arena), Vector2i(28, Bosses.row_of(&"spider")))
-	info.coord = arena_at
+	info.coord = Vector2i(28, Bosses.row_of(&"spider"))
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	await settle()
@@ -33,8 +32,8 @@ func run() -> void:
 	shots.append(await _shot(camera, spider.global_position + Vector2(0, 90)))
 	save_still("spider_roost.png")
 	# The hall: broken floors, the well, webs and ledges.
-	camera.global_position = info.cell_position(Vector2i(SpiderKeep.SIZE.x / 2, floors[2]))
-	player.global_position = info.cell_position(Vector2i(SpiderKeep.SIZE.x / 2, floors[2] - 1))
+	camera.global_position = info.cell_position(Vector2i((keep["box"] as Rect2i).get_center().x, floors[2]))
+	player.global_position = info.cell_position(Vector2i((keep["box"] as Rect2i).get_center().x, floors[2] - 1))
 	await frames(6)
 	save_still("spider_hall.png")
 	shots.append(await _shot(camera, info.cell_position(Vector2i(int(keep["well"]) + 1, floors[1]))))

@@ -47,9 +47,12 @@ const REALMS: Dictionary = {
 	## The cemetery's own: slate rock, violet stars and candlelight, on bone paper (not in the F8
 	## cycle; NextWorldDef.realm).
 	&"cemetery": {"paper": Color("#e3e1d8"), "inks": [Color("#1d2125"), Color("#5e695e"), Color("#ff48b0"), Color("#9d7ad2"), Color("#ffe800")]},
-	## The sky's own: islands of pale cloud and sun-gold stars under a deep indigo night, on a cool
-	## white paper (not in the F8 cycle; NextWorldDef.realm).
-	&"sky": {"paper": Color("#eef0f3"), "inks": [Color("#18203f"), Color("#8597c4"), Color("#ff48b0"), Color("#ffb511"), Color("#ffe800")]},
+	## The sky's own: white first. Islands of white cloud and sun-gold stars under a dark, stormy slate
+	## sky, on a bright white paper (not in the F8 cycle; NextWorldDef.realm).
+	&"sky": {"paper": Color("#f7f8fa"), "inks": [Color("#1b212d"), Color("#dfe3ea"), Color("#ff48b0"), Color("#ffb511"), Color("#ffe800")]},
+	## The whale's belly (Belly): walls of dull flesh under a dark maroon, on a pinkish paper; its heart
+	## in sun (not in the F8 cycle; Belly.print_realm).
+	&"belly": {"paper": Color("#efe3df"), "inks": [Color("#2a121c"), Color("#9c5a6a"), Color("#ff48b0"), Color("#ffb511"), Color("#ffe800")]},
 	## The crags' own: pale weathered stone and a dawn-orange sun under a dusky violet night, on a warm
 	## paper (not in the F8 cycle; NextWorldDef.realm).
 	&"crags": {"paper": Color("#efe6da"), "inks": [Color("#2b2236"), Color("#9a8f86"), Color("#ff48b0"), Color("#ff9636"), Color("#ffe800")]},

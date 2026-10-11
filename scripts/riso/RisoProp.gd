@@ -54,6 +54,8 @@ const KINDS: Dictionary = {
 	&"draught": "res://scripts/riso/props/DraughtArt.gd",
 	&"well": "res://scripts/riso/props/MendWellArt.gd",
 	&"crossbow": "res://scripts/riso/props/CrossbowArt.gd",
+	&"balloon": "res://scripts/riso/props/BalloonArt.gd",
+	&"temple": "res://scripts/riso/props/TempleArt.gd",
 }
 
 

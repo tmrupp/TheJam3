@@ -59,6 +59,8 @@ const TABLE: Dictionary = {
 	LevelGen.Type.NEST: {"scene": "res://prefabs/bug_nest.tscn", "art": &"nest", "flags": [&"enemy"], "setup": 2},
 	LevelGen.Type.DRAUGHT: {"scene": "res://prefabs/draught.tscn", "art": &"draught", "flags": [&"floats"]},
 	LevelGen.Type.WELL: {"scene": "res://prefabs/mend_well.tscn", "art": &"well", "flags": [&"stander"], "setup": 2},
+	LevelGen.Type.TEMPLE: {"scene": "res://prefabs/temple.tscn", "art": &"temple", "flags": [&"stander"], "size": Vector2i(1, 2), "setup": 3},
+	LevelGen.Type.BALLOON: {"scene": "res://prefabs/balloon.tscn", "art": &"balloon", "flags": [&"stander"], "size": Vector2i(1, 2), "setup": 2},
 	LevelGen.Type.CROSSBOW: {"scene": "res://prefabs/crossbow.tscn", "art": &"crossbow", "flags": [&"enemy"], "setup": 3},
 }
 

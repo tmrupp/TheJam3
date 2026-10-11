@@ -2,10 +2,11 @@ extends BellArt
 ## A wind vane on its post, chained like a bell, its arrow pointing across while its wind blows.
 
 
-## A wind vane on its post by a chasm (Vane): a blue post and, on top, an arrow in sun ink with a
-## tail fin, and a little cross of cups under it. While its chasm's wind blows from it, the arrow
-## points across the chasm and the cups spin; otherwise it idles on the breeze. Chained like a
-## grave bell (padlock or switch plate); freed and still, a soft halo shows it waits to be turned.
+## A wind vane on its post by a gap (Vane): a blue post and, on top, an arrow in sun ink with a
+## tail fin, and a little cross of cups under it. Switched on, the arrow points the way it blows,
+## across its gap, and the cups turn, spinning hard in a gust (MapInfo.gusting); off, it idles on
+## the breeze. Chained like a grave bell (padlock or switch plate); freed and still, a soft halo
+## shows it waits to be turned.
 func _draw_art() -> void:
 	var g: float = _ground()
 	var blowing: bool = bell.rung()
@@ -15,11 +16,8 @@ func _draw_art() -> void:
 	var freed: float = bell.since_freed
 	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-5.0, g - 160.0, 10.0, 160.0, 4.0)])
 	var head: Vector2 = Vector2(0, g - 168.0)
-	# Which way it points: across its chasm while the wind blows from it.
-	var across: float = 1.0
-	var wind: Wind = _chasm_wind(bell.chasm)
-	if wind != null:
-		across = 1.0 if wind.rect.get_center().x > host.global_position.x else -1.0
+	# Which way it points: across its gap, the way it blows.
+	var across: float = float((bell as Vane).way) if bell is Vane else 1.0
 	var swing: float = sin(t * 0.9 + phase) * 0.5 if not blowing else 0.0
 	if rattle < 0.8:
 		swing += sin(rattle * 38.0) * 0.2 * exp(-rattle * 5.0)
@@ -35,7 +33,8 @@ func _draw_art() -> void:
 	ink.ink(RisoPrint.ACCENT, 1.0, [xf * arrow, xf * fin, xf * fin2])
 	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.circle(head, 6.0, 14)])
 	# The cups: a cross that spins while the wind blows from it.
-	var spin: float = t * (9.0 if blowing else 0.6) + phase
+	var gust: bool = blowing and bell.map_info != null and bell.map_info.gusting()
+	var spin: float = t * (14.0 if gust else (3.0 if blowing else 0.6)) + phase
 	var cups: Array[PackedVector2Array] = []
 	for k: int in range(4):
 		var a: float = spin + PI * 0.5 * float(k)
@@ -54,10 +53,3 @@ func _draw_art() -> void:
 			gusts.append(RisoShapes.almond(Vector2(x, y), 16.0 * (1.0 - u) + 4.0, 2.4, 10))
 		ink.ink(RisoPrint.ACCENT, 0.6, gusts, false)
 
-
-## The crosswind over chasm `id`, if this level has one.
-func _chasm_wind(id: int) -> Wind:
-	for node: Node in get_tree().get_nodes_in_group(&"wind"):
-		if node is Wind and (node as Wind).chasm == id:
-			return node as Wind
-	return null

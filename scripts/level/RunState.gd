@@ -39,6 +39,10 @@ var relic_hints: Dictionary = {}
 ## (name -> [the place, the position, the move]).
 var bosses: Dictionary = {}
 var boss_relics: Dictionary = {}
+## The sky's whale (WhaleHunt): the world on its row it is in (WhaleHunt.NONE until it is met), and
+## how many times it has moved.
+var whale_x: int = WhaleHunt.NONE
+var whale_moves: int = 0
 
 
 ## A fresh run from depth 0 of `seed_value`: no records, no ghost, protected.
@@ -52,6 +56,8 @@ func start(seed_value: int) -> void:
 	relic_hints.clear()
 	bosses.clear()
 	boss_relics.clear()
+	whale_x = WhaleHunt.NONE
+	whale_moves = 0
 	vulnerable = false
 	clear_ghost()
 
@@ -137,6 +143,7 @@ func to_save(coord: Vector2i, player: Dictionary) -> Dictionary:
 		"debug": MapInfo.debug, "rift_link": rift_link,
 		"relics_found": relics_found, "relic_hints": relic_hints,
 		"bosses": bosses, "boss_relics": boss_relics,
+		"whale_x": whale_x, "whale_moves": whale_moves,
 	}
 	data.merge(player)
 	return data
@@ -157,6 +164,8 @@ func from_save(data: Dictionary) -> void:
 	relic_hints = data.get("relic_hints", {})
 	bosses = data.get("bosses", {})
 	boss_relics = data.get("boss_relics", {})
+	whale_x = int(data.get("whale_x", WhaleHunt.NONE))
+	whale_moves = int(data.get("whale_moves", 0))
 	respawn_coord = data["respawn_coord"]
 	respawn_cell = data["respawn_cell"]
 	vulnerable = bool(data["vulnerable"])
@@ -189,10 +198,32 @@ static func read_save() -> Dictionary:
 		return {}
 	var version: int = int((data as Dictionary).get("version", 0))
 	if version == 2:
-		return from_v2(data)
+		return gone_kinds(from_v2(data))
 	if version != SAVE_VERSION:
 		return {}
-	return data
+	return gone_kinds(data)
+
+
+## A save's places in side worlds of a kind no longer made (Worlds.valid; the bosses' arenas, now
+## that every boss fights in its gate level) moved out to the level the side world was entered
+## from, and their records dropped.
+static func gone_kinds(data: Dictionary) -> Dictionary:
+	var out: Dictionary = data.duplicate(true)
+	var recs: Dictionary = {}
+	var old: Dictionary = data.get("records", {})
+	for c: Vector2i in old:
+		if Worlds.valid(c):
+			recs[c] = old[c]
+	out["records"] = recs
+	for key: String in ["coord", "respawn_coord", "ghost_coord"]:
+		if out.has(key) and out[key] is Vector2i and not Worlds.valid(out[key]):
+			out[key] = Worlds.origin_of(out[key])
+	var link: Array = []
+	for end: Array in (data.get("rift_link", []) as Array):
+		if Worlds.valid(end[0]):
+			link.append(end)
+	out["rift_link"] = link
+	return out
 
 
 ## A version-2 save brought up to version 3: side worlds moved to make room for the rows above the

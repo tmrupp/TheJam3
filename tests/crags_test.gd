@@ -77,7 +77,9 @@ func _circuit(w: LevelGen, at: Vector2i) -> int:
 	var gates: Array[Vector2i] = info["gates"]
 	check(stops.size() >= CragsArchetype.STATIONS_MIN, "its line has %d stations" % stops.size())
 	check(gondolas[0] == path[stops[int(info["start"])]], "its car waits at its open station")
-	check(float(path[0].y) > float(w.size.y) * 0.7 and float(path[-1].y) < float(w.size.y) * 0.3, "it climbs from near the bottom of the level (row %d) to near its top (row %d)" % [path[0].y, path[-1].y])
+	# In the spider's gate level, its top is the foot of the keep there (SpiderKeep).
+	var top: float = float(w.size.y) * 0.3 if w.keep.is_empty() else float((w.keep["box"] as Rect2i).end.y + CragsArchetype.LEAVE + 3)
+	check(float(path[0].y) > float(w.size.y) * 0.7 and float(path[-1].y) < top, "it climbs from near the bottom of the level (row %d) to near its top, or the spider's keep (row %d)" % [path[0].y, path[-1].y])
 	var diagonal: int = 0
 	var steps_ok: bool = true
 	for i: int in range(1, path.size()):

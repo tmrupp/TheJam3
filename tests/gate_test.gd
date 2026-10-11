@@ -1,10 +1,10 @@
 extends TestKit
 ## The gates at the band ends (Bosses, docs/REGIONS_PLAN.md §5): which rows they are and who guards
 ## them, the way on sealed while the boss lives, a lantern death healing it, its death opening its
-## band's every gate level for the rest of the run and leaving a free relic, an arena boss behind its
-## door, no hyperspace past a living boss's gate, and the F7 panel's Slay boss. The rules are shown
-## with the stand-in (Boss), in the necromancer's arena; the worm and the bramble, which are built,
-## have worm_test and bramble_test.
+## band's every gate level for the rest of the run and leaving a free relic, every boss in its gate
+## level (no arenas), no hyperspace past a living boss's gate, and the F7 panel's Slay boss. The rules
+## are shown with the stand-in (Boss), in the necromancer's gate level; the worm, the bramble and the
+## spider, which are built, have worm_test, bramble_test and spider_test.
 ## godot --headless --path . --script res://tests/gate_test.gd
 
 
@@ -20,12 +20,18 @@ func run() -> void:
 	for row: int in want:
 		rows_ok = rows_ok and Bosses.row_of(want[row]) == row
 	check(rows_ok, "the garden's gates at rows %d and %d, and each band's far end, each with its boss" % [g, -g])
-	check(not Bosses.in_arena(&"worm") and not Bosses.in_arena(&"bramble") and Bosses.in_arena(&"necromancer") and Bosses.in_arena(&"whale"), "the worm and the bramble fight in their gate level, the rest in an arena")
 	check(Bosses.crossed(1, g + 2) == [&"worm"] and Bosses.crossed(g, g + 1) == [&"worm"] and Bosses.crossed(g + 1, g + 4).is_empty(), "a way out past a gate level crosses its gate")
 	check(Bosses.crossed(g + 4, 1).is_empty() and Bosses.crossed(-2, g + 3) == [&"worm"] and Bosses.crossed(2, -(g + b + 1)) == [&"bramble", &"spider"], "toward the start none; across it, only the far side's")
 	check(Relics.at(Vector2i(28, g)) == &"" and Relics.at(Vector2i(28, g + b)) == &"", "a gate level holds no relic of its own")
-	var arena: SideWorld = Worlds.proto(Worlds.kind_of(Arena))
-	check(arena.deals(Vector2i(28, g + b)) and arena.deals(Vector2i(28, -(g + b))) and not arena.deals(Vector2i(28, g)) and not arena.deals(Vector2i(28, 1)), "an arena boss's gate level has its door; no other level does")
+	var in_level: bool = true
+	for row: int in want:
+		var gate_level: LevelGen = build(Vector2i(28, row))
+		var held: Array[Vector2i] = gate_level.objects_of(LevelGen.Type.BOSS)
+		if want[row] == &"whale":
+			in_level = in_level and held.is_empty()
+		else:
+			in_level = in_level and held.size() == 1 and StringName(gate_level.get_cell(held[0]).extra_info) == want[row]
+	check(in_level, "every boss is in its gate level itself (no arenas), but the whale, which roams its row")
 
 	print("in the gate level")
 	var worm_level: LevelGen = build(Vector2i(28, g))
@@ -50,18 +56,11 @@ func run() -> void:
 	check(placed("bramble.tscn").size() == 1 and placed("boss.tscn").is_empty(), "in play the bramble itself is there (Bramble; bramble_test fights it)")
 	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"bramble", "its way on is sealed")
 
-	# The bosses fought in an arena are not built yet: their stand-in (Boss) shows the gate's rules.
-	print("the stand-in, in an arena")
-	await _go(Vector2i(28, g + b))
-	check(placed("boss.tscn").is_empty() and _exit(MapInfo.Exit.DEEPER).sealed() == &"necromancer", "the necromancer's gate level is sealed, with no boss in it")
-	var door: int = Worlds.door(Worlds.kind_of(Arena))
-	var doors: Array[Node] = placed("level_exit.tscn").filter(func(n: Node) -> bool: return (n as LevelExit).exit == door)
-	check(doors.size() == 1 and (doors[0] as LevelExit).sealed() == &"" and (doors[0] as LevelExit).price() == 0, "its arena's door is open and free")
-	info.travel(door)
-	await settle()
-	player.set_physics_process(false)
-	var arena_at: Vector2i = info.coord
-	check(Worlds.kind_at(arena_at) == Worlds.kind_of(Arena) and placed("boss.tscn").size() == 1, "inside, the boss")
+	# The bosses not built yet: their stand-in (Boss) shows the gate's rules.
+	print("the stand-in, in its gate level")
+	var gate_at: Vector2i = Vector2i(28, g + b)
+	await _go(gate_at)
+	check(placed("boss.tscn").size() == 1 and _exit(MapInfo.Exit.DEEPER).sealed() == &"necromancer", "the necromancer's gate level is sealed, the boss in it")
 	var boss: Boss = placed("boss.tscn")[0] as Boss
 	check(boss.boss == &"necromancer" and (boss.get_node("Wound") as Wound).hp == Boss.HP, "the necromancer's stand-in, whole")
 
@@ -73,7 +72,7 @@ func run() -> void:
 	info.run.vulnerable = false
 	player.die()
 	await settle()
-	await _go(arena_at)
+	await _go(gate_at)
 	boss = placed("boss.tscn")[0] as Boss
 	check((boss.get_node("Wound") as Wound).hp == Boss.HP and not info.run.bosses.has(&"necromancer"), "after a lantern death it is whole again")
 
@@ -95,10 +94,7 @@ func run() -> void:
 	# A spell swaps for the one held, which is left on the plinth: the relic stays, holding it.
 	var swapped: bool = not info.record().relic_left.is_empty()
 	check(Abilities.tier(player, move) == 1 and info.run.boss_relics.has(&"necromancer") == swapped, "taken, it teaches it, and is gone (or holds the spell it swapped out: %s)" % swapped)
-	info.travel(MapInfo.Exit.BACK)
-	await settle()
-	player.set_physics_process(false)
-	check(info.coord == Vector2i(28, g + b) and _exit(MapInfo.Exit.DEEPER).sealed() == &"", "back in its gate level, the way on is open")
+	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"", "its gate level's way on is open")
 	await _go(Vector2i(29, g + b))
 	check(placed("boss.tscn").is_empty() and _exit(MapInfo.Exit.DEEPER).sealed() == &"", "and every other gate level of its band too")
 	await _go(Vector2i(28, g))
@@ -132,7 +128,7 @@ func run() -> void:
 	await settle()
 	check(info.run.bosses.has(&"bramble") and _exit(MapInfo.Exit.DEEPER).sealed() == &"" and placed("relic.tscn").any(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == &"bramble"), "its way up opens and its relic is left")
 	await _go(Vector2i(28, g + 2 * b))
-	check(info.slay_boss() and info.run.bosses.has(&"beast") and _exit(MapInfo.Exit.DEEPER).sealed() == &"", "and slays an arena boss from its gate level")
+	check(info.slay_boss() and info.run.bosses.has(&"beast") and _exit(MapInfo.Exit.DEEPER).sealed() == &"", "and a stand-in in its gate level")
 	check(not info.slay_boss(), "with nothing left to slay, it does nothing")
 
 	print("saved")

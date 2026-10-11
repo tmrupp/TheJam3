@@ -4,7 +4,9 @@ extends Archetype
 ## tests/make_sky_sample.gd, collapsed unturned) over an open drop, bigger than a cave level of its
 ## depth (SCALE) and open all round. Its gates are gaps between islands crossed on the wind a vane
 ## sets blowing (cut_gates, Chasms.add_gap, Vane, Wind). Pads, clouds that give way, updrafts,
-## swooping birds, shielded enemies and rebounding shots live there (populate).
+## swooping birds, shielded enemies and rebounding shots live there (populate), and a balloon is
+## moored in every one, to ride along the row on the level's wind, and a temple stands in some,
+## opened by a sequence of winds along the row (finish, Balloon, Temple).
 
 const SAMPLE: String = "res://wfc_images/sky_islands.png"
 ## A sky level is this much bigger than a cave level of its depth (Rules.level_size), across and
@@ -57,6 +59,25 @@ const BIRD_SPAN: int = 10
 
 ## How far from its vane a sky level looks for a vane's switch.
 const SKY_SWITCH_REACH: int = 24
+## Its balloon (Balloon): on a free floor with BALLOON_AIR rows of open air over it, at least
+## BALLOON_CLEAR cells from every exit, picked by hashing the level seed (BALLOON_DEAL, no draw).
+const BALLOON_AIR: int = 5
+const BALLOON_CLEAR: int = 4
+const BALLOON_DEAL: int = 9300
+## Its temple (build_temples), in TEMPLE_SHARE of sky levels (TEMPLE_DEAL, no draw): a building of
+## built stone TEMPLE_WIDE cells across, standing on an island as a crag's tower does. From the
+## bottom: a stone floor (its stylobate) let down onto the island's rock, with a footing of built
+## stone under it where the rock falls away (at most TEMPLE_FOOTING rows to the rock, under every
+## column of it); a hall TEMPLE_HALL rows high over it, open between its columns (which the art draws)
+## with a back wall of stone behind its middle (interiors), the altar (Temple) standing in its
+## middle; and a roof a row thick, walkable. TEMPLE_AIR rows of open air are kept over the roof, where
+## the art draws its pediment; nothing is built into it or placed in its hall or over its roof.
+const TEMPLE_SHARE: float = 0.4
+const TEMPLE_DEAL: int = 9400
+const TEMPLE_WIDE: int = 7
+const TEMPLE_HALL: int = 3
+const TEMPLE_FOOTING: int = 3
+const TEMPLE_AIR: int = 3
 
 
 func _init() -> void:
@@ -83,6 +104,7 @@ func cut_gates(w: LevelGen) -> void:
 	var want: int = Chasms.wanted(w)
 	_span_gaps(w, want)
 	_build_gaps(w, want)
+	build_temples(w)
 	# Shores laid and air cleared can shut off a pocket of air: join (or fill) it again.
 	w.connect_caves()
 	# Joining pockets can tunnel through a shore's footing (the islands' keels leave many
@@ -483,6 +505,131 @@ static func _build_gaps(w: LevelGen, want: int) -> void:
 					w._to_open(c)
 		# The air over the gap is kept clear, as over a cut chasm, and a wind spans it.
 		Chasms.add_gap(w, y, a, span)
+
+
+## Last of all (so nothing else in the level moves for it): its balloon (place_balloon).
+func finish(w: LevelGen, _def: NextWorldDef) -> void:
+	place_balloon(w)
+
+
+## A temple in TEMPLE_SHARE of sky levels (see TEMPLE_SHARE), built where it fits (_temple_site):
+## of those, the one needing the least footing, ties by a hash of the level seed. Its altar's extra
+## info is its sequence of winds (Temple.SPAN ways, +1 right or -1 left, from the left), dealt by
+## the level seed. Kept in LevelGen.temples.
+static func build_temples(w: LevelGen) -> void:
+	if posmod(Rules.level_seed(w.seed_for_colors, TEMPLE_DEAL), 1000) >= roundi(TEMPLE_SHARE * 1000.0):
+		return
+	var best: Variant = null
+	var best_score: int = 0
+	for y: int in range(TEMPLE_AIR + TEMPLE_HALL + 3, w.size.y - 2):
+		for x: int in range(2, w.size.x - TEMPLE_WIDE - 1):
+			var box: Rect2i = Rect2i(x, y - TEMPLE_HALL - 1, TEMPLE_WIDE, TEMPLE_HALL + 2)
+			var footing: int = _temple_site(w, box)
+			if footing < 0:
+				continue
+			var score: int = footing * 100000 + posmod(Rules.level_seed(w.seed_for_colors, TEMPLE_DEAL + x * 977 + y * 31), 100000)
+			if best == null or score < best_score:
+				best = box
+				best_score = score
+	if best != null:
+		_temple(w, best as Rect2i)
+
+
+## How many cells of footing a temple in `box` (its roof's row to its stylobate's) would need, or -1
+## where it cannot stand: it and TEMPLE_AIR rows over it all open air inside the level, clear of the
+## gaps and of every other structure; under its stylobate, every column reaching the island's rock
+## within TEMPLE_FOOTING rows (through open air), at least half of them on it at once, and one of
+## its ends, so its hall is a hop up from the island's floor there.
+static func _temple_site(w: LevelGen, box: Rect2i) -> int:
+	for x: int in range(box.position.x, box.end.x):
+		for y: int in range(box.position.y - TEMPLE_AIR, box.end.y):
+			var v: Vector2i = Vector2i(x, y)
+			if not w.is_valid(v) or not w._open(v) or w.keep_clear.has(v) or w.structures.has(v) or Chasms.near(w, v) or w.get_cell(v).type != LevelGen.Type.EMPTY:
+				return -1
+	var footing: int = 0
+	var on_rock: int = 0
+	var ends_on_rock: bool = false
+	for x: int in range(box.position.x, box.end.x):
+		var depth: int = 0
+		var v: Vector2i = Vector2i(x, box.end.y)
+		while not w.is_ground(v):
+			if depth >= TEMPLE_FOOTING or not w.is_valid(v) or w.keep_clear.has(v) or Chasms.near(w, v) or w.get_cell(v).type != LevelGen.Type.EMPTY:
+				return -1
+			depth += 1
+			v += Vector2i.DOWN
+		footing += depth
+		if depth == 0:
+			on_rock += 1
+			if x == box.position.x or x == box.end.x - 1:
+				ends_on_rock = true
+	return footing if on_rock * 2 >= box.size.x and ends_on_rock else -1
+
+
+## Build a temple in `box` (see TEMPLE_SHARE) and its altar.
+static func _temple(w: LevelGen, box: Rect2i) -> void:
+	var x0: int = box.position.x
+	var x1: int = box.end.x - 1
+	var roof: int = box.position.y
+	var base: int = box.end.y - 1
+	var built: Dictionary = {}
+	# The roof, the stylobate, and the footing down to the rock under it.
+	for x: int in range(x0, x1 + 1):
+		built[Vector2i(x, roof)] = true
+		built[Vector2i(x, base)] = true
+		var under: Vector2i = Vector2i(x, base + 1)
+		while not w.is_ground(under):
+			built[under] = true
+			under += Vector2i.DOWN
+	for v: Vector2i in built:
+		w._to_rock(v)
+		w.masonry[v] = true
+	# The hall: kept open, nothing placed in it; its middle backed by stone.
+	var hall: Rect2i = Rect2i(x0, roof + 1, box.size.x, TEMPLE_HALL)
+	for x: int in range(hall.position.x, hall.end.x):
+		for y: int in range(hall.position.y, hall.end.y):
+			w.empties.erase(Vector2i(x, y))
+			if x >= x0 + 2 and x <= x1 - 2:
+				w.interiors[Vector2i(x, y)] = true
+	# Nothing over its roof either (the pediment is drawn there).
+	for x: int in range(x0 - 1, x1 + 2):
+		for y: int in range(roof - TEMPLE_AIR, roof):
+			w.empties.erase(Vector2i(x, y))
+	for x: int in range(box.position.x - 1, box.end.x + 1):
+		for y: int in range(box.position.y - TEMPLE_AIR, box.end.y):
+			var v: Vector2i = Vector2i(x, y)
+			if w.is_valid(v):
+				w.structures[v] = &"temple"
+				w.kept_whole[v] = true
+	for v: Vector2i in built:
+		w.structures[v] = &"temple"
+		w.kept_whole[v] = true
+	@warning_ignore("integer_division")
+	var altar: Vector2i = Vector2i(x0 + box.size.x / 2, base - 1)
+	var winds: Array = []
+	for i: int in range(Temple.SPAN):
+		winds.append(1 if posmod(Rules.level_seed(w.seed_for_colors, TEMPLE_DEAL + 1 + i), 2) == 0 else -1)
+	w.put(altar, LevelGen.Type.TEMPLE, winds)
+	w.temples.append({"box": box, "hall": hall, "altar": altar})
+
+
+## The balloon moored in every sky level (see BALLOON_AIR), and kept in LevelGen.balloon, the air
+## over it kept clear; none where no floor has the room.
+static func place_balloon(w: LevelGen) -> void:
+	var spots: Array[Vector2i] = w.free_floors().filter(func(v: Vector2i) -> bool:
+		if w.keep_clear.has(v) or w.exits.values().any(func(e: Vector2i) -> bool: return LevelGen.dist(e, v) < BALLOON_CLEAR):
+			return false
+		for k: int in range(1, BALLOON_AIR + 1):
+			var up: Vector2i = v - Vector2i(0, k)
+			if not w.is_valid(up) or w.is_ground(up) or w.keep_clear.has(up) or w.get_cell(up).type != LevelGen.Type.EMPTY:
+				return false
+		return true)
+	var spot: Variant = LevelGen.best_of(spots, func(v: Vector2i) -> int: return posmod(Rules.level_seed(w.seed_for_colors, BALLOON_DEAL + v.x * 977 + v.y * 31), 100000))
+	if spot != null:
+		w.put(spot, LevelGen.Type.BALLOON)
+		w.balloon = spot
+		# The air its envelope fills is kept clear of what comes after (climbing ledges).
+		for k: int in range(1, BALLOON_AIR + 1):
+			w.keep_clear[(spot as Vector2i) - Vector2i(0, k)] = true
 
 
 ## What lives in the sky, on top of an ordinary level's dressing:

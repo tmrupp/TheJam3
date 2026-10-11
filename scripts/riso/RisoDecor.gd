@@ -442,6 +442,12 @@ func rebuild(info: MapInfo, cracked_positions: Array[Vector2] = []) -> void:
 		if file in TALL:
 			for d: Vector2i in [Vector2i(-2, 0), Vector2i(2, 0), Vector2i(3, 0)]:
 				occupied[c + d] = true
+	# A sky temple is dressed by its own art (TempleArt): no decor on it, in it or over it.
+	for temple: Dictionary in info.world.temples:
+		var box: Rect2i = (temple["box"] as Rect2i).grow(1)
+		for x: int in range(box.position.x, box.end.x):
+			for y: int in range(box.position.y - SkyArchetype.TEMPLE_AIR, box.end.y + 1):
+				occupied[Vector2i(x, y)] = true
 	var level_seed: int = Rules.level_seed(info.coord.x, info.coord.y)
 	var bottoms: StringName = RisoPrint.instance.sky_bottom_style if RisoPrint.instance != null else &"roots"
 	items = RisoDecor.plan(solid, occupied, level_seed, Rect2i(Vector2i.ZERO, info.world.size), info.here.decor(), bottoms, info.world.masonry)

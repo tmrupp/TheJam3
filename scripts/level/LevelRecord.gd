@@ -35,15 +35,20 @@ var relic_left: Array = []
 ## cell, 1 once seen (see MapInfo.reveal).
 var mapped: bool = false
 var seen: PackedByteArray = PackedByteArray()
-## Chasms bridged (or blown over), by chasm; the cell each chasm's wind blows from; bells and vanes
-## unchained, by cell; secret rooms opened, by number; lanterns burned out, by cell; switches
-## thrown, by cell.
+## Chasms bridged, by chasm; bells and vanes unchained, by cell; secret rooms opened, by number;
+## lanterns burned out, by cell; switches thrown, by cell.
 var bridges: Dictionary = {}
-var winds: Dictionary = {}
 var bells_free: Dictionary = {}
 var secrets: Dictionary = {}
 var spent_lanterns: Dictionary = {}
 var switched: Dictionary = {}
+## Sky levels: the vanes switched on, by cell (each to the way it points, +1 right or -1 left), and
+## the way the level's wind turned last (the way of the vane last switched on; 0 before any was).
+## The wind itself is Rules.wind_of.
+var vanes_on: Dictionary = {}
+var wind_way: int = 0
+## Whether its temple has been opened (Temple).
+var temple_open: bool = false
 ## Mending bowls standing on their own used (MendWell), by cell.
 var mended: Dictionary = {}
 ## The wizard's own teleporters standing here (Rift): their positions.
@@ -52,7 +57,7 @@ var rifts: Array = []
 ## Every field saved, in the order they are written.
 const FIELDS: Array[StringName] = [&"taken", &"opened", &"slain", &"broken", &"dropped", &"next_drop", &"deeper_paid", &"up_paid",
 	&"doors_paid", &"lateral_open", &"ways_taken", &"shrine_used", &"left_spell", &"relic_left", &"mapped", &"seen",
-	&"bridges", &"winds", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended"]
+	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended"]
 
 
 ## The record as a plain dictionary, for the save file.

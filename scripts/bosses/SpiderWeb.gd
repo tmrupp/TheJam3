@@ -25,6 +25,8 @@ var rect: Rect2 = Rect2()
 var torn: bool = false
 var torn_for: float = 0.0
 var spun: float = 1.0
+## How it is spun, worked out once by the spider that prints it (Spider._web_pattern).
+var pattern: Dictionary = {}
 
 
 func _init(span: Rect2i, area: Rect2) -> void:

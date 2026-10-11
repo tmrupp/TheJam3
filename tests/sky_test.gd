@@ -1,8 +1,10 @@
 extends TestKit
 ## The sky archetype (docs/DEEPER_PLAN.md §4c): its band of depths, terrain sample and realm, the
 ## open drop under it (a fall costs a heart and puts the wizard back on the last rock), and what is
-## up there: jump pads, clouds that give way, updrafts, chasms crossed on the wind a vane sets
-## blowing, shielded enemies and watchers whose shots rebound.
+## up there: jump pads, clouds that give way, updrafts, the level's wind its vanes set (switched on
+## and off, its way the last switched on, as strong as the vanes on that way), blowing in gusts after
+## spells of stillness, carrying the wizard over the gaps in a gust and drifting them in the open air
+## but not in the lee of rock, shielded enemies and watchers whose shots rebound.
 ## godot --headless --path . --script res://tests/sky_test.gd
 
 
@@ -207,35 +209,100 @@ func puffs() -> void:
 
 
 func vanes() -> void:
-	print("vanes and crosswinds")
+	print("vanes and the level's wind")
 	var vanes: Array[Node] = placed("vane.tscn")
 	check(not vanes.is_empty(), "a vane in the level")
 	if vanes.is_empty():
 		return
-	var vane: Node2D = vanes[0] as Node2D
+	# One still on its chain (a padlock, or a switch that is off: one on frees it, as a bell's does).
+	var chained_now: Array[Node] = vanes.filter(func(n: Node) -> bool: return not bool(n.call("unchained")))
+	check(not chained_now.is_empty(), "a vane still chained")
+	if chained_now.is_empty():
+		return
+	var vane: Node2D = chained_now[0] as Node2D
 	var id: int = int(vane.get("chasm"))
 	var wind: Wind = null
 	for n: Node in placed("wind.tscn"):
 		if (n as Wind).chasm == id:
 			wind = n as Wind
-	check(wind != null and not wind.active(), "its chasm's wind is still")
+	check(wind != null and not wind.active() and info.level_wind() == 0, "the level's wind is still, and so is its gap's")
 	var away0: float = signf(wind.rect.get_center().x - vane.global_position.x)
 	check(not await _cross(wind, away0, true), "still, a run, a jump and a dash do not get the wizard over it")
 	player.keyring.clear()
 	vane.call("hex_hit", 1, Vector2.RIGHT)
 	check(not wind.active(), "chained, the vane only rattles")
-	info.free_bell(vane.get_meta(&"cell"))
+	_free(vane)
 	vane.call("hex_hit", 1, Vector2.RIGHT)
 	var away: float = signf(wind.rect.get_center().x - vane.global_position.x)
-	check(wind.active() and wind.blowing() == away and info.wind_from(id) == vane.get_meta(&"cell"), "freed and turned, the wind blows from its side across")
-	# Walk off the vane's shore into the wind: carried over to the far side, on the floor there.
-	check(await _cross(wind, away, false), "the wind carries the wizard over the chasm to the floor on the far side")
+	var way: int = int(vane.get("way"))
+	check(float(way) == away and info.vane_on(vane.get_meta(&"cell")) and info.level_wind() == way, "freed and switched on, the level's wind is set its way, across its gap (strength 1)")
+	await _gust_start()
+	check(info.gusting() and wind.active() and wind.blowing() == away and is_equal_approx(wind.carry(), Wind.CARRY), "in a gust it blows, and so does its gap's, at its carry")
+	var gust_from: float = info.gust_clock
+	await within(func() -> bool: return not info.gusting(), Wind.GUST + 0.5)
+	var lasted: float = info.gust_clock - gust_from
+	check(not wind.active() and info.drift_at(wind.rect.get_center()) == 0.0 and absf(lasted - Wind.GUST) < 0.3, "a gust lasts %.1f s, then all is still (%.1f s)" % [Wind.GUST, lasted])
+	await _gust_start()
+	await _drift(way)
+	# Walk off the vane's shore into a gust as it starts: carried over to the far side, on the floor there.
+	await _gust_start()
+	check(await _cross(wind, away, false), "a gust carries the wizard over the gap to the floor on the far side")
 	var others: Array[Node] = vanes.filter(func(n: Node) -> bool: return n != vane and int(n.get("chasm")) == id)
 	if not others.is_empty():
 		var other: Node2D = others[0] as Node2D
-		info.free_bell(other.get_meta(&"cell"))
+		_free(other)
 		other.call("use")
-		check(wind.blowing() == -away, "turning the vane on the far side sends the wind back")
+		check(wind.blowing() == -away and info.level_wind() == -way, "switching on the vane on the far side turns the wind back, its one vane its strength")
+		other.call("use")
+		check(info.level_wind() == 0 and not wind.active(), "switched off, none of its way left on: the wind is still")
+		vane.call("use")
+		check(info.level_wind() == 0, "the first, switched off too")
+		vane.call("use")
+		check(info.level_wind() == way, "and switched on again, it blows its way once more")
+
+
+## Wait for a gust to begin: through the stillness, to the moment it blows.
+func _gust_start() -> void:
+	await within(func() -> bool: return not info.gusting(), Wind.GUST + 0.5)
+	await within(func() -> bool: return info.gusting(), Wind.STILL + 0.5)
+
+
+## Free vane `vane` of its chain: its padlock opened, or its switch turned on.
+func _free(vane: Node) -> void:
+	if int(vane.get("lock")) >= 0:
+		info.free_bell(vane.get_meta(&"cell"))
+	else:
+		info.set_switch(vane.get("switch_cell"), true)
+
+
+## The level's wind blowing `way`: in open air with no rock upwind, the wizard off the ground drifts
+## its way; in the lee of rock (rock just upwind on their row), not at all.
+func _drift(way: int) -> void:
+	var w: LevelGen = info.world
+	var open_at: Variant = null
+	var lee_at: Variant = null
+	for y: int in range(2, w.size.y - 2):
+		for x: int in range(Wind.LEE + 2, w.size.x - Wind.LEE - 2):
+			var v: Vector2i = Vector2i(x, y)
+			if w.is_ground(v) or w.is_ground(v + Vector2i.DOWN):
+				continue
+			var upwind: bool = range(1, Wind.LEE + 1).any(func(k: int) -> bool: return w.is_ground(v - Vector2i(way * k, 0)))
+			if upwind and lee_at == null:
+				lee_at = v
+			elif not upwind and open_at == null:
+				open_at = v
+	check(open_at != null and is_equal_approx(info.drift_at(info.cell_position(open_at)), float(way) * Wind.DRIFT), "in open air the wind drifts the wizard its way (%.0f px/s)" % Wind.DRIFT)
+	check(lee_at != null and info.drift_at(info.cell_position(lee_at)) == 0.0, "but not in the lee of rock")
+	if open_at != null:
+		player.global_position = info.cell_position(open_at)
+		player.velocity = Vector2.ZERO
+		var from_x: float = player.global_position.x
+		player.set_physics_process(true)
+		await physics_frame
+		await physics_frame
+		await physics_frame
+		player.set_physics_process(false)
+		check((player.global_position.x - from_x) * float(way) > 0.0, "and off the ground, they drift with it")
 
 
 ## From the floor a cell back from the chasm's near edge (the side `away` points from), head across:

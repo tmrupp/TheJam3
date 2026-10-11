@@ -17,9 +17,10 @@ const SHADE_COVER: float = 0.16
 ## The inks built stone can print in, as [plate, cover] laid one over another: sandstone (the
 ## realm's accent over its rock ink, a warm dressed stone), slate (the travelers' federal blue
 ## alone, a cool built stone), or dark (night over the rock ink, a weathered grey). `masonry_look`
-## picks one.
+## picks one; the sky's temples always print in marble (its pale rock ink, faintly shaded).
 const MASONRY_LOOKS: Dictionary = {
 	&"sandstone": [[RisoPrint.BLUE, 1.0], [RisoPrint.ACCENT, 0.4]],
+	&"marble": [[RisoPrint.BLUE, 1.0], [RisoPrint.NIGHT, 0.06]],
 	&"slate": [[RisoPrint.CLOTH, 0.85]],
 	&"dark": [[RisoPrint.BLUE, 1.0], [RisoPrint.NIGHT, 0.35]],
 }
@@ -167,7 +168,8 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 	# Rock hides the sky behind it: no stars or moons printing through the ground.
 	ink.knock([RisoPrint.PINK, RisoPrint.ACCENT], body)
 	ink.ink(RisoPrint.BLUE, 1.0, body)
-	var look: Array = MASONRY_LOOKS.get(masonry_look, MASONRY_LOOKS[&"sandstone"])
+	var look_name: StringName = &"marble" if info != null and info.here != null and info.here.realm() == &"sky" else masonry_look
+	var look: Array = MASONRY_LOOKS.get(look_name, MASONRY_LOOKS[&"sandstone"])
 	if not built.is_empty():
 		ink.knock([RisoPrint.PINK, RisoPrint.ACCENT], built)
 		for k: int in range(look.size()):

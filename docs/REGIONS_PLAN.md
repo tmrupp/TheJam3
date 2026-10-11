@@ -17,9 +17,9 @@ is proposed, and what is still open; the phases at the end give the order of wor
 |---|---|
 | How the branches hang off the start | The garden is the hub. It straddles the surface: a run starts in its middle, and it has a gate at each end. |
 | Which bosses guard the garden | Two: the **worm** guards the way down, the **bramble** the way up. |
-| Where a fight happens | Each boss says: some fight in the band's last level itself (the worm, the bramble), others in an arena of their own, a side world behind a door in that level. |
+| Where a fight happens | Every boss is in the band's last level itself, its gate level, with whatever it needs built into that level (the bramble's shaft, the spider's keep, the necromancer's crypt). No arenas. |
 | How often a boss is beaten | **Once per run.** Until it is slain, every band-end level of its band (in every world column) holds it and is sealed; once slain, all of them open for the rest of the run, and it is never met again. |
-| Crags and castle | One band: vertical cliff levels dressed with castle ruins. The spider's arena is the keep. |
+| Crags and castle | One band: vertical cliff levels dressed with castle ruins. The spider's keep is built at the top of its gate level. |
 | Hyperspace across branches | Yes: a hyperspace may cross the start into the other branch (35 % of them), still leading 4 rows further from the start. |
 | The cemetery | Stays the cemetery: its terraces, decor and bell gates, with crypts (mausoleums, catacomb tunnels) added behind bell gates. Light and darkness start to matter here, within a level rather than by band (§7). |
 | The last band down | The **institute**, in place of the catacombs (which become the cemetery's crypts): a sunken institute of magic with a library among its wings; students and masters, strong spellcasters, and abominations rising from the deep, all fighting one another as well as the wizard; exams (battles and field trials) as its gates; departments with portals to real levels of other bands, in the same column (§7). The eldritch beast stays its boss. |
@@ -32,12 +32,12 @@ the start. Row 0 is where a run begins; rows below it are down, rows above it (n
 
 ```
    sky             rows −10 … −15     whale (its belly is a level)
-   crags / castle  rows  −4 …  −9     spider (arena: the keep)
+   crags / castle  rows  −4 …  −9     spider (its keep, in the gate level)
  ─ garden ───────  rows  −3 …  +3     start at 0
         up gate,   row −3:  the bramble (in the level)
         down gate, row +3:  the worm (in the level)
-   cemetery        rows  +4 …  +9     necromancer (arena: a crypt)
-   institute       rows +10 … +15     eldritch beast (arena: its chamber)
+   cemetery        rows  +4 …  +9     necromancer (a crypt, in the gate level)
+   institute       rows +10 … +15     eldritch beast (its chamber, in the gate level)
 ```
 
 - **Bands.** The garden is 7 rows (three either side of the start); every other band is 6. Each
@@ -116,18 +116,16 @@ at `(x, -(k * STRIDE + d) - 1)` (`Worlds.side_at`). The up branch needs those ro
   free, on a plinth that rises where the boss falls. This counts as that move's relic (§ "Secret
   rooms and relics" in `DEEPER_PLAN.md`): shrines teach its higher tiers from then on. If every move
   is known, the plinth holds a skeleton key and a star cluster instead.
-- **Two kinds of fight.**
-  - **In the level:** the boss is placed in the gate level itself, which is generated with room for
-    it (an archetype hook `gate_populate`, run last so nothing else moves).
-  - **In an arena:** the gate level holds the sealed way on and, beside it, a boss door into the
-    boss's arena: a side world (`SideWorld`) of its own kind, small and procedural, from its own WFC
-    sample. The arena's way back leads out again. Slaying the boss there lifts the seal on the way
-    on out in the gate level (and every other gate level of the band).
+- **In the level.** Every boss is placed in its gate level itself (`LevelGen.place_boss`), which
+  is generated with what it needs: the bramble's shaft (`BrambleShaft`) and the spider's keep
+  (`SpiderKeep`) are cut into it right after its caves are joined, before anything else is laid,
+  so only the gate levels change, and hold the way on. (There were arenas, side worlds behind a
+  door in the gate level; they are gone.)
 - **Code shape.** A `Boss` base (`scripts/bosses/Boss.gd`): its name, health (shown as pips or
   plates on the boss, not a HUD bar, in keeping with §"hud reduction"), its gate band, `slain()`
   telling `MapInfo` to record it and lift the seals, and the hooks every boss shares (hex, parry,
   dash, stun, shield). Each boss is a script extending it, a prefab, an art script in
-  `scripts/riso/props/`, and, for arena bosses, a `SideWorld` kind listed in `Worlds.KINDS`.
+  `scripts/riso/props/`, and whatever it needs built into its gate level.
   `Placeables` and `LevelGen.Type` get a `BOSS` type and a `GATE` exit look.
 
 ### What every boss must keep
@@ -272,25 +270,33 @@ through the gate level's tunnels, as Tom described.
 - **Procedural.** Its choices come from an RNG of its own, seeded by the level; nothing draws
   from the world RNG, so layouts are unchanged.
 
-### The spider (crags / castle, arena: the keep)
+### The spider (crags / castle, its keep in the gate level)
 
 *A first pass is built* (`Spider`, `SpiderKeep`, `SpiderWeb`, `SpiderWound`,
-`prefabs/spider.tscn`). The spider's arena (`Arena`, the side world behind the boss door in the
-crags' gate level, row −9) lays out its keep instead of the plain hall, printed as the crags' castle
-(their realm and decor).
+`prefabs/spider.tscn`). The crags' gate level (row −9, in every world) has the spider's keep built
+at its top, part of the crags' castle.
 
-- **The keep** (`SpiderKeep.build`, from the arena's own RNG, the same every visit). 22 × 32 cells
+- **The keep** (`SpiderKeep.cut`, hashed from the level seed, no world RNG). Cut right after the
+  caves are joined and before the gondola and the towers, which are laid round it (the gondola
+  stops below it); where it goes is the columns whose stone walls over the least of the caves and
+  of the crags' other buildings. Its stone is kept whole and nothing else is placed inside it, and
+  only the spider's gate levels change. 22 × 32 cells
   of masonry: a hall 18 wide, a roost of 8 rows of air under the roof, then 5 broken floors 4 rows
   apart (`STOREY`) and the ground storey. Every floor is broken by the **well**, a hole 3 wide in
   the same columns all the way down, and by a **stair hole** on alternate sides of it, with a
   one-way ledge under it halfway down the storey below, so each floor is climbed in two of the
-  wizard's own hops. The way back and a lantern stand on the ground at the left. What it holds is
-  noted in `LevelGen.keep`.
+  wizard's own hops. A doorway through each wall at the ground storey leads out to the caves, and
+  the way on stands on the top floor against a wall, so the way up out of the crags is reached
+  only up through the keep. What it holds is noted in `LevelGen.keep`.
 - **Webs** (`SpiderWeb`): across every hole of the well and half the stair holes. In one the
   wizard moves at most 110 px/s across, rises 90 and sinks 55 (a jump stalls, a fall is slow), and
   the dash does not come back (`Player`). A hex bolt (flying on) or a dash tears one; it is spun
   again 12 s later. The spider passes through its own webs. Not yet: scuttling along them as
-  paths.
+  paths. Each web is spun its own way, from a hash of where it is (`docs/RISO_PRINT.md`).
+- **Its look.** Each world's spider is its own, dealt from its level seed (`Spider._deal_look`):
+  its abdomen's shape, its head, its legs' length and thickness, bristles or none, its marking (an
+  hourglass, chevrons, spots or a band) and its fangs. Its size, reach and eyes (its health) stay
+  as they are, so it fights the same.
 - **Hunting.** Asleep on its canopy under the roof until the wizard comes within 16 cells; then it
   crawls along the roof to be over them (or over the hole nearest them, waiting), rears 0.45 s
   (fangs flashing pink), drops on its thread (1500 px/s) to where they were, holds its bite
@@ -315,7 +321,11 @@ crags' gate level, row −9) lays out its keep instead of the plain hall, printe
   cue for where it will drop beyond the rear; the spider's size against the 3-row storeys (it
   fills most of one) wants a look in play.
 
-### The whale (sky, roaming; arena: its belly)
+### The whale (sky, roaming on its top row; inside: its belly)
+
+*A first pass is built* (`WhaleHunt`, `Whale`, `Belly`, `WhaleHeart`; `docs/DEEPER_PLAN.md`
+§4c): the hunt, the trap, the open mouth, the belly of ribs and acid pools, and its heart. Not yet:
+the belly's valves and rising acid, birds and gusts driven at the wizard by its passes.
 
 The whale is not waiting in the gate level: it roams the sky's levels, and has to be tracked down
 and trapped before it can be fought. Slaying it lifts the seal on the sky's gate levels as any boss
@@ -340,7 +350,7 @@ does.
   idea, in small). Bursting the heart slays it, and the wizard is spat out at the gate.
 - **Leaving** the belly without killing it puts the wizard back outside, the heart healed.
 
-### The necromancer (cemetery, arena: a crypt)
+### The necromancer (cemetery, a crypt in the gate level)
 
 Its crypt is one of the cemetery's (§7): behind a bell gate, dark inside, its graves the burial
 niches of the crypt's tunnels.
@@ -351,7 +361,7 @@ niches of the crypt's tunnels.
 - **The necromancer** blinks between graves and is shielded (`Shield`) while any skeleton walks;
   when the last falls, it is open for a moment. Its health as candles on its staff.
 
-### The eldritch beast (institute, arena: its chamber)
+### The eldritch beast (institute, its chamber in the gate level)
 
 Tom's idea: it spawns souls (tentacles, horcruxes) in levels already visited, which must be
 destroyed. It stays the boss of the last band down, now the institute (§7); the abominations
@@ -406,7 +416,7 @@ wraiths, and its chasms gated by bells. What it gains are crypts, and light that
   into the rock by a structure pass (as the crags build their keeps): narrow passages, burial
   niches, the odd ossuary room. Some crypts hold loot (a vault, a relic, a lantern), some are part
   of the way through. The decor goes inside too: headstones and urns set in niches, cobwebs and
-  roots; the necromancer's arena is a crypt (§6).
+  roots; the necromancer fights in a crypt in the gate level (§6).
 - **Light by place, not by band.** The terraces stay moonlit (the shade every band has, no gloom);
   inside a crypt it is deep dark (`Archetype.gloom`, so far only on the band below). The darkness
   is a property of where the wizard is in the level, not of the whole level.
@@ -484,6 +494,12 @@ cemetery's terrain and dressing in deep darkness).
   parts as pale veined marble, gold kept for rewards.
 
 ### The sky reworked: the elements (rows −10 … −15)
+
+*A first pass is built* (`docs/DEEPER_PLAN.md` §4c): the level's wind set by its vanes, in gusts
+(a spell of stillness, then a strong sustained gust); balloons riding it along the row; temples
+opened by a sequence of winds; the white realm under a stormy sky; and the whale, roaming the top
+row, trapped by opposing winds, fought at its heart in its belly. Not yet: lightning that strikes
+(the storm only flashes far off), the wind pushing birds and shots.
 
 The sky is built (`docs/DEEPER_PLAN.md` §4c): islands, gaps crossed on a crosswind its vanes set
 blowing, pads, clouds that give way, updrafts, birds, shields and rebounding shots. Its gate is the
@@ -597,13 +613,14 @@ Each phase ends with the full suite green and its own tests.
    parry recoiling one, seeds spat and parried back, bolts and dashes wounding bulbs, a burst bulb
    withering its vines, a lantern death healing it, slain, its relic on the landing, never met
    again); `capture_bramble.gd` (stills). The bramble's gate levels changed (layout); every other
-   level did not. `gate_test` and `capture_gate.gd` now show the stand-in in the necromancer's
-   arena.
+   level did not. `gate_test` and `capture_gate.gd` show the stand-in in the necromancer's gate
+   level (arenas are gone).
 5. **Crags and castle**: *a first pass is done*: sample, structure pass, decor, realm, and the
    gondola (`CragsArchetype`, `Gondola`; `crags_test`, `capture_crags.gd`; the crags' layouts
    changed and `layout_fingerprint_test` was re-pinned for them alone). *The spider and its keep:
-   a first pass is done* (§6; `spider_test`, `capture_spider.gd`; no level's layout changed, only
-   the spider's arena). *Its life is done*: stalactites (the falling rocks), nests out on the cliff,
+   a first pass is done* (§6; `spider_test`, `capture_spider.gd`), now built into the top of its
+   gate level (only the spider's gate levels changed; `Arena` is gone and every boss fights in its
+   gate level). *Its life is done*: stalactites (the falling rocks), nests out on the cliff,
    and crossbows built into the towers' and keeps' walls (`crossbow_test`; the crags' dressing changed and
    `layout_fingerprint_test` was re-pinned for them alone). Then tuning
    the spider in play.
@@ -611,9 +628,12 @@ Each phase ends with the full suite green and its own tests.
    and lit; then **the necromancer** in its crypt.
 7. **The institute**: halls and stacks, exams (battles and field trials), students, masters
    (teaching tiers) and staff, abominations, the departments' portals; then **the eldritch beast**.
-8. **The sky reworked**: the level's wind set by its vanes, balloons riding it along the row,
-   the storm, temples opened by sequences of winds, the white realm; then **the whale**, roaming
-   the top row on the winds, trapped, and its belly.
+8. **The sky reworked**: *a first pass is done*: the level's wind set by its vanes, in gusts;
+   balloons riding it along the row; temples opened by sequences of winds; the white realm and its
+   storm; and **the whale**, roaming the top row on the winds, trapped, its belly and heart
+   (`balloon_test`, `temple_test`, `whale_test`, `unit_test`; `capture_sky_rework.gd`; the sky's
+   dressing changed and `layout_fingerprint_test` was re-pinned for it). Then lightning strikes and
+   the wind on birds and shots, and tuning.
 9. **Tuning pass** with playtests: boss health and timing, relic odds now that bosses give one,
    prices by distance.
 

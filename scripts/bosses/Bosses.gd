@@ -3,11 +3,12 @@ extends RefCounted
 ## The bosses that guard the band ends (docs/REGIONS_PLAN.md §5). The last level of each band,
 ## toward the next, is a gate level: its way on is sealed while the band's boss lives, in every
 ## world column. A boss is beaten once per run (RunState.bosses): then every gate level of its band
-## opens for good, the boss is never met again, and where it fell a relic waits, free. The worm and
-## the bramble fight in the gate level itself; the others in an arena of their own (Arena), a side
-## world behind a door in the gate level. Until each boss is built, a stand-in fights for it (Boss);
-## the worm (Worm), the bramble (Bramble) and the spider (Spider, in its keep: SpiderKeep) are
-## built.
+## opens for good, the boss is never met again, and where it fell a relic waits, free. Every boss
+## fights in its gate level itself (LevelGen.place_boss). Until each boss is built, a stand-in
+## fights for it (Boss); the worm (Worm), the bramble (Bramble, in its shaft: BrambleShaft) and the
+## spider (Spider, in its keep: SpiderKeep) are built, and the whale (Whale), which is the one boss
+## not in a gate level: it roams the sky's top row (WhaleHunt), fought at its heart in its belly
+## (Belly, WhaleHeart, the prefab its name places).
 
 ## Who guards the garden's way down and its way up, and the far end of each band below and above
 ## the garden, in NextWorldDef.DOWN's and UP's order.
@@ -15,8 +16,6 @@ const GARDEN_DOWN: StringName = &"worm"
 const GARDEN_UP: StringName = &"bramble"
 const DOWN: Array[StringName] = [&"necromancer", &"beast"]
 const UP: Array[StringName] = [&"spider", &"whale"]
-## The bosses fought in the gate level rather than an arena.
-const IN_LEVEL: Array[StringName] = [&"worm", &"bramble"]
 ## Salt for the run seed when dealing a boss's relic.
 const RELIC_DEAL: int = 5300
 ## The prefab of each boss built so far; the rest are fought by the stand-in (Boss), which is the
@@ -25,6 +24,7 @@ const SCENES: Dictionary = {
 	&"worm": "res://prefabs/worm.tscn",
 	&"bramble": "res://prefabs/bramble.tscn",
 	&"spider": "res://prefabs/spider.tscn",
+	&"whale": "res://prefabs/whale_heart.tscn",
 }
 
 
@@ -63,11 +63,6 @@ static func row_of(name: StringName) -> int:
 		if i >= 0:
 			return way * (NextWorldDef.GARDEN_ROWS + (i + 1) * NextWorldDef.BAND)
 	return 0
-
-
-## Whether boss `name` fights in an arena of its own (else in its gate level).
-static func in_arena(name: StringName) -> bool:
-	return name != &"" and not IN_LEVEL.has(name)
 
 
 ## The gates a way from row `from` to row `to` passes out through (away from the start), nearest

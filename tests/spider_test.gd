@@ -1,34 +1,38 @@
 extends TestKit
 ## The spider (Spider, docs/REGIONS_PLAN.md §6), the boss at the top of the crags, in its keep
-## (SpiderKeep), the arena behind the boss door in their gate level: the keep's walls, broken
-## floors (a well straight down, a stair hole with a ledge under it each), webs and roost, climbed
-## from the way back with the wizard's own hops, the same every build and only in the spider's
-## arena; in play, the spider asleep under the roof, waking, dropping on the wizard and biting,
-## strikes glancing off its back, a bolt cutting its thread and dropping it, wounds putting out its
-## eyes while it is down (even a dash that only stuns), it climbing back up a new thread, a dash
-## cutting that, a parried bite stunning it, its webs holding the wizard, keeping their dash from
-## coming back, torn by a bolt and a dash and spun again, a lantern death healing it, and its last
-## eye: dead, its relic on the floor where it fell, the gate opened, never met again.
+## (SpiderKeep), built at the top of their gate level: the keep's walls (but for a doorway through
+## each at the ground storey, out to the caves), broken floors (a well straight down, a stair hole
+## with a ledge under it each), webs and roost, the way on on its top floor, climbed to from its
+## ground storey with the wizard's own hops, the gondola and the towers laid round it, the same every
+## build and only in the spider's gate levels; in play, the spider asleep under the roof, waking,
+## dropping on the wizard and biting, strikes glancing off its back, a bolt cutting its thread and
+## dropping it, wounds putting out its eyes while it is down (even a dash that only stuns), it
+## climbing back up a new thread, a dash cutting that, a parried bite stunning it, its webs holding
+## the wizard, keeping their dash from coming back, torn by a bolt and a dash and spun again, a
+## lantern death healing it, and its last eye: dead, its relic on the floor where it fell, the gate
+## opened, never met again.
 ## godot --headless --path . --script res://tests/spider_test.gd
 
 
 func run() -> void:
 	MapInfo.debug = false
 	var gate: Vector2i = Vector2i(28, Bosses.row_of(&"spider"))
-	var arena_at: Vector2i = Worlds.side_at(Worlds.kind_of(Arena), gate)
 	print("the keep")
-	var w: LevelGen = build(arena_at)
+	var w: LevelGen = build(gate)
 	var keep: Dictionary = w.keep
-	check(not keep.is_empty() and w.size == SpiderKeep.SIZE, "the spider's arena is its keep, %d by %d cells" % [w.size.x, w.size.y])
+	check(not keep.is_empty() and (keep["box"] as Rect2i).size == SpiderKeep.SIZE and (keep["box"] as Rect2i).position.y == SpiderKeep.TOP, "the spider's gate level has its keep at the top, %d by %d cells" % [SpiderKeep.SIZE.x, SpiderKeep.SIZE.y])
+	var box: Rect2i = keep["box"]
 	var inside: Rect2i = keep["inside"]
 	var floors: Array[int] = keep["floors"]
+	var doors: Array[Vector2i] = keep["doors"]
 	var walls_ok: bool = true
-	for y: int in range(w.size.y):
-		for x: int in range(w.size.x):
+	for y: int in range(box.position.y, box.end.y):
+		for x: int in range(box.position.x, box.end.x):
 			var v: Vector2i = Vector2i(x, y)
-			if not inside.has_point(v):
-				walls_ok = walls_ok and w.is_ground(v) and w.masonry.has(v)
-	check(walls_ok and floors.size() == SpiderKeep.FLOORS, "walled, roofed and floored in masonry, with %d floors" % floors.size())
+			if not inside.has_point(v) and not doors.has(v):
+				walls_ok = walls_ok and w.is_ground(v) and w.masonry.has(v) and w.kept(v)
+	check(walls_ok and floors.size() == SpiderKeep.FLOORS, "walled, roofed and floored in masonry kept whole, with %d floors" % floors.size())
+	check(doors.size() == 2 * SpiderKeep.WALL * SpiderKeep.DOOR_ROWS and doors.all(func(v: Vector2i) -> bool: return not w.is_ground(v) and v.y >= inside.end.y - SpiderKeep.DOOR_ROWS), "a doorway through each wall at the ground storey")
 	var well: int = keep["well"]
 	var holes: Array[Rect2i] = keep["holes"]
 	var stairs: Array[Rect2i] = keep["stairs"]
@@ -47,22 +51,29 @@ func run() -> void:
 	check(ledges_ok, "and by a stair hole each, with a ledge under it")
 	var webs: Array[Rect2i] = keep["webs"]
 	check(holes.filter(func(h: Rect2i) -> bool: return h.position.x == well).all(func(h: Rect2i) -> bool: return webs.has(h)) and webs.size() > SpiderKeep.FLOORS, "%d webs: across every hole of the well, and some stair holes" % webs.size())
-	var back: Vector2i = w.exits[MapInfo.Exit.BACK]
-	var parent: Dictionary = Reach.tree(w, back)
+	var on: Vector2i = w.exits.get(MapInfo.Exit.DEEPER, Vector2i(-1, -1))
+	check(on == keep["on"] and on.y == floors[0] - 1 and inside.has_point(on) and w.get_cell(on).type == LevelGen.Type.EXIT, "the way on on its top floor")
+	var ground: Vector2i = Vector2i(inside.position.x + 1, inside.end.y - 1)
+	var parent: Dictionary = Reach.tree(w, ground)
 	var top: bool = parent.keys().any(func(v: Vector2i) -> bool: return v.y == floors[0] - 1)
-	check(back.y == inside.end.y - 1 and top, "the way back on the ground, and the top floor climbed to with the wizard's own hops")
+	var out: bool = parent.keys().any(func(v: Vector2i) -> bool: return not box.has_point(v))
+	check(top and out, "the top floor climbed to from the ground storey with the wizard's own hops, and out through its doorways")
 	var bosses: Array[Vector2i] = w.objects_of(LevelGen.Type.BOSS)
-	check(bosses.size() == 1 and StringName(w.get_cell(bosses[0]).extra_info) == &"spider" and bosses[0].y == inside.position.y, "the spider under the roof")
-	var again: LevelGen = build(arena_at)
+	check(bosses.size() == 1 and StringName(w.get_cell(bosses[0]).extra_info) == &"spider" and bosses[0] == keep["roost"] and bosses[0].y == inside.position.y, "the spider under the roof")
+	var path: Array = w.circuit.get("path", [])
+	check(not path.is_empty() and path.all(func(v: Vector2i) -> bool: return v.y > box.end.y), "the gondola runs below it")
+	check(w.towers.all(func(t: Dictionary) -> bool: return not (t["box"] as Rect2i).intersects(box)), "and no tower stands in it")
+	var stray: bool = w.objects.any(func(v: Vector2i) -> bool: return box.has_point(v) and not w.get_cell(v).type in [LevelGen.Type.PLATFORM, LevelGen.Type.EXIT, LevelGen.Type.BOSS])
+	check(not stray, "nothing else is placed in it")
+	var again: LevelGen = build(gate)
 	check(again.objects == w.objects and again.keep == w.keep, "the same every build")
-	var other: LevelGen = build(Worlds.side_at(Worlds.kind_of(Arena), Vector2i(28, Bosses.row_of(&"necromancer"))))
-	check(other.keep.is_empty() and other.size == Vector2i(Arena.WIDTH, Arena.HEIGHT), "and only there: the other arenas are the plain hall")
+	check(build(Vector2i(29, gate.y)).keep.size() > 0 and build(Vector2i(28, gate.y + 1)).keep.is_empty(), "in every world's gate level, and only there")
 
 	await boot(28)
 	player.set_physics_process(false)
 	player.health.max_health = 99
 	player.health.health = 99
-	await _go(arena_at)
+	await _go(gate)
 	print("in play")
 	var spider: Spider = placed("spider.tscn")[0] as Spider
 	check(spider != null and spider.boss == &"spider" and placed("boss.tscn").is_empty(), "the spider itself is there, no stand-in")
@@ -158,7 +169,7 @@ func run() -> void:
 	info.run.vulnerable = false
 	player.die()
 	await settle()
-	await _go(arena_at)
+	await _go(gate)
 	spider = placed("spider.tscn")[0] as Spider
 	check(spider.wound.hp == Spider.EYES and spider.state == Spider.State.SLEEP and not spider.webs.any(func(x: SpiderWeb) -> bool: return x.torn), "after a lantern death it is whole again, and so are its webs")
 
@@ -173,9 +184,8 @@ func run() -> void:
 	check(dead and info.run.bosses.has(&"spider") and placed("spider.tscn").is_empty(), "it is slain for the run")
 	var relics: Array[Node] = placed("relic.tscn").filter(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == &"spider")
 	check(relics.size() == 1 and info.world.is_ground(info.cell_at((relics[0] as Node2D).global_position) + Vector2i.DOWN) and (relics[0] as Relic).price() == 0, "its relic waits on the floor where it fell, free")
-	await _go(gate)
 	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"", "and the way up out of the crags is open")
-	await _go(arena_at)
+	await _go(gate)
 	check(placed("spider.tscn").is_empty(), "it is never met again")
 	RunState.delete_save()
 	finish()

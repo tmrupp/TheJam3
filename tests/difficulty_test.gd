@@ -60,7 +60,7 @@ func run() -> void:
 	await boot(28)
 	player.health.max_health = 99
 	player.health.health = 99
-	info.coord = Worlds.side_at(Worlds.kind_of(Arena), Vector2i(28, Bosses.row_of(&"spider")))
+	info.coord = Vector2i(28, Bosses.row_of(&"spider"))
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	await settle()

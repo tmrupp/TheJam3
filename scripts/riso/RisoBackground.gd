@@ -60,6 +60,7 @@ func _init() -> void:
 		&"cemetery": _backdrop_cemetery,
 		&"sky": _backdrop_sky,
 		&"crags": _backdrop_crags,
+		&"belly": _backdrop_belly,
 		&"aurora": _backdrop_aurora,
 	}
 
@@ -99,15 +100,63 @@ func _backdrop_cemetery(at: Callable, _view: Vector2, _half: Vector2, k: float, 
 	return true
 
 
-## The sky: up among the clouds, a thin crescent moon high up, and banks of cloud drifting far
-## below and between, in the islands' own pale ink, the lowest the faintest.
-func _backdrop_sky(at: Callable, _view: Vector2, _half: Vector2, k: float, t: float, _center: Vector2) -> bool:
-	ink.ink(RisoPrint.ACCENT, 0.4, [RisoShapes.crescent(at.call(96.0, 52.0), 16.0 * k, Vector2(7.0, -4.0) * k, 48)])
-	for i: int in range(5):
-		var drift: float = fposmod(t * (3.0 + float(i) * 1.6) + float(i) * 131.0, 700.0) - 110.0
-		var y: float = 70.0 + float(i) * 38.0
-		ink.ink(RisoPrint.BLUE, 0.16 - 0.02 * float(i), [_cloud(at.call(drift, y), (110.0 + float(i) * 24.0) * k, (18.0 + float(i) * 3.0) * k, i + 3)])
-	return true
+## How the sky's storm clouds roll (px of the sheet a second): STORM_DRIFT still, STORM_PUSH more
+## for each step of the level's wind in a gust (MapInfo.gust_wind), its way; they keep rolling
+## the way it last blew between gusts. Lightning flashes about every
+## FLASH_EVERY seconds (each its own, by a hash), lasting FLASH_TIME.
+const STORM_DRIFT: float = 3.0
+const STORM_PUSH: float = 5.0
+const FLASH_EVERY: float = 7.0
+const FLASH_TIME: float = 0.22
+## How far the storm clouds have rolled (px of the sheet), and the way they roll.
+var _storm_roll: float = 0.0
+var _storm_way: float = 1.0
+
+
+## The sky: up in a storm. Heavy banks of cloud in the islands' own pale ink roll over the dark,
+## layer on layer, the way the level's wind blows and faster the stronger it is; now and then
+## lightning flashes far off, a jagged bolt of bare paper down through the clouds and the sheet
+## lit pale a moment. No moon, no stars.
+func _backdrop_sky(at: Callable, _view: Vector2, half: Vector2, k: float, t: float, _center: Vector2) -> bool:
+	var info: MapInfo = MapInfo.instance if MapInfo.instance != null and MapInfo.instance.world != null else null
+	var wind: int = info.level_wind() if info != null else 0
+	var gust: int = info.gust_wind() if info != null else 0
+	_storm_way = -1.0 if wind < 0 else 1.0
+	# The clouds roll on by their own clock: faster in a gust, so they surge with it.
+	_storm_roll += _storm_way * get_process_delta_time() * (STORM_DRIFT + STORM_PUSH * float(absi(gust)))
+	for i: int in range(7):
+		var roll: float = fposmod(_storm_roll * (0.7 + 0.15 * float(i)) + float(i) * 113.0, 760.0) - 140.0
+		var y: float = 30.0 + float(i) * 36.0
+		var cover: float = 0.1 + 0.02 * float(i % 3)
+		ink.ink(RisoPrint.BLUE, cover, [_cloud(at.call(roll, y), (150.0 + float(i) * 22.0) * k, (34.0 + float(i) * 5.0) * k, i + 3)])
+	# Lightning: within each FLASH_EVERY, a moment of it at a time and a place its own.
+	var beat: int = floori(t / FLASH_EVERY)
+	var into: float = t - float(beat) * FLASH_EVERY - FLASH_EVERY * 0.6 * RisoShapes.hash1(float(beat) * 3.1)
+	if into >= 0.0 and into < FLASH_TIME:
+		var u: float = 1.0 - into / FLASH_TIME
+		ink.lift_ink([RisoPrint.NIGHT], 0.18 * u, [PackedVector2Array([-half, Vector2(half.x, -half.y), half, Vector2(-half.x, half.y)])])
+		var x: float = 60.0 + 360.0 * RisoShapes.hash1(float(beat) * 7.7)
+		var bolt: PackedVector2Array = PackedVector2Array()
+		var y: float = 10.0
+		var bx: float = x
+		while y < 200.0:
+			bolt.append(at.call(bx, y))
+			y += 14.0 + 10.0 * RisoShapes.hash1(y * 0.37 + float(beat))
+			bx += (RisoShapes.hash1(y * 0.71 + float(beat) * 1.9) - 0.5) * 30.0
+		ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 0.9 * u, RisoDecor.strip(bolt, 3.0 * k, 1.0 * k))
+	return false
+
+
+## The whale's belly: no sky at all, only its dark, a slow swell of the walls' flesh breathing in
+## it (BREATH seconds a breath). No stars.
+const BREATH: float = 4.0
+
+
+func _backdrop_belly(at: Callable, _view: Vector2, _half: Vector2, k: float, t: float, _center: Vector2) -> bool:
+	var breath: float = 0.5 + 0.5 * sin(t / BREATH * TAU)
+	for i: int in range(3):
+		ink.ink(RisoPrint.BLUE, 0.06 + 0.05 * breath, [RisoShapes.ellipse(at.call(120.0 + float(i) * 120.0, 135.0 + 30.0 * sin(float(i) * 2.1)), (110.0 + 20.0 * breath) * k, (80.0 + 14.0 * breath) * k, 32)])
+	return false
 
 
 ## The crags: dawn over the mountains. A faint sun just rising at the bottom of the sheet, its

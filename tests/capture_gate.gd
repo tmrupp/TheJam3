@@ -1,7 +1,7 @@
 extends SceneTree
 ## Stills of a gate (Bosses): the sealed way on at the head of the bramble's shaft, the stand-in
-## boss in the necromancer's arena (whole, then struck, and the arena), the relic it leaves, and the
-## necromancer's way on opened. The worm and the bramble, which are built, have capture_worm and
+## boss in the necromancer's gate level (whole, then struck, and the level about it), the relic it
+## leaves, and the necromancer's way on opened. The worm and the bramble, which are built, have capture_worm and
 ## capture_bramble.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_gate.gd
 
@@ -67,8 +67,8 @@ func capture() -> void:
 	await go(Vector2i(28, -NextWorldDef.GARDEN_ROWS), player)
 	var on: Vector2 = info.cell_position(info.world.exits[MapInfo.Exit.DEEPER])
 	shots.append(await shot(on))
-	# The stand-in, in the necromancer's arena: whole, struck, and the relic it leaves.
-	await go(Worlds.side_at(Worlds.kind_of(Arena), Vector2i(28, NextWorldDef.GARDEN_ROWS + NextWorldDef.BAND)), player)
+	# The stand-in, in the necromancer's gate level: whole, struck, and the relic it leaves.
+	await go(Vector2i(28, NextWorldDef.GARDEN_ROWS + NextWorldDef.BAND), player)
 	var boss: Boss = node("boss.tscn") as Boss
 	boss.get_node("Mover").set_physics_process(false)
 	shots.append(await shot(boss.global_position))
@@ -85,7 +85,7 @@ func capture() -> void:
 		if n.has_meta(&"boss"):
 			relic = n as Node2D
 	shots.append(await shot(relic.global_position))
-	# Back out, the necromancer's way on open.
+	# The necromancer's way on, open.
 	await go(Vector2i(28, NextWorldDef.GARDEN_ROWS + NextWorldDef.BAND), player)
 	shots.append(await shot(info.cell_position(info.world.exits[MapInfo.Exit.DEEPER])))
 	var out: Image = Image.create(SIZE * 3, SIZE * 2, false, shots[0].get_format())

@@ -3,17 +3,31 @@ extends Node2D
 ## Moving air, in sky levels (SkyArchetype.populate, carve_chasms). Two kinds:
 ## - an updraft ({"up": cells}): a shaft of rising air over a floor, always blowing, that lifts the
 ##   wizard to just over a floor beside its top;
-## - the crosswind over a chasm ({"chasm": id, "width": cells}): still until one of the chasm's
-##   vanes is turned (Vane), then blowing from that vane's side across, carrying the wizard over
-##   and holding them up as they go. Turning the vane on the far side sends it back.
+## - the crosswind over a gap ({"chasm": id, "width": cells}): the level's own wind where it is
+##   strongest, over the gaps between islands. The level's wind (Rules.wind_of: its vanes, Vane)
+##   comes in gusts (MapInfo.gusting): STILL seconds of stillness, then a strong gust GUST seconds
+##   long, over and over, its streaks starting to stir WARN seconds before. In a gust it blows the
+##   level's wind's way, carrying the wizard over and holding them up as they go, CARRY px/s,
+##   CARRY_STEP more for each vane past the first (at most CARRY_MAX); a crossing must be made
+##   within a gust. A gap the wind blows across the wrong way cannot be crossed until it is turned.
 ## The wizard asks push_at each physics step (Player): an updraft eases their rise toward
-## LIFT_SPEED; a crosswind carries them CARRY px/s along and lets them sink no faster than GLIDE
-## (not at all: they float level across). Up/down steers at STEER_SPEED within a crosswind, so
-## the wizard can descend out of it before reaching the far side.
+## LIFT_SPEED; a crosswind carries them along and lets them sink no faster than GLIDE (not at all:
+## they float level across). Up/down steers at STEER_SPEED within a crosswind, so the wizard can
+## descend out of it before reaching the far side. Elsewhere in a sky level's open air a gust only
+## drifts the wizard while they are off the ground (MapInfo.drift_at): DRIFT px/s a vane, at most
+## DRIFT_MAX, and not at all in the lee of rock, LEE cells upwind.
 
 const LIFT_SPEED: float = 430.0
 const LIFT_ACCEL: float = 2600.0
-const CARRY: float = 360.0
+const CARRY: float = 480.0
+const CARRY_STEP: float = 60.0
+const CARRY_MAX: float = 720.0
+const DRIFT: float = 110.0
+const DRIFT_MAX: float = 360.0
+const LEE: int = 4
+const STILL: float = 3.5
+const GUST: float = 4.5
+const WARN: float = 1.0
 const GLIDE: float = 0.0
 const STEER_SPEED: float = 240.0
 
@@ -47,14 +61,18 @@ func setup(info: MapInfo, v: Vector2i, extra: Dictionary) -> void:
 	global_position = rect.get_center()
 
 
-## Which way a crosswind blows along x (+1 right, -1 left), or 0 while still (or for an updraft).
+## Which way a crosswind blows along x (+1 right, -1 left): the level's wind's in a gust
+## (MapInfo.gust_wind), or 0 while it is still (or for an updraft).
 func blowing() -> float:
 	if chasm < 0 or map_info == null:
 		return 0.0
-	var from: Variant = map_info.wind_from(chasm)
-	if from == null:
-		return 0.0
-	return 1.0 if map_info.cell_position(from as Vector2i).x < rect.get_center().x else -1.0
+	return float(signi(map_info.gust_wind()))
+
+
+## How fast a crosswind carries the wizard (px/s): CARRY, CARRY_STEP more a vane past the first.
+func carry() -> float:
+	var strength: int = absi(map_info.level_wind()) if map_info != null else 0
+	return minf(CARRY + CARRY_STEP * float(maxi(0, strength - 1)), CARRY_MAX)
 
 
 ## The air it moves (world space). Things that wake and print by what is in view go by all of
@@ -67,11 +85,11 @@ func active() -> bool:
 	return up > 0 or blowing() != 0.0
 
 
-## The push at a point inside it: (0, -LIFT_SPEED) for an updraft, (±CARRY, 0) for a crosswind.
+## The push at a point inside it: (0, -LIFT_SPEED) for an updraft, (±carry, 0) for a crosswind.
 func push() -> Vector2:
 	if up > 0:
 		return Vector2(0.0, -LIFT_SPEED)
-	return Vector2(blowing() * CARRY, 0.0)
+	return Vector2(blowing() * carry(), 0.0)
 
 
 ## The sum of the wind blowing at `at`.

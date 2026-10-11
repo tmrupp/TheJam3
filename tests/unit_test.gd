@@ -31,6 +31,8 @@ func run() -> void:
 	_exits()
 	_branches()
 	_relics()
+	_wind()
+	_whale()
 	var p: Player = Player.new()
 	_ability_tables()
 	_protocols()
@@ -258,6 +260,58 @@ func _relics() -> void:
 	check(ok, "a level holds one of the relic moves or none, the same every time")
 	check_eq(found.size(), Relics.MOVES.size(), "every relic move is found somewhere")
 	check_eq(Relics.at(Worlds.side_at(0, Vector2i(28, 5))), &"", "no relic in a side world")
+
+
+## A sky level's wind (Rules.wind_of): still with no vane on; the way of the vane last switched
+## on, as strong as the vanes on that point that way, the others' doing nothing; still again once
+## none of its way is on.
+func _wind() -> void:
+	var rec: LevelRecord = LevelRecord.new()
+	check_eq(Rules.wind_of(rec), 0, "a sky level's wind is still with no vane on")
+	rec.vanes_on = {Vector2i(1, 1): 1, Vector2i(2, 1): 1, Vector2i(3, 1): -1}
+	rec.wind_way = 1
+	check_eq(Rules.wind_of(rec), 2, "two vanes on pointing right: the wind blows right, strength 2")
+	rec.wind_way = -1
+	check_eq(Rules.wind_of(rec), -1, "turned left by its one left vane: strength 1, the right ones doing nothing")
+	rec.vanes_on.erase(Vector2i(3, 1))
+	check_eq(Rules.wind_of(rec), 0, "and with none of its way left on, still")
+
+
+## The whale's hunt (WhaleHunt): met a few worlds off the wizard the first time they come into the
+## sky; moving a world the way its own level's wind is set, held when the levels either side blow
+## into its level, and never far from the wizard; on the sky's top row; never once slain.
+func _whale() -> void:
+	var run: RunState = RunState.new()
+	run.start(28)
+	var row: int = WhaleHunt.row()
+	check_eq(row, Bosses.row_of(&"whale"), "the whale swims the sky's top row, its gate row")
+	check(not WhaleHunt.move(run, Vector2i(28, 0)) and run.whale_x == WhaleHunt.NONE, "nor is it met below the sky")
+	var sky: Vector2i = Vector2i(28, NextWorldDef.band_row(&"sky", 2))
+	WhaleHunt.move(run, sky)
+	var off: int = run.whale_x - sky.x
+	check(off != 0 and absi(off) <= WhaleHunt.REACH, "met %d worlds off the wizard's first sky level" % off)
+	var x: int = run.whale_x
+	var rec: LevelRecord = run.record(Vector2i(x, row))
+	rec.vanes_on = {Vector2i.ZERO: 1}
+	rec.wind_way = 1
+	WhaleHunt.move(run, Vector2i(x, row))
+	check_eq(run.whale_x, x + 1, "its own level set to blow right: it moves a world right")
+	run.record(Vector2i(x, row)).vanes_on = {Vector2i.ZERO: 1}
+	run.record(Vector2i(x, row)).wind_way = 1
+	var right: LevelRecord = run.record(Vector2i(x + 2, row))
+	right.vanes_on = {Vector2i.ZERO: -1}
+	right.wind_way = -1
+	check(WhaleHunt.trapped(run, x + 1), "the levels either side blowing into its level: trapped")
+	WhaleHunt.move(run, Vector2i(x + 1, row))
+	check_eq(run.whale_x, x + 1, "and so held where it is")
+	right.vanes_on.clear()
+	for i: int in range(6):
+		WhaleHunt.move(run, Vector2i(x + 20, row))
+	check(absi(run.whale_x - (x + 20)) <= WhaleHunt.REACH, "it never strays more than %d worlds from the wizard" % WhaleHunt.REACH)
+	check(WhaleHunt.here(run, Vector2i(run.whale_x, row)) and not WhaleHunt.here(run, Vector2i(run.whale_x, row + 1)), "it is only in its world, on its row")
+	run.bosses[&"whale"] = true
+	var was: int = run.whale_x
+	check(not WhaleHunt.move(run, Vector2i(x, row)) and run.whale_x == was and not WhaleHunt.here(run, Vector2i(was, row)), "slain, it is never met again")
 
 
 func _ability_tables() -> void:

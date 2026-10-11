@@ -500,7 +500,7 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 			_mark_bell(at, rung, -2 if rung or Bell.free_in(w, rec, v, int(bell[1])) else int(bell[1]), "bell", w.sigil_at(v))
 		LevelGen.Type.VANE:
 			var vane: Array = cell.extra_info
-			var blowing: bool = (rec.winds as Dictionary).get(int(vane[0])) == v
+			var blowing: bool = (rec.vanes_on as Dictionary).has(v)
 			_mark_bell(at, blowing, -2 if blowing or Bell.free_in(w, rec, v, int(vane[1])) else int(vane[1]), "vane", w.sigil_at(v))
 	return false
 

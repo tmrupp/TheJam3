@@ -99,6 +99,19 @@ static func rarity_color (roll: int) -> int:
 			return c
 	return 0
 
+## A sky level's wind as its record `rec` leaves it (LevelRecord.vanes_on, wind_way): the way it
+## blows (+1 right, -1 left) times its strength, the number of vanes switched on that point that
+## way; 0 while still. Vanes on that point the other way do nothing until the wind is turned their
+## way (by switching one of them on).
+static func wind_of (rec: LevelRecord) -> int:
+	if rec == null or rec.wind_way == 0:
+		return 0
+	var strength: int = 0
+	for way: Variant in rec.vanes_on.values():
+		if int(way) == rec.wind_way:
+			strength += 1
+	return rec.wind_way * strength
+
 ## Cells across and down for a level: small near the surface, growing with depth.
 static func level_size (depth: int) -> Vector2i:
 	# Half the old growth (6 and 5 cells a depth, capped at 80 x 72): big levels were slow and long.

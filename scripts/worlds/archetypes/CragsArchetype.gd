@@ -717,9 +717,12 @@ static func _crosses(r: Rect2i, cells: Dictionary) -> bool:
 ## LevelGen.circuit: {"path": the car's floor cell (the left of its two) a cell at a time from the
 ## first station to the last, "stops": where along the path each station is (an index into it),
 ## "gates": each station's doorway cell, "inner": the way each faces into the level (+1 right, -1
-## left)}. A level too short for one gets none.
+## left)}. A level too short for one gets none. In the spider's gate level it stops short of the
+## keep at the top (SpiderKeep), climbing no higher than LEAVE rows and a few more under it.
 static func lay_circuit(w: LevelGen) -> void:
 	var top: int = 4 + LEAVE
+	if not w.keep.is_empty():
+		top = (w.keep["box"] as Rect2i).end.y + LEAVE + 2
 	var bottom: int = w.size.y - 3
 	var rows: int = bottom - top
 	@warning_ignore("integer_division")

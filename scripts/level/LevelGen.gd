@@ -49,6 +49,8 @@ enum Type {
 	DRAUGHT,
 	WELL,
 	CROSSBOW,
+	BALLOON,
+	TEMPLE,
 }
 
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).
@@ -120,6 +122,9 @@ var structures: Dictionary = {}
 ## The towers an archetype built (CragsArchetype.build_towers), each a Dictionary (see
 ## CragsArchetype._tower).
 var towers: Array[Dictionary] = []
+## The temples a sky level built (SkyArchetype.build_temples), each {"box": its cells, Rect2i;
+## "hall": the open hall's rows, Rect2i; "altar": the altar's cell}.
+var temples: Array[Dictionary] = []
 ## The gondola's circuit an archetype laid (CragsArchetype.lay_circuit), or {} for none.
 var circuit: Dictionary = {}
 ## The shrine's cell (its boon side; mending is the cell to the right), or (-1, -1).
@@ -287,8 +292,9 @@ func place_exits (depth: int, debug: bool = false, climbing: bool = false) -> vo
 	@warning_ignore("integer_division")
 	var band_x: int = maxi(2, size.x / 5)
 	var chosen: Array[Vector2i] = []
-	# The bramble's gate level: the way on stands at the head of its shaft (BrambleShaft).
-	var fixed_on: Variant = shaft.get("on")
+	# The bramble's gate level: the way on stands at the head of its shaft (BrambleShaft); the
+	# spider's, on its keep's top floor (SpiderKeep).
+	var fixed_on: Variant = shaft.get("on", keep.get("on"))
 	if fixed_on != null:
 		chosen.append(fixed_on)
 	var near_top: Callable = func(v: Vector2i) -> bool: return v.y <= lo.y + band_y
@@ -731,18 +737,22 @@ func _init (_cells: Array, def: NextWorldDef) -> void:
 	# Up levels: ledges where the climb from the way back to the way on needs them (Climb), last
 	# and with no RNG draws, so nothing else moves.
 	Climb.aid(self, def)
-	# A gate level whose boss fights in it: the boss (Bosses), placed last, with no RNG draws.
-	if not Worlds.is_side(def.coord) and def.gate != &"" and not Bosses.in_arena(def.gate):
+	# A gate level: its boss (Bosses), placed last, with no RNG draws.
+	if not Worlds.is_side(def.coord) and def.gate != &"":
 		place_boss(def.gate)
 
-## A gate level's boss (Bosses.IN_LEVEL): on the free floor nearest the way on it guards, at least
-## BOSS_APART cells from it; the bramble in the knot at the head of its shaft (BrambleShaft), its
-## cell the knot's bottom corner beside the landing. The boss is placed in every visit's layout;
+## A gate level's boss: on the free floor nearest the way on it guards, at least BOSS_APART cells
+## from it; the bramble in the knot at the head of its shaft (BrambleShaft), its cell the knot's
+## bottom corner beside the landing; the spider in the roost under its keep's roof (SpiderKeep). The boss is placed in every visit's layout;
 ## the loader leaves it out once it is slain (RunState.bosses).
 const BOSS_APART: int = 4
 
 func place_boss (boss: StringName) -> void:
-	if not exits.has(MapInfo.Exit.DEEPER):
+	# The whale is in no gate level of its own: it roams its row (WhaleHunt, Whale).
+	if not exits.has(MapInfo.Exit.DEEPER) or boss == &"whale":
+		return
+	if not keep.is_empty():
+		put(keep["roost"], Type.BOSS, boss)
 		return
 	if not shaft.is_empty():
 		var knot: Rect2i = shaft["knot"]
@@ -834,6 +844,10 @@ func populate_level (def: NextWorldDef) -> void:
 	# One cave: every open space joined up, so everything placed below is connected to
 	# everything else through open air (gates and abilities aside).
 	connect_caves()
+	# The crags' way up: the spider's keep, cut before the gondola and the towers so they are laid
+	# round it (only in its gate levels).
+	if SpiderKeep.wanted(def):
+		SpiderKeep.cut(self)
 	arch.cut_gates(self)
 	# The garden's way up: the bramble's shaft, cut before anything is placed so the rest lands
 	# round it (only in its gate levels).
@@ -939,9 +953,17 @@ var climb_ledges: Array[Vector2i] = []
 ## every other level.
 var shaft: Dictionary = {}
 
-## The spider's keep, in its arena (SpiderKeep.build, which says what it holds); empty in every
+## The spider's keep, in its gate levels (SpiderKeep.cut, which says what it holds); empty in every
 ## other place.
 var keep: Dictionary = {}
+
+## The cell of a sky level's balloon (SkyArchetype.place_balloon), else (-1, -1).
+var balloon: Vector2i = Vector2i(-1, -1)
+
+## Whether cell `v` is part of the spider's keep: inside it, or its walls, roof or ground. Nothing
+## else is built into it (secret rooms, vaults, cracked walls, climbing ledges).
+func in_keep (v: Vector2i) -> bool:
+	return not keep.is_empty() and (keep["box"] as Rect2i).has_point(v)
 
 ## Whether cell `v` is part of the bramble's shaft: inside it, or its walls, roof or floor. Nothing
 ## else is built into it (secret rooms, vaults, cracked walls, climbing ledges).
@@ -953,9 +975,10 @@ func in_shaft (v: Vector2i) -> bool:
 ## them, or builds a secret room or vault into them.
 var kept_whole: Dictionary = {}
 
-## Whether cell `v` is kept as it is: the bramble's shaft (in_shaft) or kept_whole.
+## Whether cell `v` is kept as it is: the bramble's shaft (in_shaft), the spider's keep (in_keep)
+## or kept_whole.
 func kept (v: Vector2i) -> bool:
-	return kept_whole.has(v) or in_shaft(v)
+	return kept_whole.has(v) or in_shaft(v) or in_keep(v)
 
 ## The level's chasms and gaps, its gates where the archetype has them (see Chasms): each
 ## {"planks": cells, "row": the floor row, "left": the last floor cell before it, "right": the
