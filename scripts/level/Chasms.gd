@@ -104,17 +104,15 @@ static func carve(w: LevelGen) -> void:
 		w.chasms.append(_record(planks, y, a, span))
 
 
-## A gap of open air `span` cells across from cell `a` on floor row `y`, crossed on the wind: its
-## air is kept clear as a chasm's is, and one current (Type.WIND, {chasm, width}) spans it, held in
-## its first cell, the row under the floor (SkyArchetype).
+## A gap of open air `span` cells across from cell `a` on floor row `y`, crossed on the level's
+## gusts (Wind, MapInfo.gust_at): its air is kept clear as a chasm's is (SkyArchetype). (A crosswind
+## of its own over it, Type.WIND {chasm, width}, is set aside for now: nothing places one.)
 static func add_gap(w: LevelGen, y: int, a: int, span: int) -> void:
-	var id: int = w.chasms.size()
 	var planks: Array[Vector2i] = []
 	for x: int in range(a, a + span):
 		planks.append(Vector2i(x, y + 1))
 		for d: int in range(-CHASM_CLEAR, CHASM_DEPTH + 1):
 			w.empties.erase(Vector2i(x, y + d))
-	w.put(planks[0], LevelGen.Type.WIND, {"chasm": id, "width": span})
 	w.chasms.append(_record(planks, y, a, span))
 
 

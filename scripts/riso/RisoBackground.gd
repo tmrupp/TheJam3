@@ -129,6 +129,15 @@ func _backdrop_sky(at: Callable, _view: Vector2, half: Vector2, k: float, t: flo
 		var y: float = 30.0 + float(i) * 36.0
 		var cover: float = 0.1 + 0.02 * float(i % 3)
 		ink.ink(RisoPrint.BLUE, cover, [_cloud(at.call(roll, y), (150.0 + float(i) * 22.0) * k, (34.0 + float(i) * 5.0) * k, i + 3)])
+	# In a gust, streaks rush across the whole sheet its way.
+	if gust != 0:
+		var streaks: Array[PackedVector2Array] = []
+		for i: int in range(18):
+			var u: float = fposmod(t * (1.2 + 0.4 * RisoShapes.hash1(float(i) * 3.3)) + RisoShapes.hash1(float(i) * 1.7), 1.0)
+			var x: float = lerpf(-40.0, 520.0, u if gust > 0 else 1.0 - u)
+			var y: float = 20.0 + 230.0 * RisoShapes.hash1(float(i) * 5.1)
+			streaks.append(RisoShapes.almond(at.call(x, y), (40.0 + 30.0 * RisoShapes.hash1(float(i))) * k * sin(u * PI), 1.6 * k, 10))
+		ink.lift_ink([RisoPrint.NIGHT], 0.35, streaks)
 	# Lightning: within each FLASH_EVERY, a moment of it at a time and a place its own.
 	var beat: int = floori(t / FLASH_EVERY)
 	var into: float = t - float(beat) * FLASH_EVERY - FLASH_EVERY * 0.6 * RisoShapes.hash1(float(beat) * 3.1)

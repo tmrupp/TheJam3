@@ -47,8 +47,9 @@ var switched: Dictionary = {}
 ## The wind itself is Rules.wind_of.
 var vanes_on: Dictionary = {}
 var wind_way: int = 0
-## Whether its temple has been opened (Temple).
+## Whether its temple has been opened, and how many steps of its lock are lit (Temple).
 var temple_open: bool = false
+var temple_progress: int = 0
 ## Mending bowls standing on their own used (MendWell), by cell.
 var mended: Dictionary = {}
 ## The wizard's own teleporters standing here (Rift): their positions.
@@ -57,7 +58,7 @@ var rifts: Array = []
 ## Every field saved, in the order they are written.
 const FIELDS: Array[StringName] = [&"taken", &"opened", &"slain", &"broken", &"dropped", &"next_drop", &"deeper_paid", &"up_paid",
 	&"doors_paid", &"lateral_open", &"ways_taken", &"shrine_used", &"left_spell", &"relic_left", &"mapped", &"seen",
-	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended"]
+	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended"]
 
 
 ## The record as a plain dictionary, for the save file.

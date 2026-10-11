@@ -166,7 +166,8 @@ func bridge_up (id: int) -> bool:
 	return record().bridges.has(id)
 
 ## The vane at `cell`, pointing `way` (+1 right, -1 left), was switched: on, the level's wind turns
-## its way; off, the wind its way is a vane weaker (Rules.wind_of). Kept in the level record.
+## its way, and it is the next step entered into the level's temple's lock (Temple.step); off, the
+## wind its way is a vane weaker (Rules.wind_of). Kept in the level record.
 func switch_vane (cell: Vector2i, way: int) -> void:
 	var rec: LevelRecord = record()
 	if rec.vanes_on.has(cell):
@@ -174,6 +175,9 @@ func switch_vane (cell: Vector2i, way: int) -> void:
 	else:
 		rec.vanes_on[cell] = way
 		rec.wind_way = way
+		if world != null and not rec.temple_open:
+			for t: Dictionary in world.temples:
+				rec.temple_progress = Temple.step(world.get_cell(t["altar"]).extra_info, rec.temple_progress, way)
 	save_run()
 
 ## Whether the vane at `cell` is switched on.
@@ -204,22 +208,27 @@ func gust_coming () -> float:
 func gust_wind () -> int:
 	return level_wind() if gusting() else 0
 
-## How fast the level's wind drifts the wizard sideways (px/s, signed) at `pos` in the open air of a
-## sky level, in a gust: Wind.DRIFT a vane, at most Wind.DRIFT_MAX, and none in the lee of rock (rock
-## within Wind.LEE cells upwind on the same row) or between gusts.
-func drift_at (pos: Vector2) -> float:
+## How fast a gust carries the wizard sideways (px/s, signed) at `pos` in a sky level, off the
+## ground (Wind.carry_for its strength, as over a gap); none between gusts, and none where rock
+## shelters them: within Wind.LEE cells upwind on their row or the row over it.
+func gust_at (pos: Vector2) -> float:
 	if world == null or here == null or not here.open():
 		return 0.0
 	var wind: int = gust_wind()
-	if wind == 0:
+	if wind == 0 or sheltered(pos, signi(wind)):
 		return 0.0
-	var way: int = signi(wind)
+	return float(signi(wind)) * Wind.carry_for(absi(wind))
+
+## Whether rock shelters `pos` from a wind blowing `way` (+1 right): rock within Wind.LEE cells
+## upwind on its row or the row over it.
+func sheltered (pos: Vector2, way: int) -> bool:
 	var at: Vector2i = cell_at(pos)
-	for k: int in range(1, Wind.LEE + 1):
-		var up: Vector2i = at - Vector2i(way * k, 0)
-		if world.is_valid(up) and world.is_ground(up):
-			return 0.0
-	return float(way) * minf(Wind.DRIFT * float(absi(wind)), Wind.DRIFT_MAX)
+	for row: int in [0, -1]:
+		for k: int in range(1, Wind.LEE + 1):
+			var up: Vector2i = at + Vector2i(-way * k, row)
+			if world.is_valid(up) and world.is_ground(up):
+				return true
+	return false
 
 ## Boss `boss` died at `pos` (Boss): slain for the rest of the run, so every gate level of its band
 ## opens; where it fell, its relic waits (Bosses.relic_for, free), or, with every move known, a

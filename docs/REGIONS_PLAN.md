@@ -535,11 +535,11 @@ The rework makes it the band of the elements, where the institute is the band of
   portal's is), and it stays moored where it lands, ready to ride on by that level's wind.
 - **The whale** (§6) roams these levels, driven by their winds: trapping it between opposing
   winds is how its fight begins. It keeps to the sky's top row.
-- **Temples.** Small temples on some islands reveal where the whale is. Each is shut until a
-  sequence of winds is set: its door shows the way (and perhaps the strength) the wind must blow
-  in each of a run of levels along its row, its own and its neighbours', and it opens when they
-  all match. So opening one means travelling the row (on foot or by balloon), setting each level's
-  vanes in turn.
+- **Temples.** Small temples, built on some islands, reveal where the whale is and hold a hoard
+  of star clusters. Each is locked by a sequence of 5 to 9 winds (repeats and all), shown on its
+  frieze, entered by switching on the vanes of its level in that order of ways: the right way lights
+  the next step, the wrong way resets it (a repeat is two of the same way in a row). (An earlier
+  idea, a sequence set across the levels of its row, was replaced by this.)
 - **Realm.** White first: the islands and clouds printed white, the sky's main colour, with the
   gold of its stars and the pink of its dangers on it, against a dark, stormy sky behind (in
   keeping with dark, low-contrast backgrounds, `docs/RISO_PRINT.md`), so the islands stand out

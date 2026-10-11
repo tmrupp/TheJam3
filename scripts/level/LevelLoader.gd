@@ -243,6 +243,9 @@ func place_cell(v: Vector2i, cell: LevelGen.Cell) -> void:
 		gone.append(rec.broken)
 	if gone.any(func(d: Dictionary) -> bool: return d.has(v)):
 		return
+	# A temple's hoard is there only once it is opened (Temple).
+	if cell.type == LevelGen.Type.CLUSTER and not rec.temple_open and w.in_temple_hoard(v):
+		return
 	# A boss slain this run is never met again (Bosses).
 	if cell.type == LevelGen.Type.BOSS and info.run.bosses.has(StringName(cell.extra_info)):
 		return

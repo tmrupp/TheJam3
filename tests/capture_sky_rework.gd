@@ -1,6 +1,6 @@
 extends TestKit
 ## Stills of the sky's rework: a balloon becalmed and then full with the level's wind set
-## (sky_balloon_0.png, _1); a temple shut with one level's wind wrong, then open (sky_temple_0.png,
+## (sky_balloon_0.png, _1); a temple shut with two of its winds entered, then open (sky_temple_0.png,
 ## _1); the whale free, then trapped with its mouth open (sky_whale_0.png, _1); and its belly, the
 ## heart at the far end (sky_belly.png).
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_sky_rework.gd
@@ -33,15 +33,10 @@ func run() -> void:
 				with_temple = at
 	await _go(with_temple)
 	var temple: Temple = placed("temple.tscn")[0] as Temple
-	for i: int in range(Temple.SPAN):
-		var rec: LevelRecord = info.run.record(temple.place_of(i))
-		var way: int = temple.winds[i] if i != 1 else -temple.winds[i]
-		rec.vanes_on = {Vector2i(1, 1): way}
-		rec.wind_way = way
+	info.record().temple_progress = 2
 	player.global_position = temple.global_position + Vector2(-160.0, 0.0)
 	await _look(temple.global_position + Vector2(64.0, -120.0), "sky_temple_0.png")
-	info.record().vanes_on = {Vector2i(1, 1): temple.winds[1]}
-	info.record().wind_way = temple.winds[1]
+	info.record().temple_progress = temple.sequence.size()
 	temple.use()
 	await frames(50)
 	await _look(temple.global_position + Vector2(64.0, -120.0), "sky_temple_1.png")

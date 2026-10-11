@@ -78,6 +78,8 @@ const TEMPLE_WIDE: int = 7
 const TEMPLE_HALL: int = 3
 const TEMPLE_FOOTING: int = 3
 const TEMPLE_AIR: int = 3
+## Star clusters in its hall (its hoard), either side of its altar, there once it is opened.
+const TEMPLE_HOARD: int = 2
 
 
 func _init() -> void:
@@ -514,8 +516,8 @@ func finish(w: LevelGen, _def: NextWorldDef) -> void:
 
 ## A temple in TEMPLE_SHARE of sky levels (see TEMPLE_SHARE), built where it fits (_temple_site):
 ## of those, the one needing the least footing, ties by a hash of the level seed. Its altar's extra
-## info is its sequence of winds (Temple.SPAN ways, +1 right or -1 left, from the left), dealt by
-## the level seed. Kept in LevelGen.temples.
+## info is its lock's sequence of winds (Temple.LENGTH steps, each +1 right or -1 left, repeats and
+## all), dealt by the level seed. Kept in LevelGen.temples.
 static func build_temples(w: LevelGen) -> void:
 	if posmod(Rules.level_seed(w.seed_for_colors, TEMPLE_DEAL), 1000) >= roundi(TEMPLE_SHARE * 1000.0):
 		return
@@ -565,7 +567,7 @@ static func _temple_site(w: LevelGen, box: Rect2i) -> int:
 	return footing if on_rock * 2 >= box.size.x and ends_on_rock else -1
 
 
-## Build a temple in `box` (see TEMPLE_SHARE) and its altar.
+## Build a temple in `box` (see TEMPLE_SHARE), its altar and its hoard (TEMPLE_HOARD).
 static func _temple(w: LevelGen, box: Rect2i) -> void:
 	var x0: int = box.position.x
 	var x1: int = box.end.x - 1
@@ -606,10 +608,17 @@ static func _temple(w: LevelGen, box: Rect2i) -> void:
 	@warning_ignore("integer_division")
 	var altar: Vector2i = Vector2i(x0 + box.size.x / 2, base - 1)
 	var winds: Array = []
-	for i: int in range(Temple.SPAN):
+	var length: int = Temple.LENGTH.x + posmod(Rules.level_seed(w.seed_for_colors, TEMPLE_DEAL + 100), Temple.LENGTH.y - Temple.LENGTH.x + 1)
+	for i: int in range(length):
 		winds.append(1 if posmod(Rules.level_seed(w.seed_for_colors, TEMPLE_DEAL + 1 + i), 2) == 0 else -1)
 	w.put(altar, LevelGen.Type.TEMPLE, winds)
-	w.temples.append({"box": box, "hall": hall, "altar": altar})
+	var hoard: Array[Vector2i] = []
+	for k: int in range(TEMPLE_HOARD):
+		var at: Vector2i = altar + Vector2i(2 if k % 2 == 0 else -2, 0)
+		if hall.has_point(at):
+			w.put(at, LevelGen.Type.CLUSTER)
+			hoard.append(at)
+	w.temples.append({"box": box, "hall": hall, "altar": altar, "hoard": hoard})
 
 
 ## The balloon moored in every sky level (see BALLOON_AIR), and kept in LevelGen.balloon, the air

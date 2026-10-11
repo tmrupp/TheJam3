@@ -25,10 +25,7 @@ func run() -> void:
 	var box: Rect2i = info.world.temples[0]["box"]
 	var middle: Vector2 = (info.cell_position(box.position) + info.cell_position(box.end - Vector2i.ONE)) * 0.5
 	player.global_position = info.cell_position(temple.get_meta(&"cell")) + Vector2(-260.0, 0.0)
-	for i: int in range(Temple.SPAN):
-		var rec: LevelRecord = info.run.record(temple.place_of(i))
-		rec.vanes_on = {Vector2i(1, 1): temple.winds[i]}
-		rec.wind_way = temple.winds[i]
+	info.record().temple_progress = temple.sequence.size()
 	temple.use()
 	camera.zoom *= 0.75
 	info.loader.wake_around(middle)

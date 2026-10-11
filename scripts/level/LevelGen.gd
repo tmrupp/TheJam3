@@ -123,8 +123,13 @@ var structures: Dictionary = {}
 ## CragsArchetype._tower).
 var towers: Array[Dictionary] = []
 ## The temples a sky level built (SkyArchetype.build_temples), each {"box": its cells, Rect2i;
-## "hall": the open hall's rows, Rect2i; "altar": the altar's cell}.
+## "hall": the open hall's rows, Rect2i; "altar": the altar's cell; "hoard": its star clusters'
+## cells, there once it is opened}.
 var temples: Array[Dictionary] = []
+
+## Whether cell `v` holds a temple's hoard (there only once it is opened, Temple).
+func in_temple_hoard (v: Vector2i) -> bool:
+	return temples.any(func(t: Dictionary) -> bool: return (t["hoard"] as Array).has(v))
 ## The gondola's circuit an archetype laid (CragsArchetype.lay_circuit), or {} for none.
 var circuit: Dictionary = {}
 ## The shrine's cell (its boon side; mending is the cell to the right), or (-1, -1).

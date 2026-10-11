@@ -100,7 +100,7 @@ func generation() -> void:
 				if cell.mods.has("bounces"):
 					totals["bounces"] += 1
 		var blown: int = w.chasms.size() - w.relic_chasms.size()
-		check(crosswinds == blown and count(w, LevelGen.Type.VANE) >= blown, "%s: a crosswind over every chasm but those left to relics (%d of %d), and vanes by them (%d)" % [at, crosswinds, w.chasms.size(), count(w, LevelGen.Type.VANE)])
+		check(crosswinds == 0 and count(w, LevelGen.Type.VANE) >= blown, "%s: no crosswind of its own over a gap (set aside: the gusts cross them), and vanes by the gaps not left to relics (%d by %d of %d)" % [at, count(w, LevelGen.Type.VANE), blown, w.chasms.size()])
 		check(count(w, LevelGen.Type.SHOOTER) == 0 or w.objects.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.SHOOTER).all(func(v: Vector2i) -> bool: return w.get_cell(v).mods.has("bounces")), "%s: every watcher's shots rebound (%d watchers)" % [at, count(w, LevelGen.Type.SHOOTER)])
 		totals["birds"] += count(w, LevelGen.Type.BIRD)
 		check(_portals_apart(w), "%s: each pair of teleporters at least %d cells apart" % [at, w.portal_apart()])
@@ -221,44 +221,51 @@ func vanes() -> void:
 		return
 	var vane: Node2D = chained_now[0] as Node2D
 	var id: int = int(vane.get("chasm"))
-	var wind: Wind = null
-	for n: Node in placed("wind.tscn"):
-		if (n as Wind).chasm == id:
-			wind = n as Wind
-	check(wind != null and not wind.active() and info.level_wind() == 0, "the level's wind is still, and so is its gap's")
-	var away0: float = signf(wind.rect.get_center().x - vane.global_position.x)
-	check(not await _cross(wind, away0, true), "still, a run, a jump and a dash do not get the wizard over it")
+	var gap: Rect2 = _gap(id)
+	check(info.level_wind() == 0 and info.gust_wind() == 0, "the level's wind is still")
+	var away0: float = signf(gap.get_center().x - vane.global_position.x)
+	check(not await _cross(gap, away0, true), "still, a run, a jump and a dash do not get the wizard over its gap")
 	player.keyring.clear()
 	vane.call("hex_hit", 1, Vector2.RIGHT)
-	check(not wind.active(), "chained, the vane only rattles")
+	check(info.level_wind() == 0, "chained, the vane only rattles")
 	_free(vane)
 	vane.call("hex_hit", 1, Vector2.RIGHT)
-	var away: float = signf(wind.rect.get_center().x - vane.global_position.x)
+	var away: float = signf(gap.get_center().x - vane.global_position.x)
 	var way: int = int(vane.get("way"))
 	check(float(way) == away and info.vane_on(vane.get_meta(&"cell")) and info.level_wind() == way, "freed and switched on, the level's wind is set its way, across its gap (strength 1)")
 	await _gust_start()
-	check(info.gusting() and wind.active() and wind.blowing() == away and is_equal_approx(wind.carry(), Wind.CARRY), "in a gust it blows, and so does its gap's, at its carry")
+	check(info.gusting() and signf(float(info.gust_wind())) == away and is_equal_approx(info.gust_at(gap.get_center()), away * Wind.CARRY), "in a gust it blows its way, over its gap too, at its carry")
 	var gust_from: float = info.gust_clock
 	await within(func() -> bool: return not info.gusting(), Wind.GUST + 0.5)
 	var lasted: float = info.gust_clock - gust_from
-	check(not wind.active() and info.drift_at(wind.rect.get_center()) == 0.0 and absf(lasted - Wind.GUST) < 0.3, "a gust lasts %.1f s, then all is still (%.1f s)" % [Wind.GUST, lasted])
+	check(info.gust_wind() == 0 and info.gust_at(gap.get_center()) == 0.0 and absf(lasted - Wind.GUST) < 0.3, "a gust lasts %.1f s, then all is still (%.1f s)" % [Wind.GUST, lasted])
 	await _gust_start()
 	await _drift(way)
 	# Walk off the vane's shore into a gust as it starts: carried over to the far side, on the floor there.
 	await _gust_start()
-	check(await _cross(wind, away, false), "a gust carries the wizard over the gap to the floor on the far side")
+	check(await _cross(gap, away, true, false), "jumping off its shore into a gust, it carries the wizard over the gap to the floor on the far side")
 	var others: Array[Node] = vanes.filter(func(n: Node) -> bool: return n != vane and int(n.get("chasm")) == id)
 	if not others.is_empty():
 		var other: Node2D = others[0] as Node2D
 		_free(other)
 		other.call("use")
-		check(wind.blowing() == -away and info.level_wind() == -way, "switching on the vane on the far side turns the wind back, its one vane its strength")
+		check(info.level_wind() == -way, "switching on the vane on the far side turns the wind back, its one vane its strength")
 		other.call("use")
-		check(info.level_wind() == 0 and not wind.active(), "switched off, none of its way left on: the wind is still")
+		check(info.level_wind() == 0, "switched off, none of its way left on: the wind is still")
 		vane.call("use")
 		check(info.level_wind() == 0, "the first, switched off too")
 		vane.call("use")
 		check(info.level_wind() == way, "and switched on again, it blows its way once more")
+
+
+## Gap `id`'s air (world space), as its crosswind would have filled it: from the last cell of floor
+## on one side to the first on the other, the three rows over the floor and the one under it.
+func _gap(id: int) -> Rect2:
+	var chasm: Dictionary = info.world.chasms[id]
+	var left: Vector2i = chasm["left"]
+	var right: Vector2i = chasm["right"]
+	var corner: Vector2 = info.cell_position(Vector2i(left.x, left.y - 2)) - Vector2(64.0, 64.0)
+	return Rect2(corner, Vector2(float(right.x - left.x + 1) * 128.0, 4.0 * 128.0))
 
 
 ## Wait for a gust to begin: through the stillness, to the moment it blows.
@@ -275,8 +282,8 @@ func _free(vane: Node) -> void:
 		info.set_switch(vane.get("switch_cell"), true)
 
 
-## The level's wind blowing `way`: in open air with no rock upwind, the wizard off the ground drifts
-## its way; in the lee of rock (rock just upwind on their row), not at all.
+## A gust blowing `way` across the whole level: in open air with no rock just upwind, it carries the
+## wizard off the ground its way as fast as over a gap; close by a wall on its side, not at all.
 func _drift(way: int) -> void:
 	var w: LevelGen = info.world
 	var open_at: Variant = null
@@ -286,13 +293,14 @@ func _drift(way: int) -> void:
 			var v: Vector2i = Vector2i(x, y)
 			if w.is_ground(v) or w.is_ground(v + Vector2i.DOWN):
 				continue
-			var upwind: bool = range(1, Wind.LEE + 1).any(func(k: int) -> bool: return w.is_ground(v - Vector2i(way * k, 0)))
+			var upwind: bool = info.sheltered(info.cell_position(v), way)
 			if upwind and lee_at == null:
 				lee_at = v
 			elif not upwind and open_at == null:
 				open_at = v
-	check(open_at != null and is_equal_approx(info.drift_at(info.cell_position(open_at)), float(way) * Wind.DRIFT), "in open air the wind drifts the wizard its way (%.0f px/s)" % Wind.DRIFT)
-	check(lee_at != null and info.drift_at(info.cell_position(lee_at)) == 0.0, "but not in the lee of rock")
+	var carry: float = Wind.carry_for(absi(info.level_wind()))
+	check(open_at != null and is_equal_approx(info.gust_at(info.cell_position(open_at)), float(way) * carry), "anywhere in open air the gust carries the wizard its way, as over a gap (%.0f px/s)" % carry)
+	check(lee_at != null and info.gust_at(info.cell_position(lee_at)) == 0.0, "but not close by a wall on the side it comes from")
 	if open_at != null:
 		player.global_position = info.cell_position(open_at)
 		player.velocity = Vector2.ZERO
@@ -302,20 +310,20 @@ func _drift(way: int) -> void:
 		await physics_frame
 		await physics_frame
 		player.set_physics_process(false)
-		check((player.global_position.x - from_x) * float(way) > 0.0, "and off the ground, they drift with it")
+		check((player.global_position.x - from_x) * float(way) > 0.0, "and off the ground, they are carried with it")
 
 
 ## From the floor a cell back from the chasm's near edge (the side `away` points from), head across:
-## walking, or (`leap`) with a jump at the edge and a dash. Whether the wizard ends on the floor of
-## the far side.
-func _cross(wind: Wind, away: float, leap: bool) -> bool:
-	# The floor's row: the third of the wind's rows.
-	var row: int = info.cell_at(wind.rect.position + Vector2(64.0, 2.5 * 128.0)).y
-	var near_x: float = wind.rect.position.x + 64.0 if away > 0.0 else wind.rect.end.x - 64.0
-	var far_x: float = wind.rect.end.x - 64.0 if away > 0.0 else wind.rect.position.x + 64.0
+## walking, or (`leap`) with a jump at the edge and a dash (or, not `dash_too`, a jump off the shore
+## at once, to go with a gust). Whether the wizard ends on the floor of the far side.
+func _cross(gap: Rect2, away: float, leap: bool, dash_too: bool = true) -> bool:
+	# The floor's row: the third of the gap's rows.
+	var row: int = info.cell_at(gap.position + Vector2(64.0, 2.5 * 128.0)).y
+	var near_x: float = gap.position.x + 64.0 if away > 0.0 else gap.end.x - 64.0
+	var far_x: float = gap.end.x - 64.0 if away > 0.0 else gap.position.x + 64.0
 	# Nothing in the way: enemies by the gap are cleared off first.
 	for n: Node in info.map_elements.get_children():
-		if n.has_node("Wound") and (n as Node2D).global_position.distance_to(wind.rect.get_center()) < wind.rect.size.x:
+		if n.has_node("Wound") and (n as Node2D).global_position.distance_to(gap.get_center()) < gap.size.x:
 			n.queue_free()
 	await physics_frame
 	player.global_position = Vector2(near_x - away * 128.0, info.cell_position(Vector2i(0, row)).y)
@@ -324,23 +332,31 @@ func _cross(wind: Wind, away: float, leap: bool) -> bool:
 	player.invulnerable.enable()
 	player.dash.refresh()
 	player.set_physics_process(true)
+	# Set down on the shore at once (in a gust, a fall from even a little over it is slow).
+	player.velocity = Vector2(0.0, 4000.0)
+	player.move_and_slide()
+	player.velocity = Vector2.ZERO
 	var key: StringName = &"Right" if away > 0.0 else &"Left"
 	Input.action_press(key)
 	var over: bool = false
 	var dashed: int = -1
 	for i: int in range(240):
 		await physics_frame
-		if leap and dashed < 0 and (player.global_position.x - near_x) * away > 0.0:
+		# A jump at the edge (with a dash after), or, jumping with a gust, straight off the shore.
+		if leap and dashed < 0 and ((player.global_position.x - near_x) * away > 0.0 or (not dash_too and i == 2)):
 			var jump: InputEventAction = InputEventAction.new()
 			jump.action = &"Jump"
 			jump.pressed = true
 			Input.parse_input_event(jump)
 			dashed = i + 10
-		if i == dashed:
+		if i == dashed and dash_too:
 			var dash: InputEventAction = InputEventAction.new()
 			dash.action = &"Dash"
 			dash.pressed = true
 			Input.parse_input_event(dash)
+		# Over the far shore, Down drops them out of a gust's bearing onto it.
+		if not dash_too and (player.global_position.x - far_x) * away > -64.0:
+			Input.action_press(&"Down")
 		if player.is_on_floor() and (player.global_position.x - far_x) * away > -64.0 and absf(player.global_position.y - info.cell_position(Vector2i(0, row)).y) < 140.0:
 			over = true
 			break
@@ -349,6 +365,7 @@ func _cross(wind: Wind, away: float, leap: bool) -> bool:
 	Input.action_release(key)
 	Input.action_release(&"Jump")
 	Input.action_release(&"Dash")
+	Input.action_release(&"Down")
 	player.set_physics_process(false)
 	return over
 

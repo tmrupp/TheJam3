@@ -2,10 +2,12 @@ class_name TempleArt
 extends RisoProp
 ## A sky temple (Temple), its stylobate and roof of built stone laid in the level
 ## (SkyArchetype.build_temples) and printed with the masonry, in marble (RisoTerrain); this dresses
-## it: its columns over its hall, its pediment over its roof, and its altar in the middle. The altar
-## is a pedestal of pale stone with the temple's sequence of winds on three plaques, an arrow on each
-## the way the wind must blow in that level, lit in sun while that level's vanes are set so and dark
-## while not; opened, a glow of sun hangs over it with a whale's shape in it. How the building is
+## it: its columns over its hall, its pediment over its roof, its lock and its altar. The lock is a
+## row of medallions across its roof's face, one for each step of its sequence, an arrow on each the
+## way that step's vane must point, lit in sun in turn as the steps are entered (Temple.progress),
+## dark while not, flashing pink as the sequence breaks; the altar in the middle of its hall, a
+## pedestal of pale stone, bears a ring with a pip lit for each; opened, the ring parts and a glow of
+## sun hangs over it with a whale's shape in it. How the building is
 ## dressed is one of STYLES (`style`):
 ## - marble: fluted columns with capitals and bases, a triangular pediment with a cornice and a sun
 ##   disc in its middle;
@@ -48,6 +50,7 @@ func _draw_art() -> void:
 	var building: Dictionary = _building()
 	if not building.is_empty():
 		_dress(building)
+		_frieze(building)
 	_altar()
 
 
@@ -191,7 +194,41 @@ func _growth(box: Rect2i, roof_y: float, top_y: float, foot_y: float, left: floa
 	ink.ink(RisoPrint.NIGHT, 0.5, leaves, false)
 
 
-## The altar: a pedestal with the three plaques of its winds, and, opened, a glow with a whale in it.
+## Its lock, where it is seen from afar: a medallion for each step of its sequence across its roof's
+## face, as many as fit, an arrow on each the way that step's vane must point. One lit (temple.progress) is a sun
+## disc glowing, its arrow knocked to paper; one not yet lit is dark, its arrow faint. As the
+## sequence breaks (temple.since_broken) the medallions flash pink and go dark.
+func _frieze(building: Dictionary) -> void:
+	var box: Rect2i = building["box"]
+	@warning_ignore("integer_division")
+	var roof: Vector2 = _at(Vector2i((box.position.x + box.end.x - 1) / 2, box.position.y))
+	var lit: int = temple.progress()
+	var broke: float = clampf(1.0 - temple.since_broken / 0.6, 0.0, 1.0)
+	var shake: float = sin(temple.since_refused * 40.0) * 4.0 * exp(-temple.since_refused * 6.0)
+	var n: int = temple.sequence.size()
+	var span: float = float(box.size.x) * half * 2.0 - 60.0
+	var gap: float = minf(92.0, span / float(maxi(1, n)))
+	var r: float = gap * 0.38
+	for i: int in range(n):
+		var c: Vector2 = Vector2(roof.x + (float(i) - float(n - 1) * 0.5) * gap + shake, roof.y)
+		var disc: PackedVector2Array = RisoShapes.circle(c, r, 24)
+		var arrow: Transform2D = Transform2D(0.0, Vector2(float(temple.sequence[i]) * r / 21.0, r / 21.0), 0.0, c)
+		var shape: Array[PackedVector2Array] = [arrow * RisoShapes.rrect(-9.0, -2.5, 11.0, 5.0, 1.5), arrow * RisoShapes.tri(Vector2(1.0, -7.5), Vector2(11.0, 0.0), Vector2(1.0, 7.5))]
+		ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], [disc])
+		if i < lit:
+			var pulse: float = 0.5 + 0.5 * sin(t * 2.4 + float(i))
+			ink.ink(RisoPrint.ACCENT, 0.22 + 0.1 * pulse, [RisoShapes.circle(c, r * 1.5, 24)], false)
+			ink.ink(RisoPrint.ACCENT, 1.0, [disc])
+			ink.knock([RisoPrint.ACCENT], shape)
+		else:
+			ink.ink(RisoPrint.NIGHT, 0.75, [disc])
+			ink.lift_ink([RisoPrint.NIGHT], 0.45, shape)
+			if broke > 0.0:
+				ink.ink(RisoPrint.PINK, 0.85 * broke, [disc], false)
+
+
+## The altar: a pedestal with the lock on its face, a ring with a pip for each wind of the sequence
+## lit in sun as it is; opened, the ring stands open and a glow with a whale's shape hangs over it.
 func _altar() -> void:
 	var g: float = _ground()
 	var pedestal: Array[PackedVector2Array] = [RisoShapes.rrect(-56.0, g - 118.0, 112.0, 16.0, 5.0), RisoShapes.rrect(-40.0, g - 104.0, 80.0, 90.0, 4.0), RisoShapes.rrect(-60.0, g - 16.0, 120.0, 16.0, 5.0)]
@@ -199,23 +236,40 @@ func _altar() -> void:
 	ink.ink(RisoPrint.BLUE, 1.0, pedestal)
 	ink.ink(RisoPrint.NIGHT, 0.2, [RisoShapes.rrect(14.0, g - 104.0, 26.0, 90.0, 4.0)], false)
 	var open: bool = temple.opened()
-	var shake: float = sin(temple.since_refused * 40.0) * 3.0 * exp(-temple.since_refused * 6.0)
-	for i: int in range(temple.winds.size()):
-		var at: Vector2 = Vector2((float(i) - 1.0) * 26.0 + shake, g - 70.0)
-		var plaque: PackedVector2Array = RisoShapes.rrect(at.x - 11.0, at.y - 9.0, 22.0, 18.0, 4.0)
-		ink.ink(RisoPrint.NIGHT, 0.6, [plaque], false)
-		var arrow: Transform2D = Transform2D(0.0, Vector2(float(temple.winds[i]), 1.0), 0.0, at)
-		var shape: Array[PackedVector2Array] = [arrow * RisoShapes.rrect(-7.0, -2.0, 9.0, 4.0, 1.0), arrow * RisoShapes.tri(Vector2(1.0, -6.0), Vector2(9.0, 0.0), Vector2(1.0, 6.0))]
-		if open or temple.lit(i):
-			ink.knock([RisoPrint.NIGHT], shape)
-			ink.ink(RisoPrint.ACCENT, 1.0, shape)
+	var lit: int = temple.progress()
+	var n: int = temple.sequence.size()
+	var broke: float = clampf(1.0 - temple.since_broken / 0.6, 0.0, 1.0)
+	var c: Vector2 = Vector2(0.0, g - 62.0)
+	# The ring: shut, a dark ring with its keyway; open, parted at the top.
+	var ring: Array[PackedVector2Array] = []
+	var gap: float = 0.9 if open else 0.0
+	for k: int in range(20):
+		var a0: float = -PI * 0.5 + gap * 0.5 + (TAU - gap) * float(k) / 20.0
+		var a1: float = -PI * 0.5 + gap * 0.5 + (TAU - gap) * float(k + 1) / 20.0
+		ring.append(PackedVector2Array([c + Vector2.from_angle(a0) * 22.0, c + Vector2.from_angle(a1) * 22.0, c + Vector2.from_angle(a1) * 15.0, c + Vector2.from_angle(a0) * 15.0]))
+	ink.ink(RisoPrint.NIGHT, 0.75, ring, false)
+	if not open:
+		ink.ink(RisoPrint.NIGHT, 0.8, [RisoShapes.circle(c + Vector2(0.0, -3.0), 4.0, 10), RisoShapes.tri(c + Vector2(-3.0, 0.0), c + Vector2(3.0, 0.0), c + Vector2(0.0, 9.0))], false)
+	var pips: Array[PackedVector2Array] = []
+	var dark: Array[PackedVector2Array] = []
+	for i: int in range(n):
+		# Over the ring, from the left.
+		var a: float = -PI * 0.5 + (float(i) - float(n - 1) * 0.5) * (2.6 / float(maxi(1, n - 1)))
+		var pip: PackedVector2Array = RisoShapes.circle(c + Vector2.from_angle(a) * 32.0, 4.0, 10)
+		if i < lit:
+			pips.append(pip)
 		else:
-			ink.lift_ink([RisoPrint.NIGHT], 0.4, shape)
+			dark.append(pip)
+	ink.knock([RisoPrint.NIGHT], pips)
+	ink.ink(RisoPrint.ACCENT, 1.0, pips)
+	ink.ink(RisoPrint.NIGHT, 0.6, dark, false)
+	if broke > 0.0:
+		ink.ink(RisoPrint.PINK, 0.85 * broke, dark, false)
 	if open:
 		var glow: float = clampf(temple.since_open / 0.8, 0.0, 1.0) if temple.since_open >= 0.0 else 1.0
-		var c: Vector2 = Vector2(0.0, g - 170.0 + sin(t * 1.4) * 5.0)
-		ink.ink(RisoPrint.ACCENT, 0.35 * glow, [RisoShapes.circle(c, 44.0, 28)])
-		ink.ink(RisoPrint.NIGHT, 0.8 * glow, [RisoShapes.ellipse(c, 22.0, 10.0, 16), RisoShapes.tri(c + Vector2(18.0, 0.0), c + Vector2(32.0, -10.0), c + Vector2(32.0, 10.0))], false)
+		var w: Vector2 = Vector2(0.0, g - 170.0 + sin(t * 1.4) * 5.0)
+		ink.ink(RisoPrint.ACCENT, 0.35 * glow, [RisoShapes.circle(w, 44.0, 28)])
+		ink.ink(RisoPrint.NIGHT, 0.8 * glow, [RisoShapes.ellipse(w, 22.0, 10.0, 16), RisoShapes.tri(w + Vector2(18.0, 0.0), w + Vector2(32.0, -10.0), w + Vector2(32.0, 10.0))], false)
 
 
 ## It dresses its whole building: in view if any of that is.

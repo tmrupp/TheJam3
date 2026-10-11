@@ -55,7 +55,8 @@ static func hop_up(def: NextWorldDef) -> int:
 
 
 ## Where the wizard can stand in `w` with its gates open: Reach's footholds, the planks over each
-## chasm, and the air a wind carries the wizard through (a gap's crosswind, an updraft).
+## chasm, the air a wind carries the wizard through (an updraft), and the first cell of each sky gap
+## a gust carries them over (all but those left to relics).
 static func footholds(w: LevelGen) -> Dictionary:
 	var nodes: Dictionary = Reach.footholds(w)
 	for v: Vector2i in w.objects:
@@ -64,6 +65,10 @@ static func footholds(w: LevelGen) -> Dictionary:
 			nodes[v + Vector2i.UP] = false
 		elif cell.type == LevelGen.Type.WIND:
 			nodes[v] = false
+	for id: int in range(w.chasms.size()):
+		var first: Vector2i = (w.chasms[id]["planks"] as Array)[0]
+		if w.get_cell(first).type != LevelGen.Type.BRIDGE and not w.relic_chasms.has(id):
+			nodes[first] = false
 	return nodes
 
 

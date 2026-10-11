@@ -627,12 +627,16 @@ func _physics_process(delta: float) -> void:
 			# Separate moves preserve sideways carry when vertical steering meets a floor or ceiling.
 			# Steering is displacement too: releasing the stick leaves no vertical drift behind.
 			move_and_collide(Vector2(0.0, direction.y * Wind.STEER_SPEED * delta))
-	elif push.y == 0.0 and not is_on_floor() and MapInfo.instance != null:
-		# Off the ground in a sky level's open air (not in an updraft, which holds them), the level's
-		# wind drifts the wizard (MapInfo.drift_at).
-		var drift: float = MapInfo.instance.drift_at(global_position)
-		if drift != 0.0:
-			move_and_collide(Vector2(drift * delta, 0.0))
+	elif push.y == 0.0 and MapInfo.instance != null and not dash.is_acting():
+		# A gust in a sky level carries the wizard anywhere in its open air (not in an updraft, which
+		# holds them), less while they stand, not where rock shelters them (MapInfo.gust_at).
+		var gust: float = MapInfo.instance.gust_at(global_position)
+		if gust != 0.0:
+			# Off the ground, it bears the wizard up as it carries them: they sink slowly, unless they
+			# hold Down to drop out of it.
+			if not is_on_floor() and velocity.y > Wind.GUST_SINK and not (manual_control and direction.y > 0.0):
+				velocity.y = Wind.GUST_SINK
+			move_and_collide(Vector2(gust * (Wind.GROUND_SHARE if is_on_floor() else 1.0) * delta, 0.0))
 
 	# this uses veolcity and calculates collisions for next frame
 	move_and_slide()
