@@ -63,20 +63,15 @@ func run() -> void:
 		player.set_physics_process(true)
 		var blocked: bool = await _dash(direction)
 		player.set_physics_process(false)
-		check(head.wound.hp == Worm.SEGMENT_HP - 1 and blocked, "a solid edge blocks the dash but takes exactly one hit, heading %s (hp %d, blocked %s)" % [direction, head.wound.hp, blocked])
+		check(head.wound.hp == Worm.SEGMENT_HP and blocked, "a solid edge blocks the dash, which does not cut it, heading %s (hp %d, blocked %s)" % [direction, head.wound.hp, blocked])
 		check(not head.stunned() and player.health.health == 99, "the dash neither stuns the worm nor hurts the wizard")
 		await frames(20)
-	# A blink's virtual path also uses the body, without striking a nearby segment it misses.
+	# Nor does a blink's path across the head.
 	head.global_position = test_at
 	head.wound.hp = Worm.SEGMENT_HP
-	strike.struck.clear()
-	var miss_height: float = head.radius + player.collider.shape.get_rect().size.y * player.collider.global_scale.y * 0.5 + 5.0
-	strike.sweep(test_at + Vector2(-200, -miss_height), test_at + Vector2(200, -miss_height))
-	check(head.wound.hp == Worm.SEGMENT_HP, "a path that misses the solid head does not wound it")
 	strike.sweep(test_at + Vector2(-200, 0), test_at + Vector2(200, 0))
-	check(head.wound.hp == Worm.SEGMENT_HP - 1, "a blink across the head still cuts it")
+	check(head.wound.hp == Worm.SEGMENT_HP, "a blink across the head does not cut it either")
 	player.dash.end()
-	strike.guard_left = 0.0
 	player.end_invulnerable()
 	p.recovery = 0.0
 	head.recovering = false
@@ -87,7 +82,7 @@ func run() -> void:
 	await frames(2)
 	check(head.bite.collision.disabled and head.live, "its resting head is harmless but stays solid and attackable")
 	var resting_hp: int = head.wound.hp
-	strike.strike(head, Vector2.RIGHT)
+	SpellStrike.strike(head, Vector2.RIGHT, 1, 0.0)
 	check(head.wound.hp == resting_hp - 1, "the resting head takes a strike, without a stun's double damage")
 	was_u = p.u
 	var was_clock: float = p.clock

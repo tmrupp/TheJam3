@@ -53,8 +53,6 @@ func cast() -> Portal:
 	var rift: Portal = _cast_link(info, at) if level >= 3 else _cast_pair(info, at)
 	info.save_run()
 	RisoFx.burst(&"gain", rift.global_position, Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
-	if RisoPrint.instance != null:
-		RisoPrint.instance.flare(&"rift")
 	return rift
 
 

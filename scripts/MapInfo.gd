@@ -646,32 +646,13 @@ func light_lantern (lantern: Node) -> bool:
 	_set_respawn(coord, lantern.get_meta(&"cell"))
 	run.vulnerable = false
 	_refresh_lanterns()
+	# A lantern refills the hex's charges and mend's draughts.
 	if player != null and player.has_node("Hex"):
 		(player.get_node("Hex") as Hex).refill()
+	if player != null and player.has_node("Mend"):
+		(player.get_node("Mend") as Mend).refill()
 	if was_vulnerable:
 		RisoFx.burst(&"gain", (lantern as Node2D).global_position, Vector2.ZERO, [RisoPrint.EYE, RisoPrint.GLOW])
-	save_run()
-	return true
-
-## Whether the lit lantern `lantern` can be burned into the mend spell (see burn_lantern).
-func can_burn (lantern: Node) -> bool:
-	if travelling or run_ending > 0.0 or player == null or not is_respawn_lantern(lantern):
-		return false
-	var mend: Mend = player.get_node_or_null("Mend") as Mend
-	return mend != null and mend.draughts() < mend.draughts_max()
-
-## Burn the lit lantern into the mend spell: its draughts fill up, but the lantern is spent and no
-## longer protects the wizard (light another to be protected again).
-func burn_lantern (lantern: Node) -> bool:
-	if not can_burn(lantern):
-		return false
-	run.spend_lantern(coord, lantern.get_meta(&"cell"))
-	run.vulnerable = true
-	(player.get_node("Mend") as Mend).refill()
-	_refresh_lanterns()
-	RisoFx.burst(&"gain", (lantern as Node2D).global_position, Vector2.ZERO, [RisoPrint.EYE, RisoPrint.PINK])
-	if RisoPrint.instance != null:
-		RisoPrint.instance.flare(&"mend")
 	save_run()
 	return true
 

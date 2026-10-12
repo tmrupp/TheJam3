@@ -1,6 +1,6 @@
 extends TestKit
-## What the HUD's plaques showed now lives in the game: sitting to count the stars carried and see
-## the place, and the ghost's pointer at the edge of the view. Places print as marks and numbers,
+## What the HUD's plaques showed now lives in the game: sitting to count the stars carried, see the
+## utility spell held (and mend's draughts left) and the place, and the ghost's pointer at the edge of the view. Places print as marks and numbers,
 ## never words. The signpost (not placed in levels for now, kept for later) is checked on its own.
 ## godot --headless --path . --script res://tests/hud_in_world_test.gd
 
@@ -48,6 +48,9 @@ func run() -> void:
 	print("sitting")
 	var wizard: RisoWizard = player.get_node("RisoWizard") as RisoWizard
 	var standing_head: float = wizard.costume.head_y
+	Abilities.grant(player, &"mend")
+	Abilities.grant(player, &"mend")
+	player.mend_draughts = 1
 	Input.action_press(&"Down")
 	check(await until(func() -> bool: return player.is_sitting()), "holding Down while standing still sits")
 	check(await until(func() -> bool: return wizard.costume.seated() >= 1.0), "the Fool settles down")
@@ -58,11 +61,13 @@ func run() -> void:
 	check(hud.coin_label.text == str(player.coins.coins), "sitting shows the stars carried")
 	var here: Vector3i = Rules.place_numbers(info.coord)
 	check(hud.world_label.text == str(here.x) and hud.depth_label.text == str(here.y), "and the place, as its world's and depth's numbers")
+	check(hud.shown_utility == &"mend" and hud.shown_draughts == 1, "and the utility spell held, with mend's draughts left")
 	check(wizard.costume.head_y - standing_head > RisoCostume.SIT_DROP * 0.7, "the head sits down with the body")
 	Input.action_release(&"Down")
 	check(await until(func() -> bool: return not player.is_sitting() and wizard.costume.seated() < 0.5), "letting go gets up")
 	await process_frame
-	check(not hud.coin_label.visible, "and the stars are put away")
+	check(not hud.coin_label.visible and hud.shown_utility == &"", "and the stars are put away")
+	Abilities.set_tier(player, &"mend", 0)
 	Input.action_press(&"Down")
 	Input.action_press(&"Right")
 	await create_timer(Player.SIT_DELAY * 2.0).timeout

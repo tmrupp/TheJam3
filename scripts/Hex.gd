@@ -73,7 +73,4 @@ func cast(dir: Vector2 = Vector2.ZERO) -> Node2D:
 	var level: Node = MapInfo.instance.map_elements if MapInfo.instance != null and is_instance_valid(MapInfo.instance.map_elements) else player.get_parent()
 	level.add_child(bolt)
 	bolt.global_position = player.global_position + Vector2(0, -44)
-	player.visual_event.emit(&"hex", bolt.global_position)
-	if RisoPrint.instance != null:
-		RisoPrint.instance.flare(&"hex")
 	return bolt

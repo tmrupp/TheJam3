@@ -65,7 +65,7 @@ func capture() -> void:
 	Abilities.set_tier(player, &"warp", 1)
 	player.collect(20)
 	var shots: Array[Image] = []
-	Abilities.cast(player)
+	Abilities.cast(player, &"move")
 	for i: int in range(40):
 		await process_frame
 		if i == 6 or i == 12 or i == 17:

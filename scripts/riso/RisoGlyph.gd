@@ -40,9 +40,20 @@ static func of(a: StringName, c: Vector2, t: float) -> Array[PackedVector2Array]
 			# A ring it leaves by, a dotted way across, and the ring it comes out of.
 			return [RisoShapes.circle(c + Vector2(-17, 8), 8.0, 16), RisoShapes.circle(c + Vector2(-5, -1), 2.6, 8), RisoShapes.circle(c + Vector2(4, -6), 2.6, 8),
 				RisoShapes.circle(c + Vector2(16, -6), 11.0, 20)]
-		&"strike":
-			# The dash's chevron driving into a burst.
-			return [RisoMarks.chevron(c + Vector2(-10, 0), Vector2.RIGHT, 0.8), RisoShapes.sparkle(c + Vector2(14, 0), 15.0)]
+		&"slash":
+			# A crescent blade sweeping round, a spark at its tip.
+			return [RisoShapes.crescent(c + Vector2(-4, 2), 20.0, Vector2(-8, 6)), RisoShapes.sparkle(c + Vector2(14, -14), 8.0)]
+		&"nova":
+			# A bead in a ring of rays bursting out.
+			var burst: Array[PackedVector2Array] = [RisoShapes.circle(c, 7.0, 14)]
+			for i: int in range(8):
+				var d: Vector2 = Vector2.from_angle(TAU * float(i) / 8.0)
+				burst.append(RisoShapes.almond(c + d * 17.0, 2.6, 6.0, 8) if i % 2 == 0 else RisoShapes.circle(c + d * 16.0, 2.4, 8))
+			return burst
+		&"push":
+			# Three gusts blowing out from a bead, the middle one longest.
+			return [RisoShapes.circle(c + Vector2(-16, 0), 6.0, 12), RisoShapes.rrect(c.x - 6, c.y - 12, 22, 5, 2.5),
+				RisoShapes.rrect(c.x - 6, c.y - 2.5, 30, 5, 2.5), RisoShapes.rrect(c.x - 6, c.y + 7, 22, 5, 2.5)]
 		&"hex":
 			# A comet: a bold spark with a tapering tail behind it.
 			return [RisoShapes.sparkle(c + Vector2(7, -5), 17.0), PackedVector2Array([c + Vector2(4, -12), c + Vector2(-22, 14), c + Vector2(-2, 0)])]

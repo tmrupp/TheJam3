@@ -11,11 +11,13 @@ const KICK_TIME: float = 0.2
 const KICK: float = 10.0
 ## How far its string winds back when fully drawn (pixels).
 const WIND: float = 26.0
-## How deep the niche goes into the wall, and how high it is (pixels).
-const NICHE_DEEP: float = 50.0
-const NICHE_HIGH: float = 76.0
+## How deep the niche goes into the wall, and how high it is, and how high the bore through to the
+## outer face is (pixels): an arrow slit's, as the decor cuts an empty one (RisoDecor.SLIT_NICHE).
+const NICHE_DEEP: float = RisoDecor.SLIT_NICHE.x
+const NICHE_HIGH: float = RisoDecor.SLIT_NICHE.y
+const BORE: float = RisoDecor.SLIT_BORE
 ## How big the crossbow and its niche are drawn, against the measures here, so it fills its block.
-const SIZE: float = 1.4
+const SIZE: float = RisoDecor.SLIT_SIZE
 
 
 ## The Crossbow it dresses.
@@ -41,7 +43,7 @@ func _draw_art() -> void:
 	var xs: Transform2D = xf * Transform2D(0.0, Vector2(k, k), 0.0, Vector2(inner * (1.0 - k), 0.0))
 	# The niche in the wall's inner face, and the bore from it through to the outer face.
 	ink.ink(RisoPrint.NIGHT, 0.85, [xs * RisoShapes.rrect(inner, -NICHE_HIGH * 0.5, NICHE_DEEP, NICHE_HIGH, 6.0)], false)
-	var bore: Array[PackedVector2Array] = [xf * RisoShapes.rrect(inner + (NICHE_DEEP - 4.0) * k, -6.0 * k, outer - inner - (NICHE_DEEP - 4.0) * k, 12.0 * k, 3.0)]
+	var bore: Array[PackedVector2Array] = [xf * RisoShapes.rrect(inner + (NICHE_DEEP - 4.0) * k, -BORE * 0.5 * k, outer - inner - (NICHE_DEEP - 4.0) * k, BORE * k, 3.0)]
 	ink.ink(RisoPrint.NIGHT, 0.9, bore, false)
 	if bow.sees:
 		ink.ink(RisoPrint.PINK, 0.25 + 0.7 * bow.drawn, bore)

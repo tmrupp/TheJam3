@@ -151,12 +151,9 @@ func run() -> void:
 		check(back_in, "a parried seed flies back into its bulb and wounds it")
 	player.global_position = Vector2(-9000, -9000)
 	var other: BrambleBulb = bramble.bulbs[1]
-	var dash: DashStrike = player.get_node("DashStrike") as DashStrike
-	dash.damage = 0
-	dash.struck.clear()
 	var hp: int = other.wound.hp
-	dash.sweep(other.global_position + other.way * 120.0, other.global_position - other.way * 10.0)
-	check(other.wound.hp == hp - 1 and not other.stunner.stunned(), "a dash that only stuns wounds it, and it is never stunned")
+	_slash(other.global_position + other.way * 80.0, -other.way)
+	check(other.wound.hp == hp - 1 and not other.stunner.stunned(), "a slash wounds it, and it is never stunned")
 	var bolt: HexBolt = HexBolt.new()
 	bolt.damage = 0
 	info.map_elements.add_child(bolt)
@@ -215,3 +212,14 @@ func _exit(which: int) -> LevelExit:
 		if (n as LevelExit).exit == which:
 			return n as LevelExit
 	return null
+
+
+## A slash (Slash, tier I) from `from` heading `dir`, the wizard there just for it; then parry back
+## in the damage slot, and the wizard back where they were.
+func _slash(from: Vector2, dir: Vector2) -> void:
+	var was: Vector2 = player.global_position
+	Abilities.set_tier(player, &"slash", 1)
+	player.global_position = from - (SpellStrike.origin(player) - player.global_position)
+	(player.get_node("Slash") as Slash).cast(dir)
+	Abilities.set_tier(player, &"parry", 1)
+	player.global_position = was

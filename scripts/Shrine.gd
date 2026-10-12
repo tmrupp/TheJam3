@@ -46,7 +46,7 @@ func offer_tier(i: int = 0) -> int:
 	return Abilities.tier(player, offer(i)) + 1
 
 
-## Learning niche `i` would replace the spell in the slot.
+## Learning niche `i` would replace what is in its slot.
 func swap(i: int = 0) -> bool:
 	return Abilities.is_swap(player, offer(i))
 
@@ -70,8 +70,8 @@ func buy_boon(i: int = 0) -> void:
 	var a: StringName = offer(i)
 	if a == &"":
 		return
-	# A spell that replaces the one in the slot leaves the old one here, at its tier.
-	var dropped: StringName = Abilities.spell(player) if swap(i) else &""
+	# Something that replaces what is in its slot leaves the old one here, at its tier.
+	var dropped: StringName = Abilities.spell(player, Abilities.slot_of(a)) if swap(i) else &""
 	var dropped_tier: int = Abilities.tier(player, dropped) if dropped != &"" else 0
 	if not _pay(offer_price(i)):
 		return
@@ -79,8 +79,6 @@ func buy_boon(i: int = 0) -> void:
 	if dropped != &"":
 		map_info.record().left_spell = [dropped, dropped_tier, i]
 	_spend(get_node("Boon" if i == 0 else "Boon2") as Node2D, [RisoPrint.ACCENT, RisoPrint.PINK])
-	if RisoPrint.instance != null:
-		RisoPrint.instance.flare({&"wall_climb": &"climb"}.get(a, a))
 
 
 ## The spell left in niche `i` by a swap, as [spell, tier], or an empty array.
@@ -95,7 +93,7 @@ func take_back(i: int) -> void:
 	var left: Array = left_spell(i)
 	if left.is_empty():
 		return
-	var held: StringName = Abilities.spell(player)
+	var held: StringName = Abilities.spell(player, Abilities.slot_of(left[0]))
 	var held_tier: int = Abilities.tier(player, held) if held != &"" else 0
 	Abilities.set_tier(player, left[0], left[1])
 	if held != &"":
@@ -104,8 +102,6 @@ func take_back(i: int) -> void:
 		map_info.record().left_spell = []
 	map_info.save_run()
 	RisoFx.burst(&"gain", (get_node("Boon" if i == 0 else "Boon2") as Node2D).global_position + Vector2(0, -40), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.PINK])
-	if RisoPrint.instance != null:
-		RisoPrint.instance.flare(left[0])
 
 
 ## At full health (nothing to mend), the mending station sells the whereabouts of the nearest relic

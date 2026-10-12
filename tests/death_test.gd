@@ -60,7 +60,7 @@ func run() -> void:
 	check(player.health.health == 1, "save/reload keeps the respawn at one heart")
 	Abilities.grant(player, &"mend")
 	var mend: Mend = player.get_node("Mend") as Mend
-	check(mend.cast() and player.health.health == 2 and info.run.has_ghost, "Mend can heal a respawn heart before corpse retrieval")
+	check(mend.cast() and player.health.health == player.health.max_health and info.run.has_ghost, "Mend heals a respawn to full before corpse retrieval")
 	Abilities.set_tier(player, &"mend", 0)
 
 	print("fresh stars")

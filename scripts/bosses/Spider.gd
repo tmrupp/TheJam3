@@ -50,9 +50,8 @@ const BODY_BACK: float = 25.0 * ART
 const BODY_FRONT: float = 25.0 * ART
 const THREAD_TOP: float = 60.0 * ART
 const BITE_R: float = 29.0 * ART
-## How near (px) past its body a bolt and a dash strike it.
+## How near (px) past its body a bolt strikes it.
 const BOLT_REACH: float = 12.0
-const DASH_REACH: float = 28.0
 ## Where its middle sits (px): under the roof on the canopy (hanging by its abdomen's tip), over a
 ## floor it stands on, and lying on its back on one.
 const HANG: float = THREAD_TOP + 4.0

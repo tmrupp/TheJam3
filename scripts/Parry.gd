@@ -65,8 +65,6 @@ var caught_at: Vector2 = Vector2.ZERO
 var parried_real: float = -INF
 ## The time the art reads these against.
 var clock: float = 0.0
-## How long a catch's burst shows, in seconds.
-const CATCH_SHOW: float = 0.35
 
 func stop_parry () -> void:
 	if guarding and clock - parried_at > 0.01:

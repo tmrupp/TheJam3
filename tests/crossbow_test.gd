@@ -8,10 +8,9 @@ extends TestKit
 ## arrows dead straight at the wizard outside in front of its slit (not at one well above it, nor
 ## at the wizard in the room behind it), the first after its draw and the next only once it has
 ## reloaded; an arrow wounds an enemy in its way; a
-## hex bolt or a dash from outside stops at the wall and leaves it whole; from the room, a dash and
-## bolts that only stun (no strike perk, hex I) wound it, and it breaks, the level record keeps it
-## broken, and the wall stays whole. A nest is wounded by a dash and bolts that only stun too, and
-## destroyed.
+## hex bolt or a slash from outside stops at the wall and leaves it whole; from the room, a slash
+## and bolts that only stun (hex I) wound it, and it breaks, the level record keeps it broken, and
+## the wall stays whole. A nest is wounded by a slash and bolts that only stun too, and destroyed.
 ## godot --headless --path . --script res://tests/crossbow_test.gd
 
 
@@ -179,12 +178,13 @@ func shooting(cell: float) -> void:
 	await frames(2)
 	check(not bow.sees, "nor at one well above its slit")
 	player.global_position = outside
-	# A bolt or a dash from outside stops at the wall: it stays whole.
+	# A bolt or a slash from outside stops at the wall: it stays whole. (The slash, at II, would
+	# reach it but for the stone, from just outside the wall's face.)
 	var hp: int = wound.hp
 	_bolt(outside, Vector2(-f, 0.0), 2)
 	await frames(40)
-	_dash(outside, room + Vector2(f * cell * 1.6, 0.0))
-	check(is_instance_valid(bow) and wound.hp == hp, "a bolt or a dash from outside stops at the wall")
+	_slash(bow.muzzle(), Vector2(-f, 0.0), 2)
+	check(is_instance_valid(bow) and wound.hp == hp, "a bolt or a slash from outside stops at the wall")
 	# In the room behind it: it does not shoot.
 	var inside: Vector2 = room - Vector2(f * cell * 0.3, 0.0)
 	player.global_position = inside
@@ -193,11 +193,11 @@ func shooting(cell: float) -> void:
 	await frames(5)
 	await within(func() -> bool: return false, Crossbow.DRAW + 1.0)
 	check(_arrows().is_empty() and not bow.sees, "nor at the wizard in the room behind it")
-	# From the room, a dash and bolts that only stun break it, and it stays broken.
+	# From the room, a slash and bolts that only stun break it, and it stays broken.
 	var at: Vector2i = bow.get_meta(&"cell")
 	var wall: Vector2 = room + Vector2(f * cell, 0.0)
-	_dash(room - Vector2(f * cell * 0.5, 0.0), room + Vector2(f * cell * 0.4, 0.0))
-	check(not is_instance_valid(bow) or wound.hp == hp - 1, "a dash at it from the room, without the strike perk, wounds it")
+	_slash(room, Vector2(f, 0.0), 1)
+	check(not is_instance_valid(bow) or wound.hp == hp - 1, "a slash at it from the room wounds it")
 	for i: int in range(hp):
 		if not is_instance_valid(bow):
 			break
@@ -228,8 +228,8 @@ func nest(cell: float) -> void:
 	info.loader.wake_around(from)
 	_clear_round(host, cell)
 	await frames(2)
-	_dash(from, host.global_position - Vector2(side * cell * 0.9, 0.0))
-	check(not is_instance_valid(host) or wound.hp == hp - 1, "a dash through it, without the strike perk, wounds it")
+	_slash(host.global_position + Vector2(side * cell * 0.6, 0.0), Vector2(-side, 0.0), 1)
+	check(not is_instance_valid(host) or wound.hp == hp - 1, "a slash at it wounds it")
 	for i: int in range(hp):
 		if not is_instance_valid(host):
 			break
@@ -268,9 +268,12 @@ func _bolt(from: Vector2, dir: Vector2, damage: int) -> void:
 	bolt.global_position = from
 
 
-## A dash's strike swept from `from` to `to`, without the strike perk (it only stuns).
-func _dash(from: Vector2, to: Vector2) -> void:
-	var dash: DashStrike = player.get_node("DashStrike") as DashStrike
-	dash.damage = 0
-	dash.struck.clear()
-	dash.sweep(from, to)
+## A slash (Slash, at `tier`) from `from` heading `dir`, the wizard there just for it; then parry
+## back in the damage slot, and the wizard back where they were.
+func _slash(from: Vector2, dir: Vector2, tier: int) -> void:
+	var was: Vector2 = player.global_position
+	Abilities.set_tier(player, &"slash", tier)
+	player.global_position = from - (SpellStrike.origin(player) - player.global_position)
+	(player.get_node("Slash") as Slash).cast(dir)
+	Abilities.set_tier(player, &"parry", 1)
+	player.global_position = was

@@ -60,8 +60,6 @@ func cast_spell() -> bool:
 	rafts.append(raft)
 	player.velocity.y = minf(player.velocity.y, 0.0)
 	wait = COOLDOWN
-	if RisoPrint.instance != null:
-		RisoPrint.instance.flare(&"ferry")
 	return true
 
 

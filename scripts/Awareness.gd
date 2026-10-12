@@ -27,8 +27,7 @@ func set_tier(n: int) -> void:
 
 ## The Spell button, with awareness in the slot: sense the level.
 func cast_spell() -> bool:
-	ping()
-	return true
+	return ping()
 
 
 ## Ready unless in the short cooldown after sensing: 0..1 as it runs out (the spell orb shows it).
@@ -50,14 +49,13 @@ func sense_time() -> float:
 	return SENSE_TIME + SENSE_PER_TIER * float(level - 1)
 
 
-func ping() -> void:
+## Sense the level, unless cooling down. Returns whether it did.
+func ping() -> bool:
 	if cooldown > 0.0:
-		return
+		return false
 	sensing = sense_time()
 	cooldown = sensing + COOLDOWN
-	player.visual_event.emit(&"awareness", player.global_position)
-	if RisoPrint.instance != null:
-		RisoPrint.instance.flare(&"awareness")
+	return true
 
 
 func active() -> bool:

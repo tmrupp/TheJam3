@@ -60,7 +60,8 @@ const REALMS: Dictionary = {
 const REALM_ORDER: Array[StringName] = [&"deep", &"twilight", &"aurora"]
 ## The robe while the wizard is drowsy in sleep fog (SleepFog).
 const DROWSY_ROBE: Color = Color("#8d8f96")
-## Hat-tip glow ink per ability (real Riso ink colours).
+## Glow ink per movement ability (real Riso ink colours): the movement slot's prints the Fool's
+## feather and the dash's afterimages.
 const GLOWS: Dictionary = {
 	&"dash": Color("#ff48b0"),
 	&"blink": Color("#9d7ad2"),
@@ -70,14 +71,19 @@ const GLOWS: Dictionary = {
 	&"double_jump": Color("#ff6c2f"),
 	&"hex": Color("#e8335a"),
 	&"levitate": Color("#7fd6c2"),
+	&"rift": Color("#c56fdc"),
+	&"warp": Color("#ff7a59"),
+	&"ferry": Color("#00a95c"),
 	&"awareness": Color("#f2c14e"),
 	&"keyring": Color("#ffb511"),
-	&"strike": Color("#ff48b0"),
 }
 ## Robe ink per spell in the slot (real Riso ink colours); no spell is the old federal blue.
 const ROBES: Dictionary = {
 	&"": Color("#3d5588"),
 	&"hex": Color("#914e72"),
+	&"slash": Color("#d5303b"),
+	&"nova": Color("#f2a33a"),
+	&"push": Color("#3f7fb5"),
 	&"astral": Color("#00838a"),
 	&"parry": Color("#bb8b41"),
 	&"levitate": Color("#67b346"),
@@ -140,17 +146,8 @@ var zoom_factor: float = 0.72
 var _camera: Camera2D
 var _base_zoom: Vector2 = Vector2.ZERO
 var glow_ability: StringName = &"dash"
-## Robe in the spell's ink (ROBES), or always in the realm's blue.
-var robe_by_spell: bool = true
+## The robe plate's ink: the damage spell's (ROBES), easing to it as it changes.
 var robe_color: Color = Color(-1, -1, -1)
-## The printed player appearances offered in the Look section of F7.
-const CHARACTER_STYLES: Array[StringName] = [&"wizard", &"cosmonaut", &"shaman", &"fool"]
-## The names of those appearances in the print controls.
-const CHARACTER_NAMES: Array[String] = ["Wizard", "Arcane cosmonaut", "Mask shaman", "The Fool"]
-## The appearance a new game starts with: the Fool.
-const DEFAULT_CHARACTER: StringName = &"fool"
-## The chosen appearance lasts through travel and new runs in this scene.
-var character_style: StringName = DEFAULT_CHARACTER
 
 var plates: Array[SubViewport] = []
 ## The UI's own canvas and plates (eight inks, then paper), printed by `ui_material` over the scene.
@@ -278,7 +275,6 @@ static func _warp(wizard: RisoWizard, part: int, center: Vector2, feet: Vector2,
 	fx.facing = 1.0 if wizard.fs >= 0.0 else -1.0
 	fx.art_scale = wizard.global_scale.y
 	fx.ring = ring
-	fx.character_style = wizard.character_style()
 	fx.spell = Abilities.spell(wizard.player)
 	return fx
 
@@ -559,30 +555,25 @@ func _track_player() -> void:
 		_player = main.get_node("Player") as Player
 		if _player != null:
 			_player.visual_event.connect(_on_player_event)
-			_player.parry.connect(func() -> void: flare(&"parry"))
+
+
+## The sputter of a spell that could not work (see _on_player_event): a sound, how low it is
+## played and how quietly; and its player, made the first time.
+const FIZZLE_SOUND: AudioStream = preload("res://music/SoundEffects/hitHurt.wav")
+const FIZZLE_PITCH: float = 0.45
+const FIZZLE_DB: float = -14.0
+var _fizzle_sfx: AudioStreamPlayer
 
 
 ## The robe's ink eases to its spell's over a moment, so learning a spell visibly re-dyes it.
 func _ease_robe(delta: float) -> void:
 	var target: Color = (REALMS[realm]["inks"] as Array)[BLUE]
-	if (robe_by_spell or character_style != &"wizard") and _player != null and is_instance_valid(_player):
+	if _player != null and is_instance_valid(_player):
 		target = ROBES.get(Abilities.spell(_player), ROBES[&""])
 	# Drowsy in sleep fog: the spell is off, and the robe greys.
 	if _player != null and is_instance_valid(_player) and _player.is_drowsy():
 		target = DROWSY_ROBE
 	robe_color = target if robe_color.r < 0.0 else robe_color.lerp(target, minf(1.0, delta * 4.0))
-
-
-## Change the player's printed appearance without changing their abilities or collision.
-func set_character_style(style: StringName) -> void:
-	if not CHARACTER_STYLES.has(style):
-		return
-	character_style = style
-	var player: Player = Stage.player()
-	var wizard: RisoWizard = player.get_node_or_null("RisoWizard") as RisoWizard if player != null else null
-	if wizard != null:
-		wizard.appearance_changed()
-	_sync_panel()
 
 
 func _on_player_event(kind: StringName, _at: Vector2) -> void:
@@ -591,30 +582,25 @@ func _on_player_event(kind: StringName, _at: Vector2) -> void:
 		RisoFx.burst(&"jump", feet.global_position if feet != null else _at)
 	elif kind == &"hurt":
 		RisoFx.burst(&"hit", _at + Vector2(0, -20), -_player.velocity.normalized())
+	elif kind == &"fizzle":
+		# A spell that could not work: a dull puff of night and blue from the bag's knot, and a dull
+		# click (the hurt sound, low and quiet).
+		var wizard: RisoWizard = _player.get_node_or_null("RisoWizard") as RisoWizard
+		var at: Vector2 = wizard.to_global(wizard.costume.bag_position()) if wizard != null and wizard.costume != null else _at
+		RisoFx.burst(&"impact", at, Vector2.UP, [RisoPrint.NIGHT, RisoPrint.BLUE])
+		if _fizzle_sfx == null:
+			_fizzle_sfx = AudioStreamPlayer.new()
+			_fizzle_sfx.stream = FIZZLE_SOUND
+			_fizzle_sfx.pitch_scale = FIZZLE_PITCH
+			_fizzle_sfx.volume_db = FIZZLE_DB
+			_fizzle_sfx.bus = &"SoundEffects"
+			add_child(_fizzle_sfx)
+		_fizzle_sfx.play()
 	if kind in [&"hurt", &"death"] and hud != null and is_instance_valid(hud):
 		hud.flash = 1.0
-	if kind == &"projection_start":
-		flare(&"astral")
-	elif kind == &"jump" and _player != null and _player.MAX_JUMPS > 1 and _player.jumps < _player.MAX_JUMPS and not _player.is_on_floor():
-		flare(&"double_jump")
 	if reprint_on_motion and registration == &"sheet" and sheet_rate > 0.0:
 		if kind in [&"jump", &"dash", &"hurt", &"death", &"projection_start", &"projection_end", &"teleport"]:
 			_new_sheet()
-
-
-## Movement (dash, blink, climb, double jump) lights the hat, which takes its glow ink; spells
-## light the orb instead (accent ink) and leave the hat's colour alone.
-func flare(ability: StringName) -> void:
-	var wizard: RisoWizard = null
-	if _player != null and is_instance_valid(_player):
-		wizard = _player.get_node_or_null("RisoWizard") as RisoWizard
-	if Abilities.is_spell(ability):
-		if wizard != null:
-			wizard.orb_flare()
-		return
-	glow_ability = ability
-	if wizard != null:
-		wizard.flare()
 
 
 func _new_sheet() -> void:
@@ -675,6 +661,9 @@ func _update_uniforms(size: Vector2) -> void:
 	for i: int in range(5):
 		var c: Color = inks[i]
 		print_material.set_shader_parameter("ink%d" % i, Vector3(c.r, c.g, c.b))
+	# The glow ink is the movement slot's: the Fool's feather and the dash's afterimages print in it.
+	if _player != null and is_instance_valid(_player) and Abilities.spell(_player, &"move") != &"":
+		glow_ability = Abilities.spell(_player, &"move")
 	var g: Color = GLOWS.get(glow_ability, GLOWS[&"dash"])
 	print_material.set_shader_parameter("ink5", Vector3(g.r, g.g, g.b))
 	print_material.set_shader_parameter("ink6", Vector3(robe_color.r, robe_color.g, robe_color.b))
@@ -996,12 +985,10 @@ func _build_panel() -> void:
 				panel.visible = false
 			MapInfo.instance.lay_out_again())
 	var look: VBoxContainer = _section(box, "Look", false)
-	_option_row(look, &"character", "Character", CHARACTER_NAMES, func(i: int) -> void: set_character_style(CHARACTER_STYLES[i]))
 	_option_row(look, &"realm", "Realm", ["Deep night", "Twilight", "Aurora"], _on_realm_picked)
 	_option_row(look, &"portal", "Portals", ["TV static", "Ripples"], func(i: int) -> void: portal_style = PORTAL_STYLES[i])
 	_option_row(look, &"fog", "Fog shape", FOG_STYLE_NAMES, func(i: int) -> void: fog_style = FOG_STYLES[i])
 	_option_row(look, &"sight", "Light by sight", ["Rock stops it", "Off"], func(i: int) -> void: RisoLight.by_sight = i == 0)
-	_option_row(look, &"robe", "Robe", ["Spell colour", "Blue"], func(i: int) -> void: robe_by_spell = i == 0)
 	_option_row(look, &"sky_bottoms", "Sky bottoms", SKY_BOTTOM_NAMES, func(i: int) -> void:
 		sky_bottom_style = SKY_BOTTOM_STYLES[i]
 		if _map_info != null and is_instance_valid(_map_info) and _map_info.here.open():
@@ -1017,13 +1004,13 @@ func _build_panel() -> void:
 	_skeleton_label = _stepper_row(keys, "Skeleton keys", func(d: int) -> void:
 		if _player != null and is_instance_valid(_player):
 			_player.keyring.set_skeletons(maxi(0, _player.keyring.skeletons() + d)))
-	# Abilities: set any tier outright (a spell above 0 takes the slot).
+	# Abilities: set any tier outright (one for a slot, above 0, takes it).
 	var abilities: VBoxContainer = _section(box, "Abilities", false)
 	for a: StringName in Abilities.ids():
 		var items: Array[String] = ["none"]
 		for n: int in range(1, Abilities.max_tier(a) + 1):
 			items.append(Abilities.roman(n))
-		_option_row(abilities, StringName("ability_" + String(a)), Abilities.label(a) + (" (spell)" if Abilities.is_spell(a) else ""), items, func(i: int) -> void:
+		_option_row(abilities, StringName("ability_" + String(a)), Abilities.label(a) + (" (%s)" % Abilities.slot_of(a) if Abilities.slot_of(a) != &"" else ""), items, func(i: int) -> void:
 			if _player != null and is_instance_valid(_player):
 				Abilities.set_tier(_player, a, i)
 				if a == &"keyring":
@@ -1299,10 +1286,6 @@ func _sync_panel() -> void:
 		(_options[&"between"] as OptionButton).select(1 if blend_sheets else 0)
 	if _options.has(&"plates"):
 		(_options[&"plates"] as OptionButton).select(1 if trapped else 0)
-	if _options.has(&"robe"):
-		(_options[&"robe"] as OptionButton).select(0 if robe_by_spell else 1)
-	if _options.has(&"character"):
-		(_options[&"character"] as OptionButton).select(CHARACTER_STYLES.find(character_style))
 	if _player != null and is_instance_valid(_player):
 		_key_capacity_label.text = "Ring: %d / %d  (Keyring adds slots)" % [_player.keyring.all().size(), _player.keyring.capacity()]
 		_skeleton_label.text = str(_player.keyring.skeletons())

@@ -196,7 +196,7 @@ func _in_game() -> void:
 	info._load_level()
 	await settle()
 	check(info.here.gloom() > 0.0 and info.here.shade() > Archetype.SHADE, "the catacombs are deep dark")
-	check(light.fades.size() > 1 or light.pools.size() > 0, "their lights carve the dark")
+	check(light.fades.size() > 1, "their lights carve the dark")
 	RunState.delete_save()
 
 

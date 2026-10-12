@@ -1,9 +1,8 @@
 extends Area2D
 
 class_name Checkpoint
-## A lantern. Interact to light it: it becomes where you come back to, and absorbs one death. With
-## the mend spell short of draughts, interacting with the lantern you lit burns it into the spell
-## instead (MapInfo.burn_lantern): the draughts fill, the lantern is spent and protects no more.
+## A lantern. Interact to light it: it becomes where you come back to, and absorbs one death; and,
+## lit or already lit, it refills the hex's charges and mend's draughts (MapInfo.light_lantern).
 
 @onready var player: Player = Stage.player()
 
@@ -18,8 +17,7 @@ func refresh () -> void:
 func interacted () -> void:
 	# Spent lanterns cannot be relit during this run.
 	if MapInfo.instance != null:
-		if not MapInfo.instance.burn_lantern(self):
-			MapInfo.instance.light_lantern(self)
+		MapInfo.instance.light_lantern(self)
 	refresh()
 
 func _ready() -> void:

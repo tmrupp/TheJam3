@@ -3,8 +3,9 @@ class_name RisoLight
 ## Light and darkness, by line of sight. Your respawn lantern throws a warm light that lifts the
 ## night ink off the rock and the sky around it, brightest at its flame and fading smoothly with
 ## distance, flickering softly, so the place you return to reads as a destination; every other
-## lantern gives a faint one, and open exits, portals, an ink well not yet dry and hex bolts in
-## flight a small pool of rings. The lantern the wizard carries lights the way too, fading the same
+## lantern gives a faint one. Everything else that shines gives the same diffuse light, fading
+## smoothly from where it shines: open exits (doors once their way is open), portals and rifts, an
+## ink well not yet dry, and hex bolts in flight. The lantern the wizard carries lights the way too, fading the same
 ## way: while a lit lantern protects them it throws a warm light round its flame wherever they go;
 ## while they are unprotected only a short, dim one, faintly pink (danger). Rock stops every light:
 ## a light reaches only as far as its flame can see (RisoSight), so walls cast shadows.
@@ -13,10 +14,9 @@ class_name RisoLight
 ## more night ink (the place's `shade`), terrain, decor and props alike, still there to make out
 ## but dimmed; what they can see reaches to the edge of the view. In the deep dark (the place's
 ## `gloom`, the catacombs) night ink lies over everything no light falls on, in sight or not,
-## lifting smoothly inside each lantern's light and in steps ring by ring inside each pool, so most
-## of what is seen is what a lantern lights.
+## lifting smoothly inside each light, so most of what is seen is what a light lights.
 ##
-## The pools print above the terrain and decor, under the props; the shade and the deep dark over
+## The lights print above the terrain and decor, under the props; the shade and the deep dark over
 ## the props, under the wizard's trail and the wizard.
 
 ## The lanterns' lights, each fading smoothly from its flame to nothing at its reach: how far it
@@ -37,10 +37,13 @@ const FLAME_GAP: float = 2.0
 ## How far apart (px) the steps of a light's fade are worked out: the print blends between them,
 ## so this only needs to be fine enough for the curve to read as smooth.
 const FADE_STEP: float = 24.0
-## The pools of light, each [radius, how much night it lifts], widest first: open exits, portals
-## and an ink well not yet dry; and a hex bolt in flight.
-const GLOW_RINGS: Array = [[210.0, 0.07], [120.0, 0.09]]
-const BOLT_RINGS: Array = [[150.0, 0.10]]
+## The lights of the other things that shine, each fading from where it shines as a lantern's
+## does: how far it reaches (px) and how much night it lifts there. Open exits, portals, rifts and
+## an ink well not yet dry; and a hex bolt in flight.
+const GLOW_REACH: float = 230.0
+const GLOW_LIFT: float = 0.2
+const BOLT_REACH: float = 170.0
+const BOLT_LIFT: float = 0.18
 ## The pink tint of an unprotected wizard's dim light, where they stand.
 const UNLIT_PINK: float = 0.06
 ## How high over its floor each glowing thing's light sits (px): an exit's doorway, a portal's
@@ -55,12 +58,8 @@ const GLOWS: StringName = &"glows"
 const EYE_RISE: float = 24.0
 ## How far past the view (px) sight and the darkness reach, so the camera's drift shows no edge.
 const VIEW_MARGIN: float = 160.0
-## Room left round a pool for its flicker (a share of its widest ring).
-const FLICKER_ROOM: float = 1.1
 ## The print layer (absolute z) of the shade and the deep dark: over the props, under the trail.
 const SHADE_Z: int = 8
-## How many steps the deep dark lifts in by, ring by ring, inside a pool.
-const GLOOM_STEPS: int = 3
 
 ## A light that fades smoothly from its flame to nothing at its reach, cut to what the flame sees:
 ## where it is, how far it reaches, the outline it lights (and its bounds), and that outline cut into
@@ -97,7 +96,7 @@ class Fade:
 
 
 ## Whether light and sight stop at the rock (the F7 panel can turn it off to compare): off, the
-## pools are plain circles and nothing is shaded out of sight (the deep dark stays).
+## lights are plain circles and nothing is shaded out of sight (the deep dark stays).
 static var by_sight: bool = true
 
 var lanterns: Array[Node2D] = []
@@ -114,7 +113,8 @@ var carried: Vector3 = Vector3.ZERO
 var carried_seen: PackedVector2Array = PackedVector2Array()
 var _carried: Fade
 var _carried_key: Array = []
-## Every fading light as last printed: the lanterns', then the carried one.
+## Every fading light as last printed: the lanterns', the other things that shine, then the
+## carried one.
 var fades: Array[Fade] = []
 ## The lanterns' lights, which stay put, by where they are and how far they reach, until the rock
 ## changes (`_cache_version`).
@@ -125,8 +125,6 @@ var sight: RisoSight
 var _changing: Dictionary = {}
 ## What the wizard sees, as last printed (empty with no wizard, or sight off).
 var seen: PackedVector2Array = PackedVector2Array()
-## Every pool as last printed: [where, then each ring's lit outlines, widest first].
-var pools: Array = []
 ## What the lights that stay put see (they are worked out once), by where they are and how far
 ## they reach, until the rock changes (`_cache_version`).
 var _cache: Dictionary = {}
@@ -213,7 +211,6 @@ func _process(delta: float) -> void:
 	var cam: Camera2D = get_viewport().get_camera_2d()
 	ink.begin()
 	dark_ink.begin()
-	pools.clear()
 	fades.clear()
 	seen = PackedVector2Array()
 	if info == null or info.world == null or cam == null or info.travelling:
@@ -239,33 +236,33 @@ func _process(delta: float) -> void:
 	for node: Node in get_tree().get_nodes_in_group(GLOWS):
 		var glow: Array = _glow(node as Node2D, info)
 		if not glow.is_empty() and near.has_point(glow[0]):
-			_pool(glow[0], glow[1], 1.0, glow[2])
+			_print_fade(_faded(glow[0], float(glow[1]), bool(glow[3])), float(glow[2]))
 	_carried_light(info)
 	_darkness(info, view)
 	ink.finish()
 	dark_ink.finish()
 
 
-## Where a glowing thing's light is, its rings and whether it stays put, or [] if it is dark (an
-## exit shut by a price, a lock or a boss; a dry ink well).
+## Where a glowing thing's light is, how far it reaches, how much it lifts and whether it stays put,
+## or [] if it is dark (an exit shut by a price, a lock or a boss; a dry ink well).
 func _glow(node: Node2D, info: MapInfo) -> Array:
 	if node == null or node.is_queued_for_deletion():
 		return []
 	if node is HexBolt:
-		return [node.global_position, BOLT_RINGS, false]
+		return [node.global_position, BOLT_REACH, BOLT_LIFT, false]
 	if node is LevelExit:
 		var door: LevelExit = node as LevelExit
 		if door.sealed() != &"" or door.lock() >= 0 or door.price() > 0:
 			return []
-		return [Vector2(node.global_position.x, _floor(node, info) - EXIT_RISE), GLOW_RINGS, true]
+		return [Vector2(node.global_position.x, _floor(node, info) - EXIT_RISE), GLOW_REACH, GLOW_LIFT, true]
 	if node is Portal:
 		if node.has_meta(&"rift"):
-			return [node.global_position + Vector2(0, -RIFT_RISE), GLOW_RINGS, true]
-		return [Vector2(node.global_position.x, _floor(node, info) - PORTAL_RISE), GLOW_RINGS, true]
+			return [node.global_position + Vector2(0, -RIFT_RISE), GLOW_REACH, GLOW_LIFT, true]
+		return [Vector2(node.global_position.x, _floor(node, info) - PORTAL_RISE), GLOW_REACH, GLOW_LIFT, true]
 	if node is Inkwell:
 		if (node as Inkwell).used():
 			return []
-		return [Vector2(node.global_position.x, _floor(node, info) - WELL_RISE), GLOW_RINGS, true]
+		return [Vector2(node.global_position.x, _floor(node, info) - WELL_RISE), GLOW_REACH, GLOW_LIFT, true]
 	return []
 
 
@@ -388,22 +385,6 @@ static func _bounds(outline: PackedVector2Array) -> Rect2:
 	return box
 
 
-## A pool of rings (each [radius, lift]) round `at`, every radius scaled by `flicker`, each cut to
-## what its flame can see; `still` lights keep what they see. Returns it as kept in `pools`.
-func _pool(at: Vector2, rings: Array, flicker: float, still: bool) -> Array:
-	var seen_here: PackedVector2Array = _seen_from(at, float(rings[0][0]) * FLICKER_ROOM, still)
-	var pool: Array = [at]
-	for ring: Array in rings:
-		var circle: PackedVector2Array = RisoShapes.circle(at, float(ring[0]) * flicker, 40)
-		var shapes: Array[PackedVector2Array] = [circle]
-		if not seen_here.is_empty():
-			shapes = RisoSight.lit(circle, seen_here)
-		ink.lift_ink([RisoPrint.NIGHT], float(ring[1]), shapes)
-		pool.append(shapes)
-	pools.append(pool)
-	return pool
-
-
 ## What a light at `at` sees within `reach`, or nothing (no cut) with sight off or no level.
 func _seen_from(at: Vector2, reach: float, still: bool) -> PackedVector2Array:
 	if not by_sight or sight == null:
@@ -443,17 +424,13 @@ func _darkness(info: MapInfo, view: Rect2) -> void:
 	var gloom: float = info.here.gloom()
 	if gloom <= 0.0:
 		return
-	for step: int in range(GLOOM_STEPS):
-		var lit: Array[PackedVector2Array] = []
-		for pool: Array in pools:
-			if step + 1 < pool.size():
-				lit.append_array(pool[step + 1])
-		for light: Fade in fades:
-			lit.append(light.outline)
-		dark_ink.ink(RisoPrint.NIGHT, gloom / float(GLOOM_STEPS), RisoSight.outside(view, lit), false)
-	# Inside the fading lights the deep dark lifts with them, smoothly: at each point, what the
-	# pools' rings leave of it, less each light's share there. Where lights overlap, the first
-	# prints it and the others leave that part out.
+	var lit: Array[PackedVector2Array] = []
+	for light: Fade in fades:
+		lit.append(light.outline)
+	dark_ink.ink(RisoPrint.NIGHT, gloom, RisoSight.outside(view, lit), false)
+	# Inside the lights the deep dark lifts with them, smoothly: at each point, what is left of it
+	# less each light's share there. Where lights overlap, the first prints it and the others leave
+	# that part out.
 	for i: int in range(fades.size()):
 		var light: Fade = fades[i]
 		var others: Array[Fade] = []
@@ -463,7 +440,6 @@ func _darkness(info: MapInfo, view: Rect2) -> void:
 				others.append(fades[j])
 				if j < i:
 					earlier.append(fades[j])
-		var rings: Array = _rings_over(light.box)
 		var pieces: Array[PackedVector2Array] = light.pieces
 		var profile: Array[PackedFloat32Array] = light.profile
 		if not earlier.is_empty():
@@ -478,41 +454,15 @@ func _darkness(info: MapInfo, view: Rect2) -> void:
 			for c: int in range(pieces[k].size()):
 				var p: Vector2 = pieces[k][c]
 				if not left.has(p):
-					left[p] = _dark_left(p, rings, others)
+					left[p] = _dark_left(p, others)
 				cover.append(gloom * float(left[p]) * (1.0 - profile[k][c]))
 			covers.append(cover)
 		dark_ink.ink_graded(RisoPrint.NIGHT, pieces, covers, false)
 
 
-## The pools' rings, step by step, that come within `box`: for each step, [the outlines, their
-## bounds].
-func _rings_over(box: Rect2) -> Array:
-	var rings: Array = []
-	for step: int in range(GLOOM_STEPS):
-		var shapes: Array[PackedVector2Array] = []
-		var boxes: Array[Rect2] = []
-		for pool: Array in pools:
-			if step + 1 >= pool.size():
-				continue
-			for shape: PackedVector2Array in pool[step + 1]:
-				var bounds: Rect2 = RisoLight._bounds(shape)
-				if bounds.intersects(box):
-					shapes.append(shape)
-					boxes.append(bounds)
-		rings.append([shapes, boxes])
-	return rings
-
-
-## How much of the deep dark is left at `p` by the pools' `rings` (a step lifted for each ring it is
-## in) and the `others` fading lights.
-func _dark_left(p: Vector2, rings: Array, others: Array[Fade]) -> float:
-	var steps: int = GLOOM_STEPS
-	for ring: Array in rings:
-		for j: int in range(ring[0].size()):
-			if (ring[1][j] as Rect2).has_point(p) and Geometry2D.is_point_in_polygon(p, ring[0][j]):
-				steps -= 1
-				break
-	var dark: float = float(steps) / float(GLOOM_STEPS)
+## How much of the deep dark is left at `p` by the `others` fading lights.
+func _dark_left(p: Vector2, others: Array[Fade]) -> float:
+	var dark: float = 1.0
 	for other: Fade in others:
 		dark *= 1.0 - other.light_at(p)
 	return dark

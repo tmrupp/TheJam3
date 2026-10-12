@@ -1,14 +1,11 @@
 extends Node
 class_name Mend
-## Mend, a spell: press Spell to heal a heart, using up a draught. Tiers (Abilities) hold one
-## draught each (I one, II two, III three). Draughts never come back on their own: learning a tier
-## at a shrine fills them, and so does burning a lit lantern (interact with the lantern you lit):
-## the lantern is spent and protects you no longer (MapInfo.burn_lantern). With lanterns scarce,
-## that is the choice: a life kept in the lantern, or hearts now.
+## Mend, a utility spell: press Utility to heal to full health, using up a draught. The draughts
+## left show on the sitting card (RisoHud). Tiers (Abilities) hold one draught each (I one, II two,
+## III three). Draughts come back at a lantern: lighting one, or interacting with the one already
+## lit, fills them (MapInfo.light_lantern), and so does learning a tier at a shrine.
 ## The draughts are kept on the player (Player.mend_draughts), so swapping the spell away at a
 ## shrine and back does not fill them.
-
-const HEAL: int = 1
 
 var level: int = 1
 
@@ -20,10 +17,9 @@ func set_tier(n: int) -> void:
 	level = n
 
 
-## The Spell button, with mend in the slot: heal a heart, if hurt and a draught is left.
+## The Utility button, with mend in the slot: heal to full, if hurt and a draught is left.
 func cast_spell() -> bool:
-	cast()
-	return true
+	return cast()
 
 
 func draughts_max() -> int:
@@ -53,11 +49,8 @@ func cast() -> bool:
 	if player == null or draughts() <= 0 or player.health.health >= player.health.max_health:
 		return false
 	player.mend_draughts = draughts() - 1
-	player.health.health = mini(player.health.health + HEAL, player.health.max_health)
-	player.visual_event.emit(&"mend", player.global_position)
+	player.health.health = player.health.max_health
 	RisoFx.burst(&"gain", player.global_position + Vector2(0, -40), Vector2.ZERO, [RisoPrint.EYE, RisoPrint.PINK])
-	if RisoPrint.instance != null:
-		RisoPrint.instance.flare(&"mend")
 	return true
 
 

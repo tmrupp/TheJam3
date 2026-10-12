@@ -1,7 +1,8 @@
 extends TestKit
 ## Moths follow the lantern a nearby wizard carries while it is lit, prefer it over the lit lantern
-## itself, ignore the spell orb, stay home with no lantern lit, and scatter harmlessly when a real
-## dash crosses them. They gather again rather than dying.
+## itself, ignore the spell orb, stay home with no lantern lit, cannot sting through a real dash
+## crossing them (which leaves them be), and scatter harmlessly when a slash strikes them. They
+## gather again rather than dying.
 ## godot --headless --path . --script res://tests/moths_test.gd
 
 func run() -> void:
@@ -64,18 +65,18 @@ func run() -> void:
 	Input.action_release(&"Dash")
 	Input.action_release(&"Right")
 	var strike: DashStrike = player.get_node("DashStrike") as DashStrike
-	check(swarm.is_scattered() and swarm in strike.struck, "a real dash scatters the swarm")
 	player.hurt(-1, Vector2.RIGHT, swarm)
 	check(strike.guards(swarm) and player.health.health == hp, "moths cannot sting through the dash")
-	var scatter_left: float = swarm.scattered
-	strike.sweep(swarm.global_position - Vector2(100, 0), swarm.global_position + Vector2(100, 0))
-	check(swarm.scattered == scatter_left, "the swarm is hit only once per dash")
+	check(not swarm.is_scattered(), "and the dash leaves them be: it is no attack")
 	player.set_physics_process(false)
+	Abilities.set_tier(player, &"slash", 1)
+	player.global_position = swarm.global_position + Vector2(-60, 24)
+	(player.get_node("Slash") as Slash).cast(Vector2.RIGHT)
+	check(swarm.is_scattered(), "a slash scatters the swarm")
 	player.global_position = swarm.global_position + Vector2(1500, 0)
 	swarm._physics_process(MothSwarm.SCATTER_TIME + 0.1)
 	check(not swarm.is_scattered() and not swarm.is_queued_for_deletion(), "the swarm gathers again after six seconds")
 	player.dash.end()
-	strike.guard_left = 0.0
-	check(not strike.guards(swarm), "the moths can sting again once the dash and guard end")
+	check(not strike.guards(swarm), "the moths can sting again once the dash ends")
 	RunState.delete_save()
 	finish("moth chase and dash")

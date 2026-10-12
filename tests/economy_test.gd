@@ -3,7 +3,7 @@ extends TestKit
 ## and the economy pass.
 ## - Lanterns are scarce: one at the way back (the start lantern at depth 0) and LANTERNS_PER_K more.
 ## - Giving up (the pause menu) is a death back to the lit lantern, offered only while protected.
-## - Mend heals from draughts that only learning it or burning the lit lantern refills.
+## - Mend heals to full from draughts that learning it or a lantern refills.
 ## - Every level has one star cluster worth cluster_value(depth); some levels a skeleton key.
 ## - The keyring carries more keys; a skeleton key opens any one door, then crumbles.
 ## - Warp and rift cost stars each cast, paid only when they work.
@@ -174,15 +174,15 @@ func casting() -> void:
 	var warp: Warp = player.get_node("Warp") as Warp
 	player.collect(-player.coins.coins)
 	var before: Vector2 = player.global_position
-	Abilities.cast(player)
+	Abilities.cast(player, &"move")
 	check(warp.recharge == 0.0 and player.global_position == before, "no warp without the stars for it")
 	var price: int = Abilities.cast_price(&"warp", 0)
 	check(price == 4 and Abilities.cast_price(&"warp", 6) > price, "a warp costs 4 at the surface, more deeper")
 	check(Abilities.cast_price(&"hex", 3) == 0 and Abilities.cast_price(&"mend", 3) == 0, "other spells are free to cast")
 	player.collect(10)
-	Abilities.cast(player)
+	Abilities.cast(player, &"move")
 	check(warp.recharge > 0.0 and player.coins.coins == 10 - price, "a warp is paid as it is cast")
-	Abilities.cast(player)
+	Abilities.cast(player, &"move")
 	check(player.coins.coins == 10 - price, "a cast that fails (recharging) costs nothing")
 	while warp.warping:
 		await process_frame
@@ -196,34 +196,39 @@ func mending() -> void:
 	print("mend")
 	Abilities.grant(player, &"mend")
 	var mend: Mend = player.get_node("Mend") as Mend
-	check(Abilities.spell(player) == &"mend" and mend.draughts() == 1, "mend I holds one draught, full when learned")
+	check(Abilities.spell(player, &"utility") == &"mend" and mend.draughts() == 1, "mend I holds one draught, full when learned")
 	Abilities.grant(player, &"mend")
 	check(mend.draughts() == 2, "mend II holds two")
 	player.health.health = 1
-	Abilities.cast(player)
-	check(player.health.health == 2 and mend.draughts() == 1, "a cast heals a heart and uses a draught")
-	Abilities.cast(player)
-	Abilities.cast(player)
-	check(player.health.health == 3 and mend.draughts() == 0, "the draughts run out")
+	Abilities.cast(player, &"utility")
+	check(player.health.health == player.health.max_health and mend.draughts() == 1, "a cast heals to full and uses a draught")
+	Abilities.cast(player, &"utility")
+	check(mend.draughts() == 1, "nothing is drunk at full health")
 	player.health.health = 2
-	Abilities.cast(player)
+	Abilities.cast(player, &"utility")
+	check(player.health.health == player.health.max_health and mend.draughts() == 0, "the draughts run out")
+	player.health.health = 2
+	Abilities.cast(player, &"utility")
 	check(player.health.health == 2, "nothing heals with none left")
-	Abilities.set_tier(player, &"hex", 1)
+	Abilities.set_tier(player, &"awareness", 1)
 	Abilities.set_tier(player, &"mend", 2)
 	check((player.get_node("Mend") as Mend).draughts() == 0, "swapping the spell away and back does not fill the draughts")
 	mend = player.get_node("Mend") as Mend
 	var lit: Node = lanterns().filter(info.is_respawn_lantern)[0]
-	check(info.can_burn(lit), "the lit lantern can be burned into the spell")
+	var was_vulnerable: bool = info.run.vulnerable
 	lit.call("interacted")
-	check(mend.draughts() == 2, "burning it fills the draughts")
-	check(info.run.vulnerable and info.is_lantern_spent(lit), "and the lantern is spent: no protection")
-	check(not info.can_burn(lit) and not info.light_lantern(lit), "a burned lantern cannot be burned or lit again")
+	check(mend.draughts() == 2, "the lit lantern fills the draughts")
+	check(info.run.vulnerable == was_vulnerable and not info.is_lantern_spent(lit), "and is not spent by it")
 	player.health.health = player.health.max_health
 	Abilities.set_tier(player, &"mend", 0)
 
 
 func giving_up() -> void:
 	print("giving up")
+	# The lit lantern is spent, as a death would spend it: the run is unprotected.
+	var lit: Node = lanterns().filter(info.is_respawn_lantern)[0]
+	info.run.spend_lantern(info.coord, lit.get_meta(&"cell"))
+	info.run.vulnerable = true
 	check(not info.can_give_up(), "no giving up without a lit lantern (that would end the run)")
 	var menu: Node = main.get_node("Menu")
 	menu.call("pause_resume_game")

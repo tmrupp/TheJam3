@@ -25,7 +25,7 @@ func holds() -> Array:
 	return [ability, mini(Abilities.tier(player, ability) + 1, Abilities.max_tier(ability))]
 
 
-## Would taking it replace the spell in the slot?
+## Would taking it replace what is in its slot?
 func swap() -> bool:
 	return Abilities.is_swap(player, holds()[0])
 
@@ -48,7 +48,7 @@ func take() -> void:
 	var held: Array = holds()
 	var a: StringName = held[0]
 	var was_left: bool = not map_info.record().relic_left.is_empty()
-	var dropped: StringName = Abilities.spell(player) if Abilities.is_swap(player, a) else &""
+	var dropped: StringName = Abilities.spell(player, Abilities.slot_of(a)) if Abilities.is_swap(player, a) else &""
 	var dropped_tier: int = Abilities.tier(player, dropped) if dropped != &"" else 0
 	Abilities.set_tier(player, a, int(held[1]))
 	if not was_left:
@@ -65,8 +65,6 @@ func take() -> void:
 	map_info.save_run()
 	RisoFx.burst(&"gain", global_position + Vector2(0, -40), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.PINK])
 	Wound.shake(8.0, 0.2)
-	if RisoPrint.instance != null:
-		RisoPrint.instance.flare({&"wall_climb": &"climb"}.get(a, a))
 
 
 func _ready() -> void:

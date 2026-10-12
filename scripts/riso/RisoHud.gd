@@ -7,7 +7,8 @@ class_name RisoHud
 ## necklace, protection their lantern, keys trail behind them, and the place shows when sitting and
 ## on the level transition. The only writing is numbers: a place is its marks
 ## (RisoMarks.place_marks) with the world's and depth's numbers. What remains here:
-## - Sitting (hold Down), a card over the traveler's head with the stars carried and the place.
+## - Sitting (hold Down), a card over the traveler's head with the stars carried, the utility spell
+##   held (with mend's draughts left) and the place.
 ## - While there is a ghost, a pointer at the edge of the view toward it.
 ## - While sensing (Awareness), a pointer at the edge of the view for each sensed thing off screen.
 ## - When a run ends, a card in the middle of the sheet.
@@ -22,6 +23,15 @@ const CARD_H: float = 10.0
 const PLACE_R: float = 3.0
 const END_PLACE_R: float = 5.0
 const CARD_ABOVE: float = 40.0
+## The utility spell's mark on the sitting card: the room it is fitted into (wide, high), and how
+## faint it prints while not ready. Mend's draughts follow it as dots, DRAUGHT_R across and
+## DRAUGHT_STEP apart, a spent one faint.
+const UTILITY_W: float = 9.0
+const UTILITY_H: float = 6.5
+const UTILITY_WAITING: float = 0.35
+const DRAUGHT_R: float = 1.6
+const DRAUGHT_STEP: float = 4.4
+const DRAUGHT_SPENT: float = 0.4
 ## The UI's print is pinned to the screen, so small numbers moving across it shimmer as they are
 ## screened afresh each frame. Sitting pans the camera down (Down looks down), so the sitting card
 ## is put where the traveler will be once the view has settled, on whole pixels, and stays there
@@ -57,6 +67,10 @@ var _card_up: bool = false
 var _card_at: Vector2 = Vector2.ZERO
 ## Half the view this frame, in world pixels.
 var _view_half: Vector2 = Vector2.ZERO
+## The utility spell the sitting card shows this frame, and mend's draughts left on it (none, and
+## -1, when no plaque shows).
+var shown_utility: StringName = &""
+var shown_draughts: int = -1
 
 
 func _ready() -> void:
@@ -178,6 +192,8 @@ func _process(delta: float) -> void:
 	ink.begin()
 	for label: Label in [coin_label, world_label, depth_label, ghost_label, ghost_world, ghost_depth, end_world, end_depth]:
 		label.visible = false
+	shown_utility = &""
+	shown_draughts = -1
 	if player != null:
 		_end_card()
 		var placed: Array[Vector2] = []
@@ -202,8 +218,9 @@ func _end_card() -> void:
 		_place_row(at, Vector2(160.0 - _place_w(at, END_PLACE_R, labels) * 0.5, 104.0), END_PLACE_R, labels, 14.0)
 
 
-## Sitting: a card over the traveler's head, the stars carried on it and the place over that, as
-## they settle down (and gone as they get up).
+## Sitting: a card over the traveler's head, the stars carried on it (and beside them, with a utility
+## spell, its mark and mend's draughts left) and the place over that, as they settle down (and gone
+## as they get up).
 func _seated_card(player: Player, cam: Camera2D) -> void:
 	var art: RisoWizard = player.get_node_or_null("RisoWizard") as RisoWizard
 	var info: MapInfo = MapInfo.instance
@@ -221,8 +238,13 @@ func _seated_card(player: Player, cam: Camera2D) -> void:
 	var labels: Array[Label] = [world_label, depth_label]
 	var count_w: float = _text_width(coin_label, count)
 	var stars_w: float = PAD + 10.0 + count_w + PAD
+	var utility: StringName = Abilities.spell(player, &"utility")
+	var mend: Mend = player.get_node_or_null("Mend") as Mend if utility == &"mend" else null
+	var draughts: int = mend.draughts_max() if mend != null else 0
+	var utility_w: float = PAD + UTILITY_W + DRAUGHT_STEP * float(draughts) + PAD if utility != &"" else 0.0
+	var row_w: float = stars_w + (GAP + utility_w if utility != &"" else 0.0)
 	var place_w: float = PAD + _place_w(info.coord, PLACE_R, labels) + PAD
-	var stars_x: float = roundf(clampf(above.x - stars_w * 0.5, 2.0, 318.0 - stars_w))
+	var stars_x: float = roundf(clampf(above.x - row_w * 0.5, 2.0, 318.0 - row_w))
 	var place_x: float = roundf(clampf(above.x - place_w * 0.5, 2.0, 318.0 - place_w))
 	# Kept on the sheet: near the top of the view, the card hangs lower rather than off the edge.
 	var stars_y: float = maxf(above.y - CARD_H * 0.5, 2.0 + CARD_H * 1.5 + GAP)
@@ -232,6 +254,36 @@ func _seated_card(player: Player, cam: Camera2D) -> void:
 	_paper(RisoShapes.rrect(stars_x, stars_y - CARD_H * 0.5, stars_w, CARD_H, RADIUS), RisoPrint.ACCENT, 0.15)
 	ink.ink(RisoPrint.ACCENT, 1.0, [Transform2D(sin(t * 1.7) * 0.45, Vector2(stars_x + PAD + 4.0, stars_y)) * RisoShapes.sparkle(Vector2.ZERO, 3.8)], false)
 	_place(coin_label, count, stars_x + PAD + 10.0, stars_y)
+	if utility != &"":
+		_utility_plaque(player, utility, mend, Vector2(stars_x + stars_w + GAP, stars_y), utility_w)
+
+
+## The utility spell's plaque on the sitting card, its left end at `at`: the spell's mark, faint
+## while it is not ready, and for mend a dot per draught it holds, the spent ones faint.
+func _utility_plaque(player: Player, utility: StringName, mend: Mend, at: Vector2, w: float) -> void:
+	_paper(RisoShapes.rrect(at.x, at.y - CARD_H * 0.5, w, CARD_H, RADIUS), RisoPrint.BLUE, 0.12)
+	# The mark is fitted by its bounds, as marks differ in size and some sit off their centre.
+	var glyph: Array[PackedVector2Array] = RisoGlyph.of(utility, Vector2.ZERO, t)
+	var bounds: Rect2 = Rect2(glyph[0][0], Vector2.ZERO)
+	for poly: PackedVector2Array in glyph:
+		for p: Vector2 in poly:
+			bounds = bounds.expand(p)
+	var size: float = minf(UTILITY_W / maxf(bounds.size.x, 1.0), UTILITY_H / maxf(bounds.size.y, 1.0))
+	var fit: Transform2D = Transform2D(0.0, Vector2.ONE * size, 0.0, Vector2(at.x + PAD + UTILITY_W * 0.5, at.y) - bounds.get_center() * size)
+	var mark: Array[PackedVector2Array] = []
+	for poly: PackedVector2Array in glyph:
+		mark.append(fit * poly)
+	ink.ink(RisoPrint.NIGHT, 1.0 if Abilities.readiness(player, &"utility") >= 1.0 else UTILITY_WAITING, mark, false)
+	shown_utility = utility
+	if mend == null:
+		return
+	shown_draughts = mend.draughts()
+	for k: int in range(mend.draughts_max()):
+		var dot: PackedVector2Array = RisoShapes.circle(Vector2(at.x + PAD + UTILITY_W + DRAUGHT_STEP * (float(k) + 0.5), at.y), DRAUGHT_R, 10)
+		if k < mend.draughts():
+			ink.ink(RisoPrint.ACCENT, 1.0, [dot], false)
+		else:
+			ink.ink(RisoPrint.NIGHT, DRAUGHT_SPENT, [dot], false)
 
 
 ## How far (UI units) the view has still to move what is on it: from where the camera is to where

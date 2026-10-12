@@ -871,16 +871,6 @@ static func swept_cells(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
 	return out
 
 
-## The cells the car takes with its floor cell (the left of the two) at `p`: two across, its two
-## rows and the hanger's row over them.
-static func car_cells(p: Vector2i) -> Array[Vector2i]:
-	var out: Array[Vector2i] = []
-	for dx: int in range(2):
-		for dy: int in range(3):
-			out.append(p + Vector2i(dx, -dy))
-	return out
-
-
 # ------------------------------------------------------------------ cells
 
 ## Rock at `v`, if inside the level, not its outer edge, and not kept clear (a gondola's line).

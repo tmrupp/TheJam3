@@ -106,12 +106,12 @@ func run() -> void:
 		await physics_frame
 		await process_frame
 	check((wizard.get("echoes") as Array).size() > 0, "dash leaves afterimages")
-	check(riso.glow_ability == &"dash", "hat glow follows the dash")
+	check(riso.glow_ability == &"dash", "the glow ink is the dash's")
 	Abilities.grant(player, &"parry")
 	Abilities.grant(player, &"astral")
 	player.parry.emit()
 	await process_frame
-	check(riso.glow_ability == &"dash" and float(wizard.get("orb_flare_amount")) > 0.5, "parry lights the orb, and the hat keeps the dash's glow")
+	check(riso.glow_ability == &"astral", "the glow ink follows the movement slot (astral now), whatever is cast")
 	player.end_invulnerable()
 	player.normal_hurt(-1, Vector2.ZERO, null)
 	for i: int in range(8):

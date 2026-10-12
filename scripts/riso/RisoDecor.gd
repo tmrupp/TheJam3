@@ -74,6 +74,12 @@ const KNOCK_ROCK: Array[int] = [RisoPrint.BLUE, RisoPrint.NIGHT]
 ## across them WEB_RINGS of the way out. The spider's webs are spun to the same density of lines on
 ## screen (WEB_RING_GAP and the rest, below; Spider.plain_web).
 const WEB_TURN: float = PI * 0.2
+## An arrow slit, as a crossbow's is cut (CrossbowArt) and an empty one in the crags' walls: its
+## niche in the face toward the room, how deep into the stone and how high; the bore on from it
+## through to the outer face, how high; all drawn SLIT_SIZE times as big (pixels).
+const SLIT_NICHE: Vector2 = Vector2(50.0, 76.0)
+const SLIT_BORE: float = 12.0
+const SLIT_SIZE: float = 1.4
 const WEB_REACH: float = 19.0
 const WEB_RINGS: Array[float] = [0.45, 0.8]
 const STRUCTURES: Array[String] = ["level_exit.tscn", "shrine.tscn", "door.tscn", "checkpoint.tscn", "spikes.tscn",
@@ -127,14 +133,15 @@ static var PLANS: Dictionary = {
 
 
 ## Work out every prop for a level (pure: the same inputs always give the same plan), by the plan
-## named `decor` (see PLANS). `masonry` is the rock laid as built stone (LevelGen.masonry).
-static func plan(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, decor: StringName = &"garden", sky_bottom_style: StringName = &"roots", masonry: Dictionary = {}) -> Array[Dictionary]:
+## named `decor` (see PLANS). `masonry` is the rock laid as built stone (LevelGen.masonry), and
+## `interiors` the open cells inside built rooms (LevelGen.interiors).
+static func plan(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, decor: StringName = &"garden", sky_bottom_style: StringName = &"roots", masonry: Dictionary = {}, interiors: Dictionary = {}) -> Array[Dictionary]:
 	var by: Callable = PLANS.get(decor, PLANS[&"garden"])
-	return by.call(solid, occupied, level_seed, bounds, sky_bottom_style, masonry)
+	return by.call(solid, occupied, level_seed, bounds, sky_bottom_style, masonry, interiors)
 
 
 ## A cemetery's plan: its graves and props (plan_cemetery), and iron railings along its floors.
-static func plan_graveyard(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, _bottom_style: StringName = &"roots", _masonry: Dictionary = {}) -> Array[Dictionary]:
+static func plan_graveyard(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, _bottom_style: StringName = &"roots", _masonry: Dictionary = {}, _interiors: Dictionary = {}) -> Array[Dictionary]:
 	var graves: Array[Dictionary] = plan_cemetery(solid, occupied, level_seed, bounds)
 	for run: Dictionary in fence_runs(solid, occupied, level_seed, bounds):
 		run["iron"] = true
@@ -143,7 +150,7 @@ static func plan_graveyard(solid: Dictionary, occupied: Dictionary, level_seed: 
 
 
 ## The sky's plan: its islands' props (plan_sky), and peace flags strung along their floors.
-static func plan_isles(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, bottom_style: StringName = &"roots", _masonry: Dictionary = {}) -> Array[Dictionary]:
+static func plan_isles(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, bottom_style: StringName = &"roots", _masonry: Dictionary = {}, _interiors: Dictionary = {}) -> Array[Dictionary]:
 	var isles: Array[Dictionary] = plan_sky(solid, occupied, level_seed, bounds, bottom_style)
 	for run: Dictionary in fence_runs(solid, occupied, level_seed, bounds):
 		run["bunting"] = true
@@ -153,7 +160,7 @@ static func plan_isles(solid: Dictionary, occupied: Dictionary, level_seed: int,
 
 ## The garden's plan (and any level's without one of its own): fences, hedges, and plants, roots
 ## and vines on the rock.
-static func plan_garden(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, _bottom_style: StringName = &"roots", _masonry: Dictionary = {}) -> Array[Dictionary]:
+static func plan_garden(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, _bottom_style: StringName = &"roots", _masonry: Dictionary = {}, _interiors: Dictionary = {}) -> Array[Dictionary]:
 	var out: Array[Dictionary] = fence_runs(solid, occupied, level_seed, bounds)
 	out.append_array(shrub_runs(solid, occupied, level_seed, bounds))
 	var cells: Array = solid.keys()
@@ -364,7 +371,7 @@ static func plan_sky(solid: Dictionary, occupied: Dictionary, level_seed: int, b
 
 ## The crags' plan: battlements along the floors of the castle's masonry (fence runs whose rock is
 ## built), and the props of its stone and its cliffs (see the class description).
-static func plan_crags(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, _bottom_style: StringName = &"roots", masonry: Dictionary = {}) -> Array[Dictionary]:
+static func plan_crags(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, _bottom_style: StringName = &"roots", masonry: Dictionary = {}, interiors: Dictionary = {}) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for run: Dictionary in fence_runs(solid, occupied, level_seed, bounds):
 		if masonry.has(run["base"]):
@@ -380,9 +387,23 @@ static func plan_crags(solid: Dictionary, occupied: Dictionary, level_seed: int,
 		var below: Vector2i = v + Vector2i.DOWN
 		if built:
 			out.append({"kind": &"ashlar", "cell": v, "base": v})
-			# An arrow slit through a wall: masonry over and under, open air to one side.
-			if masonry.has(above) and masonry.has(below) and (not solid.has(v + Vector2i.LEFT) or not solid.has(v + Vector2i.RIGHT)) and h(level_seed, v, 5) < 0.35:
-				out.append({"kind": &"slit", "cell": v, "base": v})
+			# An arrow slit through a wall: masonry over and under, open air to one side, and nothing
+			# set beside it (a crossbow's own slit is its art's). "inner" is the side its room is on
+			# (-1 left, +1 right, 0 none), "outer" the side open air is on outside it (0 none).
+			var left_open: bool = not solid.has(v + Vector2i.LEFT)
+			var right_open: bool = not solid.has(v + Vector2i.RIGHT)
+			if masonry.has(above) and masonry.has(below) and (left_open or right_open) and not occupied.has(v + Vector2i.LEFT) and not occupied.has(v + Vector2i.RIGHT) and h(level_seed, v, 5) < 0.35:
+				var inner: int = 0
+				if left_open and interiors.has(v + Vector2i.LEFT):
+					inner = -1
+				elif right_open and interiors.has(v + Vector2i.RIGHT):
+					inner = 1
+				var outer: int = 0
+				if right_open and inner != 1:
+					outer = 1
+				elif left_open and inner != -1:
+					outer = -1
+				out.append({"kind": &"slit", "cell": v, "base": v, "inner": inner, "outer": outer})
 		if not solid.has(above) and not occupied.has(above):
 			var r: float = h(level_seed, v, 1)
 			var tall_room: bool = not solid.has(above + Vector2i.UP)
@@ -457,7 +478,7 @@ func rebuild(info: MapInfo, cracked_positions: Array[Vector2] = []) -> void:
 				occupied[Vector2i(x, y)] = true
 	var level_seed: int = Rules.level_seed(info.coord.x, info.coord.y)
 	var bottoms: StringName = RisoPrint.instance.sky_bottom_style if RisoPrint.instance != null else &"roots"
-	items = RisoDecor.plan(solid, occupied, level_seed, Rect2i(Vector2i.ZERO, info.world.size), info.here.decor(), bottoms, info.world.masonry)
+	items = RisoDecor.plan(solid, occupied, level_seed, Rect2i(Vector2i.ZERO, info.world.size), info.here.decor(), bottoms, info.world.masonry, info.world.interiors)
 	# Nothing grows in some side worlds (NextWorldDef.grows).
 	if not info.here.grows():
 		items.clear()
@@ -1023,10 +1044,21 @@ func _sketch_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 					if bx0 > c.x - half + 0.5:
 						slots[29].append(RisoShapes.rrect(bx0 - gap * 0.5, y0, gap, half, 1.0))
 		&"slit":
-			# An arrow slit through a castle wall: a tall narrow opening with an arched top, crossed
-			# a third of the way down by a short slot for sighting along.
-			slots[28].append(RisoShapes.arch(c.x - 7.0, c.y - half * 0.66, 14.0, half * 1.3, 8))
-			slots[28].append(RisoShapes.rrect(c.x - 15.0, c.y - half * 0.28, 30.0, 8.0, 3.0))
+			# An arrow slit through a castle wall, cut as a crossbow's is (SLIT_NICHE) but empty: a
+			# dark niche in the face toward its room, and a narrow bore on from it through the stone
+			# to the open air outside. Facing only the outside, the bore alone, running in from there.
+			var inner: int = int(item.get("inner", 0))
+			var outer: int = int(item.get("outer", 0))
+			var deep: float = SLIT_NICHE.x * SLIT_SIZE
+			var high: float = SLIT_NICHE.y * SLIT_SIZE
+			var bore: float = SLIT_BORE * SLIT_SIZE
+			var from: float = c.x - float(outer) * half
+			if inner != 0:
+				var face: float = c.x + float(inner) * half
+				slots[28].append(RisoShapes.rrect(minf(face, face - float(inner) * deep), c.y - high * 0.5, deep, high, 6.0))
+				from = face - float(inner) * (deep - 4.0 * SLIT_SIZE)
+			var to: float = c.x + float(outer) * half if outer != 0 else c.x - float(inner) * half
+			slots[28].append(RisoShapes.rrect(minf(from, to), c.y - bore * 0.5, absf(to - from), bore, 3.0))
 		&"cross":
 			var x: float = c.x + (_r(s, v, 10) - 0.5) * half * 0.6
 			var tall: float = 26.0 + _r(s, v, 11) * 12.0

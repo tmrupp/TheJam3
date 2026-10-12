@@ -61,7 +61,8 @@ func run() -> void:
 		if setup >= 1:
 			for a: StringName in [&"double_jump", &"wall_climb", &"vigor", &"speed"]:
 				player.tiers[a] = Abilities.max_tier(a) if setup == 2 else 1
-			player.tiers[&"dash"] = Abilities.max_tier(&"dash") if setup == 2 else 1
+			# Blink, maxed, in the dash's place in the movement slot.
+			player.tiers[&"dash"] = 0 if setup == 2 else 1
 			player.tiers[&"blink"] = Abilities.max_tier(&"blink") if setup == 2 else 0
 		for level_seed: int in range(200):
 			var picks: Array[StringName] = Abilities.offers(level_seed, player, 2)
@@ -73,7 +74,7 @@ func run() -> void:
 	check(all_good and saw_swap, "every shrine offers at least one strict upgrade (swaps still appear beside one)")
 
 	print("starting abilities")
-	check(player.tiers == Abilities.start_tiers() and Abilities.tier(player, &"dash") == 1 and player.MAX_JUMPS == 1 and not player.climable and player.health.max_health == 3 and not player.has_node("Blink") and not player.has_node("Hex") and Abilities.spell(player) == &"parry" and player.has_node("DashStrike"), "the dash (which strikes) and parry in the spell slot; 3 health")
+	check(player.tiers == Abilities.start_tiers() and Abilities.tier(player, &"dash") == 1 and player.MAX_JUMPS == 1 and not player.climable and player.health.max_health == 3 and not player.has_node("Blink") and not player.has_node("Hex") and Abilities.spell(player, &"damage") == &"parry" and Abilities.spell(player, &"move") == &"dash" and Abilities.spell(player, &"utility") == &"" and player.has_node("DashStrike"), "parry in the damage slot, the dash in the movement slot, the utility slot empty; 3 health")
 	check(Abilities.ids().all(func(a: StringName) -> bool: return a in [&"dash", &"hex", &"parry"] or Abilities.tier(player, a) == 0), "astral and the rest are all still to find")
 	check(Abilities.tier(player, Abilities.offer(Rules.level_seed(28, 0), player)) == 0, "a shrine offers something new before upgrades")
 	Abilities.set_tier(player, &"parry", 0)
@@ -150,23 +151,27 @@ func run() -> void:
 	print("tiers change the abilities")
 	player.tiers = Abilities.start_tiers()
 	Abilities.apply(player)
-	for a: StringName in [&"dash", &"double_jump", &"wall_climb", &"blink", &"vigor"]:
+	for a: StringName in [&"dash", &"double_jump", &"wall_climb", &"vigor"]:
 		Abilities.grant(player, a)
-	Abilities.grant(player, &"blink")
 	check(is_equal_approx(player.dash.MAX_TIME, 0.32), "dash II dashes longer")
+	Abilities.grant(player, &"blink")
+	Abilities.grant(player, &"blink")
+	check(Abilities.spell(player, &"move") == &"blink" and Abilities.tier(player, &"dash") == 0 and player.dashes(), "blink takes the movement slot from the dash (and is done on the Dash button)")
 	check(player.MAX_JUMPS == 2, "double jump I")
 	check(player.climable and is_equal_approx(player.climb.MAX_TIME, 1.0), "wall climb I holds for 1 s")
 	check(player.has_node("Blink") and int(player.get_node("Blink").get("distance")) == 400, "blink II reaches 400")
 	Abilities.grant(player, &"parry")
 	Abilities.grant(player, &"parry")
 	check(is_equal_approx(float(player.get_node("Parry").get("duration")), Parry.WINDOW_II) and Parry.WINDOW_II > Parry.WINDOW, "parry II holds longer")
-	check(Abilities.spell(player) == &"parry", "parry sits in the spell slot")
-	check(Abilities.is_swap(player, &"astral") and not Abilities.is_swap(player, &"parry") and not Abilities.is_swap(player, &"vigor"), "a different spell would be a swap; perks never are")
+	check(Abilities.spell(player) == &"parry", "parry sits in the damage slot")
+	check(Abilities.is_swap(player, &"hex") and Abilities.is_swap(player, &"astral") and not Abilities.is_swap(player, &"parry") and not Abilities.is_swap(player, &"awareness") and not Abilities.is_swap(player, &"vigor"), "another damage spell or movement would be a swap; one for an empty slot, or a perk, never is")
+	Abilities.grant(player, &"hex")
+	check(Abilities.spell(player) == &"hex" and Abilities.tier(player, &"parry") == 0 and Abilities.spell(player, &"move") == &"blink", "learning hex replaces parry (one to a slot) and leaves the movement slot be")
 	Abilities.grant(player, &"astral")
-	check(Abilities.spell(player) == &"astral" and Abilities.tier(player, &"parry") == 0, "learning astral replaces parry: one spell at a time")
 	Abilities.grant(player, &"astral")
 	check(is_equal_approx((player.get_node("AstralProjection").get("projection_timer") as ActionTimer).MAX_TIME, 2.0), "astral II lasts two seconds")
-	check(player.has_node("Blink") and player.MAX_JUMPS == 2 and player.climable, "perks are untouched by the swap")
+	check(Abilities.spell(player, &"move") == &"astral" and not player.has_node("Blink") and Abilities.spell(player) == &"hex", "astral takes the movement slot from blink, the damage slot kept")
+	check(player.MAX_JUMPS == 2 and player.climable, "perks are untouched by the swaps")
 	check(player.health.max_health == 4, "vigor I adds a heart")
 	for i: int in range(6):
 		Abilities.grant(player, &"double_jump")
@@ -180,27 +185,34 @@ func run() -> void:
 	var stand: Node = shrines()[0]
 	info.record().shrine_used = false
 	info.record().left_spell = []
+	# Every slot held (hex II, the dash, awareness), the perks maxed: whatever new it offers for a
+	# slot is a swap.
 	for a: StringName in Abilities.ids():
-		player.tiers[a] = 0 if Abilities.is_spell(a) else Abilities.max_tier(a)
+		player.tiers[a] = 0 if Abilities.slot_of(a) != &"" else Abilities.max_tier(a)
 	player.tiers[&"hex"] = 2
+	player.tiers[&"dash"] = 1
+	player.tiers[&"awareness"] = 1
 	Abilities.apply(player)
 	player.collect(500)
 	var k: int = -1
 	for i: int in range(2):
 		if bool(stand.call("swap", i)):
 			k = i
-	check(k >= 0, "with hex II held, the shrine offers another spell (a swap)")
+	check(k >= 0, "with every slot held, the shrine offers something for one (a swap)")
 	if k >= 0:
 		var got: StringName = stand.call("offer", k)
+		var slot: StringName = Abilities.slot_of(got)
+		var old: StringName = Abilities.spell(player, slot)
+		var old_tier: int = Abilities.tier(player, old)
 		stand.call("buy_boon", k)
-		check(Abilities.spell(player) == got and stand.call("left_spell", k) == [&"hex", 2] and bool(stand.call("used")), "learning %s leaves hex II in its niche" % got)
+		check(Abilities.spell(player, slot) == got and stand.call("left_spell", k) == [old, old_tier] and bool(stand.call("used")), "learning %s leaves %s in its niche" % [got, old])
 		stand.call("buy_boon", 1 - k)
-		check(Abilities.spell(player) == got, "the spent shrine sells nothing else")
+		check(Abilities.spell(player, slot) == got, "the spent shrine sells nothing else")
 		var coins_before: int = player.coins.coins
 		stand.call("buy_boon", k)
-		check(Abilities.spell(player) == &"hex" and Abilities.tier(player, &"hex") == 2 and stand.call("left_spell", k) == [got, 1] and player.coins.coins == coins_before, "taking hex back is free, keeps its tier, and leaves %s there" % got)
+		check(Abilities.spell(player, slot) == old and Abilities.tier(player, old) == old_tier and stand.call("left_spell", k) == [got, 1] and player.coins.coins == coins_before, "taking %s back is free, keeps its tier, and leaves %s there" % [old, got])
 		stand.call("buy_boon", k)
-		check(Abilities.spell(player) == got and stand.call("left_spell", k) == [&"hex", 2], "and it swaps back again")
+		check(Abilities.spell(player, slot) == got and stand.call("left_spell", k) == [old, old_tier], "and it swaps back again")
 
 	print("the run ending resets them")
 	player.die()

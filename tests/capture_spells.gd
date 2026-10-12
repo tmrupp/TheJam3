@@ -47,14 +47,14 @@ func capture() -> void:
 	camera.global_position = player.global_position
 	camera.reset_smoothing()
 	await shot("spell_none.png", 10)
-	Abilities.cast(player)
+	Abilities.cast(player, &"utility")
 	await shot("spell_awareness.png", 10)
 	# Levitating in mid air.
 	Abilities.grant(player, &"levitate")
 	player.global_position += Vector2(0, -200)
 	player.velocity = Vector2.ZERO
 	await shot("x.png", 2)
-	Abilities.cast(player)
+	Abilities.cast(player, &"move")
 	await shot("spell_levitate.png", 10)
 	# The map, worlds page.
 	var map: Node = main.get_node("RisoMap")

@@ -104,7 +104,7 @@ func normal_hurt (damage: int, v: Vector2, _attacker: Node) -> void:
 func hurt (damage: int, v: Vector2, attacker: Node) -> void:
 	if phasing:
 		return
-	# Dashing through an enemy is an attack, not a hit taken (DashStrike).
+	# Dashing through an enemy is not a hit taken (DashStrike).
 	var strike: DashStrike = get_node_or_null("DashStrike") as DashStrike
 	if strike != null and strike.guards(attacker):
 		return
@@ -118,7 +118,6 @@ const SPEED: float = 300.0
 var run_speed: float = SPEED
 # JUMP_VELOCITY: how quickly and high the player jumps
 const JUMP_VELOCITY: float = -600.0
-const JUMP_GRAVITY_FACTOR: float = 0.7
 const JUMP_END_CUT_FACTOR: float = 0.5
 var jumps: int = 1
 var MAX_JUMPS: int = 1
@@ -184,6 +183,28 @@ func _init() -> void:
 
 func _enter_tree() -> void:
 	Abilities.ensure_input()
+	# What the dash does on its way (it tears webs, cuts threads and breaks cracked walls).
+	if get_node_or_null("DashStrike") == null:
+		var strike: DashStrike = DashStrike.new()
+		strike.name = "DashStrike"
+		add_child(strike)
+
+
+## Whether the movement slot holds one of the wizard's own moves (the dash or blink), done on the
+## Dash button here, rather than a spell cast from it.
+func dashes() -> bool:
+	var move: StringName = Abilities.spell(self, &"move")
+	return move != &"" and not Abilities.is_spell(move)
+
+
+## Whether the movement slot is ready: the dash (or blink) back, or the spell in it ready or
+## running. Nothing in it, never.
+func move_ready() -> bool:
+	if dashes():
+		return not dash.acted
+	if Abilities.spell(self, &"move") == &"":
+		return false
+	return Abilities.readiness(self, &"move") >= 1.0 or Abilities.running(self, &"move").x >= 0.0
 
 
 # DASH_SPEED: how quickly the player dashes
@@ -191,7 +212,6 @@ func _enter_tree() -> void:
 # Y_DASH_FACTOR: how much the dash is diminished in the Y direction
 const DASH_SPEED: float = 750.0
 const Y_DASH_FACTOR: float = 1.0
-var blink_enabled: bool = false
 func dash_end(_timer: ActionTimer) -> void:
 	velocity = Vector2.ZERO
 var dash: ActionTimer = ActionTimer.new(0.25, dash_end)
@@ -248,11 +268,6 @@ var manual_control: bool = true
 # Get the gravity from the project settings to be synced with RigidBody nodes.
 var gravity: float = ProjectSettings.get_setting("physics/2d/default_gravity")
 
-# called when an animation is finished
-func animation_finished(animation: String) -> void:
-	if (animation == "hop"):
-		animating_jumping = false
-
 # gets the respawn and saves it
 var respawn: Node2D
 
@@ -263,9 +278,6 @@ func set_collision (enabled: bool) -> void:
 		await get_tree().process_frame
 	$CollisionShape2D.set_deferred("disabled", not enabled)
 
-func get_collision () -> bool:
-	return not $CollisionShape2D.disabled
-	
 #puts the player back at the spawn location
 func reset_position() -> void:
 	# The last lantern lit may be in another level: MapInfo loads it and places the player.
@@ -338,7 +350,6 @@ func from_save(data: Dictionary) -> void:
 	Mend.restore(self, int(data.get("mend_draughts", -1)))
 
 # does a jump and triggers the jumping animation
-var animating_jumping: bool = false
 var jumping: bool = false
 var jump_held: bool = false
 func jump(factor: float=1.0) -> void:
@@ -348,7 +359,6 @@ func jump(factor: float=1.0) -> void:
 	# animation_player.queue("falling")
 	jumping = true
 
-	animating_jumping = true
 	
 	$"ParticleController".Jump()
 	jump_sfx.play()
@@ -437,9 +447,18 @@ func do_wall_jump (wall_normal: Vector2) -> void:
 
 func _physics_process(delta: float) -> void:
 	drowsy = maxf(0.0, drowsy - delta)
-	# The Spell button uses whatever spell is in the slot.
+	# Each slot's button casts what is in it: the Spell button the damage slot, the Utility button
+	# the utility slot, and the Dash button the movement slot's spell (the dash itself, or blink,
+	# is done below).
 	if Input.is_action_just_pressed(Abilities.SPELL_ACTION):
-		Abilities.cast(self)
+		Abilities.cast(self, &"damage")
+	# Nothing shows the utility spell standing by: pressed when it cannot work (cooling down, no
+	# draught left, nothing to heal), it sputters instead (RisoPrint: a dull puff from the bag).
+	if Input.is_action_just_pressed(Abilities.UTILITY_ACTION):
+		if not Abilities.cast(self, &"utility") and Abilities.spell(self, &"utility") != &"":
+			visual_event.emit(&"fizzle", global_position)
+	if Input.is_action_just_pressed("Dash") and not dashes():
+		Abilities.cast(self, &"move")
 	if phasing:
 		sit_held = 0.0
 		_phase(delta)
@@ -504,7 +523,6 @@ func _physics_process(delta: float) -> void:
 			
 	else: # on the ground
 		last_wall_jump_side = 0.0
-		animating_jumping = false
 		jumping = false
 		jumps = MAX_JUMPS
 		if direction.x != 0:
@@ -591,8 +609,8 @@ func _physics_process(delta: float) -> void:
 		velocity = knock
 		knock = Vector2.ZERO
 		
-	# get dash input and dash if necessary
-	if Input.is_action_just_pressed("Dash"):
+	# get dash input and dash if necessary (the dash, or blink, in the movement slot)
+	if Input.is_action_just_pressed("Dash") and dashes():
 		if not dash.acted:
 			# Forced, so a dash given back mid-dash (by a moon) starts a fresh one: full length,
 			# and spent again, rather than only turning the one still running.

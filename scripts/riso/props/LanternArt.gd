@@ -35,13 +35,6 @@ func _draw_art() -> void:
 		ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT], [glass])
 		ink.ink(RisoPrint.EYE, 1.0, [glass], false)
 		ink.knock([RisoPrint.EYE], [hang * RisoShapes.rrect(-4, 28, 8, 12, 4)])
-		if MapInfo.instance.can_burn(host):
-			# It can be burned into the mend spell: a drop of its light rises and falls over it.
-			var rise: float = fmod(t * 0.6 + phase, 1.0)
-			var c: Vector2 = Vector2(30, g - 78.0 - rise * 26.0)
-			var drop: Array[PackedVector2Array] = [RisoShapes.circle(c, 7.0, 14), RisoShapes.tri(c + Vector2(-6, -2.5), c + Vector2(6, -2.5), c + Vector2(0, -16))]
-			ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], drop)
-			ink.ink(RisoPrint.PINK, 1.0 - rise * 0.6, drop, false)
 	elif spent:
 		# Empty glass, a charred wick and a thin smoke thread: the lantern has burned out.
 		ink.ink(RisoPrint.NIGHT, 0.6, [glass], false)

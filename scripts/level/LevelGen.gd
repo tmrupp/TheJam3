@@ -519,19 +519,6 @@ func reach_from (start: Vector2i, passable: Callable = func(_v: Vector2i) -> boo
 				stack.append(n)
 	return into
 
-## A free floor (open, nothing in it, rock under it) in `reach`, at least `at_least` cells from
-## `from`, drawn from them sorted (one draw); null, with no draw, if there is none.
-func _pick_floor_in (reach: Dictionary, from: Vector2i, at_least: int) -> Variant:
-	var free: Dictionary = empty_set()
-	var choices: Array[Vector2i] = []
-	for v: Vector2i in reach:
-		if free.has(v) and get_cell(v).type == Type.EMPTY and ground_below(v) and dist(v, from) >= at_least:
-			choices.append(v)
-	if choices.is_empty():
-		return null
-	choices.sort()
-	return pick(choices)
-
 func _to_rock (v: Vector2i) -> void:
 	cells[v.x][v.y] = Cell.new(Type.GROUND)
 	empties.erase(v)

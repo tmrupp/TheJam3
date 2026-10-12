@@ -6,7 +6,7 @@ extends TestKit
 ## ground storey with the wizard's own hops, the gondola and the towers laid round it, the same every
 ## build and only in the spider's gate levels; in play, the spider asleep under the roof, waking,
 ## dropping on the wizard and biting, strikes glancing off its back, a bolt cutting its thread and
-## dropping it, wounds putting out its eyes while it is down (even a dash that only stuns), it
+## dropping it, wounds putting out its eyes while it is down (a slash, a bolt that only stuns), it
 ## climbing back up a new thread, a dash cutting that, a parried bite stunning it, its webs holding
 ## the wizard, keeping their dash from coming back, torn by a bolt and a dash and spun again; the
 ## keep's crossbows, one to a floor, set in its walls shooting into the hall, out of reach, their
@@ -133,10 +133,8 @@ func run() -> void:
 	await within(func() -> bool: return spider.state == Spider.State.HUNT, 6.0)
 	player.global_position = Vector2(-9000, -9000)
 	var dash: DashStrike = player.get_node("DashStrike") as DashStrike
-	dash.damage = 0
-	dash.struck.clear()
-	dash.sweep(spider.global_position + Vector2(-150, 0), spider.global_position + Vector2(150, 0))
-	check(spider.wound.hp == Spider.EYES and not spider.stunned(), "a dash glances off its back up there")
+	_slash(spider.global_position, 90.0)
+	check(spider.wound.hp == Spider.EYES and not spider.stunned(), "a slash glances off its back up there")
 
 	print("its thread cut")
 	player.global_position = info.cell_position(stand)
@@ -150,9 +148,8 @@ func run() -> void:
 	var down: bool = await within(func() -> bool: return spider.state == Spider.State.DOWN, 3.0)
 	var under: Vector2i = info.cell_at(spider.global_position + Vector2(0, Spider.LIE + 4.0))
 	check(down and spider.open() and info.world.is_ground(under), "on its back on the floor below, open")
-	dash.struck.clear()
-	dash.sweep(spider.global_position + Vector2(-150, 0), spider.global_position + Vector2(150, 0))
-	check(spider.wound.hp == Spider.EYES - 1, "a dash that only stuns puts out an eye")
+	_slash(spider.global_position, -90.0 * _toward(spider).x)
+	check(spider.wound.hp == Spider.EYES - 1, "a slash puts out an eye")
 	_bolt(_beside(spider, 0.0), -_toward(spider), 0)
 	var hexed: bool = await within(func() -> bool: return spider.wound.hp == Spider.EYES - 2, 1.0)
 	check(hexed, "so does a bolt that only stuns")
@@ -160,7 +157,6 @@ func run() -> void:
 	check(climbing and spider.threaded() and not spider.open(), "up again, it climbs a new thread, its back to the wizard")
 	await within(func() -> bool: return spider.thread().size() == 2 and spider.thread()[1].y - spider.thread()[0].y > 120.0, 2.0)
 	var mid: Vector2 = (spider.thread()[0] + spider.thread()[1]) * 0.5
-	dash.struck.clear()
 	dash.sweep(mid + Vector2(-120, 0), mid + Vector2(120, 0))
 	check(spider.state == Spider.State.FALL, "a dash across that thread drops it again")
 	await within(func() -> bool: return spider.state == Spider.State.DOWN, 3.0)
@@ -228,7 +224,6 @@ func run() -> void:
 		if x.splat():
 			splat = x
 	check(stuck and splat != null and splat.rect.has_point(player.global_position), "which sticks to them, a splat that holds them")
-	dash.struck.clear()
 	dash.sweep(player.global_position + Vector2(-100, 0), player.global_position + Vector2(100, 0))
 	await physics_frame
 	await physics_frame
@@ -297,6 +292,17 @@ func run() -> void:
 	check(placed("spider.tscn").is_empty(), "it is never met again")
 	RunState.delete_save()
 	finish()
+
+
+## A slash (Slash, tier I) at `at` from `side` px to one side of it, the wizard there just for it;
+## then parry back in the damage slot, and the wizard back where they were.
+func _slash(at: Vector2, side: float) -> void:
+	var was: Vector2 = player.global_position
+	Abilities.set_tier(player, &"slash", 1)
+	player.global_position = at + Vector2(side, 24.0)
+	(player.get_node("Slash") as Slash).cast(Vector2(-signf(side), 0.0))
+	Abilities.set_tier(player, &"parry", 1)
+	player.global_position = was
 
 
 ## A cell on row `row` of the keep's air with floor under it, as far from every hole as can be.
