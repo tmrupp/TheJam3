@@ -532,7 +532,8 @@ var carved: Array[Vector2i] = []
 ## own cell (the bottom left), where that is more than one (Placeables.size), so a tall doorway or
 ## portal never prints into the rock over it. Never a secret room's rock or the rock sealing it
 ## (either would give the room away), a vault's walls, the rock framing a door or switch gate above
-## or below it, or the rock a laser is set in.
+## or below it, the rock a laser is set in, or the rock on and under the start's way to its side
+## door and key (keep_clear), which every run must be able to hop.
 func make_room () -> void:
 	for v: Vector2i in objects.duplicate():
 		var size: Vector2i = Placeables.size(get_cell(v).type)
@@ -549,10 +550,11 @@ func make_room () -> void:
 				carved.append(c)
 
 ## Whether rock at `c` walls a vault, frames a door or gate (above or below it), is kept whole
-## (kept), seals a secret room or holds up the floor its way in is taken from (secret_steps), has a laser set in it, is
-## the footing of a gap's shore, or holds up something stood at.
+## (kept), seals a secret room or holds up the floor its way in is taken from (secret_steps), has a
+## laser set in it, is the footing of a gap's shore, holds up something stood at, or lies on or
+## under the start's way (keep_clear).
 func _holds_up (c: Vector2i) -> bool:
-	if vault_walls.has(c) or kept(c) or secret_steps.has(c):
+	if vault_walls.has(c) or kept(c) or secret_steps.has(c) or keep_clear.has(c) or keep_clear.has(c + Vector2i.UP):
 		return true
 	for d: Vector2i in [Vector2i.UP, Vector2i.DOWN]:
 		if is_valid(c + d) and get_cell(c + d).type in [Type.DOOR, Type.SWITCH_GATE]:
@@ -856,8 +858,8 @@ func populate_level (def: NextWorldDef) -> void:
 	if def.arrival_from != null:
 		place_return()
 
-	# One ink well per level stands on a floor.
-	put_random(Type.INKWELL, ground_below, true)
+	# One ink well per level (the map), on the floor nearest the level's middle.
+	place_inkwell()
 
 	# Spots for keys: more than are kept (see KEYS_PER_K and deal_colors).
 	for i: int in range(maxi(Rules.KEY_COLOR_COUNT, per_area(KEY_SPOTS_PER_K))):
@@ -935,6 +937,80 @@ func populate_level (def: NextWorldDef) -> void:
 	place_vaults(def)
 	Chasms.relax_crossings(self, def)
 	arch.finish(self, def)
+	place_thorn_modes(def)
+
+## Thorns that come and go (Spikes): past the start, some runs of thorns are put on a timer and
+## some on a switch, once the level is laid out. A run is a group of thorn cells side by side. Each
+## run is dealt by hashing the level seed and its first cell (no draw): THORN_TIMED_SHARE of runs go
+## on a timer, their phase hashed too, so neighbouring runs are not in step; THORN_SWITCH_SHARE go
+## on a switch (at most THORN_SWITCHES_MOST a level), on a floor reached from the way in some way
+## off (switch_floor: one draw each). The switch drops them while it is on. A chasm's thorns and
+## the cells kept for a big thing (the bramble's shaft, the spider's keep) are never dealt, so a
+## chasm still bars the way. A thorn cell's extra_info says how it goes: {"timed": phase in
+## seconds} or {"switch": the switch's cell}; the switch's extra_info is the run's first cell.
+const THORN_TIMED_SHARE: float = 0.3
+const THORN_SWITCH_SHARE: float = 0.25
+const THORN_SWITCHES_MOST: int = 2
+## Salt for the level seed when dealing thorn runs.
+const THORN_DEAL: int = 9400
+
+func place_thorn_modes (def: NextWorldDef) -> void:
+	if def.depth < 1:
+		return
+	var start: Vector2i = exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	# Reached from the way in without passing a door (a vault's, or any locked one).
+	var reach: Dictionary = reach_from(start, func(n: Vector2i) -> bool: return get_cell(n).type != Type.DOOR) if is_valid(start) else {}
+	var switches: int = 0
+	for run: Array[Vector2i] in thorn_runs():
+		var first: Vector2i = run[0]
+		var roll: float = float(posmod(Rules.level_seed(seed_for_colors, THORN_DEAL + first.x * 131 + first.y * 7919), 1000)) / 1000.0
+		if roll < THORN_TIMED_SHARE:
+			var phase: float = float(posmod(Rules.level_seed(seed_for_colors, THORN_DEAL + 1 + first.x * 53 + first.y * 389), 1000)) / 1000.0 * Spikes.CYCLE
+			for c: Vector2i in run:
+				get_cell(c).extra_info = {"timed": phase}
+		elif roll < THORN_TIMED_SHARE + THORN_SWITCH_SHARE and switches < THORN_SWITCHES_MOST and not reach.is_empty():
+			var found: Variant = switch_floor(reach, first)
+			if found == null:
+				continue
+			var lever: Vector2i = found
+			put(lever, Type.SWITCH, first)
+			for c: Vector2i in run:
+				get_cell(c).extra_info = {"switch": lever}
+			switches += 1
+
+## The runs of thorns that may come and go (see place_thorn_modes): groups of thorn cells side by
+## side, each sorted, in order of their first cell; none at a chasm's foot or in a kept cell.
+func thorn_runs () -> Array[Array]:
+	var barred: Dictionary = {}
+	for chasm: Dictionary in chasms:
+		for plank: Vector2i in chasm["planks"]:
+			for d: int in range(1, Chasms.CHASM_DEPTH + 3):
+				barred[plank + Vector2i(0, d)] = true
+	var seen: Dictionary = {}
+	var runs: Array[Array] = []
+	for x: int in range(size.x):
+		for y: int in range(size.y):
+			var v: Vector2i = Vector2i(x, y)
+			if seen.has(v) or get_cell(v).type != Type.SPIKES:
+				continue
+			var run: Array[Vector2i] = []
+			var ok: bool = true
+			var stack: Array[Vector2i] = [v]
+			seen[v] = true
+			while not stack.is_empty():
+				var c: Vector2i = stack.pop_back()
+				run.append(c)
+				ok = ok and not barred.has(c) and not kept(c)
+				for d: Vector2i in neighbor_offsets:
+					var n: Vector2i = c + d
+					if is_valid(n) and not seen.has(n) and get_cell(n).type == Type.SPIKES:
+						seen[n] = true
+						stack.append(n)
+			if ok:
+				run.sort()
+				runs.append(run)
+	runs.sort_custom(func(a: Array, b: Array) -> bool: return (a[0] as Vector2i) < (b[0] as Vector2i))
+	return runs
 
 ## Chasms (and sky gaps) with no bell or vane, which only a relic move gets over (see
 ## Chasms.relax_crossings); and in hyperspace, the stretches left unbridged (Hyperspace._relic_gap).
@@ -1456,7 +1532,7 @@ func _corridors () -> Array[Vector2i]:
 			and _open(v + Vector2i.LEFT) and _open(v + Vector2i.RIGHT) and get_cell(v + Vector2i.LEFT).type == Type.EMPTY and get_cell(v + Vector2i.RIGHT).type == Type.EMPTY)
 
 ## Switch gates: a gate across a corridor (rock above and below, open either side, like a door)
-## and its switch on a floor near it (switch_floor) reachable from the way in without passing that
+## and its switch on a floor some way off (switch_floor) reachable from the way in without passing that
 ## gate, so the switch is found on the way to it. Each records the other's cell in extra_info.
 
 func place_switch_gates (count: int) -> void:
@@ -1478,25 +1554,53 @@ func place_switch_gates (count: int) -> void:
 		put(gate, Type.SWITCH_GATE, lever)
 		put(lever, Type.SWITCH, gate)
 
-## Where a switch goes: near what it works. A free floor (open, nothing in it, rock under it) in
-## `reach`, drawn (one draw) from those SWITCH_NEAR_MIN to SWITCH_NEAR cells from `target`; with
-## none so near, the nearest further off (no draw); null, with no draw, if there is none.
-const SWITCH_NEAR: int = 6
-const SWITCH_NEAR_MIN: int = 2
+## Where a switch goes: well away from what it works, so finding one is a trip of its own. A free
+## floor (open, nothing in it, rock under it) in `reach`, drawn (one draw) from those SWITCH_MIN to
+## SWITCH_MAX cells from `target`; with none in that band, the nearest further off (no draw); with
+## none even SWITCH_MIN away (a small side of a chasm, say), the furthest there is (no draw), never
+## right beside it, and never in a vault; null, with no draw, if there is none.
+const SWITCH_MAX: int = 16
+const SWITCH_MIN: int = 8
 
 func switch_floor (reach: Dictionary, target: Vector2i) -> Variant:
 	var free: Dictionary = empty_set()
-	var near: Array[Vector2i] = []
+	var locked: Dictionary = {}
+	for vault: Dictionary in vaults:
+		for c: Vector2i in vault["room"]:
+			locked[c] = true
+	var band: Array[Vector2i] = []
 	var far: Array[Vector2i] = []
+	var close: Array[Vector2i] = []
 	for v: Vector2i in reach:
-		if not free.has(v) or get_cell(v).type != Type.EMPTY or not ground_below(v) or dist(v, target) < SWITCH_NEAR_MIN:
+		if not free.has(v) or get_cell(v).type != Type.EMPTY or not ground_below(v) or dist(v, target) < 2 or locked.has(v):
 			continue
-		(near if dist(v, target) <= SWITCH_NEAR else far).append(v)
-	if not near.is_empty():
-		near.sort()
-		return pick(near)
-	far.sort()
-	return best_of(far, func(v: Vector2i) -> int: return dist(v, target))
+		var d: int = dist(v, target)
+		(band if d >= SWITCH_MIN and d <= SWITCH_MAX else (far if d > SWITCH_MAX else close)).append(v)
+	if not band.is_empty():
+		band.sort()
+		return pick(band)
+	if not far.is_empty():
+		far.sort()
+		return best_of(far, func(v: Vector2i) -> int: return dist(v, target))
+	close.sort()
+	return best_of(close, func(v: Vector2i) -> int: return -dist(v, target))
+
+## The ink well (the level's map) on the free floor nearest the middle of the level, among those
+## reached from the way in (any free floor if none is, a random one if there is none at all). No
+## draw, unless it falls back to a random floor.
+func place_inkwell () -> void:
+	var start: Vector2i = exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	var reach: Dictionary = reach_from(start) if is_valid(start) else {}
+	var middle: Vector2i = size / 2
+	var floors: Array[Vector2i] = empties_where(ground_below)
+	var near: Callable = func(v: Vector2i) -> int: return dist(v, middle)
+	var best: Variant = best_of(floors, near, func(v: Vector2i) -> bool: return reach.has(v) and not _crowds_exit(v))
+	if best == null:
+		best = best_of(floors, near)
+	if best == null:
+		put_random(Type.INKWELL, ground_below, true)
+		return
+	put(best, Type.INKWELL)
 
 ## A level a side world leads into gets an ordinary way up as well, on a floor a few cells from
 ## the way back (which leads into that world).
@@ -1530,11 +1634,16 @@ func place_side_doors (def: NextWorldDef) -> void:
 
 ## Moons only where the air is open: every cell within MOON_CLEARANCE is open, and the cell
 ## below that too, with no ledge or lift in the fall below (nothing to stand on), and
-## at least MOON_SPACING apart. Air over thorns is favoured: such spots are three times as
-## likely, since a dash reset is most welcome there.
+## at least MOON_SPACING apart (with no such air, any open air with nothing to stand on below).
+## Air over thorns is favoured: such spots are three times as likely, since a dash reset is most
+## welcome there.
 func place_moons (count: int) -> void:
 	var held: PackedByteArray = _held_up(_platform_footprint())
 	var spots: Array[Vector2i] = _air_spots(func(v: Vector2i) -> bool: return _wide_open(v) and not _ledge_below(v, held))
+	# With no wide open air left clear of ledges (a small level its ledges crowd), any open air clear
+	# of them, so every level has its moons.
+	if spots.is_empty():
+		spots = _air_spots(func(v: Vector2i) -> bool: return not _ledge_below(v, held))
 	var free: Dictionary = empty_set()
 	put_each(spread_out(spots, count, MOON_SPACING, func(v: Vector2i) -> bool: return free.has(v)), Type.MOON)
 

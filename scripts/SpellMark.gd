@@ -1,14 +1,14 @@
 class_name SpellMark
 extends Node2D
 ## The mark a damage spell leaves where it was cast, a moment of spell light (accent ink) fading
-## over LIFE seconds (Slash, Nova, Push): a slash's crescent sweeping round its arc, a nova's ring
-## swelling out, or a push's gust of streaks blowing out across its cone. Placed in the level, so it
-## stays where it was cast.
+## over LIFE seconds (Slash, Nova, Push, Lunge): a slash's crescent sweeping round its arc, a nova's
+## ring swelling out, a push's gust of streaks blowing out across its cone, or a lunge's thrust
+## streaking along its way. Placed in the level, so it stays where it was cast.
 
 ## How long it shows (seconds).
 const LIFE: float = 0.28
 
-## What it is (&"slash", &"nova" or &"push"), where it was cast from, the way it points, how far it
+## What it is (&"slash", &"nova", &"push" or &"lunge"), where it was cast from, the way it points, how far it
 ## reaches (px) and half its spread (radians).
 var kind: StringName = &"slash"
 var from: Vector2 = Vector2.ZERO
@@ -70,6 +70,12 @@ func _process(delta: float) -> void:
 				var d: Vector2 = Vector2.from_angle(a)
 				var near: float = reach * (0.15 + 0.6 * u)
 				shapes.append(Spider.strand(from + d * near, from + d * (near + reach * 0.35), 5.0 * (1.0 - u) + 1.5))
+		&"lunge":
+			# A thrust: a tapering streak along the way, its point running out ahead.
+			var tip: Vector2 = from + dir * reach * minf(1.0, u * 2.5)
+			var back: Vector2 = from + dir * reach * maxf(0.0, u * 1.6 - 0.4)
+			var n: Vector2 = dir.orthogonal()
+			shapes.append(PackedVector2Array([back + n * 1.5, tip - dir * 14.0 + n * 6.0, tip, tip - dir * 14.0 - n * 6.0, back - n * 1.5]))
 	ink.ink(RisoPrint.ACCENT, 0.85 * fade, shapes)
 	ink.finish()
 

@@ -323,7 +323,7 @@ func _ability_tables() -> void:
 	check(Relics.MOVES.all(func(a: StringName) -> bool: return a in order), "every relic move is an ability")
 	check(order.all(func(a: StringName) -> bool: return int(Abilities.ABILITIES[a].get("base", 0)) <= Abilities.max_tier(a)), "nothing starts past its top tier")
 	var start: Dictionary = Abilities.start_tiers()
-	check(order.all(func(a: StringName) -> bool: return int(start[a]) == (1 if a in [&"dash", &"parry"] else 0)), "a run starts with the dash and parry")
+	check(order.all(func(a: StringName) -> bool: return int(start[a]) == (1 if a in [&"dash", &"slash", &"mend"] else 0)), "a run starts with the dash, slash and mend")
 	# An ability done by a node: the node says how a tier tunes it (set_tier), and a spell casts
 	# (cast_spell) and tells the spell orb how ready it is (readiness) and how long it has left
 	# (running). A misspelled or missing one would only fail when that ability is used.

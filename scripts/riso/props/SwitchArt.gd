@@ -8,8 +8,19 @@ var lever: Switch:
 		return host as Switch
 
 
+func shines() -> bool:
+	return true
+
+
+## Lit at its knob while it is on.
+func light() -> Array:
+	if not lever.is_on():
+		return []
+	return _light(Transform2D(0.6, Vector2(0, _ground() - 39.0)) * Vector2(0, -70), RisoLight.GLEAM, RisoPrint.ACCENT)
+
+
 ## A switch: a stone base on the floor with a lever in it. Off, the lever leans left with a pink
-## knob, swaying a little; on, it leans right, its knob and a halo in accent ink.
+## knob, swaying a little; on, it leans right, its knob in accent ink, shining (RisoLight).
 ## A paper plate on the front of the base bears its sigil, the one what it works shows too.
 func _draw_art() -> void:
 	var g: float = _ground()
@@ -20,8 +31,6 @@ func _draw_art() -> void:
 	var pivot: Vector2 = Vector2(0, g - 39)
 	var arm: Transform2D = Transform2D(tilt, pivot)
 	var knob: Vector2 = arm * Vector2(0, -70)
-	if thrown:
-		ink.ink(RisoPrint.ACCENT, 0.3, [RisoShapes.circle(knob, 26.0, 22)])
 	# The lever in blue, behind the base, so it reads against the night.
 	ink.ink(RisoPrint.BLUE, 1.0, [arm * RisoShapes.rrect(-4.5, -68.0, 9.0, 68.0, 4.5)])
 	ink.ink(RisoPrint.BLUE, 1.0, [base])

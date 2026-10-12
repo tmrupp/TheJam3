@@ -28,7 +28,7 @@ func run() -> void:
 	player.global_position = swarm.global_position + Vector2(400, 70)
 	var toward: Vector2 = swarm.target()
 	check(swarm.drawn_to == &"carried" and toward == player.global_position + MothSwarm.CARRIED, "near by, the wizard's lit lantern takes priority over the lantern itself")
-	Abilities.set_tier(player, &"parry", 0)
+	Abilities.set_tier(player, &"slash", 0)
 	check(Abilities.spell(player) == &"" and swarm.drawn_to == &"carried" and swarm.target() == toward, "with no spell equipped, the lit lantern still draws them")
 	Abilities.grant(player, &"hex")
 	var before: float = swarm.global_position.distance_to(toward)

@@ -64,11 +64,12 @@ func run() -> void:
 	await process_frame
 	check(int(map.get("view")) == 1 and paused and map.visible, "M opens the level page, paused")
 	# The page is drawn (inked whole above): its marks note their legend rows, and only those are
-	# listed. Teleporters are on the map; this first level has no skeleton key.
+	# listed. Teleporters are on the map; a skeleton key only if the level holds one (in a vault, say).
 	map.call("_level", info)
 	var shown: Dictionary = map.get("_shown")
 	check(shown.has("teleporter") and (shown.has("deeper") or shown.has("unpaid")) and shown.has("lantern"), "teleporters, exits and lanterns are marked: %s" % [shown.keys()])
-	check(not shown.has("skeleton key") and not shown.has("rift"), "the legend leaves out what the page does not show")
+	var skeleton: bool = info.world.objects.any(func(v: Vector2i) -> bool: return info.world.get_cell(v).type == LevelGen.Type.KEY and info.world.get_cell(v).extra_info == KeyRing.SKELETON)
+	check(shown.has("skeleton key") == skeleton and not shown.has("rift"), "the legend leaves out what the page does not show (no rift; a skeleton key only with one: %s)" % skeleton)
 	# The page is marked from the layout and the record, as another level's is: a change to the
 	# record shows at once, before the things in the scene catch up.
 	var rec: LevelRecord = info.record()

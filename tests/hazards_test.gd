@@ -48,11 +48,18 @@ func run() -> void:
 	await settle(30)
 	var hoppers: Array[Node] = placed("hopper_enemy.tscn")
 	check(hoppers.size() >= 2 and hoppers.all(func(h: Node) -> bool: return h.has_node("Wound") and h.is_in_group(&"hex_target")), "%d hoppers in the level, each one woundable" % hoppers.size())
-	# A hopper with open floor-level air beside it, and the wizard held there.
+	# A hopper with open floor-level air beside it, and the wizard held there. Each is looked at
+	# (the view on it, its chunk awake) and let settle first: one asleep at its cell's middle falls to
+	# its floor once the view reaches it, and the room is judged from where it ends up.
 	var space: PhysicsDirectSpaceState2D = player.get_world_2d().direct_space_state
 	var hopper: RigidBody2D = null
 	var aim: Vector2 = Vector2.ZERO
+	player.set_physics_process(false)
 	for h: Node in hoppers:
+		player.global_position = (h as Node2D).global_position + Vector2(0, -600)
+		CameraControl.snap(player)
+		info.loader.wake_around((h as Node2D).global_position)
+		await frames(40)
 		for side: float in [1.0, -1.0]:
 			var from: Vector2 = (h as Node2D).global_position
 			var to: Vector2 = from + Vector2(side * 320.0, -8.0)
@@ -67,6 +74,10 @@ func run() -> void:
 		player.set_physics_process(false)
 		player.invulnerable.enable()
 		player.global_position = aim
+		# The view on it at once, so its chunk is awake (a far hopper's would sleep while the camera
+		# pans across the level).
+		CameraControl.snap(player)
+		info.loader.wake_around(aim)
 		var hop: Node = hopper.get_node("Hopper")
 		hop.set("rest", 0.0)
 		var start: Vector2 = hopper.global_position

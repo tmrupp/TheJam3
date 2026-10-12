@@ -1,4 +1,12 @@
 extends RisoProp
+func shines() -> bool:
+	return true
+
+
+func light() -> Array:
+	return _light(Vector2(0, _ground() - 86.0), RisoLight.BEACON, RisoPrint.EYE)
+
+
 ## A relic: a medallion with its move's mark over a small plinth, and its pop-up.
 
 
@@ -9,7 +17,7 @@ var relic: Relic:
 
 
 ## A relic: a medallion (an accent ring round a disc of bare paper with the move's mark on it)
-## floating over a small plinth in a ring of light, with three motes
+## floating over a small plinth in its own light (RisoLight), with three motes
 ## circling it; its name and tier pop up as the wizard steps up to it ("swap" too, when taking it
 ## would replace the spell in the slot).
 func _draw_art() -> void:
@@ -21,7 +29,6 @@ func _draw_art() -> void:
 	ink.ink(RisoPrint.NIGHT, 0.6, [RisoShapes.rrect(-20, g - 28, 40, 10, 4)])
 	var c: Vector2 = Vector2(0, g - 86 + bob)
 	var breathe: float = 1.0 + 0.06 * sin(t * 3.0 + phase)
-	ink.ink(RisoPrint.EYE, 0.25, [RisoShapes.circle(c, 54.0 * breathe, 32)], false)
 	# A medallion: a solid accent ring round a disc of bare paper, the move's mark on it.
 	var disc: PackedVector2Array = RisoShapes.circle(c, 33.0, 32)
 	ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(c, 39.0, 32)])

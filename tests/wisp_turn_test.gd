@@ -127,7 +127,15 @@ func open_turn() -> void:
 
 ## A wisp walking at a wall turns round WALL_ROOM short of it, and its drop fits the room left.
 func wall_turn() -> void:
-	var spot: Vector2i = floor_spot(func(v: Vector2i) -> bool: return info.world.is_ground(v + Vector2i.RIGHT) and floor_at(v + Vector2i.LEFT))
+	# Any floor running up to a wall, with floor before it, that the wisp can walk along: something
+	# standing there (a star, a switch, the ink well) does not stop it; a door, a gate or thorns would.
+	var walkable: Callable = func(c: Vector2i) -> bool: return open_at(c) and info.world.ground_below(c) 			and info.world.get_cell(c).type not in [LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.SPIKES, LevelGen.Type.PLATFORM]
+	var spot: Vector2i = Vector2i(-1, -1)
+	for x: int in range(info.world.size.x):
+		for y: int in range(info.world.size.y):
+			var v: Vector2i = Vector2i(x, y)
+			if spot == Vector2i(-1, -1) and walkable.call(v) and info.world.is_ground(v + Vector2i.RIGHT) and walkable.call(v + Vector2i.LEFT):
+				spot = v
 	check(spot != Vector2i(-1, -1), "a floor running up to a wall")
 	if spot == Vector2i(-1, -1):
 		return

@@ -1,6 +1,6 @@
 extends TestKit
-## Stills of the damage spells that strike round the wizard (Slash, Nova, Push; SpellMark), each
-## cast at wisps on open floor and caught mid-swing; and the Fool carrying a damage spell in the
+## Stills of the damage spells (Slash, Nova, Push, Seeker, Lunge; SpellMark), each cast at wisps on
+## open floor and caught mid-swing; and the Fool carrying a damage spell in the
 ## bag. Written as one sheet (damage_spells.png).
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_damage_spells.gd
 
@@ -43,7 +43,7 @@ func run() -> void:
 	player.set_physics_process(false)
 	player.global_position = info.cell_position(at) + Vector2(0, 16 - 31)
 	var shots: Array[Image] = []
-	for spell: StringName in [&"slash", &"nova", &"push"]:
+	for spell: StringName in [&"slash", &"nova", &"push", &"seeker", &"lunge"]:
 		Abilities.set_tier(player, spell, 2)
 		var foes: Array[Node2D] = [wisp(at, 95.0), wisp(at, -140.0)]
 		for i: int in range(12):
@@ -53,6 +53,8 @@ func run() -> void:
 		var node: Node = player.get_node(String(Abilities.ABILITIES[spell]["node"]))
 		if spell == &"nova":
 			(node as Nova).cast()
+		elif spell == &"lunge":
+			(node as Lunge).cast(1.0)
 		else:
 			node.call("cast", Vector2.RIGHT)
 		await frames(4)

@@ -194,9 +194,8 @@ func casting() -> void:
 
 func mending() -> void:
 	print("mend")
-	Abilities.grant(player, &"mend")
 	var mend: Mend = player.get_node("Mend") as Mend
-	check(Abilities.spell(player, &"utility") == &"mend" and mend.draughts() == 1, "mend I holds one draught, full when learned")
+	check(Abilities.spell(player, &"utility") == &"mend" and Abilities.tier(player, &"mend") == 1 and mend.draughts() == 1, "a run starts with mend I: one draught, full")
 	Abilities.grant(player, &"mend")
 	check(mend.draughts() == 2, "mend II holds two")
 	player.health.health = 1

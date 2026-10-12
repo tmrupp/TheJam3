@@ -139,6 +139,7 @@ const SWITCH_SHARE: float = 0.15
 
 func _init() -> void:
 	name = &"crags"
+	title = "The Crags"
 	decor = &"crags"
 	sample = SAMPLE
 	symmetry = 1

@@ -27,7 +27,6 @@ func capture() -> void:
 	var player: Player = main.get_node("Player") as Player
 	for i: int in range(60):
 		await process_frame
-	Abilities.set_tier(player, &"parry", 1)
 	var guard: Parry = player.get_node("Parry") as Parry
 	var shots: Array[Image] = []
 	Engine.time_scale = 0.05

@@ -451,6 +451,9 @@ func _physics_process(delta: float) -> void:
 	# the utility slot, and the Dash button the movement slot's spell (the dash itself, or blink,
 	# is done below).
 	if Input.is_action_just_pressed(Abilities.SPELL_ACTION):
+		# Every damage spell parries: the guard goes up (on its own cooldown, Parry) as it is cast.
+		if Abilities.spell(self) != &"" and not is_drowsy():
+			parry.emit()
 		Abilities.cast(self, &"damage")
 	# Nothing shows the utility spell standing by: pressed when it cannot work (cooling down, no
 	# draught left, nothing to heal), it sputters instead (RisoPrint: a dull puff from the bag).

@@ -17,7 +17,8 @@ func run() -> void:
 	check(ward != null and ward.charges == 1 and ward.charges_max == 1, "learning it gives one charge")
 
 	print("taking a hit")
-	Abilities.set_tier(player, &"parry", 0)
+	# No damage spell held, so no parry guard.
+	Abilities.set_tier(player, &"slash", 0)
 	player.end_invulnerable()
 	var hp: int = player.health.health
 	player.hurt(-1, Vector2.RIGHT * 300.0, hit_by)
@@ -38,7 +39,7 @@ func run() -> void:
 	check(ward.charges == 2 and ward.charges_max == 2, "tier III holds two charges")
 
 	print("the parry first")
-	Abilities.set_tier(player, &"parry", 1)
+	Abilities.set_tier(player, &"slash", 1)
 	player.end_invulnerable()
 	player.parry.emit()
 	player.hurt(-1, Vector2.RIGHT * 300.0, hit_by)

@@ -300,11 +300,11 @@ at its top, part of the crags' castle.
   rears 0.4 s and spits a glob of web (`WebShot`, 600 px/s, straight). It sticks where it lands,
   on the wizard or the rock, as a **splat** (`Spider.splat`): a small web 1.4 cells across that
   holds them as a web does (slowed, the dash not coming back) for 6 s, or until a bolt or a dash
-  tears it. Every third spit (`EGG_EVERY`) is an **egg sac** instead (`EggSac`), lobbed in an arc
+  tears it. Every second spit (`EGG_EVERY`) is an **egg sac** instead (`EggSac`), lobbed in an arc
   to come down where the wizard is; landed, it swells 2.5 s and hatches 3 **spiderlings**
   (`Spiderling`), which run along the floors at the wizard (170 px/s), hop steps and at the wizard
   just over them, and bite; any blow kills one or bursts a sac (`BroodWound`, no stars), and a
-  spiderling withers after 9 s. No more than 6 of its brood are about at once, and they go when
+  spiderling withers after 9 s. No more than 9 of its brood are about at once, and they go when
   it dies.
 - **The keep's crossbows** (`SpiderKeep.arm`, placed with the spider, no RNG draws): one to each
   floor, in the row the wizard stands in, on alternate walls, set into the hall's wall and shooting
@@ -316,12 +316,12 @@ at its top, part of the crags' castle.
 - **Hunting.** Asleep on its canopy under the roof until the wizard comes within 16 cells; then it
   crawls along the roof to be over them (or over the hole nearest them, waiting), rears 0.45 s
   (fangs flashing pink), drops on its thread (1500 px/s) to where they were, holds its bite
-  0.55 s, climbs back (400 px/s) and rests 0.9 s. It drops and climbs only through the middle of a
+  0.9 s, climbs back (400 px/s) and rests 0.9 s. It drops and climbs only through the middle of a
   hole (its body is about 140 px across).
 - **Hard back.** A strike glances off unless it is **open**: biting (its face), stunned, or fallen.
   Open, any bolt, dash or parry (even one that only stuns, `Wound.least`) puts out one eye.
 - **The thread.** A hex bolt or a dash across it cuts it (`Spider.thread_across`; the bolt ends
-  there): it tumbles to the floor below and lies on its back 2.8 s, then scurries along that floor
+  there): it tumbles to the floor below and lies on its back 4 s, then scurries along that floor
   to the nearest spot with a clear line up to the roof (or off into a hole, falling on down) and
   climbs a new thread, which can be cut again. Its body is a capsule that turns with it
   (`struck_by`); the thread leaves its abdomen's tip clear of that, so a way over its back cuts

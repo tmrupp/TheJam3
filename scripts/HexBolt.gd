@@ -5,8 +5,9 @@ class_name HexBolt
 ## what it meets (Wound.hit; enemies are stunned too, and at hex I only stunned) and breaks cracked
 ## walls (hex_hit) at any tier, and ends at rock or after RANGE. It tears the spider's webs it
 ## passes through (SpiderWeb) and flies on, and cuts a spider's thread it crosses (Spider), ending
-## there. Printed as a comet of spell light
-## (accent ink, like the wand tip) with a tapering tail.
+## there. A seeking bolt (Seeker: `seek` above 0) turns toward the nearest enemy it can see within
+## SEEK px as it flies. Printed as a comet of spell light (accent ink, like the wand tip) with a
+## tapering tail.
 
 const SPEED: float = 1100.0
 const RANGE: float = 8.0 * 128.0
@@ -17,6 +18,8 @@ const REACH: float = 44.0
 const SPAN_DOWN: float = 20.0
 const SPAN_UP: float = 56.0
 const SOLID_MASK: int = 4
+## How far (px) a seeking bolt looks for an enemy to turn toward.
+const SEEK: float = 520.0
 ## The things that answer a bolt themselves, by their script (or one it extends): each has
 ## `hex_hit(damage, dir)`, called when the bolt strikes it. A new one is added here (unit_test
 ## checks every script with a hex_hit is listed, and takes those two).
@@ -42,6 +45,13 @@ static func answers(o: Object) -> bool:
 var dir: Vector2 = Vector2.RIGHT
 var damage: int = 1
 var pierce: bool = false
+## How fast it flies (px/s), how far before it ends, how long it stuns what it strikes, how hard it
+## turns toward an enemy (radians a second; 0 flies straight) and how big it prints.
+var speed: float = SPEED
+var range_px: float = RANGE
+var stun: float = Hex.STUN
+var seek: float = 0.0
+var size: float = 1.0
 ## A shot turned back by a parry (Parry): it breaks a shield (Shield) at once.
 var reflected: bool = false
 var travelled: float = 0.0
@@ -68,7 +78,12 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	t += delta
 	var from: Vector2 = global_position
-	var to: Vector2 = from + dir * SPEED * delta
+	if seek > 0.0:
+		var quarry: Node2D = _quarry()
+		if quarry != null:
+			var turn: float = angle_difference(dir.angle(), (quarry.global_position - from).angle())
+			dir = dir.rotated(clampf(turn, -seek * delta, seek * delta))
+	var to: Vector2 = from + dir * speed * delta
 	# Enemies along the step, nearest first.
 	SpiderWeb.tear_along(get_tree(), from, to)
 	var targets: Array[Node] = []
@@ -111,7 +126,7 @@ func _physics_process(delta: float) -> void:
 			RisoFx.burst(&"hit", (e as Node2D).global_position, dir, [RisoPrint.ACCENT, RisoPrint.BLUE])
 		var stunner: Stunner = Stunner.of(e)
 		if stunner != null and is_instance_valid(e) and not e.is_queued_for_deletion():
-			stunner.stun(Hex.STUN)
+			stunner.stun(stun)
 		# Things that are not enemies answer the bolt themselves (a switch throws).
 		if wound == null and answers(e):
 			e.call("hex_hit", damage, dir)
@@ -133,8 +148,24 @@ func _physics_process(delta: float) -> void:
 	trail.append(from)
 	if trail.size() > 7:
 		trail.pop_front()
-	if travelled >= RANGE:
+	if travelled >= range_px:
 		_end(to)
+
+
+## For a seeking bolt: the nearest enemy (a thing with a Wound) not yet struck, within SEEK px, with
+## no rock between; null when there is none.
+func _quarry() -> Node2D:
+	var best: Node2D = null
+	var best_d: float = SEEK
+	for e: Node in get_tree().get_nodes_in_group(&"hex_target"):
+		var n: Node2D = e as Node2D
+		if n == null or not is_instance_valid(n) or n.is_queued_for_deletion() or n.get_node_or_null("Wound") == null or Wound.whole(n) in struck:
+			continue
+		var d: float = global_position.distance_to(n.global_position)
+		if d < best_d and SpellStrike.clear(global_position, n.global_position):
+			best = n
+			best_d = d
+	return best
 
 
 ## The first rock, door, switch gate or cracked wall on the step (ledges and moving platforms are
@@ -174,13 +205,13 @@ func _process(_delta: float) -> void:
 		if a.distance_to(b) < 1.0:
 			continue
 		var n: Vector2 = (b - a).normalized().orthogonal()
-		var wa: float = 2.0 + 10.0 * float(i) / float(pts.size())
-		var wb: float = 2.0 + 10.0 * float(i + 1) / float(pts.size())
+		var wa: float = (2.0 + 10.0 * float(i) / float(pts.size())) * size
+		var wb: float = (2.0 + 10.0 * float(i + 1) / float(pts.size())) * size
 		tail.append(PackedVector2Array([a - n * wa, b - n * wb, b + n * wb, a + n * wa]))
 	ink.ink(RisoPrint.ACCENT, 0.5, tail)
 	var pulse: float = 1.0 + 0.15 * sin(t * 40.0)
-	ink.ink(RisoPrint.ACCENT, 0.3, [RisoShapes.circle(head, 26.0 * pulse, 20)])
-	var core: PackedVector2Array = Transform2D(t * 9.0, head) * RisoShapes.sparkle(Vector2.ZERO, 16.0 * pulse)
+	ink.ink(RisoPrint.ACCENT, 0.3, [RisoShapes.circle(head, 26.0 * pulse * size, 20)])
+	var core: PackedVector2Array = Transform2D(t * 9.0, head) * RisoShapes.sparkle(Vector2.ZERO, 16.0 * pulse * size)
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], [core])
 	ink.ink(RisoPrint.ACCENT, 1.0, [core], false)
 	ink.finish()

@@ -36,7 +36,7 @@ func run() -> void:
 	player.set_physics_process(false)
 
 	print("the hex")
-	check(Abilities.spell(player) == &"parry" and player.get_node_or_null("Hex") == null, "parry to start with: the hex is learned")
+	check(Abilities.spell(player) == &"slash" and player.get_node_or_null("Hex") == null, "slash to start with: the hex is learned")
 	Abilities.grant(player, &"hex")
 	var hex: Hex = player.get_node_or_null("Hex") as Hex
 	check(hex != null and Abilities.tier(player, &"hex") == 1 and hex.charges == 1 and Abilities.spell(player) == &"hex", "learned: one charge")

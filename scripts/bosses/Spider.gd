@@ -74,9 +74,9 @@ const DROP_SLACK: float = BITE_R
 ## Seconds: rearing before a drop (the warning), holding the bite at the bottom, resting on the
 ## canopy after a strike, lying on its back once fallen, and shrivelling as it dies.
 const WARN: float = 0.45
-const BITE_HOLD: float = 0.55
+const BITE_HOLD: float = 0.9
 const REST: float = 0.9
-const DOWNED: float = 2.8
+const DOWNED: float = 4.0
 const DIE_TIME: float = 1.3
 ## How near (px) a bolt's way, and a dash's, must pass its thread to cut it.
 const THREAD_REACH: float = 16.0
@@ -160,9 +160,9 @@ const SPIT_EVERY: float = 2.8
 const SPIT_FIRST: float = 1.5
 const SPIT_WARN: float = 0.4
 const SPIT_RANGE: float = 12.0
-const EGG_EVERY: int = 3
+const EGG_EVERY: int = 2
 const BROOD: int = 3
-const BROOD_MOST: int = 6
+const BROOD_MOST: int = 9
 ## How big a splat is (cells across), and how long it holds before it falls away (seconds).
 const SPLAT: float = 1.4
 const SPLAT_LIFE: float = 6.0

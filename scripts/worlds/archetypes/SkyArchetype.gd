@@ -84,6 +84,7 @@ const TEMPLE_HOARD: int = 2
 
 func _init() -> void:
 	name = &"sky"
+	title = "The Sky"
 	decor = &"sky"
 	sample = SAMPLE
 	symmetry = 1

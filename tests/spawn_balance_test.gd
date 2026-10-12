@@ -1,5 +1,6 @@
 extends SceneTree
-## Generation budgets, gates and moon placement over both terrain families.
+## Generation budgets, gates, the ink well near the middle, and moon placement over both terrain
+## families.
 
 var failed: bool = false
 var fixture: LevelGen
@@ -45,6 +46,12 @@ func run() -> void:
 			if depth == 9:
 				check(int(counts.get(LevelGen.Type.PORTAL, 0)) >= 4, label + ": the largest worlds have at least two generated pairs")
 			check(int(counts.get(LevelGen.Type.MOON, 0)) > 0 and int(counts.get(LevelGen.Type.MOON, 0)) <= w.per_area(LevelGen.MOONS_PER_K), label + ": moon budget")
+			# The ink well (the map) stands near the middle of the level.
+			var wells: Array[Vector2i] = []
+			for v: Vector2i in w.objects:
+				if w.get_cell(v).type == LevelGen.Type.INKWELL:
+					wells.append(v)
+			check(wells.size() == 1 and LevelGen.dist(wells[0], w.size / 2) <= (w.size.x + w.size.y) / 4, label + ": the ink well near the middle of the level")
 			for v: Vector2i in w.objects:
 				if w.get_cell(v).type == LevelGen.Type.MOON:
 					check(not w._ledge_below(v), label + ": moon above platform at " + str(v))

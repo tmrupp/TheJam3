@@ -272,12 +272,13 @@ func _exit(which: int) -> LevelExit:
 	return null
 
 
-## A slash (Slash, tier I) from `from` heading `dir`, the wizard there just for it; then parry back
-## in the damage slot, and the wizard back where they were.
+## A slash (Slash, tier I, ready at once) from `from` heading `dir`, the wizard there just for it;
+## then the wizard back where they were.
 func _slash(from: Vector2, dir: Vector2) -> void:
 	var was: Vector2 = player.global_position
 	Abilities.set_tier(player, &"slash", 1)
 	player.global_position = from - (SpellStrike.origin(player) - player.global_position)
-	(player.get_node("Slash") as Slash).cast(dir)
-	Abilities.set_tier(player, &"parry", 1)
+	var slash: Slash = player.get_node("Slash") as Slash
+	slash.wait = 0.0
+	slash.cast(dir)
 	player.global_position = was

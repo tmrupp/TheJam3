@@ -1,7 +1,9 @@
 extends Node2D
 class_name Parry
-## Parry, a spell: press Spell to raise a guard for a moment. A hit that lands inside it is turned
-## aside, and pays off:
+## Parry: not a spell of its own, but what every damage spell does as it is cast (Player: the Spell
+## button raises the guard whenever a damage spell is held, on the guard's own cooldown, whether
+## or not the spell itself is ready). The guard is up for a moment; a hit that lands inside it is
+## turned aside, and pays off:
 ## - a touching enemy takes `damage` (double while stunned, as ever) and, if it lives, is stunned;
 ##   one behind a shield (Shield) loses a plate per point of `damage` instead, as a dash or a bolt
 ##   takes one, and is neither wounded nor stunned while the shield holds;
@@ -12,11 +14,10 @@ class_name Parry
 ##   with the air jump back and control kept, so a parry can bounce off them and parry again; from
 ##   above, a short knock, PUSH), the dash comes back, the guard is
 ##   ready again at once, the wizard is untouchable for a moment (SAFE), and the action freezes for
-##   an instant (hit-stop); from tier IV it heals 1.
-## A guard that catches nothing has a short cooldown. No guard can be raised while the wizard is
-## untouchable from a hit taken (hurt_guarded); a parry's own untouchable moment does not count,
-## so parries still chain (a pogo off thorns). Tiers (Abilities): II a longer window and
-## shorter cooldown, III double damage, IV heals. It is the spell every run starts with.
+##   an instant (hit-stop).
+## A guard that catches nothing has a short cooldown (COOLDOWN). No guard can be raised while the
+## wizard is untouchable from a hit taken (hurt_guarded); a parry's own untouchable moment does not
+## count, so parries still chain (a pogo off thorns). It has no tiers.
 ## How it shows (RisoWizard._draw_guard): the guard is a yellow gleam band sweeping across the
 ## figure, the same all round (it guards from every side); a catch bursts in spell light where it
 ## landed and the wizard shimmers gold (not the hurt pink) while untouchable.
@@ -35,20 +36,19 @@ const POGO: float = -600.0
 ## parry.
 const SAFE: float = 0.8
 
-## How long the guard stays up (seconds): short, so a catch takes timing; a little longer from
-## tier II.
+## How long the guard stays up (seconds): short, so a catch takes timing.
 const WINDOW: float = 0.2
-const WINDOW_II: float = 0.25
-var duration: float = WINDOW
-var damage: int = 1
-var heals: bool = false
+## What a catch wounds (double while stunned, as ever: Wound).
+const DAMAGE: int = 1
+## How long (seconds) a guard that caught nothing keeps another from going up.
+const COOLDOWN: float = 1.2
 @onready var player: Player = $".."
 @onready var area: Area2D = $"Area2D"
 @onready var sprite: Sprite2D = $Sprite2D
 @onready var collider: CollisionShape2D
 var scaling: float = 1.1
 @onready var timer: Timer = $Timer
-@onready var cooldown: ActionTimer = ActionTimer.new(1.2, player.refresh_self)
+@onready var cooldown: ActionTimer = ActionTimer.new(COOLDOWN, player.refresh_self)
 
 @onready var parry_sfx: AudioStreamPlayer = $AudioStreamPlayer
 
@@ -77,9 +77,9 @@ func stop_parry () -> void:
 
 ## How much of the guard's window is left, 1 as it goes up to 0 as it closes; -1 when it is down.
 func guard_left() -> float:
-	if not guarding or duration <= 0.0:
+	if not guarding:
 		return -1.0
-	return clampf(timer.time_left / duration, 0.0, 1.0)
+	return clampf(timer.time_left / WINDOW, 0.0, 1.0)
 
 
 ## Whether the wizard is untouchable from a hit taken (a wound, or the ward breaking), when no
@@ -121,8 +121,6 @@ func parry (_damage: int, v: Vector2, origin: Node) -> void:
 	_push(away)
 	player.invulnerable.enable(true)
 	player.invulnerable.acting = SAFE
-	if heals:
-		player.health.modify_health(1 if player.health.health < player.health.max_health else 0)
 	_hit_stop()
 
 
@@ -157,7 +155,7 @@ func _reflect(shot: Bullet, attacker: Node) -> void:
 	shot.queue_free()
 	var bolt: HexBolt = HexBolt.new()
 	bolt.dir = aim
-	bolt.damage = damage
+	bolt.damage = DAMAGE
 	bolt.reflected = true
 	var level: Node = MapInfo.instance.map_elements if MapInfo.instance != null and is_instance_valid(MapInfo.instance.map_elements) else player.get_parent()
 	level.add_child(bolt)
@@ -170,12 +168,12 @@ func _strike(attacker: Node) -> void:
 	var dir: Vector2 = ((attacker as Node2D).global_position - player.global_position).normalized() if attacker is Node2D else Vector2.RIGHT
 	var shield: Shield = Shield.of(attacker)
 	if shield != null and shield.holds():
-		for i: int in range(damage):
+		for i: int in range(DAMAGE):
 			shield.absorb(false, dir)
 		return
 	var wound: Wound = attacker.get_node_or_null("Wound") as Wound
 	if wound != null:
-		wound.hit(damage, dir)
+		wound.hit(DAMAGE, dir)
 	if is_instance_valid(attacker) and not attacker.is_queued_for_deletion():
 		var stunner: Stunner = Stunner.of(attacker)
 		if stunner != null:
@@ -196,7 +194,7 @@ func check_parry () -> void:
 	sprite.visible = true
 	guarding = true
 	raised_at = clock
-	timer.start(duration)
+	timer.start(WINDOW)
 
 
 
@@ -204,28 +202,8 @@ func check_parry () -> void:
 func _process(delta: float) -> void:
 	clock += delta
 
-## Its tier (Abilities): I the guard (WINDOW), 1 damage, reflects shots, refunds the dash. II
-## WINDOW_II and a shorter cooldown on a miss. III 2 damage. IV each parry heals 1. Untaught it keeps
-## tier I's tuning (it does nothing until learned, see execute).
-func set_tier(n: int) -> void:
-	n = maxi(n, 1)
-	duration = WINDOW_II if n >= 2 else WINDOW
-	damage = 2 if n >= 3 else 1
-	heals = n >= 4
-	if cooldown != null:
-		cooldown.MAX_TIME = 0.9 if n >= 2 else 1.2
-
-
-## The Spell button, with parry in the slot: raise the guard (not while untouchable from a hit).
-func cast_spell() -> bool:
-	if hurt_guarded():
-		return false
-	player.parry.emit()
-	return true
-
-
-## Ready unless cooling down after a guard (0..1 as the cooldown runs out, the spell orb shows it),
-## or untouchable from a hit taken (0).
+## Ready unless cooling down after a guard (0..1 as the cooldown runs out), or untouchable from a
+## hit taken (0).
 func readiness() -> float:
 	if hurt_guarded():
 		return 0.0
@@ -234,12 +212,10 @@ func readiness() -> float:
 	return 1.0 - clampf(cooldown.acting / cooldown.MAX_TIME, 0.0, 1.0) if cooldown.is_acting() else 0.0
 
 
-## The guard is too brief to show: never running (see Abilities.running).
-func running() -> Vector2:
-	return Vector2(-1.0, 0.0)
-
+## Raise the guard, if a damage spell is held to parry with, it has come back and no hit taken
+## keeps the wizard untouchable.
 func execute () -> void:
-	if Abilities.tier(player, &"parry") <= 0:
+	if Abilities.spell(player) == &"":
 		return
 	if not cooldown.acted and not hurt_guarded():
 		cooldown.enable()

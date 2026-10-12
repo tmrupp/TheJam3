@@ -39,7 +39,7 @@ const DRAUGHT_SPENT: float = 0.4
 const CARD_SLACK: float = 3.0
 ## Pointers sit on this rectangle, just inside the edge of the view.
 const VIEW_INNER: Rect2 = Rect2(Vector2(14, 14), Vector2(292, 152))
-const KNOCK_ALL: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE]
+const KNOCK_ALL: Array[int] = RisoPrint.ALL_PLATES
 
 ## The node in the UI's canvas that holds all the HUD's art, kept on the camera like this one.
 var canvas: Node2D

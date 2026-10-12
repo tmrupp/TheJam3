@@ -1,6 +1,7 @@
 extends TestKit
 ## A dormant worm wakes at its full activation distance, even when its burrow is outside the
-## camera's awake chunks. World 42 has an open floor at that boundary above its original burrow.
+## camera's awake chunks: the wizard, held still, stands at a cell exactly WAKE_RANGE from its
+## burrow whose view leaves the burrow's chunk asleep.
 ## godot --headless --path . --script res://tests/worm_wake_test.gd
 
 
@@ -19,15 +20,19 @@ func run() -> void:
 		return
 	var worm: Worm = worms[0] as Worm
 	var spot: Vector2i = Vector2i(-1, -1)
-	for floor_cell: Vector2i in info.world.free_floors():
-		if LevelGen.dist(floor_cell, worm.home) != Worm.WAKE_RANGE:
+	var r: int = Worm.WAKE_RANGE
+	@warning_ignore("integer_division")
+	var half: int = r / 2
+	for d: Vector2i in [Vector2i(r, 0), Vector2i(-r, 0), Vector2i(0, -r), Vector2i(half, half - r), Vector2i(-half, half - r)]:
+		var cell: Vector2i = worm.home + d
+		if not info.world.is_valid(cell) or LevelGen.dist(cell, worm.home) != r:
 			continue
-		player.global_position = info.cell_position(floor_cell)
+		player.global_position = info.cell_position(cell)
 		info.loader.wake_around(player.global_position)
 		if not info.loader.is_awake(worm):
-			spot = floor_cell
+			spot = cell
 			break
-	check(spot != Vector2i(-1, -1) and not worm.awake, "a floor at the activation boundary lies outside the burrow's awake chunks")
+	check(spot != Vector2i(-1, -1) and not worm.awake, "a cell at the activation boundary lies outside the burrow's awake chunks")
 	if spot == Vector2i(-1, -1):
 		finish()
 		return

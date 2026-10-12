@@ -8,6 +8,15 @@ var shrine: Shrine:
 		return host as Shrine
 
 
+func shines() -> bool:
+	return true
+
+
+## A light over the niches, between them.
+func light() -> Array:
+	return _light(Vector2(0, _ground() - 90.0), RisoLight.BEACON, RisoPrint.ACCENT)
+
+
 ## The shrine: a plinth across two cells carrying three stations side by side: two niches where
 ## an offered ability's mark floats over its tier pips, then a bowl with an ember bead (mending).
 ## Each one's name and price pop up over it as the wizard steps up to it. Once used, the marks
@@ -127,9 +136,9 @@ func _shrine_niche(cx: float, i: int, g: float, bob: float, used: bool) -> void:
 		_plaque("swap", Vector2(cx, g - POP_Y - 40.0 * s), 22, RisoPrint.PINK, s)
 
 
-## An ability's mark floating in a shrine niche at `c`, in a soft halo, over `pips_n` tier pips.
+## An ability's mark floating in a shrine niche at `c`, over `pips_n` tier pips (the shrine's own
+## light shines on it, see light).
 func _niche_mark(a: StringName, c: Vector2, i: int, pips_n: int, cx: float, g: float) -> void:
-	ink.ink(RisoPrint.ACCENT, 0.18, [RisoShapes.circle(c, 27.0 * (1.0 + 0.05 * sin(t * 3.0 + float(i))), 28)])
 	# The mark at 0.75 size, to fit the narrower niche.
 	var fit: Transform2D = Transform2D(0.0, Vector2(0.75, 0.75), 0.0, c)
 	var mark: Array[PackedVector2Array] = []

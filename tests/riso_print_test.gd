@@ -91,9 +91,15 @@ func run() -> void:
 		info.loader.wake_around(lift.global_position)
 		await physics_frame
 		var was: Vector2 = lift.global_position
-		for i: int in range(10):
+		# Kept awake while watched: on a loaded machine the chunk sleeper may run first.
+		var moved: bool = false
+		for i: int in range(120):
+			info.loader.wake_around(lift.global_position)
 			await physics_frame
-		check(lift.global_position != was, "moving platform moves")
+			if lift.global_position != was:
+				moved = true
+				break
+		check(moved, "moving platform moves")
 	var fx: RisoFx = RisoFx.instance
 	check(fx != null, "particle layer present")
 	# Wizard reacts to real player events without errors.
@@ -107,7 +113,6 @@ func run() -> void:
 		await process_frame
 	check((wizard.get("echoes") as Array).size() > 0, "dash leaves afterimages")
 	check(riso.glow_ability == &"dash", "the glow ink is the dash's")
-	Abilities.grant(player, &"parry")
 	Abilities.grant(player, &"astral")
 	player.parry.emit()
 	await process_frame

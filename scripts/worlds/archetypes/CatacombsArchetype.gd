@@ -13,6 +13,7 @@ const GLOOM: float = 0.6
 func _init() -> void:
 	super()
 	name = &"catacombs"
+	title = "The Catacombs"
 	shade = SHADE_DEEP
 	gloom = GLOOM
 

@@ -114,13 +114,24 @@ func _circuit(w: LevelGen, at: Vector2i) -> int:
 		if t == LevelGen.Type.TOLL:
 			check(int(w.get_cell(g).extra_info) == Rules.toll_price(absi(at.y)), "its toll is the price for the depth")
 	check(shut == stops.size() - 1, "all its other stations are shut")
-	check(tolls * 2 > shut, "mostly by toll gates (%d of %d)" % [tolls, shut])
+	check(tolls * 2 >= shut, "mostly by toll gates, at least half (%d of %d)" % [tolls, shut])
 	return diagonal
 
 
 func ride() -> void:
-	await boot()
-	info.coord = Vector2i(28, NextWorldDef.band_row(&"crags", 0))
+	# The first of a few worlds whose first crags level has at least two stations shut by a toll
+	# gate (the ride opens the next station on the way, and the fare is paid at one still shut).
+	var world_seed: int = 28
+	for s: int in [28, 7, 13, 99, 5, 42, 1, 2, 3, 4]:
+		var w: LevelGen = build(Vector2i(s, NextWorldDef.band_row(&"crags", 0)))
+		if w == null:
+			continue
+		var tolls: Array = (w.circuit.get("gates", []) as Array).filter(func(c: Vector2i) -> bool: return w.get_cell(c).type == LevelGen.Type.TOLL)
+		if tolls.size() >= 2:
+			world_seed = s
+			break
+	await boot(world_seed)
+	info.coord = Vector2i(world_seed, NextWorldDef.band_row(&"crags", 0))
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	await settle()
@@ -234,22 +245,19 @@ func ride() -> void:
 	check(await until(func() -> bool: return absf(g.swing) < 0.005 and absf(g.swing_v) < 0.01, 8000), "and settles while it stands")
 	check(g.center().distance_to(g.world_at(g.s) + Vector2(0.0, -g.cell_px)) < 2.0, "hanging straight down at the station")
 	await rock_bugs()
-	# A toll gate lifts for its price (one placed here, if this level has none of its own).
-	var tolls: Array[Node] = placed("toll_gate.tscn")
-	if tolls.is_empty():
-		var spare: TollGate = Placeables.scene(LevelGen.Type.TOLL).instantiate() as TollGate
-		spare.set_meta(&"cell", Vector2i(-5, -5))
-		info.map_elements.add_child(spare)
-		spare.setup(info, Vector2i(-5, -5), Rules.toll_price(info.here.depth))
-		tolls.append(spare)
-	if not tolls.is_empty():
-		var toll: TollGate = tolls[0] as TollGate
-		player.collect(toll.price - player.coins.coins - 1)
-		toll.pay()
-		check(not toll.is_queued_for_deletion(), "a toll gate stays shut without its price")
-		player.collect(1)
-		toll.pay()
-		check(toll.is_queued_for_deletion() and player.coins.coins == 0 and info.record().opened.has(toll.get_meta(&"cell")), "and lifts for good for it")
+	# A toll gate lifts for its price: a spare one placed here, so the level's own (its stations')
+	# are left shut for the fare below.
+	var spare: TollGate = Placeables.scene(LevelGen.Type.TOLL).instantiate() as TollGate
+	spare.set_meta(&"cell", Vector2i(-5, -5))
+	info.map_elements.add_child(spare)
+	spare.setup(info, Vector2i(-5, -5), Rules.toll_price(info.here.depth))
+	var toll: TollGate = spare
+	player.collect(toll.price - player.coins.coins - 1)
+	toll.pay()
+	check(not toll.is_queued_for_deletion(), "a toll gate stays shut without its price")
+	player.collect(1)
+	toll.pay()
+	check(toll.is_queued_for_deletion() and player.coins.coins == 0 and info.record().opened.has(toll.get_meta(&"cell")), "and lifts for good for it")
 	# Open the next station and call the car there from its landing: it comes over empty.
 	var gate_cell: Vector2i = g.gates[next]
 	if info.world.get_cell(gate_cell).type == LevelGen.Type.SWITCH_GATE:

@@ -1,17 +1,25 @@
 extends RisoProp
-## A star: printed once (a halo, and the star on a canvas of its own), then animated by moving the
-## two canvases (see _tick), so a level's hundreds of stars never re-lay their ink.
+## A star: printed once (the star on a canvas of its own), then animated by moving the canvases
+## (see _tick), so a level's hundreds of stars never re-lay their ink. It throws a small light
+## (RisoLight.SPARK).
 
 
-## A star: printed once (a halo, and the star on a canvas of its own), then animated by moving the
-## two canvases, bobbing, with the star rocking to and fro on its points. A deep level has
-## hundreds, so they never re-lay their ink.
+## A star: printed once (the star on a canvas of its own), then animated by moving the canvases,
+## bobbing, with the star rocking to and fro on its points. A deep level has hundreds, so they never
+## re-lay their ink.
 var _star_ink: InkCanvas = null
+
+
+func shines() -> bool:
+	return true
+
+
+func light() -> Array:
+	return _light(Vector2.ZERO, RisoLight.SPARK, RisoPrint.ACCENT)
 
 
 func _draw_art() -> void:
 	if _star_ink == null:
-		ink.ink(RisoPrint.ACCENT, 0.25, [RisoShapes.circle(Vector2.ZERO, 22.0, 24)])
 		_star_ink = InkCanvas.new()
 		add_child(_star_ink)
 		_star_ink.begin()

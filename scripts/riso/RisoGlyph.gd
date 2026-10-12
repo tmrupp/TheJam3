@@ -15,8 +15,6 @@ static func of(a: StringName, c: Vector2, t: float) -> Array[PackedVector2Array]
 			return [RisoShapes.rrect(c.x - 22, c.y - 26, 9, 52, 4), RisoShapes.crescent(c + Vector2(6, -4), 14.0, Vector2(-6, 0)), RisoShapes.circle(c + Vector2(4, 18), 5.0, 12)]
 		&"blink":
 			return [RisoShapes.circle(c + Vector2(-18, 0), 7.0, 14), RisoShapes.circle(c + Vector2(-4, 0), 2.5, 8), RisoShapes.circle(c + Vector2(5, 0), 2.5, 8), RisoShapes.circle(c + Vector2(18, 0), 10.0, 18)]
-		&"parry":
-			return [RisoShapes.crescent(c, 22.0, Vector2(9, 0))]
 		&"astral":
 			return RisoMarks.ghost_shape(Transform2D(0.0, Vector2(1.5, 1.5), 0.0, c + Vector2(0, 28)))
 		&"vigor":
@@ -54,6 +52,14 @@ static func of(a: StringName, c: Vector2, t: float) -> Array[PackedVector2Array]
 			# Three gusts blowing out from a bead, the middle one longest.
 			return [RisoShapes.circle(c + Vector2(-16, 0), 6.0, 12), RisoShapes.rrect(c.x - 6, c.y - 12, 22, 5, 2.5),
 				RisoShapes.rrect(c.x - 6, c.y - 2.5, 30, 5, 2.5), RisoShapes.rrect(c.x - 6, c.y + 7, 22, 5, 2.5)]
+		&"seeker":
+			# A small bolt at the end of a curling path, turning onto its mark.
+			return [RisoShapes.crescent(c + Vector2(-4, 6), 18.0, Vector2(-7, -7)), RisoShapes.sparkle(c + Vector2(15, -12), 10.0),
+				RisoShapes.circle(c + Vector2(-20, 14), 3.0, 8)]
+		&"lunge":
+			# A spear thrust: a long shaft, its point, and streaks behind.
+			return [RisoShapes.rrect(c.x - 20, c.y - 2.5, 34, 5, 2.5), RisoShapes.tri(c + Vector2(12, -8), c + Vector2(12, 8), c + Vector2(28, 0)),
+				RisoShapes.rrect(c.x - 28, c.y - 11, 14, 3.5, 1.75), RisoShapes.rrect(c.x - 28, c.y + 7.5, 14, 3.5, 1.75)]
 		&"hex":
 			# A comet: a bold spark with a tapering tail behind it.
 			return [RisoShapes.sparkle(c + Vector2(7, -5), 17.0), PackedVector2Array([c + Vector2(4, -12), c + Vector2(-22, 14), c + Vector2(-2, 0)])]

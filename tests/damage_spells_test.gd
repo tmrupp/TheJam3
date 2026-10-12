@@ -1,10 +1,12 @@
 extends TestKit
-## The damage spells that strike round the wizard (Slash, Nova, Push; SpellStrike), in the damage
+## The damage spells (Slash, Nova, Push and Lunge strike round the wizard, SpellStrike; Seeker), in the damage
 ## slot on the Spell button: a slash wounds and stuns what is in its arc in front and not what is
 ## behind, comes back quickly, and at IV cuts shots out of the air; a shield takes it whole; a nova
 ## strikes everything round the wizard within its reach and nothing past it, and is slow to come
-## back; a push stuns what is in its cone and shoves it away without wounding it at I, wounds at
-## II, and blows shots away.
+## back; a push stuns what is in its cone and shoves it away without wounding it at I, wounds what
+## it slams into a wall and, at once, what cannot be moved, wounds at II, and blows shots away; a
+## seeker turns onto an enemy a straight bolt would miss; a lunge throws the wizard forward and
+## stabs what it reaches.
 ## godot --headless --path . --script res://tests/damage_spells_test.gd
 
 
@@ -64,9 +66,8 @@ func run() -> void:
 	await frames(2)
 
 	print("slash")
-	Abilities.grant(player, &"slash")
 	var slash: Slash = player.get_node("Slash") as Slash
-	check(Abilities.spell(player) == &"slash" and Abilities.tier(player, &"parry") == 0, "slash takes the damage slot")
+	check(Abilities.spell(player) == &"slash" and Abilities.tier(player, &"slash") == 1, "slash I is the spell a run starts with")
 	var ahead: Node2D = wisp(at, 80.0)
 	var behind: Node2D = wisp(at, -110.0)
 	var hp_ahead: int = hp(ahead)
@@ -95,7 +96,8 @@ func run() -> void:
 	slash.cast(Vector2.RIGHT)
 	await frames(1)
 	check(not is_instance_valid(bolt) or bolt.is_queued_for_deletion(), "slash IV cuts a shot out of the air")
-	# From the Spell button.
+	# From the Spell button: the spell, and the parry guard with it (Parry).
+	var parry: Parry = player.get_node("Parry") as Parry
 	slash.wait = 0.0
 	Input.action_press(Abilities.SPELL_ACTION)
 	player.set_physics_process(true)
@@ -104,6 +106,19 @@ func run() -> void:
 	player.set_physics_process(false)
 	player.global_position = info.cell_position(at) + Vector2(0, 16 - 31)
 	check(slash.wait > 0.0, "the Spell button slashes")
+	check(parry.guard_left() >= 0.0, "and raises the parry guard with it")
+	# The guard closed and back (its cooldown runs with the wizard's physics, held here), the slash
+	# still recharging.
+	parry.stop_parry()
+	parry.cooldown.refresh()
+	slash.wait = Slash.COOLDOWN
+	Input.action_press(Abilities.SPELL_ACTION)
+	player.set_physics_process(true)
+	await frames(2)
+	Input.action_release(Abilities.SPELL_ACTION)
+	player.set_physics_process(false)
+	player.global_position = info.cell_position(at) + Vector2(0, 16 - 31)
+	check(parry.guard_left() >= 0.0, "the guard rises even while the spell is not ready (its own cooldown)")
 
 	print("nova")
 	Abilities.grant(player, &"nova")
@@ -127,6 +142,8 @@ func run() -> void:
 	var push: Push = player.get_node("Push") as Push
 	check(Abilities.spell(player) == &"push", "push takes the damage slot")
 	var target: Node2D = wisp(at, 70.0)
+	# Tough, so a slam into rock past the shove's end does not finish it before the checks below.
+	(target.get_node("Wound") as Wound).hp = 99
 	var hp_target: int = hp(target)
 	var from_x: float = target.global_position.x
 	var blown: Bullet = shot(at, 100.0)
@@ -136,6 +153,29 @@ func run() -> void:
 	check(not is_instance_valid(blown) or blown.is_queued_for_deletion(), "and shots in it are blown away")
 	var shoved: bool = await within(func() -> bool: return target.global_position.x > from_x + Push.SHOVE * 0.5, Push.SHOVE_TIME + 0.3)
 	check(shoved, "and it is shoved away (%.0f px)" % (target.global_position.x - from_x))
+	# Into the first rock along the row: the wizard two cells short of it, a wisp in the cell before.
+	var wall: Vector2i = at
+	while open_cell(wall):
+		wall += Vector2i(1, 0)
+	player.global_position = info.cell_position(wall - Vector2i(2, 0)) + Vector2(0, 16 - 31)
+	var pinned: Node2D = wisp(wall - Vector2i(1, 0), 0.0)
+	var hp_pinned: int = hp(pinned)
+	push.wait = 0.0
+	check(push.cast(Vector2.RIGHT), "a push at a wisp before a wall")
+	var slammed: bool = await within(func() -> bool: return hp(pinned) < hp_pinned, Push.SHOVE_TIME + 0.3)
+	check(slammed, "slammed into the wall, it is wounded, though push I does not wound")
+	if is_instance_valid(pinned):
+		pinned.queue_free()
+	player.global_position = info.cell_position(at) + Vector2(0, 16 - 31)
+	# What cannot be moved (as a boss: only a parry stuns it) takes the slam at once, unmoved.
+	var fixed: Node2D = wisp(at, 70.0)
+	Stunner.of(fixed).parry_only = true
+	var hp_fixed: int = hp(fixed)
+	push.wait = 0.0
+	push.cast(Vector2.RIGHT)
+	check_eq(hp(fixed), hp_fixed - Push.SLAM, "what cannot be moved takes the slam at once")
+	check(not fixed.get_children().any(func(n: Node) -> bool: return n is Push.Shove), "and is not shoved")
+	fixed.queue_free()
 	Abilities.grant(player, &"push")
 	push.wait = 0.0
 	target.global_position = info.cell_position(at) + Vector2(70.0, 16.0)
@@ -144,5 +184,63 @@ func run() -> void:
 	check(hp(target) < hp_target, "push II also wounds")
 	if is_instance_valid(target):
 		target.queue_free()
+
+	print("seeker")
+	# In the open air over the level, where there is room for its quarry up off the line a straight
+	# bolt flies along (the level's own air is too low here).
+	var cell: float = info.cell_position(at + Vector2i(1, 0)).x - info.cell_position(at).x
+	var high: Vector2 = info.cell_position(Vector2i(at.x, 0)) + Vector2(0.0, -cell * 6.0)
+	player.global_position = high
+	await frames(2)
+	Abilities.grant(player, &"seeker")
+	var seeker: Seeker = player.get_node("Seeker") as Seeker
+	check(Abilities.spell(player) == &"seeker", "the seeker takes the damage slot")
+	# Up and ahead, well off the line a straight bolt flies along.
+	var quarry: Node2D = wisp(at, 0.0)
+	quarry.global_position = high + Vector2(cell * 3.0, -cell * 2.6)
+	var hp_quarry: int = hp(quarry)
+	var loosed: Array[HexBolt] = seeker.cast(Vector2.RIGHT)
+	check(loosed.size() == 1 and seeker.cast(Vector2.RIGHT).is_empty(), "it looses one, then is not ready")
+	await frames(4)
+	check(not is_instance_valid(loosed[0]) or loosed[0].dir.y < -0.05, "it turns toward the enemy")
+	var found: bool = await within(func() -> bool: return hp(quarry) < hp_quarry, 1.5)
+	check(found, "and strikes it, though it was not aimed at it")
+	if is_instance_valid(quarry):
+		quarry.queue_free()
+	Abilities.set_tier(player, &"seeker", 3)
+	seeker.wait = 0.0
+	var pair: Array[HexBolt] = seeker.cast(Vector2.RIGHT)
+	check(pair.size() == 2, "seeker III looses two")
+	for bolt_: HexBolt in pair:
+		bolt_.queue_free()
+
+	print("lunge")
+	Abilities.grant(player, &"lunge")
+	var lunge: Lunge = player.get_node("Lunge") as Lunge
+	check(Abilities.spell(player) == &"lunge", "the lunge takes the damage slot")
+	# The level's own enemies off the stretch it lunges along (their bodies would stop it).
+	for e: Node in get_nodes_in_group(&"hex_target"):
+		if e.has_node("Wound") and (e as Node2D).global_position.distance_to(info.cell_position(at)) < cell * 5.0:
+			e.queue_free()
+	player.global_position = info.cell_position(at) + Vector2(-cell * 2.5, 16 - 31)
+	player.set_physics_process(true)
+	await frames(20)
+	var start_x: float = player.global_position.x
+	check(lunge.cast(1.0), "it lunges")
+	await within(func() -> bool: return not lunge.lunging(), 0.6)
+	await frames(3)
+	var went: float = player.global_position.x - start_x
+	check(went > cell * 1.6, "it throws the wizard forward (%.0f px)" % went)
+	player.global_position = info.cell_position(at) + Vector2(-cell * 2.5, 16 - 31)
+	await frames(20)
+	var stuck: Node2D = wisp(at, -cell * 0.5)
+	var hp_stuck: int = hp(stuck)
+	lunge.wait = 0.0
+	lunge.cast(1.0)
+	var stabbed: bool = await within(func() -> bool: return hp(stuck) < hp_stuck, 0.6)
+	check(stabbed and stunned(stuck), "and stabs what it reaches on the way")
+	player.set_physics_process(false)
+	if is_instance_valid(stuck):
+		stuck.queue_free()
 	RunState.delete_save()
 	finish()

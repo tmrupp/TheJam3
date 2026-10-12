@@ -10,11 +10,22 @@ var bell: Bell:
 		return host as Bell
 
 
+func shines() -> bool:
+	return true
+
+
+## Lit while it is free and waiting to be rung, so it reads as something to use.
+func light() -> Array:
+	if bell.rung() or not bell.unchained():
+		return []
+	return _light(Vector2(30.0, _ground() - 100.0), RisoLight.GLEAM, RisoPrint.ACCENT)
+
+
 ## A grave bell on a post by a chasm (Bell): a post and crossbar in blue, the bell in accent ink
 ## hanging from it. Chained, a night-ink chain is wound round it and down to the post, held by a
 ## padlock in its key's colour or a plate with the switch emblem and the sigil its switch shares;
 ## struck, it rattles. Freed, the
-## chain drops away and the bell sways in a soft halo, waiting. Rung, it swings hard and rings out
+## chain drops away and the bell sways in its own light (RisoLight), waiting. Rung, it swings hard and rings out
 ## in arcs that fade; one rung on an earlier visit hangs still and dim.
 func _draw_art() -> void:
 	var g: float = _ground()
@@ -32,9 +43,6 @@ func _draw_art() -> void:
 	elif rung:
 		swing = 0.0
 	var hang: Transform2D = Transform2D(swing, Vector2(2.0, 2.0), 0.0, Vector2(30.0, g - 141.0))
-	if not rung and not chained:
-		# Free and waiting to be rung: a soft halo, so it reads as something to use.
-		ink.ink(RisoPrint.ACCENT, 0.18 + 0.06 * sin(t * 2.5 + phase), [RisoShapes.circle(Vector2(30.0, g - 100.0), 46.0, 28)])
 	var body: PackedVector2Array = hang * RisoShapes.smooth(PackedVector2Array([Vector2(-4, 2), Vector2(-9, 12), Vector2(-11, 26), Vector2(-17, 36), Vector2(17, 36), Vector2(11, 26), Vector2(9, 12), Vector2(4, 2)]), 3)
 	var cover: float = 0.55 if rung and since < 0.0 else 1.0
 	ink.ink(RisoPrint.BLUE, 1.0, [hang * RisoShapes.rrect(-1.5, -2.0, 3.0, 6.0, 1.5)])

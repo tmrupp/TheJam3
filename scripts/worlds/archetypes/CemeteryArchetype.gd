@@ -15,6 +15,7 @@ const WRAITHS_PER_K: float = 0.9
 
 func _init() -> void:
 	name = &"cemetery"
+	title = "The Cemetery"
 	decor = &"cemetery"
 	sample = SAMPLE
 	symmetry = 1

@@ -17,6 +17,8 @@ const SHADE: float = 0.3
 
 ## Its name: how levels of it are told apart (NextWorldDef.archetype), and its print realm.
 var name: StringName = &""
+## What its title card says on the way in (RisoTransition.title).
+var title: String = ""
 ## The decor its levels wear (RisoDecor.PLANS): the garden's unless it sets its own.
 var decor: StringName = &"garden"
 ## The WFC sample its terrain is collapsed from.

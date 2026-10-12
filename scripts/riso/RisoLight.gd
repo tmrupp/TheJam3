@@ -5,7 +5,9 @@ class_name RisoLight
 ## distance, flickering softly, so the place you return to reads as a destination; every other
 ## lantern gives a faint one. Everything else that shines gives the same diffuse light, fading
 ## smoothly from where it shines: open exits (doors once their way is open), portals and rifts, an
-## ink well not yet dry, and hex bolts in flight. The lantern the wizard carries lights the way too, fading the same
+## ink well not yet dry, hex bolts in flight, and the small things that shine (stars, keys, moons,
+## relics, shrines, a freed bell or vane, a thrown switch, an opened temple: RisoProp.light), each
+## faintly tinted in its own ink. The lantern the wizard carries lights the way too, fading the same
 ## way: while a lit lantern protects them it throws a warm light round its flame wherever they go;
 ## while they are unprotected only a short, dim one, faintly pink (danger). Rock stops every light:
 ## a light reaches only as far as its flame can see (RisoSight), so walls cast shadows.
@@ -44,6 +46,14 @@ const GLOW_REACH: float = 230.0
 const GLOW_LIFT: float = 0.2
 const BOLT_REACH: float = 170.0
 const BOLT_LIFT: float = 0.18
+## The small things that shine (RisoProp.light), each as (how far it reaches in px, how much night
+## it lifts, how much it tints in its own ink): a star's spark (untinted: a level has hundreds, and
+## each tint is a print of its own); the gleam of a key, a moon, a freed
+## bell or vane or a thrown switch; the beacon of a star cluster, a relic, a shrine or an opened
+## temple.
+const SPARK: Vector3 = Vector3(90.0, 0.08, 0.0)
+const GLEAM: Vector3 = Vector3(150.0, 0.12, 0.14)
+const BEACON: Vector3 = Vector3(220.0, 0.16, 0.12)
 ## The pink tint of an unprotected wizard's dim light, where they stand.
 const UNLIT_PINK: float = 0.06
 ## How high over its floor each glowing thing's light sits (px): an exit's doorway, a portal's
@@ -52,7 +62,8 @@ const EXIT_RISE: float = 56.0
 const PORTAL_RISE: float = 70.0
 const WELL_RISE: float = 60.0
 const RIFT_RISE: float = 10.0
-## The group the glowing things join (LevelExit, Portal, Inkwell, HexBolt).
+## The group the glowing things join (LevelExit, Portal, Inkwell, HexBolt, and the art of the small
+## things that shine, RisoProp.shines).
 const GLOWS: StringName = &"glows"
 ## How far above the wizard's middle their eyes are (px): sight is taken from there.
 const EYE_RISE: float = 24.0
@@ -81,6 +92,21 @@ class Fade:
 		if d >= reach or not box.has_point(p) or not Geometry2D.is_point_in_polygon(p, outline):
 			return 0.0
 		return RisoLight.carried_falloff(d, reach)
+
+	## The profile scaled by `amount` for a tint in a light's own ink, kept apart from `scaled`'s
+	## (for the next frame while it stays the same).
+	var tint: float = -1.0
+	var tints: Array[PackedFloat32Array] = []
+	func tinted(amount: float) -> Array[PackedFloat32Array]:
+		if amount != tint:
+			tint = amount
+			tints = []
+			for corners: PackedFloat32Array in profile:
+				var c: PackedFloat32Array = corners.duplicate()
+				for i: int in range(c.size()):
+					c[i] *= amount
+				tints.append(c)
+		return tints
 
 	## The profile scaled by `amount` (kept for the next frame while it stays the same).
 	func scaled(amount: float) -> Array[PackedFloat32Array]:
@@ -236,7 +262,11 @@ func _process(delta: float) -> void:
 	for node: Node in get_tree().get_nodes_in_group(GLOWS):
 		var glow: Array = _glow(node as Node2D, info)
 		if not glow.is_empty() and near.has_point(glow[0]):
-			_print_fade(_faded(glow[0], float(glow[1]), bool(glow[3])), float(glow[2]))
+			var fade: Fade = _faded(glow[0], float(glow[1]), bool(glow[3]))
+			# A tint in its own ink first (as the carried light's pink), then the night lifted.
+			if glow.size() > 5 and int(glow[4]) >= 0 and float(glow[5]) > 0.0:
+				ink.ink_graded(int(glow[4]), fade.pieces, fade.tinted(float(glow[5])), false)
+			_print_fade(fade, float(glow[2]))
 	_carried_light(info)
 	_darkness(info, view)
 	ink.finish()
@@ -244,10 +274,13 @@ func _process(delta: float) -> void:
 
 
 ## Where a glowing thing's light is, how far it reaches, how much it lifts and whether it stays put,
-## or [] if it is dark (an exit shut by a price, a lock or a boss; a dry ink well).
+## and for the small things that shine the plate that tints it and how much (RisoProp.light); or []
+## if it is dark (an exit shut by a price, a lock or a boss; a dry ink well).
 func _glow(node: Node2D, info: MapInfo) -> Array:
 	if node == null or node.is_queued_for_deletion():
 		return []
+	if node is RisoProp:
+		return (node as RisoProp).light()
 	if node is HexBolt:
 		return [node.global_position, BOLT_REACH, BOLT_LIFT, false]
 	if node is LevelExit:

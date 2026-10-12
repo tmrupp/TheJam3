@@ -294,14 +294,15 @@ func run() -> void:
 	finish()
 
 
-## A slash (Slash, tier I) at `at` from `side` px to one side of it, the wizard there just for it;
-## then parry back in the damage slot, and the wizard back where they were.
+## A slash (Slash, tier I, ready at once) at `at` from `side` px to one side of it, the wizard there
+## just for it; then the wizard back where they were.
 func _slash(at: Vector2, side: float) -> void:
 	var was: Vector2 = player.global_position
 	Abilities.set_tier(player, &"slash", 1)
 	player.global_position = at + Vector2(side, 24.0)
-	(player.get_node("Slash") as Slash).cast(Vector2(-signf(side), 0.0))
-	Abilities.set_tier(player, &"parry", 1)
+	var slash: Slash = player.get_node("Slash") as Slash
+	slash.wait = 0.0
+	slash.cast(Vector2(-signf(side), 0.0))
 	player.global_position = was
 
 

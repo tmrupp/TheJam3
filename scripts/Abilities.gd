@@ -1,19 +1,23 @@
 class_name Abilities
 ## Tiered abilities, learned at shrines (there is no shop), except that tier I of the big moves
 ## (double jump, wall climb, blink, levitate, astral projection) only comes from a relic (see
-## Relics). Tier 0 is not owned; a run starts knowing the dash and parry (tier 1). Each tier
+## Relics). Tier 0 is not owned; a run starts knowing the dash, slash and mend (tier 1). Each tier
 ## improves the ability. Tiers live on the player and reset when a run ends.
 ## - Three slots (SLOTS), each holding one ability at a time on a button of its own (ACTIONS);
 ##   learning another for a slot replaces the one in it:
-##   - damage, on the Spell button (Q, or the pad's X): parry, hex (a bolt), slash (an arc in
-##     front), nova (a burst all round) and push (a gust that shoves). The wizard's only ways to
-##     hurt; the dash no longer strikes (DashStrike only tears webs and cuts threads).
+##   - damage, on the Spell button (Q, or the pad's X): hex (a bolt), slash (an arc in front),
+##     nova (a burst all round), push (a gust that shoves), seeker (a homing bolt) and lunge (a
+##     stab that throws the wizard forward). The wizard's only ways to hurt; the
+##     dash no longer strikes (DashStrike only tears webs and cuts threads). Whichever is held, the
+##     button also raises the parry guard (Parry, not a spell of its own: its base effect, on its
+##     own cooldown), so every damage spell parries.
 ##   - movement, on the Dash button (Shift, or the right trigger): the dash, blink, astral
 ##     projection, levitate, rift (open your own teleporters), warp (to a random floor) and ferry
 ##     (a gliding raft, see Ferry). The dash and blink are the wizard's own moves (Player); the
 ##     rest are cast.
-##   - utility, on the Utility button (R, or the right shoulder button): awareness and mend (heal from
-##     draughts a burned lantern fills, see Mend).
+##   - utility, on the Utility button (R, or the right shoulder button): awareness and mend (heal to
+##     full from draughts a lantern refills, see Mend). A utility spell never moves the wizard or
+##     hurts anything itself; it may make the other two slots' spells better.
 ##   Warp and rift cost stars each cast (cast_price).
 ## - Perks stack: double jump, wall climb, vigor (max health), speed (run speed), keyring (carry
 ##   more keys, see KeyRing) and ward (a ring of plates that takes a hit and grows back, see Ward).
@@ -38,19 +42,20 @@ const ABILITIES: Dictionary = {
 	&"double_jump": {"max": 3},
 	&"wall_climb": {"max": 3},
 	&"blink": {"max": 3, "slot": &"move", "cast": false, "node": "Blink", "make": "res://prefabs/upgrades/Blink.tscn"},
-	&"parry": {"max": 4, "base": 1, "slot": &"damage", "node": "Parry"},
 	&"astral": {"max": 4, "slot": &"move", "node": "AstralProjection"},
 	&"hex": {"max": 4, "slot": &"damage", "node": "Hex", "make": "res://scripts/Hex.gd"},
-	&"slash": {"max": 4, "slot": &"damage", "node": "Slash", "make": "res://scripts/Slash.gd"},
+	&"slash": {"max": 4, "base": 1, "slot": &"damage", "node": "Slash", "make": "res://scripts/Slash.gd"},
 	&"nova": {"max": 4, "slot": &"damage", "node": "Nova", "make": "res://scripts/Nova.gd"},
 	&"push": {"max": 4, "slot": &"damage", "node": "Push", "make": "res://scripts/Push.gd"},
+	&"seeker": {"max": 4, "slot": &"damage", "node": "Seeker", "make": "res://scripts/Seeker.gd"},
+	&"lunge": {"max": 4, "slot": &"damage", "node": "Lunge", "make": "res://scripts/Lunge.gd"},
 	&"levitate": {"max": 3, "slot": &"move", "node": "Levitate", "make": "res://scripts/Levitate.gd"},
 	&"awareness": {"max": 3, "slot": &"utility", "node": "Awareness", "make": "res://scripts/Awareness.gd"},
 	&"rift": {"max": 3, "slot": &"move", "cost": 2.0, "node": "Rift", "make": "res://scripts/Rift.gd"},
 	&"vigor": {"max": 3},
 	&"speed": {"max": 3},
 	&"warp": {"max": 3, "slot": &"move", "cost": 4.0, "node": "Warp", "make": "res://scripts/Warp.gd"},
-	&"mend": {"max": 3, "slot": &"utility", "node": "Mend", "make": "res://scripts/Mend.gd"},
+	&"mend": {"max": 3, "base": 1, "slot": &"utility", "node": "Mend", "make": "res://scripts/Mend.gd"},
 	&"keyring": {"max": 3},
 	&"ferry": {"max": 3, "slot": &"move", "node": "Ferry", "make": "res://scripts/Ferry.gd"},
 	&"ward": {"max": 3, "node": "Ward", "make": "res://scripts/Ward.gd"},

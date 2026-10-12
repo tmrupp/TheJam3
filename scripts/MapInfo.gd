@@ -466,6 +466,7 @@ func start_run (seed_value: int) -> void:
 	run.start(seed_value)
 	coord = Vector2i(seed_value, 0)
 	arrival = -1
+	region = &""
 	if wizard() != null:
 		Abilities.reset(player)
 		if debug:
@@ -539,6 +540,22 @@ func _arrive (to: Vector2i, how: int) -> void:
 	WhaleHunt.move(run, coord)
 	arrival = how
 	_load_level()
+
+## The region (a band's archetype name) the wizard was last in, for its title card; none before a
+## run's first level is built, so the run opens on one.
+var region: StringName = &""
+
+## Coming into a region from another (or at a run's start): its title card (RisoTransition.title).
+## A side world is no region of its own: going into one and back shows none.
+func _title_region () -> void:
+	if Worlds.is_side(coord) or here == null or here.arch == null:
+		return
+	var now: StringName = here.arch.name
+	if now == region:
+		return
+	region = now
+	if RisoTransition.instance != null:
+		RisoTransition.instance.title(here.arch.title)
 
 ## Freeze the wizard and sweep the printed transition over the view before a level changes.
 func _pass (way: Vector2, next: Vector2i) -> void:
@@ -625,6 +642,7 @@ func _arrived () -> void:
 		RisoPrint.instance.world_built(self, coord.y)
 	if RisoTransition.instance != null:
 		RisoTransition.instance.reveal()
+	_title_region()
 	save_run()
 	# The new level wakes around the wizard (the camera catches up next frame).
 	loader.wake_around(player.global_position if player != null else Vector2.INF)

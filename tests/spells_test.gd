@@ -10,7 +10,7 @@ func run() -> void:
 
 	print("the slots")
 	check(InputMap.has_action(Abilities.SPELL_ACTION) and InputMap.has_action(&"Dash") and InputMap.has_action(Abilities.UTILITY_ACTION), "a button for each slot")
-	check(Abilities.spell(player, &"damage") == &"parry" and Abilities.spell(player, &"move") == &"dash" and Abilities.spell(player, &"utility") == &"" and not player.has_node("Hex"), "parry and the dash to start with, no utility")
+	check(Abilities.spell(player, &"damage") == &"slash" and Abilities.spell(player, &"move") == &"dash" and Abilities.spell(player, &"utility") == &"mend" and not player.has_node("Hex"), "slash, the dash and mend to start with")
 	for a: StringName in Abilities.ids():
 		var slot: StringName = Abilities.slot_of(a)
 		if slot == &"":
@@ -22,8 +22,8 @@ func run() -> void:
 		var held: int = Abilities.in_slot(slot).filter(func(s: StringName) -> bool: return Abilities.tier(player, s) > 0).size()
 		var others_kept: bool = Abilities.SLOTS.all(func(other: StringName) -> bool: return other == slot or Abilities.spell(player, other) == before[other])
 		check(Abilities.spell(player, slot) == a and held == 1 and others_kept, "learning %s puts it in the %s slot, alone, the others kept" % [a, slot])
-	check(player.has_node("Push") and player.has_node("Ferry") and player.has_node("Mend"), "each slot's last learned node is there")
-	check(not player.has_node("Hex") and not player.has_node("Slash") and not player.has_node("Nova") and not player.has_node("Levitate") and not player.has_node("Awareness") and not player.has_node("Rift") and not player.has_node("Warp") and not player.has_node("Blink"), "and only those")
+	check(player.has_node("Lunge") and player.has_node("Ferry") and player.has_node("Mend"), "each slot's last learned node is there")
+	check(not player.has_node("Hex") and not player.has_node("Slash") and not player.has_node("Nova") and not player.has_node("Push") and not player.has_node("Seeker") and not player.has_node("Levitate") and not player.has_node("Awareness") and not player.has_node("Rift") and not player.has_node("Warp") and not player.has_node("Blink"), "and only those")
 	check(Abilities.tier(player, &"dash") == 0 and not player.dashes(), "the dash went with the movement slot")
 
 	print("levitate")

@@ -227,6 +227,17 @@ func _frieze(building: Dictionary) -> void:
 				ink.ink(RisoPrint.PINK, 0.85 * broke, [disc], false)
 
 
+func shines() -> bool:
+	return true
+
+
+## Opened, a light where the whale's glow hangs over the altar.
+func light() -> Array:
+	if temple == null or not temple.opened():
+		return []
+	return _light(Vector2(0.0, _ground() - 170.0), RisoLight.BEACON, RisoPrint.ACCENT)
+
+
 ## The altar: a pedestal with the lock on its face, a ring with a pip for each wind of the sequence
 ## lit in sun as it is; opened, the ring stands open and a glow with a whale's shape hangs over it.
 func _altar() -> void:
@@ -268,7 +279,6 @@ func _altar() -> void:
 	if open:
 		var glow: float = clampf(temple.since_open / 0.8, 0.0, 1.0) if temple.since_open >= 0.0 else 1.0
 		var w: Vector2 = Vector2(0.0, g - 170.0 + sin(t * 1.4) * 5.0)
-		ink.ink(RisoPrint.ACCENT, 0.35 * glow, [RisoShapes.circle(w, 44.0, 28)])
 		ink.ink(RisoPrint.NIGHT, 0.8 * glow, [RisoShapes.ellipse(w, 22.0, 10.0, 16), RisoShapes.tri(w + Vector2(18.0, 0.0), w + Vector2(32.0, -10.0), w + Vector2(32.0, 10.0))], false)
 
 

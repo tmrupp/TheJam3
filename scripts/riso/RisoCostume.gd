@@ -11,12 +11,13 @@ const SPELL_WARN: float = 1.5
 ## The spell changes the entire cloth bundle's width, hanging length and weighted side.
 const BINDLE_FORMS: Dictionary = {
 	&"": Vector3(4.9, 5.0, 0.0), &"hex": Vector3(4.9, 5.2, -0.5),
-	&"astral": Vector3(4.0, 6.2, 0.4), &"parry": Vector3(5.7, 4.1, -0.2),
+	&"astral": Vector3(4.0, 6.2, 0.4),
 	&"levitate": Vector3(3.6, 6.8, -0.8), &"awareness": Vector3(5.5, 4.8, 0.6),
 	&"rift": Vector3(5.1, 5.4, -1.0), &"warp": Vector3(4.6, 5.8, 1.0),
 	&"mend": Vector3(4.4, 6.0, 0.0), &"ferry": Vector3(5.9, 4.4, 0.3),
 	&"slash": Vector3(4.2, 5.6, 0.9), &"nova": Vector3(5.3, 5.3, 0.0),
-	&"push": Vector3(6.2, 4.0, -0.6),
+	&"push": Vector3(6.2, 4.0, -0.6), &"seeker": Vector3(4.6, 5.9, 0.5),
+	&"lunge": Vector3(3.8, 6.4, -0.4),
 }
 ## Where the Fool carries their lantern flame, in art units facing right.
 const LANTERN_AT: Vector2 = Vector2(11.4, -7.8)

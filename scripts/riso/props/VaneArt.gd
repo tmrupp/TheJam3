@@ -5,8 +5,19 @@ extends BellArt
 ## A wind vane on its post by a gap (Vane): a blue post and, on top, an arrow in sun ink with a
 ## tail fin, and a little cross of cups under it. Switched on, the arrow points the way it blows,
 ## across its gap, and the cups turn, spinning hard in a gust (MapInfo.gusting); off, it idles on
-## the breeze. Chained like a grave bell (padlock or switch plate); freed and still, a soft halo
-## shows it waits to be turned.
+## the breeze. Chained like a grave bell (padlock or switch plate); freed and still, its light
+## (RisoLight) shows it waits to be turned.
+
+
+func shines() -> bool:
+	return true
+
+
+func light() -> Array:
+	if bell.rung() or not bell.unchained():
+		return []
+	return _light(Vector2(0, _ground() - 138.0), RisoLight.GLEAM, RisoPrint.ACCENT)
+
 func _draw_art() -> void:
 	var g: float = _ground()
 	var blowing: bool = bell.rung()
@@ -24,8 +35,6 @@ func _draw_art() -> void:
 	var face: float = across if blowing else signf(cos(swing * 2.0 + phase)) * (0.4 + 0.6 * absf(cos(swing * 2.0 + phase)))
 	if since >= 0.0 and since < 0.6:
 		face = across * (1.0 - 2.0 * exp(-since * 9.0) * cos(since * 20.0)) * 0.5 + across * 0.5
-	if not blowing and not chained:
-		ink.ink(RisoPrint.ACCENT, 0.18 + 0.06 * sin(t * 2.5 + phase), [RisoShapes.circle(head + Vector2(0, 30), 50.0, 28)])
 	var xf: Transform2D = Transform2D(0.0, Vector2(face, 1.0), 0.0, head)
 	var arrow: PackedVector2Array = PackedVector2Array([Vector2(-34, -3), Vector2(22, -3), Vector2(22, -10), Vector2(40, 0), Vector2(22, 10), Vector2(22, 3), Vector2(-34, 3)])
 	var fin: PackedVector2Array = PackedVector2Array([Vector2(-34, -3), Vector2(-46, -16), Vector2(-26, -16), Vector2(-20, -3)])

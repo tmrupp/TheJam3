@@ -112,7 +112,7 @@ func generation() -> void:
 						for q: Vector2i in w.objects:
 							if w.get_cell(q).type == LevelGen.Type.SWITCH and w.get_cell(q).extra_info == v:
 								levers += 1
-								check(absi(q.x - v.x) + absi(q.y - v.y) >= LevelGen.SWITCH_NEAR_MIN and w.get_cell(q + Vector2i.DOWN).type in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED], "%s: its switch stands on a floor near it" % at)
+								check(absi(q.x - v.x) + absi(q.y - v.y) >= 2 and w.get_cell(q + Vector2i.DOWN).type in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED], "%s: its switch stands on a floor near it" % at)
 						check(levers == 1, "%s: a bell chained to a switch has one" % at)
 					else:
 						check(lock < Rules.KEY_COLOR_COUNT, "%s: or a padlock in a key colour (%d)" % [at, lock])

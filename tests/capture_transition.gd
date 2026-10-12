@@ -1,6 +1,6 @@
 extends SceneTree
-## Windowed stills of the printed transition between levels: sweeping in, covering the view with
-## the destination named, and sweeping away.
+## Windowed stills of the region title card a run opens on, and of the printed transition between
+## levels: sweeping in, covering the view with the destination named, and sweeping away.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_transition.gd
 
 func _initialize() -> void:
@@ -25,6 +25,14 @@ func capture() -> void:
 		await process_frame
 	var out: String = ProjectSettings.globalize_path("res://../art-captures/riso-frames")
 	var sheet: RisoTransition = RisoTransition.instance
+	# The run opens on its region's title card.
+	for i: int in range(240):
+		if sheet.title_age > RisoTransition.TITLE_IN + 0.3 or not sheet.titling():
+			break
+		await process_frame
+	root.get_texture().get_image().save_png(out.path_join("title_card.png"))
+	while sheet.titling():
+		await process_frame
 	info.travel(MapInfo.Exit.DEEPER)
 	var shots: Dictionary = {"transition_in.png": false, "transition_covered.png": false, "transition_out.png": false}
 	for i: int in range(240):

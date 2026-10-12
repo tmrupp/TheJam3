@@ -104,6 +104,26 @@ func guard_center() -> Vector2:
 	return host.global_position if host != null else global_position
 
 
+## The light it throws into the scene (RisoLight), if it is a kind that shines (shines): [where it
+## shines (world), how far it reaches (px), how much night it lifts there, true (it stays put), the
+## plate that tints it (-1 for none), how much]; [] while it is dark. Asked of shining kinds only.
+func light() -> Array:
+	return []
+
+
+## Whether it is a kind that shines: it joins RisoLight's glows, which ask it for its light.
+func shines() -> bool:
+	return false
+
+
+## A light at `local` (in its art's frame), of `size` (RisoLight.SPARK, GLEAM or BEACON), tinted in
+## `plate` (-1 for none); none while its host is hidden (a chunk asleep, a key taken).
+func _light(local: Vector2, size: Vector3, plate: int) -> Array:
+	if host == null or not is_instance_valid(host) or not host.is_visible_in_tree():
+		return []
+	return [to_global(local), size.x, size.y, true, plate, size.z]
+
+
 ## Whether it never changes: printed once, then it stops processing.
 func still() -> bool:
 	return false
@@ -139,6 +159,8 @@ func _ready() -> void:
 	ink = InkCanvas.new()
 	add_child(ink)
 	z_index = 2
+	if shines():
+		add_to_group(RisoLight.GLOWS)
 	# First drawn when it first comes into view (see _process), so a level's hundreds of props are
 	# not all printed in the frame it loads; still kinds then stop processing.
 	set_process(true)

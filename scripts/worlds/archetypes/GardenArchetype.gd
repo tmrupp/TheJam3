@@ -9,4 +9,5 @@ const SAMPLE: String = "res://wfc_images/levelSample3-spikes.png"
 
 func _init() -> void:
 	name = &"garden"
+	title = "The Garden"
 	sample = SAMPLE
