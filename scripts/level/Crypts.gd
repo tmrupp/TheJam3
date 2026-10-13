@@ -22,6 +22,10 @@ extends RefCounted
 ## air, "floors": the cells inside the wizard can stand in and get back out from, nearest a doorway
 ## first, "deep": the furthest of them from a doorway}.
 ##
+## Its doorways may be light gates (LightGate), dealt by the seed for each: a sun gate (SUN_SHARE),
+## up only while light falls on it, or a shade gate (SHADE_SHARE), up only while none does, so the
+## crypt is entered with the flame lit and the sleepers woken, or snuffed and in the dark.
+##
 ## What it holds: a snuffing font (Snuffer) on a floor outside each doorway, laid as it is built;
 ## then, once the level is laid (furnish), the level's star cluster brought in to the first one's
 ## deepest floor (keeping its place among the level's objects, as a crag tower's key is) or, in a
@@ -54,6 +58,11 @@ const SKELETON_APART: int = 3
 const SKELETON_CLEAR: int = 4
 ## The stars of the hoard in a crypt the level's cluster has not gone to.
 const HOARD: int = 4
+## The share of doorways that are sun gates, and of those that are shade gates (the rest are open),
+## dealt by the level seed (GATE_DEAL) for each.
+const SUN_SHARE: float = 0.3
+const SHADE_SHARE: float = 0.35
+const GATE_DEAL: int = 6130
 ## How far from a doorway's step (cells) its snuffing font may stand.
 const FONT_REACH: int = 5
 ## Salts for the level seed: how many crypts, where each goes (ties), and which floors its
@@ -265,6 +274,7 @@ static func _raise(w: LevelGen, inside: Array, site: Dictionary) -> void:
 	var crypt: Dictionary = {"box": box, "inside": cells, "doors": doors, "steps": steps, "floors": floors, "deep": floors.back() if not floors.is_empty() else Vector2i(-1, -1)}
 	w.crypts.append(crypt)
 	_fonts(w, crypt)
+	_gates(w, crypt)
 
 
 ## The open cells inside `room` joined through open air to `from`.
@@ -408,6 +418,16 @@ static func _fonts(w: LevelGen, crypt: Dictionary) -> void:
 			w.put(spot, LevelGen.Type.SNUFFER)
 			w.kept_whole[spot] = true
 			w.kept_whole[(spot as Vector2i) + Vector2i.DOWN] = true
+
+
+## Each of `crypt`'s doorways a sun gate, a shade gate or open, dealt by the seed (see SUN_SHARE).
+static func _gates(w: LevelGen, crypt: Dictionary) -> void:
+	for door: Vector2i in crypt["doors"]:
+		var roll: float = float(posmod(Rules.level_seed(w.seed_for_colors, GATE_DEAL + door.x * 977 + door.y), 1000)) / 1000.0
+		if roll < SUN_SHARE:
+			w.put(door, LevelGen.Type.LIGHT_GATE, true)
+		elif roll < SUN_SHARE + SHADE_SHARE:
+			w.put(door, LevelGen.Type.LIGHT_GATE, false)
 
 
 ## Rock at `v`, inside the level's edge.

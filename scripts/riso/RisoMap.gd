@@ -324,6 +324,8 @@ func _level_rows() -> Array:
 		["rift", func(at: Vector2) -> void: _mark_portal(at, 0, true), "rift"],
 		["door", func(at: Vector2) -> void: _mark_door(at, 2), "door"],
 		["gate", func(at: Vector2) -> void: _mark_gate(at, 2), "gate"],
+		["sun gate", func(at: Vector2) -> void: _mark_light_gate(at, true), "sun gate"],
+		["shade gate", func(at: Vector2) -> void: _mark_light_gate(at, false), "shade gate"],
 		["switch", func(at: Vector2) -> void: _mark_switch(at, false, 2), "switch"],
 		["bell", func(at: Vector2) -> void: _mark_bell(at, false), "bell"],
 		["vane", func(at: Vector2) -> void: _mark_bell(at, false, -2, "vane"), "vane"],
@@ -454,6 +456,8 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 			_mark_inkwell(at, bool(rec.mapped))
 		LevelGen.Type.SNUFFER:
 			_mark_snuffer(at)
+		LevelGen.Type.LIGHT_GATE:
+			_mark_light_gate(at, bool(cell.extra_info))
 		LevelGen.Type.CHECKPOINT:
 			var spent: bool = (rec.spent_lanterns as Dictionary).has(v)
 			var lit: bool = not spent and not info.run.vulnerable and info.run.respawn_coord == c and info.run.respawn_cell == v
@@ -557,6 +561,13 @@ func _mark_gate(at: Vector2, sigil_kind: int) -> void:
 	_note("gate")
 	marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.rrect(at.x - 0.9, at.y - 2.6, 1.8, 5.2, 0.8)], false)
 	_mark_sigil(at + Vector2(2.9, -2.6), sigil_kind)
+
+
+## A light gate (LightGate): a gate's bar with a sun (accent) or a moon (night) beside it.
+func _mark_light_gate(at: Vector2, sun: bool) -> void:
+	_note("sun gate" if sun else "shade gate")
+	marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.rrect(at.x - 0.9, at.y - 2.6, 1.8, 5.2, 0.8)], false)
+	marks.ink(RisoPrint.ACCENT if sun else RisoPrint.NIGHT, 1.0, [RisoShapes.circle(at + Vector2(2.9, -2.6), 1.5, 10)], false)
 
 
 ## A switch: a little lever, pink before it is thrown, accent after, with its sigil beside it.

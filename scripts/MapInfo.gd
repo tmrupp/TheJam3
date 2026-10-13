@@ -191,6 +191,8 @@ func level_wind () -> int:
 
 ## Seconds of game time in this place, for its gusts (counted in physics steps, from arriving).
 var gust_clock: float = 0.0
+## The light gates of the level being played (LightGate), by cell: whether each is up now.
+var light_gates: Dictionary = {}
 
 ## Whether a gust is blowing now: Wind.STILL seconds of stillness, then Wind.GUST of gust, over again.
 func gusting () -> bool:
@@ -585,6 +587,7 @@ func _level_ready (built: LevelGen) -> void:
 		loader.clear()
 	world = built
 	wizard()
+	light_gates.clear()
 	loader.build(world)
 	var rec: LevelRecord = record()
 	# Secret rooms already opened: their rewards (the rest of the room stays broken, see
@@ -664,6 +667,7 @@ func light_lantern (lantern: Node) -> bool:
 	if travelling or run_ending > 0.0 or not lantern.has_meta(&"cell") or is_lantern_spent(lantern):
 		return false
 	var was_vulnerable: bool = run.vulnerable
+	snuffed = false
 	_set_respawn(coord, lantern.get_meta(&"cell"))
 	run.vulnerable = false
 	_refresh_lanterns()
@@ -677,17 +681,31 @@ func light_lantern (lantern: Node) -> bool:
 	save_run()
 	return true
 
+## Whether the flame of the lantern the wizard carries is snuffed (MapInfo.snuff).
+var snuffed: bool = false
+
 ## Put out the flame of the lantern the wizard carries (at a snuffing font, Snuffer, smoke rising
-## from `at`): they are unprotected, as after a death, until they light a lantern again (its
-## lantern is not burnt out by it). Nothing happens while it is out already.
+## from `at`) until they dash (Player) or light a lantern: it throws no light while it is out
+## (Lamplight, RisoLight). Their lantern still protects them. Nothing happens while it is out
+## already, or while they carry no lit flame (unprotected).
 func snuff (at: Vector2) -> bool:
-	if travelling or run_ending > 0.0 or run.vulnerable:
+	if travelling or run_ending > 0.0 or not flame_lit():
 		return false
-	run.vulnerable = true
-	_refresh_lanterns()
+	snuffed = true
 	RisoFx.burst(&"gain", at, Vector2.UP, [RisoPrint.NIGHT, RisoPrint.BLUE])
-	save_run()
 	return true
+
+## Light a snuffed flame again (a dash).
+func relight () -> void:
+	if not snuffed:
+		return
+	snuffed = false
+	if player != null and is_instance_valid(player):
+		RisoFx.burst(&"gain", player.global_position + Vector2(0, -30), Vector2.ZERO, [RisoPrint.EYE, RisoPrint.GLOW])
+
+## Whether the lantern the wizard carries burns: while a lantern protects them and it is not snuffed.
+func flame_lit () -> bool:
+	return not run.vulnerable and not snuffed
 
 func is_lantern_spent (lantern: Node) -> bool:
 	return lantern.has_meta(&"cell") and record().spent_lanterns.has(lantern.get_meta(&"cell"))
@@ -914,6 +932,8 @@ func solid_at (pos: Vector2) -> bool:
 			return not rec.opened.has(v)
 		LevelGen.Type.SWITCH_GATE:
 			return not gate_open(v)
+		LevelGen.Type.LIGHT_GATE:
+			return not bool(light_gates.get(v, false))
 	return false
 
 func _physics_process (delta: float) -> void:

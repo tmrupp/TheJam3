@@ -53,6 +53,7 @@ enum Type {
 	TEMPLE,
 	SNUFFER,
 	SKELETON,
+	LIGHT_GATE,
 }
 
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).

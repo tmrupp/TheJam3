@@ -2,7 +2,7 @@ class_name Lamplight
 extends RefCounted
 ## Light as the game reads it, apart from how it is printed (RisoLight): whether light falls on a
 ## point. Light comes from the lantern the wizard carries while its flame is lit (while a lit
-## lantern protects them: not RunState.vulnerable, so not after a death or a snuffing, Snuffer) and
+## lantern protects them, and not snuffed: MapInfo.flame_lit, so not after a death or at a font) and
 ## from every lantern not burnt out, each reaching LIT_SHARE of the reach RisoLight prints it with,
 ## and rock stops it: the flame must see the point. The moon over the cemetery's terraces is no
 ## light here, nor are the small things that shine. What reads it: the wraiths freeze in it
@@ -45,7 +45,7 @@ static func lights(info: MapInfo) -> Array[Vector3]:
 	_frame = frame
 	_lights = []
 	var player: Player = info.player
-	if player != null and is_instance_valid(player) and not player.phasing and info.run != null and not info.run.vulnerable:
+	if player != null and is_instance_valid(player) and not player.phasing and info.run != null and info.flame_lit():
 		var eye: Vector2 = RisoLight.eye(player)
 		_lights.append(Vector3(eye.x, eye.y, RisoLight.CARRIED_REACH * LIT_SHARE))
 	if info.map_elements != null and is_instance_valid(info.map_elements):

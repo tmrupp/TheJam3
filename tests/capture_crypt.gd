@@ -37,13 +37,13 @@ func run() -> void:
 	if sleeper != null:
 		player.global_position = sleeper.global_position + Vector2(-400, 0)
 		await _look(sleeper.global_position + Vector2(0, -40), "skeleton_asleep.png", 2.0)
-		info.run.vulnerable = false
+		info.relight()
 		player.global_position = sleeper.global_position + Vector2(-200, 0)
 		for i: int in range(80):
 			await process_frame
 		await _look(sleeper.global_position + Vector2(0, -40), "skeleton_awake.png", 2.0)
 	# A wraith frozen in the light, out on the terraces.
-	info.run.vulnerable = false
+	info.relight()
 	var wraith: Node2D = null
 	for n: Node in placed("wraith_enemy.tscn"):
 		wraith = n as Node2D

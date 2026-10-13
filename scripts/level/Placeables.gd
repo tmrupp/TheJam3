@@ -64,6 +64,7 @@ const TABLE: Dictionary = {
 	LevelGen.Type.CROSSBOW: {"scene": "res://prefabs/crossbow.tscn", "art": &"crossbow", "flags": [&"enemy"], "setup": 3},
 	LevelGen.Type.SNUFFER: {"scene": "res://prefabs/snuffer.tscn", "art": &"snuffer", "flags": [&"stander"], "setup": 2},
 	LevelGen.Type.SKELETON: {"scene": "res://prefabs/skeleton_enemy.tscn", "art": &"skeleton", "flags": [&"enemy"]},
+	LevelGen.Type.LIGHT_GATE: {"scene": "res://prefabs/light_gate.tscn", "art": &"lightgate", "setup": 3},
 }
 
 ## Prefabs loaded so far, by Type (each is loaded the first time one is placed).

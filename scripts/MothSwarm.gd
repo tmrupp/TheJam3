@@ -54,7 +54,8 @@ func _ready() -> void:
 func target() -> Vector2:
 	var info: MapInfo = MapInfo.instance
 	var lit: bool = info != null and info.run != null and not info.run.vulnerable
-	if lit and player != null and is_instance_valid(player):
+	# A snuffed flame draws nothing (MapInfo.snuff).
+	if lit and info.flame_lit() and player != null and is_instance_valid(player):
 		var carried: Vector2 = player.global_position + CARRIED
 		if carried.distance_to(global_position) <= CARRIED_PULL:
 			drawn_to = &"carried"

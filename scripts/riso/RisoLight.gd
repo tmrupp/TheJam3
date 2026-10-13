@@ -191,7 +191,7 @@ func rebuild(info: MapInfo) -> void:
 		for x: int in range(info.world.size.x):
 			for y: int in range(info.world.size.y):
 				var type: LevelGen.Type = info.world.get_cell(Vector2i(x, y)).type
-				if type == LevelGen.Type.CRACKED or type == LevelGen.Type.DOOR or type == LevelGen.Type.SWITCH_GATE:
+				if type in [LevelGen.Type.CRACKED, LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.LIGHT_GATE]:
 					_changing[Vector2i(x, y)] = type
 	_cache.clear()
 	_fade_cache.clear()
@@ -213,6 +213,8 @@ func _shut_or_open(info: MapInfo) -> void:
 				shut = not rec.broken.has(v)
 			LevelGen.Type.DOOR:
 				shut = not rec.opened.has(v)
+			LevelGen.Type.LIGHT_GATE:
+				shut = not bool(info.light_gates.get(v, false))
 			_:
 				shut = not info.gate_open(v)
 		sight.set_solid(v, shut)
@@ -310,7 +312,7 @@ func _carried_light(info: MapInfo) -> void:
 	if player == null or not is_instance_valid(player) or player.phasing or info.run == null:
 		return
 	var at: Vector2 = _flame(player)
-	var lit: bool = not info.run.vulnerable
+	var lit: bool = info.flame_lit()
 	var reach: float = CARRIED_REACH if lit else UNLIT_REACH
 	var key: Array = [at.round(), lit, by_sight, sight.version if sight != null else -1]
 	if key != _carried_key or _carried == null:

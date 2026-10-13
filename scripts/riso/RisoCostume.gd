@@ -484,7 +484,7 @@ func _hand(at: Vector2, shade: float = 0.0) -> void:
 
 ## Spawn protection is a warm flame; without it the same lantern holds only a charred wick.
 func _lantern(at: Vector2, carried: bool) -> void:
-	var lit: bool = MapInfo.instance != null and not MapInfo.instance.run.vulnerable
+	var lit: bool = MapInfo.instance != null and MapInfo.instance.flame_lit()
 	if carried:
 		_carried_lantern(at, lit)
 		return

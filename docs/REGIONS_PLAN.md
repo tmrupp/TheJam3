@@ -449,9 +449,12 @@ Decided (October 2026):
 - **Light by place, not by band.** The terraces stay moonlit (the shade every band has, no gloom);
   a crypt's inside is fully dark. The darkness is a property of where in the level, not of the
   whole level.
-- **Snuffing.** Stations (snuffing fonts) stand near the crypts' doorways: at one, the wizard puts out the
-  lantern's flame they carry. The flame is lit again only at an ordinary lantern. Snuffed, the
-  wizard is unprotected (no lantern to come back to: a death ends the run, until a lantern is lit).
+- **Snuffing.** Stations (snuffing fonts) stand near the crypts' doorways: at one, the wizard puts
+  out the lantern's flame they carry, until they dash (or light a lantern). Their lantern still
+  protects them. (Changed October 13: at first a snuffed flame was lit again only at a lantern and
+  left the wizard unprotected.)
+- **Light gates.** A crypt's doorway may be a sun gate, up only while light falls on it, or a shade
+  gate, up only while none does: the crypt is entered lit, waking its sleepers, or snuffed.
 - **Light and dark each have their uses.**
   - *Lit*, the wizard sees in the crypts, the wraiths freeze in the flame's light (they are
     light-shy), and the necromancer can be wounded.

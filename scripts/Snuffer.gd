@@ -4,9 +4,8 @@ extends Area2D
 ## (CemeteryArchetype, Crypts). Interact while the lantern the wizard carries is lit and they dip
 ## its flame in the water and put it out (MapInfo.snuff): snuffed, they are hidden from what light
 ## wakes (the skeletons asleep in the crypts, Skeleton) and from the moths, but the wraiths hunt
-## them (Wraith) and in a crypt they see almost nothing. It is lit again only at a lantern
-## (MapInfo.light_lantern), and while it is out they are unprotected: a death ends the run. A font
-## is never used up.
+## them (Wraith) and in a crypt they see almost nothing. It lights again when they dash or light a
+## lantern; their lantern protects them all the while. A font is never used up.
 
 @onready var player: Player = Stage.player()
 var map_info: MapInfo
@@ -18,7 +17,7 @@ func setup(info: MapInfo, _v: Vector2i) -> void:
 
 ## Whether there is a flame to put out.
 func can_snuff() -> bool:
-	return map_info != null and map_info.run != null and not map_info.run.vulnerable
+	return map_info != null and map_info.run != null and map_info.flame_lit()
 
 
 func snuff() -> void:

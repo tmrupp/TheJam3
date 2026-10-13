@@ -42,7 +42,7 @@ func run() -> void:
 	check(not necro.lit(), "snuffed, it stands in the dark")
 	wound.hit(1, Vector2.RIGHT)
 	check(wound.hp == Necromancer.CANDLES, "a strike passes through it")
-	info.run.vulnerable = false
+	info.relight()
 	await physics_frame
 	await physics_frame
 	check(necro.lit(), "with the flame lit beside it, light falls on it")

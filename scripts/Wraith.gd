@@ -16,7 +16,7 @@ class_name Wraith
 
 const WAKE: float = 640.0
 const LOSE: float = 1400.0
-const SPEED: float = 95.0
+const SPEED: float = 55.0
 ## Speed inside rock, as a share of SPEED.
 const IN_ROCK: float = 0.6
 const RECOIL_TIME: float = 1.2

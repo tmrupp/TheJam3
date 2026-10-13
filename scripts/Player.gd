@@ -217,7 +217,7 @@ func dash_end(_timer: ActionTimer) -> void:
 var dash: ActionTimer = ActionTimer.new(0.25, dash_end)
 ## On the ground the dash comes back only this long after the last one began, so it is not an
 ## attack to spam; in the air it comes back on landing (once this has passed), or from a moon.
-const DASH_GROUND_COOLDOWN: float = 2.5
+const DASH_GROUND_COOLDOWN: float = 1.0
 var dash_rest: float = 0.0
 
 # WALL_JUMP_SPEED: how quickly and high the player jumps
@@ -620,6 +620,9 @@ func _physics_process(delta: float) -> void:
 			dash.enable(true)
 			dash_rest = DASH_GROUND_COOLDOWN
 			dash_ability.bind(direction).call()
+			# A dash lights a snuffed flame again (MapInfo.snuff).
+			if MapInfo.instance != null:
+				MapInfo.instance.relight()
 	
 	# A web holds the wizard: slow across, a jump stalls in it and a fall through it sinks slowly. A
 	# dash goes through, tearing it (DashStrike).

@@ -29,11 +29,21 @@ func play() -> void:
 
 	print("snuffing and lighting")
 	var font: Snuffer = placed("snuffer.tscn")[0] as Snuffer
-	check(not info.run.vulnerable and font.can_snuff(), "the flame is lit, and the font can put it out")
+	check(info.flame_lit() and font.can_snuff(), "the flame is lit, and the font can put it out")
 	font.snuff()
-	check(info.run.vulnerable and not font.can_snuff(), "the font puts it out: unprotected, and nothing more to put out")
+	check(not info.flame_lit() and not info.run.vulnerable and not font.can_snuff(), "the font puts it out, the wizard still protected, and nothing more to put out")
 	var lantern: Checkpoint = placed("checkpoint.tscn")[0] as Checkpoint
-	check(info.light_lantern(lantern) and not info.run.vulnerable and font.can_snuff(), "a lantern lights it again")
+	check(info.light_lantern(lantern) and info.flame_lit(), "a lantern lights it again")
+	font.snuff()
+	await within(func() -> bool: return false, 1.0)
+	check(not info.flame_lit(), "it stays out")
+	player.set_physics_process(true)
+	Input.action_press("Dash")
+	await physics_frame
+	await physics_frame
+	Input.action_release("Dash")
+	player.set_physics_process(false)
+	check(info.flame_lit(), "a dash lights it again")
 
 	print("light")
 	var run_at: Variant = _run(2)
@@ -54,7 +64,7 @@ func play() -> void:
 	info.snuff(player.global_position)
 	await physics_frame
 	check(not Lamplight.at(info.cell_position(b)), "snuffed, it lights nothing")
-	info.run.vulnerable = false
+	info.relight()
 
 	print("a wraith freezes in light")
 	var wraith: Node2D = _spawn("res://prefabs/wraith_enemy.tscn", b)
@@ -67,7 +77,7 @@ func play() -> void:
 	info.snuff(player.global_position)
 	check(await within(func() -> bool: return wraith.global_position.distance_to(player.global_position) < was.distance_to(player.global_position) - 30.0, 2.0), "snuffed, it comes on")
 	wraith.queue_free()
-	info.run.vulnerable = false
+	info.relight()
 
 	print("a skeleton wakes in light")
 	info.snuff(player.global_position)
@@ -75,7 +85,7 @@ func play() -> void:
 	var bones: Skeleton = sleeper.get_node("Skeleton") as Skeleton
 	await within(func() -> bool: return false, 1.0)
 	check(bones.asleep, "in the dark it sleeps on")
-	info.run.vulnerable = false
+	info.relight()
 	check(await within(func() -> bool: return not bones.asleep, 0.5), "the flame's light wakes it")
 	check(await within(func() -> bool: return bones.rising == 0.0 and bones.walking, Skeleton.RISE + 1.0), "it rises and walks")
 	var far: float = absf(sleeper.global_position.x - player.global_position.x)
@@ -83,6 +93,31 @@ func play() -> void:
 	check(absf(sleeper.global_position.x - player.global_position.x) < far, "at the wizard")
 	Stunner.of(sleeper).stun(1.0)
 	check(await until(gone(sleeper)), "a stun crumbles it")
+
+	print("light gates")
+	info.relight()
+	for sun: bool in [true, false]:
+		var node: LightGate = _spawn("res://prefabs/light_gate.tscn", b) as LightGate
+		node.setup(info, b, sun)
+		var name: String = "a sun gate" if sun else "a shade gate"
+		check(await within(func() -> bool: return node.shut() != sun, 0.3), "%s is %s in the flame's light" % [name, "up" if sun else "down"])
+		info.snuff(player.global_position)
+		check(await within(func() -> bool: return node.shut() == sun, 0.3), "and %s with the flame snuffed" % ("down" if sun else "up"))
+		check(bool(info.light_gates.get(b, false)) == not node.shut(), "light and sight follow it (MapInfo.light_gates)")
+		info.relight()
+		node.queue_free()
+		await physics_frame
+	var held: LightGate = _spawn("res://prefabs/light_gate.tscn", b) as LightGate
+	held.setup(info, b, true)
+	await within(func() -> bool: return not held.shut(), 0.3)
+	player.global_position = held.global_position
+	info.snuff(player.global_position)
+	await within(func() -> bool: return false, 0.3)
+	check(not held.shut(), "a gate never drops on the wizard")
+	player.global_position = info.cell_position(a)
+	check(await within(func() -> bool: return held.shut(), 0.3), "it drops once they are clear")
+	held.queue_free()
+	info.relight()
 
 
 ## A floor cell with `n` more open floor cells to its right in a row (open over them too), more than

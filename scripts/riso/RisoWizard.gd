@@ -517,7 +517,7 @@ func _step_smoke(delta: float) -> void:
 			continue
 		var away: float = tanh((lantern_smoke[i].x - from) / (SMOKE_EASE * s))
 		lantern_smoke[i].x += away * SMOKE_DRIFT / SMOKE_LIFE * delta * s
-	if vanished or MapInfo.instance == null or not MapInfo.instance.run.vulnerable:
+	if vanished or MapInfo.instance == null or MapInfo.instance.flame_lit():
 		_smoke_wait = 0.0
 		return
 	_smoke_wait -= delta
