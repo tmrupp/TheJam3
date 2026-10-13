@@ -140,10 +140,13 @@ static func plan(solid: Dictionary, occupied: Dictionary, level_seed: int, bound
 	return by.call(solid, occupied, level_seed, bounds, sky_bottom_style, masonry, interiors)
 
 
-## A cemetery's plan: its graves and props (plan_cemetery), and iron railings along its floors.
-static func plan_graveyard(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, _bottom_style: StringName = &"roots", _masonry: Dictionary = {}, _interiors: Dictionary = {}) -> Array[Dictionary]:
-	var graves: Array[Dictionary] = plan_cemetery(solid, occupied, level_seed, bounds)
+## A cemetery's plan: its graves and props (plan_cemetery), and iron railings along its floors
+## (none inside its crypts).
+static func plan_graveyard(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, _bottom_style: StringName = &"roots", masonry: Dictionary = {}, interiors: Dictionary = {}) -> Array[Dictionary]:
+	var graves: Array[Dictionary] = plan_cemetery(solid, occupied, level_seed, bounds, masonry, interiors)
 	for run: Dictionary in fence_runs(solid, occupied, level_seed, bounds):
+		if (run["cells"] as Array).any(func(c: Vector2i) -> bool: return interiors.has(c)):
+			continue
 		run["iron"] = true
 		graves.append(run)
 	return graves
@@ -270,8 +273,10 @@ static func fence_runs(solid: Dictionary, occupied: Dictionary, level_seed: int,
 	return out
 
 
-## A cemetery's props (see plan).
-static func plan_cemetery(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i) -> Array[Dictionary]:
+## A cemetery's props (see plan). Its crypts (Crypts) are built of dressed stone (`masonry`, as the
+## crags' castle is), and inside them (`interiors`) lie only urns, rubble and broken columns on the
+## floors and cobwebs under the ceilings: no graves, plants or ivy.
+static func plan_cemetery(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, masonry: Dictionary = {}, interiors: Dictionary = {}) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var cells: Array = solid.keys()
 	cells.sort()
@@ -280,7 +285,20 @@ static func plan_cemetery(solid: Dictionary, occupied: Dictionary, level_seed: i
 			continue
 		var above: Vector2i = v + Vector2i.UP
 		var below: Vector2i = v + Vector2i.DOWN
-		if not solid.has(above) and not occupied.has(above):
+		if masonry.has(v):
+			out.append({"kind": &"ashlar", "cell": v, "base": v})
+		if interiors.has(above) and not occupied.has(above):
+			var r: float = h(level_seed, v, 1)
+			var kind: StringName = &""
+			if r < 0.14:
+				kind = &"urn"
+			elif r < 0.3:
+				kind = &"rubble"
+			elif r < 0.36 and not solid.has(above + Vector2i.UP):
+				kind = &"column"
+			if kind != &"":
+				out.append({"kind": kind, "cell": above, "base": v})
+		elif not solid.has(above) and not occupied.has(above):
 			var r: float = h(level_seed, v, 1)
 			var tall_room: bool = not solid.has(above + Vector2i.UP)
 			var kind: StringName = &""
@@ -305,15 +323,15 @@ static func plan_cemetery(solid: Dictionary, occupied: Dictionary, level_seed: i
 		if not solid.has(below) and not occupied.has(below):
 			var r: float = h(level_seed, v, 2)
 			var kind: StringName = &""
-			if r < 0.14:
+			if r < (0.3 if interiors.has(below) else 0.14):
 				kind = &"cobweb"
-			elif r < 0.3:
+			elif r < 0.3 and not interiors.has(below):
 				kind = &"roots"
 			if kind != &"":
 				out.append({"kind": kind, "cell": below, "base": v})
 		for side: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT]:
 			var open: Vector2i = v + side
-			if solid.has(open) or occupied.has(open) or not solid.has(above):
+			if solid.has(open) or occupied.has(open) or not solid.has(above) or interiors.has(open):
 				continue
 			if h(level_seed, v, 3 + side.x) < 0.08:
 				out.append({"kind": &"vine", "cell": open, "base": v, "side": side.x})

@@ -43,6 +43,14 @@ var shade: float = SHADE
 var gloom: float = 0.0
 
 
+## Small insides collapsed with each of its levels' terrain, from samples of their own, for its
+## structures to be built round (the cemetery's crypts, Crypts): each {"sample": the WFC sample,
+## "size": cells across and down}. The level gets them as LevelGen.patches, in this order. None
+## unless it sets them.
+func patches(_def: NextWorldDef) -> Array[Dictionary]:
+	return []
+
+
 ## The print realm (RisoPrint.REALMS) its levels print in.
 func realm() -> StringName:
 	return name

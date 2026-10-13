@@ -3,7 +3,9 @@ extends Archetype
 ## The cemetery: a hillside graveyard of terraces (wfc_images/graveyard.png, drawn by
 ## tests/make_graveyard_sample.gd, collapsed unturned), printed in its own realm with its own decor.
 ## Its gates are chasms cut across the terraces, bridged once a grave bell is rung (Chasms). Moths,
-## sleep fog and wraiths live there (populate).
+## sleep fog and wraiths live there (populate). One or two crypts are dug into its hillside (Crypts),
+## their insides collapsed from a sample of their own (patches) and dark inside, with skeletons
+## asleep in them and snuffing fonts by their doorways (finish).
 
 const SAMPLE: String = "res://wfc_images/graveyard.png"
 ## Moth swarms (one by each lantern, and these more), banks of sleep fog and wraiths, per 1000
@@ -24,6 +26,17 @@ func _init() -> void:
 
 func cut_gates(w: LevelGen) -> void:
 	Chasms.carve(w)
+	Crypts.build(w)
+
+
+## The crypts' insides (Crypts).
+func patches(_def: NextWorldDef) -> Array[Dictionary]:
+	return Crypts.patches()
+
+
+## Last of all: what the crypts hold (Crypts.furnish).
+func finish(w: LevelGen, def: NextWorldDef) -> void:
+	Crypts.furnish(w, def)
 
 
 ## What lives in a cemetery: a swarm of moths a few cells from each lantern (they are drawn to a

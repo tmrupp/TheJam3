@@ -51,6 +51,8 @@ enum Type {
 	CROSSBOW,
 	BALLOON,
 	TEMPLE,
+	SNUFFER,
+	SKELETON,
 }
 
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).
@@ -119,6 +121,11 @@ var interiors: Dictionary = {}
 ## The cells an archetype's structure pass has spoken for, each with what holds it (the crags'
 ## &"shaft", &"keep" and &"tower" cells), which structures built after keep out of.
 var structures: Dictionary = {}
+## The small insides collapsed with the terrain (Archetype.patches), each columns of the
+## generator's colours, [] where one never settled.
+var patches: Array = []
+## The crypts a cemetery level built (Crypts), each a Dictionary (see Crypts).
+var crypts: Array[Dictionary] = []
 ## The towers an archetype built (CragsArchetype.build_towers), each a Dictionary (see
 ## CragsArchetype._tower).
 var towers: Array[Dictionary] = []
@@ -174,6 +181,16 @@ func add_object_at (v: Vector2i) -> void:
 	empties.erase(v)
 	grounds.erase(v)
 	objects.append(v)
+
+## Move what is in cell `from` to free cell `to`, keeping its place among the level's objects (a
+## crag tower's key or switch, CragsArchetype; a crypt's cluster, Crypts).
+func move_object (from: Vector2i, to: Vector2i) -> void:
+	var cell: Cell = get_cell(from)
+	objects[objects.find(from)] = to
+	empties.erase(to)
+	set_cell(to, cell)
+	set_cell(from, Cell.new(Type.EMPTY))
+	empties.append(from)
 
 ## Put a `type` holding `extra` at `v`: it leaves `empties` (or `grounds`) for `objects`.
 func put (v: Vector2i, type: Type, extra: Variant = null) -> Cell:
@@ -711,6 +728,10 @@ func _init (_cells: Array, def: NextWorldDef) -> void:
 	rng.seed = def.gen_seed
 	seed_for_colors = def.gen_seed
 	depth = def.depth
+	# The small insides collapsed with the terrain come after its columns (WaveFunctionCollapse).
+	if not _cells.is_empty() and _cells.back() is Dictionary:
+		patches = (_cells.back() as Dictionary).get("patches", [])
+		_cells = _cells.slice(0, _cells.size() - 1)
 	size = Vector2i(len(_cells), len(_cells[0]))
 	cells = []
 
@@ -738,7 +759,8 @@ func _init (_cells: Array, def: NextWorldDef) -> void:
 ## A gate level's boss: on the free floor nearest the way on it guards, at least BOSS_APART cells
 ## from it; the bramble in the knot at the head of its shaft (BrambleShaft), its cell the knot's
 ## bottom corner beside the landing; the spider in the roost under its keep's roof, and its keep's
-## crossbows with it (SpiderKeep.arm). The boss is placed in every visit's layout;
+## crossbows with it (SpiderKeep.arm); the necromancer at the deepest floor of the level's first
+## crypt (Crypts), which holds nothing else. The boss is placed in every visit's layout;
 ## the loader leaves it out once it is slain (RunState.bosses).
 const BOSS_APART: int = 4
 
@@ -749,6 +771,9 @@ func place_boss (boss: StringName) -> void:
 	if not keep.is_empty():
 		put(keep["roost"], Type.BOSS, boss)
 		SpiderKeep.arm(self)
+		return
+	if boss == &"necromancer" and not crypts.is_empty() and not (crypts[0]["floors"] as Array).is_empty():
+		put(crypts[0]["deep"], Type.BOSS, boss)
 		return
 	if not shaft.is_empty():
 		var knot: Rect2i = shaft["knot"]

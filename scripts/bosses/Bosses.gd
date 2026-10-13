@@ -5,9 +5,9 @@ extends RefCounted
 ## world column. A boss is beaten once per run (RunState.bosses): then every gate level of its band
 ## opens for good, the boss is never met again, and where it fell a relic waits, free. Every boss
 ## fights in its gate level itself (LevelGen.place_boss). Until each boss is built, a stand-in
-## fights for it (Boss); the worm (Worm), the bramble (Bramble, in its shaft: BrambleShaft) and the
-## spider (Spider, in its keep: SpiderKeep) are built, and the whale (Whale), which is the one boss
-## not in a gate level: it roams the sky's top row (WhaleHunt), fought at its heart in its belly
+## fights for it (Boss); the worm (Worm), the bramble (Bramble, in its shaft: BrambleShaft), the
+## spider (Spider, in its keep: SpiderKeep), the necromancer (Necromancer, in a crypt: Crypts) and
+## the whale (Whale) are built, the whale the one boss not in a gate level: it roams the sky's top row (WhaleHunt), fought at its heart in its belly
 ## (Belly, WhaleHeart, the prefab its name places).
 
 ## Who guards the garden's way down and its way up, and the far end of each band below and above
@@ -24,6 +24,7 @@ const SCENES: Dictionary = {
 	&"worm": "res://prefabs/worm.tscn",
 	&"bramble": "res://prefabs/bramble.tscn",
 	&"spider": "res://prefabs/spider.tscn",
+	&"necromancer": "res://prefabs/necromancer.tscn",
 	&"whale": "res://prefabs/whale_heart.tscn",
 }
 

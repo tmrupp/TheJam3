@@ -16,7 +16,9 @@ class_name RisoLight
 ## more night ink (the place's `shade`), terrain, decor and props alike, still there to make out
 ## but dimmed; what they can see reaches to the edge of the view. In the deep dark (the place's
 ## `gloom`, the catacombs) night ink lies over everything no light falls on, in sight or not,
-## lifting smoothly inside each light, so most of what is seen is what a light lights.
+## lifting smoothly inside each light, so most of what is seen is what a light lights. Inside a
+## crypt (Crypts) it is darker still, in every band: the deep dark lies there alone, Crypts.DARK
+## deep, so the moonlit terraces outside stay as they are.
 ##
 ## The lights print above the terrain and decor, under the props; the shade and the deep dark over
 ## the props, under the wizard's trail and the wizard.
@@ -441,7 +443,8 @@ func _fresh_cache() -> void:
 		_cache_version = version
 
 
-## The shade over what the wizard cannot see, and the deep dark over what no light falls on.
+## The shade over what the wizard cannot see, and the deep dark over what no light falls on: all
+## over in a place with gloom, and inside every crypt.
 func _darkness(info: MapInfo, view: Rect2) -> void:
 	var player: Player = Stage.player()
 	var shade: float = info.here.shade()
@@ -455,30 +458,70 @@ func _darkness(info: MapInfo, view: Rect2) -> void:
 		seen = _shade_seen
 		dark_ink.ink(RisoPrint.NIGHT, shade, _shade_pieces, false)
 	var gloom: float = info.here.gloom()
-	if gloom <= 0.0:
-		return
+	if gloom > 0.0:
+		_deep_dark(gloom, view, false)
+	# Inside a crypt it is fully dark (Crypts), whatever the band.
+	for room: Rect2 in crypt_rooms(info):
+		var area: Rect2 = room.intersection(view)
+		if area.has_area():
+			_deep_dark(Crypts.DARK, area, true)
+
+
+## The insides of the level's crypts (Crypts), in world pixels.
+func crypt_rooms(info: MapInfo) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	if info.world == null:
+		return out
+	for crypt: Dictionary in info.world.crypts:
+		var room: Rect2i = (crypt["box"] as Rect2i).grow(-1)
+		var top_left: Vector2 = info.cell_position(room.position) - Vector2(half, half)
+		out.append(Rect2(top_left, Vector2(room.size) * half * 2.0))
+	return out
+
+
+## Night ink `gloom` deep over `area`, everywhere no light falls on it, lifting smoothly inside
+## each light; `clip`: the lights are cut to `area` (a crypt's inside), else they lie within it.
+func _deep_dark(gloom: float, area: Rect2, clip: bool) -> void:
 	var lit: Array[PackedVector2Array] = []
+	var near: Array[Fade] = []
 	for light: Fade in fades:
-		lit.append(light.outline)
-	dark_ink.ink(RisoPrint.NIGHT, gloom, RisoSight.outside(view, lit), false)
+		if not clip or light.box.intersects(area):
+			lit.append(light.outline)
+			near.append(light)
+	dark_ink.ink(RisoPrint.NIGHT, gloom, RisoSight.outside(area, lit), false)
+	var frame: PackedVector2Array = PackedVector2Array([area.position, Vector2(area.end.x, area.position.y), area.end, Vector2(area.position.x, area.end.y)])
 	# Inside the lights the deep dark lifts with them, smoothly: at each point, what is left of it
 	# less each light's share there. Where lights overlap, the first prints it and the others leave
 	# that part out.
-	for i: int in range(fades.size()):
-		var light: Fade = fades[i]
+	for i: int in range(near.size()):
+		var light: Fade = near[i]
 		var others: Array[Fade] = []
 		var earlier: Array[Fade] = []
-		for j: int in range(fades.size()):
-			if j != i and fades[j].box.intersects(light.box):
-				others.append(fades[j])
+		for j: int in range(near.size()):
+			if j != i and near[j].box.intersects(light.box):
+				others.append(near[j])
 				if j < i:
-					earlier.append(fades[j])
+					earlier.append(near[j])
 		var pieces: Array[PackedVector2Array] = light.pieces
 		var profile: Array[PackedFloat32Array] = light.profile
 		if not earlier.is_empty():
 			pieces = []
 			profile = []
 			_leave_out(light, earlier, pieces, profile)
+		if clip and not area.encloses(light.box):
+			var kept: Array[PackedVector2Array] = []
+			var kept_profile: Array[PackedFloat32Array] = []
+			for piece: PackedVector2Array in pieces:
+				for part: PackedVector2Array in Geometry2D.intersect_polygons(piece, frame):
+					if Geometry2D.is_polygon_clockwise(part):
+						continue
+					var corners: PackedFloat32Array = PackedFloat32Array()
+					for p: Vector2 in part:
+						corners.append(RisoLight.carried_falloff(p.distance_to(light.at), light.reach))
+					kept.append(part)
+					kept_profile.append(corners)
+			pieces = kept
+			profile = kept_profile
 		# Neighbouring pieces share their corners: each corner is worked out once.
 		var left: Dictionary = {}
 		var covers: Array[PackedFloat32Array] = []

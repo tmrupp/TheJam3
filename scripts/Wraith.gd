@@ -7,6 +7,12 @@ class_name Wraith
 ## the wizard passing through it; only the hex wounds it (a bolt still stops at rock, so not while
 ## it is inside) and the hex or a parry stuns it. Moved only from here: its body is a frozen
 ## kinematic RigidBody2D that collides with nothing, and its HitBox does the hurting.
+##
+## It is light-shy: while light falls on it (Lamplight: the wizard's lit flame, a lantern's light),
+## it freezes where it is, cowering, and cannot come on (its touch still hurts, if the wizard walks
+## into it). Inside rock no light reaches it, so it comes on through the rock and freezes as it
+## comes out into the light. So a wizard with their flame lit is safe from the wraiths but for
+## what they walk into; snuffed (Snuffer), or unprotected, they are hunted.
 
 const WAKE: float = 640.0
 const LOSE: float = 1400.0
@@ -23,6 +29,8 @@ var awake: bool = false
 ## Seconds left falling back after a touch.
 var recoil: float = 0.0
 var velocity: Vector2 = Vector2.ZERO
+## Frozen in light now (see the class note).
+var shy: bool = false
 ## +1 facing right, -1 left (the art).
 var facing: float = 1.0
 var t: float = 0.0
@@ -46,7 +54,8 @@ func _physics_process(delta: float) -> void:
 	t += delta
 	if home == Vector2.ZERO:
 		home = rb.global_position
-	if stunned or player == null or not is_instance_valid(player):
+	shy = Lamplight.at(rb.global_position)
+	if stunned or shy or player == null or not is_instance_valid(player):
 		velocity = Vector2.ZERO
 		return
 	var to_wizard: Vector2 = player.global_position + Vector2(0, -50) - rb.global_position

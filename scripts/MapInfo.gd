@@ -300,6 +300,9 @@ func slay_boss () -> bool:
 			if node is Spider and not (node as Spider).slain:
 				(node as Spider).slay()
 				return true
+			if node is Necromancer and not (node as Necromancer).slain:
+				(node as Necromancer).slay()
+				return true
 			if node is Boss:
 				(node as Boss).slay()
 				return true
@@ -671,6 +674,18 @@ func light_lantern (lantern: Node) -> bool:
 		(player.get_node("Mend") as Mend).refill()
 	if was_vulnerable:
 		RisoFx.burst(&"gain", (lantern as Node2D).global_position, Vector2.ZERO, [RisoPrint.EYE, RisoPrint.GLOW])
+	save_run()
+	return true
+
+## Put out the flame of the lantern the wizard carries (at a snuffing font, Snuffer, smoke rising
+## from `at`): they are unprotected, as after a death, until they light a lantern again (its
+## lantern is not burnt out by it). Nothing happens while it is out already.
+func snuff (at: Vector2) -> bool:
+	if travelling or run_ending > 0.0 or run.vulnerable:
+		return false
+	run.vulnerable = true
+	_refresh_lanterns()
+	RisoFx.burst(&"gain", at, Vector2.UP, [RisoPrint.NIGHT, RisoPrint.BLUE])
 	save_run()
 	return true
 

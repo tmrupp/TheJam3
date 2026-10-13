@@ -151,6 +151,14 @@ func populate(w: LevelGen) -> void:
 	w.populate_level(self)
 
 
+## The small insides its archetype collapses with its terrain (Archetype.patches): none for a side
+## world.
+func patches() -> Array[Dictionary]:
+	if arch == null or Worlds.is_side(coord):
+		return []
+	return arch.patches(self)
+
+
 ## Terrain (in the generator's colours) to use if the collapse never settles, or [] for none.
 func fallback() -> Array:
 	return []

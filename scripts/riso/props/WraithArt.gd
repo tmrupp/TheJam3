@@ -1,5 +1,6 @@
 extends CreatureArt
-## A wraith: a pale shroud streaming behind it, its eyes lit while it chases.
+## A wraith: a pale shroud streaming behind it, its eyes lit while it chases; frozen in light, it
+## cowers, drawn in and shivering, its eyes shut.
 
 
 ## A wraith: a pale shroud floating over a tattered hem that streams behind it, a dark hood with
@@ -11,9 +12,14 @@ func _draw_art() -> void:
 	var stunned: bool = w.stunned if w != null else false
 	var in_rock: bool = w.in_rock() if w != null else false
 	var vel: Vector2 = w.velocity if w != null else Vector2.ZERO
+	var shy: bool = w.shy if w != null else false
 	var bob: float = sin(t * 2.0 + phase) * 6.0
+	if shy:
+		# Cowering in the light: still, drawn in, a quick shiver.
+		bob = sin(t * 31.0 + phase) * 1.2
 	var lean: float = clampf(vel.x / 200.0, -1.0, 1.0) * 0.18
-	var xf: Transform2D = Transform2D(lean, Vector2(facing, 1.0) * 2.6, 0.0, Vector2(0, -10 + bob))
+	var size: Vector2 = Vector2(facing, 1.0) * 2.6 * (Vector2(0.86, 0.92) if shy else Vector2.ONE)
+	var xf: Transform2D = Transform2D(lean, size, 0.0, Vector2(0, -10 + bob))
 	# The shroud: a hood narrowing to the shoulders, widening to a ragged hem that waves.
 	var outline: PackedVector2Array = PackedVector2Array([Vector2(0, -34), Vector2(9, -31), Vector2(13, -22), Vector2(12, -10), Vector2(16, 4), Vector2(19, 18)])
 	for k: int in range(6):
@@ -34,14 +40,14 @@ func _draw_art() -> void:
 	var hood: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(2, -20), 7.5, 8.5, 16)
 	ink.ink(RisoPrint.NIGHT, 0.9 if not in_rock else 0.5, [hood], false)
 	# Its eyes: dim hollows while it hangs waiting; lit pink, glowing, while it chases.
-	var chasing: bool = w != null and w.awake and not stunned
+	var chasing: bool = w != null and w.awake and not stunned and not shy
 	var eyes: Array[PackedVector2Array] = []
 	var glows: Array[PackedVector2Array] = []
 	for e: Vector2 in [Vector2(0, -21), Vector2(6, -21)]:
 		var eye: PackedVector2Array = RisoShapes.ellipse(e, 1.5, 2.1, 10)
 		if chasing:
 			eye = RisoShapes.circle(e, 2.1, 16)
-		elif stunned:
+		elif stunned or shy:
 			eye = RisoShapes.rrect(e.x - 1.6, e.y - 0.3, 3.2, 0.6, 0.3, 2)
 		eyes.append(xf * eye)
 		glows.append(xf * RisoShapes.circle(e, 3.6 + 0.5 * sin(t * 8.0 + phase), 12))

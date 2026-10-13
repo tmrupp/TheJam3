@@ -583,7 +583,7 @@ static func _bring_key(w: LevelGen, tower: Dictionary, at: Vector2i) -> bool:
 	for i: int in range(dealt.size() - 1, -1, -1):
 		var v: Vector2i = dealt[i]
 		if v != w.start_key and w.structures.get(v, &"") != &"tower":
-			_move_object(w, v, at)
+			w.move_object(v, at)
 			return true
 	return false
 
@@ -606,20 +606,10 @@ static func _bring_switch(w: LevelGen, tower: Dictionary, at: Vector2i) -> bool:
 			continue
 		if not w.reach_from(start, func(n: Vector2i) -> bool: return n != gate).has(at):
 			continue
-		_move_object(w, lever, at)
+		w.move_object(lever, at)
 		w.get_cell(gate).extra_info = at
 		return true
 	return false
-
-
-## Move what is in cell `from` to free cell `to`, keeping its place among the level's objects.
-static func _move_object(w: LevelGen, from: Vector2i, to: Vector2i) -> void:
-	var cell: LevelGen.Cell = w.get_cell(from)
-	w.objects[w.objects.find(from)] = to
-	w.empties.erase(to)
-	w.set_cell(to, cell)
-	w.set_cell(from, LevelGen.Cell.new(LevelGen.Type.EMPTY))
-	w.empties.append(from)
 
 
 ## Rock-bug nests (see NESTS_PER_K), out on the cliff on free floors, outside every building.

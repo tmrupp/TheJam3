@@ -1,13 +1,15 @@
 extends Node
 class_name Wound
 ## An enemy's health against the hex bolt. A stunned (parried) enemy takes double damage. At
-## 0 it bursts, drops a star or two, and the
+## 0 it bursts, drops a star or two (unless `stars` is off), and the
 ## level record keeps it slain until the player dies.
 
 var hp: int = 1
 ## The least a hex bolt or a dash wounds it by, even at a tier that only stuns (0: as the tier
 ## says). The worm's soft segments are cut by anything that strikes them (WormWound).
 var least: int = 0
+## Whether it drops stars when slain (the necromancer's skeletons do not, Necromancer).
+var stars: bool = true
 ## Its host has been slain (just before it is freed).
 signal slain
 
@@ -52,7 +54,7 @@ static func shake(intensity: float, sustain: float) -> void:
 func _die(host: Node2D) -> void:
 	slain.emit()
 	var info: MapInfo = MapInfo.instance
-	if info != null:
+	if info != null and stars:
 		info.mark_slain(host)
 		var coin: PackedScene = Placeables.scene(LevelGen.Type.COIN)
 		for i: int in range(randi_range(1, 2)):

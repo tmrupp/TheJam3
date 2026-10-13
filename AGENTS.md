@@ -9,6 +9,8 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
 - `scripts/level/`: a level, apart from how it looks.
   - `LevelGen.gd`: a level laid out from its collapsed cells (`populate_level`, the `Type` of
     each cell, `Cell`, and the placement helpers). `Chasms.gd`: chasms and gaps, cut and crossed.
+    `Crypts.gd`: the cemetery's crypts, their insides collapsed from a sample of their own
+    (`Archetype.patches`, handed to the layout as `LevelGen.patches`).
   - `Placeables.gd`: one table, by `LevelGen.Type`, of each thing's prefab, art kind, box size and
     flags (enemy, stander, floats, colored). Loading, the art dresser and the map read it.
   - `RunState.gd`: the run (records, the lantern to come back to, the ghost, relics) and saving it.
@@ -34,14 +36,17 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
 - `scripts/*.gd`: gameplay (Player, enemies, hazards, spells, pickups). `prefabs/*.tscn` pair
   with them. `Abilities.gd` lists every ability in one table (`ABILITIES`); an ability's node says
   what its tier does (`set_tier`) and, for a spell, casts (`cast_spell`) and tells the spell orb
-  how ready it is (`readiness`) and how long it has left (`running`). `Stage.gd` finds the main
+  how ready it is (`readiness`) and how long it has left (`running`). `Lamplight.gd` is light as
+  the game reads it (what wakes, freezes or can be wounded), apart from `RisoLight`, which prints
+  it. `Stage.gd` finds the main
   scene's wizard, TileMap, camera and menu (no `/root/Main/...` paths elsewhere).
 - `wfc_images/`: WFC samples (white open, black rock, red thorns). Drawn ones come from
   `tests/make_*_sample.gd`, so edit the script and rerun it rather than editing the PNG.
 - `gdextension/`: the C++ overlapping-WFC extension (SCons). Rarely touched.
 - `docs/`: `DEEPER_PLAN.md` (design, by system), `REGIONS_PLAN.md` (the plan for going up and
   down from the garden, the new bands and the bosses at band ends; phases 1 to 4 built (the worm
-  and the bramble), and a first pass of the crags and the spider of phase 5),
+  and the bramble), a first pass of the crags and the spider of phase 5, and phase 6, the cemetery's
+  crypts, light and the necromancer),
   `RISO_PRINT.md` (the art pipeline and rules).
 - The owner's task list and notes are a Google Doc, not a file here:
   [Somnonaut: Tom's Tasks](https://docs.google.com/document/d/11vPYlA0G-_dZY2sdV8aK6qM06c1RAE2r05uHSngRHa8/edit)

@@ -337,6 +337,7 @@ func _level_rows() -> Array:
 		["skeleton key", func(at: Vector2) -> void: _mark_key(at, KeyRing.SKELETON), "skeleton key"],
 		["star cluster", _mark_cluster, "star cluster"],
 		["ink well", func(at: Vector2) -> void: _mark_inkwell(at, false), "ink well"],
+		["snuffing font", func(at: Vector2) -> void: _mark_snuffer(at), "snuffing font"],
 		["ghost", func(at: Vector2) -> void: _mark_ghost(at, 0.22), "ghost"],
 	]
 
@@ -451,6 +452,8 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 			_mark_shrine(at, bool(rec.shrine_used))
 		LevelGen.Type.INKWELL:
 			_mark_inkwell(at, bool(rec.mapped))
+		LevelGen.Type.SNUFFER:
+			_mark_snuffer(at)
 		LevelGen.Type.CHECKPOINT:
 			var spent: bool = (rec.spent_lanterns as Dictionary).has(v)
 			var lit: bool = not spent and not info.run.vulnerable and info.run.respawn_coord == c and info.run.respawn_cell == v
@@ -596,6 +599,13 @@ func _mark_inkwell(at: Vector2, dry: bool) -> void:
 func _mark_shrine(at: Vector2, used: bool) -> void:
 	_note("shrine")
 	marks.ink(RisoPrint.ACCENT, 0.35 if used else 1.0, [RisoShapes.arch(at.x - 2.5, at.y - 3.5, 5, 6, 6)], false)
+
+
+## A snuffing font (Snuffer): a blue bowl with a night drop over it.
+func _mark_snuffer(at: Vector2) -> void:
+	_note("snuffing font")
+	marks.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(at.x - 2.6, at.y - 0.6, 5.2, 2.6, 1.2)], false)
+	marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.circle(at + Vector2(0, -2.4), 1.1, 8)], false)
 
 
 ## A lantern: an eye-yellow dot, haloed on your respawn; a night dot once spent.

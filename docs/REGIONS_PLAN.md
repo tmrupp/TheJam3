@@ -370,14 +370,25 @@ does.
 
 ### The necromancer (cemetery, a crypt in the gate level)
 
-Its crypt is one of the cemetery's (§7): behind a bell gate, dark inside, its graves the burial
-niches of the crypt's tunnels.
+*Built* (`Necromancer.gd`, `NecromancerWound.gd`, `necromancer.tscn`; `necromancer_test`,
+`capture_crypt.gd`): it waits at the deepest floor of the gate level's first crypt (§7), dark
+inside, its graves the crypt's floors (`LevelGen.place_boss`), and wakes as the wizard comes into
+the crypt or within `WAKE_RANGE` (520 px).
 
-- **Skeletons.** It raises skeletons from graves round the crypt that walk at the wizard. A stun
-  kills a skeleton (they "die on stun", as Tom noted), so the parry clears them, and the hex's stun
-  does too.
-- **The necromancer** blinks between graves and is shielded (`Shield`) while any skeleton walks;
-  when the last falls, it is open for a moment. Its health as candles on its staff.
+- **Skeletons.** It raises skeletons from its graves, the same skeletons that sleep in every
+  crypt's niches (§7), awake and walking at the wizard: one every `RAISE_EVERY` (4 s, sooner on a
+  harder preset) while fewer than `RAISE_MOST` (3) of its own walk, out of the grave nearest the
+  wizard but at least 3 cells from them. They drop no stars. A stun kills a skeleton, so the parry
+  clears them, and the hex's stun does too.
+- **Light.** It cannot be wounded in the dark: only while light falls on it (the wizard's lit
+  flame, a lantern's light) does a strike land. In the dark a strike passes through it. So the
+  fight wants the flame lit and close, the opposite of slipping past the sleeping dead.
+- **The necromancer** blinks between its graves (`BLINK_EVERY`, 6 s, and at once when wounded),
+  to the one furthest from every light, fading out and in, and its health is the candles on its
+  staff (`CANDLES`, 7): a strike in light puts one out, whatever struck. Its touch hurts and a
+  parry stuns it a moment. In the dark it is a shadow, and only its eyes and candle flames print
+  over the darkness; in light it stands out in a pale robe. With the last candle out it crumbles,
+  its skeletons with it, and its relic waits where it stood.
 
 ### The eldritch beast (institute, its chamber in the gate level)
 
@@ -429,36 +440,28 @@ shooting out through arrow slits at the wizard and stopped only from inside (`Cr
 The cemetery stays as built (`docs/DEEPER_PLAN.md` §4b): its terraces, realm, decor, moths, fog,
 wraiths, and its chasms gated by bells. What it gains are crypts, and light that matters.
 
-- **Crypts.** Mausoleum fronts stand on the terraces, each barred by a bell gate: ringing its bell
-  (freed as any bell is, by key or switch) opens the crypt. Behind it, catacomb tunnels are cut
-  into the rock by a structure pass (as the crags build their keeps): narrow passages, burial
-  niches, the odd ossuary room. Some crypts hold loot (a vault, a relic, a lantern), some are part
-  of the way through. The decor goes inside too: headstones and urns set in niches, cobwebs and
-  roots; the necromancer fights in a crypt in the gate level (§6).
+Decided (October 2026):
+
+- **Crypts.** One or two a level. They act as the crags' towers do (a building of masonry with
+  doorways, something worth having deep inside), but bigger, and their insides are collapsed by
+  WFC from a sample of their own (passages, burial niches, ossuary rooms), not built by hand.
+  Inside it is completely dark: nothing shows but what a light lights.
 - **Light by place, not by band.** The terraces stay moonlit (the shade every band has, no gloom);
-  inside a crypt it is deep dark (`Archetype.gloom`, so far only on the band below). The darkness
-  is a property of where the wizard is in the level, not of the whole level.
-- **Light and dark each have their uses.** The carried lantern's flame can be snuffed and lit
-  again, and the cemetery asks for both at different times:
-  - *Lit*, the wizard sees in the crypts, and light-shy things (a crypt-dweller that moves only in
-    the dark) freeze in the flame's light, a lantern's pool or a lit candle.
-  - *Snuffed*, the wizard is hidden from what hunts the flame (moths), slips past the sleeping dead
-    in their niches (who wake when light falls on them), and sees what shows only in the dark:
-    ghost planks over a chasm, glowing grave runes, will-o'-wisps marking a hidden crypt.
-- **Places to snuff and to light.** Decided: the flame is snuffed and lit only at fixed places in
-  the level, marked on the map, never at will. Places that put it out (fonts, draughts) and places
-  that light it again (candles, braziers, lit lanterns; a hex bolt lights a candle, which stays lit
-  in the record).
-- **Snuffing costs the lantern.** Decided: while the flame is out, the wizard is unprotected, with
-  no lantern to come back to: a death ends the run, until the flame is lit again.
-- **Wraiths** get a new behaviour of their own, something more interesting than drifting through
-  the rock at the wizard; perhaps tied to light. Open.
-- **Still open** (to be worked on later): the light-shy crypt-dweller and the sleeping dead (what
-  they are, what waking them does); ghost planks against the bell gates (proposed: only on optional
-  ways, the main crossings kept to bells); how many crypts a level has, how big, and how many are
-  on the way through; whether the necromancer's fight uses the dark. To build: darkness that
-  changes within a level (dark in a crypt, moonlit outside), where today `RisoLight` takes it from
-  the band.
+  a crypt's inside is fully dark. The darkness is a property of where in the level, not of the
+  whole level.
+- **Snuffing.** Stations (snuffing fonts) stand near the crypts' doorways: at one, the wizard puts out the
+  lantern's flame they carry. The flame is lit again only at an ordinary lantern. Snuffed, the
+  wizard is unprotected (no lantern to come back to: a death ends the run, until a lantern is lit).
+- **Light and dark each have their uses.**
+  - *Lit*, the wizard sees in the crypts, the wraiths freeze in the flame's light (they are
+    light-shy), and the necromancer can be wounded.
+  - *Snuffed*, the wizard slips past the skeletons sleeping in the crypts' niches (light falling on
+    one wakes it) and hides from the moths, but the wraiths hunt them, and in a crypt they see
+    almost nothing.
+- **Skeletons** sleep in the crypts' niches and wake when light falls on them, then walk at the
+  wizard. A stun kills one. The necromancer raises the same skeletons (§6).
+- **Wraiths** are light-shy: in light they freeze and cannot come on.
+- **No ghost planks.** The chasms stay gated by bells.
 
 ### The institute (rows +10 … +15)
 
@@ -642,8 +645,11 @@ Each phase ends with the full suite green and its own tests.
    and crossbows built into the towers' and keeps' walls (`crossbow_test`; the crags' dressing changed and
    `layout_fingerprint_test` was re-pinned for them alone). Then tuning
    the spider in play.
-6. **Cemetery crypts and light**: crypts behind bell gates, darkness by place, the flame snuffed
-   and lit; then **the necromancer** in its crypt.
+6. **Cemetery crypts and light**: *done*: crypts (collapsed by WFC, one or two a level), darkness
+   by place, snuffing fonts, light-shy wraiths and sleeping skeletons (`Crypts`, `Lamplight`,
+   `Snuffer`, `Skeleton`; `crypt_test`, `capture_crypt.gd`); and **the necromancer** in its crypt,
+   wounded only in light (`Necromancer`; `necromancer_test`). The cemetery's and catacombs' layouts
+   changed and `layout_fingerprint_test` was re-pinned for them alone. Then tuning in play.
 7. **The institute**: halls and stacks, exams (battles and field trials), students, masters
    (teaching tiers) and staff, abominations, the departments' portals; then **the eldritch beast**.
 8. **The sky reworked**: *a first pass is done*: the level's wind set by its vanes, in gusts;

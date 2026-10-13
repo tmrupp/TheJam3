@@ -35,9 +35,9 @@ const GOLDEN: Dictionary = {
 	"garden deeper": ["fb83f8a8fba7e562", "c1f6d9374b8a2c1f"],
 	"garden above": ["a22845835c87543e", "ed57c5df668a978a"],
 	"garden way up": ["d67924ee7d49c1fe", "5948bb04c00a580b"],
-	"cemetery": ["7650e6c907d3323b", "59db94644a4124a5"],
-	"cemetery deeper": ["15d89edbee4a610f", "0458a1708de184da"],
-	"catacombs": ["ea38d7ba74ac6456", "f39d426523a04c14"],
+	"cemetery": ["7650e6c907d3323b", "88fc050d89646e77"],
+	"cemetery deeper": ["15d89edbee4a610f", "0237d7ea3f753291"],
+	"catacombs": ["ea38d7ba74ac6456", "40046b5e0bb19065"],
 	"crags": ["1f936f59ae152a07", "54796f3167ab41a5"],
 	"sky": ["86785972a609d548", "684051af66802d9e"],
 	"sky deeper": ["93cd2873db0561dd", "6feb8f196b6cf4b5"],
@@ -87,10 +87,13 @@ static func _where(place: Array) -> Vector2i:
 	return Vector2i(int(place[2]), NextWorldDef.band_row(kind, int(place[3])))
 
 
-## The collapsed terrain's fingerprint: every cell's colour, column by column.
+## The collapsed terrain's fingerprint: every cell's colour, column by column (the small insides
+## collapsed after it, a crypt's, are left out: they show in the dressing's, as they are built).
 static func _terrain(cells: Array) -> String:
 	var bytes: PackedInt32Array = PackedInt32Array()
-	for column: Array in cells:
+	for column: Variant in cells:
+		if not column is Array:
+			continue
 		for c: Color in column:
 			bytes.append(c.to_rgba32())
 	return _digest(bytes.to_byte_array())
