@@ -4,7 +4,9 @@ class_name SkeletonArt
 ## skull with two sockets, a spine, two ribs, a pelvis, and limbs of two bones each, the arms hung
 ## straight from the ends of the top rib. Asleep it lies along the floor of its niche, its sockets
 ## empty; rising, it swings up onto its feet; awake, a pink point burns in each socket (printed over the
-## darkness, so an awake skeleton shows in a dark crypt and a sleeping one does not).
+## darkness, so an awake skeleton shows in a dark crypt and a sleeping one does not). Knocked to
+## pieces (Skeleton.apart), its bones drop to the floor and lie there flat in a heap, its sockets
+## dark; they rattle just before it pulls itself together, and fly back up into place.
 ##
 ## Its limbs are posed by two-bone inverse kinematics. Its feet take turns: each is planted on the
 ## floor and stays put while the body moves over it, until it is half a stride (STEP) behind the
@@ -74,6 +76,14 @@ const HANG: float = 1.0
 const SPLAY: float = 3.0
 const HAND_EASE: float = 7.0
 const FLOOR_LOOK: float = 160.0
+## In pieces: how far apart the bones lie (as a share of how far they were from its middle, plus a
+## spread either way, px), how much each tilts as it lies (radians, either way), and how far they
+## rattle (px) in the last RATTLE seconds before it pulls itself together.
+const HEAP_SPREAD: float = 1.5
+const HEAP_WIDE: float = 18.0
+const HEAP_TILT: float = 0.25
+const RATTLE: float = 0.5
+const RATTLE_PX: float = 1.6
 
 ## Its feet where they are planted, in world pixels (the far one first), and the step under way:
 ## which foot (-1 none), from where, to where, and how far along (0 to 1).
@@ -159,6 +169,10 @@ func _draw_art() -> void:
 		var elbow: Vector2 = _joint(arm, hands[i], UPPER, FORE, Vector2(-1, 0.2))
 		into.append(xf * _bone(arm, elbow, LIMB * 0.85))
 		into.append(xf * _bone(elbow, hands[i], LIMB * 0.85))
+	var bits: float = sk.apart() if sk != null else 0.0
+	var rattle: float = RATTLE_PX if sk != null and bits >= 1.0 and sk.broken < Skeleton.REFORM + RATTLE else 0.0
+	if bits > 0.0:
+		far = _scatter(far, bits, g, 0, rattle)
 	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 0.55, far)
 	var body: Array[PackedVector2Array] = []
 	body.append(xf * RisoShapes.rrect(-7.0, hip.y - 2.5, 14.0, 5.0, 2.5))
@@ -172,9 +186,44 @@ func _draw_art() -> void:
 	var tilt: float = swing * toward * ROCK * 1.5 + (head_lift - lift) * HEAD_TILT + sin(t * 1.3 + phase) * LOLL * up
 	var head: Transform2D = Transform2D(tilt, neck + Vector2(0, lift - head_lift)) * Transform2D(0.0, -NECK)
 	body.append(xf * (head * RisoShapes.circle(SKULL, SKULL_R, 24)))
+	if bits > 0.0:
+		body = _scatter(body, bits, g, 100, rattle)
+		near = _scatter(near, bits, g, 200, rattle)
 	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 0.9, body)
 	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 0.9, near)
-	_eyes(xf * head, awake, up)
+	_eyes(xf * head, awake, up, bits <= 0.0)
+
+
+## Its bones `polys` (local px) moved `k` of the way from where they are to a heap on the floor at
+## `g`: each turned to lie flat along its length, with a little tilt, and set down at its own spot,
+## the spots and tilts hashed by `salt` and its number (no RNG); shaken `rattle` px.
+func _scatter(polys: Array[PackedVector2Array], k: float, g: float, salt: int, rattle: float) -> Array[PackedVector2Array]:
+	var out: Array[PackedVector2Array] = []
+	var e: float = k * k * (3.0 - 2.0 * k)
+	for i: int in range(polys.size()):
+		var poly: PackedVector2Array = polys[i]
+		var c: Vector2 = Vector2.ZERO
+		for p: Vector2 in poly:
+			c += p
+		c /= float(poly.size())
+		# Its length's direction, from how its points spread about its middle.
+		var sxx: float = 0.0
+		var syy: float = 0.0
+		var sxy: float = 0.0
+		for p: Vector2 in poly:
+			var d: Vector2 = p - c
+			sxx += d.x * d.x
+			syy += d.y * d.y
+			sxy += d.x * d.y
+		var n: float = float(salt + i)
+		var lie: float = -0.5 * atan2(2.0 * sxy, sxx - syy) + (RisoShapes.hash1(n * 3.1 + phase) - 0.5) * 2.0 * HEAP_TILT
+		var high: float = 0.0
+		for p: Vector2 in poly:
+			high = maxf(high, absf((p - c).rotated(lie).y))
+		var to: Vector2 = Vector2(c.x * HEAP_SPREAD + (RisoShapes.hash1(n * 7.7 + 1.3) - 0.5) * 2.0 * HEAP_WIDE, g - high)
+		var shake: Vector2 = Vector2(sin(t * 41.0 + n), cos(t * 37.0 + n * 1.3)) * rattle
+		out.append(Transform2D(lie * e, c.lerp(to, e) + shake) * Transform2D(0.0, -c) * poly)
+	return out
 
 
 ## A bone from `a` to `b`, `wide` across, its ends rounded.
@@ -295,9 +344,13 @@ func _swing(rock: Transform2D, shoulder: Vector2, soles: Array[Vector2], up: flo
 
 
 ## Its sockets on the skull (`xf`, the skull's frame in art units): night hollows, and awake, a pink
-## point in each with a faint pink glow round them, over the darkness.
-func _eyes(xf: Transform2D, awake: bool, up: float) -> void:
+## point in each with a faint pink glow round them, over the darkness; none while it is in pieces
+## (not `whole`).
+func _eyes(xf: Transform2D, awake: bool, up: float, whole: bool) -> void:
 	glow.begin()
+	if not whole:
+		glow.finish()
+		return
 	var sockets: Array[PackedVector2Array] = []
 	var points: Array[PackedVector2Array] = []
 	for e: Vector2 in EYES:

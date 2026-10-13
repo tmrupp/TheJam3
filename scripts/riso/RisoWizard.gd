@@ -23,7 +23,8 @@ var world: InkCanvas
 var guard: InkCanvas
 ## The other printed travelers use this same body canvas and spring rig.
 var costume: RisoCostume
-## Positions, age and curl of the pink smoke left by an unprotected traveler's lantern.
+## Positions, age and curl of the smoke left by the lantern: pink while unprotected, and pale for a
+## little while after it is snuffed at a font (MapInfo.flame_snuffed).
 var lantern_smoke: Array[Vector4] = []
 ## Smoke thins away in this many seconds and leaves a new point at this interval.
 const SMOKE_LIFE: float = 1.4
@@ -37,6 +38,12 @@ const SMOKE_WIDTH: float = 0.85
 const SMOKE_DRIFT: float = 24.0
 const SMOKE_AHEAD: float = 2.0
 const SMOKE_EASE: float = 4.0
+## A snuffed wick smokes for this long (s), thinning away, in pale smoke lifted to paper at this
+## cover (against the pink smoke's).
+const SNUFF_SMOKE: float = 2.6
+const SNUFF_SMOKE_LIFT: float = 0.5
+## How long the lantern has been snuffed (s), for the pale smoke.
+var _snuffed_for: float = 0.0
 ## Time until the next smoke point, and its deterministic curl phase.
 var _smoke_wait: float = 0.0
 var _smoke_phase: float = 0.0
@@ -517,7 +524,9 @@ func _step_smoke(delta: float) -> void:
 			continue
 		var away: float = tanh((lantern_smoke[i].x - from) / (SMOKE_EASE * s))
 		lantern_smoke[i].x += away * SMOKE_DRIFT / SMOKE_LIFE * delta * s
-	if vanished or MapInfo.instance == null or MapInfo.instance.flame_lit():
+	var snuffed: bool = MapInfo.instance != null and MapInfo.instance.flame_snuffed()
+	_snuffed_for = _snuffed_for + delta if snuffed else 0.0
+	if vanished or MapInfo.instance == null or MapInfo.instance.flame_lit() or (snuffed and _snuffed_for > SNUFF_SMOKE):
 		_smoke_wait = 0.0
 		return
 	_smoke_wait -= delta
@@ -528,10 +537,12 @@ func _step_smoke(delta: float) -> void:
 		lantern_smoke.append(Vector4(at.x, at.y, 0.0, _smoke_phase))
 
 
-## A tapered strand curls upward from the unlit lantern and trails where it has moved.
+## A tapered strand curls upward from the unlit lantern and trails where it has moved: pink while
+## unprotected, pale and thinning away once snuffed.
 func _draw_smoke(s: float) -> void:
 	if lantern_smoke.size() < 2:
 		return
+	var snuffed: bool = MapInfo.instance != null and MapInfo.instance.flame_snuffed()
 	var left: PackedVector2Array = PackedVector2Array()
 	var right: PackedVector2Array = PackedVector2Array()
 	var covers: PackedFloat32Array = PackedFloat32Array()
@@ -547,4 +558,9 @@ func _draw_smoke(s: float) -> void:
 	var back: PackedFloat32Array = covers.duplicate()
 	back.reverse()
 	covers.append_array(back)
-	world.ink_graded(RisoPrint.PINK, [left], [covers])
+	if snuffed:
+		for i: int in range(covers.size()):
+			covers[i] *= SNUFF_SMOKE_LIFT
+		world.lift_ink_graded([RisoPrint.NIGHT, RisoPrint.BLUE], [left], [covers])
+	else:
+		world.ink_graded(RisoPrint.PINK, [left], [covers])

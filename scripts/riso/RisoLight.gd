@@ -56,8 +56,10 @@ const BOLT_LIFT: float = 0.18
 const SPARK: Vector3 = Vector3(90.0, 0.08, 0.0)
 const GLEAM: Vector3 = Vector3(150.0, 0.12, 0.14)
 const BEACON: Vector3 = Vector3(220.0, 0.16, 0.12)
-## The pink tint of an unprotected wizard's dim light, where they stand.
+## The pink tint of an unprotected wizard's dim light, where they stand; a snuffed wizard's is a
+## cold blue instead (MapInfo.flame_snuffed: their lantern still protects them).
 const UNLIT_PINK: float = 0.06
+const SNUFFED_BLUE: float = 0.2
 ## How high over its floor each glowing thing's light sits (px): an exit's doorway, a portal's
 ## middle, the ink well's beam; a rift (no floor) glows a little over where it hangs.
 const EXIT_RISE: float = 56.0
@@ -319,8 +321,11 @@ func _carried_light(info: MapInfo) -> void:
 		_carried_key = key
 		_carried = _faded(at, reach, false)
 	if not lit:
-		# The pink first, as the scaled covers are kept for the lift that follows.
-		ink.ink_graded(RisoPrint.PINK, _carried.pieces, _carried.scaled(UNLIT_PINK), false)
+		# The tint first, as the scaled covers are kept for the lift that follows.
+		if info.flame_snuffed():
+			ink.ink_graded(RisoPrint.BLUE, _carried.pieces, _carried.scaled(SNUFFED_BLUE), false)
+		else:
+			ink.ink_graded(RisoPrint.PINK, _carried.pieces, _carried.scaled(UNLIT_PINK), false)
 	_print_fade(_carried, CARRIED_LIFT if lit else UNLIT_LIFT)
 	carried_seen = _carried.outline
 	carried = Vector3(at.x, at.y, reach)

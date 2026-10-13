@@ -4,15 +4,16 @@ class_name Wraith
 ## wizard within WAKE (through rock: it needs no line of sight), then drifts at them, straight
 ## through rock (slower inside it). Its touch hurts, like any enemy's, and it falls back a moment
 ## after. If the wizard gets beyond LOSE it drifts home. Nothing solid stops it, and nothing stops
-## the wizard passing through it; only the hex wounds it (a bolt still stops at rock, so not while
-## it is inside) and the hex or a parry stuns it. Moved only from here: its body is a frozen
-## kinematic RigidBody2D that collides with nothing, and its HitBox does the hurting.
+## the wizard passing through it. Nothing hurts it either (its Wound is unhurt): a blow only shows
+## on it, and the hex or a parry stuns it. Moved only from here: its body is a frozen kinematic
+## RigidBody2D that collides with nothing, and its HitBox does the hurting.
 ##
-## It is light-shy: while light falls on it (Lamplight: the wizard's lit flame, a lantern's light),
-## it freezes where it is, cowering, and cannot come on (its touch still hurts, if the wizard walks
+## It hunts only a wizard whose flame is out (MapInfo.flame_lit): snuffed at a font (Snuffer), or
+## unprotected. While their flame is lit it does not come at them at all, wherever they are, and
+## drifts home. It is light-shy too: while light falls on it (Lamplight: the wizard's lit flame, a
+## lantern's light), it freezes where it is, cowering (its touch still hurts, if the wizard walks
 ## into it). Inside rock no light reaches it, so it comes on through the rock and freezes as it
-## comes out into the light. So a wizard with their flame lit is safe from the wraiths but for
-## what they walk into; snuffed (Snuffer), or unprotected, they are hunted.
+## comes out into a lantern's light.
 
 const WAKE: float = 640.0
 const LOSE: float = 1400.0
@@ -39,9 +40,12 @@ var t: float = 0.0
 func _ready() -> void:
 	rb.freeze_mode = RigidBody2D.FREEZE_MODE_KINEMATIC
 	rb.freeze = true
-	# A shade: nothing collides with it (its HitBox still finds the wizard).
+	# A shade: nothing collides with it (its HitBox still finds the wizard), and nothing hurts it.
 	rb.collision_layer = 0
 	rb.collision_mask = 0
+	var wound: Wound = rb.get_node_or_null("Wound") as Wound
+	if wound != null:
+		wound.unhurt = true
 
 
 ## Whether it is inside rock now (the art fades it).
@@ -59,7 +63,11 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector2.ZERO
 		return
 	var to_wizard: Vector2 = player.global_position + Vector2(0, -50) - rb.global_position
-	if not awake and to_wizard.length() <= WAKE:
+	var info: MapInfo = MapInfo.instance
+	var lit: bool = info != null and info.run != null and info.flame_lit()
+	if lit:
+		awake = false
+	elif not awake and to_wizard.length() <= WAKE:
 		awake = true
 	elif awake and to_wizard.length() > LOSE:
 		awake = false

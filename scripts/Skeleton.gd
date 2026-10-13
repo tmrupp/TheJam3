@@ -6,9 +6,11 @@ class_name Skeleton
 ## along its floor, hopping up a step of a cell, stopping at a ledge unless the wizard is below,
 ## and its touch hurts. Light is what wakes it: a snuffed wizard (Snuffer) slips past the sleepers.
 ## One the necromancer raises comes up out of its grave awake. Once awake it stays awake; with the
-## wizard beyond LOSE it stands where it is. Its bones are brittle: a stun (a parry, the hex's) or
-## any wound crumbles it (its Wound has one hit point). The body is a frozen kinematic RigidBody2D
-## moved only from here, falling under its own gravity, as a wisp's is (Mover).
+## wizard beyond LOSE it stands where it is. It cannot be killed (its Wound is unhurt): a blow or a
+## stun (a parry, the hex's) knocks it to pieces, a heap of bones on the floor, harmless, for
+## APART seconds, and then it pulls itself together again (REFORM seconds) and comes on, awake. The
+## body is a frozen kinematic RigidBody2D moved only from here, falling under its own gravity, as a
+## wisp's is (Mover).
 
 ## Walking speed (px/s), a little faster on a harder preset (Difficulty.speed).
 const SPEED: float = 70.0
@@ -26,6 +28,11 @@ const FACE_GAP: float = 10.0
 const AHEAD: float = 22.0
 ## Where light is looked for on it (px over its middle): its skull, lying or standing.
 const LIGHT_RISE: float = 8.0
+## Knocked to pieces: how long its bones take to fall (s), how long they lie in a heap, and how long
+## it takes to pull itself together again.
+const FALL: float = 0.3
+const APART: float = 2.6
+const REFORM: float = 0.8
 
 var gravity: float = ProjectSettings.get_setting("physics/2d/default_gravity")
 
@@ -42,8 +49,11 @@ var grounded: bool = false
 ## Walking now (the art swings its legs), and how far it has walked all told (px).
 var walking: bool = false
 var walked: float = 0.0
-## Crumbling (stunned or struck): freed once the Wound has burst it.
-var crumbled: bool = false
+## Seconds left in pieces (see the class note; 0 while whole), counting down through FALL, APART
+## and REFORM.
+var broken: float = 0.0
+## Whether it was stunned last frame: a stun knocks it to pieces as it lands, not for as long as it lasts.
+var _was_stunned: bool = false
 
 
 func _ready() -> void:
@@ -52,7 +62,8 @@ func _ready() -> void:
 	rb.move_and_collide(Vector2(0, 64))
 	var wound: Wound = rb.get_node_or_null("Wound") as Wound
 	if wound != null:
-		wound.hp = 1
+		wound.unhurt = true
+		wound.warded.connect(func(_dir: Vector2) -> void: _break())
 	if asleep or rising > 0.0:
 		_harmless(true)
 	facing = -1.0 if RisoDecor.h(rb.get_instance_id(), Vector2i.ZERO, 0) < 0.5 else 1.0
@@ -72,13 +83,18 @@ func _harmless(value: bool) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if crumbled:
-		return
-	if stunned:
-		_crumble()
-		return
+	if stunned and not _was_stunned:
+		_break()
+	_was_stunned = stunned
 	_fall(delta)
 	walking = false
+	if broken > 0.0:
+		broken = maxf(0.0, broken - delta)
+		if broken == 0.0:
+			_harmless(false)
+		return
+	if stunned:
+		return
 	if asleep:
 		if Lamplight.at(rb.global_position + Vector2(0, -LIGHT_RISE)):
 			asleep = false
@@ -131,11 +147,25 @@ func _floor_ahead() -> bool:
 	return rb.test_move(ahead, Vector2(0, 12))
 
 
-## Stunned or struck: it falls to pieces (its Wound bursts it, dropping its stars, if it has any).
-func _crumble() -> void:
-	crumbled = true
-	var wound: Wound = rb.get_node_or_null("Wound") as Wound
-	if wound != null:
-		wound.hit(wound.hp + 1, Vector2.UP)
-	else:
-		rb.queue_free()
+## Stunned or struck: it falls to pieces, harmless, to pull itself together again awake (see the
+## class note). Struck again in pieces, it only lies there.
+func _break() -> void:
+	if broken > 0.0:
+		return
+	broken = FALL + APART + REFORM
+	asleep = false
+	rising = 0.0
+	_harmless(true)
+	RisoFx.burst(&"impact", rb.global_position, Vector2.UP, [RisoPrint.BLUE, RisoPrint.NIGHT])
+
+
+## How far in pieces it is, for the art: 0 whole, 1 a heap on the floor; rising to 1 as its bones
+## fall and back to 0 as it pulls itself together.
+func apart() -> float:
+	if broken <= 0.0:
+		return 0.0
+	if broken > APART + REFORM:
+		return clampf((FALL + APART + REFORM - broken) / FALL, 0.0, 1.0)
+	if broken > REFORM:
+		return 1.0
+	return broken / REFORM

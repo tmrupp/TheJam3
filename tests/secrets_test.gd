@@ -148,8 +148,10 @@ func run() -> void:
 	await process_frame
 	var relics: Array[Node] = placed("relic.tscn")
 	check(relics.size() == 1 and StringName(relics[0].get("ability")) == info.here.relic, "the relic (%s) is out" % info.here.relic)
+	# Stars beside it, or, in a room too small for more, the skeleton key that took a star's place.
 	var stars_in_room: int = placed("coin.tscn").filter(func(n: Node) -> bool: return (secret["room"] as Array).has(n.get_meta(&"cell"))).size()
-	check(stars_in_room > 0, "with %d stars" % stars_in_room)
+	var keys_in_room: int = placed("key.tscn").filter(func(n: Node) -> bool: return (secret["room"] as Array).has(n.get_meta(&"cell"))).size()
+	check(stars_in_room + keys_in_room > 0, "with %d stars and %d key(s)" % [stars_in_room, keys_in_room])
 
 	print("the relic")
 	var move: StringName = info.here.relic

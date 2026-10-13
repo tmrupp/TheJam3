@@ -147,7 +147,19 @@ static func arc_cells(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
 
 ## Air the wizard can pass through: not rock and not thorns.
 static func clear(w: LevelGen, v: Vector2i) -> bool:
-	return w.is_valid(v) and not w.get_cell(v).type in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED, LevelGen.Type.SPIKES]
+	if not w.is_valid(v):
+		return false
+	var cell: LevelGen.Cell = w.get_cell(v)
+	if cell.type == LevelGen.Type.SPIKES:
+		return timed(cell)
+	return not cell.type in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED]
+
+
+## Whether a thorn cell comes and goes on a timer (Spikes): passed when it is down, so it does not
+## bar the way as thorns always out do (a crypt's alternating thorns, Crypts; the level's own runs
+## are put on timers only once it is laid out, LevelGen.place_thorn_modes).
+static func timed(cell: LevelGen.Cell) -> bool:
+	return cell.extra_info is Dictionary and (cell.extra_info as Dictionary).has("timed")
 
 
 ## Something to stand on under `v`: rock, a ledge, or the border rock round the world.

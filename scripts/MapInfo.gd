@@ -707,6 +707,11 @@ func relight () -> void:
 func flame_lit () -> bool:
 	return not run.vulnerable and not snuffed
 
+## Whether the lantern the wizard carries is out because they snuffed it, rather than because no
+## lantern protects them: it is drawn cold and dark, not pink (RisoCostume, RisoWizard, RisoLight).
+func flame_snuffed () -> bool:
+	return run != null and not run.vulnerable and snuffed
+
 func is_lantern_spent (lantern: Node) -> bool:
 	return lantern.has_meta(&"cell") and record().spent_lanterns.has(lantern.get_meta(&"cell"))
 

@@ -378,8 +378,8 @@ the crypt or within `WAKE_RANGE` (520 px).
 - **Skeletons.** It raises skeletons from its graves, the same skeletons that sleep in every
   crypt's niches (§7), awake and walking at the wizard: one every `RAISE_EVERY` (4 s, sooner on a
   harder preset) while fewer than `RAISE_MOST` (3) of its own walk, out of the grave nearest the
-  wizard but at least 3 cells from them. They drop no stars. A stun kills a skeleton, so the parry
-  clears them, and the hex's stun does too.
+  wizard but at least 3 cells from them. They drop no stars. A skeleton cannot be killed: a blow
+  or a stun knocks it to pieces for a few seconds, and then it pulls itself together again.
 - **Light.** It cannot be wounded in the dark: only while light falls on it (the wizard's lit
   flame, a lantern's light) does a strike land. In the dark a strike passes through it. So the
   fight wants the flame lit and close, the opposite of slipping past the sleeping dead.
@@ -462,8 +462,10 @@ Decided (October 2026):
     one wakes it) and hides from the moths, but the wraiths hunt them, and in a crypt they see
     almost nothing.
 - **Skeletons** sleep in the crypts' niches and wake when light falls on them, then walk at the
-  wizard. A stun kills one. The necromancer raises the same skeletons (§6).
-- **Wraiths** are light-shy: in light they freeze and cannot come on.
+  wizard. They cannot be killed: a blow or a stun knocks one to pieces for a few seconds, and
+  then it pulls itself together again. The necromancer raises the same skeletons (§6).
+- **Wraiths** hunt only a wizard whose flame is out, and are light-shy: in light they freeze.
+  Nothing hurts them.
 - **No ghost planks.** The chasms stay gated by bells.
 
 ### The institute (rows +10 … +15)

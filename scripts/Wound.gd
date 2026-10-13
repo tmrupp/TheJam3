@@ -2,7 +2,9 @@ extends Node
 class_name Wound
 ## An enemy's health against the hex bolt. A stunned (parried) enemy takes double damage. At
 ## 0 it bursts, drops a star or two (unless `stars` is off), and the
-## level record keeps it slain until the player dies.
+## level record keeps it slain until the player dies. One `unhurt` (a wraith, a skeleton) takes no
+## harm: a blow shows on it, pale, and it says so (`warded`), but it is not knocked back, loses
+## nothing and is never slain.
 
 var hp: int = 1
 ## The least a hex bolt or a dash wounds it by, even at a tier that only stuns (0: as the tier
@@ -10,8 +12,12 @@ var hp: int = 1
 var least: int = 0
 ## Whether it drops stars when slain (the necromancer's skeletons do not, Necromancer).
 var stars: bool = true
+## Whether blows leave it unhurt (see the class note).
+var unhurt: bool = false
 ## Its host has been slain (just before it is freed).
 signal slain
+## A blow has struck it, unhurt, heading `dir`.
+signal warded(dir: Vector2)
 
 ## Hit points by depth: 2 to start with (so a parry, 1 damage, stuns rather than kills), 3 from
 ## depth 6.
@@ -28,6 +34,11 @@ func stunned() -> bool:
 func hit(damage: int, dir: Vector2) -> void:
 	var host: Node2D = get_parent() as Node2D
 	if host == null or host.is_queued_for_deletion():
+		return
+	if unhurt:
+		RisoFx.burst(&"hit", host.global_position, dir, [RisoPrint.BLUE, RisoPrint.NIGHT])
+		Wound.shake(4.0, 0.1)
+		warded.emit(dir)
 		return
 	hp -= damage * (2 if stunned() else 1)
 	RisoFx.burst(&"hit", host.global_position, dir, [RisoPrint.PINK, RisoPrint.GLOW])

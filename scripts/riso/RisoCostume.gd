@@ -90,6 +90,11 @@ const SPENT_FEATHER: float = 0.3
 const UNLIT_GLASS: float = 0.3
 const UNLIT_HALO: float = 0.1
 const UNLIT_PULSE: float = 2.2
+## Snuffed at a font (MapInfo.flame_snuffed), the lantern is out but still protects: dark glass,
+## night ink at this cover, with a pale crescent moon caught in it (the shade gates' mark, which a
+## snuffed flame opens) and a charred wick under it. Not pink, which is kept for danger.
+const SNUFFED_GLASS: float = 0.85
+const SNUFFED_MOON: float = 1.9
 ## Standing still, the Fool breathes (rate, depth in art units), the lantern and bag sway a
 ## little, and every few seconds the feather flicks (interval, length in seconds, size).
 const BREATH: Vector2 = Vector2(1.9, 0.35)
@@ -486,7 +491,7 @@ func _hand(at: Vector2, shade: float = 0.0) -> void:
 func _lantern(at: Vector2, carried: bool) -> void:
 	var lit: bool = MapInfo.instance != null and MapInfo.instance.flame_lit()
 	if carried:
-		_carried_lantern(at, lit)
+		_carried_lantern(at, lit, MapInfo.instance != null and MapInfo.instance.flame_snuffed())
 		return
 	_solid(RisoShapes.rrect(at.x - 2.7, at.y - 3, 5.4, 6.0, 1.7), RisoPrint.NIGHT)
 	if lit:
@@ -501,8 +506,9 @@ func _lantern(at: Vector2, carried: bool) -> void:
 		_solid(RisoShapes.rrect(at.x - 0.4, at.y + 0.7, 0.8, 1.4, 0.2), RisoPrint.CLOTH)
 
 
-## A hand lantern on a short bail: cap, dark glass and base, with one plain teardrop of flame.
-func _carried_lantern(at: Vector2, lit: bool) -> void:
+## A hand lantern on a short bail: cap, dark glass and base, with one plain teardrop of flame; once
+## `snuffed`, dark glass holding a pale crescent.
+func _carried_lantern(at: Vector2, lit: bool, snuffed: bool) -> void:
 	_solid(_bar(at + Vector2(0, -3.6), at + Vector2(0, -LANTERN_REACH + 0.6), 0.8))
 	var glass: PackedVector2Array = RisoShapes.rrect(at.x - 2.5, at.y - 2.8, 5.0, 5.4, 1.4)
 	if lit:
@@ -511,6 +517,10 @@ func _carried_lantern(at: Vector2, lit: bool) -> void:
 		_solid(RisoShapes.smooth(PackedVector2Array([
 			at + Vector2(0, -2.0), at + Vector2(1.2, 0.3), at + Vector2(0, 1.8), at + Vector2(-1.2, 0.3),
 		])), RisoPrint.EYE, 0.9, false)
+	elif snuffed:
+		_solid(glass, RisoPrint.NIGHT, SNUFFED_GLASS, false)
+		_paper(RisoShapes.crescent(at + Vector2(-0.3, -0.5), SNUFFED_MOON, Vector2(0.9, -0.5), 20), 0.0)
+		_solid(RisoShapes.rrect(at.x - 0.3, at.y + 1.0, 0.6, 1.2, 0.2), RisoPrint.CLOTH, 1.0, false)
 	else:
 		# Unprotected: a dim pink glow, slowly pulsing, around a small ember.
 		var pulse: float = 0.5 + 0.5 * sin(wizard.t * UNLIT_PULSE)

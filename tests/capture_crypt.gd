@@ -1,6 +1,7 @@
 extends TestKit
 ## Stills of the cemetery's crypts and light (world 28): a crypt's doorway from outside with its
-## snuffing font; inside it with the flame lit and snuffed; a skeleton asleep and one walking; a
+## snuffing font; inside it with the flame lit and snuffed; a skeleton asleep, one walking, one
+## knocked to pieces and one pulling itself together again; a
 ## wraith frozen in the flame's light; and the necromancer in its crypt, in light and in the dark.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_crypt.gd
 
@@ -12,6 +13,8 @@ func run() -> void:
 	await boot()
 	camera = main.get_node("Camera2D") as Camera2D
 	await _go(Vector2i(28, NextWorldDef.first_depth(&"cemetery")))
+	# Wait out the region's title.
+	await create_timer(5.0).timeout
 	var crypt: Dictionary = info.world.crypts[0]
 	var box: Rect2i = crypt["box"]
 	var step: Vector2i = (crypt["steps"] as Array)[0]
@@ -42,6 +45,13 @@ func run() -> void:
 		for i: int in range(80):
 			await process_frame
 		await _look(sleeper.global_position + Vector2(0, -40), "skeleton_awake.png", 2.0)
+		# Knocked to pieces, and pulling itself together again.
+		var bones: Skeleton = sleeper.get_node("Skeleton") as Skeleton
+		sleeper.set_physics_process(true)
+		Stunner.of(sleeper).stun(0.2)
+		await _look(sleeper.global_position + Vector2(0, -40), "skeleton_apart.png", 2.0)
+		await until(func() -> bool: return bones.broken > 0.0 and bones.broken < Skeleton.REFORM * 0.5)
+		save_still("skeleton_reform.png")
 	# A wraith frozen in the light, out on the terraces.
 	info.relight()
 	var wraith: Node2D = null

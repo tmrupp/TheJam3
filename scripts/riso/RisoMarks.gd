@@ -338,9 +338,11 @@ static func arc_points(c: Vector2, r: float, a0: float, a1: float) -> PackedVect
 
 
 ## One narrow curling strand, attached to the wick and fading away as it rises. Used both on
-## burned-out lanterns in the world and on the HUD's extinguished protection candle.
+## burned-out lanterns in the world and on the HUD's extinguished protection candle, in pink; with
+## `pale`, lifted to paper instead (cold air, or the smoke of a flame snuffed at a font), its cover
+## scaled by `strength`.
 static func smoke_thread(canvas: InkCanvas, frame: Transform2D, time: float, height: float,
-		width: float, drift: float, punch: bool = false) -> void:
+		width: float, drift: float, punch: bool = false, pale: bool = false, strength: float = 1.0) -> void:
 	var points: PackedVector2Array = PackedVector2Array()
 	var widths: PackedFloat32Array = PackedFloat32Array()
 	var covers: PackedFloat32Array = PackedFloat32Array()
@@ -350,7 +352,7 @@ static func smoke_thread(canvas: InkCanvas, frame: Transform2D, time: float, hei
 		var curl: float = drift * pow(u, 0.7) * sin(u * TAU - time * 1.8)
 		points.append(Vector2(curl, -height * u))
 		widths.append(width * 0.5 * lerpf(1.0, 0.35, u))
-		covers.append(0.45 * (1.0 - smoothstep(0.4, 1.0, u)))
+		covers.append(0.45 * strength * (1.0 - smoothstep(0.4, 1.0, u)))
 	# Keep the whole strand in one polygon: the print renderer discards tiny isolated shapes,
 	# so individual cross-sections would disappear even when the full thread is visible.
 	var outline: PackedVector2Array = PackedVector2Array()
@@ -361,7 +363,10 @@ static func smoke_thread(canvas: InkCanvas, frame: Transform2D, time: float, hei
 	for i: int in range(SECTIONS, -1, -1):
 		outline.append(points[i] + Vector2(widths[i], 0))
 		alpha.append(covers[i])
-	canvas.ink_graded(RisoPrint.PINK, [frame * outline], [alpha], punch)
+	if pale:
+		canvas.lift_ink_graded([RisoPrint.NIGHT, RisoPrint.BLUE], [frame * outline], [alpha])
+	else:
+		canvas.ink_graded(RisoPrint.PINK, [frame * outline], [alpha], punch)
 
 
 ## Bending, for the creatures: a point turns about the feet (the origin) by `amount`, scaled by how

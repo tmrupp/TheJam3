@@ -328,6 +328,12 @@ func wraiths() -> void:
 	var from: Vector2 = wraith.global_position
 	player.global_position = from + Vector2(500, 0)
 	player.invulnerable.enable()
+	info.run.vulnerable = false
+	info.relight()
+	# While the wizard's flame is lit it never comes at them.
+	await within(func() -> bool: return false, 1.0)
+	check(not bool(brain.get("awake")) and wraith.global_position.distance_to(from) < 2.0, "while the flame is lit it stays put")
+	info.snuff(player.global_position)
 	await until(func() -> bool: return bool(brain.get("awake")) and wraith.global_position.distance_to(player.global_position) < from.distance_to(player.global_position))
 	check(bool(brain.get("awake")) and wraith.global_position.distance_to(player.global_position) < from.distance_to(player.global_position), "it senses the wizard and drifts at them")
 	# Straight through rock: put it in rock beside the wizard and it keeps coming.
@@ -345,8 +351,9 @@ func wraiths() -> void:
 		check(wraith.global_position.x > start.x, "it moves through the rock toward the wizard")
 	var wound: Wound = wraith.get_node("Wound") as Wound
 	var hp: int = wound.hp
-	wound.hit(1, Vector2.RIGHT)
-	check(not is_instance_valid(wraith) or wraith.is_queued_for_deletion() or wound.hp < hp, "the hex wounds it")
+	wound.hit(5, Vector2.RIGHT)
+	await physics_frame
+	check(is_instance_valid(wraith) and not wraith.is_queued_for_deletion() and wound.hp == hp, "nothing hurts it")
 	if is_instance_valid(wraith) and not wraith.is_queued_for_deletion():
 		(wraith.get_node("Stunner") as Stunner).stun(2.0)
 		var held: Vector2 = wraith.global_position

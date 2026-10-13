@@ -29,9 +29,23 @@ func play() -> void:
 
 	print("snuffing and lighting")
 	var font: Snuffer = placed("snuffer.tscn")[0] as Snuffer
+	# Beside it, so it is awake.
+	var start: Vector2 = player.global_position
+	player.global_position = font.global_position + Vector2(-70, 0)
+	info.loader.wake_around(player.global_position)
 	check(info.flame_lit() and font.can_snuff(), "the flame is lit, and the font can put it out")
+	check(not info.flame_snuffed() and font.dipped == INF, "not snuffed yet, and nothing dipped in the font")
 	font.snuff()
 	check(not info.flame_lit() and not info.run.vulnerable and not font.can_snuff(), "the font puts it out, the wizard still protected, and nothing more to put out")
+	check(info.flame_snuffed() and font.dipped < 0.5, "snuffed, drawn apart from unprotected, and the font knows it was just dipped")
+	await within(func() -> bool: return false, 0.3)
+	font.snuff()
+	check(font.dipped >= 0.25, "a second dip, with nothing to put out, is not drawn as one")
+	info.run.vulnerable = true
+	check(not info.flame_snuffed(), "unprotected, the lantern is drawn unprotected, snuffed or not")
+	info.run.vulnerable = false
+	player.global_position = start
+	info.loader.wake_around(start)
 	var lantern: Checkpoint = placed("checkpoint.tscn")[0] as Checkpoint
 	check(info.light_lantern(lantern) and info.flame_lit(), "a lantern lights it again")
 	font.snuff()
@@ -91,8 +105,17 @@ func play() -> void:
 	var far: float = absf(sleeper.global_position.x - player.global_position.x)
 	await within(func() -> bool: return false, 0.4)
 	check(absf(sleeper.global_position.x - player.global_position.x) < far, "at the wizard")
-	Stunner.of(sleeper).stun(1.0)
-	check(await until(gone(sleeper)), "a stun crumbles it")
+	Stunner.of(sleeper).stun(0.2)
+	check(await within(func() -> bool: return bones.apart() > 0.0, 0.3), "a stun knocks it to pieces")
+	var hurt: CollisionShape2D = sleeper.get_node("HitBox/CollisionShape2D") as CollisionShape2D
+	check(await within(func() -> bool: return hurt.disabled, 0.2), "in pieces, it is harmless")
+	var wound: Wound = sleeper.get_node("Wound") as Wound
+	wound.hit(5, Vector2.RIGHT)
+	await physics_frame
+	check(is_instance_valid(sleeper) and not sleeper.is_queued_for_deletion(), "nothing kills it")
+	check(await within(func() -> bool: return bones.broken == 0.0 and bones.walking, Skeleton.FALL + Skeleton.APART + Skeleton.REFORM + 1.0), "it pulls itself together and comes on again")
+	check(not hurt.disabled, "and its touch hurts again")
+	sleeper.queue_free()
 
 	print("light gates")
 	info.relight()
@@ -167,6 +190,7 @@ func generation() -> void:
 	print("generation")
 	var c0: int = NextWorldDef.first_depth(&"cemetery")
 	var twos: int = 0
+	var furnished: int = 0
 	for at: Vector2i in [Vector2i(28, c0), Vector2i(28, c0 + 2), Vector2i(7, c0 + 4), Vector2i(99, c0 + 5), Vector2i(3, NextWorldDef.band_row(&"cemetery", 3))]:
 		var started: int = Time.get_ticks_msec()
 		var w: LevelGen = build(at)
@@ -180,9 +204,30 @@ func generation() -> void:
 			twos += 1
 		var again: LevelGen = build(at)
 		check(w.objects == again.objects and w.grounds == again.grounds, "%s: the same every time" % at)
+		# Fonts stand about the terraces too, apart from one another.
+		var fonts: Array[Vector2i] = w.objects_of(LevelGen.Type.SNUFFER)
+		var doorways: int = 0
+		for crypt: Dictionary in w.crypts:
+			doorways += (crypt["steps"] as Array).size()
+		var apart: bool = true
+		for a: Vector2i in fonts:
+			for b: Vector2i in fonts:
+				if a != b and LevelGen.dist(a, b) < 2 :
+					apart = false
+		check(fonts.size() > doorways + 1 and apart, "%s: %d snuffing fonts, for %d doorway(s), apart" % [at, fonts.size(), doorways])
+		# Stars to find inside its crypts, on top of the cluster or hoard.
+		var stars: int = 0
+		var lairs: int = 1 if Rules.def_for(at).gate == &"necromancer" else 0
+		for crypt: Dictionary in w.crypts.slice(lairs):
+			for v: Vector2i in crypt["floors"]:
+				if w.get_cell(v).type == LevelGen.Type.COIN and v != crypt["deep"]:
+					stars += 1
+		check(stars >= w.crypts.size() - lairs, "%s: %d stars to find in its crypts (but a lair)" % [at, stars])
 		for i: int in range(w.crypts.size()):
 			_crypt(w, at, w.crypts[i], i == 0 and Rules.def_for(at).gate == &"necromancer")
+		furnished += w.crypts.size() - lairs
 	print("ok %d of the levels have two crypts" % twos)
+	check(alternating * 3 >= furnished * 2, "most crypts are thorny: %d of %d with %d or more alternating thorns" % [alternating, furnished, THORNY])
 	var garden: LevelGen = build(Vector2i(28, 1))
 	check(garden.patches.is_empty() and garden.crypts.is_empty(), "a garden level has no crypts")
 
@@ -216,15 +261,33 @@ func _crypt(w: LevelGen, at: Vector2i, crypt: Dictionary, lair: bool) -> void:
 	var fonts: int = 0
 	for step: Vector2i in crypt["steps"]:
 		for v: Vector2i in w.objects_of(LevelGen.Type.SNUFFER):
-			if LevelGen.dist(v, step) <= Crypts.FONT_REACH and not box.has_point(v):
+			if LevelGen.dist(v, step) <= Crypts.FONT_FAR and not box.has_point(v):
 				fonts += 1
 				break
+	var inner_fonts: int = floors.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.SNUFFER).size()
+	check(inner_fonts >= 1, "%s: %d snuffing font(s) inside, to snuff the flame again to leave by a shade gate" % [at, inner_fonts])
 	if lair:
 		check(not cluster and sleepers == 0, "%s: the necromancer's crypt holds no cluster and no sleepers" % at)
 	else:
 		check(cluster and sleepers >= Crypts.SKELETONS_MIN, "%s: the level's star cluster (or a hoard of stars) at its deepest floor, %d skeletons asleep" % [at, sleepers])
+		# Its thorns take turns: on each, a timer half a cycle from its neighbour's a block on.
+		var thorns: Array[Vector2i] = floors.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.SPIKES)
+		var phases: Dictionary = {}
+		var brief: bool = true
+		for v: Vector2i in thorns:
+			var how: Dictionary = w.get_cell(v).extra_info
+			phases[snappedf(float(how["timed"]), 0.01)] = true
+			brief = brief and float(how["up"]) < Spikes.CYCLE * 0.5
+		check(phases.size() <= 2 and brief, "%s: %d thorns in %d turn(s), each out less than half the time" % [at, thorns.size(), phases.size()])
+		if thorns.size() >= THORNY:
+			alternating += 1
 	check(fonts >= 1, "%s: a snuffing font by %d of its %d doorway(s)" % [at, fonts, doors.size()])
 	print(_drawn(w, box))
+
+
+## How many thorns make a crypt thorny, and how many of its crypts that were furnished are.
+const THORNY: int = 3
+var alternating: int = 0
 
 
 ## The crypt in `box` drawn in text, for looking at (# rock, . air, S skeleton, * cluster, F font).

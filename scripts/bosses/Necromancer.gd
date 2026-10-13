@@ -6,7 +6,8 @@ extends Node2D
 ## within WAKE_RANGE; then:
 ## - It raises skeletons (Skeleton.raise), the same as sleep in every crypt, out of the grave
 ##   nearest the wizard (not right under them), every RAISE_EVERY seconds while fewer than
-##   RAISE_MOST of its own walk. A stun crumbles a skeleton, as any.
+##   RAISE_MOST of its own walk. A blow or a stun knocks a skeleton to pieces for a while, as any
+##   (it cannot be killed).
 ## - It blinks between its graves every BLINK_EVERY seconds, and at once when wounded: to the grave
 ##   deepest in the dark (furthest from every light, Lamplight), fading out and in (BLINK_TIME).
 ## - It cannot be wounded in the dark: only while light falls on it (Lamplight: the wizard's lit

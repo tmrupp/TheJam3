@@ -5,7 +5,8 @@ extends Archetype
 ## Its gates are chasms cut across the terraces, bridged once a grave bell is rung (Chasms). Moths,
 ## sleep fog and wraiths live there (populate). One or two crypts are dug into its hillside (Crypts),
 ## their insides collapsed from a sample of their own (patches) and dark inside, with skeletons
-## asleep in them and snuffing fonts by their doorways (finish).
+## asleep in them and snuffing fonts by their doorways; more fonts stand about its terraces
+## (finish).
 
 const SAMPLE: String = "res://wfc_images/graveyard.png"
 ## Moth swarms (one by each lantern, and these more), banks of sleep fog and wraiths, per 1000
@@ -13,6 +14,16 @@ const SAMPLE: String = "res://wfc_images/graveyard.png"
 const MOTHS_PER_K: float = 0.6
 const FOG_PER_K: float = 2.0
 const WRAITHS_PER_K: float = 0.9
+## How much bigger than Rules.level_size its levels are, across and down: room for its crypts and
+## the rock round them.
+const SCALE: Vector2 = Vector2(1.12, 1.12)
+## Snuffing fonts about the terraces, besides those by the crypts' doorways, per 1000 cells; each
+## at least FONT_APART cells from another font and FONT_CLEAR from the way in. Their places are
+## hashed from the level seed (FONT_DEAL), not drawn from the world RNG.
+const FONTS_PER_K: float = 2.5
+const FONT_APART: int = 9
+const FONT_CLEAR: int = 4
+const FONT_DEAL: int = 6200
 
 
 func _init() -> void:
@@ -22,6 +33,7 @@ func _init() -> void:
 	sample = SAMPLE
 	symmetry = 1
 	chasmed = true
+	scale = SCALE
 
 
 func cut_gates(w: LevelGen) -> void:
@@ -34,9 +46,30 @@ func patches(_def: NextWorldDef) -> Array[Dictionary]:
 	return Crypts.patches()
 
 
-## Last of all: what the crypts hold (Crypts.furnish).
+## Last of all: what the crypts hold (Crypts.furnish), and the fonts about the terraces.
 func finish(w: LevelGen, def: NextWorldDef) -> void:
 	Crypts.furnish(w, def)
+	scatter_fonts(w)
+
+
+## Snuffing fonts about the terraces (see FONTS_PER_K), on free floors with room over them, in an
+## order hashed from the level seed, each kept apart from the other fonts.
+static func scatter_fonts(w: LevelGen) -> void:
+	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	var fonts: Array[Vector2i] = w.objects_of(LevelGen.Type.SNUFFER)
+	var spots: Array[Vector2i] = w.free_floors().filter(func(v: Vector2i) -> bool:
+		return w.is_valid(v + Vector2i.UP) and w._open(v + Vector2i.UP) and not w._crowds_exit(v) and LevelGen.dist(v, start) >= FONT_CLEAR)
+	var key: Callable = func(v: Vector2i) -> int: return posmod(Rules.level_seed(w.seed_for_colors, FONT_DEAL + v.x * 977 + v.y), 1 << 24)
+	spots.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return key.call(a) < key.call(b))
+	var want: int = w.per_area(FONTS_PER_K)
+	var laid: int = 0
+	for v: Vector2i in spots:
+		if laid >= want:
+			break
+		if fonts.all(func(f: Vector2i) -> bool: return LevelGen.dist(f, v) >= FONT_APART):
+			fonts.append(v)
+			w.put(v, LevelGen.Type.SNUFFER)
+			laid += 1
 
 
 ## What lives in a cemetery: a swarm of moths a few cells from each lantern (they are drawn to a

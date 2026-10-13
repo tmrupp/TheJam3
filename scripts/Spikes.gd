@@ -2,9 +2,10 @@ extends Area2D
 class_name Spikes
 ## Thorns: they hurt the wizard who touches them, pointing out of the rock they grow from. Most are
 ## always out. Some come and go (LevelGen.place_thorn_modes, kept in the cell's extra_info):
-## - on a timer: out for UP seconds, then down for the rest of CYCLE, from a phase of their own (so
-##   neighbouring runs are not in step), shared by the whole run; for WARN seconds before they rise
-##   their tips peek and flicker;
+## - on a timer: out for UP seconds (or as long as the cell says: a crypt's alternating thorns,
+##   Crypts), then down for the rest of CYCLE, from a phase of their own (so neighbouring runs are
+##   not in step), shared by the whole run; for WARN seconds before they rise their tips peek and
+##   flicker;
 ## - on a switch: down while the switch is on (Switch), out while it is off.
 ## Down, they do not hurt and can be walked through; rising under the wizard, they hurt at once.
 
@@ -24,8 +25,9 @@ var offset_rotation: Dictionary = {
 }
 
 var mode: Mode = Mode.ALWAYS
-## A timed run's phase (seconds); a switched run's switch.
+## A timed run's phase (seconds) and how long it is out of each CYCLE; a switched run's switch.
 var phase: float = 0.0
+var up: float = UP
 var lever: Vector2i = Vector2i(-1, -1)
 var map_info: MapInfo
 ## Whether they are out (and hurt), and how far out they are drawn (0 down, 1 out).
@@ -42,6 +44,7 @@ func setup(_map_info: MapInfo, v: Vector2i) -> void:
 		if how.has("timed"):
 			mode = Mode.TIMED
 			phase = float(how["timed"])
+			up = float(how.get("up", UP))
 		elif how.has("switch"):
 			mode = Mode.SWITCHED
 			lever = how["switch"]
@@ -69,7 +72,7 @@ static func clock() -> float:
 func wanted() -> bool:
 	match mode:
 		Mode.TIMED:
-			return fposmod(clock() + phase, CYCLE) < UP
+			return fposmod(clock() + phase, CYCLE) < up
 		Mode.SWITCHED:
 			return map_info == null or not map_info.switch_on(lever)
 	return true

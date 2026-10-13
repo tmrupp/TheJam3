@@ -60,8 +60,10 @@ func run() -> void:
 		check(not bones.asleep and skeleton.is_in_group(&"hex_target"), "awake, and an enemy")
 		var stars: int = placed("coin.tscn").size()
 		Stunner.of(skeleton).stun(1.0)
-		check(await until(gone(skeleton)), "a stun crumbles it")
+		check(await within(func() -> bool: return bones.apart() > 0.0, 0.3), "a stun knocks it to pieces")
+		(skeleton.get_node("Wound") as Wound).hit(5, Vector2.RIGHT)
 		await settle()
+		check(is_instance_valid(skeleton) and not skeleton.is_queued_for_deletion(), "nothing kills it")
 		check(placed("coin.tscn").size() == stars, "and it drops no stars")
 
 	print("slain")

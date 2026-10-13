@@ -10,12 +10,18 @@ extends RefCounted
 ## shows but what a light lights. Nothing here draws from the world RNG: where a crypt goes and what
 ## it holds are hashed from the level seed.
 ##
-## A crypt is its inside framed by a wall of masonry a cell thick all round, entered by a doorway a
+## Before it is set in, the bits of its inside the collapse left apart from the rest are joined to
+## the biggest stretch of it by stairs carved through the rock (_joined), so little of it is lost to
+## the filling below. A crypt is its inside framed by a wall of masonry a cell thick all round, entered by a doorway a
 ## cell high through a side wall, at a floor inside, with a passage two rows high carved out from it
 ## through the rock until it meets open air (at most DOOR_REACH cells): one doorway on the side with
-## the shorter passage, and one on the other side too where it fits. What the collapse cut off from
-## the doorways is filled with rock, and so is any pit inside the wizard could drop into but not hop
-## out of (Reach), until there are none. Its stone, inside and passages are kept whole
+## the shorter passage, and one on the other side too where it fits: on each side, at the floor
+## from which the most of the inside's footholds are got to hop by hop (_reach_in, a rough reach
+## over the inside alone), then the shortest passage. What the collapse cut off from the doorways is filled with rock, and so is
+## any pit inside the wizard could drop into but not hop out of (Reach), until there are none, and
+## then whatever filling the pits cut off. Where footholds inside are still out of reach over a
+## floor that is reached (a tall room with nothing to climb), steps are set in to climb to them: a
+## cell of rock a hop over the reached floor, toward the foothold (_step, at most STEPS). Its stone, inside and passages are kept whole
 ## (LevelGen.kept_whole) and kept out of the free cells, so nothing else is placed in it. Each is
 ## noted in LevelGen.crypts as {"box": the crypt with its walls (Rect2i), "inside": its open cells,
 ## "doors": its doorways' cells, "steps": the cell outside each doorway where its passage meets open
@@ -26,21 +32,30 @@ extends RefCounted
 ## up only while light falls on it, or a shade gate (SHADE_SHARE), up only while none does, so the
 ## crypt is entered with the flame lit and the sleepers woken, or snuffed and in the dark.
 ##
-## What it holds: a snuffing font (Snuffer) on a floor outside each doorway, laid as it is built;
+## What it holds: a snuffing font (Snuffer) on a floor outside each doorway and another on the floor
+## inside nearest it, laid as it is built, so a wizard who has lit their flame inside can always
+## put it out again to pass a shade gate;
 ## then, once the level is laid (furnish), the level's star cluster brought in to the first one's
 ## deepest floor (keeping its place among the level's objects, as a crag tower's key is) or, in a
-## second, a hoard of stars (HOARD), and skeletons asleep on its floors (niches first,
-## SKELETONS_PER). The
+## second, a hoard of stars (HOARD), skeletons asleep on its floors (niches first,
+## SKELETONS_PER), stars to find on its ledges (STARS_PER), and before those two, alternating
+## thorns along its floors (THORN_BLOCK). The
 ## necromancer's gate level keeps its first crypt for the necromancer and its graves instead
 ## (LevelGen.place_boss).
 
 ## The insides collapsed for each level (Archetype.patches), the first crypt's first: cells across
 ## and down, not counting the walls.
-const INSIDES: Array[Vector2i] = [Vector2i(18, 9), Vector2i(15, 8)]
+const INSIDES: Array[Vector2i] = [Vector2i(22, 12), Vector2i(16, 9)]
 ## A level of at least TWO_AREA cells has two crypts, by a chance of TWO_SHARE dealt by the level
 ## seed; a smaller one has one.
 const TWO_AREA: int = 2400
 const TWO_SHARE: float = 0.6
+## The smallest bit of a crypt's inside (open cells) joined to the rest rather than filled in, and
+## how many rows of air are carved over each step of the stairs that join it.
+const JOIN_MIN: int = 4
+const STAIR_AIR: int = 3
+## The most steps set into a crypt to climb to what is out of reach.
+const STEPS: int = 24
 ## Cells kept between a crypt and another crypt, a chasm's kept air or anything kept whole.
 const APART: int = 3
 ## The longest passage out from a doorway to open air (cells).
@@ -57,19 +72,38 @@ const SKELETONS_MIN: int = 2
 const SKELETON_APART: int = 3
 const SKELETON_CLEAR: int = 4
 ## The stars of the hoard in a crypt the level's cluster has not gone to.
-const HOARD: int = 4
+const HOARD: int = 6
+## Stars to find in a crypt: one for each STARS_PER of its floors, on free floors kept STARS_APART
+## cells from one another, ledges (a floor on a slab with air under it) first, then the floors
+## furthest from a doorway.
+const STARS_PER: int = 5
+const STARS_APART: int = 3
 ## The share of doorways that are sun gates, and of those that are shade gates (the rest are open),
 ## dealt by the level seed (GATE_DEAL) for each.
 const SUN_SHARE: float = 0.3
 const SHADE_SHARE: float = 0.35
 const GATE_DEAL: int = 6130
-## How far from a doorway's step (cells) its snuffing font may stand.
+## Alternating thorns along a crypt's floors (Spikes, timed): along each stretch of floor at least
+## THORN_STRETCH cells long, a cell clear at each end (at its start only, in a stretch of two),
+## blocks of THORN_BLOCK cells take turns, each
+## out for THORN_UP of the thorns' CYCLE, the next block (in that stretch or the next) half a cycle
+## on, so one is down while the other is out; none within THORN_CLEAR cells of a doorway. Their
+## phase is hashed from the seed (THORN_DEAL).
+const THORN_STRETCH: int = 2
+const THORN_BLOCK: int = 1
+const THORN_UP: float = 0.45
+const THORN_CLEAR: int = 2
+const THORN_DEAL: int = 6150
+## How far from a doorway's step (cells) its snuffing font may stand, and how far it may stand if
+## there is no floor that near (a doorway opening onto a drop).
 const FONT_REACH: int = 5
-## Salts for the level seed: how many crypts, where each goes (ties), and which floors its
-## skeletons sleep on.
+const FONT_FAR: int = 10
+## Salts for the level seed: how many crypts, where each goes (ties), which floors its skeletons
+## sleep on, and where its stars lie (ties).
 const COUNT_DEAL: int = 6100
 const SITE_DEAL: int = 6110
 const SLEEP_DEAL: int = 6120
+const STAR_DEAL: int = 6140
 ## The sample its insides are collapsed from.
 const SAMPLE: String = "res://wfc_images/crypt.png"
 
@@ -95,9 +129,9 @@ static func wanted(w: LevelGen) -> int:
 static func build(w: LevelGen) -> void:
 	var n: int = mini(wanted(w), w.patches.size())
 	for i: int in range(n):
-		var inside: Array = w.patches[i]
-		if inside.is_empty():
+		if (w.patches[i] as Array).is_empty():
 			continue
+		var inside: Array = _joined(w.patches[i])
 		var site: Dictionary = _site(w, inside)
 		if not site.is_empty():
 			_raise(w, inside, site)
@@ -208,12 +242,171 @@ static func _doors(w: LevelGen, inside: Array, box: Rect2i, blocked: Dictionary)
 					cut.append(c + Vector2i.UP)
 			if step == null:
 				continue
-			if best.is_empty() or cut.size() < (best[1] as Array).size():
-				best = [Vector2i(wall, y), cut, step]
+			var opens: int = _reach_in(inside, Vector2i(col, row))
+			if best.is_empty() or opens > int(best[3]) or (opens == int(best[3]) and cut.size() < (best[1] as Array).size()):
+				best = [Vector2i(wall, y), cut, step, opens]
 		if not best.is_empty():
 			out.append(best)
 	if out.size() == 2 and (out[1][1] as Array).size() < (out[0][1] as Array).size():
 		out.reverse()
+	return out
+
+
+## How many footholds of `inside` (open cells with rock under them; its edges are rock) the wizard
+## gets to hop by hop from foothold `from`, roughly as Reach has it over a level: up to Reach.UP
+## rows up and Reach.ACROSS across (a cell further for every two fallen), over clear air: up from
+## where they stand to a row over the higher end, across, and down to where they land (or, down
+## a step and close by, along and down without the rise).
+static func _reach_in(inside: Array, from: Vector2i) -> int:
+	var wide: int = inside.size()
+	var high: int = (inside[0] as Array).size()
+	var open: Callable = func(x: int, y: int) -> bool: return x >= 0 and y >= 0 and x < wide and y < high and _open_in(inside, x, y)
+	var holds: Array[Vector2i] = []
+	for x: int in range(wide):
+		for y: int in range(high):
+			if open.call(x, y) and not open.call(x, y + 1):
+				holds.append(Vector2i(x, y))
+	var clear: Callable = func(a: Vector2i, b: Vector2i, top: int) -> bool:
+		for y: int in range(top, a.y + 1):
+			if not open.call(a.x, y):
+				return false
+		for x: int in range(mini(a.x, b.x), maxi(a.x, b.x) + 1):
+			if not open.call(x, top):
+				return false
+		for y: int in range(top, b.y + 1):
+			if not open.call(b.x, y):
+				return false
+		return true
+	var seen: Dictionary = {from: true}
+	var queue: Array[Vector2i] = [from]
+	var head: int = 0
+	while head < queue.size():
+		var a: Vector2i = queue[head]
+		head += 1
+		for b: Vector2i in holds:
+			if seen.has(b):
+				continue
+			var rise: int = a.y - b.y
+			var dx: int = absi(b.x - a.x)
+			if rise > Reach.UP or dx > Reach.ACROSS + floori(float(maxi(0, -rise)) * 0.5):
+				continue
+			var ok: bool = clear.call(a, b, mini(a.y, b.y) - 1)
+			if not ok and rise <= 0 and dx <= 1:
+				ok = clear.call(a, b, a.y)
+			if ok:
+				seen[b] = true
+				queue.append(b)
+	return seen.size()
+
+
+## `inside` (as collapsed) with each bit of it of at least JOIN_MIN open cells that is apart from
+## the biggest joined to it: from the bit's cell nearest the biggest (a pair that climbs more than
+## it crosses counting for more), stairs carved toward the biggest's cell, a step up or down for
+## each cell across while both are left to go, then straight on, with STAIR_AIR rows of air over
+## each step; straight up or down it is carved two wide, so steps fit in to climb it (_step). A
+## copy; the collapse is left as it was.
+static func _joined(inside: Array) -> Array:
+	var out: Array = []
+	for column: Array in inside:
+		out.append(column.duplicate())
+	var wide: int = out.size()
+	var high: int = (out[0] as Array).size()
+	for pass_: int in range(8):
+		var sizes: Dictionary = _stretches(out)
+		var biggest: int = 0
+		for v: Vector2i in sizes:
+			biggest = maxi(biggest, int(sizes[v]))
+		var main: Array[Vector2i] = []
+		var apart: Array[Vector2i] = []
+		var groups: Dictionary = _groups(out)
+		var main_id: int = -1
+		for v: Vector2i in groups:
+			if int(sizes[v]) == biggest and main_id < 0:
+				main_id = int(groups[v])
+		for v: Vector2i in groups:
+			if int(groups[v]) == main_id:
+				main.append(v)
+			elif int(sizes[v]) >= JOIN_MIN:
+				apart.append(v)
+		if apart.is_empty() or main.is_empty():
+			break
+		main.sort()
+		apart.sort()
+		# The closest pair, the first found on a tie.
+		var from: Vector2i = apart[0]
+		var to: Vector2i = main[0]
+		var best: int = 1 << 30
+		for a: Vector2i in apart:
+			for b: Vector2i in main:
+				var d: int = absi(a.x - b.x) + absi(a.y - b.y) + 2 * maxi(0, absi(a.y - b.y) - absi(a.x - b.x))
+				if d < best:
+					best = d
+					from = a
+					to = b
+		var at: Vector2i = from
+		while at != to:
+			var step: Vector2i = Vector2i(signi(to.x - at.x), signi(to.y - at.y))
+			at += step
+			var widths: Array[int] = [0]
+			if step.x == 0:
+				widths.append(1 if at.x + 1 < wide else -1)
+			for across: int in widths:
+				for k: int in range(STAIR_AIR):
+					var c: Vector2i = at + Vector2i(across, -k)
+					if c.x >= 0 and c.y >= 0 and c.x < wide and c.y < high:
+						out[c.x][c.y] = Color.WHITE
+	return out
+
+
+## Each open cell of `inside` -> the number of the bit of it (joined through open air, side by
+## side) it is in, the bits numbered in the order first met.
+static func _groups(inside: Array) -> Dictionary:
+	var out: Dictionary = {}
+	var wide: int = inside.size()
+	var high: int = (inside[0] as Array).size()
+	var id: int = 0
+	for x: int in range(wide):
+		for y: int in range(high):
+			if out.has(Vector2i(x, y)) or not _open_in(inside, x, y):
+				continue
+			var queue: Array[Vector2i] = [Vector2i(x, y)]
+			out[Vector2i(x, y)] = id
+			var head: int = 0
+			while head < queue.size():
+				var v: Vector2i = queue[head]
+				head += 1
+				for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+					var n: Vector2i = v + d
+					if n.x >= 0 and n.y >= 0 and n.x < wide and n.y < high and not out.has(n) and _open_in(inside, n.x, n.y):
+						out[n] = id
+						queue.append(n)
+			id += 1
+	return out
+
+
+## Each open cell of `inside` (as collapsed) -> how many open cells it is joined to through open
+## air (side by side), itself included.
+static func _stretches(inside: Array) -> Dictionary:
+	var out: Dictionary = {}
+	var wide: int = inside.size()
+	var high: int = (inside[0] as Array).size()
+	for x: int in range(wide):
+		for y: int in range(high):
+			if out.has(Vector2i(x, y)) or not _open_in(inside, x, y):
+				continue
+			var group: Array[Vector2i] = [Vector2i(x, y)]
+			var seen: Dictionary = {Vector2i(x, y): true}
+			var head: int = 0
+			while head < group.size():
+				var v: Vector2i = group[head]
+				head += 1
+				for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+					var n: Vector2i = v + d
+					if n.x >= 0 and n.y >= 0 and n.x < wide and n.y < high and not seen.has(n) and _open_in(inside, n.x, n.y):
+						seen[n] = true
+						group.append(n)
+			for v: Vector2i in group:
+				out[v] = group.size()
 	return out
 
 
@@ -252,6 +445,18 @@ static func _raise(w: LevelGen, inside: Array, site: Dictionary) -> void:
 				_rock_at(w, v)
 				w.masonry[v] = true
 	var floors: Array[Vector2i] = _fill_pits(w, room, doors)
+	for k: int in range(STEPS):
+		if not _step(w, room, floors):
+			break
+		floors = _fill_pits(w, room, doors)
+	# Filling the pits may have cut some air off from the doorways: filled too.
+	var still: Dictionary = _flood(w, room, inner)
+	for x: int in range(room.position.x, room.end.x):
+		for y: int in range(room.position.y, room.end.y):
+			var v: Vector2i = Vector2i(x, y)
+			if not w.is_ground(v) and not still.has(v):
+				_rock_at(w, v)
+				w.masonry[v] = true
 	var cells: Array[Vector2i] = []
 	for x: int in range(room.position.x, room.end.x):
 		for y: int in range(room.position.y, room.end.y):
@@ -275,6 +480,43 @@ static func _raise(w: LevelGen, inside: Array, site: Dictionary) -> void:
 	w.crypts.append(crypt)
 	_fonts(w, crypt)
 	_gates(w, crypt)
+
+
+## Set one step into `room` toward a foothold out of reach (see the class description): over the
+## reached floor (of `floors`) with an unreached foothold nearest above it (between one and
+## Reach.ACROSS cells across, more than Reach.UP rows up), a cell of rock a hop up, a cell toward
+## it, with air to stand on it and over that; the nearest such pair first. Whether one was set.
+static func _step(w: LevelGen, room: Rect2i, floors: Array[Vector2i]) -> bool:
+	var reached: Dictionary = {}
+	for v: Vector2i in floors:
+		reached[v] = true
+	var out_of_reach: Array[Vector2i] = []
+	for x: int in range(room.position.x, room.end.x):
+		for y: int in range(room.position.y, room.end.y):
+			var v: Vector2i = Vector2i(x, y)
+			if not reached.has(v) and not w.is_ground(v) and Reach.underfoot(w, v):
+				out_of_reach.append(v)
+	var best: int = 1 << 30
+	var step: Vector2i = Vector2i(-1, -1)
+	for b: Vector2i in out_of_reach:
+		for a: Vector2i in floors:
+			var rise: int = a.y - b.y
+			var dx: int = absi(b.x - a.x)
+			if rise <= Reach.UP or dx > Reach.ACROSS:
+				continue
+			var s: Vector2i = Vector2i(a.x + signi(b.x - a.x), a.y - Reach.UP + 1)
+			var score: int = (rise << 8) + dx
+			if score >= best or not room.has_point(s) or not room.has_point(s + Vector2i.UP * 2):
+				continue
+			if w.is_ground(s) or w.is_ground(s + Vector2i.UP) or w.is_ground(s + Vector2i.UP * 2) or w.get_cell(s).type != LevelGen.Type.EMPTY:
+				continue
+			best = score
+			step = s
+	if best == 1 << 30:
+		return false
+	_rock_at(w, step)
+	w.masonry[step] = true
+	return true
 
 
 ## The open cells inside `room` joined through open air to `from`.
@@ -359,7 +601,9 @@ static func furnish(w: LevelGen, def: NextWorldDef) -> void:
 			w.move_object(cluster, deep)
 		else:
 			_hoard(w, crypt)
+		_thorns(w, crypt)
 		_sleepers(w, crypt, deep)
+		_stars(w, crypt)
 
 
 ## The level's star cluster (LevelGen.place_cluster), out in the level: not in a vault, nor in a
@@ -384,6 +628,60 @@ static func _hoard(w: LevelGen, crypt: Dictionary) -> void:
 			n += 1
 
 
+## The stars to find in `crypt` (see STARS_PER), on its free floors: ledges first, then the floors
+## furthest from a doorway, ties dealt by the seed.
+static func _stars(w: LevelGen, crypt: Dictionary) -> void:
+	var floors: Array[Vector2i] = crypt["floors"]
+	var doors: Array[Vector2i] = crypt["doors"]
+	var want: int = maxi(1, floori(float(floors.size()) / float(STARS_PER)))
+	var spots: Array[Vector2i] = floors.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.EMPTY)
+	var key: Callable = func(v: Vector2i) -> int:
+		var ledge: bool = w.is_valid(v + Vector2i.DOWN * 2) and not w.is_ground(v + Vector2i.DOWN * 2)
+		var near: int = 99
+		for d: Vector2i in doors:
+			near = mini(near, LevelGen.dist(d, v))
+		return (0 if ledge else 1 << 24) + ((99 - mini(near, 99)) << 16) + posmod(Rules.level_seed(w.seed_for_colors, STAR_DEAL + v.x * 977 + v.y), 1 << 16)
+	spots.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return key.call(a) < key.call(b))
+	var chosen: Array[Vector2i] = []
+	for v: Vector2i in spots:
+		if chosen.size() >= want:
+			break
+		if chosen.all(func(q: Vector2i) -> bool: return LevelGen.dist(q, v) >= STARS_APART):
+			chosen.append(v)
+			w.put(v, LevelGen.Type.COIN)
+
+
+## The alternating thorns along `crypt`'s floors (see THORN_STRETCH): each stretch of free floor
+## side by side, a cell clear at each end (or the start), in blocks taking turns.
+static func _thorns(w: LevelGen, crypt: Dictionary) -> void:
+	var doors: Array[Vector2i] = crypt["doors"]
+	var free: Dictionary = {}
+	for v: Vector2i in crypt["floors"]:
+		if w.get_cell(v).type == LevelGen.Type.EMPTY and doors.all(func(d: Vector2i) -> bool: return LevelGen.dist(d, v) > THORN_CLEAR):
+			free[v] = true
+	var starts: Array[Vector2i] = []
+	for v: Vector2i in free:
+		if not free.has(v + Vector2i.LEFT):
+			starts.append(v)
+	starts.sort()
+	var box: Rect2i = crypt["box"]
+	var base: float = float(posmod(Rules.level_seed(w.seed_for_colors, THORN_DEAL + box.position.x * 977 + box.position.y), 1000)) / 1000.0 * Spikes.CYCLE
+	var block: int = 0
+	for start: Vector2i in starts:
+		var stretch: Array[Vector2i] = []
+		var at: Vector2i = start
+		while free.has(at):
+			stretch.append(at)
+			at += Vector2i.RIGHT
+		if stretch.size() < THORN_STRETCH:
+			continue
+		for k: int in range(1, maxi(2, stretch.size() - 1)):
+			if k > 1 and (k - 1) % THORN_BLOCK == 0:
+				block += 1
+			w.put(stretch[k], LevelGen.Type.SPIKES, {"timed": fposmod(base + float(block % 2) * Spikes.CYCLE * 0.5, Spikes.CYCLE), "up": THORN_UP * Spikes.CYCLE})
+		block += 1
+
+
 ## The skeletons asleep in `crypt` (see the consts), on free floors: niches (rock over them and on
 ## one side) first, then the rest, then those nearer a doorway than SKELETON_CLEAR, each in an
 ## order dealt by the seed.
@@ -406,14 +704,21 @@ static func _sleepers(w: LevelGen, crypt: Dictionary, deep: Vector2i) -> void:
 			w.put(v, LevelGen.Type.SKELETON)
 
 
-## A snuffing font on the free floor nearest each of `crypt`'s steps out, within FONT_REACH, outside
-## the crypt: laid as the crypt is built, before anything else takes the floors by its doorways,
-## and kept whole (with the rock under it).
+## A snuffing font on the free floor nearest each of `crypt`'s steps out, within FONT_REACH (or,
+## failing that, FONT_FAR), outside the crypt, and another on the floor inside nearest each
+## doorway: laid as the crypt is built, before anything else takes the floors by its doorways, and
+## kept whole (with the rock under it).
 static func _fonts(w: LevelGen, crypt: Dictionary) -> void:
 	var box: Rect2i = crypt["box"]
+	var doors: Array[Vector2i] = crypt["doors"]
+	for door: Vector2i in doors:
+		var inner: Variant = w.best_of(crypt["floors"], func(v: Vector2i) -> int: return LevelGen.dist(v, door),
+				func(v: Vector2i) -> bool: return v != door and not doors.has(v) and w.get_cell(v).type == LevelGen.Type.EMPTY)
+		if inner != null:
+			w.put(inner, LevelGen.Type.SNUFFER)
 	for step: Vector2i in crypt["steps"]:
 		var spot: Variant = w.best_of(w.free_floors(), func(v: Vector2i) -> int: return LevelGen.dist(v, step),
-				func(v: Vector2i) -> bool: return LevelGen.dist(v, step) <= FONT_REACH and not box.grow(1).has_point(v) and not w._crowds_exit(v))
+				func(v: Vector2i) -> bool: return LevelGen.dist(v, step) <= FONT_FAR and not box.grow(1).has_point(v) and not w._crowds_exit(v))
 		if spot != null:
 			w.put(spot, LevelGen.Type.SNUFFER)
 			w.kept_whole[spot] = true
