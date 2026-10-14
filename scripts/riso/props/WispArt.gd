@@ -29,6 +29,16 @@ var _drop_e: float = 0.0
 var _body_middle: Vector2 = Vector2.INF
 ## The middle of the body, in its own art units (it runs from the tail tip at x -12.4 to the head).
 const BODY_MIDDLE: Vector2 = Vector2(-3.0, -8.2)
+## Further than this from the wizard (px) a wisp is printed every WISP_FAR_EVERY frames (twenty times
+## a second) rather than every other one: it is printed once or twice for every frame that is
+## looked at closely.
+const WISP_NEAR: float = 480.0
+const WISP_FAR_EVERY: int = 3
+## How sharply its trail may bend (the turn across 12 px of it, radians) before a shape placed along
+## it is checked for folding over itself (see _wisp_place); gentler, none can.
+const WISP_FOLD_TURN: float = 0.6
+## Whether the trail bends that sharply anywhere along the body this print.
+var _sharp: bool = false
 
 
 func _draw_art() -> void:
@@ -101,8 +111,8 @@ func _draw_art() -> void:
 	var speed: float = 0.3 if stunned else 0.7
 	var flicker: float = 0.85 + 0.15 * sin(t * 5.3 + phase) * sin(t * 2.1 + phase * 1.7)
 	# The glow trails the wisp: strongest behind the head, thinning out past the tail.
-	ink.ink(RisoPrint.PINK, 0.06 * flicker, [_wisp_place(RisoShapes.ellipse(Vector2(-10.5, -8.4), 11.0, 7.5, 28), true)])
-	ink.ink(RisoPrint.PINK, 0.1 * flicker, [_wisp_place(RisoShapes.ellipse(Vector2(-6.0, -8.2), 9.5, 8.0, 28), true)])
+	ink.ink(RisoPrint.PINK, 0.06 * flicker, [_wisp_place(RisoShapes.ellipse(Vector2(-10.5, -8.4), 11.0, 7.5, 16), true)])
+	ink.ink(RisoPrint.PINK, 0.1 * flicker, [_wisp_place(RisoShapes.ellipse(Vector2(-6.0, -8.2), 9.5, 8.0, 16), true)])
 	# Two lagging after-veils behind the body, then the body. The body is solid ink with only its
 	# tail tip thinning; the veils stay faint.
 	for layer: int in [2, 1, 0]:
@@ -114,7 +124,7 @@ func _draw_art() -> void:
 		var pts: PackedVector2Array = RisoShapes.smooth(PackedVector2Array([
 			Vector2(5.6, -9), Vector2(4.6, -4.6), Vector2(1.6, -3), Vector2(-2, -3.8 + w[1] * 0.3), Vector2(-5.6, -4.8 + w[1]),
 			Vector2(-9, -6.6 + w[2]), Vector2(-12.4, -8.6 + w[3]), Vector2(-8.8, -9.6 + w[2]), Vector2(-5.2, -11 + w[1] * 0.6),
-			Vector2(-1.4, -13.2), Vector2(2.6, -13.4)]))
+			Vector2(-1.4, -13.2), Vector2(2.6, -13.4)]), 3)
 		var fade: PackedFloat32Array = PackedFloat32Array()
 		var top: float = (1.0 if layer == 0 else 0.3 / float(layer)) * (1.0 if layer == 0 else flicker)
 		for p: Vector2 in pts:
@@ -128,7 +138,7 @@ func _draw_art() -> void:
 			# Opaque: clear the inks of whatever is behind (grass, light, glow) under the body.
 			ink.knock([RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], [_wisp_place(RisoShapes.smooth(PackedVector2Array([
 				Vector2(5.6, -9), Vector2(4.6, -4.6), Vector2(1.6, -3), Vector2(-2, -3.8), Vector2(-4.5, -4.8), Vector2(-4.5, -11),
-				Vector2(-1.4, -13.2), Vector2(2.6, -13.4)])), true)])
+				Vector2(-1.4, -13.2), Vector2(2.6, -13.4)]), 3), true)])
 		ink.ink_graded(RisoPrint.PINK, [poly], [fade])
 		if layer == 0:
 			var cool: PackedFloat32Array = PackedFloat32Array()
@@ -141,11 +151,19 @@ func _draw_art() -> void:
 		# Mid-spin the eyes slide to their mirrored height about the spine, so after half a turn
 		# they sit exactly where the upright wisp's eyes do.
 		var ep: Vector2 = Vector2(eye.x, lerpf(eye.y, -16.4 - eye.y, e_eyes)) if spinning else eye
-		var shape: PackedVector2Array = RisoShapes.rrect(ep.x - 1.0, ep.y - 0.4, 2.0, 0.8, 0.4, 2) if stunned else RisoShapes.ellipse(ep, 0.9, 1.9, 14)
+		var shape: PackedVector2Array = RisoShapes.rrect(ep.x - 1.0, ep.y - 0.4, 2.0, 0.8, 0.4, 2) if stunned else RisoShapes.ellipse(ep, 0.9, 1.9, 10)
 		eyes.append(_wisp_place(shape, false))
 	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE], eyes)
 	if stunned:
 		_stun_mark(head + _wp_bob + Vector2(0, -52))
+
+
+## Twenty times a second far from the wizard, thirty near (see WISP_NEAR).
+func reprint_every() -> int:
+	var player: Player = Stage.player()
+	if player != null and host != null and host.global_position.distance_squared_to(player.global_position) > WISP_NEAR * WISP_NEAR:
+		return WISP_FAR_EVERY
+	return REPRINT_EVERY
 
 
 ## A shield centres on the middle of the body, which trails behind the wisp's origin.
@@ -391,10 +409,12 @@ func _wisp_sample(max_d: float) -> void:
 		_ts_dir[i] = at[1]
 	_ts_turn.resize(n)
 	var reach: int = ceili(6.0 / WISP_STEP)
+	_sharp = false
 	for i: int in range(n):
 		var older: Vector2 = _ts_dir[mini(i + reach, n - 1)]
 		var newer: Vector2 = _ts_dir[maxi(i - reach, 0)]
 		_ts_turn[i] = older.angle_to(newer) if i > 0 else 0.0
+		_sharp = _sharp or absf(_ts_turn[i]) > WISP_FOLD_TURN
 
 
 ## Where the trail was `d` px behind the head (in this prop's space), and its direction there,
@@ -436,8 +456,8 @@ func _wisp_place(poly: PackedVector2Array, _curl: bool) -> PackedVector2Array:
 				off = off.limit_length(0.8 * 12.0 / absf(turn))
 		out[n] = _lk_pos + off + _wp_bob
 	# Wide shapes (glow, veils) can still cross over themselves on the tightest bend: print their
-	# outline hull instead of nothing.
-	if Geometry2D.triangulate_polygon(out).is_empty():
+	# outline hull instead of nothing. (Only a sharp bend can fold one.)
+	if _sharp and Geometry2D.triangulate_polygon(out).is_empty():
 		var hull: PackedVector2Array = Geometry2D.convex_hull(out)
 		if hull.size() > 3:
 			hull.remove_at(hull.size() - 1)

@@ -318,6 +318,21 @@ func _solid(poly: PackedVector2Array, plate: int = RisoPrint.CLOTH, cover: float
 		figure.append(shape)
 
 
+## Several filled shapes on one ink at once, each clearing the plates beneath it: for shapes that
+## never overlap, or are solid (`cover` 1), which print the same together as one after another, in
+## two ops rather than two each.
+func _solids(polys: Array[PackedVector2Array], plate: int = RisoPrint.CLOTH, cover: float = 1.0, flash: bool = true) -> void:
+	if polys.is_empty():
+		return
+	var shapes: Array[PackedVector2Array] = []
+	for poly: PackedVector2Array in polys:
+		shapes.append(wizard._sm(frame * poly))
+	wizard.body.knock(RisoPrint.ALL_PLATES, shapes)
+	wizard.body.ink(plate, cover, shapes, false)
+	if flash:
+		figure.append_array(shapes)
+
+
 ## Add screened ink over a shape, for folds, glass and pools of light.
 func _over(poly: PackedVector2Array, plate: int, cover: float) -> void:
 	wizard.body.ink(plate, cover, [wizard._sm(frame * poly)])
@@ -385,9 +400,8 @@ func _fool() -> void:
 	frame = frame * Transform2D(bindle_a, knot) * Transform2D(0.0, -knot)
 	var bag: PackedVector2Array = bindle_shape(spell, at)
 	_spell_area(bag, at, 4.9)
-	_solid(RisoShapes.almond(at + Vector2(-1, -6), 2.0, 1.2, 10), RisoPrint.ROBE)
-	_solid(RisoShapes.tri(at + Vector2(-1, -6), at + Vector2(-5, -7), at + Vector2(-4, -4)), RisoPrint.ROBE)
-	_solid(RisoShapes.tri(at + Vector2(0, -6), at + Vector2(3, -8), at + Vector2(3, -5)), RisoPrint.ROBE)
+	_solids([RisoShapes.almond(at + Vector2(-1, -6), 2.0, 1.2, 10), RisoShapes.tri(at + Vector2(-1, -6), at + Vector2(-5, -7), at + Vector2(-4, -4)),
+		RisoShapes.tri(at + Vector2(0, -6), at + Vector2(3, -8), at + Vector2(3, -5))], RisoPrint.ROBE)
 	var form: Vector3 = BINDLE_FORMS.get(spell, BINDLE_FORMS[&""])
 	_over(RisoShapes.almond(at + Vector2(-form.x * 0.5 + form.z, 0), 0.8, form.y * 0.65), RisoPrint.NIGHT, 0.2)
 	_over(RisoShapes.almond(at + Vector2(form.x * 0.55 + form.z, 0.3), 0.6, form.y * 0.6), RisoPrint.NIGHT, 0.2)
@@ -424,13 +438,15 @@ func _fool() -> void:
 		_solid(plume, RisoPrint.NIGHT, SPENT_FEATHER)
 	_paper(plume_shape(quill, sway, 0.35, 0.3), 0.1 if ready else 0.0)
 	frame = body
+	# The beads never touch, so the whole and the spent each print at once.
 	var beads: Array[Vector2] = necklace(wizard.player.health.max_health)
+	var whole: Array[PackedVector2Array] = []
+	var spent: Array[PackedVector2Array] = []
 	for i: int in range(beads.size()):
 		var bead: Vector2 = beads[i] + Vector2(0.2, FOOL_COLLAR_TOP + 2.6 + b)
-		if i < wizard.player.health.health:
-			_paper(RisoShapes.circle(bead, FOOL_BEAD_RADIUS, 14), 0.12)
-		else:
-			_solid(RisoShapes.circle(bead, FOOL_BEAD_RADIUS, 14), RisoPrint.NIGHT, 1.0, false)
+		(whole if i < wizard.player.health.health else spent).append(RisoShapes.circle(bead, FOOL_BEAD_RADIUS, 14))
+	_solids(whole, RisoPrint.EYE, 0.12, false)
+	_solids(spent, RisoPrint.NIGHT, 1.0, false)
 	# Both gloves come out of the poncho: one grips the pole on the shoulder, and one, at the poncho's
 	# widest corner, holds the lantern's bail.
 	_hand(grip, GLOVE_SHADE)
@@ -463,19 +479,17 @@ func _coin(hand: Vector2) -> void:
 
 ## A short boot with a rounded toe and a pale turned-down cuff, its sole on the foot's point.
 func _fool_boot(at: Vector2) -> void:
-	_solid(RisoShapes.rrect(at.x - 1.3, at.y - 4.4, 2.8, 3.8, 0.8))
-	_solid(RisoShapes.smooth(PackedVector2Array([
-		at + Vector2(-1.4, -1.6), at + Vector2(-1.5, 0), at + Vector2(2.6, 0),
-		at + Vector2(3.4, -0.6), at + Vector2(2.8, -1.8), at + Vector2(1.2, -2.1),
-	])))
+	_solids([RisoShapes.rrect(at.x - 1.3, at.y - 4.4, 2.8, 3.8, 0.8), _moved(&"toe", PackedVector2Array([
+		Vector2(-1.4, -1.6), Vector2(-1.5, 0), Vector2(2.6, 0),
+		Vector2(3.4, -0.6), Vector2(2.8, -1.8), Vector2(1.2, -2.1),
+	]), 4, at)])
 	_paper(RisoShapes.rrect(at.x - 1.7, at.y - 5.0, 3.6, 1.4, 0.6), 0.25)
 
 
 ## Two warm eye slits in an otherwise anonymous face.
 func _eyes(at: Vector2) -> void:
 	var blink: bool = fposmod(wizard.t, 3.9) < 0.11
-	for dx: float in [-1.4, 1.4]:
-		_paper(RisoShapes.ellipse(at + Vector2(dx, 0), 0.6, 0.25 if blink else 1.0, 10), 0.85)
+	_solids([RisoShapes.ellipse(at + Vector2(-1.4, 0), 0.6, 0.25 if blink else 1.0, 10), RisoShapes.ellipse(at + Vector2(1.4, 0), 0.6, 0.25 if blink else 1.0, 10)], RisoPrint.EYE, 0.85, false)
 
 
 ## A small glove without a sleeve or arm; the Fool's gloves are shaded darker than the poncho they leave.
@@ -527,8 +541,7 @@ func _carried_lantern(at: Vector2, lit: bool, snuffed: bool) -> void:
 		_over(RisoShapes.circle(at, 5.0), RisoPrint.PINK, UNLIT_HALO * (0.7 + 0.3 * pulse))
 		_solid(glass, RisoPrint.PINK, UNLIT_GLASS * (0.8 + 0.2 * pulse), false)
 		_solid(RisoShapes.almond(at + Vector2(0, 0.8), 0.7, 1.0, 8), RisoPrint.PINK, 0.85, false)
-	_solid(RisoShapes.rrect(at.x - 2.1, at.y - 4.0, 4.2, 1.6, 0.7))
-	_solid(RisoShapes.rrect(at.x - 2.9, at.y + 2.2, 5.8, 1.4, 0.6))
+	_solids([RisoShapes.rrect(at.x - 2.1, at.y - 4.0, 4.2, 1.6, 0.7), RisoShapes.rrect(at.x - 2.9, at.y + 2.2, 5.8, 1.4, 0.6)])
 
 
 ## A large spell mark fills `shape`: the damage slot's spell, on the bag.
@@ -600,27 +613,38 @@ static func necklace(count: int) -> Array[Vector2]:
 	return out
 
 
+## Shapes that only ever move, smoothed once at the origin (smoothing a moved outline is moving
+## the smoothed one), by name: the hair, the collar, a boot's toe and each spell's bag.
+static var _smoothed: Dictionary = {}
+
+
+## `points` smoothed in `seg` steps, kept under `key`, then moved to `at`.
+static func _moved(key: StringName, points: PackedVector2Array, seg: int, at: Vector2) -> PackedVector2Array:
+	var shape: Variant = _smoothed.get(key)
+	if shape == null:
+		shape = RisoShapes.smooth(points, seg)
+		_smoothed[key] = shape
+	return Transform2D(0.0, at) * (shape as PackedVector2Array)
+
+
 ## Pale hair under the beret, in rounded tufts flicking out at both sides.
 static func hair_shape(head: Vector2) -> PackedVector2Array:
-	var tufts: PackedVector2Array = PackedVector2Array()
-	for p: Vector2 in [
+	return _moved(&"hair", PackedVector2Array([
 		Vector2(4.8, -3.4), Vector2(5.4, -1.0), Vector2(6.8, 0.9), Vector2(5.1, 1.0), Vector2(5.3, 3.1), Vector2(3.6, 2.1),
 		Vector2(0, 2.4),
 		Vector2(-3.6, 2.1), Vector2(-5.3, 3.1), Vector2(-5.1, 1.0), Vector2(-6.8, 0.9), Vector2(-5.4, -1.0), Vector2(-4.8, -3.4),
-	]:
-		tufts.append(head + p)
-	return RisoShapes.smooth(tufts, 3)
+	]), 3, head)
 
 
 ## The Fool's collar: a straight neckline whose lower edge droops in a soft curve over the
 ## poncho's shoulders, deepest at the front of the chest.
 static func collar_shape(at: Vector2) -> PackedVector2Array:
 	var top: float = FOOL_COLLAR_TOP
-	return RisoShapes.smooth(PackedVector2Array([
-		at + Vector2(-4.0, top), at + Vector2(0.2, top + 0.6), at + Vector2(4.4, top),
-		at + Vector2(7.4, top + 2.4), at + Vector2(5.0, top + 4.6), at + Vector2(0.2, top + 6.4),
-		at + Vector2(-4.6, top + 4.6), at + Vector2(-7.0, top + 2.4),
-	]))
+	return _moved(&"collar", PackedVector2Array([
+		Vector2(-4.0, top), Vector2(0.2, top + 0.6), Vector2(4.4, top),
+		Vector2(7.4, top + 2.4), Vector2(5.0, top + 4.6), Vector2(0.2, top + 6.4),
+		Vector2(-4.6, top + 4.6), Vector2(-7.0, top + 2.4),
+	]), 4, at)
 
 
 ## A long plume rising from the beret and curving back, widest past its middle and pointed at the
@@ -666,11 +690,11 @@ static func bindle_shape(spell: StringName, at: Vector2) -> PackedVector2Array:
 	var width: float = form.x
 	var height: float = form.y
 	var weight: float = form.z
-	return RisoShapes.smooth(PackedVector2Array([
-		at + Vector2(-0.8, -5.5), at + Vector2(0.9, -5.5), at + Vector2(width + weight, -1.4),
-		at + Vector2(width + weight, height * 0.55), at + Vector2(2 + weight, height), at + Vector2(-2 + weight, height),
-		at + Vector2(-width + weight, height * 0.55), at + Vector2(-width + weight, -1.4),
-	]))
+	return _moved(StringName("bag " + str(spell)), PackedVector2Array([
+		Vector2(-0.8, -5.5), Vector2(0.9, -5.5), Vector2(width + weight, -1.4),
+		Vector2(width + weight, height * 0.55), Vector2(2 + weight, height), Vector2(-2 + weight, height),
+		Vector2(-width + weight, height * 0.55), Vector2(-width + weight, -1.4),
+	]), 4, at)
 
 
 ## The Fool's outline for dash echoes, astral return points, ghosts and portal trips. A live

@@ -125,9 +125,10 @@ var _px: float = -1.0
 
 ## Print `new_shape` from now on, redrawing only if that changes what it printed last: other
 ## shapes (not merely another copy of the same ones), cover, lift, or the world scale it is printed
-## at (`px`, its global transform's determinant).
-func print_shape(new_shape: Shape, new_cover: float, new_lift: bool, px: float) -> void:
-	var changed: bool = _px < 0.0 or new_cover != cover or new_lift != lift or px != _px
+## at (`px`, its global transform's determinant). `differs`: the shapes are already known to be
+## other than the ones it printed (its canvas compared them), so they are not compared again.
+func print_shape(new_shape: Shape, new_cover: float, new_lift: bool, px: float, differs: bool = false) -> void:
+	var changed: bool = differs or _px < 0.0 or new_cover != cover or new_lift != lift or px != _px
 	if new_shape != shape and not changed:
 		if shape == null:
 			changed = true

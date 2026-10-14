@@ -99,7 +99,8 @@ var _dt: float = 0.0
 ## to the world as its host moves (a skeleton's planted feet, a gondola's cable) prints every frame
 ## (every_frame).
 const REPRINT_EVERY: int = 2
-## The time gone by since it was last printed (seconds), and which frames it prints on.
+## The time gone by since it was last printed (seconds), and which frames it prints on (staggered
+## across REPRINT_EVERY and the slower rates kinds ask for, reprint_every).
 var _since_print: float = 0.0
 var _stagger: int = 0
 ## Shrine labels pop up over an offer while the wizard is within POP_REACH of it (see _pop()).
@@ -149,6 +150,12 @@ func every_frame() -> bool:
 	return not culled()
 
 
+## How many frames apart it is printed again (unless every_frame): REPRINT_EVERY, or more for a kind
+## that can go slower (a wisp far from the wizard).
+func reprint_every() -> int:
+	return REPRINT_EVERY
+
+
 ## Whether it never changes: printed once, then it stops processing.
 func still() -> bool:
 	return false
@@ -178,7 +185,7 @@ func _ready() -> void:
 	if host != null and host.scale.x != 0.0 and host.scale.y != 0.0:
 		scale = Vector2(1.0 / host.scale.x, 1.0 / host.scale.y)
 	phase = RisoShapes.hash1(float(host.get_instance_id() % 997)) * TAU if host != null else 0.0
-	_stagger = get_instance_id() % REPRINT_EVERY
+	_stagger = get_instance_id() % 6
 	var tm: TileMap = Stage.tile_map()
 	if tm != null and tm.tile_set != null:
 		half = float(tm.tile_set.tile_size.y) * tm.global_scale.y * 0.5
@@ -213,9 +220,10 @@ func _process(delta: float) -> void:
 			d = ((r.get_center() - _view_center).abs() - r.size * 0.5).max(Vector2.ZERO)
 		if d.x > _view_reach.x or d.y > _view_reach.y:
 			return
-	if _drawn and not every_frame() and (Engine.get_process_frames() + _stagger) % REPRINT_EVERY != 0:
+	var every: int = 1 if every_frame() else reprint_every()
+	if _drawn and every > 1 and (Engine.get_process_frames() + _stagger) % every != 0:
 		return
-	_dt = minf(_since_print, 0.05 * REPRINT_EVERY)
+	_dt = minf(_since_print, 0.05 * float(every))
 	_since_print = 0.0
 	if not _drawn:
 		_drawn = true

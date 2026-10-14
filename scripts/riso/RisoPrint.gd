@@ -165,6 +165,13 @@ var graphics: StringName = &"full"
 ## The print rendered at light graphics' size (the scene's and the UI's print shaders draw into it),
 ## and the window-sized picture of it.
 var sheet_viewport: SubViewport
+## The UI's plates' size against the scene's, at full graphics and at light (see set_graphics), and
+## now: the UI holds only a few small marks (prompts, plaques, the map), and each of its nine plates
+## costs the GPU its whole size whatever it holds, while the print's wobble and screen hide the
+## softer edges.
+const UI_SCALE_FULL: float = 0.75
+const UI_SCALE_LIGHT: float = 0.5
+var ui_plate_scale: float = UI_SCALE_FULL
 var sheet_rect: TextureRect
 
 var plates: Array[SubViewport] = []
@@ -515,6 +522,7 @@ func _make_viewport(mask: int) -> SubViewport:
 func set_graphics(mode: StringName) -> void:
 	graphics = mode
 	var light: bool = mode == &"light"
+	ui_plate_scale = UI_SCALE_LIGHT if light else UI_SCALE_FULL
 	var into: Node = sheet_viewport if light else print_layer
 	for rect: ColorRect in [print_rect, ui_rect]:
 		if rect.get_parent() != into:
@@ -593,10 +601,13 @@ func _process(delta: float) -> void:
 		if vp.size != plate_size:
 			vp.size = plate_size
 		vp.canvas_transform = xf
+	var ui_k: float = k * ui_plate_scale
+	var ui_size: Vector2i = Vector2i(roundi(size.x * ui_k), roundi(size.y * ui_k))
+	var ui_xf: Transform2D = Transform2D(0.0, Vector2(ui_k, ui_k), 0.0, Vector2.ZERO) * root.get_final_transform() * root.canvas_transform
 	for vp: SubViewport in ui_plates:
-		if vp.size != plate_size:
-			vp.size = plate_size
-		vp.canvas_transform = xf
+		if vp.size != ui_size:
+			vp.size = ui_size
+		vp.canvas_transform = ui_xf
 	_track_player()
 	_ease_robe(delta)
 	if not get_tree().paused:

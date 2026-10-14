@@ -1,9 +1,34 @@
 extends Node2D
 ## The night sheet behind everything: a solid night flood, slow-drifting stars and a few large
 ## abstract shapes per realm. Follows the camera; only the stars move with parallax.
+##
+## The stars and the far skyline are each printed once and then slid with the camera (their canvas
+## moved, nothing drawn again) until they have slid further than the margin round the view
+## (STAR_SLACK, SKYLINE_SLACK), when they are laid out afresh from where the camera is; and the
+## realm's own shapes move on BACKDROP_RATE times a second (hyperspace's rushing streaks every
+## frame), so a still camera reprints nothing on most frames.
 
 const HTML_WIDTH: float = 480.0
+## How many times a second the realm's backdrop moves on (its slow orreries, drifting clouds).
+const BACKDROP_RATE: float = 30.0
+## How far the stars and the skyline may slide before they are laid out again (px): well inside the
+## margin they are laid out with past the view, so none is ever seen missing.
+const STAR_SLACK: float = 60.0
+const SKYLINE_SLACK: float = 160.0
 var ink: InkCanvas
+## The skyline's and the stars' canvases, slid with the camera between layouts.
+var sky_ink: InkCanvas
+var star_ink: InkCanvas
+## Where the camera was when the skyline and the stars were last laid out, for what size of view
+## (zero until they are), and what was laid out.
+var _sky_at: Vector2 = Vector2.INF
+var _sky_view: Vector2 = Vector2.ZERO
+var _sky_far: Array[PackedVector2Array] = []
+var _sky_near: Array[PackedVector2Array] = []
+var _stars_at: Vector2 = Vector2.INF
+var _stars_view: Vector2 = Vector2.ZERO
+var _star_dots: Array[PackedVector2Array] = []
+var _twinkle_at: PackedVector2Array = PackedVector2Array()
 
 
 func _ready() -> void:
@@ -13,6 +38,10 @@ func _ready() -> void:
 	visible = RisoPrint.is_on()
 	ink = InkCanvas.new()
 	add_child(ink)
+	sky_ink = InkCanvas.new()
+	add_child(sky_ink)
+	star_ink = InkCanvas.new()
+	add_child(star_ink)
 
 
 func _process(_delta: float) -> void:
@@ -26,21 +55,24 @@ func _process(_delta: float) -> void:
 		base = Vector2(320, 180)
 	var view: Vector2 = base / cam.zoom
 	var k: float = view.x / HTML_WIDTH
-	var t: float = Time.get_ticks_msec() / 1000.0
+	var now: float = Time.get_ticks_msec() / 1000.0
 	var realm: StringName = RisoPrint.instance.realm
+	var t: float = now if realm == &"hyperspace" else floorf(now * BACKDROP_RATE) / BACKDROP_RATE
 	var half: Vector2 = view * 0.5 + Vector2(240, 240)
 	# HTML-space (480 x 270) point to local space.
 	var at: Callable = func(x: float, y: float) -> Vector2: return Vector2((x - 240.0) * k, (y - 135.0) * k)
 	ink.begin()
+	sky_ink.begin()
+	star_ink.begin()
 	# A dense screen rather than a solid: the night keeps a fine texture of paper, as in the prototype.
 	ink.ink(RisoPrint.NIGHT, 0.94, [PackedVector2Array([-half, Vector2(half.x, -half.y), half, Vector2(-half.x, half.y)])], false)
 	var backdrop: Callable = _backdrops.get(realm, _backdrop_night)
-	if not bool(backdrop.call(at, view, half, k, t, center)):
-		ink.finish()
-		return
-	_skyline(center, view, half)
-	_stars(center, view, k, t)
+	if bool(backdrop.call(at, view, half, k, t, center)):
+		_skyline(center, view, half)
+		_stars(center, view, k, t)
 	ink.finish()
+	sky_ink.finish()
+	star_ink.finish()
 
 
 # ------------------------------------------------------------------ backdrops by realm
@@ -315,30 +347,41 @@ func _backdrop_night(at: Callable, _view: Vector2, _half: Vector2, k: float, t: 
 ## Stars: a fixed field that drifts at a quarter of the camera speed and wraps around the view.
 func _stars(center: Vector2, view: Vector2, k: float, t: float) -> void:
 	var span: Vector2 = view + Vector2(200, 200)
-	var dots: Array[PackedVector2Array] = []
+	var slide: Vector2 = -(center - _stars_at) * 0.25 if _stars_at != Vector2.INF else Vector2.INF
+	if view != _stars_view or absf(slide.x) > STAR_SLACK or absf(slide.y) > STAR_SLACK:
+		# Laid out afresh from here: each star where it falls, wrapped round the view.
+		_stars_at = center
+		_stars_view = view
+		slide = Vector2.ZERO
+		_star_dots = []
+		_twinkle_at = PackedVector2Array()
+		for i: int in range(70):
+			var p: Vector2 = Vector2(RisoShapes.hash1(float(i) * 3.31 + 1.0) * span.x, RisoShapes.hash1(float(i) * 7.17 + 2.0) * span.y) - center * 0.25
+			p = Vector2(fposmod(p.x, span.x), fposmod(p.y, span.y)) - span * 0.5
+			if i < 14:
+				_twinkle_at.append(p)
+			else:
+				var s: float = 0.4 + RisoShapes.hash1(float(i) * 1.93 + 3.0) * 1.2
+				_star_dots.append(RisoShapes.circle(p, s * k * 0.55, 8))
+	star_ink.position = slide
 	var twinkles: Array[PackedVector2Array] = []
-	for i: int in range(70):
-		var p: Vector2 = Vector2(RisoShapes.hash1(float(i) * 3.31 + 1.0) * span.x, RisoShapes.hash1(float(i) * 7.17 + 2.0) * span.y) - center * 0.25
-		p = Vector2(fposmod(p.x, span.x), fposmod(p.y, span.y)) - span * 0.5
-		var s: float = 0.4 + RisoShapes.hash1(float(i) * 1.93 + 3.0) * 1.2
-		if i < 14:
-			# Twinkles are hashed events, not cycles: each window a star may or may not flash,
-			# at a random moment, strength and length, so no rhythm repeats.
-			var period: float = 1.3 + RisoShapes.hash1(float(i) * 9.1) * 2.9
-			var u: float = t / period + RisoShapes.hash1(float(i) * 2.7) * 7.0
-			var n: float = floorf(u)
-			var f: float = u - n
-			var tw: float = 0.18
-			if RisoShapes.hash1(n * 0.713 + float(i) * 5.31) < 0.6:
-				var peak: float = 0.4 + RisoShapes.hash1(n * 1.37 + float(i) * 3.13) * 0.6
-				var at_f: float = 0.1 + RisoShapes.hash1(n * 2.11 + float(i) * 1.77) * 0.6
-				var width: float = 0.08 + RisoShapes.hash1(n * 3.7 + float(i) * 0.91) * 0.2
-				tw = maxf(tw, peak * clampf(1.0 - absf(f - at_f) / width, 0.0, 1.0))
-			twinkles.append(RisoShapes.sparkle(p, 2.4 * k * tw))
-		else:
-			dots.append(RisoShapes.circle(p, s * k * 0.55, 8))
-	ink.ink(RisoPrint.ACCENT, 1.0, dots)
-	ink.ink(RisoPrint.ACCENT, 1.0, twinkles)
+	for i: int in range(_twinkle_at.size()):
+		var p: Vector2 = _twinkle_at[i]
+		# Twinkles are hashed events, not cycles: each window a star may or may not flash,
+		# at a random moment, strength and length, so no rhythm repeats.
+		var period: float = 1.3 + RisoShapes.hash1(float(i) * 9.1) * 2.9
+		var u: float = t / period + RisoShapes.hash1(float(i) * 2.7) * 7.0
+		var n: float = floorf(u)
+		var f: float = u - n
+		var tw: float = 0.18
+		if RisoShapes.hash1(n * 0.713 + float(i) * 5.31) < 0.6:
+			var peak: float = 0.4 + RisoShapes.hash1(n * 1.37 + float(i) * 3.13) * 0.6
+			var at_f: float = 0.1 + RisoShapes.hash1(n * 2.11 + float(i) * 1.77) * 0.6
+			var width: float = 0.08 + RisoShapes.hash1(n * 3.7 + float(i) * 0.91) * 0.2
+			tw = maxf(tw, peak * clampf(1.0 - absf(f - at_f) / width, 0.0, 1.0))
+		twinkles.append(RisoShapes.sparkle(p, 2.4 * k * tw))
+	star_ink.ink(RisoPrint.ACCENT, 1.0, _star_dots)
+	star_ink.ink(RisoPrint.ACCENT, 1.0, twinkles)
 
 
 ## A cloud `w` across and about `h` high, its base on `c`: flat underneath, billowing on top in a
@@ -365,6 +408,15 @@ const SKY_SPAN: float = 5200.0
 const SKY_SLOTS: int = 13
 
 func _skyline(center: Vector2, view: Vector2, half: Vector2) -> void:
+	var slide: Vector2 = -(center - _sky_at) * Vector2(0.1, 0.04) if _sky_at != Vector2.INF else Vector2.INF
+	if view == _sky_view and absf(slide.x) <= SKYLINE_SLACK and absf(slide.y) <= SKYLINE_SLACK:
+		sky_ink.position = slide
+		sky_ink.ink(RisoPrint.BLUE, 0.07, _sky_far, false)
+		sky_ink.ink(RisoPrint.BLUE, 0.11, _sky_near, false)
+		return
+	_sky_at = center
+	_sky_view = view
+	sky_ink.position = Vector2.ZERO
 	var far: Array[PackedVector2Array] = []
 	var near: Array[PackedVector2Array] = []
 	var slot_w: float = SKY_SPAN / float(SKY_SLOTS)
@@ -402,8 +454,10 @@ func _skyline(center: Vector2, view: Vector2, half: Vector2) -> void:
 				rock.append(Vector2(x + cos(a) * w * 0.5, y + sin(a) * w * (0.25 + 0.12 * sin(float(k) * 1.7 + r2 * 5.0))))
 			into.append(rock)
 			into.append(RisoShapes.tri(Vector2(x - 14.0, y + 2.0), Vector2(x + 14.0, y + 2.0), Vector2(x + 4.0, y - 70.0 - r2 * 50.0)))
-	ink.ink(RisoPrint.BLUE, 0.07, far, false)
-	ink.ink(RisoPrint.BLUE, 0.11, near, false)
+	_sky_far = far
+	_sky_near = near
+	sky_ink.ink(RisoPrint.BLUE, 0.07, far, false)
+	sky_ink.ink(RisoPrint.BLUE, 0.11, near, false)
 
 
 ## Hyperspace: no skyline and no still stars. A glow lies ahead (the way on is to the right) and

@@ -358,13 +358,24 @@ func _smv(v: Vector2) -> Vector2:
 	return v.lerp(Vector2(wall_side * (knee + flat), v.y), wall)
 
 
+## `poly` bowed and laid against the wall (_smv), point by point. Bowed alone (most of the time it
+## is anything), the bow is worked out here in one loop rather than a call or two a point: the
+## figure holds over a thousand points.
 func _sm(poly: PackedVector2Array) -> PackedVector2Array:
-	if wall <= 0.001 and absf(bow) < 0.0005:
+	var amount: float = bow * (costume.bow_scale() if costume != null else 1.0)
+	if wall <= 0.001 and absf(amount) < 0.0005:
 		return poly
 	var out: PackedVector2Array = PackedVector2Array()
 	out.resize(poly.size())
+	if wall > 0.001:
+		for i: int in range(poly.size()):
+			out[i] = _smv(poly[i])
+		return out
+	var turn: float = amount * (1.0 if fs >= 0.0 else -1.0)
 	for i: int in range(poly.size()):
-		out[i] = _smv(poly[i])
+		var v: Vector2 = poly[i]
+		var u: float = clampf((WAIST - v.y) / 18.0, 0.0, 1.5)
+		out[i] = v if u <= 0.0 else Vector2(0.0, WAIST) + (v - Vector2(0.0, WAIST)).rotated(turn * u * u)
 	return out
 
 
