@@ -34,6 +34,10 @@ const UI_WOBBLE: float = 0.1
 const UI_GRAIN: float = 0.4
 const UI_GAIN: float = 0.3
 const UI_REGISTRATION: float = 0.1
+## The most lines the print is rendered at, at full graphics and at light graphics (for a weak GPU,
+## integrated graphics among them): a taller window prints at that and is scaled up to it.
+const FULL_LINES: int = 1080
+const LIGHT_LINES: int = 720
 
 const REALMS: Dictionary = {
 	&"deep": {"paper": Color("#e4dfe8"), "inks": [Color("#161b3a"), Color("#3d5588"), Color("#ff48b0"), Color("#ffb511"), Color("#ffe800")]},
@@ -152,6 +156,16 @@ var _base_zoom: Vector2 = Vector2.ZERO
 var glow_ability: StringName = &"dash"
 ## The robe plate's ink: the damage spell's (ROBES), easing to it as it changes.
 var robe_color: Color = Color(-1, -1, -1)
+
+## How the print is rendered: &"full" (the plates antialiased, up to FULL_LINES lines) or &"light"
+## (no antialiasing, up to LIGHT_LINES lines and the whole print scaled up to the window), the work
+## of a frame on the GPU about a third of full's. Chosen at the start by the GPU (light on
+## integrated graphics), and on the F7 panel.
+var graphics: StringName = &"full"
+## The print rendered at light graphics' size (the scene's and the UI's print shaders draw into it),
+## and the window-sized picture of it.
+var sheet_viewport: SubViewport
+var sheet_rect: TextureRect
 
 var plates: Array[SubViewport] = []
 ## The UI's own canvas and plates (eight inks, then paper), printed by `ui_material` over the scene.
@@ -420,6 +434,24 @@ func _build() -> void:
 		ui_material.set_shader_parameter("plate%d" % i, ui_plates[i].get_texture())
 	ui_material.set_shader_parameter("plate_paper", ui_plates[PLATE_COUNT].get_texture())
 	print_layer.add_child(ui_rect)
+	sheet_viewport = SubViewport.new()
+	sheet_viewport.name = "RisoSheet"
+	sheet_viewport.disable_3d = true
+	sheet_viewport.transparent_bg = false
+	sheet_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	sheet_viewport.size = Vector2i(16, 16)
+	add_child(sheet_viewport)
+	sheet_rect = TextureRect.new()
+	sheet_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	sheet_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	sheet_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	sheet_rect.stretch_mode = TextureRect.STRETCH_SCALE
+	sheet_rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	sheet_rect.texture = sheet_viewport.get_texture()
+	sheet_rect.visible = false
+	print_layer.add_child(sheet_rect)
+	graphics = &"light" if RenderingServer.get_video_adapter_type() == RenderingDevice.DEVICE_TYPE_INTEGRATED_GPU else &"full"
+	set_graphics(graphics)
 	background = Node2D.new()
 	background.name = "RisoBackground"
 	background.set_script(preload("res://scripts/riso/RisoBackground.gd"))
@@ -478,6 +510,24 @@ func _make_viewport(mask: int) -> SubViewport:
 	return vp
 
 
+## Render the print at `mode` (see graphics): light prints the scene's and the UI's print into
+## the smaller sheet_viewport, shown scaled up; full prints them straight to the window.
+func set_graphics(mode: StringName) -> void:
+	graphics = mode
+	var light: bool = mode == &"light"
+	var into: Node = sheet_viewport if light else print_layer
+	for rect: ColorRect in [print_rect, ui_rect]:
+		if rect.get_parent() != into:
+			rect.reparent(into, false)
+	# The UI's print over the scene's, and either under the scaled-up sheet (which hides when full).
+	print_layer.move_child(sheet_rect, -1)
+	sheet_rect.visible = light
+	sheet_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS if light else SubViewport.UPDATE_DISABLED
+	var msaa: Viewport.MSAA = Viewport.MSAA_DISABLED if light else Viewport.MSAA_4X
+	for vp: SubViewport in plates + ui_plates:
+		vp.msaa_2d = msaa
+
+
 func _screen_size() -> Vector2i:
 	var s: Vector2i = get_window().size
 	if s.x < 16 or s.y < 16:
@@ -533,8 +583,11 @@ func _restore_viewport() -> void:
 func _process(delta: float) -> void:
 	var root: Viewport = get_viewport()
 	var size: Vector2i = _screen_size()
-	var k: float = minf(1.0, 1080.0 / float(size.y))
+	var lines: int = LIGHT_LINES if graphics == &"light" else FULL_LINES
+	var k: float = minf(1.0, float(lines) / float(size.y))
 	var plate_size: Vector2i = Vector2i(roundi(size.x * k), roundi(size.y * k))
+	if graphics == &"light" and sheet_viewport.size != plate_size:
+		sheet_viewport.size = plate_size
 	var xf: Transform2D = Transform2D(0.0, Vector2(k, k), 0.0, Vector2.ZERO) * root.get_final_transform() * root.canvas_transform
 	for vp: SubViewport in plates:
 		if vp.size != plate_size:
@@ -978,6 +1031,7 @@ func _build_panel() -> void:
 	_option_row(print_box, &"reprint", "Reprint on", ["Clock", "Motion"], _on_reprint)
 	_option_row(print_box, &"between", "Between sheets", ["Cut", "Blend"], _on_between)
 	_option_row(print_box, &"plates", "Plates", ["Independent", "Trapped"], func(i: int) -> void: trapped = i == 1)
+	_option_row(print_box, &"graphics", "Graphics", ["Full", "Light"], func(i: int) -> void: set_graphics(&"light" if i == 1 else &"full"))
 	# How hard the game is: a preset changes what levels hold, so the place is laid out again.
 	var hard: VBoxContainer = _section(box, "Difficulty", false)
 	_option_row(hard, &"difficulty", "Preset", Difficulty.NAMES, func(i: int) -> void:
@@ -1292,6 +1346,8 @@ func _sync_panel() -> void:
 		(_options[&"between"] as OptionButton).select(1 if blend_sheets else 0)
 	if _options.has(&"plates"):
 		(_options[&"plates"] as OptionButton).select(1 if trapped else 0)
+	if _options.has(&"graphics"):
+		(_options[&"graphics"] as OptionButton).select(1 if graphics == &"light" else 0)
 	if _player != null and is_instance_valid(_player):
 		_key_capacity_label.text = "Ring: %d / %d  (Keyring adds slots)" % [_player.keyring.all().size(), _player.keyring.capacity()]
 		_skeleton_label.text = str(_player.keyring.skeletons())

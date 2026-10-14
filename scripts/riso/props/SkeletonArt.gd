@@ -362,3 +362,9 @@ func _eyes(xf: Transform2D, awake: bool, up: float, whole: bool) -> void:
 		glow.ink(RisoPrint.PINK, 0.35 * up, [xf * RisoShapes.ellipse(mid, absf(EYES[1].x - EYES[0].x) * 0.5 + EYE_R * 1.6, EYE_R * 1.5, 14)])
 		glow.ink(RisoPrint.PINK, up, points)
 	glow.finish()
+
+
+## Its feet are planted on the floor while it walks: printed every frame, or they would slide
+## with it between prints.
+func every_frame() -> bool:
+	return true

@@ -61,7 +61,7 @@ func run() -> void:
 	for f: RisoLight.Fade in light.fades:
 		if f.at.is_equal_approx(flame):
 			lantern_light = f
-	check(lantern_light != null and is_equal_approx(lantern_light.reach, RisoLight.RESPAWN_REACH) and lantern_light.pieces.size() > 0, "the respawn lantern throws a light that fades from its flame, like the carried one")
+	check(lantern_light != null and is_equal_approx(lantern_light.reach, RisoLight.RESPAWN_REACH) and lantern_light.indices.size() > 0, "the respawn lantern throws a light that fades from its flame, like the carried one")
 	var near: bool = Vector2(light.carried.x, light.carried.y).distance_to(player.global_position) < 120.0
 	check(near and is_equal_approx(light.carried.z, RisoLight.CARRIED_REACH), "the protected wizard's carried lantern throws a warm light round them")
 	var falls: bool = RisoLight.carried_falloff(0.0, 100.0) == 1.0 and RisoLight.carried_falloff(100.0, 100.0) == 0.0

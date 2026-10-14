@@ -37,3 +37,8 @@ func _mote_pose() -> void:
 ## After the first print only the canvases move.
 func _tick() -> void:
 	_mote_pose()
+
+
+## It moves its canvases every frame (_tick).
+func every_frame() -> bool:
+	return true

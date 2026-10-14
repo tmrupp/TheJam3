@@ -73,6 +73,9 @@ func _physics_process(delta: float) -> void:
 func _let_out() -> void:
 	if map_info == null or is_queued_for_deletion():
 		return
+	# The level may have filled up while it surged.
+	if get_tree().get_nodes_in_group(&"abomination").size() >= Abomination.MOST:
+		return
 	var thing: Node2D = Placeables.scene(LevelGen.Type.ABOMINATION).instantiate() as Node2D
 	LevelLoader.arm(thing, map_info.here.depth)
 	(thing as Abomination).sprout(1)

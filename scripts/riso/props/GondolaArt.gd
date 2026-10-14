@@ -134,3 +134,8 @@ func _draw_art() -> void:
 		(pink if car.sealed else blue).append_array(bars)
 	ink.ink(RisoPrint.PINK, 1.0, pink)
 	ink.ink(RisoPrint.BLUE, 0.9, blue)
+
+
+## Its cable runs to the stations, which stay put as the car moves: printed every frame.
+func every_frame() -> bool:
+	return true

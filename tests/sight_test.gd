@@ -197,7 +197,8 @@ func _in_game() -> void:
 	info._load_level()
 	await settle()
 	check(info.here.gloom() == 0.0 and not light.crypt_rooms(info).is_empty(), "a cemetery is not dark all over, but its crypts are")
-	check(light.fades.size() > 1, "its lights carve the dark")
+	# The lights may come in a few frames after the level settles.
+	check(await until(func() -> bool: return light.fades.size() > 1), "its lights carve the dark")
 	var bands: Array[StringName] = NextWorldDef.archetype_names()
 	check(bands.all(func(b: StringName) -> bool: return Rules.def_for(Vector2i(28, NextWorldDef.first_depth(b))).gloom() == 0.0), "no band is deep dark all over")
 	RunState.delete_save()

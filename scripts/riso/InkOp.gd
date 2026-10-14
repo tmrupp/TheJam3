@@ -20,20 +20,36 @@ class Shape extends RefCounted:
 	var points: PackedVector2Array = PackedVector2Array()
 	var indices: PackedInt32Array = PackedInt32Array()
 	var point_alphas: PackedFloat32Array = PackedFloat32Array()
+	## Handed over already in triangles (mesh), as the lights' fades are: never triangulated here.
+	var premade: bool = false
 
 	func _init(from_polys: Array[PackedVector2Array], from_alphas: Array[PackedFloat32Array]) -> void:
 		polys = from_polys.duplicate(true)
 		alphas = from_alphas.duplicate(true)
 
+	## A shape already in triangles: `mesh_indices` into `mesh_points`, each point's cover in
+	## `mesh_covers`.
+	static func mesh(mesh_points: PackedVector2Array, mesh_indices: PackedInt32Array, mesh_covers: PackedFloat32Array) -> Shape:
+		var shape: Shape = Shape.new([] as Array[PackedVector2Array], [] as Array[PackedFloat32Array])
+		shape.premade = true
+		shape.points = mesh_points
+		shape.indices = mesh_indices
+		shape.point_alphas = mesh_covers
+		return shape
+
 	## Whether these are the same shapes and cover.
 	func same_as(other_polys: Array[PackedVector2Array], other_alphas: Array[PackedFloat32Array]) -> bool:
-		return polys == other_polys and alphas == other_alphas
+		return not premade and polys == other_polys and alphas == other_alphas
+
+	## Whether this is the same mesh (see mesh).
+	func same_mesh(mesh_points: PackedVector2Array, mesh_indices: PackedInt32Array, mesh_covers: PackedFloat32Array) -> bool:
+		return premade and points == mesh_points and indices == mesh_indices and point_alphas == mesh_covers
 
 	## Work the triangles out for world scale `at_px` (pixels per unit, squared), unless they are.
 	## Every polygon goes into one triangle array, drawn with a single command: one draw call per
 	## op and plate however many shapes it holds (the terrain holds thousands).
 	func triangulate(at_px: float) -> void:
-		if at_px == px:
+		if premade or at_px == px:
 			return
 		px = at_px
 		points = PackedVector2Array()
@@ -45,7 +61,14 @@ class Shape extends RefCounted:
 			if poly.size() < 3 or absf(RisoInkOp._area(poly)) * px < 8.0:
 				continue
 			var graded: bool = i < alphas.size() and alphas[i].size() == poly.size()
-			var tris: PackedInt32Array = Geometry2D.triangulate_polygon(poly)
+			# Triangles and convex quads (books, planks, most of the decor) need no triangulator.
+			var tris: PackedInt32Array
+			if poly.size() == 3:
+				tris = RisoInkOp.TRI
+			elif poly.size() == 4 and RisoInkOp._convex(poly):
+				tris = RisoInkOp.QUAD
+			else:
+				tris = Geometry2D.triangulate_polygon(poly)
 			if not tris.is_empty():
 				_add(poly, tris)
 				if graded:
@@ -83,8 +106,9 @@ class Shape extends RefCounted:
 			point_alphas.append(value)
 
 
-## What it prints (shared with the ops printing the same shapes, see Shape), how much (0..1), and
-## whether it lifts ink rather than laying it.
+## What it prints (shared with the ops printing the same shapes, see Shape), how much (0..1: a
+## flat shape's cover, and what a graded one's cover at each point is scaled by), and whether it
+## lifts ink rather than laying it.
 var shape: Shape = null
 var cover: float = 1.0
 var lift: bool = false
@@ -105,7 +129,12 @@ var _px: float = -1.0
 func print_shape(new_shape: Shape, new_cover: float, new_lift: bool, px: float) -> void:
 	var changed: bool = _px < 0.0 or new_cover != cover or new_lift != lift or px != _px
 	if new_shape != shape and not changed:
-		changed = shape == null or not shape.same_as(new_shape.polys, new_shape.alphas)
+		if shape == null:
+			changed = true
+		elif new_shape.premade:
+			changed = not shape.same_mesh(new_shape.points, new_shape.indices, new_shape.point_alphas)
+		else:
+			changed = not shape.same_as(new_shape.polys, new_shape.alphas)
 	shape = new_shape
 	cover = new_cover
 	lift = new_lift
@@ -132,7 +161,7 @@ func _draw() -> void:
 		colors.resize(shape.point_alphas.size())
 		for k: int in range(colors.size()):
 			var a: float = shape.point_alphas[k]
-			colors[k] = flat if a < 0.0 else Color(1, 1, 1, 1.0 - a if lift else a)
+			colors[k] = flat if a < 0.0 else Color(1, 1, 1, 1.0 - a * cover if lift else a * cover)
 	RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), shape.indices, shape.points, colors)
 
 
@@ -151,6 +180,20 @@ static func _untangle(poly: PackedVector2Array) -> Array[PackedVector2Array]:
 		if piece.size() >= 3 and Geometry2D.is_polygon_clockwise(piece) == outer_cw:
 			out.append(piece)
 	return out
+
+
+## A triangle's corners, and a convex quad's two triangles.
+static var TRI: PackedInt32Array = PackedInt32Array([0, 1, 2])
+static var QUAD: PackedInt32Array = PackedInt32Array([0, 1, 2, 0, 2, 3])
+
+
+## Whether a quad is convex: it turns the same way at every corner.
+static func _convex(q: PackedVector2Array) -> bool:
+	var a: float = (q[1] - q[0]).cross(q[2] - q[1])
+	var b: float = (q[2] - q[1]).cross(q[3] - q[2])
+	var c: float = (q[3] - q[2]).cross(q[0] - q[3])
+	var d: float = (q[0] - q[3]).cross(q[1] - q[0])
+	return (a > 0.0 and b > 0.0 and c > 0.0 and d > 0.0) or (a < 0.0 and b < 0.0 and c < 0.0 and d < 0.0)
 
 
 ## Signed shoelace area (local units); shapes under a few pixels are skipped (they may not

@@ -163,3 +163,8 @@ static func _area(poly: PackedVector2Array) -> float:
 		var b: Vector2 = poly[(i + 1) % poly.size()]
 		sum += a.x * b.y - b.x * a.y
 	return sum * 0.5
+
+
+## Its trail lies where it has been: printed every frame.
+func every_frame() -> bool:
+	return true

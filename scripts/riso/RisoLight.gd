@@ -41,6 +41,16 @@ const FLAME_GAP: float = 2.0
 ## How far apart (px) the steps of a light's fade are worked out: the print blends between them,
 ## so this only needs to be fine enough for the curve to read as smooth.
 const FADE_STEP: float = 24.0
+## How many times a second the respawn lantern's flicker changes: it reprints its light that often
+## rather than every frame.
+const FLICKER_RATE: float = 12.0
+## How far apart (px) the places are that the carried light and the wizard's sight are worked out
+## from: each is worked out again only once the flame or the eyes reach another, and the carried
+## light is printed shifted to wherever its flame is in between, so it follows the lantern smoothly.
+const LIGHT_SNAP: float = 4.0
+## They take turns: on a frame when the wizard moves, at most one of them is worked out again, the
+## carried light on even frames and sight on odd ones (a frame late at most). Anything that changes
+## what they see (the rock, sight switched off, the lantern lit or not) has them worked out at once.
 ## The lights of the other things that shine, each fading from where it shines as a lantern's
 ## does: how far it reaches (px) and how much night it lifts there. Open exits, portals, rifts and
 ## an ink well not yet dry; and a hex bolt in flight.
@@ -77,18 +87,21 @@ const VIEW_MARGIN: float = 160.0
 const SHADE_Z: int = 8
 
 ## A light that fades smoothly from its flame to nothing at its reach, cut to what the flame sees:
-## where it is, how far it reaches, the outline it lights (and its bounds), and that outline cut into
-## small pieces fanning out from the flame with the falloff at their corners (`profile`). `covers`
-## is the profile scaled by `lift`, kept while the lift stays the same.
+## where it is, how far it reaches, the outline it lights (and its bounds), and that outline as one
+## mesh of rings fanning out from the flame, the falloff at each point (`falloff`), printed as it
+## is however strong the light. The deep dark, which cuts lights against one another, wants it in
+## small separate pieces with the falloff at their corners (`profile`): those are cut only then
+## (RisoLight._fan).
 class Fade:
 	var at: Vector2
 	var reach: float
 	var outline: PackedVector2Array = PackedVector2Array()
 	var box: Rect2
+	var points: PackedVector2Array = PackedVector2Array()
+	var indices: PackedInt32Array = PackedInt32Array()
+	var falloff: PackedFloat32Array = PackedFloat32Array()
 	var pieces: Array[PackedVector2Array] = []
 	var profile: Array[PackedFloat32Array] = []
-	var lift: float = -1.0
-	var covers: Array[PackedFloat32Array] = []
 
 	## How much of this light falls on `p`: none past its reach or outside what its flame sees.
 	func light_at(p: Vector2) -> float:
@@ -97,33 +110,6 @@ class Fade:
 			return 0.0
 		return RisoLight.carried_falloff(d, reach)
 
-	## The profile scaled by `amount` for a tint in a light's own ink, kept apart from `scaled`'s
-	## (for the next frame while it stays the same).
-	var tint: float = -1.0
-	var tints: Array[PackedFloat32Array] = []
-	func tinted(amount: float) -> Array[PackedFloat32Array]:
-		if amount != tint:
-			tint = amount
-			tints = []
-			for corners: PackedFloat32Array in profile:
-				var c: PackedFloat32Array = corners.duplicate()
-				for i: int in range(c.size()):
-					c[i] *= amount
-				tints.append(c)
-		return tints
-
-	## The profile scaled by `amount` (kept for the next frame while it stays the same).
-	func scaled(amount: float) -> Array[PackedFloat32Array]:
-		if amount != lift:
-			lift = amount
-			covers = []
-			for corners: PackedFloat32Array in profile:
-				var c: PackedFloat32Array = corners.duplicate()
-				for i: int in range(c.size()):
-					c[i] *= amount
-				covers.append(c)
-		return covers
-
 
 ## Whether light and sight stop at the rock (the F7 panel can turn it off to compare): off, the
 ## lights are plain circles and nothing is shaded out of sight (the deep dark stays).
@@ -131,6 +117,8 @@ static var by_sight: bool = true
 
 var lanterns: Array[Node2D] = []
 var ink: InkCanvas
+## The canvas the carried light prints on, shifted from where it was worked out to its flame.
+var carried_ink: InkCanvas
 ## The canvas the shade and the deep dark print on (SHADE_Z).
 var dark_ink: InkCanvas
 var half: float = 64.0
@@ -173,6 +161,8 @@ func _ready() -> void:
 	visible = RisoPrint.is_on()
 	ink = InkCanvas.new()
 	add_child(ink)
+	carried_ink = InkCanvas.new()
+	add_child(carried_ink)
 	dark_ink = InkCanvas.new()
 	dark_ink.z_index = SHADE_Z
 	dark_ink.z_as_relative = false
@@ -244,11 +234,13 @@ func _process(delta: float) -> void:
 	var info: MapInfo = MapInfo.instance
 	var cam: Camera2D = get_viewport().get_camera_2d()
 	ink.begin()
+	carried_ink.begin()
 	dark_ink.begin()
 	fades.clear()
 	seen = PackedVector2Array()
 	if info == null or info.world == null or cam == null or info.travelling:
 		ink.finish()
+		carried_ink.finish()
 		dark_ink.finish()
 		return
 	_shut_or_open(info)
@@ -263,7 +255,8 @@ func _process(delta: float) -> void:
 		if not near.has_point(at):
 			continue
 		if info.is_respawn_lantern(lantern):
-			var flicker: float = 1.0 + RESPAWN_FLICKER * sin(t * 3.1) * sin(t * 1.7 + 0.6)
+			var at_t: float = floorf(t * FLICKER_RATE) / FLICKER_RATE
+			var flicker: float = 1.0 + RESPAWN_FLICKER * sin(at_t * 3.1) * sin(at_t * 1.7 + 0.6)
 			_print_fade(_faded(at, RESPAWN_REACH, true), RESPAWN_LIFT * flicker)
 		else:
 			_print_fade(_faded(at, FAINT_REACH, true), FAINT_LIFT)
@@ -273,11 +266,12 @@ func _process(delta: float) -> void:
 			var fade: Fade = _faded(glow[0], float(glow[1]), bool(glow[3]))
 			# A tint in its own ink first (as the carried light's pink), then the night lifted.
 			if glow.size() > 5 and int(glow[4]) >= 0 and float(glow[5]) > 0.0:
-				ink.ink_graded(int(glow[4]), fade.pieces, fade.tinted(float(glow[5])), false)
+				ink.ink_mesh(int(glow[4]), fade.points, fade.indices, fade.falloff, float(glow[5]))
 			_print_fade(fade, float(glow[2]))
 	_carried_light(info)
 	_darkness(info, view)
 	ink.finish()
+	carried_ink.finish()
 	dark_ink.finish()
 
 
@@ -318,24 +312,27 @@ func _carried_light(info: MapInfo) -> void:
 	var at: Vector2 = _flame(player)
 	var lit: bool = info.flame_lit()
 	var reach: float = CARRIED_REACH if lit else UNLIT_REACH
-	var key: Array = [at.round(), lit, by_sight, sight.version if sight != null else -1]
-	if key != _carried_key or _carried == null:
+	var now: Array = [lit, by_sight, sight.version if sight != null else -1]
+	var key: Array = [RisoLight.snap(at)] + now
+	var due: bool = Engine.get_process_frames() % 2 == 0
+	if _carried == null or _carried_key.size() != key.size() or _carried_key.slice(1) != now or (due and key != _carried_key):
 		_carried_key = key
 		_carried = _faded(at, reach, false)
+	carried_ink.position = at - _carried.at
 	if not lit:
-		# The tint first, as the scaled covers are kept for the lift that follows.
 		if info.flame_snuffed():
-			ink.ink_graded(RisoPrint.BLUE, _carried.pieces, _carried.scaled(SNUFFED_BLUE), false)
+			carried_ink.ink_mesh(RisoPrint.BLUE, _carried.points, _carried.indices, _carried.falloff, SNUFFED_BLUE)
 		else:
-			ink.ink_graded(RisoPrint.PINK, _carried.pieces, _carried.scaled(UNLIT_PINK), false)
-	_print_fade(_carried, CARRIED_LIFT if lit else UNLIT_LIFT)
+			carried_ink.ink_mesh(RisoPrint.PINK, _carried.points, _carried.indices, _carried.falloff, UNLIT_PINK)
+	carried_ink.lift_ink_mesh([RisoPrint.NIGHT], _carried.points, _carried.indices, _carried.falloff, CARRIED_LIFT if lit else UNLIT_LIFT)
+	fades.append(_carried)
 	carried_seen = _carried.outline
 	carried = Vector3(at.x, at.y, reach)
 
 
 ## Lift the night where `light` falls, `lift` at its flame, and keep it in `fades`.
 func _print_fade(light: Fade, lift: float) -> void:
-	ink.lift_ink_graded([RisoPrint.NIGHT], light.pieces, light.scaled(lift))
+	ink.lift_ink_mesh([RisoPrint.NIGHT], light.points, light.indices, light.falloff, lift)
 	fades.append(light)
 
 
@@ -361,7 +358,7 @@ func _faded(at: Vector2, reach: float, still: bool) -> Fade:
 			if piece.size() > light.outline.size():
 				light.outline = piece
 	light.box = RisoLight._bounds(light.outline)
-	_fan(light)
+	RisoLight._mesh(light)
 	if still:
 		_fade_cache[key] = light
 	return light
@@ -392,9 +389,68 @@ static func carried_falloff(d: float, reach: float) -> float:
 	return (1.0 - x * x) * (1.0 - x * x)
 
 
+## Lay `light`'s outline (seen whole from its flame) out as one mesh fanning out from the flame:
+## a spoke to each corner of the outline, each cut into the same number of rings (enough for the
+## longest to step FADE_STEP), with the falloff at every point. Neighbouring spokes share their
+## points, so it holds a quarter of the points the same rings would as separate pieces, and it is
+## printed without being cut into triangles again.
+static func _mesh(light: Fade) -> void:
+	var at: Vector2 = light.at
+	var outline: PackedVector2Array = light.outline
+	var n: int = outline.size()
+	if n < 3:
+		return
+	var longest: float = 0.0
+	for p: Vector2 in outline:
+		longest = maxf(longest, p.distance_to(at))
+	var rings: int = clampi(ceili(longest / FADE_STEP), 1, 32)
+	# The flame, then spoke by spoke its rings outward: ring k (1 to rings) of spoke i is point
+	# 1 + i * rings + k - 1.
+	var points: PackedVector2Array = PackedVector2Array()
+	var falloff: PackedFloat32Array = PackedFloat32Array()
+	points.resize(1 + n * rings)
+	falloff.resize(1 + n * rings)
+	points[0] = at
+	falloff[0] = 1.0
+	var inv_reach: float = 1.0 / maxf(light.reach, 0.001)
+	for i: int in range(n):
+		var a: Vector2 = outline[i] - at
+		var length: float = a.length()
+		for k: int in range(1, rings + 1):
+			var s: float = float(k) / float(rings)
+			var x: float = minf(length * s * inv_reach, 1.0)
+			var idx: int = 1 + i * rings + k - 1
+			points[idx] = at + a * s
+			falloff[idx] = (1.0 - x * x) * (1.0 - x * x)
+	var indices: PackedInt32Array = PackedInt32Array()
+	indices.resize(n * 3 + n * (rings - 1) * 6)
+	var w: int = 0
+	for i: int in range(n):
+		var a0: int = 1 + i * rings
+		var b0: int = 1 + ((i + 1) % n) * rings
+		indices[w] = 0
+		indices[w + 1] = a0
+		indices[w + 2] = b0
+		w += 3
+		for k: int in range(rings - 1):
+			indices[w] = a0 + k
+			indices[w + 1] = b0 + k
+			indices[w + 2] = b0 + k + 1
+			indices[w + 3] = a0 + k
+			indices[w + 4] = b0 + k + 1
+			indices[w + 5] = a0 + k + 1
+			w += 6
+	light.points = points
+	light.indices = indices
+	light.falloff = falloff
+
+
 ## Cut `light`'s outline (seen whole from its flame) into small pieces fanning out from the flame in
-## steps, each with the falloff at its corners.
-func _fan(light: Fade) -> void:
+## steps, each with the falloff at its corners (for the deep dark, which cuts them against other
+## lights). Once for a light.
+static func _fan(light: Fade) -> void:
+	if not light.pieces.is_empty():
+		return
 	var at: Vector2 = light.at
 	var outline: PackedVector2Array = light.outline
 	var n: int = outline.size()
@@ -417,6 +473,11 @@ func _fan(light: Fade) -> void:
 				profile.append(RisoLight.carried_falloff(p.distance_to(at), light.reach))
 			light.pieces.append(piece)
 			light.profile.append(profile)
+
+
+## `p` snapped to the nearest LIGHT_SNAP step.
+static func snap(p: Vector2) -> Vector2:
+	return (p / LIGHT_SNAP).round() * LIGHT_SNAP
 
 
 ## The bounds of an outline.
@@ -459,8 +520,10 @@ func _darkness(info: MapInfo, view: Rect2) -> void:
 	var shade: float = info.here.shade()
 	if by_sight and sight != null and shade > 0.0 and player != null and is_instance_valid(player):
 		var from: Vector2 = RisoLight.eye(player)
-		var key: Array = [from.round(), view.position.round(), view.size.round(), sight.version]
-		if key != _shade_key:
+		var key: Array = [RisoLight.snap(from), RisoLight.snap(view.position), view.size.round(), sight.version]
+		# Its turn on odd frames, unless the rock changed or there is none yet.
+		var due: bool = Engine.get_process_frames() % 2 == 1
+		if key != _shade_key and (due or _shade_key.size() != key.size() or _shade_key[3] != key[3]):
 			_shade_key = key
 			_shade_seen = sight.polygon(from, view)
 			_shade_pieces = RisoSight.outside(view, [_shade_seen])
@@ -511,6 +574,7 @@ func _deep_dark(gloom: float, area: Rect2, clip: bool) -> void:
 				others.append(near[j])
 				if j < i:
 					earlier.append(near[j])
+		RisoLight._fan(light)
 		var pieces: Array[PackedVector2Array] = light.pieces
 		var profile: Array[PackedFloat32Array] = light.profile
 		if not earlier.is_empty():

@@ -2,11 +2,11 @@ extends CreatureArt
 ## An abomination (Abomination): a cluster of breathing pink blobs, as many as it has health, laid
 ## out by its own shape (Abomination.layout: a big central blob on the floor, the others grown
 ## mostly off it, each its own size), each with its eyes where its shape put them (one or two, paper
-## with night pupils, looking about and now and then blinking) and a few tentacles curling and
-## groping round it, lying along the floor where they reach it, writhing faster while it crawls, each its own length and width. It rolls a
+## with night pupils, looking about and now and then blinking) and tentacles curling and
+## groping up and out from it, lying along the floor where they reach it, writhing faster while it crawls, each its own length and width. It rolls a
 ## little as it crawls. A new blob swells into place as it grows; a burst one leaves a pink splash.
 ## Braced to launch a blob (its tell), the cluster quivers and squats while its top blob swells and
-## throbs, a pink glow growing round it; launched, a blob tumbles along its arc. It lurches as it
+## throbs, a pink glow growing round it; launched, a bare blob with no tentacles tumbles along its arc. It lurches as it
 ## bites and grows up out of the floor as it rises from a breach. Its night underside sits on the
 ## floor. Stunned, stars circle over it and its eyes shut.
 
@@ -59,9 +59,10 @@ func _draw_art() -> void:
 		for l: Vector3 in lumps:
 			low = maxf(low, absf(l.x) + l.z * 0.8)
 		ink.ink(RisoPrint.NIGHT, 0.6, [xf * RisoShapes.ellipse(Vector2(0, -4), maxf(base.z, low), 7.0, 18)], false)
-	# Tentacles: curling and groping round it, writhing faster as it crawls.
+	# Tentacles: curling and groping round it, writhing faster as it crawls; none on a blob in
+	# flight, which sprouts them as it lands.
 	var tentacles: Array[PackedVector2Array] = []
-	for i: int in range(n):
+	for i: int in range(0 if flying else n):
 		var l: Vector3 = lumps[i]
 		var list: Array = a.arms[i]
 		for k: int in range(list.size()):
@@ -73,7 +74,7 @@ func _draw_art() -> void:
 			for j: int in range(7):
 				pts.append(at)
 				var curl: float = sin(t * (1.8 + arm.w * 0.15) * (1.6 if a.crawling else 1.0) + arm.w + float(j) * 0.7) * 0.5 + (bite * 0.4 if at.x > 0.0 else 0.0)
-				ang += curl * 0.35
+				ang += curl * 0.45
 				at += Vector2.from_angle(ang) * arm.y / 6.0
 				# Never through the floor: it lies along it and curls on.
 				if at.y > -FLOOR_GAP:

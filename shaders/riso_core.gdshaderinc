@@ -76,10 +76,47 @@ float coverage(sampler2D s, vec2 q) {
 		+ texture(s, uv + vec2(0.0, g.y)).a + texture(s, uv - vec2(0.0, g.y)).a) * 0.15;
 }
 
+// Whether plate `s` holds any ink within reach of `p` (screen px): as far as the wobble can move its
+// sample (1.55 wob either way) and the dot gain spreads it, looked for at the middle and at eight
+// points round it. Most of the paper holds no ink of most plates, and there the print skips them.
+bool ink_near(sampler2D s, vec2 p) {
+	vec2 uv = p / res;
+	vec2 r = vec2(wob * 1.55 + gain) / res;
+	float near = texture(s, uv).a;
+	near = max(near, texture(s, uv + vec2(r.x, 0.0)).a);
+	near = max(near, texture(s, uv - vec2(r.x, 0.0)).a);
+	near = max(near, texture(s, uv + vec2(0.0, r.y)).a);
+	near = max(near, texture(s, uv - vec2(0.0, r.y)).a);
+	near = max(near, texture(s, uv + r).a);
+	near = max(near, texture(s, uv - r).a);
+	near = max(near, texture(s, uv + vec2(r.x, -r.y)).a);
+	near = max(near, texture(s, uv + vec2(-r.x, r.y)).a);
+	return near > 0.0;
+}
+
 float print_ink(sampler2D s, vec2 px, vec2 off, float ang, float rot, float sd, float wsd) {
 	vec2 c = res * 0.5;
 	vec2 p = px - c;
 	p = vec2(cos(rot) * p.x - sin(rot) * p.y, sin(rot) * p.x + cos(rot) * p.y) + c + off;
+	// The halftone screen is pinned to the paper.
+	vec2 wp = px + pin;
+	float a = radians(ang);
+	vec2 sp = vec2(cos(a) * wp.x - sin(a) * wp.y, sin(a) * wp.x + cos(a) * wp.y) / cell;
+	float scr = 0.5 - 0.25 * (cos(6.28318 * sp.x) + cos(6.28318 * sp.y));
+	// With no ink of this plate near, it prints only a stray fleck, where the grain pulls a dot's
+	// threshold under nothing: only near a dot's middle, where the screen is low enough for the
+	// grain (at most 0.8 grain) to bring the threshold under 0.045. There the fleck is worked out
+	// from the same grain read without the wobble (which only shifts where it is read), at the
+	// laydown's mean; anywhere else it prints nothing. Either way the work below is skipped.
+	if (!ink_near(s, p)) {
+		if (scr * 0.93 >= 0.01 + 0.8 * grain) {
+			return 0.0;
+		}
+		uint sf = seed_u(sd);
+		vec2 wf = p + pin;
+		float thr_f = 0.035 + scr * 0.93 + (hs(R2 * wf * 0.85, sf + 3u) - 0.5) * grain + (vn(R1 * wf * 0.3, sf + 5u) - 0.5) * grain * 0.6;
+		return smoothstep(thr_f - 0.045, thr_f + 0.045, 0.0) * (1.0 - lay * 0.5);
+	}
 	// World-pinned position of this plate's (misregistered) sample point.
 	vec2 wq = p + pin;
 	uint so = seed_u(sd);
@@ -91,11 +128,6 @@ float print_ink(sampler2D s, vec2 px, vec2 off, float ang, float rot, float sd, 
 	vec2 d = w1 * wob * 2.2 + w2 * wob * 0.9;
 	float cv = coverage(s, p + d);
 	vec2 qw = wq + d;
-	// The halftone screen is pinned to the paper too.
-	vec2 wp = px + pin;
-	float a = radians(ang);
-	vec2 sp = vec2(cos(a) * wp.x - sin(a) * wp.y, sin(a) * wp.x + cos(a) * wp.y) / cell;
-	float scr = 0.5 - 0.25 * (cos(6.28318 * sp.x) + cos(6.28318 * sp.y));
 	float solid = smoothstep(0.82, 0.98, cv);
 	float thr = 0.035 + scr * 0.93 + ((hs(R2 * qw * 0.85, so + 3u) - 0.5) * grain + (vn(R1 * qw * 0.3, so + 5u) - 0.5) * grain * 0.6) * (1.0 - solid * 0.9);
 	float v = smoothstep(thr - 0.045, thr + 0.045, cv);

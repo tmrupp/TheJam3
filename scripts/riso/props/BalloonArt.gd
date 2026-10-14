@@ -98,3 +98,8 @@ static func _strip(a: Vector2, b: Vector2, w: float) -> PackedVector2Array:
 ## It reaches well above its cell: in view if any of it is.
 func view_rect() -> Rect2:
 	return Rect2(host.global_position + Vector2(-140.0, -560.0), Vector2(280.0, 640.0)) if host != null else Rect2()
+
+
+## Its string is tied to what stays put as it bobs: printed every frame.
+func every_frame() -> bool:
+	return true

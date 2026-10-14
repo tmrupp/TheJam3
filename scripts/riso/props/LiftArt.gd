@@ -66,3 +66,8 @@ func _bar(x0: float, y0: float, x1: float, y1: float, r: float, round_left: bool
 	else:
 		out.append(Vector2(x0, y1))
 	return out
+
+
+## Its ropes hang from what stays put as the platform moves: printed every frame.
+func every_frame() -> bool:
+	return true

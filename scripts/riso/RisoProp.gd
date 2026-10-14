@@ -91,8 +91,17 @@ var ui_ink: InkCanvas = null
 ## Printed text (prices, names), reused frame to frame; see _text().
 var labels: Array[Label] = []
 var labels_used: int = 0
-## This frame's step, capped (for the springs some kinds animate).
+## The time since it was last printed, capped (for the springs some kinds animate).
 var _dt: float = 0.0
+## How many frames apart a kind's art is printed again while in view: every other frame, half of
+## the props on even frames and half on odd ones. Its node follows its host every frame, so it
+## moves smoothly; only its shape changes thirty times a second. A kind that draws something pinned
+## to the world as its host moves (a skeleton's planted feet, a gondola's cable) prints every frame
+## (every_frame).
+const REPRINT_EVERY: int = 2
+## The time gone by since it was last printed (seconds), and which frames it prints on.
+var _since_print: float = 0.0
+var _stagger: int = 0
 ## Shrine labels pop up over an offer while the wizard is within POP_REACH of it (see _pop()).
 const POP_REACH: Vector2 = Vector2(40, 110)
 ## Pop-up centre height over the ground: above the interact prompt over the wizard's head.
@@ -133,6 +142,13 @@ func _light(local: Vector2, size: Vector3, plate: int) -> Array:
 	return [to_global(local), size.x, size.y, true, plate, size.z]
 
 
+## Whether it is printed again every frame, not every REPRINT_EVERY frames: a kind drawing something
+## pinned to the world while its host moves, which would lag behind it between prints. Anything
+## reaching far (culled) does too.
+func every_frame() -> bool:
+	return not culled()
+
+
 ## Whether it never changes: printed once, then it stops processing.
 func still() -> bool:
 	return false
@@ -162,6 +178,7 @@ func _ready() -> void:
 	if host != null and host.scale.x != 0.0 and host.scale.y != 0.0:
 		scale = Vector2(1.0 / host.scale.x, 1.0 / host.scale.y)
 	phase = RisoShapes.hash1(float(host.get_instance_id() % 997)) * TAU if host != null else 0.0
+	_stagger = get_instance_id() % REPRINT_EVERY
 	var tm: TileMap = Stage.tile_map()
 	if tm != null and tm.tile_set != null:
 		half = float(tm.tile_set.tile_size.y) * tm.global_scale.y * 0.5
@@ -177,7 +194,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	t += delta
-	_dt = minf(delta, 0.05)
+	_since_print += delta
 	# Only animate what the camera can see; off-screen art keeps its last print. The camera's
 	# reach is worked out once a frame and shared by every prop (a deep level has hundreds).
 	var frame: int = Engine.get_process_frames()
@@ -196,6 +213,10 @@ func _process(delta: float) -> void:
 			d = ((r.get_center() - _view_center).abs() - r.size * 0.5).max(Vector2.ZERO)
 		if d.x > _view_reach.x or d.y > _view_reach.y:
 			return
+	if _drawn and not every_frame() and (Engine.get_process_frames() + _stagger) % REPRINT_EVERY != 0:
+		return
+	_dt = minf(_since_print, 0.05 * REPRINT_EVERY)
+	_since_print = 0.0
 	if not _drawn:
 		_drawn = true
 		_redraw()

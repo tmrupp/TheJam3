@@ -75,13 +75,28 @@ static func smooth(pts: PackedVector2Array, seg: int = 4) -> PackedVector2Array:
 	return out
 
 
+## A rectangle `w` by `h` from (`x`, `y`) with its corners rounded `r` (at most half its width or
+## height), each corner in `seg` steps. Square corners give just the four corners; and where the
+## rounding is half its height or width (a pill), the point where two corners meet is kept once.
+## Repeated points would defeat the print's triangulator (RisoInkOp.Shape), sending each such
+## shape the slow way round.
 static func rrect(x: float, y: float, w: float, h: float, r: float, seg: int = 4) -> PackedVector2Array:
 	r = minf(r, minf(w, h) * 0.5)
+	if r <= 0.0001:
+		return PackedVector2Array([Vector2(x + w, y), Vector2(x + w, y + h), Vector2(x, y + h), Vector2(x, y)])
 	var out: PackedVector2Array = PackedVector2Array()
 	var corners: Array[Vector2] = [Vector2(x + w - r, y + r), Vector2(x + w - r, y + h - r), Vector2(x + r, y + h - r), Vector2(x + r, y + r)]
 	for k: int in range(4):
 		out.append_array(Transform2D(Vector2(r, 0.0), Vector2(0.0, r), corners[k]) * _unit(Unit.CORNER_TOP_RIGHT + k, seg))
-	return out
+	if r * 2.0 < minf(w, h) - 0.0001:
+		return out
+	var kept: PackedVector2Array = PackedVector2Array()
+	for p: Vector2 in out:
+		if kept.is_empty() or p.distance_squared_to(kept[kept.size() - 1]) > 0.000001:
+			kept.append(p)
+	if kept.size() > 1 and kept[0].distance_squared_to(kept[kept.size() - 1]) <= 0.000001:
+		kept.remove_at(kept.size() - 1)
+	return kept
 
 
 static func tri(a: Vector2, b: Vector2, c: Vector2) -> PackedVector2Array:

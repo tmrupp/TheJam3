@@ -117,6 +117,11 @@ var canvases: Array[InkCanvas] = []
 ## Plants that sway: indexes into `items`, each item holding its polygons ("parts"), the point it
 ## grows from ("anchor"), whether it hangs ("hang") and its spring ("a", "v").
 const SWAY_KINDS: Array[StringName] = [&"tuft", &"leafy", &"roots", &"vine"]
+## How many times a second the idle breeze moves the plants: it sways them so little (0.03) that its
+## steps are not seen, and a plant is bent again only when its bend has moved BEND_STEP, so on most
+## frames nothing is reprinted.
+const BREEZE_RATE: float = 10.0
+const BEND_STEP: float = 0.002
 var swaying: Array[int] = []
 var live: InkCanvas
 var t: float = 0.0
@@ -134,7 +139,12 @@ func _ready() -> void:
 
 ## A stable 0..1 hash of the level seed, a cell and a salt.
 static func h(level_seed: int, v: Vector2i, salt: int) -> float:
-	var x: int = Rules.level_seed(level_seed ^ (salt * 2654435), v.x * 7919 + v.y * 104729 + salt)
+	# Rules.level_seed's mix, written out here: decor asks for it hundreds of thousands of times a
+	# level (the institute's books), and a call less each time is felt.
+	var x: int = ((level_seed ^ (salt * 2654435)) * 73856093) ^ ((v.x * 7919 + v.y * 104729 + salt) * 19349663) ^ 0x5bd1e995
+	x = (x ^ (x >> 15)) * 0x2c1b3c6d
+	x = (x ^ (x >> 12)) * 0x297a2d39
+	x = (x ^ (x >> 15)) & 0x7fffffff
 	return float(x % 100000) / 100000.0
 
 
@@ -711,6 +721,7 @@ func _process(delta: float) -> void:
 	var view: Rect2 = RisoLight.view_rect(self, cam).grow(200.0)
 	var slots: Array = _empty_slots()
 	var dt: float = minf(delta, 0.05)
+	var breeze_t: float = floorf(t * BREEZE_RATE) / BREEZE_RATE
 	for index: int in swaying:
 		var item: Dictionary = items[index]
 		var anchor: Vector2 = item["anchor"]
@@ -735,22 +746,32 @@ func _process(delta: float) -> void:
 		a += v * dt
 		item["a"] = a
 		item["v"] = v
-		var bend: float = a + sin(t * 1.3 + anchor.x * 0.013) * 0.03
-		var tall: float = item["tall"]
-		# Bend, don't skew: each point turns about the root by an angle that grows along the
-		# plant, so stems curve and keep their length, and heads tilt with their tips.
-		var turn: float = -bend if hang else bend
-		for part: Array in item["parts"]:
-			var poly: PackedVector2Array = part[1]
-			var bent: PackedVector2Array = PackedVector2Array()
-			bent.resize(poly.size())
-			for k: int in range(poly.size()):
-				var p: Vector2 = poly[k]
-				var f: float = clampf(absf(p.y - anchor.y) / tall, 0.0, 1.0)
-				bent[k] = anchor + (p - anchor).rotated(turn * f * (2.0 - f))
-			(slots[int(part[0])] as Array[PackedVector2Array]).append(bent)
+		var bend: float = a + sin(breeze_t * 1.3 + anchor.x * 0.013) * 0.03
+		if not item.has("bent") or absf(bend - float(item["bent_at"])) >= BEND_STEP:
+			item["bent_at"] = bend
+			item["bent"] = _bent(item, anchor, -bend if hang else bend)
+		for part: Array in item["bent"]:
+			(slots[int(part[0])] as Array[PackedVector2Array]).append(part[1])
 	_print_slots(live, slots)
 	live.finish()
+
+
+## A swaying plant's parts ([slot, outline]) bent `turn` about its root. Bend, don't skew: each point
+## turns about the root by an angle that grows along the plant, so stems curve and keep their
+## length, and heads tilt with their tips.
+func _bent(item: Dictionary, anchor: Vector2, turn: float) -> Array:
+	var tall: float = item["tall"]
+	var out: Array = []
+	for part: Array in item["parts"]:
+		var poly: PackedVector2Array = part[1]
+		var bent: PackedVector2Array = PackedVector2Array()
+		bent.resize(poly.size())
+		for k: int in range(poly.size()):
+			var p: Vector2 = poly[k]
+			var f: float = clampf(absf(p.y - anchor.y) / tall, 0.0, 1.0)
+			bent[k] = anchor + (p - anchor).rotated(turn * f * (2.0 - f))
+		out.append([part[0], bent])
+	return out
 
 
 # ------------------------------------------------------------------ the props
@@ -798,12 +819,16 @@ func _book_stack(slots: Array, at: Vector2, n: int, s: int, v: Vector2i) -> void
 		var w: float = 8.0 + _r(s, v, 120 + k) * 4.0
 		var h: float = 1.8 + _r(s, v, 125 + k) * 0.8
 		var shift: float = (_r(s, v, 130 + k) - 0.5) * 3.0
-		_book_ink(slots, Transform2D((_r(s, v, 135 + k) - 0.5) * 0.08, Vector2(at.x + shift, y - h * 0.5)) * RisoShapes.rrect(-w * 0.5, -h * 0.5, w, h, 0.4), _r(s, v, 140 + k))
+		_book_ink(slots, Transform2D((_r(s, v, 135 + k) - 0.5) * 0.08, Vector2(at.x + shift, y - h * 0.5)) * RisoShapes.rrect(-w * 0.5, -h * 0.5, w, h, 0.0), _r(s, v, 140 + k))
 		y -= h + 0.2
 
 
 func _r(level_seed: int, v: Vector2i, salt: int) -> float:
-	return RisoDecor.h(level_seed, v, salt)
+	var x: int = ((level_seed ^ (salt * 2654435)) * 73856093) ^ ((v.x * 7919 + v.y * 104729 + salt) * 19349663) ^ 0x5bd1e995
+	x = (x ^ (x >> 15)) * 0x2c1b3c6d
+	x = (x ^ (x >> 12)) * 0x297a2d39
+	x = (x ^ (x >> 15)) & 0x7fffffff
+	return float(x % 100000) / 100000.0
 
 
 ## A bent strip from `a` along `pts`, `w0` wide at the start tapering to `w1`.
@@ -1174,7 +1199,9 @@ func _sketch_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 			# and a cell or two wide: a dark wooden case, a cornice over it, a shelf every half cell,
 			# and on each shelf a row of books dealt one by one by the cell: how wide and tall, which
 			# colour (brown, moss, maroon, night, tan, plum or paper), a gilt band or two on some,
-			# now and then one leaning on its neighbour, a gap, or a short stack lying flat.
+			# now and then one leaning on its neighbour, a gap, or a short stack lying flat. The books,
+			# their bands and the shelves are square-cornered: a few hundred to a case, rounding under
+			# a pixel would only multiply their points.
 			var rise: int = int(item.get("rise", 1))
 			var wide: float = float(int(item.get("wide", 1))) * half - 6.0
 			var x0: float = c.x - half * 0.5 + 3.0
@@ -1186,7 +1213,7 @@ func _sketch_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 			var gap: float = tall / float(shelves)
 			for shelf: int in range(shelves):
 				var y1: float = floor_y - 2.0 - float(shelf) * gap
-				slots[13].append(RisoShapes.rrect(x0 + 1.5, y1, wide - 3.0, 1.6, 0.5))
+				slots[13].append(RisoShapes.rrect(x0 + 1.5, y1, wide - 3.0, 1.6, 0.0))
 				var x: float = x0 + 2.5
 				var n: int = 0
 				while x < x0 + wide - 5.0:
@@ -1202,19 +1229,19 @@ func _sketch_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 					if roll < 0.12 and x + 9.0 < x0 + wide - 4.0:
 						# A short stack lying flat.
 						for k: int in range(2 + int(_r(s, v, salt + 3) * 2.0)):
-							var lie: PackedVector2Array = RisoShapes.rrect(x, y1 - 2.2 * float(k + 1), 8.0 + _r(s, v, salt + 4 + k) * 2.0, 2.0, 0.4)
+							var lie: PackedVector2Array = RisoShapes.rrect(x, y1 - 2.2 * float(k + 1), 8.0 + _r(s, v, salt + 4 + k) * 2.0, 2.0, 0.0)
 							_book_ink(slots, lie, _r(s, v, salt + 9 + k))
 						x += 11.0
 						n += 1
 						continue
-					book = RisoShapes.rrect(x, y1 - bh, bw, bh, 0.4)
+					book = PackedVector2Array([Vector2(x + bw, y1 - bh), Vector2(x + bw, y1), Vector2(x, y1), Vector2(x, y1 - bh)])
 					if roll > 0.94:
-						book = Transform2D(0.22, Vector2(x, y1)) * RisoShapes.rrect(0.0, -bh, bw, bh, 0.4)
+						book = Transform2D(0.22, Vector2(x, y1)) * RisoShapes.rrect(0.0, -bh, bw, bh, 0.0)
 					_book_ink(slots, book, _r(s, v, salt + 5))
 					if _r(s, v, salt + 6) < 0.35:
-						slots[37].append(RisoShapes.rrect(x + 0.3, y1 - bh * 0.78, bw - 0.6, 0.7, 0.2))
+						slots[37].append(RisoShapes.rrect(x + 0.3, y1 - bh * 0.78, bw - 0.6, 0.7, 0.0))
 						if _r(s, v, salt + 7) < 0.5:
-							slots[37].append(RisoShapes.rrect(x + 0.3, y1 - bh * 0.2, bw - 0.6, 0.7, 0.2))
+							slots[37].append(RisoShapes.rrect(x + 0.3, y1 - bh * 0.2, bw - 0.6, 0.7, 0.0))
 					x += bw + 0.4
 					n += 1
 		&"desk":
@@ -1341,7 +1368,7 @@ func _sketch_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 					elif tone < 0.6:
 						slots[42].append(plank)
 					if k > 0:
-						slots[13].append(RisoShapes.rrect(cuts[k] - 2.0, y0, 4.0, tall, 0.5))
+						slots[13].append(RisoShapes.rrect(cuts[k] - 2.0, y0, 4.0, tall, 0.0))
 				slots[13].append(RisoShapes.rrect(c.x - half, y0 + tall - 2.0, half * 2.0, 4.0, 0.0))
 		&"marble":
 			# Pale marble on the institute's halls, at full size: big slabs MARBLE_SLAB cells square,

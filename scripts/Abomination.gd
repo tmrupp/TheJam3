@@ -2,10 +2,10 @@ extends RigidBody2D
 class_name Abomination
 ## An abomination: a thing of the eldritch beast's, risen into the institute's halls from the deep
 ## (docs/REGIONS_PLAN.md §7), out of a breach in the floor (Breach) or laid with the level
-## (Institute.populate). A cluster of pink blobs, each with an eye or two, a few tentacles on it
-## (AbominationArt). It goes for whatever is nearest of the wizard and the institute's people
+## (Institute.populate). A cluster of pink blobs, each with an eye or two, tentacles reaching up
+## and out from them (AbominationArt). It goes for whatever is nearest of the wizard and the institute's people
 ## (Scholar) within SENSE px, no sight needed, along its floor, hopping a step of a cell and
-## dropping off ledges after its quarry. It goes steadily along the floor, its few tentacles
+## dropping off ledges after its quarry. It goes steadily along the floor, its tentacles
 ## writhing round it (they do not move it). As it goes it leaves a trail of pink slime (Slime) that hurts the wizard while it is fresh and soon fades. Its touch
 ## hurts the wizard (its HitBox); a scholar it touches it bites, wounding it every BITE_EVERY
 ## seconds. The scholars' bolts and spells wound it in turn, so a fight in the institute has three
@@ -62,8 +62,9 @@ const FEET: float = 16.0
 ## one (the first two always do; else from any before it), how far a blob sits into the one it grows from (a share of their radii together),
 ## each blob's eyes (a second, smaller one on a blob at least TWO_EYES across, by a chance of
 ## TWO_EYES_SHARE) and their size against the blob's (from, to), and its tentacles: the central
-## blob's (from, to) round its lower half, any other blob's one by a chance of LOBE_ARM, their length
-## (px, from, to) and width.
+## blob's (from, to) and any other blob's (from, to), reaching up and out (ARMS_UP: how far either
+## side of straight up they may root, so most reach up and a few out to the sides), their length (px,
+## from, to) and width.
 const BASE_R: Vector2 = Vector2(22.0, 28.0)
 const LOBE_R: Vector2 = Vector2(18.0, 25.0)
 const ON_CENTRAL: float = 0.85
@@ -71,9 +72,10 @@ const NESTLE: float = 0.62
 const TWO_EYES: float = 15.0
 const TWO_EYES_SHARE: float = 0.35
 const EYE_SIZE: Vector2 = Vector2(0.24, 0.48)
-const BASE_ARMS: Vector2i = Vector2i(2, 3)
-const LOBE_ARM: float = 0.25
-const ARM_LONG: Vector2 = Vector2(30.0, 50.0)
+const BASE_ARMS: Vector2i = Vector2i(4, 6)
+const LOBE_ARMS: Vector2i = Vector2i(1, 3)
+const ARMS_UP: float = PI * 0.62
+const ARM_LONG: Vector2 = Vector2(38.0, 60.0)
 const ARM_WIDE: Vector2 = Vector2(6.0, 10.0)
 
 ## Its blobs, the lowest first, from its feet facing right (across, up, radius, px), SPLIT of them
@@ -140,8 +142,8 @@ func _ready() -> void:
 
 ## Deal its shape from `seed_value` (see the consts): the central blob on the floor, each blob after
 ## it grown mostly from the central one (ON_CENTRAL; else from any before it), up or out to a side
-## as low as beside it on the floor (never into the floor), its eyes somewhere on its face, and its few tentacles round the edges,
-## the central blob's out round its lower half.
+## as low as beside it on the floor (never into the floor), its eyes somewhere on its face, and its
+## tentacles round the edges, reaching up and out.
 func shape(seed_value: int) -> void:
 	var r: Callable = func(i: int, salt: int) -> float: return RisoDecor.h(seed_value, Vector2i(i, salt), 77)
 	layout.clear()
@@ -167,19 +169,17 @@ func shape(seed_value: int) -> void:
 				off.x += (float(k) - 0.5) * lobe.z * 0.7
 			mine.append(Vector3(off.x, off.y, lobe.z * size))
 		eyes.append(mine)
+		# Spread from one side over the top to the other, crowding towards the top: up and out,
+		# never down into the blobs under it.
 		var angles: Array[float] = []
-		if i == 0:
-			# Round its lower half, spread from one side to the other.
-			var n: int = BASE_ARMS.x + int(r.call(i, 11) * float(BASE_ARMS.y - BASE_ARMS.x + 1))
-			for k: int in range(n):
-				var span: float = (float(k) + 0.2 + 0.6 * r.call(i, 12 + k)) / float(n)
-				angles.append(lerpf(-PI * 0.1, PI * 1.1, span))
-		elif r.call(i, 11) < LOBE_ARM:
-			# Out to a side or up, never down into the blobs under it.
-			angles = [lerpf(-PI * 1.05, -PI * 0.05, r.call(i, 12))]
+		var most: Vector2i = BASE_ARMS if i == 0 else LOBE_ARMS
+		var n: int = most.x + int(r.call(i, 11) * float(most.y - most.x + 1))
+		for k: int in range(n):
+			var span: float = (float(k) + 0.2 + 0.6 * r.call(i, 12 + k)) / float(n) * 2.0 - 1.0
+			angles.append(-PI * 0.5 + ARMS_UP * span * absf(span))
 		var tentacles: Array[Vector4] = []
 		for k: int in range(angles.size()):
-			var long: Vector2 = ARM_LONG * (1.0 if i == 0 else 0.7)
+			var long: Vector2 = ARM_LONG * (1.0 if i == 0 else 0.85)
 			tentacles.append(Vector4(angles[k], lerpf(long.x, long.y, r.call(i, 20 + k)), lerpf(ARM_WIDE.x, ARM_WIDE.y, r.call(i, 28 + k)), r.call(i, 36 + k) * TAU))
 		arms.append(tentacles)
 

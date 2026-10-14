@@ -78,3 +78,8 @@ static func _wing(shoulder: Vector2, lift: float, reach: float) -> PackedVector2
 	var tip: Vector2 = shoulder + along * reach
 	# Broad at the root (the shoulder along the back), narrowing to a pointed tip.
 	return RisoShapes.smooth(PackedVector2Array([shoulder + Vector2(5, 0), shoulder + along * reach * 0.4 + out * 6.0, tip, shoulder + along * reach * 0.6 - out * 1.5, shoulder + Vector2(-6, 1)]), 3)
+
+
+## Its mark stays where it is as the bird flies: printed every frame.
+func every_frame() -> bool:
+	return true
