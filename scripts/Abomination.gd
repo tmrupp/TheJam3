@@ -82,6 +82,9 @@ const ARM_WIDE: Vector2 = Vector2(6.0, 10.0)
 ## dealt as it is made (shape); the art draws the first `lobes` (AbominationArt), and a burst blob
 ## bursts from its place.
 var layout: Array[Vector3] = []
+## Which blob each grew from (its index in `layout`; the central blob's is its own, 0): a budding
+## blob's foot faces the blob it grew from (AbominationArt).
+var parents: Array[int] = []
 ## Each blob's eyes ([Vector3(across, up, radius)], from the blob's middle) and tentacles
 ## ([Vector4(angle from the blob's middle, length, width, phase)]), by blob.
 var eyes: Array = []
@@ -147,12 +150,16 @@ func _ready() -> void:
 func shape(seed_value: int) -> void:
 	var r: Callable = func(i: int, salt: int) -> float: return RisoDecor.h(seed_value, Vector2i(i, salt), 77)
 	layout.clear()
+	parents.clear()
 	eyes.clear()
 	arms.clear()
 	var base: float = lerpf(BASE_R.x, BASE_R.y, r.call(0, 0))
 	layout.append(Vector3(0.0, -base, base))
+	parents.append(0)
 	for i: int in range(1, SPLIT):
-		var parent: Vector3 = layout[0] if i <= 2 or r.call(i, 1) < ON_CENTRAL else layout[int(r.call(i, 6) * float(i)) % i]
+		var from: int = 0 if i <= 2 or r.call(i, 1) < ON_CENTRAL else int(r.call(i, 6) * float(i)) % i
+		var parent: Vector3 = layout[from]
+		parents.append(from)
 		var rad: float = lerpf(LOBE_R.x, LOBE_R.y, r.call(i, 2)) * (1.0 - 0.04 * float(i))
 		# Up or out to a side, as low as beside it on the floor (the floor keeps it out of the rock).
 		var ang: float = lerpf(-PI * 1.08, PI * 0.08, r.call(i, 3))

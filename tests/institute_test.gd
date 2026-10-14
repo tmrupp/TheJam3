@@ -128,6 +128,7 @@ func play() -> void:
 	print("in play")
 	check(placed("student.tscn").size() > 0 and placed("master.tscn").size() > 0 and placed("exam_door.tscn").size() > 0, "students, masters and exam doors are there")
 	await _students()
+	await _hop()
 	await _masters()
 	await _staff()
 	await _three_sides()
@@ -154,8 +155,58 @@ func _students() -> void:
 	_clear_shots()
 
 
+## A scholar walking up a step a cell high hops it: its figure (ScholarArt) rises and falls with its
+## body through the hop, never jumping a cell at once (it was held on the floor it left until its
+## body was a cell up, so it seemed to blink up the step).
+func _hop() -> void:
+	print("a hop up a step")
+	var w: LevelGen = info.world
+	var step: Variant = null
+	for v: Vector2i in w.free_floors():
+		var r: Vector2i = v + Vector2i.RIGHT
+		var open: bool = not w.is_ground(v + Vector2i.UP) and not w.is_ground(v + Vector2i(0, -2)) and not w.is_ground(r + Vector2i.UP) and not w.is_ground(r + Vector2i(0, -2))
+		if w.is_ground(r) and open and not w.is_ground(v + Vector2i.LEFT) and w.is_ground(v + Vector2i(-1, 1)) and Institute.hall_at(w, v) < 0:
+			step = v
+			break
+	if step == null:
+		print("no step to hop here")
+		return
+	var at: Vector2i = step
+	var s: Scholar = _spawn("student.tscn", at + Vector2i(-1, 0))
+	# Nothing to fight, and its place past the step: it walks there.
+	s.home_x = info.cell_position(at + Vector2i(3, -1)).x
+	s.look_in = 999.0
+	# Dressed in its art a moment after it is placed.
+	var art: ScholarArt = null
+	for k: int in range(10):
+		await process_frame
+		for c: Node in s.get_children():
+			if c is ScholarArt:
+				art = c as ScholarArt
+		if art != null:
+			break
+	check(art != null, "its figure is there")
+	if art == null:
+		s.queue_free()
+		return
+	# Measured from the floor it lands on (it is placed mid-cell, and drops to its floor first).
+	await until(func() -> bool: return s.grounded)
+	var feet: float = s.global_position.y + art._feet()
+	var start: float = feet
+	var leap: float = 0.0
+	for i: int in range(240):
+		await physics_frame
+		var now: float = s.global_position.y + art._feet()
+		leap = maxf(leap, absf(now - feet))
+		feet = now
+	check(start - feet > 100.0, "it climbed the step (%.0f px)" % (start - feet))
+	check(leap < 24.0, "its figure rose with its body, never jumping (at most %.0f px a frame)" % leap)
+	s.queue_free()
+	await frames(2)
+
+
 ## Each master casts its spell at the wizard: a bolt for hex and seeker (the seeker turning after
-## them), and the rest up close, hurting them.
+## them) that strikes them, and the rest up close, hurting them.
 func _masters() -> void:
 	print("masters")
 	var spot: Vector2i = _open_floor()
@@ -171,6 +222,10 @@ func _masters() -> void:
 			&"hex", &"seeker":
 				var shots: Array[Node] = info.map_elements.get_children().filter(func(n: Node) -> bool: return n is Bullet and (n as Bullet).spell == a)
 				check(done and not shots.is_empty() and ((shots[0] as Bullet).homing != null) == (a == &"seeker"), "a %s master casts its bolt" % a)
+				# Aimed at the middle of the wizard's body: once aimed over it, a bolt flew clean over
+				# their head.
+				var hit: bool = await within(func() -> bool: return player.health.health < hp, 3.0)
+				check(hit, "a %s master's bolt strikes the wizard" % a)
 			&"lunge":
 				check(done, "a lunge master lunges along its floor")
 			_:
@@ -368,8 +423,8 @@ func _exam() -> void:
 	check(placed("lesson.tscn").size() == (1 if swapped != &"" else 0) and (info.record().lessons[cell] as Dictionary)["taken"], "beaten again, it teaches nothing more")
 
 
-## A department's portal: to a level of its band in the same world, by its way back; the way back
-## there leads back to the portal and closes.
+## A department's portal: to a level of its band in the same world, coming out of the way back it
+## opens there; the way back leads back to the portal and closes.
 func _department() -> void:
 	print("a department")
 	var portals: Array[Node] = placed("department.tscn")
@@ -389,6 +444,8 @@ func _department() -> void:
 	if backs.is_empty():
 		return
 	var at: Vector2 = (backs[0] as Node2D).global_position
+	check_eq(info.cell_at(player.global_position), info.cell_at(at), "the wizard comes out of the way back, as out of a gate's partner")
+	check(info.world.get_cell(info.cell_at(at) + Vector2i.UP).type == LevelGen.Type.EMPTY, "with open air over it: nothing stands on top of it")
 	await _go(Vector2i(from.x, 0))
 	await _go(to)
 	check(placed("way_back.tscn").size() == 1 and (placed("way_back.tscn")[0] as Node2D).global_position == at, "it lasts, where it was, until used")

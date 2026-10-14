@@ -1,6 +1,13 @@
 extends RisoProp
-## A lantern: lit, burned out or waiting, swaying as the wizard brushes past.
+## A lantern: lit (its glass full of light in a glow that lifts the dark round it), burned out
+## (empty glass, a charred wick, smoke) or waiting (dark glass with a small ember), swaying as the
+## wizard brushes past.
 
+
+## The lit lantern's glow round its glass: how far it reaches (px) and how much of the dark behind
+## it it lifts, at the glass (half as much in its outer ring).
+const LIT_GLOW: float = 52.0
+const LIT_LIFT: float = 0.5
 
 ## A springy lean that the wizard sets going as they pass (lanterns).
 var brush_a: float = 0.0
@@ -26,12 +33,18 @@ func _draw_art() -> void:
 	var spent: bool = MapInfo.instance != null and MapInfo.instance.is_lantern_spent(host)
 	var sw: float = sin(t * 2.2 + phase) * 0.12 - _brush(Vector2(30, _ground() - 80.0), 140.0)
 	var g: float = _ground()
-	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-4, g - 110, 8, 110, 4), RisoShapes.rrect(-3, g - 111, 38, 6, 3)])
 	var hang: Transform2D = Transform2D(sw, Vector2(30, g - 106))
+	if lit:
+		# A glow round the glass that lifts the dark behind it (so it shows on a dark wall as on the
+		# night sky), softer toward its edge; under the post, which it leaves as it is.
+		for ring: Vector2 in [Vector2(LIT_GLOW, LIT_LIFT * 0.5), Vector2(LIT_GLOW * 0.62, LIT_LIFT * 0.5)]:
+			ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], ring.y, [hang * RisoShapes.circle(Vector2(0, 34), ring.x, 32)])
+		ink.ink(RisoPrint.EYE, 0.25, [hang * RisoShapes.circle(Vector2(0, 34), LIT_GLOW * 0.62, 32)])
+	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-4, g - 110, 8, 110, 4), RisoShapes.rrect(-3, g - 111, 38, 6, 3)])
 	ink.ink(RisoPrint.BLUE, 1.0, [hang * RisoShapes.rrect(-2, 0, 4, 18, 2), hang * RisoShapes.rrect(-14, 14, 28, 8, 4)])
 	var glass: PackedVector2Array = hang * RisoShapes.rrect(-12, 20, 24, 28, 10)
 	if lit:
-		ink.ink(RisoPrint.EYE, 0.25, [hang * RisoShapes.circle(Vector2(0, 34), 44.0, 32)])
+		# The glass full of light (its glow printed first, above) and a paper flame in it.
 		ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT], [glass])
 		ink.ink(RisoPrint.EYE, 1.0, [glass], false)
 		ink.knock([RisoPrint.EYE], [hang * RisoShapes.rrect(-4, 28, 8, 12, 4)])
@@ -41,9 +54,11 @@ func _draw_art() -> void:
 		ink.ink(RisoPrint.BLUE, 0.5, [hang * RisoShapes.rrect(-3, 38, 6, 6, 2)], false)
 		RisoMarks.smoke_thread(ink, hang.translated_local(Vector2(0, 38)), t + phase, 44.0, 3.2, 4.0, true)
 	else:
-		# Unclaimed: a low ember behind the glass, waiting to be lit.
+		# Unclaimed: dark glass with a small ember flickering low in it, waiting to be lit (no glow
+		# round it, so it never reads as the lit one).
 		var flick: float = 0.8 + 0.2 * sin(t * 7.0 + phase)
-		ink.ink(RisoPrint.EYE, 0.12, [hang * RisoShapes.circle(Vector2(0, 34), 24.0 * flick, 24)])
-		ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT], [glass])
-		ink.ink(RisoPrint.EYE, 0.5, [glass], false)
-		ink.ink(RisoPrint.BLUE, 0.35, [glass], false)
+		ink.knock([RisoPrint.PINK, RisoPrint.ACCENT], [glass])
+		ink.ink(RisoPrint.NIGHT, 0.55, [glass], false)
+		var ember: PackedVector2Array = hang * RisoShapes.circle(Vector2(0, 40), 4.0 * flick, 10)
+		ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], [ember])
+		ink.ink(RisoPrint.EYE, 1.0, [ember], false)

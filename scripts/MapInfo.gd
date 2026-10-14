@@ -631,6 +631,8 @@ func _arrived () -> void:
 		_set_respawn(coord, run.respawn_cell)
 	elif arrival == ARRIVE_BALLOON and world.is_valid(world.balloon):
 		at = world.balloon
+	elif arrival == ARRIVE_WAY_BACK and run.way_back.size() >= 4 and run.way_back[0] == coord and run.way_back[1] != Vector2.INF:
+		at = cell_at(run.way_back[1])
 	if player != null:
 		player.position = arrival_pos if arrival == -3 else cell_position(at)
 		player.velocity = Vector2.ZERO
@@ -736,16 +738,20 @@ func _spawn_lesson (cell: Vector2i) -> void:
 	lesson.global_position = cell_position(cell_at(at + Vector2(0, -8)))
 	lesson.setup(self, cell)
 
-## Through a department's portal (Department) to level `to`, arriving at its way back, where a way
-## back opens (WayBack) to the portal at `portal_cell` here. It lasts until it is used; using
-## another department's portal moves it.
+## Arriving through a department's portal (Department): at the way back it opens (WayBack), as a
+## gate's traveller comes out of its partner.
+const ARRIVE_WAY_BACK: int = -5
+
+## Through a department's portal (Department) to level `to`, coming out of the way back that opens
+## there (WayBack), near that level's way back, leading to the portal at `portal_cell` here. It
+## lasts until it is used; using another department's portal moves it.
 func department_travel (to: Vector2i, portal_cell: Vector2i) -> void:
 	if travelling or run_ending > 0.0 or not Worlds.valid(to):
 		return
 	run.way_back = [to, Vector2.INF, coord, portal_cell]
 	save_run()
 	await _pass(Vector2(0, signf(float(to.y - coord.y))), to)
-	_arrive(to, Exit.BACK)
+	_arrive(to, ARRIVE_WAY_BACK)
 
 ## Back through the way back (WayBack) to the department's portal it was opened from; it closes.
 func way_back_travel () -> void:
@@ -762,17 +768,27 @@ func way_back_travel () -> void:
 const WAY_BACK: String = "res://prefabs/way_back.tscn"
 ## How far (cells) from the way back the way back from a department stands: at least, and at most.
 const WAY_BACK_NEAR: Vector2i = Vector2i(2, 8)
+## How many cells of open air the way back from a department stands in, its own cell and those over it.
+const WAY_BACK_AIR: int = 2
 
 ## The way back from a department (RunState.way_back), if it opened in this place: on the free floor
-## nearest its way back, WAY_BACK_NEAR cells off (found the first time, then kept).
+## nearest its way back, WAY_BACK_NEAR cells off, with open air over it as high as its arch
+## (WAY_BACK_AIR cells, so nothing stands on top of it), found the first time, then kept. The
+## wizard comes through the department's portal out of it (ARRIVE_WAY_BACK).
 func _spawn_way_back () -> void:
 	var back: Array = run.way_back
 	if back.size() < 4 or back[0] != coord or map_elements == null or world == null:
 		return
 	if back[1] == Vector2.INF:
 		var from: Vector2i = world.exits.get(Exit.BACK, Vector2i.ZERO)
-		var spot: Variant = LevelGen.best_of(world.free_floors(), func(v: Vector2i) -> int: return LevelGen.dist(v, from),
-				func(v: Vector2i) -> bool: return LevelGen.dist(v, from) >= WAY_BACK_NEAR.x and LevelGen.dist(v, from) <= WAY_BACK_NEAR.y)
+		var fits: Callable = func(v: Vector2i) -> bool:
+			if LevelGen.dist(v, from) < WAY_BACK_NEAR.x or LevelGen.dist(v, from) > WAY_BACK_NEAR.y:
+				return false
+			for k: int in range(1, WAY_BACK_AIR):
+				if not world.is_valid(v + Vector2i(0, -k)) or world.get_cell(v + Vector2i(0, -k)).type != LevelGen.Type.EMPTY:
+					return false
+			return true
+		var spot: Variant = LevelGen.best_of(world.free_floors(), func(v: Vector2i) -> int: return LevelGen.dist(v, from), fits)
 		back[1] = cell_position(spot if spot != null else from)
 	var node: WayBack = (load(WAY_BACK) as PackedScene).instantiate() as WayBack
 	map_elements.add_child(node)

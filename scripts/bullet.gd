@@ -31,11 +31,13 @@ const ARROW_REACH: float = 30.0
 const SOLID_MASK: int = 32
 ## The spell a scholar cast it as (&"student" for a student's bolt, else the master's spell, see
 ## Scholar), or &"" for any other shot; the group of enemies it wounds as it meets them (&"" for
-## none, an arrow's all of them); what it turns toward, how hard (radians a second), and the seconds
-## it has left (it fades out at 0; INF for ever).
+## none, an arrow's all of them); what it turns toward, the point on it (px from where it stands)
+## it steers for, how hard (radians a second), and the seconds it has left (it fades out at 0; INF
+## for ever).
 var spell: StringName = &""
 var quarry: StringName = &""
 var homing: Node2D = null
+var homing_aim: Vector2 = Vector2.ZERO
 var turn: float = 0.0
 var life: float = INF
 
@@ -61,7 +63,7 @@ func _process(delta: float) -> void:
 		queue_free()
 		return
 	if homing != null and is_instance_valid(homing) and turn > 0.0:
-		var to: Vector2 = homing.global_position + Vector2(0, -40) - global_position
+		var to: Vector2 = homing.global_position + homing_aim - global_position
 		var bend: float = angle_difference(velocity.angle(), to.angle())
 		velocity = velocity.rotated(clampf(bend, -turn * delta, turn * delta))
 	var step: Vector2 = velocity * delta

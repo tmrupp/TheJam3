@@ -1,16 +1,18 @@
-extends RisoProp
+extends PortalArt
 ## A department's portal (Department), or the way back one opened (WayBack): a round-headed arch of
-## pale marble on two columns, standing on a step, its opening a portal's (PortalArt's outline)
-## swirling with the faint light of where it leads, and on its keystone the department's emblem on
-## a paper disc: a leaf for botany, a skull for necrology, a crystal for geology, a star for
+## pale marble on two columns, standing on a step and hugging its opening, which is a portal's
+## (PortalArt's outline) filled as every portal is (the F7 panel's style: TV static by default),
+## and on its keystone the department's emblem on a paper disc: a leaf for botany, a skull for necrology, a crystal for geology, a star for
 ## astronomy (a way back bears the institute's columned front). Standing by it pops up a plaque with
 ## where it leads, as marks and numbers (RisoMarks.place_marks). It shines a little (RisoLight).
 
 ## The arch's half width and height over the floor (px), its columns' width, and the emblem's disc.
+## The arch's head sits close round the opening's top, so the whole stands lower than a gate with
+## its sigil.
 const ARCH_X: float = 56.0
-const ARCH_H: float = 168.0
+const ARCH_H: float = 160.0
 const COLUMN: float = 13.0
-const DISC_R: float = 17.0
+const DISC_R: float = 15.0
 ## The plaque's measures (as a signpost's, SignArt).
 const PLACE_R: float = 9.0
 const NUMBER_PX: int = 22
@@ -39,15 +41,22 @@ func _draw_art() -> void:
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], stone)
 	ink.ink(RisoPrint.BLUE, 0.22, stone, false)
 	ink.ink(RisoPrint.NIGHT, 0.12, [RisoShapes.rrect(-ARCH_X - 12.0, g - 4.0, (ARCH_X + 12.0) * 2.0, 5.0, 2.0)], false)
-	# The opening: dark, swirling with faint light.
-	var mouth: PackedVector2Array = PortalArt.portal_oval(center, 1.0)
-	ink.ink(RisoPrint.NIGHT, 0.75, [mouth], false)
-	var swirl: Array[PackedVector2Array] = []
-	for i: int in range(3):
-		var k: float = fposmod(t * 0.25 + float(i) / 3.0, 1.0)
-		swirl.append_array(PortalArt.portal_band(center, 0.25 + 0.7 * k, 0.32 + 0.7 * k, 40, t * (0.6 + 0.2 * float(i)), PI * 0.9))
-	ink.lift_ink([RisoPrint.NIGHT], 0.35, swirl)
-	ink.ink(RisoPrint.ACCENT, 0.3, swirl, false)
+	# The opening, filled as a gate's is (PortalArt): it stirs with the wizard right at it.
+	if center != _shape_center:
+		_shape_center = center
+		_mouth = PortalArt.portal_oval(center, 1.0)
+	var near: float = 0.0
+	var player: Node2D = Stage.player()
+	if player != null:
+		var d: Vector2 = (player.global_position - to_global(center)).abs()
+		near = clampf(1.0 - (maxf(d.x - 18.0, 0.0) / 36.0 + maxf(d.y - 60.0, 0.0) / 50.0), 0.0, 1.0)
+	var flare: float = clampf(1.0 - (Time.get_ticks_msec() / 1000.0 - float(host.get_meta(&"flare_at", -100.0))) / 0.6, 0.0, 1.0)
+	ink.knock([RisoPrint.NIGHT], [_mouth])
+	_portal_clock += _dt * lerpf(1.0, PortalArt.PORTAL_SLOW, near)
+	if RisoPrint.instance != null and RisoPrint.instance.portal_style == &"static":
+		_portal_static(center, near, flare, RisoPrint.ACCENT, _portal_clock)
+	else:
+		_portal_ripples(center, near, flare, RisoPrint.ACCENT, _portal_clock)
 	# The keystone's disc and its emblem.
 	var key: Vector2 = Vector2(0, g - ARCH_H - 2.0)
 	var disc: PackedVector2Array = RisoShapes.circle(key, DISC_R, 24)

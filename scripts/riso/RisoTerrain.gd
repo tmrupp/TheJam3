@@ -40,6 +40,10 @@ const REALM_LOOKS: Dictionary = {&"sky": &"marble", &"institute": &"pale"}
 const INDOOR_REALMS: Array[StringName] = [&"institute"]
 const WOOD_LOOK: Array = [[RisoPrint.BLUE, 1.0]]
 const BACK_BOARDS: int = 3
+## How much of the rock's ink an indoor realm's back wall prints: all of it, solid, so no paper shows
+## through between the dots of the screen (with night over it, paper dots read as white speckle, and
+## a light lifting the night only shows more of them).
+const BACK_BOARD_WOOD: float = 1.0
 ## How much night an indoor realm's back wall has over it (darker than the stone's, so the rooms read
 ## apart from the wood round them).
 const BACK_BOARD_SHADE: float = 0.6
@@ -130,7 +134,8 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 			if polished and masonry.has(v):
 				break
 			var d: float = float(pair[1])
-			var inset: PackedVector2Array = _inset(c, half, d, radius, up, down, left, right)
+			# Rock printed square (built stone, an indoor realm's wood) is shaded square too.
+			var inset: PackedVector2Array = _inset(c, half, d, 0.0 if indoor or masonry.has(v) else radius, up, down, left, right)
 			if inset.size() > 2:
 				(pair[0] as Array[PackedVector2Array]).append(inset)
 		for d: Vector2i in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
@@ -147,6 +152,12 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 					fillets.append(_fillet(corner, Vector2(-sx, -sy), radius))
 					near_pies.append(_pie(corner, Vector2(-sx, -sy), SHADE_NEAR + radius * 0.5))
 					far_pies.append(_pie(corner, Vector2(-sx, -sy), SHADE_FAR))
+				elif round.all(func(n: Vector2i) -> bool: return solid.has(n)):
+					# Square rock's inside corner: the shading cut back square from it, as far as
+					# along the faces either side, so no dark square reaches into the corner.
+					var corner: Vector2 = c + Vector2(sx, sy) * half
+					near_pies.append(_notch(corner, Vector2(sx, sy), SHADE_NEAR))
+					far_pies.append(_notch(corner, Vector2(sx, sy), SHADE_FAR))
 	for v: Vector2i in ledges:
 		if solid.has(v):
 			continue
@@ -292,7 +303,7 @@ func _back_wall(tile_map: TileMap, solid: Dictionary, interiors: Dictionary, hal
 	if back.is_empty():
 		return
 	ink.knock([RisoPrint.PINK, RisoPrint.ACCENT], back)
-	ink.ink(RisoPrint.BLUE, BACK_STONE, back)
+	ink.ink(RisoPrint.BLUE, BACK_BOARD_WOOD if boards else BACK_STONE, back)
 	ink.ink(RisoPrint.NIGHT, BACK_BOARD_SHADE if boards else BACK_SHADE, back, false)
 	ink.ink(RisoPrint.NIGHT, BACK_JOINT_COVER, joints, false)
 
@@ -399,6 +410,13 @@ func _inset(c: Vector2, h: float, d: float, r: float, up: bool, down: bool, left
 	var hh: float = (y1 - y0) * 0.5
 	var rr: float = minf(r + d * 0.5, minf(hw, hh))
 	return _box(Vector2((x0 + x1) * 0.5, (y0 + y1) * 0.5), hw, hh, rr, not up and not left, not up and not right, not down and not right, not down and not left)
+
+
+## A square `d` across in the rock at an inside corner of square rock, reaching from `corner` the
+## way `into` (into the cell of rock across the corner from the open air).
+func _notch(corner: Vector2, into: Vector2, d: float) -> PackedVector2Array:
+	var far: Vector2 = corner + into * d
+	return PackedVector2Array([corner, Vector2(far.x, corner.y), far, Vector2(corner.x, far.y)])
 
 
 ## Three-quarter disc at an inside corner, leaving out the quadrant that faces open air.

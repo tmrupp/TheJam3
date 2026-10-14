@@ -90,7 +90,9 @@ const SHIELD_REACH: float = 560.0
 const SHIELD_PLATES: int = 1
 ## A librarian's hush: how far round it (px).
 const HUSH: float = 330.0
-## Where it looks from and casts from (px over its feet), and where its foe is aimed at.
+## Where it looks from and casts from (px over its feet), and where an abomination it fights is
+## aimed at (px over its middle). The wizard is aimed at the middle of their body (see `aim_at`):
+## aimed this high over it, a bolt flew clean over their head.
 const EYE: float = 60.0
 const AIM: float = 40.0
 ## Salt for the hash that deals a student's misfires.
@@ -240,10 +242,16 @@ func _find_foe() -> Node2D:
 			candidates.append(a)
 	for c: Node2D in candidates:
 		var d: float = eye().distance_to(c.global_position)
-		if d < best_d and _clear(eye(), c.global_position + Vector2(0, -AIM)):
+		if d < best_d and _clear(eye(), c.global_position + aim_at(c)):
 			best = c
 			best_d = d
 	return best
+
+
+## Where on `target` (px from where it stands) a scholar aims its bolts, and a seeker steers: the
+## middle of the wizard's body (their own middle), or AIM over an abomination's.
+static func aim_at(target: Node2D) -> Vector2:
+	return Vector2.ZERO if target is Player else Vector2(0, -AIM)
 
 
 ## Whether nothing solid (rock, a shut door or gate) stands between `from` and `to`.
@@ -430,6 +438,7 @@ func _release() -> void:
 			var shot: Bullet = _shoot(SEEKER_SHOT, 0.0, &"seeker")
 			if shot != null:
 				shot.homing = foe
+				shot.homing_aim = aim_at(foe)
 				shot.turn = SEEKER_TURN
 				shot.life = SEEKER_LIFE
 		&"slash":
@@ -453,7 +462,7 @@ func _shoot(speed: float, off: float, spell: StringName) -> Bullet:
 	if foe == null or map_info == null or not is_instance_valid(map_info.map_elements):
 		return null
 	var from: Vector2 = eye() + Vector2(facing * 26.0, 0)
-	var aim: Vector2 = (foe.global_position + Vector2(0, -AIM) - from).normalized().rotated(off)
+	var aim: Vector2 = (foe.global_position + aim_at(foe) - from).normalized().rotated(off)
 	var shot: Bullet = (load(SHOT) as PackedScene).instantiate() as Bullet
 	map_info.map_elements.add_child(shot)
 	shot.global_position = from

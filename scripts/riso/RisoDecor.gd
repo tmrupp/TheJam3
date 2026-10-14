@@ -75,8 +75,7 @@ const SLOTS: Array[Array] = [
 	[RisoPrint.BLUE, 0.1, false, false],    # 38 marble's veins, faint
 	[RisoPrint.NIGHT, 1.0, true, false],    # 39 great columns: paper marble (behind the rest)
 	[RisoPrint.NIGHT, 0.12, false, false],  # 40 their shade and fluting
-	[RisoPrint.NIGHT, 0.22, false, false],  # 41 the joints between marble's slabs
-	[RisoPrint.NIGHT, 0.18, true, false],   # 42 a wooden panel's lit bevel: its inks lifted a little
+	[RisoPrint.NIGHT, 0.22, false, false],  # 41 the joints between marble's slabs, a wooden panel's shadow
 ]
 ## What mortar lifts (slot 29): every ink built stone can print in (RisoTerrain.MASONRY_LOOKS).
 const MORTAR_LIFT: Array[int] = [RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.CLOTH, RisoPrint.NIGHT]
@@ -101,9 +100,11 @@ const WEB_REACH: float = 19.0
 const WEB_RINGS: Array[float] = [0.45, 0.8]
 const STRUCTURES: Array[String] = ["level_exit.tscn", "shrine.tscn", "door.tscn", "checkpoint.tscn", "spikes.tscn",
 	"portal.tscn", "inkwell.tscn", "moving_platform.tscn", "bell.tscn", "switch.tscn", "switch_gate.tscn", "key.tscn",
-	"relic.tscn", "gondola.tscn", "stalactite.tscn"]
-## Structures that stand tall, keeping a wider stretch of floor clear (see rebuild).
-const TALL: Array[String] = ["level_exit.tscn", "shrine.tscn", "checkpoint.tscn", "door.tscn", "bell.tscn", "gondola.tscn"]
+	"relic.tscn", "gondola.tscn", "stalactite.tscn", "department.tscn", "way_back.tscn"]
+## Structures that stand tall, keeping a wider stretch of floor clear (see rebuild). A department's
+## portal is one: an institute column or bookcase stood on its cell once rose out of its arch.
+const TALL: Array[String] = ["level_exit.tscn", "shrine.tscn", "checkpoint.tscn", "door.tscn", "bell.tscn", "gondola.tscn",
+	"department.tscn", "way_back.tscn"]
 
 ## The plan: one entry per prop, {kind, cell, at (world), seed}.
 var items: Array[Dictionary] = []
@@ -420,7 +421,8 @@ static func plan_sky(solid: Dictionary, occupied: Dictionary, level_seed: int, b
 ## COLUMN_EVERY cells and between them bookcases as tall as the room (up to BOOKCASE_ROWS cells, up
 ## through the library's galleries),
 ## two cells wide where there is room, desks on the steps of the lecture halls' tiers, now and then
-## a statue. It is all indoors: the rest of its walls are wood laid in planks (PLANKS to a cell), and
+## a statue. It is all indoors: the rest of its walls are panelled in wood (PANEL_ROWS cells to a
+## panel), and
 ## in its rooms stand bookcases (BOOKCASE_OUT of the floors), desks (DESK_OUT) and now and then a
 ## statue; nothing grows and nothing hangs from its ceilings.
 const MARBLE_SLAB: int = 2
@@ -428,10 +430,15 @@ const COLUMN_EVERY: int = 4
 const BOOKCASE_ROWS: int = 8
 const BOOKCASE_OUT: float = 0.3
 const DESK_OUT: float = 0.14
-## How many kinds of desk there are (see the "desk" sketch), and how many planks the institute's
-## wooden walls lay to a cell (the "panel" sketch).
+## How many kinds of desk there are (see the "desk" sketch).
 const DESKS: int = 6
-const PLANKS: int = 3
+## The institute's wooden walls (the "panel" sketch): tall sunk panels a cell wide and PANEL_ROWS
+## cells high, in a frame of stiles PANEL_STILE wide and rails PANEL_RAIL high (px, at full size),
+## the frame's shadow falling PANEL_SHADOW into each panel.
+const PANEL_ROWS: int = 2
+const PANEL_STILE: float = 24.0
+const PANEL_RAIL: float = 26.0
+const PANEL_SHADOW: float = 9.0
 
 static func plan_institute(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, _bottom_style: StringName = &"roots", masonry: Dictionary = {}, interiors: Dictionary = {}) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
@@ -1347,29 +1354,22 @@ func _sketch_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 				slots[40].append(RisoShapes.rrect(x + fx * w - 0.5, floor_y - tall + 11.0, 1.0, tall - 22.0, 0.5))
 			slots[40].append(PackedVector2Array([Vector2(x + w * 0.45, floor_y - 9.0), Vector2(x + w * 0.4, floor_y - tall + 9.0), Vector2(x + w * 0.85, floor_y - tall + 9.0), Vector2(x + w, floor_y - 9.0)]))
 		&"panel":
-			# The institute's walls of wood, at full size: planks laid level, PLANKS to a cell, each
-			# row of them with its end joints where the level seed puts them (so the rows are
-			# staggered, as laid planks are), each length of plank its own tone, a dark seam under
-			# each row and a faint lit edge along its top.
-			var tall: float = half * 2.0 / float(PLANKS)
-			for row: int in range(PLANKS):
-				var y0: float = c.y - half + float(row) * tall
-				var course: Vector2i = Vector2i(v.x, v.y * PLANKS + row)
-				# Where in this cell the row's joint falls, if it has one here (about every other cell).
-				var cuts: Array[float] = [c.x - half]
-				if _r(s, course, 90) < 0.55:
-					cuts.append(c.x - half + (0.2 + 0.6 * _r(s, course, 91)) * half * 2.0)
-				cuts.append(c.x + half)
-				for k: int in range(cuts.size() - 1):
-					var tone: float = _r(s, Vector2i(course.x * 2 + k, course.y), 92)
-					var plank: PackedVector2Array = RisoShapes.rrect(cuts[k], y0, cuts[k + 1] - cuts[k], tall, 0.0)
-					if tone < 0.35:
-						slots[27].append(plank)
-					elif tone < 0.6:
-						slots[42].append(plank)
-					if k > 0:
-						slots[13].append(RisoShapes.rrect(cuts[k] - 2.0, y0, 4.0, tall, 0.0))
-				slots[13].append(RisoShapes.rrect(c.x - half, y0 + tall - 2.0, half * 2.0, 4.0, 0.0))
+			# The institute's walls of wood, at full size: the same plain panelling everywhere, so
+			# it stays quiet behind what happens in front of it. A frame of stiles and rails round
+			# tall sunk panels, each a cell wide and PANEL_ROWS cells high (so a cell holds the top
+			# or the bottom of one), a shade darker than the frame, with the frame's shadow along
+			# the panel's top and down its left side.
+			var x0: float = c.x - half + PANEL_STILE * 0.5
+			var x1: float = c.x + half - PANEL_STILE * 0.5
+			var top: bool = posmod(v.y, PANEL_ROWS) == 0
+			var bottom: bool = posmod(v.y, PANEL_ROWS) == PANEL_ROWS - 1
+			var y0: float = c.y - half + (PANEL_RAIL * 0.5 if top else 0.0)
+			var y1: float = c.y + half - (PANEL_RAIL * 0.5 if bottom else 0.0)
+			var b: float = PANEL_SHADOW
+			slots[27].append(RisoShapes.rrect(x0, y0, x1 - x0, y1 - y0, 0.0))
+			slots[41].append(PackedVector2Array([Vector2(x0, y0), Vector2(x0 + b, y0 + (b if top else 0.0)), Vector2(x0 + b, y1), Vector2(x0, y1)]))
+			if top:
+				slots[41].append(PackedVector2Array([Vector2(x0, y0), Vector2(x1, y0), Vector2(x1, y0 + b), Vector2(x0 + b, y0 + b)]))
 		&"marble":
 			# Pale marble on the institute's halls, at full size: big slabs MARBLE_SLAB cells square,
 			# each its own faint tone, with fine joints only between slabs and soft blue veins

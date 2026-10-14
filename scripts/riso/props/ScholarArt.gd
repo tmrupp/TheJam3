@@ -56,7 +56,19 @@ var scholar: Scholar:
 func guard_center() -> Vector2:
 	if host == null:
 		return global_position
-	return host.global_position + Vector2(0, -14.0 * float(SIZE.get(scholar.kind, 3.0)) + _ground())
+	return host.global_position + Vector2(0, -14.0 * float(SIZE.get(scholar.kind, 3.0)) + _feet())
+
+
+## Where its feet are (px below where it stands): the bottom of its body, so it rises and falls
+## through a hop up a step as its body does. (The floor of the cell it stands in, as most props are
+## drawn on, held it on the floor it left until it was a cell up, then lifted it there at once, so
+## it seemed to blink up the step rather than jump it.)
+func _feet() -> float:
+	var shape: CollisionShape2D = host.get_node_or_null("CollisionShape2D") as CollisionShape2D
+	var box: RectangleShape2D = shape.shape as RectangleShape2D if shape != null else null
+	if box == null:
+		return _ground()
+	return shape.position.y + box.size.y * 0.5 * absf(shape.scale.y)
 
 
 func _draw_art() -> void:
@@ -65,7 +77,7 @@ func _draw_art() -> void:
 		return
 	var kind: StringName = s.kind
 	var k: float = float(SIZE.get(kind, 3.0))
-	var g: float = _ground()
+	var g: float = _feet()
 	var f: float = s.facing
 	walk = move_toward(walk, 1.0 if s.walking else 0.0, _dt * 6.0)
 	var wind: float = s.wind_up()

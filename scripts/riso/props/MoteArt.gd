@@ -5,7 +5,8 @@ extends RisoProp
 
 
 ## A star: printed once (the star on a canvas of its own), then animated by moving the canvases,
-## bobbing, with the star rocking to and fro on its points. A deep level has hundreds, so they never
+## bobbing, with the star rocking to and fro on its points. Its gold prints on paper, knocked
+## clear of the night and the rock's ink, so it reads on any wall. A deep level has hundreds, so they never
 ## re-lay their ink.
 var _star_ink: InkCanvas = null
 
@@ -23,7 +24,11 @@ func _draw_art() -> void:
 		_star_ink = InkCanvas.new()
 		add_child(_star_ink)
 		_star_ink.begin()
-		_star_ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.sparkle(Vector2.ZERO, 18.0)])
+		# Printed on paper: the night and the rock's ink cleared under it first (as a cluster's
+		# stars are), so its gold stays bright over a dark wall rather than sinking into it.
+		var star: PackedVector2Array = RisoShapes.sparkle(Vector2.ZERO, 18.0)
+		_star_ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], [star])
+		_star_ink.ink(RisoPrint.ACCENT, 1.0, [star])
 		_star_ink.finish()
 	_mote_pose()
 

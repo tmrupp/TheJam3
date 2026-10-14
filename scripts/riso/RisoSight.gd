@@ -4,11 +4,18 @@ class_name RisoSight
 ## lantern's flame) can see past the rock. Rock is the cells marked `solid` (the TileMap's ground,
 ## cracked walls not yet broken, shut doors and gates); everything else lets light through. What
 ## it sees is one polygon round the point, reaching to the edge of a box (the view, or a light's
-## reach) wherever nothing is in the way, and a little way into the faces of the rock it sees, so
-## a lit wall's face reads as lit (RisoLight prints from it).
+## reach) wherever nothing is in the way, and a band FACE deep into the faces of the rock it sees,
+## the same depth all along a face (square to it, however slant the eye looks at it), so a lit
+## floor, ceiling or wall reads as lit and flat (RisoLight prints from it).
 
-## How far (px) sight reaches into the face of the rock it meets.
+## How deep (px) sight reaches into the face of the rock it meets, square to the face.
 const FACE: float = 26.0
+## How slant (the cosine of the angle off square) a ray may meet a face and still go the whole way
+## to FACE deep: a ray grazing a face would have to go on a long way inside the rock to get there,
+## so past this its band thins.
+const SLANT: float = 0.06
+## How many cells along a face the end of its band is looked for (past that it is taken to run on).
+const FACE_RUN: int = 64
 ## How far either side of a rock corner (radians) the rays just past it are cast.
 const GRAZE: float = 0.0004
 
@@ -19,6 +26,10 @@ var origin: Vector2 = Vector2.ZERO
 var cell: float = 128.0
 ## Bumped whenever `solid` changes (a door opens, a wall breaks), so cached light can be redone.
 var version: int = 0
+## Which way the last ray `cast` met the rock went into it, square to the face it met (one step
+## across the grid: right, left, down or up), and the cell of rock it went into.
+var _entered: Vector2 = Vector2.ZERO
+var _entered_cell: Vector2i = Vector2i.ZERO
 
 
 func _init(top_left: Vector2 = Vector2.ZERO, cell_px: float = 128.0) -> void:
@@ -65,10 +76,15 @@ func polygon(eye: Vector2, bounds: Rect2) -> PackedVector2Array:
 		for j: int in range(lo.y, hi.y + 2):
 			if not _corner(i, j):
 				continue
-			var a: float = (origin + Vector2(i, j) * cell - eye).angle()
+			var k: Vector2 = origin + Vector2(i, j) * cell
+			var a: float = (k - eye).angle()
 			aims.append(a - GRAZE)
 			aims.append(a)
 			aims.append(a + GRAZE)
+			# And to the corners of the bands into the faces meeting there, so each band ends
+			# square at its corner rather than tapering off along the face from the last ray before.
+			for band: Vector2 in _band_corners(i, j):
+				aims.append((k + band - eye).angle())
 	# And to where a face of rock runs out of the box: a floor or wall that carries on past its edge
 	# turns no corner inside it, and without a ray there the outline would cut across from the face
 	# to the edge, leaving a wedge of what is seen dark.
@@ -93,13 +109,72 @@ func polygon(eye: Vector2, bounds: Rect2) -> PackedVector2Array:
 		var hit: float = cast(eye, d, reach)
 		var p: Vector2 = eye + d * reach
 		if hit < reach:
-			# Into the face, but never out the far side of the rock: near a corner the ray only
-			# clips it, and lighting past it would start the corner's shadow away from the corner.
-			p = eye + d * (hit + _depth(eye, d, hit, FACE))
+			# Into the face, on along the ray to FACE deep square to the face (so every point on
+			# one face lies on one line along it, and its band is flat), but never out the far side
+			# of the rock: near a corner the ray only clips it, and lighting past it would start the
+			# corner's shadow away from the corner.
+			var into: Vector2 = _entered
+			var square: float = maxf(absf(d.dot(into)), SLANT)
+			p = eye + d * (hit + minf(_depth(eye, d, hit, FACE / square), _under_face(eye + d * hit, into, _entered_cell, d)))
 		if p.distance_squared_to(last) > 0.25:
 			out.append(p)
 			last = p
 	return out
+
+
+## Where (px from grid corner (i, j), a corner of the rock) the bands into the faces meeting there
+## have their corners. In a corner of a room (three cells of rock round it) the two bands meet in a
+## mitre, FACE in from both faces. At an outer corner (one cell of rock, or two across from each
+## other) each face's band ends square at the corner, FACE in, and where the eye sees both faces
+## the two meet in a mitre inside the rock.
+func _band_corners(i: int, j: int) -> PackedVector2Array:
+	var out: PackedVector2Array = PackedVector2Array()
+	var rock: Array[Vector2i] = []
+	var air: Array[Vector2i] = []
+	for s: Vector2i in [Vector2i(-1, -1), Vector2i(0, -1), Vector2i(-1, 0), Vector2i(0, 0)]:
+		var way: Vector2i = Vector2i(s.x * 2 + 1, s.y * 2 + 1)
+		if solid.has(Vector2i(i, j) + s):
+			rock.append(way)
+		else:
+			air.append(way)
+	if rock.size() == 3:
+		out.append(-Vector2(air[0]) * FACE)
+	else:
+		for way: Vector2i in rock:
+			out.append(Vector2(way) * FACE)
+			out.append(Vector2(way.x, 0) * FACE)
+			out.append(Vector2(0, way.y) * FACE)
+	return out
+
+
+## How far (px) a ray along unit `d` that met the rock at `h`, going in `into` (square to the face)
+## into cell `rock`, may go on inside it and still lie under that face: its band ends where the face does, square to
+## it, and in a corner of a room, where another face rises from its end, FACE further on, so the
+## two bands meet in a mitre. Without this a ray grazing a floor ran on under the wall at its end,
+## lighting a long sliver of rock beside nothing lit.
+func _under_face(h: Vector2, into: Vector2, rock: Vector2i, d: Vector2) -> float:
+	var along: Vector2 = Vector2(0.0, signf(d.y)) if into.x != 0.0 else Vector2(signf(d.x), 0.0)
+	var speed: float = d.dot(along)
+	if speed <= 0.0:
+		return INF
+	# Taken from the cell the ray went into, not from where it met the rock: a ray meeting it right
+	# on a corner of the grid could find the wrong cell either side.
+	var air: Vector2i = rock - Vector2i(into)
+	var step: Vector2i = Vector2i(along)
+	var k: int = 1
+	while k < FACE_RUN and solid.has(rock + step * k) and not solid.has(air + step * k):
+		k += 1
+	var last: Vector2i = rock + step * (k - 1)
+	var end: float
+	var from: float
+	if step.x != 0:
+		end = origin.x + float(last.x + (1 if step.x > 0 else 0)) * cell
+		from = h.x
+	else:
+		end = origin.y + float(last.y + (1 if step.y > 0 else 0)) * cell
+		from = h.y
+	var past: float = FACE if solid.has(rock + step * k) and solid.has(air + step * k) else 0.0
+	return maxf((end - from) * (along.x + along.y) + past, 0.0) / speed
 
 
 ## Whether grid corner (i, j) is a corner of the rock: one or three of the cells round it are
@@ -150,11 +225,14 @@ func cast(p: Vector2, d: Vector2, reach: float) -> float:
 			t = next_x
 			at.x += step.x
 			next_x += each_x
+			_entered = Vector2(step.x, 0.0)
 		else:
 			t = next_y
 			at.y += step.y
 			next_y += each_y
+			_entered = Vector2(0.0, step.y)
 		if t < reach and solid.has(at):
+			_entered_cell = at
 			return t
 	return reach
 

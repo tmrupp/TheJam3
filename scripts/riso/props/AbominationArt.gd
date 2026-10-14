@@ -1,5 +1,7 @@
 extends CreatureArt
-## An abomination (Abomination): a cluster of breathing pink blobs, as many as it has health, laid
+## An abomination (Abomination): a cluster of breathing pink gumdrops (a round dome on sides that
+## flare out to a flat foot, `gumdrop`; the central one's foot on the floor, each budding one's
+## turned toward the blob it grew from, Abomination.parents), as many as it has health, laid
 ## out by its own shape (Abomination.layout: a big central blob on the floor, the others grown
 ## mostly off it, each its own size), each with its eyes where its shape put them (one or two, paper
 ## with night pupils, looking about and now and then blinking) and tentacles curling and
@@ -14,6 +16,14 @@ extends CreatureArt
 ## keep (px): they lie along it rather than go through it.
 const SWELL: float = 0.45
 const FLOOR_GAP: float = 3.0
+## A blob's gumdrop, as shares of its size (its radius as a disc would be): the dome's radius and
+## how far below the middle its centre sits (a squat dome), how far down the flat foot is and how far
+## out either side, and how round the foot's corners are.
+const GUM_DOME: float = 0.88
+const GUM_DOME_DOWN: float = 0.12
+const GUM_FOOT_DOWN: float = 1.0
+const GUM_FOOT_OUT: float = 1.0
+const GUM_CORNER: float = 0.2
 
 
 func _draw_art() -> void:
@@ -87,8 +97,17 @@ func _draw_art() -> void:
 	ink.ink(RisoPrint.PINK, 1.0, tentacles, false)
 	ink.ink(RisoPrint.BLUE, 0.45, tentacles, false)
 	var body: Array[PackedVector2Array] = []
-	for l: Vector3 in lumps:
-		body.append(xf * RisoShapes.circle(Vector2(l.x, l.y), l.z, 18))
+	for i: int in range(lumps.size()):
+		var l: Vector3 = lumps[i]
+		# Its foot toward the blob it budded from; the central blob's on the floor.
+		var from: int = a.parents[i] if i < a.parents.size() else 0
+		var turn: float = 0.0
+		if from != i:
+			var to: Vector2 = Vector2(lumps[from].x - l.x, lumps[from].y - l.y)
+			if to.length() > 0.5:
+				turn = to.angle() - PI * 0.5
+		var c: Vector2 = Vector2(l.x, l.y)
+		body.append(xf * (Transform2D(turn, c) * gumdrop(Vector2.ZERO, l.z)))
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], body)
 	ink.ink(RisoPrint.PINK, 1.0, body, false)
 	ink.ink(RisoPrint.BLUE, 0.3, body, false)
@@ -126,3 +145,27 @@ func _draw_art() -> void:
 			top_y = minf(top_y, l.y - l.z)
 		_stun_mark(xf * Vector2(0, top_y - 20.0))
 
+
+## A gumdrop round `c` the size of a disc of radius `r`: a round dome (GUM_DOME), its sides flaring
+## out and down to a flat foot (GUM_FOOT_DOWN under `c`, GUM_FOOT_OUT either side) with rounded
+## corners, about as wide as it is tall.
+static func gumdrop(c: Vector2, r: float) -> PackedVector2Array:
+	var out: PackedVector2Array = PackedVector2Array()
+	var dome: Vector2 = c + Vector2(0, GUM_DOME_DOWN * r)
+	for i: int in range(13):
+		var a: float = PI + PI * float(i) / 12.0
+		out.append(dome + Vector2(cos(a), sin(a)) * GUM_DOME * r)
+	var foot: float = c.y + GUM_FOOT_DOWN * r
+	var wide: float = GUM_FOOT_OUT * r
+	var k: float = GUM_CORNER * r
+	for side: float in [1.0, -1.0]:
+		# Down the flaring side to the foot's corner, round it, and along the foot.
+		var corner: Vector2 = Vector2(c.x + side * (wide - k), foot - k)
+		var arc: PackedVector2Array = PackedVector2Array()
+		for j: int in range(4):
+			var a: float = float(j) / 3.0 * PI * 0.5
+			arc.append(corner + Vector2(side * cos(a), sin(a)) * k)
+		if side < 0.0:
+			arc.reverse()
+		out.append_array(arc)
+	return out
