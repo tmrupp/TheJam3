@@ -132,6 +132,21 @@ static func arch(x: float, y: float, w: float, h: float, n: int = 10) -> PackedV
 	return out
 
 
+## A ring round `c` from radius `r0` out to `r1`, as two half rings (a polygon has no holes).
+static func ring(c: Vector2, r0: float, r1: float, n: int = 32) -> Array[PackedVector2Array]:
+	var out: Array[PackedVector2Array] = []
+	@warning_ignore("integer_division")
+	var half: int = maxi(3, n / 2)
+	for side: int in range(2):
+		var poly: PackedVector2Array = PackedVector2Array()
+		for i: int in range(half + 1):
+			poly.append(c + Vector2.from_angle(PI * (float(side) + float(i) / float(half))) * r1)
+		for i: int in range(half, -1, -1):
+			poly.append(c + Vector2.from_angle(PI * (float(side) + float(i) / float(half))) * r0)
+		out.append(poly)
+	return out
+
+
 static func xf(t: Transform2D, poly: PackedVector2Array) -> PackedVector2Array:
 	return t * poly
 

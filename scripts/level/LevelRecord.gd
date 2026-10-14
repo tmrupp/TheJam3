@@ -54,11 +54,16 @@ var temple_progress: int = 0
 var mended: Dictionary = {}
 ## The wizard's own teleporters standing here (Rift): their positions.
 var rifts: Array = []
+## The institute: its exam halls passed (by hall, an index into LevelGen.halls; ExamDoor), and its
+## masters' lessons (Lesson), by the master's cell: {"at": where it fell, "ability", "taken",
+## "left": [spell, tier] a swap left on it, or []}.
+var exams: Dictionary = {}
+var lessons: Dictionary = {}
 
 ## Every field saved, in the order they are written.
 const FIELDS: Array[StringName] = [&"taken", &"opened", &"slain", &"broken", &"dropped", &"next_drop", &"deeper_paid", &"up_paid",
 	&"doors_paid", &"lateral_open", &"ways_taken", &"shrine_used", &"left_spell", &"relic_left", &"mapped", &"seen",
-	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended"]
+	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended", &"exams", &"lessons"]
 
 
 ## The record as a plain dictionary, for the save file.

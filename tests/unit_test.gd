@@ -33,6 +33,7 @@ func run() -> void:
 	_relics()
 	_wind()
 	_whale()
+	_institute()
 	var p: Player = Player.new()
 	_ability_tables()
 	_protocols()
@@ -127,21 +128,19 @@ func _archetypes() -> void:
 		if d <= g:
 			want.append(&"garden")
 		elif row > 0:
-			want.append(&"cemetery" if d <= g + band else &"catacombs")
+			want.append(&"cemetery" if d <= g + band else &"institute")
 		else:
 			want.append(&"crags" if d <= g + band else &"sky")
-	check_eq(bands, want, "the garden spans rows -%d to %d; down the cemetery then the catacombs, up the crags then the sky, %d rows each, the outermost going on" % [g, g, band])
+	check_eq(bands, want, "the garden spans rows -%d to %d; down the cemetery then the institute, up the crags then the sky, %d rows each, the outermost going on" % [g, g, band])
 	check_eq(NextWorldDef.archetype_at(0), &"garden", "the run starts in the garden")
 	check_eq(NextWorldDef.first_depth(&"nowhere"), -1, "no band for an archetype that does not exist")
-	var firsts: Dictionary = {&"garden": 0, &"cemetery": g + 1, &"catacombs": g + 1 + band, &"crags": -(g + 1), &"sky": -(g + 1 + band)}
+	var firsts: Dictionary = {&"garden": 0, &"cemetery": g + 1, &"institute": g + 1 + band, &"crags": -(g + 1), &"sky": -(g + 1 + band)}
 	for kind: StringName in firsts:
 		check_eq(NextWorldDef.first_depth(kind), int(firsts[kind]), "the %s's row nearest the start" % kind)
 	check(NextWorldDef.band_row(&"sky", 2) == -(g + 3 + band) and NextWorldDef.band_row(&"cemetery", 2) == g + 3, "band rows count away from the start, up or down")
-	for kind: StringName in [&"garden", &"cemetery", &"sky", &"crags"]:
+	for kind: StringName in [&"garden", &"cemetery", &"sky", &"crags", &"institute"]:
 		var def: NextWorldDef = Rules.def_for(Vector2i(28, NextWorldDef.first_depth(kind)))
 		check(def.archetype == kind and def.realm() == kind and RisoPrint.REALMS.has(kind), "a %s level is printed in its own realm" % kind)
-	# A stand-in until its own art (docs/REGIONS_PLAN.md): the catacombs in the cemetery's realm.
-	check(Rules.def_for(Vector2i(28, NextWorldDef.first_depth(&"catacombs"))).realm() == &"cemetery", "the catacombs stand in with a borrowed realm")
 	var sky_depth: int = NextWorldDef.first_depth(&"sky")
 	var sky: NextWorldDef = Rules.def_for(Vector2i(28, sky_depth))
 	check_eq(sky.depth, absi(sky_depth), "a level's depth is its distance from the start, whichever way")
@@ -313,6 +312,23 @@ func _whale() -> void:
 	var was: int = run.whale_x
 	check(not WhaleHunt.move(run, Vector2i(x, row)) and run.whale_x == was and not WhaleHunt.here(run, Vector2i(was, row)), "slain, it is never met again")
 
+
+
+## The institute's rules (Institute): every master has mastered one of the wizard's damage spells;
+## every department studies a band there is, and its portal leads to a row of that band, in the same
+## world, dealt by the level and the same every time.
+func _institute() -> void:
+	check(Institute.MASTERIES.all(func(a: StringName) -> bool: return Abilities.slot_of(a) == &"damage"), "a master masters a damage spell")
+	var bands: Array[StringName] = NextWorldDef.archetype_names()
+	check(Institute.DEPARTMENTS.values().all(func(b: StringName) -> bool: return bands.has(b) and b != &"institute"), "each department studies another band")
+	var def: NextWorldDef = Rules.def_for(Vector2i(28, NextWorldDef.band_row(&"institute", 1)))
+	check_eq(def.archetype, &"institute", "the band below the cemetery is the institute")
+	for dept: StringName in Institute.DEPARTMENTS:
+		var ok: bool = true
+		for i: int in range(4):
+			var row: int = Institute.department_row(def, dept, i)
+			ok = ok and NextWorldDef.archetype_at(row) == Institute.DEPARTMENTS[dept] and row == Institute.department_row(def, dept, i)
+		check(ok, "a %s portal leads to a level of %s, the same every time" % [dept, Institute.DEPARTMENTS[dept]])
 
 func _ability_tables() -> void:
 	var order: Array[StringName] = Abilities.ids()

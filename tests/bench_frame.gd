@@ -4,8 +4,8 @@ extends TestKit
 ## pass. Then the process pass by script: each processing node's _process timed on its own.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/bench_frame.gd
 
-## The rows timed.
-const ROWS: Array[int] = [0, 8, -8, -10]
+## The rows timed (the garden, the cemetery, the crags, the sky, the institute).
+const ROWS: Array[int] = [0, 8, -8, -10, 11]
 ## Frames averaged.
 const FRAMES: int = 240
 

@@ -10,7 +10,8 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
   - `LevelGen.gd`: a level laid out from its collapsed cells (`populate_level`, the `Type` of
     each cell, `Cell`, and the placement helpers). `Chasms.gd`: chasms and gaps, cut and crossed.
     `Crypts.gd`: the cemetery's crypts, their insides collapsed from a sample of their own
-    (`Archetype.patches`, handed to the layout as `LevelGen.patches`).
+    (`Archetype.patches`, handed to the layout as `LevelGen.patches`). `Institute.gd`: the
+    institute's halls of marble (`LevelGen.halls`) and who is in them.
   - `Placeables.gd`: one table, by `LevelGen.Type`, of each thing's prefab, art kind, box size and
     flags (enemy, stander, floats, colored). Loading, the art dresser and the map read it.
   - `RunState.gd`: the run (records, the lantern to come back to, the ghost, relics) and saving it.
@@ -45,8 +46,8 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
 - `gdextension/`: the C++ overlapping-WFC extension (SCons). Rarely touched.
 - `docs/`: `DEEPER_PLAN.md` (design, by system), `REGIONS_PLAN.md` (the plan for going up and
   down from the garden, the new bands and the bosses at band ends; phases 1 to 4 built (the worm
-  and the bramble), a first pass of the crags and the spider of phase 5, and phase 6, the cemetery's
-  crypts, light and the necromancer),
+  and the bramble), a first pass of the crags and the spider of phase 5, phase 6, the cemetery's
+  crypts, light and the necromancer, and a first pass of phase 7, the institute),
   `RISO_PRINT.md` (the art pipeline and rules).
 - The owner's task list and notes are a Google Doc, not a file here:
   [Somnonaut: Tom's Tasks](https://docs.google.com/document/d/11vPYlA0G-_dZY2sdV8aK6qM06c1RAE2r05uHSngRHa8/edit)
@@ -58,7 +59,7 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
 Places are (seed, row): row 0 is the start, positive rows go down, negative rows go up, and a
 level's `depth` is its distance `|row|` (side worlds sit below `-Worlds.SIDE_BASE`). Bands come from
 a table in `NextWorldDef` (`BAND` = 6): the garden spans rows −3…+3; down, the cemetery then the
-catacombs; up, the crags then the sky. A new band is one script extending `Archetype`, listed in
+institute; up, the crags then the sky. A new band is one script extending `Archetype`, listed in
 `DOWN` or `UP`. Tests that need a band's levels use `NextWorldDef.band_row(&"cemetery", k)` (row k
 of the band, counting away from the start) rather than a fixed row or `first_depth + k`.
 

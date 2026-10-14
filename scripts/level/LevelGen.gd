@@ -54,6 +54,14 @@ enum Type {
 	SNUFFER,
 	SKELETON,
 	LIGHT_GATE,
+	STUDENT,
+	MASTER,
+	PROCTOR,
+	LIBRARIAN,
+	ABOMINATION,
+	BREACH,
+	EXAM_DOOR,
+	DEPARTMENT,
 }
 
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).
@@ -127,6 +135,8 @@ var structures: Dictionary = {}
 var patches: Array = []
 ## The crypts a cemetery level built (Crypts), each a Dictionary (see Crypts).
 var crypts: Array[Dictionary] = []
+## The halls an institute level built (Institute), each a Dictionary (see Institute).
+var halls: Array[Dictionary] = []
 ## The towers an archetype built (CragsArchetype.build_towers), each a Dictionary (see
 ## CragsArchetype._tower).
 var towers: Array[Dictionary] = []
@@ -575,7 +585,7 @@ func _holds_up (c: Vector2i) -> bool:
 	if vault_walls.has(c) or kept(c) or secret_steps.has(c) or keep_clear.has(c) or keep_clear.has(c + Vector2i.UP):
 		return true
 	for d: Vector2i in [Vector2i.UP, Vector2i.DOWN]:
-		if is_valid(c + d) and get_cell(c + d).type in [Type.DOOR, Type.SWITCH_GATE]:
+		if is_valid(c + d) and get_cell(c + d).type in [Type.DOOR, Type.SWITCH_GATE, Type.EXAM_DOOR]:
 			return true
 	if is_valid(c + Vector2i.UP) and Placeables.has_flag(get_cell(c + Vector2i.UP).type, &"stander"):
 		return true

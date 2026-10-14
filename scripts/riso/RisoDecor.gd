@@ -12,6 +12,10 @@ class_name RisoDecor
 ## The sky has its own too: grass, flowers and stones on its islands, standing stones, stone piles
 ## and windsocks where there is headroom, scattered roots and wisps under them, vines down
 ## their sides.
+## The institute has its own: veined marble slabs on its halls, and inside them great columns from
+## floor to ceiling with tall bookcases between (books in many colours, a departure from the decor's
+## inks asked for by the owner), reading desks on the lecture halls' tiers and now and then a statue;
+## bookcases out in its rooms too, and stones, rubble, roots and cobwebs on its bare earth.
 ## The crags have theirs: on the castle's masonry (LevelGen.masonry), dressed stone in courses,
 ## arrow slits through its walls, banners and rubble on its floors and battlements along them; on
 ## the bare cliff, crag grass, stones, fallen blocks and broken columns, cobwebs and roots under
@@ -60,11 +64,24 @@ const SLOTS: Array[Array] = [
 	[RisoPrint.NIGHT, 0.14, false, false],  # 27 the darker blocks
 	[RisoPrint.NIGHT, 0.85, false, false],  # 28 arrow slits
 	[RisoPrint.NIGHT, 0.6, true, false],    # 29 mortar between the blocks: the stone's inks lifted
+	[RisoPrint.BLUE, 1.0, false, true],     # 30 the institute's books: brown (the base of the rest)
+	[RisoPrint.ACCENT, 0.9, false, false],  # 31 moss books (over brown)
+	[RisoPrint.PINK, 0.65, false, false],   # 32 maroon books (over brown)
+	[RisoPrint.NIGHT, 0.95, false, false],  # 33 night books
+	[RisoPrint.BLUE, 0.45, false, true],    # 34 tan books
+	[RisoPrint.PINK, 0.45, false, false],   # 35 plum books (over tan)
+	[RisoPrint.NIGHT, 0.3, false, false],   # 36 the books' shade (tops, spine bands)
+	[RisoPrint.NIGHT, 1.0, true, false],    # 37 paper books and gilt bands (every ink knocked)
+	[RisoPrint.BLUE, 0.1, false, false],    # 38 marble's veins, faint
+	[RisoPrint.NIGHT, 1.0, true, false],    # 39 great columns: paper marble (behind the rest)
+	[RisoPrint.NIGHT, 0.12, false, false],  # 40 their shade and fluting
+	[RisoPrint.NIGHT, 0.22, false, false],  # 41 the joints between marble's slabs
+	[RisoPrint.NIGHT, 0.18, true, false],   # 42 a wooden panel's lit bevel: its inks lifted a little
 ]
 ## What mortar lifts (slot 29): every ink built stone can print in (RisoTerrain.MASONRY_LOOKS).
 const MORTAR_LIFT: Array[int] = [RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.CLOTH, RisoPrint.NIGHT]
 ## Fence slots, between the hedges and the rest of the decor.
-const BACK_SLOTS: Array[int] = [15, 16, 17, 18, 19, 20, 24, 25]
+const BACK_SLOTS: Array[int] = [15, 16, 17, 18, 19, 20, 24, 25, 39, 40]
 ## Hedge slots, behind everything else (the fences in front of them).
 const HEDGE_SLOTS: Array[int] = [21, 22, 23]
 const KNOCK_ALL: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE]
@@ -129,6 +146,7 @@ static var PLANS: Dictionary = {
 	&"cemetery": plan_graveyard,
 	&"sky": plan_isles,
 	&"crags": plan_crags,
+	&"institute": plan_institute,
 }
 
 
@@ -387,6 +405,79 @@ static func plan_sky(solid: Dictionary, occupied: Dictionary, level_seed: int, b
 	return out
 
 
+## The institute's plan (see the class description): its halls' marble in slabs (MARBLE_SLAB cells
+## square, veined); inside the halls (interiors), great columns from floor to ceiling every
+## COLUMN_EVERY cells and between them bookcases as tall as the room (up to BOOKCASE_ROWS cells, up
+## through the library's galleries),
+## two cells wide where there is room, desks on the steps of the lecture halls' tiers, now and then
+## a statue. It is all indoors: the rest of its walls are wood laid in planks (PLANKS to a cell), and
+## in its rooms stand bookcases (BOOKCASE_OUT of the floors), desks (DESK_OUT) and now and then a
+## statue; nothing grows and nothing hangs from its ceilings.
+const MARBLE_SLAB: int = 2
+const COLUMN_EVERY: int = 4
+const BOOKCASE_ROWS: int = 8
+const BOOKCASE_OUT: float = 0.3
+const DESK_OUT: float = 0.14
+## How many kinds of desk there are (see the "desk" sketch), and how many planks the institute's
+## wooden walls lay to a cell (the "panel" sketch).
+const DESKS: int = 6
+const PLANKS: int = 3
+
+static func plan_institute(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, _bottom_style: StringName = &"roots", masonry: Dictionary = {}, interiors: Dictionary = {}) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var cells: Array = solid.keys()
+	cells.sort()
+	var taken: Dictionary = {}
+	# How many open cells rise over floor cell `v` before the ceiling (at most `most`), none of them
+	# holding a structure.
+	var room_over: Callable = func(v: Vector2i, most: int) -> int:
+		var n: int = 0
+		while n < most and not solid.has(v + Vector2i(0, -n)) and not occupied.has(v + Vector2i(0, -n)) and bounds.has_point(v + Vector2i(0, -n)):
+			n += 1
+		return n
+	for v: Vector2i in cells:
+		if not bounds.has_point(v):
+			# The rock round the level is panelled too, as far as the view goes past the edge.
+			if bounds.grow(1).has_point(v):
+				out.append({"kind": &"panel", "cell": v, "base": v})
+			continue
+		var built: bool = masonry.has(v)
+		var above: Vector2i = v + Vector2i.UP
+		if built:
+			out.append({"kind": &"marble", "cell": v, "base": v, "slab": masonry.has(v + Vector2i.RIGHT) and masonry.has(v + Vector2i.DOWN) and masonry.has(v + Vector2i(1, 1)) and posmod(v.x, MARBLE_SLAB) == 0 and posmod(v.y, MARBLE_SLAB) == 0})
+		else:
+			out.append({"kind": &"panel", "cell": v, "base": v})
+		if not solid.has(above) and not occupied.has(above) and not taken.has(above):
+			var r: float = h(level_seed, v, 1)
+			if built and interiors.has(above):
+				var step: bool = (not solid.has(v + Vector2i.LEFT) and interiors.has(v + Vector2i.LEFT)) or (not solid.has(v + Vector2i.RIGHT) and interiors.has(v + Vector2i.RIGHT))
+				var high: int = room_over.call(above, 12)
+				if step:
+					out.append({"kind": &"desk", "cell": above, "base": v})
+				elif posmod(v.x + int(h(level_seed, Vector2i(0, v.y), 7) * 4.0), COLUMN_EVERY) == 0 and high >= 2:
+					out.append({"kind": &"great_column", "cell": above, "base": v, "rise": high})
+				elif r < 0.08 and high >= 2:
+					out.append({"kind": &"statue", "cell": above, "base": v})
+				else:
+					var wide: int = 2 if solid.has(v + Vector2i.RIGHT) and not occupied.has(above + Vector2i.RIGHT) and not solid.has(above + Vector2i.RIGHT) \
+							and posmod(v.x + 1 + int(h(level_seed, Vector2i(0, v.y), 7) * 4.0), COLUMN_EVERY) != 0 and h(level_seed, v, 8) < 0.6 else 1
+					out.append({"kind": &"bookcase", "cell": above, "base": v, "rise": mini(high, BOOKCASE_ROWS), "wide": wide})
+					if wide == 2:
+						taken[above + Vector2i.RIGHT] = true
+			elif built:
+				if r < 0.1 and room_over.call(above, 2) >= 2:
+					out.append({"kind": &"statue", "cell": above, "base": v})
+			else:
+				var high: int = room_over.call(above, 2)
+				if r < BOOKCASE_OUT and high >= 1:
+					out.append({"kind": &"bookcase", "cell": above, "base": v, "rise": high, "wide": 1})
+				elif r < BOOKCASE_OUT + DESK_OUT:
+					out.append({"kind": &"desk", "cell": above, "base": v})
+				elif r < BOOKCASE_OUT + DESK_OUT + 0.03 and high >= 2:
+					out.append({"kind": &"statue", "cell": above, "base": v})
+	return out
+
+
 ## The crags' plan: battlements along the floors of the castle's masonry (fence runs whose rock is
 ## built), and the props of its stone and its cliffs (see the class description).
 static func plan_crags(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, _bottom_style: StringName = &"roots", masonry: Dictionary = {}, interiors: Dictionary = {}) -> Array[Dictionary]:
@@ -582,7 +673,7 @@ func _print_slots(canvas: InkCanvas, slots: Array, layer: int = LAYER_FRONT) -> 
 			# Lifted, not cleared: lighter, the paper showing through a little.
 			canvas.lift_ink(MORTAR_LIFT, float(slot[1]), polys)
 		elif bool(slot[2]):
-			canvas.knock(KNOCK_ALL if i == 8 or i == 14 or i == 15 else KNOCK_ROCK, polys)
+			canvas.knock(KNOCK_ALL if i in [8, 14, 15, 37] else KNOCK_ROCK, polys)
 		else:
 			canvas.ink(int(slot[0]), float(slot[1]), polys, bool(slot[3]))
 
@@ -664,6 +755,53 @@ func _process(delta: float) -> void:
 
 # ------------------------------------------------------------------ the props
 
+## A book `poly` inked in one of the institute's book colours, picked by `roll` (0 to 1), on bare
+## paper: brown, moss, maroon, night, tan, plum or paper.
+func _book_ink(slots: Array, poly: PackedVector2Array, roll: float) -> void:
+	# On bare paper, so its colour prints true over the case.
+	slots[14].append(poly)
+	if roll < 0.2:
+		slots[30].append(poly)
+	elif roll < 0.36:
+		slots[30].append(poly)
+		slots[31].append(poly)
+	elif roll < 0.54:
+		slots[30].append(poly)
+		slots[32].append(poly)
+	elif roll < 0.66:
+		slots[33].append(poly)
+	elif roll < 0.8:
+		slots[34].append(poly)
+	elif roll < 0.9:
+		slots[34].append(poly)
+		slots[35].append(poly)
+	else:
+		slots[37].append(poly)
+
+
+## A book lying open on a desk at `at` (the middle of its spine), each page `w` long, the whole
+## turned `tilt` radians: two paper pages, a night line or two on each.
+func _open_book(slots: Array, at: Vector2, w: float, tilt: float) -> void:
+	var xf: Transform2D = Transform2D(tilt, at)
+	slots[33].append(xf * PackedVector2Array([Vector2(-w - 0.8, 0.8), Vector2(w + 0.8, 0.8), Vector2(w + 0.8, -1.2), Vector2(-w - 0.8, -1.2)]))
+	slots[37].append(xf * PackedVector2Array([Vector2(-w, 0.0), Vector2(0, 0.0), Vector2(0, -2.6), Vector2(-w, -2.0)]))
+	slots[37].append(xf * PackedVector2Array([Vector2(0, 0.0), Vector2(w, 0.0), Vector2(w, -2.0), Vector2(0, -2.6)]))
+	for side: float in [-1.0, 1.0]:
+		slots[36].append(xf * RisoShapes.rrect(side * w * 0.55 - w * 0.3, -1.6, w * 0.6, 0.35, 0.1))
+
+
+## A stack of `n` books lying flat, its bottom middle at `at`, each its own size and colour (dealt by
+## the cell `v` of level `s`), a little askew.
+func _book_stack(slots: Array, at: Vector2, n: int, s: int, v: Vector2i) -> void:
+	var y: float = at.y
+	for k: int in range(n):
+		var w: float = 8.0 + _r(s, v, 120 + k) * 4.0
+		var h: float = 1.8 + _r(s, v, 125 + k) * 0.8
+		var shift: float = (_r(s, v, 130 + k) - 0.5) * 3.0
+		_book_ink(slots, Transform2D((_r(s, v, 135 + k) - 0.5) * 0.08, Vector2(at.x + shift, y - h * 0.5)) * RisoShapes.rrect(-w * 0.5, -h * 0.5, w, h, 0.4), _r(s, v, 140 + k))
+		y -= h + 0.2
+
+
 func _r(level_seed: int, v: Vector2i, salt: int) -> float:
 	return RisoDecor.h(level_seed, v, salt)
 
@@ -704,7 +842,7 @@ func _draw_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 	_sketch_item(item, c, slots, s)
 	var anchor: Variant = null
 	match item["kind"]:
-		&"tuft", &"leafy", &"mushroom", &"stones", &"headstone", &"cross", &"fence", &"dead_tree", &"obelisk", &"urn", &"angel", &"flowers", &"windsock", &"cairn", &"menhir", &"banner", &"rubble", &"column":
+		&"tuft", &"leafy", &"mushroom", &"stones", &"headstone", &"cross", &"fence", &"dead_tree", &"obelisk", &"urn", &"angel", &"flowers", &"windsock", &"cairn", &"menhir", &"banner", &"rubble", &"column", &"bookcase", &"desk", &"statue", &"great_column":
 			anchor = Vector2(c.x, c.y + half)
 		&"roots", &"sky_roots", &"stalactite", &"drip", &"cobweb", &"tendril":
 			anchor = Vector2(c.x, c.y - half)
@@ -1031,6 +1169,213 @@ func _sketch_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 				var block: PackedVector2Array = Transform2D((_r(s, v, 40 + i) - 0.5) * 0.5, at) * RisoShapes.rrect(-w * 0.5, -hgt * 0.5, w, hgt, 1.5)
 				slots[12].append(block)
 				slots[13].append(Transform2D(0.0, Vector2(0.5, 1.0), 0.0, Vector2(at.x * 0.5 + w * 0.25, 0.0)) * block)
+		&"bookcase":
+			# A bookcase as tall as the room (`rise` cells, its top a little short of the ceiling)
+			# and a cell or two wide: a dark wooden case, a cornice over it, a shelf every half cell,
+			# and on each shelf a row of books dealt one by one by the cell: how wide and tall, which
+			# colour (brown, moss, maroon, night, tan, plum or paper), a gilt band or two on some,
+			# now and then one leaning on its neighbour, a gap, or a short stack lying flat.
+			var rise: int = int(item.get("rise", 1))
+			var wide: float = float(int(item.get("wide", 1))) * half - 6.0
+			var x0: float = c.x - half * 0.5 + 3.0
+			var tall: float = float(rise) * half - 8.0
+			slots[12].append(RisoShapes.rrect(x0, floor_y - tall, wide, tall + 1.0, 1.0))
+			slots[13].append(RisoShapes.rrect(x0 - 2.0, floor_y - tall - 3.0, wide + 4.0, 4.0, 1.0))
+			slots[13].append(RisoShapes.rrect(x0 + wide - 3.0, floor_y - tall, 3.0, tall + 1.0, 1.0))
+			var shelves: int = maxi(1, int(tall / 16.0))
+			var gap: float = tall / float(shelves)
+			for shelf: int in range(shelves):
+				var y1: float = floor_y - 2.0 - float(shelf) * gap
+				slots[13].append(RisoShapes.rrect(x0 + 1.5, y1, wide - 3.0, 1.6, 0.5))
+				var x: float = x0 + 2.5
+				var n: int = 0
+				while x < x0 + wide - 5.0:
+					var salt: int = 300 + shelf * 61 + n * 7
+					var roll: float = _r(s, v, salt)
+					var bw: float = 2.4 + _r(s, v, salt + 1) * 2.4
+					var bh: float = gap * (0.55 + _r(s, v, salt + 2) * 0.3)
+					if roll < 0.06:
+						x += bw + 1.5
+						n += 1
+						continue
+					var book: PackedVector2Array
+					if roll < 0.12 and x + 9.0 < x0 + wide - 4.0:
+						# A short stack lying flat.
+						for k: int in range(2 + int(_r(s, v, salt + 3) * 2.0)):
+							var lie: PackedVector2Array = RisoShapes.rrect(x, y1 - 2.2 * float(k + 1), 8.0 + _r(s, v, salt + 4 + k) * 2.0, 2.0, 0.4)
+							_book_ink(slots, lie, _r(s, v, salt + 9 + k))
+						x += 11.0
+						n += 1
+						continue
+					book = RisoShapes.rrect(x, y1 - bh, bw, bh, 0.4)
+					if roll > 0.94:
+						book = Transform2D(0.22, Vector2(x, y1)) * RisoShapes.rrect(0.0, -bh, bw, bh, 0.4)
+					_book_ink(slots, book, _r(s, v, salt + 5))
+					if _r(s, v, salt + 6) < 0.35:
+						slots[37].append(RisoShapes.rrect(x + 0.3, y1 - bh * 0.78, bw - 0.6, 0.7, 0.2))
+						if _r(s, v, salt + 7) < 0.5:
+							slots[37].append(RisoShapes.rrect(x + 0.3, y1 - bh * 0.2, bw - 0.6, 0.7, 0.2))
+					x += bw + 0.4
+					n += 1
+		&"desk":
+			# One of DESKS kinds of desk, dealt by the cell, each with books on it (dealt one by one
+			# as a bookcase's are): a sloping reading desk with an open book and a stack beside it;
+			# a writing table with a stack of books, an ink pot and a quill and a sheet of paper; a
+			# long library table with a row of books standing between bookends and one lying open;
+			# a lectern on its post with a great book open on it; a small table with a globe on a
+			# stand and books under it; or a desk of drawers with papers and a leaning pile.
+			var x: float = c.x + (_r(s, v, 10) - 0.5) * half * 0.3
+			var kind: int = int(_r(s, v, 12) * float(DESKS)) % DESKS
+			var wood: Array = slots[12]
+			var shade: Array = slots[13]
+			match kind:
+				0:
+					wood.append(PackedVector2Array([Vector2(x - 15.0, floor_y - 20.0), Vector2(x + 15.0, floor_y - 25.0), Vector2(x + 15.0, floor_y - 21.0), Vector2(x - 15.0, floor_y - 17.0)]))
+					for lx: float in [x - 11.0, x + 11.0]:
+						wood.append(RisoShapes.rrect(lx - 1.3, floor_y - 21.0, 2.6, 22.0, 0.8))
+					shade.append(RisoShapes.rrect(x + 9.7, floor_y - 21.0, 2.6, 22.0, 0.8))
+					_open_book(slots, Vector2(x, floor_y - 25.0), 11.0, -0.17)
+					_book_stack(slots, Vector2(x + 18.0, floor_y), 3, s, v)
+				1:
+					wood.append(RisoShapes.rrect(x - 17.0, floor_y - 20.0, 34.0, 3.0, 0.8))
+					for lx: float in [x - 15.0, x + 13.0]:
+						wood.append(RisoShapes.rrect(lx, floor_y - 18.0, 2.4, 19.0, 0.6))
+					shade.append(RisoShapes.rrect(x - 17.0, floor_y - 17.5, 34.0, 1.5, 0.5))
+					_book_stack(slots, Vector2(x - 9.0, floor_y - 20.0), 2 + int(_r(s, v, 13) * 3.0), s, v)
+					slots[33].append(RisoShapes.rrect(x + 4.0, floor_y - 24.0, 4.0, 4.0, 1.2))
+					slots[37].append(Transform2D(0.5, Vector2(x + 6.5, floor_y - 24.0)) * PackedVector2Array([Vector2(-0.6, 0), Vector2(0.6, 0), Vector2(0.3, -10.0), Vector2(-0.5, -9.0)]))
+					slots[37].append(Transform2D(-0.08, Vector2(x + 12.0, floor_y - 20.5)) * RisoShapes.rrect(-4.0, -0.8, 8.0, 0.8, 0.2))
+				2:
+					wood.append(RisoShapes.rrect(x - 26.0, floor_y - 18.0, 52.0, 3.0, 0.8))
+					for lx: float in [x - 23.0, x + 21.0]:
+						wood.append(RisoShapes.rrect(lx, floor_y - 16.0, 2.4, 17.0, 0.6))
+					shade.append(RisoShapes.rrect(x - 26.0, floor_y - 15.5, 52.0, 1.5, 0.5))
+					var bx: float = x - 22.0
+					wood.append(RisoShapes.rrect(bx - 1.5, floor_y - 27.0, 1.5, 9.0, 0.4))
+					for k: int in range(5 + int(_r(s, v, 13) * 3.0)):
+						var bw: float = 2.2 + _r(s, v, 140 + k) * 1.8
+						var bh: float = 6.0 + _r(s, v, 150 + k) * 4.0
+						_book_ink(slots, RisoShapes.rrect(bx, floor_y - 18.0 - bh, bw, bh, 0.3), _r(s, v, 160 + k))
+						bx += bw + 0.3
+					wood.append(RisoShapes.rrect(bx + 0.3, floor_y - 27.0, 1.5, 9.0, 0.4))
+					_open_book(slots, Vector2(x + 12.0, floor_y - 18.5), 8.0, 0.0)
+				3:
+					wood.append(RisoShapes.rrect(x - 7.0, floor_y - 3.0, 14.0, 3.0, 0.8))
+					wood.append(RisoShapes.rrect(x - 1.6, floor_y - 26.0, 3.2, 24.0, 0.8))
+					wood.append(PackedVector2Array([Vector2(x - 11.0, floor_y - 27.0), Vector2(x + 11.0, floor_y - 31.0), Vector2(x + 11.0, floor_y - 28.0), Vector2(x - 11.0, floor_y - 24.0)]))
+					shade.append(RisoShapes.rrect(x + 0.4, floor_y - 26.0, 1.2, 24.0, 0.4))
+					_open_book(slots, Vector2(x, floor_y - 29.5), 10.0, -0.18)
+					slots[32].append(Transform2D(-0.18, Vector2(x + 1.0, floor_y - 29.0)) * RisoShapes.rrect(-0.6, 0.0, 1.2, 7.0, 0.3))
+				4:
+					wood.append(RisoShapes.rrect(x - 10.0, floor_y - 14.0, 20.0, 2.5, 0.8))
+					for lx: float in [x - 9.0, x + 7.0]:
+						wood.append(RisoShapes.rrect(lx, floor_y - 12.0, 2.0, 13.0, 0.6))
+					_book_stack(slots, Vector2(x - 1.0, floor_y), 2, s, v)
+					wood.append(RisoShapes.rrect(x - 1.0, floor_y - 19.0, 2.0, 5.0, 0.5))
+					var globe: Vector2 = Vector2(x, floor_y - 27.0)
+					slots[30].append(RisoShapes.circle(globe, 8.0, 18))
+					slots[31].append(RisoShapes.ellipse(globe + Vector2(-2.0, -1.5), 3.5, 4.5, 10, 0.4))
+					slots[31].append(RisoShapes.ellipse(globe + Vector2(3.5, 3.0), 2.5, 2.0, 8))
+					slots[37].append_array(RisoShapes.ring(globe, 8.6, 9.8, 20).slice(0, 1))
+				_:
+					wood.append(RisoShapes.rrect(x - 15.0, floor_y - 20.0, 30.0, 20.0, 1.0))
+					for row: int in range(3):
+						shade.append(RisoShapes.rrect(x - 13.0, floor_y - 18.0 + float(row) * 6.0, 26.0, 0.8, 0.3))
+						slots[37].append(RisoShapes.circle(Vector2(x, floor_y - 15.5 + float(row) * 6.0), 0.9, 6))
+					slots[37].append(Transform2D(0.1, Vector2(x - 8.0, floor_y - 20.5)) * RisoShapes.rrect(-5.0, -0.7, 10.0, 0.7, 0.2))
+					slots[37].append(Transform2D(-0.15, Vector2(x - 6.0, floor_y - 21.0)) * RisoShapes.rrect(-4.5, -0.7, 9.0, 0.7, 0.2))
+					var lean: Transform2D = Transform2D(0.12, Vector2(x + 7.0, floor_y - 20.0))
+					for k: int in range(3):
+						_book_ink(slots, lean * RisoShapes.rrect(-4.5, -2.2 * float(k + 1), 9.0, 2.0, 0.4), _r(s, v, 170 + k))
+		&"statue":
+			# A statue on a plinth: a draped figure in bare paper (head, shoulders, a gown to the
+			# plinth), shaded down one side, its arm raised or at its side by the cell.
+			var x: float = c.x + (_r(s, v, 10) - 0.5) * half * 0.3
+			slots[12].append(RisoShapes.rrect(x - 9.0, floor_y - 10.0, 18.0, 11.0, 1.0))
+			slots[13].append(RisoShapes.rrect(x + 3.0, floor_y - 10.0, 6.0, 11.0, 1.0))
+			var figure: Array[PackedVector2Array] = [
+				RisoShapes.smooth(PackedVector2Array([Vector2(x - 5.0, floor_y - 10.0), Vector2(x - 6.0, floor_y - 28.0), Vector2(x - 3.5, floor_y - 36.0),
+					Vector2(x + 3.5, floor_y - 36.0), Vector2(x + 6.0, floor_y - 28.0), Vector2(x + 5.0, floor_y - 10.0)]), 2),
+				RisoShapes.circle(Vector2(x, floor_y - 40.0), 4.0, 14),
+			]
+			if _r(s, v, 11) < 0.5:
+				figure.append(Transform2D(-0.5, Vector2(x + 4.5, floor_y - 33.0)) * RisoShapes.rrect(-1.2, -11.0, 2.4, 12.0, 1.0))
+			slots[8].append_array(figure)
+			slots[13].append(PackedVector2Array([Vector2(x + 1.5, floor_y - 10.0), Vector2(x + 2.0, floor_y - 35.0), Vector2(x + 3.5, floor_y - 36.0), Vector2(x + 6.0, floor_y - 28.0), Vector2(x + 5.0, floor_y - 10.0)]))
+		&"great_column":
+			# A great column of pale marble from the floor to the ceiling (`rise` cells): a square base
+			# on a plinth, a fluted shaft tapering a little, a capital with a scroll each side.
+			var rise: float = float(int(item.get("rise", 2)))
+			var x: float = c.x
+			var tall: float = rise * half
+			var w: float = 9.0
+			slots[39].append(RisoShapes.rrect(x - w * 1.5, floor_y - 5.0, w * 3.0, 6.0, 0.5))
+			slots[39].append(RisoShapes.rrect(x - w * 1.2, floor_y - 9.0, w * 2.4, 5.0, 1.5))
+			slots[39].append(PackedVector2Array([Vector2(x - w, floor_y - 9.0), Vector2(x - w * 0.85, floor_y - tall + 9.0), Vector2(x + w * 0.85, floor_y - tall + 9.0), Vector2(x + w, floor_y - 9.0)]))
+			slots[39].append(RisoShapes.rrect(x - w * 1.4, floor_y - tall + 4.0, w * 2.8, 5.0, 1.0))
+			slots[39].append(RisoShapes.rrect(x - w * 1.7, floor_y - tall, w * 3.4, 4.0, 0.5))
+			for side: float in [-1.0, 1.0]:
+				slots[39].append(RisoShapes.circle(Vector2(x + side * w * 1.25, floor_y - tall + 7.0), 2.6, 10))
+			for fx: float in [-0.5, 0.0, 0.5]:
+				slots[40].append(RisoShapes.rrect(x + fx * w - 0.5, floor_y - tall + 11.0, 1.0, tall - 22.0, 0.5))
+			slots[40].append(PackedVector2Array([Vector2(x + w * 0.45, floor_y - 9.0), Vector2(x + w * 0.4, floor_y - tall + 9.0), Vector2(x + w * 0.85, floor_y - tall + 9.0), Vector2(x + w, floor_y - 9.0)]))
+		&"panel":
+			# The institute's walls of wood, at full size: planks laid level, PLANKS to a cell, each
+			# row of them with its end joints where the level seed puts them (so the rows are
+			# staggered, as laid planks are), each length of plank its own tone, a dark seam under
+			# each row and a faint lit edge along its top.
+			var tall: float = half * 2.0 / float(PLANKS)
+			for row: int in range(PLANKS):
+				var y0: float = c.y - half + float(row) * tall
+				var course: Vector2i = Vector2i(v.x, v.y * PLANKS + row)
+				# Where in this cell the row's joint falls, if it has one here (about every other cell).
+				var cuts: Array[float] = [c.x - half]
+				if _r(s, course, 90) < 0.55:
+					cuts.append(c.x - half + (0.2 + 0.6 * _r(s, course, 91)) * half * 2.0)
+				cuts.append(c.x + half)
+				for k: int in range(cuts.size() - 1):
+					var tone: float = _r(s, Vector2i(course.x * 2 + k, course.y), 92)
+					var plank: PackedVector2Array = RisoShapes.rrect(cuts[k], y0, cuts[k + 1] - cuts[k], tall, 0.0)
+					if tone < 0.35:
+						slots[27].append(plank)
+					elif tone < 0.6:
+						slots[42].append(plank)
+					if k > 0:
+						slots[13].append(RisoShapes.rrect(cuts[k] - 2.0, y0, 4.0, tall, 0.5))
+				slots[13].append(RisoShapes.rrect(c.x - half, y0 + tall - 2.0, half * 2.0, 4.0, 0.0))
+		&"marble":
+			# Pale marble on the institute's halls, at full size: big slabs MARBLE_SLAB cells square,
+			# each its own faint tone, with fine joints only between slabs and soft blue veins
+			# wandering across each whole slab.
+			var slab: Vector2i = Vector2i(floori(float(v.x) / MARBLE_SLAB), floori(float(v.y) / MARBLE_SLAB))
+			var tone: float = _r(s, slab, 70)
+			if tone < 0.35:
+				slots[26].append(RisoShapes.rrect(c.x - half, c.y - half, half * 2.0, half * 2.0, 0.0))
+			elif tone < 0.55:
+				slots[27].append(RisoShapes.rrect(c.x - half, c.y - half, half * 2.0, half * 2.0, 0.0))
+			var joint: float = 2.5
+			if posmod(v.x, MARBLE_SLAB) == 0:
+				slots[41].append(RisoShapes.rrect(c.x - half - joint * 0.5, c.y - half, joint, half * 2.0, 1.0))
+			if posmod(v.y, MARBLE_SLAB) == 0:
+				slots[41].append(RisoShapes.rrect(c.x - half, c.y - half - joint * 0.5, half * 2.0, joint, 1.0))
+			if bool(item.get("slab", false)):
+				var span: float = half * 2.0 * float(MARBLE_SLAB)
+				var top_left: Vector2 = Vector2(c.x - half, c.y - half)
+				# One soft vein wandering across the slab (now and then a fainter second), never
+				# straight: a lazy wave, thick and thin by turns, the same slant all the way.
+				for k: int in range(1 if _r(s, slab, 71) < 0.6 else 2):
+					var pts: PackedVector2Array = PackedVector2Array()
+					var lean: float = _r(s, slab, 75 + k)
+					var drift: float = (0.25 + 0.35 * lean) * span * (1.0 if _r(s, slab, 78 + k) < 0.5 else -1.0)
+					var y: float = span * 0.5 - drift * 0.5 + (_r(s, slab, 72 + k) - 0.5) * span * 0.3
+					var wave: float = 2.0 + _r(s, slab, 80 + k) * 2.5
+					for i: int in range(17):
+						var u: float = float(i) / 16.0
+						pts.append(top_left + Vector2(u * span, clampf(y + drift * u + sin(u * wave * PI + float(k) * 2.0) * 22.0, 12.0, span - 12.0)))
+					var pieces: Array[PackedVector2Array] = strip(pts, (6.0 if k == 0 else 3.5) + 2.5 * lean, 2.0)
+					for i: int in range(pieces.size()):
+						if k == 0 or i % 3 != 2:
+							slots[38].append(pieces[i])
 		&"column":
 			# A broken column: a square base, a shaft shaded down one side, snapped off at a slant.
 			var x: float = c.x + (_r(s, v, 10) - 0.5) * half * 0.4

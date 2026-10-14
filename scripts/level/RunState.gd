@@ -43,6 +43,10 @@ var boss_relics: Dictionary = {}
 ## how many times it has moved.
 var whale_x: int = WhaleHunt.NONE
 var whale_moves: int = 0
+## The way back an institute department's portal opened (Department, WayBack): [the place it
+## opened in, where it stands there (Vector2.INF until first found), the institute level it leads
+## back to, the department portal's cell there]; [] for none. It lasts until it is used.
+var way_back: Array = []
 
 
 ## A fresh run from depth 0 of `seed_value`: no records, no ghost, protected.
@@ -58,6 +62,7 @@ func start(seed_value: int) -> void:
 	boss_relics.clear()
 	whale_x = WhaleHunt.NONE
 	whale_moves = 0
+	way_back = []
 	vulnerable = false
 	clear_ghost()
 
@@ -144,6 +149,7 @@ func to_save(coord: Vector2i, player: Dictionary) -> Dictionary:
 		"relics_found": relics_found, "relic_hints": relic_hints,
 		"bosses": bosses, "boss_relics": boss_relics,
 		"whale_x": whale_x, "whale_moves": whale_moves,
+		"way_back": way_back,
 	}
 	data.merge(player)
 	return data
@@ -166,6 +172,7 @@ func from_save(data: Dictionary) -> void:
 	boss_relics = data.get("boss_relics", {})
 	whale_x = int(data.get("whale_x", WhaleHunt.NONE))
 	whale_moves = int(data.get("whale_moves", 0))
+	way_back = data.get("way_back", [])
 	respawn_coord = data["respawn_coord"]
 	respawn_cell = data["respawn_cell"]
 	vulnerable = bool(data["vulnerable"])

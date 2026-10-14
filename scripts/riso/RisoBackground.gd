@@ -60,6 +60,7 @@ func _init() -> void:
 		&"cemetery": _backdrop_cemetery,
 		&"sky": _backdrop_sky,
 		&"crags": _backdrop_crags,
+		&"institute": _backdrop_institute,
 		&"belly": _backdrop_belly,
 		&"aurora": _backdrop_aurora,
 	}
@@ -243,6 +244,62 @@ func _backdrop_aurora(at: Callable, _view: Vector2, _half: Vector2, k: float, t:
 	ink.ink(RisoPrint.BLUE, 0.15, [RisoShapes.almond(at.call(240.0, 62.0), 70.0 * k * (1.0 + 0.03 * sin(t * 0.6)), 12.0 * k, 16)])
 	ink.ink(RisoPrint.PINK, 0.25, [RisoShapes.circle(at.call(240.0 + sin(t * 0.3) * 6.0, 62.0), 4.0 * k)])
 	return true
+
+## The institute, sunk in the earth: no sky, but the dark of a great vaulted hall. Two arcades of
+## round arches on columns recede behind the level, the far one fainter and slower, sliding with
+## the camera; a coffered vault spans the top of the sheet; and a few lamps hang far off in the
+## dark, their glow faint gold. No stars, no skyline.
+func _backdrop_institute(_at: Callable, view: Vector2, half: Vector2, k: float, t: float, center: Vector2) -> bool:
+	for tier: int in range(2):
+		var slide: float = 0.04 if tier == 0 else 0.08
+		var span: float = (120.0 if tier == 0 else 170.0) * k
+		var base: float = view.y * (0.05 if tier == 0 else 0.32) - center.y * slide * 0.5
+		var tall: float = (110.0 if tier == 0 else 160.0) * k
+		var cover: float = 0.07 if tier == 0 else 0.11
+		var shapes: Array[PackedVector2Array] = []
+		var x0: float = -fposmod(center.x * slide, span) - half.x - span
+		var x: float = x0
+		while x < half.x + span:
+			# A column and the arch springing from it to the next.
+			var w: float = span * 0.16
+			shapes.append(RisoShapes.rrect(x - w * 0.5, base - tall, w, tall + half.y, 0.0))
+			shapes.append(RisoShapes.rrect(x - w * 0.8, base - tall - w * 0.4, w * 1.6, w * 0.5, 0.0))
+			var arch: PackedVector2Array = PackedVector2Array()
+			var r_out: float = span * 0.5
+			var r_in: float = span * 0.5 - w * 0.5
+			var c: Vector2 = Vector2(x + span * 0.5, base - tall)
+			for i: int in range(13):
+				var a: float = PI + PI * float(i) / 12.0
+				arch.append(c + Vector2(cos(a), sin(a)) * r_out)
+			for i: int in range(12, -1, -1):
+				var a: float = PI + PI * float(i) / 12.0
+				arch.append(c + Vector2(cos(a), sin(a)) * r_in)
+			shapes.append(arch)
+			x += span
+		ink.ink(RisoPrint.BLUE, cover, shapes, false)
+	# The vault: rows of coffers across the top of the sheet.
+	var coffers: Array[PackedVector2Array] = []
+	var size: float = 46.0 * k
+	var cx0: float = -fposmod(center.x * 0.03, size) - half.x
+	for row: int in range(2):
+		var y: float = -half.y + 30.0 * k + float(row) * size
+		var cx: float = cx0
+		while cx < half.x:
+			coffers.append(RisoShapes.rrect(cx + size * 0.15, y + size * 0.15, size * 0.7, size * 0.7, size * 0.08))
+			cx += size
+	ink.ink(RisoPrint.BLUE, 0.06, coffers, false)
+	# Lamps far off in the dark, swaying a little.
+	var lamps: Array[PackedVector2Array] = []
+	var glows: Array[PackedVector2Array] = []
+	for i: int in range(4):
+		var lx: float = fposmod(float(i) * 197.0 * k - center.x * 0.05, view.x + 200.0 * k) - half.x
+		var ly: float = view.y * (0.1 + 0.08 * float(i % 2)) - center.y * 0.03 - half.y * 0.4 + sin(t * 0.6 + float(i)) * 3.0 * k
+		lamps.append(RisoShapes.circle(Vector2(lx, ly), 2.6 * k, 10))
+		glows.append(RisoShapes.circle(Vector2(lx, ly), 16.0 * k, 20))
+	ink.ink(RisoPrint.ACCENT, 0.08, glows, false)
+	ink.ink(RisoPrint.ACCENT, 0.35, lamps, false)
+	return false
+
 
 
 ## The night, every other realm's: a slow orrery of blue discs with a pink one, and a pink crescent.

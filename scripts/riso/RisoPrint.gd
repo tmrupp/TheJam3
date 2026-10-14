@@ -56,6 +56,10 @@ const REALMS: Dictionary = {
 	## The crags' own: pale weathered stone and a dawn-orange sun under a dusky violet night, on a warm
 	## paper (not in the F8 cycle; NextWorldDef.realm).
 	&"crags": {"paper": Color("#efe6da"), "inks": [Color("#2b2236"), Color("#9a8f86"), Color("#ff48b0"), Color("#ff9636"), Color("#ffe800")]},
+	## The institute's own: deep brown earth and dark wood under a brown-black night, its built halls
+	## pale marble (its rock ink screened back, RisoTerrain.MASONRY_LOOKS), gold kept for rewards, on
+	## a warm cream paper (not in the F8 cycle; NextWorldDef.realm).
+	&"institute": {"paper": Color("#f1e9d8"), "inks": [Color("#22160f"), Color("#6e4a2f"), Color("#ff48b0"), Color("#ffb511"), Color("#ffe800")]},
 }
 const REALM_ORDER: Array[StringName] = [&"deep", &"twilight", &"aurora"]
 ## The robe while the wizard is drowsy in sleep fog (SleepFog).
@@ -863,6 +867,8 @@ const DRESS: Dictionary = {
 	"res://prefabs/signpost.tscn": &"sign",
 	"res://prefabs/ferry_raft.tscn": &"ferry",
 	"res://prefabs/gondola_station.tscn": &"station",
+	"res://prefabs/lesson.tscn": &"lesson",
+	"res://prefabs/way_back.tscn": &"department",
 }
 
 

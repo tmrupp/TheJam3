@@ -4,6 +4,9 @@ class_name Bullet
 ## (`bounces` > 0, a sky level's watchers, see SkyArchetype.populate): then it glances off
 ## that many walls first, each bounce found by a sweep ahead of it (its hit box lets rock pass
 ## while it still has bounces). Parried, it turns back on its shooter as ever (Parry).
+## An institute scholar's spell (`spell`, see Scholar) is printed as its spell, wounds the first of
+## `quarry` (a group: the abominations) in its way as an arrow wounds, and a seeker's turns toward
+## the wizard (`homing`) and fades after `life` seconds.
 @onready var area: Area2D = $HitBox
 @onready var player: Player = Stage.player()
 var velocity: Vector2 = Vector2(1, 1).normalized()
@@ -26,6 +29,15 @@ const ARROW_DAMAGE: int = 1
 const ARROW_REACH: float = 30.0
 ## Bodies its sweep glances off: rock and ledges (as its hit box sees them).
 const SOLID_MASK: int = 32
+## The spell a scholar cast it as (&"student" for a student's bolt, else the master's spell, see
+## Scholar), or &"" for any other shot; the group of enemies it wounds as it meets them (&"" for
+## none, an arrow's all of them); what it turns toward, how hard (radians a second), and the seconds
+## it has left (it fades out at 0; INF for ever).
+var spell: StringName = &""
+var quarry: StringName = &""
+var homing: Node2D = null
+var turn: float = 0.0
+var life: float = INF
 
 func setup(v: Vector2, ignore: Array, sender: Node) -> void:
 	velocity = v
@@ -43,6 +55,15 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	since_bounce += delta
+	life -= delta
+	if life <= 0.0:
+		RisoFx.burst(&"impact", global_position, -velocity.normalized())
+		queue_free()
+		return
+	if homing != null and is_instance_valid(homing) and turn > 0.0:
+		var to: Vector2 = homing.global_position + Vector2(0, -40) - global_position
+		var bend: float = angle_difference(velocity.angle(), to.angle())
+		velocity = velocity.rotated(clampf(bend, -turn * delta, turn * delta))
 	var step: Vector2 = velocity * delta
 	if bounces > 0 and step != Vector2.ZERO:
 		var query: PhysicsRayQueryParameters2D = PhysicsRayQueryParameters2D.create(global_position, global_position + step + step.normalized() * 8.0, SOLID_MASK)
@@ -55,7 +76,7 @@ func _process(delta: float) -> void:
 			global_position = (hit["position"] as Vector2) + normal * 6.0
 			RisoFx.burst(&"impact", global_position, normal)
 			return
-	if arrow and step != Vector2.ZERO and _strike(global_position, global_position + step):
+	if (arrow or quarry != &"") and step != Vector2.ZERO and _strike(global_position, global_position + step):
 		RisoFx.burst(&"impact", global_position, -velocity.normalized())
 		queue_free()
 		return
@@ -66,7 +87,7 @@ func _process(delta: float) -> void:
 ## meets), wounding it (see `arrow`).
 func _strike(from: Vector2, to: Vector2) -> bool:
 	var dir: Vector2 = velocity.normalized()
-	var spider: Spider = Spider.body_across(get_tree(), from, to)
+	var spider: Spider = Spider.body_across(get_tree(), from, to) if quarry == &"" else null
 	if spider != null:
 		spider.pierce(dir)
 		return true
@@ -74,6 +95,8 @@ func _strike(from: Vector2, to: Vector2) -> bool:
 	for e: Node in get_tree().get_nodes_in_group(&"hex_target"):
 		var body: Node2D = e as Node2D
 		if body == null or e is Spider or e is Crossbow or e in exclude or e.is_queued_for_deletion() or e.get_node_or_null("Wound") == null:
+			continue
+		if quarry != &"" and not e.is_in_group(quarry):
 			continue
 		var at: Vector2 = body.global_position
 		var near: PackedVector2Array = Geometry2D.get_closest_points_between_segments(from, to, at + Vector2(0, HexBolt.SPAN_DOWN), at - Vector2(0, HexBolt.SPAN_UP))

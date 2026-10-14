@@ -472,8 +472,16 @@ Decided (October 2026):
 
 The last band down, in place of the catacombs: a sunken institute of magic, with a library among
 its wings. Its students and masters are strong spellcasters; abominations rise into it from the
-deep, where the beast lies. Until it is built, the band is the stand-in (`CatacombsArchetype`: the
-cemetery's terrain and dressing in deep darkness).
+deep, where the beast lies.
+
+*A first pass is built* (`docs/DEEPER_PLAN.md` §4e, `InstituteArchetype`, `Institute`): its sample
+of rooms and corridors, its halls (an exam hall holding the way on, the library's stacks, lecture
+halls with tiers), its realm, backdrop and decor (marble slabs, great columns, bookcases
+everywhere); students, masters (each teaching its spell by a lesson once beaten), proctors and
+librarians, all printed after the original wizard (students bareheaded); abominations that bud
+copies of themselves until 32 are about, and breaches that spawn them and must be closed; the exam
+as a battle; and the departments' portals with their ways back. Not yet: field trials and the
+other trials, the beast (a stand-in guards the gate level), and tuning in play.
 
 - **Terrain.** Halls of different kinds, built by a structure pass (as the crags build their
   keeps) into a sample of rooms and corridors: lecture halls whose tiered seats climb like stairs,
@@ -655,8 +663,12 @@ Each phase ends with the full suite green and its own tests.
    `Snuffer`, `Skeleton`; `crypt_test`, `capture_crypt.gd`); and **the necromancer** in its crypt,
    wounded only in light (`Necromancer`; `necromancer_test`). The cemetery's and catacombs' layouts
    changed and `layout_fingerprint_test` was re-pinned for them alone. Then tuning in play.
-7. **The institute**: halls and stacks, exams (battles and field trials), students, masters
-   (teaching tiers) and staff, abominations, the departments' portals; then **the eldritch beast**.
+7. **The institute**: *a first pass is done*: halls and stacks, the exam as a battle, students,
+   masters (teaching tiers by lessons) and staff, abominations that multiply and the breaches they
+   come from, the departments' portals (`Institute`, `Scholar`, `Abomination`, `Breach`, `ExamDoor`,
+   `Lesson`, `Department`, `WayBack`; `institute_test`, `capture_institute.gd`). The catacombs'
+   stand-in is gone; the sight test's deep dark moved to the crypts. Only the institute's layouts
+   are new; every other level is laid out as before. Then field trials, and **the eldritch beast**.
 8. **The sky reworked**: *a first pass is done*: the level's wind set by its vanes, in gusts;
    balloons riding it along the row; temples opened by sequences of winds; the white realm and its
    storm; and **the whale**, roaming the top row on the winds, trapped, its belly and heart

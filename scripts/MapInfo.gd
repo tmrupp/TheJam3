@@ -588,6 +588,8 @@ func _level_ready (built: LevelGen) -> void:
 	world = built
 	wizard()
 	light_gates.clear()
+	exam_doors.clear()
+	exams_begun.clear()
 	loader.build(world)
 	var rec: LevelRecord = record()
 	# Secret rooms already opened: their rewards (the rest of the room stays broken, see
@@ -599,6 +601,8 @@ func _level_ready (built: LevelGen) -> void:
 	Rift.restore(self)
 	_spawn_boss_relics()
 	_spawn_whale()
+	_spawn_lessons()
+	_spawn_way_back()
 	# Rock broken before, under things you stand at: their ledges.
 	_props.clear()
 	prop_up(rec.broken.keys())
@@ -660,6 +664,120 @@ func world_at (at: Vector2i) -> LevelGen:
 	if at == coord and world != null:
 		return world
 	return loader.world_at(at)
+
+# ------------------------------------------------------------------ the institute
+
+## The exam doors of the level being played (ExamDoor), by cell: whether each is up now; and the
+## exams begun since it was loaded (by hall, an index into LevelGen.halls).
+var exam_doors: Dictionary = {}
+var exams_begun: Dictionary = {}
+
+## The wizard has stepped inside exam hall `hall`: its exam begins (its doors drop behind them).
+func exam_begin (hall: int) -> void:
+	if not record().exams.has(hall):
+		exams_begun[hall] = true
+
+## Whether exam hall `hall`'s exam is under way: begun, not passed, its examiner still standing.
+func exam_running (hall: int) -> bool:
+	return exams_begun.has(hall) and not record().exams.has(hall) and examiner(hall) != null
+
+## Exam hall `hall`'s master, standing in the level, or null.
+func examiner (hall: int) -> Scholar:
+	for node: Node in get_tree().get_nodes_in_group(&"master"):
+		var m: Scholar = node as Scholar
+		if m != null and m.hall == hall and not m.is_queued_for_deletion():
+			return m
+	return null
+
+## Exam hall `hall`'s master has fallen: the exam is passed, and its doors rise for good.
+func exam_passed (hall: int) -> void:
+	record().exams[hall] = true
+	exams_begun.erase(hall)
+	save_run()
+
+## The wizard inside an exam hall (past its doorways) begins its exam.
+func _watch_exams () -> void:
+	if world == null or world.halls.is_empty() or player == null:
+		return
+	var c: Vector2i = cell_at(player.global_position)
+	for i: int in range(world.halls.size()):
+		var hall: Dictionary = world.halls[i]
+		if hall["kind"] == &"exam" and (hall["inside"] as Rect2i).has_point(c) and not exams_begun.has(i):
+			exam_begin(i)
+
+## A master fell at `pos`, having mastered `ability`: its lesson (Lesson) waits where it fell, once
+## a master (the one at `cell`): beaten again after a death, it leaves nothing more.
+func leave_lesson (cell: Vector2i, pos: Vector2, ability: StringName) -> void:
+	var rec: LevelRecord = record()
+	if ability == &"" or rec.lessons.has(cell):
+		return
+	rec.lessons[cell] = {"at": pos, "ability": ability, "taken": false, "left": []}
+	_spawn_lesson(cell)
+	save_run()
+
+## Every lesson here with something still on it.
+func _spawn_lessons () -> void:
+	for cell: Vector2i in record().lessons:
+		_spawn_lesson(cell)
+
+## A lesson's prefab (loaded when first needed, not preloaded: it would load in a circle).
+const LESSON: String = "res://prefabs/lesson.tscn"
+
+func _spawn_lesson (cell: Vector2i) -> void:
+	var e: Dictionary = record().lessons.get(cell, {})
+	if e.is_empty() or (bool(e.get("taken", false)) and (e.get("left", []) as Array).is_empty()):
+		return
+	if map_elements == null or not is_instance_valid(map_elements):
+		return
+	var lesson: Lesson = (load(LESSON) as PackedScene).instantiate() as Lesson
+	map_elements.add_child(lesson)
+	# On the floor under where the master fell.
+	var at: Vector2 = e["at"]
+	lesson.global_position = cell_position(cell_at(at + Vector2(0, -8)))
+	lesson.setup(self, cell)
+
+## Through a department's portal (Department) to level `to`, arriving at its way back, where a way
+## back opens (WayBack) to the portal at `portal_cell` here. It lasts until it is used; using
+## another department's portal moves it.
+func department_travel (to: Vector2i, portal_cell: Vector2i) -> void:
+	if travelling or run_ending > 0.0 or not Worlds.valid(to):
+		return
+	run.way_back = [to, Vector2.INF, coord, portal_cell]
+	save_run()
+	await _pass(Vector2(0, signf(float(to.y - coord.y))), to)
+	_arrive(to, Exit.BACK)
+
+## Back through the way back (WayBack) to the department's portal it was opened from; it closes.
+func way_back_travel () -> void:
+	if travelling or run_ending > 0.0 or run.way_back.size() < 4:
+		return
+	var to: Vector2i = run.way_back[2]
+	var portal_cell: Vector2i = run.way_back[3]
+	run.way_back = []
+	await _pass(Vector2(0, signf(float(to.y - coord.y))), to)
+	arrival_pos = cell_position(portal_cell)
+	_arrive(to, -3)
+
+## A way back's prefab (loaded when first needed).
+const WAY_BACK: String = "res://prefabs/way_back.tscn"
+## How far (cells) from the way back the way back from a department stands: at least, and at most.
+const WAY_BACK_NEAR: Vector2i = Vector2i(2, 8)
+
+## The way back from a department (RunState.way_back), if it opened in this place: on the free floor
+## nearest its way back, WAY_BACK_NEAR cells off (found the first time, then kept).
+func _spawn_way_back () -> void:
+	var back: Array = run.way_back
+	if back.size() < 4 or back[0] != coord or map_elements == null or world == null:
+		return
+	if back[1] == Vector2.INF:
+		var from: Vector2i = world.exits.get(Exit.BACK, Vector2i.ZERO)
+		var spot: Variant = LevelGen.best_of(world.free_floors(), func(v: Vector2i) -> int: return LevelGen.dist(v, from),
+				func(v: Vector2i) -> bool: return LevelGen.dist(v, from) >= WAY_BACK_NEAR.x and LevelGen.dist(v, from) <= WAY_BACK_NEAR.y)
+		back[1] = cell_position(spot if spot != null else from)
+	var node: WayBack = (load(WAY_BACK) as PackedScene).instantiate() as WayBack
+	map_elements.add_child(node)
+	node.global_position = back[1]
+	node.setup(self)
 
 # ------------------------------------------------------------------ lanterns
 
@@ -939,6 +1057,8 @@ func solid_at (pos: Vector2) -> bool:
 			return not gate_open(v)
 		LevelGen.Type.LIGHT_GATE:
 			return not bool(light_gates.get(v, false))
+		LevelGen.Type.EXAM_DOOR:
+			return not bool(exam_doors.get(v, true))
 	return false
 
 func _physics_process (delta: float) -> void:
@@ -951,6 +1071,7 @@ func _physics_process (delta: float) -> void:
 		reveal(c)
 		# Stepping into a secret room's false wall (or drifting or warping into its rock) opens it.
 		open_secret(secret_at(c))
+	_watch_exams()
 	loader.sleep_far_chunks()
 
 func _input(event: InputEvent) -> void:

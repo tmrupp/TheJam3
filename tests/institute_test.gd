@@ -1,0 +1,454 @@
+extends TestKit
+## The institute (docs/REGIONS_PLAN.md §7; Institute, Scholar, Abomination, Breach, ExamDoor, Lesson,
+## Department, WayBack). Laid out: its halls of marble (an exam hall in its lower half holding the
+## way on, its examiner and exam doors at its doorways; the library's stacks, galleries of ledges;
+## lecture halls with tiers climbing to one side, a class on them and a department's portal at the
+## lectern), nothing else laid in them, breaches and classes out in the level, the same every
+## build. In play: students cast bolts, some misfiring, the same way every time; each master casts
+## its spell; a proctor shields the students round it; a librarian's hush silences the wizard's
+## spells; abominations and scholars wound one another; a breach lets abominations out while the
+## wizard is near; the exam shuts its doors behind the wizard and opens them for good when its
+## master falls, the students scattering and a lesson left that teaches a tier of its spell, once;
+## and a department's portal leads to a level of its band in the same world, with a way back that
+## closes once used.
+## godot --headless --path . --script res://tests/institute_test.gd
+
+## The institute's levels laid out here: rows into its band (NextWorldDef.band_row), by world.
+const LAID: Array[Vector2i] = [Vector2i(28, 0), Vector2i(28, 2), Vector2i(7, 4), Vector2i(99, 5)]
+## What may be laid inside a hall.
+const IN_HALLS: Array[LevelGen.Type] = [LevelGen.Type.EXAM_DOOR, LevelGen.Type.EXIT, LevelGen.Type.MASTER, LevelGen.Type.STUDENT,
+	LevelGen.Type.PROCTOR, LevelGen.Type.LIBRARIAN, LevelGen.Type.DEPARTMENT, LevelGen.Type.PLATFORM, LevelGen.Type.COIN, LevelGen.Type.BOSS]
+
+
+func run() -> void:
+	MapInfo.debug = false
+	generation()
+	await play()
+	RunState.delete_save()
+	finish()
+
+
+# ------------------------------------------------------------------ laid out
+
+func generation() -> void:
+	print("laid out")
+	var exams: int = 0
+	var libraries: int = 0
+	var lectures: int = 0
+	var low: int = 0
+	var exits_in: int = 0
+	var doors_ok: bool = true
+	var examined: bool = true
+	var kept: bool = true
+	var tiers_ok: bool = true
+	var stacks_ok: bool = true
+	var depts_ok: bool = true
+	var outside: int = 0
+	for place: Vector2i in LAID:
+		var at: Vector2i = Vector2i(place.x, NextWorldDef.band_row(&"institute", place.y))
+		var w: LevelGen = build(at)
+		check(w != null, "%s collapses" % at)
+		if w == null:
+			continue
+		var again: LevelGen = build(at)
+		check(again != null and w.objects == again.objects and w.halls.size() == again.halls.size(), "%s: laid out the same twice" % at)
+		for i: int in range(w.halls.size()):
+			var hall: Dictionary = w.halls[i]
+			var box: Rect2i = hall["box"]
+			var inside: Rect2i = hall["inside"]
+			var doors: Array = hall["doors"]
+			# Walls of marble all round but for the doorways.
+			for x: int in range(box.position.x, box.end.x):
+				for y: int in range(box.position.y, box.end.y):
+					var v: Vector2i = Vector2i(x, y)
+					if not inside.has_point(v) and not doors.has(v) and not (w.is_ground(v) and w.masonry.has(v)):
+						kept = false
+					var type: LevelGen.Type = w.get_cell(v).type
+					if w.objects.has(v) and not type in IN_HALLS:
+						kept = false
+			if doors.is_empty():
+				doors_ok = false
+			match hall["kind"]:
+				&"exam":
+					exams += 1
+					if box.position.y * 2 >= w.size.y:
+						low += 1
+					if inside.has_point(w.exits.get(MapInfo.Exit.DEEPER, Vector2i(-1, -1))):
+						exits_in += 1
+					for d: Vector2i in doors:
+						if w.get_cell(d).type != LevelGen.Type.EXAM_DOOR or int(w.get_cell(d).extra_info) != i:
+							doors_ok = false
+					var masters: Array[Vector2i] = w.objects_of(LevelGen.Type.MASTER).filter(func(v: Vector2i) -> bool: return inside.has_point(v))
+					if masters.size() != 1 or int((w.get_cell(masters[0]).extra_info as Dictionary)["hall"]) != i:
+						examined = false
+				&"library":
+					libraries += 1
+					var rows: Dictionary = {}
+					for v: Vector2i in hall["floors"]:
+						rows[v.y] = true
+					if rows.size() < 3 or w.objects_of(LevelGen.Type.PLATFORM).filter(func(v: Vector2i) -> bool: return inside.has_point(v)).size() < inside.size.x:
+						stacks_ok = false
+					if w.objects_of(LevelGen.Type.LIBRARIAN).filter(func(v: Vector2i) -> bool: return inside.has_point(v)).is_empty():
+						stacks_ok = false
+				&"lecture":
+					lectures += 1
+					var heights: Dictionary = {}
+					for v: Vector2i in hall["floors"]:
+						heights[v.y] = true
+					if heights.size() != Institute.TIERS + 1:
+						tiers_ok = false
+					var portals: Array[Vector2i] = w.objects_of(LevelGen.Type.DEPARTMENT).filter(func(v: Vector2i) -> bool: return inside.has_point(v))
+					if portals.size() != 1:
+						depts_ok = false
+					else:
+						var extra: Array = w.get_cell(portals[0]).extra_info
+						if StringName(extra[0]) != hall["dept"] or NextWorldDef.archetype_at(int(extra[1])) != Institute.DEPARTMENTS[hall["dept"]]:
+							depts_ok = false
+		outside += count_of(w, LevelGen.Type.BREACH) + count_of(w, LevelGen.Type.ABOMINATION)
+	check_eq(exams, LAID.size(), "every level has an exam hall")
+	check(low >= LAID.size() - 1, "in its lower half (%d of %d)" % [low, LAID.size()])
+	check_eq(exits_in, LAID.size(), "holding the way on")
+	check(doors_ok, "every hall has a doorway, and the exam hall's are its exam doors")
+	check(examined, "and its examiner, a master of that hall")
+	check(libraries >= LAID.size() - 1 and stacks_ok, "a library: galleries of ledges, rows of floor over one another, its librarian")
+	check(lectures >= LAID.size() and tiers_ok, "lecture halls, their tiers climbing a row at a time")
+	check(depts_ok, "each with its department's portal, leading into the band it studies")
+	check(kept, "walled in marble, and nothing else laid inside them")
+	check(outside > 0, "breaches and abominations out in the level")
+	var gate: LevelGen = build(Vector2i(28, Bosses.row_of(&"beast")))
+	check(gate != null and not Institute.exam_hall(gate).is_empty() and count_of(gate, LevelGen.Type.BOSS) == 1, "the beast's gate level has its exam hall and its boss")
+
+
+# ------------------------------------------------------------------ in play
+
+func play() -> void:
+	await boot()
+	await _go(Vector2i(28, NextWorldDef.first_depth(&"institute")))
+	player.set_physics_process(false)
+	print("in play")
+	check(placed("student.tscn").size() > 0 and placed("master.tscn").size() > 0 and placed("exam_door.tscn").size() > 0, "students, masters and exam doors are there")
+	await _students()
+	await _masters()
+	await _staff()
+	await _three_sides()
+	await _exam()
+	await _department()
+
+
+## A student's bolts, at the wizard: cast after a wind-up; some misfire, the same every time.
+func _students() -> void:
+	print("students")
+	var spot: Vector2i = _open_floor()
+	var s: Scholar = _spawn("student.tscn", spot + Vector2i(3, 0))
+	player.global_position = info.cell_position(spot)
+	var cast: bool = await within(func() -> bool: return s.casts > 0, Scholar.STUDENT_EVERY + 2.0)
+	check(cast, "a student that sees the wizard casts at them")
+	var fired: bool = s.misfired or info.map_elements.get_children().any(func(n: Node) -> bool: return n is Bullet and (n as Bullet).spell == &"student")
+	check(fired, "a bolt, or a misfire")
+	var rolls: Array[bool] = []
+	for k: int in range(1, 41):
+		rolls.append(RisoDecor.h(Scholar.MISFIRE_DEAL + k, spot, k) < Scholar.MISFIRE)
+	var misfires: int = rolls.count(true)
+	check(misfires > 0 and misfires < 40, "of forty casts, %d misfire" % misfires)
+	s.queue_free()
+	_clear_shots()
+
+
+## Each master casts its spell at the wizard: a bolt for hex and seeker (the seeker turning after
+## them), and the rest up close, hurting them.
+func _masters() -> void:
+	print("masters")
+	var spot: Vector2i = _open_floor()
+	for a: StringName in Institute.MASTERIES:
+		player.global_position = info.cell_position(spot)
+		player.end_invulnerable()
+		var m: Scholar = _spawn("master.tscn", spot + Vector2i(1 if a in [&"slash", &"nova", &"push"] else 3, 0), a)
+		m.cast_in = 0.0
+		var hp: int = player.health.health
+		var done: bool = await within(func() -> bool: return m.casts > 0, Scholar.MASTER_WIND + 2.0)
+		await frames(3)
+		match a:
+			&"hex", &"seeker":
+				var shots: Array[Node] = info.map_elements.get_children().filter(func(n: Node) -> bool: return n is Bullet and (n as Bullet).spell == a)
+				check(done and not shots.is_empty() and ((shots[0] as Bullet).homing != null) == (a == &"seeker"), "a %s master casts its bolt" % a)
+			&"lunge":
+				check(done, "a lunge master lunges along its floor")
+			_:
+				check(done and player.health.health < hp, "a %s master's spell hurts the wizard up close" % a)
+		player.health.health = player.health.max_health
+		m.queue_free()
+		_clear_shots()
+		await frames(2)
+
+
+## A proctor shields the students round it; a librarian's hush silences the wizard's spells.
+func _staff() -> void:
+	print("staff")
+	var spot: Vector2i = _open_floor()
+	player.global_position = info.cell_position(spot) + Vector2(-2000, 0)
+	var proctor: Scholar = _spawn("proctor.tscn", spot)
+	var student: Scholar = _spawn("student.tscn", spot + Vector2i(2, 0))
+	proctor.cast_in = 0.2
+	check(await within(func() -> bool: return Shield.of(student) != null, 2.0), "a proctor shields a student near it")
+	proctor.queue_free()
+	student.queue_free()
+	var librarian: Scholar = _spawn("librarian.tscn", spot)
+	player.global_position = info.cell_position(spot) + Vector2(-120, 0)
+	check(await within(func() -> bool: return player.is_drowsy(), 1.0), "in a librarian's hush the wizard is drowsy, their spells silenced")
+	librarian.queue_free()
+	await frames(2)
+	player.set_physics_process(true)
+	check(await within(func() -> bool: return not player.is_drowsy(), 1.0), "and out of it, not")
+	player.set_physics_process(false)
+	await frames(2)
+
+
+## Abominations and scholars wound one another; a breach lets them out while the wizard is near.
+func _three_sides() -> void:
+	print("three sides")
+	var spot: Vector2i = _open_floor()
+	player.global_position = info.cell_position(spot) + Vector2(0, -6000)
+	player.phasing = true
+	var student: Scholar = _spawn("student.tscn", spot)
+	var thing: Abomination = _spawn_thing(spot + Vector2i(1, 0))
+	var hp: int = (student.get_node("Wound") as Wound).hp
+	check(await within(func() -> bool: return not is_instance_valid(student) or (student.get_node("Wound") as Wound).hp < hp, Abomination.BITE_EVERY * 3.0), "an abomination bites a student")
+	if is_instance_valid(student):
+		student.queue_free()
+	if is_instance_valid(thing):
+		thing.queue_free()
+	await frames(2)
+	var caster: Scholar = _spawn("student.tscn", spot)
+	var prey: Abomination = _spawn_thing(spot + Vector2i(4, 0))
+	prey.set_physics_process(false)
+	var prey_hp: int = (prey.get_node("Wound") as Wound).hp
+	check(await within(func() -> bool: return not is_instance_valid(prey) or (prey.get_node("Wound") as Wound).hp < prey_hp, Scholar.STUDENT_EVERY * 4.0), "a student's bolts wound an abomination")
+	if is_instance_valid(prey):
+		prey.queue_free()
+	caster.queue_free()
+	_clear_shots()
+	var breaches: Array[Node] = placed("breach.tscn")
+	check(not breaches.is_empty(), "breaches in the level")
+	if breaches.is_empty():
+		return
+	var breach: Breach = breaches[0] as Breach
+	var before: int = get_nodes_in_group(&"abomination").size()
+	player.global_position = breach.global_position + Vector2(-300, 0)
+	check(await within(func() -> bool: return breach.brood.size() > 0, Breach.FIRST + Breach.SURGE + 1.0), "with the wizard near, a breach lets an abomination out")
+	check(breach.brood.all(func(n: Node2D) -> bool: return n.is_in_group(&"abomination")) and before >= 0, "and it is about, an abomination like any")
+	for n: Node2D in breach.brood:
+		n.queue_free()
+	await frames(2)
+	print("multiplying")
+	var first: Abomination = _spawn_thing(spot, 1)
+	var count: Callable = func() -> int: return get_nodes_in_group(&"abomination").filter(func(n: Node) -> bool: return not n.is_queued_for_deletion()).size()
+	check(first.lobes == 1, "one out of a breach starts as a single blob")
+	check(await within(func() -> bool: return first.lobes > 1, Abomination.GROW_EVERY * (1.0 + Abomination.GROW_SPREAD) + 1.0), "left alone, it grows another")
+	var wound: Wound = first.get_node("Wound") as Wound
+	var lobes: int = first.lobes
+	wound.hit(1, Vector2.UP)
+	await physics_frame
+	check_eq(first.lobes, lobes - 1, "a wound bursts one blob")
+	check(Abomination.LAUNCH_EVERY > Abomination.GROW_EVERY, "it launches less often than it grows")
+	wound.hp = Abomination.SPLIT - 1
+	await physics_frame
+	first.grow()
+	first.grow()
+	check_eq(first.lobes, Abomination.SPLIT, "it grows no further than %d blobs" % Abomination.SPLIT)
+	first.grow_in = 99.0
+	first.launch_in = 0.0
+	check(await within(func() -> bool: return first.tell() >= 0.0, 0.5), "at %d, its launch come round, it braces: the tell" % Abomination.SPLIT)
+	check(first.lobes == Abomination.SPLIT, "nothing launched during the tell")
+	check(await within(func() -> bool: return first.lobes < Abomination.SPLIT, Abomination.TELL + 0.5), "then it launches its top blob")
+	check(first.lobes == Abomination.SPLIT - 1 and first.launch_in > Abomination.GROW_EVERY, "one blob fewer, its next launch a long way off")
+	var flown: Array[Node] = get_nodes_in_group(&"abomination").filter(func(n: Node) -> bool: return n != first and not n.has_meta(&"cell") and (n as Abomination).flying())
+	check(flown.size() == 1 and (flown[0] as Abomination).lobes == 1, "a single blob, in flight")
+	if flown.size() == 1:
+		var blob: Abomination = flown[0] as Abomination
+		var from: Vector2 = blob.flight[0]
+		var to: Vector2 = blob.flight[2]
+		var heights: Array[float] = []
+		var landed: Callable = func() -> bool:
+			heights.append(blob.global_position.y)
+			return not blob.flying()
+		check(await within(landed, Abomination.FLIGHT + 0.5), "it flies its arc and lands")
+		var top: float = heights.min()
+		check(top < minf(from.y, to.y) - Abomination.ARC * 0.8, "rising over both ends on the way (%.0f px over the higher)" % (minf(from.y, to.y) - top))
+		check(blob.lobes == 1 and blob.grounded, "landed, a one-blob abomination on the floor")
+	wound.hp = Abomination.SPLIT - 1
+	for i: int in range(Abomination.MOST + 4):
+		wound.hp = Abomination.SPLIT
+		first.lobes = wound.hp
+		first.shed()
+	await frames(2)
+	check(count.call() <= Abomination.MOST, "but never more than %d about in a level" % Abomination.MOST)
+	for n: Node in get_nodes_in_group(&"abomination"):
+		if not n.has_meta(&"cell"):
+			n.queue_free()
+	await frames(2)
+	print("slime")
+	player.phasing = false
+	player.global_position = info.cell_position(spot + Vector2i(4, 0))
+	var crawler: Abomination = _spawn_thing(spot, 2)
+	crawler.grow_in = 99.0
+	check(await within(func() -> bool: return crawler.slime != null and is_instance_valid(crawler.slime) and crawler.slime.smears.size() >= 3, 4.0), "crawling, it leaves a trail of slime")
+	var trail: Slime = crawler.slime
+	var smear: Vector4 = trail.smears[trail.smears.size() - 1]
+	crawler.queue_free()
+	player.end_invulnerable()
+	player.health.health = player.health.max_health
+	var wizard_hp: int = player.health.health
+	player.set_physics_process(true)
+	player.global_position = Vector2(smear.x, smear.y - Slime.FEET - 4.0)
+	check(await within(func() -> bool: return player.health.health < wizard_hp, 1.0), "fresh slime hurts the wizard in it")
+	player.set_physics_process(false)
+	player.health.health = player.health.max_health
+	check(await within(func() -> bool: return not is_instance_valid(trail), Slime.LIFE + 1.0), "and it fades, gone once its abomination is")
+	for n: Node in get_nodes_in_group(&"abomination"):
+		if not n.has_meta(&"cell"):
+			n.queue_free()
+	player.phasing = false
+	await frames(2)
+
+
+## The exam: in, its doors shut behind; its master slain, they open for good, its students scatter
+## and its lesson waits, teaching a tier of its spell, once.
+func _exam() -> void:
+	print("the exam")
+	var hall: Dictionary = Institute.exam_hall(info.world)
+	var index: int = info.world.halls.find(hall)
+	var inside: Rect2i = hall["inside"]
+	var doors: Array[Node] = placed("exam_door.tscn")
+	check(doors.all(func(d: Node) -> bool: return not (d as ExamDoor).shut()), "its doors stand open before the exam")
+	var master: Scholar = info.examiner(index)
+	check(master != null, "its master is there")
+	if master == null:
+		return
+	var ability: StringName = master.ability
+	var students: Array[Scholar] = []
+	for n: Node in get_nodes_in_group(&"student"):
+		if (n as Scholar).own_master() == master:
+			students.append(n as Scholar)
+	player.global_position = info.cell_position(Vector2i(inside.position.x + 2, inside.end.y - 1))
+	player.phasing = true
+	check(await within(func() -> bool: return doors.all(func(d: Node) -> bool: return (d as ExamDoor).shut()), 1.0), "the wizard inside, its doors shut behind them")
+	check(info.solid_at((doors[0] as Node2D).global_position), "and stop sight and light")
+	var cell: Vector2i = master.cell
+	(master.get_node("Wound") as Wound).hit(99, Vector2.UP)
+	check(await within(func() -> bool: return doors.all(func(d: Node) -> bool: return not (d as ExamDoor).shut()), 1.0), "its master slain, they open")
+	check(info.record().exams.has(index), "and the record keeps it passed")
+	check(not students.is_empty() and students.all(func(s: Scholar) -> bool: return not is_instance_valid(s) or s.scatter > 0.0), "its students scatter")
+	var lessons: Array[Node] = placed("lesson.tscn")
+	check(lessons.size() == 1, "its lesson waits where it fell")
+	player.phasing = false
+	if lessons.is_empty():
+		return
+	var lesson: Lesson = lessons[0] as Lesson
+	var held: Array = lesson.holds()
+	check(held[0] == ability, "teaching its spell, %s" % ability)
+	var was: int = Abilities.tier(player, ability)
+	var swapped: StringName = Abilities.spell(player, Abilities.slot_of(ability)) if lesson.swap() else &""
+	lesson.take()
+	check_eq(Abilities.tier(player, ability), was + 1, "taken, the wizard knows a tier more of it")
+	if swapped != &"":
+		check(is_instance_valid(lesson) and lesson.holds()[0] == swapped, "the %s it replaced left on the lectern to take back" % swapped)
+	else:
+		check(await until(gone(lesson)), "nothing left on it, it is gone")
+	print("again")
+	info.record().slain.clear()
+	await _go(info.coord)
+	player.set_physics_process(false)
+	var again: Scholar = info.examiner(index)
+	check(again != null, "the master is back after a death")
+	check(placed("exam_door.tscn").all(func(d: Node) -> bool: return not (d as ExamDoor).shut()) and info.record().exams.has(index), "but the exam stays passed")
+	check(placed("lesson.tscn").size() == (1 if swapped != &"" else 0), "its lesson is there only for what is left on it")
+	if again != null:
+		(again.get_node("Wound") as Wound).hit(99, Vector2.UP)
+		await frames(3)
+	check(placed("lesson.tscn").size() == (1 if swapped != &"" else 0) and (info.record().lessons[cell] as Dictionary)["taken"], "beaten again, it teaches nothing more")
+
+
+## A department's portal: to a level of its band in the same world, by its way back; the way back
+## there leads back to the portal and closes.
+func _department() -> void:
+	print("a department")
+	var portals: Array[Node] = placed("department.tscn")
+	check(not portals.is_empty(), "a department's portal in a lecture hall")
+	if portals.is_empty():
+		return
+	var portal: Department = portals[0] as Department
+	var portal_cell: Vector2i = portal.cell
+	var from: Vector2i = info.coord
+	var to: Vector2i = portal.destination()
+	check(to.x == from.x and NextWorldDef.archetype_at(to.y) == portal.band(), "it leads to a level of %s in the same world (%s)" % [portal.band(), to])
+	portal.use()
+	await settle()
+	check_eq(info.coord, to, "through it, the wizard is there")
+	var backs: Array[Node] = placed("way_back.tscn")
+	check(backs.size() == 1 and info.run.way_back.size() == 4, "a way back stands there")
+	if backs.is_empty():
+		return
+	var at: Vector2 = (backs[0] as Node2D).global_position
+	await _go(Vector2i(from.x, 0))
+	await _go(to)
+	check(placed("way_back.tscn").size() == 1 and (placed("way_back.tscn")[0] as Node2D).global_position == at, "it lasts, where it was, until used")
+	(placed("way_back.tscn")[0] as WayBack).use()
+	await settle()
+	check_eq(info.coord, from, "through it, back in the institute")
+	check(info.cell_at(player.global_position) == portal_cell and info.run.way_back.is_empty(), "at the department's portal, the way back closed")
+
+
+# ------------------------------------------------------------------ helpers
+
+func _go(at: Vector2i) -> void:
+	info.coord = at
+	info.arrival = MapInfo.Exit.BACK
+	info._load_level()
+	await settle()
+
+
+## Whether cell `c` of `w` holds something solid to sight and bolts (rock, a ledge, a gate).
+func _blocks(w: LevelGen, c: Vector2i) -> bool:
+	return w.get_cell(c).type in [LevelGen.Type.GROUND, LevelGen.Type.PLATFORM, LevelGen.Type.MOVING_PLATFORM, LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE,
+		LevelGen.Type.CRACKED, LevelGen.Type.SPIKES, LevelGen.Type.LIGHT_GATE, LevelGen.Type.EXAM_DOOR, LevelGen.Type.TRAPDOOR]
+
+
+## A stretch of open floor at least six cells long with headroom, out of the halls: its left cell.
+func _open_floor() -> Vector2i:
+	var w: LevelGen = info.world
+	for v: Vector2i in w.free_floors():
+		var ok: bool = true
+		for k: int in range(-1, 7):
+			var c: Vector2i = v + Vector2i(k, 0)
+			if not w.is_valid(c) or _blocks(w, c) or not w.is_ground(c + Vector2i.DOWN) or _blocks(w, c + Vector2i.UP) or Institute.hall_at(w, c) >= 0:
+				ok = false
+				break
+		if ok:
+			return v + Vector2i(1, 0)
+	return w.free_floors()[0]
+
+
+func _spawn(scene: String, v: Vector2i, ability: StringName = &"") -> Scholar:
+	var node: Scholar = (load("res://prefabs/" + scene) as PackedScene).instantiate() as Scholar
+	LevelLoader.arm(node, info.here.depth)
+	info.map_elements.add_child(node)
+	node.global_position = info.cell_position(v)
+	node.setup(info, v, {"ability": ability, "hall": -1})
+	return node
+
+
+## An abomination at `v`, of `lobes` blobs (or as one laid with the level, for 0).
+func _spawn_thing(v: Vector2i, lobes: int = 0) -> Abomination:
+	var node: Abomination = (load("res://prefabs/abomination.tscn") as PackedScene).instantiate() as Abomination
+	LevelLoader.arm(node, info.here.depth)
+	if lobes > 0:
+		node.sprout(lobes)
+	info.map_elements.add_child(node)
+	node.global_position = info.cell_position(v)
+	return node
+
+
+func _clear_shots() -> void:
+	for n: Node in info.map_elements.get_children():
+		if n is Bullet:
+			n.queue_free()

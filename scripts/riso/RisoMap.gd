@@ -326,6 +326,9 @@ func _level_rows() -> Array:
 		["gate", func(at: Vector2) -> void: _mark_gate(at, 2), "gate"],
 		["sun gate", func(at: Vector2) -> void: _mark_light_gate(at, true), "sun gate"],
 		["shade gate", func(at: Vector2) -> void: _mark_light_gate(at, false), "shade gate"],
+		["exam", func(at: Vector2) -> void: _mark_exam(at, false), "exam"],
+		["exam passed", func(at: Vector2) -> void: _mark_exam(at, true), "exam passed"],
+		["department", func(at: Vector2) -> void: _mark_department(at, 1), "department"],
 		["switch", func(at: Vector2) -> void: _mark_switch(at, false, 2), "switch"],
 		["bell", func(at: Vector2) -> void: _mark_bell(at, false), "bell"],
 		["vane", func(at: Vector2) -> void: _mark_bell(at, false, -2, "vane"), "vane"],
@@ -458,6 +461,10 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 			_mark_snuffer(at)
 		LevelGen.Type.LIGHT_GATE:
 			_mark_light_gate(at, bool(cell.extra_info))
+		LevelGen.Type.EXAM_DOOR:
+			_mark_exam(at, (rec.exams as Dictionary).has(int(cell.extra_info)))
+		LevelGen.Type.DEPARTMENT:
+			_mark_department(at, signi(int((cell.extra_info as Array)[1]) - c.y))
 		LevelGen.Type.CHECKPOINT:
 			var spent: bool = (rec.spent_lanterns as Dictionary).has(v)
 			var lit: bool = not spent and not info.run.vulnerable and info.run.respawn_coord == c and info.run.respawn_cell == v
@@ -568,6 +575,20 @@ func _mark_light_gate(at: Vector2, sun: bool) -> void:
 	_note("sun gate" if sun else "shade gate")
 	marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.rrect(at.x - 0.9, at.y - 2.6, 1.8, 5.2, 0.8)], false)
 	marks.ink(RisoPrint.ACCENT if sun else RisoPrint.NIGHT, 1.0, [RisoShapes.circle(at + Vector2(2.9, -2.6), 1.5, 10)], false)
+
+
+## An exam door (ExamDoor): a gate's bar, pink until its exam is passed, accent after.
+func _mark_exam(at: Vector2, passed: bool) -> void:
+	_note("exam passed" if passed else "exam")
+	marks.ink(RisoPrint.ACCENT if passed else RisoPrint.PINK, 1.0, [RisoShapes.rrect(at.x - 1.1, at.y - 2.8, 2.2, 5.6, 0.9)], false)
+
+
+## A department's portal (Department): an accent ring with a chevron in it pointing the way along
+## the column it leads (`way`: +1 down, -1 up).
+func _mark_department(at: Vector2, way: int) -> void:
+	_note("department")
+	marks.ink(RisoPrint.ACCENT, 1.0, RisoShapes.ring(at, 2.4, 3.6, 16), false)
+	marks.ink(RisoPrint.NIGHT, 1.0, [RisoMarks.chevron(at, Vector2.DOWN if way >= 0 else Vector2.UP, 0.09)], false)
 
 
 ## A switch: a little lever, pink before it is thrown, accent after, with its sigil beside it.

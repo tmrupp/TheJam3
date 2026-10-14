@@ -15,7 +15,7 @@ class_name RisoLight
 ## The wizard sees only past the rock too. What they cannot see from where they stand lies under
 ## more night ink (the place's `shade`), terrain, decor and props alike, still there to make out
 ## but dimmed; what they can see reaches to the edge of the view. In the deep dark (the place's
-## `gloom`, the catacombs) night ink lies over everything no light falls on, in sight or not,
+## `gloom`, which no band sets now) night ink lies over everything no light falls on, in sight or not,
 ## lifting smoothly inside each light, so most of what is seen is what a light lights. Inside a
 ## crypt (Crypts) it is darker still, in every band: the deep dark lies there alone, Crypts.DARK
 ## deep, so the moonlit terraces outside stay as they are.
@@ -193,7 +193,7 @@ func rebuild(info: MapInfo) -> void:
 		for x: int in range(info.world.size.x):
 			for y: int in range(info.world.size.y):
 				var type: LevelGen.Type = info.world.get_cell(Vector2i(x, y)).type
-				if type in [LevelGen.Type.CRACKED, LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.LIGHT_GATE]:
+				if type in [LevelGen.Type.CRACKED, LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.LIGHT_GATE, LevelGen.Type.EXAM_DOOR]:
 					_changing[Vector2i(x, y)] = type
 	_cache.clear()
 	_fade_cache.clear()
@@ -217,6 +217,8 @@ func _shut_or_open(info: MapInfo) -> void:
 				shut = not rec.opened.has(v)
 			LevelGen.Type.LIGHT_GATE:
 				shut = not bool(info.light_gates.get(v, false))
+			LevelGen.Type.EXAM_DOOR:
+				shut = not bool(info.exam_doors.get(v, true))
 			_:
 				shut = not info.gate_open(v)
 		sight.set_solid(v, shut)

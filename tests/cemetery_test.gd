@@ -46,7 +46,7 @@ func bands() -> void:
 	var kinds: Array[StringName] = []
 	for d: int in [0, g, g + 1, g + b, g + b + 1]:
 		kinds.append(NextWorldDef.archetype_at(d))
-	check(kinds == [&"garden", &"garden", &"cemetery", &"cemetery", &"catacombs"], "down from the start: the garden, then the cemetery for %d rows, then the catacombs: %s" % [b, kinds])
+	check(kinds == [&"garden", &"garden", &"cemetery", &"cemetery", &"institute"], "down from the start: the garden, then the cemetery for %d rows, then the institute: %s" % [b, kinds])
 	check(NextWorldDef.first_depth(&"cemetery") == g + 1, "the cemetery's first row")
 	var def: NextWorldDef = Rules.def_for(Vector2i(28, NextWorldDef.first_depth(&"cemetery") + 1))
 	check(def.region == CemeteryArchetype.SAMPLE and def.symmetry == 1 and def.realm() == &"cemetery", "a cemetery collapses the graveyard sample, unturned, and prints in its realm")

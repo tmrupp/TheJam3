@@ -2,7 +2,8 @@ extends TestKit
 ## Light and darkness by line of sight (RisoSight, RisoLight): sight stops at rock and reaches a
 ## little into the faces it meets, the shapes the darkness prints are whole outlines with no holes,
 ## a door or wall changing redoes it, and in the game the wizard's sight, the lanterns' pools and
-## the shade follow the rock, with deep darkness in the catacombs only.
+## the shade follow the rock, with deep darkness inside the cemetery's crypts and no band dark all
+## over.
 ## godot --headless --path . --script res://tests/sight_test.gd
 
 const CELL: float = 128.0
@@ -191,12 +192,14 @@ func _in_game() -> void:
 		await process_frame
 		check(not light.sight.solid.has(door), "once open, sight passes")
 		info.record().opened.erase(door)
-	print("the catacombs")
-	info.coord = Vector2i(28, NextWorldDef.band_row(&"catacombs", 0))
+	print("the crypts")
+	info.coord = Vector2i(28, NextWorldDef.first_depth(&"cemetery"))
 	info._load_level()
 	await settle()
-	check(info.here.gloom() > 0.0 and info.here.shade() > Archetype.SHADE, "the catacombs are deep dark")
-	check(light.fades.size() > 1, "their lights carve the dark")
+	check(info.here.gloom() == 0.0 and not light.crypt_rooms(info).is_empty(), "a cemetery is not dark all over, but its crypts are")
+	check(light.fades.size() > 1, "its lights carve the dark")
+	var bands: Array[StringName] = NextWorldDef.archetype_names()
+	check(bands.all(func(b: StringName) -> bool: return Rules.def_for(Vector2i(28, NextWorldDef.first_depth(b))).gloom() == 0.0), "no band is deep dark all over")
 	RunState.delete_save()
 
 

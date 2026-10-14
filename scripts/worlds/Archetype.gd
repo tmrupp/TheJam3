@@ -38,7 +38,8 @@ var switch_reach: int = -1
 var open: bool = false
 ## How dark its levels are (RisoLight): how much night ink lies over what the wizard cannot see past
 ## the rock (`shade`), and over everything the lanterns and glowing things do not light, in sight
-## or not (`gloom`, the deep darkness of the catacombs; none elsewhere).
+## or not (`gloom`, a deep darkness all over; no band sets it now, the darkness lying in the
+## cemetery's crypts instead, Crypts).
 var shade: float = SHADE
 var gloom: float = 0.0
 

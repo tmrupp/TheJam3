@@ -51,7 +51,7 @@ var symmetry: int = 5
 const GARDEN: Script = preload("res://scripts/worlds/archetypes/GardenArchetype.gd")
 const DOWN: Array[Script] = [
 	preload("res://scripts/worlds/archetypes/CemeteryArchetype.gd"),
-	preload("res://scripts/worlds/archetypes/CatacombsArchetype.gd"),
+	preload("res://scripts/worlds/archetypes/InstituteArchetype.gd"),
 ]
 const UP: Array[Script] = [
 	preload("res://scripts/worlds/archetypes/CragsArchetype.gd"),

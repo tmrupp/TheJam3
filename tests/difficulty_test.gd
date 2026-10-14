@@ -34,7 +34,7 @@ func run() -> void:
 
 	print("levels")
 	var places: Array[Vector2i] = [Vector2i(28, 0), Vector2i(7, 2), Vector2i(28, NextWorldDef.band_row(&"cemetery", 1)),
-		Vector2i(28, NextWorldDef.band_row(&"catacombs", 1)), Vector2i(28, NextWorldDef.band_row(&"crags", 1)),
+		Vector2i(28, NextWorldDef.band_row(&"institute", 1)), Vector2i(28, NextWorldDef.band_row(&"crags", 1)),
 		Vector2i(28, NextWorldDef.band_row(&"sky", 1))]
 	var totals: Array[int] = []
 	for p: int in range(Difficulty.Preset.size()):

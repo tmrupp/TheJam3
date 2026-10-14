@@ -3,7 +3,8 @@ extends Node2D
 ## The mark a damage spell leaves where it was cast, a moment of spell light (accent ink) fading
 ## over LIFE seconds (Slash, Nova, Push, Lunge): a slash's crescent sweeping round its arc, a nova's
 ## ring swelling out, a push's gust of streaks blowing out across its cone, or a lunge's thrust
-## streaking along its way. Placed in the level, so it stays where it was cast.
+## streaking along its way. Placed in the level, so it stays where it was cast. An institute
+## master's spells (Scholar) leave the same marks in pink, as danger.
 
 ## How long it shows (seconds).
 const LIFE: float = 0.28
@@ -15,15 +16,18 @@ var from: Vector2 = Vector2.ZERO
 var dir: Vector2 = Vector2.RIGHT
 var reach: float = 100.0
 var half: float = PI * 0.33
+## The plate it prints on: spell light (accent) for the wizard's, pink for a master's.
+var plate: int = RisoPrint.ACCENT
 var age: float = 0.0
 var ink: InkCanvas
 
 
 ## A mark of `kind` from `at`, pointing `toward`, `far` px out and `spread` radians either way,
-## put in the level.
-static func leave(kind_: StringName, at: Vector2, toward: Vector2, far: float, spread: float) -> SpellMark:
+## printed on `plate_`, put in the level.
+static func leave(kind_: StringName, at: Vector2, toward: Vector2, far: float, spread: float, plate_: int = RisoPrint.ACCENT) -> SpellMark:
 	var mark: SpellMark = SpellMark.new()
 	mark.kind = kind_
+	mark.plate = plate_
 	mark.from = at
 	mark.dir = toward
 	mark.reach = far
@@ -76,7 +80,7 @@ func _process(delta: float) -> void:
 			var back: Vector2 = from + dir * reach * maxf(0.0, u * 1.6 - 0.4)
 			var n: Vector2 = dir.orthogonal()
 			shapes.append(PackedVector2Array([back + n * 1.5, tip - dir * 14.0 + n * 6.0, tip, tip - dir * 14.0 - n * 6.0, back - n * 1.5]))
-	ink.ink(RisoPrint.ACCENT, 0.85 * fade, shapes)
+	ink.ink(plate, 0.85 * fade, shapes)
 	ink.finish()
 
 

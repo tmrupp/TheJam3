@@ -65,6 +65,14 @@ const TABLE: Dictionary = {
 	LevelGen.Type.SNUFFER: {"scene": "res://prefabs/snuffer.tscn", "art": &"snuffer", "flags": [&"stander"], "setup": 2},
 	LevelGen.Type.SKELETON: {"scene": "res://prefabs/skeleton_enemy.tscn", "art": &"skeleton", "flags": [&"enemy"]},
 	LevelGen.Type.LIGHT_GATE: {"scene": "res://prefabs/light_gate.tscn", "art": &"lightgate", "setup": 3},
+	LevelGen.Type.STUDENT: {"scene": "res://prefabs/student.tscn", "art": &"scholar", "flags": [&"enemy"], "setup": 3},
+	LevelGen.Type.MASTER: {"scene": "res://prefabs/master.tscn", "art": &"scholar", "flags": [&"enemy"], "setup": 3},
+	LevelGen.Type.PROCTOR: {"scene": "res://prefabs/proctor.tscn", "art": &"scholar", "flags": [&"enemy"], "setup": 3},
+	LevelGen.Type.LIBRARIAN: {"scene": "res://prefabs/librarian.tscn", "art": &"scholar", "flags": [&"enemy"], "setup": 3},
+	LevelGen.Type.ABOMINATION: {"scene": "res://prefabs/abomination.tscn", "art": &"abomination", "flags": [&"enemy"]},
+	LevelGen.Type.BREACH: {"scene": "res://prefabs/breach.tscn", "art": &"breach", "flags": [&"enemy"], "setup": 2},
+	LevelGen.Type.EXAM_DOOR: {"scene": "res://prefabs/exam_door.tscn", "art": &"examdoor", "setup": 3},
+	LevelGen.Type.DEPARTMENT: {"scene": "res://prefabs/department.tscn", "art": &"department", "flags": [&"stander"], "size": Vector2i(1, 2), "setup": 3},
 }
 
 ## Prefabs loaded so far, by Type (each is loaded the first time one is placed).
