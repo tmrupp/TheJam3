@@ -2,7 +2,7 @@ extends TestKit
 ## The CPU of a frame standing still and walking, at a few places: the median frame and its
 ## passes (the process pass, the redraws queued in it, a physics step, and drawing), timed by probe
 ## nodes that run first and last in each pass, over FRAMES frames each.
-## godot --path . --windowed --script res://tests/bench_walk.gd
+## godot --path . --windowed --script res://tests/bench_walk.gd [-- script]
 
 ## The rows timed (the garden, the cemetery, the crags, the sky, the institute).
 const ROWS: Array[int] = [0, 8, -8, -10, 11]
@@ -30,6 +30,9 @@ func run() -> void:
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
 	await boot(28)
 	process_frame.connect(func() -> void: player.health.health = player.health.max_health)
+	# `-- script`: rigs placed in script, as all art was before rigs (InkCanvas.rig_on_gpu off).
+	if OS.get_cmdline_user_args().has("script"):
+		InkCanvas.rig_on_gpu = false
 	var first: Probe = Probe.new()
 	first.process_priority = -1000000
 	first.process_physics_priority = -1000000

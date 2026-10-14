@@ -88,9 +88,25 @@ static func slot_of(a: StringName) -> StringName:
 	return StringName(ABILITIES[a].get("slot", &"")) if ABILITIES.has(a) else &""
 
 
-## Everything that takes slot `slot`, in order.
+## Everything that takes slot `slot`, in order (worked out once a slot: the art asks every frame).
 static func in_slot(slot: StringName) -> Array[StringName]:
-	return ids().filter(func(a: StringName) -> bool: return slot_of(a) == slot)
+	if not _in_slot.has(slot):
+		var out: Array[StringName] = []
+		for a: StringName in ABILITIES:
+			if slot_of(a) == slot:
+				out.append(a)
+		_in_slot[slot] = out
+	return (_in_slot[slot] as Array[StringName]).duplicate()
+
+
+## What in_slot has worked out, by slot (ABILITIES never changes).
+static var _in_slot: Dictionary = {}
+
+
+## What takes slot `slot` (in_slot's list itself, not a copy), for asking what is in it.
+static func _slot_list(slot: StringName) -> Array[StringName]:
+	in_slot(slot)
+	return _in_slot[slot]
 
 
 ## Whether `a` is a spell: it takes a slot and is cast (not the dash or blink, the wizard's own
@@ -122,7 +138,7 @@ static func tier(player: Player, a: StringName) -> int:
 
 ## What is in slot `slot` (the damage slot unless said), or &"" when it is empty.
 static func spell(player: Player, slot: StringName = &"damage") -> StringName:
-	for a: StringName in in_slot(slot):
+	for a: StringName in _slot_list(slot):
 		if tier(player, a) > 0:
 			return a
 	return &""

@@ -22,6 +22,17 @@ class Shape extends RefCounted:
 	var point_alphas: PackedFloat32Array = PackedFloat32Array()
 	## Handed over already in triangles (mesh), as the lights' fades are: never triangulated here.
 	var premade: bool = false
+	## Its binding in a rig (InkCanvas.rig): -2 none; a bone, its shapes drawn in that bone's space;
+	## -1 a chain (`bind_key`), each point carried by the bones `binder` names for it (see
+	## InkCanvas.on_chain). And each triangulated point's bones as the rig's shader reads them
+	## (RisoInkOp.bone_code).
+	var bind: int = -2
+	var bind_key: int = 0
+	var binder: Callable
+	var bone_uv: PackedVector2Array = PackedVector2Array()
+	## The array of shapes it was made from, as handed over (see InkCanvas.keeps_shapes).
+	var source: Array[PackedVector2Array] = []
+	var source_alphas: Array[PackedFloat32Array] = []
 
 	func _init(from_polys: Array[PackedVector2Array], from_alphas: Array[PackedFloat32Array]) -> void:
 		polys = from_polys.duplicate(true)
@@ -37,9 +48,9 @@ class Shape extends RefCounted:
 		shape.point_alphas = mesh_covers
 		return shape
 
-	## Whether these are the same shapes and cover.
-	func same_as(other_polys: Array[PackedVector2Array], other_alphas: Array[PackedFloat32Array]) -> bool:
-		return not premade and polys == other_polys and alphas == other_alphas
+	## Whether these are the same shapes and cover (and, in a rig, the same binding).
+	func same_as(other_polys: Array[PackedVector2Array], other_alphas: Array[PackedFloat32Array], other_bind: int = -2, other_key: int = 0) -> bool:
+		return not premade and bind == other_bind and bind_key == other_key and polys == other_polys and alphas == other_alphas
 
 	## Whether this is the same mesh (see mesh).
 	func same_mesh(mesh_points: PackedVector2Array, mesh_indices: PackedInt32Array, mesh_covers: PackedFloat32Array) -> bool:
@@ -55,10 +66,13 @@ class Shape extends RefCounted:
 		points = PackedVector2Array()
 		indices = PackedInt32Array()
 		point_alphas = PackedFloat32Array()
+		bone_uv = PackedVector2Array()
 		var any_graded: bool = not alphas.is_empty()
+		# A rig's shapes are in their bones' own spaces, whose scale says nothing of their size here.
+		var tiny: float = 8.0 if bind == -2 else 0.0
 		for i: int in range(polys.size()):
 			var poly: PackedVector2Array = polys[i]
-			if poly.size() < 3 or absf(RisoInkOp._area(poly)) * px < 8.0:
+			if poly.size() < 3 or absf(RisoInkOp._area(poly)) * px < tiny:
 				continue
 			var graded: bool = i < alphas.size() and alphas[i].size() == poly.size()
 			# Triangles and convex quads (books, planks, most of the decor) need no triangulator.
@@ -92,6 +106,18 @@ class Shape extends RefCounted:
 				if any_graded:
 					_add_cover(piece.size(), mean)
 
+	## Each point's bones for the rig's shader (see bone_uv), once its triangles are worked out.
+	func bind_points() -> void:
+		bone_uv = PackedVector2Array()
+		if bind == -2:
+			return
+		bone_uv.resize(points.size())
+		if bind >= 0:
+			bone_uv.fill(RisoInkOp.bone_code(PackedFloat32Array([bind, 1.0])))
+			return
+		for k: int in range(points.size()):
+			bone_uv[k] = RisoInkOp.bone_code(RisoInkOp.bones_of(binder.call(points[k])))
+
 	func _add(poly: PackedVector2Array, tris: PackedInt32Array) -> void:
 		var base: int = points.size()
 		points.append_array(poly)
@@ -121,6 +147,12 @@ var alphas: Array[PackedFloat32Array]:
 		return shape.alphas if shape != null else [] as Array[PackedFloat32Array]
 ## The world scale it was last drawn at (see _draw), or -1 while a redraw is waiting.
 var _px: float = -1.0
+## Whether it is shown, the plates it is on and its material, as its canvas last set them: kept
+## here so a canvas setting them again each print reads a field, not the engine (see
+## InkCanvas._next_op).
+var shown: bool = true
+var layer: int = 1
+var mat: Material = null
 
 
 ## Print `new_shape` from now on, redrawing only if that changes what it printed last: other
@@ -153,6 +185,8 @@ func _draw() -> void:
 	shape.triangulate(px)
 	if shape.indices.is_empty():
 		return
+	if shape.bind != -2 and shape.bone_uv.size() != shape.points.size():
+		shape.bind_points()
 	var flat: Color = Color(1, 1, 1, 1.0 - cover if lift else cover)
 	var colors: PackedColorArray = PackedColorArray()
 	if shape.point_alphas.is_empty():
@@ -163,7 +197,10 @@ func _draw() -> void:
 		for k: int in range(colors.size()):
 			var a: float = shape.point_alphas[k]
 			colors[k] = flat if a < 0.0 else Color(1, 1, 1, 1.0 - a * cover if lift else a * cover)
-	RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), shape.indices, shape.points, colors)
+	if shape.bind != -2:
+		RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), shape.indices, shape.points, colors, shape.bone_uv)
+	else:
+		RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), shape.indices, shape.points, colors)
 
 
 ## Simple outlines covering `poly`, holes dropped (they are rare and tiny in practice).
@@ -181,6 +218,26 @@ static func _untangle(poly: PackedVector2Array) -> Array[PackedVector2Array]:
 		if piece.size() >= 3 and Geometry2D.is_polygon_clockwise(piece) == outer_cw:
 			out.append(piece)
 	return out
+
+
+## A binder's answer as bones and weights, [bone, weight, ...] (up to three): a Vector3 is two bones
+## (a, b, a's share), an array is the pairs themselves.
+static func bones_of(found: Variant) -> PackedFloat32Array:
+	if found is Vector3:
+		var v: Vector3 = found
+		return PackedFloat32Array([v.x, v.z, v.y, 1.0 - v.z])
+	return found as PackedFloat32Array
+
+
+## Up to three bones and their weights ([bone, weight, ...]) as the rig's shader reads them from a
+## point's UV (ink_rig.gdshaderinc): x = a + 128 b, y = c + 128 wa + 32768 wb, weights in 255ths.
+static func bone_code(pairs: PackedFloat32Array) -> Vector2:
+	var a: int = int(pairs[0])
+	var wa: int = clampi(roundi(pairs[1] * 255.0), 0, 255)
+	var b: int = int(pairs[2]) if pairs.size() > 2 else a
+	var wb: int = clampi(roundi(pairs[3] * 255.0), 0, 255 - wa) if pairs.size() > 3 else 0
+	var c: int = int(pairs[4]) if pairs.size() > 4 else b
+	return Vector2(a + 128 * b, c + 128 * wa + 32768 * wb)
 
 
 ## A triangle's corners, and a convex quad's two triangles.

@@ -40,6 +40,23 @@ const WISP_FOLD_TURN: float = 0.6
 ## Whether the trail bends that sharply anywhere along the body this print.
 var _sharp: bool = false
 
+## Its rig (InkCanvas.rig): the body, veils, glow and eyes are drawn once, in the art's own units,
+## and laid along the trail every print by chains of CHAIN bones, one every CHAIN_STEP units back
+## from CHAIN_X0 (each point carried by the two bones either side of it, blended): a still chain for
+## the glow, the body's clearing and the eyes, and one for each veil and the body, its bones lifted
+## by that layer's wave. With the rig in script (InkCanvas.rig_on_gpu off) it is drawn as before,
+## every point placed along the trail as it is printed.
+const CHAIN: int = 17
+const CHAIN_X0: float = 8.0
+const CHAIN_STEP: float = 2.0
+## How many times a second the glow's flicker moves on, through the rig.
+const FLICKER_RATE: float = 10.0
+## The rest shapes, built once (_rest_shapes): the shadow (a unit disc its bone stretches), the two
+## glows, the body's clearing, each layer's outline and its fade, and the eyes, open and stunned.
+static var _rests: Dictionary = {}
+## The chains' binders, by their first bone (each names the two bones a point lies between).
+static var _binders: Dictionary = {}
+
 
 func _draw_art() -> void:
 	var mover: Mover = host.get_node_or_null("Mover") as Mover
@@ -79,14 +96,14 @@ func _draw_art() -> void:
 		loop_at = _drop_at(e, side)
 		heading = float(wisp_loop(e)[1])
 	var e_eyes: float = clampf(-heading / PI, 0.0, 1.0)
-	var width: float = 1.0
 	# Its shadow on the floor, shrinking as it bobs up: it belongs to the ground it haunts.
 	var g: float = _ground()
 	var reach: float = WISP_DROP_LEN * wisp_drop_half()
 	var lift: float = clampf(-loop_at.y / reach, 0.0, 1.0)
 	# And darkening as it swoops down toward it on a turn.
 	var dip: float = clampf(loop_at.y / reach, 0.0, 1.0)
-	ink.ink(RisoPrint.NIGHT, 0.35 * (1.0 - lift * 0.6 + dip * 0.5), [RisoShapes.ellipse(Vector2(loop_at.x, g - 3.0), (26.0 + bob * 1.2) * (1.0 - lift * 0.4), 5.0, 16)], false)
+	if not (ink.rigged and InkCanvas.rig_on_gpu):
+		ink.ink(RisoPrint.NIGHT, 0.35 * (1.0 - lift * 0.6 + dip * 0.5), [RisoShapes.ellipse(Vector2(loop_at.x, g - 3.0), (26.0 + bob * 1.2) * (1.0 - lift * 0.4), 5.0, 16)], false)
 	# The body follows the path its head has travelled (see _wisp_place): the head is placed on
 	# its drop, and everything behind it lies along the recorded trail, so mid-turn the tail traces
 	# the drop and after the turn it unwinds along it as the wisp moves off.
@@ -106,9 +123,15 @@ func _draw_art() -> void:
 			at_e += step
 		_drop_e = e
 	_wisp_trail_add(to_global(head))
+	var speed: float = 0.3 if stunned else 0.7
+	if ink.rigged and InkCanvas.rig_on_gpu:
+		# Its glow's flicker steps FLICKER_RATE times a second, so the rig reprints its glow and
+		# veils that often rather than every print.
+		var ft: float = floorf(t * FLICKER_RATE) / FLICKER_RATE
+		_draw_rigged(k, bob, g, loop_at, lift, dip, side, spinning, e_eyes, stunned, speed, 0.85 + 0.15 * sin(ft * 5.3 + phase) * sin(ft * 2.1 + phase * 1.7), head)
+		return
 	# Body, veils and glow reach about 22 art units back, scaled 1.1 k; plus the bend lookahead.
 	_wisp_sample(22.0 * k * 1.1 + 8.0)
-	var speed: float = 0.3 if stunned else 0.7
 	var flicker: float = 0.85 + 0.15 * sin(t * 5.3 + phase) * sin(t * 2.1 + phase * 1.7)
 	# The glow trails the wisp: strongest behind the head, thinning out past the tail.
 	ink.ink(RisoPrint.PINK, 0.06 * flicker, [_wisp_place(RisoShapes.ellipse(Vector2(-10.5, -8.4), 11.0, 7.5, 16), true)])
@@ -156,6 +179,156 @@ func _draw_art() -> void:
 	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE], eyes)
 	if stunned:
 		_stun_mark(head + _wp_bob + Vector2(0, -52))
+
+
+func _ready() -> void:
+	super()
+	ink.rig()
+	ink.keeps_shapes = true
+
+
+## The wisp through its rig (see CHAIN): the shadow on a stretched bone, then each chain's bones
+## worked out from the trail (where it was CHAIN_STEP units apart along the body, and which way it
+## ran there), and the rest shapes printed over them.
+func _draw_rigged(k: float, bob: float, g: float, loop_at: Vector2, lift: float, dip: float, side: float, spinning: bool, e_eyes: float, stunned: bool, speed: float, flicker: float, head: Vector2) -> void:
+	var rests: Dictionary = WispArt._rest_shapes()
+	ink.on_bone(ink.bone(Transform2D(Vector2((26.0 + bob * 1.2) * (1.0 - lift * 0.4), 0.0), Vector2(0.0, 5.0), Vector2(loop_at.x, g - 3.0))))
+	ink.ink(RisoPrint.NIGHT, 0.35 * (1.0 - lift * 0.6 + dip * 0.5), rests[&"shadow"], false)
+	# The trail at each bone's place along the body: where it was, and its heading (easing from the
+	# head's within the first stretch behind it, as _wisp_place does).
+	var sx: float = k * 1.1
+	var sy: float = k * 0.6
+	var across: float = side * PI * 0.5
+	var at: PackedVector2Array = PackedVector2Array()
+	var heads: PackedVector2Array = PackedVector2Array()
+	at.resize(CHAIN)
+	heads.resize(CHAIN)
+	var inverse: Transform2D = get_global_transform().affine_inverse()
+	for i: int in range(CHAIN):
+		var d: float = -(CHAIN_X0 - CHAIN_STEP * float(i)) * sx
+		var found: Array = _trail_at(d)
+		var dir: Vector2 = found[1]
+		if d < 14.0:
+			dir = _wp_head_dir.lerp(dir, clampf(d / 14.0, 0.0, 1.0)).normalized()
+		at[i] = inverse * (found[0] as Vector2)
+		heads[i] = (inverse.basis_xform(dir)).normalized()
+	# The still chain, then a chain for each layer lifted by its wave (see _wave).
+	var bases: Array[int] = []
+	for chain_i: int in range(4):
+		var lifts: PackedFloat32Array = WispArt._waves(t * 6.0 * speed - float(chain_i - 1) * 0.55, -2.6 * float(chain_i - 1)) if chain_i > 0 else PackedFloat32Array()
+		for i: int in range(CHAIN):
+			var x: float = CHAIN_X0 - CHAIN_STEP * float(i)
+			var dir: Vector2 = heads[i]
+			var perp: Vector2 = dir.rotated(across)
+			var lifted: float = lifts[i] if chain_i > 0 else 0.0
+			var b: int = ink.bone(Transform2D(dir * sx, perp * sy, at[i] - dir * sx * x + perp * sy * (8.2 + lifted) + _wp_bob))
+			if i == 0:
+				bases.append(b)
+	# The glow trails the wisp: strongest behind the head, thinning out past the tail.
+	ink.on_chain(bases[0], WispArt._binder(bases[0]))
+	ink.ink(RisoPrint.PINK, 0.06 * flicker, rests[&"glow0"])
+	ink.ink(RisoPrint.PINK, 0.1 * flicker, rests[&"glow1"])
+	# Two lagging after-veils behind the body, then the body. The body is solid ink with only its
+	# tail tip thinning; the veils stay faint, flickering.
+	for layer: int in [2, 1, 0]:
+		if layer == 0:
+			# Opaque: clear the inks of whatever is behind (grass, light, glow) under the body.
+			ink.on_chain(bases[0], WispArt._binder(bases[0]))
+			ink.knock([RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], rests[&"clearing"])
+		var chain: int = bases[layer + 1]
+		ink.on_chain(chain, WispArt._binder(chain))
+		ink.ink_graded(RisoPrint.PINK, rests[StringName("body%d" % layer)], rests[StringName("fade%d" % layer)], true, 1.0 if layer == 0 else flicker)
+		if layer == 0:
+			ink.ink_graded(RisoPrint.BLUE, rests[&"body0"], rests[&"fade0"], true, 0.35)
+	# The middle of the body lies on the spine, where the trail was that far back.
+	_body_middle = (_trail_at(-BODY_MIDDLE.x * sx)[0] as Vector2) + get_global_transform().basis_xform(_wp_bob)
+	# The eyes ride the still chain; mid-spin they slide to their mirrored height about the spine.
+	ink.on_chain(bases[0], WispArt._binder(bases[0]))
+	var eyes: Array[PackedVector2Array] = rests[&"eyes_stunned" if stunned else &"eyes"]
+	if spinning:
+		eyes = []
+		for eye: Vector2 in [Vector2(3.4, -9.2), Vector2(0.7, -9.4)]:
+			var ep: Vector2 = Vector2(eye.x, lerpf(eye.y, -16.4 - eye.y, e_eyes))
+			eyes.append(RisoShapes.rrect(ep.x - 1.0, ep.y - 0.4, 2.0, 0.8, 0.4, 2) if stunned else RisoShapes.ellipse(ep, 0.9, 1.9, 10))
+	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE], eyes)
+	if stunned:
+		ink.on_bone(0)
+		_stun_mark(head + _wp_bob + Vector2(0, -52))
+
+
+## How far a layer's wave lifts its outline at each bone of a chain, its waves at `phase` and its
+## outline shifted `shift` units back: none at the head, then its three waves at the points they
+## lift, as the drawn outline puts them, in between from one to the next.
+static func _waves(phase: float, shift: float) -> PackedFloat32Array:
+	var w1: float = sin(phase - 1.0) * 1.4
+	var w2: float = sin(phase - 2.0) * 1.4
+	var w3: float = sin(phase - 3.0) * 1.4
+	var kx: PackedFloat32Array = PackedFloat32Array([1.6, -2.0, -5.4, -8.9, -12.4])
+	var ky: PackedFloat32Array = PackedFloat32Array([0.0, 0.3 * w1, 0.8 * w1, w2, w3])
+	var out: PackedFloat32Array = PackedFloat32Array()
+	out.resize(CHAIN)
+	for i: int in range(CHAIN):
+		var x: float = CHAIN_X0 - CHAIN_STEP * float(i) - shift
+		var lifted: float = ky[4]
+		if x >= kx[0]:
+			lifted = 0.0
+		else:
+			for j: int in range(1, 5):
+				if x >= kx[j]:
+					lifted = lerpf(ky[j - 1], ky[j], (kx[j - 1] - x) / (kx[j - 1] - kx[j]))
+					break
+		out[i] = lifted
+	return out
+
+
+## The binder for the chain whose first bone is `base`: a point lies between the two bones either
+## side of its x, carried by each in proportion to how near it is.
+static func _binder(base: int) -> Callable:
+	if not _binders.has(base):
+		_binders[base] = func(p: Vector2) -> Vector3:
+			var f: float = clampf((CHAIN_X0 - p.x) / CHAIN_STEP, 0.0, float(CHAIN - 1))
+			var i: int = mini(int(f), CHAIN - 2)
+			return Vector3(base + i, base + i + 1, 1.0 - (f - float(i)))
+	return _binders[base]
+
+
+## The rest shapes (see _rests), built the first time.
+static func _rest_shapes() -> Dictionary:
+	if not _rests.is_empty():
+		return _rests
+	var one: Array[PackedVector2Array] = [RisoShapes.ellipse(Vector2.ZERO, 1.0, 1.0, 16)]
+	_rests[&"shadow"] = one
+	var glow0: Array[PackedVector2Array] = [RisoShapes.ellipse(Vector2(-10.5, -8.4), 11.0, 7.5, 16)]
+	var glow1: Array[PackedVector2Array] = [RisoShapes.ellipse(Vector2(-6.0, -8.2), 9.5, 8.0, 16)]
+	_rests[&"glow0"] = glow0
+	_rests[&"glow1"] = glow1
+	var clearing: Array[PackedVector2Array] = [RisoShapes.smooth(PackedVector2Array([
+		Vector2(5.6, -9), Vector2(4.6, -4.6), Vector2(1.6, -3), Vector2(-2, -3.8), Vector2(-4.5, -4.8), Vector2(-4.5, -11),
+		Vector2(-1.4, -13.2), Vector2(2.6, -13.4)]), 3)]
+	_rests[&"clearing"] = clearing
+	for layer: int in range(3):
+		var pts: PackedVector2Array = RisoShapes.smooth(PackedVector2Array([
+			Vector2(5.6, -9), Vector2(4.6, -4.6), Vector2(1.6, -3), Vector2(-2, -3.8), Vector2(-5.6, -4.8),
+			Vector2(-9, -6.6), Vector2(-12.4, -8.6), Vector2(-8.8, -9.6), Vector2(-5.2, -11),
+			Vector2(-1.4, -13.2), Vector2(2.6, -13.4)]), 3)
+		var fade: PackedFloat32Array = PackedFloat32Array()
+		var top: float = 1.0 if layer == 0 else 0.3 / float(layer)
+		for p: Vector2 in pts:
+			var along: float = clampf((p.x + 12.4) / 18.0, 0.0, 1.0)
+			var solid: float = clampf(along / 0.45, 0.0, 1.0)
+			fade.append(top * (solid * solid * (3.0 - 2.0 * solid) if layer == 0 else lerpf(0.15, 1.0, along)))
+		var body: Array[PackedVector2Array] = [Transform2D(0.0, Vector2(-2.6, -0.4) * float(layer)) * pts]
+		var fades: Array[PackedFloat32Array] = [fade]
+		_rests[StringName("body%d" % layer)] = body
+		_rests[StringName("fade%d" % layer)] = fades
+	var eyes: Array[PackedVector2Array] = []
+	var dazed: Array[PackedVector2Array] = []
+	for eye: Vector2 in [Vector2(3.4, -9.2), Vector2(0.7, -9.4)]:
+		eyes.append(RisoShapes.ellipse(eye, 0.9, 1.9, 10))
+		dazed.append(RisoShapes.rrect(eye.x - 1.0, eye.y - 0.4, 2.0, 0.8, 0.4, 2))
+	_rests[&"eyes"] = eyes
+	_rests[&"eyes_stunned"] = dazed
+	return _rests
 
 
 ## Twenty times a second far from the wizard, thirty near (see WISP_NEAR).

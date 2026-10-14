@@ -183,9 +183,13 @@ func run() -> void:
 
 
 ## The actual ordered ink and geometry, rather than a copy of the state being tested.
+## What a canvas prints: each op's plates, shapes and cover, and for a rig its bones' pose and warp
+## (a part that only moves changes its bone, not its shapes).
 func fingerprint(ink: InkCanvas) -> int:
 	var printed: Array = []
 	for i: int in range(ink._used):
 		var op: RisoInkOp = ink._ops[i]
-		printed.append([op.visibility_layer, op.lift, op.cover, op.polys, op.alphas])
+		printed.append([op.visibility_layer, op.lift, op.cover, op.polys, op.alphas, op.shape.bind if op.shape != null else -2])
+	if ink.rigged:
+		printed.append([ink._bone_basis.slice(0, ink._bones_used), ink._bone_origin.slice(0, ink._bones_used), ink._warp_bow, ink._warp_wall])
 	return hash(printed)

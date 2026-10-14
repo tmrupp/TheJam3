@@ -165,6 +165,14 @@ var graphics: StringName = &"full"
 ## The print rendered at light graphics' size (the scene's and the UI's print shaders draw into it),
 ## and the window-sized picture of it.
 var sheet_viewport: SubViewport
+## The frame counter in the window's top right corner, in debug runs (MapInfo.debug), while
+## `show_fps` (the F7 panel's FPS counter): frames a second and the mean frame's time over the last
+## FPS_EVERY seconds, plain text over the print.
+const FPS_EVERY: float = 0.25
+var show_fps: bool = true
+var fps_label: Label
+var _fps_time: float = 0.0
+var _fps_frames: int = 0
 ## The UI's plates' size against the scene's, at full graphics and at light (see set_graphics), and
 ## now: the UI holds only a few small marks (prompts, plaques, the map), and each of its nine plates
 ## costs the GPU its whole size whatever it holds, while the print's wobble and screen hide the
@@ -608,11 +616,29 @@ func _process(delta: float) -> void:
 		if vp.size != ui_size:
 			vp.size = ui_size
 		vp.canvas_transform = ui_xf
+	_count_frames(delta)
 	_track_player()
 	_ease_robe(delta)
 	if not get_tree().paused:
 		_advance_sheet(delta)
 	_update_uniforms(Vector2(size))
+
+
+## Keep the frame counter (fps_label) up to date, shown only in debug runs with show_fps.
+func _count_frames(delta: float) -> void:
+	if fps_label == null:
+		return
+	var on: bool = show_fps and MapInfo.debug
+	if fps_label.visible != on:
+		fps_label.visible = on
+	if not on:
+		return
+	_fps_time += delta
+	_fps_frames += 1
+	if _fps_time >= FPS_EVERY:
+		fps_label.text = "%d fps  %.1f ms" % [roundi(float(_fps_frames) / _fps_time), _fps_time * 1000.0 / float(_fps_frames)]
+		_fps_time = 0.0
+		_fps_frames = 0
 
 
 func _track_player() -> void:
@@ -1003,6 +1029,19 @@ func _build_panel() -> void:
 	var layer: CanvasLayer = CanvasLayer.new()
 	layer.layer = 3
 	add_child(layer)
+	fps_label = Label.new()
+	fps_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	fps_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	fps_label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	fps_label.offset_right = -3.0
+	fps_label.offset_top = 2.0
+	fps_label.add_theme_font_size_override("font_size", 6)
+	fps_label.add_theme_color_override("font_color", Color(1, 1, 1))
+	fps_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	fps_label.add_theme_constant_override("outline_size", 2)
+	fps_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fps_label.visible = false
+	layer.add_child(fps_label)
 	panel = PanelContainer.new()
 	panel.visible = false
 	panel.position = Vector2(4, 4)
@@ -1043,6 +1082,7 @@ func _build_panel() -> void:
 	_option_row(print_box, &"between", "Between sheets", ["Cut", "Blend"], _on_between)
 	_option_row(print_box, &"plates", "Plates", ["Independent", "Trapped"], func(i: int) -> void: trapped = i == 1)
 	_option_row(print_box, &"graphics", "Graphics", ["Full", "Light"], func(i: int) -> void: set_graphics(&"light" if i == 1 else &"full"))
+	_option_row(print_box, &"fps", "FPS counter", ["On", "Off"], func(i: int) -> void: show_fps = i == 0)
 	# How hard the game is: a preset changes what levels hold, so the place is laid out again.
 	var hard: VBoxContainer = _section(box, "Difficulty", false)
 	_option_row(hard, &"difficulty", "Preset", Difficulty.NAMES, func(i: int) -> void:
@@ -1359,6 +1399,8 @@ func _sync_panel() -> void:
 		(_options[&"plates"] as OptionButton).select(1 if trapped else 0)
 	if _options.has(&"graphics"):
 		(_options[&"graphics"] as OptionButton).select(1 if graphics == &"light" else 0)
+	if _options.has(&"fps"):
+		(_options[&"fps"] as OptionButton).select(0 if show_fps else 1)
 	if _player != null and is_instance_valid(_player):
 		_key_capacity_label.text = "Ring: %d / %d  (Keyring adds slots)" % [_player.keyring.all().size(), _player.keyring.capacity()]
 		_skeleton_label.text = str(_player.keyring.skeletons())

@@ -108,6 +108,8 @@ func _ready() -> void:
 	scale = Vector2(ART_SCALE, ART_SCALE)
 	z_index = 10
 	body = InkCanvas.new()
+	body.rig()
+	body.keeps_shapes = true
 	add_child(body)
 	guard = InkCanvas.new()
 	guard.z_index = 1
