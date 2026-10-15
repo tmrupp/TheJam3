@@ -76,6 +76,12 @@ func run() -> void:
 	var it: Interactable = await focus(well)
 	check(it.prompt_hint().get("text") == "map · %d" % int(well.call("price")), "generic hint contains current map price")
 	check((prompt.get("hint_label") as Label).visible, "map price pops up for the focused inkwell")
+	# The interact hand: its five pieces and its paper cuts, every one big enough to print (the print
+	# skips shapes under 8 square units).
+	var hand_ok: bool = RisoPrompt._hand_shapes.size() == RisoPrompt.HAND_PIECES.size() and RisoPrompt._hand_cuts.size() >= RisoPrompt.HAND_CUTS.size()
+	for poly: PackedVector2Array in RisoPrompt._hand_shapes + RisoPrompt._hand_cuts:
+		hand_ok = hand_ok and absf(RisoInkOp._area(poly)) >= 8.0
+	check(hand_ok, "the interact hand's pieces and paper cuts are all big enough to print")
 	await shot("inkwell_focused")
 	player.global_position = well.global_position + Vector2(-300, 0)
 	it.untouch(player)

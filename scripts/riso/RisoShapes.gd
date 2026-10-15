@@ -75,6 +75,22 @@ static func smooth(pts: PackedVector2Array, seg: int = 4) -> PackedVector2Array:
 	return out
 
 
+## Open quadratic spline from the first of `pts` to the last, through the midpoints of the edges
+## between (each inner point the control of its own curve): the open counterpart of smooth.
+static func smooth_open(pts: PackedVector2Array, seg: int = 4) -> PackedVector2Array:
+	var n: int = pts.size()
+	if n < 3:
+		return pts
+	var out: PackedVector2Array = PackedVector2Array([pts[0]])
+	for i: int in range(1, n - 1):
+		var a: Vector2 = pts[0] if i == 1 else (pts[i - 1] + pts[i]) * 0.5
+		var b: Vector2 = pts[n - 1] if i == n - 2 else (pts[i] + pts[i + 1]) * 0.5
+		for s: int in range(1, seg + 1):
+			var t: float = float(s) / float(seg)
+			out.append(a.lerp(pts[i], t).lerp(pts[i].lerp(b, t), t))
+	return out
+
+
 ## A rectangle `w` by `h` from (`x`, `y`) with its corners rounded `r` (at most half its width or
 ## height), each corner in `seg` steps. Square corners give just the four corners; and where the
 ## rounding is half its height or width (a pill), the point where two corners meet is kept once.
