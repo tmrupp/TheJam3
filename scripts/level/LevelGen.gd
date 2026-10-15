@@ -64,7 +64,6 @@ enum Type {
 	DEPARTMENT,
 	STATION_GATE,
 	TOWER_SWITCH,
-	SHUTTER,
 }
 
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).
@@ -153,8 +152,8 @@ func in_temple_hoard (v: Vector2i) -> bool:
 	return temples.any(func(t: Dictionary) -> bool: return (t["hoard"] as Array).has(v))
 ## The gondola's circuit an archetype laid (CragsArchetype.lay_circuit), or {} for none.
 var circuit: Dictionary = {}
-## The bands of rock cutting a crags level into tiers, bottom up (CragsArchetype.cut_tiers): each
-## {"rows": its first and last row, "chute": its cells in the gondola's chute}. Empty for none.
+## The lines between a crags level's tiers, bottom up (CragsArchetype.cut_tiers): each {"rows": the
+## row under the upper station's landing and the one under that}. Empty for none.
 var tiers: Array[Dictionary] = []
 ## The shrine's cell (its boon side; mending is the cell to the right), or (-1, -1).
 var shrine: Vector2i = Vector2i(-1, -1)
@@ -766,9 +765,6 @@ func _init (_cells: Array, def: NextWorldDef) -> void:
 	deal_colors()
 	if not Worlds.is_side(def.coord):
 		place_lift_switches()
-	# Up levels: ledges where the climb from the way back to the way on needs them (Climb), last
-	# and with no RNG draws, so nothing else moves.
-	Climb.aid(self, def)
 	# A gate level: its boss (Bosses), placed last, with no RNG draws.
 	if not Worlds.is_side(def.coord) and def.gate != &"":
 		place_boss(def.gate)
@@ -1058,8 +1054,6 @@ func thorn_runs () -> Array[Array]:
 ## Chasms.relax_crossings); and in hyperspace, the stretches left unbridged (Hyperspace._relic_gap).
 var relic_chasms: Array[int] = []
 var relic_gaps: Array[Rect2i] = []
-## The ledges laid to make an up level climbable (Climb.aid), in the order they were laid.
-var climb_ledges: Array[Vector2i] = []
 
 ## The bramble's shaft, in its gate levels (BrambleShaft.cut, which says what it holds); empty in
 ## every other level.

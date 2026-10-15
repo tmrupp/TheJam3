@@ -20,7 +20,6 @@ const KINDS: Dictionary = {
 	&"toll": "res://scripts/riso/props/GateArt.gd",
 	&"switch": "res://scripts/riso/props/SwitchArt.gd",
 	&"towerswitch": "res://scripts/riso/props/TowerSwitchArt.gd",
-	&"shutter": "res://scripts/riso/props/ShutterArt.gd",
 	&"relic": "res://scripts/riso/props/RelicArt.gd",
 	&"lantern": "res://scripts/riso/props/LanternArt.gd",
 	&"exit": "res://scripts/riso/props/ExitArt.gd",

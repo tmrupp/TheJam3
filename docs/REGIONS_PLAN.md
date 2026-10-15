@@ -82,10 +82,11 @@ at `(x, -(k * STRIDE + d) - 1)` (`Worlds.side_at`). The up branch needs those ro
   back near the bottom (`LevelGen.place_exits(…, climbing)`), so the up branch is climbed rather than
   crossed; the way on's chevron points up there. Climbing is harder than falling (by the rough
   reach, about 0 to 7 % of up levels could be climbed without help, against 45 to 70 % of down levels
-  crossed), so a light helper (`Climb.aid`) lays at most 12 ledges, each a hop on from somewhere
+  crossed), so a light helper (`Climb.aid`) laid at most 12 ledges, each a hop on from somewhere
   already reached, toward the way on: hops of the wizard's own in the garden, a relic's (about a
-  double jump) beyond it. **Nothing is promised**, as nothing is below the start: some climbs want
-  wall jumps or a relic and a few may not go at all. With it, about 70 % of the garden's up levels
+  double jump) beyond it. *Since removed (the owner: traversability is not enforced in any world,
+  AGENTS.md); what follows is as it was.* **Nothing is promised**, as nothing is below the start:
+  some climbs want wall jumps or a relic and a few may not go at all. With it, about 70 % of the garden's up levels
   can be climbed with the wizard's own hops (as many as its down levels can be crossed), and nearly
   all the crags and sky with a relic's. No ledge goes in a chasm's or gap's kept air, so the
   crossings left to relics stay theirs.
@@ -186,8 +187,8 @@ points, accent) set in the walls of the shaft.
   (its vines' phases, its bulbs' first swell) is hashed from the seed and cell.
 - A lantern death brings it back whole, as the level reloads. `tests/bramble_test.gd` covers it,
   `tests/capture_bramble.gd` takes stills. Of the twelve garden gate levels the test lays out, the
-  way on is reached with the wizard's own hops in ten (the climb helper, `Climb.aid`, sees the
-  shaft's ledges and lends ledges toward its foot, never inside it).
+  way on is reached with the wizard's own hops in ten (the climb helper, `Climb.aid`, since
+  removed, saw the shaft's ledges and lent ledges toward its foot, never inside it).
 
 ### The worm (garden, down gate, in the level)
 
@@ -435,13 +436,14 @@ shooting out through arrow slits at the wizard and stopped only from inside (`Cr
   walls.
 - **Realm.** Pale stone and dawn colours; wind-torn clouds below the cliffs.
 - **The tower puzzle (owner's design; a first pass is built, docs/DEEPER_PLAN.md §4d).** The crags' own puzzle, as light is the cemetery's
-  and wind the sky's: a level is climbed only by the gondola, and its stations are worked from the
-  towers.
-  - *Tiers.* Each station stands on a tier of the cliff of its own: a band of rock runs right
-    across the level between each two stations, so the tiers cannot be climbed between on foot.
-    The gondola's chute passes each band through a shutter that opens only for the car, so the
-    wizard crosses a band riding it (in it or on its roof) and never alone, up or down.
-  - *Stations.* No tolls or switch gates: each station is on or off, set by the towers. An off
+  and wind the sky's: the gondola is the quick way up the cliff, and its stations are worked from
+  the towers.
+  - *Tiers.* Each station stands on a tier of the cliff of its own, reckoned for the puzzle (which
+    station a tower answers to); no wall divides them (owner: no literal wall), and the cliff may
+    well be climbed between them on foot.
+  - *Stations.* No tolls or switch gates: each station is on or off, set by the towers. Its gate
+    is the old toll gate's portcullis with a lamp, lit while it is on, and its board shows the line
+    as a chain with this station marked, so it is plain whether it is powered and where it is. An off
     station is shut as a toll gate was (the car runs from an on station to an off one and back,
     never between two off ones, and no one steps out at an off one). On the first visit only the
     station nearest the way the wizard came in is on. The level record keeps them as left.
@@ -628,9 +630,8 @@ Each phase ends with the full suite green and its own tests.
    dressing (its new door up), changed; `layout_fingerprint_test` was re-pinned.
 2. **Climbing levels.** *Done.* Exits mirrored for the up branch, the chevron turned, the arrival
    at the bottom, and the climb helper (`Climb`, no promise of a way through; the owner asked for
-   traversability to be relaxed, especially beyond the garden). Tests: `climb_test` (the way on above
-   the way back and in the top part, ledges only in up levels and where they may go, the same every
-   build, and they help); `layout_fingerprint_test` re-pinned for the up levels (their dressing
+   traversability to be relaxed, especially beyond the garden; since removed, with `climb_test`, as
+   traversability is not enforced in any world). `layout_fingerprint_test` re-pinned for the up levels (their dressing
    changed; their terrain and every level below the start did not).
 3. **The gate.** *Done.* `Bosses` (which row each boss guards, in the level or in an arena, what a
    way crosses), `RunState.bosses` and `boss_relics` (saved), `NextWorldDef.gate` and `seal`: a gate

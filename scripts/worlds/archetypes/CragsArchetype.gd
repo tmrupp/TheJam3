@@ -12,9 +12,9 @@ extends Archetype
 ## and passages' doors and switch gates, and the climb itself. Its own thing is the gondola
 ## (cut_gates, populate, Gondola): a cable car climbing a line of stations from near the bottom of
 ## the level to near its top, in steps along rows and columns, and the tower puzzle that works it
-## (docs/REGIONS_PLAN.md §7): each station stands on a tier of the cliff of its own, a band of rock
-## between each two (cut_tiers) that only the car crosses, through a shutter (Shutter), and each
-## station is on or off as the towers' switches (TowerSwitch) set it (set_stations, Stations). Rock-bugs (RockBug) crawl along its rock (place_bugs) and
+## (docs/REGIONS_PLAN.md §7): each station stands on a tier of the cliff of its own (cut_tiers),
+## and is on or off as the towers' switches (TowerSwitch) set it (set_stations, Stations). Nothing
+## walls the tiers off: the cliff may well be climbed between them, and nothing sees that it can. Rock-bugs (RockBug) crawl along its rock (place_bugs) and
 ## hatch from nests out on the cliff (BugNest), stalactites (Stalactite) hang from its ceilings,
 ## falling on whoever passes under, and crossbows (Crossbow) built into the towers' and keeps'
 ## walls shoot out at the wizard, stopped only from inside (finish).
@@ -62,7 +62,7 @@ const ROOF_AIR: int = 2
 ## chance of TOWER_WINDOW each). A hoard tower (TOWER_HOARD_SHARE) has no hatch and no windows, and
 ## TOWER_HOARD stars in its top room (place_hoards). A share of them (TOWER_EDGE_SHARE) are built
 ## into the level's left or right edge: their outer wall is the edge itself, with no doorway or
-## window out that side. Every tower stands on one tier (cut_tiers), never across a band.
+## window out that side. A tower answers to the tier its ground floor is on (cut_tiers).
 const TOWERS_PER_K: float = 1.4
 const TOWERS_LEAST: int = 3
 const TOWERS_MOST: int = 6
@@ -97,11 +97,10 @@ const CAVERN_RY: Vector2i = Vector2i(3, 7)
 ## it meets open air (at most LANDING_REACH cells). The stations stand far enough apart
 ## (STATION_GAP) for a tier to hold a tower of TOWER_STOREYS.
 ##
-## The tiers: between each two stations a band BAND rows deep of rock right across the level (kept
-## whole: nothing carves or tunnels through it), right under the upper station's landing (its floor),
-## so each tier runs from its own station up to the next band. The car's chute through it is shut
-## by a shutter that opens only for the car (Shutter), so the tiers are crossed only riding it. The
-## top station stands low enough (TOP_TIER rows from the top) for a tower over it.
+## The tiers: each station's stretch of the cliff, from its own landing up to under the next
+## station's (cut_tiers; BAND rows noted at each line between). Nothing marks them in the rock:
+## they are how the tower puzzle reckons which station a tower answers to. The top station stands
+## low enough (TOP_TIER rows from the top) for a tower over it.
 const BAND: int = 2
 const TOP_TIER: int = 12
 const STATION_GAP: int = 12
@@ -186,8 +185,7 @@ func shape(w: LevelGen) -> void:
 
 
 ## The gondola's line, once the caves are joined: its track and its stations' landings, carved and
-## kept clear of everything laid after (lay_circuit), and the bands of rock between its tiers
-## (cut_tiers). Then the towers, clear of it, on the tiers (build_towers), and the caves joined again
+## kept clear of everything laid after (lay_circuit), and its tiers marked (cut_tiers). Then the towers, clear of it, on the tiers (build_towers), and the caves joined again
 ## round their walls, should a tower have shut any air off.
 func cut_gates(w: LevelGen) -> void:
 	lay_circuit(w)
@@ -429,7 +427,7 @@ static func _least_tower(w: LevelGen, built: Dictionary, tier: int) -> void:
 ## Where a tower `size` big drawn at `at` stands, let down onto the first rock under its middle, as
 ## [its box, its footing (_footing)]; null if it does not fit there: its box and the air over its
 ## roof must be clear of every structure but the shafts (`built`: a tower may be built over a shaft,
-## which only climbs within its tier now the tiers are cut, cut_tiers),
+## the climb going round it),
 ## kept KEEP_APART from the keeps and towers (`built`), clear of what other towers keep whole
 ## (LevelGen.kept_whole: their roof air, footing, doorsteps), its doorsteps and walls clear of the
 ## gondola's line, and its footing on rock.
@@ -869,59 +867,26 @@ static func lay_circuit(w: LevelGen) -> void:
 	w.circuit = {"path": path, "stops": stops, "gates": gates, "inner": inners}
 
 
-## Cut the cliff into tiers, one for each station (see BAND): a band of rock across the level
-## between each two stations, kept whole, its cells in the car's chute left open and shut by a
-## shutter (LevelGen.Type.SHUTTER, on the chute's first cell, extra the chute's box). Noted in
-## LevelGen.tiers, bottom up: {"rows": the band's first and last row, "chute": its cells in the
-## chute}. A level with no gondola has no tiers.
+## Mark the cliff's tiers, one for each station (see the tiers under STATION_GAP): the line between
+## each two, the row under the upper station's landing, noted in LevelGen.tiers, bottom up, as
+## {"rows": that row and the one under it}. Nothing is built there: the tiers are only how the tower
+## puzzle reckons which station a tower answers to. A level with no gondola has no tiers.
 static func cut_tiers(w: LevelGen) -> void:
 	if w.circuit.is_empty():
 		return
 	var path: Array[Vector2i] = w.circuit["path"]
 	var stops: Array[int] = w.circuit["stops"]
-	var chute: Dictionary = {}
-	for i: int in range(path.size()):
-		for c: Vector2i in swept_cells(path[i], path[mini(i + 1, path.size() - 1)]):
-			chute[c] = true
 	for i: int in range(stops.size() - 1):
-		var below: int = path[stops[i]].y
 		var above: int = path[stops[i + 1]].y
-		# The band: right under the landing over it (its first row the landing's floor), so each tier
-		# runs from its own station up to the next band, as tall as the stations are apart.
-		var best: int = above + 1
-		if best + BAND - 1 > below - 2:
-			best = -1
-		if best < 0:
-			continue
-		var cells: Array[Vector2i] = []
-		for y: int in range(best, best + BAND):
-			for x: int in range(w.size.x):
-				var v: Vector2i = Vector2i(x, y)
-				if chute.has(v):
-					cells.append(v)
-					continue
-				# Rock right across, the level's edge columns and the landings' cells too, so no gap
-				# is left to climb through.
-				if not w.is_ground(v):
-					w._to_rock(v)
-				if not (w.structures.has(v) and w.structures[v] != &"shaft"):
-					w.masonry.erase(v)
-				w.empties.erase(v)
-				w.kept_whole[v] = true
-		w.tiers.append({"rows": Vector2i(best, best + BAND - 1), "chute": cells})
-		if not cells.is_empty():
-			var box: Rect2i = Rect2i(cells[0], Vector2i.ONE)
-			for c: Vector2i in cells:
-				box = box.expand(c).expand(c + Vector2i.ONE)
-			w.put(cells[0], LevelGen.Type.SHUTTER, box)
+		w.tiers.append({"rows": Vector2i(above + 1, above + BAND)})
 
 
-## How many tiers the level is cut into (cut_tiers): one more than its bands, or 1 with none.
+## How many tiers the level is marked into (cut_tiers): one more than the lines between, or 1.
 static func tier_count(w: LevelGen) -> int:
 	return w.tiers.size() + 1
 
 
-## The tier row `y` is on (cut_tiers): 0 at the bottom, one more for each band under it.
+## The tier row `y` is on (cut_tiers): 0 at the bottom, one more for each line between under it.
 static func tier_of(w: LevelGen, y: int) -> int:
 	var t: int = 0
 	for band: Dictionary in w.tiers:
@@ -930,7 +895,7 @@ static func tier_of(w: LevelGen, y: int) -> int:
 	return t
 
 
-## The rows tier `tier` spans between its bands, (first, last + 1); the whole level for -1.
+## The rows tier `tier` spans between its lines, (first, last + 1); the whole level for -1.
 static func tier_rows(w: LevelGen, tier: int) -> Vector2i:
 	if tier < 0 or w.tiers.is_empty():
 		return Vector2i(0, w.size.y)

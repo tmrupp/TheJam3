@@ -149,6 +149,20 @@ bash tests/run.sh sky_test        # just these, headless
   and `best_of(spots, score, test)` (the nearest or, with the score negated, furthest spot; no
   draw, ties keep the earlier spot).
 
+## Traversability: not enforced, in any world
+
+- The owner's rule, for every world and band: do not make sure a level can be traversed. Add no
+  pass that lays ledges, carves passages, moves things or re-deals a layout so the way on (or a
+  tower, a station, a reward) is reached on foot, and no check or test that fails a level for
+  being hard or impossible to get through. A level that cannot be crossed without a relic, a
+  move found later or the gondola is fine.
+- Logic that is not about walking is still checked where it was asked for: the crags' tower puzzle
+  deals its switches so there is a way up and a way down through the switches themselves
+  (`Stations.deal`), taking each tower as reached from its own tier.
+- `connect_caves` (every open space joined into one cave, tiny pockets filled) stays: the owner
+  is fine with it. The climbing aid that laid ledges toward an up level's way on (`Climb.aid`) is
+  gone; do not bring it or anything like it back.
+
 ## Art rules (the riso print): see `docs/RISO_PRINT.md`
 
 - Art is ink coverage on plates (night, blue, pink, accent, eye, glow, robe), drawn with

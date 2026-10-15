@@ -4,12 +4,11 @@ extends TestKit
 ## the same every build; their realm and decor (battlements and dressed stone on the masonry only);
 ## doors in their passages; rock-bugs; and the gondola's line: from near the bottom to near the top,
 ## straight up and up 45° diagonals only, carved and kept clear, counted as somewhere to stand, at
-## least four stations, each a doorway onto a landing behind a station gate; the tiers (a band of rock
-## across the level under each station but the first, the car's chute through it shuttered) and the
-## towers on them (three to six, the bottom and top tiers one at least, each with a switch whose
+## least four stations, each a doorway onto a landing behind a station gate; the tiers (one for
+## each station, nothing built between them) and the towers on them (three to six, the bottom and top tiers one at least, each with a switch whose
 ## set gives a way up and a different way down). In play: only the station nearest the way in is
 ## on at first; a tower's switch flips its set, then is locked until another is flipped, and the
-## lock lifts when the level loads again; a shutter stops the wizard alone and opens for the car. In play: its sides up while it stands; the lever sets it off
+## lock lifts when the level loads again. In play: its sides up while it stands; the lever sets it off
 ## with its rider barred in; a rock-bug comes out on its cable, clings to it until the top of the car
 ## reaches it, crawls in through the roof hatch and round the inside of the car, and is let off onto
 ## the rock when it stands with its sides
@@ -95,7 +94,7 @@ func _circuit(w: LevelGen, at: Vector2i) -> int:
 	var astray: Array[String] = []
 	for i: int in range(path.size()):
 		for c: Vector2i in CragsArchetype.swept_cells(path[i], path[mini(i + 1, path.size() - 1)]):
-			if not (w.keep_clear.has(c) and not w.empties.has(c) and (w.get_cell(c).type in [LevelGen.Type.EMPTY, LevelGen.Type.SHUTTER] or c == gondolas[0])):
+			if not (w.keep_clear.has(c) and not w.empties.has(c) and (w.get_cell(c).type == LevelGen.Type.EMPTY or c == gondolas[0])):
 				astray.append("%s %s" % [c, LevelGen.Type.keys()[w.get_cell(c).type]])
 	check(astray.is_empty(), "the way it sweeps is open all along and kept clear of what is laid after %s" % ", ".join(astray))
 	var nodes: Dictionary = Reach.footholds(w)
@@ -112,20 +111,11 @@ func _circuit(w: LevelGen, at: Vector2i) -> int:
 
 ## Row `at`'s tiers and towers, laid out as `w` with its gondola's `path` and `stops`.
 func _tiers(w: LevelGen, at: Vector2i, path: Array[Vector2i], stops: Array[int]) -> void:
-	check(w.tiers.size() == stops.size() - 1, "row %d is cut into a tier for each station (%d bands)" % [at.y, w.tiers.size()])
-	var whole: bool = true
-	var shutters: int = 0
+	check(w.tiers.size() == stops.size() - 1, "row %d is reckoned in a tier for each station (%d lines between)" % [at.y, w.tiers.size()])
+	var marked: bool = true
 	for i: int in range(w.tiers.size()):
-		var rows: Vector2i = w.tiers[i]["rows"]
-		var chute: Array = w.tiers[i]["chute"]
-		whole = whole and rows.x == path[stops[i + 1]].y + 1
-		for y: int in range(rows.x, rows.y + 1):
-			for x: int in range(w.size.x):
-				var v: Vector2i = Vector2i(x, y)
-				whole = whole and (chute.has(v) or w.is_ground(v))
-		shutters += 1 if not chute.is_empty() and w.get_cell(chute[0]).type == LevelGen.Type.SHUTTER else 0
-	check(whole, "each band is rock right across, under the station over it, but for the car's chute")
-	check(shutters == w.tiers.size(), "a shutter in the chute through each band")
+		marked = marked and (w.tiers[i]["rows"] as Vector2i).x == path[stops[i + 1]].y + 1
+	check(marked, "each line between tiers lies under the station over it, nothing built there")
 	var tiers: Array[int] = []
 	tiers.assign(w.circuit.get("tiers", []))
 	var masks: Array[int] = []
@@ -300,9 +290,9 @@ func _turn_on(i: int) -> void:
 			(n as SwitchGate).set_up(true)
 
 
-## The towers' switches and the shutters, in play.
+## The towers' switches, in play.
 func towers() -> void:
-	print("towers and shutters")
+	print("towers")
 	info.coord = Vector2i(28, NextWorldDef.band_row(&"crags", 0))
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
@@ -332,39 +322,6 @@ func towers() -> void:
 	info._load_level()
 	await settle()
 	check(info.last_tower == -1 and info.record().stations == left, "the level loading again lifts the lock and keeps the stations as left")
-	# A shutter: shut with the car away, so the wizard cannot drop through it.
-	var shutters: Array[Node] = placed("shutter.tscn", true)
-	check(shutters.size() == info.world.tiers.size(), "a shutter in each band's chute")
-	if shutters.is_empty():
-		return
-	var sh: Shutter = shutters[0] as Shutter
-	var g: Gondola = placed("gondola.tscn", true)[0] as Gondola
-	# The car parked well away from it.
-	g.s = g.stops_s[g.stops_s.size() - 1] if sh.area.get_center().y > g.world_at(g.stops_s[g.stops_s.size() - 1]).y + 600.0 else g.stops_s[0]
-	g.running = false
-	g._place()
-	await physics_frame
-	await physics_frame
-	check(sh.collision_layer != 0, "with the car away it is shut")
-	player.global_position = sh.area.get_center() + Vector2(0, -sh.area.size.y * 0.5 - 70.0)
-	player.velocity = Vector2.ZERO
-	await frames(40)
-	check(player.global_position.y < sh.area.position.y, "and the wizard stands on it rather than drop through")
-	# The car brought into it: it opens.
-	var along: float = 0.0
-	var best: float = INF
-	for k: int in range(0, int((g.path.size() - 1) * 4)):
-		var u: float = float(k) / 4.0
-		var d: float = (g.world_at(u) + Vector2(0, -g.cell_px)).distance_to(sh.area.get_center())
-		if d < best:
-			best = d
-			along = u
-	player.global_position = info.cell_position(info.world.exits[MapInfo.Exit.BACK])
-	g.s = along
-	g._place()
-	await physics_frame
-	await physics_frame
-	check(sh.collision_layer == 0 and sh.car_here(), "with the car in it, it opens")
 
 
 ## Called from a station far along the line while it is out of view, the car first jumps to just

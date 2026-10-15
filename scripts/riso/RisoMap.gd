@@ -334,7 +334,8 @@ func _level_rows() -> Array:
 		["vane", func(at: Vector2) -> void: _mark_bell(at, false, -2, "vane"), "vane"],
 		["bridge", func(at: Vector2) -> void: _mark_bridge(at, true), "bridge"],
 		["unrung bridge", func(at: Vector2) -> void: _mark_bridge(at, false), "unrung bridge"],
-		["gondola", func(at: Vector2) -> void: _mark_gondola([at + Vector2(-3.0, 3.0), at + Vector2(-3.0, 1.0), at + Vector2(-1.0, 1.0), at + Vector2(-1.0, -1.0), at + Vector2(1.0, -1.0), at + Vector2(1.0, -3.0)], [at + Vector2(-3.0, 3.0), at + Vector2(1.0, -3.0)], at + Vector2(-3.0, 3.0)), "gondola"],
+		["gondola", func(at: Vector2) -> void: _mark_gondola([at + Vector2(-3.0, 3.0), at + Vector2(-3.0, 1.0), at + Vector2(-1.0, 1.0), at + Vector2(-1.0, -1.0), at + Vector2(1.0, -1.0), at + Vector2(1.0, -3.0)], [at + Vector2(-3.0, 3.0), at + Vector2(1.0, -3.0)], at + Vector2(-3.0, 3.0), [true, false]), "gondola"],
+		["tower switch", _mark_tower_switch, "tower switch"],
 		["toll gate", _mark_toll, "toll gate"],
 		["relic", func(at: Vector2) -> void: _mark_relic(at, &"blink", 0.7), "relic"],
 	] + _door_rows() + [
@@ -502,9 +503,14 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 			for i: int in CragsArchetype.turns(track):
 				corners.append(spot.call(track[i]))
 			var stops: Array[Vector2] = []
+			var on: Array[bool] = []
 			for i: int in circuit["stops"]:
 				stops.append(spot.call(track[i]))
-			_mark_gondola(corners, stops, at)
+				# Each station on (lit) or off as the towers left it (LevelRecord.stations).
+				on.append(rec.stations >= 0 and rec.stations & (1 << on.size()) != 0)
+			_mark_gondola(corners, stops, at, on)
+		LevelGen.Type.TOWER_SWITCH:
+			_mark_tower_switch(at)
 		LevelGen.Type.TOLL:
 			if not gone:
 				_mark_toll(at)
@@ -691,19 +697,37 @@ func _mark_bridge(at: Vector2, up: bool) -> void:
 
 
 ## A gondola: its track through `corners` (from its first station up to its last), a fine night
-## line, a blue tick at each of its `stops`, and the car, a small blue box, at `car` (the station it
-## waits at when the level loads).
-func _mark_gondola(corners: Array[Vector2], stops: Array[Vector2], car: Vector2) -> void:
+## line, a mark at each of its `stops` (an accent dot while that station is on, `on`, a night tick
+## while it is off), and the car, a small blue box, at `car` (the station it waits at when the level
+## loads).
+func _mark_gondola(corners: Array[Vector2], stops: Array[Vector2], car: Vector2, on: Array[bool] = []) -> void:
 	_note("gondola")
 	var line: PackedVector2Array = PackedVector2Array()
 	for c: Vector2 in corners:
 		line.append(c + Vector2(0.5, -1.6))
 	marks.ink(RisoPrint.NIGHT, 0.6, RisoDecor.strip(line, 0.35, 0.35), false)
 	var ticks: Array[PackedVector2Array] = []
-	for s: Vector2 in stops:
-		ticks.append(RisoShapes.rrect(s.x - 0.2, s.y - 2.2, 1.4, 1.2, 0.3))
-	marks.ink(RisoPrint.BLUE, 0.8, ticks, false)
+	var lit: Array[PackedVector2Array] = []
+	for k: int in range(stops.size()):
+		var s: Vector2 = stops[k]
+		if k < on.size() and on[k]:
+			lit.append(RisoShapes.circle(s + Vector2(0.5, -1.6), 1.1, 10))
+		else:
+			ticks.append(RisoShapes.rrect(s.x - 0.2, s.y - 2.2, 1.4, 1.2, 0.3))
+	marks.ink(RisoPrint.NIGHT, 0.85, ticks, false)
+	marks.knock([RisoPrint.NIGHT, RisoPrint.BLUE], lit)
+	marks.ink(RisoPrint.ACCENT, 1.0, lit, false)
 	marks.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(car.x - 0.6, car.y - 1.6, 2.2, 1.8, 0.4)], false)
+
+
+## A tower's switch (TowerSwitch): a little night tower, battlements and all, with an accent knob
+## over it (its switch).
+func _mark_tower_switch(at: Vector2) -> void:
+	_note("tower switch")
+	marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.rrect(at.x - 1.4, at.y - 1.8, 2.8, 4.4, 0.2), RisoShapes.rrect(at.x - 1.8, at.y - 2.6, 1.0, 1.0, 0.0), RisoShapes.rrect(at.x - 0.5, at.y - 2.6, 1.0, 1.0, 0.0), RisoShapes.rrect(at.x + 0.8, at.y - 2.6, 1.0, 1.0, 0.0)], false)
+	var knob: PackedVector2Array = RisoShapes.circle(at + Vector2(0.0, -4.4), 1.2, 10)
+	marks.knock([RisoPrint.NIGHT, RisoPrint.BLUE], [knob])
+	marks.ink(RisoPrint.ACCENT, 1.0, [knob], false)
 
 
 ## A toll gate: a gate's bar with an accent coin beside it.

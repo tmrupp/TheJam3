@@ -168,6 +168,36 @@ static func portcullis(ink: InkCanvas, g: float, half: float, key_color: int, li
 	_gate_iron(ink, key_color, fade, [RisoShapes.rrect(-half, top - 2.0, 2.0 * half, 14, 4)])
 
 
+## A gondola's line as a little chain (a station's gate and board, GateArt and StationArt): a cable
+## `wide` across centred on `c`, with a node for each of its `n` stations, bottom (left) to top, lit
+## in accent with a paper glint while `on(i)` (on), a small night disc while not; and station
+## `here`'s node bigger, with a night pointer under it (this is the one). `s` scales it.
+static func station_chain(ink: InkCanvas, c: Vector2, wide: float, n: int, here: int, on: Callable, s: float = 1.0) -> void:
+	if n <= 0:
+		return
+	var step: float = wide / float(maxi(n - 1, 1))
+	var x0: float = c.x - wide * 0.5 if n > 1 else c.x
+	ink.ink(RisoPrint.NIGHT, 0.55, [RisoShapes.rrect(x0, c.y - 1.2 * s, wide if n > 1 else 0.0, 2.4 * s, 0.0)], false)
+	var lit: Array[PackedVector2Array] = []
+	var glints: Array[PackedVector2Array] = []
+	var dark: Array[PackedVector2Array] = []
+	for i: int in range(n):
+		var p: Vector2 = Vector2(x0 + step * float(i), c.y)
+		var big: float = 1.6 if i == here else 1.0
+		if bool(on.call(i)):
+			lit.append(RisoShapes.circle(p, 4.5 * s * big, 14))
+			glints.append(RisoShapes.circle(p + Vector2(-1.2, -1.2) * s * big, 1.5 * s * big, 8))
+		else:
+			dark.append(RisoShapes.circle(p, 3.6 * s * big, 12))
+		if i == here:
+			var tip: Vector2 = p + Vector2(0.0, 9.5 * s)
+			dark.append(PackedVector2Array([tip, tip + Vector2(4.5, 6.0) * s, tip + Vector2(-4.5, 6.0) * s]))
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], lit)
+	ink.ink(RisoPrint.ACCENT, 1.0, lit, false)
+	ink.knock([RisoPrint.ACCENT], glints)
+	ink.ink(RisoPrint.NIGHT, 1.0, dark, false)
+
+
 ## A gate's ironwork: blue, or for a bone gate (a skeleton lock), pale bone grey.
 static func _gate_iron(ink: InkCanvas, key_color: int, fade: float, polys: Array[PackedVector2Array]) -> void:
 	if key_color == KeyRing.SKELETON:
