@@ -85,6 +85,16 @@ const POLE_LIMIT: float = 0.25
 const HEAD_LIMIT: float = 1.4
 ## A spent dash leaves the feather a pale grey, with a white vane.
 const SPENT_FEATHER: float = 0.3
+## When the feather fills again (the dash back, a movement spell ready), it pops: for RECHARGE_TIME
+## seconds it swells by up to RECHARGE_POP of its size and back, flashing paper-white over its first
+## RECHARGE_FLASH seconds, flicks (RECHARGE_FLICK, a kick to the hat tip's spring), and throws off
+## sparkles of its glow ink (RisoFx "recharge"). Charged, a soft halo of the same ink (FEATHER_HALO:
+## cover, breathing rate, width against the feather) hangs round it.
+const RECHARGE_TIME: float = 0.45
+const RECHARGE_POP: float = 0.35
+const RECHARGE_FLASH: float = 0.14
+const RECHARGE_FLICK: float = 5.0
+const FEATHER_HALO: Vector3 = Vector3(0.12, 2.6, 1.8)
 ## Without spawn protection the lantern still glows, dimly and pink: its glass ink, the halo
 ## around it and the ember inside, which pulses slowly at this rate.
 const UNLIT_GLASS: float = 0.3
@@ -168,6 +178,9 @@ var coin_t: float = 0.0
 var _was_ground: bool = true
 var _fall: float = 0.0
 var _facing: float = 1.0
+## Whether the feather was charged at the last step, and how long ago it filled (seconds).
+var _was_ready: bool = true
+var recharged: float = INF
 
 
 ## Keep the existing art node as the owner of all drawing and animation.
@@ -308,6 +321,14 @@ func step(dt: float) -> void:
 	pole_a = clampf(pole_a + pole_v * dt, -POLE_LIMIT, POLE_LIMIT)
 	head_v += (-HEAD_SPRING.x * head_x - HEAD_SPRING.y * head_v - HEAD_SPRING.z * push) * dt
 	head_x = clampf(head_x + head_v * dt, -HEAD_LIMIT, HEAD_LIMIT)
+	# The feather filling again pops (see RECHARGE_TIME).
+	recharged += dt
+	var ready: bool = wizard.player.move_ready()
+	if ready and not _was_ready:
+		recharged = 0.0
+		wizard.tip_v += facing * RECHARGE_FLICK
+		RisoFx.burst(&"recharge", wizard.to_global(feather_position()), Vector2.UP, [RisoPrint.GLOW])
+	_was_ready = ready
 
 
 ## Where the walk is in its stride, from 0 to 1.
@@ -560,18 +581,25 @@ func _fool() -> void:
 	frame = body * looks
 	_place(Transform2D(wizard.hat_a * 0.6, head + Vector2(0, -3.9)))
 	_solids(_rest(&"beret"))
-	_place()
+	# The plume is drawn about its quill, swollen by a recharge's pop.
 	var quill: Vector2 = head + Vector2(-1.6, -5.4)
+	var pop: float = _pop()
+	_place(Transform2D(0.0, Vector2.ONE * (1.0 + RECHARGE_POP * pop), 0.0, quill))
 	var sway: float = wizard.tip_a * facing + _flick()
-	var plume: PackedVector2Array = plume_shape(quill, sway)
+	var plume: PackedVector2Array = plume_shape(Vector2.ZERO, sway)
 	var plate: int = feather_plate()
 	var ready: bool = plate != RisoPrint.NIGHT
+	if plate == RisoPrint.GLOW:
+		var halo: float = FEATHER_HALO.x * (1.0 + 0.35 * sin(wizard.t * FEATHER_HALO.y)) + 0.3 * pop
+		_over(plume_shape(Vector2.ZERO, sway, FEATHER_HALO.z + 0.6 * pop), plate, halo)
 	if ready:
 		_solid(plume, plate)
 		_over(plume, plate, 0.15)
 	else:
 		_solid(plume, RisoPrint.NIGHT, SPENT_FEATHER)
-	_paper(plume_shape(quill, sway, 0.35, 0.3), 0.1 if ready else 0.0)
+	# The pale vane; as the feather fills it spreads over the whole plume a moment, a flash of paper.
+	var flash: float = clampf(1.0 - recharged / RECHARGE_FLASH, 0.0, 1.0)
+	_paper(plume_shape(Vector2.ZERO, sway, lerpf(0.35, 1.0, flash), 0.3 * (1.0 - flash)), 0.1 if ready else 0.0)
 	frame = body
 	# The beads never touch, so the whole and the spent each print at once.
 	_place(Transform2D(0.0, Vector2(0.2, FOOL_COLLAR_TOP + 2.6 + b)))
@@ -797,6 +825,23 @@ static func plume_shape(base: Vector2, sway: float, scale: float = 1.0, shift: f
 	right.reverse()
 	left.append_array(right)
 	return RisoShapes.smooth(left, 2)
+
+
+## How far through its pop the feather is (0 at rest, 1 at its fullest): quick to swell, slower to
+## settle (see RECHARGE_TIME).
+func _pop() -> float:
+	var u: float = recharged / RECHARGE_TIME
+	if u >= 1.0:
+		return 0.0
+	return clampf(sin(PI * u) * (1.0 - u) * 1.9, 0.0, 1.0)
+
+
+## Where the feather is, its middle (the wizard's local space), for the sparkles of a recharge.
+func feather_position() -> Vector2:
+	_follow()
+	var facing: float = 1.0 if wizard.fs >= 0.0 else -1.0
+	var at: Vector2 = FOOL_HEAD + Vector2(head_x, head_y) + Vector2(-1.6, -5.4) + Vector2(-3.5, -7.0)
+	return wizard._smv(Transform2D(lean, Vector2.ZERO) * Vector2(at.x * facing, at.y))
 
 
 ## The ink the feather prints in: it is the movement slot. In its ability's glow ink (RisoPrint

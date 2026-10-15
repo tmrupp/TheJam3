@@ -1,6 +1,7 @@
 extends Stunnable
 class_name Mover
-## Wisp patrol: walk along the floor, turning round at walls, ledges and other wisps.
+## Wisp patrol: walk along the floor, turning round at walls, ledges and other wisps, and lurch at
+## the wizard when they are close in front of it on its floor (see LURCH_SIGHT).
 ## The body is a frozen (kinematic) RigidBody2D moved only from here, falling under its own
 ## gravity until it lands, so the physics engine never bounces it on the floor. Standing on
 ## something that moves (a gondola's car, a lift), it is carried with it each step, first of all,
@@ -41,6 +42,27 @@ var carried: Vector2 = Vector2.ZERO
 ## setting off down) may have gone in a step for it to settle back onto it at once.
 const FALLING: float = 200.0
 const SNAP: float = 12.0
+## The lurch: walking with the wizard in front of it, within LURCH_SIGHT.x and no more than
+## LURCH_SIGHT.y above or below it, with no rock between, a wisp stops and winds up for WIND_UP
+## seconds (its art rears up, glowing hotter: WispArt), then lurches at them, LURCH_SPEED px/s at
+## first and slowing to nothing over LURCH_TIME seconds (about LURCH_SPEED * LURCH_TIME / 2 px in
+## all), stopping short at a ledge, a wall or another wisp. It gathers itself for LURCH_REST seconds
+## after, and walks LURCH_AGAIN seconds before it may lurch again. A harder preset winds up, rests
+## and lurches again sooner (Difficulty.attack); a stun breaks it off.
+const LURCH_SIGHT: Vector2 = Vector2(230.0, 48.0)
+const WIND_UP: float = 0.55
+const LURCH_SPEED: float = 880.0
+const LURCH_TIME: float = 0.3
+const LURCH_REST: float = 0.5
+const LURCH_AGAIN: float = 1.6
+## How far up (px) the wizard is looked for from the wisp's origin: its body's middle.
+const LURCH_EYE: float = 16.0
+## How far into the wind-up (0 to 1), and into the lurch (0 to 1) it is, each -1 when not; and the
+## seconds left resting after a lurch, and before it may lurch again.
+var winding: float = -1.0
+var lurching: float = -1.0
+var resting: float = 0.0
+var lurch_wait: float = 0.0
 
 
 ## Whether it is falling, not just off its floor for a step.
@@ -80,9 +102,16 @@ func _physics_process(delta: float) -> void:
 		carried += carry
 	_fall(delta)
 	if stunned or not grounded:
+		# Knocked out of it (or off its floor): the wind-up or lurch is lost.
+		if winding >= 0.0 or lurching >= 0.0:
+			winding = -1.0
+			lurching = -1.0
+			lurch_wait = LURCH_AGAIN
 		return
 	if turn_left > 0.0:
 		turn_left = maxf(0.0, turn_left - delta)
+		return
+	if _lurch(delta):
 		return
 
 	# A little faster on a harder preset (Difficulty.speed).
@@ -105,6 +134,57 @@ func _physics_process(delta: float) -> void:
 			sprite.scale.x = -abs(sprite.scale.x)
 
 
+## The lurch, a step of it (see LURCH_SIGHT): whether it holds the walk this step.
+func _lurch(delta: float) -> bool:
+	var pace: float = Difficulty.attack()
+	if lurching >= 0.0:
+		lurching += delta / LURCH_TIME
+		var step: float = LURCH_SPEED * maxf(0.0, 1.0 - lurching) * delta * float(direction)
+		var stop: bool = lurching >= 1.0 or _wisp_ahead() or not _floor_ahead(step)
+		if not stop:
+			var hit: KinematicCollision2D = rb.move_and_collide(Vector2(step, 0.0))
+			stop = hit != null and absf(hit.get_normal().x) > 0.7
+		if stop:
+			lurching = -1.0
+			resting = LURCH_REST
+		return true
+	if resting > 0.0:
+		resting = maxf(0.0, resting - delta * pace)
+		if resting <= 0.0:
+			lurch_wait = LURCH_AGAIN
+		return true
+	if winding >= 0.0:
+		winding += delta * pace / WIND_UP
+		if winding >= 1.0:
+			winding = -1.0
+			lurching = 0.0
+			# Dust kicked up behind it as it goes.
+			RisoFx.burst(&"lurch", rb.global_position + Vector2(-float(direction) * 12.0, LURCH_EYE), Vector2(-float(direction), 0.0))
+		return true
+	if lurch_wait > 0.0:
+		lurch_wait = maxf(0.0, lurch_wait - delta * pace)
+		return false
+	if _sees_wizard():
+		winding = 0.0
+		return true
+	return false
+
+
+## The wizard in front of it on its floor, near enough to lurch at, with no rock between (see
+## LURCH_SIGHT).
+func _sees_wizard() -> bool:
+	var player: Player = Stage.player()
+	if player == null or not is_instance_valid(player) or player.phasing:
+		return false
+	var eye: Vector2 = rb.global_position + Vector2(0.0, -LURCH_EYE)
+	var d: Vector2 = player.global_position - eye
+	if d.x * float(direction) <= 0.0 or absf(d.x) > LURCH_SIGHT.x or absf(d.y) > LURCH_SIGHT.y:
+		return false
+	# Only rock (layer 3) blocks the view.
+	var query: PhysicsRayQueryParameters2D = PhysicsRayQueryParameters2D.create(eye, player.global_position, 4, [rb.get_rid()])
+	return rb.get_world_2d().direct_space_state.intersect_ray(query).is_empty()
+
+
 ## Fall until something is underfoot; resting on the floor, stay put (no bounce).
 func _fall(delta: float) -> void:
 	fall_speed = minf(fall_speed + gravity * delta, MAX_FALL)
@@ -125,8 +205,9 @@ func _fall(delta: float) -> void:
 ## Whether there is floor under the body just past its leading edge. A body-shape probe tests
 ## the same floor the wisp stands on, ground and one-way platforms alike; the old short ray
 ## misread the seams where a platform meets ground as ledges.
-func _floor_ahead() -> bool:
-	var ahead: Transform2D = rb.global_transform.translated(Vector2(absf(dcast.position.x) * 1.8 * float(direction), 0.0))
+## `step` px further on (a lurch's step) is looked at, past where it stands.
+func _floor_ahead(step: float = 0.0) -> bool:
+	var ahead: Transform2D = rb.global_transform.translated(Vector2(absf(dcast.position.x) * 1.8 * float(direction) + step, 0.0))
 	return rb.test_move(ahead, Vector2(0, 10))
 
 

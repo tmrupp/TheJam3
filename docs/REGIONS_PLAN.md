@@ -686,7 +686,8 @@ Each phase ends with the full suite green and its own tests.
    the spider in play.
 6. **Cemetery crypts and light**: *done*: crypts (collapsed by WFC, one or two a level), darkness
    by place, snuffing fonts, light-shy wraiths and sleeping skeletons (`Crypts`, `Lamplight`,
-   `Snuffer`, `Skeleton`; `crypt_test`, `capture_crypt.gd`); and **the necromancer** in its crypt,
+   `Snuffer`, `Skeleton`; `crypt_test`, `capture_crypt.gd`), the wraith's dart and the skeleton's
+   swipe each with a tell (`crypt_attacks_test`); and **the necromancer** in its crypt,
    wounded only in light (`Necromancer`; `necromancer_test`). The cemetery's and catacombs' layouts
    changed and `layout_fingerprint_test` was re-pinned for them alone. Then tuning in play.
 7. **The institute**: *a first pass is done*: halls and stacks, the exam as a battle, students,

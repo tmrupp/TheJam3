@@ -9,7 +9,8 @@ extends RefCounted
 ##   its warnings, bites, rests and crawling all come sooner (Worm, Spider, BrambleVine, BrambleBulb).
 ## - attack: how often the other enemies attack, against Normal: their cooldowns, rests and tells run
 ##   this much faster (a watcher's shot, a hopper's crouch and rest, a bird's tell and rest between
-##   swoops, a nest's hatching).
+##   swoops, a wisp's wind-up and rest around a lurch, a skeleton's before and after a swipe, a
+##   wraith's swell and rest around a dart, a nest's hatching).
 ## - speed: how fast the other enemies move, against Normal, a little faster on a harder preset (a
 ##   wisp's walk, a wraith's drift, a bird's patrol, a moth swarm, a rock-bug's crawl).
 ## Static and scene-free, like Rules.

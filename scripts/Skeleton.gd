@@ -4,7 +4,7 @@ class_name Skeleton
 ## laid in a crypt sleeps, lying in its niche, harmless, until light falls on it (Lamplight: the
 ## wizard's lit flame, a lantern's light); then it rises (RISE seconds) and walks at the wizard
 ## along its floor, hopping up a step of a cell, stopping at a ledge unless the wizard is below,
-## and its touch hurts. Light is what wakes it: a snuffed wizard (Snuffer) slips past the sleepers.
+## and its touch hurts; close to them it swipes (see SWIPE_SIGHT). Light is what wakes it: a snuffed wizard (Snuffer) slips past the sleepers.
 ## One the necromancer raises comes up out of its grave awake. Once awake it stays awake; with the
 ## wizard beyond LOSE it stands where it is. It cannot be killed (its Wound is unhurt): a blow or a
 ## stun (a parry, the hex's) knocks it to pieces, a heap of bones on the floor, harmless, for
@@ -33,6 +33,20 @@ const LIGHT_RISE: float = 8.0
 const FALL: float = 0.3
 const APART: float = 2.6
 const REFORM: float = 0.8
+## The swipe: with the wizard in front of it, within SWIPE_SIGHT.x and no more than SWIPE_SIGHT.y
+## above or below it, with no rock between, it stops and winds up for WIND_UP seconds (its art raises
+## its near arm over its skull and leans back, its sockets burning hotter: SkeletonArt), then swipes
+## down and forward over SWIPE_TIME seconds, stepping SWIPE_LUNGE px on (short of a wall or a ledge),
+## its touch reaching SWIPE_REACH px further on with its arm while it swipes. It stands a moment
+## after (SWIPE_REST seconds) and walks SWIPE_AGAIN seconds before it may swipe again. A harder
+## preset winds up and rests for less (Difficulty.attack); a stun knocks it to pieces as ever.
+const SWIPE_SIGHT: Vector2 = Vector2(110.0, 60.0)
+const WIND_UP: float = 0.5
+const SWIPE_TIME: float = 0.18
+const SWIPE_LUNGE: float = 30.0
+const SWIPE_REACH: float = 36.0
+const SWIPE_REST: float = 0.55
+const SWIPE_AGAIN: float = 1.2
 
 var gravity: float = ProjectSettings.get_setting("physics/2d/default_gravity")
 
@@ -54,6 +68,12 @@ var walked: float = 0.0
 var broken: float = 0.0
 ## Whether it was stunned last frame: a stun knocks it to pieces as it lands, not for as long as it lasts.
 var _was_stunned: bool = false
+## How far into the wind-up (0 to 1), and into the swipe (0 to 1) it is, each -1 when not; and the
+## seconds left standing after a swipe, and before it may swipe again.
+var winding: float = -1.0
+var swiping: float = -1.0
+var resting: float = 0.0
+var swipe_wait: float = 0.0
 
 
 func _ready() -> void:
@@ -110,6 +130,8 @@ func _physics_process(delta: float) -> void:
 	var to: Vector2 = player.global_position - rb.global_position
 	if to.length() > LOSE:
 		return
+	if _swipe(delta, to):
+		return
 	if absf(to.x) > FACE_GAP:
 		facing = signf(to.x)
 	elif grounded:
@@ -124,6 +146,57 @@ func _physics_process(delta: float) -> void:
 	if hit == null or absf(hit.get_normal().x) < 0.7:
 		walking = true
 		walked += absf(step)
+
+
+## The swipe, a step of it (see SWIPE_SIGHT), the wizard `to` away: whether it holds the walk this
+## step.
+func _swipe(delta: float, to: Vector2) -> bool:
+	var pace: float = Difficulty.attack()
+	if swiping >= 0.0:
+		var was: float = swiping
+		swiping = minf(1.0, swiping + delta / SWIPE_TIME)
+		var step: float = SWIPE_LUNGE * (swiping - was) * facing
+		if grounded and not _wall_ahead() and _floor_ahead():
+			rb.move_and_collide(Vector2(step, 0))
+		if swiping >= 1.0:
+			swiping = -1.0
+			resting = SWIPE_REST
+			_reach(false)
+		return true
+	if resting > 0.0:
+		resting = maxf(0.0, resting - delta * pace)
+		if resting <= 0.0:
+			swipe_wait = SWIPE_AGAIN
+		return true
+	if winding >= 0.0:
+		winding += delta * pace / WIND_UP
+		if winding >= 1.0:
+			winding = -1.0
+			swiping = 0.0
+			_reach(true)
+		return true
+	if swipe_wait > 0.0:
+		swipe_wait = maxf(0.0, swipe_wait - delta * pace)
+		return false
+	if grounded and _sees(to):
+		winding = 0.0
+		return true
+	return false
+
+
+## The wizard `to` away in front of it, near enough to swipe at, with no rock between.
+func _sees(to: Vector2) -> bool:
+	if to.x * facing <= 0.0 or absf(to.x) > SWIPE_SIGHT.x or absf(to.y) > SWIPE_SIGHT.y:
+		return false
+	var query: PhysicsRayQueryParameters2D = PhysicsRayQueryParameters2D.create(rb.global_position, rb.global_position + to, 4, [rb.get_rid()])
+	return rb.get_world_2d().direct_space_state.intersect_ray(query).is_empty()
+
+
+## Its touch reaching out with its arm (SWIPE_REACH on, the way it faces) while it swipes, or back.
+func _reach(out: bool) -> void:
+	var box: Node2D = rb.get_node_or_null("HitBox") as Node2D
+	if box != null:
+		box.position.x = SWIPE_REACH * facing if out else 0.0
 
 
 ## Fall until something is underfoot; resting on the floor, stay put (no bounce).
@@ -155,6 +228,11 @@ func _break() -> void:
 	broken = FALL + APART + REFORM
 	asleep = false
 	rising = 0.0
+	winding = -1.0
+	swiping = -1.0
+	resting = 0.0
+	swipe_wait = SWIPE_AGAIN
+	_reach(false)
 	_harmless(true)
 	RisoFx.burst(&"impact", rb.global_position, Vector2.UP, [RisoPrint.BLUE, RisoPrint.NIGHT])
 

@@ -39,6 +39,21 @@ const WISP_FAR_EVERY: int = 3
 const WISP_FOLD_TURN: float = 0.6
 ## Whether the trail bends that sharply anywhere along the body this print.
 var _sharp: bool = false
+## The lurch (Mover.LURCH_SIGHT): winding up, the wisp rears its head up to REAR_UP px over its path,
+## along a quarter curve that leans REAR_IN px forward first (so its body hooks up smoothly rather
+## than folding), tipping it up by REAR_TILT radians like a snake about to strike, its tail kept on
+## the floor, its whole body shivering (SHIVER px) and its glow flaring to (1 + FLARE) times as
+## strong; lurching, the head strikes forward and down onto its path over the first REAR_DROP of the
+## lurch, the flare dying away as it goes.
+const REAR_UP: float = 24.0
+const REAR_IN: float = 14.0
+const REAR_TILT: float = 0.6
+const SHIVER: float = 1.4
+const FLARE: float = 3.0
+const REAR_DROP: float = 0.45
+## How far reared up the head was at the last print (0 to 1), and how hot its glow is now (0 to 1).
+var _rear: float = 0.0
+var _heat: float = 0.0
 
 ## Its rig (InkCanvas.rig): the body, veils, glow and eyes are drawn once, in the art's own units,
 ## and laid along the trail every print by chains of CHAIN bones, one every CHAIN_STEP units back
@@ -62,9 +77,20 @@ func _draw_art() -> void:
 	var mover: Mover = host.get_node_or_null("Mover") as Mover
 	var dir: float = 1.0
 	var stunned: bool = false
+	var rear: float = 0.0
+	var lurching: bool = false
+	_heat = 0.0
 	if mover != null:
 		dir = mover.direction
 		stunned = mover.stunned
+		# Winding up it rears and flares; lurching it strikes back down onto its path and cools.
+		if mover.winding >= 0.0:
+			rear = smoothstep(0.0, 1.0, mover.winding)
+			_heat = mover.winding
+		elif mover.lurching >= 0.0:
+			lurching = true
+			rear = minf(_rear, 1.0 - smoothstep(0.0, REAR_DROP, mover.lurching))
+			_heat = 1.0 - mover.lurching
 		# Falling (as when it settles after spawning): keep the body straight rather than letting
 		# the trail record the drop and hang it tail-up.
 		if mover.falling():
@@ -99,7 +125,7 @@ func _draw_art() -> void:
 	# Its shadow on the floor, shrinking as it bobs up: it belongs to the ground it haunts.
 	var g: float = _ground()
 	var reach: float = WISP_DROP_LEN * wisp_drop_half()
-	var lift: float = clampf(-loop_at.y / reach, 0.0, 1.0)
+	var lift: float = maxf(clampf(-loop_at.y / reach, 0.0, 1.0), rear * 0.5)
 	# And darkening as it swoops down toward it on a turn.
 	var dip: float = clampf(loop_at.y / reach, 0.0, 1.0)
 	if not (ink.rigged and InkCanvas.rig_on_gpu):
@@ -110,9 +136,20 @@ func _draw_art() -> void:
 	_wp_k = k
 	_wp_side = side
 	_wp_bob = Vector2(0, bob * k * 0.7)
+	if _heat > 0.0 and not lurching:
+		_wp_bob.x += sin(t * 71.0) * SHIVER * _heat
 	var head_rest: Vector2 = Vector2(0, 14.0 - 3.3 * k - 8.2 * k * 0.6)
-	var head: Vector2 = head_rest + loop_at
-	_wp_head_dir = Vector2(side * cos(heading), sin(heading)) if spinning else Vector2(side, 0)
+	var curl: float = rear * PI * 0.5
+	var head: Vector2 = head_rest + loop_at + Vector2(side * REAR_IN * sin(curl), -REAR_UP * (1.0 - cos(curl)))
+	_wp_head_dir = Vector2(side * cos(heading), sin(heading)) if spinning else Vector2(side * cos(REAR_TILT * rear), -sin(REAR_TILT * rear))
+	if rear < _rear and not lurching and not _trail.is_empty():
+		# Settling back from a rear cut short (a stun): the head sinks back down the way it rose,
+		# taking the risen part of the trail with it rather than folding the body over on it.
+		var at: Vector2 = to_global(head)
+		while _trail.size() > 2 and _trail[0].y < at.y - 0.25:
+			_trail.remove_at(0)
+		_trail_measure()
+	_rear = rear
 	if spinning:
 		# The drop goes into the trail in short steps from where the head was last frame, so the
 		# tail follows its curve exactly however far round the head went in one frame.
@@ -134,8 +171,8 @@ func _draw_art() -> void:
 	_wisp_sample(22.0 * k * 1.1 + 8.0)
 	var flicker: float = 0.85 + 0.15 * sin(t * 5.3 + phase) * sin(t * 2.1 + phase * 1.7)
 	# The glow trails the wisp: strongest behind the head, thinning out past the tail.
-	ink.ink(RisoPrint.PINK, 0.06 * flicker, [_wisp_place(RisoShapes.ellipse(Vector2(-10.5, -8.4), 11.0, 7.5, 16), true)])
-	ink.ink(RisoPrint.PINK, 0.1 * flicker, [_wisp_place(RisoShapes.ellipse(Vector2(-6.0, -8.2), 9.5, 8.0, 16), true)])
+	ink.ink(RisoPrint.PINK, 0.06 * flicker * (1.0 + FLARE * _heat), [_wisp_place(RisoShapes.ellipse(Vector2(-10.5, -8.4), 11.0, 7.5, 16), true)])
+	ink.ink(RisoPrint.PINK, 0.1 * flicker * (1.0 + FLARE * _heat), [_wisp_place(RisoShapes.ellipse(Vector2(-6.0, -8.2), 9.5, 8.0, 16), true)])
 	# Two lagging after-veils behind the body, then the body. The body is solid ink with only its
 	# tail tip thinning; the veils stay faint.
 	for layer: int in [2, 1, 0]:
@@ -226,8 +263,8 @@ func _draw_rigged(k: float, bob: float, g: float, loop_at: Vector2, lift: float,
 				bases.append(b)
 	# The glow trails the wisp: strongest behind the head, thinning out past the tail.
 	ink.on_chain(bases[0], WispArt._binder(bases[0]))
-	ink.ink(RisoPrint.PINK, 0.06 * flicker, rests[&"glow0"])
-	ink.ink(RisoPrint.PINK, 0.1 * flicker, rests[&"glow1"])
+	ink.ink(RisoPrint.PINK, 0.06 * flicker * (1.0 + FLARE * _heat), rests[&"glow0"])
+	ink.ink(RisoPrint.PINK, 0.1 * flicker * (1.0 + FLARE * _heat), rests[&"glow1"])
 	# Two lagging after-veils behind the body, then the body. The body is solid ink with only its
 	# tail tip thinning; the veils stay faint, flickering.
 	for layer: int in [2, 1, 0]:
@@ -331,8 +368,12 @@ static func _rest_shapes() -> Dictionary:
 	return _rests
 
 
-## Twenty times a second far from the wizard, thirty near (see WISP_NEAR).
+## Twenty times a second far from the wizard, thirty near (see WISP_NEAR), and every frame while it
+## lurches, its body pinned to a path it is racing along.
 func reprint_every() -> int:
+	var mover: Mover = host.get_node_or_null("Mover") as Mover if host != null else null
+	if mover != null and mover.lurching >= 0.0:
+		return 1
 	var player: Player = Stage.player()
 	if player != null and host != null and host.global_position.distance_squared_to(player.global_position) > WISP_NEAR * WISP_NEAR:
 		return WISP_FAR_EVERY

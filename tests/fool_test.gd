@@ -83,7 +83,21 @@ func run() -> void:
 	check(wizard.costume.feather_plate() == RisoPrint.GLOW, "a ready dash's feather is in the glow ink")
 	player.dash.acted = true
 	check(wizard.costume.feather_plate() == RisoPrint.NIGHT, "spent, it is dark")
+	wizard.costume.step(1.0 / 60.0)
+	wizard._draw_body()
+	var settled: int = fingerprint(wizard.body)
 	player.dash.acted = false
+	# Filling again, it pops: it swells and flashes paper-white, then settles.
+	wizard.costume.step(1.0 / 60.0)
+	check(wizard.costume.recharged < 0.05, "filling again, the feather pops")
+	wizard.costume.step(RisoCostume.RECHARGE_TIME * 0.3)
+	check(wizard.costume._pop() > 0.5, "swelling at once (%.2f of its fullest)" % wizard.costume._pop())
+	wizard._draw_body()
+	check(fingerprint(wizard.body) != settled, "its print changes as it pops")
+	wizard.costume.step(RisoCostume.RECHARGE_TIME)
+	check(wizard.costume._pop() == 0.0, "and it settles within %.2f s" % RisoCostume.RECHARGE_TIME)
+	wizard.costume.step(1.0 / 60.0)
+	check(wizard.costume.recharged > RisoCostume.RECHARGE_TIME, "staying charged, it does not pop again")
 	Abilities.set_tier(player, &"levitate", 1)
 	var lev: Levitate = player.get_node("Levitate") as Levitate
 	lev.start()

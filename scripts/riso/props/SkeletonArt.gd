@@ -20,6 +20,11 @@ class_name SkeletonArt
 ## and lolls a little as it stands; the arms hang straight from its sides, a little out from the
 ## ribs, each swinging like a pendulum opposite its own side's foot and easing after it. The far leg and arm print a little
 ## fainter.
+##
+## Swiping (Skeleton.SWIPE_SIGHT): winding up, it raises its near arm high in front of its skull and
+## leans back,
+## rattling, its sockets burning hotter; then the arm sweeps over and down in front of it, leaving a
+## pink smear along the way its hand went, and it leans into the blow.
 
 ## Bones are given in art units (SCALE px each), from its feet on the floor, facing right.
 const SCALE: float = 1.8
@@ -84,6 +89,19 @@ const HEAP_WIDE: float = 18.0
 const HEAP_TILT: float = 0.25
 const RATTLE: float = 0.5
 const RATTLE_PX: float = 1.6
+## The swipe: the near hand's way round its shoulder (radians from straight up, forward positive),
+## raised at SWING_RAISED (high, clear of the skull in front of it) and swept through to SWING_DOWN;
+## how far the torso leans back winding up and forward swiping (radians); how far it rattles winding
+## up (art units); how much hotter its sockets burn (their points grow, and their glow deepens); and
+## how far back along its way the smear reaches (radians) and how wide it is (art units).
+const SWING_RAISED: float = 0.45
+const SWING_DOWN: float = 2.4
+const LEAN_BACK: float = 0.14
+const LEAN_IN: float = 0.2
+const WIND_RATTLE: float = 0.7
+const WIND_BURN: float = 1.6
+const SMEAR: float = 1.6
+const SMEAR_WIDE: float = 3.0
 
 ## Its feet where they are planted, in world pixels (the far one first), and the step under way:
 ## which foot (-1 none), from where, to where, and how far along (0 to 1).
@@ -138,6 +156,17 @@ func _draw_art() -> void:
 	var toward: float = -1.0 if stepping == 0 else 1.0
 	var lift: float = swing * BOB
 	var hip: Vector2 = Vector2(0, -HIP - lift)
+	# Winding up to swipe, and swiping (see the class note).
+	var wind: float = sk.winding if sk != null and standing else -1.0
+	var swipe: float = sk.swiping if sk != null and standing else -1.0
+	var lean: float = 0.0
+	if wind >= 0.0:
+		lean = -LEAN_BACK * smoothstep(0.0, 1.0, wind)
+		xf = xf.translated_local(Vector2(sin(t * 53.0 + phase) * WIND_RATTLE * wind, 0.0))
+	elif swipe >= 0.0:
+		lean = lerpf(-LEAN_BACK, LEAN_IN, smoothstep(0.0, 0.6, swipe))
+	elif sk != null and sk.resting > 0.0 and standing:
+		lean = LEAN_IN * clampf(sk.resting / Skeleton.SWIPE_REST, 0.0, 1.0)
 	var knees: Array[Vector2] = []
 	var soles: Array[Vector2] = []
 	for i: int in range(2):
@@ -152,9 +181,19 @@ func _draw_art() -> void:
 		soles.append(foot)
 		knees.append(_joint(at, foot, THIGH, SHIN, Vector2(1, 0)))
 	# The torso rocks over the hip toward the swinging leg, carrying the shoulders, ribs and neck.
-	var rock: Transform2D = Transform2D(swing * toward * ROCK, hip) * Transform2D(0.0, -hip)
+	var rock: Transform2D = Transform2D(swing * toward * ROCK + lean, hip) * Transform2D(0.0, -hip)
 	var shoulder: Vector2 = rock * Vector2(0, -SHOULDER - lift)
 	_swing(rock, shoulder, soles, up)
+	var near_arm: Vector2 = shoulder + rock.basis_xform(Vector2(SHOULDERS.x, SHOULDERS.y))
+	var smear: PackedVector2Array = PackedVector2Array()
+	if wind >= 0.0:
+		var raised: Vector2 = near_arm + _round(SWING_RAISED)
+		hands[1] = hands[1].lerp(raised, clampf(wind * 1.6, 0.0, 1.0))
+	elif swipe >= 0.0:
+		var e: float = 1.0 - (1.0 - swipe) * (1.0 - swipe)
+		var a: float = lerpf(SWING_RAISED, SWING_DOWN, e)
+		hands[1] = near_arm + _round(a)
+		smear = _smear(near_arm, maxf(SWING_RAISED, a - SMEAR), a)
 	# The far limbs first, a little fainter, then the body and skull, then the near limbs.
 	var far: Array[PackedVector2Array] = []
 	var near: Array[PackedVector2Array] = []
@@ -191,7 +230,37 @@ func _draw_art() -> void:
 		near = _scatter(near, bits, g, 200, rattle)
 	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 0.9, body)
 	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 0.9, near)
-	_eyes(xf * head, awake, up, bits <= 0.0)
+	# Its sockets burn hotter winding up, and cool through the blow.
+	var heat: float = maxf(wind, 1.0 - swipe if swipe >= 0.0 else 0.0)
+	_eyes(xf * head, awake, up, bits <= 0.0, 1.0 + WIND_BURN * heat)
+	if not smear.is_empty():
+		# The smear of the swipe: pink, for danger, thinning as the blow ends; over the darkness,
+		# with its sockets, so it shows in an unlit crypt too.
+		glow.ink(RisoPrint.PINK, 0.7 * (1.0 - swipe * swipe), [xf * smear])
+	glow.finish()
+
+
+## Where the near hand is on its way round the shoulder, `a` radians from straight up (forward
+## positive), from the shoulder: the arm straight out.
+static func _round(a: float) -> Vector2:
+	return Vector2(sin(a), -cos(a)) * (UPPER + FORE - 1.0)
+
+
+## The swipe's smear: a crescent along the near hand's way round the shoulder at `arm`, from `a0` to
+## `a1` radians, widest at the hand and tapering away behind it.
+static func _smear(arm: Vector2, a0: float, a1: float) -> PackedVector2Array:
+	var outer: PackedVector2Array = PackedVector2Array()
+	var inner: PackedVector2Array = PackedVector2Array()
+	var reach: float = UPPER + FORE - 1.0
+	for i: int in range(9):
+		var u: float = float(i) / 8.0
+		var a: float = lerpf(a0, a1, u)
+		var wide: float = SMEAR_WIDE * u
+		outer.append(arm + Vector2(sin(a), -cos(a)) * (reach + wide))
+		inner.append(arm + Vector2(sin(a), -cos(a)) * (reach - wide * 0.6))
+	inner.reverse()
+	outer.append_array(inner)
+	return outer
 
 
 ## Its bones `polys` (local px) moved `k` of the way from where they are to a heap on the floor at
@@ -345,23 +414,22 @@ func _swing(rock: Transform2D, shoulder: Vector2, soles: Array[Vector2], up: flo
 
 ## Its sockets on the skull (`xf`, the skull's frame in art units): night hollows, and awake, a pink
 ## point in each with a faint pink glow round them, over the darkness; none while it is in pieces
-## (not `whole`).
-func _eyes(xf: Transform2D, awake: bool, up: float, whole: bool) -> void:
+## (not `whole`); `burn` times hotter (winding up to swipe). It begins the glow canvas; the caller
+## finishes it.
+func _eyes(xf: Transform2D, awake: bool, up: float, whole: bool, burn: float = 1.0) -> void:
 	glow.begin()
 	if not whole:
-		glow.finish()
 		return
 	var sockets: Array[PackedVector2Array] = []
 	var points: Array[PackedVector2Array] = []
 	for e: Vector2 in EYES:
 		sockets.append(xf * RisoShapes.circle(SKULL + e, EYE_R, 12))
-		points.append(xf * RisoShapes.circle(SKULL + e, EYE_R * 0.5 + 0.2 * sin(t * 9.0 + phase), 8))
+		points.append(xf * RisoShapes.circle(SKULL + e, (EYE_R * 0.5 + 0.2 * sin(t * 9.0 + phase)) * (1.0 + 0.4 * (burn - 1.0)), 8))
 	ink.ink(RisoPrint.NIGHT, 0.9, sockets, false)
 	if awake:
 		var mid: Vector2 = SKULL + (EYES[0] + EYES[1]) * 0.5
-		glow.ink(RisoPrint.PINK, 0.35 * up, [xf * RisoShapes.ellipse(mid, absf(EYES[1].x - EYES[0].x) * 0.5 + EYE_R * 1.6, EYE_R * 1.5, 14)])
+		glow.ink(RisoPrint.PINK, minf(0.35 * up * burn, 0.5), [xf * RisoShapes.ellipse(mid, absf(EYES[1].x - EYES[0].x) * 0.5 + EYE_R * 1.6, EYE_R * 1.5, 14)])
 		glow.ink(RisoPrint.PINK, up, points)
-	glow.finish()
 
 
 ## Its feet are planted on the floor while it walks: printed every frame, or they would slide
