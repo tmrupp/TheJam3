@@ -1,12 +1,13 @@
 class_name Gondola
 extends AnimatableBody2D
-## A gondola, in crag levels (CragsArchetype.lay_circuit, shut_stations): a cable car climbing a line
+## A gondola, in crag levels (CragsArchetype.lay_circuit, set_stations): a cable car climbing a line
 ## of stations from near the bottom of the level to near its top, straight up and up 45° diagonals
 ## between them, two cells wide and two high, with a floor, a roof and two sides that come down
 ## while it runs. Each station is a doorway onto a landing into the level,
-## where the car stands on an upright run of its track. One is open from the first;
-## each of the others is shut by a gate across its doorway (a door, a switch gate or a toll gate,
-## its record kept as any gate's) until opened.
+## where the car stands on an upright run of its track. Each is open while its station is on, as the
+## towers' switches set it (a station gate across its doorway, MapInfo.station_on); on the first visit
+## only the one nearest the way in is. (A door, a switch gate or a toll gate shuts one as any gate
+## does, where a level has one.)
 ##
 ## The car runs from station to station, stopping at each, and runs a stretch between two stations
 ## only if at least one of them is open: from an open station to a shut one and back, never from
@@ -68,7 +69,7 @@ const OFF_VIEW: float = 64.0
 ## How thick its floor, roof and sides are (pixels).
 const SLAB: float = 14.0
 ## What shuts a station: a gate of one of these in its doorway, not yet opened.
-const GATES: Array[LevelGen.Type] = [LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.TOLL]
+const GATES: Array[LevelGen.Type] = [LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.TOLL, LevelGen.Type.STATION_GATE]
 
 var map_info: MapInfo
 ## The level it was laid out in. Once another is loaded in its place (travel, or a death that ends the
@@ -300,7 +301,7 @@ func is_open(i: int) -> bool:
 		return false
 	var g: Vector2i = gates[i]
 	var type: LevelGen.Type = map_info.world.get_cell(g).type
-	if type == LevelGen.Type.SWITCH_GATE:
+	if type == LevelGen.Type.SWITCH_GATE or type == LevelGen.Type.STATION_GATE:
 		return map_info.gate_open(g)
 	return not type in GATES or map_info.record().opened.has(g)
 

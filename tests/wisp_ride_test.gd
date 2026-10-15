@@ -6,10 +6,13 @@ extends TestKit
 ## godot --headless --path . --script res://tests/wisp_ride_test.gd
 
 ## How far a wisp's middle stands over a floor (half its collision box), and how far either way it
-## may be found from that while the car runs (a step of the car's at its fastest, which its floor
-## runs ahead of the car's drawing by, and the car's swing).
+## may be found from that while the car runs: a step of the car's at its fastest (called, empty),
+## which its floor runs ahead of the car's drawing by, and the car's floor tilted by its swing at
+## most, SWING_REACH from its middle (where the wisp stands, give or take). A long diagonal at full
+## speed swings it to the most it swings.
 const REST: float = 16.0
-const SLACK: float = 12.0
+const SWING_REACH: float = 48.0
+var slack: float = Gondola.CALL_SPEED / 60.0 + SWING_REACH * sin(Gondola.SWING_MAX)
 ## How far the path its body lies along may stray up or down (px) as it rides, past the height of
 ## the drop it turns round on (WispArt), which it may well do in the car.
 const FLAT: float = 6.0
@@ -69,8 +72,8 @@ func run() -> void:
 	check(arrived, "and gets there")
 	var rose: float = from_car.y - g.center().y
 	check(rose > g.cell_px, "it rises (%.0f px)" % rose)
-	check(is_instance_valid(wisp) and mover.grounded and absf((from_wisp.y - wisp.global_position.y) - rose) < SLACK, "the wisp rides up with it, carried (%.0f px)" % (from_wisp.y - wisp.global_position.y))
-	check(worst[0] <= SLACK, "never sunk into its floor nor lifted off it on the way (at most %.1f px off)" % worst[0])
+	check(is_instance_valid(wisp) and mover.grounded and absf((from_wisp.y - wisp.global_position.y) - rose) < slack, "the wisp rides up with it, carried (%.0f px)" % (from_wisp.y - wisp.global_position.y))
+	check(worst[0] <= slack, "never sunk into its floor nor lifted off it on the way (at most %.1f px off)" % worst[0])
 	var turn_high: float = 2.0 * WispArt.WISP_DROP_LEN * WispArt.wisp_drop_half()
 	check(art != null and worst[1] <= turn_high + FLAT, "its body lies along the floor all the way (or round its turning drop), never hanging behind as it rises (its path at most %.1f px high, a turn's %.1f)" % [worst[1], turn_high])
 	RunState.delete_save()

@@ -73,7 +73,7 @@ func setup(at: Vector2i) -> NextWorldDef:
 	archetype = arch.name
 	region = arch.sample
 	symmetry = arch.symmetry
-	size = Vector2i((Vector2(Rules.level_size(depth)) * arch.scale).round())
+	size = arch.size_for(depth)
 	for k: int in range(Worlds.KINDS.size()):
 		if Worlds.proto(k).deals(at):
 			doors.append(k)

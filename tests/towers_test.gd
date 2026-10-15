@@ -161,8 +161,9 @@ func _faults(w: LevelGen, tower: Dictionary) -> Array[String]:
 			var v: Vector2i = Vector2i(x, y)
 			if w.get_cell(v).type == LevelGen.Type.CRACKED:
 				out.append("cracked %s" % v)
+	# A tower built into the level's edge has nothing past its outer wall: those cells are skipped.
 	for x: int in [x0 - 1, x1 + 1]:
-		if w.get_cell(Vector2i(x, ground)).type == LevelGen.Type.CRACKED:
+		if w.is_valid(Vector2i(x, ground)) and w.get_cell(Vector2i(x, ground)).type == LevelGen.Type.CRACKED:
 			out.append("cracked %s" % Vector2i(x, ground))
 	for y: int in range(roof, ground, CragsArchetype.STOREY):
 		for x: int in range(x0, x1 + 1):
@@ -179,23 +180,31 @@ func _faults(w: LevelGen, tower: Dictionary) -> Array[String]:
 			if stone.call(v):
 				continue
 			var opening: bool = y == ground - 1 or ((y - roof) % CragsArchetype.STOREY == 2)
+			var outside: Vector2i = v + (Vector2i.LEFT if x == x0 else Vector2i.RIGHT)
 			if not opening:
 				out.append("wall broken %s" % v)
-			elif w.is_ground(v + (Vector2i.LEFT if x == x0 else Vector2i.RIGHT)):
+			elif not w.is_valid(outside):
+				out.append("opening out of the level %s" % v)
+			elif w.is_ground(outside):
 				out.append("opening onto rock %s" % v)
 			elif w.get_cell(v).type != LevelGen.Type.EMPTY:
 				out.append("%s in a doorway %s" % [LevelGen.Type.keys()[w.get_cell(v).type], v])
 	for x: int in range(x0 - 1, x1 + 2):
-		if not stone.call(Vector2i(x, ground)) or (w.is_valid(Vector2i(x, ground + 1)) and not stone.call(Vector2i(x, ground + 1))):
+		if not w.is_valid(Vector2i(x, ground)):
+			continue
+		# One standing on the level's bottom edge (a short bottom tier) has the edge under it.
+		var under: Vector2i = Vector2i(x, ground + 1)
+		if not stone.call(Vector2i(x, ground)) or (w.is_valid(under) and under.y < w.size.y - 1 and not stone.call(under)):
 			out.append("not standing %s" % Vector2i(x, ground))
 	for x: int in [x0 - 1, x1 + 1]:
 		for y: int in [ground - 1, ground - 2]:
-			if w.is_ground(Vector2i(x, y)):
+			if w.is_valid(Vector2i(x, y)) and w.is_ground(Vector2i(x, y)):
 				out.append("doorstep filled %s" % Vector2i(x, y))
 	for v: Vector2i in tower["ledges"]:
 		if w.get_cell(v).type != LevelGen.Type.PLATFORM:
 			out.append("ledge gone %s" % v)
-	for x: int in range(x0, x1 + 1):
+	# Over a tower built into the level's edge, the edge column itself stays rock.
+	for x: int in range(maxi(x0, 1), mini(x1, w.size.x - 2) + 1):
 		for d: int in range(1, CragsArchetype.ROOF_AIR + 1):
 			if w.is_ground(Vector2i(x, roof - d)):
 				out.append("roof buried %s" % Vector2i(x, roof - d))

@@ -175,8 +175,7 @@ func shooting(cell: float) -> void:
 	for a: Bullet in _arrows():
 		a.queue_free()
 	player.global_position = outside + Vector2(0.0, -cell * 1.5)
-	await frames(2)
-	check(not bow.sees, "nor at one well above its slit")
+	check(await within(func() -> bool: return not bow.sees, 1.0), "nor at one well above its slit")
 	player.global_position = outside
 	# A bolt or a slash from outside stops at the wall: it stays whole. (The slash, at II, would
 	# reach it but for the stone, from just outside the wall's face.)

@@ -62,6 +62,9 @@ enum Type {
 	BREACH,
 	EXAM_DOOR,
 	DEPARTMENT,
+	STATION_GATE,
+	TOWER_SWITCH,
+	SHUTTER,
 }
 
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).
@@ -150,6 +153,9 @@ func in_temple_hoard (v: Vector2i) -> bool:
 	return temples.any(func(t: Dictionary) -> bool: return (t["hoard"] as Array).has(v))
 ## The gondola's circuit an archetype laid (CragsArchetype.lay_circuit), or {} for none.
 var circuit: Dictionary = {}
+## The bands of rock cutting a crags level into tiers, bottom up (CragsArchetype.cut_tiers): each
+## {"rows": its first and last row, "chute": its cells in the gondola's chute}. Empty for none.
+var tiers: Array[Dictionary] = []
 ## The shrine's cell (its boon side; mending is the cell to the right), or (-1, -1).
 var shrine: Vector2i = Vector2i(-1, -1)
 

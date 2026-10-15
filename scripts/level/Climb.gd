@@ -29,6 +29,9 @@ static func aid(w: LevelGen, def: NextWorldDef) -> void:
 		return
 	if not w.exits.has(MapInfo.Exit.BACK) or not w.exits.has(MapInfo.Exit.DEEPER):
 		return
+	# A level cut into tiers (the crags, CragsArchetype.cut_tiers) is climbed riding its gondola.
+	if not w.tiers.is_empty():
+		return
 	var up: int = hop_up(def)
 	var back: Vector2i = w.exits[MapInfo.Exit.BACK]
 	var on: Vector2i = w.exits[MapInfo.Exit.DEEPER]

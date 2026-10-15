@@ -434,6 +434,31 @@ shooting out through arrow slits at the wizard and stopped only from inside (`Cr
 - **Life.** Falling rocks (stalactites), rock-bugs and their nests, crossbows in the towers' and keeps'
   walls.
 - **Realm.** Pale stone and dawn colours; wind-torn clouds below the cliffs.
+- **The tower puzzle (owner's design; a first pass is built, docs/DEEPER_PLAN.md §4d).** The crags' own puzzle, as light is the cemetery's
+  and wind the sky's: a level is climbed only by the gondola, and its stations are worked from the
+  towers.
+  - *Tiers.* Each station stands on a tier of the cliff of its own: a band of rock runs right
+    across the level between each two stations, so the tiers cannot be climbed between on foot.
+    The gondola's chute passes each band through a shutter that opens only for the car, so the
+    wizard crosses a band riding it (in it or on its roof) and never alone, up or down.
+  - *Stations.* No tolls or switch gates: each station is on or off, set by the towers. An off
+    station is shut as a toll gate was (the car runs from an on station to an off one and back,
+    never between two off ones, and no one steps out at an off one). On the first visit only the
+    station nearest the way the wizard came in is on. The level record keeps them as left.
+  - *Stops.* Five on the band's first row, rising to nine on its last, the levels as tall as they
+    want; the towers smaller (two storeys) to fit the tiers.
+  - *Towers.* Three to six a level, standing on the tiers (the bottom and top tiers have one at
+    least; not every tier needs one, only enough to turn the whole line on in the end), some built into the level's left or right edge (half in the wall: their outer
+    wall the level's edge, no doorway out that side). Each holds a switch in its top room that
+    flips a set of stations (dealt by the level seed), shown on it as the line drawn straight,
+    bottom to top, each station lit while on and dark while off, a ring round each it flips. Once flipped, a tower is locked until
+    another tower is flipped (no undoing a flip at once).
+  - *What is checked as a level is laid out.* Only the switches' logic, not whether a tower or a
+    station's landing is reached on foot (owner: no reachability guarantee): taking each tower as
+    reached from its own tier's station, there is a way up from the bottom tier and a way down
+    from the top one, the two need different tower sequences, and some sequence leaves the whole
+    line on for easy travel after. The sets are dealt again (hashing the seed, no draws) until
+    they pass.
 
 ### The cemetery: crypts, light and darkness (rows +4 … +9)
 

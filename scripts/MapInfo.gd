@@ -349,10 +349,52 @@ func set_switch (cell: Vector2i, on: bool) -> void:
 	record().switched[cell] = on
 	save_run()
 
-## Whether the switch gate at `gate` here is up (its switch on).
+## Whether the switch gate at `gate` here is up: its switch on, or for a station gate (its extra
+## info the station's number), its station on.
 func gate_open (gate: Vector2i) -> bool:
 	var lever: Variant = world.get_cell(gate).extra_info if world != null and world.is_valid(gate) else null
+	if lever is int:
+		return station_on(lever)
 	return lever is Vector2i and switch_on(lever)
+
+## The crags' tower puzzle (Stations, TowerSwitch). The tower flipped last here, locked until another
+## is flipped; -1 for none. Not kept: the level loading again lifts the lock (so a wizard stranded by
+## a flip can leave, or die, and flip it back).
+var last_tower: int = -1
+
+## Whether gondola station `i` here is on (LevelRecord.stations).
+func station_on (i: int) -> bool:
+	var rec: LevelRecord = record()
+	return rec.stations >= 0 and rec.stations & (1 << i) != 0
+
+## On the first visit to a level with a gondola, only the station nearest the way the wizard came in
+## is on (LevelRecord.stations).
+func _deal_stations () -> void:
+	var rec: LevelRecord = record()
+	if rec.stations >= 0 or world == null or world.circuit.is_empty():
+		return
+	var gates: Array[Vector2i] = world.circuit["gates"]
+	var came: Vector2i = world.exits.get(arrival, world.exits.get(Exit.BACK, Vector2i.ZERO)) if arrival >= 0 else world.exits.get(Exit.BACK, Vector2i.ZERO)
+	var nearest: int = 0
+	for i: int in range(gates.size()):
+		if LevelGen.dist(gates[i], came) < LevelGen.dist(gates[nearest], came):
+			nearest = i
+	rec.stations = 1 << nearest
+
+## Flip tower `tower`'s switch, turning over the stations in `mask`, unless it is the tower flipped
+## last (locked). Each station gate here goes up or down with its station. Returns whether it flipped.
+func flip_tower (tower: int, mask: int) -> bool:
+	if tower == last_tower or world == null:
+		return false
+	var rec: LevelRecord = record()
+	rec.stations = maxi(rec.stations, 0) ^ mask
+	last_tower = tower
+	if is_instance_valid(map_elements):
+		for node: Node in map_elements.get_children():
+			if node is SwitchGate and (node as SwitchGate).station >= 0:
+				(node as SwitchGate).set_up(station_on((node as SwitchGate).station))
+	save_run()
+	return true
 
 ## The chain on the bell at `cell` is off (by its key): for good.
 func free_bell (cell: Vector2i) -> void:
@@ -595,6 +637,8 @@ func _level_ready (built: LevelGen) -> void:
 	light_gates.clear()
 	exam_doors.clear()
 	exams_begun.clear()
+	last_tower = -1
+	_deal_stations()
 	loader.build(world)
 	var rec: LevelRecord = record()
 	# Secret rooms already opened: their rewards (the rest of the room stays broken, see

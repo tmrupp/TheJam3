@@ -1,7 +1,8 @@
 extends StaticBody2D
 class_name SwitchGate
 ## A gate across a corridor, worked by its switch elsewhere in the level (Switch): lifted while
-## the switch is on, down while it is off. It has no lock: nothing else opens it. It drops only
+## the switch is on, down while it is off. A gondola station's gate in the crags (a station gate)
+## is worked by the towers instead: up while its station is on (MapInfo.station_on, flip_tower). It has no lock: nothing else opens it. It drops only
 ## once the wizard is clear of it, so it never shuts on them. The portcullis winches up and down
 ## (`lift`, printed by GateArt).
 
@@ -11,8 +12,9 @@ const LIFT_SPEED: float = 3.0
 const UP_LIFT: float = 0.75
 
 var map_info: MapInfo
-## The cell of the switch that works it.
+## The cell of the switch that works it, or for a station gate the station's number (-1 for none).
 var switch_cell: Vector2i = Vector2i(-1, -1)
+var station: int = -1
 ## Whether its switch has it up, and how far up it is (0 down, UP_LIFT up) for the art.
 var up: bool = false
 var lift: float = 0.0
@@ -20,10 +22,14 @@ var lift: float = 0.0
 var _layer: int = 4
 
 
-func setup(info: MapInfo, _v: Vector2i, lever: Vector2i) -> void:
+func setup(info: MapInfo, _v: Vector2i, lever: Variant) -> void:
 	map_info = info
-	switch_cell = lever
-	up = info.switch_on(lever)
+	if lever is int:
+		station = lever
+		up = info.station_on(station)
+	else:
+		switch_cell = lever
+		up = info.switch_on(lever)
 	lift = UP_LIFT if up else 0.0
 	_block(not up)
 

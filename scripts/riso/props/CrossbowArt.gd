@@ -1,10 +1,9 @@
 extends RisoProp
 ## A crossbow built into a tower's wall (Crossbow), drawn over the wall's stone: on the inner face, a
 ## dark niche with the crossbow set in it, its stock jutting into the room, its prod pale bare paper,
-## its string winding back as it draws and a pink bolt laid on it (danger); a dark bore through the
-## stone to the outer face, glowing pink as it draws; and at the outer face a pink glint swelling
-## as it draws, so the slit reads from outside. The
-## crossbow is drawn SIZE times its plain measures, about the wall's inner face, filling the block.
+## its string winding back as it draws and a pink bolt laid on it (danger), which is all that moves;
+## and a dark bore through the stone to the outer face, as an empty arrow slit's. The crossbow is
+## drawn SIZE times its plain measures, about the wall's inner face, filling the block.
 
 ## How long the crossbow kicks back after loosing, and how far (pixels).
 const KICK_TIME: float = 0.2
@@ -45,8 +44,6 @@ func _draw_art() -> void:
 	ink.ink(RisoPrint.NIGHT, 0.85, [xs * RisoShapes.rrect(inner, -NICHE_HIGH * 0.5, NICHE_DEEP, NICHE_HIGH, 6.0)], false)
 	var bore: Array[PackedVector2Array] = [xf * RisoShapes.rrect(inner + (NICHE_DEEP - 4.0) * k, -BORE * 0.5 * k, outer - inner - (NICHE_DEEP - 4.0) * k, BORE * k, 3.0)]
 	ink.ink(RisoPrint.NIGHT, 0.9, bore, false)
-	if bow.sees:
-		ink.ink(RisoPrint.PINK, 0.25 + 0.7 * bow.drawn, bore)
 	# The stock, jutting out of the niche into the room, in dark wood.
 	var stock: Array[PackedVector2Array] = [xs * RisoShapes.rrect(inner - 36.0 + kick, -7.0, 70.0, 14.0, 5.0), xs * RisoShapes.rrect(inner - 32.0 + kick, 3.0, 10.0, 16.0, 3.0)]
 	ink.knock([RisoPrint.BLUE], stock)
@@ -68,10 +65,6 @@ func _draw_art() -> void:
 		var bolt: Array[PackedVector2Array] = [xs * RisoShapes.rrect(tail, -3.0, 50.0, 6.0, 2.0), xs * RisoShapes.tri(Vector2(tail + 46.0, -8.0), Vector2(tail + 62.0, 0.0), Vector2(tail + 46.0, 8.0))]
 		ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], bolt)
 		ink.ink(RisoPrint.PINK, 1.0, bolt)
-	# At the wall's outer face, a glint swelling as it draws.
-	if bow.sees:
-		var glint: float = (8.0 + 20.0 * bow.drawn) * k
-		ink.ink(RisoPrint.PINK, 0.4 + 0.6 * bow.drawn, [xf * RisoShapes.sparkle(Vector2(outer + 2.0, 0.0), glint, 1.7)])
 
 
 ## A bar `w` thick from `a` to `b`.

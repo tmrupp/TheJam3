@@ -1,6 +1,6 @@
 extends StaticBody2D
 class_name TollGate
-## A toll gate: a portcullis across a gondola's station (CragsArchetype.shut_stations), lifted for
+## A toll gate: a portcullis across a gondola's station, lifted for
 ## good by paying its price in stars, from either side (from the landing, or from the car standing
 ## at the station: its Pay area, TollPay, reaches both). The level record keeps it open.
 

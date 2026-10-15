@@ -73,6 +73,9 @@ const TABLE: Dictionary = {
 	LevelGen.Type.BREACH: {"scene": "res://prefabs/breach.tscn", "art": &"breach", "flags": [&"enemy"], "setup": 2},
 	LevelGen.Type.EXAM_DOOR: {"scene": "res://prefabs/exam_door.tscn", "art": &"examdoor", "setup": 3},
 	LevelGen.Type.DEPARTMENT: {"scene": "res://prefabs/department.tscn", "art": &"department", "flags": [&"stander"], "size": Vector2i(1, 2), "setup": 3},
+	LevelGen.Type.STATION_GATE: {"scene": "res://prefabs/switch_gate.tscn", "art": &"gate", "setup": 3},
+	LevelGen.Type.TOWER_SWITCH: {"scene": "res://prefabs/tower_switch.tscn", "art": &"towerswitch", "flags": [&"stander"], "setup": 3},
+	LevelGen.Type.SHUTTER: {"scene": "res://prefabs/shutter.tscn", "art": &"shutter", "setup": 3},
 }
 
 ## Prefabs loaded so far, by Type (each is loaded the first time one is placed).

@@ -59,11 +59,14 @@ var rifts: Array = []
 ## "left": [spell, tier] a swap left on it, or []}.
 var exams: Dictionary = {}
 var lessons: Dictionary = {}
+## The crags: which of its gondola's stations are on, a bit each from the bottom (-1 before the first
+## visit deals them: only the one nearest the way in on; MapInfo.station_on, flip_tower).
+var stations: int = -1
 
 ## Every field saved, in the order they are written.
 const FIELDS: Array[StringName] = [&"taken", &"opened", &"slain", &"broken", &"dropped", &"next_drop", &"deeper_paid", &"up_paid",
 	&"doors_paid", &"lateral_open", &"ways_taken", &"shrine_used", &"left_spell", &"relic_left", &"mapped", &"seen",
-	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended", &"exams", &"lessons"]
+	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended", &"exams", &"lessons", &"stations"]
 
 
 ## The record as a plain dictionary, for the save file.

@@ -6,7 +6,7 @@ extends Node2D
 ## through to an arrow slit on its outer face. It shoots dead straight out of the slit, level: while
 ## it sees the wizard in front of it (on its side, within RANGE cells, no more than LINE above or
 ## below its slit, with a clear line from it), it winds back its string over DRAW seconds in sight,
-## the bore glowing pink, and looses; the moment it loses sight the draw starts again. After a shot
+## and looses; the moment it loses sight the draw starts again. After a shot
 ## it reloads for RELOAD seconds (in sight or not) before it can draw again, so the first shot comes
 ## quickly and the rest more slowly. Its arrows wound any enemy in their way, too (Bullet). From outside it is a cell of stone away: bolts and
 ## dashes stop at the wall short of it, and a parried arrow flies back only as far as the wall.

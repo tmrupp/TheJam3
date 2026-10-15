@@ -25,7 +25,7 @@ var decor: StringName = &"garden"
 var sample: String = ""
 ## The collapse's symmetry (see NextWorldDef.symmetry): 1 keeps up up.
 var symmetry: int = 5
-## How much bigger than Rules.level_size its levels are, across and down.
+## How much bigger than Rules.level_size its levels are, across and down (size_for).
 var scale: Vector2 = Vector2.ONE
 ## Whether its levels are gated by chasms (see Chasms), crossed at `crossing`s.
 var chasmed: bool = false
@@ -77,6 +77,11 @@ func room(_w: LevelGen, _v: Vector2i, _grow: int) -> bool:
 
 ## Its own dressing, on top of an ordinary level's (after the hoppers, so the rest of the level
 ## lands as it would without it).
+## How big its levels are at `depth` (cells across and down): Rules.level_size, `scale` times.
+func size_for(depth: int) -> Vector2i:
+	return Vector2i((Vector2(Rules.level_size(depth)) * scale).round())
+
+
 func populate(_w: LevelGen, _def: NextWorldDef) -> void:
 	pass
 

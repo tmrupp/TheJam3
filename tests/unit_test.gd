@@ -34,6 +34,7 @@ func run() -> void:
 	_wind()
 	_whale()
 	_institute()
+	_stations()
 	var p: Player = Player.new()
 	_ability_tables()
 	_protocols()
@@ -335,6 +336,37 @@ func _institute() -> void:
 	# Every wall style the F7 panel offers has its inks and a name.
 	check(RisoPrint.WALL_STYLES.all(func(w: StringName) -> bool: return RisoTerrain.WALL_LOOKS.has(w)) and RisoPrint.WALL_STYLE_NAMES.size() == RisoPrint.WALL_STYLES.size(),
 		"each institute wall style has its inks and a name")
+
+## The crags' tower puzzle (Stations): riding needs both ends on and no two off in a row between;
+## a dealt level has a way up and a different way down, and can leave the whole line on, quickly even
+## with the most stations a line has; a tower is never flipped twice running.
+func _stations() -> void:
+	check(Stations.rides(0b101, 0, 2) and not Stations.rides(0b1001, 0, 3) and not Stations.rides(0b110, 0, 2), "the car rides past one off station, never two in a row, and only from and to on ones")
+	var tiers: Array[int] = [0, 1, 2, 3, 4]
+	var t0: int = Time.get_ticks_msec()
+	var masks: Array[int] = Stations.deal(5, tiers, 4242)
+	var took: int = Time.get_ticks_msec() - t0
+	var up: Variant = Stations.way(5, tiers, masks, 1, 0, 4)
+	var down: Variant = Stations.way(5, tiers, masks, 1 << 4, 4, 0)
+	check(up != null and down != null and up != down, "a dealt level has a way up %s and a different way down %s" % [up, down])
+	check(Stations.all_on_reached(5, tiers, masks), "and some flips leave the whole line on")
+	check(Stations.deal(5, tiers, 4242) == masks, "the same level deals the same sets every time (%d ms)" % took)
+	var seq: Array = up if up != null else []
+	var twice: bool = false
+	for i: int in range(1, seq.size()):
+		twice = twice or seq[i] == seq[i - 1]
+	check(not twice, "no tower is flipped twice running")
+	# The most stations a line has (CragsArchetype.STOPS.y), six towers: dealt quickly, and passing.
+	var many: Array[int] = [0, 2, 4, 5, 7, 8]
+	var n: int = CragsArchetype.STOPS.y
+	var t1: int = Time.get_ticks_msec()
+	var passed: int = 0
+	for sd: int in range(5):
+		var m: Array[int] = Stations.deal(n, many, 900 + sd)
+		var ok: bool = Stations.way(n, many, m, 1, 0, n - 1) != null and Stations.way(n, many, m, 1 << (n - 1), n - 1, 0) != null and Stations.all_on_reached(n, many, m)
+		passed += 1 if ok else 0
+	check(passed >= 4, "with %d stations, %d of 5 levels deal a way up, a way down and the whole line on (%d ms a deal)" % [n, passed, (Time.get_ticks_msec() - t1) / 5])
+
 
 func _ability_tables() -> void:
 	var order: Array[StringName] = Abilities.ids()
