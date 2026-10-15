@@ -270,7 +270,7 @@ func _gap(id: int) -> Rect2:
 
 ## Wait for a gust to begin: through the stillness, to the moment it blows.
 func _gust_start() -> void:
-	await within(func() -> bool: return not info.gusting(), Wind.GUST + 0.5)
+	await within(func() -> bool: return not info.gusting(), info.gust_length() + 0.5)
 	await within(func() -> bool: return info.gusting(), Wind.STILL + 0.5)
 
 

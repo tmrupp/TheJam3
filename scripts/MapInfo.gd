@@ -194,14 +194,19 @@ var gust_clock: float = 0.0
 ## The light gates of the level being played (LightGate), by cell: whether each is up now.
 var light_gates: Dictionary = {}
 
-## Whether a gust is blowing now: Wind.STILL seconds of stillness, then Wind.GUST of gust, over again.
+## Whether a gust is blowing now: Wind.STILL seconds of stillness, then a gust as long as the level's
+## wind's strength makes it (Wind.gust_for), over again.
 func gusting () -> bool:
-	return fposmod(gust_clock, Wind.STILL + Wind.GUST) >= Wind.STILL
+	return fposmod(gust_clock, Wind.STILL + gust_length()) >= Wind.STILL
+
+## How long (seconds) a gust blows here: Wind.gust_for the level's wind's strength.
+func gust_length () -> float:
+	return Wind.gust_for(absi(level_wind()))
 
 ## How near the next gust is (0 until Wind.WARN seconds before it, rising to 1 as it comes; 1 in it),
 ## for the art.
 func gust_coming () -> float:
-	var into: float = fposmod(gust_clock, Wind.STILL + Wind.GUST)
+	var into: float = fposmod(gust_clock, Wind.STILL + gust_length())
 	if into >= Wind.STILL:
 		return 1.0
 	return clampf((into - (Wind.STILL - Wind.WARN)) / Wind.WARN, 0.0, 1.0)

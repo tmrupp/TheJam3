@@ -7,8 +7,9 @@ extends Node2D
 ##   one: the level's gusts cross its gaps): the level's wind held over a gap, carrying the wizard
 ##   over and holding them up as they go.
 ## The level's wind (Rules.wind_of: its vanes, Vane) comes in gusts (MapInfo.gusting): STILL seconds
-## of stillness, then a strong gust GUST seconds long, over and over. A gust blows the level's
-## wind's way, CARRY px/s, CARRY_STEP more for each vane past the first (at most CARRY_MAX).
+## of stillness, then a gust, over and over. A gust blows the level's wind's way at CARRY px/s
+## however many vanes set it; more vanes make it blow longer, not harder: GUST seconds for one,
+## GUST_STEP more for each vane past the first (at most GUST_MAX, gust_for).
 ## The wizard asks push_at each physics step (Player): an updraft eases their rise toward
 ## LIFT_SPEED; a crosswind carries them along and lets them sink no faster than GLIDE (not at all:
 ## they float level across). Up/down steers at STEER_SPEED within a crosswind, so the wizard can
@@ -23,13 +24,13 @@ extends Node2D
 const LIFT_SPEED: float = 430.0
 const LIFT_ACCEL: float = 2600.0
 const CARRY: float = 480.0
-const CARRY_STEP: float = 60.0
-const CARRY_MAX: float = 720.0
 const GROUND_SHARE: float = 0.35
 const GUST_SINK: float = 60.0
 const LEE: int = 2
 const STILL: float = 3.5
 const GUST: float = 4.5
+const GUST_STEP: float = 1.5
+const GUST_MAX: float = 9.0
 const WARN: float = 1.0
 const GLIDE: float = 0.0
 const STEER_SPEED: float = 240.0
@@ -78,12 +79,16 @@ func carry() -> float:
 	return carry_for(maxi(1, absi(map_info.level_wind()) if map_info != null else 1))
 
 
-## How fast a gust of `strength` vanes carries the wizard (px/s): CARRY, CARRY_STEP more a vane past
-## the first, at most CARRY_MAX; none for a still wind.
+## How fast a gust of `strength` vanes carries the wizard (px/s): CARRY, however many vanes (they
+## make it blow longer, gust_for); none for a still wind.
 static func carry_for(strength: int) -> float:
-	if strength <= 0:
-		return 0.0
-	return minf(CARRY + CARRY_STEP * float(strength - 1), CARRY_MAX)
+	return CARRY if strength > 0 else 0.0
+
+
+## How long (seconds) a gust of `strength` vanes blows: GUST for one, GUST_STEP more for each vane
+## past the first, at most GUST_MAX.
+static func gust_for(strength: int) -> float:
+	return minf(GUST + GUST_STEP * float(maxi(strength, 1) - 1), GUST_MAX)
 
 
 ## The air it moves (world space). Things that wake and print by what is in view go by all of

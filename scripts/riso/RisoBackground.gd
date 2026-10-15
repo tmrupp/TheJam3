@@ -134,11 +134,11 @@ func _backdrop_cemetery(at: Callable, _view: Vector2, _half: Vector2, k: float, 
 
 
 ## How the sky's storm clouds roll (px of the sheet a second): STORM_DRIFT still, STORM_PUSH more
-## for each step of the level's wind in a gust (MapInfo.gust_wind), its way; they keep rolling
+## in a gust (MapInfo.gust_wind), its way, however many vanes set it (they make it last longer); they keep rolling
 ## the way it last blew between gusts. Lightning flashes about every
 ## FLASH_EVERY seconds (each its own, by a hash), lasting FLASH_TIME.
 const STORM_DRIFT: float = 3.0
-const STORM_PUSH: float = 5.0
+const STORM_PUSH: float = 8.0
 const FLASH_EVERY: float = 7.0
 const FLASH_TIME: float = 0.22
 ## How far the storm clouds have rolled (px of the sheet), and the way they roll.
@@ -147,7 +147,7 @@ var _storm_way: float = 1.0
 
 
 ## The sky: up in a storm. Heavy banks of cloud in the islands' own pale ink roll over the dark,
-## layer on layer, the way the level's wind blows and faster the stronger it is; now and then
+## layer on layer, the way the level's wind blows, faster in a gust; now and then
 ## lightning flashes far off, a jagged bolt of bare paper down through the clouds and the sheet
 ## lit pale a moment. No moon, no stars.
 func _backdrop_sky(at: Callable, _view: Vector2, half: Vector2, k: float, t: float, _center: Vector2) -> bool:
@@ -156,7 +156,7 @@ func _backdrop_sky(at: Callable, _view: Vector2, half: Vector2, k: float, t: flo
 	var gust: int = info.gust_wind() if info != null else 0
 	_storm_way = -1.0 if wind < 0 else 1.0
 	# The clouds roll on by their own clock: faster in a gust, so they surge with it.
-	_storm_roll += _storm_way * get_process_delta_time() * (STORM_DRIFT + STORM_PUSH * float(absi(gust)))
+	_storm_roll += _storm_way * get_process_delta_time() * (STORM_DRIFT + (STORM_PUSH if gust != 0 else 0.0))
 	for i: int in range(7):
 		var roll: float = fposmod(_storm_roll * (0.7 + 0.15 * float(i)) + float(i) * 113.0, 760.0) - 140.0
 		var y: float = 30.0 + float(i) * 36.0

@@ -274,6 +274,9 @@ func _wind() -> void:
 	check_eq(Rules.wind_of(rec), -1, "turned left by its one left vane: strength 1, the right ones doing nothing")
 	rec.vanes_on.erase(Vector2i(3, 1))
 	check_eq(Rules.wind_of(rec), 0, "and with none of its way left on, still")
+	# More vanes make a gust blow longer, not harder.
+	check(Wind.carry_for(1) == Wind.carry_for(3) and Wind.carry_for(0) == 0.0, "a gust carries the wizard as fast whatever its strength")
+	check(Wind.gust_for(1) == Wind.GUST and Wind.gust_for(2) > Wind.gust_for(1) and Wind.gust_for(99) == Wind.GUST_MAX, "each vane past the first makes a gust last longer, up to %.0f s" % Wind.GUST_MAX)
 
 
 ## The whale's hunt (WhaleHunt): met a few worlds off the wizard the first time they come into the
