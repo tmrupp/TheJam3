@@ -439,6 +439,19 @@ const PANEL_ROWS: int = 2
 const PANEL_STILE: float = 24.0
 const PANEL_RAIL: float = 26.0
 const PANEL_SHADOW: float = 9.0
+## The other wall styles (RisoPrint.wall_style): light planks laid level, PLANKS_TO_A_CELL rows to a
+## cell with a seam PLANK_SEAM high under each and an end joint now and then (PLANK_JOINTS of the
+## cells in a row), a few lengths a shade darker (PLANK_DARK) and some with a fine grain line; or
+## pale stone in courses STONE_COURSES to a cell, blocks a cell long staggered half a block a course,
+## joints STONE_JOINT wide, some blocks a shade darker (STONE_DARK). Seams and joints print in the
+## stones' shade (slot 13), dark enough to show through the screen of the paler inks.
+const PLANKS_TO_A_CELL: int = 4
+const PLANK_SEAM: float = 4.0
+const PLANK_JOINTS: float = 0.45
+const PLANK_DARK: float = 0.3
+const STONE_COURSES: int = 2
+const STONE_JOINT: float = 4.0
+const STONE_DARK: float = 0.35
 
 static func plan_institute(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, _bottom_style: StringName = &"roots", masonry: Dictionary = {}, interiors: Dictionary = {}) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
@@ -892,6 +905,61 @@ func _draw_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 		drip_spots[drip_spots.size() - 1] = grow * drip_spots[drip_spots.size() - 1]
 	if item["kind"] == &"tuft" and not firefly_spots.is_empty():
 		firefly_spots[firefly_spots.size() - 1] = grow * firefly_spots[firefly_spots.size() - 1]
+
+
+## A cell of the institute's walls as light planks laid level (see PLANKS_TO_A_CELL): a seam under
+## each row, an end joint where the seed puts one, a few lengths a faint shade darker, some with a
+## fine grain line along them.
+func _planks(v: Vector2i, c: Vector2, slots: Array, s: int) -> void:
+	var tall: float = half * 2.0 / float(PLANKS_TO_A_CELL)
+	for row: int in range(PLANKS_TO_A_CELL):
+		var y0: float = c.y - half + float(row) * tall
+		var course: Vector2i = Vector2i(v.x, v.y * PLANKS_TO_A_CELL + row)
+		var cuts: Array[float] = [c.x - half]
+		if _r(s, course, 93) < PLANK_JOINTS:
+			cuts.append(c.x - half + (0.15 + 0.7 * _r(s, course, 94)) * half * 2.0)
+		cuts.append(c.x + half)
+		for k: int in range(cuts.size() - 1):
+			var piece: Vector2i = Vector2i(course.x * 2 + k, course.y)
+			if _r(s, piece, 95) < PLANK_DARK:
+				slots[27].append(RisoShapes.rrect(cuts[k], y0, cuts[k + 1] - cuts[k], tall, 0.0))
+			if _r(s, piece, 96) < 0.4:
+				var gy: float = y0 + tall * (0.3 + 0.35 * _r(s, piece, 97))
+				var gx: float = cuts[k] + (cuts[k + 1] - cuts[k]) * 0.2 * _r(s, piece, 98)
+				slots[41].append(RisoShapes.rrect(gx, gy, (cuts[k + 1] - gx) * (0.5 + 0.4 * _r(s, piece, 99)), 1.5, 0.0))
+			if k > 0:
+				slots[13].append(RisoShapes.rrect(cuts[k] - PLANK_SEAM * 0.5, y0, PLANK_SEAM, tall, 0.0))
+		slots[13].append(RisoShapes.rrect(c.x - half, y0 + tall - PLANK_SEAM, half * 2.0, PLANK_SEAM, 0.0))
+
+
+## A cell of the institute's walls as pale stone in courses (see STONE_COURSES): blocks a cell long,
+## every other course shifted half a block, fine joints between, some blocks a faint shade darker.
+func _stone(v: Vector2i, c: Vector2, slots: Array, s: int) -> void:
+	var tall: float = half * 2.0 / float(STONE_COURSES)
+	var j: float = STONE_JOINT
+	for row: int in range(STONE_COURSES):
+		var y0: float = c.y - half + float(row) * tall
+		var course: int = v.y * STONE_COURSES + row
+		var shifted: bool = posmod(course, 2) == 1
+		# The blocks this cell's stretch of the course crosses (a shifted course's straddle the
+		# cell's middle), each toned by its own place in the course, and the joints between them.
+		for k: int in range(2 if shifted else 1):
+			var a: float = c.x - half if k == 0 else c.x
+			var b: float = c.x if shifted and k == 0 else c.x + half
+			var block: Vector2i = Vector2i(v.x - 1 + k if shifted else v.x, course)
+			if _r(s, block, 85) < STONE_DARK:
+				slots[27].append(RisoShapes.rrect(a, y0, b - a, tall, 0.0))
+		if shifted:
+			slots[13].append(RisoShapes.rrect(c.x - j * 0.5, y0, j, tall, 0.0))
+		else:
+			# Its joints on the cell's edges, half in each cell (none reaching out into the open).
+			slots[13].append(RisoShapes.rrect(c.x - half, y0, j * 0.5, tall, 0.0))
+			slots[13].append(RisoShapes.rrect(c.x + half - j * 0.5, y0, j * 0.5, tall, 0.0))
+	# The beds between courses: half a joint on the cell's top and bottom edges, a whole one inside.
+	slots[13].append(RisoShapes.rrect(c.x - half, c.y - half, half * 2.0, j * 0.5, 0.0))
+	slots[13].append(RisoShapes.rrect(c.x - half, c.y + half - j * 0.5, half * 2.0, j * 0.5, 0.0))
+	for row: int in range(1, STONE_COURSES):
+		slots[13].append(RisoShapes.rrect(c.x - half, c.y - half + float(row) * tall - j * 0.5, half * 2.0, j, 0.0))
 
 
 func _sketch_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
@@ -1354,11 +1422,19 @@ func _sketch_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 				slots[40].append(RisoShapes.rrect(x + fx * w - 0.5, floor_y - tall + 11.0, 1.0, tall - 22.0, 0.5))
 			slots[40].append(PackedVector2Array([Vector2(x + w * 0.45, floor_y - 9.0), Vector2(x + w * 0.4, floor_y - tall + 9.0), Vector2(x + w * 0.85, floor_y - tall + 9.0), Vector2(x + w, floor_y - 9.0)]))
 		&"panel":
-			# The institute's walls of wood, at full size: the same plain panelling everywhere, so
-			# it stays quiet behind what happens in front of it. A frame of stiles and rails round
-			# tall sunk panels, each a cell wide and PANEL_ROWS cells high (so a cell holds the top
-			# or the bottom of one), a shade darker than the frame, with the frame's shadow along
-			# the panel's top and down its left side.
+			# The institute's walls, at full size, by the wall style (RisoPrint.wall_style): planks
+			# or stone (_planks, _stone), else panelling, the same everywhere, so it stays quiet
+			# behind what happens in front of it. A frame of stiles and rails round tall sunk
+			# panels, each a cell wide and PANEL_ROWS cells high (so a cell holds the top or the
+			# bottom of one), a shade darker than the frame, with the frame's shadow along the
+			# panel's top and down its left side.
+			var style: StringName = RisoPrint.instance.wall_style if RisoPrint.instance != null else &"planks"
+			if style == &"planks":
+				_planks(v, c, slots, s)
+				return
+			if style == &"stone":
+				_stone(v, c, slots, s)
+				return
 			var x0: float = c.x - half + PANEL_STILE * 0.5
 			var x1: float = c.x + half - PANEL_STILE * 0.5
 			var top: bool = posmod(v.y, PANEL_ROWS) == 0

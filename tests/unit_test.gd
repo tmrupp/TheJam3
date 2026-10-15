@@ -329,6 +329,9 @@ func _institute() -> void:
 			var row: int = Institute.department_row(def, dept, i)
 			ok = ok and NextWorldDef.archetype_at(row) == Institute.DEPARTMENTS[dept] and row == Institute.department_row(def, dept, i)
 		check(ok, "a %s portal leads to a level of %s, the same every time" % [dept, Institute.DEPARTMENTS[dept]])
+	# Every wall style the F7 panel offers has its inks and a name.
+	check(RisoPrint.WALL_STYLES.all(func(w: StringName) -> bool: return RisoTerrain.WALL_LOOKS.has(w)) and RisoPrint.WALL_STYLE_NAMES.size() == RisoPrint.WALL_STYLES.size(),
+		"each institute wall style has its inks and a name")
 
 func _ability_tables() -> void:
 	var order: Array[StringName] = Abilities.ids()

@@ -11,10 +11,11 @@ class_name RisoTerrain
 ## wall of stone in place of the sky: the rock's ink, dimmed with night, in courses two to a cell
 ## with their joints staggered, under everything else.
 ## An indoor realm (INDOOR_REALMS: the institute) is all building: its rock prints square, as built
-## wood (WOOD_LOOK, its tops coped as built stone's are, no cap strip), and all its open air over a
+## wood or stone (WALL_LOOKS, its tops coped as built stone's are, no cap strip), and all its open air over a
 ## back wall of upright boards (BACK_BOARDS to a cell) in place of the sky.
-## Floating ledges print on a canvas of their own (`ledge_ink`, LEDGE_Z) over the decor, so a
-## bookcase or a plant behind one never hides it.
+## Floating ledges print on a canvas of their own (`ledge_ink`, LEDGE_Z) over the decor, everything
+## behind them knocked out, so a bookcase or a plant behind one never hides or shows through it; an
+## indoor realm's print in its walls' look, so they stand out from the dark rooms as the walls do.
 
 const SHADE_NEAR: float = 22.0
 const SHADE_FAR: float = 58.0
@@ -35,10 +36,17 @@ const MASONRY_LOOKS: Dictionary = {
 const PALE_LOOKS: Array[StringName] = [&"pale"]
 ## The look built stone always prints in, in a realm that has one of its own.
 const REALM_LOOKS: Dictionary = {&"sky": &"marble", &"institute": &"pale"}
-## The realms that are all indoors (see the class description), the inks their rock prints in as
-## wood, and the boards to a cell of their back wall.
+## The realms that are all indoors (see the class description), the inks their rock prints in by
+## the wall style (RisoPrint.wall_style, `wall_look`): the rock's ink solid for dark panels, screened
+## back on paper for lighter wood or pale stone, so the walls stand apart from the dark back wall of
+## the rooms; and the boards to a cell of their back wall.
 const INDOOR_REALMS: Array[StringName] = [&"institute"]
-const WOOD_LOOK: Array = [[RisoPrint.BLUE, 1.0]]
+const WALL_LOOKS: Dictionary = {
+	&"panels": [[RisoPrint.BLUE, 1.0]],
+	&"light_panels": [[RisoPrint.BLUE, 0.55]],
+	&"planks": [[RisoPrint.BLUE, 0.55]],
+	&"stone": [[RisoPrint.BLUE, 0.32]],
+}
 const BACK_BOARDS: int = 3
 ## How much of the rock's ink an indoor realm's back wall prints: all of it, solid, so no paper shows
 ## through between the dots of the screen (with night over it, paper dots read as white speckle, and
@@ -240,10 +248,15 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 		ink.knock(under, built)
 		for k: int in range(look.size()):
 			ink.ink(int(look[k][0]), float(look[k][1]), built, k == 0)
+	var wall: Array = wall_look()
+	# A wall look screened back lies on paper: the night under it knocked out first.
+	var wall_under: Array[int] = [RisoPrint.PINK, RisoPrint.ACCENT]
+	if float(wall[0][1]) < 1.0:
+		wall_under.append(RisoPrint.NIGHT)
 	if not wooden.is_empty():
-		ink.knock([RisoPrint.PINK, RisoPrint.ACCENT], wooden)
-		for k: int in range(WOOD_LOOK.size()):
-			ink.ink(int(WOOD_LOOK[k][0]), float(WOOD_LOOK[k][1]), wooden, k == 0)
+		ink.knock(wall_under, wooden)
+		for k: int in range(wall.size()):
+			ink.ink(int(wall[k][0]), float(wall[k][1]), wooden, k == 0)
 	# Deep band first, cleared around inside corners; then the near band, cleared tighter.
 	ink.ink(RisoPrint.NIGHT, SHADE_COVER, far, false)
 	ink.knock([RisoPrint.NIGHT], far_pies)
@@ -256,15 +269,17 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 			ink.ink(int(look[k][0]), float(look[k][1]), copings, k == 0)
 		ink.ink(RisoPrint.NIGHT, COPING_COVER, copings, false)
 	if not wood_copings.is_empty():
-		ink.knock([RisoPrint.ACCENT], wood_copings)
-		for k: int in range(WOOD_LOOK.size()):
-			ink.ink(int(WOOD_LOOK[k][0]), float(WOOD_LOOK[k][1]), wood_copings, k == 0)
+		ink.knock(wall_under, wood_copings)
+		for k: int in range(wall.size()):
+			ink.ink(int(wall[k][0]), float(wall[k][1]), wood_copings, k == 0)
 		ink.ink(RisoPrint.NIGHT, COPING_COVER, wood_copings, false)
 	ink.finish()
 	ledge_ink.begin()
 	if not ledge_body.is_empty():
-		ledge_ink.knock([RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.NIGHT], ledge_body)
-		var ledge_look: Array = WOOD_LOOK if indoor else [[RisoPrint.BLUE, 1.0]]
+		# Everything behind it knocked out, the rock's ink too: printed in a look screened back (an
+		# indoor realm's light walls), a bookcase's wood showed through it at full strength.
+		ledge_ink.knock([RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.EYE], ledge_body)
+		var ledge_look: Array = wall if indoor else [[RisoPrint.BLUE, 1.0]]
 		for k: int in range(ledge_look.size()):
 			ledge_ink.ink(int(ledge_look[k][0]), float(ledge_look[k][1]), ledge_body, k == 0)
 		if indoor:
@@ -272,6 +287,12 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 		else:
 			ledge_ink.ink(RisoPrint.ACCENT, 1.0, ledge_caps)
 	ledge_ink.finish()
+
+
+## The inks an indoor realm's walls print in, by the wall style (WALL_LOOKS, RisoPrint.wall_style).
+static func wall_look() -> Array:
+	var style: StringName = RisoPrint.instance.wall_style if RisoPrint.instance != null else &"planks"
+	return WALL_LOOKS.get(style, WALL_LOOKS[&"planks"])
 
 
 ## The back wall behind the air inside buildings (`interiors`; see the class description), in courses

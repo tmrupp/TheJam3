@@ -147,6 +147,12 @@ var fog_style: StringName = &"shroud"
 const SKY_BOTTOM_STYLES: Array[StringName] = [&"tapered", &"roots", &"clouds", &"clouds_roots"]
 const SKY_BOTTOM_NAMES: Array[String] = ["Tapered", "Roots", "Clouds", "Clouds & roots"]
 var sky_bottom_style: StringName = &"tapered"
+## The institute's walls (its rock: RisoTerrain.WALL_LOOKS, the decor's "panel" sketch): light
+## planks laid level (the default, light so the walls stand apart from the dark rooms), dark
+## panelling, lighter panelling, or courses of pale stone. Switching changes only the art.
+const WALL_STYLES: Array[StringName] = [&"planks", &"panels", &"light_panels", &"stone"]
+const WALL_STYLE_NAMES: Array[String] = ["Light planks", "Dark panels", "Light panels", "Pale stone"]
+var wall_style: StringName = &"planks"
 ## How much finer than the scene the UI prints, 0 (the same) to 1 (UI_* in full).
 var ui_detail: float = 0.7
 ## Camera zoom while printing, relative to the scene's own zoom (smaller shows more).
@@ -833,6 +839,13 @@ func world_built(map_info: MapInfo, _world_index: int) -> void:
 	_rebuild_ground(map_info)
 
 
+## Print the institute's walls as `style` (WALL_STYLES), at once if an indoor place is being played.
+func set_wall_style(style: StringName) -> void:
+	wall_style = style
+	if _map_info != null and is_instance_valid(_map_info) and _map_info.here != null and RisoTerrain.INDOOR_REALMS.has(_map_info.here.realm()):
+		_rebuild_ground(_map_info)
+
+
 func _rebuild_ground(map_info: MapInfo) -> void:
 	if terrain != null and is_instance_valid(terrain):
 		var ledges: Array[Vector2] = []
@@ -1104,6 +1117,9 @@ func _build_panel() -> void:
 		sky_bottom_style = SKY_BOTTOM_STYLES[i]
 		if _map_info != null and is_instance_valid(_map_info) and _map_info.here.open():
 			_rebuild_ground(_map_info)
+		_sync_panel())
+	_option_row(look, &"walls", "Institute walls", WALL_STYLE_NAMES, func(i: int) -> void:
+		set_wall_style(WALL_STYLES[i])
 		_sync_panel())
 	var keys: VBoxContainer = _section(box, "Keys", false)
 	_key_capacity_label = Label.new()
@@ -1389,6 +1405,8 @@ func _sync_panel() -> void:
 		(_options[&"fog"] as OptionButton).select(FOG_STYLES.find(fog_style))
 	if _options.has(&"sky_bottoms"):
 		(_options[&"sky_bottoms"] as OptionButton).select(SKY_BOTTOM_STYLES.find(sky_bottom_style))
+	if _options.has(&"walls"):
+		(_options[&"walls"] as OptionButton).select(WALL_STYLES.find(wall_style))
 	if _options.has(&"realm"):
 		(_options[&"realm"] as OptionButton).select(REALM_ORDER.find(realm))
 	if _options.has(&"reprint"):
