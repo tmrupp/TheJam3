@@ -2,7 +2,8 @@ extends RisoProp
 ## Thorns (Spikes). Always out, they are still: printed once. Thorns that come and go slide out and
 ## in with them: out, pink (danger); down, low blue stubs on the rock's lip (safe); a timed run's tips
 ## peek and flicker pink before it rises; the first thorn of a switched run bears the sigil its
-## switch shares.
+## switch shares. They print on top of the decor round them (grass, plants, moss): everything under
+## them is knocked to paper first, so their pink stays true rather than darkened where decor crosses.
 
 ## The thorns' height out (px), and the stubs' left down.
 const TALL: float = 40.0
@@ -29,6 +30,7 @@ func _draw_art() -> void:
 	for i: int in range(4):
 		var x: float = -47.25 + float(i) * 31.5
 		spikes.append(RisoShapes.tri(Vector2(x - 13, half + 2.0), Vector2(x, half - tall), Vector2(x + 13, half + 2.0)))
+	ink.knock(RisoPrint.ALL_PLATES, spikes)
 	if rise > 0.5:
 		ink.ink(RisoPrint.PINK, 1.0, spikes)
 	else:

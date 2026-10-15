@@ -138,6 +138,13 @@ func run() -> void:
 	check(placed("necromancer.tscn").is_empty() and placed("relic.tscn").any(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == &"necromancer"), "its relic is left where it stood")
 	check(not info.slay_boss(), "with nothing left to slay, it does nothing")
 
+	print("healed from the F7 panel")
+	player.health.health = 1
+	check(not info.full_heal() and player.health.health == 1, "outside a debug run, Full heal does nothing")
+	MapInfo.debug = true
+	check(info.full_heal() and player.health.health == player.health.max_health, "in one, it heals the wizard to full")
+	MapInfo.debug = false
+
 	print("saved")
 	var saved: Dictionary = info.run.to_save(info.coord, {})
 	var again: RunState = RunState.new()

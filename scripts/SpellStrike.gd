@@ -6,13 +6,33 @@ extends RefCounted
 ## shield takes the blow whole; a spider is struck only on its round body (Spider.struck_by); a
 ## worm only once, in the first segment caught (Wound.whole); things that answer a bolt themselves
 ## (a switch, a bell, a moth swarm: HexBolt.ANSWERS) answer this too. Rock between the wizard and
-## a thing shelters it.
+## a thing shelters it. Thorns are struck too (`thorns_caught`). Spells aimed one way throw the
+## wizard back (`recoil`): a slash when it lands (on anything, thorns too), a push and a hex bolt
+## whenever cast.
 
 ## How far up and down from its middle a thing may be caught (as HexBolt's SPAN_DOWN and SPAN_UP).
 const SPAN_DOWN: float = 20.0
 const SPAN_UP: float = 56.0
 ## How finely (px) the way from the wizard to a thing is felt for rock.
 const SIGHT_STEP: float = 16.0
+## The recoil off a spell (`recoil`), at power 1 (a slash that lands; a push throws harder, a hex
+## bolt softer): how fast (px/s) and for how long (seconds, out of the wizard's control) one aimed to
+## the side throws them back on the ground, and how many times as fast and as long in the air (more,
+## so blows carry an airborne wizard about: off thorns, over a gap); how fast (px/s, up) one aimed
+## down from the air bounces them (a pogo, a jump's worth), at most POGO_MOST times that however
+## strong it is;
+## how fast (px/s, down) one aimed up from the air knocks them down; and how far from straight down
+## or up it may be aimed to count as down or up (the aim's y, at least).
+const RECOIL: float = 180.0
+const RECOIL_TIME: float = 0.1
+const AIR_RECOIL: float = 1.7
+const AIR_RECOIL_TIME: float = 1.4
+const POGO: float = -600.0
+const POGO_MOST: float = 1.2
+const DOWN_RECOIL: float = 120.0
+const POGO_AIM: float = 0.5
+## How far (px) from the wizard thorns are looked over for a spell that might strike them.
+const THORN_LOOK: float = 400.0
 
 
 ## Everything in the hex_target group caught by `catches` (a point in the world -> whether it is
@@ -81,6 +101,52 @@ static func strike(e: Node, dir: Vector2, damage: int, stun: float) -> void:
 	var stunner: Stunner = Stunner.of(e)
 	if stunner != null and is_instance_valid(e) and not e.is_queued_for_deletion() and stun > 0.0:
 		stunner.stun(stun)
+
+
+## Throw the wizard back off a spell they cast heading `dir`, at `power` (1 a slash's; see RECOIL).
+## Aimed down from the air, they bounce up (POGO), keeping their control and way across, and at
+## power 1 or more the air jump is given back, so they can bounce off one thing after another; aimed
+## up from the air, they are knocked down a little (DOWN_RECOIL); aimed to the side, they are knocked
+## back the other way (RECOIL for RECOIL_TIME, far more in the air), keeping their rise or fall. On
+## the ground, aimed down or up, nothing.
+static func recoil(player: Player, dir: Vector2, power: float = 1.0) -> void:
+	if player == null or player.phasing or power <= 0.0:
+		return
+	var air: bool = not player.is_on_floor()
+	if dir.y >= POGO_AIM:
+		if air:
+			player.velocity.y = minf(player.velocity.y, POGO * minf(power, POGO_MOST))
+			if power >= 1.0:
+				player.jumps = maxi(player.jumps, player.MAX_JUMPS - 1)
+		return
+	if dir.y <= -POGO_AIM:
+		if air:
+			player.velocity.y = maxf(player.velocity.y, DOWN_RECOIL * power)
+		return
+	if dir.x == 0.0:
+		return
+	player.knock = Vector2(-signf(dir.x) * RECOIL * power * (AIR_RECOIL if air else 1.0), player.velocity.y)
+	player.knock_back.enable(true)
+	player.knock_back.acting = RECOIL_TIME * (AIR_RECOIL_TIME if air else 1.0)
+
+
+## The thorns that are out caught by `catches` (a point in the world -> whether it is inside the
+## spell's shape) somewhere along their body, sheltered by no rock from `from`. Each is shown struck;
+## nothing else comes of it to them (see Spikes).
+static func thorns_caught(tree: SceneTree, from: Vector2, catches: Callable, dir: Vector2) -> Array[Spikes]:
+	var out: Array[Spikes] = []
+	for n: Node in tree.get_nodes_in_group(Spikes.GROUP):
+		var thorns: Spikes = n as Spikes
+		if thorns == null or not thorns.out or thorns.is_queued_for_deletion() or thorns.global_position.distance_to(from) > THORN_LOOK:
+			continue
+		var ends: Array[Vector2] = thorns.body_ends()
+		for k: int in range(5):
+			var p: Vector2 = ends[0].lerp(ends[1], float(k) / 4.0)
+			if bool(catches.call(p)) and clear(from, p):
+				out.append(thorns)
+				RisoFx.burst(&"hit", p, dir, [RisoPrint.ACCENT, RisoPrint.BLUE])
+				break
+	return out
 
 
 ## The way the wizard aims a spell: the held direction, else the way they face.

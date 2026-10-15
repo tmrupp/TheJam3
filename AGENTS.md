@@ -81,6 +81,8 @@ bash tests/run.sh sky_test        # just these, headless
 - `run.sh` re-imports first. After adding a `class_name` script or an image outside it, run
   `godot --headless --path . --import`.
 - Captures: `godot --path . --windowed --resolution 1280x720 --script res://tests/capture_x.gd`.
+  `capture_overview.gd` photographs whole levels, every band and a few worlds each, to look over
+  many layouts at once (options after `--`, e.g. `-- bands=crags worlds=6`).
 - Each test sets its own `RunState.save_path` (`user://<test>.save`), so they can run in parallel.
 - New tests extend `TestKit` (`tests/kit/TestKit.gd`): override `run()`, end with `finish()`, and
   use its `check`/`check_eq`, `boot(seed)` (starts a run, keeps the save apart), `until(cond)` and

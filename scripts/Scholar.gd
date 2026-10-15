@@ -443,13 +443,13 @@ func _release() -> void:
 				shot.life = SEEKER_LIFE
 		&"slash":
 			_strike_round(SLASH_REACH, true, 0.0)
-			SpellMark.leave(&"slash", global_position + Vector2(0, -AIM), Vector2(facing, 0), SLASH_REACH, PUSH_CONE + 0.5, RisoPrint.PINK)
+			SpellMark.leave(&"slash", global_position + Vector2(0, -AIM), Vector2(facing, 0), SLASH_REACH, PUSH_CONE + 0.5, RisoPrint.PINK, self)
 		&"nova":
 			_strike_round(NOVA_REACH, false, 0.0)
-			SpellMark.leave(&"nova", global_position + Vector2(0, -AIM), Vector2.RIGHT, NOVA_REACH, PI, RisoPrint.PINK)
+			SpellMark.leave(&"nova", global_position + Vector2(0, -AIM), Vector2.RIGHT, NOVA_REACH, PI, RisoPrint.PINK, self)
 		&"push":
 			_strike_round(PUSH_REACH, true, PUSH_THROW)
-			SpellMark.leave(&"push", global_position + Vector2(0, -AIM), Vector2(facing, 0), PUSH_REACH, PUSH_CONE, RisoPrint.PINK)
+			SpellMark.leave(&"push", global_position + Vector2(0, -AIM), Vector2(facing, 0), PUSH_REACH, PUSH_CONE, RisoPrint.PINK, self)
 		&"lunge":
 			lunging = LUNGE_TIME
 			lunge_way = facing

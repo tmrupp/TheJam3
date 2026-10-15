@@ -174,7 +174,7 @@ func run() -> void:
 	player.hurt(-1, Vector2.RIGHT * 100.0, wisp.get_node("HitBox/Damager"))
 	check(int(wisp.get_node("Wound").get("hp")) == 2 and bool(wisp.get_node("Mover").get("stunned")), "a parried wisp is wounded (3 -> 2 hp) and stunned")
 	check(guard.guard_left() < 0.0 and guard.glory(), "a catch drops the guard and the wizard shimmers gold, not hurt pink")
-	check(player.knock.is_equal_approx(Vector2(player.WALL_JUMP_SPEED, player.JUMP_VELOCITY * player.WALL_JUMP_Y_FACTOR)), "a catch from the side sends the wizard away and up, just as a wall jump")
+	check(player.knock == Vector2.ZERO, "a catch never pushes the wizard away from the enemy (a blow that lands does, SpellStrike.recoil)")
 	check(player.invulnerable.acting <= Parry.SAFE + 0.001, "and keeps them untouchable only briefly")
 	check(guard.missed_at < guard.parried_at, "a catch is not a miss")
 	check(not player.dash.acted and player.health.health == player.health.max_health, "the parry refunds the dash and takes no damage")
@@ -220,13 +220,14 @@ func run() -> void:
 	Engine.time_scale = 1.0
 	check(guard.glory() and not guard.hurt_guarded() and guard.readiness() == 1.0, "after a catch, its own untouchable moment still allows the next guard")
 	player.parry.emit()
-	# Landing on an enemy: bounced straight up, keeping control and the way across.
+	# Landing on an enemy with the guard up: caught, but no bounce (a slash down is what bounces,
+	# parry_landing_test).
 	player.knock = Vector2.ZERO
 	player.knock_back.end()
 	player.velocity = Vector2(250.0, 650.0)
 	player.hurt(-1, Vector2.UP * 400.0, wisp.get_node("HitBox/Damager"))
 	Engine.time_scale = 1.0
-	check(is_equal_approx(player.velocity.y, Parry.POGO) and is_equal_approx(player.velocity.x, 250.0), "parrying an enemy landed on bounces the wizard up, still heading the same way")
+	check(is_equal_approx(player.velocity.y, 650.0) and is_equal_approx(player.velocity.x, 250.0), "parrying an enemy landed on leaves the wizard's motion alone")
 	check(player.knock == Vector2.ZERO and not player.knock_back.is_acting(), "with control kept")
 	player.end_invulnerable()
 	# Every damage spell parries; with none held there is nothing to parry with.

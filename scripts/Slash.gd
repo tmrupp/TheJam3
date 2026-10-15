@@ -4,7 +4,8 @@ class_name Slash
 ## of the wizard, aimed like the hex (the held direction, else facing), REACH px out and HALF
 ## either way. It is quick, ready again COOLDOWN after, and everything it catches is struck at once
 ## (SpellStrike): wounded by its damage, then stunned STUN seconds. It tears the spider's webs in
-## its arc and cuts a spider's thread across it. Tiers (Abilities): I wounds 1; II reaches further
+## its arc and cuts a spider's thread across it. Landing a blow, on an enemy or on thorns, throws the
+## wizard back off it (SpellStrike.recoil): a slash down from the air bounces them up. Tiers (Abilities): I wounds 1; II reaches further
 ## and wider (REACH_II, HALF_II); III wounds 2; IV also cuts shots out of the air in its arc.
 
 const COOLDOWN: float = 0.45
@@ -76,8 +77,12 @@ func cast(dir: Vector2 = Vector2.ZERO) -> bool:
 	var catches: Callable = func(p: Vector2) -> bool: return in_arc(from, dir, p)
 	var catches_spider: Callable = func(s: Spider) -> bool:
 		return rays.any(func(r: Vector2) -> bool: return s.struck_by(from, from + r * reach, 0.0))
-	for e: Node in SpellStrike.caught(get_tree(), from, catches, catches_spider):
+	var struck: Array[Node] = SpellStrike.caught(get_tree(), from, catches, catches_spider)
+	for e: Node in struck:
 		SpellStrike.strike(e, ((e as Node2D).global_position - from).normalized(), damage, STUN)
+	var thorns: Array[Spikes] = SpellStrike.thorns_caught(get_tree(), from, catches, dir)
+	if not struck.is_empty() or not thorns.is_empty():
+		SpellStrike.recoil(player, dir)
 	for r: Vector2 in rays:
 		SpiderWeb.tear_along(get_tree(), from, from + r * reach)
 		var thread: Dictionary = Spider.thread_across(get_tree(), from, from + r * reach, Spider.THREAD_REACH)
@@ -90,6 +95,6 @@ func cast(dir: Vector2 = Vector2.ZERO) -> bool:
 			if (shot is Bullet or shot is WebShot) and not shot.is_queued_for_deletion() and in_arc(from, dir, shot.global_position):
 				RisoFx.burst(&"hit", shot.global_position, dir, [RisoPrint.ACCENT, RisoPrint.BLUE])
 				shot.queue_free()
-	SpellMark.leave(&"slash", from, dir, reach, half)
+	SpellMark.leave(&"slash", from, dir, reach, half, RisoPrint.ACCENT, player)
 	wait = COOLDOWN
 	return true

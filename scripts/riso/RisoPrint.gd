@@ -1212,7 +1212,7 @@ func _equip_panel_key(color: int, equipped: bool) -> void:
 
 ## Debug runs only: travel straight to any world and depth (MapInfo.debug_travel), or to the
 ## nearest band of an archetype, or into hyperspace, from the F7 panel (by controller too); and
-## slay this place's boss at once (MapInfo.slay_boss).
+## slay this place's boss at once (MapInfo.slay_boss), or heal to full (MapInfo.full_heal).
 var _travel_box: VBoxContainer
 var _travel_world_label: Label
 var _travel_depth_label: Label
@@ -1240,6 +1240,9 @@ func _build_travel(box: VBoxContainer) -> void:
 	_button(boss_row, "Slay boss", func() -> void:
 		if MapInfo.debug and MapInfo.instance != null:
 			MapInfo.instance.slay_boss())
+	_button(boss_row, "Full heal", func() -> void:
+		if MapInfo.instance != null:
+			MapInfo.instance.full_heal())
 
 
 ## A row: its name, a "-" button, the value, a "+" button; `on_step` gets -1 or +1.

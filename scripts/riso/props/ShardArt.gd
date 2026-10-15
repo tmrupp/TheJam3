@@ -7,6 +7,9 @@ extends RisoProp
 const SHARD_SIZE: float = 13.0
 const SHARD_TAIL: float = 40.0
 const SHARD_WIDE: float = 3.5
+## A crossbow's arrow (px): how far ahead of where it is its tip is, and how long its trail.
+const ARROW_AHEAD: float = 12.0
+const ARROW_TRAIL: float = 40.0
 
 ## The Bullet it dresses.
 var shot: Bullet:
@@ -40,11 +43,17 @@ func _draw_art() -> void:
 		ink.ink(RisoPrint.NIGHT, 0.7, [spin * RisoShapes.ellipse(Vector2(-1, 0), 7.0, 4.0, 10)], false)
 		return
 	if shot.arrow:
-		# A crossbow's arrow: a pink shaft with a faint trail, pink fletching and a pink head.
-		ink.ink(RisoPrint.PINK, 0.3, [xf * RisoShapes.rrect(-70, -1.5, 30, 3, 1.5)])
-		ink.ink(RisoPrint.PINK, 0.75, [xf * RisoShapes.rrect(-40, -2.5, 44, 5, 2)])
-		ink.ink(RisoPrint.PINK, 1.0, [xf * RisoShapes.tri(Vector2(2, -7), Vector2(18, 0), Vector2(2, 7))])
-		ink.ink(RisoPrint.PINK, 0.8, [xf * RisoShapes.tri(Vector2(-44, -8), Vector2(-30, -2), Vector2(-40, -2)), xf * RisoShapes.tri(Vector2(-44, 8), Vector2(-30, 2), Vector2(-40, 2))])
+		# A crossbow's arrow: the bolt that lay on its string, as big (CrossbowArt.bolt_shapes),
+		# pink on paper, its tip ARROW_AHEAD past where it is, with a faint trail behind.
+		var k: float = CrossbowArt.SIZE
+		var big: Transform2D = Transform2D(ang, Vector2(k, k), 0.0, Vector2.ZERO)
+		var tail: float = ARROW_AHEAD / k - CrossbowArt.BOLT_LONG
+		var bolt: Array[PackedVector2Array] = []
+		for shape: PackedVector2Array in CrossbowArt.bolt_shapes(tail):
+			bolt.append(big * shape)
+		ink.ink(RisoPrint.PINK, 0.3, [big * RisoShapes.rrect(tail - ARROW_TRAIL / k, -1.2, ARROW_TRAIL / k, 2.4, 1.2)])
+		ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], bolt)
+		ink.ink(RisoPrint.PINK, 1.0, bolt)
 		return
 	# A watcher's shard, printed on paper (the night and the rock's ink knocked out under it) so its
 	# pink stays bright on a dark wall or in the dark, rather than sinking into it.

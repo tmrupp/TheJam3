@@ -58,7 +58,7 @@ func run() -> void:
 	check(bolt != null and hex.charges == 0, "casting spends the charge")
 	await until(func() -> bool: return is_instance_valid(e) and bool(e.get_node("Mover").get("stunned")))
 	check(is_instance_valid(e) and not e.is_queued_for_deletion() and bool(e.get_node("Mover").get("stunned")), "hex I only stuns: a level bolt from the same floor leaves the wisp stunned, unhurt")
-	check(is_equal_approx(Hex.COOLDOWN, 6.0) and hex.readiness() < 0.1, "a long cooldown, and the wand shows the hex spent")
+	check(is_equal_approx(Hex.COOLDOWN, 3.5) and hex.readiness() < 0.1, "a cooldown, and the wand shows the hex spent")
 	Abilities.grant(player, &"hex")
 	hex.refill()
 	player.global_position = e.global_position + side * 150.0 + Vector2(0, 16 - 31)

@@ -67,6 +67,47 @@ const LANTERN_SPRING: Vector3 = Vector3(55.0, 1.8, 0.02)
 const BINDLE_SPRING: Vector3 = Vector3(38.0, 1.5, 0.017)
 ## The bindle pole bounces about the glove that grips it, the bag end dipping on a landing.
 const POLE_SPRING: Vector2 = Vector2(150.0, 7.0)
+## Casting a damage spell, the Fool uses the bindle as a wand (`cast`): the pole swings up over the
+## shoulder and points the bag the way the spell goes, holds there a moment, and swings back. How
+## long the swing out, the hold and the swing back take (seconds); how far round the bag hangs back
+## from the pole's turn as it goes (a share of it: 0 turns with the pole, 1 stays hanging); the kick
+## it gets, flung out at the end of the swing; and how far through the swing out (a share of it)
+## the spell light puffs from the bag (RisoFx "cast").
+const CAST_OUT: float = 0.07
+const CAST_HOLD: float = 0.1
+const CAST_BACK: float = 0.32
+const CAST_BAG_HANG: float = 0.55
+const CAST_FLING: float = 11.0
+const CAST_PUFF: float = 0.8
+## The swing is exaggerated: it whips past the spell's way by CAST_OVER of its turn and eases back
+## onto it over the hold, and on the way home it swings past rest by CAST_UNDER and settles. The
+## body leans into the cast (CAST_LEAN, a kick to the rig's bow) and the hat tip flicks (CAST_FLICK).
+const CAST_OVER: float = 0.25
+const CAST_UNDER: float = 0.12
+const CAST_LEAN: float = 4.5
+const CAST_FLICK: float = 3.0
+## The rest of the body answers the cast too: the gripping glove thrusts CAST_THRUST art units the
+## spell's way at the end of the swing; the whole figure stretches (x narrower, y taller) as it
+## swings out and squashes (x wider, y shorter) on the hold (CAST_SQUASH: the stretch, the squash),
+## about its feet; the poncho's hem whips back from the cast (CAST_HEM: across, up, in the rig's
+## hem speeds); the lantern swings back (CAST_LANTERN) and the head nods into it (CAST_NOD).
+const CAST_THRUST: float = 3.2
+const CAST_SQUASH: Vector4 = Vector4(-0.06, 0.1, 0.09, -0.08)
+const CAST_HEM: Vector2 = Vector2(34.0, 18.0)
+const CAST_LANTERN: float = 4.0
+const CAST_NOD: float = 22.0
+## While it whips round, the bag stretches along its hang (up to CAST_STRETCH longer, a share of it
+## narrower) and leaves a smear: a fading band of the bag's ink over the arc it swept in the last
+## CAST_SMEAR physics steps, from SMEAR_RADII.x to .y art units out from the grip (the pole's own,
+## fainter, inside it), at most SMEAR_COVER, and only while it sweeps faster than SMEAR_LEAST
+## radians a step.
+const CAST_STRETCH: float = 0.45
+const CAST_SMEAR: int = 4
+const SMEAR_RADII: Vector2 = Vector2(13.0, 31.0)
+const SMEAR_COVER: float = 0.55
+const SMEAR_LEAST: float = 0.05
+## How far round (radians) the pole must be swung for the bindle to be drawn in front of the poncho.
+const CAST_FRONT: float = 0.9
 ## The head nods back as the body speeds up and forward as it stops.
 const HEAD_SPRING: Vector3 = Vector3(160.0, 10.0, 0.0015)
 ## How hard each part is driven by the walk, and kicked by a landing (per unit of fall speed).
@@ -169,6 +210,15 @@ var bindle_a: float = 0.0
 var bindle_v: float = 0.0
 var pole_a: float = 0.0
 var pole_v: float = 0.0
+## The bindle's cast swing (see CAST_OUT): seconds since the last cast (INF none), how far round the
+## pole turns for it (radians, the figure facing right), the way the spell went (the same space), and
+## whether its puff of light has been thrown yet.
+var cast_t: float = INF
+var cast_turn: float = 0.0
+var cast_dir: Vector2 = Vector2.RIGHT
+var _cast_puffed: bool = true
+## The cast swing over the last CAST_SMEAR physics steps, oldest first, for its smear.
+var swing_trail: Array[float] = []
 var head_x: float = 0.0
 var head_v: float = 0.0
 ## How far the Fool has sat down (0 standing, 1 seated), and how long the coin has been flipping.
@@ -193,7 +243,7 @@ func _init(owner: RisoWizard) -> void:
 func draw() -> void:
 	_follow()
 	var facing: float = 1.0 if wizard.fs >= 0.0 else -1.0
-	frame = Transform2D(lean, Vector2.ZERO) * Transform2D(0.0, Vector2(facing, 1), 0.0, Vector2.ZERO)
+	frame = Transform2D(lean, Vector2.ZERO) * Transform2D(0.0, Vector2(facing, 1) * cast_body(), 0.0, Vector2.ZERO)
 	figure.clear()
 	var canvas: InkCanvas = wizard.body
 	canvas.coverage = AstralProjection.PROJECTION_COVER if wizard.player.phasing else 1.0
@@ -316,6 +366,16 @@ func step(dt: float) -> void:
 	bindle_v += (-BINDLE_SPRING.x * bindle_a - BINDLE_SPRING.y * bindle_v + BINDLE_SPRING.z * push - BINDLE_WALK * walk - idle * 0.6) * dt
 	bindle_v -= kick * BINDLE_LAND
 	bindle_a = clampf(bindle_a + bindle_v * dt, -BINDLE_LIMIT, BINDLE_LIMIT)
+	# The cast swing runs on, flinging the bag out at its end and puffing the spell from it.
+	cast_t += dt
+	swing_trail.append(cast_swing())
+	while swing_trail.size() > CAST_SMEAR:
+		swing_trail.pop_front()
+	if not _cast_puffed and cast_t >= CAST_OUT * CAST_PUFF:
+		_cast_puffed = true
+		bindle_v -= CAST_FLING * signf(cast_turn)
+		var bag: Vector2 = wizard.to_global(cast_bag_position())
+		RisoFx.burst(&"cast", bag, Vector2(cast_dir.x * facing, cast_dir.y), [RisoPrint.ACCENT])
 	pole_v += (-POLE_SPRING.x * pole_a - POLE_SPRING.y * pole_v) * dt
 	pole_v -= kick * POLE_LAND
 	pole_a = clampf(pole_a + pole_v * dt, -POLE_LIMIT, POLE_LIMIT)
@@ -329,6 +389,81 @@ func step(dt: float) -> void:
 		wizard.tip_v += facing * RECHARGE_FLICK
 		RisoFx.burst(&"recharge", wizard.to_global(feather_position()), Vector2.UP, [RisoPrint.GLOW])
 	_was_ready = ready
+
+
+## A damage spell cast heading `dir` (the world's way, see RisoWizard._on_event): the bindle swings
+## round to point its bag that way. The pole turns forward, up over the shoulder, from resting back
+## over it; a cast behind barely turns it.
+func cast(dir: Vector2) -> void:
+	var facing: float = 1.0 if wizard.fs >= 0.0 else -1.0
+	cast_dir = Vector2(dir.x * facing, dir.y).normalized() if dir != Vector2.ZERO else Vector2.RIGHT
+	var rest: float = (FOOL_POLE[1] - FOOL_GRIP).angle()
+	cast_turn = fposmod(cast_dir.angle() - rest + PI * 0.5, TAU) - PI * 0.5
+	cast_t = 0.0
+	_cast_puffed = false
+	wizard.bow_v += CAST_LEAN
+	wizard.tip_v += facing * CAST_FLICK
+	# The poncho whips back from the cast, the lantern swings back and the head nods into it.
+	for i: int in range(wizard.hem_vx.size()):
+		wizard.hem_vx[i] -= cast_dir.x * facing * CAST_HEM.x
+		wizard.hem_vy[i] -= CAST_HEM.y * (1.0 - absf(float(i - 2)) * 0.25)
+	lantern_v -= cast_dir.x * CAST_LANTERN
+	head_v += cast_dir.x * CAST_NOD
+
+
+## How far through its cast swing the bindle is: 0 at rest, 1 pointing the spell's way; past 1 as
+## it whips over (CAST_OVER), and a little below 0 as it swings past rest coming home (CAST_UNDER).
+func cast_reach() -> float:
+	if cast_t < CAST_OUT:
+		var u: float = cast_t / CAST_OUT
+		return (1.0 + CAST_OVER) * (1.0 - (1.0 - u) * (1.0 - u))
+	if cast_t < CAST_OUT + CAST_HOLD:
+		return 1.0 + CAST_OVER * (1.0 - smoothstep(0.0, 1.0, (cast_t - CAST_OUT) / CAST_HOLD))
+	var v: float = clampf((cast_t - CAST_OUT - CAST_HOLD) / CAST_BACK, 0.0, 1.0)
+	return 1.0 - smoothstep(0.0, 1.0, v) - CAST_UNDER * sin(PI * clampf(v * 2.0 - 1.0, 0.0, 1.0))
+
+
+## How fast the bindle is whipping round just now: the turn swept over the last steps (radians).
+func cast_sweep() -> float:
+	if swing_trail.size() < 2:
+		return 0.0
+	return absf(swing_trail[-1] - swing_trail[0])
+
+
+## How far round the pole is turned for a cast just now (radians, the figure facing right).
+func cast_swing() -> float:
+	return cast_turn * cast_reach() if cast_t < INF else 0.0
+
+
+## Where the gripping glove is, the body's bob `b` given: on the shoulder, thrust the spell's way
+## while the bindle is swung out (CAST_THRUST).
+func grip_at(b: float) -> Vector2:
+	return FOOL_GRIP + Vector2(0, b) + cast_dir * CAST_THRUST * clampf(cast_reach(), 0.0, 1.0) * (1.0 if cast_t < INF else 0.0)
+
+
+## How the whole figure is scaled for a cast just now (about its feet): stretched as the bindle
+## swings out, squashed on the hold, then back to itself (CAST_SQUASH).
+func cast_body() -> Vector2:
+	if cast_t >= CAST_OUT + CAST_HOLD + CAST_BACK * 0.5:
+		return Vector2.ONE
+	if cast_t < CAST_OUT:
+		var u: float = sin(PI * cast_t / CAST_OUT * 0.5)
+		return Vector2(1.0 + CAST_SQUASH.x * u, 1.0 + CAST_SQUASH.y * u)
+	var v: float = clampf((cast_t - CAST_OUT) / (CAST_HOLD + CAST_BACK * 0.5), 0.0, 1.0)
+	# From the stretch into the squash, and out of it.
+	var stretch: float = maxf(0.0, 1.0 - v * 4.0)
+	var squash: float = sin(PI * clampf(v * 1.3, 0.0, 1.0))
+	return Vector2(1.0 + CAST_SQUASH.x * stretch + CAST_SQUASH.z * squash, 1.0 + CAST_SQUASH.y * stretch + CAST_SQUASH.w * squash)
+
+
+## Where the bag's knot is mid-swing (the wizard's local space), for the puff of a cast.
+func cast_bag_position() -> Vector2:
+	_follow()
+	var facing: float = 1.0 if wizard.fs >= 0.0 else -1.0
+	var grip: Vector2 = grip_at(bob)
+	var knot: Vector2 = FOOL_BINDLE + Vector2(-0.5, -6.5 + bob) + (grip - FOOL_GRIP - Vector2(0, bob))
+	var at: Vector2 = grip + (knot - grip).rotated(cast_swing() + pole_a)
+	return wizard._smv(Transform2D(lean, Vector2.ZERO) * Vector2(at.x * facing, at.y))
 
 
 ## Where the walk is in its stride, from 0 to 1.
@@ -540,30 +675,23 @@ func _fool() -> void:
 		_solids(_rest(&"bar"))
 		_overs(_rest(&"bar"), RisoPrint.NIGHT, LEG_SHADE)
 		_fool_boot(at)
-	# The pole bounces about the gripping glove, and the bag swings from the pole's knot.
 	var body: Transform2D = frame
-	var grip: Vector2 = FOOL_GRIP + Vector2(0, b)
-	frame = _turned(grip, pole_a + sin(_phase() * TAU * 2.0) * POLE_BOUNCE * wizard.sp)
-	_place_bar(FOOL_POLE[0] + Vector2(0, b), FOOL_POLE[1] + Vector2(0, b), 0.8)
-	_solids(_rest(&"bar"))
-	_overs(_rest(&"bar"), RisoPrint.EYE, 0.5)
-	var spell: StringName = Abilities.spell(wizard.player)
-	var at: Vector2 = FOOL_BINDLE + Vector2(0, b)
-	var knot: Vector2 = at + Vector2(-0.5, -6.5)
-	frame = frame * Transform2D(bindle_a, knot) * Transform2D(0.0, -knot)
-	_place(Transform2D(0.0, at))
-	var keys: Array[StringName] = _keys_for(spell)
-	_spell_area(_rest(keys[0]), Vector2.ZERO, 4.9)
-	_solids(_rest(&"ties"), RisoPrint.ROBE)
-	_overs(_rest(keys[1]), RisoPrint.NIGHT, 0.2)
-	_overs(_rest(keys[2]), RisoPrint.NIGHT, 0.2)
-	frame = body
+	var grip: Vector2 = grip_at(b)
+	# Swung out to cast, the bindle comes round in front of the poncho; at rest it is behind it.
+	var swung: bool = absf(cast_swing()) > CAST_FRONT
+	if not swung:
+		_bindle(b, grip)
+		frame = body
 	_place()
 	_solid(_poncho())
 	# Two long folds fall from each shoulder toward the narrow hem.
 	for side: float in [-1.0, 1.0]:
 		var hem: Vector2 = _hem(2 + int(side)) + Vector2(side * 3.4, -3.4)
 		_over(RisoShapes.tri(Vector2(side * 4.6, -17.6 + b), Vector2(side * 7.6, -15.4 + b), hem), RisoPrint.NIGHT, 0.22)
+	if swung:
+		_bindle(b, grip)
+		frame = body
+		_place()
 	var head: Vector2 = FOOL_HEAD + Vector2(head_x, head_y)
 	_place_bar(Vector2(0.2, FOOL_COLLAR_TOP + 1.5 + b), head + Vector2(0, 1.0), 2.8)
 	_solids(_rest(&"bar"))
@@ -625,6 +753,70 @@ func _fool() -> void:
 	_hand(hand, GLOVE_SHADE)
 	if sit >= 1.0:
 		_coin(hand)
+
+
+## The bindle: the pole, bouncing about the glove that grips it at `grip` (and swung round by a
+## cast, see `cast`), and the bag swinging from the pole's knot, carrying the damage slot's spell.
+## `b` is the body's bob. Leaves `frame` turned with the bag; the caller sets it back.
+func _bindle(b: float, grip: Vector2) -> void:
+	var swing: float = cast_swing()
+	var base: float = pole_a + sin(_phase() * TAU * 2.0) * POLE_BOUNCE * wizard.sp
+	_smear(b, grip, base)
+	# The pole goes where the glove thrusts it.
+	frame = _turned(grip, base + swing) * Transform2D(0.0, grip - FOOL_GRIP - Vector2(0, b))
+	_place_bar(FOOL_POLE[0] + Vector2(0, b), FOOL_POLE[1] + Vector2(0, b), 0.8)
+	_solids(_rest(&"bar"))
+	_overs(_rest(&"bar"), RisoPrint.EYE, 0.5)
+	var spell: StringName = Abilities.spell(wizard.player)
+	var at: Vector2 = FOOL_BINDLE + Vector2(0, b)
+	var knot: Vector2 = at + Vector2(-0.5, -6.5)
+	# The bag hangs back from the pole's turn, so it swings out rather than turning over with it.
+	frame = frame * Transform2D(bindle_a - swing * CAST_BAG_HANG, knot) * Transform2D(0.0, -knot)
+	# Whipped round, it stretches out along its hang from the knot, and narrows.
+	var stretch: float = CAST_STRETCH * clampf(cast_sweep() / (CAST_SMEAR * 0.3), 0.0, 1.0)
+	frame = frame * Transform2D(0.0, Vector2(1.0 - stretch * 0.35, 1.0 + stretch), 0.0, knot) * Transform2D(0.0, -knot)
+	_place(Transform2D(0.0, at))
+	var keys: Array[StringName] = _keys_for(spell)
+	_spell_area(_rest(keys[0]), Vector2.ZERO, 4.9)
+	_solids(_rest(&"ties"), RisoPrint.ROBE)
+	_overs(_rest(keys[1]), RisoPrint.NIGHT, 0.2)
+	_overs(_rest(keys[2]), RisoPrint.NIGHT, 0.2)
+
+
+## The smear of a cast swing (see CAST_SMEAR): bands of the bag's ink, and fainter of the pole's,
+## over the arc the bag swept in the last few steps, about the grip at `grip`, the pole turned by
+## `base` besides its cast swing. Faint where the arc began, full where the bag is now.
+func _smear(b: float, grip: Vector2, base: float) -> void:
+	var sweep: float = cast_sweep()
+	if swing_trail.size() < 2 or sweep < SMEAR_LEAST:
+		return
+	var body: Transform2D = frame
+	frame = _turned(grip, base)
+	_place()
+	var rest: float = (FOOL_BINDLE + Vector2(-0.5, -6.5) - FOOL_GRIP).angle()
+	var from: float = rest + swing_trail[0]
+	var to: float = rest + swing_trail[-1]
+	var cover: float = SMEAR_COVER * clampf(sweep / (CAST_SMEAR * 0.25), 0.0, 1.0)
+	# In thin slices, each a little more inked toward the bag, so the smear fades out behind it.
+	var slices: int = 5
+	for i: int in range(slices):
+		var a0: float = lerpf(from, to, float(i) / float(slices))
+		var a1: float = lerpf(from, to, float(i + 1) / float(slices))
+		var k: float = float(i + 1) / float(slices)
+		_over(_band(grip, SMEAR_RADII.x, SMEAR_RADII.y, a0, a1), RisoPrint.ROBE, cover * k)
+		_over(_band(grip, 2.0, SMEAR_RADII.x, a0, a1), RisoPrint.ROBE, cover * k * 0.35)
+	frame = body
+
+
+## A band round `c` from radius `r0` to `r1`, from angle `a0` to `a1` (art units).
+static func _band(c: Vector2, r0: float, r1: float, a0: float, a1: float) -> PackedVector2Array:
+	var out: PackedVector2Array = PackedVector2Array()
+	var n: int = maxi(2, ceili(absf(a1 - a0) / 0.15))
+	for i: int in range(n + 1):
+		out.append(c + Vector2.from_angle(lerpf(a0, a1, float(i) / float(n))) * r1)
+	for i: int in range(n, -1, -1):
+		out.append(c + Vector2.from_angle(lerpf(a0, a1, float(i) / float(n))) * r0)
+	return out
 
 
 ## The coin, tossed from the glove at `hand`, spinning (its width narrowing to an edge and back),

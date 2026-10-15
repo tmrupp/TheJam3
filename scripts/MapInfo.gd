@@ -289,6 +289,15 @@ func whale_burst () -> void:
 	await _pass(Vector2.LEFT, to)
 	_arrive(to, Exit.DEEPER)
 
+## Debug runs (the F7 panel's Full heal): the wizard back to full health at once. False when not a
+## debug run, or there is no wizard.
+func full_heal () -> bool:
+	var who: Player = wizard()
+	if not debug or who == null:
+		return false
+	who.health.health = who.health.max_health
+	return true
+
 ## Debug runs (the F7 panel): slay this place's boss at once. One here in person (the worm, the
 ## bramble, the spider, or a stand-in) dies as by any blow, leaving its relic; else the boss whose
 ## gate this is, if it lives (it has no place to stand here), is slain where the wizard stands.

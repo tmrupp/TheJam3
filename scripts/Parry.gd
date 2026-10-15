@@ -8,13 +8,13 @@ class_name Parry
 ##   one behind a shield (Shield) loses a plate per point of `damage` instead, as a dash or a bolt
 ##   takes one, and is neither wounded nor stunned while the shield holds;
 ## - a shot is reflected back at whoever fired it, as a bolt of spell light dealing `damage`;
-## - a hazard's touch (thorns) is caught too, with nothing to strike;
-## - either way the wizard is pushed away from what hit them (_push: from the side, just as a wall
-##   jump off it; from below, off an enemy landed on or thorns underfoot, a jump's worth up, POGO,
-##   with the air jump back and control kept, so a parry can bounce off them and parry again; from
-##   above, a short knock, PUSH), the dash comes back, the guard is
-##   ready again at once, the wizard is untouchable for a moment (SAFE), and the action freezes for
-##   an instant (hit-stop).
+## - a hazard's touch (thorns) is caught too, with nothing to strike: caught underfoot, it bounces
+##   the wizard up (a pogo, POGO, the air jump back and control kept), so they can parry their way
+##   off thorns;
+## - either way the dash comes back, the guard is ready again at once, the wizard is untouchable for
+##   a moment (SAFE), and the action freezes for an instant (hit-stop).
+## A parry never pushes the wizard away from an enemy: the throw back comes from landing a blow
+## (SpellStrike.recoil), so a slash down onto an enemy is what bounces off it.
 ## A guard that catches nothing has a short cooldown (COOLDOWN). No guard can be raised while the
 ## wizard is untouchable from a hit taken (hurt_guarded); a parry's own untouchable moment does not
 ## count, so parries still chain (a pogo off thorns). It has no tiers.
@@ -26,9 +26,7 @@ const STUN: float = 3.0
 ## Real seconds the action freezes on a parry, and how slow it runs meanwhile.
 const HIT_STOP: float = 0.08
 const HIT_STOP_SCALE: float = 0.05
-## The push back on a catch from above (px/s), and straight up when the hit came from below (a
-## jump's worth). From the side it is a wall jump's (Player.WALL_JUMP_SPEED, WALL_JUMP_Y_FACTOR).
-const PUSH: float = 300.0
+## The bounce straight up off a hazard caught underfoot (px/s: a jump's worth).
 const POGO: float = -600.0
 
 ## How long a catch keeps the wizard untouchable: long enough to get clear of what was caught, but
@@ -118,28 +116,24 @@ func parry (_damage: int, v: Vector2, origin: Node) -> void:
 	parry_sfx.play()
 	camera.shake(10, 0.2)
 	player.dash.refresh()
-	_push(away)
+	if _hazard(attacker) and away.y < -0.3:
+		_pogo()
 	player.invulnerable.enable(true)
 	player.invulnerable.acting = SAFE
 	_hit_stop()
 
 
-## Pushed away from the hit (`away`). From below (an enemy landed on, thorns underfoot): a pogo,
-## a jump's worth straight up with the air jump given back, and the wizard keeps control and their
-## way across, so they can carry on or parry again on landing. From the side: just as a wall jump
-## off it (away at the wall jump's speed, lifted by its jump), control back after the knock. From
-## above: a short knock away.
-func _push(away: Vector2) -> void:
-	if away.y < -0.3:
-		player.velocity.y = POGO
-		player.jumps = maxi(player.jumps, player.MAX_JUMPS - 1)
-		return
-	var push: Vector2 = away * PUSH
-	if away.y <= 0.3:
-		var side: float = signf(away.x) if away.x != 0.0 else 1.0
-		push = Vector2(side * player.WALL_JUMP_SPEED, player.JUMP_VELOCITY * player.WALL_JUMP_Y_FACTOR)
-	player.knock = push
-	player.knock_back.enable(true)
+## Bounced off a hazard caught underfoot: a jump's worth straight up with the air jump given back,
+## and the wizard keeps control and their way across, so they can carry on or parry again on landing.
+func _pogo() -> void:
+	player.velocity.y = POGO
+	player.jumps = maxi(player.jumps, player.MAX_JUMPS - 1)
+
+
+## Whether `attacker` is a hazard (thorns, a laser, a falling stalactite) rather than an enemy:
+## nothing a blow can strike.
+static func _hazard(attacker: Node) -> bool:
+	return attacker.get_node_or_null("Wound") == null and not attacker.is_in_group(&"hex_target")
 
 
 ## The bullet a damager belongs to, or null for an enemy's own body.

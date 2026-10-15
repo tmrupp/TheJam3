@@ -13,8 +13,8 @@ class_name Abilities
 ##     own cooldown), so every damage spell parries.
 ##   - movement, on the Dash button (Shift, or the right trigger): the dash, blink, astral
 ##     projection, levitate, rift (open your own teleporters), warp (to a random floor) and ferry
-##     (a gliding raft, see Ferry). The dash and blink are the wizard's own moves (Player); the
-##     rest are cast.
+##     (a raft that shuttles to and fro, see Ferry). The dash and blink are the wizard's own moves
+##     (Player); the rest are cast.
 ##   - utility, on the Utility button (R, or the right shoulder button): awareness and mend (heal to
 ##     full from draughts a lantern refills, see Mend). A utility spell never moves the wizard or
 ##     hurts anything itself; it may make the other two slots' spells better.
@@ -305,6 +305,9 @@ static func cast(player: Player, slot: StringName = &"damage") -> bool:
 		return false
 	if cost > 0:
 		player.collect(-cost)
+	# A damage spell leaves from the bindle (RisoCostume.cast swings it).
+	if slot == &"damage":
+		player.visual_event.emit(&"cast", player.global_position)
 	return true
 
 

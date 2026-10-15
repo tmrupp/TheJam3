@@ -1,7 +1,8 @@
 extends TestKit
 ## The Fool, the one figure the player is printed as (RisoCostume): its state cues (hearts, the
-## lantern, the dash, the damage spell in the bag; nothing stands for the utility spell), its
-## echo and ghost silhouettes, and smoke, without changes to the run or collision.
+## lantern, the dash, the damage spell in the bag; nothing stands for the utility spell), the
+## bindle swung round to cast a damage spell (smeared, with the body answering it), its echo and ghost silhouettes, and smoke, without
+## changes to the run or collision.
 
 
 func run() -> void:
@@ -186,6 +187,38 @@ func run() -> void:
 	wizard._draw_body()
 	check(turning != fingerprint(wizard.body), "a head leading a turn is drawn differently")
 	wizard.fs = 1.0
+	# Casting a damage spell, the bindle swings round to point the bag the spell's way, puffs, and
+	# swings back to rest over the shoulder.
+	Abilities.set_tier(player, &"slash", 1)
+	(player.get_node("Slash") as Slash).wait = 0.0
+	var leaned: float = wizard.bow_v
+	var hem_before: float = wizard.hem_vx[0]
+	var grip_rest: Vector2 = wizard.costume.grip_at(0.0)
+	wizard._draw_body()
+	var resting: int = fingerprint(wizard.body)
+	check(Abilities.cast(player, &"damage"), "a slash is cast from the Spell slot")
+	check(wizard.costume.cast_t == 0.0 and wizard.costume.cast_dir.is_equal_approx(Vector2.RIGHT), "and the bindle starts its swing, the way the slash went")
+	var rest_way: float = (RisoCostume.FOOL_POLE[1] - RisoCostume.FOOL_GRIP).angle()
+	check(absf(angle_difference(rest_way + wizard.costume.cast_turn, 0.0)) < 0.001, "the pole turns round to point ahead")
+	check(wizard.costume.cast_turn > 0.0, "forward, up over the shoulder")
+	check(wizard.bow_v > leaned and wizard.hem_vx[0] < hem_before, "the body leans into the cast and the poncho whips back from it")
+	for k: int in range(int(ceil(RisoCostume.CAST_OUT * 60.0))):
+		wizard.costume.step(1.0 / 60.0)
+	check(wizard.costume.cast_reach() > 1.0 and wizard.costume._cast_puffed, "swung out, it whips past the spell's way (%.2f of the turn) and puffs the spell" % wizard.costume.cast_reach())
+	check(wizard.costume.cast_sweep() > RisoCostume.SMEAR_LEAST, "whipping round fast enough to smear")
+	check(wizard.costume.grip_at(0.0).x > grip_rest.x + 1.0, "the glove thrusts the pole the spell's way")
+	wizard._draw_body()
+	check(fingerprint(wizard.body) != resting, "drawn swung round, smeared")
+	wizard.costume.step(RisoCostume.CAST_OUT + RisoCostume.CAST_HOLD * 0.6 - wizard.costume.cast_t)
+	var squashed: Vector2 = wizard.costume.cast_body()
+	check(squashed.x > 1.0 and squashed.y < 1.0, "the figure squashes on the hold (%.2f wide, %.2f tall)" % [squashed.x, squashed.y])
+	wizard.costume.step(RisoCostume.CAST_OUT + RisoCostume.CAST_HOLD - wizard.costume.cast_t)
+	check(is_equal_approx(wizard.costume.cast_reach(), 1.0), "then the swing eases back onto the spell's way")
+	for k: int in range(ceili(RisoCostume.CAST_BACK * 60.0) + 2):
+		wizard.costume.step(1.0 / 60.0)
+	check(is_zero_approx(wizard.costume.cast_swing()) and wizard.costume.cast_body() == Vector2.ONE, "and back at rest over the shoulder, the figure itself again")
+	player.visual_event.emit(&"cast", player.global_position)
+	check(wizard.costume.cast_turn > 0.0 and wizard.costume.cast_turn < PI, "a slash's swing stays a forward one")
 	var fx: RisoPortalWarp = RisoPrint._warp(wizard, 0, Vector2.ZERO, wizard.global_position, RisoPrint.ACCENT)
 	check_eq(fx.spell, Abilities.spell(player), "portal effects carry the spell the Fool's bag holds")
 	fx.free()

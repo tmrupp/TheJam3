@@ -137,7 +137,7 @@ func shooting(cell: float) -> void:
 	var outside: Vector2 = room + Vector2(f * cell * 3.0, 0.0)
 	player.global_position = outside
 	info.loader.wake_around(outside)
-	check(await within(func() -> bool: return not _arrows().is_empty(), Crossbow.DRAW + 2.0), "it looses an arrow at the wizard outside")
+	check(await within(func() -> bool: return not _arrows().is_empty(), Crossbow.FIRST_DRAW + 0.5), "it looses an arrow at the wizard outside, almost at once")
 	var arrow: Bullet = _arrows()[0] if not _arrows().is_empty() else null
 	check(arrow != null and Damager.attacker_of(arrow.get_node("HitBox/Damager")) == bow and signf(arrow.velocity.x) == f and arrow.velocity.y == 0.0, "an arrow of its own, flying straight out")
 	# Then it reloads before the next.
@@ -148,6 +148,7 @@ func shooting(cell: float) -> void:
 	check(not early, "and looses no other arrow for a while")
 	var again: bool = await within(func() -> bool: return not _arrows().is_empty(), Crossbow.RELOAD + Crossbow.DRAW + 1.0)
 	check(again, "then another")
+	check(not bow.first, "drawn at the plain speed, the wizard not out of sight meanwhile")
 	# An arrow wounds an enemy in its way.
 	# (The wizard out of its way, no other arrow about, and the wisp held still in it.)
 	player.global_position = Vector2(-9000, -9000)

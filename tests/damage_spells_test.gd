@@ -6,7 +6,8 @@ extends TestKit
 ## back; a push stuns what is in its cone and shoves it away without wounding it at I, wounds what
 ## it slams into a wall and, at once, what cannot be moved, wounds at II, and blows shots away; a
 ## seeker turns onto an enemy a straight bolt would miss; a lunge throws the wizard forward and
-## stabs what it reaches.
+## stabs what it reaches. A slash that lands throws the wizard back off what it struck, and its mark
+## moves with them.
 ## godot --headless --path . --script res://tests/damage_spells_test.gd
 
 
@@ -75,6 +76,19 @@ func run() -> void:
 	check(slash.cast(Vector2.RIGHT), "it slashes")
 	check(hp(ahead) == hp_ahead - 1 and stunned(ahead), "what is in front is wounded and stunned")
 	check(hp(behind) == hp_behind and not stunned(behind), "what is behind is not")
+	check(player.knock.x < 0.0 and player.knock_back.is_acting(), "landing it throws the wizard back off what it struck (recoil_test has the measures)")
+	player.knock = Vector2.ZERO
+	player.knock_back.end()
+	var mark: SpellMark = null
+	for n: Node in info.map_elements.get_children():
+		if n is SpellMark and not n.is_queued_for_deletion():
+			mark = n as SpellMark
+	check(mark != null and mark.caster == player, "its mark goes with the wizard")
+	if mark != null:
+		player.global_position += Vector2(30.0, 0.0)
+		await frames(1)
+		check(is_instance_valid(mark) and mark.from.is_equal_approx(SpellStrike.origin(player)), "so they never walk out of their own slash")
+		player.global_position -= Vector2(30.0, 0.0)
 	check(not slash.cast(Vector2.RIGHT) and Abilities.readiness(player) < 1.0, "it is not ready again at once")
 	var back: bool = await within(func() -> bool: return Abilities.readiness(player) >= 1.0, Slash.COOLDOWN + 0.2)
 	check(back, "but quickly")

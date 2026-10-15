@@ -1,4 +1,5 @@
 extends RisoProp
+class_name CrossbowArt
 ## A crossbow built into a tower's wall (Crossbow), drawn over the wall's stone: on the inner face, a
 ## dark niche with the crossbow set in it, its stock jutting into the room, its prod pale bare paper,
 ## its string winding back as it draws and a pink bolt laid on it (danger), which is all that moves;
@@ -8,6 +9,8 @@ extends RisoProp
 ## How long the crossbow kicks back after loosing, and how far (pixels).
 const KICK_TIME: float = 0.2
 const KICK: float = 10.0
+## How long its bolt is, tail to tip (pixels, in its plain measures).
+const BOLT_LONG: float = 62.0
 ## How far its string winds back when fully drawn (pixels).
 const WIND: float = 26.0
 ## How deep the niche goes into the wall, and how high it is, and how high the bore through to the
@@ -61,10 +64,18 @@ func _draw_art() -> void:
 	ink.knock([RisoPrint.NIGHT], string)
 	# The bolt laid on it, from the nut into the bore.
 	if loaded:
-		var tail: float = nut.x - 4.0
-		var bolt: Array[PackedVector2Array] = [xs * RisoShapes.rrect(tail, -3.0, 50.0, 6.0, 2.0), xs * RisoShapes.tri(Vector2(tail + 46.0, -8.0), Vector2(tail + 62.0, 0.0), Vector2(tail + 46.0, 8.0))]
+		var bolt: Array[PackedVector2Array] = []
+		for shape: PackedVector2Array in bolt_shapes(nut.x - 4.0):
+			bolt.append(xs * shape)
 		ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], bolt)
 		ink.ink(RisoPrint.PINK, 1.0, bolt)
+
+
+## The bolt laid on its string, pointing right, its tail at x `tail` (in the crossbow's plain
+## measures, drawn SIZE times as big): a shaft and its head, BOLT_LONG from tail to tip. An arrow in
+## flight is printed the same (ShardArt), so it leaves the bow as big as it lay on it.
+static func bolt_shapes(tail: float) -> Array[PackedVector2Array]:
+	return [RisoShapes.rrect(tail, -3.0, 50.0, 6.0, 2.0), RisoShapes.tri(Vector2(tail + 46.0, -8.0), Vector2(tail + BOLT_LONG, 0.0), Vector2(tail + 46.0, 8.0))]
 
 
 ## A bar `w` thick from `a` to `b`.

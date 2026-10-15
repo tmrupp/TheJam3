@@ -131,11 +131,25 @@ func _feet_offset() -> float:
 	return 7.75
 
 
+## The way a damage spell just cast went, for the bindle to point: a nova's burst straight up over
+## the head, a lunge's along its thrust, the rest the way the wizard aims (SpellStrike.aim).
+func _cast_way() -> Vector2:
+	match Abilities.spell(player):
+		&"nova":
+			return Vector2.UP
+		&"lunge":
+			var lunge: Lunge = player.get_node_or_null("Lunge") as Lunge
+			return Vector2(lunge.side if lunge != null else signf(fs), 0.0)
+	return SpellStrike.aim(player)
+
+
 func _on_event(kind: StringName, at: Vector2) -> void:
 	if kind == &"jump":
 		# Thrown back as the jump lifts the wizard, the hat tip trailing down.
 		bow_v -= 3.2
 		tip_v -= signf(fs) * 1.5
+	elif kind == &"cast":
+		costume.cast(_cast_way())
 	elif kind == &"projection_start":
 		ghosts.append(Vector4(at.x, at.y, signf(fs), 1.0))
 	elif kind == &"teleport":

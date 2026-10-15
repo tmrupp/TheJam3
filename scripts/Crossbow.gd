@@ -6,9 +6,10 @@ extends Node2D
 ## through to an arrow slit on its outer face. It shoots dead straight out of the slit, level: while
 ## it sees the wizard in front of it (on its side, within RANGE cells, no more than LINE above or
 ## below its slit, with a clear line from it), it winds back its string over DRAW seconds in sight,
-## and looses; the moment it loses sight the draw starts again. After a shot
-## it reloads for RELOAD seconds (in sight or not) before it can draw again, so the first shot comes
-## quickly and the rest more slowly. Its arrows wound any enemy in their way, too (Bullet). From outside it is a cell of stone away: bolts and
+## and looses; the moment it loses sight the draw starts again. The first arrow at a wizard who has
+## been out of its sight for REST seconds is drawn far quicker (FIRST_DRAW: it was waiting, ready),
+## and after a shot it reloads for RELOAD seconds (in sight or not) before it can draw again, so
+## the first shot comes almost at once and the rest more slowly. Its arrows wound any enemy in their way, too (Bullet). From outside it is a cell of stone away: bolts and
 ## dashes stop at the wall short of it, and a parried arrow flies back only as far as the wall.
 ## From the room inside it is right at the wall's face, an enemy like any (its Wound, given as it
 ## is placed): any hex bolt or dash wounds it, even one that only stuns (Wound.least), and once
@@ -26,6 +27,10 @@ const RANGE: int = 9
 const LINE: float = 80.0
 const DRAW: float = 0.8
 const RELOAD: float = 1.6
+## How long it draws its first arrow at a wizard just come into sight (seconds in sight), and how
+## long the wizard must be out of its sight (seconds) for the next arrow to count as a first again.
+const FIRST_DRAW: float = 0.2
+const REST: float = 2.5
 const ARROW_SPEED: float = 620.0
 ## How deep in the wall it sits, from the wall's inner face (pixels): within reach of a bolt or a
 ## dash from the room, a cell of stone from one outside.
@@ -44,6 +49,10 @@ var drawn: float = 0.0
 ## seconds of reloading left.
 var sees: bool = false
 var since_shot: float = 99.0
+## Seconds since it last saw the wizard (while loaded and waiting, it counts toward a quick first
+## arrow, REST), and whether the arrow it draws now is such a first.
+var unseen: float = 99.0
+var first: bool = true
 var reload_left: float = 0.0
 ## Where it sits in the wall (world pixels); a wound's knock does not move it.
 var anchor: Vector2 = Vector2.ZERO
@@ -107,10 +116,13 @@ func _physics_process(delta: float) -> void:
 	# A harder preset draws and reloads sooner (Difficulty.attack).
 	reload_left = maxf(0.0, reload_left - delta * Difficulty.attack())
 	sees = can_see()
+	unseen = 0.0 if sees else unseen + delta
+	if unseen >= REST:
+		first = true
 	if not sees or not loaded():
 		drawn = 0.0
 		return
-	drawn += delta * Difficulty.attack() / DRAW
+	drawn += delta * Difficulty.attack() / (FIRST_DRAW if first else DRAW)
 	if drawn >= 1.0:
 		drawn = 0.0
 		loose()
@@ -127,4 +139,5 @@ func loose() -> void:
 	arrow.setup(Vector2(float(facing) * ARROW_SPEED, 0.0), [self], self)
 	since_shot = 0.0
 	reload_left = RELOAD
+	first = false
 	_sfx.play()

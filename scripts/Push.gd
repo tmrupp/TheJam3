@@ -7,7 +7,9 @@ class_name Push
 ## away over SHOVE_TIME, into thorns or off a ledge as it may be. Slammed into rock on the way (a
 ## wall, the floor), it stops there and is wounded SLAM more; what cannot be moved (a boss, the
 ## worm, a crossbow in its wall, a nest) takes the SLAM at once, with the gust's own wound. Shots in
-## the cone (a watcher's, an arrow, the spider's web) are blown away. Ready again COOLDOWN after.
+## the cone (a watcher's, an arrow, the spider's web) are blown away. Every gust throws the wizard
+## hard back the other way, whether it catches anything or not (SpellStrike.recoil, at RECOIL): a
+## gust down from the air is a big bounce up. Ready again COOLDOWN after.
 ## Tiers (Abilities): I shoves and stuns; II also wounds 1; III reaches and shoves further and
 ## wider (REACH_III, HALF_III, SHOVE_III); IV wounds 2.
 
@@ -20,6 +22,8 @@ const REACH_III: float = 240.0
 const HALF_III: float = 0.8
 const SHOVE_III: float = 230.0
 const SHOVE_TIME: float = 0.2
+## How hard a gust throws the wizard back (SpellStrike.recoil's power: a slash that lands is 1).
+const RECOIL: float = 1.6
 ## How near (px) the wizard a thing is caught whichever way it lies.
 const CLOSE: float = 34.0
 ## The wound of a slam into rock, or against what cannot be moved (on top of the gust's own; a
@@ -89,6 +93,8 @@ func cast(dir: Vector2 = Vector2.ZERO) -> bool:
 	var from: Vector2 = SpellStrike.origin(player)
 	var catches: Callable = func(p: Vector2) -> bool: return in_cone(from, dir, p)
 	var catches_spider: Callable = func(s: Spider) -> bool: return s.struck_by(from, from + dir * reach, 0.0)
+	SpellStrike.recoil(player, dir, RECOIL)
+	SpellStrike.thorns_caught(get_tree(), from, catches, dir)
 	for e: Node in SpellStrike.caught(get_tree(), from, catches, catches_spider):
 		if not movable(e):
 			SpellStrike.strike(e, dir, damage + SLAM, STUN)
@@ -105,7 +111,7 @@ func cast(dir: Vector2 = Vector2.ZERO) -> bool:
 			if (shot is Bullet or shot is WebShot) and not shot.is_queued_for_deletion() and in_cone(from, dir, shot.global_position):
 				RisoFx.burst(&"hit", shot.global_position, dir, [RisoPrint.ACCENT, RisoPrint.BLUE])
 				shot.queue_free()
-	SpellMark.leave(&"push", from, dir, reach, half)
+	SpellMark.leave(&"push", from, dir, reach, half, RisoPrint.ACCENT, player)
 	wait = COOLDOWN
 	return true
 

@@ -13,9 +13,11 @@ const SWITCH: Vector2 = Vector2(34.0, 62.0)
 const SWITCH_UP: float = 70.0
 const SWITCH_IN: float = 24.0
 const BUTTON: float = 8.0
-## The board over the doorway (size, and how far over the doorway's top its middle is).
-const BOARD: Vector2 = Vector2(150.0, 40.0)
-const BOARD_UP: float = 32.0
+## The board over the doorway: how big it is drawn against its measures here (all it holds shrinks
+## with it), its size, and how far over the doorway's top its middle is.
+const BOARD_SCALE: float = 0.68
+const BOARD: Vector2 = Vector2(150.0, 40.0) * BOARD_SCALE
+const BOARD_UP: float = 32.0 * BOARD_SCALE
 ## How far the boarding step reaches out past the doorway toward the car, and how thick it is.
 const STEP_OUT: float = 20.0
 const STEP_H: float = 12.0
@@ -64,14 +66,15 @@ func _draw_art() -> void:
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], ticks)
 	# The board over the doorway: paper, with the car and the line.
 	var board_c: Vector2 = Vector2(door_x, top - BOARD_UP)
-	var board: PackedVector2Array = RisoShapes.rrect(board_c.x - BOARD.x * 0.5, board_c.y - BOARD.y * 0.5, BOARD.x, BOARD.y, 9.0)
+	var s: float = BOARD_SCALE
+	var board: PackedVector2Array = RisoShapes.rrect(board_c.x - BOARD.x * 0.5, board_c.y - BOARD.y * 0.5, BOARD.x, BOARD.y, 9.0 * s)
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.PINK], [board])
 	ink.ink(RisoPrint.BLUE, 0.18, [board], false)
-	ink.ink(RisoPrint.NIGHT, 0.85, _car_glyph(board_c + Vector2(-BOARD.x * 0.5 + 24.0, 3.0), 11.0), false)
+	ink.ink(RisoPrint.NIGHT, 0.85, _car_glyph(board_c + Vector2(-BOARD.x * 0.5 + 24.0 * s, 3.0 * s), 11.0 * s), false)
 	var stops: int = gondola.stops.size()
-	var chain_l: float = board_c.x - BOARD.x * 0.5 + 46.0
-	var chain_r: float = board_c.x + BOARD.x * 0.5 - 12.0
-	RisoMarks.station_chain(ink, Vector2((chain_l + chain_r) * 0.5, board_c.y - 4.0), chain_r - chain_l, stops, station.index, func(i: int) -> bool: return gondola.is_open(i))
+	var chain_l: float = board_c.x - BOARD.x * 0.5 + 46.0 * s
+	var chain_r: float = board_c.x + BOARD.x * 0.5 - 12.0 * s
+	RisoMarks.station_chain(ink, Vector2((chain_l + chain_r) * 0.5, board_c.y - 4.0 * s), chain_r - chain_l, stops, station.index, func(i: int) -> bool: return gondola.is_open(i), s)
 	# The call switch on the frame by the car.
 	var box_c: Vector2 = Vector2(side * (half - SWITCH_IN), g - SWITCH_UP)
 	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(box_c.x - SWITCH.x * 0.5, box_c.y - SWITCH.y * 0.5, SWITCH.x, SWITCH.y, 6.0)])

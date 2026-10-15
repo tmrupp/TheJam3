@@ -78,6 +78,14 @@ func _burst(kind: StringName, at: Vector2, dir: Vector2, plates: Array[int]) -> 
 				_add(Shape.DOT, RisoPrint.BLUE, 0.45, at + Vector2(dir.x * rng.randf_range(0.0, 14.0), -3.0), v, rng.randf_range(0.3, 0.5), rng.randf_range(6.0, 11.0), 4.5)
 			for i: int in range(4):
 				_add(Shape.DOT, RisoPrint.NIGHT, 1.0, at, _spray(dir + Vector2.UP, 0.6, 120.0, 220.0), rng.randf_range(0.3, 0.45), rng.randf_range(2.0, 3.2), 1.5, 900.0)
+		&"cast":
+			# A spell leaving the Fool's bindle (RisoCostume.cast): a small flash of spell light at
+			# the bag, sparkles thrown the way the spell goes, and a few motes.
+			_add(Shape.BLOOM, plates[0], 0.4, at, Vector2.ZERO, 0.16, 5.0, 0.0, 0.0, 160.0)
+			for i: int in range(6):
+				_add(Shape.SPARKLE, plates[0], 1.0, at, _spray(dir, 0.6, 160.0, 340.0), rng.randf_range(0.2, 0.35), rng.randf_range(4.0, 6.5), 5.0)
+			for i: int in range(5):
+				_add(Shape.DOT, plates[0], 1.0, at, _spray(dir, 1.3, 60.0, 180.0), rng.randf_range(0.2, 0.3), 2.4, 5.0)
 		&"recharge":
 			# The wizard's feather filling again: a soft flash of its glow, sparkles rising off it,
 			# and a small ring of motes.

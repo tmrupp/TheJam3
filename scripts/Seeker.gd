@@ -4,7 +4,8 @@ class_name Seeker
 ## aimed at first like the hex (the held direction, else facing), that turns toward the nearest
 ## enemy it can see within HexBolt.SEEK px (HexBolt.seek) and strikes it as a hex bolt does:
 ## wounded by its damage, then stunned STUN seconds. It flies slower than the hex (SPEED) but
-## further (RANGE), smaller (SIZE), and is ready again COOLDOWN after. Tiers (Abilities): I one
+## further (RANGE), smaller (SIZE), and is ready again COOLDOWN after. Each cast knocks the wizard
+## back a little, as a hex does (Hex.RECOIL). Tiers (Abilities): I one
 ## seeker, wounding 1; II turns harder (TURN_II); III looses two, fanned out FAN either way;
 ## IV wounds 2.
 
@@ -74,5 +75,6 @@ func cast(dir: Vector2 = Vector2.ZERO) -> Array[HexBolt]:
 		level.add_child(bolt)
 		bolt.global_position = player.global_position + Vector2(0, -44)
 		out.append(bolt)
+	SpellStrike.recoil(player, dir.normalized(), Hex.RECOIL)
 	wait = COOLDOWN
 	return out

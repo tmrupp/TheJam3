@@ -61,7 +61,7 @@ func cast() -> bool:
 		SpellStrike.strike(e, away.normalized() if away != Vector2.ZERO else Vector2.UP, damage, STUN)
 	for k: int in range(RAYS):
 		SpiderWeb.tear_along(get_tree(), from, from + Vector2.from_angle(TAU * float(k) / float(RAYS)) * radius)
-	SpellMark.leave(&"nova", from, Vector2.RIGHT, radius, PI)
+	SpellMark.leave(&"nova", from, Vector2.RIGHT, radius, PI, RisoPrint.ACCENT, player)
 	wait = cooldown
 	Wound.shake(6.0, 0.15)
 	return true

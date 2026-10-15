@@ -1,6 +1,6 @@
 extends TestKit
-## The ferry spell (a raft that carries the wizard the way they aim, then fades) and lifts that wait
-## for a switch (parked until it is thrown, then running for good).
+## The ferry spell (a raft that carries the wizard the way they face, shuttling to and fro) and
+## lifts that wait for a switch (parked until it is thrown, then running for good).
 ## godot --headless --path . --script res://tests/ferry_and_lifts_test.gd
 
 
@@ -90,22 +90,33 @@ func run() -> void:
 	check(ferry.rafts.size() == 1, "casting conjures a raft")
 	var raft: FerryRaft = ferry.rafts[0]
 	check(absf(raft.global_position.y - FerryRaft.HALF_THICK - player._feet_y()) < 2.0, "under the wizard's feet")
-	check(raft.velocity.x > 0.0 and is_zero_approx(raft.velocity.y), "gliding the way they face, aiming nowhere")
-	check(Abilities.running(player, &"move").x > 0.9, "the spell shows the raft's life running")
+	check(raft.velocity.x > 0.0 and is_zero_approx(raft.velocity.y), "gliding the way they face")
+	check(Abilities.running(player, &"move").x < 0.0, "a raft stays: the spell never shows one running out")
 	var x0: float = player.global_position.x
 	for i: int in range(40):
 		await physics_frame
 	check(player.global_position.x > x0 + 40.0, "it carries the wizard along (%d px)" % int(player.global_position.x - x0))
-	Abilities.cast(player, &"move")
-	check(ferry.rafts.size() == 1, "too soon to cast again")
-	await until(func() -> bool: return ferry.readiness() >= 1.0, 2000)
+	# Left alone, it meets rock and turns back, and it is still there long after.
+	player.global_position = info.cell_position(spot) + Vector2(0, -400)
+	player.set_physics_process(false)
+	check(await within(func() -> bool: return raft.velocity.x < 0.0, 30.0), "meeting rock, it turns back")
+	check(await within(func() -> bool: return raft.velocity.x > 0.0 or raft.stopped, 60.0), "and back again: it shuttles to and fro")
+	check(is_instance_valid(raft) and not raft.fading(), "it never fades of itself")
+	player.set_physics_process(true)
+	player.global_position = info.cell_position(spot)
+	player.velocity = Vector2.ZERO
+	await physics_frame
 	Abilities.cast(player, &"move")
 	check(ferry.rafts.size() == 1 and ferry.rafts[0] != raft and (not is_instance_valid(raft) or raft.fading()), "ferry I keeps one raft: a new one sends the old one fading")
 	check(await until(func() -> bool: return not is_instance_valid(raft), 2000), "and it is gone")
 	Abilities.set_tier(player, &"ferry", 3)
 	await until(func() -> bool: return ferry.readiness() >= 1.0, 2000)
 	Abilities.cast(player, &"move")
-	check(ferry.rafts.size() == 2 and is_equal_approx(ferry.speed, 230.0), "ferry III: two rafts at once, faster")
-	var last: FerryRaft = ferry.rafts[-1]
-	check(await within(func() -> bool: return not is_instance_valid(last), ferry.life + 2.0), "a raft fades when its life is out")
+	await until(func() -> bool: return ferry.readiness() >= 1.0, 2000)
+	Abilities.cast(player, &"move")
+	check(ferry.rafts.size() == 3 and is_equal_approx(ferry.speed, Ferry.SPEED_III), "ferry III: three rafts at once, faster")
+	await until(func() -> bool: return ferry.readiness() >= 1.0, 2000)
+	var oldest: FerryRaft = ferry.rafts[0]
+	Abilities.cast(player, &"move")
+	check(ferry.rafts.size() == 3 and oldest.fading(), "a fourth sends the oldest fading")
 	finish()

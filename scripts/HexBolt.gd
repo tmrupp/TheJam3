@@ -5,9 +5,10 @@ class_name HexBolt
 ## what it meets (Wound.hit; enemies are stunned too, and at hex I only stunned) and breaks cracked
 ## walls (hex_hit) at any tier, and ends at rock or after RANGE. It tears the spider's webs it
 ## passes through (SpiderWeb) and flies on, and cuts a spider's thread it crosses (Spider), ending
-## there. A seeking bolt (Seeker: `seek` above 0) turns toward the nearest enemy it can see within
+## there. Thorns that are out stop it as rock does (Spikes.struck_by, THORN_REACH), bursting on them.
+## A seeking bolt (Seeker: `seek` above 0) turns toward the nearest enemy it can see within
 ## SEEK px as it flies. Printed as a comet of spell light (accent ink, like the wand tip) with a
-## tapering tail.
+## tapering tail, on top of the decor and night it crosses (lifted to paper under it).
 
 const SPEED: float = 1100.0
 const RANGE: float = 8.0 * 128.0
@@ -18,6 +19,8 @@ const REACH: float = 44.0
 const SPAN_DOWN: float = 20.0
 const SPAN_UP: float = 56.0
 const SOLID_MASK: int = 4
+## How near (px) the thorns' body the bolt's way must pass for it to strike them.
+const THORN_REACH: float = 10.0
 ## How far (px) a seeking bolt looks for an enemy to turn toward.
 const SEEK: float = 520.0
 ## The things that answer a bolt themselves, by their script (or one it extends): each has
@@ -99,6 +102,11 @@ func _physics_process(delta: float) -> void:
 	targets.sort_custom(func(a: Node, b: Node) -> bool: return from.distance_squared_to((a as Node2D).global_position) < from.distance_squared_to((b as Node2D).global_position))
 	var wall: Dictionary = _solid(from, to)
 	var wall_d: float = from.distance_to(wall["position"]) if not wall.is_empty() else INF
+	# Thorns on the way, short of the rock, stop it as the rock would.
+	var thorn_at: Vector2 = _thorns(from, to)
+	if thorn_at.is_finite() and from.distance_to(thorn_at) < wall_d:
+		wall = {"position": thorn_at}
+		wall_d = from.distance_to(thorn_at)
 	# A spider's thread on the way, short of the rock, is cut where the bolt meets it.
 	var thread: Dictionary = Spider.thread_across(get_tree(), from, to, Spider.THREAD_REACH)
 	var thread_d: float = float(thread["d"]) if not thread.is_empty() and float(thread["d"]) <= wall_d else INF
@@ -138,8 +146,8 @@ func _physics_process(delta: float) -> void:
 		_end(thread["at"])
 		return
 	if not wall.is_empty():
-		var hit: Object = wall["collider"]
-		if answers(hit):
+		var hit: Object = wall.get("collider")
+		if hit != null and answers(hit):
 			hit.call("hex_hit", maxi(damage, 1), dir)
 		_end(wall["position"])
 		return
@@ -165,6 +173,22 @@ func _quarry() -> Node2D:
 		if d < best_d and SpellStrike.clear(global_position, n.global_position):
 			best = n
 			best_d = d
+	return best
+
+
+## Where the step from `from` to `to` first meets thorns that are out (the nearest point on the way to
+## the nearest run of them it strikes), or Vector2.INF when it meets none.
+func _thorns(from: Vector2, to: Vector2) -> Vector2:
+	var best: Vector2 = Vector2.INF
+	var reach: float = from.distance_to(to) + 128.0
+	for n: Node in get_tree().get_nodes_in_group(Spikes.GROUP):
+		var thorns: Spikes = n as Spikes
+		if thorns == null or thorns.is_queued_for_deletion() or thorns.global_position.distance_to(from) > reach or not thorns.struck_by(from, to, THORN_REACH):
+			continue
+		var ends: Array[Vector2] = thorns.body_ends()
+		var at: Vector2 = Geometry2D.get_closest_points_between_segments(from, to, ends[0], ends[1])[0]
+		if not best.is_finite() or from.distance_squared_to(at) < from.distance_squared_to(best):
+			best = at
 	return best
 
 
@@ -208,6 +232,8 @@ func _process(_delta: float) -> void:
 		var wa: float = (2.0 + 10.0 * float(i) / float(pts.size())) * size
 		var wb: float = (2.0 + 10.0 * float(i + 1) / float(pts.size())) * size
 		tail.append(PackedVector2Array([a - n * wa, b - n * wb, b + n * wb, a + n * wa]))
+	# The tail prints on top of the decor and night it crosses, lifted to paper under it.
+	ink.lift_ink(RisoPrint.ALL_PLATES, 0.5, tail)
 	ink.ink(RisoPrint.ACCENT, 0.5, tail)
 	var pulse: float = 1.0 + 0.15 * sin(t * 40.0)
 	ink.ink(RisoPrint.ACCENT, 0.3, [RisoShapes.circle(head, 26.0 * pulse * size, 20)])

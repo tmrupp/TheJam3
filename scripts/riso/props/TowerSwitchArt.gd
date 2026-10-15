@@ -7,8 +7,10 @@ extends RisoProp
 ## locked (the tower flipped last), its knob is pink and a pink bar crosses the board, and a balk
 ## shakes it.
 
-## The board: how far apart its stations stand, its margin either end, its height and how high over
-## the floor its middle stands (pixels).
+## The board: how big it is drawn against its measures here, how far apart its stations stand, its
+## margin either end, its height (pixels, before the scale) and how high over the floor its middle
+## stands (pixels).
+const BOARD_SCALE: float = 0.62
 const STATION_GAP: float = 40.0
 const BOARD_PAD: float = 26.0
 const BOARD_HIGH: float = 66.0
@@ -66,15 +68,16 @@ func _draw_art() -> void:
 	if n <= 0:
 		return
 	var wide: float = BOARD_PAD * 2.0 + STATION_GAP * float(n - 1)
-	var c: Vector2 = Vector2(shake, g - BOARD_UP)
-	var left: float = c.x - wide * 0.5
-	var board: PackedVector2Array = RisoShapes.rrect(left, c.y - BOARD_HIGH * 0.5, wide, BOARD_HIGH, 9.0)
+	# Laid out about the board's middle in its own measures, then drawn BOARD_SCALE as big there.
+	var xb: Transform2D = Transform2D(0.0, Vector2(BOARD_SCALE, BOARD_SCALE), 0.0, Vector2(shake, g - BOARD_UP))
+	var left: float = -wide * 0.5
+	var board: PackedVector2Array = xb * RisoShapes.rrect(left, -BOARD_HIGH * 0.5, wide, BOARD_HIGH, 9.0)
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.PINK], [board])
 	ink.ink(RisoPrint.BLUE, 0.16, [board], false)
-	var y: float = c.y + 2.0
+	var y: float = 2.0
 	var first: float = left + BOARD_PAD
 	var last: float = first + STATION_GAP * float(n - 1)
-	ink.ink(RisoPrint.NIGHT, 0.55, [RisoShapes.rrect(first, y - 1.75, last - first, 3.5, 0.0), PackedVector2Array([Vector2(left + wide - 8.0, y), Vector2(left + wide - 14.0, y - 5.0), Vector2(left + wide - 14.0, y + 5.0)])], false)
+	ink.ink(RisoPrint.NIGHT, 0.55, [xb * RisoShapes.rrect(first, y - 1.75, last - first, 3.5, 0.0), xb * PackedVector2Array([Vector2(left + wide - 8.0, y), Vector2(left + wide - 14.0, y - 5.0), Vector2(left + wide - 14.0, y + 5.0)])], false)
 	var rings: Array[PackedVector2Array] = []
 	var gaps: Array[PackedVector2Array] = []
 	var glows: Array[PackedVector2Array] = []
@@ -84,14 +87,14 @@ func _draw_art() -> void:
 	for k: int in range(n):
 		var p: Vector2 = Vector2(first + STATION_GAP * float(k), y)
 		if s.mask & (1 << k) != 0:
-			rings.append(RisoShapes.circle(p, RING.y, 28))
-			gaps.append(RisoShapes.circle(p, RING.x, 24))
+			rings.append(xb * RisoShapes.circle(p, RING.y, 28))
+			gaps.append(xb * RisoShapes.circle(p, RING.x, 24))
 		if s.map_info != null and s.map_info.station_on(k):
-			glows.append(RisoShapes.circle(p, LIT + GLOW, 20))
-			lit.append(RisoShapes.circle(p, LIT, 18))
-			glints.append(RisoShapes.circle(p + Vector2(-3.0, -3.0), GLINT, 10))
+			glows.append(xb * RisoShapes.circle(p, LIT + GLOW, 20))
+			lit.append(xb * RisoShapes.circle(p, LIT, 18))
+			glints.append(xb * RisoShapes.circle(p + Vector2(-3.0, -3.0), GLINT, 10))
 		else:
-			dark.append(RisoShapes.circle(p, DARK, 16))
+			dark.append(xb * RisoShapes.circle(p, DARK, 16))
 	# The ring: a band of night, the paper between it and the station knocked clear inside it.
 	ink.ink(RisoPrint.NIGHT, 1.0, rings, false)
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], gaps)
@@ -101,4 +104,4 @@ func _draw_art() -> void:
 	ink.knock([RisoPrint.ACCENT], glints)
 	ink.ink(RisoPrint.NIGHT, 1.0, dark, false)
 	if locked:
-		ink.ink(RisoPrint.PINK, 0.9, [RisoShapes.rrect(left + 5.0, y - 3.0, wide - 10.0, 6.0, 3.0)], false)
+		ink.ink(RisoPrint.PINK, 0.9, [xb * RisoShapes.rrect(left + 5.0, y - 3.0, wide - 10.0, 6.0, 3.0)], false)
