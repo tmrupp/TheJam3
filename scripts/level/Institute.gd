@@ -13,13 +13,16 @@ extends RefCounted
 ## - lecture halls (LECTURE_INSIDE), LECTURES of them where they fit: a flat floor at one end (the
 ##   lectern, with the master and its department's portal, Department) and tiered seats climbing to
 ##   the other, TIERS steps a row high and TIER_DEEP cells deep, a student on each.
+## - in the beast's gate levels alone (LevelGen.gate), first of all so it has the pick of the level,
+##   the beast's chamber (CHAMBER_INSIDE): a long hall with a flat floor, in the lower half where it
+##   fits, holding the beast (Beast, LevelGen.place_boss) and nothing else.
 ## Each is entered by a doorway a cell high through each side wall at its floor (a lecture hall's
 ## high side at its top tier), with a passage two rows high carved out from it through the rock
 ## until it meets open air (at most DOOR_REACH cells; a side whose passage finds none has no
 ## doorway). Where each goes is the site walling over the least open air and needing the shortest
 ## passages (as a crypt's, Crypts), ties dealt by the seed. Its stone, inside and passages are kept
 ## whole (LevelGen.kept_whole) and out of the free cells, so nothing else is laid in it. Each is
-## noted in LevelGen.halls as {"kind": &"exam", &"library" or &"lecture", "box": the hall with its
+## noted in LevelGen.halls as {"kind": &"exam", &"library", &"lecture" or &"chamber", "box": the hall with its
 ## walls (Rect2i), "inside": the open box inside it (Rect2i), "doors": its doorways, "steps": the
 ## open cell outside each where its passage meets the air, "floors": where the wizard can stand
 ## inside (on its floor, its tiers or its galleries), sorted, "rise": which way a lecture hall's
@@ -31,6 +34,7 @@ extends RefCounted
 const EXAM_INSIDE: Vector2i = Vector2i(12, 4)
 const LIBRARY_INSIDE: Vector2i = Vector2i(12, 8)
 const LECTURE_INSIDE: Vector2i = Vector2i(14, 6)
+const CHAMBER_INSIDE: Vector2i = Vector2i(18, 6)
 ## How many lecture halls a level tries to build (each only where it fits).
 const LECTURES: int = 2
 ## The library's galleries: one every GALLERY rows up from the floor, with a stair gap STAIR cells
@@ -92,6 +96,13 @@ const HOARD: int = 3
 
 ## Build the halls into `w` (see the class description), then join the caves again round their walls.
 static func build(w: LevelGen) -> void:
+	if w.gate == &"beast":
+		var low: Callable = func(box: Rect2i) -> bool: return box.position.y * 2 >= w.size.y
+		var chamber_site: Dictionary = _site(w, CHAMBER_INSIDE, _flat_doors(CHAMBER_INSIDE), low)
+		if chamber_site.is_empty():
+			chamber_site = _site(w, CHAMBER_INSIDE, _flat_doors(CHAMBER_INSIDE), func(_box: Rect2i) -> bool: return true)
+		if not chamber_site.is_empty():
+			_raise(w, &"chamber", chamber_site, 0)
 	var exam: Dictionary = _site(w, EXAM_INSIDE, _flat_doors(EXAM_INSIDE), func(box: Rect2i) -> bool: return box.position.y * 2 >= w.size.y)
 	if exam.is_empty():
 		exam = _site(w, EXAM_INSIDE, _flat_doors(EXAM_INSIDE), func(_box: Rect2i) -> bool: return true)
@@ -286,6 +297,15 @@ static func _tiers(w: LevelGen, inside: Rect2i, rise: int) -> void:
 static func exam_hall(w: LevelGen) -> Dictionary:
 	for hall: Dictionary in w.halls:
 		if hall["kind"] == &"exam":
+			return hall
+	return {}
+
+
+## The beast's chamber in `w` (LevelGen.halls), or {} when it has none (every level but the beast's
+## gate levels).
+static func chamber(w: LevelGen) -> Dictionary:
+	for hall: Dictionary in w.halls:
+		if hall["kind"] == &"chamber":
 			return hall
 	return {}
 

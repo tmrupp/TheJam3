@@ -47,6 +47,10 @@ var whale_moves: int = 0
 ## opened in, where it stands there (Vector2.INF until first found), the institute level it leads
 ## back to, the department portal's cell there]; [] for none. It lasts until it is used.
 var way_back: Array = []
+## The eldritch beast's souls (BeastSouls): the places one lies in (place -> its cell there, or
+## BeastSouls.NO_SPOT until it is first laid there), and how many it sent out (one of its eyes each).
+var souls: Dictionary = {}
+var souls_sent: int = 0
 
 
 ## A fresh run from depth 0 of `seed_value`: no records, no ghost, protected.
@@ -63,6 +67,8 @@ func start(seed_value: int) -> void:
 	whale_x = WhaleHunt.NONE
 	whale_moves = 0
 	way_back = []
+	souls.clear()
+	souls_sent = 0
 	vulnerable = false
 	clear_ghost()
 
@@ -150,6 +156,7 @@ func to_save(coord: Vector2i, player: Dictionary) -> Dictionary:
 		"bosses": bosses, "boss_relics": boss_relics,
 		"whale_x": whale_x, "whale_moves": whale_moves,
 		"way_back": way_back,
+		"souls": souls, "souls_sent": souls_sent,
 	}
 	data.merge(player)
 	return data
@@ -173,6 +180,8 @@ func from_save(data: Dictionary) -> void:
 	whale_x = int(data.get("whale_x", WhaleHunt.NONE))
 	whale_moves = int(data.get("whale_moves", 0))
 	way_back = data.get("way_back", [])
+	souls = data.get("souls", {})
+	souls_sent = int(data.get("souls_sent", 0))
 	respawn_coord = data["respawn_coord"]
 	respawn_cell = data["respawn_cell"]
 	vulnerable = bool(data["vulnerable"])

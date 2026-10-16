@@ -6,9 +6,10 @@ extends RefCounted
 ## opens for good, the boss is never met again, and where it fell a relic waits, free. Every boss
 ## fights in its gate level itself (LevelGen.place_boss). Until each boss is built, a stand-in
 ## fights for it (Boss); the worm (Worm), the bramble (Bramble, in its shaft: BrambleShaft), the
-## spider (Spider, in its keep: SpiderKeep), the necromancer (Necromancer, in a crypt: Crypts) and
-## the whale (Whale) are built, the whale the one boss not in a gate level: it roams the sky's top row (WhaleHunt), fought at its heart in its belly
-## (Belly, WhaleHeart, the prefab its name places).
+## spider (Spider, in its keep: SpiderKeep), the necromancer (Necromancer, in a crypt: Crypts), the
+## whale (Whale) and the eldritch beast (Beast, in its chamber: Institute; its souls: BeastSouls)
+## are built, the whale the one boss not in a gate level: it roams the sky's top row (WhaleHunt),
+## fought at its heart in its belly (Belly, WhaleHeart, the prefab its name places).
 
 ## Who guards the garden's way down and its way up, and the far end of each band below and above
 ## the garden, in NextWorldDef.DOWN's and UP's order.
@@ -26,6 +27,7 @@ const SCENES: Dictionary = {
 	&"spider": "res://prefabs/spider.tscn",
 	&"necromancer": "res://prefabs/necromancer.tscn",
 	&"whale": "res://prefabs/whale_heart.tscn",
+	&"beast": "res://prefabs/beast.tscn",
 }
 
 

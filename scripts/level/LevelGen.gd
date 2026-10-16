@@ -738,12 +738,16 @@ func add_cell_to_container (v: Vector2i, cell: Cell) -> void:
 var seed_for_colors: int = 0
 ## The level's depth, for the rules that change with it (bone gates on the way, deal_colors).
 var depth: int = 0
+## The boss whose gate this level is (Bosses; &"" for none, and in every side world), for the
+## passes that build what a boss needs into its gate level (the beast's chamber, Institute).
+var gate: StringName = &""
 
 func _init (_cells: Array, def: NextWorldDef) -> void:
 	rng = RandomNumberGenerator.new()
 	rng.seed = def.gen_seed
 	seed_for_colors = def.gen_seed
 	depth = def.depth
+	gate = &"" if Worlds.is_side(def.coord) else def.gate
 	# The small insides collapsed with the terrain come after its columns (WaveFunctionCollapse).
 	if not _cells.is_empty() and _cells.back() is Dictionary:
 		patches = (_cells.back() as Dictionary).get("patches", [])
@@ -773,7 +777,8 @@ func _init (_cells: Array, def: NextWorldDef) -> void:
 ## from it; the bramble in the knot at the head of its shaft (BrambleShaft), its cell the knot's
 ## bottom corner beside the landing; the spider in the roost under its keep's roof, and its keep's
 ## crossbows with it (SpiderKeep.arm); the necromancer at the deepest floor of the level's first
-## crypt (Crypts), which holds nothing else. The boss is placed in every visit's layout;
+## crypt (Crypts), which holds nothing else; the beast in the middle of its chamber's floor
+## (Institute), which holds nothing else either. The boss is placed in every visit's layout;
 ## the loader leaves it out once it is slain (RunState.bosses).
 const BOSS_APART: int = 4
 
@@ -787,6 +792,12 @@ func place_boss (boss: StringName) -> void:
 		return
 	if boss == &"necromancer" and not crypts.is_empty() and not (crypts[0]["floors"] as Array).is_empty():
 		put(crypts[0]["deep"], Type.BOSS, boss)
+		return
+	var chamber: Dictionary = Institute.chamber(self) if boss == &"beast" else {}
+	if not chamber.is_empty():
+		var inside: Rect2i = chamber["inside"]
+		@warning_ignore("integer_division")
+		put(Vector2i(inside.position.x + inside.size.x / 2, inside.end.y - 1), Type.BOSS, boss)
 		return
 	if not shaft.is_empty():
 		var knot: Rect2i = shaft["knot"]

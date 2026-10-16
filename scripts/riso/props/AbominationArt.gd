@@ -1,3 +1,4 @@
+class_name AbominationArt
 extends CreatureArt
 ## An abomination (Abomination): a cluster of breathing pink gumdrops (a round dome on sides that
 ## flare out to a flat foot, `gumdrop`; the central one's foot on the floor, each budding one's

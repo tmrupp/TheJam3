@@ -393,6 +393,43 @@ the crypt or within `WAKE_RANGE` (520 px).
 
 ### The eldritch beast (institute, its chamber in the gate level)
 
+*A first pass is built* (`Beast.gd`, `BeastWound.gd`, `BeastTentacle.gd`, `BeastSouls.gd`,
+`BeastSoul.gd`, `beast.tscn`, `beast_soul.tscn`; `beast_test`, `capture_beast.gd`):
+- **Its chamber.** In the beast's gate levels alone, `Institute.build` raises a chamber first of all
+  (`CHAMBER_INSIDE`, 18 × 6 inside, in the lower half where it fits): a hall of marble with a flat
+  floor and a doorway each side where a passage finds air. It holds the beast in the middle of its
+  floor (`LevelGen.place_boss`) and nothing else. The exam hall still holds the (sealed) way on.
+  Only the institute's gate levels changed.
+- **Its souls.** It sleeps until the wizard comes into its chamber, within `WAKE_RANGE` (700 px),
+  or strikes it. The first time it wakes in a run it sends its souls out (`BeastSouls.send`): one
+  for every `SOULS_EVERY` (5) levels visited, 3 to 7, most into visited levels in any band and
+  column, and one in every `AFAR_EVERY` (3) into a level beside a visited one (left or right) not
+  yet visited. Never into a side world, a gate level or its own level. The order is hashed from the
+  run seed. A soul's spot is chosen the first time its level is laid out (a free floor at least
+  `SOUL_CLEAR`, 8, cells from the way in, dealt by the run seed) and kept (`RunState.souls`, saved).
+- **A soul** (`BeastSoul`, a breach of its own) is a knot of pink flesh rooted in the floor with
+  one of the beast's eyes in it, 8 blows (any bolt, dash or parry; `Wound.least`), no stars. Each
+  time its level is entered, `GUARDS` (2) abominations are laid on the free floors nearest it, and
+  while the wizard is near it lets more out, as a breach does. So abominations reach every band.
+  Destroyed, it is gone for the run, deaths included. Souls are marked pink on the level page (at
+  their spot) and on the worlds map (on the tile's top left corner, a faint pink tile for a level
+  not yet visited, a chevron on the page's edge for one off it).
+- **The beast** has one small eye for each soul sent, open while its soul lives, shut once it is
+  destroyed (all shut while it sleeps). While any soul lives a strike glances off, its open eyes
+  flaring. With every eye shut its great eye opens (paper, an accent iris): then any hex bolt, dash
+  or parry wounds it, `CORE_HP` (9) blows, shown as pips over it.
+- **Its tentacles.** Awake, it strikes every `ATTACK_EVERY` (2.4 s, sooner on a harder preset): a
+  tentacle bursts up out of the floor under the wizard (`SLAM_REACH`, 2.6 cells), and every
+  `SWEEP_EVERY` (3rd) strike one lashes along the floor from its flank to the chamber's wall, low
+  enough to jump. Each shows where it will come first (a pink swelling, `BeastTentacle.WARN`,
+  0.75 s), then shoots out, holds and pulls back. Its body's touch hurts too. Their touch is the
+  beast's, so a parry stuns it and whips the tentacle back (and, once its eyes are shut, wounds it).
+- **Its death.** With the last blow it sinks into the floor, is slain, and whatever souls are left
+  go with it (`MapInfo.boss_slain`). Its relic waits where it lay. A lantern death heals it.
+  The F7 panel's **Slay boss** works on it.
+- Not yet: the souls placed with more thought (spread over the bands, or out where the
+  institute's portals lead), a fight that changes as its eyes shut, and tuning.
+
 Tom's idea: it spawns souls (tentacles, horcruxes) in levels already visited, which must be
 destroyed. It stays the boss of the last band down, now the institute (§7); the abominations
 rising into the institute's halls are its.
@@ -507,8 +544,8 @@ halls with tiers), its realm, backdrop and decor (marble slabs, great columns, b
 everywhere); students, masters (each teaching its spell by a lesson once beaten), proctors and
 librarians, all printed after the original wizard (students bareheaded); abominations that bud
 copies of themselves until 32 are about, and breaches that spawn them and must be closed; the exam
-as a battle; and the departments' portals with their ways back. Not yet: field trials and the
-other trials, the beast (a stand-in guards the gate level), and tuning in play.
+as a battle; the departments' portals with their ways back; and the beast in its chamber, its souls
+sent out across the run (§6). Not yet: field trials and the other trials, and tuning in play.
 
 - **Terrain.** Halls of different kinds, built by a structure pass (as the crags build their
   keeps) into a sample of rooms and corridors: lecture halls whose tiered seats climb like stairs,
@@ -695,7 +732,10 @@ Each phase ends with the full suite green and its own tests.
    come from, the departments' portals (`Institute`, `Scholar`, `Abomination`, `Breach`, `ExamDoor`,
    `Lesson`, `Department`, `WayBack`; `institute_test`, `capture_institute.gd`). The catacombs'
    stand-in is gone; the sight test's deep dark moved to the crypts. Only the institute's layouts
-   are new; every other level is laid out as before. Then field trials, and **the eldritch beast**.
+   are new; every other level is laid out as before. *The eldritch beast: a first pass is done*
+   (§6): its chamber in its gate levels (only they changed), its souls sent across the run with
+   abominations round them, its eyes, tentacles and great eye (`beast_test`, `capture_beast.gd`).
+   Then field trials, and tuning.
 8. **The sky reworked**: *a first pass is done*: the level's wind set by its vanes, in gusts;
    balloons riding it along the row; temples opened by sequences of winds; the white realm and its
    storm; and **the whale**, roaming the top row on the winds, trapped, its belly and heart
@@ -718,3 +758,24 @@ Each phase ends with the full suite green and its own tests.
 - **Gate level size.** Whether gate levels are the band's ordinary size or larger. The worm and
   the bramble fit in the ordinary size (the bramble's shaft is half the level tall).
 - **The ward and bosses.** Whether boss hits break a ward charge like any hit, or several.
+- **The institute's timetable** (liked, to come back to): the institute's band-wide puzzle, as
+  light is the cemetery's and the tower switches are the crags'.
+  - *The bell is the switch.* Periods do not pass on a clock: they change when a bell is rung (the
+    tower's great bell, or a rope in a few halls; pulled, or struck by a bolt from across a shaft).
+    Each ring moves the whole level to the next period of a short cycle (four or five): doors open
+    and shut, classes move from hall to hall, the library's ladders slide to the bay that period
+    uses, the lecture halls' tiers fold up or down. The cycle is dealt from the level seed so that
+    some order of rings leads through, the way `Stations.deal` deals the crags' switches; where the
+    wizard stands when ringing is the hard part. A timetable on a noticeboard (and the map) tells
+    which doors each period opens. The period is one number kept in the level's record.
+  - *Classes are where lessons are learned.* Each period a master teaches a class in some hall;
+    come in while it sits, pass the lesson (beat the class, or a short trial), and that master's
+    spell is lent for the level. Seals elsewhere bear ability glyphs and open only to the right
+    spell used well (the "lesson and exam" trial). The exam hall, holding the way on, sits in a
+    late period and is sealed by the lessons. So a level is a day planned: ring through it to be
+    in the right hall at the right time.
+  - *Around it.* Students flood the corridors for a moment after a bell (moving cover, or in the
+    way); in a period, proctors walk the empty corridors; breaches open in one period of the
+    cycle, so abominations can be rung into a class in session. Ringing past a lesson costs a turn
+    of the cycle, never a dead end. Nothing moves unless a bell is rung, so there is no clock to
+    race.

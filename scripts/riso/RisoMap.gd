@@ -303,6 +303,10 @@ func _level(info: MapInfo) -> void:
 	var hinted: Variant = _hinted_relic(info, info.coord, info.world)
 	if hinted != null and not relic_shown:
 		_mark_relic(to_map(info, Vector2(hinted) + Vector2(0.5, 0.5)), info.run.relic_hints[info.coord], 0.7)
+	# The beast's soul here, once it lies somewhere.
+	var soul: Vector2i = info.run.souls.get(info.coord, BeastSouls.NO_SPOT)
+	if soul != BeastSouls.NO_SPOT:
+		_mark_soul(to_map(info, Vector2(soul) + Vector2(0.5, 0.5)))
 	# The wizard, always, bobbing.
 	_mark_wizard(to_map(info, Vector2(info.cell_at(info.player.global_position)) + Vector2(0.5, 0.5)) + Vector2(0, sin(t * 4.0) * 0.6))
 	_legend([["you", _mark_wizard]] + _level_rows())
@@ -338,6 +342,7 @@ func _level_rows() -> Array:
 		["tower switch", _mark_tower_switch, "tower switch"],
 		["toll gate", _mark_toll, "toll gate"],
 		["relic", func(at: Vector2) -> void: _mark_relic(at, &"blink", 0.7), "relic"],
+		["soul", func(at: Vector2) -> void: _mark_soul(at), "soul"],
 	] + _door_rows() + [
 		["key", func(at: Vector2) -> void: _mark_key(at, 2), "key"],
 		["skeleton key", func(at: Vector2) -> void: _mark_key(at, KeyRing.SKELETON), "skeleton key"],
@@ -389,6 +394,9 @@ func _other_level(info: MapInfo, c: Vector2i) -> void:
 	var hinted: Variant = _hinted_relic(info, c, w)
 	if hinted != null and not relic_shown:
 		_mark_relic(spot.call(hinted), info.run.relic_hints[c], 0.7)
+	var soul: Vector2i = info.run.souls.get(c, BeastSouls.NO_SPOT)
+	if soul != BeastSouls.NO_SPOT:
+		_mark_soul(spot.call(soul))
 	if info.run.has_ghost and info.run.ghost_coord == c:
 		_mark_ghost(spot.call(info.cell_at(info.run.ghost_pos)), 0.22)
 	_text("D: worlds", Vector2(AREA.position.x, AREA.end.y - 6.0), 6.5, false)
@@ -566,6 +574,15 @@ func _mark_relic(at: Vector2, move: StringName, k: float = 1.0) -> void:
 	for poly: PackedVector2Array in RisoGlyph.of(move, Vector2.ZERO, t):
 		mark.append(fit * poly)
 	marks.ink(RisoPrint.NIGHT, 1.0, mark, false)
+
+
+## One of the eldritch beast's souls (BeastSoul): a pink knot with an eye of paper.
+func _mark_soul(at: Vector2, k: float = 1.0) -> void:
+	_note("soul")
+	marks.ink(RisoPrint.PINK, 1.0, [RisoShapes.circle(at, 3.6 * k, 16)], false)
+	var eye: PackedVector2Array = RisoShapes.circle(at + Vector2(0, -0.3) * k, 1.7 * k, 12)
+	marks.knock([RisoPrint.PINK, RisoPrint.NIGHT, RisoPrint.BLUE], [eye])
+	marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.circle(at + Vector2(0.3, -0.3) * k, 0.8 * k, 8)], false)
 
 
 ## A switch gate: a bar like a door's, in night ink, with the switch's accent dot.
@@ -982,6 +999,21 @@ func _world(info: MapInfo) -> void:
 			_text("%d · %d" % [c.x, c.y], at + Vector2(0, -3.5), 6.5, false, true)
 		# The mark on the tile's top right corner, clear of its label.
 		_mark_relic(at + Vector2(TILE.x * 0.5 - 1.0, -TILE.y * 0.5 + 1.0), info.run.relic_hints[c], 0.75)
+	# The beast's souls: on the top left corner of the level's tile (a faint pink one for a level
+	# not yet visited); off the page, on its edge, pointing the way.
+	for c: Vector2i in info.run.souls:
+		var at: Vector2 = tile_at(info, c)
+		if not area.encloses(Rect2(at - TILE * 0.5, TILE)):
+			var way: Vector2 = (at - page_in.get_center()).normalized()
+			var reach: float = minf(page_in.size.x * 0.5 / maxf(absf(way.x), 0.001), page_in.size.y * 0.5 / maxf(absf(way.y), 0.001))
+			var edge: Vector2 = page_in.get_center() + way * reach
+			_mark_soul(edge, 0.9)
+			marks.ink(RisoPrint.PINK, 1.0, [RisoMarks.chevron(edge + way * 7.0, way, 0.16)], false)
+			continue
+		if not info.run.records.has(c):
+			marks.ink(RisoPrint.PINK, 0.12, [RisoShapes.rrect(at.x - TILE.x * 0.5, at.y - TILE.y * 0.5, TILE.x, TILE.y, 5.0)], false)
+			_text("%d · %d" % [c.x, c.y], at + Vector2(0, -3.5), 6.5, false, true)
+		_mark_soul(at + Vector2(-TILE.x * 0.5 + 1.0, -TILE.y * 0.5 + 1.0), 0.85)
 	_text("W A S D pick  ·  E open", Vector2(AREA.position.x, AREA.end.y - 6.0), 6.5, false)
 	_legend([
 		["you are here", func(at: Vector2) -> void: _mark_tile(at, Vector2(9, 6), true)],
@@ -992,7 +1024,7 @@ func _world(info: MapInfo) -> void:
 		["relic", func(at: Vector2) -> void: _mark_relic(at, &"blink")],
 		["shrine used", _mark_spent_shrine],
 		["ghost", func(at: Vector2) -> void: _mark_ghost(at, 0.2)],
-	])
+	] + ([["beast's soul", func(at: Vector2) -> void: _mark_soul(at)]] if not info.run.souls.is_empty() else []))
 
 
 func _mark_tile(at: Vector2, size: Vector2, here: bool) -> void:

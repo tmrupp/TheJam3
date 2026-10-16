@@ -244,6 +244,9 @@ func boss_slain (boss: StringName, pos: Vector2) -> void:
 	if boss == &"" or run.bosses.has(boss):
 		return
 	run.bosses[boss] = true
+	# The beast's souls go with it.
+	if boss == &"beast":
+		BeastSouls.end(run)
 	var move: StringName = Bosses.relic_for(boss, run.run_seed, player)
 	if move != &"":
 		run.boss_relics[boss] = [coord, pos, move]
@@ -266,6 +269,38 @@ func _spawn_whale () -> void:
 	var whale: Whale = (load("res://prefabs/whale.tscn") as PackedScene).instantiate() as Whale
 	map_elements.add_child(whale)
 	whale.setup(self)
+
+## The eldritch beast woke in its chamber (Beast): its souls go out across the run, if they have
+## not yet (BeastSouls.send).
+func beast_woke () -> void:
+	BeastSouls.send(run, coord)
+	save_run()
+
+## The beast's soul in this place was destroyed (BeastSoul): gone for the rest of the run.
+func soul_destroyed () -> void:
+	BeastSouls.destroyed(run, coord)
+	RisoFx.burst(&"gain", player.global_position if wizard() != null else Vector2.ZERO, Vector2.ZERO, [RisoPrint.PINK, RisoPrint.NIGHT])
+	save_run()
+
+## The beast's soul, if one lies in this place (BeastSouls.here), on its floor (BeastSouls.spot),
+## with abominations laid round it (BeastSouls.guard_spots), each time the place is entered. None of
+## them is part of the level or its record.
+func _spawn_souls () -> void:
+	if map_elements == null or world == null or not BeastSouls.here(run, coord):
+		return
+	var at: Vector2i = BeastSouls.spot(run, coord, world)
+	if at == BeastSouls.NO_SPOT:
+		return
+	var soul: BeastSoul = (load("res://prefabs/beast_soul.tscn") as PackedScene).instantiate() as BeastSoul
+	map_elements.add_child(soul)
+	soul.position = cell_position(at)
+	soul.setup(self, at)
+	for v: Vector2i in BeastSouls.guard_spots(world, at):
+		var thing: Node2D = Placeables.scene(LevelGen.Type.ABOMINATION).instantiate() as Node2D
+		LevelLoader.arm(thing, here.depth)
+		(thing.get_node("Wound") as Wound).stars = false
+		map_elements.add_child(thing)
+		thing.position = cell_position(v)
 
 ## The whale's open mouth took the wizard in: into its belly (Belly), at its way back.
 func enter_belly () -> void:
@@ -318,6 +353,9 @@ func slay_boss () -> bool:
 				return true
 			if node is Necromancer and not (node as Necromancer).slain:
 				(node as Necromancer).slay()
+				return true
+			if node is Beast and not (node as Beast).slain:
+				(node as Beast).slay()
 				return true
 			if node is Boss:
 				(node as Boss).slay()
@@ -659,6 +697,7 @@ func _level_ready (built: LevelGen) -> void:
 	Rift.restore(self)
 	_spawn_boss_relics()
 	_spawn_whale()
+	_spawn_souls()
 	_spawn_lessons()
 	_spawn_way_back()
 	# Rock broken before, under things you stand at: their ledges.

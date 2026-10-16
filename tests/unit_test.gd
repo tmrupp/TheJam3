@@ -33,6 +33,7 @@ func run() -> void:
 	_relics()
 	_wind()
 	_whale()
+	_beast()
 	_institute()
 	_stations()
 	var p: Player = Player.new()
@@ -316,6 +317,48 @@ func _whale() -> void:
 	var was: int = run.whale_x
 	check(not WhaleHunt.move(run, Vector2i(x, row)) and run.whale_x == was and not WhaleHunt.here(run, Vector2i(was, row)), "slain, it is never met again")
 
+
+
+## The beast's souls (BeastSouls): how many go out by levels visited, most into visited levels and
+## some beside them, never into a side world, a gate level or the beast's own level, the same every
+## time, sent once, and gone with the beast.
+func _beast() -> void:
+	check_eq([BeastSouls.count_for(0), BeastSouls.count_for(12), BeastSouls.count_for(26), BeastSouls.count_for(99)], [3, 3, 6, 7], "souls: one for every %d levels visited, %d to %d" % [BeastSouls.SOULS_EVERY, BeastSouls.SOULS_MIN, BeastSouls.SOULS_MOST])
+	var gate: Vector2i = Vector2i(28, Bosses.row_of(&"beast"))
+	var run: RunState = RunState.new()
+	run.start(28)
+	for x: int in range(20, 32):
+		for y: int in [0, 1, 2, 3, 5, -1]:
+			run.record(Vector2i(x, y))
+	run.record(gate)
+	run.record(Worlds.side_at(0, Vector2i(28, 1)))
+	BeastSouls.send(run, gate)
+	var near: int = 0
+	var allowed: bool = true
+	for c: Vector2i in run.souls:
+		if run.records.has(c):
+			near += 1
+		if Worlds.is_side(c) or Bosses.gate_at(c.y) != &"" or c == gate:
+			allowed = false
+	check(run.souls_sent == BeastSouls.SOULS_MOST and run.souls.size() == run.souls_sent, "with many levels visited, the most souls go out (%d)" % run.souls_sent)
+	check(near > run.souls_sent - near and near < run.souls_sent, "most into levels visited (%d), the rest beside them, not yet visited" % near)
+	check(allowed, "never into a side world, a gate level or its own")
+	var again: RunState = RunState.new()
+	again.start(28)
+	for c: Vector2i in run.records:
+		again.record(c)
+	BeastSouls.send(again, gate)
+	check(again.souls == run.souls, "the same places for the same run")
+	var sent: Dictionary = run.souls.duplicate()
+	BeastSouls.send(run, gate)
+	check(run.souls == sent, "sent once only")
+	var fresh: RunState = RunState.new()
+	fresh.start(28)
+	fresh.record(gate)
+	BeastSouls.send(fresh, gate)
+	check(fresh.souls.is_empty() and fresh.souls_sent == 0, "with no other level visited, there is nowhere to send them")
+	BeastSouls.end(run)
+	check(run.souls.is_empty(), "slain, its souls go with it")
 
 
 ## The institute's rules (Institute): every master has mastered one of the wizard's damage spells;
