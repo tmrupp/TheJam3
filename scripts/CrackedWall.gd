@@ -3,7 +3,8 @@ class_name CrackedWall
 ## Cracked rock: solid like the rest until a hex bolt or a dash hits it (DashStrike), then it crumbles for good (the
 ## level record keeps it broken, even across deaths). A secret room's cells are cracked rock too
 ## (meta "secret", see LevelGen.place_secrets), with no cracks: they look like plain rock.
-## Its entrance is a false wall, walked and shot straight through; stepping into it, or a bolt
+## Its entrance is a false wall, walked and shot straight through by the wizard (enemies take it for
+## rock, LevelLoader.ENEMY_WALL); stepping into it, or a bolt
 ## striking the hidden rock behind it, opens the whole room (MapInfo.open_secret).
 
 func setup(_info: MapInfo, _v: Vector2i) -> void:

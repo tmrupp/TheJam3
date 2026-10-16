@@ -6,7 +6,8 @@ extends TestKit
 ## lectern), nothing else laid in them, breaches and classes out in the level, the same every
 ## build. In play: students cast bolts, some misfiring, the same way every time; each master casts
 ## its spell; a proctor shields the students round it; a librarian's hush silences the wizard's
-## spells; abominations and scholars wound one another; a breach lets abominations out while the
+## spells; abominations and scholars wound one another; a breach lets abominations out (up out of
+## its crack, their feet on its floor) while the
 ## wizard is near; the exam shuts its doors behind the wizard and opens them for good when its
 ## master falls, the students scattering and a lesson left that teaches a tier of its spell, once;
 ## and a department's portal leads to a level of its band in the same world, with a way back that
@@ -150,6 +151,8 @@ func play() -> void:
 	check(placed("student.tscn").size() > 0 and placed("master.tscn").size() > 0 and placed("exam_door.tscn").size() > 0, "students, masters and exam doors are there")
 	await _students()
 	await _hop()
+	await _climb()
+	await _apart()
 	await _masters()
 	await _staff()
 	await _three_sides()
@@ -223,6 +226,78 @@ func _hop() -> void:
 	check(start - feet > 100.0, "it climbed the step (%.0f px)" % (start - feet))
 	check(leap < 24.0, "its figure rose with its body, never jumping (at most %.0f px a frame)" % leap)
 	s.queue_free()
+	await frames(2)
+
+
+## An abomination after its quarry hops a step a cell high, but at a wall two cells high (or more)
+## it waits, facing it, rather than leaping at it again and again.
+func _climb() -> void:
+	print("an abomination at a step and a wall")
+	var w: LevelGen = info.world
+	var step: Variant = null
+	var wall: Variant = null
+	for v: Vector2i in w.free_floors():
+		var r: Vector2i = v + Vector2i.RIGHT
+		if Institute.hall_at(w, v) >= 0 or w.is_ground(v + Vector2i.UP) or w.is_ground(v + Vector2i(0, -2)) or w.is_ground(v + Vector2i.LEFT) or not w.is_ground(v + Vector2i(-1, 1)) or not w.is_ground(r):
+			continue
+		if step == null and not w.is_ground(r + Vector2i.UP) and not w.is_ground(r + Vector2i(0, -2)):
+			step = v
+		elif wall == null and w.is_ground(r + Vector2i.UP) and w.is_ground(r + Vector2i(0, -2)):
+			wall = v
+	check(step != null and wall != null, "a step and a wall to try")
+	if step == null or wall == null:
+		return
+	var at: Vector2i = step
+	var thing: Abomination = _spawn_thing(at + Vector2i(-1, 0), 1)
+	player.global_position = info.cell_position(at + Vector2i(4, -1))
+	await until(func() -> bool: return thing.grounded)
+	var start: float = thing.global_position.y
+	var climbed: bool = await within(func() -> bool: return thing.global_position.y < start - 100.0, 4.0)
+	check(climbed and thing.quarry != null, "at a step a cell high, it hops up after its quarry")
+	thing.queue_free()
+	at = wall
+	thing = _spawn_thing(at + Vector2i(-1, 0), 1)
+	player.global_position = info.cell_position(at + Vector2i(3, -2))
+	await until(func() -> bool: return thing.grounded)
+	var airborne: int = 0
+	for i: int in range(180):
+		await physics_frame
+		if not thing.grounded:
+			airborne += 1
+	var at_wall: float = info.cell_position(at).x
+	check(thing.quarry != null and thing.quarry.global_position.x > thing.global_position.x and thing.facing > 0.0 and thing.global_position.x > at_wall - 40.0, "at a wall two cells high, its quarry beyond, it goes up to it and waits facing it")
+	check(airborne == 0, "and never leaps at it")
+	thing.queue_free()
+	player.health.health = player.health.max_health
+	await frames(2)
+
+
+## Abominations keep apart, as wisps do: two made on the same spot ease apart along the floor, and
+## one going after the wizard behind another waits behind it rather than piling into it.
+func _apart() -> void:
+	print("abominations keep apart")
+	var at: Vector2i = _open_floor()
+	var a: Abomination = _spawn_thing(at + Vector2i(2, 0), 1)
+	var b: Abomination = _spawn_thing(at + Vector2i(2, 0), 1)
+	player.phasing = true
+	await until(func() -> bool: return a.grounded and b.grounded)
+	var keep: float = (a.layout[0].z + b.layout[0].z) * Abomination.APART
+	check(await within(func() -> bool: return absf(a.global_position.x - b.global_position.x) >= keep * 0.9, 2.0), "two on one spot ease apart (%.0f px, keeping %.0f)" % [absf(a.global_position.x - b.global_position.x), keep])
+	# After the wizard, off past another held still on the floor: it comes up behind it and stops.
+	a.global_position = info.cell_position(at + Vector2i(3, 0))
+	a.set_physics_process(false)
+	b.global_position = info.cell_position(at)
+	player.phasing = false
+	player.global_position = info.cell_position(at + Vector2i(5, 0))
+	var nearest: float = INF
+	for i: int in range(360):
+		await physics_frame
+		if a.grounded and b.grounded and absf(a.global_position.y - b.global_position.y) < Abomination.SAME_FLOOR:
+			nearest = minf(nearest, absf(a.global_position.x - b.global_position.x))
+	check(nearest >= keep * 0.85 and nearest < keep * 1.5, "following another, it comes up behind it and waits there rather than piling in (at nearest %.0f px)" % nearest)
+	a.queue_free()
+	b.queue_free()
+	player.health.health = player.health.max_health
 	await frames(2)
 
 
@@ -312,6 +387,8 @@ func _three_sides() -> void:
 	player.global_position = breach.global_position + Vector2(-300, 0)
 	check(await within(func() -> bool: return breach.brood.size() > 0, Breach.FIRST + Breach.SURGE + 1.0), "with the wizard near, a breach lets an abomination out")
 	check(breach.brood.all(func(n: Node2D) -> bool: return n.is_in_group(&"abomination")) and before >= 0, "and it is about, an abomination like any")
+	var floor_y: float = breach.global_position.y + float(info.tile_map.tile_set.tile_size.y) * info.tile_map.global_scale.y * 0.5
+	check(not breach.brood.is_empty() and absf(breach.brood[0].global_position.y + Abomination.FEET - floor_y) < 6.0, "coming up out of the crack, its feet on the floor, not over it")
 	for n: Node2D in breach.brood:
 		n.queue_free()
 	await frames(2)
@@ -394,6 +471,8 @@ func _exam() -> void:
 	# The exam is in session in the timetable's last period (timetable_test rings its way there).
 	info.record().period = Timetable.EXAM_PERIOD
 	var hall: Dictionary = Institute.exam_hall(info.world)
+	# Outside it, so its doors are awake (far off, a door sleeps with its chunk).
+	player.global_position = info.cell_position((hall["steps"] as Array)[0])
 	var index: int = info.world.halls.find(hall)
 	var inside: Rect2i = hall["inside"]
 	var doors: Array[Node] = placed("exam_door.tscn").filter(func(d: Node) -> bool: return (d as ExamDoor).hall == index)

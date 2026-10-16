@@ -2,7 +2,8 @@ extends Node2D
 class_name HexBolt
 ## A hex bolt in flight. Each physics step it sweeps a ray against solid things (rock, doors,
 ## cracked walls; one-way ledges are passed through) and checks enemies near its path. It wounds
-## what it meets (Wound.hit; enemies are stunned too, and at hex I only stunned) and breaks cracked
+## what it meets (Wound.hit; enemies are stunned too, and at hex I only stunned, unless already
+## stunned: Wound.dealt) and breaks cracked
 ## walls (hex_hit) at any tier, and ends at rock or after RANGE. It tears the spider's webs it
 ## passes through (SpiderWeb) and flies on, and cuts a spider's thread it crosses (Spider), ending
 ## there. Thorns that are out stop it as rock does (Spikes.struck_by, THORN_REACH), bursting on them.
@@ -145,7 +146,7 @@ func _physics_process(delta: float) -> void:
 		# Wound first (a stunned enemy takes double, so stunning first would double every hit),
 		# then stun whatever is left.
 		var wound: Wound = e.get_node_or_null("Wound") as Wound
-		var dealt: int = maxi(damage, wound.least) if wound != null else damage
+		var dealt: int = Wound.dealt(wound, damage) if wound != null else damage
 		if wound != null and dealt > 0:
 			wound.hit(dealt, dir)
 		elif dealt <= 0:

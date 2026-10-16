@@ -21,6 +21,10 @@ const PLAIN_ROCK: Vector2i = Vector2i(1, 1)
 const JITTER_DEAL: int = 9800
 ## How far a floating pickup may sit from its cell's centre, as a share of the cell.
 const JITTER: float = 0.3
+## The physics layer only enemies collide with (enemy.tscn's mask): a secret room's false wall is
+## on it, so the wizard walks through it but no enemy wanders in and stands in the "rock", giving
+## the room away.
+const ENEMY_WALL: int = 512
 
 var info: MapInfo
 var thread: Thread = Thread.new()
@@ -264,11 +268,12 @@ func place_cell(v: Vector2i, cell: LevelGen.Cell) -> void:
 		node.set_meta(&"key_color", int(cell.extra_info) if cell.extra_info != null else 0)
 	if cell.type == LevelGen.Type.CRACKED and cell.extra_info != null:
 		# Part of a secret room: hidden rock, or its entrance, a false wall that looks like rock but
-		# is walked (and shot) straight through.
+		# is walked (and shot) straight through by the wizard, though enemies take it for rock
+		# (ENEMY_WALL).
 		node.set_meta(&"secret", int(cell.extra_info))
 		node.set_meta(&"hidden", not (w.secrets[int(cell.extra_info)]["entrance"] as Array).has(v))
 		if not bool(node.get_meta(&"hidden")):
-			(node as CollisionObject2D).collision_layer = 0
+			(node as CollisionObject2D).collision_layer = ENEMY_WALL
 	if cell.type == LevelGen.Type.CLUSTER:
 		# A vault's lesser cluster is worth a share of a full one (LevelGen.VAULT_LOOT).
 		var share: float = float(cell.extra_info) if cell.extra_info != null else 1.0

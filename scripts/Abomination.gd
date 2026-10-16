@@ -4,9 +4,13 @@ class_name Abomination
 ## (docs/REGIONS_PLAN.md §7), out of a breach in the floor (Breach) or laid with the level
 ## (Institute.populate). A cluster of pink blobs, each with an eye or two, tentacles reaching up
 ## and out from them (AbominationArt). It goes for whatever is nearest of the wizard and the institute's people
-## (Scholar) within SENSE px, no sight needed, along its floor, hopping a step of a cell and
-## dropping off ledges after its quarry. It goes steadily along the floor, its tentacles
-## writhing round it (they do not move it). As it goes it leaves a trail of pink slime (Slime) that hurts the wizard while it is fresh and soon fades. Its touch
+## (Scholar) within SENSE px, no sight needed, along its floor, hopping a step of a cell (only a step
+## it can clear: at a taller wall, or one with no room over it, it waits, facing its quarry, rather
+## than leaping at it again and again) and dropping off ledges after its quarry. Abominations keep
+## apart, as wisps do: one with another just ahead on its floor waits behind it, and any closer than
+## that (APART) ease apart along the floor, so they spread along a corridor rather than heaping into
+## one clump. It goes steadily along the floor, its tentacles writhing round it (they do not move
+## it). As it goes it leaves a trail of pink slime (Slime) that hurts the wizard while it is fresh and soon fades. Its touch
 ## hurts the wizard (its HitBox); a scholar it touches it bites, wounding it every BITE_EVERY
 ## seconds. The scholars' bolts and spells wound it in turn, so a fight in the institute has three
 ## sides. A stun (the hex's, a parry) stops it.
@@ -54,6 +58,11 @@ const FLIGHT: float = 0.85
 const ARC: float = 170.0
 const LAND: Vector2i = Vector2i(2, 5)
 const ARC_CHECKS: int = 12
+## How far apart two keep, centre to centre: their central blobs' radii together, times APART; the
+## most a row apart (px) that counts as the same floor; and how fast two too close ease apart (px/s).
+const APART: float = 1.7
+const SAME_FLOOR: float = 48.0
+const EASE_APART: float = 140.0
 ## How far its feet are under its middle (px: half its body's box): where its slime is laid and its art
 ## stands.
 const FEET: float = 16.0
@@ -257,6 +266,7 @@ func _physics_process(delta: float) -> void:
 		return
 	_fall(delta)
 	crawling = false
+	_ease_apart(delta)
 	if stunned():
 		telling = -1.0
 		return
@@ -288,9 +298,11 @@ func _physics_process(delta: float) -> void:
 	if absf(to.x) > 10.0:
 		facing = signf(to.x)
 	_bite(delta)
-	if absf(to.x) <= 10.0:
+	if absf(to.x) <= 10.0 or _crowded_ahead():
 		return
 	if grounded and test_move(global_transform.translated(Vector2(0, -4)), Vector2(AHEAD * facing, 0)):
+		if not _can_climb():
+			return
 		fall_speed = HOP
 		grounded = false
 	var step: float = SPEED * Difficulty.speed() * facing * delta
@@ -302,6 +314,58 @@ func _physics_process(delta: float) -> void:
 		if grounded and _since_smear >= Slime.GAP and slime != null and is_instance_valid(slime):
 			_since_smear = 0.0
 			slime.lay(global_position + Vector2(0, FEET), 0.6 + 0.12 * float(lobes))
+
+
+## The other abominations on its floor (standing, not rising or in flight) closer than the two keep
+## apart: [it, how far across (px, signed), how far apart they keep (px)] for each.
+func _neighbours() -> Array:
+	var out: Array = []
+	if layout.is_empty():
+		return out
+	for node: Node in get_tree().get_nodes_in_group(&"abomination"):
+		var a: Abomination = node as Abomination
+		if a == null or a == self or a.is_queued_for_deletion() or a.flying() or a.rising > 0.0 or a.layout.is_empty():
+			continue
+		var d: Vector2 = a.global_position - global_position
+		var keep: float = (layout[0].z + a.layout[0].z) * APART
+		if absf(d.y) <= SAME_FLOOR and absf(d.x) < keep:
+			out.append([a, d.x, keep])
+	return out
+
+
+## Whether another abomination is just ahead of it on its floor: it waits behind it.
+func _crowded_ahead() -> bool:
+	for n: Array in _neighbours():
+		if float(n[1]) * facing > 0.0:
+			return true
+	return false
+
+
+## Too close to others on its floor: it eases away from them along the floor (of two right on top of
+## each other, the one made later gives way to the right).
+func _ease_apart(delta: float) -> void:
+	var push: float = 0.0
+	for n: Array in _neighbours():
+		var dx: float = n[1]
+		var away: float = -signf(dx) if dx != 0.0 else (1.0 if get_instance_id() > (n[0] as Node).get_instance_id() else -1.0)
+		push += away * (1.0 - absf(dx) / float(n[2]))
+	if push != 0.0:
+		move_and_collide(Vector2(clampf(push, -1.0, 1.0) * EASE_APART * delta, 0))
+
+
+## Whether the wall ahead is a step it can hop: a cell up there is room over it, and open air past
+## the wall's top.
+func _can_climb() -> bool:
+	var up: float = _cell_px() + 4.0
+	return not test_move(global_transform, Vector2(0, -up)) and not test_move(global_transform.translated(Vector2(0, -up)), Vector2(AHEAD * facing, 0))
+
+
+## A level cell's height (px).
+func _cell_px() -> float:
+	var info: MapInfo = MapInfo.instance
+	if info == null or info.tile_map == null:
+		return 128.0
+	return float(info.tile_map.tile_set.tile_size.y) * info.tile_map.global_scale.y
 
 
 ## In flight: along its arc; landed, it settles onto the floor.

@@ -172,6 +172,7 @@ Debug-Back={
 2d_physics/layer_7="Collectible_Receiver"
 2d_physics/layer_8="Hazard_Receiver"
 2d_physics/layer_9="Worm"
+2d_physics/layer_10="Enemy_Wall"
 
 [rendering]
 

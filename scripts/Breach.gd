@@ -80,7 +80,10 @@ func _let_out() -> void:
 	LevelLoader.arm(thing, map_info.here.depth)
 	(thing as Abomination).sprout(1)
 	map_info.map_elements.add_child(thing)
-	thing.global_position = global_position + Vector2(0, -20)
+	# Its feet on the floor at the crack (the breach stands at its cell's middle), so it grows up
+	# out of it rather than in the air over it.
+	var half: float = float(map_info.tile_map.tile_set.tile_size.y) * map_info.tile_map.global_scale.y * 0.5
+	thing.global_position = global_position + Vector2(0, half - Abomination.FEET)
 	(thing as Abomination).rise(RISE)
 	brood.append(thing)
 	RisoFx.burst(&"rubble", global_position + Vector2(0.0, 40.0), Vector2.UP, [RisoPrint.PINK, RisoPrint.NIGHT])

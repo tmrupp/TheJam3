@@ -78,7 +78,11 @@ func run() -> void:
 	var pick2: Array = target("mover_enemy.tscn")
 	var e2: Node2D = pick2[0]
 	e2.get_node("Wound").set("hp", 2)
+	var w2: Wound = e2.get_node("Wound") as Wound
+	check(Wound.dealt(w2, 0) == 0, "a blow that only stuns (hex I) leaves an enemy that is not stunned unhurt")
 	e2.get_node("Stunner").call("stun", 5.0)
+	await physics_frame
+	check(Wound.dealt(w2, 0) == 1, "but wounds one that is already stunned")
 	e2.get_node("Wound").call("hit", 1, Vector2.RIGHT)
 	await until(gone(e2))
 	check(not is_instance_valid(e2) or e2.is_queued_for_deletion(), "a 2 HP wisp falls to one stunned hit")

@@ -130,7 +130,18 @@ func run() -> void:
 	var hidden: Array[Node] = placed("cracked_wall.tscn").filter(func(n: Node) -> bool: return int(n.get_meta(&"secret", -1)) == 0 and bool(n.get_meta(&"hidden")))
 	var door_node: Array[Node] = placed("cracked_wall.tscn").filter(func(n: Node) -> bool: return int(n.get_meta(&"secret", -1)) == 0 and not bool(n.get_meta(&"hidden")))
 	check(hidden.size() == (secret["room"] as Array).size() and door_node.size() == 1, "its room is %d cells of hidden rock behind one false wall" % hidden.size())
-	check((door_node[0] as CollisionObject2D).collision_layer == 0 and (hidden[0] as CollisionObject2D).collision_layer != 0, "the false wall can be walked through; the rock behind it is solid")
+	check((door_node[0] as CollisionObject2D).collision_layer & player.collision_mask == 0 and (hidden[0] as CollisionObject2D).collision_layer != 0, "the false wall can be walked through; the rock behind it is solid")
+	# An enemy beside it takes it for rock, and does not wander in and give the room away.
+	# Near the wizard, as an enemy that meets it would be (far off, a chunk sleeps, its walls with it).
+	info.loader.wake_around(info.cell_position(secret["entrance"][0]))
+	var walker: RigidBody2D = (load("res://prefabs/abomination.tscn") as PackedScene).instantiate() as RigidBody2D
+	info.map_elements.add_child(walker)
+	walker.set_physics_process(false)
+	walker.global_position = info.cell_position(beside(secret["entrance"][0]))
+	await physics_frame
+	var into: Vector2 = info.cell_position(secret["entrance"][0]) - walker.global_position
+	check(walker.test_move(walker.global_transform, into), "an enemy walking at it is stopped, as by rock")
+	walker.queue_free()
 	check(placed("relic.tscn").is_empty(), "its relic is not out until it opens")
 	info.ink_whole_map()
 	var map: Node = main.get_node("RisoMap")

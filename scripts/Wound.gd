@@ -19,6 +19,12 @@ signal slain
 ## A blow has struck it, unhurt, heading `dir`.
 signal warded(dir: Vector2)
 
+## What a blow of `damage` deals to `wound`: at least its `least`, and at least 1 while it is stunned,
+## so a blow that would only stun (a hex or push at tier I) still wounds an enemy already stunned.
+static func dealt(wound: Wound, damage: int) -> int:
+	return maxi(maxi(damage, wound.least), 1 if wound.stunned() else 0)
+
+
 ## Hit points by depth: 2 to start with (so a parry, 1 damage, stuns rather than kills), 3 from
 ## depth 6.
 static func hp_for(depth: int) -> int:
