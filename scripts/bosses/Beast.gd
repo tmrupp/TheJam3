@@ -56,11 +56,11 @@ const LOBES: Array[Vector3] = [
 	Vector3(80, -175, 60), Vector3(-178, -30, 40), Vector3(182, -32, 42), Vector3(5, -215, 46),
 ]
 ## Its great eye, the weak point (across, up, radius, px), and its small eyes, one for each soul
-## it can send (BeastSouls.SOULS_MOST), in the order they shut.
+## it sends (BeastSouls.SOULS), in the order they shut.
 const GREAT_EYE: Vector3 = Vector3(0, -100, 36)
 const EYES: Array[Vector3] = [
 	Vector3(-120, -62, 15), Vector3(125, -66, 16), Vector3(-72, -178, 14), Vector3(82, -182, 15),
-	Vector3(5, -222, 12), Vector3(-178, -36, 10), Vector3(182, -38, 11),
+	Vector3(5, -222, 12), Vector3(-178, -36, 10), Vector3(182, -38, 11), Vector3(-44, -150, 12),
 ]
 ## Its writhing arms (idle ones, for show): from which blob, at what angle (up is -PI/2), how long.
 const ARMS: Array[Vector3] = [

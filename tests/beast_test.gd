@@ -3,7 +3,8 @@ extends TestKit
 ## gate level of the institute a chamber of marble (Institute.chamber) holds the beast in the middle
 ## of its floor and nothing else, the exam hall still holding the way on; no other level has one;
 ## the same every build. In play: it sleeps until the wizard comes in, then sends its souls out
-## across the run, most into levels visited and some beside them not yet visited, never into a gate
+## across the run, some into levels visited (more the more were) and the rest flung far into levels
+## not yet visited, never into a gate
 ## level, one eye for each; while any soul lives a strike glances off it; it strikes with a
 ## tentacle, under the wizard or along the floor, and a stun whips the tentacle back; the souls are
 ## saved; a soul lies on a floor of its level, the same spot every visit, with abominations round
@@ -94,9 +95,8 @@ func _play() -> void:
 	var floor_cell: Vector2i = Vector2i(beast.box.position.x + 2, beast.box.end.y - 1)
 	player.global_position = info.cell_position(floor_cell)
 	check(await within(func() -> bool: return beast.awake, 0.5), "the wizard comes into its chamber: it wakes")
-	var visited: int = VISITED.filter(func(c: Vector2i) -> bool: return BeastSouls.could_hold(c, gate)).size()
-	var want: int = BeastSouls.count_for(visited)
-	check_eq(info.run.souls_sent, want, "%d souls for %d levels visited" % [want, visited])
+	var want: int = BeastSouls.SOULS
+	check_eq(info.run.souls_sent, want, "%d souls go out" % want)
 	var near: int = 0
 	var afar: int = 0
 	var allowed: bool = true
@@ -107,7 +107,8 @@ func _play() -> void:
 			afar += 1
 		if not BeastSouls.could_hold(c, gate) or info.run.souls[c] != BeastSouls.NO_SPOT:
 			allowed = false
-	check(near > 0 and afar > 0 and near > afar, "most into levels visited (%d), some beside them not yet visited (%d)" % [near, afar])
+	var holdable: int = VISITED.filter(func(c: Vector2i) -> bool: return BeastSouls.could_hold(c, gate)).size()
+	check(near == BeastSouls.kept_near(holdable) and near > 0 and afar == want - near, "%d stay in levels visited (one for every %d of the %d), %d are flung into levels not yet visited" % [near, BeastSouls.VISITS_PER_SOUL, holdable, afar])
 	check(allowed, "none into a gate level or a side world, and none laid down yet")
 	check_eq(beast.eyes(), Vector2i(want, want), "an eye for each, all open")
 	var sent: Dictionary = info.run.souls.duplicate()

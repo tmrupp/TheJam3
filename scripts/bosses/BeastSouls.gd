@@ -1,32 +1,41 @@
 class_name BeastSouls
 extends RefCounted
 ## The eldritch beast's souls (Bosses.DOWN's last, docs/REGIONS_PLAN.md §6), apart from the scene.
-## The first time the beast wakes in its chamber (Beast), it sends its souls out across the run
-## (send): one for every SOULS_EVERY levels the wizard has visited (SOULS_MIN to SOULS_MOST), most
-## into levels the wizard has been to, in any band and any column, and one in every AFAR_EVERY into
-## a level beside one of those, not yet visited. Never into a side world, a gate level (where a boss
-## fights) or the level it was sent from. Each lies on a floor of its level (spot), the same on
-## every visit, and abominations rise round it (BeastSoul). The beast cannot be wounded while any
-## lives: each destroyed shuts one of its eyes, and stays destroyed for the rest of the run, whatever
-## deaths come. Kept in RunState.souls and souls_sent. Nothing here draws from any RNG.
+## The first time the beast wakes in its chamber (Beast), it sends SOULS souls out across the run
+## (send), and the wizard who explored is rewarded for it: for every VISITS_PER_SOUL levels visited,
+## one soul goes into a level they have been to (in any band and column, mapped and known), and
+## the rest are flung far (far_flung): into levels not yet visited, FAR_COLUMNS worlds off the
+## beast's to either side, each in a band of its own in turn. So a wizard who dived straight down
+## hunts souls all over the world, and one who wandered finds them in places they know. Never into
+## a side world, a gate level (where a boss fights) or the level it was sent from. Each lies on a
+## floor of its level (spot), the same on every visit, and abominations rise round it (BeastSoul).
+## The beast cannot be wounded while any lives: each destroyed shuts one of its eyes, and stays
+## destroyed for the rest of the run, whatever deaths come. Kept in RunState.souls and souls_sent.
+## Nothing here draws from any RNG.
 
 ## No cell chosen yet for a soul (its level not yet laid out since it was sent).
 const NO_SPOT: Vector2i = Vector2i(-1, -1)
-## One soul for every SOULS_EVERY levels visited, at least SOULS_MIN and at most SOULS_MOST.
-const SOULS_EVERY: int = 5
-const SOULS_MIN: int = 3
-const SOULS_MOST: int = 7
-## One soul in every AFAR_EVERY goes into a level not yet visited (beside one that has been).
-const AFAR_EVERY: int = 3
+## How many souls it sends out.
+const SOULS: int = 8
+## One soul stays in a level visited for every VISITS_PER_SOUL levels visited (up to all of them).
+const VISITS_PER_SOUL: int = 5
+## A soul flung far goes this many worlds off the beast's (from, to), to either side.
+const FAR_COLUMNS: Vector2i = Vector2i(3, 12)
+## The bands souls are flung into, taking turns (NextWorldDef's archetype names).
+const FAR_BANDS: Array[StringName] = [&"garden", &"cemetery", &"crags", &"institute", &"sky"]
+## How many places to try for the souls flung far before giving up on the rest.
+const FAR_TRIES: int = 200
 ## A soul lies at least SOUL_CLEAR cells from the way into its level, where there is such a floor.
 const SOUL_CLEAR: int = 8
 ## Abominations laid round a soul each time its level is entered (BeastSoul): up to GUARDS, on the
 ## free floors nearest it within GUARD_REACH cells.
 const GUARDS: int = 2
 const GUARD_REACH: int = 6
-## Salts for the run seed: which levels take a soul, and where in its level it lies.
+## Salts for the run seed: which levels visited take a soul, where the far ones go, and where in its
+## level a soul lies.
 const SOUL_DEAL: int = 7800
 const SPOT_DEAL: int = 7810
+const FAR_DEAL: int = 7820
 
 
 ## Whether a soul could be sent into place `c`: an ordinary level, not a gate level, not `from`.
@@ -39,30 +48,41 @@ static func _order(run: RunState, c: Vector2i) -> int:
 	return Rules.level_seed(run.run_seed, SOUL_DEAL + c.x * 977 + c.y * 131)
 
 
-## The places a soul may go: [the levels visited, the levels beside them (left and right) not
-## visited], each sorted in the order souls go out in.
-static func candidates(run: RunState, from: Vector2i) -> Array:
-	var near: Array[Vector2i] = []
-	var afar: Array[Vector2i] = []
+## The levels visited a soul could go into from the beast's level `from`, in the order souls go
+## out in (hashed from the run seed).
+static func visited(run: RunState, from: Vector2i) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
 	for c: Vector2i in run.records:
 		if could_hold(c, from):
-			near.append(c)
-	for c: Vector2i in near:
-		for side: Vector2i in [Vector2i(c.x - 1, c.y), Vector2i(c.x + 1, c.y)]:
-			if not run.records.has(side) and could_hold(side, from) and not afar.has(side):
-				afar.append(side)
-	var by: Callable = func(a: Vector2i, b: Vector2i) -> bool:
+			out.append(c)
+	out.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
 		var ha: int = _order(run, a)
 		var hb: int = _order(run, b)
-		return ha < hb or (ha == hb and a < b)
-	near.sort_custom(by)
-	afar.sort_custom(by)
-	return [near, afar]
+		return ha < hb or (ha == hb and a < b))
+	return out
 
 
-## How many souls go out when `visited` levels have been visited.
-static func count_for(visited: int) -> int:
-	return clampi(ceili(float(visited) / float(SOULS_EVERY)), SOULS_MIN, SOULS_MOST)
+## How many souls stay in levels visited, when `count` levels a soul could go into were visited.
+static func kept_near(count: int) -> int:
+	@warning_ignore("integer_division")
+	return mini(mini(count / VISITS_PER_SOUL, SOULS), count)
+
+
+## The `k`th place tried for a soul flung far from the beast's level `from` in run `run`: in the
+## band whose turn it is (FAR_BANDS, from one dealt by the run), a row of it, and a world
+## FAR_COLUMNS off the beast's to one side or the other, all dealt by the run seed.
+static func far_flung(run: RunState, from: Vector2i, k: int) -> Vector2i:
+	var roll: int = Rules.level_seed(run.run_seed, FAR_DEAL + k)
+	var first: int = posmod(Rules.level_seed(run.run_seed, FAR_DEAL - 1), FAR_BANDS.size())
+	var band: StringName = FAR_BANDS[(first + k) % FAR_BANDS.size()]
+	var row: int = 0
+	if band == &"garden":
+		row = posmod(roll, NextWorldDef.GARDEN_ROWS * 2 - 1) - (NextWorldDef.GARDEN_ROWS - 1)
+	else:
+		row = NextWorldDef.band_row(band, posmod(roll >> 4, NextWorldDef.BAND))
+	var off: int = FAR_COLUMNS.x + posmod(roll >> 8, FAR_COLUMNS.y - FAR_COLUMNS.x + 1)
+	var side: int = 1 if posmod(roll >> 12, 2) == 0 else -1
+	return Vector2i(from.x + side * off, row)
 
 
 ## The beast woke in place `from` (its gate level): its souls go out (see the class description),
@@ -70,18 +90,21 @@ static func count_for(visited: int) -> int:
 static func send(run: RunState, from: Vector2i) -> void:
 	if run.souls_sent > 0 or run.bosses.has(&"beast"):
 		return
-	var lists: Array = candidates(run, from)
-	var near: Array[Vector2i] = lists[0]
-	var afar: Array[Vector2i] = lists[1]
-	var n: int = count_for(near.size())
-	@warning_ignore("integer_division")
-	var far_n: int = mini(maxi(1, n / AFAR_EVERY), afar.size())
-	var near_n: int = mini(n - far_n, near.size())
-	# Too few visited levels: the rest go afar.
-	far_n = mini(n - near_n, afar.size())
-	for c: Vector2i in near.slice(0, near_n) + afar.slice(0, far_n):
+	var known: Array[Vector2i] = visited(run, from)
+	for c: Vector2i in known.slice(0, kept_near(known.size())):
 		run.souls[c] = NO_SPOT
+	var k: int = 0
+	while run.souls.size() < SOULS and k < FAR_TRIES:
+		var c: Vector2i = far_flung(run, from, k)
+		if could_hold(c, from) and not run.records.has(c) and not run.souls.has(c):
+			run.souls[c] = NO_SPOT
+		k += 1
 	run.souls_sent = run.souls.size()
+
+
+## How far place `a` is from place `b`: places across plus rows.
+static func distance(a: Vector2i, b: Vector2i) -> int:
+	return absi(a.x - b.x) + absi(a.y - b.y)
 
 
 ## How many of its souls live.

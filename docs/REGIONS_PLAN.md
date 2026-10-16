@@ -401,11 +401,15 @@ the crypt or within `WAKE_RANGE` (520 px).
   floor (`LevelGen.place_boss`) and nothing else. The exam hall still holds the (sealed) way on.
   Only the institute's gate levels changed.
 - **Its souls.** It sleeps until the wizard comes into its chamber, within `WAKE_RANGE` (700 px),
-  or strikes it. The first time it wakes in a run it sends its souls out (`BeastSouls.send`): one
-  for every `SOULS_EVERY` (5) levels visited, 3 to 7, most into visited levels in any band and
-  column, and one in every `AFAR_EVERY` (3) into a level beside a visited one (left or right) not
-  yet visited. Never into a side world, a gate level or its own level. The order is hashed from the
-  run seed. A soul's spot is chosen the first time its level is laid out (a free floor at least
+  or strikes it. The first time it wakes in a run it sends its souls out (`BeastSouls.send`):
+  `SOULS` (8) of them, and exploring is rewarded: for every `VISITS_PER_SOUL` (5) levels visited,
+  one soul goes into a level the wizard has been to (in any band and column, mapped and known),
+  and the rest are flung far (`far_flung`): into levels not yet visited, 3 to 12 worlds off the
+  beast's to either side (`FAR_COLUMNS`), each in a band of its own in turn (`FAR_BANDS`: the
+  garden, the cemetery, the crags, the institute, the sky). So a wizard who dived straight down
+  (a dozen levels) keeps two souls near and hunts six across the world, while one who explored
+  forty levels finds all eight in places they know. Never into a side world, a gate level or its
+  own level. The order is hashed from the run seed. A soul's spot is chosen the first time its level is laid out (a free floor at least
   `SOUL_CLEAR`, 8, cells from the way in, dealt by the run seed) and kept (`RunState.souls`, saved).
 - **A soul** (`BeastSoul`, a breach of its own) is a knot of pink flesh rooted in the floor with
   one of the beast's eyes in it, 8 blows (any bolt, dash or parry; `Wound.least`), no stars. Each
