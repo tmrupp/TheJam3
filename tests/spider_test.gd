@@ -6,7 +6,7 @@ extends TestKit
 ## ground storey with the wizard's own hops, the gondola and the towers laid round it, the same every
 ## build and only in the spider's gate levels; in play, the spider asleep under the roof, waking,
 ## dropping on the wizard and biting, strikes glancing off its back, a bolt cutting its thread and
-## dropping it, wounds putting out its eyes while it is down (a slash, a bolt that only stuns), it
+## dropping it, wounds putting out its eyes while it is down (a slash, a bolt of no damage), it
 ## climbing back up a new thread, a dash cutting that, a parried bite stunning it, its webs holding
 ## the wizard, keeping their dash from coming back, torn by a bolt and a dash and spun again; the
 ## keep's crossbows, one to a floor, set in its walls shooting into the hall, out of reach, their
@@ -144,7 +144,7 @@ func run() -> void:
 	check(line.size() == 2 and line[1].y - line[0].y > 150.0, "it hangs on a thread from the roof")
 	_bolt(_beside(spider, -Spider.THREAD_TOP - 30.0), -_toward(spider), 0)
 	var fell: bool = await within(func() -> bool: return spider.state == Spider.State.FALL, 1.0)
-	check(fell and spider.anchor == null and spider.wound.hp == Spider.EYES, "a bolt across it (one that only stuns) cuts it, and it falls")
+	check(fell and spider.anchor == null and spider.wound.hp == Spider.EYES, "a bolt across it (one of no damage) cuts it, and it falls")
 	var down: bool = await within(func() -> bool: return spider.state == Spider.State.DOWN, 3.0)
 	var under: Vector2i = info.cell_at(spider.global_position + Vector2(0, Spider.LIE + 4.0))
 	check(down and spider.open() and info.world.is_ground(under), "on its back on the floor below, open")
@@ -152,7 +152,7 @@ func run() -> void:
 	check(spider.wound.hp == Spider.EYES - 1, "a slash puts out an eye")
 	_bolt(_beside(spider, 0.0), -_toward(spider), 0)
 	var hexed: bool = await within(func() -> bool: return spider.wound.hp == Spider.EYES - 2, 1.0)
-	check(hexed, "so does a bolt that only stuns")
+	check(hexed, "so does a bolt of no damage")
 	var climbing: bool = await within(func() -> bool: return spider.state == Spider.State.RECLIMB, Spider.DOWNED + 8.0)
 	check(climbing and spider.threaded() and not spider.open(), "up again, it climbs a new thread, its back to the wizard")
 	await within(func() -> bool: return spider.thread().size() == 2 and spider.thread()[1].y - spider.thread()[0].y > 120.0, 2.0)

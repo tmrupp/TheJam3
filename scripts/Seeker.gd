@@ -3,14 +3,13 @@ class_name Seeker
 ## Seeker, a damage spell: the Spell button (Q, or the pad's X) looses a homing bolt of spell light,
 ## aimed at first like the hex (the held direction, else facing), that turns toward the nearest
 ## enemy it can see within HexBolt.SEEK px (HexBolt.seek) and strikes it as a hex bolt does:
-## wounded by its damage, then stunned STUN seconds. It flies slower than the hex (SPEED) but
+## wounded by its damage. It flies slower than the hex (SPEED) but
 ## further (RANGE), smaller (SIZE), and is ready again COOLDOWN after. Each cast knocks the wizard
 ## back a little, as a hex does (Hex.RECOIL). Tiers (Abilities): I one
 ## seeker, wounding 1; II turns harder (TURN_II); III looses two, fanned out FAN either way;
 ## IV wounds 2.
 
 const COOLDOWN: float = 2.5
-const STUN: float = 1.5
 const SPEED: float = 620.0
 const RANGE: float = 1400.0
 ## How hard it turns toward its quarry (radians a second).
@@ -67,7 +66,6 @@ func cast(dir: Vector2 = Vector2.ZERO) -> Array[HexBolt]:
 		var bolt: HexBolt = HexBolt.new()
 		bolt.dir = dir.normalized().rotated(0.0 if count == 1 else lerpf(-FAN, FAN, float(k) / float(count - 1)))
 		bolt.damage = damage
-		bolt.stun = STUN
 		bolt.speed = SPEED
 		bolt.range_px = RANGE
 		bolt.seek = turn

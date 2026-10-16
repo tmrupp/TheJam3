@@ -2,7 +2,7 @@ class_name SpiderWound
 extends Wound
 ## The spider's health (Spider): its eyes. Its back is hard, so a strike glances off it, unless it
 ## is open (Spider.open: biting, stunned, fallen or scurrying on a floor); then any hex bolt, dash
-## or parry puts out one of its eyes, even one that only stuns at its tier (least 1), and however
+## or parry puts out one of its eyes, even one of no damage (least 1), and however
 ## hard it strikes. An arrow (pierce) puts one out whether it is open or not. With the last eye out
 ## it dies (Spider.die): no stars, nothing kept in the level's record.
 

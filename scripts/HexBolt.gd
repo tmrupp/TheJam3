@@ -2,8 +2,7 @@ extends Node2D
 class_name HexBolt
 ## A hex bolt in flight. Each physics step it sweeps a ray against solid things (rock, doors,
 ## cracked walls; one-way ledges are passed through) and checks enemies near its path. It wounds
-## what it meets (Wound.hit; enemies are stunned too, and at hex I only stunned, unless already
-## stunned: Wound.dealt) and breaks cracked
+## what it meets (Wound.hit; it stuns nothing: only a parry stuns) and breaks cracked
 ## walls (hex_hit) at any tier, and ends at rock or after RANGE. It tears the spider's webs it
 ## passes through (SpiderWeb) and flies on, and cuts a spider's thread it crosses (Spider), ending
 ## there. Thorns that are out stop it as rock does (Spikes.struck_by, THORN_REACH), bursting on them.
@@ -52,11 +51,10 @@ static func answers(o: Object) -> bool:
 var dir: Vector2 = Vector2.RIGHT
 var damage: int = 1
 var pierce: bool = false
-## How fast it flies (px/s), how far before it ends, how long it stuns what it strikes, how hard it
-## turns toward an enemy (radians a second; 0 flies straight) and how big it prints.
+## How fast it flies (px/s), how far before it ends, how hard it turns toward an enemy (radians a
+## second; 0 flies straight) and how big it prints.
 var speed: float = SPEED
 var range_px: float = RANGE
-var stun: float = Hex.STUN
 var seek: float = 0.0
 var size: float = 1.0
 ## A shot turned back by a parry (Parry): it breaks a shield (Shield) at once.
@@ -138,22 +136,18 @@ func _physics_process(delta: float) -> void:
 		# A scholar struck by the wizard turns on them (Scholar.rouse).
 		if e is Scholar:
 			(e as Scholar).rouse()
-		# A shield takes the bolt whole: no wound, no stun.
+		# A shield takes the bolt whole: no wound.
 		var shield: Shield = Shield.of(e)
 		if shield != null and shield.absorb(reflected, dir):
 			_end((e as Node2D).global_position - dir * Shield.RADIUS * 0.8)
 			return
-		# Wound first (a stunned enemy takes double, so stunning first would double every hit),
-		# then stun whatever is left.
+		# Wounded (double if a parry left it stunned: Wound); it stuns nothing.
 		var wound: Wound = e.get_node_or_null("Wound") as Wound
 		var dealt: int = Wound.dealt(wound, damage) if wound != null else damage
 		if wound != null and dealt > 0:
 			wound.hit(dealt, dir)
 		elif dealt <= 0:
 			RisoFx.burst(&"hit", (e as Node2D).global_position, dir, [RisoPrint.ACCENT, RisoPrint.BLUE])
-		var stunner: Stunner = Stunner.of(e)
-		if stunner != null and is_instance_valid(e) and not e.is_queued_for_deletion():
-			stunner.stun(stun)
 		# Things that are not enemies answer the bolt themselves (a switch throws).
 		if wound == null and answers(e):
 			e.call("hex_hit", damage, dir)

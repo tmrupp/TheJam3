@@ -853,6 +853,11 @@ var trial_seals: Array[GlyphSeal] = []
 const GLYPH_SEAL: String = "res://prefabs/glyph_seal.tscn"
 ## The physics frame a bell was last rung in (a spell that rings one is not held against the wizard).
 var _rung_frame: int = -1
+## The great bell: how long it rings out once rung (seconds), the institute shaking with it at first
+## as hard as BELL_SHAKE (px) and less as it fades; and the seconds since it was last rung (the art).
+const BELL_TIME: float = 3.0
+const BELL_SHAKE: float = 5.0
+var since_bell: float = 99.0
 
 ## Whether the level being played keeps the institute's timetable (Timetable.kept_in).
 func timetabled () -> bool:
@@ -866,13 +871,16 @@ func wizard_belongs () -> bool:
 	var rec: LevelRecord = record()
 	return Timetable.belongs(world, rec.period, rec.passing, cell_at(player.global_position))
 
-## A school bell was rung (SchoolBell): the period ends, the level moves on to the next and passing
-## time begins; a trial under way is left unfinished, and every scholar calms down.
+## The great bell was rung (one of its cords pulled, SchoolBell): the period ends, the level moves on
+## to the next and passing time begins; a trial under way is left unfinished, every scholar calms
+## down, and the institute shakes while the bell rings out (BELL_TIME).
 func ring_period () -> void:
 	if not timetabled():
 		return
 	end_trial(false)
 	_rung_frame = Engine.get_physics_frames()
+	since_bell = 0.0
+	Wound.shake(BELL_SHAKE, BELL_TIME)
 	var rec: LevelRecord = record()
 	rec.period = posmod(rec.period + 1, Timetable.PERIODS)
 	rec.passing = true
@@ -1159,8 +1167,9 @@ func give_up () -> bool:
 	player.die()
 	return true
 
-## A lit lantern absorbs one death, burns out, and brings the wizard back to its location.
-## Without another lit lantern, the next death ends the run. Stars still drop into a ghost.
+## A lit lantern absorbs one death, burns out, and brings the wizard back to its location at full
+## health. Without another lit lantern, the next death ends the run. The stars they carried drop into
+## a ghost, which keeps the lantern the death burned out (recover_ghost).
 func player_died (pos: Vector2) -> void:
 	if run_ending > 0.0 or travelling:
 		return
@@ -1168,9 +1177,9 @@ func player_died (pos: Vector2) -> void:
 	if run.vulnerable:
 		end_run()
 		return
-	player.health.health = 1
+	player.health.health = player.health.max_health
 	_clear_ghost()
-	run.leave_ghost(coord, pos, player.coins.coins)
+	run.leave_ghost(coord, pos, player.coins.coins, [run.respawn_coord, run.respawn_cell])
 	player.collect(-run.ghost_stars)
 	run.spend_lantern(run.respawn_coord, run.respawn_cell)
 	run.vulnerable = true
@@ -1180,15 +1189,22 @@ func player_died (pos: Vector2) -> void:
 	# The respawn level reloads, so its enemies are back (and the ghost appears if it is there).
 	respawn_in_other_level()
 
-## Touching the ghost returns its stars and restores full health, but not lantern protection.
+## Touching the ghost returns its stars and relights the lantern its death burned out: lit again,
+## it protects the next death, and, while the wizard has no other lantern lit, it is theirs again (as
+## it was, their respawn). It does not heal (the wizard came back at full health).
 func recover_ghost () -> void:
 	if not run.has_ghost:
 		return
 	var stars: int = run.ghost_stars
 	var at: Vector2 = run.ghost_pos
+	var lantern: Array = run.ghost_lantern
 	_clear_ghost()
 	player.collect(stars)
-	player.health.health = player.health.max_health
+	if lantern.size() == 2:
+		run.record(lantern[0]).spent_lanterns.erase(lantern[1])
+		if run.vulnerable and run.respawn_coord == lantern[0] and run.respawn_cell == lantern[1]:
+			run.vulnerable = false
+		_refresh_lanterns()
 	RisoFx.burst(&"gain", at, Vector2.ZERO, [RisoPrint.GLOW, RisoPrint.ACCENT])
 	save_run()
 
@@ -1356,6 +1372,7 @@ func solid_at (pos: Vector2) -> bool:
 	return false
 
 func _physics_process (delta: float) -> void:
+	since_bell += delta
 	if world == null or travelling or player == null or not is_instance_valid(player):
 		return
 	gust_clock += delta

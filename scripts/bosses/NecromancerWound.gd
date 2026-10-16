@@ -2,7 +2,7 @@ class_name NecromancerWound
 extends Wound
 ## The necromancer's health (Necromancer): the candles on its staff. In the dark a strike passes
 ## through it (Necromancer.glance); while light falls on it (Necromancer.lit) any hex bolt, dash or
-## parry puts out a candle, even one that only stuns at its tier (least 1), however hard it strikes.
+## parry puts out a candle, even one of no damage (least 1), however hard it strikes.
 ## With the last it crumbles (Necromancer.die): no stars, nothing kept in the level's record.
 
 

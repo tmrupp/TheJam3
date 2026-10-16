@@ -5,7 +5,7 @@ class_name Breach
 ## cells of it, an abomination (Abomination) climbs out of it every EVERY seconds (the first FIRST
 ## seconds after it wakes), as long as fewer than Abomination.MOST are about in the level, and what
 ## comes out multiplies in its turn: a breach has to be closed. It is an enemy itself (its Wound,
-## given as it is placed, set to HP): any bolt wounds it, even one that only stuns (Wound.least),
+## given as it is placed, set to HP): any bolt wounds it, even one of no damage (Wound.least),
 ## and once closed the level record keeps it so until the wizard dies. What climbs out is not part
 ## of the level: none are kept, and they are gone when the level is left. Nothing here draws from
 ## any RNG.
@@ -32,7 +32,7 @@ var surging: float = -1.0
 func setup(info: MapInfo, v: Vector2i) -> void:
 	map_info = info
 	cell = v
-	# Wounded by any bolt, even one that only stuns: it has nothing to stun.
+	# Wounded by any bolt, even one of no damage: it has nothing to stun.
 	var wound: Wound = get_node_or_null("Wound") as Wound
 	if wound != null:
 		wound.least = 1

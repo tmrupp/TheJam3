@@ -14,7 +14,7 @@ extends Stunnable
 ## up the other side, all the way round, swinging with it. When the car stands with its sides up, a
 ## bug coming to the edge of its floor steps out onto the rock there if there is any (else it turns
 ## back across the floor), so a rider who times it can let one off.
-## Stunned (a hex bolt or a parry), it lets go of a wall, a ceiling, the cable or the car and falls
+## Stunned (by a parry), it lets go of a wall, a ceiling, the cable or the car and falls
 ## until it lands on rock, where it clings again once the stun wears off (on a floor it just
 ## stands). Its touch hurts, like any enemy's (its HitBox). Moved only from here: its body is a
 ## frozen kinematic RigidBody2D that collides with nothing, as a wraith's.

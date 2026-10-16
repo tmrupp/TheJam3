@@ -741,7 +741,7 @@ Each phase ends with the full suite green and its own tests.
    are new; every other level is laid out as before. *The eldritch beast: a first pass is done*
    (§6): its chamber in its gate levels (only they changed), its souls sent across the run with
    abominations round them, its eyes, tentacles and great eye (`beast_test`, `capture_beast.gd`).
-   *The timetable: a first pass is done* (§9): periods and bells, hall doors, belonging, passing
+   *The timetable: a first pass is done* (§9): periods and the great bell with its cords, hall doors, belonging, passing
    time, trials, lecterns and glyph seals (`Timetable`, `SchoolBell`, `Lectern`, `GlyphSeal`;
    `timetable_test`, `capture_timetable.gd`). Only the institute's dressing changed (its hall
    doors, bells, lecterns and seals; `layout_fingerprint_test` re-pinned for it alone); its terrain
@@ -827,9 +827,10 @@ Each phase ends with the full suite green and its own tests.
   - *Decided:* a lesson is a trial, not time; attending adds a tier; nothing happens without a
     ring; going into a classroom ends passing time; glyph seals open only to their spell, used
     literally.
-  - *Built in the first pass:* four periods a day, the last the exam's; a bell in each lecture
-    hall and the library and one by the way in bearing the timetable on a board, rung by hand or
-    by a bolt; hall doors open only while in session; passing time, ended by going into a class;
+  - *Built in the first pass:* four periods a day, the last the exam's; one great bell a level,
+    hung from the ceiling by the way in over the timetable's board, rung by pulling (or striking)
+    any of its cords of light, one in each lecture hall and the library and one under the bell,
+    each reaching to the ceiling, the institute shaking while it rings out; hall doors open only while in session; passing time, ended by going into a class;
     scholars calm where the wizard belongs and turning on them (and those near) when they see them
     truant, cast or strike, calmed by the next bell; a trial in each lecture hall in session (the
     master's spell lent, a mock seal at the lectern's wall), passed for a tier; every spell the

@@ -1,7 +1,7 @@
 extends TestKit
-## Stills of the institute's timetable (world 28, the institute's first level): the corridor's bell
-## and its board, in a period and in passing time; a lecture hall shut and in session; scholars calm
-## and turned on the wizard, close up; a trial in a lecture hall with its mock seal; the exam hall's
+## Stills of the institute's timetable (world 28, the institute's first level): the great bell and
+## its cord, floor to ceiling, at rest and ringing; its board, in a period and in passing time; a
+## lecture hall shut and in session; scholars calm and turned on the wizard, close up; a trial in a lecture hall with its mock seal; the exam hall's
 ## glyph seals; a seal of each spell side by side, with the two mock seals; and a lectern giving back
 ## a spell taught. (The hall's doors shut and open, close up.)
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_timetable.gd
@@ -15,13 +15,17 @@ func run() -> void:
 	camera = main.get_node("Camera2D") as Camera2D
 	await _go(Vector2i(28, NextWorldDef.first_depth(&"institute")))
 	# The level's title card fades first.
-	for i: int in range(360):
+	for i: int in range(540):
 		await process_frame
 	var rec: LevelRecord = info.record()
 	var bell: SchoolBell = placed("school_bell.tscn").filter(func(n: Node) -> bool: return (n as SchoolBell).board)[0] as SchoolBell
 	player.global_position = bell.global_position + Vector2(-260, 0)
+	# The great bell and its cord, floor to ceiling, then the board close up; then rung.
+	var tall: float = float(bell.reach) * 128.0 * 0.5
+	await _look(bell.global_position + Vector2(0, 64.0 - tall), "timetable_great_bell.png", clampf(560.0 / (tall * 2.0), 0.7, 1.4))
 	await _look(bell.global_position + Vector2(0, -70), "timetable_bell.png", 2.2)
 	_ring(bell)
+	await _look(bell.global_position + Vector2(0, 64.0 - tall), "timetable_great_bell_ringing.png", clampf(560.0 / (tall * 2.0), 0.7, 1.4), 18)
 	await _look(bell.global_position + Vector2(0, -70), "timetable_bell_passing.png", 2.2)
 	# A lecture hall, shut and then in session.
 	var hall: int = -1
@@ -123,7 +127,7 @@ func _lineups(bell: SchoolBell) -> void:
 
 ## Ring `bell`, as soon as it can be rung again.
 func _ring(bell: SchoolBell) -> void:
-	bell.since_rung = SchoolBell.RING_GAP
+	info.since_bell = SchoolBell.RING_GAP
 	bell.ring()
 
 
@@ -160,9 +164,9 @@ func _go(at: Vector2i) -> void:
 
 
 ## Hold the camera on `at` at `zoom` for a while, then save the still.
-func _look(at: Vector2, file: String, zoom: float = 1.0) -> void:
+func _look(at: Vector2, file: String, zoom: float = 1.0, hold: int = 40) -> void:
 	var was: Vector2 = camera.zoom
-	for i: int in range(40):
+	for i: int in range(hold):
 		camera.global_position = at
 		camera.zoom = was * zoom
 		camera.reset_smoothing()

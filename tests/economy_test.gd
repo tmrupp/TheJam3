@@ -255,7 +255,7 @@ func giving_up() -> void:
 	check(info.run.vulnerable and info.is_lantern_spent(lantern), "it is a death: the lantern burns out")
 	check(info.run.has_ghost and info.run.ghost_stars == 4 and player.coins.coins == 0, "the stars drop into a ghost")
 	check(player.global_position.distance_to(info.respawn_marker.global_position) < 80.0, "back at the lantern")
-	check(player.health.health == 1, "giving up respawns at one heart")
+	check(player.health.health == player.health.max_health, "giving up respawns at full health")
 
 
 func cluster() -> void:

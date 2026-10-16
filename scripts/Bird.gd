@@ -8,7 +8,7 @@ extends Stunnable
 ## wizard was when it warned, DIVE past them, so it sweeps their whole height) and up the far side in
 ## an arc, back to its patrol height, then patrols on. Moving off the marked spot dodges it. The longer the
 ## dive, the longer the swoop takes (SWOOP_TIME, plus SWOOP_PER_PX of the way down). It only swoops where the arc is clear of rock. Its touch
-## hurts, like any enemy's (its HitBox); the hex wounds it and the hex or a parry stuns it, in the
+## hurts, like any enemy's (its HitBox); the hex wounds it and a parry stuns it, in the
 ## air where it is. Moved only from here: its body is a frozen kinematic RigidBody2D that collides
 ## with nothing, as a wraith's.
 

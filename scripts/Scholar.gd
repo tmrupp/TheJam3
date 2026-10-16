@@ -6,7 +6,7 @@ class_name Scholar
 ## than HOME cells from where it was laid (a class keeps together), and fights whatever is nearest
 ## of the wizard and the abominations (Abomination) that it can see within its sight, keeping its
 ## distance from it as its spells want; with nothing to fight it goes back to its place. Every
-## RETARGET seconds it looks again. Its touch hurts, a stun (the hex's, a parry) stops it, and its
+## RETARGET seconds it looks again. Its touch hurts, a parry's stun stops it, and its
 ## Wound is given as it is placed (LevelLoader.arm); `setup` sets its health by kind.
 ##
 ## The kinds (`kind`, set in each prefab):

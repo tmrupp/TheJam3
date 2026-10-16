@@ -6,8 +6,8 @@ extends TestKit
 ## through walls, thorns along one flank of every segment but the head, alternating from one
 ## segment to the next from the flank facing the wizard as it comes out of the rock, kept until it
 ## goes in again (hurting to touch, and
-## turning strikes from that side), the soft flesh any strike cuts (even a bolt that
-## only stuns) one segment a move, only a parried bite stunning it and then the whole worm, a cut
+## turning strikes from that side), the soft flesh any strike cuts (even a bolt of
+## no damage) one segment a move, only a parried bite stunning it and then the whole worm, a cut
 ## head or tail shortening it, a middle cut splitting it, short worms burrowing away, a lantern
 ## death healing it, and its death opening the way on and leaving its relic on a floor.
 ## godot --headless --path . --script res://tests/worm_test.gd
@@ -191,7 +191,7 @@ func run() -> void:
 	check(head.bite.collision.disabled, "and a stunned head does not bite")
 	var whole_one: WormSegment = segs.filter(func(s: WormSegment) -> bool: return s.live and s.wound.hp == Worm.SEGMENT_HP)[0]
 	whole_one.spikes = Vector2.RIGHT
-	SpellStrike.strike(whole_one, Vector2.RIGHT, 1, 0.0)
+	SpellStrike.strike(whole_one, Vector2.RIGHT, 1)
 	check(whole_one.wound.hp == Worm.SEGMENT_HP - 2, "stunned, it takes double")
 
 	print("cut")

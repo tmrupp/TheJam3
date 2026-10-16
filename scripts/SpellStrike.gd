@@ -2,7 +2,8 @@ class_name SpellStrike
 extends RefCounted
 ## What the damage spells that strike where the wizard stands share (Slash, Nova, Push): finding
 ## what is caught in a shape round the wizard, and striking it as a hex bolt does (HexBolt). An
-## enemy is wounded (at least as much as any blow wounds it, Wound.least) and then stunned; a
+## enemy is wounded (at least as much as any blow wounds it, Wound.least), never stunned (only a
+## parry stuns); a
 ## shield takes the blow whole; a spider is struck only on its round body (Spider.struck_by); a
 ## worm only once, in the first segment caught (Wound.whole); things that answer a bolt themselves
 ## (a switch, a bell, a moth swarm: HexBolt.ANSWERS) answer this too. Rock between the wizard and
@@ -85,11 +86,10 @@ static func clear(from: Vector2, to: Vector2) -> bool:
 
 
 ## Strike `e` heading `dir`: wound it by `damage` (Wound.dealt: at least its Wound.least, and at least
-## 1 while it is stunned), then stun it for
-## `stun` seconds; a shield takes it whole, and what answers a bolt answers. A glyph seal is told
+## 1 while a parry has it stunned); a shield takes it whole, and what answers a bolt answers. A glyph seal is told
 ## which spell struck it (`spell`, &"" for a plain blow) and where it was cast from (`from`), and
 ## opens only to its own (GlyphSeal.struck).
-static func strike(e: Node, dir: Vector2, damage: int, stun: float, spell: StringName = &"", from: Vector2 = Vector2.INF) -> void:
+static func strike(e: Node, dir: Vector2, damage: int, spell: StringName = &"", from: Vector2 = Vector2.INF) -> void:
 	if e is GlyphSeal:
 		(e as GlyphSeal).struck(spell, from, 0.0)
 		return
@@ -107,9 +107,6 @@ static func strike(e: Node, dir: Vector2, damage: int, stun: float, spell: Strin
 		RisoFx.burst(&"hit", (e as Node2D).global_position, dir, [RisoPrint.ACCENT, RisoPrint.BLUE])
 	if wound == null and HexBolt.answers(e):
 		e.call("hex_hit", damage, dir)
-	var stunner: Stunner = Stunner.of(e)
-	if stunner != null and is_instance_valid(e) and not e.is_queued_for_deletion() and stun > 0.0:
-		stunner.stun(stun)
 
 
 ## Throw the wizard back off a spell they cast heading `dir`, at `power` (1 a slash's; see RECOIL).

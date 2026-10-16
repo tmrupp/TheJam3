@@ -4,7 +4,7 @@ extends Node2D
 ## down where they were (lob); rock across its way stops it going across, and it lands on the first
 ## floor under it. Landed, it swells for HATCH seconds (sooner on a harder preset, Difficulty.attack)
 ## and bursts into Spider.BROOD spiderlings (Spiderling), scattering. Any blow bursts it first
-## (BroodWound: a hex bolt or a dash, even one that only stuns). It goes with the spider. Printed as
+## (BroodWound: a hex bolt or a dash, even one of no damage). It goes with the spider. Printed as
 ## a ball of pale silk wound round, its eggs glowing pink through it as they near hatching.
 
 ## How hard it falls (px/s²), how long a lob takes (seconds, from, to: further takes longer, LOB_PX

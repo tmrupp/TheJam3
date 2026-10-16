@@ -4,13 +4,12 @@ class_name Lunge
 ## held, left or right, else the way they face) at its speed for the knock-back's time
 ## (Player.knock_back, a quarter of a second: about 160 px at I), halting a fall, and stabs ahead
 ## as they go: whatever comes within STAB px in front of them, SPAN px up or down (SpellStrike), is
-## wounded by its damage and stunned STUN seconds, each once a lunge. It tears the spider's webs it
+## wounded by its damage, each once a lunge. It tears the spider's webs it
 ## stabs through. Ready again COOLDOWN after. So it is a way across as well as a blow: a lunge from
 ## a jump carries the wizard further. Tiers (Abilities): I wounds 1; II lunges further (SPEED_II);
 ## III wounds 2; IV a stab that lands makes it ready again at once.
 
 const COOLDOWN: float = 1.2
-const STUN: float = 1.0
 ## How fast (px/s) it throws the wizard along.
 const SPEED: float = 640.0
 const SPEED_II: float = 820.0
@@ -101,7 +100,7 @@ func _stab() -> void:
 		if whole in stabbed:
 			continue
 		stabbed.append(whole)
-		SpellStrike.strike(e, Vector2(side, 0.0), damage, STUN, &"lunge", from)
+		SpellStrike.strike(e, Vector2(side, 0.0), damage, &"lunge", from)
 		landed = true
 	SpiderWeb.tear_along(get_tree(), from, tip)
 	if landed and refunds:

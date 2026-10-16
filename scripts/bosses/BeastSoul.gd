@@ -4,7 +4,7 @@ extends Breach
 ## into: a knot of pink flesh rooted in the floor with one of the beast's eyes in it, beating. It is a
 ## breach of its own (Breach): while the wizard is near, abominations climb out of it, and two more
 ## are laid round it each time its level is entered (MapInfo._spawn_souls). It takes HP blows; any
-## hex bolt, dash or parry wounds it, even one that only stuns (Wound.least). Destroyed, it is gone
+## hex bolt, dash or parry wounds it, even one of no damage (Wound.least). Destroyed, it is gone
 ## for the rest of the run (MapInfo.soul_destroyed), and one of the beast's eyes shuts. It drops no
 ## stars. Placed by MapInfo, not with the level, so its level's record knows nothing of it. Nothing
 ## here draws from any RNG.

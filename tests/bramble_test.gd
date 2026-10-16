@@ -4,7 +4,7 @@ extends TestKit
 ## the knot, ledges a hop apart and a foot open to the caves, the same every build and only in its
 ## gate levels; in play, the knot walling off the head, the vines' cadence (warning, out and
 ## hurting, back), a parried lash recoiling, the bulbs spitting seeds a parry turns back into them,
-## bolts and dashes (even ones that only stun) wounding them, a burst bulb withering its vines, a
+## bolts and dashes (even ones of no damage) wounding them, a burst bulb withering its vines, a
 ## lantern death healing it, and the last bulb tearing the knot open, slaying it, leaving its relic
 ## on the landing and opening the way on.
 ## godot --headless --path . --script res://tests/bramble_test.gd
@@ -161,7 +161,7 @@ func run() -> void:
 	bolt.dir = -other.way
 	# Fired from 200 px off: wait for it to arrive rather than a fixed number of frames.
 	await until(func() -> bool: return other.wound.hp <= hp - 2, 3000)
-	check(other.wound.hp == hp - 2, "so does a hex bolt that only stuns")
+	check(other.wound.hp == hp - 2, "so does a hex bolt of no damage")
 	var fed: Array[BrambleVine] = bramble.vines.filter(func(v: BrambleVine) -> bool: return v.bulb == other)
 	other.wound.hit(other.wound.hp, Vector2.RIGHT)
 	await frames(10)

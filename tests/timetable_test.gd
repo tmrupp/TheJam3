@@ -39,6 +39,7 @@ func _laid_out() -> void:
 	var doors_ok: bool = true
 	var furnished: bool = true
 	var boards: int = 0
+	var roomy: int = 0
 	var seals_ok: bool = true
 	var sealed: int = 0
 	var same: bool = true
@@ -95,12 +96,15 @@ func _laid_out() -> void:
 		var out: Array[Vector2i] = w.objects_of(LevelGen.Type.SCHOOL_BELL).filter(func(v: Vector2i) -> bool: return Institute.hall_at(w, v) < 0)
 		if out.size() == 1 and bool((w.get_cell(out[0]).extra_info as Dictionary)["board"]):
 			boards += 1
+			if SchoolBell.ceiling_over(w, out[0]) > Institute.BELL_ROOM:
+				roomy += 1
 		var corridor: Vector2i = w.free_floors()[0]
 		belongs_ok = belongs_ok and Timetable.belongs(w, 0, true, corridor) and not Timetable.belongs(w, 0, false, corridor)
 	check(sessions_ok, "the exam hall in session only in the last period, a lecture hall or the library in one or two before it, never all")
 	check(doors_ok, "a door in every doorway of a hall with a class")
 	check(furnished, "a lectern and a bell in each lecture hall, a bell in the library")
-	check_eq(boards, LAID.size(), "one bell out in the corridors, bearing the timetable's board")
+	check_eq(boards, LAID.size(), "one cord out in the corridors, under the great bell, with the timetable's board")
+	check(roomy >= LAID.size() - 1, "where there is room over it for the great bell (%d of %d)" % [roomy, LAID.size()])
 	check(seals_ok and sealed > 0, "glyph seals just inside the exam hall's and the library's doorways, asking for a spell taught there (%d)" % sealed)
 	check(same, "laid out the same twice")
 	check(belongs_ok, "the wizard belongs in the corridors in passing time and in a class in session, never in the exam hall")
@@ -156,6 +160,13 @@ func _belonging(rec: LevelRecord, bell: SchoolBell) -> void:
 	check(calm > 0, "not the whole level: %d far off stay calm" % calm)
 	await _ring(bell)
 	check(rec.period == 1 and rec.passing, "a ring: the next period, and passing time")
+	check(info.since_bell < MapInfo.BELL_TIME, "the great bell rings out")
+	for n: Node in placed("school_bell.tscn"):
+		var cord: SchoolBell = n as SchoolBell
+		if cord.reach != SchoolBell.ceiling_over(info.world, cord.get_meta(&"cell")) or cord.reach < 2:
+			check(false, "a cord at %s reaches its ceiling" % cord.get_meta(&"cell"))
+	(placed("school_bell.tscn").filter(func(n: Node) -> bool: return not (n as SchoolBell).board)[0] as SchoolBell).ring()
+	check(rec.period == 1, "another cord pulled at once rings it no more")
 	check(not near.roused and not by.roused, "and every scholar calms down")
 	await within(func() -> bool: return false, 0.6)
 	check(near.sees(player) and not near.roused and not near.hostile(), "in passing time the corridors are the wizard's: one that sees them leaves them be")
@@ -163,7 +174,7 @@ func _belonging(rec: LevelRecord, bell: SchoolBell) -> void:
 	check(near.roused, "where it sees: it turns on them anyway")
 	await _ring(bell)
 	check(not near.roused, "rung again, calm")
-	SpellStrike.strike(by, Vector2.RIGHT, 0, 0.0)
+	SpellStrike.strike(by, Vector2.RIGHT, 0)
 	check(by.roused, "struck, it turns")
 	near.queue_free()
 	by.queue_free()
@@ -357,7 +368,7 @@ func _spells() -> void:
 
 ## Ring `bell`, as soon as it can be rung again.
 func _ring(bell: SchoolBell) -> void:
-	bell.since_rung = SchoolBell.RING_GAP
+	info.since_bell = SchoolBell.RING_GAP
 	bell.ring()
 	await frames(2)
 

@@ -5,7 +5,7 @@ class_name Wraith
 ## through rock (slower inside it), and darts at them once near (see DART_RANGE). Its touch hurts, like any enemy's, and it falls back a moment
 ## after. If the wizard gets beyond LOSE it drifts home. Nothing solid stops it, and nothing stops
 ## the wizard passing through it. Nothing hurts it either (its Wound is unhurt): a blow only shows
-## on it, and the hex or a parry stuns it. Moved only from here: its body is a frozen kinematic
+## on it, and a parry stuns it. Moved only from here: its body is a frozen kinematic
 ## RigidBody2D that collides with nothing, and its HitBox does the hurting.
 ##
 ## It hunts only a wizard whose flame is out (MapInfo.flame_lit): snuffed at a font (Snuffer), or

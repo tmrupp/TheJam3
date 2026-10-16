@@ -1,7 +1,7 @@
 class_name BroodWound
 extends Wound
 ## The health of the spider's brood (EggSac, Spiderling): one blow of anything, a hex bolt or a
-## dash, even one that only stuns (least 1), and it bursts. Unlike a level's enemies it drops no
+## dash, even one of no damage (least 1), and it bursts. Unlike a level's enemies it drops no
 ## stars and nothing is kept in the level's record: the spider makes more.
 
 

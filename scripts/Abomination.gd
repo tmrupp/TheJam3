@@ -13,7 +13,7 @@ class_name Abomination
 ## it). As it goes it leaves a trail of pink slime (Slime) that hurts the wizard while it is fresh and soon fades. Its touch
 ## hurts the wizard (its HitBox); a scholar it touches it bites, wounding it every BITE_EVERY
 ## seconds. The scholars' bolts and spells wound it in turn, so a fight in the institute has three
-## sides. A stun (the hex's, a parry) stops it.
+## sides. A parry's stun stops it.
 ##
 ## It grows and multiplies: its blobs are its health (its Wound's hit points, `lobes`), so every
 ## wound bursts one blob, and the last one kills it. Every GROW_EVERY seconds (a little more or

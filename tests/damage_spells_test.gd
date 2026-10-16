@@ -1,9 +1,9 @@
 extends TestKit
 ## The damage spells (Slash, Nova, Push and Lunge strike round the wizard, SpellStrike; Seeker), in the damage
-## slot on the Spell button: a slash wounds and stuns what is in its arc in front and not what is
+## slot on the Spell button, none of them stunning (only a parry stuns): a slash wounds what is in its arc in front and not what is
 ## behind, comes back quickly, and at IV cuts shots out of the air; a shield takes it whole; a nova
 ## strikes everything round the wizard within its reach and nothing past it, and is slow to come
-## back; a push stuns what is in its cone and shoves it away without wounding it at I, wounds what
+## back; a push shoves what is in its cone away without wounding it at I, wounds what
 ## it slams into a wall and, at once, what cannot be moved, wounds at II, and blows shots away; a
 ## seeker turns onto an enemy a straight bolt would miss; a lunge throws the wizard forward and
 ## stabs what it reaches. A slash that lands throws the wizard back off what it struck, and its mark
@@ -74,7 +74,7 @@ func run() -> void:
 	var hp_ahead: int = hp(ahead)
 	var hp_behind: int = hp(behind)
 	check(slash.cast(Vector2.RIGHT), "it slashes")
-	check(hp(ahead) == hp_ahead - 1 and stunned(ahead), "what is in front is wounded and stunned")
+	check(hp(ahead) == hp_ahead - 1 and not stunned(ahead), "what is in front is wounded, not stunned")
 	check(hp(behind) == hp_behind and not stunned(behind), "what is behind is not")
 	check(player.knock.x < 0.0 and player.knock_back.is_acting(), "landing it throws the wizard back off what it struck (recoil_test has the measures)")
 	player.knock = Vector2.ZERO
@@ -144,7 +144,7 @@ func run() -> void:
 	var hp_far: int = hp(far)
 	var hp_left: int = hp(left)
 	check(nova.cast(), "it bursts")
-	check(hp(left) == hp_left - 1 and hp(right) == hp_left - 1 and stunned(left) and stunned(right), "everything round the wizard within its reach is wounded and stunned")
+	check(hp(left) == hp_left - 1 and hp(right) == hp_left - 1 and not stunned(left) and not stunned(right), "everything round the wizard within its reach is wounded, not stunned")
 	check(hp(far) == hp_far and not stunned(far), "nothing past its reach")
 	check(not nova.cast() and Nova.COOLDOWN > Slash.COOLDOWN * 4.0, "it is slow to come back")
 	for e: Node2D in [left, right, far]:
@@ -163,7 +163,7 @@ func run() -> void:
 	var blown: Bullet = shot(at, 100.0)
 	check(push.cast(Vector2.RIGHT), "it blows")
 	await frames(1)
-	check(stunned(target) and hp(target) == hp_target, "what is in its cone is stunned, not wounded at I")
+	check(not stunned(target) and hp(target) == hp_target, "what is in its cone is neither stunned nor wounded at I")
 	check(not is_instance_valid(blown) or blown.is_queued_for_deletion(), "and shots in it are blown away")
 	var shoved: bool = await within(func() -> bool: return target.global_position.x > from_x + Push.SHOVE * 0.5, Push.SHOVE_TIME + 0.3)
 	check(shoved, "and it is shoved away (%.0f px)" % (target.global_position.x - from_x))
@@ -194,7 +194,6 @@ func run() -> void:
 	push.wait = 0.0
 	target.global_position = info.cell_position(at) + Vector2(70.0, 16.0)
 	push.cast(Vector2.RIGHT)
-	# (Still stunned from the first, it takes double, as any stunned enemy does: Wound.)
 	check(hp(target) < hp_target, "push II also wounds")
 	if is_instance_valid(target):
 		target.queue_free()
@@ -252,7 +251,7 @@ func run() -> void:
 	lunge.wait = 0.0
 	lunge.cast(1.0)
 	var stabbed: bool = await within(func() -> bool: return hp(stuck) < hp_stuck, 0.6)
-	check(stabbed and stunned(stuck), "and stabs what it reaches on the way")
+	check(stabbed and not stunned(stuck), "and stabs what it reaches on the way, wounding, not stunning")
 	player.set_physics_process(false)
 	if is_instance_valid(stuck):
 		stuck.queue_free()

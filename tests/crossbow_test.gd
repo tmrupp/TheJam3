@@ -9,8 +9,8 @@ extends TestKit
 ## at the wizard in the room behind it), the first after its draw and the next only once it has
 ## reloaded; an arrow wounds an enemy in its way; a
 ## hex bolt or a slash from outside stops at the wall and leaves it whole; from the room, a slash
-## and bolts that only stun (hex I) wound it, and it breaks, the level record keeps it broken, and
-## the wall stays whole. A nest is wounded by a slash and bolts that only stun too, and destroyed.
+## and bolts of no damage wound it, and it breaks, the level record keeps it broken, and
+## the wall stays whole. A nest is wounded by a slash and bolts of no damage too, and destroyed.
 ## godot --headless --path . --script res://tests/crossbow_test.gd
 
 
@@ -193,7 +193,7 @@ func shooting(cell: float) -> void:
 	await frames(5)
 	await within(func() -> bool: return false, Crossbow.DRAW + 1.0)
 	check(_arrows().is_empty() and not bow.sees, "nor at the wizard in the room behind it")
-	# From the room, a slash and bolts that only stun break it, and it stays broken.
+	# From the room, a slash and bolts of no damage break it, and it stays broken.
 	var at: Vector2i = bow.get_meta(&"cell")
 	var wall: Vector2 = room + Vector2(f * cell, 0.0)
 	_slash(room, Vector2(f, 0.0), 1)
@@ -203,7 +203,7 @@ func shooting(cell: float) -> void:
 			break
 		_bolt(inside, Vector2(f, 0.0), 0)
 		await frames(20)
-	check(not is_instance_valid(bow) or bow.is_queued_for_deletion(), "and bolts that only stun break it (%d)" % hp)
+	check(not is_instance_valid(bow) or bow.is_queued_for_deletion(), "and bolts of no damage break it (%d)" % hp)
 	check(info.record().slain.has(at), "the level record keeps it broken")
 	check(info.solid_at(wall), "and the wall stays whole")
 
@@ -238,7 +238,7 @@ func nest(cell: float) -> void:
 		await frames(1)
 		_bolt(from, Vector2(-side, 0.0), 0)
 		await frames(20)
-	check(not is_instance_valid(host) or host.is_queued_for_deletion(), "and bolts that only stun destroy it (%d)" % hp)
+	check(not is_instance_valid(host) or host.is_queued_for_deletion(), "and bolts of no damage destroy it (%d)" % hp)
 	check(info.record().slain.has(at), "the level record keeps it so")
 
 

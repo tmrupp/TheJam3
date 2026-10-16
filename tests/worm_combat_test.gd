@@ -82,7 +82,7 @@ func run() -> void:
 	await frames(2)
 	check(head.bite.collision.disabled and head.live, "its resting head is harmless but stays solid and attackable")
 	var resting_hp: int = head.wound.hp
-	SpellStrike.strike(head, Vector2.RIGHT, 1, 0.0)
+	SpellStrike.strike(head, Vector2.RIGHT, 1)
 	check(head.wound.hp == resting_hp - 1, "the resting head takes a strike, without a stun's double damage")
 	was_u = p.u
 	var was_clock: float = p.clock

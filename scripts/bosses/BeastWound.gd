@@ -3,7 +3,7 @@ extends Wound
 ## The eldritch beast's health (Beast): the blows its great eye takes once every soul is destroyed
 ## (BeastSouls). While any soul lives a strike glances off it (Beast.glance), waking it if it
 ## sleeps; once its eyes are all shut, any hex bolt, dash or parry wounds its great eye by one,
-## even one that only stuns at its tier (least 1). With the last it dies (Beast.die): no stars,
+## even one of no damage (least 1). With the last it dies (Beast.die): no stars,
 ## nothing kept in the level's record.
 
 

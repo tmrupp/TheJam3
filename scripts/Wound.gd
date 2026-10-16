@@ -7,8 +7,8 @@ class_name Wound
 ## nothing and is never slain.
 
 var hp: int = 1
-## The least a hex bolt or a dash wounds it by, even at a tier that only stuns (0: as the tier
-## says). The worm's soft segments are cut by anything that strikes them (WormWound).
+## The least a hex bolt or a dash wounds it by, even one of no damage (0: as the
+## blow says). The worm's soft segments are cut by anything that strikes them (WormWound).
 var least: int = 0
 ## Whether it drops stars when slain (the necromancer's skeletons do not, Necromancer).
 var stars: bool = true
@@ -20,7 +20,7 @@ signal slain
 signal warded(dir: Vector2)
 
 ## What a blow of `damage` deals to `wound`: at least its `least`, and at least 1 while it is stunned,
-## so a blow that would only stun (a hex or push at tier I) still wounds an enemy already stunned.
+## so even a blow of no damage (a push at tier I) wounds an enemy a parry has left stunned.
 static func dealt(wound: Wound, damage: int) -> int:
 	return maxi(maxi(damage, wound.least), 1 if wound.stunned() else 0)
 

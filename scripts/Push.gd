@@ -2,19 +2,18 @@ extends Node
 class_name Push
 ## Push, a damage spell: the Spell button (Q, or the pad's X) blows a gust of spell light out in a
 ## cone in front of the wizard, aimed like the hex (the held direction, else facing), REACH px out
-## and HALF either way. Everything it catches (SpellStrike) is stunned STUN seconds, and wounded by
-## its damage (none at tier I); an enemy that can be stunned, and is no boss, is shoved SHOVE px
-## away over SHOVE_TIME, into thorns or off a ledge as it may be. Slammed into rock on the way (a
+## and HALF either way. Everything it catches (SpellStrike) is wounded by its damage (none at tier
+## I: a push I only shoves), never stunned; an enemy that a parry can stun, and is no boss, is
+## shoved SHOVE px away over SHOVE_TIME, into thorns or off a ledge as it may be. Slammed into rock on the way (a
 ## wall, the floor), it stops there and is wounded SLAM more; what cannot be moved (a boss, the
 ## worm, a crossbow in its wall, a nest) takes the SLAM at once, with the gust's own wound. Shots in
 ## the cone (a watcher's, an arrow, the spider's web) are blown away. Every gust throws the wizard
 ## hard back the other way, whether it catches anything or not (SpellStrike.recoil, at RECOIL): a
 ## gust down from the air is a big bounce up. Ready again COOLDOWN after.
-## Tiers (Abilities): I shoves and stuns; II also wounds 1; III reaches and shoves further and
+## Tiers (Abilities): I shoves; II also wounds 1; III reaches and shoves further and
 ## wider (REACH_III, HALF_III, SHOVE_III); IV wounds 2.
 
 const COOLDOWN: float = 3.0
-const STUN: float = 1.5
 const REACH: float = 180.0
 const HALF: float = 0.6
 const SHOVE: float = 160.0
@@ -68,8 +67,8 @@ func _physics_process(delta: float) -> void:
 	wait = maxf(0.0, wait - delta)
 
 
-## Whether a push can shove `e`: an enemy that can be stunned by more than a parry, whole (no worm
-## segment).
+## Whether a push can shove `e`: an enemy with a Stunner that is not stunned by a parry alone (no
+## boss), whole (no worm segment).
 static func movable(e: Node) -> bool:
 	var stunner: Stunner = Stunner.of(e)
 	return stunner != null and not stunner.parry_only and Wound.whole(e) == e
@@ -97,9 +96,9 @@ func cast(dir: Vector2 = Vector2.ZERO) -> bool:
 	SpellStrike.thorns_caught(get_tree(), from, catches, dir)
 	for e: Node in SpellStrike.caught(get_tree(), from, catches, catches_spider):
 		if not movable(e):
-			SpellStrike.strike(e, dir, damage + SLAM, STUN, &"push", from)
+			SpellStrike.strike(e, dir, damage + SLAM, &"push", from)
 			continue
-		SpellStrike.strike(e, dir, damage, STUN, &"push", from)
+		SpellStrike.strike(e, dir, damage, &"push", from)
 		if is_instance_valid(e) and not e.is_queued_for_deletion():
 			var gust: Shove = Shove.new()
 			gust.velocity = dir * shove / SHOVE_TIME

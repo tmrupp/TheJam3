@@ -12,7 +12,7 @@ extends Node2D
 ## the first shot comes almost at once and the rest more slowly. Its arrows wound any enemy in their way, too (Bullet). From outside it is a cell of stone away: bolts and
 ## dashes stop at the wall short of it, and a parried arrow flies back only as far as the wall.
 ## From the room inside it is right at the wall's face, an enemy like any (its Wound, given as it
-## is placed): any hex bolt or dash wounds it, even one that only stuns (Wound.least), and once
+## is placed): any hex bolt or dash wounds it, even one of no damage (Wound.least), and once
 ## broken the level record keeps it so until the wizard dies, the wall left whole. Its cell in the
 ## level is the room cell before the wall; the node sits in the wall. Nothing here draws from the
 ## world RNG.
@@ -76,7 +76,7 @@ func setup(info: MapInfo, v: Vector2i, extra: Variant) -> void:
 	if bool(how.get("inward", false)):
 		anchor = global_position - Vector2(float(facing) * (cell_px * 1.5 - DEPTH), 0.0)
 	global_position = anchor
-	# Wounded by any bolt or dash, even one that only stuns: it has nothing to stun.
+	# Wounded by any bolt or dash, even one of no damage: it has nothing to stun.
 	var wound: Wound = get_node_or_null("Wound") as Wound
 	if wound != null:
 		wound.least = 1

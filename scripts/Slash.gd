@@ -3,13 +3,12 @@ class_name Slash
 ## Slash, a damage spell: the Spell button (Q, or the pad's X) sweeps an arc of spell light in front
 ## of the wizard, aimed like the hex (the held direction, else facing), REACH px out and HALF
 ## either way. It is quick, ready again COOLDOWN after, and everything it catches is struck at once
-## (SpellStrike): wounded by its damage, then stunned STUN seconds. It tears the spider's webs in
+## (SpellStrike): wounded by its damage. It tears the spider's webs in
 ## its arc and cuts a spider's thread across it. Landing a blow, on an enemy or on thorns, throws the
 ## wizard back off it (SpellStrike.recoil): a slash down from the air bounces them up. Tiers (Abilities): I wounds 1; II reaches further
 ## and wider (REACH_II, HALF_II); III wounds 2; IV also cuts shots out of the air in its arc.
 
 const COOLDOWN: float = 0.45
-const STUN: float = 0.8
 const REACH: float = 110.0
 const HALF: float = 1.05
 const REACH_II: float = 140.0
@@ -79,7 +78,7 @@ func cast(dir: Vector2 = Vector2.ZERO) -> bool:
 		return rays.any(func(r: Vector2) -> bool: return s.struck_by(from, from + r * reach, 0.0))
 	var struck: Array[Node] = SpellStrike.caught(get_tree(), from, catches, catches_spider)
 	for e: Node in struck:
-		SpellStrike.strike(e, ((e as Node2D).global_position - from).normalized(), damage, STUN, &"slash", from)
+		SpellStrike.strike(e, ((e as Node2D).global_position - from).normalized(), damage, &"slash", from)
 	var thorns: Array[Spikes] = SpellStrike.thorns_caught(get_tree(), from, catches, dir)
 	if not struck.is_empty() or not thorns.is_empty():
 		SpellStrike.recoil(player, dir)

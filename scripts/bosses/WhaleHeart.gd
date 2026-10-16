@@ -1,7 +1,7 @@
 class_name WhaleHeart
 extends Node2D
 ## The whale's heart (Whale), at the far end of its belly (Belly): the whale's one weak point. It
-## takes HP blows; any hex bolt or dash wounds it, even one that only stuns (Wound.least). Burst, it
+## takes HP blows; any hex bolt or dash wounds it, even one of no damage (Wound.least). Burst, it
 ## slays the whale, and the wizard is spat out into the whale's level by its way on, where the
 ## whale's relic waits (MapInfo.whale_burst). Leaving the belly with it whole heals it, as the belly
 ## is made again. Printed by itself: a great heart in sun (a weak point) beating on a dark knot of

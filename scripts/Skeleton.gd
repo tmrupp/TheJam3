@@ -7,7 +7,7 @@ class_name Skeleton
 ## and its touch hurts; close to them it swipes (see SWIPE_SIGHT). Light is what wakes it: a snuffed wizard (Snuffer) slips past the sleepers.
 ## One the necromancer raises comes up out of its grave awake. Once awake it stays awake; with the
 ## wizard beyond LOSE it stands where it is. It cannot be killed (its Wound is unhurt): a blow or a
-## stun (a parry, the hex's) knocks it to pieces, a heap of bones on the floor, harmless, for
+## stun (a parry's) knocks it to pieces, a heap of bones on the floor, harmless, for
 ## APART seconds, and then it pulls itself together again (REFORM seconds) and comes on, awake. The
 ## body is a frozen kinematic RigidBody2D moved only from here, falling under its own gravity, as a
 ## wisp's is (Mover).

@@ -2,13 +2,12 @@ extends Node
 class_name Nova
 ## Nova, a damage spell: the Spell button (Q, or the pad's X) bursts spell light out all round the
 ## wizard, RADIUS px, striking everything it reaches that rock does not shelter (SpellStrike):
-## wounded by its damage, then stunned STUN seconds. It tears the spider's webs it reaches. It is
+## wounded by its damage. It tears the spider's webs it reaches. It is
 ## slow to come back (COOLDOWN). Tiers (Abilities): I wounds 1; II reaches further (RADIUS_II);
 ## III wounds 2; IV comes back sooner (COOLDOWN_IV).
 
 const COOLDOWN: float = 8.0
 const COOLDOWN_IV: float = 5.0
-const STUN: float = 2.0
 const RADIUS: float = 170.0
 const RADIUS_II: float = 220.0
 ## How many ways out it feels for the spider's webs.
@@ -58,7 +57,7 @@ func cast() -> bool:
 	var catches_spider: Callable = func(s: Spider) -> bool: return s.struck_by(from, from, radius) and SpellStrike.clear(from, s.global_position)
 	for e: Node in SpellStrike.caught(get_tree(), from, catches, catches_spider):
 		var away: Vector2 = ((e as Node2D).global_position - from)
-		SpellStrike.strike(e, away.normalized() if away != Vector2.ZERO else Vector2.UP, damage, STUN, &"nova", from)
+		SpellStrike.strike(e, away.normalized() if away != Vector2.ZERO else Vector2.UP, damage, &"nova", from)
 	for k: int in range(RAYS):
 		SpiderWeb.tear_along(get_tree(), from, from + Vector2.from_angle(TAU * float(k) / float(RAYS)) * radius)
 	SpellMark.leave(&"nova", from, Vector2.RIGHT, radius, PI, RisoPrint.ACCENT, player)

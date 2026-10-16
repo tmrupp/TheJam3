@@ -3,32 +3,34 @@ class_name Hex
 ## The hex bolt, a spell: Spell (Q, or the pad's X) throws a comet of spell light from the wand,
 ## aimed like the dash (the held direction, else facing). It has charges that come back one per
 ## COOLDOWN, and lighting a lantern refills them. Each throw knocks the wizard back a little
-## (RECOIL, SpellStrike.recoil). Tiers (Abilities): I only stuns what it hits;
-## II also wounds (1 damage); III +1 charge; IV +1 damage and pierces its first enemy.
+## (RECOIL, SpellStrike.recoil). It wounds what it hits and stuns nothing (only a parry stuns).
+## Tiers (Abilities): I wounds 1; II its charge comes back sooner (COOLDOWN_II); III +1 charge; IV +1
+## damage and pierces its first enemy.
 
-## Seconds for a spent charge to come back.
+## Seconds for a spent charge to come back (sooner from tier II).
 const COOLDOWN: float = 3.5
+const COOLDOWN_II: float = 2.5
 ## How hard a cast throws the wizard back (SpellStrike.recoil's power: a slash that lands is 1): a
 ## little, whether the bolt strikes anything or not, the price of a blow from afar.
 const RECOIL: float = 0.35
-## How long a hex leaves an enemy stunned.
-const STUN: float = 3.0
 
 var charges_max: int = 1
 var charges: int = 1
 var recharge: float = 0.0
-## 0 at tier I: the bolt only stuns.
-var damage: int = 0
+## What its bolt wounds by, and how long a spent charge takes to come back (seconds).
+var damage: int = 1
+var cooldown: float = COOLDOWN
 var pierce: bool = false
 
 @onready var player: Player = get_parent() as Player
 
 
-## Its tier (Abilities): I only stuns; II also wounds 1; III one more charge; IV 1 more damage and
-## the bolt pierces its first enemy.
+## Its tier (Abilities): I wounds 1; II its charge comes back sooner; III one more charge; IV 1 more
+## damage and the bolt pierces its first enemy.
 func set_tier(n: int) -> void:
 	charges_max = 1 + (1 if n >= 3 else 0)
-	damage = (1 if n >= 2 else 0) + (1 if n >= 4 else 0)
+	damage = 1 + (1 if n >= 4 else 0)
+	cooldown = COOLDOWN_II if n >= 2 else COOLDOWN
 	pierce = n >= 4
 	charges = mini(charges, charges_max)
 
@@ -46,7 +48,7 @@ func refill() -> void:
 
 ## 0..1 toward the next charge, or 1 while a charge is ready (the wand tip shows it).
 func readiness() -> float:
-	return 1.0 if charges > 0 else clampf(recharge / COOLDOWN, 0.0, 1.0)
+	return 1.0 if charges > 0 else clampf(recharge / cooldown, 0.0, 1.0)
 
 
 ## A bolt is thrown and done: never running (see Abilities.running).
@@ -57,7 +59,7 @@ func running() -> Vector2:
 func _physics_process(delta: float) -> void:
 	if charges < charges_max:
 		recharge += delta
-		if recharge >= COOLDOWN:
+		if recharge >= cooldown:
 			charges += 1
 			recharge = 0.0
 

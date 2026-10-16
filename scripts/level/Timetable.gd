@@ -3,9 +3,9 @@ extends RefCounted
 ## The institute's timetable (docs/REGIONS_PLAN.md §7 and §9): its band-wide puzzle, as light is the
 ## cemetery's and the tower switches are the crags'. There is no clock: nothing in it happens until a
 ## bell is rung (SchoolBell) or the wizard goes somewhere.
-## - A level's day is a cycle of PERIODS periods. A ring moves the level on to the next and starts
-##   passing time; the wizard going into a hall whose class is in session ends it, and the period
-##   begins. The period and whether it is passing time are kept in the level's record
+## - A level's day is a cycle of PERIODS periods. A ring of its great bell (pulling any of its cords,
+##   SchoolBell) moves the level on to the next and starts passing time; the wizard going into a hall
+##   whose class is in session ends it, and the period begins. The period and whether it is passing time are kept in the level's record
 ##   (LevelRecord.period, passing); a level is first met in its first period, under way.
 ## - Each hall with a class (TIMETABLED) is in session in some periods and not others (sessions,
 ##   dealt from the level seed): a lecture hall or the library in one or two of the periods before
@@ -17,9 +17,9 @@ extends RefCounted
 ##   whose class is not in session, the exam hall, the beast's chamber) they are truant, and the
 ##   scholars who see them there turn on them (Scholar.rouse) until the next bell.
 ## - A lecture hall's class in session sets a trial of its master's spell (MapInfo.begin_trial); the
-##   exam hall's doorways, and the library's, are barred just inside by glyph seals (GlyphSeal) asking for a spell
-##   some lecture hall's master here teaches (seal_of), so a level can be got through from within
-##   itself.
+##   exam hall's doorways, and the library's, are barred just inside by glyph seals (GlyphSeal)
+##   asking for a spell some lecture hall's master here teaches (seal_of), so a level can be got
+##   through from within itself.
 ## Nothing here draws from any RNG: it is all hashed from the level seed.
 
 ## How many periods a day has, and the last, the exam's.
