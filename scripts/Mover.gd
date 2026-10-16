@@ -223,12 +223,40 @@ func _wall_near() -> bool:
 	return absf(_wall_hit.get_normal().x) > 0.7 and signf(_wall_hit.get_normal().x) == -float(direction)
 
 
+## Another wisp within this height is on the same floor.
+const SAME_FLOOR: float = 24.0
+## The level's wisps by band of height (WISP_BAND px tall), sorted once a physics step by where
+## they stood when the first wisp looked (or again when wisps come or go), so a wisp looks only at
+## those in the bands its own floor can reach rather than at every wisp in the level (a level holds
+## dozens, and each looks every step). A wisp that has moved since is still found where it is
+## now, unless it moved more than BAND_SLACK px up or down within that step.
+const WISP_BAND: float = 64.0
+const BAND_SLACK: float = 64.0
+static var _bands: Dictionary = {}
+static var _bands_step: int = -1
+static var _bands_count: int = -1
+
+
 ## Another wisp in front on the same floor, closer than WISP_GAP.
 func _wisp_ahead() -> bool:
-	for other: Node in get_tree().get_nodes_in_group(&"wisps"):
-		if other == rb:
-			continue
-		var d: Vector2 = (other as Node2D).global_position - rb.global_position
-		if absf(d.y) < 24.0 and d.x * float(direction) > 0.0 and absf(d.x) < WISP_GAP:
-			return true
+	var tree: SceneTree = get_tree()
+	var step: int = Engine.get_physics_frames()
+	var count: int = tree.get_node_count_in_group(&"wisps")
+	if step != _bands_step or count != _bands_count:
+		_bands_step = step
+		_bands_count = count
+		_bands.clear()
+		for other: Node in tree.get_nodes_in_group(&"wisps"):
+			var band: int = floori((other as Node2D).global_position.y / WISP_BAND)
+			if not _bands.has(band):
+				_bands[band] = []
+			(_bands[band] as Array).append(other)
+	var here: Vector2 = rb.global_position
+	for band: int in range(floori((here.y - SAME_FLOOR - BAND_SLACK) / WISP_BAND), floori((here.y + SAME_FLOOR + BAND_SLACK) / WISP_BAND) + 1):
+		for entry: Variant in _bands.get(band, []):
+			if not is_instance_valid(entry) or entry == rb:
+				continue
+			var d: Vector2 = (entry as Node2D).global_position - here
+			if absf(d.y) < SAME_FLOOR and d.x * float(direction) > 0.0 and absf(d.x) < WISP_GAP:
+				return true
 	return false

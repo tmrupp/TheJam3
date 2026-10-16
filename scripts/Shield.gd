@@ -66,6 +66,11 @@ func _process(delta: float) -> void:
 	since_hit += delta
 	if since_broke >= 0.0:
 		since_broke += delta
+	for i: int in range(_broken.size()):
+		_broken[i].y += delta
+	# Printed only near the view, as props are; off it, it keeps its last print.
+	if not RisoProp.near_view(self, global_position):
+		return
 	# Centred on what its host's art draws (a wisp's body trails behind its origin), upright.
 	var art: RisoProp = get_parent().get_node_or_null("RisoArt") as RisoProp if get_parent() != null else null
 	ink.global_transform = Transform2D(0.0, art.guard_center() if art != null else global_position)
@@ -73,7 +78,6 @@ func _process(delta: float) -> void:
 	if hp > 0:
 		RisoWard.plates(ink, Vector2.ZERO, RADIUS, full, hp, _spin(), clampf(1.0 - since_hit / 0.18, 0.0, 1.0), RisoPrint.PINK)
 	for i: int in range(_broken.size()):
-		_broken[i].y += delta
 		RisoWard.shards(ink, Vector2.ZERO, RADIUS, _broken[i].x, _broken[i].y / RisoWard.SHARD_TIME, RisoPrint.PINK)
 	ink.finish()
 
