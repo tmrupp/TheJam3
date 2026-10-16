@@ -229,13 +229,17 @@ func _static_flecks(center: Vector2, tick: float, row: float, rows: int, odds_by
 		var i: int = 0
 		while x < hw:
 			var seed_f: float = float(r) * 13.17 + float(i) * 7.31 + tick * 3.77 + phase * 50.0
-			var w: float = minf(1.5 + RisoShapes.hash1(seed_f) * 7.0, hw - x)
-			var v: float = RisoShapes.hash1(seed_f + 0.5)
-			var cell: PackedVector2Array = PackedVector2Array([center + Vector2(x, y0), center + Vector2(x + w, y0), center + Vector2(x + w, y0 + row - 1.5), center + Vector2(x, y0 + row - 1.5)])
-			if v < odds:
-				snow.append(cell)
-			elif v > 0.9:
-				dark.append(cell)
+			# RisoShapes.hash1 of seed_f and of seed_f + 0.5, written out (it runs for every fleck).
+			var w_roll: float = sin(seed_f * 127.1 + 311.7) * 43758.5453
+			var w: float = minf(1.5 + (w_roll - floorf(w_roll)) * 7.0, hw - x)
+			var v_roll: float = sin((seed_f + 0.5) * 127.1 + 311.7) * 43758.5453
+			var v: float = v_roll - floorf(v_roll)
+			if v < odds or v > 0.9:
+				var cell: PackedVector2Array = PackedVector2Array([center + Vector2(x, y0), center + Vector2(x + w, y0), center + Vector2(x + w, y0 + row - 1.5), center + Vector2(x, y0 + row - 1.5)])
+				if v < odds:
+					snow.append(cell)
+				else:
+					dark.append(cell)
 			x += w
 			i += 1
 	_snow = snow

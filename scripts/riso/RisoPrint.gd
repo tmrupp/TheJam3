@@ -26,6 +26,19 @@ const PLATE_BIT0: int = 12
 const OVERLAY_BIT: int = 20
 const PRINT_SHADER: Shader = preload("res://shaders/riso_print.gdshader")
 const UI_SHADER: Shader = preload("res://shaders/riso_ui.gdshader")
+const NOISE_SHADER: Shader = preload("res://shaders/riso_noise.gdshader")
+## The print reads its noise from a table this many texels a side (NZ in riso_core.gdshaderinc),
+## drawn once, rather than hashing every pixel of every plate (32-bit integer multiplies are slow
+## on integrated GPUs).
+const NOISE_SIZE: int = 1024
+## Each plate's noise streams start at a corner of the table of their own, from a hash of the
+## sheet's seed and the plate's key (plates in order, then the UI's paper), as each plate had a seed
+## of its own when the print hashed every pixel.
+const NOISE_KEYS: Array[int] = [0, 1, 2, 3, 4, 5, 7, 8, 6]
+## Each plate's halftone screen angle (degrees) and small rotation (radians), by plate, then the
+## UI's paper, which registers with blue. Trapped, night takes blue's rotation.
+const SCREEN_ANGLES: Array[float] = [30.0, 75.0, 15.0, 45.0, 45.0, 60.0, 75.0, 75.0, 75.0]
+const PLATE_ROTATIONS: Array[float] = [0.0, 0.0007, -0.0006, 0.0005, -0.0003, 0.0004, -0.0005, 0.0003, 0.0007]
 ## The UI (HUD, interaction prompts) is printed in its own pass, finer than the scene. At full UI
 ## detail these scale the scene's screen cell, wobble, grain, dot gain and misregistration for
 ## it; at none it prints like the scene (see ui_detail).
@@ -199,6 +212,8 @@ var ui_material: ShaderMaterial
 var print_layer: CanvasLayer
 var print_rect: ColorRect
 var print_material: ShaderMaterial
+## The print's noise table, drawn once (see NOISE_SIZE).
+var noise_view: SubViewport
 var background: Node2D
 var terrain: RisoTerrain
 var hud: RisoHud
@@ -420,6 +435,8 @@ func _ready() -> void:
 
 func _build() -> void:
 	var main: Node = get_parent()
+	noise_view = _make_pass(Vector2i(NOISE_SIZE, NOISE_SIZE), NOISE_SHADER)
+	noise_view.render_target_update_mode = SubViewport.UPDATE_ONCE
 	for i: int in range(PLATE_COUNT):
 		plates.append(_make_viewport(plate_mask(i)))
 	print_layer = CanvasLayer.new()
@@ -455,6 +472,12 @@ func _build() -> void:
 		ui_material.set_shader_parameter("plate%d" % i, ui_plates[i].get_texture())
 	ui_material.set_shader_parameter("plate_paper", ui_plates[PLATE_COUNT].get_texture())
 	print_layer.add_child(ui_rect)
+	var screens: PackedVector2Array = PackedVector2Array()
+	for angle: float in SCREEN_ANGLES:
+		screens.append(Vector2.from_angle(deg_to_rad(angle)))
+	for m: ShaderMaterial in [print_material, ui_material]:
+		m.set_shader_parameter("noise", noise_view.get_texture())
+		m.set_shader_parameter("plate_screens", screens)
 	sheet_viewport = SubViewport.new()
 	sheet_viewport.name = "RisoSheet"
 	sheet_viewport.disable_3d = true
@@ -527,6 +550,25 @@ func _make_viewport(mask: int) -> SubViewport:
 	# Antialiased coverage: soft edges become dot ramps in the print, as on a real screen.
 	vp.msaa_2d = Viewport.MSAA_4X
 	vp.size = _screen_size()
+	add_child(vp)
+	return vp
+
+
+## A viewport of `size` of its own (nothing of the game in it) that runs `shader` over itself.
+func _make_pass(size: Vector2i, shader: Shader) -> SubViewport:
+	var vp: SubViewport = SubViewport.new()
+	vp.world_2d = World2D.new()
+	vp.transparent_bg = true
+	vp.disable_3d = true
+	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	vp.size = size
+	var rect: ColorRect = ColorRect.new()
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var m: ShaderMaterial = ShaderMaterial.new()
+	m.shader = shader
+	rect.material = m
+	vp.add_child(rect)
 	add_child(vp)
 	return vp
 
@@ -783,17 +825,24 @@ func _update_uniforms(size: Vector2) -> void:
 	print_material.set_shader_parameter("gain", params[3] * s)
 	print_material.set_shader_parameter("lay", params[4])
 	print_material.set_shader_parameter("specks", specks)
-	print_material.set_shader_parameter("seed", _sheet_seed(sheet_index) if registration == &"sheet" else 3.1)
-	print_material.set_shader_parameter("seed2", _sheet_seed(sheet_index + 1))
+	var seed_now: float = _sheet_seed(sheet_index) if registration == &"sheet" else 3.1
+	var seed_next: float = _sheet_seed(sheet_index + 1)
+	# The print reads the sheets' noise from the table (_set_noise); the seeds themselves are for the
+	# print as it was, which tests/bench_print.gd compares against.
+	print_material.set_shader_parameter("seed", seed_now)
+	print_material.set_shader_parameter("seed2", seed_next)
 	print_material.set_shader_parameter("mixv", m)
 	print_material.set_shader_parameter("trapped", 1.0 if trapped else 0.0)
+	_set_noise(print_material, seed_now, seed_next, trapped)
 	# Pin the print to the world: the shader adds the camera's pixel offset to every noise lookup.
 	var root: Viewport = get_viewport()
 	var view: Transform2D = root.get_final_transform() * root.canvas_transform
 	print_material.set_shader_parameter("pin", -view.origin)
-	# The UI's print: the same sheet and inks, finer, and pinned to the screen (the HUD is).
+	# The UI's print: the same sheet and inks, finer, and pinned to the screen (the HUD is). Its
+	# plates always register on their own.
 	for p: String in ["res", "paper", "ink0", "ink1", "ink2", "ink3", "ink4", "ink5", "ink6", "ink7", "lay", "specks", "seed", "seed2", "mixv"]:
 		ui_material.set_shader_parameter(p, print_material.get_shader_parameter(p))
+	_set_noise(ui_material, seed_now, seed_next, false)
 	for i: int in range(PLATE_COUNT):
 		ui_material.set_shader_parameter("off%d" % i, (print_material.get_shader_parameter("off%d" % i) as Vector2) * _ui_scale(UI_REGISTRATION))
 	ui_material.set_shader_parameter("cell", params[0] * s * _ui_scale(UI_CELL))
@@ -801,6 +850,55 @@ func _update_uniforms(size: Vector2) -> void:
 	ui_material.set_shader_parameter("grain", params[2] * _ui_scale(UI_GRAIN))
 	ui_material.set_shader_parameter("gain", params[3] * s * _ui_scale(UI_GAIN))
 	ui_material.set_shader_parameter("pin", Vector2.ZERO)
+
+
+## Where each plate's noise streams start in the noise table for this sheet and the next (see
+## NOISE_KEYS and nz_a in riso_core.gdshaderinc), and the plates' rotations, set again only when the
+## sheets or the trapping change. Trapped, night takes blue's noise and rotation, and every plate
+## shares one broad wobble.
+func _set_noise(m: ShaderMaterial, seed_now: float, seed_next: float, trap: bool) -> void:
+	var key: Vector3 = Vector3(seed_now, seed_next, 1.0 if trap else 0.0)
+	if m.get_meta(&"noise_key", Vector3(-1.0, -1.0, -1.0)) == key:
+		return
+	m.set_meta(&"noise_key", key)
+	var rots: PackedVector2Array = PackedVector2Array()
+	for i: int in range(PLATE_ROTATIONS.size()):
+		rots.append(Vector2.from_angle(PLATE_ROTATIONS[BLUE if trap and i == NIGHT else i]))
+	m.set_shader_parameter("plate_turns", rots)
+	for sheet_k: int in range(2):
+		var base: float = seed_now if sheet_k == 0 else seed_next
+		var a: PackedVector4Array = PackedVector4Array()
+		var b: PackedVector4Array = PackedVector4Array()
+		var c: PackedVector4Array = PackedVector4Array()
+		for i: int in range(PLATE_COUNT + 1):
+			var k: int = NOISE_KEYS[BLUE if trap and i == NIGHT else i]
+			var sd: float = base + float(k) * 13.1
+			var w1: Vector2 = _nz(base if trap else sd, 0)
+			a.append(_nz4(w1, _nz(sd, 1)))
+			b.append(_nz4(_nz(sd, 2), _nz(sd, 3)))
+			c.append(_nz4(_nz(sd, 4), _nz(sd, 5)))
+		var prefix: String = "nz_" if sheet_k == 0 else "nz2_"
+		m.set_shader_parameter(prefix + "a", a)
+		m.set_shader_parameter(prefix + "b", b)
+		m.set_shader_parameter(prefix + "c", c)
+	m.set_shader_parameter("nz_paper", _nz4(_nz(seed_now + 71.0, 0), _nz(seed_now + 71.0, 1)))
+
+
+## Where noise stream `stream` of seed `sd` starts in the noise table: whole texels.
+static func _nz(sd: float, stream: int) -> Vector2:
+	var h: int = _hash32(_hash32(roundi(sd * 1000.0)) + stream)
+	return Vector2(h % NOISE_SIZE, (h >> 16) % NOISE_SIZE)
+
+
+static func _nz4(first: Vector2, second: Vector2) -> Vector4:
+	return Vector4(first.x, first.y, second.x, second.y)
+
+
+## An integer hash (PCG's output function) of `x`, to 32 bits.
+static func _hash32(x: int) -> int:
+	var st: int = (x * 747796405 + 2891336453) & 0xFFFFFFFF
+	var w: int = (((st >> ((st >> 28) + 4)) ^ st) * 277803737) & 0xFFFFFFFF
+	return ((w >> 22) ^ w) & 0xFFFFFFFF
 
 
 ## A UI print setting's scale at the current UI detail: from 1 (as the scene) to `finest`.

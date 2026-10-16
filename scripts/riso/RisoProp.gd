@@ -208,14 +208,7 @@ func _process(delta: float) -> void:
 	_since_print += delta
 	# Only animate what the camera can see; off-screen art keeps its last print. The camera's
 	# reach is worked out once a frame and shared by every prop (a deep level has hundreds).
-	var frame: int = Engine.get_process_frames()
-	if frame != _view_frame:
-		_view_frame = frame
-		var cam: Camera2D = get_viewport().get_camera_2d()
-		_view_on = cam != null
-		if _view_on:
-			_view_reach = Vector2(get_window().content_scale_size) / cam.zoom * 0.6 + Vector2(160, 160)
-			_view_center = cam.get_screen_center_position()
+	RisoProp._see_view(self)
 	if _view_on and culled():
 		var d: Vector2 = (host.global_position - _view_center).abs()
 		# Something spread wide: by its nearest edge, not its middle.
@@ -240,10 +233,35 @@ func _process(delta: float) -> void:
 
 ## Printed at least once (props are first printed as they come into view).
 var _drawn: bool = false
+## The camera's view this frame (see _see_view): the frame it was worked out in, whether there is
+## a camera, how far from its middle (each way) art is near enough to print, and the middle.
 static var _view_frame: int = -1
 static var _view_on: bool = false
 static var _view_reach: Vector2 = Vector2.ZERO
 static var _view_center: Vector2 = Vector2.ZERO
+
+
+## Work the camera's view out for this frame, unless it is (`node` is any node in the scene).
+static func _see_view(node: Node) -> void:
+	var frame: int = Engine.get_process_frames()
+	if frame == _view_frame:
+		return
+	_view_frame = frame
+	var cam: Camera2D = node.get_viewport().get_camera_2d()
+	_view_on = cam != null
+	if _view_on:
+		_view_reach = Vector2(node.get_window().content_scale_size) / cam.zoom * 0.6 + Vector2(160, 160)
+		_view_center = cam.get_screen_center_position()
+
+
+## Whether `at` (world) is near enough the camera's view for art there to be worth printing, as
+## props judge it; true with no camera. For art that is not a prop (a shield).
+static func near_view(node: Node, at: Vector2) -> bool:
+	_see_view(node)
+	if not _view_on:
+		return true
+	var d: Vector2 = (at - _view_center).abs()
+	return d.x <= _view_reach.x and d.y <= _view_reach.y
 
 
 ## Distance from the host's origin down to the ground surface of its cell, in world pixels.
