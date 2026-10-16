@@ -759,52 +759,61 @@ Each phase ends with the full suite green and its own tests.
   the bramble fit in the ordinary size (the bramble's shaft is half the level tall).
 - **The ward and bosses.** Whether boss hits break a ward charge like any hit, or several.
 - **The institute's timetable** (liked, being worked out): the institute's band-wide puzzle, as
-  light is the cemetery's and the tower switches are the crags'.
-  - *The bell is the switch.* Periods do not pass on a clock: they change when a bell is rung (the
-    tower's great bell, or a rope in a few halls; pulled, or struck by a bolt from across a shaft).
-    Each ring moves the whole level to the next period of a short cycle (four or five): doors open
-    and shut, classes move from hall to hall, the library's ladders slide to the bay that period
-    uses, the lecture halls' tiers fold up or down. The cycle is dealt from the level seed so that
-    some order of rings leads through, the way `Stations.deal` deals the crags' switches; where the
-    wizard stands when ringing is the hard part. A timetable on a noticeboard (and the map) tells
-    which doors each period opens, and who teaches what, where and when. The period is one number
-    kept in the level's record.
-  - *Passing time.* Each ring opens a short passing time (about 8 s) in which the corridors are
-    safe and students flood them (moving cover, or in the way). So the rhythm is "ring, then run":
-    ring from where you stand, and reach the right hall before the passing time is out.
+  light is the cemetery's and the tower switches are the crags'. Nothing in it happens unless a
+  bell is rung or the wizard goes somewhere: there is no clock anywhere.
+  - *The bell is the switch.* A ring (the tower's great bell, or a rope in a few halls; pulled, or
+    struck by a bolt from across a shaft) ends the period and moves the whole level on to the next
+    of a short cycle (four or five): doors open and shut, classes move from hall to hall, the
+    library's ladders slide to the bay that period uses, the lecture halls' tiers fold up or down.
+    The cycle is dealt from the level seed so that some order of rings leads through, the way
+    `Stations.deal` deals the crags' switches; where the wizard stands when ringing is the hard
+    part. A timetable on a noticeboard (and the map) tells which doors each period opens, and who
+    teaches what, where and when. The period is one number kept in the level's record.
+  - *Passing time.* A ring starts passing time: the students pour out into the corridors (moving
+    cover, or in the way) and the halls in session for the coming period stand open, waiting. It
+    lasts until the wizard goes into a classroom, however long that takes: going in starts the
+    period, the doors settle and the corridors empty. So passing time is the wizard's to spend:
+    look round, open seals, pick the class, then commit to it.
   - *Where you are supposed to be.* Scholars are calm (they leave the wizard be) while the wizard
     is where they belong, and hostile (as now) otherwise:
     - a corridor in passing time: belongs; a corridor in a period: truant;
-    - a hall whose class is in session: belongs (early in passing time, attending in the period);
+    - a hall whose class is in session: belongs (going in is what starts the period);
     - a hall with no class in it: trespassing, whatever the time;
     - the exam hall: always a fight, as now.
     A scholar who sees the wizard where they do not belong (real line of sight, `RisoSight`, so
     slipping past one facing away works) turns hostile, and those near it with it: a local fuss,
     not a level-wide alarm. They calm down at the next bell, a way out of trouble that costs a ring.
     Proctors walk the corridors in a period: the enforcers. Casting a spell or striking anyone
-    where scholars see it turns them hostile anywhere: disrupting a class is never allowed. The
-    abominations care for none of it, the chaos in an orderly place, and leading them into a class
-    in session still works.
+    where scholars see it turns them hostile anywhere: disrupting a class is never allowed. A class
+    does not notice the wizard leaving mid-lesson (nothing happens without a bell), but the
+    corridor they step into is a truant's. The abominations care for none of it, the chaos in an
+    orderly place, and leading them into a class in session still works.
   - *Learning is permanent.* What the institute teaches stays taught, for the run:
-    - *Two ways to learn.* Attend: be in the hall as its class begins and stay until the lesson is
-      done (the lectern filling as it goes), and the master's spell is taught, peacefully. Or beat
-      the master, as now: quicker, but the hall turns hostile, and those who saw stay so until the
-      next bell.
-    - *Glyph seals.* Barriers bearing an ability's glyph (and sometimes a tier, Hex II), opened by
-      that spell used well on them: hexed from range, dashed through, a parry of what they throw.
-      Once the wizard knows the spell, every such seal in every institute level is passable, so the
-      institute plays like a Metroidvania and later levels go quicker for a well-taught wizard.
+    - *A lesson is a trial.* In a class in session the master sets a trial of its spell, lent to
+      the wizard for it: the spell used for what it does, on mock seals (the same literal uses the
+      glyph seals ask for, below), so a lesson is also practice. Passed, it adds a tier of that
+      spell (tier I if the wizard did not know it), up to its highest. Or beat the master, as now:
+      quicker, but the hall turns hostile, and those who saw stay so until the next bell.
+    - *Glyph seals.* Barriers bearing a spell's glyph (and sometimes a tier), opened only by that
+      spell used literally, for what it does, and by nothing else (no other spell, no plain bolt):
+      - hex: struck by a hex bolt from far off, across a gap no one could walk;
+      - seeker: round a corner, out of sight, where only a seeker's turning bolt reaches;
+      - slash: hanging cords or vines cut through at close range;
+      - nova: a ring of sigils round it, all caught in one nova at once;
+      - push: a heavy stone or shelf shoved aside along its track;
+      - lunge: a gap lunged across, the seal broken by the lunge going through it.
+      Once the wizard knows the spell (at the tier asked), every such seal in every institute level
+      is passable, so the institute plays like a Metroidvania and later levels go quicker for a
+      well-taught wizard.
     - *Dealt from what the level teaches.* A level's seals ask only for spells some master in it
-      teaches, or ones the wizard is sure to have (the starting moves), so each level can be got
-      through from within itself, dealt as `Stations.deal` deals the towers, never leaving a level
-      unwinnable. Seals the wizard already passes are free shortcuts.
+      teaches, at a tier its trials can reach, or ones the wizard is sure to have (the starting
+      moves), so each level can be got through from within itself, dealt as `Stations.deal` deals
+      the towers, never leaving a level unwinnable. Seals the wizard already passes are free
+      shortcuts.
     - The exam hall, holding the way on, sits in a late period and is sealed by lessons.
-  - So a level is a day planned: read the timetable, ring, run to the class you need, sit the
-    lesson, use the new spell on a seal (best in passing time, unseen), and sit the exam. A wizard
-    who already knows it all walks through.
-  - *Still to decide:*
-    - whether a lesson is time spent in the hall, or a short trial ("strike the three targets with
-      the spell"): simpler and quieter, or more fun and more to build;
-    - whether attending adds a tier to a spell already known, or only teaches spells not yet known
-      (tiers here would make the institute the place to grow stronger, beside the shrines);
-    - whether anything happens without a ring (a class noticing the wizard left mid-lesson).
+  - So a level is a day planned: read the timetable, ring, spend passing time on what is open,
+    commit to the class you need, pass its trial, use the new tier on a seal (best in passing time,
+    unseen), and sit the exam. A wizard who already knows it all walks through.
+  - *Decided:* a lesson is a trial, not time; attending adds a tier; nothing happens without a
+    ring; going into a classroom ends passing time; glyph seals open only to their spell, used
+    literally.
