@@ -15,7 +15,8 @@ class_name RisoDecor
 ## The institute has its own: veined marble slabs on its halls, and inside them great columns from
 ## floor to ceiling with tall bookcases between (books in many colours, a departure from the decor's
 ## inks asked for by the owner), reading desks on the lecture halls' tiers and now and then a statue;
-## bookcases out in its rooms too, and stones, rubble, roots and cobwebs on its bare earth.
+## bookcases out in its rooms too, with desks in its studies, alchemy equipment in its laboratories
+## and ritual equipment in its sanctums.
 ## The crags have theirs: on the castle's masonry (LevelGen.masonry), dressed stone in courses,
 ## arrow slits through its walls, banners and rubble on its floors and battlements along them; on
 ## the bare cliff, crag grass, stones, fallen blocks and broken columns, cobwebs and roots under
@@ -424,7 +425,11 @@ static func plan_sky(solid: Dictionary, occupied: Dictionary, level_seed: int, b
 ## a statue. It is all indoors: the rest of its walls are panelled in wood (PANEL_ROWS cells to a
 ## panel), and
 ## in its rooms stand bookcases (BOOKCASE_OUT of the floors), desks (DESK_OUT) and now and then a
-## statue; nothing grows and nothing hangs from its ceilings.
+## statue; nothing grows and nothing hangs from its ceilings. Its rooms are given over to uses by
+## patches (ROOM_USE cells across and down, dealt by the seed, room_use): most are studies, as
+## above; a laboratory (LAB_SHARE of the patches) holds alchemy equipment where a study holds desks
+## (EQUIPMENT_OUT of the floors) and half the bookcases; a sanctum (SANCTUM_SHARE) holds ritual
+## equipment the same way.
 const MARBLE_SLAB: int = 2
 const COLUMN_EVERY: int = 4
 const BOOKCASE_ROWS: int = 8
@@ -432,6 +437,27 @@ const BOOKCASE_OUT: float = 0.3
 const DESK_OUT: float = 0.14
 ## How many kinds of desk there are (see the "desk" sketch).
 const DESKS: int = 6
+## The patches the institute's rooms are given over to a use by (cells across and down), the share
+## that are laboratories and sanctums (the rest are studies), how many of their floors hold
+## equipment, and how many kinds of ritual equipment there are (the "ritual" sketch).
+const ROOM_USE: Vector2i = Vector2i(8, 6)
+const LAB_SHARE: float = 0.22
+const SANCTUM_SHARE: float = 0.18
+const EQUIPMENT_OUT: float = 0.26
+const RITUAL: int = 4
+## Alchemy equipment is made up from parts, dealt by the cell (_alchemy): what it stands on (a bench
+## by ALCHEMY_BENCH, the floor by ALCHEMY_FLOOR, a cabinet by ALCHEMY_CABINET, else a cauldron), and
+## on it a row of glass vessels (_glassware), each of one of VESSEL_SHAPES shapes at its own size
+## (VESSEL_SIZE, from, to) and filled its own way, some over a burner (BURNER_SHARE) and some joined
+## to the next by a glass tube (TUBE_SHARE), at most VESSELS_MOST in a row.
+const ALCHEMY_BENCH: float = 0.45
+const ALCHEMY_FLOOR: float = 0.2
+const ALCHEMY_CABINET: float = 0.2
+const VESSEL_SHAPES: int = 6
+const VESSEL_SIZE: Vector2 = Vector2(0.7, 1.3)
+const BURNER_SHARE: float = 0.35
+const TUBE_SHARE: float = 0.4
+const VESSELS_MOST: int = 6
 ## The institute's wooden walls (the "panel" sketch): tall sunk panels a cell wide and PANEL_ROWS
 ## cells high, in a frame of stiles PANEL_STILE wide and rails PANEL_RAIL high (px, at full size),
 ## the frame's shadow falling PANEL_SHADOW into each panel.
@@ -499,13 +525,29 @@ static func plan_institute(solid: Dictionary, occupied: Dictionary, level_seed: 
 					out.append({"kind": &"statue", "cell": above, "base": v})
 			else:
 				var high: int = room_over.call(above, 2)
-				if r < BOOKCASE_OUT and high >= 1:
+				var use: StringName = room_use(level_seed, above)
+				var shelves: float = BOOKCASE_OUT if use == &"desk" else BOOKCASE_OUT * 0.5
+				var tables: float = DESK_OUT if use == &"desk" else EQUIPMENT_OUT
+				if r < shelves and high >= 1:
 					out.append({"kind": &"bookcase", "cell": above, "base": v, "rise": high, "wide": 1})
-				elif r < BOOKCASE_OUT + DESK_OUT:
-					out.append({"kind": &"desk", "cell": above, "base": v})
-				elif r < BOOKCASE_OUT + DESK_OUT + 0.03 and high >= 2:
+				elif r < shelves + tables:
+					out.append({"kind": use, "cell": above, "base": v})
+				elif r < shelves + tables + 0.03 and high >= 2:
 					out.append({"kind": &"statue", "cell": above, "base": v})
 	return out
+
+
+## What the institute's room at cell `v` of level `level_seed` is given over to (see ROOM_USE), as
+## the kind of thing on its floors: &"alchemy" in a laboratory, &"ritual" in a sanctum, &"desk" in a
+## study.
+static func room_use(level_seed: int, v: Vector2i) -> StringName:
+	var patch: Vector2i = Vector2i(floori(float(v.x) / float(ROOM_USE.x)), floori(float(v.y) / float(ROOM_USE.y)))
+	var roll: float = h(level_seed, patch, 120)
+	if roll < LAB_SHARE:
+		return &"alchemy"
+	if roll < LAB_SHARE + SANCTUM_SHARE:
+		return &"ritual"
+	return &"desk"
 
 
 ## The crags' plan: battlements along the floors of the castle's masonry (fence runs whose rock is
@@ -843,6 +885,268 @@ func _book_stack(slots: Array, at: Vector2, n: int, s: int, v: Vector2i) -> void
 		y -= h + 0.2
 
 
+## Alchemy equipment standing at `x` on the floor at `floor_y`, made up from parts dealt by the cell
+## `v` of level `s` (see ALCHEMY_BENCH): a bench (its width and height dealt, a low shelf under it
+## now and then) with a row of glassware on it (_glassware) and sometimes more on the shelf; a row
+## of glassware standing on the floor; a small open cabinet of two or three shelves of jars and
+## vials; or an iron cauldron on three legs, its size dealt, bubbling, a ladle in it, now and then a
+## stool beside it with a vessel or two. Wood and iron are in the decor's inks, glass bare paper.
+func _alchemy(x: float, floor_y: float, slots: Array, s: int, v: Vector2i) -> void:
+	var wood: Array = slots[12]
+	var shade: Array = slots[13]
+	var roll: float = _r(s, v, 13)
+	if roll < ALCHEMY_BENCH:
+		var w: float = 28.0 + _r(s, v, 14) * 18.0
+		var tall: float = 14.0 + _r(s, v, 15) * 6.0
+		var top: float = floor_y - tall
+		wood.append(RisoShapes.rrect(x - w * 0.5, top, w, 3.0, 0.8))
+		for side: float in [-1.0, 1.0]:
+			wood.append(RisoShapes.rrect(x + side * (w * 0.5 - 2.5) - 1.2, top + 2.0, 2.4, tall - 1.0, 0.6))
+		shade.append(RisoShapes.rrect(x - w * 0.5, top + 2.5, w, 1.5, 0.5))
+		if _r(s, v, 16) < 0.5:
+			var low: float = floor_y - tall * 0.35
+			wood.append(RisoShapes.rrect(x - w * 0.5 + 2.5, low, w - 5.0, 1.5, 0.4))
+			_glassware(slots, x - w * 0.5 + 4.0, x + w * 0.5 - 4.0, low, top + 2.0 - low, s, v, 300, false)
+		_glassware(slots, x - w * 0.5 + 2.0, x + w * 0.5 - 2.0, top, 26.0, s, v, 100, true)
+	elif roll < ALCHEMY_BENCH + ALCHEMY_FLOOR:
+		_glassware(slots, x - 16.0, x + 16.0, floor_y, 30.0, s, v, 100, true)
+	elif roll < ALCHEMY_BENCH + ALCHEMY_FLOOR + ALCHEMY_CABINET:
+		var w: float = 20.0 + _r(s, v, 14) * 8.0
+		var shelves: int = 2 + int(_r(s, v, 15) * 2.0)
+		var tall: float = float(shelves) * 12.0 + 4.0
+		wood.append(RisoShapes.rrect(x - w * 0.5, floor_y - tall, w, tall, 1.0))
+		shade.append(RisoShapes.rrect(x - w * 0.5 + 2.0, floor_y - tall + 2.0, w - 4.0, tall - 4.0, 0.6))
+		for k: int in range(shelves):
+			var shelf: float = floor_y - 2.0 - float(k) * 12.0
+			wood.append(RisoShapes.rrect(x - w * 0.5 + 2.0, shelf - 1.5, w - 4.0, 1.5, 0.3))
+			_glassware(slots, x - w * 0.5 + 3.0, x + w * 0.5 - 3.0, shelf - 1.5, 9.5, s, v, 100 + k * 60, false)
+	else:
+		var k: float = 0.8 + _r(s, v, 14) * 0.4
+		for lx: float in [-10.0, 0.0, 10.0]:
+			slots[33].append(RisoShapes.rrect(x + lx * k - 1.2, floor_y - 5.0, 2.4, 5.0, 0.6))
+		slots[33].append(RisoShapes.smooth(PackedVector2Array([Vector2(x - 15.0 * k, floor_y - 4.0 - 18.0 * k), Vector2(x + 15.0 * k, floor_y - 4.0 - 18.0 * k), Vector2(x + 14.0 * k, floor_y - 4.0 - 7.0 * k), Vector2(x + 8.0 * k, floor_y - 4.0), Vector2(x - 8.0 * k, floor_y - 4.0), Vector2(x - 14.0 * k, floor_y - 4.0 - 7.0 * k)]), 2))
+		var rim: float = floor_y - 4.0 - 18.0 * k
+		_brew(slots, [RisoShapes.ellipse(Vector2(x, rim), 13.5 * k, 2.4, 18)], _r(s, v, 15) * 0.75)
+		for i: int in range(2 + int(_r(s, v, 16) * 3.0)):
+			var b: Vector2 = Vector2(x + (_r(s, v, 20 + i) - 0.5) * 20.0 * k, rim - 2.0 - _r(s, v, 25 + i) * 7.0)
+			slots[37].append(RisoShapes.circle(b, 0.8 + _r(s, v, 30 + i) * 1.4, 8))
+		wood.append(Transform2D(0.3 + _r(s, v, 17) * 0.5, Vector2(x + 8.0 * k, rim)) * RisoShapes.rrect(-0.9, -14.0, 1.8, 16.0, 0.6))
+		if _r(s, v, 18) < 0.5:
+			var side: float = 1.0 if _r(s, v, 19) < 0.5 else -1.0
+			var sx: float = x + side * (15.0 * k + 9.0)
+			wood.append(RisoShapes.rrect(sx - 5.0, floor_y - 9.0, 10.0, 2.0, 0.6))
+			for lx: float in [-4.0, 3.0]:
+				wood.append(RisoShapes.rrect(sx + lx, floor_y - 7.5, 1.4, 7.5, 0.4))
+			_glassware(slots, sx - 4.5, sx + 4.5, floor_y - 9.0, 14.0, s, v, 200, false)
+
+
+## A row of glass vessels standing on the line at `base_y` from `x0` to `x1`, none taller than
+## `room`, dealt by the cell `v` of level `s` from salt `salt` on: each of one of VESSEL_SHAPES
+## shapes (_vessel) at its own size and fill, set a little apart. Where `rich` (a bench or the floor,
+## not a shelf), some stand over a burner, a little tripod over a candle (BURNER_SHARE), some are
+## joined to the next by a glass tube arching between their mouths (TUBE_SHARE), and a full one
+## now and then bubbles.
+func _glassware(slots: Array, x0: float, x1: float, base_y: float, room: float, s: int, v: Vector2i, salt: int, rich: bool) -> void:
+	var at: float = x0 + _r(s, v, salt) * 2.0
+	var mouths: Array[Vector2] = []
+	var tubed: Array[bool] = []
+	for k: int in range(VESSELS_MOST):
+		var q: int = salt + 1 + k * 9
+		var shape: int = int(_r(s, v, q) * float(VESSEL_SHAPES)) % VESSEL_SHAPES
+		var size: float = lerpf(VESSEL_SIZE.x, VESSEL_SIZE.y, _r(s, v, q + 1))
+		var burner: bool = rich and shape != 4 and _r(s, v, q + 2) < BURNER_SHARE
+		var lift: float = 7.0 if burner else 0.0
+		size = minf(size, (room - lift) / _vessel_tall(shape))
+		if size < 0.45:
+			continue
+		var wide: float = _vessel_wide(shape) * size
+		if burner:
+			wide = maxf(wide, 12.0)
+		if at + wide > x1:
+			break
+		var base: Vector2 = Vector2(at + wide * 0.5, base_y)
+		if burner:
+			for lx: float in [-1.0, 1.0]:
+				slots[33].append_array(strip(PackedVector2Array([base + Vector2(lx * 2.5, -lift), base + Vector2(lx * 5.5, 0.0)]), 1.0, 1.0))
+			slots[33].append(RisoShapes.rrect(base.x - 5.0, base.y - lift - 1.0, 10.0, 1.2, 0.4))
+			_candle(slots, base, 2.5)
+		var fill: float = 0.2 + _r(s, v, q + 3) * 0.7
+		var mouth: Vector2 = _vessel(slots, shape, base + Vector2(0, -lift), size, fill, _r(s, v, q + 4))
+		mouths.append(mouth)
+		tubed.append(rich and shape != 4 and _r(s, v, q + 5) < TUBE_SHARE)
+		if fill > 0.75 and _r(s, v, q + 6) < 0.5:
+			for i: int in range(2):
+				slots[37].append(RisoShapes.circle(mouth + Vector2((_r(s, v, q + 7 + i) - 0.5) * 3.0, -2.5 - float(i) * 3.0), 0.7 + float(i) * 0.3, 8))
+		at += wide + 1.0 + _r(s, v, q + 8) * 2.5
+	for i: int in range(mouths.size() - 1):
+		if not tubed[i]:
+			continue
+		var a: Vector2 = mouths[i]
+		var b: Vector2 = mouths[i + 1]
+		var up: float = minf(a.y, b.y) - 4.0 - absf(b.x - a.x) * 0.2
+		slots[14].append_array(strip(RisoShapes.smooth_open(PackedVector2Array([a, Vector2(lerpf(a.x, b.x, 0.25), up), Vector2(lerpf(a.x, b.x, 0.75), up), b]), 3), 1.5, 1.2))
+
+
+## How wide a vessel of shape `shape` is at size 1 (see _vessel).
+func _vessel_wide(shape: int) -> float:
+	return [10.0, 10.0, 6.6, 9.0, 2.6, 7.2][shape]
+
+
+## How tall a vessel of shape `shape` is at size 1, to its mouth (see _vessel).
+func _vessel_tall(shape: int) -> float:
+	return [14.5, 14.0, 10.0, 17.0, 11.5, 18.5][shape]
+
+
+## A glass vessel of shape `shape` standing at `base`, `size` times its usual size, filled `fill` of
+## the way up its body with a brew of a colour picked by `roll` (_brew): a round flask with a neck, a
+## conical flask, a beaker with a lip, a gourd of two bulbs, a stoppered vial, or a small flask with
+## a long neck. Glass is bare paper; the brew is cut to the glass's inside. Returns its mouth.
+func _vessel(slots: Array, shape: int, base: Vector2, size: float, fill: float, roll: float) -> Vector2:
+	var body: Array[PackedVector2Array] = []
+	var glass: Array[PackedVector2Array] = []
+	var mouth: Vector2 = base
+	var body_tall: float = 0.0
+	match shape:
+		0:
+			var r: float = 5.0 * size
+			var c: Vector2 = base + Vector2(0, -r)
+			body.append(RisoShapes.circle(c, r, 18))
+			glass.append(RisoShapes.rrect(c.x - r * 0.3, c.y - r * 1.9, r * 0.6, r * 1.1, 0.4))
+			mouth = Vector2(c.x, c.y - r * 1.9)
+			body_tall = r * 2.0
+		1:
+			var b: float = 5.0 * size
+			var h: float = 9.0 * size
+			var n: float = 1.4 * size
+			body.append(PackedVector2Array([base + Vector2(-b, 0), base + Vector2(b, 0), base + Vector2(n, -h), base + Vector2(-n, -h)]))
+			glass.append(RisoShapes.rrect(base.x - n, base.y - h - 5.0 * size, n * 2.0, 5.0 * size + 0.5, 0.3))
+			mouth = base + Vector2(0, -h - 5.0 * size)
+			body_tall = h
+		2:
+			var w: float = 3.0 * size
+			var h: float = 9.5 * size
+			body.append(RisoShapes.rrect(base.x - w, base.y - h, w * 2.0, h, 0.8))
+			glass.append(RisoShapes.rrect(base.x - w - 0.6, base.y - h, w * 2.0 + 1.2, 1.0, 0.3))
+			mouth = base + Vector2(0, -h)
+			body_tall = h
+		3:
+			var r1: float = 4.5 * size
+			var r2: float = 2.8 * size
+			var c1: Vector2 = base + Vector2(0, -r1)
+			var c2: Vector2 = c1 + Vector2(0, -r1 - r2 * 0.6)
+			body.append(RisoShapes.circle(c1, r1, 18))
+			glass.append(RisoShapes.circle(c2, r2, 14))
+			glass.append(RisoShapes.rrect(c2.x - r2 * 0.35, c2.y - r2 * 1.9, r2 * 0.7, r2 * 1.1, 0.3))
+			mouth = Vector2(c2.x, c2.y - r2 * 1.9)
+			body_tall = r1 * 2.0
+		4:
+			var w: float = 1.3 * size
+			var h: float = 10.0 * size
+			body.append(RisoShapes.rrect(base.x - w, base.y - h, w * 2.0, h, w))
+			slots[33].append(RisoShapes.rrect(base.x - w * 0.8, base.y - h - 1.5 * size, w * 1.6, 2.0 * size, 0.4))
+			mouth = base + Vector2(0, -h - 1.5 * size)
+			body_tall = h
+		_:
+			var r: float = 3.6 * size
+			var c: Vector2 = base + Vector2(0, -r)
+			body.append(RisoShapes.circle(c, r, 16))
+			glass.append(RisoShapes.rrect(c.x - r * 0.22, c.y - r - 11.0 * size, r * 0.44, 11.0 * size + 0.5, 0.3))
+			mouth = Vector2(c.x, c.y - r - 11.0 * size)
+			body_tall = r * 2.0
+	slots[14].append_array(body)
+	slots[14].append_array(glass)
+	var level: float = base.y - body_tall * fill
+	var below: PackedVector2Array = RisoShapes.rrect(base.x - 40.0, level, 80.0, base.y - level + 2.0, 0.0)
+	var brew: Array = []
+	for poly: PackedVector2Array in body:
+		for inside: PackedVector2Array in Geometry2D.offset_polygon(poly, -0.7):
+			brew.append_array(Geometry2D.intersect_polygons(inside, below))
+	_brew(slots, brew, roll)
+	return mouth
+
+
+## Ritual equipment of kind `kind` (one of RITUAL), standing at `x` on the floor at `floor_y`, dealt
+## by the cell `v` of level `s`: a tall candelabra of three or five candles; an altar under a cloth with a skull and two
+## candles; a brazier on a tripod, its smoke curling up; or a standing tablet carved with a star in a
+## circle. Candles and bone are bare paper, stone, wood and iron in the decor's inks; no flame
+## is lit in gold, as gold is for rewards.
+func _ritual(kind: int, x: float, floor_y: float, slots: Array, s: int, v: Vector2i) -> void:
+	var wood: Array = slots[12]
+	var shade: Array = slots[13]
+	match kind:
+		0:
+			@warning_ignore("integer_division")
+			var side: int = (3 if _r(s, v, 13) < 0.5 else 5) / 2
+			slots[33].append(RisoShapes.rrect(x - 6.0, floor_y - 2.0, 12.0, 2.0, 0.8))
+			slots[33].append(RisoShapes.rrect(x - 1.0, floor_y - 30.0, 2.0, 29.0, 0.6))
+			slots[33].append(RisoShapes.ellipse(Vector2(x, floor_y - 14.0), 2.4, 2.0, 10))
+			for k: int in range(-side, side + 1):
+				var tip: Vector2 = Vector2(x + float(k) * 6.0, floor_y - 31.0 + absf(float(k)) * 1.5)
+				if k != 0:
+					slots[33].append_array(strip(PackedVector2Array([Vector2(x, floor_y - 25.0), Vector2(x + float(k) * 4.0, floor_y - 25.0), tip]), 1.4, 1.2))
+				slots[33].append(RisoShapes.rrect(tip.x - 2.0, tip.y - 1.0, 4.0, 1.4, 0.5))
+				_candle(slots, tip + Vector2(0, -1.0), 5.0 + _r(s, v, 20 + k + side) * 3.0)
+		1:
+			wood.append(RisoShapes.rrect(x - 13.0, floor_y - 16.0, 26.0, 16.0, 0.8))
+			shade.append(RisoShapes.rrect(x + 5.0, floor_y - 16.0, 8.0, 16.0, 0.8))
+			# A cloth over it, hanging down at its ends.
+			slots[37].append(PackedVector2Array([Vector2(x - 14.0, floor_y - 16.5), Vector2(x + 14.0, floor_y - 16.5), Vector2(x + 14.0, floor_y - 9.0), Vector2(x + 11.0, floor_y - 7.0), Vector2(x + 10.0, floor_y - 15.0), Vector2(x - 10.0, floor_y - 15.0), Vector2(x - 11.0, floor_y - 7.0), Vector2(x - 14.0, floor_y - 9.0)]))
+			var skull: Vector2 = Vector2(x, floor_y - 22.0)
+			slots[37].append(RisoShapes.circle(skull, 4.6, 14))
+			slots[37].append(RisoShapes.rrect(skull.x - 2.6, skull.y + 2.0, 5.2, 3.6, 1.0))
+			for ex: float in [-1.8, 1.8]:
+				slots[33].append(RisoShapes.circle(skull + Vector2(ex, 0.2), 1.2, 8))
+			slots[33].append(RisoShapes.rrect(skull.x - 0.4, skull.y + 1.8, 0.8, 1.4, 0.3))
+			for k: int in range(2):
+				_candle(slots, Vector2(x - 10.0 + float(k) * 20.0, floor_y - 16.5), 6.0 + _r(s, v, 20 + k) * 3.0)
+		2:
+			for lx: float in [-1.0, 1.0]:
+				slots[33].append(PackedVector2Array([Vector2(x + lx * 2.0, floor_y - 13.0), Vector2(x + lx * 3.4, floor_y - 13.0), Vector2(x + lx * 9.0, floor_y), Vector2(x + lx * 7.6, floor_y)]))
+			slots[33].append(RisoShapes.rrect(x - 0.8, floor_y - 13.0, 1.6, 13.0, 0.4))
+			slots[33].append(PackedVector2Array([Vector2(x - 11.0, floor_y - 19.0), Vector2(x + 11.0, floor_y - 19.0), Vector2(x + 7.0, floor_y - 13.0), Vector2(x - 7.0, floor_y - 13.0)]))
+			shade.append(RisoShapes.rrect(x - 10.0, floor_y - 19.0, 20.0, 1.4, 0.5))
+			for k: int in range(2):
+				var sx: float = x - 3.0 + float(k) * 6.0
+				var smoke: PackedVector2Array = PackedVector2Array()
+				for j: int in range(6):
+					smoke.append(Vector2(sx + sin(float(j) * 1.3 + _r(s, v, 13 + k) * 6.0) * 3.0, floor_y - 20.0 - float(j) * 5.0))
+				slots[5].append_array(strip(smoke, 3.0, 0.6))
+		_:
+			wood.append(RisoShapes.rrect(x - 8.0, floor_y - 3.0, 16.0, 3.0, 0.8))
+			wood.append(RisoShapes.smooth(PackedVector2Array([Vector2(x - 9.0, floor_y - 3.0), Vector2(x - 9.0, floor_y - 26.0), Vector2(x - 5.0, floor_y - 31.0), Vector2(x + 5.0, floor_y - 31.0), Vector2(x + 9.0, floor_y - 26.0), Vector2(x + 9.0, floor_y - 3.0)]), 2))
+			shade.append(RisoShapes.rrect(x + 4.0, floor_y - 27.0, 5.0, 24.0, 1.0))
+			# Carved in it, a star in a circle.
+			var at: Vector2 = Vector2(x, floor_y - 17.0)
+			for half_ring: PackedVector2Array in RisoShapes.ring(at, 6.2, 7.0, 24):
+				slots[37].append(half_ring)
+			var points: Array[Vector2] = []
+			for k: int in range(5):
+				points.append(at + Vector2.from_angle(-PI * 0.5 + TAU * float(k) / 5.0) * 6.2)
+			for k: int in range(5):
+				slots[37].append_array(strip(PackedVector2Array([points[k], points[(k + 2) % 5]]), 0.7, 0.7))
+
+
+## A brew (`polys`) in one of the alchemists' colours, picked by `roll` (0 to 1): brown, tan or
+## night (never the accent, which the institute prints in gold, kept for rewards); over the glass's
+## bare paper, so it prints true.
+func _brew(slots: Array, polys: Array, roll: float) -> void:
+	for poly: PackedVector2Array in polys:
+		if roll < 0.4:
+			slots[30].append(poly)
+		elif roll < 0.72:
+			slots[34].append(poly)
+		else:
+			slots[33].append(poly)
+
+
+## A candle standing at `base`, `tall` high: bare paper, a night wick and a small paper flame (no
+## gold: the institute's candles are not rewards).
+func _candle(slots: Array, base: Vector2, tall: float) -> void:
+	slots[37].append(RisoShapes.rrect(base.x - 1.4, base.y - tall, 2.8, tall, 0.6))
+	slots[33].append(RisoShapes.rrect(base.x - 0.3, base.y - tall - 1.4, 0.6, 1.6, 0.2))
+	slots[37].append(Transform2D(PI * 0.5, base + Vector2(0, -tall - 3.6)) * RisoShapes.almond(Vector2.ZERO, 2.2, 1.1))
+
+
 func _r(level_seed: int, v: Vector2i, salt: int) -> float:
 	var x: int = ((level_seed ^ (salt * 2654435)) * 73856093) ^ ((v.x * 7919 + v.y * 104729 + salt) * 19349663) ^ 0x5bd1e995
 	x = (x ^ (x >> 15)) * 0x2c1b3c6d
@@ -887,7 +1191,7 @@ func _draw_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 	_sketch_item(item, c, slots, s)
 	var anchor: Variant = null
 	match item["kind"]:
-		&"tuft", &"leafy", &"mushroom", &"stones", &"headstone", &"cross", &"fence", &"dead_tree", &"obelisk", &"urn", &"angel", &"flowers", &"windsock", &"cairn", &"menhir", &"banner", &"rubble", &"column", &"bookcase", &"desk", &"statue", &"great_column":
+		&"tuft", &"leafy", &"mushroom", &"stones", &"headstone", &"cross", &"fence", &"dead_tree", &"obelisk", &"urn", &"angel", &"flowers", &"windsock", &"cairn", &"menhir", &"banner", &"rubble", &"column", &"bookcase", &"desk", &"statue", &"great_column", &"alchemy", &"ritual":
 			anchor = Vector2(c.x, c.y + half)
 		&"roots", &"sky_roots", &"stalactite", &"drip", &"cobweb", &"tendril":
 			anchor = Vector2(c.x, c.y - half)
@@ -1389,6 +1693,10 @@ func _sketch_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 					var lean: Transform2D = Transform2D(0.12, Vector2(x + 7.0, floor_y - 20.0))
 					for k: int in range(3):
 						_book_ink(slots, lean * RisoShapes.rrect(-4.5, -2.2 * float(k + 1), 9.0, 2.0, 0.4), _r(s, v, 170 + k))
+		&"alchemy":
+			_alchemy(c.x + (_r(s, v, 10) - 0.5) * half * 0.3, floor_y, slots, s, v)
+		&"ritual":
+			_ritual(int(_r(s, v, 12) * float(RITUAL)) % RITUAL, c.x + (_r(s, v, 10) - 0.5) * half * 0.3, floor_y, slots, s, v)
 		&"statue":
 			# A statue on a plinth: a draped figure in bare paper (head, shoulders, a gown to the
 			# plinth), shaded down one side, its arm raised or at its side by the cell.

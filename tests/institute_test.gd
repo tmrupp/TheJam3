@@ -44,6 +44,8 @@ func generation() -> void:
 	var stacks_ok: bool = true
 	var depts_ok: bool = true
 	var outside: int = 0
+	var kits: Dictionary = {}
+	var kits_placed: bool = true
 	for place: Vector2i in LAID:
 		var at: Vector2i = Vector2i(place.x, NextWorldDef.band_row(&"institute", place.y))
 		var w: LevelGen = build(at)
@@ -105,6 +107,22 @@ func generation() -> void:
 						if StringName(extra[0]) != hall["dept"] or NextWorldDef.archetype_at(int(extra[1])) != Institute.DEPARTMENTS[hall["dept"]]:
 							depts_ok = false
 		outside += count_of(w, LevelGen.Type.BREACH) + count_of(w, LevelGen.Type.ABOMINATION)
+		# Its decor: alchemy equipment in laboratories, ritual equipment in sanctums, out in its rooms.
+		var solid: Dictionary = {}
+		for x: int in range(w.size.x):
+			for y: int in range(w.size.y):
+				if w.is_ground(Vector2i(x, y)):
+					solid[Vector2i(x, y)] = true
+		var occupied: Dictionary = {}
+		for v: Vector2i in w.objects:
+			occupied[v] = true
+		var decor_seed: int = Rules.level_seed(at.x, at.y)
+		for item: Dictionary in RisoDecor.plan_institute(solid, occupied, decor_seed, Rect2i(Vector2i.ZERO, w.size), &"roots", w.masonry, w.interiors):
+			var kind: StringName = item["kind"]
+			if kind == &"alchemy" or kind == &"ritual":
+				kits[kind] = true
+				if RisoDecor.room_use(decor_seed, item["cell"]) != kind or w.interiors.has(item["cell"]):
+					kits_placed = false
 	check_eq(exams, LAID.size(), "every level has an exam hall")
 	check(low >= LAID.size() - 1, "in its lower half (%d of %d)" % [low, LAID.size()])
 	check_eq(exits_in, LAID.size(), "holding the way on")
@@ -115,6 +133,8 @@ func generation() -> void:
 	check(depts_ok, "each with its department's portal, leading into the band it studies")
 	check(kept, "walled in marble, and nothing else laid inside them")
 	check(outside > 0, "breaches and abominations out in the level")
+	check(kits.has(&"alchemy") and kits.has(&"ritual"), "laboratories hold alchemy equipment, and sanctums ritual equipment")
+	check(kits_placed, "each only in its own kind of room, out of the halls")
 	var gate: LevelGen = build(Vector2i(28, Bosses.row_of(&"beast")))
 	check(gate != null and not Institute.exam_hall(gate).is_empty() and count_of(gate, LevelGen.Type.BOSS) == 1, "the beast's gate level has its exam hall and its boss")
 
