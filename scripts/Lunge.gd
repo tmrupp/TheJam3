@@ -101,7 +101,7 @@ func _stab() -> void:
 		if whole in stabbed:
 			continue
 		stabbed.append(whole)
-		SpellStrike.strike(e, Vector2(side, 0.0), damage, STUN)
+		SpellStrike.strike(e, Vector2(side, 0.0), damage, STUN, &"lunge", from)
 		landed = true
 	SpiderWeb.tear_along(get_tree(), from, tip)
 	if landed and refunds:

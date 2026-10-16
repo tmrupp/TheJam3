@@ -11,7 +11,9 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
     each cell, `Cell`, and the placement helpers). `Chasms.gd`: chasms and gaps, cut and crossed.
     `Crypts.gd`: the cemetery's crypts, their insides collapsed from a sample of their own
     (`Archetype.patches`, handed to the layout as `LevelGen.patches`). `Institute.gd`: the
-    institute's halls of marble (`LevelGen.halls`) and who is in them.
+    institute's halls of marble (`LevelGen.halls`) and who is in them. `Timetable.gd`: its
+    timetable's rules (periods, when each hall is in session, where the wizard belongs, which
+    spell a glyph seal asks for); `MapInfo` plays it out.
   - `Placeables.gd`: one table, by `LevelGen.Type`, of each thing's prefab, art kind, box size and
     flags (enemy, stander, floats, colored). Loading, the art dresser and the map read it.
   - `RunState.gd`: the run (records, the lantern to come back to, the ghost, relics) and saving it.
@@ -47,7 +49,7 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
 - `docs/`: `DEEPER_PLAN.md` (design, by system), `REGIONS_PLAN.md` (the plan for going up and
   down from the garden, the new bands and the bosses at band ends; phases 1 to 4 built (the worm
   and the bramble), a first pass of the crags and the spider of phase 5, phase 6, the cemetery's
-  crypts, light and the necromancer, and a first pass of phase 7, the institute and its beast),
+  crypts, light and the necromancer, and a first pass of phase 7, the institute, its beast and its timetable),
   `RISO_PRINT.md` (the art pipeline and rules).
 - The owner's task list and notes are a Google Doc, not a file here:
   [Somnonaut: Tom's Tasks](https://docs.google.com/document/d/11vPYlA0G-_dZY2sdV8aK6qM06c1RAE2r05uHSngRHa8/edit)

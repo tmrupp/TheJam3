@@ -17,7 +17,8 @@ extends TestKit
 const LAID: Array[Vector2i] = [Vector2i(28, 0), Vector2i(28, 2), Vector2i(7, 4), Vector2i(99, 5)]
 ## What may be laid inside a hall.
 const IN_HALLS: Array[LevelGen.Type] = [LevelGen.Type.EXAM_DOOR, LevelGen.Type.EXIT, LevelGen.Type.MASTER, LevelGen.Type.STUDENT,
-	LevelGen.Type.PROCTOR, LevelGen.Type.LIBRARIAN, LevelGen.Type.DEPARTMENT, LevelGen.Type.PLATFORM, LevelGen.Type.COIN, LevelGen.Type.BOSS]
+	LevelGen.Type.PROCTOR, LevelGen.Type.LIBRARIAN, LevelGen.Type.DEPARTMENT, LevelGen.Type.PLATFORM, LevelGen.Type.COIN, LevelGen.Type.BOSS,
+	LevelGen.Type.SCHOOL_BELL, LevelGen.Type.LECTERN, LevelGen.Type.GLYPH_SEAL]
 
 
 func run() -> void:
@@ -390,11 +391,13 @@ func _three_sides() -> void:
 ## and its lesson waits, teaching a tier of its spell, once.
 func _exam() -> void:
 	print("the exam")
+	# The exam is in session in the timetable's last period (timetable_test rings its way there).
+	info.record().period = Timetable.EXAM_PERIOD
 	var hall: Dictionary = Institute.exam_hall(info.world)
 	var index: int = info.world.halls.find(hall)
 	var inside: Rect2i = hall["inside"]
-	var doors: Array[Node] = placed("exam_door.tscn")
-	check(doors.all(func(d: Node) -> bool: return not (d as ExamDoor).shut()), "its doors stand open before the exam")
+	var doors: Array[Node] = placed("exam_door.tscn").filter(func(d: Node) -> bool: return (d as ExamDoor).hall == index)
+	check(await within(func() -> bool: return doors.all(func(d: Node) -> bool: return not (d as ExamDoor).shut()), 0.5), "its doors stand open before the exam")
 	var master: Scholar = info.examiner(index)
 	check(master != null, "its master is there")
 	if master == null:
@@ -435,7 +438,8 @@ func _exam() -> void:
 	player.set_physics_process(false)
 	var again: Scholar = info.examiner(index)
 	check(again != null, "the master is back after a death")
-	check(placed("exam_door.tscn").all(func(d: Node) -> bool: return not (d as ExamDoor).shut()) and info.record().exams.has(index), "but the exam stays passed")
+	await frames(2)
+	check(placed("exam_door.tscn").all(func(d: Node) -> bool: return (d as ExamDoor).hall != index or not (d as ExamDoor).shut()) and info.record().exams.has(index), "but the exam stays passed")
 	check(placed("lesson.tscn").size() == (1 if swapped != &"" else 0), "its lesson is there only for what is left on it")
 	if again != null:
 		(again.get_node("Wound") as Wound).hit(99, Vector2.UP)

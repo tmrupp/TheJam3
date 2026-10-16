@@ -7,7 +7,9 @@ class_name HexBolt
 ## passes through (SpiderWeb) and flies on, and cuts a spider's thread it crosses (Spider), ending
 ## there. Thorns that are out stop it as rock does (Spikes.struck_by, THORN_REACH), bursting on them.
 ## A seeking bolt (Seeker: `seek` above 0) turns toward the nearest enemy it can see within
-## SEEK px as it flies. Printed as a comet of spell light (accent ink, like the wand tip) with a
+## SEEK px as it flies (a glyph seal too, GlyphSeal). A glyph seal it meets is told which spell it is
+## (`spell`), where it was cast from and how far it has turned (GlyphSeal.struck), and it ends there.
+## Printed as a comet of spell light (accent ink, like the wand tip) with a
 ## tapering tail, on top of the decor and night it crosses (lifted to paper under it).
 
 const SPEED: float = 1100.0
@@ -30,6 +32,7 @@ const ANSWERS: Array[Script] = [
 	preload("res://scripts/Bell.gd"),
 	preload("res://scripts/CrackedWall.gd"),
 	preload("res://scripts/MothSwarm.gd"),
+	preload("res://scripts/SchoolBell.gd"),
 	preload("res://scripts/Switch.gd"),
 ]
 
@@ -59,6 +62,11 @@ var size: float = 1.0
 var reflected: bool = false
 var travelled: float = 0.0
 var struck: Array[Node] = []
+## The spell that cast it (&"hex", or &"seeker" for a seeker's), where it was cast from (set on its
+## first step), and how far it has turned on its way (radians, all told).
+var spell: StringName = &"hex"
+var origin: Vector2 = Vector2.INF
+var bent: float = 0.0
 var trail: Array[Vector2] = []
 var ink: InkCanvas
 var t: float = 0.0
@@ -81,11 +89,14 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	t += delta
 	var from: Vector2 = global_position
+	if origin == Vector2.INF:
+		origin = from
 	if seek > 0.0:
 		var quarry: Node2D = _quarry()
 		if quarry != null:
-			var turn: float = angle_difference(dir.angle(), (quarry.global_position - from).angle())
-			dir = dir.rotated(clampf(turn, -seek * delta, seek * delta))
+			var turn: float = clampf(angle_difference(dir.angle(), (quarry.global_position - from).angle()), -seek * delta, seek * delta)
+			dir = dir.rotated(turn)
+			bent += absf(turn)
 	var to: Vector2 = from + dir * speed * delta
 	# Enemies along the step, nearest first.
 	SpiderWeb.tear_along(get_tree(), from, to)
@@ -119,6 +130,13 @@ func _physics_process(delta: float) -> void:
 		if Wound.whole(e) in struck:
 			continue
 		struck.append(Wound.whole(e))
+		if e is GlyphSeal:
+			(e as GlyphSeal).struck(spell, origin, bent)
+			_end((e as Node2D).global_position)
+			return
+		# A scholar struck by the wizard turns on them (Scholar.rouse).
+		if e is Scholar:
+			(e as Scholar).rouse()
 		# A shield takes the bolt whole: no wound, no stun.
 		var shield: Shield = Shield.of(e)
 		if shield != null and shield.absorb(reflected, dir):
@@ -160,14 +178,14 @@ func _physics_process(delta: float) -> void:
 		_end(to)
 
 
-## For a seeking bolt: the nearest enemy (a thing with a Wound) not yet struck, within SEEK px, with
-## no rock between; null when there is none.
+## For a seeking bolt: the nearest enemy (a thing with a Wound) or glyph seal not yet struck, within
+## SEEK px, with no rock between; null when there is none.
 func _quarry() -> Node2D:
 	var best: Node2D = null
 	var best_d: float = SEEK
 	for e: Node in get_tree().get_nodes_in_group(&"hex_target"):
 		var n: Node2D = e as Node2D
-		if n == null or not is_instance_valid(n) or n.is_queued_for_deletion() or n.get_node_or_null("Wound") == null or Wound.whole(n) in struck:
+		if n == null or not is_instance_valid(n) or n.is_queued_for_deletion() or (n.get_node_or_null("Wound") == null and not n is GlyphSeal) or Wound.whole(n) in struck:
 			continue
 		var d: float = global_position.distance_to(n.global_position)
 		if d < best_d and SpellStrike.clear(global_position, n.global_position):

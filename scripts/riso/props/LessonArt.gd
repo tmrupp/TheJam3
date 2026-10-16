@@ -1,4 +1,5 @@
 extends RisoProp
+class_name LessonArt
 ## A master's lesson (Lesson): a wooden lectern (blue, a night shade down its post) with an open
 ## book on its sloping top, paper pages with night lines, and over it the mark of the spell it
 ## teaches (RisoGlyph) floating in gold, bobbing in a soft halo, with a pip for the tier taking it
@@ -18,8 +19,13 @@ func light() -> Array:
 	return _light(Vector2(0, _ground() - MARK_Y), RisoLight.BEACON, RisoPrint.ACCENT)
 
 
-func _draw_art() -> void:
+## What it holds now, as [spell, tier] ([&"", 0] for nothing): its lesson's.
+func _held() -> Array:
 	var lesson: Lesson = host as Lesson
+	return lesson.holds() if lesson != null and lesson.map_info != null else [&"", 0]
+
+
+func _draw_art() -> void:
 	var g: float = _ground()
 	var post: PackedVector2Array = RisoShapes.rrect(-6.0, g - 70.0, 12.0, 70.0, 2.0)
 	var foot: PackedVector2Array = RisoShapes.rrect(-22.0, g - 8.0, 44.0, 8.0, 2.0)
@@ -37,7 +43,7 @@ func _draw_art() -> void:
 		lines.append(Spider.strand(Vector2(-25, g - 84 + y), Vector2(-5, g - 89 + y), 1.0))
 		lines.append(Spider.strand(Vector2(5, g - 91 + y), Vector2(25, g - 95 + y), 1.0))
 	ink.ink(RisoPrint.NIGHT, 0.6, lines, false)
-	var held: Array = lesson.holds() if lesson != null and lesson.map_info != null else [&"", 0]
+	var held: Array = _held()
 	var a: StringName = held[0]
 	if a == &"":
 		return

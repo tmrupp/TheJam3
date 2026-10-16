@@ -56,6 +56,10 @@ func take() -> void:
 	var dropped: StringName = Abilities.spell(player, Abilities.slot_of(a)) if Abilities.is_swap(player, a) else &""
 	var dropped_tier: int = Abilities.tier(player, dropped) if dropped != &"" else 0
 	Abilities.set_tier(player, a, int(held[1]))
+	# What the institute teaches stays taught (RunState.taught), the spell put down too.
+	map_info.remember(a, int(held[1]))
+	if dropped != &"":
+		map_info.remember(dropped, dropped_tier)
 	e["taken"] = true
 	e["left"] = [dropped, dropped_tier] if dropped != &"" else []
 	map_info.record().lessons[cell] = e

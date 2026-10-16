@@ -27,7 +27,15 @@ class_name Scholar
 ## - a librarian: casts nothing, but hushes the air round it (HUSH px): while the wizard is in it
 ##   they are drowsy, as in sleep fog (Player.make_drowsy), and their spells do nothing.
 ## A melee spell or a touch on the wizard comes from its HitBox's Damager, so a parry catches it
-## as it catches any touch. Nothing here draws from any RNG.
+## as it catches any touch.
+##
+## The timetable (Timetable): it leaves the wizard be (calm) while they are where they belong, and
+## turns on them (`roused`) once it sees them where they do not (MapInfo.wizard_belongs), with real
+## line of sight, so slipping past one facing away works; those within ROUSE_REACH of it turn with
+## it, a local fuss. Struck by the wizard, or seeing them cast a spell (MapInfo.wizard_cast), it turns
+## on them wherever they are. The next bell calms it (MapInfo.ring_period). In a level with no
+## timetable it is always roused. The abominations it fights whatever the time. Nothing here draws
+## from any RNG.
 
 ## Seconds between looks for a foe, and how far (px) each kind sees one.
 const RETARGET: float = 0.25
@@ -97,6 +105,8 @@ const EYE: float = 60.0
 const AIM: float = 40.0
 ## Salt for the hash that deals a student's misfires.
 const MISFIRE_DEAL: int = 6460
+## How far (px) a scholar turning on the wizard takes those round it with it.
+const ROUSE_REACH: float = 640.0
 
 ## The bolt it casts (loaded when first cast: preloaded, it would load in a circle with the
 ## wizard's scripts, which name this one).
@@ -141,6 +151,8 @@ var scatter: float = 0.0
 var since_shield: float = 9.0
 ## Its own clock (the art).
 var t: float = 0.0
+## Whether it has turned on the wizard (see the class description) until the next bell.
+var roused: bool = false
 
 var gravity: float = ProjectSettings.get_setting("physics/2d/default_gravity")
 
@@ -196,6 +208,9 @@ func _physics_process(delta: float) -> void:
 	own_master()
 	_fall(delta)
 	walking = false
+	var touch: Damager = damager()
+	if touch != null:
+		touch.set_physics_process(hostile())
 	if stunned():
 		winding = -1.0
 		lunging = 0.0
@@ -234,7 +249,7 @@ func _find_foe() -> Node2D:
 	var best_d: float = sight
 	var player: Player = Stage.player()
 	var candidates: Array[Node2D] = []
-	if player != null and is_instance_valid(player) and not player.phasing:
+	if player != null and is_instance_valid(player) and not player.phasing and _turns_on(player):
 		candidates.append(player)
 	for node: Node in get_tree().get_nodes_in_group(&"abomination"):
 		var a: Node2D = node as Node2D
@@ -246,6 +261,43 @@ func _find_foe() -> Node2D:
 			best = c
 			best_d = d
 	return best
+
+
+## Whether it is turned on the wizard now: always where there is no timetable, else once roused.
+## Calm, its touch and its spells leave them be.
+func hostile() -> bool:
+	return roused or map_info == null or not map_info.timetabled()
+
+
+## Whether it fights the wizard (`player`): always where there is no timetable; else once roused,
+## and it is roused here by seeing them where they do not belong.
+func _turns_on(player: Player) -> bool:
+	if map_info == null or not map_info.timetabled():
+		return true
+	if not roused and not map_info.wizard_belongs() and sees(player):
+		rouse()
+	return roused
+
+
+## Whether it sees `target`: within its sight, with nothing solid between.
+func sees(target: Node2D) -> bool:
+	return eye().distance_to(target.global_position) <= float(SIGHT.get(kind, 900.0)) and _clear(eye(), target.global_position + aim_at(target))
+
+
+## It turns on the wizard, and every scholar within ROUSE_REACH with it, until the next bell.
+func rouse() -> void:
+	for node: Node in get_tree().get_nodes_in_group(&"scholar"):
+		var s: Scholar = node as Scholar
+		if s != null and not s.is_queued_for_deletion() and (s == self or s.global_position.distance_to(global_position) <= ROUSE_REACH):
+			s.roused = true
+
+
+## A bell rang: it calms down, and leaves the wizard be until it sees them out of place again.
+func calm() -> void:
+	roused = false
+	if foe is Player:
+		foe = null
+		winding = -1.0
 
 
 ## Where on `target` (px from where it stands) a scholar aims its bolts, and a seeker steers: the
@@ -477,7 +529,7 @@ func _shoot(speed: float, off: float, spell: StringName) -> Bullet:
 func _strike_round(reach: float, ahead: bool, throw: float) -> void:
 	var c: Vector2 = global_position + Vector2(0, -AIM)
 	var player: Player = Stage.player()
-	if player != null and is_instance_valid(player) and _meets(c, player.global_position + Vector2(0, -AIM), reach, ahead):
+	if player != null and is_instance_valid(player) and hostile() and _meets(c, player.global_position + Vector2(0, -AIM), reach, ahead):
 		var away: Vector2 = (player.global_position - global_position).normalized()
 		var d: Damager = damager()
 		if d != null:

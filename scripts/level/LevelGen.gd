@@ -64,6 +64,9 @@ enum Type {
 	DEPARTMENT,
 	STATION_GATE,
 	TOWER_SWITCH,
+	SCHOOL_BELL,
+	LECTERN,
+	GLYPH_SEAL,
 }
 
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).

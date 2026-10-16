@@ -17,7 +17,9 @@ extends RefCounted
 ##   the beast's chamber (CHAMBER_INSIDE): a long hall with a flat floor, in the lower half where it
 ##   fits, holding the beast (Beast, LevelGen.place_boss) and nothing else.
 ## Each is entered by a doorway a cell high through each side wall at its floor (a lecture hall's
-## high side at its top tier), with a passage two rows high carved out from it through the rock
+## high side at its top tier); a hall with a class in it (Timetable.TIMETABLED) has a door in each
+## (ExamDoor), open while its class is in session. A passage two rows high is carved out from each
+## doorway through the rock
 ## until it meets open air (at most DOOR_REACH cells; a side whose passage finds none has no
 ## doorway). Where each goes is the site walling over the least open air and needing the shortest
 ## passages (as a crypt's, Crypts), ties dealt by the seed. Its stone, inside and passages are kept
@@ -71,6 +73,11 @@ const DEPARTMENTS: Dictionary = {
 	&"geology": &"crags",
 	&"astronomy": &"sky",
 }
+
+## The timetable's bells (SchoolBell): one out in the corridors, the nearest free floor to the way in
+## at least BELL_CLEAR cells from it, bearing the timetable on a board; and one in each lecture hall
+## and the library.
+const BELL_CLEAR: int = 3
 
 ## Out in the level (populate), per 1000 cells: breaches abominations rise from (Breach), at least
 ## BREACH_CLEAR cells from the way in and BREACH_APART from one another; abominations already up;
@@ -255,8 +262,9 @@ static func _raise(w: LevelGen, kind: StringName, site: Dictionary, rise: int) -
 				floors.append(v)
 	hall["floors"] = floors
 	w.halls.append(hall)
-	# The exam hall's doorways are its exam doors (ExamDoor), open until the exam begins.
-	if kind == &"exam":
+	# A hall with a class in it has a door in each doorway (ExamDoor), kept by the timetable; the exam
+	# hall's shut behind the wizard until its exam is passed.
+	if kind in Timetable.TIMETABLED:
 		for door: Vector2i in doors:
 			w.put(door, LevelGen.Type.EXAM_DOOR, w.halls.size() - 1)
 
@@ -374,6 +382,11 @@ static func department_row(def: NextWorldDef, dept: StringName, i: int) -> int:
 ##   lectern's wall, and a student on each tier (a proctor on the top one);
 ## - the library: a librarian on its top gallery with HOARD stars, and a student on each gallery
 ##   below.
+## Then the timetable's things (Timetable): a lectern (Lectern) and a bell (SchoolBell) on each
+## lecture hall's floor between its portal and its master, a bell on the library's floor, a glyph
+## seal (GlyphSeal) just inside each doorway of the exam hall and the library (out in the level the
+## cell outside may hold anything), asking for the spell Timetable.seal_of deals, and the bell out in
+## the corridors with the timetable's board.
 static func furnish(w: LevelGen, def: NextWorldDef) -> void:
 	for i: int in range(w.halls.size()):
 		var hall: Dictionary = w.halls[i]
@@ -415,6 +428,37 @@ static func furnish(w: LevelGen, def: NextWorldDef) -> void:
 					if not row.is_empty():
 						@warning_ignore("integer_division")
 						_place(w, row[(row.size() * 2) / 3], LevelGen.Type.STUDENT)
+	_timetable(w)
+
+
+## The timetable's things in `w` (see furnish), last of all.
+static func _timetable(w: LevelGen) -> void:
+	if not Timetable.kept_in(w):
+		return
+	for i: int in range(w.halls.size()):
+		var hall: Dictionary = w.halls[i]
+		var inside: Rect2i = hall["inside"]
+		var bottom: int = inside.end.y - 1
+		match hall["kind"]:
+			&"lecture":
+				var rise: int = hall["rise"]
+				var wall: int = inside.position.x if rise > 0 else inside.end.x - 1
+				_place(w, Vector2i(wall + rise * 2, bottom), LevelGen.Type.LECTERN, i)
+				_place(w, Vector2i(wall + rise * 3, bottom), LevelGen.Type.SCHOOL_BELL, {"board": false})
+			&"library":
+				_place(w, Vector2i(inside.position.x + 2, bottom), LevelGen.Type.SCHOOL_BELL, {"board": false})
+		var spell: StringName = Timetable.seal_of(w, i)
+		if spell == &"":
+			continue
+		var box: Rect2i = hall["box"]
+		for door: Vector2i in hall["doors"]:
+			var inward: int = 1 if door.x == box.position.x else -1
+			_place(w, door + Vector2i(inward, 0), LevelGen.Type.GLYPH_SEAL, spell)
+	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	var out: Array[Vector2i] = w.free_floors().filter(func(v: Vector2i) -> bool: return hall_at(w, v) < 0 and LevelGen.dist(v, start) >= BELL_CLEAR and not w._crowds_exit(v))
+	var spot: Variant = LevelGen.best_of(out, func(v: Vector2i) -> float: return float(LevelGen.dist(v, start)))
+	if spot != null:
+		_place(w, spot, LevelGen.Type.SCHOOL_BELL, {"board": true})
 
 
 ## A `type` holding `extra` at `v`, if it is still free open air.

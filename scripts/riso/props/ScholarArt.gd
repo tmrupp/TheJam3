@@ -15,8 +15,9 @@ class_name ScholarArt
 ##   with a pink ring, the links to those it shields flashing as it shields them.
 ## - a librarian: in pale tan, hooded, no hat, round paper spectacles over its eyes, a book held open before it,
 ##   and round it the ring of its hush, faint blue, rippling.
-## Pink is danger, so every eye's pupil and every spell is pink. Stunned, stars circle over the
-## hat and its eyes shut.
+## Pink is danger, so every spell is pink, and so is an eye's pupil while it is turned on the wizard
+## (Scholar.hostile); calm (the timetable, Timetable), its pupils are night. Stunned, stars circle
+## over the hat and its eyes shut.
 
 ## Px per art unit, by kind.
 const SIZE: Dictionary = {&"student": 2.7, &"master": 3.5, &"proctor": 3.0, &"librarian": 2.9}
@@ -233,7 +234,7 @@ func _draw_rigged(s: Scholar, kind: StringName, xf: Transform2D, ph: float, bob:
 			var d: Vector2 = player.global_position - host.global_position
 			look = Vector2(clampf(absf(d.x) / 300.0, 0.0, 1.0) * 0.3, clampf(d.y / 300.0, -1.0, 1.0) * 0.25)
 		ink.on_bone(ink.bone(xf * Transform2D(0.0, Vector2(0, bob) + look)))
-		ink.ink(RisoPrint.PINK, 1.0, rest[&"pupils_small" if scared else &"pupils"], false)
+		ink.ink(RisoPrint.PINK if s.hostile() else RisoPrint.NIGHT, 1.0, rest[&"pupils_small" if scared else &"pupils"], false)
 	# The collar, then the sleeve (carried by the shoulder and the hand).
 	ink.on_bone(up)
 	ink.knock(UNDER, rest[&"collar"])
@@ -573,7 +574,8 @@ func _eyes(xf: Transform2D, head_y: float, stunned: bool, scared: bool, spectacl
 	var pupils: Array[PackedVector2Array] = []
 	for c: Vector2 in at:
 		pupils.append(xf * RisoShapes.circle(c + look, 0.3 if scared else 0.5, 8))
-	ink.ink(RisoPrint.PINK, 1.0, pupils, false)
+	var s: Scholar = host as Scholar
+	ink.ink(RisoPrint.PINK if s == null or s.hostile() else RisoPrint.NIGHT, 1.0, pupils, false)
 
 
 ## What it wears on its head (see the class description); the point over its crown comes back (art

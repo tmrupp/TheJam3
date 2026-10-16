@@ -72,6 +72,7 @@ func cast(dir: Vector2 = Vector2.ZERO) -> Array[HexBolt]:
 		bolt.range_px = RANGE
 		bolt.seek = turn
 		bolt.size = SIZE
+		bolt.spell = &"seeker"
 		level.add_child(bolt)
 		bolt.global_position = player.global_position + Vector2(0, -44)
 		out.append(bolt)

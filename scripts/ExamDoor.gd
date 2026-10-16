@@ -1,12 +1,14 @@
 extends StaticBody2D
 class_name ExamDoor
-## A door of an institute's exam hall (Institute), across one of its doorways: the gate of the
-## institute (docs/REGIONS_PLAN.md §7). It stands open until the exam begins, when the wizard is
-## inside the hall (MapInfo.exam_begin); then it drops, as soon as the wizard is clear of it, and
-## the hall is shut off with its master and students, until the master falls (Scholar._fallen,
-## MapInfo.exam_passed). Then it rises for good: the level record keeps the exam passed
-## (LevelRecord.exams). A death of the wizard's own before then brings the master back, and the
-## doors stand open again, the exam to sit afresh. It has no lock: nothing else opens it. Its
+## A door of an institute hall with a class in it (Institute, Timetable.TIMETABLED), across one of
+## its doorways, kept by the timetable (MapInfo.hall_door_up): a lecture hall's or the library's
+## stands open while its class is in session and is shut while it is not. The exam hall's are the gate
+## of the institute (docs/REGIONS_PLAN.md §7): open only while the exam is in session (the last
+## period), until the exam begins, when the wizard is inside the hall (MapInfo.exam_begin); then they
+## drop, as soon as the wizard is clear of them, and the hall is shut off with its master and
+## students, until the master falls (Scholar._fallen, MapInfo.exam_passed). Then they rise for good:
+## the level record keeps the exam passed (LevelRecord.exams). A death of the wizard's own before then
+## brings the master back, the exam to sit afresh. It has no lock: nothing else opens it. Its
 ## portcullis winches up and down (`lift`, printed by ExamDoorArt), and MapInfo.exam_doors keeps
 ## whether each is up, for what light and sight pass (MapInfo.solid_at).
 
@@ -78,7 +80,7 @@ func _holds_wizard() -> bool:
 func _physics_process(delta: float) -> void:
 	if map_info == null:
 		return
-	up = passed() or not map_info.exam_running(hall)
+	up = map_info.hall_door_up(hall)
 	if up:
 		collision_layer = 0
 	elif not shut() and not _holds_wizard():

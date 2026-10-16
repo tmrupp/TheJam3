@@ -548,8 +548,10 @@ halls with tiers), its realm, backdrop and decor (marble slabs, great columns, b
 everywhere); students, masters (each teaching its spell by a lesson once beaten), proctors and
 librarians, all printed after the original wizard (students bareheaded); abominations that bud
 copies of themselves until 32 are about, and breaches that spawn them and must be closed; the exam
-as a battle; the departments' portals with their ways back; and the beast in its chamber, its souls
-sent out across the run (§6). Not yet: field trials and the other trials, and tuning in play.
+as a battle; the departments' portals with their ways back; the beast in its chamber, its souls
+sent out across the run (§6); and a first pass of the timetable (§9): periods moved on by bells,
+hall doors kept by them, scholars calm where the wizard belongs, trials in lecture halls, spells
+taught kept for the run, and glyph seals. Not yet: field trials, and tuning in play.
 
 - **Terrain.** Halls of different kinds, built by a structure pass (as the crags build their
   keeps) into a sample of rooms and corridors: lecture halls whose tiered seats climb like stairs,
@@ -739,7 +741,11 @@ Each phase ends with the full suite green and its own tests.
    are new; every other level is laid out as before. *The eldritch beast: a first pass is done*
    (§6): its chamber in its gate levels (only they changed), its souls sent across the run with
    abominations round them, its eyes, tentacles and great eye (`beast_test`, `capture_beast.gd`).
-   Then field trials, and tuning.
+   *The timetable: a first pass is done* (§9): periods and bells, hall doors, belonging, passing
+   time, trials, lecterns and glyph seals (`Timetable`, `SchoolBell`, `Lectern`, `GlyphSeal`;
+   `timetable_test`, `capture_timetable.gd`). Only the institute's dressing changed (its hall
+   doors, bells, lecterns and seals; `layout_fingerprint_test` re-pinned for it alone); its terrain
+   did not. Then field trials, and tuning.
 8. **The sky reworked**: *a first pass is done*: the level's wind set by its vanes, in gusts;
    balloons riding it along the row; temples opened by sequences of winds; the white realm and its
    storm; and **the whale**, roaming the top row on the winds, trapped, its belly and heart
@@ -762,8 +768,8 @@ Each phase ends with the full suite green and its own tests.
 - **Gate level size.** Whether gate levels are the band's ordinary size or larger. The worm and
   the bramble fit in the ordinary size (the bramble's shaft is half the level tall).
 - **The ward and bosses.** Whether boss hits break a ward charge like any hit, or several.
-- **The institute's timetable** (liked, being worked out): the institute's band-wide puzzle, as
-  light is the cemetery's and the tower switches are the crags'. Nothing in it happens unless a
+- **The institute's timetable** (liked; *a first pass is built*, `docs/DEEPER_PLAN.md` §4e): the
+  institute's band-wide puzzle, as light is the cemetery's and the tower switches are the crags'. Nothing in it happens unless a
   bell is rung or the wizard goes somewhere: there is no clock anywhere.
   - *The bell is the switch.* A ring (the tower's great bell, or a rope in a few halls; pulled, or
     struck by a bolt from across a shaft) ends the period and moves the whole level on to the next
@@ -821,3 +827,21 @@ Each phase ends with the full suite green and its own tests.
   - *Decided:* a lesson is a trial, not time; attending adds a tier; nothing happens without a
     ring; going into a classroom ends passing time; glyph seals open only to their spell, used
     literally.
+  - *Built in the first pass:* four periods a day, the last the exam's; a bell in each lecture
+    hall and the library and one by the way in bearing the timetable on a board, rung by hand or
+    by a bolt; hall doors open only while in session; passing time, ended by going into a class;
+    scholars calm where the wizard belongs and turning on them (and those near) when they see them
+    truant, cast or strike, calmed by the next bell; a trial in each lecture hall in session (the
+    master's spell lent, a mock seal at the lectern's wall), passed for a tier; every spell the
+    institute taught kept for the run and taken up again at any lectern; glyph seals just inside
+    the exam hall's and the library's doorways asking for a spell taught in the level, opened only
+    by that spell used literally (a hex bolt from over three cells off, a seeker's bolt turned
+    round, the rest by striking it). The rooms are close, so "far off" is a little over three
+    cells, not a gap no one could walk.
+  - *Not yet:* classes moving from hall to hall and students pouring into the corridors in passing
+    time; the library's ladders and the lecture halls' folding tiers; proctors walking the
+    corridors in a period; the timetable on the map; seals out in the corridors, seals asking for
+    a tier, and the literal uses that want their own ground (a ring of sigils for a nova, a stone
+    on a track for a push, a gap for a lunge, cords for a slash: for now these seals open to the
+    spell striking them); checking that some order of rings leads through (every hall is in
+    session at some ring, so for now any order does).
