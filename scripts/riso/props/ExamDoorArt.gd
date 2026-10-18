@@ -6,7 +6,10 @@ extends RisoProp
 ## library's). Beside a classroom's plate, while its class asks for a
 ## prerequisite (ExamDoor.prereq), hangs a small dark plate holding a paper sheet with the emblem of
 ## the department it asks for (RisoMarks.emblem) in night, and under it a paper pip for each tier it
-## needs: a paper of that department (or a spell of it held) opens the door.
+## needs: a paper of that department (or a spell of it held) opens the door. On the other side of the
+## plate of the classroom holding the way on (ExamDoor.way_on) hangs another, its paper sheet bearing
+## the way on's chevron in night and a paper pip for each tier of the paper it asks for besides, of
+## any other department (Timetable.WAY_ON_PAPER).
 
 ## The prerequisite's sheet: its size, and how far beside the plate's middle it hangs.
 const NEED_SHEET: float = 1.15
@@ -57,3 +60,21 @@ func _draw_art() -> void:
 			var p: Vector2 = nc + Vector2((float(i) - float(int(need[1]) - 1) * 0.5) * 7.0, tall + 7.0)
 			pips.append(PackedVector2Array([p + Vector2(0, -3), p + Vector2(3, 0), p + Vector2(0, 3), p + Vector2(-3, 0)]))
 		ink.knock(RisoPrint.ALL_PLATES, pips)
+	if door != null and door.way_on():
+		_sheet(c + Vector2(-NEED_SIDE, 0), [RisoMarks.chevron(c + Vector2(-NEED_SIDE, 4.0), Vector2.DOWN, 0.5)], Timetable.WAY_ON_PAPER)
+
+
+## A small dark plate centred on `nc` holding a paper sheet with `mark` on it in night, and under it
+## a paper pip for each of `tiers`.
+func _sheet(nc: Vector2, mark: Array[PackedVector2Array], tiers: int) -> void:
+	var tall: float = 13.0 * NEED_SHEET
+	ink.ink(RisoPrint.NIGHT, 0.9, [RisoShapes.rrect(nc.x - tall, nc.y - tall - 6.0, tall * 2.0, tall * 2.0 + 22.0, 5.0)], false)
+	var sheet: Array[PackedVector2Array] = RisoMarks.paper_shape(nc, NEED_SHEET)
+	ink.knock(RisoPrint.ALL_PLATES, sheet.slice(0, 1))
+	ink.ink(RisoPrint.NIGHT, 0.55, sheet.slice(1, 2), false)
+	ink.ink(RisoPrint.NIGHT, 1.0, mark, false)
+	var pips: Array[PackedVector2Array] = []
+	for i: int in range(tiers):
+		var p: Vector2 = nc + Vector2((float(i) - float(tiers - 1) * 0.5) * 7.0, tall + 7.0)
+		pips.append(PackedVector2Array([p + Vector2(0, -3), p + Vector2(3, 0), p + Vector2(0, 3), p + Vector2(-3, 0)]))
+	ink.knock(RisoPrint.ALL_PLATES, pips)

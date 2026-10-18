@@ -67,6 +67,9 @@ var dept_tiers: Dictionary = {}
 ## The classrooms whose master, beaten by the wizard, has left its top-tier paper (by hall,
 ## MapInfo.instructor_fell).
 var prizes: Dictionary = {}
+## Relics left lying by beaten masters (MapInfo.relic_left), by id (from next_drop): [where, the
+## move, whether it is the level's own relic].
+var relics_left: Dictionary = {}
 ## The crags: which of its gondola's stations are on, a bit each from the bottom (-1 before the first
 ## visit deals them: only the one nearest the way in on; MapInfo.station_on, flip_tower).
 var stations: int = -1
@@ -74,7 +77,7 @@ var stations: int = -1
 ## Every field saved, in the order they are written.
 const FIELDS: Array[StringName] = [&"taken", &"opened", &"slain", &"broken", &"dropped", &"next_drop", &"deeper_paid", &"up_paid",
 	&"doors_paid", &"lateral_open", &"ways_taken", &"shrine_used", &"mapped", &"seen",
-	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended", &"lessons", &"stations", &"rings", &"passing", &"lifted", &"pigeonholes", &"prizes", &"dept_tiers"]
+	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended", &"lessons", &"stations", &"rings", &"passing", &"lifted", &"pigeonholes", &"prizes", &"dept_tiers", &"relics_left"]
 
 
 ## The record as a plain dictionary, for the save file.

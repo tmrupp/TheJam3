@@ -2,7 +2,7 @@ extends RisoProp
 ## A key, bobbing in a light of its own colour (RisoLight); a skeleton key is bone-white with a
 ## paper twinkle, in a plain light. An exam paper (KeyRing.paper) lies the same way: a paper sheet
 ## (PAPER times a key's size) with a folded corner, its subject's mark (RisoGlyph) on it in gold, and
-## under it a gold pip for each tier.
+## under it a gold pip for each tier; a stolen one's folded corner is pink (KeyRing.is_stolen).
 
 ## How much bigger an exam paper is drawn than a key, and its mark on it.
 const PAPER: float = 1.7
@@ -31,7 +31,10 @@ func _draw_art() -> void:
 		# The sheet and its folded corner, bare paper (no ruled lines: the mark takes their place).
 		var sheet: Array[PackedVector2Array] = RisoMarks.paper_shape(o, PAPER)
 		ink.lift_ink(RisoPrint.ALL_PLATES, 1.0, sheet.slice(0, 1))
-		ink.ink(RisoPrint.NIGHT, 0.55, sheet.slice(1, 2), false)
+		if KeyRing.is_stolen(color):
+			ink.ink(RisoPrint.PINK, 1.0, sheet.slice(1, 2))
+		else:
+			ink.ink(RisoPrint.NIGHT, 0.55, sheet.slice(1, 2), false)
 		var mark: Array[PackedVector2Array] = []
 		for poly: PackedVector2Array in RisoGlyph.of(KeyRing.paper_spell(color), Vector2.ZERO, t):
 			mark.append(Transform2D(0.0, Vector2(PAPER_MARK, PAPER_MARK), 0.0, o + Vector2(0, 2.0 * PAPER)) * poly)

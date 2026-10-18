@@ -78,10 +78,15 @@ const DEPARTMENTS: Dictionary = {
 
 ## The timetable's great bell and its cords (SchoolBell): the bell hangs from the ceiling out in the
 ## corridors over the nearest free floor to the way in at least BELL_CLEAR cells from it with
-## BELL_ROOM open cells over it (else any such floor), its cord hanging from it; and a cord in each
-## lecture hall and the library, up into the ceiling.
+## BELL_ROOM open cells over it (else any such floor), its cord hanging from it, in the stretch of
+## corridors the way in opens on (regions; anywhere out of the halls if that has no such floor), so
+## a wizard just come in can ring it; and a cord in each lecture hall and the library, up into the
+## ceiling.
 const BELL_CLEAR: int = 3
 const BELL_ROOM: int = 3
+## The way on (Timetable.way_on_hall): in the classroom the most classrooms away from the way in
+## (way_on), on its floor this many cells from its lectern's wall.
+const WAY_ON_SEAT: int = 7
 
 ## Out in the level (populate), per 1000 cells: breaches abominations rise from (Breach), at least
 ## BREACH_CLEAR cells from the way in and BREACH_APART from one another; abominations already up;
@@ -332,12 +337,105 @@ static func hall_at(w: LevelGen, v: Vector2i) -> int:
 	return -1
 
 
+## The stretches of corridor in `w`: each open cell out of the classrooms, by the stretch it lies in
+## (a number), joined through anything but rock and the classrooms' doors (locked doors, gates and
+## glyph seals do not part them, so the stretches are the same before those are laid and after). A
+## wizard gets from one stretch to another only through the classrooms.
+static func regions(w: LevelGen) -> Dictionary:
+	var walls: Array[LevelGen.Type] = [LevelGen.Type.GROUND, LevelGen.Type.EXAM_DOOR]
+	var open: Callable = func(v: Vector2i) -> bool:
+		if not w.is_valid(v) or w.get_cell(v).type in walls:
+			return false
+		var hall: int = hall_at(w, v)
+		return hall < 0 or w.halls[hall]["kind"] != &"lecture"
+	var out: Dictionary = {}
+	var next: int = 0
+	for x: int in range(w.size.x):
+		for y: int in range(w.size.y):
+			var v: Vector2i = Vector2i(x, y)
+			if out.has(v) or not open.call(v):
+				continue
+			var stack: Array[Vector2i] = [v]
+			out[v] = next
+			while not stack.is_empty():
+				var c: Vector2i = stack.pop_back()
+				for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+					var n: Vector2i = c + d
+					if not out.has(n) and open.call(n):
+						out[n] = next
+						stack.append(n)
+			next += 1
+	return out
+
+
+## The stretches of corridor (regions, `region`) classroom `hall` of `w` opens on.
+static func opens_on(w: LevelGen, hall: int, region: Dictionary) -> Array[int]:
+	var out: Array[int] = []
+	for step: Vector2i in w.halls[hall]["steps"]:
+		if region.has(step) and not out.has(int(region[step])):
+			out.append(int(region[step]))
+	return out
+
+
+## How far in each classroom of `w` is from cell `back`: the classrooms crossed to reach its doors
+## through the corridors (regions), by its index in LevelGen.halls; classrooms never reached so are
+## left out.
+static func rooms_in(w: LevelGen, back: Vector2i) -> Dictionary:
+	var region: Dictionary = regions(w)
+	var crossed: Dictionary = {}
+	if not region.has(back):
+		return crossed
+	var depth: Dictionary = {int(region[back]): 0}
+	var frontier: Array[int] = [int(region[back])]
+	while not frontier.is_empty():
+		var later: Array[int] = []
+		for g: int in frontier:
+			for i: int in range(w.halls.size()):
+				if w.halls[i]["kind"] != &"lecture" or crossed.has(i):
+					continue
+				var opens: Array[int] = opens_on(w, i, region)
+				if not opens.has(g):
+					continue
+				crossed[i] = depth[g]
+				for h: int in opens:
+					if not depth.has(h):
+						depth[h] = int(depth[g]) + 1
+						later.append(h)
+		frontier = later
+	return crossed
+
+
+## Where the way on stands in `w`, the way in at `back` (Timetable.way_on_hall): on the floor of the
+## classroom the most classrooms in from the way in (rooms_in), the furthest from it of those,
+## WAY_ON_SEAT cells from its lectern's wall; null for a level with no classroom reached so, or with
+## the beast's chamber (its way on stays where it was laid). Nothing drawn: the level's layout
+## decides it.
+static func way_on(w: LevelGen, back: Vector2i) -> Variant:
+	if not Timetable.kept_in(w) or not chamber(w).is_empty():
+		return null
+	var crossed: Dictionary = rooms_in(w, back)
+	var best: int = -1
+	var score: Callable = func(i: int) -> Vector2i:
+		var off: Vector2i = (w.halls[i]["inside"] as Rect2i).get_center() - back
+		return Vector2i(int(crossed[i]), off.x * off.x + off.y * off.y)
+	for i: int in range(w.halls.size()):
+		if crossed.has(i) and (best < 0 or score.call(i) > score.call(best)):
+			best = i
+	if best < 0:
+		return null
+	var hall: Dictionary = w.halls[best]
+	var inside: Rect2i = hall["inside"]
+	var front: int = hall["front"]
+	var wall: int = inside.position.x if front > 0 else inside.end.x - 1
+	return Vector2i(wall + front * WAY_ON_SEAT, inside.end.y - 1)
+
+
 # ------------------------------------------------------------------ dressing
 
 ## Out in the level: the breaches abominations rise from, abominations already up and small classes
-## out of their halls (see the consts). Their spots are drawn, as any archetype's dressing is. The way
-## on stays where the level laid it.
-static func populate(w: LevelGen, _def: NextWorldDef) -> void:
+## out of their halls (see the consts). Their spots are drawn, as any archetype's dressing is. The
+## level's relic, if it holds one, is carried by the master out in the level furthest from the way in.
+static func populate(w: LevelGen, def: NextWorldDef) -> void:
 	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
 	var floors: Array[Vector2i] = w.free_floors()
 	var breaches: Array[Vector2i] = w.pick_apart(floors.filter(func(v: Vector2i) -> bool: return LevelGen.dist(v, start) >= BREACH_CLEAR and not w._crowds_exit(v)), w.foes_per_area(BREACHES_PER_K), BREACH_APART)
@@ -354,6 +452,12 @@ static func populate(w: LevelGen, _def: NextWorldDef) -> void:
 		for j: int in range(class_cells.size()):
 			var kind: LevelGen.Type = LevelGen.Type.PROCTOR if j == 0 and i % PROCTOR_EVERY == 0 else LevelGen.Type.STUDENT
 			w.put(class_cells[j], kind)
+	# The level's relic (Relics.at), carried by the master out in the level furthest from the way in
+	# rather than laid in a secret room (LevelGen.relic_carrier): beaten, it leaves it (Scholar.relic).
+	if def.relic != &"" and not heads.is_empty():
+		var far: Vector2i = LevelGen.best_of(heads, func(v: Vector2i) -> float: return -float(LevelGen.dist(v, start)))
+		(w.get_cell(far).extra_info as Dictionary)["relic"] = def.relic
+		w.relic_carrier = far
 
 
 ## The first classroom of department `dept` in `w` (its index in LevelGen.halls, the one holding the
@@ -458,6 +562,10 @@ static func _timetable(w: LevelGen) -> void:
 			_place(w, door + Vector2i(inward, 0), LevelGen.Type.GLYPH_SEAL, spell)
 	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
 	var out: Array[Vector2i] = w.free_floors().filter(func(v: Vector2i) -> bool: return hall_at(w, v) < 0 and LevelGen.dist(v, start) >= BELL_CLEAR and not w._crowds_exit(v))
+	var region: Dictionary = regions(w)
+	var near: Array[Vector2i] = out.filter(func(v: Vector2i) -> bool: return region.has(start) and region.get(v, -1) == region[start])
+	if not near.is_empty():
+		out = near
 	var roomy: Array[Vector2i] = out.filter(func(v: Vector2i) -> bool: return range(1, BELL_ROOM + 1).all(func(k: int) -> bool: return w.is_valid(v + Vector2i(0, -k)) and not w.is_ground(v + Vector2i(0, -k))))
 	var spot: Variant = LevelGen.best_of(roomy if not roomy.is_empty() else out, func(v: Vector2i) -> float: return float(LevelGen.dist(v, start)))
 	if spot != null:

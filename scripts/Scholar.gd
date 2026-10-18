@@ -148,6 +148,9 @@ var map_info: MapInfo
 var cell: Vector2i = Vector2i(-1, -1)
 var ability: StringName = &""
 var hall: int = -1
+## The level's relic a master out in the level carries (Institute.populate), left where it falls to
+## the wizard (MapInfo.relic_left); &"" for none, and once the relic is left or taken.
+var relic: StringName = &""
 ## The move an instructor makes (&"" for none): see the class description. The seconds to its next
 ## warp, rift or projection, the seconds left of a projection, where it hovers (y, px), and which end
 ## of its room a rift took it to last.
@@ -206,6 +209,9 @@ func setup(info: MapInfo, v: Vector2i, extra: Variant) -> void:
 	if extra is Dictionary:
 		ability = StringName((extra as Dictionary).get("ability", &""))
 		hall = int((extra as Dictionary).get("hall", -1))
+		relic = StringName((extra as Dictionary).get("relic", &""))
+		if relic != &"" and info != null and not info.relic_carried():
+			relic = &""
 	var kind_of_hall: StringName = info.world.halls[hall]["kind"] if info != null and info.world != null and hall >= 0 and hall < info.world.halls.size() else &""
 	# A class's master teaches its hall's subject now.
 	if kind_of_hall == &"lecture":
@@ -798,8 +804,8 @@ func _hush() -> void:
 # ------------------------------------------------------------------ its fall
 
 ## Slain: its students scatter. Felled by the wizard, an instructor leaves its top-tier paper (once a
-## room, MapInfo.instructor_fell), and a master out in the level its lesson (once, Lesson). One felled
-## by abominations leaves nothing.
+## room, MapInfo.instructor_fell), and a master out in the level the relic it carries (relic) or else
+## its lesson (once, Lesson). One felled by abominations leaves nothing.
 func _fallen() -> void:
 	if kind != &"master":
 		return
@@ -814,4 +820,8 @@ func _fallen() -> void:
 		if wizard_blow:
 			map_info.instructor_fell(hall, global_position, ability)
 	elif hall < 0 and wizard_blow:
-		map_info.leave_lesson(cell, global_position, ability)
+		if relic != &"":
+			map_info.relic_left(global_position, relic, true)
+			relic = &""
+		else:
+			map_info.leave_lesson(cell, global_position, ability)

@@ -498,6 +498,13 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 				return false
 			_mark_relic(at, StringName(cell.extra_info), 0.7)
 			return true
+		LevelGen.Type.MASTER:
+			# A master carrying the level's relic (Institute.populate), until it is found.
+			var relic: StringName = StringName((cell.extra_info as Dictionary).get("relic", &"")) if cell.extra_info is Dictionary else &""
+			if relic == &"" or info.run.relics_found.has(c):
+				return false
+			_mark_relic(at, relic, 0.7)
+			return true
 		LevelGen.Type.CLUSTER:
 			if not gone:
 				_mark_cluster(at)
@@ -863,6 +870,8 @@ func _hinted_relic(info: MapInfo, c: Vector2i, w: LevelGen) -> Variant:
 	for v: Vector2i in w.objects:
 		if w.get_cell(v).type == LevelGen.Type.RELIC:
 			return v
+	if w.is_valid(w.relic_carrier):
+		return w.relic_carrier
 	return null
 
 

@@ -4,10 +4,13 @@ extends RefCounted
 ## cemetery's and the tower switches are the crags'. There is no clock: nothing in it happens until
 ## its great bell is rung (SchoolBell) or the wizard goes somewhere.
 ## - Each ring of the bell moves the level on a period (a level is first met before any ring, under
-##   way) and starts passing time; the wizard going into a class in session ends it (holds_class),
-##   and the period begins. The bell rings once a period: after a ring it is silent until passing
-##   time is over (unless no class in session is open to the wizard, MapInfo.class_open). How many times it has rung
-##   and whether it is passing time are kept in the level's record (LevelRecord.rings, passing).
+##   way) and starts passing time; the wizard going into a class in session starts it: passing time
+##   ends, the period begins, and the classroom's doors shut behind them until the bell rings it out
+##   (MapInfo.hall_door_up; each classroom has a cord of its own). Only going in starts a class:
+##   staying in a classroom as the bell rings does not, and in passing time its doors let them out.
+##   The bell rings once a period: after a ring it is silent until passing time is over (unless no
+##   class in session is open to the wizard, MapInfo.class_open). How many times it has rung and
+##   whether it is passing time are kept in the level's record (LevelRecord.rings, passing).
 ## - The day is PERIODS periods, the rings counted round (period). Each classroom keeps its
 ##   department (Institute.DEPARTMENTS), and each department keeps its own rhythm (RHYTHMS: the periods
 ##   it meets in) and steps through its three subjects (LADDERS) one a session, or one every HOLDS
@@ -17,8 +20,7 @@ extends RefCounted
 ## - Each department has a tier in the level (LevelRecord.dept_tiers, I at first, up to TOP), the tier
 ##   its classes teach (tier_taught, up to each spell's own top). When the bell rings a period out,
 ##   each department that met in it climbs by its own rule or falls back to I (climb), as they stood
-##   at the start of the period: botany rises when its class was attended (and stands where it is
-##   when its class was one the wizard cannot be taught, a relic's move they lack); astronomy when another
+##   at the start of the period: botany rises when its class was attended; astronomy when another
 ##   class was; geology when it stood strictly below every other department meeting with it; and
 ##   necrology when another department crashed back to I from II or higher. A department that did
 ##   not meet neither moves nor counts; one at the top holds there. So no ring raises a tier by
@@ -31,16 +33,25 @@ extends RefCounted
 ## - Prerequisites (needs, NEEDS): a class of tier II or higher asks for any subject of one other
 ##   department, at a tier one less than it teaches, held or carried as an exam paper; a class of
 ##   tier I asks for nothing. The four ask round in a ring (astronomy geology's, geology botany's,
-##   botany necrology's, necrology astronomy's), so climbing goes from room to room. A classroom's doors open only to a wizard enrolled so
-##   (MapInfo.enrolled), and only one enrolled belongs in it.
-## - Exam papers (KeyRing.paper): a wizard enrolled in a class as the bell rings it out has attended
-##   it, and its paper (the subject at the tier taught) waits in the level its department's portal
-##   leads to (MapInfo._attend), to be fetched and carried on the key ring; one carried of that
-##   subject at a lower tier is graded up in hand instead (resitting). Each classroom's lectern holds
+##   botany necrology's, necrology astronomy's), so climbing goes from room to room. A classroom's
+##   doors open only to a wizard enrolled so (MapInfo.enrolled), and only one enrolled belongs in it:
+##   one who gets in any other way (a warp, a rift, a projection) is put back out (MapInfo.keep_out).
+## - The way on (the deeper exit) stands in a classroom (way_on_hall), the one most classrooms away
+##   from the way in (Institute.way_on), and that classroom asks besides for an exam paper of any
+##   other department at WAY_ON_PAPER or higher (MapInfo.way_on_paper), so getting through means
+##   sitting classes.
+## - Exam papers (KeyRing.paper): a wizard who started a class (went into it) and is in it as the
+##   bell rings it out has attended it, and its paper (the subject at the tier taught) waits in the
+##   level its department's portal leads to (MapInfo._attend), to be fetched and carried on the key
+##   ring; one carried of that subject at a lower tier is graded up in hand instead (resitting). A
+##   class the wizard cannot be taught (a relic's move they lack) counts as attended all the same,
+##   with no paper. Each classroom's lectern holds
 ##   a paper left there (a pigeonhole, LevelRecord.pigeonholes); while the room is empty and its slot
 ##   bare, the next class's paper lies there to be lifted (sneaking, MapInfo.lectern_paper). A
 ##   class's master beaten by the wizard leaves a paper of its subject at the top tier, once a room
-##   (MapInfo.instructor_fell). Papers are learned at lanterns (MapInfo.learn_paper).
+##   (MapInfo.instructor_fell). Those two are stolen (KeyRing.stolen): while the wizard carries one,
+##   they belong nowhere, and every scholar who sees them turns on them. Papers are learned at
+##   lanterns (MapInfo.learn_paper).
 ## - The library's doorways are barred just inside by glyph seals (GlyphSeal) asking for a damage
 ##   spell some classroom here teaches (seal_of), so a level can be got through from within itself.
 ## Nothing here draws from any RNG: it is all hashed from the level seed.
@@ -71,6 +82,9 @@ const HOLDS: Dictionary = {&"astronomy": 1, &"geology": 2, &"botany": 1, &"necro
 const NEEDS: Dictionary = {&"astronomy": &"geology", &"geology": &"botany", &"botany": &"necrology", &"necrology": &"astronomy"}
 ## The highest tier a department climbs to.
 const TOP: int = 4
+## The tier of the exam paper, of any department but its own, the classroom holding the way on asks
+## for besides its class's own prerequisite (see the class description).
+const WAY_ON_PAPER: int = 2
 ## Salts for the level seed: where each classroom starts in its department's subjects, and which
 ## spell the seals ask for.
 const ROTATION_DEAL: int = 6470
@@ -108,10 +122,9 @@ static func needs(dept: StringName, tier: int) -> Array:
 
 ## The departments' tiers after a period they stood at `tiers` (department -> tier), in which the
 ## wizard attended a class of department `attended` (&"" for none) and `meeting` (department -> bool)
-## met (see the class description); `untaught` true when botany's class that period was one the
-## wizard cannot be taught, which leaves botany standing (neither rising nor crashing). Every rule
-## reads the tiers as they stood at the start, and necrology last, the crashes of the others.
-static func climb(tiers: Dictionary, attended: StringName, meeting: Dictionary, untaught: bool = false) -> Dictionary:
+## met (see the class description). Every rule reads the tiers as they stood at the start, and
+## necrology last, the crashes of the others.
+static func climb(tiers: Dictionary, attended: StringName, meeting: Dictionary) -> Dictionary:
 	var out: Dictionary = tiers.duplicate()
 	var crashed: bool = false
 	var at: Callable = func(d: StringName) -> int: return int(tiers.get(d, 1))
@@ -122,8 +135,6 @@ static func climb(tiers: Dictionary, attended: StringName, meeting: Dictionary, 
 		var up: bool = false
 		match dept:
 			&"botany":
-				if untaught and attended != &"botany":
-					continue
 				up = attended == &"botany"
 			&"astronomy":
 				up = attended != &"" and attended != &"astronomy"
@@ -138,6 +149,14 @@ static func climb(tiers: Dictionary, attended: StringName, meeting: Dictionary, 
 	if met.call(&"necrology"):
 		out[&"necrology"] = mini(at.call(&"necrology") + 1, TOP) if crashed else 1
 	return out
+
+
+## The classroom of `w` holding the way on (the deeper exit, Institute.way_on), or -1 for none.
+static func way_on_hall(w: LevelGen) -> int:
+	if not w.exits.has(MapInfo.Exit.DEEPER):
+		return -1
+	var hall: int = hall_inside(w, w.exits[MapInfo.Exit.DEEPER])
+	return hall if hall >= 0 and w.halls[hall]["kind"] == &"lecture" else -1
 
 
 ## The damage spell of the department that teaches `a` (the first rung of its ladder), &"hex" for one

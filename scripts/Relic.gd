@@ -3,7 +3,8 @@ class_name Relic
 ## A relic (see Relics): one of the big movement abilities, waiting in a secret room. Interact and
 ## pay its price (Relics.price, a lot) to take it: tier I of its move, or the next tier if the move
 ## is already known. A relic whose move takes a slot replaces what is in it, which comes back as an
-## exam paper at its tier (MapInfo.put_back), as at a shrine. Taken, it is gone for good.
+## exam paper at its tier (MapInfo.put_back), as at a shrine. Taken, it is gone for good. A boss's
+## relic and one a beaten master left (MapInfo.relic_left) are free.
 
 @onready var player: Player = Stage.player()
 
@@ -27,9 +28,10 @@ func swap() -> bool:
 	return Abilities.is_swap(player, holds()[0])
 
 
-## Stars still owed to take it: its price, or nothing for a boss's relic (the fight was its price).
+## Stars still owed to take it: its price, or nothing for a boss's or a master's relic (the fight was
+## its price).
 func price() -> int:
-	if map_info == null or has_meta(&"boss"):
+	if map_info == null or has_meta(&"boss") or has_meta(&"left"):
 		return 0
 	return Relics.price(map_info.here.depth)
 
@@ -46,7 +48,10 @@ func take() -> void:
 	var dropped: StringName = Abilities.spell(player, Abilities.slot_of(a)) if Abilities.is_swap(player, a) else &""
 	var dropped_tier: int = Abilities.tier(player, dropped) if dropped != &"" else 0
 	Abilities.set_tier(player, a, int(held[1]))
-	map_info.relic_taken()
+	if has_meta(&"left"):
+		map_info.left_relic_taken(int(get_meta(&"left")))
+	else:
+		map_info.relic_taken()
 	if dropped != &"":
 		map_info.put_back(dropped, dropped_tier, global_position + Vector2(0, -40))
 	map_info.mark_taken(self)

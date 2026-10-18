@@ -29,6 +29,9 @@ const SIZE: Dictionary = {&"student": 2.7, &"master": 3.5, &"proctor": 3.0, &"li
 const HEMX: Array[float] = [-8.8, -4.5, 0.0, 4.5, 8.8]
 const STRIDE: float = 70.0
 ## Cleared under the robe and hat so their inks print true over whatever is behind.
+## The medallion of a relic a master carries (_relic_mark): its radius, and how far over its pips.
+const RELIC_R: float = 15.0
+const RELIC_RISE: float = 26.0
 const UNDER: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE]
 
 ## How much bigger a spell's mark (RisoGlyph, about 24 px from its middle to its edge) is drawn
@@ -170,6 +173,7 @@ func _draw_art() -> void:
 			_orb(kind, xf, hand, wind, s)
 	if kind == &"master":
 		_pips(xf * (crown + Vector2(0, -3.5)), s)
+		_relic_mark(xf * (crown + Vector2(0, -3.5)), s)
 	if stunned:
 		_stun_mark(xf * (crown + Vector2(0, -4.0)))
 
@@ -305,6 +309,8 @@ func _draw_rigged(s: Scholar, kind: StringName, xf: Transform2D, ph: float, bob:
 			ink.on_bone(ink.bone(Transform2D(0.0, xf * (crown + Vector2(0, -3.5)))))
 			ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], rest[key])
 			ink.ink(RisoPrint.PINK, 1.0, rest[key], false)
+		ink.on_bone(0)
+		_relic_mark(xf * (crown + Vector2(0, -3.5)), s)
 	if stunned:
 		ink.on_bone(0)
 		_stun_mark(xf * (crown + Vector2(0, -4.0)))
@@ -687,6 +693,22 @@ func _orb(kind: StringName, xf: Transform2D, hand: Vector2, wind: float, s: Scho
 
 
 ## A master's health as pips over its hat: pink while whole, faint once lost.
+## The relic a master carries (Scholar.relic), over its pips at `c`: a small medallion as a relic's
+## own (RelicArt), an accent ring round a paper disc with the move's mark in night, bobbing.
+func _relic_mark(c: Vector2, s: Scholar) -> void:
+	if s.relic == &"":
+		return
+	var at: Vector2 = c + Vector2(0, -RELIC_RISE + sin(t * 2.0 + phase) * 2.0)
+	var disc: PackedVector2Array = RisoShapes.circle(at, RELIC_R * 0.82, 24)
+	ink.knock(UNDER, [RisoShapes.circle(at, RELIC_R, 24)])
+	ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(at, RELIC_R, 24)])
+	ink.knock(UNDER, [disc])
+	var mark: Array[PackedVector2Array] = []
+	for poly: PackedVector2Array in RisoGlyph.of(s.relic, Vector2.ZERO, t):
+		mark.append(Transform2D(0.0, Vector2(RELIC_R / 36.0, RELIC_R / 36.0), 0.0, at) * poly)
+	ink.ink(RisoPrint.NIGHT, 1.0, mark, false)
+
+
 func _pips(c: Vector2, s: Scholar) -> void:
 	var wound: Wound = s.get_node_or_null("Wound") as Wound
 	if wound == null:

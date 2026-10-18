@@ -414,7 +414,10 @@ func _institute() -> void:
 	check_eq(Timetable.climb(t.call(2, 2, 2, 1), &"astronomy", all_met), t.call(1, 1, 1, 2), "astronomy attended: it crashes (its paper taken), botany too, geology level with them falls, necrology rises")
 	check_eq(Timetable.climb(t.call(4, 1, 1, 1), &"botany", all_met), t.call(4, 2, 1, 1), "at the top botany holds, neither rising nor crashing")
 	check_eq(Timetable.climb(t.call(1, 1, 1, 1), &"", all_met), t.call(1, 1, 1, 1), "falling from I is no crash: nothing rises")
-	check_eq(Timetable.climb(t.call(3, 2, 1, 1), &"astronomy", all_met, true), t.call(3, 1, 1, 2), "botany's class one the wizard cannot be taught: botany stands at III; astronomy, harvested, crashes and feeds necrology")
+	var seeker: int = KeyRing.paper(&"seeker", 3)
+	var lifted: int = KeyRing.stolen(seeker)
+	check(lifted != seeker and KeyRing.is_stolen(lifted) and not KeyRing.is_stolen(seeker), "a stolen paper is told from its paper")
+	check_eq([KeyRing.paper_spell(lifted), KeyRing.paper_tier(lifted), KeyRing.stolen(lifted)], [&"seeker", 3, lifted], "and holds the same spell and tier (stealing it twice changes nothing)")
 	# Every wall style the F7 panel offers has its inks and a name.
 	check(RisoPrint.WALL_STYLES.all(func(w: StringName) -> bool: return RisoTerrain.WALL_LOOKS.has(w)) and RisoPrint.WALL_STYLE_NAMES.size() == RisoPrint.WALL_STYLES.size(),
 		"each institute wall style has its inks and a name")

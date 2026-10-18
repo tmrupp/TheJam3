@@ -56,6 +56,12 @@ func prereq() -> Array:
 	return Timetable.needs(map_info.world.halls[hall]["dept"], tier())
 
 
+## Whether its hall is the classroom holding the way on (Timetable.way_on_hall), which asks besides
+## for an exam paper of another department (MapInfo.way_on_paper).
+func way_on() -> bool:
+	return map_info != null and map_info.world != null and hall >= 0 and hall == Timetable.way_on_hall(map_info.world)
+
+
 ## The tier its lecture hall teaches its subject at now (pips under its plate), or 0.
 func tier() -> int:
 	if map_info == null or map_info.world == null or hall < 0 or hall >= map_info.world.halls.size() or map_info.world.halls[hall]["kind"] != &"lecture":

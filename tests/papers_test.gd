@@ -154,6 +154,8 @@ func _instructors() -> void:
 	# The wizard on the room's floor at one end, an instructor at the other.
 	var wizard_at: Vector2 = info.cell_position(Vector2i(inside.position.x + 1, bottom))
 	var spot: Vector2i = Vector2i(inside.end.x - 3, bottom)
+	# In by right, as if they had gone in to its class (MapInfo.keep_out would put them back out).
+	info.class_hall = index
 	player.global_position = wizard_at
 	await frames(2)
 

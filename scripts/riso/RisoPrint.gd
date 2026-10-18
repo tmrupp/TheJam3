@@ -343,10 +343,13 @@ static func ink_key(canvas: InkCanvas, color: int, cover: float, shapes: Array[P
 	if color == KeyRing.SKELETON:
 		canvas.lift_ink(ALL_PLATES, cover, shapes)
 		return
-	# An exam paper: a bare paper sheet, its folded corner and ruled lines in night.
+	# An exam paper: a bare paper sheet, its folded corner and ruled lines in night; a stolen one's
+	# folded corner in pink (danger: the scholars are after whoever carries it).
 	if KeyRing.is_paper(color):
 		canvas.lift_ink(ALL_PLATES, cover, shapes.slice(0, 1))
-		canvas.ink(NIGHT, 0.55 * cover, shapes.slice(1), false)
+		canvas.ink(NIGHT, 0.55 * cover, shapes.slice(2 if KeyRing.is_stolen(color) else 1), false)
+		if KeyRing.is_stolen(color):
+			canvas.ink(PINK, cover, shapes.slice(1, 2))
 		return
 	for plate: int in key_inks(color):
 		canvas.ink(plate, cover, shapes)

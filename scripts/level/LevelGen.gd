@@ -358,6 +358,10 @@ func place_exits (depth: int, debug: bool = false, climbing: bool = false) -> vo
 			if not chosen.has(v) and dist(v, back) > dist(best, back):
 				best = v
 		deeper = best
+	# The institute's way on stands in a classroom (Institute.way_on), the spot drawn above passed over.
+	var classroom: Variant = Institute.way_on(self, back)
+	if classroom != null:
+		deeper = classroom
 	if not chosen.has(deeper):
 		chosen.append(deeper)
 	# At depth 0, one side door stands near the start, on floors the wizard can hop to from it,
@@ -1174,6 +1178,9 @@ func place_cluster (def: NextWorldDef) -> void:
 ## of the level lands where it always has.
 var secrets: Array = []
 const SECRETS_PER_K: float = 0.6
+## The master carrying the level's relic (Institute.populate: in the institute, a master out in the
+## level carries it rather than a secret room or a bone vault), or (-1, -1) for none.
+var relic_carrier: Vector2i = Vector2i(-1, -1)
 ## The level's relic waits behind a bone gate rather than in a secret room
 ## (Rules.RELIC_GATE_CHANCE; see place_bone_vault).
 var relic_gated: bool = false
@@ -1182,7 +1189,9 @@ const SECRET_SIZES: Array[Vector2i] = [Vector2i(4, 2), Vector2i(3, 2), Vector2i(
 const SECRET_STARS: int = 3
 
 func place_secrets (def: NextWorldDef) -> void:
-	relic_gated = def.relic != &"" and Rules.relic_gated_at(def.coord)
+	# A relic a master carries (relic_carrier) is in no room.
+	var relic: StringName = def.relic if relic_carrier.x < 0 else &""
+	relic_gated = relic != &"" and Rules.relic_gated_at(def.coord)
 	var want: int = per_area(SECRETS_PER_K)
 	# Rooms wholly in rock first; then rooms that only need rock under them (a hidden room's
 	# rock is real rock, so another side may face open air).
@@ -1193,10 +1202,10 @@ func place_secrets (def: NextWorldDef) -> void:
 				if spots.is_empty():
 					break
 				var choice: Array = pick(spots)
-				_carve_secret(choice[0], choice[1], def.relic if secrets.is_empty() and not relic_gated else &"")
+				_carve_secret(choice[0], choice[1], relic if secrets.is_empty() and not relic_gated else &"")
 	# A relic with no room for a secret stands on a floor in the open instead.
-	if def.relic != &"" and secrets.is_empty() and not relic_gated:
-		put_random(Type.RELIC, ground_below, true, def.relic)
+	if relic != &"" and secrets.is_empty() and not relic_gated:
+		put_random(Type.RELIC, ground_below, true, relic)
 	# A skeleton key takes the place of one of the last room's stars (the one nearest its door).
 	if def.skeleton:
 		var placed: bool = false

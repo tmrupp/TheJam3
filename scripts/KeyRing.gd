@@ -13,12 +13,16 @@ extends Node
 ## a spell known but not held: earned in the institute's classes (Timetable), handed back for a spell
 ## put out of its slot (MapInfo.put_back: at a lantern, a shrine, a lesson), and learned at a lantern
 ## (MapInfo.learn_paper). Grabbed, swapped, dropped and saved as any key is, and kept through a death.
+## A paper lifted off a lectern or left by a beaten master is stolen (stolen): while the wizard
+## carries it, the institute's scholars turn on them (MapInfo.wizard_belongs). Learned, it is theirs.
 
 const SKELETON: int = 99
 ## Where exam papers' codes start: PAPER, plus PAPER_SPELL for each place of the subject in
 ## subjects, plus the tier.
 const PAPER: int = 1000
 const PAPER_SPELL: int = 10
+## A stolen paper's code is its paper's plus this (tiers run below it).
+const STOLEN: int = 5
 
 
 ## What a paper may hold: every ability that takes a slot (Abilities.slot_of), in Abilities' order.
@@ -44,7 +48,16 @@ static func paper_spell(code: int) -> StringName:
 
 
 static func paper_tier(code: int) -> int:
-	return posmod(code - PAPER, PAPER_SPELL)
+	return posmod(code - PAPER, PAPER_SPELL) % STOLEN
+
+
+## Whether exam paper `code` is stolen, and the stolen paper of the same spell and tier.
+static func is_stolen(code: int) -> bool:
+	return is_paper(code) and posmod(code - PAPER, PAPER_SPELL) >= STOLEN
+
+
+static func stolen(code: int) -> int:
+	return code if is_stolen(code) or not is_paper(code) else code + STOLEN
 
 ## The coloured keys carried, oldest first (the newest last).
 var _colored: Array[int] = []

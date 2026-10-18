@@ -5,6 +5,11 @@ the RisoProp split, typed connections) left ten smaller repetitions and loose en
 says what repeats, where, what to change, and how to check it. Items are independent unless noted;
 the order is a suggested one (generation first, while the layout tests are fresh in mind).
 
+**Status: all ten are done** (commit `d569a4d`, 2026-10-07). The plan is kept as a record of why
+the shared helpers (`reach_from`, `best_of`, `_room_beside`, `Rules`, the art tables, the checked
+protocols) are shaped as they are. The one loose end is a few small tests still on their own
+`check` (item 10); they move onto `TestKit` when next touched.
+
 ## Ground rules for every item
 
 - **Layouts must not move.** Items 1–3 touch level generation. Keep every `rng` draw in the same
@@ -18,7 +23,7 @@ the order is a suggested one (generation first, while the layout tests are fresh
 
 ---
 
-## 1. One flood fill for "what is reachable from here"
+## 1. One flood fill for "what is reachable from here" (done)
 
 **What repeats.** Four hand-written flood fills over open cells:
 
@@ -51,7 +56,7 @@ tail is the same in both switch placements: a helper `_pick_floor_in(reach, from
 
 **Check.** `layout_fingerprint_test`, `switches_test`, `cemetery_test`, `sky_test`.
 
-## 2. One "best spot by distance" search
+## 2. One "best spot by distance" search (done)
 
 **What repeats.** A loop keeping the nearest (or furthest) candidate that passes a test:
 
@@ -85,7 +90,7 @@ direction; keep it as two scores.
 
 **Check.** `layout_fingerprint_test`, `start_escape_test`, `hyperspace_test`, `deeper_test`.
 
-## 3. One room-fit search for secret rooms, vaults and strongboxes
+## 3. One room-fit search for secret rooms, vaults and strongboxes (done)
 
 **What repeats.** `_secret_spots(room, enclosed)` and `_strongbox_spots(inside)` both:
 walk `free_floors()`, try each `side` in `[-1, 1]`, put a `door` beside the floor, compute
@@ -109,7 +114,7 @@ order inside `_build_vault`'s callers (draw the colour after picking, as now).
 
 **Check.** `layout_fingerprint_test`, `vaults_test`, `bones_test`, `secrets_test`, `room_test`.
 
-## 4. RisoMap: one way to mark a level
+## 4. RisoMap: one way to mark a level (done)
 
 **What repeats.** `RisoMap._level` marks the level being played from its live nodes
 (`map_elements`, matched by `Placeables.type_of`); `_other_level` and `_other_things` mark any other
@@ -127,7 +132,7 @@ disappears once `mark_taken` runs, which is the same moment. Check keys mid-pick
 **Check.** `map_test`, `map_worlds_test`, `secrets_test`; stills from `capture_map.gd`,
 `capture_map_over.gd`.
 
-## 5. Spell readiness through the registry
+## 5. Spell readiness through the registry (done)
 
 **What repeats.** `RisoWizard._spell_ready` and `RisoWizard._spell_running` each `match` on the
 spell's name to ask its node how ready it is or how long it has left. `Hex`, `Mend` and `Warp`
@@ -140,7 +145,7 @@ spell orb does the same. Extend `unit_test`'s node check to require both methods
 
 **Check.** `spells_test`, `shrine_test`, `unit_test`; `capture_spells.gd`, `capture_orb.gd`.
 
-## 6. Make the last two duck-typed protocols checked
+## 6. Make the last two duck-typed protocols checked (done)
 
 **What remains.**
 
@@ -160,7 +165,7 @@ spell orb does the same. Extend `unit_test`'s node check to require both methods
 
 **Check.** `unit_test`, `hex_test`, `switches_test`.
 
-## 7. Move the run-wide rules out of MapInfo
+## 7. Move the run-wide rules out of MapInfo (done)
 
 **What.** `MapInfo` still holds 14 static rules (`level_seed`, `deeper_price`, `cluster_value`,
 `skeleton_at`, `exit_distance`, `relic_need`, `bone_vault_at`, `relic_gated_at`, `lateral_lock`,
@@ -177,7 +182,7 @@ it through `MapInfo.` after the rename (grep), and that `unit_test`'s seed check
 
 **Check.** Full suite; `unit_test` first.
 
-## 8. Archetype art by hook, not by name
+## 8. Archetype art by hook, not by name (done)
 
 **What.** `RisoDecor.plan` chooses its plan with `if archetype == &"cemetery"` / `&"sky"`, and
 `RisoBackground` its backdrop with `realm == ...`. A new band falls back to the garden's decor and
@@ -194,7 +199,7 @@ the night backdrop: it works, but its art needs edits in those two files.
 **Check.** `decor_test`, `cemetery_test`, `sky_art_test`; `capture_cemetery.gd`, `capture_sky.gd`,
 `capture_riso.gd`.
 
-## 9. Drop the unused cell types
+## 9. Drop the unused cell types (done)
 
 **What.** `LevelGen.Type.GOAL`, `RESPAWN` and `ASTRAL_PROJECTION_POINT` are never placed or read.
 
@@ -210,7 +215,7 @@ move the three entries to the end first and remove them there (numbers of the ot
 fingerprints unchanged), or update `GOLDEN` and say in the report that only the numbering moved.
 The first is safer.
 
-## 10. Move old tests onto TestKit
+## 10. Move old tests onto TestKit (done)
 
 **What.** 24 tests still carry their own copies of `placed`, `boot`, `until` or `settle` instead of
 extending `TestKit`: astral_moon, bones, cemetery, dash_strike, death, decor, deeper, floor,
@@ -223,3 +228,8 @@ ricochet, for one) wait a fixed number of frames; `until` fixes that class of fl
 
 **Check.** Each converted test alone, then the full suite. Do these in small batches so a failure
 points at one test.
+
+**Left.** All 24 above are on the kit. Sixteen small tests never listed here still extend
+`SceneTree` with a `check` of their own (bird_detection, connect, gust_steering, hopper_contact,
+jump, music_loop, print_controls, relics_needed, riso_pin, riso_print, room, sky_art,
+spawn_balance, start_escape, watcher; fog_styles extends interaction_hints).

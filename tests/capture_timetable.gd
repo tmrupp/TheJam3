@@ -5,9 +5,10 @@ extends TestKit
 ## classroom shut, then in session but shut to a wizard without its prerequisite (the paper it
 ## wants beside its plate), then open to them carrying it, wide and with the class in; scholars calm
 ## and turned on the wizard, close up; a classroom's lectern holding a paper left on it;
-## exam papers lying on a floor; the library's glyph seals; an instructor teaching ferry turned on the
-## wizard on its raft, its class with it, and the top-tier paper it leaves once felled; and a seal of
-## each spell side by side. (The hall's doors shut and open, close up.)
+## exam papers lying on a floor, a stolen one among them; the library's glyph seals; the door of the
+## classroom holding the way on, with the paper it asks for besides; an instructor teaching ferry
+## turned on the wizard on its raft, its class with it, and the stolen top-tier paper it leaves once
+## felled; and a seal of each spell side by side. (The hall's doors shut and open, close up.)
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_timetable.gd
 
 var camera: Camera2D
@@ -82,11 +83,11 @@ func run() -> void:
 			lectern.take()
 		for code: int in player.keyring.papers():
 			player.keyring.spend(code)
-	# Exam papers lying on a floor, of a few subjects and tiers.
+	# Exam papers lying on a floor, of a few subjects and tiers, the last stolen.
 	var lie: Variant = _long_floor(5)
 	if lie != null:
 		var at: Vector2i = lie
-		var codes: Array[int] = [KeyRing.paper(&"hex", 1), KeyRing.paper(&"warp", 2), KeyRing.paper(&"nova", 4)]
+		var codes: Array[int] = [KeyRing.paper(&"hex", 1), KeyRing.paper(&"warp", 2), KeyRing.paper(&"nova", 4), KeyRing.stolen(KeyRing.paper(&"seeker", 3))]
 		for k: int in range(codes.size()):
 			var pos: Vector2 = info.cell_position(at + Vector2i(k + 1, 0))
 			info._spawn_dropped_key(info.record().drop_key(pos, codes[k]), pos, codes[k])
@@ -102,8 +103,14 @@ func run() -> void:
 		var s: Node2D = seals[0] as Node2D
 		player.global_position = info.cell_position(info.world.halls[library]["steps"][0])
 		await _look(s.global_position + Vector2(0, -40), "timetable_library_seal.png", 1.6)
+	# The way on's classroom: the second sheet by its door's plate, the paper it asks for besides.
+	var way: int = Timetable.way_on_hall(info.world)
+	if way >= 0:
+		player.global_position = info.cell_position(info.world.halls[way]["steps"][0])
+		await frames(10)
+		await _look(info.cell_position(info.world.halls[way]["doors"][0]) + Vector2(0, -90), "timetable_door_way_on.png", 2.2)
 	# An instructor teaching ferry, turned on the wizard with its whole class; then felled, the paper
-	# it leaves.
+	# it leaves (stolen).
 	var room: int = -1
 	for k: int in range(Timetable.PERIODS * 3):
 		for i: int in range(info.world.halls.size()):
