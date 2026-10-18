@@ -244,8 +244,7 @@ static func _raise(w: LevelGen, kind: StringName, site: Dictionary, front: int) 
 			_stacks(w, inside)
 		&"lecture":
 			_gallery(w, inside)
-			var depts: Array = DEPARTMENTS.keys()
-			hall["dept"] = depts[posmod(Rules.level_seed(w.seed_for_colors, DEPT_DEAL + w.halls.size()), depts.size())]
+			hall["dept"] = _deal_dept(w)
 	for x: int in range(box.position.x, box.end.x):
 		for y: int in range(box.position.y, box.end.y):
 			w.kept_whole[Vector2i(x, y)] = true
@@ -288,6 +287,19 @@ static func _stacks(w: LevelGen, inside: Rect2i) -> void:
 				w.put(Vector2i(x, g), LevelGen.Type.PLATFORM)
 		left = not left
 		g -= GALLERY
+
+
+## The department of the next classroom raised in `w`: the first few take every department once, in an
+## order dealt by the seed (so each department's prerequisites are taught somewhere in the level,
+## Timetable.PREREQS), any after them one dealt by the seed.
+static func _deal_dept(w: LevelGen) -> StringName:
+	var depts: Array = DEPARTMENTS.keys()
+	var k: int = w.halls.filter(func(h: Dictionary) -> bool: return h["kind"] == &"lecture").size()
+	if k >= depts.size():
+		return depts[posmod(Rules.level_seed(w.seed_for_colors, DEPT_DEAL + k), depts.size())]
+	var order: Array = depts.duplicate()
+	order.sort_custom(func(a: StringName, b: StringName) -> bool: return Rules.level_seed(w.seed_for_colors, DEPT_DEAL + depts.find(a)) < Rules.level_seed(w.seed_for_colors, DEPT_DEAL + depts.find(b)))
+	return order[k]
 
 
 ## A classroom's gallery in `inside`: a row of one-way ledges all across it, GALLERY_UP rows over

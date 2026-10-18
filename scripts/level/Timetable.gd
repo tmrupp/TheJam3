@@ -8,23 +8,22 @@ extends RefCounted
 ##   and the period begins. The bell rings once a period: after a ring it is silent until passing
 ##   time is over (unless no class is in session anywhere, any_class). How many times it has rung
 ##   and whether it is passing time are kept in the level's record (LevelRecord.rings, passing).
-## - Each classroom keeps its department (Institute.DEPARTMENTS), whose three subjects are a ladder
-##   (LADDERS: its first, then the two each asking for the one before), and steps through them by
-##   its cycle (cycle, subject): blocks of PERIODS rings, each two classes of neighbouring rungs and
-##   then a break with no class, the block after starting a rung higher (hex, seeker, break; seeker,
-##   warp, break; warp, hex, break; and round). So every third class is empty, and the first class
-##   of a block teaches what the second asks for (but in the block wrapping round to the first rung),
-##   so two rings in one room climb a rung. Where a classroom starts in its cycle is dealt by
-##   the seed, so rooms are a stage or more apart. Every ring raises the tier taught in the level
+## - Each classroom keeps its department (Institute.DEPARTMENTS), whose three subjects are its
+##   rungs (LADDERS: a first that asks for nothing, then two that do), and steps through them by its
+##   cycle (cycle, subject): blocks of PERIODS rings, each two classes and then a break with no class
+##   (first, second, break; third, first, break; second, third, break; and round). So every third
+##   class is empty. Where a classroom starts in its cycle is dealt by the seed, so rooms are a stage
+##   or more apart. Every ring raises the tier taught in the level
 ##   (tier_taught). The library is always open. A hall's doors (ExamDoor) stand open while it is in
 ##   session and are shut while it is not.
 ## - Where the wizard belongs (belongs): in the corridors (anywhere out of the halls) in passing
 ##   time, in the library, and in a classroom whose class is in session. Anywhere else (the
 ##   corridors in a period, a classroom with no class, the beast's chamber) they are truant, and the
 ##   scholars who see them there turn on them (Scholar.rouse) until the next bell.
-## - Prerequisites (prereq): each class asks for the rung before it on its department's ladder, at a
-##   tier one less than it teaches (need), known or carried as an exam paper; a department's first
-##   subject asks for nothing. A classroom's doors open only to a wizard enrolled so
+## - Prerequisites (prereq, PREREQS): each class but a department's first asks for a subject of
+##   another department, at a tier one less than it teaches (need), held or carried as an exam
+##   paper. The tier taught rises every ring, so the paper that opens a class is one earned the ring
+##   before, in another classroom: climbing means going from room to room, a field trip between. A classroom's doors open only to a wizard enrolled so
 ##   (MapInfo.enrolled), and only one enrolled belongs in it.
 ## - Exam papers (KeyRing.paper): a wizard enrolled in a class as the bell rings it out has attended
 ##   it, and its paper (the subject at the tier taught) waits in the level its department's portal
@@ -45,13 +44,25 @@ const PERIODS: int = 3
 const TIMETABLED: Array[StringName] = [&"lecture", &"library"]
 ## The halls whose doorways are barred by glyph seals.
 const SEALED: Array[StringName] = [&"library"]
-## Each department's ladder of subjects: its first (a damage spell, asking for nothing), then the two
-## that each ask for the one before.
+## Each department's subjects: its first (a damage spell, asking for nothing), then its second and
+## third, each asking for a subject of another department (PREREQS).
 const LADDERS: Dictionary = {
 	&"astronomy": [&"hex", &"seeker", &"warp"],
 	&"geology": [&"slash", &"lunge", &"rift"],
 	&"botany": [&"push", &"levitate", &"ferry"],
 	&"necrology": [&"nova", &"astral", &"awareness"],
+}
+## What each class asks for first: always a subject of another department, a first rung for a
+## second (never a relic's move: Relics.MOVES), a second rung for a third.
+const PREREQS: Dictionary = {
+	&"seeker": &"slash",
+	&"lunge": &"hex",
+	&"levitate": &"nova",
+	&"astral": &"push",
+	&"warp": &"lunge",
+	&"rift": &"seeker",
+	&"ferry": &"lunge",
+	&"awareness": &"seeker",
 }
 ## Salts for the level seed: where each classroom starts in its cycle, and which spell the seals ask
 ## for.
@@ -59,27 +70,22 @@ const ROTATION_DEAL: int = 6470
 const SEAL_DEAL: int = 6480
 
 
-## Department `dept`'s cycle (see the class description): a block of PERIODS rings for each rung of
-## its ladder, the rung and the one after it and then a break (&""), round its whole ladder.
+## Department `dept`'s cycle (see the class description): its subjects in order, round and round,
+## a break (&"") after every two, until each has come round in each place.
 static func cycle(dept: StringName) -> Array[StringName]:
 	var out: Array[StringName] = []
 	var ladder: Array = LADDERS.get(dept, [])
-	for k: int in range(ladder.size()):
-		out.append(ladder[k])
-		out.append(ladder[(k + 1) % ladder.size()])
-		out.append(&"")
+	for k: int in range(ladder.size() * 2):
+		out.append(ladder[k % ladder.size()])
+		if k % 2 == 1:
+			out.append(&"")
 	return out
 
 
-## The subject a class of `a` asks for first (see the class description): the rung before it on its
-## department's ladder; &"" for a department's first subject (or one no department teaches).
+## The subject a class of `a` asks for first (PREREQS): another department's; &"" for a department's
+## first subject (or one no department teaches).
 static func prereq(a: StringName) -> StringName:
-	for dept: StringName in LADDERS:
-		var ladder: Array = LADDERS[dept]
-		var k: int = ladder.find(a)
-		if k > 0:
-			return ladder[k - 1]
-	return &""
+	return PREREQS.get(a, &"")
 
 
 ## The tier of its prerequisite a class teaching at `tier` asks for: one less, but at least I.

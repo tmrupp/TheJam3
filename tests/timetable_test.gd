@@ -45,23 +45,27 @@ func run() -> void:
 func _rules() -> void:
 	print("rules")
 	var turns_ok: bool = true
-	var climbs: bool = true
+	var crosses: bool = true
 	var taught: Dictionary = {}
 	for dept: StringName in Institute.DEPARTMENTS:
 		var ladder: Array = Timetable.LADDERS.get(dept, [])
 		var turn: Array[StringName] = Timetable.cycle(dept)
 		turns_ok = turns_ok and ladder.size() == 3 and turn.size() == Timetable.PERIODS * ladder.size()
-		turns_ok = turns_ok and Timetable.prereq(ladder[0]) == &"" and Timetable.prereq(ladder[1]) == ladder[0] and Timetable.prereq(ladder[2]) == ladder[1]
+		turns_ok = turns_ok and Timetable.prereq(ladder[0]) == &""
+		for k: int in [1, 2]:
+			var before: StringName = Timetable.prereq(ladder[k])
+			var home: StringName = &""
+			for d: StringName in Timetable.LADDERS:
+				if (Timetable.LADDERS[d] as Array).has(before):
+					home = d
+			crosses = crosses and home != &"" and home != dept and (Timetable.LADDERS[home] as Array).find(before) == k - 1 and not before in Relics.MOVES
 		for k: int in range(turn.size()):
 			turns_ok = turns_ok and (turn[k] == &"") == (k % Timetable.PERIODS == Timetable.PERIODS - 1)
 			if turn[k] != &"":
 				turns_ok = turns_ok and Abilities.is_spell(turn[k])
 				taught[turn[k]] = true
-			# The first class of a block teaches what the second asks for, but round the ladder's top.
-			if k % Timetable.PERIODS == 0 and k < turn.size() - Timetable.PERIODS:
-				climbs = climbs and Timetable.prereq(turn[k + 1]) == turn[k]
-	check(turns_ok, "each department's cycle: its ladder in blocks of two classes and a break, every third class empty")
-	check(climbs, "within a block, the first class teaches what the second asks for (but round the ladder's top)")
+	check(turns_ok, "each department's cycle: its subjects in blocks of two classes and a break, every third class empty; its first asks for nothing")
+	check(crosses, "every other class asks for a subject of another department, a rung lower, never a relic's move: climbing goes room to room")
 	check(Institute.MASTERIES.all(func(a: StringName) -> bool: return taught.has(a)), "every damage spell is taught somewhere")
 	check([&"warp", &"rift", &"levitate", &"ferry", &"astral"].all(func(a: StringName) -> bool: return taught.has(a)), "and the moves cast from the movement slot")
 	check_eq([Timetable.tier_taught(&"hex", 0), Timetable.tier_taught(&"hex", 1), Timetable.tier_taught(&"hex", 9), Timetable.tier_taught(&"levitate", 9)], [1, 2, 4, 3], "every ring teaches a tier higher, up to each spell's top")
@@ -79,6 +83,7 @@ func _rules() -> void:
 func _laid_out() -> void:
 	print("laid out")
 	var turns_ok: bool = true
+	var all_depts: bool = true
 	var stages: Dictionary = {}
 	var sessions_ok: bool = true
 	var doors_ok: bool = true
@@ -98,6 +103,12 @@ func _laid_out() -> void:
 		var again: LevelGen = build(at)
 		if again == null or again.objects != w.objects:
 			same = false
+		var depts: Dictionary = {}
+		for hall: Dictionary in w.halls:
+			if hall["kind"] == &"lecture":
+				depts[hall["dept"]] = true
+		var rooms: int = w.halls.filter(func(h: Dictionary) -> bool: return h["kind"] == &"lecture").size()
+		all_depts = all_depts and depts.size() == mini(rooms, Institute.DEPARTMENTS.size())
 		var damage: Array[StringName] = Timetable.subjects_in(w).filter(func(a: StringName) -> bool: return a in Institute.MASTERIES)
 		for i: int in range(w.halls.size()):
 			var hall: Dictionary = w.halls[i]
@@ -157,6 +168,7 @@ func _laid_out() -> void:
 		var corridor: Vector2i = w.free_floors()[0]
 		belongs_ok = belongs_ok and Timetable.belongs(w, 0, true, corridor) and not Timetable.belongs(w, 0, false, corridor)
 	check(turns_ok, "each classroom steps through its department's cycle, one a ring, wrapping round")
+	check(all_depts, "every department has a classroom (where there are rooms enough), so every class's prerequisite is taught somewhere")
 	check(stages.size() == Timetable.PERIODS, "classrooms start at different stages of a block (%d of %d seen)" % [stages.size(), Timetable.PERIODS])
 	check(sessions_ok, "the library always open (no class)")
 	check(doors_ok, "a door in every doorway of a hall with a class")

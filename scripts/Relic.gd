@@ -2,8 +2,8 @@ extends Area2D
 class_name Relic
 ## A relic (see Relics): one of the big movement abilities, waiting in a secret room. Interact and
 ## pay its price (Relics.price, a lot) to take it: tier I of its move, or the next tier if the move
-## is already known. A relic that brings a spell (levitate) replaces the one in the slot, which is
-## left here to take back free, as at a shrine. Once nothing is left here, it is gone for good.
+## is already known. A relic whose move takes a slot replaces what is in it, which comes back as an
+## exam paper at its tier (MapInfo.put_back), as at a shrine. Taken, it is gone for good.
 
 @onready var player: Player = Stage.player()
 
@@ -17,11 +17,8 @@ func setup(info: MapInfo, _v: Vector2i, move: Variant) -> void:
 	ability = StringName(move)
 
 
-## What it holds now, as [ability, tier taking it gives]: its move, or a spell a swap left here.
+## What it holds now, as [ability, tier taking it gives]: its move, a tier past what is known.
 func holds() -> Array:
-	var left: Array = map_info.record().relic_left if map_info != null else []
-	if left.size() == 2:
-		return [StringName(left[0]), int(left[1])]
 	return [ability, mini(Abilities.tier(player, ability) + 1, Abilities.max_tier(ability))]
 
 
@@ -30,10 +27,9 @@ func swap() -> bool:
 	return Abilities.is_swap(player, holds()[0])
 
 
-## Stars still owed to take it: its price, or nothing for a spell a swap left here or a boss's
-## relic (the fight was its price).
+## Stars still owed to take it: its price, or nothing for a boss's relic (the fight was its price).
 func price() -> int:
-	if map_info == null or not map_info.record().relic_left.is_empty() or has_meta(&"boss"):
+	if map_info == null or has_meta(&"boss"):
 		return 0
 	return Relics.price(map_info.here.depth)
 
@@ -47,21 +43,17 @@ func take() -> void:
 	player.collect(-cost)
 	var held: Array = holds()
 	var a: StringName = held[0]
-	var was_left: bool = not map_info.record().relic_left.is_empty()
 	var dropped: StringName = Abilities.spell(player, Abilities.slot_of(a)) if Abilities.is_swap(player, a) else &""
 	var dropped_tier: int = Abilities.tier(player, dropped) if dropped != &"" else 0
 	Abilities.set_tier(player, a, int(held[1]))
-	if not was_left:
-		map_info.relic_taken()
+	map_info.relic_taken()
 	if dropped != &"":
-		map_info.record().relic_left = [dropped, dropped_tier]
-	else:
-		map_info.record().relic_left = []
-		map_info.mark_taken(self)
-		# A boss's relic, taken: it waits there no more.
-		if has_meta(&"boss"):
-			map_info.run.boss_relics.erase(get_meta(&"boss"))
-		queue_free()
+		map_info.put_back(dropped, dropped_tier, global_position + Vector2(0, -40))
+	map_info.mark_taken(self)
+	# A boss's relic, taken: it waits there no more.
+	if has_meta(&"boss"):
+		map_info.run.boss_relics.erase(get_meta(&"boss"))
+	queue_free()
 	map_info.save_run()
 	RisoFx.burst(&"gain", global_position + Vector2(0, -40), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.PINK])
 	Wound.shake(8.0, 0.2)

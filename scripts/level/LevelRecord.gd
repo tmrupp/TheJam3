@@ -27,8 +27,6 @@ var lateral_open: Dictionary = {}
 var ways_taken: Dictionary = {}
 ## Whether the shrine has been used.
 var shrine_used: bool = false
-## The spell a relic swap left on the relic's plinth ([spell, tier], or [] for none).
-var relic_left: Array = []
 ## Whether the ink well has been paid (the whole map inked), and what has been seen: a byte per
 ## cell, 1 once seen (see MapInfo.reveal).
 var mapped: bool = false
@@ -72,7 +70,7 @@ var stations: int = -1
 
 ## Every field saved, in the order they are written.
 const FIELDS: Array[StringName] = [&"taken", &"opened", &"slain", &"broken", &"dropped", &"next_drop", &"deeper_paid", &"up_paid",
-	&"doors_paid", &"lateral_open", &"ways_taken", &"shrine_used", &"relic_left", &"mapped", &"seen",
+	&"doors_paid", &"lateral_open", &"ways_taken", &"shrine_used", &"mapped", &"seen",
 	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended", &"lessons", &"stations", &"rings", &"passing", &"lifted", &"pigeonholes", &"prizes"]
 
 

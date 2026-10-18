@@ -496,9 +496,7 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 		LevelGen.Type.RELIC:
 			if gone:
 				return false
-			# A spell swapped onto the relic's plinth waits there instead (Relic.holds).
-			var left: Array = rec.relic_left
-			_mark_relic(at, StringName(left[0]) if left.size() == 2 else StringName(cell.extra_info), 0.7)
+			_mark_relic(at, StringName(cell.extra_info), 0.7)
 			return true
 		LevelGen.Type.CLUSTER:
 			if not gone:

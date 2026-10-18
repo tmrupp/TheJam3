@@ -770,8 +770,8 @@ Each phase ends with the full suite green and its own tests.
 - **The institute's timetable** (liked; built, `docs/DEEPER_PLAN.md` §4e, `timetable_test`,
   `papers_test`): the institute's band-wide puzzle, as light is the cemetery's and the tower
   switches are the crags'. Nothing in it happens unless a bell is rung or the wizard goes
-  somewhere: there is no clock anywhere. It was settled in five passes on 2026-10-17; this is how
-  it stands.
+  somewhere: there is no clock anywhere. It was settled in five passes on 2026-10-17, and its prerequisites crossed
+  departments on 2026-10-18; this is how it stands.
   - *The bell is the switch.* One great bell a level, rung by pulling (or striking) its own cord or
     any of the cords in the classrooms and the library. A ring ends the period and moves the level
     on to the next. It starts passing time, seats every class afresh,
@@ -783,12 +783,12 @@ Each phase ends with the full suite green and its own tests.
     Abominations keep still during a class and surge in passing time; proctors walk the corridors
     in a period.
   - *Departments and their cycles.* A level has up to five classrooms, each a floor and a gallery
-    with doorways at both ends. Each department's three subjects are a ladder: astronomy hex,
-    seeker, warp; geology slash, lunge, rift; botany push, levitate, ferry; necrology nova, astral,
-    awareness. Each classroom keeps its department and steps through its cycle, one class a ring:
-    blocks of two classes of neighbouring rungs and then a break, each block a rung higher (hex,
-    seeker, break; seeker, warp, break; warp, hex, break). Every third class is empty, two rings in
-    one room climb a rung, and rooms start at different stages of a block. Levitate and astral are taught only to a wizard who already has them (relics stay
+    with doorways at both ends, every department given one. Each department has three subjects:
+    astronomy hex, seeker, warp; geology slash, lunge, rift; botany push, levitate, ferry;
+    necrology nova, astral, awareness. Each classroom keeps its department and steps through its
+    cycle, one class a ring: blocks of two classes and then a break (hex, seeker, break; warp, hex,
+    break; seeker, warp, break). Every third class is empty, and rooms start at different stages of
+    a block. Levitate and astral are taught only to a wizard who already has them (relics stay
     how the big moves are found). Doors show the subject taught now, its tier and the prerequisite;
     the rotation is learned by play.
   - *Where the wizard belongs.* Scholars are calm while the wizard is where they belong (the
@@ -797,8 +797,11 @@ Each phase ends with the full suite green and its own tests.
     one facing away works): a local fuss, calmed by the next bell. Casting a spell or striking
     anyone where scholars see it turns them anywhere. The abominations care for none of it, and
     leading them into a class still works.
-  - *Prerequisites.* A class asks for the rung before it on its department's ladder, a tier
-    lower (at least I), known or carried as a paper; a department's first subject asks for nothing.
+  - *Prerequisites.* A class asks for a subject of another department, a rung lower and a tier
+    lower (at least I), held or carried as a paper; a department's first subject asks for nothing.
+    The tier taught rises every ring, so the paper that opens a class is the one earned the ring
+    before in another classroom: climbing goes room to room (decided 2026-10-18, as staying in one
+    room to climb its own ladder was not the game wanted).
     A classroom's doors open only to a wizard enrolled so, so the way through a level runs through
     classes and depends on the papers carried and the rings rung.
   - *Exam papers.* Attending a class is being in its classroom when the bell rings it out,
@@ -810,8 +813,8 @@ Each phase ends with the full suite green and its own tests.
     are keys: carried on the key ring, a slot each, kept through a death.
   - *Papers are spells.* A paper is a spell known but not held, of any ability that takes a slot.
     At a lit lantern the wizard studies: the oldest paper carried that teaches something takes its
-    slot, and the spell it puts out comes back as a paper. Shrines and lessons hand back what they
-    put out the same way. So the key ring is the wizard's spell book, anywhere in the run.
+    slot, and the spell it puts out comes back as a paper. Shrines, lessons and relics hand back
+    what they put out the same way. So the key ring is the wizard's spell book, anywhere in the run.
   - *Instructors.* A classroom's master is the institute at its strongest: far tougher, quicker,
     its whole class turning with it, and, turned on the wizard, moving as its subject does
     (warping, rifting, ferrying, projecting itself, levitating, seeing through rock). Beaten by
@@ -833,8 +836,7 @@ Each phase ends with the full suite green and its own tests.
     subject and tier made one a tier higher, freeing a slot for the price of a paper. Stapling, at a
     lectern: two papers of one department pinned into a bundle taking one slot and serving as
     either prerequisite; held back, as it eases the key-ring pressure that makes cycling papers a
-    puzzle. A relic's plinth handing back the move it replaces as a paper too (for now it keeps it
-    on the plinth).
+    puzzle.
   - *Not yet:* classes moving from hall to hall and students pouring into the corridors in passing
     time; the library's ladders sliding to the bay a period uses; a timetable board, and the
     timetable on the map; seals out in the corridors and seals asking for a tier; checking that

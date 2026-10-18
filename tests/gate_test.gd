@@ -101,10 +101,14 @@ func run() -> void:
 	check(relics.size() == 1 and (relics[0] as Node2D).global_position.distance_to(where) < 1.0 and where.distance_to(fell) < 400.0 and (relics[0] as Relic).price() == 0, "leaving a relic where it fell, free")
 	var move: StringName = (relics[0] as Relic).ability
 	check(Relics.MOVES.has(move) and Abilities.tier(player, move) == 0, "a move the wizard does not know (%s)" % move)
+	var slot: StringName = Abilities.slot_of(move)
+	var held: StringName = Abilities.spell(player, slot) if slot != &"" else &""
+	var held_tier: int = Abilities.tier(player, held) if held != &"" else 0
+	player.keyring.clear()
 	(relics[0] as Relic).take()
-	# A spell swaps for the one held, which is left on the plinth: the relic stays, holding it.
-	var swapped: bool = not info.record().relic_left.is_empty()
-	check(Abilities.tier(player, move) == 1 and info.run.boss_relics.has(&"beast") == swapped, "taken, it teaches it, and is gone (or holds the spell it swapped out: %s)" % swapped)
+	# A move that takes a slot puts out what is in it, which comes back as a paper.
+	var back: bool = held == &"" or player.keyring.has(KeyRing.paper(held, held_tier))
+	check(Abilities.tier(player, move) == 1 and not info.run.boss_relics.has(&"beast") and back, "taken, it teaches it and is gone, handing back what it put out as a paper (%s)" % (held if held != &"" else &"nothing"))
 	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"", "its gate level's way on is open")
 	await _go(Vector2i(29, g + 2 * b))
 	check(placed("beast.tscn").is_empty() and _exit(MapInfo.Exit.DEEPER).sealed() == &"", "and every other gate level of its band too")

@@ -290,6 +290,13 @@ func _apart() -> void:
 	# In passing time, when the abominations act up (Timetable).
 	info.record().passing = true
 	var at: Vector2i = _open_floor()
+	# Nothing else about to get in the way: no scholar to fight them, no other foe on the floor.
+	var here: Vector2 = info.cell_position(at + Vector2i(3, 0))
+	for n: Node in info.map_elements.get_children():
+		var foe: Node2D = n as Node2D
+		if foe != null and (n is Scholar or n is Abomination or (n.has_meta(&"cell") and Placeables.has_flag(info.world.get_cell(n.get_meta(&"cell")).type, &"enemy"))) and foe.global_position.distance_to(here) < 1200.0:
+			n.queue_free()
+	await frames(2)
 	var a: Abomination = _spawn_thing(at + Vector2i(2, 0), 1)
 	var b: Abomination = _spawn_thing(at + Vector2i(2, 0), 1)
 	player.phasing = true
@@ -466,6 +473,8 @@ func _three_sides() -> void:
 	player.end_invulnerable()
 	player.health.health = player.health.max_health
 	var wizard_hp: int = player.health.health
+	# Standing still: no knock left over from before, kept while its physics was off.
+	player.velocity = Vector2.ZERO
 	player.set_physics_process(true)
 	player.global_position = Vector2(smear.x, smear.y - Slime.FEET - 4.0)
 	check(await within(func() -> bool: return player.health.health < wizard_hp, 1.0), "fresh slime hurts the wizard in it")
