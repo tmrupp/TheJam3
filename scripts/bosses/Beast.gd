@@ -17,9 +17,9 @@ extends Node2D
 ## - With its last blow it sinks back into the deep (DIE_TIME), it is slain, whatever souls are
 ##   left go with it, and its relic waits where it lay (MapInfo.boss_slain).
 ## A lantern death brings it back whole, as the level reloads; destroyed souls stay destroyed.
-## The institute's bells feed it (RunState.fed: every ring, all run long): FED_PER_BLOW rings give
-## its great eye one blow more, up to FED_BLOWS_MOST more (core_hp), each ring makes its strikes come
-## FED_QUICKEN sooner, down to FASTEST of their time (attack_every), and it sends more souls
+## The institute's bells feed it (RunState.fed: every ring, all run long), without end: FED_PER_BLOW
+## rings give its great eye one blow more (core_hp), each ring quickens its strikes by FED_QUICKEN of
+## their unfed pace (attack_every, ever sooner but never all at once), and it sends more souls
 ## (BeastSouls.count). Nothing here draws from any RNG.
 
 const STUNNER: PackedScene = preload("res://prefabs/stunner.tscn")
@@ -27,10 +27,9 @@ const HIT_BOX: PackedScene = preload("res://prefabs/hit_box.tscn")
 ## The blows its great eye takes once every soul is destroyed, fed nothing (see core_hp).
 const CORE_HP: int = 9
 const FED_PER_BLOW: int = 2
-const FED_BLOWS_MOST: int = 6
-## How much sooner each ring of the bells makes its strikes come, down to FASTEST of their time.
+## How much each ring of the bells quickens its strikes: with `fed` rings they come every
+## ATTACK_EVERY / (1 + FED_QUICKEN × fed) seconds.
 const FED_QUICKEN: float = 0.03
-const FASTEST: float = 0.55
 ## How near (px) the wizard comes to wake it, if not inside its chamber.
 const WAKE_RANGE: float = 700.0
 ## How big it is drawn, against the sizes its shapes are given at (LOBES, EYES, ARMS).
@@ -64,7 +63,8 @@ const LOBES: Array[Vector3] = [
 	Vector3(80, -175, 60), Vector3(-178, -30, 40), Vector3(182, -32, 42), Vector3(5, -215, 46),
 ]
 ## Its great eye, the weak point (across, up, radius, px), and its small eyes, one for each soul
-## it sends (BeastSouls.count, up to SOULS and FED_SOULS_MOST more), in the order they shut.
+## it sends (BeastSouls.count), in the order they shut; past as many souls as it has eyes, its eyes
+## start shutting once fewer souls than that live.
 const GREAT_EYE: Vector3 = Vector3(0, -100, 36)
 const EYES: Array[Vector3] = [
 	Vector3(-120, -62, 15), Vector3(125, -66, 16), Vector3(-72, -178, 14), Vector3(82, -182, 15),
@@ -144,12 +144,12 @@ func _ready() -> void:
 ## The blows its great eye takes in run `run`, fed as it has been (see CORE_HP).
 static func core_hp(run: RunState) -> int:
 	@warning_ignore("integer_division")
-	return CORE_HP + mini(run.fed / FED_PER_BLOW, FED_BLOWS_MOST)
+	return CORE_HP + run.fed / FED_PER_BLOW
 
 
 ## Seconds between its strikes in run `run`, fed as it has been (see ATTACK_EVERY).
 static func attack_every(run: RunState) -> float:
-	return ATTACK_EVERY * maxf(FASTEST, 1.0 - FED_QUICKEN * float(run.fed))
+	return ATTACK_EVERY / (1.0 + FED_QUICKEN * float(run.fed))
 
 
 func setup(info: MapInfo, v: Vector2i, which: Variant) -> void:

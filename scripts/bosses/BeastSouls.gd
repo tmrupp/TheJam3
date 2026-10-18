@@ -2,8 +2,8 @@ class_name BeastSouls
 extends RefCounted
 ## The eldritch beast's souls (Bosses.DOWN's last, docs/REGIONS_PLAN.md §6), apart from the scene.
 ## The first time the beast wakes in its chamber (Beast), it sends its souls out across the run
-## (send): SOULS, and one more for every FED_PER_SOUL rings of the institute's bells before then, up
-## to FED_SOULS_MOST more (count: the bells feed it, RunState.fed). The wizard who explored is
+## (send): SOULS, and one more for every FED_PER_SOUL rings of the institute's bells before then,
+## without end (count: the bells feed it, RunState.fed). The wizard who explored is
 ## rewarded for it: for every VISITS_PER_SOUL levels visited,
 ## one soul goes into a level they have been to (in any band and column, mapped and known), and
 ## the rest are flung far (far_flung): into levels not yet visited, FAR_COLUMNS worlds off the
@@ -17,11 +17,9 @@ extends RefCounted
 
 ## No cell chosen yet for a soul (its level not yet laid out since it was sent).
 const NO_SPOT: Vector2i = Vector2i(-1, -1)
-## How many souls it sends out, fed nothing; one more for every FED_PER_SOUL rings of the bells, up
-## to FED_SOULS_MOST more.
+## How many souls it sends out, fed nothing; one more for every FED_PER_SOUL rings of the bells.
 const SOULS: int = 8
 const FED_PER_SOUL: int = 4
-const FED_SOULS_MOST: int = 4
 ## One soul stays in a level visited for every VISITS_PER_SOUL levels visited (up to all of them).
 const VISITS_PER_SOUL: int = 5
 ## A soul flung far goes this many worlds off the beast's (from, to), to either side.
@@ -70,7 +68,7 @@ static func visited(run: RunState, from: Vector2i) -> Array[Vector2i]:
 ## How many souls it sends out in run `run`, fed as it has been (see SOULS).
 static func count(run: RunState) -> int:
 	@warning_ignore("integer_division")
-	return SOULS + mini(run.fed / FED_PER_SOUL, FED_SOULS_MOST)
+	return SOULS + run.fed / FED_PER_SOUL
 
 
 ## How many of `most` souls stay in levels visited, when `count` levels a soul could go into were

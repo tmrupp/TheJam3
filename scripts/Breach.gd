@@ -8,14 +8,16 @@ class_name Breach
 ## given as it is placed, set to HP): any bolt wounds it, even one of no damage (Wound.least),
 ## and once closed the level record keeps it so until the wizard dies. What climbs out is not part
 ## of the level: none are kept, and they are gone when the level is left. By the timetable it lets
-## nothing out during a class (a period), and in passing time lets them out the sooner for every ring
-## of the bell in the level (MapInfo.abominations_quiet, surge). Nothing here draws from any RNG.
+## nothing out during a class (a period), and in passing time only a trickle, one every TRICKLE
+## seconds (MapInfo.abominations_quiet). Nothing here draws from any RNG.
 
 ## How near the wizard wakes it (cells), how soon the first comes and how often after that
 ## (seconds), and the hits it takes to close.
 const WAKE: int = 10
 const FIRST: float = 1.5
 const EVERY: float = 5.0
+## How often one comes in the institute's passing time (seconds): a trickle.
+const TRICKLE: float = 12.0
 const HP: int = 6
 ## How long it shows one coming before it is out (seconds), and how long the newcomer takes to rise.
 const SURGE: float = 0.8
@@ -64,9 +66,9 @@ func _physics_process(delta: float) -> void:
 		return
 	if get_tree().get_nodes_in_group(&"abomination").size() >= Abomination.MOST or map_info.abominations_quiet():
 		return
-	wait -= delta * Difficulty.attack() * map_info.surge()
+	wait -= delta * Difficulty.attack()
 	if wait <= 0.0:
-		wait = EVERY
+		wait = TRICKLE if map_info.timetabled() else EVERY
 		surging = 0.0
 
 

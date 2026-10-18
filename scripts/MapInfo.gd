@@ -914,9 +914,6 @@ var _rung_frame: int = -1
 const BELL_TIME: float = 3.0
 const BELL_SHAKE: float = 5.0
 var since_bell: float = 99.0
-## How much more the abominations act up in passing time with each ring in their level: their
-## breaches, growth and launches that much sooner a ring (Abomination, Breach).
-const SURGE_PER_RING: float = 0.5
 ## Field papers: how far (cells) from a field level's way in its waiting papers lie, at least (where
 ## the level allows), and the salt for the run seed that deals their floors.
 const PAPER_CLEAR: int = 10
@@ -984,10 +981,12 @@ func tier_of (hall: int) -> int:
 	var a: StringName = subject_of(hall)
 	return Timetable.tier_taught(a, int(dept_tiers()[world.halls[hall]["dept"]])) if a != &"" else 0
 
-## Whether the great bell can ring now: at every pull of a cord, in a period or in passing time (each
-## ring moves every class on), but not within SchoolBell.RING_GAP of its last ring.
+## Whether the great bell can ring now: only during a period (as the level is first met, or once the
+## wizard has gone into a class), never in passing time, even with no class open to the wizard (the
+## papers that open one may be elsewhere in the run); and not within SchoolBell.RING_GAP of its last
+## ring.
 func bell_ready () -> bool:
-	return timetabled() and since_bell >= SchoolBell.RING_GAP
+	return timetabled() and not record().passing and since_bell >= SchoolBell.RING_GAP
 
 ## The great bell was rung (one of its cords pulled, SchoolBell), if it can be (bell_ready): a wizard
 ## in a class as it rings has attended it (_attend); the level moves on a period and passing time
@@ -1201,11 +1200,6 @@ func hall_door_up (hall: int) -> bool:
 ## Whether the abominations keep still now: during a class (a period, not passing time).
 func abominations_quiet () -> bool:
 	return timetabled() and not record().passing
-
-## How much sooner the abominations act up now, in passing time: 1, and SURGE_PER_RING more for every
-## ring of the bell in the level.
-func surge () -> float:
-	return 1.0 + SURGE_PER_RING * float(record().rings) if timetabled() else 1.0
 
 ## The wizard cast the spell in slot `slot` (Abilities.cast): every scholar that sees it turns on them
 ## (Scholar.rouse), but for one that rang a bell as it struck.

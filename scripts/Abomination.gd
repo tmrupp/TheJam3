@@ -29,8 +29,8 @@ class_name Abomination
 ## off another starts with one, and drops no stars.
 ##
 ## By the timetable (Timetable): during a class (a period) it keeps still, neither hunting, growing
-## nor launching (MapInfo.abominations_quiet); in passing time it acts up, growing and launching the
-## sooner for every ring of the bell in the level (MapInfo.surge). Nothing here draws from any RNG.
+## nor launching (MapInfo.abominations_quiet); in passing time it grows and launches as anywhere else.
+## Nothing here draws from any RNG.
 
 ## How far it senses a quarry (px), and how fast it crawls (px/s, a little faster on a harder
 ## preset, Difficulty.speed).
@@ -279,8 +279,7 @@ func _physics_process(delta: float) -> void:
 		telling = -1.0
 		quarry = null
 		return
-	var surge: float = info.surge() if info != null else 1.0
-	launch_in -= delta * Difficulty.attack() * surge
+	launch_in -= delta * Difficulty.attack()
 	if telling >= 0.0:
 		telling += delta
 		if lobes < SPLIT:
@@ -293,7 +292,7 @@ func _physics_process(delta: float) -> void:
 	if lobes >= SPLIT and launch_in <= 0.0 and get_tree().get_nodes_in_group(&"abomination").size() < MOST:
 		telling = 0.0
 		return
-	grow_in -= delta * Difficulty.attack() * surge
+	grow_in -= delta * Difficulty.attack()
 	if grow_in <= 0.0:
 		grow_in = _next_growth()
 		grow()

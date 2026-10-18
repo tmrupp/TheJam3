@@ -741,7 +741,7 @@ Each phase ends with the full suite green and its own tests.
    cords, departments with their own rhythms and tier rules,
    prerequisites, passing time and belonging, exam papers sent on field trips and learned at
    lanterns, instructors, classroom lecterns as pigeonholes, glyph seals, abominations quiet in
-   class and surging in passing time, and the beast fed by rings (`Timetable`, `SchoolBell`,
+   class and a trickle in passing time, and the beast fed by rings without end (`Timetable`, `SchoolBell`,
    `Lectern`, `GlyphSeal`, `KeyRing.paper`, `MapInfo._attend`, `study`, `instructor_fell`;
    `timetable_test`, `papers_test`, `capture_timetable.gd`). Only the institute's dressing changed
    (its halls: classrooms in place of lecture halls and the exam hall; `layout_fingerprint_test`
@@ -781,17 +781,18 @@ Each phase ends with the full suite green and its own tests.
     any of the cords in the classrooms and the library. A ring ends the period and moves the level
     on to the next of three in its day. It starts passing time, seats every class afresh, calms every
     scholar, climbs or drops each department that met (below), wakes the abominations more and
-    feeds the beast for the run. Every pull of a cord rings it, in passing time too, so a wizard
-    waiting on another period rings on to it and pays for each ring (once it would not ring in
-    passing time while any class was open to them, which left them stuck where none of those could
-    be reached). Its cord hangs in the corridors the way in opens on, so a wizard just come in can
-    ring it.
+    feeds the beast for the run. A cord rings it only during a period, never in passing time, and
+    nothing gets round that: a wizard with every class shut to them or out of reach goes elsewhere
+    in the run for the spells and papers that open one (decided 2026-10-18: a level need not be
+    got through from within itself, and going sideways and back is encouraged). Its cord hangs in
+    the corridors the way in opens on, so a wizard just come in can ring it.
   - *Passing time* lasts until the wizard goes into a class in session, however long that takes, so
     it is the wizard's to spend: look round, open seals, pick the class, then commit to it. Going in
     starts the class: its doors shut behind them until the bell rings it out (the classroom's own
     cord), so every classroom crossed costs a ring and counts as attending it. Staying in a room as
     the bell rings starts nothing; its doors let them out in passing time.
-    Abominations keep still during a class and surge in passing time; proctors walk the corridors
+    Abominations keep still during a class, and in passing time breaches let out a trickle of
+    them, the same however many rings; proctors walk the corridors
     in a period.
   - *Departments, rhythms and tiers* (decided 2026-10-18, after modelling six variants). A level
     has up to five classrooms, each a floor and a gallery with doorways at both ends, every
@@ -808,7 +809,7 @@ Each phase ends with the full suite green and its own tests.
     The timetable model (`tools/timetable_model.py`) found two faults, both fixed: a botany class
     the wizard cannot be taught (levitate, without the relic) broke botany's streak (now any class
     sat counts as attended, taught or not, so there is no special case for botany), and a wizard
-    could be stuck in passing time with the bell silent (now every pull rings). Now every department reaches IV from every start; geology III takes 6 to
+    can be stuck in passing time with the bell silent (left so: the papers are elsewhere). Now every department reaches IV from every start; geology III takes 6 to
     10 rings and is the rarest tier by chance; without the rhythms geology never rises. Levitate and astral are taught only to a wizard who already has them (relics stay
     how the big moves are found). Doors show the subject taught now, its tier and the prerequisite;
     the rotation is learned by play.
@@ -827,10 +828,10 @@ Each phase ends with the full suite green and its own tests.
     never one spell.
   - *The way on* stands in the classroom the most classrooms in from the way in, and asks besides
     for an exam paper (not a spell held) of any other department at II or higher. On 40 real levels
-    the timetable model gets a wizard with nothing on their ring (room on it for two papers) through
-    in 2 to 15 rings, 3 at the median, in 39 (35 with the ring's one slot); the rest are left as
-    dealt (the owner's call): their way runs through papers from other levels, a feature meant for
-    the cemetery and the crags too.
+    the timetable model gets a wizard holding only slash, with nothing on their ring (room on it
+    for two papers), through in 2 to 15 rings, 3 at the median, in 34 (30 with the ring's one
+    slot); the rest are left as dealt (the owner's call): their way runs through papers from other
+    levels, a feature meant for the cemetery and the crags too.
   - *Exam papers.* Attending a class is being in its classroom when the bell rings it out, having
     gone in to start it, its master there and not turned on the wizard; a class of a move the
     wizard lacks counts as attended, with no paper. Its paper (the subject at the tier

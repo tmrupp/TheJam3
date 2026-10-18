@@ -10,8 +10,8 @@ extends TestKit
 ## the wizard belongs. In play: a level first met before any ring, in a period; scholars turn on a
 ## wizard they see truant, and those near them with them, not the whole level; a ring moves on a
 ## period, starts passing time, feeds the beast and calms them all; in passing time the corridors are
-## the wizard's; a cast or a blow where they see it turns them; every pull of a cord rings the bell
-## (in passing time too, with a class open to the wizard); hall doors stand open only while in
+## the wizard's; a cast or a blow where they see it turns them; the bell rings only during a
+## period (not in passing time, even with no class open to the wizard); hall doors stand open only while in
 ## session; every ring seats each class afresh, a master teaching its hall's subject, a hall with no
 ## class empty and trespassed in; an instructor far stronger than a master out in the level, its whole
 ## class turning with it; felled by an abomination it leaves nothing, felled by the wizard a paper of
@@ -68,8 +68,9 @@ func _rules() -> void:
 	check(Beast.core_hp(fed) == Beast.CORE_HP and BeastSouls.count(fed) == BeastSouls.SOULS and is_equal_approx(Beast.attack_every(fed), Beast.ATTACK_EVERY), "an unfed beast as ever")
 	fed.fed = 8
 	check(Beast.core_hp(fed) == Beast.CORE_HP + 4 and BeastSouls.count(fed) == BeastSouls.SOULS + 2 and Beast.attack_every(fed) < Beast.ATTACK_EVERY, "fed by 8 rings: 4 blows more, 2 souls more, quicker strikes")
-	fed.fed = 999
-	check(Beast.core_hp(fed) == Beast.CORE_HP + Beast.FED_BLOWS_MOST and BeastSouls.count(fed) == BeastSouls.SOULS + BeastSouls.FED_SOULS_MOST and Beast.attack_every(fed) >= Beast.ATTACK_EVERY * Beast.FASTEST - 0.001, "and no more than so much")
+	var before: float = Beast.attack_every(fed)
+	fed.fed = 60
+	check(Beast.core_hp(fed) == Beast.CORE_HP + 30 and BeastSouls.count(fed) == BeastSouls.SOULS + 15 and Beast.attack_every(fed) < before and Beast.attack_every(fed) > 0.0, "and on without end: fed by 60 rings, 30 blows more, 15 souls more, strikes quicker still")
 
 
 # ------------------------------------------------------------------ laid out
@@ -206,7 +207,7 @@ func _play() -> void:
 		return
 	var bell: SchoolBell = cords[0] as SchoolBell
 	await _belonging(rec, bell)
-	await _every_pull(rec, bell)
+	await _once_a_period(rec, bell)
 	await _doors(rec, bell)
 	await _classes(rec, bell)
 	await _attend(rec, bell)
@@ -268,19 +269,32 @@ func _belonging(rec: LevelRecord, bell: SchoolBell) -> void:
 	by.queue_free()
 
 
-## Every pull of a cord rings the bell and moves every class on: in a period, and in passing time too,
-## with a class open to the wizard (they need not go into one first), from a classroom's cord or the
-## great bell's; only not twice within SchoolBell.RING_GAP.
-func _every_pull(rec: LevelRecord, bell: SchoolBell) -> void:
-	print("every pull rings the bell")
+## The bell rings only during a period: once rung, it is silent in passing time, even with no class
+## open to the wizard, until they go into a class.
+func _once_a_period(rec: LevelRecord, bell: SchoolBell) -> void:
+	print("the bell rings only during a period")
 	player.global_position = bell.global_position
 	rec.passing = false
 	info.since_bell = SchoolBell.RING_GAP
 	check(info.ring_period() and rec.passing, "rung in a period, passing time begins")
 	var rings: int = rec.rings
 	var other: SchoolBell = placed("school_bell.tscn").filter(func(n: Node) -> bool: return not (n as SchoolBell).great)[0] as SchoolBell
+	info.since_bell = SchoolBell.RING_GAP
 	other.ring()
-	check(rec.rings == rings, "pulled again at once, within its gap, it does not ring")
+	bell.ring()
+	check(rec.rings == rings, "pulled again in passing time, from any cord, it does not ring")
+	# Every class shut to the wizard (each asking for a paper they lack): still silent.
+	player.keyring.clear()
+	for dept: StringName in Timetable.LADDERS:
+		rec.dept_tiers[dept] = 3
+		for a: StringName in Timetable.LADDERS[dept]:
+			Abilities.set_tier(player, a, 0)
+	await frames(2)
+	if _hall_with_class() < 0:
+		bell.ring()
+		check(rec.rings == rings, "with no class open to the wizard, it stays silent all the same: the papers are elsewhere")
+	rec.dept_tiers.clear()
+	Abilities.set_tier(player, &"slash", 1)
 	var hall: int = _hall_with_class()
 	if hall < 0:
 		# A class the wizard is not enrolled in yet: carry the paper it asks for.
@@ -290,20 +304,16 @@ func _every_pull(rec: LevelRecord, bell: SchoolBell) -> void:
 				player.keyring.take(KeyRing.paper(Timetable.LADDERS[need[0]][0], need[1]))
 				hall = i
 				break
-	check(hall >= 0 and info.enrolled(hall), "a class in session open to the wizard")
-	info.since_bell = SchoolBell.RING_GAP
-	other.ring()
-	await frames(2)
-	check(rec.rings == rings + 1 and rec.passing, "pulled again in passing time, with a class open to the wizard, it rings all the same")
-	var seated: bool = true
-	for i: int in range(info.world.halls.size()):
-		if info.subject_of(i) != &"":
-			seated = seated and info.master_in(i) != null and info.master_in(i).ability == info.subject_of(i)
-	check(seated, "every class moved on: each master teaching its hall's subject for the new period")
-	info.since_bell = SchoolBell.RING_GAP
-	bell.ring()
-	check(rec.rings == rings + 2, "and again from the great bell's cord")
-	player.keyring.clear()
+	if hall >= 0:
+		player.global_position = _in_hall(hall)
+		check(await within(func() -> bool: return not rec.passing, 0.5), "going into a class ends passing time")
+		info.since_bell = SchoolBell.RING_GAP
+		other.ring()
+		check(rec.rings == rings + 1, "and then it rings again")
+		player.keyring.clear()
+	player.global_position = bell.global_position
+	for n: Node in get_nodes_in_group(&"scholar"):
+		(n as Scholar).calm()
 	await frames(2)
 
 
@@ -716,7 +726,6 @@ func _abominations(rec: LevelRecord) -> void:
 	check(absf(thing.global_position.x - from) < 4.0 and thing.lobes == lobes and thing.quarry == null, "during a class an abomination keeps still")
 	rec.passing = true
 	check(await within(func() -> bool: return thing.global_position.x < from - 30.0, 2.0), "in passing time it acts up, after the wizard")
-	check(is_equal_approx(info.surge(), 1.0 + MapInfo.SURGE_PER_RING * float(rec.rings)), "the sooner for every ring (%.1f times, %d rings)" % [info.surge(), rec.rings])
 	thing.queue_free()
 	var breaches: Array[Node] = placed("breach.tscn")
 	if breaches.is_empty():
@@ -728,6 +737,7 @@ func _abominations(rec: LevelRecord) -> void:
 	check(breach.brood.is_empty(), "a breach lets none out during a class")
 	rec.passing = true
 	check(await within(func() -> bool: return not breach.brood.is_empty(), Breach.FIRST + Breach.SURGE + 1.0), "and in passing time does")
+	check(breach.wait > Breach.EVERY, "but only a trickle: the next one %.0f s off, however many rings (%d)" % [Breach.TRICKLE, rec.rings])
 	for n: Node2D in breach.brood:
 		n.queue_free()
 	await frames(2)
