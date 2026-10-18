@@ -166,6 +166,8 @@ func _strike(attacker: Node) -> void:
 			shield.absorb(false, dir)
 		return
 	var wound: Wound = attacker.get_node_or_null("Wound") as Wound
+	if attacker is Scholar:
+		(attacker as Scholar).wizard_blow = true
 	if wound != null:
 		wound.hit(DAMAGE, dir)
 	if is_instance_valid(attacker) and not attacker.is_queued_for_deletion():

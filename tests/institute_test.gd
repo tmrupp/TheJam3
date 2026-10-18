@@ -9,7 +9,8 @@ extends TestKit
 ## spells; abominations and scholars wound one another; a breach lets abominations out (up out of
 ## its crack, their feet on its floor) while the
 ## wizard is near; the exam shuts its doors behind the wizard and opens them for good when its
-## master falls, the students scattering and a lesson left that teaches a tier of its spell, once;
+## master falls, the students scattering and its prizes left (one for each trial passed in the
+## level, at the tier taught), one of them to pick, once;
 ## and a department's portal leads to a level of its band in the same world, with a way back that
 ## closes once used.
 ## godot --headless --path . --script res://tests/institute_test.gd
@@ -152,10 +153,13 @@ func play() -> void:
 	await _students()
 	await _hop()
 	await _climb()
+	info.record().passing = false
 	await _apart()
+	info.record().passing = false
 	await _masters()
 	await _staff()
 	await _three_sides()
+	info.record().passing = false
 	await _exam()
 	await _department()
 
@@ -233,6 +237,8 @@ func _hop() -> void:
 ## it waits, facing it, rather than leaping at it again and again.
 func _climb() -> void:
 	print("an abomination at a step and a wall")
+	# In passing time, when the abominations act up (Timetable).
+	info.record().passing = true
 	var w: LevelGen = info.world
 	var step: Variant = null
 	var wall: Variant = null
@@ -276,6 +282,8 @@ func _climb() -> void:
 ## one going after the wizard behind another waits behind it rather than piling into it.
 func _apart() -> void:
 	print("abominations keep apart")
+	# In passing time, when the abominations act up (Timetable).
+	info.record().passing = true
 	var at: Vector2i = _open_floor()
 	var a: Abomination = _spawn_thing(at + Vector2i(2, 0), 1)
 	var b: Abomination = _spawn_thing(at + Vector2i(2, 0), 1)
@@ -357,6 +365,8 @@ func _staff() -> void:
 ## Abominations and scholars wound one another; a breach lets them out while the wizard is near.
 func _three_sides() -> void:
 	print("three sides")
+	# In passing time, when the abominations act up (Timetable).
+	info.record().passing = true
 	var spot: Vector2i = _open_floor()
 	player.global_position = info.cell_position(spot) + Vector2(0, -6000)
 	player.phasing = true
@@ -468,8 +478,11 @@ func _three_sides() -> void:
 ## and its lesson waits, teaching a tier of its spell, once.
 func _exam() -> void:
 	print("the exam")
-	# The exam is in session in the timetable's last period (timetable_test rings its way there).
-	info.record().period = Timetable.EXAM_PERIOD
+	# The exam is in session in the timetable's last period (timetable_test rings its way there); two
+	# trials passed in the level are its list.
+	info.record().rings = Timetable.EXAM_PERIOD
+	info.pass_trial(&"hex", 2)
+	info.pass_trial(&"nova", 1)
 	var hall: Dictionary = Institute.exam_hall(info.world)
 	# Outside it, so its doors are awake (far off, a door sleeps with its chunk).
 	player.global_position = info.cell_position((hall["steps"] as Array)[0])
@@ -481,7 +494,6 @@ func _exam() -> void:
 	check(master != null, "its master is there")
 	if master == null:
 		return
-	var ability: StringName = master.ability
 	var students: Array[Scholar] = []
 	for n: Node in get_nodes_in_group(&"student"):
 		if (n as Scholar).own_master() == master:
@@ -490,27 +502,24 @@ func _exam() -> void:
 	player.phasing = true
 	check(await within(func() -> bool: return doors.all(func(d: Node) -> bool: return (d as ExamDoor).shut()), 1.0), "the wizard inside, its doors shut behind them")
 	check(info.solid_at((doors[0] as Node2D).global_position), "and stop sight and light")
-	var cell: Vector2i = master.cell
 	(master.get_node("Wound") as Wound).hit(99, Vector2.UP)
 	check(await within(func() -> bool: return doors.all(func(d: Node) -> bool: return not (d as ExamDoor).shut()), 1.0), "its master slain, they open")
 	check(info.record().exams.has(index), "and the record keeps it passed")
 	check(not students.is_empty() and students.all(func(s: Scholar) -> bool: return not is_instance_valid(s) or s.scatter > 0.0), "its students scatter")
-	var lessons: Array[Node] = placed("lesson.tscn")
-	check(lessons.size() == 1, "its lesson waits where it fell")
+	await frames(2)
+	check(placed("lesson.tscn").is_empty(), "the examiner leaves no lesson: the exam is the upgrade")
+	var prizes: Array[Node] = placed("exam_prize.tscn")
+	var offered: Array = prizes.map(func(n: Node) -> Array: return (n as ExamPrize).holds())
+	check(prizes.size() == 2 and offered.has([&"hex", 2]) and offered.has([&"nova", 1]), "its prizes wait: each trial passed here, at the tier it was taught (%s)" % [offered])
 	player.phasing = false
-	if lessons.is_empty():
+	var pick: Array[Node] = prizes.filter(func(n: Node) -> bool: return (n as ExamPrize).spell == &"hex")
+	if pick.is_empty():
 		return
-	var lesson: Lesson = lessons[0] as Lesson
-	var held: Array = lesson.holds()
-	check(held[0] == ability, "teaching its spell, %s" % ability)
-	var was: int = Abilities.tier(player, ability)
-	var swapped: StringName = Abilities.spell(player, Abilities.slot_of(ability)) if lesson.swap() else &""
-	lesson.take()
-	check_eq(Abilities.tier(player, ability), was + 1, "taken, the wizard knows a tier more of it")
-	if swapped != &"":
-		check(is_instance_valid(lesson) and lesson.holds()[0] == swapped, "the %s it replaced left on the lectern to take back" % swapped)
-	else:
-		check(await until(gone(lesson)), "nothing left on it, it is gone")
+	var was: int = Abilities.tier(player, &"hex")
+	(pick[0] as ExamPrize).take()
+	check(Abilities.spell(player) == &"hex" and Abilities.tier(player, &"hex") == maxi(was, 2), "the wizard picks hex: they know hex II")
+	check(int(info.run.taught.get(&"hex", 0)) >= 2 and info.record().exam_prize, "kept for the run, the pick made")
+	check(await until(func() -> bool: return placed("exam_prize.tscn").is_empty()), "the other prize is gone: one pick an exam")
 	print("again")
 	info.record().slain.clear()
 	await _go(info.coord)
@@ -519,11 +528,11 @@ func _exam() -> void:
 	check(again != null, "the master is back after a death")
 	await frames(2)
 	check(placed("exam_door.tscn").all(func(d: Node) -> bool: return (d as ExamDoor).hall != index or not (d as ExamDoor).shut()) and info.record().exams.has(index), "but the exam stays passed")
-	check(placed("lesson.tscn").size() == (1 if swapped != &"" else 0), "its lesson is there only for what is left on it")
+	check(placed("exam_prize.tscn").is_empty(), "and its pick stays made")
 	if again != null:
 		(again.get_node("Wound") as Wound).hit(99, Vector2.UP)
 		await frames(3)
-	check(placed("lesson.tscn").size() == (1 if swapped != &"" else 0) and (info.record().lessons[cell] as Dictionary)["taken"], "beaten again, it teaches nothing more")
+	check(placed("lesson.tscn").is_empty() and placed("exam_prize.tscn").is_empty(), "beaten again, it gives nothing more")
 
 
 ## A department's portal: to a level of its band in the same world, coming out of the way back it

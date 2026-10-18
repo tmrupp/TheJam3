@@ -76,8 +76,8 @@ const DEPARTMENTS: Dictionary = {
 
 ## The timetable's great bell and its cords (SchoolBell): the bell hangs from the ceiling out in the
 ## corridors over the nearest free floor to the way in at least BELL_CLEAR cells from it with
-## BELL_ROOM open cells over it (else any such floor), its cord hanging from it with the timetable's
-## board beside; and a cord in each lecture hall and the library, up into the ceiling.
+## BELL_ROOM open cells over it (else any such floor), its cord hanging from it; and a cord in each
+## lecture hall and the library, up into the ceiling.
 const BELL_CLEAR: int = 3
 const BELL_ROOM: int = 3
 
@@ -384,11 +384,11 @@ static func department_row(def: NextWorldDef, dept: StringName, i: int) -> int:
 ##   lectern's wall, and a student on each tier (a proctor on the top one);
 ## - the library: a librarian on its top gallery with HOARD stars, and a student on each gallery
 ##   below.
-## Then the timetable's things (Timetable): a lectern (Lectern) and a bell (SchoolBell) on each
-## lecture hall's floor between its portal and its master, a bell on the library's floor, a glyph
+## Then the timetable's things (Timetable): a lectern (Lectern) and a bell's cord (SchoolBell) on each
+## lecture hall's floor between its portal and its master, a cord on the library's floor, a glyph
 ## seal (GlyphSeal) just inside each doorway of the exam hall and the library (out in the level the
 ## cell outside may hold anything), asking for the spell Timetable.seal_of deals, and the great bell
-## out in the corridors over its cord, with the timetable's board (see BELL_CLEAR).
+## out in the corridors over its cord (see BELL_CLEAR).
 static func furnish(w: LevelGen, def: NextWorldDef) -> void:
 	for i: int in range(w.halls.size()):
 		var hall: Dictionary = w.halls[i]
@@ -405,8 +405,9 @@ static func furnish(w: LevelGen, def: NextWorldDef) -> void:
 				var wall: int = inside.position.x if rise > 0 else inside.end.x - 1
 				var portal: Vector2i = Vector2i(wall + rise, bottom)
 				_place(w, portal, LevelGen.Type.DEPARTMENT, [hall["dept"], department_row(def, hall["dept"], i)])
+				# Its master teaches the hall's subject now (Timetable.subject; Scholar.setup).
 				var head: Vector2i = Vector2i(wall + rise * 4, bottom)
-				_place(w, head, LevelGen.Type.MASTER, {"ability": mastery(w, head), "hall": i})
+				_place(w, head, LevelGen.Type.MASTER, {"ability": Timetable.subject(w, i, 0), "hall": i})
 				for k: int in range(1, TIERS + 1):
 					var from_wall: int = (TIERS - k) * TIER_DEEP
 					var x: int = inside.end.x - 1 - from_wall if rise > 0 else inside.position.x + from_wall
@@ -446,9 +447,9 @@ static func _timetable(w: LevelGen) -> void:
 				var rise: int = hall["rise"]
 				var wall: int = inside.position.x if rise > 0 else inside.end.x - 1
 				_place(w, Vector2i(wall + rise * 2, bottom), LevelGen.Type.LECTERN, i)
-				_place(w, Vector2i(wall + rise * 3, bottom), LevelGen.Type.SCHOOL_BELL, {"board": false})
+				_place(w, Vector2i(wall + rise * 3, bottom), LevelGen.Type.SCHOOL_BELL, {"great": false})
 			&"library":
-				_place(w, Vector2i(inside.position.x + 2, bottom), LevelGen.Type.SCHOOL_BELL, {"board": false})
+				_place(w, Vector2i(inside.position.x + 2, bottom), LevelGen.Type.SCHOOL_BELL, {"great": false})
 		var spell: StringName = Timetable.seal_of(w, i)
 		if spell == &"":
 			continue
@@ -461,7 +462,7 @@ static func _timetable(w: LevelGen) -> void:
 	var roomy: Array[Vector2i] = out.filter(func(v: Vector2i) -> bool: return range(1, BELL_ROOM + 1).all(func(k: int) -> bool: return w.is_valid(v + Vector2i(0, -k)) and not w.is_ground(v + Vector2i(0, -k))))
 	var spot: Variant = LevelGen.best_of(roomy if not roomy.is_empty() else out, func(v: Vector2i) -> float: return float(LevelGen.dist(v, start)))
 	if spot != null:
-		_place(w, spot, LevelGen.Type.SCHOOL_BELL, {"board": true})
+		_place(w, spot, LevelGen.Type.SCHOOL_BELL, {"great": true})
 
 
 ## A `type` holding `extra` at `v`, if it is still free open air.

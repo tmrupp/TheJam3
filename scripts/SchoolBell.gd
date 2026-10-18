@@ -3,7 +3,7 @@ class_name SchoolBell
 ## A cord of the institute's great bell (Timetable; laid by Institute.furnish): a thick cord of spell
 ## light hanging all the way from the ceiling to a tassel within reach (SchoolBellArt), one in each
 ## lecture hall and the library, up through the ceiling to the bell, and one out in the corridors near
-## the way in hanging from the great bell itself, with the timetable on a board beside it (`board`).
+## the way in hanging from the great bell itself (`great`), whose yoke marks the period.
 ## Pull it (interact, or strike it with a spell from across a shaft) and the great bell rings: the
 ## period ends, the level moves on to the next, passing time begins, every scholar calms down, and the
 ## whole institute shakes while it rings out (MapInfo.ring_period, MapInfo.BELL_TIME). The bell rings
@@ -13,8 +13,8 @@ class_name SchoolBell
 const RING_GAP: float = 1.0
 
 var map_info: MapInfo
-## Whether it hangs from the great bell itself, with the timetable's board (the corridor's cord).
-var board: bool = false
+## Whether it hangs from the great bell itself (the corridor's cord).
+var great: bool = false
 ## How many cells up its ceiling is (the first rock over its cell): the cord reaches it.
 var reach: int = 1
 ## Seconds since it was last pulled (the art).
@@ -23,7 +23,7 @@ var since_rung: float = 99.0
 
 func setup(info: MapInfo, v: Vector2i, extra: Variant) -> void:
 	map_info = info
-	board = extra is Dictionary and bool((extra as Dictionary).get("board", false))
+	great = extra is Dictionary and bool((extra as Dictionary).get("great", false))
 	reach = ceiling_over(info.world, v)
 
 
@@ -37,10 +37,9 @@ static func ceiling_over(w: LevelGen, v: Vector2i) -> int:
 
 ## Pull it: the great bell rings (the next period, and passing time).
 func ring() -> void:
-	if map_info == null or map_info.since_bell < RING_GAP:
+	if map_info == null or not map_info.ring_period():
 		return
 	since_rung = 0.0
-	map_info.ring_period()
 
 
 ## A hex bolt rings it (HexBolt strikes everything in the hex_target group).

@@ -1,8 +1,10 @@
 class_name BeastSouls
 extends RefCounted
 ## The eldritch beast's souls (Bosses.DOWN's last, docs/REGIONS_PLAN.md §6), apart from the scene.
-## The first time the beast wakes in its chamber (Beast), it sends SOULS souls out across the run
-## (send), and the wizard who explored is rewarded for it: for every VISITS_PER_SOUL levels visited,
+## The first time the beast wakes in its chamber (Beast), it sends its souls out across the run
+## (send): SOULS, and one more for every FED_PER_SOUL rings of the institute's bells before then, up
+## to FED_SOULS_MOST more (count: the bells feed it, RunState.fed). The wizard who explored is
+## rewarded for it: for every VISITS_PER_SOUL levels visited,
 ## one soul goes into a level they have been to (in any band and column, mapped and known), and
 ## the rest are flung far (far_flung): into levels not yet visited, FAR_COLUMNS worlds off the
 ## beast's to either side, each in a band of its own in turn. So a wizard who dived straight down
@@ -15,8 +17,11 @@ extends RefCounted
 
 ## No cell chosen yet for a soul (its level not yet laid out since it was sent).
 const NO_SPOT: Vector2i = Vector2i(-1, -1)
-## How many souls it sends out.
+## How many souls it sends out, fed nothing; one more for every FED_PER_SOUL rings of the bells, up
+## to FED_SOULS_MOST more.
 const SOULS: int = 8
+const FED_PER_SOUL: int = 4
+const FED_SOULS_MOST: int = 4
 ## One soul stays in a level visited for every VISITS_PER_SOUL levels visited (up to all of them).
 const VISITS_PER_SOUL: int = 5
 ## A soul flung far goes this many worlds off the beast's (from, to), to either side.
@@ -62,10 +67,17 @@ static func visited(run: RunState, from: Vector2i) -> Array[Vector2i]:
 	return out
 
 
-## How many souls stay in levels visited, when `count` levels a soul could go into were visited.
-static func kept_near(count: int) -> int:
+## How many souls it sends out in run `run`, fed as it has been (see SOULS).
+static func count(run: RunState) -> int:
 	@warning_ignore("integer_division")
-	return mini(mini(count / VISITS_PER_SOUL, SOULS), count)
+	return SOULS + mini(run.fed / FED_PER_SOUL, FED_SOULS_MOST)
+
+
+## How many of `most` souls stay in levels visited, when `count` levels a soul could go into were
+## visited.
+static func kept_near(count: int, most: int = SOULS) -> int:
+	@warning_ignore("integer_division")
+	return mini(mini(count / VISITS_PER_SOUL, most), count)
 
 
 ## The `k`th place tried for a soul flung far from the beast's level `from` in run `run`: in the
@@ -91,10 +103,11 @@ static func send(run: RunState, from: Vector2i) -> void:
 	if run.souls_sent > 0 or run.bosses.has(&"beast"):
 		return
 	var known: Array[Vector2i] = visited(run, from)
-	for c: Vector2i in known.slice(0, kept_near(known.size())):
+	var souls: int = count(run)
+	for c: Vector2i in known.slice(0, kept_near(known.size(), souls)):
 		run.souls[c] = NO_SPOT
 	var k: int = 0
-	while run.souls.size() < SOULS and k < FAR_TRIES:
+	while run.souls.size() < souls and k < FAR_TRIES:
 		var c: Vector2i = far_flung(run, from, k)
 		if could_hold(c, from) and not run.records.has(c) and not run.souls.has(c):
 			run.souls[c] = NO_SPOT

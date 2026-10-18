@@ -87,7 +87,7 @@ func struck(a: StringName, from: Vector2, bent: float) -> void:
 	if map_info == null:
 		return
 	if mock:
-		map_info.trial_seal_broken(self)
+		map_info.trial_piece_done(self)
 	else:
 		map_info.mark_opened(self)
 		map_info.save_run()

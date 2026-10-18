@@ -741,9 +741,13 @@ Each phase ends with the full suite green and its own tests.
    are new; every other level is laid out as before. *The eldritch beast: a first pass is done*
    (§6): its chamber in its gate levels (only they changed), its souls sent across the run with
    abominations round them, its eyes, tentacles and great eye (`beast_test`, `capture_beast.gd`).
-   *The timetable: a first pass is done* (§9): periods and the great bell with its cords, hall doors, belonging, passing
-   time, trials, lecterns and glyph seals (`Timetable`, `SchoolBell`, `Lectern`, `GlyphSeal`;
-   `timetable_test`, `capture_timetable.gd`). Only the institute's dressing changed (its hall
+   *The timetable: a second pass is done* (§9): rings of the great bell and its cords,
+   departments stepping through their subjects, the tier taught rising, the exam as the upgrade,
+   abominations quiet in class and surging in passing time, the beast fed by rings, hall doors,
+   belonging, passing time, a trial for every subject, its spell used for what it does (cords,
+   sigils, a stone on its track, a hoop, marks), lecterns and glyph seals (`Timetable`, `SchoolBell`,
+   `Lectern`, `ExamPrize`, `TrialPiece`, `GlyphSeal`; `timetable_test`, `trials_test`,
+   `capture_timetable.gd`, `capture_trials.gd`). Only the institute's dressing changed (its hall
    doors, bells, lecterns and seals; `layout_fingerprint_test` re-pinned for it alone); its terrain
    did not. Then field trials, and tuning.
 8. **The sky reworked**: *a first pass is done*: the level's wind set by its vanes, in gusts;
@@ -839,6 +843,22 @@ Each phase ends with the full suite green and its own tests.
     by that spell used literally (a hex bolt from over three cells off, a seeker's bolt turned
     round, the rest by striking it). The rooms are close, so "far off" is a little over three
     cells, not a gap no one could walk.
+  - *The second pass, decided 2026-10-17 and built* (`docs/DEEPER_PLAN.md` §4e, `timetable_test`): each lecture hall keeps its department, and its
+    class steps through that department's subjects, one a ring, wrapping round, with one empty
+    period (no class: trespassing): astronomy hex, seeker, warp; geology slash, lunge, rift; botany
+    push, levitate, ferry; necrology nova, astral, awareness. Every ring in a level raises the tier
+    taught there (a hex I class, rung, becomes a seeker II), up to each spell's top; levitate and
+    astral are taught only to a wizard who already has them (relics stay how the big moves are
+    found). The bell rings once a period: after a ring it is silent until the wizard has gone into
+    a class (unless no class is in session anywhere). The final exam is the upgrade: each trial
+    passed (or class master beaten by the wizard's own blow, its room then turning on them until
+    the next ring) goes on the exam's list at the tier it was taught; beating the examiner, the
+    wizard picks one of them to learn. Every ring makes that level's exam harder and feeds the
+    beast for the run (its great eye taking more blows, its tentacles quicker, and more souls).
+    Abominations stay quiet during a class and surge in passing time, more with every ring;
+    proctors walk the corridors in a period. A master felled by abominations leaves nothing, and
+    every class is seated afresh at each ring. Doors show the subject taught now, and its tier; the
+    rotation is learned by play, and the bell's yoke marks the period.
   - *Not yet:* classes moving from hall to hall and students pouring into the corridors in passing
     time; the library's ladders and the lecture halls' folding tiers; proctors walking the
     corridors in a period; the timetable on the map; seals out in the corridors, seals asking for

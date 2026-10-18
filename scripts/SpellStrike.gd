@@ -93,9 +93,13 @@ static func strike(e: Node, dir: Vector2, damage: int, spell: StringName = &"", 
 	if e is GlyphSeal:
 		(e as GlyphSeal).struck(spell, from, 0.0)
 		return
-	# A scholar struck by the wizard turns on them (Scholar.rouse).
+	if e is TrialPiece:
+		(e as TrialPiece).struck(spell, from, dir)
+		return
+	# A scholar struck by the wizard turns on them (Scholar.rouse), the blow theirs.
 	if e is Scholar:
 		(e as Scholar).rouse()
+		(e as Scholar).wizard_blow = true
 	var shield: Shield = Shield.of(e)
 	if shield != null and shield.absorb(false, dir):
 		return

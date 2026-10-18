@@ -1069,6 +1069,8 @@ const DRESS: Dictionary = {
 	"res://prefabs/ferry_raft.tscn": &"ferry",
 	"res://prefabs/gondola_station.tscn": &"station",
 	"res://prefabs/lesson.tscn": &"lesson",
+	"res://prefabs/exam_prize.tscn": &"examprize",
+	"res://prefabs/trial_piece.tscn": &"trialpiece",
 	"res://prefabs/way_back.tscn": &"department",
 }
 

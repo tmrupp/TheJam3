@@ -308,7 +308,7 @@ static func cast(player: Player, slot: StringName = &"damage") -> bool:
 		player.collect(-cost)
 	# In the institute, scholars who see a spell cast turn on the wizard (MapInfo.wizard_cast).
 	if MapInfo.instance != null:
-		MapInfo.instance.wizard_cast()
+		MapInfo.instance.wizard_cast(slot)
 	# A damage spell leaves from the bindle (RisoCostume.cast swings it).
 	if slot == &"damage":
 		player.visual_event.emit(&"cast", player.global_position)

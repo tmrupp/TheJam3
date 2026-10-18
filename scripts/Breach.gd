@@ -7,8 +7,9 @@ class_name Breach
 ## comes out multiplies in its turn: a breach has to be closed. It is an enemy itself (its Wound,
 ## given as it is placed, set to HP): any bolt wounds it, even one of no damage (Wound.least),
 ## and once closed the level record keeps it so until the wizard dies. What climbs out is not part
-## of the level: none are kept, and they are gone when the level is left. Nothing here draws from
-## any RNG.
+## of the level: none are kept, and they are gone when the level is left. By the timetable it lets
+## nothing out during a class (a period), and in passing time lets them out the sooner for every ring
+## of the bell in the level (MapInfo.abominations_quiet, surge). Nothing here draws from any RNG.
 
 ## How near the wizard wakes it (cells), how soon the first comes and how often after that
 ## (seconds), and the hits it takes to close.
@@ -61,9 +62,9 @@ func _physics_process(delta: float) -> void:
 	if not awake():
 		wait = FIRST
 		return
-	if get_tree().get_nodes_in_group(&"abomination").size() >= Abomination.MOST:
+	if get_tree().get_nodes_in_group(&"abomination").size() >= Abomination.MOST or map_info.abominations_quiet():
 		return
-	wait -= delta * Difficulty.attack()
+	wait -= delta * Difficulty.attack() * map_info.surge()
 	if wait <= 0.0:
 		wait = EVERY
 		surging = 0.0

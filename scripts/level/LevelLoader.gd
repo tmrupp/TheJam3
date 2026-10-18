@@ -250,6 +250,9 @@ func place_cell(v: Vector2i, cell: LevelGen.Cell) -> void:
 	# A temple's hoard is there only once it is opened (Temple).
 	if cell.type == LevelGen.Type.CLUSTER and not rec.temple_open and w.in_temple_hoard(v):
 		return
+	# A lecture hall's class is away while its hall has no class (Timetable, MapInfo.class_away).
+	if cell.type in [LevelGen.Type.MASTER, LevelGen.Type.STUDENT, LevelGen.Type.PROCTOR] and info.class_away(v):
+		return
 	# A boss slain this run is never met again (Bosses).
 	if cell.type == LevelGen.Type.BOSS and info.run.bosses.has(StringName(cell.extra_info)):
 		return

@@ -26,7 +26,11 @@ class_name Abomination
 ## control, up to MOST about in the level at once (at the cap it neither braces nor launches). A
 ## wound or a stun during the tell breaks it off. One laid with the level starts with its Wound's
 ## health for its depth (LevelLoader.arm: three blobs this deep); one out of a breach or launched
-## off another starts with one, and drops no stars. Nothing here draws from any RNG.
+## off another starts with one, and drops no stars.
+##
+## By the timetable (Timetable): during a class (a period) it keeps still, neither hunting, growing
+## nor launching (MapInfo.abominations_quiet); in passing time it acts up, growing and launching the
+## sooner for every ring of the bell in the level (MapInfo.surge). Nothing here draws from any RNG.
 
 ## How far it senses a quarry (px), and how fast it crawls (px/s, a little faster on a harder
 ## preset, Difficulty.speed).
@@ -270,7 +274,13 @@ func _physics_process(delta: float) -> void:
 	if stunned():
 		telling = -1.0
 		return
-	launch_in -= delta * Difficulty.attack()
+	var info: MapInfo = MapInfo.instance
+	if info != null and info.abominations_quiet():
+		telling = -1.0
+		quarry = null
+		return
+	var surge: float = info.surge() if info != null else 1.0
+	launch_in -= delta * Difficulty.attack() * surge
 	if telling >= 0.0:
 		telling += delta
 		if lobes < SPLIT:
@@ -283,7 +293,7 @@ func _physics_process(delta: float) -> void:
 	if lobes >= SPLIT and launch_in <= 0.0 and get_tree().get_nodes_in_group(&"abomination").size() < MOST:
 		telling = 0.0
 		return
-	grow_in -= delta * Difficulty.attack()
+	grow_in -= delta * Difficulty.attack() * surge
 	if grow_in <= 0.0:
 		grow_in = _next_growth()
 		grow()
@@ -497,6 +507,7 @@ func _bite(delta: float) -> void:
 	if shield != null and shield.absorb(false, dir):
 		return
 	var wound: Wound = quarry.get_node_or_null("Wound") as Wound
+	(quarry as Scholar).wizard_blow = false
 	if wound != null:
 		wound.hit(1, dir)
 

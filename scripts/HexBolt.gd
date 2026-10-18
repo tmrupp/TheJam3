@@ -133,9 +133,14 @@ func _physics_process(delta: float) -> void:
 			(e as GlyphSeal).struck(spell, origin, bent)
 			_end((e as Node2D).global_position)
 			return
-		# A scholar struck by the wizard turns on them (Scholar.rouse).
+		if e is TrialPiece:
+			(e as TrialPiece).struck(spell, origin, dir)
+			_end((e as Node2D).global_position)
+			return
+		# A scholar struck by the wizard turns on them (Scholar.rouse), the blow theirs.
 		if e is Scholar:
 			(e as Scholar).rouse()
+			(e as Scholar).wizard_blow = true
 		# A shield takes the bolt whole: no wound.
 		var shield: Shield = Shield.of(e)
 		if shield != null and shield.absorb(reflected, dir):

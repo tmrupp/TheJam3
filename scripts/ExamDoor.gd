@@ -48,15 +48,25 @@ func passed() -> bool:
 	return map_info != null and map_info.record().exams.has(hall)
 
 
-## The ability the master of its hall teaches (for its plate), or &"" when none is known.
+## What its hall teaches (for its plate): a lecture hall's subject now (MapInfo.subject_of; &"" for
+## no class), the exam's examiner's spell; &"" for none.
 func subject() -> StringName:
 	if map_info == null or map_info.world == null:
 		return &""
+	if hall >= 0 and hall < map_info.world.halls.size() and map_info.world.halls[hall]["kind"] == &"lecture":
+		return map_info.subject_of(hall)
 	for v: Vector2i in map_info.world.objects_of(LevelGen.Type.MASTER):
 		var extra: Variant = map_info.world.get_cell(v).extra_info
 		if extra is Dictionary and int((extra as Dictionary).get("hall", -1)) == hall:
 			return StringName((extra as Dictionary).get("ability", &""))
 	return &""
+
+
+## The tier its lecture hall teaches its subject at now (pips under its plate), or 0.
+func tier() -> int:
+	if map_info == null or map_info.world == null or hall < 0 or hall >= map_info.world.halls.size() or map_info.world.halls[hall]["kind"] != &"lecture":
+		return 0
+	return map_info.tier_of(hall)
 
 
 ## Whether it blocks the way.

@@ -11,18 +11,26 @@ extends Node2D
 ##   (glance). With every eye shut, its great eye opens: then any hex bolt, dash or parry wounds it
 ##   (BeastWound), CORE_HP blows in all, shown as pips over it.
 ## - Awake, it strikes with its tentacles (BeastTentacle) every ATTACK_EVERY seconds (sooner on a
-##   harder preset): bursting up out of the floor under the wizard, and every SWEEP_EVERY strikes,
+##   harder preset, and sooner for what it has been fed): bursting up out of the floor under the wizard, and every SWEEP_EVERY strikes,
 ##   lashing along the floor from its flank toward them, to be jumped. Its body's touch hurts too.
 ##   A parry stuns it a moment (its tentacles whip back), and wounds it once its eyes are shut.
 ## - With its last blow it sinks back into the deep (DIE_TIME), it is slain, whatever souls are
 ##   left go with it, and its relic waits where it lay (MapInfo.boss_slain).
 ## A lantern death brings it back whole, as the level reloads; destroyed souls stay destroyed.
-## Nothing here draws from any RNG.
+## The institute's bells feed it (RunState.fed: every ring, all run long): FED_PER_BLOW rings give
+## its great eye one blow more, up to FED_BLOWS_MOST more (core_hp), each ring makes its strikes come
+## FED_QUICKEN sooner, down to FASTEST of their time (attack_every), and it sends more souls
+## (BeastSouls.count). Nothing here draws from any RNG.
 
 const STUNNER: PackedScene = preload("res://prefabs/stunner.tscn")
 const HIT_BOX: PackedScene = preload("res://prefabs/hit_box.tscn")
-## The blows its great eye takes once every soul is destroyed.
+## The blows its great eye takes once every soul is destroyed, fed nothing (see core_hp).
 const CORE_HP: int = 9
+const FED_PER_BLOW: int = 2
+const FED_BLOWS_MOST: int = 6
+## How much sooner each ring of the bells makes its strikes come, down to FASTEST of their time.
+const FED_QUICKEN: float = 0.03
+const FASTEST: float = 0.55
 ## How near (px) the wizard comes to wake it, if not inside its chamber.
 const WAKE_RANGE: float = 700.0
 ## How big it is drawn, against the sizes its shapes are given at (LOBES, EYES, ARMS).
@@ -56,11 +64,12 @@ const LOBES: Array[Vector3] = [
 	Vector3(80, -175, 60), Vector3(-178, -30, 40), Vector3(182, -32, 42), Vector3(5, -215, 46),
 ]
 ## Its great eye, the weak point (across, up, radius, px), and its small eyes, one for each soul
-## it sends (BeastSouls.SOULS), in the order they shut.
+## it sends (BeastSouls.count, up to SOULS and FED_SOULS_MOST more), in the order they shut.
 const GREAT_EYE: Vector3 = Vector3(0, -100, 36)
 const EYES: Array[Vector3] = [
 	Vector3(-120, -62, 15), Vector3(125, -66, 16), Vector3(-72, -178, 14), Vector3(82, -182, 15),
 	Vector3(5, -222, 12), Vector3(-178, -36, 10), Vector3(182, -38, 11), Vector3(-44, -150, 12),
+	Vector3(48, -148, 12), Vector3(-150, -96, 11), Vector3(152, -100, 11), Vector3(-30, -205, 10),
 ]
 ## Its writhing arms (idle ones, for show): from which blob, at what angle (up is -PI/2), how long.
 const ARMS: Array[Vector3] = [
@@ -69,6 +78,8 @@ const ARMS: Array[Vector3] = [
 ]
 
 var map_info: MapInfo
+## The blows its great eye takes in all (core_hp, set as it is placed).
+var blows: int = CORE_HP
 ## Which boss it is (Bosses).
 var boss: StringName = &""
 var wound: BeastWound
@@ -130,9 +141,22 @@ func _ready() -> void:
 	add_to_group(&"riso_art")
 
 
+## The blows its great eye takes in run `run`, fed as it has been (see CORE_HP).
+static func core_hp(run: RunState) -> int:
+	@warning_ignore("integer_division")
+	return CORE_HP + mini(run.fed / FED_PER_BLOW, FED_BLOWS_MOST)
+
+
+## Seconds between its strikes in run `run`, fed as it has been (see ATTACK_EVERY).
+static func attack_every(run: RunState) -> float:
+	return ATTACK_EVERY * maxf(FASTEST, 1.0 - FED_QUICKEN * float(run.fed))
+
+
 func setup(info: MapInfo, v: Vector2i, which: Variant) -> void:
 	map_info = info
 	boss = StringName(which)
+	blows = core_hp(info.run)
+	wound.hp = blows
 	# It reaches all over its chamber: never put to sleep with the chunk its cell is in.
 	remove_meta(&"cell")
 	if info.tile_map != null:
@@ -242,7 +266,7 @@ func _physics_process(delta: float) -> void:
 		return
 	attack_in -= delta * Difficulty.haste()
 	if attack_in <= 0.0 and not slam.busy() and not sweep.busy():
-		attack_in = ATTACK_EVERY
+		attack_in = attack_every(map_info.run)
 		attacks += 1
 		if attacks % SWEEP_EVERY == 0:
 			_sweep(player)
@@ -356,8 +380,8 @@ func _process(_delta: float) -> void:
 	if weak:
 		var whole: Array[PackedVector2Array] = []
 		var gone: Array[PackedVector2Array] = []
-		for i: int in range(CORE_HP):
-			var at: Vector2 = Vector2((float(i) - float(CORE_HP - 1) * 0.5) * PIP_GAP, RISE - PIPS_UP * ART)
+		for i: int in range(blows):
+			var at: Vector2 = Vector2((float(i) - float(blows - 1) * 0.5) * PIP_GAP, RISE - PIPS_UP * ART)
 			var pip: PackedVector2Array = PackedVector2Array([at + Vector2(0, -PIP_R), at + Vector2(PIP_R, 0), at + Vector2(0, PIP_R), at + Vector2(-PIP_R, 0)])
 			if i < wound.hp:
 				whole.append(pip)

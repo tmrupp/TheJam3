@@ -54,10 +54,14 @@ var way_back: Array = []
 ## BeastSouls.NO_SPOT until it is first laid there), and how many it sent out (one of its eyes each).
 var souls: Dictionary = {}
 var souls_sent: int = 0
-## What the institute has taught the wizard (Timetable): every damage spell learned from a trial or a
-## lesson, by its highest tier taught (spell -> tier). Learning is permanent: a spell put down for
-## another is still known, and taken up again at any lectern (Lectern).
+## What the institute has taught the wizard (Timetable): every spell learned from its exams or a
+## lesson, and every spell put down for one, by its highest tier (spell -> tier). Learning is
+## permanent: a spell put down for another is still known, and taken up again at any lectern
+## (Lectern).
 var taught: Dictionary = {}
+## How many times the institute's great bells have rung, all told: each ring feeds the eldritch beast
+## (Beast.core_hp, BeastSouls.count).
+var fed: int = 0
 
 
 ## A fresh run from depth 0 of `seed_value`: no records, no ghost, protected.
@@ -77,6 +81,7 @@ func start(seed_value: int) -> void:
 	souls.clear()
 	souls_sent = 0
 	taught.clear()
+	fed = 0
 	vulnerable = false
 	clear_ghost()
 
@@ -168,7 +173,7 @@ func to_save(coord: Vector2i, player: Dictionary) -> Dictionary:
 		"whale_x": whale_x, "whale_moves": whale_moves,
 		"way_back": way_back,
 		"souls": souls, "souls_sent": souls_sent,
-		"taught": taught,
+		"taught": taught, "fed": fed,
 	}
 	data.merge(player)
 	return data
@@ -195,6 +200,7 @@ func from_save(data: Dictionary) -> void:
 	souls = data.get("souls", {})
 	souls_sent = int(data.get("souls_sent", 0))
 	taught = data.get("taught", {})
+	fed = int(data.get("fed", 0))
 	respawn_coord = data["respawn_coord"]
 	respawn_cell = data["respawn_cell"]
 	vulnerable = bool(data["vulnerable"])

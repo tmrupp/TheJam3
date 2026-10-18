@@ -29,6 +29,14 @@ class_name Scholar
 ## A melee spell or a touch on the wizard comes from its HitBox's Damager, so a parry catches it
 ## as it catches any touch.
 ##
+## In a lecture hall a class's master teaches the hall's subject now (MapInfo.subject_of), a move or
+## the utility spell as well as a damage spell (it casts a hex for any of those: `spell_cast`); the
+## exam's examiner takes more blows and casts sooner for every ring of the bell in its level
+## (MapInfo.exam_hp, exam_haste). A master's fall leaves a lesson only to the wizard's own blow (`wizard_blow`): a
+## class's master felled so passes its trial (MapInfo.class_master_beaten) instead, and one felled by
+## abominations leaves nothing. A proctor out in the corridors walks them, PATROL cells either way of
+## its place, while a class is on (MapInfo.abominations_quiet: a period, not passing time).
+##
 ## The timetable (Timetable): it leaves the wizard be (calm) while they are where they belong, and
 ## turns on them (`roused`) once it sees them where they do not (MapInfo.wizard_belongs), with real
 ## line of sight, so slipping past one facing away works; those within ROUSE_REACH of it turn with
@@ -107,6 +115,8 @@ const AIM: float = 40.0
 const MISFIRE_DEAL: int = 6460
 ## How far (px) a scholar turning on the wizard takes those round it with it.
 const ROUSE_REACH: float = 640.0
+## How far a proctor out in the corridors walks either way of its place in a period (cells).
+const PATROL: int = 10
 
 ## The bolt it casts (loaded when first cast: preloaded, it would load in a circle with the
 ## wizard's scripts, which name this one).
@@ -153,6 +163,13 @@ var since_shield: float = 9.0
 var t: float = 0.0
 ## Whether it has turned on the wizard (see the class description) until the next bell.
 var roused: bool = false
+## Whether the last blow it took was the wizard's (set as the wizard's spells strike it, cleared as an
+## abomination bites it): its fall leaves a lesson only then.
+var wizard_blow: bool = false
+## A patrolling proctor's way (+1 right, -1 left), and where it was a step ago (to turn where it is
+## stopped).
+var patrol_way: float = 1.0
+var _last_x: float = INF
 
 var gravity: float = ProjectSettings.get_setting("physics/2d/default_gravity")
 
@@ -163,11 +180,32 @@ func setup(info: MapInfo, v: Vector2i, extra: Variant) -> void:
 	if extra is Dictionary:
 		ability = StringName((extra as Dictionary).get("ability", &""))
 		hall = int((extra as Dictionary).get("hall", -1))
+	var kind_of_hall: StringName = info.world.halls[hall]["kind"] if info != null and info.world != null and hall >= 0 and hall < info.world.halls.size() else &""
+	# A class's master teaches its hall's subject now.
+	if kind_of_hall == &"lecture":
+		ability = info.subject_of(hall)
 	var wound: Wound = get_node_or_null("Wound") as Wound
 	if wound != null:
 		wound.hp = int(HP.get(kind, 2))
 		if kind == &"master" and info != null and info.here != null:
 			wound.hp += MASTER_HP_STEP * maxi(0, info.here.depth - NextWorldDef.first_depth(&"institute"))
+		if kind_of_hall == &"exam":
+			wound.hp += info.exam_hp()
+
+
+## The spell it casts: the one it teaches, if a damage spell, else a hex.
+func spell_cast() -> StringName:
+	return ability if ability in Institute.MASTERIES else &"hex"
+
+
+## Whether it is the exam's examiner.
+func examiner() -> bool:
+	return kind == &"master" and map_info != null and map_info.world != null and hall >= 0 and hall < map_info.world.halls.size() and map_info.world.halls[hall]["kind"] == &"exam"
+
+
+## Whether it walks the corridors now: a proctor out of the halls, while a class is on.
+func patrolling() -> bool:
+	return kind == &"proctor" and map_info != null and map_info.abominations_quiet() and Institute.hall_at(map_info.world, cell) < 0
 
 
 func _ready() -> void:
@@ -356,20 +394,30 @@ func _move(delta: float) -> void:
 		var to: Vector2 = foe.global_position - global_position
 		if absf(to.x) > 8.0 and winding < 0.0:
 			facing = signf(to.x)
-		var keep: float = float(KEEP_MASTER.get(ability, 300.0)) if kind == &"master" else float(KEEP.get(kind, 300.0))
+		var keep: float = float(KEEP_MASTER.get(spell_cast(), 300.0)) if kind == &"master" else float(KEEP.get(kind, 300.0))
 		var d: float = absf(to.x)
 		if d > keep + KEEP_SLACK:
 			want = signf(to.x)
 		elif d < keep - KEEP_SLACK:
 			want = -signf(to.x)
+	elif patrolling():
+		# Its round: to PATROL cells either way of its place, turning there, at a ledge or where it is
+		# stopped.
+		var edge: float = home_x + patrol_way * float(PATROL) * _cell_px()
+		var stuck: bool = _last_x != INF and absf(global_position.x - _last_x) < 0.01 and grounded
+		if (edge - global_position.x) * patrol_way <= HOME_SLACK or (grounded and not _floor_ahead(patrol_way)) or stuck:
+			patrol_way = -patrol_way
+		want = patrol_way
+		facing = want
 	else:
 		var back: float = home_x - global_position.x
 		if absf(back) > HOME_SLACK:
 			want = signf(back)
 			facing = want
+	_last_x = global_position.x
 	if winding >= 0.0 or want == 0.0:
 		return
-	var reach: float = float(HOME) * _cell_px()
+	var reach: float = float(PATROL if patrolling() else HOME) * _cell_px()
 	if absf(global_position.x + want * 8.0 - home_x) > reach and signf(global_position.x - home_x) == want:
 		return
 	_step(want, float(SPEED.get(kind, 60.0)) * Difficulty.speed() * delta)
@@ -431,7 +479,7 @@ func _cast(delta: float) -> void:
 		return
 	if foe == null:
 		return
-	cast_in -= delta * Difficulty.attack()
+	cast_in -= delta * Difficulty.attack() * (map_info.exam_haste() if examiner() else 1.0)
 	if cast_in > 0.0 or not _in_reach():
 		return
 	cast_in = MASTER_EVERY if kind == &"master" else STUDENT_EVERY
@@ -453,7 +501,7 @@ func _in_reach() -> bool:
 	if kind != &"master":
 		return true
 	var d: float = global_position.distance_to(foe.global_position)
-	match ability:
+	match spell_cast():
 		&"slash":
 			return d <= SLASH_REACH
 		&"nova":
@@ -483,7 +531,7 @@ func _release() -> void:
 			off = WIDE if RisoDecor.h(MISFIRE_DEAL, cell, casts + 7) < 0.5 else -WIDE
 		_shoot(STUDENT_SHOT, off, &"student")
 		return
-	match ability:
+	match spell_cast():
 		&"hex":
 			_shoot(HEX_SHOT, 0.0, &"hex")
 		&"seeker":
@@ -599,8 +647,10 @@ func _hush() -> void:
 
 # ------------------------------------------------------------------ its fall
 
-## Slain: its students scatter; a master leaves its lesson (once, Lesson) and, as the exam hall's
-## examiner, passes the exam.
+## Slain: its students scatter. The exam hall's examiner passes the exam (its prizes then wait,
+## MapInfo.exam_passed); a class's master felled by the wizard passes its trial; a master out in the
+## level felled by the wizard leaves its lesson (once, Lesson). One felled by abominations leaves
+## nothing.
 func _fallen() -> void:
 	if kind != &"master":
 		return
@@ -611,6 +661,10 @@ func _fallen() -> void:
 			s.winding = -1.0
 	if map_info == null:
 		return
-	map_info.leave_lesson(cell, global_position, ability)
-	if hall >= 0:
+	if examiner():
 		map_info.exam_passed(hall)
+	elif hall >= 0:
+		if wizard_blow:
+			map_info.class_master_beaten(hall)
+	elif wizard_blow:
+		map_info.leave_lesson(cell, global_position, ability)

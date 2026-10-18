@@ -1,9 +1,10 @@
 extends TestKit
 ## Stills of the institute's timetable (world 28, the institute's first level): the great bell and
-## its cord, floor to ceiling, at rest and ringing; its board, in a period and in passing time; a
+## its cord, floor to ceiling, at rest and ringing; the period marks on its yoke, in a period and in
+## passing time; a
 ## lecture hall shut and in session; scholars calm and turned on the wizard, close up; a trial in a lecture hall with its mock seal; the exam hall's
-## glyph seals; a seal of each spell side by side, with the two mock seals; and a lectern giving back
-## a spell taught. (The hall's doors shut and open, close up.)
+## glyph seals and its prizes; a seal of each spell side by side, with the two mock seals; and a
+## lectern giving back a spell taught. (The hall's doors shut and open, close up.)
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_timetable.gd
 
 var camera: Camera2D
@@ -18,15 +19,16 @@ func run() -> void:
 	for i: int in range(540):
 		await process_frame
 	var rec: LevelRecord = info.record()
-	var bell: SchoolBell = placed("school_bell.tscn").filter(func(n: Node) -> bool: return (n as SchoolBell).board)[0] as SchoolBell
+	var bell: SchoolBell = placed("school_bell.tscn").filter(func(n: Node) -> bool: return (n as SchoolBell).great)[0] as SchoolBell
 	player.global_position = bell.global_position + Vector2(-260, 0)
-	# The great bell and its cord, floor to ceiling, then the board close up; then rung.
+	# The great bell and its cord, floor to ceiling, then its yoke's period marks close up; then rung.
 	var tall: float = float(bell.reach) * 128.0 * 0.5
+	var yoke: Vector2 = bell.global_position + Vector2(0, 64.0 - tall * 2.0 + 50.0)
 	await _look(bell.global_position + Vector2(0, 64.0 - tall), "timetable_great_bell.png", clampf(560.0 / (tall * 2.0), 0.7, 1.4))
-	await _look(bell.global_position + Vector2(0, -70), "timetable_bell.png", 2.2)
+	await _look(yoke, "timetable_bell.png", 2.2)
 	_ring(bell)
 	await _look(bell.global_position + Vector2(0, 64.0 - tall), "timetable_great_bell_ringing.png", clampf(560.0 / (tall * 2.0), 0.7, 1.4), 18)
-	await _look(bell.global_position + Vector2(0, -70), "timetable_bell_passing.png", 2.2)
+	await _look(yoke, "timetable_bell_passing.png", 2.2)
 	# A lecture hall, shut and then in session.
 	var hall: int = -1
 	for i: int in range(info.world.halls.size()):
@@ -37,11 +39,11 @@ func run() -> void:
 		var box: Rect2i = info.world.halls[hall]["box"]
 		var door: Vector2 = info.cell_position(info.world.halls[hall]["doors"][0])
 		player.global_position = info.cell_position(info.world.halls[hall]["steps"][0])
-		while Timetable.in_session(info.world, hall, rec.period):
+		while Timetable.in_session(info.world, hall, rec.rings):
 			_ring(bell)
 			await frames(2)
 		await _look(door + Vector2(0, -60), "timetable_door_shut.png", 1.8)
-		while not Timetable.in_session(info.world, hall, rec.period):
+		while not Timetable.in_session(info.world, hall, rec.rings):
 			_ring(bell)
 			await frames(2)
 		await _look(door + Vector2(0, -60), "timetable_door_open.png", 1.8)
@@ -54,9 +56,19 @@ func run() -> void:
 		await frames(10)
 		await _look(info.cell_position(box.get_center()), "timetable_trial.png", 0.95)
 		await _look(info.cell_position(Vector2i(wall + rise * 2, inside.end.y - 1)) + Vector2(0, -60), "timetable_trial_close.png", 2.0)
-		if not info.trial_seals.is_empty():
-			info.trial_seals[0].struck(info.trial_spell, info.trial_seals[0].global_position + Vector2(GlyphSeal.HEX_FAR + 20.0, 0), 9.0)
+		var taught: StringName = info.trial_spell
+		var tier: int = info.trial_tier
+		for piece: Node2D in info.trial_pieces.duplicate():
+			if piece is GlyphSeal:
+				(piece as GlyphSeal).struck(info.trial_spell, piece.global_position + Vector2(GlyphSeal.HEX_FAR + 20.0, 0), 9.0)
+		if info.trial_hall >= 0:
+			info.end_trial(true)
 		await frames(30)
+		# Learned (as the exam's prize would teach it): the spell put down waits on the lectern.
+		if taught != &"":
+			info.take_exam_prize(taught, tier)
+			info.record().exam_prize = false
+		await frames(10)
 		var lecterns: Array[Node] = placed("lectern.tscn").filter(func(n: Node) -> bool: return (n as Lectern).hall == hall)
 		if not lecterns.is_empty():
 			await _look((lecterns[0] as Node2D).global_position + Vector2(0, -60), "timetable_lectern.png", 2.2)
@@ -67,6 +79,17 @@ func run() -> void:
 		var s: Node2D = seals[0] as Node2D
 		player.global_position = info.cell_position(info.world.halls[info.world.halls.find(exam)]["steps"][0])
 		await _look(s.global_position + Vector2(0, -40), "timetable_exam_seal.png", 1.6)
+	# The exam passed, its prizes for the trials passed here.
+	var exam_i: int = info.world.halls.find(exam)
+	if exam_i >= 0:
+		info.pass_trial(&"seeker", 3)
+		info.pass_trial(&"rift", 2)
+		info.record().exams[exam_i] = true
+		info._spawn_exam_prizes()
+		var floor_y: int = (exam["inside"] as Rect2i).end.y - 1
+		var mid: Vector2i = Vector2i((exam["inside"] as Rect2i).position.x + 3, floor_y)
+		player.global_position = info.cell_position(mid + Vector2i(4, 0))
+		await _look(info.cell_position(mid) + Vector2(0, -60), "timetable_exam_prizes.png", 1.5)
 	await _lineups(bell)
 	RunState.delete_save()
 	finish()
@@ -127,6 +150,7 @@ func _lineups(bell: SchoolBell) -> void:
 
 ## Ring `bell`, as soon as it can be rung again.
 func _ring(bell: SchoolBell) -> void:
+	info.record().passing = false
 	info.since_bell = SchoolBell.RING_GAP
 	bell.ring()
 

@@ -59,11 +59,14 @@ var rifts: Array = []
 ## "left": [spell, tier] a swap left on it, or []}.
 var exams: Dictionary = {}
 var lessons: Dictionary = {}
-## The institute's timetable (Timetable): the period it is in (0 until a bell is first rung), whether
-## it is passing time, and the lecture halls whose trial the wizard has passed (by hall).
-var period: int = 0
+## The institute's timetable (Timetable): how many times its great bell has rung (the period is this
+## counted round Timetable.PERIODS), whether it is passing time, the trials the wizard has passed
+## here (spell -> the highest tier it was taught at: the exam's list), and whether the exam's pick
+## has been taken (MapInfo.take_exam_prize).
+var rings: int = 0
 var passing: bool = false
 var trials: Dictionary = {}
+var exam_prize: bool = false
 ## The crags: which of its gondola's stations are on, a bit each from the bottom (-1 before the first
 ## visit deals them: only the one nearest the way in on; MapInfo.station_on, flip_tower).
 var stations: int = -1
@@ -71,7 +74,7 @@ var stations: int = -1
 ## Every field saved, in the order they are written.
 const FIELDS: Array[StringName] = [&"taken", &"opened", &"slain", &"broken", &"dropped", &"next_drop", &"deeper_paid", &"up_paid",
 	&"doors_paid", &"lateral_open", &"ways_taken", &"shrine_used", &"left_spell", &"relic_left", &"mapped", &"seen",
-	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended", &"exams", &"lessons", &"stations", &"period", &"passing", &"trials"]
+	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended", &"exams", &"lessons", &"stations", &"rings", &"passing", &"trials", &"exam_prize"]
 
 
 ## The record as a plain dictionary, for the save file.

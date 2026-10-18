@@ -4,23 +4,15 @@ extends RisoProp
 ## tassel within reach; pulled, it jerks down and springs back. While the bell rings out
 ## (MapInfo.since_bell, BELL_TIME) every cord sways, fixed at the top and swinging free below,
 ## less and less. A hall's cord goes up into the ceiling through a dark socket with a gold pulley.
-## The corridor's cord (`board`) hangs from the great bell itself: a big bell of accent ink on a
+## The corridor's cord (`great`) hangs from the great bell itself: a big bell of accent ink on a
 ## blue yoke under the ceiling, shaded in night, its clapper the cord's top; rung, it swings hard
-## and rings out in fading accent arcs. Beside it stands the timetable: a wooden board on two legs,
-## its paper face ruled into a column for each period and a row for each hall with a class
-## (Timetable.TIMETABLED, in the halls' order), each row headed by the hall's mark (a lecture hall's
-## master's spell, RisoGlyph; the library's open book; the exam's portcullis bars, pink) and its
-## periods in session filled in blue (the exam's in pink). A night pointer stands over the period it
-## is now; in passing time it bobs, waiting for the wizard to go in somewhere.
+## and rings out in fading accent arcs. Along its yoke the day's periods are marked (Timetable.PERIODS
+## small diamonds knocked to paper, the exam's in pink): the one it is now swells in accent, bobbing
+## in passing time while it waits for the wizard to go into a class.
 
-## The board: where it stands (px from the cord, across), how wide its face is, a row's height and
-## the room for each row's mark.
-const BOARD_X: float = 20.0
-const BOARD_W: float = 100.0
-const ROW: float = 15.0
-const HEAD: float = 18.0
-## How big a spell's mark is printed on the board (RisoGlyph's size, times this).
-const MARK: float = 0.26
+## The period marks on the yoke: their size, and the room between them (px).
+const MARK_R: float = 6.0
+const MARK_GAP: float = 22.0
 ## The cord: how wide, how high its tassel hangs over the floor (px, its bottom), how many points
 ## along it, and how far a pull jerks it down (px).
 const CORD_W: float = 9.0
@@ -36,8 +28,6 @@ const BELL_H: float = 150.0
 const BELL_HEADROOM: float = 210.0
 const BELL_WIDE: float = 1.05
 const BELL_SWING: float = 0.32
-## Where the corridor's cord hangs, across from its node (px): the board stands to its right.
-const BOARD_CORD_X: float = -40.0
 
 
 func shines() -> bool:
@@ -47,7 +37,7 @@ func shines() -> bool:
 ## Lit softly at its tassel, so it reads as something to use.
 func light() -> Array:
 	var bell: SchoolBell = host as SchoolBell
-	return _light(Vector2(BOARD_CORD_X if bell != null and bell.board else 0.0, _ground() - TASSEL_UP - 20.0), RisoLight.GLEAM, RisoPrint.ACCENT)
+	return _light(Vector2(0.0, _ground() - TASSEL_UP - 20.0), RisoLight.GLEAM, RisoPrint.ACCENT)
 
 
 ## The cord reaches far over its cell, up to the ceiling: in view by all of it.
@@ -65,12 +55,12 @@ func _draw_art() -> void:
 	var info: MapInfo = bell.map_info
 	var ringing: float = info.since_bell if info != null else 99.0
 	var fade: float = clampf(1.0 - ringing / MapInfo.BELL_TIME, 0.0, 1.0)
-	var x: float = BOARD_CORD_X if bell.board else 0.0
+	var x: float = 0.0
 	var ceiling: float = g - float(bell.reach) * half * 2.0
 	var top: float = ceiling
 	var swing: float = sin(t * 0.9 + phase) * 0.01
 	var bell_h: float = 0.0
-	if bell.board:
+	if bell.great:
 		bell_h = clampf(float(bell.reach) * half * 2.0 - BELL_HEADROOM, 0.0, BELL_H)
 		if fade > 0.0:
 			swing = sin(ringing * 5.0) * BELL_SWING * fade
@@ -113,8 +103,8 @@ func _draw_art() -> void:
 		var sx: float = -6.0 + float(k) * 4.0
 		strands.append(RisoShapes.rrect(tip.x + sx, tip.y + 10.0, 1.4, 15.0, 0.7))
 	ink.ink(RisoPrint.NIGHT, 0.4, strands, false)
-	if bell.board:
-		_board(bell, g)
+	if bell.great and info != null:
+		_marks(info, Vector2(x, ceiling + 6.0))
 
 
 ## The great bell hung from the ceiling at `at` (the middle of its yoke), `h` tall, swung `swing`
@@ -144,63 +134,27 @@ func _great_bell(at: Vector2, h: float, swing: float, fade: float, ringing: floa
 	return clapper.y
 
 
-## The timetable's board beside the cord (see the class description).
-func _board(bell: SchoolBell, g: float) -> void:
-	var info: MapInfo = bell.map_info
-	if info == null or info.world == null:
-		return
-	var w: LevelGen = info.world
-	var rows: Array[int] = []
-	for i: int in range(w.halls.size()):
-		if w.halls[i]["kind"] in Timetable.TIMETABLED:
-			rows.append(i)
+## The day's periods marked along the great bell's yoke, its middle at `at` (see the class
+## description).
+func _marks(info: MapInfo, at: Vector2) -> void:
 	var rec: LevelRecord = info.record()
-	var h: float = HEAD + ROW * float(rows.size()) + 8.0
-	var top: float = g - 44.0 - h
-	var x0: float = BOARD_X - BOARD_W * 0.5 + 30.0
-	# Its legs and frame, then its paper face.
-	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(x0 + 8.0, top + h - 4.0, 6.0, g - (top + h) + 4.0, 2.0), RisoShapes.rrect(x0 + BOARD_W - 14.0, top + h - 4.0, 6.0, g - (top + h) + 4.0, 2.0),
-		RisoShapes.rrect(x0 - 5.0, top - 5.0, BOARD_W + 10.0, h + 10.0, 4.0)])
-	var face: PackedVector2Array = RisoShapes.rrect(x0, top, BOARD_W, h, 2.0)
-	ink.knock(RisoPrint.ALL_PLATES, [face])
-	var col_w: float = (BOARD_W - HEAD - 6.0) / float(Timetable.PERIODS)
-	var cells: Array[PackedVector2Array] = []
-	var exam_cells: Array[PackedVector2Array] = []
-	var rules: Array[PackedVector2Array] = []
-	for r: int in range(rows.size()):
-		var hall: int = rows[r]
-		var y: float = top + HEAD + ROW * float(r)
-		rules.append(RisoShapes.rrect(x0 + 3.0, y - 1.0, BOARD_W - 6.0, 1.2, 0.6))
-		var c: Vector2 = Vector2(x0 + HEAD * 0.5 + 2.0, y + ROW * 0.5)
-		match w.halls[hall]["kind"]:
-			&"lecture":
-				var m: Vector2i = Timetable.master_of(w, hall)
-				if m.x >= 0:
-					var mark: Array[PackedVector2Array] = []
-					for poly: PackedVector2Array in RisoGlyph.of(StringName((w.get_cell(m).extra_info as Dictionary)["ability"]), Vector2.ZERO, t):
-						mark.append(Transform2D(0.0, Vector2(MARK, MARK), 0.0, c) * poly)
-					ink.ink(RisoPrint.NIGHT, 1.0, mark, false)
-			&"library":
-				ink.ink(RisoPrint.NIGHT, 1.0, [PackedVector2Array([c + Vector2(-6, -3), c + Vector2(0, -1), c + Vector2(0, 5), c + Vector2(-6, 3)]),
-					PackedVector2Array([c + Vector2(0, -1), c + Vector2(6, -3), c + Vector2(6, 3), c + Vector2(0, 5)])], false)
-			&"exam":
-				var bars: Array[PackedVector2Array] = []
-				for k: int in range(3):
-					bars.append(RisoShapes.rrect(c.x - 5.0 + float(k) * 4.0, c.y - 5.0, 2.0, 10.0, 1.0))
-				bars.append(RisoShapes.rrect(c.x - 6.0, c.y - 2.0, 12.0, 2.0, 1.0))
-				ink.ink(RisoPrint.PINK, 1.0, bars, false)
-		for p: int in range(Timetable.PERIODS):
-			if not Timetable.in_session(w, hall, p):
-				continue
-			var box: PackedVector2Array = RisoShapes.rrect(x0 + HEAD + 3.0 + col_w * float(p) + 1.5, y + 2.5, col_w - 3.0, ROW - 5.0, 1.5)
-			if w.halls[hall]["kind"] == &"exam":
-				exam_cells.append(box)
-			else:
-				cells.append(box)
-	ink.ink(RisoPrint.NIGHT, 0.35, rules, false)
-	ink.ink(RisoPrint.BLUE, 1.0, cells, false)
-	ink.ink(RisoPrint.PINK, 1.0, exam_cells, false)
-	# The pointer over the period it is now, bobbing in passing time.
-	var bob: float = absf(sin(t * 4.0)) * 4.0 if rec.passing else 0.0
-	var px: float = x0 + HEAD + 3.0 + col_w * (float(posmod(rec.period, Timetable.PERIODS)) + 0.5)
-	ink.ink(RisoPrint.NIGHT, 1.0, [RisoMarks.chevron(Vector2(px, top + 8.0 - bob), Vector2.DOWN, 0.32)], false)
+	var now: int = Timetable.period(rec.rings)
+	var marks: Array[PackedVector2Array] = []
+	var exam: PackedVector2Array = PackedVector2Array()
+	var lit: PackedVector2Array = PackedVector2Array()
+	for p: int in range(Timetable.PERIODS):
+		var c: Vector2 = at + Vector2((float(p) - float(Timetable.PERIODS - 1) * 0.5) * MARK_GAP, 0.0)
+		var r: float = MARK_R * (1.5 if p == now else 1.0)
+		if p == now and rec.passing:
+			c.y += absf(sin(t * 4.0)) * 3.0
+		var mark: PackedVector2Array = PackedVector2Array([c + Vector2(0, -r), c + Vector2(r, 0), c + Vector2(0, r), c + Vector2(-r, 0)])
+		marks.append(mark)
+		if p == now:
+			lit = mark
+		elif p == Timetable.EXAM_PERIOD:
+			exam = mark
+	ink.knock(RisoPrint.ALL_PLATES, marks)
+	if not exam.is_empty():
+		ink.ink(RisoPrint.PINK, 1.0, [exam])
+	if not lit.is_empty():
+		ink.ink(RisoPrint.PINK if now == Timetable.EXAM_PERIOD else RisoPrint.ACCENT, 1.0, [lit])
