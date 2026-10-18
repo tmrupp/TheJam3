@@ -888,35 +888,54 @@ func wizard_belongs () -> bool:
 	var hall: int = Timetable.hall_inside(world, at)
 	return hall < 0 or world.halls[hall]["kind"] != &"lecture" or enrolled(hall)
 
-## Whether the wizard is enrolled in lecture hall `hall`'s class now (Timetable.prereq): it has a
-## class, and asks for nothing, or for a subject they know at the tier it needs (Timetable.need), or
-## carry an exam paper of at that tier or higher.
+## Whether the wizard is enrolled in lecture hall `hall`'s class now (Timetable.needs): it has a
+## class, and asks for nothing, or for a department whose subject they hold in a slot, or carry as an
+## exam paper, at the tier it needs or higher.
 func enrolled (hall: int) -> bool:
 	var a: StringName = subject_of(hall)
 	if a == &"" or player == null or not is_instance_valid(player):
 		return false
-	var before: StringName = Timetable.prereq(a)
-	if before == &"":
+	var need: Array = Timetable.needs(world.halls[hall]["dept"], tier_of(hall))
+	if need[0] == &"":
 		return true
-	var tier: int = Timetable.need(tier_of(hall))
-	if Abilities.tier(player, before) >= tier:
-		return true
-	return player.keyring.papers().any(func(code: int) -> bool: return KeyRing.paper_spell(code) == before and KeyRing.paper_tier(code) >= tier)
+	for b: StringName in Timetable.LADDERS[need[0]]:
+		if Abilities.tier(player, b) >= int(need[1]):
+			return true
+	return player.keyring.papers().any(func(code: int) -> bool: return Timetable.dept_of(KeyRing.paper_spell(code)) == need[0] and KeyRing.paper_tier(code) >= int(need[1]))
 
 ## What lecture hall `hall` teaches now (Timetable.subject; &"" for no class), and at what tier.
 func subject_of (hall: int) -> StringName:
 	return Timetable.subject(world, hall, record().rings) if world != null else &""
 
 func tier_of (hall: int) -> int:
-	return Timetable.tier_taught(subject_of(hall), record().rings)
+	var a: StringName = subject_of(hall)
+	return Timetable.tier_taught(a, int(dept_tiers()[world.halls[hall]["dept"]])) if a != &"" else 0
 
-## Whether the great bell can ring now: once a period (not in passing time, unless no class is in
-## session anywhere to go into), and not within SchoolBell.RING_GAP of its last ring.
+## Whether the great bell can ring now: once a period (not in passing time, unless no class in session
+## is open to the wizard to go into, class_open, so they are never left with no way on), and not within
+## SchoolBell.RING_GAP of its last ring.
 func bell_ready () -> bool:
 	if not timetabled() or since_bell < SchoolBell.RING_GAP:
 		return false
-	var rec: LevelRecord = record()
-	return not rec.passing or not Timetable.any_class(world, rec.rings)
+	return not record().passing or not class_open()
+
+## Whether some classroom's class in session now is open to the wizard (enrolled).
+func class_open () -> bool:
+	for i: int in range(world.halls.size()):
+		if world.halls[i]["kind"] == &"lecture" and subject_of(i) != &"" and enrolled(i):
+			return true
+	return false
+
+## Whether every botany class in session now is one the wizard cannot be taught (teaches), which leaves
+## botany standing as the period is rung out (Timetable.climb); false while none meets.
+func _botany_untaught () -> bool:
+	var any: bool = false
+	for i: int in range(world.halls.size()):
+		if world.halls[i]["kind"] == &"lecture" and world.halls[i]["dept"] == &"botany" and subject_of(i) != &"":
+			any = true
+			if teaches(subject_of(i)):
+				return false
+	return any
 
 ## The great bell was rung (one of its cords pulled, SchoolBell), if it can be (bell_ready): a wizard
 ## in a class as it rings has attended it (_attend); the level moves on a period and passing time
@@ -926,11 +945,12 @@ func bell_ready () -> bool:
 func ring_period () -> bool:
 	if not bell_ready():
 		return false
-	_attend()
+	var attended: StringName = _attend()
 	_rung_frame = Engine.get_physics_frames()
 	since_bell = 0.0
 	Wound.shake(BELL_SHAKE, BELL_TIME)
 	var rec: LevelRecord = record()
+	rec.dept_tiers = Timetable.climb(dept_tiers(), attended, _meeting(), _botany_untaught())
 	rec.rings += 1
 	rec.passing = true
 	run.fed += 1
@@ -940,35 +960,53 @@ func ring_period () -> bool:
 	save_run()
 	return true
 
+## Every department's tier in the level now (LevelRecord.dept_tiers, I for one not yet climbed).
+func dept_tiers () -> Dictionary:
+	var out: Dictionary = {}
+	for dept: StringName in Timetable.LADDERS:
+		out[dept] = int(record().dept_tiers.get(dept, 1))
+	return out
+
+## Which departments meet in this level now (department -> whether it has a classroom here and
+## meets this period, Timetable.meets).
+func _meeting () -> Dictionary:
+	var out: Dictionary = {}
+	var rings: int = record().rings
+	for dept: StringName in Timetable.LADDERS:
+		out[dept] = Institute.first_of(world, dept) >= 0 and Timetable.meets(dept, rings)
+	return out
+
 ## The wizard rang the period out inside a lecture hall's class: they attended it, if the class was
 ## theirs to attend: enrolled in it (enrolled), its master there and not turned on them (beaten or
 ## crossed, it expels them), and a subject the institute teaches them (teaches). A paper of its
 ## subject carried at a lower tier is graded up to the tier taught, there in hand (resitting);
 ## otherwise its exam paper (its subject at the tier taught, KeyRing.paper) waits in the level its
-## department's portal leads to (field_of; RunState.papers_out, laid there by _lay_papers).
-func _attend () -> void:
+## department's portal leads to (field_of; RunState.papers_out, laid there by _lay_papers). Returns the
+## department attended (what the departments climb by, Timetable.climb), or &"" for none.
+func _attend () -> StringName:
 	if player == null or not is_instance_valid(player):
-		return
+		return &""
 	var hall: int = Timetable.hall_inside(world, cell_at(player.global_position))
 	if hall < 0 or world.halls[hall]["kind"] != &"lecture":
-		return
+		return &""
 	var a: StringName = subject_of(hall)
 	var m: Scholar = master_in(hall)
 	var to: Vector2i = field_of(hall)
 	if a == &"" or m == null or m.roused or not teaches(a) or not enrolled(hall):
-		return
+		return &""
+	var dept: StringName = world.halls[hall]["dept"]
 	var tier: int = tier_of(hall)
 	for code: int in player.keyring.papers():
 		if KeyRing.paper_spell(code) == a and KeyRing.paper_tier(code) < tier:
 			player.keyring.replace(code, KeyRing.paper(a, tier))
 			RisoFx.burst(&"gain", player.global_position + Vector2(0, -60), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.GLOW])
-			return
-	if to == NO_FIELD:
-		return
-	var waiting: Array = run.papers_out.get(to, [])
-	waiting.append(KeyRing.paper(a, tier_of(hall)))
-	run.papers_out[to] = waiting
-	RisoFx.burst(&"gain", player.global_position + Vector2(0, -60), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
+			return dept
+	if to != NO_FIELD:
+		var waiting: Array = run.papers_out.get(to, [])
+		waiting.append(KeyRing.paper(a, tier))
+		run.papers_out[to] = waiting
+		RisoFx.burst(&"gain", player.global_position + Vector2(0, -60), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
+	return dept
 
 ## The level lecture hall `hall`'s department's portal leads to (Department, in the first classroom
 ## of the department, Institute.first_of), or NO_FIELD.
@@ -1015,7 +1053,7 @@ func lectern_paper (hall: int) -> int:
 	var next: StringName = Timetable.subject(world, hall, rec.rings + 1)
 	if next == &"" or not teaches(next):
 		return 0
-	return KeyRing.paper(next, Timetable.tier_taught(next, rec.rings + 1))
+	return KeyRing.paper(next, Timetable.tier_taught(next, int(dept_tiers()[world.halls[hall]["dept"]])))
 
 ## The paper on lecture hall `hall`'s lectern now: one left there (LevelRecord.pigeonholes), else,
 ## while the room is empty, the next class's (lectern_paper); 0 for none.

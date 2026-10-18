@@ -120,6 +120,26 @@ static func key_shape(o: Vector2, s: float, color: int = 0) -> Array[PackedVecto
 	return out
 
 
+## A department's emblem, by the band it studies (Institute.DEPARTMENTS), round `c`, about 24 px
+## across: a leaf for the garden, a skull for the cemetery, a crystal for the crags, a star for the
+## sky; the institute's own a pediment over three columns (a department's portal, DepartmentArt, and a
+## door's prerequisite, ExamDoorArt).
+static func emblem(band: StringName, c: Vector2) -> Array[PackedVector2Array]:
+	match band:
+		&"garden":
+			return [Transform2D(0.4, c) * RisoShapes.almond(Vector2.ZERO, 6.0, 12.0, 12), RisoShapes.rrect(c.x - 0.8, c.y + 2.0, 1.6, 9.0, 0.8)]
+		&"cemetery":
+			return [RisoShapes.circle(c + Vector2(0, -2.0), 8.0, 16), RisoShapes.rrect(c.x - 4.5, c.y + 3.0, 9.0, 6.0, 2.0)]
+		&"crags":
+			return [PackedVector2Array([c + Vector2(0, -12), c + Vector2(7, -2), c + Vector2(4, 11), c + Vector2(-4, 11), c + Vector2(-7, -2)])]
+		&"sky":
+			return [RisoShapes.sparkle(c, 12.0)]
+	var out: Array[PackedVector2Array] = [PackedVector2Array([c + Vector2(-11, -4), c + Vector2(0, -11), c + Vector2(11, -4)])]
+	for x: float in [-7.0, 0.0, 7.0]:
+		out.append(RisoShapes.rrect(c.x + x - 1.6, c.y - 3.0, 3.2, 12.0, 0.8))
+	return out
+
+
 ## An exam paper (KeyRing.paper) centred on `o`, `s` its size: the sheet first (printed bare paper),
 ## then its folded corner and three ruled lines (printed in night).
 static func paper_shape(o: Vector2, s: float) -> Array[PackedVector2Array]:

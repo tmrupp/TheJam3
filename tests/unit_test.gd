@@ -404,6 +404,17 @@ func _institute() -> void:
 		for a: StringName in Timetable.LADDERS[dept]:
 			defaults_ok = defaults_ok and Timetable.default_spell(a) == Timetable.LADDERS[dept][0] and Timetable.default_spell(a) in Institute.MASTERIES
 	check(defaults_ok, "an instructor teaching a move casts its department's damage spell, the first rung of its ladder")
+	# The departments' climb (Timetable.climb): every rule reads the tiers as they stood.
+	var all_met: Dictionary = {&"botany": true, &"astronomy": true, &"geology": true, &"necrology": true}
+	var dusk_less: Dictionary = {&"botany": true, &"astronomy": true, &"geology": true, &"necrology": false}
+	var t: Callable = func(b: int, a: int, g: int, n: int) -> Dictionary: return {&"botany": b, &"astronomy": a, &"geology": g, &"necrology": n}
+	check_eq(Timetable.climb(t.call(1, 1, 1, 1), &"botany", all_met), t.call(2, 2, 1, 1), "botany attended: botany and astronomy rise; geology, level with them, and necrology, with nothing crashed, stay at I")
+	check_eq(Timetable.climb(t.call(2, 3, 1, 1), &"geology", all_met), t.call(1, 4, 1, 2), "geology attended: botany crashes, astronomy rises; geology, level with necrology, falls; necrology rises on the crash")
+	check_eq(Timetable.climb(t.call(2, 3, 1, 3), &"", dusk_less), t.call(1, 1, 2, 3), "nothing attended: botany and astronomy crash; geology, below both, rises; necrology, not meeting, holds")
+	check_eq(Timetable.climb(t.call(2, 2, 2, 1), &"astronomy", all_met), t.call(1, 1, 1, 2), "astronomy attended: it crashes (its paper taken), botany too, geology level with them falls, necrology rises")
+	check_eq(Timetable.climb(t.call(4, 1, 1, 1), &"botany", all_met), t.call(4, 2, 1, 1), "at the top botany holds, neither rising nor crashing")
+	check_eq(Timetable.climb(t.call(1, 1, 1, 1), &"", all_met), t.call(1, 1, 1, 1), "falling from I is no crash: nothing rises")
+	check_eq(Timetable.climb(t.call(3, 2, 1, 1), &"astronomy", all_met, true), t.call(3, 1, 1, 2), "botany's class one the wizard cannot be taught: botany stands at III; astronomy, harvested, crashes and feeds necrology")
 	# Every wall style the F7 panel offers has its inks and a name.
 	check(RisoPrint.WALL_STYLES.all(func(w: StringName) -> bool: return RisoTerrain.WALL_LOOKS.has(w)) and RisoPrint.WALL_STYLE_NAMES.size() == RisoPrint.WALL_STYLES.size(),
 		"each institute wall style has its inks and a name")

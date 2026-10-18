@@ -737,7 +737,7 @@ Each phase ends with the full suite green and its own tests.
    (§6): its chamber in its gate levels (only they changed), its souls sent across the run with
    abominations round them, its eyes, tentacles and great eye (`beast_test`, `capture_beast.gd`).
    *The timetable is built* (§9; settled in five passes on 2026-10-17): the great bell and its
-   cords, departments stepping through their ladders, the tier taught rising with rings,
+   cords, departments with their own rhythms and tier rules,
    prerequisites, passing time and belonging, exam papers sent on field trips and learned at
    lanterns, instructors, classroom lecterns as pigeonholes, glyph seals, abominations quiet in
    class and surging in passing time, and the beast fed by rings (`Timetable`, `SchoolBell`,
@@ -770,25 +770,35 @@ Each phase ends with the full suite green and its own tests.
 - **The institute's timetable** (liked; built, `docs/DEEPER_PLAN.md` §4e, `timetable_test`,
   `papers_test`): the institute's band-wide puzzle, as light is the cemetery's and the tower
   switches are the crags'. Nothing in it happens unless a bell is rung or the wizard goes
-  somewhere: there is no clock anywhere. It was settled in five passes on 2026-10-17, and its prerequisites crossed
-  departments on 2026-10-18; this is how it stands.
+  somewhere: there is no clock anywhere. It was settled in five passes on 2026-10-17, and its departments given their own
+  rhythms and tier rules on 2026-10-18; this is how it stands.
   - *The bell is the switch.* One great bell a level, rung by pulling (or striking) its own cord or
     any of the cords in the classrooms and the library. A ring ends the period and moves the level
-    on to the next. It starts passing time, seats every class afresh,
-    calms every scholar, raises the tier taught in the level (up to each spell's top), wakes the
-    abominations more and feeds the beast for the run. The bell rings once a period: after a ring it
+    on to the next of three in its day. It starts passing time, seats every class afresh, calms every
+    scholar, climbs or drops each department that met (below), wakes the abominations more and
+    feeds the beast for the run. The bell rings once a period: after a ring it
     is silent until the wizard has gone into a class (unless no class is in session anywhere).
   - *Passing time* lasts until the wizard goes into a class in session, however long that takes, so
     it is the wizard's to spend: look round, open seals, pick the class, then commit to it.
     Abominations keep still during a class and surge in passing time; proctors walk the corridors
     in a period.
-  - *Departments and their cycles.* A level has up to five classrooms, each a floor and a gallery
-    with doorways at both ends, every department given one. Each department has three subjects:
-    astronomy hex, seeker, warp; geology slash, lunge, rift; botany push, levitate, ferry;
-    necrology nova, astral, awareness. Each classroom keeps its department and steps through its
-    cycle, one class a ring: blocks of two classes and then a break (hex, seeker, break; warp, hex,
-    break; seeker, warp, break). Every third class is empty, and rooms start at different stages of
-    a block. Levitate and astral are taught only to a wizard who already has them (relics stay
+  - *Departments, rhythms and tiers* (decided 2026-10-18, after modelling six variants). A level
+    has up to five classrooms, each a floor and a gallery with doorways at both ends, every
+    department given one. Each department has three subjects (astronomy hex, seeker, warp; geology
+    slash, lunge, rift; botany push, levitate, ferry; necrology nova, astral, awareness) and its own
+    rhythm: astronomy meets every period, a new subject each; geology every period, double periods;
+    botany two periods then fallow; necrology only at dusk. Each department has a tier, the tier its
+    classes teach, and when a period is rung out each one that met climbs or falls back to I:
+    botany rises when you attended it; astronomy when you attended another class; geology when it
+    stood strictly below every other department meeting with it; necrology when another department
+    crashed back to I from II or higher. Out of session, a department neither moves nor counts. No
+    ring raises a tier by itself, and the tiers you want cost others: harvesting astronomy's paper
+    crashes it, feeding botany starves necrology, and geology needs the whole school high above it.
+    The timetable model (`tools/timetable_model.py`) found two faults, both fixed: a botany class
+    the wizard cannot be taught (levitate, without the relic) now leaves botany standing rather than
+    breaking its streak, and the bell rings in passing time when no class is open to the wizard, so
+    they are never stuck. Now every department reaches IV from every start; geology III takes 6 to
+    12 rings and is the rarest tier by chance; without the rhythms geology never rises. Levitate and astral are taught only to a wizard who already has them (relics stay
     how the big moves are found). Doors show the subject taught now, its tier and the prerequisite;
     the rotation is learned by play.
   - *Where the wizard belongs.* Scholars are calm while the wizard is where they belong (the
@@ -797,11 +807,9 @@ Each phase ends with the full suite green and its own tests.
     one facing away works): a local fuss, calmed by the next bell. Casting a spell or striking
     anyone where scholars see it turns them anywhere. The abominations care for none of it, and
     leading them into a class still works.
-  - *Prerequisites.* A class asks for a subject of another department, a rung lower and a tier
-    lower (at least I), held or carried as a paper; a department's first subject asks for nothing.
-    The tier taught rises every ring, so the paper that opens a class is the one earned the ring
-    before in another classroom: climbing goes room to room (decided 2026-10-18, as staying in one
-    room to climb its own ladder was not the game wanted).
+  - *Prerequisites.* A class of tier II or higher asks for a paper of one other department (any of
+    its subjects), a tier lower, held or carried; tier I asks for nothing. The four ask round in a
+    ring: astronomy geology's, geology botany's, botany necrology's, necrology astronomy's.
     A classroom's doors open only to a wizard enrolled so, so the way through a level runs through
     classes and depends on the papers carried and the rings rung.
   - *Exam papers.* Attending a class is being in its classroom when the bell rings it out,

@@ -32,10 +32,10 @@ func run() -> void:
 	_ring(bell)
 	await _look(bell.global_position + Vector2(0, 64.0 - tall), "timetable_great_bell_ringing.png", clampf(560.0 / (tall * 2.0), 0.7, 1.4), 18)
 	await _look(yoke, "timetable_bell_passing.png", 2.2)
-	# A lecture hall, shut and then in session.
+	# A classroom of a department with a break in its day (botany's), shut and then in session.
 	var hall: int = -1
 	for i: int in range(info.world.halls.size()):
-		if info.world.halls[i]["kind"] == &"lecture":
+		if info.world.halls[i]["kind"] == &"lecture" and info.world.halls[i]["dept"] == &"botany":
 			hall = i
 			break
 	if hall >= 0:
@@ -46,21 +46,22 @@ func run() -> void:
 			_ring(bell)
 			await frames(2)
 		await _look(door + Vector2(0, -60), "timetable_door_shut.png", 1.8)
-		# In session, asking for a prerequisite the wizard lacks: shut to them, the paper it wants by its plate.
+		# In session at tier III, asking for a necrology II paper the wizard lacks: shut to them, the
+		# department it wants by its plate.
 		for k: int in range(Timetable.PERIODS * 2):
-			if Timetable.in_session(info.world, hall, rec.rings) and Timetable.prereq(info.subject_of(hall)) != &"":
+			if Timetable.in_session(info.world, hall, rec.rings):
 				break
 			_ring(bell)
 			await frames(2)
-		var before: StringName = Timetable.prereq(info.subject_of(hall))
-		if before != &"":
-			Abilities.set_tier(player, before, 0)
+		rec.dept_tiers[&"botany"] = 3
+		var need: Array = Timetable.needs(&"botany", info.tier_of(hall))
+		for b: StringName in Timetable.LADDERS[need[0]]:
+			Abilities.set_tier(player, b, 0)
 		await frames(20)
 		await _look(door + Vector2(0, -90), "timetable_door_prereq.png", 2.2)
-		# Carrying that paper, enrolled: the doors open.
-		var key: int = KeyRing.paper(before, Timetable.need(info.tier_of(hall))) if before != &"" else 0
-		if key != 0:
-			player.keyring.take(key)
+		# Carrying a paper of that department, enrolled: the doors open.
+		var key: int = KeyRing.paper(Timetable.LADDERS[need[0]][0], need[1])
+		player.keyring.take(key)
 		await frames(30)
 		await _look(door + Vector2(0, -60), "timetable_door_open.png", 1.8)
 		await _look(info.cell_position(box.get_center()), "timetable_hall_open.png", 1.1)

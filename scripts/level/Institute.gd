@@ -291,7 +291,7 @@ static func _stacks(w: LevelGen, inside: Rect2i) -> void:
 
 ## The department of the next classroom raised in `w`: the first few take every department once, in an
 ## order dealt by the seed (so each department's prerequisites are taught somewhere in the level,
-## Timetable.PREREQS), any after them one dealt by the seed.
+## Timetable.NEEDS), any after them one dealt by the seed.
 static func _deal_dept(w: LevelGen) -> StringName:
 	var depts: Array = DEPARTMENTS.keys()
 	var k: int = w.halls.filter(func(h: Dictionary) -> bool: return h["kind"] == &"lecture").size()

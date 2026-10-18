@@ -48,15 +48,12 @@ func subject() -> StringName:
 	return &""
 
 
-## What a classroom's class asks for now (for the paper under its plate): [its prerequisite, the tier
-## needed] (Timetable.prereq, need), or [&"", 0] for nothing (a first subject, no class, another
-## hall).
+## What a classroom's class asks for now (for the paper beside its plate): [a department, the tier
+## needed] (Timetable.needs), or [&"", 0] for nothing (tier I, no class, another hall).
 func prereq() -> Array:
-	var a: StringName = subject()
-	var before: StringName = Timetable.prereq(a)
-	if before == &"":
+	if subject() == &"":
 		return [&"", 0]
-	return [before, Timetable.need(tier())]
+	return Timetable.needs(map_info.world.halls[hall]["dept"], tier())
 
 
 ## The tier its lecture hall teaches its subject at now (pips under its plate), or 0.

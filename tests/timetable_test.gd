@@ -44,31 +44,22 @@ func run() -> void:
 
 func _rules() -> void:
 	print("rules")
-	var turns_ok: bool = true
-	var crosses: bool = true
 	var taught: Dictionary = {}
 	for dept: StringName in Institute.DEPARTMENTS:
-		var ladder: Array = Timetable.LADDERS.get(dept, [])
-		var turn: Array[StringName] = Timetable.cycle(dept)
-		turns_ok = turns_ok and ladder.size() == 3 and turn.size() == Timetable.PERIODS * ladder.size()
-		turns_ok = turns_ok and Timetable.prereq(ladder[0]) == &""
-		for k: int in [1, 2]:
-			var before: StringName = Timetable.prereq(ladder[k])
-			var home: StringName = &""
-			for d: StringName in Timetable.LADDERS:
-				if (Timetable.LADDERS[d] as Array).has(before):
-					home = d
-			crosses = crosses and home != &"" and home != dept and (Timetable.LADDERS[home] as Array).find(before) == k - 1 and not before in Relics.MOVES
-		for k: int in range(turn.size()):
-			turns_ok = turns_ok and (turn[k] == &"") == (k % Timetable.PERIODS == Timetable.PERIODS - 1)
-			if turn[k] != &"":
-				turns_ok = turns_ok and Abilities.is_spell(turn[k])
-				taught[turn[k]] = true
-	check(turns_ok, "each department's cycle: its subjects in blocks of two classes and a break, every third class empty; its first asks for nothing")
-	check(crosses, "every other class asks for a subject of another department, a rung lower, never a relic's move: climbing goes room to room")
+		for a: StringName in Timetable.LADDERS[dept]:
+			taught[a] = true
 	check(Institute.MASTERIES.all(func(a: StringName) -> bool: return taught.has(a)), "every damage spell is taught somewhere")
 	check([&"warp", &"rift", &"levitate", &"ferry", &"astral"].all(func(a: StringName) -> bool: return taught.has(a)), "and the moves cast from the movement slot")
-	check_eq([Timetable.tier_taught(&"hex", 0), Timetable.tier_taught(&"hex", 1), Timetable.tier_taught(&"hex", 9), Timetable.tier_taught(&"levitate", 9)], [1, 2, 4, 3], "every ring teaches a tier higher, up to each spell's top")
+	# Rhythms: astronomy and geology every period, botany the first two, necrology at dusk.
+	var met: Array = []
+	for dept: StringName in [&"astronomy", &"geology", &"botany", &"necrology"]:
+		met.append([0, 1, 2].filter(func(r: int) -> bool: return Timetable.meets(dept, r)))
+	check_eq(met, [[0, 1, 2], [0, 1, 2], [0, 1], [2]], "astronomy and geology meet every period, botany the first two, necrology only at dusk")
+	check_eq([Timetable.sessions_before(&"necrology", 7), Timetable.sessions_before(&"botany", 7)], [2, 5], "and count their sessions by them")
+	# Needs: round in a ring, one tier lower, nothing for tier I.
+	check_eq([Timetable.needs(&"astronomy", 3), Timetable.needs(&"geology", 2), Timetable.needs(&"botany", 4), Timetable.needs(&"necrology", 2), Timetable.needs(&"astronomy", 1)],
+		[[&"geology", 2], [&"botany", 1], [&"necrology", 3], [&"astronomy", 1], [&"", 0]], "a class asks for the next department round the ring, a tier lower; tier I asks for nothing")
+	check_eq([Timetable.tier_taught(&"hex", 3), Timetable.tier_taught(&"warp", 4), Timetable.tier_taught(&"slash", 0)], [3, 3, 1], "a class teaches its department's tier, up to the spell's own top")
 	var fed: RunState = RunState.new()
 	fed.start(28)
 	check(Beast.core_hp(fed) == Beast.CORE_HP and BeastSouls.count(fed) == BeastSouls.SOULS and is_equal_approx(Beast.attack_every(fed), Beast.ATTACK_EVERY), "an unfed beast as ever")
@@ -84,7 +75,7 @@ func _laid_out() -> void:
 	print("laid out")
 	var turns_ok: bool = true
 	var all_depts: bool = true
-	var stages: Dictionary = {}
+	var rhythms_ok: bool = true
 	var sessions_ok: bool = true
 	var doors_ok: bool = true
 	var furnished: bool = true
@@ -116,19 +107,21 @@ func _laid_out() -> void:
 			var inside: Rect2i = hall["inside"]
 			match kind:
 				&"lecture":
-					# Its department's cycle, one a ring, from where the seed starts it, wrapping round.
-					var turn: Array[StringName] = Timetable.cycle(hall["dept"])
-					var start: int = -1
-					for k: int in range(turn.size()):
-						var fits: bool = true
-						for r: int in range(turn.size()):
-							fits = fits and Timetable.subject(w, i, r) == turn[(k + r) % turn.size()]
-						if fits:
-							start = k
-							break
-					turns_ok = turns_ok and start >= 0 and Timetable.subject(w, i, turn.size()) == Timetable.subject(w, i, 0)
-					if start >= 0:
-						stages[start % Timetable.PERIODS] = true
+					# A class while its department meets, none while it does not; its subjects one a
+					# session (geology's two), all three over a few days, the same again a whole round on.
+					var dept: StringName = hall["dept"]
+					var seen: Dictionary = {}
+					var span: int = Timetable.PERIODS * 3 * int(Timetable.HOLDS[dept])
+					for r: int in range(span):
+						var a: StringName = Timetable.subject(w, i, r)
+						rhythms_ok = rhythms_ok and (a != &"") == Timetable.meets(dept, r) and Timetable.subject(w, i, r + span) == a
+						if a != &"":
+							turns_ok = turns_ok and (Timetable.LADDERS[dept] as Array).has(a)
+							seen[a] = true
+					turns_ok = turns_ok and seen.size() == 3
+					if dept == &"geology":
+						var firsts: Array = [0, 1, 2, 3].filter(func(r: int) -> bool: return Timetable.meets(dept, r))
+						turns_ok = turns_ok and Timetable.subject(w, i, firsts[0]) == Timetable.subject(w, i, firsts[1])
 				&"library":
 					for r: int in range(Timetable.PERIODS):
 						sessions_ok = sessions_ok and Timetable.in_session(w, i, r) and not Timetable.holds_class(w, i, r)
@@ -167,9 +160,9 @@ func _laid_out() -> void:
 				roomy += 1
 		var corridor: Vector2i = w.free_floors()[0]
 		belongs_ok = belongs_ok and Timetable.belongs(w, 0, true, corridor) and not Timetable.belongs(w, 0, false, corridor)
-	check(turns_ok, "each classroom steps through its department's cycle, one a ring, wrapping round")
+	check(turns_ok, "each classroom teaches its department's three subjects in turn, one a session (geology's held two)")
 	check(all_depts, "every department has a classroom (where there are rooms enough), so every class's prerequisite is taught somewhere")
-	check(stages.size() == Timetable.PERIODS, "classrooms start at different stages of a block (%d of %d seen)" % [stages.size(), Timetable.PERIODS])
+	check(rhythms_ok, "each classroom has a class exactly while its department meets, the same again a round on")
 	check(sessions_ok, "the library always open (no class)")
 	check(doors_ok, "a door in every doorway of a hall with a class")
 	check(furnished, "a lectern and a cord in each classroom, a cord in the library")
@@ -202,6 +195,8 @@ func _play() -> void:
 	await _attend(rec, bell)
 	await _sneak(rec, bell)
 	await _prereqs(rec, bell)
+	await _climbing(rec, bell)
+	await _no_class_open(rec, bell)
 	await _abominations(rec)
 	await _proctor(rec, bell)
 	await _level_seal()
@@ -272,8 +267,8 @@ func _once_a_period(rec: LevelRecord, bell: SchoolBell) -> void:
 		# A class the wizard is not enrolled in yet: carry the paper it asks for.
 		for i: int in range(info.world.halls.size()):
 			if info.subject_of(i) != &"":
-				var a: StringName = info.subject_of(i)
-				player.keyring.take(KeyRing.paper(Timetable.prereq(a), Timetable.need(info.tier_of(i))))
+				var need: Array = Timetable.needs(info.world.halls[i]["dept"], info.tier_of(i))
+				player.keyring.take(KeyRing.paper(Timetable.LADDERS[need[0]][0], need[1]))
 				hall = i
 				break
 	if hall >= 0:
@@ -417,7 +412,7 @@ func _attend(rec: LevelRecord, bell: SchoolBell) -> void:
 		return
 	var a: StringName = info.subject_of(hall)
 	var tier: int = info.tier_of(hall)
-	check(tier == mini(1 + rec.rings, Abilities.max_tier(a)), "taught at tier %d after %d rings" % [tier, rec.rings])
+	check(tier == Timetable.tier_taught(a, int(info.dept_tiers()[info.world.halls[hall]["dept"]])), "taught at its department's tier (%d)" % tier)
 	var field: Vector2i = info.field_of(hall)
 	check(field != MapInfo.NO_FIELD and field.x == info.coord.x and field.y != info.coord.y, "its department's portal leads to a field level (%s)" % field)
 	info.run.papers_out.clear()
@@ -470,7 +465,7 @@ func _sneak(rec: LevelRecord, bell: SchoolBell) -> void:
 	if hall < 0:
 		return
 	var next: StringName = Timetable.subject(info.world, hall, rec.rings + 1)
-	var code: int = KeyRing.paper(next, Timetable.tier_taught(next, rec.rings + 1))
+	var code: int = KeyRing.paper(next, Timetable.tier_taught(next, int(info.dept_tiers()[info.world.halls[hall]["dept"]])))
 	check_eq(info.lectern_paper(hall), code, "its lectern holds the next class's paper (%s %d)" % [next, KeyRing.paper_tier(code)])
 	var lecterns: Array[Node] = placed("lectern.tscn").filter(func(n: Node) -> bool: return (n as Lectern).hall == hall)
 	check(lecterns.size() == 1, "its lectern")
@@ -505,48 +500,53 @@ func _sneak(rec: LevelRecord, bell: SchoolBell) -> void:
 	await frames(2)
 
 
-## Prerequisites: a class asking for one shuts its doors to a wizard who neither knows it nor
-## carries its paper at the tier needed, and they do not belong in it; a paper at a lower tier is not
-## enough; one at the tier needed enrols them, and so does knowing the spell. Resitting: a paper of
-## the class's subject carried at a lower tier is graded up in hand, none sent away.
+## Prerequisites: a class of tier II or more asks for a paper of another department a tier lower
+## (Timetable.needs): shut to a wizard who neither holds a spell of that department nor carries its
+## paper at that tier, and they do not belong in it; a paper a tier lower is not enough; any subject
+## of the department at that tier enrols them, and so does holding one. Resitting: a paper of the
+## class's subject carried at a lower tier is graded up in hand, none sent away.
 func _prereqs(rec: LevelRecord, bell: SchoolBell) -> void:
 	print("prerequisites")
 	player.global_position = bell.global_position
 	var hall: int = -1
 	for k: int in range(Timetable.PERIODS * 2):
-		await _ring(bell)
 		for i: int in range(info.world.halls.size()):
 			var s: StringName = info.subject_of(i)
-			if s != &"" and Timetable.prereq(s) != &"" and info.teaches(s) and info.master_in(i) != null and info.tier_of(i) > 1:
+			if s != &"" and info.teaches(s) and info.master_in(i) != null and Abilities.max_tier(s) >= 3:
 				hall = i
 				break
 		if hall >= 0:
 			break
-	check(hall >= 0, "a class asking for a prerequisite")
+		await _ring(bell)
+	check(hall >= 0, "a class to try")
 	if hall < 0:
 		return
+	var dept: StringName = info.world.halls[hall]["dept"]
+	rec.dept_tiers[dept] = 3
 	var a: StringName = info.subject_of(hall)
 	var tier: int = info.tier_of(hall)
-	var before: StringName = Timetable.prereq(a)
-	var need: int = Timetable.need(tier)
-	Abilities.set_tier(player, before, 0)
-	check(not info.enrolled(hall) and not info.hall_door_up(hall), "%s %d asks for %s %d: not known nor carried, its doors stay shut" % [a, tier, before, need])
+	var need: Array = Timetable.needs(dept, tier)
+	var ladder: Array = Timetable.LADDERS[need[0]]
+	for b: StringName in ladder:
+		Abilities.set_tier(player, b, 0)
+	player.keyring.clear()
+	check(not info.enrolled(hall) and not info.hall_door_up(hall), "%s %d asks for %s %d: none held nor carried, its doors stay shut" % [a, tier, need[0], need[1]])
 	player.global_position = _in_hall(hall)
 	await frames(2)
 	check(not info.wizard_belongs(), "inside, the wizard does not belong")
 	check(info.hall_door_up(hall), "but its doors open from the inside: no one is shut in")
-	if need > 1:
-		var low: int = KeyRing.paper(before, need - 1)
+	if int(need[1]) > 1:
+		var low: int = KeyRing.paper(ladder[0], int(need[1]) - 1)
 		player.keyring.take(low)
-		check(not info.enrolled(hall), "a %s paper a tier lower is not enough" % before)
+		check(not info.enrolled(hall), "a %s paper a tier lower is not enough" % need[0])
 		player.keyring.spend(low)
-	var key: int = KeyRing.paper(before, need)
+	var key: int = KeyRing.paper(ladder[2], need[1])
 	player.keyring.take(key)
-	check(info.enrolled(hall) and info.hall_door_up(hall), "carrying a %s %d paper, enrolled: its doors open" % [before, need])
+	check(info.enrolled(hall) and info.hall_door_up(hall), "carrying a %s %d paper (any subject of %s), enrolled: its doors open" % [ladder[2], need[1], need[0]])
 	check(info.wizard_belongs(), "and the wizard belongs")
 	player.keyring.spend(key)
-	Abilities.set_tier(player, before, need)
-	check(info.enrolled(hall), "knowing %s at tier %d does as well" % [before, need])
+	Abilities.set_tier(player, ladder[0], need[1])
+	check(info.enrolled(hall), "holding %s %d does as well" % [ladder[0], need[1]])
 	print("resitting")
 	var old: int = KeyRing.paper(a, tier - 1)
 	player.keyring.take(old)
@@ -559,9 +559,86 @@ func _prereqs(rec: LevelRecord, bell: SchoolBell) -> void:
 	await frames(2)
 	check(player.keyring.has(KeyRing.paper(a, tier)) and not player.keyring.has(old), "a %s %d paper carried in, rung out: graded up to %d in hand" % [a, tier - 1, tier])
 	check(info.run.papers_out.is_empty(), "and none sent away")
-	player.keyring.spend(KeyRing.paper(a, tier))
-	Abilities.set_tier(player, before, 0)
+	player.keyring.clear()
+	Abilities.set_tier(player, ladder[0], 0)
+	Abilities.set_tier(player, &"slash", 1)
+	rec.dept_tiers.clear()
 	player.global_position = bell.global_position
+	for n: Node in get_nodes_in_group(&"scholar"):
+		(n as Scholar).calm()
+	await frames(2)
+
+
+## The departments climb as the bell rings a period out (Timetable.climb, its rules checked in
+## unit_test): rung from the corridors, as nothing was attended; rung out in a class, as that
+## department was.
+func _climbing(rec: LevelRecord, bell: SchoolBell) -> void:
+	print("departments climbing")
+	rec.dept_tiers = {&"astronomy": 2, &"botany": 2, &"geology": 1, &"necrology": 2}
+	player.global_position = bell.global_position
+	var before: Dictionary = info.dept_tiers()
+	var meeting: Dictionary = info._meeting()
+	await _ring(bell)
+	check(info.dept_tiers() == Timetable.climb(before, &"", meeting), "rung from the corridors, they climb as nothing was attended (%s)" % [info.dept_tiers()])
+	var hall: int = -1
+	for k: int in range(Timetable.PERIODS * 2):
+		for i: int in range(info.world.halls.size()):
+			if info.subject_of(i) != &"" and info.teaches(info.subject_of(i)) and info.master_in(i) != null and info.enrolled(i):
+				hall = i
+				break
+		if hall >= 0:
+			break
+		await _ring(bell)
+	check(hall >= 0, "a class to attend")
+	if hall < 0:
+		return
+	var dept: StringName = info.world.halls[hall]["dept"]
+	player.global_position = _in_hall(hall)
+	await frames(2)
+	for n: Node in get_nodes_in_group(&"scholar"):
+		(n as Scholar).calm()
+	before = info.dept_tiers()
+	meeting = info._meeting()
+	rec.passing = false
+	info.since_bell = SchoolBell.RING_GAP
+	bell.ring()
+	await frames(2)
+	check(info.dept_tiers() == Timetable.climb(before, dept, meeting), "rung out in a %s class, they climb as it was attended (%s)" % [dept, info.dept_tiers()])
+	info.run.papers_out.clear()
+	rec.dept_tiers.clear()
+	player.global_position = bell.global_position
+	for n: Node in get_nodes_in_group(&"scholar"):
+		(n as Scholar).calm()
+	await frames(2)
+
+
+## In passing time with no class in session open to the wizard (every one asking for a paper they
+## lack), the bell rings anyway, so they are never left with no way on; with one open, it waits.
+func _no_class_open(rec: LevelRecord, bell: SchoolBell) -> void:
+	print("no class open")
+	player.global_position = bell.global_position
+	player.keyring.clear()
+	for dept: StringName in Timetable.LADDERS:
+		rec.dept_tiers[dept] = 3
+		for a: StringName in Timetable.LADDERS[dept]:
+			Abilities.set_tier(player, a, 0)
+	rec.passing = true
+	info.since_bell = SchoolBell.RING_GAP
+	await frames(2)
+	check(info.timetabled() and not info.class_open(), "every class in session asks for a paper the wizard lacks")
+	var hall: int = -1
+	for i: int in range(info.world.halls.size()):
+		if info.subject_of(i) != &"":
+			hall = i
+	if hall >= 0:
+		var need: Array = Timetable.needs(info.world.halls[hall]["dept"], info.tier_of(hall))
+		player.keyring.take(KeyRing.paper(Timetable.LADDERS[need[0]][0], need[1]))
+		check(info.class_open() and not info.bell_ready(), "carrying a paper that opens one, the bell waits in passing time for them to go in")
+		player.keyring.clear()
+	var rings: int = rec.rings
+	check(info.bell_ready() and info.ring_period() and rec.rings == rings + 1, "with none open, it rings in passing time all the same")
+	rec.dept_tiers.clear()
+	Abilities.set_tier(player, &"slash", 1)
 	for n: Node in get_nodes_in_group(&"scholar"):
 		(n as Scholar).calm()
 	await frames(2)

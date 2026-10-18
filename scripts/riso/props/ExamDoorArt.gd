@@ -4,9 +4,9 @@ extends RisoProp
 ## the mark of what its hall teaches knocked out to paper (RisoGlyph): a lecture hall's subject now,
 ## with a night pip over it for each tier taught (a bare plate while it has no class, or on the
 ## library's). Beside a classroom's plate, while its class asks for a
-## prerequisite (ExamDoor.prereq), hangs a small dark plate holding a paper sheet with that subject's
-## mark in night, and under it a paper pip for each tier it needs: the paper (or the spell known)
-## that opens the door.
+## prerequisite (ExamDoor.prereq), hangs a small dark plate holding a paper sheet with the emblem of
+## the department it asks for (RisoMarks.emblem) in night, and under it a paper pip for each tier it
+## needs: a paper of that department (or a spell of it held) opens the door.
 
 ## The prerequisite's sheet: its size, and how far beside the plate's middle it hangs.
 const NEED_SHEET: float = 1.15
@@ -49,8 +49,8 @@ func _draw_art() -> void:
 		ink.knock(RisoPrint.ALL_PLATES, sheet.slice(0, 1))
 		ink.ink(RisoPrint.NIGHT, 0.55, sheet.slice(1, 2), false)
 		var mark: Array[PackedVector2Array] = []
-		for poly: PackedVector2Array in RisoGlyph.of(need[0], Vector2.ZERO, t):
-			mark.append(Transform2D(0.0, Vector2(0.36, 0.36), 0.0, nc) * poly)
+		for poly: PackedVector2Array in RisoMarks.emblem(Institute.DEPARTMENTS.get(need[0], &"institute"), Vector2.ZERO):
+			mark.append(Transform2D(0.0, Vector2(0.7, 0.7), 0.0, nc) * poly)
 		ink.ink(RisoPrint.NIGHT, 1.0, mark, false)
 		var pips: Array[PackedVector2Array] = []
 		for i: int in range(int(need[1])):

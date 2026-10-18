@@ -61,6 +61,9 @@ var rings: int = 0
 var passing: bool = false
 var lifted: Dictionary = {}
 var pigeonholes: Dictionary = {}
+## Each department's tier in the level (department -> tier; one not yet climbed is at I,
+## Timetable.climb).
+var dept_tiers: Dictionary = {}
 ## The classrooms whose master, beaten by the wizard, has left its top-tier paper (by hall,
 ## MapInfo.instructor_fell).
 var prizes: Dictionary = {}
@@ -71,7 +74,7 @@ var stations: int = -1
 ## Every field saved, in the order they are written.
 const FIELDS: Array[StringName] = [&"taken", &"opened", &"slain", &"broken", &"dropped", &"next_drop", &"deeper_paid", &"up_paid",
 	&"doors_paid", &"lateral_open", &"ways_taken", &"shrine_used", &"mapped", &"seen",
-	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended", &"lessons", &"stations", &"rings", &"passing", &"lifted", &"pigeonholes", &"prizes"]
+	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended", &"lessons", &"stations", &"rings", &"passing", &"lifted", &"pigeonholes", &"prizes", &"dept_tiers"]
 
 
 ## The record as a plain dictionary, for the save file.

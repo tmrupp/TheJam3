@@ -6,24 +6,32 @@ extends RefCounted
 ## - Each ring of the bell moves the level on a period (a level is first met before any ring, under
 ##   way) and starts passing time; the wizard going into a class in session ends it (holds_class),
 ##   and the period begins. The bell rings once a period: after a ring it is silent until passing
-##   time is over (unless no class is in session anywhere, any_class). How many times it has rung
+##   time is over (unless no class in session is open to the wizard, MapInfo.class_open). How many times it has rung
 ##   and whether it is passing time are kept in the level's record (LevelRecord.rings, passing).
-## - Each classroom keeps its department (Institute.DEPARTMENTS), whose three subjects are its
-##   rungs (LADDERS: a first that asks for nothing, then two that do), and steps through them by its
-##   cycle (cycle, subject): blocks of PERIODS rings, each two classes and then a break with no class
-##   (first, second, break; third, first, break; second, third, break; and round). So every third
-##   class is empty. Where a classroom starts in its cycle is dealt by the seed, so rooms are a stage
-##   or more apart. Every ring raises the tier taught in the level
-##   (tier_taught). The library is always open. A hall's doors (ExamDoor) stand open while it is in
+## - The day is PERIODS periods, the rings counted round (period). Each classroom keeps its
+##   department (Institute.DEPARTMENTS), and each department keeps its own rhythm (RHYTHMS: the periods
+##   it meets in) and steps through its three subjects (LADDERS) one a session, or one every HOLDS
+##   sessions, from a place dealt by the seed (subject): astronomy meets every period, a new subject
+##   each; geology every period, each subject two (double periods); botany the first two, fallow in
+##   the last; necrology only in the last, at dusk.
+## - Each department has a tier in the level (LevelRecord.dept_tiers, I at first, up to TOP), the tier
+##   its classes teach (tier_taught, up to each spell's own top). When the bell rings a period out,
+##   each department that met in it climbs by its own rule or falls back to I (climb), as they stood
+##   at the start of the period: botany rises when its class was attended (and stands where it is
+##   when its class was one the wizard cannot be taught, a relic's move they lack); astronomy when another
+##   class was; geology when it stood strictly below every other department meeting with it; and
+##   necrology when another department crashed back to I from II or higher. A department that did
+##   not meet neither moves nor counts; one at the top holds there. So no ring raises a tier by
+##   itself: every climb is the wizard's doing, and most cost another. The library is always open. A hall's doors (ExamDoor) stand open while it is in
 ##   session and are shut while it is not.
 ## - Where the wizard belongs (belongs): in the corridors (anywhere out of the halls) in passing
 ##   time, in the library, and in a classroom whose class is in session. Anywhere else (the
 ##   corridors in a period, a classroom with no class, the beast's chamber) they are truant, and the
 ##   scholars who see them there turn on them (Scholar.rouse) until the next bell.
-## - Prerequisites (prereq, PREREQS): each class but a department's first asks for a subject of
-##   another department, at a tier one less than it teaches (need), held or carried as an exam
-##   paper. The tier taught rises every ring, so the paper that opens a class is one earned the ring
-##   before, in another classroom: climbing means going from room to room, a field trip between. A classroom's doors open only to a wizard enrolled so
+## - Prerequisites (needs, NEEDS): a class of tier II or higher asks for any subject of one other
+##   department, at a tier one less than it teaches, held or carried as an exam paper; a class of
+##   tier I asks for nothing. The four ask round in a ring (astronomy geology's, geology botany's,
+##   botany necrology's, necrology astronomy's), so climbing goes from room to room. A classroom's doors open only to a wizard enrolled so
 ##   (MapInfo.enrolled), and only one enrolled belongs in it.
 ## - Exam papers (KeyRing.paper): a wizard enrolled in a class as the bell rings it out has attended
 ##   it, and its paper (the subject at the tier taught) waits in the level its department's portal
@@ -37,60 +45,99 @@ extends RefCounted
 ##   spell some classroom here teaches (seal_of), so a level can be got through from within itself.
 ## Nothing here draws from any RNG: it is all hashed from the level seed.
 
-## How many rings a block of a classroom's cycle lasts: two classes and a break (see the class
-## description).
+## How many periods a day has (see the class description).
 const PERIODS: int = 3
 ## The halls with a class in them, which keep the timetable.
 const TIMETABLED: Array[StringName] = [&"lecture", &"library"]
 ## The halls whose doorways are barred by glyph seals.
 const SEALED: Array[StringName] = [&"library"]
-## Each department's subjects: its first (a damage spell, asking for nothing), then its second and
-## third, each asking for a subject of another department (PREREQS).
+## Each department's subjects, in the order it teaches them: its damage spell first.
 const LADDERS: Dictionary = {
 	&"astronomy": [&"hex", &"seeker", &"warp"],
 	&"geology": [&"slash", &"lunge", &"rift"],
 	&"botany": [&"push", &"levitate", &"ferry"],
 	&"necrology": [&"nova", &"astral", &"awareness"],
 }
-## What each class asks for first: always a subject of another department, a first rung for a
-## second (never a relic's move: Relics.MOVES), a second rung for a third.
-const PREREQS: Dictionary = {
-	&"seeker": &"slash",
-	&"lunge": &"hex",
-	&"levitate": &"nova",
-	&"astral": &"push",
-	&"warp": &"lunge",
-	&"rift": &"seeker",
-	&"ferry": &"lunge",
-	&"awareness": &"seeker",
+## Each department's rhythm: the periods it meets in, and how many of its sessions each subject lasts.
+const RHYTHMS: Dictionary = {
+	&"astronomy": [0, 1, 2],
+	&"geology": [0, 1, 2],
+	&"botany": [0, 1],
+	&"necrology": [2],
 }
-## Salts for the level seed: where each classroom starts in its cycle, and which spell the seals ask
-## for.
+const HOLDS: Dictionary = {&"astronomy": 1, &"geology": 2, &"botany": 1, &"necrology": 1}
+## The department whose paper each department's classes of tier II and up ask for (see the class
+## description).
+const NEEDS: Dictionary = {&"astronomy": &"geology", &"geology": &"botany", &"botany": &"necrology", &"necrology": &"astronomy"}
+## The highest tier a department climbs to.
+const TOP: int = 4
+## Salts for the level seed: where each classroom starts in its department's subjects, and which
+## spell the seals ask for.
 const ROTATION_DEAL: int = 6470
 const SEAL_DEAL: int = 6480
 
 
-## Department `dept`'s cycle (see the class description): its subjects in order, round and round,
-## a break (&"") after every two, until each has come round in each place.
-static func cycle(dept: StringName) -> Array[StringName]:
-	var out: Array[StringName] = []
-	var ladder: Array = LADDERS.get(dept, [])
-	for k: int in range(ladder.size() * 2):
-		out.append(ladder[k % ladder.size()])
-		if k % 2 == 1:
-			out.append(&"")
+## Whether department `dept` meets in the period after `rings` rings (RHYTHMS).
+static func meets(dept: StringName, rings: int) -> bool:
+	return (RHYTHMS.get(dept, []) as Array).has(period(rings))
+
+
+## How many times department `dept` has met before `rings` rings.
+static func sessions_before(dept: StringName, rings: int) -> int:
+	var days: Array = RHYTHMS.get(dept, [])
+	@warning_ignore("integer_division")
+	var whole: int = (maxi(rings, 0) / PERIODS) * days.size()
+	return whole + days.filter(func(p: int) -> bool: return p < period(maxi(rings, 0))).size()
+
+
+## The department that teaches `a`, or &"" for none.
+static func dept_of(a: StringName) -> StringName:
+	for dept: StringName in LADDERS:
+		if (LADDERS[dept] as Array).has(a):
+			return dept
+	return &""
+
+
+## What a class of department `dept` at `tier` asks for, as [the department, the tier]: one tier lower
+## of NEEDS[dept]; [&"", 0] for a class of tier I.
+static func needs(dept: StringName, tier: int) -> Array:
+	if tier < 2 or not NEEDS.has(dept):
+		return [&"", 0]
+	return [NEEDS[dept], tier - 1]
+
+
+## The departments' tiers after a period they stood at `tiers` (department -> tier), in which the
+## wizard attended a class of department `attended` (&"" for none) and `meeting` (department -> bool)
+## met (see the class description); `untaught` true when botany's class that period was one the
+## wizard cannot be taught, which leaves botany standing (neither rising nor crashing). Every rule
+## reads the tiers as they stood at the start, and necrology last, the crashes of the others.
+static func climb(tiers: Dictionary, attended: StringName, meeting: Dictionary, untaught: bool = false) -> Dictionary:
+	var out: Dictionary = tiers.duplicate()
+	var crashed: bool = false
+	var at: Callable = func(d: StringName) -> int: return int(tiers.get(d, 1))
+	var met: Callable = func(d: StringName) -> bool: return bool(meeting.get(d, false))
+	for dept: StringName in [&"botany", &"astronomy", &"geology"]:
+		if not met.call(dept):
+			continue
+		var up: bool = false
+		match dept:
+			&"botany":
+				if untaught and attended != &"botany":
+					continue
+				up = attended == &"botany"
+			&"astronomy":
+				up = attended != &"" and attended != &"astronomy"
+			&"geology":
+				var others: Array = LADDERS.keys().filter(func(d: StringName) -> bool: return d != &"geology" and met.call(d))
+				up = not others.is_empty() and others.all(func(d: StringName) -> bool: return at.call(d) > at.call(&"geology"))
+		if up:
+			out[dept] = mini(at.call(dept) + 1, TOP)
+		else:
+			crashed = crashed or at.call(dept) >= 2
+			out[dept] = 1
+	if met.call(&"necrology"):
+		out[&"necrology"] = mini(at.call(&"necrology") + 1, TOP) if crashed else 1
 	return out
-
-
-## The subject a class of `a` asks for first (PREREQS): another department's; &"" for a department's
-## first subject (or one no department teaches).
-static func prereq(a: StringName) -> StringName:
-	return PREREQS.get(a, &"")
-
-
-## The tier of its prerequisite a class teaching at `tier` asks for: one less, but at least I.
-static func need(tier: int) -> int:
-	return maxi(1, tier - 1)
 
 
 ## The damage spell of the department that teaches `a` (the first rung of its ladder), &"hex" for one
@@ -108,21 +155,26 @@ static func period(rings: int) -> int:
 	return posmod(rings, PERIODS)
 
 
-## What classroom `hall` of `w` teaches after `rings` rings: its department's subject then (cycle,
-## from a place dealt by the seed), or &"" for no class (and for any other hall).
+## What classroom `hall` of `w` teaches after `rings` rings: &"" while its department does not meet
+## (meets), else its subject then, one a session (or HOLDS), from a place dealt by the seed; &"" for
+## any other hall.
 static func subject(w: LevelGen, hall: int, rings: int) -> StringName:
 	if hall < 0 or hall >= w.halls.size() or w.halls[hall]["kind"] != &"lecture":
 		return &""
-	var turn: Array[StringName] = cycle(w.halls[hall]["dept"])
-	if turn.is_empty():
+	var dept: StringName = w.halls[hall]["dept"]
+	var ladder: Array = LADDERS.get(dept, [])
+	if ladder.is_empty() or not meets(dept, rings):
 		return &""
-	var start: int = posmod(Rules.level_seed(w.seed_for_colors, ROTATION_DEAL + hall), turn.size())
-	return turn[posmod(start + rings, turn.size())]
+	var start: int = posmod(Rules.level_seed(w.seed_for_colors, ROTATION_DEAL + hall), ladder.size())
+	@warning_ignore("integer_division")
+	var turn: int = sessions_before(dept, rings) / int(HOLDS.get(dept, 1))
+	return ladder[posmod(start + turn, ladder.size())]
 
 
-## The tier of `a` taught after `rings` rings: one more for every ring, up to its top.
-static func tier_taught(a: StringName, rings: int) -> int:
-	return mini(1 + maxi(rings, 0), Abilities.max_tier(a)) if Abilities.ABILITIES.has(a) else 0
+## The tier a class of `a` teaches while its department stands at `dept_tier`: that, up to the
+## spell's own top.
+static func tier_taught(a: StringName, dept_tier: int) -> int:
+	return mini(maxi(dept_tier, 1), Abilities.max_tier(a)) if Abilities.ABILITIES.has(a) else 0
 
 
 ## Whether hall `hall` of `w` is in session after `rings` rings: a classroom with a subject, the
@@ -192,11 +244,11 @@ static func master_of(w: LevelGen, hall: int) -> Vector2i:
 	return Vector2i(-1, -1)
 
 
-## Every subject the classrooms of `w` teach over their cycles, in the halls' order, each once.
+## Every subject the classrooms of `w` teach over a few days, in the halls' order, each once.
 static func subjects_in(w: LevelGen) -> Array[StringName]:
 	var out: Array[StringName] = []
 	for i: int in range(w.halls.size()):
-		for r: int in range(PERIODS * 3):
+		for r: int in range(PERIODS * 6):
 			var a: StringName = subject(w, i, r)
 			if a != &"" and not a in out:
 				out.append(a)

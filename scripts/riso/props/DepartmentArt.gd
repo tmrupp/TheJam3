@@ -93,24 +93,10 @@ func _leads_to() -> Variant:
 	return null
 
 
-## The emblem on its keystone (see the class description), round `c`.
+## The emblem on its keystone (see the class description), round `c` (RisoMarks.emblem).
 func _emblem(c: Vector2) -> Array[PackedVector2Array]:
 	var dept: Department = host as Department
-	var band: StringName = dept.band() if dept != null else &"institute"
-	match band:
-		&"garden":
-			return [Transform2D(0.4, c) * RisoShapes.almond(Vector2.ZERO, 6.0, 12.0, 12), RisoShapes.rrect(c.x - 0.8, c.y + 2.0, 1.6, 9.0, 0.8)]
-		&"cemetery":
-			return [RisoShapes.circle(c + Vector2(0, -2.0), 8.0, 16), RisoShapes.rrect(c.x - 4.5, c.y + 3.0, 9.0, 6.0, 2.0)]
-		&"crags":
-			return [PackedVector2Array([c + Vector2(0, -12), c + Vector2(7, -2), c + Vector2(4, 11), c + Vector2(-4, 11), c + Vector2(-7, -2)])]
-		&"sky":
-			return [RisoShapes.sparkle(c, 12.0)]
-	# The institute: a pediment over three columns.
-	var out: Array[PackedVector2Array] = [PackedVector2Array([c + Vector2(-11, -4), c + Vector2(0, -11), c + Vector2(11, -4)])]
-	for x: float in [-7.0, 0.0, 7.0]:
-		out.append(RisoShapes.rrect(c.x + x - 1.6, c.y - 3.0, 3.2, 12.0, 0.8))
-	return out
+	return RisoMarks.emblem(dept.band() if dept != null else &"institute", c)
 
 
 ## Place `at` on a plaque centred on `centre`, scaled `s`: its marks and its two numbers (as a
