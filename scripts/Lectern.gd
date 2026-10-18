@@ -1,19 +1,16 @@
 extends Area2D
 class_name Lectern
-## A lecture hall's lectern (Institute.furnish), on its floor between its portal and its master,
-## printed as a lesson's (LecternArt). Learning is permanent (Timetable): every spell the institute
-## has taught the wizard (an exam's prize, a lesson), and every one put down for one, stays known for
-## the run (RunState.taught), and here they take one up again, at the tier they knew, in place of the
-## one in its slot (which stays known in turn). Interact to take up the next one known that is not
-## in its slot now, in the order of Abilities.spells, going on from the last taken here. While its
-## hall's trial is under way it lends nothing.
+## A classroom's lectern (Institute.furnish), printed as a lesson's (LecternArt): a pigeonhole. It
+## holds one exam paper (MapInfo.lectern_slot). Interact to put the paper picked up last
+## on it and take the one it held, either of which may be missing (MapInfo.lectern_swap); so papers
+## are left in the rooms and swapped about. While the room is empty and the lectern bare, the next
+## class's paper lies on it to be lifted (sneaking, MapInfo.lectern_paper).
 
 @onready var player: Player = Stage.player()
 
 var map_info: MapInfo
-## Its hall (an index into LevelGen.halls), and where in Abilities.spells it looks from next.
+## Its classroom (an index into LevelGen.halls).
 var hall: int = -1
-var turn: int = 0
 
 
 func setup(info: MapInfo, _v: Vector2i, extra: Variant) -> void:
@@ -21,37 +18,32 @@ func setup(info: MapInfo, _v: Vector2i, extra: Variant) -> void:
 	hall = int(extra) if extra != null else -1
 
 
-## What taking it up gives now, as [spell, tier]: the next spell taught (see the class description)
-## other than the one held; [&"", 0] when there is none, or while its hall's trial is under way.
+## Whether it is a classroom's, a pigeonhole (see the class description).
+func pigeonhole() -> bool:
+	return map_info != null and map_info.world != null and hall >= 0 and hall < map_info.world.halls.size() and map_info.world.halls[hall]["kind"] == &"lecture"
+
+
+## The exam paper on it now (MapInfo.lectern_slot), or 0.
+func paper() -> int:
+	if player == null or not pigeonhole():
+		return 0
+	return map_info.lectern_slot(hall)
+
+
+## What is on it now, as [spell, tier]: its paper's subject and tier, or [&"", 0] for nothing.
 func holds() -> Array:
-	if map_info == null or player == null or map_info.trial_hall == hall:
-		return [&"", 0]
-	var order: Array[StringName] = Abilities.spells()
-	for k: int in range(order.size()):
-		var a: StringName = order[posmod(turn + k, order.size())]
-		if int(map_info.run.taught.get(a, 0)) > 0 and Abilities.spell(player, Abilities.slot_of(a)) != a:
-			return [a, int(map_info.run.taught[a])]
-	return [&"", 0]
+	var code: int = paper()
+	return [KeyRing.paper_spell(code), KeyRing.paper_tier(code)] if code != 0 else [&"", 0]
 
 
-## Take up the spell it holds, the one in the slot staying known.
+## Used: it swaps papers with the wizard (MapInfo.lectern_swap).
 func take() -> void:
-	var held: Array = holds()
-	var a: StringName = held[0]
-	if a == &"":
-		return
-	var was: StringName = Abilities.spell(player, Abilities.slot_of(a))
-	if was != &"":
-		map_info.remember(was, Abilities.tier(player, was))
-	Abilities.set_tier(player, a, int(held[1]))
-	turn = Abilities.spells().find(a) + 1
-	map_info.save_run()
-	RisoFx.burst(&"gain", global_position + Vector2(0, -40), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
-	Wound.shake(5.0, 0.15)
+	if pigeonhole():
+		map_info.lectern_swap(hall, global_position + Vector2(0, -40))
 
 
 func _process(_delta: float) -> void:
-	$Interactable.available = holds()[0] != &""
+	$Interactable.available = player != null and pigeonhole() and (paper() != 0 or not player.keyring.papers().is_empty())
 
 
 func _ready() -> void:

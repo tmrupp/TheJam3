@@ -98,9 +98,7 @@ func _mend_bowl(mx: float, g: float, bob: float, full: bool, used: bool, price: 
 
 ## One of the shrine's two niches at x = `cx`: the ability's mark floating over its tier pips and,
 ## while the wizard is at it, a pop-up with its name, tier and price, topped by a "swap" tag when
-## it would replace the spell in the slot.
-## Once the shrine is spent, a spell a swap left here floats in its niche instead, its pop-up
-## offering to take it back.
+## it would replace the spell in the slot (whose paper then comes back).
 func _shrine_niche(cx: float, i: int, g: float, bob: float, used: bool) -> void:
 	ink.ink(RisoPrint.BLUE, 0.5, [RisoShapes.arch(cx - 36, g - 122, 72, 100, 12)])
 	var niche: PackedVector2Array = RisoShapes.arch(cx - 29, g - 115, 58, 93, 12)
@@ -108,15 +106,6 @@ func _shrine_niche(cx: float, i: int, g: float, bob: float, used: bool) -> void:
 	ink.ink(RisoPrint.NIGHT, 1.0, [niche], false)
 	var c: Vector2 = Vector2(cx, g - 84 + bob)
 	if used:
-		# A spell left here by a swap waits in the niche, to be taken back free.
-		var left: Array = shrine.left_spell(i)
-		if left.is_empty():
-			return
-		_niche_mark(left[0], c, i, int(left[1]), cx, g)
-		var sl: float = _pop(i, Vector2(cx, g - 50))
-		if sl > 0.0:
-			_plaque("%s %s · take back" % [Abilities.label(left[0]), Abilities.roman(int(left[1]))], Vector2(cx, g - POP_Y), 30, RisoPrint.ACCENT, sl)
-			_plaque("swap", Vector2(cx, g - POP_Y - 40.0 * sl), 22, RisoPrint.PINK, sl)
 		return
 	var a: StringName = shrine.offer(i)
 	if a == &"":

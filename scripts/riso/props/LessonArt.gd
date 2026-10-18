@@ -3,7 +3,7 @@ class_name LessonArt
 ## A master's lesson (Lesson): a wooden lectern (blue, a night shade down its post) with an open
 ## book on its sloping top, paper pages with night lines, and over it the mark of the spell it
 ## teaches (RisoGlyph) floating in gold, bobbing in a soft halo, with a pip for the tier taking it
-## gives. A spell a swap left on it floats there instead, at its tier. It shines (RisoLight).
+## gives. It shines (RisoLight).
 
 ## How high over the floor the mark floats (px), and its pips' size and spacing.
 const MARK_Y: float = 150.0
@@ -23,6 +23,11 @@ func light() -> Array:
 func _held() -> Array:
 	var lesson: Lesson = host as Lesson
 	return lesson.holds() if lesson != null and lesson.map_info != null else [&"", 0]
+
+
+## What lies behind the floating mark at `c`, if anything (a lectern's exam paper, LecternArt).
+func _under(_c: Vector2) -> void:
+	pass
 
 
 func _draw_art() -> void:
@@ -49,10 +54,15 @@ func _draw_art() -> void:
 		return
 	var c: Vector2 = Vector2(0, g - MARK_Y + sin(t * 2.0 + phase) * 5.0)
 	ink.ink(RisoPrint.ACCENT, 0.25, [RisoShapes.circle(c, 36.0, 28)])
-	ink.ink(RisoPrint.ACCENT, 1.0, RisoGlyph.of(a, c, t))
+	_under(c)
+	# Knocked out first, so the gold prints true over the dark rooms.
+	var mark: Array[PackedVector2Array] = RisoGlyph.of(a, c, t)
+	ink.knock(RisoPrint.ALL_PLATES, mark)
+	ink.ink(RisoPrint.ACCENT, 1.0, mark)
 	var tier: int = int(held[1])
 	var pips: Array[PackedVector2Array] = []
 	for i: int in range(tier):
 		var p: Vector2 = c + Vector2((float(i) - float(tier - 1) * 0.5) * PIP_GAP, 40.0)
 		pips.append(PackedVector2Array([p + Vector2(0, -PIP_R), p + Vector2(PIP_R, 0), p + Vector2(0, PIP_R), p + Vector2(-PIP_R, 0)]))
+	ink.knock(RisoPrint.ALL_PLATES, pips)
 	ink.ink(RisoPrint.ACCENT, 1.0, pips)

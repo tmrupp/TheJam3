@@ -25,10 +25,8 @@ var doors_paid: Dictionary = {}
 ## Side doors left open behind the wizard (by exit), and every exit taken (for the worlds map).
 var lateral_open: Dictionary = {}
 var ways_taken: Dictionary = {}
-## Whether the shrine has been used, and the spell a swap there left in a niche ([spell, tier,
-## niche], or [] for none).
+## Whether the shrine has been used.
 var shrine_used: bool = false
-var left_spell: Array = []
 ## The spell a relic swap left on the relic's plinth ([spell, tier], or [] for none).
 var relic_left: Array = []
 ## Whether the ink well has been paid (the whole map inked), and what has been seen: a byte per
@@ -54,27 +52,28 @@ var temple_progress: int = 0
 var mended: Dictionary = {}
 ## The wizard's own teleporters standing here (Rift): their positions.
 var rifts: Array = []
-## The institute: its exam halls passed (by hall, an index into LevelGen.halls; ExamDoor), and its
-## masters' lessons (Lesson), by the master's cell: {"at": where it fell, "ability", "taken",
-## "left": [spell, tier] a swap left on it, or []}.
-var exams: Dictionary = {}
+## The institute: its masters' lessons (Lesson), by the master's cell: {"at": where it fell,
+## "ability", "taken"}.
 var lessons: Dictionary = {}
 ## The institute's timetable (Timetable): how many times its great bell has rung (the period is this
-## counted round Timetable.PERIODS), whether it is passing time, the trials the wizard has passed
-## here (spell -> the highest tier it was taught at: the exam's list), and whether the exam's pick
-## has been taken (MapInfo.take_exam_prize).
+## counted round Timetable.PERIODS), whether it is passing time, the lecterns' papers lifted (by
+## hall and rings, MapInfo.lectern_swap), and the paper left on each classroom's lectern (hall ->
+## code, the pigeonholes).
 var rings: int = 0
 var passing: bool = false
-var trials: Dictionary = {}
-var exam_prize: bool = false
+var lifted: Dictionary = {}
+var pigeonholes: Dictionary = {}
+## The classrooms whose master, beaten by the wizard, has left its top-tier paper (by hall,
+## MapInfo.instructor_fell).
+var prizes: Dictionary = {}
 ## The crags: which of its gondola's stations are on, a bit each from the bottom (-1 before the first
 ## visit deals them: only the one nearest the way in on; MapInfo.station_on, flip_tower).
 var stations: int = -1
 
 ## Every field saved, in the order they are written.
 const FIELDS: Array[StringName] = [&"taken", &"opened", &"slain", &"broken", &"dropped", &"next_drop", &"deeper_paid", &"up_paid",
-	&"doors_paid", &"lateral_open", &"ways_taken", &"shrine_used", &"left_spell", &"relic_left", &"mapped", &"seen",
-	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended", &"exams", &"lessons", &"stations", &"rings", &"passing", &"trials", &"exam_prize"]
+	&"doors_paid", &"lateral_open", &"ways_taken", &"shrine_used", &"relic_left", &"mapped", &"seen",
+	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended", &"lessons", &"stations", &"rings", &"passing", &"lifted", &"pigeonholes", &"prizes"]
 
 
 ## The record as a plain dictionary, for the save file.

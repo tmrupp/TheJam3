@@ -1,7 +1,7 @@
 extends TestKit
 ## The eldritch beast (Beast, BeastSouls, BeastSoul; docs/REGIONS_PLAN.md §6). Laid out: in every
 ## gate level of the institute a chamber of marble (Institute.chamber) holds the beast in the middle
-## of its floor and nothing else, the exam hall still holding the way on; no other level has one;
+## of its floor and nothing else; no other level has one;
 ## the same every build. In play: it sleeps until the wizard comes in, then sends its souls out
 ## across the run, some into levels visited (more the more were) and the rest flung far into levels
 ## not yet visited, never into a gate
@@ -37,7 +37,6 @@ func _laid_out() -> void:
 	var held: int = 0
 	var bare: bool = true
 	var low: int = 0
-	var exams: int = 0
 	var worlds: Array[int] = [28, 7, 99]
 	for x: int in worlds:
 		var w: LevelGen = build(Vector2i(x, row))
@@ -57,14 +56,10 @@ func _laid_out() -> void:
 		for v: Vector2i in w.objects:
 			if box.has_point(v) and w.get_cell(v).type != LevelGen.Type.BOSS:
 				bare = false
-		var exam: Dictionary = Institute.exam_hall(w)
-		if not exam.is_empty() and (exam["inside"] as Rect2i).has_point(w.exits.get(MapInfo.Exit.DEEPER, Vector2i(-1, -1))):
-			exams += 1
 	check_eq(chambers, worlds.size(), "every gate level of the institute has the beast's chamber")
 	check_eq(held, worlds.size(), "the beast on the middle of its floor")
 	check(bare, "and nothing else in it")
 	check(low >= worlds.size() - 1, "in the level's lower half (%d of %d)" % [low, worlds.size()])
-	check_eq(exams, worlds.size(), "the exam hall still holding the way on")
 	var gate: LevelGen = build(Vector2i(WORLD, row))
 	var again: LevelGen = build(Vector2i(WORLD, row))
 	check(gate != null and again != null and gate.objects == again.objects and gate.halls.size() == again.halls.size(), "laid out the same twice")

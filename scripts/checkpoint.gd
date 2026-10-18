@@ -3,6 +3,9 @@ extends Area2D
 class_name Checkpoint
 ## A lantern. Interact to light it: it becomes where you come back to, and absorbs one death; and,
 ## lit or already lit, it refills the hex's charges and mend's draughts (MapInfo.light_lantern).
+## At a lantern already lit as where you come back to, interacting also studies: the oldest exam paper
+## carried that teaches something is learned into its slot, and the spell it puts out comes back as a
+## paper (MapInfo.study), so going round them all swaps the papers carried in turn.
 
 @onready var player: Player = Stage.player()
 
@@ -17,7 +20,10 @@ func refresh () -> void:
 func interacted () -> void:
 	# Spent lanterns cannot be relit during this run.
 	if MapInfo.instance != null:
+		var lit: bool = MapInfo.instance.is_respawn_lantern(self)
 		MapInfo.instance.light_lantern(self)
+		if lit:
+			MapInfo.instance.study(global_position + Vector2(0, -40))
 	refresh()
 
 func _ready() -> void:

@@ -57,7 +57,7 @@ func cast() -> bool:
 	var catches_spider: Callable = func(s: Spider) -> bool: return s.struck_by(from, from, radius) and SpellStrike.clear(from, s.global_position)
 	for e: Node in SpellStrike.caught(get_tree(), from, catches, catches_spider):
 		var away: Vector2 = ((e as Node2D).global_position - from)
-		SpellStrike.strike(e, away.normalized() if away != Vector2.ZERO else Vector2.UP, damage, &"nova", from)
+		SpellStrike.strike(e, away.normalized() if away != Vector2.ZERO else Vector2.UP, damage, &"nova")
 	for k: int in range(RAYS):
 		SpiderWeb.tear_along(get_tree(), from, from + Vector2.from_angle(TAU * float(k) / float(RAYS)) * radius)
 	SpellMark.leave(&"nova", from, Vector2.RIGHT, radius, PI, RisoPrint.ACCENT, player)

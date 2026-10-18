@@ -22,7 +22,7 @@ is proposed, and what is still open; the phases at the end give the order of wor
 | Crags and castle | One band: vertical cliff levels dressed with castle ruins. The spider's keep is built at the top of its gate level. |
 | Hyperspace across branches | Yes: a hyperspace may cross the start into the other branch (35 % of them), still leading 4 rows further from the start. |
 | The cemetery | Stays the cemetery: its terraces, decor and bell gates, with crypts (mausoleums, catacomb tunnels) added behind bell gates. Light and darkness start to matter here, within a level rather than by band (§7). |
-| The last band down | The **institute**, in place of the catacombs (which become the cemetery's crypts): a sunken institute of magic with a library among its wings; students and masters, strong spellcasters, and abominations rising from the deep, all fighting one another as well as the wizard; exams (battles and field trials) as its gates; departments with portals to real levels of other bands, in the same column (§7). The eldritch beast stays its boss. |
+| The last band down | The **institute**, in place of the catacombs (which become the cemetery's crypts): a sunken institute of magic with a library among its wings; students and masters, strong spellcasters, and abominations rising from the deep, all fighting one another as well as the wizard; exams as its gates, sat with papers fetched on field trips; departments with portals to real levels of other bands, in the same column (§7). The eldritch beast stays its boss. |
 | The far bands' characters | The institute is **humanity** (people, schooling, rivalry); the sky is **the elements** (wind, storm, beasts of the air). Each speeds travel one way: the institute's portals up and down a column, the sky's balloons along a row, on its winds (§7). |
 
 ## 2. The vertical map
@@ -547,27 +547,22 @@ of rooms and corridors, its halls (an exam hall holding the way on, the library'
 halls with tiers), its realm, backdrop and decor (marble slabs, great columns, bookcases
 everywhere); students, masters (each teaching its spell by a lesson once beaten), proctors and
 librarians, all printed after the original wizard (students bareheaded); abominations that bud
-copies of themselves until 32 are about, and breaches that spawn them and must be closed; the exam
-as a battle; the departments' portals with their ways back; the beast in its chamber, its souls
+copies of themselves until 32 are about, and breaches that spawn them and must be closed; the
+departments' portals with their ways back; the beast in its chamber, its souls
 sent out across the run (§6); and a first pass of the timetable (§9): periods moved on by bells,
-hall doors kept by them, scholars calm where the wizard belongs, trials in lecture halls, spells
-taught kept for the run, and glyph seals. Not yet: field trials, and tuning in play.
+hall doors kept by them, scholars calm where the wizard belongs, exam papers from the classes
+attended (fetched from the departments' field levels, or lifted from an empty hall's lectern),
+learned at lanterns, instructors who leave a top-tier paper, and glyph seals. Not yet: tuning in play.
 
 - **Terrain.** Halls of different kinds, built by a structure pass (as the crags build their
   keeps) into a sample of rooms and corridors: lecture halls whose tiered seats climb like stairs,
   the library's stacks (long galleries one over another, joined by ladders, giving casters long
   sight lines and shelves to break them), laboratories, cloisters and a bell tower.
-- **Exams: the gate.** The way on, and the rooms worth having, lie behind sealed doors, each opened
-  by passing its exam. For now there are two kinds:
-  - *A battle*: stepping into an exam hall shuts it off (its doors close behind, as an arena), and
-    a master and its students fight the wizard there until the master falls; then the hall opens.
-  - *A field trial* (a fetch): the seal asks for a specimen from another region, found in the
-    level a department's portal leads to (a flower from the garden, a grave lily from the cemetery,
-    a crystal from the crags, a star shard from the sky). The wizard goes through, finds it (on the
-    map once they arrive), brings it back through the way back and lays it at the seal.
-  Other trials may come later: a lesson and exam (a lectern lends a spell for the level, and a
-  seal opens only to that spell used well), a practice range (strike every target before the
-  bell), a timed course.
+- **The gate is the timetable.** There is no exam hall: the way on lies where the level laid it,
+  and the way through runs through classrooms that open only to a wizard carrying the right exam
+  paper. Papers come from the classes the wizard attends, each sent to the level a department's
+  portal leads to and fetched from there (a field trip), and are learned at lanterns. See the
+  timetable (§9).
 - **Students and masters.**
   - *Students* come in numbers, casting weaker spells that now and then misfire; they scatter
     when their master falls.
@@ -741,15 +736,15 @@ Each phase ends with the full suite green and its own tests.
    are new; every other level is laid out as before. *The eldritch beast: a first pass is done*
    (§6): its chamber in its gate levels (only they changed), its souls sent across the run with
    abominations round them, its eyes, tentacles and great eye (`beast_test`, `capture_beast.gd`).
-   *The timetable: a second pass is done* (§9): rings of the great bell and its cords,
-   departments stepping through their subjects, the tier taught rising, the exam as the upgrade,
-   abominations quiet in class and surging in passing time, the beast fed by rings, hall doors,
-   belonging, passing time, a trial for every subject, its spell used for what it does (cords,
-   sigils, a stone on its track, a hoop, marks), lecterns and glyph seals (`Timetable`, `SchoolBell`,
-   `Lectern`, `ExamPrize`, `TrialPiece`, `GlyphSeal`; `timetable_test`, `trials_test`,
-   `capture_timetable.gd`, `capture_trials.gd`). Only the institute's dressing changed (its hall
-   doors, bells, lecterns and seals; `layout_fingerprint_test` re-pinned for it alone); its terrain
-   did not. Then field trials, and tuning.
+   *The timetable is built* (§9; settled in five passes on 2026-10-17): the great bell and its
+   cords, departments stepping through their ladders, the tier taught rising with rings,
+   prerequisites, passing time and belonging, exam papers sent on field trips and learned at
+   lanterns, instructors, classroom lecterns as pigeonholes, glyph seals, abominations quiet in
+   class and surging in passing time, and the beast fed by rings (`Timetable`, `SchoolBell`,
+   `Lectern`, `GlyphSeal`, `KeyRing.paper`, `MapInfo._attend`, `study`, `instructor_fell`;
+   `timetable_test`, `papers_test`, `capture_timetable.gd`). Only the institute's dressing changed
+   (its halls: classrooms in place of lecture halls and the exam hall; `layout_fingerprint_test`
+   re-pinned for it alone); the collapsed terrain did not. Then tuning.
 8. **The sky reworked**: *a first pass is done*: the level's wind set by its vanes, in gusts;
    balloons riding it along the row; temples opened by sequences of winds; the white realm and its
    storm; and **the whale**, roaming the top row on the winds, trapped, its belly and heart
@@ -772,97 +767,76 @@ Each phase ends with the full suite green and its own tests.
 - **Gate level size.** Whether gate levels are the band's ordinary size or larger. The worm and
   the bramble fit in the ordinary size (the bramble's shaft is half the level tall).
 - **The ward and bosses.** Whether boss hits break a ward charge like any hit, or several.
-- **The institute's timetable** (liked; *a first pass is built*, `docs/DEEPER_PLAN.md` §4e): the
-  institute's band-wide puzzle, as light is the cemetery's and the tower switches are the crags'. Nothing in it happens unless a
-  bell is rung or the wizard goes somewhere: there is no clock anywhere.
-  - *The bell is the switch.* A ring (the tower's great bell, or a rope in a few halls; pulled, or
-    struck by a bolt from across a shaft) ends the period and moves the whole level on to the next
-    of a short cycle (four or five): doors open and shut, classes move from hall to hall, the
-    library's ladders slide to the bay that period uses, the lecture halls' tiers fold up or down.
-    The cycle is dealt from the level seed so that some order of rings leads through, the way
-    `Stations.deal` deals the crags' switches; where the wizard stands when ringing is the hard
-    part. A timetable on a noticeboard (and the map) tells which doors each period opens, and who
-    teaches what, where and when. The period is one number kept in the level's record.
-  - *Passing time.* A ring starts passing time: the students pour out into the corridors (moving
-    cover, or in the way) and the halls in session for the coming period stand open, waiting. It
-    lasts until the wizard goes into a classroom, however long that takes: going in starts the
-    period, the doors settle and the corridors empty. So passing time is the wizard's to spend:
-    look round, open seals, pick the class, then commit to it.
-  - *Where you are supposed to be.* Scholars are calm (they leave the wizard be) while the wizard
-    is where they belong, and hostile (as now) otherwise:
-    - a corridor in passing time: belongs; a corridor in a period: truant;
-    - a hall whose class is in session: belongs (going in is what starts the period);
-    - a hall with no class in it: trespassing, whatever the time;
-    - the exam hall: always a fight, as now.
-    A scholar who sees the wizard where they do not belong (real line of sight, `RisoSight`, so
-    slipping past one facing away works) turns hostile, and those near it with it: a local fuss,
-    not a level-wide alarm. They calm down at the next bell, a way out of trouble that costs a ring.
-    Proctors walk the corridors in a period: the enforcers. Casting a spell or striking anyone
-    where scholars see it turns them hostile anywhere: disrupting a class is never allowed. A class
-    does not notice the wizard leaving mid-lesson (nothing happens without a bell), but the
-    corridor they step into is a truant's. The abominations care for none of it, the chaos in an
-    orderly place, and leading them into a class in session still works.
-  - *Learning is permanent.* What the institute teaches stays taught, for the run:
-    - *A lesson is a trial.* In a class in session the master sets a trial of its spell, lent to
-      the wizard for it: the spell used for what it does, on mock seals (the same literal uses the
-      glyph seals ask for, below), so a lesson is also practice. Passed, it adds a tier of that
-      spell (tier I if the wizard did not know it), up to its highest. Or beat the master, as now:
-      quicker, but the hall turns hostile, and those who saw stay so until the next bell.
-    - *Glyph seals.* Barriers bearing a spell's glyph (and sometimes a tier), opened only by that
-      spell used literally, for what it does, and by nothing else (no other spell, no plain bolt):
-      - hex: struck by a hex bolt from far off, across a gap no one could walk;
-      - seeker: round a corner, out of sight, where only a seeker's turning bolt reaches;
-      - slash: hanging cords or vines cut through at close range;
-      - nova: a ring of sigils round it, all caught in one nova at once;
-      - push: a heavy stone or shelf shoved aside along its track;
-      - lunge: a gap lunged across, the seal broken by the lunge going through it.
-      Once the wizard knows the spell (at the tier asked), every such seal in every institute level
-      is passable, so the institute plays like a Metroidvania and later levels go quicker for a
-      well-taught wizard.
-    - *Dealt from what the level teaches.* A level's seals ask only for spells some master in it
-      teaches, at a tier its trials can reach, or ones the wizard is sure to have (the starting
-      moves), so each level can be got through from within itself, dealt as `Stations.deal` deals
-      the towers, never leaving a level unwinnable. Seals the wizard already passes are free
-      shortcuts.
-    - The exam hall, holding the way on, sits in a late period and is sealed by lessons.
-  - So a level is a day planned: read the timetable, ring, spend passing time on what is open,
-    commit to the class you need, pass its trial, use the new tier on a seal (best in passing time,
-    unseen), and sit the exam. A wizard who already knows it all walks through.
-  - *Decided:* a lesson is a trial, not time; attending adds a tier; nothing happens without a
-    ring; going into a classroom ends passing time; glyph seals open only to their spell, used
-    literally.
-  - *Built in the first pass:* four periods a day, the last the exam's; one great bell a level,
-    hung from the ceiling by the way in over the timetable's board, rung by pulling (or striking)
-    any of its cords of light, one in each lecture hall and the library and one under the bell,
-    each reaching to the ceiling, the institute shaking while it rings out; hall doors open only while in session; passing time, ended by going into a class;
-    scholars calm where the wizard belongs and turning on them (and those near) when they see them
-    truant, cast or strike, calmed by the next bell; a trial in each lecture hall in session (the
-    master's spell lent, a mock seal at the lectern's wall), passed for a tier; every spell the
-    institute taught kept for the run and taken up again at any lectern; glyph seals just inside
-    the exam hall's and the library's doorways asking for a spell taught in the level, opened only
-    by that spell used literally (a hex bolt from over three cells off, a seeker's bolt turned
-    round, the rest by striking it). The rooms are close, so "far off" is a little over three
-    cells, not a gap no one could walk.
-  - *The second pass, decided 2026-10-17 and built* (`docs/DEEPER_PLAN.md` §4e, `timetable_test`): each lecture hall keeps its department, and its
-    class steps through that department's subjects, one a ring, wrapping round, with one empty
-    period (no class: trespassing): astronomy hex, seeker, warp; geology slash, lunge, rift; botany
-    push, levitate, ferry; necrology nova, astral, awareness. Every ring in a level raises the tier
-    taught there (a hex I class, rung, becomes a seeker II), up to each spell's top; levitate and
-    astral are taught only to a wizard who already has them (relics stay how the big moves are
-    found). The bell rings once a period: after a ring it is silent until the wizard has gone into
-    a class (unless no class is in session anywhere). The final exam is the upgrade: each trial
-    passed (or class master beaten by the wizard's own blow, its room then turning on them until
-    the next ring) goes on the exam's list at the tier it was taught; beating the examiner, the
-    wizard picks one of them to learn. Every ring makes that level's exam harder and feeds the
-    beast for the run (its great eye taking more blows, its tentacles quicker, and more souls).
-    Abominations stay quiet during a class and surge in passing time, more with every ring;
-    proctors walk the corridors in a period. A master felled by abominations leaves nothing, and
-    every class is seated afresh at each ring. Doors show the subject taught now, and its tier; the
-    rotation is learned by play, and the bell's yoke marks the period.
+- **The institute's timetable** (liked; built, `docs/DEEPER_PLAN.md` §4e, `timetable_test`,
+  `papers_test`): the institute's band-wide puzzle, as light is the cemetery's and the tower
+  switches are the crags'. Nothing in it happens unless a bell is rung or the wizard goes
+  somewhere: there is no clock anywhere. It was settled in five passes on 2026-10-17; this is how
+  it stands.
+  - *The bell is the switch.* One great bell a level, rung by pulling (or striking) its own cord or
+    any of the cords in the classrooms and the library. A ring ends the period and moves the level
+    on to the next. It starts passing time, seats every class afresh,
+    calms every scholar, raises the tier taught in the level (up to each spell's top), wakes the
+    abominations more and feeds the beast for the run. The bell rings once a period: after a ring it
+    is silent until the wizard has gone into a class (unless no class is in session anywhere).
+  - *Passing time* lasts until the wizard goes into a class in session, however long that takes, so
+    it is the wizard's to spend: look round, open seals, pick the class, then commit to it.
+    Abominations keep still during a class and surge in passing time; proctors walk the corridors
+    in a period.
+  - *Departments and their cycles.* A level has up to five classrooms, each a floor and a gallery
+    with doorways at both ends. Each department's three subjects are a ladder: astronomy hex,
+    seeker, warp; geology slash, lunge, rift; botany push, levitate, ferry; necrology nova, astral,
+    awareness. Each classroom keeps its department and steps through its cycle, one class a ring:
+    blocks of two classes of neighbouring rungs and then a break, each block a rung higher (hex,
+    seeker, break; seeker, warp, break; warp, hex, break). Every third class is empty, two rings in
+    one room climb a rung, and rooms start at different stages of a block. Levitate and astral are taught only to a wizard who already has them (relics stay
+    how the big moves are found). Doors show the subject taught now, its tier and the prerequisite;
+    the rotation is learned by play.
+  - *Where the wizard belongs.* Scholars are calm while the wizard is where they belong (the
+    corridors in passing time, the library, a class in session they are enrolled in) and turn on
+    them, and those near with them, when they see them truant (real line of sight, so slipping past
+    one facing away works): a local fuss, calmed by the next bell. Casting a spell or striking
+    anyone where scholars see it turns them anywhere. The abominations care for none of it, and
+    leading them into a class still works.
+  - *Prerequisites.* A class asks for the rung before it on its department's ladder, a tier
+    lower (at least I), known or carried as a paper; a department's first subject asks for nothing.
+    A classroom's doors open only to a wizard enrolled so, so the way through a level runs through
+    classes and depends on the papers carried and the rings rung.
+  - *Exam papers.* Attending a class is being in its classroom when the bell rings it out,
+    enrolled, its master there and not turned on the wizard. Its paper (the subject at the tier
+    taught) is sent to the level its department's portal leads to, to be fetched: a field trip.
+    Resitting a class with its paper in hand grades the paper up instead. Sneaking: an empty
+    classroom's lectern holds the next class's paper, lifted without the field trip. Each
+    classroom's lectern is a pigeonhole for one paper, swapped with the one picked up last. Papers
+    are keys: carried on the key ring, a slot each, kept through a death.
+  - *Papers are spells.* A paper is a spell known but not held, of any ability that takes a slot.
+    At a lit lantern the wizard studies: the oldest paper carried that teaches something takes its
+    slot, and the spell it puts out comes back as a paper. Shrines and lessons hand back what they
+    put out the same way. So the key ring is the wizard's spell book, anywhere in the run.
+  - *Instructors.* A classroom's master is the institute at its strongest: far tougher, quicker,
+    its whole class turning with it, and, turned on the wizard, moving as its subject does
+    (warping, rifting, ferrying, projecting itself, levitating, seeing through rock). Beaten by
+    the wizard it leaves a paper of its subject at the spell's top tier, once a room: the taste of
+    an exam.
+  - *Glyph seals* just inside the library's doorways ask for a damage spell taught in the level,
+    and open only to that spell striking them.
+  - *Tried and dropped.* A lesson as a trial: the master's spell lent for it and used for what it
+    does on mock seals, passed for a tier, with exam prizes and an exam made tougher by rings. Each
+    spell needed a special case kept up as spells changed, so exam papers replaced them. Seals
+    asking for a spell's literal use (a hex bolt from far off, a seeker's bolt round a corner, a
+    lunge across a gap) went with them. Then the exam itself: an exam hall holding the way on, open
+    in the last period to a wizard carrying papers, an examiner rising for each and the papers
+    learned once all were beaten. The field trip already did the learning's work, so the exam went,
+    its examiners' moves given to the instructors, and with it the run-long list of spells taught
+    and the library's lectern that gave them back: papers are the record now. The day of four
+    periods went with the exam period, for the cycle of blocks.
+  - *Planned, not built: more ways to work papers.* Merging, at a lectern: two papers of the same
+    subject and tier made one a tier higher, freeing a slot for the price of a paper. Stapling, at a
+    lectern: two papers of one department pinned into a bundle taking one slot and serving as
+    either prerequisite; held back, as it eases the key-ring pressure that makes cycling papers a
+    puzzle. A relic's plinth handing back the move it replaces as a paper too (for now it keeps it
+    on the plinth).
   - *Not yet:* classes moving from hall to hall and students pouring into the corridors in passing
-    time; the library's ladders and the lecture halls' folding tiers; proctors walking the
-    corridors in a period; the timetable on the map; seals out in the corridors, seals asking for
-    a tier, and the literal uses that want their own ground (a ring of sigils for a nova, a stone
-    on a track for a push, a gap for a lunge, cords for a slash: for now these seals open to the
-    spell striking them); checking that some order of rings leads through (every hall is in
-    session at some ring, so for now any order does).
+    time; the library's ladders sliding to the bay a period uses; a timetable board, and the
+    timetable on the map; seals out in the corridors and seals asking for a tier; checking that
+    some order of rings leads through (every hall is in session at some ring, so for now any order
+    does).

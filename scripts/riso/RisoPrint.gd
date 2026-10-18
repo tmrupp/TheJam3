@@ -343,6 +343,11 @@ static func ink_key(canvas: InkCanvas, color: int, cover: float, shapes: Array[P
 	if color == KeyRing.SKELETON:
 		canvas.lift_ink(ALL_PLATES, cover, shapes)
 		return
+	# An exam paper: a bare paper sheet, its folded corner and ruled lines in night.
+	if KeyRing.is_paper(color):
+		canvas.lift_ink(ALL_PLATES, cover, shapes.slice(0, 1))
+		canvas.ink(NIGHT, 0.55 * cover, shapes.slice(1), false)
+		return
 	for plate: int in key_inks(color):
 		canvas.ink(plate, cover, shapes)
 
@@ -350,7 +355,7 @@ static func ink_key(canvas: InkCanvas, color: int, cover: float, shapes: Array[P
 static func key_inks(color: int) -> Array[int]:
 	# A skeleton key prints as bare paper (ink_key); where it needs an ink (its map marks, sparks)
 	# it is night, screened to grey on the map.
-	if color == KeyRing.SKELETON:
+	if color == KeyRing.SKELETON or KeyRing.is_paper(color):
 		return [NIGHT]
 	var out: Array[int] = []
 	for plate: int in KEY_COLORS[posmod(color, KEY_COLORS.size())]:
@@ -1069,8 +1074,6 @@ const DRESS: Dictionary = {
 	"res://prefabs/ferry_raft.tscn": &"ferry",
 	"res://prefabs/gondola_station.tscn": &"station",
 	"res://prefabs/lesson.tscn": &"lesson",
-	"res://prefabs/exam_prize.tscn": &"examprize",
-	"res://prefabs/trial_piece.tscn": &"trialpiece",
 	"res://prefabs/way_back.tscn": &"department",
 }
 

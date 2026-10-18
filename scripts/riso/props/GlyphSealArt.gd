@@ -2,10 +2,8 @@ extends RisoProp
 ## A glyph seal (GlyphSeal): a slab of pale marble across a doorway (blue screened back on paper,
 ## SLAB), shading to night at its foot,
 ## its top rounded, bearing a paper disc with the mark of the spell it asks for (RisoGlyph) in night
-## ink, ringed by six small sigils. A blow that is not its spell, used literally, glances off: it
+## ink, ringed by six small sigils. A blow that is not its spell glances off: it
 ## jolts and its sigils flash. Broken, it splits down the middle and the halves sink into the floor.
-## A trial's mock seal is the disc alone, a target in a soft accent halo (the trial is the way to a tier):
-## on a short post on the floor, or hung from a peg on the lectern's wall for a bolt.
 
 ## The slab's half width and height (px), the disc's radius, and how big the mark is on it.
 const HALF_W: float = 42.0
@@ -14,9 +12,6 @@ const DISC: float = 25.0
 const MARK: float = 0.72
 ## How much of the blue ink the slab takes, on paper: pale, so it reads against the dark rooms.
 const SLAB: float = 0.5
-## A mock seal's disc radius, and how high its middle stands over the floor.
-const MOCK_DISC: float = 22.0
-const MOCK_UP: float = 52.0
 
 
 func _draw_art() -> void:
@@ -26,9 +21,6 @@ func _draw_art() -> void:
 	var g: float = _ground()
 	var jolt: float = sin(seal.since_glance * 60.0) * 5.0 * exp(-seal.since_glance * 8.0) if seal.since_glance < 0.6 else 0.0
 	var crumble: float = maxf(seal.crumbling, 0.0) / GlyphSeal.CRUMBLE
-	if seal.mock:
-		_mock(seal, g, jolt, crumble)
-		return
 	var sink: float = crumble * crumble * TALL
 	# Whole, one slab; broken, its two halves parting.
 	var halves: Array[PackedVector2Array] = []
@@ -57,23 +49,6 @@ func _draw_art() -> void:
 		ink.knock(RisoPrint.ALL_PLATES, sigils)
 	else:
 		ink.ink(RisoPrint.NIGHT, 0.7, sigils, false)
-
-
-## A trial's mock seal: the disc as a target (see the class description).
-func _mock(seal: GlyphSeal, g: float, jolt: float, crumble: float) -> void:
-	var c: Vector2 = Vector2(jolt, g - MOCK_UP)
-	if seal.mounted:
-		c = Vector2(jolt, g - 128.0 * 0.5)
-		ink.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.circle(Vector2(0, c.y - MOCK_DISC - 16.0), 3.5, 10)], false)
-		ink.ink(RisoPrint.NIGHT, 0.8, RisoDecor.strip(PackedVector2Array([Vector2(0, c.y - MOCK_DISC - 16.0), c + Vector2(-10, -MOCK_DISC + 2.0)]), 1.8, 1.6), false)
-		ink.ink(RisoPrint.NIGHT, 0.8, RisoDecor.strip(PackedVector2Array([Vector2(0, c.y - MOCK_DISC - 16.0), c + Vector2(10, -MOCK_DISC + 2.0)]), 1.8, 1.6), false)
-	else:
-		ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-4.0, c.y, 8.0, g - c.y, 3.0), RisoShapes.rrect(-16.0, g - 6.0, 32.0, 6.0, 3.0)])
-	var r: float = MOCK_DISC * (1.0 - crumble)
-	if r < 2.0:
-		return
-	ink.ink(RisoPrint.ACCENT, 0.3 + 0.15 * sin(t * 3.0 + phase), [RisoShapes.circle(c, r + 10.0, 28)])
-	_disc(seal, c, r, MARK * r / DISC)
 
 
 ## Its paper disc at `c`, `r` px across, with its spell's mark `scale` big in night ink.

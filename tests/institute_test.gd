@@ -1,17 +1,14 @@
 extends TestKit
 ## The institute (docs/REGIONS_PLAN.md §7; Institute, Scholar, Abomination, Breach, ExamDoor, Lesson,
-## Department, WayBack). Laid out: its halls of marble (an exam hall in its lower half holding the
-## way on, its examiner and exam doors at its doorways; the library's stacks, galleries of ledges;
-## lecture halls with tiers climbing to one side, a class on them and a department's portal at the
-## lectern), nothing else laid in them, breaches and classes out in the level, the same every
+## Department, WayBack). Laid out: its halls of marble (no exam hall: the way on stays where the level
+## laid it; the library's stacks, galleries of ledges;
+## classrooms, a floor and a gallery over it with a doorway at two ends at least, a class in each and
+## a department's portal in the first of each department), nothing else laid in them, breaches and classes out in the level, the same every
 ## build. In play: students cast bolts, some misfiring, the same way every time; each master casts
 ## its spell; a proctor shields the students round it; a librarian's hush silences the wizard's
 ## spells; abominations and scholars wound one another; a breach lets abominations out (up out of
 ## its crack, their feet on its floor) while the
-## wizard is near; the exam shuts its doors behind the wizard and opens them for good when its
-## master falls, the students scattering and its prizes left (one for each trial passed in the
-## level, at the tier taught), one of them to pick, once;
-## and a department's portal leads to a level of its band in the same world, with a way back that
+## wizard is near; and a department's portal leads to a level of its band in the same world, with a way back that
 ## closes once used.
 ## godot --headless --path . --script res://tests/institute_test.gd
 
@@ -35,13 +32,9 @@ func run() -> void:
 
 func generation() -> void:
 	print("laid out")
-	var exams: int = 0
 	var libraries: int = 0
 	var lectures: int = 0
-	var low: int = 0
-	var exits_in: int = 0
 	var doors_ok: bool = true
-	var examined: bool = true
 	var kept: bool = true
 	var tiers_ok: bool = true
 	var stacks_ok: bool = true
@@ -74,18 +67,6 @@ func generation() -> void:
 			if doors.is_empty():
 				doors_ok = false
 			match hall["kind"]:
-				&"exam":
-					exams += 1
-					if box.position.y * 2 >= w.size.y:
-						low += 1
-					if inside.has_point(w.exits.get(MapInfo.Exit.DEEPER, Vector2i(-1, -1))):
-						exits_in += 1
-					for d: Vector2i in doors:
-						if w.get_cell(d).type != LevelGen.Type.EXAM_DOOR or int(w.get_cell(d).extra_info) != i:
-							doors_ok = false
-					var masters: Array[Vector2i] = w.objects_of(LevelGen.Type.MASTER).filter(func(v: Vector2i) -> bool: return inside.has_point(v))
-					if masters.size() != 1 or int((w.get_cell(masters[0]).extra_info as Dictionary)["hall"]) != i:
-						examined = false
 				&"library":
 					libraries += 1
 					var rows: Dictionary = {}
@@ -100,12 +81,12 @@ func generation() -> void:
 					var heights: Dictionary = {}
 					for v: Vector2i in hall["floors"]:
 						heights[v.y] = true
-					if heights.size() != Institute.TIERS + 1:
+					if heights.size() != 2 or not heights.has(Institute.gallery_row(inside)) or doors.size() < Institute.MIN_DOORS:
 						tiers_ok = false
 					var portals: Array[Vector2i] = w.objects_of(LevelGen.Type.DEPARTMENT).filter(func(v: Vector2i) -> bool: return inside.has_point(v))
-					if portals.size() != 1:
+					if portals.size() != (1 if Institute.first_of(w, hall["dept"]) == i else 0):
 						depts_ok = false
-					else:
+					elif not portals.is_empty():
 						var extra: Array = w.get_cell(portals[0]).extra_info
 						if StringName(extra[0]) != hall["dept"] or NextWorldDef.archetype_at(int(extra[1])) != Institute.DEPARTMENTS[hall["dept"]]:
 							depts_ok = false
@@ -126,20 +107,16 @@ func generation() -> void:
 				kits[kind] = true
 				if RisoDecor.room_use(decor_seed, item["cell"]) != kind or w.interiors.has(item["cell"]):
 					kits_placed = false
-	check_eq(exams, LAID.size(), "every level has an exam hall")
-	check(low >= LAID.size() - 1, "in its lower half (%d of %d)" % [low, LAID.size()])
-	check_eq(exits_in, LAID.size(), "holding the way on")
-	check(doors_ok, "every hall has a doorway, and the exam hall's are its exam doors")
-	check(examined, "and its examiner, a master of that hall")
+	check(doors_ok, "every hall has a doorway")
 	check(libraries >= LAID.size() - 1 and stacks_ok, "a library: galleries of ledges, rows of floor over one another, its librarian")
-	check(lectures >= LAID.size() and tiers_ok, "lecture halls, their tiers climbing a row at a time")
-	check(depts_ok, "each with its department's portal, leading into the band it studies")
+	check(lectures >= LAID.size() * 3 and tiers_ok, "classrooms (%d in %d levels): a floor and a gallery, with %d doorways or more" % [lectures, LAID.size(), Institute.MIN_DOORS])
+	check(depts_ok, "the first of each department with its portal, leading into the band it studies")
 	check(kept, "walled in marble, and nothing else laid inside them")
 	check(outside > 0, "breaches and abominations out in the level")
 	check(kits.has(&"alchemy") and kits.has(&"ritual"), "laboratories hold alchemy equipment, and sanctums ritual equipment")
 	check(kits_placed, "each only in its own kind of room, out of the halls")
 	var gate: LevelGen = build(Vector2i(28, Bosses.row_of(&"beast")))
-	check(gate != null and not Institute.exam_hall(gate).is_empty() and count_of(gate, LevelGen.Type.BOSS) == 1, "the beast's gate level has its exam hall and its boss")
+	check(gate != null and not Institute.chamber(gate).is_empty() and count_of(gate, LevelGen.Type.BOSS) == 1, "the beast's gate level has its chamber and its boss")
 
 
 # ------------------------------------------------------------------ in play
@@ -149,7 +126,7 @@ func play() -> void:
 	await _go(Vector2i(28, NextWorldDef.first_depth(&"institute")))
 	player.set_physics_process(false)
 	print("in play")
-	check(placed("student.tscn").size() > 0 and placed("master.tscn").size() > 0 and placed("exam_door.tscn").size() > 0, "students, masters and exam doors are there")
+	check(placed("student.tscn").size() > 0 and placed("master.tscn").size() > 0 and placed("exam_door.tscn").size() > 0, "students, masters and hall doors are there")
 	await _students()
 	await _hop()
 	await _climb()
@@ -159,8 +136,6 @@ func play() -> void:
 	await _masters()
 	await _staff()
 	await _three_sides()
-	info.record().passing = false
-	await _exam()
 	await _department()
 
 
@@ -237,41 +212,71 @@ func _hop() -> void:
 ## it waits, facing it, rather than leaping at it again and again.
 func _climb() -> void:
 	print("an abomination at a step and a wall")
-	# In passing time, when the abominations act up (Timetable).
-	info.record().passing = true
+	var home: Vector2i = info.coord
+	var found: Dictionary = _step_and_wall()
+	# Not every level has both: look in the band's next levels.
+	for k: int in range(1, 4):
+		if not found.is_empty():
+			break
+		await _go(Vector2i(home.x, NextWorldDef.band_row(&"institute", k)))
+		player.set_physics_process(false)
+		found = _step_and_wall()
+	check(not found.is_empty(), "a step and a wall to try")
+	if not found.is_empty():
+		await _climb_at(found["step"], found["step_way"], found["wall"], found["wall_way"])
+	if info.coord != home:
+		await _go(home)
+		player.set_physics_process(false)
+
+
+## A step a cell high and a wall two cells high (or more) out of the halls, each with a floor before it
+## and the way up (+1 right, -1 left): {"step", "step_way", "wall", "wall_way"}, or {} if the level
+## lacks either.
+func _step_and_wall() -> Dictionary:
 	var w: LevelGen = info.world
-	var step: Variant = null
-	var wall: Variant = null
+	var out: Dictionary = {}
 	for v: Vector2i in w.free_floors():
-		var r: Vector2i = v + Vector2i.RIGHT
-		if Institute.hall_at(w, v) >= 0 or w.is_ground(v + Vector2i.UP) or w.is_ground(v + Vector2i(0, -2)) or w.is_ground(v + Vector2i.LEFT) or not w.is_ground(v + Vector2i(-1, 1)) or not w.is_ground(r):
-			continue
-		if step == null and not w.is_ground(r + Vector2i.UP) and not w.is_ground(r + Vector2i(0, -2)):
-			step = v
-		elif wall == null and w.is_ground(r + Vector2i.UP) and w.is_ground(r + Vector2i(0, -2)):
-			wall = v
-	check(step != null and wall != null, "a step and a wall to try")
-	if step == null or wall == null:
-		return
-	var at: Vector2i = step
-	var thing: Abomination = _spawn_thing(at + Vector2i(-1, 0), 1)
-	player.global_position = info.cell_position(at + Vector2i(4, -1))
+		for way: int in [1, -1]:
+			var r: Vector2i = v + Vector2i(way, 0)
+			if Institute.hall_at(w, v) >= 0 or w.is_ground(v + Vector2i.UP) or w.is_ground(v + Vector2i(0, -2)) or w.is_ground(v - Vector2i(way, 0)) or not w.is_ground(v + Vector2i(-way, 1)) or not w.is_ground(r):
+				continue
+			if not out.has("step") and not w.is_ground(r + Vector2i.UP) and not w.is_ground(r + Vector2i(0, -2)):
+				out["step"] = v
+				out["step_way"] = way
+			elif not out.has("wall") and w.is_ground(r + Vector2i.UP) and w.is_ground(r + Vector2i(0, -2)):
+				out["wall"] = v
+				out["wall_way"] = way
+	return out if out.has("step") and out.has("wall") else {}
+
+
+## An abomination after its quarry up the step at `step` (rising the way `step_way` points), then at
+## the wall at `wall` (`wall_way`).
+func _climb_at(step: Vector2i, step_way: int, wall: Vector2i, wall_way: int) -> void:
+	# In passing time, when the abominations act up (Timetable), with no scholar about to fight them.
+	info.record().passing = true
+	for n: Node in get_nodes_in_group(&"scholar"):
+		var at: Vector2 = (n as Node2D).global_position
+		if at.distance_to(info.cell_position(step)) < 1500.0 or at.distance_to(info.cell_position(wall)) < 1500.0:
+			n.queue_free()
+	await frames(2)
+	var thing: Abomination = _spawn_thing(step + Vector2i(-step_way, 0), 1)
+	player.global_position = info.cell_position(step + Vector2i(4 * step_way, -1))
 	await until(func() -> bool: return thing.grounded)
 	var start: float = thing.global_position.y
 	var climbed: bool = await within(func() -> bool: return thing.global_position.y < start - 100.0, 4.0)
 	check(climbed and thing.quarry != null, "at a step a cell high, it hops up after its quarry")
 	thing.queue_free()
-	at = wall
-	thing = _spawn_thing(at + Vector2i(-1, 0), 1)
-	player.global_position = info.cell_position(at + Vector2i(3, -2))
+	var d: float = float(wall_way)
+	thing = _spawn_thing(wall + Vector2i(-wall_way, 0), 1)
+	player.global_position = info.cell_position(wall + Vector2i(3 * wall_way, -2))
 	await until(func() -> bool: return thing.grounded)
 	var airborne: int = 0
 	for i: int in range(180):
 		await physics_frame
 		if not thing.grounded:
 			airborne += 1
-	var at_wall: float = info.cell_position(at).x
-	check(thing.quarry != null and thing.quarry.global_position.x > thing.global_position.x and thing.facing > 0.0 and thing.global_position.x > at_wall - 40.0, "at a wall two cells high, its quarry beyond, it goes up to it and waits facing it")
+	var at_wall: float = info.cell_position(wall).x
+	check(thing.quarry != null and (thing.quarry.global_position.x - thing.global_position.x) * d > 0.0 and thing.facing * d > 0.0 and thing.global_position.x * d > at_wall * d - 40.0, "at a wall two cells high, its quarry beyond, it goes up to it and waits facing it")
 	check(airborne == 0, "and never leaps at it")
 	thing.queue_free()
 	player.health.health = player.health.max_health
@@ -472,67 +477,6 @@ func _three_sides() -> void:
 			n.queue_free()
 	player.phasing = false
 	await frames(2)
-
-
-## The exam: in, its doors shut behind; its master slain, they open for good, its students scatter
-## and its lesson waits, teaching a tier of its spell, once.
-func _exam() -> void:
-	print("the exam")
-	# The exam is in session in the timetable's last period (timetable_test rings its way there); two
-	# trials passed in the level are its list.
-	info.record().rings = Timetable.EXAM_PERIOD
-	info.pass_trial(&"hex", 2)
-	info.pass_trial(&"nova", 1)
-	var hall: Dictionary = Institute.exam_hall(info.world)
-	# Outside it, so its doors are awake (far off, a door sleeps with its chunk).
-	player.global_position = info.cell_position((hall["steps"] as Array)[0])
-	var index: int = info.world.halls.find(hall)
-	var inside: Rect2i = hall["inside"]
-	var doors: Array[Node] = placed("exam_door.tscn").filter(func(d: Node) -> bool: return (d as ExamDoor).hall == index)
-	check(await within(func() -> bool: return doors.all(func(d: Node) -> bool: return not (d as ExamDoor).shut()), 0.5), "its doors stand open before the exam")
-	var master: Scholar = info.examiner(index)
-	check(master != null, "its master is there")
-	if master == null:
-		return
-	var students: Array[Scholar] = []
-	for n: Node in get_nodes_in_group(&"student"):
-		if (n as Scholar).own_master() == master:
-			students.append(n as Scholar)
-	player.global_position = info.cell_position(Vector2i(inside.position.x + 2, inside.end.y - 1))
-	player.phasing = true
-	check(await within(func() -> bool: return doors.all(func(d: Node) -> bool: return (d as ExamDoor).shut()), 1.0), "the wizard inside, its doors shut behind them")
-	check(info.solid_at((doors[0] as Node2D).global_position), "and stop sight and light")
-	(master.get_node("Wound") as Wound).hit(99, Vector2.UP)
-	check(await within(func() -> bool: return doors.all(func(d: Node) -> bool: return not (d as ExamDoor).shut()), 1.0), "its master slain, they open")
-	check(info.record().exams.has(index), "and the record keeps it passed")
-	check(not students.is_empty() and students.all(func(s: Scholar) -> bool: return not is_instance_valid(s) or s.scatter > 0.0), "its students scatter")
-	await frames(2)
-	check(placed("lesson.tscn").is_empty(), "the examiner leaves no lesson: the exam is the upgrade")
-	var prizes: Array[Node] = placed("exam_prize.tscn")
-	var offered: Array = prizes.map(func(n: Node) -> Array: return (n as ExamPrize).holds())
-	check(prizes.size() == 2 and offered.has([&"hex", 2]) and offered.has([&"nova", 1]), "its prizes wait: each trial passed here, at the tier it was taught (%s)" % [offered])
-	player.phasing = false
-	var pick: Array[Node] = prizes.filter(func(n: Node) -> bool: return (n as ExamPrize).spell == &"hex")
-	if pick.is_empty():
-		return
-	var was: int = Abilities.tier(player, &"hex")
-	(pick[0] as ExamPrize).take()
-	check(Abilities.spell(player) == &"hex" and Abilities.tier(player, &"hex") == maxi(was, 2), "the wizard picks hex: they know hex II")
-	check(int(info.run.taught.get(&"hex", 0)) >= 2 and info.record().exam_prize, "kept for the run, the pick made")
-	check(await until(func() -> bool: return placed("exam_prize.tscn").is_empty()), "the other prize is gone: one pick an exam")
-	print("again")
-	info.record().slain.clear()
-	await _go(info.coord)
-	player.set_physics_process(false)
-	var again: Scholar = info.examiner(index)
-	check(again != null, "the master is back after a death")
-	await frames(2)
-	check(placed("exam_door.tscn").all(func(d: Node) -> bool: return (d as ExamDoor).hall != index or not (d as ExamDoor).shut()) and info.record().exams.has(index), "but the exam stays passed")
-	check(placed("exam_prize.tscn").is_empty(), "and its pick stays made")
-	if again != null:
-		(again.get_node("Wound") as Wound).hit(99, Vector2.UP)
-		await frames(3)
-	check(placed("lesson.tscn").is_empty() and placed("exam_prize.tscn").is_empty(), "beaten again, it gives nothing more")
 
 
 ## A department's portal: to a level of its band in the same world, coming out of the way back it

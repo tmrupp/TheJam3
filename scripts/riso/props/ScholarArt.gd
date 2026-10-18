@@ -15,10 +15,14 @@ class_name ScholarArt
 ##   with a pink ring, the links to those it shields flashing as it shields them.
 ## - a librarian: in pale tan, hooded, no hat, round paper spectacles over its eyes, a book held open before it,
 ##   and round it the ring of its hush, faint blue, rippling.
+## - an instructor (a classroom's master, Scholar.instructor) teaching ferry stands on a raft (blue
+##   planks, night under); projecting itself, PROJECTED_MOTES paper twinkles circle it.
 ## Pink is danger, so every spell is pink, and so is an eye's pupil while it is turned on the wizard
 ## (Scholar.hostile); calm (the timetable, Timetable), its pupils are night. Stunned, stars circle
 ## over the hat and its eyes shut.
 
+## How many paper twinkles circle a projected instructor.
+const PROJECTED_MOTES: int = 6
 ## Px per art unit, by kind.
 const SIZE: Dictionary = {&"student": 2.7, &"master": 3.5, &"proctor": 3.0, &"librarian": 2.9}
 ## The hem's points across, in art units, and how far a stride is (px walked a step).
@@ -90,6 +94,7 @@ func _draw_art() -> void:
 	var xf: Transform2D = Transform2D(0.0, Vector2(f * k, k), 0.0, Vector2(0, g)) * Transform2D(lean, Vector2.ZERO)
 	var ph: float = s.walked / STRIDE
 	var bob: float = absf(sin(ph * PI)) * 0.8 * walk + sin(t * 1.6 + phase) * 0.25
+	_instructor(s, g)
 	if ink.rigged and InkCanvas.rig_on_gpu:
 		_draw_rigged(s, kind, xf, ph, bob, wind, stunned, scared)
 		return
@@ -167,6 +172,27 @@ func _draw_art() -> void:
 		_pips(xf * (crown + Vector2(0, -3.5)), s)
 	if stunned:
 		_stun_mark(xf * (crown + Vector2(0, -4.0)))
+
+
+## An instructor's marks (see the class description), under it: a raft at its feet `g` while it
+## ferries, paper twinkles round it while it is projected.
+func _instructor(s: Scholar, g: float) -> void:
+	if s.move == &"":
+		return
+	ink.on_bone(0)
+	if s.move == &"ferry":
+		var raft: Array[PackedVector2Array] = []
+		for i: int in range(4):
+			raft.append(RisoShapes.rrect(-46.0 + float(i) * 23.5, g - 2.0, 21.0, 12.0, 3.0))
+		ink.knock(UNDER, raft)
+		ink.ink(RisoPrint.BLUE, 1.0, raft)
+		ink.ink(RisoPrint.NIGHT, 0.5, [RisoShapes.rrect(-48.0, g + 6.0, 96.0, 6.0, 3.0)], false)
+	if s.projected > 0.0:
+		var motes: Array[PackedVector2Array] = []
+		for k: int in range(PROJECTED_MOTES):
+			var a: float = TAU * float(k) / float(PROJECTED_MOTES) + t * 2.4
+			motes.append(Transform2D(t * 3.0 + float(k), Vector2(0, g - 60.0) + Vector2(cos(a) * 58.0, sin(a) * 78.0)) * RisoShapes.sparkle(Vector2.ZERO, 7.0))
+		ink.lift_ink(RisoPrint.ALL_PLATES, 1.0, motes)
 
 
 func _ready() -> void:

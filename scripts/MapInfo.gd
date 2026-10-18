@@ -676,7 +676,6 @@ func _load_level () -> void:
 
 ## The place's layout is ready: build it in the scene as its record leaves it.
 func _level_ready (built: LevelGen) -> void:
-	end_trial(false)
 	gust_clock = 0.0
 	if world != null:
 		loader.clear()
@@ -684,7 +683,6 @@ func _level_ready (built: LevelGen) -> void:
 	wizard()
 	light_gates.clear()
 	exam_doors.clear()
-	exams_begun.clear()
 	last_tower = -1
 	_deal_stations()
 	loader.build(world)
@@ -700,7 +698,7 @@ func _level_ready (built: LevelGen) -> void:
 	_spawn_whale()
 	_spawn_souls()
 	_spawn_lessons()
-	_spawn_exam_prizes()
+	_lay_papers()
 	_spawn_way_back()
 	# Rock broken before, under things you stand at: their ledges.
 	_props.clear()
@@ -768,47 +766,58 @@ func world_at (at: Vector2i) -> LevelGen:
 
 # ------------------------------------------------------------------ the institute
 
-## The exam doors of the level being played (ExamDoor), by cell: whether each is up now; and the
-## exams begun since it was loaded (by hall, an index into LevelGen.halls).
+## The hall doors of the level being played (ExamDoor), by cell: whether each is up now.
 var exam_doors: Dictionary = {}
-var exams_begun: Dictionary = {}
 
-## The wizard has stepped inside exam hall `hall`: its exam begins (its doors drop behind them).
-func exam_begin (hall: int) -> void:
-	if not record().exams.has(hall):
-		exams_begun[hall] = true
-
-## Whether exam hall `hall`'s exam is under way: begun, not passed, its examiner still standing.
-func exam_running (hall: int) -> bool:
-	return exams_begun.has(hall) and not record().exams.has(hall) and examiner(hall) != null
-
-## Exam hall `hall`'s master, standing in the level, or null.
-func examiner (hall: int) -> Scholar:
-	for node: Node in get_tree().get_nodes_in_group(&"master"):
-		var m: Scholar = node as Scholar
-		if m != null and m.hall == hall and not m.is_queued_for_deletion():
-			return m
-	return null
-
-## Exam hall `hall`'s master has fallen: the exam is passed, and its doors rise for good (only an
-## exam hall's: another hall's master falling passes nothing).
-func exam_passed (hall: int) -> void:
-	if world == null or hall < 0 or hall >= world.halls.size() or world.halls[hall]["kind"] != &"exam":
+## A classroom's master (Scholar.instructor) fell to the wizard's own blow at `pos`, teaching `a`: it
+## leaves a paper of `a` at the spell's top tier, once a classroom (`hall`, LevelRecord.prizes), if the
+## institute teaches `a` to the wizard (teaches). The prize for beating a class at its strongest.
+func instructor_fell (hall: int, pos: Vector2, a: StringName) -> void:
+	var rec: LevelRecord = record()
+	if a == &"" or rec.prizes.has(hall) or not teaches(a):
 		return
-	record().exams[hall] = true
-	exams_begun.erase(hall)
-	_spawn_exam_prizes()
+	rec.prizes[hall] = true
+	var code: int = KeyRing.paper(a, Abilities.max_tier(a))
+	_spawn_dropped_key.call_deferred(rec.drop_key(pos, code), pos, code)
 	save_run()
 
-## The wizard inside an exam hall (past its doorways) begins its exam.
-func _watch_exams () -> void:
-	if world == null or world.halls.is_empty() or player == null:
-		return
-	var c: Vector2i = cell_at(player.global_position)
-	for i: int in range(world.halls.size()):
-		var hall: Dictionary = world.halls[i]
-		if hall["kind"] == &"exam" and (hall["inside"] as Rect2i).has_point(c) and not exams_begun.has(i):
-			exam_begin(i)
+## At a lit lantern (Checkpoint), at `at`: the oldest paper carried that teaches something
+## (learn_paper) is learned. Returns whether one was.
+func study (at: Vector2) -> bool:
+	if player == null or not is_instance_valid(player):
+		return false
+	for code: int in player.keyring.papers():
+		if learn_paper(code, at):
+			return true
+	return false
+
+## Exam paper `code` learned, at `at`: its spell takes its slot at the paper's tier, and the spell it
+## puts out of the slot comes back as a paper (put_back). A paper of the spell already held, at a tier
+## no higher than it is known, teaches nothing (and stays on the ring). Returns whether it taught.
+func learn_paper (code: int, at: Vector2) -> bool:
+	var a: StringName = KeyRing.paper_spell(code)
+	var tier: int = KeyRing.paper_tier(code)
+	if a == &"" or Abilities.slot_of(a) == &"":
+		return false
+	var held: StringName = Abilities.spell(player, Abilities.slot_of(a))
+	if held == a and Abilities.tier(player, a) >= tier:
+		return false
+	var held_tier: int = Abilities.tier(player, held) if held != &"" else 0
+	player.keyring.spend(code)
+	Abilities.set_tier(player, a, tier)
+	if held != &"" and held != a:
+		put_back(held, held_tier, at)
+	RisoFx.burst(&"gain", at, Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.GLOW])
+	Wound.shake(6.0, 0.15)
+	save_run()
+	return true
+
+## Spell `a`, known at `tier`, put out of its slot (a lantern's study, a shrine's boon, a lesson): it
+## comes back as an exam paper (KeyRing.paper), onto the key ring (one put off a full ring is left
+## lying at `at`).
+func put_back (a: StringName, tier: int, at: Vector2) -> void:
+	if a != &"" and tier > 0:
+		give_paper(KeyRing.paper(a, tier), at)
 
 ## A master fell at `pos`, having mastered `ability`: its lesson (Lesson) waits where it fell, once
 ## a master (the one at `cell`): beaten again after a death, it leaves nothing more.
@@ -843,20 +852,6 @@ func _spawn_lesson (cell: Vector2i) -> void:
 
 # ------------------------------------------------------------------ the timetable
 
-## The lecture hall whose trial is under way (-1 for none, begin_trial), its subject and the tier
-## taught, what was put down to lend it ([spell, tier], or [] when nothing was lent), its pieces
-## (a mock glyph seal, GlyphSeal, or pieces laid by TrialPiece.lay), and, in a warp's trial, whether
-## the wizard has cast the warp and whether they have been out of the hall since (to come back).
-var trial_hall: int = -1
-var trial_spell: StringName = &""
-var trial_tier: int = 0
-var lent: Array = []
-var trial_pieces: Array[Node2D] = []
-var trial_away: bool = false
-var trial_left: bool = false
-## A trial's mock seal (loaded when first needed), and the exam's prizes (ExamPrize).
-const GLYPH_SEAL: String = "res://prefabs/glyph_seal.tscn"
-const EXAM_PRIZE: String = "res://prefabs/exam_prize.tscn"
 ## The physics frame a bell was last rung in (a spell that rings one is not held against the wizard).
 var _rung_frame: int = -1
 ## The great bell: how long it rings out once rung (seconds), the institute shaking with it at first
@@ -864,14 +859,18 @@ var _rung_frame: int = -1
 const BELL_TIME: float = 3.0
 const BELL_SHAKE: float = 5.0
 var since_bell: float = 99.0
-## How much harder the exam gets with each ring of the bell in its level: its examiner's blows more
-## (EXAM_HP_PER_RING), and its casts sooner, by EXAM_HASTE a ring, up to EXAM_HASTE_MOST.
-const EXAM_HP_PER_RING: int = 1
-const EXAM_HASTE: float = 0.12
-const EXAM_HASTE_MOST: float = 1.8
 ## How much more the abominations act up in passing time with each ring in their level: their
 ## breaches, growth and launches that much sooner a ring (Abomination, Breach).
 const SURGE_PER_RING: float = 0.5
+## Field papers: how far (cells) from a field level's way in its waiting papers lie, at least (where
+## the level allows), and the salt for the run seed that deals their floors.
+const PAPER_CLEAR: int = 10
+const PAPER_DEAL: int = 6600
+## A lectern's paper lifted in a period is kept by its hall and the rings (LevelRecord.lifted): this
+## many rings to a hall.
+const LIFT_KEY: int = 10000
+## No field level (a hall with no department's portal).
+const NO_FIELD: Vector2i = Vector2i(-99999, -99999)
 
 ## Whether the level being played keeps the institute's timetable (Timetable.kept_in).
 func timetabled () -> bool:
@@ -883,7 +882,26 @@ func wizard_belongs () -> bool:
 	if world == null or player == null or not is_instance_valid(player):
 		return false
 	var rec: LevelRecord = record()
-	return Timetable.belongs(world, rec.rings, rec.passing, cell_at(player.global_position))
+	var at: Vector2i = cell_at(player.global_position)
+	if not Timetable.belongs(world, rec.rings, rec.passing, at):
+		return false
+	var hall: int = Timetable.hall_inside(world, at)
+	return hall < 0 or world.halls[hall]["kind"] != &"lecture" or enrolled(hall)
+
+## Whether the wizard is enrolled in lecture hall `hall`'s class now (Timetable.prereq): it has a
+## class, and asks for nothing, or for a subject they know at the tier it needs (Timetable.need), or
+## carry an exam paper of at that tier or higher.
+func enrolled (hall: int) -> bool:
+	var a: StringName = subject_of(hall)
+	if a == &"" or player == null or not is_instance_valid(player):
+		return false
+	var before: StringName = Timetable.prereq(a)
+	if before == &"":
+		return true
+	var tier: int = Timetable.need(tier_of(hall))
+	if Abilities.tier(player, before) >= tier:
+		return true
+	return player.keyring.papers().any(func(code: int) -> bool: return KeyRing.paper_spell(code) == before and KeyRing.paper_tier(code) >= tier)
 
 ## What lecture hall `hall` teaches now (Timetable.subject; &"" for no class), and at what tier.
 func subject_of (hall: int) -> StringName:
@@ -900,14 +918,15 @@ func bell_ready () -> bool:
 	var rec: LevelRecord = record()
 	return not rec.passing or not Timetable.any_class(world, rec.rings)
 
-## The great bell was rung (one of its cords pulled, SchoolBell), if it can be (bell_ready): the
-## level moves on a period and passing time begins; a trial under way is left unfinished; every class
-## is seated afresh (_seat_classes) and every scholar calms down; the beast is fed (RunState.fed); and
-## the institute shakes while the bell rings out (BELL_TIME). Returns whether it rang.
+## The great bell was rung (one of its cords pulled, SchoolBell), if it can be (bell_ready): a wizard
+## in a class as it rings has attended it (_attend); the level moves on a period and passing time
+## begins; every class is seated afresh (_seat_classes) and every scholar calms down; the beast is fed
+## (RunState.fed); and the institute shakes while the bell rings out (BELL_TIME). Returns whether it
+## rang.
 func ring_period () -> bool:
 	if not bell_ready():
 		return false
-	end_trial(false)
+	_attend()
 	_rung_frame = Engine.get_physics_frames()
 	since_bell = 0.0
 	Wound.shake(BELL_SHAKE, BELL_TIME)
@@ -916,15 +935,129 @@ func ring_period () -> bool:
 	rec.passing = true
 	run.fed += 1
 	_seat_classes()
-	# The exam's examiner, standing, takes the harder exam's blows (exam_hp).
-	for i: int in range(world.halls.size()):
-		var ex: Scholar = examiner(i) if world.halls[i]["kind"] == &"exam" else null
-		if ex != null and not exam_running(i):
-			(ex.get_node("Wound") as Wound).hp += EXAM_HP_PER_RING
 	for node: Node in get_tree().get_nodes_in_group(&"scholar"):
 		(node as Scholar).calm()
 	save_run()
 	return true
+
+## The wizard rang the period out inside a lecture hall's class: they attended it, if the class was
+## theirs to attend: enrolled in it (enrolled), its master there and not turned on them (beaten or
+## crossed, it expels them), and a subject the institute teaches them (teaches). A paper of its
+## subject carried at a lower tier is graded up to the tier taught, there in hand (resitting);
+## otherwise its exam paper (its subject at the tier taught, KeyRing.paper) waits in the level its
+## department's portal leads to (field_of; RunState.papers_out, laid there by _lay_papers).
+func _attend () -> void:
+	if player == null or not is_instance_valid(player):
+		return
+	var hall: int = Timetable.hall_inside(world, cell_at(player.global_position))
+	if hall < 0 or world.halls[hall]["kind"] != &"lecture":
+		return
+	var a: StringName = subject_of(hall)
+	var m: Scholar = master_in(hall)
+	var to: Vector2i = field_of(hall)
+	if a == &"" or m == null or m.roused or not teaches(a) or not enrolled(hall):
+		return
+	var tier: int = tier_of(hall)
+	for code: int in player.keyring.papers():
+		if KeyRing.paper_spell(code) == a and KeyRing.paper_tier(code) < tier:
+			player.keyring.replace(code, KeyRing.paper(a, tier))
+			RisoFx.burst(&"gain", player.global_position + Vector2(0, -60), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.GLOW])
+			return
+	if to == NO_FIELD:
+		return
+	var waiting: Array = run.papers_out.get(to, [])
+	waiting.append(KeyRing.paper(a, tier_of(hall)))
+	run.papers_out[to] = waiting
+	RisoFx.burst(&"gain", player.global_position + Vector2(0, -60), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
+
+## The level lecture hall `hall`'s department's portal leads to (Department, in the first classroom
+## of the department, Institute.first_of), or NO_FIELD.
+func field_of (hall: int) -> Vector2i:
+	var dept: StringName = world.halls[hall]["dept"]
+	for v: Vector2i in world.objects_of(LevelGen.Type.DEPARTMENT):
+		var extra: Array = world.get_cell(v).extra_info as Array
+		if StringName(extra[0]) == dept:
+			return Vector2i(coord.x, int(extra[1]))
+	return NO_FIELD
+
+## The exam papers waiting in this level (RunState.papers_out, from classes attended), laid on its
+## floors as keys left lying are (LevelRecord.dropped), each at least PAPER_CLEAR cells from the way in
+## where the level allows, dealt by the run seed.
+func _lay_papers () -> void:
+	var waiting: Array = run.papers_out.get(coord, [])
+	if waiting.is_empty() or world == null:
+		return
+	run.papers_out.erase(coord)
+	var start: Vector2i = world.exits.get(Exit.BACK, Vector2i(-1, -1))
+	var floors: Array[Vector2i] = world.free_floors()
+	var far: Array[Vector2i] = floors.filter(func(v: Vector2i) -> bool: return LevelGen.dist(v, start) >= PAPER_CLEAR)
+	if far.is_empty():
+		far = floors
+	if far.is_empty():
+		return
+	var rec: LevelRecord = record()
+	for k: int in range(waiting.size()):
+		var code: int = waiting[k]
+		var v: Vector2i = far[posmod(Rules.level_seed(run.run_seed, PAPER_DEAL + code * 31 + k + coord.x * 977 + coord.y * 131), far.size())]
+		var at: Vector2 = cell_position(v)
+		_spawn_dropped_key(rec.drop_key(at, code), at, code)
+	save_run()
+
+## Sneaking: the exam paper lecture hall `hall`'s lectern holds while the hall is empty (its class
+## away): its next class's, at the tier taught after the next ring, once a period (LevelRecord.lifted),
+## and only one the institute teaches the wizard; else 0.
+func lectern_paper (hall: int) -> int:
+	if world == null or hall < 0 or hall >= world.halls.size() or world.halls[hall]["kind"] != &"lecture" or subject_of(hall) != &"":
+		return 0
+	var rec: LevelRecord = record()
+	if rec.lifted.has(hall * LIFT_KEY + rec.rings):
+		return 0
+	var next: StringName = Timetable.subject(world, hall, rec.rings + 1)
+	if next == &"" or not teaches(next):
+		return 0
+	return KeyRing.paper(next, Timetable.tier_taught(next, rec.rings + 1))
+
+## The paper on lecture hall `hall`'s lectern now: one left there (LevelRecord.pigeonholes), else,
+## while the room is empty, the next class's (lectern_paper); 0 for none.
+func lectern_slot (hall: int) -> int:
+	var rec: LevelRecord = record()
+	if rec.pigeonholes.has(hall):
+		return int(rec.pigeonholes[hall])
+	var code: int = lectern_paper(hall)
+	return code if code != 0 and not player.keyring.has(code) else 0
+
+## Lecture hall `hall`'s lectern used from `at`: the paper the wizard picked up last goes onto it, and
+## the one it held (lectern_slot) comes onto the ring; either may be missing. A next class's paper
+## lifted is gone from it for the period (LevelRecord.lifted).
+func lectern_swap (hall: int, at: Vector2) -> void:
+	var rec: LevelRecord = record()
+	var held: int = lectern_slot(hall)
+	var papers: Array[int] = player.keyring.papers()
+	var mine: int = papers[-1] if not papers.is_empty() else 0
+	if (held == 0 and mine == 0) or held == mine:
+		return
+	if held != 0 and not rec.pigeonholes.has(hall):
+		rec.lifted[hall * LIFT_KEY + rec.rings] = true
+	if mine != 0:
+		player.keyring.spend(mine)
+		rec.pigeonholes[hall] = mine
+	else:
+		rec.pigeonholes.erase(hall)
+	if held != 0:
+		give_paper(held, at)
+	else:
+		save_run()
+
+## Exam paper `code` taken at `at`: onto the ring, as a key is (one put off a full ring is left
+## lying at `at`, KeyRing.take).
+func give_paper (code: int, at: Vector2) -> void:
+	var had: int = player.keyring.take(code)
+	if had >= 0:
+		var rec: LevelRecord = record()
+		var id: int = rec.drop_key(at, had)
+		_spawn_dropped_key.call_deferred(id, at, had)
+	RisoFx.burst(&"gain", at + Vector2(0, -40), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
+	save_run()
 
 ## Whether the scholar laid at cell `v` is away now: one of a lecture hall's class while the hall has
 ## no class (LevelLoader.place_cell leaves it out).
@@ -956,15 +1089,17 @@ func _seat_classes () -> void:
 				if subject_of(i) != &"":
 					loader.place_cell(v, world.get_cell(v))
 
-## Whether hall `hall`'s doors stand open (ExamDoor): while it is in session; the exam hall's once
-## its exam is passed, or while it is in session and its exam has not begun.
+## Whether hall `hall`'s doors stand open (ExamDoor): while it is in session, a classroom's only to a
+## wizard enrolled in its class (enrolled), and always while the wizard is inside it, so no one is
+## shut in a classroom a bell has emptied (sneaking) or a paper given up has left them out of.
 func hall_door_up (hall: int) -> bool:
 	if world == null or hall < 0 or hall >= world.halls.size():
 		return true
 	var rec: LevelRecord = record()
 	var open: bool = Timetable.in_session(world, hall, rec.rings)
-	if world.halls[hall]["kind"] == &"exam":
-		return rec.exams.has(hall) or (open and not exam_running(hall))
+	if world.halls[hall]["kind"] == &"lecture":
+		var inside: bool = player != null and is_instance_valid(player) and Timetable.hall_inside(world, cell_at(player.global_position)) == hall
+		return (open and enrolled(hall)) or inside
 	return open
 
 ## Whether the abominations keep still now: during a class (a period, not passing time).
@@ -976,68 +1111,31 @@ func abominations_quiet () -> bool:
 func surge () -> float:
 	return 1.0 + SURGE_PER_RING * float(record().rings) if timetabled() else 1.0
 
-## How many more blows the exam's examiner takes, and how much sooner it casts, for the rings of the
-## bell in the level (Scholar.setup, Scholar._cast).
-func exam_hp () -> int:
-	return EXAM_HP_PER_RING * record().rings if timetabled() else 0
-
-func exam_haste () -> float:
-	return minf(1.0 + EXAM_HASTE * float(record().rings), EXAM_HASTE_MOST) if timetabled() else 1.0
-
-## The wizard cast the spell in slot `slot` (Abilities.cast). Every scholar that sees it turns on them
-## (Scholar.rouse), but for a trial's own spell, or any in its hall, or one that rang a bell as it
-## struck. A warp cast in a warp's trial takes the wizard out of the hall to come back (trial_away).
-func wizard_cast (slot: StringName = &"damage") -> void:
+## The wizard cast the spell in slot `slot` (Abilities.cast): every scholar that sees it turns on them
+## (Scholar.rouse), but for one that rang a bell as it struck.
+func wizard_cast (_slot: StringName = &"damage") -> void:
 	if not timetabled() or player == null or _rung_frame == Engine.get_physics_frames():
-		return
-	if trial_hall >= 0 and Abilities.spell(player, slot) == trial_spell:
-		if trial_spell == &"warp":
-			trial_away = true
-		return
-	if trial_hall >= 0 and Timetable.hall_inside(world, cell_at(player.global_position)) == trial_hall:
 		return
 	for node: Node in get_tree().get_nodes_in_group(&"scholar"):
 		var s: Scholar = node as Scholar
 		if s != null and not s.roused and s.sees(player):
 			s.rouse()
 
-## Spell `a` was known at `tier`: the institute remembers it for the run (RunState.taught), at the
-## highest tier known, if it is a spell (taken from a slot and cast).
-func remember (a: StringName, tier: int) -> void:
-	if Abilities.is_spell(a) and tier > int(run.taught.get(a, 0)):
-		run.taught[a] = tier
-
 ## Whether the institute will teach `a` to the wizard: anything, but a big move (Relics.MOVES) only
-## to a wizard who already has it (relics are how those are found).
+## to a wizard who already has it, in its slot or as a paper (relics are how those are found).
 func teaches (a: StringName) -> bool:
-	return a != &"" and (not a in Relics.MOVES or Abilities.tier(player, a) > 0 or int(run.taught.get(a, 0)) > 0)
+	return a != &"" and (not a in Relics.MOVES or Abilities.tier(player, a) > 0 or player.keyring.papers().any(func(code: int) -> bool: return KeyRing.paper_spell(code) == a))
 
-## Where the wizard is, by the timetable: going into a class in session ends passing time (the period
-## begins), and in a lecture hall in session its trial begins, if its subject is one the institute
-## teaches them (teaches) and they have not passed it here at the tier taught now; leaving the hall
-## leaves the trial unfinished.
+## Where the wizard is, by the timetable: going into a class in session (one they are enrolled in, for
+## a classroom) ends passing time (the period begins).
 func _watch_timetable () -> void:
 	if not timetabled():
 		return
 	var rec: LevelRecord = record()
 	var hall: int = Timetable.hall_inside(world, cell_at(player.global_position))
-	if hall >= 0 and Timetable.holds_class(world, hall, rec.rings):
-		if rec.passing:
-			rec.passing = false
-			save_run()
-		var a: StringName = subject_of(hall)
-		if a != &"" and trial_hall < 0 and teaches(a) and int(rec.trials.get(a, 0)) < tier_of(hall):
-			begin_trial(hall)
-	# Warped out in a warp's trial, the wizard may come back into the hall: then its mark is done.
-	if trial_hall >= 0 and trial_away:
-		if hall != trial_hall:
-			trial_left = true
-		elif trial_left:
-			for piece: Node2D in trial_pieces.duplicate():
-				if piece is TrialPiece:
-					(piece as TrialPiece).came_back()
-	elif trial_hall >= 0 and hall != trial_hall:
-		end_trial(false)
+	if hall >= 0 and Timetable.holds_class(world, hall, rec.rings) and rec.passing and (world.halls[hall]["kind"] != &"lecture" or enrolled(hall)):
+		rec.passing = false
+		save_run()
 
 ## The master of hall `hall` standing in the level, or null.
 func master_in (hall: int) -> Scholar:
@@ -1046,139 +1144,6 @@ func master_in (hall: int) -> Scholar:
 		if m != null and m.hall == hall and not m.is_queued_for_deletion():
 			return m
 	return null
-
-## Lecture hall `hall`'s class sets the wizard a trial of its subject at the tier taught now (or of
-## `given`, a test's), if its master stands there calm: the spell is lent to them for it at that tier
-## (in place of the one in its slot, if they do not hold it at that tier), and its pieces are laid:
-## for a hex or a seeker a mock glyph seal (GlyphSeal) hung a row up the lectern's wall, to be struck
-## from across the hall; for anything else what TrialPiece.lay lays for it. Every piece done, the
-## trial is passed (trial_piece_done, end_trial).
-func begin_trial (hall: int, given: StringName = &"") -> void:
-	var m: Scholar = master_in(hall)
-	var a: StringName = given if given != &"" else subject_of(hall)
-	if m == null or m.roused or a == &"" or map_elements == null or not is_instance_valid(map_elements):
-		return
-	trial_hall = hall
-	trial_spell = a
-	trial_tier = tier_of(hall)
-	lent = []
-	var held: StringName = Abilities.spell(player, Abilities.slot_of(a))
-	if held != a or Abilities.tier(player, a) < trial_tier:
-		lent = [held, Abilities.tier(player, held) if held != &"" else 0]
-		Abilities.set_tier(player, a, maxi(Abilities.tier(player, a), trial_tier))
-	trial_away = false
-	trial_left = false
-	trial_pieces = []
-	if a == &"hex" or a == &"seeker":
-		var inside: Rect2i = world.halls[hall]["inside"]
-		var rise: int = world.halls[hall]["rise"]
-		var wall: int = inside.position.x if rise > 0 else inside.end.x - 1
-		var seal: GlyphSeal = (load(GLYPH_SEAL) as PackedScene).instantiate() as GlyphSeal
-		seal.make_mock(self, a, true)
-		map_elements.add_child(seal)
-		seal.global_position = cell_position(Vector2i(wall, inside.end.y - 2))
-		trial_pieces.append(seal)
-	else:
-		for piece: TrialPiece in TrialPiece.lay(self, hall, a):
-			trial_pieces.append(piece)
-	RisoFx.burst(&"gain", m.global_position + Vector2(0, -90), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
-
-## A piece of the trial under way is done (a mock seal broken, a TrialPiece done): once none is
-## left, the trial is passed.
-func trial_piece_done (piece: Node2D) -> void:
-	if not piece in trial_pieces:
-		return
-	trial_pieces.erase(piece)
-	if trial_pieces.is_empty():
-		end_trial(true)
-
-## The trial under way ends, and what was put down to lend its spell is given back (the lent spell
-## taken away): a trial teaches nothing itself. Passed (`passed`), its subject goes on the exam's list
-## at the tier taught (pass_trial).
-func end_trial (passed: bool) -> void:
-	if trial_hall < 0:
-		return
-	for piece: Node2D in trial_pieces:
-		if is_instance_valid(piece):
-			piece.queue_free()
-	trial_pieces = []
-	trial_away = false
-	trial_left = false
-	if player != null and is_instance_valid(player) and not lent.is_empty():
-		if StringName(lent[0]) != &"":
-			Abilities.set_tier(player, StringName(lent[0]), int(lent[1]))
-		else:
-			Abilities.set_tier(player, trial_spell, 0)
-	if passed:
-		pass_trial(trial_spell, trial_tier)
-		if player != null and is_instance_valid(player):
-			RisoFx.burst(&"gain", player.global_position + Vector2(0, -60), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.GLOW])
-			Wound.shake(8.0, 0.2)
-	trial_hall = -1
-	trial_spell = &""
-	lent = []
-	save_run()
-
-## Spell `a` passed at `tier` here: on the exam's list (LevelRecord.trials) at the best tier passed.
-func pass_trial (a: StringName, tier: int) -> void:
-	var rec: LevelRecord = record()
-	if a != &"" and tier > int(rec.trials.get(a, 0)):
-		rec.trials[a] = tier
-
-## A lecture hall's master fell to the wizard's own blow: its trial counts as passed, and its room has
-## turned on them (until the next ring seats the class again).
-func class_master_beaten (hall: int) -> void:
-	var a: StringName = subject_of(hall)
-	if a != &"" and teaches(a):
-		pass_trial(a, tier_of(hall))
-	save_run()
-
-## The exam's prizes (ExamPrize), once it is passed, until one is taken: one for each trial passed in
-## the level, at the tier it was taught, along the exam hall's floor.
-func _spawn_exam_prizes () -> void:
-	var rec: LevelRecord = record()
-	var exam: Dictionary = Institute.exam_hall(world) if world != null else {}
-	if exam.is_empty() or rec.exam_prize or rec.trials.is_empty() or not rec.exams.has(world.halls.find(exam)):
-		return
-	if map_elements == null or not is_instance_valid(map_elements) or not get_tree().get_nodes_in_group(&"exam_prize").is_empty():
-		return
-	var inside: Rect2i = exam["inside"]
-	var order: Array[StringName] = Abilities.spells().filter(func(a: StringName) -> bool: return rec.trials.has(a))
-	for k: int in range(order.size()):
-		var prize: ExamPrize = (load(EXAM_PRIZE) as PackedScene).instantiate() as ExamPrize
-		map_elements.add_child(prize)
-		var x: int = inside.position.x + 1 + (k * 2) % maxi(inside.size.x - 2, 1)
-		prize.global_position = cell_position(Vector2i(x, inside.end.y - 1))
-		prize.setup(self, order[k], int(rec.trials[order[k]]))
-
-## The exam's prize for spell `a` at `tier` taken: the wizard learns it (at that tier, if they know
-## less), the spell it puts down staying known; the others are gone, the exam's pick made for good.
-func take_exam_prize (a: StringName, tier: int) -> void:
-	var rec: LevelRecord = record()
-	if rec.exam_prize or player == null:
-		return
-	var was: StringName = Abilities.spell(player, Abilities.slot_of(a))
-	if was != &"" and was != a:
-		remember(was, Abilities.tier(player, was))
-	Abilities.set_tier(player, a, maxi(Abilities.tier(player, a), tier))
-	remember(a, Abilities.tier(player, a))
-	rec.exam_prize = true
-	for node: Node in get_tree().get_nodes_in_group(&"exam_prize"):
-		node.queue_free()
-	RisoFx.burst(&"gain", player.global_position + Vector2(0, -60), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.GLOW])
-	Wound.shake(8.0, 0.2)
-	save_run()
-
-## The wizard's tiers as saved (from Player.to_save) with a lent spell given back, so a save made
-## mid-trial keeps what they really know.
-func _unlent (tiers: Dictionary) -> Dictionary:
-	if lent.is_empty():
-		return tiers
-	var out: Dictionary = tiers.duplicate()
-	out[String(trial_spell)] = 0
-	if StringName(lent[0]) != &"":
-		out[String(lent[0])] = int(lent[1])
-	return out
 
 ## Arriving through a department's portal (Department): at the way back it opens (WayBack), as a
 ## gate's traveller comes out of its partner.
@@ -1334,7 +1299,6 @@ func give_up () -> bool:
 func player_died (pos: Vector2) -> void:
 	if run_ending > 0.0 or travelling:
 		return
-	end_trial(false)
 	if run.vulnerable:
 		end_run()
 		return
@@ -1410,9 +1374,7 @@ func _clear_ghost () -> void:
 func save_run () -> void:
 	if player == null or world == null or run_ending > 0.0:
 		return
-	var mine: Dictionary = player.to_save()
-	mine["tiers"] = _unlent(mine["tiers"])
-	RunState.write_save(run.to_save(coord, mine))
+	RunState.write_save(run.to_save(coord, player.to_save()))
 
 ## Resume the saved run at its last lit lantern. False when there is nothing to continue.
 func continue_run () -> bool:
@@ -1543,7 +1505,6 @@ func _physics_process (delta: float) -> void:
 		reveal(c)
 		# Stepping into a secret room's false wall (or drifting or warping into its rock) opens it.
 		open_secret(secret_at(c))
-	_watch_exams()
 	_watch_timetable()
 	loader.sleep_far_chunks()
 

@@ -2,9 +2,12 @@ extends TestKit
 ## Stills of the institute's timetable (world 28, the institute's first level): the great bell and
 ## its cord, floor to ceiling, at rest and ringing; the period marks on its yoke, in a period and in
 ## passing time; a
-## lecture hall shut and in session; scholars calm and turned on the wizard, close up; a trial in a lecture hall with its mock seal; the exam hall's
-## glyph seals and its prizes; a seal of each spell side by side, with the two mock seals; and a
-## lectern giving back a spell taught. (The hall's doors shut and open, close up.)
+## classroom shut, then in session but shut to a wizard without its prerequisite (the paper it
+## wants beside its plate), then open to them carrying it, wide and with the class in; scholars calm
+## and turned on the wizard, close up; a classroom's lectern holding a paper left on it;
+## exam papers lying on a floor; the library's glyph seals; an instructor teaching ferry turned on the
+## wizard on its raft, its class with it, and the top-tier paper it leaves once felled; and a seal of
+## each spell side by side. (The hall's doors shut and open, close up.)
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_timetable.gd
 
 var camera: Camera2D
@@ -43,60 +46,95 @@ func run() -> void:
 			_ring(bell)
 			await frames(2)
 		await _look(door + Vector2(0, -60), "timetable_door_shut.png", 1.8)
-		while not Timetable.in_session(info.world, hall, rec.rings):
+		# In session, asking for a prerequisite the wizard lacks: shut to them, the paper it wants by its plate.
+		for k: int in range(Timetable.PERIODS * 2):
+			if Timetable.in_session(info.world, hall, rec.rings) and Timetable.prereq(info.subject_of(hall)) != &"":
+				break
 			_ring(bell)
 			await frames(2)
-		await _look(door + Vector2(0, -60), "timetable_door_open.png", 1.8)
-		await _look(info.cell_position(box.get_center()), "timetable_hall_open.png", 0.95)
-		# In: the period begins, and its trial.
-		var inside: Rect2i = info.world.halls[hall]["inside"]
-		var rise: int = info.world.halls[hall]["rise"]
-		var wall: int = inside.position.x if rise > 0 else inside.end.x - 1
-		player.global_position = info.cell_position(Vector2i(wall + rise * 5, inside.end.y - 1))
-		await frames(10)
-		await _look(info.cell_position(box.get_center()), "timetable_trial.png", 0.95)
-		await _look(info.cell_position(Vector2i(wall + rise * 2, inside.end.y - 1)) + Vector2(0, -60), "timetable_trial_close.png", 2.0)
-		var taught: StringName = info.trial_spell
-		var tier: int = info.trial_tier
-		for piece: Node2D in info.trial_pieces.duplicate():
-			if piece is GlyphSeal:
-				(piece as GlyphSeal).struck(info.trial_spell, piece.global_position + Vector2(GlyphSeal.HEX_FAR + 20.0, 0), 9.0)
-		if info.trial_hall >= 0:
-			info.end_trial(true)
+		var before: StringName = Timetable.prereq(info.subject_of(hall))
+		if before != &"":
+			Abilities.set_tier(player, before, 0)
+		await frames(20)
+		await _look(door + Vector2(0, -90), "timetable_door_prereq.png", 2.2)
+		# Carrying that paper, enrolled: the doors open.
+		var key: int = KeyRing.paper(before, Timetable.need(info.tier_of(hall))) if before != &"" else 0
+		if key != 0:
+			player.keyring.take(key)
 		await frames(30)
-		# Learned (as the exam's prize would teach it): the spell put down waits on the lectern.
-		if taught != &"":
-			info.take_exam_prize(taught, tier)
-			info.record().exam_prize = false
+		await _look(door + Vector2(0, -60), "timetable_door_open.png", 1.8)
+		await _look(info.cell_position(box.get_center()), "timetable_hall_open.png", 1.1)
+		# In: the period begins.
+		var inside: Rect2i = info.world.halls[hall]["inside"]
+		var front: int = info.world.halls[hall]["front"]
+		var wall: int = inside.position.x if front > 0 else inside.end.x - 1
+		player.global_position = info.cell_position(Vector2i(wall + front * 6, inside.end.y - 1))
 		await frames(10)
+		await _look(info.cell_position(box.get_center()), "timetable_class.png", 1.1)
+		# A pigeonhole: the paper left on the classroom's lectern.
 		var lecterns: Array[Node] = placed("lectern.tscn").filter(func(n: Node) -> bool: return (n as Lectern).hall == hall)
-		if not lecterns.is_empty():
-			await _look((lecterns[0] as Node2D).global_position + Vector2(0, -60), "timetable_lectern.png", 2.2)
-	# The exam hall's seals.
-	var exam: Dictionary = Institute.exam_hall(info.world)
-	var seals: Array[Node] = placed("glyph_seal.tscn").filter(func(n: Node) -> bool: return Institute.hall_at(info.world, n.get_meta(&"cell")) == info.world.halls.find(exam))
+		if not lecterns.is_empty() and key != 0:
+			var lectern: Lectern = lecterns[0] as Lectern
+			lectern.take()
+			await frames(4)
+			await _look(lectern.global_position + Vector2(0, -90), "timetable_lectern_paper.png", 2.0)
+			lectern.take()
+		for code: int in player.keyring.papers():
+			player.keyring.spend(code)
+	# Exam papers lying on a floor, of a few subjects and tiers.
+	var lie: Variant = _long_floor(5)
+	if lie != null:
+		var at: Vector2i = lie
+		var codes: Array[int] = [KeyRing.paper(&"hex", 1), KeyRing.paper(&"warp", 2), KeyRing.paper(&"nova", 4)]
+		for k: int in range(codes.size()):
+			var pos: Vector2 = info.cell_position(at + Vector2i(k + 1, 0))
+			info._spawn_dropped_key(info.record().drop_key(pos, codes[k]), pos, codes[k])
+		player.global_position = info.cell_position(at + Vector2i(5, 0))
+		await _look(info.cell_position(at + Vector2i(2, 0)) + Vector2(0, -40), "timetable_papers.png", 2.0)
+	# The library's seals.
+	var library: int = -1
+	for i: int in range(info.world.halls.size()):
+		if info.world.halls[i]["kind"] == &"library":
+			library = i
+	var seals: Array[Node] = placed("glyph_seal.tscn").filter(func(n: Node) -> bool: return Institute.hall_at(info.world, n.get_meta(&"cell")) == library)
 	if not seals.is_empty():
 		var s: Node2D = seals[0] as Node2D
-		player.global_position = info.cell_position(info.world.halls[info.world.halls.find(exam)]["steps"][0])
-		await _look(s.global_position + Vector2(0, -40), "timetable_exam_seal.png", 1.6)
-	# The exam passed, its prizes for the trials passed here.
-	var exam_i: int = info.world.halls.find(exam)
-	if exam_i >= 0:
-		info.pass_trial(&"seeker", 3)
-		info.pass_trial(&"rift", 2)
-		info.record().exams[exam_i] = true
-		info._spawn_exam_prizes()
-		var floor_y: int = (exam["inside"] as Rect2i).end.y - 1
-		var mid: Vector2i = Vector2i((exam["inside"] as Rect2i).position.x + 3, floor_y)
-		player.global_position = info.cell_position(mid + Vector2i(4, 0))
-		await _look(info.cell_position(mid) + Vector2(0, -60), "timetable_exam_prizes.png", 1.5)
+		player.global_position = info.cell_position(info.world.halls[library]["steps"][0])
+		await _look(s.global_position + Vector2(0, -40), "timetable_library_seal.png", 1.6)
+	# An instructor teaching ferry, turned on the wizard with its whole class; then felled, the paper
+	# it leaves.
+	var room: int = -1
+	for k: int in range(Timetable.PERIODS * 3):
+		for i: int in range(info.world.halls.size()):
+			if info.subject_of(i) == &"ferry" and info.master_in(i) != null:
+				room = i
+		if room >= 0:
+			break
+		_ring(bell)
+		await frames(2)
+	if room >= 0:
+		Abilities.set_tier(player, &"levitate", 1)
+		var inside: Rect2i = info.world.halls[room]["inside"]
+		var box: Rect2i = info.world.halls[room]["box"]
+		player.global_position = info.cell_position(Vector2i(inside.position.x + 1, inside.end.y - 1))
+		player.phasing = true
+		var m: Scholar = info.master_in(room)
+		m.rouse()
+		await frames(50)
+		await _look(info.cell_position(box.get_center()) + Vector2(0, 40), "timetable_instructor.png", 1.1)
+		var at: Vector2 = m.global_position
+		m.wizard_blow = true
+		(m.get_node("Wound") as Wound).hit(999, Vector2.UP)
+		await frames(30)
+		await _look(at + Vector2(0, -60), "timetable_prize.png", 2.0)
+		player.phasing = false
+		Abilities.set_tier(player, &"levitate", 0)
 	await _lineups(bell)
 	RunState.delete_save()
 	finish()
 
 
-## Close up on a long floor: students calm and then turned on the wizard; then a seal of each spell
-## and the two mock seals.
+## Close up on a long floor: students calm and then turned on the wizard; then a seal of each spell.
 func _lineups(bell: SchoolBell) -> void:
 	var spot: Variant = _long_floor(9)
 	if spot == null:
@@ -138,12 +176,6 @@ func _lineups(bell: SchoolBell) -> void:
 		info.map_elements.add_child(seal)
 		seal.global_position = info.cell_position(at + Vector2i(i, 0))
 		row.append(seal)
-	for k: int in range(2):
-		var mock: GlyphSeal = (load("res://prefabs/glyph_seal.tscn") as PackedScene).instantiate() as GlyphSeal
-		mock.make_mock(info, Institute.MASTERIES[k * 2], k == 1)
-		info.map_elements.add_child(mock)
-		mock.global_position = info.cell_position(at + Vector2i(6 + k, -k))
-		row.append(mock)
 	player.global_position = info.cell_position(at + Vector2i(9, 0))
 	await _look(info.cell_position(at + Vector2i(4, 0)) + Vector2(0, -60), "timetable_seals.png", 1.25)
 

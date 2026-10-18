@@ -67,8 +67,6 @@ const KINDS: Dictionary = {
 	&"department": "res://scripts/riso/props/DepartmentArt.gd",
 	&"lesson": "res://scripts/riso/props/LessonArt.gd",
 	&"lectern": "res://scripts/riso/props/LecternArt.gd",
-	&"examprize": "res://scripts/riso/props/ExamPrizeArt.gd",
-	&"trialpiece": "res://scripts/riso/props/TrialPieceArt.gd",
 	&"schoolbell": "res://scripts/riso/props/SchoolBellArt.gd",
 	&"glyphseal": "res://scripts/riso/props/GlyphSealArt.gd",
 }

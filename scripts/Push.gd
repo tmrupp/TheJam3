@@ -96,9 +96,9 @@ func cast(dir: Vector2 = Vector2.ZERO) -> bool:
 	SpellStrike.thorns_caught(get_tree(), from, catches, dir)
 	for e: Node in SpellStrike.caught(get_tree(), from, catches, catches_spider):
 		if not movable(e):
-			SpellStrike.strike(e, dir, damage + SLAM, &"push", from)
+			SpellStrike.strike(e, dir, damage + SLAM, &"push")
 			continue
-		SpellStrike.strike(e, dir, damage, &"push", from)
+		SpellStrike.strike(e, dir, damage, &"push")
 		if is_instance_valid(e) and not e.is_queued_for_deletion():
 			var gust: Shove = Shove.new()
 			gust.velocity = dir * shove / SHOVE_TIME

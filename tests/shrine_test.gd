@@ -181,10 +181,10 @@ func run() -> void:
 	player.tiers[&"astral"] = 2
 	check(Abilities.offer(Rules.level_seed(28, 0), player) == &"astral", "a shrine offers what is still left to learn")
 
-	print("a swap leaves the old spell at the shrine")
+	print("a swap hands the old spell back as a paper")
 	var stand: Node = shrines()[0]
 	info.record().shrine_used = false
-	info.record().left_spell = []
+	player.keyring.clear()
 	# Every slot held (hex II, the dash, awareness), the perks maxed: whatever new it offers for a
 	# slot is a swap.
 	for a: StringName in Abilities.ids():
@@ -205,14 +205,14 @@ func run() -> void:
 		var old: StringName = Abilities.spell(player, slot)
 		var old_tier: int = Abilities.tier(player, old)
 		stand.call("buy_boon", k)
-		check(Abilities.spell(player, slot) == got and stand.call("left_spell", k) == [old, old_tier] and bool(stand.call("used")), "learning %s leaves %s in its niche" % [got, old])
-		stand.call("buy_boon", 1 - k)
-		check(Abilities.spell(player, slot) == got, "the spent shrine sells nothing else")
+		check(Abilities.spell(player, slot) == got and bool(stand.call("used")), "learning %s puts %s out of its slot" % [got, old])
+		var handed: Array[int] = [KeyRing.paper(old, old_tier)]
+		check(player.keyring.papers() == handed, "and hands it back as a %s %d paper" % [old, old_tier])
 		var coins_before: int = player.coins.coins
+		stand.call("buy_boon", 1 - k)
 		stand.call("buy_boon", k)
-		check(Abilities.spell(player, slot) == old and Abilities.tier(player, old) == old_tier and stand.call("left_spell", k) == [got, 1] and player.coins.coins == coins_before, "taking %s back is free, keeps its tier, and leaves %s there" % [old, got])
-		stand.call("buy_boon", k)
-		check(Abilities.spell(player, slot) == got and stand.call("left_spell", k) == [old, old_tier], "and it swaps back again")
+		check(Abilities.spell(player, slot) == got and player.coins.coins == coins_before, "the spent shrine sells nothing else")
+		player.keyring.clear()
 
 	print("the run ending resets them")
 	player.die()

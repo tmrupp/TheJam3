@@ -330,8 +330,6 @@ func _level_rows() -> Array:
 		["gate", func(at: Vector2) -> void: _mark_gate(at, 2), "gate"],
 		["sun gate", func(at: Vector2) -> void: _mark_light_gate(at, true), "sun gate"],
 		["shade gate", func(at: Vector2) -> void: _mark_light_gate(at, false), "shade gate"],
-		["exam", func(at: Vector2) -> void: _mark_exam(at, false), "exam"],
-		["exam passed", func(at: Vector2) -> void: _mark_exam(at, true), "exam passed"],
 		["department", func(at: Vector2) -> void: _mark_department(at, 1), "department"],
 		["switch", func(at: Vector2) -> void: _mark_switch(at, false, 2), "switch"],
 		["bell", func(at: Vector2) -> void: _mark_bell(at, false), "bell"],
@@ -347,6 +345,7 @@ func _level_rows() -> Array:
 	] + _door_rows() + [
 		["key", func(at: Vector2) -> void: _mark_key(at, 2), "key"],
 		["skeleton key", func(at: Vector2) -> void: _mark_key(at, KeyRing.SKELETON), "skeleton key"],
+		["exam paper", func(at: Vector2) -> void: _mark_key(at, KeyRing.paper(&"hex", 1)), "exam paper"],
 		["star cluster", _mark_cluster, "star cluster"],
 		["ink well", func(at: Vector2) -> void: _mark_inkwell(at, false), "ink well"],
 		["snuffing font", func(at: Vector2) -> void: _mark_snuffer(at), "snuffing font"],
@@ -471,11 +470,6 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 			_mark_snuffer(at)
 		LevelGen.Type.LIGHT_GATE:
 			_mark_light_gate(at, bool(cell.extra_info))
-		LevelGen.Type.EXAM_DOOR:
-			# Only the exam hall's doors are marked: a lecture hall's or the library's are its walls'.
-			var hall: int = int(cell.extra_info)
-			if hall >= 0 and hall < w.halls.size() and w.halls[hall]["kind"] == &"exam":
-				_mark_exam(at, (rec.exams as Dictionary).has(hall))
 		LevelGen.Type.GLYPH_SEAL:
 			if not gone:
 				_mark_seal(at, StringName(cell.extra_info))
@@ -619,12 +613,6 @@ func _mark_light_gate(at: Vector2, sun: bool) -> void:
 	marks.ink(RisoPrint.ACCENT if sun else RisoPrint.NIGHT, 1.0, [RisoShapes.circle(at + Vector2(2.9, -2.6), 1.5, 10)], false)
 
 
-## An exam door (ExamDoor): a gate's bar, pink until its exam is passed, accent after.
-func _mark_exam(at: Vector2, passed: bool) -> void:
-	_note("exam passed" if passed else "exam")
-	marks.ink(RisoPrint.ACCENT if passed else RisoPrint.PINK, 1.0, [RisoShapes.rrect(at.x - 1.1, at.y - 2.8, 2.2, 5.6, 0.9)], false)
-
-
 ## A department's portal (Department): an accent ring with a chevron in it pointing the way along
 ## the column it leads (`way`: +1 down, -1 up).
 func _mark_department(at: Vector2, way: int) -> void:
@@ -709,13 +697,17 @@ func _mark_door(at: Vector2, color: int) -> void:
 
 
 func _mark_key(at: Vector2, color: int) -> void:
-	_note("skeleton key" if color == KeyRing.SKELETON else "key")
+	_note("skeleton key" if color == KeyRing.SKELETON else ("exam paper" if KeyRing.is_paper(color) else "key"))
 	_key_ink(color, [RisoMarks.key_bow(at, 2.0, color)])
 
 
 ## A map mark in a key's colour: its inks, or for a skeleton key (bone white, which paper would
 ## hide) a grey screen of night.
 func _key_ink(color: int, polys: Array[PackedVector2Array]) -> void:
+	# An exam paper (a spell to carry, a key to classrooms) in gold.
+	if KeyRing.is_paper(color):
+		marks.ink(RisoPrint.ACCENT, 1.0, polys, false)
+		return
 	if color == KeyRing.SKELETON:
 		marks.ink(RisoPrint.NIGHT, 0.5, polys, false)
 		return

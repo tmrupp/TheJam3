@@ -399,6 +399,11 @@ func _institute() -> void:
 			var row: int = Institute.department_row(def, dept, i)
 			ok = ok and NextWorldDef.archetype_at(row) == Institute.DEPARTMENTS[dept] and row == Institute.department_row(def, dept, i)
 		check(ok, "a %s portal leads to a level of %s, the same every time" % [dept, Institute.DEPARTMENTS[dept]])
+	var defaults_ok: bool = true
+	for dept: StringName in Timetable.LADDERS:
+		for a: StringName in Timetable.LADDERS[dept]:
+			defaults_ok = defaults_ok and Timetable.default_spell(a) == Timetable.LADDERS[dept][0] and Timetable.default_spell(a) in Institute.MASTERIES
+	check(defaults_ok, "an instructor teaching a move casts its department's damage spell, the first rung of its ladder")
 	# Every wall style the F7 panel offers has its inks and a name.
 	check(RisoPrint.WALL_STYLES.all(func(w: StringName) -> bool: return RisoTerrain.WALL_LOOKS.has(w)) and RisoPrint.WALL_STYLE_NAMES.size() == RisoPrint.WALL_STYLES.size(),
 		"each institute wall style has its inks and a name")
@@ -609,3 +614,25 @@ func _keyring(p: Player) -> void:
 	check(p.keyring.spend_skeleton() and p.keyring.spend_skeleton() and not p.keyring.spend_skeleton(), "a skeleton key is spent once each")
 	p.keyring.clear()
 	check(p.keyring.all().is_empty() and p.keyring.skeletons() == 0, "a new run starts empty-handed")
+	# Exam papers ride on the ring as keys do, a slot each.
+	var codes_ok: bool = true
+	for a: StringName in KeyRing.subjects():
+		codes_ok = codes_ok and Abilities.max_tier(a) < KeyRing.PAPER_SPELL
+		for t: int in range(1, Abilities.max_tier(a) + 1):
+			var code: int = KeyRing.paper(a, t)
+			codes_ok = codes_ok and KeyRing.is_paper(code) and KeyRing.paper_spell(code) == a and KeyRing.paper_tier(code) == t
+	check(codes_ok, "an exam paper's code holds its subject and tier, for every ability that takes a slot")
+	check(KeyRing.subjects().has(&"dash") and KeyRing.subjects().has(&"mend") and KeyRing.subjects().has(&"hex") and not KeyRing.subjects().has(&"vigor"), "the dash and mend have papers too; perks do not")
+	check(not KeyRing.is_paper(KeyRing.SKELETON) and not KeyRing.is_paper(0), "and is no key's colour")
+	p.tiers[&"keyring"] = 1
+	var hex: int = KeyRing.paper(&"hex", 2)
+	p.keyring.take(1)
+	p.keyring.take(hex)
+	var just_hex: Array[int] = [hex]
+	check(p.keyring.papers() == just_hex and p.keyring.has(1), "a paper takes a key's slot, beside a key")
+	check_eq(p.keyring.take(KeyRing.paper(&"warp", 1)), 1, "and a full ring leaves the oldest behind, key or paper")
+	p.keyring.spend(hex)
+	var just_warp: Array[int] = [KeyRing.paper(&"warp", 1)]
+	check(p.keyring.papers() == just_warp, "spent, it is gone")
+	p.tiers[&"keyring"] = 0
+	p.keyring.clear()

@@ -72,6 +72,8 @@ static func place_marks(ink: InkCanvas, left: Vector2, r: float, widths: Vector2
 static func key_bow(c: Vector2, r: float, color: int) -> PackedVector2Array:
 	if color == KeyRing.SKELETON:
 		return bone(c, r, r * 0.7)
+	if KeyRing.is_paper(color):
+		return paper_shape(c, r / 14.0)[0]
 	match posmod(color, Rules.KEY_COLOR_COUNT):
 		1: return RisoShapes.tri(c + Vector2(0, -r), c + Vector2(r, r), c + Vector2(-r, r))
 		2: return RisoShapes.circle(c, r, 24)
@@ -98,6 +100,8 @@ static func bone(c: Vector2, hw: float, hh: float) -> PackedVector2Array:
 ## A key with a colour-specific bow, in world pixels, centred near `o`. The rarer its colour, the
 ## longer its shaft and the more teeth on its bit (a plum key has four), so rarity reads at a glance.
 static func key_shape(o: Vector2, s: float, color: int = 0) -> Array[PackedVector2Array]:
+	if KeyRing.is_paper(color):
+		return paper_shape(o, s)
 	# A skeleton key has the bit of a rare key (three teeth) and a bone's knobbed base for its bow.
 	var skeleton: bool = color == KeyRing.SKELETON
 	var extra: int = SKELETON_TEETH if skeleton else clampi(color, 0, KEY_TEETH.size())
@@ -113,6 +117,16 @@ static func key_shape(o: Vector2, s: float, color: int = 0) -> Array[PackedVecto
 	out.append(RisoShapes.rrect(c.x + 12.0 * s, c.y, 6.0 * s, 11.0 * s, 3.0 * s))
 	for k: int in range(extra):
 		out.append(RisoShapes.rrect(c.x + (20.0 + 5.0 * k) * s, c.y, 3.0 * s, KEY_TEETH[k] * s, 1.5 * s))
+	return out
+
+
+## An exam paper (KeyRing.paper) centred on `o`, `s` its size: the sheet first (printed bare paper),
+## then its folded corner and three ruled lines (printed in night).
+static func paper_shape(o: Vector2, s: float) -> Array[PackedVector2Array]:
+	var out: Array[PackedVector2Array] = [PackedVector2Array([o + Vector2(-10, -13) * s, o + Vector2(5, -13) * s, o + Vector2(10, -8) * s, o + Vector2(10, 13) * s, o + Vector2(-10, 13) * s])]
+	out.append(PackedVector2Array([o + Vector2(5, -13) * s, o + Vector2(10, -8) * s, o + Vector2(5, -8) * s]))
+	for k: int in range(3):
+		out.append(RisoShapes.rrect(o.x - 6.0 * s, o.y + (-3.0 + 5.0 * k) * s, 12.0 * s, 1.6 * s, 0.8 * s))
 	return out
 
 

@@ -19,9 +19,18 @@ class_name Scholar
 ##   shown by its glyph on its orb, and casts it: a hex bolt, a seeker turning after the wizard, a
 ##   slash in front of it, a nova all round it, a push in a cone that throws the wizard back, or a
 ##   lunge along its floor. Its melee spells wait until the foe is within their reach. Beaten, it
-##   leaves a lesson where it fell (Lesson) teaching a tier of its spell, once a master; the exam
-##   hall's master (`hall`, its hall in LevelGen.halls) is the exam, and its fall passes it
-##   (MapInfo.exam_passed).
+##   leaves a lesson where it fell (Lesson) teaching a tier of its spell, once a master.
+## - an instructor: a classroom's master (`hall`, its classroom in LevelGen.halls), teaching the
+##   room's subject now (MapInfo.subject_of), its orb bearing it. It casts the subject if a damage
+##   spell, else its department's (Timetable.default_spell), and it is the institute at its
+##   strongest: INSTRUCTOR_HP more blows, casting INSTRUCTOR_HASTE times as fast, and turning on the
+##   wizard turns its whole class with it. Turned on the wizard, it moves as its subject does
+##   (`move`): a warp every MOVE_EVERY seconds to another floor of its room, a rift back and forth
+##   between its room's two furthest floors, ferrying across its room on a raft without a stop
+##   (FERRY_SPEED), projecting itself for ASTRAL_TIME every MOVE_EVERY (unhurt meanwhile,
+##   Wound.unhurt); levitating, it always hovers HOVER px over the floor, and, aware, it sees the
+##   wizard through rock. Beaten by the wizard's own blow it leaves a paper of its subject at the
+##   spell's top tier, once a room (MapInfo.instructor_fell).
 ## - a proctor: casts nothing, but every SHIELD_EVERY seconds gives each student and master within
 ##   SHIELD_REACH that has none a shield of one plate (Shield).
 ## - a librarian: casts nothing, but hushes the air round it (HUSH px): while the wizard is in it
@@ -29,12 +38,9 @@ class_name Scholar
 ## A melee spell or a touch on the wizard comes from its HitBox's Damager, so a parry catches it
 ## as it catches any touch.
 ##
-## In a lecture hall a class's master teaches the hall's subject now (MapInfo.subject_of), a move or
-## the utility spell as well as a damage spell (it casts a hex for any of those: `spell_cast`); the
-## exam's examiner takes more blows and casts sooner for every ring of the bell in its level
-## (MapInfo.exam_hp, exam_haste). A master's fall leaves a lesson only to the wizard's own blow (`wizard_blow`): a
-## class's master felled so passes its trial (MapInfo.class_master_beaten) instead, and one felled by
-## abominations leaves nothing. A proctor out in the corridors walks them, PATROL cells either way of
+## A master's fall leaves something only to the wizard's own blow (`wizard_blow`): a lesson out in
+## the level, an instructor's paper in a classroom (its class then cannot be attended until the next
+## bell seats it again); one felled by abominations leaves nothing. A proctor out in the corridors walks them, PATROL cells either way of
 ## its place, while a class is on (MapInfo.abominations_quiet: a period, not passing time).
 ##
 ## The timetable (Timetable): it leaves the wizard be (calm) while they are where they belong, and
@@ -118,6 +124,18 @@ const ROUSE_REACH: float = 640.0
 ## How far a proctor out in the corridors walks either way of its place in a period (cells).
 const PATROL: int = 10
 
+## An instructor (see the class description): how many more blows it takes than a master out in the
+## level, and how much faster it casts and moves; how often (seconds) it warps, rifts or projects
+## itself, and how long a projection lasts; how high it hovers levitating (px), and how fast it ferries
+## (px/s).
+const INSTRUCTOR_HP: int = 14
+const INSTRUCTOR_HASTE: float = 1.5
+const MOVE_EVERY: float = 3.0
+const ASTRAL_TIME: float = 1.4
+const HOVER: float = 150.0
+const HOVER_RISE: float = 240.0
+const FERRY_SPEED: float = 170.0
+
 ## The bolt it casts (loaded when first cast: preloaded, it would load in a circle with the
 ## wizard's scripts, which name this one).
 const SHOT: String = "res://prefabs/bullet.tscn"
@@ -130,6 +148,14 @@ var map_info: MapInfo
 var cell: Vector2i = Vector2i(-1, -1)
 var ability: StringName = &""
 var hall: int = -1
+## The move an instructor makes (&"" for none): see the class description. The seconds to its next
+## warp, rift or projection, the seconds left of a projection, where it hovers (y, px), and which end
+## of its room a rift took it to last.
+var move: StringName = &""
+var move_in: float = MOVE_EVERY
+var projected: float = 0.0
+var hover_y: float = INF
+var rift_end: int = 0
 ## Where it was laid (x, px), +1 facing right or -1 left, how fast it falls, and whether it stands on
 ## something.
 var home_x: float = INF
@@ -184,23 +210,31 @@ func setup(info: MapInfo, v: Vector2i, extra: Variant) -> void:
 	# A class's master teaches its hall's subject now.
 	if kind_of_hall == &"lecture":
 		ability = info.subject_of(hall)
+		if kind == &"master" and not ability in Institute.MASTERIES:
+			move = ability
 	var wound: Wound = get_node_or_null("Wound") as Wound
 	if wound != null:
 		wound.hp = int(HP.get(kind, 2))
 		if kind == &"master" and info != null and info.here != null:
 			wound.hp += MASTER_HP_STEP * maxi(0, info.here.depth - NextWorldDef.first_depth(&"institute"))
-		if kind_of_hall == &"exam":
-			wound.hp += info.exam_hp()
+		if instructor():
+			wound.hp += INSTRUCTOR_HP
 
 
-## The spell it casts: the one it teaches, if a damage spell, else a hex.
+## The spell it casts: the one it teaches, if a damage spell, else its department's
+## (Timetable.default_spell).
 func spell_cast() -> StringName:
-	return ability if ability in Institute.MASTERIES else &"hex"
+	return ability if ability in Institute.MASTERIES else Timetable.default_spell(ability)
 
 
-## Whether it is the exam's examiner.
-func examiner() -> bool:
-	return kind == &"master" and map_info != null and map_info.world != null and hall >= 0 and hall < map_info.world.halls.size() and map_info.world.halls[hall]["kind"] == &"exam"
+## Whether it is an instructor, a classroom's master (see the class description).
+func instructor() -> bool:
+	return kind == &"master" and map_info != null and map_info.world != null and hall >= 0 and hall < map_info.world.halls.size() and map_info.world.halls[hall]["kind"] == &"lecture"
+
+
+## How much sooner it casts (and moves): an instructor INSTRUCTOR_HASTE, anyone else 1.
+func haste() -> float:
+	return INSTRUCTOR_HASTE if instructor() else 1.0
 
 
 ## Whether it walks the corridors now: a proctor out of the halls, while a class is on.
@@ -243,8 +277,10 @@ func _physics_process(delta: float) -> void:
 	since_shield += delta
 	if home_x == INF:
 		home_x = global_position.x
+		hover_y = global_position.y - HOVER
 	own_master()
 	_fall(delta)
+	_examine(delta)
 	walking = false
 	var touch: Damager = damager()
 	if touch != null:
@@ -295,7 +331,7 @@ func _find_foe() -> Node2D:
 			candidates.append(a)
 	for c: Node2D in candidates:
 		var d: float = eye().distance_to(c.global_position)
-		if d < best_d and _clear(eye(), c.global_position + aim_at(c)):
+		if d < best_d and _seen(eye(), c.global_position + aim_at(c)):
 			best = c
 			best_d = d
 	return best
@@ -319,14 +355,19 @@ func _turns_on(player: Player) -> bool:
 
 ## Whether it sees `target`: within its sight, with nothing solid between.
 func sees(target: Node2D) -> bool:
-	return eye().distance_to(target.global_position) <= float(SIGHT.get(kind, 900.0)) and _clear(eye(), target.global_position + aim_at(target))
+	return eye().distance_to(target.global_position) <= float(SIGHT.get(kind, 900.0)) and _seen(eye(), target.global_position + aim_at(target))
 
 
-## It turns on the wizard, and every scholar within ROUSE_REACH with it, until the next bell.
+## It turns on the wizard, and every scholar within ROUSE_REACH with it, and in a hall everyone in
+## that hall (a class fights together), until the next bell.
 func rouse() -> void:
+	var room: int = Institute.hall_at(map_info.world, map_info.cell_at(global_position)) if map_info != null and map_info.world != null else -1
 	for node: Node in get_tree().get_nodes_in_group(&"scholar"):
 		var s: Scholar = node as Scholar
-		if s != null and not s.is_queued_for_deletion() and (s == self or s.global_position.distance_to(global_position) <= ROUSE_REACH):
+		if s == null or s.is_queued_for_deletion():
+			continue
+		var together: bool = room >= 0 and Institute.hall_at(map_info.world, map_info.cell_at(s.global_position)) == room
+		if s == self or together or s.global_position.distance_to(global_position) <= ROUSE_REACH:
 			s.roused = true
 
 
@@ -342,6 +383,12 @@ func calm() -> void:
 ## middle of the wizard's body (their own middle), or AIM over an abomination's.
 static func aim_at(target: Node2D) -> Vector2:
 	return Vector2.ZERO if target is Player else Vector2(0, -AIM)
+
+
+## Whether it sees from `from` to `to`: through anything, aware (an instructor of awareness), else
+## with nothing solid between.
+func _seen(from: Vector2, to: Vector2) -> bool:
+	return move == &"awareness" or _clear(from, to)
 
 
 ## Whether nothing solid (rock, a shut door or gate) stands between `from` and `to`.
@@ -377,8 +424,15 @@ func _nearest_master() -> Scholar:
 
 # ------------------------------------------------------------------ walking
 
-## Fall until something is underfoot; resting on the floor, stay put (no bounce).
+## Fall until something is underfoot; resting on the floor, stay put (no bounce). Levitating, it
+## rises or sinks to its hover instead.
 func _fall(delta: float) -> void:
+	if move == &"levitate" and hover_y != INF:
+		var dy: float = clampf(hover_y - global_position.y, -HOVER_RISE * delta, HOVER_RISE * delta)
+		move_and_collide(Vector2(0, dy))
+		fall_speed = 0.0
+		grounded = false
+		return
 	fall_speed = minf(fall_speed + gravity * delta, MAX_FALL)
 	var hit: KinematicCollision2D = move_and_collide(Vector2(0, fall_speed * delta))
 	grounded = hit != null and hit.get_normal().y < -0.7
@@ -390,6 +444,9 @@ func _fall(delta: float) -> void:
 ## from it.
 func _move(delta: float) -> void:
 	var want: float = 0.0
+	if move == &"ferry" and hostile():
+		_ferry(delta)
+		return
 	if foe != null:
 		var to: Vector2 = foe.global_position - global_position
 		if absf(to.x) > 8.0 and winding < 0.0:
@@ -464,6 +521,99 @@ func _cell_px() -> float:
 	return float(map_info.tile_map.tile_set.tile_size.x) * map_info.tile_map.global_scale.x
 
 
+# ------------------------------------------------------------------ an instructor's move
+
+## An instructor's move (see the class description), while it is turned on the wizard: a warp, a rift
+## or a projection every MOVE_EVERY seconds (sooner by its haste), whether or not it sees them just
+## now; a projection running out.
+func _examine(delta: float) -> void:
+	if move == &"" or stunned():
+		return
+	if projected > 0.0:
+		projected = maxf(0.0, projected - delta)
+		if projected == 0.0:
+			_unhurt(false)
+	if not (move in [&"warp", &"rift", &"astral"]) or not hostile():
+		return
+	move_in -= delta * haste()
+	if move_in > 0.0 or winding >= 0.0 or lunging > 0.0:
+		return
+	move_in = MOVE_EVERY
+	match move:
+		&"astral":
+			projected = ASTRAL_TIME
+			_unhurt(true)
+			RisoFx.burst(&"gain", eye(), Vector2.ZERO, [RisoPrint.BLUE, RisoPrint.NIGHT])
+		&"warp":
+			var spots: Array[Vector2i] = floors()
+			if spots.size() > 1:
+				var k: int = int(RisoDecor.h(int(cell.x * 13 + cell.y), cell, casts + int(walked)) * float(spots.size())) % spots.size()
+				if map_info.cell_at(global_position) == spots[k]:
+					k = (k + 1) % spots.size()
+				_jump_to(spots[k])
+		&"rift":
+			var spots: Array[Vector2i] = floors()
+			if spots.size() > 1:
+				rift_end = 1 - rift_end
+				_jump_to(spots[0] if rift_end == 0 else spots[spots.size() - 1])
+
+
+## Whether blows leave it unhurt (a projection, Wound.unhurt).
+func _unhurt(on: bool) -> void:
+	var wound: Wound = get_node_or_null("Wound") as Wound
+	if wound != null:
+		wound.unhurt = on
+
+
+## The floors of its hall it may warp or rift to (clear cells with rock under them and clear either
+## side, so it is not wedged against a wall, a door or a glyph seal, in its hall's inside), from the
+## left; none for a scholar with no hall.
+func floors() -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	if map_info == null or map_info.world == null or hall < 0 or hall >= map_info.world.halls.size():
+		return out
+	var w: LevelGen = map_info.world
+	var inside: Rect2i = w.halls[hall]["inside"]
+	for x: int in range(inside.position.x, inside.end.x):
+		for y: int in range(inside.position.y, inside.end.y):
+			var v: Vector2i = Vector2i(x, y)
+			if w.is_ground(v + Vector2i.DOWN) and _room(w, v) and _room(w, v + Vector2i.LEFT) and _room(w, v + Vector2i.RIGHT):
+				out.append(v)
+	return out
+
+
+## Whether cell `v` of `w` has room for it: no rock, door or glyph seal in it.
+static func _room(w: LevelGen, v: Vector2i) -> bool:
+	return not w.is_ground(v) and not (w.get_cell(v).type in [LevelGen.Type.EXAM_DOOR, LevelGen.Type.GLYPH_SEAL, LevelGen.Type.DOOR])
+
+
+## Gone from where it stands and there at once, on the floor of cell `v`: where it keeps to now.
+func _jump_to(v: Vector2i) -> void:
+	RisoFx.burst(&"hit", eye(), Vector2.UP, [RisoPrint.PINK, RisoPrint.NIGHT])
+	global_position = map_info.cell_position(v)
+	move_and_collide(Vector2(0, 64))
+	home_x = global_position.x
+	fall_speed = 0.0
+	RisoFx.burst(&"gain", eye(), Vector2.ZERO, [RisoPrint.PINK, RisoPrint.NIGHT])
+
+
+## Ferrying: across its hall on its raft and back, without a stop, turning at the hall's walls, a
+## wall or a ledge; facing its foe to cast.
+func _ferry(delta: float) -> void:
+	var stuck: bool = _last_x != INF and absf(global_position.x - _last_x) < 0.01 and grounded
+	_last_x = global_position.x
+	if map_info != null and map_info.world != null and hall >= 0 and hall < map_info.world.halls.size():
+		var inside: Rect2i = map_info.world.halls[hall]["inside"]
+		var left: float = map_info.cell_position(inside.position).x
+		var right: float = map_info.cell_position(Vector2i(inside.end.x - 1, inside.position.y)).x
+		if (patrol_way < 0.0 and global_position.x <= left) or (patrol_way > 0.0 and global_position.x >= right):
+			patrol_way = -patrol_way
+	if stuck or (grounded and not _floor_ahead(patrol_way)):
+		patrol_way = -patrol_way
+	facing = signf(foe.global_position.x - global_position.x) if foe != null and absf(foe.global_position.x - global_position.x) > 8.0 else patrol_way
+	_step(patrol_way, FERRY_SPEED * Difficulty.speed() * delta)
+
+
 # ------------------------------------------------------------------ casting
 
 ## Wind up and cast at its foe: a student its bolt, a master its spell (see the class description).
@@ -479,7 +629,7 @@ func _cast(delta: float) -> void:
 		return
 	if foe == null:
 		return
-	cast_in -= delta * Difficulty.attack() * (map_info.exam_haste() if examiner() else 1.0)
+	cast_in -= delta * Difficulty.attack() * haste()
 	if cast_in > 0.0 or not _in_reach():
 		return
 	cast_in = MASTER_EVERY if kind == &"master" else STUDENT_EVERY
@@ -647,10 +797,9 @@ func _hush() -> void:
 
 # ------------------------------------------------------------------ its fall
 
-## Slain: its students scatter. The exam hall's examiner passes the exam (its prizes then wait,
-## MapInfo.exam_passed); a class's master felled by the wizard passes its trial; a master out in the
-## level felled by the wizard leaves its lesson (once, Lesson). One felled by abominations leaves
-## nothing.
+## Slain: its students scatter. Felled by the wizard, an instructor leaves its top-tier paper (once a
+## room, MapInfo.instructor_fell), and a master out in the level its lesson (once, Lesson). One felled
+## by abominations leaves nothing.
 func _fallen() -> void:
 	if kind != &"master":
 		return
@@ -661,10 +810,8 @@ func _fallen() -> void:
 			s.winding = -1.0
 	if map_info == null:
 		return
-	if examiner():
-		map_info.exam_passed(hall)
-	elif hall >= 0:
+	if instructor():
 		if wizard_blow:
-			map_info.class_master_beaten(hall)
-	elif wizard_blow:
+			map_info.instructor_fell(hall, global_position, ability)
+	elif hall < 0 and wizard_blow:
 		map_info.leave_lesson(cell, global_position, ability)

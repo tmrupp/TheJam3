@@ -78,7 +78,7 @@ func cast(dir: Vector2 = Vector2.ZERO) -> bool:
 		return rays.any(func(r: Vector2) -> bool: return s.struck_by(from, from + r * reach, 0.0))
 	var struck: Array[Node] = SpellStrike.caught(get_tree(), from, catches, catches_spider)
 	for e: Node in struck:
-		SpellStrike.strike(e, ((e as Node2D).global_position - from).normalized(), damage, &"slash", from)
+		SpellStrike.strike(e, ((e as Node2D).global_position - from).normalized(), damage, &"slash")
 	var thorns: Array[Spikes] = SpellStrike.thorns_caught(get_tree(), from, catches, dir)
 	if not struck.is_empty() or not thorns.is_empty():
 		SpellStrike.recoil(player, dir)

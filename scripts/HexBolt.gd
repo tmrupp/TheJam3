@@ -61,11 +61,8 @@ var size: float = 1.0
 var reflected: bool = false
 var travelled: float = 0.0
 var struck: Array[Node] = []
-## The spell that cast it (&"hex", or &"seeker" for a seeker's), where it was cast from (set on its
-## first step), and how far it has turned on its way (radians, all told).
+## The spell that cast it (&"hex", or &"seeker" for a seeker's).
 var spell: StringName = &"hex"
-var origin: Vector2 = Vector2.INF
-var bent: float = 0.0
 var trail: Array[Vector2] = []
 var ink: InkCanvas
 var t: float = 0.0
@@ -88,14 +85,11 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	t += delta
 	var from: Vector2 = global_position
-	if origin == Vector2.INF:
-		origin = from
 	if seek > 0.0:
 		var quarry: Node2D = _quarry()
 		if quarry != null:
 			var turn: float = clampf(angle_difference(dir.angle(), (quarry.global_position - from).angle()), -seek * delta, seek * delta)
 			dir = dir.rotated(turn)
-			bent += absf(turn)
 	var to: Vector2 = from + dir * speed * delta
 	# Enemies along the step, nearest first.
 	SpiderWeb.tear_along(get_tree(), from, to)
@@ -130,11 +124,7 @@ func _physics_process(delta: float) -> void:
 			continue
 		struck.append(Wound.whole(e))
 		if e is GlyphSeal:
-			(e as GlyphSeal).struck(spell, origin, bent)
-			_end((e as Node2D).global_position)
-			return
-		if e is TrialPiece:
-			(e as TrialPiece).struck(spell, origin, dir)
+			(e as GlyphSeal).struck(spell)
 			_end((e as Node2D).global_position)
 			return
 		# A scholar struck by the wizard turns on them (Scholar.rouse), the blow theirs.

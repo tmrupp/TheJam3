@@ -4,55 +4,57 @@ extends RefCounted
 ## a sample of rooms and corridors (InstituteArchetype); right after the caves are joined, build sets
 ## its halls into them, buildings of pale marble (LevelGen.masonry) a cell thick all round, the air
 ## inside them printed over dark panelling (LevelGen.interiors):
-## - the exam hall (EXAM_INSIDE), one a level, in its lower half: a flat floor, holding the way on
-##   (populate brings the exit in) and its examiner, a master with students. Its doorways are exam
-##   doors (ExamDoor), open until the wizard is inside, then shut until the master falls.
 ## - the library's stacks (LIBRARY_INSIDE): galleries of ledges one over another, GALLERY rows apart,
 ##   each with a stair gap at one end (the ends taking turns up the stacks) and a ledge under the gap,
 ##   so each is climbed in two of the wizard's own hops; long sight lines for casters.
-## - lecture halls (LECTURE_INSIDE), LECTURES of them where they fit: a flat floor at one end (the
-##   lectern, with the master and its department's portal, Department) and tiered seats climbing to
-##   the other, TIERS steps a row high and TIER_DEEP cells deep, a student on each.
+## - classrooms, the lecture halls (LECTURE_INSIDE), up to LECTURES of them where they fit: small
+##   rooms with a flat floor (the lectern at its front end, with the master, and in the first of
+##   each department its portal, Department) and a gallery of one-way ledges GALLERY_UP rows over it
+##   where the students sit. Each has a doorway at each end of its floor and of its gallery where a
+##   passage finds open air (at least MIN_DOORS), so a classroom is a way through, not a dead end.
 ## - in the beast's gate levels alone (LevelGen.gate), first of all so it has the pick of the level,
 ##   the beast's chamber (CHAMBER_INSIDE): a long hall with a flat floor, in the lower half where it
 ##   fits, holding the beast (Beast, LevelGen.place_boss) and nothing else.
-## Each is entered by a doorway a cell high through each side wall at its floor (a lecture hall's
-## high side at its top tier); a hall with a class in it (Timetable.TIMETABLED) has a door in each
+## Each is entered by a doorway a cell high through each side wall at its floor (a classroom's at
+## its gallery too); a hall with a class in it (Timetable.TIMETABLED) has a door in each
 ## (ExamDoor), open while its class is in session. A passage two rows high is carved out from each
 ## doorway through the rock
 ## until it meets open air (at most DOOR_REACH cells; a side whose passage finds none has no
 ## doorway). Where each goes is the site walling over the least open air and needing the shortest
 ## passages (as a crypt's, Crypts), ties dealt by the seed. Its stone, inside and passages are kept
 ## whole (LevelGen.kept_whole) and out of the free cells, so nothing else is laid in it. Each is
-## noted in LevelGen.halls as {"kind": &"exam", &"library", &"lecture" or &"chamber", "box": the hall with its
+## noted in LevelGen.halls as {"kind": &"library", &"lecture" or &"chamber", "box": the hall with its
 ## walls (Rect2i), "inside": the open box inside it (Rect2i), "doors": its doorways, "steps": the
 ## open cell outside each where its passage meets the air, "floors": where the wizard can stand
-## inside (on its floor, its tiers or its galleries), sorted, "rise": which way a lecture hall's
-## tiers climb (+1 to the right, -1 to the left; 0 for the rest), "dept": a lecture hall's
-## department (DEPARTMENTS)}. Nothing in build or furnish draws from the world RNG: it is all hashed
+## inside (on its floor or its galleries), sorted, "front": which way a classroom faces from its
+## lectern's wall (+1 the lectern at the left wall, -1 at the right; 0 for the rest), "dept": a
+## classroom's department (DEPARTMENTS)}. Nothing in build or furnish draws from the world RNG: it is all hashed
 ## from the level seed. populate draws, as any archetype's own dressing does.
 
 ## The open box inside each kind of hall (cells across and down, not counting the walls).
-const EXAM_INSIDE: Vector2i = Vector2i(12, 4)
 const LIBRARY_INSIDE: Vector2i = Vector2i(12, 8)
-const LECTURE_INSIDE: Vector2i = Vector2i(14, 6)
+const LECTURE_INSIDE: Vector2i = Vector2i(10, 5)
 const CHAMBER_INSIDE: Vector2i = Vector2i(18, 6)
-## How many lecture halls a level tries to build (each only where it fits).
-const LECTURES: int = 2
+## How many classrooms a level tries to build (each only where it fits), the fewest doorways one
+## has, and how much each doorway counts for a site, against each cell of open air it walls over
+## (classrooms want to be ways through).
+const LECTURES: int = 5
+const MIN_DOORS: int = 2
+const DOOR_WORTH: int = 12
 ## The library's galleries: one every GALLERY rows up from the floor, with a stair gap STAIR cells
 ## wide at one end.
 const GALLERY: int = 3
 const STAIR: int = 2
-## A lecture hall's tiers: how many, and how deep each is (cells).
-const TIERS: int = 4
-const TIER_DEEP: int = 2
+## A classroom's gallery: how many rows over its floor its ledges lie (the gallery's own floor a row
+## over them).
+const GALLERY_UP: int = 2
 ## The longest passage out from a doorway to open air (cells), and how much each cell of passage
 ## counts against a site, against each cell of open air it walls over.
 const DOOR_REACH: int = 8
 const PASSAGE_COST: int = 3
 ## Cells kept between a hall and another hall or anything kept whole.
 const APART: int = 2
-## Salts for the level seed: where each hall goes (ties), which way a lecture hall rises, which end
+## Salts for the level seed: where each hall goes (ties), which way a classroom faces, which end
 ## the library's lowest gap is at, what each master has mastered and which department each lecture
 ## hall is and where its portal leads.
 const SITE_DEAL: int = 6400
@@ -99,6 +101,8 @@ const CLASS_APART: int = 12
 const PROCTOR_EVERY: int = 2
 ## The stars on the library's top gallery.
 const HOARD: int = 3
+## Where a classroom's students sit on its gallery: cells from its lectern's wall.
+const SEATS: Array[int] = [2, 5, 8]
 
 
 # ------------------------------------------------------------------ building
@@ -112,19 +116,14 @@ static func build(w: LevelGen) -> void:
 			chamber_site = _site(w, CHAMBER_INSIDE, _flat_doors(CHAMBER_INSIDE), func(_box: Rect2i) -> bool: return true)
 		if not chamber_site.is_empty():
 			_raise(w, &"chamber", chamber_site, 0)
-	var exam: Dictionary = _site(w, EXAM_INSIDE, _flat_doors(EXAM_INSIDE), func(box: Rect2i) -> bool: return box.position.y * 2 >= w.size.y)
-	if exam.is_empty():
-		exam = _site(w, EXAM_INSIDE, _flat_doors(EXAM_INSIDE), func(_box: Rect2i) -> bool: return true)
-	if not exam.is_empty():
-		_raise(w, &"exam", exam, 0)
 	var library: Dictionary = _site(w, LIBRARY_INSIDE, _flat_doors(LIBRARY_INSIDE), func(_box: Rect2i) -> bool: return true)
 	if not library.is_empty():
 		_raise(w, &"library", library, 0)
 	for i: int in range(LECTURES):
-		var rise: int = 1 if posmod(Rules.level_seed(w.seed_for_colors, RISE_DEAL + i), 2) == 0 else -1
-		var hall: Dictionary = _site(w, LECTURE_INSIDE, _lecture_doors(rise), func(_box: Rect2i) -> bool: return true)
+		var front: int = 1 if posmod(Rules.level_seed(w.seed_for_colors, RISE_DEAL + i), 2) == 0 else -1
+		var hall: Dictionary = _site(w, LECTURE_INSIDE, _lecture_doors(), func(_box: Rect2i) -> bool: return true, MIN_DOORS)
 		if not hall.is_empty():
-			_raise(w, &"lecture", hall, rise)
+			_raise(w, &"lecture", hall, front)
 	if not w.halls.is_empty():
 		w.connect_caves()
 
@@ -135,17 +134,18 @@ static func _flat_doors(inside: Vector2i) -> Array:
 	return [[-1, inside.y], [1, inside.y]]
 
 
-## A lecture hall's doorways: at its floor on its low side, and at its top tier on the side it rises
-## to (`rise`).
-static func _lecture_doors(rise: int) -> Array:
-	return [[-rise, LECTURE_INSIDE.y], [rise, LECTURE_INSIDE.y - TIERS]]
+## A classroom's doorways: through each side wall at its floor and at its gallery.
+static func _lecture_doors() -> Array:
+	var gallery: int = LECTURE_INSIDE.y - GALLERY_UP - 1
+	return [[-1, LECTURE_INSIDE.y], [1, LECTURE_INSIDE.y], [-1, gallery], [1, gallery]]
 
 
 ## Where a hall with an open box `inside` big and doorways `spec` (see _flat_doors) goes, its box
 ## passing `test`: {"box", "doors": [[the doorway, the passage's cells (both rows), the step
-## out]...]}, the site walling over the least open air and needing the shortest passages, ties dealt
-## by the seed; {} if none fits (no site with a doorway that finds open air).
-static func _site(w: LevelGen, inside: Vector2i, spec: Array, test: Callable) -> Dictionary:
+## out]...]}, the site walling over the least open air and needing the shortest passages, each
+## doorway past `least` counting DOOR_WORTH for it, ties dealt by the seed; {} if none fits (no site
+## with at least `least` doorways that find open air).
+static func _site(w: LevelGen, inside: Vector2i, spec: Array, test: Callable, least: int = 1) -> Dictionary:
 	var size: Vector2i = inside + Vector2i(2, 2)
 	var blocked: Dictionary = _blocked(w)
 	var open_sum: PackedInt32Array = Crypts._sums(w, func(v: Vector2i) -> bool: return not w.is_ground(v))
@@ -159,11 +159,13 @@ static func _site(w: LevelGen, inside: Vector2i, spec: Array, test: Callable) ->
 			if not test.call(box) or Crypts._count(w, blocked_sum, box.grow(APART)) > 0:
 				continue
 			var score: int = Crypts._count(w, open_sum, box)
-			if score > best_score:
+			if score - DOOR_WORTH * (spec.size() - least) > best_score:
 				continue
 			var doors: Array = _doors(w, box, spec, blocked)
-			if doors.is_empty():
+			if doors.size() < maxi(least, 1):
 				continue
+			if least > 1:
+				score -= DOOR_WORTH * (doors.size() - least)
 			for door: Array in doors:
 				score += (door[1] as Array).size() * PASSAGE_COST
 			var tie: int = Rules.level_seed(w.seed_for_colors, SITE_DEAL + x * 131 + y)
@@ -211,9 +213,9 @@ static func _doors(w: LevelGen, box: Rect2i, spec: Array, blocked: Dictionary) -
 	return out
 
 
-## Build a hall of `kind` at `site` (from _site) into `w`, rising `rise` (a lecture hall's tiers),
-## and note it in LevelGen.halls.
-static func _raise(w: LevelGen, kind: StringName, site: Dictionary, rise: int) -> void:
+## Build a hall of `kind` at `site` (from _site) into `w`, facing `front` (a classroom), and note it
+## in LevelGen.halls.
+static func _raise(w: LevelGen, kind: StringName, site: Dictionary, front: int) -> void:
 	var box: Rect2i = site["box"]
 	var inside: Rect2i = box.grow(-1)
 	for x: int in range(box.position.x, box.end.x):
@@ -236,12 +238,12 @@ static func _raise(w: LevelGen, kind: StringName, site: Dictionary, rise: int) -
 			passages.append(c)
 		doors.append(door[0])
 		steps.append(door[2])
-	var hall: Dictionary = {"kind": kind, "box": box, "inside": inside, "doors": doors, "steps": steps, "floors": [], "rise": rise, "dept": &""}
+	var hall: Dictionary = {"kind": kind, "box": box, "inside": inside, "doors": doors, "steps": steps, "floors": [], "front": front, "dept": &""}
 	match kind:
 		&"library":
 			_stacks(w, inside)
 		&"lecture":
-			_tiers(w, inside, rise)
+			_gallery(w, inside)
 			var depts: Array = DEPARTMENTS.keys()
 			hall["dept"] = depts[posmod(Rules.level_seed(w.seed_for_colors, DEPT_DEAL + w.halls.size()), depts.size())]
 	for x: int in range(box.position.x, box.end.x):
@@ -264,8 +266,7 @@ static func _raise(w: LevelGen, kind: StringName, site: Dictionary, rise: int) -
 				floors.append(v)
 	hall["floors"] = floors
 	w.halls.append(hall)
-	# A hall with a class in it has a door in each doorway (ExamDoor), kept by the timetable; the exam
-	# hall's shut behind the wizard until its exam is passed.
+	# A hall with a class in it has a door in each doorway (ExamDoor), kept by the timetable.
 	if kind in Timetable.TIMETABLED:
 		for door: Vector2i in doors:
 			w.put(door, LevelGen.Type.EXAM_DOOR, w.halls.size() - 1)
@@ -289,26 +290,17 @@ static func _stacks(w: LevelGen, inside: Rect2i) -> void:
 		g -= GALLERY
 
 
-## A lecture hall's tiers in `inside`, climbing the way `rise` points: TIERS blocks of masonry, each
-## TIER_DEEP cells deep and a row taller than the one before, the tallest against the wall.
-static func _tiers(w: LevelGen, inside: Rect2i, rise: int) -> void:
-	var bottom: int = inside.end.y - 1
-	for k: int in range(1, TIERS + 1):
-		for d: int in range(TIER_DEEP):
-			var from_wall: int = (TIERS - k) * TIER_DEEP + d
-			var x: int = inside.end.x - 1 - from_wall if rise > 0 else inside.position.x + from_wall
-			for y: int in range(bottom - k + 1, bottom + 1):
-				_rock_at(w, Vector2i(x, y))
-				w.masonry[Vector2i(x, y)] = true
-				w.interiors.erase(Vector2i(x, y))
+## A classroom's gallery in `inside`: a row of one-way ledges all across it, GALLERY_UP rows over
+## its floor.
+static func _gallery(w: LevelGen, inside: Rect2i) -> void:
+	var row: int = inside.end.y - 1 - GALLERY_UP
+	for x: int in range(inside.position.x, inside.end.x):
+		w.put(Vector2i(x, row), LevelGen.Type.PLATFORM)
 
 
-## The level's exam hall (LevelGen.halls), or {} when it has none.
-static func exam_hall(w: LevelGen) -> Dictionary:
-	for hall: Dictionary in w.halls:
-		if hall["kind"] == &"exam":
-			return hall
-	return {}
+## A classroom's floor row and its gallery's (where students stand), in `inside`.
+static func gallery_row(inside: Rect2i) -> int:
+	return inside.end.y - 2 - GALLERY_UP
 
 
 ## The beast's chamber in `w` (LevelGen.halls), or {} when it has none (every level but the beast's
@@ -330,18 +322,10 @@ static func hall_at(w: LevelGen, v: Vector2i) -> int:
 
 # ------------------------------------------------------------------ dressing
 
-## The way on brought into the exam hall, to the middle of its floor; then, out in the level, the
-## breaches abominations rise from, abominations already up and small classes out of their halls
-## (see the consts). Their spots are drawn, as any archetype's dressing is.
+## Out in the level: the breaches abominations rise from, abominations already up and small classes
+## out of their halls (see the consts). Their spots are drawn, as any archetype's dressing is. The way
+## on stays where the level laid it.
 static func populate(w: LevelGen, _def: NextWorldDef) -> void:
-	var exam: Dictionary = exam_hall(w)
-	if not exam.is_empty() and w.exits.has(MapInfo.Exit.DEEPER):
-		var inside: Rect2i = exam["inside"]
-		@warning_ignore("integer_division")
-		var spot: Vector2i = Vector2i(inside.position.x + inside.size.x / 2, inside.end.y - 1)
-		if w.get_cell(spot).type == LevelGen.Type.EMPTY:
-			w.move_object(w.exits[MapInfo.Exit.DEEPER], spot)
-			w.exits[MapInfo.Exit.DEEPER] = spot
 	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
 	var floors: Array[Vector2i] = w.free_floors()
 	var breaches: Array[Vector2i] = w.pick_apart(floors.filter(func(v: Vector2i) -> bool: return LevelGen.dist(v, start) >= BREACH_CLEAR and not w._crowds_exit(v)), w.foes_per_area(BREACHES_PER_K), BREACH_APART)
@@ -358,6 +342,15 @@ static func populate(w: LevelGen, _def: NextWorldDef) -> void:
 		for j: int in range(class_cells.size()):
 			var kind: LevelGen.Type = LevelGen.Type.PROCTOR if j == 0 and i % PROCTOR_EVERY == 0 else LevelGen.Type.STUDENT
 			w.put(class_cells[j], kind)
+
+
+## The first classroom of department `dept` in `w` (its index in LevelGen.halls, the one holding the
+## department's portal), or -1 for none.
+static func first_of(w: LevelGen, dept: StringName) -> int:
+	for i: int in range(w.halls.size()):
+		if w.halls[i]["kind"] == &"lecture" and w.halls[i]["dept"] == dept:
+			return i
+	return -1
 
 
 ## What the master at `v` has mastered (MASTERIES), dealt by the level seed.
@@ -378,15 +371,14 @@ static func department_row(def: NextWorldDef, dept: StringName, i: int) -> int:
 
 ## Last of all (so nothing else in the level moves for them), what each hall holds, on its free
 ## floors, with no draws from the world RNG:
-## - the exam hall: its examiner (a master, `hall` its hall) at the end of its floor away from the
-##   way on, and CLASS students along the floor;
-## - a lecture hall: its master at the lectern, its department's portal (Department) against the
-##   lectern's wall, and a student on each tier (a proctor on the top one);
+## - a classroom: its master on the floor before the lectern, its department's portal (Department)
+##   against the lectern's wall in the first classroom of each department (the others' papers go
+##   to the same place), and students on the gallery (a proctor among them in every other one);
 ## - the library: a librarian on its top gallery with HOARD stars, and a student on each gallery
 ##   below.
 ## Then the timetable's things (Timetable): a lectern (Lectern) and a bell's cord (SchoolBell) on each
-## lecture hall's floor between its portal and its master, a cord on the library's floor, a glyph
-## seal (GlyphSeal) just inside each doorway of the exam hall and the library (out in the level the
+## classroom's floor between its portal's place and its master, a cord on the library's floor, a
+## glyph seal (GlyphSeal) just inside each doorway of the library (out in the level the
 ## cell outside may hold anything), asking for the spell Timetable.seal_of deals, and the great bell
 ## out in the corridors over its cord (see BELL_CLEAR).
 static func furnish(w: LevelGen, def: NextWorldDef) -> void:
@@ -395,23 +387,18 @@ static func furnish(w: LevelGen, def: NextWorldDef) -> void:
 		var inside: Rect2i = hall["inside"]
 		var bottom: int = inside.end.y - 1
 		match hall["kind"]:
-			&"exam":
-				var head: Vector2i = Vector2i(inside.end.x - 2, bottom)
-				_place(w, head, LevelGen.Type.MASTER, {"ability": mastery(w, head), "hall": i})
-				for k: int in range(CLASS):
-					_place(w, Vector2i(inside.position.x + 1 + k * 2, bottom), LevelGen.Type.STUDENT)
 			&"lecture":
-				var rise: int = hall["rise"]
-				var wall: int = inside.position.x if rise > 0 else inside.end.x - 1
-				var portal: Vector2i = Vector2i(wall + rise, bottom)
-				_place(w, portal, LevelGen.Type.DEPARTMENT, [hall["dept"], department_row(def, hall["dept"], i)])
+				var front: int = hall["front"]
+				var wall: int = inside.position.x if front > 0 else inside.end.x - 1
+				if first_of(w, hall["dept"]) == i:
+					_place(w, Vector2i(wall + front, bottom), LevelGen.Type.DEPARTMENT, [hall["dept"], department_row(def, hall["dept"], i)])
 				# Its master teaches the hall's subject now (Timetable.subject; Scholar.setup).
-				var head: Vector2i = Vector2i(wall + rise * 4, bottom)
+				var head: Vector2i = Vector2i(wall + front * 5, bottom)
 				_place(w, head, LevelGen.Type.MASTER, {"ability": Timetable.subject(w, i, 0), "hall": i})
-				for k: int in range(1, TIERS + 1):
-					var from_wall: int = (TIERS - k) * TIER_DEEP
-					var x: int = inside.end.x - 1 - from_wall if rise > 0 else inside.position.x + from_wall
-					_place(w, Vector2i(x, bottom - k), LevelGen.Type.PROCTOR if k == TIERS else LevelGen.Type.STUDENT)
+				var seats: int = gallery_row(inside)
+				for k: int in range(SEATS.size()):
+					var kind: LevelGen.Type = LevelGen.Type.PROCTOR if k == SEATS.size() - 1 and i % PROCTOR_EVERY == 0 else LevelGen.Type.STUDENT
+					_place(w, Vector2i(wall + front * SEATS[k], seats), kind)
 			&"library":
 				var tops: Array[int] = []
 				for v: Vector2i in hall["floors"]:
@@ -444,10 +431,10 @@ static func _timetable(w: LevelGen) -> void:
 		var bottom: int = inside.end.y - 1
 		match hall["kind"]:
 			&"lecture":
-				var rise: int = hall["rise"]
-				var wall: int = inside.position.x if rise > 0 else inside.end.x - 1
-				_place(w, Vector2i(wall + rise * 2, bottom), LevelGen.Type.LECTERN, i)
-				_place(w, Vector2i(wall + rise * 3, bottom), LevelGen.Type.SCHOOL_BELL, {"great": false})
+				var front: int = hall["front"]
+				var wall: int = inside.position.x if front > 0 else inside.end.x - 1
+				_place(w, Vector2i(wall + front * 2, bottom), LevelGen.Type.LECTERN, i)
+				_place(w, Vector2i(wall + front * 3, bottom), LevelGen.Type.SCHOOL_BELL, {"great": false})
 			&"library":
 				_place(w, Vector2i(inside.position.x + 2, bottom), LevelGen.Type.SCHOOL_BELL, {"great": false})
 		var spell: StringName = Timetable.seal_of(w, i)

@@ -1,14 +1,9 @@
 extends StaticBody2D
 class_name ExamDoor
 ## A door of an institute hall with a class in it (Institute, Timetable.TIMETABLED), across one of
-## its doorways, kept by the timetable (MapInfo.hall_door_up): a lecture hall's or the library's
-## stands open while its class is in session and is shut while it is not. The exam hall's are the gate
-## of the institute (docs/REGIONS_PLAN.md §7): open only while the exam is in session (the last
-## period), until the exam begins, when the wizard is inside the hall (MapInfo.exam_begin); then they
-## drop, as soon as the wizard is clear of them, and the hall is shut off with its master and
-## students, until the master falls (Scholar._fallen, MapInfo.exam_passed). Then they rise for good:
-## the level record keeps the exam passed (LevelRecord.exams). A death of the wizard's own before then
-## brings the master back, the exam to sit afresh. It has no lock: nothing else opens it. Its
+## its doorways, kept by the timetable (MapInfo.hall_door_up): the library's stands open always, and a
+## classroom's while its class is in session to a wizard enrolled in it (or inside it), shut
+## otherwise; it never drops on the wizard. It has no lock: nothing else opens it. Its
 ## portcullis winches up and down (`lift`, printed by ExamDoorArt), and MapInfo.exam_doors keeps
 ## whether each is up, for what light and sight pass (MapInfo.solid_at).
 
@@ -43,23 +38,25 @@ func _ready() -> void:
 	collision_layer = 0
 
 
-## Whether its exam has been passed (it stays up for good).
-func passed() -> bool:
-	return map_info != null and map_info.record().exams.has(hall)
-
-
 ## What its hall teaches (for its plate): a lecture hall's subject now (MapInfo.subject_of; &"" for
-## no class), the exam's examiner's spell; &"" for none.
+## no class, and for any other hall).
 func subject() -> StringName:
 	if map_info == null or map_info.world == null:
 		return &""
 	if hall >= 0 and hall < map_info.world.halls.size() and map_info.world.halls[hall]["kind"] == &"lecture":
 		return map_info.subject_of(hall)
-	for v: Vector2i in map_info.world.objects_of(LevelGen.Type.MASTER):
-		var extra: Variant = map_info.world.get_cell(v).extra_info
-		if extra is Dictionary and int((extra as Dictionary).get("hall", -1)) == hall:
-			return StringName((extra as Dictionary).get("ability", &""))
 	return &""
+
+
+## What a classroom's class asks for now (for the paper under its plate): [its prerequisite, the tier
+## needed] (Timetable.prereq, need), or [&"", 0] for nothing (a first subject, no class, another
+## hall).
+func prereq() -> Array:
+	var a: StringName = subject()
+	var before: StringName = Timetable.prereq(a)
+	if before == &"":
+		return [&"", 0]
+	return [before, Timetable.need(tier())]
 
 
 ## The tier its lecture hall teaches its subject at now (pips under its plate), or 0.

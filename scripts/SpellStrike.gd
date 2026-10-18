@@ -87,14 +87,10 @@ static func clear(from: Vector2, to: Vector2) -> bool:
 
 ## Strike `e` heading `dir`: wound it by `damage` (Wound.dealt: at least its Wound.least, and at least
 ## 1 while a parry has it stunned); a shield takes it whole, and what answers a bolt answers. A glyph seal is told
-## which spell struck it (`spell`, &"" for a plain blow) and where it was cast from (`from`), and
-## opens only to its own (GlyphSeal.struck).
-static func strike(e: Node, dir: Vector2, damage: int, spell: StringName = &"", from: Vector2 = Vector2.INF) -> void:
+## which spell struck it (`spell`, &"" for a plain blow), and opens only to its own (GlyphSeal.struck).
+static func strike(e: Node, dir: Vector2, damage: int, spell: StringName = &"") -> void:
 	if e is GlyphSeal:
-		(e as GlyphSeal).struck(spell, from, 0.0)
-		return
-	if e is TrialPiece:
-		(e as TrialPiece).struck(spell, from, dir)
+		(e as GlyphSeal).struck(spell)
 		return
 	# A scholar struck by the wizard turns on them (Scholar.rouse), the blow theirs.
 	if e is Scholar:

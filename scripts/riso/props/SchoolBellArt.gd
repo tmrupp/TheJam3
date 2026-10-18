@@ -6,9 +6,9 @@ extends RisoProp
 ## less and less. A hall's cord goes up into the ceiling through a dark socket with a gold pulley.
 ## The corridor's cord (`great`) hangs from the great bell itself: a big bell of accent ink on a
 ## blue yoke under the ceiling, shaded in night, its clapper the cord's top; rung, it swings hard
-## and rings out in fading accent arcs. Along its yoke the day's periods are marked (Timetable.PERIODS
-## small diamonds knocked to paper, the exam's in pink): the one it is now swells in accent, bobbing
-## in passing time while it waits for the wizard to go into a class.
+## and rings out in fading accent arcs. Along its yoke the periods of a block are marked
+## (Timetable.PERIODS small diamonds knocked to paper): the one it is now swells in accent, bobbing in
+## passing time while it waits for the wizard to go into a class.
 
 ## The period marks on the yoke: their size, and the room between them (px).
 const MARK_R: float = 6.0
@@ -134,13 +134,12 @@ func _great_bell(at: Vector2, h: float, swing: float, fade: float, ringing: floa
 	return clapper.y
 
 
-## The day's periods marked along the great bell's yoke, its middle at `at` (see the class
+## The block's periods marked along the great bell's yoke, its middle at `at` (see the class
 ## description).
 func _marks(info: MapInfo, at: Vector2) -> void:
 	var rec: LevelRecord = info.record()
 	var now: int = Timetable.period(rec.rings)
 	var marks: Array[PackedVector2Array] = []
-	var exam: PackedVector2Array = PackedVector2Array()
 	var lit: PackedVector2Array = PackedVector2Array()
 	for p: int in range(Timetable.PERIODS):
 		var c: Vector2 = at + Vector2((float(p) - float(Timetable.PERIODS - 1) * 0.5) * MARK_GAP, 0.0)
@@ -151,10 +150,6 @@ func _marks(info: MapInfo, at: Vector2) -> void:
 		marks.append(mark)
 		if p == now:
 			lit = mark
-		elif p == Timetable.EXAM_PERIOD:
-			exam = mark
 	ink.knock(RisoPrint.ALL_PLATES, marks)
-	if not exam.is_empty():
-		ink.ink(RisoPrint.PINK, 1.0, [exam])
 	if not lit.is_empty():
-		ink.ink(RisoPrint.PINK if now == Timetable.EXAM_PERIOD else RisoPrint.ACCENT, 1.0, [lit])
+		ink.ink(RisoPrint.ACCENT, 1.0, [lit])

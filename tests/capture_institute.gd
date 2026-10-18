@@ -1,6 +1,6 @@
 extends TestKit
-## Stills of the institute (world 28, its first level): the exam hall with its master, students and
-## the way on; a lecture hall's tiers with its class and its department's portal; the library's
+## Stills of the institute (world 28, its first level): a classroom with its class and its
+## department's portal; the library's
 ## stacks with its librarian's hush; a breach and an abomination; a row of the people side by side
 ## close up (a student, a master of each spell, a proctor, a librarian) and one winding up; and a
 ## lesson left where a master fell.
