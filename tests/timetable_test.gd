@@ -10,8 +10,8 @@ extends TestKit
 ## the wizard belongs. In play: a level first met before any ring, in a period; scholars turn on a
 ## wizard they see truant, and those near them with them, not the whole level; a ring moves on a
 ## period, starts passing time, feeds the beast and calms them all; in passing time the corridors are
-## the wizard's; a cast or a blow where they see it turns them; the bell rings once a period (not
-## again in passing time, until the wizard goes into a class); hall doors stand open only while in
+## the wizard's; a cast or a blow where they see it turns them; every pull of a cord rings the bell
+## (in passing time too, with a class open to the wizard); hall doors stand open only while in
 ## session; every ring seats each class afresh, a master teaching its hall's subject, a hall with no
 ## class empty and trespassed in; an instructor far stronger than a master out in the level, its whole
 ## class turning with it; felled by an abomination it leaves nothing, felled by the wizard a paper of
@@ -206,14 +206,13 @@ func _play() -> void:
 		return
 	var bell: SchoolBell = cords[0] as SchoolBell
 	await _belonging(rec, bell)
-	await _once_a_period(rec, bell)
+	await _every_pull(rec, bell)
 	await _doors(rec, bell)
 	await _classes(rec, bell)
 	await _attend(rec, bell)
 	await _sneak(rec, bell)
 	await _prereqs(rec, bell)
 	await _climbing(rec, bell)
-	await _no_class_open(rec, bell)
 	await _way_on(rec, bell)
 	await _abominations(rec)
 	await _proctor(rec, bell)
@@ -269,17 +268,19 @@ func _belonging(rec: LevelRecord, bell: SchoolBell) -> void:
 	by.queue_free()
 
 
-## The bell rings once a period: not again in passing time, until the wizard goes into a class.
-func _once_a_period(rec: LevelRecord, bell: SchoolBell) -> void:
-	print("the bell rings once a period")
+## Every pull of a cord rings the bell and moves every class on: in a period, and in passing time too,
+## with a class open to the wizard (they need not go into one first), from a classroom's cord or the
+## great bell's; only not twice within SchoolBell.RING_GAP.
+func _every_pull(rec: LevelRecord, bell: SchoolBell) -> void:
+	print("every pull rings the bell")
 	player.global_position = bell.global_position
 	rec.passing = false
 	info.since_bell = SchoolBell.RING_GAP
 	check(info.ring_period() and rec.passing, "rung in a period, passing time begins")
 	var rings: int = rec.rings
 	var other: SchoolBell = placed("school_bell.tscn").filter(func(n: Node) -> bool: return not (n as SchoolBell).great)[0] as SchoolBell
-	info.since_bell = SchoolBell.RING_GAP
 	other.ring()
+	check(rec.rings == rings, "pulled again at once, within its gap, it does not ring")
 	var hall: int = _hall_with_class()
 	if hall < 0:
 		# A class the wizard is not enrolled in yet: carry the paper it asks for.
@@ -289,17 +290,20 @@ func _once_a_period(rec: LevelRecord, bell: SchoolBell) -> void:
 				player.keyring.take(KeyRing.paper(Timetable.LADDERS[need[0]][0], need[1]))
 				hall = i
 				break
-	if hall >= 0:
-		check(rec.rings == rings, "pulled again in passing time, it does not ring: the wizard must go into a class first")
-		player.global_position = _in_hall(hall)
-		check(await within(func() -> bool: return not rec.passing, 0.5), "going into a class ends passing time")
-		info.since_bell = SchoolBell.RING_GAP
-		other.ring()
-		check(rec.rings == rings + 1, "and then it rings again")
-		player.keyring.clear()
-	else:
-		check(rec.rings == rings + 1, "with no lecture hall's class in session, it rings again at once")
-	player.global_position = bell.global_position
+	check(hall >= 0 and info.enrolled(hall), "a class in session open to the wizard")
+	info.since_bell = SchoolBell.RING_GAP
+	other.ring()
+	await frames(2)
+	check(rec.rings == rings + 1 and rec.passing, "pulled again in passing time, with a class open to the wizard, it rings all the same")
+	var seated: bool = true
+	for i: int in range(info.world.halls.size()):
+		if info.subject_of(i) != &"":
+			seated = seated and info.master_in(i) != null and info.master_in(i).ability == info.subject_of(i)
+	check(seated, "every class moved on: each master teaching its hall's subject for the new period")
+	info.since_bell = SchoolBell.RING_GAP
+	bell.ring()
+	check(rec.rings == rings + 2, "and again from the great bell's cord")
+	player.keyring.clear()
 	await frames(2)
 
 
@@ -656,38 +660,6 @@ func _climbing(rec: LevelRecord, bell: SchoolBell) -> void:
 		print("  (no class of a move the wizard lacks met here)")
 	rec.dept_tiers.clear()
 	player.global_position = bell.global_position
-	for n: Node in get_nodes_in_group(&"scholar"):
-		(n as Scholar).calm()
-	await frames(2)
-
-
-## In passing time with no class in session open to the wizard (every one asking for a paper they
-## lack), the bell rings anyway, so they are never left with no way on; with one open, it waits.
-func _no_class_open(rec: LevelRecord, bell: SchoolBell) -> void:
-	print("no class open")
-	player.global_position = bell.global_position
-	player.keyring.clear()
-	for dept: StringName in Timetable.LADDERS:
-		rec.dept_tiers[dept] = 3
-		for a: StringName in Timetable.LADDERS[dept]:
-			Abilities.set_tier(player, a, 0)
-	rec.passing = true
-	info.since_bell = SchoolBell.RING_GAP
-	await frames(2)
-	check(info.timetabled() and not info.class_open(), "every class in session asks for a paper the wizard lacks")
-	var hall: int = -1
-	for i: int in range(info.world.halls.size()):
-		if info.subject_of(i) != &"":
-			hall = i
-	if hall >= 0:
-		var need: Array = Timetable.needs(info.world.halls[hall]["dept"], info.tier_of(hall))
-		player.keyring.take(KeyRing.paper(Timetable.LADDERS[need[0]][0], need[1]))
-		check(info.class_open() and not info.bell_ready(), "carrying a paper that opens one, the bell waits in passing time for them to go in")
-		player.keyring.clear()
-	var rings: int = rec.rings
-	check(info.bell_ready() and info.ring_period() and rec.rings == rings + 1, "with none open, it rings in passing time all the same")
-	rec.dept_tiers.clear()
-	Abilities.set_tier(player, &"slash", 1)
 	for n: Node in get_nodes_in_group(&"scholar"):
 		(n as Scholar).calm()
 	await frames(2)

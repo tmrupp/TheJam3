@@ -15,8 +15,9 @@ the departments' climb against every outcome the game gave, then plays the timet
 The wizard is modelled as the game has them: they start holding slash I (a geology spell); a class of
 tier II or more asks for a paper of the department before it round the ring (Timetable.NEEDS), a
 tier lower; going into a class starts it, and it is sat until the bell rings it out (a ring each);
-a class of a relic's move (levitate, astral) the wizard lacks counts as attended, with no paper; in
-passing time the bell rings from the corridors only when no class is open to them. Field trips cost
+a class of a relic's move (levitate, astral) the wizard lacks counts as attended, with no paper; every
+pull of a cord rings the bell, in passing time too, so the wizard may ring from the corridors at any
+ring (the route model: only where a cord hangs). Field trips cost
 no rings, and the key ring keeps the best paper of each department, the wizard choosing which to
 drop when it is full (lecterns make that a real choice). Instructors' and lecterns' papers (stolen)
 are left out.
@@ -27,6 +28,7 @@ are left out.
 import argparse
 import itertools
 import json
+import math
 import random
 import statistics
 import sys
@@ -112,6 +114,17 @@ def sessions_before(rules, dept, r):
     return (r // rules.periods) * len(days) + len([p for p in days if p < r % rules.periods])
 
 
+def cycle(rules):
+    """How many rings every classroom's schedule takes to come round again (18 as the game stands): a
+    state of the search is the same state again only that many rings on."""
+    out = 1
+    for d in rules.depts:
+        turn = rules.holds[d] * len(rules.ladders[d])
+        days = turn // math.gcd(len(rules.meets[d]), turn)
+        out = out * rules.periods * days // math.gcd(out, rules.periods * days)
+    return out
+
+
 def schedule(rules, dept, start, rings, all_meet=False):
     """What a classroom of `dept` starting at `start` teaches each ring (Timetable.subject)."""
     out = []
@@ -165,16 +178,13 @@ def enrolled(rules, tiers, papers, dept, a):
 
 def choices(rules, level, wiz, r, tiers, papers):
     """What the wizard can do in the period after `r` rings: sit a room's class (its index), or ring
-    from the corridors (None: before any ring, or in passing time with no class open to them)."""
+    from the corridors (None: every pull of a cord rings the bell)."""
     rooms = []
     for k, (dept, subjects) in enumerate(level.rooms):
         a = subjects[r]
         if a != "" and enrolled(rules, tiers, papers, dept, a):
             rooms.append(k)
-    out = list(rooms)
-    if r == 0 or not rooms:
-        out.append(None)
-    return out
+    return rooms + [None]
 
 
 def keep(papers, dept, tier, cap):
@@ -234,19 +244,12 @@ def random_play(rules, level, wiz, rings=60, runs=400, seed=1):
     at2 = defaultdict(int)
     at3 = defaultdict(int)
     first3 = []
-    stuck = []
     total = 0
     for _ in range(runs):
         tiers = {d: 1 for d in rules.depts}
         papers, lr, got3 = {}, {d: False for d in rules.depts}, None
         for r in range(rings):
-            options = choices(rules, level, wiz, r, tiers, papers)
-            if not options:
-                # Stuck in passing time: every class in session asks for a paper the wizard lacks, so
-                # there is no class to go into, and the bell will not ring until they do.
-                stuck.append(r)
-                break
-            c = rng.choice(options)
+            c = rng.choice(choices(rules, level, wiz, r, tiers, papers))
             attended = ""
             if c is not None:
                 dept, subjects = level.rooms[c]
@@ -262,7 +265,7 @@ def random_play(rules, level, wiz, rings=60, runs=400, seed=1):
                 at2[d] += tiers[d] >= 2
                 at3[d] += tiers[d] >= 3
         first3.append(got3 if got3 is not None else rings + 1)
-    return {d: (at2[d] / max(total, 1), at3[d] / max(total, 1)) for d in rules.depts}, statistics.median(first3), stuck
+    return {d: (at2[d] / max(total, 1), at3[d] / max(total, 1)) for d in rules.depts}, statistics.median(first3)
 
 
 def synthetic(rules, starts, rings=36, all_meet=False):
@@ -357,9 +360,9 @@ def way_through(rules, route, mode="starts", gate="any", gate_tier=2, cap=2, rin
     who comes in with nothing on their ring.
     mode "starts" (the game): going into a class in session starts it, its doors shut until the bell
     rings it out (a ring, counted as attending; a relic class they lack counts too, with no paper);
-    the bell rings from the corridors only from a region with a cord, and in passing time only when no
-    class is open. mode "current": the rules before that (a classroom open to the wizard is walked
-    through in the same period; rings only wait on rhythms).
+    the bell rings from the corridors at any ring, but only from a region with a cord. mode "current":
+    the rules before that (a classroom open to the wizard is walked through in the same period; rings
+    only wait on rhythms).
     gate "any" (the game, Timetable.WAY_ON_PAPER): the way on's classroom asks besides for a paper of
     any other department at `gate_tier` or higher; gate "always": for one of the department before
     its own round the ring; gate "starts": its department starts the level at `gate_tier` and climbs
@@ -398,9 +401,10 @@ def way_through(rules, route, mode="starts", gate="any", gate_tier=2, cap=2, rin
         return {d: any(sub[r] != "" for dd, sub, _ in route.rooms if dd == d) for d in rules.depts}
 
     cords = route.cords
+    days = cycle(rules)
     start = (route.start, tuple(tiers0[d] for d in rules.depts), papers0)
     frontier = {start}
-    seen = set(frontier)
+    seen = {(start, 0)}
     for r in range(rings):
         meeting = meeting_of(r)
         nxt = set()
@@ -420,14 +424,13 @@ def way_through(rules, route, mode="starts", gate="any", gate_tier=2, cap=2, rin
             # The way on.
             if route.exit is not None and route.rooms[route.exit][2] & here and open_room(tiers, pk, route.exit, r):
                 return r
-            any_open = any(open_room(tiers, pk, k, r) for k in range(len(route.rooms)))
             moves = []
             for k, (dept, subjects, gs) in enumerate(route.rooms):
                 if k != route.exit and gs & here and open_room(tiers, pk, k, r):
                     a = subjects[r]
                     taught_now = not (a in rules.relic_moves)
                     moves.append((k, dept, gs, taught_now))
-            corridor_ok = (mode == "current") or ((r == 0 or not any_open) and bool(here & cords))
+            corridor_ok = (mode == "current") or bool(here & cords)
             if corridor_ok:
                 moves.append((None, "", frozenset(here), False))
             for k, attended, out, paper in moves:
@@ -438,8 +441,8 @@ def way_through(rules, route, mode="starts", gate="any", gate_tier=2, cap=2, rin
                 for p2 in plist:
                     for g in out:
                         st = (g, tuple(after[d] for d in rules.depts), frozen(p2))
-                        if st not in seen:
-                            seen.add(st)
+                        if (st, (r + 1) % days) not in seen:
+                            seen.add((st, (r + 1) % days))
                             nxt.add(st)
         frontier = nxt
         if not frontier:
@@ -518,23 +521,18 @@ def main():
     # 3. Random play.
     rp = defaultdict(lambda: [0.0, 0.0])
     firsts = []
-    stuck_runs, stuck_at = 0, []
     sample = starts[::9]
     runs = 150
     for s in sample:
-        shares, first3, stuck = random_play(rules, synthetic(rules, s, 60), Wizard(), rings=60, runs=runs)
+        shares, first3 = random_play(rules, synthetic(rules, s, 60), Wizard(), rings=60, runs=runs)
         firsts.append(first3)
-        stuck_runs += len(stuck)
-        stuck_at += stuck
         for d in ORDER:
             rp[d][0] += shares[d][0] / len(sample)
             rp[d][1] += shares[d][1] / len(sample)
-    report["random"] = {"shares": {d: rp[d] for d in ORDER}, "median_rings_to_any_III": statistics.median(firsts),
-                        "stuck_share": stuck_runs / (runs * len(sample)), "stuck_median_ring": statistics.median(stuck_at) if stuck_at else None}
+    report["random"] = {"shares": {d: rp[d] for d in ORDER}, "median_rings_to_any_III": statistics.median(firsts)}
     print("\nrandom play (60 rings): share of rings at II+ / III+")
     print("  " + "  ".join(f"{d}: {rp[d][0]:.2f}/{rp[d][1]:.2f}" for d in ORDER))
     print(f"  median rings to a first paper of tier III, any department: {statistics.median(firsts)}")
-    print(f"  runs stuck (no choice left): {report['random']['stuck_share']:.0%}")
 
     # 4. Other rules for geology.
     report["geology"] = {}
@@ -543,7 +541,7 @@ def main():
         summ = summarise(res)
         shares = defaultdict(float)
         for s in starts[::27]:
-            sh, _, _ = random_play(rules, synthetic(rules, s, 60), Wizard(geology=g), rings=60, runs=150)
+            sh, _ = random_play(rules, synthetic(rules, s, 60), Wizard(geology=g), rings=60, runs=150)
             for d in ORDER:
                 shares[d] += sh[d][0] / 3
         report["geology"][g] = {"summary": summ, "random_II": dict(shares)}

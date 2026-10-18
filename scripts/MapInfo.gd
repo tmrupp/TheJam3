@@ -984,20 +984,10 @@ func tier_of (hall: int) -> int:
 	var a: StringName = subject_of(hall)
 	return Timetable.tier_taught(a, int(dept_tiers()[world.halls[hall]["dept"]])) if a != &"" else 0
 
-## Whether the great bell can ring now: once a period (not in passing time, unless no class in session
-## is open to the wizard to go into, class_open, so they are never left with no way on), and not within
-## SchoolBell.RING_GAP of its last ring.
+## Whether the great bell can ring now: at every pull of a cord, in a period or in passing time (each
+## ring moves every class on), but not within SchoolBell.RING_GAP of its last ring.
 func bell_ready () -> bool:
-	if not timetabled() or since_bell < SchoolBell.RING_GAP:
-		return false
-	return not record().passing or not class_open()
-
-## Whether some classroom's class in session now is open to the wizard (enrolled).
-func class_open () -> bool:
-	for i: int in range(world.halls.size()):
-		if world.halls[i]["kind"] == &"lecture" and subject_of(i) != &"" and enrolled(i):
-			return true
-	return false
+	return timetabled() and since_bell >= SchoolBell.RING_GAP
 
 ## The great bell was rung (one of its cords pulled, SchoolBell), if it can be (bell_ready): a wizard
 ## in a class as it rings has attended it (_attend); the level moves on a period and passing time

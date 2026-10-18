@@ -8,9 +8,9 @@ extends RefCounted
 ##   ends, the period begins, and the classroom's doors shut behind them until the bell rings it out
 ##   (MapInfo.hall_door_up; each classroom has a cord of its own). Only going in starts a class:
 ##   staying in a classroom as the bell rings does not, and in passing time its doors let them out.
-##   The bell rings once a period: after a ring it is silent until passing time is over (unless no
-##   class in session is open to the wizard, MapInfo.class_open). How many times it has rung and
-##   whether it is passing time are kept in the level's record (LevelRecord.rings, passing).
+##   Every pull of a cord rings the bell and moves every class on, in a period or in passing time
+##   (MapInfo.bell_ready). How many times it has rung and whether it is passing time are kept in the
+##   level's record (LevelRecord.rings, passing).
 ## - The day is PERIODS periods, the rings counted round (period). Each classroom keeps its
 ##   department (Institute.DEPARTMENTS), and each department keeps its own rhythm (RHYTHMS: the periods
 ##   it meets in) and steps through its three subjects (LADDERS) one a session, or one every HOLDS

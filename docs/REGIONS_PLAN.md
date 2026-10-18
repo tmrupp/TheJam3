@@ -781,9 +781,11 @@ Each phase ends with the full suite green and its own tests.
     any of the cords in the classrooms and the library. A ring ends the period and moves the level
     on to the next of three in its day. It starts passing time, seats every class afresh, calms every
     scholar, climbs or drops each department that met (below), wakes the abominations more and
-    feeds the beast for the run. The bell rings once a period: after a ring it
-    is silent until the wizard has gone into a class (unless no class is open to them). Its cord
-    hangs in the corridors the way in opens on, so a wizard just come in can ring it.
+    feeds the beast for the run. Every pull of a cord rings it, in passing time too, so a wizard
+    waiting on another period rings on to it and pays for each ring (once it would not ring in
+    passing time while any class was open to them, which left them stuck where none of those could
+    be reached). Its cord hangs in the corridors the way in opens on, so a wizard just come in can
+    ring it.
   - *Passing time* lasts until the wizard goes into a class in session, however long that takes, so
     it is the wizard's to spend: look round, open seals, pick the class, then commit to it. Going in
     starts the class: its doors shut behind them until the bell rings it out (the classroom's own
@@ -805,8 +807,8 @@ Each phase ends with the full suite green and its own tests.
     crashes it, feeding botany starves necrology, and geology needs the whole school high above it.
     The timetable model (`tools/timetable_model.py`) found two faults, both fixed: a botany class
     the wizard cannot be taught (levitate, without the relic) broke botany's streak (now any class
-    sat counts as attended, taught or not, so there is no special case for botany), and the bell
-    rings in passing time when no class is open to the wizard, so they are never stuck. Now every department reaches IV from every start; geology III takes 6 to
+    sat counts as attended, taught or not, so there is no special case for botany), and a wizard
+    could be stuck in passing time with the bell silent (now every pull rings). Now every department reaches IV from every start; geology III takes 6 to
     10 rings and is the rarest tier by chance; without the rhythms geology never rises. Levitate and astral are taught only to a wizard who already has them (relics stay
     how the big moves are found). Doors show the subject taught now, its tier and the prerequisite;
     the rotation is learned by play.
@@ -825,9 +827,10 @@ Each phase ends with the full suite green and its own tests.
     never one spell.
   - *The way on* stands in the classroom the most classrooms in from the way in, and asks besides
     for an exam paper (not a spell held) of any other department at II or higher. On 40 real levels
-    the timetable model gets a wizard with nothing on their ring through in 2 to 7 rings, 3 at the
-    median, in 32; the rest are left as dealt (the owner's call): their way runs through papers from
-    other levels, a feature meant for the cemetery and the crags too.
+    the timetable model gets a wizard with nothing on their ring (room on it for two papers) through
+    in 2 to 15 rings, 3 at the median, in 39 (35 with the ring's one slot); the rest are left as
+    dealt (the owner's call): their way runs through papers from other levels, a feature meant for
+    the cemetery and the crags too.
   - *Exam papers.* Attending a class is being in its classroom when the bell rings it out, having
     gone in to start it, its master there and not turned on the wizard; a class of a move the
     wizard lacks counts as attended, with no paper. Its paper (the subject at the tier
