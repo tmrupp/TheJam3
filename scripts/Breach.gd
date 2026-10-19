@@ -2,21 +2,25 @@ extends Node2D
 class_name Breach
 ## A breach in an institute floor (Institute.populate), where the deep the eldritch beast lies in
 ## shows through: a crack glowing pink, the abominations' spawner. While the wizard is within WAKE
-## cells of it, an abomination (Abomination) climbs out of it every EVERY seconds (the first FIRST
-## seconds after it wakes), as long as fewer than Abomination.MOST are about in the level, and what
+## cells of it, an abomination (Abomination) climbs out of it every so often (every(), slow before
+## any ring in its level and quicker with each, down to EVERY_LEAST; the first FIRST seconds after it
+## wakes), as long as fewer than Abomination.MOST are about in the level, and what
 ## comes out multiplies in its turn: a breach has to be closed. It is an enemy itself (its Wound,
 ## given as it is placed, set to HP): any bolt wounds it, even one of no damage (Wound.least),
 ## and once closed the level record keeps it so until the wizard dies. What climbs out is not part
 ## of the level: none are kept, and they are gone when the level is left. By the timetable it lets
-## nothing out during a class (a period), and in passing time lets them out the sooner for every ring
-## of the bell in the level (MapInfo.abominations_quiet, surge). Nothing here draws from any RNG.
+## nothing out during a class (MapInfo.abominations_quiet). Nothing here draws from any RNG.
 
 ## How near the wizard wakes it (cells), how soon the first comes and how often after that
 ## (seconds), and the hits it takes to close.
 const WAKE: int = 10
 const FIRST: float = 1.5
-const EVERY: float = 5.0
 const HP: int = 6
+## Seconds between abominations let out: EVERY_FIRST before any ring in the level, EVERY_PER_RING less
+## for every period rung out there, down to EVERY_LEAST.
+const EVERY_FIRST: float = 16.0
+const EVERY_PER_RING: float = 1.5
+const EVERY_LEAST: float = 5.0
 ## How long it shows one coming before it is out (seconds), and how long the newcomer takes to rise.
 const SURGE: float = 0.8
 const RISE: float = 0.6
@@ -38,6 +42,11 @@ func setup(info: MapInfo, v: Vector2i) -> void:
 	if wound != null:
 		wound.least = 1
 		wound.hp = HP
+
+
+## Seconds between abominations let out after `rings` periods rung out in the level (see EVERY_FIRST).
+static func every(rings: int) -> float:
+	return maxf(EVERY_LEAST, EVERY_FIRST - EVERY_PER_RING * float(rings))
 
 
 ## Whether the wizard is near enough to wake it.
@@ -64,9 +73,9 @@ func _physics_process(delta: float) -> void:
 		return
 	if get_tree().get_nodes_in_group(&"abomination").size() >= Abomination.MOST or map_info.abominations_quiet():
 		return
-	wait -= delta * Difficulty.attack() * map_info.surge()
+	wait -= delta * Difficulty.attack()
 	if wait <= 0.0:
-		wait = EVERY
+		wait = every(map_info.record().rings)
 		surging = 0.0
 
 

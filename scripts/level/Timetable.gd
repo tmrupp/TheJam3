@@ -2,26 +2,28 @@ class_name Timetable
 extends RefCounted
 ## The institute's timetable (docs/REGIONS_PLAN.md §7 and §9): its band-wide puzzle, as light is the
 ## cemetery's and the tower switches are the crags'. There is no clock: nothing in it happens until
-## its great bell is rung (SchoolBell) or the wizard goes somewhere.
-## - Each ring of the bell moves the level on a period (a level is first met before any ring, under
-##   way) and starts passing time; the wizard going into a class in session starts it: passing time
-##   ends, the period begins, and the classroom's doors shut behind them until the bell rings it out
-##   (MapInfo.hall_door_up; each classroom has a cord of its own). Only going in starts a class:
-##   staying in a classroom as the bell rings does not, and in passing time its doors let them out.
-##   The bell rings once a period: after a ring it is silent until passing time is over (unless no
-##   class in session is open to the wizard, MapInfo.class_open). How many times it has rung and
-##   whether it is passing time are kept in the level's record (LevelRecord.rings, passing).
+## a bell is rung (SchoolBell) or the wizard goes somewhere.
+## - A level is first met in passing time (LevelRecord.passing). A class starts when the wizard,
+##   enrolled in it, rings the cord in its classroom (MapInfo.pull_cord): passing time ends and the
+##   period begins (LevelRecord.started). It ends when they ring a bell out of the classrooms (one of
+##   the corridors' bells, or the library's cord), stepping out of class to do it, truant on the way:
+##   that rings the period out, moves the level on a period and starts passing time
+##   (MapInfo.ring_period). Rung in passing time, a corridor bell moves the level on all the same,
+##   nothing attended. No cord can be rung twice running (LevelRecord.last_bell), as a crags tower
+##   cannot be flipped twice running. How many periods have been rung out is kept in the level's
+##   record (LevelRecord.rings).
 ## - The day is PERIODS periods, the rings counted round (period). Each classroom keeps its
-##   department (Institute.DEPARTMENTS), and each department keeps its own rhythm (RHYTHMS: the periods
-##   it meets in) and steps through its three subjects (LADDERS) one a session, or one every HOLDS
-##   sessions, from a place dealt by the seed (subject): astronomy meets every period, a new subject
-##   each; geology every period, each subject two (double periods); botany the first two, fallow in
-##   the last; necrology only in the last, at dusk.
+##   department (Institute.DEPARTMENTS) and its own cycle: IN_SESSION periods in session, then closed
+##   for the rest of the day, from a place in the cycle dealt by the seed (in_cycle, phase), shown over
+##   its doors (ExamDoor.cycle). In session it steps through its department's three subjects (LADDERS)
+##   one a session, or one every HOLDS sessions (geology's double periods), from a place dealt by the
+##   seed (subject). A department meets in a period when any of its classrooms is in session (meets).
 ## - Each department has a tier in the level (LevelRecord.dept_tiers, I at first, up to TOP), the tier
 ##   its classes teach (tier_taught, up to each spell's own top). When the bell rings a period out,
 ##   each department that met in it climbs by its own rule or falls back to I (climb), as they stood
 ##   at the start of the period: botany rises when its class was attended; astronomy when another
-##   class was; geology when it stood strictly below every other department meeting with it; and
+##   class was; geology when the class attended was another department's standing at geology's own
+##   tier (laid down on its own stratum); and
 ##   necrology when another department crashed back to I from II or higher. A department that did
 ##   not meet neither moves nor counts; one at the top holds there. So no ring raises a tier by
 ##   itself: every climb is the wizard's doing, and most cost another. The library is always open. A hall's doors (ExamDoor) stand open while it is in
@@ -40,8 +42,8 @@ extends RefCounted
 ##   from the way in (Institute.way_on), and that classroom asks besides for an exam paper of any
 ##   other department at WAY_ON_PAPER or higher (MapInfo.way_on_paper), so getting through means
 ##   sitting classes.
-## - Exam papers (KeyRing.paper): a wizard who started a class (went into it) and is in it as the
-##   bell rings it out has attended it, and its paper (the subject at the tier taught) waits in the
+## - Exam papers (KeyRing.paper): a wizard who started a class (rang its cord) has attended it when
+##   they ring it out from a bell out of the classrooms (field trip or not), and its paper (the subject at the tier taught) waits in the
 ##   level its department's portal leads to (MapInfo._attend), to be fetched and carried on the key
 ##   ring; one carried of that subject at a lower tier is graded up in hand instead (resitting). A
 ##   class the wizard cannot be taught (a relic's move they lack) counts as attended all the same,
@@ -69,13 +71,9 @@ const LADDERS: Dictionary = {
 	&"botany": [&"push", &"levitate", &"ferry"],
 	&"necrology": [&"nova", &"astral", &"awareness"],
 }
-## Each department's rhythm: the periods it meets in, and how many of its sessions each subject lasts.
-const RHYTHMS: Dictionary = {
-	&"astronomy": [0, 1, 2],
-	&"geology": [0, 1, 2],
-	&"botany": [0, 1],
-	&"necrology": [2],
-}
+## Of each classroom's day of PERIODS, how many periods in a row it is in session (then closed for
+## the rest), and how many of its sessions each department's subjects last.
+const IN_SESSION: int = 2
 const HOLDS: Dictionary = {&"astronomy": 1, &"geology": 2, &"botany": 1, &"necrology": 1}
 ## The department whose paper each department's classes of tier II and up ask for (see the class
 ## description).
@@ -89,19 +87,39 @@ const WAY_ON_PAPER: int = 2
 ## spell the seals ask for.
 const ROTATION_DEAL: int = 6470
 const SEAL_DEAL: int = 6480
+## Salt for the level seed: where each classroom starts in its cycle.
+const PHASE_DEAL: int = 6490
 
 
-## Whether department `dept` meets in the period after `rings` rings (RHYTHMS).
-static func meets(dept: StringName, rings: int) -> bool:
-	return (RHYTHMS.get(dept, []) as Array).has(period(rings))
+## Where classroom `hall` of `w` stands in its cycle before any ring (0 to PERIODS - 1), dealt by
+## the seed: it is in session while (rings + phase) counted round PERIODS is under IN_SESSION.
+static func phase(w: LevelGen, hall: int) -> int:
+	return posmod(Rules.level_seed(w.seed_for_colors, PHASE_DEAL + hall), PERIODS)
 
 
-## How many times department `dept` has met before `rings` rings.
-static func sessions_before(dept: StringName, rings: int) -> int:
-	var days: Array = RHYTHMS.get(dept, [])
+## Whether classroom `hall` of `w` is in its cycle's session after `rings` rings (see phase).
+static func in_cycle(w: LevelGen, hall: int, rings: int) -> bool:
+	return posmod(rings + phase(w, hall), PERIODS) < IN_SESSION
+
+
+## How many times classroom `hall` of `w` has been in session before `rings` rings.
+static func sessions_before(w: LevelGen, hall: int, rings: int) -> int:
+	var r: int = maxi(rings, 0)
 	@warning_ignore("integer_division")
-	var whole: int = (maxi(rings, 0) / PERIODS) * days.size()
-	return whole + days.filter(func(p: int) -> bool: return p < period(maxi(rings, 0))).size()
+	var whole: int = r / PERIODS
+	var out: int = whole * IN_SESSION
+	for k: int in range(whole * PERIODS, r):
+		if in_cycle(w, hall, k):
+			out += 1
+	return out
+
+
+## Whether department `dept` meets in `w` after `rings` rings: any of its classrooms is in session.
+static func meets(w: LevelGen, dept: StringName, rings: int) -> bool:
+	for i: int in range(w.halls.size()):
+		if w.halls[i]["kind"] == &"lecture" and w.halls[i]["dept"] == dept and in_cycle(w, i, rings):
+			return true
+	return false
 
 
 ## The department that teaches `a`, or &"" for none.
@@ -139,8 +157,7 @@ static func climb(tiers: Dictionary, attended: StringName, meeting: Dictionary) 
 			&"astronomy":
 				up = attended != &"" and attended != &"astronomy"
 			&"geology":
-				var others: Array = LADDERS.keys().filter(func(d: StringName) -> bool: return d != &"geology" and met.call(d))
-				up = not others.is_empty() and others.all(func(d: StringName) -> bool: return at.call(d) > at.call(&"geology"))
+				up = attended != &"" and attended != &"geology" and at.call(attended) == at.call(&"geology")
 		if up:
 			out[dept] = mini(at.call(dept) + 1, TOP)
 		else:
@@ -174,19 +191,18 @@ static func period(rings: int) -> int:
 	return posmod(rings, PERIODS)
 
 
-## What classroom `hall` of `w` teaches after `rings` rings: &"" while its department does not meet
-## (meets), else its subject then, one a session (or HOLDS), from a place dealt by the seed; &"" for
-## any other hall.
+## What classroom `hall` of `w` teaches after `rings` rings: &"" while it is closed (in_cycle), else
+## its subject then, one a session (or HOLDS), from a place dealt by the seed; &"" for any other hall.
 static func subject(w: LevelGen, hall: int, rings: int) -> StringName:
 	if hall < 0 or hall >= w.halls.size() or w.halls[hall]["kind"] != &"lecture":
 		return &""
 	var dept: StringName = w.halls[hall]["dept"]
 	var ladder: Array = LADDERS.get(dept, [])
-	if ladder.is_empty() or not meets(dept, rings):
+	if ladder.is_empty() or not in_cycle(w, hall, rings):
 		return &""
 	var start: int = posmod(Rules.level_seed(w.seed_for_colors, ROTATION_DEAL + hall), ladder.size())
 	@warning_ignore("integer_division")
-	var turn: int = sessions_before(dept, rings) / int(HOLDS.get(dept, 1))
+	var turn: int = sessions_before(w, hall, rings) / int(HOLDS.get(dept, 1))
 	return ladder[posmod(start + turn, ladder.size())]
 
 

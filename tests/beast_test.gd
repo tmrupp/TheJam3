@@ -87,10 +87,12 @@ func _play() -> void:
 	check(not beast.awake and info.run.souls_sent == 0, "asleep, its souls not yet sent")
 
 	print("it wakes and sends its souls")
+	# Fed by the bells (21 rings), it sends 8.
+	info.run.fed = BeastSouls.FED_PER_SOUL * 7
 	var floor_cell: Vector2i = Vector2i(beast.box.position.x + 2, beast.box.end.y - 1)
 	player.global_position = info.cell_position(floor_cell)
 	check(await within(func() -> bool: return beast.awake, 0.5), "the wizard comes into its chamber: it wakes")
-	var want: int = BeastSouls.SOULS
+	var want: int = BeastSouls.count(info.run)
 	check_eq(info.run.souls_sent, want, "%d souls go out" % want)
 	var near: int = 0
 	var afar: int = 0
@@ -103,7 +105,7 @@ func _play() -> void:
 		if not BeastSouls.could_hold(c, gate) or info.run.souls[c] != BeastSouls.NO_SPOT:
 			allowed = false
 	var holdable: int = VISITED.filter(func(c: Vector2i) -> bool: return BeastSouls.could_hold(c, gate)).size()
-	check(near == BeastSouls.kept_near(holdable) and near > 0 and afar == want - near, "%d stay in levels visited (one for every %d of the %d), %d are flung into levels not yet visited" % [near, BeastSouls.VISITS_PER_SOUL, holdable, afar])
+	check(near == BeastSouls.kept_near(holdable, want) and near > 0 and afar == want - near, "%d stay in levels visited (one for every %d of the %d), %d are flung into levels not yet visited" % [near, BeastSouls.VISITS_PER_SOUL, holdable, afar])
 	check(allowed, "none into a gate level or a side world, and none laid down yet")
 	check_eq(beast.eyes(), Vector2i(want, want), "an eye for each, all open")
 	var sent: Dictionary = info.run.souls.duplicate()
@@ -184,7 +186,7 @@ func _play() -> void:
 	check(await within(func() -> bool: return beast.awake, 0.5) and beast.open(), "awake, its great eye open")
 	wound = beast.get_node("Wound") as BeastWound
 	wound.hit(1, Vector2.RIGHT)
-	check_eq(wound.hp, Beast.CORE_HP - 1, "a strike wounds it")
+	check_eq(wound.hp, Beast.core_hp(info.run) - 1, "a strike wounds it (fed, %d blows)" % Beast.core_hp(info.run))
 	while wound.hp > 0 and not beast.dying():
 		wound.hit(1, Vector2.RIGHT)
 	check(beast.dying(), "its last blow: it sinks")

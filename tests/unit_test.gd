@@ -326,14 +326,17 @@ func _whale() -> void:
 ## once, and gone with the beast.
 func _beast() -> void:
 	var gate: Vector2i = Vector2i(28, Bosses.row_of(&"beast"))
-	check_eq([BeastSouls.kept_near(0), BeastSouls.kept_near(BeastSouls.VISITS_PER_SOUL), BeastSouls.kept_near(BeastSouls.VISITS_PER_SOUL * 3), BeastSouls.kept_near(999)], [0, 1, 3, BeastSouls.SOULS], "one soul stays in a level visited for every %d visited, up to all %d" % [BeastSouls.VISITS_PER_SOUL, BeastSouls.SOULS])
-	# A run that dived straight down, and one that wandered far along the rows too.
+	var most: int = BeastSouls.SOULS + BeastSouls.FED_SOULS_MOST
+	check_eq([BeastSouls.kept_near(0, most), BeastSouls.kept_near(BeastSouls.VISITS_PER_SOUL, most), BeastSouls.kept_near(BeastSouls.VISITS_PER_SOUL * 3, most), BeastSouls.kept_near(999, most)], [0, 1, 3, most], "one soul stays in a level visited for every %d visited, up to all %d" % [BeastSouls.VISITS_PER_SOUL, most])
+	# A run that dived straight down, and one that wandered far along the rows too, both well fed.
 	var straight: RunState = RunState.new()
 	straight.start(28)
+	straight.fed = BeastSouls.FED_PER_SOUL * BeastSouls.FED_SOULS_MOST
 	for y: int in range(0, Bosses.row_of(&"beast")):
 		straight.record(Vector2i(28, y))
 	var wide: RunState = RunState.new()
 	wide.start(28)
+	wide.fed = straight.fed
 	for c: Vector2i in straight.records:
 		wide.record(c)
 	for x: int in range(10, 46):
@@ -343,7 +346,7 @@ func _beast() -> void:
 	wide.record(Worlds.side_at(0, Vector2i(28, 1)))
 	BeastSouls.send(straight, gate)
 	BeastSouls.send(wide, gate)
-	check(straight.souls_sent == BeastSouls.SOULS and wide.souls_sent == BeastSouls.SOULS, "%d souls go out, however much of the world was visited" % BeastSouls.SOULS)
+	check(straight.souls_sent == most and wide.souls_sent == most, "%d souls go out, however much of the world was visited" % most)
 	var kept: int = 0
 	var far: int = 0
 	var bands: Dictionary = {}
@@ -353,7 +356,7 @@ func _beast() -> void:
 		elif absi(c.x - gate.x) >= BeastSouls.FAR_COLUMNS.x and absi(c.x - gate.x) <= BeastSouls.FAR_COLUMNS.y:
 			far += 1
 			bands[NextWorldDef.archetype_at(c.y)] = true
-	check(kept == BeastSouls.kept_near(BeastSouls.visited(straight, gate).size()) and far == BeastSouls.SOULS - kept, "dived straight down: %d stay in levels visited, %d flung %d to %d worlds off into levels not yet visited" % [kept, far, BeastSouls.FAR_COLUMNS.x, BeastSouls.FAR_COLUMNS.y])
+	check(kept == BeastSouls.kept_near(BeastSouls.visited(straight, gate).size(), most) and far == most - kept, "dived straight down: %d stay in levels visited, %d flung %d to %d worlds off into levels not yet visited" % [kept, far, BeastSouls.FAR_COLUMNS.x, BeastSouls.FAR_COLUMNS.y])
 	check(bands.size() >= 3, "across the bands (%d of them)" % bands.size())
 	var known: bool = true
 	var allowed: bool = true
@@ -368,6 +371,7 @@ func _beast() -> void:
 	check(allowed, "never into a side world, a gate level or its own")
 	var again: RunState = RunState.new()
 	again.start(28)
+	again.fed = straight.fed
 	for c: Vector2i in straight.records:
 		again.record(c)
 	BeastSouls.send(again, gate)
@@ -408,10 +412,11 @@ func _institute() -> void:
 	var all_met: Dictionary = {&"botany": true, &"astronomy": true, &"geology": true, &"necrology": true}
 	var dusk_less: Dictionary = {&"botany": true, &"astronomy": true, &"geology": true, &"necrology": false}
 	var t: Callable = func(b: int, a: int, g: int, n: int) -> Dictionary: return {&"botany": b, &"astronomy": a, &"geology": g, &"necrology": n}
-	check_eq(Timetable.climb(t.call(1, 1, 1, 1), &"botany", all_met), t.call(2, 2, 1, 1), "botany attended: botany and astronomy rise; geology, level with them, and necrology, with nothing crashed, stay at I")
-	check_eq(Timetable.climb(t.call(2, 3, 1, 1), &"geology", all_met), t.call(1, 4, 1, 2), "geology attended: botany crashes, astronomy rises; geology, level with necrology, falls; necrology rises on the crash")
-	check_eq(Timetable.climb(t.call(2, 3, 1, 3), &"", dusk_less), t.call(1, 1, 2, 3), "nothing attended: botany and astronomy crash; geology, below both, rises; necrology, not meeting, holds")
-	check_eq(Timetable.climb(t.call(2, 2, 2, 1), &"astronomy", all_met), t.call(1, 1, 1, 2), "astronomy attended: it crashes (its paper taken), botany too, geology level with them falls, necrology rises")
+	check_eq(Timetable.climb(t.call(1, 1, 1, 1), &"botany", all_met), t.call(2, 2, 2, 1), "botany attended: botany and astronomy rise; geology, botany on its stratum, rises; necrology, with nothing crashed, stays at I")
+	check_eq(Timetable.climb(t.call(2, 3, 1, 1), &"geology", all_met), t.call(1, 4, 1, 2), "geology attended: botany crashes, astronomy rises; geology, its own class, falls; necrology rises on the crash")
+	check_eq(Timetable.climb(t.call(2, 3, 1, 3), &"", dusk_less), t.call(1, 1, 1, 3), "nothing attended: botany and astronomy crash; geology, nothing laid on it, stays at I; necrology, not meeting, holds")
+	check_eq(Timetable.climb(t.call(2, 2, 2, 1), &"astronomy", all_met), t.call(1, 1, 3, 2), "astronomy attended: it crashes (its paper taken), botany too; geology, astronomy on its stratum, rises; necrology rises")
+	check_eq(Timetable.climb(t.call(1, 1, 3, 1), &"botany", all_met), t.call(2, 2, 1, 2), "botany attended below geology: geology, not on its stratum, crashes from III; necrology rises on it")
 	check_eq(Timetable.climb(t.call(4, 1, 1, 1), &"botany", all_met), t.call(4, 2, 1, 1), "at the top botany holds, neither rising nor crashing")
 	check_eq(Timetable.climb(t.call(1, 1, 1, 1), &"", all_met), t.call(1, 1, 1, 1), "falling from I is no crash: nothing rises")
 	var seeker: int = KeyRing.paper(&"seeker", 3)

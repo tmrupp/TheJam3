@@ -62,6 +62,18 @@ func way_on() -> bool:
 	return map_info != null and map_info.world != null and hall >= 0 and hall == Timetable.way_on_hall(map_info.world)
 
 
+## Where its classroom stands in its cycle (Timetable.in_cycle): whether it is in session now and in
+## each of the periods after, through a day; empty for any other hall.
+func cycle() -> Array[bool]:
+	var out: Array[bool] = []
+	if map_info == null or map_info.world == null or hall < 0 or hall >= map_info.world.halls.size() or map_info.world.halls[hall]["kind"] != &"lecture":
+		return out
+	var rings: int = map_info.record().rings
+	for k: int in range(Timetable.PERIODS):
+		out.append(Timetable.in_cycle(map_info.world, hall, rings + k))
+	return out
+
+
 ## The tier its lecture hall teaches its subject at now (pips under its plate), or 0.
 func tier() -> int:
 	if map_info == null or map_info.world == null or hall < 0 or hall >= map_info.world.halls.size() or map_info.world.halls[hall]["kind"] != &"lecture":

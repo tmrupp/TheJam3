@@ -58,7 +58,11 @@ var lessons: Dictionary = {}
 ## hall and rings, MapInfo.lectern_swap), and the paper left on each classroom's lectern (hall ->
 ## code, the pigeonholes).
 var rings: int = 0
-var passing: bool = false
+var passing: bool = true
+## The classroom whose class the wizard started by its cord (MapInfo.pull_cord), until the period is
+## rung out (-1 for none), and the cord rung last (none may be rung twice running).
+var started: int = -1
+var last_bell: Vector2i = Vector2i(-1, -1)
 var lifted: Dictionary = {}
 var pigeonholes: Dictionary = {}
 ## Each department's tier in the level (department -> tier; one not yet climbed is at I,
@@ -77,7 +81,7 @@ var stations: int = -1
 ## Every field saved, in the order they are written.
 const FIELDS: Array[StringName] = [&"taken", &"opened", &"slain", &"broken", &"dropped", &"next_drop", &"deeper_paid", &"up_paid",
 	&"doors_paid", &"lateral_open", &"ways_taken", &"shrine_used", &"mapped", &"seen",
-	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended", &"lessons", &"stations", &"rings", &"passing", &"lifted", &"pigeonholes", &"prizes", &"dept_tiers", &"relics_left"]
+	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended", &"lessons", &"stations", &"rings", &"passing", &"lifted", &"pigeonholes", &"prizes", &"dept_tiers", &"relics_left", &"started", &"last_bell"]
 
 
 ## The record as a plain dictionary, for the save file.

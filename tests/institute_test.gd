@@ -127,6 +127,8 @@ func play() -> void:
 	player.set_physics_process(false)
 	print("in play")
 	check(placed("student.tscn").size() > 0 and placed("master.tscn").size() > 0 and placed("exam_door.tscn").size() > 0, "students, masters and hall doors are there")
+	# A class under way: the corridors are no place for the wizard.
+	info.record().passing = false
 	await _students()
 	await _hop()
 	await _climb()
@@ -418,7 +420,7 @@ func _three_sides() -> void:
 	var first: Abomination = _spawn_thing(spot, 1)
 	var count: Callable = func() -> int: return get_nodes_in_group(&"abomination").filter(func(n: Node) -> bool: return not n.is_queued_for_deletion()).size()
 	check(first.lobes == 1, "one out of a breach starts as a single blob")
-	check(await within(func() -> bool: return first.lobes > 1, Abomination.GROW_EVERY * (1.0 + Abomination.GROW_SPREAD) + 1.0), "left alone, it grows another")
+	check(await within(func() -> bool: return is_instance_valid(first) and first.lobes > 1, Abomination.GROW_EVERY * (1.0 + Abomination.GROW_SPREAD) / info.surge() + 1.0), "left alone, it grows another")
 	var wound: Wound = first.get_node("Wound") as Wound
 	var lobes: int = first.lobes
 	wound.hit(1, Vector2.UP)

@@ -32,6 +32,8 @@ func run() -> void:
 	await _look(yoke, "timetable_bell.png", 2.2)
 	_ring(bell)
 	await _look(bell.global_position + Vector2(0, 64.0 - tall), "timetable_great_bell_ringing.png", clampf(560.0 / (tall * 2.0), 0.7, 1.4), 18)
+	# Rung last, its cord hangs dim until another is rung.
+	await _look(bell.global_position + Vector2(0, -60), "timetable_cord_spent.png", 1.6, 60)
 	await _look(yoke, "timetable_bell_passing.png", 2.2)
 	# A classroom of a department with a break in its day (botany's), shut and then in session.
 	var hall: int = -1
@@ -190,7 +192,7 @@ func _lineups(bell: SchoolBell) -> void:
 
 ## Ring `bell`, as soon as it can be rung again.
 func _ring(bell: SchoolBell) -> void:
-	info.record().passing = false
+	info.record().last_bell = Vector2i(-1, -1)
 	info.since_bell = SchoolBell.RING_GAP
 	bell.ring()
 

@@ -19,17 +19,20 @@ extends Node2D
 ## A lantern death brings it back whole, as the level reloads; destroyed souls stay destroyed.
 ## The institute's bells feed it (RunState.fed: every ring, all run long): FED_PER_BLOW rings give
 ## its great eye one blow more, up to FED_BLOWS_MOST more (core_hp), each ring makes its strikes come
-## FED_QUICKEN sooner, down to FASTEST of their time (attack_every), and it sends more souls
-## (BeastSouls.count). Nothing here draws from any RNG.
+## FED_QUICKEN sooner, from SLOWEST of their time down to FASTEST (attack_every), and it sends more
+## souls (BeastSouls.count): fed little, it is weak; it is the bells that make it strong. Nothing here draws from any RNG.
 
 const STUNNER: PackedScene = preload("res://prefabs/stunner.tscn")
 const HIT_BOX: PackedScene = preload("res://prefabs/hit_box.tscn")
-## The blows its great eye takes once every soul is destroyed, fed nothing (see core_hp).
-const CORE_HP: int = 9
+## The blows its great eye takes once every soul is destroyed, fed nothing (see core_hp): few, as it
+## is the bells that make it strong.
+const CORE_HP: int = 3
 const FED_PER_BLOW: int = 2
-const FED_BLOWS_MOST: int = 6
-## How much sooner each ring of the bells makes its strikes come, down to FASTEST of their time.
-const FED_QUICKEN: float = 0.03
+const FED_BLOWS_MOST: int = 12
+## How slow its strikes are fed nothing (times ATTACK_EVERY), how much sooner each ring of the bells
+## makes them come, and how quick they get (FASTEST of ATTACK_EVERY).
+const SLOWEST: float = 1.6
+const FED_QUICKEN: float = 0.05
 const FASTEST: float = 0.55
 ## How near (px) the wizard comes to wake it, if not inside its chamber.
 const WAKE_RANGE: float = 700.0
@@ -149,7 +152,7 @@ static func core_hp(run: RunState) -> int:
 
 ## Seconds between its strikes in run `run`, fed as it has been (see ATTACK_EVERY).
 static func attack_every(run: RunState) -> float:
-	return ATTACK_EVERY * maxf(FASTEST, 1.0 - FED_QUICKEN * float(run.fed))
+	return ATTACK_EVERY * maxf(FASTEST, SLOWEST - FED_QUICKEN * float(run.fed))
 
 
 func setup(info: MapInfo, v: Vector2i, which: Variant) -> void:

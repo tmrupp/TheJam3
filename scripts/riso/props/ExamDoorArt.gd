@@ -6,7 +6,9 @@ extends RisoProp
 ## library's). Beside a classroom's plate, while its class asks for a
 ## prerequisite (ExamDoor.prereq), hangs a small dark plate holding a paper sheet with the emblem of
 ## the department it asks for (RisoMarks.emblem) in night, and under it a paper pip for each tier it
-## needs: a paper of that department (or a spell of it held) opens the door. On the other side of the
+## needs: a paper of that department (or a spell of it held) opens the door. Over a classroom's plate
+## and its pips, its cycle (ExamDoor.cycle) as a bar of Timetable.PERIODS segments in night, now and
+## the periods after it: a period in session solid, one closed a faint stub, now's segment taller. On the other side of the
 ## plate of the classroom holding the way on (ExamDoor.way_on) hangs another, its paper sheet bearing
 ## the way on's chevron in night and a paper pip for each tier of the paper it asks for besides, of
 ## any other department (Timetable.WAY_ON_PAPER).
@@ -14,6 +16,14 @@ extends RisoProp
 ## The prerequisite's sheet: its size, and how far beside the plate's middle it hangs.
 const NEED_SHEET: float = 1.15
 const NEED_SIDE: float = 44.0
+
+## The cycle's bar: each segment's width and height (now's is CYCLE_NOW times as tall), the room
+## between them, and how far over the plate's top its foot stands (px).
+const CYCLE_W: float = 15.0
+const CYCLE_H: float = 7.0
+const CYCLE_NOW: float = 1.8
+const CYCLE_GAP: float = 4.0
+const CYCLE_UP: float = 18.0
 
 ## The plate's radius, and how big the mark is on it.
 const PLATE_R: float = 19.0
@@ -43,6 +53,19 @@ func _draw_art() -> void:
 			pips.append(PackedVector2Array([p + Vector2(0, -3.5), p + Vector2(3.5, 0), p + Vector2(0, 3.5), p + Vector2(-3.5, 0)]))
 		ink.knock(RisoPrint.ALL_PLATES, pips)
 		ink.ink(RisoPrint.NIGHT, 1.0, pips, false)
+	var cycle: Array[bool] = door.cycle() if door != null else ([] as Array[bool])
+	var foot: float = c.y - PLATE_R - CYCLE_UP
+	var solid: Array[PackedVector2Array] = []
+	var faint: Array[PackedVector2Array] = []
+	for k: int in range(cycle.size()):
+		var x: float = c.x + (float(k) - float(cycle.size() - 1) * 0.5) * (CYCLE_W + CYCLE_GAP)
+		var h: float = CYCLE_H * (CYCLE_NOW if k == 0 else 1.0)
+		if cycle[k]:
+			solid.append(RisoShapes.rrect(x - CYCLE_W * 0.5, foot - h, CYCLE_W, h, 2.0))
+		else:
+			faint.append(RisoShapes.rrect(x - CYCLE_W * 0.5, foot - 3.0, CYCLE_W, 3.0, 1.5))
+	ink.ink(RisoPrint.NIGHT, 1.0, solid, false)
+	ink.ink(RisoPrint.NIGHT, 0.6, faint, false)
 	var need: Array = door.prereq() if door != null else [&"", 0]
 	if need[0] != &"":
 		var nc: Vector2 = c + Vector2(NEED_SIDE, 0)

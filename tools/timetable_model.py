@@ -14,9 +14,11 @@ the departments' climb against every outcome the game gave, then plays the timet
 
 The wizard is modelled as the game has them: they start holding slash I (a geology spell); a class of
 tier II or more asks for a paper of the department before it round the ring (Timetable.NEEDS), a
-tier lower; going into a class starts it, and it is sat until the bell rings it out (a ring each);
-a class of a relic's move (levitate, astral) the wizard lacks counts as attended, with no paper; in
-passing time the bell rings from the corridors only when no class is open to them. Field trips cost
+tier lower; each classroom is in session two periods of three, from a place in that cycle dealt by
+the seed; a class starts when its cord is rung inside it and ends when a bell out of the classrooms
+rings it out (one ring, a period); a corridor bell rung with no class started moves the day on all
+the same; a class of a relic's move (levitate, astral) the wizard lacks counts as attended, with no
+paper. Field trips cost
 no rings, and the key ring keeps the best paper of each department, the wizard choosing which to
 drop when it is full (lecterns make that a real choice). Instructors' and lecterns' papers (stolen)
 are left out.
@@ -39,7 +41,7 @@ class Rules:
     def __init__(self, data):
         self.depts = list(data["depts"])
         self.ladders = data["ladders"]
-        self.meets = {d: set(data["meets"][d]) for d in self.depts}
+        self.in_session = data["in_session"]
         self.holds = data["holds"]
         self.needs = data["needs"]
         self.top = data["top"]
@@ -49,9 +51,9 @@ class Rules:
         self.dept_of = {a: d for d in self.depts for a in self.ladders[d]}
 
 
-def climb(rules, tiers, attended, meeting, geology="strict_lowest", last_rose=None):
+def climb(rules, tiers, attended, meeting, geology="strata", last_rose=None):
     """The departments' tiers after a period (Timetable.climb), `geology` naming the rule geology
-    climbs by (the game's is strict_lowest; the rest are for comparison)."""
+    climbs by (the game's is strata; the rest are for comparison)."""
     out = dict(tiers)
     crashed = False
     rose = {d: False for d in rules.depts}
@@ -74,6 +76,35 @@ def climb(rules, tiers, attended, meeting, geology="strict_lowest", last_rose=No
                 hold = not up
             elif geology == "echo":
                 up = any((last_rose or {}).get(o, False) for o in rules.depts if o != "geology")
+            elif geology == "pressure":
+                # Pressed by a higher stratum: the class attended was another department's, standing
+                # above geology.
+                up = attended not in ("", "geology") and tiers[attended] > tiers["geology"]
+            elif geology == "sediment":
+                # Settles while left alone: no class attended at all.
+                up = attended == ""
+            elif geology == "below_average":
+                up = bool(others) and tiers["geology"] * len(others) < sum(tiers[o] for o in others)
+            elif geology == "below_most":
+                below = sum(1 for o in others if tiers[o] > tiers["geology"])
+                up = bool(others) and below >= min(2, len(others))
+            elif geology == "strata":
+                # Laid down on its own stratum: the class attended was another department's,
+                # standing at geology's own tier.
+                up = attended not in ("", "geology") and tiers[attended] == tiers["geology"]
+            elif geology == "outcrop":
+                # Laid bare: a department standing above it is closed this period.
+                up = any(not meeting[o] and tiers[o] > tiers["geology"] for o in rules.depts if o != "geology")
+            elif geology == "weathering":
+                # Roots split the rock: botany's class (the department geology asks for) was attended.
+                up = attended == rules.needs["geology"]
+            elif geology == "landslide":
+                # A department standing above it fell back to I this period (botany or astronomy,
+                # whose rules are settled before geology's).
+                up = any(meeting[o] and tiers[o] >= 2 and tiers[o] > tiers["geology"] and out[o] == 1 for o in ("botany", "astronomy"))
+            elif geology == "core_sample":
+                # Its own class attended while some other department meeting stands above it.
+                up = attended == "geology" and any(tiers[o] > tiers["geology"] for o in others)
             else:
                 raise ValueError(geology)
         if up:
@@ -101,27 +132,32 @@ def check(rules, data):
     rings = len(data["levels"][0]["rooms"][0]["subjects"]) if data["levels"] else 0
     for level in data["levels"]:
         for room in level["rooms"]:
-            fits = [s for s in range(3) if schedule(rules, room["dept"], s, rings) == room["subjects"]]
+            fits = [s for s in range(3) if schedule(rules, room["dept"], s, rings, phase=room.get("phase", 0)) == room["subjects"]]
             if not fits:
                 bad.append(("schedule", level["at"], room["dept"], room["subjects"][:12]))
     return bad
 
 
-def sessions_before(rules, dept, r):
-    days = sorted(rules.meets[dept])
-    return (r // rules.periods) * len(days) + len([p for p in days if p < r % rules.periods])
+def in_cycle(rules, phase, r):
+    """Whether a classroom `phase` into its cycle is in session after `r` rings (Timetable.in_cycle)."""
+    return (r + phase) % rules.periods < rules.in_session
 
 
-def schedule(rules, dept, start, rings, all_meet=False):
-    """What a classroom of `dept` starting at `start` teaches each ring (Timetable.subject)."""
+def sessions_before(rules, phase, r):
+    return sum(1 for k in range(r) if in_cycle(rules, phase, k))
+
+
+def schedule(rules, dept, start, rings, all_meet=False, phase=0):
+    """What a classroom of `dept` starting at subject `start` and `phase` into its cycle teaches each
+    ring (Timetable.subject); `all_meet`: in session every period."""
     out = []
     ladder = rules.ladders[dept]
     for r in range(rings):
-        meets = all_meet or (r % rules.periods) in rules.meets[dept]
+        meets = all_meet or in_cycle(rules, phase, r)
         if not meets:
             out.append("")
             continue
-        n = r if all_meet else sessions_before(rules, dept, r)
+        n = r if all_meet else sessions_before(rules, phase, r)
         out.append(ladder[(start + n // rules.holds[dept]) % len(ladder)])
     return out
 
@@ -143,7 +179,7 @@ def taught(rules, a, tier):
 class Wizard:
     """The wizard: how many papers their ring holds, whether they hold the relics (so relic classes
     teach them), and the rule geology climbs by."""
-    def __init__(self, cap=2, relics=False, geology="strict_lowest"):
+    def __init__(self, cap=2, relics=False, geology="strata"):
         self.cap = cap
         self.relics = relics
         self.geology = geology
@@ -164,17 +200,14 @@ def enrolled(rules, tiers, papers, dept, a):
 
 
 def choices(rules, level, wiz, r, tiers, papers):
-    """What the wizard can do in the period after `r` rings: sit a room's class (its index), or ring
-    from the corridors (None: before any ring, or in passing time with no class open to them)."""
+    """What the wizard can do in the period after `r` rings: start a room's class and ring it out (its
+    index), or ring a corridor bell with no class started (None)."""
     rooms = []
     for k, (dept, subjects) in enumerate(level.rooms):
         a = subjects[r]
         if a != "" and enrolled(rules, tiers, papers, dept, a):
             rooms.append(k)
-    out = list(rooms)
-    if r == 0 or not rooms:
-        out.append(None)
-    return out
+    return rooms + [None]
 
 
 def keep(papers, dept, tier, cap):
@@ -266,7 +299,10 @@ def random_play(rules, level, wiz, rings=60, runs=400, seed=1):
 
 
 def synthetic(rules, starts, rings=36, all_meet=False):
-    return Level([(d, schedule(rules, d, starts[d], rings, all_meet)) for d in ORDER], all_meet)
+    """A level of four rooms, one per department, starting at subjects `starts`, each at a place in its
+    cycle dealt from them (the same every time)."""
+    roll = random.Random(sum(starts[d] * 3 ** i for i, d in enumerate(ORDER)) + 17)
+    return Level([(d, schedule(rules, d, starts[d], rings, all_meet, roll.randrange(rules.periods))) for d in ORDER], all_meet)
 
 
 TARGETS = [(d, t) for d in ORDER for t in (2, 3, 4)]
@@ -352,24 +388,18 @@ class Route:
         self.exit = exit_room
 
 
-def way_through(rules, route, mode="starts", gate="any", gate_tier=2, cap=2, rings=30):
+def way_through(rules, route, gate="any", gate_tier=2, cap=2, rings=30, geology="strata"):
     """The fewest rings from the way in to the way on, or None (not within `rings`), for a wizard
-    who comes in with nothing on their ring.
-    mode "starts" (the game): going into a class in session starts it, its doors shut until the bell
-    rings it out (a ring, counted as attending; a relic class they lack counts too, with no paper);
-    the bell rings from the corridors only from a region with a cord, and in passing time only when no
-    class is open. mode "current": the rules before that (a classroom open to the wizard is walked
-    through in the same period; rings only wait on rhythms).
-    gate "any" (the game, Timetable.WAY_ON_PAPER): the way on's classroom asks besides for a paper of
-    any other department at `gate_tier` or higher; gate "always": for one of the department before
-    its own round the ring; gate "starts": its department starts the level at `gate_tier` and climbs
-    and falls as any other; gate None: no gate."""
+    who comes in with nothing on their ring, under the game's rules: in a period the wizard walks the
+    corridors and through every classroom open to them (in session, enrolled), may start the class of
+    any of those by its cord and ring it out from a corridor bell they can reach (a ring, attending it;
+    a relic class they lack counts too, with no paper), or ring a corridor bell with no class started,
+    and ends the period at the bell they rang. gate "any" (the game, Timetable.WAY_ON_PAPER): the way
+    on's classroom asks besides for a paper of any other department at `gate_tier` or higher; gate
+    "always": for one of the department before its own round the ring; gate None: no gate. `geology`
+    names the rule geology climbs by (climb)."""
     if route.exit is None:
         return None
-    exit_dept = route.rooms[route.exit][0]
-    tiers0 = {d: 1 for d in rules.depts}
-    if gate == "starts":
-        tiers0[exit_dept] = gate_tier
     papers0 = ()
 
     def taught_tier(tiers, k, r):
@@ -385,11 +415,10 @@ def way_through(rules, route, mode="starts", gate="any", gate_tier=2, cap=2, rin
         held = dict(papers)
         if k == route.exit and gate == "always":
             need = rules.needs[dept]
-            have = max(held.get(need, 0), 1 if need == "geology" else 0)
-            if have < max(gate_tier, taught_tier(tiers, k, r) - 1):
+            if held.get(need, 0) < max(gate_tier, taught_tier(tiers, k, r) - 1):
                 return False
         if k == route.exit and gate == "any":
-            have = max([t for d, t in held.items() if d != dept] + [1 if dept != "geology" else 0])
+            have = max([t for d, t in held.items() if d != dept] + [0])
             if have < gate_tier:
                 return False
         return enrolled(rules, tiers, held, dept, a)
@@ -397,8 +426,7 @@ def way_through(rules, route, mode="starts", gate="any", gate_tier=2, cap=2, rin
     def meeting_of(r):
         return {d: any(sub[r] != "" for dd, sub, _ in route.rooms if dd == d) for d in rules.depts}
 
-    cords = route.cords
-    start = (route.start, tuple(tiers0[d] for d in rules.depts), papers0)
+    start = (route.start, tuple(1 for _ in rules.depts), papers0)
     frontier = {start}
     seen = set(frontier)
     for r in range(rings):
@@ -407,36 +435,31 @@ def way_through(rules, route, mode="starts", gate="any", gate_tier=2, cap=2, rin
         for region, tk, pk in frontier:
             tiers = dict(zip(rules.depts, tk))
             papers = dict(pk)
-            # Where the wizard can be this period.
+            # Where the wizard can be this period: through every classroom open to them.
             here = {region}
-            if mode == "current":
-                grow = True
-                while grow:
-                    grow = False
-                    for k, (_, _, gs) in enumerate(route.rooms):
-                        if gs & here and open_room(tiers, pk, k, r) and not gs <= here:
-                            here |= gs
-                            grow = True
-            # The way on.
-            if route.exit is not None and route.rooms[route.exit][2] & here and open_room(tiers, pk, route.exit, r):
+            grow = True
+            while grow:
+                grow = False
+                for k, (_, _, gs) in enumerate(route.rooms):
+                    if gs & here and open_room(tiers, pk, k, r) and not gs <= here:
+                        here |= gs
+                        grow = True
+            if route.rooms[route.exit][2] & here and open_room(tiers, pk, route.exit, r):
                 return r
-            any_open = any(open_room(tiers, pk, k, r) for k in range(len(route.rooms)))
-            moves = []
+            bells = here & route.cords
+            if not bells:
+                continue
+            moves = [(None, "")]
             for k, (dept, subjects, gs) in enumerate(route.rooms):
-                if k != route.exit and gs & here and open_room(tiers, pk, k, r):
-                    a = subjects[r]
-                    taught_now = not (a in rules.relic_moves)
-                    moves.append((k, dept, gs, taught_now))
-            corridor_ok = (mode == "current") or ((r == 0 or not any_open) and bool(here & cords))
-            if corridor_ok:
-                moves.append((None, "", frozenset(here), False))
-            for k, attended, out, paper in moves:
-                after, _ = climb(rules, tiers, attended, meeting)
+                if gs & here and open_room(tiers, pk, k, r):
+                    moves.append((k, dept))
+            for k, attended in moves:
+                after, _ = climb(rules, tiers, attended, meeting, geology)
                 plist = [papers]
-                if attended and paper:
+                if k is not None and route.rooms[k][1][r] not in rules.relic_moves:
                     plist = keep(papers, attended, taught_tier(tiers, k, r), cap)
                 for p2 in plist:
-                    for g in out:
+                    for g in bells:
                         st = (g, tuple(after[d] for d in rules.depts), frozen(p2))
                         if st not in seen:
                             seen.add(st)
@@ -538,7 +561,7 @@ def main():
 
     # 4. Other rules for geology.
     report["geology"] = {}
-    for g in ["strict_lowest", "lowest_or_tied", "strict_lowest_holds", "echo"]:
+    for g in ["strata", "strict_lowest", "below_average", "pressure", "lowest_or_tied"]:
         res = [shortest(rules, synthetic(rules, s, args.rings), Wizard(geology=g), args.rings, TARGETS) for s in starts[::3]]
         summ = summarise(res)
         shares = defaultdict(float)

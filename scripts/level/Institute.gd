@@ -76,14 +76,18 @@ const DEPARTMENTS: Dictionary = {
 	&"astronomy": &"sky",
 }
 
-## The timetable's great bell and its cords (SchoolBell): the bell hangs from the ceiling out in the
-## corridors over the nearest free floor to the way in at least BELL_CLEAR cells from it with
-## BELL_ROOM open cells over it (else any such floor), its cord hanging from it, in the stretch of
-## corridors the way in opens on (regions; anywhere out of the halls if that has no such floor), so
-## a wizard just come in can ring it; and a cord in each lecture hall and the library, up into the
-## ceiling.
+## The timetable's bells and their cords (SchoolBell): out in the corridors CORRIDOR_BELLS_PER_K bells
+## per 1000 cells (at least CORRIDOR_BELLS_LEAST), each hung from the ceiling over a free floor with
+## BELL_ROOM open cells over it (else any free floor) at least BELL_CLEAR cells from the way in, its
+## cord hanging from it: the first the nearest to the way in in the stretch of corridors it opens on
+## (regions; anywhere out of the halls if that has no such floor), so a wizard just come in can ring
+## it, and each other as far from those already hung as can be, at least BELL_APART cells. And a cord
+## in each lecture hall and the library, up into the ceiling.
 const BELL_CLEAR: int = 3
 const BELL_ROOM: int = 3
+const CORRIDOR_BELLS_PER_K: float = 0.4
+const CORRIDOR_BELLS_LEAST: int = 2
+const BELL_APART: int = 12
 ## The way on (Timetable.way_on_hall): in the classroom the most classrooms away from the way in
 ## (way_on), on its floor this many cells from its lectern's wall.
 const WAY_ON_SEAT: int = 7
@@ -95,7 +99,7 @@ const WAY_ON_SEAT: int = 7
 const BREACHES_PER_K: float = 0.5
 const BREACH_CLEAR: int = 12
 const BREACH_APART: int = 10
-const ABOMINATIONS_PER_K: float = 0.5
+const ABOMINATIONS_PER_K: float = 0.25
 const ABOMINATION_CLEAR: int = 10
 const CLASSES_PER_K: float = 0.35
 const CLASS: int = 3
@@ -495,8 +499,8 @@ static func department_row(def: NextWorldDef, dept: StringName, i: int) -> int:
 ## Then the timetable's things (Timetable): a lectern (Lectern) and a bell's cord (SchoolBell) on each
 ## classroom's floor between its portal's place and its master, a cord on the library's floor, a
 ## glyph seal (GlyphSeal) just inside each doorway of the library (out in the level the
-## cell outside may hold anything), asking for the spell Timetable.seal_of deals, and the great bell
-## out in the corridors over its cord (see BELL_CLEAR).
+## cell outside may hold anything), asking for the spell Timetable.seal_of deals, and the corridor bells
+## over their cords (see BELL_CLEAR).
 static func furnish(w: LevelGen, def: NextWorldDef) -> void:
 	for i: int in range(w.halls.size()):
 		var hall: Dictionary = w.halls[i]
@@ -562,14 +566,31 @@ static func _timetable(w: LevelGen) -> void:
 			_place(w, door + Vector2i(inward, 0), LevelGen.Type.GLYPH_SEAL, spell)
 	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
 	var out: Array[Vector2i] = w.free_floors().filter(func(v: Vector2i) -> bool: return hall_at(w, v) < 0 and LevelGen.dist(v, start) >= BELL_CLEAR and not w._crowds_exit(v))
+	var roomy_of: Callable = func(spots: Array[Vector2i]) -> Array[Vector2i]:
+		var roomy: Array[Vector2i] = spots.filter(func(v: Vector2i) -> bool: return range(1, BELL_ROOM + 1).all(func(k: int) -> bool: return w.is_valid(v + Vector2i(0, -k)) and not w.is_ground(v + Vector2i(0, -k))))
+		return roomy if not roomy.is_empty() else spots
+	# The first nearest the way in, in the corridors it opens on.
 	var region: Dictionary = regions(w)
 	var near: Array[Vector2i] = out.filter(func(v: Vector2i) -> bool: return region.has(start) and region.get(v, -1) == region[start])
-	if not near.is_empty():
-		out = near
-	var roomy: Array[Vector2i] = out.filter(func(v: Vector2i) -> bool: return range(1, BELL_ROOM + 1).all(func(k: int) -> bool: return w.is_valid(v + Vector2i(0, -k)) and not w.is_ground(v + Vector2i(0, -k))))
-	var spot: Variant = LevelGen.best_of(roomy if not roomy.is_empty() else out, func(v: Vector2i) -> float: return float(LevelGen.dist(v, start)))
-	if spot != null:
-		_place(w, spot, LevelGen.Type.SCHOOL_BELL, {"great": true})
+	var bells: Array[Vector2i] = []
+	var first: Variant = LevelGen.best_of(roomy_of.call(near if not near.is_empty() else out), func(v: Vector2i) -> float: return float(LevelGen.dist(v, start)))
+	if first == null:
+		return
+	bells.append(first)
+	# The rest each as far from those already hung as can be, at least BELL_APART from them.
+	var pool: Array[Vector2i] = roomy_of.call(out)
+	var apart: Callable = func(v: Vector2i) -> int:
+		var least: int = 1 << 20
+		for b: Vector2i in bells:
+			least = mini(least, LevelGen.dist(v, b))
+		return least
+	while bells.size() < maxi(CORRIDOR_BELLS_LEAST, w.per_area(CORRIDOR_BELLS_PER_K)):
+		var next: Variant = LevelGen.best_of(pool, func(v: Vector2i) -> float: return -float(apart.call(v)), func(v: Vector2i) -> bool: return apart.call(v) >= BELL_APART)
+		if next == null:
+			break
+		bells.append(next)
+	for v: Vector2i in bells:
+		_place(w, v, LevelGen.Type.SCHOOL_BELL, {"great": true})
 
 
 ## A `type` holding `extra` at `v`, if it is still free open air.

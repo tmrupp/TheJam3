@@ -18,10 +18,10 @@ extends RefCounted
 ## No cell chosen yet for a soul (its level not yet laid out since it was sent).
 const NO_SPOT: Vector2i = Vector2i(-1, -1)
 ## How many souls it sends out, fed nothing; one more for every FED_PER_SOUL rings of the bells, up
-## to FED_SOULS_MOST more.
-const SOULS: int = 8
-const FED_PER_SOUL: int = 4
-const FED_SOULS_MOST: int = 4
+## to FED_SOULS_MOST more (its eyes have room for 12): it is the bells that send them.
+const SOULS: int = 1
+const FED_PER_SOUL: int = 3
+const FED_SOULS_MOST: int = 11
 ## One soul stays in a level visited for every VISITS_PER_SOUL levels visited (up to all of them).
 const VISITS_PER_SOUL: int = 5
 ## A soul flung far goes this many worlds off the beast's (from, to), to either side.

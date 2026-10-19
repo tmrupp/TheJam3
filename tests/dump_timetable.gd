@@ -2,7 +2,7 @@ extends TestKit
 ## Writes the institute timetable's rules, as the game has them, to a JSON file for the timetable model
 ## (tools/timetable_model.py) to check itself against and to run on: every outcome of the departments'
 ## climb (Timetable.climb, for every tier, every class attended and every set of departments
-## meeting), each department's rhythm and needs, the spells' top tiers, and the classrooms of some real
+## meeting), each classroom's place in its cycle (Timetable.phase) and needs, the spells' top tiers, and the classrooms of some real
 ## institute levels with what each teaches over a few days, and each level as a graph for walking it:
 ## its regions (the open air joined without crossing a classroom: a classroom's doors, glyph seals,
 ## locked doors and gates count as walls, cracked walls as broken), the regions each classroom's
@@ -24,11 +24,10 @@ func run() -> void:
 		if arg.begins_with("out="):
 			out = arg.substr(4)
 	var depts: Array = Timetable.LADDERS.keys()
-	var data: Dictionary = {"depts": depts, "ladders": {}, "meets": {}, "holds": Timetable.HOLDS, "needs": Timetable.NEEDS, "top": Timetable.TOP,
+	var data: Dictionary = {"depts": depts, "ladders": {}, "in_session": Timetable.IN_SESSION, "holds": Timetable.HOLDS, "needs": Timetable.NEEDS, "top": Timetable.TOP,
 		"periods": Timetable.PERIODS, "max_tier": {}, "relic_moves": Relics.MOVES, "climb": [], "levels": []}
 	for d: StringName in depts:
 		data["ladders"][d] = Timetable.LADDERS[d]
-		data["meets"][d] = range(Timetable.PERIODS).filter(func(p: int) -> bool: return Timetable.meets(d, p))
 		for a: StringName in Timetable.LADDERS[d]:
 			data["max_tier"][a] = Abilities.max_tier(a)
 	# Every climb: tiers 1..TOP each, attended (or none), every set meeting.
@@ -70,7 +69,7 @@ func run() -> void:
 					if region.has(step) and not opens.has(region[step]):
 						opens.append(region[step])
 				var centre: Vector2i = (w.halls[i]["inside"] as Rect2i).get_center()
-				rooms.append({"dept": String(w.halls[i]["dept"]), "subjects": subjects, "regions": opens, "at": [centre.x, centre.y]})
+				rooms.append({"dept": String(w.halls[i]["dept"]), "subjects": subjects, "regions": opens, "at": [centre.x, centre.y], "phase": Timetable.phase(w, i)})
 			var cords: Array = []
 			for v: Vector2i in w.objects_of(LevelGen.Type.SCHOOL_BELL):
 				if Institute.hall_at(w, v) < 0 or w.halls[Institute.hall_at(w, v)]["kind"] == &"library":

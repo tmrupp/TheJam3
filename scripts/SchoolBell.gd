@@ -1,19 +1,21 @@
 extends Area2D
 class_name SchoolBell
-## A cord of the institute's great bell (Timetable; laid by Institute.furnish): a thick cord of spell
-## light hanging all the way from the ceiling to a tassel within reach (SchoolBellArt), one in each
-## lecture hall and the library, up through the ceiling to the bell, and one out in the corridors near
-## the way in hanging from the great bell itself (`great`), whose yoke marks the period.
-## Pull it (interact, or strike it with a spell from across a shaft) and the great bell rings: the
-## period ends, the level moves on to the next, passing time begins, every scholar calms down, and the
-## whole institute shakes while it rings out (MapInfo.ring_period, MapInfo.BELL_TIME). The bell rings
-## again only RING_GAP seconds after it last rang, whichever cord is pulled.
+## A bell's cord in the institute (Timetable; laid by Institute.furnish): a thick cord of spell light
+## hanging all the way from the ceiling to a tassel within reach (SchoolBellArt), one in each lecture
+## hall and the library, up through the ceiling, and out in the corridors one under each corridor
+## bell (`great`), whose yoke marks the period. Pull it (interact, or strike it with a spell from
+## across a shaft) and it rings, if it can (MapInfo.pull_cord): a classroom's starts its class, any
+## other rings the period out, and the whole institute shakes while it rings out (MapInfo.BELL_TIME).
+## The cord rung last cannot be rung again until another has been, and none rings within RING_GAP
+## seconds of the last ring.
 
 ## The least time between two rings of the great bell (seconds).
 const RING_GAP: float = 1.0
 
 var map_info: MapInfo
-## Whether it hangs from the great bell itself (the corridor's cord).
+## Its cell (what the level's record knows it by: LevelRecord.last_bell).
+var cell: Vector2i = Vector2i(-1, -1)
+## Whether it hangs from a corridor bell itself (out in the corridors).
 var great: bool = false
 ## How many cells up its ceiling is (the first rock over its cell): the cord reaches it.
 var reach: int = 1
@@ -23,6 +25,7 @@ var since_rung: float = 99.0
 
 func setup(info: MapInfo, v: Vector2i, extra: Variant) -> void:
 	map_info = info
+	cell = v
 	great = extra is Dictionary and bool((extra as Dictionary).get("great", false))
 	reach = ceiling_over(info.world, v)
 
@@ -35,9 +38,14 @@ static func ceiling_over(w: LevelGen, v: Vector2i) -> int:
 	return k
 
 
-## Pull it: the great bell rings (the next period, and passing time).
+## Whether it was the cord rung last, which cannot be rung again yet.
+func spent() -> bool:
+	return map_info != null and map_info.world != null and map_info.record().last_bell == cell
+
+
+## Pull it: it rings, if it can (MapInfo.pull_cord).
 func ring() -> void:
-	if map_info == null or not map_info.ring_period():
+	if map_info == null or not map_info.pull_cord(cell):
 		return
 	since_rung = 0.0
 

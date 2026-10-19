@@ -8,11 +8,14 @@ extends RisoProp
 ## blue yoke under the ceiling, shaded in night, its clapper the cord's top; rung, it swings hard
 ## and rings out in fading accent arcs. Along its yoke the periods of a block are marked
 ## (Timetable.PERIODS small diamonds knocked to paper): the one it is now swells in accent, bobbing in
-## passing time while it waits for the wizard to go into a class.
+## passing time while it waits for the wizard to go into a class. The cord rung last (SchoolBell.spent),
+## which cannot be rung again yet, hangs dim: its halo gone and its cord and tassel at SPENT of their ink.
 
 ## The period marks on the yoke: their size, and the room between them (px).
 const MARK_R: float = 6.0
 const MARK_GAP: float = 22.0
+## How much of its ink the cord rung last keeps.
+const SPENT: float = 0.35
 ## The cord: how wide, how high its tassel hangs over the floor (px, its bottom), how many points
 ## along it, and how far a pull jerks it down (px).
 const CORD_W: float = 9.0
@@ -81,10 +84,12 @@ func _draw_art() -> void:
 		var sway: float = sin(ringing * SWAY_SPEED - u * 2.4) * SWAY * fade * u
 		cord.append(Vector2(x + sway, y))
 	var tip: Vector2 = cord[CORD_POINTS]
-	# A soft halo of its light, the cord itself, its twists.
-	ink.ink(RisoPrint.ACCENT, 0.16 + 0.12 * fade, RisoDecor.strip(cord, CORD_W * 3.0, CORD_W * 3.0))
+	# A soft halo of its light, the cord itself, its twists (dim, rung last).
+	var lit: float = SPENT if bell.spent() else 1.0
+	if not bell.spent():
+		ink.ink(RisoPrint.ACCENT, 0.16 + 0.12 * fade, RisoDecor.strip(cord, CORD_W * 3.0, CORD_W * 3.0))
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], RisoDecor.strip(cord, CORD_W, CORD_W))
-	ink.ink(RisoPrint.ACCENT, 1.0, RisoDecor.strip(cord, CORD_W, CORD_W))
+	ink.ink(RisoPrint.ACCENT, lit, RisoDecor.strip(cord, CORD_W, CORD_W))
 	var twists: Array[PackedVector2Array] = []
 	var steps: int = int((cord[CORD_POINTS].y - cord[0].y) / 13.0)
 	for k: int in range(steps):
@@ -95,9 +100,9 @@ func _draw_art() -> void:
 		twists.append(PackedVector2Array([at + Vector2(-CORD_W * 0.5, -2.0), at + Vector2(CORD_W * 0.5, -6.0), at + Vector2(CORD_W * 0.5, -4.0), at + Vector2(-CORD_W * 0.5, 0.0)]))
 	ink.ink(RisoPrint.NIGHT, 0.35, twists, false)
 	# Its tassel: a knot and a fringe, within reach.
-	ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(tip + Vector2(0, 2.0), 8.0, 14)])
+	ink.ink(RisoPrint.ACCENT, lit, [RisoShapes.circle(tip + Vector2(0, 2.0), 8.0, 14)])
 	var fringe: PackedVector2Array = PackedVector2Array([tip + Vector2(-7, 6), tip + Vector2(7, 6), tip + Vector2(10, 26), tip + Vector2(-10, 26)])
-	ink.ink(RisoPrint.ACCENT, 1.0, [fringe])
+	ink.ink(RisoPrint.ACCENT, lit, [fringe])
 	var strands: Array[PackedVector2Array] = []
 	for k: int in range(4):
 		var sx: float = -6.0 + float(k) * 4.0
