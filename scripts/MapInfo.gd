@@ -836,8 +836,9 @@ func instructor_fell (hall: int, pos: Vector2, a: StringName) -> void:
 	_spawn_dropped_key.call_deferred(rec.drop_key(pos, code), pos, code)
 	save_run()
 
-## At a lit lantern (Checkpoint), at `at`: the oldest paper carried that teaches something
-## (learn_paper) is learned. Returns whether one was.
+## Studying, at `at` (a lit lantern, Checkpoint, which it burns out; the library's desk,
+## study_at_desk): the oldest paper carried that teaches something (learn_paper) is learned. Returns
+## whether one was.
 func study (at: Vector2) -> bool:
 	if player == null or not is_instance_valid(player):
 		return false
@@ -846,17 +847,61 @@ func study (at: Vector2) -> bool:
 			return true
 	return false
 
+## Whether exam paper `code` would teach something learned now (learn_paper): a spell that takes a
+## slot, not one held there already at that tier or higher.
+func teaches_paper (code: int) -> bool:
+	var a: StringName = KeyRing.paper_spell(code)
+	if a == &"" or Abilities.slot_of(a) == &"" or player == null or not is_instance_valid(player):
+		return false
+	return not (Abilities.spell(player, Abilities.slot_of(a)) == a and Abilities.tier(player, a) >= KeyRing.paper_tier(code))
+
+## Studying at a lantern (Checkpoint) burns it out, as a death does: it protects the wizard no more,
+## and is not lit again this run (RunState.spend_lantern).
+func burn_lantern (lantern: Node) -> void:
+	if not lantern.has_meta(&"cell"):
+		return
+	run.spend_lantern(coord, lantern.get_meta(&"cell"))
+	if run.respawn_coord == coord and run.respawn_cell == lantern.get_meta(&"cell"):
+		run.vulnerable = true
+	_refresh_lanterns()
+	save_run()
+
+## The paper the library's desk (StudyDesk) would teach now, or 0: in class time, to a wizard in the
+## library who has not studied there this period (LevelRecord.studied), the oldest carried that
+## teaches something (teaches_paper). Free: the price is the bell that began class time.
+func desk_paper () -> int:
+	if not timetabled() or player == null or not is_instance_valid(player):
+		return 0
+	var rec: LevelRecord = record()
+	if rec.passing or rec.studied == rec.rings:
+		return 0
+	var hall: int = Timetable.hall_inside(world, cell_at(player.global_position))
+	if hall < 0 or world.halls[hall]["kind"] != &"library":
+		return 0
+	for code: int in player.keyring.papers():
+		if teaches_paper(code):
+			return code
+	return 0
+
+## Study at the library's desk, at `at` (desk_paper): its paper learned, once this period. Returns
+## whether one was.
+func study_at_desk (at: Vector2) -> bool:
+	var code: int = desk_paper()
+	if code == 0 or not learn_paper(code, at):
+		return false
+	record().studied = record().rings
+	save_run()
+	return true
+
 ## Exam paper `code` learned, at `at`: its spell takes its slot at the paper's tier, and the spell it
 ## puts out of the slot comes back as a paper (put_back). A paper of the spell already held, at a tier
 ## no higher than it is known, teaches nothing (and stays on the ring). Returns whether it taught.
 func learn_paper (code: int, at: Vector2) -> bool:
+	if not teaches_paper(code):
+		return false
 	var a: StringName = KeyRing.paper_spell(code)
 	var tier: int = KeyRing.paper_tier(code)
-	if a == &"" or Abilities.slot_of(a) == &"":
-		return false
 	var held: StringName = Abilities.spell(player, Abilities.slot_of(a))
-	if held == a and Abilities.tier(player, a) >= tier:
-		return false
 	var held_tier: int = Abilities.tier(player, held) if held != &"" else 0
 	player.keyring.spend(code)
 	Abilities.set_tier(player, a, tier)
@@ -1684,8 +1729,6 @@ func solid_at (pos: Vector2) -> bool:
 			return not bool(light_gates.get(v, false))
 		LevelGen.Type.EXAM_DOOR:
 			return not bool(exam_doors.get(v, true))
-		LevelGen.Type.GLYPH_SEAL:
-			return not rec.opened.has(v)
 	return false
 
 func _physics_process (delta: float) -> void:

@@ -4,8 +4,8 @@ extends TestKit
 ## climb (Timetable.climb, for every tier, every class attended and every set of departments
 ## meeting), each classroom's place in its cycle (Timetable.phase) and needs, the spells' top tiers, and the classrooms of some real
 ## institute levels with what each teaches over a few days, and each level as a graph for walking it:
-## its regions (the open air joined without crossing a classroom: a classroom's doors, glyph seals,
-## locked doors and gates count as walls, cracked walls as broken), the regions each classroom's
+## its regions (the open air joined without crossing a classroom: a classroom's doors, locked doors
+## and gates count as walls, cracked walls as broken), the regions each classroom's
 ## doorways open on, where the wizard comes in, the regions holding a bell cord out of the
 ## classrooms (the great bell's, the library's), and which classroom holds the way on
 ## (Timetable.way_on_hall). Not a test: run it by hand.
@@ -75,18 +75,18 @@ func run() -> void:
 				if Institute.hall_at(w, v) < 0 or w.halls[Institute.hall_at(w, v)]["kind"] == &"library":
 					if region.has(v) and not cords.has(region[v]):
 						cords.append(region[v])
-			# What joins regions besides classrooms: locked doors, gates and glyph seals (with the spell a seal asks for).
+			# What joins regions besides classrooms: locked doors and gates.
 			var locks: Array = []
 			for v: Vector2i in w.objects:
 				var t: LevelGen.Type = w.get_cell(v).type
-				if not t in [LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.LIGHT_GATE, LevelGen.Type.GLYPH_SEAL]:
+				if not t in [LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.LIGHT_GATE]:
 					continue
 				var sides: Array = []
 				for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
 					if region.has(v + d) and not sides.has(region[v + d]):
 						sides.append(region[v + d])
 				if sides.size() > 1:
-					var what: String = String(w.get_cell(v).extra_info) if t == LevelGen.Type.GLYPH_SEAL else LevelGen.Type.keys()[t].to_lower()
+					var what: String = LevelGen.Type.keys()[t].to_lower()
 					locks.append({"kind": what, "regions": sides})
 			var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
 			data["levels"].append({"at": [at.x, at.y], "rooms": rooms, "start_region": region.get(start, -1), "start": [start.x, start.y], "cord_regions": cords, "locks": locks, "exit": way_on})
@@ -102,7 +102,7 @@ func run() -> void:
 ## Each open cell of `w` out of the classrooms, by the region it lies in (see the class description).
 func _regions(w: LevelGen) -> Dictionary:
 	var out: Dictionary = {}
-	var walls: Array[LevelGen.Type] = [LevelGen.Type.GROUND, LevelGen.Type.EXAM_DOOR, LevelGen.Type.GLYPH_SEAL, LevelGen.Type.DOOR,
+	var walls: Array[LevelGen.Type] = [LevelGen.Type.GROUND, LevelGen.Type.EXAM_DOOR, LevelGen.Type.DOOR,
 		LevelGen.Type.SWITCH_GATE, LevelGen.Type.LIGHT_GATE]
 	var open: Callable = func(v: Vector2i) -> bool:
 		if not w.is_valid(v) or w.get_cell(v).type in walls:

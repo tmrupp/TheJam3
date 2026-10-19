@@ -341,7 +341,6 @@ func _level_rows() -> Array:
 		["toll gate", _mark_toll, "toll gate"],
 		["relic", func(at: Vector2) -> void: _mark_relic(at, &"blink", 0.7), "relic"],
 		["soul", func(at: Vector2) -> void: _mark_soul(at), "soul"],
-		["glyph seal", func(at: Vector2) -> void: _mark_seal(at, &"hex"), "glyph seal"],
 	] + _door_rows() + [
 		["key", func(at: Vector2) -> void: _mark_key(at, 2), "key"],
 		["skeleton key", func(at: Vector2) -> void: _mark_key(at, KeyRing.SKELETON), "skeleton key"],
@@ -470,9 +469,6 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 			_mark_snuffer(at)
 		LevelGen.Type.LIGHT_GATE:
 			_mark_light_gate(at, bool(cell.extra_info))
-		LevelGen.Type.GLYPH_SEAL:
-			if not gone:
-				_mark_seal(at, StringName(cell.extra_info))
 		LevelGen.Type.DEPARTMENT:
 			_mark_department(at, signi(int((cell.extra_info as Array)[1]) - c.y))
 		LevelGen.Type.CHECKPOINT:
@@ -578,18 +574,6 @@ func _mark_relic(at: Vector2, move: StringName, k: float = 1.0) -> void:
 	var fit: Transform2D = Transform2D(0.0, Vector2(0.15, 0.15) * k, 0.0, at)
 	var mark: Array[PackedVector2Array] = []
 	for poly: PackedVector2Array in RisoGlyph.of(move, Vector2.ZERO, t):
-		mark.append(fit * poly)
-	marks.ink(RisoPrint.NIGHT, 1.0, mark, false)
-
-
-## A glyph seal (GlyphSeal): a blue slab with a paper disc bearing its spell's mark.
-func _mark_seal(at: Vector2, spell: StringName) -> void:
-	_note("glyph seal")
-	marks.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(at.x - 2.4, at.y - 3.4, 4.8, 6.8, 1.6)], false)
-	marks.knock([RisoPrint.BLUE, RisoPrint.NIGHT], [RisoShapes.circle(at, 1.9, 14)])
-	var fit: Transform2D = Transform2D(0.0, Vector2(0.06, 0.06), 0.0, at)
-	var mark: Array[PackedVector2Array] = []
-	for poly: PackedVector2Array in RisoGlyph.of(spell, Vector2.ZERO, t):
 		mark.append(fit * poly)
 	marks.ink(RisoPrint.NIGHT, 1.0, mark, false)
 

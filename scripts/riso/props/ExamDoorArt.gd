@@ -8,8 +8,8 @@ extends RisoProp
 ## clockwise, an arc for a period in session and none for one closed, and a small notch outside the
 ## rim at the period it is now (ExamDoor.period), as a clock's hand. Beside it, while its class asks
 ## for a prerequisite (ExamDoor.prereq), its tag: a sheet in the colour of the department it asks for,
-## its folded corner bare paper, with that department's emblem (RisoMarks.emblem: a leaf, a skull, a
-## crystal, a star) and under it a pip for each tier it needs, both knocked out to paper: a paper of
+## its folded corner bare paper, with that department's emblem (RisoMarks.emblem: a sprout, a skull,
+## crystals, a star) and under it a pip for each tier it needs, both knocked out to paper: a paper of
 ## that department (or a spell of it held) opens the door. The two stand side by side over the
 ## doorway, a little left of its middle (PAIR_LEFT).
 

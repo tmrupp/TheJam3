@@ -3,7 +3,7 @@ extends PortalArt
 ## pale marble on two columns, standing on a step and hugging its opening, which is a portal's
 ## (PortalArt's outline) filled as every portal is (the F7 panel's style: TV static by default),
 ## and on its keystone the department's emblem knocked out to paper on a disc in the department's
-## colour (RisoPrint.DEPT_INKS): a leaf for botany, a skull for necrology, a crystal for geology, a
+## colour (RisoPrint.DEPT_INKS): a sprout for botany, a skull for necrology, crystals for geology, a
 ## star for astronomy (a way back bears the institute's columned front, in night on a paper disc). Standing by it pops up a plaque with
 ## where it leads, as marks and numbers (RisoMarks.place_marks). It shines a little (RisoLight).
 

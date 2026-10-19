@@ -7,8 +7,7 @@ class_name HexBolt
 ## passes through (SpiderWeb) and flies on, and cuts a spider's thread it crosses (Spider), ending
 ## there. Thorns that are out stop it as rock does (Spikes.struck_by, THORN_REACH), bursting on them.
 ## A seeking bolt (Seeker: `seek` above 0) turns toward the nearest enemy it can see within
-## SEEK px as it flies (a glyph seal too, GlyphSeal). A glyph seal it meets is told which spell it is
-## (`spell`), where it was cast from and how far it has turned (GlyphSeal.struck), and it ends there.
+## SEEK px as it flies.
 ## Printed as a comet of spell light (accent ink, like the wand tip) with a
 ## tapering tail, on top of the decor and night it crosses (lifted to paper under it).
 
@@ -123,10 +122,6 @@ func _physics_process(delta: float) -> void:
 		if Wound.whole(e) in struck:
 			continue
 		struck.append(Wound.whole(e))
-		if e is GlyphSeal:
-			(e as GlyphSeal).struck(spell)
-			_end((e as Node2D).global_position)
-			return
 		# A scholar struck by the wizard turns on them (Scholar.rouse), the blow theirs.
 		if e is Scholar:
 			(e as Scholar).rouse()
@@ -175,7 +170,7 @@ func _quarry() -> Node2D:
 	var best_d: float = SEEK
 	for e: Node in get_tree().get_nodes_in_group(&"hex_target"):
 		var n: Node2D = e as Node2D
-		if n == null or not is_instance_valid(n) or n.is_queued_for_deletion() or (n.get_node_or_null("Wound") == null and not n is GlyphSeal) or Wound.whole(n) in struck:
+		if n == null or not is_instance_valid(n) or n.is_queued_for_deletion() or n.get_node_or_null("Wound") == null or Wound.whole(n) in struck:
 			continue
 		var d: float = global_position.distance_to(n.global_position)
 		if d < best_d and SpellStrike.clear(global_position, n.global_position):

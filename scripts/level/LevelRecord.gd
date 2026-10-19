@@ -63,6 +63,9 @@ var passing: bool = true
 ## rung out (-1 for none), and the cord rung last (none may be rung twice running).
 var started: int = -1
 var last_bell: Vector2i = Vector2i(-1, -1)
+## The period (by LevelRecord.rings) the wizard last studied at the library's desk in, or -1: once a
+## period (MapInfo.study_at_desk).
+var studied: int = -1
 ## Whether the way on has taken the exam paper its classroom asks for (MapInfo.hand_in_way_on): it
 ## asks no more.
 var way_on_paid: bool = false
@@ -84,7 +87,7 @@ var stations: int = -1
 ## Every field saved, in the order they are written.
 const FIELDS: Array[StringName] = [&"taken", &"opened", &"slain", &"broken", &"dropped", &"next_drop", &"deeper_paid", &"up_paid",
 	&"doors_paid", &"lateral_open", &"ways_taken", &"shrine_used", &"mapped", &"seen",
-	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended", &"lessons", &"stations", &"rings", &"passing", &"lifted", &"pigeonholes", &"prizes", &"dept_tiers", &"relics_left", &"started", &"last_bell", &"way_on_paid"]
+	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended", &"lessons", &"stations", &"rings", &"passing", &"lifted", &"pigeonholes", &"prizes", &"dept_tiers", &"relics_left", &"started", &"last_bell", &"way_on_paid", &"studied"]
 
 
 ## The record as a plain dictionary, for the save file.

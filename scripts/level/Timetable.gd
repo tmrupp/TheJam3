@@ -59,16 +59,12 @@ extends RefCounted
 ##   (MapInfo.instructor_fell). Those two are stolen (KeyRing.stolen): while the wizard carries one,
 ##   they belong nowhere, and every scholar who sees them turns on them. Papers are learned at
 ##   lanterns (MapInfo.learn_paper).
-## - The library's doorways are barred just inside by glyph seals (GlyphSeal) asking for a damage
-##   spell some classroom here teaches (seal_of), so a level can be got through from within itself.
 ## Nothing here draws from any RNG: it is all hashed from the level seed.
 
 ## How many periods a day has (see the class description).
 const PERIODS: int = 3
 ## The halls with a class in them, which keep the timetable.
 const TIMETABLED: Array[StringName] = [&"lecture", &"library"]
-## The halls whose doorways are barred by glyph seals.
-const SEALED: Array[StringName] = [&"library"]
 ## Each department's subjects, in the order it teaches them: its damage spell first.
 const LADDERS: Dictionary = {
 	&"astronomy": [&"hex", &"seeker", &"warp"],
@@ -88,10 +84,8 @@ const TOP: int = 4
 ## The tier of the exam paper, of any department but its classroom's, the way on takes (see the class
 ## description).
 const WAY_ON_PAPER: int = 2
-## Salts for the level seed: where each classroom starts in its department's subjects, and which
-## spell the seals ask for.
+## Salt for the level seed: where each classroom starts in its department's subjects.
 const ROTATION_DEAL: int = 6470
-const SEAL_DEAL: int = 6480
 ## Salt for the level seed: where each classroom starts in its cycle.
 const PHASE_DEAL: int = 6490
 
@@ -284,23 +278,3 @@ static func master_of(w: LevelGen, hall: int) -> Vector2i:
 	return Vector2i(-1, -1)
 
 
-## Every subject the classrooms of `w` teach over a few days, in the halls' order, each once.
-static func subjects_in(w: LevelGen) -> Array[StringName]:
-	var out: Array[StringName] = []
-	for i: int in range(w.halls.size()):
-		for r: int in range(PERIODS * 6):
-			var a: StringName = subject(w, i, r)
-			if a != &"" and not a in out:
-				out.append(a)
-	return out
-
-
-## The spell the glyph seals barring hall `hall` of `w` ask for: a damage spell a classroom here
-## teaches (subjects_in), dealt by the seed; &"" for a hall not sealed (SEALED), or when no classroom
-## here teaches one.
-static func seal_of(w: LevelGen, hall: int) -> StringName:
-	var taught: Array[StringName] = subjects_in(w).filter(func(a: StringName) -> bool: return a in Institute.MASTERIES)
-	if taught.is_empty() or hall < 0 or hall >= w.halls.size() or not w.halls[hall]["kind"] in SEALED:
-		return &""
-	var first: int = posmod(Rules.level_seed(w.seed_for_colors, SEAL_DEAL), taught.size())
-	return taught[first]

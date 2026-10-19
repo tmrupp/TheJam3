@@ -66,7 +66,12 @@ enum Type {
 	TOWER_SWITCH,
 	SCHOOL_BELL,
 	LECTERN,
+	## No longer laid (the institute's glyph seals were taken out); kept so the types after it keep
+	## their numbers.
 	GLYPH_SEAL,
+	## The library's reading desk (StudyDesk) and its timetable board (TimetableBoard).
+	STUDY_DESK,
+	TIMETABLE_BOARD,
 }
 
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).

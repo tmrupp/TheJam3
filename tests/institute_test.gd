@@ -17,7 +17,7 @@ const LAID: Array[Vector2i] = [Vector2i(28, 0), Vector2i(28, 2), Vector2i(7, 4),
 ## What may be laid inside a hall.
 const IN_HALLS: Array[LevelGen.Type] = [LevelGen.Type.EXAM_DOOR, LevelGen.Type.EXIT, LevelGen.Type.MASTER, LevelGen.Type.STUDENT,
 	LevelGen.Type.PROCTOR, LevelGen.Type.LIBRARIAN, LevelGen.Type.DEPARTMENT, LevelGen.Type.PLATFORM, LevelGen.Type.COIN, LevelGen.Type.BOSS,
-	LevelGen.Type.SCHOOL_BELL, LevelGen.Type.LECTERN, LevelGen.Type.GLYPH_SEAL]
+	LevelGen.Type.SCHOOL_BELL, LevelGen.Type.LECTERN, LevelGen.Type.STUDY_DESK, LevelGen.Type.TIMETABLE_BOARD]
 
 
 func run() -> void:

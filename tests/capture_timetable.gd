@@ -5,10 +5,11 @@ extends TestKit
 ## classroom shut, then in session but shut to a wizard without its prerequisite (the paper it
 ## wants beside its plate), then open to them carrying it, wide and with the class in; scholars calm
 ## and turned on the wizard, close up; a classroom's lectern holding a paper left on it;
-## exam papers lying on a floor, a stolen one among them; the library's glyph seals; the way on in
-## its classroom, with the paper it takes hung beside it; an instructor teaching ferry
-## turned on the wizard on its raft, its class with it, and the stolen top-tier paper it leaves once
-## felled; and a seal of each spell side by side. (The hall's doors shut and open, close up.)
+## exam papers lying on a floor, a stolen one among them; the library's timetable board and its
+## desk ready to teach in class time; the way on in its classroom, with the paper
+## it takes hung beside it; and an instructor teaching ferry turned on the wizard on its raft, its
+## class with it, and the stolen top-tier paper it leaves once felled. (The hall's doors shut and
+## open, close up.)
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_timetable.gd
 
 var camera: Camera2D
@@ -95,16 +96,27 @@ func run() -> void:
 			info._spawn_dropped_key(info.record().drop_key(pos, codes[k]), pos, codes[k])
 		player.global_position = info.cell_position(at + Vector2i(5, 0))
 		await _look(info.cell_position(at + Vector2i(2, 0)) + Vector2(0, -40), "timetable_papers.png", 2.0)
-	# The library's seals.
-	var library: int = -1
-	for i: int in range(info.world.halls.size()):
-		if info.world.halls[i]["kind"] == &"library":
-			library = i
-	var seals: Array[Node] = placed("glyph_seal.tscn").filter(func(n: Node) -> bool: return Institute.hall_at(info.world, n.get_meta(&"cell")) == library)
-	if not seals.is_empty():
-		var s: Node2D = seals[0] as Node2D
-		player.global_position = info.cell_position(info.world.halls[library]["steps"][0])
-		await _look(s.global_position + Vector2(0, -40), "timetable_library_seal.png", 1.6)
+	# The library: its timetable board, and its desk ready to teach a paper in class time.
+	var boards: Array[Node] = placed("timetable_board.tscn")
+	var desks: Array[Node] = placed("study_desk.tscn")
+	if not boards.is_empty() and not desks.is_empty():
+		var board: Node2D = boards[0] as Node2D
+		player.keyring.take(KeyRing.paper(&"seeker", 2))
+		player.global_position = (desks[0] as Node2D).global_position + Vector2(-90, 0)
+		await frames(4)
+		_ring(bell)
+		if info.record().passing:
+			info.record().last_bell = Vector2i(-1, -1)
+			info.since_bell = SchoolBell.RING_GAP
+			bell.ring()
+		player.global_position = (desks[0] as Node2D).global_position + Vector2(-90, 0)
+		await frames(20)
+		await _look(board.global_position + Vector2(0, -240), "timetable_library.png", 0.95, 60)
+		player.keyring.clear()
+		player.global_position = bell.global_position
+		await frames(2)
+		_ring(bell)
+		await frames(2)
 	# The way on in its classroom, with the paper it takes hung beside it.
 	var way: int = Timetable.way_on_hall(info.world)
 	if way >= 0:
@@ -148,7 +160,7 @@ func run() -> void:
 	finish()
 
 
-## Close up on a long floor: students calm and then turned on the wizard; then a seal of each spell.
+## Close up on a long floor: students calm and then turned on the wizard.
 func _lineups(bell: SchoolBell) -> void:
 	var spot: Variant = _long_floor(9)
 	if spot == null:
@@ -183,15 +195,6 @@ func _lineups(bell: SchoolBell) -> void:
 	for p: Scholar in people:
 		p.queue_free()
 	await frames(2)
-	var row: Array[Node2D] = []
-	for i: int in range(Institute.MASTERIES.size()):
-		var seal: GlyphSeal = (load("res://prefabs/glyph_seal.tscn") as PackedScene).instantiate() as GlyphSeal
-		seal.setup(info, at + Vector2i(i, 0), Institute.MASTERIES[i])
-		info.map_elements.add_child(seal)
-		seal.global_position = info.cell_position(at + Vector2i(i, 0))
-		row.append(seal)
-	player.global_position = info.cell_position(at + Vector2i(9, 0))
-	await _look(info.cell_position(at + Vector2i(4, 0)) + Vector2(0, -60), "timetable_seals.png", 1.25)
 
 
 ## Ring `bell`, as soon as it can be rung again.

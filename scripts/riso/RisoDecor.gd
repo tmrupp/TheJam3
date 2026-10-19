@@ -101,11 +101,12 @@ const WEB_REACH: float = 19.0
 const WEB_RINGS: Array[float] = [0.45, 0.8]
 const STRUCTURES: Array[String] = ["level_exit.tscn", "shrine.tscn", "door.tscn", "checkpoint.tscn", "spikes.tscn",
 	"portal.tscn", "inkwell.tscn", "moving_platform.tscn", "bell.tscn", "switch.tscn", "switch_gate.tscn", "key.tscn",
-	"relic.tscn", "gondola.tscn", "stalactite.tscn", "department.tscn", "way_back.tscn"]
+	"relic.tscn", "gondola.tscn", "stalactite.tscn", "department.tscn", "way_back.tscn", "study_desk.tscn",
+	"timetable_board.tscn"]
 ## Structures that stand tall, keeping a wider stretch of floor clear (see rebuild). A department's
 ## portal is one: an institute column or bookcase stood on its cell once rose out of its arch.
 const TALL: Array[String] = ["level_exit.tscn", "shrine.tscn", "checkpoint.tscn", "door.tscn", "bell.tscn", "gondola.tscn",
-	"department.tscn", "way_back.tscn"]
+	"department.tscn", "way_back.tscn", "study_desk.tscn"]
 
 ## The plan: one entry per prop, {kind, cell, at (world), seed}.
 var items: Array[Dictionary] = []
@@ -651,6 +652,13 @@ func rebuild(info: MapInfo, cracked_positions: Array[Vector2] = []) -> void:
 		if file in TALL:
 			for d: Vector2i in [Vector2i(-2, 0), Vector2i(2, 0), Vector2i(3, 0)]:
 				occupied[c + d] = true
+		# The library's timetable board keeps its whole wall clear, floor to gallery (BoardArt).
+		if file == "timetable_board.tscn":
+			@warning_ignore("integer_division")
+			var reach: int = int(BoardArt.BOARD_W) / 2 + 1
+			for dx: int in range(-reach, reach + 1):
+				for dy: int in range(0, Institute.LIBRARY_GROUND + 1):
+					occupied[c + Vector2i(dx, -dy)] = true
 	# A sky temple is dressed by its own art (TempleArt): no decor on it, in it or over it.
 	for temple: Dictionary in info.world.temples:
 		var box: Rect2i = (temple["box"] as Rect2i).grow(1)

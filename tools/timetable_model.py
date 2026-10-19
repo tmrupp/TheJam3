@@ -340,8 +340,7 @@ def table(title, summary):
 
 class Route:
     """A real level as a graph for walking it (tests/dump_timetable.gd): regions of open air joined only
-    by classrooms (and, with `keys`, by locked doors and gates, and glyph seals asking for slash, the
-    spell the wizard starts with); where the wizard comes in; where a bell cord hangs out of the
+    by classrooms (and, with `keys`, by locked doors and gates); where the wizard comes in; where a bell cord hangs out of the
     classrooms; and which classroom holds the way on (the game's, Institute.way_on, unless
     `exit_room` names one; for a level written without it, the one most classrooms away from the way
     in, ties by distance)."""
@@ -359,7 +358,7 @@ class Route:
 
         if keys:
             for lock in level.get("locks", []):
-                if lock["kind"] in ("door", "switch_gate", "light_gate", "slash"):
+                if lock["kind"] in ("door", "switch_gate", "light_gate"):
                     for other in lock["regions"][1:]:
                         parent[find(other)] = find(lock["regions"][0])
         self.rooms = [(room["dept"], room["subjects"], frozenset(find(g) for g in room["regions"])) for room in level["rooms"]]

@@ -120,10 +120,6 @@ static func key_shape(o: Vector2, s: float, color: int = 0) -> Array[PackedVecto
 	return out
 
 
-## A department's emblem, by the band it studies (Institute.DEPARTMENTS), round `c`, about 24 px
-## across: a leaf for the garden, a skull for the cemetery, a crystal for the crags, a star for the
-## sky; the institute's own a pediment over three columns (a department's portal, DepartmentArt, and a
-## door's prerequisite, ExamDoorArt).
 ## What is cut back out of `band`'s emblem round `c` once it is printed (emblem): the skull's eyes; none
 ## for the others.
 static func emblem_holes(band: StringName, c: Vector2) -> Array[PackedVector2Array]:
@@ -132,14 +128,24 @@ static func emblem_holes(band: StringName, c: Vector2) -> Array[PackedVector2Arr
 	return []
 
 
+## A department's emblem, by the band it studies (Institute.DEPARTMENTS), round `c`, about 24 px
+## across: a sprout (two leaves on a stem) for the garden, a skull for the cemetery, three pointed
+## crystals for the crags, a star for the sky; the institute's own a pediment over three columns (a
+## department's portal, DepartmentArt; a door's prerequisite, ExamDoorArt; the timetable board, BoardArt).
 static func emblem(band: StringName, c: Vector2) -> Array[PackedVector2Array]:
 	match band:
 		&"garden":
-			return [Transform2D(0.4, c) * RisoShapes.almond(Vector2.ZERO, 6.0, 12.0, 12), RisoShapes.rrect(c.x - 0.8, c.y + 2.0, 1.6, 9.0, 0.8)]
+			# A sprout: two leaves on a stem.
+			return [RisoShapes.rrect(c.x - 1.3, c.y - 3.0, 2.6, 15.0, 1.3),
+				Transform2D(-0.9, c + Vector2(-5.5, -4.0)) * RisoShapes.almond(Vector2.ZERO, 4.0, 8.0, 12),
+				Transform2D(0.9, c + Vector2(5.5, -4.0)) * RisoShapes.almond(Vector2.ZERO, 4.0, 8.0, 12)]
 		&"cemetery":
 			return [RisoShapes.circle(c + Vector2(0, -2.0), 8.0, 16), RisoShapes.rrect(c.x - 4.5, c.y + 3.0, 9.0, 6.0, 2.0)]
 		&"crags":
-			return [PackedVector2Array([c + Vector2(0, -12), c + Vector2(7, -2), c + Vector2(4, 11), c + Vector2(-4, 11), c + Vector2(-7, -2)])]
+			# Three pointed crystals out of one base, the middle tallest.
+			var spike: PackedVector2Array = PackedVector2Array([Vector2(-3.5, 0), Vector2(-3.5, -12), Vector2(0, -17), Vector2(3.5, -12), Vector2(3.5, 0)])
+			return [Transform2D(0.0, c + Vector2(0, 11)) * spike, Transform2D(-0.5, Vector2(0.75, 0.75), 0.0, c + Vector2(-4.5, 11)) * spike,
+				Transform2D(0.5, Vector2(0.75, 0.75), 0.0, c + Vector2(4.5, 11)) * spike]
 		&"sky":
 			return [RisoShapes.sparkle(c, 12.0)]
 	var out: Array[PackedVector2Array] = [PackedVector2Array([c + Vector2(-11, -4), c + Vector2(0, -11), c + Vector2(11, -4)])]

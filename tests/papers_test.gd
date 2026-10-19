@@ -5,7 +5,8 @@ extends TestKit
 ## a death. Studied at a lantern (MapInfo.study, learn_paper): a paper's spell takes its slot and the
 ## one put out comes back as a paper, round and round; a paper of the spell held at no higher a tier
 ## teaches nothing, a higher one raises it with nothing back; the dash and the other moves too; a
-## lesson's spell taken hands back the one it puts out as a paper (shrine_test, the shrine's). An
+## lesson's spell taken hands back the one it puts out as a paper (shrine_test, the shrine's); a
+## lantern that studies burns out, teaching nothing more. An
 ## instructor (Scholar, a classroom's master) turned on the wizard moves as its subject does: a warp to
 ## another floor of its room, a rift between its two furthest floors, levitating over the floor,
 ## ferrying across it without a stop, projecting itself (unhurt meanwhile), and, aware, seeing the
@@ -115,6 +116,11 @@ func _study() -> void:
 			check(info.is_respawn_lantern(lantern) and player.keyring.papers().size() == 1, "a lantern's first use lights it, studying nothing")
 			lantern.interacted()
 		check(Abilities.spell(player) == &"seeker", "used again, it studies the paper carried")
+		check(info.is_lantern_spent(lantern) and not info.is_respawn_lantern(lantern) and info.run.vulnerable, "and burns out doing it: it protects no more")
+		var carried: Array[int] = player.keyring.papers()
+		lantern.interacted()
+		check(Abilities.spell(player) == &"seeker" and player.keyring.papers() == carried, "burnt out, it teaches nothing more")
+		info.run.vulnerable = false
 	player.keyring.clear()
 	print("a lesson")
 	Abilities.set_tier(player, &"hex", 2)

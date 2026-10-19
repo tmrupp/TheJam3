@@ -5,7 +5,9 @@ class_name Checkpoint
 ## lit or already lit, it refills the hex's charges and mend's draughts (MapInfo.light_lantern).
 ## At a lantern already lit as where you come back to, interacting also studies: the oldest exam paper
 ## carried that teaches something is learned into its slot, and the spell it puts out comes back as a
-## paper (MapInfo.study), so going round them all swaps the papers carried in turn.
+## paper (MapInfo.study). Studying burns the lantern out (MapInfo.burn_lantern): it protects no more
+## and is not lit again this run. (In the institute the library's desk teaches free in class time,
+## StudyDesk.)
 
 @onready var player: Player = Stage.player()
 
@@ -22,8 +24,8 @@ func interacted () -> void:
 	if MapInfo.instance != null:
 		var lit: bool = MapInfo.instance.is_respawn_lantern(self)
 		MapInfo.instance.light_lantern(self)
-		if lit:
-			MapInfo.instance.study(global_position + Vector2(0, -40))
+		if lit and MapInfo.instance.study(global_position + Vector2(0, -40)):
+			MapInfo.instance.burn_lantern(self)
 	refresh()
 
 func _ready() -> void:

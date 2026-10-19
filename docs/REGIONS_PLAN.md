@@ -552,7 +552,7 @@ departments' portals with their ways back; the beast in its chamber, its souls
 sent out across the run (§6); and a first pass of the timetable (§9): periods moved on by bells,
 hall doors kept by them, scholars calm where the wizard belongs, exam papers from the classes
 attended (fetched from the departments' field levels, or lifted from an empty hall's lectern),
-learned at lanterns, instructors who leave a top-tier paper, and glyph seals. Not yet: tuning in play.
+learned at lanterns, instructors who leave a top-tier paper. Not yet: tuning in play.
 
 - **Terrain.** Halls of different kinds, built by a structure pass (as the crags build their
   keeps) into a sample of rooms and corridors: lecture halls whose tiered seats climb like stairs,
@@ -740,9 +740,9 @@ Each phase ends with the full suite green and its own tests.
    *The timetable is built* (§9; settled in five passes on 2026-10-17): the great bell and its
    cords, departments with their own rhythms and tier rules,
    prerequisites, passing time and belonging, exam papers sent on field trips and learned at
-   lanterns, instructors, classroom lecterns as pigeonholes, glyph seals, abominations quiet in
+   lanterns, instructors, classroom lecterns as pigeonholes, glyph seals (since taken out), abominations quiet in
    class and surging in passing time, and the beast fed by rings (`Timetable`, `SchoolBell`,
-   `Lectern`, `GlyphSeal`, `KeyRing.paper`, `MapInfo._attend`, `study`, `instructor_fell`;
+   `Lectern`, `KeyRing.paper`, `MapInfo._attend`, `study`, `instructor_fell`;
    `timetable_test`, `papers_test`, `capture_timetable.gd`). Only the institute's dressing changed
    (its halls: classrooms in place of lecture halls and the exam hall; `layout_fingerprint_test`
    re-pinned for it alone); the collapsed terrain did not. On 2026-10-18 the way on moved into a
@@ -859,8 +859,11 @@ Each phase ends with the full suite green and its own tests.
     (warping, rifting, ferrying, projecting itself, levitating, seeing through rock). Beaten by
     the wizard it leaves a stolen paper of its subject at the spell's top tier, once a room: the
     taste of an exam.
-  - *Glyph seals* just inside the library's doorways ask for a damage spell taught in the level,
-    and open only to that spell striking them.
+  - *The library* (reworked 2026-10-19; its glyph seals taken out): a safe place in class time,
+    where a bell rung by the wizard ends it without truancy; a big timetable board on its ground
+    floor's back wall, every classroom's day at a glance, now's column with its tiers and tags; and a
+    reading desk that teaches a paper free in class time, once a period. Learning a paper at a
+    lantern burns the lantern out.
   - *Tried and dropped.* A lesson as a trial: the master's spell lent for it and used for what it
     does on mock seals, passed for a tier, with exam prizes and an exam made tougher by rings. Each
     spell needed a special case kept up as spells changed, so exam papers replaced them. Seals
@@ -878,7 +881,7 @@ Each phase ends with the full suite green and its own tests.
     puzzle.
   - *Not yet:* classes moving from hall to hall and students pouring into the corridors in passing
     time; the library's ladders sliding to the bay a period uses; a timetable board, and the
-    timetable on the map; seals out in the corridors and seals asking for a tier. Checking that
+    timetable on the map. Checking that
     some order of rings leads through will not be built: a level is left as dealt.
   - *Relics won from masters* (decided 2026-10-18, the institute only): an institute level's relic is
     carried by a master out in the level and left where it falls to the wizard, and an instructor

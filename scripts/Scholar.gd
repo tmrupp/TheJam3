@@ -590,7 +590,7 @@ func floors() -> Array[Vector2i]:
 
 ## Whether cell `v` of `w` has room for it: no rock, door or glyph seal in it.
 static func _room(w: LevelGen, v: Vector2i) -> bool:
-	return not w.is_ground(v) and not (w.get_cell(v).type in [LevelGen.Type.EXAM_DOOR, LevelGen.Type.GLYPH_SEAL, LevelGen.Type.DOOR])
+	return not w.is_ground(v) and not (w.get_cell(v).type in [LevelGen.Type.EXAM_DOOR, LevelGen.Type.DOOR])
 
 
 ## Gone from where it stands and there at once, on the floor of cell `v`: where it keeps to now.

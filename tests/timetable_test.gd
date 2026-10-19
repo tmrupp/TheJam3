@@ -1,32 +1,26 @@
 extends TestKit
-## The institute's timetable (Timetable, SchoolBell, ExamDoor, Lectern, GlyphSeal;
-## docs/REGIONS_PLAN.md §9). Its rules: each department's ladder and cycle (blocks of a class, the
-## next rung and a break, every third class empty), the tier taught rising with every ring, the beast
-## fed by rings (more blows, quicker strikes, more souls). Laid out: each classroom steps through its
-## department's cycle, one a ring, wrapping round, rooms starting at different stages; the library
-## always open; a door in each doorway of a hall with a class, a lectern and a cord in each classroom,
-## a cord in the library, the great bell's cord near the way in with room over it; glyph seals just
-## inside the library's doorways asking for a damage spell taught there; the same every build; where
-## the wizard belongs. In play: a level first met before any ring, in a period; scholars turn on a
-## wizard they see truant, and those near them with them, not the whole level; a ring moves on a
-## period, starts passing time, feeds the beast and calms them all; in passing time the corridors are
-## the wizard's; a cast or a blow where they see it turns them; the bell rings once a period (not
-## again in passing time, until the wizard goes into a class); hall doors stand open only while in
-## session; every ring seats each class afresh, a master teaching its hall's subject, a hall with no
-## class empty and trespassed in; an instructor far stronger than a master out in the level, its whole
-## class turning with it; felled by an abomination it leaves nothing, felled by the wizard a paper of
-## its subject at the top tier, once a room, stolen; going into a class starts it (passing time ends,
-## its doors shut behind the wizard), staying in one as the bell rings starts nothing; the bell rung
-## out in a class sends its exam paper (the subject at the tier taught) to the level its department's
-## portal leads to, but not from a class whose master has turned on the wizard, nor from the
-## corridors; a big move taught only to a wizard who has it, its class counted as attended all the
-## same; sneaking into an empty hall, its lectern holds the next class's paper, lifted onto the ring
-## once a period, stolen; a lectern as a pigeonhole; prerequisites (a wizard got in without them put
-## back out) and resitting; the way on in the classroom furthest in, asking for another department's
-## paper besides; the great bell in the corridors the way in opens on; abominations still during a class and acting up in passing time, the
-## more for every ring; proctors walking the corridors in a period; the level's glyph seals opening
-## only to their own spell; and the spells themselves on seals (a slash, not on a hex seal; a hex
-## bolt; a seeker's bolt turned round; a nova; a push).
+## The institute's timetable (Timetable, SchoolBell, ExamDoor, Lectern; docs/REGIONS_PLAN.md §9).
+## Its rules: the needs round the ring, a tier lower, none for tier I; a class teaching its
+## department's tier up to the spell's top; the beast weak unfed and fed by rings. Laid out: each
+## classroom in session two periods of three in its own cycle, classrooms starting at different
+## places in it, its department's subjects in turn (geology's held two), every department given a
+## classroom; the library always open; a door in each doorway of a hall with a class, a lectern and a
+## cord in each classroom, a cord in the library; at least two corridor bells with room over them,
+## apart, one in the corridors the way in opens on; the way on on the floor of the classroom the most
+## classrooms in; the same every build; where the wizard belongs. In play: a level first met in
+## passing time; scholars turning on a wizard seen truant and those near with them, not the whole
+## level; a cast or a blow where they see it turning them; the bells (a bell rung in passing time
+## begins class time, the wizard out in the halls truant; another rung by them ends it; no cord twice
+## running; a classroom's door shut until walked up to; a bell rung with the wizard in a classroom,
+## they attend its class; walking out ends it; other classrooms shut in class time; late into a class
+## by a warp, not truant); hall doors by the timetable; each class seated afresh every period; an
+## instructor far tougher and quicker, its whole class with it, felled by an abomination leaving
+## nothing, by the wizard a stolen top-tier paper, once a room; attending (its paper sent to the field
+## level, none from a class turned on the wizard, nor with no class begun); sneaking a lectern's next
+## paper, stolen; a lectern as a pigeonhole; prerequisites (a wizard got in without them put back out)
+## and resitting; the departments climbing by Timetable.climb, a class of a move the wizard lacks
+## counted with no paper; the way on taking its paper; abominations still during a class and acting
+## up in passing time, the more for every period; proctors walking the corridors in a period.
 ## godot --headless --path . --script res://tests/timetable_test.gd
 
 const WORLD: int = 28
@@ -78,8 +72,6 @@ func _laid_out() -> void:
 	var furnished: bool = true
 	var greats: int = 0
 	var roomy: int = 0
-	var seals_ok: bool = true
-	var sealed: int = 0
 	var same: bool = true
 	var belongs_ok: bool = true
 	var way_on_ok: bool = true
@@ -102,7 +94,6 @@ func _laid_out() -> void:
 				depts[hall["dept"]] = true
 		var rooms: int = w.halls.filter(func(h: Dictionary) -> bool: return h["kind"] == &"lecture").size()
 		all_depts = all_depts and depts.size() == mini(rooms, Institute.DEPARTMENTS.size())
-		var damage: Array[StringName] = Timetable.subjects_in(w).filter(func(a: StringName) -> bool: return a in Institute.MASTERIES)
 		for i: int in range(w.halls.size()):
 			var hall: Dictionary = w.halls[i]
 			var kind: StringName = hall["kind"]
@@ -141,16 +132,6 @@ func _laid_out() -> void:
 					furnished = furnished and lecterns == 1 and cords == 1
 				&"library":
 					furnished = furnished and cords == 1 and lecterns == 0
-			if kind in Timetable.SEALED and not damage.is_empty():
-				var box: Rect2i = hall["box"]
-				var want: StringName = Timetable.seal_of(w, i)
-				seals_ok = seals_ok and want in damage
-				for d: Vector2i in hall["doors"]:
-					var c: Vector2i = d + Vector2i(1 if d.x == box.position.x else -1, 0)
-					if w.get_cell(c).type == LevelGen.Type.GLYPH_SEAL and StringName(w.get_cell(c).extra_info) == want:
-						sealed += 1
-					else:
-						seals_ok = false
 			# Where the wizard belongs, by period and passing time.
 			for r: int in range(Timetable.PERIODS):
 				match kind:
@@ -191,7 +172,6 @@ func _laid_out() -> void:
 	check(apart_ok, "at least %d cells apart" % Institute.BELL_APART)
 	check(way_on_ok, "the way on stands on the floor of a classroom, one of those the most classrooms in from the way in")
 	check(bell_near >= LAID.size() - 1, "one in the corridors the way in opens on (%d of %d)" % [bell_near, LAID.size()])
-	check(seals_ok and sealed > 0, "glyph seals just inside the library's doorways, asking for a damage spell taught there (%d)" % sealed)
 	check(same, "laid out the same twice")
 	check(belongs_ok, "the wizard belongs in the corridors in passing time, the library, and a class in session")
 	var plain: LevelGen = build(Vector2i(WORLD, NextWorldDef.band_row(&"cemetery", 1)))
@@ -220,10 +200,9 @@ func _play() -> void:
 	await _prereqs(rec, bell)
 	await _climbing(rec, bell)
 	await _way_on(rec, bell)
+	await _library(rec, bell)
 	await _abominations(rec)
 	await _proctor(rec, bell)
-	await _level_seal()
-	await _spells()
 
 
 ## Belonging: seen truant, scholars turn, with those near them; a ring calms them and feeds the
@@ -700,6 +679,63 @@ func _climbing(rec: LevelRecord, bell: SchoolBell) -> void:
 	await frames(2)
 
 
+## The library: its timetable board shows every classroom's day; it is a place the wizard belongs in
+## class time, where a bell rung by them ends it; and its desk teaches a paper free in class time, once
+## a period, nothing in passing time.
+func _library(rec: LevelRecord, bell: SchoolBell) -> void:
+	print("the library")
+	var library: int = -1
+	for i: int in range(info.world.halls.size()):
+		if info.world.halls[i]["kind"] == &"library":
+			library = i
+	var boards: Array[Node] = placed("timetable_board.tscn")
+	var desks: Array[Node] = placed("study_desk.tscn")
+	check(library >= 0 and boards.size() == 1 and desks.size() == 1, "a library with a timetable board and a reading desk")
+	if library < 0 or boards.is_empty() or desks.is_empty():
+		return
+	var rows: Array[Dictionary] = (boards[0] as TimetableBoard).rows()
+	var lectures: Array = range(info.world.halls.size()).filter(func(i: int) -> bool: return info.world.halls[i]["kind"] == &"lecture")
+	var dawn: int = rec.rings - Timetable.period(rec.rings)
+	var same: bool = rows.size() == lectures.size()
+	for k: int in range(mini(rows.size(), lectures.size())):
+		for p: int in range(Timetable.PERIODS):
+			same = same and rows[k]["subjects"][p] == Timetable.subject(info.world, lectures[k], dawn + p)
+	check(same, "the board shows every classroom's day (%d)" % rows.size())
+	var desk: StudyDesk = desks[0] as StudyDesk
+	player.keyring.clear()
+	Abilities.set_tier(player, &"seeker", 0)
+	var seeker: int = KeyRing.paper(&"seeker", 1)
+	player.keyring.take(seeker)
+	player.global_position = desk.global_position
+	await frames(2)
+	if not rec.passing:
+		await _ring(bell)
+		player.global_position = desk.global_position
+		await frames(2)
+	check(desk.paper() == 0, "in passing time the desk teaches nothing")
+	var cord: SchoolBell = null
+	for n: Node in placed("school_bell.tscn"):
+		if Timetable.hall_inside(info.world, (n as SchoolBell).cell) == library:
+			cord = n as SchoolBell
+	if cord == null:
+		return
+	await _pull(cord)
+	check(not rec.passing and info.wizard_belongs(), "class time rung in from the library: the wizard belongs there")
+	check(desk.paper() == seeker, "now its desk would teach the seeker paper")
+	desk.study()
+	check(Abilities.spell(player) == &"seeker" and not player.keyring.has(seeker), "studied: seeker takes the slot, free")
+	player.keyring.clear()
+	player.keyring.take(KeyRing.paper(&"hex", 2))
+	check(desk.paper() == 0, "once a period")
+	await _pull(bell)
+	check(rec.passing, "another bell rung by them ends class time")
+	player.keyring.clear()
+	Abilities.set_tier(player, &"seeker", 0)
+	Abilities.set_tier(player, &"slash", 1)
+	player.global_position = bell.global_position
+	await frames(2)
+
+
 ## The way on stands in a classroom, which opens on its class's own prerequisite like any other; the
 ## way on takes an exam paper of another department at Timetable.WAY_ON_PAPER as the wizard goes
 ## through: not one of its own department, not one a tier lower, not a spell held; the lowest it
@@ -805,88 +841,6 @@ func _proctor(rec: LevelRecord, bell: SchoolBell) -> void:
 	player.phasing = false
 
 
-## A glyph seal of the level's own: another spell or a plain blow glances; its own breaks it, for
-## good.
-func _level_seal() -> void:
-	print("the level's glyph seals")
-	var seals: Array[Node] = placed("glyph_seal.tscn").filter(func(n: Node) -> bool: return not (n as GlyphSeal).broken())
-	check(not seals.is_empty(), "the level's glyph seals are there")
-	if seals.is_empty():
-		return
-	var own: GlyphSeal = seals[0] as GlyphSeal
-	var cell: Vector2i = own.get_meta(&"cell")
-	check(info.solid_at(own.global_position), "barring the way")
-	var wrong: StringName = Institute.MASTERIES[posmod(Institute.MASTERIES.find(own.spell) + 1, Institute.MASTERIES.size())]
-	own.struck(wrong)
-	check(not own.broken(), "another spell glances off")
-	own.struck(&"")
-	check(not own.broken(), "and a plain blow")
-	own.struck(own.spell)
-	check(own.broken() and info.record().opened.has(cell) and not info.solid_at(own.global_position), "its own breaks it")
-	await _go(info.coord)
-	check(placed("glyph_seal.tscn").all(func(n: Node) -> bool: return n.get_meta(&"cell") != cell), "and it stays open")
-
-
-## The spells themselves on seals: only its own spell opens a seal: a slash; a hex bolt; a seeker's
-## bolt cast away and turning round to it; a nova; a push.
-func _spells() -> void:
-	print("glyph seals and the spells")
-	var floor_at: Vector2i = _open_floor(5, 1)
-	Abilities.set_tier(player, &"slash", 1)
-	var seal: GlyphSeal = _seal(&"hex", floor_at + Vector2i(1, 0))
-	# Up against it, as near as its slab lets the wizard stand.
-	player.global_position = seal.global_position - Vector2(90.0, 0)
-	await frames(2)
-	(player.get_node("Slash") as Slash).cast(Vector2.RIGHT)
-	check(not seal.broken(), "a hex seal: slashed, the blow glances off")
-	seal.queue_free()
-	seal = _seal(&"slash", floor_at + Vector2i(1, 0))
-	await frames(2)
-	(player.get_node("Slash") as Slash).wait = 0.0
-	(player.get_node("Slash") as Slash).cast(Vector2.RIGHT)
-	check(seal.broken(), "a slash seal: slashed, it breaks")
-	# A hex bolt breaks a hex seal.
-	Abilities.set_tier(player, &"hex", 1)
-	seal = _seal(&"hex", floor_at + Vector2i(4, 0))
-	player.global_position = info.cell_position(floor_at)
-	await frames(2)
-	var hex: Hex = player.get_node("Hex") as Hex
-	hex.refill()
-	var bolt: Node2D = hex.cast(Vector2.RIGHT)
-	await until(gone(bolt))
-	check(not is_instance_valid(seal) or seal.broken(), "a hex seal: struck by a hex bolt, it breaks")
-	# A seeker's bolt cast up, away from it, turns round to it (with room over the floor to turn in).
-	Abilities.set_tier(player, &"seeker", 1)
-	var high: Vector2i = _open_floor(4, 2)
-	player.global_position = info.cell_position(high)
-	seal = _seal(&"seeker", high + Vector2i(3, 0))
-	await frames(2)
-	# Nothing else near for it to turn to.
-	for n: Node in get_nodes_in_group(&"hex_target"):
-		if n != seal and (n as Node2D).global_position.distance_to(player.global_position) < HexBolt.SEEK * 2.0:
-			n.queue_free()
-	await frames(2)
-	var bolts: Array[HexBolt] = (player.get_node("Seeker") as Seeker).cast(Vector2.UP)
-	check(not bolts.is_empty() and await until(gone(bolts[0])), "a seeker's bolt cast up, away from it")
-	check(not is_instance_valid(seal) or seal.broken(), "turns round to it, and it breaks")
-	player.global_position = info.cell_position(floor_at)
-	# A nova all round, and a push.
-	for spell: StringName in [&"nova", &"push"]:
-		Abilities.set_tier(player, spell, 1)
-		seal = _seal(spell, floor_at + Vector2i(1, 0))
-		player.global_position = seal.global_position - Vector2(90.0, 0)
-		await frames(2)
-		var node: Node = player.get_node(String(Abilities.ABILITIES[spell]["node"]))
-		if node is Nova:
-			(node as Nova).cast()
-		else:
-			(node as Push).cast(Vector2.RIGHT)
-		check(seal.broken(), "a %s seal: struck by a %s, it breaks" % [spell, spell])
-
-
-# ------------------------------------------------------------------ helpers
-
-## Ring `bell` as the wizard would once in a class: passing time over, and the bell rung out.
 ## A period rung round from corridor bell `bell` (whichever cord was rung last), the wizard truant out
 ## of the classrooms: in passing time it rings class time in and then out; in class time just out.
 func _ring(bell: SchoolBell) -> void:
@@ -969,15 +923,6 @@ func _spawn_thing(v: Vector2i, lobes: int) -> Abomination:
 	return node
 
 
-## A glyph seal asking for `spell` at `v`, as one laid with the level.
-func _seal(spell: StringName, v: Vector2i) -> GlyphSeal:
-	var seal: GlyphSeal = (load("res://prefabs/glyph_seal.tscn") as PackedScene).instantiate() as GlyphSeal
-	seal.setup(info, v, spell)
-	info.map_elements.add_child(seal)
-	seal.global_position = info.cell_position(v)
-	return seal
-
-
 func _go(at: Vector2i) -> void:
 	info.coord = at
 	info.arrival = MapInfo.Exit.BACK
@@ -1024,12 +969,11 @@ func _stretches(length: int, head: int) -> Array[Vector2i]:
 	return out
 
 
-## Whether cell `c` of `w` holds something solid (rock, a ledge, a door or gate, a seal), or is out
+## Whether cell `c` of `w` holds something solid (rock, a ledge, a door or gate), or is out
 ## of the level.
 func _blocks(w: LevelGen, c: Vector2i) -> bool:
 	return not w.is_valid(c) or w.get_cell(c).type in [LevelGen.Type.GROUND, LevelGen.Type.PLATFORM, LevelGen.Type.MOVING_PLATFORM, LevelGen.Type.DOOR,
-		LevelGen.Type.SWITCH_GATE, LevelGen.Type.CRACKED, LevelGen.Type.SPIKES, LevelGen.Type.LIGHT_GATE, LevelGen.Type.EXAM_DOOR, LevelGen.Type.TRAPDOOR,
-		LevelGen.Type.GLYPH_SEAL]
+		LevelGen.Type.SWITCH_GATE, LevelGen.Type.CRACKED, LevelGen.Type.SPIKES, LevelGen.Type.LIGHT_GATE, LevelGen.Type.EXAM_DOOR, LevelGen.Type.TRAPDOOR]
 
 
 ## A free floor within reach of a scholar at `at` turning (Scholar.ROUSE_REACH), out of the halls,
