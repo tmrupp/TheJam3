@@ -28,9 +28,8 @@ class_name Abomination
 ## health for its depth (LevelLoader.arm: three blobs this deep); one out of a breach or launched
 ## off another starts with one, and drops no stars.
 ##
-## By the timetable (Timetable): during a class (a period) it keeps still, neither hunting, growing
-## nor launching (MapInfo.abominations_quiet); in passing time it grows and launches as anywhere else.
-## Nothing here draws from any RNG.
+## It pays no heed to the timetable (Timetable): in a class or in passing time it hunts, grows and
+## launches as anywhere else. Nothing here draws from any RNG.
 
 ## How far it senses a quarry (px), and how fast it crawls (px/s, a little faster on a harder
 ## preset, Difficulty.speed).
@@ -273,11 +272,6 @@ func _physics_process(delta: float) -> void:
 	_ease_apart(delta)
 	if stunned():
 		telling = -1.0
-		return
-	var info: MapInfo = MapInfo.instance
-	if info != null and info.abominations_quiet():
-		telling = -1.0
-		quarry = null
 		return
 	launch_in -= delta * Difficulty.attack()
 	if telling >= 0.0:

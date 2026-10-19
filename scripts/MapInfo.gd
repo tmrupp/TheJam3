@@ -1197,8 +1197,8 @@ func hall_door_up (hall: int) -> bool:
 		return open and enrolled(hall)
 	return open
 
-## Whether the abominations keep still now: during a class (a period, not passing time).
-func abominations_quiet () -> bool:
+## Whether a class is under way now: a period, not passing time (proctors walk the corridors then).
+func class_on () -> bool:
 	return timetabled() and not record().passing
 
 ## The wizard cast the spell in slot `slot` (Abilities.cast): every scholar that sees it turns on them

@@ -7,17 +7,19 @@ class_name Breach
 ## comes out multiplies in its turn: a breach has to be closed. It is an enemy itself (its Wound,
 ## given as it is placed, set to HP): any bolt wounds it, even one of no damage (Wound.least),
 ## and once closed the level record keeps it so until the wizard dies. What climbs out is not part
-## of the level: none are kept, and they are gone when the level is left. By the timetable it lets
-## nothing out during a class (a period), and in passing time only a trickle, one every TRICKLE
-## seconds (MapInfo.abominations_quiet). Nothing here draws from any RNG.
+## of the level: none are kept, and they are gone when the level is left. In the institute it lets
+## out only a trickle, in a class or in passing time alike, a little sooner for every ring of the
+## level's bell (pace). Nothing here draws from any RNG.
 
 ## How near the wizard wakes it (cells), how soon the first comes and how often after that
 ## (seconds), and the hits it takes to close.
 const WAKE: int = 10
 const FIRST: float = 1.5
 const EVERY: float = 5.0
-## How often one comes in the institute's passing time (seconds): a trickle.
+## How often one comes in the institute (seconds), before any ring: a trickle. Each ring of the
+## level's bell makes it RING_SOONER sooner: one every TRICKLE / (1 + RING_SOONER × rings) seconds.
 const TRICKLE: float = 12.0
+const RING_SOONER: float = 0.05
 const HP: int = 6
 ## How long it shows one coming before it is out (seconds), and how long the newcomer takes to rise.
 const SURGE: float = 0.8
@@ -42,6 +44,12 @@ func setup(info: MapInfo, v: Vector2i) -> void:
 		wound.hp = HP
 
 
+## How often one comes in an institute level whose bell has rung `rings` times (seconds): TRICKLE,
+## a little sooner for every ring.
+static func pace(rings: int) -> float:
+	return TRICKLE / (1.0 + RING_SOONER * float(maxi(rings, 0)))
+
+
 ## Whether the wizard is near enough to wake it.
 func awake() -> bool:
 	var player: Player = Stage.player()
@@ -64,11 +72,11 @@ func _physics_process(delta: float) -> void:
 	if not awake():
 		wait = FIRST
 		return
-	if get_tree().get_nodes_in_group(&"abomination").size() >= Abomination.MOST or map_info.abominations_quiet():
+	if get_tree().get_nodes_in_group(&"abomination").size() >= Abomination.MOST:
 		return
 	wait -= delta * Difficulty.attack()
 	if wait <= 0.0:
-		wait = TRICKLE if map_info.timetabled() else EVERY
+		wait = pace(map_info.record().rings) if map_info.timetabled() else EVERY
 		surging = 0.0
 
 

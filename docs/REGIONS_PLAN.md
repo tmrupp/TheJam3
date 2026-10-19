@@ -740,8 +740,9 @@ Each phase ends with the full suite green and its own tests.
    *The timetable is built* (§9; settled in five passes on 2026-10-17): the great bell and its
    cords, departments with their own rhythms and tier rules,
    prerequisites, passing time and belonging, exam papers sent on field trips and learned at
-   lanterns, instructors, classroom lecterns as pigeonholes, glyph seals, abominations quiet in
-   class and a trickle in passing time, and the beast fed by rings without end (`Timetable`, `SchoolBell`,
+   lanterns, instructors, classroom lecterns as pigeonholes, glyph seals, abominations that pay
+   no heed to classes, a trickle from breaches quickening a little with each ring, and the beast fed by rings
+   without end (`Timetable`, `SchoolBell`,
    `Lectern`, `GlyphSeal`, `KeyRing.paper`, `MapInfo._attend`, `study`, `instructor_fell`;
    `timetable_test`, `papers_test`, `capture_timetable.gd`). Only the institute's dressing changed
    (its halls: classrooms in place of lecture halls and the exam hall; `layout_fingerprint_test`
@@ -791,8 +792,8 @@ Each phase ends with the full suite green and its own tests.
     starts the class: its doors shut behind them until the bell rings it out (the classroom's own
     cord), so every classroom crossed costs a ring and counts as attending it. Staying in a room as
     the bell rings starts nothing; its doors let them out in passing time.
-    Abominations keep still during a class, and in passing time breaches let out a trickle of
-    them, the same however many rings; proctors walk the corridors
+    Abominations pay no heed to classes, and breaches let out a trickle of them, a little sooner
+    for every ring of the bell; proctors walk the corridors
     in a period.
   - *Departments, rhythms and tiers* (decided 2026-10-18, after modelling six variants). A level
     has up to five classrooms, each a floor and a gallery with doorways at both ends, every

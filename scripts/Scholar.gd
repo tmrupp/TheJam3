@@ -41,7 +41,7 @@ class_name Scholar
 ## A master's fall leaves something only to the wizard's own blow (`wizard_blow`): a lesson out in
 ## the level, an instructor's paper in a classroom (its class then cannot be attended until the next
 ## bell seats it again); one felled by abominations leaves nothing. A proctor out in the corridors walks them, PATROL cells either way of
-## its place, while a class is on (MapInfo.abominations_quiet: a period, not passing time).
+## its place, while a class is on (MapInfo.class_on: a period, not passing time).
 ##
 ## The timetable (Timetable): it leaves the wizard be (calm) while they are where they belong, and
 ## turns on them (`roused`) once it sees them where they do not (MapInfo.wizard_belongs), with real
@@ -245,7 +245,7 @@ func haste() -> float:
 
 ## Whether it walks the corridors now: a proctor out of the halls, while a class is on.
 func patrolling() -> bool:
-	return kind == &"proctor" and map_info != null and map_info.abominations_quiet() and Institute.hall_at(map_info.world, cell) < 0
+	return kind == &"proctor" and map_info != null and map_info.class_on() and Institute.hall_at(map_info.world, cell) < 0
 
 
 func _ready() -> void:

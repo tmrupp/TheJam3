@@ -23,8 +23,8 @@ extends TestKit
 ## same; sneaking into an empty hall, its lectern holds the next class's paper, lifted onto the ring
 ## once a period, stolen; a lectern as a pigeonhole; prerequisites (a wizard got in without them put
 ## back out) and resitting; the way on in the classroom furthest in, asking for another department's
-## paper besides; the great bell in the corridors the way in opens on; abominations still during a class and acting up in passing time, the
-## more for every ring; proctors walking the corridors in a period; the level's glyph seals opening
+## paper besides; the great bell in the corridors the way in opens on; abominations hunting during a class as in
+## passing time, and breaches letting out a trickle, a little sooner for every ring; proctors walking the corridors in a period; the level's glyph seals opening
 ## only to their own spell; and the spells themselves on seals (a slash, not on a hex seal; a hex
 ## bolt; a seeker's bolt turned round; a nova; a push).
 ## godot --headless --path . --script res://tests/timetable_test.gd
@@ -711,35 +711,29 @@ func _way_on(rec: LevelRecord, bell: SchoolBell) -> void:
 	await frames(2)
 
 
-## Abominations keep still during a class and act up in passing time, the more for every ring; a
-## breach lets none out during a class.
+## Abominations pay no heed to the timetable: during a class one hunts as ever. A breach lets out a
+## trickle, in a class as in passing time, a little sooner for every ring of the level's bell.
 func _abominations(rec: LevelRecord) -> void:
-	print("abominations by the timetable")
+	print("abominations and the timetable")
+	check(Breach.pace(0) == Breach.TRICKLE and Breach.pace(10) < Breach.pace(0) and Breach.pace(10) > Breach.EVERY, "a breach's trickle: one every %.0f s, %.1f s after 10 rings" % [Breach.pace(0), Breach.pace(10)])
 	var at: Vector2i = _open_floor(5, 1)
 	player.global_position = info.cell_position(at)
 	rec.passing = false
 	var thing: Abomination = _spawn_thing(at + Vector2i(4, 0), 1)
 	await until(func() -> bool: return thing.grounded)
 	var from: float = thing.global_position.x
-	var lobes: int = thing.lobes
-	await within(func() -> bool: return false, 1.5)
-	check(absf(thing.global_position.x - from) < 4.0 and thing.lobes == lobes and thing.quarry == null, "during a class an abomination keeps still")
-	rec.passing = true
-	check(await within(func() -> bool: return thing.global_position.x < from - 30.0, 2.0), "in passing time it acts up, after the wizard")
+	check(await within(func() -> bool: return thing.global_position.x < from - 30.0, 2.0), "during a class an abomination hunts the wizard all the same")
 	thing.queue_free()
 	var breaches: Array[Node] = placed("breach.tscn")
 	if breaches.is_empty():
 		return
 	var breach: Breach = breaches[0] as Breach
 	player.global_position = breach.global_position + Vector2(-300, 0)
-	rec.passing = false
-	await within(func() -> bool: return false, Breach.FIRST + Breach.SURGE + 0.5)
-	check(breach.brood.is_empty(), "a breach lets none out during a class")
-	rec.passing = true
-	check(await within(func() -> bool: return not breach.brood.is_empty(), Breach.FIRST + Breach.SURGE + 1.0), "and in passing time does")
-	check(breach.wait > Breach.EVERY, "but only a trickle: the next one %.0f s off, however many rings (%d)" % [Breach.TRICKLE, rec.rings])
+	check(await within(func() -> bool: return not breach.brood.is_empty(), Breach.FIRST + Breach.SURGE + 1.0), "a breach lets them out during a class too")
+	check(absf(breach.wait - Breach.pace(rec.rings)) < 0.5, "a trickle: the next one %.1f s off after %d rings" % [Breach.pace(rec.rings), rec.rings])
 	for n: Node2D in breach.brood:
 		n.queue_free()
+	rec.passing = true
 	await frames(2)
 
 
