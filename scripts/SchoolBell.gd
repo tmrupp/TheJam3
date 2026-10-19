@@ -4,8 +4,10 @@ class_name SchoolBell
 ## hanging all the way from the ceiling to a tassel within reach (SchoolBellArt), one in each lecture
 ## hall and the library, up through the ceiling, and out in the corridors one under each corridor
 ## bell (`great`), whose yoke marks the period. Pull it (interact, or strike it with a spell from
-## across a shaft) and it rings, if it can (MapInfo.pull_cord): a classroom's starts its class, any
-## other rings the period out, and the whole institute shakes while it rings out (MapInfo.BELL_TIME).
+## across a shaft) and it rings, if it can (MapInfo.pull_cord): in passing time class time begins (a
+## wizard in a classroom attends its class, one anywhere else is truant), and in class time, rung by a
+## wizard truant in the halls, passing time begins again; the whole institute shakes while it rings
+## out (MapInfo.BELL_TIME).
 ## The cord rung last cannot be rung again until another has been, and none rings within RING_GAP
 ## seconds of the last ring.
 

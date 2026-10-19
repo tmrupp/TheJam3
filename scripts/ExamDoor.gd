@@ -1,12 +1,15 @@
 extends StaticBody2D
 class_name ExamDoor
 ## A door of an institute hall with a class in it (Institute, Timetable.TIMETABLED), across one of
-## its doorways, kept by the timetable (MapInfo.hall_door_up): the library's stands open always, and a
-## classroom's while its class is in session to a wizard enrolled in it (or inside it), shut
-## otherwise; it never drops on the wizard. It has no lock: nothing else opens it. Its
+## its doorways, kept by the timetable (MapInfo.hall_door_up): the library's stands open always; a
+## classroom's stays shut until the wizard walks up to it (near), and opens then only if they may go
+## through: from inside always, from outside in passing time to a wizard enrolled in its class in
+## session. It never drops on the wizard. It has no lock: nothing else opens it. Its
 ## portcullis winches up and down (`lift`, printed by ExamDoorArt), and MapInfo.exam_doors keeps
 ## whether each is up, for what light and sight pass (MapInfo.solid_at).
 
+## How near (cells, either way) the wizard comes to a classroom's door before it opens to them.
+const NEAR: int = 2
 ## How fast the portcullis winches (its whole height a second, times this), and how far up it goes
 ## (as a switch gate's).
 const LIFT_SPEED: float = 3.0
@@ -106,10 +109,21 @@ func _holds_wizard() -> bool:
 	return a.intersects(b)
 
 
+## Whether the wizard is near enough to a classroom's door for it to open to them (NEAR, cells either
+## way of it).
+func near() -> bool:
+	var player: Player = map_info.player if map_info != null else null
+	if player == null or not is_instance_valid(player):
+		return false
+	var at: Vector2i = map_info.cell_at(player.global_position)
+	return absi(at.x - cell.x) <= NEAR and absi(at.y - cell.y) <= NEAR
+
+
 func _physics_process(delta: float) -> void:
 	if map_info == null:
 		return
-	up = map_info.hall_door_up(hall)
+	var lecture: bool = map_info.world != null and hall >= 0 and hall < map_info.world.halls.size() and map_info.world.halls[hall]["kind"] == &"lecture"
+	up = map_info.hall_door_up(hall) and (not lecture or near())
 	if up:
 		collision_layer = 0
 	elif not shut() and not _holds_wizard():

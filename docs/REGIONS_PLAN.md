@@ -780,13 +780,17 @@ Each phase ends with the full suite green and its own tests.
   how it stands.
   - *The bells are the switch.* Bells hang out in the corridors (at least two, spread apart, one in
     the corridors the way in opens on), and a cord hangs in each classroom and the library. A level
-    is first met in passing time. A class starts when the wizard, enrolled in it, rings the cord in
-    its classroom; going in starts nothing. It ends when they ring a bell out of the classrooms,
-    stepping out of class to do it, truant on the way: that rings the period out, moves the level on
-    to the next of three in its day, starts passing time, seats every class afresh, calms every
-    scholar and climbs or drops each department that met (below). Rung in passing time, a corridor
-    bell moves the day on all the same. No cord rings twice running, as a crags tower cannot be
-    flipped twice running. Every ring feeds the beast for the run.
+    is first met in passing time, and the bells go passing time, class time, passing time, class
+    time. Any bell rung in passing time begins class time: a wizard in a classroom (enrolled, its
+    class in session) attends it, one anywhere else is truant. Walking out of the class ends it, no
+    bell needed; a wizard truant in the halls ends it by ringing another bell. Either way the period
+    is over: the level moves on to the next of three in its day, passing time begins, every class is
+    seated afresh, every scholar calms and each department that met climbs or drops (below). One who
+    gets into a class in session in class time (a warp) is late: not truant, attending nothing.
+    Classroom doors stay shut until the wizard walks up to them, open from inside always, and from
+    outside only in passing time; in class time every classroom is shut to those outside. No cord
+    rings twice running, as a crags tower cannot be flipped twice running. Every ring feeds the beast
+    for the run.
   - *Abominations and the beast by the bells.* Abominations keep still during a class and act up in
     passing time, slowly at first and faster with every period rung out in the level (their growth
     and launches, and how often a breach lets one out); fewer are laid with a level. The beast is weak
@@ -834,10 +838,10 @@ Each phase ends with the full suite green and its own tests.
     for an exam paper (not a spell held) of any other department at II or higher, which it takes as
     the wizard goes through (the classroom opens on its class's prerequisite like any other). Each department has its colour, on its papers, doors and portal. On 40 real levels
     the timetable model gets a wizard with nothing on their ring through in 2 to 6 rings, 3 at the
-    median, in 34; the rest are left as dealt (the owner's call): their way runs through papers from
+    median, in 36; the rest are left as dealt (the owner's call): their way runs through papers from
     other levels, a feature meant for the cemetery and the crags too.
-  - *Exam papers.* Attending a class is starting it by its cord and ringing it out from a bell out
-    of the classrooms (field trip or not), its master there and not turned on the wizard; a class of a move the
+  - *Exam papers.* Attending a class is being in its classroom as a bell begins class time and
+    walking out of it when done (field trip or not), its master there and not turned on the wizard; a class of a move the
     wizard lacks counts as attended, with no paper. Its paper (the subject at the tier
     taught) is sent to the level its department's portal leads to, to be fetched: a field trip.
     Resitting a class with its paper in hand grades the paper up instead. Sneaking: an empty

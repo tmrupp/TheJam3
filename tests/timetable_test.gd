@@ -276,24 +276,32 @@ func _belonging(rec: LevelRecord, bell: SchoolBell) -> void:
 	by.queue_free()
 
 
-## The bells: a corridor bell rings the period on, but no cord twice running; a classroom's cord
-## starts its class only for a wizard in it, enrolled, in passing time; a corridor bell rings it out.
+## The bells: passing time, class time, passing time... Any bell rung in passing time begins class
+## time, the wizard out in the halls truant; rung again by them in the halls, passing time comes back
+## and the period is over; no cord twice running. A classroom's door stays shut until the wizard
+## walks up to it. In a classroom as a bell rings, they attend its class; a bell will not ring it out
+## from inside; walking out ends it, no bell. In class time other classrooms are shut to them; got
+## into a class in session anyway (a warp), they are late: not truant, attending nothing.
 func _bells(rec: LevelRecord, a: SchoolBell, b: SchoolBell) -> void:
 	print("the bells")
 	player.global_position = a.global_position
+	await frames(2)
 	rec.last_bell = Vector2i(-1, -1)
 	var rings: int = rec.rings
 	var fed: int = info.run.fed
+	check(rec.passing, "passing time to begin with")
 	info.since_bell = SchoolBell.RING_GAP
 	a.ring()
-	check(rec.rings == rings + 1 and rec.passing and info.run.fed == fed + 1, "a corridor bell rung in passing time: the next period, nothing attended, the beast fed")
-	check(a.spent(), "it is the cord rung last")
+	await frames(2)
+	check(not rec.passing and rec.started < 0 and rec.rings == rings and info.run.fed == fed + 1, "a bell rung in passing time: class time, the beast fed")
+	check(not info.wizard_belongs() and a.spent(), "out in the halls the wizard is truant; that cord was rung last")
 	info.since_bell = SchoolBell.RING_GAP
 	a.ring()
-	check(rec.rings == rings + 1, "pulled again at once, it does not ring")
+	check(not rec.passing, "pulled again at once, it does not ring")
 	info.since_bell = SchoolBell.RING_GAP
 	b.ring()
-	check(rec.rings == rings + 2 and not a.spent() and b.spent(), "another rings, and then the first may again")
+	await frames(2)
+	check(rec.passing and rec.rings == rings + 1 and not a.spent() and b.spent(), "another rung by them in the halls: passing time, the period over")
 	var hall: int = _hall_with_class()
 	if hall < 0:
 		for i: int in range(info.world.halls.size()):
@@ -304,24 +312,50 @@ func _bells(rec: LevelRecord, a: SchoolBell, b: SchoolBell) -> void:
 				break
 	if hall < 0:
 		return
-	var cord: SchoolBell = _cord_in(hall)
-	info.since_bell = SchoolBell.RING_GAP
-	cord.ring()
-	check(rec.passing and rec.started < 0, "a classroom's cord pulled from outside (struck from afar) starts nothing")
+	var doors: Array[Node] = placed("exam_door.tscn").filter(func(n: Node) -> bool: return (n as ExamDoor).hall == hall)
+	if not doors.is_empty():
+		var door: ExamDoor = doors[0] as ExamDoor
+		var box: Rect2i = info.world.halls[hall]["box"]
+		var out: int = -1 if door.cell.x == box.position.x else 1
+		player.global_position = info.cell_position(door.cell + Vector2i(out * (ExamDoor.NEAR + 3), 0))
+		check(await within(func() -> bool: return door.shut(), 1.0), "its classroom open to them, a door stays shut while they are a few steps off")
+		player.global_position = info.cell_position(door.cell + Vector2i(out, 0))
+		check(await within(func() -> bool: return not door.shut(), 1.0), "and opens as they walk up to it")
 	player.global_position = _in_hall(hall)
 	await frames(2)
-	check(rec.passing and info.class_hall == hall, "going into the classroom starts nothing either")
-	info.since_bell = SchoolBell.RING_GAP
-	cord.ring()
-	check(not rec.passing and rec.started == hall and rec.rings == rings + 2, "its cord rung inside: the class starts, the period with it")
-	check(info.hall_door_up(hall), "its doors let the wizard out")
-	player.global_position = b.global_position
-	await frames(2)
-	check(not info.wizard_belongs(), "stepping out to ring it out, they are truant")
+	check(rec.passing and info.class_hall == hall, "going in starts nothing")
 	info.since_bell = SchoolBell.RING_GAP
 	a.ring()
-	check(rec.passing and rec.started < 0 and rec.rings == rings + 3, "a corridor bell rings the class out: passing time")
+	await frames(2)
+	check(not rec.passing and rec.started == hall and rec.rings == rings + 1 and info.wizard_belongs(), "a bell rung (struck from in the classroom): class time, and they attend its class")
+	var other: int = -1
+	for i: int in range(info.world.halls.size()):
+		if i != hall and info.subject_of(i) != &"" and info.enrolled(i):
+			other = i
+	if other >= 0:
+		check(not info.hall_door_up(other), "in class time another classroom is shut to them")
+	check(info.hall_door_up(hall), "its own lets them out")
+	info.since_bell = SchoolBell.RING_GAP
+	b.ring()
+	check(not rec.passing, "a bell will not ring the class out from inside it")
+	player.global_position = b.global_position
+	await frames(2)
+	check(rec.passing and rec.started < 0 and rec.rings == rings + 2, "walking out of the class ends it: passing time, the next period, no bell")
+	rec.last_bell = Vector2i(-1, -1)
+	info.since_bell = SchoolBell.RING_GAP
+	a.ring()
+	await frames(2)
+	var late: int = _hall_with_class()
+	if late >= 0 and not rec.passing:
+		player.global_position = _in_hall(late)
+		await frames(2)
+		check(info.wizard_belongs() and rec.started < 0 and info.class_hall == late, "got into a class in session in class time (a warp): late, no longer truant, attending nothing")
+		player.global_position = b.global_position
+		await frames(2)
+		check(rec.passing and rec.rings == rings + 3, "walking out of it, passing time")
 	player.keyring.clear()
+	if not rec.passing:
+		await _ring(b)
 	for n: Node in get_nodes_in_group(&"scholar"):
 		(n as Scholar).calm()
 	await frames(2)
@@ -349,7 +383,9 @@ func _doors(rec: LevelRecord, bell: SchoolBell) -> void:
 				if door == null:
 					ok = false
 					continue
-				player.global_position = info.cell_position(hall["steps"][j])
+				var box: Rect2i = hall["box"]
+				var d: Vector2i = hall["doors"][j]
+				player.global_position = info.cell_position(d + Vector2i(-1 if d.x == box.position.x else 1, 0))
 				if not await within(func() -> bool: return door.shut() != open, 1.5):
 					ok = false
 				if hall["kind"] == &"lecture" and door.subject() != info.subject_of(i):
@@ -463,9 +499,8 @@ func _attend(rec: LevelRecord, bell: SchoolBell) -> void:
 	var master: Scholar = info.master_in(hall)
 	check(master != null and not master.roused, "the class leaves the wizard be")
 	var rings: int = rec.rings
-	player.global_position = bell.global_position
-	await _ring(bell)
-	check(rec.rings == rings + 1, "rung out from the corridors")
+	await _leave(bell)
+	check(rec.rings == rings + 1 and rec.passing, "walking out, the class is over: passing time, the next period")
 	check(info.run.papers_out.get(field, []) == [KeyRing.paper(a, tier)], "its paper (%s %d) sent to the field level" % [a, tier])
 	print("a class turned on the wizard, and the corridors")
 	info.run.papers_out.clear()
@@ -475,7 +510,7 @@ func _attend(rec: LevelRecord, bell: SchoolBell) -> void:
 		return
 	await _start(hall)
 	info.master_in(hall).rouse()
-	await _ring(bell)
+	await _leave(bell)
 	check(info.run.papers_out.is_empty(), "a class whose master has turned on the wizard sends no paper")
 	player.global_position = bell.global_position
 	await frames(2)
@@ -594,7 +629,7 @@ func _prereqs(rec: LevelRecord, bell: SchoolBell) -> void:
 	check(await _start(hall), "enrolled, the wizard goes in and starts the class")
 	for n: Node in get_nodes_in_group(&"scholar"):
 		(n as Scholar).calm()
-	await _ring(bell)
+	await _leave(bell)
 	check(player.keyring.has(KeyRing.paper(a, tier)) and not player.keyring.has(old), "a %s %d paper carried in, rung out: graded up to %d in hand" % [a, tier - 1, tier])
 	check(info.run.papers_out.is_empty(), "and none sent away")
 	player.keyring.clear()
@@ -636,7 +671,7 @@ func _climbing(rec: LevelRecord, bell: SchoolBell) -> void:
 		(n as Scholar).calm()
 	before = info.dept_tiers()
 	meeting = info._meeting()
-	await _ring(bell)
+	await _leave(bell)
 	check(info.dept_tiers() == Timetable.climb(before, dept, meeting), "rung out of a %s class, they climb as it was attended (%s)" % [dept, info.dept_tiers()])
 	info.run.papers_out.clear()
 	rec.dept_tiers.clear()
@@ -654,7 +689,7 @@ func _climbing(rec: LevelRecord, bell: SchoolBell) -> void:
 			(n as Scholar).calm()
 		before = info.dept_tiers()
 		meeting = info._meeting()
-		await _ring(bell)
+		await _leave(bell)
 		check(info.dept_tiers() == Timetable.climb(before, dept, meeting) and info.run.papers_out.is_empty(), "a %s class the wizard cannot be taught, sat: attended all the same, with no paper" % move)
 	else:
 		print("  (no class of a move the wizard lacks met here)")
@@ -852,11 +887,25 @@ func _spells() -> void:
 # ------------------------------------------------------------------ helpers
 
 ## Ring `bell` as the wizard would once in a class: passing time over, and the bell rung out.
-## Ring corridor bell `bell` (whichever cord was rung last): the period rung out.
+## A period rung round from corridor bell `bell` (whichever cord was rung last), the wizard truant out
+## of the classrooms: in passing time it rings class time in and then out; in class time just out.
 func _ring(bell: SchoolBell) -> void:
+	if info.record().passing:
+		await _pull(bell)
+	await _pull(bell)
+
+
+## Pull `bell`'s cord, whichever was rung last.
+func _pull(bell: SchoolBell) -> void:
 	info.record().last_bell = Vector2i(-1, -1)
 	info.since_bell = SchoolBell.RING_GAP
 	bell.ring()
+	await frames(2)
+
+
+## The wizard walks out of the classroom they are in, to `bell`: the class, and the period, are over.
+func _leave(bell: SchoolBell) -> void:
+	player.global_position = bell.global_position
 	await frames(2)
 
 

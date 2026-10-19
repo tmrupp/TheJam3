@@ -3,15 +3,20 @@ extends RefCounted
 ## The institute's timetable (docs/REGIONS_PLAN.md §7 and §9): its band-wide puzzle, as light is the
 ## cemetery's and the tower switches are the crags'. There is no clock: nothing in it happens until
 ## a bell is rung (SchoolBell) or the wizard goes somewhere.
-## - A level is first met in passing time (LevelRecord.passing). A class starts when the wizard,
-##   enrolled in it, rings the cord in its classroom (MapInfo.pull_cord): passing time ends and the
-##   period begins (LevelRecord.started). It ends when they ring a bell out of the classrooms (one of
-##   the corridors' bells, or the library's cord), stepping out of class to do it, truant on the way:
-##   that rings the period out, moves the level on a period and starts passing time
-##   (MapInfo.ring_period). Rung in passing time, a corridor bell moves the level on all the same,
-##   nothing attended. No cord can be rung twice running (LevelRecord.last_bell), as a crags tower
-##   cannot be flipped twice running. How many periods have been rung out is kept in the level's
-##   record (LevelRecord.rings).
+## - The bells and the classes go passing time, class time, passing time, class time. A level is first
+##   met in passing time (LevelRecord.passing). Any bell rung in passing time begins class time
+##   (MapInfo.pull_cord): a wizard in a classroom then, enrolled in its class, attends it
+##   (LevelRecord.started); anywhere else they are truant. Walking out of a classroom in class time
+##   ends it and passing time begins, no bell needed (MapInfo._left_class); a wizard truant in the
+##   halls ends it by ringing a bell. Either way the period is over: the level moves on a period. A
+##   wizard who gets into a class in session in class time (a warp, a rift) is late: no longer
+##   truant, but attending nothing. No cord can be rung twice running (LevelRecord.last_bell), as a
+##   crags tower cannot be flipped twice running. How many periods have passed is kept in the
+##   level's record (LevelRecord.rings).
+## - Classroom doors stay shut until the wizard walks up to them (ExamDoor.near), and open then only
+##   if they may go through (MapInfo.hall_door_up): from inside always, so a class can always be
+##   left; from outside only in passing time, to a wizard enrolled in its class. In class time every
+##   classroom is shut to those outside.
 ## - The day is PERIODS periods, the rings counted round (period). Each classroom keeps its
 ##   department (Institute.DEPARTMENTS) and its own cycle: IN_SESSION periods in session, then closed
 ##   for the rest of the day, from a place in the cycle dealt by the seed (in_cycle, phase), shown over
@@ -42,8 +47,8 @@ extends RefCounted
 ##   from the way in (Institute.way_on), and the way on takes an exam paper of any department but
 ##   that classroom's at WAY_ON_PAPER or higher as the wizard goes through (MapInfo.way_on_due), so
 ##   getting through means sitting classes.
-## - Exam papers (KeyRing.paper): a wizard who started a class (rang its cord) has attended it when
-##   they ring it out from a bell out of the classrooms (field trip or not), and its paper (the subject at the tier taught) waits in the
+## - Exam papers (KeyRing.paper): a wizard who began class time in a classroom has attended its class
+##   when they walk out of it (field trip or not), and its paper (the subject at the tier taught) waits in the
 ##   level its department's portal leads to (MapInfo._attend), to be fetched and carried on the key
 ##   ring; one carried of that subject at a lower tier is graded up in hand instead (resitting). A
 ##   class the wizard cannot be taught (a relic's move they lack) counts as attended all the same,

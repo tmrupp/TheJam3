@@ -390,11 +390,11 @@ class Route:
 
 def way_through(rules, route, gate="any", gate_tier=2, cap=2, rings=30, geology="strata"):
     """The fewest rings from the way in to the way on, or None (not within `rings`), for a wizard
-    who comes in with nothing on their ring, under the game's rules: in a period the wizard walks the
-    corridors and through every classroom open to them (in session, enrolled), may start the class of
-    any of those by its cord and ring it out from a corridor bell they can reach (a ring, attending it;
-    a relic class they lack counts too, with no paper), or ring a corridor bell with no class started,
-    and ends the period at the bell they rang. gate "any" (the game, Timetable.WAY_ON_PAPER): the way
+    who comes in with nothing on their ring, under the game's rules: in passing time the wizard walks
+    the corridors and through every classroom open to them (in session, enrolled); they may ring the
+    cord in any of those (not the one rung last) to begin class time attending it, and walk out of it
+    to end the period (a relic class they lack counts too, with no paper), coming out on any side of
+    it; or ring a corridor bell they can reach and then another, truant, ending the period at a bell. gate "any" (the game, Timetable.WAY_ON_PAPER): the way
     on (its classroom opening as any other) takes a paper of any department but its classroom's at
     `gate_tier` or higher; gate "always": one of the department before its own round the ring; gate
     None: no paper. `geology`
@@ -426,13 +426,13 @@ def way_through(rules, route, gate="any", gate_tier=2, cap=2, rings=30, geology=
     def meeting_of(r):
         return {d: any(sub[r] != "" for dd, sub, _ in route.rooms if dd == d) for d in rules.depts}
 
-    start = (route.start, tuple(1 for _ in rules.depts), papers0)
+    start = (route.start, tuple(1 for _ in rules.depts), papers0, -1)
     frontier = {start}
     seen = set(frontier)
     for r in range(rings):
         meeting = meeting_of(r)
         nxt = set()
-        for region, tk, pk in frontier:
+        for region, tk, pk, last in frontier:
             tiers = dict(zip(rules.depts, tk))
             papers = dict(pk)
             # Where the wizard can be this period: through every classroom open to them.
@@ -446,21 +446,21 @@ def way_through(rules, route, gate="any", gate_tier=2, cap=2, rings=30, geology=
                         grow = True
             if route.rooms[route.exit][2] & here and open_room(tiers, pk, route.exit, r) and paper_ok(tiers, pk, r):
                 return r
+            moves = []
             bells = here & route.cords
-            if not bells:
-                continue
-            moves = [(None, "")]
+            if bells:
+                moves.append((None, "", bells))
             for k, (dept, subjects, gs) in enumerate(route.rooms):
-                if gs & here and open_room(tiers, pk, k, r):
-                    moves.append((k, dept))
-            for k, attended in moves:
+                if k != last and gs & here and open_room(tiers, pk, k, r):
+                    moves.append((k, dept, gs))
+            for k, attended, out in moves:
                 after, _ = climb(rules, tiers, attended, meeting, geology)
                 plist = [papers]
                 if k is not None and route.rooms[k][1][r] not in rules.relic_moves:
                     plist = keep(papers, attended, taught_tier(tiers, k, r), cap)
                 for p2 in plist:
-                    for g in bells:
-                        st = (g, tuple(after[d] for d in rules.depts), frozen(p2))
+                    for g in out:
+                        st = (g, tuple(after[d] for d in rules.depts), frozen(p2), k if k is not None else -1)
                         if st not in seen:
                             seen.add(st)
                             nxt.add(st)

@@ -113,6 +113,8 @@ func run() -> void:
 		player.global_position = exit_at + Vector2(-200, 0)
 		await frames(10)
 		await _look(exit_at + Vector2(30, -60), "timetable_way_on.png", 1.8)
+		player.global_position = bell.global_position
+		await frames(2)
 	# An instructor teaching ferry, turned on the wizard with its whole class; then felled, the paper
 	# it leaves (stolen).
 	var room: int = -1
@@ -194,9 +196,11 @@ func _lineups(bell: SchoolBell) -> void:
 
 ## Ring `bell`, as soon as it can be rung again.
 func _ring(bell: SchoolBell) -> void:
-	info.record().last_bell = Vector2i(-1, -1)
-	info.since_bell = SchoolBell.RING_GAP
-	bell.ring()
+	# A period rung round: class time in (in passing time) and out again.
+	for k: int in range(2 if info.record().passing else 1):
+		info.record().last_bell = Vector2i(-1, -1)
+		info.since_bell = SchoolBell.RING_GAP
+		bell.ring()
 
 
 ## The first stretch of open floor at least `long` cells long with headroom, out of the halls, as

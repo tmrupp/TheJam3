@@ -998,18 +998,17 @@ func tier_of (hall: int) -> int:
 
 ## Whether the cord at `cell` can be rung now (SchoolBell): not the cord rung last (LevelRecord.last_bell,
 ## as a crags tower flipped last cannot be flipped again), not within SchoolBell.RING_GAP of the last
-## ring, and a classroom's cord only to start its class (class_ready). A cord out of the classrooms
-## (a corridor bell's, the library's) rings any time else.
+## ring, and in class time only by a wizard out of the classrooms (truant in the halls, or in the
+## library): a class is left by walking out of it, not by a bell.
 func bell_ready (cell: Vector2i) -> bool:
 	if not timetabled() or since_bell < SchoolBell.RING_GAP or cell == record().last_bell:
 		return false
-	var hall: int = _classroom_of(cell)
-	return hall < 0 or class_ready(hall)
+	return record().passing or player == null or not is_instance_valid(player) or _classroom_of(cell_at(player.global_position)) < 0
 
-## Whether the wizard can start classroom `hall`'s class by ringing its cord: in passing time, in the
-## classroom by right (class_hall), its class in session and the wizard enrolled in it.
+## Whether the wizard would attend classroom `hall`'s class were a bell rung now (class time
+## beginning): in the classroom by right (class_hall), its class in session and the wizard enrolled.
 func class_ready (hall: int) -> bool:
-	return record().passing and class_hall == hall and player != null and is_instance_valid(player) \
+	return hall >= 0 and class_hall == hall and player != null and is_instance_valid(player) \
 		and Timetable.hall_inside(world, cell_at(player.global_position)) == hall and subject_of(hall) != &"" and enrolled(hall)
 
 ## The lecture hall whose open box holds cell `v`, or -1.
@@ -1017,27 +1016,28 @@ func _classroom_of (v: Vector2i) -> int:
 	var hall: int = Timetable.hall_inside(world, v)
 	return hall if hall >= 0 and world.halls[hall]["kind"] == &"lecture" else -1
 
-## The cord at `cell` pulled (SchoolBell), if it can be rung (bell_ready): a classroom's starts its
-## class (_start_class), any other rings the period out (ring_period). It is the cord rung last now.
-## Every ring feeds the beast (RunState.fed) and shakes the institute while it rings out
-## (BELL_TIME). Returns whether it rang.
+## The cord at `cell` pulled (SchoolBell), if it can be rung (bell_ready): in passing time class time
+## begins (_class_time), in class time it ends (ring_period). It is the cord rung last now. Every ring
+## feeds the beast (RunState.fed) and shakes the institute while it rings out (BELL_TIME). Returns
+## whether it rang.
 func pull_cord (cell: Vector2i) -> bool:
 	if not bell_ready(cell):
 		return false
 	record().last_bell = cell
-	var hall: int = _classroom_of(cell)
-	if hall >= 0:
-		_start_class(hall)
+	if record().passing:
+		_class_time()
 	else:
 		ring_period()
 	return true
 
-## Classroom `hall`'s class started by its cord: passing time ends and the period begins
-## (LevelRecord.started).
-func _start_class (hall: int) -> void:
+## A bell rung in passing time: class time begins. A wizard in a classroom by right, its class in
+## session and they enrolled in it, attends it (LevelRecord.started, class_ready); anywhere else they
+## are truant.
+func _class_time () -> void:
 	var rec: LevelRecord = record()
 	rec.passing = false
-	rec.started = hall
+	var hall: int = _classroom_of(cell_at(player.global_position)) if player != null and is_instance_valid(player) else -1
+	rec.started = hall if class_ready(hall) else -1
 	_rung()
 	save_run()
 
@@ -1048,12 +1048,21 @@ func _rung () -> void:
 	Wound.shake(BELL_SHAKE, BELL_TIME)
 	run.fed += 1
 
-## The period rung out (from a bell out of the classrooms, pull_cord): the class the wizard started,
-## if any, is attended (_attend); the level moves on a period and passing time begins; every class is
-## seated afresh (_seat_classes) and every scholar calms down. Returns true.
+## A bell rung in class time by a wizard truant in the halls (pull_cord): the period is rung out with
+## nothing attended (_end_period). Returns true.
 func ring_period () -> bool:
-	var attended: StringName = _attend()
 	_rung()
+	_end_period(_attend())
+	return true
+
+## The wizard walked out of classroom `hall` in class time (_watch_timetable): the period ends, its
+## class attended if it was the one they began class time in (_attend); no bell rings.
+func _left_class (hall: int) -> void:
+	_end_period(_attend() if record().started == hall else &"")
+
+## Class time over: the departments climb by what was attended, the level moves on a period and
+## passing time begins; every class is seated afresh (_seat_classes) and every scholar calms down.
+func _end_period (attended: StringName) -> void:
 	var rec: LevelRecord = record()
 	rec.dept_tiers = Timetable.climb(dept_tiers(), attended, _meeting())
 	rec.rings += 1
@@ -1063,7 +1072,6 @@ func ring_period () -> bool:
 	for node: Node in get_tree().get_nodes_in_group(&"scholar"):
 		(node as Scholar).calm()
 	save_run()
-	return true
 
 ## Every department's tier in the level now (LevelRecord.dept_tiers, I for one not yet climbed).
 func dept_tiers () -> Dictionary:
@@ -1081,9 +1089,9 @@ func _meeting () -> Dictionary:
 		out[dept] = Timetable.meets(world, dept, rings)
 	return out
 
-## The wizard rang the period out: they attended the class they started (LevelRecord.started, by its
-## cord), wherever they are now and field trip or not, if its master is there and not turned on them
-## (beaten or crossed, it expels them). One whose subject the institute cannot teach
+## The period ended: the wizard attended the class they began class time in (LevelRecord.started),
+## field trip or not, if its master is there and not turned on them (beaten or crossed, it expels
+## them). One whose subject the institute cannot teach
 ## them (teaches: a relic's move they lack) counts all the same, with no paper. A paper of its
 ## subject carried at a lower tier is graded up to the tier taught, there in hand (resitting);
 ## otherwise its exam paper (its subject at the tier taught, KeyRing.paper) waits in the level its
@@ -1236,9 +1244,10 @@ func _seat_classes () -> void:
 				if subject_of(i) != &"":
 					loader.place_cell(v, world.get_cell(v))
 
-## Whether hall `hall`'s doors stand open (ExamDoor): while it is in session, a classroom's only to a
-## wizard enrolled in its class (enrolled), and always while the wizard is inside it, so they can step
-## out to ring a class out and no one is shut in a classroom a bell has emptied (sneaking).
+## Whether hall `hall`'s doors would let the wizard through (ExamDoor, which opens a classroom's only
+## as they walk up to it): the library's while it is in session (always); a classroom's from inside
+## always, so a class can always be left; from outside only in passing time, its class in session and
+## the wizard enrolled in it. In class time every classroom is shut to those outside.
 func hall_door_up (hall: int) -> bool:
 	if world == null or hall < 0 or hall >= world.halls.size():
 		return true
@@ -1246,7 +1255,7 @@ func hall_door_up (hall: int) -> bool:
 	var open: bool = Timetable.in_session(world, hall, rec.rings)
 	if world.halls[hall]["kind"] == &"lecture":
 		var inside: bool = player != null and is_instance_valid(player) and Timetable.hall_inside(world, cell_at(player.global_position)) == hall
-		return (open and enrolled(hall)) or inside
+		return inside or (rec.passing and open and enrolled(hall))
 	return open
 
 ## Whether the abominations keep still now: during a class (a period, not passing time).
@@ -1284,22 +1293,30 @@ var _outside_at: Vector2 = Vector2.INF
 var _from_department: bool = false
 
 ## Where the wizard is, by the timetable: going into a classroom they are enrolled in, they are in it
-## by right (class_hall, so its cord starts its class, class_ready); getting into one they are not
-## enrolled in any other way, they are put back out (keep_out). A projection drifting through is let
-## be until it ends.
+## by right (class_hall: a bell rung there begins class time with them attending, class_ready; got in
+## in class time, by a warp or a rift, they are late, belonging but attending nothing); getting into
+## one they are not enrolled in any other way, they are put back out (keep_out). Walking out of a
+## classroom in class time ends the period (_left_class). A projection drifting through is let be
+## until it ends.
 func _watch_timetable () -> void:
 	if not timetabled():
 		return
 	var hall: int = Timetable.hall_inside(world, cell_at(player.global_position))
 	if hall < 0 or world.halls[hall]["kind"] != &"lecture":
-		class_hall = -1
 		_outside_at = player.global_position
+		if class_hall >= 0 and not player.phasing:
+			var left: int = class_hall
+			class_hall = -1
+			if not record().passing:
+				_left_class(left)
 		return
 	if hall == class_hall or player.phasing:
 		return
 	if not enrolled(hall):
 		keep_out(hall)
 		return
+	if class_hall >= 0 and not record().passing:
+		_left_class(class_hall)
 	class_hall = hall
 
 ## The wizard, got into classroom `hall` without being enrolled in its class (a warp, a rift, a
