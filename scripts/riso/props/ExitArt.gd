@@ -1,10 +1,17 @@
 extends RisoProp
 ## A way out of the place: lit when open, dark with a price or a lock when not, with a chevron in
-## the crown of its arch pointing where it leads.
+## the crown of its arch pointing where it leads. The institute's way on, while it will take an exam
+## paper as the wizard goes through (MapInfo.way_on_due), hangs that paper beside its arch: a bare
+## paper sheet with a night pip on it for each tier it takes (Timetable.WAY_ON_PAPER), of any
+## department but its classroom's.
 
 
 ## The size of the chevron in the arch's crown (RisoMarks.chevron).
 const CHEVRON: float = 0.7
+## The paper the institute's way on takes: its size (as a paper's, RisoMarks.paper_shape) and where
+## it hangs beside the arch, from the exit's foot.
+const PAPER: float = 1.5
+const PAPER_AT: Vector2 = Vector2(78.0, -70.0)
 
 ## The LevelExit it dresses.
 var door: LevelExit:
@@ -84,3 +91,13 @@ func _draw_art() -> void:
 		ink.ink(frame, 1.0, [RisoMarks.chevron(crown + dir * (bob + 4.0 * CHEVRON), dir, CHEVRON)])
 	if owed > 0:
 		_text(str(owed), Vector2(0, g - 40), 34)
+	if which == MapInfo.Exit.DEEPER and MapInfo.instance != null and MapInfo.instance.timetabled() and MapInfo.instance.way_on_due() != 0:
+		var at: Vector2 = Vector2(PAPER_AT.x, g + PAPER_AT.y)
+		var sheet: Array[PackedVector2Array] = RisoMarks.paper_shape(at, PAPER)
+		ink.lift_ink(RisoPrint.ALL_PLATES, 1.0, sheet.slice(0, 1))
+		ink.ink(RisoPrint.NIGHT, 0.55, sheet.slice(1, 2), false)
+		var pips: Array[PackedVector2Array] = []
+		for i: int in range(Timetable.WAY_ON_PAPER):
+			var p: Vector2 = at + Vector2((float(i) - float(Timetable.WAY_ON_PAPER - 1) * 0.5) * 10.0, 3.0)
+			pips.append(PackedVector2Array([p + Vector2(0, -4), p + Vector2(4, 0), p + Vector2(0, 4), p + Vector2(-4, 0)]))
+		ink.ink(RisoPrint.NIGHT, 1.0, pips, false)

@@ -948,13 +948,10 @@ func wizard_belongs () -> bool:
 
 ## Whether the wizard is enrolled in lecture hall `hall`'s class now (Timetable.needs): it has a
 ## class, and asks for nothing, or for a department whose subject they hold in a slot, or carry as an
-## exam paper, at the tier it needs or higher; and in the classroom holding the way on, they carry its
-## paper besides (way_on_paper).
+## exam paper, at the tier it needs or higher.
 func enrolled (hall: int) -> bool:
 	var a: StringName = subject_of(hall)
 	if a == &"" or player == null or not is_instance_valid(player):
-		return false
-	if hall == Timetable.way_on_hall(world) and not way_on_paper():
 		return false
 	var need: Array = Timetable.needs(world.halls[hall]["dept"], tier_of(hall))
 	if need[0] == &"":
@@ -964,18 +961,32 @@ func enrolled (hall: int) -> bool:
 			return true
 	return player.keyring.papers().any(func(code: int) -> bool: return Timetable.dept_of(KeyRing.paper_spell(code)) == need[0] and KeyRing.paper_tier(code) >= int(need[1]))
 
-## Whether the wizard carries what the classroom holding the way on asks for besides its class's own
-## prerequisite: an exam paper (not a spell held) of any department but that classroom's, at
-## Timetable.WAY_ON_PAPER or higher. True where there is no such classroom.
-func way_on_paper () -> bool:
+## The exam paper the way on would take as the wizard goes through it (hand_in_way_on): of the exam
+## papers carried (not spells held) of any department but its classroom's at
+## Timetable.WAY_ON_PAPER or higher, the one of the lowest tier, oldest first. 0 when none is owed
+## (no such classroom, or one taken here already, LevelRecord.way_on_paid), -1 when one is owed and
+## none is carried.
+func way_on_due () -> int:
 	var hall: int = Timetable.way_on_hall(world)
-	if hall < 0:
-		return true
+	if hall < 0 or record().way_on_paid:
+		return 0
+	var best: int = -1
 	for code: int in player.keyring.papers():
 		var dept: StringName = Timetable.dept_of(KeyRing.paper_spell(code))
 		if dept != &"" and dept != world.halls[hall]["dept"] and KeyRing.paper_tier(code) >= Timetable.WAY_ON_PAPER:
-			return true
-	return false
+			if best < 0 or KeyRing.paper_tier(code) < KeyRing.paper_tier(best):
+				best = code
+	return best
+
+## The way on takes exam paper `code` (way_on_due) as the wizard goes through it, off the key ring
+## for good; it asks for none again in this level (LevelRecord.way_on_paid).
+func hand_in_way_on (code: int) -> void:
+	if code <= 0:
+		return
+	player.keyring.spend(code)
+	record().way_on_paid = true
+	RisoFx.burst(&"gain", player.global_position + Vector2(0, -60), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.NIGHT])
+	save_run()
 
 ## What lecture hall `hall` teaches now (Timetable.subject; &"" for no class), and at what tier.
 func subject_of (hall: int) -> StringName:

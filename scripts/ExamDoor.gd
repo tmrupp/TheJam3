@@ -56,22 +56,29 @@ func prereq() -> Array:
 	return Timetable.needs(map_info.world.halls[hall]["dept"], tier())
 
 
-## Whether its hall is the classroom holding the way on (Timetable.way_on_hall), which asks besides
-## for an exam paper of another department (MapInfo.way_on_paper).
-func way_on() -> bool:
-	return map_info != null and map_info.world != null and hall >= 0 and hall == Timetable.way_on_hall(map_info.world)
+## Its classroom's department (Institute.DEPARTMENTS), or &"" for any other hall.
+func dept() -> StringName:
+	if map_info == null or map_info.world == null or hall < 0 or hall >= map_info.world.halls.size() or map_info.world.halls[hall]["kind"] != &"lecture":
+		return &""
+	return map_info.world.halls[hall]["dept"]
 
 
-## Where its classroom stands in its cycle (Timetable.in_cycle): whether it is in session now and in
-## each of the periods after, through a day; empty for any other hall.
+## Its classroom's day (Timetable.in_cycle): whether it is in session in each of the day's periods,
+## first to last (the same every day); empty for any other hall.
 func cycle() -> Array[bool]:
 	var out: Array[bool] = []
 	if map_info == null or map_info.world == null or hall < 0 or hall >= map_info.world.halls.size() or map_info.world.halls[hall]["kind"] != &"lecture":
 		return out
 	var rings: int = map_info.record().rings
+	var dawn: int = rings - Timetable.period(rings)
 	for k: int in range(Timetable.PERIODS):
-		out.append(Timetable.in_cycle(map_info.world, hall, rings + k))
+		out.append(Timetable.in_cycle(map_info.world, hall, dawn + k))
 	return out
+
+
+## The period of the day it is now (Timetable.period): where the notch on its plate's rim stands.
+func period() -> int:
+	return Timetable.period(map_info.record().rings) if map_info != null and map_info.world != null else 0
 
 
 ## The tier its lecture hall teaches its subject at now (pips under its plate), or 0.

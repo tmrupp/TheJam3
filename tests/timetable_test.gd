@@ -665,8 +665,10 @@ func _climbing(rec: LevelRecord, bell: SchoolBell) -> void:
 	await frames(2)
 
 
-## The way on stands in a classroom, which asks besides for an exam paper of another department at
-## Timetable.WAY_ON_PAPER: not one of its own department, not one a tier lower, not a spell held.
+## The way on stands in a classroom, which opens on its class's own prerequisite like any other; the
+## way on takes an exam paper of another department at Timetable.WAY_ON_PAPER as the wizard goes
+## through: not one of its own department, not one a tier lower, not a spell held; the lowest it
+## would take, once a level; with none it lets no one through.
 func _way_on(rec: LevelRecord, bell: SchoolBell) -> void:
 	print("the way on")
 	var way: int = Timetable.way_on_hall(info.world)
@@ -684,20 +686,37 @@ func _way_on(rec: LevelRecord, bell: SchoolBell) -> void:
 		return
 	var own: StringName = info.world.halls[way]["dept"]
 	var other: StringName = Timetable.NEEDS[own]
-	check(info.tier_of(way) == 1 and not info.enrolled(way) and not info.hall_door_up(way), "a tier I class there, and still shut to a wizard with no paper")
+	check(info.tier_of(way) == 1 and info.enrolled(way) and info.hall_door_up(way), "a tier I class there opens to a wizard with no paper, like any other")
+	check_eq(info.way_on_due(), -1, "but the way on would take a paper they lack")
 	Abilities.set_tier(player, Timetable.LADDERS[other][0], Timetable.WAY_ON_PAPER)
-	check(not info.enrolled(way), "a spell held is not a paper")
+	check_eq(info.way_on_due(), -1, "a spell held is not a paper")
 	Abilities.set_tier(player, Timetable.LADDERS[other][0], 0)
 	Abilities.set_tier(player, &"slash", 1)
 	player.keyring.take(KeyRing.paper(Timetable.LADDERS[own][0], Timetable.WAY_ON_PAPER))
-	check(not info.enrolled(way), "nor is a paper of its own department")
+	check_eq(info.way_on_due(), -1, "nor is a paper of its own department")
 	player.keyring.clear()
 	player.keyring.take(KeyRing.paper(Timetable.LADDERS[other][1], Timetable.WAY_ON_PAPER - 1))
-	check(not info.enrolled(way), "nor one a tier lower")
+	check_eq(info.way_on_due(), -1, "nor one a tier lower")
 	player.keyring.clear()
-	player.keyring.take(KeyRing.paper(Timetable.LADDERS[other][1], Timetable.WAY_ON_PAPER))
-	check(info.enrolled(way) and info.hall_door_up(way), "a %s paper at %d opens it" % [other, Timetable.WAY_ON_PAPER])
+	var low: int = KeyRing.paper(Timetable.LADDERS[other][1], Timetable.WAY_ON_PAPER)
+	var high: int = KeyRing.paper(Timetable.LADDERS[other][0], Timetable.WAY_ON_PAPER + 1)
+	Abilities.set_tier(player, &"keyring", 1)
+	player.keyring.take(high)
+	player.keyring.take(low)
+	check_eq(info.way_on_due(), low, "of a %s paper at %d and one at %d, it would take the lower" % [other, Timetable.WAY_ON_PAPER, Timetable.WAY_ON_PAPER + 1])
+	info.hand_in_way_on(info.way_on_due())
+	check(not player.keyring.has(low) and player.keyring.has(high) and rec.way_on_paid, "going through, it takes that paper, and only that")
 	player.keyring.clear()
+	Abilities.set_tier(player, &"keyring", 0)
+	check_eq(info.way_on_due(), 0, "then it asks for none again here")
+	rec.way_on_paid = false
+	var exits: Array[Node] = placed("level_exit.tscn").filter(func(n: Node) -> bool: return (n as LevelExit).exit == MapInfo.Exit.DEEPER)
+	if not exits.is_empty():
+		var at: Vector2i = info.coord
+		player.coins.coins = 99999
+		(exits[0] as LevelExit).interacted()
+		await frames(2)
+		check(info.coord == at and not info.travelling, "with no paper it would take, the way on lets no one through")
 	await frames(2)
 
 

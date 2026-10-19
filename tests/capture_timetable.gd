@@ -5,8 +5,8 @@ extends TestKit
 ## classroom shut, then in session but shut to a wizard without its prerequisite (the paper it
 ## wants beside its plate), then open to them carrying it, wide and with the class in; scholars calm
 ## and turned on the wizard, close up; a classroom's lectern holding a paper left on it;
-## exam papers lying on a floor, a stolen one among them; the library's glyph seals; the door of the
-## classroom holding the way on, with the paper it asks for besides; an instructor teaching ferry
+## exam papers lying on a floor, a stolen one among them; the library's glyph seals; the way on in
+## its classroom, with the paper it takes hung beside it; an instructor teaching ferry
 ## turned on the wizard on its raft, its class with it, and the stolen top-tier paper it leaves once
 ## felled; and a seal of each spell side by side. (The hall's doors shut and open, close up.)
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_timetable.gd
@@ -105,12 +105,14 @@ func run() -> void:
 		var s: Node2D = seals[0] as Node2D
 		player.global_position = info.cell_position(info.world.halls[library]["steps"][0])
 		await _look(s.global_position + Vector2(0, -40), "timetable_library_seal.png", 1.6)
-	# The way on's classroom: the second sheet by its door's plate, the paper it asks for besides.
+	# The way on in its classroom, with the paper it takes hung beside it.
 	var way: int = Timetable.way_on_hall(info.world)
 	if way >= 0:
-		player.global_position = info.cell_position(info.world.halls[way]["steps"][0])
+		var exit_at: Vector2 = info.cell_position(info.world.exits[MapInfo.Exit.DEEPER])
+		info.class_hall = way
+		player.global_position = exit_at + Vector2(-200, 0)
 		await frames(10)
-		await _look(info.cell_position(info.world.halls[way]["doors"][0]) + Vector2(0, -90), "timetable_door_way_on.png", 2.2)
+		await _look(exit_at + Vector2(30, -60), "timetable_way_on.png", 1.8)
 	# An instructor teaching ferry, turned on the wizard with its whole class; then felled, the paper
 	# it leaves (stolen).
 	var room: int = -1

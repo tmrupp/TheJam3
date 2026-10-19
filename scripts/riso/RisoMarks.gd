@@ -124,6 +124,14 @@ static func key_shape(o: Vector2, s: float, color: int = 0) -> Array[PackedVecto
 ## across: a leaf for the garden, a skull for the cemetery, a crystal for the crags, a star for the
 ## sky; the institute's own a pediment over three columns (a department's portal, DepartmentArt, and a
 ## door's prerequisite, ExamDoorArt).
+## What is cut back out of `band`'s emblem round `c` once it is printed (emblem): the skull's eyes; none
+## for the others.
+static func emblem_holes(band: StringName, c: Vector2) -> Array[PackedVector2Array]:
+	if band == &"cemetery":
+		return [RisoShapes.circle(c + Vector2(-3.2, -2.0), 2.2, 10), RisoShapes.circle(c + Vector2(3.2, -2.0), 2.2, 10)]
+	return []
+
+
 static func emblem(band: StringName, c: Vector2) -> Array[PackedVector2Array]:
 	match band:
 		&"garden":

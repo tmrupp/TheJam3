@@ -39,9 +39,9 @@ extends RefCounted
 ##   doors open only to a wizard enrolled so (MapInfo.enrolled), and only one enrolled belongs in it:
 ##   one who gets in any other way (a warp, a rift, a projection) is put back out (MapInfo.keep_out).
 ## - The way on (the deeper exit) stands in a classroom (way_on_hall), the one most classrooms away
-##   from the way in (Institute.way_on), and that classroom asks besides for an exam paper of any
-##   other department at WAY_ON_PAPER or higher (MapInfo.way_on_paper), so getting through means
-##   sitting classes.
+##   from the way in (Institute.way_on), and the way on takes an exam paper of any department but
+##   that classroom's at WAY_ON_PAPER or higher as the wizard goes through (MapInfo.way_on_due), so
+##   getting through means sitting classes.
 ## - Exam papers (KeyRing.paper): a wizard who started a class (rang its cord) has attended it when
 ##   they ring it out from a bell out of the classrooms (field trip or not), and its paper (the subject at the tier taught) waits in the
 ##   level its department's portal leads to (MapInfo._attend), to be fetched and carried on the key
@@ -80,8 +80,8 @@ const HOLDS: Dictionary = {&"astronomy": 1, &"geology": 2, &"botany": 1, &"necro
 const NEEDS: Dictionary = {&"astronomy": &"geology", &"geology": &"botany", &"botany": &"necrology", &"necrology": &"astronomy"}
 ## The highest tier a department climbs to.
 const TOP: int = 4
-## The tier of the exam paper, of any department but its own, the classroom holding the way on asks
-## for besides its class's own prerequisite (see the class description).
+## The tier of the exam paper, of any department but its classroom's, the way on takes (see the class
+## description).
 const WAY_ON_PAPER: int = 2
 ## Salts for the level seed: where each classroom starts in its department's subjects, and which
 ## spell the seals ask for.

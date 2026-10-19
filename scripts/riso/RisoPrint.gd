@@ -129,6 +129,16 @@ const REGISTRATION: Array[Vector2] = [Vector2(-0.48, -0.43), Vector2(-0.91, 0.82
 const SHEET_JITTER: float = 1.2
 ## Key colours as overprints of the realm inks: sun, ember (sun over pink), moss (sun over blue), plum (pink over blue).
 const KEY_COLORS: Array[Array] = [[ACCENT], [ACCENT, PINK], [ACCENT, BLUE], [PINK, BLUE]]
+## Each institute department's colour (Timetable.LADDERS), on its papers, its classrooms' doors and
+## its portal: overprints of inks that print the same in every realm (the travellers' federal blue,
+## the eyes' yellow, pink), as [plate, cover] pairs: astronomy blue, botany green (yellow over blue),
+## necrology violet (pink over blue), geology orange (pink over yellow).
+const DEPT_INKS: Dictionary = {
+	&"astronomy": [[CLOTH, 1.0]],
+	&"botany": [[CLOTH, 0.9], [EYE, 0.9]],
+	&"necrology": [[CLOTH, 0.85], [PINK, 0.8]],
+	&"geology": [[EYE, 1.0], [PINK, 0.6]],
+}
 
 static var instance: RisoPrint
 
@@ -343,16 +353,32 @@ static func ink_key(canvas: InkCanvas, color: int, cover: float, shapes: Array[P
 	if color == KeyRing.SKELETON:
 		canvas.lift_ink(ALL_PLATES, cover, shapes)
 		return
-	# An exam paper: a bare paper sheet, its folded corner and ruled lines in night; a stolen one's
+	# An exam paper: a sheet in its department's colour (DEPT_INKS; bare paper for a subject no
+	# department teaches), its folded corner bare paper and its ruled lines in night; a stolen one's
 	# folded corner in pink (danger: the scholars are after whoever carries it).
 	if KeyRing.is_paper(color):
 		canvas.lift_ink(ALL_PLATES, cover, shapes.slice(0, 1))
-		canvas.ink(NIGHT, 0.55 * cover, shapes.slice(2 if KeyRing.is_stolen(color) else 1), false)
+		var dept: StringName = Timetable.dept_of(KeyRing.paper_spell(color))
+		var tinted: bool = ink_dept(canvas, dept, cover, shapes.slice(0, 1))
+		if tinted:
+			canvas.knock(ALL_PLATES, shapes.slice(1, 2))
+		canvas.ink(NIGHT, 0.55 * cover, shapes.slice(2 if KeyRing.is_stolen(color) or tinted else 1), false)
 		if KeyRing.is_stolen(color):
 			canvas.ink(PINK, cover, shapes.slice(1, 2))
 		return
 	for plate: int in key_inks(color):
 		canvas.ink(plate, cover, shapes)
+
+
+## Print `shapes` on `canvas` in department `dept`'s colour (DEPT_INKS) at `cover`, over what is
+## under it knocked out first. Returns false, printing nothing, for no department.
+static func ink_dept(canvas: InkCanvas, dept: StringName, cover: float, shapes: Array[PackedVector2Array]) -> bool:
+	if not DEPT_INKS.has(dept):
+		return false
+	canvas.knock(ALL_PLATES, shapes)
+	for pair: Array in DEPT_INKS[dept]:
+		canvas.ink(int(pair[0]), float(pair[1]) * cover, shapes, false)
+	return true
 
 
 static func key_inks(color: int) -> Array[int]:

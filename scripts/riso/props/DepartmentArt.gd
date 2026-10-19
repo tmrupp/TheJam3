@@ -2,8 +2,9 @@ extends PortalArt
 ## A department's portal (Department), or the way back one opened (WayBack): a round-headed arch of
 ## pale marble on two columns, standing on a step and hugging its opening, which is a portal's
 ## (PortalArt's outline) filled as every portal is (the F7 panel's style: TV static by default),
-## and on its keystone the department's emblem on a paper disc: a leaf for botany, a skull for necrology, a crystal for geology, a star for
-## astronomy (a way back bears the institute's columned front). Standing by it pops up a plaque with
+## and on its keystone the department's emblem knocked out to paper on a disc in the department's
+## colour (RisoPrint.DEPT_INKS): a leaf for botany, a skull for necrology, a crystal for geology, a
+## star for astronomy (a way back bears the institute's columned front, in night on a paper disc). Standing by it pops up a plaque with
 ## where it leads, as marks and numbers (RisoMarks.place_marks). It shines a little (RisoLight).
 
 ## The arch's half width and height over the floor (px), its columns' width, and the emblem's disc.
@@ -61,7 +62,12 @@ func _draw_art() -> void:
 	var key: Vector2 = Vector2(0, g - ARCH_H - 2.0)
 	var disc: PackedVector2Array = RisoShapes.circle(key, DISC_R, 24)
 	ink.knock(RisoPrint.ALL_PLATES, [disc])
-	ink.ink(RisoPrint.NIGHT, 1.0, _emblem(key), false)
+	var portal: Department = host as Department
+	if portal != null and RisoPrint.ink_dept(ink, portal.dept, 1.0, [disc]):
+		ink.knock(RisoPrint.ALL_PLATES, _emblem(key))
+		RisoPrint.ink_dept(ink, portal.dept, 1.0, RisoMarks.emblem_holes(portal.band(), key))
+	else:
+		ink.ink(RisoPrint.NIGHT, 1.0, _emblem(key), false)
 	var to: Variant = _leads_to()
 	if to != null:
 		var s: float = _pop(0, Vector2(0, g - 60.0))

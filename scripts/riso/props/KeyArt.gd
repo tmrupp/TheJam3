@@ -1,8 +1,10 @@
 extends RisoProp
 ## A key, bobbing in a light of its own colour (RisoLight); a skeleton key is bone-white with a
 ## paper twinkle, in a plain light. An exam paper (KeyRing.paper) lies the same way: a paper sheet
-## (PAPER times a key's size) with a folded corner, its subject's mark (RisoGlyph) on it in gold, and
-## under it a gold pip for each tier; a stolen one's folded corner is pink (KeyRing.is_stolen).
+## (PAPER times a key's size) in its department's colour (RisoPrint.DEPT_INKS) with a folded corner of
+## bare paper, its subject's mark (RisoGlyph) knocked out to paper on it, and under it a gold pip for
+## each tier; a paper of a subject no department teaches is bare paper with its mark in gold. A
+## stolen one's folded corner is pink (KeyRing.is_stolen).
 
 ## How much bigger an exam paper is drawn than a key, and its mark on it.
 const PAPER: float = 1.7
@@ -31,6 +33,9 @@ func _draw_art() -> void:
 		# The sheet and its folded corner, bare paper (no ruled lines: the mark takes their place).
 		var sheet: Array[PackedVector2Array] = RisoMarks.paper_shape(o, PAPER)
 		ink.lift_ink(RisoPrint.ALL_PLATES, 1.0, sheet.slice(0, 1))
+		var tinted: bool = RisoPrint.ink_dept(ink, Timetable.dept_of(KeyRing.paper_spell(color)), 1.0, sheet.slice(0, 1))
+		if tinted:
+			ink.knock(RisoPrint.ALL_PLATES, sheet.slice(1, 2))
 		if KeyRing.is_stolen(color):
 			ink.ink(RisoPrint.PINK, 1.0, sheet.slice(1, 2))
 		else:
@@ -38,7 +43,10 @@ func _draw_art() -> void:
 		var mark: Array[PackedVector2Array] = []
 		for poly: PackedVector2Array in RisoGlyph.of(KeyRing.paper_spell(color), Vector2.ZERO, t):
 			mark.append(Transform2D(0.0, Vector2(PAPER_MARK, PAPER_MARK), 0.0, o + Vector2(0, 2.0 * PAPER)) * poly)
-		ink.ink(RisoPrint.ACCENT, 1.0, mark)
+		if tinted:
+			ink.knock(RisoPrint.ALL_PLATES, mark)
+		else:
+			ink.ink(RisoPrint.ACCENT, 1.0, mark)
 		var tier: int = KeyRing.paper_tier(color)
 		var pips: Array[PackedVector2Array] = []
 		for i: int in range(tier):

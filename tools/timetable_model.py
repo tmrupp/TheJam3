@@ -395,8 +395,9 @@ def way_through(rules, route, gate="any", gate_tier=2, cap=2, rings=30, geology=
     any of those by its cord and ring it out from a corridor bell they can reach (a ring, attending it;
     a relic class they lack counts too, with no paper), or ring a corridor bell with no class started,
     and ends the period at the bell they rang. gate "any" (the game, Timetable.WAY_ON_PAPER): the way
-    on's classroom asks besides for a paper of any other department at `gate_tier` or higher; gate
-    "always": for one of the department before its own round the ring; gate None: no gate. `geology`
+    on (its classroom opening as any other) takes a paper of any department but its classroom's at
+    `gate_tier` or higher; gate "always": one of the department before its own round the ring; gate
+    None: no paper. `geology`
     names the rule geology climbs by (climb)."""
     if route.exit is None:
         return None
@@ -410,18 +411,17 @@ def way_through(rules, route, gate="any", gate_tier=2, cap=2, rings=30, geology=
     def open_room(tiers, papers, k, r):
         dept, subjects, _ = route.rooms[k]
         a = subjects[r]
-        if not a:
-            return False
+        return bool(a) and enrolled(rules, tiers, dict(papers), dept, a)
+
+    def paper_ok(tiers, papers, r):
+        """Whether the way on lets the wizard through with `papers` (its classroom opens as any)."""
+        dept = route.rooms[route.exit][0]
         held = dict(papers)
-        if k == route.exit and gate == "always":
-            need = rules.needs[dept]
-            if held.get(need, 0) < max(gate_tier, taught_tier(tiers, k, r) - 1):
-                return False
-        if k == route.exit and gate == "any":
-            have = max([t for d, t in held.items() if d != dept] + [0])
-            if have < gate_tier:
-                return False
-        return enrolled(rules, tiers, held, dept, a)
+        if gate == "always":
+            return held.get(rules.needs[dept], 0) >= max(gate_tier, taught_tier(tiers, route.exit, r) - 1)
+        if gate == "any":
+            return max([t for d, t in held.items() if d != dept] + [0]) >= gate_tier
+        return True
 
     def meeting_of(r):
         return {d: any(sub[r] != "" for dd, sub, _ in route.rooms if dd == d) for d in rules.depts}
@@ -444,7 +444,7 @@ def way_through(rules, route, gate="any", gate_tier=2, cap=2, rings=30, geology=
                     if gs & here and open_room(tiers, pk, k, r) and not gs <= here:
                         here |= gs
                         grow = True
-            if route.rooms[route.exit][2] & here and open_room(tiers, pk, route.exit, r):
+            if route.rooms[route.exit][2] & here and open_room(tiers, pk, route.exit, r) and paper_ok(tiers, pk, r):
                 return r
             bells = here & route.cords
             if not bells:

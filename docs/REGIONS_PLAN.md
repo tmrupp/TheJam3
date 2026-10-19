@@ -831,9 +831,10 @@ Each phase ends with the full suite green and its own tests.
     (a warp, a rift, a projection) is put back out. The prerequisite is a department and a tier,
     never one spell.
   - *The way on* stands in the classroom the most classrooms in from the way in, and asks besides
-    for an exam paper (not a spell held) of any other department at II or higher. On 40 real levels
+    for an exam paper (not a spell held) of any other department at II or higher, which it takes as
+    the wizard goes through (the classroom opens on its class's prerequisite like any other). Each department has its colour, on its papers, doors and portal. On 40 real levels
     the timetable model gets a wizard with nothing on their ring through in 2 to 6 rings, 3 at the
-    median, in 33; the rest are left as dealt (the owner's call): their way runs through papers from
+    median, in 34; the rest are left as dealt (the owner's call): their way runs through papers from
     other levels, a feature meant for the cemetery and the crags too.
   - *Exam papers.* Attending a class is starting it by its cord and ringing it out from a bell out
     of the classrooms (field trip or not), its master there and not turned on the wizard; a class of a move the
