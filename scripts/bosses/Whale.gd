@@ -474,11 +474,12 @@ func _process(_delta: float) -> void:
 	ink.begin()
 	_hinge = _on(HINGE, LIPS)
 	var n: int = 72
-	# Its body: its underside from tail to snout (its lower jaw), then its back from snout to tail
-	# (its upper jaw), across its open mouth if it is open.
+	# Its body: its underside from tail to snout (its lower jaw), round the front of its mouth if it
+	# is open, then its back from snout to tail (its upper jaw).
 	var body: PackedVector2Array = PackedVector2Array()
 	for i: int in range(n + 1):
 		body.append(_pt(_along(i, n), 1.0))
+	body.append_array(_front())
 	for i: int in range(n, -1, -1):
 		body.append(_pt(_along(i, n), -1.0))
 	# Its flukes, beating, their lower lobe swinging down into view.
@@ -533,9 +534,25 @@ func _process(_delta: float) -> void:
 	ink.finish()
 
 
-## Its open mouth, between its jaws: dark inside, a pink tongue along its lower jaw and a thick
-## fringe of pink baleen hanging from its upper jaw. Shut, nothing: its lips are where its dark
-## upper jaw meets its pale throat.
+## The front of its open mouth: the points between the tip of its lower jaw and the tip of its
+## upper one, curving back toward its hinge, so the mouth reads as open there (none while it is
+## shut).
+func _front() -> PackedVector2Array:
+	var out: PackedVector2Array = PackedVector2Array()
+	if gape <= 0.02:
+		return out
+	var low: Vector2 = _jawed(_spine(1.0), 1.0, false)
+	var high: Vector2 = _jawed(_spine(1.0), 1.0, true)
+	var back: Vector2 = (_hinge - (low + high) * 0.5).normalized() * low.distance_to(high) * 0.3
+	for i: int in range(1, 8):
+		var k: float = float(i) / 8.0
+		out.append(low.lerp(high, k) + back * sin(k * PI))
+	return out
+
+
+## Its open mouth, between its jaws: a deep rose lining, darker toward its throat, a pink tongue
+## along its lower jaw and a thick fringe of bright pink baleen hanging from its upper jaw. Shut,
+## nothing: its lips are where its dark upper jaw meets its pale throat.
 func _draw_mouth() -> void:
 	if gape <= 0.02:
 		return
@@ -548,17 +565,32 @@ func _draw_mouth() -> void:
 		upper.append(_jawed(lip, s, true))
 		lower.append(_jawed(lip, s, false))
 	var inside: PackedVector2Array = upper.duplicate()
+	var front: PackedVector2Array = _front()
+	front.reverse()
+	inside.append_array(front)
 	for i: int in range(m, -1, -1):
 		inside.append(lower[i])
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK], [inside])
-	ink.ink(RisoPrint.NIGHT, 0.95, [inside], false)
+	ink.ink(RisoPrint.NIGHT, 0.5, [inside], false)
+	ink.ink(RisoPrint.PINK, 0.6, [inside], false)
+	# Its throat, darker, going in at the back of its mouth: the back of the mouth's own wedge, in two
+	# steps, darkest at the hinge.
+	for reach: float in [0.45, 0.22]:
+		var back: PackedVector2Array = PackedVector2Array()
+		var j: int = roundi(float(m) * reach)
+		for i: int in range(j + 1):
+			back.append(upper[i])
+		for i: int in range(j, -1, -1):
+			back.append(lower[i])
+		ink.ink(RisoPrint.NIGHT, 0.2, [back], false)
 	# Its tongue: a mound along its lower jaw, highest in the middle.
 	var tongue: PackedVector2Array = lower.duplicate()
 	for i: int in range(m, -1, -1):
 		var k: float = float(i) / float(m)
 		tongue.append(lower[i] + (upper[i] - lower[i]) * 0.3 * sin(k * PI))
-	ink.knock([RisoPrint.NIGHT], [tongue])
-	ink.ink(RisoPrint.PINK, 0.6, [tongue])
+	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK], [tongue])
+	ink.ink(RisoPrint.PINK, 0.75, [tongue])
+	ink.ink(RisoPrint.NIGHT, 0.12, [tongue], false)
 	# Its baleen: a gum along its upper lip, and from it thick plates hanging toward its lower jaw.
 	var plates: Array[PackedVector2Array] = [_band(upper, 30.0)]
 	for i: int in range(1, m, 2):
@@ -570,5 +602,5 @@ func _draw_mouth() -> void:
 		var hang: Vector2 = gap.normalized()
 		var across: Vector2 = (upper[i + 1] - upper[i - 1]).normalized()
 		plates.append(PackedVector2Array([root - across * 30.0, root + across * 30.0, root + hang * long + across * 20.0, root + hang * long - across * 20.0]))
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], plates)
-	ink.ink(RisoPrint.PINK, 0.95, plates)
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK], plates)
+	ink.ink(RisoPrint.PINK, 1.0, plates)
