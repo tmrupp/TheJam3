@@ -4,7 +4,9 @@ class_name Seeker
 ## aimed at first like the hex (the held direction, else facing), that turns toward the nearest
 ## enemy it can see within HexBolt.SEEK px (HexBolt.seek) and strikes it as a hex bolt does:
 ## wounded by its damage. It flies slower than the hex (SPEED) but
-## further (RANGE), smaller (SIZE), and is ready again COOLDOWN after. Each cast knocks the wizard
+## further (RANGE), smaller (SIZE), and is ready again COOLDOWN after. Cast empowered (Empower), it
+## turns toward a tower's spire it can see rather than an enemy and strikes it, breaks the first
+## cracked rock it meets, wounds Empower.EXTRA more and breaks a shield at once. Each cast knocks the wizard
 ## back a little, as a hex does (Hex.RECOIL). Tiers (Abilities): I one
 ## seeker, wounding 1; II turns harder (TURN_II); III looses two, fanned out FAN either way;
 ## IV wounds 2.
@@ -36,9 +38,9 @@ func set_tier(n: int) -> void:
 	count = 2 if n >= 3 else 1
 
 
-## The Spell button, with the seeker in the slot.
-func cast_spell() -> bool:
-	return not cast().is_empty()
+## The Spell button, with the seeker in the slot (`empowered`, see Empower).
+func cast_spell(empowered: bool = false) -> bool:
+	return not cast(Vector2.ZERO, empowered).is_empty()
 
 
 func readiness() -> float:
@@ -54,8 +56,9 @@ func _physics_process(delta: float) -> void:
 	wait = maxf(0.0, wait - delta)
 
 
-## Loose the seekers heading `dir` (the aim when zero). Returns them, none while it is not ready.
-func cast(dir: Vector2 = Vector2.ZERO) -> Array[HexBolt]:
+## Loose the seekers heading `dir` (the aim when zero), `empowered` or not. Returns them, none while
+## it is not ready.
+func cast(dir: Vector2 = Vector2.ZERO, empowered: bool = false) -> Array[HexBolt]:
 	var out: Array[HexBolt] = []
 	if wait > 0.0 or player == null:
 		return out
@@ -65,7 +68,9 @@ func cast(dir: Vector2 = Vector2.ZERO) -> Array[HexBolt]:
 	for k: int in range(count):
 		var bolt: HexBolt = HexBolt.new()
 		bolt.dir = dir.normalized().rotated(0.0 if count == 1 else lerpf(-FAN, FAN, float(k) / float(count - 1)))
-		bolt.damage = damage
+		bolt.damage = damage + (Empower.EXTRA if empowered else 0)
+		bolt.empowered = empowered
+		bolt.bore = 1 if empowered else 0
 		bolt.speed = SPEED
 		bolt.range_px = RANGE
 		bolt.seek = turn

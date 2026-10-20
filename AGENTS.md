@@ -48,7 +48,7 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
 - `gdextension/`: the C++ overlapping-WFC extension (SCons). Rarely touched.
 - `docs/`: `DEEPER_PLAN.md` (design, by system), `REGIONS_PLAN.md` (the plan for going up and
   down from the garden, the new bands and the bosses at band ends; phases 1 to 4 built (the worm
-  and the bramble), a first pass of the crags and the spider of phase 5, phase 6, the cemetery's
+  and the bramble), a first pass of the crags and the spider of phase 5 (with the lodestones, empowered spells and spires), phase 6, the cemetery's
   crypts, light and the necromancer, and a first pass of phase 7, the institute, its beast and its timetable),
   `RISO_PRINT.md` (the art pipeline and rules), `CLEANUP_PLAN.md` (the ten follow-ups to the
   architecture refactor, all done; kept for why the shared helpers are shaped as they are),

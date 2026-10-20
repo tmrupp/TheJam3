@@ -89,11 +89,14 @@ var stations: int = -1
 ## (OssuaryDoor), by the crypt's number: they open for good once it reaches their fill.
 var fonts: Dictionary = {}
 var poured: Dictionary = {}
+## The crags' cold towers woken by an empowered strike on their spire (Spire), by tower number: their
+## switches work from then on (MapInfo.tower_cold).
+var woken: Dictionary = {}
 
 ## Every field saved, in the order they are written.
 const FIELDS: Array[StringName] = [&"taken", &"opened", &"slain", &"broken", &"dropped", &"next_drop", &"deeper_paid", &"up_paid",
 	&"doors_paid", &"lateral_open", &"ways_taken", &"shrine_used", &"mapped", &"seen",
-	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended", &"lessons", &"stations", &"rings", &"passing", &"lifted", &"pigeonholes", &"prizes", &"dept_tiers", &"relics_left", &"started", &"last_bell", &"way_on_paid", &"studied", &"fonts", &"poured"]
+	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended", &"lessons", &"stations", &"rings", &"passing", &"lifted", &"pigeonholes", &"prizes", &"dept_tiers", &"relics_left", &"started", &"last_bell", &"way_on_paid", &"studied", &"woken", &"fonts", &"poured"]
 
 
 ## The record as a plain dictionary, for the save file.
@@ -122,9 +125,12 @@ func drop_key(pos: Vector2, color: int) -> int:
 	return id
 
 
-## The seen bytes for a level of `cells` cells, made fresh if they were for another size.
+## The seen bytes for a level of `cells` cells, made fresh if they were for another size (all seen
+## if its map was inked whole before its layout was known: MapInfo.ink_place).
 func seen_for(cells: int) -> PackedByteArray:
 	if seen.size() != cells:
 		seen = PackedByteArray()
 		seen.resize(cells)
+		if mapped:
+			seen.fill(1)
 	return seen

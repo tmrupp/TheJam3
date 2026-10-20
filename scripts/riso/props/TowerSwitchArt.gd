@@ -5,7 +5,8 @@ extends RisoProp
 ## small night disc while it is off, and a ring round each this switch flips (a solid band of night
 ## with paper between it and the station, no outline). The lever leans the way it was last thrown;
 ## locked (the tower flipped last), its knob is pink and a pink bar crosses the board, and a balk
-## shakes it.
+## shakes it. A cold tower's (TowerSwitch.cold) knob is dull night and blue, its board screened in
+## night with paper flecks of frost on it, until a strike on the tower's spire wakes it.
 
 ## The board: how big it is drawn against its measures here, how far apart its stations stand, its
 ## margin either end, its height (pixels, before the scale) and how high over the floor its middle
@@ -36,7 +37,7 @@ func shines() -> bool:
 
 ## Lit at its knob while it can be flipped.
 func light() -> Array:
-	if lever == null or lever.locked():
+	if lever == null or lever.locked() or lever.cold():
 		return []
 	return _light(Vector2(0, _ground() - 100.0), RisoLight.GLEAM, RisoPrint.ACCENT)
 
@@ -62,7 +63,11 @@ func _draw_art() -> void:
 	ink.ink(RisoPrint.NIGHT, 0.6, [RisoShapes.rrect(-22, g - 46, 44, 8, 4)], false)
 	var ball: PackedVector2Array = RisoShapes.circle(knob, 14.0, 20)
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], [ball])
-	ink.ink(RisoPrint.PINK if locked else RisoPrint.ACCENT, 1.0, [ball], false)
+	var cold: bool = s.cold()
+	if cold:
+		ink.ink(RisoPrint.BLUE, 0.7, [ball], false)
+	else:
+		ink.ink(RisoPrint.PINK if locked else RisoPrint.ACCENT, 1.0, [ball], false)
 	# The board: the line, straight.
 	var n: int = s.station_count()
 	if n <= 0:
@@ -105,3 +110,9 @@ func _draw_art() -> void:
 	ink.ink(RisoPrint.NIGHT, 1.0, dark, false)
 	if locked:
 		ink.ink(RisoPrint.PINK, 0.9, [xb * RisoShapes.rrect(left + 5.0, y - 3.0, wide - 10.0, 6.0, 3.0)], false)
+	if cold:
+		ink.ink(RisoPrint.NIGHT, 0.45, [board], false)
+		var frost: Array[PackedVector2Array] = []
+		for k: int in range(7):
+			frost.append(xb * RisoShapes.sparkle(Vector2(left + 8.0 + (wide - 16.0) * RisoShapes.hash1(float(k) * 2.3 + 0.5), (RisoShapes.hash1(float(k) * 5.1 + 1.0) - 0.5) * (BOARD_HIGH - 14.0)), 4.0, 1.0))
+		ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], frost)

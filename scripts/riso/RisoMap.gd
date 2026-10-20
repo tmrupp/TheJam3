@@ -338,6 +338,7 @@ func _level_rows() -> Array:
 		["unrung bridge", func(at: Vector2) -> void: _mark_bridge(at, false), "unrung bridge"],
 		["gondola", func(at: Vector2) -> void: _mark_gondola([at + Vector2(-3.0, 3.0), at + Vector2(-3.0, 1.0), at + Vector2(-1.0, 1.0), at + Vector2(-1.0, -1.0), at + Vector2(1.0, -1.0), at + Vector2(1.0, -3.0)], [at + Vector2(-3.0, 3.0), at + Vector2(1.0, -3.0)], at + Vector2(-3.0, 3.0), [true, false]), "gondola"],
 		["tower switch", _mark_tower_switch, "tower switch"],
+		["lodestone", func(at: Vector2) -> void: _mark_lodestone(at, &"hex", false), "lodestone"],
 		["toll gate", _mark_toll, "toll gate"],
 		["relic", func(at: Vector2) -> void: _mark_relic(at, &"blink", 0.7), "relic"],
 		["soul", func(at: Vector2) -> void: _mark_soul(at), "soul"],
@@ -377,7 +378,8 @@ func _other_level(info: MapInfo, c: Vector2i) -> void:
 		_text("inking…", AREA.get_center() + Vector2(0, -5), 9.0, false, true)
 		return
 	var rec: LevelRecord = info.run.records.get(c, LevelRecord.new())
-	var bytes: PackedByteArray = rec.seen
+	# A map inked whole before its layout was known (MapInfo.ink_place) is all seen once it is.
+	var bytes: PackedByteArray = rec.seen_for(w.size.x * w.size.y) if rec.mapped else rec.seen
 	var stamp: int = bytes.size() + bytes.count(1) * 7919
 	if _built_coord != c or _built_version != stamp:
 		_build_textures_for(w, bytes, rec.broken)
@@ -531,6 +533,8 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 			_mark_gondola(corners, stops, at, on)
 		LevelGen.Type.TOWER_SWITCH:
 			_mark_tower_switch(at)
+		LevelGen.Type.LODESTONE:
+			_mark_lodestone(at, StringName(cell.extra_info), info.run.lodestones.has(c))
 		LevelGen.Type.TOLL:
 			if not gone:
 				_mark_toll(at)
@@ -586,6 +590,29 @@ func _mark_relic(at: Vector2, move: StringName, k: float = 1.0) -> void:
 	for poly: PackedVector2Array in RisoGlyph.of(move, Vector2.ZERO, t):
 		mark.append(fit * poly)
 	marks.ink(RisoPrint.NIGHT, 1.0, mark, false)
+
+
+## A lodestone (Lodestone): a standing stone of night ink with its spell's mark knocked through it,
+## in accent until touched, then in blue.
+func _mark_lodestone(at: Vector2, spell: StringName, touched: bool, k: float = 1.0) -> void:
+	_note("lodestone")
+	var stone: PackedVector2Array = RisoShapes.rrect(at.x - 3.6 * k, at.y - 5.0 * k, 7.2 * k, 10.0 * k, 2.6 * k)
+	marks.ink(RisoPrint.NIGHT, 1.0, [stone], false)
+	var fit: Transform2D = Transform2D(0.0, Vector2(0.11, 0.11) * k, 0.0, at + Vector2(0, -0.6) * k)
+	var mark: Array[PackedVector2Array] = []
+	for poly: PackedVector2Array in RisoGlyph.of(spell, Vector2.ZERO, t):
+		mark.append(fit * poly)
+	marks.knock([RisoPrint.NIGHT], mark)
+	marks.ink(RisoPrint.BLUE if touched else RisoPrint.ACCENT, 1.0, mark, false)
+
+
+## Whether the map knows of level `c`'s lodestone (Rules.lodestone_at): its map inked whole (its ink
+## well, or the gondola's view from a neighbour, MapInfo.ink_neighbours), or the stone touched.
+func _lodestone_known(info: MapInfo, c: Vector2i) -> bool:
+	if Rules.lodestone_at(c) == &"":
+		return false
+	var rec: LevelRecord = info.run.visited(c)
+	return info.run.lodestones.has(c) or (rec != null and rec.mapped)
 
 
 ## One of the eldritch beast's souls (BeastSoul): a pink knot with an eye of paper.
@@ -995,6 +1022,9 @@ func _world(info: MapInfo) -> void:
 			_mark_spent_shrine(at + Vector2(0, TILE.y * 0.5 - 4.75))
 		if info.run.has_ghost and c == info.run.ghost_coord:
 			_mark_ghost(at + Vector2(TILE.x * 0.5 - 4.0, TILE.y * 0.5 - 4.0), 0.2)
+		# A lodestone the map knows of: on the middle of the tile's right edge, its spell's mark.
+		if _lodestone_known(info, c):
+			_mark_lodestone(at + Vector2(TILE.x * 0.5 - 1.5, 1.0), Rules.lodestone_at(c), info.run.lodestones.has(c), 0.8)
 	# The cursor: a night-ink frame round the picked level (or a side world's ribbon), breathing.
 	var cur: Vector2 = tile_at(info, selected)
 	var cur_size: Vector2 = tile_size(selected)
@@ -1053,6 +1083,7 @@ func _world(info: MapInfo) -> void:
 	] + _side_rows() + [
 		["respawn", _mark_respawn_level],
 		["relic", func(at: Vector2) -> void: _mark_relic(at, &"blink")],
+		["lodestone", func(at: Vector2) -> void: _mark_lodestone(at, &"hex", false)],
 		["shrine used", _mark_spent_shrine],
 		["ghost", func(at: Vector2) -> void: _mark_ghost(at, 0.2)],
 	] + ([["beast's soul", func(at: Vector2) -> void: _mark_soul(at)]] if not info.run.souls.is_empty() else []))

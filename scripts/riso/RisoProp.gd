@@ -73,6 +73,8 @@ const KINDS: Dictionary = {
 	&"studydesk": "res://scripts/riso/props/StudyDeskArt.gd",
 	&"board": "res://scripts/riso/props/BoardArt.gd",
 	&"schoolbell": "res://scripts/riso/props/SchoolBellArt.gd",
+	&"spire": "res://scripts/riso/props/SpireArt.gd",
+	&"lodestone": "res://scripts/riso/props/LodestoneArt.gd",
 }
 
 

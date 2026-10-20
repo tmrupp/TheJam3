@@ -2,8 +2,11 @@ extends Node2D
 class_name HexBolt
 ## A hex bolt in flight. Each physics step it sweeps a ray against solid things (rock, doors,
 ## cracked walls; one-way ledges are passed through) and checks enemies near its path. It wounds
-## what it meets (Wound.hit; it stuns nothing: only a parry stuns) and breaks cracked
-## walls (hex_hit) at any tier, and ends at rock or after RANGE. It tears the spider's webs it
+## what it meets (Wound.hit; it stuns nothing: only a parry stuns), and ends at rock (a cracked wall
+## only chips, hex_hit) or after RANGE. Cast empowered (Empower), it bores on through cracked rock,
+## crumbling up to `bore` cells of it (BORE for a hex), breaks a shield at once and strikes a tower's
+## spire (Spire.empowered_hit); an empowered seeker turns toward a spire it can see rather than an
+## enemy. It tears the spider's webs it
 ## passes through (SpiderWeb) and flies on, and cuts a spider's thread it crosses (Spider), ending
 ## there. Thorns that are out stop it as rock does (Spikes.struck_by, THORN_REACH), bursting on them.
 ## A seeking bolt (Seeker: `seek` above 0) turns toward the nearest enemy it can see within
@@ -22,8 +25,13 @@ const SPAN_UP: float = 56.0
 const SOLID_MASK: int = 4
 ## How near (px) the thorns' body the bolt's way must pass for it to strike them.
 const THORN_REACH: float = 10.0
-## How far (px) a seeking bolt looks for an enemy to turn toward.
+## How far (px) a seeking bolt looks for an enemy to turn toward, and an empowered one for a spire.
 const SEEK: float = 520.0
+const SEEK_SPIRE: float = 900.0
+## How many cells of cracked rock an empowered hex bolt bores through, and how much bigger an
+## empowered bolt prints.
+const BORE: int = 3
+const EMPOWERED_SIZE: float = 1.4
 ## The things that answer a bolt themselves, by their script (or one it extends): each has
 ## `hex_hit(damage, dir)`, called when the bolt strikes it. A new one is added here (unit_test
 ## checks every script with a hex_hit is listed, and takes those two).
@@ -32,6 +40,7 @@ const ANSWERS: Array[Script] = [
 	preload("res://scripts/CrackedWall.gd"),
 	preload("res://scripts/MothSwarm.gd"),
 	preload("res://scripts/SchoolBell.gd"),
+	preload("res://scripts/Spire.gd"),
 	preload("res://scripts/Switch.gd"),
 ]
 
@@ -58,6 +67,11 @@ var seek: float = 0.0
 var size: float = 1.0
 ## A shot turned back by a parry (Parry): it breaks a shield (Shield) at once.
 var reflected: bool = false
+## Cast empowered (Empower), and how many cells of cracked rock it has left to bore through.
+var empowered: bool = false
+var bore: int = 0
+## The cracked walls it has bored through, left out of its rock (they crumble at the frame's end).
+var bored: Array[RID] = []
 var travelled: float = 0.0
 var struck: Array[Node] = []
 ## The spell that cast it (&"hex", or &"seeker" for a seeker's).
@@ -85,9 +99,12 @@ func _physics_process(delta: float) -> void:
 	t += delta
 	var from: Vector2 = global_position
 	if seek > 0.0:
-		var quarry: Node2D = _quarry()
-		if quarry != null:
-			var turn: float = clampf(angle_difference(dir.angle(), (quarry.global_position - from).angle()), -seek * delta, seek * delta)
+		var aim: Vector2 = _spire_aim() if empowered else Vector2.INF
+		if not aim.is_finite():
+			var quarry: Node2D = _quarry()
+			aim = quarry.global_position if quarry != null else Vector2.INF
+		if aim.is_finite():
+			var turn: float = clampf(angle_difference(dir.angle(), (aim - from).angle()), -seek * delta, seek * delta)
 			dir = dir.rotated(turn)
 	var to: Vector2 = from + dir * speed * delta
 	# Enemies along the step, nearest first.
@@ -128,7 +145,7 @@ func _physics_process(delta: float) -> void:
 			(e as Scholar).wizard_blow = true
 		# A shield takes the bolt whole: no wound.
 		var shield: Shield = Shield.of(e)
-		if shield != null and shield.absorb(reflected, dir):
+		if shield != null and shield.absorb(reflected or empowered, dir):
 			_end((e as Node2D).global_position - dir * Shield.RADIUS * 0.8)
 			return
 		# Wounded (double if a parry left it stunned: Wound); it stuns nothing.
@@ -138,8 +155,11 @@ func _physics_process(delta: float) -> void:
 			wound.hit(dealt, dir)
 		elif dealt <= 0:
 			RisoFx.burst(&"hit", (e as Node2D).global_position, dir, [RisoPrint.ACCENT, RisoPrint.BLUE])
-		# Things that are not enemies answer the bolt themselves (a switch throws).
-		if wound == null and answers(e):
+		# Things that are not enemies answer the bolt themselves (a switch throws); a spire flips its
+		# tower only to an empowered bolt.
+		if wound == null and empowered and e is Spire:
+			(e as Spire).empowered_hit(dir)
+		elif wound == null and answers(e):
 			e.call("hex_hit", damage, dir)
 		if not pierce or struck.size() > 1:
 			_end((e as Node2D).global_position)
@@ -150,10 +170,16 @@ func _physics_process(delta: float) -> void:
 		return
 	if not wall.is_empty():
 		var hit: Object = wall.get("collider")
-		if hit != null and answers(hit):
-			hit.call("hex_hit", maxi(damage, 1), dir)
-		_end(wall["position"])
-		return
+		if empowered and bore > 0 and hit is CrackedWall:
+			# Bored through: it crumbles, and the bolt flies on where it stood.
+			(hit as CrackedWall).crumble(dir)
+			bore -= 1
+			bored.append(wall["rid"])
+		else:
+			if hit != null and answers(hit):
+				hit.call("hex_hit", maxi(damage, 1), dir)
+			_end(wall["position"])
+			return
 	global_position = to
 	travelled += to.distance_to(from)
 	trail.append(from)
@@ -179,6 +205,22 @@ func _quarry() -> Node2D:
 	return best
 
 
+## For an empowered seeking bolt: where to aim for the nearest spire (Spire.head) within
+## SEEK_SPIRE px with no rock between, or Vector2.INF when there is none.
+func _spire_aim() -> Vector2:
+	var best: Vector2 = Vector2.INF
+	var best_d: float = SEEK_SPIRE
+	for n: Node in get_tree().get_nodes_in_group(Spire.GROUP):
+		var spire: Spire = n as Spire
+		if spire == null or spire.is_queued_for_deletion() or spire in struck:
+			continue
+		var d: float = global_position.distance_to(spire.head())
+		if d < best_d and SpellStrike.clear(global_position, spire.head()):
+			best = spire.head()
+			best_d = d
+	return best
+
+
 ## Where the step from `from` to `to` first meets thorns that are out (the nearest point on the way to
 ## the nearest run of them it strikes), or Vector2.INF when it meets none.
 func _thorns(from: Vector2, to: Vector2) -> Vector2:
@@ -200,7 +242,7 @@ func _thorns(from: Vector2, to: Vector2) -> Vector2:
 func _solid(from: Vector2, to: Vector2) -> Dictionary:
 	var space: PhysicsDirectSpaceState2D = get_world_2d().direct_space_state
 	var query: PhysicsRayQueryParameters2D = PhysicsRayQueryParameters2D.create(from, to, SOLID_MASK)
-	var skip: Array[RID] = []
+	var skip: Array[RID] = bored.duplicate()
 	for i: int in range(6):
 		query.exclude = skip
 		var res: Dictionary = space.intersect_ray(query)
@@ -238,7 +280,7 @@ func _process(_delta: float) -> void:
 	# The tail prints on top of the decor and night it crosses, lifted to paper under it.
 	ink.lift_ink(RisoPrint.ALL_PLATES, 0.5, tail)
 	ink.ink(RisoPrint.ACCENT, 0.5, tail)
-	var pulse: float = 1.0 + 0.15 * sin(t * 40.0)
+	var pulse: float = (1.0 + 0.15 * sin(t * 40.0)) * (EMPOWERED_SIZE if empowered else 1.0)
 	ink.ink(RisoPrint.ACCENT, 0.3, [RisoShapes.circle(head, 26.0 * pulse * size, 20)])
 	var core: PackedVector2Array = Transform2D(t * 9.0, head) * RisoShapes.sparkle(Vector2.ZERO, 16.0 * pulse * size)
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], [core])

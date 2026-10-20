@@ -11,7 +11,9 @@ class_name Push
 ## hard back the other way, whether it catches anything or not (SpellStrike.recoil, at RECOIL): a
 ## gust down from the air is a big bounce up. Ready again COOLDOWN after.
 ## Tiers (Abilities): I shoves; II also wounds 1; III reaches and shoves further and
-## wider (REACH_III, HALF_III, SHOVE_III); IV wounds 2.
+## wider (REACH_III, HALF_III, SHOVE_III); IV wounds 2. Cast empowered (Empower), it breaks the cracked
+## cell before the wizard (SpellStrike.step), wounds Empower.EXTRA more, breaks a shield at once and
+## strikes spires.
 
 const COOLDOWN: float = 3.0
 const REACH: float = 180.0
@@ -49,9 +51,9 @@ func set_tier(n: int) -> void:
 	shove = SHOVE_III if n >= 3 else SHOVE
 
 
-## The Spell button, with push in the slot.
-func cast_spell() -> bool:
-	return cast()
+## The Spell button, with push in the slot (`empowered`, see Empower).
+func cast_spell(empowered: bool = false) -> bool:
+	return cast(Vector2.ZERO, empowered)
 
 
 func readiness() -> float:
@@ -82,8 +84,8 @@ func in_cone(from: Vector2, dir: Vector2, p: Vector2) -> bool:
 	return d.length() <= reach and absf(dir.angle_to(d)) <= half
 
 
-## Push heading `dir` (the aim when zero). False while it is not ready.
-func cast(dir: Vector2 = Vector2.ZERO) -> bool:
+## Push heading `dir` (the aim when zero), `empowered` or not. False while it is not ready.
+func cast(dir: Vector2 = Vector2.ZERO, empowered: bool = false) -> bool:
 	if wait > 0.0 or player == null:
 		return false
 	if dir == Vector2.ZERO:
@@ -94,11 +96,14 @@ func cast(dir: Vector2 = Vector2.ZERO) -> bool:
 	var catches_spider: Callable = func(s: Spider) -> bool: return s.struck_by(from, from + dir * reach, 0.0)
 	SpellStrike.recoil(player, dir, RECOIL)
 	SpellStrike.thorns_caught(get_tree(), from, catches, dir)
+	var hurt: int = damage + (Empower.EXTRA if empowered else 0)
+	if empowered:
+		SpellStrike.crack(get_tree(), [SpellStrike.step(SpellStrike.cell_of(from), dir)], dir)
 	for e: Node in SpellStrike.caught(get_tree(), from, catches, catches_spider):
 		if not movable(e):
-			SpellStrike.strike(e, dir, damage + SLAM, &"push")
+			SpellStrike.strike(e, dir, hurt + SLAM, &"push", empowered)
 			continue
-		SpellStrike.strike(e, dir, damage, &"push")
+		SpellStrike.strike(e, dir, hurt, &"push", empowered)
 		if is_instance_valid(e) and not e.is_queued_for_deletion():
 			var gust: Shove = Shove.new()
 			gust.velocity = dir * shove / SHOVE_TIME

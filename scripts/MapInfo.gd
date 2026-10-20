@@ -443,6 +443,60 @@ func flip_tower (tower: int, mask: int) -> bool:
 	save_run()
 	return true
 
+## Whether tower `tower` here is cold (CragsArchetype.set_stations) and not yet woken by an empowered
+## strike on its spire (LevelRecord.woken): its switch does nothing.
+func tower_cold (tower: int) -> bool:
+	if world == null or tower < 0 or tower >= world.towers.size():
+		return false
+	return bool(world.towers[tower].get("cold", false)) and not record().woken.has(tower)
+
+## An empowered strike on tower `tower`'s spire (Spire): a cold tower wakes for good; any other
+## flips its switch, under the same lock as by hand (flip_tower). Whether anything came of it.
+func strike_spire (tower: int) -> bool:
+	if world == null or tower < 0 or tower >= world.towers.size():
+		return false
+	if tower_cold(tower):
+		record().woken[tower] = true
+		save_run()
+		return true
+	var at: Vector2i = world.towers[tower].get("switch", Vector2i(-1, -1))
+	if not world.is_valid(at) or world.get_cell(at).type != LevelGen.Type.TOWER_SWITCH:
+		return false
+	return flip_tower(tower, int((world.get_cell(at).extra_info as Dictionary).get("mask", 0)))
+
+## The lodestone here was touched (Lodestone): `spell` is tempered for the rest of the run (Empower)
+## and, the stone new, what is left of empowerment's recharge is cut to the new one. Whether it was new.
+func touch_lodestone (spell: StringName) -> bool:
+	if not run.touch_lodestone(coord, spell):
+		return false
+	var empower: Empower = Empower.of(wizard())
+	if empower != null:
+		empower.shorten()
+	seen_version += 1
+	save_run()
+	return true
+
+## The gondola brought all the way to its top station (Gondola): every level this one's exits lead
+## to (side worlds aside) has its map inked whole, as its own ink well would (ink_place), so a
+## lodestone there shows on the worlds map.
+func ink_neighbours () -> void:
+	for at: Vector2i in here.neighbours():
+		if not Worlds.is_side(at):
+			ink_place(at)
+	seen_version += 1
+	save_run()
+
+## Ink the whole map of the place at `at` (not the one being played): its record is mapped, and every
+## cell seen, now if its layout is known, else when it is (LevelRecord.seen_for).
+func ink_place (at: Vector2i) -> void:
+	var rec: LevelRecord = run.record(at)
+	rec.mapped = true
+	var w: LevelGen = loader.laid_out(at) if loader != null else null
+	if w != null:
+		rec.seen_for(w.size.x * w.size.y).fill(1)
+	else:
+		rec.seen = PackedByteArray()
+
 ## The chain on the bell at `cell` is off (by its key): for good.
 func free_bell (cell: Vector2i) -> void:
 	record().bells_free[cell] = true
