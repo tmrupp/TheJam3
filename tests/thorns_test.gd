@@ -3,7 +3,8 @@ extends TestKit
 ## go on a timer and some on a switch, never at a chasm's foot, the same on every build; a switched
 ## run's switch stands on a floor reached from the way in, away from it, and they share a sigil. In
 ## play a timed run rises and falls together, hurting only while out; a switched run drops while
-## its switch is on and rises again when it is turned off.
+## its switch is on and rises again when it is turned off; a hit from thorns puts the wizard back on
+## the rock they last stood on, a heart the poorer and untouchable for a moment.
 ## godot --headless --path . --script res://tests/thorns_test.gd
 
 
@@ -112,5 +113,20 @@ func run() -> void:
 	await physics_frame
 	await physics_frame
 	check(switch_thorns.out, "and rises when it is turned off")
+
+	print("thorns send the wizard back")
+	player.set_physics_process(true)
+	check(await until(func() -> bool: return player.footing_at == info.coord), "standing on rock, the wizard's footing is kept")
+	var foot: Vector2 = player.footing
+	var hearts: int = player.health.health
+	var bed: Array[Node] = thorns.filter(func(n: Node) -> bool:
+		var s: Spikes = n as Spikes
+		return n != timer_thorns and n != switch_thorns and s.mode == Spikes.Mode.ALWAYS and s.pit < 0)
+	check(not bed.is_empty(), "a run of thorns always out")
+	player.end_invulnerable()
+	player.velocity = Vector2.ZERO
+	player.global_position = (bed[0] as Node2D).to_global(Spikes.BODY)
+	check(await within(func() -> bool: return player.global_position.distance_to(foot) < 8.0, 1.0), "touching thorns puts the wizard back on the rock they last stood on")
+	check(player.is_invulnerable() and player.health.health == hearts - 1, "a heart the poorer, and untouchable for a moment")
 	RunState.delete_save()
 	finish()

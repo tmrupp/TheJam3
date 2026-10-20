@@ -1,6 +1,7 @@
 extends TestKit
 ## The cemetery's crypts and its light (docs/REGIONS_PLAN.md §7): one or two crypts a level, their
-## insides collapsed from their own sample, walled in masonry with a doorway or two, nothing inside
+## insides collapsed from their own sample, walled in masonry with a doorway or two (open, no light
+## gates in them), nothing inside
 ## the wizard could drop into and not get out of, the same on every visit; the level's star cluster
 ## (or a hoard of stars) deep inside, skeletons asleep on its floors and a snuffing font by each doorway (but in a level
 ## dealt none, Rules.fontless_at). In play: a font puts the flame out (still protected), gives its darkness and runs dry,
@@ -283,6 +284,7 @@ func _crypt(w: LevelGen, at: Vector2i, crypt: Dictionary, lair: bool) -> void:
 	var doors: Array[Vector2i] = crypt["doors"]
 	check(box.size.x >= Crypts.INSIDES[1].x + 2 and box.size.y >= Crypts.INSIDES[1].y + 2, "%s: a crypt %s, bigger than a tower" % [at, box.size])
 	check(not doors.is_empty() and doors.all(func(d: Vector2i) -> bool: return (d.x == box.position.x or d.x == box.end.x - 1) and not w.is_ground(d)), "%s: %d doorway(s) through its side walls" % [at, doors.size()])
+	check(doors.all(func(d: Vector2i) -> bool: return w.get_cell(d).type in [LevelGen.Type.EMPTY, LevelGen.Type.OSSUARY_DOOR]), "%s: its doorways open (no light gates), or shut by ossuary doors" % at)
 	var walled: bool = true
 	for x: int in range(box.position.x, box.end.x):
 		for y: int in range(box.position.y, box.end.y):

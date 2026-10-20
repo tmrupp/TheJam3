@@ -28,13 +28,12 @@ extends RefCounted
 ## air, "floors": the cells inside the wizard can stand in and get back out from, nearest a doorway
 ## first, "deep": the furthest of them from a doorway}.
 ##
-## Its doorways may be light gates (LightGate), dealt by the seed for each: a sun gate (SUN_SHARE),
-## up only while light falls on it, or a shade gate (SHADE_SHARE), up only while none does, so the
-## crypt is entered with the flame lit and the sleepers woken, or snuffed and in the dark.
+## Its doorways are open (light gates, LightGate, once stood in them: the sun and shade blocks
+## inside, phase, do their work now), unless the seed shuts a second crypt's behind ossuary doors.
 ##
 ## What it holds: a snuffing font (Snuffer) on a floor outside each doorway and another on the floor
 ## inside nearest it, laid as it is built, so a wizard who has lit their flame inside can always
-## put it out again to pass a shade gate;
+## put it out again;
 ## then, once the level is laid (furnish), the level's star cluster brought in to the first one's
 ## deepest floor (keeping its place among the level's objects, as a crag tower's key is) or, in a
 ## second, a hoard of stars (HOARD), skeletons asleep on its floors (niches first,
@@ -78,11 +77,6 @@ const HOARD: int = 6
 ## furthest from a doorway.
 const STARS_PER: int = 5
 const STARS_APART: int = 3
-## The share of doorways that are sun gates, and of those that are shade gates (the rest are open),
-## dealt by the level seed (GATE_DEAL) for each.
-const SUN_SHARE: float = 0.3
-const SHADE_SHARE: float = 0.35
-const GATE_DEAL: int = 6130
 ## Alternating thorns along a crypt's floors (Spikes, timed): along each stretch of floor at least
 ## THORN_STRETCH cells long, a cell clear at each end (at its start only, in a stretch of two),
 ## blocks of THORN_BLOCK cells take turns, each
@@ -480,7 +474,6 @@ static func _raise(w: LevelGen, inside: Array, site: Dictionary) -> void:
 	var crypt: Dictionary = {"box": box, "inside": cells, "doors": doors, "steps": steps, "floors": floors, "deep": floors.back() if not floors.is_empty() else Vector2i(-1, -1), "stairs": stairs}
 	w.crypts.append(crypt)
 	_fonts(w, crypt)
-	_gates(w, crypt)
 
 
 ## Set one step into `room` toward a foothold out of reach (see the class description): over the
@@ -728,16 +721,6 @@ static func _fonts(w: LevelGen, crypt: Dictionary) -> void:
 			w.kept_whole[(spot as Vector2i) + Vector2i.DOWN] = true
 
 
-## Each of `crypt`'s doorways a sun gate, a shade gate or open, dealt by the seed (see SUN_SHARE).
-static func _gates(w: LevelGen, crypt: Dictionary) -> void:
-	for door: Vector2i in crypt["doors"]:
-		var roll: float = float(posmod(Rules.level_seed(w.seed_for_colors, GATE_DEAL + door.x * 977 + door.y), 1000)) / 1000.0
-		if roll < SUN_SHARE:
-			w.put(door, LevelGen.Type.LIGHT_GATE, true)
-		elif roll < SUN_SHARE + SHADE_SHARE:
-			w.put(door, LevelGen.Type.LIGHT_GATE, false)
-
-
 ## Rock at `v`, inside the level's edge.
 static func _rock_at(w: LevelGen, v: Vector2i) -> void:
 	if w.is_valid(v) and not w.is_ground(v):
@@ -808,7 +791,7 @@ static func _block(w: LevelGen, v: Vector2i, sun: bool) -> void:
 	w.empties.erase(v)
 
 
-## Each doorway of crypt `i` an ossuary door drinking `fill` charges (in place of its light gate).
+## Each doorway of crypt `i` an ossuary door drinking `fill` charges.
 static func _ossuary(w: LevelGen, i: int, fill: int) -> void:
 	var crypt: Dictionary = w.crypts[i]
 	if (crypt["floors"] as Array).is_empty():

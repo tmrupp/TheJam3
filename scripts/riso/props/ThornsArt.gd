@@ -16,16 +16,20 @@ var thorns: Spikes:
 		return host as Spikes
 
 
-## The mist in a chasm's pit (Spikes.pit): how high its top bank rises over the thorns (px, just
-## under the bridge's deck), how many banks it has, how thick the lowest and the highest are (px),
-## how much each lifts the night toward the paper, and the thick haze at the bottom (how high, how
-## much).
-const MIST_RISE: float = 270.0
+## The sleep fog in a chasm's pit (Spikes.pit): how high its top bank rises over the thorns (px, as
+## high as it makes the wizard drowsy), how many banks it has, how thick the lowest and the highest
+## are (px), how much each lifts the night toward the paper, and the thick haze at the bottom (how
+## high, how much). It is printed as a bank of sleep fog is (RisoFog): a faint accent wash over it
+## all (MIST_ACCENT) and a pink band along each bank's top (MIST_PINK, the top MIST_CREST of it).
+const MIST_RISE: float = Spikes.MIST_RISE
 const MIST_BANKS: int = 8
 const MIST_THICK: Vector2 = Vector2(44.0, 18.0)
 const MIST_LIFT: float = 0.14
 const MIST_FLOOR: float = 150.0
 const MIST_FLOOR_LIFT: float = 0.34
+const MIST_ACCENT: float = 0.06
+const MIST_PINK: float = 0.22
+const MIST_CREST: float = 0.4
 
 
 func still() -> bool:
@@ -63,11 +67,12 @@ func _draw_art() -> void:
 			RisoMarks.sigil_plate(ink, Vector2(0, half - 4.0), 1.0, 1.0, sigil, false)
 
 
-## The mist filling a chasm's pit over its thorns: a thick haze at the bottom with a rolling top,
-## and banks of mist over it up to just under the bridge, thinning as they rise, each swelling and
+## The sleep fog filling a chasm's pit over its thorns: a thick haze at the bottom with a rolling
+## top, and banks over it up to just under the bridge, thinning as they rise, each swelling and
 ## rolling at its own pace. Each is a strip across the thorns' cell whose edges follow the level, not
-## the cell, so the pit's columns join into one mist. It lifts the night and blue toward the paper
-## and leaves the thorns' pink alone, so the danger still shows through.
+## the cell, so the pit's columns join into one fog. It lifts the night and blue toward the paper,
+## washed faintly in accent with a pink crest on each bank as sleep fog is, and leaves the thorns'
+## pink alone, so the danger still shows through.
 func _mist() -> void:
 	var gx: float = host.global_position.x
 	var steps: int = 8
@@ -78,6 +83,7 @@ func _mist() -> void:
 	floor_top.append(Vector2(half, half))
 	floor_top.append(Vector2(-half, half))
 	var banks: Array[PackedVector2Array] = []
+	var crests: Array[PackedVector2Array] = []
 	for b: int in range(MIST_BANKS):
 		var k: float = float(b) / float(MIST_BANKS - 1)
 		var cy: float = lerpf(-MIST_FLOOR * 0.7, -MIST_RISE, k)
@@ -92,6 +98,10 @@ func _mist() -> void:
 			var lift: float = 10.0 * sin(wx * 0.017 - t * (0.25 + 0.05 * float(b)) + float(b))
 			top.append(Vector2(x, cy + lift - thick * swell))
 			under.append(Vector2(x, cy + lift + thick * 0.6 * swell))
+		var crest: PackedVector2Array = top.duplicate()
+		for i: int in range(steps, -1, -1):
+			crest.append(top[i].lerp(under[i], MIST_CREST))
+		crests.append(crest)
 		under.reverse()
 		top.append_array(under)
 		banks.append(top)
@@ -99,3 +109,7 @@ func _mist() -> void:
 	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], MIST_LIFT, banks)
 	@warning_ignore("integer_division")
 	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], MIST_LIFT, banks.slice(0, MIST_BANKS / 2))
+	var all: Array[PackedVector2Array] = banks.duplicate()
+	all.append(floor_top)
+	ink.ink(RisoPrint.ACCENT, MIST_ACCENT, all, false)
+	ink.ink(RisoPrint.PINK, MIST_PINK, crests, false)

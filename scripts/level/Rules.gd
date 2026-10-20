@@ -182,7 +182,7 @@ static func def_for (at: Vector2i) -> NextWorldDef:
 
 ## The cemetery's darkness (docs/DEEPER_PLAN.md, "Darkness charges"). Some cemetery levels have no
 ## snuffing fonts at all (FONTLESS_SHARE, dealt by the level's place): their sun and shade blocks
-## and shade gates are worked only on darkness carried in from other levels. The band's first row
+## are worked only on darkness carried in from other levels. The band's first row
 ## and the necromancer's gate level always keep theirs.
 const FONTLESS_SHARE: int = 30
 ## Ossuary doors (OssuaryDoor): in OSSUARY_SHARE % of cemetery levels with two crypts, the second

@@ -5,6 +5,8 @@ class_name SleepFog
 ## nothing, a levitate float or an astral projection ends, and awareness stops sensing; the robe
 ## greys and the spell orb dims. It wears off a moment after leaving the fog.
 
+## How far over the wizard's feet the fog is felt (px): what is in it is their middle.
+const FEEL: float = 40.0
 ## Its size (an ellipse, centred a little over the floor), and how far and how slowly it drifts.
 const SIZE: Vector2 = Vector2(600, 240)
 const RISE: float = 50.0
@@ -39,5 +41,5 @@ func _physics_process(delta: float) -> void:
 	if home == Vector2.ZERO:
 		home = global_position
 	global_position = home + Vector2(sin(t * TAU / PERIOD + phase) * DRIFT, 0)
-	if player != null and is_instance_valid(player) and covers(player.global_position + Vector2(0, -40)):
+	if player != null and is_instance_valid(player) and covers(player.global_position + Vector2(0, -FEEL)):
 		player.make_drowsy()

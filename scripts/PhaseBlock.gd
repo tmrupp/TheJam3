@@ -3,7 +3,7 @@ class_name PhaseBlock
 ## A sun block or a shade block, in the cemetery's crypts (Crypts.phase): a cell of dressed stone
 ## that is solid only to a wizard in the right light. A sun block is solid while the flame of the
 ## lantern they carry burns (MapInfo.flame_lit), a shade block while it is out; the other kind is a
-## ghost of itself they pass straight through. In the cemetery a dash switches the light (MapInfo.
+## ghost of itself they pass straight through. A dash switches the light (MapInfo.
 ## dash_switch), so a run of blocks is climbed or crossed by switching in mid-move, at a charge of
 ## darkness for each time the dark is left. Like a light gate it turns solid only once the wizard is
 ## clear of it, so a switch never traps them. It stops only the wizard (its own physics layer, which
