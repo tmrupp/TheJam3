@@ -2,8 +2,10 @@ extends TestKit
 ## The cemetery's crypts and its light (docs/REGIONS_PLAN.md §7): one or two crypts a level, their
 ## insides collapsed from their own sample, walled in masonry with a doorway or two, nothing inside
 ## the wizard could drop into and not get out of, the same on every visit; the level's star cluster
-## (or a hoard of stars) deep inside, skeletons asleep on its floors and a snuffing font by each doorway. In play: a font puts
-## the flame out (unprotected) and a lantern lights it again; light falls where the flame sees, not
+## (or a hoard of stars) deep inside, skeletons asleep on its floors and a snuffing font by each doorway (but in a level
+## dealt none, Rules.fontless_at). In play: a font puts the flame out (still protected), gives its darkness and runs dry,
+## takes back the darkness carried to keep it and gives it again,
+## a lantern lights it again and a dash switches it by the darkness carried; light falls where the flame sees, not
 ## through rock; wraiths freeze in it; a sleeping skeleton wakes in it, walks at the wizard and
 ## crumbles when stunned.
 ## godot --headless --path . --script res://tests/crypt_test.gd
@@ -35,29 +37,42 @@ func play() -> void:
 	info.loader.wake_around(player.global_position)
 	check(info.flame_lit() and font.can_snuff(), "the flame is lit, and the font can put it out")
 	check(not info.flame_snuffed() and font.dipped == INF, "not snuffed yet, and nothing dipped in the font")
-	font.snuff()
-	check(not info.flame_lit() and not info.run.vulnerable and not font.can_snuff(), "the font puts it out, the wizard still protected, and nothing more to put out")
+	font.use()
+	check(not info.flame_lit() and not info.run.vulnerable and not font.can_snuff(), "the font puts it out, the wizard still protected, and nothing more to take")
 	check(info.flame_snuffed() and font.dipped < 0.5, "snuffed, drawn apart from unprotected, and the font knows it was just dipped")
+	check_eq(info.run.dark_charges, Snuffer.CHARGES, "its darkness taken, charges carried")
+	check(font.dry() and info.record().fonts.get(font.cell) == 0, "the font is dry, and the record keeps it")
+	check(font.can_fill() and not font.can_snuff(), "dry, with darkness carried, it can be filled")
 	await within(func() -> bool: return false, 0.3)
-	font.snuff()
-	check(font.dipped >= 0.25, "a second dip, with nothing to put out, is not drawn as one")
+	font.use()
+	check(font.dipped >= 0.25 and font.filled < 0.5, "using it again pours the darkness back, not a dip")
+	check(info.run.dark_charges == 0 and font.held() == Snuffer.CHARGES and info.record().fonts.get(font.cell) == Snuffer.CHARGES, "all the charges carried are kept in the font, and the record keeps them")
+	check(not info.flame_lit() and font.can_snuff() and not font.can_fill(), "pouring leaves the flame as it was, and the font holds darkness to take again")
+	font.use()
+	check(info.run.dark_charges == Snuffer.CHARGES and font.dry(), "doused again, it gives back what it kept")
+	info.run.dark_charges = 0
+	font.use()
+	check(not font.can_fill() and not font.can_snuff() and font.dry() and info.run.dark_charges == 0, "dry with nothing carried, it does nothing")
+	info.run.dark_charges = Snuffer.CHARGES
 	info.run.vulnerable = true
 	check(not info.flame_snuffed(), "unprotected, the lantern is drawn unprotected, snuffed or not")
 	info.run.vulnerable = false
 	player.global_position = start
 	info.loader.wake_around(start)
 	var lantern: Checkpoint = placed("checkpoint.tscn")[0] as Checkpoint
-	check(info.light_lantern(lantern) and info.flame_lit(), "a lantern lights it again")
-	font.snuff()
+	check(info.light_lantern(lantern) and info.flame_lit() and info.run.dark_charges == Snuffer.CHARGES, "a lantern lights it again, and leaves the charges alone")
+	info.snuff(player.global_position)
 	await within(func() -> bool: return false, 1.0)
-	check(not info.flame_lit(), "it stays out")
-	player.set_physics_process(true)
-	Input.action_press("Dash")
-	await physics_frame
-	await physics_frame
-	Input.action_release("Dash")
-	player.set_physics_process(false)
-	check(info.flame_lit(), "a dash lights it again")
+	check(not info.flame_lit(), "put out, it stays out")
+	await _dash()
+	check(info.flame_lit() and info.run.dark_charges == Snuffer.CHARGES - 1 and info.flare > 0.0, "a dash lights it again, spending a charge, which flares")
+	await _dash()
+	check(not info.flame_lit() and info.run.dark_charges == Snuffer.CHARGES - 1, "a dash while lit puts it out again, with a charge left")
+	info.run.dark_charges = 0
+	await _dash()
+	check(info.flame_lit(), "with none left, a dash lights it and nothing is spent")
+	await _dash()
+	check(info.flame_lit(), "and a dash with none leaves it lit")
 
 	print("light")
 	var run_at: Variant = _run(2)
@@ -177,6 +192,18 @@ func _far_from_lanterns(p: Vector2) -> bool:
 	return true
 
 
+## Dash once (the wizard's physics on only for it).
+func _dash() -> void:
+	player.dash.acted = false
+	player.dash_rest = 0.0
+	player.set_physics_process(true)
+	Input.action_press("Dash")
+	await physics_frame
+	await physics_frame
+	Input.action_release("Dash")
+	player.set_physics_process(false)
+
+
 ## A new `scene` set at cell `v` of the level (an enemy, armed as one placed with it).
 func _spawn(scene: String, v: Vector2i) -> Node2D:
 	var node: Node2D = (load(scene) as PackedScene).instantiate() as Node2D
@@ -214,7 +241,10 @@ func generation() -> void:
 			for b: Vector2i in fonts:
 				if a != b and LevelGen.dist(a, b) < 2 :
 					apart = false
-		check(fonts.size() > doorways + 1 and apart, "%s: %d snuffing fonts, for %d doorway(s), apart" % [at, fonts.size(), doorways])
+		if Rules.fontless_at(at):
+			check(fonts.is_empty(), "%s: a level dealt no fonts has none" % at)
+		else:
+			check(fonts.size() > doorways + 1 and apart, "%s: %d snuffing fonts, for %d doorway(s), apart" % [at, fonts.size(), doorways])
 		# Stars to find inside its crypts, on top of the cluster or hoard.
 		var stars: int = 0
 		var lairs: int = 1 if Rules.def_for(at).gate == &"necromancer" else 0
@@ -265,7 +295,9 @@ func _crypt(w: LevelGen, at: Vector2i, crypt: Dictionary, lair: bool) -> void:
 				fonts += 1
 				break
 	var inner_fonts: int = floors.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.SNUFFER).size()
-	check(inner_fonts >= 1, "%s: %d snuffing font(s) inside, to snuff the flame again to leave by a shade gate" % [at, inner_fonts])
+	var fontless: bool = Rules.fontless_at(at)
+	if not fontless:
+		check(inner_fonts >= 1, "%s: %d snuffing font(s) inside, to snuff the flame again to leave by a shade gate" % [at, inner_fonts])
 	if lair:
 		check(not cluster and sleepers == 0, "%s: the necromancer's crypt holds no cluster and no sleepers" % at)
 	else:
@@ -281,7 +313,8 @@ func _crypt(w: LevelGen, at: Vector2i, crypt: Dictionary, lair: bool) -> void:
 		check(phases.size() <= 2 and brief, "%s: %d thorns in %d turn(s), each out less than half the time" % [at, thorns.size(), phases.size()])
 		if thorns.size() >= THORNY:
 			alternating += 1
-	check(fonts >= 1, "%s: a snuffing font by %d of its %d doorway(s)" % [at, fonts, doors.size()])
+	if not fontless:
+		check(fonts >= 1, "%s: a snuffing font by %d of its %d doorway(s)" % [at, fonts, doors.size()])
 	print(_drawn(w, box))
 
 

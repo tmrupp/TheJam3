@@ -136,3 +136,47 @@ static func place_numbers (at: Vector2i) -> Vector3i:
 ## The definition of the place at `at`: a level, or a side world (see Worlds).
 static func def_for (at: Vector2i) -> NextWorldDef:
 	return Worlds.def_for(at)
+
+## The cemetery's darkness (docs/DEEPER_PLAN.md, "Darkness charges"). Some cemetery levels have no
+## snuffing fonts at all (FONTLESS_SHARE, dealt by the level's place): their sun and shade blocks
+## and shade gates are worked only on darkness carried in from other levels. The band's first row
+## and the necromancer's gate level always keep theirs.
+const FONTLESS_SHARE: int = 30
+## Ossuary doors (OssuaryDoor): in OSSUARY_SHARE % of cemetery levels with two crypts, the second
+## crypt's doorways are doors of stacked skulls that drink darkness, opening for good once they have
+## had their fill: OSSUARY_FILL.x charges in the band's first row, rising to OSSUARY_FILL.y in the
+## last row that has them (the one before the gate level).
+const OSSUARY_SHARE: int = 40
+const OSSUARY_FILL: Vector2i = Vector2i(6, 12)
+
+## What a dash does to the wizard's light, in any world (MapInfo.dash_switch): from `dark`, holding `charges`, the light after it (1 dark, 0 lit) and the charges left, as
+## (dark, charges). A dash out of the dark lights the flame and spends a charge (none when there are
+## none to spend); a dash while lit puts it out again if a charge is left, and otherwise leaves it
+## lit, as a dash always did.
+static func dash_dark (dark: bool, charges: int) -> Vector2i:
+	if dark:
+		return Vector2i(0, maxi(charges - 1, 0))
+	if charges > 0:
+		return Vector2i(1, charges)
+	return Vector2i(0, 0)
+
+## Whether the cemetery level at `at` has no snuffing fonts (see FONTLESS_SHARE).
+static func fontless_at (at: Vector2i) -> bool:
+	if Worlds.is_side(at) or NextWorldDef.archetype_at(at.y) != &"cemetery":
+		return false
+	if at.y == NextWorldDef.first_depth(&"cemetery") or Bosses.gate_at(at.y) != &"":
+		return false
+	return level_seed(level_seed(at.x, at.y), 6300) % 100 < FONTLESS_SHARE
+
+## Whether the cemetery level at `at` shuts its second crypt behind ossuary doors, if it has two
+## (see OSSUARY_SHARE); never in the necromancer's gate level.
+static func ossuary_at (at: Vector2i) -> bool:
+	if Worlds.is_side(at) or NextWorldDef.archetype_at(at.y) != &"cemetery" or Bosses.gate_at(at.y) != &"":
+		return false
+	return level_seed(level_seed(at.x, at.y), 6310) % 100 < OSSUARY_SHARE
+
+## The charges an ossuary door in the level on `row` drinks before it opens (see OSSUARY_FILL).
+static func ossuary_fill (row: int) -> int:
+	var last: int = NextWorldDef.BAND - 2
+	var k: int = clampi(absi(row) - NextWorldDef.first_depth(&"cemetery"), 0, last)
+	return roundi(lerpf(float(OSSUARY_FILL.x), float(OSSUARY_FILL.y), float(k) / float(last)))

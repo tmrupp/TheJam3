@@ -348,6 +348,10 @@ func _level_rows() -> Array:
 		["star cluster", _mark_cluster, "star cluster"],
 		["ink well", func(at: Vector2) -> void: _mark_inkwell(at, false), "ink well"],
 		["snuffing font", func(at: Vector2) -> void: _mark_snuffer(at), "snuffing font"],
+		["dry font", func(at: Vector2) -> void: _mark_snuffer(at, true), "dry font"],
+		["sun block", func(at: Vector2) -> void: _mark_phase_block(at, true), "sun block"],
+		["shade block", func(at: Vector2) -> void: _mark_phase_block(at, false), "shade block"],
+		["ossuary door", _mark_ossuary, "ossuary door"],
 		["ghost", func(at: Vector2) -> void: _mark_ghost(at, 0.22), "ghost"],
 	]
 
@@ -466,9 +470,15 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 		LevelGen.Type.INKWELL:
 			_mark_inkwell(at, bool(rec.mapped))
 		LevelGen.Type.SNUFFER:
-			_mark_snuffer(at)
+			_mark_snuffer(at, int((rec.fonts as Dictionary).get(v, Snuffer.CHARGES)) <= 0)
 		LevelGen.Type.LIGHT_GATE:
 			_mark_light_gate(at, bool(cell.extra_info))
+		LevelGen.Type.PHASE_BLOCK:
+			_mark_phase_block(at, bool(cell.extra_info))
+		LevelGen.Type.OSSUARY_DOOR:
+			var how: Array = cell.extra_info
+			if int((rec.poured as Dictionary).get(int(how[0]), 0)) < int(how[1]):
+				_mark_ossuary(at)
 		LevelGen.Type.DEPARTMENT:
 			_mark_department(at, signi(int((cell.extra_info as Array)[1]) - c.y))
 		LevelGen.Type.CHECKPOINT:
@@ -652,11 +662,30 @@ func _mark_shrine(at: Vector2, used: bool) -> void:
 	marks.ink(RisoPrint.ACCENT, 0.35 if used else 1.0, [RisoShapes.arch(at.x - 2.5, at.y - 3.5, 5, 6, 6)], false)
 
 
-## A snuffing font (Snuffer): a blue bowl with a night drop over it.
-func _mark_snuffer(at: Vector2) -> void:
-	_note("snuffing font")
-	marks.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(at.x - 2.6, at.y - 0.6, 5.2, 2.6, 1.2)], false)
-	marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.circle(at + Vector2(0, -2.4), 1.1, 8)], false)
+## A snuffing font (Snuffer): a blue bowl with a night drop over it; once `dry`, the bowl faint and
+## no drop.
+func _mark_snuffer(at: Vector2, dry: bool = false) -> void:
+	_note("dry font" if dry else "snuffing font")
+	marks.ink(RisoPrint.BLUE, 0.4 if dry else 1.0, [RisoShapes.rrect(at.x - 2.6, at.y - 0.6, 5.2, 2.6, 1.2)], false)
+	if not dry:
+		marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.circle(at + Vector2(0, -2.4), 1.1, 8)], false)
+
+
+## A sun block or a shade block (PhaseBlock): a small square of blue stone with an accent dot (sun)
+## or of night ink (shade), as the light gates are marked.
+func _mark_phase_block(at: Vector2, sun: bool) -> void:
+	_note("sun block" if sun else "shade block")
+	var square: PackedVector2Array = RisoShapes.rrect(at.x - 2.2, at.y - 2.2, 4.4, 4.4, 0.8)
+	marks.ink(RisoPrint.BLUE if sun else RisoPrint.NIGHT, 0.8, [square], false)
+	if sun:
+		marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(at, 1.1, 8)], false)
+
+
+## An ossuary door (OssuaryDoor) still shut: a night slab with a bone dot.
+func _mark_ossuary(at: Vector2) -> void:
+	_note("ossuary door")
+	marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.rrect(at.x - 1.4, at.y - 2.8, 2.8, 5.6, 0.8)], false)
+	marks.knock(RisoPrint.ALL_PLATES, [RisoShapes.circle(at + Vector2(0, -0.6), 0.9, 8)])
 
 
 ## A lantern: an eye-yellow dot, haloed on your respawn; a night dot once spent.

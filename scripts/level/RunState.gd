@@ -32,6 +32,11 @@ var ghost_coord: Vector2i = Vector2i.ZERO
 var ghost_pos: Vector2 = Vector2.ZERO
 var ghost_stars: int = 0
 var ghost_lantern: Array = []
+## The darkness the wizard carries (MapInfo.douse_font, dash_switch): charges gathered at the
+## cemetery's snuffing fonts, each spent as a dash takes them out of the dark. A death drops them
+## into the ghost with the stars (`ghost_charges`), and taking the ghost back returns them.
+var dark_charges: int = 0
+var ghost_charges: int = 0
 ## The run's cross-world rift link (Rift tier III): up to two ends, each [coord, position].
 var rift_link: Array = []
 ## The levels whose relic has been taken, and the levels an ink well has pointed to (coord -> the
@@ -80,6 +85,7 @@ func start(seed_value: int) -> void:
 	souls_sent = 0
 	fed = 0
 	papers_out.clear()
+	dark_charges = 0
 	vulnerable = false
 	clear_ghost()
 
@@ -117,19 +123,23 @@ func revive_slain() -> void:
 
 
 ## The wizard died at `pos` in `at` carrying `stars`: they drop into the ghost there, which keeps
-## `lantern` ([the place, its cell]), the lantern the death burned out.
+## `lantern` ([the place, its cell]), the lantern the death burned out, and the darkness they carried
+## (dark_charges, emptied).
 func leave_ghost(at: Vector2i, pos: Vector2, stars: int, lantern: Array = []) -> void:
 	has_ghost = true
 	ghost_coord = at
 	ghost_pos = pos
 	ghost_stars = stars
 	ghost_lantern = lantern
+	ghost_charges = dark_charges
+	dark_charges = 0
 
 
 func clear_ghost() -> void:
 	has_ghost = false
 	ghost_stars = 0
 	ghost_lantern = []
+	ghost_charges = 0
 
 
 ## A relic was taken in level `at`.
@@ -165,6 +175,7 @@ func to_save(coord: Vector2i, player: Dictionary) -> Dictionary:
 		"respawn_coord": respawn_coord, "respawn_cell": respawn_cell,
 		"vulnerable": vulnerable,
 		"has_ghost": has_ghost, "ghost_coord": ghost_coord, "ghost_pos": ghost_pos, "ghost_stars": ghost_stars, "ghost_lantern": ghost_lantern,
+		"dark_charges": dark_charges, "ghost_charges": ghost_charges,
 		"debug": MapInfo.debug, "rift_link": rift_link,
 		"relics_found": relics_found, "relic_hints": relic_hints,
 		"bosses": bosses, "boss_relics": boss_relics,
@@ -211,6 +222,8 @@ func from_save(data: Dictionary) -> void:
 	ghost_pos = data["ghost_pos"]
 	ghost_stars = int(data["ghost_stars"])
 	ghost_lantern = data.get("ghost_lantern", [])
+	dark_charges = int(data.get("dark_charges", 0))
+	ghost_charges = int(data.get("ghost_charges", 0))
 
 
 static func write_save(data: Dictionary) -> void:

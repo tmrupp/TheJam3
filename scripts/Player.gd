@@ -641,9 +641,10 @@ func _physics_process(delta: float) -> void:
 			dash.enable(true)
 			dash_rest = DASH_GROUND_COOLDOWN
 			dash_ability.bind(direction).call()
-			# A dash lights a snuffed flame again (MapInfo.snuff).
+			# A dash lights a snuffed flame again, and in the cemetery switches the light by the
+			# darkness carried (MapInfo.dash_switch).
 			if MapInfo.instance != null:
-				MapInfo.instance.relight()
+				MapInfo.instance.dash_switch()
 	
 	# A web holds the wizard: slow across, a jump stalls in it and a fall through it sinks slowly. A
 	# dash goes through, tearing it (DashStrike).

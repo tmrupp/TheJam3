@@ -1,10 +1,12 @@
 extends RisoProp
 ## A snuffing font (Snuffer): a stone basin in blue on a short pedestal, its lip bare paper round
-## black water. While the wizard's flame is lit, so there is a flame to put out, the water glows
-## pale from within, slowly pulsing, and shines a cold light (RisoLight; light only to the eye:
-## Lamplight does not count it), a glint spreads across it and pale motes and twinkling sparks rise
-## off it, drifting and fading; while there is none, it lies black and still. Just after a flame is
-## put out here, rings spread across the water and a curl of smoke rises from it.
+## black water. While its darkness is still to be taken, the water glows pale from within, slowly
+## pulsing, and shines a cold light (RisoLight; light only to the eye: Lamplight does not count it),
+## a glint spreads across it and pale motes and twinkling sparks rise off it, drifting and fading.
+## Just after a flame is put out here, rings spread across the water and a curl of smoke rises from
+## it as the water drains away. Dry, the basin is empty, its stone dark inside, with a ring of stain
+## where the water stood, and no glow or motes. Just after darkness is poured back in, the water
+## wells up black from the bottom of the basin, rings spreading across it, and it glows again.
 
 
 ## The Snuffer it dresses.
@@ -42,6 +44,11 @@ const GLOW_PULSE: float = 2.0
 ## After a flame is put out here: how long the rings spread (s), and how long the smoke rises.
 const RING_TIME: float = 1.6
 const SMOKE_TIME: float = 2.6
+## A dry basin: how much night ink darkens the stone where the water was, how much the stain ring
+## prints, and how far under the lip it lies (in the sizes it is drawn at).
+const DRY_DARK: float = 0.45
+const STAIN: float = 0.6
+const STAIN_DROP: float = 1.6
 
 
 func shines() -> bool:
@@ -59,6 +66,7 @@ func _draw_art() -> void:
 	var g: float = _ground()
 	var waiting: bool = font != null and font.can_snuff()
 	var dipped: float = font.dipped if font != null else INF
+	var filled: float = font.filled if font != null else INF
 	var xf: Transform2D = Transform2D(0.0, Vector2.ONE * SCALE, 0.0, Vector2(0, g))
 	# The pedestal, its foot and the bowl, in blue stone, lit down the stem's left with bare paper.
 	var foot: PackedVector2Array = xf * RisoShapes.rrect(-22.0, -10.0, 44.0, 10.0, 3.0)
@@ -70,14 +78,33 @@ func _draw_art() -> void:
 	var lip: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(0, WATER_Y), LIP.x, LIP.y, 28)
 	var water: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(0, WATER_Y), WATER.x, WATER.y, 28)
 	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 0.9, [lip])
-	ink.knock([RisoPrint.BLUE], [water])
-	ink.ink(RisoPrint.NIGHT, 1.0, [water], false)
+	if font != null and font.dry():
+		# The stone inside the empty basin, and the stain round it where the water stood; just
+		# after it was drained, the last of the water going.
+		ink.ink(RisoPrint.NIGHT, DRY_DARK, [water])
+		var stain: Array[PackedVector2Array] = []
+		for arc: Vector2 in [Vector2(0.08, 0.92), Vector2(1.08, 1.92)]:
+			stain.append(xf * _arc_band(Vector2(0, WATER_Y + STAIN_DROP), WATER - Vector2(2.5, 0.8), 1.4, arc * PI))
+		ink.ink(RisoPrint.NIGHT, STAIN, stain, false)
+		if dipped < RING_TIME:
+			ink.knock([RisoPrint.BLUE], [water])
+			ink.ink(RisoPrint.NIGHT, 1.0 - dipped / RING_TIME, [water], false)
+	elif filled < RING_TIME:
+		# Poured back in: the water welling up from the middle of the basin to its brim.
+		var k: float = filled / RING_TIME
+		var rising: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(0, WATER_Y), WATER.x * lerpf(0.3, 1.0, k), WATER.y * lerpf(0.3, 1.0, k), 28)
+		ink.ink(RisoPrint.NIGHT, DRY_DARK, [water])
+		ink.knock([RisoPrint.BLUE], [rising])
+		ink.ink(RisoPrint.NIGHT, 1.0, [rising], false)
+	else:
+		ink.knock([RisoPrint.BLUE], [water])
+		ink.ink(RisoPrint.NIGHT, 1.0, [water], false)
 	if waiting:
 		# The water's glow, from within.
 		var pulse: float = 0.5 + 0.5 * sin(t * GLOW_PULSE + phase)
 		ink.lift_ink([RisoPrint.NIGHT], lerpf(GLOW.x, GLOW.y, pulse), [xf * RisoShapes.ellipse(Vector2(0, WATER_Y + 0.4), WATER.x * 0.85, WATER.y * 0.7, 24)])
-	if dipped < RING_TIME:
-		_rings(xf, dipped / RING_TIME)
+	if minf(dipped, filled) < RING_TIME:
+		_rings(xf, minf(dipped, filled) / RING_TIME)
 	elif waiting:
 		# A glint spreading across the water.
 		var k: float = fmod(t * 0.6 + phase, 1.0)

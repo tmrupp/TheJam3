@@ -74,6 +74,9 @@ enum Type {
 	TIMETABLE_BOARD,
 	## The institute's rolling bookcase ladders, laid where other bands lay lifts (RollingLadder).
 	ROLLING_LADDER,
+	## The cemetery's sun and shade blocks (PhaseBlock), and its crypts' ossuary doors (OssuaryDoor).
+	PHASE_BLOCK,
+	OSSUARY_DOOR,
 }
 
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).

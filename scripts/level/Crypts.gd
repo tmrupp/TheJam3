@@ -445,8 +445,9 @@ static func _raise(w: LevelGen, inside: Array, site: Dictionary) -> void:
 				_rock_at(w, v)
 				w.masonry[v] = true
 	var floors: Array[Vector2i] = _fill_pits(w, room, doors)
+	var stairs: Array[Vector2i] = []
 	for k: int in range(STEPS):
-		if not _step(w, room, floors):
+		if not _step(w, room, floors, stairs):
 			break
 		floors = _fill_pits(w, room, doors)
 	# Filling the pits may have cut some air off from the doorways: filled too.
@@ -476,7 +477,7 @@ static func _raise(w: LevelGen, inside: Array, site: Dictionary) -> void:
 	for v: Vector2i in steps:
 		w.kept_whole[v] = true
 		w.kept_whole[v + Vector2i.DOWN] = true
-	var crypt: Dictionary = {"box": box, "inside": cells, "doors": doors, "steps": steps, "floors": floors, "deep": floors.back() if not floors.is_empty() else Vector2i(-1, -1)}
+	var crypt: Dictionary = {"box": box, "inside": cells, "doors": doors, "steps": steps, "floors": floors, "deep": floors.back() if not floors.is_empty() else Vector2i(-1, -1), "stairs": stairs}
 	w.crypts.append(crypt)
 	_fonts(w, crypt)
 	_gates(w, crypt)
@@ -485,8 +486,9 @@ static func _raise(w: LevelGen, inside: Array, site: Dictionary) -> void:
 ## Set one step into `room` toward a foothold out of reach (see the class description): over the
 ## reached floor (of `floors`) with an unreached foothold nearest above it (between one and
 ## Reach.ACROSS cells across, more than Reach.UP rows up), a cell of rock a hop up, a cell toward
-## it, with air to stand on it and over that; the nearest such pair first. Whether one was set.
-static func _step(w: LevelGen, room: Rect2i, floors: Array[Vector2i]) -> bool:
+## it, with air to stand on it and over that; the nearest such pair first. Whether one was set (it
+## is added to `stairs`).
+static func _step(w: LevelGen, room: Rect2i, floors: Array[Vector2i], stairs: Array[Vector2i]) -> bool:
 	var reached: Dictionary = {}
 	for v: Vector2i in floors:
 		reached[v] = true
@@ -516,6 +518,7 @@ static func _step(w: LevelGen, room: Rect2i, floors: Array[Vector2i]) -> bool:
 		return false
 	_rock_at(w, step)
 	w.masonry[step] = true
+	stairs.append(step)
 	return true
 
 
@@ -745,3 +748,182 @@ static func _rock_at(w: LevelGen, v: Vector2i) -> void:
 static func _open_at(w: LevelGen, v: Vector2i) -> void:
 	if w.is_valid(v) and w.get_cell(v).type != LevelGen.Type.EMPTY:
 		w._to_open(v)
+
+
+# ------------------------------------------------------------------ sun and shade blocks
+
+## Sun and shade blocks (PhaseBlock) in the crypts, and ossuary doors (OssuaryDoor), laid last of
+## all in a cemetery level (CemeteryArchetype.finish), hashed from the level seed and the cells,
+## with no draw from the world RNG and nothing changed outside the crypts. In each furnished crypt:
+## - phase stairs: where the crypt was given steps to climb its tall rooms (_step), at least
+##   STAIRS_MIN of them, each becomes a block, the kinds taking turns up the climb, so it is climbed
+##   by switching the light from hop to hop (a step with something on it stays rock);
+## - shade floors: over a run of its alternating thorns, by a share of SHADE_FLOOR_SHARE, a floor of
+##   shade blocks a cell up, walked in the dark over the thorns, or passed under lit, timing them;
+## - phase walls: up to PHASE_WALLS of its passages a cell or two high (rock over and under, open to
+##   either side) shut by a block, passed in the other light;
+## - shut pockets: by a share of POCKET_SHARE, one of its stars walled in sun blocks wherever it is
+##   open round it, reached only in the dark.
+## And where the seed deals one (Rules.ossuary_at), the doorways of a level's second crypt are
+## ossuary doors, which drink Rules.ossuary_fill charges before they open.
+const STAIRS_MIN: int = 2
+const SHADE_FLOOR_SHARE: float = 0.5
+const PHASE_WALLS: int = 1
+const POCKET_SHARE: float = 0.5
+## Salts for the level seed: which kind each crypt's stairs start with, which runs of thorns get a
+## shade floor, which passages are walled and with what, and which star is shut in.
+const STAIRS_DEAL: int = 6400
+const FLOOR_DEAL: int = 6410
+const WALL_DEAL: int = 6420
+const POCKET_DEAL: int = 6430
+
+
+## A number from 0 up to 1 for cell `v` of `w`, hashed from its seed and `salt`.
+static func _roll(w: LevelGen, salt: int, v: Vector2i) -> float:
+	return float(posmod(Rules.level_seed(w.seed_for_colors, salt + v.x * 977 + v.y * 31), 1000)) / 1000.0
+
+
+## Lay the blocks and doors (see STAIRS_MIN). `def` is the level's.
+static func phase(w: LevelGen, def: NextWorldDef) -> void:
+	if Rules.ossuary_at(def.coord) and w.crypts.size() >= 2:
+		_ossuary(w, 1, Rules.ossuary_fill(def.coord.y))
+	for i: int in range(w.crypts.size()):
+		var crypt: Dictionary = w.crypts[i]
+		if (crypt["floors"] as Array).is_empty() or (i == 0 and def.gate == &"necromancer" and not Worlds.is_side(def.coord)):
+			continue
+		_phase_stairs(w, crypt)
+		_shade_floors(w, crypt)
+		_phase_walls(w, crypt)
+		_pocket(w, crypt)
+
+
+## Whether cell `v` is free for a block: open, holding nothing.
+static func _free(w: LevelGen, v: Vector2i) -> bool:
+	return w.is_valid(v) and not w.is_ground(v) and w.get_cell(v).type == LevelGen.Type.EMPTY
+
+
+## A sun block (`sun`) or a shade block at `v`, an open cell inside a crypt.
+static func _block(w: LevelGen, v: Vector2i, sun: bool) -> void:
+	w.put(v, LevelGen.Type.PHASE_BLOCK, sun)
+	w.empties.erase(v)
+
+
+## Each doorway of crypt `i` an ossuary door drinking `fill` charges (in place of its light gate).
+static func _ossuary(w: LevelGen, i: int, fill: int) -> void:
+	var crypt: Dictionary = w.crypts[i]
+	if (crypt["floors"] as Array).is_empty():
+		return
+	for door: Vector2i in crypt["doors"]:
+		if w.get_cell(door).type == LevelGen.Type.EMPTY:
+			w.put(door, LevelGen.Type.OSSUARY_DOOR, [i, fill])
+			w.empties.erase(door)
+		else:
+			w.set_kind(door, LevelGen.Type.OSSUARY_DOOR, [i, fill])
+
+
+## The crypt's steps turned to blocks of each kind in turn, from the lowest (see STAIRS_MIN).
+static func _phase_stairs(w: LevelGen, crypt: Dictionary) -> void:
+	var stairs: Array[Vector2i] = []
+	for s: Vector2i in crypt["stairs"]:
+		var top: Vector2i = s + Vector2i.UP
+		if w.is_ground(s) and w.is_valid(top) and not w.is_ground(top) and w.get_cell(top).type in [LevelGen.Type.EMPTY, LevelGen.Type.COIN]:
+			stairs.append(s)
+	if stairs.size() < STAIRS_MIN:
+		return
+	stairs.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y > b.y or (a.y == b.y and a.x < b.x))
+	var box: Rect2i = crypt["box"]
+	var sun: bool = _roll(w, STAIRS_DEAL, box.position) < 0.5
+	for s: Vector2i in stairs:
+		w._to_open(s)
+		w.interiors[s] = true
+		(crypt["inside"] as Array[Vector2i]).append(s)
+		_block(w, s, sun)
+		sun = not sun
+
+
+## Shade floors over the crypt's runs of thorns (see SHADE_FLOOR_SHARE).
+static func _shade_floors(w: LevelGen, crypt: Dictionary) -> void:
+	var thorns: Dictionary = {}
+	for v: Vector2i in crypt["floors"]:
+		if w.get_cell(v).type == LevelGen.Type.SPIKES:
+			thorns[v] = true
+	var starts: Array[Vector2i] = []
+	for v: Vector2i in thorns:
+		if not thorns.has(v + Vector2i.LEFT):
+			starts.append(v)
+	starts.sort()
+	for start: Vector2i in starts:
+		var run: Array[Vector2i] = []
+		var at: Vector2i = start
+		while thorns.has(at):
+			run.append(at)
+			at += Vector2i.RIGHT
+		if _roll(w, FLOOR_DEAL, start) >= SHADE_FLOOR_SHARE:
+			continue
+		if not run.all(func(t: Vector2i) -> bool: return _free(w, t + Vector2i.UP) and w.is_valid(t + Vector2i.UP * 2) and not w.is_ground(t + Vector2i.UP * 2)):
+			continue
+		for t: Vector2i in run:
+			_block(w, t + Vector2i.UP, false)
+
+
+## Phase walls across the crypt's low passages (see PHASE_WALLS): the cells of each, a run of one or
+## two open cells with rock over and under, open to either side at its foot, away from a doorway;
+## the lowest passages first, then by the seed.
+static func _phase_walls(w: LevelGen, crypt: Dictionary) -> void:
+	var doors: Array[Vector2i] = crypt["doors"]
+	var walls: Array = []
+	for v: Vector2i in crypt["floors"]:
+		if not _free(w, v) or v == crypt["deep"] or doors.any(func(d: Vector2i) -> bool: return LevelGen.dist(d, v) <= 2):
+			continue
+		if w.is_ground(v + Vector2i.LEFT) or w.is_ground(v + Vector2i.RIGHT):
+			continue
+		var cells: Array[Vector2i] = [v]
+		if not w.is_ground(v + Vector2i.UP):
+			if not _free(w, v + Vector2i.UP) or not w.is_ground(v + Vector2i.UP * 2):
+				continue
+			cells.append(v + Vector2i.UP)
+		walls.append([cells, (cells.size() << 16) + int(_roll(w, WALL_DEAL, v) * 1000.0)])
+	walls.sort_custom(func(a: Array, b: Array) -> bool: return int(a[1]) < int(b[1]))
+	var laid: Array[Vector2i] = []
+	for wall: Array in walls:
+		if laid.size() >= PHASE_WALLS:
+			break
+		var cells: Array[Vector2i] = wall[0]
+		if not cells.all(func(c: Vector2i) -> bool: return _free(w, c)):
+			continue
+		var sun: bool = _roll(w, WALL_DEAL + 1, cells[0]) < 0.5
+		for c: Vector2i in cells:
+			_block(w, c, sun)
+		laid.append(cells[0])
+
+
+## A star of the crypt shut in sun blocks (see POCKET_SHARE): one standing on a floor, walled
+## wherever it is open beside and over it, with at least two sides to wall; by the seed.
+static func _pocket(w: LevelGen, crypt: Dictionary) -> void:
+	var box: Rect2i = crypt["box"]
+	if _roll(w, POCKET_DEAL, box.position) >= POCKET_SHARE:
+		return
+	var best: Variant = null
+	var best_key: float = INF
+	for v: Vector2i in crypt["floors"]:
+		if v == crypt["deep"] or w.get_cell(v).type != LevelGen.Type.COIN:
+			continue
+		var around: Array[Vector2i] = []
+		var fits: bool = true
+		for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i(-1, -1), Vector2i(1, -1)]:
+			var c: Vector2i = v + d
+			if not w.is_valid(c) or w.is_ground(c):
+				continue
+			if w.get_cell(c).type != LevelGen.Type.EMPTY:
+				fits = false
+			around.append(c)
+		if not fits or around.size() < 2:
+			continue
+		var key: float = _roll(w, POCKET_DEAL + 1, v)
+		if key < best_key:
+			best_key = key
+			best = around
+	if best == null:
+		return
+	for c: Vector2i in (best as Array[Vector2i]):
+		_block(w, c, true)

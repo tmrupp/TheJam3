@@ -80,6 +80,8 @@ const TABLE: Dictionary = {
 	LevelGen.Type.LECTERN: {"scene": "res://prefabs/lectern.tscn", "art": &"lectern", "flags": [&"stander"], "setup": 3},
 	LevelGen.Type.STUDY_DESK: {"scene": "res://prefabs/study_desk.tscn", "art": &"studydesk", "flags": [&"stander"], "setup": 3},
 	LevelGen.Type.TIMETABLE_BOARD: {"scene": "res://prefabs/timetable_board.tscn", "art": &"board", "setup": 3},
+	LevelGen.Type.PHASE_BLOCK: {"scene": "res://prefabs/phase_block.tscn", "art": &"phaseblock", "setup": 3},
+	LevelGen.Type.OSSUARY_DOOR: {"scene": "res://prefabs/ossuary_door.tscn", "art": &"ossuary", "setup": 3},
 }
 
 ## Prefabs loaded so far, by Type (each is loaded the first time one is placed).

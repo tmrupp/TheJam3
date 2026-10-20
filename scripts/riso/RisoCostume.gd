@@ -203,6 +203,13 @@ const UNLIT_PULSE: float = 2.2
 ## snuffed flame opens) and a charred wick under it. Not pink, which is kept for danger.
 const SNUFFED_GLASS: float = 0.85
 const SNUFFED_MOON: float = 1.9
+## The darkness the wizard carries (RunState.dark_charges): a bead of blue under night ink hung
+## under the lantern's base for each charge, up to CHARGE_BEADS, in a tassel of rows of
+## CHARGE_ROW: each this big and this far apart, the first row this far under the base (art units).
+const CHARGE_BEADS: int = 5
+const CHARGE_ROW: int = 3
+const CHARGE_BEAD: Vector3 = Vector3(0.8, 1.7, 4.7)
+const CHARGE_NIGHT: float = 0.55
 ## Standing still, the Fool breathes (rate, depth in art units), the lantern and bag sway a
 ## little, and every few seconds the feather flicks (interval, length in seconds, size).
 const BREATH: Vector2 = Vector2(1.9, 0.35)
@@ -635,6 +642,16 @@ static func _build_rest(key: StringName) -> Array[PackedVector2Array]:
 			return [RisoShapes.rrect(-0.3, 1.0, 0.6, 1.2, 0.2)]
 		"lantern_ends":
 			return [RisoShapes.rrect(-2.1, -4.0, 4.2, 1.6, 0.7), RisoShapes.rrect(-2.9, 2.2, 5.8, 1.4, 0.6)]
+		"charges":
+			var n: int = int(words[1])
+			var out: Array[PackedVector2Array] = []
+			for i: int in range(n):
+				@warning_ignore("integer_division")
+				var row: int = i / CHARGE_ROW
+				var in_row: int = mini(n - row * CHARGE_ROW, CHARGE_ROW)
+				var x: float = (float(i % CHARGE_ROW) - float(in_row - 1) * 0.5) * CHARGE_BEAD.y
+				out.append(RisoShapes.circle(Vector2(x, CHARGE_BEAD.z + float(row) * CHARGE_BEAD.y * 0.9), CHARGE_BEAD.x, 12))
+			return out
 		"pupil":
 			return [RisoShapes.ellipse(Vector2.ZERO, 4.9 * 0.13, 4.9 * 0.3, 14)]
 	return []
@@ -1058,7 +1075,7 @@ func _lantern(at: Vector2, carried: bool) -> void:
 
 ## A hand lantern on a short bail (drawn in its own space, the flame at the origin): cap, dark
 ## glass and base, with one plain teardrop of flame; once `snuffed`, dark glass holding a pale
-## crescent.
+## crescent; under its base, a bead for each charge of darkness carried (CHARGE_BEADS).
 func _carried_lantern(lit: bool, snuffed: bool) -> void:
 	_solids(_rest(&"bail"))
 	if lit:
@@ -1076,6 +1093,11 @@ func _carried_lantern(lit: bool, snuffed: bool) -> void:
 		_solids(_rest(&"glass"), RisoPrint.PINK, UNLIT_GLASS * (0.8 + 0.2 * pulse), false)
 		_solids(_rest(&"ember"), RisoPrint.PINK, 0.85, false)
 	_solids(_rest(&"lantern_ends"))
+	var charges: int = MapInfo.instance.run.dark_charges if MapInfo.instance != null and MapInfo.instance.run != null else 0
+	if charges > 0:
+		var beads: Array[PackedVector2Array] = _rest(StringName("charges %d" % mini(charges, CHARGE_BEADS)))
+		_solids(beads, RisoPrint.BLUE, 1.0, false)
+		_overs(beads, RisoPrint.NIGHT, CHARGE_NIGHT)
 
 
 ## A large spell mark fills `shape`: the damage slot's spell, on the bag.

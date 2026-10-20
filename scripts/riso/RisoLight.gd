@@ -198,7 +198,7 @@ func rebuild(info: MapInfo) -> void:
 		for x: int in range(info.world.size.x):
 			for y: int in range(info.world.size.y):
 				var type: LevelGen.Type = info.world.get_cell(Vector2i(x, y)).type
-				if type in [LevelGen.Type.CRACKED, LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.LIGHT_GATE, LevelGen.Type.EXAM_DOOR]:
+				if type in [LevelGen.Type.CRACKED, LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.LIGHT_GATE, LevelGen.Type.EXAM_DOOR, LevelGen.Type.OSSUARY_DOOR]:
 					_changing[Vector2i(x, y)] = type
 	_cache.clear()
 	_fade_cache.clear()
@@ -226,6 +226,8 @@ func _shut_or_open(info: MapInfo) -> void:
 				shut = not bool(info.light_gates.get(v, false))
 			LevelGen.Type.EXAM_DOOR:
 				shut = not bool(info.exam_doors.get(v, true))
+			LevelGen.Type.OSSUARY_DOOR:
+				shut = not info.ossuary_open(v)
 			_:
 				shut = not info.gate_open(v)
 		sight.set_solid(v, shut)
@@ -336,8 +338,9 @@ func _carried_light(info: MapInfo) -> void:
 		return
 	var at: Vector2 = _flame(player)
 	var lit: bool = info.flame_lit()
-	var reach: float = CARRIED_REACH if lit else UNLIT_REACH
-	var now: Array = [lit, by_sight, sight.version if sight != null else -1]
+	# A flare (Lamplight.flare_scale) in steps, so its light is worked out again only as it grows.
+	var reach: float = snappedf(Lamplight.carried_reach(info), 16.0) if lit else UNLIT_REACH
+	var now: Array = [lit, reach, by_sight, sight.version if sight != null else -1]
 	var key: Array = [RisoLight.snap(at)] + now
 	var due: bool = Engine.get_process_frames() % 2 == 0
 	if _carried == null or _carried_key.size() != key.size() or _carried_key.slice(1) != now or (due and key != _carried_key):
