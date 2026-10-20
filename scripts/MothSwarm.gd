@@ -54,7 +54,8 @@ func _ready() -> void:
 func target() -> Vector2:
 	var info: MapInfo = MapInfo.instance
 	var lit: bool = info != null and info.run != null and not info.run.vulnerable
-	if lit and player != null and is_instance_valid(player):
+	# A snuffed flame draws nothing (MapInfo.snuff).
+	if lit and info.flame_lit() and player != null and is_instance_valid(player):
 		var carried: Vector2 = player.global_position + CARRIED
 		if carried.distance_to(global_position) <= CARRIED_PULL:
 			drawn_to = &"carried"
@@ -72,7 +73,8 @@ func _physics_process(delta: float) -> void:
 	t += delta
 	scattered = maxf(0.0, scattered - delta)
 	if scattered <= 0.0:
-		global_position = global_position.move_toward(target(), SPEED * delta)
+		# A little faster on a harder preset (Difficulty.speed).
+		global_position = global_position.move_toward(target(), SPEED * Difficulty.speed() * delta)
 	# Scattered, the moths fly outward from where they were struck and drift back as it wears off.
 	var spread: float = 1.0 + 5.0 * clampf(scattered / SCATTER_TIME, 0.0, 1.0) * clampf((SCATTER_TIME - scattered) * 3.0, 0.0, 1.0)
 	for i: int in range(moths.size()):

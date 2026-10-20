@@ -1,9 +1,10 @@
 class_name RockBug
 extends Stunnable
-## A rock-bug, in crag levels (CragsArchetype.place_bugs, and called out by a gondola): a small
-## pink crawler that clings to rock and walks along it one way, slowly, floors, walls and ceilings
-## alike, turning in at inner corners and wrapping round outer ones, and turning back, as a wisp
-## does, only where it must: at thorns, a shut gate or another rock-bug in its way. It never hunts.
+## A rock-bug, in crag levels (CragsArchetype.place_bugs, called out by a gondola, and hatched by
+## nests, BugNest): a small pink crawler that clings to rock and walks along it one way, slowly,
+## floors, walls and ceilings alike, turning in at inner corners and wrapping round outer ones,
+## and turning back, as a wisp does, only where it must: at thorns, a shut gate or another
+## rock-bug in its way. It never hunts.
 ## On rock it keeps to the rock's face: round an outer corner it walks to the corner and turns about
 ## it, and at an inner corner it walks into the corner and turns there, never cutting through.
 ## A gondola's bugs come out onto its cable ahead of the car (ride_track) and cling to it, making
@@ -13,7 +14,7 @@ extends Stunnable
 ## up the other side, all the way round, swinging with it. When the car stands with its sides up, a
 ## bug coming to the edge of its floor steps out onto the rock there if there is any (else it turns
 ## back across the floor), so a rider who times it can let one off.
-## Stunned (a hex bolt or a parry), it lets go of a wall, a ceiling, the cable or the car and falls
+## Stunned (by a parry), it lets go of a wall, a ceiling, the cable or the car and falls
 ## until it lands on rock, where it clings again once the stun wears off (on a floor it just
 ## stands). Its touch hurts, like any enemy's (its HitBox). Moved only from here: its body is a
 ## frozen kinematic RigidBody2D that collides with nothing, as a wraith's.
@@ -107,6 +108,15 @@ func ride_track(g: Gondola, along: float) -> void:
 	rb.global_position = _on_cable()
 
 
+## Come out of a nest (BugNest) in open cell `v`: it clings to the rock beside it, as a bug placed
+## with the level does.
+func crawl_out(v: Vector2i) -> void:
+	if map_info == null:
+		map_info = MapInfo.instance
+	placed = true
+	_cling(v)
+
+
 ## Whether it is on gondola `g`'s track or in its car.
 func riding(g: Gondola) -> bool:
 	return gondola == g and mode in [Mode.TRACK, Mode.ENTER, Mode.CAR]
@@ -192,7 +202,8 @@ func _walk_rock(delta: float) -> void:
 			if not _plan_step(-way):
 				return
 			way = -way
-	step_d = minf(step_len, step_d + CRAWL_SPEED * delta)
+	# A little faster on a harder preset (Difficulty.speed).
+	step_d = minf(step_len, step_d + CRAWL_SPEED * Difficulty.speed() * delta)
 	u = step_d / step_len if step_len > 0.0 else 1.0
 	rb.global_position = _along_step(step_d)
 	up = up.lerp(-Vector2(to_normal if u >= 0.5 else normal), minf(1.0, delta * 12.0))

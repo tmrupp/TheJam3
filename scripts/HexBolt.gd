@@ -2,9 +2,17 @@ extends Node2D
 class_name HexBolt
 ## A hex bolt in flight. Each physics step it sweeps a ray against solid things (rock, doors,
 ## cracked walls; one-way ledges are passed through) and checks enemies near its path. It wounds
-## what it meets (Wound.hit; enemies are stunned too, and at hex I only stunned) and breaks cracked
-## walls (hex_hit) at any tier, and ends at rock or after RANGE. Printed as a comet of spell light
-## (accent ink, like the wand tip) with a tapering tail.
+## what it meets (Wound.hit; it stuns nothing: only a parry stuns), and ends at rock (a cracked wall
+## only chips, hex_hit) or after RANGE. Cast empowered (Empower), it bores on through cracked rock,
+## crumbling up to `bore` cells of it (BORE for a hex), breaks a shield at once and strikes a tower's
+## spire (Spire.empowered_hit); an empowered seeker turns toward a spire it can see rather than an
+## enemy. It tears the spider's webs it
+## passes through (SpiderWeb) and flies on, and cuts a spider's thread it crosses (Spider), ending
+## there. Thorns that are out stop it as rock does (Spikes.struck_by, THORN_REACH), bursting on them.
+## A seeking bolt (Seeker: `seek` above 0) turns toward the nearest enemy it can see within
+## SEEK px as it flies.
+## Printed as a comet of spell light (accent ink, like the wand tip) with a
+## tapering tail, on top of the decor and night it crosses (lifted to paper under it).
 
 const SPEED: float = 1100.0
 const RANGE: float = 8.0 * 128.0
@@ -15,6 +23,15 @@ const REACH: float = 44.0
 const SPAN_DOWN: float = 20.0
 const SPAN_UP: float = 56.0
 const SOLID_MASK: int = 4
+## How near (px) the thorns' body the bolt's way must pass for it to strike them.
+const THORN_REACH: float = 10.0
+## How far (px) a seeking bolt looks for an enemy to turn toward, and an empowered one for a spire.
+const SEEK: float = 520.0
+const SEEK_SPIRE: float = 900.0
+## How many cells of cracked rock an empowered hex bolt bores through, and how much bigger an
+## empowered bolt prints.
+const BORE: int = 3
+const EMPOWERED_SIZE: float = 1.4
 ## The things that answer a bolt themselves, by their script (or one it extends): each has
 ## `hex_hit(damage, dir)`, called when the bolt strikes it. A new one is added here (unit_test
 ## checks every script with a hex_hit is listed, and takes those two).
@@ -22,6 +39,8 @@ const ANSWERS: Array[Script] = [
 	preload("res://scripts/Bell.gd"),
 	preload("res://scripts/CrackedWall.gd"),
 	preload("res://scripts/MothSwarm.gd"),
+	preload("res://scripts/SchoolBell.gd"),
+	preload("res://scripts/Spire.gd"),
 	preload("res://scripts/Switch.gd"),
 ]
 
@@ -40,10 +59,23 @@ static func answers(o: Object) -> bool:
 var dir: Vector2 = Vector2.RIGHT
 var damage: int = 1
 var pierce: bool = false
+## How fast it flies (px/s), how far before it ends, how hard it turns toward an enemy (radians a
+## second; 0 flies straight) and how big it prints.
+var speed: float = SPEED
+var range_px: float = RANGE
+var seek: float = 0.0
+var size: float = 1.0
 ## A shot turned back by a parry (Parry): it breaks a shield (Shield) at once.
 var reflected: bool = false
+## Cast empowered (Empower), and how many cells of cracked rock it has left to bore through.
+var empowered: bool = false
+var bore: int = 0
+## The cracked walls it has bored through, left out of its rock (they crumble at the frame's end).
+var bored: Array[RID] = []
 var travelled: float = 0.0
 var struck: Array[Node] = []
+## The spell that cast it (&"hex", or &"seeker" for a seeker's).
+var spell: StringName = &"hex"
 var trail: Array[Vector2] = []
 var ink: InkCanvas
 var t: float = 0.0
@@ -66,61 +98,143 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	t += delta
 	var from: Vector2 = global_position
-	var to: Vector2 = from + dir * SPEED * delta
+	if seek > 0.0:
+		var aim: Vector2 = _spire_aim() if empowered else Vector2.INF
+		if not aim.is_finite():
+			var quarry: Node2D = _quarry()
+			aim = quarry.global_position if quarry != null else Vector2.INF
+		if aim.is_finite():
+			var turn: float = clampf(angle_difference(dir.angle(), (aim - from).angle()), -seek * delta, seek * delta)
+			dir = dir.rotated(turn)
+	var to: Vector2 = from + dir * speed * delta
 	# Enemies along the step, nearest first.
+	SpiderWeb.tear_along(get_tree(), from, to)
 	var targets: Array[Node] = []
 	for e: Node in get_tree().get_nodes_in_group(&"hex_target"):
 		if not is_instance_valid(e) or e.is_queued_for_deletion() or Wound.whole(e) in struck:
 			continue
 		var at: Vector2 = (e as Node2D).global_position
 		var near: PackedVector2Array = Geometry2D.get_closest_points_between_segments(from, to, at + Vector2(0, SPAN_DOWN), at - Vector2(0, SPAN_UP))
-		if near[0].distance_to(near[1]) <= REACH:
+		# A spider is round, with its thread over it: struck only on its body.
+		var meets: bool = (e as Spider).struck_by(from, to, Spider.BOLT_REACH) if e is Spider else near[0].distance_to(near[1]) <= REACH
+		if meets:
 			targets.append(e)
 	targets.sort_custom(func(a: Node, b: Node) -> bool: return from.distance_squared_to((a as Node2D).global_position) < from.distance_squared_to((b as Node2D).global_position))
 	var wall: Dictionary = _solid(from, to)
 	var wall_d: float = from.distance_to(wall["position"]) if not wall.is_empty() else INF
+	# Thorns on the way, short of the rock, stop it as the rock would.
+	var thorn_at: Vector2 = _thorns(from, to)
+	if thorn_at.is_finite() and from.distance_to(thorn_at) < wall_d:
+		wall = {"position": thorn_at}
+		wall_d = from.distance_to(thorn_at)
+	# A spider's thread on the way, short of the rock, is cut where the bolt meets it.
+	var thread: Dictionary = Spider.thread_across(get_tree(), from, to, Spider.THREAD_REACH)
+	var thread_d: float = float(thread["d"]) if not thread.is_empty() and float(thread["d"]) <= wall_d else INF
 	for e: Node in targets:
 		if from.distance_to((e as Node2D).global_position) > wall_d + REACH:
+			break
+		if from.distance_to((e as Node2D).global_position) > thread_d:
 			break
 		# A worm is struck once, in the first segment met (Wound.whole).
 		if Wound.whole(e) in struck:
 			continue
 		struck.append(Wound.whole(e))
-		# A shield takes the bolt whole: no wound, no stun.
+		# A scholar struck by the wizard turns on them (Scholar.rouse), the blow theirs.
+		if e is Scholar:
+			(e as Scholar).rouse()
+			(e as Scholar).wizard_blow = true
+		# A shield takes the bolt whole: no wound.
 		var shield: Shield = Shield.of(e)
-		if shield != null and shield.absorb(reflected, dir):
+		if shield != null and shield.absorb(reflected or empowered, dir):
 			_end((e as Node2D).global_position - dir * Shield.RADIUS * 0.8)
 			return
-		# Wound first (a stunned enemy takes double, so stunning first would double every hit),
-		# then stun whatever is left.
+		# Wounded (double if a parry left it stunned: Wound); it stuns nothing.
 		var wound: Wound = e.get_node_or_null("Wound") as Wound
-		var dealt: int = maxi(damage, wound.least) if wound != null else damage
+		var dealt: int = Wound.dealt(wound, damage) if wound != null else damage
 		if wound != null and dealt > 0:
 			wound.hit(dealt, dir)
 		elif dealt <= 0:
 			RisoFx.burst(&"hit", (e as Node2D).global_position, dir, [RisoPrint.ACCENT, RisoPrint.BLUE])
-		var stunner: Stunner = Stunner.of(e)
-		if stunner != null and is_instance_valid(e) and not e.is_queued_for_deletion():
-			stunner.stun(Hex.STUN)
-		# Things that are not enemies answer the bolt themselves (a switch throws).
-		if wound == null and answers(e):
+		# Things that are not enemies answer the bolt themselves (a switch throws); a spire flips its
+		# tower only to an empowered bolt.
+		if wound == null and empowered and e is Spire:
+			(e as Spire).empowered_hit(dir)
+		elif wound == null and answers(e):
 			e.call("hex_hit", damage, dir)
 		if not pierce or struck.size() > 1:
 			_end((e as Node2D).global_position)
 			return
-	if not wall.is_empty():
-		var hit: Object = wall["collider"]
-		if answers(hit):
-			hit.call("hex_hit", maxi(damage, 1), dir)
-		_end(wall["position"])
+	if thread_d < INF:
+		(thread["spider"] as Spider).cut(thread["at"])
+		_end(thread["at"])
 		return
+	if not wall.is_empty():
+		var hit: Object = wall.get("collider")
+		if empowered and bore > 0 and hit is CrackedWall:
+			# Bored through: it crumbles, and the bolt flies on where it stood.
+			(hit as CrackedWall).crumble(dir)
+			bore -= 1
+			bored.append(wall["rid"])
+		else:
+			if hit != null and answers(hit):
+				hit.call("hex_hit", maxi(damage, 1), dir)
+			_end(wall["position"])
+			return
 	global_position = to
 	travelled += to.distance_to(from)
 	trail.append(from)
 	if trail.size() > 7:
 		trail.pop_front()
-	if travelled >= RANGE:
+	if travelled >= range_px:
 		_end(to)
+
+
+## For a seeking bolt: the nearest enemy (a thing with a Wound) or glyph seal not yet struck, within
+## SEEK px, with no rock between; null when there is none.
+func _quarry() -> Node2D:
+	var best: Node2D = null
+	var best_d: float = SEEK
+	for e: Node in get_tree().get_nodes_in_group(&"hex_target"):
+		var n: Node2D = e as Node2D
+		if n == null or not is_instance_valid(n) or n.is_queued_for_deletion() or n.get_node_or_null("Wound") == null or Wound.whole(n) in struck:
+			continue
+		var d: float = global_position.distance_to(n.global_position)
+		if d < best_d and SpellStrike.clear(global_position, n.global_position):
+			best = n
+			best_d = d
+	return best
+
+
+## For an empowered seeking bolt: where to aim for the nearest spire (Spire.head) within
+## SEEK_SPIRE px with no rock between, or Vector2.INF when there is none.
+func _spire_aim() -> Vector2:
+	var best: Vector2 = Vector2.INF
+	var best_d: float = SEEK_SPIRE
+	for n: Node in get_tree().get_nodes_in_group(Spire.GROUP):
+		var spire: Spire = n as Spire
+		if spire == null or spire.is_queued_for_deletion() or spire in struck:
+			continue
+		var d: float = global_position.distance_to(spire.head())
+		if d < best_d and SpellStrike.clear(global_position, spire.head()):
+			best = spire.head()
+			best_d = d
+	return best
+
+
+## Where the step from `from` to `to` first meets thorns that are out (the nearest point on the way to
+## the nearest run of them it strikes), or Vector2.INF when it meets none.
+func _thorns(from: Vector2, to: Vector2) -> Vector2:
+	var best: Vector2 = Vector2.INF
+	var reach: float = from.distance_to(to) + 128.0
+	for n: Node in get_tree().get_nodes_in_group(Spikes.GROUP):
+		var thorns: Spikes = n as Spikes
+		if thorns == null or thorns.is_queued_for_deletion() or thorns.global_position.distance_to(from) > reach or not thorns.struck_by(from, to, THORN_REACH):
+			continue
+		var ends: Array[Vector2] = thorns.body_ends()
+		var at: Vector2 = Geometry2D.get_closest_points_between_segments(from, to, ends[0], ends[1])[0]
+		if not best.is_finite() or from.distance_squared_to(at) < from.distance_squared_to(best):
+			best = at
+	return best
 
 
 ## The first rock, door, switch gate or cracked wall on the step (ledges and moving platforms are
@@ -128,7 +242,7 @@ func _physics_process(delta: float) -> void:
 func _solid(from: Vector2, to: Vector2) -> Dictionary:
 	var space: PhysicsDirectSpaceState2D = get_world_2d().direct_space_state
 	var query: PhysicsRayQueryParameters2D = PhysicsRayQueryParameters2D.create(from, to, SOLID_MASK)
-	var skip: Array[RID] = []
+	var skip: Array[RID] = bored.duplicate()
 	for i: int in range(6):
 		query.exclude = skip
 		var res: Dictionary = space.intersect_ray(query)
@@ -160,13 +274,15 @@ func _process(_delta: float) -> void:
 		if a.distance_to(b) < 1.0:
 			continue
 		var n: Vector2 = (b - a).normalized().orthogonal()
-		var wa: float = 2.0 + 10.0 * float(i) / float(pts.size())
-		var wb: float = 2.0 + 10.0 * float(i + 1) / float(pts.size())
+		var wa: float = (2.0 + 10.0 * float(i) / float(pts.size())) * size
+		var wb: float = (2.0 + 10.0 * float(i + 1) / float(pts.size())) * size
 		tail.append(PackedVector2Array([a - n * wa, b - n * wb, b + n * wb, a + n * wa]))
+	# The tail prints on top of the decor and night it crosses, lifted to paper under it.
+	ink.lift_ink(RisoPrint.ALL_PLATES, 0.5, tail)
 	ink.ink(RisoPrint.ACCENT, 0.5, tail)
-	var pulse: float = 1.0 + 0.15 * sin(t * 40.0)
-	ink.ink(RisoPrint.ACCENT, 0.3, [RisoShapes.circle(head, 26.0 * pulse, 20)])
-	var core: PackedVector2Array = Transform2D(t * 9.0, head) * RisoShapes.sparkle(Vector2.ZERO, 16.0 * pulse)
+	var pulse: float = (1.0 + 0.15 * sin(t * 40.0)) * (EMPOWERED_SIZE if empowered else 1.0)
+	ink.ink(RisoPrint.ACCENT, 0.3, [RisoShapes.circle(head, 26.0 * pulse * size, 20)])
+	var core: PackedVector2Array = Transform2D(t * 9.0, head) * RisoShapes.sparkle(Vector2.ZERO, 16.0 * pulse * size)
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], [core])
 	ink.ink(RisoPrint.ACCENT, 1.0, [core], false)
 	ink.finish()

@@ -55,12 +55,25 @@ func run() -> void:
 	var light: RisoLight = main.get_node("RisoLight") as RisoLight
 	check(light.lanterns.size() > 0 and light.lanterns.any(func(l: Node) -> bool: return info.is_respawn_lantern(l)), "the lanterns are lit, the respawn among them")
 	await process_frame
+	var respawn: Array = light.lanterns.filter(func(l: Node) -> bool: return info.is_respawn_lantern(l))
+	var flame: Vector2 = light.glass(respawn[0], info)
+	var lantern_light: RisoLight.Fade = null
+	for f: RisoLight.Fade in light.fades:
+		if f.at.is_equal_approx(flame):
+			lantern_light = f
+	check(lantern_light != null and is_equal_approx(lantern_light.reach, RisoLight.RESPAWN_REACH) and not lantern_light.outer.is_empty() and not lantern_light.inner.is_empty(), "the respawn lantern throws a pool of light in two steps, like the carried one")
 	var near: bool = Vector2(light.carried.x, light.carried.y).distance_to(player.global_position) < 120.0
-	check(near and is_equal_approx(light.carried.z, float(RisoLight.CARRIED_RINGS[0][0])), "the protected wizard's carried lantern throws a warm pool round them")
+	check(near and is_equal_approx(light.carried.z, RisoLight.CARRIED_REACH), "the protected wizard's carried lantern throws a warm light round them")
+	# The inner pool lies within its share of the reach round the flame, inside the outer one.
+	var inside: bool = lantern_light != null and lantern_light.inner[0].size() >= 3
+	if inside:
+		for p: Vector2 in lantern_light.inner[0]:
+			inside = inside and p.distance_to(lantern_light.at) <= lantern_light.reach * RisoLight.BAND_INNER + 1.0
+	check(inside, "its bright inner pool lies round the flame, within %d%% of its reach" % roundi(RisoLight.BAND_INNER * 100.0))
 	var was_vulnerable: bool = info.run.vulnerable
 	info.run.vulnerable = true
 	await process_frame
-	check(is_equal_approx(light.carried.z, float(RisoLight.UNLIT_RINGS[0][0])), "unprotected, only a dim pool")
+	check(is_equal_approx(light.carried.z, RisoLight.UNLIT_REACH), "unprotected, only a short, dim light")
 	info.run.vulnerable = was_vulnerable
 
 	print("ambient life")

@@ -1,0 +1,242 @@
+extends TestKit
+## The Fool, the one figure the player is printed as (RisoCostume): its state cues (hearts, the
+## lantern, the dash, the damage spell in the bag; nothing stands for the utility spell), the
+## bindle swung round to cast a damage spell (smeared, with the body answering it), its echo and ghost silhouettes, and smoke, without
+## changes to the run or collision.
+
+
+func run() -> void:
+	await boot()
+	player.set_physics_process(false)
+	player.end_invulnerable()
+	info.map_elements.process_mode = Node.PROCESS_MODE_DISABLED
+	var wizard: RisoWizard = player.get_node("RisoWizard") as RisoWizard
+	wizard.set_process(false)
+	wizard.set_physics_process(false)
+	wizard.t = 1.0
+	var riso: RisoPrint = RisoPrint.instance
+	check(not riso._options.has(&"character") and not riso._options.has(&"robe"), "F7 offers no other appearance")
+	var collider: CollisionShape2D = player.get_node("CollisionShape2D") as CollisionShape2D
+	var size: Vector2 = (collider.shape as RectangleShape2D).size
+	var rng_state: int = info.world.rng.state
+	var corpse: Ghost = (load("res://prefabs/corpse.tscn") as PackedScene).instantiate() as Ghost
+	main.add_child(corpse)
+	await process_frame
+	await process_frame
+	var ghost_art: RisoProp = corpse.get_node("RisoArt") as RisoProp
+	ghost_art.set_process(false)
+	ghost_art.t = 1.0
+	var outline: Array[PackedVector2Array] = wizard._silhouette(Transform2D.IDENTITY, 1.0)
+	check(outline.size() > 5, "the Fool has its own echo silhouette")
+	ghost_art._redraw()
+	check(ghost_art.ink._used > 0, "and its death ghost")
+	Abilities.set_tier(player, &"hex", 1)
+	player.health.health = 3
+	info.run.vulnerable = false
+	player.dash.acted = false
+	wizard._draw_body()
+	riso.robe_color = Color(-1, -1, -1)
+	riso._ease_robe(1.0)
+	check_eq(riso.robe_color, RisoPrint.ROBES[&"hex"], "the bag takes its spell's ink")
+	riso._update_uniforms(Vector2(1280, 720))
+	var cloth: Vector3 = Vector3(RisoPrint.CLOTH_INK.r, RisoPrint.CLOTH_INK.g, RisoPrint.CLOTH_INK.b)
+	check_eq(riso.print_material.get_shader_parameter("ink7"), cloth, "traveler cloth keeps its own blue in the garden")
+	check_eq(riso.ui_material.get_shader_parameter("ink7"), cloth, "the UI shares all eight inks")
+	var full: int = fingerprint(wizard.body)
+	player.health.health = 1
+	wizard._draw_body()
+	check(full != fingerprint(wizard.body), "lost hearts change the printed beads")
+	var hurt: int = fingerprint(wizard.body)
+	info.run.vulnerable = true
+	wizard._draw_body()
+	check(hurt != fingerprint(wizard.body), "the lantern independently goes dark")
+	var unprotected: int = fingerprint(wizard.body)
+	player.dash.acted = true
+	wizard._draw_body()
+	check(unprotected != fingerprint(wizard.body), "a spent dash still changes its own mark while unprotected")
+	wizard.lantern_smoke.clear()
+	# A walking pace (about 130 px/s), faster than the smoke drifts away from the traveler.
+	for step: int in range(12):
+		wizard._step_smoke(RisoWizard.SMOKE_STEP)
+		player.position.x += 8.0
+	check(wizard.lantern_smoke.size() >= 10, "an unlit lantern leaves a trail")
+	check(wizard.lantern_smoke[0].x < wizard.lantern_smoke[-1].x, "smoke stays at the lantern's past positions")
+	wizard._draw_world()
+	check(wizard.world._used > 0, "the smoke is printed in the world")
+	info.run.vulnerable = false
+	wizard._step_smoke(RisoWizard.SMOKE_LIFE + 0.1)
+	check(wizard.lantern_smoke.is_empty(), "after relighting, the old smoke fades and no new smoke appears")
+	var spell_shapes: Dictionary = {}
+	var accessory_shapes: Dictionary = {}
+	# What it carries is the damage slot's spell.
+	for spell: StringName in Abilities.in_slot(&"damage"):
+		Abilities.set_tier(player, spell, 1)
+		wizard._draw_body()
+		var print: int = fingerprint(wizard.body)
+		check(not spell_shapes.has(print), "the carried " + String(spell) + " has a distinct print")
+		spell_shapes[print] = true
+		var accessory: int = hash(RisoCostume.bindle_shape(spell, Vector2.ZERO))
+		check(not accessory_shapes.has(accessory), "the whole bag changes shape for " + String(spell))
+		accessory_shapes[accessory] = true
+	# The feather is the movement slot: glow ink while ready, dark when spent, blinking pink and dark
+	# in a running spell's last seconds.
+	player.dash.acted = false
+	check(wizard.costume.feather_plate() == RisoPrint.GLOW, "a ready dash's feather is in the glow ink")
+	player.dash.acted = true
+	check(wizard.costume.feather_plate() == RisoPrint.NIGHT, "spent, it is dark")
+	wizard.costume.step(1.0 / 60.0)
+	wizard._draw_body()
+	var settled: int = fingerprint(wizard.body)
+	player.dash.acted = false
+	# Filling again, it pops: it swells and flashes paper-white, then settles.
+	wizard.costume.step(1.0 / 60.0)
+	check(wizard.costume.recharged < 0.05, "filling again, the feather pops")
+	wizard.costume.step(RisoCostume.RECHARGE_TIME * 0.3)
+	check(wizard.costume._pop() > 0.5, "swelling at once (%.2f of its fullest)" % wizard.costume._pop())
+	wizard._draw_body()
+	check(fingerprint(wizard.body) != settled, "its print changes as it pops")
+	wizard.costume.step(RisoCostume.RECHARGE_TIME)
+	check(wizard.costume._pop() == 0.0, "and it settles within %.2f s" % RisoCostume.RECHARGE_TIME)
+	wizard.costume.step(1.0 / 60.0)
+	check(wizard.costume.recharged > RisoCostume.RECHARGE_TIME, "staying charged, it does not pop again")
+	Abilities.set_tier(player, &"levitate", 1)
+	var lev: Levitate = player.get_node("Levitate") as Levitate
+	lev.start()
+	check(wizard.costume.feather_plate() == RisoPrint.GLOW, "a float well under way keeps it lit")
+	lev.remaining = RisoCostume.SPELL_WARN * 0.5
+	var seen: Dictionary = {}
+	for k: int in range(20):
+		wizard.t = 1.0 + float(k) * 0.05
+		seen[wizard.costume.feather_plate()] = true
+	check(seen.has(RisoPrint.PINK) and seen.has(RisoPrint.NIGHT) and not seen.has(RisoPrint.GLOW), "near its end it blinks pink and dark")
+	lev.remaining = 0.0
+	player.levitating = false
+	Abilities.set_tier(player, &"dash", 1)
+	wizard.t = 1.0
+	wizard._draw_body()
+	var without: int = fingerprint(wizard.body)
+	Abilities.set_tier(player, &"mend", 2)
+	player.mend_draughts = 1
+	wizard._draw_body()
+	check_eq(fingerprint(wizard.body), without, "a utility spell shows nothing on the figure")
+	Abilities.set_tier(player, &"mend", 0)
+	player.mend_draughts = -1
+	Abilities.set_tier(player, &"vigor", 3)
+	player.health.health = player.health.max_health
+	wizard._draw_body()
+	check_eq(player.health.max_health, 6, "the beads support vigor's additional health")
+	Abilities.set_tier(player, &"vigor", 0)
+	player.health.health = 3
+	player.phasing = true
+	wizard._draw_body()
+	check(is_equal_approx(wizard.body.coverage, AstralProjection.PROJECTION_COVER), "the figure supports astral translucency")
+	player.phasing = false
+	wizard._draw_body()
+	check(is_equal_approx(wizard.body.coverage, 1.0), "the figure returns to full coverage")
+	check_eq((collider.shape as RectangleShape2D).size, size, "drawing never changes collision")
+	check_eq(info.world.rng.state, rng_state, "drawing and smoke do not consume the level RNG")
+	info.run.vulnerable = true
+	for step: int in range(120):
+		wizard._step_smoke(RisoWizard.SMOKE_STEP)
+	check(wizard.lantern_smoke.size() <= int(ceil(RisoWizard.SMOKE_LIFE / RisoWizard.SMOKE_STEP)) + 1, "the smoke trail stays bounded over time")
+	wizard._on_event(&"teleport", wizard.global_position)
+	check(wizard.lantern_smoke.is_empty(), "teleporting clears the former location's smoke")
+	# Standing still, the smoke drifts away from the Fool on whichever side the lantern is.
+	for facing: float in [1.0, -1.0]:
+		wizard.fs = facing
+		wizard.lantern_smoke.clear()
+		for step: int in range(20):
+			wizard._step_smoke(RisoWizard.SMOKE_STEP)
+		var side: bool = true
+		for point: Vector4 in wizard.lantern_smoke:
+			side = side and (point.x - wizard.global_position.x) * facing > 0.0
+		check(side, "smoke stays on the lantern's side facing %d" % int(facing))
+		var oldest: float = (wizard.lantern_smoke[0].x - wizard.global_position.x) * facing
+		var newest: float = (wizard.lantern_smoke[-1].x - wizard.global_position.x) * facing
+		check(oldest > newest + 1.0, "older smoke has drifted farther away facing %d" % int(facing))
+	wizard.fs = 1.0
+	wizard.lantern_smoke.clear()
+	# The necklace stays centred at every heart count; hearts past three hang on a lower strand.
+	for count: int in range(3, 7):
+		var beads: Array[Vector2] = RisoCostume.necklace(count)
+		var middle: float = 0.0
+		for bead: Vector2 in beads:
+			middle += bead.x
+		check(absf(middle) < 0.01, "the %d-bead necklace is centred" % count)
+		if count > 3:
+			check(beads[3].y > beads[0].y + 1.0, "hearts past three hang on a lower strand (%d)" % count)
+	check(is_zero_approx(RisoCostume.necklace(4)[3].x), "a fourth heart hangs as a centred pendant")
+	# At a wall ahead, the Fool's lantern glove plants on it and the lantern leans away from it.
+	wizard.wall_side = 1.0
+	wizard.wall = 1.0
+	wizard.pg = true
+	var hand: Vector2 = wizard.costume._lantern_hand()
+	check(is_equal_approx(hand.x + RisoCostume.WALL_GLOVE, RisoWizard.WALL_X), "at a wall, the lantern glove reaches it")
+	for step: int in range(30):
+		wizard.costume.step(1.0 / 60.0)
+	check(wizard.costume.lantern_a >= RisoCostume.WALL_LANTERN_LEAN - 0.001, "the lantern leans away from a wall ahead")
+	wizard.wall = 0.0
+	# A turn starts with the head: it faces the new way while the body is still swinging round.
+	var sprite_scale: Vector2 = player.sprite.scale
+	player.sprite.scale.x = -absf(sprite_scale.x)
+	wizard.fs = 0.4
+	check_eq(wizard.costume.head_facing(), -1.0, "the head turns first")
+	wizard._draw_body()
+	var turning: int = fingerprint(wizard.body)
+	player.sprite.scale = sprite_scale
+	wizard._draw_body()
+	check(turning != fingerprint(wizard.body), "a head leading a turn is drawn differently")
+	wizard.fs = 1.0
+	# Casting a damage spell, the bindle swings round to point the bag the spell's way, puffs, and
+	# swings back to rest over the shoulder.
+	Abilities.set_tier(player, &"slash", 1)
+	(player.get_node("Slash") as Slash).wait = 0.0
+	var leaned: float = wizard.bow_v
+	var hem_before: float = wizard.hem_vx[0]
+	var grip_rest: Vector2 = wizard.costume.grip_at(0.0)
+	wizard._draw_body()
+	var resting: int = fingerprint(wizard.body)
+	check(Abilities.cast(player, &"damage"), "a slash is cast from the Spell slot")
+	check(wizard.costume.cast_t == 0.0 and wizard.costume.cast_dir.is_equal_approx(Vector2.RIGHT), "and the bindle starts its swing, the way the slash went")
+	var rest_way: float = (RisoCostume.FOOL_POLE[1] - RisoCostume.FOOL_GRIP).angle()
+	check(absf(angle_difference(rest_way + wizard.costume.cast_turn, 0.0)) < 0.001, "the pole turns round to point ahead")
+	check(wizard.costume.cast_turn > 0.0, "forward, up over the shoulder")
+	check(wizard.bow_v > leaned and wizard.hem_vx[0] < hem_before, "the body leans into the cast and the poncho whips back from it")
+	for k: int in range(int(ceil(RisoCostume.CAST_OUT * 60.0))):
+		wizard.costume.step(1.0 / 60.0)
+	check(wizard.costume.cast_reach() > 1.0 and wizard.costume._cast_puffed, "swung out, it whips past the spell's way (%.2f of the turn) and puffs the spell" % wizard.costume.cast_reach())
+	check(wizard.costume.cast_sweep() > RisoCostume.SMEAR_LEAST, "whipping round fast enough to smear")
+	check(wizard.costume.grip_at(0.0).x > grip_rest.x + 1.0, "the glove thrusts the pole the spell's way")
+	wizard._draw_body()
+	check(fingerprint(wizard.body) != resting, "drawn swung round, smeared")
+	wizard.costume.step(RisoCostume.CAST_OUT + RisoCostume.CAST_HOLD * 0.6 - wizard.costume.cast_t)
+	var squashed: Vector2 = wizard.costume.cast_body()
+	check(squashed.x > 1.0 and squashed.y < 1.0, "the figure squashes on the hold (%.2f wide, %.2f tall)" % [squashed.x, squashed.y])
+	wizard.costume.step(RisoCostume.CAST_OUT + RisoCostume.CAST_HOLD - wizard.costume.cast_t)
+	check(is_equal_approx(wizard.costume.cast_reach(), 1.0), "then the swing eases back onto the spell's way")
+	for k: int in range(ceili(RisoCostume.CAST_BACK * 60.0) + 2):
+		wizard.costume.step(1.0 / 60.0)
+	check(is_zero_approx(wizard.costume.cast_swing()) and wizard.costume.cast_body() == Vector2.ONE, "and back at rest over the shoulder, the figure itself again")
+	player.visual_event.emit(&"cast", player.global_position)
+	check(wizard.costume.cast_turn > 0.0 and wizard.costume.cast_turn < PI, "a slash's swing stays a forward one")
+	var fx: RisoPortalWarp = RisoPrint._warp(wizard, 0, Vector2.ZERO, wizard.global_position, RisoPrint.ACCENT)
+	check_eq(fx.spell, Abilities.spell(player), "portal effects carry the spell the Fool's bag holds")
+	fx.free()
+	info.run.vulnerable = false
+	main.queue_free()
+	await process_frame
+	await process_frame
+	finish()
+
+
+## The actual ordered ink and geometry, rather than a copy of the state being tested.
+## What a canvas prints: each op's plates, shapes and cover, and for a rig its bones' pose and warp
+## (a part that only moves changes its bone, not its shapes).
+func fingerprint(ink: InkCanvas) -> int:
+	var printed: Array = []
+	for i: int in range(ink._used):
+		var op: RisoInkOp = ink._ops[i]
+		printed.append([op.visibility_layer, op.lift, op.cover, op.polys, op.alphas, op.shape.bind if op.shape != null else -2])
+	if ink.rigged:
+		printed.append([ink._bone_basis.slice(0, ink._bones_used), ink._bone_origin.slice(0, ink._bones_used), ink._warp_bow, ink._warp_wall])
+	return hash(printed)

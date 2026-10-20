@@ -8,8 +8,56 @@ extends Node
 ## Skeleton keys (colour SKELETON) are rare and kept apart: each opens any one locked door
 ## (corridor or side door) whatever its colour, then crumbles. They are only used on purpose, by
 ## interacting with a door no carried key opens.
+## Exam papers are carried on the ring as keys are, taking a slot each: a "colour" from PAPER up,
+## holding an ability that takes a slot (subjects) and its tier (paper), that no door takes. A paper is
+## a spell known but not held: earned in the institute's classes (Timetable), handed back for a spell
+## put out of its slot (MapInfo.put_back: at a lantern, a shrine, a lesson), and learned at a lantern
+## (MapInfo.learn_paper). Grabbed, swapped, dropped and saved as any key is, and kept through a death.
+## A paper lifted off a lectern or left by a beaten master is stolen (stolen): while the wizard
+## carries it, the institute's scholars turn on them (MapInfo.wizard_belongs). Learned, it is theirs.
 
 const SKELETON: int = 99
+## Where exam papers' codes start: PAPER, plus PAPER_SPELL for each place of the subject in
+## subjects, plus the tier.
+const PAPER: int = 1000
+const PAPER_SPELL: int = 10
+## A stolen paper's code is its paper's plus this (tiers run below it).
+const STOLEN: int = 5
+
+
+## What a paper may hold: every ability that takes a slot (Abilities.slot_of), in Abilities' order.
+static func subjects() -> Array[StringName]:
+	return Abilities.ids().filter(func(a: StringName) -> bool: return Abilities.slot_of(a) != &"")
+
+
+## The code of an exam paper for ability `a` at `tier`.
+static func paper(a: StringName, tier: int) -> int:
+	return PAPER + subjects().find(a) * PAPER_SPELL + tier
+
+
+## Whether `code` is an exam paper's, and the spell and tier it holds.
+static func is_paper(code: int) -> bool:
+	return code >= PAPER
+
+
+static func paper_spell(code: int) -> StringName:
+	@warning_ignore("integer_division")
+	var i: int = (code - PAPER) / PAPER_SPELL
+	var all: Array[StringName] = subjects()
+	return all[i] if i >= 0 and i < all.size() else &""
+
+
+static func paper_tier(code: int) -> int:
+	return posmod(code - PAPER, PAPER_SPELL) % STOLEN
+
+
+## Whether exam paper `code` is stolen, and the stolen paper of the same spell and tier.
+static func is_stolen(code: int) -> bool:
+	return is_paper(code) and posmod(code - PAPER, PAPER_SPELL) >= STOLEN
+
+
+static func stolen(code: int) -> int:
+	return code if is_stolen(code) or not is_paper(code) else code + STOLEN
 
 ## The coloured keys carried, oldest first (the newest last).
 var _colored: Array[int] = []
@@ -35,6 +83,23 @@ func newest() -> int:
 
 func has(color: int) -> bool:
 	return _colored.has(color)
+
+
+## The exam papers carried, oldest first.
+func papers() -> Array[int]:
+	return _colored.filter(func(c: int) -> bool: return is_paper(c))
+
+
+## Exam paper (or key) `code` carried changed for `to`, in its place on the ring (a paper graded up).
+func replace(code: int, to: int) -> void:
+	var k: int = _colored.find(code)
+	if k >= 0:
+		_colored[k] = to
+
+
+## Give up exam paper (or key) `code`, if carried.
+func spend(code: int) -> void:
+	_colored.erase(code)
 
 
 ## Carry a newly grabbed key of `color`. Returns the colour left behind (the oldest, when the ring

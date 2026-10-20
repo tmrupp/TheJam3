@@ -1,17 +1,26 @@
 class_name Abilities
 ## Tiered abilities, learned at shrines (there is no shop), except that tier I of the big moves
 ## (double jump, wall climb, blink, levitate, astral projection) only comes from a relic (see
-## Relics). Tier 0 is not owned; a run starts knowing the dash and parry (tier 1), parry in the
-## spell slot. The dash is the wizard's attack (DashStrike); the strike perk makes it wound. Each
-## tier improves the ability.
-## Tiers live on the player and reset when a run ends.
-## - Spells share one slot, on the Spell button (Q, or the pad's X): hex, astral projection,
-##   parry, levitate, awareness, rift (open your own teleporters), warp (to a random floor), mend
-##   (heal from draughts a burned lantern fills, see Mend) and ferry (a gliding raft, see Ferry). You carry one at a time; learning another
-##   at a shrine replaces it. Warp and rift cost stars each cast (cast_price).
-## - Perks stack: double jump, wall climb, blink (replaces the dash), vigor (max health),
-##   speed (run speed), keyring (carry more keys, see KeyRing), strike (the dash wounds) and ward
-##   (a ring of plates that takes a hit and grows back, see Ward).
+## Relics). Tier 0 is not owned; a run starts knowing the dash, slash and mend (tier 1). Each tier
+## improves the ability. Tiers live on the player and reset when a run ends.
+## - Three slots (SLOTS), each holding one ability at a time on a button of its own (ACTIONS);
+##   learning another for a slot replaces the one in it:
+##   - damage, on the Spell button (Q, or the pad's X): hex (a bolt), slash (an arc in front),
+##     nova (a burst all round), push (a gust that shoves), seeker (a homing bolt) and lunge (a
+##     stab that throws the wizard forward). The wizard's only ways to hurt; the
+##     dash no longer strikes (DashStrike only tears webs and cuts threads). Whichever is held, the
+##     button also raises the parry guard (Parry, not a spell of its own: its base effect, on its
+##     own cooldown), so every damage spell parries.
+##   - movement, on the Dash button (Shift, or the right trigger): the dash, blink, astral
+##     projection, levitate, rift (open your own teleporters), warp (to a random floor) and ferry
+##     (a raft that shuttles to and fro, see Ferry). The dash and blink are the wizard's own moves
+##     (Player); the rest are cast.
+##   - utility, on the Utility button (R, or the right shoulder button): awareness and mend (heal to
+##     full from draughts a lantern refills, see Mend). A utility spell never moves the wizard or
+##     hurts anything itself; it may make the other two slots' spells better.
+##   Warp and rift cost stars each cast (cast_price).
+## - Perks stack: double jump, wall climb, vigor (max health), speed (run speed), keyring (carry
+##   more keys, see KeyRing) and ward (a ring of plates that takes a hit and grows back, see Ward).
 ##
 ## Every ability is one entry in ABILITIES. What a tier does lives with whatever does the ability:
 ## a node on the wizard (its `set_tier`, and `cast_spell` for a spell), or, for the wizard's own
@@ -20,37 +29,46 @@ class_name Abilities
 
 ## Every ability, in the order shrines go round them (see offers):
 ## - "max": its top tier; "base": the tier a run starts with (0 when not given);
-## - "spell": true for the spells, which share the slot; "cost": stars a cast at depth 0 (see
-##   cast_price), for a spell that costs any;
+## - "slot": the slot it takes (SLOTS), for one that takes a slot; "cast": false for the wizard's
+##   own moves in the movement slot (the dash, blink), which are not cast; "cost": stars a cast at
+##   depth 0 (see cast_price), for a spell that costs any;
 ## - "node": the wizard's child that does it, told its tier by `set_tier(n)` (and, when a spell,
-##   cast by `cast_spell() -> bool`, asked how ready it is by `readiness() -> float` and how long it
+##   cast by `cast_spell() -> bool` (a damage spell's by `cast_spell(empowered: bool)`, see
+##   Empower), asked how ready it is by `readiness() -> float` and how long it
 ##   has left by `running() -> Vector2`, for the spell orb). With "make" (the path of its script, or of its scene)
 ##   it exists only while the ability is known (or always, with "always"); without, it is part of
 ##   the wizard's scene.
 const ABILITIES: Dictionary = {
-	&"dash": {"max": 4, "base": 1},
+	&"dash": {"max": 4, "base": 1, "slot": &"move", "cast": false},
 	&"double_jump": {"max": 3},
 	&"wall_climb": {"max": 3},
-	&"blink": {"max": 3, "node": "Blink", "make": "res://prefabs/upgrades/Blink.tscn"},
-	&"parry": {"max": 4, "base": 1, "spell": true, "node": "Parry"},
-	&"astral": {"max": 4, "spell": true, "node": "AstralProjection"},
-	&"hex": {"max": 4, "spell": true, "node": "Hex", "make": "res://scripts/Hex.gd"},
-	&"levitate": {"max": 3, "spell": true, "node": "Levitate", "make": "res://scripts/Levitate.gd"},
-	&"awareness": {"max": 3, "spell": true, "node": "Awareness", "make": "res://scripts/Awareness.gd"},
-	&"rift": {"max": 3, "spell": true, "cost": 2.0, "node": "Rift", "make": "res://scripts/Rift.gd"},
+	&"blink": {"max": 3, "slot": &"move", "cast": false, "node": "Blink", "make": "res://prefabs/upgrades/Blink.tscn"},
+	&"astral": {"max": 4, "slot": &"move", "node": "AstralProjection"},
+	&"hex": {"max": 4, "slot": &"damage", "node": "Hex", "make": "res://scripts/Hex.gd"},
+	&"slash": {"max": 4, "base": 1, "slot": &"damage", "node": "Slash", "make": "res://scripts/Slash.gd"},
+	&"nova": {"max": 4, "slot": &"damage", "node": "Nova", "make": "res://scripts/Nova.gd"},
+	&"push": {"max": 4, "slot": &"damage", "node": "Push", "make": "res://scripts/Push.gd"},
+	&"seeker": {"max": 4, "slot": &"damage", "node": "Seeker", "make": "res://scripts/Seeker.gd"},
+	&"lunge": {"max": 4, "slot": &"damage", "node": "Lunge", "make": "res://scripts/Lunge.gd"},
+	&"levitate": {"max": 3, "slot": &"move", "node": "Levitate", "make": "res://scripts/Levitate.gd"},
+	&"awareness": {"max": 3, "slot": &"utility", "node": "Awareness", "make": "res://scripts/Awareness.gd"},
+	&"rift": {"max": 3, "slot": &"move", "cost": 2.0, "node": "Rift", "make": "res://scripts/Rift.gd"},
 	&"vigor": {"max": 3},
 	&"speed": {"max": 3},
-	&"warp": {"max": 3, "spell": true, "cost": 4.0, "node": "Warp", "make": "res://scripts/Warp.gd"},
-	&"mend": {"max": 3, "spell": true, "node": "Mend", "make": "res://scripts/Mend.gd"},
+	&"warp": {"max": 3, "slot": &"move", "cost": 4.0, "node": "Warp", "make": "res://scripts/Warp.gd"},
+	&"mend": {"max": 3, "base": 1, "slot": &"utility", "node": "Mend", "make": "res://scripts/Mend.gd"},
 	&"keyring": {"max": 3},
-	&"ferry": {"max": 3, "spell": true, "node": "Ferry", "make": "res://scripts/Ferry.gd"},
-	&"strike": {"max": 3, "node": "DashStrike", "make": "res://scripts/DashStrike.gd", "always": true},
+	&"ferry": {"max": 3, "slot": &"move", "node": "Ferry", "make": "res://scripts/Ferry.gd"},
 	&"ward": {"max": 3, "node": "Ward", "make": "res://scripts/Ward.gd"},
 }
+## The slots: the damage spell's (the Spell button), the movement's (Dash) and the utility spell's
+## (Utility).
+const SLOTS: Array[StringName] = [&"damage", &"move", &"utility"]
 ## Run speed added per tier of speed, as a fraction of the base.
 const SPEED_PER_TIER: float = 0.15
 const BASE_HEALTH: int = 3
 const SPELL_ACTION: StringName = &"Spell"
+const UTILITY_ACTION: StringName = &"Utility"
 
 
 ## Every ability, in order (see ABILITIES).
@@ -61,15 +79,42 @@ static func ids() -> Array[StringName]:
 	return out
 
 
-## The spells, in order.
+## The spells (what is cast from a slot), in order.
 static func spells() -> Array[StringName]:
 	return ids().filter(func(a: StringName) -> bool: return is_spell(a))
 
 
-## Whether `a` is a spell; false for anything that is not an ability (a glow name such as
-## &"climb", see RisoPrint.flare).
+## The slot `a` takes, or &"" for a perk (or anything that is not an ability).
+static func slot_of(a: StringName) -> StringName:
+	return StringName(ABILITIES[a].get("slot", &"")) if ABILITIES.has(a) else &""
+
+
+## Everything that takes slot `slot`, in order (worked out once a slot: the art asks every frame).
+static func in_slot(slot: StringName) -> Array[StringName]:
+	if not _in_slot.has(slot):
+		var out: Array[StringName] = []
+		for a: StringName in ABILITIES:
+			if slot_of(a) == slot:
+				out.append(a)
+		_in_slot[slot] = out
+	return (_in_slot[slot] as Array[StringName]).duplicate()
+
+
+## What in_slot has worked out, by slot (ABILITIES never changes).
+static var _in_slot: Dictionary = {}
+
+
+## What takes slot `slot` (in_slot's list itself, not a copy), for asking what is in it.
+static func _slot_list(slot: StringName) -> Array[StringName]:
+	in_slot(slot)
+	return _in_slot[slot]
+
+
+## Whether `a` is a spell: it takes a slot and is cast (not the dash or blink, the wizard's own
+## moves); false for anything that is not an ability (a glow name such as &"climb", see
+## RisoPrint.flare).
 static func is_spell(a: StringName) -> bool:
-	return ABILITIES.has(a) and bool(ABILITIES[a].get("spell", false))
+	return slot_of(a) != &"" and bool(ABILITIES[a].get("cast", true))
 
 
 static func max_tier(a: StringName) -> int:
@@ -92,9 +137,9 @@ static func tier(player: Player, a: StringName) -> int:
 	return int(player.tiers.get(a, 0))
 
 
-## The spell in the slot, or &"" when it is empty.
-static func spell(player: Player) -> StringName:
-	for a: StringName in spells():
+## What is in slot `slot` (the damage slot unless said), or &"" when it is empty.
+static func spell(player: Player, slot: StringName = &"damage") -> StringName:
+	for a: StringName in _slot_list(slot):
 		if tier(player, a) > 0:
 			return a
 	return &""
@@ -113,10 +158,10 @@ static func cast_price(a: StringName, depth: int) -> int:
 	return maxi(1, roundi(float(ABILITIES[a]["cost"]) * pow(1.25, maxi(depth, 0))))
 
 
-## What a cast of the spell in the slot costs where the wizard is.
-static func cast_price_here(player: Player) -> int:
+## What a cast of the spell in slot `slot` costs where the wizard is.
+static func cast_price_here(player: Player, slot: StringName = &"damage") -> int:
 	var depth: int = MapInfo.instance.here.depth if MapInfo.instance != null else 0
-	return cast_price(spell(player), depth)
+	return cast_price(spell(player, slot), depth)
 
 
 ## Stars to heal to full at `depth`: the opposite of learning, dearer deeper.
@@ -126,7 +171,7 @@ static func heal_price(depth: int) -> int:
 
 ## What a level's shrine teaches. Starting from an ability picked by the level seed and going
 ## round, the first one not yet known; once everything is known, the first with a tier left to
-## learn. Dash tiers are not offered once blink replaces the dash.
+## learn.
 static func offer(level_seed: int, player: Player) -> StringName:
 	var all: Array[StringName] = offers(level_seed, player, 1)
 	return all[0] if not all.is_empty() else &""
@@ -135,7 +180,8 @@ static func offer(level_seed: int, player: Player) -> StringName:
 ## Up to `count` different abilities a shrine offers, in that order (new ones before upgrades).
 ## At least one is always a strict upgrade, a gain with nothing given up: a new perk or the next
 ## tier of something already known, never a spell that would replace the one in the slot. If
-## every pick would be a swap, the last is traded for the first strict upgrade left.
+## every pick would be a swap, the last is traded for the first strict upgrade left. (Something
+## for a slot that is empty is a strict upgrade.)
 static func offers(level_seed: int, player: Player, count: int) -> Array[StringName]:
 	var out: Array[StringName] = _picks(level_seed, player, count, false)
 	if out.is_empty() or out.any(func(a: StringName) -> bool: return not is_swap(player, a)):
@@ -157,7 +203,7 @@ static func _picks(level_seed: int, player: Player, count: int, strict: bool) ->
 			if out.size() >= count:
 				return out
 			var a: StringName = order[(start + i) % n]
-			if a in out or (a == &"dash" and tier(player, &"blink") > 0):
+			if a in out:
 				continue
 			# The big moves are found as relics first (see Relics); then their higher tiers are taught.
 			if a in Relics.MOVES and tier(player, a) == 0:
@@ -171,17 +217,20 @@ static func _picks(level_seed: int, player: Player, count: int, strict: bool) ->
 	return out
 
 
-## Would learning `a` replace the spell in the slot?
+## Would learning `a` replace what is in its slot?
 static func is_swap(player: Player, a: StringName) -> bool:
-	var held: StringName = spell(player)
-	return is_spell(a) and held != &"" and held != a
+	var slot: StringName = slot_of(a)
+	if slot == &"":
+		return false
+	var held: StringName = spell(player, slot)
+	return held != &"" and held != a
 
 
 static func roman(n: int) -> String:
 	return ["", "I", "II", "III", "IV", "V"][clampi(n, 0, 5)]
 
 
-## Learn the next tier of `a`. A new spell replaces the one in the slot.
+## Learn the next tier of `a`. Something for a slot replaces what is in it.
 static func grant(player: Player, a: StringName) -> void:
 	_take_slot(player, a)
 	player.tiers[a] = mini(tier(player, a) + 1, max_tier(a))
@@ -193,8 +242,8 @@ static func grant(player: Player, a: StringName) -> void:
 		(player.get_node("Mend") as Mend).refill()
 
 
-## Set ability `a` to tier `n` outright (the debug picker on the F7 panel). A spell set above 0
-## takes the slot, emptying the others.
+## Set ability `a` to tier `n` outright (the debug picker on the F7 panel). Something for a slot
+## set above 0 takes it, emptying it of the rest.
 static func set_tier(player: Player, a: StringName, n: int) -> void:
 	n = clampi(n, 0, max_tier(a))
 	if n > 0:
@@ -203,11 +252,12 @@ static func set_tier(player: Player, a: StringName, n: int) -> void:
 	apply(player)
 
 
-## A spell `a` takes the slot: every other spell is forgotten.
+## `a` takes its slot: everything else for that slot is forgotten.
 static func _take_slot(player: Player, a: StringName) -> void:
-	if not is_spell(a):
+	var slot: StringName = slot_of(a)
+	if slot == &"":
 		return
-	for other: StringName in spells():
+	for other: StringName in in_slot(slot):
 		if other != a:
 			player.tiers[other] = 0
 
@@ -220,58 +270,81 @@ static func reset(player: Player) -> void:
 	player.health.health = player.health.max_health
 
 
-## Adds the Spell action if the project does not define it.
+## Adds the Spell and Utility actions if the project does not define them.
 static func ensure_input() -> void:
-	if InputMap.has_action(SPELL_ACTION):
-		return
-	InputMap.add_action(SPELL_ACTION)
-	var key: InputEventKey = InputEventKey.new()
-	key.physical_keycode = KEY_Q
-	InputMap.action_add_event(SPELL_ACTION, key)
-	var pad: InputEventJoypadButton = InputEventJoypadButton.new()
-	pad.button_index = JOY_BUTTON_X
-	InputMap.action_add_event(SPELL_ACTION, pad)
+	if not InputMap.has_action(SPELL_ACTION):
+		InputMap.add_action(SPELL_ACTION)
+		var key: InputEventKey = InputEventKey.new()
+		key.physical_keycode = KEY_Q
+		InputMap.action_add_event(SPELL_ACTION, key)
+		var pad: InputEventJoypadButton = InputEventJoypadButton.new()
+		pad.button_index = JOY_BUTTON_X
+		InputMap.action_add_event(SPELL_ACTION, pad)
+	if not InputMap.has_action(UTILITY_ACTION):
+		InputMap.add_action(UTILITY_ACTION)
+		var key: InputEventKey = InputEventKey.new()
+		key.physical_keycode = KEY_R
+		InputMap.action_add_event(UTILITY_ACTION, key)
+		var pad: InputEventJoypadButton = InputEventJoypadButton.new()
+		pad.button_index = JOY_BUTTON_RIGHT_SHOULDER
+		InputMap.action_add_event(UTILITY_ACTION, pad)
 
 
-## The Spell button: cast whatever is in the slot (its node's cast_spell). A spell with a cast
-## price ("cost") is only cast when the stars are there, and they are paid only if it works.
-## Nothing is cast while the wizard is drowsy (in sleep fog).
-static func cast(player: Player) -> void:
+## A slot's button: cast the spell in slot `slot` (its node's cast_spell; the dash and blink are
+## the wizard's own, see Player). A spell with a cast price ("cost") is only cast when the stars
+## are there, and they are paid only if it works. Nothing is cast while the wizard is drowsy (in
+## sleep fog). In the institute, the scholars who see it turn on the wizard (MapInfo.wizard_cast).
+## A damage spell may be cast `empowered` (Empower: its node's `cast_spell(empowered)`).
+## Returns whether it was cast.
+static func cast(player: Player, slot: StringName = &"damage", empowered: bool = false) -> bool:
 	# Drowsy in sleep fog: no spells.
-	if player.is_drowsy():
-		return
-	var cost: int = cast_price_here(player)
+	if player.is_drowsy() or not is_spell(spell(player, slot)):
+		return false
+	var cost: int = cast_price_here(player, slot)
 	if cost > player.coins.coins:
-		return
-	var node: Node = spell_node(player)
-	if node != null and bool(node.call(&"cast_spell")) and cost > 0:
+		return false
+	var node: Node = spell_node(player, slot)
+	var went: bool = false
+	if node != null:
+		went = bool(node.call(&"cast_spell", empowered)) if slot == &"damage" else bool(node.call(&"cast_spell"))
+	if not went:
+		return false
+	if cost > 0:
 		player.collect(-cost)
+	# In the institute, scholars who see a spell cast turn on the wizard (MapInfo.wizard_cast).
+	if MapInfo.instance != null:
+		MapInfo.instance.wizard_cast(slot)
+	# A damage spell leaves from the bindle (RisoCostume.cast swings it).
+	if slot == &"damage":
+		player.visual_event.emit(&"cast", player.global_position)
+	return true
 
 
-## The node of the spell in the slot, or null when the slot is empty (or its node is not made yet).
-static func spell_node(player: Player) -> Node:
-	var a: StringName = spell(player)
-	if a == &"":
+## The node of the spell in slot `slot`, or null when there is none (the slot empty, the dash in
+## it, or its node not made yet).
+static func spell_node(player: Player, slot: StringName = &"damage") -> Node:
+	var a: StringName = spell(player, slot)
+	if not is_spell(a):
 		return null
 	return player.get_node_or_null(String(ABILITIES[a]["node"]))
 
 
-## How ready the spell in the slot is to cast, 0..1 (1 when it can be), as its node says
+## How ready the spell in slot `slot` is to cast, 0..1 (1 when it can be), as its node says
 ## (`readiness`); -1 when the slot is empty. Drowsy in sleep fog, or short of the stars a cast
 ## costs, it is 0.
-static func readiness(player: Player) -> float:
-	if spell(player) == &"":
+static func readiness(player: Player, slot: StringName = &"damage") -> float:
+	if spell(player, slot) == &"":
 		return -1.0
-	if player.is_drowsy() or cast_price_here(player) > player.coins.coins:
+	if player.is_drowsy() or cast_price_here(player, slot) > player.coins.coins:
 		return 0.0
-	var node: Node = spell_node(player)
+	var node: Node = spell_node(player, slot)
 	return float(node.call(&"readiness")) if node != null else 1.0
 
 
-## The spell in the slot while it runs, as its node says (`running`): (the fraction of its time
+## The spell in slot `slot` while it runs, as its node says (`running`): (the fraction of its time
 ## left, seconds left); x < 0 when nothing is running.
-static func running(player: Player) -> Vector2:
-	var node: Node = spell_node(player)
+static func running(player: Player, slot: StringName = &"damage") -> Vector2:
+	var node: Node = spell_node(player, slot)
 	return node.call(&"running") as Vector2 if node != null else Vector2(-1.0, 0.0)
 
 

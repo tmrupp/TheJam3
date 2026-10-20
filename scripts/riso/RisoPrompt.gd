@@ -14,6 +14,29 @@ var ink: InkCanvas
 var shown: float = 0.0
 var t: float = 0.0
 var hint_label: Label
+## The interact hand (draw_hand), traced from a drawing of a pointing hand, pointing left in its
+## own space, about 500 across (docs/mockups/interact-hand/ keeps it as an SVG, and the script that
+## draws it): the curled little, ring and middle fingers, the hand with its index finger and wrist,
+## and the thumb, each a closed outline of control points (RisoShapes.smooth's curve), all one
+## ink. HAND_CUTS are the paper lines inside it, along the thumb's top and its underside (open
+## curves, RisoShapes.smooth_open), HAND_GAP either side of the line. In the prompt it is turned
+## to point down, HAND_SCALE of the drawing's size about HAND_MIDDLE; HAND_TIP is the fingertip,
+## where the click ring spreads.
+const HAND_PIECES: Array[Array] = [
+	[Vector2(282, 345), Vector2(290, 395), Vector2(305, 428), Vector2(330, 446), Vector2(352, 432), Vector2(346, 398), Vector2(332, 362), Vector2(318, 340)],
+	[Vector2(214, 340), Vector2(209, 398), Vector2(216, 444), Vector2(240, 461), Vector2(262, 446), Vector2(268, 392), Vector2(270, 340)],
+	[Vector2(150, 342), Vector2(146, 398), Vector2(150, 428), Vector2(172, 439), Vector2(193, 426), Vector2(203, 380), Vector2(206, 342)],
+	[Vector2(9.6, 215.3), Vector2(2.7, 197.3), Vector2(17.8, 187.4), Vector2(58.9, 166.1), Vector2(103.4, 152.1), Vector2(150, 142), Vector2(300, 152), Vector2(395, 190), Vector2(480, 222), Vector2(500, 222), Vector2(500, 383), Vector2(470, 392), Vector2(400, 392), Vector2(350, 384), Vector2(300, 338), Vector2(250, 296), Vector2(236, 270), Vector2(206, 222), Vector2(150, 198), Vector2(111.7, 199.3), Vector2(73.9, 207.4), Vector2(37.8, 222.1), Vector2(21.7, 230.2)],
+	[Vector2(318, 248), Vector2(250, 268), Vector2(190, 288), Vector2(142, 300), Vector2(124, 322), Vector2(138, 346), Vector2(178, 350), Vector2(262, 334), Vector2(336, 318)],
+]
+const HAND_CUTS: Array[Array] = [
+	[Vector2(232, 273), Vector2(262, 263), Vector2(296, 253), Vector2(326, 246)],
+	[Vector2(160, 353), Vector2(205, 349), Vector2(262, 337), Vector2(324, 323)],
+]
+const HAND_GAP: float = 7.5
+const HAND_SCALE: float = 0.094
+const HAND_MIDDLE: Vector2 = Vector2(244.0, 300.0)
+const HAND_TIP: Vector2 = Vector2(9.6, 215.3)
 
 
 func _ready() -> void:
@@ -43,32 +66,58 @@ func _ready() -> void:
 	canvas.add_child(hint_label)
 
 
-## The interact symbol: a hand pointing down at the thing below, like a cursor clicking. A blue
-## cuff, a night-ink fist with paper grooves between the curled fingers, a thumb, and the index
-## finger reaching down. It taps: `tap` 0..1 pushes it down, and as the tip lands a ring of
-## accent ink ripples out from it. Centred near `at`, `k` its size (1 full).
-func _hand(at: Vector2, k: float, tap: float) -> void:
-	var xf: Transform2D = Transform2D(0.0, Vector2(k, k), 0.0, at + Vector2(1.0, -1.0 + tap * 3.0) * k)
-	var cuff: PackedVector2Array = xf * RisoShapes.rrect(-9.0, -24.0, 19.0, 8.0, 2.5)
-	var back: PackedVector2Array = xf * RisoShapes.rrect(-9.0, -17.5, 19.0, 9.5, 4.0)
-	# Three short curled fingers run alongside the extended index, with paper between them.
-	var rolls: Array[PackedVector2Array] = []
-	for finger_index: int in range(3):
-		rolls.append(xf * RisoShapes.rrect(-1.2 + 4.1 * float(finger_index), -10.0, 3.4, 12.0 - 1.4 * float(finger_index), 1.7))
-	var finger: PackedVector2Array = xf * RisoShapes.rrect(-9.0, -10.0, 6.4, 26.0, 3.2)
-	var thumb: PackedVector2Array = xf * (Transform2D(0.6, Vector2(-10.0, -10.5)) * RisoShapes.rrect(-2.4, -4.5, 4.8, 9.0, 2.4))
-	ink.ink(RisoPrint.BLUE, 1.0, [cuff], false)
-	var hand_inks: Array[PackedVector2Array] = [back, finger, thumb]
-	hand_inks.append_array(rolls)
-	ink.ink(RisoPrint.NIGHT, 1.0, hand_inks, false)
+## The interact symbol: a hand pointing down at the thing below, like a cursor clicking. A flat
+## shape of night ink, traced from a drawing: seen from the side, the wrist above, the index finger
+## pointing down and curling in a little toward its tip, the thumb laid across the three curled
+## fingers, which hang beside it, parted from the thumb by paper (HAND_PIECES, HAND_CUTS). It
+## taps: `tap` 0..1 pushes it down, and as the tip lands a ring of accent ink ripples out from it.
+## Centred near `at`, `k` its size (1 full). Drawn on `ink`.
+static func draw_hand(ink: InkCanvas, at: Vector2, k: float, tap: float) -> void:
+	_bake_hand()
+	var xf: Transform2D = Transform2D(0.0, Vector2(k, k), 0.0, at + Vector2(0.0, tap * 3.0) * k)
+	var shapes: Array[PackedVector2Array] = []
+	for poly: PackedVector2Array in _hand_shapes:
+		shapes.append(xf * poly)
+	ink.ink(RisoPrint.NIGHT, 1.0, shapes, false)
+	var cuts: Array[PackedVector2Array] = []
+	for poly: PackedVector2Array in _hand_cuts:
+		cuts.append(xf * poly)
+	ink.knock([RisoPrint.NIGHT], cuts)
 	# The click: a ring spreading from the fingertip just after it lands.
 	var landed: float = clampf((tap - 0.6) / 0.4, 0.0, 1.0)
 	if landed > 0.0:
-		var tip: Vector2 = xf * Vector2(-5.8, 17.0)
+		var tip: Vector2 = xf * _hand_point(HAND_TIP)
 		var r: float = (3.0 + 6.0 * landed) * k
 		var ring: PackedVector2Array = RisoShapes.ellipse(tip, r, r * 0.45, 20)
 		ink.ink(RisoPrint.ACCENT, 1.0 - landed * 0.6, [ring], false)
 		ink.knock([RisoPrint.ACCENT], [RisoShapes.ellipse(tip, r * 0.7, r * 0.3, 20)])
+
+
+## The hand's shapes and cuts in the prompt's units (see HAND_PIECES), worked out the first time.
+static var _hand_shapes: Array[PackedVector2Array] = []
+static var _hand_cuts: Array[PackedVector2Array] = []
+
+
+static func _bake_hand() -> void:
+	if not _hand_shapes.is_empty():
+		return
+	for piece: Array in HAND_PIECES:
+		var poly: PackedVector2Array = PackedVector2Array()
+		for p: Vector2 in RisoShapes.smooth(PackedVector2Array(piece)):
+			poly.append(_hand_point(p))
+		_hand_shapes.append(poly)
+	for cut: Array in HAND_CUTS:
+		var line: PackedVector2Array = PackedVector2Array()
+		for p: Vector2 in RisoShapes.smooth_open(PackedVector2Array(cut)):
+			line.append(_hand_point(p))
+		_hand_cuts.append_array(Geometry2D.offset_polyline(line, HAND_GAP * HAND_SCALE, Geometry2D.JOIN_ROUND, Geometry2D.END_ROUND))
+
+
+## A point of the drawing (HAND_PIECES' space, pointing left) in the prompt's units: turned a
+## quarter so it points down, scaled by HAND_SCALE about HAND_MIDDLE.
+static func _hand_point(p: Vector2) -> Vector2:
+	var d: Vector2 = (p - HAND_MIDDLE) * HAND_SCALE
+	return Vector2(d.y, -d.x)
 
 
 func _process(delta: float) -> void:
@@ -109,7 +158,7 @@ func _process(delta: float) -> void:
 				# A press about every 0.8 s: down quickly, a moment on the spot, then back up.
 				var u: float = fmod(t * 1.25, 1.0)
 				var tap: float = smoothstep(0.0, 0.25, u) * (1.0 - smoothstep(0.55, 0.85, u))
-				_hand(at, pop * 0.95, tap)
+				draw_hand(ink, at, pop, tap)
 			var text: String = str(hint.get("text", ""))
 			if not text.is_empty():
 				var w: float = RisoTheme.serif().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x + 22.0

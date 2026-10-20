@@ -1,0 +1,17 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/Temple.gd" id="1_temple"]
+[ext_resource type="PackedScene" uid="uid://pwmevy3urxq6" path="res://prefabs/interactable.tscn" id="2_inter"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_door"]
+size = Vector2(120, 120)
+
+[node name="Temple" type="Area2D"]
+collision_layer = 0
+script = ExtResource("1_temple")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(64, 4)
+shape = SubResource("RectangleShape2D_door")
+
+[node name="Interactable" parent="." instance=ExtResource("2_inter")]

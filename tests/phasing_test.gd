@@ -77,7 +77,7 @@ func run() -> void:
 
 	print("warp")
 	Abilities.set_tier(player, &"warp", 1)
-	check(Abilities.spell(player) == &"warp" and Abilities.tier(player, &"astral") == 0, "warp takes the spell slot")
+	check(Abilities.spell(player, &"move") == &"warp" and Abilities.tier(player, &"astral") == 0, "warp takes the movement slot")
 	var warp: Warp = player.get_node("Warp") as Warp
 	var before: Vector2 = player.global_position
 	var landed: Variant = warp.cast()

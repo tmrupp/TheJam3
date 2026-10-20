@@ -3,8 +3,9 @@ extends RisoProp
 
 
 ## Moving air (Wind): streaks of lifted night drifting the way it blows, an updraft's rising up its
-## shaft, a crosswind's across its chasm (with a sun glint here and there). A crosswind still
-## waiting for its vane shows only a few faint motes hanging over the chasm.
+## shaft, a crosswind's across its gap (with a sun glint here and there) while a gust blows. Between
+## gusts it shows only a few faint motes hanging over the gap; as a gust comes (MapInfo.gust_coming)
+## they stir, stretching and sliding the way the level's wind will blow.
 func _draw_art() -> void:
 	var w: Wind = host as Wind
 	if w == null:
@@ -30,12 +31,17 @@ func _draw_art() -> void:
 		return
 	var dir: float = w.blowing()
 	if dir == 0.0:
+		var way: float = 0.0
+		var stir: float = 0.0
+		if w.map_info != null:
+			way = float(signi(w.map_info.level_wind()))
+			stir = w.map_info.gust_coming() * absf(way)
 		var motes: Array[PackedVector2Array] = []
 		for k: int in range(7):
-			var x: float = r.position.x + r.size.x * RisoShapes.hash1(float(k) * 2.3 + phase)
+			var x: float = r.position.x + r.size.x * RisoShapes.hash1(float(k) * 2.3 + phase) + way * stir * 40.0 * sin(t * 3.0 + float(k))
 			var y: float = r.position.y + r.size.y * (0.3 + 0.6 * RisoShapes.hash1(float(k) * 5.9 + phase)) + sin(t * 1.3 + float(k)) * 5.0
-			motes.append(RisoShapes.circle(Vector2(x, y), 3.0, 8))
-		ink.lift_ink([RisoPrint.NIGHT], 0.3, motes)
+			motes.append(RisoShapes.almond(Vector2(x, y), 3.0 + 14.0 * stir, 3.0, 8))
+		ink.lift_ink([RisoPrint.NIGHT], 0.3 + 0.3 * stir, motes)
 		return
 	var count: int = 4 + w.width * 2
 	for k: int in range(count):

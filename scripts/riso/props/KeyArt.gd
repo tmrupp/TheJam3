@@ -1,5 +1,26 @@
 extends RisoProp
-## A key, bobbing in a halo of its own colour; a skeleton key is bone-white with a paper twinkle.
+## A key, bobbing in a light of its own colour (RisoLight); a skeleton key is bone-white with a
+## paper twinkle, in a plain light. An exam paper (KeyRing.paper) lies the same way: a paper sheet
+## (PAPER times a key's size) in its department's colour (RisoPrint.DEPT_INKS) with a folded corner of
+## bare paper, its subject's mark (RisoGlyph) knocked out to paper on it, and under it a gold pip for
+## each tier; a paper of a subject no department teaches is bare paper with its mark in gold. A
+## stolen one's folded corner is pink (KeyRing.is_stolen).
+
+## How much bigger an exam paper is drawn than a key, and its mark on it.
+const PAPER: float = 1.7
+const PAPER_MARK: float = 0.5
+
+
+func shines() -> bool:
+	return true
+
+
+func light() -> Array:
+	var sprite: CanvasItem = host.get_node_or_null("Sprite2D") as CanvasItem if host != null else null
+	if sprite != null and not sprite.visible:
+		return []
+	var color: int = int(host.get_meta(&"key_color", 0))
+	return _light(Vector2.ZERO, RisoLight.GLEAM, -1 if color == KeyRing.SKELETON or KeyRing.is_paper(color) else RisoPrint.key_inks(color)[0])
 
 
 func _draw_art() -> void:
@@ -8,15 +29,33 @@ func _draw_art() -> void:
 		return
 	var o: Vector2 = Vector2(0, sin(t * 3.0 + phase) * 4.0)
 	var color: int = int(host.get_meta(&"key_color", 0))
+	if KeyRing.is_paper(color):
+		# The sheet and its folded corner, bare paper (no ruled lines: the mark takes their place).
+		var sheet: Array[PackedVector2Array] = RisoMarks.paper_shape(o, PAPER)
+		ink.lift_ink(RisoPrint.ALL_PLATES, 1.0, sheet.slice(0, 1))
+		var tinted: bool = RisoPrint.ink_dept(ink, Timetable.dept_of(KeyRing.paper_spell(color)), 1.0, sheet.slice(0, 1))
+		if tinted:
+			ink.knock(RisoPrint.ALL_PLATES, sheet.slice(1, 2))
+		if KeyRing.is_stolen(color):
+			ink.ink(RisoPrint.PINK, 1.0, sheet.slice(1, 2))
+		else:
+			ink.ink(RisoPrint.NIGHT, 0.55, sheet.slice(1, 2), false)
+		var mark: Array[PackedVector2Array] = []
+		for poly: PackedVector2Array in RisoGlyph.of(KeyRing.paper_spell(color), Vector2.ZERO, t):
+			mark.append(Transform2D(0.0, Vector2(PAPER_MARK, PAPER_MARK), 0.0, o + Vector2(0, 2.0 * PAPER)) * poly)
+		if tinted:
+			ink.knock(RisoPrint.ALL_PLATES, mark)
+		else:
+			ink.ink(RisoPrint.ACCENT, 1.0, mark)
+		var tier: int = KeyRing.paper_tier(color)
+		var pips: Array[PackedVector2Array] = []
+		for i: int in range(tier):
+			var p: Vector2 = o + Vector2((float(i) - float(tier - 1) * 0.5) * 10.0, 13.0 * PAPER + 9.0)
+			pips.append(PackedVector2Array([p + Vector2(0, -4), p + Vector2(4, 0), p + Vector2(0, 4), p + Vector2(-4, 0)]))
+		ink.knock(RisoPrint.ALL_PLATES, pips)
+		ink.ink(RisoPrint.ACCENT, 1.0, pips)
+		return
 	var shape: Array[PackedVector2Array] = RisoMarks.key_shape(o, 1.0, color)
-	# A halo in the key's own colour, as the stars have (a skeleton key's is pale light).
-	var halo: Array[PackedVector2Array] = [RisoShapes.circle(o + Vector2(-2, 1), 26.0, 24)]
-	if color == KeyRing.SKELETON:
-		# Round the bone's whole length.
-		ink.lift_ink(RisoPrint.ALL_PLATES, 0.3, [RisoShapes.circle(o + Vector2(1, 1), 29.0, 26)])
-	else:
-		for plate: int in RisoPrint.key_inks(color):
-			ink.ink(plate, 0.25, halo)
 	RisoPrint.ink_key(ink, color, 1.0, shape)
 	if color == KeyRing.SKELETON:
 		# A bone-white skeleton key, with a paper twinkle turning over it: rarer than the coloured keys.

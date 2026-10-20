@@ -104,7 +104,7 @@ func normal_hurt (damage: int, v: Vector2, _attacker: Node) -> void:
 func hurt (damage: int, v: Vector2, attacker: Node) -> void:
 	if phasing:
 		return
-	# Dashing through an enemy is an attack, not a hit taken (DashStrike).
+	# Dashing through an enemy is not a hit taken (DashStrike).
 	var strike: DashStrike = get_node_or_null("DashStrike") as DashStrike
 	if strike != null and strike.guards(attacker):
 		return
@@ -118,7 +118,6 @@ const SPEED: float = 300.0
 var run_speed: float = SPEED
 # JUMP_VELOCITY: how quickly and high the player jumps
 const JUMP_VELOCITY: float = -600.0
-const JUMP_GRAVITY_FACTOR: float = 0.7
 const JUMP_END_CUT_FACTOR: float = 0.5
 var jumps: int = 1
 var MAX_JUMPS: int = 1
@@ -184,6 +183,33 @@ func _init() -> void:
 
 func _enter_tree() -> void:
 	Abilities.ensure_input()
+	# What the dash does on its way (it tears webs and cuts threads).
+	if get_node_or_null("DashStrike") == null:
+		var strike: DashStrike = DashStrike.new()
+		strike.name = "DashStrike"
+		add_child(strike)
+	# Empowered casts, once a lodestone has tempered the damage spell (Empower).
+	if get_node_or_null("Empower") == null:
+		var empower: Empower = Empower.new()
+		empower.name = "Empower"
+		add_child(empower)
+
+
+## Whether the movement slot holds one of the wizard's own moves (the dash or blink), done on the
+## Dash button here, rather than a spell cast from it.
+func dashes() -> bool:
+	var move: StringName = Abilities.spell(self, &"move")
+	return move != &"" and not Abilities.is_spell(move)
+
+
+## Whether the movement slot is ready: the dash (or blink) back, or the spell in it ready or
+## running. Nothing in it, never.
+func move_ready() -> bool:
+	if dashes():
+		return not dash.acted
+	if Abilities.spell(self, &"move") == &"":
+		return false
+	return Abilities.readiness(self, &"move") >= 1.0 or Abilities.running(self, &"move").x >= 0.0
 
 
 # DASH_SPEED: how quickly the player dashes
@@ -191,13 +217,12 @@ func _enter_tree() -> void:
 # Y_DASH_FACTOR: how much the dash is diminished in the Y direction
 const DASH_SPEED: float = 750.0
 const Y_DASH_FACTOR: float = 1.0
-var blink_enabled: bool = false
 func dash_end(_timer: ActionTimer) -> void:
 	velocity = Vector2.ZERO
 var dash: ActionTimer = ActionTimer.new(0.25, dash_end)
 ## On the ground the dash comes back only this long after the last one began, so it is not an
 ## attack to spam; in the air it comes back on landing (once this has passed), or from a moon.
-const DASH_GROUND_COOLDOWN: float = 0.75
+const DASH_GROUND_COOLDOWN: float = 1.0
 var dash_rest: float = 0.0
 
 # WALL_JUMP_SPEED: how quickly and high the player jumps
@@ -236,6 +261,19 @@ const CLIMB_TIME: float = 1.0
 var climable: bool = false
 var climb: ActionTimer = ActionTimer.new(CLIMB_TIME)
 
+## The rolling ladder the wizard is holding (RollingLadder), or null; how fast they climb it (px a
+## second); and how long after letting go they cannot take hold of one again (seconds, so a jump off
+## is not caught at once).
+var ladder: RollingLadder = null
+const LADDER_CLIMB: float = 260.0
+const LADDER_REGRIP: float = 0.25
+var ladder_rest: float = 0.0
+## How far below the top of a ladder's step the wizard is put to climb down it from the step (px):
+## just under the step's ledge.
+const LADDER_UNDER_STEP: float = 36.0
+## How fast the wizard is drawn across to the middle of a ladder as they take hold (px a second).
+const LADDER_SNAP: float = 1200.0
+
 # all of the timers (for decrementing)
 var timers: Array[ActionTimer] = [dash, wall_jump, buffer_jump, coyote, hang, invulnerable, graced, knock_back, climb]
 
@@ -248,11 +286,6 @@ var manual_control: bool = true
 # Get the gravity from the project settings to be synced with RigidBody nodes.
 var gravity: float = ProjectSettings.get_setting("physics/2d/default_gravity")
 
-# called when an animation is finished
-func animation_finished(animation: String) -> void:
-	if (animation == "hop"):
-		animating_jumping = false
-
 # gets the respawn and saves it
 var respawn: Node2D
 
@@ -263,9 +296,6 @@ func set_collision (enabled: bool) -> void:
 		await get_tree().process_frame
 	$CollisionShape2D.set_deferred("disabled", not enabled)
 
-func get_collision () -> bool:
-	return not $CollisionShape2D.disabled
-	
 #puts the player back at the spawn location
 func reset_position() -> void:
 	# The last lantern lit may be in another level: MapInfo loads it and places the player.
@@ -277,6 +307,7 @@ func reset_position() -> void:
 	position = respawn.position
 	velocity = Vector2.ZERO	
 	knock = Vector2.ZERO
+	ladder = null
 	await get_tree().physics_frame
 
 # kills the player and puts them back at respawn
@@ -338,7 +369,6 @@ func from_save(data: Dictionary) -> void:
 	Mend.restore(self, int(data.get("mend_draughts", -1)))
 
 # does a jump and triggers the jumping animation
-var animating_jumping: bool = false
 var jumping: bool = false
 var jump_held: bool = false
 func jump(factor: float=1.0) -> void:
@@ -348,7 +378,6 @@ func jump(factor: float=1.0) -> void:
 	# animation_player.queue("falling")
 	jumping = true
 
-	animating_jumping = true
 	
 	$"ParticleController".Jump()
 	jump_sfx.play()
@@ -437,9 +466,29 @@ func do_wall_jump (wall_normal: Vector2) -> void:
 
 func _physics_process(delta: float) -> void:
 	drowsy = maxf(0.0, drowsy - delta)
-	# The Spell button uses whatever spell is in the slot.
+	ladder_rest = maxf(0.0, ladder_rest - delta)
+	# Each slot's button casts what is in it: the Spell button the damage slot, the Utility button
+	# the utility slot, and the Dash button the movement slot's spell (the dash itself, or blink,
+	# is done below).
+	# Held for an empowered cast (Empower), the spell goes off when let go or held long enough.
+	var empower: Empower = Empower.of(self)
+	if empower != null:
+		empower.step(delta, Input.is_action_pressed(Abilities.SPELL_ACTION))
 	if Input.is_action_just_pressed(Abilities.SPELL_ACTION):
-		Abilities.cast(self)
+		# Every damage spell parries: the guard goes up (on its own cooldown, Parry) on the press.
+		if Abilities.spell(self) != &"" and not is_drowsy():
+			parry.emit()
+		if empower != null:
+			empower.press()
+		else:
+			Abilities.cast(self, &"damage")
+	# Nothing shows the utility spell standing by: pressed when it cannot work (cooling down, no
+	# draught left, nothing to heal), it sputters instead (RisoPrint: a dull puff from the bag).
+	if Input.is_action_just_pressed(Abilities.UTILITY_ACTION):
+		if not Abilities.cast(self, &"utility") and Abilities.spell(self, &"utility") != &"":
+			visual_event.emit(&"fizzle", global_position)
+	if Input.is_action_just_pressed("Dash") and not dashes():
+		Abilities.cast(self, &"move")
 	if phasing:
 		sit_held = 0.0
 		_phase(delta)
@@ -447,6 +496,8 @@ func _physics_process(delta: float) -> void:
 
 	var walled: bool = false
 	var wall_normal: Vector2
+	# In a spider's web (SpiderWeb): held, and the dash does not come back.
+	var webbed: bool = SpiderWeb.holding(get_tree(), global_position)
 
 	# get input from the user to establish direction
 	var direction: Vector2 = Vector2.RIGHT * Input.get_axis("Left", "Right") + Vector2.DOWN * Input.get_axis("Up", "Down")
@@ -459,6 +510,12 @@ func _physics_process(delta: float) -> void:
 			sprite.scale.x = abs(sprite.scale.x)
 		else:
 			sprite.scale.x = -abs(sprite.scale.x)
+
+	# A rolling ladder (RollingLadder): up or down on one takes hold of it, and while held it is
+	# climbed and ridden rather than walked.
+	_take_ladder(direction)
+	if ladder != null and _on_ladder(direction, delta):
+		return
 
 	# checks all current collisions and checks to see if colliding with a wall,
 	# wall normal must be in the x direction (an up-down wall) to be considered walled for wall jumping
@@ -502,7 +559,6 @@ func _physics_process(delta: float) -> void:
 			
 	else: # on the ground
 		last_wall_jump_side = 0.0
-		animating_jumping = false
 		jumping = false
 		jumps = MAX_JUMPS
 		if direction.x != 0:
@@ -518,7 +574,7 @@ func _physics_process(delta: float) -> void:
 			pass
 		
 		# Arm coyote time only while grounded. Taking a jump spends it; falling cannot rearm it.
-		if dash_rest <= 0.0:
+		if dash_rest <= 0.0 and not webbed:
 			dash.refresh()
 		coyote.enable(true)
 		hang.refresh()
@@ -589,15 +645,24 @@ func _physics_process(delta: float) -> void:
 		velocity = knock
 		knock = Vector2.ZERO
 		
-	# get dash input and dash if necessary
-	if Input.is_action_just_pressed("Dash"):
+	# get dash input and dash if necessary (the dash, or blink, in the movement slot)
+	if Input.is_action_just_pressed("Dash") and dashes():
 		if not dash.acted:
 			# Forced, so a dash given back mid-dash (by a moon) starts a fresh one: full length,
 			# and spent again, rather than only turning the one still running.
 			dash.enable(true)
 			dash_rest = DASH_GROUND_COOLDOWN
 			dash_ability.bind(direction).call()
+			# A dash lights a snuffed flame again (MapInfo.snuff).
+			if MapInfo.instance != null:
+				MapInfo.instance.relight()
 	
+	# A web holds the wizard: slow across, a jump stalls in it and a fall through it sinks slowly. A
+	# dash goes through, tearing it (DashStrike).
+	if webbed and not dash.is_acting():
+		velocity.x = clampf(velocity.x, -SpiderWeb.WEB_SPEED, SpiderWeb.WEB_SPEED)
+		velocity.y = clampf(velocity.y, -SpiderWeb.WEB_RISE, SpiderWeb.WEB_SINK)
+
 	# elapse the time in all timers
 	for timer: ActionTimer in timers:
 		timer.elapse(delta)
@@ -619,11 +684,94 @@ func _physics_process(delta: float) -> void:
 			# Separate moves preserve sideways carry when vertical steering meets a floor or ceiling.
 			# Steering is displacement too: releasing the stick leaves no vertical drift behind.
 			move_and_collide(Vector2(0.0, direction.y * Wind.STEER_SPEED * delta))
+	elif push.y == 0.0 and MapInfo.instance != null and not dash.is_acting():
+		# A gust in a sky level carries the wizard anywhere in its open air (not in an updraft, which
+		# holds them), less while they stand, not where rock shelters them (MapInfo.gust_at).
+		var gust: float = MapInfo.instance.gust_at(global_position)
+		if gust != 0.0:
+			# Off the ground, it bears the wizard up as it carries them: they sink slowly, unless they
+			# hold Down to drop out of it.
+			if not is_on_floor() and velocity.y > Wind.GUST_SINK and not (manual_control and direction.y > 0.0):
+				velocity.y = Wind.GUST_SINK
+			move_and_collide(Vector2(gust * (Wind.GROUND_SHARE if is_on_floor() else 1.0) * delta, 0.0))
 
 	# this uses veolcity and calculates collisions for next frame
 	move_and_slide()
 	_footing()
 	_sit(direction, delta)
+
+
+## Up or down (`direction`) on a rolling ladder takes hold of it: up from anywhere along it below
+## its step, down from its step (climbing down under it) or from the air beside it.
+func _take_ladder(direction: Vector2) -> void:
+	if ladder != null or ladder_rest > 0.0 or direction.y == 0.0 or dash.is_acting() or levitating or knock_back.is_acting():
+		return
+	var feet: float = _feet_y()
+	if direction.y < 0.0:
+		var found: RollingLadder = RollingLadder.at(get_tree(), Vector2(global_position.x, feet - 4.0))
+		if found != null and feet > found.top_y() + 4.0:
+			ladder = found
+		return
+	var below: RollingLadder = RollingLadder.at(get_tree(), Vector2(global_position.x, feet + 4.0), 8.0)
+	if below == null:
+		return
+	var on_step: bool = absf(feet - below.top_y()) < 8.0
+	if on_step:
+		global_position.y += below.top_y() + LADDER_UNDER_STEP - feet
+	elif is_on_floor():
+		return
+	ladder = below
+
+
+## Let go of the ladder held.
+func _let_go() -> void:
+	ladder = null
+	ladder_rest = LADDER_REGRIP
+
+
+## A step on the ladder held (`direction` the stick): climbing it up or down and carried along as it
+## rolls, the dash and the jumps back as on the ground. Climbed to the top they stand on its step,
+## climbed down onto a floor or past its foot they let go, and a jump, a dash or a blow lets go.
+## Returns whether the step was taken here (false: let go, the rest of the frame moves as usual).
+func _on_ladder(direction: Vector2, delta: float) -> bool:
+	if not is_instance_valid(ladder) or knock != Vector2.ZERO or Input.is_action_just_pressed("Dash"):
+		_let_go()
+		return false
+	var feet: float = _feet_y()
+	if Input.is_action_just_pressed("Jump"):
+		_let_go()
+		jumps = MAX_JUMPS
+		jump_held = true
+		jump()
+		jumps -= 1
+		velocity.x = direction.x * run_speed
+		move_and_slide()
+		return true
+	if direction.y < 0.0 and feet <= ladder.top_y() + 2.0:
+		# Up onto its step.
+		global_position.y -= feet - ladder.top_y() + 1.0
+		velocity.y = 0.0
+		_let_go()
+		return false
+	# (Clear of its step first: just taken hold of from the step, the floor last stood on is the step.)
+	if direction.y > 0.0 and ((is_on_floor() and feet > ladder.top_y() + LADDER_UNDER_STEP + 4.0) or feet >= ladder.foot_y()):
+		_let_go()
+		return false
+	velocity.y = direction.y * LADDER_CLIMB
+	velocity.x = clampf((ladder.ladder_x() - global_position.x) / delta, -LADDER_SNAP, LADDER_SNAP)
+	jumping = false
+	jumps = MAX_JUMPS
+	if dash_rest <= 0.0:
+		dash.refresh()
+	hang.refresh()
+	climb.refresh()
+	for timer: ActionTimer in timers:
+		timer.elapse(delta)
+	dash_rest = maxf(0.0, dash_rest - delta)
+	elapse_ability_time_signal.emit(delta)
+	move_and_slide()
+	_footing()
+	return true
 
 
 ## Sky levels: the last rock the wizard stood on (`footing`, in the level `footing_at`). Falling out

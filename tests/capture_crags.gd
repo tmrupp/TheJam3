@@ -1,7 +1,9 @@
 extends TestKit
 ## Stills of a crag level (world 28, the band's second row): where you arrive, the whole cliff
 ## zoomed out, the castle's decor (battlements, an arrow slit, a banner, a broken column, rubble), a
-## door, a toll gate, and the gondola waiting at its open station, mid-run along its circuit (barred,
+## door, the tower puzzle (a tower's switch with its board of stations, close up, and after it is
+## flipped, locked; a station's gate shut and, its station turned on, open), and the gondola
+## waiting at its open station, mid-run along its circuit (barred,
 ## its rock-bugs coming along the cable) and at the next station, shut by its gate, with a bug
 ## climbed in, and held swung on its hinge; and a rock-bug on the rock.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_crags.gd
@@ -46,10 +48,28 @@ func run() -> void:
 				pick = b
 				break
 		await look(pick.rb.global_position, "crags_rockbug.png")
-	# A toll gate shutting a station.
-	var tolls: Array[Node] = placed("toll_gate.tscn")
-	if not tolls.is_empty():
-		await look((tolls[0] as Node2D).global_position + Vector2(-100, -40), "crags_toll.png")
+	# The tower puzzle: a tower's switch close up, then flipped (locked); a station's gate.
+	var switches: Array[Node] = placed("tower_switch.tscn", true)
+	if not switches.is_empty():
+		var sw: TowerSwitch = switches[0] as TowerSwitch
+		camera.zoom = zoom * 2.0
+		await look(sw.global_position + Vector2(0, -110), "crags_tower_switch.png")
+		sw.use()
+		await frames(20)
+		await look(sw.global_position + Vector2(0, -110), "crags_tower_switch_locked.png")
+		camera.zoom = zoom
+		await look(sw.global_position + Vector2(0, -200), "crags_tower.png")
+	var gates: Array[Node] = placed("switch_gate.tscn", true).filter(func(n: Node) -> bool: return (n as SwitchGate).station >= 0)
+	var shut: Array[Node] = gates.filter(func(n: Node) -> bool: return not (n as SwitchGate).up)
+	if not shut.is_empty():
+		var gate: SwitchGate = shut[0] as SwitchGate
+		camera.zoom = zoom * 2.0
+		await look(gate.global_position + Vector2(0, -90), "crags_station_gate.png")
+		info.record().stations |= 1 << gate.station
+		gate.set_up(true)
+		await frames(40)
+		await look(gate.global_position + Vector2(0, -90), "crags_station_gate_on.png")
+		camera.zoom = zoom
 	# The gondola waiting at its open station, then ridden: barred, its wraiths about, and at the
 	# next station, shut by its gate.
 	var gondolas: Array[Node] = placed("gondola.tscn")

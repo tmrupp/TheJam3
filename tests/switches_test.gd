@@ -1,10 +1,11 @@
 extends TestKit
-## Switch gates (every level has one; its switch is reachable with the gate shut and stands near
-## it; some switches start on; turning it on lifts the gate and off drops it again, never on the
+## Switch gates (every level has one; its switch is reachable with the gate shut and stands well
+## away from it; some switches start on; turning it on lifts the gate and off drops it again, never on the
 ## wizard; a hex bolt turns one on but never off; the record keeps each as it was left), the rare
 ## big jump (never at depth 0, about
-## PLUNGE_CHANCE % of levels deeper; drops PLUNGE_DEPTH levels for its price) and the parry
-## (wounds and stuns what it catches, reflects shots, refunds the dash).
+## PLUNGE_CHANCE % of levels deeper; drops PLUNGE_DEPTH levels for its price) and the parry that
+## every damage spell raises (wounds and stuns what it catches, reflects shots, refunds the dash;
+## none with no damage spell held).
 ## godot --headless --path . --script res://tests/switches_test.gd
 
 
@@ -14,6 +15,7 @@ func run() -> void:
 	var reach_ok: bool = true
 	var levels: int = 0
 	var near: int = 0
+	var switch_pairs: int = 0
 	var far_ok: bool = true
 	var all_switches: int = 0
 	var start_on: int = 0
@@ -29,6 +31,7 @@ func run() -> void:
 				if w.get_cell(v).type != LevelGen.Type.SWITCH_GATE:
 					continue
 				pairs += 1
+				switch_pairs += 1
 				var lever: Vector2i = w.get_cell(v).extra_info
 				if w.get_cell(lever).type != LevelGen.Type.SWITCH or w.get_cell(lever).extra_info != v:
 					gates_ok = false
@@ -46,8 +49,8 @@ func run() -> void:
 				if not seen.has(lever):
 					reach_ok = false
 				var apart: int = LevelGen.dist(lever, v)
-				near += 1 if apart <= LevelGen.SWITCH_NEAR else 0
-				far_ok = far_ok and apart >= LevelGen.SWITCH_NEAR_MIN
+				near += 1 if apart >= LevelGen.SWITCH_MIN else 0
+				far_ok = far_ok and apart >= 2
 			for v: Vector2i in w.objects:
 				if w.get_cell(v).type == LevelGen.Type.SWITCH:
 					all_switches += 1
@@ -56,7 +59,7 @@ func run() -> void:
 				gates_ok = false
 	check(gates_ok, "every one of %d levels has a switch gate, paired both ways with its switch" % levels)
 	check(reach_ok, "every switch is reachable from the way in with its gate shut")
-	check(far_ok and near * 4 >= levels * 3, "switches stand near their gates (%d within %d cells, none nearer than %d)" % [near, LevelGen.SWITCH_NEAR, LevelGen.SWITCH_NEAR_MIN])
+	check(far_ok and near * 10 >= switch_pairs * 9, "switches stand well away from their gates (%d of %d at least %d cells off, none right beside one)" % [near, switch_pairs, LevelGen.SWITCH_MIN])
 	check(start_on * 100 > all_switches * 15 and start_on * 100 < all_switches * 55, "some switches start on (%d of %d)" % [start_on, all_switches])
 	var plunges: int = 0
 	var surface: int = 0
@@ -86,7 +89,8 @@ func run() -> void:
 	# The garden's gates are what gate_test is for: here they are passed, so its hyperspace opens.
 	info.run.bosses[Bosses.GARDEN_DOWN] = true
 	info.run.bosses[Bosses.GARDEN_UP] = true
-	var switches: Array[Node] = placed("switch.tscn")
+	# The switches that work a gate (a lift or thorns may have one too).
+	var switches: Array[Node] = placed("switch.tscn").filter(func(n: Node) -> bool: return info.world.get_cell((n as Switch).gate_cell).type == LevelGen.Type.SWITCH_GATE)
 	var gates: Array[Node] = placed("switch_gate.tscn")
 	check(not switches.is_empty() and gates.size() == switches.size(), "the level holds %d switch and gate" % switches.size())
 	var lever: Switch = switches[0] as Switch
@@ -161,7 +165,6 @@ func run() -> void:
 	check(player.global_position.distance_to(info.cell_position(info.world.exits[MapInfo.Exit.BACK])) < 80.0, "arriving by that level's way back")
 
 	print("parry")
-	Abilities.set_tier(player, &"parry", 1)
 	var wisp: Node2D = placed("mover_enemy.tscn")[0] as Node2D
 	wisp.get_node("Wound").set("hp", 3)
 	player.dash.acted = true
@@ -171,7 +174,7 @@ func run() -> void:
 	player.hurt(-1, Vector2.RIGHT * 100.0, wisp.get_node("HitBox/Damager"))
 	check(int(wisp.get_node("Wound").get("hp")) == 2 and bool(wisp.get_node("Mover").get("stunned")), "a parried wisp is wounded (3 -> 2 hp) and stunned")
 	check(guard.guard_left() < 0.0 and guard.glory(), "a catch drops the guard and the wizard shimmers gold, not hurt pink")
-	check(player.knock.is_equal_approx(Vector2(player.WALL_JUMP_SPEED, player.JUMP_VELOCITY * player.WALL_JUMP_Y_FACTOR)), "a catch from the side sends the wizard away and up, just as a wall jump")
+	check(player.knock == Vector2.ZERO, "a catch never pushes the wizard away from the enemy (a blow that lands does, SpellStrike.recoil)")
 	check(player.invulnerable.acting <= Parry.SAFE + 0.001, "and keeps them untouchable only briefly")
 	check(guard.missed_at < guard.parried_at, "a catch is not a miss")
 	check(not player.dash.acted and player.health.health == player.health.max_health, "the parry refunds the dash and takes no damage")
@@ -208,26 +211,35 @@ func run() -> void:
 	await until(func() -> bool: return not guard.cooldown.acted, 3000)
 	player.hurt(-1, Vector2.RIGHT * 100.0, wisp.get_node("HitBox/Damager"))
 	check(player.invulnerable.is_acting() and guard.hurt_guarded() and guard.readiness() == 0.0, "hurt, the wizard is untouchable and the parry reads not ready")
-	check(not guard.cast_spell() and guard.guard_left() < 0.0, "and no guard can be raised")
 	player.parry.emit()
-	check(guard.guard_left() < 0.0 and not guard.cooldown.acted, "not by the parry signal either, and the cooldown is not spent")
+	check(guard.guard_left() < 0.0 and not guard.cooldown.acted, "and no guard can be raised, and the cooldown is not spent")
 	player.end_invulnerable()
-	check(guard.cast_spell() and guard.guard_left() > 0.0, "once that ends, the guard rises again")
+	player.parry.emit()
+	check(guard.guard_left() > 0.0, "once that ends, the guard rises again")
 	player.hurt(-1, Vector2.RIGHT * 100.0, wisp.get_node("HitBox/Damager"))
 	Engine.time_scale = 1.0
-	check(guard.glory() and not guard.hurt_guarded() and guard.cast_spell(), "after a catch, its own untouchable moment still allows the next guard")
-	# Landing on an enemy: bounced straight up, keeping control and the way across.
+	check(guard.glory() and not guard.hurt_guarded() and guard.readiness() == 1.0, "after a catch, its own untouchable moment still allows the next guard")
+	player.parry.emit()
+	# Landing on an enemy with the guard up: caught, but no bounce (a slash down is what bounces,
+	# parry_landing_test).
 	player.knock = Vector2.ZERO
 	player.knock_back.end()
 	player.velocity = Vector2(250.0, 650.0)
 	player.hurt(-1, Vector2.UP * 400.0, wisp.get_node("HitBox/Damager"))
 	Engine.time_scale = 1.0
-	check(is_equal_approx(player.velocity.y, Parry.POGO) and is_equal_approx(player.velocity.x, 250.0), "parrying an enemy landed on bounces the wizard up, still heading the same way")
+	check(is_equal_approx(player.velocity.y, 650.0) and is_equal_approx(player.velocity.x, 250.0), "parrying an enemy landed on leaves the wizard's motion alone")
 	check(player.knock == Vector2.ZERO and not player.knock_back.is_acting(), "with control kept")
 	player.end_invulnerable()
-	Abilities.set_tier(player, &"parry", 4)
-	var p: Node = player.get_node("Parry")
-	check(is_equal_approx(float(p.get("duration")), Parry.WINDOW_II) and int(p.get("damage")) == 2 and bool(p.get("heals")), "parry IV: a longer guard, 2 damage, and it heals")
+	# Every damage spell parries; with none held there is nothing to parry with.
+	await until(func() -> bool: return guard.guard_left() < 0.0 and not guard.cooldown.acted, 3000)
+	Abilities.set_tier(player, &"hex", 1)
+	player.parry.emit()
+	check(guard.guard_left() > 0.0, "hex raises the guard as slash does")
+	await until(func() -> bool: return guard.guard_left() < 0.0 and not guard.cooldown.acted, 3000)
+	Abilities.set_tier(player, &"hex", 0)
+	player.parry.emit()
+	check(guard.guard_left() < 0.0, "with no damage spell held, no guard rises")
+	Abilities.set_tier(player, &"slash", 1)
 
 	Engine.time_scale = 1.0
 	finish()

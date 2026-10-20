@@ -1,5 +1,6 @@
 extends TestKit
-## Phase 7 of docs/DEEPER_PLAN.md: the hex bolt, enemy health and cracked walls.
+## Phase 7 of docs/DEEPER_PLAN.md: the hex bolt, enemy health and cracked walls (which only an
+## empowered bolt breaks, Empower: a plain one chips them).
 ## godot --headless --path . --script res://tests/hex_test.gd
 
 
@@ -7,12 +8,15 @@ func open_cell(v: Vector2i) -> bool:
 	return info.world.is_valid(v) and info.world.get_cell(v).type != LevelGen.Type.GROUND and info.world.get_cell(v).type != LevelGen.Type.CRACKED
 
 
-## A bolt thrown from `from` toward `dir`, as the Hex ability would.
-func fire(from: Vector2, dir: Vector2, damage: int = 1) -> Node2D:
+## A bolt thrown from `from` toward `dir`, as the Hex ability would (`empowered`, as a held cast
+## of a tempered hex would: Empower).
+func fire(from: Vector2, dir: Vector2, damage: int = 1, empowered: bool = false) -> Node2D:
 	var bolt: Node2D = Node2D.new()
 	bolt.set_script(preload("res://scripts/HexBolt.gd"))
 	bolt.set("dir", dir)
 	bolt.set("damage", damage)
+	bolt.set("empowered", empowered)
+	bolt.set("bore", HexBolt.BORE if empowered else 0)
 	info.map_elements.add_child(bolt)
 	bolt.global_position = from
 	return bolt
@@ -36,7 +40,7 @@ func run() -> void:
 	player.set_physics_process(false)
 
 	print("the hex")
-	check(Abilities.spell(player) == &"parry" and player.get_node_or_null("Hex") == null, "parry to start with: the hex is learned")
+	check(Abilities.spell(player) == &"slash" and player.get_node_or_null("Hex") == null, "slash to start with: the hex is learned")
 	Abilities.grant(player, &"hex")
 	var hex: Hex = player.get_node_or_null("Hex") as Hex
 	check(hex != null and Abilities.tier(player, &"hex") == 1 and hex.charges == 1 and Abilities.spell(player) == &"hex", "learned: one charge")
@@ -56,20 +60,21 @@ func run() -> void:
 	player.global_position = e.global_position + side * 150.0 + Vector2(0, 16 - 31)
 	var bolt: Node2D = hex.cast(-side)
 	check(bolt != null and hex.charges == 0, "casting spends the charge")
-	await until(func() -> bool: return is_instance_valid(e) and bool(e.get_node("Mover").get("stunned")))
-	check(is_instance_valid(e) and not e.is_queued_for_deletion() and bool(e.get_node("Mover").get("stunned")), "hex I only stuns: a level bolt from the same floor leaves the wisp stunned, unhurt")
-	check(is_equal_approx(Hex.COOLDOWN, 6.0) and hex.readiness() < 0.1, "a long cooldown, and the wand shows the hex spent")
+	var full: int = int(e.get_node("Wound").get("hp"))
+	await until(func() -> bool: return not is_instance_valid(e) or int(e.get_node("Wound").get("hp")) < full)
+	check(is_instance_valid(e) and int(e.get_node("Wound").get("hp")) == full - 1 and not bool(e.get_node("Mover").get("stunned")), "hex I wounds: a level bolt from the same floor wounds the wisp once, and does not stun it")
+	check(is_equal_approx(Hex.COOLDOWN, 3.5) and hex.readiness() < 0.1, "a cooldown, and the wand shows the hex spent")
 	Abilities.grant(player, &"hex")
 	hex.refill()
 	player.global_position = e.global_position + side * 150.0 + Vector2(0, 16 - 31)
 	bolt = hex.cast(-side)
 	await until(gone(e))
-	check(not is_instance_valid(e) or e.is_queued_for_deletion(), "hex II wounds: the bolt destroys the wisp")
+	check(not is_instance_valid(e) or e.is_queued_for_deletion(), "a second bolt destroys the wisp")
 	check((info.record().slain as Dictionary).has(cell), "the level records it slain")
 	check(placed("coin.tscn").size() > stars_before, "it drops stars")
 	check(hex.cast(Vector2.RIGHT) == null, "no charge, no bolt")
-	await until(func() -> bool: return hex.charges == 1, roundi((Hex.COOLDOWN + 1.0) * 1000.0))
-	check(hex.charges == 1, "the charge comes back after %.1f s" % Hex.COOLDOWN)
+	await within(func() -> bool: return hex.charges == 1, hex.cooldown + 1.0)
+	check(hex.charges == 1, "the charge comes back after %.1f s" % hex.cooldown)
 	hex.charges = 0
 	placed("checkpoint.tscn")[0].call("interacted")
 	check(hex.charges == hex.charges_max, "lighting a lantern refills the charges")
@@ -78,7 +83,11 @@ func run() -> void:
 	var pick2: Array = target("mover_enemy.tscn")
 	var e2: Node2D = pick2[0]
 	e2.get_node("Wound").set("hp", 2)
+	var w2: Wound = e2.get_node("Wound") as Wound
+	check(Wound.dealt(w2, 0) == 0, "a blow of no damage (a push at I) leaves an enemy that is not stunned unhurt")
 	e2.get_node("Stunner").call("stun", 5.0)
+	await physics_frame
+	check(Wound.dealt(w2, 0) == 1, "but wounds one a parry has left stunned")
 	e2.get_node("Wound").call("hit", 1, Vector2.RIGHT)
 	await until(gone(e2))
 	check(not is_instance_valid(e2) or e2.is_queued_for_deletion(), "a 2 HP wisp falls to one stunned hit")
@@ -137,9 +146,13 @@ func run() -> void:
 	# Stand there first: the wall's chunk has to be awake (chunks far from the wizard sleep).
 	player.global_position = shot_from
 	await frames(8)
-	fire(shot_from, shot_dir)
+	var plain: Node2D = fire(shot_from, shot_dir)
+	await until(gone(plain))
+	await frames(2)
+	check(placed("cracked_wall.tscn").any(func(n: Node) -> bool: return n.get_meta(&"cell") == shot) and not (info.record().broken as Dictionary).has(shot), "a plain bolt only chips the wall: it stands")
+	fire(shot_from, shot_dir, 1, true)
 	await until(func() -> bool: return not placed("cracked_wall.tscn").any(func(n: Node) -> bool: return n.get_meta(&"cell") == shot))
-	check(not placed("cracked_wall.tscn").any(func(n: Node) -> bool: return n.get_meta(&"cell") == shot), "a bolt breaks the wall")
+	check(not placed("cracked_wall.tscn").any(func(n: Node) -> bool: return n.get_meta(&"cell") == shot), "an empowered bolt breaks the wall")
 	check((info.record().broken as Dictionary).has(shot), "and the record keeps it broken")
 	# A protected death (a fresh lantern lit first): an unprotected one would end the run, and a
 	# new run starts with fresh records.
@@ -162,9 +175,9 @@ func run() -> void:
 	if not player.has_node("Hex"):
 		Abilities.grant(player, &"hex")
 	hex = player.get_node("Hex") as Hex
-	check(Abilities.tier(player, &"hex") == 1 and hex.damage == 0 and hex.charges_max == 1, "hex I: stuns only, one charge")
+	check(Abilities.tier(player, &"hex") == 1 and hex.damage == 1 and hex.charges_max == 1 and is_equal_approx(hex.cooldown, Hex.COOLDOWN), "hex I: wounds (one damage), one charge")
 	Abilities.grant(player, &"hex")
-	check(hex.damage == 1 and hex.charges_max == 1, "hex II: wounds (one damage)")
+	check(hex.damage == 1 and hex.charges_max == 1 and is_equal_approx(hex.cooldown, Hex.COOLDOWN_II), "hex II: its charge comes back sooner")
 	Abilities.grant(player, &"hex")
 	check(hex.charges_max == 2, "hex III: two charges")
 	Abilities.grant(player, &"hex")

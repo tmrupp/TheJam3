@@ -21,9 +21,17 @@ const PLAIN_ROCK: Vector2i = Vector2i(1, 1)
 const JITTER_DEAL: int = 9800
 ## How far a floating pickup may sit from its cell's centre, as a share of the cell.
 const JITTER: float = 0.3
+## The physics layer only enemies collide with (enemy.tscn's mask): a secret room's false wall is
+## on it, so the wizard walks through it but no enemy wanders in and stands in the "rock", giving
+## the room away.
+const ENEMY_WALL: int = 512
 
 var info: MapInfo
 var thread: Thread = Thread.new()
+## The worker's own terrain generator: a copy of the scene's (MapInfo.wfc), kept out of the scene
+## tree. A node in the tree may only be touched from the main thread: driven from the worker, the
+## scene's own redrew and signalled off the main thread, which can crash the game or lock it up.
+var _worker_wfc: WaveFunctionCollapse
 ## Collapsed cells by place, and laid-out levels by _world_key.
 var cache: Dictionary = {}
 var cache_order: Array[Vector2i] = []
@@ -46,8 +54,10 @@ func _init(owner_info: MapInfo) -> void:
 
 
 func _exit_tree() -> void:
-	if thread.is_started():
-		thread.wait_to_finish()
+	_join()
+	if _worker_wfc != null:
+		_worker_wfc.free()
+		_worker_wfc = null
 
 
 ## Lay out place `at` (or take it from the cache) and signal ready_to_build when it is.
@@ -59,6 +69,19 @@ func request(at: Vector2i) -> void:
 		ready_to_build.emit.call_deferred(built)
 	else:
 		_pump()
+
+
+## Wait for the worker to finish (if it was started). The terrain generator reads its sample's
+## pixels through the RenderingServer, which a worker can only do once the main thread has served
+## it: so while waiting, keep serving it, or the two would wait on each other for ever (as when the
+## scene is freed, back to the start menu, while a neighbour is still being laid out).
+func _join() -> void:
+	if not thread.is_started():
+		return
+	while thread.is_alive():
+		RenderingServer.force_sync()
+		OS.delay_msec(1)
+	thread.wait_to_finish()
 
 
 ## Start the worker on the wanted place, else on the next neighbour not yet cached.
@@ -73,8 +96,9 @@ func _pump() -> void:
 	if next == null:
 		return
 	gen_busy = true
-	if thread.is_started():
-		thread.wait_to_finish()
+	_join()
+	if _worker_wfc == null:
+		_worker_wfc = info.wfc.duplicate() as WaveFunctionCollapse
 	# Cells already collapsed are handed over, so the worker only lays the level out.
 	thread.start(_generate_threaded.bind(next as Vector2i, cache.get(next, [])))
 
@@ -82,14 +106,13 @@ func _pump() -> void:
 ## On the worker: the place's cells (unless given) and its layout, so neither stalls a frame.
 func _generate_threaded(at: Vector2i, cells: Array) -> void:
 	if cells.is_empty():
-		cells = info.wfc.generate_level(Rules.def_for(at))
+		cells = _worker_wfc.generate_level(Rules.def_for(at))
 	var built: LevelGen = LevelGen.new(cells, Rules.def_for(at))
 	_generated.call_deferred(at, cells, built)
 
 
 func _generated(at: Vector2i, cells: Array, built: LevelGen) -> void:
-	if thread.is_started():
-		thread.wait_to_finish()
+	_join()
 	gen_busy = false
 	# Left the scene (back to the start menu, or a test tearing down): the result is not wanted,
 	# and no further work may start, or a thread would outlive this object.
@@ -119,7 +142,7 @@ func world_at(at: Vector2i) -> LevelGen:
 
 
 ## Keep a place's cells, and its layout when there is one (layouts are read-only once built, and
-## depend on the debug flag, so they are kept per flag).
+## depend on the debug flag and the difficulty preset, so they are kept per flag and preset).
 func _cache_put(at: Vector2i, cells: Array, built: LevelGen = null) -> void:
 	cache[at] = cells
 	if built != null:
@@ -132,8 +155,8 @@ func _cache_put(at: Vector2i, cells: Array, built: LevelGen = null) -> void:
 		worlds.erase(_world_key(old))
 
 
-func _world_key(at: Vector2i) -> String:
-	return "%s:%s" % [at, MapInfo.debug]
+static func _world_key(at: Vector2i) -> String:
+	return "%s:%s:%d" % [at, MapInfo.debug, Difficulty.preset]
 
 
 ## The cached layout of place `at`, or null.
@@ -224,6 +247,13 @@ func place_cell(v: Vector2i, cell: LevelGen.Cell) -> void:
 		gone.append(rec.broken)
 	if gone.any(func(d: Dictionary) -> bool: return d.has(v)):
 		return
+	# A temple's hoard is there only once it is opened (Temple).
+	if cell.type == LevelGen.Type.CLUSTER and not rec.temple_open and w.in_temple_hoard(v):
+		return
+	# A lecture hall's master and proctor are away while its hall has no class (Timetable,
+	# MapInfo.class_away); its students keep days of their own (Students).
+	if cell.type in [LevelGen.Type.MASTER, LevelGen.Type.PROCTOR] and info.class_away(v):
+		return
 	# A boss slain this run is never met again (Bosses).
 	if cell.type == LevelGen.Type.BOSS and info.run.bosses.has(StringName(cell.extra_info)):
 		return
@@ -242,11 +272,12 @@ func place_cell(v: Vector2i, cell: LevelGen.Cell) -> void:
 		node.set_meta(&"key_color", int(cell.extra_info) if cell.extra_info != null else 0)
 	if cell.type == LevelGen.Type.CRACKED and cell.extra_info != null:
 		# Part of a secret room: hidden rock, or its entrance, a false wall that looks like rock but
-		# is walked (and shot) straight through.
+		# is walked (and shot) straight through by the wizard, though enemies take it for rock
+		# (ENEMY_WALL).
 		node.set_meta(&"secret", int(cell.extra_info))
 		node.set_meta(&"hidden", not (w.secrets[int(cell.extra_info)]["entrance"] as Array).has(v))
 		if not bool(node.get_meta(&"hidden")):
-			(node as CollisionObject2D).collision_layer = 0
+			(node as CollisionObject2D).collision_layer = ENEMY_WALL
 	if cell.type == LevelGen.Type.CLUSTER:
 		# A vault's lesser cluster is worth a share of a full one (LevelGen.VAULT_LOOT).
 		var share: float = float(cell.extra_info) if cell.extra_info != null else 1.0
@@ -293,6 +324,12 @@ static func arm(node: Node, depth: int) -> void:
 # its neighbourhood of the camera does (only things placed with the level; bolts, ghosts and
 # rifts always run). Chunks wake with a margin past the view (wider than a watcher's sight) and
 # only sleep a little further out, so nothing flickers at the edge.
+#
+# A level holds thousands of things, and a sweep looks at as few of them as it can: what is awake
+# (it may have moved into another chunk), what sleeps in a chunk that has just woken, what was
+# added since the last sweep, and the few things that wake from afar or spread over several chunks
+# (worms, winds, gondolas). What sleeps cannot move, so it is kept by the chunk it fell asleep in
+# until that chunk wakes.
 
 const CHUNK: int = 8
 ## Chunks within this many pixels of the view's edge (in world pixels) are awake; awake ones sleep
@@ -303,6 +340,14 @@ const CHUNK_EVERY: int = 6
 var _chunk_tick: int = 0
 ## Chunk -> whether it is awake.
 var _chunk_awake: Dictionary = {}
+## The things that sleep with their chunks, kept for the map elements they were gathered from
+## (_gathered): those awake; those asleep, by chunk; those looked at on every sweep (worms, winds,
+## gondolas); and those added since the last sweep, not yet looked at.
+var _gathered: Node = null
+var _awake_things: Array[Node2D] = []
+var _asleep_in: Dictionary = {}
+var _special_things: Array[Node2D] = []
+var _arrived: Array = []
 
 
 func chunk_of(pos: Vector2) -> Vector2i:
@@ -339,8 +384,10 @@ func sleep_far_chunks(force: bool = false, around: Vector2 = Vector2.INF) -> voi
 	var player: Player = info.player
 	var has_wizard: bool = player != null and is_instance_valid(player)
 	var wizard: Vector2 = player.global_position if has_wizard else Vector2.ZERO
-	# Wake or sleep each chunk by the gap between its rectangle and the view.
+	# Wake or sleep each chunk by the gap between its rectangle and the view, noting those that
+	# have just woken.
 	var states: Dictionary = {}
+	var woke: Array[Vector2i] = []
 	var size: Vector2i = info.world.size + Vector2i(BORDER, BORDER) * 2
 	for cx: int in range(floori(-float(BORDER) / CHUNK) - 1, ceili(float(size.x) / CHUNK) + 1):
 		for cy: int in range(floori(-float(BORDER) / CHUNK) - 1, ceili(float(size.y) / CHUNK) + 1):
@@ -353,21 +400,61 @@ func sleep_far_chunks(force: bool = false, around: Vector2 = Vector2.INF) -> voi
 				var gap_w: Vector2 = (((lo + chunk_px * 0.5) - wizard).abs() - (chunk_px * 0.5 + half)).max(Vector2.ZERO)
 				d = minf(d, maxf(gap_w.x, gap_w.y))
 			var was: bool = bool(_chunk_awake.get(key, false))
-			states[key] = d < (CHUNK_SLEEP if was else CHUNK_WAKE)
+			var now: bool = d < (CHUNK_SLEEP if was else CHUNK_WAKE)
+			states[key] = now
+			if now and not was:
+				woke.append(key)
 	_chunk_awake = states
-	for node: Node in map_elements.get_children():
-		var n2: Node2D = node as Node2D
-		# Only the level's own placed things sleep; bolts, ghosts and rifts always run.
-		if n2 == null or node.is_queued_for_deletion() or not node.has_meta(&"cell"):
+	if not is_instance_valid(_gathered) or _gathered != map_elements:
+		_gather()
+	# What was added since the last sweep, and what is awake: by where it is now.
+	var awake_now: Array[Node2D] = []
+	var looked_at: Array = []
+	looked_at.append_array(_arrived)
+	looked_at.append_array(_awake_things)
+	_arrived.clear()
+	for entry: Variant in looked_at:
+		var n2: Node2D = _sleeper(entry)
+		if n2 == null:
 			continue
+		if n2 is Worm or n2 is Wind or n2 is Gondola:
+			if not _special_things.has(n2):
+				_special_things.append(n2)
+			continue
+		var chunk: Vector2i = chunk_of(n2.global_position)
+		if bool(states.get(chunk, false)):
+			_set_awake(n2, true)
+			awake_now.append(n2)
+		else:
+			_set_awake(n2, false)
+			if not _asleep_in.has(chunk):
+				_asleep_in[chunk] = [] as Array[Node2D]
+			(_asleep_in[chunk] as Array[Node2D]).append(n2)
+	# What sleeps in a chunk that has just woken.
+	for chunk: Vector2i in woke:
+		var sleepers: Array[Node2D] = _asleep_in.get(chunk, [] as Array[Node2D])
+		_asleep_in.erase(chunk)
+		for entry: Variant in sleepers:
+			var n2: Node2D = _sleeper(entry)
+			if n2 != null:
+				_set_awake(n2, true)
+				awake_now.append(n2)
+	_awake_things = awake_now
+	# What wakes from afar or spreads over several chunks: looked at on every sweep.
+	var specials: Array[Node2D] = []
+	for entry: Variant in _special_things:
+		var n2: Node2D = _sleeper(entry)
+		if n2 == null:
+			continue
+		specials.append(n2)
 		var awake: bool = bool(states.get(chunk_of(n2.global_position), false))
 		# Its activation range can reach beyond the view's awake chunks: let it check the wizard
 		# there too. Once woken it hunts across the level; its root stays at its original burrow.
-		var worm: Worm = node as Worm
+		var worm: Worm = n2 as Worm
 		if worm != null and (worm.awake or (has_wizard and LevelGen.dist(info.cell_at(wizard), worm.home) <= Worm.WAKE_RANGE)):
 			awake = true
 		# Something spread over several chunks (a wind, Wind.extent) is awake if any of them is.
-		var wind: Wind = node as Wind
+		var wind: Wind = n2 as Wind
 		if not awake and wind != null:
 			var r: Rect2 = wind.extent()
 			var x: float = r.position.x
@@ -378,10 +465,44 @@ func sleep_far_chunks(force: bool = false, around: Vector2 = Vector2.INF) -> voi
 					y += chunk_px.y
 				x += chunk_px.x
 		# A gondola is awake while either of its stations is, so it can be called from the far one.
-		var gondola: Gondola = node as Gondola
+		var gondola: Gondola = n2 as Gondola
 		if not awake and gondola != null:
 			awake = gondola.stations.any(func(p: Vector2) -> bool: return bool(states.get(chunk_of(p), false)))
-		var mode: Node.ProcessMode = Node.PROCESS_MODE_INHERIT if awake else Node.PROCESS_MODE_DISABLED
-		if node.process_mode != mode:
-			node.process_mode = mode
-			n2.visible = awake
+		_set_awake(n2, awake)
+	_special_things = specials
+
+
+## Start keeping the things of the map elements being played: all of them are looked at on the
+## next sweep, and whatever is added later as it arrives.
+func _gather() -> void:
+	_gathered = map_elements
+	_awake_things.clear()
+	_asleep_in.clear()
+	_special_things.clear()
+	_arrived.clear()
+	_arrived.append_array(map_elements.get_children())
+	map_elements.child_entered_tree.connect(_arrive)
+
+
+## A thing added to the map elements: looked at on the next sweep.
+func _arrive(node: Node) -> void:
+	_arrived.append(node)
+
+
+## `entry` if it sleeps with its chunk: a thing placed with the level (it keeps its cell), still
+## among the map elements being played; else null (freed since, among others).
+func _sleeper(entry: Variant) -> Node2D:
+	if not is_instance_valid(entry):
+		return null
+	var node: Node2D = entry as Node2D
+	if node == null or node.is_queued_for_deletion() or node.get_parent() != map_elements or not node.has_meta(&"cell"):
+		return null
+	return node
+
+
+## Wake `node` (processing and shown) or put it to sleep (stopped and hidden), unless it already is.
+func _set_awake(node: Node2D, awake: bool) -> void:
+	var mode: Node.ProcessMode = Node.PROCESS_MODE_INHERIT if awake else Node.PROCESS_MODE_DISABLED
+	if node.process_mode != mode:
+		node.process_mode = mode
+		node.visible = awake

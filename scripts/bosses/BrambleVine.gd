@@ -113,7 +113,8 @@ func _physics_process(delta: float) -> void:
 			t = 0.0
 		length = move_toward(length, 0.0, full * RECOIL_RATE * delta)
 	else:
-		t += delta
+		# A harder preset runs its cadence faster (Difficulty.haste).
+		t += delta * Difficulty.haste()
 		length = _target()
 	_box.size = Vector2(maxf(length, 1.0), THICK)
 	(hit_box.get_node("CollisionShape2D") as CollisionShape2D).position = Vector2(length * 0.5, 0.0)

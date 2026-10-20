@@ -1,7 +1,7 @@
 class_name WormWound
 extends Wound
 ## A worm segment's health (WormSegment). Its flesh is soft, so any hex bolt or dash cuts it, even
-## one that only stuns at its tier (least 1), but a strike from its thorny side glances off. It is
+## one of no damage (least 1), but a strike from its thorny side glances off. It is
 ## stunned while its worm is (the whole worm goes still together, Worm), taking double then as any
 ## stunned enemy does. At 0 it is not slain like an enemy (no stars, nothing kept in the level's
 ## record): the worm is cut there (Worm.cut).

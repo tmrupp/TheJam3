@@ -4,6 +4,9 @@ class_name Bullet
 ## (`bounces` > 0, a sky level's watchers, see SkyArchetype.populate): then it glances off
 ## that many walls first, each bounce found by a sweep ahead of it (its hit box lets rock pass
 ## while it still has bounces). Parried, it turns back on its shooter as ever (Parry).
+## An institute scholar's spell (`spell`, see Scholar) is printed as its spell, wounds the first of
+## `quarry` (a group: the abominations) in its way as an arrow wounds, and a seeker's turns toward
+## the wizard (`homing`) and fades after `life` seconds.
 @onready var area: Area2D = $HitBox
 @onready var player: Player = Stage.player()
 var velocity: Vector2 = Vector2(1, 1).normalized()
@@ -15,8 +18,28 @@ var since_bounce: float = 99.0
 ## A seed the bramble's bulb spat (BrambleBulb), printed as one; parried, it flies back into the
 ## bulb as any shot does.
 var seed: bool = false
+## An arrow a crag tower's crossbow loosed (Crossbow), printed as one; parried, it flies back as any
+## shot does, only as far as the tower's wall. It wounds the first enemy in its way (ARROW_DAMAGE,
+## however hard it is to stun; a shield takes it whole), and pierces the spider's back
+## (Spider.pierce): an arrow meeting its body puts out an eye, whatever it is doing. It passes
+## crossbows by, and what is not an enemy.
+var arrow: bool = false
+## How much an arrow wounds an enemy, and how near its way an enemy must be (pixels) for it to strike.
+const ARROW_DAMAGE: int = 1
+const ARROW_REACH: float = 30.0
 ## Bodies its sweep glances off: rock and ledges (as its hit box sees them).
 const SOLID_MASK: int = 32
+## The spell a scholar cast it as (&"student" for a student's bolt, else the master's spell, see
+## Scholar), or &"" for any other shot; the group of enemies it wounds as it meets them (&"" for
+## none, an arrow's all of them); what it turns toward, the point on it (px from where it stands)
+## it steers for, how hard (radians a second), and the seconds it has left (it fades out at 0; INF
+## for ever).
+var spell: StringName = &""
+var quarry: StringName = &""
+var homing: Node2D = null
+var homing_aim: Vector2 = Vector2.ZERO
+var turn: float = 0.0
+var life: float = INF
 
 func setup(v: Vector2, ignore: Array, sender: Node) -> void:
 	velocity = v
@@ -34,6 +57,15 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	since_bounce += delta
+	life -= delta
+	if life <= 0.0:
+		RisoFx.burst(&"impact", global_position, -velocity.normalized())
+		queue_free()
+		return
+	if homing != null and is_instance_valid(homing) and turn > 0.0:
+		var to: Vector2 = homing.global_position + homing_aim - global_position
+		var bend: float = angle_difference(velocity.angle(), to.angle())
+		velocity = velocity.rotated(clampf(bend, -turn * delta, turn * delta))
 	var step: Vector2 = velocity * delta
 	if bounces > 0 and step != Vector2.ZERO:
 		var query: PhysicsRayQueryParameters2D = PhysicsRayQueryParameters2D.create(global_position, global_position + step + step.normalized() * 8.0, SOLID_MASK)
@@ -46,4 +78,37 @@ func _process(delta: float) -> void:
 			global_position = (hit["position"] as Vector2) + normal * 6.0
 			RisoFx.burst(&"impact", global_position, normal)
 			return
+	if (arrow or quarry != &"") and step != Vector2.ZERO and _strike(global_position, global_position + step):
+		RisoFx.burst(&"impact", global_position, -velocity.normalized())
+		queue_free()
+		return
 	position += step
+
+
+## An arrow's step from `from` to `to`: whether it struck an enemy on the way (the nearest it
+## meets), wounding it (see `arrow`).
+func _strike(from: Vector2, to: Vector2) -> bool:
+	var dir: Vector2 = velocity.normalized()
+	var spider: Spider = Spider.body_across(get_tree(), from, to) if quarry == &"" else null
+	if spider != null:
+		spider.pierce(dir)
+		return true
+	var best: Node2D = null
+	for e: Node in get_tree().get_nodes_in_group(&"hex_target"):
+		var body: Node2D = e as Node2D
+		if body == null or e is Spider or e is Crossbow or e in exclude or e.is_queued_for_deletion() or e.get_node_or_null("Wound") == null:
+			continue
+		if quarry != &"" and not e.is_in_group(quarry):
+			continue
+		var at: Vector2 = body.global_position
+		var near: PackedVector2Array = Geometry2D.get_closest_points_between_segments(from, to, at + Vector2(0, HexBolt.SPAN_DOWN), at - Vector2(0, HexBolt.SPAN_UP))
+		if near[0].distance_to(near[1]) <= ARROW_REACH and (best == null or from.distance_squared_to(at) < from.distance_squared_to(best.global_position)):
+			best = body
+	if best == null:
+		return false
+	var shield: Shield = Shield.of(best)
+	if shield != null and shield.absorb(false, dir):
+		return true
+	var wound: Wound = best.get_node("Wound") as Wound
+	wound.hit(maxi(ARROW_DAMAGE, wound.least), dir)
+	return true

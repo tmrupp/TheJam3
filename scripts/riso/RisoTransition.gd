@@ -5,6 +5,9 @@ class_name RisoTransition
 ## sideways for the side doors), holds while the next level is laid out, showing where you are
 ## going on a paper plaque, then sweeps on and away. Printed in the 320 x 180 UI space, above
 ## the world and below the HUD.
+## Coming into a region (a band of levels: the garden, the cemetery...) from another, and at a run's
+## start, its title card follows (title): a paper banner across the top of the view with the
+## region's name, rising in, held a moment and fading. It is the one place words print in the UI.
 
 const COVER_TIME: float = 0.28
 const REVEAL_TIME: float = 0.38
@@ -14,7 +17,7 @@ const HOLD: float = 0.35
 const EDGE: float = 0.08
 ## Beyond the view on both sides: ink registration and paper wobble shift the printed plates.
 const OVERSCAN: float = 16.0
-const KNOCK_ALL: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE]
+const KNOCK_ALL: Array[int] = RisoPrint.ALL_PLATES
 
 static var instance: RisoTransition
 
@@ -39,6 +42,18 @@ var ink: InkCanvas
 var world_label: Label
 var depth_label: Label
 var t: float = 0.0
+## The region title card (see title): its text, its label, and its age (seconds; -1 when none).
+## It waits for the sheet to be gone before it shows.
+const TITLE_IN: float = 0.35
+const TITLE_HOLD: float = 2.0
+const TITLE_OUT: float = 0.7
+## The banner's middle (UI units) and height; the name's print size.
+const TITLE_Y: float = 34.0
+const TITLE_H: float = 26.0
+const TITLE_PX: float = 16.0
+var title_text: String = ""
+var title_label: Label
+var title_age: float = -1.0
 
 
 func _enter_tree() -> void:
@@ -60,6 +75,8 @@ func _ready() -> void:
 	add_child(ink)
 	world_label = _make_label()
 	depth_label = _make_label()
+	title_label = _make_label()
+	title_label.scale = Vector2.ONE * (TITLE_PX / 64.0)
 
 
 func _make_label() -> Label:
@@ -93,6 +110,19 @@ func cover(travel: Vector2, to: Vector2i) -> void:
 	await covered
 
 
+## Show the title card of a region, `text` (once the sheet, if it is up, has gone).
+func title(text: String) -> void:
+	if text == "" or not RisoPrint.is_on():
+		return
+	title_text = text
+	title_age = 0.0
+
+
+## Whether a title card is up or waiting to be.
+func titling() -> bool:
+	return title_age >= 0.0
+
+
 ## Sweep the sheet on and away (no-op unless it is covering the view).
 func reveal() -> void:
 	if state == State.COVERING or state == State.COVERED:
@@ -118,12 +148,41 @@ func _process(delta: float) -> void:
 	ink.begin()
 	world_label.visible = false
 	depth_label.visible = false
+	title_label.visible = false
 	if state != State.IDLE:
 		_draw_sheet()
+	elif title_age >= 0.0:
+		title_age += delta
+		if title_age >= TITLE_IN + TITLE_HOLD + TITLE_OUT:
+			title_age = -1.0
+		else:
+			_draw_title()
 	ink.finish()
 
 
-func _draw_sheet() -> void:
+## The region's title card: a paper banner across the top of the view, its name in night ink
+## between two short rules, rising in, held, and fading out.
+func _draw_title() -> void:
+	_fit_to_view()
+	var come: float = clampf(title_age / TITLE_IN, 0.0, 1.0)
+	var go: float = clampf((title_age - TITLE_IN - TITLE_HOLD) / TITLE_OUT, 0.0, 1.0)
+	var y: float = TITLE_Y + (1.0 - come) * (1.0 - come) * 10.0
+	var fade: float = come * (1.0 - go)
+	var w: float = RisoTheme.serif().get_string_size(title_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 64).x * (TITLE_PX / 64.0)
+	var banner: PackedVector2Array = RisoShapes.rrect(160.0 - w * 0.5 - 30.0, y - TITLE_H * 0.5, w + 60.0, TITLE_H, 8.0)
+	ink.knock(KNOCK_ALL, [banner])
+	ink.ink(RisoPrint.BLUE, 0.12 * fade, [banner], false)
+	var rule_w: float = 14.0
+	ink.ink(RisoPrint.NIGHT, fade, [RisoShapes.rrect(160.0 - w * 0.5 - 22.0, y - 1.0, rule_w, 2.0, 1.0), RisoShapes.rrect(160.0 + w * 0.5 + 8.0, y - 1.0, rule_w, 2.0, 1.0)], false)
+	if fade > 0.35:
+		title_label.visible = true
+		title_label.text = title_text
+		title_label.size = Vector2((w + 4.0) / title_label.scale.x, TITLE_H / title_label.scale.y)
+		title_label.position = Vector2(160.0 - w * 0.5, y - TITLE_H * 0.5).round()
+
+
+## Line the node up with the view, so its 320 x 180 UI units cover it.
+func _fit_to_view() -> void:
 	var cam: Camera2D = get_viewport().get_camera_2d()
 	if cam == null:
 		return
@@ -133,6 +192,12 @@ func _draw_sheet() -> void:
 	var view: Vector2 = base / cam.zoom
 	global_position = cam.get_screen_center_position() - view * 0.5
 	scale = Vector2.ONE / cam.zoom
+
+
+func _draw_sheet() -> void:
+	if get_viewport().get_camera_2d() == null:
+		return
+	_fit_to_view()
 	var size: Vector2 = Vector2(320, 180)
 	# Work in a frame where the sheet moves along +u; map back to the view.
 	var along_x: bool = sweep.x != 0.0

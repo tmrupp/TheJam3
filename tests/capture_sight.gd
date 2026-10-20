@@ -1,7 +1,7 @@
 extends TestKit
 ## Stills of light and darkness by line of sight (RisoLight): the garden by the start (sight on,
-## then off on the F7 panel to compare), the garden by its deeper exit, and the catacombs' deep
-## dark, protected and unprotected. Written whole (sight_*.png) and as one sheet (sight.png). Prints
+## then off on the F7 panel to compare), the garden by its deeper exit, and the deep dark inside a
+## cemetery crypt, protected and unprotected. Written whole (sight_*.png) and as one sheet (sight.png). Prints
 ## how long the light takes a frame.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_sight.gd
 
@@ -23,14 +23,17 @@ func run() -> void:
 	player.global_position = info.cell_position(info.world.exits[MapInfo.Exit.DEEPER]) + Vector2(-140, 20)
 	shots.append(await _shot(camera, "sight_exit.png"))
 	_time(light)
-	info.coord = Vector2i(28, NextWorldDef.band_row(&"catacombs", 0))
+	info.coord = Vector2i(28, NextWorldDef.first_depth(&"cemetery"))
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	await settle()
 	player.set_physics_process(false)
+	var floors: Array = info.world.crypts[0]["floors"] if not info.world.crypts.is_empty() else []
+	if not floors.is_empty():
+		player.global_position = info.cell_position(floors[mini(4, floors.size() - 1)])
 	for vulnerable: bool in [false, true]:
 		info.run.vulnerable = vulnerable
-		shots.append(await _shot(camera, "sight_catacombs_%s.png" % ("unlit" if vulnerable else "lit")))
+		shots.append(await _shot(camera, "sight_crypt_%s.png" % ("unlit" if vulnerable else "lit")))
 	_time(light)
 	var sheet: Image = Image.create(SHOT.x * 2, SHOT.y * 3, false, shots[0].get_format())
 	for k: int in range(shots.size()):

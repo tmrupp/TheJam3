@@ -9,6 +9,11 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
 - `scripts/level/`: a level, apart from how it looks.
   - `LevelGen.gd`: a level laid out from its collapsed cells (`populate_level`, the `Type` of
     each cell, `Cell`, and the placement helpers). `Chasms.gd`: chasms and gaps, cut and crossed.
+    `Crypts.gd`: the cemetery's crypts, their insides collapsed from a sample of their own
+    (`Archetype.patches`, handed to the layout as `LevelGen.patches`). `Institute.gd`: the
+    institute's halls of marble (`LevelGen.halls`) and who is in them. `Timetable.gd`: its
+    timetable's rules (periods, when each hall is in session, where the wizard belongs, which
+    spell a glyph seal asks for); `MapInfo` plays it out.
   - `Placeables.gd`: one table, by `LevelGen.Type`, of each thing's prefab, art kind, box size and
     flags (enemy, stander, floats, colored). Loading, the art dresser and the map read it.
   - `RunState.gd`: the run (records, the lantern to come back to, the ghost, relics) and saving it.
@@ -17,6 +22,9 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
     (`place_cell`), the rock and camera, and chunk sleeping.
   - `Rules.gd`: the run-wide rules, static and scene-free (`level_seed`, prices and values by
     depth, key rarity, what a level holds by its seed, `level_size`, `def_for`, `where`).
+  - `Difficulty.gd`: the difficulty presets (F7; Hard by default): how many foes a level holds
+    (`foes`, via `LevelGen.foes_per_area`), how fast the bosses act (`haste`), and how often the
+    other enemies attack (`attack`) and how fast they move (`speed`).
 - `scripts/MapInfo.gd`: the place being played (`coord`, `here`, `world`), travel, and what a
   change in the record means in the scene (doors, bells, secret rooms, death). It keeps a
   `RunState` (`run`) and a `LevelLoader` (`loader`).
@@ -31,23 +39,32 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
 - `scripts/*.gd`: gameplay (Player, enemies, hazards, spells, pickups). `prefabs/*.tscn` pair
   with them. `Abilities.gd` lists every ability in one table (`ABILITIES`); an ability's node says
   what its tier does (`set_tier`) and, for a spell, casts (`cast_spell`) and tells the spell orb
-  how ready it is (`readiness`) and how long it has left (`running`). `Stage.gd` finds the main
+  how ready it is (`readiness`) and how long it has left (`running`). `Lamplight.gd` is light as
+  the game reads it (what wakes, freezes or can be wounded), apart from `RisoLight`, which prints
+  it. `Stage.gd` finds the main
   scene's wizard, TileMap, camera and menu (no `/root/Main/...` paths elsewhere).
 - `wfc_images/`: WFC samples (white open, black rock, red thorns). Drawn ones come from
   `tests/make_*_sample.gd`, so edit the script and rerun it rather than editing the PNG.
 - `gdextension/`: the C++ overlapping-WFC extension (SCons). Rarely touched.
 - `docs/`: `DEEPER_PLAN.md` (design, by system), `REGIONS_PLAN.md` (the plan for going up and
   down from the garden, the new bands and the bosses at band ends; phases 1 to 4 built (the worm
-  and the bramble), and a first pass of the crags of phase 5),
-  `RISO_PRINT.md` (the art pipeline and rules), `TOM_THOUGHTS.md` (the owner's notes; see the
-  ground rules).
+  and the bramble), a first pass of the crags and the spider of phase 5 (with the lodestones, empowered spells and spires), phase 6, the cemetery's
+  crypts, light and the necromancer, and a first pass of phase 7, the institute, its beast and its timetable),
+  `RISO_PRINT.md` (the art pipeline and rules), `CLEANUP_PLAN.md` (the ten follow-ups to the
+  architecture refactor, all done; kept for why the shared helpers are shaped as they are),
+  `PAIRED_PLAN.md` (paired play, preliminary: two players on two machines, each seeing the
+  other's map, coded messages their only channel; nothing built yet).
+- The owner's task list and notes are a Google Doc, not a file here:
+  [Somnonaut: Tom's Tasks](https://docs.google.com/document/d/11vPYlA0G-_dZY2sdV8aK6qM06c1RAE2r05uHSngRHa8/edit)
+  (see the ground rules). Open tasks are checklists under topic headings; a ticked or struck-through
+  item is done, and finished items are moved to "Done" at the bottom.
 - `tests/`: `*_test.gd` regressions, `capture_*.gd` stills (written to `../art-captures/`),
   `make_*_sample.gd` sample generators.
 
 Places are (seed, row): row 0 is the start, positive rows go down, negative rows go up, and a
 level's `depth` is its distance `|row|` (side worlds sit below `-Worlds.SIDE_BASE`). Bands come from
 a table in `NextWorldDef` (`BAND` = 6): the garden spans rows −3…+3; down, the cemetery then the
-catacombs; up, the crags then the sky. A new band is one script extending `Archetype`, listed in
+institute; up, the crags then the sky. A new band is one script extending `Archetype`, listed in
 `DOWN` or `UP`. Tests that need a band's levels use `NextWorldDef.band_row(&"cemetery", k)` (row k
 of the band, counting away from the start) rather than a fixed row or `first_depth + k`.
 
@@ -69,6 +86,8 @@ bash tests/run.sh sky_test        # just these, headless
 - `run.sh` re-imports first. After adding a `class_name` script or an image outside it, run
   `godot --headless --path . --import`.
 - Captures: `godot --path . --windowed --resolution 1280x720 --script res://tests/capture_x.gd`.
+  `capture_overview.gd` photographs whole levels, every band and a few worlds each, to look over
+  many layouts at once (options after `--`, e.g. `-- bands=crags worlds=6`).
 - Each test sets its own `RunState.save_path` (`user://<test>.save`), so they can run in parallel.
 - New tests extend `TestKit` (`tests/kit/TestKit.gd`): override `run()`, end with `finish()`, and
   use its `check`/`check_eq`, `boot(seed)` (starts a run, keeps the save apart), `until(cond)` and
@@ -77,7 +96,12 @@ bash tests/run.sh sky_test        # just these, headless
   hidden things too: the ghost, a bridge's planks before its bell rings). For the level generator
   alone, `build(at)` and `collapse(at)` lay a place out without the game scene, which is far faster
   than booting the game. `until` polls on process frames: a step timed in physics frames (a dash, a
-  jump) wants an `await physics_frame` after it. A few small tests still carry their own `check`;
+  jump) wants an `await physics_frame` after it. `until`'s timeout is wall-clock time; for
+  something the game times itself (a cooldown, a regrowth) use `within(cond, game_seconds)`, which
+  counts physics frames, as a busy machine runs the game slower than the clock. The kit runs one
+  physics step a frame, so a press made with `Input.parse_input_event` always reaches the game
+  before the next physics step, however loaded the machine. `bash tests/run.sh -j 16 full` loads
+  the machine harder, to shake out tests that depend on timing. A few small tests still carry their own `check`;
   move them onto the kit when touching them.
 - `unit_test` checks the plain rules (seeds, prices by depth, key rarity, side-world places,
   archetype bands, where exits lead, shrine offers, the keyring) without the scene, in a second
@@ -107,8 +131,10 @@ bash tests/run.sh sky_test        # just these, headless
 
 ## Level generation: determinism matters
 
-- Everything comes from `level_seed(world, depth)`. A level must be identical on every visit:
-  tests compare two builds (`w.objects == again.objects`).
+- Everything comes from `level_seed(world, depth)` and the difficulty preset (`Difficulty`). A
+  level must be identical on every visit: tests compare two builds (`w.objects == again.objects`).
+  The fingerprints are of the default preset (Hard); Normal lays levels out as they were before
+  the presets.
 - The world RNG is shared and ordered. Adding, removing or reordering an `rng` draw (or a forced
   `pop_if_random_empty`) shifts every later placement in every level, and that breaks
   layout-sensitive tests. Put new passes last, draw from the RNG only where needed, and expect to
@@ -129,6 +155,20 @@ bash tests/run.sh sky_test        # just these, headless
   `reach_from(start, passable)` (the open cells reached from a cell, a set: sort before drawing)
   and `best_of(spots, score, test)` (the nearest or, with the score negated, furthest spot; no
   draw, ties keep the earlier spot).
+
+## Traversability: not enforced, in any world
+
+- The owner's rule, for every world and band: do not make sure a level can be traversed. Add no
+  pass that lays ledges, carves passages, moves things or re-deals a layout so the way on (or a
+  tower, a station, a reward) is reached on foot, and no check or test that fails a level for
+  being hard or impossible to get through. A level that cannot be crossed without a relic, a
+  move found later or the gondola is fine.
+- Logic that is not about walking is still checked where it was asked for: the crags' tower puzzle
+  deals its switches so there is a way up and a way down through the switches themselves
+  (`Stations.deal`), taking each tower as reached from its own tier.
+- `connect_caves` (every open space joined into one cave, tiny pockets filled) stays: the owner
+  is fine with it. The climbing aid that laid ledges toward an up level's way on (`Climb.aid`) is
+  gone; do not bring it or anything like it back.
 
 ## Art rules (the riso print): see `docs/RISO_PRINT.md`
 
@@ -152,8 +192,9 @@ bash tests/run.sh sky_test        # just these, headless
 
 ## Ground rules
 
-- `docs/TOM_THOUGHTS.md` is the owner's file and begins "DO NOT MODIFY": never edit it. Commit the
-  owner's changes to it only when asked.
+- The owner's task list is the Google Doc linked under "Where things live". Read it for direction
+  (with a Google Docs or Drive tool; if you can't open it, ask for the tasks you need). It is the
+  owner's document: never edit it, tick its boxes or comment on it unless asked.
 - Don't commit or push unless asked. Leave untracked files you didn't create alone.
 - Several sessions may work in this tree at once. Don't revert changes you didn't make. Build on
   them, and report problems in them rather than silently rewriting them.

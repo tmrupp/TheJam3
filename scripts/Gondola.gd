@@ -1,12 +1,13 @@
 class_name Gondola
 extends AnimatableBody2D
-## A gondola, in crag levels (CragsArchetype.lay_circuit, shut_stations): a cable car climbing a line
+## A gondola, in crag levels (CragsArchetype.lay_circuit, set_stations): a cable car climbing a line
 ## of stations from near the bottom of the level to near its top, straight up and up 45° diagonals
 ## between them, two cells wide and two high, with a floor, a roof and two sides that come down
 ## while it runs. Each station is a doorway onto a landing into the level,
-## where the car stands on an upright run of its track. One is open from the first;
-## each of the others is shut by a gate across its doorway (a door, a switch gate or a toll gate,
-## its record kept as any gate's) until opened.
+## where the car stands on an upright run of its track. Each is open while its station is on, as the
+## towers' switches set it (a station gate across its doorway, MapInfo.station_on); on the first visit
+## only the one nearest the way in is. (A door, a switch gate or a toll gate shuts one as any gate
+## does, where a level has one.)
 ##
 ## The car runs from station to station, stopping at each, and runs a stretch between two stations
 ## only if at least one of them is open: from an open station to a shut one and back, never from
@@ -30,9 +31,15 @@ extends AnimatableBody2D
 ## and the swing dies away, quickly while it stands. Riders are carried as on any
 ## moving body. Nothing about where it is
 ## is kept: on every visit it waits at its open station. Nothing here draws from the world RNG.
+##
+## Riding it up inks the map round the car as it climbs (RIDE_SEE cells, MapInfo.reveal), and
+## bringing a rider all the way to the top station inks the maps of every level this one's exits
+## lead to (MapInfo.ink_neighbours): the way a lodestone (Lodestone) is found.
 
 const INTERACTABLE: PackedScene = preload("res://prefabs/interactable.tscn")
 const STATION: PackedScene = preload("res://prefabs/gondola_station.tscn")
+## How far round the car (cells) the map is inked as a rider rides it up.
+const RIDE_SEE: int = 8
 ## How fast it runs with a rider, and called empty (pixels a second), and how quickly it gets up to
 ## speed and slows for a station (pixels a second, each second).
 const RIDE_SPEED: float = 360.0
@@ -68,9 +75,12 @@ const OFF_VIEW: float = 64.0
 ## How thick its floor, roof and sides are (pixels).
 const SLAB: float = 14.0
 ## What shuts a station: a gate of one of these in its doorway, not yet opened.
-const GATES: Array[LevelGen.Type] = [LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.TOLL]
+const GATES: Array[LevelGen.Type] = [LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.TOLL, LevelGen.Type.STATION_GATE]
 
 var map_info: MapInfo
+## The level it was laid out in. Once another is loaded in its place (travel, or a death that ends the
+## run) it is stale until it is freed with the old level, and does nothing more.
+var world: LevelGen
 var depth: int = 0
 ## A cell's size in pixels, and the middle of the level's first cell.
 var cell_px: float = 128.0
@@ -120,12 +130,16 @@ var posts: Array[GondolaStation] = []
 var _walls: Array[CollisionShape2D] = []
 var _inside: Area2D
 var _lever: Interactable
+## Its fare boxes, one in each half of the car (GondolaFare): a toll shutting the station it stands at
+## is paid there, from inside.
+var fares: Array[GondolaFare] = []
 
 
 ## Lay it on its circuit: `circuit` is LevelGen.circuit (CragsArchetype.lay_circuit) with "start",
 ## the open station it waits at.
 func setup(info: MapInfo, v: Vector2i, circuit: Variant) -> void:
 	map_info = info
+	world = info.world
 	depth = info.here.depth if info.here != null else 0
 	# Moved by setting its transform each physics step (a kinematic body takes its speed from that,
 	# so riders are carried). Physics sync stays off: it would drop the car's swing (its rotation).
@@ -163,6 +177,25 @@ func setup(info: MapInfo, v: Vector2i, circuit: Variant) -> void:
 	_inside.add_child(_lever)
 	add_child(_inside)
 	_lever.interacted.connect(pull)
+	# A fare box in each half of the car, nearer than the lever to whoever stands in that half.
+	for side: int in [-1, 1]:
+		var fare: GondolaFare = GondolaFare.new()
+		fare.gondola = self
+		fare.side = side
+		fare.collision_layer = 0
+		fare.collision_mask = 1
+		fare.position = Vector2(float(side) * wide * 0.25, 0.0)
+		var half: CollisionShape2D = CollisionShape2D.new()
+		var half_box: RectangleShape2D = RectangleShape2D.new()
+		half_box.size = Vector2(wide * 0.5 - SLAB - 4.0, tall - SLAB * 2.0)
+		half.shape = half_box
+		half.position = Vector2(0.0, -tall * 0.5)
+		fare.add_child(half)
+		var it: Interactable = INTERACTABLE.instantiate() as Interactable
+		it.name = "Interactable"
+		fare.add_child(it)
+		add_child(fare)
+		fares.append(fare)
 	_set_walls()
 	for k: int in range(2):
 		shut[k] = 1.0 if side_shut[k] else 0.0
@@ -176,6 +209,11 @@ func setup(info: MapInfo, v: Vector2i, circuit: Variant) -> void:
 		post.position = info.cell_position(gates[i])
 		info.map_elements.add_child.call_deferred(post)
 		posts.append(post)
+	# Its call switches go when it does.
+	tree_exiting.connect(func() -> void:
+		for p: GondolaStation in posts:
+			if is_instance_valid(p):
+				p.queue_free())
 
 
 ## A solid slab of the car centred at `at`, `size` across and down.
@@ -258,11 +296,18 @@ func has_rider() -> bool:
 	return player != null and is_instance_valid(player) and _inside != null and _inside.overlaps_body(player)
 
 
+## Whether its level is no longer the one loaded (see `world`).
+func stale() -> bool:
+	return map_info == null or map_info.world != world or is_queued_for_deletion()
+
+
 ## Whether station `i` is open: no gate in its doorway, or its gate opened (a switch gate: up).
 func is_open(i: int) -> bool:
+	if stale():
+		return false
 	var g: Vector2i = gates[i]
 	var type: LevelGen.Type = map_info.world.get_cell(g).type
-	if type == LevelGen.Type.SWITCH_GATE:
+	if type == LevelGen.Type.SWITCH_GATE or type == LevelGen.Type.STATION_GATE:
 		return map_info.gate_open(g)
 	return not type in GATES or map_info.record().opened.has(g)
 
@@ -291,6 +336,8 @@ func may_run(way: int) -> bool:
 
 ## The lever, pulled: stop if it runs; if it stands, set off (balking if it may not run that way).
 func pull() -> void:
+	if stale():
+		return
 	if running:
 		running = false
 		ridden = false
@@ -336,7 +383,7 @@ func _set_off(way: int, to: int, cells: float, with_rider: bool) -> void:
 ## Whether the car can be called to station `to`: the station is open, the car is not already
 ## standing there, and nobody rides it.
 func may_call(to: int) -> bool:
-	if not is_open(to) or ridden or has_rider():
+	if stale() or not is_open(to) or ridden or has_rider():
 		return false
 	return running or at_station != to
 
@@ -388,7 +435,7 @@ func _set_walls() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if stations.is_empty():
+	if stations.is_empty() or stale():
 		return
 	var inside: bool = has_rider()
 	if running:
@@ -403,6 +450,8 @@ func _physics_process(delta: float) -> void:
 			s = target_s
 		_swing(delta)
 		_hang()
+		if ridden and dir > 0:
+			map_info.reveal(map_info.cell_at(center()), RIDE_SEE)
 		if ridden:
 			var now: float = 1.0 - absf(target_s - s) / run_length
 			if run_progress < FOE_DUE and now >= FOE_DUE:
@@ -420,6 +469,9 @@ func _physics_process(delta: float) -> void:
 
 ## At the station it ran to: it stands there, the lever set to carry on the same way.
 func _arrive() -> void:
+	# A rider brought all the way up: the levels round are inked on the map.
+	if ridden and dir > 0 and bound_for == stops.size() - 1:
+		map_info.ink_neighbours()
 	running = false
 	speed = 0.0
 	at_station = bound_for

@@ -8,7 +8,19 @@ var moon: Moon:
 		return host as Moon
 
 
-## A moon: a crescent in accent ink inside a soft halo, rocking as it floats. The moment the
+func shines() -> bool:
+	return true
+
+
+## Lit only while it is full, ready to take.
+func light() -> Array:
+	if moon.in_use or moon.waning > 0.0:
+		return []
+	return _light(Vector2.ZERO, RisoLight.GLEAM, RisoPrint.ACCENT)
+
+
+## A moon: a crescent in accent ink, rocking as it floats, shining while it is full (RisoLight).
+## The moment the
 ## wizard touches it, it drops to a faint sliver (spent) until they leave, then grows back as it
 ## waxes.
 func _draw_art() -> void:
@@ -17,7 +29,6 @@ func _draw_art() -> void:
 	var k: float = lerpf(0.55, 1.0, full)
 	var crescent: PackedVector2Array = Transform2D(sin(t) * 0.25, Vector2(k, k), 0.0, o) * RisoShapes.crescent(Vector2.ZERO, 22.0, Vector2(10, -5))
 	if full >= 1.0:
-		ink.ink(RisoPrint.ACCENT, 0.25, [RisoShapes.circle(o, 34.0, 28)])
 		ink.ink(RisoPrint.ACCENT, 1.0, [crescent])
 		ink.ink(RisoPrint.BLUE, 0.5, [crescent])
 	else:

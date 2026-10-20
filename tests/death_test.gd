@@ -1,6 +1,8 @@
 extends TestKit
-## Lanterns protect one death each; burned lanterns stay spent across levels and saves.
-## Ghosts and stars cannot restore protection. An unprotected death ends the run.
+## Lanterns protect one death each; a death brings the wizard back at full health, and burned
+## lanterns stay spent across levels and saves. Stars cannot restore protection; taking back the
+## ghost relights the lantern its death burned out (and does not heal). An unprotected death ends
+## the run.
 ## godot --headless --path . --script res://tests/death_test.gd
 
 
@@ -40,8 +42,8 @@ func run() -> void:
 	check(player.coins.coins == 0, "the player carries none")
 	await settle()
 	player.set_physics_process(false)
-	check(player.health.health == 1, "lethal damage respawns with one heart")
-	check(int(RunState.read_save().get("health", 0)) == 1, "the death save stores one heart")
+	check(player.health.health == player.health.max_health, "lethal damage respawns at full health")
+	check(int(RunState.read_save().get("health", 0)) == player.health.max_health, "the death save stores full health")
 	check(info.run.vulnerable, "death consumes the lantern's protection")
 	check(info.run.has_ghost and info.run.ghost_stars == 5 and info.run.ghost_coord == Vector2i(28, 0), "the ghost holds all 5 stars")
 	check(ghosts().size() == 1 and (ghosts()[0] as Node2D).position == died_at, "the ghost stands where they died")
@@ -51,17 +53,13 @@ func run() -> void:
 	check(player.global_position.distance_to(info.respawn_marker.global_position) < 80.0, "respawned at the lantern that absorbed the death")
 	check(player.graced.is_acting() and player.is_invulnerable(), "a moment's grace on respawning")
 	player.hurt(-1, Vector2.ZERO, null)
-	check(player.health.health == 1, "nothing hurts during it")
+	check(player.health.health == player.health.max_health, "nothing hurts during it")
 	start_lantern.call("interacted")
 	check(info.run.vulnerable and info.is_lantern_spent(start_lantern), "the same lantern cannot be relit for a free life")
 	check(info.continue_run(), "the wounded respawn can be continued")
 	await settle()
 	player.set_physics_process(false)
-	check(player.health.health == 1, "save/reload keeps the respawn at one heart")
-	Abilities.grant(player, &"mend")
-	var mend: Mend = player.get_node("Mend") as Mend
-	check(mend.cast() and player.health.health == 2 and info.run.has_ghost, "Mend can heal a respawn heart before corpse retrieval")
-	Abilities.set_tier(player, &"mend", 0)
+	check(player.health.health == player.health.max_health and info.run.has_ghost, "save/reload keeps the respawn at full health, and the ghost")
 
 	print("fresh stars")
 	for i: int in range(8):
@@ -79,18 +77,6 @@ func run() -> void:
 	check(ghosts().size() == 1, "the ghost is back at (28, 0)")
 	start_lantern = lanterns().filter(func(n: Node) -> bool: return n.get_meta(&"cell") == start_cell)[0]
 	check(info.is_lantern_spent(start_lantern) and not info.light_lantern(start_lantern), "revisiting does not renew a spent lantern")
-
-	print("recovering the ghost")
-	# Relative: arriving back may have picked up a star lying by the door.
-	var before_ghost: int = player.coins.coins
-	ghosts()[0].set("armed", true)
-	ghosts()[0].call("touch", player)
-	await settle(1)
-	check(player.coins.coins == before_ghost + 5 and info.run.vulnerable and not info.run.has_ghost, "the ghost returns its stars but leaves the lantern spent")
-	check(player.health.health == player.health.max_health, "corpse retrieval restores full health")
-	check(ghosts().is_empty(), "the ghost is gone")
-	await process_frame
-	check(info.run.vulnerable, "the carried lantern stays unlit after ghost recovery: only lighting a lantern restores protection")
 
 	print("spent lantern saves")
 	info.save_run()
@@ -111,10 +97,30 @@ func run() -> void:
 	player.set_physics_process(false)
 	check(info.run.vulnerable and (info.record().spent_lanterns as Dictionary).has(start_cell), "old unprotected saves migrate their respawn lantern to spent")
 
+	print("recovering the ghost")
+	# Relative: arriving back may have picked up a star lying by the door.
+	var before_ghost: int = player.coins.coins
+	player.health.health = 1
+	ghosts()[0].set("armed", true)
+	ghosts()[0].call("touch", player)
+	await settle(1)
+	check(player.coins.coins == before_ghost + 5 and not info.run.has_ghost, "the ghost returns its stars")
+	start_lantern = lanterns().filter(func(n: Node) -> bool: return n.get_meta(&"cell") == start_cell)[0]
+	check(not info.run.vulnerable and not info.is_lantern_spent(start_lantern) and info.is_respawn_lantern(start_lantern), "and relights the lantern its death burned out: protected again")
+	check(player.health.health == 1, "it does not heal")
+	check(ghosts().is_empty(), "the ghost is gone")
+	player.health.health = player.health.max_health
+	info.save_run()
+	check(info.continue_run(), "the run continues")
+	await settle()
+	player.set_physics_process(false)
+	start_lantern = lanterns().filter(func(n: Node) -> bool: return n.get_meta(&"cell") == start_cell)[0]
+	check(not info.run.vulnerable and info.is_respawn_lantern(start_lantern), "the relit lantern is kept through a save")
+
 	print("another lantern")
-	var fresh: Node = lanterns().filter(func(n: Node) -> bool: return not info.is_lantern_spent(n))[0]
+	var fresh: Node = lanterns().filter(func(n: Node) -> bool: return not info.is_lantern_spent(n) and n.get_meta(&"cell") != start_cell)[0]
 	fresh.call("interacted")
-	check(not info.run.vulnerable and info.is_respawn_lantern(fresh), "lighting a different lantern restores protection and moves respawn")
+	check(not info.run.vulnerable and info.is_respawn_lantern(fresh), "lighting a different lantern moves respawn")
 	info.travel(MapInfo.Exit.RIGHT)
 	await settle()
 	player.set_physics_process(false)
@@ -131,7 +137,7 @@ func run() -> void:
 	player.set_physics_process(false)
 	other = lanterns().filter(func(n: Node) -> bool: return n.get_meta(&"cell") == other_cell)[0]
 	check(info.coord == other_coord and info.run.vulnerable and info.is_lantern_spent(other), "death in another world burns the lit respawn lantern and returns there")
-	check(player.health.health == 1, "a direct cross-world death also respawns with one heart")
+	check(player.health.health == player.health.max_health, "a direct cross-world death also respawns at full health")
 	check(info.run.has_ghost and info.run.ghost_coord == start_coord and info.run.ghost_stars == carried, "its ghost stays in the world where the player died")
 	info.travel(MapInfo.Exit.LEFT)
 	await settle()
@@ -139,7 +145,6 @@ func run() -> void:
 	fresh = lanterns().filter(func(n: Node) -> bool: return not info.is_lantern_spent(n))[0]
 	fresh.call("interacted")
 	check(not info.run.vulnerable and info.run.has_ghost, "a different lantern protects another death without needing the ghost")
-	check(player.health.health == 1, "lighting another lantern does not heal the respawn")
 	player.global_position = (fresh as Node2D).global_position
 	player.collect(3)
 	player.die()

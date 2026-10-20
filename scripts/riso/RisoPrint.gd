@@ -26,6 +26,19 @@ const PLATE_BIT0: int = 12
 const OVERLAY_BIT: int = 20
 const PRINT_SHADER: Shader = preload("res://shaders/riso_print.gdshader")
 const UI_SHADER: Shader = preload("res://shaders/riso_ui.gdshader")
+const NOISE_SHADER: Shader = preload("res://shaders/riso_noise.gdshader")
+## The print reads its noise from a table this many texels a side (NZ in riso_core.gdshaderinc),
+## drawn once, rather than hashing every pixel of every plate (32-bit integer multiplies are slow
+## on integrated GPUs).
+const NOISE_SIZE: int = 1024
+## Each plate's noise streams start at a corner of the table of their own, from a hash of the
+## sheet's seed and the plate's key (plates in order, then the UI's paper), as each plate had a seed
+## of its own when the print hashed every pixel.
+const NOISE_KEYS: Array[int] = [0, 1, 2, 3, 4, 5, 7, 8, 6]
+## Each plate's halftone screen angle (degrees) and small rotation (radians), by plate, then the
+## UI's paper, which registers with blue. Trapped, night takes blue's rotation.
+const SCREEN_ANGLES: Array[float] = [30.0, 75.0, 15.0, 45.0, 45.0, 60.0, 75.0, 75.0, 75.0]
+const PLATE_ROTATIONS: Array[float] = [0.0, 0.0007, -0.0006, 0.0005, -0.0003, 0.0004, -0.0005, 0.0003, 0.0007]
 ## The UI (HUD, interaction prompts) is printed in its own pass, finer than the scene. At full UI
 ## detail these scale the scene's screen cell, wobble, grain, dot gain and misregistration for
 ## it; at none it prints like the scene (see ui_detail).
@@ -34,6 +47,10 @@ const UI_WOBBLE: float = 0.1
 const UI_GRAIN: float = 0.4
 const UI_GAIN: float = 0.3
 const UI_REGISTRATION: float = 0.1
+## The most lines the print is rendered at, at full graphics and at light graphics (for a weak GPU,
+## integrated graphics among them): a taller window prints at that and is scaled up to it.
+const FULL_LINES: int = 1080
+const LIGHT_LINES: int = 720
 
 const REALMS: Dictionary = {
 	&"deep": {"paper": Color("#e4dfe8"), "inks": [Color("#161b3a"), Color("#3d5588"), Color("#ff48b0"), Color("#ffb511"), Color("#ffe800")]},
@@ -47,36 +64,49 @@ const REALMS: Dictionary = {
 	## The cemetery's own: slate rock, violet stars and candlelight, on bone paper (not in the F8
 	## cycle; NextWorldDef.realm).
 	&"cemetery": {"paper": Color("#e3e1d8"), "inks": [Color("#1d2125"), Color("#5e695e"), Color("#ff48b0"), Color("#9d7ad2"), Color("#ffe800")]},
-	## The sky's own: islands of pale cloud and sun-gold stars under a deep indigo night, on a cool
-	## white paper (not in the F8 cycle; NextWorldDef.realm).
-	&"sky": {"paper": Color("#eef0f3"), "inks": [Color("#18203f"), Color("#8597c4"), Color("#ff48b0"), Color("#ffb511"), Color("#ffe800")]},
+	## The sky's own: white first. Islands of white cloud and sun-gold stars under a dark, stormy slate
+	## sky, on a bright white paper (not in the F8 cycle; NextWorldDef.realm).
+	&"sky": {"paper": Color("#f7f8fa"), "inks": [Color("#1b212d"), Color("#dfe3ea"), Color("#ff48b0"), Color("#ffb511"), Color("#ffe800")]},
+	## The whale's belly (Belly): walls of dull flesh under a dark maroon, on a pinkish paper; its heart
+	## in sun (not in the F8 cycle; Belly.print_realm).
+	&"belly": {"paper": Color("#efe3df"), "inks": [Color("#2a121c"), Color("#9c5a6a"), Color("#ff48b0"), Color("#ffb511"), Color("#ffe800")]},
 	## The crags' own: pale weathered stone and a dawn-orange sun under a dusky violet night, on a warm
 	## paper (not in the F8 cycle; NextWorldDef.realm).
 	&"crags": {"paper": Color("#efe6da"), "inks": [Color("#2b2236"), Color("#9a8f86"), Color("#ff48b0"), Color("#ff9636"), Color("#ffe800")]},
+	## The institute's own: deep brown earth and dark wood under a brown-black night, its built halls
+	## pale marble (its rock ink screened back, RisoTerrain.MASONRY_LOOKS), gold kept for rewards, on
+	## a warm cream paper (not in the F8 cycle; NextWorldDef.realm).
+	&"institute": {"paper": Color("#f1e9d8"), "inks": [Color("#22160f"), Color("#6e4a2f"), Color("#ff48b0"), Color("#ffb511"), Color("#ffe800")]},
 }
 const REALM_ORDER: Array[StringName] = [&"deep", &"twilight", &"aurora"]
 ## The robe while the wizard is drowsy in sleep fog (SleepFog).
 const DROWSY_ROBE: Color = Color("#8d8f96")
-## Hat-tip glow ink per ability (real Riso ink colours).
+## Glow ink per movement ability (real Riso ink colours): the movement slot's prints the Fool's
+## feather and the dash's afterimages.
 const GLOWS: Dictionary = {
 	&"dash": Color("#ff48b0"),
 	&"blink": Color("#9d7ad2"),
 	&"astral": Color("#5ec8e5"),
-	&"parry": Color("#ffe800"),
 	&"climb": Color("#00a95c"),
 	&"double_jump": Color("#ff6c2f"),
 	&"hex": Color("#e8335a"),
 	&"levitate": Color("#7fd6c2"),
+	&"rift": Color("#c56fdc"),
+	&"warp": Color("#ff7a59"),
+	&"ferry": Color("#00a95c"),
 	&"awareness": Color("#f2c14e"),
 	&"keyring": Color("#ffb511"),
-	&"strike": Color("#ff48b0"),
 }
 ## Robe ink per spell in the slot (real Riso ink colours); no spell is the old federal blue.
 const ROBES: Dictionary = {
 	&"": Color("#3d5588"),
 	&"hex": Color("#914e72"),
+	&"slash": Color("#d5303b"),
+	&"nova": Color("#f2a33a"),
+	&"push": Color("#3f7fb5"),
+	&"seeker": Color("#00a95c"),
+	&"lunge": Color("#765ba7"),
 	&"astral": Color("#00838a"),
-	&"parry": Color("#bb8b41"),
 	&"levitate": Color("#67b346"),
 	&"awareness": Color("#ff6c2f"),
 	&"rift": Color("#765ba7"),
@@ -99,6 +129,16 @@ const REGISTRATION: Array[Vector2] = [Vector2(-0.48, -0.43), Vector2(-0.91, 0.82
 const SHEET_JITTER: float = 1.2
 ## Key colours as overprints of the realm inks: sun, ember (sun over pink), moss (sun over blue), plum (pink over blue).
 const KEY_COLORS: Array[Array] = [[ACCENT], [ACCENT, PINK], [ACCENT, BLUE], [PINK, BLUE]]
+## Each institute department's colour (Timetable.LADDERS), on its papers, its classrooms' doors and
+## its portal: overprints of inks that print the same in every realm (the travellers' federal blue,
+## the eyes' yellow, pink), as [plate, cover] pairs: astronomy blue, botany green (yellow over blue),
+## necrology violet (pink over blue), geology orange (pink over yellow).
+const DEPT_INKS: Dictionary = {
+	&"astronomy": [[CLOTH, 1.0]],
+	&"botany": [[CLOTH, 0.9], [EYE, 0.9]],
+	&"necrology": [[CLOTH, 0.85], [PINK, 0.8]],
+	&"geology": [[EYE, 1.0], [PINK, 0.6]],
+}
 
 static var instance: RisoPrint
 
@@ -130,6 +170,17 @@ var fog_style: StringName = &"shroud"
 const SKY_BOTTOM_STYLES: Array[StringName] = [&"tapered", &"roots", &"clouds", &"clouds_roots"]
 const SKY_BOTTOM_NAMES: Array[String] = ["Tapered", "Roots", "Clouds", "Clouds & roots"]
 var sky_bottom_style: StringName = &"tapered"
+## The institute's walls (its rock: RisoTerrain.WALL_LOOKS, the decor's "panel" sketch): light
+## planks laid level (the default, light so the walls stand apart from the dark rooms), dark
+## panelling, lighter panelling, or courses of pale stone. Switching changes only the art.
+const WALL_STYLES: Array[StringName] = [&"planks", &"panels", &"light_panels", &"stone"]
+const WALL_STYLE_NAMES: Array[String] = ["Light planks", "Dark panels", "Light panels", "Pale stone"]
+var wall_style: StringName = &"planks"
+## The cut of the Fool's poncho (RisoCostume.PONCHOS), to try them side by side: drape is worn, broad
+## the cut it had before. Switching changes only the art.
+const PONCHO_STYLES: Array[StringName] = [&"broad", &"slim", &"wedge", &"aline", &"point", &"taper", &"tatters", &"swept", &"capelet", &"woven", &"fringe", &"split", &"crescent", &"drape", &"tent", &"kite"]
+const PONCHO_STYLE_NAMES: Array[String] = ["Broad", "Slim", "Wedge", "A-line", "Point", "Taper", "Tatters", "Swept", "Capelet", "Woven", "Fringe", "Split", "Crescent", "Drape", "Tent", "Kite"]
+var poncho_style: StringName = &"drape"
 ## How much finer than the scene the UI prints, 0 (the same) to 1 (UI_* in full).
 var ui_detail: float = 0.7
 ## Camera zoom while printing, relative to the scene's own zoom (smaller shows more).
@@ -137,17 +188,33 @@ var zoom_factor: float = 0.72
 var _camera: Camera2D
 var _base_zoom: Vector2 = Vector2.ZERO
 var glow_ability: StringName = &"dash"
-## Robe in the spell's ink (ROBES), or always in the realm's blue.
-var robe_by_spell: bool = true
+## The robe plate's ink: the damage spell's (ROBES), easing to it as it changes.
 var robe_color: Color = Color(-1, -1, -1)
-## The printed player appearances offered in the Look section of F7.
-const CHARACTER_STYLES: Array[StringName] = [&"wizard", &"cosmonaut", &"shaman", &"fool"]
-## The names of those appearances in the print controls.
-const CHARACTER_NAMES: Array[String] = ["Wizard", "Arcane cosmonaut", "Mask shaman", "The Fool"]
-## The appearance a new game starts with: the Fool.
-const DEFAULT_CHARACTER: StringName = &"fool"
-## The chosen appearance lasts through travel and new runs in this scene.
-var character_style: StringName = DEFAULT_CHARACTER
+
+## How the print is rendered: &"full" (the plates antialiased, up to FULL_LINES lines) or &"light"
+## (no antialiasing, up to LIGHT_LINES lines and the whole print scaled up to the window), the work
+## of a frame on the GPU about a third of full's. Chosen at the start by the GPU (light on
+## integrated graphics), and on the F7 panel.
+var graphics: StringName = &"full"
+## The print rendered at light graphics' size (the scene's and the UI's print shaders draw into it),
+## and the window-sized picture of it.
+var sheet_viewport: SubViewport
+## The frame counter in the window's top right corner, in debug runs (MapInfo.debug), while
+## `show_fps` (the F7 panel's FPS counter): frames a second and the mean frame's time over the last
+## FPS_EVERY seconds, plain text over the print.
+const FPS_EVERY: float = 0.25
+var show_fps: bool = true
+var fps_label: Label
+var _fps_time: float = 0.0
+var _fps_frames: int = 0
+## The UI's plates' size against the scene's, at full graphics and at light (see set_graphics), and
+## now: the UI holds only a few small marks (prompts, plaques, the map), and each of its nine plates
+## costs the GPU its whole size whatever it holds, while the print's wobble and screen hide the
+## softer edges.
+const UI_SCALE_FULL: float = 0.75
+const UI_SCALE_LIGHT: float = 0.5
+var ui_plate_scale: float = UI_SCALE_FULL
+var sheet_rect: TextureRect
 
 var plates: Array[SubViewport] = []
 ## The UI's own canvas and plates (eight inks, then paper), printed by `ui_material` over the scene.
@@ -160,6 +227,8 @@ var ui_material: ShaderMaterial
 var print_layer: CanvasLayer
 var print_rect: ColorRect
 var print_material: ShaderMaterial
+## The print's noise table, drawn once (see NOISE_SIZE).
+var noise_view: SubViewport
 var background: Node2D
 var terrain: RisoTerrain
 var hud: RisoHud
@@ -275,7 +344,6 @@ static func _warp(wizard: RisoWizard, part: int, center: Vector2, feet: Vector2,
 	fx.facing = 1.0 if wizard.fs >= 0.0 else -1.0
 	fx.art_scale = wizard.global_scale.y
 	fx.ring = ring
-	fx.character_style = wizard.character_style()
 	fx.spell = Abilities.spell(wizard.player)
 	return fx
 
@@ -290,14 +358,38 @@ static func ink_key(canvas: InkCanvas, color: int, cover: float, shapes: Array[P
 	if color == KeyRing.SKELETON:
 		canvas.lift_ink(ALL_PLATES, cover, shapes)
 		return
+	# An exam paper: a sheet in its department's colour (DEPT_INKS; bare paper for a subject no
+	# department teaches), its folded corner bare paper and its ruled lines in night; a stolen one's
+	# folded corner in pink (danger: the scholars are after whoever carries it).
+	if KeyRing.is_paper(color):
+		canvas.lift_ink(ALL_PLATES, cover, shapes.slice(0, 1))
+		var dept: StringName = Timetable.dept_of(KeyRing.paper_spell(color))
+		var tinted: bool = ink_dept(canvas, dept, cover, shapes.slice(0, 1))
+		if tinted:
+			canvas.knock(ALL_PLATES, shapes.slice(1, 2))
+		canvas.ink(NIGHT, 0.55 * cover, shapes.slice(2 if KeyRing.is_stolen(color) or tinted else 1), false)
+		if KeyRing.is_stolen(color):
+			canvas.ink(PINK, cover, shapes.slice(1, 2))
+		return
 	for plate: int in key_inks(color):
 		canvas.ink(plate, cover, shapes)
+
+
+## Print `shapes` on `canvas` in department `dept`'s colour (DEPT_INKS) at `cover`, over what is
+## under it knocked out first. Returns false, printing nothing, for no department.
+static func ink_dept(canvas: InkCanvas, dept: StringName, cover: float, shapes: Array[PackedVector2Array]) -> bool:
+	if not DEPT_INKS.has(dept):
+		return false
+	canvas.knock(ALL_PLATES, shapes)
+	for pair: Array in DEPT_INKS[dept]:
+		canvas.ink(int(pair[0]), float(pair[1]) * cover, shapes, false)
+	return true
 
 
 static func key_inks(color: int) -> Array[int]:
 	# A skeleton key prints as bare paper (ink_key); where it needs an ink (its map marks, sparks)
 	# it is night, screened to grey on the map.
-	if color == KeyRing.SKELETON:
+	if color == KeyRing.SKELETON or KeyRing.is_paper(color):
 		return [NIGHT]
 	var out: Array[int] = []
 	for plate: int in KEY_COLORS[posmod(color, KEY_COLORS.size())]:
@@ -382,6 +474,8 @@ func _ready() -> void:
 
 func _build() -> void:
 	var main: Node = get_parent()
+	noise_view = _make_pass(Vector2i(NOISE_SIZE, NOISE_SIZE), NOISE_SHADER)
+	noise_view.render_target_update_mode = SubViewport.UPDATE_ONCE
 	for i: int in range(PLATE_COUNT):
 		plates.append(_make_viewport(plate_mask(i)))
 	print_layer = CanvasLayer.new()
@@ -417,6 +511,30 @@ func _build() -> void:
 		ui_material.set_shader_parameter("plate%d" % i, ui_plates[i].get_texture())
 	ui_material.set_shader_parameter("plate_paper", ui_plates[PLATE_COUNT].get_texture())
 	print_layer.add_child(ui_rect)
+	var screens: PackedVector2Array = PackedVector2Array()
+	for angle: float in SCREEN_ANGLES:
+		screens.append(Vector2.from_angle(deg_to_rad(angle)))
+	for m: ShaderMaterial in [print_material, ui_material]:
+		m.set_shader_parameter("noise", noise_view.get_texture())
+		m.set_shader_parameter("plate_screens", screens)
+	sheet_viewport = SubViewport.new()
+	sheet_viewport.name = "RisoSheet"
+	sheet_viewport.disable_3d = true
+	sheet_viewport.transparent_bg = false
+	sheet_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	sheet_viewport.size = Vector2i(16, 16)
+	add_child(sheet_viewport)
+	sheet_rect = TextureRect.new()
+	sheet_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	sheet_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	sheet_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	sheet_rect.stretch_mode = TextureRect.STRETCH_SCALE
+	sheet_rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	sheet_rect.texture = sheet_viewport.get_texture()
+	sheet_rect.visible = false
+	print_layer.add_child(sheet_rect)
+	graphics = &"light" if RenderingServer.get_video_adapter_type() == RenderingDevice.DEVICE_TYPE_INTEGRATED_GPU else &"full"
+	set_graphics(graphics)
 	background = Node2D.new()
 	background.name = "RisoBackground"
 	background.set_script(preload("res://scripts/riso/RisoBackground.gd"))
@@ -475,6 +593,44 @@ func _make_viewport(mask: int) -> SubViewport:
 	return vp
 
 
+## A viewport of `size` of its own (nothing of the game in it) that runs `shader` over itself.
+func _make_pass(size: Vector2i, shader: Shader) -> SubViewport:
+	var vp: SubViewport = SubViewport.new()
+	vp.world_2d = World2D.new()
+	vp.transparent_bg = true
+	vp.disable_3d = true
+	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	vp.size = size
+	var rect: ColorRect = ColorRect.new()
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var m: ShaderMaterial = ShaderMaterial.new()
+	m.shader = shader
+	rect.material = m
+	vp.add_child(rect)
+	add_child(vp)
+	return vp
+
+
+## Render the print at `mode` (see graphics): light prints the scene's and the UI's print into
+## the smaller sheet_viewport, shown scaled up; full prints them straight to the window.
+func set_graphics(mode: StringName) -> void:
+	graphics = mode
+	var light: bool = mode == &"light"
+	ui_plate_scale = UI_SCALE_LIGHT if light else UI_SCALE_FULL
+	var into: Node = sheet_viewport if light else print_layer
+	for rect: ColorRect in [print_rect, ui_rect]:
+		if rect.get_parent() != into:
+			rect.reparent(into, false)
+	# The UI's print over the scene's, and either under the scaled-up sheet (which hides when full).
+	print_layer.move_child(sheet_rect, -1)
+	sheet_rect.visible = light
+	sheet_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS if light else SubViewport.UPDATE_DISABLED
+	var msaa: Viewport.MSAA = Viewport.MSAA_DISABLED if light else Viewport.MSAA_4X
+	for vp: SubViewport in plates + ui_plates:
+		vp.msaa_2d = msaa
+
+
 func _screen_size() -> Vector2i:
 	var s: Vector2i = get_window().size
 	if s.x < 16 or s.y < 16:
@@ -530,22 +686,46 @@ func _restore_viewport() -> void:
 func _process(delta: float) -> void:
 	var root: Viewport = get_viewport()
 	var size: Vector2i = _screen_size()
-	var k: float = minf(1.0, 1080.0 / float(size.y))
+	var lines: int = LIGHT_LINES if graphics == &"light" else FULL_LINES
+	var k: float = minf(1.0, float(lines) / float(size.y))
 	var plate_size: Vector2i = Vector2i(roundi(size.x * k), roundi(size.y * k))
+	if graphics == &"light" and sheet_viewport.size != plate_size:
+		sheet_viewport.size = plate_size
 	var xf: Transform2D = Transform2D(0.0, Vector2(k, k), 0.0, Vector2.ZERO) * root.get_final_transform() * root.canvas_transform
 	for vp: SubViewport in plates:
 		if vp.size != plate_size:
 			vp.size = plate_size
 		vp.canvas_transform = xf
+	var ui_k: float = k * ui_plate_scale
+	var ui_size: Vector2i = Vector2i(roundi(size.x * ui_k), roundi(size.y * ui_k))
+	var ui_xf: Transform2D = Transform2D(0.0, Vector2(ui_k, ui_k), 0.0, Vector2.ZERO) * root.get_final_transform() * root.canvas_transform
 	for vp: SubViewport in ui_plates:
-		if vp.size != plate_size:
-			vp.size = plate_size
-		vp.canvas_transform = xf
+		if vp.size != ui_size:
+			vp.size = ui_size
+		vp.canvas_transform = ui_xf
+	_count_frames(delta)
 	_track_player()
 	_ease_robe(delta)
 	if not get_tree().paused:
 		_advance_sheet(delta)
 	_update_uniforms(Vector2(size))
+
+
+## Keep the frame counter (fps_label) up to date, shown only in debug runs with show_fps.
+func _count_frames(delta: float) -> void:
+	if fps_label == null:
+		return
+	var on: bool = show_fps and MapInfo.debug
+	if fps_label.visible != on:
+		fps_label.visible = on
+	if not on:
+		return
+	_fps_time += delta
+	_fps_frames += 1
+	if _fps_time >= FPS_EVERY:
+		fps_label.text = "%d fps  %.1f ms" % [roundi(float(_fps_frames) / _fps_time), _fps_time * 1000.0 / float(_fps_frames)]
+		_fps_time = 0.0
+		_fps_frames = 0
 
 
 func _track_player() -> void:
@@ -556,30 +736,25 @@ func _track_player() -> void:
 		_player = main.get_node("Player") as Player
 		if _player != null:
 			_player.visual_event.connect(_on_player_event)
-			_player.parry.connect(func() -> void: flare(&"parry"))
+
+
+## The sputter of a spell that could not work (see _on_player_event): a sound, how low it is
+## played and how quietly; and its player, made the first time.
+const FIZZLE_SOUND: AudioStream = preload("res://music/SoundEffects/hitHurt.wav")
+const FIZZLE_PITCH: float = 0.45
+const FIZZLE_DB: float = -14.0
+var _fizzle_sfx: AudioStreamPlayer
 
 
 ## The robe's ink eases to its spell's over a moment, so learning a spell visibly re-dyes it.
 func _ease_robe(delta: float) -> void:
 	var target: Color = (REALMS[realm]["inks"] as Array)[BLUE]
-	if (robe_by_spell or character_style != &"wizard") and _player != null and is_instance_valid(_player):
+	if _player != null and is_instance_valid(_player):
 		target = ROBES.get(Abilities.spell(_player), ROBES[&""])
 	# Drowsy in sleep fog: the spell is off, and the robe greys.
 	if _player != null and is_instance_valid(_player) and _player.is_drowsy():
 		target = DROWSY_ROBE
 	robe_color = target if robe_color.r < 0.0 else robe_color.lerp(target, minf(1.0, delta * 4.0))
-
-
-## Change the player's printed appearance without changing their abilities or collision.
-func set_character_style(style: StringName) -> void:
-	if not CHARACTER_STYLES.has(style):
-		return
-	character_style = style
-	var player: Player = Stage.player()
-	var wizard: RisoWizard = player.get_node_or_null("RisoWizard") as RisoWizard if player != null else null
-	if wizard != null:
-		wizard.appearance_changed()
-	_sync_panel()
 
 
 func _on_player_event(kind: StringName, _at: Vector2) -> void:
@@ -588,30 +763,36 @@ func _on_player_event(kind: StringName, _at: Vector2) -> void:
 		RisoFx.burst(&"jump", feet.global_position if feet != null else _at)
 	elif kind == &"hurt":
 		RisoFx.burst(&"hit", _at + Vector2(0, -20), -_player.velocity.normalized())
+	elif kind == &"empower":
+		# An empowered cast (Empower): a flash of spell light from the bag, and a jolt.
+		var caster: RisoWizard = _player.get_node_or_null("RisoWizard") as RisoWizard
+		var from: Vector2 = caster.to_global(caster.costume.bag_position()) if caster != null and caster.costume != null else _at
+		RisoFx.burst(&"gain", from, Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.EYE])
+		Wound.shake(5.0, 0.12)
+	elif kind == &"empower_back":
+		# Empowerment back (Empower): a burst of accent sparks from the bag, no jolt.
+		var holder: RisoWizard = _player.get_node_or_null("RisoWizard") as RisoWizard
+		var bag: Vector2 = holder.to_global(holder.costume.bag_position()) if holder != null and holder.costume != null else _at
+		RisoFx.burst(&"gain", bag, Vector2.ZERO, [RisoPrint.ACCENT])
+	elif kind == &"fizzle":
+		# A spell that could not work: a dull puff of night and blue from the bag's knot, and a dull
+		# click (the hurt sound, low and quiet).
+		var wizard: RisoWizard = _player.get_node_or_null("RisoWizard") as RisoWizard
+		var at: Vector2 = wizard.to_global(wizard.costume.bag_position()) if wizard != null and wizard.costume != null else _at
+		RisoFx.burst(&"impact", at, Vector2.UP, [RisoPrint.NIGHT, RisoPrint.BLUE])
+		if _fizzle_sfx == null:
+			_fizzle_sfx = AudioStreamPlayer.new()
+			_fizzle_sfx.stream = FIZZLE_SOUND
+			_fizzle_sfx.pitch_scale = FIZZLE_PITCH
+			_fizzle_sfx.volume_db = FIZZLE_DB
+			_fizzle_sfx.bus = &"SoundEffects"
+			add_child(_fizzle_sfx)
+		_fizzle_sfx.play()
 	if kind in [&"hurt", &"death"] and hud != null and is_instance_valid(hud):
 		hud.flash = 1.0
-	if kind == &"projection_start":
-		flare(&"astral")
-	elif kind == &"jump" and _player != null and _player.MAX_JUMPS > 1 and _player.jumps < _player.MAX_JUMPS and not _player.is_on_floor():
-		flare(&"double_jump")
 	if reprint_on_motion and registration == &"sheet" and sheet_rate > 0.0:
 		if kind in [&"jump", &"dash", &"hurt", &"death", &"projection_start", &"projection_end", &"teleport"]:
 			_new_sheet()
-
-
-## Movement (dash, blink, climb, double jump) lights the hat, which takes its glow ink; spells
-## light the orb instead (accent ink) and leave the hat's colour alone.
-func flare(ability: StringName) -> void:
-	var wizard: RisoWizard = null
-	if _player != null and is_instance_valid(_player):
-		wizard = _player.get_node_or_null("RisoWizard") as RisoWizard
-	if Abilities.is_spell(ability):
-		if wizard != null:
-			wizard.orb_flare()
-		return
-	glow_ability = ability
-	if wizard != null:
-		wizard.flare()
 
 
 func _new_sheet() -> void:
@@ -672,6 +853,9 @@ func _update_uniforms(size: Vector2) -> void:
 	for i: int in range(5):
 		var c: Color = inks[i]
 		print_material.set_shader_parameter("ink%d" % i, Vector3(c.r, c.g, c.b))
+	# The glow ink is the movement slot's: the Fool's feather and the dash's afterimages print in it.
+	if _player != null and is_instance_valid(_player) and Abilities.spell(_player, &"move") != &"":
+		glow_ability = Abilities.spell(_player, &"move")
 	var g: Color = GLOWS.get(glow_ability, GLOWS[&"dash"])
 	print_material.set_shader_parameter("ink5", Vector3(g.r, g.g, g.b))
 	print_material.set_shader_parameter("ink6", Vector3(robe_color.r, robe_color.g, robe_color.b))
@@ -691,17 +875,24 @@ func _update_uniforms(size: Vector2) -> void:
 	print_material.set_shader_parameter("gain", params[3] * s)
 	print_material.set_shader_parameter("lay", params[4])
 	print_material.set_shader_parameter("specks", specks)
-	print_material.set_shader_parameter("seed", _sheet_seed(sheet_index) if registration == &"sheet" else 3.1)
-	print_material.set_shader_parameter("seed2", _sheet_seed(sheet_index + 1))
+	var seed_now: float = _sheet_seed(sheet_index) if registration == &"sheet" else 3.1
+	var seed_next: float = _sheet_seed(sheet_index + 1)
+	# The print reads the sheets' noise from the table (_set_noise); the seeds themselves are for the
+	# print as it was, which tests/bench_print.gd compares against.
+	print_material.set_shader_parameter("seed", seed_now)
+	print_material.set_shader_parameter("seed2", seed_next)
 	print_material.set_shader_parameter("mixv", m)
 	print_material.set_shader_parameter("trapped", 1.0 if trapped else 0.0)
+	_set_noise(print_material, seed_now, seed_next, trapped)
 	# Pin the print to the world: the shader adds the camera's pixel offset to every noise lookup.
 	var root: Viewport = get_viewport()
 	var view: Transform2D = root.get_final_transform() * root.canvas_transform
 	print_material.set_shader_parameter("pin", -view.origin)
-	# The UI's print: the same sheet and inks, finer, and pinned to the screen (the HUD is).
+	# The UI's print: the same sheet and inks, finer, and pinned to the screen (the HUD is). Its
+	# plates always register on their own.
 	for p: String in ["res", "paper", "ink0", "ink1", "ink2", "ink3", "ink4", "ink5", "ink6", "ink7", "lay", "specks", "seed", "seed2", "mixv"]:
 		ui_material.set_shader_parameter(p, print_material.get_shader_parameter(p))
+	_set_noise(ui_material, seed_now, seed_next, false)
 	for i: int in range(PLATE_COUNT):
 		ui_material.set_shader_parameter("off%d" % i, (print_material.get_shader_parameter("off%d" % i) as Vector2) * _ui_scale(UI_REGISTRATION))
 	ui_material.set_shader_parameter("cell", params[0] * s * _ui_scale(UI_CELL))
@@ -709,6 +900,55 @@ func _update_uniforms(size: Vector2) -> void:
 	ui_material.set_shader_parameter("grain", params[2] * _ui_scale(UI_GRAIN))
 	ui_material.set_shader_parameter("gain", params[3] * s * _ui_scale(UI_GAIN))
 	ui_material.set_shader_parameter("pin", Vector2.ZERO)
+
+
+## Where each plate's noise streams start in the noise table for this sheet and the next (see
+## NOISE_KEYS and nz_a in riso_core.gdshaderinc), and the plates' rotations, set again only when the
+## sheets or the trapping change. Trapped, night takes blue's noise and rotation, and every plate
+## shares one broad wobble.
+func _set_noise(m: ShaderMaterial, seed_now: float, seed_next: float, trap: bool) -> void:
+	var key: Vector3 = Vector3(seed_now, seed_next, 1.0 if trap else 0.0)
+	if m.get_meta(&"noise_key", Vector3(-1.0, -1.0, -1.0)) == key:
+		return
+	m.set_meta(&"noise_key", key)
+	var rots: PackedVector2Array = PackedVector2Array()
+	for i: int in range(PLATE_ROTATIONS.size()):
+		rots.append(Vector2.from_angle(PLATE_ROTATIONS[BLUE if trap and i == NIGHT else i]))
+	m.set_shader_parameter("plate_turns", rots)
+	for sheet_k: int in range(2):
+		var base: float = seed_now if sheet_k == 0 else seed_next
+		var a: PackedVector4Array = PackedVector4Array()
+		var b: PackedVector4Array = PackedVector4Array()
+		var c: PackedVector4Array = PackedVector4Array()
+		for i: int in range(PLATE_COUNT + 1):
+			var k: int = NOISE_KEYS[BLUE if trap and i == NIGHT else i]
+			var sd: float = base + float(k) * 13.1
+			var w1: Vector2 = _nz(base if trap else sd, 0)
+			a.append(_nz4(w1, _nz(sd, 1)))
+			b.append(_nz4(_nz(sd, 2), _nz(sd, 3)))
+			c.append(_nz4(_nz(sd, 4), _nz(sd, 5)))
+		var prefix: String = "nz_" if sheet_k == 0 else "nz2_"
+		m.set_shader_parameter(prefix + "a", a)
+		m.set_shader_parameter(prefix + "b", b)
+		m.set_shader_parameter(prefix + "c", c)
+	m.set_shader_parameter("nz_paper", _nz4(_nz(seed_now + 71.0, 0), _nz(seed_now + 71.0, 1)))
+
+
+## Where noise stream `stream` of seed `sd` starts in the noise table: whole texels.
+static func _nz(sd: float, stream: int) -> Vector2:
+	var h: int = _hash32(_hash32(roundi(sd * 1000.0)) + stream)
+	return Vector2(h % NOISE_SIZE, (h >> 16) % NOISE_SIZE)
+
+
+static func _nz4(first: Vector2, second: Vector2) -> Vector4:
+	return Vector4(first.x, first.y, second.x, second.y)
+
+
+## An integer hash (PCG's output function) of `x`, to 32 bits.
+static func _hash32(x: int) -> int:
+	var st: int = (x * 747796405 + 2891336453) & 0xFFFFFFFF
+	var w: int = (((st >> ((st >> 28) + 4)) ^ st) * 277803737) & 0xFFFFFFFF
+	return ((w >> 22) ^ w) & 0xFFFFFFFF
 
 
 ## A UI print setting's scale at the current UI detail: from 1 (as the scene) to `finest`.
@@ -745,6 +985,13 @@ func world_built(map_info: MapInfo, _world_index: int) -> void:
 	elif own == &"" and not REALM_ORDER.has(realm):
 		set_realm(_realm_outside)
 	_rebuild_ground(map_info)
+
+
+## Print the institute's walls as `style` (WALL_STYLES), at once if an indoor place is being played.
+func set_wall_style(style: StringName) -> void:
+	wall_style = style
+	if _map_info != null and is_instance_valid(_map_info) and _map_info.here != null and RisoTerrain.INDOOR_REALMS.has(_map_info.here.realm()):
+		_rebuild_ground(_map_info)
 
 
 func _rebuild_ground(map_info: MapInfo) -> void:
@@ -871,6 +1118,8 @@ const DRESS: Dictionary = {
 	"res://prefabs/signpost.tscn": &"sign",
 	"res://prefabs/ferry_raft.tscn": &"ferry",
 	"res://prefabs/gondola_station.tscn": &"station",
+	"res://prefabs/lesson.tscn": &"lesson",
+	"res://prefabs/way_back.tscn": &"department",
 }
 
 
@@ -941,6 +1190,19 @@ func _build_panel() -> void:
 	var layer: CanvasLayer = CanvasLayer.new()
 	layer.layer = 3
 	add_child(layer)
+	fps_label = Label.new()
+	fps_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	fps_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	fps_label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	fps_label.offset_right = -3.0
+	fps_label.offset_top = 2.0
+	fps_label.add_theme_font_size_override("font_size", 6)
+	fps_label.add_theme_color_override("font_color", Color(1, 1, 1))
+	fps_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	fps_label.add_theme_constant_override("outline_size", 2)
+	fps_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fps_label.visible = false
+	layer.add_child(fps_label)
 	panel = PanelContainer.new()
 	panel.visible = false
 	panel.position = Vector2(4, 4)
@@ -980,18 +1242,34 @@ func _build_panel() -> void:
 	_option_row(print_box, &"reprint", "Reprint on", ["Clock", "Motion"], _on_reprint)
 	_option_row(print_box, &"between", "Between sheets", ["Cut", "Blend"], _on_between)
 	_option_row(print_box, &"plates", "Plates", ["Independent", "Trapped"], func(i: int) -> void: trapped = i == 1)
+	_option_row(print_box, &"graphics", "Graphics", ["Full", "Light"], func(i: int) -> void: set_graphics(&"light" if i == 1 else &"full"))
+	_option_row(print_box, &"fps", "FPS counter", ["On", "Off"], func(i: int) -> void: show_fps = i == 0)
+	# How hard the game is: a preset changes what levels hold, so the place is laid out again.
+	var hard: VBoxContainer = _section(box, "Difficulty", false)
+	_option_row(hard, &"difficulty", "Preset", Difficulty.NAMES, func(i: int) -> void:
+		if i == Difficulty.preset:
+			return
+		Difficulty.preset = i as Difficulty.Preset
+		if MapInfo.instance != null:
+			if _pad_paused:
+				set_pad_panel(false)
+			else:
+				panel.visible = false
+			MapInfo.instance.lay_out_again())
 	var look: VBoxContainer = _section(box, "Look", false)
-	_option_row(look, &"character", "Character", CHARACTER_NAMES, func(i: int) -> void: set_character_style(CHARACTER_STYLES[i]))
 	_option_row(look, &"realm", "Realm", ["Deep night", "Twilight", "Aurora"], _on_realm_picked)
 	_option_row(look, &"portal", "Portals", ["TV static", "Ripples"], func(i: int) -> void: portal_style = PORTAL_STYLES[i])
 	_option_row(look, &"fog", "Fog shape", FOG_STYLE_NAMES, func(i: int) -> void: fog_style = FOG_STYLES[i])
 	_option_row(look, &"sight", "Light by sight", ["Rock stops it", "Off"], func(i: int) -> void: RisoLight.by_sight = i == 0)
-	_option_row(look, &"robe", "Robe", ["Spell colour", "Blue"], func(i: int) -> void: robe_by_spell = i == 0)
 	_option_row(look, &"sky_bottoms", "Sky bottoms", SKY_BOTTOM_NAMES, func(i: int) -> void:
 		sky_bottom_style = SKY_BOTTOM_STYLES[i]
 		if _map_info != null and is_instance_valid(_map_info) and _map_info.here.open():
 			_rebuild_ground(_map_info)
 		_sync_panel())
+	_option_row(look, &"walls", "Institute walls", WALL_STYLE_NAMES, func(i: int) -> void:
+		set_wall_style(WALL_STYLES[i])
+		_sync_panel())
+	_option_row(look, &"poncho", "Poncho", PONCHO_STYLE_NAMES, func(i: int) -> void: poncho_style = PONCHO_STYLES[i])
 	var keys: VBoxContainer = _section(box, "Keys", false)
 	_key_capacity_label = Label.new()
 	_key_capacity_label.add_theme_font_size_override("font_size", 6)
@@ -1002,13 +1280,13 @@ func _build_panel() -> void:
 	_skeleton_label = _stepper_row(keys, "Skeleton keys", func(d: int) -> void:
 		if _player != null and is_instance_valid(_player):
 			_player.keyring.set_skeletons(maxi(0, _player.keyring.skeletons() + d)))
-	# Abilities: set any tier outright (a spell above 0 takes the slot).
+	# Abilities: set any tier outright (one for a slot, above 0, takes it).
 	var abilities: VBoxContainer = _section(box, "Abilities", false)
 	for a: StringName in Abilities.ids():
 		var items: Array[String] = ["none"]
 		for n: int in range(1, Abilities.max_tier(a) + 1):
 			items.append(Abilities.roman(n))
-		_option_row(abilities, StringName("ability_" + String(a)), Abilities.label(a) + (" (spell)" if Abilities.is_spell(a) else ""), items, func(i: int) -> void:
+		_option_row(abilities, StringName("ability_" + String(a)), Abilities.label(a) + (" (%s)" % Abilities.slot_of(a) if Abilities.slot_of(a) != &"" else ""), items, func(i: int) -> void:
 			if _player != null and is_instance_valid(_player):
 				Abilities.set_tier(_player, a, i)
 				if a == &"keyring":
@@ -1083,7 +1361,7 @@ func _equip_panel_key(color: int, equipped: bool) -> void:
 
 ## Debug runs only: travel straight to any world and depth (MapInfo.debug_travel), or to the
 ## nearest band of an archetype, or into hyperspace, from the F7 panel (by controller too); and
-## slay this place's boss at once (MapInfo.slay_boss).
+## slay this place's boss at once (MapInfo.slay_boss), or heal to full (MapInfo.full_heal).
 var _travel_box: VBoxContainer
 var _travel_world_label: Label
 var _travel_depth_label: Label
@@ -1111,6 +1389,9 @@ func _build_travel(box: VBoxContainer) -> void:
 	_button(boss_row, "Slay boss", func() -> void:
 		if MapInfo.debug and MapInfo.instance != null:
 			MapInfo.instance.slay_boss())
+	_button(boss_row, "Full heal", func() -> void:
+		if MapInfo.instance != null:
+			MapInfo.instance.full_heal())
 
 
 ## A row: its name, a "-" button, the value, a "+" button; `on_step` gets -1 or +1.
@@ -1266,6 +1547,8 @@ func _sync_panel() -> void:
 	_offset_label.text = "%.1f×" % offset_scale
 	_ui_detail_label.text = "%d%%" % roundi(ui_detail * 100.0)
 	_specks_label.text = "none" if specks <= 0.0 else "%d%%" % roundi(specks * 100.0)
+	if _options.has(&"difficulty"):
+		(_options[&"difficulty"] as OptionButton).select(Difficulty.preset)
 	if _options.has(&"portal"):
 		(_options[&"portal"] as OptionButton).select(PORTAL_STYLES.find(portal_style))
 	if _options.has(&"sight"):
@@ -1274,6 +1557,10 @@ func _sync_panel() -> void:
 		(_options[&"fog"] as OptionButton).select(FOG_STYLES.find(fog_style))
 	if _options.has(&"sky_bottoms"):
 		(_options[&"sky_bottoms"] as OptionButton).select(SKY_BOTTOM_STYLES.find(sky_bottom_style))
+	if _options.has(&"walls"):
+		(_options[&"walls"] as OptionButton).select(WALL_STYLES.find(wall_style))
+	if _options.has(&"poncho"):
+		(_options[&"poncho"] as OptionButton).select(PONCHO_STYLES.find(poncho_style))
 	if _options.has(&"realm"):
 		(_options[&"realm"] as OptionButton).select(REALM_ORDER.find(realm))
 	if _options.has(&"reprint"):
@@ -1282,10 +1569,10 @@ func _sync_panel() -> void:
 		(_options[&"between"] as OptionButton).select(1 if blend_sheets else 0)
 	if _options.has(&"plates"):
 		(_options[&"plates"] as OptionButton).select(1 if trapped else 0)
-	if _options.has(&"robe"):
-		(_options[&"robe"] as OptionButton).select(0 if robe_by_spell else 1)
-	if _options.has(&"character"):
-		(_options[&"character"] as OptionButton).select(CHARACTER_STYLES.find(character_style))
+	if _options.has(&"graphics"):
+		(_options[&"graphics"] as OptionButton).select(1 if graphics == &"light" else 0)
+	if _options.has(&"fps"):
+		(_options[&"fps"] as OptionButton).select(0 if show_fps else 1)
 	if _player != null and is_instance_valid(_player):
 		_key_capacity_label.text = "Ring: %d / %d  (Keyring adds slots)" % [_player.keyring.all().size(), _player.keyring.capacity()]
 		_skeleton_label.text = str(_player.keyring.skeletons())

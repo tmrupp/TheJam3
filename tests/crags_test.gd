@@ -4,8 +4,11 @@ extends TestKit
 ## the same every build; their realm and decor (battlements and dressed stone on the masonry only);
 ## doors in their passages; rock-bugs; and the gondola's line: from near the bottom to near the top,
 ## straight up and up 45° diagonals only, carved and kept clear, counted as somewhere to stand, at
-## least four stations, each a doorway onto a landing, all shut but one (by a door, a switch gate
-## with its switch, or a toll gate). In play: its sides up while it stands; the lever sets it off
+## least four stations, each a doorway onto a landing behind a station gate; the tiers (one for
+## each station, nothing built between them) and the towers on them (three to six, the bottom and top tiers one at least, each with a switch whose
+## set gives a way up and a different way down). In play: only the station nearest the way in is
+## on at first; a tower's switch flips its set, then is locked until another is flipped, and the
+## lock lifts when the level loads again. In play: its sides up while it stands; the lever sets it off
 ## with its rider barred in; a rock-bug comes out on its cable, clings to it until the top of the car
 ## reaches it, crawls in through the roof hatch and round the inside of the car, and is let off onto
 ## the rock when it stands with its sides
@@ -41,7 +44,7 @@ func generation() -> void:
 		for x: int in range(w.size.x):
 			for y: int in range(w.size.y):
 				rock += 1 if w.is_ground(Vector2i(x, y)) else 0
-		check(float(rock) < 0.45 * float(w.size.x * w.size.y), "row %d is open: %d%% rock" % [at.y, rock * 100 / (w.size.x * w.size.y)])
+		check(float(rock) < 0.5 * float(w.size.x * w.size.y), "row %d is open: %d%% rock (its bands of rock between tiers included)" % [at.y, rock * 100 / (w.size.x * w.size.y)])
 		check(not w.masonry.is_empty() and w.masonry.keys().all(func(v: Vector2i) -> bool: return w.is_ground(v) or w.get_cell(v).type == LevelGen.Type.CRACKED), "row %d has castle masonry, all of it rock (or cracked rock)" % at.y)
 		check(count_of(w, LevelGen.Type.DOOR) + count_of(w, LevelGen.Type.SWITCH_GATE) > 0, "row %d has doors or switch gates" % at.y)
 		var bugs: Array[Vector2i] = w.objects_of(LevelGen.Type.BUG)
@@ -77,7 +80,9 @@ func _circuit(w: LevelGen, at: Vector2i) -> int:
 	var gates: Array[Vector2i] = info["gates"]
 	check(stops.size() >= CragsArchetype.STATIONS_MIN, "its line has %d stations" % stops.size())
 	check(gondolas[0] == path[stops[int(info["start"])]], "its car waits at its open station")
-	check(float(path[0].y) > float(w.size.y) * 0.7 and float(path[-1].y) < float(w.size.y) * 0.3, "it climbs from near the bottom of the level (row %d) to near its top (row %d)" % [path[0].y, path[-1].y])
+	# In the spider's gate level, its top is the foot of the keep there (SpiderKeep).
+	var top: float = float(CragsArchetype.TOP_TIER + CragsArchetype.STATION_JITTER + 8) if w.keep.is_empty() else float((w.keep["box"] as Rect2i).end.y + CragsArchetype.LEAVE + 3)
+	check(float(path[0].y) > float(w.size.y) * 0.7 and float(path[-1].y) < top, "it climbs from near the bottom of the level (row %d) to near its top, or the spider's keep (row %d)" % [path[0].y, path[-1].y])
 	var diagonal: int = 0
 	var steps_ok: bool = true
 	for i: int in range(1, path.size()):
@@ -94,28 +99,45 @@ func _circuit(w: LevelGen, at: Vector2i) -> int:
 	check(astray.is_empty(), "the way it sweeps is open all along and kept clear of what is laid after %s" % ", ".join(astray))
 	var nodes: Dictionary = Reach.footholds(w)
 	check(path.all(func(p: Vector2i) -> bool: return nodes.has(p) or p == gondolas[0]), "its whole track counts as somewhere to stand (riding it)")
-	var shut: int = 0
+	var gated: bool = true
 	for i: int in range(gates.size()):
 		var g: Vector2i = gates[i]
 		check(w.is_ground(g + Vector2i.UP) and w.is_ground(g + Vector2i.DOWN), "station %d's doorway is a cell high" % i)
-		var t: LevelGen.Type = w.get_cell(g).type
-		if i == int(info["start"]):
-			check(t == LevelGen.Type.EMPTY, "the station nearest the way in is open")
-			continue
-		check(t in Gondola.GATES, "station %d is shut by a %s" % [i, LevelGen.Type.keys()[t]])
-		shut += 1
-		if t == LevelGen.Type.SWITCH_GATE:
-			var lever: Vector2i = w.get_cell(g).extra_info
-			check(w.get_cell(lever).type == LevelGen.Type.SWITCH and w.get_cell(lever).extra_info == g, "its switch is out in the level")
-		if t == LevelGen.Type.TOLL:
-			check(int(w.get_cell(g).extra_info) == Rules.toll_price(absi(at.y)), "its toll is the price for the depth")
-	check(shut == stops.size() - 1, "all its other stations are shut")
+		gated = gated and w.get_cell(g).type == LevelGen.Type.STATION_GATE and int(w.get_cell(g).extra_info) == i
+	check(gated, "every station's doorway holds its station gate (no tolls, no switch gates)")
+	_tiers(w, at, path, stops)
 	return diagonal
 
 
+## Row `at`'s tiers and towers, laid out as `w` with its gondola's `path` and `stops`.
+func _tiers(w: LevelGen, at: Vector2i, path: Array[Vector2i], stops: Array[int]) -> void:
+	check(w.tiers.size() == stops.size() - 1, "row %d is reckoned in a tier for each station (%d lines between)" % [at.y, w.tiers.size()])
+	var marked: bool = true
+	for i: int in range(w.tiers.size()):
+		marked = marked and (w.tiers[i]["rows"] as Vector2i).x == path[stops[i + 1]].y + 1
+	check(marked, "each line between tiers lies under the station over it, nothing built there")
+	var tiers: Array[int] = []
+	tiers.assign(w.circuit.get("tiers", []))
+	var masks: Array[int] = []
+	masks.assign(w.circuit.get("masks", []))
+	check(w.towers.size() >= 2 and w.towers.size() <= CragsArchetype.TOWERS_MOST, "%d towers (at most %d)" % [w.towers.size(), CragsArchetype.TOWERS_MOST])
+	check(tiers.has(0) and tiers.has(stops.size() - 1), "the bottom and top tiers have a tower each (towers on %s)" % [tiers])
+	var switched: bool = true
+	for j: int in range(w.towers.size()):
+		var cell: Vector2i = w.towers[j].get("switch", Vector2i(-1, -1))
+		switched = switched and w.is_valid(cell) and w.get_cell(cell).type == LevelGen.Type.TOWER_SWITCH and int(w.get_cell(cell).extra_info["mask"]) == masks[j] and masks[j] & (1 << tiers[j]) == 0
+	check(switched, "each tower has its switch, flipping a set that leaves its own tier's station be")
+	var n: int = stops.size()
+	var up: Variant = Stations.way(n, tiers, masks, 1, 0, n - 1)
+	var down: Variant = Stations.way(n, tiers, masks, 1 << (n - 1), n - 1, 0)
+	check(up != null and down != null and up != down, "a way up %s and a different way down %s" % [up, down])
+	check(Stations.all_on_reached(n, tiers, masks), "and a way to leave the whole line on")
+
+
 func ride() -> void:
-	await boot()
-	info.coord = Vector2i(28, NextWorldDef.band_row(&"crags", 1))
+	var world_seed: int = 28
+	await boot(world_seed)
+	info.coord = Vector2i(world_seed, NextWorldDef.band_row(&"crags", 0))
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	await settle()
@@ -212,9 +234,9 @@ func ride() -> void:
 	check(await until(func() -> bool: return not g.running and g.at_station == start, 40000), "back at the open station")
 	# Stopped on the way, its sides lift; pulled again, it heads back. (From the line's end the
 	# lever's first pull balks, and the next goes the other way.)
+	# The lever set to go toward that next station (it goes on the way it last came otherwise).
+	g.next_dir = 1 if g.stops_s[next] > g.s else -1
 	g.pull()
-	if not g.running:
-		g.pull()
 	check(g.running and g.bound_for == next, "the lever sets it off again")
 	await until(func() -> bool: return g.speed > 200.0)
 	g.pull()
@@ -229,35 +251,22 @@ func ride() -> void:
 	check(await until(func() -> bool: return absf(g.swing) < 0.005 and absf(g.swing_v) < 0.01, 8000), "and settles while it stands")
 	check(g.center().distance_to(g.world_at(g.s) + Vector2(0.0, -g.cell_px)) < 2.0, "hanging straight down at the station")
 	await rock_bugs()
-	# A toll gate lifts for its price (one placed here, if this level has none of its own).
-	var tolls: Array[Node] = placed("toll_gate.tscn")
-	if tolls.is_empty():
-		var spare: TollGate = Placeables.scene(LevelGen.Type.TOLL).instantiate() as TollGate
-		spare.set_meta(&"cell", Vector2i(-5, -5))
-		info.map_elements.add_child(spare)
-		spare.setup(info, Vector2i(-5, -5), Rules.toll_price(info.here.depth))
-		tolls.append(spare)
-	if not tolls.is_empty():
-		var toll: TollGate = tolls[0] as TollGate
-		player.collect(toll.price - player.coins.coins - 1)
-		toll.pay()
-		check(not toll.is_queued_for_deletion(), "a toll gate stays shut without its price")
-		player.collect(1)
-		toll.pay()
-		check(toll.is_queued_for_deletion() and player.coins.coins == 0 and info.record().opened.has(toll.get_meta(&"cell")), "and lifts for good for it")
-	# Open the next station and call the car there from its landing: it comes over empty.
+	# A toll gate lifts for its price: a spare one placed here, so the level's own (its stations')
+	# are left shut for the fare below.
+	var spare: TollGate = Placeables.scene(LevelGen.Type.TOLL).instantiate() as TollGate
+	spare.set_meta(&"cell", Vector2i(-5, -5))
+	info.map_elements.add_child(spare)
+	spare.setup(info, Vector2i(-5, -5), Rules.toll_price(info.here.depth))
+	var toll: TollGate = spare
+	player.collect(toll.price - player.coins.coins - 1)
+	toll.pay()
+	check(not toll.is_queued_for_deletion(), "a toll gate stays shut without its price")
+	player.collect(1)
+	toll.pay()
+	check(toll.is_queued_for_deletion() and player.coins.coins == 0 and info.record().opened.has(toll.get_meta(&"cell")), "and lifts for good for it")
+	# Turn the next station on and call the car there from its landing: it comes over empty.
 	var gate_cell: Vector2i = g.gates[next]
-	if info.world.get_cell(gate_cell).type == LevelGen.Type.SWITCH_GATE:
-		# A switch gate is up while its switch is on.
-		info.set_switch(info.world.get_cell(gate_cell).extra_info, true)
-		for n: Node in info.map_elements.get_children():
-			if n.get_meta(&"cell", Vector2i(-1, -1)) == gate_cell:
-				(n as SwitchGate).set_up(true)
-	else:
-		info.record().opened[gate_cell] = true
-		for n: Node in info.map_elements.get_children():
-			if n.get_meta(&"cell", Vector2i(-1, -1)) == gate_cell:
-				n.queue_free()
+	_turn_on(next)
 	player.global_position = info.cell_position(gate_cell + Vector2i(g.inner[next], 0)) + Vector2(0, 20)
 	player.velocity = Vector2.ZERO
 	await frames(10)
@@ -269,6 +278,50 @@ func ride() -> void:
 	check(await until(func() -> bool: return not g.running and g.at_station == next, 40000), "and comes to the wizard")
 	check(not g.may_call(next), "nor can it be called where it stands")
 	await called_from_afar(g)
+	await left_behind(g)
+	await towers()
+
+
+## Station `i` turned on (as a tower's switch would), its gate lifted.
+func _turn_on(i: int) -> void:
+	info.record().stations |= 1 << i
+	for n: Node in info.map_elements.get_children():
+		if n is SwitchGate and (n as SwitchGate).station == i:
+			(n as SwitchGate).set_up(true)
+
+
+## The towers' switches, in play.
+func towers() -> void:
+	print("towers")
+	info.coord = Vector2i(28, NextWorldDef.band_row(&"crags", 0))
+	info.arrival = MapInfo.Exit.BACK
+	info._load_level()
+	await settle()
+	var switches: Array[Node] = placed("tower_switch.tscn", true)
+	check(switches.size() == info.world.towers.size() and switches.size() >= 2, "a switch in each tower (%d)" % switches.size())
+	if switches.size() < 2:
+		return
+	check(info.last_tower == -1, "loading the level lifts any lock")
+	var a: TowerSwitch = switches[0] as TowerSwitch
+	var b: TowerSwitch = switches[1] as TowerSwitch
+	var before: int = info.record().stations
+	a.use()
+	check(info.record().stations == before ^ a.mask, "a tower's switch flips its set of stations")
+	var gates_follow: bool = true
+	for n: Node in info.map_elements.get_children():
+		if n is SwitchGate and (n as SwitchGate).station >= 0:
+			gates_follow = gates_follow and (n as SwitchGate).up == info.station_on((n as SwitchGate).station)
+	check(gates_follow, "each station's gate goes up or down with its station")
+	a.use()
+	check(info.record().stations == before ^ a.mask and a.locked(), "flipped again at once, it is locked: nothing changes")
+	b.use()
+	a.use()
+	check(info.record().stations == before ^ b.mask, "once another tower is flipped, it flips back")
+	check(a.locked() and not b.locked(), "and is the one locked now")
+	var left: int = before ^ b.mask
+	info._load_level()
+	await settle()
+	check(info.last_tower == -1 and info.record().stations == left, "the level loading again lifts the lock and keeps the stations as left")
 
 
 ## Called from a station far along the line while it is out of view, the car first jumps to just
@@ -279,11 +332,9 @@ func called_from_afar(g: Gondola) -> void:
 	for i: int in range(g.stops.size()):
 		if absf(g.stops_s[i] - g.s) > absf(g.stops_s[far] - g.s):
 			far = i
-	# Open it, and stand on its landing, the camera with the wizard.
+	# Turn it on, and stand on its landing, the camera with the wizard.
 	var gate_cell: Vector2i = g.gates[far]
-	info.record().opened[gate_cell] = true
-	if info.world.get_cell(gate_cell).type == LevelGen.Type.SWITCH_GATE:
-		info.set_switch(info.world.get_cell(gate_cell).extra_info, true)
+	_turn_on(far)
 	check(g.is_open(far) and g.may_call(far), "a far station, opened, can call it")
 	player.global_position = info.cell_position(gate_cell + Vector2i(g.inner[far], 0)) + Vector2(0, 20)
 	player.velocity = Vector2.ZERO
@@ -343,5 +394,33 @@ func rock_bugs() -> void:
 	await physics_frame
 	check(bug.mode == RockBug.Mode.FALLING or bug.normal == Vector2i.DOWN, "stunned, it lets go (or stays on the floor it stands on)")
 	check(await until(func() -> bool: return bug.mode == RockBug.Mode.ROCK and not bug.stunned), "it lands on rock and clings again")
-	check(bug.rb.global_position.y >= height - 1.0 and clinging.call(), "below where it let go, against rock")
+	# Walking on as it clings, it may be rounding a corner just then, so give it a moment to be flat
+	# against the rock, and a little leeway on its height.
+	check(bug.rb.global_position.y >= height - RockBug.BODY * 0.25 and await until(clinging, 2000), "below where it let go, against rock")
 	player.set_physics_process(true)
+
+
+## A switch in a level with stations flips (the stations' call switches, which hold no cell, are
+## skipped over); and when another level is loaded in its place (travel, or a death that ends the
+## run), the gondola goes quiet and its call switches go with it.
+func left_behind(g: Gondola) -> void:
+	print("left behind")
+	var switches: Array[Node] = placed("switch.tscn")
+	if not switches.is_empty():
+		var sw: Switch = switches[0] as Switch
+		var was: bool = sw.is_on()
+		sw.flip()
+		check(sw.is_on() != was, "a switch flips beside the stations' call switches")
+		sw.flip()
+	var posts: Array = g.posts.duplicate()
+	info.coord = Vector2i(28, 0)
+	info.arrival = MapInfo.Exit.BACK
+	info._load_level()
+	await settle()
+	check(not is_instance_valid(g) or g.stale(), "another level loaded, the gondola is left behind")
+	for i: int in range(3):
+		await process_frame
+	var left: int = 0
+	for p: Variant in posts:
+		left += 1 if is_instance_valid(p) else 0
+	check(left == 0, "and its call switches are gone with it")

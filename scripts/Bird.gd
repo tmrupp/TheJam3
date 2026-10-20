@@ -8,7 +8,7 @@ extends Stunnable
 ## wizard was when it warned, DIVE past them, so it sweeps their whole height) and up the far side in
 ## an arc, back to its patrol height, then patrols on. Moving off the marked spot dodges it. The longer the
 ## dive, the longer the swoop takes (SWOOP_TIME, plus SWOOP_PER_PX of the way down). It only swoops where the arc is clear of rock. Its touch
-## hurts, like any enemy's (its HitBox); the hex wounds it and the hex or a parry stuns it, in the
+## hurts, like any enemy's (its HitBox); the hex wounds it and a parry stuns it, in the
 ## air where it is. Moved only from here: its body is a frozen kinematic RigidBody2D that collides
 ## with nothing, as a wraith's.
 
@@ -83,7 +83,8 @@ func _physics_process(delta: float) -> void:
 	var was: Vector2 = rb.global_position
 	if tell >= 0.0:
 		# Rearing and screeching over the spot it will dive through.
-		tell = minf(1.0, tell + delta / TELL)
+		# A harder preset tells and rests for less, and patrols a little faster (Difficulty).
+		tell = minf(1.0, tell + delta * Difficulty.attack() / TELL)
 		rb.global_position = tell_from + Vector2(sin(t * 60.0) * 1.5, -REAR * sin(tell * PI * 0.5))
 		facing = signf(mark.x - rb.global_position.x) if absf(mark.x - rb.global_position.x) > 4.0 else facing
 		if tell >= 1.0:
@@ -97,9 +98,9 @@ func _physics_process(delta: float) -> void:
 			since_swoop = 0.0
 			dir = signf(arc[2].x - arc[0].x) if arc[2].x != arc[0].x else dir
 	else:
-		since_swoop += delta
+		since_swoop += delta * Difficulty.attack()
 		var at: Vector2 = rb.global_position
-		at.x += dir * SPEED * delta
+		at.x += dir * SPEED * Difficulty.speed() * delta
 		if at.x > span.y:
 			at.x = span.y
 			dir = -1.0

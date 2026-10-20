@@ -1,7 +1,8 @@
 extends Area2D
 class_name Ghost
-## The ghost left where the player died, holding every star they carried. Touching it gives
-## them back and restores full health. Lantern protection is restored by lighting another lantern.
+## The ghost left where the player died, holding every star they carried. Touching it gives them
+## back and relights the lantern the death burned out, protection and all (MapInfo.recover_ghost);
+## it does not heal (the wizard came back at full health).
 ## MapInfo owns the ghost and respawns it with its level.
 ## It arms only once the wizard has been clear of it (more than ARM_DISTANCE away), so dying on
 ## the lantern does not hand it straight back. Distance, not overlap: the wizard's collision is

@@ -19,11 +19,13 @@ const KINDS: Dictionary = {
 	&"gate": "res://scripts/riso/props/GateArt.gd",
 	&"toll": "res://scripts/riso/props/GateArt.gd",
 	&"switch": "res://scripts/riso/props/SwitchArt.gd",
+	&"towerswitch": "res://scripts/riso/props/TowerSwitchArt.gd",
 	&"relic": "res://scripts/riso/props/RelicArt.gd",
 	&"lantern": "res://scripts/riso/props/LanternArt.gd",
 	&"exit": "res://scripts/riso/props/ExitArt.gd",
 	&"moon": "res://scripts/riso/props/MoonArt.gd",
 	&"lift": "res://scripts/riso/props/LiftArt.gd",
+	&"ladder": "res://scripts/riso/props/LadderArt.gd",
 	&"thorns": "res://scripts/riso/props/ThornsArt.gd",
 	&"ghost": "res://scripts/riso/props/GhostArt.gd",
 	&"shrine": "res://scripts/riso/props/ShrineArt.gd",
@@ -49,6 +51,28 @@ const KINDS: Dictionary = {
 	&"station": "res://scripts/riso/props/StationArt.gd",
 	&"rockbug": "res://scripts/riso/props/RockBugArt.gd",
 	&"stalactite": "res://scripts/riso/props/StalactiteArt.gd",
+	&"trapdoor": "res://scripts/riso/props/TrapdoorArt.gd",
+	&"nest": "res://scripts/riso/props/NestArt.gd",
+	&"draught": "res://scripts/riso/props/DraughtArt.gd",
+	&"well": "res://scripts/riso/props/MendWellArt.gd",
+	&"crossbow": "res://scripts/riso/props/CrossbowArt.gd",
+	&"balloon": "res://scripts/riso/props/BalloonArt.gd",
+	&"temple": "res://scripts/riso/props/TempleArt.gd",
+	&"snuffer": "res://scripts/riso/props/SnufferArt.gd",
+	&"skeleton": "res://scripts/riso/props/SkeletonArt.gd",
+	&"lightgate": "res://scripts/riso/props/LightGateArt.gd",
+	&"scholar": "res://scripts/riso/props/ScholarArt.gd",
+	&"abomination": "res://scripts/riso/props/AbominationArt.gd",
+	&"breach": "res://scripts/riso/props/BreachArt.gd",
+	&"examdoor": "res://scripts/riso/props/ExamDoorArt.gd",
+	&"department": "res://scripts/riso/props/DepartmentArt.gd",
+	&"lesson": "res://scripts/riso/props/LessonArt.gd",
+	&"lectern": "res://scripts/riso/props/LecternArt.gd",
+	&"studydesk": "res://scripts/riso/props/StudyDeskArt.gd",
+	&"board": "res://scripts/riso/props/BoardArt.gd",
+	&"schoolbell": "res://scripts/riso/props/SchoolBellArt.gd",
+	&"spire": "res://scripts/riso/props/SpireArt.gd",
+	&"lodestone": "res://scripts/riso/props/LodestoneArt.gd",
 }
 
 
@@ -75,8 +99,18 @@ var ui_ink: InkCanvas = null
 ## Printed text (prices, names), reused frame to frame; see _text().
 var labels: Array[Label] = []
 var labels_used: int = 0
-## This frame's step, capped (for the springs some kinds animate).
+## The time since it was last printed, capped (for the springs some kinds animate).
 var _dt: float = 0.0
+## How many frames apart a kind's art is printed again while in view: every other frame, half of
+## the props on even frames and half on odd ones. Its node follows its host every frame, so it
+## moves smoothly; only its shape changes thirty times a second. A kind that draws something pinned
+## to the world as its host moves (a skeleton's planted feet, a gondola's cable) prints every frame
+## (every_frame).
+const REPRINT_EVERY: int = 2
+## The time gone by since it was last printed (seconds), and which frames it prints on (staggered
+## across REPRINT_EVERY and the slower rates kinds ask for, reprint_every).
+var _since_print: float = 0.0
+var _stagger: int = 0
 ## Shrine labels pop up over an offer while the wizard is within POP_REACH of it (see _pop()).
 const POP_REACH: Vector2 = Vector2(40, 110)
 ## Pop-up centre height over the ground: above the interact prompt over the wizard's head.
@@ -95,6 +129,39 @@ func _draw_art() -> void:
 ## is drawn. The host's own position, unless a kind draws its body away from it (a wisp).
 func guard_center() -> Vector2:
 	return host.global_position if host != null else global_position
+
+
+## The light it throws into the scene (RisoLight), if it is a kind that shines (shines): [where it
+## shines (world), how far it reaches (px), how much night it lifts there, true (it stays put), the
+## plate that tints it (-1 for none), how much]; [] while it is dark. Asked of shining kinds only.
+func light() -> Array:
+	return []
+
+
+## Whether it is a kind that shines: it joins RisoLight's glows, which ask it for its light.
+func shines() -> bool:
+	return false
+
+
+## A light at `local` (in its art's frame), of `size` (RisoLight.SPARK, GLEAM or BEACON), tinted in
+## `plate` (-1 for none); none while its host is hidden (a chunk asleep, a key taken).
+func _light(local: Vector2, size: Vector3, plate: int) -> Array:
+	if host == null or not is_instance_valid(host) or not host.is_visible_in_tree():
+		return []
+	return [to_global(local), size.x, size.y, true, plate, size.z]
+
+
+## Whether it is printed again every frame, not every REPRINT_EVERY frames: a kind drawing something
+## pinned to the world while its host moves, which would lag behind it between prints. Anything
+## reaching far (culled) does too.
+func every_frame() -> bool:
+	return not culled()
+
+
+## How many frames apart it is printed again (unless every_frame): REPRINT_EVERY, or more for a kind
+## that can go slower (a wisp far from the wizard).
+func reprint_every() -> int:
+	return REPRINT_EVERY
 
 
 ## Whether it never changes: printed once, then it stops processing.
@@ -126,12 +193,15 @@ func _ready() -> void:
 	if host != null and host.scale.x != 0.0 and host.scale.y != 0.0:
 		scale = Vector2(1.0 / host.scale.x, 1.0 / host.scale.y)
 	phase = RisoShapes.hash1(float(host.get_instance_id() % 997)) * TAU if host != null else 0.0
+	_stagger = get_instance_id() % 6
 	var tm: TileMap = Stage.tile_map()
 	if tm != null and tm.tile_set != null:
 		half = float(tm.tile_set.tile_size.y) * tm.global_scale.y * 0.5
 	ink = InkCanvas.new()
 	add_child(ink)
 	z_index = 2
+	if shines():
+		add_to_group(RisoLight.GLOWS)
 	# First drawn when it first comes into view (see _process), so a level's hundreds of props are
 	# not all printed in the frame it loads; still kinds then stop processing.
 	set_process(true)
@@ -139,17 +209,10 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	t += delta
-	_dt = minf(delta, 0.05)
+	_since_print += delta
 	# Only animate what the camera can see; off-screen art keeps its last print. The camera's
 	# reach is worked out once a frame and shared by every prop (a deep level has hundreds).
-	var frame: int = Engine.get_process_frames()
-	if frame != _view_frame:
-		_view_frame = frame
-		var cam: Camera2D = get_viewport().get_camera_2d()
-		_view_on = cam != null
-		if _view_on:
-			_view_reach = Vector2(get_window().content_scale_size) / cam.zoom * 0.6 + Vector2(160, 160)
-			_view_center = cam.get_screen_center_position()
+	RisoProp._see_view(self)
 	if _view_on and culled():
 		var d: Vector2 = (host.global_position - _view_center).abs()
 		# Something spread wide: by its nearest edge, not its middle.
@@ -158,6 +221,11 @@ func _process(delta: float) -> void:
 			d = ((r.get_center() - _view_center).abs() - r.size * 0.5).max(Vector2.ZERO)
 		if d.x > _view_reach.x or d.y > _view_reach.y:
 			return
+	var every: int = 1 if every_frame() else reprint_every()
+	if _drawn and every > 1 and (Engine.get_process_frames() + _stagger) % every != 0:
+		return
+	_dt = minf(_since_print, 0.05 * float(every))
+	_since_print = 0.0
 	if not _drawn:
 		_drawn = true
 		_redraw()
@@ -169,10 +237,35 @@ func _process(delta: float) -> void:
 
 ## Printed at least once (props are first printed as they come into view).
 var _drawn: bool = false
+## The camera's view this frame (see _see_view): the frame it was worked out in, whether there is
+## a camera, how far from its middle (each way) art is near enough to print, and the middle.
 static var _view_frame: int = -1
 static var _view_on: bool = false
 static var _view_reach: Vector2 = Vector2.ZERO
 static var _view_center: Vector2 = Vector2.ZERO
+
+
+## Work the camera's view out for this frame, unless it is (`node` is any node in the scene).
+static func _see_view(node: Node) -> void:
+	var frame: int = Engine.get_process_frames()
+	if frame == _view_frame:
+		return
+	_view_frame = frame
+	var cam: Camera2D = node.get_viewport().get_camera_2d()
+	_view_on = cam != null
+	if _view_on:
+		_view_reach = Vector2(node.get_window().content_scale_size) / cam.zoom * 0.6 + Vector2(160, 160)
+		_view_center = cam.get_screen_center_position()
+
+
+## Whether `at` (world) is near enough the camera's view for art there to be worth printing, as
+## props judge it; true with no camera. For art that is not a prop (a shield).
+static func near_view(node: Node, at: Vector2) -> bool:
+	_see_view(node)
+	if not _view_on:
+		return true
+	var d: Vector2 = (at - _view_center).abs()
+	return d.x <= _view_reach.x and d.y <= _view_reach.y
 
 
 ## Distance from the host's origin down to the ground surface of its cell, in world pixels.

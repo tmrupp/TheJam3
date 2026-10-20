@@ -303,6 +303,10 @@ func _level(info: MapInfo) -> void:
 	var hinted: Variant = _hinted_relic(info, info.coord, info.world)
 	if hinted != null and not relic_shown:
 		_mark_relic(to_map(info, Vector2(hinted) + Vector2(0.5, 0.5)), info.run.relic_hints[info.coord], 0.7)
+	# The beast's soul here, once it lies somewhere.
+	var soul: Vector2i = info.run.souls.get(info.coord, BeastSouls.NO_SPOT)
+	if soul != BeastSouls.NO_SPOT:
+		_mark_soul(to_map(info, Vector2(soul) + Vector2(0.5, 0.5)))
 	# The wizard, always, bobbing.
 	_mark_wizard(to_map(info, Vector2(info.cell_at(info.player.global_position)) + Vector2(0.5, 0.5)) + Vector2(0, sin(t * 4.0) * 0.6))
 	_legend([["you", _mark_wizard]] + _level_rows())
@@ -324,19 +328,27 @@ func _level_rows() -> Array:
 		["rift", func(at: Vector2) -> void: _mark_portal(at, 0, true), "rift"],
 		["door", func(at: Vector2) -> void: _mark_door(at, 2), "door"],
 		["gate", func(at: Vector2) -> void: _mark_gate(at, 2), "gate"],
+		["sun gate", func(at: Vector2) -> void: _mark_light_gate(at, true), "sun gate"],
+		["shade gate", func(at: Vector2) -> void: _mark_light_gate(at, false), "shade gate"],
+		["department", func(at: Vector2) -> void: _mark_department(at, 1), "department"],
 		["switch", func(at: Vector2) -> void: _mark_switch(at, false, 2), "switch"],
 		["bell", func(at: Vector2) -> void: _mark_bell(at, false), "bell"],
 		["vane", func(at: Vector2) -> void: _mark_bell(at, false, -2, "vane"), "vane"],
 		["bridge", func(at: Vector2) -> void: _mark_bridge(at, true), "bridge"],
 		["unrung bridge", func(at: Vector2) -> void: _mark_bridge(at, false), "unrung bridge"],
-		["gondola", func(at: Vector2) -> void: _mark_gondola([at + Vector2(-3.0, 3.0), at + Vector2(-3.0, 1.0), at + Vector2(-1.0, 1.0), at + Vector2(-1.0, -1.0), at + Vector2(1.0, -1.0), at + Vector2(1.0, -3.0)], [at + Vector2(-3.0, 3.0), at + Vector2(1.0, -3.0)], at + Vector2(-3.0, 3.0)), "gondola"],
+		["gondola", func(at: Vector2) -> void: _mark_gondola([at + Vector2(-3.0, 3.0), at + Vector2(-3.0, 1.0), at + Vector2(-1.0, 1.0), at + Vector2(-1.0, -1.0), at + Vector2(1.0, -1.0), at + Vector2(1.0, -3.0)], [at + Vector2(-3.0, 3.0), at + Vector2(1.0, -3.0)], at + Vector2(-3.0, 3.0), [true, false]), "gondola"],
+		["tower switch", _mark_tower_switch, "tower switch"],
+		["lodestone", func(at: Vector2) -> void: _mark_lodestone(at, &"hex", false), "lodestone"],
 		["toll gate", _mark_toll, "toll gate"],
 		["relic", func(at: Vector2) -> void: _mark_relic(at, &"blink", 0.7), "relic"],
+		["soul", func(at: Vector2) -> void: _mark_soul(at), "soul"],
 	] + _door_rows() + [
 		["key", func(at: Vector2) -> void: _mark_key(at, 2), "key"],
 		["skeleton key", func(at: Vector2) -> void: _mark_key(at, KeyRing.SKELETON), "skeleton key"],
+		["exam paper", func(at: Vector2) -> void: _mark_key(at, KeyRing.paper(&"hex", 1)), "exam paper"],
 		["star cluster", _mark_cluster, "star cluster"],
 		["ink well", func(at: Vector2) -> void: _mark_inkwell(at, false), "ink well"],
+		["snuffing font", func(at: Vector2) -> void: _mark_snuffer(at), "snuffing font"],
 		["ghost", func(at: Vector2) -> void: _mark_ghost(at, 0.22), "ghost"],
 	]
 
@@ -362,7 +374,8 @@ func _other_level(info: MapInfo, c: Vector2i) -> void:
 		_text("inking…", AREA.get_center() + Vector2(0, -5), 9.0, false, true)
 		return
 	var rec: LevelRecord = info.run.records.get(c, LevelRecord.new())
-	var bytes: PackedByteArray = rec.seen
+	# A map inked whole before its layout was known (MapInfo.ink_place) is all seen once it is.
+	var bytes: PackedByteArray = rec.seen_for(w.size.x * w.size.y) if rec.mapped else rec.seen
 	var stamp: int = bytes.size() + bytes.count(1) * 7919
 	if _built_coord != c or _built_version != stamp:
 		_build_textures_for(w, bytes, rec.broken)
@@ -382,6 +395,9 @@ func _other_level(info: MapInfo, c: Vector2i) -> void:
 	var hinted: Variant = _hinted_relic(info, c, w)
 	if hinted != null and not relic_shown:
 		_mark_relic(spot.call(hinted), info.run.relic_hints[c], 0.7)
+	var soul: Vector2i = info.run.souls.get(c, BeastSouls.NO_SPOT)
+	if soul != BeastSouls.NO_SPOT:
+		_mark_soul(spot.call(soul))
 	if info.run.has_ghost and info.run.ghost_coord == c:
 		_mark_ghost(spot.call(info.cell_at(info.run.ghost_pos)), 0.22)
 	_text("D: worlds", Vector2(AREA.position.x, AREA.end.y - 6.0), 6.5, false)
@@ -451,6 +467,12 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 			_mark_shrine(at, bool(rec.shrine_used))
 		LevelGen.Type.INKWELL:
 			_mark_inkwell(at, bool(rec.mapped))
+		LevelGen.Type.SNUFFER:
+			_mark_snuffer(at)
+		LevelGen.Type.LIGHT_GATE:
+			_mark_light_gate(at, bool(cell.extra_info))
+		LevelGen.Type.DEPARTMENT:
+			_mark_department(at, signi(int((cell.extra_info as Array)[1]) - c.y))
 		LevelGen.Type.CHECKPOINT:
 			var spent: bool = (rec.spent_lanterns as Dictionary).has(v)
 			var lit: bool = not spent and not info.run.vulnerable and info.run.respawn_coord == c and info.run.respawn_cell == v
@@ -472,9 +494,14 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 		LevelGen.Type.RELIC:
 			if gone:
 				return false
-			# A spell swapped onto the relic's plinth waits there instead (Relic.holds).
-			var left: Array = rec.relic_left
-			_mark_relic(at, StringName(left[0]) if left.size() == 2 else StringName(cell.extra_info), 0.7)
+			_mark_relic(at, StringName(cell.extra_info), 0.7)
+			return true
+		LevelGen.Type.MASTER:
+			# A master carrying the level's relic (Institute.populate), until it is found.
+			var relic: StringName = StringName((cell.extra_info as Dictionary).get("relic", &"")) if cell.extra_info is Dictionary else &""
+			if relic == &"" or info.run.relics_found.has(c):
+				return false
+			_mark_relic(at, relic, 0.7)
 			return true
 		LevelGen.Type.CLUSTER:
 			if not gone:
@@ -488,9 +515,16 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 			for i: int in CragsArchetype.turns(track):
 				corners.append(spot.call(track[i]))
 			var stops: Array[Vector2] = []
+			var on: Array[bool] = []
 			for i: int in circuit["stops"]:
 				stops.append(spot.call(track[i]))
-			_mark_gondola(corners, stops, at)
+				# Each station on (lit) or off as the towers left it (LevelRecord.stations).
+				on.append(rec.stations >= 0 and rec.stations & (1 << on.size()) != 0)
+			_mark_gondola(corners, stops, at, on)
+		LevelGen.Type.TOWER_SWITCH:
+			_mark_tower_switch(at)
+		LevelGen.Type.LODESTONE:
+			_mark_lodestone(at, StringName(cell.extra_info), info.run.lodestones.has(c))
 		LevelGen.Type.TOLL:
 			if not gone:
 				_mark_toll(at)
@@ -500,7 +534,7 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 			_mark_bell(at, rung, -2 if rung or Bell.free_in(w, rec, v, int(bell[1])) else int(bell[1]), "bell", w.sigil_at(v))
 		LevelGen.Type.VANE:
 			var vane: Array = cell.extra_info
-			var blowing: bool = (rec.winds as Dictionary).get(int(vane[0])) == v
+			var blowing: bool = (rec.vanes_on as Dictionary).has(v)
 			_mark_bell(at, blowing, -2 if blowing or Bell.free_in(w, rec, v, int(vane[1])) else int(vane[1]), "vane", w.sigil_at(v))
 	return false
 
@@ -548,12 +582,59 @@ func _mark_relic(at: Vector2, move: StringName, k: float = 1.0) -> void:
 	marks.ink(RisoPrint.NIGHT, 1.0, mark, false)
 
 
+## A lodestone (Lodestone): a standing stone of night ink with its spell's mark knocked through it,
+## in accent until touched, then in blue.
+func _mark_lodestone(at: Vector2, spell: StringName, touched: bool, k: float = 1.0) -> void:
+	_note("lodestone")
+	var stone: PackedVector2Array = RisoShapes.rrect(at.x - 3.6 * k, at.y - 5.0 * k, 7.2 * k, 10.0 * k, 2.6 * k)
+	marks.ink(RisoPrint.NIGHT, 1.0, [stone], false)
+	var fit: Transform2D = Transform2D(0.0, Vector2(0.11, 0.11) * k, 0.0, at + Vector2(0, -0.6) * k)
+	var mark: Array[PackedVector2Array] = []
+	for poly: PackedVector2Array in RisoGlyph.of(spell, Vector2.ZERO, t):
+		mark.append(fit * poly)
+	marks.knock([RisoPrint.NIGHT], mark)
+	marks.ink(RisoPrint.BLUE if touched else RisoPrint.ACCENT, 1.0, mark, false)
+
+
+## Whether the map knows of level `c`'s lodestone (Rules.lodestone_at): its map inked whole (its ink
+## well, or the gondola's view from a neighbour, MapInfo.ink_neighbours), or the stone touched.
+func _lodestone_known(info: MapInfo, c: Vector2i) -> bool:
+	if Rules.lodestone_at(c) == &"":
+		return false
+	var rec: LevelRecord = info.run.visited(c)
+	return info.run.lodestones.has(c) or (rec != null and rec.mapped)
+
+
+## One of the eldritch beast's souls (BeastSoul): a pink knot with an eye of paper.
+func _mark_soul(at: Vector2, k: float = 1.0) -> void:
+	_note("soul")
+	marks.ink(RisoPrint.PINK, 1.0, [RisoShapes.circle(at, 3.6 * k, 16)], false)
+	var eye: PackedVector2Array = RisoShapes.circle(at + Vector2(0, -0.3) * k, 1.7 * k, 12)
+	marks.knock([RisoPrint.PINK, RisoPrint.NIGHT, RisoPrint.BLUE], [eye])
+	marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.circle(at + Vector2(0.3, -0.3) * k, 0.8 * k, 8)], false)
+
+
 ## A switch gate: a bar like a door's, in night ink, with the switch's accent dot.
 ## A switch gate: a night bar with its switch's sigil (Sigils) beside it.
 func _mark_gate(at: Vector2, sigil_kind: int) -> void:
 	_note("gate")
 	marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.rrect(at.x - 0.9, at.y - 2.6, 1.8, 5.2, 0.8)], false)
 	_mark_sigil(at + Vector2(2.9, -2.6), sigil_kind)
+
+
+## A light gate (LightGate): a gate's bar with a sun (accent) or a moon (night) beside it.
+func _mark_light_gate(at: Vector2, sun: bool) -> void:
+	_note("sun gate" if sun else "shade gate")
+	marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.rrect(at.x - 0.9, at.y - 2.6, 1.8, 5.2, 0.8)], false)
+	marks.ink(RisoPrint.ACCENT if sun else RisoPrint.NIGHT, 1.0, [RisoShapes.circle(at + Vector2(2.9, -2.6), 1.5, 10)], false)
+
+
+## A department's portal (Department): an accent ring with a chevron in it pointing the way along
+## the column it leads (`way`: +1 down, -1 up).
+func _mark_department(at: Vector2, way: int) -> void:
+	_note("department")
+	marks.ink(RisoPrint.ACCENT, 1.0, RisoShapes.ring(at, 2.4, 3.6, 16), false)
+	marks.ink(RisoPrint.NIGHT, 1.0, [RisoMarks.chevron(at, Vector2.DOWN if way >= 0 else Vector2.UP, 0.09)], false)
 
 
 ## A switch: a little lever, pink before it is thrown, accent after, with its sigil beside it.
@@ -598,6 +679,13 @@ func _mark_shrine(at: Vector2, used: bool) -> void:
 	marks.ink(RisoPrint.ACCENT, 0.35 if used else 1.0, [RisoShapes.arch(at.x - 2.5, at.y - 3.5, 5, 6, 6)], false)
 
 
+## A snuffing font (Snuffer): a blue bowl with a night drop over it.
+func _mark_snuffer(at: Vector2) -> void:
+	_note("snuffing font")
+	marks.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(at.x - 2.6, at.y - 0.6, 5.2, 2.6, 1.2)], false)
+	marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.circle(at + Vector2(0, -2.4), 1.1, 8)], false)
+
+
 ## A lantern: an eye-yellow dot, haloed on your respawn; a night dot once spent.
 func _mark_lantern(at: Vector2, lit: bool, spent: bool = false) -> void:
 	_note("respawn" if lit else ("spent lantern" if spent else "lantern"))
@@ -625,13 +713,17 @@ func _mark_door(at: Vector2, color: int) -> void:
 
 
 func _mark_key(at: Vector2, color: int) -> void:
-	_note("skeleton key" if color == KeyRing.SKELETON else "key")
+	_note("skeleton key" if color == KeyRing.SKELETON else ("exam paper" if KeyRing.is_paper(color) else "key"))
 	_key_ink(color, [RisoMarks.key_bow(at, 2.0, color)])
 
 
 ## A map mark in a key's colour: its inks, or for a skeleton key (bone white, which paper would
 ## hide) a grey screen of night.
 func _key_ink(color: int, polys: Array[PackedVector2Array]) -> void:
+	# An exam paper (a spell to carry, a key to classrooms) in gold.
+	if KeyRing.is_paper(color):
+		marks.ink(RisoPrint.ACCENT, 1.0, polys, false)
+		return
 	if color == KeyRing.SKELETON:
 		marks.ink(RisoPrint.NIGHT, 0.5, polys, false)
 		return
@@ -649,19 +741,37 @@ func _mark_bridge(at: Vector2, up: bool) -> void:
 
 
 ## A gondola: its track through `corners` (from its first station up to its last), a fine night
-## line, a blue tick at each of its `stops`, and the car, a small blue box, at `car` (the station it
-## waits at when the level loads).
-func _mark_gondola(corners: Array[Vector2], stops: Array[Vector2], car: Vector2) -> void:
+## line, a mark at each of its `stops` (an accent dot while that station is on, `on`, a night tick
+## while it is off), and the car, a small blue box, at `car` (the station it waits at when the level
+## loads).
+func _mark_gondola(corners: Array[Vector2], stops: Array[Vector2], car: Vector2, on: Array[bool] = []) -> void:
 	_note("gondola")
 	var line: PackedVector2Array = PackedVector2Array()
 	for c: Vector2 in corners:
 		line.append(c + Vector2(0.5, -1.6))
 	marks.ink(RisoPrint.NIGHT, 0.6, RisoDecor.strip(line, 0.35, 0.35), false)
 	var ticks: Array[PackedVector2Array] = []
-	for s: Vector2 in stops:
-		ticks.append(RisoShapes.rrect(s.x - 0.2, s.y - 2.2, 1.4, 1.2, 0.3))
-	marks.ink(RisoPrint.BLUE, 0.8, ticks, false)
+	var lit: Array[PackedVector2Array] = []
+	for k: int in range(stops.size()):
+		var s: Vector2 = stops[k]
+		if k < on.size() and on[k]:
+			lit.append(RisoShapes.circle(s + Vector2(0.5, -1.6), 1.1, 10))
+		else:
+			ticks.append(RisoShapes.rrect(s.x - 0.2, s.y - 2.2, 1.4, 1.2, 0.3))
+	marks.ink(RisoPrint.NIGHT, 0.85, ticks, false)
+	marks.knock([RisoPrint.NIGHT, RisoPrint.BLUE], lit)
+	marks.ink(RisoPrint.ACCENT, 1.0, lit, false)
 	marks.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(car.x - 0.6, car.y - 1.6, 2.2, 1.8, 0.4)], false)
+
+
+## A tower's switch (TowerSwitch): a little night tower, battlements and all, with an accent knob
+## over it (its switch).
+func _mark_tower_switch(at: Vector2) -> void:
+	_note("tower switch")
+	marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.rrect(at.x - 1.4, at.y - 1.8, 2.8, 4.4, 0.2), RisoShapes.rrect(at.x - 1.8, at.y - 2.6, 1.0, 1.0, 0.0), RisoShapes.rrect(at.x - 0.5, at.y - 2.6, 1.0, 1.0, 0.0), RisoShapes.rrect(at.x + 0.8, at.y - 2.6, 1.0, 1.0, 0.0)], false)
+	var knob: PackedVector2Array = RisoShapes.circle(at + Vector2(0.0, -4.4), 1.2, 10)
+	marks.knock([RisoPrint.NIGHT, RisoPrint.BLUE], [knob])
+	marks.ink(RisoPrint.ACCENT, 1.0, [knob], false)
 
 
 ## A toll gate: a gate's bar with an accent coin beside it.
@@ -771,6 +881,8 @@ func _hinted_relic(info: MapInfo, c: Vector2i, w: LevelGen) -> Variant:
 	for v: Vector2i in w.objects:
 		if w.get_cell(v).type == LevelGen.Type.RELIC:
 			return v
+	if w.is_valid(w.relic_carrier):
+		return w.relic_carrier
 	return null
 
 
@@ -881,6 +993,9 @@ func _world(info: MapInfo) -> void:
 			_mark_spent_shrine(at + Vector2(0, TILE.y * 0.5 - 4.75))
 		if info.run.has_ghost and c == info.run.ghost_coord:
 			_mark_ghost(at + Vector2(TILE.x * 0.5 - 4.0, TILE.y * 0.5 - 4.0), 0.2)
+		# A lodestone the map knows of: on the middle of the tile's right edge, its spell's mark.
+		if _lodestone_known(info, c):
+			_mark_lodestone(at + Vector2(TILE.x * 0.5 - 1.5, 1.0), Rules.lodestone_at(c), info.run.lodestones.has(c), 0.8)
 	# The cursor: a night-ink frame round the picked level (or a side world's ribbon), breathing.
 	var cur: Vector2 = tile_at(info, selected)
 	var cur_size: Vector2 = tile_size(selected)
@@ -916,6 +1031,21 @@ func _world(info: MapInfo) -> void:
 			_text("%d · %d" % [c.x, c.y], at + Vector2(0, -3.5), 6.5, false, true)
 		# The mark on the tile's top right corner, clear of its label.
 		_mark_relic(at + Vector2(TILE.x * 0.5 - 1.0, -TILE.y * 0.5 + 1.0), info.run.relic_hints[c], 0.75)
+	# The beast's souls: on the top left corner of the level's tile (a faint pink one for a level
+	# not yet visited); off the page, on its edge, pointing the way.
+	for c: Vector2i in info.run.souls:
+		var at: Vector2 = tile_at(info, c)
+		if not area.encloses(Rect2(at - TILE * 0.5, TILE)):
+			var way: Vector2 = (at - page_in.get_center()).normalized()
+			var reach: float = minf(page_in.size.x * 0.5 / maxf(absf(way.x), 0.001), page_in.size.y * 0.5 / maxf(absf(way.y), 0.001))
+			var edge: Vector2 = page_in.get_center() + way * reach
+			_mark_soul(edge, 0.9)
+			marks.ink(RisoPrint.PINK, 1.0, [RisoMarks.chevron(edge + way * 7.0, way, 0.16)], false)
+			continue
+		if not info.run.records.has(c):
+			marks.ink(RisoPrint.PINK, 0.12, [RisoShapes.rrect(at.x - TILE.x * 0.5, at.y - TILE.y * 0.5, TILE.x, TILE.y, 5.0)], false)
+			_text("%d · %d" % [c.x, c.y], at + Vector2(0, -3.5), 6.5, false, true)
+		_mark_soul(at + Vector2(-TILE.x * 0.5 + 1.0, -TILE.y * 0.5 + 1.0), 0.85)
 	_text("W A S D pick  ·  E open", Vector2(AREA.position.x, AREA.end.y - 6.0), 6.5, false)
 	_legend([
 		["you are here", func(at: Vector2) -> void: _mark_tile(at, Vector2(9, 6), true)],
@@ -924,9 +1054,10 @@ func _world(info: MapInfo) -> void:
 	] + _side_rows() + [
 		["respawn", _mark_respawn_level],
 		["relic", func(at: Vector2) -> void: _mark_relic(at, &"blink")],
+		["lodestone", func(at: Vector2) -> void: _mark_lodestone(at, &"hex", false)],
 		["shrine used", _mark_spent_shrine],
 		["ghost", func(at: Vector2) -> void: _mark_ghost(at, 0.2)],
-	])
+	] + ([["beast's soul", func(at: Vector2) -> void: _mark_soul(at)]] if not info.run.souls.is_empty() else []))
 
 
 func _mark_tile(at: Vector2, size: Vector2, here: bool) -> void:

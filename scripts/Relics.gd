@@ -2,7 +2,9 @@ class_name Relics
 extends RefCounted
 ## Relics: the big movement abilities and astral projection (MOVES), which open up whole areas,
 ## are not taught at shrines until found. Tier I of each only comes from a relic, which lies in a
-## secret room (see LevelGen.place_secrets) or behind a bone gate in rare levels: from depth
+## secret room (see LevelGen.place_secrets) or behind a bone gate in rare levels (in the institute,
+## a master out in the level carries it instead, Institute.populate, and leaves it once beaten; and
+## an instructor teaching levitate or astral leaves that move's relic, MapInfo.instructor_fell): from depth
 ## MIN_DEPTH, CHANCE % of them rising to CHANCE_MAX deeper (see chance; about one in 15, so a big
 ## move means going out of your way), each holding one of MOVES dealt by its seed (every level of a
 ## debug run holds one). Once a move is known, shrines offer its higher tiers as usual. At full

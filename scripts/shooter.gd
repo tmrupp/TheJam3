@@ -66,7 +66,8 @@ func _physics_process(delta: float) -> void:
 		return
 	if stunned:
 		return
-	charge += delta / cooldown
+	# A harder preset fires more often (Difficulty.attack).
+	charge += delta * Difficulty.attack() / cooldown
 	if charge >= 1.0:
 		charge = 0.0
 		shoot()

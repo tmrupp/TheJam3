@@ -3,10 +3,11 @@ extends TestKit
 ## its lair along the walls of the whole level and its burrow holes all through it, lying under
 ## until the wizard comes near, waiting and rumbling before it comes up, hunting them, the head's
 ## bite and its solid body, never turning back on itself, its head never in the rock, digging
-## through walls, thorns along one flank of every segment but the head, the flank facing the
-## wizard as it comes out of the rock and kept until it goes in again (hurting to touch, and
-## turning strikes from that side), the soft flesh any strike cuts (even a tool that
-## only stuns) one segment a move, only a parried bite stunning it and then the whole worm, a cut
+## through walls, thorns along one flank of every segment but the head, alternating from one
+## segment to the next from the flank facing the wizard as it comes out of the rock, kept until it
+## goes in again (hurting to touch, and
+## turning strikes from that side), the soft flesh any strike cuts (even a bolt of
+## no damage) one segment a move, only a parried bite stunning it and then the whole worm, a cut
 ## head or tail shortening it, a middle cut splitting it, short worms burrowing away, a lantern
 ## death healing it, and its death opening the way on and leaving its relic on a floor.
 ## godot --headless --path . --script res://tests/worm_test.gd
@@ -84,7 +85,7 @@ func run() -> void:
 		await physics_frame
 		for crawler: Worm.Piece in worm.pieces:
 			var path: Array[Vector2i] = crawler.path()
-			var front: float = crawler.at(0)
+			var front: float = crawler.head_at()
 			for nose: PackedVector2Array in worm._cap(path, front, worm.cell * Worm.GIRTH, true):
 				var base: Vector2 = worm.point(path, front)
 				for pt: Vector2 in nose:
@@ -108,6 +109,13 @@ func run() -> void:
 	q.u = 0.95
 	q.hole = -1
 	q.clock = 99.0
+	# Up and crawling (not diving into a hole, waiting to come out, or striking), whatever it was
+	# doing when taken over.
+	q.state = Worm.UP
+	q.warn = 0.0
+	q.strike = -1.0
+	q.reach = 0.0
+	q.strike_wait = 99.0
 	await frames(3)
 	check(q.cells[0] == face[1] and worm.holes.any(func(h: Worm.Hole) -> bool: return h.cell == face[1] and h.entry == face[0]) and not q.segments[0].shown, "into a wall it digs a hole, and goes on through the rock out of sight")
 	var breaking: bool = await until(func() -> bool: return q.warn > 0.0, 15000)
@@ -135,7 +143,11 @@ func run() -> void:
 	check(head.thorns == null and segs.slice(1).all(func(s: WormSegment) -> bool: return s.thorns != null), "every segment but the head has thorns")
 	var thorny: WormSegment = lit[2]
 	var flank: float = worm.pieces[0].side
-	check(segs.slice(1).all(func(s: WormSegment) -> bool: return s.spikes.is_equal_approx(s.heading.orthogonal() * flank) and absf(angle_difference(s.thorns.rotation, s.spikes.angle())) < 0.01), "all along one flank of its body")
+	check(segs.slice(1).all(func(s: WormSegment) -> bool: return s.spikes.is_equal_approx(s.heading.orthogonal() * flank * s.flank) and absf(angle_difference(s.thorns.rotation, s.spikes.angle())) < 0.01), "each segment's on one flank of its body")
+	var alternate: bool = segs[1].flank == 1.0
+	for k: int in range(2, segs.size()):
+		alternate = alternate and segs[k].flank == -segs[k - 1].flank
+	check(alternate, "alternating from one segment to the next, the one behind the head on the chosen flank")
 	check(Worm.side_toward(Vector2.UP, Vector2.ZERO, Vector2(200, -50)) == Vector2.UP.orthogonal().dot(Vector2.RIGHT) and Worm.side_toward(Vector2.UP, Vector2.ZERO, Vector2(-200, -50)) == -Vector2.UP.orthogonal().dot(Vector2.RIGHT), "coming out of the rock, it picks the flank facing the wizard")
 	check(not thorny.thorn_box.collision.disabled, "and hurt to touch on that side")
 	var thorny_hp: int = thorny.wound.hp
@@ -147,15 +159,14 @@ func run() -> void:
 	print("struck")
 	var whole_hp: Callable = func() -> Array: return segs.map(func(s: WormSegment) -> int: return s.wound.hp)
 	var before: Array = whole_hp.call()
-	dash.damage = 0
-	dash.struck.clear()
-	# From its bare side (thorns facing on, the way the dash goes).
-	lit[0].spikes = (lit[4].global_position - lit[0].global_position).normalized()
-	dash.sweep(lit[0].global_position, lit[4].global_position)
+	# From its bare side (thorns facing on, the way the slash goes), from just back of its first.
+	var along: Vector2 = (lit[4].global_position - lit[0].global_position).normalized()
+	lit[0].spikes = along
+	_slash(lit[0].global_position - along * 60.0, along)
 	await frames(1)
 	var after: Array = whole_hp.call()
 	var cut_count: int = range(segs.size()).filter(func(k: int) -> bool: return int(after[k]) < int(before[k])).size()
-	check(cut_count == 1 and lit[0].wound.hp == Worm.SEGMENT_HP - 1, "a dash along it (one that only stuns) cuts only the first segment it meets")
+	check(cut_count == 1 and lit[0].wound.hp == Worm.SEGMENT_HP - 1, "a slash along it cuts only the first segment it meets")
 	check(not segs.any(func(s: WormSegment) -> bool: return s.stunned()), "and stuns nothing")
 	var bolt: HexBolt = HexBolt.new()
 	bolt.damage = 0
@@ -180,7 +191,7 @@ func run() -> void:
 	check(head.bite.collision.disabled, "and a stunned head does not bite")
 	var whole_one: WormSegment = segs.filter(func(s: WormSegment) -> bool: return s.live and s.wound.hp == Worm.SEGMENT_HP)[0]
 	whole_one.spikes = Vector2.RIGHT
-	dash.strike(whole_one, Vector2.RIGHT)
+	SpellStrike.strike(whole_one, Vector2.RIGHT, 1)
 	check(whole_one.wound.hp == Worm.SEGMENT_HP - 2, "stunned, it takes double")
 
 	print("cut")
@@ -259,3 +270,15 @@ func _exit(which: int) -> LevelExit:
 		if (n as LevelExit).exit == which:
 			return n as LevelExit
 	return null
+
+
+## A slash (Slash, tier I, ready at once) from `from` heading `dir`, the wizard there just for it;
+## then the wizard back where they were.
+func _slash(from: Vector2, dir: Vector2) -> void:
+	var was: Vector2 = player.global_position
+	Abilities.set_tier(player, &"slash", 1)
+	player.global_position = from - (SpellStrike.origin(player) - player.global_position)
+	var slash: Slash = player.get_node("Slash") as Slash
+	slash.wait = 0.0
+	slash.cast(dir)
+	player.global_position = was

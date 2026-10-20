@@ -4,7 +4,7 @@ extends TestKit
 ## the knot, ledges a hop apart and a foot open to the caves, the same every build and only in its
 ## gate levels; in play, the knot walling off the head, the vines' cadence (warning, out and
 ## hurting, back), a parried lash recoiling, the bulbs spitting seeds a parry turns back into them,
-## bolts and dashes (even ones that only stun) wounding them, a burst bulb withering its vines, a
+## bolts and dashes (even ones of no damage) wounding them, a burst bulb withering its vines, a
 ## lantern death healing it, and the last bulb tearing the knot open, slaying it, leaving its relic
 ## on the landing and opening the way on.
 ## godot --headless --path . --script res://tests/bramble_test.gd
@@ -151,12 +151,9 @@ func run() -> void:
 		check(back_in, "a parried seed flies back into its bulb and wounds it")
 	player.global_position = Vector2(-9000, -9000)
 	var other: BrambleBulb = bramble.bulbs[1]
-	var dash: DashStrike = player.get_node("DashStrike") as DashStrike
-	dash.damage = 0
-	dash.struck.clear()
 	var hp: int = other.wound.hp
-	dash.sweep(other.global_position + other.way * 120.0, other.global_position - other.way * 10.0)
-	check(other.wound.hp == hp - 1 and not other.stunner.stunned(), "a dash that only stuns wounds it, and it is never stunned")
+	_slash(other.global_position + other.way * 80.0, -other.way)
+	check(other.wound.hp == hp - 1 and not other.stunner.stunned(), "a slash wounds it, and it is never stunned")
 	var bolt: HexBolt = HexBolt.new()
 	bolt.damage = 0
 	info.map_elements.add_child(bolt)
@@ -164,7 +161,7 @@ func run() -> void:
 	bolt.dir = -other.way
 	# Fired from 200 px off: wait for it to arrive rather than a fixed number of frames.
 	await until(func() -> bool: return other.wound.hp <= hp - 2, 3000)
-	check(other.wound.hp == hp - 2, "so does a hex bolt that only stuns")
+	check(other.wound.hp == hp - 2, "so does a hex bolt of no damage")
 	var fed: Array[BrambleVine] = bramble.vines.filter(func(v: BrambleVine) -> bool: return v.bulb == other)
 	other.wound.hit(other.wound.hp, Vector2.RIGHT)
 	await frames(10)
@@ -215,3 +212,15 @@ func _exit(which: int) -> LevelExit:
 		if (n as LevelExit).exit == which:
 			return n as LevelExit
 	return null
+
+
+## A slash (Slash, tier I, ready at once) from `from` heading `dir`, the wizard there just for it;
+## then the wizard back where they were.
+func _slash(from: Vector2, dir: Vector2) -> void:
+	var was: Vector2 = player.global_position
+	Abilities.set_tier(player, &"slash", 1)
+	player.global_position = from - (SpellStrike.origin(player) - player.global_position)
+	var slash: Slash = player.get_node("Slash") as Slash
+	slash.wait = 0.0
+	slash.cast(dir)
+	player.global_position = was

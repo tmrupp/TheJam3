@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/Lodestone.gd" id="1_lode"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_lode"]
+size = Vector2(84, 150)
+
+[node name="Lodestone" type="Area2D"]
+collision_layer = 16
+collision_mask = 64
+script = ExtResource("1_lode")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -11)
+shape = SubResource("RectangleShape2D_lode")

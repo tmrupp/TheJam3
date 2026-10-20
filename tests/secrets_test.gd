@@ -1,6 +1,6 @@
 extends TestKit
 ## Secret rooms and relics: rooms are pockets of rock behind a false wall beside a floor, hidden
-## (plain rock, even on the map) until stepped into or struck by a hex bolt; then the room opens
+## (plain rock, even on the map) until stepped into or struck by an empowered hex bolt; then the room opens
 ## for good and its rewards appear. Relic levels keep a move in theirs; taking it teaches tier I
 ## (for a lot of stars), which shrines never offer; at full health a shrine sells the whereabouts of
 ## the nearest relic not yet found.
@@ -99,7 +99,7 @@ func run() -> void:
 		astral += 1 if Relics.at(Vector2i(s, Relics.MIN_DEPTH + 2)) == &"astral" else 0
 	check(&"astral" in Relics.MOVES and astral > 0, "astral projection is a relic move (%d of 2000 levels hold it)" % astral)
 
-	print("a hex bolt reveals a secret room")
+	print("an empowered hex bolt reveals a secret room (a plain one does not)")
 	check(not info.world.secrets.is_empty(), "the first level has a secret room")
 	var first: Dictionary = info.world.secrets[0]
 	var entry: Vector2i = first["entrance"][0]
@@ -107,13 +107,20 @@ func run() -> void:
 	player.global_position = info.cell_position(stand)
 	await physics_frame
 	await physics_frame
-	var bolt: Node2D = Node2D.new()
-	bolt.set_script(preload("res://scripts/HexBolt.gd"))
-	bolt.set("dir", Vector2(entry - stand))
+	var plain: HexBolt = HexBolt.new()
+	plain.dir = Vector2(entry - stand)
+	info.map_elements.add_child(plain)
+	plain.global_position = info.cell_position(stand)
+	await until(gone(plain))
+	check(not (info.record().secrets as Dictionary).has(0), "a plain bolt passes the false wall and only chips the rock behind it")
+	var bolt: HexBolt = HexBolt.new()
+	bolt.dir = Vector2(entry - stand)
+	bolt.empowered = true
+	bolt.bore = HexBolt.BORE
 	info.map_elements.add_child(bolt)
 	bolt.global_position = info.cell_position(stand)
 	await until(func() -> bool: return (info.record().secrets as Dictionary).has(0))
-	check((info.record().secrets as Dictionary).has(0), "a bolt passes the false wall and, striking the rock behind it, opens the room")
+	check((info.record().secrets as Dictionary).has(0), "an empowered bolt, striking the rock behind it, opens the room")
 	await process_frame
 	check(placed("cracked_wall.tscn").filter(func(n: Node) -> bool: return int(n.get_meta(&"secret", -1)) == 0).is_empty(), "the whole room crumbles")
 	check((first["room"] as Array).all(func(c: Vector2i) -> bool: return (info.record().broken as Dictionary).has(c)), "and stays broken in the record")
@@ -130,7 +137,18 @@ func run() -> void:
 	var hidden: Array[Node] = placed("cracked_wall.tscn").filter(func(n: Node) -> bool: return int(n.get_meta(&"secret", -1)) == 0 and bool(n.get_meta(&"hidden")))
 	var door_node: Array[Node] = placed("cracked_wall.tscn").filter(func(n: Node) -> bool: return int(n.get_meta(&"secret", -1)) == 0 and not bool(n.get_meta(&"hidden")))
 	check(hidden.size() == (secret["room"] as Array).size() and door_node.size() == 1, "its room is %d cells of hidden rock behind one false wall" % hidden.size())
-	check((door_node[0] as CollisionObject2D).collision_layer == 0 and (hidden[0] as CollisionObject2D).collision_layer != 0, "the false wall can be walked through; the rock behind it is solid")
+	check((door_node[0] as CollisionObject2D).collision_layer & player.collision_mask == 0 and (hidden[0] as CollisionObject2D).collision_layer != 0, "the false wall can be walked through; the rock behind it is solid")
+	# An enemy beside it takes it for rock, and does not wander in and give the room away.
+	# Near the wizard, as an enemy that meets it would be (far off, a chunk sleeps, its walls with it).
+	info.loader.wake_around(info.cell_position(secret["entrance"][0]))
+	var walker: RigidBody2D = (load("res://prefabs/abomination.tscn") as PackedScene).instantiate() as RigidBody2D
+	info.map_elements.add_child(walker)
+	walker.set_physics_process(false)
+	walker.global_position = info.cell_position(beside(secret["entrance"][0]))
+	await physics_frame
+	var into: Vector2 = info.cell_position(secret["entrance"][0]) - walker.global_position
+	check(walker.test_move(walker.global_transform, into), "an enemy walking at it is stopped, as by rock")
+	walker.queue_free()
 	check(placed("relic.tscn").is_empty(), "its relic is not out until it opens")
 	info.ink_whole_map()
 	var map: Node = main.get_node("RisoMap")
@@ -148,8 +166,10 @@ func run() -> void:
 	await process_frame
 	var relics: Array[Node] = placed("relic.tscn")
 	check(relics.size() == 1 and StringName(relics[0].get("ability")) == info.here.relic, "the relic (%s) is out" % info.here.relic)
+	# Stars beside it, or, in a room too small for more, the skeleton key that took a star's place.
 	var stars_in_room: int = placed("coin.tscn").filter(func(n: Node) -> bool: return (secret["room"] as Array).has(n.get_meta(&"cell"))).size()
-	check(stars_in_room > 0, "with %d stars" % stars_in_room)
+	var keys_in_room: int = placed("key.tscn").filter(func(n: Node) -> bool: return (secret["room"] as Array).has(n.get_meta(&"cell"))).size()
+	check(stars_in_room + keys_in_room > 0, "with %d stars and %d key(s)" % [stars_in_room, keys_in_room])
 
 	print("the relic")
 	var move: StringName = info.here.relic

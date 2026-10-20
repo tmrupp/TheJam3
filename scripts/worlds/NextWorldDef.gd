@@ -51,7 +51,7 @@ var symmetry: int = 5
 const GARDEN: Script = preload("res://scripts/worlds/archetypes/GardenArchetype.gd")
 const DOWN: Array[Script] = [
 	preload("res://scripts/worlds/archetypes/CemeteryArchetype.gd"),
-	preload("res://scripts/worlds/archetypes/CatacombsArchetype.gd"),
+	preload("res://scripts/worlds/archetypes/InstituteArchetype.gd"),
 ]
 const UP: Array[Script] = [
 	preload("res://scripts/worlds/archetypes/CragsArchetype.gd"),
@@ -73,7 +73,7 @@ func setup(at: Vector2i) -> NextWorldDef:
 	archetype = arch.name
 	region = arch.sample
 	symmetry = arch.symmetry
-	size = Vector2i((Vector2(Rules.level_size(depth)) * arch.scale).round())
+	size = arch.size_for(depth)
 	for k: int in range(Worlds.KINDS.size()):
 		if Worlds.proto(k).deals(at):
 			doors.append(k)
@@ -149,6 +149,14 @@ func open() -> bool:
 ## Dress the collapsed terrain held in `w`: exits, lanterns, keys, doors, enemies, stars.
 func populate(w: LevelGen) -> void:
 	w.populate_level(self)
+
+
+## The small insides its archetype collapses with its terrain (Archetype.patches): none for a side
+## world.
+func patches() -> Array[Dictionary]:
+	if arch == null or Worlds.is_side(coord):
+		return []
+	return arch.patches(self)
 
 
 ## Terrain (in the generator's colours) to use if the collapse never settles, or [] for none.

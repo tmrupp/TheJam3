@@ -31,6 +31,12 @@ func run() -> void:
 	_exits()
 	_branches()
 	_relics()
+	_wind()
+	_whale()
+	_beast()
+	_institute()
+	_stations()
+	_lodestones()
 	var p: Player = Player.new()
 	_ability_tables()
 	_protocols()
@@ -38,6 +44,66 @@ func run() -> void:
 	_keyring(p)
 	p.free()
 	finish()
+
+
+## The crags' lodestones (Rules.lodestone_at): along each crags row, every stretch of
+## Rules.LODESTONE_STRETCH worlds holds each damage spell's stone once (one level in four), so none
+## is ever further than a stretch less one along a row; none outside the crags or in a side world.
+## How soon an empowered cast comes back (Rules.empower_recharge), and how long a press is held for
+## one (Empower.long_enough). Every damage spell's node casts with an empowered flag.
+func _lodestones() -> void:
+	var spells: Array[StringName] = Abilities.in_slot(&"damage")
+	var stretch: int = Rules.LODESTONE_STRETCH
+	var each_once: bool = true
+	var quarter: bool = true
+	for k: int in range(NextWorldDef.BAND):
+		var row: int = NextWorldDef.band_row(&"crags", k)
+		for s: int in [-3, -1, 0, 1, 5]:
+			var found: Dictionary = {}
+			var held: int = 0
+			for i: int in range(stretch):
+				var spell: StringName = Rules.lodestone_at(Vector2i(s * stretch + i, row))
+				if spell != &"":
+					held += 1
+					found[spell] = int(found.get(spell, 0)) + 1
+			each_once = each_once and found.size() == spells.size() and found.values().all(func(n: int) -> bool: return n == 1)
+			quarter = quarter and held * 4 == stretch
+	check(spells.size() == 6 and each_once, "every stretch of %d worlds along every crags row holds each damage spell's lodestone once" % stretch)
+	check(quarter, "so one crags level in four holds a lodestone")
+	var furthest: int = 0
+	var row0: int = NextWorldDef.band_row(&"crags", 0)
+	for spell: StringName in spells:
+		var last: int = -9999
+		for x: int in range(-60, 120):
+			if Rules.lodestone_at(Vector2i(x, row0)) == spell:
+				if last > -9999:
+					furthest = maxi(furthest, x - last)
+				last = x
+	check(furthest > 0 and furthest <= 2 * stretch - 1, "a spell's stones are never more than %d worlds apart along a row (%d at most)" % [2 * stretch - 1, furthest])
+	var outside: bool = true
+	for row: int in [0, 2, -2, NextWorldDef.band_row(&"cemetery", 0), NextWorldDef.band_row(&"sky", 0)]:
+		for x: int in range(0, 48):
+			outside = outside and Rules.lodestone_at(Vector2i(x, row)) == &""
+	for x: int in range(0, 48):
+		outside = outside and Rules.lodestone_at(Worlds.side_at(0, Vector2i(x, row0))) == &""
+	check(outside, "no lodestone outside the crags, nor in a side world")
+	check(Rules.lodestone_at(Vector2i(31, row0)) == Rules.lodestone_at(Vector2i(31, row0)), "the same every time")
+	check(not is_finite(Rules.empower_recharge(0)), "before any lodestone, no empowered cast")
+	var steps: Array[float] = []
+	for n: int in range(1, 10):
+		steps.append(Rules.empower_recharge(n))
+	check(steps.slice(0, 7) == [60.0, 45.0, 34.0, 25.0, 19.0, 14.0, 10.0] and steps[7] == 10.0 and steps[8] == 10.0, "it comes back in 60 s after the first stone, a quarter sooner for each more, 10 s from the seventh on")
+	check(not Empower.long_enough(Empower.HOLD - 0.05) and Empower.long_enough(Empower.HOLD) and is_equal_approx(Empower.HOLD, 0.4), "a press held 0.4 s casts empowered, a shorter one as ever")
+	var takes: bool = true
+	for spell: StringName in spells:
+		var made: Resource = load(String(Abilities.ABILITIES[spell]["make"]))
+		var script: Script = made as Script
+		if made is PackedScene:
+			var node: Node = (made as PackedScene).instantiate()
+			script = node.get_script()
+			node.free()
+		takes = takes and _takes(_method(script, &"cast_spell"), 1)
+	check(takes, "every damage spell's node casts with an empowered flag (cast_spell(empowered))")
 
 
 func _seeds() -> void:
@@ -125,21 +191,19 @@ func _archetypes() -> void:
 		if d <= g:
 			want.append(&"garden")
 		elif row > 0:
-			want.append(&"cemetery" if d <= g + band else &"catacombs")
+			want.append(&"cemetery" if d <= g + band else &"institute")
 		else:
 			want.append(&"crags" if d <= g + band else &"sky")
-	check_eq(bands, want, "the garden spans rows -%d to %d; down the cemetery then the catacombs, up the crags then the sky, %d rows each, the outermost going on" % [g, g, band])
+	check_eq(bands, want, "the garden spans rows -%d to %d; down the cemetery then the institute, up the crags then the sky, %d rows each, the outermost going on" % [g, g, band])
 	check_eq(NextWorldDef.archetype_at(0), &"garden", "the run starts in the garden")
 	check_eq(NextWorldDef.first_depth(&"nowhere"), -1, "no band for an archetype that does not exist")
-	var firsts: Dictionary = {&"garden": 0, &"cemetery": g + 1, &"catacombs": g + 1 + band, &"crags": -(g + 1), &"sky": -(g + 1 + band)}
+	var firsts: Dictionary = {&"garden": 0, &"cemetery": g + 1, &"institute": g + 1 + band, &"crags": -(g + 1), &"sky": -(g + 1 + band)}
 	for kind: StringName in firsts:
 		check_eq(NextWorldDef.first_depth(kind), int(firsts[kind]), "the %s's row nearest the start" % kind)
 	check(NextWorldDef.band_row(&"sky", 2) == -(g + 3 + band) and NextWorldDef.band_row(&"cemetery", 2) == g + 3, "band rows count away from the start, up or down")
-	for kind: StringName in [&"garden", &"cemetery", &"sky", &"crags"]:
+	for kind: StringName in [&"garden", &"cemetery", &"sky", &"crags", &"institute"]:
 		var def: NextWorldDef = Rules.def_for(Vector2i(28, NextWorldDef.first_depth(kind)))
 		check(def.archetype == kind and def.realm() == kind and RisoPrint.REALMS.has(kind), "a %s level is printed in its own realm" % kind)
-	# A stand-in until its own art (docs/REGIONS_PLAN.md): the catacombs in the cemetery's realm.
-	check(Rules.def_for(Vector2i(28, NextWorldDef.first_depth(&"catacombs"))).realm() == &"cemetery", "the catacombs stand in with a borrowed realm")
 	var sky_depth: int = NextWorldDef.first_depth(&"sky")
 	var sky: NextWorldDef = Rules.def_for(Vector2i(28, sky_depth))
 	check_eq(sky.depth, absi(sky_depth), "a level's depth is its distance from the start, whichever way")
@@ -260,6 +324,201 @@ func _relics() -> void:
 	check_eq(Relics.at(Worlds.side_at(0, Vector2i(28, 5))), &"", "no relic in a side world")
 
 
+## A sky level's wind (Rules.wind_of): still with no vane on; the way of the vane last switched
+## on, as strong as the vanes on that point that way, the others' doing nothing; still again once
+## none of its way is on.
+func _wind() -> void:
+	var rec: LevelRecord = LevelRecord.new()
+	check_eq(Rules.wind_of(rec), 0, "a sky level's wind is still with no vane on")
+	rec.vanes_on = {Vector2i(1, 1): 1, Vector2i(2, 1): 1, Vector2i(3, 1): -1}
+	rec.wind_way = 1
+	check_eq(Rules.wind_of(rec), 2, "two vanes on pointing right: the wind blows right, strength 2")
+	rec.wind_way = -1
+	check_eq(Rules.wind_of(rec), -1, "turned left by its one left vane: strength 1, the right ones doing nothing")
+	rec.vanes_on.erase(Vector2i(3, 1))
+	check_eq(Rules.wind_of(rec), 0, "and with none of its way left on, still")
+	# More vanes make a gust blow longer, not harder.
+	check(Wind.carry_for(1) == Wind.carry_for(3) and Wind.carry_for(0) == 0.0, "a gust carries the wizard as fast whatever its strength")
+	check(Wind.gust_for(1) == Wind.GUST and Wind.gust_for(2) > Wind.gust_for(1) and Wind.gust_for(99) == Wind.GUST_MAX, "each vane past the first makes a gust last longer, up to %.0f s" % Wind.GUST_MAX)
+
+
+## The whale's hunt (WhaleHunt): met a few worlds off the wizard the first time they come into the
+## sky; moving a world the way its own level's wind is set, held when the levels either side blow
+## into its level, and never far from the wizard; on the sky's top row; never once slain.
+func _whale() -> void:
+	var run: RunState = RunState.new()
+	run.start(28)
+	var row: int = WhaleHunt.row()
+	check_eq(row, Bosses.row_of(&"whale"), "the whale swims the sky's top row, its gate row")
+	check(not WhaleHunt.move(run, Vector2i(28, 0)) and run.whale_x == WhaleHunt.NONE, "nor is it met below the sky")
+	var sky: Vector2i = Vector2i(28, NextWorldDef.band_row(&"sky", 2))
+	WhaleHunt.move(run, sky)
+	var off: int = run.whale_x - sky.x
+	check(off != 0 and absi(off) <= WhaleHunt.REACH, "met %d worlds off the wizard's first sky level" % off)
+	var x: int = run.whale_x
+	var rec: LevelRecord = run.record(Vector2i(x, row))
+	rec.vanes_on = {Vector2i.ZERO: 1}
+	rec.wind_way = 1
+	WhaleHunt.move(run, Vector2i(x, row))
+	check_eq(run.whale_x, x + 1, "its own level set to blow right: it moves a world right")
+	run.record(Vector2i(x, row)).vanes_on = {Vector2i.ZERO: 1}
+	run.record(Vector2i(x, row)).wind_way = 1
+	var right: LevelRecord = run.record(Vector2i(x + 2, row))
+	right.vanes_on = {Vector2i.ZERO: -1}
+	right.wind_way = -1
+	check(WhaleHunt.trapped(run, x + 1), "the levels either side blowing into its level: trapped")
+	WhaleHunt.move(run, Vector2i(x + 1, row))
+	check_eq(run.whale_x, x + 1, "and so held where it is")
+	right.vanes_on.clear()
+	for i: int in range(6):
+		WhaleHunt.move(run, Vector2i(x + 20, row))
+	check(absi(run.whale_x - (x + 20)) <= WhaleHunt.REACH, "it never strays more than %d worlds from the wizard" % WhaleHunt.REACH)
+	check(WhaleHunt.here(run, Vector2i(run.whale_x, row)) and not WhaleHunt.here(run, Vector2i(run.whale_x, row + 1)), "it is only in its world, on its row")
+	run.bosses[&"whale"] = true
+	var was: int = run.whale_x
+	check(not WhaleHunt.move(run, Vector2i(x, row)) and run.whale_x == was and not WhaleHunt.here(run, Vector2i(was, row)), "slain, it is never met again")
+
+
+
+## The beast's souls (BeastSouls): as many go out however much was visited; one stays in a level
+## visited for every few visited, so a wizard who explored finds them in places they know and one who
+## dived straight down has them flung far, into levels not yet visited, worlds off and across the
+## bands; never into a side world, a gate level or the beast's own level; the same every time, sent
+## once, and gone with the beast.
+func _beast() -> void:
+	var gate: Vector2i = Vector2i(28, Bosses.row_of(&"beast"))
+	var most: int = BeastSouls.SOULS + BeastSouls.FED_SOULS_MOST
+	check_eq([BeastSouls.kept_near(0, most), BeastSouls.kept_near(BeastSouls.VISITS_PER_SOUL, most), BeastSouls.kept_near(BeastSouls.VISITS_PER_SOUL * 3, most), BeastSouls.kept_near(999, most)], [0, 1, 3, most], "one soul stays in a level visited for every %d visited, up to all %d" % [BeastSouls.VISITS_PER_SOUL, most])
+	# A run that dived straight down, and one that wandered far along the rows too, both well fed.
+	var straight: RunState = RunState.new()
+	straight.start(28)
+	straight.fed = BeastSouls.FED_PER_SOUL * BeastSouls.FED_SOULS_MOST
+	for y: int in range(0, Bosses.row_of(&"beast")):
+		straight.record(Vector2i(28, y))
+	var wide: RunState = RunState.new()
+	wide.start(28)
+	wide.fed = straight.fed
+	for c: Vector2i in straight.records:
+		wide.record(c)
+	for x: int in range(10, 46):
+		for y: int in [0, 1, 2, 5, -1, -4, 8, 11]:
+			wide.record(Vector2i(x, y))
+	wide.record(gate)
+	wide.record(Worlds.side_at(0, Vector2i(28, 1)))
+	BeastSouls.send(straight, gate)
+	BeastSouls.send(wide, gate)
+	check(straight.souls_sent == most and wide.souls_sent == most, "%d souls go out, however much of the world was visited" % most)
+	var kept: int = 0
+	var far: int = 0
+	var bands: Dictionary = {}
+	for c: Vector2i in straight.souls:
+		if straight.records.has(c):
+			kept += 1
+		elif absi(c.x - gate.x) >= BeastSouls.FAR_COLUMNS.x and absi(c.x - gate.x) <= BeastSouls.FAR_COLUMNS.y:
+			far += 1
+			bands[NextWorldDef.archetype_at(c.y)] = true
+	check(kept == BeastSouls.kept_near(BeastSouls.visited(straight, gate).size(), most) and far == most - kept, "dived straight down: %d stay in levels visited, %d flung %d to %d worlds off into levels not yet visited" % [kept, far, BeastSouls.FAR_COLUMNS.x, BeastSouls.FAR_COLUMNS.y])
+	check(bands.size() >= 3, "across the bands (%d of them)" % bands.size())
+	var known: bool = true
+	var allowed: bool = true
+	for c: Vector2i in wide.souls:
+		known = known and wide.records.has(c)
+		if Worlds.is_side(c) or Bosses.gate_at(c.y) != &"" or c == gate:
+			allowed = false
+	for c: Vector2i in straight.souls:
+		if Worlds.is_side(c) or Bosses.gate_at(c.y) != &"" or c == gate:
+			allowed = false
+	check(known, "explored widely: every one in a level visited")
+	check(allowed, "never into a side world, a gate level or its own")
+	var again: RunState = RunState.new()
+	again.start(28)
+	again.fed = straight.fed
+	for c: Vector2i in straight.records:
+		again.record(c)
+	BeastSouls.send(again, gate)
+	check(again.souls == straight.souls, "the same places for the same run")
+	var sent: Dictionary = straight.souls.duplicate()
+	BeastSouls.send(straight, gate)
+	check(straight.souls == sent, "sent once only")
+	var fresh: RunState = RunState.new()
+	fresh.start(28)
+	fresh.record(gate)
+	BeastSouls.send(fresh, gate)
+	check(fresh.souls_sent == BeastSouls.SOULS and fresh.souls.keys().all(func(c: Vector2i) -> bool: return not fresh.records.has(c)), "with nothing else visited, every one is flung far")
+	BeastSouls.end(wide)
+	check(wide.souls.is_empty(), "slain, its souls go with it")
+
+
+## The institute's rules (Institute): every master has mastered one of the wizard's damage spells;
+## every department studies a band there is, and its portal leads to a row of that band, in the same
+## world, dealt by the level and the same every time.
+func _institute() -> void:
+	check(Institute.MASTERIES.all(func(a: StringName) -> bool: return Abilities.slot_of(a) == &"damage"), "a master masters a damage spell")
+	var bands: Array[StringName] = NextWorldDef.archetype_names()
+	check(Institute.DEPARTMENTS.values().all(func(b: StringName) -> bool: return bands.has(b) and b != &"institute"), "each department studies another band")
+	var def: NextWorldDef = Rules.def_for(Vector2i(28, NextWorldDef.band_row(&"institute", 1)))
+	check_eq(def.archetype, &"institute", "the band below the cemetery is the institute")
+	for dept: StringName in Institute.DEPARTMENTS:
+		var ok: bool = true
+		for i: int in range(4):
+			var row: int = Institute.department_row(def, dept, i)
+			ok = ok and NextWorldDef.archetype_at(row) == Institute.DEPARTMENTS[dept] and row == Institute.department_row(def, dept, i)
+		check(ok, "a %s portal leads to a level of %s, the same every time" % [dept, Institute.DEPARTMENTS[dept]])
+	var defaults_ok: bool = true
+	for dept: StringName in Timetable.LADDERS:
+		for a: StringName in Timetable.LADDERS[dept]:
+			defaults_ok = defaults_ok and Timetable.default_spell(a) == Timetable.LADDERS[dept][0] and Timetable.default_spell(a) in Institute.MASTERIES
+	check(defaults_ok, "an instructor teaching a move casts its department's damage spell, the first rung of its ladder")
+	# The departments' climb (Timetable.climb): every rule reads the tiers as they stood.
+	var all_met: Dictionary = {&"botany": true, &"astronomy": true, &"geology": true, &"necrology": true}
+	var dusk_less: Dictionary = {&"botany": true, &"astronomy": true, &"geology": true, &"necrology": false}
+	var t: Callable = func(b: int, a: int, g: int, n: int) -> Dictionary: return {&"botany": b, &"astronomy": a, &"geology": g, &"necrology": n}
+	check_eq(Timetable.climb(t.call(1, 1, 1, 1), &"botany", all_met), t.call(2, 2, 2, 1), "botany attended: botany and astronomy rise; geology, botany on its stratum, rises; necrology, with nothing crashed, stays at I")
+	check_eq(Timetable.climb(t.call(2, 3, 1, 1), &"geology", all_met), t.call(1, 4, 1, 2), "geology attended: botany crashes, astronomy rises; geology, its own class, falls; necrology rises on the crash")
+	check_eq(Timetable.climb(t.call(2, 3, 1, 3), &"", dusk_less), t.call(1, 1, 1, 3), "nothing attended: botany and astronomy crash; geology, nothing laid on it, stays at I; necrology, not meeting, holds")
+	check_eq(Timetable.climb(t.call(2, 2, 2, 1), &"astronomy", all_met), t.call(1, 1, 3, 2), "astronomy attended: it crashes (its paper taken), botany too; geology, astronomy on its stratum, rises; necrology rises")
+	check_eq(Timetable.climb(t.call(1, 1, 3, 1), &"botany", all_met), t.call(2, 2, 1, 2), "botany attended below geology: geology, not on its stratum, crashes from III; necrology rises on it")
+	check_eq(Timetable.climb(t.call(4, 1, 1, 1), &"botany", all_met), t.call(4, 2, 1, 1), "at the top botany holds, neither rising nor crashing")
+	check_eq(Timetable.climb(t.call(1, 1, 1, 1), &"", all_met), t.call(1, 1, 1, 1), "falling from I is no crash: nothing rises")
+	var seeker: int = KeyRing.paper(&"seeker", 3)
+	var lifted: int = KeyRing.stolen(seeker)
+	check(lifted != seeker and KeyRing.is_stolen(lifted) and not KeyRing.is_stolen(seeker), "a stolen paper is told from its paper")
+	check_eq([KeyRing.paper_spell(lifted), KeyRing.paper_tier(lifted), KeyRing.stolen(lifted)], [&"seeker", 3, lifted], "and holds the same spell and tier (stealing it twice changes nothing)")
+	# Every wall style the F7 panel offers has its inks and a name.
+	check(RisoPrint.WALL_STYLES.all(func(w: StringName) -> bool: return RisoTerrain.WALL_LOOKS.has(w)) and RisoPrint.WALL_STYLE_NAMES.size() == RisoPrint.WALL_STYLES.size(),
+		"each institute wall style has its inks and a name")
+
+## The crags' tower puzzle (Stations): riding needs both ends on and no two off in a row between;
+## a dealt level has a way up and a different way down, and can leave the whole line on, quickly even
+## with the most stations a line has; a tower is never flipped twice running.
+func _stations() -> void:
+	check(Stations.rides(0b101, 0, 2) and not Stations.rides(0b1001, 0, 3) and not Stations.rides(0b110, 0, 2), "the car rides past one off station, never two in a row, and only from and to on ones")
+	var tiers: Array[int] = [0, 1, 2, 3, 4]
+	var t0: int = Time.get_ticks_msec()
+	var masks: Array[int] = Stations.deal(5, tiers, 4242)
+	var took: int = Time.get_ticks_msec() - t0
+	var up: Variant = Stations.way(5, tiers, masks, 1, 0, 4)
+	var down: Variant = Stations.way(5, tiers, masks, 1 << 4, 4, 0)
+	check(up != null and down != null and up != down, "a dealt level has a way up %s and a different way down %s" % [up, down])
+	check(Stations.all_on_reached(5, tiers, masks), "and some flips leave the whole line on")
+	check(Stations.deal(5, tiers, 4242) == masks, "the same level deals the same sets every time (%d ms)" % took)
+	var seq: Array = up if up != null else []
+	var twice: bool = false
+	for i: int in range(1, seq.size()):
+		twice = twice or seq[i] == seq[i - 1]
+	check(not twice, "no tower is flipped twice running")
+	# The most stations a line has (CragsArchetype.STOPS.y), six towers: dealt quickly, and passing.
+	var many: Array[int] = [0, 2, 4, 5, 7, 8]
+	var n: int = CragsArchetype.STOPS.y
+	var t1: int = Time.get_ticks_msec()
+	var passed: int = 0
+	for sd: int in range(5):
+		var m: Array[int] = Stations.deal(n, many, 900 + sd)
+		var ok: bool = Stations.way(n, many, m, 1, 0, n - 1) != null and Stations.way(n, many, m, 1 << (n - 1), n - 1, 0) != null and Stations.all_on_reached(n, many, m)
+		passed += 1 if ok else 0
+	check(passed >= 4, "with %d stations, %d of 5 levels deal a way up, a way down and the whole line on (%d ms a deal)" % [n, passed, (Time.get_ticks_msec() - t1) / 5])
+
+
 func _ability_tables() -> void:
 	var order: Array[StringName] = Abilities.ids()
 	check(order.size() == Abilities.ABILITIES.size() and order.all(func(a: StringName) -> bool: return Abilities.max_tier(a) >= 1 and Abilities.label(a) != ""), "every ability has a name and a top tier")
@@ -269,7 +528,7 @@ func _ability_tables() -> void:
 	check(Relics.MOVES.all(func(a: StringName) -> bool: return a in order), "every relic move is an ability")
 	check(order.all(func(a: StringName) -> bool: return int(Abilities.ABILITIES[a].get("base", 0)) <= Abilities.max_tier(a)), "nothing starts past its top tier")
 	var start: Dictionary = Abilities.start_tiers()
-	check(order.all(func(a: StringName) -> bool: return int(start[a]) == (1 if a in [&"dash", &"parry"] else 0)), "a run starts with the dash and parry")
+	check(order.all(func(a: StringName) -> bool: return int(start[a]) == (1 if a in [&"dash", &"slash", &"mend"] else 0)), "a run starts with the dash, slash and mend")
 	# An ability done by a node: the node says how a tier tunes it (set_tier), and a spell casts
 	# (cast_spell) and tells the spell orb how ready it is (readiness) and how long it has left
 	# (running). A misspelled or missing one would only fail when that ability is used.
@@ -435,3 +694,25 @@ func _keyring(p: Player) -> void:
 	check(p.keyring.spend_skeleton() and p.keyring.spend_skeleton() and not p.keyring.spend_skeleton(), "a skeleton key is spent once each")
 	p.keyring.clear()
 	check(p.keyring.all().is_empty() and p.keyring.skeletons() == 0, "a new run starts empty-handed")
+	# Exam papers ride on the ring as keys do, a slot each.
+	var codes_ok: bool = true
+	for a: StringName in KeyRing.subjects():
+		codes_ok = codes_ok and Abilities.max_tier(a) < KeyRing.PAPER_SPELL
+		for t: int in range(1, Abilities.max_tier(a) + 1):
+			var code: int = KeyRing.paper(a, t)
+			codes_ok = codes_ok and KeyRing.is_paper(code) and KeyRing.paper_spell(code) == a and KeyRing.paper_tier(code) == t
+	check(codes_ok, "an exam paper's code holds its subject and tier, for every ability that takes a slot")
+	check(KeyRing.subjects().has(&"dash") and KeyRing.subjects().has(&"mend") and KeyRing.subjects().has(&"hex") and not KeyRing.subjects().has(&"vigor"), "the dash and mend have papers too; perks do not")
+	check(not KeyRing.is_paper(KeyRing.SKELETON) and not KeyRing.is_paper(0), "and is no key's colour")
+	p.tiers[&"keyring"] = 1
+	var hex: int = KeyRing.paper(&"hex", 2)
+	p.keyring.take(1)
+	p.keyring.take(hex)
+	var just_hex: Array[int] = [hex]
+	check(p.keyring.papers() == just_hex and p.keyring.has(1), "a paper takes a key's slot, beside a key")
+	check_eq(p.keyring.take(KeyRing.paper(&"warp", 1)), 1, "and a full ring leaves the oldest behind, key or paper")
+	p.keyring.spend(hex)
+	var just_warp: Array[int] = [KeyRing.paper(&"warp", 1)]
+	check(p.keyring.papers() == just_warp, "spent, it is gone")
+	p.tiers[&"keyring"] = 0
+	p.keyring.clear()

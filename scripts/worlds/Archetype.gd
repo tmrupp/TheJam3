@@ -17,16 +17,20 @@ const SHADE: float = 0.3
 
 ## Its name: how levels of it are told apart (NextWorldDef.archetype), and its print realm.
 var name: StringName = &""
+## What its title card says on the way in (RisoTransition.title).
+var title: String = ""
 ## The decor its levels wear (RisoDecor.PLANS): the garden's unless it sets its own.
 var decor: StringName = &"garden"
 ## The WFC sample its terrain is collapsed from.
 var sample: String = ""
 ## The collapse's symmetry (see NextWorldDef.symmetry): 1 keeps up up.
 var symmetry: int = 5
-## How much bigger than Rules.level_size its levels are, across and down.
+## How much bigger than Rules.level_size its levels are, across and down (size_for).
 var scale: Vector2 = Vector2.ONE
 ## Whether its levels are gated by chasms (see Chasms), crossed at `crossing`s.
 var chasmed: bool = false
+## Whether its lifts are rolling ladders (RollingLadder, LevelGen.make_moving): the institute's.
+var ladders: bool = false
 ## What stands on each side of a chasm to cross it: a bell (bridges) or a vane (wind).
 var crossing: LevelGen.Type = LevelGen.Type.BELL
 ## How far (cells) from its crossing a crossing's switch may be, or -1 for anywhere on its side.
@@ -36,9 +40,18 @@ var switch_reach: int = -1
 var open: bool = false
 ## How dark its levels are (RisoLight): how much night ink lies over what the wizard cannot see past
 ## the rock (`shade`), and over everything the lanterns and glowing things do not light, in sight
-## or not (`gloom`, the deep darkness of the catacombs; none elsewhere).
+## or not (`gloom`, a deep darkness all over; no band sets it now, the darkness lying in the
+## cemetery's crypts instead, Crypts).
 var shade: float = SHADE
 var gloom: float = 0.0
+
+
+## Small insides collapsed with each of its levels' terrain, from samples of their own, for its
+## structures to be built round (the cemetery's crypts, Crypts): each {"sample": the WFC sample,
+## "size": cells across and down}. The level gets them as LevelGen.patches, in this order. None
+## unless it sets them.
+func patches(_def: NextWorldDef) -> Array[Dictionary]:
+	return []
 
 
 ## The print realm (RisoPrint.REALMS) its levels print in.
@@ -66,6 +79,11 @@ func room(_w: LevelGen, _v: Vector2i, _grow: int) -> bool:
 
 ## Its own dressing, on top of an ordinary level's (after the hoppers, so the rest of the level
 ## lands as it would without it).
+## How big its levels are at `depth` (cells across and down): Rules.level_size, `scale` times.
+func size_for(depth: int) -> Vector2i:
+	return Vector2i((Vector2(Rules.level_size(depth)) * scale).round())
+
+
 func populate(_w: LevelGen, _def: NextWorldDef) -> void:
 	pass
 

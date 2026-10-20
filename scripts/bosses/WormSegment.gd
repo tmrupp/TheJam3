@@ -6,8 +6,9 @@ extends RigidBody2D
 ## through its Wound (WormWound) as any enemy is, but stunned only by a parry (its Stunner is
 ## parry_only). Only the head (make_head) has a HitBox, so only the head bites, and only a bite
 ## can be parried to stun it.
-## Every other segment has thorns on one side: the half of it facing `spikes`, the flank of the
-## body its worm chose as it came out of the rock (Worm). Touching that side hurts (its own HitBox, under a Thorns node
+## Every other segment has thorns on one side: the half of it facing `spikes`. They alternate from
+## one segment to the next (`flank`), starting from the side its worm chose as it came out of the
+## rock (Worm), so each segment's bare side is the other way from its neighbours'. Touching that side hurts (its own HitBox, under a Thorns node
 ## that has no health or stun, so a parry against them only catches the hit and pushes off, as off
 ## any thorns), and a strike from that side glances off (guarded): the wizard has to get round to
 ## its bare side to cut it. While it is down in the rock, or burrowing away to die, it is not live:
@@ -43,6 +44,10 @@ var recovering: bool = false
 var thorns: Node2D
 var thorn_box: HitBox
 var spikes: Vector2 = Vector2.UP
+## Which flank its thorns are on, against the side its worm chose (Worm.Piece.side): 1 that side,
+## -1 the other. Set when it is made, alternating along the worm from the segment behind the head,
+## and kept for good, so a split leaves every thorn where it was.
+var flank: float = 1.0
 
 
 func _init(of: Worm, r: float, hp: int) -> void:

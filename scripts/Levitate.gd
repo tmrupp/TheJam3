@@ -73,9 +73,6 @@ func start() -> void:
 	remaining = FLOAT_TIME
 	player.levitating = true
 	player.velocity.y = 0.0
-	player.visual_event.emit(&"levitate", player.global_position)
-	if RisoPrint.instance != null:
-		RisoPrint.instance.flare(&"levitate")
 
 
 func stop() -> void:

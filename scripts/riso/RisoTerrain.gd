@@ -7,6 +7,15 @@ class_name RisoTerrain
 ## Built stone (LevelGen.masonry: the crags' castle ruins) prints apart from the bare rock: square
 ## cornered, with no fillets where it meets anything, in an ink of its own (MASONRY_LOOKS), and a
 ## coping of darker stone along its walkable tops in place of the rock's cap strip.
+## The air inside a building (LevelGen.interiors: a keep's halls, a tower's rooms) prints over a back
+## wall of stone in place of the sky: the rock's ink, dimmed with night, in courses two to a cell
+## with their joints staggered, under everything else.
+## An indoor realm (INDOOR_REALMS: the institute) is all building: its rock prints square, as built
+## wood or stone (WALL_LOOKS, its tops coped as built stone's are, no cap strip), and all its open air over a
+## back wall of upright boards (BACK_BOARDS to a cell) in place of the sky.
+## Floating ledges print on a canvas of their own (`ledge_ink`, LEDGE_Z) over the decor, everything
+## behind them knocked out, so a bookcase or a plant behind one never hides or shows through it; an
+## indoor realm's print in its walls' look, so they stand out from the dark rooms as the walls do.
 
 const SHADE_NEAR: float = 22.0
 const SHADE_FAR: float = 58.0
@@ -14,17 +23,53 @@ const SHADE_COVER: float = 0.16
 ## The inks built stone can print in, as [plate, cover] laid one over another: sandstone (the
 ## realm's accent over its rock ink, a warm dressed stone), slate (the travelers' federal blue
 ## alone, a cool built stone), or dark (night over the rock ink, a weathered grey). `masonry_look`
-## picks one.
+## picks one; the sky's temples always print in marble (its pale rock ink, faintly shaded), and the
+## institute's halls in pale marble (its deep brown rock ink screened far back, REALM_LOOKS).
 const MASONRY_LOOKS: Dictionary = {
 	&"sandstone": [[RisoPrint.BLUE, 1.0], [RisoPrint.ACCENT, 0.4]],
+	&"pale": [[RisoPrint.BLUE, 0.16]],
+	&"marble": [[RisoPrint.BLUE, 1.0], [RisoPrint.NIGHT, 0.06]],
 	&"slate": [[RisoPrint.CLOTH, 0.85]],
 	&"dark": [[RisoPrint.BLUE, 1.0], [RisoPrint.NIGHT, 0.35]],
 }
+## The looks that print pale and polished, with no shading bands along their edges.
+const PALE_LOOKS: Array[StringName] = [&"pale"]
+## The look built stone always prints in, in a realm that has one of its own.
+const REALM_LOOKS: Dictionary = {&"sky": &"marble", &"institute": &"pale"}
+## The realms that are all indoors (see the class description), the inks their rock prints in by
+## the wall style (RisoPrint.wall_style, `wall_look`): the rock's ink solid for dark panels, screened
+## back on paper for lighter wood or pale stone, so the walls stand apart from the dark back wall of
+## the rooms; and the boards to a cell of their back wall.
+const INDOOR_REALMS: Array[StringName] = [&"institute"]
+const WALL_LOOKS: Dictionary = {
+	&"panels": [[RisoPrint.BLUE, 1.0]],
+	&"light_panels": [[RisoPrint.BLUE, 0.55]],
+	&"planks": [[RisoPrint.BLUE, 0.55]],
+	&"stone": [[RisoPrint.BLUE, 0.32]],
+}
+const BACK_BOARDS: int = 3
+## How much of the rock's ink an indoor realm's back wall prints: all of it, solid, so no paper shows
+## through between the dots of the screen (with night over it, paper dots read as white speckle, and
+## a light lifting the night only shows more of them).
+const BACK_BOARD_WOOD: float = 1.0
+## How much night an indoor realm's back wall has over it (darker than the stone's, so the rooms read
+## apart from the wood round them).
+const BACK_BOARD_SHADE: float = 0.6
+## The ledges' canvas, over the decor (z -15) and under the lanterns' light (-12).
+const LEDGE_Z: int = -14
 ## The coping along built stone's walkable tops: how much night over its stone.
 const COPING_COVER: float = 0.45
+## A building's back wall: how much of the rock's ink, how much night over it, and how much more
+## night in the joints between its blocks (pixels wide: BACK_JOINT).
+const BACK_STONE: float = 0.8
+const BACK_SHADE: float = 0.38
+const BACK_JOINT_COVER: float = 0.25
+const BACK_JOINT: float = 4.0
 static var masonry_look: StringName = &"sandstone"
 
 var ink: InkCanvas
+## The floating ledges, printed over the decor (see the class description).
+var ledge_ink: InkCanvas
 
 
 func _ready() -> void:
@@ -34,6 +79,10 @@ func _ready() -> void:
 	visible = RisoPrint.is_on()
 	ink = InkCanvas.new()
 	add_child(ink)
+	ledge_ink = InkCanvas.new()
+	ledge_ink.z_as_relative = false
+	ledge_ink.z_index = LEDGE_Z
+	add_child(ledge_ink)
 	var map: TileMap = Stage.tile_map()
 	if map != null and map.get_used_cells(0).size() > 0:
 		rebuild(map)
@@ -55,6 +104,7 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 		ledges[tile_map.local_to_map(tile_map.to_local(p))] = true
 	var info: MapInfo = MapInfo.instance
 	var masonry: Dictionary = info.world.masonry if info != null and info.world != null else {}
+	var interiors: Dictionary = info.world.interiors if info != null and info.world != null else {}
 	var half: float = float(tile_map.tile_set.tile_size.x) * tile_map.global_scale.x * 0.5
 	var radius: float = half * 0.32
 	# Top corners stay nearly square: the floor's collision runs right to the cell edge, and a
@@ -68,6 +118,12 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 	var near_pies: Array[PackedVector2Array] = []
 	var far_pies: Array[PackedVector2Array] = []
 	var empties: Dictionary = {}
+	var indoor: bool = info != null and info.here != null and INDOOR_REALMS.has(info.here.realm())
+	var wooden: Array[PackedVector2Array] = []
+	var ledge_body: Array[PackedVector2Array] = []
+	var ledge_caps: Array[PackedVector2Array] = []
+	# Built stone printed pale (the institute's marble) is polished: no shading bands along its edges.
+	var polished: bool = info != null and info.here != null and PALE_LOOKS.has(REALM_LOOKS.get(info.here.realm(), masonry_look))
 	for v: Vector2i in solid:
 		var c: Vector2 = tile_map.to_global(tile_map.map_to_local(v))
 		var up: bool = solid.has(v + Vector2i.UP)
@@ -78,11 +134,16 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 		var ledge_r: bool = ledges.has(v + Vector2i.RIGHT)
 		if masonry.has(v):
 			built.append(_cell(c, half, 0.0, false, false, false, false))
+		elif indoor:
+			wooden.append(_cell(c, half, 0.0, false, false, false, false))
 		else:
 			body.append(_cell(c, half, radius, not up and not left and not ledge_l, not up and not right and not ledge_r, not down and not right, not down and not left, top_radius))
 		for pair: Array in [[near, SHADE_NEAR], [far, SHADE_FAR]]:
+			if polished and masonry.has(v):
+				break
 			var d: float = float(pair[1])
-			var inset: PackedVector2Array = _inset(c, half, d, radius, up, down, left, right)
+			# Rock printed square (built stone, an indoor realm's wood) is shaded square too.
+			var inset: PackedVector2Array = _inset(c, half, d, 0.0 if indoor or masonry.has(v) else radius, up, down, left, right)
 			if inset.size() > 2:
 				(pair[0] as Array[PackedVector2Array]).append(inset)
 		for d: Vector2i in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
@@ -94,21 +155,30 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 			for sy: int in [-1, 1]:
 				var round: Array[Vector2i] = [e + Vector2i(sx, 0), e + Vector2i(0, sy), e + Vector2i(sx, sy)]
 				# Built stone meets things square: no fillet where any of it is built.
-				if round.all(func(n: Vector2i) -> bool: return solid.has(n) and not masonry.has(n)):
+				if not indoor and round.all(func(n: Vector2i) -> bool: return solid.has(n) and not masonry.has(n)):
 					var corner: Vector2 = c + Vector2(sx, sy) * half
 					fillets.append(_fillet(corner, Vector2(-sx, -sy), radius))
 					near_pies.append(_pie(corner, Vector2(-sx, -sy), SHADE_NEAR + radius * 0.5))
 					far_pies.append(_pie(corner, Vector2(-sx, -sy), SHADE_FAR))
+				elif round.all(func(n: Vector2i) -> bool: return solid.has(n)):
+					# Square rock's inside corner: the shading cut back square from it, as far as
+					# along the faces either side, so no dark square reaches into the corner.
+					var corner: Vector2 = c + Vector2(sx, sy) * half
+					near_pies.append(_notch(corner, Vector2(sx, sy), SHADE_NEAR))
+					far_pies.append(_notch(corner, Vector2(sx, sy), SHADE_FAR))
 	for v: Vector2i in ledges:
 		if solid.has(v):
 			continue
 		var c: Vector2 = tile_map.to_global(tile_map.map_to_local(v))
 		var joins_l: bool = solid.has(v + Vector2i.LEFT) or ledges.has(v + Vector2i.LEFT)
 		var joins_r: bool = solid.has(v + Vector2i.RIGHT) or ledges.has(v + Vector2i.RIGHT)
-		body.append(_box(Vector2(c.x, c.y - half + 17.0), half, 17.0, 12.0, false, false, not joins_r, not joins_l))
-		# Square on top (it is walkable to its very end), rounded underneath at free ends.
+		# Square on top (it is walkable to its very end), rounded underneath at free ends; with its own
+		# cap (or an indoor realm's coping) across its top, all on the ledges' canvas.
+		ledge_body.append(_box(Vector2(c.x, c.y - half + 17.0), half, 17.0, 12.0, false, false, not joins_r, not joins_l))
+		ledge_caps.append(_box(Vector2(c.x, c.y - half + 5.5), half, 8.5, 0.0, false, false, false, false))
 	var caps: Array[PackedVector2Array] = []
 	var copings: Array[PackedVector2Array] = []
+	var wood_copings: Array[PackedVector2Array] = []
 	var tops: Array[Vector2i] = []
 	for v: Vector2i in solid:
 		if not solid.has(v + Vector2i.UP):
@@ -140,12 +210,24 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 		if not wall_r:
 			cap = _trim(cap, _fillet(Vector2(x1, y0), Vector2(-1, 1), top_radius))
 		if cap.size() > 2:
+			var square: PackedVector2Array = _box(Vector2((a.x - half + b.x + half) * 0.5, y0 + 8.5), (b.x - a.x) * 0.5 + half, 8.5, 0.0, false, false, false, false)
 			if masonry.has(tops[i]):
-				copings.append(_box(Vector2((a.x - half + b.x + half) * 0.5, y0 + 8.5), (b.x - a.x) * 0.5 + half, 8.5, 0.0, false, false, false, false))
+				copings.append(square)
+			elif indoor:
+				wood_copings.append(square)
 			else:
 				caps.append(cap)
 		i = j + 1
 	ink.begin()
+	if indoor:
+		# All of it is indoors: every open cell of the level has a back wall.
+		var everywhere: Dictionary = {}
+		for x: int in range(info.world.size.x):
+			for y: int in range(info.world.size.y):
+				everywhere[Vector2i(x, y)] = true
+		_back_wall(tile_map, solid, everywhere, half, true)
+	else:
+		_back_wall(tile_map, solid, interiors, half)
 	body.append_array(fillets)
 	if info != null and info.here != null and info.here.open() and RisoPrint.instance != null:
 		var style: StringName = RisoPrint.instance.sky_bottom_style
@@ -156,11 +238,25 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 	# Rock hides the sky behind it: no stars or moons printing through the ground.
 	ink.knock([RisoPrint.PINK, RisoPrint.ACCENT], body)
 	ink.ink(RisoPrint.BLUE, 1.0, body)
-	var look: Array = MASONRY_LOOKS.get(masonry_look, MASONRY_LOOKS[&"sandstone"])
+	var look_name: StringName = REALM_LOOKS.get(info.here.realm(), masonry_look) if info != null and info.here != null else masonry_look
+	var look: Array = MASONRY_LOOKS.get(look_name, MASONRY_LOOKS[&"sandstone"])
 	if not built.is_empty():
-		ink.knock([RisoPrint.PINK, RisoPrint.ACCENT], built)
+		# A look screened back (pale marble) lies on paper: the night under it knocked out first.
+		var under: Array[int] = [RisoPrint.PINK, RisoPrint.ACCENT]
+		if float(look[0][1]) < 1.0:
+			under.append(RisoPrint.NIGHT)
+		ink.knock(under, built)
 		for k: int in range(look.size()):
 			ink.ink(int(look[k][0]), float(look[k][1]), built, k == 0)
+	var wall: Array = wall_look()
+	# A wall look screened back lies on paper: the night under it knocked out first.
+	var wall_under: Array[int] = [RisoPrint.PINK, RisoPrint.ACCENT]
+	if float(wall[0][1]) < 1.0:
+		wall_under.append(RisoPrint.NIGHT)
+	if not wooden.is_empty():
+		ink.knock(wall_under, wooden)
+		for k: int in range(wall.size()):
+			ink.ink(int(wall[k][0]), float(wall[k][1]), wooden, k == 0)
 	# Deep band first, cleared around inside corners; then the near band, cleared tighter.
 	ink.ink(RisoPrint.NIGHT, SHADE_COVER, far, false)
 	ink.knock([RisoPrint.NIGHT], far_pies)
@@ -172,7 +268,65 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 		for k: int in range(look.size()):
 			ink.ink(int(look[k][0]), float(look[k][1]), copings, k == 0)
 		ink.ink(RisoPrint.NIGHT, COPING_COVER, copings, false)
+	if not wood_copings.is_empty():
+		ink.knock(wall_under, wood_copings)
+		for k: int in range(wall.size()):
+			ink.ink(int(wall[k][0]), float(wall[k][1]), wood_copings, k == 0)
+		ink.ink(RisoPrint.NIGHT, COPING_COVER, wood_copings, false)
 	ink.finish()
+	ledge_ink.begin()
+	if not ledge_body.is_empty():
+		# Everything behind it knocked out, the rock's ink too: printed in a look screened back (an
+		# indoor realm's light walls), a bookcase's wood showed through it at full strength.
+		ledge_ink.knock([RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.EYE], ledge_body)
+		var ledge_look: Array = wall if indoor else [[RisoPrint.BLUE, 1.0]]
+		for k: int in range(ledge_look.size()):
+			ledge_ink.ink(int(ledge_look[k][0]), float(ledge_look[k][1]), ledge_body, k == 0)
+		if indoor:
+			ledge_ink.ink(RisoPrint.NIGHT, COPING_COVER, ledge_caps, false)
+		else:
+			ledge_ink.ink(RisoPrint.ACCENT, 1.0, ledge_caps)
+	ledge_ink.finish()
+
+
+## The inks an indoor realm's walls print in, by the wall style (WALL_LOOKS, RisoPrint.wall_style).
+static func wall_look() -> Array:
+	var style: StringName = RisoPrint.instance.wall_style if RisoPrint.instance != null else &"planks"
+	return WALL_LOOKS.get(style, WALL_LOOKS[&"planks"])
+
+
+## The back wall behind the air inside buildings (`interiors`; see the class description), in courses
+## of stone, or upright `boards` (an indoor realm's): it hides the sky as rock does.
+func _back_wall(tile_map: TileMap, solid: Dictionary, interiors: Dictionary, half: float, boards: bool = false) -> void:
+	var back: Array[PackedVector2Array] = []
+	var joints: Array[PackedVector2Array] = []
+	for v: Vector2i in interiors:
+		if solid.has(v):
+			continue
+		var c: Vector2 = tile_map.to_global(tile_map.map_to_local(v))
+		back.append(_cell(c, half, 0.0, false, false, false, false))
+		if boards:
+			# Upright boards, BACK_BOARDS to a cell, with a rail across every other row.
+			for b: int in range(1, BACK_BOARDS + 1):
+				var x: float = c.x - half + float(b) * half * 2.0 / float(BACK_BOARDS)
+				joints.append(RisoShapes.rrect(x - BACK_JOINT * 0.5, c.y - half, BACK_JOINT, half * 2.0, 0.0))
+			if posmod(v.y, 2) == 0:
+				joints.append(RisoShapes.rrect(c.x - half, c.y - half - BACK_JOINT, half * 2.0, BACK_JOINT * 2.0, 0.0))
+			continue
+		for course: int in range(2):
+			var y0: float = c.y - half + float(course) * half
+			joints.append(RisoShapes.rrect(c.x - half, y0 - BACK_JOINT * 0.5, half * 2.0, BACK_JOINT, 0.0))
+			var shift: float = half * 0.5 if (v.y * 2 + course) % 2 == 1 else 0.0
+			for b: int in range(2):
+				var x: float = c.x - half + shift + float(b) * half
+				if x > c.x - half and x < c.x + half:
+					joints.append(RisoShapes.rrect(x - BACK_JOINT * 0.5, y0, BACK_JOINT, half, 0.0))
+	if back.is_empty():
+		return
+	ink.knock([RisoPrint.PINK, RisoPrint.ACCENT], back)
+	ink.ink(RisoPrint.BLUE, BACK_BOARD_WOOD if boards else BACK_STONE, back)
+	ink.ink(RisoPrint.NIGHT, BACK_BOARD_SHADE if boards else BACK_SHADE, back, false)
+	ink.ink(RisoPrint.NIGHT, BACK_JOINT_COVER, joints, false)
 
 
 ## Floating islands' tapered undersides (SkyArchetype.taper_islands lays them as rock a row at a
@@ -277,6 +431,13 @@ func _inset(c: Vector2, h: float, d: float, r: float, up: bool, down: bool, left
 	var hh: float = (y1 - y0) * 0.5
 	var rr: float = minf(r + d * 0.5, minf(hw, hh))
 	return _box(Vector2((x0 + x1) * 0.5, (y0 + y1) * 0.5), hw, hh, rr, not up and not left, not up and not right, not down and not right, not down and not left)
+
+
+## A square `d` across in the rock at an inside corner of square rock, reaching from `corner` the
+## way `into` (into the cell of rock across the corner from the open air).
+func _notch(corner: Vector2, into: Vector2, d: float) -> PackedVector2Array:
+	var far: Vector2 = corner + into * d
+	return PackedVector2Array([corner, Vector2(far.x, corner.y), far, Vector2(corner.x, far.y)])
 
 
 ## Three-quarter disc at an inside corner, leaving out the quadrant that faces open air.

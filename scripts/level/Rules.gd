@@ -99,6 +99,62 @@ static func rarity_color (roll: int) -> int:
 			return c
 	return 0
 
+## A sky level's wind as its record `rec` leaves it (LevelRecord.vanes_on, wind_way): the way it
+## blows (+1 right, -1 left) times its strength, the number of vanes switched on that point that
+## way; 0 while still. Vanes on that point the other way do nothing until the wind is turned their
+## way (by switching one of them on).
+static func wind_of (rec: LevelRecord) -> int:
+	if rec == null or rec.wind_way == 0:
+		return 0
+	var strength: int = 0
+	for way: Variant in rec.vanes_on.values():
+		if int(way) == rec.wind_way:
+			strength += 1
+	return rec.wind_way * strength
+
+## Lodestones (Lodestone, CragsArchetype.place_lodestone): along each crags row, every stretch of
+## LODESTONE_STRETCH worlds holds each damage spell's stone once, at places and in an order hashed
+## from the row and the stretch (LODESTONE_DEAL), so one crags level in four holds one and no
+## spell's stone is ever more than LODESTONE_STRETCH - 1 worlds along a row.
+const LODESTONE_STRETCH: int = 24
+const LODESTONE_DEAL: int = 5150
+## How long an empowered cast takes to come back (Empower), by the lodestones touched: from the
+## first stone, each one more cutting a quarter off, down to the last entry from the seventh on.
+const EMPOWER_RECHARGE: Array[float] = [60.0, 45.0, 34.0, 25.0, 19.0, 14.0, 10.0]
+
+## The damage spell whose lodestone stands in the level at `at`, or &"" for none (see
+## LODESTONE_STRETCH). Only crags levels hold one; side worlds never do.
+static func lodestone_at (at: Vector2i) -> StringName:
+	if Worlds.is_side(at) or NextWorldDef.archetype_at(at.y) != &"crags":
+		return &""
+	var spells: Array[StringName] = Abilities.in_slot(&"damage")
+	var stretch: int = floori(float(at.x) / float(LODESTONE_STRETCH))
+	var order: Array[int] = _lodestone_order(stretch, at.y)
+	var i: int = order.find(posmod(at.x, LODESTONE_STRETCH))
+	return spells[i] if i >= 0 and i < spells.size() else &""
+
+## The places along stretch `stretch` of row `row` (0 .. LODESTONE_STRETCH - 1), shuffled by hashing
+## them (no RNG): the first holds the first damage spell's stone, the next the second's, and so on.
+static func _lodestone_order (stretch: int, row: int) -> Array[int]:
+	var order: Array[int] = []
+	for i: int in range(LODESTONE_STRETCH):
+		order.append(i)
+	var h: int = level_seed(level_seed(stretch, row), LODESTONE_DEAL)
+	for i: int in range(LODESTONE_STRETCH - 1, 0, -1):
+		h = level_seed(h, i)
+		var j: int = h % (i + 1)
+		var keep: int = order[i]
+		order[i] = order[j]
+		order[j] = keep
+	return order
+
+## Seconds an empowered cast takes to come back once `stones` lodestones have been touched (none
+## yet: no empowering at all, INF).
+static func empower_recharge (stones: int) -> float:
+	if stones <= 0:
+		return INF
+	return EMPOWER_RECHARGE[mini(stones, EMPOWER_RECHARGE.size()) - 1]
+
 ## Cells across and down for a level: small near the surface, growing with depth.
 static func level_size (depth: int) -> Vector2i:
 	# Half the old growth (6 and 5 cells a depth, capped at 80 x 72): big levels were slow and long.

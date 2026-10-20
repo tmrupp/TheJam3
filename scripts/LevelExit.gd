@@ -4,7 +4,8 @@ class_name LevelExit
 ## (MapInfo.here, see NextWorldDef.lead and price): in a level, the deeper exit costs stars once,
 ## a side world's door its entry price once, and left and right are locked with a key colour dealt
 ## by the level seed (the key is kept, and the door stays open; a skeleton key opens it too, and is
-## used up).
+## used up). The institute's way on, in its classroom, takes the exam paper that classroom asks for
+## besides as the wizard goes through, once (MapInfo.way_on_due, hand_in_way_on).
 
 @onready var player: Player = Stage.player()
 
@@ -61,12 +62,18 @@ func interacted() -> void:
 		if not player.keyring.has(needs) and not player.keyring.spend_skeleton():
 			return
 		map_info.record().lateral_open[exit] = true
+	# The institute's way on: the exam paper its classroom asks for, or no way through.
+	var paper: int = map_info.way_on_due() if exit == MapInfo.Exit.DEEPER else 0
+	if paper < 0:
+		RisoFx.burst(&"hit", global_position + Vector2(0, -60), Vector2.UP, [RisoPrint.PINK, RisoPrint.NIGHT])
+		return
 	var owed: int = price()
 	if owed > 0:
 		if player.coins.coins < owed:
 			return
 		player.collect(-owed)
 		map_info.here.pay(exit, map_info.record())
+	map_info.hand_in_way_on(paper)
 	map_info.travel(exit)
 
 func _ready() -> void:

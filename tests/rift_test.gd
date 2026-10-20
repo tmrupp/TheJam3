@@ -10,7 +10,7 @@ func run() -> void:
 	player.collect(500)
 	var rift: Rift = player.get_node("Rift") as Rift
 	check(player.is_on_floor(), "standing to cast tier I")
-	Abilities.cast(player)
+	Abilities.cast(player, &"move")
 	check(rift.ends.size() == 1 and not bool(rift.ends[0].get("linked")), "Spell places the first end, waiting for its partner")
 	player.global_position += Vector2(0, -600)
 	player.velocity = Vector2.ZERO
@@ -19,7 +19,7 @@ func run() -> void:
 	check(rift.cast() == null and rift.ends.size() == 1, "tier I cannot place in midair")
 	player.set_physics_process(false)
 	Abilities.grant(player, &"rift")
-	Abilities.cast(player)
+	Abilities.cast(player, &"move")
 	check(rift.ends.size() == 2 and bool(rift.ends[0].get("linked")) and bool(rift.ends[1].get("linked")), "tier II places in midair and links both ends")
 	var first: Node2D = rift.ends[0]
 	var second: Node2D = rift.ends[1]
@@ -30,13 +30,13 @@ func run() -> void:
 	check(player.global_position == second.global_position, "interaction travels to the partner")
 	check(player.graced.is_acting(), "a moment's grace coming out of a portal")
 	player.global_position += Vector2(700, 0)
-	Abilities.cast(player)
+	Abilities.cast(player, &"move")
 	check(first.is_queued_for_deletion() and second.is_queued_for_deletion() and rift.ends.size() == 1, "third cast deletes both old ends and starts a new pair")
 	var third: Node2D = rift.ends[0]
 	check(not bool(third.get("linked")) and not bool(first.get("linked")) and not bool(second.get("linked")), "the new end waits for a partner and old ends stop working immediately")
 	check(natural.all(func(n: Node) -> bool: return is_instance_valid(n) and not n.is_queued_for_deletion()), "recasting leaves generated teleporters alone")
 	player.global_position += Vector2(700, 0)
-	Abilities.cast(player)
+	Abilities.cast(player, &"move")
 	var fourth: Node2D = rift.ends[1]
 	check(third.get("partner") == fourth and fourth.get("partner") == third, "fourth cast completes the new pair, linked both ways")
 	var stand_at: Vector2 = fourth.global_position
@@ -47,8 +47,8 @@ func run() -> void:
 	await Signal(fourth, &"trip_done")
 	check(player.global_position == third.global_position, "interacting travels")
 	var pair_a: Array = info.record().rifts.duplicate()
-	Abilities.grant(player, &"hex")
-	check(not third.is_queued_for_deletion() and not fourth.is_queued_for_deletion() and not player.has_node("Rift"), "the world keeps its pair when another spell is equipped")
+	Abilities.grant(player, &"warp")
+	check(not third.is_queued_for_deletion() and not fourth.is_queued_for_deletion() and not player.has_node("Rift"), "the world keeps its pair when another spell takes the movement slot")
 	Abilities.grant(player, &"rift")
 	Abilities.grant(player, &"rift")
 	rift = player.get_node("Rift") as Rift
@@ -58,20 +58,20 @@ func run() -> void:
 	var world_b: Vector2i = info.coord
 	check(not is_instance_valid(third) and info.record(world_a).rifts == pair_a, "unloading a world preserves its pair in the record")
 	check(rift.ends.is_empty(), "another world starts with its own empty spell pair")
-	Abilities.cast(player)
+	Abilities.cast(player, &"move")
 	check(rift.ends.size() == 1 and not bool(rift.ends[0].get("linked")), "new level starts with a fresh unpaired end")
 	player.global_position += Vector2(0, -500)
-	Abilities.cast(player)
+	Abilities.cast(player, &"move")
 	var pair_b: Array = info.record().rifts.duplicate()
 	check(pair_b.size() == 2 and info.record(world_a).rifts == pair_a, "placing a pair in world B leaves world A's pair intact")
 	info.travel(MapInfo.Exit.LEFT)
 	await settle(8)
 	player.set_physics_process(false)
 	check(rift.ends.size() == 2 and rift.ends[0].global_position == pair_a[0] and rift.ends[1].global_position == pair_a[1], "returning to world A restores its exact pair")
-	Abilities.cast(player)
+	Abilities.cast(player, &"move")
 	check(rift.ends.size() == 1 and info.record(world_b).rifts == pair_b, "recasting in world A deletes only world A's old pair")
 	player.global_position += Vector2(0, -400)
-	Abilities.cast(player)
+	Abilities.cast(player, &"move")
 	pair_a = info.record().rifts.duplicate()
 	info.travel(MapInfo.Exit.RIGHT)
 	await settle(8)

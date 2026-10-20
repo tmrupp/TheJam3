@@ -1,0 +1,17 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/MendWell.gd" id="1_well"]
+[ext_resource type="PackedScene" uid="uid://pwmevy3urxq6" path="res://prefabs/interactable.tscn" id="2_inter"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_well"]
+size = Vector2(78, 110)
+
+[node name="MendWell" type="Area2D"]
+collision_layer = 0
+script = ExtResource("1_well")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, 9)
+shape = SubResource("RectangleShape2D_well")
+
+[node name="Interactable" parent="." instance=ExtResource("2_inter")]

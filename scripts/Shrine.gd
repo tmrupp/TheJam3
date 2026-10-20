@@ -8,8 +8,8 @@ class_name Shrine
 ##   relic not yet found instead (see Relics), marked on the worlds map, or a skeleton key
 ##   (sells_skeleton), laid somewhere in the level for the wizard to find.
 ## Pay to learn. There is no menu: interact with the one you want.
-## A spell learned in place of the one in the slot leaves the old spell in its niche, at its tier;
-## interacting there takes it back free (leaving the newer one in turn), even once spent.
+## A spell learned in place of the one in the slot hands the old one back as an exam paper, at its
+## tier (MapInfo.put_back), to be learned again at a lantern.
 
 const BOONS: int = 2
 
@@ -46,7 +46,7 @@ func offer_tier(i: int = 0) -> int:
 	return Abilities.tier(player, offer(i)) + 1
 
 
-## Learning niche `i` would replace the spell in the slot.
+## Learning niche `i` would replace what is in its slot.
 func swap(i: int = 0) -> bool:
 	return Abilities.is_swap(player, offer(i))
 
@@ -65,47 +65,20 @@ func can_mend() -> bool:
 
 func buy_boon(i: int = 0) -> void:
 	if used():
-		take_back(i)
 		return
 	var a: StringName = offer(i)
 	if a == &"":
 		return
-	# A spell that replaces the one in the slot leaves the old one here, at its tier.
-	var dropped: StringName = Abilities.spell(player) if swap(i) else &""
+	# Something that replaces what is in its slot hands the old one back as a paper, at its tier.
+	var dropped: StringName = Abilities.spell(player, Abilities.slot_of(a)) if swap(i) else &""
 	var dropped_tier: int = Abilities.tier(player, dropped) if dropped != &"" else 0
 	if not _pay(offer_price(i)):
 		return
 	Abilities.grant(player, a)
+	var niche: Node2D = get_node("Boon" if i == 0 else "Boon2") as Node2D
 	if dropped != &"":
-		map_info.record().left_spell = [dropped, dropped_tier, i]
+		map_info.put_back(dropped, dropped_tier, niche.global_position + Vector2(0, -40))
 	_spend(get_node("Boon" if i == 0 else "Boon2") as Node2D, [RisoPrint.ACCENT, RisoPrint.PINK])
-	if RisoPrint.instance != null:
-		RisoPrint.instance.flare({&"wall_climb": &"climb"}.get(a, a))
-
-
-## The spell left in niche `i` by a swap, as [spell, tier], or an empty array.
-func left_spell(i: int) -> Array:
-	var left: Array = map_info.record().left_spell if map_info != null else []
-	return [StringName(left[0]), int(left[1])] if left.size() == 3 and int(left[2]) == i else []
-
-
-## Take back the spell left in niche `i`, free and at its tier, leaving the one in the slot
-## (if any) there in its place: a spent shrine still swaps.
-func take_back(i: int) -> void:
-	var left: Array = left_spell(i)
-	if left.is_empty():
-		return
-	var held: StringName = Abilities.spell(player)
-	var held_tier: int = Abilities.tier(player, held) if held != &"" else 0
-	Abilities.set_tier(player, left[0], left[1])
-	if held != &"":
-		map_info.record().left_spell = [held, held_tier, i]
-	else:
-		map_info.record().left_spell = []
-	map_info.save_run()
-	RisoFx.burst(&"gain", (get_node("Boon" if i == 0 else "Boon2") as Node2D).global_position + Vector2(0, -40), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.PINK])
-	if RisoPrint.instance != null:
-		RisoPrint.instance.flare(left[0])
 
 
 ## At full health (nothing to mend), the mending station sells the whereabouts of the nearest relic
@@ -190,11 +163,11 @@ func _spend(side: Node2D, inks: Array[int]) -> void:
 	RisoFx.burst(&"gain", side.global_position + Vector2(0, -40), Vector2.ZERO, inks)
 
 
-## Only offer the interact prompt where there is something to do: an offer, or a left spell.
+## Only offer the interact prompt where there is something to do.
 func _process(_delta: float) -> void:
 	var spent: bool = used()
-	$Boon/Interactable.available = not spent or not left_spell(0).is_empty()
-	$Boon2/Interactable.available = not spent or not left_spell(1).is_empty()
+	$Boon/Interactable.available = not spent
+	$Boon2/Interactable.available = not spent
 	$Mend/Interactable.available = not spent and (can_mend() or reads_relic() or sells_skeleton())
 
 

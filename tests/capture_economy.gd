@@ -1,7 +1,7 @@
 extends SceneTree
-## Stills for groups 7 and 8: a star cluster, a skeleton key, the lit lantern that can be burned
-## into the mend spell (with a full keyring and skeleton keys trailing the wizard), a warp on its
-## way in and out, and the pause menu with Give up.
+## Stills for groups 7 and 8: a star cluster, a skeleton key, the lit lantern (with a full keyring
+## and skeleton keys trailing the wizard), the sitting card with mend II a draught short, a warp on
+## its way in and out, and the pause menu with Give up.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_economy.gd
 
 func _initialize() -> void:
@@ -54,8 +54,8 @@ func capture() -> void:
 		key.position = at + (k[1] as Vector2)
 		info.map_elements.add_child(key)
 	shots.append(await shot(camera, at + Vector2(45, 0)))
-	# The lit start lantern, burnable: mend II with a draught gone. The HUD shows a keyring III's keys
-	# and two skeleton keys.
+	# The lit start lantern, with mend II a draught short. The HUD shows a keyring III's keys and two
+	# skeleton keys.
 	Abilities.grant(player, &"keyring")
 	Abilities.grant(player, &"keyring")
 	Abilities.grant(player, &"keyring")
@@ -77,11 +77,23 @@ func capture() -> void:
 	strip.save_png(output.path_join("economy.png"))
 	# The whole screen, for the HUD.
 	root.get_texture().get_image().save_png(output.path_join("economy_hud.png"))
+	# Sitting: the card with the stars, mend's mark and its draughts (one left of two), and the place.
+	player.set_physics_process(true)
+	player.get_node("CameraControl").set_process(true)
+	Input.action_press(&"Down")
+	for i: int in range(150):
+		await process_frame
+	root.get_texture().get_image().save_png(output.path_join("economy_sitting.png"))
+	Input.action_release(&"Down")
+	for i: int in range(20):
+		await process_frame
+	player.set_physics_process(false)
+	player.get_node("CameraControl").set_process(false)
 	# A warp, mid-trip: drawn into a tear where the wizard stands, then pushed out where they land.
 	Abilities.set_tier(player, &"warp", 1)
 	player.collect(50)
 	var warp: Warp = player.get_node("Warp") as Warp
-	Abilities.cast(player)
+	Abilities.cast(player, &"move")
 	await create_timer(0.18).timeout
 	root.get_texture().get_image().save_png(output.path_join("economy_warp_in.png"))
 	await create_timer(0.2).timeout

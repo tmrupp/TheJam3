@@ -24,9 +24,13 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	_post.available = gondola != null and gondola.may_call(index)
+	# Its gondola gone (its level unloaded) or left behind: nothing to call.
+	if gondola == null or not is_instance_valid(gondola):
+		queue_free()
+		return
+	_post.available = gondola.may_call(index)
 
 
 ## Whether the car is on its way here, called.
 func called() -> bool:
-	return gondola != null and gondola.running and not gondola.ridden and gondola.bound_for == index
+	return gondola != null and is_instance_valid(gondola) and gondola.running and not gondola.ridden and gondola.bound_for == index

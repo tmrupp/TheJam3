@@ -1,7 +1,8 @@
 extends TestKit
 ## The cemetery archetype (docs/DEEPER_PLAN.md, group 3): bands of depths, its own terrain sample
 ## (collapsed with no symmetry), realm and decor, its gates (chasms bridged once their bell is
-## freed from its chain, by a key or a switch, and rung), and what lives there: moths drawn to a lit lantern and scattered by a hex, sleep fog that
+## freed from its chain, by a key or a switch, and rung, and bearing the wizard only while their
+## flame is out; the bridge sags and the pit fills with mist), and what lives there: moths drawn to a lit lantern and scattered by a hex, sleep fog that
 ## switches the spell off, and wraiths that drift through rock at the wizard.
 ## godot --headless --path . --script res://tests/cemetery_test.gd
 
@@ -46,7 +47,7 @@ func bands() -> void:
 	var kinds: Array[StringName] = []
 	for d: int in [0, g, g + 1, g + b, g + b + 1]:
 		kinds.append(NextWorldDef.archetype_at(d))
-	check(kinds == [&"garden", &"garden", &"cemetery", &"cemetery", &"catacombs"], "down from the start: the garden, then the cemetery for %d rows, then the catacombs: %s" % [b, kinds])
+	check(kinds == [&"garden", &"garden", &"cemetery", &"cemetery", &"institute"], "down from the start: the garden, then the cemetery for %d rows, then the institute: %s" % [b, kinds])
 	check(NextWorldDef.first_depth(&"cemetery") == g + 1, "the cemetery's first row")
 	var def: NextWorldDef = Rules.def_for(Vector2i(28, NextWorldDef.first_depth(&"cemetery") + 1))
 	check(def.region == CemeteryArchetype.SAMPLE and def.symmetry == 1 and def.realm() == &"cemetery", "a cemetery collapses the graveyard sample, unturned, and prints in its realm")
@@ -112,7 +113,7 @@ func generation() -> void:
 						for q: Vector2i in w.objects:
 							if w.get_cell(q).type == LevelGen.Type.SWITCH and w.get_cell(q).extra_info == v:
 								levers += 1
-								check(absi(q.x - v.x) + absi(q.y - v.y) >= LevelGen.SWITCH_NEAR_MIN and w.get_cell(q + Vector2i.DOWN).type in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED], "%s: its switch stands on a floor near it" % at)
+								check(absi(q.x - v.x) + absi(q.y - v.y) >= 2 and w.get_cell(q + Vector2i.DOWN).type in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED], "%s: its switch stands on a floor near it" % at)
 						check(levers == 1, "%s: a bell chained to a switch has one" % at)
 					else:
 						check(lock < Rules.KEY_COLOR_COUNT, "%s: or a padlock in a key colour (%d)" % [at, lock])
@@ -220,14 +221,37 @@ func bridges() -> void:
 	check(not info.bell_free(other.get_meta(&"cell")), "the bell across the chasm is still chained: each has its own chain")
 	bell.call("hex_hit", 1, Vector2.RIGHT)
 	check(bool(bell.call("rung")) and info.bridge_up(id), "then a hex bolt rings the bell, and the record keeps it")
-	await until(func() -> bool: return planks.all(func(n: Node) -> bool: return bool(n.call("up")) and not bool((n.get_node("CollisionShape2D") as CollisionShape2D).disabled)))
-	check(planks.all(func(n: Node) -> bool: return bool(n.call("up")) and not bool((n.get_node("CollisionShape2D") as CollisionShape2D).disabled)), "the bridge lays itself across")
+	var bears: Callable = func(n: Node) -> bool: return not bool((n.get_node("CollisionShape2D") as CollisionShape2D).disabled)
+	await until(func() -> bool: return planks.all(func(n: Node) -> bool: return bool(n.call("up"))))
+	check(planks.all(func(n: Node) -> bool: return bool(n.call("up"))), "the bridge lays itself across")
+	await physics_frame
+	await physics_frame
+	check(info.flame_lit() and planks.all(func(n: Node) -> bool: return not bears.call(n)), "but while the wizard's flame burns it is a ghost: nothing stands on it")
+	# The bridge sags: level with the shores, lowest in the middle.
+	var mid: Bridge = planks[planks.size() / 2] as Bridge
+	check(is_zero_approx((planks[0] as Bridge).sag_left) and is_zero_approx((planks[-1] as Bridge).sag_right) and mid.sag_left > Bridge.SAG * 0.8, "it sags, level with the shores at its ends")
+	# The pit under it fills with mist (its thorns know their chasm).
+	var pit: Array[Node] = placed("spikes.tscn").filter(func(n: Node) -> bool: return (n as Spikes).pit == id)
+	check(pit.size() == planks.size(), "the thorns along its pit, %d of them, hold its mist" % pit.size())
+	player.global_position = over
+	player.velocity = Vector2.ZERO
+	player.set_physics_process(true)
+	await until(func() -> bool: return player.global_position.y > over.y + 160.0, 3000)
+	check(player.global_position.y > over.y + 160.0, "a wizard carrying a lit flame drops through it")
+	player.set_physics_process(false)
+	check(info.snuff(player.global_position), "the flame snuffed")
+	await until(func() -> bool: return planks.all(bears))
+	check(planks.all(bears), "in the dark the bridge bears the wizard")
 	player.global_position = over
 	player.velocity = Vector2.ZERO
 	player.set_physics_process(true)
 	await until(func() -> bool: return player.is_on_floor() and player.global_position.y < over.y + 100.0)
 	check(player.is_on_floor() and player.global_position.y < over.y + 100.0, "and the wizard stands on it")
+	info.relight()
+	await until(func() -> bool: return player.global_position.y > over.y + 160.0, 3000)
+	check(player.global_position.y > over.y + 160.0, "lit again (a dash), they drop through")
 	player.set_physics_process(false)
+	info.snuff(player.global_position)
 	# Gone and back: the bridge is still up.
 	info._load_level()
 	await settle()
@@ -328,6 +352,12 @@ func wraiths() -> void:
 	var from: Vector2 = wraith.global_position
 	player.global_position = from + Vector2(500, 0)
 	player.invulnerable.enable()
+	info.run.vulnerable = false
+	info.relight()
+	# While the wizard's flame is lit it never comes at them.
+	await within(func() -> bool: return false, 1.0)
+	check(not bool(brain.get("awake")) and wraith.global_position.distance_to(from) < 2.0, "while the flame is lit it stays put")
+	info.snuff(player.global_position)
 	await until(func() -> bool: return bool(brain.get("awake")) and wraith.global_position.distance_to(player.global_position) < from.distance_to(player.global_position))
 	check(bool(brain.get("awake")) and wraith.global_position.distance_to(player.global_position) < from.distance_to(player.global_position), "it senses the wizard and drifts at them")
 	# Straight through rock: put it in rock beside the wizard and it keeps coming.
@@ -345,8 +375,9 @@ func wraiths() -> void:
 		check(wraith.global_position.x > start.x, "it moves through the rock toward the wizard")
 	var wound: Wound = wraith.get_node("Wound") as Wound
 	var hp: int = wound.hp
-	wound.hit(1, Vector2.RIGHT)
-	check(not is_instance_valid(wraith) or wraith.is_queued_for_deletion() or wound.hp < hp, "the hex wounds it")
+	wound.hit(5, Vector2.RIGHT)
+	await physics_frame
+	check(is_instance_valid(wraith) and not wraith.is_queued_for_deletion() and wound.hp == hp, "nothing hurts it")
 	if is_instance_valid(wraith) and not wraith.is_queued_for_deletion():
 		(wraith.get_node("Stunner") as Stunner).stun(2.0)
 		var held: Vector2 = wraith.global_position

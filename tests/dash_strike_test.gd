@@ -1,8 +1,9 @@
 extends TestKit
-## The dash is the attack (DashStrike): dashing through an enemy stuns it without hurting the
-## wizard, the strike perk makes it wound, a shield takes the dash and throws the wizard back,
-## dashing into a cracked wall breaks it, and on the ground the dash only comes back after
-## Player.DASH_GROUND_COOLDOWN. A blink strikes along its way and spends the moons it passes.
+## The dash is a move, not an attack (DashStrike): the wizard dashes right through an enemy
+## unhurt, and it is neither stunned nor wounded; dashing into a cracked wall does nothing to it (only
+## an empowered spell breaks one, Empower), and on the
+## ground the dash only comes back after Player.DASH_GROUND_COOLDOWN. A blink spends the moons it
+## passes, and strikes nothing on its way either.
 ## godot --headless --path . --script res://tests/dash_strike_test.gd
 
 ## Frames the directions are held through a dash (it is over by then).
@@ -60,7 +61,7 @@ func run() -> void:
 	await boot()
 	player.end_invulnerable()
 	var strike: DashStrike = player.get_node_or_null("DashStrike") as DashStrike
-	check(strike != null and strike.damage == 0 and Abilities.spell(player) == &"parry", "every wizard's dash strikes; parry is the spell to start with")
+	check(strike != null and Abilities.spell(player, &"move") == &"dash" and Abilities.spell(player) == &"slash", "every wizard has the dash's way (DashStrike); the dash and slash to start with")
 
 	print("on the ground")
 	player.global_position = info.respawn_marker.global_position
@@ -68,7 +69,7 @@ func run() -> void:
 	check(player.is_on_floor() and not player.dash.acted, "standing, the dash is ready")
 	await press_dash()
 	check(player.is_on_floor() and player.dash.acted, "dashed on the ground: not back at once")
-	await until(func() -> bool: return not player.dash.acted, roundi((Player.DASH_GROUND_COOLDOWN + 0.1) * 1000.0))
+	await within(func() -> bool: return not player.dash.acted, Player.DASH_GROUND_COOLDOWN + 0.1)
 	check(not player.dash.acted, "back after %.2f s" % Player.DASH_GROUND_COOLDOWN)
 
 	print("dashing through a wisp")
@@ -84,8 +85,7 @@ func run() -> void:
 	player.dash.refresh()
 	player.dash_rest = 0.0
 	await press_dash(-side)
-	check(stunned(e), "it is stunned")
-	check(int(e.get_node("Wound").get("hp")) == hp, "but not wounded without the strike perk")
+	check(not stunned(e) and int(e.get_node("Wound").get("hp")) == hp, "it is neither stunned nor wounded: the dash is no attack")
 	check(player.health.health == health, "and the wizard is unhurt")
 	check((player.global_position - e.global_position).dot(-side) > 0.0, "having passed right through it")
 	check(player.get_collision_mask_value(DashStrike.ENEMY_LAYER), "enemies block again once the dash is over")
@@ -108,30 +108,7 @@ func run() -> void:
 	check(strike.guards(damager), "touching an enemy mid-dash does not hurt")
 	check(not strike.guards(null), "anything else still does")
 	player.dash.end()
-	strike.guard_left = 0.0
 	check(not strike.guards(damager), "and once the dash is over, it hurts again")
-
-	print("the strike perk")
-	Abilities.grant(player, &"strike")
-	check(strike.damage == 1 and Abilities.max_tier(&"strike") == 3, "strike I wounds 1 (up to III)")
-	var cell: Vector2i = e.get_meta(&"cell")
-	strike.struck.clear()
-	strike.sweep(e.global_position - side * 100.0, e.global_position + side * 100.0)
-	check(not is_instance_valid(e) or e.is_queued_for_deletion(), "a struck wisp is slain")
-	check((info.record().slain as Dictionary).has(cell), "and the level records it")
-
-	print("shields")
-	var pick2: Array = target()
-	var guard: Node2D = pick2[0]
-	var shield: Shield = Shield.new()
-	shield.name = "Shield"
-	shield.hp = 2
-	guard.add_child(shield)
-	player.dash.enable(true)
-	strike.struck.clear()
-	strike.sweep(guard.global_position - Vector2(100, 0), guard.global_position + Vector2(100, 0))
-	check(shield.hp == 1 and not stunned(guard) and is_instance_valid(guard) and not guard.is_queued_for_deletion(), "a shield takes the dash whole")
-	check(not player.dash.is_acting() and player.velocity.x < 0.0, "and throws the wizard back")
 
 	print("cracked walls")
 	var wall: Node2D = null
@@ -152,8 +129,8 @@ func run() -> void:
 		player.dash.refresh()
 		player.dash_rest = 0.0
 		await press_dash(Vector2(wcell - from))
-		check(not is_instance_valid(wall) or wall.is_queued_for_deletion(), "dashing into it breaks it")
-		check((info.record().broken as Dictionary).has(wcell), "for good")
+		check(is_instance_valid(wall) and not wall.is_queued_for_deletion(), "dashing into it leaves it standing")
+		check(not (info.record().broken as Dictionary).has(wcell), "and nothing is broken in the record")
 
 	print("blink")
 	Abilities.set_tier(player, &"blink", 1)
@@ -163,11 +140,8 @@ func run() -> void:
 	check(player.dash.acted, "the dash is spent")
 	blink.call("_moons", moon.global_position - Vector2(150, 0), moon.global_position + Vector2(150, 0))
 	check(not player.dash.acted and float(moon.get("waning")) > 0.0, "a moon on the blink's way is spent and gives the dash back")
-	var pick3: Array = target([guard])
-	var far: Node2D = pick3[0]
-	strike.struck.clear()
-	strike.damage = 0
+	var far: Node2D = target()[0]
 	strike.sweep(far.global_position - Vector2(250, 0), far.global_position + Vector2(250, 0))
-	check(stunned(far), "and what lies on its way is struck")
+	check(not stunned(far), "and what lies on its way is not struck")
 
 	finish()

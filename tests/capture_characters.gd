@@ -1,13 +1,14 @@
 extends TestKit
-## Render the selectable travelers and their state cues in the real game, close and at game zoom.
+## Render the Fool and their state cues in the real game, close and at game zoom.
 ## Run windowed: godot --path . --windowed --resolution 1280x720 --script res://tests/capture_characters.gd.
 
 ## Review stills live with the concept sheets, outside Godot's imported resources.
 const OUTPUT: String = "res://docs/mockups/wizard-replacements/game-captures"
-## Close views leave room for the cape, staff, bindle and carried lantern.
+## Close views leave room for the bindle and the carried lantern.
 const REGION: Rect2i = Rect2i(430, 90, 420, 500)
-## Spell and protection combinations shown for every appearance.
-const SHOTS: Array[StringName] = [&"hex", &"unprotected", &"smoke_trail", &"spent_dash", &"astral", &"awareness"]
+## Spell, movement and protection states, side by side (the utility spell shows nothing on the
+## figure).
+const SHOTS: Array[StringName] = [&"hex", &"spent_dash", &"levitate", &"unprotected", &"smoke_trail"]
 
 
 func run() -> void:
@@ -39,56 +40,42 @@ func run() -> void:
 	camera.limit_bottom = 100000
 	var path: String = ProjectSettings.globalize_path(OUTPUT)
 	DirAccess.make_dir_recursive_absolute(path)
-	for shot: StringName in SHOTS:
-		var strip: Image = Image.create(REGION.size.x * 3, REGION.size.y, false, Image.FORMAT_RGBA8)
-		for index: int in range(1, RisoPrint.CHARACTER_STYLES.size()):
-			riso.set_character_style(RisoPrint.CHARACTER_STYLES[index])
-			Abilities.set_tier(player, shot if shot in [&"astral", &"awareness"] else &"hex", 1)
-			player.health.health = 1 if shot == &"unprotected" else 3
-			info.run.vulnerable = shot in [&"unprotected", &"smoke_trail"]
-			player.dash.acted = shot == &"spent_dash"
-			if info.run.vulnerable:
+	var strip: Image = Image.create(REGION.size.x * SHOTS.size(), REGION.size.y, false, Image.FORMAT_RGBA8)
+	for k: int in range(SHOTS.size()):
+		var shot: StringName = SHOTS[k]
+		Abilities.set_tier(player, &"hex", 1)
+		Abilities.set_tier(player, &"levitate" if shot == &"levitate" else &"dash", 1)
+		player.health.health = 1 if shot == &"unprotected" else 3
+		info.run.vulnerable = shot in [&"unprotected", &"smoke_trail"]
+		player.dash.acted = shot == &"spent_dash"
+		wizard.lantern_smoke.clear()
+		if info.run.vulnerable:
+			if shot == &"smoke_trail":
+				player.global_position.x -= 216.0
+			for step: int in range(18):
+				wizard._step_smoke(RisoWizard.SMOKE_STEP)
 				if shot == &"smoke_trail":
-					player.global_position.x -= 216.0
-				for step: int in range(18):
-					wizard._step_smoke(RisoWizard.SMOKE_STEP)
-					if shot == &"smoke_trail":
-						player.global_position.x += 12.0
-			camera.zoom = Vector2.ONE * 0.7
-			camera.global_position = player.global_position + Vector2(0, -46)
-			camera.reset_smoothing()
-			riso.robe_color = RisoPrint.ROBES[Abilities.spell(player)]
-			await frames(3)
-			await RenderingServer.frame_post_draw
-			var still: Image = root.get_texture().get_image().get_region(REGION)
-			still.convert(Image.FORMAT_RGBA8)
-			strip.blit_rect(still, Rect2i(Vector2i.ZERO, REGION.size), Vector2i((index - 1) * REGION.size.x, 0))
-		strip.save_png(path.path_join(String(shot) + "_comparison.png"))
+					player.global_position.x += 12.0
+		camera.zoom = Vector2.ONE * 0.7
+		camera.global_position = player.global_position + Vector2(0, -46)
+		camera.reset_smoothing()
+		riso.robe_color = RisoPrint.ROBES[Abilities.spell(player)]
+		await frames(3)
+		await RenderingServer.frame_post_draw
+		var still: Image = root.get_texture().get_image().get_region(REGION)
+		still.convert(Image.FORMAT_RGBA8)
+		strip.blit_rect(still, Rect2i(Vector2i.ZERO, REGION.size), Vector2i(k * REGION.size.x, 0))
+	strip.save_png(path.path_join("fool_states.png"))
 	# The actual gameplay camera, rather than just the enlarged drawing.
 	info.run.vulnerable = false
 	player.health.health = 3
 	player.dash.acted = false
-	Abilities.set_tier(player, &"hex", 1)
-	for style: StringName in [&"cosmonaut", &"shaman", &"fool"]:
-		riso.set_character_style(style)
-		camera.zoom = Vector2.ONE * 0.25 * riso.zoom_factor
-		camera.global_position = player.global_position + Vector2(0, -30)
-		camera.reset_smoothing()
-		await frames(3)
-		await RenderingServer.frame_post_draw
-		root.get_texture().get_image().save_png(path.path_join(String(style) + "_gameplay.png"))
-	# The actual selector, unfolded and scrolled into view.
-	riso.panel.visible = true
-	var section: Array = riso._sections["Look"]
-	if not (section[1] as VBoxContainer).visible:
-		(section[0] as Button).pressed.emit()
-	var picker: OptionButton = riso._options[&"character"] as OptionButton
-	var scroll: ScrollContainer = riso.panel.get_child(0) as ScrollContainer
-	await process_frame
-	scroll.ensure_control_visible(picker)
-	await process_frame
+	camera.zoom = Vector2.ONE * 0.25 * riso.zoom_factor
+	camera.global_position = player.global_position + Vector2(0, -30)
+	camera.reset_smoothing()
+	await frames(3)
 	await RenderingServer.frame_post_draw
-	root.get_texture().get_image().save_png(path.path_join("f7_characters.png"))
+	root.get_texture().get_image().save_png(path.path_join("fool_gameplay.png"))
 	print("CAPTURED character comparisons: ", path)
 	finish()
 

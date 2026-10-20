@@ -60,11 +60,6 @@ func unchained() -> bool:
 	return map_info.bell_free(get_meta(&"cell"))
 
 
-## For the map: the padlock's colour, SWITCH_LOCK, or -2 once free.
-func lock_state() -> int:
-	return -2 if unchained() else lock
-
-
 func interaction_hint() -> Dictionary:
 	if unchained():
 		return {}

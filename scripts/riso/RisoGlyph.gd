@@ -4,6 +4,28 @@ extends RefCounted
 ## spell slot and on the map. A new ability gets its mark here (anything else shows a spark).
 
 
+## An ability's mark fitted inside a circle of `radius` round `c` (a roundel): centred on the middle
+## of its extent and sized, by its still pose, until its farthest point meets the circle, so a mark
+## that moves keeps its size.
+static func fit(a: StringName, c: Vector2, radius: float, t: float) -> Array[PackedVector2Array]:
+	var still: Array[PackedVector2Array] = of(a, Vector2.ZERO, 0.0)
+	var box: Rect2 = Rect2(still[0][0], Vector2.ZERO)
+	for poly: PackedVector2Array in still:
+		for p: Vector2 in poly:
+			box = box.expand(p)
+	var mid: Vector2 = box.get_center()
+	var far: float = 0.001
+	for poly: PackedVector2Array in still:
+		for p: Vector2 in poly:
+			far = maxf(far, p.distance_to(mid))
+	var s: float = radius / far
+	var move: Transform2D = Transform2D(0.0, Vector2(s, s), 0.0, c - mid * s)
+	var out: Array[PackedVector2Array] = []
+	for poly: PackedVector2Array in of(a, Vector2.ZERO, t):
+		out.append(move * poly)
+	return out
+
+
 ## An ability's mark, centred on `c`: what a shrine teaches.
 static func of(a: StringName, c: Vector2, t: float) -> Array[PackedVector2Array]:
 	match a:
@@ -15,8 +37,6 @@ static func of(a: StringName, c: Vector2, t: float) -> Array[PackedVector2Array]
 			return [RisoShapes.rrect(c.x - 22, c.y - 26, 9, 52, 4), RisoShapes.crescent(c + Vector2(6, -4), 14.0, Vector2(-6, 0)), RisoShapes.circle(c + Vector2(4, 18), 5.0, 12)]
 		&"blink":
 			return [RisoShapes.circle(c + Vector2(-18, 0), 7.0, 14), RisoShapes.circle(c + Vector2(-4, 0), 2.5, 8), RisoShapes.circle(c + Vector2(5, 0), 2.5, 8), RisoShapes.circle(c + Vector2(18, 0), 10.0, 18)]
-		&"parry":
-			return [RisoShapes.crescent(c, 22.0, Vector2(9, 0))]
 		&"astral":
 			return RisoMarks.ghost_shape(Transform2D(0.0, Vector2(1.5, 1.5), 0.0, c + Vector2(0, 28)))
 		&"vigor":
@@ -40,9 +60,28 @@ static func of(a: StringName, c: Vector2, t: float) -> Array[PackedVector2Array]
 			# A ring it leaves by, a dotted way across, and the ring it comes out of.
 			return [RisoShapes.circle(c + Vector2(-17, 8), 8.0, 16), RisoShapes.circle(c + Vector2(-5, -1), 2.6, 8), RisoShapes.circle(c + Vector2(4, -6), 2.6, 8),
 				RisoShapes.circle(c + Vector2(16, -6), 11.0, 20)]
-		&"strike":
-			# The dash's chevron driving into a burst.
-			return [RisoMarks.chevron(c + Vector2(-10, 0), Vector2.RIGHT, 0.8), RisoShapes.sparkle(c + Vector2(14, 0), 15.0)]
+		&"slash":
+			# A crescent blade sweeping round, a spark at its tip.
+			return [RisoShapes.crescent(c + Vector2(-4, 2), 20.0, Vector2(-8, 6)), RisoShapes.sparkle(c + Vector2(14, -14), 8.0)]
+		&"nova":
+			# A bead in a ring of rays bursting out.
+			var burst: Array[PackedVector2Array] = [RisoShapes.circle(c, 7.0, 14)]
+			for i: int in range(8):
+				var d: Vector2 = Vector2.from_angle(TAU * float(i) / 8.0)
+				burst.append(RisoShapes.almond(c + d * 17.0, 2.6, 6.0, 8) if i % 2 == 0 else RisoShapes.circle(c + d * 16.0, 2.4, 8))
+			return burst
+		&"push":
+			# Three gusts blowing out from a bead, the middle one longest.
+			return [RisoShapes.circle(c + Vector2(-16, 0), 6.0, 12), RisoShapes.rrect(c.x - 6, c.y - 12, 22, 5, 2.5),
+				RisoShapes.rrect(c.x - 6, c.y - 2.5, 30, 5, 2.5), RisoShapes.rrect(c.x - 6, c.y + 7, 22, 5, 2.5)]
+		&"seeker":
+			# A small bolt at the end of a curling path, turning onto its mark.
+			return [RisoShapes.crescent(c + Vector2(-4, 6), 18.0, Vector2(-7, -7)), RisoShapes.sparkle(c + Vector2(15, -12), 10.0),
+				RisoShapes.circle(c + Vector2(-20, 14), 3.0, 8)]
+		&"lunge":
+			# A spear thrust: a long shaft, its point, and streaks behind.
+			return [RisoShapes.rrect(c.x - 20, c.y - 2.5, 34, 5, 2.5), RisoShapes.tri(c + Vector2(12, -8), c + Vector2(12, 8), c + Vector2(28, 0)),
+				RisoShapes.rrect(c.x - 28, c.y - 11, 14, 3.5, 1.75), RisoShapes.rrect(c.x - 28, c.y + 7.5, 14, 3.5, 1.75)]
 		&"hex":
 			# A comet: a bold spark with a tapering tail behind it.
 			return [RisoShapes.sparkle(c + Vector2(7, -5), 17.0), PackedVector2Array([c + Vector2(4, -12), c + Vector2(-22, 14), c + Vector2(-2, 0)])]

@@ -26,6 +26,12 @@ const WAIT_MS: int = 30000
 
 
 func _initialize() -> void:
+	# One physics step a frame. Under load the engine otherwise runs several physics steps in one
+	# frame to catch up, while a press made with Input.parse_input_event reaches the game only at
+	# the start of the next frame: a test that pressed, then counted physics frames, could count
+	# them all before the press arrived. With one step a frame, a busy machine runs the game slower
+	# instead, and every test sees the same order of input and physics as on an idle one.
+	Engine.max_physics_steps_per_frame = 1
 	run.call_deferred()
 
 
@@ -79,6 +85,18 @@ func until(cond: Callable, timeout_ms: int = WAIT_MS) -> bool:
 			return false
 		await process_frame
 	return true
+
+
+## Wait until `cond` holds, checking after each physics frame, for at most `seconds` of game time
+## (counted in physics frames, not by the clock); false if it still does not hold. For what the
+## game times itself (a cooldown, a regrowth): a busy machine runs the game slower than the clock,
+## so a wait by the clock can run out before the game's own time has.
+func within(cond: Callable, seconds: float) -> bool:
+	for i: int in range(ceili(seconds * float(Engine.physics_ticks_per_second))):
+		if bool(cond.call()):
+			return true
+		await physics_frame
+	return bool(cond.call())
 
 
 ## A condition for until(): `node` is freed or going away. (A lambda holding the node itself
@@ -187,10 +205,55 @@ func window(size: Vector2i = Vector2i(1280, 720)) -> void:
 	root.size = size
 
 
-## Save `image` (by default the whole window as drawn now) to the stills folder as `file`.
+## Save `image` (by default the whole window as drawn now) to the stills folder as `file` (which may
+## name a folder in it, made if need be).
 func save_still(file: String, image: Image = null) -> void:
 	var out: Image = image if image != null else root.get_texture().get_image()
-	var dir: String = ProjectSettings.globalize_path(STILLS)
-	DirAccess.make_dir_recursive_absolute(dir)
-	out.save_png(dir.path_join(file))
+	var path: String = ProjectSettings.globalize_path(STILLS).path_join(file)
+	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
+	out.save_png(path)
 	print("CAPTURED ", file)
+
+
+## The whole level being played (with a cell of its border round it), photographed in tiles at a
+## far zoom, `tiles` across and as many rows as cover it, stitched, cropped to the level and halved,
+## saved as `file` (see save_still). Light by sight is turned off meanwhile, so every tile prints
+## alike however far it is from the wizard.
+func overview_still(file: String, tiles: int = 3) -> void:
+	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
+	var by_sight: bool = RisoLight.by_sight
+	RisoLight.by_sight = false
+	var half: float = float(info.tile_map.tile_set.tile_size.x) * info.tile_map.global_scale.x * 0.5
+	var top_left: Vector2 = info.cell_position(Vector2i(-1, -1)) - Vector2(half, half)
+	var size: Vector2 = Vector2(info.world.size + Vector2i(2, 2)) * half * 2.0
+	var base: Vector2 = Vector2(root.content_scale_size)
+	if base.x < 1.0:
+		base = Vector2(root.size)
+	var was: Vector2 = camera.zoom
+	# The zoom at which `tiles` views span the level across.
+	var view: Vector2 = Vector2(size.x / float(tiles), size.x / float(tiles) * base.y / base.x)
+	var zoom: float = base.x / view.x
+	var rows: int = ceili(size.y / view.y)
+	camera.limit_left = -10000000
+	camera.limit_top = -10000000
+	camera.limit_right = 10000000
+	camera.limit_bottom = 10000000
+	var sheet: Image = null
+	for j: int in range(rows):
+		for i: int in range(tiles):
+			var center: Vector2 = top_left + Vector2((float(i) + 0.5) * view.x, (float(j) + 0.5) * view.y)
+			for k: int in range(45):
+				camera.zoom = Vector2(zoom, zoom)
+				camera.global_position = center
+				camera.reset_smoothing()
+				await process_frame
+			var shot: Image = root.get_texture().get_image()
+			if sheet == null:
+				sheet = Image.create(shot.get_width() * tiles, shot.get_height() * rows, false, shot.get_format())
+			sheet.blit_rect(shot, Rect2i(Vector2i.ZERO, shot.get_size()), Vector2i(i * shot.get_width(), j * shot.get_height()))
+	camera.zoom = was
+	RisoLight.by_sight = by_sight
+	var px: float = float(sheet.get_width()) / (view.x * float(tiles))
+	sheet = sheet.get_region(Rect2i(0, 0, sheet.get_width(), mini(sheet.get_height(), ceili(size.y * px))))
+	sheet.resize(sheet.get_width() / 2, sheet.get_height() / 2, Image.INTERPOLATE_LANCZOS)
+	save_still(file, sheet)

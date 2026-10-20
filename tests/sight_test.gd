@@ -2,7 +2,8 @@ extends TestKit
 ## Light and darkness by line of sight (RisoSight, RisoLight): sight stops at rock and reaches a
 ## little into the faces it meets, the shapes the darkness prints are whole outlines with no holes,
 ## a door or wall changing redoes it, and in the game the wizard's sight, the lanterns' pools and
-## the shade follow the rock, with deep darkness in the catacombs only.
+## the shade follow the rock, with deep darkness inside the cemetery's crypts and no band dark all
+## over.
 ## godot --headless --path . --script res://tests/sight_test.gd
 
 const CELL: float = 128.0
@@ -10,6 +11,7 @@ const CELL: float = 128.0
 
 func run() -> void:
 	_grid()
+	_against_rays()
 	_outside()
 	await _in_game()
 	finish()
@@ -42,6 +44,35 @@ func _grid() -> void:
 	check(not Geometry2D.is_point_in_polygon(Vector2(6.5, 3.5) * CELL, seen), "the pillar's inside is not seen")
 	check(Geometry2D.is_point_in_polygon(Vector2(6.0 * CELL + RisoSight.FACE * 0.5, 3.5 * CELL), seen), "the face of the pillar the eye looks at is lit")
 	check(not Geometry2D.is_point_in_polygon(_mid(Vector2i(2, 8)), seen), "beyond the floor is not seen")
+	# The band into the floor and the ceiling is as deep far off as close by: flat, not a wedge
+	# that thins as the eye looks along it.
+	var even: int = 0
+	var past: int = 0
+	for k: int in range(1, 21):
+		var x: float = float(k) * 0.5 * CELL
+		for at: Vector2 in [Vector2(x, 7.0 * CELL + RisoSight.FACE * 0.8), Vector2(x, -RisoSight.FACE * 0.8)]:
+			# The floor past the pillar's shadow (from x ~10.6 cells) is not seen at all.
+			if at.y > 0.0 and x > 10.0 * CELL:
+				continue
+			if Geometry2D.is_point_in_polygon(at, seen):
+				even += 1
+		for at: Vector2 in [Vector2(x, 7.0 * CELL + RisoSight.FACE + 3.0), Vector2(x, -RisoSight.FACE - 3.0)]:
+			if Geometry2D.is_point_in_polygon(at, seen):
+				past += 1
+	check_eq(even, 40, "the floor and the ceiling are lit to the same depth all along")
+	check_eq(past, 0, "and no deeper")
+	# In the room's corners the floor's and ceiling's bands meet the wall's in a mitre, and none runs
+	# on past it under the wall (a ray grazing the floor once lit a long sliver of rock there).
+	var f: float = RisoSight.FACE
+	var mitred: bool = true
+	var beyond: bool = false
+	for k: Vector2 in [Vector2(0, 7) * CELL, Vector2(0, 0)]:
+		var down: float = 1.0 if k.y > 0.0 else -1.0
+		mitred = mitred and Geometry2D.is_point_in_polygon(k + Vector2(-f * 0.5, f * 0.5 * down), seen)
+		beyond = beyond or Geometry2D.is_point_in_polygon(k + Vector2(-f - 8.0, 4.0 * down), seen)
+		beyond = beyond or Geometry2D.is_point_in_polygon(k + Vector2(-4.0, (f + 8.0) * down), seen)
+	check(mitred, "in the room's corners the bands meet in a mitre")
+	check(not beyond, "and no band runs on past a corner into the rock")
 	check_eq(s.polygon(_mid(Vector2i(6, 3)), bounds).size(), 4, "from inside rock, everything is seen")
 	# A light's own reach: the box it is cast in bounds it.
 	var box: Rect2 = Rect2(eye - Vector2(200, 200), Vector2(400, 400))
@@ -51,6 +82,110 @@ func _grid() -> void:
 	check(s.set_solid(Vector2i(6, 3), false) and s.version > v, "opening a cell bumps the version")
 	check(not s.set_solid(Vector2i(6, 3), false), "opening it again changes nothing")
 	check(Geometry2D.is_point_in_polygon(_mid(Vector2i(9, 3)), s.polygon(eye, bounds)), "with the pillar holed, the eye sees through it")
+
+
+## A long floor and ceiling running out of a light's reach, a step down, a pillar and a ledge,
+## seen from many places: every open point a ray reaches is inside what is seen, and none in shadow
+## is, not even just under a corner. (A face that carried on past the edge of the box once cut a
+## wedge out of the light, and lighting into a face once carried on out past a corner, starting its
+## shadow away from it.)
+func _against_rays() -> void:
+	print("sight against ray casts")
+	var s: RisoSight = RisoSight.new(Vector2.ZERO, CELL)
+	for x: int in range(-30, 30):
+		s.solid[Vector2i(x, 4)] = true
+		s.solid[Vector2i(x, -1)] = true
+	for x: int in range(-30, -1):
+		s.solid[Vector2i(x, 3)] = true
+	s.solid[Vector2i(5, 2)] = true
+	s.solid[Vector2i(5, 3)] = true
+	s.solid[Vector2i(-4, 1)] = true
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = 7
+	var dark: int = 0
+	var lit: int = 0
+	var round_corners: int = 0
+	var turned: int = 0
+	var deep: int = 0
+	for trial: int in range(40):
+		var eye: Vector2 = Vector2(rng.randf_range(-3.0, 3.0), rng.randf_range(0.1, 3.9)) * CELL
+		var reach: float = rng.randf_range(150.0, 420.0)
+		if s.blocked(eye):
+			# From inside rock everything is seen (an astral wizard), so there is nothing to check.
+			continue
+		var seen: PackedVector2Array = s.polygon(eye, Rect2(eye - Vector2(reach, reach), Vector2(reach, reach) * 2.0))
+		if not _whole_round(seen, eye):
+			turned += 1
+		for q: Vector2 in seen:
+			if _depth_in(s, q) > RisoSight.FACE * sqrt(2.0) + 1.0:
+				deep += 1
+		for k: int in range(400):
+			var p: Vector2 = eye + Vector2.from_angle(rng.randf() * TAU) * rng.randf() * reach
+			if s.blocked(p):
+				continue
+			var far: float = eye.distance_to(p)
+			var hit: float = s.cast(eye, (p - eye).normalized(), far)
+			var inside: bool = Geometry2D.is_point_in_polygon(p, seen)
+			if hit >= far and not inside:
+				dark += 1
+			elif inside and hit < far - RisoSight.FACE - 2.0:
+				lit += 1
+			if inside and hit < far and _shadowed(s, eye, p, 2.0):
+				round_corners += 1
+	check_eq(dark, 0, "no open point in sight is left out")
+	check_eq(lit, 0, "no point deep in shadow is let in")
+	check_eq(round_corners, 0, "no open point in shadow is lit, under a corner or anywhere")
+	check_eq(turned, 0, "the outline goes once round the eye, never turning back (the light fans out from it)")
+	check_eq(deep, 0, "no corner of it lies deeper in the rock than a band's mitre")
+	# A lantern held just over the lip of the step: right under the lip is in its shadow.
+	var flame: Vector2 = Vector2(-1.17, 2.58) * CELL
+	var lip: PackedVector2Array = s.polygon(flame, Rect2(flame - Vector2(320, 320), Vector2(640, 640)))
+	var under: int = 0
+	for y: int in range(395, 480, 5):
+		var q: Vector2 = Vector2(-1.0 * CELL + 3.0, float(y))
+		if _shadowed(s, flame, q, 2.0) and Geometry2D.is_point_in_polygon(q, lip):
+			under += 1
+	check_eq(under, 0, "the shadow under a corner starts at the corner")
+
+
+## How far (px) `p` lies inside the rock: from the nearest open cell round it (0 if in the open).
+func _depth_in(s: RisoSight, p: Vector2) -> float:
+	if not s.blocked(p):
+		return 0.0
+	var at: Vector2i = s.cell_of(p)
+	var near: float = INF
+	for dx: int in range(-2, 3):
+		for dy: int in range(-2, 3):
+			var v: Vector2i = at + Vector2i(dx, dy)
+			if not s.solid.has(v):
+				var r: Rect2 = Rect2(Vector2(v) * CELL, Vector2(CELL, CELL))
+				near = minf(near, p.clamp(r.position, r.end).distance_to(p))
+	return near
+
+
+## Whether `outline` runs once round `eye` without ever turning back: each corner a little further
+## round than the last, a whole turn in all (so a light can fan out from its flame over it).
+func _whole_round(outline: PackedVector2Array, eye: Vector2) -> bool:
+	var turn: float = 0.0
+	for i: int in range(outline.size()):
+		var a: Vector2 = outline[i] - eye
+		var b: Vector2 = outline[(i + 1) % outline.size()] - eye
+		var step: float = a.angle_to(b)
+		if step < -0.0001:
+			return false
+		turn += step
+	return absf(turn - TAU) < 0.01
+
+
+## Whether `p` and the points `off` px either side of it, across the line from `eye`, are all hidden
+## from `eye` by rock (so `p` is not on the edge of a shadow).
+func _shadowed(s: RisoSight, eye: Vector2, p: Vector2, off: float) -> bool:
+	var across: Vector2 = (p - eye).normalized().orthogonal() * off
+	for q: Vector2 in [p, p + across, p - across]:
+		var far: float = eye.distance_to(q)
+		if s.cast(eye, (q - eye).normalized(), far) >= far:
+			return false
+	return true
 
 
 ## The darkness prints outside sight: holes are split into whole outlines.
@@ -83,6 +218,8 @@ func _in_game() -> void:
 	print("in the game")
 	await boot(28)
 	await settle()
+	# Landed: the wizard arrives in the air, and sight is worked out from where their eyes are.
+	await until(func() -> bool: return player.is_on_floor())
 	var light: RisoLight = main.get_node("RisoLight") as RisoLight
 	await process_frame
 	check(light.sight != null and light.sight.solid.size() > 0, "the rock is laid out for sight")
@@ -99,12 +236,11 @@ func _in_game() -> void:
 					deep = info.cell_position(v)
 	check(deep != Vector2.INF and not Geometry2D.is_point_in_polygon(deep, light.seen), "buried rock is out of sight")
 	check(Geometry2D.is_point_in_polygon(info.cell_position(at), light.seen), "the wizard's own cell is in sight")
-	# The carried pool is cut by the rock as well.
-	var pool: Array = light.pools[light.pools.size() - 1]
-	var lit_rock: bool = false
-	for shape: PackedVector2Array in pool[1]:
-		lit_rock = lit_rock or (deep != Vector2.INF and Geometry2D.is_point_in_polygon(deep, shape))
-	check(Vector2(light.carried.x, light.carried.y).is_equal_approx(pool[0]) and not lit_rock, "the carried pool stops at the rock")
+	# The carried light is cut by the rock as well, and is thrown from the lantern's flame.
+	var flame: Vector2 = Vector2(light.carried.x, light.carried.y)
+	var lit_rock: bool = deep != Vector2.INF and Geometry2D.is_point_in_polygon(deep, light.carried_seen)
+	check(light.carried_seen.size() >= 3 and Geometry2D.is_point_in_polygon(flame, light.carried_seen) and not lit_rock, "the carried light stops at the rock")
+	check(not light.sight.blocked(flame) and flame.distance_to(player.global_position) < 80.0, "it shines from the lantern, never from inside rock")
 	check(light.dark_ink.get_child_count() > 0, "the shade prints")
 	check(is_equal_approx(info.here.shade(), Archetype.SHADE) and is_zero_approx(info.here.gloom()), "the garden is shaded out of sight, without deep darkness")
 	RisoLight.by_sight = false
@@ -123,12 +259,15 @@ func _in_game() -> void:
 		await process_frame
 		check(not light.sight.solid.has(door), "once open, sight passes")
 		info.record().opened.erase(door)
-	print("the catacombs")
-	info.coord = Vector2i(28, NextWorldDef.band_row(&"catacombs", 0))
+	print("the crypts")
+	info.coord = Vector2i(28, NextWorldDef.first_depth(&"cemetery"))
 	info._load_level()
 	await settle()
-	check(info.here.gloom() > 0.0 and info.here.shade() > Archetype.SHADE, "the catacombs are deep dark")
-	check(light.pools.size() > 0, "their lights carve the dark")
+	check(info.here.gloom() == 0.0 and not light.crypt_rooms(info).is_empty(), "a cemetery is not dark all over, but its crypts are")
+	# The lights may come in a few frames after the level settles.
+	check(await until(func() -> bool: return light.fades.size() > 1), "its lights carve the dark")
+	var bands: Array[StringName] = NextWorldDef.archetype_names()
+	check(bands.all(func(b: StringName) -> bool: return Rules.def_for(Vector2i(28, NextWorldDef.first_depth(b))).gloom() == 0.0), "no band is deep dark all over")
 	RunState.delete_save()
 
 

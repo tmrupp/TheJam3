@@ -8,7 +8,8 @@ var well: Inkwell:
 		return host as Inkwell
 
 
-## The ink well: a big gold-rimmed pot on the floor with a paper label, a pulsing halo, a drop of
+## The ink well: a big gold-rimmed pot on the floor with a paper label, a beam (its light is the
+## well's own, RisoLight), a drop of
 ## ink rising and falling and a quill resting in its mouth. Its price is a focused interaction
 ## tooltip. Once paid it is dry: no drop, no glow, a dim rim.
 func _draw_art() -> void:
@@ -18,11 +19,9 @@ func _draw_art() -> void:
 	var pot_t: Transform2D = Transform2D(0.0, Vector2(2.3, 2.3), 0.0, o)
 	var pulse: float = 1.0 + 0.08 * sin(t * 3.0 + phase)
 	if not dry:
-		# A beam of light rising out of the well, and a bright halo: you can spot it from afar.
+		# A beam of light rising out of the well: you can spot it from afar.
 		var beam: PackedVector2Array = PackedVector2Array([o + Vector2(-20, -10), o + Vector2(20, -10), o + Vector2(44 * pulse, -330), o + Vector2(-44 * pulse, -330)])
 		ink.ink_graded(RisoPrint.ACCENT, [beam], [PackedFloat32Array([0.85, 0.85, 0.0, 0.0])])
-		ink.ink(RisoPrint.ACCENT, 0.35, [RisoShapes.ellipse(o + Vector2(0, -50), 84.0 * pulse, 92.0 * pulse, 32)])
-		ink.ink(RisoPrint.ACCENT, 0.6, [RisoShapes.ellipse(o + Vector2(0, -40), 52.0 * pulse, 58.0 * pulse, 28)])
 	var pot: PackedVector2Array = pot_t * RisoShapes.rrect(-17, -10, 34, 24, 10)
 	var neck: PackedVector2Array = pot_t * RisoShapes.rrect(-8, -18, 16, 10, 3)
 	# A quill tucked into the neck, its shaft and feather behind the pot's lip.

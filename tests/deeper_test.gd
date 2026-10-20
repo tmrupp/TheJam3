@@ -129,7 +129,9 @@ func run() -> void:
 
 	print("level contents")
 	var lanterns: int = placed("checkpoint.tscn").size()
-	var keys: int = placed("key.tscn").size()
+	# A vault's loot may hold a key besides the level's own.
+	var in_vault: Callable = func(n: Node) -> bool: return info.world.vaults.any(func(d: Dictionary) -> bool: return (d["room"] as Array).has(n.get_meta(&"cell")))
+	var keys: int = placed("key.tscn").filter(func(n: Node) -> bool: return not in_vault.call(n)).size()
 	var area_k: float = float(info.world.size.x * info.world.size.y) / 1000.0
 	# A first level also has its start key (for the side door near the start).
 	var start_key: int = 1 if info.world.start_side >= 0 else 0

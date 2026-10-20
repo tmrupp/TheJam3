@@ -48,10 +48,11 @@ func _physics_process(delta: float) -> void:
 	if not grounded:
 		return
 	if rest > 0.0:
-		rest = maxf(0.0, rest - delta)
+		# A harder preset rests and crouches for less (Difficulty.attack).
+		rest = maxf(0.0, rest - delta * Difficulty.attack())
 		return
 	if crouch >= 0.0:
-		crouch += delta / CROUCH_TIME
+		crouch += delta * Difficulty.attack() / CROUCH_TIME
 		if crouch >= 1.0:
 			crouch = -1.0
 			_leap()

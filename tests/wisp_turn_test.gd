@@ -1,8 +1,9 @@
 extends TestKit
 ## The wisp's turn (WispArt, Mover): it turns round along a teardrop that its path cuts in half,
 ## the point where the wisp turns and the round end ahead, dipping under its path first and coming
-## back over the top; its head stays on the drop and its tail follows it; and walking at a wall it
-## turns WALL_ROOM short of it, its drop fitted to the room left.
+## back over the top; its head stays on the drop and its tail follows it; walking at a wall it
+## turns WALL_ROOM short of it, its drop fitted to the room left; and another wisp ahead on its floor
+## closer than Mover.WISP_GAP turns it, looked for only among the wisps near its height.
 ## godot --headless --path . --script res://tests/wisp_turn_test.gd
 
 ## A wisp's collision box reaches this far ahead of its origin.
@@ -21,6 +22,7 @@ func run() -> void:
 	player.set_physics_process(false)
 	player.get_node("CameraControl").set_process(false)
 	player.global_position = Vector2(-9000, -9000)
+	wisps_meet()
 	# The test's wisp has the level to itself: no other wisp turns it or shrinks its drop.
 	for other: Node in placed("mover_enemy.tscn").slice(1):
 		other.queue_free()
@@ -127,7 +129,15 @@ func open_turn() -> void:
 
 ## A wisp walking at a wall turns round WALL_ROOM short of it, and its drop fits the room left.
 func wall_turn() -> void:
-	var spot: Vector2i = floor_spot(func(v: Vector2i) -> bool: return info.world.is_ground(v + Vector2i.RIGHT) and floor_at(v + Vector2i.LEFT))
+	# Any floor running up to a wall, with floor before it, that the wisp can walk along: something
+	# standing there (a star, a switch, the ink well) does not stop it; a door, a gate or thorns would.
+	var walkable: Callable = func(c: Vector2i) -> bool: return open_at(c) and info.world.ground_below(c) 			and info.world.get_cell(c).type not in [LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.SPIKES, LevelGen.Type.PLATFORM]
+	var spot: Vector2i = Vector2i(-1, -1)
+	for x: int in range(info.world.size.x):
+		for y: int in range(info.world.size.y):
+			var v: Vector2i = Vector2i(x, y)
+			if spot == Vector2i(-1, -1) and walkable.call(v) and info.world.is_ground(v + Vector2i.RIGHT) and walkable.call(v + Vector2i.LEFT):
+				spot = v
 	check(spot != Vector2i(-1, -1), "a floor running up to a wall")
 	if spot == Vector2i(-1, -1):
 		return
@@ -146,6 +156,58 @@ func wall_turn() -> void:
 	await until(func() -> bool: return art.wisp_to == -1.0)
 	var room: float = face - w.global_position.x - WispArt.WISP_NOSE
 	check(art.wisp_drop_len <= room + 0.01 and art.wisp_drop_len >= WispArt.WISP_DROP_MIN, "its drop fits the room before the wall (%.0f px of %.0f)" % [art.wisp_drop_len, room])
+
+
+## Another wisp ahead on the same floor, closer than WISP_GAP, turns a wisp round; one on another
+## floor, further off or behind does not; one moved since the wisps were sorted by height this
+## step is seen where it is now; and every wisp of the level decides as looking at every other
+## wisp would.
+func wisps_meet() -> void:
+	var wisps: Array[Node] = placed("mover_enemy.tscn", true)
+	check(wisps.size() >= 3, "wisps to meet (%d)" % wisps.size())
+	if wisps.size() < 3:
+		return
+	var same: bool = true
+	for w: Node in wisps:
+		var m: Mover = w.get_node("Mover") as Mover
+		same = same and m._wisp_ahead() == every_wisp_ahead(m)
+	check(same, "each wisp finds a wisp ahead exactly as looking at every wisp of the level would")
+	var a: Node2D = wisps[0] as Node2D
+	var b: Node2D = wisps[1] as Node2D
+	var ma: Mover = a.get_node("Mover") as Mover
+	var mb: Mover = b.get_node("Mover") as Mover
+	ma.set_physics_process(false)
+	mb.set_physics_process(false)
+	var at: Vector2 = a.global_position
+	var was_b: Vector2 = b.global_position
+	var was_dir: int = ma.direction
+	ma.direction = 1
+	# Each placement is looked at with the wisps sorted afresh, as in a later physics step.
+	var ahead: Callable = func(offset: Vector2) -> bool:
+		b.global_position = at + offset
+		Mover._bands_step = -1
+		return ma._wisp_ahead()
+	check(ahead.call(Vector2(Mover.WISP_GAP - 10.0, 0)), "a wisp ahead on the same floor, closer than WISP_GAP, turns it")
+	check(not ahead.call(Vector2(Mover.WISP_GAP - 10.0, -Mover.SAME_FLOOR - 6.0)), "one on another floor does not")
+	check(not ahead.call(Vector2(Mover.WISP_GAP + 10.0, 0)), "nor one further off")
+	check(not ahead.call(Vector2(-(Mover.WISP_GAP - 10.0), 0)), "nor one behind it")
+	b.global_position = at + Vector2(Mover.WISP_GAP - 10.0, Mover.SAME_FLOOR - 6.0)
+	check(ma._wisp_ahead(), "one moved since the wisps were sorted this step is seen where it is now")
+	b.global_position = was_b
+	ma.direction = was_dir
+	ma.set_physics_process(true)
+	mb.set_physics_process(true)
+
+
+## Whether another wisp is ahead of `m`'s on its floor closer than WISP_GAP, looking at every wisp.
+func every_wisp_ahead(m: Mover) -> bool:
+	for other: Node in m.get_tree().get_nodes_in_group(&"wisps"):
+		if other == m.rb:
+			continue
+		var d: Vector2 = (other as Node2D).global_position - m.rb.global_position
+		if absf(d.y) < Mover.SAME_FLOOR and d.x * float(m.direction) > 0.0 and absf(d.x) < Mover.WISP_GAP:
+			return true
+	return false
 
 
 ## The first free floor cell passing `test`; (-1, -1) if there is none.

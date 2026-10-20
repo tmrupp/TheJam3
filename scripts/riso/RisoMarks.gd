@@ -72,6 +72,8 @@ static func place_marks(ink: InkCanvas, left: Vector2, r: float, widths: Vector2
 static func key_bow(c: Vector2, r: float, color: int) -> PackedVector2Array:
 	if color == KeyRing.SKELETON:
 		return bone(c, r, r * 0.7)
+	if KeyRing.is_paper(color):
+		return paper_shape(c, r / 14.0)[0]
 	match posmod(color, Rules.KEY_COLOR_COUNT):
 		1: return RisoShapes.tri(c + Vector2(0, -r), c + Vector2(r, r), c + Vector2(-r, r))
 		2: return RisoShapes.circle(c, r, 24)
@@ -98,6 +100,8 @@ static func bone(c: Vector2, hw: float, hh: float) -> PackedVector2Array:
 ## A key with a colour-specific bow, in world pixels, centred near `o`. The rarer its colour, the
 ## longer its shaft and the more teeth on its bit (a plum key has four), so rarity reads at a glance.
 static func key_shape(o: Vector2, s: float, color: int = 0) -> Array[PackedVector2Array]:
+	if KeyRing.is_paper(color):
+		return paper_shape(o, s)
 	# A skeleton key has the bit of a rare key (three teeth) and a bone's knobbed base for its bow.
 	var skeleton: bool = color == KeyRing.SKELETON
 	var extra: int = SKELETON_TEETH if skeleton else clampi(color, 0, KEY_TEETH.size())
@@ -113,6 +117,50 @@ static func key_shape(o: Vector2, s: float, color: int = 0) -> Array[PackedVecto
 	out.append(RisoShapes.rrect(c.x + 12.0 * s, c.y, 6.0 * s, 11.0 * s, 3.0 * s))
 	for k: int in range(extra):
 		out.append(RisoShapes.rrect(c.x + (20.0 + 5.0 * k) * s, c.y, 3.0 * s, KEY_TEETH[k] * s, 1.5 * s))
+	return out
+
+
+## What is cut back out of `band`'s emblem round `c` once it is printed (emblem): the skull's eyes; none
+## for the others.
+static func emblem_holes(band: StringName, c: Vector2) -> Array[PackedVector2Array]:
+	if band == &"cemetery":
+		return [RisoShapes.circle(c + Vector2(-3.2, -2.0), 2.2, 10), RisoShapes.circle(c + Vector2(3.2, -2.0), 2.2, 10)]
+	return []
+
+
+## A department's emblem, by the band it studies (Institute.DEPARTMENTS), round `c`, about 24 px
+## across: a sprout (two leaves on a stem) for the garden, a skull for the cemetery, three pointed
+## crystals for the crags, a star for the sky; the institute's own a pediment over three columns (a
+## department's portal, DepartmentArt; a door's prerequisite, ExamDoorArt; the timetable board, BoardArt).
+static func emblem(band: StringName, c: Vector2) -> Array[PackedVector2Array]:
+	match band:
+		&"garden":
+			# A sprout: two leaves on a stem.
+			return [RisoShapes.rrect(c.x - 1.3, c.y - 3.0, 2.6, 15.0, 1.3),
+				Transform2D(-0.9, c + Vector2(-5.5, -4.0)) * RisoShapes.almond(Vector2.ZERO, 4.0, 8.0, 12),
+				Transform2D(0.9, c + Vector2(5.5, -4.0)) * RisoShapes.almond(Vector2.ZERO, 4.0, 8.0, 12)]
+		&"cemetery":
+			return [RisoShapes.circle(c + Vector2(0, -2.0), 8.0, 16), RisoShapes.rrect(c.x - 4.5, c.y + 3.0, 9.0, 6.0, 2.0)]
+		&"crags":
+			# Three pointed crystals out of one base, the middle tallest.
+			var spike: PackedVector2Array = PackedVector2Array([Vector2(-3.5, 0), Vector2(-3.5, -12), Vector2(0, -17), Vector2(3.5, -12), Vector2(3.5, 0)])
+			return [Transform2D(0.0, c + Vector2(0, 11)) * spike, Transform2D(-0.5, Vector2(0.75, 0.75), 0.0, c + Vector2(-4.5, 11)) * spike,
+				Transform2D(0.5, Vector2(0.75, 0.75), 0.0, c + Vector2(4.5, 11)) * spike]
+		&"sky":
+			return [RisoShapes.sparkle(c, 12.0)]
+	var out: Array[PackedVector2Array] = [PackedVector2Array([c + Vector2(-11, -4), c + Vector2(0, -11), c + Vector2(11, -4)])]
+	for x: float in [-7.0, 0.0, 7.0]:
+		out.append(RisoShapes.rrect(c.x + x - 1.6, c.y - 3.0, 3.2, 12.0, 0.8))
+	return out
+
+
+## An exam paper (KeyRing.paper) centred on `o`, `s` its size: the sheet first (printed bare paper),
+## then its folded corner and three ruled lines (printed in night).
+static func paper_shape(o: Vector2, s: float) -> Array[PackedVector2Array]:
+	var out: Array[PackedVector2Array] = [PackedVector2Array([o + Vector2(-10, -13) * s, o + Vector2(5, -13) * s, o + Vector2(10, -8) * s, o + Vector2(10, 13) * s, o + Vector2(-10, 13) * s])]
+	out.append(PackedVector2Array([o + Vector2(5, -13) * s, o + Vector2(10, -8) * s, o + Vector2(5, -8) * s]))
+	for k: int in range(3):
+		out.append(RisoShapes.rrect(o.x - 6.0 * s, o.y + (-3.0 + 5.0 * k) * s, 12.0 * s, 1.6 * s, 0.8 * s))
 	return out
 
 
@@ -166,6 +214,36 @@ static func portcullis(ink: InkCanvas, g: float, half: float, key_color: int, li
 				# A padlock in its key's colour hangs from the cross-rail, as on a cemetery's bells.
 				padlock(ink, Vector2(0, ly - 4.0), key_color, 1.6, fade)
 	_gate_iron(ink, key_color, fade, [RisoShapes.rrect(-half, top - 2.0, 2.0 * half, 14, 4)])
+
+
+## A gondola's line as a little chain (a station's gate and board, GateArt and StationArt): a cable
+## `wide` across centred on `c`, with a node for each of its `n` stations, bottom (left) to top, lit
+## in accent with a paper glint while `on(i)` (on), a small night disc while not; and station
+## `here`'s node bigger, with a night pointer under it (this is the one). `s` scales it.
+static func station_chain(ink: InkCanvas, c: Vector2, wide: float, n: int, here: int, on: Callable, s: float = 1.0) -> void:
+	if n <= 0:
+		return
+	var step: float = wide / float(maxi(n - 1, 1))
+	var x0: float = c.x - wide * 0.5 if n > 1 else c.x
+	ink.ink(RisoPrint.NIGHT, 0.55, [RisoShapes.rrect(x0, c.y - 1.2 * s, wide if n > 1 else 0.0, 2.4 * s, 0.0)], false)
+	var lit: Array[PackedVector2Array] = []
+	var glints: Array[PackedVector2Array] = []
+	var dark: Array[PackedVector2Array] = []
+	for i: int in range(n):
+		var p: Vector2 = Vector2(x0 + step * float(i), c.y)
+		var big: float = 1.6 if i == here else 1.0
+		if bool(on.call(i)):
+			lit.append(RisoShapes.circle(p, 4.5 * s * big, 14))
+			glints.append(RisoShapes.circle(p + Vector2(-1.2, -1.2) * s * big, 1.5 * s * big, 8))
+		else:
+			dark.append(RisoShapes.circle(p, 3.6 * s * big, 12))
+		if i == here:
+			var tip: Vector2 = p + Vector2(0.0, 9.5 * s)
+			dark.append(PackedVector2Array([tip, tip + Vector2(4.5, 6.0) * s, tip + Vector2(-4.5, 6.0) * s]))
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], lit)
+	ink.ink(RisoPrint.ACCENT, 1.0, lit, false)
+	ink.knock([RisoPrint.ACCENT], glints)
+	ink.ink(RisoPrint.NIGHT, 1.0, dark, false)
 
 
 ## A gate's ironwork: blue, or for a bone gate (a skeleton lock), pale bone grey.
@@ -338,9 +416,11 @@ static func arc_points(c: Vector2, r: float, a0: float, a1: float) -> PackedVect
 
 
 ## One narrow curling strand, attached to the wick and fading away as it rises. Used both on
-## burned-out lanterns in the world and on the HUD's extinguished protection candle.
+## burned-out lanterns in the world and on the HUD's extinguished protection candle, in pink; with
+## `pale`, lifted to paper instead (cold air, or the smoke of a flame snuffed at a font), its cover
+## scaled by `strength`.
 static func smoke_thread(canvas: InkCanvas, frame: Transform2D, time: float, height: float,
-		width: float, drift: float, punch: bool = false) -> void:
+		width: float, drift: float, punch: bool = false, pale: bool = false, strength: float = 1.0) -> void:
 	var points: PackedVector2Array = PackedVector2Array()
 	var widths: PackedFloat32Array = PackedFloat32Array()
 	var covers: PackedFloat32Array = PackedFloat32Array()
@@ -350,7 +430,7 @@ static func smoke_thread(canvas: InkCanvas, frame: Transform2D, time: float, hei
 		var curl: float = drift * pow(u, 0.7) * sin(u * TAU - time * 1.8)
 		points.append(Vector2(curl, -height * u))
 		widths.append(width * 0.5 * lerpf(1.0, 0.35, u))
-		covers.append(0.45 * (1.0 - smoothstep(0.4, 1.0, u)))
+		covers.append(0.45 * strength * (1.0 - smoothstep(0.4, 1.0, u)))
 	# Keep the whole strand in one polygon: the print renderer discards tiny isolated shapes,
 	# so individual cross-sections would disappear even when the full thread is visible.
 	var outline: PackedVector2Array = PackedVector2Array()
@@ -361,7 +441,10 @@ static func smoke_thread(canvas: InkCanvas, frame: Transform2D, time: float, hei
 	for i: int in range(SECTIONS, -1, -1):
 		outline.append(points[i] + Vector2(widths[i], 0))
 		alpha.append(covers[i])
-	canvas.ink_graded(RisoPrint.PINK, [frame * outline], [alpha], punch)
+	if pale:
+		canvas.lift_ink_graded([RisoPrint.NIGHT, RisoPrint.BLUE], [frame * outline], [alpha])
+	else:
+		canvas.ink_graded(RisoPrint.PINK, [frame * outline], [alpha], punch)
 
 
 ## Bending, for the creatures: a point turns about the feet (the origin) by `amount`, scaled by how

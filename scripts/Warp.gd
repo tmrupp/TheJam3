@@ -63,8 +63,6 @@ func cast() -> Variant:
 		return null
 	var cell: Vector2i = to
 	recharge = cooldown()
-	if RisoPrint.instance != null:
-		RisoPrint.instance.flare(&"warp")
 	_trip(info, cell)
 	return cell
 

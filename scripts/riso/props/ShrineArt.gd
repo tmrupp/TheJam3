@@ -8,6 +8,15 @@ var shrine: Shrine:
 		return host as Shrine
 
 
+func shines() -> bool:
+	return true
+
+
+## A light over the niches, between them.
+func light() -> Array:
+	return _light(Vector2(0, _ground() - 90.0), RisoLight.BEACON, RisoPrint.ACCENT)
+
+
 ## The shrine: a plinth across two cells carrying three stations side by side: two niches where
 ## an offered ability's mark floats over its tier pips, then a bowl with an ember bead (mending).
 ## Each one's name and price pop up over it as the wizard steps up to it. Once used, the marks
@@ -28,11 +37,15 @@ func _draw_art() -> void:
 	for i: int in range(2):
 		_shrine_niche(xs[i], i, g, bob * (1.0 if i == 0 else -1.0), used)
 	var mx: float = xs[2]
-	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(mx - 9, g - 62, 18, 42, 6), RisoShapes.ellipse(Vector2(mx, g - 64), 24.0, 7.0, 22)])
 	if used:
+		_mend_bowl(mx, g, bob, false, true, 0)
 		return
 	var m: Vector2 = Vector2(mx, g - 94 + bob * 0.8)
 	var full: bool = not shrine.can_mend()
+	if not (full and (shrine.reads_relic() or shrine.sells_skeleton())):
+		_mend_bowl(mx, g, bob, full, false, shrine.heal_price())
+		return
+	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(mx - 9, g - 62, 18, 42, 6), RisoShapes.ellipse(Vector2(mx, g - 64), 24.0, 7.0, 22)])
 	if full and shrine.reads_relic():
 		# At full health: a small relic medallion with the move of the relic it can point to.
 		var move: StringName = shrine.relic_move()
@@ -61,7 +74,17 @@ func _draw_art() -> void:
 		if sk > 0.0:
 			_plaque("skeleton key · %d" % shrine.skeleton_price(), Vector2(mx, g - POP_Y), 30, RisoPrint.ACCENT, sk)
 		return
-	# Mending: an ember bead over the bowl, like the HUD's health beads.
+
+
+## The mending station at x = `mx` over ground `g`: a bowl on a post and, unless `used`, an ember
+## bead floating over it like the HUD's health beads (dimmer while `full`: nothing to mend), its
+## name and `price` popping up over it while the wizard stands at it. The shrine's third
+## station, and a mending bowl standing on its own (MendWellArt).
+func _mend_bowl(mx: float, g: float, bob: float, full: bool, used: bool, price: int) -> void:
+	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(mx - 9, g - 62, 18, 42, 6), RisoShapes.ellipse(Vector2(mx, g - 64), 24.0, 7.0, 22)])
+	if used:
+		return
+	var m: Vector2 = Vector2(mx, g - 94 + bob * 0.8)
 	ink.ink(RisoPrint.EYE, 0.12 if full else 0.25, [RisoShapes.circle(m, 25.0, 28)])
 	var bead: PackedVector2Array = RisoShapes.circle(m, 12.0, 22)
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], [bead])
@@ -70,14 +93,12 @@ func _draw_art() -> void:
 	ink.knock([RisoPrint.EYE, RisoPrint.PINK], [RisoShapes.circle(m + Vector2(-3.5, -3.5), 4.0, 12)])
 	var s: float = _pop(2, Vector2(mx, g - 50))
 	if s > 0.0:
-		_plaque("mend · %d" % shrine.heal_price(), Vector2(mx, g - POP_Y), 30, RisoPrint.PINK, s)
+		_plaque("mend · %d" % price, Vector2(mx, g - POP_Y), 30, RisoPrint.PINK, s)
 
 
 ## One of the shrine's two niches at x = `cx`: the ability's mark floating over its tier pips and,
 ## while the wizard is at it, a pop-up with its name, tier and price, topped by a "swap" tag when
-## it would replace the spell in the slot.
-## Once the shrine is spent, a spell a swap left here floats in its niche instead, its pop-up
-## offering to take it back.
+## it would replace the spell in the slot (whose paper then comes back).
 func _shrine_niche(cx: float, i: int, g: float, bob: float, used: bool) -> void:
 	ink.ink(RisoPrint.BLUE, 0.5, [RisoShapes.arch(cx - 36, g - 122, 72, 100, 12)])
 	var niche: PackedVector2Array = RisoShapes.arch(cx - 29, g - 115, 58, 93, 12)
@@ -85,15 +106,6 @@ func _shrine_niche(cx: float, i: int, g: float, bob: float, used: bool) -> void:
 	ink.ink(RisoPrint.NIGHT, 1.0, [niche], false)
 	var c: Vector2 = Vector2(cx, g - 84 + bob)
 	if used:
-		# A spell left here by a swap waits in the niche, to be taken back free.
-		var left: Array = shrine.left_spell(i)
-		if left.is_empty():
-			return
-		_niche_mark(left[0], c, i, int(left[1]), cx, g)
-		var sl: float = _pop(i, Vector2(cx, g - 50))
-		if sl > 0.0:
-			_plaque("%s %s · take back" % [Abilities.label(left[0]), Abilities.roman(int(left[1]))], Vector2(cx, g - POP_Y), 30, RisoPrint.ACCENT, sl)
-			_plaque("swap", Vector2(cx, g - POP_Y - 40.0 * sl), 22, RisoPrint.PINK, sl)
 		return
 	var a: StringName = shrine.offer(i)
 	if a == &"":
@@ -113,9 +125,9 @@ func _shrine_niche(cx: float, i: int, g: float, bob: float, used: bool) -> void:
 		_plaque("swap", Vector2(cx, g - POP_Y - 40.0 * s), 22, RisoPrint.PINK, s)
 
 
-## An ability's mark floating in a shrine niche at `c`, in a soft halo, over `pips_n` tier pips.
+## An ability's mark floating in a shrine niche at `c`, over `pips_n` tier pips (the shrine's own
+## light shines on it, see light).
 func _niche_mark(a: StringName, c: Vector2, i: int, pips_n: int, cx: float, g: float) -> void:
-	ink.ink(RisoPrint.ACCENT, 0.18, [RisoShapes.circle(c, 27.0 * (1.0 + 0.05 * sin(t * 3.0 + float(i))), 28)])
 	# The mark at 0.75 size, to fit the narrower niche.
 	var fit: Transform2D = Transform2D(0.0, Vector2(0.75, 0.75), 0.0, c)
 	var mark: Array[PackedVector2Array] = []
