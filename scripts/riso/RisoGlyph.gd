@@ -4,6 +4,28 @@ extends RefCounted
 ## spell slot and on the map. A new ability gets its mark here (anything else shows a spark).
 
 
+## An ability's mark fitted inside a circle of `radius` round `c` (a roundel): centred on the middle
+## of its extent and sized, by its still pose, until its farthest point meets the circle, so a mark
+## that moves keeps its size.
+static func fit(a: StringName, c: Vector2, radius: float, t: float) -> Array[PackedVector2Array]:
+	var still: Array[PackedVector2Array] = of(a, Vector2.ZERO, 0.0)
+	var box: Rect2 = Rect2(still[0][0], Vector2.ZERO)
+	for poly: PackedVector2Array in still:
+		for p: Vector2 in poly:
+			box = box.expand(p)
+	var mid: Vector2 = box.get_center()
+	var far: float = 0.001
+	for poly: PackedVector2Array in still:
+		for p: Vector2 in poly:
+			far = maxf(far, p.distance_to(mid))
+	var s: float = radius / far
+	var move: Transform2D = Transform2D(0.0, Vector2(s, s), 0.0, c - mid * s)
+	var out: Array[PackedVector2Array] = []
+	for poly: PackedVector2Array in of(a, Vector2.ZERO, t):
+		out.append(move * poly)
+	return out
+
+
 ## An ability's mark, centred on `c`: what a shrine teaches.
 static func of(a: StringName, c: Vector2, t: float) -> Array[PackedVector2Array]:
 	match a:

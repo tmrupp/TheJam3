@@ -31,9 +31,15 @@ extends AnimatableBody2D
 ## and the swing dies away, quickly while it stands. Riders are carried as on any
 ## moving body. Nothing about where it is
 ## is kept: on every visit it waits at its open station. Nothing here draws from the world RNG.
+##
+## Riding it up inks the map round the car as it climbs (RIDE_SEE cells, MapInfo.reveal), and
+## bringing a rider all the way to the top station inks the maps of every level this one's exits
+## lead to (MapInfo.ink_neighbours): the way a lodestone (Lodestone) is found.
 
 const INTERACTABLE: PackedScene = preload("res://prefabs/interactable.tscn")
 const STATION: PackedScene = preload("res://prefabs/gondola_station.tscn")
+## How far round the car (cells) the map is inked as a rider rides it up.
+const RIDE_SEE: int = 8
 ## How fast it runs with a rider, and called empty (pixels a second), and how quickly it gets up to
 ## speed and slows for a station (pixels a second, each second).
 const RIDE_SPEED: float = 360.0
@@ -444,6 +450,8 @@ func _physics_process(delta: float) -> void:
 			s = target_s
 		_swing(delta)
 		_hang()
+		if ridden and dir > 0:
+			map_info.reveal(map_info.cell_at(center()), RIDE_SEE)
 		if ridden:
 			var now: float = 1.0 - absf(target_s - s) / run_length
 			if run_progress < FOE_DUE and now >= FOE_DUE:
@@ -461,6 +469,9 @@ func _physics_process(delta: float) -> void:
 
 ## At the station it ran to: it stands there, the lever set to carry on the same way.
 func _arrive() -> void:
+	# A rider brought all the way up: the levels round are inked on the map.
+	if ridden and dir > 0 and bound_for == stops.size() - 1:
+		map_info.ink_neighbours()
 	running = false
 	speed = 0.0
 	at_station = bound_for

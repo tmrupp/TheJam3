@@ -60,6 +60,11 @@ var fed: int = 0
 ## Exam papers waiting to be laid in the levels they were sent to by classes attended (place -> codes,
 ## KeyRing.paper; MapInfo._attend, _lay_papers).
 var papers_out: Dictionary = {}
+## The crags' lodestones (Lodestone, Empower): the damage spells tempered (spell -> true), which may
+## be cast empowered for the rest of the run, and the lodestones touched (place -> its spell), whose
+## count sets how soon an empowered cast comes back (Rules.empower_recharge). Kept through a death.
+var tempered: Dictionary = {}
+var lodestones: Dictionary = {}
 
 
 ## A fresh run from depth 0 of `seed_value`: no records, no ghost, protected.
@@ -80,6 +85,8 @@ func start(seed_value: int) -> void:
 	souls_sent = 0
 	fed = 0
 	papers_out.clear()
+	tempered.clear()
+	lodestones.clear()
 	vulnerable = false
 	clear_ghost()
 
@@ -132,6 +139,15 @@ func clear_ghost() -> void:
 	ghost_lantern = []
 
 
+## The lodestone in level `at` was touched, tempering `spell`. Whether it was new (each counts once).
+func touch_lodestone(at: Vector2i, spell: StringName) -> bool:
+	if lodestones.has(at):
+		return false
+	lodestones[at] = spell
+	tempered[spell] = true
+	return true
+
+
 ## A relic was taken in level `at`.
 func relic_taken(at: Vector2i) -> void:
 	relics_found[at] = true
@@ -172,6 +188,7 @@ func to_save(coord: Vector2i, player: Dictionary) -> Dictionary:
 		"way_back": way_back,
 		"souls": souls, "souls_sent": souls_sent,
 		"fed": fed, "papers_out": papers_out,
+		"tempered": tempered, "lodestones": lodestones,
 	}
 	data.merge(player)
 	return data
@@ -199,6 +216,8 @@ func from_save(data: Dictionary) -> void:
 	souls_sent = int(data.get("souls_sent", 0))
 	fed = int(data.get("fed", 0))
 	papers_out = data.get("papers_out", {})
+	tempered = data.get("tempered", {})
+	lodestones = data.get("lodestones", {})
 	respawn_coord = data["respawn_coord"]
 	respawn_cell = data["respawn_cell"]
 	vulnerable = bool(data["vulnerable"])

@@ -496,12 +496,40 @@ shooting out through arrow slits at the wizard and stopped only from inside (`Cr
     flips a set of stations (dealt by the level seed), shown on it as the line drawn straight,
     bottom to top, each station lit while on and dark while off, a ring round each it flips. Once flipped, a tower is locked until
     another tower is flipped (no undoing a flip at once).
+  - *Spires and cold towers (a first pass is built).* Each watchtower carries an iron spire on its
+    roof; an empowered strike on it (below) flips its switch under the same lock as by hand. A few
+    watchtowers above the bottom tier are cold: their switch does nothing until one empowered
+    strike on the spire wakes it for good. So a crags level reads differently once a spell is
+    tempered.
   - *What is checked as a level is laid out.* Only the switches' logic, not whether a tower or a
     station's landing is reached on foot (owner: no reachability guarantee): taking each tower as
     reached from its own tier's station, there is a way up from the bottom tier and a way down
     from the top one, the two need different tower sequences, and some sequence leaves the whole
     line on for easy travel after. The sets are dealt again (hashing the seed, no draws) until
     they pass.
+
+- **Lodestones and empowered spells (owner's design; a first pass is built, docs/DEEPER_PLAN.md
+  §4d).** Every other band leans on lanterns, the dash, the meta spells or jumping; the damage
+  spells are the slot the crags give a puzzle to.
+  - *A move, not a stock.* Holding the Spell button 0.4 s casts the damage spell empowered; a quick
+    press casts as ever, and the guard still goes up on the press. Empowerment comes back on its
+    own: 60 s after the first lodestone, each further stone (any spell, once each) cutting a
+    quarter off for every spell, down to 10 s from the seventh.
+  - *Learned per spell.* A lodestone, a standing stone of dark iron ore, is dealt one damage spell;
+    touching it tempers that spell for the run. A spell not tempered casts as ever when held.
+  - *Rare and spread out.* One crags level in four: along each crags row, every stretch of 24 worlds
+    holds each spell's stone once, hashed from the row and the stretch, so none is more than 23
+    worlds along a row. High on the cliff, in sight of the gondola's track, never behind cracked
+    rock.
+  - *Found from the gondola.* Riding the car up inks the map round it; bringing it to the top station
+    inks every level round whole, and a lodestone there shows on the worlds map. Shrines do not
+    point to lodestones.
+  - *All cracked rock, unified.* In every band cracked rock breaks only to an empowered spell (a plain
+    bolt chips it, the dash does nothing), each spell its own way (the hex bores, the seeker homes on
+    a spire, the slash cleaves, the nova shatters a ring, the push breaks the cell before it, the
+    lunge rams), and cracked walls never stand at a door, though a key may be behind one. Secret
+    rooms still open to walking in.
+  - *Not built yet:* loose boulders for the push to shove.
 
 ### The cemetery: crypts, light and darkness (rows +4 … +9)
 

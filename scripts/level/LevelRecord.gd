@@ -83,11 +83,14 @@ var relics_left: Dictionary = {}
 ## The crags: which of its gondola's stations are on, a bit each from the bottom (-1 before the first
 ## visit deals them: only the one nearest the way in on; MapInfo.station_on, flip_tower).
 var stations: int = -1
+## The crags' cold towers woken by an empowered strike on their spire (Spire), by tower number: their
+## switches work from then on (MapInfo.tower_cold).
+var woken: Dictionary = {}
 
 ## Every field saved, in the order they are written.
 const FIELDS: Array[StringName] = [&"taken", &"opened", &"slain", &"broken", &"dropped", &"next_drop", &"deeper_paid", &"up_paid",
 	&"doors_paid", &"lateral_open", &"ways_taken", &"shrine_used", &"mapped", &"seen",
-	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended", &"lessons", &"stations", &"rings", &"passing", &"lifted", &"pigeonholes", &"prizes", &"dept_tiers", &"relics_left", &"started", &"last_bell", &"way_on_paid", &"studied"]
+	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended", &"lessons", &"stations", &"rings", &"passing", &"lifted", &"pigeonholes", &"prizes", &"dept_tiers", &"relics_left", &"started", &"last_bell", &"way_on_paid", &"studied", &"woken"]
 
 
 ## The record as a plain dictionary, for the save file.
@@ -116,9 +119,12 @@ func drop_key(pos: Vector2, color: int) -> int:
 	return id
 
 
-## The seen bytes for a level of `cells` cells, made fresh if they were for another size.
+## The seen bytes for a level of `cells` cells, made fresh if they were for another size (all seen
+## if its map was inked whole before its layout was known: MapInfo.ink_place).
 func seen_for(cells: int) -> PackedByteArray:
 	if seen.size() != cells:
 		seen = PackedByteArray()
 		seen.resize(cells)
+		if mapped:
+			seen.fill(1)
 	return seen

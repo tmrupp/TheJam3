@@ -8,6 +8,14 @@ extends RefCounted
 const BEADS_PER_ROW: int = 3
 ## A spell's last seconds blink pink.
 const SPELL_WARN: float = 1.5
+## A tempered spell's empowerment ring round the bag (Empower), clear of the bag's edge: its radius
+## against the mark's, its band's half-width (art units), how much blue its empty track carries
+## while empowerment comes back (blue reads on dark ground and pale), and the radius of the paper
+## bead at its filling end.
+const EMPOWER_RING: float = 1.3
+const EMPOWER_BAND: float = 0.75
+const EMPOWER_TRACK: float = 0.55
+const EMPOWER_BEAD: float = 1.15
 ## The spell changes the entire cloth bundle's width, hanging length and weighted side.
 const BINDLE_FORMS: Dictionary = {
 	&"": Vector3(4.9, 5.0, 0.0), &"hex": Vector3(4.9, 5.2, -0.5),
@@ -1108,6 +1116,29 @@ func _spell_area(bag: Array[PackedVector2Array], at: Vector2, radius: float) -> 
 		_solids(_rest(&"pupil"), RisoPrint.NIGHT, 1.0 if ready else 0.4, false)
 	if running and run.x > 0.01:
 		_over(wizard._arc(at, radius * 0.82, 0.3, run.x), RisoPrint.EYE, 0.9)
+	# A tempered spell (Empower): a ring round the bag, clear of its edge. While empowerment comes
+	# back, a blue track with accent filling it clockwise from the top, a paper bead at the filling
+	# end; once back, whole accent, breathing; while a press is held for an empowered cast, wider and
+	# full, and the mark fills with accent from the bottom up as the hold charges.
+	var empower: Empower = Empower.of(wizard.player)
+	var back: float = empower.readiness() if empower != null else -1.0
+	if back >= 0.0:
+		var ring: float = radius * EMPOWER_RING
+		if back >= 1.0:
+			var hold: float = maxf(0.0, empower.charging())
+			_solid(wizard._arc(at, ring, EMPOWER_BAND * (1.0 + 0.6 * hold), 1.0), RisoPrint.ACCENT, lerpf(0.8 + 0.2 * sin(wizard.t * 4.0), 1.0, hold), false)
+			if hold > 0.0:
+				var fill: PackedVector2Array = wizard._filled(at, radius * 0.8, hold)
+				var lit: Array[PackedVector2Array] = []
+				for poly: PackedVector2Array in _rests[key]:
+					lit.append_array(Geometry2D.intersect_polygons(poly, fill))
+				_overs(lit, RisoPrint.ACCENT, 1.0)
+		else:
+			_solid(wizard._arc(at, ring, EMPOWER_BAND * 0.8, 1.0), RisoPrint.BLUE, EMPOWER_TRACK, false)
+			if back > 0.02:
+				_solid(wizard._arc(at, ring, EMPOWER_BAND * 0.8, back), RisoPrint.ACCENT, 0.9, false)
+			var head: Vector2 = at + Vector2.from_angle(-PI * 0.5 + TAU * back) * ring
+			_paper(RisoShapes.circle(head, EMPOWER_BEAD, 10), 0.0)
 	var mend: Mend = wizard.player.get_node_or_null("Mend") as Mend
 	if spell == &"mend" and mend != null:
 		for i: int in range(mend.draughts()):

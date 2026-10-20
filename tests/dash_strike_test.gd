@@ -1,6 +1,7 @@
 extends TestKit
 ## The dash is a move, not an attack (DashStrike): the wizard dashes right through an enemy
-## unhurt, and it is neither stunned nor wounded; dashing into a cracked wall breaks it, and on the
+## unhurt, and it is neither stunned nor wounded; dashing into a cracked wall does nothing to it (only
+## an empowered spell breaks one, Empower), and on the
 ## ground the dash only comes back after Player.DASH_GROUND_COOLDOWN. A blink spends the moons it
 ## passes, and strikes nothing on its way either.
 ## godot --headless --path . --script res://tests/dash_strike_test.gd
@@ -128,8 +129,8 @@ func run() -> void:
 		player.dash.refresh()
 		player.dash_rest = 0.0
 		await press_dash(Vector2(wcell - from))
-		check(not is_instance_valid(wall) or wall.is_queued_for_deletion(), "dashing into it breaks it")
-		check((info.record().broken as Dictionary).has(wcell), "for good")
+		check(is_instance_valid(wall) and not wall.is_queued_for_deletion(), "dashing into it leaves it standing")
+		check(not (info.record().broken as Dictionary).has(wcell), "and nothing is broken in the record")
 
 	print("blink")
 	Abilities.set_tier(player, &"blink", 1)

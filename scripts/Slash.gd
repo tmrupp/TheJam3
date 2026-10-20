@@ -6,7 +6,9 @@ class_name Slash
 ## (SpellStrike): wounded by its damage. It tears the spider's webs in
 ## its arc and cuts a spider's thread across it. Landing a blow, on an enemy or on thorns, throws the
 ## wizard back off it (SpellStrike.recoil): a slash down from the air bounces them up. Tiers (Abilities): I wounds 1; II reaches further
-## and wider (REACH_II, HALF_II); III wounds 2; IV also cuts shots out of the air in its arc.
+## and wider (REACH_II, HALF_II); III wounds 2; IV also cuts shots out of the air in its arc. Cast
+## empowered (Empower), it cleaves the cracked rock in its arc and the two cells in front of the
+## wizard (cleave_cells), wounds Empower.EXTRA more, breaks a shield at once and strikes spires.
 
 const COOLDOWN: float = 0.45
 const REACH: float = 110.0
@@ -17,6 +19,9 @@ const HALF_II: float = 1.3
 const CLOSE: float = 34.0
 ## How many ways across its arc it feels for a spider's body, its webs and its thread.
 const RAYS: int = 7
+## How much further (px) than its reach an empowered slash cleaves rock (measured to the nearest
+## point of a cell), so the cells beside the wizard's are reached wherever in theirs they stand.
+const CLEAVE_REACH: float = 64.0
 
 var damage: int = 1
 var reach: float = REACH
@@ -36,9 +41,9 @@ func set_tier(n: int) -> void:
 	cuts_shots = n >= 4
 
 
-## The Spell button, with slash in the slot.
-func cast_spell() -> bool:
-	return cast()
+## The Spell button, with slash in the slot (`empowered`, see Empower).
+func cast_spell(empowered: bool = false) -> bool:
+	return cast(Vector2.ZERO, empowered)
 
 
 func readiness() -> float:
@@ -62,8 +67,36 @@ func in_arc(from: Vector2, dir: Vector2, p: Vector2) -> bool:
 	return d.length() <= reach and absf(dir.angle_to(d)) <= half
 
 
-## Slash heading `dir` (the aim when zero). False while it is not ready.
-func cast(dir: Vector2 = Vector2.ZERO) -> bool:
+## The cells an empowered slash from `from` heading `dir` cleaves: those about the wizard's whose
+## nearest point lies in its arc (CLEAVE_REACH further out), and the two cells in front of them,
+## the one beside and the one over it.
+func cleave_cells(from: Vector2, dir: Vector2) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	var info: MapInfo = MapInfo.instance
+	if info == null or info.world == null:
+		return out
+	var c: Vector2i = info.cell_at(from)
+	var span: Vector2 = info.cell_position(c + Vector2i.ONE) - info.cell_position(c)
+	for dx: int in range(-1, 2):
+		for dy: int in range(-2, 2):
+			var n: Vector2i = c + Vector2i(dx, dy)
+			if n == c:
+				continue
+			var middle: Vector2 = info.cell_position(n)
+			var near: Vector2 = from.clamp(middle - span * 0.5, middle + span * 0.5)
+			var d: Vector2 = near - from
+			if d.length() <= reach + CLEAVE_REACH and (d.length() <= CLOSE or absf(dir.angle_to(d)) <= half):
+				out.append(n)
+	if dir.x != 0.0:
+		var front: Vector2i = c + Vector2i(int(signf(dir.x)), 0)
+		for n: Vector2i in [front, front + Vector2i.UP]:
+			if not out.has(n):
+				out.append(n)
+	return out
+
+
+## Slash heading `dir` (the aim when zero), `empowered` or not. False while it is not ready.
+func cast(dir: Vector2 = Vector2.ZERO, empowered: bool = false) -> bool:
 	if wait > 0.0 or player == null:
 		return false
 	if dir == Vector2.ZERO:
@@ -78,7 +111,9 @@ func cast(dir: Vector2 = Vector2.ZERO) -> bool:
 		return rays.any(func(r: Vector2) -> bool: return s.struck_by(from, from + r * reach, 0.0))
 	var struck: Array[Node] = SpellStrike.caught(get_tree(), from, catches, catches_spider)
 	for e: Node in struck:
-		SpellStrike.strike(e, ((e as Node2D).global_position - from).normalized(), damage, &"slash")
+		SpellStrike.strike(e, ((e as Node2D).global_position - from).normalized(), damage + (Empower.EXTRA if empowered else 0), &"slash", empowered)
+	if empowered:
+		SpellStrike.crack(get_tree(), cleave_cells(from, dir), dir)
 	var thorns: Array[Spikes] = SpellStrike.thorns_caught(get_tree(), from, catches, dir)
 	if not struck.is_empty() or not thorns.is_empty():
 		SpellStrike.recoil(player, dir)

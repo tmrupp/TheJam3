@@ -183,11 +183,16 @@ func _init() -> void:
 
 func _enter_tree() -> void:
 	Abilities.ensure_input()
-	# What the dash does on its way (it tears webs, cuts threads and breaks cracked walls).
+	# What the dash does on its way (it tears webs and cuts threads).
 	if get_node_or_null("DashStrike") == null:
 		var strike: DashStrike = DashStrike.new()
 		strike.name = "DashStrike"
 		add_child(strike)
+	# Empowered casts, once a lodestone has tempered the damage spell (Empower).
+	if get_node_or_null("Empower") == null:
+		var empower: Empower = Empower.new()
+		empower.name = "Empower"
+		add_child(empower)
 
 
 ## Whether the movement slot holds one of the wizard's own moves (the dash or blink), done on the
@@ -465,11 +470,18 @@ func _physics_process(delta: float) -> void:
 	# Each slot's button casts what is in it: the Spell button the damage slot, the Utility button
 	# the utility slot, and the Dash button the movement slot's spell (the dash itself, or blink,
 	# is done below).
+	# Held for an empowered cast (Empower), the spell goes off when let go or held long enough.
+	var empower: Empower = Empower.of(self)
+	if empower != null:
+		empower.step(delta, Input.is_action_pressed(Abilities.SPELL_ACTION))
 	if Input.is_action_just_pressed(Abilities.SPELL_ACTION):
-		# Every damage spell parries: the guard goes up (on its own cooldown, Parry) as it is cast.
+		# Every damage spell parries: the guard goes up (on its own cooldown, Parry) on the press.
 		if Abilities.spell(self) != &"" and not is_drowsy():
 			parry.emit()
-		Abilities.cast(self, &"damage")
+		if empower != null:
+			empower.press()
+		else:
+			Abilities.cast(self, &"damage")
 	# Nothing shows the utility spell standing by: pressed when it cannot work (cooling down, no
 	# draught left, nothing to heal), it sputters instead (RisoPrint: a dull puff from the bag).
 	if Input.is_action_just_pressed(Abilities.UTILITY_ACTION):

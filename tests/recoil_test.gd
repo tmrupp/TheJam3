@@ -13,19 +13,39 @@ const AIR_UP: float = 40.0
 
 ## Open air: nothing solid, and no thorns.
 func open_cell(v: Vector2i) -> bool:
-	return info.world.is_valid(v) and info.world.get_cell(v).type not in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED, LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.SPIKES, LevelGen.Type.LASER]
+	if not info.world.is_valid(v):
+		return false
+	if info.world.get_cell(v).type == LevelGen.Type.CRACKED:
+		return (info.record().broken as Dictionary).has(v)
+	return info.world.get_cell(v).type not in [LevelGen.Type.GROUND, LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.SPIKES, LevelGen.Type.LASER]
 
 
-## A free floor cell with three open cells either side of it, over ground.
+## Open air, or cracked rock (not a secret room's) that `clear_round` breaks out of the way.
+func clearable(v: Vector2i) -> bool:
+	return open_cell(v) or (info.world.is_valid(v) and info.world.get_cell(v).type == LevelGen.Type.CRACKED and info.world.get_cell(v).extra_info == null)
+
+
+## A free floor cell with three open (or clearable) cells either side of it, over ground (cracked
+## rock in the floor holds the wizard up as well as rock until it is broken).
 func spot() -> Vector2i:
 	var w: LevelGen = info.world
 	for v: Vector2i in w.free_floors():
 		var ok: bool = true
 		for dx: int in range(-3, 4):
-			ok = ok and open_cell(v + Vector2i(dx, 0)) and w.is_ground(v + Vector2i(dx, 1))
+			var under: Vector2i = v + Vector2i(dx, 1)
+			ok = ok and clearable(v + Vector2i(dx, 0)) and (w.is_ground(under) or (w.is_valid(under) and w.get_cell(under).type == LevelGen.Type.CRACKED))
 		if ok:
 			return v
 	return Vector2i(-1, -1)
+
+
+## Break the cracked rock in the three cells either side of `at` (as an empowered spell would), so
+## the stretch is open whatever cracks the level laid there.
+func clear_round(at: Vector2i) -> void:
+	var cells: Array[Vector2i] = []
+	for dx: int in range(-3, 4):
+		cells.append(at + Vector2i(dx, 0))
+	CrackedWall.crumble_cells(self, cells, Vector2.RIGHT)
 
 
 ## Thorns laid on the floor of cell `v` (pointing up, always out), as a level lays them.
@@ -62,6 +82,10 @@ func run() -> void:
 	player.health.health = 99
 	var at: Vector2i = spot()
 	check(at != Vector2i(-1, -1), "open floor")
+	player.global_position = info.cell_position(at) + Vector2(0, 16 - 31)
+	await frames(2)
+	clear_round(at)
+	await frames(2)
 	floor_at = info.cell_position(at) + Vector2(0, 16 - 31)
 	# A little over the floor: in the air for a few steps.
 	var air_at: Vector2 = floor_at + Vector2(0, -AIR_UP)

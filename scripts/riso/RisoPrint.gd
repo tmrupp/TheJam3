@@ -763,6 +763,17 @@ func _on_player_event(kind: StringName, _at: Vector2) -> void:
 		RisoFx.burst(&"jump", feet.global_position if feet != null else _at)
 	elif kind == &"hurt":
 		RisoFx.burst(&"hit", _at + Vector2(0, -20), -_player.velocity.normalized())
+	elif kind == &"empower":
+		# An empowered cast (Empower): a flash of spell light from the bag, and a jolt.
+		var caster: RisoWizard = _player.get_node_or_null("RisoWizard") as RisoWizard
+		var from: Vector2 = caster.to_global(caster.costume.bag_position()) if caster != null and caster.costume != null else _at
+		RisoFx.burst(&"gain", from, Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.EYE])
+		Wound.shake(5.0, 0.12)
+	elif kind == &"empower_back":
+		# Empowerment back (Empower): a burst of accent sparks from the bag, no jolt.
+		var holder: RisoWizard = _player.get_node_or_null("RisoWizard") as RisoWizard
+		var bag: Vector2 = holder.to_global(holder.costume.bag_position()) if holder != null and holder.costume != null else _at
+		RisoFx.burst(&"gain", bag, Vector2.ZERO, [RisoPrint.ACCENT])
 	elif kind == &"fizzle":
 		# A spell that could not work: a dull puff of night and blue from the bag's knot, and a dull
 		# click (the hurt sound, low and quiet).
