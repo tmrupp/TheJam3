@@ -1,5 +1,6 @@
 extends TestKit
-## Phase 7 of docs/DEEPER_PLAN.md: the hex bolt, enemy health and cracked walls.
+## Phase 7 of docs/DEEPER_PLAN.md: the hex bolt, enemy health and cracked walls (which only an
+## empowered bolt breaks, Empower: a plain one chips them).
 ## godot --headless --path . --script res://tests/hex_test.gd
 
 
@@ -7,12 +8,15 @@ func open_cell(v: Vector2i) -> bool:
 	return info.world.is_valid(v) and info.world.get_cell(v).type != LevelGen.Type.GROUND and info.world.get_cell(v).type != LevelGen.Type.CRACKED
 
 
-## A bolt thrown from `from` toward `dir`, as the Hex ability would.
-func fire(from: Vector2, dir: Vector2, damage: int = 1) -> Node2D:
+## A bolt thrown from `from` toward `dir`, as the Hex ability would (`empowered`, as a held cast
+## of a tempered hex would: Empower).
+func fire(from: Vector2, dir: Vector2, damage: int = 1, empowered: bool = false) -> Node2D:
 	var bolt: Node2D = Node2D.new()
 	bolt.set_script(preload("res://scripts/HexBolt.gd"))
 	bolt.set("dir", dir)
 	bolt.set("damage", damage)
+	bolt.set("empowered", empowered)
+	bolt.set("bore", HexBolt.BORE if empowered else 0)
 	info.map_elements.add_child(bolt)
 	bolt.global_position = from
 	return bolt
@@ -142,9 +146,13 @@ func run() -> void:
 	# Stand there first: the wall's chunk has to be awake (chunks far from the wizard sleep).
 	player.global_position = shot_from
 	await frames(8)
-	fire(shot_from, shot_dir)
+	var plain: Node2D = fire(shot_from, shot_dir)
+	await until(gone(plain))
+	await frames(2)
+	check(placed("cracked_wall.tscn").any(func(n: Node) -> bool: return n.get_meta(&"cell") == shot) and not (info.record().broken as Dictionary).has(shot), "a plain bolt only chips the wall: it stands")
+	fire(shot_from, shot_dir, 1, true)
 	await until(func() -> bool: return not placed("cracked_wall.tscn").any(func(n: Node) -> bool: return n.get_meta(&"cell") == shot))
-	check(not placed("cracked_wall.tscn").any(func(n: Node) -> bool: return n.get_meta(&"cell") == shot), "a bolt breaks the wall")
+	check(not placed("cracked_wall.tscn").any(func(n: Node) -> bool: return n.get_meta(&"cell") == shot), "an empowered bolt breaks the wall")
 	check((info.record().broken as Dictionary).has(shot), "and the record keeps it broken")
 	# A protected death (a fresh lantern lit first): an unprotected one would end the run, and a
 	# new run starts with fresh records.

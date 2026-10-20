@@ -48,7 +48,7 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
 - `gdextension/`: the C++ overlapping-WFC extension (SCons). Rarely touched.
 - `docs/`: `DEEPER_PLAN.md` (design, by system), `REGIONS_PLAN.md` (the plan for going up and
   down from the garden, the new bands and the bosses at band ends; phases 1 to 4 built (the worm
-  and the bramble), a first pass of the crags and the spider of phase 5, phase 6, the cemetery's
+  and the bramble), a first pass of the crags and the spider of phase 5 (with the lodestones, empowered spells and spires), phase 6, the cemetery's
   crypts, light and the necromancer, and a first pass of phase 7, the institute, its beast and its timetable),
   `RISO_PRINT.md` (the art pipeline and rules), `CLEANUP_PLAN.md` (the ten follow-ups to the
   architecture refactor, all done; kept for why the shared helpers are shaped as they are),
@@ -175,8 +175,10 @@ bash tests/run.sh sky_test        # just these, headless
 - Art is ink coverage on plates (night, blue, pink, accent, eye, glow, robe), drawn with
   `InkCanvas.ink`, `knock` (clear to paper) and `lift_ink`. Plates multiply. Within a plate, order
   is `z_index`.
-- No outlines of any kind. Use simple procedural shapes (`RisoShapes`). Pink means danger, accent
-  or yellow means reward, glow belongs to the wizard. Decor stays in blue, night, moss and paper.
+- No outlines of any kind (one exception, the owner's: a passable sun or shade block is drawn as an
+  outline round its group, `PhaseBlockArt`). Use simple procedural shapes (`RisoShapes`). Pink
+  means danger, accent or yellow means reward, glow belongs to the wizard. Decor stays in blue,
+  night, moss and paper.
 - Keep backgrounds dark and low-contrast, and put saturation and paper-bright knockouts on gameplay
   objects.
 - Layers (absolute z): sky −40, the whale cruising −30 (over the wizard, 11, while it swallows them), terrain −20, hedges −17, fences −16, decor −15, lantern light −12,

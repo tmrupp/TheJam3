@@ -102,7 +102,7 @@ const WEB_RINGS: Array[float] = [0.45, 0.8]
 const STRUCTURES: Array[String] = ["level_exit.tscn", "shrine.tscn", "door.tscn", "checkpoint.tscn", "spikes.tscn",
 	"portal.tscn", "inkwell.tscn", "moving_platform.tscn", "rolling_ladder.tscn", "bell.tscn", "switch.tscn", "switch_gate.tscn", "key.tscn",
 	"relic.tscn", "gondola.tscn", "stalactite.tscn", "department.tscn", "way_back.tscn", "study_desk.tscn",
-	"timetable_board.tscn"]
+	"timetable_board.tscn", "snuffer.tscn", "light_gate.tscn", "ossuary_door.tscn", "phase_block.tscn"]
 ## Structures that stand tall, keeping a wider stretch of floor clear (see rebuild). A department's
 ## portal is one: an institute column or bookcase stood on its cell once rose out of its arch.
 const TALL: Array[String] = ["level_exit.tscn", "shrine.tscn", "checkpoint.tscn", "door.tscn", "bell.tscn", "gondola.tscn",

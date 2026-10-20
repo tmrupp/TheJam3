@@ -448,6 +448,60 @@ func flip_tower (tower: int, mask: int) -> bool:
 	save_run()
 	return true
 
+## Whether tower `tower` here is cold (CragsArchetype.set_stations) and not yet woken by an empowered
+## strike on its spire (LevelRecord.woken): its switch does nothing.
+func tower_cold (tower: int) -> bool:
+	if world == null or tower < 0 or tower >= world.towers.size():
+		return false
+	return bool(world.towers[tower].get("cold", false)) and not record().woken.has(tower)
+
+## An empowered strike on tower `tower`'s spire (Spire): a cold tower wakes for good; any other
+## flips its switch, under the same lock as by hand (flip_tower). Whether anything came of it.
+func strike_spire (tower: int) -> bool:
+	if world == null or tower < 0 or tower >= world.towers.size():
+		return false
+	if tower_cold(tower):
+		record().woken[tower] = true
+		save_run()
+		return true
+	var at: Vector2i = world.towers[tower].get("switch", Vector2i(-1, -1))
+	if not world.is_valid(at) or world.get_cell(at).type != LevelGen.Type.TOWER_SWITCH:
+		return false
+	return flip_tower(tower, int((world.get_cell(at).extra_info as Dictionary).get("mask", 0)))
+
+## The lodestone here was touched (Lodestone): `spell` is tempered for the rest of the run (Empower)
+## and, the stone new, what is left of empowerment's recharge is cut to the new one. Whether it was new.
+func touch_lodestone (spell: StringName) -> bool:
+	if not run.touch_lodestone(coord, spell):
+		return false
+	var empower: Empower = Empower.of(wizard())
+	if empower != null:
+		empower.shorten()
+	seen_version += 1
+	save_run()
+	return true
+
+## The gondola brought all the way to its top station (Gondola): every level this one's exits lead
+## to (side worlds aside) has its map inked whole, as its own ink well would (ink_place), so a
+## lodestone there shows on the worlds map.
+func ink_neighbours () -> void:
+	for at: Vector2i in here.neighbours():
+		if not Worlds.is_side(at):
+			ink_place(at)
+	seen_version += 1
+	save_run()
+
+## Ink the whole map of the place at `at` (not the one being played): its record is mapped, and every
+## cell seen, now if its layout is known, else when it is (LevelRecord.seen_for).
+func ink_place (at: Vector2i) -> void:
+	var rec: LevelRecord = run.record(at)
+	rec.mapped = true
+	var w: LevelGen = loader.laid_out(at) if loader != null else null
+	if w != null:
+		rec.seen_for(w.size.x * w.size.y).fill(1)
+	else:
+		rec.seen = PackedByteArray()
+
 ## The chain on the bell at `cell` is off (by its key): for good.
 func free_bell (cell: Vector2i) -> void:
 	record().bells_free[cell] = true
@@ -1485,13 +1539,97 @@ func snuff (at: Vector2) -> bool:
 	RisoFx.burst(&"gain", at, Vector2.UP, [RisoPrint.NIGHT, RisoPrint.BLUE])
 	return true
 
-## Light a snuffed flame again (a dash).
+## Light a snuffed flame again (a dash, see dash_switch).
 func relight () -> void:
 	if not snuffed:
 		return
 	snuffed = false
 	if player != null and is_instance_valid(player):
 		RisoFx.burst(&"gain", player.global_position + Vector2(0, -30), Vector2.ZERO, [RisoPrint.EYE, RisoPrint.GLOW])
+
+## Douse the flame in the snuffing font at `cell` (Snuffer), its water at `at`, and take its
+## darkness: the wizard gains every charge it holds (Snuffer.CHARGES in a font never touched, or
+## what was poured back into it), their flame goes out (if it burns), and the font is dry until
+## darkness is poured into it again (LevelRecord.fonts, kept whatever befalls them after). Whether
+## it gave any (a dry font gives nothing).
+func douse_font (cell: Vector2i, at: Vector2) -> bool:
+	var held: int = font_held(cell)
+	if travelling or run_ending > 0.0 or held <= 0:
+		return false
+	record().fonts[cell] = 0
+	run.dark_charges += held
+	if not snuff(at):
+		RisoFx.burst(&"gain", at, Vector2.UP, [RisoPrint.NIGHT, RisoPrint.BLUE])
+	save_run()
+	return true
+
+## Pour every charge of darkness the wizard carries back into the dry snuffing font at `cell`
+## (Snuffer), its water at `at`, to keep it there (LevelRecord.fonts) out of the way of the dash,
+## which would spend it, and of a death; the next to douse their flame in it takes it all. How many
+## were poured (none into a font still holding darkness).
+func fill_font (cell: Vector2i, at: Vector2) -> int:
+	var amount: int = run.dark_charges
+	if travelling or run_ending > 0.0 or font_held(cell) > 0 or amount <= 0:
+		return 0
+	record().fonts[cell] = amount
+	run.dark_charges = 0
+	RisoFx.burst(&"gain", at, Vector2.DOWN, [RisoPrint.NIGHT, RisoPrint.BLUE])
+	save_run()
+	return amount
+
+## The charges of darkness the snuffing font at `cell` here holds.
+func font_held (cell: Vector2i) -> int:
+	return int(record().fonts.get(cell, Snuffer.CHARGES))
+
+## Whether the snuffing font at `cell` here has run dry.
+func font_dry (cell: Vector2i) -> bool:
+	return font_held(cell) <= 0
+
+## Whether the ossuary door at `v` here has had its fill (OssuaryDoor): open for good.
+func ossuary_open (v: Vector2i) -> bool:
+	var how: Array = world.get_cell(v).extra_info
+	return int(record().poured.get(int(how[0]), 0)) >= int(how[1])
+
+## Pour the darkness the wizard carries into the ossuary doors of crypt `crypt` here, which open
+## once `fill` charges are in (OssuaryDoor), the door at `at`: as many charges as they still want,
+## kept by the record whatever befalls the wizard. How many were poured.
+func pour_ossuary (crypt: int, fill: int, at: Vector2) -> int:
+	if travelling or run_ending > 0.0:
+		return 0
+	var rec: LevelRecord = record()
+	var before: int = int(rec.poured.get(crypt, 0))
+	var amount: int = mini(run.dark_charges, fill - before)
+	if amount <= 0:
+		return 0
+	run.dark_charges -= amount
+	rec.poured[crypt] = before + amount
+	RisoFx.burst(&"gain", at + Vector2(0, -20), Vector2.ZERO, [RisoPrint.NIGHT, RisoPrint.BLUE])
+	if before + amount >= fill:
+		RisoFx.burst(&"gain", at, Vector2.UP, [RisoPrint.GLOW, RisoPrint.ACCENT])
+	save_run()
+	return amount
+
+## How long the flare of the last charge spent has left to burn (s; Lamplight.FLARE_TIME).
+var flare: float = 0.0
+
+## A dash (Player), in any world, while a lantern protects the wizard, switches their light by
+## Rules.dash_dark: out of the dark it lights the flame and spends a charge, which flares
+## (Lamplight.FLARE_REACH); while lit it puts the flame out again if a charge is left. With no
+## charge it only lights a snuffed flame. So darkness carried out of the cemetery dwindles with
+## every other dash, unless it is poured into a font to keep (fill_font).
+func dash_switch () -> void:
+	if run.vulnerable:
+		relight()
+		return
+	var had: int = run.dark_charges
+	var after: Vector2i = Rules.dash_dark(snuffed, had)
+	run.dark_charges = after.y
+	if snuffed and after.x == 0:
+		relight()
+		if after.y < had:
+			flare = Lamplight.FLARE_TIME
+	elif not snuffed and after.x == 1 and player != null and is_instance_valid(player):
+		snuff(player.global_position + Vector2(0, -30))
 
 ## Whether the lantern the wizard carries burns: while a lantern protects them and it is not snuffed.
 func flame_lit () -> bool:
@@ -1563,17 +1701,19 @@ func player_died (pos: Vector2) -> void:
 	# The respawn level reloads, so its enemies are back (and the ghost appears if it is there).
 	respawn_in_other_level()
 
-## Touching the ghost returns its stars and relights the lantern its death burned out: lit again,
+## Touching the ghost returns its stars and the darkness it holds, and relights the lantern its death burned out: lit again,
 ## it protects the next death, and, while the wizard has no other lantern lit, it is theirs again (as
 ## it was, their respawn). It does not heal (the wizard came back at full health).
 func recover_ghost () -> void:
 	if not run.has_ghost:
 		return
 	var stars: int = run.ghost_stars
+	var charges: int = run.ghost_charges
 	var at: Vector2 = run.ghost_pos
 	var lantern: Array = run.ghost_lantern
 	_clear_ghost()
 	player.collect(stars)
+	run.dark_charges += charges
 	if lantern.size() == 2:
 		run.record(lantern[0]).spent_lanterns.erase(lantern[1])
 		if run.vulnerable and run.respawn_coord == lantern[0] and run.respawn_cell == lantern[1]:
@@ -1737,12 +1877,15 @@ func solid_at (pos: Vector2) -> bool:
 			return not gate_open(v)
 		LevelGen.Type.LIGHT_GATE:
 			return not bool(light_gates.get(v, false))
+		LevelGen.Type.OSSUARY_DOOR:
+			return not ossuary_open(v)
 		LevelGen.Type.EXAM_DOOR:
 			return not bool(exam_doors.get(v, true))
 	return false
 
 func _physics_process (delta: float) -> void:
 	since_bell += delta
+	flare = maxf(0.0, flare - delta)
 	if world == null or travelling or player == null or not is_instance_valid(player):
 		return
 	gust_clock += delta

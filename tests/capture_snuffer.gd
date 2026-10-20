@@ -41,7 +41,7 @@ func run() -> void:
 	player.global_position = font.global_position + Vector2(-240, 0)
 	await _look(font.global_position + Vector2(-120, -50), "snuffer_far.png")
 	player.global_position = font.global_position + Vector2(-70, 0)
-	(font as Snuffer).snuff()
+	(font as Snuffer).use()
 	await _look(font.global_position + Vector2(-30, -50), "snuffer_dip.png", 3.0, 24)
 	await _look(font.global_position + Vector2(-30, -50), "snuffer_snuffed.png", 3.0, 200)
 	info.relight()

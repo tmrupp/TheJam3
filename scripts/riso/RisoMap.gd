@@ -338,6 +338,7 @@ func _level_rows() -> Array:
 		["unrung bridge", func(at: Vector2) -> void: _mark_bridge(at, false), "unrung bridge"],
 		["gondola", func(at: Vector2) -> void: _mark_gondola([at + Vector2(-3.0, 3.0), at + Vector2(-3.0, 1.0), at + Vector2(-1.0, 1.0), at + Vector2(-1.0, -1.0), at + Vector2(1.0, -1.0), at + Vector2(1.0, -3.0)], [at + Vector2(-3.0, 3.0), at + Vector2(1.0, -3.0)], at + Vector2(-3.0, 3.0), [true, false]), "gondola"],
 		["tower switch", _mark_tower_switch, "tower switch"],
+		["lodestone", func(at: Vector2) -> void: _mark_lodestone(at, &"hex", false), "lodestone"],
 		["toll gate", _mark_toll, "toll gate"],
 		["relic", func(at: Vector2) -> void: _mark_relic(at, &"blink", 0.7), "relic"],
 		["soul", func(at: Vector2) -> void: _mark_soul(at), "soul"],
@@ -348,6 +349,10 @@ func _level_rows() -> Array:
 		["star cluster", _mark_cluster, "star cluster"],
 		["ink well", func(at: Vector2) -> void: _mark_inkwell(at, false), "ink well"],
 		["snuffing font", func(at: Vector2) -> void: _mark_snuffer(at), "snuffing font"],
+		["dry font", func(at: Vector2) -> void: _mark_snuffer(at, true), "dry font"],
+		["sun block", func(at: Vector2) -> void: _mark_phase_block(at, true), "sun block"],
+		["shade block", func(at: Vector2) -> void: _mark_phase_block(at, false), "shade block"],
+		["ossuary door", _mark_ossuary, "ossuary door"],
 		["ghost", func(at: Vector2) -> void: _mark_ghost(at, 0.22), "ghost"],
 	]
 
@@ -373,7 +378,8 @@ func _other_level(info: MapInfo, c: Vector2i) -> void:
 		_text("inking…", AREA.get_center() + Vector2(0, -5), 9.0, false, true)
 		return
 	var rec: LevelRecord = info.run.records.get(c, LevelRecord.new())
-	var bytes: PackedByteArray = rec.seen
+	# A map inked whole before its layout was known (MapInfo.ink_place) is all seen once it is.
+	var bytes: PackedByteArray = rec.seen_for(w.size.x * w.size.y) if rec.mapped else rec.seen
 	var stamp: int = bytes.size() + bytes.count(1) * 7919
 	if _built_coord != c or _built_version != stamp:
 		_build_textures_for(w, bytes, rec.broken)
@@ -466,9 +472,15 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 		LevelGen.Type.INKWELL:
 			_mark_inkwell(at, bool(rec.mapped))
 		LevelGen.Type.SNUFFER:
-			_mark_snuffer(at)
+			_mark_snuffer(at, int((rec.fonts as Dictionary).get(v, Snuffer.CHARGES)) <= 0)
 		LevelGen.Type.LIGHT_GATE:
 			_mark_light_gate(at, bool(cell.extra_info))
+		LevelGen.Type.PHASE_BLOCK:
+			_mark_phase_block(at, bool(cell.extra_info))
+		LevelGen.Type.OSSUARY_DOOR:
+			var how: Array = cell.extra_info
+			if int((rec.poured as Dictionary).get(int(how[0]), 0)) < int(how[1]):
+				_mark_ossuary(at)
 		LevelGen.Type.DEPARTMENT:
 			_mark_department(at, signi(int((cell.extra_info as Array)[1]) - c.y))
 		LevelGen.Type.CHECKPOINT:
@@ -521,6 +533,8 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 			_mark_gondola(corners, stops, at, on)
 		LevelGen.Type.TOWER_SWITCH:
 			_mark_tower_switch(at)
+		LevelGen.Type.LODESTONE:
+			_mark_lodestone(at, StringName(cell.extra_info), info.run.lodestones.has(c))
 		LevelGen.Type.TOLL:
 			if not gone:
 				_mark_toll(at)
@@ -576,6 +590,29 @@ func _mark_relic(at: Vector2, move: StringName, k: float = 1.0) -> void:
 	for poly: PackedVector2Array in RisoGlyph.of(move, Vector2.ZERO, t):
 		mark.append(fit * poly)
 	marks.ink(RisoPrint.NIGHT, 1.0, mark, false)
+
+
+## A lodestone (Lodestone): a standing stone of night ink with its spell's mark knocked through it,
+## in accent until touched, then in blue.
+func _mark_lodestone(at: Vector2, spell: StringName, touched: bool, k: float = 1.0) -> void:
+	_note("lodestone")
+	var stone: PackedVector2Array = RisoShapes.rrect(at.x - 3.6 * k, at.y - 5.0 * k, 7.2 * k, 10.0 * k, 2.6 * k)
+	marks.ink(RisoPrint.NIGHT, 1.0, [stone], false)
+	var fit: Transform2D = Transform2D(0.0, Vector2(0.11, 0.11) * k, 0.0, at + Vector2(0, -0.6) * k)
+	var mark: Array[PackedVector2Array] = []
+	for poly: PackedVector2Array in RisoGlyph.of(spell, Vector2.ZERO, t):
+		mark.append(fit * poly)
+	marks.knock([RisoPrint.NIGHT], mark)
+	marks.ink(RisoPrint.BLUE if touched else RisoPrint.ACCENT, 1.0, mark, false)
+
+
+## Whether the map knows of level `c`'s lodestone (Rules.lodestone_at): its map inked whole (its ink
+## well, or the gondola's view from a neighbour, MapInfo.ink_neighbours), or the stone touched.
+func _lodestone_known(info: MapInfo, c: Vector2i) -> bool:
+	if Rules.lodestone_at(c) == &"":
+		return false
+	var rec: LevelRecord = info.run.visited(c)
+	return info.run.lodestones.has(c) or (rec != null and rec.mapped)
 
 
 ## One of the eldritch beast's souls (BeastSoul): a pink knot with an eye of paper.
@@ -652,11 +689,30 @@ func _mark_shrine(at: Vector2, used: bool) -> void:
 	marks.ink(RisoPrint.ACCENT, 0.35 if used else 1.0, [RisoShapes.arch(at.x - 2.5, at.y - 3.5, 5, 6, 6)], false)
 
 
-## A snuffing font (Snuffer): a blue bowl with a night drop over it.
-func _mark_snuffer(at: Vector2) -> void:
-	_note("snuffing font")
-	marks.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(at.x - 2.6, at.y - 0.6, 5.2, 2.6, 1.2)], false)
-	marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.circle(at + Vector2(0, -2.4), 1.1, 8)], false)
+## A snuffing font (Snuffer): a blue bowl with a night drop over it; once `dry`, the bowl faint and
+## no drop.
+func _mark_snuffer(at: Vector2, dry: bool = false) -> void:
+	_note("dry font" if dry else "snuffing font")
+	marks.ink(RisoPrint.BLUE, 0.4 if dry else 1.0, [RisoShapes.rrect(at.x - 2.6, at.y - 0.6, 5.2, 2.6, 1.2)], false)
+	if not dry:
+		marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.circle(at + Vector2(0, -2.4), 1.1, 8)], false)
+
+
+## A sun block or a shade block (PhaseBlock): a small square of blue stone with an accent dot (sun)
+## or of night ink (shade), as the light gates are marked.
+func _mark_phase_block(at: Vector2, sun: bool) -> void:
+	_note("sun block" if sun else "shade block")
+	var square: PackedVector2Array = RisoShapes.rrect(at.x - 2.2, at.y - 2.2, 4.4, 4.4, 0.8)
+	marks.ink(RisoPrint.BLUE if sun else RisoPrint.NIGHT, 0.8, [square], false)
+	if sun:
+		marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(at, 1.1, 8)], false)
+
+
+## An ossuary door (OssuaryDoor) still shut: a night slab with a bone dot.
+func _mark_ossuary(at: Vector2) -> void:
+	_note("ossuary door")
+	marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.rrect(at.x - 1.4, at.y - 2.8, 2.8, 5.6, 0.8)], false)
+	marks.knock(RisoPrint.ALL_PLATES, [RisoShapes.circle(at + Vector2(0, -0.6), 0.9, 8)])
 
 
 ## A lantern: an eye-yellow dot, haloed on your respawn; a night dot once spent.
@@ -966,6 +1022,9 @@ func _world(info: MapInfo) -> void:
 			_mark_spent_shrine(at + Vector2(0, TILE.y * 0.5 - 4.75))
 		if info.run.has_ghost and c == info.run.ghost_coord:
 			_mark_ghost(at + Vector2(TILE.x * 0.5 - 4.0, TILE.y * 0.5 - 4.0), 0.2)
+		# A lodestone the map knows of: on the middle of the tile's right edge, its spell's mark.
+		if _lodestone_known(info, c):
+			_mark_lodestone(at + Vector2(TILE.x * 0.5 - 1.5, 1.0), Rules.lodestone_at(c), info.run.lodestones.has(c), 0.8)
 	# The cursor: a night-ink frame round the picked level (or a side world's ribbon), breathing.
 	var cur: Vector2 = tile_at(info, selected)
 	var cur_size: Vector2 = tile_size(selected)
@@ -1024,6 +1083,7 @@ func _world(info: MapInfo) -> void:
 	] + _side_rows() + [
 		["respawn", _mark_respawn_level],
 		["relic", func(at: Vector2) -> void: _mark_relic(at, &"blink")],
+		["lodestone", func(at: Vector2) -> void: _mark_lodestone(at, &"hex", false)],
 		["shrine used", _mark_spent_shrine],
 		["ghost", func(at: Vector2) -> void: _mark_ghost(at, 0.2)],
 	] + ([["beast's soul", func(at: Vector2) -> void: _mark_soul(at)]] if not info.run.souls.is_empty() else []))

@@ -4,8 +4,8 @@ class_name DashStrike
 ## Abilities): it neither wounds nor stuns. The wizard passes through enemies while dashing (their
 ## bodies stop blocking, ENEMY_LAYER, until the wizard is clear of them after it), and touching an
 ## enemy (or a moth swarm) never hurts them while they dash. The worm's body still blocks the dash
-## (WormSegment). Dashing into a cracked wall breaks it (not a secret room's hidden rock: that is
-## found by walking in). A dash (or a blink, which jumps while the dash runs, Blink.gd) tears the
+## (WormSegment). It does nothing to cracked rock: only an empowered spell breaks that (Empower,
+## CrackedWall). A dash (or a blink, which jumps while the dash runs, Blink.gd) tears the
 ## spider's webs it passes through (SpiderWeb) and cuts a spider's thread it crosses (Spider),
 ## dropping it. Every wizard has one (Player).
 
@@ -28,7 +28,6 @@ func _physics_process(_delta: float) -> void:
 	if dashing:
 		sweep(last, player.global_position)
 		last = player.global_position
-		_break_walls()
 	# Enemies block the wizard again once the dash is over, but only when no enemy's body is where
 	# the wizard is: turned back on with the wizard inside one, the push out could wedge them in
 	# the rock or fling them across the level.
@@ -66,11 +65,3 @@ func sweep(from: Vector2, to: Vector2) -> void:
 	if not thread.is_empty():
 		(thread["spider"] as Spider).cut(thread["at"])
 
-
-## Cracked walls the dash ran into crumble (a secret room's rock is left for the wizard to find).
-func _break_walls() -> void:
-	for i: int in range(player.get_slide_collision_count()):
-		var contact: KinematicCollision2D = player.get_slide_collision(i)
-		var hit: Object = contact.get_collider()
-		if hit is CrackedWall and not (hit as Node).has_meta(&"secret"):
-			(hit as CrackedWall).hex_hit(1, -contact.get_normal())

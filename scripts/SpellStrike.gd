@@ -9,7 +9,8 @@ extends RefCounted
 ## (a switch, a bell, a moth swarm: HexBolt.ANSWERS) answer this too. Rock between the wizard and
 ## a thing shelters it. Thorns are struck too (`thorns_caught`). Spells aimed one way throw the
 ## wizard back (`recoil`): a slash when it lands (on anything, thorns too), a push and a hex bolt
-## whenever cast.
+## whenever cast. Cast empowered (Empower), a blow breaks a shield at once and strikes a spire
+## (Spire.empowered_hit), and the spell breaks the cracked rock it reaches (`crack`, by cells).
 
 ## How far up and down from its middle a thing may be caught (as HexBolt's SPAN_DOWN and SPAN_UP).
 const SPAN_DOWN: float = 20.0
@@ -86,16 +87,17 @@ static func clear(from: Vector2, to: Vector2) -> bool:
 
 
 ## Strike `e` heading `dir`: wound it by `damage` (Wound.dealt: at least its Wound.least, and at least
-## 1 while a parry has it stunned); a shield takes it whole, and what answers a bolt answers. `spell`
-## names the spell that struck (&"" for a plain blow); nothing reads it since the institute's glyph
-## seals were taken out.
-static func strike(e: Node, dir: Vector2, damage: int, _spell: StringName = &"") -> void:
+## 1 while a parry has it stunned); a shield takes it whole (unless `empowered`: then it breaks at
+## once), and what answers a bolt answers (a spire flips its tower only to an `empowered` blow).
+## `spell` names the spell that struck (&"" for a plain blow); nothing reads it since the institute's
+## glyph seals were taken out.
+static func strike(e: Node, dir: Vector2, damage: int, _spell: StringName = &"", empowered: bool = false) -> void:
 	# A scholar struck by the wizard turns on them (Scholar.rouse), the blow theirs.
 	if e is Scholar:
 		(e as Scholar).rouse()
 		(e as Scholar).wizard_blow = true
 	var shield: Shield = Shield.of(e)
-	if shield != null and shield.absorb(false, dir):
+	if shield != null and shield.absorb(empowered, dir):
 		return
 	var wound: Wound = e.get_node_or_null("Wound") as Wound
 	var dealt: int = Wound.dealt(wound, damage) if wound != null else damage
@@ -103,8 +105,41 @@ static func strike(e: Node, dir: Vector2, damage: int, _spell: StringName = &"")
 		wound.hit(dealt, dir)
 	elif wound != null:
 		RisoFx.burst(&"hit", (e as Node2D).global_position, dir, [RisoPrint.ACCENT, RisoPrint.BLUE])
-	if wound == null and HexBolt.answers(e):
+	if wound == null and empowered and e is Spire:
+		(e as Spire).empowered_hit(dir)
+	elif wound == null and HexBolt.answers(e):
 		e.call("hex_hit", damage, dir)
+
+
+## The level cell world position `p` falls in (MapInfo.cell_at), or (-1, -1) outside the game.
+static func cell_of(p: Vector2) -> Vector2i:
+	var info: MapInfo = MapInfo.instance
+	if info == null or info.world == null or info.tile_map == null:
+		return Vector2i(-1, -1)
+	return info.cell_at(p)
+
+
+## An empowered spell breaks the cracked rock at `cells` (CrackedWall.crumble), heading `dir`; how
+## many cells of it there were.
+static func crack(tree: SceneTree, cells: Array[Vector2i], dir: Vector2) -> int:
+	return CrackedWall.crumble_cells(tree, cells, dir)
+
+
+## The cells round `c` (a cell out, all eight), for a spell breaking rock all round.
+static func ring(c: Vector2i) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	for dx: int in range(-1, 2):
+		for dy: int in range(-1, 2):
+			if dx != 0 or dy != 0:
+				out.append(c + Vector2i(dx, dy))
+	return out
+
+
+## The cell a step from `c` the way `dir` points most (along a row or a column).
+static func step(c: Vector2i, dir: Vector2) -> Vector2i:
+	if absf(dir.x) >= absf(dir.y):
+		return c + Vector2i(int(signf(dir.x)), 0)
+	return c + Vector2i(0, int(signf(dir.y)))
 
 
 ## Throw the wizard back off a spell they cast heading `dir`, at `power` (1 a slash's; see RECOIL).

@@ -112,6 +112,49 @@ static func wind_of (rec: LevelRecord) -> int:
 			strength += 1
 	return rec.wind_way * strength
 
+## Lodestones (Lodestone, CragsArchetype.place_lodestone): along each crags row, every stretch of
+## LODESTONE_STRETCH worlds holds each damage spell's stone once, at places and in an order hashed
+## from the row and the stretch (LODESTONE_DEAL), so one crags level in four holds one and no
+## spell's stone is ever more than LODESTONE_STRETCH - 1 worlds along a row.
+const LODESTONE_STRETCH: int = 24
+const LODESTONE_DEAL: int = 5150
+## How long an empowered cast takes to come back (Empower), by the lodestones touched: from the
+## first stone, each one more cutting a quarter off, down to the last entry from the seventh on.
+const EMPOWER_RECHARGE: Array[float] = [60.0, 45.0, 34.0, 25.0, 19.0, 14.0, 10.0]
+
+## The damage spell whose lodestone stands in the level at `at`, or &"" for none (see
+## LODESTONE_STRETCH). Only crags levels hold one; side worlds never do.
+static func lodestone_at (at: Vector2i) -> StringName:
+	if Worlds.is_side(at) or NextWorldDef.archetype_at(at.y) != &"crags":
+		return &""
+	var spells: Array[StringName] = Abilities.in_slot(&"damage")
+	var stretch: int = floori(float(at.x) / float(LODESTONE_STRETCH))
+	var order: Array[int] = _lodestone_order(stretch, at.y)
+	var i: int = order.find(posmod(at.x, LODESTONE_STRETCH))
+	return spells[i] if i >= 0 and i < spells.size() else &""
+
+## The places along stretch `stretch` of row `row` (0 .. LODESTONE_STRETCH - 1), shuffled by hashing
+## them (no RNG): the first holds the first damage spell's stone, the next the second's, and so on.
+static func _lodestone_order (stretch: int, row: int) -> Array[int]:
+	var order: Array[int] = []
+	for i: int in range(LODESTONE_STRETCH):
+		order.append(i)
+	var h: int = level_seed(level_seed(stretch, row), LODESTONE_DEAL)
+	for i: int in range(LODESTONE_STRETCH - 1, 0, -1):
+		h = level_seed(h, i)
+		var j: int = h % (i + 1)
+		var keep: int = order[i]
+		order[i] = order[j]
+		order[j] = keep
+	return order
+
+## Seconds an empowered cast takes to come back once `stones` lodestones have been touched (none
+## yet: no empowering at all, INF).
+static func empower_recharge (stones: int) -> float:
+	if stones <= 0:
+		return INF
+	return EMPOWER_RECHARGE[mini(stones, EMPOWER_RECHARGE.size()) - 1]
+
 ## Cells across and down for a level: small near the surface, growing with depth.
 static func level_size (depth: int) -> Vector2i:
 	# Half the old growth (6 and 5 cells a depth, capped at 80 x 72): big levels were slow and long.
@@ -136,3 +179,47 @@ static func place_numbers (at: Vector2i) -> Vector3i:
 ## The definition of the place at `at`: a level, or a side world (see Worlds).
 static func def_for (at: Vector2i) -> NextWorldDef:
 	return Worlds.def_for(at)
+
+## The cemetery's darkness (docs/DEEPER_PLAN.md, "Darkness charges"). Some cemetery levels have no
+## snuffing fonts at all (FONTLESS_SHARE, dealt by the level's place): their sun and shade blocks
+## are worked only on darkness carried in from other levels. The band's first row
+## and the necromancer's gate level always keep theirs.
+const FONTLESS_SHARE: int = 30
+## Ossuary doors (OssuaryDoor): in OSSUARY_SHARE % of cemetery levels with two crypts, the second
+## crypt's doorways are doors of stacked skulls that drink darkness, opening for good once they have
+## had their fill: OSSUARY_FILL.x charges in the band's first row, rising to OSSUARY_FILL.y in the
+## last row that has them (the one before the gate level).
+const OSSUARY_SHARE: int = 40
+const OSSUARY_FILL: Vector2i = Vector2i(6, 12)
+
+## What a dash does to the wizard's light, in any world (MapInfo.dash_switch): from `dark`, holding `charges`, the light after it (1 dark, 0 lit) and the charges left, as
+## (dark, charges). A dash out of the dark lights the flame and spends a charge (none when there are
+## none to spend); a dash while lit puts it out again if a charge is left, and otherwise leaves it
+## lit, as a dash always did.
+static func dash_dark (dark: bool, charges: int) -> Vector2i:
+	if dark:
+		return Vector2i(0, maxi(charges - 1, 0))
+	if charges > 0:
+		return Vector2i(1, charges)
+	return Vector2i(0, 0)
+
+## Whether the cemetery level at `at` has no snuffing fonts (see FONTLESS_SHARE).
+static func fontless_at (at: Vector2i) -> bool:
+	if Worlds.is_side(at) or NextWorldDef.archetype_at(at.y) != &"cemetery":
+		return false
+	if at.y == NextWorldDef.first_depth(&"cemetery") or Bosses.gate_at(at.y) != &"":
+		return false
+	return level_seed(level_seed(at.x, at.y), 6300) % 100 < FONTLESS_SHARE
+
+## Whether the cemetery level at `at` shuts its second crypt behind ossuary doors, if it has two
+## (see OSSUARY_SHARE); never in the necromancer's gate level.
+static func ossuary_at (at: Vector2i) -> bool:
+	if Worlds.is_side(at) or NextWorldDef.archetype_at(at.y) != &"cemetery" or Bosses.gate_at(at.y) != &"":
+		return false
+	return level_seed(level_seed(at.x, at.y), 6310) % 100 < OSSUARY_SHARE
+
+## The charges an ossuary door in the level on `row` drinks before it opens (see OSSUARY_FILL).
+static func ossuary_fill (row: int) -> int:
+	var last: int = NextWorldDef.BAND - 2
+	var k: int = clampi(absi(row) - NextWorldDef.first_depth(&"cemetery"), 0, last)
+	return roundi(lerpf(float(OSSUARY_FILL.x), float(OSSUARY_FILL.y), float(k) / float(last)))

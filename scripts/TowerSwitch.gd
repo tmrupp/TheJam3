@@ -4,7 +4,8 @@ class_name TowerSwitch
 ## interact with it to flip the gondola stations it works (`mask`, a bit each from the bottom), on
 ## ones off and off ones on (MapInfo.flip_tower). Its art shows the line straight, each station lit
 ## or dark as it is now, a ring round each it flips (TowerSwitchArt). Once flipped it is locked until another tower's switch is flipped; tried while locked, it
-## only balks.
+## only balks. A cold tower's switch (MapInfo.tower_cold) balks too, until an empowered strike on the
+## tower's spire wakes it (Spire). A strike on a warm tower's spire flips it as a hand would.
 
 var map_info: MapInfo
 ## Which tower it stands in, and the stations it flips.
@@ -34,11 +35,16 @@ func locked() -> bool:
 	return map_info != null and map_info.last_tower == tower
 
 
+## Whether its tower is cold, not yet woken (it does nothing).
+func cold() -> bool:
+	return map_info != null and map_info.tower_cold(tower)
+
+
 ## Flip the stations it works, or balk if it is locked.
 func use() -> void:
 	if map_info == null or map_info.travelling:
 		return
-	if map_info.flip_tower(tower, mask):
+	if not cold() and map_info.flip_tower(tower, mask):
 		flipped_at = t
 		RisoFx.burst(&"gain", global_position + Vector2(0, -40), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
 	else:

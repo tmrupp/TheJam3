@@ -1,8 +1,8 @@
 extends TestKit
 ## The game's rules that are plain arithmetic, checked without the game scene (a second or so):
 ## level seeds, prices and the other numbers that grow with depth, key colours by rarity, where
-## side worlds sit, the bands of archetypes, where each exit leads, the shrine's offers, and the
-## keyring. A rule that needs a level laid out belongs in a test that builds one.
+## side worlds sit, the bands of archetypes, where each exit leads, the cemetery's darkness, the
+## shrine's offers, and the keyring. A rule that needs a level laid out belongs in a test that builds one.
 ## godot --headless --path . --script res://tests/unit_test.gd
 
 ## level_seed of these places, as it has always been: every level of every run comes from it, so a
@@ -36,6 +36,8 @@ func run() -> void:
 	_beast()
 	_institute()
 	_stations()
+	_darkness()
+	_lodestones()
 	var p: Player = Player.new()
 	_ability_tables()
 	_protocols()
@@ -43,6 +45,66 @@ func run() -> void:
 	_keyring(p)
 	p.free()
 	finish()
+
+
+## The crags' lodestones (Rules.lodestone_at): along each crags row, every stretch of
+## Rules.LODESTONE_STRETCH worlds holds each damage spell's stone once (one level in four), so none
+## is ever further than a stretch less one along a row; none outside the crags or in a side world.
+## How soon an empowered cast comes back (Rules.empower_recharge), and how long a press is held for
+## one (Empower.long_enough). Every damage spell's node casts with an empowered flag.
+func _lodestones() -> void:
+	var spells: Array[StringName] = Abilities.in_slot(&"damage")
+	var stretch: int = Rules.LODESTONE_STRETCH
+	var each_once: bool = true
+	var quarter: bool = true
+	for k: int in range(NextWorldDef.BAND):
+		var row: int = NextWorldDef.band_row(&"crags", k)
+		for s: int in [-3, -1, 0, 1, 5]:
+			var found: Dictionary = {}
+			var held: int = 0
+			for i: int in range(stretch):
+				var spell: StringName = Rules.lodestone_at(Vector2i(s * stretch + i, row))
+				if spell != &"":
+					held += 1
+					found[spell] = int(found.get(spell, 0)) + 1
+			each_once = each_once and found.size() == spells.size() and found.values().all(func(n: int) -> bool: return n == 1)
+			quarter = quarter and held * 4 == stretch
+	check(spells.size() == 6 and each_once, "every stretch of %d worlds along every crags row holds each damage spell's lodestone once" % stretch)
+	check(quarter, "so one crags level in four holds a lodestone")
+	var furthest: int = 0
+	var row0: int = NextWorldDef.band_row(&"crags", 0)
+	for spell: StringName in spells:
+		var last: int = -9999
+		for x: int in range(-60, 120):
+			if Rules.lodestone_at(Vector2i(x, row0)) == spell:
+				if last > -9999:
+					furthest = maxi(furthest, x - last)
+				last = x
+	check(furthest > 0 and furthest <= 2 * stretch - 1, "a spell's stones are never more than %d worlds apart along a row (%d at most)" % [2 * stretch - 1, furthest])
+	var outside: bool = true
+	for row: int in [0, 2, -2, NextWorldDef.band_row(&"cemetery", 0), NextWorldDef.band_row(&"sky", 0)]:
+		for x: int in range(0, 48):
+			outside = outside and Rules.lodestone_at(Vector2i(x, row)) == &""
+	for x: int in range(0, 48):
+		outside = outside and Rules.lodestone_at(Worlds.side_at(0, Vector2i(x, row0))) == &""
+	check(outside, "no lodestone outside the crags, nor in a side world")
+	check(Rules.lodestone_at(Vector2i(31, row0)) == Rules.lodestone_at(Vector2i(31, row0)), "the same every time")
+	check(not is_finite(Rules.empower_recharge(0)), "before any lodestone, no empowered cast")
+	var steps: Array[float] = []
+	for n: int in range(1, 10):
+		steps.append(Rules.empower_recharge(n))
+	check(steps.slice(0, 7) == [60.0, 45.0, 34.0, 25.0, 19.0, 14.0, 10.0] and steps[7] == 10.0 and steps[8] == 10.0, "it comes back in 60 s after the first stone, a quarter sooner for each more, 10 s from the seventh on")
+	check(not Empower.long_enough(Empower.HOLD - 0.05) and Empower.long_enough(Empower.HOLD) and is_equal_approx(Empower.HOLD, 0.4), "a press held 0.4 s casts empowered, a shorter one as ever")
+	var takes: bool = true
+	for spell: StringName in spells:
+		var made: Resource = load(String(Abilities.ABILITIES[spell]["make"]))
+		var script: Script = made as Script
+		if made is PackedScene:
+			var node: Node = (made as PackedScene).instantiate()
+			script = node.get_script()
+			node.free()
+		takes = takes and _takes(_method(script, &"cast_spell"), 1)
+	check(takes, "every damage spell's node casts with an empowered flag (cast_spell(empowered))")
 
 
 func _seeds() -> void:
@@ -456,6 +518,42 @@ func _stations() -> void:
 		var ok: bool = Stations.way(n, many, m, 1, 0, n - 1) != null and Stations.way(n, many, m, 1 << (n - 1), n - 1, 0) != null and Stations.all_on_reached(n, many, m)
 		passed += 1 if ok else 0
 	check(passed >= 4, "with %d stations, %d of 5 levels deal a way up, a way down and the whole line on (%d ms a deal)" % [n, passed, (Time.get_ticks_msec() - t1) / 5])
+
+
+## The cemetery's darkness (docs/DEEPER_PLAN.md): a dash out of the dark lights the flame and spends
+## a charge, a dash while lit puts it out again while one is left (the table in the plan, from a
+## font's three on top of four); about FONTLESS_SHARE of the cemetery's levels have no fonts, but
+## never its first row, its gate level, a side world or another band; ossuary doors want more
+## darkness deeper, and never stand in the gate level.
+func _darkness() -> void:
+	print("darkness")
+	var charges: int = 4 + Snuffer.CHARGES
+	var dark: bool = true
+	var seen: Array[Vector2i] = []
+	for i: int in range(16):
+		var after: Vector2i = Rules.dash_dark(dark, charges)
+		dark = after.x == 1
+		charges = after.y
+		seen.append(after)
+	check(seen.slice(0, 4) == [Vector2i(0, 6), Vector2i(1, 6), Vector2i(0, 5), Vector2i(1, 5)], "from the dark with 7: lit 6, dark 6, lit 5, dark 5")
+	check(seen[11] == Vector2i(1, 1) and seen.slice(12) == [Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0)], "down to the last charge, then a dash leaves the flame lit and spends nothing")
+	check_eq(Rules.dash_dark(true, 0), Vector2i(0, 0), "a dash out of the dark with nothing to spend lights the flame")
+	var first: int = NextWorldDef.first_depth(&"cemetery")
+	var gate: int = NextWorldDef.band_row(&"cemetery", NextWorldDef.BAND - 1)
+	var fontless: int = 0
+	var dealt: int = 0
+	var never: bool = true
+	for x: int in range(-60, 60):
+		never = never and not Rules.fontless_at(Vector2i(x, first)) and not Rules.fontless_at(Vector2i(x, gate)) and not Rules.ossuary_at(Vector2i(x, gate))
+		never = never and not Rules.fontless_at(Vector2i(x, 1)) and not Rules.fontless_at(Vector2i(x, NextWorldDef.first_depth(&"institute")))
+		for row: int in range(first + 1, gate):
+			dealt += 1
+			if Rules.fontless_at(Vector2i(x, row)):
+				fontless += 1
+	check(never, "never fontless in the band's first row, its gate level or another band, and no ossuary in the gate level")
+	var share: float = float(fontless) / float(dealt)
+	check(absf(share * 100.0 - float(Rules.FONTLESS_SHARE)) < 8.0, "%d of %d of the cemetery's other levels without fonts (%.0f %%)" % [fontless, dealt, share * 100.0])
+	check(Rules.ossuary_fill(first) == Rules.OSSUARY_FILL.x and Rules.ossuary_fill(gate - 1) == Rules.OSSUARY_FILL.y and Rules.ossuary_fill(first + 2) > Rules.ossuary_fill(first + 1), "an ossuary door drinks %d charges in the first row, more each row, %d in the last before the gate level" % [Rules.OSSUARY_FILL.x, Rules.OSSUARY_FILL.y])
 
 
 func _ability_tables() -> void:

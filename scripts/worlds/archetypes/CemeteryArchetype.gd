@@ -6,7 +6,8 @@ extends Archetype
 ## sleep fog and wraiths live there (populate). One or two crypts are dug into its hillside (Crypts),
 ## their insides collapsed from a sample of their own (patches) and dark inside, with skeletons
 ## asleep in them and snuffing fonts by their doorways; more fonts stand about its terraces
-## (finish).
+## (finish). Some levels have no fonts at all (Rules.fontless_at), and its crypts hold sun and
+## shade blocks and, in some, ossuary doors (Crypts.phase).
 
 const SAMPLE: String = "res://wfc_images/graveyard.png"
 ## Moth swarms (one by each lantern, and these more), banks of sleep fog and wraiths, per 1000
@@ -46,10 +47,26 @@ func patches(_def: NextWorldDef) -> Array[Dictionary]:
 	return Crypts.patches()
 
 
-## Last of all: what the crypts hold (Crypts.furnish), and the fonts about the terraces.
+## Last of all: what the crypts hold (Crypts.furnish), the fonts about the terraces (none at all in
+## a level the seed leaves without, Rules.fontless_at: dry_up), and the crypts' sun and shade
+## blocks and ossuary doors (Crypts.phase).
 func finish(w: LevelGen, def: NextWorldDef) -> void:
 	Crypts.furnish(w, def)
-	scatter_fonts(w)
+	if Rules.fontless_at(def.coord):
+		dry_up(w)
+	else:
+		scatter_fonts(w)
+	Crypts.phase(w, def)
+
+
+## Take away every snuffing font in `w` (those the crypts laid by their doorways): its cells are
+## free again, as they were before the fonts were laid.
+static func dry_up(w: LevelGen) -> void:
+	for v: Vector2i in w.objects_of(LevelGen.Type.SNUFFER):
+		w.set_kind(v, LevelGen.Type.EMPTY)
+		w.objects.erase(v)
+		if not w.interiors.has(v):
+			w.empties.append(v)
 
 
 ## Snuffing fonts about the terraces (see FONTS_PER_K), on free floors with room over them, in an
