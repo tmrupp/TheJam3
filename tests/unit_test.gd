@@ -1,8 +1,8 @@
 extends TestKit
 ## The game's rules that are plain arithmetic, checked without the game scene (a second or so):
 ## level seeds, prices and the other numbers that grow with depth, key colours by rarity, where
-## side worlds sit, the bands of archetypes, where each exit leads, the shrine's offers, and the
-## keyring. A rule that needs a level laid out belongs in a test that builds one.
+## side worlds sit, the bands of archetypes, where each exit leads, the cemetery's darkness, the
+## shrine's offers, and the keyring. A rule that needs a level laid out belongs in a test that builds one.
 ## godot --headless --path . --script res://tests/unit_test.gd
 
 ## level_seed of these places, as it has always been: every level of every run comes from it, so a
@@ -36,6 +36,7 @@ func run() -> void:
 	_beast()
 	_institute()
 	_stations()
+	_darkness()
 	_lodestones()
 	var p: Player = Player.new()
 	_ability_tables()
@@ -517,6 +518,42 @@ func _stations() -> void:
 		var ok: bool = Stations.way(n, many, m, 1, 0, n - 1) != null and Stations.way(n, many, m, 1 << (n - 1), n - 1, 0) != null and Stations.all_on_reached(n, many, m)
 		passed += 1 if ok else 0
 	check(passed >= 4, "with %d stations, %d of 5 levels deal a way up, a way down and the whole line on (%d ms a deal)" % [n, passed, (Time.get_ticks_msec() - t1) / 5])
+
+
+## The cemetery's darkness (docs/DEEPER_PLAN.md): a dash out of the dark lights the flame and spends
+## a charge, a dash while lit puts it out again while one is left (the table in the plan, from a
+## font's three on top of four); about FONTLESS_SHARE of the cemetery's levels have no fonts, but
+## never its first row, its gate level, a side world or another band; ossuary doors want more
+## darkness deeper, and never stand in the gate level.
+func _darkness() -> void:
+	print("darkness")
+	var charges: int = 4 + Snuffer.CHARGES
+	var dark: bool = true
+	var seen: Array[Vector2i] = []
+	for i: int in range(16):
+		var after: Vector2i = Rules.dash_dark(dark, charges)
+		dark = after.x == 1
+		charges = after.y
+		seen.append(after)
+	check(seen.slice(0, 4) == [Vector2i(0, 6), Vector2i(1, 6), Vector2i(0, 5), Vector2i(1, 5)], "from the dark with 7: lit 6, dark 6, lit 5, dark 5")
+	check(seen[11] == Vector2i(1, 1) and seen.slice(12) == [Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0)], "down to the last charge, then a dash leaves the flame lit and spends nothing")
+	check_eq(Rules.dash_dark(true, 0), Vector2i(0, 0), "a dash out of the dark with nothing to spend lights the flame")
+	var first: int = NextWorldDef.first_depth(&"cemetery")
+	var gate: int = NextWorldDef.band_row(&"cemetery", NextWorldDef.BAND - 1)
+	var fontless: int = 0
+	var dealt: int = 0
+	var never: bool = true
+	for x: int in range(-60, 60):
+		never = never and not Rules.fontless_at(Vector2i(x, first)) and not Rules.fontless_at(Vector2i(x, gate)) and not Rules.ossuary_at(Vector2i(x, gate))
+		never = never and not Rules.fontless_at(Vector2i(x, 1)) and not Rules.fontless_at(Vector2i(x, NextWorldDef.first_depth(&"institute")))
+		for row: int in range(first + 1, gate):
+			dealt += 1
+			if Rules.fontless_at(Vector2i(x, row)):
+				fontless += 1
+	check(never, "never fontless in the band's first row, its gate level or another band, and no ossuary in the gate level")
+	var share: float = float(fontless) / float(dealt)
+	check(absf(share * 100.0 - float(Rules.FONTLESS_SHARE)) < 8.0, "%d of %d of the cemetery's other levels without fonts (%.0f %%)" % [fontless, dealt, share * 100.0])
+	check(Rules.ossuary_fill(first) == Rules.OSSUARY_FILL.x and Rules.ossuary_fill(gate - 1) == Rules.OSSUARY_FILL.y and Rules.ossuary_fill(first + 2) > Rules.ossuary_fill(first + 1), "an ossuary door drinks %d charges in the first row, more each row, %d in the last before the gate level" % [Rules.OSSUARY_FILL.x, Rules.OSSUARY_FILL.y])
 
 
 func _ability_tables() -> void:

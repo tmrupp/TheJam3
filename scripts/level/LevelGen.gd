@@ -74,6 +74,9 @@ enum Type {
 	TIMETABLE_BOARD,
 	## The institute's rolling bookcase ladders, laid where other bands lay lifts (RollingLadder).
 	ROLLING_LADDER,
+	## The cemetery's sun and shade blocks (PhaseBlock), and its crypts' ossuary doors (OssuaryDoor).
+	PHASE_BLOCK,
+	OSSUARY_DOOR,
 	## The crags: a watchtower's iron spire on its roof (Spire), and a lodestone (Lodestone).
 	SPIRE,
 	LODESTONE,

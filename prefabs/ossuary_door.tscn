@@ -1,0 +1,26 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/OssuaryDoor.gd" id="1_oss"]
+[ext_resource type="PackedScene" uid="uid://pwmevy3urxq6" path="res://prefabs/interactable.tscn" id="2_inter"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_oss"]
+size = Vector2(126, 130)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_pour"]
+size = Vector2(200, 120)
+
+[node name="OssuaryDoor" type="StaticBody2D"]
+collision_layer = 4
+collision_mask = 0
+script = ExtResource("1_oss")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_oss")
+
+[node name="Pour" type="Area2D" parent="."]
+collision_layer = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pour"]
+shape = SubResource("RectangleShape2D_pour")
+
+[node name="Interactable" parent="Pour" instance=ExtResource("2_inter")]

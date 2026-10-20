@@ -7,7 +7,9 @@ extends RefCounted
 ## and rock stops it: the flame must see the point. The moon over the cemetery's terraces is no
 ## light here, nor are the small things that shine. What reads it: the wraiths freeze in it
 ## (Wraith), the skeletons wake in it (Skeleton), and the necromancer can be wounded only in it
-## (Necromancer).
+## (Necromancer). A charge of darkness spent by a dash out of the dark (MapInfo.dash_switch) flares:
+## for FLARE_TIME the flame reaches FLARE_REACH times as far (carried_reach), easing back over the
+## last FLARE_FADE of it.
 
 ## How much of a light's printed reach counts as lit: past it the printed light is faint.
 const LIT_SHARE: float = 0.85
@@ -18,6 +20,12 @@ const STEP: float = 16.0
 const FLAME_ROOM: float = 12.0
 ## How high over its cell's middle a lantern's light is (px): its glass, a little over the floor.
 const LANTERN_RISE: float = 24.0
+## The flare of a spent charge: how long it burns (s), how much further the flame reaches at its
+## height, and how long it takes to rise and to ease back (s).
+const FLARE_TIME: float = 0.6
+const FLARE_REACH: float = 1.5
+const FLARE_RISE: float = 0.06
+const FLARE_FADE: float = 0.25
 
 ## The lights as last worked out (each where it is and how far it reaches as lit, x, y, z), and the
 ## physics frame they were worked out in: they are worked out once a frame, however many ask.
@@ -47,7 +55,7 @@ static func lights(info: MapInfo) -> Array[Vector3]:
 	var player: Player = info.player
 	if player != null and is_instance_valid(player) and not player.phasing and info.run != null and info.flame_lit():
 		var eye: Vector2 = RisoLight.eye(player)
-		_lights.append(Vector3(eye.x, eye.y, RisoLight.CARRIED_REACH * LIT_SHARE))
+		_lights.append(Vector3(eye.x, eye.y, carried_reach(info) * LIT_SHARE))
 	if info.map_elements != null and is_instance_valid(info.map_elements):
 		for node: Node in info.map_elements.get_children():
 			var lantern: Checkpoint = node as Checkpoint
@@ -57,6 +65,20 @@ static func lights(info: MapInfo) -> Array[Vector3]:
 			var at: Vector2 = info.cell_position(info.cell_at(lantern.global_position)) + Vector2(0, -LANTERN_RISE)
 			_lights.append(Vector3(at.x, at.y, reach * LIT_SHARE))
 	return _lights
+
+
+## How far the lantern the wizard carries reaches while lit (px): RisoLight.CARRIED_REACH, further
+## while a flare burns (see FLARE_TIME).
+static func carried_reach(info: MapInfo) -> float:
+	return RisoLight.CARRIED_REACH * flare_scale(info.flare if info != null else 0.0)
+
+
+## How many times as far the flame reaches with `left` seconds of a flare to burn.
+static func flare_scale(left: float) -> float:
+	if left <= 0.0:
+		return 1.0
+	var k: float = minf(1.0, (FLARE_TIME - left) / FLARE_RISE) * minf(1.0, left / FLARE_FADE)
+	return 1.0 + (FLARE_REACH - 1.0) * k
 
 
 ## Whether a light at `from` sees `to`: no rock (MapInfo.solid_at) on the line between, past the

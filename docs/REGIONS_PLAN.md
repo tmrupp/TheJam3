@@ -551,6 +551,7 @@ Decided (October 2026):
   left the wizard unprotected.)
 - **Light gates.** A crypt's doorway may be a sun gate, up only while light falls on it, or a shade
   gate, up only while none does: the crypt is entered lit, waking its sleepers, or snuffed.
+  (Changed October 20: no longer laid; the crypts' sun and shade blocks do this work.)
 - **Light and dark each have their uses.**
   - *Lit*, the wizard sees in the crypts, the wraiths freeze in the flame's light (they are
     light-shy), and the necromancer can be wounded.

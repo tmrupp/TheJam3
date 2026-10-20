@@ -233,6 +233,17 @@ func bridges() -> void:
 	# The pit under it fills with mist (its thorns know their chasm).
 	var pit: Array[Node] = placed("spikes.tscn").filter(func(n: Node) -> bool: return (n as Spikes).pit == id)
 	check(pit.size() == planks.size(), "the thorns along its pit, %d of them, hold its mist" % pit.size())
+	# The mist is sleep fog: in it the wizard is drowsy, and no spell lifts them out.
+	player.drowsy = 0.0
+	player.global_position = (pit[0] as Node2D).global_position + Vector2(0, -90)
+	await physics_frame
+	await physics_frame
+	check(player.is_drowsy(), "the pit's mist is sleep fog: in it the wizard is drowsy")
+	player.drowsy = 0.0
+	player.global_position = over
+	await physics_frame
+	await physics_frame
+	check(not player.is_drowsy(), "and over the bridge, out of it, they are not")
 	player.global_position = over
 	player.velocity = Vector2.ZERO
 	player.set_physics_process(true)
