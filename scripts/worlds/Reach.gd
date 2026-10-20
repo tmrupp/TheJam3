@@ -24,7 +24,7 @@ static func footholds(w: LevelGen) -> Dictionary:
 		var cell: LevelGen.Cell = w.get_cell(v)
 		if cell.type == LevelGen.Type.MOON:
 			nodes[v] = true
-		elif cell.type == LevelGen.Type.MOVING_PLATFORM:
+		elif cell.type in [LevelGen.Type.MOVING_PLATFORM, LevelGen.Type.ROLLING_LADDER]:
 			var motion: Array = cell.extra_info
 			for step: int in range(int(motion[2]) + 1):
 				for dx: int in range(int(motion[0])):

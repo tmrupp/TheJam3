@@ -32,13 +32,14 @@ extends RefCounted
 ## from the level seed. populate draws, as any archetype's own dressing does.
 
 ## The open box inside each kind of hall (cells across and down, not counting the walls).
-const LIBRARY_INSIDE: Vector2i = Vector2i(14, 9)
+const LIBRARY_INSIDE: Vector2i = Vector2i(18, 8)
 ## How many rows the library's ground floor stands under its first gallery, room for its timetable
 ## board (TimetableBoard) on the back wall over its floor and desk.
 const LIBRARY_GROUND: int = 4
 ## Where the library's things stand on its floor: its timetable board in the middle, its reading desk
-## (StudyDesk) this many cells in from the far end from its cord.
-const DESK_IN: int = 2
+## (StudyDesk) before the board's right end, this many cells right of its middle; bookcases fill the
+## rest of the floor either side, floor to ceiling.
+const DESK_OUT: int = 4
 const LECTURE_INSIDE: Vector2i = Vector2i(10, 5)
 const CHAMBER_INSIDE: Vector2i = Vector2i(18, 6)
 ## How many classrooms a level tries to build (each only where it fits), the fewest doorways one
@@ -505,7 +506,7 @@ static func department_row(def: NextWorldDef, dept: StringName, i: int) -> int:
 ## Then the timetable's things (Timetable): a lectern (Lectern) and a bell's cord (SchoolBell) on each
 ## classroom's floor between its portal's place and its master; on the library's floor a cord at one
 ## end, its timetable board (TimetableBoard) in the middle on the back wall over it, and its reading
-## desk (StudyDesk) at the other end; and the corridor bells over their cords (see BELL_CLEAR).
+## desk (StudyDesk) before the board's right end; and the corridor bells over their cords (see BELL_CLEAR).
 static func furnish(w: LevelGen, def: NextWorldDef) -> void:
 	for i: int in range(w.halls.size()):
 		var hall: Dictionary = w.halls[i]
@@ -564,7 +565,8 @@ static func _timetable(w: LevelGen) -> void:
 				_place(w, Vector2i(inside.position.x + 2, bottom), LevelGen.Type.SCHOOL_BELL, {"great": false})
 				@warning_ignore("integer_division")
 				_place(w, Vector2i(inside.position.x + inside.size.x / 2, bottom), LevelGen.Type.TIMETABLE_BOARD)
-				_place(w, Vector2i(inside.end.x - 1 - DESK_IN, bottom), LevelGen.Type.STUDY_DESK)
+				@warning_ignore("integer_division")
+				_place(w, Vector2i(inside.position.x + inside.size.x / 2 + DESK_OUT, bottom), LevelGen.Type.STUDY_DESK)
 	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
 	var out: Array[Vector2i] = w.free_floors().filter(func(v: Vector2i) -> bool: return hall_at(w, v) < 0 and LevelGen.dist(v, start) >= BELL_CLEAR and not w._crowds_exit(v))
 	var roomy_of: Callable = func(spots: Array[Vector2i]) -> Array[Vector2i]:

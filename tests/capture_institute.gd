@@ -3,7 +3,7 @@ extends TestKit
 ## department's portal; the library's
 ## stacks with its librarian's hush; a breach and an abomination; a row of the people side by side
 ## close up (a student, a master of each spell, a proctor, a librarian) and one winding up; and a
-## lesson left where a master fell.
+## lesson left where a master fell; a rolling ladder, and the wizard climbing it.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_institute.gd
 
 var camera: Camera2D
@@ -26,9 +26,28 @@ func run() -> void:
 			var n: Node2D = found[0] as Node2D
 			player.global_position = n.global_position + Vector2(-500, 0)
 			await _look(n.global_position + Vector2(0, -60), "institute_%s" % kind.replace(".tscn", ".png"), 1.6)
+	await _ladder()
 	await _lineup()
 	RunState.delete_save()
 	finish()
+
+
+## A rolling ladder (the longest in the level), then the wizard holding it halfway up.
+func _ladder() -> void:
+	var best: RollingLadder = null
+	for node: Node in placed("rolling_ladder.tscn"):
+		var found: RollingLadder = node as RollingLadder
+		if best == null or found.rungs > best.rungs:
+			best = found
+	if best == null:
+		return
+	player.global_position = Vector2(best.ladder_x() + 600.0, best.top_y())
+	await _look(Vector2(best.ladder_x(), (best.top_y() + best.foot_y()) * 0.5), "institute_ladder.png", 1.3)
+	var lift: float = player._feet_y() - player.global_position.y
+	player.global_position = Vector2(best.ladder_x(), (best.top_y() + best.foot_y()) * 0.5 - lift)
+	player.ladder = best
+	await _look(Vector2(best.ladder_x(), (best.top_y() + best.foot_y()) * 0.5), "institute_ladder_climbing.png", 1.3)
+	player.ladder = null
 
 
 ## The people side by side on a floor, close up, frozen: a student, a master of each spell, a

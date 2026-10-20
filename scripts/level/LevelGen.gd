@@ -72,6 +72,8 @@ enum Type {
 	## The library's reading desk (StudyDesk) and its timetable board (TimetableBoard).
 	STUDY_DESK,
 	TIMETABLE_BOARD,
+	## The institute's rolling bookcase ladders, laid where other bands lay lifts (RollingLadder).
+	ROLLING_LADDER,
 }
 
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).
@@ -678,11 +680,15 @@ func _nearest_free (spots: Array[Vector2i], at: Vector2i, chosen: Array[Vector2i
 
 ## Turns a platform run into one moving platform (stored on its leftmost cell), if the track
 ## it would sweep, 2-4 cells right or down, is open. The track is kept clear of other objects.
-func make_moving (run_cells: Array[Vector2i]) -> void:
+## With `ladders` (Archetype.ladders) it is a rolling ladder instead (RollingLadder), whose track
+## always runs right (the same draws are made, so the rest of the level is dealt as before).
+func make_moving (run_cells: Array[Vector2i], ladders: bool = false) -> void:
 	run_cells.sort()
 	var left: Vector2i = run_cells[0]
 	var axis: Vector2i = Vector2i(1, 0) if rng.randf() < 0.5 else Vector2i(0, 1)
 	var travel: int = rng.randi_range(2, 4)
+	if ladders:
+		axis = Vector2i(1, 0)
 	var track: Array[Vector2i] = []
 	for k: int in range(1, travel + 1):
 		if axis.x != 0:
@@ -698,7 +704,7 @@ func make_moving (run_cells: Array[Vector2i]) -> void:
 	for c: Vector2i in run_cells.slice(1):
 		cells[c.x][c.y] = Cell.new(Type.EMPTY)
 		objects.erase(c)
-	set_kind(left, Type.MOVING_PLATFORM, [run_cells.size(), axis, travel])
+	set_kind(left, Type.ROLLING_LADDER if ladders else Type.MOVING_PLATFORM, [run_cells.size(), axis, travel])
 
 ## How far apart (cells, across plus down) the two ends of a pair of teleporters are at least: a
 ## quarter of the level's width and height together, at least PORTAL_APART.
@@ -954,7 +960,7 @@ func populate_level (def: NextWorldDef) -> void:
 			run_cells.append(run)
 			platform_budget -= 1
 		if run_cells.size() <= 3 and rng.randf() < MOVING_PLATFORM_CHANCE:
-			make_moving(run_cells)
+			make_moving(run_cells, arch.ladders)
 
 	# Moons (dash resets) once the ledges are down: open air with nothing to stand on below.
 	place_moons(per_area(MOONS_PER_K))
@@ -1732,7 +1738,7 @@ func _platform_footprint () -> Dictionary:
 		var cell: Cell = get_cell(v)
 		if cell.type == Type.PLATFORM:
 			supports[v] = true
-		elif cell.type == Type.MOVING_PLATFORM:
+		elif cell.type in [Type.MOVING_PLATFORM, Type.ROLLING_LADDER]:
 			var motion: Array = cell.extra_info
 			for step: int in range(int(motion[2]) + 1):
 				for dx: int in range(int(motion[0])):
@@ -1742,7 +1748,7 @@ func _platform_footprint () -> Dictionary:
 ## What stops a fall before it reaches a ledge (_held_up), and what a fall reaches before thorns
 ## (_thorns_below).
 const FALL_STOPS: Array[Type] = [Type.GROUND, Type.CRACKED, Type.SPIKES]
-const THORN_COVER: Array[Type] = [Type.GROUND, Type.CRACKED, Type.PLATFORM, Type.MOVING_PLATFORM]
+const THORN_COVER: Array[Type] = [Type.GROUND, Type.CRACKED, Type.PLATFORM, Type.MOVING_PLATFORM, Type.ROLLING_LADDER]
 
 ## Whether a fall from `v`, straight down or a column to either side, lands on a ledge or lift
 ## (see _held_up, which `held` is, worked out here if not given).

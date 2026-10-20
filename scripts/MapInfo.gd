@@ -1259,32 +1259,37 @@ func give_paper (code: int, at: Vector2) -> void:
 	RisoFx.burst(&"gain", at + Vector2(0, -40), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
 	save_run()
 
-## Whether the scholar laid at cell `v` is away now: one of a lecture hall's class while the hall has
-## no class (LevelLoader.place_cell leaves it out).
+## Whether the scholar laid at cell `v` is away now: a lecture hall's master or proctor while the hall
+## has no class (LevelLoader.place_cell leaves it out). Students keep days of their own (Students).
 func class_away (v: Vector2i) -> bool:
 	if not timetabled():
 		return false
 	var hall: int = Timetable.hall_inside(world, v)
 	return hall >= 0 and world.halls[hall]["kind"] == &"lecture" and subject_of(hall) == &""
 
-## Every lecture hall's class seated afresh, as the bell has just rung: whoever was in it goes (a
-## fallen master or student is not slain any more), and, where the hall has a class now, its master
-## and its students are placed again, the master teaching the hall's new subject.
+## Every lecture hall's staff seated afresh, as the bell has just rung: its master and proctor go (a
+## fallen one is not slain any more), and, where the hall has a class now, they are placed again, the
+## master teaching the hall's new subject. The students keep their own days (Students): they walk on
+## to their next classes, and a fallen one is back, setting out from its last class.
 func _seat_classes () -> void:
 	if map_elements == null or not is_instance_valid(map_elements):
 		return
 	var rec: LevelRecord = record()
+	for v: Vector2i in world.objects:
+		if world.get_cell(v).type == LevelGen.Type.STUDENT and rec.slain.has(v):
+			rec.slain.erase(v)
+			loader.place_cell(v, world.get_cell(v))
 	for i: int in range(world.halls.size()):
 		if world.halls[i]["kind"] != &"lecture":
 			continue
 		var box: Rect2i = world.halls[i]["box"]
 		for node: Node in get_tree().get_nodes_in_group(&"scholar"):
 			var s: Scholar = node as Scholar
-			if s != null and box.has_point(s.cell) and not s.is_queued_for_deletion():
+			if s != null and s.kind != &"student" and box.has_point(s.cell) and not s.is_queued_for_deletion():
 				s.get_parent().remove_child(s)
 				s.queue_free()
 		for v: Vector2i in world.objects:
-			if box.has_point(v) and world.get_cell(v).type in [LevelGen.Type.MASTER, LevelGen.Type.STUDENT, LevelGen.Type.PROCTOR]:
+			if box.has_point(v) and world.get_cell(v).type in [LevelGen.Type.MASTER, LevelGen.Type.PROCTOR]:
 				rec.slain.erase(v)
 				if subject_of(i) != &"":
 					loader.place_cell(v, world.get_cell(v))

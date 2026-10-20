@@ -29,6 +29,8 @@ var symmetry: int = 5
 var scale: Vector2 = Vector2.ONE
 ## Whether its levels are gated by chasms (see Chasms), crossed at `crossing`s.
 var chasmed: bool = false
+## Whether its lifts are rolling ladders (RollingLadder, LevelGen.make_moving): the institute's.
+var ladders: bool = false
 ## What stands on each side of a chasm to cross it: a bell (bridges) or a vane (wind).
 var crossing: LevelGen.Type = LevelGen.Type.BELL
 ## How far (cells) from its crossing a crossing's switch may be, or -1 for anywhere on its side.

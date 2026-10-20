@@ -23,10 +23,67 @@ const BINDLE_FORMS: Dictionary = {
 const LANTERN_AT: Vector2 = Vector2(11.4, -7.8)
 ## How far above its flame the Fool's glove holds the lantern's bail.
 const LANTERN_REACH: float = 6.2
-## The Fool's poncho is broadest at the shoulders and narrows to a short, pointed hem.
-const FOOL_SHOULDER: float = 10.5
-const FOOL_HEM: Array[float] = [-6.4, -3.4, 0.0, 3.4, 6.4]
-const FOOL_HEM_Y: Array[float] = [-6.6, -5.8, -5.2, -5.8, -6.6]
+## The Fool's poncho, in one of its cuts (PONCHOS, picked on the F7 panel: RisoPrint.poncho_style):
+## from the collar its shoulders slope out to its widest corners, then it runs down to its hem.
+## Each cut gives its front widest corner (half the width across, and how high; the back one the
+## same mirrored, unless it gives its own, "back"), its five hem points across and how high (back
+## to front), and how far in from LANTERN_AT the lantern hand is held, so the hand stays at the
+## corner. Some cuts add more:
+## - "teeth" and "tooth": the hem cut into that many ragged teeth, each up to `tooth` long;
+## - "slit": a slit up the middle of the hem, Vector2(half its width at the hem, how far up);
+## - "cape": a short shoulder cape over the poncho in a lighter layer (CAPE_COVER), Vector3(half its
+##   width, how low its hem comes, how many scallops along it);
+## - "stripes": bands woven across it, each [how high, how deep, &"paper", &"night" or &"diamonds"];
+## - "fringe": tassels along the hem, Vector2(how many, how long);
+## - "folds": false to leave out the two long folds from the shoulders;
+## - "straight": true for shoulders running straight from the collar to the widest corners, with no
+##   slope at the neck, so the poncho hangs as one triangle from the collar.
+## The cuts: broad (as it was: broadest at the shoulders, narrowing to a short, pointed hem); slim
+## (the same, narrower); wedge (high, square shoulders running straight in to a sharp point); A-line
+## (a triangle from the collar, widening to its hem); point (slim, its hem running down to a point in
+## its middle, as a poncho hangs); taper (between slim and wedge, slim shoulders running straight in
+## to a narrow point); tatters (taper, its hem torn into ragged teeth); swept
+## (trailing long and low behind, cut short and high in front, as if blown back); capelet (a long
+## slim poncho under a short scalloped shoulder cape); woven (taper, with a paper band, a night band
+## and a row of diamonds woven across it, no folds); fringe (slim, tassels swinging from its hem);
+## split (point, slit up the middle into two pointed flaps); crescent (its hem curving up in the
+## middle to a point at each side, like a new moon); and three wide triangles hung straight from the
+## collar, as a poncho hangs: drape (out to wide corners low down, its hem dipping to a point in the
+## middle, nearly a diamond; the one worn, WORN), tent (a wide A-line, its hem broad and nearly flat) and kite (wide
+## corners at the middle of the body, running in to a low point).
+const WORN: StringName = &"drape"
+const PONCHOS: Dictionary = {
+	&"broad": {"corner": Vector2(10.5, -14.2), "hem": [-6.4, -3.4, 0.0, 3.4, 6.4], "hem_y": [-6.6, -5.8, -5.2, -5.8, -6.6], "hand": 0.0},
+	&"slim": {"corner": Vector2(8.2, -14.6), "hem": [-4.8, -2.5, 0.0, 2.5, 4.8], "hem_y": [-6.6, -5.4, -4.6, -5.4, -6.6], "hand": -2.0},
+	&"wedge": {"corner": Vector2(8.8, -16.6), "hem": [-2.8, -1.4, 0.0, 1.4, 2.8], "hem_y": [-8.6, -6.6, -4.4, -6.6, -8.6], "hand": -1.6},
+	&"aline": {"corner": Vector2(7.2, -13.6), "hem": [-8.6, -4.3, 0.0, 4.3, 8.6], "hem_y": [-6.0, -5.5, -5.3, -5.5, -6.0], "hand": -2.6},
+	&"point": {"corner": Vector2(7.6, -15.2), "hem": [-5.0, -2.7, 0.0, 2.7, 5.0], "hem_y": [-8.0, -6.0, -3.8, -6.0, -8.0], "hand": -2.4},
+	&"taper": {"corner": Vector2(7.8, -15.8), "hem": [-3.6, -1.8, 0.0, 1.8, 3.6], "hem_y": [-7.8, -6.2, -4.6, -6.2, -7.8], "hand": -2.2},
+	&"tatters": {"corner": Vector2(7.8, -15.8), "hem": [-5.4, -2.7, 0.0, 2.7, 5.4], "hem_y": [-7.8, -6.8, -6.2, -6.8, -7.8], "hand": -2.2, "teeth": 4, "tooth": 3.4},
+	&"swept": {"corner": Vector2(6.4, -15.4), "back": Vector2(-8.8, -13.0), "hem": [-10.6, -7.0, -3.2, 0.6, 3.6], "hem_y": [-2.6, -3.8, -5.2, -6.6, -7.8], "hand": -2.8},
+	&"capelet": {"corner": Vector2(6.6, -14.4), "hem": [-4.2, -2.2, 0.0, 2.2, 4.2], "hem_y": [-6.4, -4.8, -3.4, -4.8, -6.4], "hand": -3.0, "cape": Vector3(9.4, -12.4, 4.0)},
+	&"woven": {"corner": Vector2(7.8, -15.8), "hem": [-3.6, -1.8, 0.0, 1.8, 3.6], "hem_y": [-7.8, -6.2, -4.6, -6.2, -7.8], "hand": -2.2, "folds": false,
+		"stripes": [[-13.4, 1.3, &"paper"], [-11.4, 1.6, &"diamonds"], [-9.2, 1.0, &"night"], [-7.4, 0.7, &"night"]]},
+	&"fringe": {"corner": Vector2(8.0, -15.0), "hem": [-5.0, -2.5, 0.0, 2.5, 5.0], "hem_y": [-7.6, -6.8, -6.4, -6.8, -7.6], "hand": -2.0, "fringe": Vector2(7.0, 2.8)},
+	&"split": {"corner": Vector2(7.6, -15.2), "hem": [-6.4, -4.0, 0.0, 4.0, 6.4], "hem_y": [-8.4, -5.6, -7.6, -5.6, -8.4], "hand": -2.4, "slit": Vector2(1.6, 3.4)},
+	&"crescent": {"corner": Vector2(7.4, -14.8), "hem": [-7.2, -3.9, 0.0, 3.9, 7.2], "hem_y": [-3.6, -6.4, -8.2, -6.4, -3.6], "hand": -2.6},
+	&"drape": {"corner": Vector2(12.0, -10.0), "hem": [-9.6, -5.0, 0.0, 5.0, 9.6], "hem_y": [-8.6, -6.6, -4.2, -6.6, -8.6], "hand": 0.8, "straight": true},
+	&"tent": {"corner": Vector2(10.6, -7.6), "hem": [-10.4, -5.2, 0.0, 5.2, 10.4], "hem_y": [-6.4, -5.8, -5.4, -5.8, -6.4], "hand": 0.4, "straight": true},
+	&"kite": {"corner": Vector2(12.4, -12.6), "hem": [-4.4, -2.2, 0.0, 2.2, 4.4], "hem_y": [-7.6, -5.8, -3.8, -5.8, -7.6], "hand": 1.0, "straight": true},
+}
+## A capelet's layer: how much ink it prints (lighter than the poncho under it, as the collar is), and
+## the shadow it casts along its edge on the poncho.
+const CAPE_COVER: float = 0.72
+const CAPE_SHADOW: float = 0.25
+## Woven bands: how much ink a night band prints, how much tint a paper band keeps, and the size and
+## spacing of a row of diamonds.
+const STRIPE_NIGHT: float = 0.45
+const STRIPE_PAPER: float = 0.14
+const DIAMOND: Vector2 = Vector2(0.9, 2.6)
+## How far a tassel swings with the hem beside it (a share of the hem's own swing, past it).
+const FRINGE_LAG: float = 1.4
+## A tassel's width (art units).
+const FRINGE_WIDTH: float = 1.05
 ## Dark legs show between the hem and the boots.
 const LEG_SHADE: float = 0.25
 ## The bindle pole rests on the front shoulder, where a glove grips it, and carries the bag behind.
@@ -474,7 +531,7 @@ func _phase() -> float:
 ## The lantern hand at the poncho's widest corner, swinging forward and back with the stride.
 func _lantern_hand() -> Vector2:
 	var stride: float = sin(_phase() * TAU) * HAND_SWING * wizard.sp
-	var hand: Vector2 = LANTERN_AT + Vector2(stride, bob - LANTERN_REACH)
+	var hand: Vector2 = LANTERN_AT + Vector2(stride + float(cut()["hand"]), bob - LANTERN_REACH)
 	# At a wall ahead, the glove plants on it: shoulder high when pushing, reaching up in turn
 	# while climbing.
 	var plant: Vector2 = Vector2(RisoWizard.WALL_X - WALL_GLOVE, WALL_PLANT.x + bob * 0.5)
@@ -637,23 +694,142 @@ func _bar(a: Vector2, b: Vector2, width: float) -> PackedVector2Array:
 	return PackedVector2Array([a - n, b - n, b + n, a + n])
 
 
-## The poncho's sloped shoulders, firm widest corner and narrow hem, facing right; the hem sways.
+## The poncho's cut now (PONCHOS, RisoPrint.poncho_style).
+static func cut() -> Dictionary:
+	var style: StringName = RisoPrint.instance.poncho_style if RisoPrint.instance != null else WORN
+	return PONCHOS.get(style, PONCHOS[WORN])
+
+
+## The poncho's hem points now, back to front, swaying, spread as it sits.
+func _hem_points(c: Dictionary) -> Array[Vector2]:
+	var s: float = seated()
+	var hem: Array[Vector2] = []
+	for i: int in range(5):
+		hem.append(_hem(i) + Vector2(float(c["hem"][i]) * lerpf(1.0, SIT_SPREAD, s), float(c["hem_y"][i]) + SIT_DROP * s))
+	return hem
+
+
+## The point `u` of the way along the hem (0 the back end, 1 the front), between its five points.
+static func _along(hem: Array[Vector2], u: float) -> Vector2:
+	var at: float = clampf(u, 0.0, 1.0) * float(hem.size() - 1)
+	var i: int = mini(int(at), hem.size() - 2)
+	return hem[i].lerp(hem[i + 1], at - float(i))
+
+
+## The poncho's sloped shoulders, firm widest corners and hem, facing right, in its cut (see
+## PONCHOS: torn into teeth, or slit); the hem sways.
 func _poncho() -> PackedVector2Array:
 	var b: float = bob
-	var hem: Array[Vector2] = []
-	var s: float = seated()
-	for i: int in range(5):
-		hem.append(_hem(i) + Vector2(FOOL_HEM[i] * lerpf(1.0, SIT_SPREAD, s), FOOL_HEM_Y[i] + SIT_DROP * s))
-	var w: float = FOOL_SHOULDER
-	var back: Vector2 = Vector2(-w + _hem(0).x * FOOL_CORNER_SWAY, -14.2 + b * 0.8)
-	var front: Vector2 = Vector2(w + _hem(4).x * FOOL_CORNER_SWAY, -14.2 + b * 0.8)
+	var c: Dictionary = cut()
+	var corner: Vector2 = c["corner"]
+	var rear: Vector2 = c.get("back", Vector2(-corner.x, corner.y))
+	var hem: Array[Vector2] = _hem_points(c)
+	var w: float = corner.x
+	var wb: float = -rear.x
+	var back: Vector2 = Vector2(-wb + _hem(0).x * FOOL_CORNER_SWAY, rear.y + b * 0.8)
+	var front: Vector2 = Vector2(w + _hem(4).x * FOOL_CORNER_SWAY, corner.y + b * 0.8)
+	# The hem's own points: its five, or torn into teeth (each tip doubled, so it stays sharp), or
+	# slit up the middle (its top doubled).
+	var edge: Array[Vector2] = []
+	if c.has("teeth"):
+		var n: int = int(c["teeth"])
+		var tooth: float = float(c["tooth"])
+		for k: int in range(2 * n + 1):
+			var p: Vector2 = _along(hem, float(k) / float(2 * n))
+			if k % 2 == 1:
+				p.y += tooth * (0.55 + 0.45 * RisoShapes.hash1(float(k) * 1.7 + 0.3))
+				edge.append_array([p, p])
+			else:
+				edge.append(p + Vector2(0, -tooth * 0.2 if k > 0 and k < 2 * n else 0.0))
+	elif c.has("slit"):
+		var slit: Vector2 = c["slit"]
+		edge = [hem[0], hem[1], hem[2] + Vector2(-slit.x, 0), hem[2] + Vector2(0, -slit.y), hem[2] + Vector2(0, -slit.y), hem[2] + Vector2(slit.x, 0), hem[3], hem[4]]
+	else:
+		edge = hem
 	# Points sit on straight lines between corners, with a close pair at each widest corner,
 	# so the smoothed sides run straight and taper instead of bulging like a pot.
-	return RisoShapes.smooth(PackedVector2Array([
-		Vector2(-3.5, -20.5 + b), Vector2(-6.8, -18.0 + b), Vector2(-w + 0.8, -15.4 + b * 0.8),
-		back, back + Vector2(0.6, 1.4), (back + hem[0]) * 0.5, hem[0], hem[1], hem[2], hem[3], hem[4],
-		(front + hem[4]) * 0.5, front + Vector2(-0.6, 1.4), front, Vector2(w - 0.8, -15.4 + b * 0.8), Vector2(6.8, -18.0 + b), Vector2(3.5, -20.5 + b),
+	var neck_b: Vector2 = Vector2(-3.5, -20.5 + b)
+	var neck_f: Vector2 = Vector2(3.5, -20.5 + b)
+	# The shoulders: sloping from the neck, then down to the corner; or, straight, points on the line
+	# from the collar to the corner (a close pair at each end, so the line stays straight).
+	var slope_b: Array[Vector2] = [Vector2(-minf(6.8, wb - 0.6), -18.0 + b), Vector2(-wb + 0.8, rear.y - 1.2 + b * 0.8)]
+	var slope_f: Array[Vector2] = [Vector2(w - 0.8, corner.y - 1.2 + b * 0.8), Vector2(minf(6.8, w - 0.6), -18.0 + b)]
+	if bool(c.get("straight", false)):
+		slope_b = [neck_b.lerp(back, 0.12), neck_b.lerp(back, 0.88)]
+		slope_f = [neck_f.lerp(front, 0.88), neck_f.lerp(front, 0.12)]
+	var pts: PackedVector2Array = PackedVector2Array([neck_b, slope_b[0], slope_b[1],
+		back, back + Vector2(0.6, 1.4), (back + edge[0]) * 0.5])
+	pts.append_array(PackedVector2Array(edge))
+	pts.append_array(PackedVector2Array([
+		(front + edge[-1]) * 0.5, front + Vector2(-0.6, 1.4), front, slope_f[0], slope_f[1], neck_f,
 	]))
+	return RisoShapes.smooth(pts)
+
+
+## What its cut lays over the poncho (`poncho`, as printed): a capelet's shoulder cape, woven bands,
+## or a fringe along the hem (see PONCHOS).
+func _dress(poncho: PackedVector2Array) -> void:
+	var b: float = bob
+	var c: Dictionary = cut()
+	if c.has("fringe"):
+		var fringe: Vector2 = c["fringe"]
+		var hem: Array[Vector2] = _hem_points(c)
+		var count: int = int(fringe.x)
+		var tassels: Array[PackedVector2Array] = []
+		var tips: Array[PackedVector2Array] = []
+		for k: int in range(count):
+			var u: float = (float(k) + 0.5) / float(count)
+			var top: Vector2 = _along(hem, u) + Vector2(0, -0.6)
+			var sway: Vector2 = (_hem(mini(4, int(u * 5.0))) * FRINGE_LAG) * Vector2(0.5, 0.0)
+			var foot: Vector2 = top + Vector2(sway.x, fringe.y)
+			tassels.append(_bar(top, foot, FRINGE_WIDTH))
+			tips.append(_bar(top.lerp(foot, 0.6), foot, 0.9))
+		_solids(tassels)
+		_overs(tips, RisoPrint.NIGHT, 0.3)
+	if c.has("stripes"):
+		for band: Array in c["stripes"]:
+			var y: float = float(band[0]) + b * 0.9
+			var deep: float = float(band[1])
+			var kind: StringName = band[2]
+			if kind == &"diamonds":
+				var marks: Array[PackedVector2Array] = []
+				var x: float = -12.0
+				var k: int = 0
+				while x <= 12.0:
+					var at: Vector2 = Vector2(x, y + deep * 0.5)
+					if Geometry2D.is_point_in_polygon(at + Vector2(-DIAMOND.x, 0), poncho) and Geometry2D.is_point_in_polygon(at + Vector2(DIAMOND.x, 0), poncho):
+						var d: PackedVector2Array = PackedVector2Array([at + Vector2(0, -DIAMOND.x), at + Vector2(DIAMOND.x, 0), at + Vector2(0, DIAMOND.x), at + Vector2(-DIAMOND.x, 0)])
+						if k % 2 == 0:
+							_paper(d, STRIPE_PAPER)
+						else:
+							marks.append(d)
+					x += DIAMOND.y
+					k += 1
+				_overs(marks, RisoPrint.NIGHT, STRIPE_NIGHT)
+				continue
+			var strip: PackedVector2Array = PackedVector2Array([Vector2(-14, y), Vector2(14, y), Vector2(14, y + deep), Vector2(-14, y + deep)])
+			for part: PackedVector2Array in Geometry2D.intersect_polygons(strip, poncho):
+				if kind == &"paper":
+					_paper(part, STRIPE_PAPER)
+				else:
+					_over(part, RisoPrint.NIGHT, STRIPE_NIGHT)
+	if c.has("cape"):
+		var cape: Vector3 = c["cape"]
+		var sway: float = (_hem(0).x + _hem(4).x) * 0.5 * FOOL_CORNER_SWAY
+		var pts: PackedVector2Array = PackedVector2Array([Vector2(-3.3, -20.6 + b), Vector2(-6.4, -18.6 + b), Vector2(-cape.x + 0.6, -16.0 + b)])
+		var scallops: int = int(cape.z)
+		for k: int in range(2 * scallops + 1):
+			var u: float = float(k) / float(2 * scallops)
+			var x: float = lerpf(-cape.x, cape.x, u) + sway * (1.0 - absf(u - 0.5) * 2.0)
+			var y: float = cape.y + b * 0.9 + (1.3 if k % 2 == 1 else 0.0)
+			pts.append(Vector2(x, y))
+		pts.append_array(PackedVector2Array([Vector2(cape.x - 0.6, -16.0 + b), Vector2(6.4, -18.6 + b), Vector2(3.3, -20.6 + b)]))
+		var shape: PackedVector2Array = RisoShapes.smooth(pts)
+		var shadow: PackedVector2Array = Transform2D(0.0, Vector2(0, 1.2)) * shape
+		for part: PackedVector2Array in Geometry2D.clip_polygons(shadow, shape):
+			for on: PackedVector2Array in Geometry2D.intersect_polygons(part, poncho):
+				_over(on, RisoPrint.NIGHT, CAPE_SHADOW)
+		_solid(shape, RisoPrint.CLOTH, CAPE_COVER)
 
 
 ## One hem point's spring, turned into the costume's facing-right frame (index 0 is the back).
@@ -683,11 +859,15 @@ func _fool() -> void:
 		_bindle(b, grip)
 		frame = body
 	_place()
-	_solid(_poncho())
-	# Two long folds fall from each shoulder toward the narrow hem.
-	for side: float in [-1.0, 1.0]:
-		var hem: Vector2 = _hem(2 + int(side)) + Vector2(side * 3.4, -3.4)
-		_over(RisoShapes.tri(Vector2(side * 4.6, -17.6 + b), Vector2(side * 7.6, -15.4 + b), hem), RisoPrint.NIGHT, 0.22)
+	var poncho: PackedVector2Array = _poncho()
+	_solid(poncho)
+	# Two long folds fall from each shoulder toward the narrow hem (but in a cut without them).
+	for side: float in ([] if not bool(cut().get("folds", true)) else [-1.0, 1.0]):
+		var fold: Dictionary = cut()
+		var hem: Vector2 = _hem(2 + int(side)) + Vector2(float(fold["hem"][2 + int(side)]), float(fold["hem_y"][2 + int(side)]) + 1.8)
+		var wide: float = (fold["corner"] as Vector2).x
+		_over(RisoShapes.tri(Vector2(side * minf(4.6, wide * 0.5), -17.6 + b), Vector2(side * (wide - 2.9), (fold["corner"] as Vector2).y - 1.2 + b), hem), RisoPrint.NIGHT, 0.22)
+	_dress(poncho)
 	if swung:
 		_bindle(b, grip)
 		frame = body
@@ -744,7 +924,8 @@ func _fool() -> void:
 	# Sitting, it sets the lantern down beside its boots and that glove flips a coin instead.
 	var hang: Vector2 = _lantern_hang()
 	var hand: Vector2 = _lantern_hand().lerp(COIN_HAND, seated())
-	_place_bar(Vector2(FOOL_SHOULDER - 1.6, -14.2 + b * 0.8), hand, 2.6)
+	var corner: Vector2 = cut()["corner"]
+	_place_bar(Vector2(corner.x - 1.6, corner.y + b * 0.8), hand, 2.6)
 	_solids(_rest(&"bar"))
 	frame = _turned(hang, _lantern_tilt())
 	_place(Transform2D(0.0, hang + Vector2(0, LANTERN_REACH)))
@@ -1079,11 +1260,14 @@ static func silhouette(at: Transform2D, facing: float, spell: StringName = &"", 
 	var held: Vector2 = pose.swing() if pose != null else Vector2.ZERO
 	var knot: Vector2 = FOOL_BINDLE + Vector2(-0.5, -6.5)
 	local.append(Transform2D(held.x, knot) * Transform2D(0.0, -knot) * bindle_shape(spell, FOOL_BINDLE))
+	var c: Dictionary = cut()
+	var corner: Vector2 = c["corner"]
+	var rear: Vector2 = c.get("back", Vector2(-corner.x, corner.y))
 	local.append(PackedVector2Array([
-		Vector2(-3.5, -20.5), Vector2(-FOOL_SHOULDER, -15), Vector2(FOOL_HEM[0], FOOL_HEM_Y[0]), Vector2(0, FOOL_HEM_Y[2]),
-		Vector2(FOOL_HEM[4], FOOL_HEM_Y[4]), Vector2(FOOL_SHOULDER, -15), Vector2(3.5, -20.5),
+		Vector2(-3.5, -20.5), Vector2(rear.x, rear.y - 0.8), Vector2(float(c["hem"][0]), float(c["hem_y"][0])), Vector2(0, float(c["hem_y"][2])),
+		Vector2(float(c["hem"][4]), float(c["hem_y"][4])), Vector2(corner.x, corner.y - 0.8), Vector2(3.5, -20.5),
 	]))
-	var hand: Vector2 = LANTERN_AT + Vector2(0, -LANTERN_REACH)
+	var hand: Vector2 = LANTERN_AT + Vector2(float(c["hand"]), -LANTERN_REACH)
 	var lantern: PackedVector2Array = RisoShapes.rrect(hand.x - 2.9, hand.y, 5.8, LANTERN_REACH + 3.6, 1.5)
 	local.append(Transform2D(held.y, hand) * Transform2D(0.0, -hand) * lantern)
 	for side: float in [-1.0, 1.0]:

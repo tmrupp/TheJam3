@@ -1,7 +1,8 @@
 extends TestKit
 ## The cemetery archetype (docs/DEEPER_PLAN.md, group 3): bands of depths, its own terrain sample
 ## (collapsed with no symmetry), realm and decor, its gates (chasms bridged once their bell is
-## freed from its chain, by a key or a switch, and rung), and what lives there: moths drawn to a lit lantern and scattered by a hex, sleep fog that
+## freed from its chain, by a key or a switch, and rung, and bearing the wizard only while their
+## flame is out; the bridge sags and the pit fills with mist), and what lives there: moths drawn to a lit lantern and scattered by a hex, sleep fog that
 ## switches the spell off, and wraiths that drift through rock at the wizard.
 ## godot --headless --path . --script res://tests/cemetery_test.gd
 
@@ -220,14 +221,37 @@ func bridges() -> void:
 	check(not info.bell_free(other.get_meta(&"cell")), "the bell across the chasm is still chained: each has its own chain")
 	bell.call("hex_hit", 1, Vector2.RIGHT)
 	check(bool(bell.call("rung")) and info.bridge_up(id), "then a hex bolt rings the bell, and the record keeps it")
-	await until(func() -> bool: return planks.all(func(n: Node) -> bool: return bool(n.call("up")) and not bool((n.get_node("CollisionShape2D") as CollisionShape2D).disabled)))
-	check(planks.all(func(n: Node) -> bool: return bool(n.call("up")) and not bool((n.get_node("CollisionShape2D") as CollisionShape2D).disabled)), "the bridge lays itself across")
+	var bears: Callable = func(n: Node) -> bool: return not bool((n.get_node("CollisionShape2D") as CollisionShape2D).disabled)
+	await until(func() -> bool: return planks.all(func(n: Node) -> bool: return bool(n.call("up"))))
+	check(planks.all(func(n: Node) -> bool: return bool(n.call("up"))), "the bridge lays itself across")
+	await physics_frame
+	await physics_frame
+	check(info.flame_lit() and planks.all(func(n: Node) -> bool: return not bears.call(n)), "but while the wizard's flame burns it is a ghost: nothing stands on it")
+	# The bridge sags: level with the shores, lowest in the middle.
+	var mid: Bridge = planks[planks.size() / 2] as Bridge
+	check(is_zero_approx((planks[0] as Bridge).sag_left) and is_zero_approx((planks[-1] as Bridge).sag_right) and mid.sag_left > Bridge.SAG * 0.8, "it sags, level with the shores at its ends")
+	# The pit under it fills with mist (its thorns know their chasm).
+	var pit: Array[Node] = placed("spikes.tscn").filter(func(n: Node) -> bool: return (n as Spikes).pit == id)
+	check(pit.size() == planks.size(), "the thorns along its pit, %d of them, hold its mist" % pit.size())
+	player.global_position = over
+	player.velocity = Vector2.ZERO
+	player.set_physics_process(true)
+	await until(func() -> bool: return player.global_position.y > over.y + 160.0, 3000)
+	check(player.global_position.y > over.y + 160.0, "a wizard carrying a lit flame drops through it")
+	player.set_physics_process(false)
+	check(info.snuff(player.global_position), "the flame snuffed")
+	await until(func() -> bool: return planks.all(bears))
+	check(planks.all(bears), "in the dark the bridge bears the wizard")
 	player.global_position = over
 	player.velocity = Vector2.ZERO
 	player.set_physics_process(true)
 	await until(func() -> bool: return player.is_on_floor() and player.global_position.y < over.y + 100.0)
 	check(player.is_on_floor() and player.global_position.y < over.y + 100.0, "and the wizard stands on it")
+	info.relight()
+	await until(func() -> bool: return player.global_position.y > over.y + 160.0, 3000)
+	check(player.global_position.y > over.y + 160.0, "lit again (a dash), they drop through")
 	player.set_physics_process(false)
+	info.snuff(player.global_position)
 	# Gone and back: the bridge is still up.
 	info._load_level()
 	await settle()

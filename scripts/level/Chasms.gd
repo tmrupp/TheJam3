@@ -134,6 +134,18 @@ static func near(w: LevelGen, c: Vector2i) -> bool:
 	return false
 
 
+## The chasm whose pit has its floor (its thorns) at cell `v`, or -1.
+static func pit_of(w: LevelGen, v: Vector2i) -> int:
+	for id: int in range(w.chasms.size()):
+		var chasm: Dictionary = w.chasms[id]
+		if v.y != int(chasm["row"]) + CHASM_DEPTH + 1:
+			continue
+		for plank: Vector2i in chasm["planks"]:
+			if plank.x == v.x:
+				return id
+	return -1
+
+
 ## `spots` ([.., row, first cell, width] at the end of each) less those too near a chasm on row
 ## `y` from `a`, `span` cells wide.
 static func apart(spots: Array, y: int, a: int, span: int) -> Array:

@@ -349,6 +349,10 @@ func _doors(rec: LevelRecord, bell: SchoolBell) -> void:
 	var doors: Dictionary = {}
 	for n: Node in placed("exam_door.tscn"):
 		doors[(n as ExamDoor).cell] = n
+	# No students walking to their classes, who open the doors they pass (students_test).
+	for n: Node in get_nodes_in_group(&"student"):
+		(n as Scholar).origin = Vector2i(-1, -1)
+		(n as Scholar).route.clear()
 	var paper: int = KeyRing.paper(&"hex", 1)
 	player.keyring.take(paper)
 	for k: int in range(Timetable.PERIODS):
@@ -390,7 +394,8 @@ func _classes(rec: LevelRecord, bell: SchoolBell) -> void:
 			if info.world.halls[i]["kind"] != &"lecture":
 				continue
 			var box: Rect2i = info.world.halls[i]["box"]
-			var seated: Array[Node] = get_nodes_in_group(&"scholar").filter(func(n: Node) -> bool: return box.has_point((n as Scholar).cell) and not n.is_queued_for_deletion())
+			# Its staff: its students keep days of their own (Students, students_test).
+			var seated: Array[Node] = get_nodes_in_group(&"scholar").filter(func(n: Node) -> bool: return (n as Scholar).kind != &"student" and box.has_point((n as Scholar).cell) and not n.is_queued_for_deletion())
 			var a: StringName = info.subject_of(i)
 			if a == &"":
 				ok = ok and seated.is_empty()
@@ -404,8 +409,8 @@ func _classes(rec: LevelRecord, bell: SchoolBell) -> void:
 					player.global_position = bell.global_position
 			else:
 				var m: Scholar = info.master_in(i)
-				ok = ok and m != null and m.ability == a and seated.size() > 1
-	check(ok, "every ring seats each class afresh: its master teaching the hall's subject now, a hall with no class empty")
+				ok = ok and m != null and m.ability == a and seated.size() >= 1
+	check(ok, "every ring seats each class's staff afresh: its master teaching the hall's subject now, a hall with no class without its staff")
 	print("a class's master felled")
 	var hall: int = await _ring_to(bell, func(a: StringName) -> bool: return info.teaches(a))
 	if hall < 0:

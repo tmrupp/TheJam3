@@ -25,6 +25,7 @@ const KINDS: Dictionary = {
 	&"exit": "res://scripts/riso/props/ExitArt.gd",
 	&"moon": "res://scripts/riso/props/MoonArt.gd",
 	&"lift": "res://scripts/riso/props/LiftArt.gd",
+	&"ladder": "res://scripts/riso/props/LadderArt.gd",
 	&"thorns": "res://scripts/riso/props/ThornsArt.gd",
 	&"ghost": "res://scripts/riso/props/GhostArt.gd",
 	&"shrine": "res://scripts/riso/props/ShrineArt.gd",

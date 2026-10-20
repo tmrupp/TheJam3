@@ -30,6 +30,7 @@ const TABLE: Dictionary = {
 	LevelGen.Type.PORTAL: {"scene": "res://prefabs/portal.tscn", "art": &"portal", "flags": [&"stander"], "size": Vector2i(1, 2), "setup": 3},
 	LevelGen.Type.PLATFORM: {"scene": "res://prefabs/platform.tscn", "art": &""},
 	LevelGen.Type.MOVING_PLATFORM: {"scene": "res://prefabs/moving_platform.tscn", "art": &"lift", "setup": 3},
+	LevelGen.Type.ROLLING_LADDER: {"scene": "res://prefabs/rolling_ladder.tscn", "art": &"ladder", "setup": 3},
 	LevelGen.Type.EXIT: {"scene": "res://prefabs/level_exit.tscn", "art": &"exit", "flags": [&"stander"], "size": Vector2i(1, 2), "setup": 3},
 	LevelGen.Type.SHRINE: {"scene": "res://prefabs/shrine.tscn", "art": &"shrine", "flags": [&"stander"], "size": Vector2i(2, 2), "setup": 2},
 	LevelGen.Type.CRACKED: {"scene": "res://prefabs/cracked_wall.tscn", "art": &"cracked", "setup": 2},

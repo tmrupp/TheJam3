@@ -168,6 +168,9 @@ func _hop() -> void:
 	var w: LevelGen = info.world
 	var step: Variant = null
 	for v: Vector2i in w.free_floors():
+		# Its headroom inside the level, not off its edge.
+		if v.y < 3:
+			continue
 		var r: Vector2i = v + Vector2i.RIGHT
 		var open: bool = not w.is_ground(v + Vector2i.UP) and not w.is_ground(v + Vector2i(0, -2)) and not w.is_ground(r + Vector2i.UP) and not w.is_ground(r + Vector2i(0, -2))
 		if w.is_ground(r) and open and not w.is_ground(v + Vector2i.LEFT) and w.is_ground(v + Vector2i(-1, 1)) and Institute.hall_at(w, v) < 0:
@@ -354,7 +357,8 @@ func _masters() -> void:
 		await frames(2)
 
 
-## A proctor shields the students round it; a librarian's hush silences the wizard's spells.
+## A proctor shields the students round it; a librarian's hush, pulsing, silences the wizard's spells
+## while it is up.
 func _staff() -> void:
 	print("staff")
 	var spot: Vector2i = _open_floor()
@@ -367,7 +371,18 @@ func _staff() -> void:
 	student.queue_free()
 	var librarian: Scholar = _spawn("librarian.tscn", spot)
 	player.global_position = info.cell_position(spot) + Vector2(-120, 0)
-	check(await within(func() -> bool: return player.is_drowsy(), 1.0), "in a librarian's hush the wizard is drowsy, their spells silenced")
+	# Just after a pulse falls.
+	await physics_frame
+	librarian.hush_t = 0.05
+	player.set_physics_process(true)
+	await frames(3)
+	check(not librarian.hush_up(), "a librarian's hush pulses: down for a while")
+	check(await within(func() -> bool: return not player.is_drowsy(), 1.0), "and while it is down the wizard beside it is not drowsy")
+	# On to just before it rises.
+	librarian.hush_t = Scholar.HUSH_EVERY - Scholar.HUSH_ON - 0.1
+	check(await within(func() -> bool: return librarian.hush_up(), 1.0), "then it rises")
+	check(await within(func() -> bool: return player.is_drowsy(), 1.0), "and in it the wizard is drowsy, their spells silenced")
+	player.set_physics_process(false)
 	librarian.queue_free()
 	await frames(2)
 	player.set_physics_process(true)

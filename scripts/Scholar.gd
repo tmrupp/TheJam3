@@ -33,8 +33,10 @@ class_name Scholar
 ##   spell's top tier, once a room (MapInfo.instructor_fell).
 ## - a proctor: casts nothing, but every SHIELD_EVERY seconds gives each student and master within
 ##   SHIELD_REACH that has none a shield of one plate (Shield).
-## - a librarian: casts nothing, but hushes the air round it (HUSH px): while the wizard is in it
-##   they are drowsy, as in sleep fog (Player.make_drowsy), and their spells do nothing.
+## - a librarian: casts nothing, but hushes the air round it (HUSH px), in pulses: the hush swells for
+##   HUSH_SWELL seconds, then is up for HUSH_ON of every HUSH_EVERY; while it is up and the wizard is
+##   in it they are drowsy, as in sleep fog (Player.make_drowsy), and their spells do nothing.
+##   Between pulses the air round it is clear.
 ## A melee spell or a touch on the wizard comes from its HitBox's Damager, so a parry catches it
 ## as it catches any touch.
 ##
@@ -110,8 +112,14 @@ const KNOCK: float = 400.0
 const SHIELD_EVERY: float = 5.0
 const SHIELD_REACH: float = 560.0
 const SHIELD_PLATES: int = 1
-## A librarian's hush: how far round it (px).
+## A librarian's hush: how far round it (px), and its pulse (seconds): how long each takes, how long
+## it is up at the end of one, and how long it swells before it rises.
 const HUSH: float = 330.0
+const HUSH_EVERY: float = 6.0
+const HUSH_ON: float = 2.4
+const HUSH_SWELL: float = 0.8
+## Salt for where in its pulse a librarian starts (hashed from its cell).
+const HUSH_DEAL: int = 6500
 ## Where it looks from and casts from (px over its feet), and where an abomination it fights is
 ## aimed at (px over its middle). The wizard is aimed at the middle of their body (see `aim_at`):
 ## aimed this high over it, a bolt flew clean over their head.
@@ -188,6 +196,8 @@ var _found_master: bool = false
 var scatter: float = 0.0
 ## Seconds since its proctor last shielded those round it (the art draws the links).
 var since_shield: float = 9.0
+## A librarian's place in its hush's pulse (seconds, HUSH_EVERY round; -1 until it starts).
+var hush_t: float = -1.0
 ## Its own clock (the art).
 var t: float = 0.0
 ## Whether it has turned on the wizard (see the class description) until the next bell.
@@ -198,6 +208,25 @@ var wizard_blow: bool = false
 ## A patrolling proctor's way (+1 right, -1 left), and where it was a step ago (to turn where it is
 ## stopped).
 var patrol_way: float = 1.0
+## A student's day (Students): the cell it was first laid at (none for any other scholar, or with no
+## timetable), the cells of its walk to its next class, how far along it is, the period it was
+## planned for, and how long it has gone without reaching its next cell.
+var origin: Vector2i = Vector2i(-1, -1)
+var route: Array[Vector2i] = []
+var route_at: int = 0
+var planned: int = -1
+var stuck: float = 0.0
+## Where a student that cannot walk to its next class blinks to, and how long before it does
+## (seconds; none while it is below zero).
+var blink_to: Vector2i = Vector2i(-1, -1)
+var blink_in: float = -1.0
+## How long a student goes without reaching the next cell of its walk before it plans it again from
+## where it is (seconds), and how far over the floor it jumps to clear (px, past the cells it climbs).
+const STUCK_TIME: float = 3.0
+const JUMP_SPARE: float = 40.0
+## How long into passing time a student that cannot walk to its next class blinks there: dealt by
+## the student between these (seconds), so they do not all go at once.
+const BLINK_AFTER: Vector2 = Vector2(0.6, 2.4)
 var _last_x: float = INF
 
 var gravity: float = ProjectSettings.get_setting("physics/2d/default_gravity")
@@ -218,6 +247,18 @@ func setup(info: MapInfo, v: Vector2i, extra: Variant) -> void:
 		ability = info.subject_of(hall)
 		if kind == &"master" and not ability in Institute.MASTERIES:
 			move = ability
+	# A student the level laid starts where its day has taken it (Students.seat_at): in class time in
+	# that period's class, in passing time in the last one's, setting out from there.
+	if kind == &"student" and info != null and Timetable.kept_in(info.world) and info.world.get_cell(v).type == LevelGen.Type.STUDENT:
+		origin = v
+		var rec: LevelRecord = info.record()
+		var start: Vector2i = v
+		if not rec.passing:
+			start = Students.seat_at(info.world, v, rec.rings)
+		elif rec.rings > 0:
+			start = Students.seat_at(info.world, v, rec.rings - 1)
+		if start != v:
+			global_position = info.cell_position(start)
 	var wound: Wound = get_node_or_null("Wound") as Wound
 	if wound != null:
 		wound.hp = int(HP.get(kind, 2))
@@ -305,7 +346,7 @@ func _physics_process(delta: float) -> void:
 	if foe != null and not is_instance_valid(foe):
 		foe = null
 	if kind == &"librarian":
-		_hush()
+		_hush(delta)
 	if scatter > 0.0:
 		scatter = maxf(0.0, scatter - delta)
 		_flee(delta)
@@ -472,6 +513,9 @@ func _move(delta: float) -> void:
 			patrol_way = -patrol_way
 		want = patrol_way
 		facing = want
+	elif _shuffle(delta):
+		_last_x = global_position.x
+		return
 	else:
 		var back: float = home_x - global_position.x
 		if absf(back) > HOME_SLACK:
@@ -486,13 +530,84 @@ func _move(delta: float) -> void:
 	_step(want, float(SPEED.get(kind, 60.0)) * Difficulty.speed() * delta)
 
 
+## A student's walk to its next class (Students), in passing time: planned once a period from where
+## it stands, then walked a cell at a time along its route; in class time it stays where it got to,
+## its place now. Returns whether it walked (or waited to land) this frame.
+func _shuffle(delta: float) -> bool:
+	if origin.x < 0 or map_info == null or map_info.world == null:
+		return false
+	var rec: LevelRecord = map_info.record()
+	if not rec.passing:
+		blink_in = -1.0
+		if not route.is_empty():
+			_arrive()
+		return false
+	var here: Vector2i = map_info.cell_at(global_position)
+	if planned != rec.rings:
+		if not grounded:
+			return false
+		planned = rec.rings
+		var seat: Vector2i = Students.next_seat(map_info.world, origin, rec.rings, here)
+		route = Students.route(map_info.world, here, seat)
+		route_at = 0
+		stuck = 0.0
+		blink_in = -1.0
+		if route.is_empty() and seat != here:
+			blink_to = seat
+			blink_in = lerpf(BLINK_AFTER.x, BLINK_AFTER.y, RisoDecor.h(rec.rings, origin, 2))
+	if blink_in >= 0.0:
+		blink_in -= delta
+		if blink_in < 0.0:
+			_jump_to(blink_to)
+			_arrive()
+		return false
+	if route_at >= route.size():
+		return false
+	while grounded and route_at < route.size() and here == route[route_at]:
+		route_at += 1
+		stuck = 0.0
+	if route_at >= route.size():
+		_arrive()
+		return false
+	stuck += delta
+	if stuck > STUCK_TIME:
+		# Knocked off its way (a blow, a ledge it overshot): plan again from here.
+		planned = -1
+		return true
+	var next: Vector2i = route[route_at]
+	if next.y < here.y and grounded:
+		# A jump up to it, as high as it climbs and a little more.
+		fall_speed = -sqrt(2.0 * gravity * (float(here.y - next.y) * _cell_px() + JUMP_SPARE))
+		grounded = false
+	var dx: float = map_info.cell_position(next).x - global_position.x
+	if absf(dx) > 2.0:
+		facing = signf(dx)
+		_step(facing, minf(absf(dx), float(SPEED.get(kind, 60.0)) * Difficulty.speed() * delta), true)
+	return true
+
+
+## A student at the end of its walk (or stopped by class time): this is its place now, and its master
+## the nearest one here.
+func _arrive() -> void:
+	route.clear()
+	route_at = 0
+	home_x = global_position.x
+	_found_master = false
+	master = null
+
+
+## Whether it is walking to a class now (Students), for the doors it comes to (ExamDoor).
+func shuffling() -> bool:
+	return route_at < route.size()
+
+
 ## A step of `dist` px the way `way` points along its floor: hopping a wall a cell high, stopping
-## at a ledge.
-func _step(way: float, dist: float) -> void:
+## at a ledge unless it means to `drop` off it.
+func _step(way: float, dist: float, drop: bool = false) -> void:
 	if grounded and _wall_ahead(way):
 		fall_speed = HOP
 		grounded = false
-	elif grounded and not _floor_ahead(way):
+	elif grounded and not drop and not _floor_ahead(way):
 		return
 	var hit: KinematicCollision2D = move_and_collide(Vector2(way * dist, 0))
 	if hit == null or absf(hit.get_normal().x) < 0.7:
@@ -794,11 +909,27 @@ func _shield_others(delta: float) -> void:
 		since_cast = 0.0
 
 
-## A librarian's hush: the wizard within it is drowsy (see the class description).
-func _hush() -> void:
+## A librarian's hush, pulsing: while it is up, the wizard within it is drowsy (see the class
+## description).
+func _hush(delta: float) -> void:
+	if hush_t < 0.0:
+		hush_t = RisoDecor.h(HUSH_DEAL, cell, 0) * HUSH_EVERY
+	hush_t = fmod(hush_t + delta * Difficulty.attack(), HUSH_EVERY)
+	if not hush_up():
+		return
 	var player: Player = Stage.player()
 	if player != null and is_instance_valid(player) and player.global_position.distance_to(global_position + Vector2(0, -AIM)) <= HUSH:
 		player.make_drowsy()
+
+
+## Whether a librarian's hush is up now, and how far it has swelled toward rising (0 to 1; 1 while
+## up).
+func hush_up() -> bool:
+	return hush_t >= HUSH_EVERY - HUSH_ON
+
+
+func hush_swell() -> float:
+	return clampf((hush_t - (HUSH_EVERY - HUSH_ON - HUSH_SWELL)) / HUSH_SWELL, 0.0, 1.0)
 
 
 # ------------------------------------------------------------------ its fall

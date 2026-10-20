@@ -42,6 +42,8 @@ var map_info: MapInfo
 ## Whether they are out (and hurt), and how far out they are drawn (0 down, 1 out).
 var out: bool = true
 var rise: float = 1.0
+## The chasm whose pit these thorns line (Chasms.pit_of), its mist rising over them; -1 for none.
+var pit: int = -1
 
 
 func _ready() -> void:
@@ -71,6 +73,7 @@ func setup(_map_info: MapInfo, v: Vector2i) -> void:
 	map_info = _map_info
 	var world: LevelGen = _map_info.world
 	var extra: Variant = world.get_cell(v).extra_info
+	pit = Chasms.pit_of(world, v)
 	if extra is Dictionary:
 		var how: Dictionary = extra
 		if how.has("timed"):

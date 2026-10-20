@@ -119,10 +119,14 @@ func capture() -> void:
 	var bell: Node2D = first("bell.tscn")
 	if bell != null:
 		player.global_position = bell.global_position + Vector2(-60, 0)
-		var span: Vector2 = bell.global_position
+		# The middle of its bridge.
+		var span: Vector2 = Vector2.ZERO
+		var planks: int = 0
 		for n: Node in info.map_elements.get_children():
 			if n.scene_file_path.get_file() == "bridge.tscn" and int(n.get("chasm")) == int(bell.get("chasm")):
-				span = span.lerp((n as Node2D).global_position, 0.5)
+				span += (n as Node2D).global_position
+				planks += 1
+		span = span / float(planks) if planks > 0 else bell.global_position
 		await look(span + Vector2(0, -60), "cemetery_chasm.png")
 		await look(bell.global_position + Vector2(40, -80), "cemetery_bell.png", 10)
 		bell.call("open")
@@ -131,6 +135,10 @@ func capture() -> void:
 		root.get_texture().get_image().save_png(output.path_join("cemetery_bridge_laying.png"))
 		await create_timer(1.2).timeout
 		await look(span + Vector2(0, -60), "cemetery_bridge.png", 5)
+		# Its flame snuffed, the wizard's bridge of the dead firms up under them.
+		info.snuff(player.global_position)
+		await create_timer(0.6).timeout
+		await look(span + Vector2(0, -60), "cemetery_bridge_dark.png", 5)
 	# The whole level from afar.
 	camera.zoom = Vector2(0.25, 0.25)
 	await look(info.cell_position(info.world.size / 2), "cemetery_overview.png")

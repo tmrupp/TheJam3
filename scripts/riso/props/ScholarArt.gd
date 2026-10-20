@@ -14,7 +14,7 @@ class_name ScholarArt
 ## - a proctor: a brown gown under a flat-topped wooden cap with a tassel, leaning on a tall staff headed
 ##   with a pink ring, the links to those it shields flashing as it shields them.
 ## - a librarian: in pale tan, hooded, no hat, round paper spectacles over its eyes, a book held open before it,
-##   and round it the ring of its hush, faint blue, rippling.
+##   and round it the ring of its hush, faint blue, rippling while it is up and swelling before it rises.
 ## - an instructor (a classroom's master, Scholar.instructor) teaching ferry stands on a raft (blue
 ##   planks, night under); projecting itself, PROJECTED_MOTES paper twinkles circle it.
 ## Pink is danger, so every spell is pink, and so is an eye's pupil while it is turned on the wizard
@@ -32,6 +32,10 @@ const STRIDE: float = 70.0
 ## The medallion of a relic a master carries (_relic_mark): its radius, and how far over its pips.
 const RELIC_R: float = 15.0
 const RELIC_RISE: float = 26.0
+## A librarian's hush (_hush): how much ink its ring at its reach prints while the hush is down, and how
+## long the hush takes to fade as it falls (seconds).
+const HUSH_DOWN: float = 0.12
+const HUSH_FADE: float = 0.35
 const UNDER: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE]
 
 ## How much bigger a spell's mark (RisoGlyph, about 24 px from its middle to its edge) is drawn
@@ -762,13 +766,23 @@ func _book(xf: Transform2D, hand: Vector2) -> void:
 
 
 ## A librarian's hush: a faint blue ring at its reach, with two ripples running in to it.
+## It pulses (Scholar.hush_up): down, only a faint ring at its reach (HUSH_DOWN); swelling, a ring
+## closing in on its reach, darker as it comes; up, the ring and ripples over a faint blue wash; and as
+## it falls, the wash and ripples fading over HUSH_FADE seconds.
 func _hush(s: Scholar) -> void:
 	var c: Vector2 = to_local(s.global_position + Vector2(0, -Scholar.AIM))
+	var into: float = s.hush_t - (Scholar.HUSH_EVERY - Scholar.HUSH_ON)
+	var up: float = 1.0 if s.hush_up() else (clampf(1.0 - s.hush_t / HUSH_FADE, 0.0, 1.0) if s.hush_t >= 0.0 else 0.0)
+	if up <= 0.0:
+		var swell: float = s.hush_swell()
+		var r: float = Scholar.HUSH * (1.0 + 0.3 * (1.0 - swell)) if swell > 0.0 else Scholar.HUSH
+		ink.ink(RisoPrint.BLUE, HUSH_DOWN + 0.3 * swell, RisoShapes.ring(c, r - 2.0, r, 48), false)
+		return
 	var rings: Array[PackedVector2Array] = []
 	for i: int in range(3):
-		var u: float = fposmod(t * 0.4 + float(i) / 3.0, 1.0)
+		var u: float = fposmod(maxf(into, 0.0) * 0.4 + float(i) / 3.0, 1.0)
 		var r: float = Scholar.HUSH * (1.0 - 0.35 * u)
 		var w: float = 3.0 if i == 0 else 2.0
 		rings.append_array(RisoShapes.ring(c, r - w, r, 48))
-	ink.ink(RisoPrint.BLUE, 0.35, rings, false)
-	ink.ink(RisoPrint.BLUE, 0.06, [RisoShapes.circle(c, Scholar.HUSH, 48)], false)
+	ink.ink(RisoPrint.BLUE, 0.35 * up, rings, false)
+	ink.ink(RisoPrint.BLUE, 0.06 * up, [RisoShapes.circle(c, Scholar.HUSH, 48)], false)

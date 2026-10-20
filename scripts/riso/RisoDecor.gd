@@ -100,13 +100,13 @@ const SLIT_SIZE: float = 1.4
 const WEB_REACH: float = 19.0
 const WEB_RINGS: Array[float] = [0.45, 0.8]
 const STRUCTURES: Array[String] = ["level_exit.tscn", "shrine.tscn", "door.tscn", "checkpoint.tscn", "spikes.tscn",
-	"portal.tscn", "inkwell.tscn", "moving_platform.tscn", "bell.tscn", "switch.tscn", "switch_gate.tscn", "key.tscn",
+	"portal.tscn", "inkwell.tscn", "moving_platform.tscn", "rolling_ladder.tscn", "bell.tscn", "switch.tscn", "switch_gate.tscn", "key.tscn",
 	"relic.tscn", "gondola.tscn", "stalactite.tscn", "department.tscn", "way_back.tscn", "study_desk.tscn",
 	"timetable_board.tscn"]
 ## Structures that stand tall, keeping a wider stretch of floor clear (see rebuild). A department's
 ## portal is one: an institute column or bookcase stood on its cell once rose out of its arch.
 const TALL: Array[String] = ["level_exit.tscn", "shrine.tscn", "checkpoint.tscn", "door.tscn", "bell.tscn", "gondola.tscn",
-	"department.tscn", "way_back.tscn", "study_desk.tscn"]
+	"department.tscn", "way_back.tscn"]
 
 ## The plan: one entry per prop, {kind, cell, at (world), seed}.
 var items: Array[Dictionary] = []
@@ -538,6 +538,27 @@ static func plan_institute(solid: Dictionary, occupied: Dictionary, level_seed: 
 	return out
 
 
+## Bookcases standing on the library's gallery over its timetable board (TimetableBoard), up to its
+## ceiling, one to a cell, where the board keeps the floor's own bookcases away (see rebuild).
+func _over_board(info: MapInfo, solid: Dictionary) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for node: Node in info.map_elements.get_children():
+		var board: TimetableBoard = node as TimetableBoard
+		if board == null or board.is_queued_for_deletion():
+			continue
+		@warning_ignore("integer_division")
+		var reach: int = int(BoardArt.BOARD_W) / 2
+		var ledge: int = board.cell.y - Institute.LIBRARY_GROUND
+		for dx: int in range(-reach, reach + 1):
+			var stand: Vector2i = Vector2i(board.cell.x + dx, ledge - 1)
+			var rise: int = 0
+			while rise < BOOKCASE_ROWS and not solid.has(stand + Vector2i(0, -rise)):
+				rise += 1
+			if rise > 0:
+				out.append({"kind": &"bookcase", "cell": stand, "base": Vector2i(stand.x, ledge), "rise": rise, "wide": 1})
+	return out
+
+
 ## What the institute's room at cell `v` of level `level_seed` is given over to (see ROOM_USE), as
 ## the kind of thing on its floors: &"alchemy" in a laboratory, &"ritual" in a sanctum, &"desk" in a
 ## study.
@@ -652,10 +673,10 @@ func rebuild(info: MapInfo, cracked_positions: Array[Vector2] = []) -> void:
 		if file in TALL:
 			for d: Vector2i in [Vector2i(-2, 0), Vector2i(2, 0), Vector2i(3, 0)]:
 				occupied[c + d] = true
-		# The library's timetable board keeps its whole wall clear, floor to gallery (BoardArt).
+		# The library's timetable board keeps its own stretch of wall clear, floor to gallery (BoardArt).
 		if file == "timetable_board.tscn":
 			@warning_ignore("integer_division")
-			var reach: int = int(BoardArt.BOARD_W) / 2 + 1
+			var reach: int = int(BoardArt.BOARD_W) / 2
 			for dx: int in range(-reach, reach + 1):
 				for dy: int in range(0, Institute.LIBRARY_GROUND + 1):
 					occupied[c + Vector2i(dx, -dy)] = true
@@ -668,6 +689,7 @@ func rebuild(info: MapInfo, cracked_positions: Array[Vector2] = []) -> void:
 	var level_seed: int = Rules.level_seed(info.coord.x, info.coord.y)
 	var bottoms: StringName = RisoPrint.instance.sky_bottom_style if RisoPrint.instance != null else &"roots"
 	items = RisoDecor.plan(solid, occupied, level_seed, Rect2i(Vector2i.ZERO, info.world.size), info.here.decor(), bottoms, info.world.masonry, info.world.interiors)
+	items.append_array(_over_board(info, solid))
 	# Nothing grows in some side worlds (NextWorldDef.grows).
 	if not info.here.grows():
 		items.clear()

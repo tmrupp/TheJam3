@@ -25,6 +25,7 @@ func _init() -> void:
 	decor = &"institute"
 	sample = SAMPLE
 	symmetry = 1
+	ladders = true
 
 
 ## Its halls, built into the collapsed rooms once the caves are joined (Institute.build).

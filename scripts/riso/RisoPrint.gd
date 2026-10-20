@@ -176,6 +176,11 @@ var sky_bottom_style: StringName = &"tapered"
 const WALL_STYLES: Array[StringName] = [&"planks", &"panels", &"light_panels", &"stone"]
 const WALL_STYLE_NAMES: Array[String] = ["Light planks", "Dark panels", "Light panels", "Pale stone"]
 var wall_style: StringName = &"planks"
+## The cut of the Fool's poncho (RisoCostume.PONCHOS), to try them side by side: drape is worn, broad
+## the cut it had before. Switching changes only the art.
+const PONCHO_STYLES: Array[StringName] = [&"broad", &"slim", &"wedge", &"aline", &"point", &"taper", &"tatters", &"swept", &"capelet", &"woven", &"fringe", &"split", &"crescent", &"drape", &"tent", &"kite"]
+const PONCHO_STYLE_NAMES: Array[String] = ["Broad", "Slim", "Wedge", "A-line", "Point", "Taper", "Tatters", "Swept", "Capelet", "Woven", "Fringe", "Split", "Crescent", "Drape", "Tent", "Kite"]
+var poncho_style: StringName = &"drape"
 ## How much finer than the scene the UI prints, 0 (the same) to 1 (UI_* in full).
 var ui_detail: float = 0.7
 ## Camera zoom while printing, relative to the scene's own zoom (smaller shows more).
@@ -1253,6 +1258,7 @@ func _build_panel() -> void:
 	_option_row(look, &"walls", "Institute walls", WALL_STYLE_NAMES, func(i: int) -> void:
 		set_wall_style(WALL_STYLES[i])
 		_sync_panel())
+	_option_row(look, &"poncho", "Poncho", PONCHO_STYLE_NAMES, func(i: int) -> void: poncho_style = PONCHO_STYLES[i])
 	var keys: VBoxContainer = _section(box, "Keys", false)
 	_key_capacity_label = Label.new()
 	_key_capacity_label.add_theme_font_size_override("font_size", 6)
@@ -1542,6 +1548,8 @@ func _sync_panel() -> void:
 		(_options[&"sky_bottoms"] as OptionButton).select(SKY_BOTTOM_STYLES.find(sky_bottom_style))
 	if _options.has(&"walls"):
 		(_options[&"walls"] as OptionButton).select(WALL_STYLES.find(wall_style))
+	if _options.has(&"poncho"):
+		(_options[&"poncho"] as OptionButton).select(PONCHO_STYLES.find(poncho_style))
 	if _options.has(&"realm"):
 		(_options[&"realm"] as OptionButton).select(REALM_ORDER.find(realm))
 	if _options.has(&"reprint"):

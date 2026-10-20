@@ -4,7 +4,8 @@ class_name ExamDoor
 ## its doorways, kept by the timetable (MapInfo.hall_door_up): the library's stands open always; a
 ## classroom's stays shut until the wizard walks up to it (near), and opens then only if they may go
 ## through: from inside always, from outside in passing time to a wizard enrolled in its class in
-## session. It never drops on the wizard. It has no lock: nothing else opens it. Its
+## session. In passing time it opens too for a student walking up to it on its way to a class
+## (Scholar.shuffling, Students). It never drops on the wizard. It has no lock: nothing else opens it. Its
 ## portcullis winches up and down (`lift`, printed by ExamDoorArt), and MapInfo.exam_doors keeps
 ## whether each is up, for what light and sight pass (MapInfo.solid_at).
 
@@ -119,11 +120,26 @@ func near() -> bool:
 	return absi(at.x - cell.x) <= NEAR and absi(at.y - cell.y) <= NEAR
 
 
+## Whether a student on its way to a class (Scholar.shuffling) is within NEAR cells of it, in passing
+## time.
+func student_near() -> bool:
+	if not map_info.record().passing:
+		return false
+	for node: Node in get_tree().get_nodes_in_group(&"student"):
+		var s: Scholar = node as Scholar
+		if s == null or not s.shuffling() or s.is_queued_for_deletion():
+			continue
+		var at: Vector2i = map_info.cell_at(s.global_position)
+		if absi(at.x - cell.x) <= NEAR and absi(at.y - cell.y) <= NEAR:
+			return true
+	return false
+
+
 func _physics_process(delta: float) -> void:
 	if map_info == null:
 		return
 	var lecture: bool = map_info.world != null and hall >= 0 and hall < map_info.world.halls.size() and map_info.world.halls[hall]["kind"] == &"lecture"
-	up = map_info.hall_door_up(hall) and (not lecture or near())
+	up = (map_info.hall_door_up(hall) and (not lecture or near())) or (lecture and student_near())
 	if up:
 		collision_layer = 0
 	elif not shut() and not _holds_wizard():
