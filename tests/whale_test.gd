@@ -3,11 +3,12 @@ extends TestKit
 ## gate level of its own; huge, swimming above the top of its level so only its underside hangs into
 ## view, from fully off one side to fully off the other and back; free, it cannot be struck and
 ## never swoops at a wizard low down. It swoops at a wizard standing high under open sky ahead of
-## it (never one under rock, low or not standing), warning first; free, its gobble is a blow and
-## the belly is not reached; trapped (the levels either side set to blow into its level), its gobble
-## takes the wizard into its belly; its heart there takes HP blows, any bolt wounding it, and leaving
-## heals it; burst, the whale is slain, the wizard spat out into its level by the way on, now open,
-## its relic beside it; never met again.
+## it (never one under rock, low or not standing), warning first, then lunging down ahead of them
+## and scooping up through them; free, its gobble is a blow and the belly is not reached; trapped
+## (the levels either side set to blow into its level), its gobble takes the wizard into its belly;
+## its heart there takes HP blows, any bolt wounding it, and leaving heals it; burst, the whale is
+## slain, the wizard spat out into its level by the way on, now open, its relic beside it; never
+## met again.
 ## godot --headless --path . --script res://tests/whale_test.gd
 
 ## How far ahead of its nose (cells) the test sets it from the wizard: within its reach.
@@ -78,7 +79,7 @@ func run() -> void:
 	check(told and whale.mark.distance_to(player.global_position) < 40.0, "it warns first, marking the wizard's spot")
 	var gulped: bool = await within(func() -> bool: return whale.gulped, Whale.TELL + Whale.DIVE + 1.0)
 	check(gulped and player.health.health < hp and not Worlds.is_side(info.coord), "free, its gobble is a blow, and the belly is not reached")
-	var climbed: bool = await within(func() -> bool: return whale.phase == Whale.Phase.CRUISE, Whale.CLIMB + 1.0)
+	var climbed: bool = await within(func() -> bool: return whale.phase == Whale.Phase.CRUISE, Whale.DIVE + Whale.CLIMB + 1.0)
 	check(climbed and whale.z_index == Whale.Z_CRUISE, "it climbs back and swims on behind the islands")
 	player.set_physics_process(false)
 
@@ -180,6 +181,8 @@ func _over(whale: Whale, at: Vector2) -> void:
 	whale.facing = 1.0
 	whale.since = 99.0
 	whale.bend = Vector2.ZERO
+	whale.aim = Vector2.RIGHT
+	whale.gape = 0.0
 	whale.global_position.x = at.x - Whale.LENGTH * 0.5 - float(AHEAD) * whale.cell.x
 
 

@@ -79,11 +79,12 @@ func end_invulnerable() -> void:
 	graced.refresh()
 
 ## When (real seconds) the wizard last took a hit, wounded or on the ward (Parry.glory reads it).
+## Kept to the microsecond: a hit and a catch in the same frame can fall within one millisecond.
 var hit_at: float = -INF
 
 func normal_hurt (damage: int, v: Vector2, _attacker: Node) -> void:
 	if not is_invulnerable():
-		hit_at = Time.get_ticks_msec() / 1000.0
+		hit_at = Time.get_ticks_usec() / 1000000.0
 		# The ward perk takes the hit, if it has a charge: knocked back and untouchable, no heart lost.
 		var ward: Ward = get_node_or_null("Ward") as Ward
 		if ward != null and ward.take(v):

@@ -2,7 +2,7 @@ extends TestKit
 ## Stills of the sky's rework: a balloon becalmed and then full with the level's wind set
 ## (sky_balloon_0.png, _1); a temple shut with two of its winds entered, then open (sky_temple_0.png,
 ## _1); the whale cruising overhead, its underside hanging into view (sky_whale_0.png, and from
-## farther out sky_whale_wide.png), warning of a swoop (_1) and diving, mouth wide (_2); and its
+## farther out sky_whale_wide.png), warning of a swoop (_1) and scooping up, mouth wide (_2); and its
 ## belly, the heart at the far end (sky_belly.png).
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_sky_rework.gd
 
@@ -41,7 +41,7 @@ func run() -> void:
 	temple.use()
 	await frames(50)
 	await _look(temple.global_position + Vector2(64.0, -120.0), "sky_temple_1.png")
-	# The whale: cruising overhead, then warning of a swoop and diving, mouth wide.
+	# The whale: cruising overhead, then warning of a swoop and scooping up, mouth wide.
 	var row: int = WhaleHunt.row()
 	info.run.whale_x = 28
 	await _go(Vector2i(28, row))
@@ -59,7 +59,7 @@ func run() -> void:
 	whale.set_physics_process(false)
 	await _look(target + Vector2(-300.0, -200.0), "sky_whale_1.png", 0.6)
 	whale.set_physics_process(true)
-	await within(func() -> bool: return whale.phase == Whale.Phase.DIVE and whale.u > 0.75, Whale.DIVE + 0.5)
+	await within(func() -> bool: return whale.phase == Whale.Phase.RISE and whale.u > 0.35, Whale.DIVE * 2.0 + 0.5)
 	whale.set_physics_process(false)
 	await _look(target + Vector2(-300.0, -200.0), "sky_whale_2.png", 0.6)
 	# Its belly.
