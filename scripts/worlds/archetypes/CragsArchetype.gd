@@ -17,7 +17,11 @@ extends Archetype
 ## walls the tiers off: the cliff may well be climbed between them, and nothing sees that it can. Rock-bugs (RockBug) crawl along its rock (place_bugs) and
 ## hatch from nests out on the cliff (BugNest), stalactites (Stalactite) hang from its ceilings,
 ## falling on whoever passes under, and crossbows (Crossbow) built into the towers' and keeps'
-## walls shoot out at the wizard, stopped only from inside (finish).
+## walls shoot out at the wizard, stopped only from inside (finish). Each watchtower carries an iron
+## spire on its roof (Spire, place_spires), which an empowered spell strikes to work its switch, and
+## a few are cold (COLD_SHARE), their switches dead until a strike wakes them. One crags level in four
+## holds a lodestone (Lodestone, place_lodestone; which, Rules.lodestone_at), high on the cliff in
+## sight of the gondola's track, which tempers a damage spell (Empower).
 
 const SAMPLE: String = "res://wfc_images/crags.png"
 ## A crag level is this much the size of a cave level of its depth (Rules.level_size), across and
@@ -148,6 +152,17 @@ const KEEP_CROSSBOW_APART: int = 3
 const TOWER_REWARDS: Array[StringName] = [&"key", &"switch", &"well"]
 const TOWER_DEAL: int = 7310
 const TOWER_SWITCH_NEAR: int = 24
+## Cold towers: a watchtower above the bottom tier is cold by a chance of COLD_SHARE, dealt by the
+## level seed (COLD_DEAL, no draw): its switch does nothing until an empowered strike on its spire
+## wakes it (MapInfo.tower_cold, Spire).
+const COLD_SHARE: float = 0.25
+const COLD_DEAL: int = 7420
+## The lodestone (place_lodestone): on a free floor of the upper half of the tiers, reached from the
+## gondola's track without passing cracked rock, with open air over it, and within LODESTONE_SIGHT
+## cells of the track with no rock between (a ride past shows it); picked among those spots by the
+## level seed (LODESTONE_SPOT, no draw).
+const LODESTONE_SIGHT: float = 9.0
+const LODESTONE_SPOT: int = 7530
 
 
 
@@ -222,13 +237,16 @@ static func place_bugs(w: LevelGen) -> void:
 ## Last of all (so nothing else in the level moves for them): its falling stalactites
 ## (place_stalactites), then what the towers hold (place_tower_rewards), the rock-bug nests out on
 ## the cliff (place_nests), the crossbows built into the towers' walls (place_crossbows) and the
-## keeps' (place_keep_crossbows).
-func finish(w: LevelGen, _def: NextWorldDef) -> void:
+## keeps' (place_keep_crossbows), the watchtowers' spires (place_spires) and the level's lodestone,
+## if it holds one (place_lodestone).
+func finish(w: LevelGen, def: NextWorldDef) -> void:
 	place_stalactites(w)
 	place_tower_rewards(w)
 	place_nests(w)
 	place_crossbows(w)
 	place_keep_crossbows(w)
+	place_spires(w)
+	place_lodestone(w, Rules.lodestone_at(def.coord))
 
 
 ## Stalactites (Stalactite): STALACTITES_PER_K, each in an empty cell under plain rock with at least
@@ -247,6 +265,81 @@ static func place_stalactites(w: LevelGen) -> void:
 				return false
 		return true)
 	w.put_each(w.pick_apart(spots, w.foes_per_area(STALACTITES_PER_K), STALACTITE_APART), LevelGen.Type.STALACTITE)
+
+
+## Each watchtower's spire (Spire): in the air over its roof, on stone (not over the hatch), at the
+## free column nearest the roof's middle; with none free, in place of the ledge, star or small foe
+## nearest the middle (SPIRE_TAKES). Its extra info is {"tower": its number}.
+const SPIRE_TAKES: Array[LevelGen.Type] = [LevelGen.Type.PLATFORM, LevelGen.Type.COIN, LevelGen.Type.ENEMY, LevelGen.Type.SHOOTER, LevelGen.Type.HOPPER]
+
+static func place_spires(w: LevelGen) -> void:
+	for j: int in range(w.towers.size()):
+		var tower: Dictionary = w.towers[j]
+		if tower["hoard"]:
+			continue
+		var box: Rect2i = tower["box"]
+		var middle: float = float(box.position.x + box.end.x - 1) * 0.5
+		var spots: Array[Vector2i] = []
+		for x: int in range(box.position.x, box.end.x):
+			var v: Vector2i = Vector2i(x, box.position.y - 1)
+			if w.is_valid(v) and w.is_ground(v + Vector2i.DOWN):
+				spots.append(v)
+		spots.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return absf(float(a.x) - middle) < absf(float(b.x) - middle) or (absf(float(a.x) - middle) == absf(float(b.x) - middle) and a.x < b.x))
+		var free: Variant = LevelGen.best_of(spots, func(_v: Vector2i) -> float: return 0.0, func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.EMPTY and w.empties.has(v))
+		if free != null:
+			w.put(free, LevelGen.Type.SPIRE, {"tower": j})
+			tower["spire"] = free
+			continue
+		var taken: Variant = LevelGen.best_of(spots, func(_v: Vector2i) -> float: return 0.0, func(v: Vector2i) -> bool: return w.get_cell(v).type in SPIRE_TAKES)
+		if taken != null:
+			w.set_kind(taken, LevelGen.Type.SPIRE, {"tower": j})
+			tower["spire"] = taken
+
+
+## The level's lodestone of `spell` (Rules.lodestone_at; none for &""), at a spot dealt as
+## LODESTONE_SIGHT says: the upper tiers' spots first, then any tier's in sight of the track, then
+## the upper tiers' out of sight, then any. Its extra info is the spell; noted as LevelGen.lodestone.
+static func place_lodestone(w: LevelGen, spell: StringName) -> void:
+	if spell == &"" or w.circuit.is_empty():
+		return
+	var path: Array[Vector2i] = w.circuit["path"]
+	var reached: Dictionary = w.reach_from(path[0])
+	var upper: int = ceili(float(tier_count(w)) / 2.0)
+	var floors: Array[Vector2i] = w.free_floors().filter(func(v: Vector2i) -> bool:
+		return reached.has(v) and not w.keep_clear.has(v) and not _room_of_big(w, v + Vector2i.DOWN) and not w.is_ground(v + Vector2i.UP) and w.get_cell(v + Vector2i.UP).type == LevelGen.Type.EMPTY)
+	var high: Array[Vector2i] = floors.filter(func(v: Vector2i) -> bool: return tier_of(w, v.y) >= upper)
+	var seen: Array[Vector2i] = floors.filter(func(v: Vector2i) -> bool: return in_sight_of_track(w, v))
+	var high_seen: Array[Vector2i] = high.filter(func(v: Vector2i) -> bool: return seen.has(v))
+	for spots: Array[Vector2i] in [high_seen, seen, high, floors]:
+		if spots.is_empty():
+			continue
+		var at: Vector2i = spots[posmod(Rules.level_seed(w.seed_for_colors, LODESTONE_SPOT), spots.size())]
+		w.put(at, LevelGen.Type.LODESTONE, spell)
+		w.lodestone = at
+		return
+
+
+## Whether cell `v` is within LODESTONE_SIGHT cells of the gondola's track (the car's cells along it)
+## with no rock between (sight_clear).
+static func in_sight_of_track(w: LevelGen, v: Vector2i) -> bool:
+	var path: Array[Vector2i] = w.circuit.get("path", [] as Array[Vector2i])
+	for p: Vector2i in path:
+		var car: Vector2i = p + Vector2i.UP
+		if Vector2(car - v).length() <= LODESTONE_SIGHT and sight_clear(w, car, v):
+			return true
+	return false
+
+
+## Whether the straight line between the middles of cells `a` and `b` meets no rock (cracked rock
+## counts) on the way.
+static func sight_clear(w: LevelGen, a: Vector2i, b: Vector2i) -> bool:
+	var steps: int = ceili(Vector2(b - a).length() * 3.0)
+	for i: int in range(1, steps):
+		var p: Vector2 = Vector2(a).lerp(Vector2(b), float(i) / float(steps))
+		var c: Vector2i = Vector2i(roundi(p.x), roundi(p.y))
+		if c != a and c != b and not w._open(c):
+			return false
+	return true
 
 
 # ------------------------------------------------------------------ caverns
@@ -715,11 +808,12 @@ static func _bring_switch(w: LevelGen, tower: Dictionary, at: Vector2i) -> bool:
 	return false
 
 
-## Rock-bug nests (see NESTS_PER_K), out on the cliff on free floors, outside every building.
+## Rock-bug nests (see NESTS_PER_K), out on the cliff on free floors, outside every building, and
+## not on rock a big thing under it needs for room (LevelGen.make_room carves that later).
 static func place_nests(w: LevelGen) -> void:
 	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
 	var floors: Array[Vector2i] = w.free_floors().filter(func(v: Vector2i) -> bool:
-		return LevelGen.dist(v, start) >= NEST_CLEAR and not w.keep_clear.has(v) and not w.structures.has(v))
+		return LevelGen.dist(v, start) >= NEST_CLEAR and not w.keep_clear.has(v) and not w.structures.has(v) and not _room_of_big(w, v + Vector2i.DOWN))
 	w.put_each(w.pick_apart(floors, w.foes_per_area(NESTS_PER_K), NEST_APART), LevelGen.Type.NEST)
 
 
@@ -992,6 +1086,11 @@ static func set_stations(w: LevelGen, _def: NextWorldDef) -> void:
 			w.get_cell(at).extra_info = {"tower": j, "mask": masks[j] if j < masks.size() else 0}
 	w.circuit["masks"] = masks
 	w.circuit["tiers"] = tiers
+	# A few watchtowers above the bottom tier are cold (COLD_SHARE).
+	for j: int in range(w.towers.size()):
+		var box: Rect2i = w.towers[j]["box"]
+		var roll: int = posmod(Rules.level_seed(w.seed_for_colors, COLD_DEAL + box.position.x * 977 + box.position.y * 31), 1000)
+		w.towers[j]["cold"] = not w.towers[j]["hoard"] and tiers[j] > 0 and float(roll) / 1000.0 < COLD_SHARE
 	var info: Dictionary = w.circuit.duplicate()
 	info["start"] = open
 	var path: Array[Vector2i] = w.circuit["path"]

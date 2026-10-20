@@ -80,6 +80,10 @@ const TABLE: Dictionary = {
 	LevelGen.Type.LECTERN: {"scene": "res://prefabs/lectern.tscn", "art": &"lectern", "flags": [&"stander"], "setup": 3},
 	LevelGen.Type.STUDY_DESK: {"scene": "res://prefabs/study_desk.tscn", "art": &"studydesk", "flags": [&"stander"], "setup": 3},
 	LevelGen.Type.TIMETABLE_BOARD: {"scene": "res://prefabs/timetable_board.tscn", "art": &"board", "setup": 3},
+	LevelGen.Type.PHASE_BLOCK: {"scene": "res://prefabs/phase_block.tscn", "art": &"phaseblock", "setup": 3},
+	LevelGen.Type.OSSUARY_DOOR: {"scene": "res://prefabs/ossuary_door.tscn", "art": &"ossuary", "setup": 3},
+	LevelGen.Type.SPIRE: {"scene": "res://prefabs/spire.tscn", "art": &"spire", "setup": 3},
+	LevelGen.Type.LODESTONE: {"scene": "res://prefabs/lodestone.tscn", "art": &"lodestone", "flags": [&"stander"], "size": Vector2i(1, 2), "setup": 3},
 	LevelGen.Type.ACID: {"scene": "res://prefabs/acid.tscn", "art": &"acid", "setup": 3},
 	LevelGen.Type.WRECK: {"scene": "res://prefabs/wreck.tscn", "art": &"wreck", "setup": 3},
 }

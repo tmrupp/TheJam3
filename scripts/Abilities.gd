@@ -33,7 +33,8 @@ class_name Abilities
 ##   own moves in the movement slot (the dash, blink), which are not cast; "cost": stars a cast at
 ##   depth 0 (see cast_price), for a spell that costs any;
 ## - "node": the wizard's child that does it, told its tier by `set_tier(n)` (and, when a spell,
-##   cast by `cast_spell() -> bool`, asked how ready it is by `readiness() -> float` and how long it
+##   cast by `cast_spell() -> bool` (a damage spell's by `cast_spell(empowered: bool)`, see
+##   Empower), asked how ready it is by `readiness() -> float` and how long it
 ##   has left by `running() -> Vector2`, for the spell orb). With "make" (the path of its script, or of its scene)
 ##   it exists only while the ability is known (or always, with "always"); without, it is part of
 ##   the wizard's scene.
@@ -293,8 +294,9 @@ static func ensure_input() -> void:
 ## the wizard's own, see Player). A spell with a cast price ("cost") is only cast when the stars
 ## are there, and they are paid only if it works. Nothing is cast while the wizard is drowsy (in
 ## sleep fog). In the institute, the scholars who see it turn on the wizard (MapInfo.wizard_cast).
+## A damage spell may be cast `empowered` (Empower: its node's `cast_spell(empowered)`).
 ## Returns whether it was cast.
-static func cast(player: Player, slot: StringName = &"damage") -> bool:
+static func cast(player: Player, slot: StringName = &"damage", empowered: bool = false) -> bool:
 	# Drowsy in sleep fog: no spells.
 	if player.is_drowsy() or not is_spell(spell(player, slot)):
 		return false
@@ -302,7 +304,10 @@ static func cast(player: Player, slot: StringName = &"damage") -> bool:
 	if cost > player.coins.coins:
 		return false
 	var node: Node = spell_node(player, slot)
-	if node == null or not bool(node.call(&"cast_spell")):
+	var went: bool = false
+	if node != null:
+		went = bool(node.call(&"cast_spell", empowered)) if slot == &"damage" else bool(node.call(&"cast_spell"))
+	if not went:
 		return false
 	if cost > 0:
 		player.collect(-cost)

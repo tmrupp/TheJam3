@@ -8,6 +8,14 @@ extends RefCounted
 const BEADS_PER_ROW: int = 3
 ## A spell's last seconds blink pink.
 const SPELL_WARN: float = 1.5
+## A tempered spell's empowerment ring round the bag (Empower), clear of the bag's edge: its radius
+## against the mark's, its band's half-width (art units), how much blue its empty track carries
+## while empowerment comes back (blue reads on dark ground and pale), and the radius of the paper
+## bead at its filling end.
+const EMPOWER_RING: float = 1.3
+const EMPOWER_BAND: float = 0.75
+const EMPOWER_TRACK: float = 0.55
+const EMPOWER_BEAD: float = 1.15
 ## The spell changes the entire cloth bundle's width, hanging length and weighted side.
 const BINDLE_FORMS: Dictionary = {
 	&"": Vector3(4.9, 5.0, 0.0), &"hex": Vector3(4.9, 5.2, -0.5),
@@ -203,6 +211,13 @@ const UNLIT_PULSE: float = 2.2
 ## snuffed flame opens) and a charred wick under it. Not pink, which is kept for danger.
 const SNUFFED_GLASS: float = 0.85
 const SNUFFED_MOON: float = 1.9
+## The darkness the wizard carries (RunState.dark_charges): a bead of blue under night ink hung
+## under the lantern's base for each charge, up to CHARGE_BEADS, in a tassel of rows of
+## CHARGE_ROW: each this big and this far apart, the first row this far under the base (art units).
+const CHARGE_BEADS: int = 5
+const CHARGE_ROW: int = 3
+const CHARGE_BEAD: Vector3 = Vector3(0.8, 1.7, 4.7)
+const CHARGE_NIGHT: float = 0.55
 ## Standing still, the Fool breathes (rate, depth in art units), the lantern and bag sway a
 ## little, and every few seconds the feather flicks (interval, length in seconds, size).
 const BREATH: Vector2 = Vector2(1.9, 0.35)
@@ -635,6 +650,16 @@ static func _build_rest(key: StringName) -> Array[PackedVector2Array]:
 			return [RisoShapes.rrect(-0.3, 1.0, 0.6, 1.2, 0.2)]
 		"lantern_ends":
 			return [RisoShapes.rrect(-2.1, -4.0, 4.2, 1.6, 0.7), RisoShapes.rrect(-2.9, 2.2, 5.8, 1.4, 0.6)]
+		"charges":
+			var n: int = int(words[1])
+			var out: Array[PackedVector2Array] = []
+			for i: int in range(n):
+				@warning_ignore("integer_division")
+				var row: int = i / CHARGE_ROW
+				var in_row: int = mini(n - row * CHARGE_ROW, CHARGE_ROW)
+				var x: float = (float(i % CHARGE_ROW) - float(in_row - 1) * 0.5) * CHARGE_BEAD.y
+				out.append(RisoShapes.circle(Vector2(x, CHARGE_BEAD.z + float(row) * CHARGE_BEAD.y * 0.9), CHARGE_BEAD.x, 12))
+			return out
 		"pupil":
 			return [RisoShapes.ellipse(Vector2.ZERO, 4.9 * 0.13, 4.9 * 0.3, 14)]
 	return []
@@ -1058,7 +1083,7 @@ func _lantern(at: Vector2, carried: bool) -> void:
 
 ## A hand lantern on a short bail (drawn in its own space, the flame at the origin): cap, dark
 ## glass and base, with one plain teardrop of flame; once `snuffed`, dark glass holding a pale
-## crescent.
+## crescent; under its base, a bead for each charge of darkness carried (CHARGE_BEADS).
 func _carried_lantern(lit: bool, snuffed: bool) -> void:
 	_solids(_rest(&"bail"))
 	if lit:
@@ -1076,6 +1101,11 @@ func _carried_lantern(lit: bool, snuffed: bool) -> void:
 		_solids(_rest(&"glass"), RisoPrint.PINK, UNLIT_GLASS * (0.8 + 0.2 * pulse), false)
 		_solids(_rest(&"ember"), RisoPrint.PINK, 0.85, false)
 	_solids(_rest(&"lantern_ends"))
+	var charges: int = MapInfo.instance.run.dark_charges if MapInfo.instance != null and MapInfo.instance.run != null else 0
+	if charges > 0:
+		var beads: Array[PackedVector2Array] = _rest(StringName("charges %d" % mini(charges, CHARGE_BEADS)))
+		_solids(beads, RisoPrint.BLUE, 1.0, false)
+		_overs(beads, RisoPrint.NIGHT, CHARGE_NIGHT)
 
 
 ## A large spell mark fills `shape`: the damage slot's spell, on the bag.
@@ -1108,6 +1138,29 @@ func _spell_area(bag: Array[PackedVector2Array], at: Vector2, radius: float) -> 
 		_solids(_rest(&"pupil"), RisoPrint.NIGHT, 1.0 if ready else 0.4, false)
 	if running and run.x > 0.01:
 		_over(wizard._arc(at, radius * 0.82, 0.3, run.x), RisoPrint.EYE, 0.9)
+	# A tempered spell (Empower): a ring round the bag, clear of its edge. While empowerment comes
+	# back, a blue track with accent filling it clockwise from the top, a paper bead at the filling
+	# end; once back, whole accent, breathing; while a press is held for an empowered cast, wider and
+	# full, and the mark fills with accent from the bottom up as the hold charges.
+	var empower: Empower = Empower.of(wizard.player)
+	var back: float = empower.readiness() if empower != null else -1.0
+	if back >= 0.0:
+		var ring: float = radius * EMPOWER_RING
+		if back >= 1.0:
+			var hold: float = maxf(0.0, empower.charging())
+			_solid(wizard._arc(at, ring, EMPOWER_BAND * (1.0 + 0.6 * hold), 1.0), RisoPrint.ACCENT, lerpf(0.8 + 0.2 * sin(wizard.t * 4.0), 1.0, hold), false)
+			if hold > 0.0:
+				var fill: PackedVector2Array = wizard._filled(at, radius * 0.8, hold)
+				var lit: Array[PackedVector2Array] = []
+				for poly: PackedVector2Array in _rests[key]:
+					lit.append_array(Geometry2D.intersect_polygons(poly, fill))
+				_overs(lit, RisoPrint.ACCENT, 1.0)
+		else:
+			_solid(wizard._arc(at, ring, EMPOWER_BAND * 0.8, 1.0), RisoPrint.BLUE, EMPOWER_TRACK, false)
+			if back > 0.02:
+				_solid(wizard._arc(at, ring, EMPOWER_BAND * 0.8, back), RisoPrint.ACCENT, 0.9, false)
+			var head: Vector2 = at + Vector2.from_angle(-PI * 0.5 + TAU * back) * ring
+			_paper(RisoShapes.circle(head, EMPOWER_BEAD, 10), 0.0)
 	var mend: Mend = wizard.player.get_node_or_null("Mend") as Mend
 	if spell == &"mend" and mend != null:
 		for i: int in range(mend.draughts()):

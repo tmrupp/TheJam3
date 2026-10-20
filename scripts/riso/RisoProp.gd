@@ -35,6 +35,8 @@ const KINDS: Dictionary = {
 	&"hopper": "res://scripts/riso/props/HopperArt.gd",
 	&"wraith": "res://scripts/riso/props/WraithArt.gd",
 	&"bridge": "res://scripts/riso/props/BridgeArt.gd",
+	&"phaseblock": "res://scripts/riso/props/PhaseBlockArt.gd",
+	&"ossuary": "res://scripts/riso/props/OssuaryArt.gd",
 	&"bell": "res://scripts/riso/props/BellArt.gd",
 	&"vane": "res://scripts/riso/props/VaneArt.gd",
 	&"pad": "res://scripts/riso/props/PadArt.gd",
@@ -71,6 +73,8 @@ const KINDS: Dictionary = {
 	&"studydesk": "res://scripts/riso/props/StudyDeskArt.gd",
 	&"board": "res://scripts/riso/props/BoardArt.gd",
 	&"schoolbell": "res://scripts/riso/props/SchoolBellArt.gd",
+	&"spire": "res://scripts/riso/props/SpireArt.gd",
+	&"lodestone": "res://scripts/riso/props/LodestoneArt.gd",
 	&"acid": "res://scripts/riso/props/AcidArt.gd",
 	&"wreck": "res://scripts/riso/props/WreckArt.gd",
 }

@@ -32,6 +32,11 @@ var ghost_coord: Vector2i = Vector2i.ZERO
 var ghost_pos: Vector2 = Vector2.ZERO
 var ghost_stars: int = 0
 var ghost_lantern: Array = []
+## The darkness the wizard carries (MapInfo.douse_font, dash_switch): charges gathered at the
+## cemetery's snuffing fonts, each spent as a dash takes them out of the dark. A death drops them
+## into the ghost with the stars (`ghost_charges`), and taking the ghost back returns them.
+var dark_charges: int = 0
+var ghost_charges: int = 0
 ## The run's cross-world rift link (Rift tier III): up to two ends, each [coord, position].
 var rift_link: Array = []
 ## The levels whose relic has been taken, and the levels an ink well has pointed to (coord -> the
@@ -60,6 +65,11 @@ var fed: int = 0
 ## Exam papers waiting to be laid in the levels they were sent to by classes attended (place -> codes,
 ## KeyRing.paper; MapInfo._attend, _lay_papers).
 var papers_out: Dictionary = {}
+## The crags' lodestones (Lodestone, Empower): the damage spells tempered (spell -> true), which may
+## be cast empowered for the rest of the run, and the lodestones touched (place -> its spell), whose
+## count sets how soon an empowered cast comes back (Rules.empower_recharge). Kept through a death.
+var tempered: Dictionary = {}
+var lodestones: Dictionary = {}
 
 
 ## A fresh run from depth 0 of `seed_value`: no records, no ghost, protected.
@@ -80,6 +90,9 @@ func start(seed_value: int) -> void:
 	souls_sent = 0
 	fed = 0
 	papers_out.clear()
+	dark_charges = 0
+	tempered.clear()
+	lodestones.clear()
 	vulnerable = false
 	clear_ghost()
 
@@ -117,19 +130,32 @@ func revive_slain() -> void:
 
 
 ## The wizard died at `pos` in `at` carrying `stars`: they drop into the ghost there, which keeps
-## `lantern` ([the place, its cell]), the lantern the death burned out.
+## `lantern` ([the place, its cell]), the lantern the death burned out, and the darkness they carried
+## (dark_charges, emptied).
 func leave_ghost(at: Vector2i, pos: Vector2, stars: int, lantern: Array = []) -> void:
 	has_ghost = true
 	ghost_coord = at
 	ghost_pos = pos
 	ghost_stars = stars
 	ghost_lantern = lantern
+	ghost_charges = dark_charges
+	dark_charges = 0
 
 
 func clear_ghost() -> void:
 	has_ghost = false
 	ghost_stars = 0
 	ghost_lantern = []
+	ghost_charges = 0
+
+
+## The lodestone in level `at` was touched, tempering `spell`. Whether it was new (each counts once).
+func touch_lodestone(at: Vector2i, spell: StringName) -> bool:
+	if lodestones.has(at):
+		return false
+	lodestones[at] = spell
+	tempered[spell] = true
+	return true
 
 
 ## A relic was taken in level `at`.
@@ -165,6 +191,7 @@ func to_save(coord: Vector2i, player: Dictionary) -> Dictionary:
 		"respawn_coord": respawn_coord, "respawn_cell": respawn_cell,
 		"vulnerable": vulnerable,
 		"has_ghost": has_ghost, "ghost_coord": ghost_coord, "ghost_pos": ghost_pos, "ghost_stars": ghost_stars, "ghost_lantern": ghost_lantern,
+		"dark_charges": dark_charges, "ghost_charges": ghost_charges,
 		"debug": MapInfo.debug, "rift_link": rift_link,
 		"relics_found": relics_found, "relic_hints": relic_hints,
 		"bosses": bosses, "boss_relics": boss_relics,
@@ -172,6 +199,7 @@ func to_save(coord: Vector2i, player: Dictionary) -> Dictionary:
 		"way_back": way_back,
 		"souls": souls, "souls_sent": souls_sent,
 		"fed": fed, "papers_out": papers_out,
+		"tempered": tempered, "lodestones": lodestones,
 	}
 	data.merge(player)
 	return data
@@ -199,6 +227,8 @@ func from_save(data: Dictionary) -> void:
 	souls_sent = int(data.get("souls_sent", 0))
 	fed = int(data.get("fed", 0))
 	papers_out = data.get("papers_out", {})
+	tempered = data.get("tempered", {})
+	lodestones = data.get("lodestones", {})
 	respawn_coord = data["respawn_coord"]
 	respawn_cell = data["respawn_cell"]
 	vulnerable = bool(data["vulnerable"])
@@ -211,6 +241,8 @@ func from_save(data: Dictionary) -> void:
 	ghost_pos = data["ghost_pos"]
 	ghost_stars = int(data["ghost_stars"])
 	ghost_lantern = data.get("ghost_lantern", [])
+	dark_charges = int(data.get("dark_charges", 0))
+	ghost_charges = int(data.get("ghost_charges", 0))
 
 
 static func write_save(data: Dictionary) -> void:

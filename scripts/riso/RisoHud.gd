@@ -7,8 +7,9 @@ class_name RisoHud
 ## necklace, protection their lantern, keys trail behind them, and the place shows when sitting and
 ## on the level transition. The only writing is numbers: a place is its marks
 ## (RisoMarks.place_marks) with the world's and depth's numbers. What remains here:
-## - Sitting (hold Down), a card over the traveler's head with the stars carried, the utility spell
-##   held (with mend's draughts left) and the place.
+## - Sitting (hold Down), a card over the traveler's head with the stars carried, the darkness
+##   carried (RunState.dark_charges, when there is any), the utility spell held (with mend's
+##   draughts left) and the place.
 ## - While there is a ghost, a pointer at the edge of the view toward it.
 ## - While sensing (Awareness), a pointer at the edge of the view for each sensed thing off screen.
 ## - When a run ends, a card in the middle of the sheet.
@@ -45,6 +46,8 @@ const KNOCK_ALL: Array[int] = RisoPrint.ALL_PLATES
 var canvas: Node2D
 var ink: InkCanvas
 var coin_label: Label
+## The charges of darkness carried, on the sitting card.
+var dark_label: Label
 ## The world's and depth's numbers of the place printed on the sitting card, by the ghost's
 ## pointer and on the end card.
 var world_label: Label
@@ -87,6 +90,7 @@ func _ready() -> void:
 	canvas.add_child(ink)
 	font = RisoTheme.serif()
 	coin_label = _make_label(6.5)
+	dark_label = _make_label(6.5)
 	world_label = _make_label(5.5)
 	depth_label = _make_label(5.5)
 	ghost_label = _make_label(5.5)
@@ -190,7 +194,7 @@ func _process(delta: float) -> void:
 	canvas.visible = visible
 	var player: Player = Stage.player()
 	ink.begin()
-	for label: Label in [coin_label, world_label, depth_label, ghost_label, ghost_world, ghost_depth, end_world, end_depth]:
+	for label: Label in [coin_label, dark_label, world_label, depth_label, ghost_label, ghost_world, ghost_depth, end_world, end_depth]:
 		label.visible = false
 	shown_utility = &""
 	shown_draughts = -1
@@ -242,7 +246,10 @@ func _seated_card(player: Player, cam: Camera2D) -> void:
 	var mend: Mend = player.get_node_or_null("Mend") as Mend if utility == &"mend" else null
 	var draughts: int = mend.draughts_max() if mend != null else 0
 	var utility_w: float = PAD + UTILITY_W + DRAUGHT_STEP * float(draughts) + PAD if utility != &"" else 0.0
-	var row_w: float = stars_w + (GAP + utility_w if utility != &"" else 0.0)
+	var charges: int = info.run.dark_charges if info.run != null else 0
+	var dark_count: String = str(charges)
+	var dark_w: float = PAD + 10.0 + _text_width(dark_label, dark_count) + PAD if charges > 0 else 0.0
+	var row_w: float = stars_w + (GAP + utility_w if utility != &"" else 0.0) + (GAP + dark_w if charges > 0 else 0.0)
 	var place_w: float = PAD + _place_w(info.coord, PLACE_R, labels) + PAD
 	var stars_x: float = roundf(clampf(above.x - row_w * 0.5, 2.0, 318.0 - row_w))
 	var place_x: float = roundf(clampf(above.x - place_w * 0.5, 2.0, 318.0 - place_w))
@@ -254,8 +261,15 @@ func _seated_card(player: Player, cam: Camera2D) -> void:
 	_paper(RisoShapes.rrect(stars_x, stars_y - CARD_H * 0.5, stars_w, CARD_H, RADIUS), RisoPrint.ACCENT, 0.15)
 	ink.ink(RisoPrint.ACCENT, 1.0, [Transform2D(sin(t * 1.7) * 0.45, Vector2(stars_x + PAD + 4.0, stars_y)) * RisoShapes.sparkle(Vector2.ZERO, 3.8)], false)
 	_place(coin_label, count, stars_x + PAD + 10.0, stars_y)
+	var next_x: float = stars_x + stars_w + GAP
+	if charges > 0:
+		# The darkness carried: a crescent on night paper, and how many charges.
+		_paper(RisoShapes.rrect(next_x, stars_y - CARD_H * 0.5, dark_w, CARD_H, RADIUS), RisoPrint.NIGHT, 0.35)
+		ink.lift_ink([RisoPrint.NIGHT], 0.9, [RisoShapes.crescent(Vector2(next_x + PAD + 4.0, stars_y), 3.6, Vector2(1.8, -1.2), 24)])
+		_place(dark_label, dark_count, next_x + PAD + 10.0, stars_y)
+		next_x += dark_w + GAP
 	if utility != &"":
-		_utility_plaque(player, utility, mend, Vector2(stars_x + stars_w + GAP, stars_y), utility_w)
+		_utility_plaque(player, utility, mend, Vector2(next_x, stars_y), utility_w)
 
 
 ## The utility spell's plaque on the sitting card, its left end at `at`: the spell's mark, faint

@@ -4,7 +4,9 @@ class_name Nova
 ## wizard, RADIUS px, striking everything it reaches that rock does not shelter (SpellStrike):
 ## wounded by its damage. It tears the spider's webs it reaches. It is
 ## slow to come back (COOLDOWN). Tiers (Abilities): I wounds 1; II reaches further (RADIUS_II);
-## III wounds 2; IV comes back sooner (COOLDOWN_IV).
+## III wounds 2; IV comes back sooner (COOLDOWN_IV). Cast empowered (Empower), it shatters the
+## cracked rock in a ring round the wizard, a cell out (SpellStrike.ring), wounds Empower.EXTRA more,
+## breaks a shield at once and strikes spires.
 
 const COOLDOWN: float = 8.0
 const COOLDOWN_IV: float = 5.0
@@ -30,9 +32,9 @@ func set_tier(n: int) -> void:
 	wait = minf(wait, cooldown)
 
 
-## The Spell button, with nova in the slot.
-func cast_spell() -> bool:
-	return cast()
+## The Spell button, with nova in the slot (`empowered`, see Empower).
+func cast_spell(empowered: bool = false) -> bool:
+	return cast(empowered)
 
 
 func readiness() -> float:
@@ -48,8 +50,8 @@ func _physics_process(delta: float) -> void:
 	wait = maxf(0.0, wait - delta)
 
 
-## Burst. False while it is not ready.
-func cast() -> bool:
+## Burst, `empowered` or not. False while it is not ready.
+func cast(empowered: bool = false) -> bool:
 	if wait > 0.0 or player == null:
 		return false
 	var from: Vector2 = SpellStrike.origin(player)
@@ -57,7 +59,11 @@ func cast() -> bool:
 	var catches_spider: Callable = func(s: Spider) -> bool: return s.struck_by(from, from, radius) and SpellStrike.clear(from, s.global_position)
 	for e: Node in SpellStrike.caught(get_tree(), from, catches, catches_spider):
 		var away: Vector2 = ((e as Node2D).global_position - from)
-		SpellStrike.strike(e, away.normalized() if away != Vector2.ZERO else Vector2.UP, damage, &"nova")
+		SpellStrike.strike(e, away.normalized() if away != Vector2.ZERO else Vector2.UP, damage + (Empower.EXTRA if empowered else 0), &"nova", empowered)
+	if empowered:
+		var c: Vector2i = SpellStrike.cell_of(from)
+		for n: Vector2i in SpellStrike.ring(c):
+			SpellStrike.crack(get_tree(), [n], Vector2(n - c).normalized())
 	for k: int in range(RAYS):
 		SpiderWeb.tear_along(get_tree(), from, from + Vector2.from_angle(TAU * float(k) / float(RAYS)) * radius)
 	SpellMark.leave(&"nova", from, Vector2.RIGHT, radius, PI, RisoPrint.ACCENT, player)

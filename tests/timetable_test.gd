@@ -802,6 +802,10 @@ func _abominations(rec: LevelRecord) -> void:
 	print("abominations by the timetable")
 	var at: Vector2i = _open_floor(5, 1)
 	player.global_position = info.cell_position(at)
+	# No scholar about for it to go after instead of the wizard, wherever the stretch lies.
+	for n: Node in info.map_elements.get_children():
+		if n is Scholar:
+			n.queue_free()
 	rec.passing = false
 	var thing: Abomination = _spawn_thing(at + Vector2i(4, 0), 1)
 	await until(func() -> bool: return thing.grounded)

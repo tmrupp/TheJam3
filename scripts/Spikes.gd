@@ -10,13 +10,20 @@ class_name Spikes
 ## Down, they do not hurt and can be walked through; rising under the wizard, they hurt at once.
 ## Out, the wizard's spells strike them (SpellStrike.thorns_caught, HexBolt): nothing comes of it to
 ## the thorns, but a blow that lands throws the wizard back off them, as off an enemy, so a slash
-## down onto thorns bounces the wizard up.
+## down onto thorns bounces the wizard up. A hit from thorns that lands (a heart, or the ward's
+## charge) also puts the wizard back where they last stood on safe rock (Player.thorn_back), still
+## untouchable from the hit. Over the thorns at the bottom of a chasm's pit lies sleep fog, as a
+## bank of it does (SleepFog): while the wizard is in it, up to MIST_RISE over the thorns, they are
+## drowsy (Player.make_drowsy), so no spell lifts them out.
 
 const UP: float = 1.6
 const CYCLE: float = 3.0
 const WARN: float = 0.45
 ## How fast (of the way, a second) the thorns slide out and in, for the art.
 const SLIDE: float = 9.0
+## How high the sleep fog in a chasm's pit rises over its thorns (px, from the floor under them to
+## just under the bridge's deck).
+const MIST_RISE: float = 270.0
 ## The group every run of thorns is in, for the spells that strike them.
 const GROUP: StringName = &"thorns"
 ## Where the thorns' body lies (its own measures, before the prefab's scale): its middle, out from
@@ -42,12 +49,23 @@ var map_info: MapInfo
 ## Whether they are out (and hurt), and how far out they are drawn (0 down, 1 out).
 var out: bool = true
 var rise: float = 1.0
-## The chasm whose pit these thorns line (Chasms.pit_of), its mist rising over them; -1 for none.
+## The chasm whose pit these thorns line (Chasms.pit_of), its sleep fog rising over them; -1 for
+## none.
 var pit: int = -1
 
 
 func _ready() -> void:
 	add_to_group(GROUP)
+	var hurts: Damager = get_node_or_null("Damager") as Damager
+	if hurts != null:
+		hurts.touched_player.connect(_touched)
+
+
+## A hit that landed sends the wizard back to safe rock (Player.thorn_back).
+func _touched() -> void:
+	var player: Player = Stage.player()
+	if player != null and player.hit_frame == Engine.get_physics_frames():
+		player.thorn_back()
 
 
 ## Where the thorns' body runs along the rock (world): its two ends.
@@ -83,7 +101,7 @@ func setup(_map_info: MapInfo, v: Vector2i) -> void:
 		elif how.has("switch"):
 			mode = Mode.SWITCHED
 			lever = how["switch"]
-	set_physics_process(mode != Mode.ALWAYS)
+	set_physics_process(mode != Mode.ALWAYS or pit >= 0)
 	out = wanted()
 	rise = 1.0 if out else 0.0
 	_arm(out)
@@ -123,11 +141,26 @@ func warning() -> float:
 
 
 func _physics_process(delta: float) -> void:
+	if pit >= 0:
+		_fog()
 	var want: bool = wanted()
 	if want != out:
 		out = want
 		_arm(out)
 	rise = move_toward(rise, 1.0 if out else 0.0, delta * SLIDE)
+
+
+## A pit's sleep fog: the wizard drowsy while in it, the column over these thorns from the floor
+## under them up to MIST_RISE.
+func _fog() -> void:
+	var player: Player = Stage.player()
+	if player == null or not is_instance_valid(player):
+		return
+	var half: float = absf(global_scale.x) * BODY_HALF.x
+	var floor_y: float = to_global(BODY).y
+	var p: Vector2 = player.global_position + Vector2(0, -SleepFog.FEEL)
+	if absf(p.x - global_position.x) <= half and p.y <= floor_y and p.y >= floor_y - MIST_RISE:
+		player.make_drowsy()
 
 
 ## Out (hurting) or down: the body that touches the wizard is on or off.

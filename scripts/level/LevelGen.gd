@@ -74,6 +74,12 @@ enum Type {
 	TIMETABLE_BOARD,
 	## The institute's rolling bookcase ladders, laid where other bands lay lifts (RollingLadder).
 	ROLLING_LADDER,
+	## The cemetery's sun and shade blocks (PhaseBlock), and its crypts' ossuary doors (OssuaryDoor).
+	PHASE_BLOCK,
+	OSSUARY_DOOR,
+	## The crags: a watchtower's iron spire on its roof (Spire), and a lodestone (Lodestone).
+	SPIRE,
+	LODESTONE,
 	## The whale's belly (Belly): its pool of acid, flooding and draining (Acid), and the wreckage it
 	## has swallowed, floating on it (Wreck).
 	ACID,
@@ -169,6 +175,8 @@ var circuit: Dictionary = {}
 ## The lines between a crags level's tiers, bottom up (CragsArchetype.cut_tiers): each {"rows": the
 ## row under the upper station's landing and the one under that}. Empty for none.
 var tiers: Array[Dictionary] = []
+## A crags level's lodestone (CragsArchetype.place_lodestone), or (-1, -1) for none.
+var lodestone: Vector2i = Vector2i(-1, -1)
 ## The shrine's cell (its boon side; mending is the cell to the right), or (-1, -1).
 var shrine: Vector2i = Vector2i(-1, -1)
 
@@ -1538,15 +1546,22 @@ func _carve_vault (r: Rect2i, door: Vector2i, color: int) -> void:
 		put(at, loot[i][0], loot[i][1])
 	vaults.append({"room": room, "door": door, "color": color})
 
-## Cracked walls: thin rock (one or two cells, open on both sides, holding up no thorns) that a
-## hex bolt breaks.
+## Cracked walls: thin rock (one or two cells, open on both sides, holding up no thorns) that only
+## an empowered spell breaks (Empower, CrackedWall).
 ## Half are picked near something worth reaching (a key, lantern, exit, shrine or ink well).
-## Placed last, so they can block anything the level holds.
+## Placed last, so they can block anything the level holds but a door: none stands within
+## CRACK_DOOR_CLEAR cells of an exit (a side door among them) or a corridor door, so a run that has
+## tempered no spell yet is never shut in by one (a key may well be behind one).
+const CRACK_DOOR_CLEAR: int = 3
+
 func place_cracks (count: int) -> void:
 	var valuable: Array[Vector2i] = []
+	var doors: Array[Vector2i] = []
 	for v: Vector2i in objects:
 		if get_cell(v).type in [Type.KEY, Type.CHECKPOINT, Type.EXIT, Type.SHRINE, Type.INKWELL]:
 			valuable.append(v)
+		if get_cell(v).type in [Type.EXIT, Type.DOOR]:
+			doors.append(v)
 	var walls: Array[Array] = []
 	var near: Array[Array] = []
 	for v: Vector2i in grounds:
@@ -1561,6 +1576,8 @@ func place_cracks (count: int) -> void:
 			# Never rock that thorns hang from (a chasm's floor, say): they would be left in the air;
 			# nor the bramble's shaft, which is climbed only from its foot.
 			if wall.is_empty() or wall.any(func(c: Vector2i) -> bool: return kept(c) or neighbor_offsets.any(func(d: Vector2i) -> bool: return is_valid(c + d) and get_cell(c + d).type == Type.SPIKES)):
+				continue
+			if wall.any(func(c: Vector2i) -> bool: return doors.any(func(d: Vector2i) -> bool: return dist(c, d) <= CRACK_DOOR_CLEAR)):
 				continue
 			walls.append(wall)
 			for o: Vector2i in valuable:
