@@ -71,6 +71,8 @@ const KINDS: Dictionary = {
 	&"studydesk": "res://scripts/riso/props/StudyDeskArt.gd",
 	&"board": "res://scripts/riso/props/BoardArt.gd",
 	&"schoolbell": "res://scripts/riso/props/SchoolBellArt.gd",
+	&"acid": "res://scripts/riso/props/AcidArt.gd",
+	&"wreck": "res://scripts/riso/props/WreckArt.gd",
 }
 
 

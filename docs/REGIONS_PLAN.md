@@ -346,8 +346,10 @@ at its top, part of the crags' castle.
 §4c): the hunt, the trap, the belly of ribs and acid pools, and its heart. In its level it is huge
 and seen only from below, passing back and forth across the top, and it swoops, mouth open, at a
 wizard standing high under open sky: free, a gobble is a blow; trapped, it is the way into its
-belly. Not yet: the belly's valves and rising acid, birds and gusts driven at the wizard by its
-passes.
+belly. Its belly is laid out by hand: a gullet down into a stomach whose pool of acid floods and
+drains, slowing and slowly burning a wizard in it, with swallowed wreckage floating on it, and bone
+ledges across the dome above it to the heart's chamber. Not yet: the belly's valves, birds and
+gusts driven at the wizard by its passes.
 
 The whale is not waiting in the gate level: it roams the sky's levels, and has to be tracked down
 and trapped before it can be fought. Slaying it lifts the seal on the sky's gate levels as any boss
@@ -368,10 +370,12 @@ does.
   the wizard. It is huge, and only its underside is ever seen as it passes over the top of its
   level. A wizard standing high under open sky draws it down: it swoops, mouth open, to gobble
   them. Trapped, that gobble is the door in.
-- **Inside**, the belly is a side world of its own (a small dark level of ribs and stomach pools,
-  Tom's "digestive system that is another level"): its heart (accent) hangs at the far end behind
-  valves that open and close, and acid pools rise and fall (the "flooded / drain and fill" places
-  idea, in small). Bursting the heart slays it, and the wizard is spat out at the gate.
+- **Inside**, the belly is a side world of its own (Tom's "digestive system that is another
+  level"): from its mouth a gullet steps down into its stomach, a dome over a bowl of acid that
+  floods and drains (the "flooded / drain and fill" places idea, in small; built), wreckage it has
+  swallowed floating on it, bone ledges across the dome; its heart (accent) hangs in a chamber
+  beyond, and is to be put behind valves that open and close. Bursting the heart slays it, and the
+  wizard is spat out at the gate.
 - **Leaving** the belly without killing it puts the wizard back outside, the heart healed.
 
 ### The necromancer (cemetery, a crypt in the gate level)

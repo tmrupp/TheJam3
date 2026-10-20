@@ -74,6 +74,10 @@ enum Type {
 	TIMETABLE_BOARD,
 	## The institute's rolling bookcase ladders, laid where other bands lay lifts (RollingLadder).
 	ROLLING_LADDER,
+	## The whale's belly (Belly): its pool of acid, flooding and draining (Acid), and the wreckage it
+	## has swallowed, floating on it (Wreck).
+	ACID,
+	WRECK,
 }
 
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).

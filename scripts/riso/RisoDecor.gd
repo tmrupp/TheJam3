@@ -17,6 +17,9 @@ class_name RisoDecor
 ## inks asked for by the owner), reading desks on the lecture halls' tiers and now and then a statue;
 ## bookcases out in its rooms too, with desks in its studies, alchemy equipment in its laboratories
 ## and ritual equipment in its sanctums.
+## The whale's belly has its own: bones on its floors (a fish's skeleton, loose ribs), lumps of
+## flesh, tendrils of flesh and drips hanging from its ceilings, and dark veins through the flesh
+## along its walls.
 ## The crags have theirs: on the castle's masonry (LevelGen.masonry), dressed stone in courses,
 ## arrow slits through its walls, banners and rubble on its floors and battlements along them; on
 ## the bare cliff, crag grass, stones, fallen blocks and broken columns, cobwebs and roots under
@@ -160,6 +163,7 @@ static var PLANS: Dictionary = {
 	&"sky": plan_isles,
 	&"crags": plan_crags,
 	&"institute": plan_institute,
+	&"belly": plan_belly,
 }
 
 
@@ -235,6 +239,50 @@ static func plan_garden(solid: Dictionary, occupied: Dictionary, level_seed: int
 			if h(level_seed, v, 3 + side.x) < 0.12:
 				out.append({"kind": &"vine", "cell": open, "base": v, "side": side.x})
 	return out
+
+
+## The whale's belly (Belly): on its floors, now and then bones (BELLY_BONES) or lumps of flesh
+## (BELLY_LUMPS); from its ceilings, tendrils of flesh (BELLY_TENDRILS) and drips (BELLY_DRIPS);
+## and through the flesh along its open faces, veins (BELLY_VEINS of them).
+static func plan_belly(solid: Dictionary, occupied: Dictionary, level_seed: int, bounds: Rect2i, _bottom_style: StringName = &"roots", _masonry: Dictionary = {}, _interiors: Dictionary = {}) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var cells: Array = solid.keys()
+	cells.sort()
+	for v: Vector2i in cells:
+		if not bounds.has_point(v):
+			continue
+		var above: Vector2i = v + Vector2i.UP
+		var below: Vector2i = v + Vector2i.DOWN
+		if not solid.has(above) and not occupied.has(above):
+			var r: float = h(level_seed, v, 1)
+			if r < BELLY_BONES:
+				out.append({"kind": &"bones", "cell": above, "base": v})
+			elif r < BELLY_BONES + BELLY_LUMPS:
+				out.append({"kind": &"stones", "cell": above, "base": v})
+		if not solid.has(below) and not occupied.has(below) and bounds.has_point(below):
+			var r: float = h(level_seed, v, 2)
+			if r < BELLY_TENDRILS:
+				out.append({"kind": &"roots", "cell": below, "base": v})
+			elif r < BELLY_TENDRILS + BELLY_DRIPS:
+				out.append({"kind": &"drip", "cell": below, "base": v})
+		# A vein runs through the flesh along an open face.
+		var open: Array[Vector2i] = []
+		for d: Vector2i in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+			if not solid.has(v + d) and bounds.has_point(v + d):
+				open.append(d)
+		if not open.is_empty() and h(level_seed, v, 5) < BELLY_VEINS:
+			out.append({"kind": &"vein", "cell": v, "base": v, "face": open[int(h(level_seed, v, 6) * float(open.size()))]})
+	return out
+
+
+## The belly's decor (plan_belly): the share of floors with bones on them, with lumps of flesh, of
+## ceilings with tendrils hanging from them, with drips, and of the flesh along open faces with a
+## vein through it.
+const BELLY_BONES: float = 0.14
+const BELLY_LUMPS: float = 0.1
+const BELLY_TENDRILS: float = 0.3
+const BELLY_DRIPS: float = 0.12
+const BELLY_VEINS: float = 0.35
 
 
 ## Hedges, in the garden: along stretches of floor (as fences are, but dealt on their own) at least
@@ -1221,7 +1269,7 @@ func _draw_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 	_sketch_item(item, c, slots, s)
 	var anchor: Variant = null
 	match item["kind"]:
-		&"tuft", &"leafy", &"mushroom", &"stones", &"headstone", &"cross", &"fence", &"dead_tree", &"obelisk", &"urn", &"angel", &"flowers", &"windsock", &"cairn", &"menhir", &"banner", &"rubble", &"column", &"bookcase", &"desk", &"statue", &"great_column", &"alchemy", &"ritual":
+		&"tuft", &"leafy", &"mushroom", &"stones", &"bones", &"headstone", &"cross", &"fence", &"dead_tree", &"obelisk", &"urn", &"angel", &"flowers", &"windsock", &"cairn", &"menhir", &"banner", &"rubble", &"column", &"bookcase", &"desk", &"statue", &"great_column", &"alchemy", &"ritual":
 			anchor = Vector2(c.x, c.y + half)
 		&"roots", &"sky_roots", &"stalactite", &"drip", &"cobweb", &"tendril":
 			anchor = Vector2(c.x, c.y - half)
@@ -1388,6 +1436,52 @@ func _sketch_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:
 				var root: Array[PackedVector2Array] = RisoDecor.strip(pts, 4.5, 1.2)
 				slots[4].append_array(root)
 				slots[5].append_array(root)
+		&"bones":
+			# Bones on the floor, in bare paper: a fish's skeleton lying on its side (a spine, ribs
+			# along it, a head and a forked tail), or a few loose ribs and a knuckle of spine.
+			var x: float = c.x + (_r(s, v, 10) - 0.5) * half * 0.4
+			var flip: float = 1.0 if _r(s, v, 11) < 0.5 else -1.0
+			if _r(s, v, 12) < 0.55:
+				var long: float = 32.0 + _r(s, v, 13) * 14.0
+				var y: float = floor_y - 7.0
+				var x0: float = x - long * 0.5 * flip
+				var x1: float = x + long * 0.5 * flip
+				slots[8].append_array(strip(PackedVector2Array([Vector2(x0, y), Vector2(x1, y)]), 2.0, 2.0))
+				var ribs: int = 4 + int(_r(s, v, 14) * 3.0)
+				for k: int in range(ribs):
+					var rx: float = lerpf(x0, x1, 0.25 + 0.55 * float(k) / float(ribs - 1))
+					var tall: float = 7.0 - 2.5 * absf(float(k) / float(ribs - 1) - 0.4)
+					slots[8].append_array(strip(PackedVector2Array([Vector2(rx, y - tall), Vector2(rx + flip * 2.0, y), Vector2(rx, y + tall * 0.75)]), 1.5, 0.8))
+				slots[8].append(PackedVector2Array([Vector2(x1, y - 7.0), Vector2(x1 + flip * 10.0, y), Vector2(x1, y + 5.0)]))
+				slots[13].append(RisoShapes.circle(Vector2(x1 + flip * 2.5, y - 1.8), 1.6, 6))
+				slots[8].append(PackedVector2Array([Vector2(x0, y), Vector2(x0 - flip * 8.0, y - 7.0), Vector2(x0 - flip * 4.5, y), Vector2(x0 - flip * 8.0, y + 6.0)]))
+			else:
+				for k: int in range(2 + int(_r(s, v, 13) * 2.0)):
+					var bx: float = x + (float(k) - 1.0) * 7.0
+					var lean: float = (_r(s, v, 20 + k) - 0.5) * 0.8
+					var rib: PackedVector2Array = PackedVector2Array()
+					for j: int in range(5):
+						var f: float = float(j) / 4.0
+						rib.append(Vector2(bx + sin(f * PI) * 4.0 * flip + lean * 10.0 * f, floor_y - 1.0 - f * (9.0 + _r(s, v, 30 + k) * 5.0) * cos(lean)))
+					slots[8].append_array(strip(rib, 1.6, 0.8))
+				slots[8].append(RisoShapes.ellipse(Vector2(x - flip * 9.0, floor_y - 2.5), 3.5, 2.5, 10))
+		&"vein":
+			# A vein through the flesh along an open face: a dark line wandering a little way in
+			# from the face, branching once or twice, drawn at the rock's own size (not grown).
+			var face: Vector2i = item["face"]
+			var along: Vector2 = Vector2(absf(float(face.y)), absf(float(face.x)))
+			var inward: Vector2 = -Vector2(face)
+			var start: Vector2 = c - along * half * (0.6 + _r(s, v, 10) * 0.4) + Vector2(face) * half * 0.55
+			var long: float = half * (1.2 + _r(s, v, 11) * 0.8)
+			var pts: PackedVector2Array = PackedVector2Array()
+			for k: int in range(9):
+				var f: float = float(k) / 8.0
+				pts.append(start + along * long * f + inward * (10.0 + sin(f * 5.0 + _r(s, v, 12) * 6.0) * 8.0 + f * 12.0))
+			slots[5].append_array(strip(pts, 9.0, 3.5))
+			for b: int in range(1 + int(_r(s, v, 13) * 2.0)):
+				var from: Vector2 = pts[2 + b * 3]
+				var tip: Vector2 = from + along * (24.0 + _r(s, v, 14 + b) * 16.0) + inward * (22.0 + _r(s, v, 16 + b) * 18.0)
+				slots[5].append_array(strip(PackedVector2Array([from, from.lerp(tip, 0.5) + along * 6.0, tip]), 6.0, 2.0))
 		&"stalactite":
 			for i: int in range(1 + int(_r(s, v, 10) * 2.0)):
 				var x: float = c.x + (_r(s, v, 20 + i) - 0.5) * half * 0.6
