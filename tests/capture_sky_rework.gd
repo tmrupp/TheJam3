@@ -1,8 +1,9 @@
 extends TestKit
 ## Stills of the sky's rework: a balloon becalmed and then full with the level's wind set
 ## (sky_balloon_0.png, _1); a temple shut with two of its winds entered, then open (sky_temple_0.png,
-## _1); the whale free, then trapped with its mouth open (sky_whale_0.png, _1); and its belly, the
-## heart at the far end (sky_belly.png).
+## _1); the whale cruising overhead, its underside hanging into view (sky_whale_0.png, and from
+## farther out sky_whale_wide.png), warning of a swoop (_1) and diving, mouth wide (_2); and its
+## belly, the heart at the far end (sky_belly.png).
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_sky_rework.gd
 
 var camera: Camera2D
@@ -40,22 +41,27 @@ func run() -> void:
 	temple.use()
 	await frames(50)
 	await _look(temple.global_position + Vector2(64.0, -120.0), "sky_temple_1.png")
-	# The whale, free and trapped.
+	# The whale: cruising overhead, then warning of a swoop and diving, mouth wide.
 	var row: int = WhaleHunt.row()
 	info.run.whale_x = 28
 	await _go(Vector2i(28, row))
 	var whale: Whale = placed("whale.tscn")[0] as Whale
+	whale.set_physics_process(false)
+	var overhead: Vector2 = Vector2(whale.global_position.x + Whale.LENGTH * 0.2, whale.top_y)
 	player.global_position = Vector2(-9000, -9000)
-	await _look(whale.global_position, "sky_whale_0.png", 0.6)
-	for side: int in [-1, 1]:
-		var rec: LevelRecord = info.run.record(Vector2i(28 + side, row))
-		rec.vanes_on = {Vector2i(1, 1): -side}
-		rec.wind_way = -side
-	await _go(Vector2i(28, row))
-	whale = placed("whale.tscn")[0] as Whale
-	player.global_position = Vector2(-9000, -9000)
-	await within(func() -> bool: return whale.gape > 0.9, Whale.MOUTH_EVERY + 2.0)
-	await _look(whale.global_position, "sky_whale_1.png", 0.6)
+	await _look(overhead, "sky_whale_0.png")
+	await _look(overhead, "sky_whale_wide.png", 0.35)
+	var target: Vector2 = Vector2(whale.global_position.x + Whale.LENGTH * 0.5 + 6.0 * whale.cell.x, whale.top_y + 5.0 * whale.cell.y)
+	player.global_position = target
+	whale.set_physics_process(true)
+	whale.swoop_at(target)
+	await within(func() -> bool: return whale.u > 0.75, Whale.TELL)
+	whale.set_physics_process(false)
+	await _look(target + Vector2(-300.0, -200.0), "sky_whale_1.png", 0.6)
+	whale.set_physics_process(true)
+	await within(func() -> bool: return whale.phase == Whale.Phase.DIVE and whale.u > 0.75, Whale.DIVE + 0.5)
+	whale.set_physics_process(false)
+	await _look(target + Vector2(-300.0, -200.0), "sky_whale_2.png", 0.6)
 	# Its belly.
 	await _go(Worlds.side_at(Worlds.kind_of(Belly), Vector2i(28, row)))
 	var heart: WhaleHeart = placed("whale_heart.tscn")[0] as WhaleHeart

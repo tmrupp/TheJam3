@@ -364,7 +364,9 @@ func slay_boss () -> bool:
 				(node as WhaleHeart).slay()
 				return true
 			if node is Whale:
-				boss_slain(&"whale", (node as Whale).global_position + Vector2(0, 300))
+				# Its relic waits by the way on, as when its heart bursts (whale_burst).
+				var on: Vector2 = cell_position(world.exits[Exit.DEEPER]) if world.exits.has(Exit.DEEPER) else player.global_position
+				boss_slain(&"whale", on)
 				node.queue_free()
 				return true
 	var gate: StringName = here.gate if here != null else &""
