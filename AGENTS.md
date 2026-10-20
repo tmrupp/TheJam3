@@ -181,7 +181,7 @@ bash tests/run.sh sky_test        # just these, headless
   night, moss and paper.
 - Keep backgrounds dark and low-contrast, and put saturation and paper-bright knockouts on gameplay
   objects.
-- Layers (absolute z): sky −40, terrain −20, hedges −17, fences −16, decor −15, lantern light −12,
+- Layers (absolute z): sky −40, the whale cruising −30 (over the wizard, 11, while it swallows them), terrain −20, hedges −17, fences −16, decor −15, lantern light −12,
   props 2, the darkness out of sight 8, the wizard's trail 9, the wizard 10, UI 50 and up.
 - Check art changes with a capture and look at it zoomed in before calling them done.
 

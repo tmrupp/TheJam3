@@ -343,8 +343,11 @@ at its top, part of the crags' castle.
 ### The whale (sky, roaming on its top row; inside: its belly)
 
 *A first pass is built* (`WhaleHunt`, `Whale`, `Belly`, `WhaleHeart`; `docs/DEEPER_PLAN.md`
-§4c): the hunt, the trap, the open mouth, the belly of ribs and acid pools, and its heart. Not yet:
-the belly's valves and rising acid, birds and gusts driven at the wizard by its passes.
+§4c): the hunt, the trap, the belly of ribs and acid pools, and its heart. In its level it is huge
+and seen only from below, passing back and forth across the top, and it swoops, mouth open, at a
+wizard standing high under open sky: free, a gobble is a blow; trapped, it is the way into its
+belly. Not yet: the belly's valves and rising acid, birds and gusts driven at the wizard by its
+passes.
 
 The whale is not waiting in the gate level: it roams the sky's levels, and has to be tracked down
 and trapped before it can be fought. Slaying it lifts the seal on the sky's gate levels as any boss
@@ -362,7 +365,9 @@ does.
   either side blowing into its level), it cannot leave, and the fight begins. Setting the winds of
   a stretch of the row to hem it in is the hunt.
 - **Outside**, it cannot be wounded: hex bolts glance off, and its passes drive birds and gusts at
-  the wizard. Its open mouth, on its slow turns, is a door.
+  the wizard. It is huge, and only its underside is ever seen as it passes over the top of its
+  level. A wizard standing high under open sky draws it down: it swoops, mouth open, to gobble
+  them. Trapped, that gobble is the door in.
 - **Inside**, the belly is a side world of its own (a small dark level of ribs and stomach pools,
   Tom's "digestive system that is another level"): its heart (accent) hangs at the far end behind
   valves that open and close, and acid pools rise and fall (the "flooded / drain and fill" places
