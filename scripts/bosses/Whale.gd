@@ -17,8 +17,8 @@ extends Node2D
 ## up and snapping shut as it rises; then it settles back to its line in CLIMB seconds and swims on.
 ## Moving off the spot dodges it. A wizard within GULP_REACH of its open mouth is gobbled: while it
 ## is free, a blow and thrown along the way it swims; while it is trapped (WhaleHunt.trapped: the
-## levels either side set to blow into its level), taken into its belly (Belly,
-## MapInfo.enter_belly), where its heart is. It cannot be wounded or touched otherwise: bolts and
+## levels either side set to blow into its level), held in its mouth as its jaws shut, then taken
+## into its belly (Belly, MapInfo.enter_belly), where its heart is. It cannot be wounded or touched otherwise: bolts and
 ## dashes pass it by. Printed by itself, from below. Nothing here draws from any RNG.
 
 ## Its length, nose to tail stock, and its body's greatest half-height (px).
@@ -97,10 +97,12 @@ var phase: Phase = Phase.CRUISE
 var u: float = 0.0
 var since: float = 0.0
 ## The spot it dives at (where the wizard stood as it warned), its lunge there and back (its nose's
-## path in the world: start, bend, end), and whether this swoop has gobbled.
+## path in the world: start, bend, end), whether this swoop has gobbled, and whether it holds the
+## wizard in its mouth, trapped, until its jaws shut and it takes them into its belly.
 var mark: Vector2 = Vector2.ZERO
 var path: Array[Vector2] = []
 var gulped: bool = false
+var holding: bool = false
 ## Its head, in its own frame (facing right): how far its nose is bent from where it swims (px), and
 ## the way it heads (a unit vector). Its pose as it starts to settle back.
 var bend: Vector2 = Vector2.ZERO
@@ -142,6 +144,17 @@ func _ready() -> void:
 	z_index = Z_CRUISE
 	ink = InkCanvas.new()
 	add_child(ink)
+
+
+## Gone with the wizard still held in its mouth (its level unloaded before its jaws shut): let
+## them go, seen and free to move.
+func _exit_tree() -> void:
+	if not holding:
+		return
+	var player: Player = Stage.player()
+	if player != null and is_instance_valid(player):
+		player.visible = true
+		player.set_physics_process(true)
 
 
 ## A point in its own frame (facing right, its middle at the origin) in the world.
@@ -264,6 +277,9 @@ func _physics_process(delta: float) -> void:
 			# Wide as it turns up, until it has scooped up the spot, then snapping shut.
 			gape = minf(minf(1.0, 0.7 + u * 1.5), clampf(1.0 - (u - (SCOOP - 0.5) * 2.0 - 0.05) / 0.2, 0.0, 1.0))
 			_gulp()
+			if holding and gape <= 0.0:
+				holding = false
+				map_info.enter_belly()
 			if u >= 1.0:
 				phase = Phase.CLIMB
 				u = 0.0
@@ -340,7 +356,9 @@ static func _tilted(way: Vector2) -> Vector2:
 	return Vector2.RIGHT.rotated(clampf(way.angle(), -TILT, TILT))
 
 
-## Its open mouth scooping up the wizard as it rises: gobbled, once a swoop.
+## Its open mouth scooping up the wizard as it rises: gobbled, once a swoop. Free, it hurts and
+## throws them; trapped, it hides them in its mouth until its jaws shut, then takes them into its
+## belly (MapInfo.enter_belly, which shows them again).
 func _gulp() -> void:
 	if gulped or not open() or phase != Phase.RISE or map_info.travelling:
 		return
@@ -351,7 +369,11 @@ func _gulp() -> void:
 		return
 	gulped = true
 	if trapped:
-		map_info.enter_belly()
+		# Gone into its mouth, held there while its jaws shut.
+		holding = true
+		player.visible = false
+		player.set_physics_process(false)
+		player.velocity = Vector2.ZERO
 	else:
 		player.hurt(-SPIT_HURT, Vector2(facing * SPIT_SPEED, SPIT_LIFT), self)
 

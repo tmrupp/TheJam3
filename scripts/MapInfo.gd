@@ -302,12 +302,15 @@ func _spawn_souls () -> void:
 		map_elements.add_child(thing)
 		thing.position = cell_position(v)
 
-## The whale's open mouth took the wizard in: into its belly (Belly), at its way back.
+## The whale's mouth shut on the wizard (hidden in it, Whale._gulp): into its belly (Belly), at its
+## way back, seen again once the way there has covered the screen.
 func enter_belly () -> void:
 	if travelling or run_ending > 0.0:
 		return
 	var to: Vector2i = Worlds.side_at(Worlds.kind_of(Belly), coord)
 	await _pass(Vector2.RIGHT, to)
+	if wizard() != null:
+		player.visible = true
 	_arrive(to, Exit.BACK)
 
 ## The boss to slay as the wizard arrives where it fell (its relic is left there): the whale, whose

@@ -91,7 +91,9 @@ func run() -> void:
 	await _go(Vector2i(x, row))
 	whale = placed("whale.tscn")[0] as Whale
 	check(whale.trapped and _exit(MapInfo.Exit.DEEPER).sealed() == &"whale", "trapped by the winds either side; its gate sealed")
-	await _into(whale)
+	var held: bool = await _into(whale)
+	check(held, "its jaws shut on the wizard, hidden in its mouth")
+	check(player.visible, "and seen again in its belly")
 	var belly: int = Worlds.kind_of(Belly)
 	check(Worlds.kind_at(info.coord) == belly and Worlds.origin_of(info.coord) == Vector2i(x, row), "trapped, its gobble takes the wizard into its belly")
 	var hearts: Array[Node] = placed("whale_heart.tscn")
@@ -195,14 +197,16 @@ func _stand(at: Vector2) -> void:
 
 
 ## Stand the wizard on the perch with the trapped `whale` coming, and wait to be gobbled: into its
-## belly.
-func _into(whale: Whale) -> void:
+## belly. Returns whether its mouth held the wizard, hidden, before it took them in.
+func _into(whale: Whale) -> bool:
 	var at: Vector2 = info.cell_position(perch)
 	await _stand(at)
 	_over(whale, at)
+	var held: bool = await within(func() -> bool: return whale.holding and not player.visible, Whale.TELL + Whale.DIVE * 2.0 + 1.0)
 	await until(func() -> bool: return Worlds.is_side(info.coord) and not info.travelling, 15000)
 	await settle()
 	player.set_physics_process(false)
+	return held
 
 
 ## Load place `at` (arriving at its way back) and wait for it.
