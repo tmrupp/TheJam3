@@ -417,7 +417,7 @@ func sleep_far_chunks(force: bool = false, around: Vector2 = Vector2.INF) -> voi
 		var n2: Node2D = _sleeper(entry)
 		if n2 == null:
 			continue
-		if n2 is Worm or n2 is Wind or n2 is Gondola:
+		if n2 is Worm or n2 is Wind or n2 is Gondola or n2 is Acid:
 			if not _special_things.has(n2):
 				_special_things.append(n2)
 			continue
@@ -453,10 +453,11 @@ func sleep_far_chunks(force: bool = false, around: Vector2 = Vector2.INF) -> voi
 		var worm: Worm = n2 as Worm
 		if worm != null and (worm.awake or (has_wizard and LevelGen.dist(info.cell_at(wizard), worm.home) <= Worm.WAKE_RANGE)):
 			awake = true
-		# Something spread over several chunks (a wind, Wind.extent) is awake if any of them is.
-		var wind: Wind = n2 as Wind
-		if not awake and wind != null:
-			var r: Rect2 = wind.extent()
+		# Something spread over several chunks (a wind, Wind.extent; a pool of acid, Acid.extent) is
+		# awake if any of them is.
+		var spread: Rect2 = (n2 as Wind).extent() if n2 is Wind else ((n2 as Acid).extent() if n2 is Acid else Rect2())
+		if not awake and spread.has_area():
+			var r: Rect2 = spread
 			var x: float = r.position.x
 			while not awake and x <= r.end.x + chunk_px.x:
 				var y: float = r.position.y

@@ -84,6 +84,8 @@ const TABLE: Dictionary = {
 	LevelGen.Type.OSSUARY_DOOR: {"scene": "res://prefabs/ossuary_door.tscn", "art": &"ossuary", "setup": 3},
 	LevelGen.Type.SPIRE: {"scene": "res://prefabs/spire.tscn", "art": &"spire", "setup": 3},
 	LevelGen.Type.LODESTONE: {"scene": "res://prefabs/lodestone.tscn", "art": &"lodestone", "flags": [&"stander"], "size": Vector2i(1, 2), "setup": 3},
+	LevelGen.Type.ACID: {"scene": "res://prefabs/acid.tscn", "art": &"acid", "setup": 3},
+	LevelGen.Type.WRECK: {"scene": "res://prefabs/wreck.tscn", "art": &"wreck", "setup": 3},
 }
 
 ## Prefabs loaded so far, by Type (each is loaded the first time one is placed).

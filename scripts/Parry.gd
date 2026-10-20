@@ -104,7 +104,7 @@ func parry (_damage: int, v: Vector2, origin: Node) -> void:
 	var from: Vector2 = player.global_position - away * 60.0
 	caught_at = player.global_position.lerp(from, 0.6) + Vector2(0, -40)
 	parried_at = clock
-	parried_real = Time.get_ticks_msec() / 1000.0
+	parried_real = Time.get_ticks_usec() / 1000000.0
 	if shot != null:
 		_reflect(shot, attacker)
 	else:

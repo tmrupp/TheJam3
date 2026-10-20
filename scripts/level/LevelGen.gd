@@ -80,6 +80,10 @@ enum Type {
 	## The crags: a watchtower's iron spire on its roof (Spire), and a lodestone (Lodestone).
 	SPIRE,
 	LODESTONE,
+	## The whale's belly (Belly): its pool of acid, flooding and draining (Acid), and the wreckage it
+	## has swallowed, floating on it (Wreck).
+	ACID,
+	WRECK,
 }
 
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).
