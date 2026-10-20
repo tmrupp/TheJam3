@@ -16,9 +16,10 @@ extends Node2D
 ## broken the level record keeps it so until the wizard dies, the wall left whole. Its cell in the
 ## level is the room cell before the wall; the node sits in the wall. Nothing here draws from the
 ## world RNG.
-## One set in the spider's keep (SpiderKeep.arm, `inward`) shoots into the hall instead: its cell is
+## One set in the golem's hall (LodeHall.arm, `inward`) shoots into the hall instead: its cell is
 ## the hall's cell in front of its slit, and it sits in the wall behind that, with stone, not a
-## room, behind it, so nothing reaches it to break it. Its arrows pierce the spider (Bullet).
+## room, behind it, so nothing reaches it to break it. Its arrows wound the golem's bare heart
+## (Bullet).
 
 ## How far it sees (cells), how far above or below its slit the wizard may be for it to shoot
 ## (pixels), how long it takes to draw and loose (seconds in sight), how long it reloads after a
@@ -63,7 +64,7 @@ var cell_px: float = 128.0
 
 
 ## For room cell `v`, as `extra` says: {"facing": +1 right or -1 left}: set into the wall beside it
-## that way; or, with "inward" (the spider's keep), into the wall behind the hall's cell `v`,
+## that way; or, with "inward" (the golem's hall), into the wall behind the hall's cell `v`,
 ## shooting out over it that way.
 func setup(info: MapInfo, v: Vector2i, extra: Variant) -> void:
 	map_info = info

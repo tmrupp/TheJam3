@@ -3,7 +3,8 @@ extends TestKit
 ## one holds more foes and runs the bosses faster, and a game starts on Hard. Levels hold more
 ## enemies and hazards on a harder preset, stay the same every build under one, are kept apart per
 ## preset by the loader, and stay whole (every open cell joined to the way in, every switch reached
-## with its gate shut) even on Brutal; the spider rears for less time; and picking a preset on the
+## with its gate shut) even on Brutal; the golem raises its fists for less time; and picking a
+## preset on the
 ## F7 panel lays the place out again under it; and the other enemies attack more often (a hopper
 ## rests for less) and move a little faster (wisps walk faster).
 ## godot --headless --path . --script res://tests/difficulty_test.gd
@@ -56,22 +57,22 @@ func run() -> void:
 	Difficulty.preset = Difficulty.Preset.BRUTAL
 	check(normal_key != LevelLoader._world_key(Vector2i(28, 0)), "the loader keeps each preset's layouts apart")
 
-	print("the spider")
+	print("the golem")
 	await boot(28)
 	player.health.max_health = 99
 	player.health.health = 99
-	info.coord = Vector2i(28, Bosses.row_of(&"spider"))
+	info.coord = Vector2i(28, Bosses.row_of(&"golem"))
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	await settle()
 	player.set_physics_process(false)
-	var spider: Spider = placed("spider.tscn")[0] as Spider
-	var floors: Array[int] = info.world.keep["floors"]
-	var inside: Rect2i = info.world.keep["inside"]
-	player.global_position = info.cell_position(Vector2i(inside.position.x + 1, floors[0] - 1))
-	var normal: int = await _rearing(spider, Difficulty.Preset.NORMAL)
-	var brutal: int = await _rearing(spider, Difficulty.Preset.BRUTAL)
-	check(normal > 0 and brutal > 0 and brutal < normal, "it rears for less time on Brutal (%d physics steps against %d)" % [brutal, normal])
+	var golem: Golem = placed("golem.tscn")[0] as Golem
+	golem.hurl_wait = INF
+	for bow: Node in placed("crossbow.tscn"):
+		bow.set_physics_process(false)
+	var normal_slam: int = await _raising(golem, Difficulty.Preset.NORMAL)
+	var brutal_slam: int = await _raising(golem, Difficulty.Preset.BRUTAL)
+	check(normal_slam > 0 and brutal_slam > 0 and brutal_slam < normal_slam, "it raises its fists for less time on Brutal (%d physics steps against %d)" % [brutal_slam, normal_slam])
 
 	print("the F7 row")
 	var here: Vector2i = Vector2i(28, NextWorldDef.band_row(&"cemetery", 1))
@@ -154,14 +155,15 @@ func _whole(w: LevelGen) -> bool:
 	return true
 
 
-## How many physics steps `spider` rears for, on preset `p` (read as it goes), the next time it
-## rears at the wizard.
-func _rearing(spider: Spider, p: Difficulty.Preset) -> int:
+## How many physics steps `golem` raises its fists for, on preset `p`, the next time it slams the
+## wizard (put beside it on its floor).
+func _raising(golem: Golem, p: Difficulty.Preset) -> int:
 	Difficulty.preset = p
-	if not await within(func() -> bool: return spider.state == Spider.State.WARN, 15.0):
+	player.global_position = Vector2(golem.global_position.x + 200.0, golem.global_position.y - 60.0)
+	if not await within(func() -> bool: return golem.state == Golem.State.SLAM_WARN, 15.0):
 		return -1
 	var steps: int = 0
-	while spider.state == Spider.State.WARN and steps < 600:
+	while golem.state == Golem.State.SLAM_WARN and steps < 600:
 		await physics_frame
 		steps += 1
 	return steps

@@ -188,7 +188,7 @@ func _init() -> void:
 
 func _enter_tree() -> void:
 	Abilities.ensure_input()
-	# What the dash does on its way (it tears webs and cuts threads).
+	# What the dash does on its way (it passes through enemies, DashStrike).
 	if get_node_or_null("DashStrike") == null:
 		var strike: DashStrike = DashStrike.new()
 		strike.name = "DashStrike"
@@ -506,8 +506,6 @@ func _physics_process(delta: float) -> void:
 
 	var walled: bool = false
 	var wall_normal: Vector2
-	# In a spider's web (SpiderWeb): held, and the dash does not come back.
-	var webbed: bool = SpiderWeb.holding(get_tree(), global_position)
 
 	# get input from the user to establish direction
 	var direction: Vector2 = Vector2.RIGHT * Input.get_axis("Left", "Right") + Vector2.DOWN * Input.get_axis("Up", "Down")
@@ -584,7 +582,7 @@ func _physics_process(delta: float) -> void:
 			pass
 		
 		# Arm coyote time only while grounded. Taking a jump spends it; falling cannot rearm it.
-		if dash_rest <= 0.0 and not webbed:
+		if dash_rest <= 0.0:
 			dash.refresh()
 		coyote.enable(true)
 		hang.refresh()
@@ -668,12 +666,6 @@ func _physics_process(delta: float) -> void:
 			if MapInfo.instance != null:
 				MapInfo.instance.dash_switch()
 	
-	# A web holds the wizard: slow across, a jump stalls in it and a fall through it sinks slowly. A
-	# dash goes through, tearing it (DashStrike).
-	if webbed and not dash.is_acting():
-		velocity.x = clampf(velocity.x, -SpiderWeb.WEB_SPEED, SpiderWeb.WEB_SPEED)
-		velocity.y = clampf(velocity.y, -SpiderWeb.WEB_RISE, SpiderWeb.WEB_SINK)
-
 	# Acid (Acid): wading in it, slowed across and sinking slowly (a fall into it is checked
 	# quickly, not stopped dead); each jump in it, off the bottom, is a stroke up. A dash goes
 	# through.

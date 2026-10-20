@@ -6,7 +6,7 @@ extends RefCounted
 ##   and the other counts that use foes()). It changes what levels hold, so a level's layout depends
 ##   on the preset as well as its seed (LevelLoader keeps layouts per preset).
 ## - haste: how fast the bosses act, against Normal. Each boss runs its own clock this much faster:
-##   its warnings, bites, rests and crawling all come sooner (Worm, Spider, BrambleVine, BrambleBulb).
+##   its warnings, bites, rests and crawling all come sooner (Worm, Golem, BrambleVine, BrambleBulb).
 ## - attack: how often the other enemies attack, against Normal: their cooldowns, rests and tells run
 ##   this much faster (a watcher's shot, a hopper's crouch and rest, a bird's tell and rest between
 ##   swoops, a wisp's wind-up and rest around a lurch, a skeleton's before and after a swipe, a

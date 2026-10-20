@@ -1,14 +1,14 @@
 extends Node
 class_name Slash
 ## Slash, a damage spell: the Spell button (Q, or the pad's X) sweeps an arc of spell light in front
-## of the wizard, aimed like the hex (the held direction, else facing), REACH px out and HALF
-## either way. It is quick, ready again COOLDOWN after, and everything it catches is struck at once
-## (SpellStrike): wounded by its damage. It tears the spider's webs in
-## its arc and cuts a spider's thread across it. Landing a blow, on an enemy or on thorns, throws the
-## wizard back off it (SpellStrike.recoil): a slash down from the air bounces them up. Tiers (Abilities): I wounds 1; II reaches further
-## and wider (REACH_II, HALF_II); III wounds 2; IV also cuts shots out of the air in its arc. Cast
-## empowered (Empower), it cleaves the cracked rock in its arc and the two cells in front of the
-## wizard (cleave_cells), wounds Empower.EXTRA more, breaks a shield at once and strikes spires.
+## of the wizard, aimed like the hex (the held direction, else facing), REACH px out and HALF either
+## way. It is quick, ready again COOLDOWN after, and everything it catches is struck at once
+## (SpellStrike): wounded by its damage. Landing a blow, on an enemy or on thorns, throws the wizard
+## back off it (SpellStrike.recoil): a slash down from the air bounces them up. Tiers (Abilities): I
+## wounds 1; II reaches further and wider (REACH_II, HALF_II); III wounds 2; IV also cuts shots out
+## of the air in its arc. Cast empowered (Empower), it cleaves the cracked rock in its arc and the
+## two cells in front of the wizard (cleave_cells), wounds Empower.EXTRA more, breaks a shield at
+## once and strikes spires.
 
 const COOLDOWN: float = 0.45
 const REACH: float = 110.0
@@ -17,7 +17,7 @@ const REACH_II: float = 140.0
 const HALF_II: float = 1.3
 ## How near (px) the wizard a thing is caught whichever way it lies, as the blade passes them.
 const CLOSE: float = 34.0
-## How many ways across its arc it feels for a spider's body, its webs and its thread.
+## How many ways across its arc it feels for a foe with a shape of its own (Shaped).
 const RAYS: int = 7
 ## How much further (px) than its reach an empowered slash cleaves rock (measured to the nearest
 ## point of a cell), so the cells beside the wizard's are reached wherever in theirs they stand.
@@ -107,26 +107,20 @@ func cast(dir: Vector2 = Vector2.ZERO, empowered: bool = false) -> bool:
 	for k: int in range(RAYS):
 		rays.append(dir.rotated(lerpf(-half, half, float(k) / float(RAYS - 1))))
 	var catches: Callable = func(p: Vector2) -> bool: return in_arc(from, dir, p)
-	var catches_spider: Callable = func(s: Spider) -> bool:
+	var catches_shaped: Callable = func(s: Shaped) -> bool:
 		return rays.any(func(r: Vector2) -> bool: return s.struck_by(from, from + r * reach, 0.0))
-	var struck: Array[Node] = SpellStrike.caught(get_tree(), from, catches, catches_spider)
+	var struck: Array[Node] = SpellStrike.caught(get_tree(), from, catches, catches_shaped)
 	for e: Node in struck:
-		SpellStrike.strike(e, ((e as Node2D).global_position - from).normalized(), damage + (Empower.EXTRA if empowered else 0), &"slash", empowered)
+		SpellStrike.strike(e, ((e as Node2D).global_position - from).normalized(), damage + (Empower.EXTRA if empowered else 0), &"slash", empowered, from)
 	if empowered:
 		SpellStrike.crack(get_tree(), cleave_cells(from, dir), dir)
 	var thorns: Array[Spikes] = SpellStrike.thorns_caught(get_tree(), from, catches, dir)
 	if not struck.is_empty() or not thorns.is_empty():
 		SpellStrike.recoil(player, dir)
-	for r: Vector2 in rays:
-		SpiderWeb.tear_along(get_tree(), from, from + r * reach)
-		var thread: Dictionary = Spider.thread_across(get_tree(), from, from + r * reach, Spider.THREAD_REACH)
-		if not thread.is_empty():
-			(thread["spider"] as Spider).cut(thread["at"])
-			break
 	if cuts_shots and MapInfo.instance != null:
 		for n: Node in MapInfo.instance.map_elements.get_children():
 			var shot: Node2D = n as Node2D
-			if (shot is Bullet or shot is WebShot) and not shot.is_queued_for_deletion() and in_arc(from, dir, shot.global_position):
+			if shot is Bullet and not shot.is_queued_for_deletion() and in_arc(from, dir, shot.global_position):
 				RisoFx.burst(&"hit", shot.global_position, dir, [RisoPrint.ACCENT, RisoPrint.BLUE])
 				shot.queue_free()
 	SpellMark.leave(&"slash", from, dir, reach, half, RisoPrint.ACCENT, player)

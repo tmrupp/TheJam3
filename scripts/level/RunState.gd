@@ -272,9 +272,16 @@ static func read_save() -> Dictionary:
 
 ## A save's places in side worlds of a kind no longer made (Worlds.valid; the bosses' arenas, now
 ## that every boss fights in its gate level) moved out to the level the side world was entered
-## from, and their records dropped.
+## from, and their records dropped; and its bosses slain and relics waiting named as the bosses are
+## now (Bosses.RENAMED: the spider's are the golem's).
 static func gone_kinds(data: Dictionary) -> Dictionary:
 	var out: Dictionary = data.duplicate(true)
+	for key: String in ["bosses", "boss_relics"]:
+		var renamed: Dictionary = {}
+		var old_bosses: Dictionary = data.get(key, {})
+		for name: Variant in old_bosses:
+			renamed[Bosses.RENAMED.get(StringName(name), StringName(name))] = old_bosses[name]
+		out[key] = renamed
 	var recs: Dictionary = {}
 	var old: Dictionary = data.get("records", {})
 	for c: Vector2i in old:

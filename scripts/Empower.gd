@@ -6,7 +6,8 @@ class_name Empower
 ## to collect or spend: an empowered cast comes back on its own after Rules.empower_recharge, which
 ## each lodestone touched shortens, for every spell. A spell not tempered (or empowerment not back)
 ## casts at once on the press, as it always did. The parry guard goes up on the press either way
-## (Player).
+## (Player). In the golem's hall (LodeHall.tempers) whatever spell is in the slot is tempered, and a
+## lode shard the golem sheds makes empowerment ready at once (LodeShard, refill).
 ##
 ## Empowered, each damage spell breaks cracked rock its own way (the only thing that does, in every
 ## band; CrackedWall) and strikes a tower's spire (Spire), and hits harder in a fight (EXTRA wound,
@@ -56,14 +57,20 @@ static func recharge() -> float:
 	return Rules.empower_recharge(run.lodestones.size() if run != null else 0)
 
 
+## Whether the spell in the damage slot may be cast empowered where the wizard is: tempered by a
+## lodestone, or anywhere in the golem's hall (LodeHall.tempers).
+func tempers_now() -> bool:
+	return player != null and (tempered(Abilities.spell(player)) or LodeHall.tempers(player.global_position))
+
+
 ## Whether the spell in the damage slot can be cast empowered now: tempered, and empowerment back.
 func ready_now() -> bool:
-	return player != null and tempered(Abilities.spell(player)) and wait <= 0.0
+	return tempers_now() and wait <= 0.0
 
 
 ## How far back empowerment is, 0..1 (1 ready); -1 when the spell in the slot is not tempered.
 func readiness() -> float:
-	if player == null or not tempered(Abilities.spell(player)):
+	if not tempers_now():
 		return -1.0
 	var whole: float = recharge()
 	return 1.0 if wait <= 0.0 or not is_finite(whole) else clampf(1.0 - wait / whole, 0.0, 1.0)
@@ -105,9 +112,17 @@ func shorten() -> void:
 	wait = minf(wait, recharge())
 
 
+## A lode shard was taken (LodeShard): empowerment is back at once.
+func refill() -> void:
+	if wait > 0.0:
+		wait = 0.0
+		if tempers_now():
+			player.visual_event.emit(&"empower_back", player.global_position)
+
+
 func _physics_process(delta: float) -> void:
 	if wait <= 0.0:
 		return
 	wait = maxf(0.0, wait - delta)
-	if wait <= 0.0 and player != null and tempered(Abilities.spell(player)):
+	if wait <= 0.0 and tempers_now():
 		player.visual_event.emit(&"empower_back", player.global_position)

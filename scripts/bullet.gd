@@ -20,9 +20,9 @@ var since_bounce: float = 99.0
 var seed: bool = false
 ## An arrow a crag tower's crossbow loosed (Crossbow), printed as one; parried, it flies back as any
 ## shot does, only as far as the tower's wall. It wounds the first enemy in its way (ARROW_DAMAGE,
-## however hard it is to stun; a shield takes it whole), and pierces the spider's back
-## (Spider.pierce): an arrow meeting its body puts out an eye, whatever it is doing. It passes
-## crossbows by, and what is not an enemy.
+## however hard it is to stun; a shield takes it whole). A foe with a shape of its own (Shaped)
+## is struck where the arrow meets that shape, and says itself what comes of it (the golem's bare
+## heart is wounded; its chunks glance it off). It passes crossbows by, and what is not an enemy.
 var arrow: bool = false
 ## How much an arrow wounds an enemy, and how near its way an enemy must be (pixels) for it to strike.
 const ARROW_DAMAGE: int = 1
@@ -89,14 +89,14 @@ func _process(delta: float) -> void:
 ## meets), wounding it (see `arrow`).
 func _strike(from: Vector2, to: Vector2) -> bool:
 	var dir: Vector2 = velocity.normalized()
-	var spider: Spider = Spider.body_across(get_tree(), from, to) if quarry == &"" else null
-	if spider != null:
-		spider.pierce(dir)
+	var shaped: Shaped = Shaped.across(get_tree(), from, to) if quarry == &"" else null
+	if shaped != null:
+		shaped.arrow_hit(from, dir)
 		return true
 	var best: Node2D = null
 	for e: Node in get_tree().get_nodes_in_group(&"hex_target"):
 		var body: Node2D = e as Node2D
-		if body == null or e is Spider or e is Crossbow or e in exclude or e.is_queued_for_deletion() or e.get_node_or_null("Wound") == null:
+		if body == null or e is Shaped or e is Crossbow or e in exclude or e.is_queued_for_deletion() or e.get_node_or_null("Wound") == null:
 			continue
 		if quarry != &"" and not e.is_in_group(quarry):
 			continue

@@ -59,7 +59,7 @@ func generation() -> Vector2i:
 			var kept: Array[Vector2i] = []
 			for v: Vector2i in bows:
 				var how: Dictionary = w.get_cell(v).extra_info
-				# The spider's keep's own, shooting into its hall, are spider_test's.
+				# The golem's hall's own, shooting into the hall, are lode_hall_test's.
 				if bool(how.get("inward", false)):
 					found -= 1
 					continue

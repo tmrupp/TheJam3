@@ -5,16 +5,11 @@ class_name DashStrike
 ## bodies stop blocking, ENEMY_LAYER, until the wizard is clear of them after it), and touching an
 ## enemy (or a moth swarm) never hurts them while they dash. The worm's body still blocks the dash
 ## (WormSegment). It does nothing to cracked rock: only an empowered spell breaks that (Empower,
-## CrackedWall). A dash (or a blink, which jumps while the dash runs, Blink.gd) tears the
-## spider's webs it passes through (SpiderWeb) and cuts a spider's thread it crosses (Spider),
-## dropping it. Every wizard has one (Player).
+## CrackedWall). Every wizard has one (Player).
 
-## How far either way (px) a dash's way may pass a spider's thread to cut it.
-const THREAD_REACH: float = Spider.DASH_THREAD_REACH
 ## The physics layer enemy bodies are on (project settings: "Enemy").
 const ENEMY_LAYER: int = 2
 
-var last: Vector2 = Vector2.ZERO
 var was_dashing: bool = false
 
 @onready var player: Player = get_parent() as Player
@@ -23,11 +18,7 @@ var was_dashing: bool = false
 func _physics_process(_delta: float) -> void:
 	var dashing: bool = player.dash.is_acting()
 	if dashing and not was_dashing:
-		last = player.global_position
 		player.set_collision_mask_value(ENEMY_LAYER, false)
-	if dashing:
-		sweep(last, player.global_position)
-		last = player.global_position
 	# Enemies block the wizard again once the dash is over, but only when no enemy's body is where
 	# the wizard is: turned back on with the wizard inside one, the push out could wedge them in
 	# the rock or fling them across the level.
@@ -57,11 +48,4 @@ func guards(attacker: Node) -> bool:
 		return false
 	return player.dash.is_acting()
 
-
-## The dash's way from `from` to `to`: the webs it passes through torn, a thread it crosses cut.
-func sweep(from: Vector2, to: Vector2) -> void:
-	SpiderWeb.tear_along(get_tree(), from, to)
-	var thread: Dictionary = Spider.thread_across(get_tree(), from, to, THREAD_REACH)
-	if not thread.is_empty():
-		(thread["spider"] as Spider).cut(thread["at"])
 
