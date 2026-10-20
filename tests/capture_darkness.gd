@@ -6,7 +6,9 @@ extends TestKit
 ## with its beads of darkness (darkness_lantern.png) and the sitting card's count
 ## (darkness_card.png); a crypt's stairs turned to blocks, lit and snuffed (darkness_stairs_lit.png,
 ## darkness_stairs_dark.png); a shade floor over thorns (darkness_floor_lit.png,
-## darkness_floor_dark.png); the flame's light and a flare (darkness_flare_off.png,
+## darkness_floor_dark.png); groups of blocks in open air, lit and snuffed (darkness_groups_lit.png,
+## darkness_groups_dark.png); a doorway shut by a block (darkness_doorway_lit.png,
+## darkness_doorway_dark.png); the flame's light and a flare (darkness_flare_off.png,
 ## darkness_flare_on.png); an ossuary door part fed, close up built each way
 ## (darkness_ossuary_0.png .. _2.png), and opened (darkness_ossuary.png, darkness_ossuary_open.png); and the level's map (darkness_map.png).
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_darkness.gd
@@ -38,7 +40,9 @@ func run() -> void:
 	await _terrace()
 	await _stairs()
 	await _floor()
+	await _doorway()
 	await _ossuary()
+	await _groups()
 	await _map()
 	RunState.delete_save()
 	finish()
@@ -112,6 +116,65 @@ func _floor() -> void:
 		await _look(info.cell_position(v), 1.4, "darkness_floor_dark.png", 1.5)
 		info.relight()
 		return
+
+
+## Groups of blocks, staged in a patch of open air: an L of three sun blocks, and a square of four
+## shade blocks with one more at its foot, the wizard held beside them, lit (the sun blocks firm,
+## the shade blocks an outline round their group) and snuffed (the other way about):
+## darkness_groups_lit.png, darkness_groups_dark.png.
+func _groups() -> void:
+	var at: Vector2i = _open_box(6, 2)
+	var sun: Array[Vector2i] = [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, -1)]
+	var shade: Array[Vector2i] = [Vector2i(3, 0), Vector2i(4, 0), Vector2i(3, -1), Vector2i(4, -1), Vector2i(5, 0)]
+	for d: Vector2i in sun + shade:
+		info.world.set_kind(at + d, LevelGen.Type.PHASE_BLOCK, sun.has(d))
+	for d: Vector2i in sun + shade:
+		_stage("res://prefabs/phase_block.tscn", at + d, sun.has(d))
+	player.set_physics_process(false)
+	player.global_position = info.cell_position(at + Vector2i(2, 0))
+	info.loader.wake_around(player.global_position)
+	var mid: Vector2 = info.cell_position(at + Vector2i(2, 0)) + Vector2(64, -40)
+	await _look(mid, 1.25, "darkness_groups_lit.png", 1.5)
+	info.snuff(player.global_position)
+	await _look(mid, 1.25, "darkness_groups_dark.png", 1.5)
+	info.relight()
+	player.set_physics_process(true)
+
+
+## The lowest-left cell of a box `w` cells wide and `h` high of open air holding nothing, with a
+## cell of open air all round it, out of the crypts.
+func _open_box(w: int, h: int) -> Vector2i:
+	var lvl: LevelGen = info.world
+	for y: int in range(h + 1, lvl.size.y - 2):
+		for x: int in range(2, lvl.size.x - w - 1):
+			var ok: bool = true
+			for dx: int in range(-1, w + 1):
+				for dy: int in range(-1, h + 1):
+					var c: Vector2i = Vector2i(x + dx, y - dy)
+					ok = ok and not lvl.is_ground(c) and not lvl.interiors.has(c) and lvl.get_cell(c).type == LevelGen.Type.EMPTY
+				if not ok:
+					break
+			if ok:
+				return Vector2i(x, y)
+	push_error("no open air for the groups")
+	return lvl.free_floors()[0]
+
+
+## A crypt's doorway shut by a block, from outside, lit and snuffed (darkness_doorway_lit.png,
+## darkness_doorway_dark.png).
+func _doorway() -> void:
+	for crypt: Dictionary in info.world.crypts:
+		for d: Vector2i in crypt["doors"]:
+			if info.world.get_cell(d).type != LevelGen.Type.PHASE_BLOCK:
+				continue
+			var out: int = -1 if not info.world.interiors.has(d + Vector2i.LEFT) else 1
+			player.global_position = info.cell_position(d + Vector2i(out * 2, 0))
+			info.loader.wake_around(player.global_position)
+			await _look(info.cell_position(d) + Vector2(out * 90, -40), 1.6, "darkness_doorway_lit.png", 1.5)
+			info.snuff(player.global_position)
+			await _look(info.cell_position(d) + Vector2(out * 90, -40), 1.6, "darkness_doorway_dark.png", 1.5)
+			info.relight()
+			return
 
 
 ## An ossuary door from outside, part fed, then fed its fill and sunk open.

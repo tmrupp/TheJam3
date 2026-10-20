@@ -1,6 +1,6 @@
 extends TestKit
 ## The cemetery's darkness (docs/DEEPER_PLAN.md, "Darkness charges"). Laid out: sun and shade blocks
-## stand only inside the crypts, a crypt's stairs turned to blocks take turns, a shade floor lies over
+## stand only inside the crypts or in their doorways, a crypt's stairs turned to blocks take turns, a shade floor lies over
 ## thorns, ossuary doors shut only a second crypt's doorways and want Rules.ossuary_fill, a level
 ## dealt no fonts has none, and all of it the same every time. In play: outside the cemetery a dash
 ## spends darkness as it does in the cemetery; a font gives Snuffer.CHARGES and stays dry through a death and a revisit; a death
@@ -43,7 +43,11 @@ func generation() -> Variant:
 			var blocks: Array[Vector2i] = w.objects_of(LevelGen.Type.PHASE_BLOCK)
 			if not blocks.is_empty():
 				blocked += 1
-			check(blocks.all(func(v: Vector2i) -> bool: return w.interiors.has(v) and w.structures.get(v, &"") == &"crypt"), "%s: its %d blocks all stand inside its crypts" % [at, blocks.size()])
+			var doorways: Dictionary = {}
+			for crypt: Dictionary in w.crypts:
+				for d: Vector2i in crypt["doors"]:
+					doorways[d] = true
+			check(blocks.all(func(v: Vector2i) -> bool: return doorways.has(v) or (w.interiors.has(v) and w.structures.get(v, &"") == &"crypt")), "%s: its %d blocks all stand inside its crypts or in their doorways" % [at, blocks.size()])
 			if Rules.fontless_at(at):
 				check_eq(count_of(w, LevelGen.Type.SNUFFER), 0, "%s: dealt no fonts, it has none" % at)
 			# A crypt's stairs, where they were turned to blocks, take turns up the climb.

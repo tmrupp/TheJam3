@@ -175,8 +175,10 @@ bash tests/run.sh sky_test        # just these, headless
 - Art is ink coverage on plates (night, blue, pink, accent, eye, glow, robe), drawn with
   `InkCanvas.ink`, `knock` (clear to paper) and `lift_ink`. Plates multiply. Within a plate, order
   is `z_index`.
-- No outlines of any kind. Use simple procedural shapes (`RisoShapes`). Pink means danger, accent
-  or yellow means reward, glow belongs to the wizard. Decor stays in blue, night, moss and paper.
+- No outlines of any kind (one exception, the owner's: a passable sun or shade block is drawn as an
+  outline round its group, `PhaseBlockArt`). Use simple procedural shapes (`RisoShapes`). Pink
+  means danger, accent or yellow means reward, glow belongs to the wizard. Decor stays in blue,
+  night, moss and paper.
 - Keep backgrounds dark and low-contrast, and put saturation and paper-bright knockouts on gameplay
   objects.
 - Layers (absolute z): sky −40, terrain −20, hedges −17, fences −16, decor −15, lantern light −12,

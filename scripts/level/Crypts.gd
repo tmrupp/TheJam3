@@ -28,8 +28,11 @@ extends RefCounted
 ## air, "floors": the cells inside the wizard can stand in and get back out from, nearest a doorway
 ## first, "deep": the furthest of them from a doorway}.
 ##
-## Its doorways are open (light gates, LightGate, once stood in them: the sun and shade blocks
-## inside, phase, do their work now), unless the seed shuts a second crypt's behind ossuary doors.
+## Its doorways may be shut by a sun or a shade block (PhaseBlock), dealt by the seed for each, in
+## place of the light gates that once stood there: a shade block (SHADE_DOOR_SHARE), passed with the
+## flame lit, or a sun block (SUN_DOOR_SHARE), passed with it snuffed, so the crypt is entered lit,
+## waking its sleepers, or in the dark; the rest are open. A second crypt's may be ossuary doors
+## instead (phase).
 ##
 ## What it holds: a snuffing font (Snuffer) on a floor outside each doorway and another on the floor
 ## inside nearest it, laid as it is built, so a wizard who has lit their flame inside can always
@@ -77,6 +80,12 @@ const HOARD: int = 6
 ## furthest from a doorway.
 const STARS_PER: int = 5
 const STARS_APART: int = 3
+## The share of doorways shut by a shade block (passed lit), and of those shut by a sun block
+## (passed dark), the rest open, dealt by the level seed (DOOR_DEAL) for each: as the sun and shade
+## gates once were, a sun gate's doorway taking a shade block and a shade gate's a sun block.
+const SHADE_DOOR_SHARE: float = 0.3
+const SUN_DOOR_SHARE: float = 0.35
+const DOOR_DEAL: int = 6130
 ## Alternating thorns along a crypt's floors (Spikes, timed): along each stretch of floor at least
 ## THORN_STRETCH cells long, a cell clear at each end (at its start only, in a stretch of two),
 ## blocks of THORN_BLOCK cells take turns, each
@@ -474,6 +483,7 @@ static func _raise(w: LevelGen, inside: Array, site: Dictionary) -> void:
 	var crypt: Dictionary = {"box": box, "inside": cells, "doors": doors, "steps": steps, "floors": floors, "deep": floors.back() if not floors.is_empty() else Vector2i(-1, -1), "stairs": stairs}
 	w.crypts.append(crypt)
 	_fonts(w, crypt)
+	_door_blocks(w, crypt)
 
 
 ## Set one step into `room` toward a foothold out of reach (see the class description): over the
@@ -719,6 +729,17 @@ static func _fonts(w: LevelGen, crypt: Dictionary) -> void:
 			w.put(spot, LevelGen.Type.SNUFFER)
 			w.kept_whole[spot] = true
 			w.kept_whole[(spot as Vector2i) + Vector2i.DOWN] = true
+
+
+## Each of `crypt`'s doorways a shade block, a sun block or open, dealt by the seed (see
+## SHADE_DOOR_SHARE).
+static func _door_blocks(w: LevelGen, crypt: Dictionary) -> void:
+	for door: Vector2i in crypt["doors"]:
+		var roll: float = float(posmod(Rules.level_seed(w.seed_for_colors, DOOR_DEAL + door.x * 977 + door.y), 1000)) / 1000.0
+		if roll < SHADE_DOOR_SHARE:
+			w.put(door, LevelGen.Type.PHASE_BLOCK, false)
+		elif roll < SHADE_DOOR_SHARE + SUN_DOOR_SHARE:
+			w.put(door, LevelGen.Type.PHASE_BLOCK, true)
 
 
 ## Rock at `v`, inside the level's edge.
