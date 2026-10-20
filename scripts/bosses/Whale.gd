@@ -17,8 +17,9 @@ extends Node2D
 ## up and snapping shut as it rises; then it settles back to its line in CLIMB seconds and swims on.
 ## Moving off the spot dodges it. A wizard within GULP_REACH of its open mouth is gobbled: while it
 ## is free, a blow and thrown along the way it swims; while it is trapped (WhaleHunt.trapped: the
-## levels either side set to blow into its level), held in its mouth as its jaws shut, then taken
-## into its belly (Belly, MapInfo.enter_belly), where its heart is. It cannot be wounded or touched otherwise: bolts and
+## levels either side set to blow into its level), they fall into its mouth onto its tongue and its
+## jaws shut over them, then they are taken into its belly (Belly, MapInfo.enter_belly), where its
+## heart is. It cannot be wounded or touched otherwise: bolts and
 ## dashes pass it by. Printed by itself, from below. Nothing here draws from any RNG.
 
 ## Its length, nose to tail stock, and its body's greatest half-height (px).
@@ -64,9 +65,17 @@ const GULP_GAPE: float = 0.6
 const SPIT_HURT: int = 1
 const SPIT_SPEED: float = 700.0
 const SPIT_LIFT: float = -250.0
-## Where it prints: behind the islands as it cruises, among the props as it swoops.
+## Where it prints: behind the islands as it cruises, among the props as it swoops, and over the
+## wizard while it holds them in its mouth (the lining of its mouth staying under them).
 const Z_CRUISE: int = -30
 const Z_SWOOP: int = 2
+const Z_HOLD: int = 11
+## Swallowing a wizard, trapped: the seconds they take to fall into its mouth and its jaws to shut
+## over them, and where in its mouth they come to rest (the share of the way from its hinge to its
+## lips' tip, on its tongue) and how far above its lower lip (px).
+const SWALLOW: float = 0.8
+const REST_AT: float = 0.35
+const REST_ABOVE: float = 70.0
 ## Where its body starts to bend toward its head (along it, 0 the tail stock, 1 the nose).
 const BEND_FROM: float = 0.3
 ## Its head: where its rounded snout begins and where its jaws hinge (along it), its lips' line (a
@@ -103,6 +112,10 @@ var mark: Vector2 = Vector2.ZERO
 var path: Array[Vector2] = []
 var gulped: bool = false
 var holding: bool = false
+## Swallowing: where the wizard was when caught, seconds since, and how open its mouth was then.
+var _held_from: Vector2 = Vector2.ZERO
+var _held_t: float = 0.0
+var _held_gape: float = 0.0
 ## Its head, in its own frame (facing right): how far its nose is bent from where it swims (px), and
 ## the way it heads (a unit vector). Its pose as it starts to settle back.
 var bend: Vector2 = Vector2.ZERO
@@ -118,6 +131,8 @@ var top_y: float = 0.0
 var high_y: float = 0.0
 var ceiling_y: float = 0.0
 var cell: Vector2 = Vector2(128, 128)
+## Its print: the lining of its mouth (under the wizard), then the rest of it.
+var lining: InkCanvas
 var ink: InkCanvas
 ## Where its jaws hinge in its own frame, as last drawn.
 var _hinge: Vector2 = Vector2.ZERO
@@ -142,6 +157,9 @@ func setup(info: MapInfo) -> void:
 
 func _ready() -> void:
 	z_index = Z_CRUISE
+	lining = InkCanvas.new()
+	lining.z_as_relative = false
+	add_child(lining)
 	ink = InkCanvas.new()
 	add_child(ink)
 
@@ -277,9 +295,6 @@ func _physics_process(delta: float) -> void:
 			# Wide as it turns up, until it has scooped up the spot, then snapping shut.
 			gape = minf(minf(1.0, 0.7 + u * 1.5), clampf(1.0 - (u - (SCOOP - 0.5) * 2.0 - 0.05) / 0.2, 0.0, 1.0))
 			_gulp()
-			if holding and gape <= 0.0:
-				holding = false
-				map_info.enter_belly()
 			if u >= 1.0:
 				phase = Phase.CLIMB
 				u = 0.0
@@ -298,6 +313,37 @@ func _physics_process(delta: float) -> void:
 				bend = Vector2.ZERO
 				aim = Vector2.RIGHT
 				z_index = Z_CRUISE
+	if holding:
+		_swallow(delta)
+
+
+## Swallowing the wizard: they fall from where they were caught onto its tongue, carried along as
+## its head rises, while its jaws shut over them; shut, they are gone into its belly.
+func _swallow(delta: float) -> void:
+	_held_t += delta
+	var k: float = minf(1.0, _held_t / SWALLOW)
+	gape = _held_gape * (1.0 - _ease(k))
+	var player: Player = Stage.player()
+	if player != null and is_instance_valid(player):
+		player.global_position = _held_from.lerp(_world(_resting()), _ease(minf(1.0, k * 1.6)))
+	if k < 1.0:
+		return
+	holding = false
+	if player != null and is_instance_valid(player):
+		player.visible = false
+	map_info.enter_belly()
+
+
+## Where a swallowed wizard rests in its mouth, in its own frame: on its tongue, REST_AT of the way
+## from its hinge to its lips' tip, REST_ABOVE over its lower lip.
+func _resting() -> Vector2:
+	_hinge = _on(HINGE, LIPS)
+	var s: float = lerpf(HINGE, 1.0, REST_AT)
+	var lip: Vector2 = _on(s, LIPS)
+	var low: Vector2 = _jawed(lip, s, false)
+	var high: Vector2 = _jawed(lip, s, true)
+	var up: Vector2 = (high - low).normalized() if high.distance_to(low) > 1.0 else -_down(s)
+	return low + up * REST_ABOVE
 
 
 ## Keep the camera under its ceiling (the level's own fitting, LevelLoader._fit_camera, comes after
@@ -357,8 +403,8 @@ static func _tilted(way: Vector2) -> Vector2:
 
 
 ## Its open mouth scooping up the wizard as it rises: gobbled, once a swoop. Free, it hurts and
-## throws them; trapped, it hides them in its mouth until its jaws shut, then takes them into its
-## belly (MapInfo.enter_belly, which shows them again).
+## throws them; trapped, they fall into its mouth and its jaws shut over them (_swallow), then it
+## takes them into its belly (MapInfo.enter_belly, which shows them again).
 func _gulp() -> void:
 	if gulped or not open() or phase != Phase.RISE or map_info.travelling:
 		return
@@ -369,9 +415,12 @@ func _gulp() -> void:
 		return
 	gulped = true
 	if trapped:
-		# Gone into its mouth, held there while its jaws shut.
+		# Caught: falling into its mouth while its jaws shut (_swallow).
 		holding = true
-		player.visible = false
+		_held_from = player.global_position
+		_held_t = 0.0
+		_held_gape = gape
+		z_index = Z_HOLD
 		player.set_physics_process(false)
 		player.velocity = Vector2.ZERO
 	else:
@@ -470,16 +519,27 @@ static func _band(points: PackedVector2Array, thick: float) -> PackedVector2Arra
 func _process(_delta: float) -> void:
 	if ink == null:
 		return
-	ink.global_transform = Transform2D(0.0, global_position) * Transform2D(0.0, Vector2(facing, 1.0), 0.0, Vector2.ZERO)
+	var xf: Transform2D = Transform2D(0.0, global_position) * Transform2D(0.0, Vector2(facing, 1.0), 0.0, Vector2.ZERO)
+	ink.global_transform = xf
+	lining.global_transform = xf
+	lining.z_index = Z_CRUISE if z_index == Z_CRUISE else Z_SWOOP
 	ink.begin()
+	lining.begin()
 	_hinge = _on(HINGE, LIPS)
+	var upper: PackedVector2Array = _lips(true)
+	var lower: PackedVector2Array = _lips(false)
+	var mouth_open: bool = gape > 0.02
 	var n: int = 72
-	# Its body: its underside from tail to snout (its lower jaw), round the front of its mouth if it
-	# is open, then its back from snout to tail (its upper jaw).
+	# Its body: its underside from tail to snout (its lower jaw), back along its lower lip and out
+	# along its upper one if its mouth is open, then its back from snout to tail (its upper jaw).
 	var body: PackedVector2Array = PackedVector2Array()
 	for i: int in range(n + 1):
 		body.append(_pt(_along(i, n), 1.0))
-	body.append_array(_front())
+	if mouth_open:
+		for i: int in range(lower.size() - 2, -1, -1):
+			body.append(lower[i])
+		for i: int in range(1, upper.size() - 1):
+			body.append(upper[i])
 	for i: int in range(n, -1, -1):
 		body.append(_pt(_along(i, n), -1.0))
 	# Its flukes, beating, their lower lobe swinging down into view.
@@ -490,7 +550,9 @@ func _process(_delta: float) -> void:
 	var fin_xf: Transform2D = Transform2D(0.25 + sin(t * 0.6) * 0.1, _on(0.66, 0.75))
 	var fin: PackedVector2Array = fin_xf * RisoShapes.smooth(PackedVector2Array([Vector2(110, -60), Vector2(30, 120), Vector2(-120, 260), Vector2(-300, 360), Vector2(-360, 370), Vector2(-260, 260), Vector2(-170, 110), Vector2(-140, -60)]), 3)
 	var dark: Array[PackedVector2Array] = [body, flukes, fin]
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], dark)
+	# Every plate cleared under it, so nothing printed under it shows through (a swallowed
+	# wizard's robe and glow among them).
+	ink.knock(RisoPrint.ALL_PLATES, dark)
 	ink.ink(RisoPrint.NIGHT, 0.75, dark, false)
 	ink.ink(RisoPrint.BLUE, 0.45, dark, false)
 	# Its pale underside, from the tail stock to its chin, up to its lips along its head; and its
@@ -520,7 +582,9 @@ func _process(_delta: float) -> void:
 	for k: int in range(4):
 		barnacles.append(RisoShapes.circle(fin_xf * Vector2(60.0 - float(k) * 55.0, 40.0 + float(k) * 60.0), 9.0 + float(k % 2) * 5.0, 10))
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], barnacles)
-	_draw_mouth()
+	if mouth_open:
+		_draw_lining(upper, lower)
+		_draw_baleen(upper, lower)
 	# Its eye, in sun, above the corner of its mouth: seen only as its head comes down.
 	var eye: Vector2 = _pt(HINGE + 0.02, 0.02)
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], [RisoShapes.circle(eye, 30.0, 18)])
@@ -531,18 +595,26 @@ func _process(_delta: float) -> void:
 		var at: Vector2 = _local(mark)
 		ink.ink(RisoPrint.PINK, 0.3 + 0.2 * warn, [RisoShapes.circle(at, lerpf(150.0, 60.0, warn), 32)])
 		ink.ink(RisoPrint.PINK, 0.7 + 0.3 * warn, [RisoShapes.circle(at, 10.0 + 6.0 * warn, 14)])
+	lining.finish()
 	ink.finish()
 
 
-## The front of its open mouth: the points between the tip of its lower jaw and the tip of its
-## upper one, curving back toward its hinge, so the mouth reads as open there (none while it is
-## shut).
-func _front() -> PackedVector2Array:
+## Its upper lip (`up`) or its lower one, from its hinge to the tip of its jaw, as its jaws are now.
+func _lips(up: bool) -> PackedVector2Array:
 	var out: PackedVector2Array = PackedVector2Array()
-	if gape <= 0.02:
-		return out
-	var low: Vector2 = _jawed(_spine(1.0), 1.0, false)
-	var high: Vector2 = _jawed(_spine(1.0), 1.0, true)
+	var m: int = 24
+	for i: int in range(m + 1):
+		var s: float = lerpf(HINGE, 1.0, float(i) / float(m))
+		out.append(_jawed(_on(s, LIPS), s, up))
+	return out
+
+
+## The front of its open mouth: the points between the tip of its lower jaw and the tip of its
+## upper one, curving back toward its hinge, so the mouth reads as open there.
+func _front(upper: PackedVector2Array, lower: PackedVector2Array) -> PackedVector2Array:
+	var out: PackedVector2Array = PackedVector2Array()
+	var low: Vector2 = lower[lower.size() - 1]
+	var high: Vector2 = upper[upper.size() - 1]
 	var back: Vector2 = (_hinge - (low + high) * 0.5).normalized() * low.distance_to(high) * 0.3
 	for i: int in range(1, 8):
 		var k: float = float(i) / 8.0
@@ -550,29 +622,20 @@ func _front() -> PackedVector2Array:
 	return out
 
 
-## Its open mouth, between its jaws: a deep rose lining, darker toward its throat, a pink tongue
-## along its lower jaw and a thick fringe of bright pink baleen hanging from its upper jaw. Shut,
-## nothing: its lips are where its dark upper jaw meets its pale throat.
-func _draw_mouth() -> void:
-	if gape <= 0.02:
-		return
-	var m: int = 24
-	var upper: PackedVector2Array = PackedVector2Array()
-	var lower: PackedVector2Array = PackedVector2Array()
-	for i: int in range(m + 1):
-		var s: float = lerpf(HINGE, 1.0, float(i) / float(m))
-		var lip: Vector2 = _on(s, LIPS)
-		upper.append(_jawed(lip, s, true))
-		lower.append(_jawed(lip, s, false))
+## The inside of its open mouth, printed under the wizard (a swallowed wizard falls onto it): a
+## deep rose lining, darker toward its throat, and a pink tongue along its lower jaw. Shut, nothing:
+## its lips are where its dark upper jaw meets its pale throat.
+func _draw_lining(upper: PackedVector2Array, lower: PackedVector2Array) -> void:
+	var m: int = upper.size() - 1
 	var inside: PackedVector2Array = upper.duplicate()
-	var front: PackedVector2Array = _front()
+	var front: PackedVector2Array = _front(upper, lower)
 	front.reverse()
 	inside.append_array(front)
 	for i: int in range(m, -1, -1):
 		inside.append(lower[i])
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK], [inside])
-	ink.ink(RisoPrint.NIGHT, 0.5, [inside], false)
-	ink.ink(RisoPrint.PINK, 0.6, [inside], false)
+	lining.knock(RisoPrint.ALL_PLATES, [inside])
+	lining.ink(RisoPrint.NIGHT, 0.5, [inside], false)
+	lining.ink(RisoPrint.PINK, 0.6, [inside], false)
 	# Its throat, darker, going in at the back of its mouth: the back of the mouth's own wedge, in two
 	# steps, darkest at the hinge.
 	for reach: float in [0.45, 0.22]:
@@ -582,16 +645,21 @@ func _draw_mouth() -> void:
 			back.append(upper[i])
 		for i: int in range(j, -1, -1):
 			back.append(lower[i])
-		ink.ink(RisoPrint.NIGHT, 0.2, [back], false)
+		lining.ink(RisoPrint.NIGHT, 0.2, [back], false)
 	# Its tongue: a mound along its lower jaw, highest in the middle.
 	var tongue: PackedVector2Array = lower.duplicate()
 	for i: int in range(m, -1, -1):
 		var k: float = float(i) / float(m)
 		tongue.append(lower[i] + (upper[i] - lower[i]) * 0.3 * sin(k * PI))
-	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK], [tongue])
-	ink.ink(RisoPrint.PINK, 0.75, [tongue])
-	ink.ink(RisoPrint.NIGHT, 0.12, [tongue], false)
-	# Its baleen: a gum along its upper lip, and from it thick plates hanging toward its lower jaw.
+	lining.knock([RisoPrint.NIGHT, RisoPrint.PINK], [tongue])
+	lining.ink(RisoPrint.PINK, 0.75, [tongue])
+	lining.ink(RisoPrint.NIGHT, 0.12, [tongue], false)
+
+
+## Its baleen, printed over a swallowed wizard: a gum along its upper lip, and from it a thick
+## fringe of bright pink plates hanging toward its lower jaw.
+func _draw_baleen(upper: PackedVector2Array, lower: PackedVector2Array) -> void:
+	var m: int = upper.size() - 1
 	var plates: Array[PackedVector2Array] = [_band(upper, 30.0)]
 	for i: int in range(1, m, 2):
 		var root: Vector2 = upper[i]
@@ -602,5 +670,5 @@ func _draw_mouth() -> void:
 		var hang: Vector2 = gap.normalized()
 		var across: Vector2 = (upper[i + 1] - upper[i - 1]).normalized()
 		plates.append(PackedVector2Array([root - across * 30.0, root + across * 30.0, root + hang * long + across * 20.0, root + hang * long - across * 20.0]))
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK], plates)
+	ink.knock(RisoPrint.ALL_PLATES, plates)
 	ink.ink(RisoPrint.PINK, 1.0, plates)

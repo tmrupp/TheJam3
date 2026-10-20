@@ -92,7 +92,7 @@ func run() -> void:
 	whale = placed("whale.tscn")[0] as Whale
 	check(whale.trapped and _exit(MapInfo.Exit.DEEPER).sealed() == &"whale", "trapped by the winds either side; its gate sealed")
 	var held: bool = await _into(whale)
-	check(held, "its jaws shut on the wizard, hidden in its mouth")
+	check(held, "the wizard falls into its mouth, onto its tongue, and its jaws shut over them")
 	check(player.visible, "and seen again in its belly")
 	var belly: int = Worlds.kind_of(Belly)
 	check(Worlds.kind_at(info.coord) == belly and Worlds.origin_of(info.coord) == Vector2i(x, row), "trapped, its gobble takes the wizard into its belly")
@@ -197,12 +197,16 @@ func _stand(at: Vector2) -> void:
 
 
 ## Stand the wizard on the perch with the trapped `whale` coming, and wait to be gobbled: into its
-## belly. Returns whether its mouth held the wizard, hidden, before it took them in.
+## belly. Returns whether the wizard, caught, fell into its mouth in sight, came to rest on its
+## tongue, and was hidden by its jaws shutting before it took them in.
 func _into(whale: Whale) -> bool:
 	var at: Vector2 = info.cell_position(perch)
 	await _stand(at)
 	_over(whale, at)
-	var held: bool = await within(func() -> bool: return whale.holding and not player.visible, Whale.TELL + Whale.DIVE * 2.0 + 1.0)
+	var held: bool = await within(func() -> bool: return whale.holding, Whale.TELL + Whale.DIVE * 2.0 + 1.0)
+	held = held and player.visible
+	held = held and await within(func() -> bool: return not whale.holding, Whale.SWALLOW + 0.5)
+	held = held and not player.visible and player.global_position.distance_to(whale._world(whale._resting())) < 60.0
 	await until(func() -> bool: return Worlds.is_side(info.coord) and not info.travelling, 15000)
 	await settle()
 	player.set_physics_process(false)
