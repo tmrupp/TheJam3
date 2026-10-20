@@ -29,6 +29,19 @@ func play() -> void:
 	print("in play")
 	check(info.world.crypts.size() >= 1 and placed("snuffer.tscn").size() >= 1 and placed("skeleton_enemy.tscn").size() >= Crypts.SKELETONS_MIN, "its crypt, its fonts and its sleepers are there")
 
+	var decor: RisoDecor = main.get_node("RisoDecor") as RisoDecor
+	var clear: Dictionary = {}
+	for n: Node in placed("snuffer.tscn") + placed("light_gate.tscn"):
+		var c: Vector2i = info.cell_at((n as Node2D).global_position)
+		for d: Vector2i in [Vector2i.ZERO, Vector2i.LEFT, Vector2i.RIGHT]:
+			clear[c + d] = true
+	var crowding: Array[Dictionary] = decor.items.filter(func(item: Dictionary) -> bool:
+		for c: Vector2i in item.get("cells", [item["cell"]]):
+			if clear.has(c):
+				return true
+		return false)
+	check(decor.items.size() > 0 and crowding.is_empty(), "no decor stands by a font or a light gate, to peek out from behind it (%d do)" % crowding.size())
+
 	print("snuffing and lighting")
 	var font: Snuffer = placed("snuffer.tscn")[0] as Snuffer
 	# Beside it, so it is awake.
