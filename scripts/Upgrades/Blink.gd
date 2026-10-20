@@ -1,9 +1,9 @@
 extends Node
 class_name Blink
 ## Blink, the move that replaces the dash: the wizard jumps up to `distance` along the held
-## direction, to the furthest spot there with room for them. Everything on the way is struck as a
-## dash would strike it (DashStrike: the jump happens while the dash runs), and every full moon on
-## the way is spent and gives the dash back.
+## direction, to the furthest spot there with room for them. It strikes nothing on its way, as the
+## dash does not (DashStrike: the jump happens while the dash runs), and every full moon on the way
+## is spent and gives the dash back.
 
 @onready var map_info: MapInfo = MapInfo.instance
 @onready var player: Player = $".."

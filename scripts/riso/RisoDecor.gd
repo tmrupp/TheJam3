@@ -88,8 +88,7 @@ const KNOCK_ALL: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, 
 const KNOCK_ROCK: Array[int] = [RisoPrint.BLUE, RisoPrint.NIGHT]
 ## How a cobweb is spun (in the sketch measures props are drawn at, see PROP_SCALE): a spoke every
 ## WEB_TURN radians about its hub, WEB_REACH long on the whole (14 to 24), and rings strung straight
-## across them WEB_RINGS of the way out. The spider's webs are spun to the same density of lines on
-## screen (WEB_RING_GAP and the rest, below; Spider.plain_web).
+## across them WEB_RINGS of the way out.
 const WEB_TURN: float = PI * 0.2
 ## An arrow slit, as a crossbow's is cut (CrossbowArt) and an empty one in the crags' walls: its
 ## niche in the face toward the room, how deep into the stone and how high; the bore on from it
@@ -1203,15 +1202,10 @@ static func strip(pts: PackedVector2Array, w0: float, w1: float) -> Array[Packed
 ## Props on floors, ceilings and walls are drawn at a sketch size, then grown by PROP_SCALE
 ## around where they grow from, so they read next to the wizard.
 const PROP_SCALE: float = 2.0
-## A cobweb's lines as they come out on screen, grown by PROP_SCALE, which the spider's webs share
-## whatever their size (Spider.plain_web): its rings this far apart (px), its spokes this far apart
-## at its outer ring, its spokes this wide where they are tied (thinning to WEB_TIP of that) and its
-## rings this wide.
-const WEB_RING_GAP: float = 0.35 * WEB_REACH * PROP_SCALE
-const WEB_SPOKE_GAP: float = 0.8 * WEB_REACH * WEB_TURN * PROP_SCALE
+## A cobweb's spokes as they come out on screen, grown by PROP_SCALE: this wide (px) where they are
+## tied, thinning to WEB_TIP of that.
 const WEB_W: float = 1.0 * PROP_SCALE
 const WEB_TIP: float = 0.6
-const WEB_RING_W: float = 0.8 * PROP_SCALE
 
 
 func _draw_item(item: Dictionary, c: Vector2, slots: Array, s: int) -> void:

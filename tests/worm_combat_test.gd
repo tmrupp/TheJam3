@@ -48,7 +48,6 @@ func run() -> void:
 	var nose: Vector2 = test_at + head.heading * head.radius * 0.8
 	check(mouth_flesh.any(func(poly: PackedVector2Array) -> bool: return Geometry2D.is_point_in_polygon(rear, poly)) and not mouth_flesh.any(func(poly: PackedVector2Array) -> bool: return Geometry2D.is_point_in_polygon(nose, poly)), "the Pac-Man mouth cuts open the front while keeping the back of the round head")
 	check(mouth_flesh.any(func(poly: PackedVector2Array) -> bool: return Geometry2D.is_point_in_polygon(test_at, poly)), "the shallow mouth leaves flesh across the head's middle, clear of its health dots")
-	var strike: DashStrike = player.get_node("DashStrike") as DashStrike
 	for direction: Vector2 in [Vector2.RIGHT, Vector2.LEFT, Vector2.DOWN, Vector2.UP, Vector2(1, 1).normalized(), Vector2(-1, 1).normalized(), Vector2(1, -1).normalized(), Vector2(-1, -1).normalized()]:
 		head.global_position = test_at
 		head.wound.hp = Worm.SEGMENT_HP
@@ -66,11 +65,8 @@ func run() -> void:
 		check(head.wound.hp == Worm.SEGMENT_HP and blocked, "a solid edge blocks the dash, which does not cut it, heading %s (hp %d, blocked %s)" % [direction, head.wound.hp, blocked])
 		check(not head.stunned() and player.health.health == 99, "the dash neither stuns the worm nor hurts the wizard")
 		await frames(20)
-	# Nor does a blink's path across the head.
 	head.global_position = test_at
 	head.wound.hp = Worm.SEGMENT_HP
-	strike.sweep(test_at + Vector2(-200, 0), test_at + Vector2(200, 0))
-	check(head.wound.hp == Worm.SEGMENT_HP, "a blink across the head does not cut it either")
 	player.dash.end()
 	player.end_invulnerable()
 	p.recovery = 0.0

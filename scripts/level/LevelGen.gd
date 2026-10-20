@@ -349,7 +349,7 @@ func place_exits (depth: int, debug: bool = false, climbing: bool = false) -> vo
 	var band_x: int = maxi(2, size.x / 5)
 	var chosen: Array[Vector2i] = []
 	# The bramble's gate level: the way on stands at the head of its shaft (BrambleShaft); the
-	# spider's, on its keep's top floor (SpiderKeep).
+	# golem's, on its hall's top gallery (LodeHall).
 	var fixed_on: Variant = shaft.get("on", keep.get("on"))
 	if fixed_on != null:
 		chosen.append(fixed_on)
@@ -801,8 +801,8 @@ func _init (_cells: Array, def: NextWorldDef) -> void:
 
 ## A gate level's boss: on the free floor nearest the way on it guards, at least BOSS_APART cells
 ## from it; the bramble in the knot at the head of its shaft (BrambleShaft), its cell the knot's
-## bottom corner beside the landing; the spider in the roost under its keep's roof, and its keep's
-## crossbows with it (SpiderKeep.arm); the necromancer at the deepest floor of the level's first
+## bottom corner beside the landing; the golem in its lair on its hall's ground floor, and the hall's
+## crossbows with it (LodeHall.arm); the necromancer at the deepest floor of the level's first
 ## crypt (Crypts), which holds nothing else; the beast in the middle of its chamber's floor
 ## (Institute), which holds nothing else either. The boss is placed in every visit's layout;
 ## the loader leaves it out once it is slain (RunState.bosses).
@@ -813,8 +813,8 @@ func place_boss (boss: StringName) -> void:
 	if not exits.has(MapInfo.Exit.DEEPER) or boss == &"whale":
 		return
 	if not keep.is_empty():
-		put(keep["roost"], Type.BOSS, boss)
-		SpiderKeep.arm(self)
+		put(keep["lair"], Type.BOSS, boss)
+		LodeHall.arm(self)
 		return
 	if boss == &"necromancer" and not crypts.is_empty() and not (crypts[0]["floors"] as Array).is_empty():
 		put(crypts[0]["deep"], Type.BOSS, boss)
@@ -915,10 +915,10 @@ func populate_level (def: NextWorldDef) -> void:
 	# One cave: every open space joined up, so everything placed below is connected to
 	# everything else through open air (gates and abilities aside).
 	connect_caves()
-	# The crags' way up: the spider's keep, cut before the gondola and the towers so they are laid
+	# The crags' way up: the golem's hall, cut before the gondola and the towers so they are laid
 	# round it (only in its gate levels).
-	if SpiderKeep.wanted(def):
-		SpiderKeep.cut(self)
+	if LodeHall.wanted(def):
+		LodeHall.cut(self)
 	arch.cut_gates(self)
 	# The garden's way up: the bramble's shaft, cut before anything is placed so the rest lands
 	# round it (only in its gate levels).
@@ -1020,9 +1020,10 @@ func populate_level (def: NextWorldDef) -> void:
 ## on a timer, their phase hashed too, so neighbouring runs are not in step; THORN_SWITCH_SHARE go
 ## on a switch (at most THORN_SWITCHES_MOST a level), on a floor reached from the way in some way
 ## off (switch_floor: one draw each). The switch drops them while it is on. A chasm's thorns and
-## the cells kept for a big thing (the bramble's shaft, the spider's keep) are never dealt, so a
-## chasm still bars the way. A thorn cell's extra_info says how it goes: {"timed": phase in
-## seconds} or {"switch": the switch's cell}; the switch's extra_info is the run's first cell.
+## the cells kept for a big thing (the bramble's shaft, the golem's hall) are never dealt, so a
+## chasm still bars the way. A thorn cell's extra_info says how it goes:
+## {"timed": phase in seconds} or {"switch": the switch's cell}; the switch's extra_info is the
+## run's first cell.
 const THORN_TIMED_SHARE: float = 0.3
 const THORN_SWITCH_SHARE: float = 0.25
 const THORN_SWITCHES_MOST: int = 2
@@ -1096,15 +1097,15 @@ var relic_gaps: Array[Rect2i] = []
 ## every other level.
 var shaft: Dictionary = {}
 
-## The spider's keep, in its gate levels (SpiderKeep.cut, which says what it holds); empty in every
-## other place.
+## The golem's lode hall at the top of the crags' gate levels (LodeHall.cut, which says what it
+## holds); empty in every other place.
 var keep: Dictionary = {}
 
 ## The cell of a sky level's balloon (SkyArchetype.place_balloon), else (-1, -1).
 var balloon: Vector2i = Vector2i(-1, -1)
 
-## Whether cell `v` is part of the spider's keep: inside it, or its walls, roof or ground. Nothing
-## else is built into it (secret rooms, vaults, cracked walls, climbing ledges).
+## Whether cell `v` is part of the golem's hall (keep): inside it, or its walls, roof or ground.
+## Nothing else is built into it (secret rooms, vaults, cracked walls, climbing ledges).
 func in_keep (v: Vector2i) -> bool:
 	return not keep.is_empty() and (keep["box"] as Rect2i).has_point(v)
 
@@ -1118,8 +1119,8 @@ func in_shaft (v: Vector2i) -> bool:
 ## them, or builds a secret room or vault into them.
 var kept_whole: Dictionary = {}
 
-## Whether cell `v` is kept as it is: the bramble's shaft (in_shaft), the spider's keep (in_keep)
-## or kept_whole.
+## Whether cell `v` is kept as it is: the bramble's shaft (in_shaft), the golem's hall (in_keep) or
+## kept_whole.
 func kept (v: Vector2i) -> bool:
 	return kept_whole.has(v) or in_shaft(v) or in_keep(v)
 

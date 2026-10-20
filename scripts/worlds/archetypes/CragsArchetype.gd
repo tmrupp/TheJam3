@@ -89,7 +89,7 @@ const CAVERN_RY: Vector2i = Vector2i(3, 7)
 ## The gondola's line: STOPS stations by the band's row (stops_at: STOPS.x on its first row, more on
 ## each, STOPS.y on its last; at least STATIONS_MIN), spread evenly from near the bottom of the level
 ## to near its top, which is as tall as they want STATION_GAP rows apart (size_for), give or take
-## STATION_JITTER (fewer where they would come closer than STATION_GAP: the spider's gate level), each
+## STATION_JITTER (fewer where they would come closer than STATION_GAP: the golem's gate level), each
 ## anywhere across the level, the track climbing from each to the next. The car is two cells wide and
 ## two high, with a row for its hanger over it, and runs straight up and up 45° diagonals only: it
 ## leaves a station straight up for LEAVE rows, climbs toward the next up a diagonal (a cell across
@@ -905,8 +905,8 @@ static func _crosses(r: Rect2i, cells: Dictionary) -> bool:
 ## LevelGen.circuit: {"path": the car's floor cell (the left of its two) a cell at a time from the
 ## first station to the last, "stops": where along the path each station is (an index into it),
 ## "gates": each station's doorway cell, "inner": the way each faces into the level (+1 right, -1
-## left)}. A level too short for one gets none. In the spider's gate level it stops short of the
-## keep at the top (SpiderKeep), climbing no higher than LEAVE rows and a few more under it.
+## left)}. A level too short for one gets none. In the golem's gate level it stops short of its
+## hall at the top (LodeHall), climbing no higher than LEAVE rows and a few more under it.
 static func lay_circuit(w: LevelGen) -> void:
 	var top: int = TOP_TIER
 	if not w.keep.is_empty():
@@ -914,7 +914,7 @@ static func lay_circuit(w: LevelGen) -> void:
 	var bottom: int = w.size.y - 3
 	var rows: int = bottom - top
 	# As many stations as the level is laid out for, fewer where they would come closer than a tier
-	# wants for a tower (STATION_GAP: the spider's gate level, its keep taking the top of the cliff).
+	# wants for a tower (STATION_GAP: the golem's gate level, its hall taking the top of the cliff).
 	@warning_ignore("integer_division")
 	var want: int = mini(stops_at(w.depth), rows / STATION_GAP + 1)
 	if want < STATIONS_MIN:

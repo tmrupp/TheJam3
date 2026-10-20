@@ -4,7 +4,7 @@ extends RefCounted
 ## what is caught in a shape round the wizard, and striking it as a hex bolt does (HexBolt). An
 ## enemy is wounded (at least as much as any blow wounds it, Wound.least), never stunned (only a
 ## parry stuns); a
-## shield takes the blow whole; a spider is struck only on its round body (Spider.struck_by); a
+## shield takes the blow whole; a foe with a shape of its own is struck only on it (Shaped); a
 ## worm only once, in the first segment caught (Wound.whole); things that answer a bolt themselves
 ## (a switch, a bell, a moth swarm: HexBolt.ANSWERS) answer this too. Rock between the wizard and
 ## a thing shelters it. Thorns are struck too (`thorns_caught`). Spells aimed one way throw the
@@ -39,8 +39,9 @@ const THORN_LOOK: float = 400.0
 
 ## Everything in the hex_target group caught by `catches` (a point in the world -> whether it is
 ## inside the spell's shape), sheltered by no rock from `from`, each whole thing once (a worm in
-## its nearest segment), nearest first. A spider is caught when `catches_spider` says so of it.
-static func caught(tree: SceneTree, from: Vector2, catches: Callable, catches_spider: Callable) -> Array[Node]:
+## its nearest segment), nearest first. A foe with a shape of its own (Shaped) is caught when
+## `catches_shaped` says so of it.
+static func caught(tree: SceneTree, from: Vector2, catches: Callable, catches_shaped: Callable) -> Array[Node]:
 	var out: Array[Node] = []
 	var wholes: Array[Node] = []
 	var found: Array[Node] = []
@@ -52,8 +53,8 @@ static func caught(tree: SceneTree, from: Vector2, catches: Callable, catches_sp
 	for e: Node in found:
 		var at: Vector2 = (e as Node2D).global_position
 		var hit: bool = false
-		if e is Spider:
-			hit = bool(catches_spider.call(e as Spider))
+		if e is Shaped:
+			hit = bool(catches_shaped.call(e as Shaped))
 		else:
 			for k: int in range(4):
 				var p: Vector2 = at + Vector2(0.0, lerpf(SPAN_DOWN, -SPAN_UP, float(k) / 3.0))
@@ -86,12 +87,18 @@ static func clear(from: Vector2, to: Vector2) -> bool:
 	return true
 
 
-## Strike `e` heading `dir`: wound it by `damage` (Wound.dealt: at least its Wound.least, and at least
-## 1 while a parry has it stunned); a shield takes it whole (unless `empowered`: then it breaks at
-## once), and what answers a bolt answers (a spire flips its tower only to an `empowered` blow).
+## Strike `e` heading `dir`, from `from` (where the blow came from: the wizard; unknown, a little way
+## back along `dir`), unless a foe with a shape of its own takes the blow itself (Shaped.blow): wound it by `damage` (Wound.dealt: at least
+## its Wound.least, and at least 1 while a parry has it stunned); a shield takes it whole (unless
+## `empowered`: then it breaks at once), and what answers a bolt answers (a spire flips its tower
+## only to an `empowered` blow).
 ## `spell` names the spell that struck (&"" for a plain blow); nothing reads it since the institute's
 ## glyph seals were taken out.
-static func strike(e: Node, dir: Vector2, damage: int, _spell: StringName = &"", empowered: bool = false) -> void:
+static func strike(e: Node, dir: Vector2, damage: int, _spell: StringName = &"", empowered: bool = false, from: Vector2 = Vector2.INF) -> void:
+	if e is Shaped:
+		var source: Vector2 = from if from.is_finite() else (e as Node2D).global_position - dir * HexBolt.REACH
+		if (e as Shaped).blow(source, dir, damage, empowered):
+			return
 	# A scholar struck by the wizard turns on them (Scholar.rouse), the blow theirs.
 	if e is Scholar:
 		(e as Scholar).rouse()

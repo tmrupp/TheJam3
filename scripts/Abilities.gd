@@ -8,7 +8,7 @@ class_name Abilities
 ##   - damage, on the Spell button (Q, or the pad's X): hex (a bolt), slash (an arc in front),
 ##     nova (a burst all round), push (a gust that shoves), seeker (a homing bolt) and lunge (a
 ##     stab that throws the wizard forward). The wizard's only ways to hurt; the
-##     dash no longer strikes (DashStrike only tears webs and cuts threads). Whichever is held, the
+##     dash no longer strikes (DashStrike: it passes through enemies). Whichever is held, the
 ##     button also raises the parry guard (Parry, not a spell of its own: its base effect, on its
 ##     own cooldown), so every damage spell parries.
 ##   - movement, on the Dash button (Shift, or the right trigger): the dash, blink, astral

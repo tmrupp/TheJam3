@@ -6,9 +6,7 @@ class_name HexBolt
 ## only chips, hex_hit) or after RANGE. Cast empowered (Empower), it bores on through cracked rock,
 ## crumbling up to `bore` cells of it (BORE for a hex), breaks a shield at once and strikes a tower's
 ## spire (Spire.empowered_hit); an empowered seeker turns toward a spire it can see rather than an
-## enemy. It tears the spider's webs it
-## passes through (SpiderWeb) and flies on, and cuts a spider's thread it crosses (Spider), ending
-## there. Thorns that are out stop it as rock does (Spikes.struck_by, THORN_REACH), bursting on them.
+## enemy. Thorns that are out stop it as rock does (Spikes.struck_by, THORN_REACH), bursting on them.
 ## A seeking bolt (Seeker: `seek` above 0) turns toward the nearest enemy it can see within
 ## SEEK px as it flies.
 ## Printed as a comet of spell light (accent ink, like the wand tip) with a
@@ -108,15 +106,14 @@ func _physics_process(delta: float) -> void:
 			dir = dir.rotated(turn)
 	var to: Vector2 = from + dir * speed * delta
 	# Enemies along the step, nearest first.
-	SpiderWeb.tear_along(get_tree(), from, to)
 	var targets: Array[Node] = []
 	for e: Node in get_tree().get_nodes_in_group(&"hex_target"):
 		if not is_instance_valid(e) or e.is_queued_for_deletion() or Wound.whole(e) in struck:
 			continue
 		var at: Vector2 = (e as Node2D).global_position
 		var near: PackedVector2Array = Geometry2D.get_closest_points_between_segments(from, to, at + Vector2(0, SPAN_DOWN), at - Vector2(0, SPAN_UP))
-		# A spider is round, with its thread over it: struck only on its body.
-		var meets: bool = (e as Spider).struck_by(from, to, Spider.BOLT_REACH) if e is Spider else near[0].distance_to(near[1]) <= REACH
+		# A foe with a shape of its own (the golem's chunks) is struck only on that shape.
+		var meets: bool = (e as Shaped).struck_by(from, to, Shaped.BOLT_REACH) if e is Shaped else near[0].distance_to(near[1]) <= REACH
 		if meets:
 			targets.append(e)
 	targets.sort_custom(func(a: Node, b: Node) -> bool: return from.distance_squared_to((a as Node2D).global_position) < from.distance_squared_to((b as Node2D).global_position))
@@ -127,13 +124,8 @@ func _physics_process(delta: float) -> void:
 	if thorn_at.is_finite() and from.distance_to(thorn_at) < wall_d:
 		wall = {"position": thorn_at}
 		wall_d = from.distance_to(thorn_at)
-	# A spider's thread on the way, short of the rock, is cut where the bolt meets it.
-	var thread: Dictionary = Spider.thread_across(get_tree(), from, to, Spider.THREAD_REACH)
-	var thread_d: float = float(thread["d"]) if not thread.is_empty() and float(thread["d"]) <= wall_d else INF
 	for e: Node in targets:
 		if from.distance_to((e as Node2D).global_position) > wall_d + REACH:
-			break
-		if from.distance_to((e as Node2D).global_position) > thread_d:
 			break
 		# A worm is struck once, in the first segment met (Wound.whole).
 		if Wound.whole(e) in struck:
@@ -143,6 +135,12 @@ func _physics_process(delta: float) -> void:
 		if e is Scholar:
 			(e as Scholar).rouse()
 			(e as Scholar).wizard_blow = true
+		# A foe with a shape of its own may take the bolt itself (Shaped.blow).
+		if e is Shaped and (e as Shaped).blow(from, dir, damage, empowered):
+			if not pierce or struck.size() > 1:
+				_end((e as Node2D).global_position)
+				return
+			continue
 		# A shield takes the bolt whole: no wound.
 		var shield: Shield = Shield.of(e)
 		if shield != null and shield.absorb(reflected or empowered, dir):
@@ -164,10 +162,6 @@ func _physics_process(delta: float) -> void:
 		if not pierce or struck.size() > 1:
 			_end((e as Node2D).global_position)
 			return
-	if thread_d < INF:
-		(thread["spider"] as Spider).cut(thread["at"])
-		_end(thread["at"])
-		return
 	if not wall.is_empty():
 		var hit: Object = wall.get("collider")
 		if empowered and bore > 0 and hit is CrackedWall:

@@ -4,8 +4,8 @@ extends TestKit
 ## band's every gate level for the rest of the run and leaving a free relic, every boss in its gate
 ## level (no arenas), no hyperspace past a living boss's gate, and the F7 panel's Slay boss. The rules
 ## are shown with the beast (Beast), in its gate level, its souls cleared away (beast_test hunts
-## them); the worm, the bramble, the spider and the necromancer have worm_test, bramble_test,
-## spider_test and necromancer_test.
+## them); the worm, the bramble, the golem and the necromancer have worm_test, bramble_test,
+## golem_test and necromancer_test.
 ## godot --headless --path . --script res://tests/gate_test.gd
 
 
@@ -14,7 +14,7 @@ func run() -> void:
 	print("the gates")
 	var g: int = NextWorldDef.GARDEN_ROWS
 	var b: int = NextWorldDef.BAND
-	var want: Dictionary = {g: &"worm", -g: &"bramble", g + b: &"necromancer", g + 2 * b: &"beast", -(g + b): &"spider", -(g + 2 * b): &"whale"}
+	var want: Dictionary = {g: &"worm", -g: &"bramble", g + b: &"necromancer", g + 2 * b: &"beast", -(g + b): &"golem", -(g + 2 * b): &"whale"}
 	var rows_ok: bool = true
 	for row: int in range(-(g + 4 * b), g + 4 * b + 1):
 		rows_ok = rows_ok and Bosses.gate_at(row) == StringName(want.get(row, &""))
@@ -22,7 +22,7 @@ func run() -> void:
 		rows_ok = rows_ok and Bosses.row_of(want[row]) == row
 	check(rows_ok, "the garden's gates at rows %d and %d, and each band's far end, each with its boss" % [g, -g])
 	check(Bosses.crossed(1, g + 2) == [&"worm"] and Bosses.crossed(g, g + 1) == [&"worm"] and Bosses.crossed(g + 1, g + 4).is_empty(), "a way out past a gate level crosses its gate")
-	check(Bosses.crossed(g + 4, 1).is_empty() and Bosses.crossed(-2, g + 3) == [&"worm"] and Bosses.crossed(2, -(g + b + 1)) == [&"bramble", &"spider"], "toward the start none; across it, only the far side's")
+	check(Bosses.crossed(g + 4, 1).is_empty() and Bosses.crossed(-2, g + 3) == [&"worm"] and Bosses.crossed(2, -(g + b + 1)) == [&"bramble", &"golem"], "toward the start none; across it, only the far side's")
 	check(Relics.at(Vector2i(28, g)) == &"" and Relics.at(Vector2i(28, g + b)) == &"", "a gate level holds no relic of its own")
 	var in_level: bool = true
 	for row: int in want:

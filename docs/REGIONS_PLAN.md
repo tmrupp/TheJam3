@@ -7,8 +7,8 @@ places, archetypes, side worlds, relics) and follows the owner's notes, now the 
 from `AGENTS.md` ("can go up or down", "bosses, possibly guarding relics, must be defeated").
 
 Phases 1 (rows both ways), 2 (climbing levels), 3 (the gate, with a stand-in boss) and 4 (the
-worm and the bramble) are built, and of phase 5 a first pass of the crags and of the spider in its
-keep; the rest is not yet. Each section says what is decided, what
+worm and the bramble) are built, and of phase 5 a first pass of the crags and their lodestone golem
+in its hall; the rest is not yet. Each section says what is decided, what
 is proposed, and what is still open; the phases at the end give the order of work.
 
 ## 1. Decided
@@ -17,9 +17,9 @@ is proposed, and what is still open; the phases at the end give the order of wor
 |---|---|
 | How the branches hang off the start | The garden is the hub. It straddles the surface: a run starts in its middle, and it has a gate at each end. |
 | Which bosses guard the garden | Two: the **worm** guards the way down, the **bramble** the way up. |
-| Where a fight happens | Every boss is in the band's last level itself, its gate level, with whatever it needs built into that level (the bramble's shaft, the spider's keep, the necromancer's crypt). No arenas. |
+| Where a fight happens | Every boss is in the band's last level itself, its gate level, with whatever it needs built into that level (the bramble's shaft, the golem's hall, the necromancer's crypt). No arenas. |
 | How often a boss is beaten | **Once per run.** Until it is slain, every band-end level of its band (in every world column) holds it and is sealed; once slain, all of them open for the rest of the run, and it is never met again. |
-| Crags and castle | One band: vertical cliff levels dressed with castle ruins. The spider's keep is built at the top of its gate level. |
+| Crags and castle | One band: vertical cliff levels dressed with castle ruins. The lodestone golem's hall is built at the top of its gate level. |
 | Hyperspace across branches | Yes: a hyperspace may cross the start into the other branch (35 % of them), still leading 4 rows further from the start. |
 | The cemetery | Stays the cemetery: its terraces, decor and bell gates, with crypts (mausoleums, catacomb tunnels) added behind bell gates. Light and darkness start to matter here, within a level rather than by band (§7). |
 | The last band down | The **institute**, in place of the catacombs (which become the cemetery's crypts): a sunken institute of magic with a library among its wings; students and masters, strong spellcasters, and abominations rising from the deep, all fighting one another as well as the wizard; exams as its gates, sat with papers fetched on field trips; departments with portals to real levels of other bands, in the same column (§7). The eldritch beast stays its boss. |
@@ -32,7 +32,7 @@ the start. Row 0 is where a run begins; rows below it are down, rows above it (n
 
 ```
    sky             rows −10 … −15     whale (its belly is a level)
-   crags / castle  rows  −4 …  −9     spider (its keep, in the gate level)
+   crags / castle  rows  −4 …  −9     lodestone golem (its hall, in the gate level)
  ─ garden ───────  rows  −3 …  +3     start at 0
         up gate,   row −3:  the bramble (in the level)
         down gate, row +3:  the worm (in the level)
@@ -118,8 +118,8 @@ at `(x, -(k * STRIDE + d) - 1)` (`Worlds.side_at`). The up branch needs those ro
   rooms and relics" in `DEEPER_PLAN.md`): shrines teach its higher tiers from then on. If every move
   is known, the plinth holds a skeleton key and a star cluster instead.
 - **In the level.** Every boss is placed in its gate level itself (`LevelGen.place_boss`), which
-  is generated with what it needs: the bramble's shaft (`BrambleShaft`) and the spider's keep
-  (`SpiderKeep`) are cut into it right after its caves are joined, before anything else is laid,
+  is generated with what it needs: the bramble's shaft (`BrambleShaft`) and the golem's hall
+  (`LodeHall`) are cut into it right after its caves are joined, before anything else is laid,
   so only the gate levels change, and hold the way on. (There were arenas, side worlds behind a
   door in the gate level; they are gone.)
 - **Code shape.** A `Boss` base (`scripts/bosses/Boss.gd`): its name, health (shown as pips or
@@ -142,8 +142,9 @@ at `(x, -(k * STRIDE + d) - 1)` (`Worlds.side_at`). The up branch needs those ro
 The tuning numbers are first guesses for playtest. They are Normal's: on a harder difficulty preset
 (`Difficulty`, §"Difficulty presets" in `DEEPER_PLAN.md`) each boss runs its own clock faster
 (`Difficulty.haste`, 1.15 on Hard, the default, and 1.3 on Brutal), so its warnings, bites, rests
-and crawling all come that much sooner: the worm's whole step, the spider's whole step (its webs'
-regrowth too), the bramble's vines' cadence and its bulbs' seeds. A stun's length is not changed.
+and crawling all come that much sooner: the worm's whole step, the golem's whole step (its slam,
+hurl, leap and recall), the bramble's vines' cadence and its bulbs' seeds. A stun's length is not
+changed.
 
 ### The bramble (garden, up gate, in the level)
 
@@ -271,74 +272,100 @@ through the gate level's tunnels, as Tom described.
 - **Procedural.** Its choices come from an RNG of its own, seeded by the level; nothing draws
   from the world RNG, so layouts are unchanged.
 
-### The spider (crags / castle, its keep in the gate level)
+### The lodestone golem (crags / castle, its hall in the gate level)
 
-*A first pass is built* (`Spider`, `SpiderKeep`, `SpiderWeb`, `SpiderWound`,
-`prefabs/spider.tscn`). The crags' gate level (row −9, in every world) has the spider's keep built
-at its top, part of the crags' castle.
+*Built (October 2026, owner's design), in place of the spider (a black widow in a keep of broken
+floors, its webs, threads and brood), which is retired completely: its scripts are gone, and a
+saved run's slain spider and its relic are read as the golem's (`Bosses.RENAMED`,
+`RunState.gone_kinds`).* The crags' gate level (row −9, in every world) has
+the golem's **lode hall** built at its top. The crags are the band
+of the lodestones and the empowered cast (§7), and the golem is their test: its body breaks only to
+an empowered spell, and the charge for one is won from it by parrying.
 
-- **The keep** (`SpiderKeep.cut`, hashed from the level seed, no world RNG). Cut right after the
-  caves are joined and before the gondola and the towers, which are laid round it (the gondola
-  stops below it); where it goes is the columns whose stone walls over the least of the caves and
-  of the crags' other buildings. Its stone is kept whole and nothing else is placed inside it, and
-  only the spider's gate levels change. 22 × 32 cells
-  of masonry: a hall 18 wide, a roost of 8 rows of air under the roof, then 5 broken floors 4 rows
-  apart (`STOREY`) and the ground storey. Every floor is broken by the **well**, a hole 3 wide in
-  the same columns all the way down, and by a **stair hole** on alternate sides of it, with a
-  one-way ledge under it halfway down the storey below, so each floor is climbed in two of the
-  wizard's own hops. A doorway through each wall at the ground storey leads out to the caves, and
-  the way on stands on the top floor against a wall, so the way up out of the crags is reached
-  only up through the keep. What it holds is noted in `LevelGen.keep`.
-- **Webs** (`SpiderWeb`): across every hole of the well and half the stair holes. In one the
-  wizard moves at most 110 px/s across, rises 90 and sinks 55 (a jump stalls, a fall is slow), and
-  the dash does not come back (`Player`). A hex bolt (flying on) or a dash tears one; it is spun
-  again 12 s later. The spider passes through its own webs. Not yet: scuttling along them as
-  paths. Every web is spun as the decor's cobwebs are, its lines kept evenly spaced as it grows (`docs/RISO_PRINT.md`); one across a hole is two small round webs side by side.
-- **Its look** is one look in every world (a black widow: a pink hourglass, pink fangs), its legs
-  set in poses rather than worked out step by step (`docs/RISO_PRINT.md`).
-- **Spitting.** From the canopy, every 2.8 s (`SPIT_EVERY`, the first 1.5 s after it wakes), while
-  it sees the wizard within 12 cells with no rock between and is not about to drop on them, it
-  rears 0.4 s and spits a glob of web (`WebShot`, 600 px/s, straight). It sticks where it lands,
-  on the wizard or the rock, as a **splat** (`Spider.splat`): a small web 1.4 cells across that
-  holds them as a web does (slowed, the dash not coming back) for 6 s, or until a bolt or a dash
-  tears it. Every second spit (`EGG_EVERY`) is an **egg sac** instead (`EggSac`), lobbed in an arc
-  to come down where the wizard is; landed, it swells 2.5 s and hatches 3 **spiderlings**
-  (`Spiderling`), which run along the floors at the wizard (170 px/s), hop steps and at the wizard
-  just over them, and bite; any blow kills one or bursts a sac (`BroodWound`, no stars), and a
-  spiderling withers after 9 s. No more than 9 of its brood are about at once, and they go when
-  it dies.
-- **The keep's crossbows** (`SpiderKeep.arm`, placed with the spider, no RNG draws): one to each
-  floor, in the row the wizard stands in, on alternate walls, set into the hall's wall and shooting
-  into the hall (a `Crossbow` with `inward`), stone behind, so nothing reaches them to break them.
-  They shoot dead straight along the storey, as every crossbow does (`docs/DEEPER_PLAN.md`), and
-  their arrows **pierce the spider's back** (`Spider.pierce`): an arrow meeting its body puts out an
-  eye whatever it is doing, so luring it into a crossbow's line (it drops on the wizard where they
-  stand) turns the keep against it. They wound its spiderlings and burst its egg sacs too.
-- **Hunting.** Asleep on its canopy under the roof until the wizard comes within 16 cells; then it
-  crawls along the roof to be over them (or over the hole nearest them, waiting), rears 0.45 s
-  (fangs flashing pink), drops on its thread (1500 px/s) to where they were, holds its bite
-  0.9 s, climbs back (400 px/s) and rests 0.9 s. It drops and climbs only through the middle of a
-  hole (its body is about 140 px across).
-- **Hard back.** A strike glances off unless it is **open**: biting (its face), stunned, or fallen.
-  Open, any bolt, dash or parry (even one that only stuns, `Wound.least`) puts out one eye.
-- **The thread.** A hex bolt or a dash across it cuts it (`Spider.thread_across`; the bolt ends
-  there): it tumbles to the floor below and lies on its back 4 s, then scurries along that floor
-  to the nearest spot with a clear line up to the roof (or off into a hole, falling on down) and
-  climbs a new thread, which can be cut again. Its body is a capsule that turns with it
-  (`struck_by`); the thread leaves its abdomen's tip clear of that, so a way over its back cuts
-  the thread rather than glancing off.
-- **Parry.** A parried bite puts out an eye and stuns it on the spot (`Parry.STUN`; nothing else
-  stuns it, `Stunner.parry_only`); when the stun passes it climbs back up.
-- **Health** as eyes: 8 (`EYES`), bare paper, accent while it is open, dark once put out (the small
-  ones at the back first). With the last it curls up, falls, shrivels (1.3 s), and its relic waits
-  on the floor where it lies. A lantern death brings it back whole, webs and all.
-- **Size.** Every size of it follows `Spider.ART` (2.6: its abdomen's tip 156 px behind its middle).
-- `tests/spider_test.gd` covers the keep and the fight (its crossbows, spitting, splats and brood
-  too); `tests/capture_spider.gd`, `capture_spider_walk.gd` and `capture_spider_brood.gd` take
-  stills.
-- **Status / not yet.** First pass, untuned. Not yet: playtested by hand; webs as its paths; a
-  cue for where it will drop beyond the rear; the spider's size against the 3-row storeys (it
-  fills most of one) wants a look in play.
+- **The lode hall** (`LodeHall`, *built*; `tests/lode_hall_test.gd`). Cut right after the caves are
+  joined, before the gondola and the towers, which are laid round it, and hashed from the level seed
+  (no world RNG), so only the crags' gate levels change (they changed when it took the spider's
+  keep's place; `layout_fingerprint_test` fingerprints none of them). 26 × 21 cells of masonry: a
+  hall 22 wide under a roof 2 thick, three storeys of 5 rows of air (`ROOM`: the golem stands about
+  3 cells tall) with the two galleries between them, and the ground under it all. Each gallery is
+  broken by the golem's **gap**, 5 wide, which it leaps up and drops through, and in the other half
+  of the hall by the wizard's **stair hole**, 2 wide, with two one-way ledges under it a hop apart:
+  one right under the hole, one beside it toward the middle, so the climb zigzags in the wizard's
+  own hops. The two gaps are on opposite sides, so the golem crosses the middle gallery to go from
+  the ground to the top. The way on stands on the top gallery against the wall on its gap's side,
+  across from where the stair comes up; the golem sleeps on the ground floor under the lower
+  gallery's gap (`lair`). A doorway through each wall at the ground storey leads out to the caves; a
+  crossbow is set in the walls on each gallery, shooting into the hall (`LodeHall.arm`); its stone
+  is kept whole and nothing else is placed in it. What it holds is noted in `LevelGen.keep`.
+- **The golem** (`Golem`, `GolemWound`, `prefabs/golem.tscn`; *its body, chunks, heart and
+  shards built*, standing still in its lair: `tests/golem_test.gd`, `capture_golem.gd`). A hulking
+  figure of dark stone about 2.5 cells tall, 10 **chunks** of lodestone (`Golem.PARTS`: two legs, a
+  belly, a chest plate in two halves, two shoulders, two arms and a head) held by their pull round
+  a **heart** (accent). A `Shaped` foe: a blow meets the first part on the line from where it came
+  from to the heart (`Golem.part_met`), whatever struck it (a spell, a parry, an arrow), so what
+  stands in the way breaks first: from the side, an arm, then the chest plate. It sleeps in its lair
+  until the wizard comes into its hall (or strikes it), then walks its floor after them (120 px/s,
+  `WALK`; the wizard runs at 300), facing them, never off a floor's end nor over its gap, though it
+  steps over a stair hole.
+- **Chunks break only to an empowered spell.** A plain blow glances off with grit, as on cracked
+  rock. An empowered spell (the spells' blows tell a `Shaped` foe so: `Shaped.blow`) shatters the
+  chunk it meets, and a shattered chunk leaves nothing. Not yet: each spell its own way, as it
+  breaks cracked rock (the hex boring on to the chunk behind, the slash cleaving the chunks in its
+  arc, the nova a ring of them, the push the one before it, the lunge ramming through, the seeker
+  homing on one); for now each empowered blow shatters the one chunk it meets.
+- **The hall tempers any spell** (*built*: `LodeHall.tempers`, `Empower.tempers_now`). Inside the
+  lode hall, whatever damage spell is in the slot may be cast empowered, tempered by a lodestone or
+  not; outside it the lodestones' rules are unchanged.
+- **The slam: its strong attack, and the charge** (*built*). The wizard within 300 px of it on its
+  floor (`SLAM_RANGE`), it raises both fists, pink (`SLAM_WARN`, 0.7 s), and brings them down in
+  front of it, held 0.35 s (`SLAM_HOLD`), resting 0.8 s after; a **shockwave** (`GolemShock`, pink,
+  64 px high, 700 px/s, as far as 800 px or a wall or the floor's end) runs each way along the floor
+  from where they land, jumped. Its fists' touch is its own: a guard up as they come down parries
+  them, stunning it (`Parry.STUN`, 3 s) and popping out `Golem.SHARDS` (2) **lode shards** from the
+  cracks between its chunks, scattering onto the floor near it (`Golem.shed_shards`, `LodeShard`).
+  Touching a shard while the empowered cast is spent makes it ready at once (`Empower.refill`);
+  while one is ready a shard is left where it lies (the charge is one). Shards come from nothing
+  else, and go when the golem dies.
+- **Recall** (*built*). Anything of it lying loose (shards, a hurled chunk) 3 s while it is not
+  stunned (`RECALL_DELAY`), it calls it all back: pink lines along each way home warn for 0.8 s
+  (`RECALL_WARN`), then each flies home at 900 px/s through where the wizard stood, hurting on the
+  way; a hurled chunk is whole again, and a shard regrows a shattered chunk, one over its heart
+  first. So each parry is a race: grab both shards and spend them.
+- **The heart** (*built*). Once its chest chunks (`Golem.COVERS`: the belly and the chest plate)
+  are gone the heart is bare, and any blow, a parry and the crossbows' arrows wound it. Its health
+  is 3 cracks on the heart itself (`Golem.HEART`); with the third it falls apart into a heap
+  (`DIE_TIME`, 1.4 s), and its relic waits there (`MapInfo.boss_slain`). A lantern death brings it
+  back whole. Not yet: the arrows' iron bent toward it.
+- **Its other moves** (*built*). The **hurl**: the wizard 520 px off or more (`HURL_MIN`), or on
+  another storey, and in its sight, every 5 s at most (`HURL_EVERY`, the first 5 s after it wakes),
+  it tears off a chunk of its own (`HURLED`: a shoulder, then the other, then its head), holds it up
+  in pink (`HURL_WARN`, 0.6 s) and lobs it to land where the wizard is (0.9 s, `GolemStone`); the
+  chunk is gone from it while it flies and lies, until called back. The **leap**: the wizard on
+  another storey of the hall a second (`LEAP_AFTER`), it walks to the gap between (under it, or to
+  its edge), crouches 0.8 s with the spot it will land on marked in pink (`LEAP_WARN`), and leaps
+  (0.9 s, `LEAP_TIME`): up through the gap and across onto the gallery beside it on the wizard's
+  side, or across and down the gap to the floor under it; landing, a shockwave runs each way.
+  Storey by storey, it follows the wizard all the way up the hall.
+- **Only its fists are its own touch.** The shockwave, a hurled chunk and a recalled shard each
+  hurt as a hazard does: a guard catches them as it catches thorns, with nothing to strike, so only
+  a parried slam stuns it and sheds shards.
+- **Procedural and timed as the others.** Nothing draws from any RNG; its clock runs on
+  `Difficulty.haste`.
+- **Phases.** (1) *Done:* the spells' blows on a foe with a shape of its own made general
+  (`Shaped`: `struck_by`, `arrow_hit`), in place of the spider's own path through `SpellStrike`,
+  the bolt and the arrows; `RisoShapes.strand` in place of the spider's. (2) *Done:* the lode
+  hall, with a layout test. (3) *Done:* the golem, its chunks, shards and heart (`Golem`,
+  `GolemWound`, `LodeShard`, `prefabs/golem.tscn`), a blow on a `Shaped` that knows where it came
+  from and whether it was empowered (`Shaped.blow`), the hall's tempering (`Empower`), and
+  `golem_test`. (4) *Done:* waking and walking, the slam (parried, it sheds shards), the hurl, the
+  leap and the recall (`GolemShock`, `GolemStone`; `golem_test`, `difficulty_test`). (5) *Done:* its
+  art, after the lodestones' ore (`docs/RISO_PRINT.md`; `capture_golem.gd`).
+  (6) *Done:* `Bosses.UP` to `&"golem"` (old saves' `&"spider"` read as it: `Bosses.RENAMED`), the
+  spider and everything only it used removed (its keep, webs, threads, brood, the dash's sweep and
+  the wizard's slowing in a web), and the stand-in the tests used meanwhile with it; the tests that
+  named it moved to the golem, and these docs. Left: tuning in play, and each spell shattering
+  chunks its own way.
+- **Tuning.** 10 chunks, 2 shards a parry and 3 wounds to the heart are first guesses.
 
 ### The whale (sky, roaming on its top row; inside: its belly)
 
@@ -463,7 +490,7 @@ inside and called from a post at each open station, its sides down only while it
 rock-bug coming along its cable and in through its roof on each stretch (stunned off, or let off
 when it stops), stalactites that fall on whoever passes under (the falling rocks), rock-bug nests out
 on the cliff, and crossbows built into the towers' and keeps' walls,
-shooting out through arrow slits at the wizard and stopped only from inside (`Crossbow`). The spider has a first pass (§6).
+shooting out through arrow slits at the wizard and stopped only from inside (`Crossbow`). The lodestone golem is built (§6).
 
 - **Terrain.** Vertical: tall cliff faces with narrow ledges, chimneys and overhangs, collapsed
   from a sample drawn for it (`tests/make_crags_sample.gd`, symmetry 1 so up stays up), taller
@@ -745,13 +772,12 @@ Each phase ends with the full suite green and its own tests.
    level (arenas are gone).
 5. **Crags and castle**: *a first pass is done*: sample, structure pass, decor, realm, and the
    gondola (`CragsArchetype`, `Gondola`; `crags_test`, `capture_crags.gd`; the crags' layouts
-   changed and `layout_fingerprint_test` was re-pinned for them alone). *The spider and its keep:
-   a first pass is done* (§6; `spider_test`, `capture_spider.gd`), now built into the top of its
-   gate level (only the spider's gate levels changed; `Arena` is gone and every boss fights in its
-   gate level). *Its life is done*: stalactites (the falling rocks), nests out on the cliff,
+   changed and `layout_fingerprint_test` was re-pinned for them alone). *The lodestone golem and
+   its hall are built* (§6; `golem_test`, `lode_hall_test`, `capture_golem.gd`) at the top of its
+   gate level, in place of the spider and its keep, retired (only the crags' gate levels changed;
+   `Arena` is gone and every boss fights in its gate level). *Its life is done*: stalactites (the falling rocks), nests out on the cliff,
    and crossbows built into the towers' and keeps' walls (`crossbow_test`; the crags' dressing changed and
-   `layout_fingerprint_test` was re-pinned for them alone). Then tuning
-   the spider in play.
+   `layout_fingerprint_test` was re-pinned for them alone). Then tuning the golem in play.
 6. **Cemetery crypts and light**: *done*: crypts (collapsed by WFC, one or two a level), darkness
    by place, snuffing fonts, light-shy wraiths and sleeping skeletons (`Crypts`, `Lamplight`,
    `Snuffer`, `Skeleton`; `crypt_test`, `capture_crypt.gd`), the wraith's dart and the skeleton's
