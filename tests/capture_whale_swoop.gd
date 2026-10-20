@@ -98,7 +98,7 @@ func _step() -> void:
 ## The first world from 28 whose level on the whale's row has a perch: a floor three cells wide in
 ## the high rows, open sky straight above its middle. -1 if none of the first few has.
 func _world_with_perch(row: int) -> int:
-	for x: int in range(28, 40):
+	for x: int in range(28, 60):
 		var w: LevelGen = build(Vector2i(x, row))
 		for cx: int in range(2, w.size.x - 2):
 			for cy: int in range(2, Whale.HIGH_ROWS):
@@ -109,18 +109,24 @@ func _world_with_perch(row: int) -> int:
 	return -1
 
 
-## Whether `v` and the cells either side are rock with open air over each.
+## The kinds of cell that shelter a wizard from the whale (as MapInfo.solid_at takes them, shut).
+const COVER: Array[LevelGen.Type] = [LevelGen.Type.GROUND, LevelGen.Type.CRACKED, LevelGen.Type.DOOR, LevelGen.Type.TRAPDOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.LIGHT_GATE, LevelGen.Type.OSSUARY_DOOR]
+
+
+## Whether `v` and the cells either side are rock with room to stand over each: open air, or
+## something floating there to be picked up (a star, a moon).
 func _floor(w: LevelGen, v: Vector2i) -> bool:
 	for dx: int in [-1, 0, 1]:
 		var at: Vector2i = v + Vector2i(dx, 0)
-		if not w.is_ground(at) or w.get_cell(at + Vector2i.UP).type != LevelGen.Type.EMPTY:
+		var over: LevelGen.Type = w.get_cell(at + Vector2i.UP).type
+		if not w.is_ground(at) or not (over == LevelGen.Type.EMPTY or Placeables.has_flag(over, &"floats")):
 			return false
 	return true
 
 
-## Whether every cell straight above `v`, up to the level's top, is open air.
+## Whether nothing straight above `v`, up to the level's top, shelters it (COVER).
 func _open_above(w: LevelGen, v: Vector2i) -> bool:
 	for y: int in range(0, v.y):
-		if w.get_cell(Vector2i(v.x, y)).type != LevelGen.Type.EMPTY:
+		if w.get_cell(Vector2i(v.x, y)).type in COVER:
 			return false
 	return true
