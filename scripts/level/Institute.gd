@@ -6,12 +6,18 @@ extends RefCounted
 ## inside them printed over dark panelling (LevelGen.interiors):
 ## - the library's stacks (LIBRARY_INSIDE): galleries of ledges one over another, GALLERY rows apart,
 ##   each with a stair gap at one end (the ends taking turns up the stacks) and a ledge under the gap,
-##   so each is climbed in two of the wizard's own hops; long sight lines for casters.
+##   so each is climbed in two of the wizard's own hops; long sight lines for casters. Under its
+##   lowest gallery its book ladders (BOOK_LADDERS) stand on its floor, rolling along the gallery.
 ## - classrooms, the lecture halls (LECTURE_INSIDE), up to LECTURES of them where they fit: small
 ##   rooms with a flat floor (the lectern at its front end, with the master, and in the first of
 ##   each department its portal, Department) and a gallery of one-way ledges GALLERY_UP rows over it
 ##   where the students sit. Each has a doorway at each end of its floor and of its gallery where a
 ##   passage finds open air (at least MIN_DOORS), so a classroom is a way through, not a dead end.
+## - in every level with one of those (a timetable, Timetable.kept_in), last of all, the bell room
+##   (BELFRY_INSIDE): a little room of its own for the first of the great bells (SchoolBell), a
+##   doorway at its floor through each side wall where a passage finds open air. It is no hall (it
+##   is not in LevelGen.halls, and the timetable reads it as the corridors): its open box is kept in
+##   LevelGen.belfry.
 ## - in the beast's gate levels alone (LevelGen.gate), first of all so it has the pick of the level,
 ##   the beast's chamber (CHAMBER_INSIDE): a long hall with a flat floor, in the lower half where it
 ##   fits, holding the beast (Beast, LevelGen.place_boss) and nothing else.
@@ -40,7 +46,14 @@ const LIBRARY_GROUND: int = 4
 ## (StudyDesk) before the board's right end, this many cells right of its middle; bookcases fill the
 ## rest of the floor either side, floor to ceiling.
 const DESK_OUT: int = 4
+## The library's book ladders (RollingLadder): BOOK_LADDERS of them hanging from its lowest gallery's
+## edge to its floor, side by side along the gallery from a cell past its stair gap, each rolling
+## over BOOK_TRACK cells, a cell apart.
+const BOOK_LADDERS: int = 2
+const BOOK_TRACK: int = 6
 const LECTURE_INSIDE: Vector2i = Vector2i(10, 5)
+## The bell room's open box (cells across and down, not counting the walls).
+const BELFRY_INSIDE: Vector2i = Vector2i(3, 4)
 const CHAMBER_INSIDE: Vector2i = Vector2i(18, 6)
 ## How many classrooms a level tries to build (each only where it fits), the fewest doorways one
 ## has, and how much each doorway counts for a site, against each cell of open air it walls over
@@ -84,11 +97,13 @@ const DEPARTMENTS: Dictionary = {
 }
 
 ## The timetable's bells and their cords (SchoolBell): out in the corridors CORRIDOR_BELLS_PER_K bells
-## per 1000 cells (at least CORRIDOR_BELLS_LEAST), each hung from the ceiling over a free floor with
-## BELL_ROOM open cells over it (else any free floor) at least BELL_CLEAR cells from the way in, its
-## cord hanging from it: the first the nearest to the way in in the stretch of corridors it opens on
+## per 1000 cells (at least CORRIDOR_BELLS_LEAST), each hung from the ceiling, its cord hanging from
+## it: one in the bell room (BELFRY_INSIDE), in the middle of its floor; the rest each over a free
+## floor with BELL_ROOM open cells over it (else any free floor) at least BELL_CLEAR cells from the
+## way in: the first the nearest to the way in in the stretch of corridors it opens on
 ## (regions; anywhere out of the halls if that has no such floor), so a wizard just come in can ring
-## it, and each other as far from those already hung as can be, at least BELL_APART cells. And a cord
+## it, at least BELL_APART cells from the bell room's (none so, and the bell room's stands for it),
+## and each other as far from those already hung as can be, at least BELL_APART cells. And a cord
 ## in each lecture hall and the library, up into the ceiling.
 const BELL_CLEAR: int = 3
 const BELL_ROOM: int = 3
@@ -140,6 +155,10 @@ static func build(w: LevelGen) -> void:
 		var hall: Dictionary = _site(w, LECTURE_INSIDE, _lecture_doors(), func(_box: Rect2i) -> bool: return true, MIN_DOORS)
 		if not hall.is_empty():
 			_raise(w, &"lecture", hall, front)
+	if Timetable.kept_in(w):
+		var belfry: Dictionary = _site(w, BELFRY_INSIDE, _flat_doors(BELFRY_INSIDE), func(_box: Rect2i) -> bool: return true)
+		if not belfry.is_empty():
+			_raise(w, &"belfry", belfry, 0)
 	if not w.halls.is_empty():
 		w.connect_caves()
 
@@ -230,7 +249,7 @@ static func _doors(w: LevelGen, box: Rect2i, spec: Array, blocked: Dictionary) -
 
 
 ## Build a hall of `kind` at `site` (from _site) into `w`, facing `front` (a classroom), and note it
-## in LevelGen.halls.
+## in LevelGen.halls (the bell room, &"belfry", in LevelGen.belfry instead).
 static func _raise(w: LevelGen, kind: StringName, site: Dictionary, front: int) -> void:
 	var box: Rect2i = site["box"]
 	var inside: Rect2i = box.grow(-1)
@@ -273,6 +292,9 @@ static func _raise(w: LevelGen, kind: StringName, site: Dictionary, front: int) 
 	for v: Vector2i in steps:
 		w.kept_whole[v] = true
 		w.kept_whole[v + Vector2i.DOWN] = true
+	if kind == &"belfry":
+		w.belfry = inside
+		return
 	var floors: Array[Vector2i] = []
 	for x: int in range(inside.position.x, inside.end.x):
 		for y: int in range(inside.position.y, inside.end.y):
@@ -289,11 +311,12 @@ static func _raise(w: LevelGen, kind: StringName, site: Dictionary, front: int) 
 
 ## The library's stacks in `inside`: a gallery of ledges every GALLERY rows up from its floor, all
 ## across but for a stair gap STAIR cells wide at one end (the lowest's end dealt by the seed, then
-## taking turns), with a ledge under the gap in the top row of the storey below.
+## taking turns), with a ledge under the gap in the top row of the storey below; and its book ladders.
 static func _stacks(w: LevelGen, inside: Rect2i) -> void:
 	var bottom: int = inside.end.y - 1
 	var left: bool = posmod(Rules.level_seed(w.seed_for_colors, GAP_DEAL), 2) == 0
 	var g: int = bottom - LIBRARY_GROUND
+	_book_ladders(w, inside, g, left)
 	while g > inside.position.y + 1:
 		for x: int in range(inside.position.x, inside.end.x):
 			var in_gap: bool = x < inside.position.x + STAIR if left else x >= inside.end.x - STAIR
@@ -303,6 +326,19 @@ static func _stacks(w: LevelGen, inside: Rect2i) -> void:
 				w.put(Vector2i(x, g), LevelGen.Type.PLATFORM)
 		left = not left
 		g -= GALLERY
+
+
+## The library's book ladders in `inside` (see BOOK_LADDERS), under its lowest gallery at row `g`,
+## whose stair gap is at its left end if `left`: each in the cell under the gallery's edge, its step
+## level with the gallery (a rise of one cell), its foot on the floor.
+static func _book_ladders(w: LevelGen, inside: Rect2i, g: int, left: bool) -> void:
+	var from: int = inside.position.x + STAIR + 1 if left else inside.position.x
+	var end: int = inside.end.x if left else inside.end.x - STAIR - 1
+	for i: int in range(BOOK_LADDERS):
+		var x: int = from + i * (BOOK_TRACK + 2)
+		if x + BOOK_TRACK >= end:
+			break
+		w.put(Vector2i(x, g + 1), LevelGen.Type.ROLLING_LADDER, [1, Vector2i(1, 0), BOOK_TRACK, 1])
 
 
 ## The department of the next classroom raised in `w`: the first few take every department once, in an
@@ -576,24 +612,33 @@ static func _timetable(w: LevelGen) -> void:
 	var region: Dictionary = regions(w)
 	var near: Array[Vector2i] = out.filter(func(v: Vector2i) -> bool: return region.has(start) and region.get(v, -1) == region[start])
 	var bells: Array[Vector2i] = []
-	var first: Variant = LevelGen.best_of(roomy_of.call(near if not near.is_empty() else out), func(v: Vector2i) -> float: return float(LevelGen.dist(v, start)))
-	if first == null:
-		return
-	bells.append(first)
-	# The rest each as far from those already hung as can be, at least BELL_APART from them.
-	var pool: Array[Vector2i] = roomy_of.call(out)
+	# The bell room's in the middle of its floor, counted among them.
+	if w.belfry.has_area():
+		@warning_ignore("integer_division")
+		var room: Vector2i = Vector2i(w.belfry.position.x + w.belfry.size.x / 2, w.belfry.end.y - 1)
+		_place(w, room, LevelGen.Type.SCHOOL_BELL, {"great": true})
+		bells.append(room)
 	var apart: Callable = func(v: Vector2i) -> int:
 		var least: int = 1 << 20
 		for b: Vector2i in bells:
 			least = mini(least, LevelGen.dist(v, b))
 		return least
+	# (At least BELL_APART from the bell room's; none so, and the bell room's stands for it.)
+	var first: Variant = LevelGen.best_of(roomy_of.call(near if not near.is_empty() else out), func(v: Vector2i) -> float: return float(LevelGen.dist(v, start)), func(v: Vector2i) -> bool: return apart.call(v) >= BELL_APART)
+	if first == null and bells.is_empty():
+		return
+	if first != null:
+		bells.append(first)
+	# The rest each as far from those already hung as can be, at least BELL_APART from them.
+	var pool: Array[Vector2i] = roomy_of.call(out)
 	while bells.size() < maxi(CORRIDOR_BELLS_LEAST, w.per_area(CORRIDOR_BELLS_PER_K)):
 		var next: Variant = LevelGen.best_of(pool, func(v: Vector2i) -> float: return -float(apart.call(v)), func(v: Vector2i) -> bool: return apart.call(v) >= BELL_APART)
 		if next == null:
 			break
 		bells.append(next)
 	for v: Vector2i in bells:
-		_place(w, v, LevelGen.Type.SCHOOL_BELL, {"great": true})
+		if w.get_cell(v).type != LevelGen.Type.SCHOOL_BELL:
+			_place(w, v, LevelGen.Type.SCHOOL_BELL, {"great": true})
 
 
 ## A `type` holding `extra` at `v`, if it is still free open air.

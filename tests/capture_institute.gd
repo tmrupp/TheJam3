@@ -3,7 +3,7 @@ extends TestKit
 ## department's portal; the library's
 ## stacks with its librarian's hush; a breach and an abomination; a row of the people side by side
 ## close up (a student, a master of each spell, a proctor, a librarian) and one winding up; and a
-## lesson left where a master fell; a rolling ladder, and the wizard climbing it.
+## lesson left where a master fell; a rolling ladder, and the wizard climbing it; the bell room.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_institute.gd
 
 var camera: Camera2D
@@ -20,6 +20,10 @@ func run() -> void:
 		if not floors.is_empty():
 			player.global_position = info.cell_position(floors[0])
 		await _look(info.cell_position(box.get_center()), "institute_%s.png" % hall["kind"], 0.9)
+	if info.world.belfry.has_area():
+		var room: Rect2i = info.world.belfry
+		player.global_position = info.cell_position(Vector2i(room.position.x, room.end.y - 1))
+		await _look(info.cell_position(room.get_center()), "institute_belfry.png", 1.2)
 	for kind: String in ["breach.tscn", "abomination.tscn"]:
 		var found: Array[Node] = placed(kind)
 		if not found.is_empty():

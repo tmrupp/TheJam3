@@ -41,7 +41,7 @@ func setup(map_info: MapInfo, v: Vector2i, info: Array) -> void:
 		t = -phase * period / TAU
 		waiting = not map_info.switch_on(switch_cell)
 	var shape: RectangleShape2D = RectangleShape2D.new()
-	shape.size = Vector2(float(length) * cell_size - 2.0, 33.0)
+	shape.size = Vector2(_width(), 33.0)
 	var col: CollisionShape2D = $CollisionShape2D
 	col.shape = shape
 	col.position = Vector2(float(length - 1) * cell_size * 0.5, -cell_size * 0.5 + 16.5)
@@ -56,6 +56,11 @@ func setup(map_info: MapInfo, v: Vector2i, info: Array) -> void:
 	_held = start + offset_at(t)
 	_place(_held)
 	queue_redraw()
+
+
+## How wide its ledge is (px): its whole run of cells.
+func _width() -> float:
+	return float(length) * cell_size - 2.0
 
 
 ## Teleport without sweeping: physics sync is off for the move, so nothing is pushed along

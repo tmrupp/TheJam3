@@ -307,7 +307,8 @@ static func ensure_input() -> void:
 ## A slot's button: cast the spell in slot `slot` (its node's cast_spell; the dash and blink are
 ## the wizard's own, see Player). A spell with a cast price ("cost") is only cast when the stars
 ## are there, and they are paid only if it works. Nothing is cast while the wizard is drowsy (in
-## sleep fog). In the institute, the scholars who see it turn on the wizard (MapInfo.wizard_cast).
+## sleep fog). In the institute a spell cast at nothing leaves the scholars be: only one that
+## strikes a scholar turns it on the wizard (SpellStrike.strike, HexBolt).
 ## A damage spell may be cast `empowered` (Empower: its node's `cast_spell(empowered)`).
 ## Returns whether it was cast.
 static func cast(player: Player, slot: StringName = &"damage", empowered: bool = false) -> bool:
@@ -325,9 +326,6 @@ static func cast(player: Player, slot: StringName = &"damage", empowered: bool =
 		return false
 	if cost > 0:
 		player.collect(-cost)
-	# In the institute, scholars who see a spell cast turn on the wizard (MapInfo.wizard_cast).
-	if MapInfo.instance != null:
-		MapInfo.instance.wizard_cast(slot)
 	# A damage spell leaves from the bindle (RisoCostume.cast swings it).
 	if slot == &"damage":
 		player.visual_event.emit(&"cast", player.global_position)
