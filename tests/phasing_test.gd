@@ -83,8 +83,10 @@ func run() -> void:
 	Input.action_press(&"Right")
 	var passed: bool = await within(func() -> bool: return player.global_position.x > bones_at.x + 100.0, 1.2)
 	Input.action_release(&"Right")
-	check(passed and bool(projection.call("projecting")) and absf(player.global_position.y - bones_at.y) < 8.0, "it drifts straight through a skeleton")
-	projection.call("toggle")
+	check(passed and absf(player.global_position.y - bones_at.y) < 8.0, "it drifts straight through a skeleton")
+	# Back to the body (unless it has run out already: toggling then would project again).
+	if bool(projection.call("projecting")):
+		projection.call("toggle")
 	bones.free()
 	await frames(3)
 	check(not player.phasing and player.get_collision_mask_value(DashStrike.ENEMY_LAYER), "back in its body, the wizard is stopped by enemies again")
