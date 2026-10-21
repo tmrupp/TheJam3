@@ -183,7 +183,8 @@ bash tests/run.sh sky_test        # just these, headless
   objects.
 - Layers (absolute z): sky −40, the whale cruising −30 (over the wizard, 11, while it swallows them), acid −21
   (its surface over the wizard, 11), terrain −20, hedges −17, fences −16, decor −15, lantern light −12,
-  props 2, the darkness out of sight 8, the wizard's trail 9, the wizard 10, UI 50 and up.
+  props 2, the darkness out of sight 8, the wizard's trail 9, the wizard 10, the exam papers they carry 11,
+  UI 50 and up.
 - Check art changes with a capture and look at it zoomed in before calling them done.
 
 ## Windows editing pitfalls

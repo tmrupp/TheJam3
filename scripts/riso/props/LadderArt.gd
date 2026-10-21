@@ -1,5 +1,12 @@
 extends RisoProp
+class_name LadderArt
 ## A library's rolling ladder, its step and its rail.
+
+
+## Where rung `k` of `ladder` is (world y, its top), counting down from the one under its step: the
+## wizard's hands take hold of them as they climb (RisoWizard.climb_limbs).
+static func rung_y(ladder: RollingLadder, k: int) -> float:
+	return ladder.top_y() + STEP + RUNG_GAP * 0.6 + float(k) * RUNG_GAP
 
 
 ## The RollingLadder it dresses.
@@ -59,6 +66,7 @@ func _draw_art() -> void:
 			var t1: Vector2 = Vector2(mid + side * FOOT_HALF, foot - WHEEL)
 			wood.append_array(RisoDecor.strip(PackedVector2Array([t0, t1]), STILE * 0.5, STILE * 0.5))
 		var y: float = top + STEP + RUNG_GAP * 0.6
+		# (Where rung_y puts them.)
 		while y < foot - WHEEL - RUNG:
 			var u: float = (y - top) / maxf(1.0, foot - top)
 			var w: float = lerpf(TOP_HALF, FOOT_HALF, u)
