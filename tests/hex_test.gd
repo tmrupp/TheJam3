@@ -63,7 +63,7 @@ func run() -> void:
 	var full: int = int(e.get_node("Wound").get("hp"))
 	await until(func() -> bool: return not is_instance_valid(e) or int(e.get_node("Wound").get("hp")) < full)
 	check(is_instance_valid(e) and int(e.get_node("Wound").get("hp")) == full - 1 and not bool(e.get_node("Mover").get("stunned")), "hex I wounds: a level bolt from the same floor wounds the wisp once, and does not stun it")
-	check(is_equal_approx(Hex.COOLDOWN, 3.5) and hex.readiness() < 0.1, "a cooldown, and the wand shows the hex spent")
+	check(is_equal_approx(Hex.COOLDOWN, 2.0) and hex.readiness() < 0.1, "a cooldown, and the wand shows the hex spent")
 	Abilities.grant(player, &"hex")
 	hex.refill()
 	player.global_position = e.global_position + side * 150.0 + Vector2(0, 16 - 31)
@@ -91,6 +91,25 @@ func run() -> void:
 	e2.get_node("Wound").call("hit", 1, Vector2.RIGHT)
 	await until(gone(e2))
 	check(not is_instance_valid(e2) or e2.is_queued_for_deletion(), "a 2 HP wisp falls to one stunned hit")
+
+	print("a wound is felt")
+	var e3: Node2D = target("mover_enemy.tscn")[0]
+	var w3: Wound = e3.get_node("Wound") as Wound
+	w3.hp = 3
+	# Its art, dressed as the print would (with the print off, there is none).
+	var art: RisoProp = e3.get_node_or_null("RisoArt") as RisoProp
+	if art == null:
+		art = RisoProp.new()
+		art.name = "RisoArt"
+		e3.add_child(art)
+	await process_frame
+	var rest: Vector2 = art.scale
+	w3.hit(1, Vector2.RIGHT)
+	check(Engine.time_scale < 1.0, "a wounding blow freezes the action for an instant")
+	check(not art.scale.is_equal_approx(rest) and art.global_position.x > e3.global_position.x, "and the enemy's art is thrown back the way the blow went, squashed")
+	await until(func() -> bool: return is_equal_approx(Engine.time_scale, 1.0))
+	await within(func() -> bool: return art.scale.is_equal_approx(rest), 1.0)
+	check(is_equal_approx(Engine.time_scale, 1.0) and art.scale.is_equal_approx(rest) and art.global_position.is_equal_approx(e3.global_position), "then the action runs on and the art settles where it was")
 
 	print("slain until death")
 	info.travel(MapInfo.Exit.RIGHT)

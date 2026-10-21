@@ -556,6 +556,7 @@ func _wound(dir: Vector2) -> void:
 	heart_t = t
 	RisoFx.burst(&"hit", heart_center(), dir, [RisoPrint.ACCENT, RisoPrint.PINK])
 	Wound.shake(8.0, 0.16)
+	Wound.hit_stop(Wound.KILL_STOP if wound.hp <= 0 else Wound.HIT_STOP)
 	if wound.hp <= 0:
 		die()
 

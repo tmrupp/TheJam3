@@ -719,6 +719,45 @@ func debug_travel (to: Vector2i) -> void:
 	await _pass(Vector2.DOWN, to)
 	_arrive(to, Exit.BACK)
 
+## Arriving by the place's boss (debug_to_boss): see _beside_boss.
+const ARRIVE_BOSS: int = -6
+## How many cells from the boss a jump to it sets the wizard down, at the least.
+const BOSS_BESIDE: int = 4
+
+## Debug runs (the F7 panel's boss row): go straight to boss `name` in world `column`, alive or
+## slain: its gate level, arriving beside it (ARRIVE_BOSS), or for the whale, its belly, by its heart.
+## Nothing is paid or opened on the way.
+func debug_to_boss (name: StringName, column: int) -> void:
+	if not debug or travelling or run_ending > 0.0:
+		return
+	if name == &"whale":
+		var belly: Vector2i = Worlds.side_at(Worlds.kind_of(Belly), Vector2i(column, WhaleHunt.row()))
+		await _pass(Vector2.DOWN, belly)
+		_arrive(belly, Exit.BACK)
+		return
+	var row: int = Bosses.row_of(name)
+	if row == 0:
+		return
+	var to: Vector2i = Vector2i(column, row)
+	await _pass(Vector2.DOWN, to)
+	_arrive(to, ARRIVE_BOSS)
+
+## Where a jump to the place's boss sets the wizard down (ARRIVE_BOSS): the free floor nearest its
+## cell, at least BOSS_BESIDE cells off, in the open it stands in; `fallback` (its way back) with no
+## boss here or no such floor.
+func _beside_boss (fallback: Vector2i) -> Vector2i:
+	var bosses: Array[Vector2i] = world.objects_of(LevelGen.Type.BOSS)
+	if bosses.is_empty():
+		return fallback
+	var boss: Vector2i = bosses[0]
+	var room: Dictionary = world.reach_from(boss)
+	var spot: Variant = LevelGen.best_of(world.free_floors(), func(v: Vector2i) -> int: return LevelGen.dist(v, boss),
+			func(v: Vector2i) -> bool: return room.has(v) and LevelGen.dist(v, boss) >= BOSS_BESIDE)
+	if spot == null:
+		return fallback
+	var at: Vector2i = spot
+	return at
+
 ## The F7 panel's Difficulty row: lay this place out again under the preset now picked (it holds
 ## more or fewer foes), arriving at its way back. What the run has noted of the place (things taken
 ## or slain) was noted of the old layout, so it may not all line up.
@@ -834,6 +873,8 @@ func _arrived () -> void:
 		_set_respawn(coord, run.respawn_cell)
 	elif arrival == ARRIVE_BALLOON and world.is_valid(world.balloon):
 		at = world.balloon
+	elif arrival == ARRIVE_BOSS:
+		at = _beside_boss(at)
 	elif arrival == ARRIVE_WAY_BACK and run.way_back.size() >= 4 and run.way_back[0] == coord and run.way_back[1] != Vector2.INF:
 		at = cell_at(run.way_back[1])
 	if player != null:

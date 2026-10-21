@@ -153,7 +153,25 @@ func run() -> void:
 	check(not info.full_heal() and player.health.health == 1, "outside a debug run, Full heal does nothing")
 	MapInfo.debug = true
 	check(info.full_heal() and player.health.health == player.health.max_health, "in one, it heals the wizard to full")
+
+	print("to a boss from the F7 panel")
+	info.debug_to_boss(&"golem", 28)
+	await until(func() -> bool: return info.coord == Vector2i(28, Bosses.row_of(&"golem")) and not info.travelling)
+	await settle()
+	player.set_physics_process(false)
+	var lair: Array[Vector2i] = info.world.objects_of(LevelGen.Type.BOSS)
+	var stood: Vector2i = info.cell_at(player.global_position)
+	var way_back: Vector2i = info.world.exits[MapInfo.Exit.BACK]
+	check(lair.size() == 1 and not placed("golem.tscn").is_empty() and info.world.reach_from(lair[0]).has(stood) and LevelGen.dist(stood, lair[0]) >= MapInfo.BOSS_BESIDE and LevelGen.dist(stood, lair[0]) < LevelGen.dist(way_back, lair[0]), "a jump to the golem sets the wizard down beside it, in its gate level (%d cells off)" % LevelGen.dist(stood, lair[0]))
+	info.debug_to_boss(&"whale", 28)
+	await until(func() -> bool: return Worlds.is_side(info.coord) and not info.travelling)
+	await settle()
+	player.set_physics_process(false)
+	check(not placed("whale_heart.tscn").is_empty(), "a jump to the whale goes into its belly, by its heart")
 	MapInfo.debug = false
+	info.debug_to_boss(&"worm", 28)
+	await settle()
+	check(Worlds.is_side(info.coord), "outside a debug run, it does nothing")
 
 	print("saved")
 	var saved: Dictionary = info.run.to_save(info.coord, {})

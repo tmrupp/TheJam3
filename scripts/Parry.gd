@@ -120,7 +120,7 @@ func parry (_damage: int, v: Vector2, origin: Node) -> void:
 		_pogo()
 	player.invulnerable.enable(true)
 	player.invulnerable.acting = SAFE
-	_hit_stop()
+	Wound.hit_stop(HIT_STOP, HIT_STOP_SCALE)
 
 
 ## Bounced off a hazard caught underfoot: a jump's worth straight up with the air jump given back,
@@ -178,12 +178,6 @@ func _strike(attacker: Node) -> void:
 		if attacker is MothSwarm:
 			(attacker as MothSwarm).scatter(dir)
 
-
-## Freeze the action for an instant, so the parry lands with weight.
-func _hit_stop() -> void:
-	Engine.time_scale = HIT_STOP_SCALE
-	await get_tree().create_timer(HIT_STOP, true, false, true).timeout
-	Engine.time_scale = 1.0
 
 func check_parry () -> void:
 	player.hurt_ability = parry

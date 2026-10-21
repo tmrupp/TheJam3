@@ -9,8 +9,8 @@ class_name Hex
 ## rock (HexBolt.BORE cells), wounds Empower.EXTRA more, breaks a shield at once and strikes spires.
 
 ## Seconds for a spent charge to come back (sooner from tier II).
-const COOLDOWN: float = 3.5
-const COOLDOWN_II: float = 2.5
+const COOLDOWN: float = 2.0
+const COOLDOWN_II: float = 1.25
 ## How hard a cast throws the wizard back (SpellStrike.recoil's power: a slash that lands is 1): a
 ## little, whether the bolt strikes anything or not, the price of a blow from afar.
 const RECOIL: float = 0.35
