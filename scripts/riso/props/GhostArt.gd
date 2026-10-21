@@ -12,9 +12,7 @@ func _draw_art() -> void:
 	var s: float = 3.2
 	var drift: float = sin(t * 1.7 + phase) * 5.0
 	var at: Transform2D = Transform2D(sin(t * 1.1 + phase) * 0.04, Vector2(s, s), 0.0, Vector2(0, 34 + drift))
-	var player: Player = Stage.player()
-	var spell: StringName = Abilities.spell(player) if player != null else &""
-	var body: Array[PackedVector2Array] = RisoCostume.silhouette(at, 1.0, spell)
+	var body: Array[PackedVector2Array] = RisoCostume.silhouette(at, 1.0)
 	ink.ink(RisoPrint.GLOW, 0.12, [RisoShapes.circle(Vector2(0, -30 + drift), 70.0 * (1.0 + 0.05 * sin(t * 2.3)), 32)])
 	ink.ink(RisoPrint.GLOW, 0.45, body)
 	# The faceless hood between robe and hat, dark, with the eyes still lit inside it.

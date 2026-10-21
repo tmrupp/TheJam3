@@ -241,9 +241,17 @@ func vanes() -> void:
 	check(info.gust_wind() == 0 and info.gust_at(gap.get_center()) == 0.0 and absf(lasted - Wind.GUST) < 0.3, "a gust lasts %.1f s, then all is still (%.1f s)" % [Wind.GUST, lasted])
 	await _gust_start()
 	await _drift(way)
+	# One vane's gust is short; every other vane its way switched on too makes it blow long enough
+	# to cross by (Wind.gust_for), whatever the gap's width. They are switched off again after.
+	var helpers: Array[Node] = vanes.filter(func(n: Node) -> bool: return n != vane and int(n.get("way")) == way and not info.vane_on(n.get_meta(&"cell")))
+	for n: Node in helpers:
+		_free(n)
+		n.call("use")
 	# Walk off the vane's shore into a gust as it starts: carried over to the far side, on the floor there.
 	await _gust_start()
-	check(await _cross(gap, away, true, false), "jumping off its shore into a gust, it carries the wizard over the gap to the floor on the far side")
+	check(await _cross(gap, away, true, false), "jumping off its shore into a gust (of %d vanes, %.1f s), it carries the wizard over the gap to the floor on the far side" % [absi(info.level_wind()), info.gust_length()])
+	for n: Node in helpers:
+		n.call("use")
 	var others: Array[Node] = vanes.filter(func(n: Node) -> bool: return n != vane and int(n.get("chasm")) == id)
 	if not others.is_empty():
 		var other: Node2D = others[0] as Node2D

@@ -5,6 +5,17 @@ class_name Wound
 ## level record keeps it slain until the player dies. One `unhurt` (a wraith, a skeleton) takes no
 ## harm: a blow shows on it, pale, and it says so (`warded`), but it is not knocked back, loses
 ## nothing and is never slain.
+## A blow that wounds is felt (felt): the action freezes for an instant (hit_stop, HIT_STOP, longer
+## for a blow that slays, KILL_STOP), the camera kicks, and the enemy's art jolts away from the blow
+## and wobbles (RisoProp.struck).
+
+## Real seconds the action freezes when a blow wounds an enemy, and when it slays one, and how slow
+## it runs meanwhile.
+const HIT_STOP: float = 0.05
+const KILL_STOP: float = 0.09
+const STOP_SCALE: float = 0.05
+## When the latest hit-stop ends (msec, Time.get_ticks_msec), so overlapping ones end together.
+static var _stop_until: int = 0
 
 var hp: int = 1
 ## The least a hex bolt or a dash wounds it by, even one of no damage (0: as the
@@ -48,10 +59,36 @@ func hit(damage: int, dir: Vector2) -> void:
 		return
 	hp -= damage * (2 if stunned() else 1)
 	RisoFx.burst(&"hit", host.global_position, dir, [RisoPrint.PINK, RisoPrint.GLOW])
-	Wound.shake(7.0 if hp > 0 else 12.0, 0.14 if hp > 0 else 0.22)
+	Wound.felt(host, dir, hp <= 0)
 	host.global_position += dir * 14.0
 	if hp <= 0:
 		_die(host)
+
+
+## How a blow that wounds `host` is felt (heading `dir`; `slays` when it is the last): the action
+## freezes for an instant, the camera kicks, and its art jolts and wobbles.
+static func felt(host: Node2D, dir: Vector2, slays: bool) -> void:
+	Wound.shake(7.0 if not slays else 12.0, 0.14 if not slays else 0.22)
+	Wound.hit_stop(KILL_STOP if slays else HIT_STOP)
+	var art: RisoProp = host.get_node_or_null("RisoArt") as RisoProp if host != null else null
+	if art != null:
+		art.struck(dir)
+
+
+## Freeze the action for `seconds` (real time), running it at `slow` meanwhile, so a blow lands
+## with weight. Hit-stops that overlap end with the last of them.
+static func hit_stop(seconds: float, slow: float = STOP_SCALE) -> void:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return
+	_stop_until = maxi(_stop_until, Time.get_ticks_msec() + int(seconds * 1000.0))
+	Engine.time_scale = minf(Engine.time_scale, slow)
+	# A timer can come due a little before the clock does: wait out whatever is left.
+	var left: int = _stop_until - Time.get_ticks_msec()
+	while left > 0:
+		await tree.create_timer(float(left) / 1000.0, true, false, true).timeout
+		left = _stop_until - Time.get_ticks_msec()
+	Engine.time_scale = 1.0
 
 
 ## What a struck part belongs to, so a move (a bolt, a dash) strikes the whole only once: a worm

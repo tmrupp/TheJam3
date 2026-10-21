@@ -114,6 +114,8 @@ class Fade:
 ## Whether light and sight stop at the rock (the F7 panel can turn it off to compare): off, the
 ## lights are plain circles and nothing is shaded out of sight (the deep dark stays).
 static var by_sight: bool = true
+## Whether the crypts are fully dark inside (Crypts.DARK); stills of their layout lift it.
+static var crypts_dark: bool = true
 
 var lanterns: Array[Node2D] = []
 var ink: InkCanvas
@@ -557,7 +559,7 @@ func _darkness(info: MapInfo, view: Rect2) -> void:
 	# Inside a crypt it is fully dark (Crypts), whatever the band.
 	for room: Rect2 in crypt_rooms(info):
 		var area: Rect2 = room.intersection(view)
-		if area.has_area():
+		if area.has_area() and crypts_dark:
 			_deep_dark(Crypts.DARK, area, true)
 
 

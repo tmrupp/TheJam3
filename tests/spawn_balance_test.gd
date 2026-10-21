@@ -35,6 +35,11 @@ func run() -> void:
 					var t: LevelGen.Type = w.get_cell(v).type
 					if t != LevelGen.Type.EMPTY:
 						counts[t] = int(counts.get(t, 0)) - 1
+			# So are a crypt's prize (Crypts._prize: a skeleton key, the rite's paper or a large font).
+			for crypt: Dictionary in w.crypts:
+				if crypt.has("prize"):
+					var t: LevelGen.Type = w.get_cell(crypt["prize"]).type
+					counts[t] = int(counts.get(t, 0)) - 1
 			print("%s %s: gates=%d moons=%d keys=%d lanterns=%d portals=%d" % [label, w.size, counts.get(LevelGen.Type.DOOR, 0), counts.get(LevelGen.Type.MOON, 0), counts.get(LevelGen.Type.KEY, 0), counts.get(LevelGen.Type.CHECKPOINT, 0), counts.get(LevelGen.Type.PORTAL, 0)])
 			# A cemetery's open terraces have hardly any one-cell corridors to gate.
 			check(def.chasmed() or int(counts.get(LevelGen.Type.DOOR, 0)) > 0, label + ": gates must be present")

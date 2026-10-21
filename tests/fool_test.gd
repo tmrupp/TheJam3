@@ -67,7 +67,7 @@ func run() -> void:
 	wizard._step_smoke(RisoWizard.SMOKE_LIFE + 0.1)
 	check(wizard.lantern_smoke.is_empty(), "after relighting, the old smoke fades and no new smoke appears")
 	var spell_shapes: Dictionary = {}
-	var accessory_shapes: Dictionary = {}
+	var bag: PackedVector2Array = RisoCostume.bindle_shape(Vector2.ZERO)
 	# What it carries is the damage slot's spell.
 	for spell: StringName in Abilities.in_slot(&"damage"):
 		Abilities.set_tier(player, spell, 1)
@@ -75,9 +75,7 @@ func run() -> void:
 		var print: int = fingerprint(wizard.body)
 		check(not spell_shapes.has(print), "the carried " + String(spell) + " has a distinct print")
 		spell_shapes[print] = true
-		var accessory: int = hash(RisoCostume.bindle_shape(spell, Vector2.ZERO))
-		check(not accessory_shapes.has(accessory), "the whole bag changes shape for " + String(spell))
-		accessory_shapes[accessory] = true
+		check(_prints_shape(wizard.body, bag), "the " + String(spell) + " bag is the one bag shape")
 	# The feather is the movement slot: glow ink while ready, dark when spent, blinking pink and dark
 	# in a running spell's last seconds.
 	player.dash.acted = false
@@ -220,13 +218,21 @@ func run() -> void:
 	player.visual_event.emit(&"cast", player.global_position)
 	check(wizard.costume.cast_turn > 0.0 and wizard.costume.cast_turn < PI, "a slash's swing stays a forward one")
 	var fx: RisoPortalWarp = RisoPrint._warp(wizard, 0, Vector2.ZERO, wizard.global_position, RisoPrint.ACCENT)
-	check_eq(fx.spell, Abilities.spell(player), "portal effects carry the spell the Fool's bag holds")
+	check_eq(fx.facing, 1.0 if wizard.fs >= 0.0 else -1.0, "portal effects carry the way the Fool faces (the bag is one shape, whatever its spell)")
 	fx.free()
 	info.run.vulnerable = false
 	main.queue_free()
 	await process_frame
 	await process_frame
 	finish()
+
+
+## Whether `ink` prints `shape` itself in one of its ops (a rig's part, in its own space).
+func _prints_shape(ink: InkCanvas, shape: PackedVector2Array) -> bool:
+	for i: int in range(ink._used):
+		if ink._ops[i].polys.has(shape):
+			return true
+	return false
 
 
 ## The actual ordered ink and geometry, rather than a copy of the state being tested.

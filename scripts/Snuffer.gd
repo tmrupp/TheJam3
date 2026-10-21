@@ -11,8 +11,10 @@ extends Area2D
 ## in any world (MapInfo.dash_switch), so interact at a dry font while carrying some and they pour
 ## it all back in, to keep it there for later (MapInfo.fill_font).
 
-## How many charges of darkness a font never touched holds.
+## How many charges of darkness a font never touched holds, and a large font, a crypt's prize
+## (Crypts._prize: its cell's extra_info says {"charges": LARGE}).
 const CHARGES: int = 3
+const LARGE: int = 8
 
 @onready var player: Player = Stage.player()
 var map_info: MapInfo
@@ -31,6 +33,17 @@ func setup(info: MapInfo, v: Vector2i) -> void:
 ## The charges of darkness it holds.
 func held() -> int:
 	return map_info.font_held(cell) if map_info != null and map_info.run != null else CHARGES
+
+
+## Whether it is a large font (see LARGE).
+func large() -> bool:
+	return map_info != null and map_info.world != null and capacity(map_info.world, cell) > CHARGES
+
+
+## How many charges the font at cell `v` of `w` holds untouched: CHARGES, or what its cell says.
+static func capacity(w: LevelGen, v: Vector2i) -> int:
+	var extra: Variant = w.get_cell(v).extra_info if w.is_valid(v) else null
+	return int((extra as Dictionary).get("charges", CHARGES)) if extra is Dictionary else CHARGES
 
 
 ## Whether it has run dry.

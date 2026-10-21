@@ -79,9 +79,9 @@ static func carve(w: LevelGen) -> void:
 		var shore: int = choice[3]
 		for x: int in range(a - shore, a + span + shore):
 			_level_floor(w, floors, x, y)
-		# Keep clear of chasms already cut.
+		# Keep clear of chasms already cut: neither's pit in the air kept clear over the other.
 		for i: int in range(by_shore.size()):
-			by_shore[i] = (by_shore[i] as Array).filter(func(sp: Array) -> bool: return absi(int(sp[0]) - y) > CHASM_DEPTH + 2 or int(sp[1]) + int(sp[2]) + CHASM_SHORES[0] < a or a + span + CHASM_SHORES[0] < int(sp[1]))
+			by_shore[i] = (by_shore[i] as Array).filter(func(sp: Array) -> bool: return absi(int(sp[0]) - y) > CHASM_DEPTH + CHASM_CLEAR + 2 or int(sp[1]) + int(sp[2]) + CHASM_SHORES[0] < a or a + span + CHASM_SHORES[0] < int(sp[1]))
 		var id: int = w.chasms.size()
 		var planks: Array[Vector2i] = []
 		for x: int in range(a, a + span):

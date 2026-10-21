@@ -21,6 +21,9 @@ var body: InkCanvas
 var world: InkCanvas
 ## The parry guard, printed over the figure (see _draw_guard).
 var guard: InkCanvas
+## The exam papers carried, printed over the figure and its bindle (in the world, as the keys
+## are), so a paper trailing over the bag is read in front of it.
+var papers: InkCanvas
 ## The other printed travelers use this same body canvas and spring rig.
 var costume: RisoCostume
 ## Positions, age and curl of the smoke left by the lantern: pink while unprotected, and pale for a
@@ -93,6 +96,15 @@ var key_colors: Array[int] = []
 var key_trail: Array[Vector2] = []
 ## How far each key hangs behind the one before it (world pixels, before facing).
 const KEY_LINK: Vector2 = Vector2(-30, 8)
+## Where the newest key hangs, behind the shoulder and beside the bag rather than over it, so a
+## paper printed in front of the figure never hides the bag's spell (art units, facing right).
+const KEY_HANG: Vector2 = Vector2(-24.0, -24.0)
+## How big a carried exam paper is drawn (times a key's size: RisoPrint.ink_paper), written out in
+## full as it lies, and its subject's mark larger on the sheet than on one lying, so the mark and
+## the tier read at play size; and the layer it prints on, just over the wizard's.
+const CARRIED_PAPER: float = 2.0
+const CARRIED_MARK: float = 1.25
+const PAPER_Z: int = 11
 ## Pressed-against-wall pose: `wall` blends 0..1, `wall_side` is +1 when the wall is to the right.
 var wall: float = 0.0
 var wall_side: float = 1.0
@@ -100,6 +112,25 @@ var push_t: float = 0.0
 var climb_y: float = 0.0
 ## Wall face in art units: the collider's half-width divided by ART_SCALE.
 const WALL_X: float = 9.2
+## On a rolling ladder (Player.ladder) the wizard climbs hand over hand: `rung` blends the pose in
+## (0..1, as `wall` does), and `climb_hands` and `climb_feet` hold where the hands and feet are just
+## now (art units, the figure facing right, feet at 0; the front first): see climb_limbs.
+var rung: float = 0.0
+var climb_hands: Array[Vector2] = [Vector2.ZERO, Vector2.ZERO]
+var climb_feet: Array[Vector2] = [Vector2.ZERO, Vector2.ZERO]
+## How fast the climbing pose blends in and out (a share of the way a second).
+const RUNG_BLEND: float = 14.0
+## The climb (art units, the figure facing right): a hand holds a rung while it is between CLIMB_REACH
+## and a rung's gap below it, and the other reaches past it to the next; the hands hold the ladder
+## this far ahead of the body (the front hand, then the back one), swinging this far further out as
+## they reach. The feet step in turn the other way, a foot this far up at the top of its step
+## (CLIMB_STEP.y, as the rungs are too close for the short legs to match them), this far either side
+## of the middle (CLIMB_STEP.x), and the body is pulled this far up as each hand takes its weight.
+const CLIMB_REACH: float = -30.5
+const CLIMB_HANDS: Vector2 = Vector2(6.6, 5.0)
+const CLIMB_SWING: float = 1.6
+const CLIMB_STEP: Vector2 = Vector2(1.4, 3.4)
+const CLIMB_PULL: float = 0.6
 
 
 func _ready() -> void:
@@ -121,6 +152,11 @@ func _ready() -> void:
 	world.z_index = 9
 	world.z_as_relative = false
 	add_child(world)
+	papers = InkCanvas.new()
+	papers.top_level = true
+	papers.z_index = PAPER_Z
+	papers.z_as_relative = false
+	add_child(papers)
 	costume = RisoCostume.new(self)
 	if player != null:
 		player.visual_event.connect(_on_event)
@@ -197,8 +233,8 @@ func _physics_process(delta: float) -> void:
 	_trail_keys(delta)
 
 
-## Every key carried trails the wizard on a soft lag: the newest just behind and above the
-## shoulder, each older one hanging behind the one before it (a chain), skeleton keys last.
+## Every key carried trails the wizard on a soft lag: the newest behind the shoulder beside the bag
+## (KEY_HANG), each older one hanging behind the one before it (a chain), skeleton keys last.
 func _trail_keys(delta: float) -> void:
 	var colors: Array[int] = player.keyring.all()
 	colors.reverse()
@@ -208,7 +244,7 @@ func _trail_keys(delta: float) -> void:
 		key_colors = colors
 		key_trail.resize(mini(key_trail.size(), colors.size()))
 	var s: float = player.global_scale.y * ART_SCALE
-	var target: Vector2 = global_position + Vector2(-signf(fs) * 11.0, -24.0) * s
+	var target: Vector2 = global_position + Vector2(signf(fs) * KEY_HANG.x, KEY_HANG.y) * s
 	var link: Vector2 = Vector2(KEY_LINK.x * signf(fs), KEY_LINK.y)
 	for i: int in range(colors.size()):
 		if i >= key_trail.size():
@@ -233,6 +269,10 @@ func _rig(dt: float, dashing: bool) -> void:
 	push_t += dt * wall
 	if clinging:
 		climb_y += absf(vy) * dt
+	var held: RollingLadder = player.ladder if is_instance_valid(player.ladder) else null
+	if held != null:
+		climb_limbs(held)
+	rung += ((1.0 if held != null else 0.0) - rung) * minf(1.0, dt * RUNG_BLEND)
 	var landed: bool = ground and not pg and pvy > 80.0
 	ax += (clampf((vx - pvx) / dt, -3000.0, 3000.0) - ax) * minf(1.0, dt * 25.0)
 	var took: bool = not ground and pg and vy < -100.0
@@ -248,6 +288,8 @@ func _rig(dt: float, dashing: bool) -> void:
 	var bob_t: float = (-(0.5 - 0.5 * cos(ph * 4.0 * PI)) * 1.1 * sp + (sin(t * 2.1) - 1.0) * 0.3 * (1.0 - sp)) if ground else -0.4
 	# Straining against the wall: sink a little and tremble.
 	bob_t += (-0.5 + sin(t * 41.0) * 0.12 + sin(push_t * 4.4) * 0.2) * wall if ground else 0.0
+	# On a ladder, pulled up a little as each hand takes the weight.
+	bob_t = lerpf(bob_t, -CLIMB_PULL * sin(PI * _climb_f), rung)
 	bob += (bob_t - bob) * minf(1.0, dt * 30.0)
 	head_v += ((bob - head_y) * 260.0 - head_v * 18.0) * dt
 	head_y += head_v * dt
@@ -264,8 +306,9 @@ func _rig(dt: float, dashing: bool) -> void:
 	tip_t -= wall_side * 0.35 * wall
 	tip_v += ((tip_t - tip_a) * 85.0 - tip_v * 5.5) * dt - hat_v * dt * 7.0
 	tip_a = clampf(tip_a + tip_v * dt, -1.6, 1.6)
-	var spread: float = 0.0 if ground else clampf(vy / 300.0, 0.0, 1.3) * 3.0
-	var lift: float = 0.0 if ground else clampf(vy / 300.0, -0.6, 1.3) * 3.4
+	# (Climbing a ladder is no fall: the hem hangs as it does standing.)
+	var spread: float = 0.0 if ground else clampf(vy / 300.0, 0.0, 1.3) * 3.0 * (1.0 - rung)
+	var lift: float = 0.0 if ground else clampf(vy / 300.0, -0.6, 1.3) * 3.4 * (1.0 - rung)
 	var spd: float = clampf(absf(vx) / MAXV, 0.0, 1.5)
 	for i: int in range(5):
 		var side: float = float(i - 2) / 2.0
@@ -343,7 +386,43 @@ func _feet() -> Array[Vector2]:
 			braced[1 - near] = Vector2(-wall_side * 0.6, -1.4 - step * 0.8)
 		for k: int in range(2):
 			out[k] = out[k].lerp(braced[k], wall)
+	if rung > 0.01:
+		# On a ladder: stepping up it in turn (climb_feet, the back foot first, turned to the world).
+		for k: int in range(2):
+			out[k] = out[k].lerp(Vector2(climb_feet[1 - k].x * face, climb_feet[1 - k].y), rung)
 	return out
+
+
+## How far through its reach the moving hand is (0 just let go, 1 taking hold), for the pull.
+var _climb_f: float = 0.0
+
+
+## Where the hands and feet are on `ladder` (climb_hands, climb_feet), from where the wizard is on
+## it rather than from time, so they stop when the wizard does, climb down the same way back, and
+## the hands hold its real rungs (LadderArt.rung_y): one holds the rung within its reach while the
+## other reaches from the rung below it to the rung above it, never above the step's top. The foot
+## under the reaching hand's side holds and the other steps.
+func climb_limbs(ladder: RollingLadder) -> void:
+	var s: float = player.global_scale.y * ART_SCALE
+	var feet: float = global_position.y
+	var gap: float = LadderArt.RUNG_GAP / s
+	var first: float = LadderArt.rung_y(ladder, 0)
+	# The rung whose height over the feet (art units) is in the reach, and how far down it it is.
+	var k: int = ceili((CLIMB_REACH * s + feet - first) / LadderArt.RUNG_GAP)
+	var at: float = (LadderArt.rung_y(ladder, k) - feet) / s
+	var f: float = clampf((at - CLIMB_REACH) / gap, 0.0, 1.0)
+	_climb_f = f
+	var e: float = smoothstep(0.0, 1.0, f)
+	var top: float = (ladder.top_y() - feet) / s
+	var holds: int = posmod(k, 2)
+	var reach: float = lerpf(at + gap, at - gap, e)
+	for h: int in range(2):
+		var y: float = at if h == holds else reach
+		var out: float = 0.0 if h == holds else sin(PI * f) * CLIMB_SWING
+		climb_hands[h] = Vector2((CLIMB_HANDS.x if h == 0 else CLIMB_HANDS.y) + out, maxf(y, top))
+		# The foot on the other side from the holding hand holds, sinking as the body rises.
+		var foot: float = -CLIMB_STEP.y * ((1.0 - f) if h != holds else e)
+		climb_feet[h] = Vector2((CLIMB_STEP.x if h == 0 else -CLIMB_STEP.x) + (0.0 if h != holds else sin(PI * f) * 0.6), foot)
 
 
 func _soft(v: float, m: float) -> float:
@@ -408,6 +487,8 @@ func _process(_delta: float) -> void:
 		world.finish()
 		guard.begin()
 		guard.finish()
+		papers.begin()
+		papers.finish()
 		return
 	_draw_body()
 	_draw_world()
@@ -475,9 +556,15 @@ func _draw_world() -> void:
 			var r: float = (9.0 + 4.0 * float(k) + sin(t * 4.0 + float(k)) * 1.2) * s
 			var ring: PackedVector2Array = RisoShapes.ellipse(feet + Vector2(0, float(k) * 3.0 * s), r, r * 0.28, 24)
 			world.ink(RisoPrint.GLOW, 0.5 - 0.2 * float(k), [ring])
+	# Keys trail behind the figure; exam papers, written out in full, in front of it.
+	papers.begin()
 	for i: int in range(mini(key_colors.size(), key_trail.size())):
 		var bob: Vector2 = Vector2(0, sin(t * 3.0 - float(i) * 0.7) * 3.0)
-		RisoPrint.ink_key(world, key_colors[i], 1.0, RisoMarks.key_shape(key_trail[i] + bob, 1.0, key_colors[i]))
+		if KeyRing.is_paper(key_colors[i]):
+			RisoPrint.ink_paper(papers, key_colors[i], key_trail[i] + bob, CARRIED_PAPER, t, CARRIED_MARK)
+		else:
+			RisoPrint.ink_key(world, key_colors[i], 1.0, RisoMarks.key_shape(key_trail[i] + bob, 1.0, key_colors[i]))
+	papers.finish()
 	for g: Vector4 in marks:
 		var at: Transform2D = Transform2D(0.0, Vector2(s, s), 0.0, Vector2(g.x, g.y - (1.0 - g.w) * 6.0 * s))
 		world.ink(RisoPrint.GLOW, 0.25 if g.w > 0.5 else 0.15, _silhouette(at, g.z))
@@ -532,7 +619,7 @@ func parry_glory() -> bool:
 
 ## The Fool's outline (RisoCostume.silhouette), feet at the origin of `at`.
 func _silhouette(at: Transform2D, facing: float) -> Array[PackedVector2Array]:
-	return RisoCostume.silhouette(at, facing, Abilities.spell(player), costume)
+	return RisoCostume.silhouette(at, facing, costume)
 
 
 ## Leave smoke at the lantern's past positions, drifting away from the traveler, without drawing
