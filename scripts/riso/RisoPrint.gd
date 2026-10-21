@@ -344,7 +344,6 @@ static func _warp(wizard: RisoWizard, part: int, center: Vector2, feet: Vector2,
 	fx.facing = 1.0 if wizard.fs >= 0.0 else -1.0
 	fx.art_scale = wizard.global_scale.y
 	fx.ring = ring
-	fx.spell = Abilities.spell(wizard.player)
 	return fx
 
 
@@ -373,6 +372,47 @@ static func ink_key(canvas: InkCanvas, color: int, cover: float, shapes: Array[P
 		return
 	for plate: int in key_inks(color):
 		canvas.ink(plate, cover, shapes)
+
+
+## An exam paper written out in full (ink_paper), for each unit of its sheet's size: how big its
+## subject's mark is drawn on it, and under it the tier pips' spacing, how far below the sheet's
+## middle they sit, and their half-size (px).
+const PAPER_MARK: float = 0.29
+const PAPER_PIPS: Vector3 = Vector3(5.9, 13.0 + 5.3, 2.35)
+
+
+## Print exam paper `code` written out in full on `canvas`, centred on `o`, its sheet `s` times a
+## key's size (RisoMarks.paper_shape), as it lies waiting (KeyArt) and as the wizard carries it
+## (RisoWizard): the sheet in its department's colour (DEPT_INKS) with a folded corner of bare paper,
+## its subject's mark (RisoGlyph, `t` its time, `mark` times PAPER_MARK its size) knocked out to paper on it, and under it a gold pip
+## for each tier; a paper of a subject no department teaches is bare paper with its mark in gold. A
+## stolen one's folded corner is pink (KeyRing.is_stolen).
+static func ink_paper(canvas: InkCanvas, code: int, o: Vector2, s: float, t: float, mark: float = 1.0) -> void:
+	var sheet: Array[PackedVector2Array] = RisoMarks.paper_shape(o, s)
+	canvas.lift_ink(ALL_PLATES, 1.0, sheet.slice(0, 1))
+	var tinted: bool = ink_dept(canvas, Timetable.dept_of(KeyRing.paper_spell(code)), 1.0, sheet.slice(0, 1))
+	if tinted:
+		canvas.knock(ALL_PLATES, sheet.slice(1, 2))
+	if KeyRing.is_stolen(code):
+		canvas.ink(PINK, 1.0, sheet.slice(1, 2))
+	else:
+		canvas.ink(NIGHT, 0.55, sheet.slice(1, 2), false)
+	var glyph: Array[PackedVector2Array] = []
+	var size: float = PAPER_MARK * mark * s
+	for poly: PackedVector2Array in RisoGlyph.of(KeyRing.paper_spell(code), Vector2.ZERO, t):
+		glyph.append(Transform2D(0.0, Vector2(size, size), 0.0, o + Vector2(0, 2.0 * s)) * poly)
+	if tinted:
+		canvas.knock(ALL_PLATES, glyph)
+	else:
+		canvas.ink(ACCENT, 1.0, glyph)
+	var tier: int = KeyRing.paper_tier(code)
+	var pips: Array[PackedVector2Array] = []
+	var r: float = PAPER_PIPS.z * s
+	for i: int in range(tier):
+		var p: Vector2 = o + Vector2((float(i) - float(tier - 1) * 0.5) * PAPER_PIPS.x, PAPER_PIPS.y) * s
+		pips.append(PackedVector2Array([p + Vector2(0, -r), p + Vector2(r, 0), p + Vector2(0, r), p + Vector2(-r, 0)]))
+	canvas.knock(ALL_PLATES, pips)
+	canvas.ink(ACCENT, 1.0, pips)
 
 
 ## Print `shapes` on `canvas` in department `dept`'s colour (DEPT_INKS) at `cover`, over what is
