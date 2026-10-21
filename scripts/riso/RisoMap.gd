@@ -472,7 +472,7 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 		LevelGen.Type.INKWELL:
 			_mark_inkwell(at, bool(rec.mapped))
 		LevelGen.Type.SNUFFER:
-			_mark_snuffer(at, int((rec.fonts as Dictionary).get(v, Snuffer.CHARGES)) <= 0)
+			_mark_snuffer(at, int((rec.fonts as Dictionary).get(v, Snuffer.capacity(w, v))) <= 0)
 		LevelGen.Type.LIGHT_GATE:
 			_mark_light_gate(at, bool(cell.extra_info))
 		LevelGen.Type.PHASE_BLOCK:

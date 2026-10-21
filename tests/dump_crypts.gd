@@ -1,7 +1,8 @@
 extends TestKit
 ## Prints the crypts of a few cemetery levels as JSON, cell by cell, for drawing them elsewhere
 ## (the darkness write-up): # rock, . air, S sun block, H shade block, ^ thorns, F font, f dry font
-## (none: fonts are only dry in play), O ossuary door, * star or cluster, K skeleton, G light gate.
+## (none: fonts are only dry in play), L large font, O ossuary door, * star or cluster, K skeleton,
+## G light gate, k skeleton key, r an exam paper (the resurrection rite).
 ## godot --headless --path . --script res://tests/dump_crypts.gd -- 5,8 3,6
 ## suite: full
 
@@ -25,7 +26,10 @@ func run() -> void:
 				for x: int in range(box.position.x - 3, box.end.x + 3):
 					row += _char(w, Vector2i(x, y))
 				rows.append(row)
-			out.append({"place": [at.x, at.y], "fontless": Rules.fontless_at(at), "rows": rows})
+			var trials: Array = []
+			for trial: Dictionary in crypt.get("trials", []):
+				trials.append([String(trial["kind"]), str(trial["rect"])])
+			out.append({"place": [at.x, at.y], "fontless": Rules.fontless_at(at), "rows": rows, "trials": trials})
 	print("JSON ", JSON.stringify(out))
 	finish()
 
@@ -42,7 +46,7 @@ func _char(w: LevelGen, v: Vector2i) -> String:
 		LevelGen.Type.SPIKES:
 			return "^"
 		LevelGen.Type.SNUFFER:
-			return "F"
+			return "L" if Snuffer.capacity(w, v) > Snuffer.CHARGES else "F"
 		LevelGen.Type.OSSUARY_DOOR:
 			return "O"
 		LevelGen.Type.COIN, LevelGen.Type.CLUSTER:
@@ -51,4 +55,6 @@ func _char(w: LevelGen, v: Vector2i) -> String:
 			return "K"
 		LevelGen.Type.LIGHT_GATE:
 			return "G"
+		LevelGen.Type.KEY:
+			return "k" if int(cell.extra_info) == KeyRing.SKELETON else "r"
 	return "."

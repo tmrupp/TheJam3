@@ -719,6 +719,45 @@ func debug_travel (to: Vector2i) -> void:
 	await _pass(Vector2.DOWN, to)
 	_arrive(to, Exit.BACK)
 
+## Arriving by the place's boss (debug_to_boss): see _beside_boss.
+const ARRIVE_BOSS: int = -6
+## How many cells from the boss a jump to it sets the wizard down, at the least.
+const BOSS_BESIDE: int = 4
+
+## Debug runs (the F7 panel's boss row): go straight to boss `name` in world `column`, alive or
+## slain: its gate level, arriving beside it (ARRIVE_BOSS), or for the whale, its belly, by its heart.
+## Nothing is paid or opened on the way.
+func debug_to_boss (name: StringName, column: int) -> void:
+	if not debug or travelling or run_ending > 0.0:
+		return
+	if name == &"whale":
+		var belly: Vector2i = Worlds.side_at(Worlds.kind_of(Belly), Vector2i(column, WhaleHunt.row()))
+		await _pass(Vector2.DOWN, belly)
+		_arrive(belly, Exit.BACK)
+		return
+	var row: int = Bosses.row_of(name)
+	if row == 0:
+		return
+	var to: Vector2i = Vector2i(column, row)
+	await _pass(Vector2.DOWN, to)
+	_arrive(to, ARRIVE_BOSS)
+
+## Where a jump to the place's boss sets the wizard down (ARRIVE_BOSS): the free floor nearest its
+## cell, at least BOSS_BESIDE cells off, in the open it stands in; `fallback` (its way back) with no
+## boss here or no such floor.
+func _beside_boss (fallback: Vector2i) -> Vector2i:
+	var bosses: Array[Vector2i] = world.objects_of(LevelGen.Type.BOSS)
+	if bosses.is_empty():
+		return fallback
+	var boss: Vector2i = bosses[0]
+	var room: Dictionary = world.reach_from(boss)
+	var spot: Variant = LevelGen.best_of(world.free_floors(), func(v: Vector2i) -> int: return LevelGen.dist(v, boss),
+			func(v: Vector2i) -> bool: return room.has(v) and LevelGen.dist(v, boss) >= BOSS_BESIDE)
+	if spot == null:
+		return fallback
+	var at: Vector2i = spot
+	return at
+
 ## The F7 panel's Difficulty row: lay this place out again under the preset now picked (it holds
 ## more or fewer foes), arriving at its way back. What the run has noted of the place (things taken
 ## or slain) was noted of the old layout, so it may not all line up.
@@ -834,6 +873,8 @@ func _arrived () -> void:
 		_set_respawn(coord, run.respawn_cell)
 	elif arrival == ARRIVE_BALLOON and world.is_valid(world.balloon):
 		at = world.balloon
+	elif arrival == ARRIVE_BOSS:
+		at = _beside_boss(at)
 	elif arrival == ARRIVE_WAY_BACK and run.way_back.size() >= 4 and run.way_back[0] == coord and run.way_back[1] != Vector2.INF:
 		at = cell_at(run.way_back[1])
 	if player != null:
@@ -1012,8 +1053,6 @@ func _spawn_lesson (cell: Vector2i) -> void:
 
 # ------------------------------------------------------------------ the timetable
 
-## The physics frame a bell was last rung in (a spell that rings one is not held against the wizard).
-var _rung_frame: int = -1
 ## The great bell: how long it rings out once rung (seconds), the institute shaking with it at first
 ## as hard as BELL_SHAKE (px) and less as it fades; and the seconds since it was last rung (the art).
 const BELL_TIME: float = 3.0
@@ -1101,14 +1140,22 @@ func tier_of (hall: int) -> int:
 	var a: StringName = subject_of(hall)
 	return Timetable.tier_taught(a, int(dept_tiers()[world.halls[hall]["dept"]])) if a != &"" else 0
 
-## Whether the cord at `cell` can be rung now (SchoolBell): not the cord rung last (LevelRecord.last_bell,
-## as a crags tower flipped last cannot be flipped again), not within SchoolBell.RING_GAP of the last
-## ring, and in class time only by a wizard out of the classrooms (truant in the halls, or in the
-## library): a class is left by walking out of it, not by a bell.
+## Whether the cord at `cell` can be rung now (SchoolBell): not within SchoolBell.RING_GAP of the last
+## ring, and not the cord rung last (LevelRecord.last_bell, as a crags tower flipped last cannot be
+## flipped again), but for the cord of the classroom the wizard is shut in in class time: the class
+## it began, it lets out (dismissing).
 func bell_ready (cell: Vector2i) -> bool:
-	if not timetabled() or since_bell < SchoolBell.RING_GAP or cell == record().last_bell:
+	if not timetabled() or since_bell < SchoolBell.RING_GAP:
 		return false
-	return record().passing or player == null or not is_instance_valid(player) or _classroom_of(cell_at(player.global_position)) < 0
+	return cell != record().last_bell or dismissing(cell)
+
+## Whether ringing the cord at `cell` now would let out the class the wizard is in: class time, and
+## the cord in the classroom they are in.
+func dismissing (cell: Vector2i) -> bool:
+	if record().passing or player == null or not is_instance_valid(player):
+		return false
+	var hall: int = _classroom_of(cell_at(player.global_position))
+	return hall >= 0 and _classroom_of(cell) == hall
 
 ## Whether the wizard would attend classroom `hall`'s class were a bell rung now (class time
 ## beginning): in the classroom by right (class_hall), its class in session and the wizard enrolled.
@@ -1122,7 +1169,8 @@ func _classroom_of (v: Vector2i) -> int:
 	return hall if hall >= 0 and world.halls[hall]["kind"] == &"lecture" else -1
 
 ## The cord at `cell` pulled (SchoolBell), if it can be rung (bell_ready): in passing time class time
-## begins (_class_time), in class time it ends (ring_period). It is the cord rung last now. Every ring
+## begins (_class_time), in class time it ends (ring_period), whoever rings it: a wizard shut in a
+## classroom, or one truant in the halls. It is the cord rung last now. Every ring
 ## feeds the beast (RunState.fed) and shakes the institute while it rings out (BELL_TIME). Returns
 ## whether it rang.
 func pull_cord (cell: Vector2i) -> bool:
@@ -1148,22 +1196,24 @@ func _class_time () -> void:
 
 ## A bell rung: when, the beast fed, the institute shaking.
 func _rung () -> void:
-	_rung_frame = Engine.get_physics_frames()
 	since_bell = 0.0
 	Wound.shake(BELL_SHAKE, BELL_TIME)
 	run.fed += 1
 
-## A bell rung in class time by a wizard truant in the halls (pull_cord): the period is rung out with
-## nothing attended (_end_period). Returns true.
+## A bell rung in class time (pull_cord): the period is rung out (_end_period), the class attended if
+## the wizard is still in the one they began class time in (_attend), and the classrooms' doors open
+## to them again.
 func ring_period () -> bool:
 	_rung()
 	_end_period(_attend())
 	return true
 
-## The wizard walked out of classroom `hall` in class time (_watch_timetable): the period ends, its
-## class attended if it was the one they began class time in (_attend); no bell rings.
+## The wizard got out of classroom `hall` in class time, shut as it is (a warp, a rift): its class, if
+## they began class time in it, is forfeit (LevelRecord.started), and they are truant until a bell
+## rings the period out.
 func _left_class (hall: int) -> void:
-	_end_period(_attend() if record().started == hall else &"")
+	if record().started == hall:
+		record().started = -1
 
 ## Class time over: the departments climb by what was attended, the level moves on a period and
 ## passing time begins; every class is seated afresh (_seat_classes) and every scholar calms down.
@@ -1195,8 +1245,8 @@ func _meeting () -> Dictionary:
 	return out
 
 ## The period ended: the wizard attended the class they began class time in (LevelRecord.started),
-## field trip or not, if its master is there and not turned on them (beaten or crossed, it expels
-## them). One whose subject the institute cannot teach
+## if they are in it still (class_hall; back from a field trip or never gone) and its master is there
+## and not turned on them (beaten or crossed, it expels them). One whose subject the institute cannot teach
 ## them (teaches: a relic's move they lack) counts all the same, with no paper. A paper of its
 ## subject carried at a lower tier is graded up to the tier taught, there in hand (resitting);
 ## otherwise its exam paper (its subject at the tier taught, KeyRing.paper) waits in the level its
@@ -1206,7 +1256,7 @@ func _attend () -> StringName:
 	if player == null or not is_instance_valid(player):
 		return &""
 	var hall: int = record().started
-	if record().passing or hall < 0 or hall >= world.halls.size() or world.halls[hall]["kind"] != &"lecture":
+	if record().passing or hall < 0 or hall != class_hall or hall >= world.halls.size() or world.halls[hall]["kind"] != &"lecture":
 		return &""
 	var a: StringName = subject_of(hall)
 	var m: Scholar = master_in(hall)
@@ -1355,17 +1405,20 @@ func _seat_classes () -> void:
 					loader.place_cell(v, world.get_cell(v))
 
 ## Whether hall `hall`'s doors would let the wizard through (ExamDoor, which opens a classroom's only
-## as they walk up to it): the library's while it is in session (always); a classroom's from inside
-## always, so a class can always be left; from outside only in passing time, its class in session and
-## the wizard enrolled in it. In class time every classroom is shut to those outside.
+## as they walk up to it): the library's while it is in session (always); a classroom's only in
+## passing time, from inside always, from outside to a wizard enrolled in its class in session. In
+## class time every classroom is shut, both ways: a wizard in one stays until a bell rings the period
+## out (ring_period; its own cord lets them out, dismissing), and one outside until the same.
 func hall_door_up (hall: int) -> bool:
 	if world == null or hall < 0 or hall >= world.halls.size():
 		return true
 	var rec: LevelRecord = record()
 	var open: bool = Timetable.in_session(world, hall, rec.rings)
 	if world.halls[hall]["kind"] == &"lecture":
+		if not rec.passing:
+			return false
 		var inside: bool = player != null and is_instance_valid(player) and Timetable.hall_inside(world, cell_at(player.global_position)) == hall
-		return inside or (rec.passing and open and enrolled(hall))
+		return inside or (open and enrolled(hall))
 	return open
 
 ## Whether the abominations keep still now: during a class (a period, not passing time).
@@ -1377,20 +1430,11 @@ func abominations_quiet () -> bool:
 func surge () -> float:
 	return SURGE_LEAST + SURGE_PER_RING * float(record().rings) if timetabled() else 1.0
 
-## The wizard cast the spell in slot `slot` (Abilities.cast): every scholar that sees it turns on them
-## (Scholar.rouse), but for one that rang a bell as it struck.
-func wizard_cast (_slot: StringName = &"damage") -> void:
-	if not timetabled() or player == null or _rung_frame == Engine.get_physics_frames():
-		return
-	for node: Node in get_tree().get_nodes_in_group(&"scholar"):
-		var s: Scholar = node as Scholar
-		if s != null and not s.roused and s.sees(player):
-			s.rouse()
-
-## Whether the institute will teach `a` to the wizard: anything, but a big move (Relics.MOVES) only
-## to a wizard who already has it, in its slot or as a paper (relics are how those are found).
+## Whether the institute will teach `a` to the wizard: anything, but a big move (Relics.MOVES) or
+## resurrect only to a wizard who already has it, in its slot or as a paper (relics and crypts are how
+## those are found, Abilities.found_first).
 func teaches (a: StringName) -> bool:
-	return a != &"" and (not a in Relics.MOVES or Abilities.tier(player, a) > 0 or player.keyring.papers().any(func(code: int) -> bool: return KeyRing.paper_spell(code) == a))
+	return a != &"" and (not Abilities.found_first(a) or Abilities.tier(player, a) > 0 or player.keyring.papers().any(func(code: int) -> bool: return KeyRing.paper_spell(code) == a))
 
 ## The classroom the wizard is in by right, or -1: one they went into enrolled in its class (or came
 ## back into through a department's way back) and have not left since. Tests seating the wizard in a
@@ -1405,9 +1449,9 @@ var _from_department: bool = false
 ## Where the wizard is, by the timetable: going into a classroom they are enrolled in, they are in it
 ## by right (class_hall: a bell rung there begins class time with them attending, class_ready; got in
 ## in class time, by a warp or a rift, they are late, belonging but attending nothing); getting into
-## one they are not enrolled in any other way, they are put back out (keep_out). Walking out of a
-## classroom in class time ends the period (_left_class). A projection drifting through is let be
-## until it ends.
+## one they are not enrolled in any other way, they are put back out (keep_out). Getting out of a
+## classroom in class time (its doors are shut, so by a warp or a rift) forfeits its class
+## (_left_class). A projection drifting through is let be until it ends.
 func _watch_timetable () -> void:
 	if not timetabled():
 		return
@@ -1516,11 +1560,13 @@ func light_lantern (lantern: Node) -> bool:
 	_set_respawn(coord, lantern.get_meta(&"cell"))
 	run.vulnerable = false
 	_refresh_lanterns()
-	# A lantern refills the hex's charges and mend's draughts.
+	# A lantern refills the hex's charges, mend's draughts and resurrect's rites.
 	if player != null and player.has_node("Hex"):
 		(player.get_node("Hex") as Hex).refill()
 	if player != null and player.has_node("Mend"):
 		(player.get_node("Mend") as Mend).refill()
+	if player != null and player.has_node("Resurrect"):
+		(player.get_node("Resurrect") as Resurrect).refill()
 	if was_vulnerable:
 		RisoFx.burst(&"gain", (lantern as Node2D).global_position, Vector2.ZERO, [RisoPrint.EYE, RisoPrint.GLOW])
 	save_run()
@@ -1549,7 +1595,8 @@ func relight () -> void:
 		RisoFx.burst(&"gain", player.global_position + Vector2(0, -30), Vector2.ZERO, [RisoPrint.EYE, RisoPrint.GLOW])
 
 ## Douse the flame in the snuffing font at `cell` (Snuffer), its water at `at`, and take its
-## darkness: the wizard gains every charge it holds (Snuffer.CHARGES in a font never touched, or
+## darkness: the wizard gains every charge it holds (Snuffer.CHARGES in a font never touched, LARGE
+## in a crypt's large one, or
 ## what was poured back into it), their flame goes out (if it burns), and the font is dry until
 ## darkness is poured into it again (LevelRecord.fonts, kept whatever befalls them after). Whether
 ## it gave any (a dry font gives nothing).
@@ -1580,7 +1627,7 @@ func fill_font (cell: Vector2i, at: Vector2) -> int:
 
 ## The charges of darkness the snuffing font at `cell` here holds.
 func font_held (cell: Vector2i) -> int:
-	return int(record().fonts.get(cell, Snuffer.CHARGES))
+	return int(record().fonts.get(cell, Snuffer.capacity(world, cell)))
 
 ## Whether the snuffing font at `cell` here has run dry.
 func font_dry (cell: Vector2i) -> bool:

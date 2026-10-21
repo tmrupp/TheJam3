@@ -578,6 +578,10 @@ Decided (October 2026):
   doorways, something worth having deep inside), but bigger, and their insides are collapsed by
   WFC from a sample of their own (passages, burial niches, ossuary rooms), not built by hand.
   Inside it is completely dark: nothing shows but what a light lights.
+  (Changed October 20: much wider, and each holds trials, chambers of hard platforming each
+  collapsed from a sample of its own (a thorn pit, a thorn crawl, a bone well), worked with sun
+  and shade blocks; and a prize in its reliquary: a skeleton key, a large font or, now and then,
+  the resurrection rite. `docs/DEEPER_PLAN.md` §4b.)
 - **Light by place, not by band.** The terraces stay moonlit (the shade every band has, no gloom);
   a crypt's inside is fully dark. The darkness is a property of where in the level, not of the
   whole level.
@@ -846,14 +850,16 @@ Each phase ends with the full suite green and its own tests.
     the corridors the way in opens on), and a cord hangs in each classroom and the library. A level
     is first met in passing time, and the bells go passing time, class time, passing time, class
     time. Any bell rung in passing time begins class time: a wizard in a classroom (enrolled, its
-    class in session) attends it, one anywhere else is truant. Walking out of the class ends it, no
-    bell needed; a wizard truant in the halls ends it by ringing another bell. Either way the period
-    is over: the level moves on to the next of three in its day, passing time begins, every class is
+    class in session) attends it, one anywhere else is truant, and every classroom shuts. Any bell
+    rung in class time ends it: a wizard in a class rings its own cord to be let out, one truant in
+    the halls rings another. Either way the period is over: the level moves on to the next of three in its day, passing time begins, every class is
     seated afresh, every scholar calms and each department that met climbs or drops (below). One who
-    gets into a class in session in class time (a warp) is late: not truant, attending nothing.
-    Classroom doors stay shut until the wizard walks up to them, open from inside always, and from
-    outside only in passing time; in class time every classroom is shut to those outside. No cord
-    rings twice running, as a crags tower cannot be flipped twice running. Every ring feeds the beast
+    gets into a class in session in class time (a warp) is late: not truant, attending nothing; one
+    who gets out of one the same way forfeits it and is truant. Classroom doors stay shut until the
+    wizard walks up to them, and open only in passing time, from inside always and from outside to a
+    wizard enrolled; in class time every classroom is shut both ways. No cord rings twice running,
+    as a crags tower cannot be flipped twice running, but for a classroom's own cord letting out the
+    class it began. Every ring feeds the beast
     for the run.
   - *Abominations and the beast by the bells.* Abominations keep still during a class and act up in
     passing time, slowly at first and faster with every period rung out in the level (their growth

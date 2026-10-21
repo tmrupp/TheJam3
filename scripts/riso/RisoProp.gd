@@ -5,6 +5,8 @@ extends Node2D
 ## script in scripts/riso/props/ (see KINDS), which overrides _draw_art. Drawn in world pixels (the
 ## owner's scale is cancelled); the owner's rotation still applies, so wall and ceiling spikes point
 ## the right way. Presentation only. Shapes shared with the map and HUD are in RisoMarks.
+## Struck by a blow that wounds its host (struck, Wound.felt), it jolts away from the blow and
+## wobbles, squashing and stretching, for STRUCK_TIME.
 
 class_name RisoProp
 
@@ -61,6 +63,7 @@ const KINDS: Dictionary = {
 	&"balloon": "res://scripts/riso/props/BalloonArt.gd",
 	&"temple": "res://scripts/riso/props/TempleArt.gd",
 	&"snuffer": "res://scripts/riso/props/SnufferArt.gd",
+	&"gravemark": "res://scripts/riso/props/GraveMarkArt.gd",
 	&"skeleton": "res://scripts/riso/props/SkeletonArt.gd",
 	&"lightgate": "res://scripts/riso/props/LightGateArt.gd",
 	&"scholar": "res://scripts/riso/props/ScholarArt.gd",
@@ -120,6 +123,17 @@ const POP_REACH: Vector2 = Vector2(40, 110)
 ## Pop-up centre height over the ground: above the interact prompt over the wizard's head.
 const POP_Y: float = 255.0
 var pops: Array[float] = []
+## How long a struck prop jolts and wobbles (seconds), how far it is thrown back (px), how much it
+## squashes (a share of its size) and how many times it wobbles meanwhile.
+const STRUCK_TIME: float = 0.28
+const STRUCK_KICK: float = 18.0
+const STRUCK_SQUASH: float = 0.28
+const STRUCK_WOBBLES: float = 2.5
+## Seconds since it was last struck (STRUCK_TIME or more: not struck), the way the blow went, and
+## its own scale (cancelling its host's), which the wobble works round.
+var _struck_t: float = STRUCK_TIME
+var _struck_dir: Vector2 = Vector2.ZERO
+var _rest_scale: Vector2 = Vector2.ONE
 
 
 # ------------------------------------------------------------------ what a kind overrides
@@ -196,6 +210,7 @@ func _ready() -> void:
 	host = get_parent() as Node2D
 	if host != null and host.scale.x != 0.0 and host.scale.y != 0.0:
 		scale = Vector2(1.0 / host.scale.x, 1.0 / host.scale.y)
+	_rest_scale = scale
 	phase = RisoShapes.hash1(float(host.get_instance_id() % 997)) * TAU if host != null else 0.0
 	_stagger = get_instance_id() % 6
 	var tm: TileMap = Stage.tile_map()
@@ -216,6 +231,9 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	t += delta
 	_since_print += delta
+	if _struck_t < STRUCK_TIME:
+		_struck_t += delta
+		_jolt()
 	# Only animate what the camera can see; off-screen art keeps its last print. The camera's
 	# reach is worked out once a frame and shared by every prop (a deep level has hundreds).
 	RisoProp._see_view(self)
@@ -239,6 +257,28 @@ func _process(delta: float) -> void:
 			set_process(false)
 		return
 	_tick()
+
+
+## A blow that wounds its host has struck it, heading `dir` (Wound.felt): jolt and wobble.
+func struck(dir: Vector2) -> void:
+	_struck_t = 0.0
+	_struck_dir = dir.normalized() if dir != Vector2.ZERO else Vector2.ZERO
+	set_process(true)
+	_jolt()
+
+
+## Where a struck prop sits and how it is squashed, STRUCK_TIME after the blow: thrown back the way
+## it went and easing home, squashed along it, then wobbling out.
+func _jolt() -> void:
+	var k: float = clampf(_struck_t / STRUCK_TIME, 0.0, 1.0)
+	var left: float = (1.0 - k) * (1.0 - k)
+	var wob: float = cos(k * PI * 2.0 * STRUCK_WOBBLES) * left * STRUCK_SQUASH
+	var along: float = absf(_struck_dir.x) if _struck_dir != Vector2.ZERO else 0.0
+	# Squashed along the blow (wide for a blow from the side, low for one from above or below).
+	var squash: Vector2 = Vector2(1.0 - wob * along + wob * (1.0 - along), 1.0 + wob * along - wob * (1.0 - along))
+	scale = _rest_scale * squash
+	if host != null:
+		global_position = host.global_position + _struck_dir * STRUCK_KICK * left
 
 
 ## Printed at least once (props are first printed as they come into view).

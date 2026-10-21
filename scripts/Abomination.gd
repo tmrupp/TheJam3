@@ -258,7 +258,31 @@ func _wound_hp() -> int:
 	return maxi(0, wound.hp) if wound != null else lobes
 
 
+## The blobs and the facing its HitBox was last fitted round (_fit_touch).
+var _fitted: Vector2 = Vector2(-1.0, 0.0)
+
+
+## Fit its HitBox round the blobs it has now, the way it faces, when they have changed: its touch
+## and the spells that strike it cover all of it as printed (HitBox.fit).
+func _fit_touch() -> void:
+	var now: Vector2 = Vector2(float(lobes), facing)
+	if now == _fitted:
+		return
+	_fitted = now
+	var box: HitBox = get_node_or_null("HitBox") as HitBox
+	if box == null:
+		return
+	var around: Rect2 = Rect2()
+	for i: int in range(maxi(lobes, 1)):
+		var at: Vector3 = lobe_at(i)
+		# Its blobs are drawn from its feet, FEET under its middle (AbominationArt).
+		var blob: Rect2 = Rect2(Vector2(at.x * facing - at.z, at.y + FEET - at.z), Vector2(at.z, at.z) * 2.0)
+		around = blob if i == 0 else around.merge(blob)
+	box.fit(around)
+
+
 func _physics_process(delta: float) -> void:
+	_fit_touch()
 	t += delta
 	since_bite += delta
 	_count_lobes()

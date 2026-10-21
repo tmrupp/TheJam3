@@ -2,9 +2,12 @@ extends TestKit
 ## The cemetery's crypts and its light (docs/REGIONS_PLAN.md §7): one or two crypts a level, their
 ## insides collapsed from their own sample, walled in masonry with a doorway or two (open or shut
 ## by a sun or shade block, no light gates), nothing inside
-## the wizard could drop into and not get out of, the same on every visit; the level's star cluster
-## (or a hoard of stars) deep inside, skeletons asleep on its floors and a snuffing font by each doorway (but in a level
-## dealt none, Rules.fontless_at). In play: a font puts the flame out (still protected), gives its darkness and runs dry,
+## the wizard could drop into and not get out of (but in its trials), the same on every visit; the
+## level's star cluster (or a hoard of stars) deep inside, skeletons asleep on its floors and a
+## snuffing font by each doorway (but in a level dealt none, Rules.fontless_at); its trials (pits,
+## crawls and wells, collapsed from samples of their own), thorny and worked with sun and shade
+## blocks; its prize (a skeleton key, a large font that survives a level dealt no fonts, or now and
+## then the resurrection rite, never two in a level). In play: a font puts the flame out (still protected), gives its darkness and runs dry,
 ## takes back the darkness carried to keep it and gives it again,
 ## a lantern lights it again and a dash switches it by the darkness carried; light falls where the flame sees, not
 ## through rock; wraiths freeze in it; a sleeping skeleton wakes in it, walks at the wizard and
@@ -67,6 +70,14 @@ func play() -> void:
 	info.run.dark_charges = 0
 	font.use()
 	check(not font.can_fill() and not font.can_snuff() and font.dry() and info.run.dark_charges == 0, "dry with nothing carried, it does nothing")
+	# A large font (a crypt's prize) holds Snuffer.LARGE, untouched.
+	var cell: LevelGen.Cell = info.world.get_cell(font.cell)
+	var plain: Variant = cell.extra_info
+	cell.extra_info = {"charges": Snuffer.LARGE}
+	info.record().fonts.erase(font.cell)
+	check(font.large() and font.held() == Snuffer.LARGE and font.can_snuff(), "a large font holds %d charges" % Snuffer.LARGE)
+	cell.extra_info = plain
+	info.record().fonts[font.cell] = 0
 	info.run.dark_charges = Snuffer.CHARGES
 	info.run.vulnerable = true
 	check(not info.flame_snuffed(), "unprotected, the lantern is drawn unprotected, snuffed or not")
@@ -239,7 +250,14 @@ func generation() -> void:
 		check(w != null, "%s lays out" % at)
 		if w == null:
 			continue
-		check(w.patches.size() == Crypts.INSIDES.size() and (w.patches[0] as Array).size() == Crypts.INSIDES[0].x, "%s: its crypts' insides are collapsed with it" % at)
+		var trial_patches: int = 0
+		for n: int in Crypts.TRIAL_COUNTS:
+			trial_patches += n
+		check(w.patches.size() == Crypts.INSIDES.size() + trial_patches and (w.patches[0] as Array).size() == Crypts.INSIDES[0].x, "%s: its crypts' insides and their trials are collapsed with it" % at)
+		var settled: int = 0
+		for p: Array in w.patches.slice(Crypts.INSIDES.size()):
+			settled += 1 if not p.is_empty() else 0
+		check(settled == trial_patches, "%s: every trial settled (%d of %d), collapsed by its slices" % [at, settled, trial_patches])
 		check(w.crypts.size() >= 1 and w.crypts.size() <= 2 and w.crypts.size() <= Crypts.wanted(w), "%s: %d crypt(s) (%d wanted), laid out in %d ms" % [at, w.crypts.size(), Crypts.wanted(w), took])
 		if w.crypts.size() == 2:
 			twos += 1
@@ -269,10 +287,37 @@ func generation() -> void:
 		check(stars >= w.crypts.size() - lairs, "%s: %d stars to find in its crypts (but a lair)" % [at, stars])
 		for i: int in range(w.crypts.size()):
 			_crypt(w, at, w.crypts[i], i == 0 and Rules.def_for(at).gate == &"necromancer")
+			if not (i == 0 and lairs == 1):
+				_prized(w, at, w.crypts[i], i)
+				_trials(w, at, w.crypts[i])
 		furnished += w.crypts.size() - lairs
 	print("ok %d of the levels have two crypts" % twos)
+	for kind: StringName in Crypts.TRIALS:
+		check(int(trial_kinds.get(kind, 0)) > 0, "some crypts have a %s (%d)" % [kind, int(trial_kinds.get(kind, 0))])
+	check(int(prizes.get(&"key", 0)) > 0 and int(prizes.get(&"font", 0)) > 0, "the prizes include skeleton keys and large fonts (%s)" % prizes)
+	# The rite, over many levels' seeds: now and then, never in two crypts of a level.
+	var rites: int = 0
+	var twice: int = 0
+	for s: int in range(2000):
+		var here: Array[StringName] = [Crypts.prize_kind(s, 0), Crypts.prize_kind(s, 1)]
+		rites += here.count(&"rite")
+		twice += 1 if here.count(&"rite") > 1 else 0
+	check(rites > 300 and rites < 700 and twice == 0, "the resurrection rite is the prize of %d of 4000 crypts, never two in a level" % rites)
+	# A large font, a crypt's prize, stays in a level dealt no fonts.
+	var dry: Vector2i = Vector2i(-1, -1)
+	for world: int in range(1, 200):
+		var at: Vector2i = Vector2i(world, c0 + 1)
+		if Rules.fontless_at(at) and Crypts.prize_kind(Rules.def_for(at).gen_seed, 0) == &"font":
+			dry = at
+			break
+	if dry != Vector2i(-1, -1):
+		var w: LevelGen = build(dry)
+		var fonts: Array[Vector2i] = w.objects_of(LevelGen.Type.SNUFFER)
+		var large: bool = not fonts.is_empty() and fonts.all(func(v: Vector2i) -> bool: return Snuffer.capacity(w, v) == Snuffer.LARGE)
+		check(w.crypts.is_empty() or large, "%s, dealt no fonts: its only fonts are its crypts' large ones (%d)" % [dry, fonts.size()])
+	check(KeyRing.is_paper(KeyRing.paper(Crypts.RITE, 1)) and KeyRing.paper_spell(KeyRing.paper(Crypts.RITE, 1)) == Crypts.RITE and KeyRing.paper_tier(KeyRing.paper(Crypts.RITE, 1)) == 1, "the rite is an exam paper of resurrect at tier I")
 	check(door_blocks > 0, "some doorways are shut by a sun or shade block (%d)" % door_blocks)
-	check(alternating * 3 >= furnished * 2, "most crypts are thorny: %d of %d with %d or more alternating thorns" % [alternating, furnished, THORNY])
+	check(alternating * 3 >= furnished * 2, "most crypts are thorny: %d of %d with %d or more thorns, alternating or in their trials" % [alternating, furnished, THORNY])
 	var garden: LevelGen = build(Vector2i(28, 1))
 	check(garden.patches.is_empty() and garden.crypts.is_empty(), "a garden level has no crypts")
 
@@ -283,7 +328,7 @@ func _crypt(w: LevelGen, at: Vector2i, crypt: Dictionary, lair: bool) -> void:
 	var box: Rect2i = crypt["box"]
 	var floors: Array[Vector2i] = crypt["floors"]
 	var doors: Array[Vector2i] = crypt["doors"]
-	check(box.size.x >= Crypts.INSIDES[1].x + 2 and box.size.y >= Crypts.INSIDES[1].y + 2, "%s: a crypt %s, bigger than a tower" % [at, box.size])
+	check(box.size.x >= Crypts.CROPS.min() + 2 and box.size.y >= Crypts.CROP_HEIGHTS.min() + 2, "%s: a crypt %s, bigger than a tower" % [at, box.size])
 	check(not doors.is_empty() and doors.all(func(d: Vector2i) -> bool: return (d.x == box.position.x or d.x == box.end.x - 1) and not w.is_ground(d)), "%s: %d doorway(s) through its side walls" % [at, doors.size()])
 	check(doors.all(func(d: Vector2i) -> bool: return w.get_cell(d).type in [LevelGen.Type.EMPTY, LevelGen.Type.PHASE_BLOCK, LevelGen.Type.OSSUARY_DOOR]), "%s: its doorways open or shut by a sun or shade block or an ossuary door, never a light gate" % at)
 	door_blocks += doors.filter(func(d: Vector2i) -> bool: return w.get_cell(d).type == LevelGen.Type.PHASE_BLOCK).size()
@@ -301,7 +346,10 @@ func _crypt(w: LevelGen, at: Vector2i, crypt: Dictionary, lair: bool) -> void:
 	# Every floor reached is got back out from: no pits (Crypts._fill_pits).
 	var stand: Array[Vector2i] = doors.duplicate()
 	stand.append_array(floors)
-	var back: Array[Vector2i] = Crypts._hops(w, stand, doors, true)
+	var rects: Array = []
+	for trial: Dictionary in crypt.get("trials", []):
+		rects.append(trial["rect"])
+	var back: Array[Vector2i] = Crypts._hops(w, stand, doors, true, rects)
 	check(floors.all(func(v: Vector2i) -> bool: return back.has(v)), "%s: every floor reached inside is hopped back out from" % at)
 	var cluster: bool = w.get_cell(crypt["deep"]).type in [LevelGen.Type.CLUSTER, LevelGen.Type.COIN]
 	var sleepers: int = floors.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.SKELETON).size()
@@ -321,6 +369,8 @@ func _crypt(w: LevelGen, at: Vector2i, crypt: Dictionary, lair: bool) -> void:
 		check(cluster and sleepers >= Crypts.SKELETONS_MIN, "%s: the level's star cluster (or a hoard of stars) at its deepest floor, %d skeletons asleep" % [at, sleepers])
 		# Its thorns take turns: on each, a timer half a cycle from its neighbour's a block on.
 		var thorns: Array[Vector2i] = floors.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.SPIKES)
+		# Thorny: its alternating thorns and its trials' thorns, always out, together.
+		var all_thorns: int = (crypt["inside"] as Array).filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.SPIKES).size()
 		var phases: Dictionary = {}
 		var brief: bool = true
 		for v: Vector2i in thorns:
@@ -328,13 +378,55 @@ func _crypt(w: LevelGen, at: Vector2i, crypt: Dictionary, lair: bool) -> void:
 			phases[snappedf(float(how["timed"]), 0.01)] = true
 			brief = brief and float(how["up"]) < Spikes.CYCLE * 0.5
 		check(phases.size() <= 2 and brief, "%s: %d thorns in %d turn(s), each out less than half the time" % [at, thorns.size(), phases.size()])
-		if thorns.size() >= THORNY:
+		if all_thorns >= THORNY:
 			alternating += 1
 	if not fontless:
 		check(fonts >= 1, "%s: a snuffing font by %d of its %d doorway(s)" % [at, fonts, doors.size()])
 	print(_drawn(w, box))
 
 
+## Crypt `crypt` (the `i`-th) of level `w` holds its prize (Crypts.prize_kind) at a floor inside:
+## a skeleton key, the rite's paper or a large font.
+func _prized(w: LevelGen, at: Vector2i, crypt: Dictionary, i: int) -> void:
+	var kind: StringName = Crypts.prize_kind(w.seed_for_colors, i)
+	if not crypt.has("prize"):
+		check((crypt["floors"] as Array).size() < 8, "%s: a crypt with room for one has a prize" % at)
+		return
+	var v: Vector2i = crypt["prize"]
+	var cell: LevelGen.Cell = w.get_cell(v)
+	var ok: bool = false
+	match kind:
+		&"key":
+			ok = cell.type == LevelGen.Type.KEY and int(cell.extra_info) == KeyRing.SKELETON
+		&"rite":
+			ok = cell.type == LevelGen.Type.KEY and int(cell.extra_info) == KeyRing.paper(Crypts.RITE, 1)
+		_:
+			ok = cell.type == LevelGen.Type.SNUFFER and Snuffer.capacity(w, v) == Snuffer.LARGE
+	check(ok and (crypt["floors"] as Array).has(v), "%s: its prize, a %s, on a floor inside" % [at, kind])
+	prizes[kind] = int(prizes.get(kind, 0)) + 1
+
+
+## Crypt `crypt`'s trials in level `w`: inside it, thorny (but a well, whose thorns are dealt), and
+## worked with sun and shade blocks: a pit's stones, a well's ledges, a crawl's gates.
+func _trials(w: LevelGen, at: Vector2i, crypt: Dictionary) -> void:
+	var room: Rect2i = (crypt["box"] as Rect2i).grow(-1)
+	for trial: Dictionary in crypt["trials"]:
+		var rect: Rect2i = trial["rect"]
+		var thorns: int = 0
+		var blocks: int = 0
+		for x: int in range(rect.position.x, rect.end.x):
+			for y: int in range(rect.position.y, rect.end.y):
+				var t: LevelGen.Type = w.get_cell(Vector2i(x, y)).type
+				thorns += 1 if t == LevelGen.Type.SPIKES else 0
+				blocks += 1 if t == LevelGen.Type.PHASE_BLOCK else 0
+		check(room.encloses(rect) and (thorns >= 2 or trial["kind"] == &"well"), "%s: a %s inside the crypt, with %d thorns" % [at, trial["kind"], thorns])
+		check(blocks >= 1, "%s: the %s is worked with %d sun and shade blocks" % [at, trial["kind"], blocks])
+		trial_kinds[trial["kind"]] = int(trial_kinds.get(trial["kind"], 0)) + 1
+
+
+## The trials and prizes met across the levels looked at, by kind.
+var trial_kinds: Dictionary = {}
+var prizes: Dictionary = {}
 ## How many thorns make a crypt thorny, and how many of its crypts that were furnished are.
 const THORNY: int = 3
 var alternating: int = 0

@@ -277,5 +277,22 @@ func run() -> void:
 	player.set_physics_process(false)
 	if is_instance_valid(stuck):
 		stuck.queue_free()
+
+	print("struck where it is drawn")
+	player.global_position = info.cell_position(at) + Vector2(0, 16 - 31)
+	var w: Node2D = wisp(at, cell)
+	await frames(2)
+	var body: Rect2 = SpellStrike.body_of(w)
+	check(body.has_area() and body.get_center().y < w.global_position.y - 15.0, "a wisp's body as drawn floats over its feet, and it is struck there")
+	# A blow reaching only its tail end, well off the line through its middle, lands; one beside it
+	# does not.
+	var tail: Vector2 = Vector2(body.position.x + 2.0, body.get_center().y)
+	var none: Callable = func(_s: Shaped) -> bool: return false
+	check(absf(tail.x - w.global_position.x) > 16.0 and SpellStrike.caught(self, player.global_position, func(p: Vector2) -> bool: return p.distance_to(tail) <= 8.0, none).has(w), "a blow reaching only its tail lands")
+	var beside: Vector2 = body.position + Vector2(-30.0, -30.0)
+	check(not SpellStrike.caught(self, player.global_position, func(p: Vector2) -> bool: return p.distance_to(beside) <= 8.0, none).has(w), "one beside it does not")
+	var mid_y: float = body.get_center().y
+	check(HexBolt.crosses(Vector2(body.position.x - 40.0, mid_y), Vector2(body.position.x + 4.0, mid_y), body) and not HexBolt.crosses(Vector2(body.position.x - 40.0, body.position.y - 20.0), Vector2(body.end.x + 40.0, body.position.y - 20.0), body), "a bolt's step through its body crosses it, one over it does not")
+	w.queue_free()
 	RunState.delete_save()
 	finish()

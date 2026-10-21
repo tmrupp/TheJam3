@@ -13,8 +13,11 @@ extends RefCounted
 ## (Spire.empowered_hit), and the spell breaks the cracked rock it reaches (`crack`, by cells).
 
 ## How far up and down from its middle a thing may be caught (as HexBolt's SPAN_DOWN and SPAN_UP).
+## An enemy is caught anywhere on its body as drawn, too (body_of: its HitBox), felt for at BODY_GRID
+## by BODY_GRID points across it, edges and corners among them.
 const SPAN_DOWN: float = 20.0
 const SPAN_UP: float = 56.0
+const BODY_GRID: int = 3
 ## How finely (px) the way from the wizard to a thing is felt for rock.
 const SIGHT_STEP: float = 16.0
 ## The recoil off a spell (`recoil`), at power 1 (a slash that lands; a push throws harder, a hex
@@ -61,6 +64,8 @@ static func caught(tree: SceneTree, from: Vector2, catches: Callable, catches_sh
 				if bool(catches.call(p)) and clear(from, p):
 					hit = true
 					break
+			if not hit:
+				hit = _body_caught(body_of(e as Node2D), from, catches)
 		if not hit:
 			continue
 		var whole: Node = Wound.whole(e)
@@ -69,6 +74,35 @@ static func caught(tree: SceneTree, from: Vector2, catches: Callable, catches_sh
 		wholes.append(whole)
 		out.append(e)
 	return out
+
+
+## Where `e` is drawn, as a rect in the world: its HitBox's (HitBox, fitted to its body); an empty
+## rect for a thing with none (spells catch it in the column through its middle alone).
+static func body_of(e: Node2D) -> Rect2:
+	var box: Area2D = e.get_node_or_null("HitBox") as Area2D if e != null else null
+	var shape: CollisionShape2D = box.get_node_or_null("CollisionShape2D") as CollisionShape2D if box != null else null
+	var rect: RectangleShape2D = shape.shape as RectangleShape2D if shape != null else null
+	if rect == null:
+		return Rect2()
+	var r: Rect2 = rect.get_rect()
+	var xf: Transform2D = shape.global_transform
+	var out: Rect2 = Rect2(xf * r.position, Vector2.ZERO)
+	for corner: Vector2 in [Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]:
+		out = out.expand(xf * corner)
+	return out
+
+
+## Whether `catches` takes in any of BODY_GRID by BODY_GRID points across `body`, with no rock
+## between `from` and it.
+static func _body_caught(body: Rect2, from: Vector2, catches: Callable) -> bool:
+	if not body.has_area():
+		return false
+	for i: int in range(BODY_GRID):
+		for j: int in range(BODY_GRID):
+			var p: Vector2 = body.position + body.size * Vector2(float(i), float(j)) / float(BODY_GRID - 1)
+			if bool(catches.call(p)) and clear(from, p):
+				return true
+	return false
 
 
 ## Whether no rock lies on the way from `from` to `to`, short of the last HexBolt.REACH of it (so a

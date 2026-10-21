@@ -48,8 +48,8 @@ class_name Scholar
 ## The timetable (Timetable): it leaves the wizard be (calm) while they are where they belong, and
 ## turns on them (`roused`) once it sees them where they do not (MapInfo.wizard_belongs), with real
 ## line of sight, so slipping past one facing away works; those within ROUSE_REACH of it turn with
-## it, a local fuss. Struck by the wizard, or seeing them cast a spell (MapInfo.wizard_cast), it turns
-## on them wherever they are. The next bell calms it (MapInfo.ring_period). In a level with no
+## it, a local fuss. Struck by the wizard (SpellStrike.strike, HexBolt), it turns on them wherever
+## they are; a spell cast at nothing, or at anything else, it lets be. The next bell calms it (MapInfo.ring_period). In a level with no
 ## timetable it is always roused. The abominations it fights whatever the time. Nothing here draws
 ## from any RNG.
 

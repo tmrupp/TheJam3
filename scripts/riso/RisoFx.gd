@@ -70,6 +70,13 @@ func _burst(kind: StringName, at: Vector2, dir: Vector2, plates: Array[int]) -> 
 				_add(Shape.SHARD, RisoPrint.PINK, 1.0, at, _spray(dir, PI if dir == Vector2.ZERO else 1.3, 250.0, 460.0), rng.randf_range(0.4, 0.6), rng.randf_range(7.0, 11.0), 3.0, 500.0)
 			for i: int in range(6):
 				_add(Shape.STREAK, RisoPrint.PINK, 1.0, at, _spray(Vector2.ZERO, PI, 380.0, 560.0), rng.randf_range(0.15, 0.25), 3.0, 6.0)
+			# A ring of motes thrown out round the blow, in the first plate given, and a few
+			# sparks flung the way the blow went.
+			for i: int in range(10):
+				var a: float = TAU * float(i) / 10.0
+				_add(Shape.DOT, plates[0], 1.0, at, Vector2(cos(a), sin(a)) * 300.0, 0.2, 3.0, 7.0)
+			for i: int in range(4):
+				_add(Shape.SPARKLE, RisoPrint.ACCENT, 1.0, at, _spray(dir, 0.5, 300.0, 520.0), rng.randf_range(0.18, 0.3), rng.randf_range(5.0, 8.0), 5.0)
 		&"lurch":
 			# A wisp pushing off: dust kicked back low along the floor, the way `dir` points, and a
 			# few flecks thrown up and falling.

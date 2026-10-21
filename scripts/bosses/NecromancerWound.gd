@@ -24,6 +24,7 @@ func hit(_damage: int, dir: Vector2) -> void:
 		return
 	hp -= 1
 	necromancer.wounded(dir)
+	Wound.hit_stop(KILL_STOP if hp <= 0 else HIT_STOP)
 	if hp <= 0:
 		_die(necromancer)
 

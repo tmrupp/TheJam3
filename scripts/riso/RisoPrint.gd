@@ -344,7 +344,6 @@ static func _warp(wizard: RisoWizard, part: int, center: Vector2, feet: Vector2,
 	fx.facing = 1.0 if wizard.fs >= 0.0 else -1.0
 	fx.art_scale = wizard.global_scale.y
 	fx.ring = ring
-	fx.spell = Abilities.spell(wizard.player)
 	return fx
 
 
@@ -373,6 +372,47 @@ static func ink_key(canvas: InkCanvas, color: int, cover: float, shapes: Array[P
 		return
 	for plate: int in key_inks(color):
 		canvas.ink(plate, cover, shapes)
+
+
+## An exam paper written out in full (ink_paper), for each unit of its sheet's size: how big its
+## subject's mark is drawn on it, and under it the tier pips' spacing, how far below the sheet's
+## middle they sit, and their half-size (px).
+const PAPER_MARK: float = 0.29
+const PAPER_PIPS: Vector3 = Vector3(5.9, 13.0 + 5.3, 2.35)
+
+
+## Print exam paper `code` written out in full on `canvas`, centred on `o`, its sheet `s` times a
+## key's size (RisoMarks.paper_shape), as it lies waiting (KeyArt) and as the wizard carries it
+## (RisoWizard): the sheet in its department's colour (DEPT_INKS) with a folded corner of bare paper,
+## its subject's mark (RisoGlyph, `t` its time, `mark` times PAPER_MARK its size) knocked out to paper on it, and under it a gold pip
+## for each tier; a paper of a subject no department teaches is bare paper with its mark in gold. A
+## stolen one's folded corner is pink (KeyRing.is_stolen).
+static func ink_paper(canvas: InkCanvas, code: int, o: Vector2, s: float, t: float, mark: float = 1.0) -> void:
+	var sheet: Array[PackedVector2Array] = RisoMarks.paper_shape(o, s)
+	canvas.lift_ink(ALL_PLATES, 1.0, sheet.slice(0, 1))
+	var tinted: bool = ink_dept(canvas, Timetable.dept_of(KeyRing.paper_spell(code)), 1.0, sheet.slice(0, 1))
+	if tinted:
+		canvas.knock(ALL_PLATES, sheet.slice(1, 2))
+	if KeyRing.is_stolen(code):
+		canvas.ink(PINK, 1.0, sheet.slice(1, 2))
+	else:
+		canvas.ink(NIGHT, 0.55, sheet.slice(1, 2), false)
+	var glyph: Array[PackedVector2Array] = []
+	var size: float = PAPER_MARK * mark * s
+	for poly: PackedVector2Array in RisoGlyph.of(KeyRing.paper_spell(code), Vector2.ZERO, t):
+		glyph.append(Transform2D(0.0, Vector2(size, size), 0.0, o + Vector2(0, 2.0 * s)) * poly)
+	if tinted:
+		canvas.knock(ALL_PLATES, glyph)
+	else:
+		canvas.ink(ACCENT, 1.0, glyph)
+	var tier: int = KeyRing.paper_tier(code)
+	var pips: Array[PackedVector2Array] = []
+	var r: float = PAPER_PIPS.z * s
+	for i: int in range(tier):
+		var p: Vector2 = o + Vector2((float(i) - float(tier - 1) * 0.5) * PAPER_PIPS.x, PAPER_PIPS.y) * s
+		pips.append(PackedVector2Array([p + Vector2(0, -r), p + Vector2(r, 0), p + Vector2(0, r), p + Vector2(-r, 0)]))
+	canvas.knock(ALL_PLATES, pips)
+	canvas.ink(ACCENT, 1.0, pips)
 
 
 ## Print `shapes` on `canvas` in department `dept`'s colour (DEPT_INKS) at `cover`, over what is
@@ -1016,11 +1056,16 @@ func _rebuild_ground(map_info: MapInfo) -> void:
 			light.rebuild(map_info)
 
 
+## The keys that open and close the panel: F7, and the key left of 1 (backquote, `), which the
+## left hand reaches from the movement keys. The pause menu opens it too, in debug runs.
+const PANEL_KEYS: Array[Key] = [KEY_F7, KEY_QUOTELEFT]
+
+
 func _unhandled_key_input(event: InputEvent) -> void:
 	var key: InputEventKey = event as InputEventKey
 	if key == null or not key.pressed or key.echo:
 		return
-	if key.keycode == KEY_F7:
+	if PANEL_KEYS.has(key.keycode) or PANEL_KEYS.has(key.physical_keycode):
 		set_pad_panel(not panel.visible)
 	elif key.keycode == KEY_F8:
 		cycle_realm()
@@ -1028,7 +1073,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 ## The F7 panel by controller, in debug runs: Back (Select) opens it, pausing the game and focusing
 ## its first control so the D-pad or stick moves through it (A picks, left and right change
-## sliders or choices); Back again, or B, closes it and the game goes on. F7 shares this focus.
+## sliders or choices); Back again, or B, closes it and the game goes on. The PANEL_KEYS and the
+## pause menu share this focus.
 var _pad_paused: bool = false
 
 
@@ -1121,6 +1167,7 @@ const DRESS: Dictionary = {
 	"res://prefabs/gondola_station.tscn": &"station",
 	"res://prefabs/lesson.tscn": &"lesson",
 	"res://prefabs/way_back.tscn": &"department",
+	"res://prefabs/grave_mark.tscn": &"gravemark",
 }
 
 
@@ -1221,7 +1268,7 @@ func _build_panel() -> void:
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(box)
 	var title: Label = Label.new()
-	title.text = "Riso print  (F6 on/off, F7 panel, F8 realm; pad: Back in debug)"
+	title.text = "Riso print  (F7 or ` panel, F8 realm; pad: Back in debug)"
 	title.add_theme_font_size_override("font_size", 6)
 	box.add_child(title)
 	# First, so a controller lands on it (debug runs only).
@@ -1361,8 +1408,9 @@ func _equip_panel_key(color: int, equipped: bool) -> void:
 # ---------------------------------------------------------------- debug travel
 
 ## Debug runs only: travel straight to any world and depth (MapInfo.debug_travel), or to the
-## nearest band of an archetype, or into hyperspace, from the F7 panel (by controller too); and
-## slay this place's boss at once (MapInfo.slay_boss), or heal to full (MapInfo.full_heal).
+## nearest band of an archetype, or into hyperspace, or to any boss (beside it, in the World
+## column, MapInfo.debug_to_boss), from the F7 panel (by controller too); and slay this place's
+## boss at once (MapInfo.slay_boss), or heal to full (MapInfo.full_heal).
 var _travel_box: VBoxContainer
 var _travel_world_label: Label
 var _travel_depth_label: Label
@@ -1385,6 +1433,14 @@ func _build_travel(box: VBoxContainer) -> void:
 	for k: int in range(Worlds.KINDS.size()):
 		var kind: int = k
 		_button(row, Worlds.proto(k).name.capitalize(), func() -> void: _travel(Worlds.side_at(kind, Vector2i(_travel_at.x, _travel_at.y if _travel_at.y != 0 else 1))))
+	var to_boss: HBoxContainer = HBoxContainer.new()
+	rows.add_child(to_boss)
+	var bosses: Array[StringName] = [Bosses.GARDEN_DOWN, Bosses.GARDEN_UP]
+	bosses.append_array(Bosses.DOWN)
+	bosses.append_array(Bosses.UP)
+	for boss: StringName in bosses:
+		var which: StringName = boss
+		_button(to_boss, String(boss).capitalize(), func() -> void: _to_boss(which))
 	var boss_row: HBoxContainer = HBoxContainer.new()
 	rows.add_child(boss_row)
 	_button(boss_row, "Slay boss", func() -> void:
@@ -1393,6 +1449,27 @@ func _build_travel(box: VBoxContainer) -> void:
 	_button(boss_row, "Full heal", func() -> void:
 		if MapInfo.instance != null:
 			MapInfo.instance.full_heal())
+	_build_cheats(_travel_box)
+
+
+## Debug runs only: the wizard loses no hearts (Health.invincible), every spell casts empowered on
+## a held press with no wait (Empower.always), and the charges of darkness carried
+## (RunState.dark_charges) set by hand.
+var _darkness_label: Label
+
+
+func _build_cheats(box: VBoxContainer) -> void:
+	var rows: VBoxContainer = _section(box, "Cheats (debug)", true)
+	_option_row(rows, &"invincible", "Invincible", ["Off", "On"], func(i: int) -> void: Health.invincible = i == 1)
+	_option_row(rows, &"empowered", "Empowered", ["Off", "On"], func(i: int) -> void:
+		Empower.always = i == 1
+		var empower: Empower = Empower.of(_player) if _player != null and is_instance_valid(_player) else null
+		if empower != null and Empower.always:
+			empower.wait = 0.0)
+	_darkness_label = _stepper_row(rows, "Darkness", func(d: int) -> void:
+		if MapInfo.instance != null and MapInfo.instance.run != null:
+			var run: RunState = MapInfo.instance.run
+			run.dark_charges = maxi(0, run.dark_charges + d))
 
 
 ## A row: its name, a "-" button, the value, a "+" button; `on_step` gets -1 or +1.
@@ -1451,6 +1528,17 @@ func _travel(to: Vector2i) -> void:
 	else:
 		panel.visible = false
 	MapInfo.instance.debug_travel(to)
+
+
+## Close the panel (and its pause) and go to boss `name`, in the World column (MapInfo.debug_to_boss).
+func _to_boss(name: StringName) -> void:
+	if not MapInfo.debug or MapInfo.instance == null:
+		return
+	if _pad_paused:
+		set_pad_panel(false)
+	else:
+		panel.visible = false
+	MapInfo.instance.debug_to_boss(name, _travel_at.x)
 
 
 func _on_detail(v: float) -> void:
@@ -1542,6 +1630,10 @@ func _sync_panel() -> void:
 		_travel_box.visible = MapInfo.debug
 		_travel_world_label.text = str(_travel_at.x)
 		_travel_depth_label.text = "%d  (%s)" % [_travel_at.y, NextWorldDef.archetype_at(_travel_at.y)]
+		(_options[&"invincible"] as OptionButton).select(1 if Health.invincible else 0)
+		(_options[&"empowered"] as OptionButton).select(1 if Empower.always else 0)
+		var run: RunState = MapInfo.instance.run if MapInfo.instance != null else null
+		_darkness_label.text = str(run.dark_charges) if run != null else "-"
 	_detail_label.text = "Heavy" if detail < 25.0 else ("Medium" if detail < 65.0 else ("Fine" if detail < 90.0 else "Extra fine"))
 	_rate_label.text = "held" if sheet_rate <= 0.0 else "%d / s" % int(sheet_rate)
 	_zoom_label.text = "%d%%" % roundi(100.0 / zoom_factor)
