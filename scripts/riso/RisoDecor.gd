@@ -139,6 +139,8 @@ func _ready() -> void:
 	add_to_group(&"riso_art")
 	visible = RisoPrint.is_on()
 	live = InkCanvas.new()
+	# The ground itself, not a thing seen on it (InkCanvas.punches_wall).
+	live.punches_wall = false
 	add_child(live)
 
 
@@ -782,6 +784,7 @@ func rebuild(info: MapInfo, cracked_positions: Array[Vector2] = []) -> void:
 		# Hedges at the back, fences in front of them, then the rest of the decor.
 		for layer: int in [LAYER_HEDGE, LAYER_BACK, LAYER_FRONT]:
 			var canvas: InkCanvas = InkCanvas.new()
+			canvas.punches_wall = false
 			add_child(canvas)
 			canvas.z_index = layer - LAYER_FRONT
 			canvases.append(canvas)

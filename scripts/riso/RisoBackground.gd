@@ -42,6 +42,9 @@ func _ready() -> void:
 	add_child(sky_ink)
 	star_ink = InkCanvas.new()
 	add_child(star_ink)
+	# The ground itself, not a thing seen on it (InkCanvas.punches_wall).
+	for canvas: InkCanvas in [ink, sky_ink, star_ink]:
+		canvas.punches_wall = false
 
 
 func _process(_delta: float) -> void:
@@ -65,7 +68,7 @@ func _process(_delta: float) -> void:
 	sky_ink.begin()
 	star_ink.begin()
 	# A dense screen rather than a solid: the night keeps a fine texture of paper, as in the prototype.
-	ink.ink(RisoPrint.NIGHT, 0.94, [PackedVector2Array([-half, Vector2(half.x, -half.y), half, Vector2(-half.x, half.y)])], false)
+	ink.ink(RisoPrint.NIGHT, RisoPrint.NIGHT_FLOOD, [PackedVector2Array([-half, Vector2(half.x, -half.y), half, Vector2(-half.x, half.y)])], false)
 	var backdrop: Callable = _backdrops.get(realm, _backdrop_night)
 	if bool(backdrop.call(at, view, half, k, t, center)):
 		_skyline(center, view, half)

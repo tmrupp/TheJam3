@@ -161,6 +161,11 @@ func shines() -> bool:
 	return false
 
 
+## Whether what it prints in the rock's ink is the rock itself (InkCanvas.of_the_rock).
+func of_the_rock() -> bool:
+	return false
+
+
 ## A light at `local` (in its art's frame), of `size` (RisoLight.SPARK, GLEAM or BEACON), tinted in
 ## `plate` (-1 for none); none while its host is hidden (a chunk asleep, a key taken).
 func _light(local: Vector2, size: Vector3, plate: int) -> Array:
@@ -217,8 +222,7 @@ func _ready() -> void:
 	if tm != null and tm.tile_set != null:
 		half = float(tm.tile_set.tile_size.y) * tm.global_scale.y * 0.5
 	ink = InkCanvas.new()
-	# Printed in its own inks over an indoor realm's back wall (InkCanvas.punches_wall).
-	ink.punches_wall = true
+	ink.of_the_rock = of_the_rock()
 	add_child(ink)
 	z_index = 2
 	if shines():

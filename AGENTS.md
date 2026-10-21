@@ -181,7 +181,10 @@ bash tests/run.sh sky_test        # just these, headless
   means danger, accent or yellow means reward, glow belongs to the wizard. Decor stays in blue,
   night, moss and paper.
 - Keep backgrounds dark and low-contrast, and put saturation and paper-bright knockouts on gameplay
-  objects.
+  objects. A figure's colour made by overprinting inks goes through `RisoPrint.legible`, which screens
+  it back until it reads on the realm's ground. Every canvas lifts the ground from under what it
+  prints and holds its rock ink to what reads (`InkCanvas.punches_wall`, `figure_rock`); only the
+  ground's own canvases turn the first off, and art that is the rock itself sets `of_the_rock`.
 - Layers (absolute z): sky −40, the whale cruising −30 (over the wizard, 11, while it swallows them), acid −21
   (its surface over the wizard, 11), terrain −20, hedges −17, fences −16, decor −15, lantern light −12,
   props 2, the darkness out of sight 8, the wizard's trail 9, the wizard 10, the exam papers they carry 11,

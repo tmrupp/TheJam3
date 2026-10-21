@@ -31,15 +31,27 @@ var _last_shape: RisoInkOp.Shape = null
 ## its ops sit untransformed under it, so they all share it.
 var _px: float = -1.0
 
-## Whether its punches (ink() punching the night out from under what it lays) also lift the wall's
-## ink, the rock plate (BLUE), while the realm prints its open air as a wall (walls_behind): set on
-## the things of the game (props, the wizard), so they print in their own inks over the institute's
-## dark wood as they do over a night sky, rather than multiplied into it. The lift is put just under
-## the canvas, so its own rock ink, laid before or after, is kept.
-var punches_wall: bool = false
-## Whether the realm being printed lays its rock ink over all its open air, as a back wall (an
-## indoor realm, RisoTerrain.INDOOR_REALMS; set by RisoPrint.set_realm).
-static var walls_behind: bool = false
+## Whether its punches (ink() punching the night out from under what it lays) also lift the ground's
+## other plates (RisoPrint.GROUND_PLATES: the rock's ink, pink, the accent) from under it: so the
+## things of the game (props, the wizard, bosses, spells, bursts) print in their own inks over
+## whatever the ground behind them is (the institute's dark wood, a building's back wall, a hedge,
+## the rock's edge, a moon in the backdrop) as they do over a bare night sky, rather than multiplied
+## into it. On for every canvas but the ground itself (the backdrop, the rock, the decor), which
+## turns it off, and the UI. The lift is put just under the canvas, so its own inks, laid before or
+## after (a key's overprints), are kept.
+var punches_wall: bool = true
+## Whether what it prints in the rock's ink belongs to the rock itself (a stalactite's stone, a
+## trapdoor's planks, a temple's masonry, the ground heaped round a burrow): printed as the rock is.
+## Otherwise a thing of the game (punches_wall, not the UI) prints its rock ink no heavier than
+## figure_rock, and lifts the ground's rock ink from under it (punches_wall), so its rock ink
+## reads on the ground as its other inks do rather than sinking into the dark wood.
+var of_the_rock: bool = false
+## The most of the rock's ink a thing of the game prints in the realm being printed: the rock's ink
+## alone made legible on the realm's ground (RisoPrint.legible; set by RisoPrint.set_realm), 1
+## where it already reads. Lighter shades of it are printed as they are.
+static var figure_rock: float = 1.0
+## The plates a punch lifts from under the canvas (RisoPrint.GROUND_PLATES), as a mask.
+static var _ground_mask: int = 0
 
 ## Whether the art never changes an array of shapes once it has handed it over (it hands over its
 ## rest shapes, built once, again every print): an op given the very same array as last time then
@@ -204,11 +216,12 @@ func _warped(poly: PackedVector2Array) -> PackedVector2Array:
 func ink(plate: int, cover: float, polys: Array[PackedVector2Array], punch: bool = true) -> void:
 	if cover <= 0.001 or polys.is_empty():
 		return
-	_emit(1 << (RisoPrint.PLATE_BIT0 + plate), false, cover, polys, [])
+	var rock: bool = _figure_rock(plate)
+	_emit(1 << (RisoPrint.PLATE_BIT0 + plate), false, minf(cover, figure_rock) if rock else cover, polys, [])
 	if punch and plate != RisoPrint.NIGHT:
 		_emit(1 << (RisoPrint.PLATE_BIT0 + RisoPrint.NIGHT), true, cover, polys, [], true)
-		if punches_wall and walls_behind and plate != RisoPrint.BLUE:
-			_emit(1 << (RisoPrint.PLATE_BIT0 + RisoPrint.BLUE), true, cover, polys, [], true, true)
+		if punches_wall and not ui and (plate != RisoPrint.BLUE or rock):
+			_emit(_ground(), true, cover, polys, [], true, true)
 
 
 ## Several inks printed over one another in the same shapes (the key colours), each in turn.
@@ -221,11 +234,25 @@ func ink_overprint(plates: Array[int], cover: float, polys: Array[PackedVector2A
 func ink_graded(plate: int, polys: Array[PackedVector2Array], alphas: Array[PackedFloat32Array], punch: bool = true, amount: float = 1.0) -> void:
 	if polys.is_empty() or amount <= 0.001:
 		return
-	_emit(1 << (RisoPrint.PLATE_BIT0 + plate), false, amount, polys, alphas)
+	var rock: bool = _figure_rock(plate)
+	_emit(1 << (RisoPrint.PLATE_BIT0 + plate), false, minf(amount, figure_rock) if rock else amount, polys, alphas)
 	if punch and plate != RisoPrint.NIGHT:
 		_emit(1 << (RisoPrint.PLATE_BIT0 + RisoPrint.NIGHT), true, amount, polys, alphas, true)
-		if punches_wall and walls_behind and plate != RisoPrint.BLUE:
-			_emit(1 << (RisoPrint.PLATE_BIT0 + RisoPrint.BLUE), true, amount, polys, alphas, true, true)
+		if punches_wall and not ui and (plate != RisoPrint.BLUE or rock):
+			_emit(_ground(), true, amount, polys, alphas, true, true)
+
+
+## The ground's plates, as a mask (see punches_wall).
+static func _ground() -> int:
+	if _ground_mask == 0:
+		for p: int in RisoPrint.GROUND_PLATES:
+			_ground_mask |= 1 << (RisoPrint.PLATE_BIT0 + p)
+	return _ground_mask
+
+
+## Whether ink on `plate` is a thing of the game's rock ink (see of_the_rock), held to figure_rock.
+func _figure_rock(plate: int) -> bool:
+	return plate == RisoPrint.BLUE and punches_wall and not ui and not of_the_rock
 
 
 ## Ink over a shape already cut into triangles (`indices` into `points`), each point's cover in

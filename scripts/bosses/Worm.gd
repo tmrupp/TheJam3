@@ -968,8 +968,11 @@ func _process(delta: float) -> void:
 		return
 	ink.global_position = Vector2.ZERO
 	ink.begin()
+	# The holes are the ground itself pushed up, printed as the rock is (InkCanvas.of_the_rock).
+	ink.of_the_rock = true
 	for hole: Hole in holes:
 		_draw_hole(hole)
+	ink.of_the_rock = false
 	for p: Piece in pieces:
 		if p.warn > 0.0:
 			_draw_warning(p)

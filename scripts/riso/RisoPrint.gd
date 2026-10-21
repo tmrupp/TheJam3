@@ -139,8 +139,24 @@ const DEPT_INKS: Dictionary = {
 	&"necrology": [[CLOTH, 0.85], [PINK, 0.8]],
 	&"geology": [[EYE, 1.0], [PINK, 0.6]],
 }
+## The plates the ground (the backdrop, the rock, the decor) prints in besides the night: the rock's
+## ink, pink and the accent (a backdrop's moon, a hedge's leaves, a bookcase's books) and federal blue
+## (slate masonry). A thing of the game lifts them all from under what it lays (InkCanvas.punches_wall).
+const GROUND_PLATES: Array[int] = [BLUE, PINK, ACCENT, CLOTH]
+## How much night the sky's flood prints (RisoBackground): the ground most things are seen on.
+const NIGHT_FLOOD: float = 0.94
+## How far a figure's colour (a key's, a department's) must stand off the ground it is seen on in its
+## realm, and be lighter than it, to read at a glance: a distance in OKLab, where black to white is
+## 1. An overprint that would sink into the ground (moss, sun over the rock's ink, is brown on the
+## institute's brown wall) has its darkest ink screened back until it clears (legible).
+const FIGURE_CONTRAST: float = 0.25
+## How much of an ink a step of screening back takes off, and the least of it screening leaves.
+const SCREEN_STEP: float = 0.05
+const SCREEN_FLOOR: float = 0.1
 
 static var instance: RisoPrint
+## The legible overprints worked out so far (legible), by realm and overprint.
+static var _legible: Dictionary = {}
 
 var detail: float = 80.0
 var sheet_rate: float = 8.0
@@ -370,8 +386,8 @@ static func ink_key(canvas: InkCanvas, color: int, cover: float, shapes: Array[P
 		if KeyRing.is_stolen(color):
 			canvas.ink(PINK, cover, shapes.slice(1, 2))
 		return
-	for plate: int in key_inks(color):
-		canvas.ink(plate, cover, shapes)
+	for layer: Array in key_layers(color):
+		canvas.ink(int(layer[0]), float(layer[1]) * cover, shapes)
 
 
 ## An exam paper written out in full (ink_paper), for each unit of its sheet's size: how big its
@@ -421,7 +437,7 @@ static func ink_dept(canvas: InkCanvas, dept: StringName, cover: float, shapes: 
 	if not DEPT_INKS.has(dept):
 		return false
 	canvas.knock(ALL_PLATES, shapes)
-	for pair: Array in DEPT_INKS[dept]:
+	for pair: Array in legible(DEPT_INKS[dept]):
 		canvas.ink(int(pair[0]), float(pair[1]) * cover, shapes, false)
 	return true
 
@@ -435,6 +451,93 @@ static func key_inks(color: int) -> Array[int]:
 	for plate: int in KEY_COLORS[posmod(color, KEY_COLORS.size())]:
 		out.append(plate)
 	return out
+
+
+## A key of `color` as it prints in the scene of realm `r` (the one being printed if none): its
+## colour's inks (key_inks) as [plate, cover] pairs, made legible on the realm's ground.
+static func key_layers(color: int, r: StringName = &"") -> Array:
+	var layers: Array = []
+	for plate: int in key_inks(color):
+		layers.append([plate, 1.0])
+	return legible(layers, r)
+
+
+## `layers` ([plate, cover] pairs printed over one another: a figure's colour) as they print in
+## realm `r` (the one being printed if none), so they read on its grounds (FIGURE_CONTRAST): as they
+## are if they already do, or else with their darkest inks screened back, the darkest first, a step
+## at a time (SCREEN_STEP, down to SCREEN_FLOOR), until they do. A colour that cannot clear is left
+## as light as screening makes it. Worked out once a realm and overprint.
+static func legible(layers: Array, r: StringName = &"") -> Array:
+	if r == &"":
+		r = instance.realm if instance != null else &"deep"
+	var key: String = "%s %s" % [r, layers]
+	if _legible.has(key):
+		return _legible[key]
+	var out: Array = []
+	for layer: Array in layers:
+		out.append([int(layer[0]), float(layer[1])])
+	var under: Array[Color] = grounds(r)
+	while not reads_on(printed(out, r), under):
+		var darkest: Array = []
+		for layer: Array in out:
+			if float(layer[1]) > SCREEN_FLOOR + 0.001 and plate_ink(int(layer[0]), r) != Color.WHITE and (darkest.is_empty() or oklab(plate_ink(int(layer[0]), r)).x < oklab(plate_ink(int(darkest[0]), r)).x):
+				darkest = layer
+		if darkest.is_empty():
+			break
+		darkest[1] = maxf(SCREEN_FLOOR, float(darkest[1]) - SCREEN_STEP)
+	_legible[key] = out
+	return out
+
+
+## Whether colour `c` reads as a figure on every one of `under` (FIGURE_CONTRAST): lighter than
+## each, and far enough off it.
+static func reads_on(c: Color, under: Array[Color]) -> bool:
+	var at: Vector3 = oklab(c)
+	for g: Color in under:
+		var ground: Vector3 = oklab(g)
+		if at.x <= ground.x or at.distance_to(ground) < FIGURE_CONTRAST:
+			return false
+	return true
+
+
+## The grounds a figure is seen on in realm `r`: the night sky's flood (NIGHT_FLOOD) and, in an
+## indoor realm, its back wall (the rock's ink under night, RisoTerrain.BACK_BOARD_WOOD and
+## BACK_BOARD_SHADE).
+static func grounds(r: StringName) -> Array[Color]:
+	var out: Array[Color] = [printed([[NIGHT, NIGHT_FLOOD]], r)]
+	if RisoTerrain.INDOOR_REALMS.has(r):
+		out.append(printed([[BLUE, RisoTerrain.BACK_BOARD_WOOD], [NIGHT, RisoTerrain.BACK_BOARD_SHADE]], r))
+	return out
+
+
+## What realm `r`'s sheet shows where `layers` ([plate, cover] pairs) print over one another on its
+## paper: each ink multiplies what is under it by as much as it covers.
+static func printed(layers: Array, r: StringName) -> Color:
+	var c: Color = REALMS[r]["paper"]
+	for layer: Array in layers:
+		var ink: Color = plate_ink(int(layer[0]), r)
+		var cover: float = float(layer[1])
+		c = Color(c.r * lerpf(1.0, ink.r, cover), c.g * lerpf(1.0, ink.g, cover), c.b * lerpf(1.0, ink.b, cover))
+	return c
+
+
+## The ink plate `plate` prints in realm `r`: the realm's own for night to eye, federal blue for
+## the cloth. The glow and the robe change with the wizard's abilities, so count as no ink (white).
+static func plate_ink(plate: int, r: StringName) -> Color:
+	var inks: Array = REALMS[r]["inks"]
+	if plate < inks.size():
+		return inks[plate]
+	return CLOTH_INK if plate == CLOTH else Color.WHITE
+
+
+## Colour `c` in OKLab (lightness, green to red, blue to yellow), where distances are about as far
+## apart as the eye sees colours.
+static func oklab(c: Color) -> Vector3:
+	var lin: Color = c.srgb_to_linear()
+	var l: float = pow(0.4122214708 * lin.r + 0.5363325363 * lin.g + 0.0514459929 * lin.b, 1.0 / 3.0)
+	var m: float = pow(0.2119034982 * lin.r + 0.6806995451 * lin.g + 0.1073969566 * lin.b, 1.0 / 3.0)
+	var s: float = pow(0.0883024619 * lin.r + 0.2817188376 * lin.g + 0.6299787005 * lin.b, 1.0 / 3.0)
+	return Vector3(0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s, 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s, 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s)
 
 
 static func plate_mask(p: int) -> int:
@@ -505,6 +608,7 @@ func _ready() -> void:
 	_old_scale_mode = get_window().content_scale_mode
 	_old_cull_mask = root.canvas_cull_mask
 	_old_snap = root.snap_2d_transforms_to_pixel
+	_ink_rules(realm)
 	_build()
 	get_tree().node_added.connect(_on_node_added)
 	_dress_existing(get_tree().root)
@@ -999,12 +1103,18 @@ func _ui_scale(finest: float) -> float:
 func set_realm(r: StringName) -> void:
 	if REALMS.has(r):
 		realm = r
-		InkCanvas.walls_behind = RisoTerrain.INDOOR_REALMS.has(r)
+		_ink_rules(r)
 		if background != null:
 			background.queue_redraw()
 		if _started:
 			RisoTheme.apply(realm)
 		_sync_panel()
+
+
+## What the canvases need to know of realm `r` to print in it: how much of its rock's ink reads on
+## its ground (InkCanvas.figure_rock).
+static func _ink_rules(r: StringName) -> void:
+	InkCanvas.figure_rock = float(legible([[BLUE, 1.0]], r)[0][1])
 
 
 func cycle_realm() -> void:

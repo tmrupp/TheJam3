@@ -89,8 +89,11 @@ func _ready() -> void:
 	add_to_group(&"riso_art")
 	visible = RisoPrint.is_on()
 	ink = InkCanvas.new()
+	# The ground itself, not a thing seen on it (InkCanvas.punches_wall).
+	ink.punches_wall = false
 	add_child(ink)
 	ledge_ink = InkCanvas.new()
+	ledge_ink.punches_wall = false
 	ledge_ink.z_as_relative = false
 	ledge_ink.z_index = LEDGE_Z
 	add_child(ledge_ink)

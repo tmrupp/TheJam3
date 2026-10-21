@@ -4,6 +4,11 @@ extends RisoProp
 ## ring hanging under it (it is pulled open from below).
 
 
+## The rock itself (its planks are the roof's): printed as the rock is.
+func of_the_rock() -> bool:
+	return true
+
+
 func _draw_art() -> void:
 	var top: float = -half
 	var thick: float = Trapdoor.SLAB

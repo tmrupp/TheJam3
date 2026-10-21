@@ -2,7 +2,7 @@ extends TestKit
 ## The game's rules that are plain arithmetic, checked without the game scene (a second or so):
 ## level seeds, prices and the other numbers that grow with depth, key colours by rarity, where
 ## side worlds sit, the bands of archetypes, where each exit leads, the cemetery's darkness, the
-## shrine's offers, and the keyring. A rule that needs a level laid out belongs in a test that builds one.
+## shrine's offers, the keyring, and figures' colours reading on every realm's ground. A rule that needs a level laid out belongs in a test that builds one.
 ## godot --headless --path . --script res://tests/unit_test.gd
 
 ## level_seed of these places, as it has always been: every level of every run comes from it, so a
@@ -39,6 +39,7 @@ func run() -> void:
 	_darkness()
 	_lodestones()
 	_renamed()
+	_legibility()
 	var p: Player = Player.new()
 	_ability_tables()
 	_protocols()
@@ -46,6 +47,55 @@ func run() -> void:
 	_keyring(p)
 	p.free()
 	finish()
+
+
+## Figures read on every realm's ground (RisoPrint.legible): each key colour and each department's
+## colour, as printed in each realm, stands off its grounds by RisoPrint.FIGURE_CONTRAST and is
+## lighter, or has been screened as far as screening goes; in every realm a place prints in (all but
+## the F8 cycle's twilight and aurora) it stands off outright. Moss (sun over the rock's ink) would
+## be brown on the institute's brown wall unscreened; sun there needs nothing. Every canvas prints
+## its things over the rock's ink of the ground behind them in their own inks unless it is the ground, and holds
+## the rock's ink in them to what reads (InkCanvas.figure_rock) unless it is the rock.
+func _legibility() -> void:
+	var all_read: bool = true
+	var places_read: bool = true
+	var failing: Array[String] = []
+	for r: StringName in RisoPrint.REALMS:
+		var overprints: Dictionary = {}
+		for color: int in range(Rules.KEY_COLOR_COUNT):
+			overprints["key %d" % color] = RisoPrint.key_layers(color, r)
+		for dept: StringName in RisoPrint.DEPT_INKS:
+			overprints[String(dept)] = RisoPrint.legible(RisoPrint.DEPT_INKS[dept], r)
+		for what: String in overprints:
+			var layers: Array = overprints[what]
+			if RisoPrint.reads_on(RisoPrint.printed(layers, r), RisoPrint.grounds(r)):
+				continue
+			if r != &"twilight" and r != &"aurora":
+				places_read = false
+				failing.append("%s %s" % [r, what])
+			for layer: Array in layers:
+				if RisoPrint.plate_ink(int(layer[0]), r) != Color.WHITE and float(layer[1]) > RisoPrint.SCREEN_FLOOR + 0.001:
+					all_read = false
+					failing.append("%s %s unscreened" % [r, what])
+	check(all_read, "every figure colour reads on its realm's ground or is screened as far as it goes %s" % [failing])
+	check(places_read, "every figure colour reads outright in every realm a place prints in %s" % [failing])
+	var moss: Array = [[RisoPrint.ACCENT, 1.0], [RisoPrint.BLUE, 1.0]]
+	check(not RisoPrint.reads_on(RisoPrint.printed(moss, &"institute"), RisoPrint.grounds(&"institute")), "a moss key unscreened sinks into the institute's wall")
+	check(float(RisoPrint.key_layers(2, &"institute")[1][1]) < 1.0, "the institute's moss key has its rock ink screened back")
+	check_eq(RisoPrint.key_layers(0, &"institute"), [[RisoPrint.ACCENT, 1.0]], "the institute's sun key prints as it is")
+	var canvas: InkCanvas = InkCanvas.new()
+	check(canvas.punches_wall, "a canvas prints over the rock's ink of the ground in its own inks unless told it is the ground")
+	check(not canvas.of_the_rock, "a canvas's rock ink is a thing's, held to what reads, unless told it is the rock")
+	canvas.free()
+	# The rock's ink in a thing of the game (InkCanvas.figure_rock): screened in the institute, whose
+	# brown is near its night, and as it is in the sky, whose white cloud stands well off its night.
+	var rock_reads: bool = true
+	for r: StringName in RisoPrint.REALMS:
+		if r != &"twilight" and r != &"aurora" and not RisoPrint.reads_on(RisoPrint.printed(RisoPrint.legible([[RisoPrint.BLUE, 1.0]], r), r), RisoPrint.grounds(r)):
+			rock_reads = false
+	check(rock_reads, "a thing's rock ink, held to what reads, reads on the ground of every realm a place prints in")
+	check(float(RisoPrint.legible([[RisoPrint.BLUE, 1.0]], &"institute")[0][1]) < 1.0, "the institute screens a thing's rock ink")
+	check_eq(RisoPrint.legible([[RisoPrint.BLUE, 1.0]], &"sky"), [[RisoPrint.BLUE, 1.0]], "the sky prints a thing's rock ink as it is")
 
 
 ## The crags' lodestones (Rules.lodestone_at): along each crags row, every stretch of

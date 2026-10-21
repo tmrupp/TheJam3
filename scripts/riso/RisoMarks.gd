@@ -264,8 +264,8 @@ static func padlock(ink: InkCanvas, c: Vector2, color: int, s: float, fade: floa
 	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], 0.9 * fade, [body])
 	# A skeleton lock's body stays bare bone-white; the rest are tinted with their colour.
 	if color != KeyRing.SKELETON:
-		for plate: int in RisoPrint.key_inks(color):
-			ink.ink(plate, 0.8 * fade, [body], false)
+		for layer: Array in RisoPrint.key_layers(color):
+			ink.ink(int(layer[0]), 0.8 * fade * float(layer[1]), [body], false)
 	ink.ink(RisoPrint.NIGHT, fade, [key_bow(c + Vector2(0, 6.5) * s, 4.5 * s * (1.3 if color == KeyRing.SKELETON else 1.0), color)], false)
 
 

@@ -33,6 +33,11 @@ var temple: Temple:
 		return host as Temple
 
 
+## The rock itself (its stone is the masonry's): printed as the rock is.
+func of_the_rock() -> bool:
+	return true
+
+
 ## Its temple's building (LevelGen.temples), or {} where it has none.
 func _building() -> Dictionary:
 	if temple == null or temple.map_info == null or temple.map_info.world == null or not host.has_meta(&"cell"):
