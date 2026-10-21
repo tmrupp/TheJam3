@@ -1279,8 +1279,8 @@ func _attend () -> StringName:
 		RisoFx.burst(&"gain", player.global_position + Vector2(0, -60), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
 	return dept
 
-## The level lecture hall `hall`'s department's portal leads to (Department, in the first classroom
-## of the department, Institute.first_of), or NO_FIELD.
+## The level lecture hall `hall`'s department's portals lead to (Department: every classroom of a
+## department leads to the same level, Institute.first_of), or NO_FIELD.
 func field_of (hall: int) -> Vector2i:
 	var dept: StringName = world.halls[hall]["dept"]
 	for v: Vector2i in world.objects_of(LevelGen.Type.DEPARTMENT):
@@ -1521,34 +1521,63 @@ func way_back_travel () -> void:
 
 ## A way back's prefab (loaded when first needed).
 const WAY_BACK: String = "res://prefabs/way_back.tscn"
-## How far (cells) from the way back the way back from a department stands: at least, and at most.
+## How far (cells) from the way back the way back from a department stands: at least, and at most
+## where a floor that far off will do.
 const WAY_BACK_NEAR: Vector2i = Vector2i(2, 8)
 ## How many cells of open air the way back from a department stands in, its own cell and those over it.
 const WAY_BACK_AIR: int = 2
+## How far (cells across) the way back from a department keeps from any other door or thing stood
+## at (a level's ways, a door, a portal, a lantern...), so it is never on one and its prompt is
+## never another's.
+const WAY_BACK_APART: int = 2
 
 ## The way back from a department (RunState.way_back), if it opened in this place: on the free floor
 ## nearest its way back, WAY_BACK_NEAR cells off, with open air over it as high as its arch
-## (WAY_BACK_AIR cells, so nothing stands on top of it), found the first time, then kept. The
-## wizard comes through the department's portal out of it (ARRIVE_WAY_BACK).
+## (WAY_BACK_AIR cells, so nothing stands on top of it), and WAY_BACK_APART cells across from any
+## other door or thing stood at (else the nearest such floor further off; else the nearest floor
+## with that air, but never the way back's own cell), found the first time, then kept. The wizard
+## comes through the department's portal out of it (ARRIVE_WAY_BACK).
 func _spawn_way_back () -> void:
 	var back: Array = run.way_back
 	if back.size() < 4 or back[0] != coord or map_elements == null or world == null:
 		return
 	if back[1] == Vector2.INF:
-		var from: Vector2i = world.exits.get(Exit.BACK, Vector2i.ZERO)
-		var fits: Callable = func(v: Vector2i) -> bool:
-			if LevelGen.dist(v, from) < WAY_BACK_NEAR.x or LevelGen.dist(v, from) > WAY_BACK_NEAR.y:
-				return false
-			for k: int in range(1, WAY_BACK_AIR):
-				if not world.is_valid(v + Vector2i(0, -k)) or world.get_cell(v + Vector2i(0, -k)).type != LevelGen.Type.EMPTY:
-					return false
-			return true
-		var spot: Variant = LevelGen.best_of(world.free_floors(), func(v: Vector2i) -> int: return LevelGen.dist(v, from), fits)
-		back[1] = cell_position(spot if spot != null else from)
+		var spot: Vector2i = way_back_spot(world)
+		back[1] = cell_position(spot)
 	var node: WayBack = (load(WAY_BACK) as PackedScene).instantiate() as WayBack
 	map_elements.add_child(node)
 	node.global_position = back[1]
 	node.setup(self)
+
+
+## Where the way back from a department stands in level `w` (see _spawn_way_back).
+static func way_back_spot (w: LevelGen) -> Vector2i:
+	var from: Vector2i = w.exits.get(Exit.BACK, Vector2i.ZERO)
+	# The cells too near something else that is stood at or passed through: a level's ways, doors,
+	# portals, lanterns and the rest (Placeables' standers), gates; and the way back's own cell.
+	var crowded: Dictionary = {}
+	for o: Vector2i in w.objects:
+		var t: LevelGen.Type = w.get_cell(o).type
+		if Placeables.has_flag(t, &"stander") or t in [LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.STATION_GATE]:
+			for dx: int in range(-WAY_BACK_APART, WAY_BACK_APART + 1):
+				for dy: int in range(-1, 2):
+					crowded[o + Vector2i(dx, dy)] = true
+	var aired: Callable = func(v: Vector2i) -> bool:
+		for k: int in range(1, WAY_BACK_AIR):
+			if not w.is_valid(v + Vector2i(0, -k)) or w.get_cell(v + Vector2i(0, -k)).type != LevelGen.Type.EMPTY:
+				return false
+		return v != from
+	var near: Callable = func(v: Vector2i) -> bool:
+		var d: int = LevelGen.dist(v, from)
+		return d >= WAY_BACK_NEAR.x and d <= WAY_BACK_NEAR.y and not crowded.has(v) and bool(aired.call(v))
+	var apart: Callable = func(v: Vector2i) -> bool: return LevelGen.dist(v, from) >= WAY_BACK_NEAR.x and not crowded.has(v) and bool(aired.call(v))
+	var floors: Array[Vector2i] = w.free_floors()
+	var score: Callable = func(v: Vector2i) -> int: return LevelGen.dist(v, from)
+	for test: Callable in [near, apart, aired]:
+		var spot: Variant = LevelGen.best_of(floors, score, test)
+		if spot != null:
+			return spot
+	return from
 
 # ------------------------------------------------------------------ lanterns
 

@@ -165,16 +165,22 @@ func _sit(direction: Vector2, delta: float) -> void:
 		sit_held = 0.0
 
 
-## In sleep fog: drowsy for a moment more. Becoming drowsy ends whatever spell is running.
+## In sleep fog (or a librarian's hush): drowsy for a moment more. Becoming drowsy ends whatever
+## spell is running, and a spell cut off so shows it (the "silenced" visual event).
 func make_drowsy() -> void:
 	if drowsy <= 0.0:
+		var cut: bool = levitating
 		levitating = false
 		var projection: AstralProjection = get_node_or_null("AstralProjection") as AstralProjection
 		if projection != null and projection.projecting():
 			projection.end_projection(projection.projection_timer)
+			cut = true
 		var aware: Awareness = get_node_or_null("Awareness") as Awareness
 		if aware != null:
+			cut = cut or aware.sensing > 0.0
 			aware.sensing = 0.0
+		if cut:
+			visual_event.emit(&"silenced", global_position)
 	drowsy = DROWSY_LINGER
 
 ## The collision layer enemies' bodies are on. The wizard can land on one, but it is no moving
@@ -204,6 +210,16 @@ func _enter_tree() -> void:
 
 ## Whether the movement slot holds one of the wizard's own moves (the dash or blink), done on the
 ## Dash button here, rather than a spell cast from it.
+## Whether a button that casts a spell was pressed this frame: the Spell button with a damage spell
+## in its slot, the Utility button with a utility spell, or Dash with a spell in the movement slot.
+func _presses_spell() -> bool:
+	if Input.is_action_just_pressed(Abilities.SPELL_ACTION) and Abilities.spell(self) != &"":
+		return true
+	if Input.is_action_just_pressed(Abilities.UTILITY_ACTION) and Abilities.spell(self, &"utility") != &"":
+		return true
+	return Input.is_action_just_pressed("Dash") and Abilities.is_spell(Abilities.spell(self, &"move"))
+
+
 func dashes() -> bool:
 	var move: StringName = Abilities.spell(self, &"move")
 	return move != &"" and not Abilities.is_spell(move)
@@ -495,6 +511,9 @@ func _physics_process(delta: float) -> void:
 	var empower: Empower = Empower.of(self)
 	if empower != null:
 		empower.step(delta, Input.is_action_pressed(Abilities.SPELL_ACTION))
+	# Drowsy (sleep fog, a librarian's hush), a spell's button only shows the spell silenced.
+	if is_drowsy() and _presses_spell():
+		visual_event.emit(&"silenced", global_position)
 	if Input.is_action_just_pressed(Abilities.SPELL_ACTION):
 		# Every damage spell parries: the guard goes up (on its own cooldown, Parry) on the press.
 		if Abilities.spell(self) != &"" and not is_drowsy():
@@ -506,7 +525,7 @@ func _physics_process(delta: float) -> void:
 	# Nothing shows the utility spell standing by: pressed when it cannot work (cooling down, no
 	# draught left, nothing to heal), it sputters instead (RisoPrint: a dull puff from the bag).
 	if Input.is_action_just_pressed(Abilities.UTILITY_ACTION):
-		if not Abilities.cast(self, &"utility") and Abilities.spell(self, &"utility") != &"":
+		if not Abilities.cast(self, &"utility") and Abilities.spell(self, &"utility") != &"" and not is_drowsy():
 			visual_event.emit(&"fizzle", global_position)
 	if Input.is_action_just_pressed("Dash") and not dashes():
 		Abilities.cast(self, &"move")
