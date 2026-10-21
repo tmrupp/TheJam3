@@ -122,6 +122,13 @@ func _burst(kind: StringName, at: Vector2, dir: Vector2, plates: Array[int]) -> 
 				_add(Shape.SHARD, plates[i % plates.size()], 1.0, at, _spray(dir, 1.3, 140.0, 360.0), rng.randf_range(0.45, 0.75), rng.randf_range(6.0, 11.0), 1.5, 1400.0)
 			for i: int in range(6):
 				_add(Shape.DOT, RisoPrint.NIGHT, 0.35, at + Vector2(rng.randf_range(-20.0, 20.0), -6.0), _spray(dir, 1.5, 30.0, 90.0), rng.randf_range(0.5, 0.8), rng.randf_range(9.0, 15.0), 3.0, -40.0, 30.0)
+		&"silenced":
+			# A spell going out (drowsy, Player): a few puffs of blue smoke rising slow off the spot,
+			# and motes of the spell's light (the first plate given) dropping dead, dimmed.
+			for i: int in range(5):
+				_add(Shape.DOT, RisoPrint.BLUE, 0.4, at + Vector2(rng.randf_range(-8.0, 8.0), 0.0), _spray(Vector2.UP, 0.5, 30.0, 80.0), rng.randf_range(0.6, 0.9), rng.randf_range(7.0, 11.0), 2.0, -30.0, 12.0)
+			for i: int in range(6):
+				_add(Shape.SPARKLE, plates[0], 0.6, at, _spray(Vector2.UP, 1.4, 40.0, 120.0), rng.randf_range(0.35, 0.55), rng.randf_range(4.0, 6.0), 3.0, 600.0)
 		&"impact":
 			_add(Shape.BLOOM, RisoPrint.PINK, 0.3, at, Vector2.ZERO, 0.16, 6.0, 0.0, 0.0, 200.0)
 			for i: int in range(8):

@@ -2,8 +2,8 @@ extends Area2D
 class_name SchoolBell
 ## A bell's cord in the institute (Timetable; laid by Institute.furnish): a thick cord of spell light
 ## hanging all the way from the ceiling to a tassel within reach (SchoolBellArt), one in each lecture
-## hall and the library, up through the ceiling, and out in the corridors one under each corridor
-## bell (`great`), whose yoke marks the period. Pull it (interact, or strike it with a spell from
+## hall and the library and a few out in the corridors, up through the ceiling, and one in the bell
+## room under the great bell itself (`great`), whose yoke marks the period. Pull it (interact, or strike it with a spell from
 ## across a shaft) and it rings, if it can (MapInfo.pull_cord): in passing time class time begins (a
 ## wizard in a classroom attends its class, one anywhere else is truant, and every classroom's doors
 ## shut), and in class time passing time begins again, the classrooms' doors opening: a wizard shut
@@ -19,7 +19,7 @@ const RING_GAP: float = 1.0
 var map_info: MapInfo
 ## Its cell (what the level's record knows it by: LevelRecord.last_bell).
 var cell: Vector2i = Vector2i(-1, -1)
-## Whether it hangs from a corridor bell itself (out in the corridors).
+## Whether it hangs from the great bell itself (in the bell room).
 var great: bool = false
 ## How many cells up its ceiling is (the first rock over its cell): the cord reaches it.
 var reach: int = 1
