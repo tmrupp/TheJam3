@@ -159,6 +159,9 @@ var patches: Array = []
 var crypts: Array[Dictionary] = []
 ## The halls an institute level built (Institute), each a Dictionary (see Institute).
 var halls: Array[Dictionary] = []
+## The open box inside an institute level's bell room (Institute.BELFRY_INSIDE), where its first
+## great bell hangs; empty where it has none.
+var belfry: Rect2i = Rect2i()
 ## The towers an archetype built (CragsArchetype.build_towers), each a Dictionary (see
 ## CragsArchetype._tower).
 var towers: Array[Dictionary] = []
@@ -693,7 +696,10 @@ func _nearest_free (spots: Array[Vector2i], at: Vector2i, chosen: Array[Vector2i
 ## Turns a platform run into one moving platform (stored on its leftmost cell), if the track
 ## it would sweep, 2-4 cells right or down, is open. The track is kept clear of other objects.
 ## With `ladders` (Archetype.ladders) it is a rolling ladder instead (RollingLadder), whose track
-## always runs right (the same draws are made, so the rest of the level is dealt as before).
+## always runs right (the same draws are made, so the rest of the level is dealt as before): a
+## step one cell wide at the run's left end, rolling over the run and on along the track, laid only
+## where its foot stands on solid ground all along the track (RollingLadder.stands; elsewhere the
+## run stays a ledge), the air it hangs through kept clear of anything laid after it.
 func make_moving (run_cells: Array[Vector2i], ladders: bool = false) -> void:
 	run_cells.sort()
 	var left: Vector2i = run_cells[0]
@@ -701,6 +707,8 @@ func make_moving (run_cells: Array[Vector2i], ladders: bool = false) -> void:
 	var travel: int = rng.randi_range(2, 4)
 	if ladders:
 		axis = Vector2i(1, 0)
+		_make_ladder(run_cells, travel)
+		return
 	var track: Array[Vector2i] = []
 	for k: int in range(1, travel + 1):
 		if axis.x != 0:
@@ -716,7 +724,31 @@ func make_moving (run_cells: Array[Vector2i], ladders: bool = false) -> void:
 	for c: Vector2i in run_cells.slice(1):
 		cells[c.x][c.y] = Cell.new(Type.EMPTY)
 		objects.erase(c)
-	set_kind(left, Type.ROLLING_LADDER if ladders else Type.MOVING_PLATFORM, [run_cells.size(), axis, travel])
+	set_kind(left, Type.MOVING_PLATFORM, [run_cells.size(), axis, travel])
+
+## A rolling ladder made of platform run `run_cells` (sorted) with `travel` cells of track past it
+## (see make_moving).
+func _make_ladder (run_cells: Array[Vector2i], travel: int) -> void:
+	var left: Vector2i = run_cells[0]
+	var track: Array[Vector2i] = []
+	for k: int in range(1, travel + 1):
+		track.append(run_cells[-1] + Vector2i(k, 0))
+	for p: Vector2i in track:
+		if not is_valid(p) or get_cell(p).type != Type.EMPTY or not empties.has(p):
+			return
+	var reach: int = run_cells.size() - 1 + travel
+	var rungs: int = RollingLadder.stands(self, left, reach)
+	if rungs <= 0:
+		return
+	for p: Vector2i in track:
+		empties.erase(p)
+	for c: Vector2i in run_cells.slice(1):
+		cells[c.x][c.y] = Cell.new(Type.EMPTY)
+		objects.erase(c)
+	for x: int in range(left.x, left.x + reach + 1):
+		for y: int in range(left.y + 1, left.y + rungs):
+			empties.erase(Vector2i(x, y))
+	set_kind(left, Type.ROLLING_LADDER, [1, Vector2i(1, 0), reach])
 
 ## How far apart (cells, across plus down) the two ends of a pair of teleporters are at least: a
 ## quarter of the level's width and height together, at least PORTAL_APART.

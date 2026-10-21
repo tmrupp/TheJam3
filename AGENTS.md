@@ -22,7 +22,7 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
     (`place_cell`), the rock and camera, and chunk sleeping.
   - `Rules.gd`: the run-wide rules, static and scene-free (`level_seed`, prices and values by
     depth, key rarity, what a level holds by its seed, `level_size`, `def_for`, `where`).
-  - `Difficulty.gd`: the difficulty presets (F7; Hard by default): how many foes a level holds
+  - `Difficulty.gd`: the difficulty presets (the F7 or `` ` `` panel; Hard by default): how many foes a level holds
     (`foes`, via `LevelGen.foes_per_area`), how fast the bosses act (`haste`), and how often the
     other enemies attack (`attack`) and how fast they move (`speed`).
 - `scripts/MapInfo.gd`: the place being played (`coord`, `here`, `world`), travel, and what a
@@ -183,7 +183,8 @@ bash tests/run.sh sky_test        # just these, headless
   objects.
 - Layers (absolute z): sky −40, the whale cruising −30 (over the wizard, 11, while it swallows them), acid −21
   (its surface over the wizard, 11), terrain −20, hedges −17, fences −16, decor −15, lantern light −12,
-  props 2, the darkness out of sight 8, the wizard's trail 9, the wizard 10, UI 50 and up.
+  props 2, the darkness out of sight 8, the wizard's trail 9, the wizard 10, the exam papers they carry 11,
+  UI 50 and up.
 - Check art changes with a capture and look at it zoomed in before calling them done.
 
 ## Windows editing pitfalls

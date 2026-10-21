@@ -3,8 +3,8 @@ extends CanvasLayer
 ## Start: continue the saved run (at its last lit lantern), begin at the world typed in (a random
 ## one when blank), or begin at a random world. Worlds are shareable: the same number gives the
 ## same levels for everyone. Paused: resume, copy where you are, give up (while a lantern protects
-## you: a death, back to the lantern, for when you are stuck), save and go back to the start menu,
-## or save and exit. Works by controller: D-pad or left stick to move, A to choose, Start to pause,
+## you: a death, back to the lantern, for when you are stuck), open the debug panel (in debug runs;
+## RisoPrint's F7 panel), save and go back to the start menu, or save and exit. Works by controller: D-pad or left stick to move, A to choose, Start to pause,
 ## B to back out of the pause menu.
 
 @onready var title: Label = $VBoxContainer/Title
@@ -14,6 +14,7 @@ extends CanvasLayer
 @onready var random_world: Button = $VBoxContainer/Random
 @onready var copy: Button = $VBoxContainer/Copy
 @onready var give_up_button: Button = $VBoxContainer/GiveUp
+@onready var debug_panel_button: Button = $VBoxContainer/DebugPanel
 @onready var main_menu: Button = $VBoxContainer/MainMenu
 @onready var debug_button: Button = $VBoxContainer/Debug
 @onready var exit: Button = $VBoxContainer/Exit
@@ -147,6 +148,7 @@ func pause_resume_game() -> void:
 		map_info().save_run()
 		where.text = Rules.where(map_info().coord)
 		give_up_button.visible = map_info().can_give_up()
+		debug_panel_button.visible = MapInfo.debug and RisoPrint.instance != null
 		start.grab_focus()
 	elif old_focus != null and is_instance_valid(old_focus):
 		old_focus.grab_focus()
@@ -173,6 +175,15 @@ func give_up() -> void:
 	map_info().give_up()
 
 
+## Debug runs: leave the pause menu for the debug panel (RisoPrint's F7 panel), which keeps the
+## game paused until it is closed.
+func open_debug_panel() -> void:
+	if not MapInfo.debug or RisoPrint.instance == null:
+		return
+	pause_resume_game()
+	RisoPrint.instance.set_pad_panel(true)
+
+
 ## Copies "world 28 · depth 3", so a place can be shared.
 func copy_location() -> void:
 	DisplayServer.clipboard_set(Rules.where(map_info().coord))
@@ -196,6 +207,7 @@ func _ready() -> void:
 	randomize_button.pressed.connect(randomize_seed)
 	copy.pressed.connect(copy_location)
 	give_up_button.pressed.connect(give_up)
+	debug_panel_button.pressed.connect(open_debug_panel)
 	main_menu.pressed.connect(return_to_menu)
 	paste.pressed.connect(paste_seed)
 	debug_button.toggled.connect(set_debug)

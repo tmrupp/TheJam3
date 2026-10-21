@@ -102,10 +102,10 @@ func _walking() -> void:
 	check(arrived and info.cell_at(best.global_position) == goal, "and walks there (%d cells)" % best_way.size())
 	if door != null:
 		check(bool(seen["opened"]), "the classroom door on its way opens for it")
-	# Class time: they stay where they are.
+	# Class time: they stay where they are (one out walking still, in a chunk awake, LevelLoader).
 	var other: Scholar = null
 	for s: Scholar in students:
-		if s != best and is_instance_valid(s) and s.shuffling():
+		if s != best and is_instance_valid(s) and s.shuffling() and s.can_process():
 			other = s
 	rec.passing = false
 	await frames(5)

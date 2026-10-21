@@ -11,8 +11,8 @@ class_name Spikes
 ## Out, the wizard's spells strike them (SpellStrike.thorns_caught, HexBolt): nothing comes of it to
 ## the thorns, but a blow that lands throws the wizard back off them, as off an enemy, so a slash
 ## down onto thorns bounces the wizard up. A hit from thorns that lands (a heart, or the ward's
-## charge) also puts the wizard back where they last stood on safe rock (Player.thorn_back), still
-## untouchable from the hit. Over the thorns at the bottom of a chasm's pit lies sleep fog, as a
+## charge) also puts the wizard back where they last stood safely, on rock or a floating ledge
+## (Player.thorn_back), held still a moment and then untouchable for the rest of the hit's time. Over the thorns at the bottom of a chasm's pit lies sleep fog, as a
 ## bank of it does (SleepFog): while the wizard is in it, up to MIST_RISE over the thorns, they are
 ## drowsy (Player.make_drowsy), so no spell lifts them out.
 
@@ -61,7 +61,7 @@ func _ready() -> void:
 		hurts.touched_player.connect(_touched)
 
 
-## A hit that landed sends the wizard back to safe rock (Player.thorn_back).
+## A hit that landed sends the wizard back to safe footing (Player.thorn_back).
 func _touched() -> void:
 	var player: Player = Stage.player()
 	if player != null and player.hit_frame == Engine.get_physics_frames():

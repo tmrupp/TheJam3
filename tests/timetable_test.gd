@@ -9,14 +9,16 @@ extends TestKit
 ## apart, one in the corridors the way in opens on; the way on on the floor of the classroom the most
 ## classrooms in; the same every build; where the wizard belongs. In play: a level first met in
 ## passing time; scholars turning on a wizard seen truant and those near with them, not the whole
-## level; a cast or a blow where they see it turning them; the bells (a bell rung in passing time
+## level; a blow turning them, a spell cast at nothing not; the bells (a bell rung in passing time
 ## begins class time, the wizard out in the halls truant; another rung by them ends it; no cord twice
 ## running; a classroom's door shut until walked up to; a bell rung with the wizard in a classroom,
-## they attend its class; walking out ends it; other classrooms shut in class time; late into a class
-## by a warp, not truant); hall doors by the timetable; each class seated afresh every period; an
+## they attend its class; every classroom shut both ways in class time, its own kept in; its own cord
+## letting it out, though it began the class; late into a class by a warp, not truant; out of one
+## again, truant, class time going on); hall doors by the timetable; each class seated afresh every period; an
 ## instructor far tougher and quicker, its whole class with it, felled by an abomination leaving
 ## nothing, by the wizard a stolen top-tier paper, once a room; attending (its paper sent to the field
-## level, none from a class turned on the wizard, nor with no class begun); sneaking a lectern's next
+## level, none from a class turned on the wizard, nor from one got out of by a warp, nor with no class
+## begun); sneaking a lectern's next
 ## paper, stolen; a lectern as a pigeonhole; prerequisites (a wizard got in without them put back out)
 ## and resitting; the departments climbing by Timetable.climb, a class of a move the wizard lacks
 ## counted with no paper; the way on taking its paper; abominations still during a class and acting
@@ -206,7 +208,7 @@ func _play() -> void:
 
 
 ## Belonging: seen truant, scholars turn, with those near them; a ring calms them and feeds the
-## beast; passing time; a cast and a blow where they see it.
+## beast; passing time; a spell cast at nothing where they see it leaves them be, a blow turns them.
 func _belonging(rec: LevelRecord, bell: SchoolBell) -> void:
 	print("where the wizard belongs")
 	# A stretch of floor for the wizard and a scholar, with another floor near the scholar hidden from
@@ -245,12 +247,18 @@ func _belonging(rec: LevelRecord, bell: SchoolBell) -> void:
 	check(not near.roused and not by.roused, "and every scholar calms down")
 	await within(func() -> bool: return false, 0.6)
 	check(near.sees(player) and not near.roused and not near.hostile(), "in passing time the corridors are the wizard's: one that sees them leaves them be")
+	# Cast straight up, at nothing (the ceiling), with the scholar looking on.
+	Input.action_press("Up")
 	check(Abilities.cast(player), "the wizard casts a spell")
-	check(near.roused, "where it sees: it turns on them anyway")
+	Input.action_release("Up")
+	await within(func() -> bool: return false, 0.4)
+	check(near.sees(player) and not near.roused and not near.hostile(), "cast at nothing where it sees: it leaves them be")
+	SpellStrike.strike(near, Vector2.RIGHT, 0)
+	check(near.roused, "struck, it turns on them")
 	await _ring(bell)
 	check(not near.roused, "rung again, calm")
 	SpellStrike.strike(by, Vector2.RIGHT, 0)
-	check(by.roused, "struck, it turns")
+	check(by.roused, "struck out of its sight, it turns all the same")
 	near.queue_free()
 	by.queue_free()
 
@@ -258,9 +266,10 @@ func _belonging(rec: LevelRecord, bell: SchoolBell) -> void:
 ## The bells: passing time, class time, passing time... Any bell rung in passing time begins class
 ## time, the wizard out in the halls truant; rung again by them in the halls, passing time comes back
 ## and the period is over; no cord twice running. A classroom's door stays shut until the wizard
-## walks up to it. In a classroom as a bell rings, they attend its class; a bell will not ring it out
-## from inside; walking out ends it, no bell. In class time other classrooms are shut to them; got
-## into a class in session anyway (a warp), they are late: not truant, attending nothing.
+## walks up to it. In a classroom as a bell rings, they attend its class. In class time every
+## classroom is shut both ways: its own keeps them in until its cord rings the class out, and then
+## opens. Got into a class in session anyway (a warp), they are late: not truant, attending nothing;
+## out of it again the same way, truant, class time going on.
 func _bells(rec: LevelRecord, a: SchoolBell, b: SchoolBell) -> void:
 	print("the bells")
 	player.global_position = a.global_position
@@ -313,13 +322,27 @@ func _bells(rec: LevelRecord, a: SchoolBell, b: SchoolBell) -> void:
 			other = i
 	if other >= 0:
 		check(not info.hall_door_up(other), "in class time another classroom is shut to them")
-	check(info.hall_door_up(hall), "its own lets them out")
-	info.since_bell = SchoolBell.RING_GAP
-	b.ring()
-	check(not rec.passing, "a bell will not ring the class out from inside it")
+	check(not info.hall_door_up(hall), "and its own keeps them in")
+	if not doors.is_empty():
+		var door: ExamDoor = doors[0] as ExamDoor
+		var box: Rect2i = info.world.halls[hall]["box"]
+		var out: int = -1 if door.cell.x == box.position.x else 1
+		player.global_position = info.cell_position(door.cell - Vector2i(out, 0))
+		await within(func() -> bool: return false, 0.5)
+		check(door.shut() and not rec.passing, "walked up to its door from inside, it stays shut in class time")
+		player.global_position = _in_hall(hall)
+		await frames(2)
+	var cord: SchoolBell = _cord_in(hall)
+	check(cord != null, "a cord in the classroom")
+	if cord != null:
+		info.since_bell = SchoolBell.RING_GAP
+		cord.ring()
+		await frames(2)
+		check(rec.passing and rec.started < 0 and rec.rings == rings + 2 and cord.spent(), "its own cord rung: the class let out, passing time, the next period")
+		check(info.hall_door_up(hall), "and its doors open to them again")
 	player.global_position = b.global_position
 	await frames(2)
-	check(rec.passing and rec.started < 0 and rec.rings == rings + 2, "walking out of the class ends it: passing time, the next period, no bell")
+	check(rec.passing and rec.rings == rings + 2, "walking out in passing time ends nothing")
 	rec.last_bell = Vector2i(-1, -1)
 	info.since_bell = SchoolBell.RING_GAP
 	a.ring()
@@ -329,9 +352,14 @@ func _bells(rec: LevelRecord, a: SchoolBell, b: SchoolBell) -> void:
 		player.global_position = _in_hall(late)
 		await frames(2)
 		check(info.wizard_belongs() and rec.started < 0 and info.class_hall == late, "got into a class in session in class time (a warp): late, no longer truant, attending nothing")
+		check(not info.hall_door_up(late), "its doors shut on them as on the class")
 		player.global_position = b.global_position
 		await frames(2)
-		check(rec.passing and rec.rings == rings + 3, "walking out of it, passing time")
+		check(not rec.passing and rec.rings == rings + 2 and not info.wizard_belongs(), "out of it again the same way: class time goes on, and they are truant")
+		info.since_bell = SchoolBell.RING_GAP
+		b.ring()
+		await frames(2)
+		check(rec.passing and rec.rings == rings + 3, "until they ring a bell in the halls: passing time")
 	player.keyring.clear()
 	if not rec.passing:
 		await _ring(b)
@@ -458,9 +486,10 @@ func _classes(rec: LevelRecord, bell: SchoolBell) -> void:
 	await frames(2)
 
 
-## Attending: a class started by its cord leaves the wizard be; rung out from the corridors, its exam
-## paper is sent to the level its department's portal leads to. A class whose master has turned on
-## the wizard sends none, nor does a ring with no class started.
+## Attending: a class started by its cord leaves the wizard be and keeps them in; rung out by the same
+## cord, its exam paper is sent to the level its department's portal leads to. A class whose master
+## has turned on the wizard sends none, nor one they got out of by a warp, nor a ring with no class
+## started.
 func _attend(rec: LevelRecord, bell: SchoolBell) -> void:
 	print("attending a class")
 	check(not info.teaches(&"levitate") and info.teaches(&"warp"), "a big move (levitate) is taught only to a wizard who has it; warp to anyone")
@@ -482,9 +511,10 @@ func _attend(rec: LevelRecord, bell: SchoolBell) -> void:
 	await within(func() -> bool: return false, 0.6)
 	var master: Scholar = info.master_in(hall)
 	check(master != null and not master.roused, "the class leaves the wizard be")
+	check(not info.hall_door_up(hall) and not _cord_in(hall).spent(), "its doors keep them in; its cord, rung last, will let them out")
 	var rings: int = rec.rings
 	await _leave(bell)
-	check(rec.rings == rings + 1 and rec.passing, "walking out, the class is over: passing time, the next period")
+	check(rec.rings == rings + 1 and rec.passing, "its cord rung again, the class is over: passing time, the next period")
 	check(info.run.papers_out.get(field, []) == [KeyRing.paper(a, tier)], "its paper (%s %d) sent to the field level" % [a, tier])
 	print("a class turned on the wizard, and the corridors")
 	info.run.papers_out.clear()
@@ -496,6 +526,14 @@ func _attend(rec: LevelRecord, bell: SchoolBell) -> void:
 	info.master_in(hall).rouse()
 	await _leave(bell)
 	check(info.run.papers_out.is_empty(), "a class whose master has turned on the wizard sends no paper")
+	hall = await _ring_to(bell, func(s: StringName) -> bool: return info.teaches(s))
+	if hall >= 0:
+		await _start(hall)
+		player.global_position = bell.global_position
+		await frames(2)
+		check(not rec.passing and rec.started < 0, "a class got out of by a warp is forfeit, class time going on")
+		await _pull(bell)
+		check(rec.passing and info.run.papers_out.is_empty(), "rung out from the halls, it sends no paper")
 	player.global_position = bell.global_position
 	await frames(2)
 	await _ring(bell)
@@ -866,8 +904,14 @@ func _pull(bell: SchoolBell) -> void:
 	await frames(2)
 
 
-## The wizard walks out of the classroom they are in, to `bell`: the class, and the period, are over.
+## The wizard rings the cord of the classroom they are in (the one that began its class, rung last:
+## it lets the class out all the same) and walks out to `bell`: the class, and the period, are over.
 func _leave(bell: SchoolBell) -> void:
+	var cord: SchoolBell = _cord_in(info.class_hall)
+	if cord != null:
+		info.since_bell = SchoolBell.RING_GAP
+		cord.ring()
+		await frames(2)
 	player.global_position = bell.global_position
 	await frames(2)
 
