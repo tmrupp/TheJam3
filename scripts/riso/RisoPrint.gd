@@ -1120,6 +1120,7 @@ const DRESS: Dictionary = {
 	"res://prefabs/gondola_station.tscn": &"station",
 	"res://prefabs/lesson.tscn": &"lesson",
 	"res://prefabs/way_back.tscn": &"department",
+	"res://prefabs/grave_mark.tscn": &"gravemark",
 }
 
 

@@ -55,7 +55,8 @@ func run() -> void:
 					clean = false
 				if cell.type == LevelGen.Type.WIND and cell.extra_info is Dictionary and int((cell.extra_info as Dictionary).get("chasm", -1)) == id:
 					clean = false
-				if cell.type == LevelGen.Type.SWITCH and cell.extra_info is Vector2i and not w.get_cell(cell.extra_info).type in [LevelGen.Type.BELL, LevelGen.Type.VANE, LevelGen.Type.SWITCH_GATE, LevelGen.Type.MOVING_PLATFORM]:
+				# A switch for a run of thorns (LevelGen.place_thorn_modes) crosses nothing.
+				if cell.type == LevelGen.Type.SWITCH and cell.extra_info is Vector2i and not w.get_cell(cell.extra_info).type in [LevelGen.Type.BELL, LevelGen.Type.VANE, LevelGen.Type.SWITCH_GATE, LevelGen.Type.MOVING_PLATFORM, LevelGen.Type.SPIKES]:
 					clean = false
 		var again: LevelGen = LevelGen.new(cells, def)
 		check(again.objects == w.objects and again.relic_chasms == w.relic_chasms, "%s: the same every visit (%d of %d chasms left to relics)" % [at, w.relic_chasms.size(), w.chasms.size()])

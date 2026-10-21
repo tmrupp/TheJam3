@@ -9,8 +9,9 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
 - `scripts/level/`: a level, apart from how it looks.
   - `LevelGen.gd`: a level laid out from its collapsed cells (`populate_level`, the `Type` of
     each cell, `Cell`, and the placement helpers). `Chasms.gd`: chasms and gaps, cut and crossed.
-    `Crypts.gd`: the cemetery's crypts, their insides collapsed from a sample of their own
-    (`Archetype.patches`, handed to the layout as `LevelGen.patches`). `Institute.gd`: the
+    `Crypts.gd`: the cemetery's crypts, their insides and their trials (pits, crawls, wells
+    worked with sun and shade blocks) collapsed from samples of their own (`Archetype.patches`,
+    handed to the layout as `LevelGen.patches`), and their prizes. `Institute.gd`: the
     institute's halls of marble (`LevelGen.halls`) and who is in them. `Timetable.gd`: its
     timetable's rules (periods, when each hall is in session, where the wizard belongs, which
     spell a glyph seal asks for); `MapInfo` plays it out.

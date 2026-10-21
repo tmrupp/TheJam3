@@ -12,21 +12,28 @@ extends RefCounted
 ##
 ## Before it is set in, the bits of its inside the collapse left apart from the rest are joined to
 ## the biggest stretch of it by stairs carved through the rock (_joined), so little of it is lost to
-## the filling below. A crypt is its inside framed by a wall of masonry a cell thick all round, entered by a doorway a
+## the filling below, and every shaft a cell wide is made two wide (_widened), so steps fit in it. A
+## crypt is its inside framed by a wall of masonry a cell thick all round, entered by a doorway a
 ## cell high through a side wall, at a floor inside, with a passage two rows high carved out from it
 ## through the rock until it meets open air (at most DOOR_REACH cells): one doorway on the side with
 ## the shorter passage, and one on the other side too where it fits: on each side, at the floor
-## from which the most of the inside's footholds are got to hop by hop (_reach_in, a rough reach
-## over the inside alone), then the shortest passage. What the collapse cut off from the doorways is filled with rock, and so is
-## any pit inside the wizard could drop into but not hop out of (Reach), until there are none, and
-## then whatever filling the pits cut off. Where footholds inside are still out of reach over a
-## floor that is reached (a tall room with nothing to climb), steps are set in to climb to them: a
-## cell of rock a hop over the reached floor, toward the foothold (_step, at most STEPS). Its stone, inside and passages are kept whole
-## (LevelGen.kept_whole) and kept out of the free cells, so nothing else is placed in it. Each is
-## noted in LevelGen.crypts as {"box": the crypt with its walls (Rect2i), "inside": its open cells,
-## "doors": its doorways' cells, "steps": the cell outside each doorway where its passage meets open
-## air, "floors": the cells inside the wizard can stand in and get back out from, nearest a doorway
-## first, "deep": the furthest of them from a doorway}.
+## from which the most of the inside's footholds are both got to and got back from hop by hop
+## (_reach_in, a rough reach over the inside alone), then the shortest passage. Where it fits
+## nowhere whole it is cut back, from the right and from the top (CROPS, CROP_HEIGHTS), keeping the
+## trials still whole in it. What the collapse cut off from the doorways is filled with rock, and so
+## is any pit inside the wizard could drop into but not hop out of (Reach), until there are none,
+## but for a pit whose filling would cut air off from the doorways, which is left (and not counted
+## among the floors), and then whatever filling the pits cut off. A trial counts as crossed: a cell
+## of it reached, all of it is. Where footholds inside are still out of reach over a floor that is
+## reached (a tall room with nothing to climb), steps are set in to climb to them: a cell of rock a
+## hop over the reached floor, toward the foothold or else the other way (_step, at most STEPS, never
+## in a trial, and taken out again where one would cut air off from the doorways). Its stone, inside
+## and passages are kept whole (LevelGen.kept_whole) and kept out of the free cells, so nothing else
+## is placed in it. Each is noted in LevelGen.crypts as {"box": the crypt with its walls (Rect2i),
+## "inside": its open cells, "doors": its doorways' cells, "steps": the cell outside each doorway
+## where its passage meets open air, "floors": the cells inside the wizard can stand in and get back
+## out from, nearest a doorway first, "deep": the furthest of them from a doorway, "stairs": the
+## steps set in, "trials": its trials, "prize": its prize's cell}.
 ##
 ## Its doorways may be shut by a sun or a shade block (PhaseBlock), dealt by the seed for each, in
 ## place of the light gates that once stood there: a shade block (SHADE_DOOR_SHARE), passed with the
@@ -44,10 +51,71 @@ extends RefCounted
 ## thorns along its floors (THORN_BLOCK). The
 ## necromancer's gate level keeps its first crypt for the necromancer and its graves instead
 ## (LevelGen.place_boss).
+##
+## Trials: before its inside is joined up, a few trial chambers are set into it side by side
+## (_set_trials), each collapsed by WFC from a sample of its own (TRIALS, drawn by
+## tests/make_crypt_trials.gd), so every one is laid out afresh but keeps its sample's rules: an
+## ossuary pit, a floor of thorns crossed on pillars and stones, never more than two thorns side by
+## side, with teeth of rock hanging over some gaps so they are crossed low; a thorn crawl, a passage
+## two rows high with thorns hanging from its ceiling and dug into its floor; a bone well, a shaft
+## climbed by ledges on alternate sides two rows apart, thorns on the walls between. The first crypt
+## gets all three, the second two (TRIAL_COUNTS), in an order dealt by the seed. Each is framed so it
+## opens at its ends onto a floor (a pit's and a crawl's ends, a well's foot and the top ledge on each
+## side), and a mouth is carved out from each opening into the rest of the inside (MOUTH_REACH).
+## Their thorns are always out. Each is noted in the crypt's "trials" ({"kind", "rect"}). Nothing
+## else is laid in a trial but a star where it is hardest to reach (_lures) and, only where the
+## floors outside them are too few, a sleeper; and once the level is laid (phase), each is worked by
+## light with sun and shade blocks (PhaseBlock), solid only lit or only dark, so it is crossed
+## switching the light (a dash does, with darkness carried, MapInfo.dash_switch): a pit's pillars a cell across are worn down to stones of
+## sun and shade taking turns, standing on nothing over the thorns, its wider pillars left as rock
+## to rest on; a well's ledges are of one kind on one wall and the other on the other (but for its
+## foot and the ledges its head exits open over, the ways in and out), so every hop up switches the
+## light; and a crawl is shut by CRAWL_GATES gates of blocks a passage high, taking turns.
+##
+## Its reliquary: past the cluster or hoard, on the deepest free floor left, each crypt holds a prize
+## dealt by the seed (prize_kind): a skeleton key, a large snuffing font holding Snuffer.LARGE
+## charges, or, seldom and never twice in a level, the resurrection rite, an exam paper of the
+## resurrect spell at tier I (Resurrect), found nowhere else.
 
 ## The insides collapsed for each level (Archetype.patches), the first crypt's first: cells across
 ## and down, not counting the walls.
-const INSIDES: Array[Vector2i] = [Vector2i(22, 12), Vector2i(16, 9)]
+const INSIDES: Array[Vector2i] = [Vector2i(42, 14), Vector2i(30, 11)]
+## The trials (see the class description): each kind's sample, its size, cells across and down (a
+## well is as tall as its crypt's inside, 0 here), and how it is collapsed: by its columns (a pit, a
+## crawl) or its rows (a well), so its other way keeps the sample's order (see
+## WaveFunctionCollapse, "slices").
+const TRIALS: Dictionary = {
+	&"pit": {"sample": "res://wfc_images/crypt_pit.png", "size": Vector2i(14, 7), "slices": &"columns"},
+	&"crawl": {"sample": "res://wfc_images/crypt_crawl.png", "size": Vector2i(12, 5), "slices": &"columns"},
+	&"well": {"sample": "res://wfc_images/crypt_well.png", "size": Vector2i(6, 0), "slices": &"rows"},
+}
+## How many trials each crypt gets, by its place in INSIDES.
+const TRIAL_COUNTS: Array[int] = [3, 2]
+## Columns kept between the crypt's walls and its first or last trial, and between two trials (at
+## least TRIAL_GAP, and up to two more, dealt by the seed).
+const TRIAL_MARGIN: int = 2
+const TRIAL_GAP: int = 2
+## The widths a crypt's inside is cut back to where it fits nowhere whole (cells across), and the
+## heights (cells down).
+const CROPS: Array[int] = [30, 22]
+const CROP_HEIGHTS: Array[int] = [11, 9]
+## How many open cells one above another, rock either side, make a shaft that is widened to two.
+const SHAFT: int = 3
+## The longest mouth carved out from a trial's opening into the rest of the inside (cells).
+const MOUTH_REACH: int = 3
+## How many gates of sun or shade blocks shut a crawl.
+const CRAWL_GATES: int = 2
+## The share of prizes that are the resurrection rite, and of the rest that are skeleton keys; the
+## others are large fonts.
+const RITE_SHARE: float = 0.15
+const SKELETON_KEY_SHARE: float = 0.5
+## The spell the rite teaches.
+const RITE: StringName = &"resurrect"
+## Salts for the level seed: the trials' order and places, which kind of block each trial's start
+## with, and each crypt's prize.
+const TRIAL_DEAL: int = 6500
+const STONE_DEAL: int = 6520
+const PRIZE_DEAL: int = 6540
 ## A level of at least TWO_AREA cells has two crypts, by a chance of TWO_SHARE dealt by the level
 ## seed; a smaller one has one.
 const TWO_AREA: int = 2400
@@ -111,12 +179,44 @@ const STAR_DEAL: int = 6140
 const SAMPLE: String = "res://wfc_images/crypt.png"
 
 
-## The insides to collapse for a crypted level (see Archetype.patches).
-static func patches() -> Array[Dictionary]:
+## The insides to collapse for crypted level `def` (see Archetype.patches): each crypt's inside, then
+## each crypt's trials in turn (trial_kinds).
+static func patches(def: NextWorldDef) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for size: Vector2i in INSIDES:
 		out.append({"sample": SAMPLE, "size": size})
+	for i: int in range(INSIDES.size()):
+		for kind: StringName in trial_kinds(def.gen_seed, i):
+			out.append({"sample": String(TRIALS[kind]["sample"]), "size": trial_size(kind, i), "slices": TRIALS[kind]["slices"]})
 	return out
+
+
+## The trials of crypt `i` of the level with seed `level_seed`, in the order they are set in across
+## it: TRIAL_COUNTS[i] of the kinds, dealt by the seed.
+static func trial_kinds(level_seed: int, i: int) -> Array[StringName]:
+	var kinds: Array[StringName] = []
+	for kind: StringName in TRIALS:
+		kinds.append(kind)
+	var out: Array[StringName] = []
+	while out.size() < TRIAL_COUNTS[i] and not kinds.is_empty():
+		var at: int = posmod(Rules.level_seed(level_seed, TRIAL_DEAL + i * 10 + out.size()), kinds.size())
+		out.append(kinds[at])
+		kinds.remove_at(at)
+	return out
+
+
+## How big a trial of `kind` in crypt `i` is collapsed (a well as tall as the inside).
+static func trial_size(kind: StringName, i: int) -> Vector2i:
+	var size: Vector2i = TRIALS[kind]["size"]
+	return Vector2i(size.x, INSIDES[i].y) if size.y == 0 else size
+
+
+## Where crypt `i`'s trials start among the level's patches.
+static func _first_trial(i: int) -> int:
+	var at: int = INSIDES.size()
+	for j: int in range(i):
+		at += TRIAL_COUNTS[j]
+	return at
 
 
 ## How many crypts `w` has (see TWO_AREA).
@@ -130,21 +230,166 @@ static func wanted(w: LevelGen) -> int:
 ## Set the collapsed insides into `w` as crypts (see the class description), then join the caves
 ## again round their walls.
 static func build(w: LevelGen) -> void:
-	var n: int = mini(wanted(w), w.patches.size())
+	var n: int = mini(mini(wanted(w), w.patches.size()), INSIDES.size())
 	for i: int in range(n):
 		if (w.patches[i] as Array).is_empty():
 			continue
-		var inside: Array = _joined(w.patches[i])
-		var site: Dictionary = _site(w, inside)
-		if not site.is_empty():
-			_raise(w, inside, site)
+		var inside: Array = []
+		for column: Array in w.patches[i]:
+			inside.append(column.duplicate())
+		var guard: Dictionary = {}
+		var trials: Array = []
+		# The necromancer's crypt is his lair, with no trials.
+		if not (i == 0 and w.gate == &"necromancer"):
+			trials = _set_trials(w, inside, i, guard)
+		# Where it fits nowhere, it is cut back: from the right, to just past each of its trials
+		# but the last and to each of CROPS (never narrower), and from the top, to each of
+		# CROP_HEIGHTS; the biggest first, keeping the trials still whole in it.
+		var high: int = (inside[0] as Array).size()
+		var widths: Array[int] = [inside.size()]
+		for k: int in range(trials.size() - 1):
+			widths.append((trials[k]["rect"] as Rect2i).end.x + TRIAL_MARGIN)
+		widths.append_array(CROPS)
+		var sizes: Array[Vector2i] = []
+		for wide: int in widths:
+			for tall: int in [high] + CROP_HEIGHTS:
+				var size: Vector2i = Vector2i(wide, tall)
+				if wide <= inside.size() and wide >= CROPS.min() and tall <= high and not sizes.has(size):
+					sizes.append(size)
+		sizes.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.x * a.y > b.x * b.y or (a.x * a.y == b.x * b.y and a.x > b.x))
+		for size: Vector2i in sizes:
+			var top: int = high - size.y
+			var cut: Array = []
+			for x: int in range(size.x):
+				cut.append((inside[x] as Array).slice(top))
+			var shifted: Dictionary = {}
+			for v: Vector2i in guard:
+				shifted[v - Vector2i(0, top)] = true
+			cut = _widened(_joined(cut, shifted), shifted)
+			var site: Dictionary = _site(w, cut)
+			if not site.is_empty():
+				var kept: Array = []
+				for t: Dictionary in trials:
+					var rect: Rect2i = t["rect"]
+					if rect.end.x <= size.x and rect.position.y >= top:
+						kept.append({"kind": t["kind"], "rect": Rect2i(rect.position - Vector2i(0, top), rect.size)})
+				site["trials"] = kept
+				_raise(w, cut, site)
+				break
 	if not w.crypts.is_empty():
 		w.connect_caves()
 
 
-## Whether a crypt's inside (as collapsed) is open at cell (`x`, `y`) of it.
+## Whether a crypt's inside (as collapsed) is open at cell (`x`, `y`) of it (thorns are open).
 static func _open_in(inside: Array, x: int, y: int) -> bool:
 	return Color(inside[x][y]) != Color.BLACK
+
+
+## Whether it holds thorns at cell (`x`, `y`) (a trial's).
+static func _thorn_in(inside: Array, x: int, y: int) -> bool:
+	return Color(inside[x][y]) == Color.RED
+
+
+## Set crypt `i`'s trials (trial_kinds) into `inside` (see the class description), left to right
+## from TRIAL_MARGIN in, each where it fits, each cell of them noted in `guard` (so the stairs that
+## join the inside up leave them be). The trials set in, each {"kind", "rect": its cells in
+## `inside`}.
+static func _set_trials(w: LevelGen, inside: Array, i: int, guard: Dictionary) -> Array:
+	var wide: int = inside.size()
+	var high: int = (inside[0] as Array).size()
+	var kinds: Array[StringName] = trial_kinds(w.seed_for_colors, i)
+	var first: int = _first_trial(i)
+	var out: Array = []
+	var x: int = TRIAL_MARGIN + posmod(Rules.level_seed(w.seed_for_colors, TRIAL_DEAL + 50 + i), 2)
+	for k: int in range(kinds.size()):
+		if first + k >= w.patches.size() or (w.patches[first + k] as Array).is_empty():
+			continue
+		var patch: Array = w.patches[first + k]
+		var size: Vector2i = Vector2i(patch.size(), (patch[0] as Array).size())
+		if x + size.x > wide - TRIAL_MARGIN or size.y > high:
+			continue
+		# A pit and a well stand on the inside's floor; a crawl runs at a height dealt by the seed.
+		var y: int = high - size.y
+		if kinds[k] == &"crawl":
+			y = posmod(Rules.level_seed(w.seed_for_colors, TRIAL_DEAL + 60 + i * 10 + k), high - size.y + 1)
+		var rect: Rect2i = Rect2i(Vector2i(x, y), size)
+		for dx: int in range(size.x):
+			for dy: int in range(size.y):
+				inside[x + dx][y + dy] = Color(patch[dx][dy])
+				guard[Vector2i(x + dx, y + dy)] = true
+		for mouth: Vector2i in _frame(kinds[k], inside, rect):
+			_mouth(inside, rect, mouth, guard)
+		out.append({"kind": kinds[k], "rect": rect})
+		x = rect.end.x + TRIAL_GAP + posmod(Rules.level_seed(w.seed_for_colors, TRIAL_DEAL + 70 + i * 10 + k), 3)
+	return out
+
+
+## Frame the trial of `kind` in `rect` of `inside` so it opens onto a floor at its ends (see the
+## class description). Its mouths: the cell just outside it beside each opening, at the row stood
+## in there.
+static func _frame(kind: StringName, inside: Array, rect: Rect2i) -> Array[Vector2i]:
+	var set_at: Callable = func(dx: int, dy: int, c: Color) -> void: inside[rect.position.x + dx][rect.position.y + dy] = c
+	var open_at: Callable = func(dx: int, dy: int) -> bool: return Color(inside[rect.position.x + dx][rect.position.y + dy]) != Color.BLACK
+	var wide: int = rect.size.x
+	var high: int = rect.size.y
+	var out: Array[Vector2i] = []
+	if kind == &"well":
+		# Its foot: a floor, open over it right across and out through both walls, and a ledge a row
+		# over it, if there is none, on the side away from the ledge over that (so the first is a hop).
+		for dx: int in range(1, wide - 1):
+			set_at.call(dx, high - 1, Color.BLACK)
+			set_at.call(dx, 0, Color.BLACK)
+			set_at.call(dx, high - 2, Color.WHITE)
+		for wall: int in [0, wide - 1]:
+			for dy: int in [high - 2, high - 3]:
+				set_at.call(wall, dy, Color.WHITE)
+		if range(1, wide - 1).all(func(dx: int) -> bool: return open_at.call(dx, high - 3)):
+			set_at.call(wide - 2 if not open_at.call(1, high - 4) else 1, high - 3, Color.BLACK)
+		out.append(Vector2i(rect.position.x - 1, rect.end.y - 2))
+		out.append(Vector2i(rect.end.x, rect.end.y - 2))
+		# Its head: out through each wall over the topmost ledge on that side.
+		for left: bool in [true, false]:
+			var wall: int = 0 if left else wide - 1
+			var col: int = 1 if left else wide - 2
+			for dy: int in range(3, high - 4):
+				if not open_at.call(col, dy):
+					for up: int in [1, 2]:
+						set_at.call(wall, dy - up, Color.WHITE)
+						set_at.call(col, dy - up, Color.WHITE)
+					out.append(Vector2i(rect.position.x - 1 if left else rect.end.x, rect.position.y + dy - 1))
+					break
+		return out
+	# A pit or a crawl: rock over and under it, and at each end a floor with two rows of air over it.
+	for dx: int in range(wide):
+		set_at.call(dx, 0, Color.BLACK)
+		set_at.call(dx, high - 1, Color.BLACK)
+	for end: int in [0, wide - 1]:
+		for dy: int in range(1, high - 1):
+			set_at.call(end, dy, Color.WHITE if dy <= 2 else Color.BLACK)
+	out.append(Vector2i(rect.position.x - 1, rect.position.y + 2))
+	out.append(Vector2i(rect.end.x, rect.position.y + 2))
+	return out
+
+
+## A mouth carved out of `inside` from `at`, just outside the trial in `rect`, away from it: a cell
+## of floor with two rows of air over it, cell by cell, up to MOUTH_REACH, until it meets air there
+## already (or a trial, or the inside's edge).
+static func _mouth(inside: Array, rect: Rect2i, at: Vector2i, guard: Dictionary) -> void:
+	var wide: int = inside.size()
+	var high: int = (inside[0] as Array).size()
+	var dir: int = -1 if at.x < rect.position.x else 1
+	for k: int in range(MOUTH_REACH):
+		var c: Vector2i = at + Vector2i(dir * k, 0)
+		if c.x < 0 or c.x >= wide or guard.has(c):
+			return
+		var met: bool = _open_in(inside, c.x, c.y)
+		inside[c.x][c.y] = Color.WHITE
+		if c.y >= 1 and not guard.has(c + Vector2i.UP):
+			inside[c.x][c.y - 1] = Color.WHITE
+		if c.y + 1 < high and not guard.has(c + Vector2i.DOWN):
+			inside[c.x][c.y + 1] = Color.BLACK
+		if met:
+			return
 
 
 ## Where the crypt with `inside` goes: {"box", "doors": [[the doorway, the passage's cells, the step
@@ -158,6 +403,7 @@ static func _site(w: LevelGen, inside: Array) -> Dictionary:
 	var best: Dictionary = {}
 	var best_score: int = 1 << 30
 	var best_tie: int = 0
+	var reaches: Dictionary = {}
 	for x: int in range(1, w.size.x - size.x):
 		for y: int in range(1, w.size.y - size.y):
 			var box: Rect2i = Rect2i(Vector2i(x, y), size)
@@ -166,7 +412,7 @@ static func _site(w: LevelGen, inside: Array) -> Dictionary:
 			var score: int = _count(w, open_sum, box)
 			if score > best_score:
 				continue
-			var doors: Array = _doors(w, inside, box, blocked)
+			var doors: Array = _doors(w, inside, box, blocked, reaches)
 			if doors.is_empty():
 				continue
 			for door: Array in doors:
@@ -215,8 +461,9 @@ static func _blocked(w: LevelGen) -> Dictionary:
 ## The doorways a crypt with `inside` in `box` would have: on each side, at the lowest floor inside
 ## beside the wall whose passage out reaches open air soonest; the side with the shorter passage
 ## first, and the other side's too if it has one. Each [the doorway, the passage's cells (both
-## rows), the step out (the open cell it meets)].
-static func _doors(w: LevelGen, inside: Array, box: Rect2i, blocked: Dictionary) -> Array:
+## rows), the step out (the open cell it meets)]. `reaches` keeps what _reach_in found from each
+## foothold, which is the same wherever the crypt goes.
+static func _doors(w: LevelGen, inside: Array, box: Rect2i, blocked: Dictionary, reaches: Dictionary) -> Array:
 	var out: Array = []
 	for side: int in [-1, 1]:
 		var wall: int = box.position.x if side < 0 else box.end.x - 1
@@ -245,7 +492,9 @@ static func _doors(w: LevelGen, inside: Array, box: Rect2i, blocked: Dictionary)
 					cut.append(c + Vector2i.UP)
 			if step == null:
 				continue
-			var opens: int = _reach_in(inside, Vector2i(col, row))
+			if not reaches.has(Vector2i(col, row)):
+				reaches[Vector2i(col, row)] = _reach_in(inside, Vector2i(col, row))
+			var opens: int = reaches[Vector2i(col, row)]
 			if best.is_empty() or opens > int(best[3]) or (opens == int(best[3]) and cut.size() < (best[1] as Array).size()):
 				best = [Vector2i(wall, y), cut, step, opens]
 		if not best.is_empty():
@@ -255,21 +504,24 @@ static func _doors(w: LevelGen, inside: Array, box: Rect2i, blocked: Dictionary)
 	return out
 
 
-## How many footholds of `inside` (open cells with rock under them; its edges are rock) the wizard
-## gets to hop by hop from foothold `from`, roughly as Reach has it over a level: up to Reach.UP
-## rows up and Reach.ACROSS across (a cell further for every two fallen), over clear air: up from
-## where they stand to a row over the higher end, across, and down to where they land (or, down
-## a step and close by, along and down without the rise).
+## How many footholds of `inside` (clear air with rock under it; its edges are rock; thorns are not
+## clear) the wizard both gets to hop by hop from foothold `from` and gets back to it from, roughly
+## as Reach has it over a level (Reach.hop): up to Reach.UP rows up and Reach.ACROSS across (a cell
+## further for every two fallen), over clear air: up from where they stand to a row over the higher
+## end (or level with it, in a low passage), across, and down to where they land. So a doorway high
+## over a drop counts only what it is got back to from, not everything below it.
 static func _reach_in(inside: Array, from: Vector2i) -> int:
 	var wide: int = inside.size()
 	var high: int = (inside[0] as Array).size()
-	var open: Callable = func(x: int, y: int) -> bool: return x >= 0 and y >= 0 and x < wide and y < high and _open_in(inside, x, y)
+	var open: Callable = func(x: int, y: int) -> bool: return x >= 0 and y >= 0 and x < wide and y < high and Color(inside[x][y]) == Color.WHITE
 	var holds: Array[Vector2i] = []
 	for x: int in range(wide):
 		for y: int in range(high):
-			if open.call(x, y) and not open.call(x, y + 1):
+			if open.call(x, y) and (y + 1 >= high or not _open_in(inside, x, y + 1)):
 				holds.append(Vector2i(x, y))
 	var clear: Callable = func(a: Vector2i, b: Vector2i, top: int) -> bool:
+		if top < 0:
+			return false
 		for y: int in range(top, a.y + 1):
 			if not open.call(a.x, y):
 				return false
@@ -280,35 +532,41 @@ static func _reach_in(inside: Array, from: Vector2i) -> int:
 			if not open.call(b.x, y):
 				return false
 		return true
-	var seen: Dictionary = {from: true}
-	var queue: Array[Vector2i] = [from]
-	var head: int = 0
-	while head < queue.size():
-		var a: Vector2i = queue[head]
-		head += 1
-		for b: Vector2i in holds:
-			if seen.has(b):
-				continue
-			var rise: int = a.y - b.y
-			var dx: int = absi(b.x - a.x)
-			if rise > Reach.UP or dx > Reach.ACROSS + floori(float(maxi(0, -rise)) * 0.5):
-				continue
-			var ok: bool = clear.call(a, b, mini(a.y, b.y) - 1)
-			if not ok and rise <= 0 and dx <= 1:
-				ok = clear.call(a, b, a.y)
-			if ok:
-				seen[b] = true
-				queue.append(b)
-	return seen.size()
+	var hop: Callable = func(a: Vector2i, b: Vector2i) -> bool:
+		var rise: int = a.y - b.y
+		if rise > Reach.UP or absi(b.x - a.x) > Reach.ACROSS + floori(float(maxi(0, -rise)) * 0.5):
+			return false
+		var top: int = mini(a.y, b.y)
+		return clear.call(a, b, top - 1) or clear.call(a, b, top)
+	var there: Dictionary = {from: true}
+	var back: Dictionary = {from: true}
+	for forth: bool in [true, false]:
+		var way: Dictionary = there if forth else back
+		var queue: Array[Vector2i] = [from]
+		var head: int = 0
+		while head < queue.size():
+			var a: Vector2i = queue[head]
+			head += 1
+			for b: Vector2i in holds:
+				if way.has(b) or absi(b.x - a.x) > Reach.ACROSS + 6:
+					continue
+				if (hop.call(a, b) if forth else hop.call(b, a)):
+					way[b] = true
+					queue.append(b)
+	var both: int = 0
+	for v: Vector2i in there:
+		if back.has(v):
+			both += 1
+	return both
 
 
 ## `inside` (as collapsed) with each bit of it of at least JOIN_MIN open cells that is apart from
 ## the biggest joined to it: from the bit's cell nearest the biggest (a pair that climbs more than
 ## it crosses counting for more), stairs carved toward the biggest's cell, a step up or down for
 ## each cell across while both are left to go, then straight on, with STAIR_AIR rows of air over
-## each step; straight up or down it is carved two wide, so steps fit in to climb it (_step). A
-## copy; the collapse is left as it was.
-static func _joined(inside: Array) -> Array:
+## each step; straight up or down it is carved two wide, so steps fit in to climb it (_step), but
+## never through the cells in `guard` (its trials). A copy; the collapse is left as it was.
+static func _joined(inside: Array, guard: Dictionary = {}) -> Array:
 	var out: Array = []
 	for column: Array in inside:
 		out.append(column.duplicate())
@@ -356,9 +614,32 @@ static func _joined(inside: Array) -> Array:
 			for across: int in widths:
 				for k: int in range(STAIR_AIR):
 					var c: Vector2i = at + Vector2i(across, -k)
-					if c.x >= 0 and c.y >= 0 and c.x < wide and c.y < high:
+					if c.x >= 0 and c.y >= 0 and c.x < wide and c.y < high and not guard.has(c):
 						out[c.x][c.y] = Color.WHITE
 	return out
+
+
+## `inside` with every shaft (SHAFT or more open cells one above another, rock either side of
+## each) made two wide, the column beside it carved open (to the right, else the left), so steps
+## fit in to climb it (_step); never through the cells in `guard` (its trials). In place.
+static func _widened(inside: Array, guard: Dictionary) -> Array:
+	var wide: int = inside.size()
+	var high: int = (inside[0] as Array).size()
+	var narrow: Callable = func(x: int, y: int) -> bool:
+		return Color(inside[x][y]) == Color.WHITE and not guard.has(Vector2i(x, y)) and (x == 0 or not _open_in(inside, x - 1, y)) and (x == wide - 1 or not _open_in(inside, x + 1, y))
+	for x: int in range(wide):
+		var y: int = 0
+		while y < high:
+			var run: int = 0
+			while y + run < high and narrow.call(x, y + run):
+				run += 1
+			if run >= SHAFT:
+				var side: int = x + 1 if x + 1 < wide and range(y, y + run).all(func(k: int) -> bool: return not guard.has(Vector2i(x + 1, k))) else x - 1
+				if side >= 0 and range(y, y + run).all(func(k: int) -> bool: return not guard.has(Vector2i(side, k))):
+					for k: int in range(y, y + run):
+						inside[side][k] = Color.WHITE
+			y += maxi(run, 1)
+	return inside
 
 
 ## Each open cell of `inside` -> the number of the bit of it (joined through open air, side by
@@ -422,6 +703,8 @@ static func _raise(w: LevelGen, inside: Array, site: Dictionary) -> void:
 			var v: Vector2i = Vector2i(x, y)
 			if room.has_point(v) and _open_in(inside, x - room.position.x, y - room.position.y):
 				_open_at(w, v)
+				if _thorn_in(inside, x - room.position.x, y - room.position.y):
+					w.put(v, LevelGen.Type.SPIKES)
 			else:
 				_rock_at(w, v)
 				w.masonry[v] = true
@@ -447,12 +730,30 @@ static func _raise(w: LevelGen, inside: Array, site: Dictionary) -> void:
 			if not w.is_ground(v) and not open.has(v):
 				_rock_at(w, v)
 				w.masonry[v] = true
-	var floors: Array[Vector2i] = _fill_pits(w, room, doors)
+	var spare: Array = []
+	for trial: Dictionary in site.get("trials", []):
+		var rect: Rect2i = trial["rect"]
+		spare.append(Rect2i(rect.position + room.position, rect.size))
+	var floors: Array[Vector2i] = _fill_pits(w, room, doors, spare, inner)
 	var stairs: Array[Vector2i] = []
-	for k: int in range(STEPS):
-		if not _step(w, room, floors, stairs):
+	# A step that would cut air off from the doorways is taken out again and not tried there again.
+	var banned: Dictionary = {}
+	var air: int = _flood(w, room, inner).size()
+	for k: int in range(STEPS * 3):
+		if stairs.size() >= STEPS:
 			break
-		floors = _fill_pits(w, room, doors)
+		var step: Variant = _step(w, room, floors, spare, banned)
+		if step == null:
+			break
+		var now: int = _flood(w, room, inner).size()
+		if now < air - 1:
+			w._to_open(step)
+			banned[step] = true
+			continue
+		air = now
+		stairs.append(step)
+		floors = _fill_pits(w, room, doors, spare, inner)
+		air = _flood(w, room, inner).size()
 	# Filling the pits may have cut some air off from the doorways: filled too.
 	var still: Dictionary = _flood(w, room, inner)
 	for x: int in range(room.position.x, room.end.x):
@@ -480,7 +781,11 @@ static func _raise(w: LevelGen, inside: Array, site: Dictionary) -> void:
 	for v: Vector2i in steps:
 		w.kept_whole[v] = true
 		w.kept_whole[v + Vector2i.DOWN] = true
-	var crypt: Dictionary = {"box": box, "inside": cells, "doors": doors, "steps": steps, "floors": floors, "deep": floors.back() if not floors.is_empty() else Vector2i(-1, -1), "stairs": stairs}
+	var trials: Array = []
+	for trial: Dictionary in site.get("trials", []):
+		var rect: Rect2i = trial["rect"]
+		trials.append({"kind": trial["kind"], "rect": Rect2i(rect.position + room.position, rect.size)})
+	var crypt: Dictionary = {"box": box, "inside": cells, "doors": doors, "steps": steps, "floors": floors, "deep": floors.back() if not floors.is_empty() else Vector2i(-1, -1), "stairs": stairs, "trials": trials}
 	w.crypts.append(crypt)
 	_fonts(w, crypt)
 	_door_blocks(w, crypt)
@@ -489,9 +794,12 @@ static func _raise(w: LevelGen, inside: Array, site: Dictionary) -> void:
 ## Set one step into `room` toward a foothold out of reach (see the class description): over the
 ## reached floor (of `floors`) with an unreached foothold nearest above it (between one and
 ## Reach.ACROSS cells across, more than Reach.UP rows up), a cell of rock a hop up, a cell toward
-## it, with air to stand on it and over that; the nearest such pair first. Whether one was set (it
-## is added to `stairs`).
-static func _step(w: LevelGen, room: Rect2i, floors: Array[Vector2i], stairs: Array[Vector2i]) -> bool:
+## it (or, where that will not do, a cell the other way, if the foothold is a hop from its top),
+## with air to stand on it and over that; the nearest such pair first. None goes in one of
+## `trials` (their rects), or toward a foothold in one, or at a cell `banned`. The step set, or null
+## for none.
+static func _step(w: LevelGen, room: Rect2i, floors: Array[Vector2i], trials: Array, banned: Dictionary) -> Variant:
+	var in_trials: Callable = func(v: Vector2i) -> bool: return trials.any(func(r: Rect2i) -> bool: return r.has_point(v))
 	var reached: Dictionary = {}
 	for v: Vector2i in floors:
 		reached[v] = true
@@ -499,7 +807,7 @@ static func _step(w: LevelGen, room: Rect2i, floors: Array[Vector2i], stairs: Ar
 	for x: int in range(room.position.x, room.end.x):
 		for y: int in range(room.position.y, room.end.y):
 			var v: Vector2i = Vector2i(x, y)
-			if not reached.has(v) and not w.is_ground(v) and Reach.underfoot(w, v):
+			if not reached.has(v) and not w.is_ground(v) and Reach.underfoot(w, v) and not in_trials.call(v):
 				out_of_reach.append(v)
 	var best: int = 1 << 30
 	var step: Vector2i = Vector2i(-1, -1)
@@ -509,20 +817,24 @@ static func _step(w: LevelGen, room: Rect2i, floors: Array[Vector2i], stairs: Ar
 			var dx: int = absi(b.x - a.x)
 			if rise <= Reach.UP or dx > Reach.ACROSS:
 				continue
-			var s: Vector2i = Vector2i(a.x + signi(b.x - a.x), a.y - Reach.UP + 1)
-			var score: int = (rise << 8) + dx
-			if score >= best or not room.has_point(s) or not room.has_point(s + Vector2i.UP * 2):
-				continue
-			if w.is_ground(s) or w.is_ground(s + Vector2i.UP) or w.is_ground(s + Vector2i.UP * 2) or w.get_cell(s).type != LevelGen.Type.EMPTY:
-				continue
-			best = score
-			step = s
+			# A cell toward it first, else a cell the other way, so long as it is a hop from the top.
+			var toward: int = signi(b.x - a.x) if b.x != a.x else 1
+			for side: int in [toward, -toward]:
+				var s: Vector2i = Vector2i(a.x + side, a.y - Reach.UP + 1)
+				var score: int = (rise << 8) + (dx << 1) + (0 if side == toward else 1)
+				if score >= best or (side != toward and (s.y - 1 - b.y > Reach.UP or absi(b.x - s.x) > Reach.ACROSS)):
+					continue
+				if banned.has(s) or not room.has_point(s) or not room.has_point(s + Vector2i.UP * 2) or in_trials.call(s) or in_trials.call(s + Vector2i.UP):
+					continue
+				if w.is_ground(s) or w.is_ground(s + Vector2i.UP) or w.is_ground(s + Vector2i.UP * 2) or w.get_cell(s).type != LevelGen.Type.EMPTY:
+					continue
+				best = score
+				step = s
 	if best == 1 << 30:
-		return false
+		return null
 	_rock_at(w, step)
 	w.masonry[step] = true
-	stairs.append(step)
-	return true
+	return step
 
 
 ## The open cells inside `room` joined through open air to `from`.
@@ -548,8 +860,13 @@ static func _flood(w: LevelGen, room: Rect2i, from: Array[Vector2i]) -> Dictiona
 ## The floors inside `room` (open cells with rock under them) the wizard can hop to from a doorway
 ## and back out from, nearest a doorway first (in hops). A floor they could drop to but not get back
 ## out from is a pit: it is filled with rock (its floor raised a row) and the floors worked out
-## again, until there are none.
-static func _fill_pits(w: LevelGen, room: Rect2i, doors: Array[Vector2i]) -> Array[Vector2i]:
+## again, until there are none; but a pit in one of `trials` (their rects) is left as it is, built to
+## be climbed, and so is one whose filling would cut air off from the doorways (`inner`, the cells
+## just in from them), and neither is counted among the floors.
+static func _fill_pits(w: LevelGen, room: Rect2i, doors: Array[Vector2i], trials: Array = [], inner: Array[Vector2i] = []) -> Array[Vector2i]:
+	var left: Dictionary = {}
+	var spared: Callable = func(v: Vector2i) -> bool: return left.has(v) or trials.any(func(r: Rect2i) -> bool: return r.has_point(v))
+	var air: int = _flood(w, room, inner).size()
 	for pass_: int in range(room.size.x * room.size.y):
 		var stand: Array[Vector2i] = doors.duplicate()
 		for x: int in range(room.position.x, room.end.x):
@@ -557,22 +874,31 @@ static func _fill_pits(w: LevelGen, room: Rect2i, doors: Array[Vector2i]) -> Arr
 				var v: Vector2i = Vector2i(x, y)
 				if not w.is_ground(v) and Reach.underfoot(w, v):
 					stand.append(v)
-		var there: Array[Vector2i] = _hops(w, stand, doors, false)
+		var there: Array[Vector2i] = _hops(w, stand, doors, false, trials)
 		var back: Dictionary = {}
-		for v: Vector2i in _hops(w, stand, doors, true):
+		for v: Vector2i in _hops(w, stand, doors, true, trials):
 			back[v] = true
-		var pits: Array[Vector2i] = there.filter(func(v: Vector2i) -> bool: return not back.has(v) and room.has_point(v))
+		var pits: Array[Vector2i] = there.filter(func(v: Vector2i) -> bool: return not back.has(v) and room.has_point(v) and not spared.call(v))
 		if pits.is_empty():
-			return there.filter(func(v: Vector2i) -> bool: return room.has_point(v))
+			return there.filter(func(v: Vector2i) -> bool: return room.has_point(v) and (back.has(v) or not spared.call(v)))
 		for v: Vector2i in pits:
 			_rock_at(w, v)
 			w.masonry[v] = true
+			if inner.is_empty():
+				continue
+			var now: int = _flood(w, room, inner).size()
+			if now < air - 1:
+				w._to_open(v)
+				left[v] = true
+			else:
+				air = now
 	return []
 
 
 ## The cells of `stand` reached hop by hop from `from` (back: those `from` is reached from), in the
-## order reached.
-static func _hops(w: LevelGen, stand: Array[Vector2i], from: Array[Vector2i], back: bool) -> Array[Vector2i]:
+## order reached. A trial (of `trials`, their rects) is built to be crossed, by ways a hop does not
+## know (a dash, the light switched): once any cell of one is reached, so is every cell of it.
+static func _hops(w: LevelGen, stand: Array[Vector2i], from: Array[Vector2i], back: bool, trials: Array = []) -> Array[Vector2i]:
 	var seen: Dictionary = {}
 	var order: Array[Vector2i] = []
 	for v: Vector2i in from:
@@ -582,8 +908,16 @@ static func _hops(w: LevelGen, stand: Array[Vector2i], from: Array[Vector2i], ba
 	while head < order.size():
 		var a: Vector2i = order[head]
 		head += 1
+		var crossed: Array = trials.filter(func(r: Rect2i) -> bool: return r.has_point(a))
 		for b: Vector2i in stand:
-			if seen.has(b) or absi(b.x - a.x) > Reach.ACROSS + 4:
+			if seen.has(b):
+				continue
+			if not crossed.is_empty() and (crossed[0] as Rect2i).has_point(b):
+				if Reach.clear(w, b):
+					seen[b] = true
+					order.append(b)
+				continue
+			if absi(b.x - a.x) > Reach.ACROSS + 4:
 				continue
 			if (Reach.hop(w, b, a, false) if back else Reach.hop(w, a, b, false)):
 				seen[b] = true
@@ -607,9 +941,77 @@ static func furnish(w: LevelGen, def: NextWorldDef) -> void:
 			w.move_object(cluster, deep)
 		else:
 			_hoard(w, crypt)
+		_prize(w, crypt, prize_kind(w.seed_for_colors, i))
 		_thorns(w, crypt)
 		_sleepers(w, crypt, deep)
+		_lures(w, crypt)
 		_stars(w, crypt)
+
+
+## The prize in crypt `i` of the level with seed `level_seed` (see the class description): &"rite"
+## by a share of RITE_SHARE, for the first crypt of a level that rolls it; of the rest &"key" by a
+## share of SKELETON_KEY_SHARE, else &"font". Dealt by the level seed.
+static func prize_kind(level_seed: int, i: int) -> StringName:
+	var roll: Callable = func(j: int) -> float: return float(posmod(Rules.level_seed(level_seed, PRIZE_DEAL + j), 1000)) / 1000.0
+	var taken: bool = range(i).any(func(j: int) -> bool: return float(roll.call(j)) < RITE_SHARE)
+	var mine: float = roll.call(i)
+	if mine < RITE_SHARE:
+		return &"key" if taken else &"rite"
+	return &"key" if (mine - RITE_SHARE) / (1.0 - RITE_SHARE) < SKELETON_KEY_SHARE else &"font"
+
+
+## Lay `crypt`'s prize of `kind` on its deepest free floor (not its deepest floor, the cluster's or
+## hoard's; for a large font, with air over it too).
+static func _prize(w: LevelGen, crypt: Dictionary, kind: StringName) -> void:
+	var floors: Array[Vector2i] = crypt["floors"]
+	for k: int in range(floors.size() - 1, -1, -1):
+		var v: Vector2i = floors[k]
+		if v == crypt["deep"] or w.get_cell(v).type != LevelGen.Type.EMPTY:
+			continue
+		if kind == &"font" and (not w.is_valid(v + Vector2i.UP) or w.get_cell(v + Vector2i.UP).type != LevelGen.Type.EMPTY or w.is_ground(v + Vector2i.UP)):
+			continue
+		match kind:
+			&"rite":
+				w.put(v, LevelGen.Type.KEY, KeyRing.paper(RITE, 1))
+			&"key":
+				w.put(v, LevelGen.Type.KEY, KeyRing.SKELETON)
+			_:
+				w.put(v, LevelGen.Type.SNUFFER, {"charges": Snuffer.LARGE})
+		crypt["prize"] = v
+		return
+
+
+## Whether cell `v` lies in one of `crypt`'s trials.
+static func in_trial(crypt: Dictionary, v: Vector2i) -> bool:
+	for trial: Dictionary in crypt.get("trials", []):
+		if (trial["rect"] as Rect2i).has_point(v):
+			return true
+	return false
+
+
+## A star in each of `crypt`'s trials where it is hardest to reach: on a free cell of it with thorns
+## beside or under it (or two under), the nearest its middle (for a well, the highest), ties to the
+## left.
+static func _lures(w: LevelGen, crypt: Dictionary) -> void:
+	for trial: Dictionary in crypt.get("trials", []):
+		var rect: Rect2i = trial["rect"]
+		var mid: Vector2i = rect.get_center()
+		var best: Variant = null
+		var best_key: int = 1 << 30
+		for x: int in range(rect.position.x + 1, rect.end.x - 1):
+			for y: int in range(rect.position.y, rect.end.y):
+				var v: Vector2i = Vector2i(x, y)
+				if not _free(w, v):
+					continue
+				var thorny: bool = [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.DOWN * 2].any(func(d: Vector2i) -> bool: return w.is_valid(v + d) and w.get_cell(v + d).type == LevelGen.Type.SPIKES)
+				if not thorny:
+					continue
+				var key: int = (y * 1000 + x) if trial["kind"] == &"well" else (LevelGen.dist(v, mid) * 1000 + x)
+				if key < best_key:
+					best_key = key
+					best = v
+		if best != null:
+			w.put(best, LevelGen.Type.COIN)
 
 
 ## The level's star cluster (LevelGen.place_cluster), out in the level: not in a vault, nor in a
@@ -663,7 +1065,7 @@ static func _thorns(w: LevelGen, crypt: Dictionary) -> void:
 	var doors: Array[Vector2i] = crypt["doors"]
 	var free: Dictionary = {}
 	for v: Vector2i in crypt["floors"]:
-		if w.get_cell(v).type == LevelGen.Type.EMPTY and doors.all(func(d: Vector2i) -> bool: return LevelGen.dist(d, v) > THORN_CLEAR):
+		if w.get_cell(v).type == LevelGen.Type.EMPTY and not in_trial(crypt, v) and doors.all(func(d: Vector2i) -> bool: return LevelGen.dist(d, v) > THORN_CLEAR):
 			free[v] = true
 	var starts: Array[Vector2i] = []
 	for v: Vector2i in free:
@@ -689,8 +1091,8 @@ static func _thorns(w: LevelGen, crypt: Dictionary) -> void:
 
 
 ## The skeletons asleep in `crypt` (see the consts), on free floors: niches (rock over them and on
-## one side) first, then the rest, then those nearer a doorway than SKELETON_CLEAR, each in an
-## order dealt by the seed.
+## one side) first, then the rest, then those nearer a doorway than SKELETON_CLEAR, and only then
+## those in its trials, each in an order dealt by the seed.
 static func _sleepers(w: LevelGen, crypt: Dictionary, deep: Vector2i) -> void:
 	var floors: Array[Vector2i] = crypt["floors"]
 	var doors: Array[Vector2i] = crypt["doors"]
@@ -699,7 +1101,7 @@ static func _sleepers(w: LevelGen, crypt: Dictionary, deep: Vector2i) -> void:
 	var key: Callable = func(v: Vector2i) -> int:
 		var niche: bool = w.is_ground(v + Vector2i.UP) and (w.is_ground(v + Vector2i.LEFT) or w.is_ground(v + Vector2i.RIGHT))
 		var near: bool = doors.any(func(d: Vector2i) -> bool: return LevelGen.dist(d, v) < SKELETON_CLEAR)
-		return (2 << 20 if near else 0) + (0 if niche else 1 << 20) + posmod(Rules.level_seed(w.seed_for_colors, SLEEP_DEAL + v.x * 977 + v.y), 1 << 20)
+		return (4 << 20 if in_trial(crypt, v) else 0) + (2 << 20 if near else 0) + (0 if niche else 1 << 20) + posmod(Rules.level_seed(w.seed_for_colors, SLEEP_DEAL + v.x * 977 + v.y), 1 << 20)
 	spots.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return key.call(a) < key.call(b))
 	var chosen: Array[Vector2i] = []
 	for v: Vector2i in spots:
@@ -767,7 +1169,9 @@ static func _open_at(w: LevelGen, v: Vector2i) -> void:
 ## - phase walls: up to PHASE_WALLS of its passages a cell or two high (rock over and under, open to
 ##   either side) shut by a block, passed in the other light;
 ## - shut pockets: by a share of POCKET_SHARE, one of its stars walled in sun blocks wherever it is
-##   open round it, reached only in the dark.
+##   open round it, reached only in the dark;
+## - its trials' blocks (_phase_trials): a pit's stones, a well's ledges, a crawl's gates (see the
+##   class description). Phase walls and shut pockets are never laid in a trial.
 ## And where the seed deals one (Rules.ossuary_at), the doorways of a level's second crypt are
 ## ossuary doors, which drink Rules.ossuary_fill charges before they open.
 const STAIRS_MIN: int = 2
@@ -796,6 +1200,7 @@ static func phase(w: LevelGen, def: NextWorldDef) -> void:
 		if (crypt["floors"] as Array).is_empty() or (i == 0 and def.gate == &"necromancer" and not Worlds.is_side(def.coord)):
 			continue
 		_phase_stairs(w, crypt)
+		_phase_trials(w, crypt)
 		_shade_floors(w, crypt)
 		_phase_walls(w, crypt)
 		_pocket(w, crypt)
@@ -845,6 +1250,101 @@ static func _phase_stairs(w: LevelGen, crypt: Dictionary) -> void:
 		sun = not sun
 
 
+## The sun and shade blocks of the crypt's trials (see the class description), the kinds taking
+## turns from a kind dealt by the seed for each trial (STONE_DEAL).
+static func _phase_trials(w: LevelGen, crypt: Dictionary) -> void:
+	for trial: Dictionary in crypt.get("trials", []):
+		var rect: Rect2i = trial["rect"]
+		var sun: bool = _roll(w, STONE_DEAL, rect.position) < 0.5
+		match trial["kind"]:
+			&"pit":
+				_phase_pit(w, crypt, rect, sun)
+			&"well":
+				_phase_well(w, crypt, rect, sun)
+			&"crawl":
+				_phase_crawl(w, rect, sun)
+
+
+## Rock at `v` in `crypt` made open air, to set a block in (or leave open).
+static func _hollow(w: LevelGen, crypt: Dictionary, v: Vector2i) -> void:
+	w._to_open(v)
+	w.interiors[v] = true
+	w.empties.erase(v)
+	(crypt["inside"] as Array[Vector2i]).append(v)
+
+
+## A pit worn down to stones: each pillar between its ends (the highest rock in each column, on the
+## rows its tops stand in) has its right column left as one stone at its top, a block standing on
+## nothing, the rest of that column air and, on its thorn row, thorns, the kinds taking turns from
+## the left (from `sun`). So a pillar a cell across is a stone, and a wider one keeps rock to rest
+## on beside its stone.
+static func _phase_pit(w: LevelGen, crypt: Dictionary, rect: Rect2i, sun: bool) -> void:
+	var thorn_row: int = rect.end.y - 2
+	var tops: Dictionary = {}
+	for x: int in range(rect.position.x + 1, rect.end.x - 1):
+		for y: int in range(rect.position.y + 2, thorn_row):
+			if w.is_ground(Vector2i(x, y)):
+				tops[x] = y
+				break
+	for x: int in range(rect.position.x + 1, rect.end.x - 1):
+		if not tops.has(x) or tops.has(x + 1):
+			continue
+		var stone: Vector2i = Vector2i(x, int(tops[x]))
+		if not w.is_valid(stone + Vector2i.UP) or w.is_ground(stone + Vector2i.UP):
+			continue
+		for y: int in range(stone.y, thorn_row + 1):
+			var v: Vector2i = Vector2i(x, y)
+			if w.is_ground(v):
+				_hollow(w, crypt, v)
+				if y == thorn_row:
+					w.put(v, LevelGen.Type.SPIKES)
+		_block(w, stone, sun)
+		sun = not sun
+
+
+## A well's ledges made blocks: each ledge (the rock out from a wall, open over it), but its foot's
+## and those its head exits open over, of one kind on the left wall (`sun`) and the other on the
+## right, so each hop up switches the light.
+static func _phase_well(w: LevelGen, crypt: Dictionary, rect: Rect2i, sun: bool) -> void:
+	for left: bool in [true, false]:
+		var col: int = rect.position.x + 1 if left else rect.end.x - 2
+		var out: int = 1 if left else -1
+		var ledges: Array[int] = []
+		for y: int in range(rect.position.y + 1, rect.end.y - 3):
+			if w.is_ground(Vector2i(col, y)) and not w.is_ground(Vector2i(col, y - 1)):
+				ledges.append(y)
+		var wall: int = rect.position.x if left else rect.end.x - 1
+		for y: int in ledges:
+			# The ledge a head exit opens over is left as rock.
+			if not w.is_ground(Vector2i(wall, y - 1)):
+				continue
+			for k: int in [0, 1]:
+				var v: Vector2i = Vector2i(col + out * k, y)
+				if w.is_ground(v) and not w.is_ground(v + Vector2i.UP):
+					_hollow(w, crypt, v)
+					_block(w, v, sun == left)
+
+
+## Gates of blocks across a crawl, CRAWL_GATES of them where its passage has rock under it and
+## nothing in it (but thorns hanging over it, where the gate is a block high), spread along it, the kinds taking turns (from `sun`), so it is crossed switching
+## the light as it is dashed through.
+static func _phase_crawl(w: LevelGen, rect: Rect2i, sun: bool) -> void:
+	var row: int = rect.position.y + 2
+	var spots: Array[int] = []
+	for x: int in range(rect.position.x + 2, rect.end.x - 2):
+		if _free(w, Vector2i(x, row)) and w.is_ground(Vector2i(x, row + 1)) and (_free(w, Vector2i(x, row - 1)) or w.get_cell(Vector2i(x, row - 1)).type == LevelGen.Type.SPIKES):
+			spots.append(x)
+	for g: int in range(CRAWL_GATES):
+		if spots.is_empty():
+			return
+		var x: int = spots[clampi(roundi(float(spots.size() - 1) * float(g + 1) / float(CRAWL_GATES + 1)), 0, spots.size() - 1)]
+		spots = spots.filter(func(o: int) -> bool: return absi(o - x) > 2)
+		for y: int in [row - 1, row]:
+			if _free(w, Vector2i(x, y)):
+				_block(w, Vector2i(x, y), sun)
+		sun = not sun
+
+
 ## Shade floors over the crypt's runs of thorns (see SHADE_FLOOR_SHARE).
 static func _shade_floors(w: LevelGen, crypt: Dictionary) -> void:
 	var thorns: Dictionary = {}
@@ -877,7 +1377,7 @@ static func _phase_walls(w: LevelGen, crypt: Dictionary) -> void:
 	var doors: Array[Vector2i] = crypt["doors"]
 	var walls: Array = []
 	for v: Vector2i in crypt["floors"]:
-		if not _free(w, v) or v == crypt["deep"] or doors.any(func(d: Vector2i) -> bool: return LevelGen.dist(d, v) <= 2):
+		if not _free(w, v) or v == crypt["deep"] or in_trial(crypt, v) or doors.any(func(d: Vector2i) -> bool: return LevelGen.dist(d, v) <= 2):
 			continue
 		if w.is_ground(v + Vector2i.LEFT) or w.is_ground(v + Vector2i.RIGHT):
 			continue
@@ -910,7 +1410,7 @@ static func _pocket(w: LevelGen, crypt: Dictionary) -> void:
 	var best: Variant = null
 	var best_key: float = INF
 	for v: Vector2i in crypt["floors"]:
-		if v == crypt["deep"] or w.get_cell(v).type != LevelGen.Type.COIN:
+		if v == crypt["deep"] or w.get_cell(v).type != LevelGen.Type.COIN or in_trial(crypt, v):
 			continue
 		var around: Array[Vector2i] = []
 		var fits: bool = true

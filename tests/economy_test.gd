@@ -86,7 +86,9 @@ func generation() -> void:
 			var keys: int = 0
 			for v: Vector2i in w.objects:
 				var cell: LevelGen.Cell = w.get_cell(v)
-				if cell.type == LevelGen.Type.KEY and cell.extra_info != null and int(cell.extra_info) == KeyRing.SKELETON and not in_vault(w, v):
+				# A crypt's prize (Crypts._prize) is its own.
+				var prize: bool = w.crypts.any(func(c: Dictionary) -> bool: return c.get("prize", Vector2i(-1, -1)) == v)
+				if cell.type == LevelGen.Type.KEY and cell.extra_info != null and int(cell.extra_info) == KeyRing.SKELETON and not in_vault(w, v) and not prize:
 					keys += 1
 			for secret: Dictionary in w.secrets:
 				for reward: Array in secret["rewards"]:

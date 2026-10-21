@@ -66,7 +66,7 @@ func run() -> void:
 				vault_doors[vault["door"]] = true
 			for v: Vector2i in w.objects:
 				var cell: LevelGen.Cell = w.get_cell(v)
-				if cell.type == LevelGen.Type.KEY and cell.extra_info != null and int(cell.extra_info) != KeyRing.SKELETON and not w.vaults.any(func(vt: Dictionary) -> bool: return (vt["room"] as Array).has(v)):
+				if cell.type == LevelGen.Type.KEY and cell.extra_info != null and int(cell.extra_info) != KeyRing.SKELETON and not KeyRing.is_paper(int(cell.extra_info)) and not w.vaults.any(func(vt: Dictionary) -> bool: return (vt["room"] as Array).has(v)):
 					if v != w.start_key:
 						keys[int(cell.extra_info)] += 1
 						if first_key < 0:

@@ -578,6 +578,10 @@ Decided (October 2026):
   doorways, something worth having deep inside), but bigger, and their insides are collapsed by
   WFC from a sample of their own (passages, burial niches, ossuary rooms), not built by hand.
   Inside it is completely dark: nothing shows but what a light lights.
+  (Changed October 20: much wider, and each holds trials, chambers of hard platforming each
+  collapsed from a sample of its own (a thorn pit, a thorn crawl, a bone well), worked with sun
+  and shade blocks; and a prize in its reliquary: a skeleton key, a large font or, now and then,
+  the resurrection rite. `docs/DEEPER_PLAN.md` §4b.)
 - **Light by place, not by band.** The terraces stay moonlit (the shade every band has, no gloom);
   a crypt's inside is fully dark. The darkness is a property of where in the level, not of the
   whole level.

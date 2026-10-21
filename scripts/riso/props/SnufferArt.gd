@@ -7,6 +7,8 @@ extends RisoProp
 ## it as the water drains away. Dry, the basin is empty, its stone dark inside, with a ring of stain
 ## where the water stood, and no glow or motes. Just after darkness is poured back in, the water
 ## wells up black from the bottom of the basin, rings spreading across it, and it glows again.
+## A large font (a crypt's prize, Snuffer.LARGE) is drawn LARGE_SCALE bigger, its bowl ringed with
+## a band of paper skulls, standing on a broad plinth of two steps, and shines further.
 
 
 ## The Snuffer it dresses.
@@ -17,6 +19,11 @@ var font: Snuffer:
 
 ## How big it is drawn, against the sizes its shapes are drawn at.
 const SCALE: float = 1.35
+## How much bigger a large font is drawn, how many skulls ring its bowl, and how much further its
+## light reaches.
+const LARGE_SCALE: float = 1.55
+const SKULLS: int = 5
+const LARGE_LIGHT: float = 1.5
 ## How high the water lies over the ground, and how wide it and the lip round it are, in those sizes.
 const WATER_Y: float = -58.0
 const WATER: Vector2 = Vector2(26.0, 4.0)
@@ -59,7 +66,13 @@ func shines() -> bool:
 func light() -> Array:
 	if font == null or not font.can_snuff():
 		return []
-	return _light(Vector2(0, _ground() + (WATER_Y - LIGHT_RISE) * SCALE), LIGHT, RisoPrint.BLUE)
+	var big: bool = font.large()
+	return _light(Vector2(0, _ground() + (WATER_Y - LIGHT_RISE) * _scale()), LIGHT * Vector3(LARGE_LIGHT, 1.0, 1.0) if big else LIGHT, RisoPrint.BLUE)
+
+
+## How big it is drawn: SCALE, or LARGE_SCALE more for a large font.
+func _scale() -> float:
+	return SCALE * (LARGE_SCALE if font != null and font.large() else 1.0)
 
 
 func _draw_art() -> void:
@@ -67,13 +80,28 @@ func _draw_art() -> void:
 	var waiting: bool = font != null and font.can_snuff()
 	var dipped: float = font.dipped if font != null else INF
 	var filled: float = font.filled if font != null else INF
-	var xf: Transform2D = Transform2D(0.0, Vector2.ONE * SCALE, 0.0, Vector2(0, g))
+	var big: bool = font != null and font.large()
+	# A large font stands on its plinth, its own shapes raised by the plinth's two steps.
+	var plinth: float = 9.0 if big else 0.0
+	var xf: Transform2D = Transform2D(0.0, Vector2.ONE * _scale(), 0.0, Vector2(0, g)) * Transform2D(0.0, Vector2(0, -plinth))
 	# The pedestal, its foot and the bowl, in blue stone, lit down the stem's left with bare paper.
 	var foot: PackedVector2Array = xf * RisoShapes.rrect(-22.0, -10.0, 44.0, 10.0, 3.0)
 	var stem: PackedVector2Array = xf * PackedVector2Array([Vector2(-10, -10), Vector2(10, -10), Vector2(7, -44), Vector2(-7, -44)])
 	var bowl: PackedVector2Array = xf * RisoShapes.smooth(PackedVector2Array([Vector2(-30, WATER_Y), Vector2(30, WATER_Y), Vector2(25, -48), Vector2(12, -42), Vector2(-12, -42), Vector2(-25, -48)]), 2)
 	ink.ink(RisoPrint.BLUE, 1.0, [foot, stem, bowl])
 	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 0.55, [xf * RisoShapes.rrect(-6.0, -42.0, 3.0, 30.0, 1.5)])
+	if big:
+		# The plinth's two steps, in night under the blue, and the band of skulls round the bowl:
+		# each a round crown and a jaw knocked out to paper, with two dark sockets.
+		var steps: Array[PackedVector2Array] = [xf * RisoShapes.rrect(-34.0, plinth - 4.5, 68.0, 4.5, 1.5), xf * RisoShapes.rrect(-28.0, plinth - 9.0, 56.0, 5.0, 1.5)]
+		ink.ink(RisoPrint.BLUE, 1.0, steps)
+		ink.ink(RisoPrint.NIGHT, 0.5, steps.slice(0, 1))
+		for i: int in range(SKULLS):
+			var x: float = lerpf(-18.0, 18.0, float(i) / float(SKULLS - 1))
+			var c: Vector2 = Vector2(x, -51.0 + absf(x) * 0.12)
+			var skull: Array[PackedVector2Array] = [xf * RisoShapes.circle(c, 3.4, 12), xf * RisoShapes.rrect(c.x - 2.0, c.y + 1.8, 4.0, 2.6, 1.0)]
+			ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 0.85, skull)
+			ink.ink(RisoPrint.NIGHT, 0.9, [xf * RisoShapes.circle(c + Vector2(-1.2, -0.2), 0.9, 6), xf * RisoShapes.circle(c + Vector2(1.2, -0.2), 0.9, 6)], false)
 	# Its lip, bare paper, round the black water brimming in it.
 	var lip: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(0, WATER_Y), LIP.x, LIP.y, 28)
 	var water: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(0, WATER_Y), WATER.x, WATER.y, 28)
@@ -113,7 +141,7 @@ func _draw_art() -> void:
 	if waiting and dipped >= SMOKE_TIME:
 		_motes(xf)
 	if dipped < SMOKE_TIME:
-		var rise: Transform2D = Transform2D(0.0, Vector2(0, g + (WATER_Y - 2.0) * SCALE))
+		var rise: Transform2D = Transform2D(0.0, Vector2(0, g + (WATER_Y - 2.0 - plinth) * _scale()))
 		RisoMarks.smoke_thread(ink, rise, t + phase, 58.0, 3.4, 5.0, false, true, 1.6 * (1.0 - dipped / SMOKE_TIME))
 
 

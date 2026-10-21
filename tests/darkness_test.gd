@@ -49,7 +49,8 @@ func generation() -> Variant:
 					doorways[d] = true
 			check(blocks.all(func(v: Vector2i) -> bool: return doorways.has(v) or (w.interiors.has(v) and w.structures.get(v, &"") == &"crypt")), "%s: its %d blocks all stand inside its crypts or in their doorways" % [at, blocks.size()])
 			if Rules.fontless_at(at):
-				check_eq(count_of(w, LevelGen.Type.SNUFFER), 0, "%s: dealt no fonts, it has none" % at)
+				var plain: int = w.objects_of(LevelGen.Type.SNUFFER).filter(func(v: Vector2i) -> bool: return Snuffer.capacity(w, v) == Snuffer.CHARGES).size()
+				check_eq(plain, 0, "%s: dealt no fonts, it has none (but a crypt's large one, its prize)" % at)
 			# A crypt's stairs, where they were turned to blocks, take turns up the climb.
 			for crypt: Dictionary in w.crypts:
 				var steps: Array[Vector2i] = []

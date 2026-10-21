@@ -843,10 +843,11 @@ func place_boss (boss: StringName) -> void:
 ## Some of an ordinary level's lifts wait for a switch: parked at the start of their track until
 ## it is thrown, then running for good (the record keeps it). LIFT_SWITCH_SHARE of them, picked by
 ## hashing the level seed and the lift's cell, with the switch on the free floor nearest the lift
-## within LIFT_SWITCH_NEAR cells, reachable from the way in. Ordinary levels never need a lift to
-## get through, so a parked one blocks nothing; side worlds' lifts (hyperspace's crossings) always
-## run. The lift's extra info gains the switch's cell, and the switch holds the lift's. Done last
-## and with no world RNG draws, so nothing else in the level moves.
+## within LIFT_SWITCH_NEAR cells, reachable from the way in, outside the vaults. Ordinary levels
+## never need a lift to get through, so a parked one blocks nothing; side worlds' lifts
+## (hyperspace's crossings) always run. The lift's extra info gains the switch's cell, and the
+## switch holds the lift's. Done last and with no world RNG draws, so nothing else in the level
+## moves.
 const LIFT_SWITCH_SHARE: float = 0.5
 const LIFT_SWITCH_NEAR: int = 6
 const LIFT_SWITCH_DEAL: int = 9100
@@ -856,6 +857,11 @@ func place_lift_switches () -> void:
 	if not is_valid(start):
 		return
 	var reach: Dictionary = reach_from(start)
+	# Never in a vault, as switch_floor keeps out of them.
+	var locked: Dictionary = {}
+	for vault: Dictionary in vaults:
+		for c: Vector2i in vault["room"]:
+			locked[c] = true
 	for lift: Vector2i in objects_of(Type.MOVING_PLATFORM):
 		var info: Array = get_cell(lift).extra_info
 		if info.size() > 3:
@@ -864,7 +870,7 @@ func place_lift_switches () -> void:
 		if float(roll) / 1000.0 >= LIFT_SWITCH_SHARE:
 			continue
 		var spot: Variant = best_of(free_floors(), func(v: Vector2i) -> int: return dist(v, lift),
-				func(v: Vector2i) -> bool: return reach.has(v) and dist(v, lift) <= LIFT_SWITCH_NEAR and not _crowds_exit(v))
+				func(v: Vector2i) -> bool: return reach.has(v) and dist(v, lift) <= LIFT_SWITCH_NEAR and not _crowds_exit(v) and not locked.has(v))
 		if spot == null:
 			continue
 		info.append(spot)

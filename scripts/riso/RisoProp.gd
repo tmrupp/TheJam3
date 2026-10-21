@@ -63,6 +63,7 @@ const KINDS: Dictionary = {
 	&"balloon": "res://scripts/riso/props/BalloonArt.gd",
 	&"temple": "res://scripts/riso/props/TempleArt.gd",
 	&"snuffer": "res://scripts/riso/props/SnufferArt.gd",
+	&"gravemark": "res://scripts/riso/props/GraveMarkArt.gd",
 	&"skeleton": "res://scripts/riso/props/SkeletonArt.gd",
 	&"lightgate": "res://scripts/riso/props/LightGateArt.gd",
 	&"scholar": "res://scripts/riso/props/ScholarArt.gd",

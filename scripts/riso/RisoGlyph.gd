@@ -85,6 +85,10 @@ static func of(a: StringName, c: Vector2, t: float) -> Array[PackedVector2Array]
 		&"hex":
 			# A comet: a bold spark with a tapering tail behind it.
 			return [RisoShapes.sparkle(c + Vector2(7, -5), 17.0), PackedVector2Array([c + Vector2(4, -12), c + Vector2(-22, 14), c + Vector2(-2, 0)])]
+		&"resurrect":
+			# A headstone, a round top on a slab, and a spark rising off it: a soul bound to come back.
+			return [RisoShapes.circle(c + Vector2(0, -2), 12.0, 20), RisoShapes.rrect(c.x - 12, c.y - 2, 24, 20, 2.0),
+				RisoShapes.sparkle(c + Vector2(0, -24), 8.0)]
 		&"mend":
 			# A drop of light over a bead: a draught that heals.
 			return [RisoShapes.circle(c + Vector2(0, 9), 12.0, 22), RisoShapes.almond(c + Vector2(0, -14), 6.0, 11.0, 12),

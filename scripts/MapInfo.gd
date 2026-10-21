@@ -1428,10 +1428,11 @@ func wizard_cast (_slot: StringName = &"damage") -> void:
 		if s != null and not s.roused and s.sees(player):
 			s.rouse()
 
-## Whether the institute will teach `a` to the wizard: anything, but a big move (Relics.MOVES) only
-## to a wizard who already has it, in its slot or as a paper (relics are how those are found).
+## Whether the institute will teach `a` to the wizard: anything, but a big move (Relics.MOVES) or
+## resurrect only to a wizard who already has it, in its slot or as a paper (relics and crypts are how
+## those are found, Abilities.found_first).
 func teaches (a: StringName) -> bool:
-	return a != &"" and (not a in Relics.MOVES or Abilities.tier(player, a) > 0 or player.keyring.papers().any(func(code: int) -> bool: return KeyRing.paper_spell(code) == a))
+	return a != &"" and (not Abilities.found_first(a) or Abilities.tier(player, a) > 0 or player.keyring.papers().any(func(code: int) -> bool: return KeyRing.paper_spell(code) == a))
 
 ## The classroom the wizard is in by right, or -1: one they went into enrolled in its class (or came
 ## back into through a department's way back) and have not left since. Tests seating the wizard in a
@@ -1557,11 +1558,13 @@ func light_lantern (lantern: Node) -> bool:
 	_set_respawn(coord, lantern.get_meta(&"cell"))
 	run.vulnerable = false
 	_refresh_lanterns()
-	# A lantern refills the hex's charges and mend's draughts.
+	# A lantern refills the hex's charges, mend's draughts and resurrect's rites.
 	if player != null and player.has_node("Hex"):
 		(player.get_node("Hex") as Hex).refill()
 	if player != null and player.has_node("Mend"):
 		(player.get_node("Mend") as Mend).refill()
+	if player != null and player.has_node("Resurrect"):
+		(player.get_node("Resurrect") as Resurrect).refill()
 	if was_vulnerable:
 		RisoFx.burst(&"gain", (lantern as Node2D).global_position, Vector2.ZERO, [RisoPrint.EYE, RisoPrint.GLOW])
 	save_run()
@@ -1590,7 +1593,8 @@ func relight () -> void:
 		RisoFx.burst(&"gain", player.global_position + Vector2(0, -30), Vector2.ZERO, [RisoPrint.EYE, RisoPrint.GLOW])
 
 ## Douse the flame in the snuffing font at `cell` (Snuffer), its water at `at`, and take its
-## darkness: the wizard gains every charge it holds (Snuffer.CHARGES in a font never touched, or
+## darkness: the wizard gains every charge it holds (Snuffer.CHARGES in a font never touched, LARGE
+## in a crypt's large one, or
 ## what was poured back into it), their flame goes out (if it burns), and the font is dry until
 ## darkness is poured into it again (LevelRecord.fonts, kept whatever befalls them after). Whether
 ## it gave any (a dry font gives nothing).
@@ -1621,7 +1625,7 @@ func fill_font (cell: Vector2i, at: Vector2) -> int:
 
 ## The charges of darkness the snuffing font at `cell` here holds.
 func font_held (cell: Vector2i) -> int:
-	return int(record().fonts.get(cell, Snuffer.CHARGES))
+	return int(record().fonts.get(cell, Snuffer.capacity(world, cell)))
 
 ## Whether the snuffing font at `cell` here has run dry.
 func font_dry (cell: Vector2i) -> bool:

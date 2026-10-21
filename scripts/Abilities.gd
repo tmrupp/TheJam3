@@ -15,9 +15,11 @@ class_name Abilities
 ##     projection, levitate, rift (open your own teleporters), warp (to a random floor) and ferry
 ##     (a raft that shuttles to and fro, see Ferry). The dash and blink are the wizard's own moves
 ##     (Player); the rest are cast.
-##   - utility, on the Utility button (R, or the right shoulder button): awareness and mend (heal to
-##     full from draughts a lantern refills, see Mend). A utility spell never moves the wizard or
-##     hurts anything itself; it may make the other two slots' spells better.
+##   - utility, on the Utility button (R, or the right shoulder button): awareness, mend (heal to
+##     full from draughts a lantern refills, see Mend) and resurrect (bind the soul to a grave mark,
+##     to rise there from a death, see Resurrect; tier I only from a crypt's reliquary, Crypts). A
+##     utility spell never moves the wizard or hurts anything itself; it may make the other two
+##     slots' spells better.
 ##   Warp and rift cost stars each cast (cast_price).
 ## - Perks stack: double jump, wall climb, vigor (max health), speed (run speed), keyring (carry
 ##   more keys, see KeyRing) and ward (a ring of plates that takes a hit and grows back, see Ward).
@@ -28,7 +30,8 @@ class_name Abilities
 ## entry here, its node (or a line in tune_moves), and its mark (RisoGlyph).
 
 ## Every ability, in the order shrines go round them (see offers):
-## - "max": its top tier; "base": the tier a run starts with (0 when not given);
+## - "max": its top tier; "base": the tier a run starts with (0 when not given); "found": true for
+##   one whose tier I is only found (resurrect, in a crypt: no shrine or class teaches it before);
 ## - "slot": the slot it takes (SLOTS), for one that takes a slot; "cast": false for the wizard's
 ##   own moves in the movement slot (the dash, blink), which are not cast; "cost": stars a cast at
 ##   depth 0 (see cast_price), for a spell that costs any;
@@ -60,6 +63,7 @@ const ABILITIES: Dictionary = {
 	&"keyring": {"max": 3},
 	&"ferry": {"max": 3, "slot": &"move", "node": "Ferry", "make": "res://scripts/Ferry.gd"},
 	&"ward": {"max": 3, "node": "Ward", "make": "res://scripts/Ward.gd"},
+	&"resurrect": {"max": 3, "slot": &"utility", "found": true, "node": "Resurrect", "make": "res://scripts/Resurrect.gd"},
 }
 ## The slots: the damage spell's (the Spell button), the movement's (Dash) and the utility spell's
 ## (Utility).
@@ -119,6 +123,12 @@ static func is_spell(a: StringName) -> bool:
 
 static func max_tier(a: StringName) -> int:
 	return int(ABILITIES[a]["max"])
+
+
+## Whether `a`'s tier I is only found, never taught: a big move (a relic, Relics.MOVES) or one marked
+## "found" (resurrect, a crypt's rite).
+static func found_first(a: StringName) -> bool:
+	return a in Relics.MOVES or (ABILITIES.has(a) and bool(ABILITIES[a].get("found", false)))
 
 
 ## How it is named on screen: its id, words apart.
@@ -205,8 +215,9 @@ static func _picks(level_seed: int, player: Player, count: int, strict: bool) ->
 			var a: StringName = order[(start + i) % n]
 			if a in out:
 				continue
-			# The big moves are found as relics first (see Relics); then their higher tiers are taught.
-			if a in Relics.MOVES and tier(player, a) == 0:
+			# The big moves are found as relics first (see Relics), and resurrect in a crypt; then
+			# their higher tiers are taught.
+			if found_first(a) and tier(player, a) == 0:
 				continue
 			if pass_new and tier(player, a) > 0:
 				continue
@@ -240,6 +251,8 @@ static func grant(player: Player, a: StringName) -> void:
 	elif a == &"mend":
 		# Learning a tier fills the draughts.
 		(player.get_node("Mend") as Mend).refill()
+	elif a == &"resurrect":
+		(player.get_node("Resurrect") as Resurrect).refill()
 
 
 ## Set ability `a` to tier `n` outright (the debug picker on the F7 panel). Something for a slot
@@ -266,6 +279,7 @@ static func _take_slot(player: Player, a: StringName) -> void:
 static func reset(player: Player) -> void:
 	player.tiers = start_tiers()
 	Mend.restore(player, -1)
+	Resurrect.restore(player, -1)
 	apply(player)
 	player.health.health = player.health.max_health
 

@@ -10,6 +10,8 @@ var keyring: KeyRing = KeyRing.new()
 ## Draughts left in the mend spell (see Mend), or -1 while it holds as many as it can: kept on
 ## the wizard, so swapping the spell away at a shrine and back does not fill them.
 var mend_draughts: int = -1
+## Rites left in the resurrect spell (see Resurrect), or -1 while it holds as many as it can.
+var resurrect_rites: int = -1
 
 
 @onready var jump_sfx: AudioStreamPlayer = $JumpSFX
@@ -317,6 +319,10 @@ func reset_position() -> void:
 
 # kills the player and puts them back at respawn
 func die() -> void:
+	# A grave mark standing here undoes the death (Resurrect).
+	var rite: Resurrect = get_node_or_null("Resurrect") as Resurrect
+	if rite != null and rite.rise():
+		return
 	visual_event.emit(&"death", global_position)
 	died.emit()
 	var pos: Vector2 = position
@@ -345,8 +351,8 @@ func tune_moves() -> void:
 	health.health = mini(health.health, health.max_health)
 
 
-## The wizard's part of a saved run (see RunState.to_save): stars, keys, abilities, health and
-## mend draughts. ("key", the newest key, is kept for saves from before the keyring.)
+## The wizard's part of a saved run (see RunState.to_save): stars, keys, abilities, health, mend
+## draughts and resurrect rites. ("key", the newest key, is kept for saves from before the keyring.)
 func to_save() -> Dictionary:
 	var tier_names: Dictionary = {}
 	for a: StringName in tiers:
@@ -354,7 +360,7 @@ func to_save() -> Dictionary:
 	var keys: Array[int] = keyring.all()
 	return {
 		"stars": coins.coins, "key": keys[-1] if not keys.is_empty() else -1, "keys": keys,
-		"skeleton_keys": keyring.skeletons(), "mend_draughts": Mend.stored(self),
+		"skeleton_keys": keyring.skeletons(), "mend_draughts": Mend.stored(self), "resurrect_rites": Resurrect.stored(self),
 		"tiers": tier_names, "health": health.health,
 	}
 
@@ -372,6 +378,7 @@ func from_save(data: Dictionary) -> void:
 	keyring.set_all(data.get("keys", [int(data["key"])]))
 	keyring.set_skeletons(int(data.get("skeleton_keys", 0)))
 	Mend.restore(self, int(data.get("mend_draughts", -1)))
+	Resurrect.restore(self, int(data.get("resurrect_rites", -1)))
 
 # does a jump and triggers the jumping animation
 var jumping: bool = false

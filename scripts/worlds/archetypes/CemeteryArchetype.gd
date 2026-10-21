@@ -4,7 +4,8 @@ extends Archetype
 ## tests/make_graveyard_sample.gd, collapsed unturned), printed in its own realm with its own decor.
 ## Its gates are chasms cut across the terraces, bridged once a grave bell is rung (Chasms). Moths,
 ## sleep fog and wraiths live there (populate). One or two crypts are dug into its hillside (Crypts),
-## their insides collapsed from a sample of their own (patches) and dark inside, with skeletons
+## their insides and their trials collapsed from samples of their own (patches) and dark inside,
+## each with a prize in its reliquary, and with skeletons
 ## asleep in them and snuffing fonts by their doorways; more fonts stand about its terraces
 ## (finish). Some levels have no fonts at all (Rules.fontless_at), and its crypts hold sun and
 ## shade blocks and, in some, ossuary doors (Crypts.phase).
@@ -15,9 +16,9 @@ const SAMPLE: String = "res://wfc_images/graveyard.png"
 const MOTHS_PER_K: float = 0.6
 const FOG_PER_K: float = 2.0
 const WRAITHS_PER_K: float = 0.9
-## How much bigger than Rules.level_size its levels are, across and down: room for its crypts and
-## the rock round them.
-const SCALE: Vector2 = Vector2(1.12, 1.12)
+## How much bigger than Rules.level_size its levels are, across and down: room for its wide crypts
+## and the rock round them.
+const SCALE: Vector2 = Vector2(1.35, 1.12)
 ## Snuffing fonts about the terraces, besides those by the crypts' doorways, per 1000 cells; each
 ## at least FONT_APART cells from another font and FONT_CLEAR from the way in. Their places are
 ## hashed from the level seed (FONT_DEAL), not drawn from the world RNG.
@@ -43,8 +44,8 @@ func cut_gates(w: LevelGen) -> void:
 
 
 ## The crypts' insides (Crypts).
-func patches(_def: NextWorldDef) -> Array[Dictionary]:
-	return Crypts.patches()
+func patches(def: NextWorldDef) -> Array[Dictionary]:
+	return Crypts.patches(def)
 
 
 ## Last of all: what the crypts hold (Crypts.furnish), the fonts about the terraces (none at all in
@@ -60,9 +61,11 @@ func finish(w: LevelGen, def: NextWorldDef) -> void:
 
 
 ## Take away every snuffing font in `w` (those the crypts laid by their doorways): its cells are
-## free again, as they were before the fonts were laid.
+## free again, as they were before the fonts were laid. A crypt's large font, its prize, stays.
 static func dry_up(w: LevelGen) -> void:
 	for v: Vector2i in w.objects_of(LevelGen.Type.SNUFFER):
+		if Snuffer.capacity(w, v) > Snuffer.CHARGES:
+			continue
 		w.set_kind(v, LevelGen.Type.EMPTY)
 		w.objects.erase(v)
 		if not w.interiors.has(v):
