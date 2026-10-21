@@ -6,17 +6,20 @@ extends RefCounted
 ## - The bells and the classes go passing time, class time, passing time, class time. A level is first
 ##   met in passing time (LevelRecord.passing). Any bell rung in passing time begins class time
 ##   (MapInfo.pull_cord): a wizard in a classroom then, enrolled in its class, attends it
-##   (LevelRecord.started); anywhere else they are truant. Walking out of a classroom in class time
-##   ends it and passing time begins, no bell needed (MapInfo._left_class); a wizard truant in the
-##   halls ends it by ringing a bell. Either way the period is over: the level moves on a period. A
-##   wizard who gets into a class in session in class time (a warp, a rift) is late: no longer
-##   truant, but attending nothing. No cord can be rung twice running (LevelRecord.last_bell), as a
-##   crags tower cannot be flipped twice running. How many periods have passed is kept in the
-##   level's record (LevelRecord.rings).
+##   (LevelRecord.started); anywhere else they are truant. Any bell rung in class time ends it and
+##   passing time begins (MapInfo.ring_period): a wizard in a classroom rings its own cord to be let
+##   out, attending its class if they began class time in it; one truant in the halls rings any
+##   other. Either way the period is over: the level moves on a period. A wizard who gets into a
+##   class in session in class time (a warp, a rift) is late: no longer truant, but attending
+##   nothing; one who gets out of one (the same ways) forfeits its class (MapInfo._left_class) and
+##   is truant. No cord can be rung twice running (LevelRecord.last_bell), as a crags tower cannot be
+##   flipped twice running, but for a classroom's own cord letting out the class it began
+##   (MapInfo.dismissing). How many periods have passed is kept in the level's record
+##   (LevelRecord.rings).
 ## - Classroom doors stay shut until the wizard walks up to them (ExamDoor.near), and open then only
-##   if they may go through (MapInfo.hall_door_up): from inside always, so a class can always be
-##   left; from outside only in passing time, to a wizard enrolled in its class. In class time every
-##   classroom is shut to those outside.
+##   in passing time, and only if they may go through (MapInfo.hall_door_up): from inside always;
+##   from outside to a wizard enrolled in its class. In class time every classroom is shut both
+##   ways, until a bell rings the period out.
 ## - The day is PERIODS periods, the rings counted round (period). Each classroom keeps its
 ##   department (Institute.DEPARTMENTS) and its own cycle: IN_SESSION periods in session, then closed
 ##   for the rest of the day, from a place in the cycle dealt by the seed (in_cycle, phase), shown over
@@ -31,8 +34,7 @@ extends RefCounted
 ##   tier (laid down on its own stratum); and
 ##   necrology when another department crashed back to I from II or higher. A department that did
 ##   not meet neither moves nor counts; one at the top holds there. So no ring raises a tier by
-##   itself: every climb is the wizard's doing, and most cost another. The library is always open. A hall's doors (ExamDoor) stand open while it is in
-##   session and are shut while it is not.
+##   itself: every climb is the wizard's doing, and most cost another. The library is always open; a classroom's doors (ExamDoor) are kept as above.
 ## - Where the wizard belongs (belongs): in the corridors (anywhere out of the halls) in passing
 ##   time, in the library, and in a classroom whose class is in session. Anywhere else (the
 ##   corridors in a period, a classroom with no class, the beast's chamber) they are truant, and the
@@ -48,7 +50,7 @@ extends RefCounted
 ##   that classroom's at WAY_ON_PAPER or higher as the wizard goes through (MapInfo.way_on_due), so
 ##   getting through means sitting classes.
 ## - Exam papers (KeyRing.paper): a wizard who began class time in a classroom has attended its class
-##   when they walk out of it (field trip or not), and its paper (the subject at the tier taught) waits in the
+##   when they ring it out from inside it (back from a field trip or not), and its paper (the subject at the tier taught) waits in the
 ##   level its department's portal leads to (MapInfo._attend), to be fetched and carried on the key
 ##   ring; one carried of that subject at a lower tier is graded up in hand instead (resitting). A
 ##   class the wizard cannot be taught (a relic's move they lack) counts as attended all the same,

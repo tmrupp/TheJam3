@@ -2,9 +2,10 @@ extends StaticBody2D
 class_name ExamDoor
 ## A door of an institute hall with a class in it (Institute, Timetable.TIMETABLED), across one of
 ## its doorways, kept by the timetable (MapInfo.hall_door_up): the library's stands open always; a
-## classroom's stays shut until the wizard walks up to it (near), and opens then only if they may go
-## through: from inside always, from outside in passing time to a wizard enrolled in its class in
-## session. In passing time it opens too for a student walking up to it on its way to a class
+## classroom's stays shut until the wizard walks up to it (near), and opens then only in passing time,
+## and only if they may go through: from inside always, from outside to a wizard enrolled in its class
+## in session. In class time it is shut both ways until a bell rings the period out (a wizard inside
+## rings the classroom's own cord). In passing time it opens too for a student walking up to it on its way to a class
 ## (Scholar.shuffling, Students). It never drops on the wizard. It has no lock: nothing else opens it. Its
 ## portcullis winches up and down (`lift`, printed by ExamDoorArt), and MapInfo.exam_doors keeps
 ## whether each is up, for what light and sight pass (MapInfo.solid_at).
