@@ -1,8 +1,9 @@
 extends Node
 class_name DashStrike
 ## What the dash does on its way, now that it is a move and not an attack (the damage spells are,
-## Abilities): it neither wounds nor stuns. The wizard passes through enemies while dashing (their
-## bodies stop blocking, ENEMY_LAYER, until the wizard is clear of them after it), and touching an
+## Abilities): it neither wounds nor stuns. The wizard passes through enemies while dashing, and
+## while projected (AstralProjection: their bodies stop blocking, ENEMY_LAYER, until the wizard is
+## clear of them after it), and touching an
 ## enemy (or a moth swarm) never hurts them while they dash. The worm's body still blocks the dash
 ## (WormSegment). It does nothing to cracked rock: only an empowered spell breaks that (Empower,
 ## CrackedWall). Every wizard has one (Player).
@@ -10,21 +11,22 @@ class_name DashStrike
 ## The physics layer enemy bodies are on (project settings: "Enemy").
 const ENEMY_LAYER: int = 2
 
-var was_dashing: bool = false
+## Whether the wizard was passing through enemies last frame (dashing or projected).
+var was_passing: bool = false
 
 @onready var player: Player = get_parent() as Player
 
 
 func _physics_process(_delta: float) -> void:
-	var dashing: bool = player.dash.is_acting()
-	if dashing and not was_dashing:
+	var passing: bool = player.dash.is_acting() or player.phasing
+	if passing and not was_passing:
 		player.set_collision_mask_value(ENEMY_LAYER, false)
-	# Enemies block the wizard again once the dash is over, but only when no enemy's body is where
-	# the wizard is: turned back on with the wizard inside one, the push out could wedge them in
-	# the rock or fling them across the level.
-	if not dashing and not player.get_collision_mask_value(ENEMY_LAYER) and not _inside_enemy():
+	# Enemies block the wizard again once the dash or the projection is over, but only when no
+	# enemy's body is where the wizard is: turned back on with the wizard inside one, the push out
+	# could wedge them in the rock or fling them across the level.
+	if not passing and not player.get_collision_mask_value(ENEMY_LAYER) and not _inside_enemy():
 		player.set_collision_mask_value(ENEMY_LAYER, true)
-	was_dashing = dashing
+	was_passing = passing
 
 
 ## Whether the wizard's body overlaps an enemy's.

@@ -1,9 +1,12 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="PackedScene" uid="uid://dyvck7ac1yito" path="res://prefabs/enemy.tscn" id="1_enemy"]
 [ext_resource type="PackedScene" uid="uid://drbq47lw8o8mv" path="res://prefabs/hit_box.tscn" id="2_hitbox"]
 [ext_resource type="Script" path="res://scripts/Abomination.gd" id="3_abomination"]
 [ext_resource type="PackedScene" uid="uid://cfju2r1ttqwwm" path="res://prefabs/stunner.tscn" id="4_stunner"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_touch"]
+size = Vector2(58, 60)
 
 [node name="Abomination" instance=ExtResource("1_enemy")]
 script = ExtResource("3_abomination")
@@ -11,3 +14,7 @@ script = ExtResource("3_abomination")
 [node name="HitBox" parent="." index="2" instance=ExtResource("2_hitbox")]
 
 [node name="Stunner" parent="." index="3" instance=ExtResource("4_stunner")]
+
+[node name="CollisionShape2D" parent="HitBox" index="1"]
+position = Vector2(0, -14)
+shape = SubResource("RectangleShape2D_touch")

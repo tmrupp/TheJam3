@@ -3,7 +3,8 @@ class_name AstralProjection
 ## Astral projection, a spell learned at a shrine. Spell (Q, or the pad's X) leaves your body
 ## where you stand and sends you out as a glowing projection, untouchable by thorns and shots. It
 ## floats wherever the stick points, through rock and anything else solid (see Player.phasing),
-## and drifting into a secret room's rock opens the room. Hits cannot hurt or interrupt it.
+## enemies too (skeletons and all, DashStrike), and drifting into a secret room's rock opens the
+## room. Hits cannot hurt or interrupt it.
 ## Press Spell again to snap
 ## back to your body. Let it run out and you stay where the projection is: the body is left
 ## behind for good. Ending it inside rock, either way, costs a heart and puts you back in your

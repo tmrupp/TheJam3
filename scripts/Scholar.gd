@@ -378,7 +378,8 @@ func _find_foe() -> Node2D:
 			candidates.append(a)
 	for c: Node2D in candidates:
 		var d: float = eye().distance_to(c.global_position)
-		if d < best_d and _seen(eye(), c.global_position + aim_at(c)):
+		# A wizard whose flame is out is seen only nearer (Lamplight.notice).
+		if d < (Lamplight.notice(sight) if c == player else sight) and d < best_d and _seen(eye(), c.global_position + aim_at(c)):
 			best = c
 			best_d = d
 	return best
@@ -400,9 +401,13 @@ func _turns_on(player: Player) -> bool:
 	return roused
 
 
-## Whether it sees `target`: within its sight, with nothing solid between.
+## Whether it sees `target`: within its sight (less for a wizard whose flame is out,
+## Lamplight.notice), with nothing solid between.
 func sees(target: Node2D) -> bool:
-	return eye().distance_to(target.global_position) <= float(SIGHT.get(kind, 900.0)) and _seen(eye(), target.global_position + aim_at(target))
+	var sight: float = float(SIGHT.get(kind, 900.0))
+	if target is Player:
+		sight = Lamplight.notice(sight)
+	return eye().distance_to(target.global_position) <= sight and _seen(eye(), target.global_position + aim_at(target))
 
 
 ## It turns on the wizard, and every scholar within ROUSE_REACH with it, and in a hall everyone in

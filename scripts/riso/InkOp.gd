@@ -153,6 +153,8 @@ var _px: float = -1.0
 var shown: bool = true
 var layer: int = 1
 var mat: Material = null
+## Whether it prints just under its canvas (a wall punch, InkCanvas.punches_wall) rather than in it.
+var under: bool = false
 
 
 ## Print `new_shape` from now on, redrawing only if that changes what it printed last: other

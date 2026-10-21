@@ -479,9 +479,11 @@ func _find_quarry() -> Node2D:
 	var best_d: float = SENSE
 	var player: Player = Stage.player()
 	if player != null and is_instance_valid(player) and not player.phasing:
-		best_d = minf(best_d, global_position.distance_to(player.global_position))
-		if best_d < SENSE:
+		# A wizard whose flame is out is sensed only nearer (Lamplight.notice).
+		var d: float = global_position.distance_to(player.global_position)
+		if d < Lamplight.notice(SENSE):
 			best = player
+			best_d = d
 	for node: Node in get_tree().get_nodes_in_group(&"scholar"):
 		var s: Node2D = node as Node2D
 		if s == null or s.is_queued_for_deletion():

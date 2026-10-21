@@ -141,6 +141,8 @@ func _ready() -> void:
 	body = InkCanvas.new()
 	body.rig()
 	body.keeps_shapes = true
+	# Printed in its own inks over an indoor realm's back wall (InkCanvas.punches_wall).
+	body.punches_wall = true
 	add_child(body)
 	guard = InkCanvas.new()
 	guard.z_index = 1

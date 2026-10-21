@@ -999,6 +999,7 @@ func _ui_scale(finest: float) -> float:
 func set_realm(r: StringName) -> void:
 	if REALMS.has(r):
 		realm = r
+		InkCanvas.walls_behind = RisoTerrain.INDOOR_REALMS.has(r)
 		if background != null:
 			background.queue_redraw()
 		if _started:

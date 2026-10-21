@@ -217,6 +217,8 @@ func _ready() -> void:
 	if tm != null and tm.tile_set != null:
 		half = float(tm.tile_set.tile_size.y) * tm.global_scale.y * 0.5
 	ink = InkCanvas.new()
+	# Printed in its own inks over an indoor realm's back wall (InkCanvas.punches_wall).
+	ink.punches_wall = true
 	add_child(ink)
 	z_index = 2
 	if shines():
