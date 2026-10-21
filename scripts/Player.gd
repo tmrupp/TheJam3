@@ -477,6 +477,10 @@ func _physics_process(delta: float) -> void:
 	drowsy = maxf(0.0, drowsy - delta)
 	stroke_rest = maxf(0.0, stroke_rest - delta)
 	ladder_rest = maxf(0.0, ladder_rest - delta)
+	# Just sent back by thorns (thorn_back): held still a moment before anything else.
+	if held > 0.0:
+		_hold(delta)
+		return
 	# Each slot's button casts what is in it: the Spell button the damage slot, the Utility button
 	# the utility slot, and the Dash button the movement slot's spell (the dash itself, or blink,
 	# is done below).
@@ -789,13 +793,25 @@ func _on_ladder(direction: Vector2, delta: float) -> bool:
 	return true
 
 
-## The last safe rock the wizard stood on (`footing`, in the level `footing_at`): rock, not a block
-## or a platform, with no thorns in the cells under either side of them. A hit from thorns puts
-## them back there (thorn_back), and in a sky level falling out of the bottom (FALL_MARGIN below its
-## last row) costs a heart and does too (fall_back).
+## The last safe rock the wizard stood on (`footing`, in the level `footing_at`): rock, not a block,
+## with no thorns in the cells under either side of them. A hit from thorns puts them back there
+## (thorn_back), and in a sky level falling out of the bottom (FALL_MARGIN below its last row) costs
+## a heart and does too (fall_back).
 const FALL_MARGIN: float = 200.0
 var footing: Vector2 = Vector2.ZERO
 var footing_at: Vector2i = Vector2i(-99999, -99999)
+## The floating ledge stood on since that rock, if any (`perch`, in the level `perch_at`: a
+## platform, a lift, a rolling ladder's step or a ferry raft, _floats), and where on it the wizard
+## stood (`perch_off`, from its origin). Being sent back puts them there, wherever it has moved to
+## since; gone (a raft replaced), the rock instead.
+var perch: Node2D = null
+var perch_off: Vector2 = Vector2.ZERO
+var perch_at: Vector2i = Vector2i(-99999, -99999)
+## How long the wizard is held still once thorns have sent them back (seconds): deaf to the buttons,
+## so they do not land already running, jumping or casting. The timers wait too, so the hit's
+## untouchable time is all still to come when they can move.
+const THORN_PAUSE: float = 0.4
+var held: float = 0.0
 
 
 func _footing() -> void:
@@ -805,45 +821,101 @@ func _footing() -> void:
 	if is_on_floor() and _safe_here(info):
 		for i: int in range(get_slide_collision_count()):
 			var hit: KinematicCollision2D = get_slide_collision(i)
-			if hit.get_normal().y < -0.5 and hit.get_collider() is TileMap:
+			if hit.get_normal().y >= -0.5:
+				continue
+			var body: Object = hit.get_collider()
+			if body is TileMap:
 				footing = global_position
 				footing_at = info.coord
+				perch = null
+			elif _floats(body):
+				perch = body as Node2D
+				perch_off = global_position - perch.global_position
+				perch_at = info.coord
 	if info.here.open() and global_position.y > info.level_rect().end.y + FALL_MARGIN:
 		fall_back()
 
 
+## Whether `body` is a floating ledge that stays put under the wizard: a platform, a lift or a
+## rolling ladder's step, or a ferry raft. Not a cloud (Puff), which gives way, nor a bridge of the
+## dead (Bridge), which they drop through while their flame burns.
+func _floats(body: Object) -> bool:
+	if body is MovingPlatform or body is FerryRaft:
+		return true
+	return body is StaticBody2D and body.get_script() == null and _one_way(body as StaticBody2D) != null
+
+
+## Where thorns or a fall send the wizard back: onto the ledge last stood on, at the same spot on
+## it, while it is still there and no thorns lie there now; else the last safe rock in this level;
+## null where there is neither.
+func _back_spot() -> Variant:
+	var info: MapInfo = MapInfo.instance
+	if info == null or info.world == null:
+		return null
+	if is_instance_valid(perch) and perch.is_inside_tree() and perch_at == info.coord:
+		var raft: FerryRaft = perch as FerryRaft
+		var spot: Vector2 = perch.global_position + perch_off
+		if (raft == null or not raft.fading()) and _safe_at(info, spot):
+			return spot
+	if footing_at == info.coord:
+		return footing
+	return null
+
+
 ## Whether no thorns lie in the cells the wizard's body stands in, either side.
 func _safe_here(info: MapInfo) -> bool:
+	return _safe_at(info, global_position)
+
+
+## Whether no thorns lie in the cells the wizard's body would stand in at `at`, either side.
+func _safe_at(info: MapInfo, at: Vector2) -> bool:
 	var reach: float = 0.0
 	if collider != null and collider.shape != null:
 		reach = collider.shape.get_rect().size.x * 0.5 * absf(collider.global_scale.x)
 	for dx: float in [-reach, 0.0, reach]:
-		var v: Vector2i = info.cell_at(global_position + Vector2(dx, 0))
+		var v: Vector2i = info.cell_at(at + Vector2(dx, 0))
 		if info.world.is_valid(v) and info.world.get_cell(v).type == LevelGen.Type.SPIKES:
 			return false
 	return true
 
 
-## Hit by thorns (Spikes): back on the last safe rock stood on in this level (footing), still
-## untouchable from the hit; where there is none yet, the hit only throws them back.
+## Hit by thorns (Spikes): back where they last stood safely in this level (_back_spot), held still
+## for THORN_PAUSE and then untouchable for the rest of the hit's time; where there is nowhere yet,
+## the hit only throws them back.
 func thorn_back() -> void:
-	var info: MapInfo = MapInfo.instance
-	if info == null or footing_at != info.coord or phasing:
+	var spot: Variant = _back_spot()
+	if spot == null or phasing:
 		return
+	if ladder != null:
+		_let_go()
 	velocity = Vector2.ZERO
 	knock = Vector2.ZERO
+	knock_back.end()
+	dash.end()
+	wall_jump.end()
 	levitating = false
-	global_position = footing
+	global_position = spot
+	held = THORN_PAUSE
 
 
-## Out of the bottom of a sky level: back on the last rock stood on (or at the way in, if none in
-## this level yet), a heart the poorer.
+## Held still after being sent back (held): no buttons, nothing timed runs on, only falling onto
+## and riding what they were put on.
+func _hold(delta: float) -> void:
+	held = maxf(0.0, held - delta)
+	velocity.x = 0.0
+	velocity.y = 0.0 if is_on_floor() else velocity.y + gravity * delta
+	move_and_slide()
+	_footing()
+
+
+## Out of the bottom of a sky level: back where they last stood safely (_back_spot; or at the way
+## in, if nowhere in this level yet), a heart the poorer.
 func fall_back() -> void:
-	var info: MapInfo = MapInfo.instance
 	velocity = Vector2.ZERO
 	knock = Vector2.ZERO
-	if info != null and footing_at == info.coord:
-		global_position = footing
+	var spot: Variant = _back_spot()
+	if spot != null:
+		global_position = spot
 	else:
 		position = respawn.position
 	visual_event.emit(&"hurt", global_position)
