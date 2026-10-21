@@ -1360,8 +1360,9 @@ func _equip_panel_key(color: int, equipped: bool) -> void:
 # ---------------------------------------------------------------- debug travel
 
 ## Debug runs only: travel straight to any world and depth (MapInfo.debug_travel), or to the
-## nearest band of an archetype, or into hyperspace, from the F7 panel (by controller too); and
-## slay this place's boss at once (MapInfo.slay_boss), or heal to full (MapInfo.full_heal).
+## nearest band of an archetype, or into hyperspace, or to any boss (beside it, in the World
+## column, MapInfo.debug_to_boss), from the F7 panel (by controller too); and slay this place's
+## boss at once (MapInfo.slay_boss), or heal to full (MapInfo.full_heal).
 var _travel_box: VBoxContainer
 var _travel_world_label: Label
 var _travel_depth_label: Label
@@ -1384,6 +1385,14 @@ func _build_travel(box: VBoxContainer) -> void:
 	for k: int in range(Worlds.KINDS.size()):
 		var kind: int = k
 		_button(row, Worlds.proto(k).name.capitalize(), func() -> void: _travel(Worlds.side_at(kind, Vector2i(_travel_at.x, _travel_at.y if _travel_at.y != 0 else 1))))
+	var to_boss: HBoxContainer = HBoxContainer.new()
+	rows.add_child(to_boss)
+	var bosses: Array[StringName] = [Bosses.GARDEN_DOWN, Bosses.GARDEN_UP]
+	bosses.append_array(Bosses.DOWN)
+	bosses.append_array(Bosses.UP)
+	for boss: StringName in bosses:
+		var which: StringName = boss
+		_button(to_boss, String(boss).capitalize(), func() -> void: _to_boss(which))
 	var boss_row: HBoxContainer = HBoxContainer.new()
 	rows.add_child(boss_row)
 	_button(boss_row, "Slay boss", func() -> void:
@@ -1450,6 +1459,17 @@ func _travel(to: Vector2i) -> void:
 	else:
 		panel.visible = false
 	MapInfo.instance.debug_travel(to)
+
+
+## Close the panel (and its pause) and go to boss `name`, in the World column (MapInfo.debug_to_boss).
+func _to_boss(name: StringName) -> void:
+	if not MapInfo.debug or MapInfo.instance == null:
+		return
+	if _pad_paused:
+		set_pad_panel(false)
+	else:
+		panel.visible = false
+	MapInfo.instance.debug_to_boss(name, _travel_at.x)
 
 
 func _on_detail(v: float) -> void:
