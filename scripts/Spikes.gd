@@ -12,7 +12,8 @@ class_name Spikes
 ## the thorns, but a blow that lands throws the wizard back off them, as off an enemy, so a slash
 ## down onto thorns bounces the wizard up. A hit from thorns that lands (a heart, or the ward's
 ## charge) also puts the wizard back where they last stood safely, on rock or a floating ledge
-## (Player.thorn_back), held still a moment and then untouchable for the rest of the hit's time. Over the thorns at the bottom of a chasm's pit lies sleep fog, as a
+## (Player.thorn_back): gone a moment, the view held still, then seen there, untouchable for the
+## rest of the hit's time. Over the thorns at the bottom of a chasm's pit lies sleep fog, as a
 ## bank of it does (SleepFog): while the wizard is in it, up to MIST_RISE over the thorns, they are
 ## drowsy (Player.make_drowsy), so no spell lifts them out.
 
