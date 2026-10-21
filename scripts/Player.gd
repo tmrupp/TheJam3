@@ -733,8 +733,8 @@ func _let_go() -> void:
 	ladder_rest = LADDER_REGRIP
 
 
-## A step on the ladder held (`direction` the stick): climbing it up or down and carried along as it
-## rolls, the dash and the jumps back as on the ground. Climbed to the top they stand on its step,
+## A step on the ladder held (`direction` the stick): climbing it up or down and rolling it left or
+## right along its track (RollingLadder.roll), the dash and the jumps back as on the ground. Climbed to the top they stand on its step,
 ## climbed down onto a floor or past its foot they let go, and a jump, a dash or a blow lets go.
 ## Returns whether the step was taken here (false: let go, the rest of the frame moves as usual).
 func _on_ladder(direction: Vector2, delta: float) -> bool:
@@ -762,6 +762,8 @@ func _on_ladder(direction: Vector2, delta: float) -> bool:
 		_let_go()
 		return false
 	velocity.y = direction.y * LADDER_CLIMB
+	# Left or right rolls it along its track (it moves only so), the wizard with it.
+	ladder.roll(signf(direction.x), delta)
 	velocity.x = clampf((ladder.ladder_x() - global_position.x) / delta, -LADDER_SNAP, LADDER_SNAP)
 	jumping = false
 	jumps = MAX_JUMPS

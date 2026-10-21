@@ -1,9 +1,10 @@
 extends TestKit
-## The institute's rolling ladders (RollingLadder), laid where other bands lay lifts: in the layout
-## (none of its lifts left, each ladder's track running right, the garden's lifts as they were), and
-## in play: up on one takes hold, the wizard is carried along as it rolls while they climb, climbed
-## to the top they stand on its step, down from the step climbs back down under it, and a jump lets
-## go.
+## The institute's rolling ladders (RollingLadder), laid where other bands lay lifts and in the
+## libraries: in the layout (none of its lifts left, each ladder's track running right, its foot on
+## solid ground all along it, the garden's lifts as they were), and in play: its step as wide as the
+## ladder, standing still until ridden; up on one takes hold, held it stays put until the wizard
+## presses a way, then rolls that way with them while they climb, climbed to the top they stand on
+## its step, down from the step climbs back down under it, and a jump lets go.
 ## godot --headless --path . --script res://tests/ladder_test.gd
 
 
@@ -19,6 +20,7 @@ func _layout() -> void:
 	var ladders: int = 0
 	var lifts: int = 0
 	var right: bool = true
+	var grounded: bool = true
 	for world: int in [28, 7, 99]:
 		for k: int in range(2):
 			var at: Vector2i = Vector2i(world, NextWorldDef.band_row(&"institute", k))
@@ -26,10 +28,16 @@ func _layout() -> void:
 			lifts += w.objects_of(LevelGen.Type.MOVING_PLATFORM).size()
 			for v: Vector2i in w.objects_of(LevelGen.Type.ROLLING_LADDER):
 				ladders += 1
-				right = right and (w.get_cell(v).extra_info as Array)[1] == Vector2i(1, 0)
+				var extra: Array = w.get_cell(v).extra_info
+				right = right and extra[1] == Vector2i(1, 0)
+				# Its foot on rock in every column along its track.
+				var foot: int = v.y + RollingLadder.hang(w, v, int(extra[0]), int(extra[2]))
+				for x: int in range(v.x, v.x + int(extra[2]) + 1):
+					grounded = grounded and w.is_ground(Vector2i(x, foot))
 			check_eq(build(at).objects, w.objects, "%s: the same every visit" % at)
 	check(ladders > 0 and lifts == 0, "the institute has rolling ladders (%d) and no lifts" % ladders)
 	check(right, "each ladder rolls along a track running right")
+	check(grounded, "each ladder's foot stands on solid ground all along its track")
 	var garden: LevelGen = build(Vector2i(28, 1))
 	check(garden.objects_of(LevelGen.Type.ROLLING_LADDER).is_empty(), "the garden keeps its lifts, no ladders")
 
@@ -58,6 +66,11 @@ func _climb() -> void:
 			node.queue_free()
 	await physics_frame
 	player.end_invulnerable()
+	var shape: RectangleShape2D = (ladder.get_node("CollisionShape2D") as CollisionShape2D).shape as RectangleShape2D
+	check_eq(shape.size.x, RollingLadder.WIDTH, "its step is as wide as the ladder")
+	var parked: float = ladder.global_position.x
+	await frames(30)
+	check_eq(ladder.global_position.x, parked, "left alone, it stands still")
 	# Halfway down it, in the air: up takes hold.
 	var lift: float = player._feet_y() - player.global_position.y
 	player.global_position = Vector2(ladder.ladder_x(), (ladder.top_y() + ladder.foot_y()) * 0.5 - lift)
@@ -66,9 +79,17 @@ func _climb() -> void:
 	Input.action_press(&"Up")
 	await until(func() -> bool: return player.ladder == ladder, 3000)
 	check(player.ladder == ladder, "up on the ladder takes hold of it")
-	# Carried along as it rolls, climbing all the while.
+	Input.action_release(&"Up")
 	await physics_frame
 	var from: float = ladder.global_position.x
+	await frames(10)
+	check(player.ladder == ladder and ladder.global_position.x == from, "held with no way pressed, it stays put")
+	# Pressing a way rolls it that way (towards the more room on its track), the wizard with it,
+	# climbing all the while.
+	var way: StringName = &"Right" if ladder.along < ladder.travel * 0.5 else &"Left"
+	Input.action_press(way)
+	Input.action_press(&"Up")
+	await physics_frame
 	var held: bool = true
 	var rose: bool = false
 	var feet: float = player._feet_y()
@@ -78,8 +99,10 @@ func _climb() -> void:
 			break
 		held = held and absf(player.global_position.x - ladder.ladder_x()) < 8.0
 		rose = rose or player._feet_y() < feet - 20.0
-	check(held and absf(ladder.global_position.x - from) > 4.0, "it rolls and the wizard rolls with it (%.0f px)" % (ladder.global_position.x - from))
+	var rolled: float = (ladder.global_position.x - from) * (1.0 if way == &"Right" else -1.0)
+	check(held and rolled > 4.0, "pressing a way rolls it that way, the wizard with it (%.0f px)" % rolled)
 	check(rose, "climbing as it rolls")
+	Input.action_release(way)
 	await within(func() -> bool: return player.ladder == null and player.is_on_floor(), 6.0)
 	check(player.ladder == null and player.is_on_floor() and absf(player._feet_y() - ladder.top_y()) < 6.0, "climbed to the top, they stand on its step")
 	Input.action_release(&"Up")
