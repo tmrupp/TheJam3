@@ -9,8 +9,8 @@ extends RefCounted
 ##   so each is climbed in two of the wizard's own hops; long sight lines for casters. Under its
 ##   lowest gallery its book ladders (BOOK_LADDERS) stand on its floor, rolling along the gallery.
 ## - classrooms, the lecture halls (LECTURE_INSIDE), up to LECTURES of them where they fit: small
-##   rooms with a flat floor (the lectern at its front end, with the master, and in the first of
-##   each department its portal, Department) and a gallery of one-way ledges GALLERY_UP rows over it
+##   rooms with a flat floor (the lectern at its front end, with the master and its department's
+##   portal, Department) and a gallery of one-way ledges GALLERY_UP rows over it
 ##   where the students sit. Each has a doorway at each end of its floor and of its gallery where a
 ##   passage finds open air (at least MIN_DOORS), so a classroom is a way through, not a dead end.
 ## - in every level with one of those (a timetable, Timetable.kept_in), last of all, the bell room
@@ -96,15 +96,17 @@ const DEPARTMENTS: Dictionary = {
 	&"astronomy": &"sky",
 }
 
-## The timetable's bells and their cords (SchoolBell): out in the corridors CORRIDOR_BELLS_PER_K bells
-## per 1000 cells (at least CORRIDOR_BELLS_LEAST), each hung from the ceiling, its cord hanging from
-## it: one in the bell room (BELFRY_INSIDE), in the middle of its floor; the rest each over a free
-## floor with BELL_ROOM open cells over it (else any free floor) at least BELL_CLEAR cells from the
-## way in: the first the nearest to the way in in the stretch of corridors it opens on
-## (regions; anywhere out of the halls if that has no such floor), so a wizard just come in can ring
-## it, at least BELL_APART cells from the bell room's (none so, and the bell room's stands for it),
-## and each other as far from those already hung as can be, at least BELL_APART cells. And a cord
-## in each lecture hall and the library, up into the ceiling.
+## The timetable's bell and its cords (SchoolBell): the one great bell hangs in the bell room
+## (BELFRY_INSIDE), in the middle of its floor, its cord hanging from it; out in the corridors
+## CORRIDOR_BELLS_PER_K cords per 1000 cells (at least CORRIDOR_BELLS_LEAST, the bell room's counted
+## among them) run up into the ceiling to it, each over a free floor with BELL_ROOM open cells over
+## it (else any free floor) at least BELL_CLEAR cells from the way in: the first the nearest to the
+## way in in the stretch of corridors it opens on (regions; anywhere out of the halls if that has
+## no such floor), so a wizard just come in can ring it, at least BELL_APART cells from the bell
+## room's (none so, and the bell room's stands for it), and each other as far from those already
+## hung as can be, at least BELL_APART cells. And a cord in each lecture hall and the library, up
+## into the ceiling. (A level whose bell room found no site hangs the great bell over the first
+## corridor cord instead.)
 const BELL_CLEAR: int = 3
 const BELL_ROOM: int = 3
 const CORRIDOR_BELLS_PER_K: float = 0.4
@@ -507,8 +509,8 @@ static func populate(w: LevelGen, def: NextWorldDef) -> void:
 		w.relic_carrier = far
 
 
-## The first classroom of department `dept` in `w` (its index in LevelGen.halls, the one holding the
-## department's portal), or -1 for none.
+## The first classroom of department `dept` in `w` (its index in LevelGen.halls, the one that deals
+## where the department's portals lead), or -1 for none.
 static func first_of(w: LevelGen, dept: StringName) -> int:
 	for i: int in range(w.halls.size()):
 		if w.halls[i]["kind"] == &"lecture" and w.halls[i]["dept"] == dept:
@@ -535,8 +537,9 @@ static func department_row(def: NextWorldDef, dept: StringName, i: int) -> int:
 ## Last of all (so nothing else in the level moves for them), what each hall holds, on its free
 ## floors, with no draws from the world RNG:
 ## - a classroom: its master on the floor before the lectern, its department's portal (Department)
-##   against the lectern's wall in the first classroom of each department (the others' papers go
-##   to the same place), and students on the gallery (a proctor among them in every other one);
+##   against the lectern's wall (every classroom of a department leading to the same level, the
+##   one its first classroom deals), and students on the gallery (a proctor among them in every
+##   other one);
 ## - the library: a librarian on its top gallery with HOARD stars, and a student on each gallery
 ##   below.
 ## Then the timetable's things (Timetable): a lectern (Lectern) and a bell's cord (SchoolBell) on each
@@ -552,8 +555,9 @@ static func furnish(w: LevelGen, def: NextWorldDef) -> void:
 			&"lecture":
 				var front: int = hall["front"]
 				var wall: int = inside.position.x if front > 0 else inside.end.x - 1
-				if first_of(w, hall["dept"]) == i:
-					_place(w, Vector2i(wall + front, bottom), LevelGen.Type.DEPARTMENT, [hall["dept"], department_row(def, hall["dept"], i)])
+				# Every classroom has its department's portal, all of a department's leading to the
+				# level its first classroom's deals.
+				_place(w, Vector2i(wall + front, bottom), LevelGen.Type.DEPARTMENT, [hall["dept"], department_row(def, hall["dept"], first_of(w, hall["dept"]))])
 				# Its master teaches the hall's subject now (Timetable.subject; Scholar.setup).
 				var head: Vector2i = Vector2i(wall + front * 5, bottom)
 				_place(w, head, LevelGen.Type.MASTER, {"ability": Timetable.subject(w, i, 0), "hall": i})
@@ -636,9 +640,11 @@ static func _timetable(w: LevelGen) -> void:
 		if next == null:
 			break
 		bells.append(next)
-	for v: Vector2i in bells:
+	for k: int in range(bells.size()):
+		var v: Vector2i = bells[k]
 		if w.get_cell(v).type != LevelGen.Type.SCHOOL_BELL:
-			_place(w, v, LevelGen.Type.SCHOOL_BELL, {"great": true})
+			# Only the bell room holds the great bell (or, with no bell room, the first of these).
+			_place(w, v, LevelGen.Type.SCHOOL_BELL, {"great": k == 0})
 
 
 ## A `type` holding `extra` at `v`, if it is still free open air.

@@ -142,7 +142,9 @@ func _laid_out() -> void:
 					&"library":
 						belongs_ok = belongs_ok and Timetable.belongs(w, r, false, inside.position)
 		var out: Array[Vector2i] = w.objects_of(LevelGen.Type.SCHOOL_BELL).filter(func(v: Vector2i) -> bool: return Institute.hall_at(w, v) < 0)
-		if out.size() >= Institute.CORRIDOR_BELLS_LEAST and out.all(func(v: Vector2i) -> bool: return bool((w.get_cell(v).extra_info as Dictionary)["great"])):
+		# Cords out in the corridors, the one great bell among them, in the bell room.
+		var great: Array[Vector2i] = out.filter(func(v: Vector2i) -> bool: return bool((w.get_cell(v).extra_info as Dictionary)["great"]))
+		if out.size() >= Institute.CORRIDOR_BELLS_LEAST and great.size() == 1 and (not w.belfry.has_area() or w.belfry.has_point(great[0])):
 			greats += 1
 			if out.all(func(v: Vector2i) -> bool: return SchoolBell.ceiling_over(w, v) > Institute.BELL_ROOM):
 				roomy += 1
@@ -169,7 +171,7 @@ func _laid_out() -> void:
 	check(sessions_ok, "the library always open (no class)")
 	check(doors_ok, "a door in every doorway of a hall with a class")
 	check(furnished, "a lectern and a cord in each classroom, a cord in the library")
-	check_eq(greats, LAID.size(), "at least %d bells out in the corridors, each over its cord" % Institute.CORRIDOR_BELLS_LEAST)
+	check_eq(greats, LAID.size(), "at least %d cords out in the corridors, one of them under the one great bell, in the bell room" % Institute.CORRIDOR_BELLS_LEAST)
 	check(roomy >= LAID.size() - 1, "where there is room over them (%d of %d)" % [roomy, LAID.size()])
 	check(apart_ok, "at least %d cells apart" % Institute.BELL_APART)
 	check(way_on_ok, "the way on stands on the floor of a classroom, one of those the most classrooms in from the way in")
@@ -188,8 +190,10 @@ func _play() -> void:
 	await _go(Vector2i(WORLD, NextWorldDef.first_depth(&"institute")))
 	var rec: LevelRecord = info.record()
 	check(rec.rings == 0 and rec.passing, "first met before any ring, in passing time")
-	var cords: Array[Node] = placed("school_bell.tscn").filter(func(n: Node) -> bool: return (n as SchoolBell).great)
-	check(cords.size() >= Institute.CORRIDOR_BELLS_LEAST, "the corridor bells' cords are there (%d)" % cords.size())
+	# The cords out of the halls, the great bell's (in the bell room) first.
+	var cords: Array[Node] = placed("school_bell.tscn").filter(func(n: Node) -> bool: return Institute.hall_at(info.world, (n as SchoolBell).cell) < 0)
+	cords.sort_custom(func(a: Node, b: Node) -> bool: return (a as SchoolBell).great and not (b as SchoolBell).great)
+	check(cords.size() >= Institute.CORRIDOR_BELLS_LEAST and cords.filter(func(n: Node) -> bool: return (n as SchoolBell).great).size() == 1, "the corridor cords are there (%d), and the one great bell" % cords.size())
 	if cords.size() < 2:
 		return
 	var bell: SchoolBell = cords[0] as SchoolBell

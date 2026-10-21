@@ -890,6 +890,18 @@ const FIZZLE_DB: float = -14.0
 var _fizzle_sfx: AudioStreamPlayer
 
 
+## The fizzle's dull click (FIZZLE_SOUND), its player made the first time.
+func _play_fizzle() -> void:
+	if _fizzle_sfx == null:
+		_fizzle_sfx = AudioStreamPlayer.new()
+		_fizzle_sfx.stream = FIZZLE_SOUND
+		_fizzle_sfx.pitch_scale = FIZZLE_PITCH
+		_fizzle_sfx.volume_db = FIZZLE_DB
+		_fizzle_sfx.bus = &"SoundEffects"
+		add_child(_fizzle_sfx)
+	_fizzle_sfx.play()
+
+
 ## The robe's ink eases to its spell's over a moment, so learning a spell visibly re-dyes it.
 func _ease_robe(delta: float) -> void:
 	var target: Color = (REALMS[realm]["inks"] as Array)[BLUE]
@@ -924,14 +936,14 @@ func _on_player_event(kind: StringName, _at: Vector2) -> void:
 		var wizard: RisoWizard = _player.get_node_or_null("RisoWizard") as RisoWizard
 		var at: Vector2 = wizard.to_global(wizard.costume.bag_position()) if wizard != null and wizard.costume != null else _at
 		RisoFx.burst(&"impact", at, Vector2.UP, [RisoPrint.NIGHT, RisoPrint.BLUE])
-		if _fizzle_sfx == null:
-			_fizzle_sfx = AudioStreamPlayer.new()
-			_fizzle_sfx.stream = FIZZLE_SOUND
-			_fizzle_sfx.pitch_scale = FIZZLE_PITCH
-			_fizzle_sfx.volume_db = FIZZLE_DB
-			_fizzle_sfx.bus = &"SoundEffects"
-			add_child(_fizzle_sfx)
-		_fizzle_sfx.play()
+		_play_fizzle()
+	elif kind == &"silenced":
+		# A spell silenced (drowsy in sleep fog or a librarian's hush: Player): it goes out at the
+		# bag's knot, a little smoke rising and its light dropping dead, with the fizzle's dull click.
+		var mute: RisoWizard = _player.get_node_or_null("RisoWizard") as RisoWizard
+		var knot: Vector2 = mute.to_global(mute.costume.bag_position()) if mute != null and mute.costume != null else _at
+		RisoFx.burst(&"silenced", knot, Vector2.UP, [RisoPrint.GLOW])
+		_play_fizzle()
 	if kind in [&"hurt", &"death"] and hud != null and is_instance_valid(hud):
 		hud.flash = 1.0
 	if reprint_on_motion and registration == &"sheet" and sheet_rate > 0.0:

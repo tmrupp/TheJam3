@@ -97,12 +97,15 @@ func generation() -> void:
 						heights[v.y] = true
 					if heights.size() != 2 or not heights.has(Institute.gallery_row(inside)) or doors.size() < Institute.MIN_DOORS:
 						tiers_ok = false
+					# Every classroom has its department's portal, all of a department's leading to
+					# the same level.
 					var portals: Array[Vector2i] = w.objects_of(LevelGen.Type.DEPARTMENT).filter(func(v: Vector2i) -> bool: return inside.has_point(v))
-					if portals.size() != (1 if Institute.first_of(w, hall["dept"]) == i else 0):
+					if portals.size() != 1:
 						depts_ok = false
-					elif not portals.is_empty():
+					else:
 						var extra: Array = w.get_cell(portals[0]).extra_info
-						if StringName(extra[0]) != hall["dept"] or NextWorldDef.archetype_at(int(extra[1])) != Institute.DEPARTMENTS[hall["dept"]]:
+						var dept_row: int = int(extra[1])
+						if StringName(extra[0]) != hall["dept"] or NextWorldDef.archetype_at(dept_row) != Institute.DEPARTMENTS[hall["dept"]] or dept_row != Institute.department_row(Rules.def_for(at), hall["dept"], Institute.first_of(w, hall["dept"])):
 							depts_ok = false
 		# The bell room: walled in marble but for its doorways, its great bell on its floor.
 		if w.belfry.has_area():
@@ -138,7 +141,7 @@ func generation() -> void:
 	check(libraries > 0 and book_ladders, "every library has its %d book ladders, from its lowest gallery down to its floor" % Institute.BOOK_LADDERS)
 	check(belfries == LAID.size() and belfry_ok, "a bell room in each level (%d of %d), walled in marble, its great bell inside it" % [belfries, LAID.size()])
 	check(lectures >= LAID.size() * 3 and tiers_ok, "classrooms (%d in %d levels): a floor and a gallery, with %d doorways or more" % [lectures, LAID.size(), Institute.MIN_DOORS])
-	check(depts_ok, "the first of each department with its portal, leading into the band it studies")
+	check(depts_ok, "every classroom with its department's portal, all of a department's leading to the same level of the band it studies")
 	check(kept, "walled in marble, and nothing else laid inside them")
 	check(outside > 0, "breaches and abominations out in the level")
 	check(kits.has(&"alchemy") and kits.has(&"ritual"), "laboratories hold alchemy equipment, and sanctums ritual equipment")
@@ -559,6 +562,15 @@ func _department() -> void:
 	var at: Vector2 = (backs[0] as Node2D).global_position
 	check_eq(info.cell_at(player.global_position), info.cell_at(at), "the wizard comes out of the way back, as out of a gate's partner")
 	check(info.world.get_cell(info.cell_at(at) + Vector2i.UP).type == LevelGen.Type.EMPTY, "with open air over it: nothing stands on top of it")
+	# On no other door, nor beside one: the prompt where the wizard comes out is the way back's.
+	var spot: Vector2i = info.cell_at(at)
+	var crowded: Array[Vector2i] = info.world.objects.filter(func(o: Vector2i) -> bool:
+		var t: LevelGen.Type = info.world.get_cell(o).type
+		return (Placeables.has_flag(t, &"stander") or t == LevelGen.Type.DOOR) and absi(o.x - spot.x) <= MapInfo.WAY_BACK_APART and absi(o.y - spot.y) <= 1)
+	check(spot != info.world.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1)) and crowded.is_empty(), "it stands clear of the level's way back and every other door (%s)" % [crowded])
+	await frames(3)
+	var focus: Node = Interactable.focused(self)
+	check(focus != null and focus.get_parent() is WayBack, "the prompt where the wizard comes out is the way back's")
 	await _go(Vector2i(from.x, 0))
 	await _go(to)
 	check(placed("way_back.tscn").size() == 1 and (placed("way_back.tscn")[0] as Node2D).global_position == at, "it lasts, where it was, until used")
