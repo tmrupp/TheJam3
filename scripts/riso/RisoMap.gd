@@ -422,8 +422,10 @@ static func dealt_colors(w: LevelGen) -> Dictionary:
 ## Everything laid out in level `w` (place `c`) where `seen`, marked at `spot` as its record `rec`
 ## leaves it (taken, opened, thrown, rung, spent, paid): exits, the shrine, the ink well, lanterns,
 ## teleporters, keys, doors, gates, switches, relics, star clusters, bells and vanes, bridges, what
-## opened secret rooms hold, and the keys dropped there. The level being played is marked the same
-## way: its record changes the moment its things do. Whether a relic was marked comes back.
+## opened secret rooms hold, and the keys dropped there. An exam paper lying there is marked seen or
+## not: a class sent it there, away from the way in (MapInfo._lay_papers), to be fetched. The level
+## being played is marked the same way: its record changes the moment its things do. Whether a relic
+## was marked comes back.
 func _mark_level(info: MapInfo, c: Vector2i, w: LevelGen, rec: LevelRecord, seen: Callable, spot: Callable) -> bool:
 	var place: NextWorldDef = info.here if c == info.coord and info.here != null else Rules.def_for(c)
 	var relic_shown: bool = false
@@ -448,7 +450,7 @@ func _mark_level(info: MapInfo, c: Vector2i, w: LevelGen, rec: LevelRecord, seen
 	for id: Variant in dropped:
 		var drop: Array = dropped[id]
 		var v: Vector2i = info.cell_at(drop[0])
-		if w.is_valid(v) and seen.call(v):
+		if w.is_valid(v) and (seen.call(v) or KeyRing.is_paper(int(drop[1]))):
 			_mark_key(spot.call(v), int(drop[1]))
 	return relic_shown
 
