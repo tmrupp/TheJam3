@@ -293,7 +293,7 @@ func _draw_rigged(s: Scholar, kind: StringName, xf: Transform2D, ph: float, bob:
 					var o: Scholar = node as Scholar
 					if o == null or o == s or Shield.of(o) == null or o.global_position.distance_to(s.global_position) > Scholar.SHIELD_REACH:
 						continue
-					links.append(Spider.strand(from, to_local(o.global_position + Vector2(0, -40)), 3.0))
+					links.append(RisoShapes.strand(from, to_local(o.global_position + Vector2(0, -40)), 3.0))
 				ink.ink(RisoPrint.PINK, 0.6 * u, links)
 		&"librarian":
 			ink.on_bone(held)
@@ -744,7 +744,7 @@ func _staff(xf: Transform2D, hand: Vector2, s: Scholar) -> void:
 			var o: Scholar = node as Scholar
 			if o == null or o == s or Shield.of(o) == null or o.global_position.distance_to(s.global_position) > Scholar.SHIELD_REACH:
 				continue
-			links.append(Spider.strand(from, to_local(o.global_position + Vector2(0, -40)), 3.0))
+			links.append(RisoShapes.strand(from, to_local(o.global_position + Vector2(0, -40)), 3.0))
 		ink.ink(RisoPrint.PINK, 0.6 * u, links)
 
 

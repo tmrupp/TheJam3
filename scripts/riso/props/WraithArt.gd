@@ -1,6 +1,6 @@
 extends CreatureArt
 ## A wraith: a pale shroud streaming behind it, its eyes lit while it chases; frozen in light, it
-## cowers, drawn in and shivering, its eyes shut. About to dart (Wraith.DART_RANGE) it swells, its
+## cowers, still and shivering, its eyes shut, at its full size. About to dart (Wraith.DART_RANGE) it swells, its
 ## hem flaring wide and whipping, its hood darkening and its eyes burning bigger, shivering; darting,
 ## it stretches out along the way it goes.
 
@@ -28,10 +28,10 @@ func _draw_art() -> void:
 	var dart: float = 1.0 - w.darting if w != null and w.darting >= 0.0 else 0.0
 	var bob: float = sin(t * 2.0 + phase) * 6.0 * (1.0 - swell)
 	if shy:
-		# Cowering in the light: still, drawn in, a quick shiver.
+		# Cowering in the light: still, with a quick shiver (it keeps its size).
 		bob = sin(t * 31.0 + phase) * 1.2
 	var lean: float = clampf(vel.x / 200.0, -1.0, 1.0) * 0.18
-	var size: Vector2 = Vector2(facing, 1.0) * 2.6 * (Vector2(0.86, 0.92) if shy else Vector2.ONE) * (1.0 + SWELL_GROW * swell)
+	var size: Vector2 = Vector2(facing, 1.0) * 2.6 * (1.0 + SWELL_GROW * swell)
 	var shiver: Vector2 = Vector2(sin(t * 47.0 + phase), cos(t * 41.0 + phase)) * SWELL_SHIVER * 2.6 * swell
 	var xf: Transform2D = Transform2D(lean, size, 0.0, Vector2(0, -10 + bob) + shiver)
 	if dart > 0.0 and vel.length() > 1.0:

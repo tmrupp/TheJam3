@@ -10,6 +10,10 @@ extends RefCounted
 ## (Necromancer). A charge of darkness spent by a dash out of the dark (MapInfo.dash_switch) flares:
 ## for FLARE_TIME the flame reaches FLARE_REACH times as far (carried_reach), easing back over the
 ## last FLARE_FADE of it.
+## Sneaking: while the flame the wizard carries is out, the enemies that notice them from afar
+## notice them only SNEAK as far off (notice): a watcher's and a crossbow's sight, a hopper's, a
+## bird's and a scholar's, an abomination's sense. (A wraith hunts only a wizard whose flame is out,
+## and a skeleton wakes only in light, so they are as ever.)
 
 ## How much of a light's printed reach counts as lit: past it the printed light is faint.
 const LIT_SHARE: float = 0.85
@@ -26,6 +30,8 @@ const FLARE_TIME: float = 0.6
 const FLARE_REACH: float = 1.5
 const FLARE_RISE: float = 0.06
 const FLARE_FADE: float = 0.25
+## How much of its usual reach an enemy notices the wizard within while their flame is out.
+const SNEAK: float = 0.6
 
 ## The lights as last worked out (each where it is and how far it reaches as lit, x, y, z), and the
 ## physics frame they were worked out in: they are worked out once a frame, however many ask.
@@ -65,6 +71,15 @@ static func lights(info: MapInfo) -> Array[Vector3]:
 			var at: Vector2 = info.cell_position(info.cell_at(lantern.global_position)) + Vector2(0, -LANTERN_RISE)
 			_lights.append(Vector3(at.x, at.y, reach * LIT_SHARE))
 	return _lights
+
+
+## How far off (px) an enemy that notices the wizard within `reach` while their flame burns notices
+## them now: SNEAK of it while the flame is out (see the class note).
+static func notice(reach: float) -> float:
+	var info: MapInfo = MapInfo.instance
+	if info == null or info.run == null or info.flame_lit():
+		return reach
+	return reach * SNEAK
 
 
 ## How far the lantern the wizard carries reaches while lit (px): RisoLight.CARRIED_REACH, further

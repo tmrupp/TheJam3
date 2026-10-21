@@ -189,15 +189,33 @@ func _backdrop_sky(at: Callable, _view: Vector2, half: Vector2, k: float, t: flo
 	return false
 
 
-## The whale's belly: no sky at all, only its dark, a slow swell of the walls' flesh breathing in
-## it (BREATH seconds a breath). No stars.
+## The belly's backdrop: seconds a breath; and its ribs, how far apart (sheet px), how much of the
+## view's movement they slide by (they are far off), and how faint.
 const BREATH: float = 4.0
+const RIB_GAP: float = 140.0
+const RIB_SLIDE: float = 0.35
+const RIB_COVER: float = 0.11
 
 
-func _backdrop_belly(at: Callable, _view: Vector2, _half: Vector2, k: float, t: float, _center: Vector2) -> bool:
+## The whale's belly: no sky at all, only its dark, a slow swell of the walls' flesh breathing in
+## it (BREATH seconds a breath), and behind it its ribs, faint arches of bone from top to bottom of
+## the sheet RIB_GAP apart, bowing out a little more as it breathes in and sliding by RIB_SLIDE as
+## fast as the view moves, so they read as far off. No stars.
+func _backdrop_belly(at: Callable, _view: Vector2, _half: Vector2, k: float, t: float, center: Vector2) -> bool:
 	var breath: float = 0.5 + 0.5 * sin(t / BREATH * TAU)
 	for i: int in range(3):
 		ink.ink(RisoPrint.BLUE, 0.06 + 0.05 * breath, [RisoShapes.ellipse(at.call(120.0 + float(i) * 120.0, 135.0 + 30.0 * sin(float(i) * 2.1)), (110.0 + 20.0 * breath) * k, (80.0 + 14.0 * breath) * k, 32)])
+	var ribs: Array[PackedVector2Array] = []
+	var slide: float = fposmod(-center.x * RIB_SLIDE / k, RIB_GAP)
+	for i: int in range(-1, 5):
+		var x: float = slide + float(i) * RIB_GAP
+		var bow: float = 26.0 + 6.0 * breath
+		var pts: PackedVector2Array = PackedVector2Array()
+		for j: int in range(13):
+			var f: float = float(j) / 12.0
+			pts.append(at.call(x + sin(f * PI) * bow, -20.0 + f * 310.0))
+		ribs.append_array(RisoDecor.strip(pts, 11.0 * k, 11.0 * k))
+	ink.ink(RisoPrint.BLUE, RIB_COVER, ribs)
 	return false
 
 

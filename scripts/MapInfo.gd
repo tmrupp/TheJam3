@@ -337,8 +337,9 @@ func full_heal () -> bool:
 	return true
 
 ## Debug runs (the F7 panel): slay this place's boss at once. One here in person (the worm, the
-## bramble, the spider, or a stand-in) dies as by any blow, leaving its relic; else the boss whose
-## gate this is, if it lives (it has no place to stand here), is slain where the wizard stands.
+## bramble, the golem, the necromancer, the beast, or a stand-in) dies as by any blow, leaving its
+## relic; else the boss whose gate this is, if it lives (it has no place to stand here), is slain
+## where the wizard stands.
 ## False if there is none to slay.
 func slay_boss () -> bool:
 	if map_elements != null and is_instance_valid(map_elements):
@@ -351,8 +352,8 @@ func slay_boss () -> bool:
 			if node is Bramble and not (node as Bramble).slain:
 				(node as Bramble).slay()
 				return true
-			if node is Spider and not (node as Spider).slain:
-				(node as Spider).slay()
+			if node is Golem and not (node as Golem).slain:
+				(node as Golem).slay()
 				return true
 			if node is Necromancer and not (node as Necromancer).slain:
 				(node as Necromancer).slay()

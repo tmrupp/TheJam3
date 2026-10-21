@@ -13,8 +13,9 @@ class_name Bridge
 const STAGGER: float = 0.08
 ## How far the middle of a bridge sags below its shores (px), whatever its length.
 const SAG: float = 44.0
-## Where its ledge lies in the prefab, unsagged (its own units).
-const LEDGE_Y: float = -12.0
+## Where its ledge lies in the prefab, unsagged (its own units): the top of its cell, level with
+## the shores.
+const LEDGE_Y: float = -16.0
 ## How fast it turns from a ghost to firm and back (its whole way a second, times this).
 const FIRM_SPEED: float = 4.0
 
@@ -43,12 +44,18 @@ func setup(info: MapInfo, v: Vector2i, id: int) -> void:
 		if i >= 0:
 			sag_left = sag_at(float(i) / float(planks.size()))
 			sag_right = sag_at(float(i + 1) / float(planks.size()))
-	# Its ledge along its stretch of the curve (the prefab is drawn four times over, so its own
-	# units are a quarter of a pixel).
+	# Its ledge along its stretch of the curve, from one edge of its cell to the other, so each
+	# plank's ends meet its neighbours' and a wizard walking it never catches on a join (the prefab
+	# is drawn four times over, so its own units are a quarter of a pixel).
 	var col: CollisionShape2D = $CollisionShape2D
 	var across: float = float(info.tile_map.tile_set.tile_size.x) * info.tile_map.global_scale.x if info.tile_map != null else 128.0
-	col.position.y = LEDGE_Y + (sag_left + sag_right) * 0.5 / scale.y
-	col.rotation = atan2(sag_right - sag_left, across)
+	var half: float = across * 0.5 / scale.x
+	var ledge: SegmentShape2D = SegmentShape2D.new()
+	ledge.a = Vector2(-half, LEDGE_Y + sag_left / scale.y)
+	ledge.b = Vector2(half, LEDGE_Y + sag_right / scale.y)
+	col.position = Vector2.ZERO
+	col.rotation = 0.0
+	col.shape = ledge
 	_sync()
 
 

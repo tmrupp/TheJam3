@@ -2,14 +2,13 @@ extends Node
 class_name Lunge
 ## Lunge, a damage spell: the Spell button (Q, or the pad's X) throws the wizard forward (the way
 ## held, left or right, else the way they face) at its speed for the knock-back's time
-## (Player.knock_back, a quarter of a second: about 160 px at I), halting a fall, and stabs ahead
-## as they go: whatever comes within STAB px in front of them, SPAN px up or down (SpellStrike), is
-## wounded by its damage, each once a lunge. It tears the spider's webs it
-## stabs through. Ready again COOLDOWN after. So it is a way across as well as a blow: a lunge from
-## a jump carries the wizard further. Tiers (Abilities): I wounds 1; II lunges further (SPEED_II);
-## III wounds 2; IV a stab that lands makes it ready again at once. Cast empowered (Empower), it rams
-## through a cracked wall ahead, up to RAM cells thick (within RAM_LOOK cells of the wizard), wounds
-## Empower.EXTRA more, breaks a shield at once and strikes spires.
+## (Player.knock_back, a quarter of a second: about 160 px at I), halting a fall, and stabs ahead as
+## they go: whatever comes within STAB px in front of them, SPAN px up or down (SpellStrike), is
+## wounded by its damage, each once a lunge. Ready again COOLDOWN after. So it is a way across as
+## well as a blow: a lunge from a jump carries the wizard further. Tiers (Abilities): I wounds 1; II
+## lunges further (SPEED_II); III wounds 2; IV a stab that lands makes it ready again at once. Cast
+## empowered (Empower), it rams through a cracked wall ahead, up to RAM cells thick (within RAM_LOOK
+## cells of the wizard), wounds Empower.EXTRA more, breaks a shield at once and strikes spires.
 
 const COOLDOWN: float = 1.2
 ## How fast (px/s) it throws the wizard along.
@@ -104,16 +103,15 @@ func _stab() -> void:
 	var catches: Callable = func(p: Vector2) -> bool:
 		var ahead: float = (p.x - from.x) * side
 		return ahead >= -STAB_BACK and ahead <= STAB and absf(p.y - from.y) <= SPAN
-	var catches_spider: Callable = func(s: Spider) -> bool: return s.struck_by(from, tip, 0.0)
+	var catches_shaped: Callable = func(s: Shaped) -> bool: return s.struck_by(from, tip, 0.0)
 	var landed: bool = false
-	for e: Node in SpellStrike.caught(get_tree(), from, catches, catches_spider):
+	for e: Node in SpellStrike.caught(get_tree(), from, catches, catches_shaped):
 		var whole: Node = Wound.whole(e)
 		if whole in stabbed:
 			continue
 		stabbed.append(whole)
-		SpellStrike.strike(e, Vector2(side, 0.0), damage + (Empower.EXTRA if empowered else 0), &"lunge", empowered)
+		SpellStrike.strike(e, Vector2(side, 0.0), damage + (Empower.EXTRA if empowered else 0), &"lunge", empowered, from)
 		landed = true
-	SpiderWeb.tear_along(get_tree(), from, tip)
 	if landed and refunds:
 		wait = 0.0
 

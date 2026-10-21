@@ -115,6 +115,12 @@ static func rrect(x: float, y: float, w: float, h: float, r: float, seg: int = 4
 	return kept
 
 
+## A straight strand from `a` to `b`, `w` wide (a web's thread, a tether, a stroke of a mark).
+static func strand(a: Vector2, b: Vector2, w: float) -> PackedVector2Array:
+	var n: Vector2 = (b - a).normalized().orthogonal() * w * 0.5
+	return PackedVector2Array([a - n, b - n, b + n, a + n])
+
+
 static func tri(a: Vector2, b: Vector2, c: Vector2) -> PackedVector2Array:
 	return PackedVector2Array([a, b, c])
 

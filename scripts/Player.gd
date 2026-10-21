@@ -136,6 +136,8 @@ var tiers: Dictionary = Abilities.start_tiers()
 ## Seconds of drowsiness left (sleep fog, see SleepFog): while drowsy the spell is off.
 var drowsy: float = 0.0
 const DROWSY_LINGER: float = 0.25
+## Seconds until another stroke up through acid (Acid.STROKE_REST).
+var stroke_rest: float = 0.0
 
 
 func is_drowsy() -> bool:
@@ -186,7 +188,7 @@ func _init() -> void:
 
 func _enter_tree() -> void:
 	Abilities.ensure_input()
-	# What the dash does on its way (it tears webs and cuts threads).
+	# What the dash does on its way (it passes through enemies, DashStrike).
 	if get_node_or_null("DashStrike") == null:
 		var strike: DashStrike = DashStrike.new()
 		strike.name = "DashStrike"
@@ -434,6 +436,10 @@ func _drop_clear (body: CollisionObject2D) -> void:
 	if is_instance_valid(body):
 		remove_collision_exception_with(body)
 
+## Where the wizard's feet are (world y): the bottom of their body.
+func feet_y () -> float:
+	return _feet_y()
+
 func _feet_y () -> float:
 	var rect: RectangleShape2D = collider.shape as RectangleShape2D
 	return collider.global_position.y + (rect.size.y * 0.5 * absf(collider.global_scale.y) if rect != null else 0.0)
@@ -469,6 +475,7 @@ func do_wall_jump (wall_normal: Vector2) -> void:
 
 func _physics_process(delta: float) -> void:
 	drowsy = maxf(0.0, drowsy - delta)
+	stroke_rest = maxf(0.0, stroke_rest - delta)
 	ladder_rest = maxf(0.0, ladder_rest - delta)
 	# Each slot's button casts what is in it: the Spell button the damage slot, the Utility button
 	# the utility slot, and the Dash button the movement slot's spell (the dash itself, or blink,
@@ -499,8 +506,6 @@ func _physics_process(delta: float) -> void:
 
 	var walled: bool = false
 	var wall_normal: Vector2
-	# In a spider's web (SpiderWeb): held, and the dash does not come back.
-	var webbed: bool = SpiderWeb.holding(get_tree(), global_position)
 
 	# get input from the user to establish direction
 	var direction: Vector2 = Vector2.RIGHT * Input.get_axis("Left", "Right") + Vector2.DOWN * Input.get_axis("Up", "Down")
@@ -577,7 +582,7 @@ func _physics_process(delta: float) -> void:
 			pass
 		
 		# Arm coyote time only while grounded. Taking a jump spends it; falling cannot rearm it.
-		if dash_rest <= 0.0 and not webbed:
+		if dash_rest <= 0.0:
 			dash.refresh()
 		coyote.enable(true)
 		hang.refresh()
@@ -661,11 +666,17 @@ func _physics_process(delta: float) -> void:
 			if MapInfo.instance != null:
 				MapInfo.instance.dash_switch()
 	
-	# A web holds the wizard: slow across, a jump stalls in it and a fall through it sinks slowly. A
-	# dash goes through, tearing it (DashStrike).
-	if webbed and not dash.is_acting():
-		velocity.x = clampf(velocity.x, -SpiderWeb.WEB_SPEED, SpiderWeb.WEB_SPEED)
-		velocity.y = clampf(velocity.y, -SpiderWeb.WEB_RISE, SpiderWeb.WEB_SINK)
+	# Acid (Acid): wading in it, slowed across and sinking slowly (a fall into it is checked
+	# quickly, not stopped dead); each jump in it, off the bottom, is a stroke up. A dash goes
+	# through.
+	if not dash.is_acting() and Acid.wading(self) > 0.0:
+		velocity.x = clampf(velocity.x, -Acid.WADE, Acid.WADE)
+		if velocity.y > Acid.SINK:
+			velocity.y = move_toward(velocity.y, Acid.SINK, Acid.DRAG * delta)
+		if Input.is_action_just_pressed("Jump") and not is_on_floor() and stroke_rest <= 0.0:
+			velocity.y = -Acid.STROKE
+			stroke_rest = Acid.STROKE_REST
+			buffer_jump.end()
 
 	# elapse the time in all timers
 	for timer: ActionTimer in timers:

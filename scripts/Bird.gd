@@ -122,7 +122,7 @@ func _look() -> void:
 	var at: Vector2 = rb.global_position
 	var target: Vector2 = player.global_position + Vector2(0, DIVE - 30.0)
 	var d: Vector2 = target - at
-	if absf(d.x) > REACH or d.y < 80.0 or d.y > DROP:
+	if absf(d.x) > Lamplight.notice(REACH) or d.y < 80.0 or d.y > DROP:
 		return
 	# A nearby bird can still be outside a lagging camera. Let the player see it before it dives.
 	var cam: Camera2D = get_viewport().get_camera_2d()

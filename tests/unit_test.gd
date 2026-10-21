@@ -38,6 +38,7 @@ func run() -> void:
 	_stations()
 	_darkness()
 	_lodestones()
+	_renamed()
 	var p: Player = Player.new()
 	_ability_tables()
 	_protocols()
@@ -323,6 +324,16 @@ func _relics() -> void:
 	check(ok, "a level holds one of the relic moves or none, the same every time")
 	check_eq(found.size(), Relics.MOVES.size(), "every relic move is found somewhere")
 	check_eq(Relics.at(Worlds.side_at(0, Vector2i(28, 5))), &"", "no relic in a side world")
+
+
+## A saved run names its bosses as they are now (RunState.gone_kinds, Bosses.RENAMED): the spider
+## slain and its relic waiting read as the golem's, the others as they were; and the golem guards
+## the crags' gate, where the spider did.
+func _renamed() -> void:
+	var old: Dictionary = {"bosses": {&"spider": true, &"worm": true}, "boss_relics": {&"spider": [Vector2i(3, -9), Vector2(10, 20), &"blink"]}}
+	var now: Dictionary = RunState.gone_kinds(old)
+	check(now["bosses"] == {&"golem": true, &"worm": true} and (now["boss_relics"] as Dictionary).keys() == [&"golem"], "a save's slain spider and its relic are the golem's")
+	check(Bosses.row_of(&"golem") == -(NextWorldDef.GARDEN_ROWS + NextWorldDef.BAND) and Bosses.row_of(&"spider") == 0, "the golem guards the crags' gate, and the spider nothing")
 
 
 ## A sky level's wind (Rules.wind_of): still with no vane on; the way of the vane last switched

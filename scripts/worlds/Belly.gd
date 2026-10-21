@@ -1,39 +1,75 @@
 class_name Belly
 extends SideWorld
 ## The whale's belly (Whale, docs/REGIONS_PLAN.md §6): a side world entered only through the
-## trapped whale's open mouth (MapInfo.enter_belly), never by a door. A dark hall WIDTH cells across
-## and HEIGHT high, laid out over whatever the collapse made: its ribs hang from its roof every
-## RIB_EVERY cells, RIB_DROP rows deep, with a ridge under each; pools of its acid (thorns, pink)
-## sink into its floor between some of them; the way back (its mouth, out to the whale's level) and
-## a lantern stand at the left, and its heart (WhaleHeart, as the boss's own prefab, Bosses.SCENES)
-## at the far right. Its way back leads out to the whale's level. Printed in a realm of its own
-## (RisoPrint.REALMS.belly: dull flesh under a dark maroon), breathing behind (RisoBackground).
-## Nothing here draws from the world RNG: it is the same every visit.
+## trapped whale's mouth (MapInfo.enter_belly), never by a door. It is laid out by hand (MAP): the
+## wizard arrives at its mouth, top left, by the way back (out to the whale's level) and a lantern;
+## its gullet, ringed with muscle, steps down to the right into its stomach, a great dome over a
+## bowl. Bone ledges cross the dome from the gullet's lip down to the way out at its right, and its
+## bowl holds a pool of acid (Acid) that floods and drains. Drained, it lies in three pits along the
+## stomach's floor, each three cells wide, and in each floats a piece of wreckage it has swallowed
+## (Wreck), two cells wide, its deck level with the floor, leaving a hole of open acid beside it;
+## flooded, the wreckage rides up on it. Steps up its
+## right side lead to the way out, a short passage to the chamber where its heart (WhaleHeart, as
+## the boss's own prefab, Bosses.SCENES) hangs. Printed in a realm of its own (RisoPrint.REALMS.belly:
+## dull flesh under a dark maroon), breathing behind (RisoBackground), dressed with bones, strands
+## and veins (RisoDecor.plan_belly). Nothing here draws from the world RNG: it is the same every
+## visit.
 
-const WIDTH: int = 40
-const HEIGHT: int = 15
-## The hall's air runs from row CEILING down to row FLOOR - 1, the floor below.
-const CEILING: int = 3
-const FLOOR: int = 12
-## Its ribs: one every RIB_EVERY cells from RIB_FROM, hanging RIB_DROP rows from its roof, a cell
-## wide, with a ridge a row high under each.
-const RIB_EVERY: int = 6
-const RIB_FROM: int = 8
-const RIB_DROP: int = 4
-## Pools of acid between every other pair of ribs, POOL cells wide.
-const POOL: int = 2
-## Where the way back, its lantern and the heart stand along the floor.
-const BACK_X: int = 2
-const LANTERN_X: int = 4
-const HEART_X: int = WIDTH - 4
+## The belly, row by row: rock (#), open air (.), a bone ledge (=, a one-way ledge), the way back
+## (B), its lantern (L), the heart (H), a piece of wreckage two cells wide (w, the kinds in WRECKS
+## from left to right), and where the acid is anchored (A; its pool is ACID_BASIN).
+const MAP: Array[String] = [
+	"########################################################################",
+	"########################################################################",
+	"########################################################################",
+	"#..........#############################################################",
+	"#..........#############################################################",
+	"#...........############################################################",
+	"#..............#########################################################",
+	"#...............#.######################################################",
+	"#.B..L..............####################################################",
+	"#############.......#..############.........############################",
+	"###############.........#######.................########################",
+	"##################........###.....................######################",
+	"####################......##.......................##########.......####",
+	"#######################..............................#######.........###",
+	"#########################.............................#####...........##",
+	"#########################..==.........................####.............#",
+	"########################.......==......................###.............#",
+	"########################...........==..................###.............#",
+	"#######################................==...............##.............#",
+	"#######################....................==..........................#",
+	"#######################........................==.....................##",
+	"#######################............................==.............H..###",
+	"#######################..............................==.............####",
+	"########################................................################",
+	"########################...............................#################",
+	"#########################.............................##################",
+	"##########################...........................###################",
+	"###########################.........................####################",
+	"#############################.....................######################",
+	"###############################......A..........########################",
+	"##################################w..#w..#w..###########################",
+	"########################################################################",
+	"########################################################################",
+	"########################################################################",
+]
+## The acid's pool: the cells it may fill, and how high it lies drained and flooded, as rows (from
+## the top of the map; a fraction is that share of a row down from its top). Drained, it lies just
+## under the floor, so the wreckage floating in its pits is level with the floor.
+const ACID_BASIN: Rect2i = Rect2i(22, 22, 35, 9)
+const ACID_LOW: float = 30.31
+const ACID_HIGH: float = 24.15
+## The wreckage in its pits, left to right (Wreck.KINDS).
+const WRECKS: Array[StringName] = [&"basket", &"column", &"crate"]
 
 
 func _init() -> void:
 	name = "the whale's belly"
 	way = Vector2.RIGHT
-	plants = false
+	plants = true
 	price_factor = 0.0
-	cells = Vector2i(WIDTH, HEIGHT)
+	cells = Vector2i(MAP[0].length(), MAP.size())
 	print_realm = &"belly"
 
 
@@ -41,45 +77,52 @@ func title() -> String:
 	return "world %d · %s" % [coord.x, name]
 
 
-## An empty hall, in the generator's colours (the collapse is laid over by populate anyway).
+## Its own decor (RisoDecor.plan_belly): bones, strands and veins.
+func decor() -> StringName:
+	return &"belly"
+
+
+## The map in the generator's colours (the collapse is laid over by populate anyway).
 func fallback() -> Array:
 	var out: Array = []
 	for x: int in range(size.x):
 		var column: Array = []
 		for y: int in range(size.y):
-			column.append(Color.WHITE if _air(Vector2i(x, y)) else Color.BLACK)
+			column.append(Color.BLACK if _at(Vector2i(x, y)) == "#" else Color.WHITE)
 		out.append(column)
 	return out
 
 
-## The hall, its ribs and acid, the way back and a lantern at the left, its heart at the right.
+## The map laid over whatever the collapse made, then what stands in it.
 func populate(w: LevelGen) -> void:
-	for x: int in range(WIDTH):
-		for y: int in range(HEIGHT):
+	for x: int in range(size.x):
+		for y: int in range(size.y):
 			var v: Vector2i = Vector2i(x, y)
-			if _air(v) and w.get_cell(v).type != LevelGen.Type.EMPTY:
+			if _at(v) == "#":
+				if w.get_cell(v).type != LevelGen.Type.GROUND:
+					w._to_rock(v)
+			elif w.get_cell(v).type != LevelGen.Type.EMPTY:
 				w._to_open(v)
-			elif not _air(v) and w.get_cell(v).type != LevelGen.Type.GROUND:
-				w._to_rock(v)
-	var pools: Array[Vector2i] = []
-	var k: int = 0
-	for x: int in range(RIB_FROM, HEART_X - 2, RIB_EVERY):
-		for y: int in range(CEILING, CEILING + RIB_DROP):
-			w._to_rock(Vector2i(x, y))
-		w._to_rock(Vector2i(x, FLOOR - 1))
-		if k % 2 == 1:
-			for p: int in range(POOL):
-				pools.append(Vector2i(x + 2 + p, FLOOR - 1))
-		k += 1
-	for v: Vector2i in pools:
-		w.put(v, LevelGen.Type.SPIKES)
-	var back: Vector2i = Vector2i(BACK_X, FLOOR - 1)
-	var lantern: Vector2i = Vector2i(LANTERN_X, FLOOR - 1)
-	w.put(back, LevelGen.Type.EXIT, MapInfo.Exit.BACK)
-	w.put(lantern, LevelGen.Type.CHECKPOINT)
-	w.exits = {MapInfo.Exit.BACK: back}
-	w.exit_lanterns = {MapInfo.Exit.BACK: lantern}
-	w.put(Vector2i(HEART_X, FLOOR - 2), LevelGen.Type.BOSS, &"whale")
+	var wrecks: int = 0
+	for y: int in range(size.y):
+		for x: int in range(size.x):
+			var v: Vector2i = Vector2i(x, y)
+			match _at(v):
+				"=":
+					w.put(v, LevelGen.Type.PLATFORM)
+				"B":
+					w.put(v, LevelGen.Type.EXIT, MapInfo.Exit.BACK)
+					w.exits = {MapInfo.Exit.BACK: v}
+				"L":
+					w.put(v, LevelGen.Type.CHECKPOINT)
+					w.exit_lanterns = {MapInfo.Exit.BACK: v}
+				"H":
+					w.put(v, LevelGen.Type.BOSS, &"whale")
+				"w":
+					w.put(v, LevelGen.Type.WRECK, WRECKS[wrecks % WRECKS.size()])
+					wrecks += 1
+				"A":
+					w.put(v, LevelGen.Type.ACID, {"basin": ACID_BASIN, "low": ACID_LOW, "high": ACID_HIGH})
 
 
 ## Its exits: the way back alone.
@@ -88,5 +131,8 @@ func ways() -> Array[int]:
 	return out
 
 
-func _air(v: Vector2i) -> bool:
-	return v.x >= 1 and v.x < WIDTH - 1 and v.y >= CEILING and v.y < FLOOR
+## What the map holds at `v` (rock outside it).
+func _at(v: Vector2i) -> String:
+	if v.y < 0 or v.y >= MAP.size() or v.x < 0 or v.x >= MAP[v.y].length():
+		return "#"
+	return MAP[v.y][v.x]

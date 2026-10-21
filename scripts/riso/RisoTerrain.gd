@@ -13,6 +13,10 @@ class_name RisoTerrain
 ## An indoor realm (INDOOR_REALMS: the institute) is all building: its rock prints square, as built
 ## wood or stone (WALL_LOOKS, its tops coped as built stone's are, no cap strip), and all its open air over a
 ## back wall of upright boards (BACK_BOARDS to a cell) in place of the sky.
+## A realm of flesh (FLESH_REALMS: the whale's belly) has no cap strips: its walkable tops print a
+## pale wet sheen of the flesh instead (SHEEN), its undersides and inside corners round more
+## (FLESH_ROUND), and its floating ledges print as bone, bare paper faintly shaded (BONE_SHADE),
+## with no cap at all.
 ## Floating ledges print on a canvas of their own (`ledge_ink`, LEDGE_Z) over the decor, everything
 ## behind them knocked out, so a bookcase or a plant behind one never hides or shows through it; an
 ## indoor realm's print in its walls' look, so they stand out from the dark rooms as the walls do.
@@ -48,6 +52,13 @@ const WALL_LOOKS: Dictionary = {
 	&"stone": [[RisoPrint.BLUE, 0.32]],
 }
 const BACK_BOARDS: int = 3
+## The realms of flesh (see the class description), how much of the flesh's ink their sheen lifts
+## along its walkable tops, and how much shade their bone ledges carry.
+const FLESH_REALMS: Array[StringName] = [&"belly"]
+const SHEEN: float = 0.4
+const BONE_SHADE: float = 0.22
+## How many times rounder flesh's undersides and inside corners are than bare rock's.
+const FLESH_ROUND: float = 2.2
 ## How much of the rock's ink an indoor realm's back wall prints: all of it, solid, so no paper shows
 ## through between the dots of the screen (with night over it, paper dots read as white speckle, and
 ## a light lifting the night only shows more of them).
@@ -106,7 +117,9 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 	var masonry: Dictionary = info.world.masonry if info != null and info.world != null else {}
 	var interiors: Dictionary = info.world.interiors if info != null and info.world != null else {}
 	var half: float = float(tile_map.tile_set.tile_size.x) * tile_map.global_scale.x * 0.5
-	var radius: float = half * 0.32
+	var flesh: bool = info != null and info.here != null and FLESH_REALMS.has(info.here.realm())
+	# Flesh is softer: its undersides and inside corners round more (its tops stay square).
+	var radius: float = half * 0.32 * (FLESH_ROUND if flesh else 1.0)
 	# Top corners stay nearly square: the floor's collision runs right to the cell edge, and a
 	# rounded top made the wizard look like they stood on nothing at a ledge's end.
 	var top_radius: float = 5.0
@@ -262,7 +275,10 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 	ink.knock([RisoPrint.NIGHT], far_pies)
 	ink.ink(RisoPrint.NIGHT, SHADE_COVER, near, false)
 	ink.knock([RisoPrint.NIGHT], near_pies)
-	ink.ink(RisoPrint.ACCENT, 1.0, caps)
+	if flesh:
+		ink.lift_ink([RisoPrint.BLUE, RisoPrint.NIGHT], SHEEN, caps)
+	else:
+		ink.ink(RisoPrint.ACCENT, 1.0, caps)
 	if not copings.is_empty():
 		ink.knock([RisoPrint.ACCENT], copings)
 		for k: int in range(look.size()):
@@ -279,12 +295,13 @@ func rebuild(tile_map: TileMap, ledge_positions: Array[Vector2] = [], cracked_po
 		# Everything behind it knocked out, the rock's ink too: printed in a look screened back (an
 		# indoor realm's light walls), a bookcase's wood showed through it at full strength.
 		ledge_ink.knock([RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.EYE], ledge_body)
-		var ledge_look: Array = wall if indoor else [[RisoPrint.BLUE, 1.0]]
+		var ledge_look: Array = wall if indoor else ([[RisoPrint.BLUE, BONE_SHADE]] if flesh else [[RisoPrint.BLUE, 1.0]])
 		for k: int in range(ledge_look.size()):
 			ledge_ink.ink(int(ledge_look[k][0]), float(ledge_look[k][1]), ledge_body, k == 0)
+		# Bone carries no cap.
 		if indoor:
 			ledge_ink.ink(RisoPrint.NIGHT, COPING_COVER, ledge_caps, false)
-		else:
+		elif not flesh:
 			ledge_ink.ink(RisoPrint.ACCENT, 1.0, ledge_caps)
 	ledge_ink.finish()
 

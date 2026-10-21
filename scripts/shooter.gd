@@ -39,6 +39,10 @@ func can_see() -> bool:
 		return false
 	if not (player in range_box.get_overlapping_bodies()):
 		return false
+	# A wizard whose flame is out is seen only nearer (Lamplight.notice).
+	var sight: float = ((range_box.get_node("CollisionShape2D") as CollisionShape2D).shape as CircleShape2D).radius
+	if shoot_point.global_position.distance_to(player.global_position) > Lamplight.notice(sight):
+		return false
 	var space_state: PhysicsDirectSpaceState2D = get_world_2d().direct_space_state
 	# Only the wizard (layer 1) and the environment (layer 3) block the view: stars, pickups and
 	# other areas floating in between used to hide the wizard and cut the eye's real range short.

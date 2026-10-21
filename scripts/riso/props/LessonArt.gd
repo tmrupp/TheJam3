@@ -45,8 +45,8 @@ func _draw_art() -> void:
 	var lines: Array[PackedVector2Array] = []
 	for i: int in range(3):
 		var y: float = float(i) * 2.6
-		lines.append(Spider.strand(Vector2(-25, g - 84 + y), Vector2(-5, g - 89 + y), 1.0))
-		lines.append(Spider.strand(Vector2(5, g - 91 + y), Vector2(25, g - 95 + y), 1.0))
+		lines.append(RisoShapes.strand(Vector2(-25, g - 84 + y), Vector2(-5, g - 89 + y), 1.0))
+		lines.append(RisoShapes.strand(Vector2(5, g - 91 + y), Vector2(25, g - 95 + y), 1.0))
 	ink.ink(RisoPrint.NIGHT, 0.6, lines, false)
 	var held: Array = _held()
 	var a: StringName = held[0]

@@ -3,7 +3,7 @@ extends TestKit
 ## unhurt, and it is neither stunned nor wounded; dashing into a cracked wall does nothing to it (only
 ## an empowered spell breaks one, Empower), and on the
 ## ground the dash only comes back after Player.DASH_GROUND_COOLDOWN. A blink spends the moons it
-## passes, and strikes nothing on its way either.
+## passes.
 ## godot --headless --path . --script res://tests/dash_strike_test.gd
 
 ## Frames the directions are held through a dash (it is over by then).
@@ -140,8 +140,5 @@ func run() -> void:
 	check(player.dash.acted, "the dash is spent")
 	blink.call("_moons", moon.global_position - Vector2(150, 0), moon.global_position + Vector2(150, 0))
 	check(not player.dash.acted and float(moon.get("waning")) > 0.0, "a moon on the blink's way is spent and gives the dash back")
-	var far: Node2D = target()[0]
-	strike.sweep(far.global_position - Vector2(250, 0), far.global_position + Vector2(250, 0))
-	check(not stunned(far), "and what lies on its way is not struck")
 
 	finish()

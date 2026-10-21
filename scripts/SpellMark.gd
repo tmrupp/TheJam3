@@ -85,13 +85,13 @@ func _process(delta: float) -> void:
 			for i: int in range(8):
 				var a: float = TAU * float(i) / 8.0 + 0.2
 				var d: Vector2 = Vector2.from_angle(a)
-				shapes.append(Spider.strand(from + d * r * 0.55, from + d * r * 0.9, 4.0))
+				shapes.append(RisoShapes.strand(from + d * r * 0.55, from + d * r * 0.9, 4.0))
 		&"push":
 			for i: int in range(5):
 				var a: float = base + lerpf(-half, half, (float(i) + 0.5) / 5.0)
 				var d: Vector2 = Vector2.from_angle(a)
 				var near: float = reach * (0.15 + 0.6 * u)
-				shapes.append(Spider.strand(from + d * near, from + d * (near + reach * 0.35), 5.0 * (1.0 - u) + 1.5))
+				shapes.append(RisoShapes.strand(from + d * near, from + d * (near + reach * 0.35), 5.0 * (1.0 - u) + 1.5))
 		&"lunge":
 			# A thrust: a tapering streak along the way, its point running out ahead.
 			var tip: Vector2 = from + dir * reach * minf(1.0, u * 2.5)
