@@ -1,10 +1,12 @@
 extends TestKit
 ## The institute (docs/REGIONS_PLAN.md §7; Institute, Scholar, Abomination, Breach, ExamDoor, Lesson,
 ## Department, WayBack). Laid out: its halls of marble (no exam hall: the way on stays where the level
-## laid it; the library's stacks, galleries of ledges;
+## laid it; the library's stacks, galleries of ledges, its book ladders under the lowest standing on
+## its floor;
 ## classrooms, a floor and a gallery over it with a doorway at two ends at least, a class in each and
-## a department's portal in the first of each department), nothing else laid in them, breaches and classes out in the level, the same every
-## build. In play: students cast bolts, some misfiring, the same way every time; each master casts
+## a department's portal in the first of each department), nothing else laid in them, and the bell
+## room, walled in marble with its great bell inside; breaches and classes out in the level, the same
+## every build. In play: students cast bolts, some misfiring, the same way every time; each master casts
 ## its spell; a proctor shields the students round it; a librarian's hush silences the wizard's
 ## spells; abominations and scholars wound one another; a breach lets abominations out (up out of
 ## its crack, their feet on its floor) while the
@@ -17,7 +19,7 @@ const LAID: Array[Vector2i] = [Vector2i(28, 0), Vector2i(28, 2), Vector2i(7, 4),
 ## What may be laid inside a hall.
 const IN_HALLS: Array[LevelGen.Type] = [LevelGen.Type.EXAM_DOOR, LevelGen.Type.EXIT, LevelGen.Type.MASTER, LevelGen.Type.STUDENT,
 	LevelGen.Type.PROCTOR, LevelGen.Type.LIBRARIAN, LevelGen.Type.DEPARTMENT, LevelGen.Type.PLATFORM, LevelGen.Type.COIN, LevelGen.Type.BOSS,
-	LevelGen.Type.SCHOOL_BELL, LevelGen.Type.LECTERN, LevelGen.Type.STUDY_DESK, LevelGen.Type.TIMETABLE_BOARD]
+	LevelGen.Type.SCHOOL_BELL, LevelGen.Type.LECTERN, LevelGen.Type.STUDY_DESK, LevelGen.Type.TIMETABLE_BOARD, LevelGen.Type.ROLLING_LADDER]
 
 
 func run() -> void:
@@ -37,6 +39,9 @@ func generation() -> void:
 	var doors_ok: bool = true
 	var kept: bool = true
 	var tiers_ok: bool = true
+	var book_ladders: bool = true
+	var belfries: int = 0
+	var belfry_ok: bool = true
 	var stacks_ok: bool = true
 	var depts_ok: bool = true
 	var outside: int = 0
@@ -76,6 +81,15 @@ func generation() -> void:
 						stacks_ok = false
 					if w.objects_of(LevelGen.Type.LIBRARIAN).filter(func(v: Vector2i) -> bool: return inside.has_point(v)).is_empty():
 						stacks_ok = false
+					# Its book ladders, each hanging from the lowest gallery to the floor.
+					var ladders: Array[Vector2i] = w.objects_of(LevelGen.Type.ROLLING_LADDER).filter(func(v: Vector2i) -> bool: return inside.has_point(v))
+					if ladders.size() != Institute.BOOK_LADDERS:
+						book_ladders = false
+					for v: Vector2i in ladders:
+						var extra: Array = w.get_cell(v).extra_info
+						var foot: int = v.y + RollingLadder.hang(w, v, 1, int(extra[2]))
+						if foot != inside.end.y or w.get_cell(v + Vector2i.UP).type != LevelGen.Type.PLATFORM:
+							book_ladders = false
 				&"lecture":
 					lectures += 1
 					var heights: Dictionary = {}
@@ -90,6 +104,18 @@ func generation() -> void:
 						var extra: Array = w.get_cell(portals[0]).extra_info
 						if StringName(extra[0]) != hall["dept"] or NextWorldDef.archetype_at(int(extra[1])) != Institute.DEPARTMENTS[hall["dept"]]:
 							depts_ok = false
+		# The bell room: walled in marble but for its doorways, its great bell on its floor.
+		if w.belfry.has_area():
+			belfries += 1
+			var room: Rect2i = w.belfry.grow(1)
+			for x: int in range(room.position.x, room.end.x):
+				for y: int in range(room.position.y, room.end.y):
+					var v: Vector2i = Vector2i(x, y)
+					if not w.belfry.has_point(v) and w.is_ground(v) != w.masonry.has(v):
+						belfry_ok = false
+			var bells: Array[Vector2i] = w.objects_of(LevelGen.Type.SCHOOL_BELL).filter(func(v: Vector2i) -> bool: return w.belfry.has_point(v))
+			belfry_ok = belfry_ok and bells.size() == 1 and bool((w.get_cell(bells[0]).extra_info as Dictionary)["great"]) and bells[0].y == w.belfry.end.y - 1
+			belfry_ok = belfry_ok and Institute.hall_at(w, w.belfry.position) < 0
 		outside += count_of(w, LevelGen.Type.BREACH) + count_of(w, LevelGen.Type.ABOMINATION)
 		# Its decor: alchemy equipment in laboratories, ritual equipment in sanctums, out in its rooms.
 		var solid: Dictionary = {}
@@ -109,6 +135,8 @@ func generation() -> void:
 					kits_placed = false
 	check(doors_ok, "every hall has a doorway")
 	check(libraries >= LAID.size() - 1 and stacks_ok, "a library: galleries of ledges, rows of floor over one another, its librarian")
+	check(libraries > 0 and book_ladders, "every library has its %d book ladders, from its lowest gallery down to its floor" % Institute.BOOK_LADDERS)
+	check(belfries == LAID.size() and belfry_ok, "a bell room in each level (%d of %d), walled in marble, its great bell inside it" % [belfries, LAID.size()])
 	check(lectures >= LAID.size() * 3 and tiers_ok, "classrooms (%d in %d levels): a floor and a gallery, with %d doorways or more" % [lectures, LAID.size(), Institute.MIN_DOORS])
 	check(depts_ok, "the first of each department with its portal, leading into the band it studies")
 	check(kept, "walled in marble, and nothing else laid inside them")
