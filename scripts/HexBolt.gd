@@ -17,9 +17,12 @@ const RANGE: float = 8.0 * 128.0
 const REACH: float = 44.0
 ## Each target is struck anywhere along a vertical span through it, from its body centre up to
 ## about the top of its printed art, not just at its centre: a wisp's body sits low on the floor
-## while the bolt flies at hat height, so a level shot used to pass over it.
+## while the bolt flies at hat height, so a level shot used to pass over it. An enemy is struck
+## anywhere on its body as drawn too (SpellStrike.body_of, within BODY_REACH: crosses).
 const SPAN_DOWN: float = 20.0
 const SPAN_UP: float = 56.0
+## It strikes an enemy whose body as drawn it passes within BODY_REACH of, too (SpellStrike.body_of).
+const BODY_REACH: float = 12.0
 const SOLID_MASK: int = 4
 ## How near (px) the thorns' body the bolt's way must pass for it to strike them.
 const THORN_REACH: float = 10.0
@@ -79,6 +82,19 @@ var ink: InkCanvas
 var t: float = 0.0
 
 
+## Whether the step from `from` to `to` passes through `rect` (not when it is empty).
+static func crosses(from: Vector2, to: Vector2, rect: Rect2) -> bool:
+	if not rect.has_area():
+		return false
+	if rect.has_point(from) or rect.has_point(to):
+		return true
+	var corners: Array[Vector2] = [rect.position, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y)]
+	for k: int in range(4):
+		if Geometry2D.segment_intersects_segment(from, to, corners[k], corners[(k + 1) % 4]) != null:
+			return true
+	return false
+
+
 func _ready() -> void:
 	z_index = 3
 	add_to_group(&"riso_art")
@@ -113,7 +129,7 @@ func _physics_process(delta: float) -> void:
 		var at: Vector2 = (e as Node2D).global_position
 		var near: PackedVector2Array = Geometry2D.get_closest_points_between_segments(from, to, at + Vector2(0, SPAN_DOWN), at - Vector2(0, SPAN_UP))
 		# A foe with a shape of its own (the golem's chunks) is struck only on that shape.
-		var meets: bool = (e as Shaped).struck_by(from, to, Shaped.BOLT_REACH) if e is Shaped else near[0].distance_to(near[1]) <= REACH
+		var meets: bool = (e as Shaped).struck_by(from, to, Shaped.BOLT_REACH) if e is Shaped else near[0].distance_to(near[1]) <= REACH or HexBolt.crosses(from, to, SpellStrike.body_of(e as Node2D).grow(BODY_REACH))
 		if meets:
 			targets.append(e)
 	targets.sort_custom(func(a: Node, b: Node) -> bool: return from.distance_squared_to((a as Node2D).global_position) < from.distance_squared_to((b as Node2D).global_position))

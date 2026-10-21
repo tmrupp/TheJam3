@@ -1,6 +1,7 @@
 extends Node
 class_name CameraControl
-## Steers the camera after the wizard (to `target_location`, ahead of them the way they face).
+## Steers the camera after the wizard (to `target_location`, ahead of them the way they face). While
+## thorns have struck them and they are gone a moment (Player.held), the view holds still.
 
 # lerp method
 # always lerp the camera to the player
@@ -31,6 +32,8 @@ func _ready() -> void:
 
 # Set the position of the camera to lerp the player's position over time
 func _process(delta: float) -> void:
+	if player.held > 0.0:
+		return
 	smooth_lerp(delta, LERP_SMOOTHNESS)
 
 # Move the camera towards the position of the player

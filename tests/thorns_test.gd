@@ -129,16 +129,22 @@ func run() -> void:
 	player.end_invulnerable()
 	player.velocity = Vector2.ZERO
 	player.global_position = (bed[0] as Node2D).to_global(Spikes.BODY)
-	check(await within(func() -> bool: return player.global_position.distance_to(foot) < 8.0, 1.0), "touching thorns puts the wizard back on the rock they last stood on")
+	check(await within(func() -> bool: return player.held > 0.0, 1.0), "touching thorns strikes the wizard")
+	var struck_at: Vector2 = player.global_position
+	check(not player.visible and struck_at.distance_to(foot) > 8.0, "and they are gone from where they were struck")
 	check(player.is_invulnerable() and player.health.health == hearts - 1, "a heart the poorer, and untouchable for a moment")
-	check(player.held > 0.0, "held still a moment once sent back")
 	var safe_left: float = player.invulnerable.acting
-	var still: Vector2 = player.global_position
+	var view: Camera2D = Stage.camera()
+	var view_at: Vector2 = view.position if view != null else Vector2.ZERO
 	Input.action_press("Right")
-	check(await within(func() -> bool: return player.held <= 0.0, Player.THORN_PAUSE + 0.2), "the hold ends")
-	check(absf(player.global_position.x - still.x) < 1.0, "while held, the stick does not move them")
-	check(is_equal_approx(player.invulnerable.acting, safe_left), "and the hit's untouchable time waits until they can move")
-	check(await within(func() -> bool: return player.global_position.x > still.x + 16.0, 0.5), "then they can run again")
+	await within(func() -> bool: return false, Player.THORN_PAUSE * 0.5)
+	check(not player.visible and player.global_position == struck_at, "while gone, nothing moves them, the stick neither")
+	check(view == null or view.position.is_equal_approx(view_at), "and the view holds still")
+	check(await within(func() -> bool: return player.held <= 0.0, Player.THORN_PAUSE), "%.1f s on" % Player.THORN_PAUSE)
+	check(player.visible and player.global_position.distance_to(foot) < 8.0, "they appear back on the rock they last stood on")
+	check(view == null or view.position.is_equal_approx(player.position), "the view cut to them")
+	check(is_equal_approx(player.invulnerable.acting, safe_left), "and the hit's untouchable time is all still to come")
+	check(await within(func() -> bool: return player.global_position.x > foot.x + 16.0, 0.5), "then they can run again")
 	Input.action_release("Right")
 
 	print("floating ledges count as footing")
@@ -174,17 +180,18 @@ func run() -> void:
 	var rock: Vector2 = player.footing
 	var off: Vector2 = player.perch_off
 	var was: Vector2 = player.global_position
-	# Off it, and the lift moves on a cell before the wizard is sent back.
+	# Off it and struck, and the lift moves on a cell while the wizard is gone.
 	player.global_position += Vector2(0.0, -cell * 1.5)
+	player.thorn_back()
 	lift._held += Vector2(cell, 0.0)
 	lift._place(lift._held)
-	player.thorn_back()
-	check(player.global_position.distance_to(lift.global_position + off) < 1.0 and player.global_position.distance_to(was) > cell * 0.9, "sent back, they are put on the lift where they stood on it, wherever it has gone")
-	check(await within(func() -> bool: return player.held <= 0.0, Player.THORN_PAUSE + 0.2), "held there a moment")
-	check(player.is_on_floor() and player.perch == lift and player.global_position.distance_to(lift.global_position + off) < 4.0, "and still standing on it")
+	check(await within(func() -> bool: return player.held <= 0.0, Player.THORN_PAUSE + 0.2), "gone a moment")
+	check(player.global_position.distance_to(lift.global_position + off) < 4.0 and player.global_position.distance_to(was) > cell * 0.9, "they appear on the lift where they stood on it, wherever it has gone meanwhile")
+	check(await within(func() -> bool: return player.is_on_floor(), 0.3) and player.perch == lift, "and stand on it")
 	player.global_position += Vector2(0.0, -cell * 1.5)
 	lift.free()
 	player.thorn_back()
+	await within(func() -> bool: return player.held <= 0.0, Player.THORN_PAUSE + 0.2)
 	check(player.global_position.distance_to(rock) < 1.0, "with the lift gone, back on the last rock instead")
 	RunState.delete_save()
 	finish()

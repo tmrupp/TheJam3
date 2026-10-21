@@ -335,6 +335,9 @@ func _apart() -> void:
 	player.phasing = true
 	await until(func() -> bool: return a.grounded and b.grounded)
 	var keep: float = (a.layout[0].z + b.layout[0].z) * Abomination.APART
+	var blob: Vector3 = a.lobe_at(0)
+	var round_blob: Rect2 = Rect2(a.global_position + Vector2(blob.x * a.facing - blob.z, blob.y + Abomination.FEET - blob.z), Vector2(blob.z, blob.z) * 2.0)
+	check(SpellStrike.body_of(a).grow(1.0).encloses(round_blob), "an abomination's touch, and where it is struck, cover its blobs")
 	check(await within(func() -> bool: return absf(a.global_position.x - b.global_position.x) >= keep * 0.9, 2.0), "two on one spot ease apart (%.0f px, keeping %.0f)" % [absf(a.global_position.x - b.global_position.x), keep])
 	# After the wizard, off past another held still on the floor: it comes up behind it and stops.
 	a.global_position = info.cell_position(at + Vector2i(3, 0))

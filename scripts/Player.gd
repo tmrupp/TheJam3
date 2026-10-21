@@ -63,6 +63,10 @@ const GRACE_TIME: float = 1.0
 var graced: ActionTimer = ActionTimer.new(GRACE_TIME, refresh_self)
 
 func grace() -> void:
+	# Arrived somewhere new: a pause after thorns (thorn_back) is over, and they are seen here.
+	if held > 0.0:
+		held = 0.0
+		visible = true
 	var showing: bool = is_invulnerable()
 	graced.enable(true)
 	if not showing:
@@ -484,7 +488,7 @@ func _physics_process(delta: float) -> void:
 	drowsy = maxf(0.0, drowsy - delta)
 	stroke_rest = maxf(0.0, stroke_rest - delta)
 	ladder_rest = maxf(0.0, ladder_rest - delta)
-	# Just sent back by thorns (thorn_back): held still a moment before anything else.
+	# Just struck by thorns (thorn_back): gone a moment before anything else.
 	if held > 0.0:
 		_hold(delta)
 		return
@@ -816,10 +820,10 @@ var footing_at: Vector2i = Vector2i(-99999, -99999)
 var perch: Node2D = null
 var perch_off: Vector2 = Vector2.ZERO
 var perch_at: Vector2i = Vector2i(-99999, -99999)
-## How long the wizard is held still once thorns have sent them back (seconds): deaf to the buttons,
-## so they do not land already running, jumping or casting. The timers wait too, so the hit's
-## untouchable time is all still to come when they can move.
-const THORN_PAUSE: float = 0.4
+## How long the wizard is gone once thorns have struck them (seconds), before they appear back on
+## safe footing (thorn_back): deaf to the buttons, so they do not appear already running, jumping or
+## casting. The timers wait too, so the hit's untouchable time is all still to come when they appear.
+const THORN_PAUSE: float = 0.8
 var held: float = 0.0
 
 
@@ -888,12 +892,16 @@ func _safe_at(info: MapInfo, at: Vector2) -> bool:
 	return true
 
 
-## Hit by thorns (Spikes): back where they last stood safely in this level (_back_spot), held still
-## for THORN_PAUSE and then untouchable for the rest of the hit's time; where there is nowhere yet,
-## the hit only throws them back.
+## Hit by thorns (Spikes): the wizard is gone from where they were struck for THORN_PAUSE, the view
+## held still where it is (CameraControl), then appears back where they last stood safely in this
+## level (_back_spot, worked out as they appear: a lift may have moved on meanwhile), the view cut
+## to them, and is untouchable for the rest of the hit's time; where there is nowhere yet, the hit
+## only throws them back.
 func thorn_back() -> void:
 	var spot: Variant = _back_spot()
-	if spot == null or phasing:
+	# Nothing to do for a blow that slew them, or one met on the way somewhere else.
+	var info: MapInfo = MapInfo.instance
+	if spot == null or phasing or health.health <= 0 or (info != null and (info.travelling or info.run_ending > 0.0)):
 		return
 	if ladder != null:
 		_let_go()
@@ -903,18 +911,32 @@ func thorn_back() -> void:
 	dash.end()
 	wall_jump.end()
 	levitating = false
-	global_position = spot
+	_back_to = spot
 	held = THORN_PAUSE
+	visible = false
 
 
-## Held still after being sent back (held): no buttons, nothing timed runs on, only falling onto
-## and riding what they were put on.
+## Where thorns were sending the wizard back to when they struck (see thorn_back), in case nowhere is
+## safe by the time they appear.
+var _back_to: Vector2 = Vector2.ZERO
+
+
+## Gone after thorns struck (held): no buttons, nothing moves them and nothing timed runs on; at the
+## end of it they appear back on safe footing (_appear).
 func _hold(delta: float) -> void:
 	held = maxf(0.0, held - delta)
-	velocity.x = 0.0
-	velocity.y = 0.0 if is_on_floor() else velocity.y + gravity * delta
-	move_and_slide()
-	_footing()
+	velocity = Vector2.ZERO
+	if held <= 0.0:
+		_appear()
+
+
+## Back where thorns sent them (thorn_back), seen again, the view cut to them, in a puff of their glow.
+func _appear() -> void:
+	var spot: Variant = _back_spot()
+	global_position = spot if spot != null else _back_to
+	visible = true
+	CameraControl.snap(self)
+	RisoFx.burst(&"recharge", global_position, Vector2.ZERO, [RisoPrint.GLOW])
 
 
 ## Out of the bottom of a sky level: back where they last stood safely (_back_spot; or at the way
