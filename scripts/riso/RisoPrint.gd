@@ -1055,11 +1055,16 @@ func _rebuild_ground(map_info: MapInfo) -> void:
 			light.rebuild(map_info)
 
 
+## The keys that open and close the panel: F7, and the key left of 1 (backquote, `), which the
+## left hand reaches from the movement keys. The pause menu opens it too, in debug runs.
+const PANEL_KEYS: Array[Key] = [KEY_F7, KEY_QUOTELEFT]
+
+
 func _unhandled_key_input(event: InputEvent) -> void:
 	var key: InputEventKey = event as InputEventKey
 	if key == null or not key.pressed or key.echo:
 		return
-	if key.keycode == KEY_F7:
+	if PANEL_KEYS.has(key.keycode) or PANEL_KEYS.has(key.physical_keycode):
 		set_pad_panel(not panel.visible)
 	elif key.keycode == KEY_F8:
 		cycle_realm()
@@ -1067,7 +1072,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 ## The F7 panel by controller, in debug runs: Back (Select) opens it, pausing the game and focusing
 ## its first control so the D-pad or stick moves through it (A picks, left and right change
-## sliders or choices); Back again, or B, closes it and the game goes on. F7 shares this focus.
+## sliders or choices); Back again, or B, closes it and the game goes on. The PANEL_KEYS and the
+## pause menu share this focus.
 var _pad_paused: bool = false
 
 
@@ -1260,7 +1266,7 @@ func _build_panel() -> void:
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(box)
 	var title: Label = Label.new()
-	title.text = "Riso print  (F6 on/off, F7 panel, F8 realm; pad: Back in debug)"
+	title.text = "Riso print  (F7 or ` panel, F8 realm; pad: Back in debug)"
 	title.add_theme_font_size_override("font_size", 6)
 	box.add_child(title)
 	# First, so a controller lands on it (debug runs only).
@@ -1432,6 +1438,27 @@ func _build_travel(box: VBoxContainer) -> void:
 	_button(boss_row, "Full heal", func() -> void:
 		if MapInfo.instance != null:
 			MapInfo.instance.full_heal())
+	_build_cheats(_travel_box)
+
+
+## Debug runs only: the wizard loses no hearts (Health.invincible), every spell casts empowered on
+## a held press with no wait (Empower.always), and the charges of darkness carried
+## (RunState.dark_charges) set by hand.
+var _darkness_label: Label
+
+
+func _build_cheats(box: VBoxContainer) -> void:
+	var rows: VBoxContainer = _section(box, "Cheats (debug)", true)
+	_option_row(rows, &"invincible", "Invincible", ["Off", "On"], func(i: int) -> void: Health.invincible = i == 1)
+	_option_row(rows, &"empowered", "Empowered", ["Off", "On"], func(i: int) -> void:
+		Empower.always = i == 1
+		var empower: Empower = Empower.of(_player) if _player != null and is_instance_valid(_player) else null
+		if empower != null and Empower.always:
+			empower.wait = 0.0)
+	_darkness_label = _stepper_row(rows, "Darkness", func(d: int) -> void:
+		if MapInfo.instance != null and MapInfo.instance.run != null:
+			var run: RunState = MapInfo.instance.run
+			run.dark_charges = maxi(0, run.dark_charges + d))
 
 
 ## A row: its name, a "-" button, the value, a "+" button; `on_step` gets -1 or +1.
@@ -1581,6 +1608,10 @@ func _sync_panel() -> void:
 		_travel_box.visible = MapInfo.debug
 		_travel_world_label.text = str(_travel_at.x)
 		_travel_depth_label.text = "%d  (%s)" % [_travel_at.y, NextWorldDef.archetype_at(_travel_at.y)]
+		(_options[&"invincible"] as OptionButton).select(1 if Health.invincible else 0)
+		(_options[&"empowered"] as OptionButton).select(1 if Empower.always else 0)
+		var run: RunState = MapInfo.instance.run if MapInfo.instance != null else null
+		_darkness_label.text = str(run.dark_charges) if run != null else "-"
 	_detail_label.text = "Heavy" if detail < 25.0 else ("Medium" if detail < 65.0 else ("Fine" if detail < 90.0 else "Extra fine"))
 	_rate_label.text = "held" if sheet_rate <= 0.0 else "%d / s" % int(sheet_rate)
 	_zoom_label.text = "%d%%" % roundi(100.0 / zoom_factor)

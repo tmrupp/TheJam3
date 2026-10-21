@@ -17,6 +17,10 @@ class_name Empower
 ## ring a cell out, the push breaks the cracked cell before the wizard, and the lunge drives through
 ## a cracked wall up to Lunge.RAM cells thick. Every wizard has one (Player).
 
+## Debug runs (the debug panel's Empowered): every spell counts as tempered, and empowerment is
+## always back, so each held press casts empowered. Outside debug runs it does nothing.
+static var always: bool = false
+
 ## How long (seconds) the Spell button is held for an empowered cast.
 const HOLD: float = 0.4
 ## The wound an empowered cast adds to the spell's own.
@@ -45,14 +49,24 @@ static func _run() -> RunState:
 	return MapInfo.instance.run if MapInfo.instance != null else null
 
 
-## Whether a lodestone has tempered `spell` this run.
+## Whether `always` holds now (in a debug run).
+static func _always() -> bool:
+	return always and MapInfo.debug
+
+
+## Whether a lodestone has tempered `spell` this run (any spell, while `always` holds).
 static func tempered(spell: StringName) -> bool:
+	if _always():
+		return spell != &""
 	var run: RunState = _run()
 	return run != null and run.tempered.has(spell)
 
 
-## Seconds an empowered cast takes to come back now (by the lodestones touched).
+## Seconds an empowered cast takes to come back now (by the lodestones touched; none while
+## `always` holds).
 static func recharge() -> float:
+	if _always():
+		return 0.0
 	var run: RunState = _run()
 	return Rules.empower_recharge(run.lodestones.size() if run != null else 0)
 
