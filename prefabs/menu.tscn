@@ -79,6 +79,11 @@ visible = false
 layout_mode = 2
 text = "Give up (back to lantern)"
 
+[node name="DebugPanel" type="Button" parent="VBoxContainer"]
+visible = false
+layout_mode = 2
+text = "Debug panel"
+
 [node name="MainMenu" type="Button" parent="VBoxContainer"]
 visible = false
 layout_mode = 2
