@@ -9,8 +9,9 @@ class_name ScholarArt
 ##   swells and brightens as it winds up a bolt and sputters when it misfires; scattering, it
 ##   leans away and its eyes go small.
 ## - a master: tall, in a pale gown edged in pink with a pink stole, its hat taller, its orb pink
-##   with the mark of the spell it has mastered (RisoGlyph) knocked to paper on it, and its tier
-##   of health as pips over its hat; winding up, its hand comes up and the orb goes to it.
+##   with the mark of the spell it has mastered (RisoGlyph) knocked to paper on it, and its health
+##   as pink pips whirling round it like motes (MoteArt), bobbing and rocking on their points as
+##   they go, hidden by it as they pass behind; winding up, its hand comes up and the orb goes to it.
 ## - a proctor: a brown gown under a flat-topped wooden cap with a tassel, leaning on a tall staff headed
 ##   with a pink ring, the links to those it shields flashing as it shields them.
 ## - a librarian: in pale tan, hooded, no hat, round paper spectacles over its eyes, a book held open before it,
@@ -23,6 +24,15 @@ class_name ScholarArt
 
 ## How many paper twinkles circle a projected instructor.
 const PROJECTED_MOTES: int = 6
+## A master's health pips (_pips): how far round it they whirl (px across, and up and down as they
+## pass in front and behind), round its middle PIP_MIDDLE art units up from its feet, the ring tipped
+## by PIP_TILT (radians); how fast (radians a second); each pip's reach (px), and how far it bobs (px).
+const PIP_ORBIT: Vector2 = Vector2(52.0, 16.0)
+const PIP_MIDDLE: float = 11.0
+const PIP_TILT: float = -0.2
+const PIP_WHIRL: float = 1.3
+const PIP_SIZE: float = 10.0
+const PIP_BOB: float = 3.0
 ## Px per art unit, by kind.
 const SIZE: Dictionary = {&"student": 2.7, &"master": 3.5, &"proctor": 3.0, &"librarian": 2.9}
 ## The hem's points across, in art units, and how far a stride is (px walked a step).
@@ -102,6 +112,8 @@ func _draw_art() -> void:
 	var ph: float = s.walked / STRIDE
 	var bob: float = absf(sin(ph * PI)) * 0.8 * walk + sin(t * 1.6 + phase) * 0.25
 	_instructor(s, g)
+	if kind == &"master":
+		_pips(xf, s, true)
 	if ink.rigged and InkCanvas.rig_on_gpu:
 		_draw_rigged(s, kind, xf, ph, bob, wind, stunned, scared)
 		return
@@ -176,7 +188,7 @@ func _draw_art() -> void:
 		_:
 			_orb(kind, xf, hand, wind, s)
 	if kind == &"master":
-		_pips(xf * (crown + Vector2(0, -3.5)), s)
+		_pips(xf, s, false)
 		_relic_mark(xf * (crown + Vector2(0, -3.5)), s)
 	if stunned:
 		_stun_mark(xf * (crown + Vector2(0, -4.0)))
@@ -305,15 +317,8 @@ func _draw_rigged(s: Scholar, kind: StringName, xf: Transform2D, ph: float, bob:
 		_:
 			_orb_rigged(kind, xf, hand, wind, s, rest)
 	if kind == &"master":
-		var wound: Wound = s.get_node_or_null("Wound") as Wound
-		if wound != null:
-			var key: StringName = StringName("pips %d %d" % [wound.hp, maxi(wound.hp, int(Scholar.HP[&"master"]))])
-			if not rest.has(key):
-				rest[key] = ScholarArt._pips_rest(wound.hp, maxi(wound.hp, int(Scholar.HP[&"master"])))
-			ink.on_bone(ink.bone(Transform2D(0.0, xf * (crown + Vector2(0, -3.5)))))
-			ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], rest[key])
-			ink.ink(RisoPrint.PINK, 1.0, rest[key], false)
 		ink.on_bone(0)
+		_pips(xf, s, false)
 		_relic_mark(xf * (crown + Vector2(0, -3.5)), s)
 	if stunned:
 		ink.on_bone(0)
@@ -424,15 +429,6 @@ func _orb_rigged(kind: StringName, xf: Transform2D, hand: Vector2, wind: float, 
 		ink.knock([RisoPrint.PINK, RisoPrint.NIGHT, RisoPrint.BLUE], _rests[key])
 	else:
 		ink.knock([RisoPrint.PINK], rest[&"gleam"])
-
-
-## A master's health as pips (`hp` of them, spaced for `full`), round the origin.
-static func _pips_rest(hp: int, full: int) -> Array[PackedVector2Array]:
-	var whole: Array[PackedVector2Array] = []
-	for i: int in range(hp):
-		var at: Vector2 = Vector2((float(i) - float(full - 1) * 0.5) * 13.0, 0)
-		whole.append(PackedVector2Array([at + Vector2(0, -4.5), at + Vector2(4.5, 0), at + Vector2(0, 4.5), at + Vector2(-4.5, 0)]))
-	return whole
 
 
 ## The rest shapes of a kind of scholar (see HAND_REST), built the first time.
@@ -696,7 +692,6 @@ func _orb(kind: StringName, xf: Transform2D, hand: Vector2, wind: float, s: Scho
 		ink.knock([RisoPrint.PINK], [RisoShapes.circle(c + Vector2(-0.35, -0.35) * size * k, 0.4 * size * k, 10)])
 
 
-## A master's health as pips over its hat: pink while whole, faint once lost.
 ## The relic a master carries (Scholar.relic), over its pips at `c`: a small medallion as a relic's
 ## own (RelicArt), an accent ring round a paper disc with the move's mark in night, bobbing.
 func _relic_mark(c: Vector2, s: Scholar) -> void:
@@ -713,17 +708,27 @@ func _relic_mark(c: Vector2, s: Scholar) -> void:
 	ink.ink(RisoPrint.NIGHT, 1.0, mark, false)
 
 
-func _pips(c: Vector2, s: Scholar) -> void:
+## A master's health as pips whirling round it like motes (see the class description), placed by
+## `xf` (its art units): one a point of health, spaced round for its full health, so a pip lost
+## leaves a gap in the ring. Those `behind` it are printed before its robe, which hides them, and a
+## shade fainter; those in front, after. Each is printed on paper.
+func _pips(xf: Transform2D, s: Scholar, behind: bool) -> void:
 	var wound: Wound = s.get_node_or_null("Wound") as Wound
-	if wound == null:
+	if wound == null or wound.hp <= 0:
 		return
 	var full: int = maxi(wound.hp, int(Scholar.HP[&"master"]))
-	var whole: Array[PackedVector2Array] = []
+	var middle: Vector2 = xf * Vector2(0, -PIP_MIDDLE)
+	var pips: Array[PackedVector2Array] = []
 	for i: int in range(wound.hp):
-		var at: Vector2 = c + Vector2((float(i) - float(full - 1) * 0.5) * 13.0, 0)
-		whole.append(PackedVector2Array([at + Vector2(0, -4.5), at + Vector2(4.5, 0), at + Vector2(0, 4.5), at + Vector2(-4.5, 0)]))
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], whole)
-	ink.ink(RisoPrint.PINK, 1.0, whole, false)
+		var a: float = t * PIP_WHIRL + phase + TAU * float(i) / float(full)
+		var depth: float = sin(a)
+		if (depth < 0.0) != behind:
+			continue
+		var at: Vector2 = middle + Vector2(cos(a) * PIP_ORBIT.x, depth * PIP_ORBIT.y).rotated(PIP_TILT) + Vector2(0, sin(t * 3.0 + phase + float(i) * 1.7) * PIP_BOB)
+		var rock: float = sin(t * 1.7 + phase + float(i)) * 0.45
+		pips.append(Transform2D(rock, at) * RisoShapes.sparkle(Vector2.ZERO, PIP_SIZE * (0.85 + 0.15 * depth)))
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], pips)
+	ink.ink(RisoPrint.PINK, 0.75 if behind else 1.0, pips, false)
 
 
 ## A proctor's staff: a tall pole in its hand, headed with a pink ring; as it shields those round it,

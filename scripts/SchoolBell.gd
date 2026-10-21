@@ -5,11 +5,13 @@ class_name SchoolBell
 ## hall and the library, up through the ceiling, and out in the corridors one under each corridor
 ## bell (`great`), whose yoke marks the period. Pull it (interact, or strike it with a spell from
 ## across a shaft) and it rings, if it can (MapInfo.pull_cord): in passing time class time begins (a
-## wizard in a classroom attends its class, one anywhere else is truant), and in class time, rung by a
-## wizard truant in the halls, passing time begins again; the whole institute shakes while it rings
-## out (MapInfo.BELL_TIME).
-## The cord rung last cannot be rung again until another has been, and none rings within RING_GAP
-## seconds of the last ring.
+## wizard in a classroom attends its class, one anywhere else is truant, and every classroom's doors
+## shut), and in class time passing time begins again, the classrooms' doors opening: a wizard shut
+## in a classroom rings its own cord to be let out, one truant in the halls any other. The whole
+## institute shakes while it rings out (MapInfo.BELL_TIME).
+## The cord rung last cannot be rung again until another has been (but for a classroom's own cord
+## letting out the class it began, MapInfo.dismissing), and none rings within RING_GAP seconds of the
+## last ring.
 
 ## The least time between two rings of the great bell (seconds).
 const RING_GAP: float = 1.0
@@ -40,9 +42,10 @@ static func ceiling_over(w: LevelGen, v: Vector2i) -> int:
 	return k
 
 
-## Whether it was the cord rung last, which cannot be rung again yet.
+## Whether it was the cord rung last, which cannot be rung again yet (but to let out the class it
+## began, MapInfo.dismissing).
 func spent() -> bool:
-	return map_info != null and map_info.world != null and map_info.record().last_bell == cell
+	return map_info != null and map_info.world != null and map_info.record().last_bell == cell and not map_info.dismissing(cell)
 
 
 ## Pull it: it rings, if it can (MapInfo.pull_cord).
