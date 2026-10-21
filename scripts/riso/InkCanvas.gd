@@ -31,6 +31,16 @@ var _last_shape: RisoInkOp.Shape = null
 ## its ops sit untransformed under it, so they all share it.
 var _px: float = -1.0
 
+## Whether its punches (ink() punching the night out from under what it lays) also lift the wall's
+## ink, the rock plate (BLUE), while the realm prints its open air as a wall (walls_behind): set on
+## the things of the game (props, the wizard), so they print in their own inks over the institute's
+## dark wood as they do over a night sky, rather than multiplied into it. The lift is put just under
+## the canvas, so its own rock ink, laid before or after, is kept.
+var punches_wall: bool = false
+## Whether the realm being printed lays its rock ink over all its open air, as a back wall (an
+## indoor realm, RisoTerrain.INDOOR_REALMS; set by RisoPrint.set_realm).
+static var walls_behind: bool = false
+
 ## Whether the art never changes an array of shapes once it has handed it over (it hands over its
 ## rest shapes, built once, again every print): an op given the very same array as last time then
 ## keeps its shape without comparing it (see _emit).
@@ -197,6 +207,8 @@ func ink(plate: int, cover: float, polys: Array[PackedVector2Array], punch: bool
 	_emit(1 << (RisoPrint.PLATE_BIT0 + plate), false, cover, polys, [])
 	if punch and plate != RisoPrint.NIGHT:
 		_emit(1 << (RisoPrint.PLATE_BIT0 + RisoPrint.NIGHT), true, cover, polys, [], true)
+		if punches_wall and walls_behind and plate != RisoPrint.BLUE:
+			_emit(1 << (RisoPrint.PLATE_BIT0 + RisoPrint.BLUE), true, cover, polys, [], true, true)
 
 
 ## Several inks printed over one another in the same shapes (the key colours), each in turn.
@@ -212,6 +224,8 @@ func ink_graded(plate: int, polys: Array[PackedVector2Array], alphas: Array[Pack
 	_emit(1 << (RisoPrint.PLATE_BIT0 + plate), false, amount, polys, alphas)
 	if punch and plate != RisoPrint.NIGHT:
 		_emit(1 << (RisoPrint.PLATE_BIT0 + RisoPrint.NIGHT), true, amount, polys, alphas, true)
+		if punches_wall and walls_behind and plate != RisoPrint.BLUE:
+			_emit(1 << (RisoPrint.PLATE_BIT0 + RisoPrint.BLUE), true, amount, polys, alphas, true, true)
 
 
 ## Ink over a shape already cut into triangles (`indices` into `points`), each point's cover in
@@ -266,8 +280,8 @@ func lift_ink_graded(plates: Array[int], polys: Array[PackedVector2Array], alpha
 	_emit(mask, true, amount, polys, alphas)
 
 
-## The next op, set to print on `mask`, laying or lifting.
-func _next_op(mask: int, lift: bool) -> RisoInkOp:
+## The next op, set to print on `mask`, laying or lifting, in the canvas or (`under`) just under it.
+func _next_op(mask: int, lift: bool, under: bool = false) -> RisoInkOp:
 	var op: RisoInkOp
 	if _used < _ops.size():
 		op = _ops[_used]
@@ -284,6 +298,9 @@ func _next_op(mask: int, lift: bool) -> RisoInkOp:
 	if op.layer != mask:
 		op.layer = mask
 		op.visibility_layer = mask
+	if op.under != under:
+		op.under = under
+		op.z_index = -1 if under else 0
 	var material_now: Material
 	if rigged and rig_on_gpu:
 		material_now = rig_mul if lift else rig_mix
@@ -297,8 +314,8 @@ func _next_op(mask: int, lift: bool) -> RisoInkOp:
 	return op
 
 
-func _emit(mask: int, lift: bool, cover: float, polys: Array[PackedVector2Array], alphas: Array[PackedFloat32Array], again: bool = false) -> void:
-	var op: RisoInkOp = _next_op(mask, lift)
+func _emit(mask: int, lift: bool, cover: float, polys: Array[PackedVector2Array], alphas: Array[PackedFloat32Array], again: bool = false, under: bool = false) -> void:
+	var op: RisoInkOp = _next_op(mask, lift, under)
 	# The same shapes as the last op, or as this op printed last time, are not copied or
 	# triangulated again. A graded shape's cover at each point is scaled by the op's cover (and
 	# the canvas's coverage) as it prints, so a fade that only grows stronger or weaker keeps it.

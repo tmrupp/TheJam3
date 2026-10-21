@@ -65,7 +65,8 @@ func _sees_wizard() -> bool:
 	if player == null or not is_instance_valid(player):
 		return false
 	var d: Vector2 = player.global_position - rb.global_position
-	if absf(d.x) > SIGHT.x or absf(d.y) > SIGHT.y:
+	var sight: Vector2 = Vector2(Lamplight.notice(SIGHT.x), Lamplight.notice(SIGHT.y))
+	if absf(d.x) > sight.x or absf(d.y) > sight.y:
 		return false
 	var query: PhysicsRayQueryParameters2D = PhysicsRayQueryParameters2D.create(rb.global_position, player.global_position, 4, [rb.get_rid()])
 	return get_world_2d().direct_space_state.intersect_ray(query).is_empty()

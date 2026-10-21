@@ -101,7 +101,7 @@ func can_see() -> bool:
 		return false
 	var from: Vector2 = muzzle()
 	var d: Vector2 = player.global_position - from
-	if signf(d.x) != float(facing) or d.length() > float(RANGE) * cell_px:
+	if signf(d.x) != float(facing) or d.length() > Lamplight.notice(float(RANGE) * cell_px):
 		return false
 	if absf(d.y) > LINE:
 		return false

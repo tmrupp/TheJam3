@@ -1,5 +1,5 @@
 extends TestKit
-## Astral projection drifts through rock: nothing solid stops it, it is kept inside the level,
+## Astral projection drifts through rock and enemies: nothing solid stops it, it is kept inside the level,
 ## drifting into a secret room's rock opens the room, and ending inside rock (run out or snapped
 ## back) costs a heart and puts the wizard back in their body. Warp lands on a random floor, then
 ## recharges; at tier II on one not yet seen; at tier III in a secret room not yet opened, opening it.
@@ -64,6 +64,30 @@ func run() -> void:
 	projection.call("toggle")
 	await frames(2)
 	check(player.health.health == hp, "snapping back from open air costs nothing")
+
+	print("through enemies")
+	var bones: Node2D = (load("res://prefabs/skeleton_enemy.tscn") as PackedScene).instantiate() as Node2D
+	info.map_elements.add_child(bones)
+	bones.global_position = body_at + Vector2(160, -10)
+	await create_timer(1.5).timeout
+	# Once it has landed it is held where it stands (woken by the wizard's light it would walk off),
+	# and the projection drifts at its middle.
+	(bones.get_node("Skeleton") as Node).set_physics_process(false)
+	var bones_at: Vector2 = bones.global_position
+	player.global_position = bones_at + Vector2(-160, 0)
+	projection.call("toggle")
+	await physics_frame
+	await physics_frame
+	check(not player.get_collision_mask_value(DashStrike.ENEMY_LAYER), "projected, enemies' bodies do not stop it")
+	player.global_position = bones_at + Vector2(-160, 0)
+	Input.action_press(&"Right")
+	var passed: bool = await within(func() -> bool: return player.global_position.x > bones_at.x + 100.0, 1.2)
+	Input.action_release(&"Right")
+	check(passed and bool(projection.call("projecting")) and absf(player.global_position.y - bones_at.y) < 8.0, "it drifts straight through a skeleton")
+	projection.call("toggle")
+	bones.free()
+	await frames(3)
+	check(not player.phasing and player.get_collision_mask_value(DashStrike.ENEMY_LAYER), "back in its body, the wizard is stopped by enemies again")
 
 	print("drifting into a secret room")
 	check(not info.world.secrets.is_empty(), "the level has a secret room")
