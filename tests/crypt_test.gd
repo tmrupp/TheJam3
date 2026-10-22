@@ -120,14 +120,15 @@ func play() -> void:
 	check(not Lamplight.at(info.cell_position(b)), "snuffed, it lights nothing")
 	info.relight()
 
-	print("a wraith freezes in light")
+	print("light scares a wraith off")
 	var wraith: Node2D = _spawn("res://prefabs/wraith_enemy.tscn", b)
-	await physics_frame
-	await physics_frame
-	var was: Vector2 = wraith.global_position
-	await within(func() -> bool: return false, 1.0)
 	var ghost: Wraith = wraith.get_node("Wraith") as Wraith
-	check(ghost.shy and wraith.global_position.distance_to(was) < 1.0, "in the flame's light it freezes, cowering")
+	var near: float = wraith.global_position.distance_to(player.global_position)
+	check(await within(func() -> bool: return ghost.shy, 0.3), "in the flame's light it cowers")
+	check(await within(func() -> bool: return not Lamplight.at(wraith.global_position), 3.0) and wraith.global_position.distance_to(player.global_position) > near + 40.0, "and flees out of it, away from the flame")
+	await within(func() -> bool: return false, Wraith.FLEE_ON + 1.0)
+	check(not ghost.shy and not Lamplight.at(wraith.global_position) and ghost.fleeing <= 0.0, "out of it, it keeps out (its home is in the light: it holds at the light's edge)")
+	var was: Vector2 = wraith.global_position
 	info.snuff(player.global_position)
 	check(await within(func() -> bool: return wraith.global_position.distance_to(player.global_position) < was.distance_to(player.global_position) - 30.0, 2.0), "snuffed, it comes on")
 	wraith.queue_free()

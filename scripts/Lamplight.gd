@@ -51,6 +51,22 @@ static func at(pos: Vector2) -> bool:
 	return false
 
 
+## Which way is away from the light falling on `pos` (a unit vector): from each light that reaches it,
+## the nearer the light the more; zero where none does.
+static func away(pos: Vector2) -> Vector2:
+	var info: MapInfo = MapInfo.instance
+	if info == null or info.world == null:
+		return Vector2.ZERO
+	var out: Vector2 = Vector2.ZERO
+	for light: Vector3 in lights(info):
+		var from: Vector2 = Vector2(light.x, light.y)
+		var d: float = from.distance_to(pos)
+		if d <= light.z and sees(info, from, pos):
+			var off: Vector2 = (pos - from).normalized() if d > 0.5 else Vector2.UP
+			out += off * (1.0 - d / maxf(light.z, 1.0) + 0.1)
+	return out.normalized()
+
+
 ## The lights of the level being played (see the class note), as (x, y, reach as lit).
 static func lights(info: MapInfo) -> Array[Vector3]:
 	var frame: int = Engine.get_physics_frames()
