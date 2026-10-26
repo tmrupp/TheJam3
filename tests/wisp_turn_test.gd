@@ -232,6 +232,10 @@ func floor_at(v: Vector2i) -> bool:
 ## and the camera on it (so its chunk is awake and its art draws). It is woken where it is before
 ## it is moved (a sleeping chunk's bodies are out of the physics world), and moved with its Mover
 ## paused, so the physics world takes the new place before the Mover moves the body on from it.
+## The camera follows only once the physics world has: the body is frozen and kinematic, so it
+## gets there on the next step, and the step before reports it back where it was. A chunk sweep
+## seeing it there meanwhile, with the camera gone, would put it to sleep there for good; asleep
+## at its new place instead, it wakes with that chunk.
 func settle_wisp(cell: Vector2i, dir: int) -> Node2D:
 	var w: Node2D = placed("mover_enemy.tscn")[0] as Node2D
 	var mover: Mover = w.get_node("Mover") as Mover
@@ -242,9 +246,14 @@ func settle_wisp(cell: Vector2i, dir: int) -> Node2D:
 	await until(func() -> bool: return info.loader.is_awake(w))
 	mover.set_physics_process(false)
 	w.global_position = info.cell_position(cell)
+	await frames(2)
 	camera.global_position = w.global_position
 	camera.reset_smoothing()
+	await until(func() -> bool: return info.loader.is_awake(w))
 	await frames(2)
+	# Put at the cell's centre, it is in the air: whether it stood on a floor before it was moved
+	# says nothing (a wisp settles onto its floor on its first step, so it already had).
+	mover.grounded = false
 	mover.set_physics_process(true)
 	if mover.direction != dir:
 		mover.turn()

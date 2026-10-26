@@ -105,6 +105,9 @@ func stand(w: Node2D, cell: Vector2i) -> void:
 	if mover.direction != 1:
 		mover.turn()
 		mover.turn_left = 0.0
+	# Put at the cell's centre, it is in the air: whether it stood on a floor before it was moved
+	# says nothing (a wisp settles onto its floor on its first step, so it already had).
+	mover.grounded = false
 	mover.set_physics_process(true)
 	await until(func() -> bool: return mover.grounded)
 	await frames(2)

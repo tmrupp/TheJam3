@@ -55,6 +55,10 @@ func run() -> void:
 	var side: Vector2 = pick[1]
 	var cell: Vector2i = e.get_meta(&"cell")
 	var stars_before: int = placed("coin.tscn").size()
+	# The wizard nearby wakes its chunk, and a wisp that has not yet moved settles onto its floor
+	# on its first step: aim at where it stands, not at its cell's centre where it was put.
+	player.global_position = e.global_position + side * 150.0
+	check(await until(func() -> bool: return (e.get_node("Mover") as Mover).grounded), "the wisp stands on its floor")
 	# Standing on the wisp's own floor (the wisp's body centre is 16 px up, the wizard's 31 px), so
 	# the bolt flies level at hat height, over the wisp's body.
 	player.global_position = e.global_position + side * 150.0 + Vector2(0, 16 - 31)

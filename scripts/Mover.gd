@@ -6,7 +6,8 @@ class_name Mover
 ## gravity until it lands, so the physics engine never bounces it on the floor. Standing on
 ## something that moves (a gondola's car, a lift), it is carried with it each step, first of all,
 ## so a rising floor never pushes into it and a sinking one never leaves it behind; how far it has
-## been carried all told is kept (carried), so its art can tell being carried from walking.
+## been carried all told is kept (carried), and how far it has dropped (fallen), so its art can
+## tell being carried or dropping from walking.
 
 
 const SPEED: float = 60.0
@@ -37,11 +38,20 @@ var grounded: bool = false
 ## by what it stands on, all told (px).
 var under_velocity: Vector2 = Vector2.ZERO
 var carried: Vector2 = Vector2.ZERO
-## How fast it must be dropping (px/s) to be falling, not just stepping off a moving floor; and how
-## far (px) a floor that drops away from under it (a gondola's car slowing on its way up, a lift
+## How far it has dropped under its own weight, all told (px): settling onto its floor, falling, and
+## keeping to a floor that sinks away under it. Its art moves its whole body down by as much, so a
+## drop never bends it as walking would.
+var fallen: float = 0.0
+## How far (px) a floor that drops away from under it (a gondola's car slowing on its way up, a lift
 ## setting off down) may have gone in a step for it to settle back onto it at once.
-const FALLING: float = 200.0
 const SNAP: float = 12.0
+## Put at its cell's centre, it settles onto the floor on its first step, looking this far (px, a
+## cell) under where it was put. Not on being added: the level moves it to its cell only after
+## adding it (LevelLoader.place_cell), so settling then left it floating at its cell's centre, to
+## fall into place when its chunk first woke.
+const SETTLE: float = 128.0
+## Whether it has settled onto its floor (on its first step).
+var settled: bool = false
 ## The lurch: walking with the wizard in front of it, within LURCH_SIGHT.x and no more than
 ## LURCH_SIGHT.y above or below it, with no rock between, a wisp stops and winds up for WIND_UP
 ## seconds (its art rears up, glowing hotter: WispArt), then lurches at them, LURCH_SPEED px/s at
@@ -65,11 +75,6 @@ var resting: float = 0.0
 var lurch_wait: float = 0.0
 
 
-## Whether it is falling, not just off its floor for a step.
-func falling() -> bool:
-	return not grounded and fall_speed > FALLING
-
-
 func _ready() -> void:
 	rb.freeze_mode = RigidBody2D.FREEZE_MODE_KINEMATIC
 	rb.freeze = true
@@ -77,8 +82,6 @@ func _ready() -> void:
 	# Stepped after what it may stand on (a gondola, a lift), so it is carried by this step's motion
 	# rather than lagging a step behind, sunk into a rising floor.
 	process_physics_priority = 1
-	# Spawned at its cell's centre: settle onto the floor at once.
-	rb.move_and_collide(Vector2(0, 128))
 
 
 func turn () -> void:
@@ -95,6 +98,11 @@ func wait_to_down () -> void:
 var direction: int = 1
 var down_wait: bool = false
 func _physics_process(delta: float) -> void:
+	# Spawned at its cell's centre: on its first step, standing where it was put, it settles onto
+	# the floor at once rather than falling into place (see SETTLE).
+	if not settled:
+		settled = true
+		_drop(SETTLE)
 	# Carried with what it stands on, before anything else.
 	if grounded and under_velocity != Vector2.ZERO:
 		var carry: Vector2 = under_velocity * delta
@@ -188,18 +196,26 @@ func _sees_wizard() -> bool:
 ## Fall until something is underfoot; resting on the floor, stay put (no bounce).
 func _fall(delta: float) -> void:
 	fall_speed = minf(fall_speed + gravity * delta, MAX_FALL)
-	var hit: KinematicCollision2D = rb.move_and_collide(Vector2(0, fall_speed * delta))
+	var hit: KinematicCollision2D = _drop(fall_speed * delta)
 	grounded = hit != null and hit.get_normal().y < -0.7
 	if not grounded and hit == null and under_velocity != Vector2.ZERO:
 		# Its moving floor dropped away from under it this step: back onto it.
 		var snap: KinematicCollision2D = rb.move_and_collide(Vector2(0, SNAP), true)
 		if snap != null and snap.get_normal().y < -0.7:
-			rb.move_and_collide(Vector2(0, SNAP))
+			_drop(SNAP)
 			hit = snap
 			grounded = true
 	under_velocity = hit.get_collider_velocity() if grounded else Vector2.ZERO
 	if hit != null:
 		fall_speed = 0.0
+
+
+## Move the body down `dy` px, stopping at whatever it meets, and count how far it went (fallen).
+func _drop(dy: float) -> KinematicCollision2D:
+	var from: float = rb.global_position.y
+	var hit: KinematicCollision2D = rb.move_and_collide(Vector2(0, dy))
+	fallen += rb.global_position.y - from
+	return hit
 
 
 ## Whether there is floor under the body just past its leading edge. A body-shape probe tests

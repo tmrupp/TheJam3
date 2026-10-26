@@ -2,7 +2,8 @@ extends CreatureArt
 class_name WispArt
 ## A wisp, its body following the path its head has travelled. Carried by what it stands on (a
 ## gondola's car, a lift: Mover.carried), its whole path is carried with it, so being lifted never
-## bends its body as walking would.
+## bends its body as walking would; dropping (settling onto its floor, or falling: Mover.fallen),
+## its whole path drops with it, so a drop never hangs its body tail-up over its head.
 
 
 ## Wisp turning: the wisp turns round along a teardrop lying on its path, the path cutting it in
@@ -91,13 +92,11 @@ func _draw_art() -> void:
 			lurching = true
 			rear = minf(_rear, 1.0 - smoothstep(0.0, REAR_DROP, mover.lurching))
 			_heat = 1.0 - mover.lurching
-		# Falling (as when it settles after spawning): keep the body straight rather than letting
-		# the trail record the drop and hang it tail-up.
-		if mover.falling():
-			_trail = PackedVector2Array()
-		# Carried since the last frame: the path it has walked goes with it.
-		var carry: Vector2 = mover.carried - _carried
+		# Carried or dropped since the last frame: the path it has walked goes with it, rather than
+		# the trail recording the drop and hanging the body tail-up.
+		var carry: Vector2 = mover.carried - _carried + Vector2(0.0, mover.fallen - _fallen)
 		_carried = mover.carried
+		_fallen = mover.fallen
 		if carry != Vector2.ZERO:
 			for n: int in range(_trail.size()):
 				_trail[n] += carry
@@ -541,8 +540,10 @@ var _wp_side: float = 1.0
 var _wp_bob: Vector2 = Vector2.ZERO
 var _wp_head_dir: Vector2 = Vector2.RIGHT
 var _trail: PackedVector2Array = PackedVector2Array()
-## How far its Mover had been carried when it was last drawn (see Mover.carried).
+## How far its Mover had been carried, and how far it had dropped, when it was last drawn (see
+## Mover.carried and Mover.fallen).
 var _carried: Vector2 = Vector2.ZERO
+var _fallen: float = 0.0
 
 
 func _wisp_trail_add(at: Vector2) -> void:
