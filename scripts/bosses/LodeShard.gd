@@ -6,7 +6,8 @@ extends Area2D
 ## it makes that cast ready at once (Empower.refill) and is gone; while the cast is ready it is left
 ## lying, for the charge is one. Left lying too long, the golem calls it back (`called`: the golem
 ## flies it home along its way, through where the wizard stood, hurting them as a hazard does, and it
-## regrows a shattered chunk). It is in accent (a reward), a little crystal with a glint of paper.
+## regrows a shattered chunk). It is a little segment of the golem's, its shape (RisoShapes.spindle),
+## in plain accent (a reward).
 ## Nothing here draws from any RNG.
 
 const HIT_BOX: PackedScene = preload("res://prefabs/hit_box.tscn")
@@ -14,8 +15,10 @@ const HIT_BOX: PackedScene = preload("res://prefabs/hit_box.tscn")
 ## How hard it falls (px/s²), and how fast at most (px/s).
 const GRAVITY: float = 2200.0
 const FALL_MAX: float = 1400.0
-## How big it is (px), its half-height: it lands this far over the floor, and is taken within it.
+## How big it is (px), its half-height: it lands this far over the floor, and is taken within it; and
+## how wide it is against that.
 const SIZE: float = 32.0
+const WIDE: float = 0.45
 ## Seconds after it is shed before it can be taken, so it is seen to fly.
 const SETTLE: float = 0.3
 ## The wizard's body's collision layer, which it watches for.
@@ -103,14 +106,13 @@ func _process(_delta: float) -> void:
 	var at: Vector2 = global_position + (Vector2(0.0, sin(t * BOB) * BOB_PX) if landed else Vector2.ZERO)
 	var spin: float = 0.0 if landed and not called else t * 9.0
 	var xf: Transform2D = Transform2D(spin, at)
-	var crystal: PackedVector2Array = xf * PackedVector2Array([Vector2(0.0, -SIZE), Vector2(SIZE * 0.55, -SIZE * 0.2), Vector2(SIZE * 0.4, SIZE), Vector2(-SIZE * 0.4, SIZE), Vector2(-SIZE * 0.55, -SIZE * 0.2)])
-	var glint: PackedVector2Array = xf * PackedVector2Array([Vector2(-SIZE * 0.1, -SIZE * 0.7), Vector2(SIZE * 0.2, -SIZE * 0.25), Vector2(-SIZE * 0.05, SIZE * 0.1)])
+	var ang: float = spin - PI * 0.5
+	var magnet: PackedVector2Array = RisoShapes.spindle(at, SIZE, SIZE * WIDE, ang)
 	ink.global_position = Vector2.ZERO
 	ink.begin()
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], [crystal])
-	ink.ink(RisoPrint.ACCENT, 1.0, [crystal])
-	ink.knock([RisoPrint.ACCENT], [glint])
+	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 1.0, [magnet])
+	ink.ink(RisoPrint.ACCENT, 1.0, [magnet])
 	# Called home, it hurts: pink over it.
 	if called:
-		ink.ink(RisoPrint.PINK, 0.55, [crystal], false)
+		ink.ink(RisoPrint.PINK, 0.55, [magnet], false)
 	ink.finish()

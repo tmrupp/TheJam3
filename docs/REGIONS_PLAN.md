@@ -297,16 +297,31 @@ an empowered spell, and the charge for one is won from it by parrying.
   gallery's gap (`lair`). A doorway through each wall at the ground storey leads out to the caves; a
   crossbow is set in the walls on each gallery, shooting into the hall (`LodeHall.arm`); its stone
   is kept whole and nothing else is placed in it. What it holds is noted in `LevelGen.keep`.
-- **The golem** (`Golem`, `GolemWound`, `prefabs/golem.tscn`; *its body, chunks, heart and
-  shards built*, standing still in its lair: `tests/golem_test.gd`, `capture_golem.gd`). A hulking
-  figure of dark stone about 2.5 cells tall, 10 **chunks** of lodestone (`Golem.PARTS`: two legs, a
-  belly, a chest plate in two halves, two shoulders, two arms and a head) held by their pull round
-  a **heart** (accent). A `Shaped` foe: a blow meets the first part on the line from where it came
-  from to the heart (`Golem.part_met`), whatever struck it (a spell, a parry, an arrow), so what
-  stands in the way breaks first: from the side, an arm, then the chest plate. It sleeps in its lair
-  until the wizard comes into its hall (or strikes it), then walks its floor after them (120 px/s,
-  `WALK`; the wizard runs at 300), facing them, never off a floor's end nor over its gap, though it
-  steps over a stair hole.
+- **The golem** (`Golem`, `GolemWound`, `prefabs/golem.tscn`; *built*: `tests/golem_test.gd`,
+  `capture_golem.gd`, `capture_golem_motion.gd`). A hulking, hunched figure about 2.5 cells tall
+  built of buzzing magnets (October 2026, the owner's second design, in place of the first's ten
+  blocks of stone round a heart), held by their pull tip to tip: its body one great lodestone
+  leaning forward, rounded at its top, its eyes in it and its **heart** (accent) on its bulge,
+  guarded by a ward of three pink plates (as an enemy's shield is); caps jutting from its shoulders,
+  fins down its back, long arms of an upper arm, a forearm and a palm with knuckles (it walks on its
+  knuckles), and short legs of a thigh, a shin and a foot. Its 12 **chunks** (`Golem.PART_SIZE`: its
+  arms' upper arms and forearms, its ward's three plates, its two caps and its three fins) are what a blow breaks; its body, palms and legs only stop a blow, which goes on to what is
+  behind. A `Shaped` foe: a blow meets the first chunk on the line from where it came from to the
+  heart (`Golem.part_met`), whatever struck it (a spell, a parry, an arrow), so what stands in the
+  way breaks first: from the side, an arm, then its ward, which guards all the way round, gaps and all: a blow that comes
+  within its ring meets the whole plate nearest. It sleeps in its lair
+  until the wizard comes into its hall (or strikes it), then walks its floor after them on all fours
+  (85 px/s, `WALK`, gathering speed at 520 px/s² and slowing into its stops; the wizard runs at
+  300), its fists stepping in turn (0.4 s a step, a slow heavy gait) and its feet shuffling in turn
+  on their own in short, low, quick steps (0.2 s) that never pass each other (`GAITS`), each set down
+  ahead of its place by as far as it falls behind before it steps again (`STEP_LEAD`), while its
+  body goes on over it, never off a floor's end nor over its gap, though it
+  steps over a stair hole. It turns round only once the wizard is 48 px behind it (`TURN_SLACK`),
+  so it does not turn back and forth over them: it faces them at once, its body swinging over through
+  upright and its feet and fists stepping round (0.32 s, `TURN_TIME`, in which it does not slam),
+  with no flip. Its pose springs: its
+  body's lean and shift, its height and its fists and feet through the air each spring toward where
+  its pose wants them.
 - **Chunks break only to an empowered spell.** A plain blow glances off with grit, as on cracked
   rock. An empowered spell (the spells' blows tell a `Shaped` foe so: `Shaped.blow`) shatters the
   chunk it meets, and a shattered chunk leaves nothing. Not yet: each spell its own way, as it
@@ -317,34 +332,36 @@ an empowered spell, and the charge for one is won from it by parrying.
   lode hall, whatever damage spell is in the slot may be cast empowered, tempered by a lodestone or
   not; outside it the lodestones' rules are unchanged.
 - **The slam: its strong attack, and the charge** (*built*). The wizard within 300 px of it on its
-  floor (`SLAM_RANGE`), it raises both fists, pink (`SLAM_WARN`, 0.7 s), and brings them down in
-  front of it, held 0.35 s (`SLAM_HOLD`), resting 0.8 s after; a **shockwave** (`GolemShock`, pink,
+  floor (`SLAM_RANGE`) and not behind it, it rears back and raises both fists overhead, pink
+  (`SLAM_WARN`, 0.7 s; they tremble for its last 30 %), and brings them down, its near fist in front of it and its far fist behind (`SLAM_BEHIND`, so neither arm swings across its body), held 0.35 s (`SLAM_HOLD`; each fist's touch, 46 px, follows that fist as drawn, so the far one hurts behind it), resting 0.8 s after; a **shockwave** (`GolemShock`, pink,
   64 px high, 700 px/s, as far as 800 px or a wall or the floor's end) runs each way along the floor
   from where they land, jumped. Its fists' touch is its own: a guard up as they come down parries
-  them, stunning it (`Parry.STUN`, 3 s) and popping out `Golem.SHARDS` (2) **lode shards** from the
-  cracks between its chunks, scattering onto the floor near it (`Golem.shed_shards`, `LodeShard`).
+  them, stunning it (`Parry.STUN`, 3 s; its pieces sag loose) and popping out `Golem.SHARDS` (2)
+  **lode shards** from its heart, scattering onto the floor near it (`Golem.shed_shards`, `LodeShard`).
   Touching a shard while the empowered cast is spent makes it ready at once (`Empower.refill`);
   while one is ready a shard is left where it lies (the charge is one). Shards come from nothing
   else, and go when the golem dies.
 - **Recall** (*built*). Anything of it lying loose (shards, a hurled chunk) 3 s while it is not
   stunned (`RECALL_DELAY`), it calls it all back: pink lines along each way home warn for 0.8 s
   (`RECALL_WARN`), then each flies home at 900 px/s through where the wizard stood, hurting on the
-  way; a hurled chunk is whole again, and a shard regrows a shattered chunk, one over its heart
+  way; a hurled chunk is whole again, and a shard regrows a shattered chunk, a plate of its ward
   first. So each parry is a race: grab both shards and spend them.
-- **The heart** (*built*). Once its chest chunks (`Golem.COVERS`: the belly and the chest plate)
-  are gone the heart is bare, and any blow, a parry and the crossbows' arrows wound it. Its health
+- **The heart** (*built*). Once the three plates of its ward (`Golem.COVERS`) are gone the
+  heart is bare, and any blow, a parry and the crossbows' arrows wound it. Its health
   is 3 cracks on the heart itself (`Golem.HEART`); with the third it falls apart into a heap
   (`DIE_TIME`, 1.4 s), and its relic waits there (`MapInfo.boss_slain`). A lantern death brings it
   back whole. Not yet: the arrows' iron bent toward it.
 - **Its other moves** (*built*). The **hurl**: the wizard 520 px off or more (`HURL_MIN`), or on
   another storey, and in its sight, every 5 s at most (`HURL_EVERY`, the first 5 s after it wakes),
-  it tears off a chunk of its own (`HURLED`: a shoulder, then the other, then its head), holds it up
-  in pink (`HURL_WARN`, 0.6 s) and lobs it to land where the wizard is (0.9 s, `GolemStone`); the
-  chunk is gone from it while it flies and lies, until called back. The **leap**: the wizard on
+  it tears off a magnet of its own (`HURLED`: a shoulder cap, then the other, then its top fin),
+  holds it high over its head in both fists at its tips, its elbows bowed out (`HOLD_OVER`), pink (`HURL_WARN`, 0.6 s), and lobs it to land where the wizard is (0.9
+  s, `GolemStone`), drawing it back over its head before it throws and whipping its arms through after; the magnet is gone from it while it flies and lies,
+  until called back. The **leap**: the wizard on
   another storey of the hall a second (`LEAP_AFTER`), it walks to the gap between (under it, or to
   its edge), crouches 0.8 s with the spot it will land on marked in pink (`LEAP_WARN`), and leaps
-  (0.9 s, `LEAP_TIME`): up through the gap and across onto the gallery beside it on the wizard's
-  side, or across and down the gap to the floor under it; landing, a shockwave runs each way.
+  (0.9 s, `LEAP_TIME`) in an arc, tucking its feet, its arms flung wide: rising up through the gap and coming
+  down onto the gallery beside it on the wizard's side, or across and down the gap to the floor
+  under it; landing, a shockwave runs each way.
   Storey by storey, it follows the wizard all the way up the hall.
 - **Only its fists are its own touch.** The shockwave, a hurled chunk and a recalled shard each
   hurt as a hazard does: a guard catches them as it catches thorns, with nothing to strike, so only
@@ -365,7 +382,8 @@ an empowered spell, and the charge for one is won from it by parrying.
   the wizard's slowing in a web), and the stand-in the tests used meanwhile with it; the tests that
   named it moved to the golem, and these docs. Left: tuning in play, and each spell shattering
   chunks its own way.
-- **Tuning.** 10 chunks, 2 shards a parry and 3 wounds to the heart are first guesses.
+- **Tuning.** 11 chunks (2 over its heart), 2 shards a parry and 3 wounds to the heart are first
+  guesses.
 
 ### The whale (sky, roaming on its top row; inside: its belly)
 

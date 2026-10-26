@@ -1,10 +1,11 @@
 extends TestKit
 ## Stills of the lodestone golem (Golem) in its hall (LodeHall), at the top of the crags' gate level:
 ## the golem asleep
-## in its lair (slumped, dim, its eyes shut), the hall, the golem awake and whole, walking, its fists
-## raised for a slam and its shockwave, stunned by a parried slam, a chunk held up to hurl,
-## the spot a leap will land on marked, its chunks shattered and its heart bare and cracked, lode
-## shards lying on the floor, and the recall's ways home. Written to golem_*.png.
+## in its lair (slumped, dim, its eyes shut), the hall, the golem awake and whole, mid-step, its fists
+## raised for a slam and its shockwave, stunned by a parried slam, a magnet held up to hurl,
+## the spot a leap will land on marked, its far arm and its ward shattered and its
+## heart bare and cracked, lode shards lying on the floor, and the recall's ways home. Written to
+## golem_*.png.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_golem.gd
 
 
@@ -44,7 +45,7 @@ func run() -> void:
 	# Walking after the wizard.
 	golem.state = Golem.State.HUNT
 	golem.hurl_wait = INF
-	await within(func() -> bool: return golem.gait > 0.9 and absf(sin(golem.stride / Golem.STRIDE * TAU)) > 0.8, 3.0)
+	await within(func() -> bool: return golem.stepping[0] >= 0 and golem.step_t[0] > Golem.STEP_TIME[0] * 0.45, 3.0)
 	camera.global_position = golem.global_position + Vector2(0.0, -180.0)
 	await frames(2)
 	save_still("golem_walk.png")
@@ -83,8 +84,8 @@ func run() -> void:
 	golem.state = Golem.State.REST
 	golem.timer = INF
 	camera.global_position = golem.global_position + Vector2(0.0, -180.0)
-	# Broken: an arm and the chest plate gone, its heart bare and wounded once.
-	for i: int in [7, 2, 3, 4]:
+	# Broken: its far arm and the magnets over its heart gone, its heart bare and wounded once.
+	for i: int in [Golem.BACK_UPPER, Golem.BACK_FORE] + Golem.COVERS:
 		golem.shatter(i, Vector2.RIGHT)
 	SpellStrike.strike(golem, Vector2.RIGHT, 1, &"slash", false, golem.heart_center() + Vector2(-260.0, 0.0))
 	await frames(40)
