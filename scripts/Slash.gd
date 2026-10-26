@@ -10,7 +10,8 @@ class_name Slash
 ## two cells in front of the wizard (cleave_cells), wounds Empower.EXTRA more, breaks a shield at
 ## once and strikes spires.
 
-const COOLDOWN: float = 0.45
+## Seconds until it is ready again.
+const COOLDOWN: float = 0.7
 const REACH: float = 110.0
 const HALF: float = 1.05
 const REACH_II: float = 140.0

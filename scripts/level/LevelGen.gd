@@ -84,6 +84,8 @@ enum Type {
 	## has swallowed, floating on it (Wreck).
 	ACID,
 	WRECK,
+	## The practice range's tally (PracticeRange, PracticeTally).
+	TALLY,
 }
 
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).

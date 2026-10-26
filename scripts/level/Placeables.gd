@@ -86,6 +86,7 @@ const TABLE: Dictionary = {
 	LevelGen.Type.LODESTONE: {"scene": "res://prefabs/lodestone.tscn", "art": &"lodestone", "flags": [&"stander"], "size": Vector2i(1, 2), "setup": 3},
 	LevelGen.Type.ACID: {"scene": "res://prefabs/acid.tscn", "art": &"acid", "setup": 3},
 	LevelGen.Type.WRECK: {"scene": "res://prefabs/wreck.tscn", "art": &"wreck", "setup": 3},
+	LevelGen.Type.TALLY: {"scene": "res://prefabs/practice_tally.tscn", "art": &"", "setup": 2},
 }
 
 ## Prefabs loaded so far, by Type (each is loaded the first time one is placed).

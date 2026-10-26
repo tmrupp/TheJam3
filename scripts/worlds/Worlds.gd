@@ -5,7 +5,8 @@ extends RefCounted
 ## NextWorldDef), anywhere above -SIDE_BASE. They are defined by NextWorldDef itself. Every other
 ## kind is a side world (SideWorld), reached through a door that some levels deal. The kinds are
 ## listed in KINDS, and a kind's index there is its number. To add one: extend SideWorld (see
-## Hyperspace), then list it here.
+## Hyperspace), then list it here. (Not every kind has a door: the whale's belly is entered through
+## the whale's mouth, and the practice range only from the debug panel.)
 ##
 ## Side worlds hang off the grid far below every level's row: kind k entered from level (seed, row)
 ## is at (seed, -(SIDE_BASE + k * STRIDE + row + STRIDE / 2)), so each has its own record, save entry
@@ -15,6 +16,7 @@ extends RefCounted
 const KINDS: Array[Script] = [
 	preload("res://scripts/worlds/Hyperspace.gd"),
 	preload("res://scripts/worlds/Belly.gd"),
+	preload("res://scripts/worlds/PracticeRange.gd"),
 ]
 ## Each kind's span of rows; a side world's origin row lies within half of it either way of 0.
 const STRIDE: int = 100000

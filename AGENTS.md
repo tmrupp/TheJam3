@@ -31,7 +31,8 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
   `RunState` (`run`) and a `LevelLoader` (`loader`).
 - `scripts/worlds/`: what a place is. `NextWorldDef.gd` (exits, prices, realm), `Archetype.gd`
   and `archetypes/` (one per band: sample, size, gates and its own placement pass), and side
-  worlds (`Worlds.gd`, `SideWorld.gd`, `Hyperspace.gd`).
+  worlds (`Worlds.gd`, `SideWorld.gd`, `Hyperspace.gd`, and `PracticeRange.gd`, the debug runs' range
+  for weighing the damage spells, with its tally `scripts/PracticeTally.gd`).
 - `scripts/riso/`: all the art. `RisoPrint` (plates and the print shader), `RisoProp` (the base of
   one art node per prefab) with a script per kind in `props/`, `RisoMarks` (keys, locks, gates,
   chevrons shared with the map and HUD), `RisoGlyph` (ability marks), `RisoTerrain`, `RisoDecor`,

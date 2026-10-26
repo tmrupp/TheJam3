@@ -168,7 +168,7 @@ func run() -> void:
 	check(nova.cast(), "it bursts")
 	check(hp(left) == hp_left - 1 and hp(right) == hp_left - 1 and not stunned(left) and not stunned(right), "everything round the wizard within its reach is wounded, not stunned")
 	check(hp(far) == hp_far and not stunned(far), "nothing past its reach")
-	check(not nova.cast() and Nova.COOLDOWN > Slash.COOLDOWN * 4.0, "it is slow to come back")
+	check(not nova.cast() and Nova.COOLDOWN > Slash.COOLDOWN * 3.0, "it is slower to come back than a slash")
 	for e: Node2D in [left, right, far]:
 		if is_instance_valid(e):
 			e.queue_free()

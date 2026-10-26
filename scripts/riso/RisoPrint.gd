@@ -1572,6 +1572,7 @@ func _build_travel(box: VBoxContainer) -> void:
 		if MapInfo.instance != null:
 			MapInfo.instance.full_heal())
 	_build_cheats(_travel_box)
+	_build_practice(_travel_box)
 
 
 ## Debug runs only: the wizard loses no hearts (Health.invincible), every spell casts empowered on
@@ -1592,6 +1593,29 @@ func _build_cheats(box: VBoxContainer) -> void:
 		if MapInfo.instance != null and MapInfo.instance.run != null:
 			var run: RunState = MapInfo.instance.run
 			run.dark_charges = maxi(0, run.dark_charges + d))
+
+
+## Debug runs only: the practice range's foes held still or made sturdy (PracticeTally.still,
+## sturdy; changing either lays them all again), all of them laid again at once, and its tally
+## started afresh. (Travel's Practice Range button goes there.)
+func _build_practice(box: VBoxContainer) -> void:
+	var rows: VBoxContainer = _section(box, "Practice range (debug)", false)
+	_option_row(rows, &"practice_still", "Foes", ["Live", "Still"], func(i: int) -> void:
+		PracticeTally.still = i == 1
+		if PracticeTally.instance != null:
+			PracticeTally.instance.respawn_all())
+	_option_row(rows, &"practice_sturdy", "Foe health", ["By depth", "Sturdy"], func(i: int) -> void:
+		PracticeTally.sturdy = i == 1
+		if PracticeTally.instance != null:
+			PracticeTally.instance.respawn_all())
+	var row: HBoxContainer = HBoxContainer.new()
+	rows.add_child(row)
+	_button(row, "Respawn foes", func() -> void:
+		if PracticeTally.instance != null:
+			PracticeTally.instance.respawn_all())
+	_button(row, "Reset tally", func() -> void:
+		if PracticeTally.instance != null:
+			PracticeTally.instance.reset())
 
 
 ## A row: its name, a "-" button, the value, a "+" button; `on_step` gets -1 or +1.
@@ -1754,6 +1778,8 @@ func _sync_panel() -> void:
 		_travel_depth_label.text = "%d  (%s)" % [_travel_at.y, NextWorldDef.archetype_at(_travel_at.y)]
 		(_options[&"invincible"] as OptionButton).select(1 if Health.invincible else 0)
 		(_options[&"empowered"] as OptionButton).select(1 if Empower.always else 0)
+		(_options[&"practice_still"] as OptionButton).select(1 if PracticeTally.still else 0)
+		(_options[&"practice_sturdy"] as OptionButton).select(1 if PracticeTally.sturdy else 0)
 		var run: RunState = MapInfo.instance.run if MapInfo.instance != null else null
 		_darkness_label.text = str(run.dark_charges) if run != null else "-"
 	_detail_label.text = "Heavy" if detail < 25.0 else ("Medium" if detail < 65.0 else ("Fine" if detail < 90.0 else "Extra fine"))
