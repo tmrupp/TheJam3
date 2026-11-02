@@ -1,0 +1,610 @@
+extends Control
+## The generation lab: a workbench for trying other ways to generate levels and seeing many at once.
+## On the left, the WFC sample a band's terrain is collapsed from, painted pixel by pixel (open
+## air, rock, thorns), resized, reverted or saved; and what else shapes a level: the pattern size
+## and symmetry of the collapse, the level's size, the band row it is dressed as (its archetype's
+## passes and tuning, Bands), whether it is dressed at all, and the band tuning knobs
+## (Archetype.star_share and the rest). On the right, a grid of levels from consecutive world seeds,
+## laid out again a moment after anything changes, on a worker thread so painting stays smooth,
+## each with a line of what it holds; a click shows one large.
+##
+## It collapses with the game's own generator (the WaveFunctionCollapse node, set as the game scene
+## sets it) and dresses with LevelGen, so what it shows is what the game would make with the same
+## sample and settings. Nothing here changes the game until a sample is saved.
+## godot --path . res://tools/gen_lab/gen_lab.tscn   (or open the scene in the editor and press F6)
+
+## The sample's colours: open air, rock, thorns (LevelGen.color_to_type).
+const INKS: Array[Color] = [Color.WHITE, Color.BLACK, Color.RED]
+const INK_NAMES: Array[String] = ["Open", "Rock", "Thorns"]
+## How a level is drawn, one pixel a cell: the terrain, then what stands in it.
+const SHOW_OPEN: Color = Color(0.93, 0.91, 0.86)
+const SHOW_ROCK: Color = Color(0.16, 0.2, 0.18)
+const SHOW: Dictionary = {
+	LevelGen.Type.SPIKES: Color(0.9, 0.15, 0.3),
+	LevelGen.Type.PLATFORM: Color(0.6, 0.45, 0.25),
+	LevelGen.Type.MOVING_PLATFORM: Color(0.85, 0.6, 0.2),
+	LevelGen.Type.CRACKED: Color(0.4, 0.4, 0.4),
+	LevelGen.Type.EXIT: Color(0.1, 0.8, 0.3),
+	LevelGen.Type.DOOR: Color(0.3, 0.4, 1.0),
+	LevelGen.Type.SWITCH_GATE: Color(0.3, 0.4, 1.0),
+	LevelGen.Type.KEY: Color(1.0, 0.85, 0.0),
+	LevelGen.Type.CHECKPOINT: Color(1.0, 0.55, 0.0),
+	LevelGen.Type.PORTAL: Color(0.7, 0.3, 0.9),
+	LevelGen.Type.MOON: Color(0.5, 0.8, 1.0),
+	LevelGen.Type.SHRINE: Color(0.0, 0.8, 0.8),
+	LevelGen.Type.BOSS: Color(1.0, 0.0, 1.0),
+}
+## Foes, drawn alike.
+const FOES: Array[LevelGen.Type] = [LevelGen.Type.ENEMY, LevelGen.Type.SHOOTER, LevelGen.Type.HOPPER, LevelGen.Type.BIRD,
+	LevelGen.Type.WRAITH, LevelGen.Type.SKELETON, LevelGen.Type.BUG]
+const SHOW_FOE: Color = Color(0.85, 0.0, 0.0)
+## Stars are many (a fifth of the open cells): a faint tint, so the terrain still reads.
+const SHOW_STAR: Color = Color(0.96, 0.9, 0.7)
+## The band tuning knobs offered (Archetype vars), each [name, step].
+const KNOBS: Array = [["star_share", 0.01], ["wisp_share", 0.01], ["watcher_share", 0.01], ["hoppers_per_k", 0.1]]
+## How long after the last change the levels are laid out again (seconds).
+const SETTLE: float = 0.35
+## Tries a collapse gets (each on a seed of its own) before a level counts as never settling.
+const TRIES: int = 8
+## How big a level is drawn in the grid, at most (px); the sample is painted at SampleCanvas.PX.
+const THUMB: Vector2 = Vector2(300, 240)
+## The window it opens in, if it starts smaller.
+const WINDOW: Vector2i = Vector2i(1600, 900)
+
+var sample_path: String = ""
+var sample: Image
+var _saved: Image
+var ink: int = 1
+var _paths: Array[String] = []
+
+var _sample_pick: OptionButton
+var _canvas: SampleCanvas
+var _sample_note: Label
+var _width: SpinBox
+var _height: SpinBox
+var _pattern: SpinBox
+var _symmetry: SpinBox
+var _row: SpinBox
+var _first: SpinBox
+var _count: SpinBox
+var _size_auto: CheckBox
+var _size_w: SpinBox
+var _size_h: SpinBox
+var _dress: CheckBox
+var _knobs: Dictionary = {}
+var _grid: GridContainer
+var _status: Label
+var _big: Panel
+var _big_view: TextureRect
+var _big_note: Label
+var _save_as: LineEdit
+
+## Counts each lay-out asked for, so a worker knows when its work is stale.
+var _wanted: int = 0
+var _due: float = -1.0
+## A lay-out asked for while the worker was busy, started when it is done.
+var _pending: bool = false
+var _thread: Thread
+var _cells: Array[Dictionary] = []
+
+
+func _ready() -> void:
+	# The game draws at 320 x 180 and scales it up; a tool wants the window's own pixels.
+	var win: Window = get_tree().root
+	win.content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED
+	if win.mode == Window.MODE_WINDOWED and win.size.x < WINDOW.x:
+		win.size = WINDOW
+	_build_ui()
+	_list_samples()
+	_on_row_changed(_row.value)
+	_ask()
+
+
+func _process(delta: float) -> void:
+	if _due >= 0.0:
+		_due -= delta
+		if _due < 0.0:
+			_start()
+
+
+func _exit_tree() -> void:
+	_wanted += 1
+	if _thread != null and _thread.is_started():
+		_thread.wait_to_finish()
+
+
+# ------------------------------------------------------------------ the panel
+
+func _build_ui() -> void:
+	set_anchors_preset(Control.PRESET_FULL_RECT)
+	var bg: ColorRect = ColorRect.new()
+	bg.color = Color(0.12, 0.13, 0.14)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(bg)
+	var split: HBoxContainer = HBoxContainer.new()
+	split.set_anchors_preset(Control.PRESET_FULL_RECT)
+	split.add_theme_constant_override("separation", 12)
+	add_child(split)
+
+	var left_scroll: ScrollContainer = ScrollContainer.new()
+	left_scroll.custom_minimum_size = Vector2(430, 0)
+	left_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	split.add_child(left_scroll)
+	var left: VBoxContainer = VBoxContainer.new()
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_scroll.add_child(left)
+
+	_title(left, "Sample (WFC)")
+	_sample_pick = OptionButton.new()
+	_sample_pick.item_selected.connect(func(i: int) -> void: _load_sample(_paths[i]))
+	left.add_child(_sample_pick)
+	var inks: HBoxContainer = HBoxContainer.new()
+	left.add_child(inks)
+	var group: ButtonGroup = ButtonGroup.new()
+	for i: int in range(INKS.size()):
+		var b: Button = Button.new()
+		b.text = INK_NAMES[i]
+		b.toggle_mode = true
+		b.button_group = group
+		b.button_pressed = i == ink
+		var which: int = i
+		b.pressed.connect(func() -> void: ink = which)
+		inks.add_child(b)
+	var hint: Label = Label.new()
+	hint.text = "left paints, right paints open air"
+	hint.modulate = Color(1, 1, 1, 0.6)
+	inks.add_child(hint)
+	_canvas = SampleCanvas.new()
+	_canvas.lab = self
+	left.add_child(_canvas)
+	_sample_note = Label.new()
+	left.add_child(_sample_note)
+	var resize: HBoxContainer = HBoxContainer.new()
+	left.add_child(resize)
+	_width = _spin(resize, "w", 4, 128, 1, 32)
+	_height = _spin(resize, "h", 4, 128, 1, 32)
+	_button(resize, "Resize", func() -> void: _resize(int(_width.value), int(_height.value)))
+	var files: HBoxContainer = HBoxContainer.new()
+	left.add_child(files)
+	_button(files, "Revert", func() -> void: _load_sample(sample_path))
+	_button(files, "Save", func() -> void: _save(sample_path))
+	_save_as = LineEdit.new()
+	_save_as.placeholder_text = "new_sample"
+	_save_as.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	files.add_child(_save_as)
+	_button(files, "Save as", func() -> void:
+		if _save_as.text.strip_edges() != "":
+			_save("res://wfc_images/%s.png" % _save_as.text.strip_edges().trim_suffix(".png")))
+
+	_title(left, "Collapse")
+	var wfc_row: HBoxContainer = HBoxContainer.new()
+	left.add_child(wfc_row)
+	_pattern = _spin(wfc_row, "pattern", 2, 5, 1, 3)
+	_symmetry = _spin(wfc_row, "symmetry", 1, 8, 1, 5)
+	var size_row: HBoxContainer = HBoxContainer.new()
+	left.add_child(size_row)
+	_size_auto = CheckBox.new()
+	_size_auto.text = "band's size"
+	_size_auto.button_pressed = true
+	_size_auto.toggled.connect(func(_on: bool) -> void: _ask())
+	size_row.add_child(_size_auto)
+	_size_w = _spin(size_row, "w", 8, 160, 1, 36)
+	_size_h = _spin(size_row, "h", 8, 160, 1, 30)
+
+	_title(left, "Levels")
+	var seeds: HBoxContainer = HBoxContainer.new()
+	left.add_child(seeds)
+	_row = _spin(seeds, "row", -40, 40, 1, 1)
+	_row.value_changed.connect(_on_row_changed)
+	_first = _spin(seeds, "first world", 0, 99999, 1, 1)
+	_count = _spin(seeds, "how many", 1, 48, 1, 12)
+	_dress = CheckBox.new()
+	_dress.text = "dress as the band does (exits, keys, foes, stars...)"
+	_dress.button_pressed = true
+	_dress.toggled.connect(func(_on: bool) -> void: _ask())
+	left.add_child(_dress)
+
+	_title(left, "Band tuning (Archetype)")
+	for knob: Array in KNOBS:
+		var line: HBoxContainer = HBoxContainer.new()
+		left.add_child(line)
+		var spin: SpinBox = _spin(line, String(knob[0]), 0.0, 10.0, float(knob[1]), 0.0)
+		spin.custom_minimum_size.x = 120
+		_knobs[knob[0]] = spin
+	_button(left, "Copy settings (for Bands.LAYOUTS)", _copy_settings)
+
+	_title(left, "Key")
+	var legend: Label = Label.new()
+	legend.text = "rock dark, open pale, thorns pink, ledges brown, lifts amber, exits green,\ndoors blue, keys yellow, lanterns orange, portals violet, moons sky,\nfoes red, stars gold, boss magenta"
+	legend.modulate = Color(1, 1, 1, 0.7)
+	left.add_child(legend)
+
+	var right: VBoxContainer = VBoxContainer.new()
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	split.add_child(right)
+	_status = Label.new()
+	right.add_child(_status)
+	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.add_child(scroll)
+	_grid = GridContainer.new()
+	_grid.columns = 4
+	_grid.add_theme_constant_override("h_separation", 10)
+	_grid.add_theme_constant_override("v_separation", 10)
+	scroll.add_child(_grid)
+
+	_big = Panel.new()
+	_big.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_big.visible = false
+	add_child(_big)
+	var big_box: VBoxContainer = VBoxContainer.new()
+	big_box.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_big.add_child(big_box)
+	_big_note = Label.new()
+	big_box.add_child(_big_note)
+	_big_view = TextureRect.new()
+	_big_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_big_view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_big_view.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_big_view.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_big_view.gui_input.connect(func(e: InputEvent) -> void:
+		if e is InputEventMouseButton and (e as InputEventMouseButton).pressed:
+			_big.visible = false)
+	big_box.add_child(_big_view)
+
+
+func _title(parent: Control, text: String) -> void:
+	var l: Label = Label.new()
+	l.text = text
+	l.add_theme_font_size_override("font_size", 18)
+	parent.add_child(l)
+
+
+func _spin(parent: Control, label: String, lo: float, hi: float, step: float, value: float) -> SpinBox:
+	var l: Label = Label.new()
+	l.text = label
+	parent.add_child(l)
+	var s: SpinBox = SpinBox.new()
+	s.min_value = lo
+	s.max_value = hi
+	s.step = step
+	s.value = value
+	s.value_changed.connect(func(_v: float) -> void: _ask())
+	parent.add_child(s)
+	return s
+
+
+func _button(parent: Control, text: String, on: Callable) -> Button:
+	var b: Button = Button.new()
+	b.text = text
+	b.pressed.connect(on)
+	parent.add_child(b)
+	return b
+
+
+# ------------------------------------------------------------------ the sample
+
+func _list_samples() -> void:
+	_paths.clear()
+	_sample_pick.clear()
+	for f: String in DirAccess.get_files_at("res://wfc_images"):
+		if f.ends_with(".png"):
+			_paths.append("res://wfc_images/" + f)
+			_sample_pick.add_item(f)
+
+
+func _load_sample(path: String) -> void:
+	var img: Image = Image.load_from_file(ProjectSettings.globalize_path(path))
+	if img == null:
+		_status.text = "could not read %s" % path
+		return
+	img.convert(Image.FORMAT_RGBA8)
+	sample_path = path
+	sample = img
+	_saved = img.duplicate() as Image
+	_sample_pick.select(_paths.find(path))
+	_width.set_value_no_signal(img.get_width())
+	_height.set_value_no_signal(img.get_height())
+	_canvas.refresh()
+	_note_sample()
+	_ask()
+
+
+func _note_sample() -> void:
+	var edited: bool = _saved == null or sample.get_data() != _saved.get_data()
+	_sample_note.text = "%s, %d x %d%s" % [sample_path.get_file(), sample.get_width(), sample.get_height(), " (edited)" if edited else ""]
+
+
+## A pixel of the sample painted (by the canvas).
+func paint(p: Vector2i, which: int) -> void:
+	if p.x < 0 or p.y < 0 or p.x >= sample.get_width() or p.y >= sample.get_height():
+		return
+	if sample.get_pixelv(p).is_equal_approx(INKS[which]):
+		return
+	sample.set_pixelv(p, INKS[which])
+	_canvas.refresh()
+	_note_sample()
+	_ask()
+
+
+## The sample cut or grown to `w` x `h`, new pixels open air.
+func _resize(w: int, h: int) -> void:
+	var img: Image = Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(INKS[0])
+	img.blit_rect(sample, Rect2i(0, 0, mini(w, sample.get_width()), mini(h, sample.get_height())), Vector2i.ZERO)
+	sample = img
+	_canvas.refresh()
+	_note_sample()
+	_ask()
+
+
+func _save(path: String) -> void:
+	var err: Error = sample.save_png(ProjectSettings.globalize_path(path))
+	if err != OK:
+		_status.text = "could not save %s (%s)" % [path, error_string(err)]
+		return
+	_saved = sample.duplicate() as Image
+	sample_path = path
+	_list_samples()
+	_sample_pick.select(_paths.find(path))
+	_note_sample()
+	_status.text = "saved %s (the game reads it once the project is imported again)" % path
+
+
+func _on_row_changed(_v: float) -> void:
+	# The band's own sample and collapse, while the sample is not edited.
+	var def: NextWorldDef = Rules.def_for(Vector2i(int(_first.value), int(_row.value)))
+	if sample == null or sample.get_data() == _saved.get_data():
+		if def.region != sample_path:
+			_load_sample(def.region)
+		_symmetry.set_value_no_signal(def.symmetry)
+	for knob: Array in KNOBS:
+		(_knobs[knob[0]] as SpinBox).set_value_no_signal(float(def.arch.get(String(knob[0]))))
+	if _size_auto.button_pressed:
+		_size_w.set_value_no_signal(def.size.x)
+		_size_h.set_value_no_signal(def.size.y)
+	_ask()
+
+
+func _copy_settings() -> void:
+	var tune: Dictionary = {}
+	for knob: Array in KNOBS:
+		tune[knob[0]] = snappedf((_knobs[knob[0]] as SpinBox).value, float(knob[1]))
+	var text: String = "sample %s, pattern %d, symmetry %d, \"tune\": %s" % [sample_path, int(_pattern.value), int(_symmetry.value), JSON.stringify(tune)]
+	DisplayServer.clipboard_set(text)
+	_status.text = "copied: " + text
+
+
+# ------------------------------------------------------------------ laying levels out
+
+## Lay the levels out again a moment from now (changes come in bursts while painting).
+func _ask() -> void:
+	_due = SETTLE
+
+
+func _start() -> void:
+	if sample == null:
+		return
+	# Whatever the worker is doing is stale now: it stops, and this starts once it has.
+	_wanted += 1
+	if _thread != null and _thread.is_started():
+		_pending = true
+		return
+	_launch()
+
+
+func _launch() -> void:
+	var job: Dictionary = {
+		"id": _wanted,
+		"sample": sample.duplicate(),
+		"pattern": int(_pattern.value),
+		"symmetry": int(_symmetry.value),
+		"row": int(_row.value),
+		"first": int(_first.value),
+		"count": int(_count.value),
+		"size": Vector2i(int(_size_w.value), int(_size_h.value)) if not _size_auto.button_pressed else Vector2i.ZERO,
+		"dress": _dress.button_pressed,
+		"tune": {},
+	}
+	for knob: Array in KNOBS:
+		(job["tune"] as Dictionary)[knob[0]] = (_knobs[knob[0]] as SpinBox).value
+	for child: Node in _grid.get_children():
+		child.queue_free()
+	_cells.clear()
+	_grid.columns = maxi(1, int((size.x - 460.0) / (THUMB.x + 10.0)))
+	_status.text = "laying out %d levels on row %d..." % [job["count"], job["row"]]
+	_thread = Thread.new()
+	_thread.start(_work.bind(job))
+
+
+## The worker: each level in turn, handed to the panel as it is done.
+func _work(job: Dictionary) -> void:
+	var wfc: Node = _make_wfc()
+	var texture: ImageTexture = ImageTexture.create_from_image(job["sample"])
+	var total: int = 0
+	for i: int in range(int(job["count"])):
+		if job["id"] != _wanted:
+			break
+		var started: int = Time.get_ticks_msec()
+		var at: Vector2i = Vector2i(int(job["first"]) + i, int(job["row"]))
+		var out: Dictionary = _level(wfc, texture, at, job)
+		out["ms"] = Time.get_ticks_msec() - started
+		total += int(out["ms"])
+		_got.call_deferred(job["id"], out)
+	wfc.free()
+	_finished.call_deferred(job["id"], total)
+
+
+## Level `at` collapsed from the job's sample and settings, dressed if asked: {"at", "image" (a pixel
+## a cell), "note", "settled"}.
+static func _level(wfc: Node, texture: ImageTexture, at: Vector2i, job: Dictionary) -> Dictionary:
+	var def: NextWorldDef = Rules.def_for(at)
+	var level_size: Vector2i = job["size"] if job["size"] != Vector2i.ZERO else def.size
+	wfc.set("texture", texture)
+	wfc.set("output_size", level_size)
+	wfc.set("symmetry", int(job["symmetry"]))
+	wfc.set("pattern_size", int(job["pattern"]))
+	var cells: Array = []
+	var tries: int = 0
+	for attempt: int in range(TRIES):
+		tries += 1
+		wfc.call("set_seed", def.gen_seed if attempt == 0 else Rules.level_seed(def.gen_seed, 1000 + attempt))
+		cells = wfc.call("collapse")
+		if not cells.is_empty():
+			break
+	if cells.is_empty():
+		return {"at": at, "image": null, "note": "never settled (%d tries)" % tries, "settled": false}
+	var w: LevelGen = null
+	var note: String = ""
+	if job["dress"] and def.patches().is_empty():
+		for knob: String in job["tune"]:
+			def.arch.set(knob, job["tune"][knob])
+		w = LevelGen.new(cells, def)
+	elif job["dress"]:
+		note = " (this band builds insides of its own: shown undressed)"
+	var img: Image = _picture(cells, w)
+	var line: String = "%s  %dx%d" % [Rules.where(at), level_size.x, level_size.y]
+	if tries > 1:
+		line += ", %d tries" % tries
+	line += "\nopen %d%%" % roundi(100.0 * float(_open_cells(cells)) / float(level_size.x * level_size.y))
+	if w != null:
+		var foes: int = 0
+		for t: LevelGen.Type in FOES:
+			foes += w.objects_of(t).size()
+		line += ", foes %d, stars %d, keys %d, doors %d" % [foes, w.objects_of(LevelGen.Type.COIN).size(), w.objects_of(LevelGen.Type.KEY).size(), w.objects_of(LevelGen.Type.DOOR).size()]
+	return {"at": at, "image": img, "note": line + note, "settled": true}
+
+
+static func _open_cells(cells: Array) -> int:
+	var n: int = 0
+	for column: Variant in cells:
+		if column is Array:
+			for c: Color in column:
+				if not c.is_equal_approx(Color.BLACK):
+					n += 1
+	return n
+
+
+## A level as an image, a pixel a cell: its terrain from the collapse (`cells`), then, dressed
+## (`w`), what stands in it.
+static func _picture(cells: Array, w: LevelGen) -> Image:
+	var wide: int = cells.size()
+	var high: int = (cells[0] as Array).size()
+	var img: Image = Image.create(wide, high, false, Image.FORMAT_RGBA8)
+	for x: int in range(wide):
+		var column: Array = cells[x]
+		for y: int in range(high):
+			var c: Color = column[y]
+			img.set_pixel(x, y, SHOW_ROCK if c.is_equal_approx(Color.BLACK) else (SHOW[LevelGen.Type.SPIKES] if c.is_equal_approx(Color.RED) else SHOW_OPEN))
+	if w == null:
+		return img
+	for x: int in range(w.size.x):
+		for y: int in range(w.size.y):
+			var t: LevelGen.Type = w.get_cell(Vector2i(x, y)).type
+			if t == LevelGen.Type.GROUND:
+				img.set_pixel(x, y, SHOW_ROCK)
+			elif t == LevelGen.Type.EMPTY:
+				img.set_pixel(x, y, SHOW_OPEN)
+			elif SHOW.has(t):
+				img.set_pixel(x, y, SHOW[t])
+			elif t in FOES:
+				img.set_pixel(x, y, SHOW_FOE)
+			elif t == LevelGen.Type.COIN or t == LevelGen.Type.CLUSTER:
+				img.set_pixel(x, y, SHOW_STAR)
+	return img
+
+
+## A generator set as the game scene sets its own (pattern size and the rest), out of any tree.
+static func _make_wfc() -> Node:
+	var wfc: Node = (load("res://scripts/WaveFunctionCollapse.gd") as GDScript).new() as Node
+	var state: SceneState = (load("res://prefabs/scenes/main.tscn") as PackedScene).get_state()
+	for i: int in range(state.get_node_count()):
+		if state.get_node_name(i) != &"WaveFunctionCollapse":
+			continue
+		for p: int in range(state.get_node_property_count(i)):
+			var prop: StringName = state.get_node_property_name(i, p)
+			if prop != &"script":
+				wfc.set(prop, state.get_node_property_value(i, p))
+	return wfc
+
+
+## A level done by job `id`: shown, unless a newer job has been asked for.
+func _got(id: int, out: Dictionary) -> void:
+	if id != _wanted:
+		return
+	_cells.append(out)
+	var box: VBoxContainer = VBoxContainer.new()
+	_grid.add_child(box)
+	var view: TextureRect = TextureRect.new()
+	view.custom_minimum_size = THUMB
+	view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	view.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	view.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	if out["image"] != null:
+		view.texture = ImageTexture.create_from_image(out["image"])
+	view.gui_input.connect(func(e: InputEvent) -> void:
+		if e is InputEventMouseButton and (e as InputEventMouseButton).pressed and view.texture != null:
+			_big_view.texture = view.texture
+			_big_note.text = String(out["note"]) + "   (click to close)"
+			_big.visible = true)
+	box.add_child(view)
+	var note: Label = Label.new()
+	note.text = out["note"]
+	note.custom_minimum_size.x = THUMB.x
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD
+	note.add_theme_font_size_override("font_size", 12)
+	box.add_child(note)
+
+
+func _finished(id: int, total: int) -> void:
+	if _thread != null and _thread.is_started():
+		_thread.wait_to_finish()
+	if _pending:
+		_pending = false
+		_launch()
+		return
+	if id != _wanted:
+		return
+	var settled: int = _cells.filter(func(o: Dictionary) -> bool: return o["settled"]).size()
+	_status.text = "%d levels on row %d (%s) in %.1f s, %d settled" % [_cells.size(), int(_row.value), NextWorldDef.archetype_at(int(_row.value)), float(total) / 1000.0, settled]
+
+
+## The sample, drawn large, painted with the mouse.
+class SampleCanvas extends Control:
+	## Px a pixel of the sample is drawn.
+	const PX: int = 12
+	var lab: Node
+	var _texture: ImageTexture
+
+	func refresh() -> void:
+		var img: Image = lab.get("sample")
+		_texture = ImageTexture.create_from_image(img)
+		custom_minimum_size = Vector2(img.get_size() * PX)
+		queue_redraw()
+
+	func _draw() -> void:
+		if _texture == null:
+			return
+		var img_size: Vector2 = Vector2(_texture.get_size())
+		draw_texture_rect(_texture, Rect2(Vector2.ZERO, img_size * PX), false)
+		var grid: Color = Color(0.5, 0.5, 0.5, 0.25)
+		for x: int in range(int(img_size.x) + 1):
+			draw_line(Vector2(x * PX, 0), Vector2(x * PX, img_size.y * PX), grid)
+		for y: int in range(int(img_size.y) + 1):
+			draw_line(Vector2(0, y * PX), Vector2(img_size.x * PX, y * PX), grid)
+
+	func _gui_input(event: InputEvent) -> void:
+		var pressed: int = 0
+		var at: Vector2 = Vector2.ZERO
+		if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
+			pressed = (event as InputEventMouseButton).button_index
+			at = (event as InputEventMouseButton).position
+		elif event is InputEventMouseMotion:
+			var mask: int = (event as InputEventMouseMotion).button_mask
+			pressed = MOUSE_BUTTON_LEFT if (mask & MOUSE_BUTTON_MASK_LEFT) != 0 else (MOUSE_BUTTON_RIGHT if (mask & MOUSE_BUTTON_MASK_RIGHT) != 0 else 0)
+			at = (event as InputEventMouseMotion).position
+		if pressed == MOUSE_BUTTON_LEFT:
+			lab.call("paint", Vector2i(at / PX), int(lab.get("ink")))
+		elif pressed == MOUSE_BUTTON_RIGHT:
+			lab.call("paint", Vector2i(at / PX), 0)

@@ -2,23 +2,15 @@ extends TestKit
 ## Lays out every garden row of a number of worlds and prints what each holds, one line a level,
 ## then the averages by row: its size and open cells, how long it took to lay out, its foes, its
 ## stars against the price of its way on, its keys and doors by colour (and the doors no key in
-## the level opens), its lanterns, portals, secrets and vaults, and whether its way on can be got
-## to from its way in on foot ("walk": the wizard's own moves, measured first in the game itself,
-## MoveSet, wall jumps up shafts included; its doors and gates taken as open, so it is the terrain
-## that is judged). For looking over the garden's tuning at a glance, not a test.
-## godot --headless --fixed-fps 60 --path . --script res://tests/dump_garden.gd -- worlds=20 first=1 [rows=4..8] [layout=garden]
+## the level opens), and its lanterns, portals, secrets and vaults. For looking over the garden's
+## tuning at a glance, not a test.
+## godot --headless --path . --script res://tests/dump_garden.gd -- worlds=20 first=1 [rows=4..8] [layout=garden]
 ## suite: full
 
 const FOES: Array[LevelGen.Type] = [LevelGen.Type.ENEMY, LevelGen.Type.SHOOTER, LevelGen.Type.HOPPER, LevelGen.Type.BIRD]
 
 
-var moves: MoveSet = MoveSet.new()
-
-
 func run() -> void:
-	await boot()
-	await moves.measure(self)
-	print(moves.describe().get_slice("\n", 0))
 	var opts: Dictionary = {}
 	for arg: String in OS.get_cmdline_user_args():
 		var kv: PackedStringArray = arg.split("=")
@@ -35,7 +27,7 @@ func run() -> void:
 		for row: int in range(-Bands.garden_rows(), Bands.garden_rows() + 1):
 			rows.append(row)
 	var sums: Dictionary = {}
-	print("row world   size  open   ms foes stars price keys doors locked lant port secr vault side walk gate")
+	print("row world   size  open   ms foes stars price keys doors locked lant port secr vault side gate")
 	for row: int in rows:
 		var tally: Dictionary = {}
 		for i: int in range(count):
@@ -70,28 +62,21 @@ func run() -> void:
 				for y: int in range(w.size.y):
 					if not w.is_ground(Vector2i(x, y)):
 						open += 1
-			var walk: int = 0
-			if w.exits.has(MapInfo.Exit.BACK) and w.exits.has(MapInfo.Exit.DEEPER):
-				var start: Vector2i = w.exits[MapInfo.Exit.BACK]
-				moves.open = {}
-				for c: Vector2i in w.objects_of(LevelGen.Type.DOOR) + w.objects_of(LevelGen.Type.SWITCH_GATE):
-					moves.open[c] = true
-				walk = 0 if moves.plan(w, start, w.exits[MapInfo.Exit.DEEPER]).is_empty() else 1
-			var line: Dictionary = {"walk": walk, "ms": ms, "foes": foes, "stars": stars, "price": Rules.deeper_price(def.depth),
+			var line: Dictionary = {"ms": ms, "foes": foes, "stars": stars, "price": Rules.deeper_price(def.depth),
 					"keys": count_of(w, LevelGen.Type.KEY), "doors": doors, "locked": locked,
 					"lanterns": count_of(w, LevelGen.Type.CHECKPOINT), "portals": count_of(w, LevelGen.Type.PORTAL) / 2,
 					"secrets": w.secrets.size(), "vaults": w.vaults.size(), "side": def.doors.size(), "open": open}
 			for k: String in line:
 				_add(tally, k, line[k])
-			print("%3d %5d %3dx%-3d %5d %4d %4d %5d %5d %4d %5d %6d %4d %4d %4d %5d %4d %4d %s" % [row, at.x, w.size.x, w.size.y, open, ms,
+			print("%3d %5d %3dx%-3d %5d %4d %4d %5d %5d %4d %5d %6d %4d %4d %4d %5d %4d %s" % [row, at.x, w.size.x, w.size.y, open, ms,
 					foes, stars, line["price"], line["keys"], doors, locked, line["lanterns"], line["portals"],
-					line["secrets"], line["vaults"], line["side"], walk, def.gate])
+					line["secrets"], line["vaults"], line["side"], def.gate])
 		sums[row] = tally
 	print("\naverages by row (of %d worlds)" % count)
 	for row: int in rows:
 		var tally: Dictionary = sums[row]
 		var parts: Array[String] = []
-		for k: String in ["open", "ms", "foes", "stars", "price", "keys", "doors", "locked", "lanterns", "portals", "secrets", "vaults", "side", "walk", "unsettled"]:
+		for k: String in ["open", "ms", "foes", "stars", "price", "keys", "doors", "locked", "lanterns", "portals", "secrets", "vaults", "side", "unsettled"]:
 			parts.append("%s %.1f" % [k, float(tally.get(k, 0)) / float(count)])
 		print("%3d  %s" % [row, ", ".join(parts)])
 	finish()
