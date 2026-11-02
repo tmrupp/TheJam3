@@ -41,6 +41,13 @@ func start_game() -> void:
 	map_info().start_run(get_seed(world_seed))
 
 
+## Begin a new run at place `at` (on its world's seed, `at.x`), arriving at its way back: for the
+## generation lab (tools/gen_lab), to play a level it made (handed to the loader first, LevelLoader.keep).
+func start_at(at: Vector2i) -> void:
+	_enter_play()
+	map_info().start_run(at.x, at.y)
+
+
 func start_random() -> void:
 	randomize_seed()
 	start_game()

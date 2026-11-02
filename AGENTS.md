@@ -117,8 +117,11 @@ bash tests/run.sh -l garden full  # the suite on another band layout (the demo's
 - The generation lab, `tools/gen_lab/gen_lab.tscn` (open it in the editor and press F6, or
   `godot --path . res://tools/gen_lab/gen_lab.tscn`): paint a band's WFC sample, change the collapse
   (pattern size, symmetry, level size), the band row it is dressed as and the band tuning knobs, and
-  see a grid of levels from consecutive seeds laid out again a moment after each change.
-  `tests/capture_gen_lab.gd` takes stills of it.
+  see a grid of levels from consecutive seeds laid out again a moment after each change. Click one,
+  then Look in game (the whole level as the game prints it; P to play from there) or Play (from its
+  way in); Backspace (or F10) comes back to the lab as it was. It hands its level to the game through
+  `LevelLoader.keep` and starts the run with `Menu.start_at`, on a save of its own.
+  `tests/capture_gen_lab.gd` takes stills of it and checks the round trip.
 - `tests/dump_garden.gd` prints what every garden row holds over many worlds (foes, stars against
   the way on's price, keys and doors).
 - Each test sets its own `RunState.save_path` (`user://<test>.save`), so they can run in parallel.

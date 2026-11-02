@@ -141,6 +141,12 @@ func world_at(at: Vector2i) -> LevelGen:
 	return w
 
 
+## Take `built`, laid out from `cells`, as place `at`'s layout, as though it had been laid out here:
+## the generation lab (tools/gen_lab) hands over a level it made, to be played as that place.
+func keep(at: Vector2i, cells: Array, built: LevelGen) -> void:
+	_cache_put(at, cells, built)
+
+
 ## Keep a place's cells, and its layout when there is one (layouts are read-only once built, and
 ## depend on the debug flag and the difficulty preset, so they are kept per flag and preset).
 func _cache_put(at: Vector2i, cells: Array, built: LevelGen = null) -> void:

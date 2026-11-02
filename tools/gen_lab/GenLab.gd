@@ -6,7 +6,9 @@ extends Control
 ## passes and tuning, Bands), whether it is dressed at all, and the band tuning knobs
 ## (Archetype.star_share and the rest). On the right, a grid of levels from consecutive world seeds,
 ## laid out again a moment after anything changes, on a worker thread so painting stays smooth,
-## each with a line of what it holds; a click shows one large.
+## each with a line of what it holds; a click shows one large, and from there it can be looked at in
+## the game itself (the whole level, as it prints) or played, the wizard at its way in. Backspace
+## (or F10) comes back to the lab as it was left.
 ##
 ## It collapses with the game's own generator (the WaveFunctionCollapse node, set as the game scene
 ## sets it) and dresses with LevelGen, so what it shows is what the game would make with the same
@@ -46,6 +48,13 @@ const KNOBS: Array = [["star_share", 0.01], ["wisp_share", 0.01], ["watcher_shar
 const SETTLE: float = 0.35
 ## Tries a collapse gets (each on a seed of its own) before a level counts as never settling.
 const TRIES: int = 8
+## The game, and the save a run started from the lab keeps (apart from the player's own).
+const MAIN: String = "res://prefabs/scenes/main.tscn"
+const LAB_SAVE: String = "user://gen_lab.save"
+## Back to the lab from the game (Backspace is the game's own Back too: the lab takes it first).
+const BACK_KEYS: Array[Key] = [KEY_BACKSPACE, KEY_F10]
+## Looking at a level in the game: how much a wheel step zooms.
+const ZOOM_STEP: float = 1.15
 ## How big a level is drawn in the grid, at most (px); the sample is painted at SampleCanvas.PX.
 const THUMB: Vector2 = Vector2(300, 240)
 ## The window it opens in, if it starts smaller.
@@ -77,6 +86,14 @@ var _status: Label
 var _big: Panel
 var _big_view: TextureRect
 var _big_note: Label
+## The level shown large, and the game it is being looked at or played in (null in the lab).
+var _chosen: Dictionary = {}
+var _game: Node
+var _hint: Label
+var _looking: bool = false
+var _was_save: String = ""
+var _was_by_sight: bool = true
+var _limits: Array[int] = []
 var _save_as: LineEdit
 
 ## Counts each lay-out asked for, so a worker knows when its work is stale.
@@ -252,6 +269,24 @@ func _build_ui() -> void:
 		if e is InputEventMouseButton and (e as InputEventMouseButton).pressed:
 			_big.visible = false)
 	big_box.add_child(_big_view)
+	var actions: HBoxContainer = HBoxContainer.new()
+	big_box.add_child(actions)
+	_button(actions, "Look in game", func() -> void: _enter_game(true))
+	_button(actions, "Play", func() -> void: _enter_game(false))
+	_button(actions, "Close", func() -> void: _big.visible = false)
+
+	# Over the game: how to get back (a layer of its own, above the game's).
+	var over: CanvasLayer = CanvasLayer.new()
+	over.layer = 120
+	add_child(over)
+	_hint = Label.new()
+	_hint.position = Vector2(8, 4)
+	# Drawn in the game's own small view (320 x 180, scaled up), so small here.
+	_hint.add_theme_font_size_override("font_size", 7)
+	_hint.add_theme_color_override("font_outline_color", Color.BLACK)
+	_hint.add_theme_constant_override("outline_size", 2)
+	_hint.visible = false
+	over.add_child(_hint)
 
 
 func _title(parent: Control, text: String) -> void:
@@ -454,7 +489,7 @@ static func _level(wfc: Node, texture: ImageTexture, at: Vector2i, job: Dictiona
 		if not cells.is_empty():
 			break
 	if cells.is_empty():
-		return {"at": at, "image": null, "note": "never settled (%d tries)" % tries, "settled": false}
+		return {"at": at, "image": null, "note": "never settled (%d tries)" % tries, "settled": false, "cells": [], "level": null}
 	var w: LevelGen = null
 	var note: String = ""
 	if job["dress"] and def.patches().is_empty():
@@ -473,7 +508,7 @@ static func _level(wfc: Node, texture: ImageTexture, at: Vector2i, job: Dictiona
 		for t: LevelGen.Type in FOES:
 			foes += w.objects_of(t).size()
 		line += ", foes %d, stars %d, keys %d, doors %d" % [foes, w.objects_of(LevelGen.Type.COIN).size(), w.objects_of(LevelGen.Type.KEY).size(), w.objects_of(LevelGen.Type.DOOR).size()]
-	return {"at": at, "image": img, "note": line + note, "settled": true}
+	return {"at": at, "image": img, "note": line + note, "settled": true, "cells": cells, "level": w, "tune": job["tune"]}
 
 
 static func _open_cells(cells: Array) -> int:
@@ -547,6 +582,7 @@ func _got(id: int, out: Dictionary) -> void:
 		if e is InputEventMouseButton and (e as InputEventMouseButton).pressed and view.texture != null:
 			_big_view.texture = view.texture
 			_big_note.text = String(out["note"]) + "   (click to close)"
+			_chosen = out
 			_big.visible = true)
 	box.add_child(view)
 	var note: Label = Label.new()
@@ -568,6 +604,135 @@ func _finished(id: int, total: int) -> void:
 		return
 	var settled: int = _cells.filter(func(o: Dictionary) -> bool: return o["settled"]).size()
 	_status.text = "%d levels on row %d (%s) in %.1f s, %d settled" % [_cells.size(), int(_row.value), NextWorldDef.archetype_at(int(_row.value)), float(total) / 1000.0, settled]
+
+
+# ------------------------------------------------------------------ in the game
+
+## Open the game on the level shown large: looking at it whole (`look`), or playing it from its way
+## in. The lab is hidden meanwhile, and comes back as it was with BACK_KEYS.
+func _enter_game(look: bool) -> void:
+	if _chosen.is_empty() or not _chosen["settled"] or _game != null:
+		return
+	var at: Vector2i = _chosen["at"]
+	var cells: Array = _chosen["cells"]
+	var w: LevelGen = _chosen["level"]
+	if w == null:
+		# Shown undressed: dressed now, as the game would.
+		var def: NextWorldDef = Rules.def_for(at)
+		for knob: String in _chosen["tune"]:
+			def.arch.set(knob, _chosen["tune"][knob])
+		w = LevelGen.new(cells, def)
+	_was_save = RunState.save_path
+	RunState.save_path = LAB_SAVE
+	RunState.delete_save()
+	_was_by_sight = RisoLight.by_sight
+	_big.visible = false
+	visible = false
+	get_tree().root.content_scale_mode = Window.CONTENT_SCALE_MODE_VIEWPORT
+	_game = (load(MAIN) as PackedScene).instantiate()
+	get_tree().root.add_child(_game)
+	var info: MapInfo = _game.get_node("CanvasLayer/MapInfo") as MapInfo
+	info.loader.keep(at, cells, w)
+	_game.get_node("Menu").call("start_at", at)
+	_looking = false
+	_hint.text = "Backspace: back to the lab"
+	_hint.visible = true
+	if look:
+		await _settled_in(info)
+		_look(info)
+
+
+## Wait until the place has been built, the wizard set down in it and its title card gone.
+func _settled_in(info: MapInfo) -> void:
+	for i: int in range(900):
+		await get_tree().process_frame
+		var titling: bool = RisoTransition.instance != null and RisoTransition.instance.titling()
+		if info.world != null and not info.travelling and Stage.player() != null and not titling:
+			break
+	for i: int in range(20):
+		await get_tree().process_frame
+
+
+## The whole level in view, the wizard held still and light by sight off (as the overview stills).
+func _look(info: MapInfo) -> void:
+	var player: Player = Stage.player()
+	player.set_physics_process(false)
+	player.get_node("CameraControl").set_process(false)
+	RisoLight.by_sight = false
+	var camera: Camera2D = Stage.camera()
+	_limits = [camera.limit_left, camera.limit_top, camera.limit_right, camera.limit_bottom]
+	camera.limit_left = -10000000
+	camera.limit_top = -10000000
+	camera.limit_right = 10000000
+	camera.limit_bottom = 10000000
+	var rect: Rect2 = info.level_rect()
+	var view: Vector2 = Vector2(get_tree().root.content_scale_size)
+	var fit: float = minf(view.x / rect.size.x, view.y / rect.size.y)
+	camera.zoom = Vector2(fit, fit)
+	camera.global_position = rect.get_center()
+	camera.reset_smoothing()
+	_looking = true
+	_hint.text = "Backspace: back to the lab    P: play from here    wheel: zoom    drag: move"
+
+
+## From looking to playing: the wizard and the camera as the game has them.
+func _play_from_look() -> void:
+	var player: Player = Stage.player()
+	var camera: Camera2D = Stage.camera()
+	RisoLight.by_sight = _was_by_sight
+	camera.limit_left = _limits[0]
+	camera.limit_top = _limits[1]
+	camera.limit_right = _limits[2]
+	camera.limit_bottom = _limits[3]
+	camera.zoom = Vector2(0.25, 0.25)
+	player.set_physics_process(true)
+	player.get_node("CameraControl").set_process(true)
+	CameraControl.snap(player)
+	_looking = false
+	_hint.text = "Backspace: back to the lab"
+
+
+## Close the game and show the lab as it was.
+func _leave_game() -> void:
+	if _game == null:
+		return
+	_game.queue_free()
+	_game = null
+	_looking = false
+	_hint.visible = false
+	await get_tree().process_frame
+	RisoLight.by_sight = _was_by_sight
+	RunState.delete_save()
+	RunState.save_path = _was_save
+	get_tree().root.content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED
+	visible = true
+
+
+func _input(event: InputEvent) -> void:
+	if _game == null:
+		return
+	var key: InputEventKey = event as InputEventKey
+	if key != null and key.pressed and not key.echo:
+		if key.keycode in BACK_KEYS or key.physical_keycode in BACK_KEYS:
+			get_viewport().set_input_as_handled()
+			_leave_game()
+		elif _looking and key.keycode == KEY_P:
+			get_viewport().set_input_as_handled()
+			_play_from_look()
+		return
+	if not _looking:
+		return
+	var camera: Camera2D = Stage.camera()
+	var wheel: InputEventMouseButton = event as InputEventMouseButton
+	if wheel != null and wheel.pressed:
+		if wheel.button_index == MOUSE_BUTTON_WHEEL_UP:
+			camera.zoom *= ZOOM_STEP
+		elif wheel.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			camera.zoom /= ZOOM_STEP
+	var drag: InputEventMouseMotion = event as InputEventMouseMotion
+	if drag != null and drag.button_mask != 0:
+		camera.global_position -= drag.relative / camera.zoom
+		camera.reset_smoothing()
 
 
 ## The sample, drawn large, painted with the mouse.

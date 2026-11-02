@@ -663,11 +663,13 @@ func hint_relic () -> Variant:
 
 # ------------------------------------------------------------------ moving between places
 
-## Begin a run at depth 0 of `run_seed`; its start lantern is lit.
-func start_run (seed_value: int) -> void:
+## Begin a run at depth 0 of `run_seed`; its start lantern is lit. With a `row`, the run begins on
+## that row of the same world instead (the generation lab, tools/gen_lab, playing a level it made).
+func start_run (seed_value: int, row: int = 0) -> void:
 	run.start(seed_value)
-	coord = Vector2i(seed_value, 0)
-	arrival = -1
+	coord = Vector2i(seed_value, row)
+	# At the start, its own place for a run's first steps; elsewhere (the generation lab), its way back.
+	arrival = -1 if row == 0 else Exit.BACK
 	region = &""
 	if wizard() != null:
 		Abilities.reset(player)
