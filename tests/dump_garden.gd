@@ -2,15 +2,23 @@ extends TestKit
 ## Lays out every garden row of a number of worlds and prints what each holds, one line a level,
 ## then the averages by row: its size and open cells, how long it took to lay out, its foes, its
 ## stars against the price of its way on, its keys and doors by colour (and the doors no key in
-## the level opens), and its lanterns, portals, secrets and vaults. For looking over the garden's
-## tuning at a glance, not a test.
-## godot --headless --path . --script res://tests/dump_garden.gd -- worlds=20 first=1 [rows=4..8] [layout=garden]
+## the level opens), its lanterns, portals, secrets and vaults, and whether its way on can be got
+## to from its way in on foot ("walk": the wizard's own moves, measured first in the game itself,
+## MoveSet, wall jumps up shafts included; its doors and gates taken as open, so it is the terrain
+## that is judged). For looking over the garden's tuning at a glance, not a test.
+## godot --headless --fixed-fps 60 --path . --script res://tests/dump_garden.gd -- worlds=20 first=1 [rows=4..8] [layout=garden]
 ## suite: full
 
 const FOES: Array[LevelGen.Type] = [LevelGen.Type.ENEMY, LevelGen.Type.SHOOTER, LevelGen.Type.HOPPER, LevelGen.Type.BIRD]
 
 
+var moves: MoveSet = MoveSet.new()
+
+
 func run() -> void:
+	await boot()
+	await moves.measure(self)
+	print(moves.describe().get_slice("\n", 0))
 	var opts: Dictionary = {}
 	for arg: String in OS.get_cmdline_user_args():
 		var kv: PackedStringArray = arg.split("=")
@@ -65,7 +73,10 @@ func run() -> void:
 			var walk: int = 0
 			if w.exits.has(MapInfo.Exit.BACK) and w.exits.has(MapInfo.Exit.DEEPER):
 				var start: Vector2i = w.exits[MapInfo.Exit.BACK]
-				walk = 1 if Reach.tree(w, start).has(w.exits[MapInfo.Exit.DEEPER]) else 0
+				moves.open = {}
+				for c: Vector2i in w.objects_of(LevelGen.Type.DOOR) + w.objects_of(LevelGen.Type.SWITCH_GATE):
+					moves.open[c] = true
+				walk = 0 if moves.plan(w, start, w.exits[MapInfo.Exit.DEEPER]).is_empty() else 1
 			var line: Dictionary = {"walk": walk, "ms": ms, "foes": foes, "stars": stars, "price": Rules.deeper_price(def.depth),
 					"keys": count_of(w, LevelGen.Type.KEY), "doors": doors, "locked": locked,
 					"lanterns": count_of(w, LevelGen.Type.CHECKPOINT), "portals": count_of(w, LevelGen.Type.PORTAL) / 2,

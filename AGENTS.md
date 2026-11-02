@@ -115,9 +115,12 @@ bash tests/run.sh -l garden full  # the suite on another band layout (the demo's
 - Windowed runs on the kit stay out of the owner's way: muted, the window off every screen
   (`TestKit.out_of_sight`; minimized, Windows stops it drawing). Add `-- watch` to see and hear one.
 - Garden probes: `tests/dump_garden.gd` prints what every garden row holds over many worlds (foes,
-  stars against the way on's price, keys and doors, whether the way on is in hop reach);
-  `tests/capture_garden_play.gd` has a rough bot play garden levels (hops, drops through ledges,
-  wall jumps up chimneys) and print how far it got and the blows it took.
+  stars against the way on's price, keys and doors, whether the way on can be got to on foot);
+  `tests/capture_garden_play.gd` has a bot play garden levels (`-- keys=all` to carry every key)
+  and print how far it got and the blows it took. Both plan with `MoveSet` (`tests/kit/MoveSet.gd`),
+  which first measures the wizard's moves in the game itself (jumps, dashes, wall jumps, moons;
+  in the practice range), so they keep up with any change to how the wizard moves. Run them with
+  `--fixed-fps 60`, or they play at the clock's pace.
 - Each test sets its own `RunState.save_path` (`user://<test>.save`), so they can run in parallel.
 - New tests extend `TestKit` (`tests/kit/TestKit.gd`): override `run()`, end with `finish()`, and
   use its `check`/`check_eq`, `boot(seed)` (starts a run, keeps the save apart), `until(cond)` and
