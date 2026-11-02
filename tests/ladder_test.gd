@@ -9,6 +9,9 @@ extends TestKit
 
 
 func run() -> void:
+	if not needs([&"institute"]):
+		finish()
+		return
 	_layout()
 	await boot()
 	await _climb()
@@ -22,8 +25,8 @@ func _layout() -> void:
 	var right: bool = true
 	var grounded: bool = true
 	for world: int in [28, 7, 99]:
-		for k: int in range(2):
-			var at: Vector2i = Vector2i(world, NextWorldDef.band_row(&"institute", k))
+		for row: int in band_rows(&"institute", [0, 1], false):
+			var at: Vector2i = Vector2i(world, row)
 			var w: LevelGen = build(at)
 			lifts += w.objects_of(LevelGen.Type.MOVING_PLATFORM).size()
 			for v: Vector2i in w.objects_of(LevelGen.Type.ROLLING_LADDER):
@@ -46,8 +49,8 @@ func _climb() -> void:
 	print("climbing a ladder")
 	var ladder: RollingLadder = null
 	for world: int in [28, 7, 99, 3]:
-		for k: int in range(3):
-			await _go(Vector2i(world, NextWorldDef.band_row(&"institute", k)))
+		for row: int in band_rows(&"institute", [0, 1, 2], false):
+			await _go(Vector2i(world, row))
 			for node: Node in placed("rolling_ladder.tscn"):
 				var found: RollingLadder = node as RollingLadder
 				if found.rungs >= 3 and found.travel > 0.0:
@@ -74,7 +77,12 @@ func _climb() -> void:
 	# Halfway down it, in the air: up takes hold.
 	var lift: float = player._feet_y() - player.global_position.y
 	player.global_position = Vector2(ladder.ladder_x(), (ladder.top_y() + ladder.foot_y()) * 0.5 - lift)
-	player.velocity = Vector2.ZERO
+	still()
+	# The view cut to the wizard, so the ladder's chunk is awake (as it always is beside a wizard in
+	# play): one taken hold of while asleep, out of the physics world, snaps to the origin as it rolls.
+	CameraControl.snap(player)
+	info.loader.wake_around(player.global_position)
+	await physics_frame
 	player.set_physics_process(true)
 	Input.action_press(&"Up")
 	await until(func() -> bool: return player.ladder == ladder, 3000)

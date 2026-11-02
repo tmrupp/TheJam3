@@ -8,6 +8,9 @@ extends TestKit
 
 
 func run() -> void:
+	if not needs([&"crags"]):
+		finish()
+		return
 	generation()
 	await falling()
 	RunState.delete_save()
@@ -16,8 +19,8 @@ func run() -> void:
 
 func generation() -> void:
 	print("laid out")
-	for k: int in [0, 2, 5]:
-		var at: Vector2i = Vector2i(28, NextWorldDef.band_row(&"crags", k))
+	for row: int in band_rows(&"crags", [0, 2, -1]):
+		var at: Vector2i = Vector2i(28, row)
 		var w: LevelGen = build(at)
 		var all: Array[Vector2i] = w.objects_of(LevelGen.Type.STALACTITE)
 		check(not all.is_empty(), "row %d has stalactites (%d)" % [at.y, all.size()])

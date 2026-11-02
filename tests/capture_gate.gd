@@ -64,11 +64,11 @@ func capture() -> void:
 	player.get_node("CameraControl").set_process(false)
 	var shots: Array[Image] = []
 	# The sealed way on, at the head of the bramble's shaft.
-	await go(Vector2i(28, -NextWorldDef.GARDEN_ROWS), player)
+	await go(Vector2i(28, -Bands.garden_rows()), player)
 	var on: Vector2 = info.cell_position(info.world.exits[MapInfo.Exit.DEEPER])
 	shots.append(await shot(on))
 	# The stand-in, in the necromancer's gate level: whole, struck, and the relic it leaves.
-	await go(Vector2i(28, NextWorldDef.GARDEN_ROWS + NextWorldDef.BAND), player)
+	await go(Vector2i(28, Bands.row_of(&"necromancer")), player)
 	var boss: Boss = node("boss.tscn") as Boss
 	boss.get_node("Mover").set_physics_process(false)
 	shots.append(await shot(boss.global_position))
@@ -86,7 +86,7 @@ func capture() -> void:
 			relic = n as Node2D
 	shots.append(await shot(relic.global_position))
 	# The necromancer's way on, open.
-	await go(Vector2i(28, NextWorldDef.GARDEN_ROWS + NextWorldDef.BAND), player)
+	await go(Vector2i(28, Bands.row_of(&"necromancer")), player)
 	shots.append(await shot(info.cell_position(info.world.exits[MapInfo.Exit.DEEPER])))
 	var out: Image = Image.create(SIZE * 3, SIZE * 2, false, shots[0].get_format())
 	for k: int in range(shots.size()):

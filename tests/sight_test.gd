@@ -10,6 +10,9 @@ const CELL: float = 128.0
 
 
 func run() -> void:
+	if not needs([&"cemetery"]):
+		finish()
+		return
 	_grid()
 	_against_rays()
 	_outside()

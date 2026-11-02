@@ -32,13 +32,18 @@ func run() -> void:
 	_branches()
 	_relics()
 	_wind()
-	_whale()
-	_beast()
-	_institute()
+	# The rules of a band, where it is in the bands in play (Bands).
+	if Bands.has(&"sky"):
+		_whale()
+	if Bands.has(&"institute"):
+		_beast()
+		_institute()
 	_stations()
-	_darkness()
-	_lodestones()
-	_renamed()
+	if Bands.has(&"cemetery"):
+		_darkness()
+	if Bands.has(&"crags"):
+		_lodestones()
+		_renamed()
 	_legibility()
 	var p: Player = Player.new()
 	_ability_tables()
@@ -108,7 +113,7 @@ func _lodestones() -> void:
 	var stretch: int = Rules.LODESTONE_STRETCH
 	var each_once: bool = true
 	var quarter: bool = true
-	for k: int in range(NextWorldDef.BAND):
+	for k: int in range(Bands.rows_of(&"crags")):
 		var row: int = NextWorldDef.band_row(&"crags", k)
 		for s: int in [-3, -1, 0, 1, 5]:
 			var found: Dictionary = {}
@@ -231,37 +236,39 @@ func _rarity() -> void:
 
 
 func _archetypes() -> void:
-	var band: int = NextWorldDef.BAND
-	var g: int = NextWorldDef.GARDEN_ROWS
-	# The garden is the hub, both ways from the start; then the bands of each way, in turn.
-	var bands: Array = []
-	for row: int in range(-3 * band - g, 3 * band + g + 1):
-		bands.append(NextWorldDef.archetype_at(row))
-	var want: Array = []
-	for row: int in range(-3 * band - g, 3 * band + g + 1):
-		var d: int = absi(row)
-		if d <= g:
-			want.append(&"garden")
-		elif row > 0:
-			want.append(&"cemetery" if d <= g + band else &"institute")
-		else:
-			want.append(&"crags" if d <= g + band else &"sky")
-	check_eq(bands, want, "the garden spans rows -%d to %d; down the cemetery then the institute, up the crags then the sky, %d rows each, the outermost going on" % [g, g, band])
+	var g: int = Bands.garden_rows()
+	# The garden is the hub, both ways from the start; then the bands of each way, in turn, each
+	# its rows long, the outermost going on (the garden, a way with none). Asked of the bands in
+	# play, so it holds however they are tuned (bands_test tries other layouts).
+	var spans: bool = true
+	for row: int in range(-g, g + 1):
+		spans = spans and NextWorldDef.archetype_at(row) == &"garden"
+	for dir: int in [1, -1]:
+		var row: int = g + 1
+		var last: StringName = &"garden"
+		for band: Dictionary in Bands.way(dir):
+			last = Bands.name_of(band["arch"])
+			for k: int in range(int(band["rows"])):
+				spans = spans and NextWorldDef.archetype_at(dir * row) == last and NextWorldDef.band_row(last, k) == dir * row
+				row += 1
+		spans = spans and NextWorldDef.archetype_at(dir * (row + 40)) == last
+	check(spans, "the garden spans rows -%d to %d, then each way's bands follow, their rows each, the outermost going on (%s)" % [g, g, Bands.current])
 	check_eq(NextWorldDef.archetype_at(0), &"garden", "the run starts in the garden")
 	check_eq(NextWorldDef.first_depth(&"nowhere"), -1, "no band for an archetype that does not exist")
-	var firsts: Dictionary = {&"garden": 0, &"cemetery": g + 1, &"institute": g + 1 + band, &"crags": -(g + 1), &"sky": -(g + 1 + band)}
-	for kind: StringName in firsts:
-		check_eq(NextWorldDef.first_depth(kind), int(firsts[kind]), "the %s's row nearest the start" % kind)
-	check(NextWorldDef.band_row(&"sky", 2) == -(g + 3 + band) and NextWorldDef.band_row(&"cemetery", 2) == g + 3, "band rows count away from the start, up or down")
-	for kind: StringName in [&"garden", &"cemetery", &"sky", &"crags", &"institute"]:
+	for kind: StringName in NextWorldDef.archetype_names():
 		var def: NextWorldDef = Rules.def_for(Vector2i(28, NextWorldDef.first_depth(kind)))
 		check(def.archetype == kind and def.realm() == kind and RisoPrint.REALMS.has(kind), "a %s level is printed in its own realm" % kind)
-	var sky_depth: int = NextWorldDef.first_depth(&"sky")
-	var sky: NextWorldDef = Rules.def_for(Vector2i(28, sky_depth))
-	check_eq(sky.depth, absi(sky_depth), "a level's depth is its distance from the start, whichever way")
-	check_eq(sky.size, Vector2i((Vector2(Rules.level_size(sky.depth)) * SkyArchetype.SCALE).round()), "a sky level is SkyArchetype.SCALE times a cave level of its distance")
+	var up: int = -(g + 1)
+	var above: NextWorldDef = Rules.def_for(Vector2i(28, up))
+	check_eq(above.depth, absi(up), "a level's depth is its distance from the start, whichever way")
 	check(Rules.where(Vector2i(28, -5)) == "world 28 · height 5" and Rules.where(Vector2i(28, 5)) == "world 28 · depth 5", "a level above the start is named by its height")
-	check(sky.chasmed() and Rules.def_for(Vector2i(28, NextWorldDef.first_depth(&"cemetery"))).chasmed() and not Rules.def_for(Vector2i(28, 0)).chasmed(), "the cemetery and the sky have chasms, the garden none")
+	check(not Rules.def_for(Vector2i(28, 0)).chasmed(), "the garden has no chasms")
+	if Bands.has(&"sky"):
+		var sky: NextWorldDef = Rules.def_for(Vector2i(28, NextWorldDef.first_depth(&"sky")))
+		check_eq(sky.size, Vector2i((Vector2(Rules.level_size(sky.depth)) * SkyArchetype.SCALE).round()), "a sky level is SkyArchetype.SCALE times a cave level of its distance")
+		check(sky.chasmed(), "the sky has chasms (its gaps)")
+	if Bands.has(&"cemetery"):
+		check(Rules.def_for(Vector2i(28, NextWorldDef.first_depth(&"cemetery"))).chasmed(), "and the cemetery")
 
 
 func _side_worlds() -> void:
@@ -383,7 +390,7 @@ func _renamed() -> void:
 	var old: Dictionary = {"bosses": {&"spider": true, &"worm": true}, "boss_relics": {&"spider": [Vector2i(3, -9), Vector2(10, 20), &"blink"]}}
 	var now: Dictionary = RunState.gone_kinds(old)
 	check(now["bosses"] == {&"golem": true, &"worm": true} and (now["boss_relics"] as Dictionary).keys() == [&"golem"], "a save's slain spider and its relic are the golem's")
-	check(Bosses.row_of(&"golem") == -(NextWorldDef.GARDEN_ROWS + NextWorldDef.BAND) and Bosses.row_of(&"spider") == 0, "the golem guards the crags' gate, and the spider nothing")
+	check(Bosses.row_of(&"golem") == NextWorldDef.band_row(&"crags", Bands.rows_of(&"crags") - 1) and Bosses.row_of(&"spider") == 0, "the golem guards the crags' gate, and the spider nothing")
 
 
 ## A sky level's wind (Rules.wind_of): still with no vane on; the way of the vane last switched
@@ -600,7 +607,7 @@ func _darkness() -> void:
 	check(seen[11] == Vector2i(1, 1) and seen.slice(12) == [Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0)], "down to the last charge, then a dash leaves the flame lit and spends nothing")
 	check_eq(Rules.dash_dark(true, 0), Vector2i(0, 0), "a dash out of the dark with nothing to spend lights the flame")
 	var first: int = NextWorldDef.first_depth(&"cemetery")
-	var gate: int = NextWorldDef.band_row(&"cemetery", NextWorldDef.BAND - 1)
+	var gate: int = NextWorldDef.band_row(&"cemetery", Bands.rows_of(&"cemetery") - 1)
 	var fontless: int = 0
 	var dealt: int = 0
 	var never: bool = true

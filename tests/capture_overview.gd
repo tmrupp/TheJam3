@@ -41,7 +41,7 @@ func run() -> void:
 		if band not in NextWorldDef.archetype_names():
 			print("  no band named ", band)
 			continue
-		var rows: int = NextWorldDef.GARDEN_ROWS + 1 if NextWorldDef.band_row(band, 0) == 0 else NextWorldDef.BAND
+		var rows: int = Bands.rows_of(band)
 		for i: int in range(count):
 			var world: int = first + i
 			var k: int = int(opts["row"]) if opts.has("row") else (hash([world, band]) % rows + rows) % rows

@@ -1,6 +1,6 @@
 class_name BeastSouls
 extends RefCounted
-## The eldritch beast's souls (Bosses.DOWN's last, docs/REGIONS_PLAN.md §6), apart from the scene.
+## The eldritch beast's souls (the institute's boss, docs/REGIONS_PLAN.md §6), apart from the scene.
 ## The first time the beast wakes in its chamber (Beast), it sends its souls out across the run
 ## (send): SOULS, and one more for every FED_PER_SOUL rings of the institute's bells before then, up
 ## to FED_SOULS_MOST more (count: the bells feed it, RunState.fed). The wizard who explored is
@@ -88,10 +88,10 @@ static func far_flung(run: RunState, from: Vector2i, k: int) -> Vector2i:
 	var first: int = posmod(Rules.level_seed(run.run_seed, FAR_DEAL - 1), FAR_BANDS.size())
 	var band: StringName = FAR_BANDS[(first + k) % FAR_BANDS.size()]
 	var row: int = 0
-	if band == &"garden":
-		row = posmod(roll, NextWorldDef.GARDEN_ROWS * 2 - 1) - (NextWorldDef.GARDEN_ROWS - 1)
+	if band == &"garden" or not Bands.has(band):
+		row = posmod(roll, Bands.garden_rows() * 2 - 1) - (Bands.garden_rows() - 1)
 	else:
-		row = NextWorldDef.band_row(band, posmod(roll >> 4, NextWorldDef.BAND))
+		row = NextWorldDef.band_row(band, posmod(roll >> 4, Bands.rows_of(band)))
 	var off: int = FAR_COLUMNS.x + posmod(roll >> 8, FAR_COLUMNS.y - FAR_COLUMNS.x + 1)
 	var side: int = 1 if posmod(roll >> 12, 2) == 0 else -1
 	return Vector2i(from.x + side * off, row)

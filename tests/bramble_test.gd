@@ -12,7 +12,7 @@ extends TestKit
 
 func run() -> void:
 	MapInfo.debug = false
-	var g: int = NextWorldDef.GARDEN_ROWS
+	var g: int = Bands.garden_rows()
 	print("the shaft")
 	var w: LevelGen = build(Vector2i(28, -g))
 	var shaft: Dictionary = w.shaft

@@ -7,6 +7,7 @@ extends SceneTree
 var failed: bool = false
 
 func _initialize() -> void:
+	TestKit.out_of_sight()
 	call_deferred("run")
 
 func check(ok: bool, what: String) -> void:
@@ -14,6 +15,10 @@ func check(ok: bool, what: String) -> void:
 	failed = failed or not ok
 
 func run() -> void:
+	if not Bands.has(&"sky"):
+		print("  skip sky_art_test: no sky in the bands in play")
+		quit(0)
+		return
 	var solid: Dictionary = {}
 	for x: int in range(100):
 		solid[Vector2i(x, 2)] = true

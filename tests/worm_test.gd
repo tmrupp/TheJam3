@@ -15,7 +15,7 @@ extends TestKit
 
 func run() -> void:
 	MapInfo.debug = false
-	var g: int = NextWorldDef.GARDEN_ROWS
+	var g: int = Bands.garden_rows()
 	await boot(28)
 	player.set_physics_process(false)
 	await _go(Vector2i(28, g))
@@ -62,7 +62,8 @@ func run() -> void:
 	var up: bool = await until(func() -> bool: return worm.pieces[0].state == Worm.UP and worm.pieces[0].segments[0].shown, 10000)
 	check(up and worm.rumbles >= 3, "rumbling (%d times) before it bursts out" % worm.rumbles)
 	var head: WormSegment = worm.pieces[0].segments[0]
-	var bit: bool = await until(func() -> bool: return player.health.health < 99, 20000)
+	# Timed by the game (its hunt), not the clock: a slow machine, or a lair the wizard is far along, takes longer.
+	var bit: bool = await within(func() -> bool: return player.health.health < 99, 30.0)
 	check(bit, "it hunts the wizard down and bites")
 	var turned_back: bool = false
 	var side_was: float = worm.pieces[0].side

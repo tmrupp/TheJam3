@@ -16,6 +16,9 @@ const ROWS: Array[int] = [1, 2, 3, 4]
 
 
 func run() -> void:
+	if not needs([&"cemetery"]):
+		finish()
+		return
 	var at: Variant = generation()
 	if at != null:
 		await play(at)

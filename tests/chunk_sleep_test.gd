@@ -8,6 +8,9 @@ extends TestKit
 
 
 func run() -> void:
+	if not needs([&"cemetery"]):
+		finish()
+		return
 	await boot(28)
 	info.coord = Vector2i(28, NextWorldDef.band_row(&"cemetery", 2))
 	info.arrival = MapInfo.Exit.BACK

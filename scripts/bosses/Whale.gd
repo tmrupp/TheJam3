@@ -1,6 +1,6 @@
 class_name Whale
 extends Node2D
-## The whale (Bosses.UP's last, docs/REGIONS_PLAN.md §6) in the level it is in now (WhaleHunt: one
+## The whale (the sky's boss, docs/REGIONS_PLAN.md §6) in the level it is in now (WhaleHunt: one
 ## world on the sky's top row, moving as the wizard comes and goes), put there as the level is
 ## built (MapInfo._spawn_whale). A huge body LENGTH long that swims along the top of the level. In
 ## its level the camera goes no higher than CEILING cells over the level's top, and its middle swims

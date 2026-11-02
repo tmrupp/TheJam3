@@ -8,7 +8,7 @@ extends TestKit
 func run() -> void:
 	MapInfo.debug = false
 	await boot(42)
-	info.coord = Vector2i(42, NextWorldDef.GARDEN_ROWS)
+	info.coord = Vector2i(42, Bands.garden_rows())
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	await settle()

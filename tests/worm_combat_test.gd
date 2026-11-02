@@ -6,7 +6,7 @@ extends TestKit
 
 func run() -> void:
 	await boot(28)
-	info.coord = Vector2i(28, NextWorldDef.GARDEN_ROWS)
+	info.coord = Vector2i(28, Bands.garden_rows())
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	await settle()

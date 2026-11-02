@@ -1,13 +1,13 @@
 class_name Archetype
 extends RefCounted
-## What kind of level a band of depths holds (see NextWorldDef.ARCHETYPES): the terrain it is
+## What kind of level a band of depths holds (see Bands): the terrain it is
 ## collapsed from, how big it is, the realm it prints in, how it is gated, and what it adds to an
 ## ordinary level's dressing (LevelGen.populate_level calls the hooks below at fixed points, so an
 ## archetype never shifts what the others lay out). The base is plain caves with no extras.
 ##
 ## To add a band: extend this (GardenArchetype is the smallest example, SkyArchetype the fullest),
 ## set its look and feel in _init (the vars below), override the hooks it needs, then list it in
-## NextWorldDef.ARCHETYPES. Its art is chosen by name: its decor plan (`decor`, a RisoDecor.PLANS
+## Bands.LAYOUTS. Its art is chosen by name: its decor plan (`decor`, a RisoDecor.PLANS
 ## entry) and its realm (its colours in RisoPrint.REALMS, its backdrop in RisoBackground), each
 ## falling back to the garden's decor and the night backdrop, so a new band works before it has art
 ## of its own.
@@ -44,6 +44,14 @@ var open: bool = false
 ## cemetery's crypts instead, Crypts).
 var shade: float = SHADE
 var gloom: float = 0.0
+## How thickly an ordinary level of it is dressed (LevelGen.populate_level), before its own passes:
+## the share of its open cells given a star (`star_share`), a wisp (`wisp_share`) and a watcher
+## (`watcher_share`), the foes' times the difficulty's (Difficulty.foes), and hoppers per 1000 cells
+## from depth 1 (`hoppers_per_k`). A band's line in Bands.LAYOUTS may set any of these ("tune").
+var star_share: float = 0.2
+var wisp_share: float = 0.2
+var watcher_share: float = 0.1
+var hoppers_per_k: float = LevelGen.HOPPERS_PER_K
 
 
 ## Small insides collapsed with each of its levels' terrain, from samples of their own, for its

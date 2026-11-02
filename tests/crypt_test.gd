@@ -16,6 +16,9 @@ extends TestKit
 
 
 func run() -> void:
+	if not needs([&"cemetery"]):
+		finish()
+		return
 	generation()
 	await play()
 	RunState.delete_save()
@@ -39,7 +42,11 @@ func play() -> void:
 		var c: Vector2i = info.cell_at((n as Node2D).global_position)
 		for d: Vector2i in [Vector2i.ZERO, Vector2i.LEFT, Vector2i.RIGHT]:
 			clear[c + d] = true
+	# Ashlar is the dressed stone of a crypt's wall drawn inside its own rock cell: the wall a font
+	# stands against, not a prop beside it.
 	var crowding: Array[Dictionary] = decor.items.filter(func(item: Dictionary) -> bool:
+		if item["kind"] == &"ashlar":
+			return false
 		for c: Vector2i in item.get("cells", [item["cell"]]):
 			if clear.has(c):
 				return true
@@ -241,10 +248,13 @@ func _spawn(scene: String, v: Vector2i) -> Node2D:
 
 func generation() -> void:
 	print("generation")
-	var c0: int = NextWorldDef.first_depth(&"cemetery")
 	var twos: int = 0
 	var furnished: int = 0
-	for at: Vector2i in [Vector2i(28, c0), Vector2i(28, c0 + 2), Vector2i(7, c0 + 4), Vector2i(99, c0 + 5), Vector2i(3, NextWorldDef.band_row(&"cemetery", 3))]:
+	# Rows of the band (the last its gate's, the necromancer's), whatever its length.
+	var places: Array[Vector2i] = []
+	for pick: Vector2i in [Vector2i(28, 0), Vector2i(28, 2), Vector2i(7, 4), Vector2i(99, -1), Vector2i(3, 3)]:
+		places.append(Vector2i(pick.x, band_rows(&"cemetery", [pick.y])[0]))
+	for at: Vector2i in places:
 		var started: int = Time.get_ticks_msec()
 		var w: LevelGen = build(at)
 		var took: int = Time.get_ticks_msec() - started
@@ -295,7 +305,14 @@ func generation() -> void:
 	print("ok %d of the levels have two crypts" % twos)
 	for kind: StringName in Crypts.TRIALS:
 		check(int(trial_kinds.get(kind, 0)) > 0, "some crypts have a %s (%d)" % [kind, int(trial_kinds.get(kind, 0))])
-	check(int(prizes.get(&"key", 0)) > 0 and int(prizes.get(&"font", 0)) > 0, "the prizes include skeleton keys and large fonts (%s)" % prizes)
+	# Each crypt laid out above holds the prize dealt it (_prized); what is dealt, over many levels'
+	# seeds, includes both kinds, however few crypts the levels above happen to have.
+	var dealt: Dictionary = {}
+	for level: int in range(2000):
+		for i: int in range(2):
+			var kind: StringName = Crypts.prize_kind(level, i)
+			dealt[kind] = int(dealt.get(kind, 0)) + 1
+	check(int(dealt.get(&"key", 0)) > 0 and int(dealt.get(&"font", 0)) > 0, "the prizes include skeleton keys and large fonts (%s dealt; %s laid above)" % [dealt, prizes])
 	# The rite, over many levels' seeds: now and then, never in two crypts of a level.
 	var rites: int = 0
 	var twice: int = 0
@@ -307,7 +324,7 @@ func generation() -> void:
 	# A large font, a crypt's prize, stays in a level dealt no fonts.
 	var dry: Vector2i = Vector2i(-1, -1)
 	for world: int in range(1, 200):
-		var at: Vector2i = Vector2i(world, c0 + 1)
+		var at: Vector2i = Vector2i(world, band_rows(&"cemetery", [1])[0])
 		if Rules.fontless_at(at) and Crypts.prize_kind(Rules.def_for(at).gen_seed, 0) == &"font":
 			dry = at
 			break
@@ -367,7 +384,10 @@ func _crypt(w: LevelGen, at: Vector2i, crypt: Dictionary, lair: bool) -> void:
 	if lair:
 		check(not cluster and sleepers == 0, "%s: the necromancer's crypt holds no cluster and no sleepers" % at)
 	else:
-		check(cluster and sleepers >= Crypts.SKELETONS_MIN, "%s: the level's star cluster (or a hoard of stars) at its deepest floor, %d skeletons asleep" % [at, sleepers])
+		# The least sleepers, unless every floor is taken (a tiny crypt's few, by its cluster, prize,
+		# fonts, thorns and star).
+		var spare: int = floors.filter(func(v: Vector2i) -> bool: return v != crypt["deep"] and w.get_cell(v).type == LevelGen.Type.EMPTY).size()
+		check(cluster and (sleepers >= Crypts.SKELETONS_MIN or spare == 0), "%s: the level's star cluster (or a hoard of stars) at its deepest floor, %d skeletons asleep (%d floors to spare)" % [at, sleepers, spare])
 		# Its thorns take turns: on each, a timer half a cycle from its neighbour's a block on.
 		var thorns: Array[Vector2i] = floors.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.SPIKES)
 		# Thorny: its alternating thorns and its trials' thorns, always out, together.

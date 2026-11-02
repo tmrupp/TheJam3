@@ -1,6 +1,6 @@
 class_name Bramble
 extends Node2D
-## The bramble (Bosses.GARDEN_UP): the boss of the garden's way up, fought in its gate level
+## The bramble (the garden's way up's boss, Bands): the boss of the garden's way up, fought in its gate level
 ## (docs/REGIONS_PLAN.md §6). The way up is a tall shaft of rock (BrambleShaft), and the bramble is
 ## rooted at its head: a knot of bark and thorns filling the head beside the landing the way on
 ## stands on, so nothing gets past it to the way on. Its roots run down the shaft's walls to:

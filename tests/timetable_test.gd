@@ -26,11 +26,14 @@ extends TestKit
 ## godot --headless --path . --script res://tests/timetable_test.gd
 
 const WORLD: int = 28
-## The institute's levels laid out here: rows into its band (NextWorldDef.band_row), by world.
+## The institute's levels laid out here: rows into its band (_laid_row), by world.
 const LAID: Array[Vector2i] = [Vector2i(28, 0), Vector2i(28, 2), Vector2i(7, 3), Vector2i(99, 4), Vector2i(41, 1)]
 
 
 func run() -> void:
+	if not needs([&"cemetery", &"institute"]):
+		finish()
+		return
 	MapInfo.debug = false
 	_rules()
 	_laid_out()
@@ -82,7 +85,7 @@ func _laid_out() -> void:
 	var phases: Dictionary = {}
 	var apart_ok: bool = true
 	for place: Vector2i in LAID:
-		var at: Vector2i = Vector2i(place.x, NextWorldDef.band_row(&"institute", place.y))
+		var at: Vector2i = Vector2i(place.x, _laid_row(place.y))
 		var w: LevelGen = build(at)
 		check(w != null, "%s collapses" % at)
 		if w == null:
@@ -1050,3 +1053,13 @@ func _spawn(scene: String, v: Vector2i) -> Scholar:
 	node.global_position = info.cell_position(v)
 	node.setup(info, v, {"ability": &"", "hall": -1})
 	return node
+
+
+## Row `k` of the institute's band as LAID counts it, an ordinary level: one that lands on the
+## band's gate level (the beast's, whose way on stays by its chamber, Institute.way_on) is taken a
+## row nearer the start, however long the band is tuned.
+static func _laid_row(k: int) -> int:
+	var row: int = NextWorldDef.band_row(&"institute", k)
+	if k > 0 and Bosses.gate_at(row) != &"":
+		row = NextWorldDef.band_row(&"institute", k - 1)
+	return row

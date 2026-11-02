@@ -1,6 +1,6 @@
 class_name Worm
 extends Node2D
-## The worm (Bosses.GARDEN_DOWN): the boss of the garden's way down, fought in its gate level
+## The worm (the garden's way down's boss, Bands): the boss of the garden's way down, fought in its gate level
 ## (docs/REGIONS_PLAN.md §6). A worm of SEGMENTS segments (WormSegment), each as big as a cell of
 ## the level. It moves cell by cell, its body following its head through the cells it has been,
 ## and bends there like a pipe: straight through a cell it crosses, round a quarter turn in a cell

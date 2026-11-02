@@ -8,6 +8,9 @@ extends TestKit
 
 
 func run() -> void:
+	if not needs([&"cemetery", &"sky"]):
+		finish()
+		return
 	print("shapes")
 	var shapes_ok: bool = true
 	for k: int in range(RisoMarks.SIGILS):

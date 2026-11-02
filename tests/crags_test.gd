@@ -23,6 +23,9 @@ extends TestKit
 
 
 func run() -> void:
+	if not needs([&"crags"]):
+		finish()
+		return
 	generation()
 	await ride()
 	RunState.delete_save()
@@ -32,8 +35,8 @@ func run() -> void:
 func generation() -> void:
 	print("laid out")
 	var diagonal: int = 0
-	for k: int in [0, 2, 5]:
-		var at: Vector2i = Vector2i(28, NextWorldDef.band_row(&"crags", k))
+	for row: int in band_rows(&"crags", [0, 2, -1]):
+		var at: Vector2i = Vector2i(28, row)
 		var def: NextWorldDef = Rules.def_for(at)
 		check(def.archetype == &"crags" and def.symmetry == 1 and def.region == CragsArchetype.SAMPLE and def.realm() == &"crags", "row %d is a crag level, collapsed unturned from its own sample, in its own realm" % at.y)
 		check(def.size.y > def.size.x, "row %d is taller than wide (%s)" % [at.y, def.size])

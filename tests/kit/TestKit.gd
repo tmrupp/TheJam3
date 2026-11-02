@@ -32,7 +32,44 @@ func _initialize() -> void:
 	# them all before the press arrived. With one step a frame, a busy machine runs the game slower
 	# instead, and every test sees the same order of input and physics as on an idle one.
 	Engine.max_physics_steps_per_frame = 1
+	out_of_sight()
+	if "layout=retuned" in OS.get_cmdline_user_args():
+		Bands.use(RETUNED)
 	run.call_deferred()
+
+
+## A band layout of the tests' own, every band retuned from the game's (Bands.LAYOUTS): a narrower
+## garden dressed more thinly, and each band shorter or longer than it is. Played with
+## `bash tests/run.sh -l retuned full`, it shows which tests lean on the bands as they are tuned now
+## (a row picked by counting, or a level picked for what it happens to hold) rather than on the
+## rules, so the bands can be retuned without the tests breaking.
+const RETUNED: Dictionary = {
+	"garden": {"arch": Bands.GARDEN, "rows": 2, "down": &"worm", "up": &"bramble", "tune": {"star_share": 0.12, "wisp_share": 0.15}},
+	"down": [
+		{"arch": Bands.CEMETERY, "rows": 4, "boss": &"necromancer"},
+		{"arch": Bands.INSTITUTE, "rows": 3, "boss": &"beast"},
+	],
+	"up": [
+		{"arch": Bands.CRAGS, "rows": 5, "boss": &"golem"},
+		{"arch": Bands.SKY, "rows": 7, "boss": &"whale"},
+	],
+}
+
+
+## Where a windowed run's window sits: off every screen, so it draws as usual (captures and window
+## tests read what it draws) without getting in the way. (Minimized, Windows stops it drawing and
+## gives it another size.)
+const OFF_SCREEN: Vector2i = Vector2i(-32000, -32000)
+
+## Keep a run out of the way of someone working: silent, and its window (if it has one) off every
+## screen; unless "watch" is given after a lone "--", to look on and listen. Every TestKit run does
+## it as it starts and window() again; a test extending SceneTree itself can call it too.
+static func out_of_sight() -> void:
+	if "watch" in OS.get_cmdline_user_args():
+		return
+	AudioServer.set_bus_mute(AudioServer.get_bus_index(&"Master"), true)
+	if DisplayServer.get_name() != "headless":
+		DisplayServer.window_set_position(OFF_SCREEN)
 
 
 ## The test itself. Override it, and end it with finish().
@@ -53,6 +90,34 @@ func check(ok: bool, what: String) -> void:
 	else:
 		failed = true
 		push_error("FAIL " + what)
+
+
+## Whether the bands in play (Bands) hold every archetype named in `kinds`. A test of a band calls
+## it first and, when it is false, finishes there: a band left out of the layout is skipped, not
+## failed (run the suite with `bash tests/run.sh -l garden` to check the demo's layout).
+func needs(kinds: Array[StringName]) -> bool:
+	for kind: StringName in kinds:
+		if not Bands.has(kind):
+			print("  skip ", test_name(), ": no ", kind, " in the bands in play (", Bands.current, ")")
+			return false
+	return true
+
+
+## Rows `ks` of the band of the archetype named `kind` (NextWorldDef.band_row), however long the
+## band is tuned: a k of 0 or more counts from its row nearest the start, held to the band; a
+## negative k counts back from its far end (-1 its last row, the gate's). Without `gate`, the gate
+## level is left out (the rows are held short of it), for a test of the band's ordinary levels.
+## Each row once, in order.
+func band_rows(kind: StringName, ks: Array[int], gate: bool = true) -> Array[int]:
+	var rows: int = Bands.rows_of(kind)
+	if not gate and rows > 1 and Bosses.gate_at(NextWorldDef.band_row(kind, rows - 1)) != &"":
+		rows -= 1
+	var out: Array[int] = []
+	for k: int in ks:
+		var row: int = NextWorldDef.band_row(kind, clampi(k if k >= 0 else rows + k, 0, rows - 1))
+		if not out.has(row):
+			out.append(row)
+	return out
 
 
 ## A check that two values are equal, showing both when they are not.
@@ -139,6 +204,17 @@ func boot(world_seed: int = 28) -> void:
 	await settle()
 
 
+## Bring the wizard to rest where they are: no speed, and no dash, knock-back or wall jump under
+## way. A test that froze the wizard (physics off) mid-move and then moves them elsewhere calls it,
+## or that move carries on from the new place as soon as their physics runs again.
+func still() -> void:
+	player.velocity = Vector2.ZERO
+	player.knock = Vector2.ZERO
+	player.dash.end()
+	player.knock_back.end()
+	player.wall_jump.end()
+
+
 ## The objects of the level being played that came from prefab `scene` (a file name such as
 ## "key.tscn"), leaving out those going away, and those hidden (a key being picked up) unless
 ## `hidden` (a bridge's planks are hidden until its bell is rung).
@@ -199,10 +275,12 @@ static func count_of(w: LevelGen, type: LevelGen.Type) -> int:
 
 # ------------------------------------------------------------------ captures
 
-## Show the game in a window of `size` (captures run with --windowed).
+## Show the game in a window of `size` (captures run with --windowed), out of sight unless watched
+## (out_of_sight).
 func window(size: Vector2i = Vector2i(1280, 720)) -> void:
 	root.mode = Window.MODE_WINDOWED
 	root.size = size
+	out_of_sight()
 
 
 ## Save `image` (by default the whole window as drawn now) to the stills folder as `file` (which may

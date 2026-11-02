@@ -5,25 +5,43 @@ extends TestKit
 ## level (no arenas), no hyperspace past a living boss's gate, and the F7 panel's Slay boss. The rules
 ## are shown with the beast (Beast), in its gate level, its souls cleared away (beast_test hunts
 ## them); the worm, the bramble, the golem and the necromancer have worm_test, bramble_test,
-## golem_test and necromancer_test.
+## golem_test and necromancer_test. Rows are asked of the bands in play (Bands), and the deeper
+## bands' parts run only when those bands are in play (the demo's layout is the garden alone).
 ## godot --headless --path . --script res://tests/gate_test.gd
 
 
 func run() -> void:
 	MapInfo.debug = false
 	print("the gates")
-	var g: int = NextWorldDef.GARDEN_ROWS
-	var b: int = NextWorldDef.BAND
-	var want: Dictionary = {g: &"worm", -g: &"bramble", g + b: &"necromancer", g + 2 * b: &"beast", -(g + b): &"golem", -(g + 2 * b): &"whale"}
+	var g: int = Bands.garden_rows()
+	# Each band's gate at its far end: the garden's at either end, then each band's, its rows on.
+	var want: Dictionary = {g: &"worm", -g: &"bramble"}
+	var far: int = g
+	for dir: int in [1, -1]:
+		var end: int = g
+		for band: Dictionary in Bands.way(dir):
+			end += int(band["rows"])
+			want[dir * end] = band["boss"]
+		far = maxi(far, end)
 	var rows_ok: bool = true
-	for row: int in range(-(g + 4 * b), g + 4 * b + 1):
+	for row: int in range(-(far + 6), far + 7):
 		rows_ok = rows_ok and Bosses.gate_at(row) == StringName(want.get(row, &""))
 	for row: int in want:
 		rows_ok = rows_ok and Bosses.row_of(want[row]) == row
 	check(rows_ok, "the garden's gates at rows %d and %d, and each band's far end, each with its boss" % [g, -g])
-	check(Bosses.crossed(1, g + 2) == [&"worm"] and Bosses.crossed(g, g + 1) == [&"worm"] and Bosses.crossed(g + 1, g + 4).is_empty(), "a way out past a gate level crosses its gate")
-	check(Bosses.crossed(g + 4, 1).is_empty() and Bosses.crossed(-2, g + 3) == [&"worm"] and Bosses.crossed(2, -(g + b + 1)) == [&"bramble", &"golem"], "toward the start none; across it, only the far side's")
-	check(Relics.at(Vector2i(28, g)) == &"" and Relics.at(Vector2i(28, g + b)) == &"", "a gate level holds no relic of its own")
+	# Up to the next gate down (or a few rows on, with none), no gate is crossed.
+	var next_down: int = g + 4
+	if not Bands.way(1).is_empty():
+		next_down = Bosses.row_of((Bands.way(1)[0] as Dictionary)["boss"])
+	check(Bosses.crossed(1, g + 2) == [&"worm"] and Bosses.crossed(g, g + 1) == [&"worm"] and Bosses.crossed(g + 1, next_down).is_empty(), "a way out past a gate level crosses its gate")
+	check(Bosses.crossed(g + 4, 1).is_empty() and Bosses.crossed(-1, g + 1) == [&"worm"], "toward the start none; across it, only the far side's")
+	if not Bands.way(-1).is_empty():
+		var first_up: StringName = (Bands.way(-1)[0] as Dictionary)["boss"]
+		check(Bosses.crossed(1, Bosses.row_of(first_up) - 1) == [&"bramble", first_up], "and every gate on the far side, nearest first")
+	var no_relic: bool = true
+	for row: int in want:
+		no_relic = no_relic and Relics.at(Vector2i(28, row)) == &""
+	check(no_relic, "a gate level holds no relic of its own")
 	var in_level: bool = true
 	for row: int in want:
 		var gate_level: LevelGen = build(Vector2i(28, row))
@@ -57,13 +75,91 @@ func run() -> void:
 	check(placed("bramble.tscn").size() == 1 and placed("boss.tscn").is_empty(), "in play the bramble itself is there (Bramble; bramble_test fights it)")
 	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"bramble", "its way on is sealed")
 
+	if Bands.has(&"cemetery") and Bands.has(&"institute"):
+		await _deep_gates(g)
+
+	print("no hyperspace past a gate")
+	var hyper: Hyperspace = Worlds.proto(Worlds.kind_of(Hyperspace)) as Hyperspace
+	var found: Variant = null
+	for x: int in range(1, 400):
+		var from: Vector2i = Vector2i(x, -1)
+		if hyper.deals(from) and Hyperspace.crosses(from):
+			found = from
+			break
+	check(found != null, "a hyperspace from above the start that crosses to below it")
+	if found != null:
+		var def: NextWorldDef = Rules.def_for(found)
+		var fresh: RunState = RunState.new()
+		check(def.seal(Worlds.door(Worlds.kind_of(Hyperspace)), fresh) == &"worm", "its door is sealed while the worm lives")
+		fresh.bosses[&"worm"] = true
+		check(def.seal(Worlds.door(Worlds.kind_of(Hyperspace)), fresh) == &"", "and opens once it is slain")
+
+	print("slain from the F7 panel")
+	await _go(Vector2i(28, g))
+	check(info.slay_boss() and placed("worm.tscn").is_empty(), "Slay boss kills the worm in its gate level at once")
+	await settle()
+	check(info.run.bosses.has(&"worm") and _exit(MapInfo.Exit.DEEPER).sealed() == &"" and placed("relic.tscn").any(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == &"worm"), "its gate opens and its relic is left")
+	await _go(Vector2i(28, -g))
+	check(info.slay_boss() and placed("bramble.tscn").is_empty(), "and the bramble in its gate level")
+	await settle()
+	check(info.run.bosses.has(&"bramble") and _exit(MapInfo.Exit.DEEPER).sealed() == &"" and placed("relic.tscn").any(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == &"bramble"), "its way up opens and its relic is left")
+	if Bands.has(&"cemetery"):
+		await _go(Vector2i(28, Bosses.row_of(&"necromancer")))
+		check(info.slay_boss() and info.run.bosses.has(&"necromancer") and _exit(MapInfo.Exit.DEEPER).sealed() == &"", "and the necromancer in its gate level")
+		await settle()
+		check(placed("necromancer.tscn").is_empty() and placed("relic.tscn").any(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == &"necromancer"), "its relic is left where it stood")
+	check(not info.slay_boss(), "with nothing left to slay, it does nothing")
+
+	print("healed from the F7 panel")
+	player.health.health = 1
+	check(not info.full_heal() and player.health.health == 1, "outside a debug run, Full heal does nothing")
+	MapInfo.debug = true
+	check(info.full_heal() and player.health.health == player.health.max_health, "in one, it heals the wizard to full")
+
+	print("to a boss from the F7 panel")
+	if Bands.has(&"crags") and Bands.has(&"sky"):
+		await _to_far_bosses()
+	MapInfo.debug = false
+	var was: Vector2i = info.coord
+	info.debug_to_boss(&"worm", 28)
+	await settle()
+	check(info.coord == was, "outside a debug run, it does nothing")
+
+	print("saved")
+	var saved: Dictionary = info.run.to_save(info.coord, {})
+	var again: RunState = RunState.new()
+	again.from_save(saved)
+	check(info.run.bosses.keys().all(func(b: StringName) -> bool: return again.bosses.has(b)) and again.bosses.has(&"worm") and again.bosses.has(&"bramble"), "the bosses slain are kept with the run")
+	RunState.delete_save()
+	finish()
+
+
+## The golem and the whale, jumped to from the F7 panel (in a debug run).
+func _to_far_bosses() -> void:
+	info.debug_to_boss(&"golem", 28)
+	await until(func() -> bool: return info.coord == Vector2i(28, Bosses.row_of(&"golem")) and not info.travelling)
+	await settle()
+	player.set_physics_process(false)
+	var lair: Array[Vector2i] = info.world.objects_of(LevelGen.Type.BOSS)
+	var stood: Vector2i = info.cell_at(player.global_position)
+	var way_back: Vector2i = info.world.exits[MapInfo.Exit.BACK]
+	check(lair.size() == 1 and not placed("golem.tscn").is_empty() and info.world.reach_from(lair[0]).has(stood) and LevelGen.dist(stood, lair[0]) >= MapInfo.BOSS_BESIDE and LevelGen.dist(stood, lair[0]) < LevelGen.dist(way_back, lair[0]), "a jump to the golem sets the wizard down beside it, in its gate level (%d cells off)" % LevelGen.dist(stood, lair[0]))
+	info.debug_to_boss(&"whale", 28)
+	await until(func() -> bool: return Worlds.is_side(info.coord) and not info.travelling)
+	await settle()
+	player.set_physics_process(false)
+	check(not placed("whale_heart.tscn").is_empty(), "a jump to the whale goes into its belly, by its heart")
+
+
+## The necromancer's gate, and the gate's rules shown with the beast in its gate level.
+func _deep_gates(g: int) -> void:
 	print("the necromancer's gate")
-	await _go(Vector2i(28, g + b))
+	await _go(Vector2i(28, Bosses.row_of(&"necromancer")))
 	check(placed("necromancer.tscn").size() == 1 and placed("boss.tscn").is_empty() and _exit(MapInfo.Exit.DEEPER).sealed() == &"necromancer", "in play the necromancer itself is there, its way on sealed (Necromancer; necromancer_test fights it)")
 
 	# The beast shows the gate's rules, its souls cleared away once it has sent them.
 	print("the beast, in its gate level")
-	var gate_at: Vector2i = Vector2i(28, g + 2 * b)
+	var gate_at: Vector2i = Vector2i(28, Bosses.row_of(&"beast"))
 	await _go(gate_at)
 	check(placed("beast.tscn").size() == 1 and placed("boss.tscn").is_empty() and _exit(MapInfo.Exit.DEEPER).sealed() == &"beast", "the beast's gate level is sealed, the beast in it (Beast)")
 	var boss: Beast = placed("beast.tscn")[0] as Beast
@@ -110,76 +206,12 @@ func run() -> void:
 	var back: bool = held == &"" or player.keyring.has(KeyRing.paper(held, held_tier))
 	check(Abilities.tier(player, move) == 1 and not info.run.boss_relics.has(&"beast") and back, "taken, it teaches it and is gone, handing back what it put out as a paper (%s)" % (held if held != &"" else &"nothing"))
 	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"", "its gate level's way on is open")
-	await _go(Vector2i(29, g + 2 * b))
+	await _go(Vector2i(29, Bosses.row_of(&"beast")))
 	check(placed("beast.tscn").is_empty() and _exit(MapInfo.Exit.DEEPER).sealed() == &"", "and every other gate level of its band too")
 	await _go(Vector2i(28, g))
 	check(placed("worm.tscn").size() == 1 and _exit(MapInfo.Exit.DEEPER).sealed() == &"worm", "the way down still waits on the worm")
 	await _go(Vector2i(28, -g))
 	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"bramble", "and the way up on the bramble")
-
-	print("no hyperspace past a gate")
-	var hyper: Hyperspace = Worlds.proto(Worlds.kind_of(Hyperspace)) as Hyperspace
-	var found: Variant = null
-	for x: int in range(1, 400):
-		var from: Vector2i = Vector2i(x, -1)
-		if hyper.deals(from) and Hyperspace.crosses(from):
-			found = from
-			break
-	check(found != null, "a hyperspace from above the start that crosses to below it")
-	if found != null:
-		var def: NextWorldDef = Rules.def_for(found)
-		var fresh: RunState = RunState.new()
-		check(def.seal(Worlds.door(Worlds.kind_of(Hyperspace)), fresh) == &"worm", "its door is sealed while the worm lives")
-		fresh.bosses[&"worm"] = true
-		check(def.seal(Worlds.door(Worlds.kind_of(Hyperspace)), fresh) == &"", "and opens once it is slain")
-
-	print("slain from the F7 panel")
-	await _go(Vector2i(28, g))
-	check(info.slay_boss() and placed("worm.tscn").is_empty(), "Slay boss kills the worm in its gate level at once")
-	await settle()
-	check(info.run.bosses.has(&"worm") and _exit(MapInfo.Exit.DEEPER).sealed() == &"" and placed("relic.tscn").any(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == &"worm"), "its gate opens and its relic is left")
-	await _go(Vector2i(28, -g))
-	check(info.slay_boss() and placed("bramble.tscn").is_empty(), "and the bramble in its gate level")
-	await settle()
-	check(info.run.bosses.has(&"bramble") and _exit(MapInfo.Exit.DEEPER).sealed() == &"" and placed("relic.tscn").any(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == &"bramble"), "its way up opens and its relic is left")
-	await _go(Vector2i(28, g + b))
-	check(info.slay_boss() and info.run.bosses.has(&"necromancer") and _exit(MapInfo.Exit.DEEPER).sealed() == &"", "and the necromancer in its gate level")
-	await settle()
-	check(placed("necromancer.tscn").is_empty() and placed("relic.tscn").any(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == &"necromancer"), "its relic is left where it stood")
-	check(not info.slay_boss(), "with nothing left to slay, it does nothing")
-
-	print("healed from the F7 panel")
-	player.health.health = 1
-	check(not info.full_heal() and player.health.health == 1, "outside a debug run, Full heal does nothing")
-	MapInfo.debug = true
-	check(info.full_heal() and player.health.health == player.health.max_health, "in one, it heals the wizard to full")
-
-	print("to a boss from the F7 panel")
-	info.debug_to_boss(&"golem", 28)
-	await until(func() -> bool: return info.coord == Vector2i(28, Bosses.row_of(&"golem")) and not info.travelling)
-	await settle()
-	player.set_physics_process(false)
-	var lair: Array[Vector2i] = info.world.objects_of(LevelGen.Type.BOSS)
-	var stood: Vector2i = info.cell_at(player.global_position)
-	var way_back: Vector2i = info.world.exits[MapInfo.Exit.BACK]
-	check(lair.size() == 1 and not placed("golem.tscn").is_empty() and info.world.reach_from(lair[0]).has(stood) and LevelGen.dist(stood, lair[0]) >= MapInfo.BOSS_BESIDE and LevelGen.dist(stood, lair[0]) < LevelGen.dist(way_back, lair[0]), "a jump to the golem sets the wizard down beside it, in its gate level (%d cells off)" % LevelGen.dist(stood, lair[0]))
-	info.debug_to_boss(&"whale", 28)
-	await until(func() -> bool: return Worlds.is_side(info.coord) and not info.travelling)
-	await settle()
-	player.set_physics_process(false)
-	check(not placed("whale_heart.tscn").is_empty(), "a jump to the whale goes into its belly, by its heart")
-	MapInfo.debug = false
-	info.debug_to_boss(&"worm", 28)
-	await settle()
-	check(Worlds.is_side(info.coord), "outside a debug run, it does nothing")
-
-	print("saved")
-	var saved: Dictionary = info.run.to_save(info.coord, {})
-	var again: RunState = RunState.new()
-	again.from_save(saved)
-	check(again.bosses.has(&"beast") and again.bosses.has(&"necromancer") and again.bosses.has(&"worm") and again.bosses.has(&"bramble"), "the bosses slain are kept with the run")
-	RunState.delete_save()
-	finish()
 
 
 ## Load level `at` (arriving at its way back) and wait for it.

@@ -220,6 +220,6 @@ static func ossuary_at (at: Vector2i) -> bool:
 
 ## The charges an ossuary door in the level on `row` drinks before it opens (see OSSUARY_FILL).
 static func ossuary_fill (row: int) -> int:
-	var last: int = NextWorldDef.BAND - 2
+	var last: int = maxi(1, Bands.rows_of(&"cemetery") - 2)
 	var k: int = clampi(absi(row) - NextWorldDef.first_depth(&"cemetery"), 0, last)
 	return roundi(lerpf(float(OSSUARY_FILL.x), float(OSSUARY_FILL.y), float(k) / float(last)))

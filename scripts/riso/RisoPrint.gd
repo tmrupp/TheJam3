@@ -1557,10 +1557,7 @@ func _build_travel(box: VBoxContainer) -> void:
 		_button(row, Worlds.proto(k).name.capitalize(), func() -> void: _travel(Worlds.side_at(kind, Vector2i(_travel_at.x, _travel_at.y if _travel_at.y != 0 else 1))))
 	var to_boss: HBoxContainer = HBoxContainer.new()
 	rows.add_child(to_boss)
-	var bosses: Array[StringName] = [Bosses.GARDEN_DOWN, Bosses.GARDEN_UP]
-	bosses.append_array(Bosses.DOWN)
-	bosses.append_array(Bosses.UP)
-	for boss: StringName in bosses:
+	for boss: StringName in Bands.bosses():
 		var which: StringName = boss
 		_button(to_boss, String(boss).capitalize(), func() -> void: _to_boss(which))
 	var boss_row: HBoxContainer = HBoxContainer.new()

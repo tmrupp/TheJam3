@@ -23,6 +23,9 @@ const IN_HALLS: Array[LevelGen.Type] = [LevelGen.Type.EXAM_DOOR, LevelGen.Type.E
 
 
 func run() -> void:
+	if not needs([&"institute"]):
+		finish()
+		return
 	MapInfo.debug = false
 	generation()
 	await play()
@@ -403,8 +406,11 @@ func _staff() -> void:
 	check(await within(func() -> bool: return Shield.of(student) != null, 2.0), "a proctor shields a student near it")
 	proctor.queue_free()
 	student.queue_free()
-	var librarian: Scholar = _spawn("librarian.tscn", spot)
 	player.global_position = info.cell_position(spot) + Vector2(-120, 0)
+	# At rest: a move the parts before left under way (frozen while the wizard's physics was off)
+	# would carry them out of the hush as soon as it runs again.
+	still()
+	var librarian: Scholar = _spawn("librarian.tscn", spot)
 	# Just after a pulse falls.
 	await physics_frame
 	librarian.hush_t = 0.05

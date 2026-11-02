@@ -38,8 +38,10 @@ func capture() -> void:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = PICK_SEED
 	for i: int in range(SAMPLES):
-		# Rows spread evenly over every band, up and down (the sky's top to the institute's bottom).
-		var reach: int = NextWorldDef.GARDEN_ROWS + 2 * NextWorldDef.BAND
+		# Rows spread evenly over every band, up and down (the furthest gate either way).
+		var reach: int = 0
+		for boss: StringName in Bands.bosses():
+			reach = maxi(reach, absi(Bands.row_of(boss)))
 		@warning_ignore("integer_division")
 		var at: Vector2i = Vector2i(rng.randi_range(1, 999), -reach + i * (2 * reach + 1) / SAMPLES)
 		info.coord = at

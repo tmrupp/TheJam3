@@ -29,8 +29,10 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
 - `scripts/MapInfo.gd`: the place being played (`coord`, `here`, `world`), travel, and what a
   change in the record means in the scene (doors, bells, secret rooms, death). It keeps a
   `RunState` (`run`) and a `LevelLoader` (`loader`).
-- `scripts/worlds/`: what a place is. `NextWorldDef.gd` (exits, prices, realm), `Archetype.gd`
-  and `archetypes/` (one per band: sample, size, gates and its own placement pass), and side
+- `scripts/worlds/`: what a place is. `Bands.gd` (the band layout: which archetype holds which
+  rows, each band's boss and tuning, and the demo's garden-only layout), `NextWorldDef.gd` (exits,
+  prices, realm), `Archetype.gd` and `archetypes/` (one per band: sample, size, gates, how thickly
+  it is dressed and its own placement pass), and side
   worlds (`Worlds.gd`, `SideWorld.gd`, `Hyperspace.gd`, and `PracticeRange.gd`, the debug runs' range
   for weighing the damage spells, with its tally `scripts/PracticeTally.gd`).
 - `scripts/riso/`: all the art. `RisoPrint` (plates and the print shader), `RisoProp` (the base of
@@ -65,10 +67,27 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
 
 Places are (seed, row): row 0 is the start, positive rows go down, negative rows go up, and a
 level's `depth` is its distance `|row|` (side worlds sit below `-Worlds.SIDE_BASE`). Bands come from
-a table in `NextWorldDef` (`BAND` = 6): the garden spans rows −3…+3; down, the cemetery then the
-institute; up, the crags then the sky. A new band is one script extending `Archetype`, listed in
-`DOWN` or `UP`. Tests that need a band's levels use `NextWorldDef.band_row(&"cemetery", k)` (row k
-of the band, counting away from the start) rather than a fixed row or `first_depth + k`.
+one table, `Bands.LAYOUTS`: in the whole game (`full`) the garden spans rows −3…+3; down, the
+cemetery then the institute; up, the crags then the sky, 6 rows each, each band's boss at its far
+end. Each band's line gives its archetype, its rows, its boss and optionally a `"tune"` of its
+archetype's settings (`star_share`, `wisp_share`, `watcher_share`, `hoppers_per_k`...), so a band
+is tuned, lengthened, reordered or left out there and nowhere else. The `garden` layout is the
+demo: the garden alone, the worm and the bramble at its ends, garden levels going on past them. A
+game plays `-- layout=<name>`, else `garden` in a build with the `demo` feature (an export preset's
+custom feature), else `full`; a layout other than `full` keeps its own save. A new band is one
+script extending `Archetype`, listed in a layout.
+
+Tests must hold however the bands are tuned. Ask the bands for rows rather than counting them:
+`NextWorldDef.band_row(&"cemetery", k)` (row k of the band, counting away from the start),
+`Bands.rows_of(kind)`, `Bands.garden_rows()`, `Bosses.row_of(boss)`; never a fixed row, `6` or
+`first_depth + k`; `band_rows(kind, ks, gate)` (TestKit) holds each k to the band, a negative k
+counting back from its gate. A test of a band starts with
+`if not needs([&"cemetery"]): finish(); return` (TestKit), so it skips when that band is left out.
+A test that needs a level with something in it (two watchtowers, a student with a walk) looks for
+one over a few worlds and rows with `build`, rather than trusting one level to have it.
+`bands_test` checks the band rules under every layout and a few made-up ones;
+`bash tests/run.sh -l garden full` runs the suite on the demo's, and `-l retuned` on the tests' own
+`TestKit.RETUNED` (every band retuned), which shows a test leaning on how the bands are tuned now.
 
 ## Running and testing
 
@@ -79,6 +98,7 @@ Godot: `$GODOT`, else `godot` on the PATH, else
 bash tests/run.sh                 # quick tier: untagged tests, headless, in parallel
 bash tests/run.sh full            # also "## suite: full", then "## suite: window" one at a time
 bash tests/run.sh sky_test        # just these, headless
+bash tests/run.sh -l garden full  # the suite on another band layout (the demo's)
 ```
 
 - A test's tier is a line near its top: `## suite: full` (slow, or known broken) or
@@ -90,6 +110,14 @@ bash tests/run.sh sky_test        # just these, headless
 - Captures: `godot --path . --windowed --resolution 1280x720 --script res://tests/capture_x.gd`.
   `capture_overview.gd` photographs whole levels, every band and a few worlds each, to look over
   many layouts at once (options after `--`, e.g. `-- bands=crags worlds=6`).
+- A test that freezes the wizard (physics off) and moves them calls `still()` (TestKit) before
+  their physics runs again, or a dash or knock-back under way carries on from the new place.
+- Windowed runs on the kit stay out of the owner's way: muted, the window off every screen
+  (`TestKit.out_of_sight`; minimized, Windows stops it drawing). Add `-- watch` to see and hear one.
+- Garden probes: `tests/dump_garden.gd` prints what every garden row holds over many worlds (foes,
+  stars against the way on's price, keys and doors, whether the way on is in hop reach);
+  `tests/capture_garden_play.gd` has a rough bot play garden levels (hops, drops through ledges,
+  wall jumps up chimneys) and print how far it got and the blows it took.
 - Each test sets its own `RunState.save_path` (`user://<test>.save`), so they can run in parallel.
 - New tests extend `TestKit` (`tests/kit/TestKit.gd`): override `run()`, end with `finish()`, and
   use its `check`/`check_eq`, `boot(seed)` (starts a run, keeps the save apart), `until(cond)` and
@@ -143,7 +171,8 @@ bash tests/run.sh sky_test        # just these, headless
   re-check `cemetery_test`, `deeper_test`, `economy_test` and `sky_test` when a draw is added
   upstream. `layout_fingerprint_test` says so first: it fingerprints the terrain and the dressing
   of a few levels per archetype and a side world, and names which one changed. When a change to
-  the layouts is meant, copy the fingerprints it prints into its `GOLDEN` and say so in the report.
+  the layouts is meant (retuning a band's dressing is one), run it with `-- update` to write the
+  new fingerprints into its `GOLDEN`, and say so in the report.
 - Decor never touches the world RNG: it hashes the seed and cell (`RisoDecor.h`).
 - Nor does anything once a level is laid out. Its `LevelGen` is kept and reused on later visits, so
   loading it (`LevelLoader.place_cell`, a prefab's `setup`) must hash the seed and cell rather than

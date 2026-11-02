@@ -528,10 +528,10 @@ static func mastery(w: LevelGen, v: Vector2i) -> StringName:
 static func department_row(def: NextWorldDef, dept: StringName, i: int) -> int:
 	var band: StringName = DEPARTMENTS.get(dept, &"garden")
 	var roll: int = posmod(Rules.level_seed(def.gen_seed, ROW_DEAL + i), 1000)
-	if band == &"garden":
-		var rows: int = NextWorldDef.GARDEN_ROWS * 2 + 1
-		return roll % rows - NextWorldDef.GARDEN_ROWS
-	return NextWorldDef.band_row(band, roll % NextWorldDef.BAND)
+	if band == &"garden" or not Bands.has(band):
+		var rows: int = Bands.garden_rows() * 2 + 1
+		return roll % rows - Bands.garden_rows()
+	return NextWorldDef.band_row(band, roll % Bands.rows_of(band))
 
 
 ## Last of all (so nothing else in the level moves for them), what each hall holds, on its free

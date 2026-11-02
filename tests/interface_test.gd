@@ -16,6 +16,9 @@ func open_menu() -> void:
 
 
 func run() -> void:
+	if not needs([&"cemetery"]):
+		finish()
+		return
 	RunState.save_path = "user://test_interface.save"
 	RunState.delete_save()
 

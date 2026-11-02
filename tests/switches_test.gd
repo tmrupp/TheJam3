@@ -22,7 +22,7 @@ func run() -> void:
 	for world_seed: int in [1, 7, 28, 99]:
 		# Garden levels: a cemetery's open terraces and the sky's islands have hardly any corridors
 		# for gates.
-		for depth: int in [0, 1, NextWorldDef.GARDEN_ROWS, -NextWorldDef.GARDEN_ROWS]:
+		for depth: int in [0, 1, Bands.garden_rows(), -Bands.garden_rows()]:
 			var def: NextWorldDef = Rules.def_for(Vector2i(world_seed, depth))
 			var w: LevelGen = LevelGen.new(collapse(def.coord), def)
 			levels += 1
@@ -55,9 +55,13 @@ func run() -> void:
 				if w.get_cell(v).type == LevelGen.Type.SWITCH:
 					all_switches += 1
 					start_on += 1 if Switch.starts_on(w, v) else 0
-			if pairs < 1:
+			# A gate level's big thing (the bramble's shaft) is cut first, and in a small level may
+			# leave no corridor for a gate: there one is not owed.
+			if pairs < 1 and w.shaft.is_empty():
 				gates_ok = false
-	check(gates_ok, "every one of %d levels has a switch gate, paired both ways with its switch" % levels)
+			elif pairs < 1:
+				print("  (%s: no switch gate beside the bramble's shaft)" % def.coord)
+	check(gates_ok, "every one of %d levels has a switch gate (but a shaft level with no room), paired both ways with its switch" % levels)
 	check(reach_ok, "every switch is reachable from the way in with its gate shut")
 	check(far_ok and near * 10 >= switch_pairs * 9, "switches stand well away from their gates (%d of %d at least %d cells off, none right beside one)" % [near, switch_pairs, LevelGen.SWITCH_MIN])
 	check(start_on * 100 > all_switches * 15 and start_on * 100 < all_switches * 55, "some switches start on (%d of %d)" % [start_on, all_switches])
@@ -87,8 +91,8 @@ func run() -> void:
 	await boot(plunge_seed)
 	player.set_physics_process(false)
 	# The garden's gates are what gate_test is for: here they are passed, so its hyperspace opens.
-	info.run.bosses[Bosses.GARDEN_DOWN] = true
-	info.run.bosses[Bosses.GARDEN_UP] = true
+	info.run.bosses[Bosses.gate_at(Bands.garden_rows())] = true
+	info.run.bosses[Bosses.gate_at(-Bands.garden_rows())] = true
 	# The switches that work a gate (a lift or thorns may have one too).
 	var switches: Array[Node] = placed("switch.tscn").filter(func(n: Node) -> bool: return info.world.get_cell((n as Switch).gate_cell).type == LevelGen.Type.SWITCH_GATE)
 	var gates: Array[Node] = placed("switch_gate.tscn")
@@ -193,7 +197,7 @@ func run() -> void:
 	var bolts_after: int = info.map_elements.get_children().filter(func(n: Node) -> bool: return n.get_script() == preload("res://scripts/HexBolt.gd")).size()
 	check(shot.is_queued_for_deletion() and bolts_after == bolts_before + 1, "a parried shot is reflected as a bolt at its shooter")
 	player.end_invulnerable()
-	await until(func() -> bool: return not guard.cooldown.acted, 3000)
+	await within(func() -> bool: return not guard.cooldown.acted, Parry.COOLDOWN + 1.0)
 	player.parry.emit()
 	await until(func() -> bool: return guard.guard_left() < 0.0, 2000)
 	check(not guard.glory() and guard.missed_at > guard.parried_at, "a guard that catches nothing closes as a miss")
@@ -201,16 +205,16 @@ func run() -> void:
 	var thorns: Node = placed("spikes.tscn")[0] if not placed("spikes.tscn").is_empty() else null
 	if thorns != null:
 		player.end_invulnerable()
-		await until(func() -> bool: return not guard.cooldown.acted, 3000)
+		await within(func() -> bool: return not guard.cooldown.acted, Parry.COOLDOWN + 1.0)
 		var hp: int = player.health.health
 		player.parry.emit()
 		player.hurt(-1, Vector2.UP * 400.0, thorns.get_node("Damager"))
 		check(player.health.health == hp and is_equal_approx(player.velocity.y, Parry.POGO), "a parry on thorns underfoot bounces the wizard up, unhurt")
 	# No guard while untouchable from a hit taken; a parry's own untouchable moment still allows one.
 	player.end_invulnerable()
-	await until(func() -> bool: return not guard.cooldown.acted, 3000)
+	await within(func() -> bool: return not guard.cooldown.acted, Parry.COOLDOWN + 1.0)
 	player.hurt(-1, Vector2.RIGHT * 100.0, wisp.get_node("HitBox/Damager"))
-	check(player.invulnerable.is_acting() and guard.hurt_guarded() and guard.readiness() == 0.0, "hurt, the wizard is untouchable and the parry reads not ready")
+	check(player.invulnerable.is_acting() and guard.hurt_guarded() and guard.readiness() == 0.0, "hurt, the wizard is untouchable and the parry reads not ready (untouchable %s, gold %s, guard left %.2f, readiness %.2f)" % [player.invulnerable.is_acting(), guard.glory(), guard.guard_left(), guard.readiness()])
 	player.parry.emit()
 	check(guard.guard_left() < 0.0 and not guard.cooldown.acted, "and no guard can be raised, and the cooldown is not spent")
 	player.end_invulnerable()

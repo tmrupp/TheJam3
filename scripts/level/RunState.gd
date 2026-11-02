@@ -6,8 +6,10 @@ extends RefCounted
 ## it (with the wizard's own state, see Player.to_save) lives here too. MapInfo keeps one (`run`)
 ## and does what happens in the scene.
 
-## Where the run is saved. Tests point this elsewhere so they never touch a player's save.
-static var save_path: String = "user://deeper_run.save"
+## Where the run is saved: a game on other bands than the whole game's (the demo's garden, Bands)
+## keeps its own save, so neither reads the other's. Tests point this elsewhere so they never touch
+## a player's save.
+static var save_path: String = "user://deeper_run.save" if Bands.current == Bands.DEFAULT else "user://deeper_run_%s.save" % Bands.current
 const SAVE_VERSION: int = 3
 
 ## The seed this run started on (coord.x drifts as the player moves sideways), the furthest from

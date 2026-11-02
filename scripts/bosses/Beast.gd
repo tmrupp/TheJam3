@@ -1,6 +1,6 @@
 class_name Beast
 extends Node2D
-## The eldritch beast (Bosses.DOWN's last): the boss at the bottom of the institute, lying in the
+## The eldritch beast (the institute's boss, Bands): the boss at the bottom of the institute, lying in the
 ## middle of its chamber's floor in its gate level (Institute, LevelGen.place_boss;
 ## docs/REGIONS_PLAN.md §6). The abominations rising into the institute are its. It sleeps until the
 ## wizard comes into its chamber or within WAKE_RANGE, or strikes it; then:

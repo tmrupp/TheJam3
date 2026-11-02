@@ -14,7 +14,7 @@ func run() -> void:
 	var place: Vector2i = Vector2i.ZERO
 	var keep_place: Vector2i = Vector2i.ZERO
 	for world: int in [29, 28, 30]:
-		for k: int in range(NextWorldDef.BAND):
+		for k: int in range(Bands.rows_of(&"crags")):
 			var at: Vector2i = Vector2i(world, NextWorldDef.band_row(&"crags", k))
 			var w: LevelGen = build(at)
 			var bows: Array[Vector2i] = w.objects_of(LevelGen.Type.CROSSBOW)

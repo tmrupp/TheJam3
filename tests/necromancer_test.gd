@@ -8,6 +8,9 @@ extends TestKit
 
 
 func run() -> void:
+	if not needs([&"cemetery"]):
+		finish()
+		return
 	MapInfo.debug = false
 	var gate: Vector2i = Vector2i(28, Bosses.row_of(&"necromancer"))
 	print("in its gate level")

@@ -28,7 +28,7 @@ func run() -> void:
 	# A temple.
 	var with_temple: Vector2i = Vector2i.ZERO
 	for world: int in range(28, 36):
-		for k: int in range(NextWorldDef.BAND):
+		for k: int in range(Bands.rows_of(&"sky")):
 			var at: Vector2i = Vector2i(world, NextWorldDef.band_row(&"sky", k))
 			if with_temple == Vector2i.ZERO and not build(at).objects_of(LevelGen.Type.TEMPLE).is_empty():
 				with_temple = at

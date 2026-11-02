@@ -22,7 +22,7 @@ func run() -> void:
 	var zoom: Vector2 = camera.zoom
 	var seen: Dictionary = {}
 	var wide: Dictionary = {}
-	for k: int in range(NextWorldDef.BAND):
+	for k: int in range(Bands.rows_of(&"institute")):
 		info.coord = Vector2i(28, NextWorldDef.band_row(&"institute", k))
 		info.arrival = MapInfo.Exit.BACK
 		info._load_level()

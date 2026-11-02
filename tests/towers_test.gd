@@ -15,11 +15,14 @@ extends TestKit
 
 
 func run() -> void:
+	if not needs([&"crags"]):
+		finish()
+		return
 	var hoards: int = 0
 	var watch: int = 0
 	var rewards: Dictionary = {}
-	for k: int in [0, 1, 2, 3, 5]:
-		var at: Vector2i = Vector2i(28, NextWorldDef.band_row(&"crags", k))
+	for row: int in band_rows(&"crags", [0, 1, 2, 3, -1]):
+		var at: Vector2i = Vector2i(28, row)
 		var w: LevelGen = build(at)
 		print("row %d: %d towers" % [at.y, w.towers.size()])
 		check(not w.towers.is_empty(), "row %d has towers" % at.y)
@@ -41,7 +44,7 @@ func run() -> void:
 	for world: int in range(29, 41):
 		if kinds.all(func(kind: LevelGen.Type) -> bool: return rewards.has(kind)):
 			break
-		for k: int in range(NextWorldDef.BAND):
+		for k: int in range(Bands.rows_of(&"crags")):
 			for tower: Dictionary in build(Vector2i(world, NextWorldDef.band_row(&"crags", k))).towers:
 				if not tower["hoard"] and tower.has("reward"):
 					rewards[tower["reward"]] = int(rewards.get(tower["reward"], 0)) + 1
@@ -128,7 +131,7 @@ func _whole_everywhere() -> void:
 	var towers: int = 0
 	var faulty: Array[String] = []
 	for world: int in [28, 7, 99, 51]:
-		for k: int in range(NextWorldDef.BAND):
+		for k: int in range(Bands.rows_of(&"crags")):
 			var at: Vector2i = Vector2i(world, NextWorldDef.band_row(&"crags", k))
 			var w: LevelGen = build(at)
 			if w == null:

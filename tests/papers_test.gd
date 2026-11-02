@@ -17,6 +17,9 @@ const WORLD: int = 28
 
 
 func run() -> void:
+	if not needs([&"institute"]):
+		finish()
+		return
 	MapInfo.debug = false
 	await boot(WORLD)
 	process_frame.connect(func() -> void: player.health.health = player.health.max_health)

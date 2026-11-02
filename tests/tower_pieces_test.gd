@@ -8,11 +8,14 @@ extends TestKit
 
 
 func run() -> void:
+	if not needs([&"crags"]):
+		finish()
+		return
 	# A crag level with all three: a watchtower's trapdoor, a nest and a mending bowl.
 	# The first found, world 28's crags first, then other worlds'.
 	var at: Vector2i = Vector2i.ZERO
 	for world: int in range(28, 41):
-		for k: int in range(NextWorldDef.BAND):
+		for k: int in range(Bands.rows_of(&"crags")):
 			var w: LevelGen = build(Vector2i(world, NextWorldDef.band_row(&"crags", k)))
 			if [LevelGen.Type.TRAPDOOR, LevelGen.Type.NEST, LevelGen.Type.WELL].all(func(t: LevelGen.Type) -> bool: return not w.objects_of(t).is_empty()):
 				at = Vector2i(world, NextWorldDef.band_row(&"crags", k))

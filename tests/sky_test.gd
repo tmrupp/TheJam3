@@ -18,6 +18,9 @@ func count(w: LevelGen, type: LevelGen.Type) -> int:
 
 
 func run() -> void:
+	if not needs([&"crags", &"sky"]):
+		finish()
+		return
 	bands()
 	generation()
 
@@ -57,7 +60,7 @@ func run() -> void:
 func bands() -> void:
 	print("bands")
 	var s0: int = NextWorldDef.first_depth(&"sky")
-	check(NextWorldDef.archetype_at(s0) == &"sky" and NextWorldDef.archetype_at(NextWorldDef.band_row(&"sky", NextWorldDef.BAND - 1)) == &"sky" and NextWorldDef.archetype_at(s0 + 1) == &"crags" and NextWorldDef.archetype_at(NextWorldDef.band_row(&"sky", 40)) == &"sky", "the sky is the second band up, past the crags, and goes on above")
+	check(NextWorldDef.archetype_at(s0) == &"sky" and NextWorldDef.archetype_at(NextWorldDef.band_row(&"sky", Bands.rows_of(&"sky") - 1)) == &"sky" and NextWorldDef.archetype_at(s0 + 1) == &"crags" and NextWorldDef.archetype_at(NextWorldDef.band_row(&"sky", 40)) == &"sky", "the sky is the second band up, past the crags, and goes on above")
 	var def: NextWorldDef = Rules.def_for(Vector2i(28, s0))
 	check(def.region == SkyArchetype.SAMPLE and def.realm() == &"sky" and def.chasmed(), "a sky level collapses the floating islands, prints in its realm and is gated by chasms")
 
@@ -399,7 +402,7 @@ func updrafts() -> void:
 	await until(func() -> bool: return draft.visible and draft.can_process() and (art == null or float(art.get("t")) > t0))
 	check(draft.visible and draft.can_process() and (art == null or float(art.get("t")) > t0), "looking at the top of a %d-cell shaft, its wind still shows and moves" % draft.up)
 	player.global_position = Vector2(draft.rect.get_center().x, draft.rect.end.y - 40.0)
-	player.velocity = Vector2.ZERO
+	still()
 	player.set_physics_process(true)
 	var start: float = player.global_position.y
 	var top: float = start

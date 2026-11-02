@@ -14,6 +14,9 @@ const LAID: int = 4
 
 
 func run() -> void:
+	if not needs([&"institute"]):
+		finish()
+		return
 	MapInfo.debug = false
 	var levels: Array[Vector2i] = _relic_levels()
 	check(levels.size() >= 2, "institute levels holding a relic (%d)" % levels.size())

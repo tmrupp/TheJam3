@@ -1,6 +1,6 @@
 class_name Golem
 extends Shaped
-## The lodestone golem (Bosses.UP's first, docs/REGIONS_PLAN.md §6): the boss at the top of the
+## The lodestone golem (the crags' boss, docs/REGIONS_PLAN.md §6): the boss at the top of the
 ## crags, fought in its hall (LodeHall) at the top of their gate level. A hulking, hunched figure of
 ## buzzing magnets (RisoShapes.spindle: each bulging in the middle and tapering to its two poles),
 ## held together by their pull, tip to tip across a hairline gap at every joint (GAP), each pole a

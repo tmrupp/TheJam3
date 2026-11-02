@@ -21,6 +21,10 @@ func check(ok: bool, what: String) -> void:
 
 
 func run() -> void:
+	if not Bands.has(&"cemetery") or not Bands.has(&"sky"):
+		print("  skip relics_needed_test: no cemetery or sky in the bands in play")
+		quit(0)
+		return
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
 	root.add_child(main)
 	await process_frame

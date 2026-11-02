@@ -8,6 +8,9 @@ const WALK_FRAMES: int = 360
 
 
 func run() -> void:
+	if not needs([&"cemetery"]):
+		finish()
+		return
 	await boot()
 	var walked: int = 0
 	for k: int in range(2):

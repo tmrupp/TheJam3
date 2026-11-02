@@ -21,6 +21,9 @@ var shelter: Vector2i = Vector2i(-1, -1)
 
 
 func run() -> void:
+	if not needs([&"sky"]):
+		finish()
+		return
 	var row: int = WhaleHunt.row()
 	var x: int = _world_with_perch(row)
 	check(x >= 0, "a whale level with a high perch under open sky and a shelter")

@@ -114,7 +114,8 @@ const MOON_SPACING: int = 6
 ## Share of platform runs (up to 3 cells long) that glide along a track instead of staying put.
 const MOVING_PLATFORM_CHANCE: float = 0.35
 
-## Hoppers (enemies that leap at the wizard) from depth 1, per 1000 cells.
+## Hoppers (enemies that leap at the wizard) from depth 1, per 1000 cells, unless the archetype
+## says otherwise (Archetype.hoppers_per_k).
 const HOPPERS_PER_K: float = 2.0
 
 class Cell:
@@ -988,7 +989,7 @@ func populate_level (def: NextWorldDef) -> void:
 	place_switch_gates(maxi(1, per_area(SWITCH_GATES_PER_K)))
 
 	# Stars, where the archetype has room for them (in the sky, only in and near the clusters).
-	for i: int in range(len(empties)*0.2):
+	for i: int in range(len(empties) * arch.star_share):
 		put_random(Type.COIN, func(v: Vector2i) -> bool: return arch.room(self, v, 3))
 
 	# Platforms are laid in horizontal runs of 2-5 cells so they read as continuous ledges.
@@ -1017,10 +1018,10 @@ func populate_level (def: NextWorldDef) -> void:
 	# Moons (dash resets) once the ledges are down: open air with nothing to stand on below.
 	place_moons(per_area(MOONS_PER_K))
 
-	for i: int in range(int(len(empties) * 0.2 * Difficulty.foes())):
+	for i: int in range(int(len(empties) * arch.wisp_share * Difficulty.foes())):
 		put_random(Type.ENEMY, ground_below)
 
-	for i: int in range(int(len(empties) * 0.1 * Difficulty.foes())):
+	for i: int in range(int(len(empties) * arch.watcher_share * Difficulty.foes())):
 		put_random(Type.SHOOTER, ground_below)
 
 	for i: int in range(per_area(LANTERNS_PER_K)):
@@ -1048,7 +1049,7 @@ func populate_level (def: NextWorldDef) -> void:
 
 	# Placed last, so everything above lands where it always has.
 	if def.depth >= 1:
-		for i: int in range(foes_per_area(HOPPERS_PER_K)):
+		for i: int in range(foes_per_area(arch.hoppers_per_k)):
 			put_random(Type.HOPPER, ground_below, true)
 	arch.populate(self, def)
 	place_cluster(def)

@@ -1,6 +1,6 @@
 class_name BrambleShaft
 extends RefCounted
-## The bramble's shaft (Bosses.GARDEN_UP, docs/REGIONS_PLAN.md §6): the way up out of the garden is
+## The bramble's shaft (the garden's way up's boss, docs/REGIONS_PLAN.md §6): the way up out of the garden is
 ## a tall shaft of rock cut near the top of its gate level, WIDTH cells wide inside, its height
 ## from the level's height. Its head is walled in: a landing of rock on one side holds the way on,
 ## and the knot the bramble is rooted in fills the rest of the head beside it, so the way on is
@@ -45,7 +45,7 @@ const VINE_DEAL: int = 6630
 ## Whether the level `def` describes has the bramble's shaft: the garden's way up, in every world
 ## column, while it is a level of its own (not a side world).
 static func wanted(def: NextWorldDef) -> bool:
-	return not Worlds.is_side(def.coord) and def.gate == Bosses.GARDEN_UP
+	return not Worlds.is_side(def.coord) and def.gate == &"bramble"
 
 
 ## Cut the shaft into `w` and keep it in w.shaft:

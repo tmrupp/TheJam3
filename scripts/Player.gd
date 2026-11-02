@@ -91,7 +91,9 @@ var hit_frame: int = -1
 
 func normal_hurt (damage: int, v: Vector2, _attacker: Node) -> void:
 	if not is_invulnerable():
-		hit_at = Time.get_ticks_msec() / 1000.0
+		# To the microsecond, as the catch is (Parry.parried_real): a hit in the same millisecond
+		# as a catch still counts as after it.
+		hit_at = Time.get_ticks_usec() / 1000000.0
 		hit_frame = Engine.get_physics_frames()
 		# The ward perk takes the hit, if it has a charge: knocked back and untouchable, no heart lost.
 		var ward: Ward = get_node_or_null("Ward") as Ward

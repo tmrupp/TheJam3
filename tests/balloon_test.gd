@@ -8,11 +8,14 @@ extends TestKit
 
 
 func run() -> void:
+	if not needs([&"sky"]):
+		finish()
+		return
 	print("laid out")
 	var bad: Array[String] = []
 	var levels: int = 0
 	for world: int in [28, 29, 30]:
-		for k: int in range(NextWorldDef.BAND):
+		for k: int in range(Bands.rows_of(&"sky")):
 			var at: Vector2i = Vector2i(world, NextWorldDef.band_row(&"sky", k))
 			var w: LevelGen = build(at)
 			if w == null:
@@ -70,6 +73,6 @@ func run() -> void:
 	await settle()
 	check(there, "and carries them along the row to world %d" % (from.x - 1))
 	var landed: Vector2i = info.world.balloon
-	check(info.world.is_valid(landed) and player.global_position.distance_to(info.cell_position(landed)) < 140.0, "where they come down by its balloon")
+	check(info.world.is_valid(landed) and player.global_position.distance_to(info.cell_position(landed)) < 140.0, "where they come down by its balloon (%s, %.0f px off)" % [info.coord, player.global_position.distance_to(info.cell_position(landed))])
 	RunState.delete_save()
 	finish()

@@ -261,7 +261,7 @@ func bindle() -> void:
 ## once, as big in flight as it lay on the string; the next after its reload and draw.
 func crossbow() -> void:
 	var place: Vector2i = Vector2i.ZERO
-	for k: int in range(NextWorldDef.BAND):
+	for k: int in range(Bands.rows_of(&"crags")):
 		var c: Vector2i = Vector2i(29, NextWorldDef.band_row(&"crags", k))
 		var w: LevelGen = build(c)
 		if w.objects_of(LevelGen.Type.CROSSBOW).any(func(v: Vector2i) -> bool: return _bow_open(w, v)):

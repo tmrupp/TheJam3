@@ -10,6 +10,9 @@ func freeze_enemy(node: Node) -> void:
 		freeze_enemy(child)
 
 func run() -> void:
+	if not needs([&"cemetery"]):
+		finish()
+		return
 	root.mode = Window.MODE_WINDOWED
 	root.size = Vector2i(1280, 720)
 	output = ProjectSettings.globalize_path("res://../art-captures/fog-shapes")

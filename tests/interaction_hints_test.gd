@@ -54,6 +54,9 @@ func shot(name: String) -> void:
 	root.get_texture().get_image().save_png(output.path_join(name + ".png"))
 
 func run() -> void:
+	if not needs([&"cemetery"]):
+		finish()
+		return
 	window()
 	output = ProjectSettings.globalize_path("res://../art-captures/interaction-hints")
 	DirAccess.make_dir_recursive_absolute(output)

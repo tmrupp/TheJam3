@@ -10,6 +10,9 @@ extends TestKit
 
 
 func run() -> void:
+	if not needs([&"sky"]):
+		finish()
+		return
 	var row: int = WhaleHunt.row()
 	var at: Vector2i = Worlds.side_at(Worlds.kind_of(Belly), Vector2i(28, row))
 	var w: LevelGen = build(at)

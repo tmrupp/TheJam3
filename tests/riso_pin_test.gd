@@ -11,6 +11,7 @@ extends SceneTree
 const PINNED_MAX: float = 0.05
 
 func _initialize() -> void:
+	TestKit.out_of_sight()
 	call_deferred("run")
 
 

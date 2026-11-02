@@ -13,7 +13,7 @@ const FALL: int = 6
 
 ## The rows a hop of `def`'s level is laid for: the wizard's own in the garden, a relic's beyond it.
 static func hop_up(def: NextWorldDef) -> int:
-	return Reach.UP if def.depth <= NextWorldDef.GARDEN_ROWS else RELIC_UP
+	return Reach.UP if def.depth <= Bands.garden_rows() else RELIC_UP
 
 
 ## Where the wizard can stand in `w` with its gates open: Reach's footholds, the planks over each

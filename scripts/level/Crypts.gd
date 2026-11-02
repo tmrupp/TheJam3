@@ -136,7 +136,9 @@ const PASSAGE_COST: int = 3
 const DARK: float = 0.94
 ## Skeletons asleep in a crypt: one for each SKELETONS_PER of its floors (more on a harder preset,
 ## Difficulty.foes), at least SKELETONS_MIN, each at least SKELETON_APART cells from another and
-## SKELETON_CLEAR from a doorway.
+## SKELETON_CLEAR from a doorway; in a crypt too small to keep that many so far apart, the rest of
+## the least are laid nearer, once its stars have their floors (_least_sleepers), as far as it has
+## floors left (a tiny crypt's few may all be taken by its cluster, prize, fonts, thorns and star).
 const SKELETONS_PER: int = 9
 const SKELETONS_MIN: int = 2
 const SKELETON_APART: int = 3
@@ -946,6 +948,7 @@ static func furnish(w: LevelGen, def: NextWorldDef) -> void:
 		_sleepers(w, crypt, deep)
 		_lures(w, crypt)
 		_stars(w, crypt)
+		_least_sleepers(w, crypt, deep)
 
 
 ## The prize in crypt `i` of the level with seed `level_seed` (see the class description): &"rite"
@@ -1095,21 +1098,40 @@ static func _thorns(w: LevelGen, crypt: Dictionary) -> void:
 ## those in its trials, each in an order dealt by the seed.
 static func _sleepers(w: LevelGen, crypt: Dictionary, deep: Vector2i) -> void:
 	var floors: Array[Vector2i] = crypt["floors"]
-	var doors: Array[Vector2i] = crypt["doors"]
 	var want: int = maxi(SKELETONS_MIN, roundi(float(floors.size()) / float(SKELETONS_PER) * Difficulty.foes()))
+	var chosen: Array[Vector2i] = []
+	for v: Vector2i in _sleeper_spots(w, crypt, deep):
+		if chosen.size() >= want:
+			break
+		if chosen.all(func(q: Vector2i) -> bool: return LevelGen.dist(q, v) >= SKELETON_APART):
+			chosen.append(v)
+			w.put(v, LevelGen.Type.SKELETON)
+
+
+## The free floors of `crypt` a skeleton may sleep on (not its deepest, `deep`), in the order
+## _sleepers takes them.
+static func _sleeper_spots(w: LevelGen, crypt: Dictionary, deep: Vector2i) -> Array[Vector2i]:
+	var floors: Array[Vector2i] = crypt["floors"]
+	var doors: Array[Vector2i] = crypt["doors"]
 	var spots: Array[Vector2i] = floors.filter(func(v: Vector2i) -> bool: return v != deep and w.get_cell(v).type == LevelGen.Type.EMPTY)
 	var key: Callable = func(v: Vector2i) -> int:
 		var niche: bool = w.is_ground(v + Vector2i.UP) and (w.is_ground(v + Vector2i.LEFT) or w.is_ground(v + Vector2i.RIGHT))
 		var near: bool = doors.any(func(d: Vector2i) -> bool: return LevelGen.dist(d, v) < SKELETON_CLEAR)
 		return (4 << 20 if in_trial(crypt, v) else 0) + (2 << 20 if near else 0) + (0 if niche else 1 << 20) + posmod(Rules.level_seed(w.seed_for_colors, SLEEP_DEAL + v.x * 977 + v.y), 1 << 20)
 	spots.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return key.call(a) < key.call(b))
-	var chosen: Array[Vector2i] = []
-	for v: Vector2i in spots:
-		if chosen.size() >= want:
+	return spots
+
+
+## A crypt too small for SKELETONS_MIN skeletons SKELETON_APART apart: the rest of the least, on
+## its free floors left once its stars are laid, in _sleepers' order, however near another.
+static func _least_sleepers(w: LevelGen, crypt: Dictionary, deep: Vector2i) -> void:
+	var floors: Array[Vector2i] = crypt["floors"]
+	var asleep: int = floors.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.SKELETON).size()
+	for v: Vector2i in _sleeper_spots(w, crypt, deep):
+		if asleep >= SKELETONS_MIN:
 			break
-		if chosen.all(func(q: Vector2i) -> bool: return LevelGen.dist(q, v) >= SKELETON_APART):
-			chosen.append(v)
-			w.put(v, LevelGen.Type.SKELETON)
+		w.put(v, LevelGen.Type.SKELETON)
+		asleep += 1
 
 
 ## A snuffing font on the free floor nearest each of `crypt`'s steps out, within FONT_REACH (or,

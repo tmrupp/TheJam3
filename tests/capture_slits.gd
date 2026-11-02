@@ -19,7 +19,7 @@ func run() -> void:
 	var found: Dictionary = {}
 	var bow_at: Vector2 = Vector2.INF
 	# The band's levels in turn, until each kind of slit and a crossbow have been seen.
-	for k: int in range(NextWorldDef.BAND):
+	for k: int in range(Bands.rows_of(&"crags")):
 		info.coord = Vector2i(28, NextWorldDef.band_row(&"crags", k))
 		info.arrival = MapInfo.Exit.BACK
 		info._load_level()

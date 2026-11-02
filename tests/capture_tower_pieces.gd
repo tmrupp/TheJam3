@@ -12,7 +12,7 @@ var camera: Camera2D
 func run() -> void:
 	window()
 	var row: int = 0
-	for k: int in range(NextWorldDef.BAND):
+	for k: int in range(Bands.rows_of(&"crags")):
 		var w: LevelGen = build(Vector2i(28, NextWorldDef.band_row(&"crags", k)))
 		if [LevelGen.Type.TRAPDOOR, LevelGen.Type.NEST, LevelGen.Type.WELL].all(func(t: LevelGen.Type) -> bool: return not w.objects_of(t).is_empty()):
 			row = NextWorldDef.band_row(&"crags", k)

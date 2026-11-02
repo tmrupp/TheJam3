@@ -12,6 +12,9 @@ extends TestKit
 
 
 func run() -> void:
+	if not needs([&"sky"]):
+		finish()
+		return
 	print("laid out")
 	var found: Vector2i = Vector2i.ZERO
 	var levels: int = 0
@@ -20,7 +23,7 @@ func run() -> void:
 	var repeats: int = 0
 	var bad: Array[String] = []
 	for world: int in range(28, 32):
-		for k: int in range(NextWorldDef.BAND):
+		for k: int in range(Bands.rows_of(&"sky")):
 			var at: Vector2i = Vector2i(world, NextWorldDef.band_row(&"sky", k))
 			var w: LevelGen = build(at)
 			if w == null:

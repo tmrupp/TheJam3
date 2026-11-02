@@ -20,6 +20,9 @@ extends TestKit
 
 
 func run() -> void:
+	if not needs([&"crags"]):
+		finish()
+		return
 	MapInfo.debug = false
 	var gate: Vector2i = Vector2i(28, Bosses.row_of(&"golem"))
 	await boot(28)

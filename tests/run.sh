@@ -5,7 +5,8 @@
 #   bash tests/run.sh full          everything: also tests tagged "## suite: full", then the ones
 #                                   tagged "## suite: window" one at a time in a real window
 #   bash tests/run.sh keys_test hex_test    just these (headless)
-#   options: -j N (parallel jobs), -t SECONDS (timeout per test)
+#   options: -j N (parallel jobs), -t SECONDS (timeout per test), -l LAYOUT (play the bands of
+#   Bands.LAYOUTS' LAYOUT, e.g. -l garden for the demo's: tests of bands left out skip themselves)
 #
 # A test's tier is a line near its top: "## suite: full" (slow or known broken) or
 # "## suite: window" (needs a rendered window); untagged tests are in the quick run.
@@ -27,12 +28,14 @@ jobs=$(( $(nproc 2>/dev/null || echo 4) / 2 ))
 (( jobs > 8 )) && jobs=8
 (( jobs < 1 )) && jobs=1
 limit=120
+bands=
 names=()
 while (( $# )); do
 	case "$1" in
 		quick|full) mode=$1 ;;
 		-j) jobs=$2; shift ;;
 		-t) limit=$2; shift ;;
+		-l) bands=$2; shift ;;
 		*) names+=("${1%.gd}") ;;
 	esac
 	shift
@@ -45,7 +48,7 @@ if [[ ! -x "$godot" ]]; then
 	exit 2
 fi
 
-logs="${TMPDIR:-/tmp}/thejam3-tests/$mode"
+logs="${TMPDIR:-/tmp}/thejam3-tests/$mode${bands:+-$bands}"
 rm -rf "$logs"
 mkdir -p "$logs"
 
@@ -77,7 +80,9 @@ run_one() {
 	local t=$1 window=$2 log="$logs/$1.log" start=$SECONDS why="" code
 	local args=(--headless)
 	[[ $window == 1 ]] && args=(--windowed --resolution 1280x720)
-	"$godot" "${args[@]}" --path . --script "res://tests/$t.gd" > "$log" 2>&1 &
+	local user=()
+	[[ -n "$bands" ]] && user=(-- "layout=$bands")
+	"$godot" "${args[@]}" --path . --script "res://tests/$t.gd" "${user[@]}" > "$log" 2>&1 &
 	local pid=$! errored=-1
 	while kill -0 "$pid" 2>/dev/null; do
 		if (( SECONDS - start >= limit )); then
@@ -111,7 +116,7 @@ run_one() {
 }
 
 began=$SECONDS
-echo "$mode run: ${#headless[@]} headless (${jobs} at a time)${windowed:+, ${#windowed[@]} windowed}; logs in $logs"
+echo "$mode run${bands:+ on the $bands bands}: ${#headless[@]} headless (${jobs} at a time)${windowed:+, ${#windowed[@]} windowed}; logs in $logs"
 for t in "${headless[@]}"; do
 	while (( $(jobs -rp | wc -l) >= jobs )); do
 		wait -n

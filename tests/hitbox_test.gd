@@ -7,6 +7,9 @@ extends TestKit
 
 
 func run() -> void:
+	if not needs([&"institute"]):
+		finish()
+		return
 	await boot()
 	player.set_physics_process(false)
 	player.global_position = Vector2(-90000, -90000)
@@ -40,13 +43,18 @@ func art_of(enemy: Node) -> RisoProp:
 
 
 ## The first few enemies from `scene` near the camera each have their touch over the middle of
-## their printed body.
+## their printed body. A wisp is held where it stands first: walking, lurching or turning, its body
+## trails well off its origin (up to about 55 px across and 46 up) and out of its touch, so where its
+## middle is caught would hang on the moment; at rest it bobs between about 19 and 27 px up.
 func covers(scene: String, what: String) -> void:
 	var found: Array[Node] = placed(scene)
 	check(not found.is_empty(), "%s in the level" % what)
 	if found.is_empty():
 		return
 	var enemy: Node2D = found[0] as Node2D
+	var walker: Node = enemy.get_node_or_null("Mover")
+	if walker != null:
+		walker.set_physics_process(false)
 	var camera: Camera2D = Stage.camera()
 	for i: int in range(20):
 		camera.global_position = enemy.global_position

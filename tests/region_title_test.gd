@@ -5,6 +5,9 @@ extends TestKit
 
 
 func run() -> void:
+	if not needs([&"cemetery"]):
+		finish()
+		return
 	await boot()
 	var card: RisoTransition = RisoTransition.instance
 	check(card != null, "the transition is there")

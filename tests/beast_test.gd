@@ -20,6 +20,9 @@ const VISITED: Array[Vector2i] = [Vector2i(28, 0), Vector2i(28, 1), Vector2i(28,
 
 
 func run() -> void:
+	if not needs([&"institute"]):
+		finish()
+		return
 	MapInfo.debug = false
 	_laid_out()
 	await _play()
@@ -63,8 +66,8 @@ func _laid_out() -> void:
 	var gate: LevelGen = build(Vector2i(WORLD, row))
 	var again: LevelGen = build(Vector2i(WORLD, row))
 	check(gate != null and again != null and gate.objects == again.objects and gate.halls.size() == again.halls.size(), "laid out the same twice")
-	var plain: LevelGen = build(Vector2i(WORLD, NextWorldDef.band_row(&"institute", 2)))
-	check(plain != null and Institute.chamber(plain).is_empty(), "no other level has a chamber")
+	var plain: LevelGen = build(Vector2i(WORLD, band_rows(&"institute", [0])[0]))
+	check(plain != null and (plain.gate == &"beast" or Institute.chamber(plain).is_empty()), "no other level has a chamber")
 
 
 # ------------------------------------------------------------------ in play

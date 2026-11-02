@@ -34,7 +34,7 @@ var relic: StringName = &""
 var gate: StringName = &""
 ## Whether a secret room in this level holds a skeleton key (see Rules.skeleton_at).
 var skeleton: bool = false
-## What kind of level it is (ARCHETYPES), by its depth: its terrain, look and what lives there.
+## What kind of level it is (by the bands in play, Bands), by its row: its terrain, look and what lives there.
 ## &"" for a side world.
 var archetype: StringName = &""
 ## What that archetype brings (see Archetype), or null for a side world.
@@ -43,24 +43,6 @@ var arch: Archetype = null
 ## gdextension/src/overlapping_wfc.hpp). 1 uses them as drawn, so up stays up (the extension's
 ## first flip is upside down).
 var symmetry: int = 5
-
-## The bands of rows each archetype holds (docs/REGIONS_PLAN.md §2). The garden is the hub: it
-## spans the rows within GARDEN_ROWS of the start, both ways. Down from it, DOWN's archetypes follow
-## one another, BAND rows each; up from it, UP's do. The outermost band of each way goes on for
-## ever past its end. Each is a script extending Archetype; a new one joins by being listed here.
-const GARDEN: Script = preload("res://scripts/worlds/archetypes/GardenArchetype.gd")
-const DOWN: Array[Script] = [
-	preload("res://scripts/worlds/archetypes/CemeteryArchetype.gd"),
-	preload("res://scripts/worlds/archetypes/InstituteArchetype.gd"),
-]
-const UP: Array[Script] = [
-	preload("res://scripts/worlds/archetypes/CragsArchetype.gd"),
-	preload("res://scripts/worlds/archetypes/SkyArchetype.gd"),
-]
-## Every archetype, the garden first, then down's, then up's.
-const ARCHETYPES: Array[Script] = [GARDEN, DOWN[0], DOWN[1], UP[0], UP[1]]
-const GARDEN_ROWS: int = 3
-const BAND: int = 6
 
 
 ## Fill it in for the place at `at`, and return it.
@@ -84,11 +66,12 @@ func setup(at: Vector2i) -> NextWorldDef:
 	return self
 
 
-## The names of the archetypes, in the order their bands come.
+## The names of the archetypes of the bands in play (Bands), the garden first, then down's, then
+## up's.
 static func archetype_names() -> Array[StringName]:
 	var out: Array[StringName] = []
-	for kind: Script in ARCHETYPES:
-		out.append((kind.new() as Archetype).name)
+	for kind: Script in Bands.scripts():
+		out.append(Bands.name_of(kind))
 	return out
 
 
@@ -101,14 +84,7 @@ static func first_depth(kind: StringName) -> int:
 ## Row `k` of the band of the archetype named `kind`, counting from its row nearest the start (0)
 ## away from it (the garden's, down from the start), or -1 for an archetype with no band.
 static func band_row(kind: StringName, k: int) -> int:
-	if (GARDEN.new() as Archetype).name == kind:
-		return k
-	for way: int in [1, -1]:
-		var bands: Array[Script] = DOWN if way > 0 else UP
-		for i: int in range(bands.size()):
-			if (bands[i].new() as Archetype).name == kind:
-				return way * (GARDEN_ROWS + 1 + i * BAND + k)
-	return -1
+	return Bands.band_row(kind, k)
 
 
 ## Which way, along the rows, the way on (Exit.DEEPER) leads from row `row`: away from the start
@@ -117,15 +93,10 @@ static func away(row: int) -> int:
 	return -1 if row < 0 else 1
 
 
-## The archetype of levels on row `row` (a new one each time: it is small). Side worlds have none
-## of their own, but ask with their origin's row.
+## The archetype of levels on row `row`, by the bands in play (Bands; a new one each time: it is
+## small). Side worlds have none of their own, but ask with their origin's row.
 static func archetype_for(row: int) -> Archetype:
-	var d: int = absi(row)
-	if d <= GARDEN_ROWS:
-		return GARDEN.new()
-	var bands: Array[Script] = DOWN if row > 0 else UP
-	@warning_ignore("integer_division")
-	return bands[mini((d - GARDEN_ROWS - 1) / BAND, bands.size() - 1)].new()
+	return Bands.archetype_at(row)
 
 
 ## The name of the archetype of levels on row `row`.
