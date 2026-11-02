@@ -42,8 +42,41 @@ const FOES: Array[LevelGen.Type] = [LevelGen.Type.ENEMY, LevelGen.Type.SHOOTER, 
 const SHOW_FOE: Color = Color(0.85, 0.0, 0.0)
 ## Stars are many (a fifth of the open cells): a faint tint, so the terrain still reads.
 const SHOW_STAR: Color = Color(0.96, 0.9, 0.7)
-## The band tuning knobs offered (Archetype vars), each [name, step].
-const KNOBS: Array = [["star_share", 0.01], ["wisp_share", 0.01], ["watcher_share", 0.01], ["hoppers_per_k", 0.1]]
+## The key under the grid: each colour a level is drawn in (SHOW_ROCK and the rest), and its name.
+const KEY: Array = [
+	[SHOW_ROCK, "rock"], [SHOW_OPEN, "open air"], [Color(0.9, 0.15, 0.3), "thorns"],
+	[Color(0.6, 0.45, 0.25), "ledge"], [Color(0.85, 0.6, 0.2), "lift"], [Color(0.4, 0.4, 0.4), "cracked rock"],
+	[Color(0.1, 0.8, 0.3), "exit"], [Color(0.3, 0.4, 1.0), "door, gate"], [Color(1.0, 0.85, 0.0), "key"],
+	[Color(1.0, 0.55, 0.0), "lantern"], [Color(0.7, 0.3, 0.9), "portal"], [Color(0.5, 0.8, 1.0), "moon"],
+	[Color(0.0, 0.8, 0.8), "shrine"], [SHOW_FOE, "foe"], [SHOW_STAR, "star"], [Color(1.0, 0.0, 1.0), "boss"],
+]
+## What the pattern size does, shown over its box.
+const PATTERN_TIP: String = "The size (pixels square) of the pieces the sample is cut into.\nThe collapse only puts pieces side by side the way they overlap somewhere in the sample:\nsmall pieces copy the sample loosely (more variety, odder shapes), big ones closely (truer to it, and fails to settle more often).\nThe game uses 3."
+## The eight versions of each piece the collapse can use (NextWorldDef.symmetry), in its order: bit k
+## of the mask is version k. Each is [its name, a short name for its box, and the extension's own
+## steps that make it from the piece as drawn]:
+## "f" flips it (upside down, as the game reads it) and "r" turns it a quarter, as
+## gdextension/src/overlapping_wfc.hpp makes them, so the pictures show what each really is.
+const VERSIONS: Array = [
+	["as drawn", "as drawn", ""], ["upside down", "upside down", "f"], ["a quarter turn", "quarter", "r"],
+	["a quarter turn, upside down", "quarter, flip", "rf"], ["a half turn", "half turn", "rr"],
+	["a half turn, upside down: the left-right mirror", "mirror", "rrf"], ["three quarters", "3 quarters", "rrr"],
+	["three quarters, upside down", "3 quarters, flip", "rrrf"],
+]
+## The mask that keeps up up and also mirrors left to right (versions 0 and 5).
+const UPRIGHT_MIRROR: int = 0b100001
+## What the symmetry does, shown over its box.
+const SYMMETRY_TIP: String = "Which turned and flipped versions of each piece the collapse may use (each picture shows one, done to a lopsided glyph).\nA band uses the first N of them (Archetype.symmetry): the garden 5 (its caves have no up), the cemetery 1 (up stays up).\nAny set can be picked here; a band can use one too, through its \"symmetry_mask\" (Bands.LAYOUTS tune; bit k for version k).\nUpright + mirror (versions 1 and 6 here) keeps gravity's sense and doubles the variety."
+## The "How it works" text under the key.
+const HOW: String = "The game makes a level's terrain with wave function collapse (WFC): it cuts the band's sample into small pieces (pattern size) and fills the level with them so that every patch of the level looks like some patch of the sample. White is open air, black rock, red thorns. Symmetry lets it use the pieces turned and flipped too.\n\nThen the band dresses it (LevelGen): it joins the caves, places the way in and the way on, keys and doors, lanterns, portals, stars and foes, by the band's own passes and the tuning above. The same world and row is always the same level.\n\nPaint the sample, change a setting, and the levels are laid out again a moment later. Click one to see it large, then Look in game (the whole level as the game prints it; P plays from there) or Play from its way in. Backspace comes back here."
+
+## The band tuning knobs offered (Archetype vars), each [name, step, what it does].
+const KNOBS: Array = [
+	["star_share", 0.01, "The share of a level's open cells given a star (Archetype.star_share)."],
+	["wisp_share", 0.01, "The share of open cells given a wisp, times the difficulty's foes (Archetype.wisp_share)."],
+	["watcher_share", 0.01, "The share of open cells given a watcher, times the difficulty's foes (Archetype.watcher_share)."],
+	["hoppers_per_k", 0.1, "Hoppers per 1000 cells from depth 1, times the difficulty's foes (Archetype.hoppers_per_k)."],
+]
 ## How long after the last change the levels are laid out again (seconds).
 const SETTLE: float = 0.35
 ## Tries a collapse gets (each on a seed of its own) before a level counts as never settling.
@@ -72,7 +105,7 @@ var _sample_note: Label
 var _width: SpinBox
 var _height: SpinBox
 var _pattern: SpinBox
-var _symmetry: SpinBox
+var _versions: Array[CheckBox] = []
 var _row: SpinBox
 var _first: SpinBox
 var _count: SpinBox
@@ -181,45 +214,81 @@ func _build_ui() -> void:
 	left.add_child(_sample_note)
 	var resize: HBoxContainer = HBoxContainer.new()
 	left.add_child(resize)
-	_width = _spin(resize, "w", 4, 128, 1, 32)
-	_height = _spin(resize, "h", 4, 128, 1, 32)
-	_button(resize, "Resize", func() -> void: _resize(int(_width.value), int(_height.value)))
+	_width = _spin(resize, "w", 4, 128, 1, 32, "The sample's width in pixels, for Resize.")
+	_height = _spin(resize, "h", 4, 128, 1, 32, "The sample's height in pixels, for Resize.")
+	_button(resize, "Resize", func() -> void: _resize(int(_width.value), int(_height.value)),
+			"Cut the sample, or grow it with open air, to w x h (from its top left).")
 	var files: HBoxContainer = HBoxContainer.new()
 	left.add_child(files)
-	_button(files, "Revert", func() -> void: _load_sample(sample_path))
-	_button(files, "Save", func() -> void: _save(sample_path))
+	_button(files, "Revert", func() -> void: _load_sample(sample_path), "Back to the sample as it was last loaded or saved.")
+	_button(files, "Save", func() -> void: _save(sample_path), "Write the sample over its file in wfc_images. The game reads it once the project is imported again.\nA sample drawn by a tests/make_*_sample.gd script is remade by it: edit the script for good.")
 	_save_as = LineEdit.new()
 	_save_as.placeholder_text = "new_sample"
 	_save_as.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	files.add_child(_save_as)
 	_button(files, "Save as", func() -> void:
 		if _save_as.text.strip_edges() != "":
-			_save("res://wfc_images/%s.png" % _save_as.text.strip_edges().trim_suffix(".png")))
+			_save("res://wfc_images/%s.png" % _save_as.text.strip_edges().trim_suffix(".png")),
+			"Write the sample to a new file in wfc_images, named in the box.")
 
 	_title(left, "Collapse")
 	var wfc_row: HBoxContainer = HBoxContainer.new()
 	left.add_child(wfc_row)
-	_pattern = _spin(wfc_row, "pattern", 2, 5, 1, 3)
-	_symmetry = _spin(wfc_row, "symmetry", 1, 8, 1, 5)
+	_pattern = _spin(wfc_row, "pattern", 2, 5, 1, 3, PATTERN_TIP)
+	var sym_title: Label = Label.new()
+	sym_title.text = "symmetry: the versions of each piece used"
+	sym_title.tooltip_text = SYMMETRY_TIP
+	sym_title.mouse_filter = Control.MOUSE_FILTER_PASS
+	left.add_child(sym_title)
+	var presets: HBoxContainer = HBoxContainer.new()
+	left.add_child(presets)
+	_button(presets, "band's", func() -> void: _use_mask(_band_mask()), "The band's own: the first N versions (Archetype.symmetry), or its mask.")
+	_button(presets, "upright", func() -> void: _use_mask(1), "Only as drawn: up stays up, left stays left.")
+	_button(presets, "upright + mirror", func() -> void: _use_mask(UPRIGHT_MIRROR), "As drawn and mirrored left to right: up stays up.")
+	_button(presets, "all", func() -> void: _use_mask(255), "All eight versions.")
+	var grid: GridContainer = GridContainer.new()
+	grid.columns = 4
+	left.add_child(grid)
+	for k: int in range(VERSIONS.size()):
+		var item: VBoxContainer = VBoxContainer.new()
+		item.tooltip_text = "%d: %s\n%s" % [k + 1, VERSIONS[k][0], SYMMETRY_TIP]
+		grid.add_child(item)
+		var glyph: TextureRect = TextureRect.new()
+		glyph.texture = ImageTexture.create_from_image(_version_glyph(String(VERSIONS[k][2])))
+		glyph.custom_minimum_size = Vector2(40, 40)
+		glyph.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		glyph.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		glyph.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		glyph.mouse_filter = Control.MOUSE_FILTER_PASS
+		item.add_child(glyph)
+		var box: CheckBox = CheckBox.new()
+		box.text = "%d %s" % [k + 1, VERSIONS[k][1]]
+		box.tooltip_text = item.tooltip_text
+		box.add_theme_font_size_override("font_size", 12)
+		box.toggled.connect(func(_on: bool) -> void: _ask())
+		item.add_child(box)
+		_versions.append(box)
 	var size_row: HBoxContainer = HBoxContainer.new()
 	left.add_child(size_row)
 	_size_auto = CheckBox.new()
 	_size_auto.text = "band's size"
+	_size_auto.tooltip_text = "Lay each level out as big as the game would at its row (Rules.level_size, times the archetype's scale).\nUntick to set w x h yourself."
 	_size_auto.button_pressed = true
 	_size_auto.toggled.connect(func(_on: bool) -> void: _ask())
 	size_row.add_child(_size_auto)
-	_size_w = _spin(size_row, "w", 8, 160, 1, 36)
-	_size_h = _spin(size_row, "h", 8, 160, 1, 30)
+	_size_w = _spin(size_row, "w", 8, 160, 1, 36, "Cells across, when the band's size is unticked.")
+	_size_h = _spin(size_row, "h", 8, 160, 1, 30, "Cells down, when the band's size is unticked.")
 
 	_title(left, "Levels")
 	var seeds: HBoxContainer = HBoxContainer.new()
 	left.add_child(seeds)
-	_row = _spin(seeds, "row", -40, 40, 1, 1)
+	_row = _spin(seeds, "row", -40, 40, 1, 1, "The row the levels are laid out on: 0 the start, down positive, up negative.\nIt picks the band (its archetype's dressing, size and tuning), and loads its sample while yours is unedited.")
 	_row.value_changed.connect(_on_row_changed)
-	_first = _spin(seeds, "first world", 0, 99999, 1, 1)
-	_count = _spin(seeds, "how many", 1, 48, 1, 12)
+	_first = _spin(seeds, "first world", 0, 99999, 1, 1, "The world seed of the first level; the rest follow it (first, first + 1, ...).\nThe same world and row is the same level, as in the game.")
+	_count = _spin(seeds, "how many", 1, 48, 1, 12, "How many levels to lay out.")
 	_dress = CheckBox.new()
 	_dress.text = "dress as the band does (exits, keys, foes, stars...)"
+	_dress.tooltip_text = "Lay each level out fully, as the game does (LevelGen), with the tuning below.\nUntick to see only the terrain the collapse made. The cemetery's crypts are not made here: it shows undressed."
 	_dress.button_pressed = true
 	_dress.toggled.connect(func(_on: bool) -> void: _ask())
 	left.add_child(_dress)
@@ -228,16 +297,41 @@ func _build_ui() -> void:
 	for knob: Array in KNOBS:
 		var line: HBoxContainer = HBoxContainer.new()
 		left.add_child(line)
-		var spin: SpinBox = _spin(line, String(knob[0]), 0.0, 10.0, float(knob[1]), 0.0)
+		var spin: SpinBox = _spin(line, String(knob[0]), 0.0, 10.0, float(knob[1]), 0.0, String(knob[2]))
 		spin.custom_minimum_size.x = 120
 		_knobs[knob[0]] = spin
-	_button(left, "Copy settings (for Bands.LAYOUTS)", _copy_settings)
+	_button(left, "Copy settings (for Bands.LAYOUTS)", _copy_settings,
+			"Put the sample, the collapse's settings and the tuning on the clipboard, to carry into a band's line in Bands.LAYOUTS.")
 
 	_title(left, "Key")
-	var legend: Label = Label.new()
-	legend.text = "rock dark, open pale, thorns pink, ledges brown, lifts amber, exits green,\ndoors blue, keys yellow, lanterns orange, portals violet, moons sky,\nfoes red, stars gold, boss magenta"
-	legend.modulate = Color(1, 1, 1, 0.7)
-	left.add_child(legend)
+	var key: GridContainer = GridContainer.new()
+	key.columns = 3
+	key.add_theme_constant_override("h_separation", 14)
+	left.add_child(key)
+	for entry: Array in KEY:
+		var item: HBoxContainer = HBoxContainer.new()
+		key.add_child(item)
+		# A thin light edge, so the dark ones show on the panel's dark ground.
+		var swatch: Panel = Panel.new()
+		var box: StyleBoxFlat = StyleBoxFlat.new()
+		box.bg_color = entry[0]
+		box.set_border_width_all(1)
+		box.border_color = Color(0.7, 0.7, 0.7)
+		swatch.add_theme_stylebox_override("panel", box)
+		swatch.custom_minimum_size = Vector2(16, 16)
+		swatch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		item.add_child(swatch)
+		var what: Label = Label.new()
+		what.text = entry[1]
+		item.add_child(what)
+
+	_title(left, "How it works")
+	var how: Label = Label.new()
+	how.text = HOW
+	how.autowrap_mode = TextServer.AUTOWRAP_WORD
+	how.custom_minimum_size.x = 400
+	how.modulate = Color(1, 1, 1, 0.75)
+	left.add_child(how)
 
 	var right: VBoxContainer = VBoxContainer.new()
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -299,11 +393,14 @@ func _title(parent: Control, text: String) -> void:
 	parent.add_child(l)
 
 
-func _spin(parent: Control, label: String, lo: float, hi: float, step: float, value: float) -> SpinBox:
+func _spin(parent: Control, label: String, lo: float, hi: float, step: float, value: float, tip: String = "") -> SpinBox:
 	var l: Label = Label.new()
 	l.text = label
+	l.tooltip_text = tip
+	l.mouse_filter = Control.MOUSE_FILTER_PASS
 	parent.add_child(l)
 	var s: SpinBox = SpinBox.new()
+	s.tooltip_text = tip
 	s.min_value = lo
 	s.max_value = hi
 	s.step = step
@@ -313,9 +410,10 @@ func _spin(parent: Control, label: String, lo: float, hi: float, step: float, va
 	return s
 
 
-func _button(parent: Control, text: String, on: Callable) -> Button:
+func _button(parent: Control, text: String, on: Callable, tip: String = "") -> Button:
 	var b: Button = Button.new()
 	b.text = text
+	b.tooltip_text = tip
 	b.pressed.connect(on)
 	parent.add_child(b)
 	return b
@@ -396,7 +494,7 @@ func _on_row_changed(_v: float) -> void:
 	if sample == null or sample.get_data() == _saved.get_data():
 		if def.region != sample_path:
 			_load_sample(def.region)
-		_symmetry.set_value_no_signal(def.symmetry)
+		_use_mask(_band_mask(), false)
 	for knob: Array in KNOBS:
 		(_knobs[knob[0]] as SpinBox).set_value_no_signal(float(def.arch.get(String(knob[0]))))
 	if _size_auto.button_pressed:
@@ -405,11 +503,66 @@ func _on_row_changed(_v: float) -> void:
 	_ask()
 
 
+## The versions ticked, as a mask (bit k for version k; at least the first, as drawn).
+func _mask() -> int:
+	var mask: int = 0
+	for k: int in range(_versions.size()):
+		if _versions[k].button_pressed:
+			mask |= 1 << k
+	return mask if mask != 0 else 1
+
+
+## The band's own versions at the row shown: its mask, else its first `symmetry` of them.
+func _band_mask() -> int:
+	var def: NextWorldDef = Rules.def_for(Vector2i(int(_first.value), int(_row.value)))
+	return def.symmetry_mask if def.symmetry_mask != 0 else (1 << def.symmetry) - 1
+
+
+## Tick the versions of `mask`, and lay the levels out again (unless `relay` is false).
+func _use_mask(mask: int, relay: bool = true) -> void:
+	for k: int in range(_versions.size()):
+		_versions[k].set_pressed_no_signal((mask >> k) & 1 != 0)
+	if relay:
+		_ask()
+
+
+## A lopsided glyph (an F, so every turn and flip shows), put through `steps` as the extension does
+## a piece: it holds the sample transposed (gdextension/src/wave_function_collapse.cpp), "f" reverses
+## each of its rows (upside down in the picture) and "r" turns it a quarter.
+static func _version_glyph(steps: String) -> Image:
+	var rows: Array[String] = ["#####", "#....", "####.", "#....", "#...."]
+	var n: int = rows.size()
+	# a[i][j] is the glyph's pixel at x i, y j, as the extension reads an image.
+	var a: Array = []
+	for i: int in range(n):
+		var column: Array[bool] = []
+		for j: int in range(n):
+			column.append(rows[j][i] == "#")
+		a.append(column)
+	for step: String in steps:
+		var b: Array = []
+		for i: int in range(n):
+			var column: Array[bool] = []
+			for j: int in range(n):
+				# Array2D::reflected: get(y, w-1-x); Array2D::rotated: get(x, w-1-y).
+				column.append(a[i][n - 1 - j] if step == "f" else a[j][n - 1 - i])
+			b.append(column)
+		a = b
+	var img: Image = Image.create(n + 2, n + 2, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0.25, 0.27, 0.28))
+	for i: int in range(n):
+		for j: int in range(n):
+			if a[i][j]:
+				img.set_pixel(i + 1, j + 1, Color(0.95, 0.93, 0.85))
+	return img
+
+
 func _copy_settings() -> void:
 	var tune: Dictionary = {}
 	for knob: Array in KNOBS:
 		tune[knob[0]] = snappedf((_knobs[knob[0]] as SpinBox).value, float(knob[1]))
-	var text: String = "sample %s, pattern %d, symmetry %d, \"tune\": %s" % [sample_path, int(_pattern.value), int(_symmetry.value), JSON.stringify(tune)]
+	tune["symmetry_mask"] = _mask()
+	var text: String = "sample %s, pattern %d, \"tune\": %s" % [sample_path, int(_pattern.value), JSON.stringify(tune)]
 	DisplayServer.clipboard_set(text)
 	_status.text = "copied: " + text
 
@@ -437,7 +590,7 @@ func _launch() -> void:
 		"id": _wanted,
 		"sample": sample.duplicate(),
 		"pattern": int(_pattern.value),
-		"symmetry": int(_symmetry.value),
+		"symmetry_mask": _mask(),
 		"row": int(_row.value),
 		"first": int(_first.value),
 		"count": int(_count.value),
@@ -481,7 +634,14 @@ static func _level(wfc: Node, texture: ImageTexture, at: Vector2i, job: Dictiona
 	var level_size: Vector2i = job["size"] if job["size"] != Vector2i.ZERO else def.size
 	wfc.set("texture", texture)
 	wfc.set("output_size", level_size)
-	wfc.set("symmetry", int(job["symmetry"]))
+	# The versions picked, by mask (the count kept to match, for an extension without masks).
+	var mask: int = int(job["symmetry_mask"])
+	var count: int = 0
+	for k: int in range(8):
+		if (mask >> k) & 1 != 0:
+			count += 1
+	wfc.set("symmetry", count)
+	wfc.set("symmetry_mask", mask)
 	wfc.set("pattern_size", int(job["pattern"]))
 	var cells: Array = []
 	var tries: int = 0

@@ -25,6 +25,10 @@ var decor: StringName = &"garden"
 var sample: String = ""
 ## The collapse's symmetry (see NextWorldDef.symmetry): 1 keeps up up.
 var symmetry: int = 5
+## Which of the eight turned and flipped versions of the sample's pieces the collapse uses instead,
+## a bit each (see NextWorldDef.symmetry_mask); 0 (the usual) keeps to `symmetry`. A band's "tune"
+## may set it (Bands.LAYOUTS), say to 33 for upright and mirrored.
+var symmetry_mask: int = 0
 ## How much bigger than Rules.level_size its levels are, across and down (size_for).
 var scale: Vector2 = Vector2.ONE
 ## Whether its levels are gated by chasms (see Chasms), crossed at `crossing`s.

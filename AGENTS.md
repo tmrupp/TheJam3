@@ -49,7 +49,15 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
   scene's wizard, TileMap, camera and menu (no `/root/Main/...` paths elsewhere).
 - `wfc_images/`: WFC samples (white open, black rock, red thorns). Drawn ones come from
   `tests/make_*_sample.gd`, so edit the script and rerun it rather than editing the PNG.
-- `gdextension/`: the C++ overlapping-WFC extension (SCons). Rarely touched.
+- `gdextension/`: the C++ overlapping-WFC extension (SCons). Rarely touched. It cuts a sample into
+  pieces and may use each in up to eight versions: `symmetry` takes the first N, `symmetry_mask` any
+  set (bit k for version k: 0 as drawn, 1 upside down, 2 a quarter turn, 3 that upside down, 4 a half
+  turn, 5 the left-right mirror, 6 three quarters, 7 that upside down; see `NextWorldDef`). Rebuild it
+  on Windows with MSVC (Visual Studio 2022 Build Tools):
+  `cd gdextension && python -m SCons platform=windows target=template_debug -j16`. Never with MinGW:
+  its maths library rounds the collapse's logarithms differently and every level in the game changes
+  (`layout_fingerprint_test` says so; run it after any rebuild). With Godot open the DLL is locked:
+  rename it aside first (Windows allows that) and the build writes the new one.
 - `docs/`: `DEEPER_PLAN.md` (design, by system), `REGIONS_PLAN.md` (the plan for going up and
   down from the garden, the new bands and the bosses at band ends; phases 1 to 4 built (the worm
   and the bramble), a first pass of the crags and their lodestone golem of phase 5 (with the lodestones, empowered spells and spires), phase 6, the cemetery's
@@ -117,7 +125,9 @@ bash tests/run.sh -l garden full  # the suite on another band layout (the demo's
 - The generation lab, `tools/gen_lab/gen_lab.tscn` (open it in the editor and press F6, or
   `godot --path . res://tools/gen_lab/gen_lab.tscn`): paint a band's WFC sample, change the collapse
   (pattern size, symmetry, level size), the band row it is dressed as and the band tuning knobs, and
-  see a grid of levels from consecutive seeds laid out again a moment after each change. Click one,
+  see a grid of levels from consecutive seeds laid out again a moment after each change (a
+  colour key and a "How it works" note under the controls; every control has a tooltip saying what
+  it does, the symmetry's eight versions among them). Click one,
   then Look in game (the whole level as the game prints it; P to play from there) or Play (from its
   way in); Backspace (or F10) comes back to the lab as it was. It hands its level to the game through
   `LevelLoader.keep` and starts the run with `Menu.start_at`, on a save of its own.

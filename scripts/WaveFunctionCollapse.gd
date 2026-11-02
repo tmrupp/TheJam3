@@ -18,6 +18,7 @@ func generate_level(def: NextWorldDef) -> Array:
 	texture = load(def.region)
 	output_size = def.size
 	symmetry = def.symmetry
+	symmetry_mask = def.symmetry_mask
 	var map: Array = []
 	for attempt: int in range(32):
 		set_seed(def.gen_seed if attempt == 0 else Rules.level_seed(def.gen_seed, 1000 + attempt))
@@ -44,6 +45,7 @@ func generate_level(def: NextWorldDef) -> Array:
 			kinds = strip[1]
 			output_size = Vector2i(size.x, STRIP) if slices == &"columns" else Vector2i(STRIP, size.y)
 		symmetry = 1
+		symmetry_mask = 0
 		var inside: Array = []
 		for attempt: int in range(PATCH_TRIES):
 			set_seed(Rules.level_seed(def.gen_seed, PATCH_DEAL + i * 100 + attempt))

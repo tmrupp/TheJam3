@@ -39,10 +39,15 @@ var skeleton: bool = false
 var archetype: StringName = &""
 ## What that archetype brings (see Archetype), or null for a side world.
 var arch: Archetype = null
-## The collapse's symmetry: how many of the sample's patterns' turns and flips it may use (see
-## gdextension/src/overlapping_wfc.hpp). 1 uses them as drawn, so up stays up (the extension's
-## first flip is upside down).
+## The collapse's symmetry: how many of the sample's patterns' turns and flips it may use, the first
+## that many of eight, in this order (gdextension/src/overlapping_wfc.hpp): 0 as drawn, 1 upside
+## down, 2 a quarter turn, 3 a quarter turn upside down, 4 a half turn, 5 a half turn upside down
+## (the plain left-right mirror), 6 three quarters, 7 three quarters upside down. 1 uses them as
+## drawn, so up stays up.
 var symmetry: int = 5
+## Which of those eight versions to use instead, a bit each (bit k for version k: 33 is as drawn
+## and mirrored left to right); 0 keeps to `symmetry`.
+var symmetry_mask: int = 0
 
 
 ## Fill it in for the place at `at`, and return it.
@@ -55,6 +60,7 @@ func setup(at: Vector2i) -> NextWorldDef:
 	archetype = arch.name
 	region = arch.sample
 	symmetry = arch.symmetry
+	symmetry_mask = arch.symmetry_mask
 	size = arch.size_for(depth)
 	for k: int in range(Worlds.KINDS.size()):
 		if Worlds.proto(k).deals(at):

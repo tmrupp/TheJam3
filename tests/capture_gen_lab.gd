@@ -18,6 +18,12 @@ func run() -> void:
 	check(shown == int((lab.get("_count") as SpinBox).value), "as many as asked (%d)" % shown)
 	await frames(2)
 	save_still("gen_lab/opened.png")
+	# The panel scrolled down to its key and its explanation.
+	var panel: ScrollContainer = lab.find_children("*", "ScrollContainer", true, false)[0] as ScrollContainer
+	panel.scroll_vertical = 100000
+	await frames(4)
+	save_still("gen_lab/key.png")
+	panel.scroll_vertical = 0
 	var sample: Image = lab.get("sample")
 	@warning_ignore("integer_division")
 	var middle: int = sample.get_height() / 2
@@ -28,6 +34,19 @@ func run() -> void:
 	check(await until(func() -> bool: return status.text.contains(" settled"), 120000), "and the levels are laid out again (%s)" % status.text)
 	await frames(2)
 	save_still("gen_lab/painted.png")
+
+	print("symmetry")
+	lab.call("_load_sample", GardenArchetype.SAMPLE)
+	await until(func() -> bool: return status.text.contains(" settled"), 120000)
+	lab.call("_use_mask", 33)
+	await until(func() -> bool: return not status.text.contains(" settled"), 5000)
+	check(await until(func() -> bool: return status.text.contains(" settled"), 120000), "upright + mirror lays the garden out again (%s)" % status.text)
+	await frames(2)
+	save_still("gen_lab/mirror.png")
+	lab.call("_load_sample", GardenArchetype.SAMPLE)
+	for x: int in range(sample.get_width()):
+		lab.call("paint", Vector2i(x, middle), 1)
+	await until(func() -> bool: return status.text.contains(" settled"), 120000)
 
 	print("in the game")
 	var chosen: Dictionary = (lab.get("_cells") as Array)[0]

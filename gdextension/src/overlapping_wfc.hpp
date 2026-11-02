@@ -19,6 +19,9 @@ struct OverlappingWFCOptions {
   unsigned symmetry; // The number of symmetries (the order is defined in wfc).
   bool ground;       // True if the ground needs to be set (see init_ground).
   unsigned pattern_size; // The width and height in pixel of the patterns.
+  // Which of the 8 symmetries to use, one bit each (bit k for symmetry k, in
+  // the order the patterns are made in); 0 uses the first `symmetry` of them.
+  unsigned symmetry_mask;
 
   /**
    * Get the wave height given these options.
@@ -183,7 +186,13 @@ private:
 
         // The number of symmetries in the option class define which symetries
         // will be used.
-        for (unsigned k = 0; k < options.symmetry; k++) {
+        for (unsigned k = 0; k < 8; k++) {
+          bool used = options.symmetry_mask != 0
+                          ? ((options.symmetry_mask >> k) & 1u) != 0
+                          : k < options.symmetry;
+          if (!used) {
+            continue;
+          }
           auto res = patterns_id.insert(
               std::make_pair(symmetries[k], patterns.size()));
 

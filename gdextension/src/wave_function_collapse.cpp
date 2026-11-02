@@ -19,6 +19,10 @@ void WaveFunctionCollapse::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_symmetry"), &WaveFunctionCollapse::set_symmetry);
     ADD_PROPERTY(PropertyInfo(Variant::INT, "symmetry"), "set_symmetry", "get_symmetry");
 
+	ClassDB::bind_method(D_METHOD("get_symmetry_mask"), &WaveFunctionCollapse::get_symmetry_mask);
+	ClassDB::bind_method(D_METHOD("set_symmetry_mask", "symmetry_mask"), &WaveFunctionCollapse::set_symmetry_mask);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "symmetry_mask"), "set_symmetry_mask", "get_symmetry_mask");
+
 	ClassDB::bind_method(D_METHOD("get_pattern_size"), &WaveFunctionCollapse::get_pattern_size);
 	ClassDB::bind_method(D_METHOD("set_pattern_size"), &WaveFunctionCollapse::set_pattern_size);
     ADD_PROPERTY(PropertyInfo(Variant::INT, "pattern_size"), "set_pattern_size", "get_pattern_size");
@@ -65,6 +69,11 @@ int WaveFunctionCollapse::get_symmetry() {return symmetry;}
 
 void WaveFunctionCollapse::set_symmetry(int _symmetry) {symmetry = _symmetry;}
 
+// Which of the 8 symmetries to use, a bit each (0: the first `symmetry` of them, see OverlappingWFCOptions).
+int WaveFunctionCollapse::get_symmetry_mask() {return symmetry_mask;}
+
+void WaveFunctionCollapse::set_symmetry_mask(int _symmetry_mask) {symmetry_mask = _symmetry_mask;}
+
 int WaveFunctionCollapse::get_pattern_size() {return pattern_size;}
 
 void WaveFunctionCollapse::set_pattern_size(int _pattern_size) {pattern_size = _pattern_size;}
@@ -83,7 +92,7 @@ Array WaveFunctionCollapse::collapse() {
         }
     }
 
-    OverlappingWFCOptions options = {false, false, (unsigned int) output_size.x, (unsigned int) output_size.y, symmetry, false, pattern_size};
+    OverlappingWFCOptions options = {false, false, (unsigned int) output_size.x, (unsigned int) output_size.y, symmetry, false, pattern_size, (unsigned int) symmetry_mask};
     OverlappingWFC<int32_t> wfc(*m, options, seed);
     std::optional<Array2D<int32_t>> success = wfc.run();
 
