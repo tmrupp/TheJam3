@@ -94,6 +94,9 @@ var _looking: bool = false
 var _was_save: String = ""
 var _was_by_sight: bool = true
 var _limits: Array[int] = []
+## The camera's zoom as the game set it (its own, times the print's zoom, RisoPrint.zoom_factor),
+## kept while looking, to play at again.
+var _zoom: Vector2 = Vector2.ONE
 var _save_as: LineEdit
 
 ## Counts each lay-out asked for, so a worker knows when its work is stale.
@@ -661,6 +664,7 @@ func _look(info: MapInfo) -> void:
 	RisoLight.by_sight = false
 	var camera: Camera2D = Stage.camera()
 	_limits = [camera.limit_left, camera.limit_top, camera.limit_right, camera.limit_bottom]
+	_zoom = camera.zoom
 	camera.limit_left = -10000000
 	camera.limit_top = -10000000
 	camera.limit_right = 10000000
@@ -684,7 +688,7 @@ func _play_from_look() -> void:
 	camera.limit_top = _limits[1]
 	camera.limit_right = _limits[2]
 	camera.limit_bottom = _limits[3]
-	camera.zoom = Vector2(0.25, 0.25)
+	camera.zoom = _zoom
 	player.set_physics_process(true)
 	player.get_node("CameraControl").set_process(true)
 	CameraControl.snap(player)

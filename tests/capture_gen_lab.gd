@@ -40,7 +40,8 @@ func run() -> void:
 	save_still("gen_lab/look.png")
 	lab.call("_play_from_look")
 	var wizard: Player = Stage.player()
-	check(wizard.is_physics_processing() and is_equal_approx(Stage.camera().zoom.x, 0.25), "P plays from there, at the game's own view")
+	var game_zoom: float = 0.25 * RisoPrint.instance.zoom_factor
+	check(wizard.is_physics_processing() and is_equal_approx(Stage.camera().zoom.x, game_zoom), "P plays from there, at the game's own view (zoom %.3f, the game's %.3f)" % [Stage.camera().zoom.x, game_zoom])
 	await frames(60)
 	save_still("gen_lab/play.png")
 	var back: InputEventKey = InputEventKey.new()
