@@ -1,12 +1,16 @@
 extends TestKit
 ## The bramble (Bramble, docs/REGIONS_PLAN.md §6), the boss of the garden's way up, in its gate
-## level: its shaft cut into the rock (BrambleShaft), walled in, with the way on at its head beside
+## gate level: its shaft cut into the rock (BrambleShaft), walled in, with the way on at its head beside
 ## the knot, ledges a hop apart and a foot open to the caves, the same every build and only in its
 ## gate levels; in play, the knot walling off the head, the vines' cadence (warning, out and
-## hurting, back), a parried lash recoiling, the bulbs spitting seeds a parry turns back into them,
-## bolts and dashes (even ones of no damage) wounding them, a burst bulb withering its vines, a
-## lantern death healing it, and the last bulb tearing the knot open, slaying it, leaving its relic
-## on the landing and opening the way on.
+## hurting, back), a parried lash recoiling, the bulbs spitting seeds a parry turns back into them
+## (even a bulb shut in its bark), one bulb in bloom at a time (the lowest first; a blow glances off
+## the rest), bolts and dashes (even ones of no damage) wounding the bulb in bloom, the bloom moving on
+## to the bulb furthest from the wizard when its time is up or it bursts, a burst bulb withering its
+## vines and quickening the rest (its fury), a lantern death healing it, the last bulb baring the
+## heart, the heart dropping barbs at the wizard's column, a parried barb and a slash wounding it,
+## and the heart bursting to tear the knot open, slaying it, leaving its relic on the landing and
+## opening the way on.
 ## godot --headless --path . --script res://tests/bramble_test.gd
 
 
@@ -100,6 +104,9 @@ func run() -> void:
 	probe.collision_mask = 4
 	check(space.intersect_point(probe).any(func(hit: Dictionary) -> bool: return hit["collider"] == bramble.knot), "the knot walls off the head of the shaft")
 	check(not bramble.knot_box.collision.disabled, "and its thorns hurt to touch")
+	var lowest: BrambleBulb = LevelGen.best_of(bramble.bulbs, func(b: BrambleBulb) -> float: return -b.global_position.y) as BrambleBulb
+	check(bramble.bloom == lowest and lowest.open() and bramble.bulbs.filter(func(b: BrambleBulb) -> bool: return b.open()).size() == 1, "one bulb in bloom, the lowest; the rest shut in their bark")
+	check(bramble.fury == 0 and bramble.heart == null, "no fury yet, and its heart hidden")
 
 	print("the vines")
 	var vine: BrambleVine = bramble.vines[0]
@@ -136,6 +143,8 @@ func run() -> void:
 
 	print("the bulbs")
 	var bulb: BrambleBulb = bramble.bulbs[0]
+	# Its seeds are tried on a bulb shut in its bark.
+	bramble.bloom_on(bramble.bulbs[1])
 	var near: Vector2 = bulb.global_position + bulb.way * bramble.cell * 1.6 + Vector2(0, -6)
 	player.global_position = near
 	var spat_before: int = bulb.spat
@@ -148,12 +157,16 @@ func run() -> void:
 		var before: int = bulb.wound.hp
 		parry.parry(1, Vector2.ZERO, seed.get_node("HitBox/Damager"))
 		var back_in: bool = await until(func() -> bool: return bulb.wound.hp < before, 3000)
-		check(back_in, "a parried seed flies back into its bulb and wounds it")
+		check(back_in and not bulb.open(), "a parried seed flies back into its bulb and wounds it, even shut in its bark")
 	player.global_position = Vector2(-9000, -9000)
 	var other: BrambleBulb = bramble.bulbs[1]
+	bramble.bloom_on(bulb)
 	var hp: int = other.wound.hp
 	_slash(other.global_position + other.way * 80.0, -other.way)
-	check(other.wound.hp == hp - 1 and not other.stunner.stunned(), "a slash wounds it, and it is never stunned")
+	check(other.wound.hp == hp and other.warded_t > -INF, "a slash glances off a bulb shut in its bark")
+	bramble.bloom_on(other)
+	_slash(other.global_position + other.way * 80.0, -other.way)
+	check(other.wound.hp == hp - 1 and not other.stunner.stunned(), "in bloom, a slash wounds it, and it is never stunned")
 	var bolt: HexBolt = HexBolt.new()
 	bolt.damage = 0
 	info.map_elements.add_child(bolt)
@@ -168,6 +181,22 @@ func run() -> void:
 	check(not other.alive and not other.is_in_group(&"hex_target") and bramble.bulbs_left() == bramble.bulbs.size() - 1, "burst, it is gone (%d bulbs left)" % bramble.bulbs_left())
 	check(fed.all(func(v: BrambleVine) -> bool: return v.withered and not v.hurts()) and bramble.vines.any(func(v: BrambleVine) -> bool: return not v.withered), "the %d vines it fed wither, the rest grow on" % fed.size())
 	check(not bramble.opening and not info.run.bosses.has(&"bramble"), "and the bramble lives while a bulb is left")
+	var living: Array = bramble.bulbs.filter(func(b: BrambleBulb) -> bool: return b.alive)
+	var far: Callable = func(b: BrambleBulb) -> float: return b.global_position.distance_to(player.global_position)
+	var to: BrambleBulb = bramble.sap_to
+	check(bramble.bloom == null and to != null and to.alive and living.all(func(b: BrambleBulb) -> bool: return far.call(b) <= far.call(to)), "its sap runs on to the living bulb furthest from the wizard")
+	var bloomed: bool = await within(func() -> bool: return bramble.bloom == to, 3.0)
+	check(bloomed and to.open(), "which blooms when it arrives")
+	check(bramble.fury == 1 and bramble.vines.all(func(v: BrambleVine) -> bool: return v.rest_rate() > 1.0) and to.seed_every() < BrambleBulb.SEED_EVERY, "its fury rises: the vines left rest the shorter, the bulbs left spit sooner")
+	var waited: BrambleBulb = bramble.bloom
+	await frames(30)
+	check(bramble.bloom == waited and bramble.bloom_left == Bramble.BLOOM_TIME, "the bloom waits while the wizard is out of the shaft")
+	player.global_position = bramble.center(Vector2i(bramble.inside.get_center().x, bramble.inside.end.y - 2))
+	var moved: bool = await within(func() -> bool: return bramble.bloom != waited, Bramble.BLOOM_TIME / Difficulty.haste() + 0.5)
+	var next: BrambleBulb = bramble.sap_to
+	living = bramble.bulbs.filter(func(b: BrambleBulb) -> bool: return b.alive and b != waited)
+	check(moved and next != null and next != waited and living.all(func(b: BrambleBulb) -> bool: return far.call(b) <= far.call(next)), "with the wizard in it, the bloom moves on in time, to the bulb furthest from them")
+	player.global_position = Vector2(-9000, -9000)
 
 	print("a death heals it")
 	info.run.vulnerable = false
@@ -176,13 +205,42 @@ func run() -> void:
 	await _go(Vector2i(28, -g))
 	bramble = placed("bramble.tscn")[0] as Bramble
 	check(bramble.bulbs_left() == bulbs.size() and bramble.bulbs.all(func(b: BrambleBulb) -> bool: return b.wound.hp == Bramble.BULB_HP) and not bramble.vines.any(func(v: BrambleVine) -> bool: return v.withered), "after a lantern death it is whole again")
+	lowest = LevelGen.best_of(bramble.bulbs, func(b: BrambleBulb) -> float: return -b.global_position.y) as BrambleBulb
+	check(bramble.fury == 0 and bramble.bloom == lowest and bramble.heart == null, "its fury gone, the lowest bulb in bloom again")
 
-	print("slain")
+	print("the heart")
+	player.health.max_health = 99
+	player.health.health = 99
 	for b: BrambleBulb in bramble.bulbs:
 		if b.alive:
+			bramble.bloom_on(b)
 			b.wound.hit(Bramble.BULB_HP, Vector2.RIGHT)
 	await frames(2)
-	check(bramble.opening and bramble.vines.all(func(v: BrambleVine) -> bool: return v.withered), "the last bulb burst, every vine withers and the knot tears open")
+	var heart: BrambleHeart = bramble.heart
+	check(heart != null and heart.alive and heart.open() and heart.is_in_group(&"hex_target") and bramble.vines.all(func(v: BrambleVine) -> bool: return v.withered), "the last bulb burst, every vine withers and the knot splits to bare its heart")
+	check(not bramble.opening and not (bramble.knot.get_child(0) as CollisionShape2D).disabled, "the knot still walls off the head")
+	var top_ledge: Vector2i = shaft["ledges"][0]
+	player.global_position = info.cell_position(top_ledge + Vector2i.UP)
+	var dropped: bool = await within(func() -> bool: return heart.dropped > 0, Bramble.SPLIT_TIME + BrambleHeart.BARB_EVERY + 0.5)
+	var barbs: Array[Node] = placed("bullet.tscn", true).filter(func(n: Node) -> bool: return (n as Bullet).barb)
+	check(dropped and not barbs.is_empty(), "with the wizard in the shaft, it drops barbs")
+	if not barbs.is_empty():
+		var barb: Bullet = barbs[0] as Bullet
+		var aim: float = clampf(player.global_position.x, bramble.knot_rect.position.x + BrambleHeart.BARB_EDGE, bramble.knot_rect.end.x - BrambleHeart.BARB_EDGE)
+		check(absf(barb.global_position.x - aim) < 1.0 and barb.velocity.y > 0.0 and Damager.attacker_of(barb.get_node("HitBox/Damager")) == heart, "down the wizard's column")
+		var before: int = heart.wound.hp
+		parry.parry(1, Vector2.ZERO, barb.get_node("HitBox/Damager"))
+		var back_in: bool = await until(func() -> bool: return heart.wound.hp < before, 3000)
+		check(back_in, "a parried barb flies back into the heart and wounds it")
+	var heart_hp: int = heart.wound.hp
+	_slash(heart.global_position + Vector2.DOWN * 80.0, Vector2.UP)
+	check(heart.wound.hp == heart_hp - 1, "so does a slash from below")
+	player.global_position = Vector2(-9000, -9000)
+
+	print("slain")
+	heart.wound.hit(heart.wound.hp, Vector2.UP)
+	await frames(2)
+	check(bramble.opening, "the heart burst, the knot tears open")
 	await frames(3)
 	check((bramble.knot.get_child(0) as CollisionShape2D).disabled and bramble.knot_box.collision.disabled, "the head of the shaft is open")
 	var dead: bool = await until(gone(bramble), 5000)

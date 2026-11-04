@@ -143,12 +143,12 @@ The tuning numbers are first guesses for playtest. They are Normal's: on a harde
 (`Difficulty`, §"Difficulty presets" in `DEEPER_PLAN.md`) each boss runs its own clock faster
 (`Difficulty.haste`, 1.15 on Hard, the default, and 1.3 on Brutal), so its warnings, bites, rests
 and crawling all come that much sooner: the worm's whole step, the golem's whole step (its slam,
-hurl, leap and recall), the bramble's vines' cadence and its bulbs' seeds. A stun's length is not
-changed.
+hurl, leap and recall), the bramble's vines' cadence, its bulbs' seeds, its bloom and sap, and its
+heart's barbs. A stun's length is not changed.
 
 ### The bramble (garden, up gate, in the level)
 
-*Built* (`Bramble`, `BrambleBulb`, `BrambleVine`, `BrambleWound`, `BrambleShaft`,
+*Built* (`Bramble`, `BrambleBulb`, `BrambleHeart`, `BrambleVine`, `BrambleWound`, `BrambleShaft`,
 `prefabs/bramble.tscn`). The way up out of the garden is a tall shaft of thorns. The bramble is
 rooted at its head: a knot of thorn and bark beside the way on, with a few **bulbs** (its weak
 points, accent) set in the walls of the shaft.
@@ -175,9 +175,29 @@ points, accent) set in the walls of the shaft.
   from wall to wall. Each takes 3 hits (`Bramble.BULB_HP`) from hex bolts or a dash, even ones that
   only stun at their tier (`Wound.least`), and is never stunned. Each vine feeds from the bulb
   nearest it, and a burst bulb withers its vines for good. Its health shows as accent pips on the
-  knot, one per bulb. When the last bulb bursts, every vine withers, the knot tears open and
-  shrivels away (1.4 s) and the bramble dies; the seal on the way up lifts, and its relic waits on
-  the landing beside the way on.
+  knot, one per bulb.
+- **The bloom.** Only one bulb is in bloom at a time (`Bramble.bloom`), the lowest first: the rest
+  are shut in two sepals of bark, and a bolt, dash or slash glances off them (pale, no wound). Only
+  a bulb's own seed parried back gets through its bark (`HexBolt.parried_blow`), so the parry wounds
+  any bulb. A bloom lasts 6 s (`BLOOM_TIME`), counted only while the wizard is in the shaft; then,
+  or when it bursts, its sap runs up the roots, through the knot and down to the living bulb
+  furthest from the wizard (a drop of accent running along the way, 900 px/s, `SAP_SPEED`), which
+  blooms when it arrives. So the fight keeps the wizard moving up and down the shaft, or finding a
+  line of sight across it.
+- **Fury.** Each burst bulb's sap goes to the rest (`Bramble.fury`, a point a bulb): the bulbs left
+  ready their seeds 30% sooner a point (`BrambleBulb.SEED_FURY`) and from the second point spit two
+  at once, 0.2 rad apart (`TWIN_FURY`, `TWIN_SPREAD`); the vines left rest 60% faster a point
+  (`BrambleVine.REST_FURY`; their warning and lash keep their time). The shaft empties as the bulbs
+  burst, but what is left of it comes faster.
+- **The heart.** When the last bulb bursts every vine withers and the knot splits (0.8 s,
+  `SPLIT_TIME`) to bare its heart (`BrambleHeart`), hanging from the knot's underside over the
+  top ledge. It takes 4 hits (`HEART_HP`) from anything, and the knot still walls off the head
+  meanwhile. While the wizard is in the shaft the knot drops a barb every 1.3 s (`BARB_EVERY`) down
+  the wizard's column (held to the knot's span), its tip poking out pink for 0.6 s first
+  (`BARB_WARN`); a barb falls at 430 px/s and bursts on the first rock, and a parried barb flies
+  back into the heart. When the heart bursts the knot tears open and shrivels away (1.4 s) and the
+  bramble dies; the seal on the way up lifts, and its relic waits on the landing beside the way
+  on.
 - **Parry.** A vine's lash can be parried: it recoils into the rock and stays there for the stun
   (`Parry.STUN`, 3 s), then rests before it grows again, opening the wall beside it. The bulbs spit
   seeds at the wizard in sight within 900 px (`BrambleBulb`, every 3 s); a parried seed flies back
@@ -185,8 +205,10 @@ points, accent) set in the walls of the shaft.
 - **The knot.** Solid, on the environment's layer: nothing gets past it to the way on. Its thorns
   hurt to touch; a parry against them only catches the hit and pushes off.
 - **Procedural.** All of it comes from the level's layout and seed; the bramble's own timing
-  (its vines' phases, its bulbs' first swell) is hashed from the seed and cell.
-- A lantern death brings it back whole, as the level reloads. `tests/bramble_test.gd` covers it,
+  (its vines' phases, its bulbs' first swell) is hashed from the seed and cell, and the bloom
+  moves by where the wizard is, never by a draw.
+- A lantern death brings it back whole (its fury gone, the lowest bulb in bloom, its heart
+  hidden), as the level reloads. `tests/bramble_test.gd` covers it,
   `tests/capture_bramble.gd` takes stills. Of the twelve garden gate levels the test lays out, the
   way on is reached with the wizard's own hops in ten (the climb helper, `Climb.aid`, since
   removed, saw the shaft's ledges and lent ledges toward its foot, never inside it).

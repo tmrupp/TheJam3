@@ -18,6 +18,9 @@ var since_bounce: float = 99.0
 ## A seed the bramble's bulb spat (BrambleBulb), printed as one; parried, it flies back into the
 ## bulb as any shot does.
 var seed: bool = false
+## A barb the bramble's knot dropped once its heart was bared (BrambleHeart), printed as one;
+## parried, it flies back into the heart as any shot does.
+var barb: bool = false
 ## An arrow a crag tower's crossbow loosed (Crossbow), printed as one; parried, it flies back as any
 ## shot does, only as far as the tower's wall. It wounds the first enemy in its way (ARROW_DAMAGE,
 ## however hard it is to stun; a shield takes it whole). A foe with a shape of its own (Shaped)

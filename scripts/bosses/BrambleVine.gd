@@ -6,7 +6,8 @@ extends Node2D
 ## back. Only while it is out does it hurt (its HitBox, as long as it is). A parry catches its
 ## lash: it recoils into the rock and stays there while stunned (its Stunner, a parry's stun), then
 ## rests before it grows again, opening the wall beside it for a while. When the bulb it feeds
-## from bursts, it withers for good (wither).
+## from bursts, it withers for good (wither); the vines left rest the shorter for the bramble's
+## fury (Bramble.fury), as the burst bulb's sap reaches them.
 
 const STUNNER: PackedScene = preload("res://prefabs/stunner.tscn")
 const HIT_BOX: PackedScene = preload("res://prefabs/hit_box.tscn")
@@ -17,6 +18,9 @@ const GROW: float = 0.25
 const HOLD: float = 1.1
 const PULL: float = 0.45
 const PERIOD: float = REST + WARN + GROW + HOLD + PULL
+## How much faster its rest passes for each point of the bramble's fury (Bramble.fury): REST over
+## 1 + REST_FURY a point. Its warning, lash and hold keep their time.
+const REST_FURY: float = 0.6
 ## How far it reaches out of the wall at full length (cells; the shaft is BrambleShaft.WIDTH wide,
 ## so the far side stays clear), and how thick its touch is (px).
 const REACH: float = 2.5
@@ -91,6 +95,12 @@ func _target() -> float:
 	return 0.0
 
 
+## How many times faster than REST its rest passes at the bramble's fury now (before
+## Difficulty.haste).
+func rest_rate() -> float:
+	return 1.0 + REST_FURY * float(bramble.fury) if bramble != null else 1.0
+
+
 ## Whether it is recoiled into the rock from a parry.
 func recoiled() -> bool:
 	return stunner.stunned()
@@ -113,8 +123,9 @@ func _physics_process(delta: float) -> void:
 			t = 0.0
 		length = move_toward(length, 0.0, full * RECOIL_RATE * delta)
 	else:
-		# A harder preset runs its cadence faster (Difficulty.haste).
-		t += delta * Difficulty.haste()
+		# A harder preset runs its cadence faster (Difficulty.haste), and its rest passes faster
+		# still for the bramble's fury.
+		t += delta * Difficulty.haste() * (rest_rate() if phase()[0] == &"rest" else 1.0)
 		length = _target()
 	_box.size = Vector2(maxf(length, 1.0), THICK)
 	(hit_box.get_node("CollisionShape2D") as CollisionShape2D).position = Vector2(length * 0.5, 0.0)

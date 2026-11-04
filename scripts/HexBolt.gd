@@ -66,8 +66,12 @@ var speed: float = SPEED
 var range_px: float = RANGE
 var seek: float = 0.0
 var size: float = 1.0
-## A shot turned back by a parry (Parry): it breaks a shield (Shield) at once.
+## A shot turned back by a parry (Parry): it breaks a shield (Shield) at once, and wounds a
+## bramble's bulb shut in its bark (BrambleWound).
 var reflected: bool = false
+## Whether the blow a bolt is dealing at this moment is a parried shot's (`reflected`), for a wound
+## that lets only those through (BrambleWound); false between blows.
+static var parried_blow: bool = false
 ## Cast empowered (Empower), and how many cells of cracked rock it has left to bore through.
 var empowered: bool = false
 var bore: int = 0
@@ -166,7 +170,9 @@ func _physics_process(delta: float) -> void:
 		var wound: Wound = e.get_node_or_null("Wound") as Wound
 		var dealt: int = Wound.dealt(wound, damage) if wound != null else damage
 		if wound != null and dealt > 0:
+			HexBolt.parried_blow = reflected
 			wound.hit(dealt, dir)
+			HexBolt.parried_blow = false
 		elif dealt <= 0:
 			RisoFx.burst(&"hit", (e as Node2D).global_position, dir, [RisoPrint.ACCENT, RisoPrint.BLUE])
 		# Things that are not enemies answer the bolt themselves (a switch throws); a spire flips its
