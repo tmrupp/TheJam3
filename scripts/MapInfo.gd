@@ -665,11 +665,17 @@ func hint_relic () -> Variant:
 
 ## Begin a run at depth 0 of `run_seed`; its start lantern is lit. With a `row`, the run begins on
 ## that row of the same world instead (the generation lab, tools/gen_lab, playing a level it made).
-func start_run (seed_value: int, row: int = 0) -> void:
+## With `tutorial`, it begins in the tutorial (Tutorial), by its lantern, lit, and comes out into
+## depth 0 through the tutorial's way out.
+func start_run (seed_value: int, row: int = 0, tutorial: bool = false) -> void:
 	run.start(seed_value)
 	coord = Vector2i(seed_value, row)
 	# At the start, its own place for a run's first steps; elsewhere (the generation lab), its way back.
 	arrival = -1 if row == 0 else Exit.BACK
+	# With the tutorial, the run begins in it (Tutorial), and comes out by the start's door into it.
+	if tutorial and row == 0:
+		coord = Tutorial.of(seed_value)
+		ControlHint.learned.clear()
 	region = &""
 	if wizard() != null:
 		Abilities.reset(player)
@@ -687,6 +693,8 @@ func travel (exit: int) -> void:
 	if lead.is_empty():
 		return
 	record().ways_taken[exit] = true
+	if Worlds.kind_at(coord) == Tutorial.kind_number():
+		Tutorial.mark_done()
 	var next: Vector2i = lead["to"]
 	await _pass(lead["way"], next)
 	_arrive(next, lead["arrive"])
@@ -868,7 +876,10 @@ func _arrived () -> void:
 		# The side door just come through stays open behind the player: the way back is free.
 		if arrival == Exit.LEFT or arrival == Exit.RIGHT:
 			record().lateral_open[arrival] = true
-	if arrival == -1:
+	if arrival == -1 and world.is_valid(world.start):
+		at = world.start
+		_set_respawn(coord, world.start_lantern if world.is_valid(world.start_lantern) else at)
+	elif arrival == -1:
 		_set_respawn(coord, world.exit_lanterns.get(Exit.BACK, at))
 	elif arrival == -2:
 		at = run.respawn_cell

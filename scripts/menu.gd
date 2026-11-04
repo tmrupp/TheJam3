@@ -1,9 +1,10 @@
 extends CanvasLayer
 ## The start menu, then the pause menu.
 ## Start: continue the saved run (at its last lit lantern), begin at the world typed in (a random
-## one when blank), or begin at a random world. Worlds are shareable: the same number gives the
-## same levels for everyone. Paused: resume, copy where you are, give up (while a lantern protects
-## you: a death, back to the lantern, for when you are stuck), open the debug panel (in debug runs;
+## one when blank), or begin at a random world; either begins in the tutorial (Tutorial) while its
+## toggle is on, which it is until a player has come out of the tutorial once. Worlds are
+## shareable: the same number gives the same levels for everyone. Paused: resume, copy where you
+## are, give up (while a lantern protects you: a death, back to the lantern, for when you are stuck), open the debug panel (in debug runs;
 ## RisoPrint's F7 panel), save and go back to the start menu, or save and exit. Works by controller: D-pad or left stick to move, A to choose, Start to pause,
 ## B to back out of the pause menu.
 
@@ -17,6 +18,7 @@ extends CanvasLayer
 @onready var debug_panel_button: Button = $VBoxContainer/DebugPanel
 @onready var main_menu: Button = $VBoxContainer/MainMenu
 @onready var debug_button: Button = $VBoxContainer/Debug
+@onready var tutorial_button: Button = $VBoxContainer/Tutorial
 @onready var exit: Button = $VBoxContainer/Exit
 
 @onready var randomize_button: Button = $"VBoxContainer/World Seed/Randomize"
@@ -29,16 +31,29 @@ extends CanvasLayer
 var player_prefab: Resource = preload("res://prefabs/player.tscn")
 var old_focus: Control = null
 var started: bool = false
+## Whether Begin and Random world begin the run in the tutorial (Tutorial; set_tutorial).
+var tutorial: bool = false
 
 
 func map_info() -> MapInfo:
 	return $"../CanvasLayer/MapInfo" as MapInfo
 
 
-## Begin a new run at the world typed in (random when blank).
-func start_game() -> void:
+## Begin a new run at the world typed in (random when blank): in the tutorial with `in_tutorial`
+## (as Begin and Random world do while its toggle is on, `begin`), else at the start level.
+func start_game(in_tutorial: bool = false) -> void:
 	_enter_play()
-	map_info().start_run(get_seed(world_seed))
+	map_info().start_run(get_seed(world_seed), 0, in_tutorial)
+
+
+## Begin and Random world: a new run, in the tutorial while its toggle is on.
+func begin() -> void:
+	start_game(tutorial)
+
+
+func begin_random() -> void:
+	randomize_seed()
+	begin()
 
 
 ## Begin a new run at place `at` (on its world's seed, `at.x`), arriving at its way back: for the
@@ -64,12 +79,12 @@ func continue_game() -> void:
 func _enter_play() -> void:
 	visible = false
 	started = true
-	for node: Control in [continue_button, world_seed_container, random_world, debug_button]:
+	for node: Control in [continue_button, world_seed_container, random_world, debug_button, tutorial_button]:
 		node.visible = false
 	copy.visible = true
 	main_menu.visible = true
 	start.text = "Resume"
-	start.pressed.disconnect(start_game)
+	start.pressed.disconnect(begin)
 	start.pressed.connect(pause_resume_game)
 	exit.text = "Save and exit"
 	var player: Player = player_prefab.instantiate()
@@ -163,6 +178,13 @@ func pause_resume_game() -> void:
 	get_tree().paused = visible
 
 
+## Set whether a new run begins in the tutorial (the toggle shows it).
+func set_tutorial(on: bool) -> void:
+	tutorial = on
+	tutorial_button.set_pressed_no_signal(on)
+	tutorial_button.text = "tutorial: on" if on else "tutorial: off"
+
+
 ## Debug runs start rich, with every exit next to the spawn (see MapInfo.debug).
 func set_debug(on: bool) -> void:
 	MapInfo.debug = on
@@ -207,9 +229,9 @@ func paste_seed() -> void:
 
 func _ready() -> void:
 	ensure_controller_ui()
-	start.pressed.connect(start_game)
+	start.pressed.connect(begin)
 	continue_button.pressed.connect(continue_game)
-	random_world.pressed.connect(start_random)
+	random_world.pressed.connect(begin_random)
 	exit.pressed.connect(exit_game)
 	randomize_button.pressed.connect(randomize_seed)
 	copy.pressed.connect(copy_location)
@@ -219,6 +241,8 @@ func _ready() -> void:
 	paste.pressed.connect(paste_seed)
 	debug_button.toggled.connect(set_debug)
 	set_debug(false)
+	tutorial_button.toggled.connect(set_tutorial)
+	set_tutorial(not Tutorial.done())
 	var saved: Dictionary = RunState.read_save()
 	continue_button.visible = not saved.is_empty()
 	if saved.is_empty():

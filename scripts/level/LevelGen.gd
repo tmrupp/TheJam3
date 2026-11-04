@@ -86,6 +86,8 @@ enum Type {
 	WRECK,
 	## The practice range's tally (PracticeRange, PracticeTally).
 	TALLY,
+	## A card of the control a stretch of the tutorial asks for (Tutorial, ControlHint).
+	HINT,
 }
 
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).
@@ -837,6 +839,8 @@ func _init (_cells: Array, def: NextWorldDef) -> void:
 	# A gate level: its boss (Bosses), placed last, with no RNG draws.
 	if not Worlds.is_side(def.coord) and def.gate != &"":
 		place_boss(def.gate)
+	# Doors laid once all else is (the tutorial's), with no RNG draws, so they move nothing.
+	place_side_doors(def, true)
 
 ## A gate level's boss: on the free floor nearest the way on it guards, at least BOSS_APART cells
 ## from it; the bramble in the knot at the head of its shaft (BrambleShaft), its cell the knot's
@@ -1148,6 +1152,11 @@ var keep: Dictionary = {}
 
 ## The cell of a sky level's balloon (SkyArchetype.place_balloon), else (-1, -1).
 var balloon: Vector2i = Vector2i(-1, -1)
+
+## Where a run that begins in this place starts, and the lantern lit for it there, when not at its
+## way back and the lantern beside it (the tutorial's, Tutorial); else (-1, -1).
+var start: Vector2i = Vector2i(-1, -1)
+var start_lantern: Vector2i = Vector2i(-1, -1)
 
 ## Whether cell `v` is part of the golem's hall (keep): inside it, or its walls, roof or ground.
 ## Nothing else is built into it (secret rooms, vaults, cracked walls, climbing ledges).
@@ -1751,14 +1760,20 @@ func place_return () -> void:
 ## A door into each side world the level deals (NextWorldDef.doors): a floor far from the way
 ## in, not crowding another exit. In a debug run it is on the floor nearest the way in instead,
 ## like the other exits. It is kept in `exits`, under its door number (Worlds.door).
-func place_side_doors (def: NextWorldDef) -> void:
-	var start: Vector2i = exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+## A kind whose door is laid last (SideWorld.laid_last) is left out, and laid alone when `last`,
+## once the level is otherwise laid out: on the floor nearest the way in, with open air over it.
+func place_side_doors (def: NextWorldDef, last: bool = false) -> void:
+	var from: Vector2i = exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
 	var floors: Array[Vector2i] = empties_where(ground_below)
-	var nearest: Callable = func(v: Vector2i) -> int: return dist(v, start)
-	var furthest: Callable = func(v: Vector2i) -> int: return -dist(v, start)
+	var nearest: Callable = func(v: Vector2i) -> int: return dist(v, from)
+	var furthest: Callable = func(v: Vector2i) -> int: return -dist(v, from)
+	var free: Callable = func(v: Vector2i) -> bool: return get_cell(v).type == Type.EMPTY and not _crowds_exit(v)
+	var free_and_open: Callable = func(v: Vector2i) -> bool:
+		return bool(free.call(v)) and is_valid(v + Vector2i.UP) and get_cell(v + Vector2i.UP).type == Type.EMPTY
 	for kind: int in def.doors:
-		var best: Variant = best_of(floors, nearest if def.debug else furthest,
-				func(v: Vector2i) -> bool: return get_cell(v).type == Type.EMPTY and not _crowds_exit(v))
+		if Worlds.proto(kind).laid_last != last:
+			continue
+		var best: Variant = best_of(floors, nearest if def.debug or last else furthest, free if not last else free_and_open)
 		if best == null:
 			continue
 		var at: Vector2i = best

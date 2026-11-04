@@ -189,17 +189,20 @@ func settle(count: int = 4) -> void:
 
 # ------------------------------------------------------------------ the game
 
-## Start a run in the game on `world_seed` and wait for its first level. The run's save goes to
-## user://<test name>.save, so tests never touch a player's save or one another's.
-func boot(world_seed: int = 28) -> void:
+## Start a run in the game on `world_seed` and wait for its first level: its start level, or with
+## `tutorial` the tutorial (Tutorial). The run's save goes to user://<test name>.save, and whether
+## the tutorial has been through to user://<test name>.cfg, so tests never touch a player's save or
+## settings, or one another's.
+func boot(world_seed: int = 28, tutorial: bool = false) -> void:
 	RunState.save_path = "user://%s.save" % test_name()
 	main = (load("res://prefabs/scenes/main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
 	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
 	var menu: Node = main.get_node("Menu")
 	(menu.get("world_seed") as LineEdit).text = str(world_seed)
+	Tutorial.settings_path = "user://%s.cfg" % test_name()
 	# Starting the game makes the wizard.
-	menu.call("start_game")
+	menu.call("start_game", tutorial)
 	player = main.get_node("Player") as Player
 	await settle()
 

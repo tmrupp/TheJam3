@@ -64,6 +64,11 @@ text = "Paste"
 layout_mode = 2
 text = "Random world"
 
+[node name="Tutorial" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+toggle_mode = true
+text = "tutorial: on"
+
 [node name="Debug" type="Button" parent="VBoxContainer"]
 layout_mode = 2
 toggle_mode = true
