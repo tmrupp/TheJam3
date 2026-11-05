@@ -2,7 +2,8 @@ extends Area2D
 class_name Relic
 ## A relic (see Relics): one of the big movement abilities, waiting in a secret room. Interact and
 ## pay its price (Relics.price, a lot) to take it: tier I of its move, or the next tier if the move
-## is already known. A relic whose move takes a slot replaces what is in it, which comes back as an
+## is already known. Tier I also takes a relic unlock (KeyRing.UNLOCK, which only bosses drop),
+## used up as it is taken; the next tier of a move already known needs none (needs_unlock). A relic whose move takes a slot replaces what is in it, which comes back as an
 ## exam paper at its tier (MapInfo.put_back), as at a shrine. Taken, it is gone for good. A boss's
 ## relic and one a beaten master left (MapInfo.relic_left) are free.
 
@@ -28,6 +29,16 @@ func swap() -> bool:
 	return Abilities.is_swap(player, holds()[0])
 
 
+## Whether taking it needs a relic unlock: its move is not yet known.
+func needs_unlock() -> bool:
+	return Abilities.tier(player, ability) == 0
+
+
+## Whether the wizard may take it now: carrying a relic unlock if it needs one, and its price.
+func can_take() -> bool:
+	return map_info != null and ability != &"" and (not needs_unlock() or player.keyring.unlocks() > 0) and player.coins.coins >= price()
+
+
 ## Stars still owed to take it: its price, or nothing for a boss's or a master's relic (the fight was
 ## its price).
 func price() -> int:
@@ -37,12 +48,11 @@ func price() -> int:
 
 
 func take() -> void:
-	if map_info == null or ability == &"":
+	if not can_take():
 		return
-	var cost: int = price()
-	if player.coins.coins < cost:
-		return
-	player.collect(-cost)
+	if needs_unlock():
+		player.keyring.spend_unlock()
+	player.collect(-price())
 	var held: Array = holds()
 	var a: StringName = held[0]
 	var dropped: StringName = Abilities.spell(player, Abilities.slot_of(a)) if Abilities.is_swap(player, a) else &""

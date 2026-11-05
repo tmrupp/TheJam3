@@ -368,10 +368,16 @@ const ALL_PLATES: Array[int] = [NIGHT, BLUE, PINK, ACCENT, EYE, GLOW, ROBE, CLOT
 
 
 ## Print a key of `color` in `shapes` on `canvas`: overprinted in its colour's inks, or, for a
-## skeleton key, bare paper, so it reads bone white.
+## skeleton key, bare paper, so it reads bone white; a relic unlock (RisoMarks.seal_shape) a seal in
+## the accent (a reward) with its star in bare paper.
 static func ink_key(canvas: InkCanvas, color: int, cover: float, shapes: Array[PackedVector2Array]) -> void:
 	if color == KeyRing.SKELETON:
 		canvas.lift_ink(ALL_PLATES, cover, shapes)
+		return
+	if color == KeyRing.UNLOCK:
+		canvas.lift_ink([NIGHT, BLUE], cover, shapes.slice(0, 1))
+		canvas.ink(ACCENT, cover, shapes.slice(0, 1), false)
+		canvas.lift_ink(ALL_PLATES, cover, shapes.slice(1))
 		return
 	# An exam paper: a sheet in its department's colour (DEPT_INKS; bare paper for a subject no
 	# department teaches), its folded corner bare paper and its ruled lines in night; a stolen one's
@@ -447,6 +453,8 @@ static func key_inks(color: int) -> Array[int]:
 	# it is night, screened to grey on the map.
 	if color == KeyRing.SKELETON or KeyRing.is_paper(color):
 		return [NIGHT]
+	if color == KeyRing.UNLOCK:
+		return [ACCENT]
 	var out: Array[int] = []
 	for plate: int in KEY_COLORS[posmod(color, KEY_COLORS.size())]:
 		out.append(plate)
@@ -1290,6 +1298,7 @@ const DRESS: Dictionary = {
 	"res://prefabs/lesson.tscn": &"lesson",
 	"res://prefabs/way_back.tscn": &"department",
 	"res://prefabs/grave_mark.tscn": &"gravemark",
+	"res://prefabs/trophy.tscn": &"trophy",
 }
 
 

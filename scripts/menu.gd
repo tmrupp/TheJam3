@@ -1,4 +1,5 @@
 extends CanvasLayer
+class_name Menu
 ## The start menu, then the pause menu.
 ## Start: continue the saved run (at its last lit lantern), begin at the world typed in (a random
 ## one when blank), or begin at a random world; either begins in the tutorial (Tutorial) while its

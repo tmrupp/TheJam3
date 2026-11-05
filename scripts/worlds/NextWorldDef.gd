@@ -280,6 +280,12 @@ func grows() -> bool:
 	return true
 
 
+## The boons its shrine offers `player`, when it sets them itself (the tutorial's, Tutorial.boons);
+## empty for the usual ones, dealt by the level seed (Abilities.offers).
+func boons(_player: Player) -> Array[StringName]:
+	return []
+
+
 ## Its name on screen and when sharing it: its depth below the start, or its height above it.
 func title() -> String:
 	return "world %d · %s %d" % [coord.x, "height" if coord.y < 0 else "depth", absi(coord.y)]

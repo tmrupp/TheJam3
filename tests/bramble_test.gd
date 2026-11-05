@@ -9,7 +9,7 @@ extends TestKit
 ## to the bulb furthest from the wizard when its time is up or it bursts, a burst bulb withering its
 ## vines and quickening the rest (its fury), a lantern death healing it, the last bulb baring the
 ## heart, the heart dropping barbs at the wizard's column, a parried barb and a slash wounding it,
-## and the heart bursting to tear the knot open, slaying it, leaving its relic on the landing and
+## and the heart bursting to tear the knot open, slaying it, leaving its relic unlock on the landing and
 ## opening the way on.
 ## godot --headless --path . --script res://tests/bramble_test.gd
 
@@ -246,8 +246,8 @@ func run() -> void:
 	var dead: bool = await until(gone(bramble), 5000)
 	await settle()
 	check(dead and info.run.bosses.has(&"bramble") and placed("bramble.tscn").is_empty(), "it is slain for the run")
-	var relics: Array[Node] = placed("relic.tscn").filter(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == &"bramble")
-	check(relics.size() == 1 and info.cell_at((relics[0] as Node2D).global_position) == shaft["relic"] and (relics[0] as Relic).price() == 0, "its relic waits on the landing beside the way on, free")
+	var unlocks: Array[Node] = unlocks_lying()
+	check(left_unlock() and (unlocks.is_empty() or info.cell_at((unlocks[0] as Node2D).global_position) == shaft["relic"]), "its relic unlock waits on the landing beside the way on")
 	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"", "and the way on is open")
 	await _go(Vector2i(28, -g))
 	check(placed("bramble.tscn").is_empty() and info.world.shaft["on"] == on, "it is never met again: the shaft stands open")

@@ -3,7 +3,7 @@ extends TestKit
 ## level, its graves the crypt's floors; it wakes as the wizard comes near; in the dark a strike
 ## passes through it, in light a strike puts out a candle and it blinks away to another grave; it
 ## raises skeletons, awake, that a stun crumbles and that drop no stars; with its last candle out it
-## crumbles, is slain for the run, and leaves its relic.
+## crumbles, is slain for the run, and leaves its relic unlock.
 ## godot --headless --path . --script res://tests/necromancer_test.gd
 
 
@@ -84,7 +84,7 @@ func run() -> void:
 	check(await until(gone(necro)), "and is gone")
 	await settle()
 	check(info.run.bosses.has(&"necromancer"), "slain for the run")
-	check(placed("relic.tscn").any(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == &"necromancer"), "its relic left where it stood")
+	check(left_unlock(), "its relic unlock left where it stood")
 	RunState.delete_save()
 	finish()
 

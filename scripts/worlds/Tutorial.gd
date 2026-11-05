@@ -9,8 +9,12 @@ extends SideWorld
 ## to jump (dash), its thorns sending the wizard back to its edge as all thorns do, and a star
 ## cluster past it; a lantern to light (interact);
 ## a key on a ledge and its door across a low corridor; a wisp (the spell); a watcher on a slab out
-## of reach, beaten only by turning its shots back (the spell's guard, a parry); a shrine, where the
-## stars picked up on the way buy a first ability; and the way out (the map), with room by it.
+## of reach, beaten only by turning its shots back (the spell's guard, a parry); the utility spell's
+## card, which costs the wizard a heart as it rises so that mend has something to heal (ControlHint);
+## a shrine, where the stars picked up on the way buy a first ability, a choice between a strict
+## upgrade and a swap (BOONS); a room of trophy stands, one for each boss in the band layout
+## (TrophyStand), where the run is won by bringing back every boss's trophy (Trophy); and the way
+## out (the map).
 ## The way out comes out by the door into here that every start level has (deals): laid once the
 ## rest of that level is laid out (laid_last), so it moves nothing else there. Through that door the
 ## wizard comes back in at the way out. Its key and door are dealt the first colour, to match.
@@ -20,25 +24,25 @@ extends SideWorld
 
 ## The hall, row by row: rock (#), open air (.), where a run starts (S) by its lantern, lit (L), a
 ## lantern to light (l), a star (*) and a star cluster (C), thorns (^), a key (k) and its door (D),
-## a wisp (w), a watcher (s), the shrine (H, its left foot), the way out (B), and the control cards
-## (ControlHint, by the digits of HINTS).
+## a wisp (w), a watcher (s), the shrine (H, its left foot), the spots for trophy stands (T), the
+## way out (B), and the control cards (ControlHint, by the digits of HINTS).
 const MAP: Array[String] = [
-	"########################################################################################################",
-	"########################################################################################################",
-	"#...........................................................###........................................#",
-	"#...........................................................###........................................#",
-	"#...........................................................###........................................#",
-	"#...........................................................###..................s.....................#",
-	"#...........................................................###.................###....................#",
-	"#...............**..........................................###........w...............................#",
-	"#............*.....*...................................k....###........................................#",
-	"#..............###......*............*................###...###........................................#",
-	"#.L.S.1...2.#########........**..3........C...5.l....####....D....4.*.....*...4.....**.....H.....6...B.#",
-	"########################^^##########^^^#################################################################",
-	"########################################################################################################",
-	"########################################################################################################",
-	"########################################################################################################",
-	"########################################################################################################",
+	"####################################################################################################################",
+	"####################################################################################################################",
+	"#...........................................................###....................................................#",
+	"#...........................................................###....................................................#",
+	"#...........................................................###....................................................#",
+	"#...........................................................###..................s.................................#",
+	"#...........................................................###.................###................................#",
+	"#...............**..........................................###........w...........................................#",
+	"#............*.....*...................................k....###....................................................#",
+	"#..............###......*............*................###...###....................................................#",
+	"#.L.S.1...2.#########........**..3........C...5.l....####....D....4.*.....*...4.....**.7...H....T.T.T.T.T.T..6...B.#",
+	"########################^^##########^^^#############################################################################",
+	"####################################################################################################################",
+	"####################################################################################################################",
+	"####################################################################################################################",
+	"####################################################################################################################",
 ]
 ## The things each letter of the map places (see MAP).
 const THINGS: Dictionary = {
@@ -58,7 +62,15 @@ const HINTS: Dictionary = {
 	"4": &"Spell",
 	"5": &"Discover",
 	"6": &"ShowMap",
+	"7": &"Utility",
 }
+## What its shrine offers, a first lesson in choosing (boons): a strict upgrade, vigor (a heart more,
+## as the utility card has just shown what a heart is worth), against a swap, hex (a bolt) in place
+## of the slash in the damage slot, handed back as an exam paper if taken (Shrine.buy_boon).
+const BOONS: Array[StringName] = [&"vigor", &"hex"]
+## The map's letter for a spot a trophy stand may take. The layout's bosses (Bands.bosses) take the
+## middle ones of them, in order; there are spots enough for the whole game's six.
+const STAND: String = "T"
 ## The key colour its key and door are dealt (Rules.rarity_color's first).
 const KEY_COLOR: int = 0
 
@@ -104,6 +116,7 @@ func populate(w: LevelGen) -> void:
 					w._to_rock(v)
 			elif w.get_cell(v).type != LevelGen.Type.EMPTY:
 				w._to_open(v)
+	var stands: Array[Vector2i] = []
 	for y: int in range(size.y):
 		for x: int in range(size.x):
 			var v: Vector2i = Vector2i(x, y)
@@ -125,6 +138,21 @@ func populate(w: LevelGen) -> void:
 				"B":
 					w.put(v, LevelGen.Type.EXIT, MapInfo.Exit.BACK)
 					w.exits = {MapInfo.Exit.BACK: v}
+				STAND:
+					stands.append(v)
+	var bosses: Array[StringName] = Bands.bosses()
+	var first: int = maxi(0, floori(float(stands.size() - bosses.size()) * 0.5))
+	for i: int in range(mini(bosses.size(), stands.size())):
+		w.put(stands[first + i], LevelGen.Type.TROPHY_STAND, bosses[i])
+
+
+## Its shrine's boons (BOONS) while both are still unknown to the wizard; else the usual ones (a
+## wizard back in through the start level's door, later in the run, with one of them learned).
+func boons(player: Player) -> Array[StringName]:
+	for a: StringName in BOONS:
+		if Abilities.tier(player, a) > 0:
+			return []
+	return BOONS.duplicate()
 
 
 ## Its exits: the way out alone (back out of the door it is entered by).

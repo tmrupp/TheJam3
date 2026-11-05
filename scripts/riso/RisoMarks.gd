@@ -68,10 +68,13 @@ static func place_marks(ink: InkCanvas, left: Vector2, r: float, widths: Vector2
 
 
 ## The same colour-to-shape identity on keys, lock faces and map marks.
-## Sun = square, ember = triangle, moss = circle, plum = diamond; skeleton keys are a bone.
+## Sun = square, ember = triangle, moss = circle, plum = diamond; skeleton keys are a bone, and
+## relic unlocks the four-pointed star stamped on their seal (seal_shape), as a relic's motes are.
 static func key_bow(c: Vector2, r: float, color: int) -> PackedVector2Array:
 	if color == KeyRing.SKELETON:
 		return bone(c, r, r * 0.7)
+	if color == KeyRing.UNLOCK:
+		return RisoShapes.sparkle(c, r * UNLOCK_BOW)
 	if KeyRing.is_paper(color):
 		return paper_shape(c, r / 14.0)[0]
 	match posmod(color, Rules.KEY_COLOR_COUNT):
@@ -84,8 +87,24 @@ static func key_bow(c: Vector2, r: float, color: int) -> PackedVector2Array:
 ## Teeth past the bit of a rarer key, one per step of rarity (Rules.KEY_RARITY): how far down
 ## each hangs, in turn.
 const KEY_TEETH: Array[float] = [8.0, 10.0, 7.0]
-## Teeth past a skeleton key's bit, as a moss key's (see KEY_TEETH).
+## Teeth past a skeleton key's bit, as a moss key's (see KEY_TEETH); and how much bigger than another
+## key's bow a relic unlock's star is on the map.
 const SKELETON_TEETH: int = 2
+const UNLOCK_BOW: float = 1.5
+## A relic unlock's seal, at a key's size: how far its points reach up and down from its middle (px),
+## how wide it is against that, and how far the star stamped on it reaches against that.
+const SEAL_R: float = 17.0
+const SEAL_W: float = 0.8
+const SEAL_STAR: float = 0.62
+
+
+## A relic unlock (KeyRing.UNLOCK) at `s` times a key's size, centred on `o`: a seal, a diamond
+## taller than it is wide, and the four-pointed star stamped on it (a relic's mote), in that order.
+static func seal_shape(o: Vector2, s: float) -> Array[PackedVector2Array]:
+	var r: float = SEAL_R * s
+	var w: float = r * SEAL_W
+	return [PackedVector2Array([o + Vector2(0, -r), o + Vector2(w, 0), o + Vector2(0, r), o + Vector2(-w, 0)]),
+		RisoShapes.sparkle(o, r * SEAL_STAR)]
 
 
 ## A bone `hw` across and `hh` high from its middle out, centred on `c`: a bar with two round knobs
@@ -99,9 +118,12 @@ static func bone(c: Vector2, hw: float, hh: float) -> PackedVector2Array:
 
 ## A key with a colour-specific bow, in world pixels, centred near `o`. The rarer its colour, the
 ## longer its shaft and the more teeth on its bit (a plum key has four), so rarity reads at a glance.
+## An exam paper is its sheet (paper_shape) and a relic unlock its seal (seal_shape).
 static func key_shape(o: Vector2, s: float, color: int = 0) -> Array[PackedVector2Array]:
 	if KeyRing.is_paper(color):
 		return paper_shape(o, s)
+	if color == KeyRing.UNLOCK:
+		return seal_shape(o, s)
 	# A skeleton key has the bit of a rare key (three teeth) and a bone's knobbed base for its bow.
 	var skeleton: bool = color == KeyRing.SKELETON
 	var extra: int = SKELETON_TEETH if skeleton else clampi(color, 0, KEY_TEETH.size())
@@ -277,6 +299,16 @@ static func boss_seal(ink: InkCanvas, c: Vector2, r: float, fade: float = 1.0) -
 	ink.ink(RisoPrint.PINK, fade, [disc], false)
 	ink.knock([RisoPrint.PINK], [RisoShapes.almond(c, r * 0.72, r * 0.42, 14)])
 	ink.ink(RisoPrint.NIGHT, fade, [RisoShapes.circle(c, r * 0.24, 14)], false)
+
+
+## A boss's trophy on `c`, `r` across (Trophy): its seal won, in the accent (a reward) where the seal
+## was pink, its eye shut. `fade` scales every ink.
+static func trophy(ink: InkCanvas, c: Vector2, r: float, fade: float = 1.0) -> void:
+	var disc: PackedVector2Array = RisoShapes.circle(c, r, 28)
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK], [disc])
+	ink.ink(RisoPrint.ACCENT, fade, [disc], false)
+	ink.knock([RisoPrint.ACCENT], [RisoShapes.almond(c, r * 0.72, r * 0.42, 14)])
+	ink.ink(RisoPrint.NIGHT, fade, [RisoShapes.almond(c + Vector2(0, r * 0.08), r * 0.62, r * 0.09, 14)], false)
 
 
 ## A switch's plate hung on `c` where a padlock would hang (`c` its top middle, `s` the padlock's

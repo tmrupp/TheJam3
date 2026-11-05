@@ -8,6 +8,10 @@ extends Node
 ## Skeleton keys (colour SKELETON) are rare and kept apart: each opens any one locked door
 ## (corridor or side door) whatever its colour, then crumbles. They are only used on purpose, by
 ## interacting with a door no carried key opens.
+## Relic unlocks (colour UNLOCK) are dropped by bosses (MapInfo.boss_slain) and kept apart as skeleton
+## keys are, trailing the wizard as keys do: a relic of a move not yet known cannot be taken without
+## one, and taking it uses one up (Relic.take). A relic of a move already known (its next tier) needs
+## none. No door takes them.
 ## Exam papers are carried on the ring as keys are, taking a slot each: a "colour" from PAPER up,
 ## holding an ability that takes a slot (subjects) and its tier (paper), that no door takes. A paper is
 ## a spell known but not held: earned in the institute's classes (Timetable), handed back for a spell
@@ -17,6 +21,7 @@ extends Node
 ## carries it, the institute's scholars turn on them (MapInfo.wizard_belongs). Learned, it is theirs.
 
 const SKELETON: int = 99
+const UNLOCK: int = 98
 ## Where exam papers' codes start: PAPER, plus PAPER_SPELL for each place of the subject in
 ## subjects, plus the tier.
 const PAPER: int = 1000
@@ -63,6 +68,8 @@ static func stolen(code: int) -> int:
 var _colored: Array[int] = []
 ## Skeleton keys carried.
 var _skeletons: int = 0
+## Relic unlocks carried.
+var _unlocks: int = 0
 
 
 ## How many coloured keys the wizard can carry.
@@ -135,7 +142,24 @@ func spend_skeleton() -> bool:
 	return true
 
 
+func unlocks() -> int:
+	return _unlocks
+
+
+func set_unlocks(n: int) -> void:
+	_unlocks = maxi(n, 0)
+
+
+## Use up a relic unlock, if one is carried.
+func spend_unlock() -> bool:
+	if _unlocks <= 0:
+		return false
+	_unlocks -= 1
+	return true
+
+
 ## Empty-handed: a new run.
 func clear() -> void:
 	_colored.clear()
 	_skeletons = 0
+	_unlocks = 0

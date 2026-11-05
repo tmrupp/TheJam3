@@ -3,7 +3,8 @@ extends RefCounted
 ## The bosses that guard the band ends (docs/REGIONS_PLAN.md §5). The last level of each band,
 ## toward the next, is a gate level: its way on is sealed while the band's boss lives, in every
 ## world column. A boss is beaten once per run (RunState.bosses): then every gate level of its band
-## opens for good, the boss is never met again, and where it fell a relic waits, free. Every boss
+## opens for good, the boss is never met again, and where it fell a relic unlock waits (KeyRing.UNLOCK:
+## the only way to take a relic of a move not yet known, see Relic), and beside it its trophy (Trophy), to be brought back to its stand in the tutorial (TrophyStand). Every boss
 ## fights in its gate level itself (LevelGen.place_boss). Until each boss is built, a stand-in
 ## fights for it (Boss); the worm (Worm), the bramble (Bramble, in its shaft: BrambleShaft), the
 ## lodestone golem (Golem, in its hall: LodeHall), the necromancer (Necromancer, in a crypt: Crypts),
@@ -66,9 +67,11 @@ static func crossed(from: int, to: int) -> Array[StringName]:
 	return out
 
 
-## The relic boss `name` leaves for the wizard of run `run_seed` with `player`'s abilities: the first
-## of the relic moves (Relics.MOVES, gone round from one dealt by the seed and the boss) not yet
-## known, or &"" when every one is.
+## A relic move the wizard of run `run_seed` with `player`'s abilities could still learn, as boss
+## `name` falls: the first of the relic moves (Relics.MOVES, gone round from one dealt by the seed
+## and the boss) not yet known, or &"" when every one is (then a boss drops no relic unlock, see
+## MapInfo.boss_slain). Bosses dropped this move's relic itself before they dropped unlocks; a saved
+## run's relic still waiting from then is kept (RunState.boss_relics).
 static func relic_for(name: StringName, run_seed: int, player: Player) -> StringName:
 	var moves: Array[StringName] = Relics.MOVES
 	var first: int = posmod(Rules.level_seed(run_seed, RELIC_DEAL + row_of(name)), moves.size())

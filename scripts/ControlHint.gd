@@ -5,6 +5,9 @@ class_name ControlHint
 ## or its stick, whichever the player last used (pad). Once they have used that control while the
 ## card is up, it goes for good (learned): every card of that control, for the rest of the run.
 ## No words: a key cap carries its key's letter, as printed on the keyboard, and no more.
+## The utility spell's card (STRIKES) asks for mend, which heals only a wizard who is hurt, so as it
+## first rises it costs a wizard at full health a heart (strike), and fills mend's draughts if they
+## are spent, so the Utility button always has something to show there.
 
 ## How close the wizard must come for the card to rise, across and up or down (world pixels).
 const REACH: Vector2 = Vector2(330, 400)
@@ -13,12 +16,17 @@ const REACH: Vector2 = Vector2(330, 400)
 const SEEN: float = 0.6
 ## How far a pad's stick must lean to count as using the pad.
 const STICK_LEAN: float = 0.5
+## The control whose card costs the wizard a heart as it rises (strike), and the spell it teaches.
+const STRIKES: StringName = Abilities.UTILITY_ACTION
+const HEALS: StringName = &"mend"
 
 ## The control it shows: an input action, or &"Move" for walking either way (Left and Right).
 var action: StringName = &""
 ## Whether the wizard is near enough for it to rise now, and how long it has been up.
 var near: bool = false
 var up_for: float = 0.0
+## Whether this card has struck the wizard already (STRIKES; it strikes once).
+var struck: bool = false
 
 ## The controls used while their card was up, this run (cleared as a run begins in the tutorial).
 static var learned: Dictionary = {}
@@ -48,6 +56,8 @@ func _process(delta: float) -> void:
 		var d: Vector2 = (player.global_position - global_position).abs()
 		near = d.x < REACH.x and d.y < REACH.y
 	up_for = up_for + delta if showing() else 0.0
+	if showing() and action == STRIKES and not struck:
+		strike(player)
 
 
 func _input(event: InputEvent) -> void:
@@ -59,6 +69,21 @@ func _input(event: InputEvent) -> void:
 		pad = false
 	if up_for >= SEEN and _uses(event):
 		learned[action] = true
+
+
+## The utility card rising: a wizard at full health with mend in the slot loses a heart, and mend's
+## draughts are filled if none is left, so pressing Utility heals them. Once a card.
+func strike(player: Player) -> void:
+	struck = true
+	if Abilities.spell(player, &"utility") != HEALS:
+		return
+	var mend: Mend = player.get_node_or_null("Mend") as Mend
+	if mend == null:
+		return
+	if mend.draughts() <= 0:
+		mend.refill()
+	if player.health.health >= player.health.max_health:
+		player.hurt(-1, Vector2.ZERO, null)
 
 
 ## Whether `event` is a press of its control.

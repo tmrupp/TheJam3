@@ -7,7 +7,7 @@ extends TestKit
 ## and scooping up through them; free, its gobble is a blow and the belly is not reached; trapped
 ## (the levels either side set to blow into its level), its gobble takes the wizard into its belly;
 ## its heart there takes HP blows, any bolt wounding it, and leaving heals it; burst, the whale is
-## slain, the wizard spat out into its level by the way on, now open, its relic beside it; never
+## slain, the wizard spat out into its level by the way on, now open, its relic unlock beside it; never
 ## met again.
 ## godot --headless --path . --script res://tests/whale_test.gd
 
@@ -127,8 +127,8 @@ func run() -> void:
 	check(out and info.run.bosses.has(&"whale"), "its heart burst, the whale is slain and the wizard spat out into its level")
 	var on: Vector2 = info.cell_position(info.world.exits[MapInfo.Exit.DEEPER])
 	check(player.global_position.distance_to(on) < 140.0 and _exit(MapInfo.Exit.DEEPER).sealed() == &"", "by the way on, now open")
-	var relics: Array[Node] = placed("relic.tscn").filter(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == &"whale")
-	check(relics.size() == 1 and (relics[0] as Node2D).global_position.distance_to(on) < 300.0, "its relic beside it")
+	var unlocks: Array[Node] = unlocks_lying()
+	check(left_unlock() and (unlocks.is_empty() or (unlocks[0] as Node2D).global_position.distance_to(on) < 300.0), "its relic unlock beside it")
 	check(placed("whale.tscn").is_empty() and not WhaleHunt.move(info.run, Vector2i(x + 1, row)), "never met again")
 	RunState.delete_save()
 	finish()

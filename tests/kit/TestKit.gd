@@ -221,6 +221,20 @@ func still() -> void:
 ## The objects of the level being played that came from prefab `scene` (a file name such as
 ## "key.tscn"), leaving out those going away, and those hidden (a key being picked up) unless
 ## `hidden` (a bridge's planks are hidden until its bell is rung).
+## The relic unlocks (KeyRing.UNLOCK, a boss's drop) lying in the level, not yet picked up.
+func unlocks_lying() -> Array[Node]:
+	var out: Array[Node] = []
+	out.assign(placed("key.tscn").filter(func(n: Node) -> bool: return (n as KeyPickup).key_color() == KeyRing.UNLOCK))
+	return out
+
+
+## Whether a boss slain here left its relic unlock: lying in the level, or already picked up by a
+## wizard standing where it fell (it is armed at once). Clear the wizard's unlocks before the boss
+## falls when an earlier one may be carried.
+func left_unlock() -> bool:
+	return unlocks_lying().size() == 1 or player.keyring.unlocks() > 0
+
+
 func placed(scene: String, hidden: bool = false) -> Array[Node]:
 	var found: Array[Node] = []
 	for node: Node in info.map_elements.get_children():

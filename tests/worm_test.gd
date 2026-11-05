@@ -9,7 +9,7 @@ extends TestKit
 ## turning strikes from that side), the soft flesh any strike cuts (even a bolt of
 ## no damage) one segment a move, only a parried bite stunning it and then the whole worm, a cut
 ## head or tail shortening it, a middle cut splitting it, short worms burrowing away, a lantern
-## death healing it, and its death opening the way on and leaving its relic on a floor.
+## death healing it, and its death opening the way on and leaving its relic unlock on a floor.
 ## godot --headless --path . --script res://tests/worm_test.gd
 
 
@@ -246,9 +246,9 @@ func run() -> void:
 			await frames(1)
 	await settle()
 	check(info.run.bosses.has(&"worm") and placed("worm.tscn").is_empty(), "cut down to nothing, it is slain for the run")
-	var relics: Array[Node] = placed("relic.tscn").filter(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == &"worm")
-	var on_floor: bool = relics.size() == 1 and info.world.free_floors().has(info.cell_at((relics[0] as Node2D).global_position))
-	check(on_floor and (relics[0] as Relic).price() == 0, "its relic waits on a floor, free")
+	var unlocks: Array[Node] = unlocks_lying()
+	var on_floor: bool = unlocks.is_empty() or info.world.free_floors().has(info.cell_at((unlocks[0] as Node2D).global_position))
+	check(left_unlock() and on_floor, "its relic unlock waits on a floor")
 	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"", "and the way on is open")
 	await _go(Vector2i(28, g))
 	check(placed("worm.tscn").is_empty(), "it is never met again")

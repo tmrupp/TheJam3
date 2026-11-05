@@ -50,7 +50,10 @@ func _draw_art() -> void:
 		var label: String = "%s %s" % [Abilities.label(a), Abilities.roman(int(held[1]))]
 		_plaque(label + (" · %d" % owed if owed > 0 else " · take back"), Vector2(0, g - POP_Y), 30, RisoPrint.ACCENT, sl)
 		var player: Player = Stage.player()
-		if relic.swap():
+		if relic.needs_unlock() and player != null and player.keyring.unlocks() <= 0:
+			# A move not yet known: only a relic unlock (a boss's) lets it be taken.
+			_plaque("needs a relic unlock", Vector2(0, g - POP_Y - 40.0 * sl), 22, RisoPrint.PINK, sl)
+		elif relic.swap():
 			_plaque("swap", Vector2(0, g - POP_Y - 40.0 * sl), 22, RisoPrint.PINK, sl)
 		elif owed > 0 and player != null and Abilities.tier(player, a) > 0:
 			# A move already known: this relic raises it a tier.

@@ -345,6 +345,7 @@ func _level_rows() -> Array:
 	] + _door_rows() + [
 		["key", func(at: Vector2) -> void: _mark_key(at, 2), "key"],
 		["skeleton key", func(at: Vector2) -> void: _mark_key(at, KeyRing.SKELETON), "skeleton key"],
+		["relic unlock", func(at: Vector2) -> void: _mark_key(at, KeyRing.UNLOCK), "relic unlock"],
 		["exam paper", func(at: Vector2) -> void: _mark_key(at, KeyRing.paper(&"hex", 1)), "exam paper"],
 		["star cluster", _mark_cluster, "star cluster"],
 		["ink well", func(at: Vector2) -> void: _mark_inkwell(at, false), "ink well"],
@@ -744,7 +745,7 @@ func _mark_door(at: Vector2, color: int) -> void:
 
 
 func _mark_key(at: Vector2, color: int) -> void:
-	_note("skeleton key" if color == KeyRing.SKELETON else ("exam paper" if KeyRing.is_paper(color) else "key"))
+	_note("skeleton key" if color == KeyRing.SKELETON else ("relic unlock" if color == KeyRing.UNLOCK else ("exam paper" if KeyRing.is_paper(color) else "key")))
 	_key_ink(color, [RisoMarks.key_bow(at, 2.0, color)])
 
 

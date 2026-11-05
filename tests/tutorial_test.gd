@@ -6,7 +6,9 @@ extends TestKit
 ## way in), and leads back in at the way out. Coming out marks it done, so the start menu's toggle
 ## starts off from then on. A card rises as the wizard comes near and goes once its control is used.
 ## The stretches that need the wizard's reach (the steps, the bed of thorns a jump clears and the one
-## only a jump and a dash clear) are crossed with the game's own controls.
+## only a jump and a dash clear) are crossed with the game's own controls. The utility spell's card
+## costs a wizard at full health a heart as it rises, which pressing Utility (mend) heals. Its shrine
+## offers a strict upgrade against a swap (Tutorial.BOONS), then the usual boons once one is known.
 ## godot --headless --path . --script res://tests/tutorial_test.gd
 
 ## The cells the reach checks start from and must get past (Tutorial.MAP): standing before the
@@ -31,6 +33,8 @@ func run() -> void:
 	await _arrival(at)
 	await _hint()
 	await _reach()
+	await _utility()
+	await _shrine()
 	await _out_and_in(at)
 	RunState.delete_save()
 	DirAccess.remove_absolute(Tutorial.settings_path)
@@ -102,6 +106,50 @@ func _hint() -> void:
 	_press(&"Jump", false)
 	await settle(30)
 	check(ControlHint.learned.has(&"Jump") and not jump.showing(), "and gone once they jump")
+
+
+func _utility() -> void:
+	print("the utility card")
+	var card: ControlHint = null
+	for n: Node in placed("control_hint.tscn"):
+		if (n as ControlHint).action == ControlHint.STRIKES:
+			card = n as ControlHint
+	check(card != null, "the utility spell's card is there")
+	if card == null:
+		return
+	check_eq(Abilities.spell(player, &"utility"), ControlHint.HEALS, "and the run holds mend")
+	var full: int = player.health.max_health
+	player.health.health = full
+	player.global_position = card.global_position
+	still()
+	check(await until(func() -> bool: return card.struck), "it strikes as it rises")
+	check(player.health.health < full, "costing the wizard a heart")
+	check(await until(func() -> bool: return card.up_for >= ControlHint.SEEN), "up long enough to be seen")
+	_press(Abilities.UTILITY_ACTION, true)
+	await physics_frame
+	_press(Abilities.UTILITY_ACTION, false)
+	await settle(10)
+	check_eq(player.health.health, full, "Utility heals them, with mend")
+	check(ControlHint.learned.has(ControlHint.STRIKES) and not card.showing(), "and the card goes")
+	await _go(info.cell_at(card.global_position))
+	check_eq(player.health.health, full, "it strikes once")
+
+
+func _shrine() -> void:
+	print("the shrine")
+	var shrines: Array[Node] = placed("shrine.tscn")
+	check_eq(shrines.size(), 1, "one shrine")
+	if shrines.is_empty():
+		return
+	var shrine: Shrine = shrines[0] as Shrine
+	check_eq(shrine.offers(), Tutorial.BOONS, "it offers the tutorial's own boons")
+	check(not shrine.swap(0) and shrine.swap(1), "a strict upgrade, and a swap")
+	check_eq(Abilities.spell(player), &"slash", "the swap's slot holds the slash")
+	player.collect(shrine.offer_price(1) - player.coins.coins)
+	shrine.buy_boon(1)
+	check_eq(Abilities.spell(player), &"hex", "taking the swap puts hex in the damage slot")
+	check(shrine.used(), "and spends the shrine")
+	check(info.here.boons(player).is_empty(), "with one known, the usual boons come back")
 
 
 ## The two stretches that need the wizard's reach, crossed with the game's controls.

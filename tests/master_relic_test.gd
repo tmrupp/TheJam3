@@ -99,6 +99,7 @@ func _play(at: Vector2i) -> void:
 		return
 	var relic: Relic = left[0] as Relic
 	check_eq(relic.price(), 0, "free: the fight was its price")
+	player.keyring.set_unlocks(1 if relic.needs_unlock() else 0)
 	relic.take()
 	await frames(2)
 	check_eq(Abilities.tier(player, move), tier + 1, "taken, the wizard has %s a tier on" % move)
@@ -147,7 +148,11 @@ func _instructor(at: Vector2i) -> void:
 		return
 	(left[0] as Relic).take()
 	await frames(2)
-	check(Abilities.tier(player, move) == 1 and info.run.relics_found == found, "taken: %s at I, and not the level's relic" % move)
+	check_eq(Abilities.tier(player, move), 0, "not taken without a relic unlock")
+	player.keyring.set_unlocks(1)
+	(left[0] as Relic).take()
+	await frames(2)
+	check(Abilities.tier(player, move) == 1 and player.keyring.unlocks() == 0 and info.run.relics_found == found, "taken: %s at I, and not the level's relic" % move)
 
 
 func _go(at: Vector2i) -> void:

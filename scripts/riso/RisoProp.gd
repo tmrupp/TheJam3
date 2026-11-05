@@ -23,6 +23,8 @@ const KINDS: Dictionary = {
 	&"switch": "res://scripts/riso/props/SwitchArt.gd",
 	&"towerswitch": "res://scripts/riso/props/TowerSwitchArt.gd",
 	&"relic": "res://scripts/riso/props/RelicArt.gd",
+	&"trophy": "res://scripts/riso/props/TrophyArt.gd",
+	&"trophystand": "res://scripts/riso/props/TrophyArt.gd",
 	&"lantern": "res://scripts/riso/props/LanternArt.gd",
 	&"exit": "res://scripts/riso/props/ExitArt.gd",
 	&"moon": "res://scripts/riso/props/MoonArt.gd",

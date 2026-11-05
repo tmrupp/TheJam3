@@ -1,7 +1,7 @@
 extends TestKit
 ## The gates at the band ends (Bosses, docs/REGIONS_PLAN.md §5): which rows they are and who guards
 ## them, the way on sealed while the boss lives, a lantern death healing it, its death opening its
-## band's every gate level for the rest of the run and leaving a free relic, every boss in its gate
+## band's every gate level for the rest of the run and leaving a relic unlock, every boss in its gate
 ## level (no arenas), no hyperspace past a living boss's gate, and the F7 panel's Slay boss. The rules
 ## are shown with the beast (Beast), in its gate level, its souls cleared away (beast_test hunts
 ## them); the worm, the bramble, the golem and the necromancer have worm_test, bramble_test,
@@ -96,18 +96,21 @@ func run() -> void:
 
 	print("slain from the F7 panel")
 	await _go(Vector2i(28, g))
+	player.keyring.set_unlocks(0)
 	check(info.slay_boss() and placed("worm.tscn").is_empty(), "Slay boss kills the worm in its gate level at once")
 	await settle()
-	check(info.run.bosses.has(&"worm") and _exit(MapInfo.Exit.DEEPER).sealed() == &"" and placed("relic.tscn").any(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == &"worm"), "its gate opens and its relic is left")
+	check(info.run.bosses.has(&"worm") and _exit(MapInfo.Exit.DEEPER).sealed() == &"" and left_unlock(), "its gate opens and its relic unlock is left")
 	await _go(Vector2i(28, -g))
+	player.keyring.set_unlocks(0)
 	check(info.slay_boss() and placed("bramble.tscn").is_empty(), "and the bramble in its gate level")
 	await settle()
-	check(info.run.bosses.has(&"bramble") and _exit(MapInfo.Exit.DEEPER).sealed() == &"" and placed("relic.tscn").any(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == &"bramble"), "its way up opens and its relic is left")
+	check(info.run.bosses.has(&"bramble") and _exit(MapInfo.Exit.DEEPER).sealed() == &"" and left_unlock(), "its way up opens and its relic unlock is left")
 	if Bands.has(&"cemetery"):
 		await _go(Vector2i(28, Bosses.row_of(&"necromancer")))
+		player.keyring.set_unlocks(0)
 		check(info.slay_boss() and info.run.bosses.has(&"necromancer") and _exit(MapInfo.Exit.DEEPER).sealed() == &"", "and the necromancer in its gate level")
 		await settle()
-		check(placed("necromancer.tscn").is_empty() and placed("relic.tscn").any(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == &"necromancer"), "its relic is left where it stood")
+		check(placed("necromancer.tscn").is_empty() and left_unlock(), "its relic unlock is left where it stood")
 	check(not info.slay_boss(), "with nothing left to slay, it does nothing")
 
 	print("healed from the F7 panel")
@@ -183,6 +186,7 @@ func _deep_gates(g: int) -> void:
 	print("slain")
 	wound = boss.get_node("Wound") as Wound
 	var fell: Vector2 = boss.global_position
+	player.keyring.set_unlocks(0)
 	# The first strike wakes it again; its souls are gone, so its great eye opens.
 	wound.hit(1, Vector2.RIGHT)
 	for i: int in range(Beast.CORE_HP):
@@ -191,20 +195,9 @@ func _deep_gates(g: int) -> void:
 	check(await until(gone(boss)), "it sinks away")
 	await settle()
 	check(info.run.bosses.has(&"beast") and placed("beast.tscn").is_empty(), "it dies, slain for the run")
-	var relics: Array[Node] = placed("relic.tscn").filter(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == &"beast")
 	# Each hit knocks it back a little, so it falls a way from where it stood.
-	var where: Vector2 = (info.run.boss_relics.get(&"beast", [null, Vector2.INF]) as Array)[1]
-	check(relics.size() == 1 and (relics[0] as Node2D).global_position.distance_to(where) < 1.0 and where.distance_to(fell) < 400.0 and (relics[0] as Relic).price() == 0, "leaving a relic where it fell, free")
-	var move: StringName = (relics[0] as Relic).ability
-	check(Relics.MOVES.has(move) and Abilities.tier(player, move) == 0, "a move the wizard does not know (%s)" % move)
-	var slot: StringName = Abilities.slot_of(move)
-	var held: StringName = Abilities.spell(player, slot) if slot != &"" else &""
-	var held_tier: int = Abilities.tier(player, held) if held != &"" else 0
-	player.keyring.clear()
-	(relics[0] as Relic).take()
-	# A move that takes a slot puts out what is in it, which comes back as a paper.
-	var back: bool = held == &"" or player.keyring.has(KeyRing.paper(held, held_tier))
-	check(Abilities.tier(player, move) == 1 and not info.run.boss_relics.has(&"beast") and back, "taken, it teaches it and is gone, handing back what it put out as a paper (%s)" % (held if held != &"" else &"nothing"))
+	var unlocks: Array[Node] = unlocks_lying()
+	check(left_unlock() and (unlocks.is_empty() or (unlocks[0] as Node2D).global_position.distance_to(fell) < 400.0), "leaving a relic unlock where it fell (relic_unlock_test takes relics with one)")
 	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"", "its gate level's way on is open")
 	await _go(Vector2i(29, Bosses.row_of(&"beast")))
 	check(placed("beast.tscn").is_empty() and _exit(MapInfo.Exit.DEEPER).sealed() == &"", "and every other gate level of its band too")

@@ -14,7 +14,7 @@ extends TestKit
 ## and regrowing a chunk over its heart, the hurl (a shoulder cap torn off and lobbed at the wizard far
 ## off, lying where it lands until called home whole), and the leap (the wizard on the top gallery,
 ## it goes to the gap over it, the landing marked, and leaps up storey by storey); and its last
-## wound: it falls apart, its shards go with it, its relic waits where it stood, its gate opens, and
+## wound: it falls apart, its shards go with it, its relic unlock waits where it stood, its gate opens, and
 ## it is never met again.
 ## godot --headless --path . --script res://tests/golem_test.gd
 
@@ -131,8 +131,8 @@ func run() -> void:
 	await settle()
 	check(dead and info.run.bosses.has(&"golem") and placed("golem.tscn").is_empty(), "it is slain for the run")
 	check(shed.size() == Golem.SHARDS and shed.all(func(id: int) -> bool: return instance_from_id(id) == null), "its shards go with it")
-	var relics: Array[Node] = placed("relic.tscn").filter(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == &"golem")
-	check(relics.size() == 1 and info.world.is_ground(info.cell_at((relics[0] as Node2D).global_position) + Vector2i.DOWN) and (relics[0] as Relic).price() == 0, "its relic waits on the floor where it stood, free")
+	var unlocks: Array[Node] = unlocks_lying()
+	check(left_unlock() and (unlocks.is_empty() or info.world.is_ground(info.cell_at((unlocks[0] as Node2D).global_position) + Vector2i.DOWN)), "its relic unlock waits on the floor where it stood")
 	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"", "and the way up out of the crags is open")
 	await _go(gate)
 	check(placed("golem.tscn").is_empty(), "it is never met again")

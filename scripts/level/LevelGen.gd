@@ -88,6 +88,8 @@ enum Type {
 	TALLY,
 	## A card of the control a stretch of the tutorial asks for (Tutorial, ControlHint).
 	HINT,
+	## A boss's trophy stand, in the room by the tutorial's way out (Tutorial, TrophyStand).
+	TROPHY_STAND,
 }
 
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).

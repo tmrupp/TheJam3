@@ -10,7 +10,7 @@ extends TestKit
 ## saved; a soul lies on a floor of its level, the same spot every visit, with abominations round
 ## it, and lets more out while the wizard is near; destroyed, it is gone for the run and one eye
 ## shuts; with every soul gone its great eye opens, blows wound it, and it dies, slain for the run,
-## leaving its relic.
+## leaving its relic unlock.
 ## godot --headless --path . --script res://tests/beast_test.gd
 
 const WORLD: int = 28
@@ -196,7 +196,7 @@ func _play() -> void:
 	check(await until(gone(beast)), "and is gone")
 	await settle()
 	check(info.run.bosses.has(&"beast") and info.run.souls.is_empty(), "slain for the run")
-	check(placed("relic.tscn").any(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == &"beast"), "its relic left where it lay")
+	check(left_unlock(), "its relic unlock left where it lay")
 
 
 ## A level holding a soul, preferring one already visited (the first in VISITED's order).

@@ -53,6 +53,14 @@ const GHOST: PackedScene = preload("res://prefabs/corpse.tscn")
 ## Seconds left on the end-of-run card (0 while playing).
 var run_ending: float = 0.0
 const RUN_END_SECONDS: float = 3.0
+## Whether the run is won (win_run): its card shows for WIN_SECONDS, then the start menu.
+var won: bool = false
+const WIN_SECONDS: float = 6.0
+## A boss's trophy (Trophy), and where it drops beside where its boss fell (trophy_spot): the cells
+## to either side tried in turn, else this far over the spot itself.
+const TROPHY: PackedScene = preload("res://prefabs/trophy.tscn")
+const TROPHY_SIDES: Array[int] = [1, -1, 2, -2]
+const TROPHY_OVER: Vector2 = Vector2(0, -110)
 
 
 func _enter_tree() -> void:
@@ -238,19 +246,22 @@ func sheltered (pos: Vector2, way: int) -> bool:
 	return false
 
 ## Boss `boss` died at `pos` (Boss): slain for the rest of the run, so every gate level of its band
-## opens; where it fell, its relic waits (Bosses.relic_for, free), or, with every move known, a
-## skeleton key and a star cluster.
+## opens; where it fell, a relic unlock waits (KeyRing.UNLOCK, kept as a dropped key until picked
+## up), or, with every relic's move known (Bosses.relic_for finds none), a skeleton key and a star
+## cluster; and beside that, its trophy (Trophy, trophy_spot).
 func boss_slain (boss: StringName, pos: Vector2) -> void:
 	if boss == &"" or run.bosses.has(boss):
 		return
 	run.bosses[boss] = true
+	run.boss_trophies[boss] = [coord, trophy_spot(pos)]
+	_spawn_boss_trophies()
 	# The beast's souls go with it.
 	if boss == &"beast":
 		BeastSouls.end(run)
-	var move: StringName = Bosses.relic_for(boss, run.run_seed, player)
-	if move != &"":
-		run.boss_relics[boss] = [coord, pos, move]
-		_spawn_boss_relics()
+	if Bosses.relic_for(boss, run.run_seed, player) != &"":
+		var unlock: int = record().drop_key(pos, KeyRing.UNLOCK)
+		_spawn_dropped_key(unlock, pos, KeyRing.UNLOCK)
+		save_run()
 	else:
 		var id: int = record().drop_key(pos, KeyRing.SKELETON)
 		_spawn_dropped_key(id, pos, KeyRing.SKELETON)
@@ -378,6 +389,51 @@ func slay_boss () -> bool:
 		boss_slain(gate, player.global_position)
 		return true
 	return false
+
+## Where a boss's trophy drops, its boss fallen at `pos`: a cell to one side of it (the relic's
+## spot), the nearest open one, at the same height in its cell; else just over it.
+func trophy_spot (pos: Vector2) -> Vector2:
+	var at: Vector2i = cell_at(pos)
+	var within: Vector2 = pos - cell_position(at)
+	for dx: int in TROPHY_SIDES:
+		var c: Vector2i = at + Vector2i(dx, 0)
+		if world != null and world.is_valid(c) and not world.is_ground(c):
+			return cell_position(c) + within
+	return pos + TROPHY_OVER
+
+
+## The trophies slain bosses left in this place, where they fell, until picked up.
+func _spawn_boss_trophies () -> void:
+	if map_elements == null or not is_instance_valid(map_elements):
+		return
+	for boss: StringName in run.boss_trophies:
+		var entry: Array = run.boss_trophies[boss]
+		if entry[0] != coord or map_elements.get_children().any(func(n: Node) -> bool: return n is Trophy and (n as Trophy).boss == boss):
+			continue
+		var trophy: Trophy = TROPHY.instantiate() as Trophy
+		trophy.setup(self, boss)
+		map_elements.add_child(trophy)
+		trophy.global_position = entry[1]
+
+
+## The wizard picked up boss `boss`'s trophy at `pos`: theirs to carry for the rest of the run.
+func trophy_taken (boss: StringName, pos: Vector2) -> void:
+	run.boss_trophies.erase(boss)
+	run.trophies[boss] = Trophy.CARRIED
+	RisoFx.burst(&"gain", pos, Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.EYE])
+	Wound.shake(8.0, 0.2)
+	save_run()
+
+
+## The wizard set boss `boss`'s trophy on its stand at `pos` (TrophyStand); with every boss's set,
+## the run is won.
+func set_trophy (boss: StringName, pos: Vector2) -> void:
+	run.trophies[boss] = Trophy.SET
+	RisoFx.burst(&"gain", pos + Vector2(0, -80), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.GLOW])
+	save_run()
+	if run.trophies_all_set():
+		win_run()
+
 
 ## The relics slain bosses left in this place, where they fell, until taken.
 func _spawn_boss_relics () -> void:
@@ -847,6 +903,7 @@ func _level_ready (built: LevelGen) -> void:
 		_spawn_dropped_key(id, rec.dropped[id][0], rec.dropped[id][1])
 	Rift.restore(self)
 	_spawn_boss_relics()
+	_spawn_boss_trophies()
 	_spawn_left_relics()
 	_spawn_whale()
 	_spawn_souls()
@@ -1829,6 +1886,22 @@ func end_run () -> void:
 	player.keyring.clear()
 	player.visible = true
 	start_run(run.run_seed)
+
+## Every boss's trophy is on its stand (set_trophy): the run is won. The wizard stops where they
+## stand, the card of a won run shows (RisoHud) for WIN_SECONDS, and the start menu comes back with
+## the save gone, so the next run begins afresh.
+func win_run () -> void:
+	if run_ending > 0.0:
+		return
+	won = true
+	RunState.delete_save()
+	run_ending = WIN_SECONDS
+	player.set_physics_process(false)
+	player.velocity = Vector2.ZERO
+	await get_tree().create_timer(WIN_SECONDS).timeout
+	var menu: Menu = Stage.menu() as Menu
+	if menu != null and is_inside_tree():
+		menu.return_to_menu()
 
 func _spawn_ghost () -> void:
 	if not run.has_ghost or run.ghost_coord != coord or map_elements == null or not is_instance_valid(map_elements):

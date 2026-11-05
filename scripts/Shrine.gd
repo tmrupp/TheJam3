@@ -3,7 +3,8 @@ class_name Shrine
 ## A level's shrine, near its deeper exit, across two cells. It offers three things; taking any
 ## one spends it:
 ## - two boons: the next tier of two different abilities (picked by the level seed, new ones
-##   before upgrades), cheaper deeper;
+##   before upgrades), cheaper deeper; a place may set its own instead (NextWorldDef.boons: the
+##   tutorial's, a strict upgrade against a swap);
 ## - mending: healing to full, dearer deeper; at full health, the whereabouts of the nearest
 ##   relic not yet found instead (see Relics), marked on the worlds map, or a skeleton key
 ##   (sells_skeleton), laid somewhere in the level for the wizard to find.
@@ -30,9 +31,14 @@ func used() -> bool:
 	return map_info == null or bool(map_info.record().shrine_used)
 
 
+## The two boons: the ones the place sets itself (NextWorldDef.boons, the tutorial's), else the
+## usual ones by the level seed.
 func offers() -> Array[StringName]:
 	if map_info == null:
 		return []
+	var own: Array[StringName] = map_info.here.boons(player) if map_info.here != null else ([] as Array[StringName])
+	if not own.is_empty():
+		return own
 	return Abilities.offers(Rules.level_seed(map_info.coord.x, map_info.coord.y), player, BOONS)
 
 
