@@ -45,7 +45,7 @@ static func lock_at(at: Vector2i, which: int, rec: LevelRecord) -> int:
 
 func interaction_hint() -> Dictionary:
 	if sealed() != &"":
-		return {"sealed": true}
+		return {"sealed": true, "boss": sealed()}
 	var needs: int = lock()
 	return {"key_color": needs} if needs >= 0 else {}
 

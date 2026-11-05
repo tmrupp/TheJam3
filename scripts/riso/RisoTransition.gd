@@ -42,17 +42,18 @@ var ink: InkCanvas
 var world_label: Label
 var depth_label: Label
 var t: float = 0.0
-## The region title card (see title): its text, its label, and its age (seconds; -1 when none).
-## It waits for the sheet to be gone before it shows.
+## The region title card (see title): the band it names, by its emblem, and its age (seconds; -1
+## when none). It waits for the sheet to be gone before it shows.
 const TITLE_IN: float = 0.35
 const TITLE_HOLD: float = 2.0
 const TITLE_OUT: float = 0.7
-## The banner's middle (UI units) and height; the name's print size.
+## The banner's middle (UI units), its height and width, and how big the band's emblem is on it
+## (RisoMarks.emblem draws one about 24 across).
 const TITLE_Y: float = 34.0
 const TITLE_H: float = 26.0
-const TITLE_PX: float = 16.0
-var title_text: String = ""
-var title_label: Label
+const TITLE_W: float = 56.0
+const TITLE_MARK: float = 0.8
+var title_band: StringName = &""
 var title_age: float = -1.0
 
 
@@ -75,8 +76,6 @@ func _ready() -> void:
 	add_child(ink)
 	world_label = _make_label()
 	depth_label = _make_label()
-	title_label = _make_label()
-	title_label.scale = Vector2.ONE * (TITLE_PX / 64.0)
 
 
 func _make_label() -> Label:
@@ -110,11 +109,12 @@ func cover(travel: Vector2, to: Vector2i) -> void:
 	await covered
 
 
-## Show the title card of a region, `text` (once the sheet, if it is up, has gone).
-func title(text: String) -> void:
-	if text == "" or not RisoPrint.is_on():
+## Show the title card of the band named `band` (an Archetype's name), by its emblem, once the
+## sheet, if it is up, has gone.
+func title(band: StringName) -> void:
+	if band == &"" or not RisoPrint.is_on():
 		return
-	title_text = text
+	title_band = band
 	title_age = 0.0
 
 
@@ -148,7 +148,6 @@ func _process(delta: float) -> void:
 	ink.begin()
 	world_label.visible = false
 	depth_label.visible = false
-	title_label.visible = false
 	if state != State.IDLE:
 		_draw_sheet()
 	elif title_age >= 0.0:
@@ -160,25 +159,30 @@ func _process(delta: float) -> void:
 	ink.finish()
 
 
-## The region's title card: a paper banner across the top of the view, its name in night ink
-## between two short rules, rising in, held, and fading out.
+## The region's title card: a paper banner across the top of the view, the band's emblem
+## (RisoMarks.emblem) in night ink between two short rules, rising in, held, and fading out. No words.
 func _draw_title() -> void:
 	_fit_to_view()
 	var come: float = clampf(title_age / TITLE_IN, 0.0, 1.0)
 	var go: float = clampf((title_age - TITLE_IN - TITLE_HOLD) / TITLE_OUT, 0.0, 1.0)
 	var y: float = TITLE_Y + (1.0 - come) * (1.0 - come) * 10.0
 	var fade: float = come * (1.0 - go)
-	var w: float = RisoTheme.serif().get_string_size(title_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 64).x * (TITLE_PX / 64.0)
+	var w: float = TITLE_W
 	var banner: PackedVector2Array = RisoShapes.rrect(160.0 - w * 0.5 - 30.0, y - TITLE_H * 0.5, w + 60.0, TITLE_H, 8.0)
 	ink.knock(KNOCK_ALL, [banner])
 	ink.ink(RisoPrint.BLUE, 0.12 * fade, [banner], false)
 	var rule_w: float = 14.0
 	ink.ink(RisoPrint.NIGHT, fade, [RisoShapes.rrect(160.0 - w * 0.5 - 22.0, y - 1.0, rule_w, 2.0, 1.0), RisoShapes.rrect(160.0 + w * 0.5 + 8.0, y - 1.0, rule_w, 2.0, 1.0)], false)
-	if fade > 0.35:
-		title_label.visible = true
-		title_label.text = title_text
-		title_label.size = Vector2((w + 4.0) / title_label.scale.x, TITLE_H / title_label.scale.y)
-		title_label.position = Vector2(160.0 - w * 0.5, y - TITLE_H * 0.5).round()
+	var mark: Array[PackedVector2Array] = []
+	var fit: Transform2D = Transform2D(0.0, Vector2(TITLE_MARK, TITLE_MARK), 0.0, Vector2(160.0, y))
+	for poly: PackedVector2Array in RisoMarks.emblem(title_band, Vector2.ZERO):
+		mark.append(fit * poly)
+	ink.ink(RisoPrint.NIGHT, fade, mark, false)
+	var holes: Array[PackedVector2Array] = []
+	for poly: PackedVector2Array in RisoMarks.emblem_holes(title_band, Vector2.ZERO):
+		holes.append(fit * poly)
+	if not holes.is_empty():
+		ink.knock([RisoPrint.NIGHT], holes)
 
 
 ## Line the node up with the view, so its 320 x 180 UI units cover it.

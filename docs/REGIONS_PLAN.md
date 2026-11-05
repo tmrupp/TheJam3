@@ -31,22 +31,23 @@ Places stay on the grid of (world, row) (§1 of `DEEPER_PLAN.md`), but rows now 
 the start. Row 0 is where a run begins; rows below it are down, rows above it (negative) are up.
 
 ```
-   sky             rows −10 … −15     whale (its belly is a level)
-   crags / castle  rows  −4 …  −9     lodestone golem (its hall, in the gate level)
- ─ garden ───────  rows  −3 …  +3     start at 0
-        up gate,   row −3:  the bramble (in the level)
-        down gate, row +3:  the worm (in the level)
-   cemetery        rows  +4 …  +9     necromancer (a crypt, in the gate level)
-   institute       rows +10 … +15     eldritch beast (its chamber, in the gate level)
+   sky             rows −22 … −35     whale (its belly is a level)
+   crags / castle  rows  −8 … −21     lodestone golem (its hall, in the gate level)
+ ─ garden ───────  rows  −7 …  +7     start at 0
+        up gate,   row −7:  the bramble (in the level)
+        down gate, row +7:  the worm (in the level)
+   cemetery        rows  +8 … +21     necromancer (a crypt, in the gate level)
+   institute       rows +22 … +35     eldritch beast (its chamber, in the gate level)
 ```
 
-- **Bands.** The garden is 7 rows (three either side of the start); every other band is 6. Each
+- **Bands.** The garden is 15 rows (seven either side of the start); every other band is 14
+  (`Bands.GARDEN_ROWS`, `BAND_ROWS`; once 7 and 6, widened in proportion in November 2026). Each
   band is an archetype (`scripts/worlds/archetypes/`), as now; what changes is how a row picks its
   archetype: by a table of bands along the signed row, instead of `(depth / BAND) % 3`.
 - **Difficulty is distance from the start.** Everything that now scales with depth (prices, star
   values, enemy health, level size, relic chances, key rarity, lantern counts) scales with the
   distance `|row|` instead. A level's definition keeps a `depth` field for this, set to `|row|`,
-  and its row in `coord.y`. Crags at rows −4 to −9 are as hard as the cemetery at +4 to +9.
+  and its row in `coord.y`. Crags at rows −8 to −21 are as hard as the cemetery at +8 to +21.
 - **Past the last bands** (below the institute, above the sky): open, see §9. Until decided, the
   outermost band repeats, harder, with no further boss.
 
@@ -331,7 +332,7 @@ through the gate level's tunnels, as Tom described.
 *Built (October 2026, owner's design), in place of the spider (a black widow in a keep of broken
 floors, its webs, threads and brood), which is retired completely: its scripts are gone, and a
 saved run's slain spider and its relic are read as the golem's (`Bosses.RENAMED`,
-`RunState.gone_kinds`).* The crags' gate level (row −9, in every world) has
+`RunState.gone_kinds`).* The crags' gate level (row −21, in every world) has
 the golem's **lode hall** built at its top. The crags are the band
 of the lodestones and the empowered cast (§7), and the golem is their test: its body breaks only to
 an empowered spell, and the charge for one is won from it by parrying.
@@ -558,7 +559,7 @@ rising into the institute's halls are its.
 
 ## 7. The new bands
 
-### Crags with castle ruins (rows −4 … −9)
+### Crags with castle ruins (rows −8 … −21)
 
 *A first pass is built* (`docs/DEEPER_PLAN.md` §4d): the sample, the structure pass (shafts, keeps,
 towers, caverns), the realm and backdrop, the decor, doors in its passages, rock-bugs (crawlers
@@ -639,7 +640,7 @@ shooting out through arrow slits at the wizard and stopped only from inside (`Cr
     rooms still open to walking in.
   - *Not built yet:* loose boulders for the push to shove.
 
-### The cemetery: crypts, light and darkness (rows +4 … +9)
+### The cemetery: crypts, light and darkness (rows +8 … +21)
 
 The cemetery stays as built (`docs/DEEPER_PLAN.md` §4b): its terraces, realm, decor, moths, fog,
 wraiths, and its chasms gated by bells. What it gains are crypts, and light that matters.
@@ -734,7 +735,7 @@ learned at lanterns, instructors who leave a top-tier paper. Not yet: tuning in 
   reading desks). Deep brown and marble: the rock printed as deep brown wood and earth, the built
   parts as pale veined marble, gold kept for rewards.
 
-### The sky reworked: the elements (rows −10 … −15)
+### The sky reworked: the elements (rows −22 … −35)
 
 *A first pass is built* (`docs/DEEPER_PLAN.md` §4c): the level's wind set by its vanes, in gusts
 (a spell of stillness, then a strong sustained gust); balloons riding it along the row; temples

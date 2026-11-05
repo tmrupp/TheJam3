@@ -165,7 +165,7 @@ static func price(depth: int, next_tier: int) -> int:
 static func cast_price(a: StringName, depth: int) -> int:
 	if not ABILITIES.has(a) or not ABILITIES[a].has("cost"):
 		return 0
-	return maxi(1, roundi(float(ABILITIES[a]["cost"]) * pow(1.25, maxi(depth, 0))))
+	return maxi(1, roundi(float(ABILITIES[a]["cost"]) * Rules.grown(depth, Rules.STAR_GROWTH)))
 
 
 ## What a cast of the spell in slot `slot` costs where the wizard is.
@@ -174,9 +174,12 @@ static func cast_price_here(player: Player, slot: StringName = &"damage") -> int
 	return cast_price(spell(player, slot), depth)
 
 
-## Stars to heal to full at `depth`: the opposite of learning, dearer deeper.
+## Stars to heal to full at `depth`: the opposite of learning, dearer deeper (Rules.grown).
+const HEAL_BASE: float = 6.0
+
+
 static func heal_price(depth: int) -> int:
-	return roundi(6.0 * pow(1.35, depth))
+	return roundi(HEAL_BASE * Rules.grown(depth, Rules.HEAL_GROWTH))
 
 
 ## What a level's shrine teaches. Starting from an ability picked by the level seed and going

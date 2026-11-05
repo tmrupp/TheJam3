@@ -29,22 +29,27 @@ const INSTITUTE: Script = preload("res://scripts/worlds/archetypes/InstituteArch
 const CRAGS: Script = preload("res://scripts/worlds/archetypes/CragsArchetype.gd")
 const SKY: Script = preload("res://scripts/worlds/archetypes/SkyArchetype.gd")
 
+## How many rows the garden spans either side of the start, in the whole game and the demo alike;
+## and how many rows each band past it spans, in the same proportion to the garden (once three
+## rows and six).
+const GARDEN_ROWS: int = 7
+const BAND_ROWS: int = 14
 ## The layouts a game can be played on, by name: the whole game, and the garden alone (the demo),
 ## with its two bosses at its ends and the garden going on past them.
 const LAYOUTS: Dictionary = {
 	&"full": {
-		"garden": {"arch": GARDEN, "rows": 3, "down": &"worm", "up": &"bramble"},
+		"garden": {"arch": GARDEN, "rows": GARDEN_ROWS, "down": &"worm", "up": &"bramble"},
 		"down": [
-			{"arch": CEMETERY, "rows": 6, "boss": &"necromancer"},
-			{"arch": INSTITUTE, "rows": 6, "boss": &"beast"},
+			{"arch": CEMETERY, "rows": BAND_ROWS, "boss": &"necromancer"},
+			{"arch": INSTITUTE, "rows": BAND_ROWS, "boss": &"beast"},
 		],
 		"up": [
-			{"arch": CRAGS, "rows": 6, "boss": &"golem"},
-			{"arch": SKY, "rows": 6, "boss": &"whale"},
+			{"arch": CRAGS, "rows": BAND_ROWS, "boss": &"golem"},
+			{"arch": SKY, "rows": BAND_ROWS, "boss": &"whale"},
 		],
 	},
 	&"garden": {
-		"garden": {"arch": GARDEN, "rows": 3, "down": &"worm", "up": &"bramble"},
+		"garden": {"arch": GARDEN, "rows": GARDEN_ROWS, "down": &"worm", "up": &"bramble"},
 		"down": [],
 		"up": [],
 		"relics_from": 1,

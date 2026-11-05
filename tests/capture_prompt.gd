@@ -1,6 +1,7 @@
 extends SceneTree
-## Close-ups of the interaction prompt over the first lantern through one tap (the hand pressing
-## down, the click ripple), and the shrine with two stations touched (only one prompt).
+## Close-ups of the interaction prompt over the first lantern through one press (the interact
+## control sinking, the ripple as it lands; capture_prompt_control.gd has it on a pad too), and the
+## shrine with two stations touched (only one prompt).
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_prompt.gd
 
 func _initialize() -> void:
@@ -41,8 +42,8 @@ func capture() -> void:
 		camera.reset_smoothing()
 		await process_frame
 		if f >= 16 and f % 3 == 0 and shots.size() < 6:
-			var crop: Image = root.get_texture().get_image().get_region(Rect2i(560, 140, 150, 150))
-			crop.resize(300, 300, Image.INTERPOLATE_NEAREST)
+			var crop: Image = root.get_texture().get_image().get_region(Rect2i(440, 0, 400, 400))
+			crop.resize(300, 300, Image.INTERPOLATE_BILINEAR)
 			shots.append(crop)
 	var out: Image = Image.create(1800, 300, false, shots[0].get_format())
 	for k: int in range(shots.size()):

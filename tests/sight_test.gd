@@ -208,6 +208,22 @@ func _outside() -> void:
 	var want: float = rect.get_area() - _area(hole) - _area(other)
 	check(absf(area - want) < 1.0, "together they cover the rest exactly (%.0f of %.0f)" % [area, want])
 	check_eq(RisoSight.outside(rect, []).size(), 1, "with nothing seen, the whole view")
+	# Sight that runs out to the view's top corners, a hair inside them (as a ray aimed at a corner
+	# lands): the cut alone leaves one piece touching itself at the corners, which the print cannot
+	# fill (the shade once vanished for a frame or two as the wizard jumped by a step).
+	var corners: PackedVector2Array = PackedVector2Array([Vector2(0.0002, 0.0), Vector2(1000.0, 0.0001), Vector2(1000.0, 200.0), Vector2(600.0, 320.0), Vector2(300.0, 260.0), Vector2(0.0, 380.0)])
+	var raw: Array[PackedVector2Array] = RisoSight._minus(PackedVector2Array([rect.position, Vector2(rect.end.x, 0), rect.end, Vector2(0, rect.end.y)]), corners, 0)
+	print("  the cut alone: %d piece(s), %d of them unfillable" % [raw.size(), raw.filter(func(p: PackedVector2Array) -> bool: return Geometry2D.triangulate_polygon(p).is_empty()).size()])
+	var cleaned: Array[PackedVector2Array] = RisoSight.outside(rect, [corners])
+	var fillable: bool = not cleaned.is_empty()
+	var covered: float = 0.0
+	for p: PackedVector2Array in cleaned:
+		fillable = fillable and not Geometry2D.triangulate_polygon(p).is_empty()
+		covered += _area(p)
+	var rest: float = rect.get_area() - _area(corners)
+	# Drawn in by RisoSight.SEAM all round, it covers a hair less: its outline's length times that.
+	var seam: float = (rect.size.x + rect.size.y) * 2.0 * 2.0 * RisoSight.SEAM
+	check(fillable and absf(covered - rest) < seam, "sight running into the view's corners still leaves pieces the print can fill, covering the rest (%.0f of %.0f)" % [covered, rest])
 
 
 func _area(p: PackedVector2Array) -> float:

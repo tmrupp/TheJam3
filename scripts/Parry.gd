@@ -59,6 +59,9 @@ var raised_at: float = -INF
 var parried_at: float = -INF
 var missed_at: float = -INF
 var caught_at: Vector2 = Vector2.ZERO
+## When (game seconds, see `clock`) a catch underfoot last bounced the wizard up (_pogo; the
+## tutorial's pogo card reads it, ControlHint).
+var pogo_at: float = -INF
 ## When (real seconds) the last catch was, against Player.hit_at.
 var parried_real: float = -INF
 ## The time the art reads these against.
@@ -116,16 +119,25 @@ func parry (_damage: int, v: Vector2, origin: Node) -> void:
 	parry_sfx.play()
 	camera.shake(10, 0.2)
 	player.dash.refresh()
-	if _hazard(attacker) and away.y < -0.3:
+	if _hazard(attacker) and (away.y < -0.3 or _underfoot(origin)):
 		_pogo()
 	player.invulnerable.enable(true)
 	player.invulnerable.acting = SAFE
 	Wound.hit_stop(HIT_STOP, HIT_STOP_SCALE)
 
 
+## Whether the hazard behind `origin` (a Damager) lies under the wizard's middle as they come down
+## onto it: caught underfoot, whichever piece of a bed of thorns was touched first (landing on the
+## move, the one behind them is, and its knock points mostly sideways).
+func _underfoot(origin: Node) -> bool:
+	var hit: Damager = origin as Damager
+	return hit != null and player.velocity.y >= 0.0 and hit.collider.global_position.y > player.global_position.y
+
+
 ## Bounced off a hazard caught underfoot: a jump's worth straight up with the air jump given back,
 ## and the wizard keeps control and their way across, so they can carry on or parry again on landing.
 func _pogo() -> void:
+	pogo_at = clock
 	player.velocity.y = POGO
 	player.jumps = maxi(player.jumps, player.MAX_JUMPS - 1)
 

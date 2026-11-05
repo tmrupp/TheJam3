@@ -291,24 +291,120 @@ static func padlock(ink: InkCanvas, c: Vector2, color: int, s: float, fade: floa
 	ink.ink(RisoPrint.NIGHT, fade, [key_bow(c + Vector2(0, 6.5) * s, 4.5 * s * (1.3 if color == KeyRing.SKELETON else 1.0), color)], false)
 
 
-## A boss's seal on `c`, `r` across: a pink disc with a night eye watching from it (pink: danger),
-## barring a gate level's way on while the boss lives (Bosses). `fade` scales every ink.
-static func boss_seal(ink: InkCanvas, c: Vector2, r: float, fade: float = 1.0) -> void:
-	var disc: PackedVector2Array = RisoShapes.circle(c, r, 28)
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], [disc])
-	ink.ink(RisoPrint.PINK, fade, [disc], false)
-	ink.knock([RisoPrint.PINK], [RisoShapes.almond(c, r * 0.72, r * 0.42, 14)])
-	ink.ink(RisoPrint.NIGHT, fade, [RisoShapes.circle(c, r * 0.24, 14)], false)
+## A boss's seal on `c`, `r` across: a pink disc (pink: danger) with the boss's own mark on it in
+## bare paper (boss_mark; an eye watching for no boss named), barring a gate level's way on while the
+## boss lives (Bosses). `fade` scales every ink.
+static func boss_seal(ink: InkCanvas, c: Vector2, r: float, fade: float = 1.0, boss: StringName = &"") -> void:
+	_boss_disc(ink, c, r, fade, boss, RisoPrint.PINK)
 
 
 ## A boss's trophy on `c`, `r` across (Trophy): its seal won, in the accent (a reward) where the seal
-## was pink, its eye shut. `fade` scales every ink.
-static func trophy(ink: InkCanvas, c: Vector2, r: float, fade: float = 1.0) -> void:
+## was pink, with the boss's mark on it. `fade` scales every ink.
+static func trophy(ink: InkCanvas, c: Vector2, r: float, fade: float = 1.0, boss: StringName = &"") -> void:
+	_boss_disc(ink, c, r, fade, boss, RisoPrint.ACCENT)
+
+
+## A disc of `plate` on `c`, `r` across, with boss `boss`'s mark (boss_mark) on it in bare paper.
+static func _boss_disc(ink: InkCanvas, c: Vector2, r: float, fade: float, boss: StringName, plate: int) -> void:
 	var disc: PackedVector2Array = RisoShapes.circle(c, r, 28)
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK], [disc])
-	ink.ink(RisoPrint.ACCENT, fade, [disc], false)
-	ink.knock([RisoPrint.ACCENT], [RisoShapes.almond(c, r * 0.72, r * 0.42, 14)])
-	ink.ink(RisoPrint.NIGHT, fade, [RisoShapes.almond(c + Vector2(0, r * 0.08), r * 0.62, r * 0.09, 14)], false)
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], [disc])
+	ink.ink(plate, fade, [disc], false)
+	var mark: Array = boss_mark(boss, c, r * BOSS_MARK)
+	ink.knock([plate], mark[0])
+	if not (mark[1] as Array).is_empty():
+		ink.ink(plate, fade, mark[1], false)
+	if not (mark[2] as Array).is_empty():
+		ink.knock([plate], mark[2])
+
+
+## How big a boss's mark is on its disc, against the disc's radius.
+const BOSS_MARK: float = 0.62
+
+
+## Boss `boss`'s mark round `c`, `u` its unit (its marks reach about `u` from `c`): three lists of
+## shapes, laid in turn, [what is marked, holes cut back out of it, marks inside those holes]. The
+## worm, its maw in profile, jaws open and toothed; the bramble, a vine with thorns and a leaf; the
+## golem, its lodestone (Golem.body_shape) leaning, a roundel in it; the necromancer, a skull; the
+## beast, three eyes; the whale, its tail. For no boss named, an eye.
+static func boss_mark(boss: StringName, c: Vector2, u: float) -> Array:
+	var fill: Array[PackedVector2Array] = []
+	var holes: Array[PackedVector2Array] = []
+	var dots: Array[PackedVector2Array] = []
+	var at: Transform2D = Transform2D(0.0, Vector2(u, u), 0.0, c)
+	match boss:
+		&"worm":
+			# A round head seen side on, its jaws open to the right, teeth on both.
+			var head: PackedVector2Array = PackedVector2Array([Vector2(-0.12, 0.0)])
+			for k: int in range(25):
+				var a: float = lerpf(0.62, TAU - 0.62, float(k) / 24.0)
+				head.append(Vector2(-0.12, 0.0) + Vector2(cos(a), sin(a)) * 0.8)
+			fill.append(at * head)
+			for jaw: float in [-1.0, 1.0]:
+				for along: float in [0.32, 0.55]:
+					var p: Vector2 = Vector2(-0.12, 0.0) + Vector2(cos(0.62), sin(0.62) * jaw) * along
+					var tip: Vector2 = p + Vector2(0.06, -jaw * 0.2)
+					fill.append(at * PackedVector2Array([p - Vector2(0.09, 0.0), p + Vector2(0.09, 0.0), tip]))
+			holes.append(at * RisoShapes.circle(Vector2(-0.2, -0.38), 0.11, 10))
+		&"bramble":
+			# A vine climbing in a wave, thorns along it, a leaf at its foot.
+			var stem: PackedVector2Array = PackedVector2Array()
+			for k: int in range(17):
+				var y: float = lerpf(0.85, -0.85, float(k) / 16.0)
+				stem.append(Vector2(sin(y * 3.4) * 0.32, y))
+			for piece: PackedVector2Array in Geometry2D.offset_polyline(stem, 0.13, Geometry2D.JOIN_ROUND, Geometry2D.END_ROUND):
+				fill.append(at * piece)
+			for k: int in [3, 6, 9, 12]:
+				var p: Vector2 = stem[k]
+				var side: float = 1.0 if k % 2 == 0 else -1.0
+				fill.append(at * PackedVector2Array([p + Vector2(0, -0.1), p + Vector2(side * 0.34, -0.04), p + Vector2(0, 0.08)]))
+			fill.append(Transform2D(-0.7, Vector2(u, u), 0.0, at * Vector2(0.28, 0.62)) * RisoShapes.almond(Vector2.ZERO, 0.14, 0.3, 12))
+		&"golem":
+			# Its lodestone, leaning, a paper roundel where its heart is.
+			var stone: PackedVector2Array = Golem.body_shape(Vector2.ZERO, -PI * 0.5 + 0.3, 1.0)
+			var reach: float = 0.0
+			for p: Vector2 in stone:
+				reach = maxf(reach, p.length())
+			var fit: Transform2D = Transform2D(0.0, Vector2(u, u) * (0.9 / reach), 0.0, c)
+			fill.append(fit * stone)
+			holes.append(at * RisoShapes.circle(Vector2(0.06, 0.08), 0.18, 12))
+		&"necromancer":
+			# A skull: its crown and jaw, eyes, nose and the gaps between its teeth.
+			fill.append(at * RisoShapes.circle(Vector2(0, -0.15), 0.62, 24))
+			fill.append(at * RisoShapes.rrect(-0.36, 0.22, 0.72, 0.48, 0.1))
+			holes.append(at * RisoShapes.circle(Vector2(-0.24, -0.12), 0.17, 12))
+			holes.append(at * RisoShapes.circle(Vector2(0.24, -0.12), 0.17, 12))
+			holes.append(at * PackedVector2Array([Vector2(0, 0.08), Vector2(0.09, 0.26), Vector2(-0.09, 0.26)]))
+			holes.append(at * RisoShapes.rrect(-0.15, 0.48, 0.07, 0.22, 0.02))
+			holes.append(at * RisoShapes.rrect(0.08, 0.48, 0.07, 0.22, 0.02))
+		&"beast":
+			# Three eyes, each open, its pupil marked.
+			for e: Vector3 in [Vector3(-0.38, -0.25, 0.32), Vector3(0.38, -0.15, 0.28), Vector3(-0.02, 0.42, 0.32)]:
+				var o: Vector2 = Vector2(e.x, e.y)
+				fill.append(at * RisoShapes.circle(o, e.z, 18))
+				holes.append(at * RisoShapes.almond(o, e.z * 0.78, e.z * 0.42, 12))
+				dots.append(at * RisoShapes.circle(o, e.z * 0.3, 10))
+		&"whale":
+			# Its tail, thick: a broad stalk and two flukes swept up from it.
+			fill.append(at * RisoShapes.rrect(-0.16, -0.05, 0.32, 0.9, 0.1))
+			var fluke: PackedVector2Array = PackedVector2Array()
+			fluke.append_array(_quad(Vector2(0, 0.12), Vector2(-0.5, 0.08), Vector2(-0.92, -0.62), 8))
+			fluke.append_array(_quad(Vector2(-0.92, -0.62), Vector2(-0.38, -0.5), Vector2(0, -0.32), 8))
+			fluke.append_array(_quad(Vector2(0, -0.32), Vector2(0.38, -0.5), Vector2(0.92, -0.62), 8))
+			fluke.append_array(_quad(Vector2(0.92, -0.62), Vector2(0.5, 0.08), Vector2(0, 0.12), 8))
+			fill.append(at * fluke)
+		_:
+			fill.append(at * RisoShapes.almond(Vector2.ZERO, 1.16, 0.68, 14))
+			holes.append(at * RisoShapes.circle(Vector2.ZERO, 0.39, 14))
+	return [fill, holes, dots]
+
+
+## Points along the quadratic curve from `a` to `b` bent toward `ctrl`, `n` steps (without `b`).
+static func _quad(a: Vector2, ctrl: Vector2, b: Vector2, n: int) -> PackedVector2Array:
+	var out: PackedVector2Array = PackedVector2Array()
+	for k: int in range(n):
+		var t: float = float(k) / float(n)
+		out.append(a.lerp(ctrl, t).lerp(ctrl.lerp(b, t), t))
+	return out
 
 
 ## A switch's plate hung on `c` where a padlock would hang (`c` its top middle, `s` the padlock's

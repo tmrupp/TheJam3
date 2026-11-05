@@ -61,7 +61,7 @@ func _draw_art() -> void:
 		ink.ink(RisoPrint.NIGHT, 1.0, mark, false)
 		var sr: float = _pop(2, Vector2(mx, g - 50))
 		if sr > 0.0:
-			_plaque("%s relic · where · %d" % [Abilities.label(move), shrine.relic_price()], Vector2(mx, g - POP_Y), 30, RisoPrint.ACCENT, sr)
+			_plaque(str(shrine.relic_price()), Vector2(mx, g - POP_Y), 30, RisoPrint.ACCENT, sr)
 		return
 	if full and shrine.sells_skeleton():
 		# At full health: a skeleton key on a paper medallion.
@@ -72,13 +72,13 @@ func _draw_art() -> void:
 		ink.ink(RisoPrint.NIGHT, 1.0, RisoMarks.key_shape(m + Vector2(0, -2), 0.75, KeyRing.SKELETON), false)
 		var sk: float = _pop(2, Vector2(mx, g - 50))
 		if sk > 0.0:
-			_plaque("skeleton key · %d" % shrine.skeleton_price(), Vector2(mx, g - POP_Y), 30, RisoPrint.ACCENT, sk)
+			_plaque(str(shrine.skeleton_price()), Vector2(mx, g - POP_Y), 30, RisoPrint.ACCENT, sk)
 		return
 
 
 ## The mending station at x = `mx` over ground `g`: a bowl on a post and, unless `used`, an ember
 ## bead floating over it like the HUD's health beads (dimmer while `full`: nothing to mend), its
-## name and `price` popping up over it while the wizard stands at it. The shrine's third
+## `price` popping up over it while the wizard stands at it. The shrine's third
 ## station, and a mending bowl standing on its own (MendWellArt).
 func _mend_bowl(mx: float, g: float, bob: float, full: bool, used: bool, price: int) -> void:
 	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(mx - 9, g - 62, 18, 42, 6), RisoShapes.ellipse(Vector2(mx, g - 64), 24.0, 7.0, 22)])
@@ -93,12 +93,13 @@ func _mend_bowl(mx: float, g: float, bob: float, full: bool, used: bool, price: 
 	ink.knock([RisoPrint.EYE, RisoPrint.PINK], [RisoShapes.circle(m + Vector2(-3.5, -3.5), 4.0, 12)])
 	var s: float = _pop(2, Vector2(mx, g - 50))
 	if s > 0.0:
-		_plaque("mend · %d" % price, Vector2(mx, g - POP_Y), 30, RisoPrint.PINK, s)
+		_plaque(str(price), Vector2(mx, g - POP_Y), 30, RisoPrint.PINK, s)
 
 
 ## One of the shrine's two niches at x = `cx`: the ability's mark floating over its tier pips and,
-## while the wizard is at it, a pop-up with its name, tier and price, topped by a "swap" tag when
-## it would replace the spell in the slot (whose paper then comes back).
+## while the wizard is at it, a pop-up with the tier it teaches as a numeral and its price (the mark
+## says which ability), under it what a cast costs for a spell that costs stars, and over it the
+## swap mark when it would replace the spell in the slot (whose paper then comes back). No words.
 func _shrine_niche(cx: float, i: int, g: float, bob: float, used: bool) -> void:
 	ink.ink(RisoPrint.BLUE, 0.5, [RisoShapes.arch(cx - 36, g - 122, 72, 100, 12)])
 	var niche: PackedVector2Array = RisoShapes.arch(cx - 29, g - 115, 58, 93, 12)
@@ -112,17 +113,17 @@ func _shrine_niche(cx: float, i: int, g: float, bob: float, used: bool) -> void:
 		return
 	var next: int = shrine.offer_tier(i)
 	_niche_mark(a, c, i, next, cx, g)
-	# Name, tier and price pop up over the niche only while the wizard stands at it.
+	# Its tier and price pop up over the niche only while the wizard stands at it.
 	var s: float = _pop(i, Vector2(cx, g - 50))
 	if s <= 0.0:
 		return
-	_plaque("%s %s · %d" % [Abilities.label(a), Abilities.roman(next), shrine.offer_price(i)], Vector2(cx, g - POP_Y), 30, RisoPrint.ACCENT, s)
+	_plaque("%s · %d" % [Abilities.roman(next), shrine.offer_price(i)], Vector2(cx, g - POP_Y), 30, RisoPrint.ACCENT, s)
 	var per_cast: int = Abilities.cast_price(a, shrine.depth())
 	if per_cast > 0:
-		# A spell that costs stars to cast says so under its price.
-		_plaque("%d a cast" % per_cast, Vector2(cx, g - POP_Y + 38.0 * s), 20, RisoPrint.BLUE, s)
+		# A spell that costs stars to cast shows what a cast costs under its price, by a spark.
+		_cast_plaque(str(per_cast), Vector2(cx, g - POP_Y + 38.0 * s), 20, s)
 	if shrine.swap(i):
-		_plaque("swap", Vector2(cx, g - POP_Y - 40.0 * s), 22, RisoPrint.PINK, s)
+		_swap_plaque(Vector2(cx, g - POP_Y - 40.0 * s), s)
 
 
 ## An ability's mark floating in a shrine niche at `c`, over `pips_n` tier pips (the shrine's own

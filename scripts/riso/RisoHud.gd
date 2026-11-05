@@ -223,7 +223,7 @@ func _end_card() -> void:
 		var w: float = maxf(100.0, WON_STEP * float(bosses.size()) + 24.0)
 		_paper(RisoShapes.rrect(160.0 - w * 0.5, 54, w, 62, 10), RisoPrint.ACCENT, 0.18)
 		for i: int in range(bosses.size()):
-			RisoMarks.trophy(ink, Vector2(160.0 + (float(i) - float(bosses.size() - 1) * 0.5) * WON_STEP, 80.0), WON_R)
+			RisoMarks.trophy(ink, Vector2(160.0 + (float(i) - float(bosses.size() - 1) * 0.5) * WON_STEP, 80.0), WON_R, 1.0, bosses[i])
 		var place: Vector2i = Vector2i(info.run.run_seed, info.run.furthest_row)
 		var row: Array[Label] = [end_world, end_depth]
 		_place_row(place, Vector2(160.0 - _place_w(place, END_PLACE_R, row) * 0.5, 104.0), END_PLACE_R, row, 14.0)

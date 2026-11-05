@@ -56,7 +56,7 @@ func _draw_art() -> void:
 		for k: int in range(3):
 			bars.append(RisoShapes.rrect(-46, g - 74 + float(k) * 23.0, 92, 8, 4))
 		ink.ink(RisoPrint.PINK, 0.85, bars, false)
-		RisoMarks.boss_seal(ink, Vector2(0, g - 52), 20.0 * pulse)
+		RisoMarks.boss_seal(ink, Vector2(0, g - 52), 20.0 * pulse, 1.0, door.sealed())
 	elif needs >= 0:
 		# Locked: dark, with a lock in the colour of key it needs, as on the doors.
 		ink.ink(RisoPrint.NIGHT, 1.0, [opening], false)

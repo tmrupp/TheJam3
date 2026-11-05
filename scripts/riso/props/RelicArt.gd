@@ -18,8 +18,10 @@ var relic: Relic:
 
 ## A relic: a medallion (an accent ring round a disc of bare paper with the move's mark on it)
 ## floating over a small plinth in its own light (RisoLight), with three motes
-## circling it; its name and tier pop up as the wizard steps up to it ("swap" too, when taking it
-## would replace the spell in the slot).
+## circling it; as the wizard steps up to it, the tier it teaches pops up as a numeral (the mark on
+## the medallion says which move), with its price; over that, the relic unlock's seal on a pink
+## plaque when one is needed and none is carried, or the swap mark when taking it would replace the
+## spell in the slot. No words.
 func _draw_art() -> void:
 	var g: float = _ground()
 	var held: Array = relic.holds()
@@ -47,14 +49,20 @@ func _draw_art() -> void:
 	var sl: float = _pop(0, Vector2(0, g - 50))
 	if sl > 0.0:
 		var owed: int = relic.price()
-		var label: String = "%s %s" % [Abilities.label(a), Abilities.roman(int(held[1]))]
-		_plaque(label + (" · %d" % owed if owed > 0 else " · take back"), Vector2(0, g - POP_Y), 30, RisoPrint.ACCENT, sl)
 		var player: Player = Stage.player()
+		# Already at its top tier, there is nothing more to learn from it: its numeral on blue.
+		var mastered: bool = player != null and Abilities.tier(player, a) >= Abilities.max_tier(a)
+		var label: String = Abilities.roman(int(held[1]))
+		_plaque(label + (" · %d" % owed if owed > 0 else ""), Vector2(0, g - POP_Y), 30, RisoPrint.BLUE if mastered else RisoPrint.ACCENT, sl)
+		var over: Vector2 = Vector2(0, g - POP_Y - 40.0 * sl)
 		if relic.needs_unlock() and player != null and player.keyring.unlocks() <= 0:
 			# A move not yet known: only a relic unlock (a boss's) lets it be taken.
-			_plaque("needs a relic unlock", Vector2(0, g - POP_Y - 40.0 * sl), 22, RisoPrint.PINK, sl)
+			var u: InkCanvas = _blank_plaque(over, UNLOCK_PLAQUE, RisoPrint.PINK, sl)
+			RisoPrint.ink_key(u, KeyRing.UNLOCK, 1.0, RisoMarks.seal_shape(over, UNLOCK_SEAL * sl))
 		elif relic.swap():
-			_plaque("swap", Vector2(0, g - POP_Y - 40.0 * sl), 22, RisoPrint.PINK, sl)
-		elif owed > 0 and player != null and Abilities.tier(player, a) > 0:
-			# A move already known: this relic raises it a tier.
-			_plaque("upgrade" if Abilities.tier(player, a) < Abilities.max_tier(a) else "already mastered", Vector2(0, g - POP_Y - 40.0 * sl), 22, RisoPrint.BLUE, sl)
+			_swap_plaque(over, sl)
+
+
+## The plaque showing a relic unlock is needed: its size, and the seal's size on it (against a key's).
+const UNLOCK_PLAQUE: Vector2 = Vector2(36, 34)
+const UNLOCK_SEAL: float = 0.75

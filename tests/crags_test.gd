@@ -83,8 +83,9 @@ func _circuit(w: LevelGen, at: Vector2i) -> int:
 	var gates: Array[Vector2i] = info["gates"]
 	check(stops.size() >= CragsArchetype.STATIONS_MIN, "its line has %d stations" % stops.size())
 	check(gondolas[0] == path[stops[int(info["start"])]], "its car waits at its open station")
-	# In the golem's gate level, its top is the foot of its hall there (LodeHall).
-	var top: float = float(CragsArchetype.TOP_TIER + CragsArchetype.STATION_JITTER + 8) if w.keep.is_empty() else float((w.keep["box"] as Rect2i).end.y + CragsArchetype.LEAVE + 3)
+	# In the golem's gate level, its top is the foot of its hall there (LodeHall), give or take the
+	# stations' jitter, as lay_circuit spreads them.
+	var top: float = float(CragsArchetype.TOP_TIER + CragsArchetype.STATION_JITTER + 8) if w.keep.is_empty() else float((w.keep["box"] as Rect2i).end.y + CragsArchetype.LEAVE + 3 + CragsArchetype.STATION_JITTER)
 	check(float(path[0].y) > float(w.size.y) * 0.7 and float(path[-1].y) < top, "it climbs from near the bottom of the level (row %d) to near its top, or the golem's hall (row %d)" % [path[0].y, path[-1].y])
 	var diagonal: int = 0
 	var steps_ok: bool = true

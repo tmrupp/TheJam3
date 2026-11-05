@@ -23,13 +23,13 @@ func run() -> void:
 	player.set_physics_process(false)
 	await overview_still("tutorial/tutorial_overview.png", 3)
 	for pad: bool in [false, true]:
-		ControlHint.pad = pad
+		RisoPad.pad = pad
 		for node: Node in placed("control_hint.tscn"):
 			var hint: ControlHint = node as ControlHint
 			var name: String = String(hint.action).to_lower()
 			player.global_position = hint.global_position + Vector2(-90, 0)
 			await _look(hint.global_position + Vector2(0, -120), "tutorial/%s.png" % _file(name, pad), 1.0)
-	ControlHint.pad = false
+	RisoPad.pad = false
 	await _trophies()
 	player.get_node("CameraControl").set_process(true)
 	player.set_physics_process(true)

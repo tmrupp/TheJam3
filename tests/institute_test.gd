@@ -262,7 +262,7 @@ func _climb() -> void:
 		found = _step_and_wall()
 	check(not found.is_empty(), "a step and a wall to try")
 	if not found.is_empty():
-		await _climb_at(found["step"], found["step_way"], found["wall"], found["wall_way"])
+		await _climb_at(found["steps"], found["wall"], found["wall_way"])
 	if info.coord != home:
 		await _go(home)
 		player.set_physics_process(false)
@@ -270,7 +270,8 @@ func _climb() -> void:
 
 ## A step a cell high and a wall two cells high (or more) out of the halls, each with a floor before it
 ## and the way up (+1 right, -1 left): {"step", "step_way", "wall", "wall_way"}, or {} if the level
-## lacks either.
+## lacks either; and under "steps" the first few steps, [cell, way] each, as a step's top may be
+## cramped where its quarry stands.
 func _step_and_wall() -> Dictionary:
 	var w: LevelGen = info.world
 	var out: Dictionary = {}
@@ -279,32 +280,49 @@ func _step_and_wall() -> Dictionary:
 			var r: Vector2i = v + Vector2i(way, 0)
 			if Institute.hall_at(w, v) >= 0 or w.is_ground(v + Vector2i.UP) or w.is_ground(v + Vector2i(0, -2)) or w.is_ground(v - Vector2i(way, 0)) or not w.is_ground(v + Vector2i(-way, 1)) or not w.is_ground(r):
 				continue
-			if not out.has("step") and not w.is_ground(r + Vector2i.UP) and not w.is_ground(r + Vector2i(0, -2)):
-				out["step"] = v
-				out["step_way"] = way
+			if not w.is_ground(r + Vector2i.UP) and not w.is_ground(r + Vector2i(0, -2)):
+				if not out.has("step"):
+					out["step"] = v
+					out["step_way"] = way
+					out["steps"] = []
+				if (out["steps"] as Array).size() < STEPS_TRIED:
+					(out["steps"] as Array).append([v, way])
 			elif not out.has("wall") and w.is_ground(r + Vector2i.UP) and w.is_ground(r + Vector2i(0, -2)):
 				out["wall"] = v
 				out["wall_way"] = way
 	return out if out.has("step") and out.has("wall") else {}
 
 
-## An abomination after its quarry up the step at `step` (rising the way `step_way` points), then at
-## the wall at `wall` (`wall_way`).
-func _climb_at(step: Vector2i, step_way: int, wall: Vector2i, wall_way: int) -> void:
+## How many steps _climb_at tries an abomination at, for one with room on top.
+const STEPS_TRIED: int = 4
+
+
+## An abomination after its quarry up one of `steps` ([cell, the way it rises] each, tried in turn
+## until one is climbed), then at the wall at `wall` (`wall_way`).
+func _climb_at(steps: Array, wall: Vector2i, wall_way: int) -> void:
 	# In passing time, when the abominations act up (Timetable), with no scholar about to fight them.
 	info.record().passing = true
 	for n: Node in get_nodes_in_group(&"scholar"):
 		var at: Vector2 = (n as Node2D).global_position
-		if at.distance_to(info.cell_position(step)) < 1500.0 or at.distance_to(info.cell_position(wall)) < 1500.0:
+		var near_step: bool = steps.any(func(pair: Array) -> bool: return at.distance_to(info.cell_position(pair[0] as Vector2i)) < 1500.0)
+		if near_step or at.distance_to(info.cell_position(wall)) < 1500.0:
 			n.queue_free()
 	await frames(2)
-	var thing: Abomination = _spawn_thing(step + Vector2i(-step_way, 0), 1)
-	player.global_position = info.cell_position(step + Vector2i(4 * step_way, -1))
-	await until(func() -> bool: return thing.grounded)
-	var start: float = thing.global_position.y
-	var climbed: bool = await within(func() -> bool: return thing.global_position.y < start - 100.0, 4.0)
-	check(climbed and thing.quarry != null, "at a step a cell high, it hops up after its quarry")
-	thing.queue_free()
+	var climbed: bool = false
+	var thing: Abomination = null
+	for pair: Array in steps:
+		var step: Vector2i = pair[0]
+		var step_way: int = pair[1]
+		thing = _spawn_thing(step + Vector2i(-step_way, 0), 1)
+		player.global_position = info.cell_position(step + Vector2i(4 * step_way, -1))
+		await until(func() -> bool: return thing.grounded)
+		var start: float = thing.global_position.y
+		climbed = await within(func() -> bool: return thing.global_position.y < start - 100.0, 4.0) and thing.quarry != null
+		thing.queue_free()
+		await frames(2)
+		if climbed:
+			break
+	check(climbed, "at a step a cell high, it hops up after its quarry")
 	var d: float = float(wall_way)
 	thing = _spawn_thing(wall + Vector2i(-wall_way, 0), 1)
 	player.global_position = info.cell_position(wall + Vector2i(3 * wall_way, -2))

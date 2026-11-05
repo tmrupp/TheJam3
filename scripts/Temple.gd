@@ -66,11 +66,11 @@ func opened() -> bool:
 
 func interaction_hint() -> Dictionary:
 	if not opened():
-		return {"text": "%d of %d winds" % [progress(), sequence.size()]} if not all_lit() else {}
+		return {"text": "%d / %d" % [progress(), sequence.size()]} if not all_lit() else {}
 	var run: RunState = map_info.run
 	if run.bosses.has(&"whale"):
-		return {"text": "the whale is slain"}
-	return {"text": "the whale: world %d" % run.whale_x}
+		return {}
+	return {"text": str(run.whale_x)}
 
 
 ## Interact: with its whole sequence lit, it opens (and the whale is met, if it was not).

@@ -40,9 +40,35 @@ static func level_seed (run_seed: int, depth: int) -> int:
 	h = h ^ (h >> 15)
 	return h & 0x7fffffff
 
+## Prices and rewards grow with depth on a square, not a power: each is its base at the start and
+## rises with the square of the depth to a set number of times its base at GROWTH_DEPTH, the far
+## end of the last bands (the garden's rows and two bands' each way). Each end factor is what that
+## price or reward reached by the end of the last bands when bands were 3 rows (the garden) and 6,
+## and it grew by a power of the depth; so a band's end costs what its end did then, and between
+## the start and the far ends prices rise more gently than a power does.
+const GROWTH_DEPTH: int = Bands.GARDEN_ROWS + 2 * Bands.BAND_ROWS
+## How many times its base the way on's price (DEEPER_BASE stars), a map's at an ink well
+## (MAP_BASE), healing at a shrine (Abilities.heal_price) and a star cluster's worth
+## (CLUSTER_BASE; a spell's cast costs grow alike, Abilities.cast_price) are at GROWTH_DEPTH.
+const DEEPER_BASE: float = 16.0
+const DEEPER_GROWTH: float = 155.6
+const MAP_BASE: float = 8.0
+const MAP_GROWTH: float = 51.2
+const HEAL_GROWTH: float = 90.2
+const CLUSTER_BASE: float = 10.0
+const STAR_GROWTH: float = 28.4
+
+
+## How many times its base a price or reward that is `growth` times its base at GROWTH_DEPTH is at
+## `depth`: 1 at the start, rising with the square of the depth.
+static func grown (depth: int, growth: float) -> float:
+	var f: float = float(maxi(depth, 0)) / float(GROWTH_DEPTH)
+	return 1.0 + (growth - 1.0) * f * f
+
+
 ## Stars to open a level's deeper exit.
 static func deeper_price (depth: int) -> int:
-	return roundi(16.0 * pow(1.4, depth))
+	return roundi(DEEPER_BASE * grown(depth, DEEPER_GROWTH))
 
 ## Stars to lift a toll gate (one shutting a gondola's station, CragsArchetype): TOLL_SHARE of the
 ## way on's price there.
@@ -54,7 +80,7 @@ static func toll_price (depth: int) -> int:
 ## Stars a level's star cluster is worth: about 10 at the surface, more deeper (stars per level
 ## grow too).
 static func cluster_value (depth: int) -> int:
-	return roundi(10.0 * pow(1.25, maxi(depth, 0)))
+	return roundi(CLUSTER_BASE * grown(depth, STAR_GROWTH))
 
 ## Whether a secret room in the level at `at` holds a skeleton key: SKELETON_CHANCE % of levels
 ## from depth 1, dealt by the level seed.
@@ -162,7 +188,7 @@ static func level_size (depth: int) -> Vector2i:
 
 ## Stars to ink a level's whole map at its ink well.
 static func map_price (depth: int) -> int:
-	return roundi(8.0 * pow(1.3, depth))
+	return roundi(MAP_BASE * grown(depth, MAP_GROWTH))
 
 ## How a level is named on screen and when sharing it.
 static func where (at: Vector2i) -> String:

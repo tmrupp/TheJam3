@@ -44,8 +44,8 @@ func destination() -> Variant:
 func interaction_hint() -> Dictionary:
 	var to: Variant = destination()
 	if to == null:
-		return {"text": "becalmed"}
-	return {"text": "to world %d" % (to as Vector2i).x}
+		return {}
+	return {"text": str((to as Vector2i).x)}
 
 
 ## Board it: with wind enough it rises with the wizard and carries them off; becalmed, nothing.
@@ -72,8 +72,15 @@ func _process(delta: float) -> void:
 		player.global_position = _from + Vector2(0.0, -RISE * u * u)
 	if rising >= RISE_TIME and map_info != null and not map_info.travelling:
 		var to: Variant = destination()
+		# Risen, it hands the wizard over to the journey and lets go of them: a balloon left in the
+		# level behind (freed a moment later on a busy machine) must not pull them back to it from
+		# the level arrived at, nor set off again.
+		rising = -1.0
 		if to != null:
 			map_info.balloon_travel(to as Vector2i)
+		elif player != null:
+			# Becalmed as it rose (a vane switched off): it lets them fall.
+			player.set_physics_process(true)
 
 
 func _ready() -> void:

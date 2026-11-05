@@ -872,7 +872,7 @@ func _title_region () -> void:
 		return
 	region = now
 	if RisoTransition.instance != null:
-		RisoTransition.instance.title(here.arch.title)
+		RisoTransition.instance.title(here.arch.name)
 
 ## Freeze the wizard and sweep the printed transition over the view before a level changes.
 func _pass (way: Vector2, next: Vector2i) -> void:

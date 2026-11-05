@@ -76,9 +76,9 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
 
 Places are (seed, row): row 0 is the start, positive rows go down, negative rows go up, and a
 level's `depth` is its distance `|row|` (side worlds sit below `-Worlds.SIDE_BASE`). Bands come from
-one table, `Bands.LAYOUTS`: in the whole game (`full`) the garden spans rows −3…+3; down, the
-cemetery then the institute; up, the crags then the sky, 6 rows each, each band's boss at its far
-end. Each band's line gives its archetype, its rows, its boss and optionally a `"tune"` of its
+one table, `Bands.LAYOUTS`: in the whole game (`full`) the garden spans rows −7…+7; down, the
+cemetery then the institute; up, the crags then the sky, 14 rows each (`Bands.GARDEN_ROWS`,
+`BAND_ROWS`), each band's boss at its far end. Each band's line gives its archetype, its rows, its boss and optionally a `"tune"` of its
 archetype's settings (`star_share`, `wisp_share`, `watcher_share`, `hoppers_per_k`...), so a band
 is tuned, lengthened, reordered or left out there and nowhere else. The `garden` layout is the
 demo: the garden alone, the worm and the bramble at its ends, garden levels going on past them. A

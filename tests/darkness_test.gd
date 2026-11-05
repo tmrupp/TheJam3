@@ -13,6 +13,8 @@ extends TestKit
 ## Worlds looked through for a level to play in, and the band's rows (counting from its first).
 const WORLDS: Array[int] = [41, 3, 7, 28, 99, 12, 5, 64]
 const ROWS: Array[int] = [1, 2, 3, 4]
+## How many more worlds are looked through for a level to play in, if those have none.
+const MORE_WORLDS: int = 40
 
 
 func run() -> void:
@@ -84,6 +86,18 @@ func generation() -> Variant:
 				check(w.objects == again.objects and w.grounds == again.grounds, "%s: the same every time" % at)
 	check(blocked * 2 >= looked, "%d of %d levels have blocks in their crypts" % [blocked, looked])
 	check(stairs_seen >= 1 and shade_floors >= 2 and doors_seen >= 1, "stairs turned to blocks in %d crypt(s), %d shade blocks over thorns, ossuary doors in %d level(s)" % [stairs_seen, shade_floors, doors_seen])
+	# Few levels have all three: look further afield for one to play in.
+	var x: int = 100
+	while chosen == null and x < 100 + MORE_WORLDS:
+		for k: int in ROWS:
+			var at: Vector2i = Vector2i(x, NextWorldDef.band_row(&"cemetery", k))
+			if not Rules.ossuary_at(at):
+				continue
+			var w: LevelGen = build(at)
+			if w != null and not w.objects_of(LevelGen.Type.OSSUARY_DOOR).is_empty() and count_of(w, LevelGen.Type.SNUFFER) > 0 and _bearing(w) != null:
+				chosen = at
+				break
+		x += 1
 	check(chosen != null, "a level to play in: %s" % [chosen])
 	return chosen
 

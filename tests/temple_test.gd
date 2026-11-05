@@ -81,7 +81,7 @@ func run() -> void:
 	var hoard: Array = info.world.temples[0]["hoard"]
 	var steps: Array[int] = temple.sequence
 	check(hoard.size() == SkyArchetype.TEMPLE_HOARD and _clusters(hoard) == 0, "its hoard (%d star clusters) is hidden while it is shut" % hoard.size())
-	check(not temple.opened() and temple.progress() == 0 and str(temple.interaction_hint().get("text", "")) == "0 of %d winds" % steps.size(), "shut, none of its %d winds lit, and it says so" % steps.size())
+	check(not temple.opened() and temple.progress() == 0 and str(temple.interaction_hint().get("text", "")) == "0 / %d" % steps.size(), "shut, none of its %d winds lit, and it shows so (0 / %d)" % [steps.size(), steps.size()])
 	# All but the last entered, by switching on vanes (a new one for each step).
 	for i: int in range(steps.size() - 1):
 		_on(steps[i])
@@ -104,7 +104,7 @@ func run() -> void:
 	await frames(2)
 	check(temple.opened() and info.record().temple_open, "it opens, kept in the level record")
 	check(_clusters(hoard) == hoard.size(), "and its hoard appears in its hall")
-	check(info.run.whale_x != WhaleHunt.NONE and str(temple.interaction_hint().get("text", "")) == "the whale: world %d" % info.run.whale_x, "and shows where the whale is (world %d)" % info.run.whale_x)
+	check(info.run.whale_x != WhaleHunt.NONE and str(temple.interaction_hint().get("text", "")) == str(info.run.whale_x), "and shows where the whale is (world %d)" % info.run.whale_x)
 	RunState.delete_save()
 	finish()
 

@@ -621,7 +621,11 @@ func _darkness() -> void:
 	check(never, "never fontless in the band's first row, its gate level or another band, and no ossuary in the gate level")
 	var share: float = float(fontless) / float(dealt)
 	check(absf(share * 100.0 - float(Rules.FONTLESS_SHARE)) < 8.0, "%d of %d of the cemetery's other levels without fonts (%.0f %%)" % [fontless, dealt, share * 100.0])
-	check(Rules.ossuary_fill(first) == Rules.OSSUARY_FILL.x and Rules.ossuary_fill(gate - 1) == Rules.OSSUARY_FILL.y and Rules.ossuary_fill(first + 2) > Rules.ossuary_fill(first + 1), "an ossuary door drinks %d charges in the first row, more each row, %d in the last before the gate level" % [Rules.OSSUARY_FILL.x, Rules.OSSUARY_FILL.y])
+	# Never fewer a row on (a long band rises by less than a charge a row, so some rows match).
+	var rising: bool = true
+	for row: int in range(first, gate - 1):
+		rising = rising and Rules.ossuary_fill(row + 1) >= Rules.ossuary_fill(row)
+	check(Rules.ossuary_fill(first) == Rules.OSSUARY_FILL.x and Rules.ossuary_fill(gate - 1) == Rules.OSSUARY_FILL.y and rising and Rules.ossuary_fill(gate - 1) > Rules.ossuary_fill(first + 1), "an ossuary door drinks %d charges in the first row, rising row by row, %d in the last before the gate level" % [Rules.OSSUARY_FILL.x, Rules.OSSUARY_FILL.y])
 
 
 func _ability_tables() -> void:

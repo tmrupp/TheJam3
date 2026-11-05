@@ -7,7 +7,10 @@ extends TestKit
 ## starts off from then on. A card rises as the wizard comes near and goes once its control is used.
 ## The stretches that need the wizard's reach (the steps, the bed of thorns a jump clears and the one
 ## only a jump and a dash clear) are crossed with the game's own controls. The utility spell's card
-## costs a wizard at full health a heart as it rises, which pressing Utility (mend) heals. Its shrine
+## costs a wizard at full health a heart as it rises, which pressing Utility (mend) heals. The
+## watcher's card is the parry's, gone by a catch and not by a press; past it a bed of thorns too
+## wide for a jump and a dash is crossed by bouncing off its thorns with the guard (a pogo), which
+## puts the pogo's card away. Its shrine
 ## offers a strict upgrade against a swap (Tutorial.BOONS), then the usual boons once one is known.
 ## godot --headless --path . --script res://tests/tutorial_test.gd
 
@@ -22,6 +25,11 @@ const GAP_FROM: Vector2i = Vector2i(33, 10)
 const GAP_PAST: int = 39
 ## How far past the middle of the last cell before a bed (px) the wizard jumps.
 const JUMP_AT: float = 30.0
+## The pogo's bed of thorns, found in the map's floor row by its width; and how far under standing
+## height (px), falling into the bed (its thorns are a row down), the wizard raises the guard to
+## catch them.
+const POGO_BED: String = "^^^^^^^^^^"
+const GUARD_AT: float = 40.0
 
 
 func run() -> void:
@@ -33,6 +41,8 @@ func run() -> void:
 	await _arrival(at)
 	await _hint()
 	await _reach()
+	await _parry()
+	await _pogo()
 	await _utility()
 	await _shrine()
 	await _out_and_in(at)
@@ -106,6 +116,105 @@ func _hint() -> void:
 	_press(&"Jump", false)
 	await settle(30)
 	check(ControlHint.learned.has(&"Jump") and not jump.showing(), "and gone once they jump")
+
+
+## The card of control `action`, or null.
+func _card(action: StringName) -> ControlHint:
+	for n: Node in placed("control_hint.tscn"):
+		if (n as ControlHint).action == action:
+			return n as ControlHint
+	return null
+
+
+## The watcher's card: the parry's, on the Spell button, put away by a catch and not by a press.
+func _parry() -> void:
+	print("the parry card")
+	var card: ControlHint = _card(ControlHint.PARRY)
+	check(card != null and ControlHint.actions(ControlHint.PARRY) == [&"Spell"], "the watcher's card is the parry's, on the Spell button")
+	if card == null:
+		return
+	var guard: Parry = player.get_node("Parry") as Parry
+	player.set_physics_process(false)
+	player.global_position = card.global_position
+	still()
+	check(await until(func() -> bool: return card.showing() and card.up_for >= ControlHint.SEEN), "up as they come near")
+	await settle(4)
+	_press(&"Spell", true)
+	await physics_frame
+	_press(&"Spell", false)
+	await settle(10)
+	check(card.showing() and not ControlHint.learned.has(ControlHint.PARRY), "a press alone does not put it away")
+	# A catch, as a shot turned back makes (parry_test and the watcher's own tests make real ones).
+	guard.parried_at = guard.clock
+	await settle(4)
+	check(ControlHint.learned.has(ControlHint.PARRY) and not card.showing(), "a catch does")
+	player.set_physics_process(true)
+
+
+## The bed of thorns past the watcher: too wide for a jump and a dash, crossed by bouncing off its
+## thorns, catching them underfoot with the guard; the pogo's card goes once they have.
+func _pogo() -> void:
+	print("the pogo")
+	var start: int = Tutorial.MAP[11].find(POGO_BED)
+	check(start > 0, "a bed of %d thorns" % POGO_BED.length())
+	if start <= 0:
+		return
+	var from: Vector2i = Vector2i(start - 3, 10)
+	var past: int = start + POGO_BED.length()
+	var card: ControlHint = _card(ControlHint.POGO)
+	check(card != null and info.cell_at(card.global_position).x < start, "the pogo's card stands at its edge")
+	Health.invincible = true
+	check(not await _leap(from, past, true), "a jump and a dash fall short of it")
+	Health.invincible = false
+	player.health.health = player.health.max_health
+	await _go(from)
+	player.global_position = card.global_position
+	check(await until(func() -> bool: return card.showing() and card.up_for >= ControlHint.SEEN), "its card is up at its edge")
+	await settle(4)
+	await _go(from)
+	var guard: Parry = player.get_node("Parry") as Parry
+	var bounced_from: float = guard.pogo_at
+	var stand: float = player.global_position.y
+	var edge: float = info.cell_position(from + Vector2i(2, 0)).x + JUMP_AT
+	var jumped: bool = false
+	var left: bool = false
+	var dashed: bool = false
+	var guarding: int = 0
+	var over: bool = false
+	Input.action_press("Right")
+	for i: int in range(600):
+		if not jumped and player.global_position.x >= edge:
+			_press(&"Jump", true)
+			jumped = true
+		elif jumped and not player.is_on_floor():
+			# A dash at the top of each arc (a catch gives it back), the guard up just over the thorns.
+			if not dashed and player.velocity.y > -150.0 and player.velocity.y < 0.0:
+				_press(&"Dash", true)
+				dashed = true
+			if guarding == 0 and player.velocity.y > 0.0 and player.global_position.y > stand + GUARD_AT:
+				_press(&"Spell", true)
+				guarding = 1
+		await physics_frame
+		if guarding > 0:
+			guarding += 1
+			if guarding == 4:
+				_press(&"Spell", false)
+			if player.velocity.y < 0.0 and guarding > 4:
+				# Bounced: the next arc gets its own dash and guard.
+				guarding = 0
+				dashed = false
+				_press(&"Dash", false)
+		left = left or (jumped and not player.is_on_floor())
+		if left and player.is_on_floor() and player.velocity.y >= 0.0:
+			var cell: Vector2i = info.cell_at(player.global_position)
+			over = cell.x >= past and cell.y == from.y
+			break
+	_release()
+	_press(&"Spell", false)
+	await frames(10)
+	check(guard.pogo_at > bounced_from, "the guard catches the thorns underfoot and bounces them up")
+	check(over, "bouncing off its thorns, they cross it")
+	check(ControlHint.learned.has(ControlHint.POGO), "and the pogo's card goes")
 
 
 func _utility() -> void:

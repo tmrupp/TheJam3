@@ -20,7 +20,8 @@ extends RefCounted
 ## from which the most of the inside's footholds are both got to and got back from hop by hop
 ## (_reach_in, a rough reach over the inside alone), then the shortest passage. Where it fits
 ## nowhere whole it is cut back, from the right and from the top (CROPS, CROP_HEIGHTS), keeping the
-## trials still whole in it. What the collapse cut off from the doorways is filled with rock, and so
+## trials still whole in it; a site whose doorways open onto less than REACHED_MIN of the inside is
+## passed over. What the collapse cut off from the doorways is filled with rock, and so
 ## is any pit inside the wizard could drop into but not hop out of (Reach), until there are none,
 ## but for a pit whose filling would cut air off from the doorways, which is left (and not counted
 ## among the floors), and then whatever filling the pits cut off. A trial counts as crossed: a cell
@@ -269,6 +270,10 @@ static func build(w: LevelGen) -> void:
 				shifted[v - Vector2i(0, top)] = true
 			cut = _widened(_joined(cut, shifted), shifted)
 			var site: Dictionary = _site(w, cut)
+			# A site whose doorways open onto only a corner of the inside would see the rest filled
+			# with rock, its trials too (_raise): the next size is tried instead.
+			if not site.is_empty() and _reached(w, cut, site) < REACHED_MIN:
+				site = {}
 			if not site.is_empty():
 				var kept: Array = []
 				for t: Dictionary in trials:
@@ -280,6 +285,40 @@ static func build(w: LevelGen) -> void:
 				break
 	if not w.crypts.is_empty():
 		w.connect_caves()
+
+
+## How much of a crypt's inside (its open cells, as a share) must lie open to its doorways where
+## `_site` would raise it; a site reaching less is passed over (see build).
+const REACHED_MIN: float = 0.5
+
+
+## The share of the open cells of `inside` that the doorways of `site` (see _site) reach through open
+## air, as _raise floods it.
+static func _reached(w: LevelGen, inside: Array, site: Dictionary) -> float:
+	var box: Rect2i = site["box"]
+	var size: Vector2i = Vector2i(inside.size(), (inside[0] as Array).size())
+	var seen: Dictionary = {}
+	var queue: Array[Vector2i] = []
+	for door: Array in site["doors"]:
+		var at: Vector2i = door[0]
+		var cell: Vector2i = Vector2i(0 if at.x == box.position.x else size.x - 1, at.y - box.position.y - 1)
+		if cell.y >= 0 and cell.y < size.y and _open_in(inside, cell.x, cell.y) and not seen.has(cell):
+			seen[cell] = true
+			queue.append(cell)
+	var head: int = 0
+	while head < queue.size():
+		var v: Vector2i = queue[head]
+		head += 1
+		for d: Vector2i in w.neighbor_offsets:
+			var n: Vector2i = v + d
+			if n.x >= 0 and n.y >= 0 and n.x < size.x and n.y < size.y and not seen.has(n) and _open_in(inside, n.x, n.y):
+				seen[n] = true
+				queue.append(n)
+	var open: int = 0
+	for x: int in range(size.x):
+		for y: int in range(size.y):
+			open += 1 if _open_in(inside, x, y) else 0
+	return float(seen.size()) / float(maxi(open, 1))
 
 
 ## Whether a crypt's inside (as collapsed) is open at cell (`x`, `y`) of it (thorns are open).
