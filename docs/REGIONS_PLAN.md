@@ -144,8 +144,8 @@ The tuning numbers are first guesses for playtest. They are Normal's: on a harde
 (`Difficulty`, §"Difficulty presets" in `DEEPER_PLAN.md`) each boss runs its own clock faster
 (`Difficulty.haste`, 1.15 on Hard, the default, and 1.3 on Brutal), so its warnings, bites, rests
 and crawling all come that much sooner: the worm's whole step, the golem's whole step (its slam,
-hurl, leap and recall), the bramble's vines' cadence, its bulbs' seeds, its bloom and sap, and its
-heart's barbs. A stun's length is not changed.
+hurl, leap and recall), the bramble's vines' cadence, its bulbs' seeds and its sap. A stun's length
+is not changed, nor how long the bramble's heart stays shut after a wound.
 
 ### The bramble (garden, up gate, in the level)
 
@@ -176,16 +176,16 @@ shaft.
 - **Bulbs.** 3 to 5 bulbs (`BULBS`) up the shaft, one in each of as many bands down the walls,
   from wall to wall. Each takes 3 hits (`Bramble.BULB_HP`) from hex bolts or a dash, even ones that
   only stun at their tier (`Wound.least`), and is never stunned. Each vine feeds from the bulb
-  nearest it, and a burst bulb withers its vines for good. Its health shows in its crown: each
+  nearest it, and a burst bulb withers its vines (until the last stand). Its health shows in its crown: each
   burst draws its canes back a little from the heart hidden in them (see the crown).
 - **The bloom.** Only one bulb is in bloom at a time (`Bramble.bloom`), the lowest first: the rest
   are shut in two sepals of bark, and a bolt, dash or slash glances off them (pale, no wound). Only
   a bulb's own seed parried back gets through its bark (`HexBolt.parried_blow`), so the parry wounds
-  any bulb. A bloom lasts 6 s (`BLOOM_TIME`), counted only while the wizard is in the shaft; then,
-  or when it bursts, its sap runs up the roots, under the head and down to the living bulb
-  furthest from the wizard (a drop of accent running along the way, 900 px/s, `SAP_SPEED`), which
-  blooms when it arrives. So the fight keeps the wizard moving up and down the shaft, or finding a
-  line of sight across it.
+  any bulb. There is no timer: each wound to the bloom, or its bursting, sends its sap on to the
+  living bulb nearest it along the roots (`Bramble.wounded`, `_flow`): along its wall, or up the
+  roots, under the head and down the other wall (a drop of accent running along the way, 1100
+  px/s, at least 0.5 s, `SAP_SPEED`, `SAP_MIN`), and that one blooms when it arrives; with one bulb
+  left, the sap runs back into it. So every hit moves the wizard on along the shaft.
 - **Fury.** Each burst bulb's sap goes to the rest (`Bramble.fury`, a point a bulb): the bulbs left
   ready their seeds 30% sooner a point (`BrambleBulb.SEED_FURY`) and from the second point spit two
   at once, 0.2 rad apart (`TWIN_FURY`, `TWIN_SPREAD`); the vines left rest 60% faster a point
@@ -215,14 +215,18 @@ shaft.
   is gone. Its roots down both walls past the bulbs are canes like the crown's (42 px thick near
   the head, 28 px at the lowest bulb, thorned, with thorned sprouts into the shaft), grown from the
   start and printed under the bulbs; their thorns do not hurt, so they are printed in bark, not pink.
-- **The heart.** When the last bulb bursts every vine withers and the crown draws right back from
-  round the heart (1.2 s, `BARE_TIME`), baring it (`BrambleHeart`, printed as a big bud wrapped in
-  sepals of bark), hanging out of the crown's underside beside the top ledge. It takes 4 hits
-  (`HEART_HP`) from anything, and the knot still walls off the head meanwhile. While the wizard is
-  in the shaft the crown drops a barb every 1.3 s (`BARB_EVERY`) down the wizard's column (held to
-  the knot's span), its tip poking out pink for 0.6 s first (`BARB_WARN`); a barb falls at 430
-  px/s and bursts on the first rock, and a parried barb flies back into the heart. When the heart
-  bursts the head of the shaft is open at once, and the bramble desiccates: a dry front runs out
+- **The heart.** When the last bulb bursts the crown draws right back from round the heart (1.2
+  s, `BARE_TIME`), baring it (`BrambleHeart`, printed as a big bud wrapped in sepals of bark),
+  hanging out of the crown's underside beside the top ledge. It takes 4 hits (`HEART_HP`) from
+  anything, and the knot still walls off the head meanwhile. Each wound shuts it: its outer sepals
+  close over it for 1.6 s (`BrambleHeart.SHUT_TIME`), and blows glance off them until they part.
+  **The last stand:** as the heart is bared, every burst bulb opens again, wild
+  (`BrambleBulb.rouse`, printed screened with pink), and spits a seed at the wizard in sight every
+  3.4 s (`WILD_EVERY`, one at a time whatever the fury), but nothing wounds it (blows and parried
+  seeds glance off), and every withered vine grows back and lashes again on its cadence, starting
+  from its rest. There are no falling barbs. When the heart
+  bursts the head of the shaft is open at once, the wild bulbs are husks again and the vines
+  wither, and the bramble desiccates: a dry front runs out
   from the heart (1600 px/s, `BrambleTangle.DRY_SPEED`), and each cane, root and withered vine
   dries as it reaches it (0.55 s); once a cane out of the rock and all that grew off it is dry,
   0.25 s later it draws back into the rock it grew from (0.3 s plus its reach at 450 px/s; a
@@ -238,7 +242,7 @@ shaft.
   thorns hurt to touch; a parry against them only catches the hit and pushes off.
 - **Procedural.** All of it comes from the level's layout and seed; the bramble's own timing
   (its vines' phases, its bulbs' first swell) is hashed from the seed and cell, and the bloom
-  moves by where the wizard is, never by a draw.
+  moves by the wizard's blows and the roots' lengths, never by a draw.
 - A lantern death brings it back whole (its fury gone, the lowest bulb in bloom, its heart
   hidden, its crown asleep and grown the same way again), as the level reloads.
   `tests/bramble_test.gd` covers it, `tests/capture_bramble.gd` takes stills and

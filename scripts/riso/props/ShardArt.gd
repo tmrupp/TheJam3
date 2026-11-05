@@ -1,6 +1,6 @@
 extends RisoProp
-## A watcher's shot: a pink shard on paper, or a rebounding pellet of sun; or a bramble's seed, or
-## a barb its knot drops; or a crossbow's arrow.
+## A watcher's shot: a pink shard on paper, or a rebounding pellet of sun; or a bramble's seed;
+## or a crossbow's arrow.
 
 
 ## A watcher's shard (px): how big its four-pointed spark is, and how long and how wide its trail.
@@ -10,10 +10,6 @@ const SHARD_WIDE: float = 3.5
 ## A crossbow's arrow (px): how far ahead of where it is its tip is, and how long its trail.
 const ARROW_AHEAD: float = 12.0
 const ARROW_TRAIL: float = 40.0
-## A bramble's barb (px): how long its thorn is, how wide at its foot, and how long its trail.
-const BARB_LONG: float = 46.0
-const BARB_WIDE: float = 9.0
-const BARB_TRAIL: float = 34.0
 
 ## The Bullet it dresses.
 var shot: Bullet:
@@ -45,17 +41,6 @@ func _draw_art() -> void:
 		ink.ink(RisoPrint.PINK, 1.0, [spin * RisoShapes.almond(Vector2.ZERO, 21.0, 12.0, 12)])
 		ink.ink(RisoPrint.PINK, 1.0, [spin * RisoShapes.tri(Vector2(17, -6), Vector2(32, 0), Vector2(17, 6))])
 		ink.ink(RisoPrint.NIGHT, 0.7, [spin * RisoShapes.ellipse(Vector2(-1, 0), 7.0, 4.0, 10)], false)
-		return
-	if shot.barb:
-		# A bramble's barb: a long pink thorn falling point first, on paper, a bark-dark foot and a
-		# faint trail behind.
-		var thorn: PackedVector2Array = xf * RisoShapes.tri(Vector2(-BARB_LONG * 0.55, -BARB_WIDE), Vector2(BARB_LONG * 0.45, 0), Vector2(-BARB_LONG * 0.55, BARB_WIDE))
-		var foot: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(-BARB_LONG * 0.55, 0), 5.0, BARB_WIDE, 10)
-		var trail: PackedVector2Array = xf * RisoShapes.rrect(-BARB_LONG * 0.55 - BARB_TRAIL, -2.0, BARB_TRAIL, 4.0, 2.0)
-		ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], [thorn])
-		ink.ink(RisoPrint.PINK, 0.3, [trail])
-		ink.ink(RisoPrint.PINK, 1.0, [thorn])
-		ink.ink(RisoPrint.NIGHT, 0.6, [foot], false)
 		return
 	if shot.arrow:
 		# A crossbow's arrow: the bolt that lay on its string, as big (CrossbowArt.bolt_shapes),

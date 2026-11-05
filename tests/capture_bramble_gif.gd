@@ -2,8 +2,8 @@ extends TestKit
 ## Frames for a GIF of the bramble's fight at the head of its shaft (Bramble), played in real
 ## physics with the camera on the head: its crown asleep, then growing out of the rock as it wakes,
 ## quivering from blows, drawing back a little from its hidden heart as each bulb bursts, then all
-## the way to bare the bud as the last does, barbs dropping at the wizard on the top ledge, four
-## slashes into the bud, and its death: every cane drying from the bud out and drawing back into the
+## the way to bare the bud as the last does, the wizard on the top ledge, four slashes into the bud
+## (each shutting it a while), and its death: every cane drying from the bud out and drawing back into the
 ## rock, then the relic on the landing. Frames go to the stills folder's bramble_gif/ as frame_NNN.png, a frame every EVERY
 ## physics steps (played at 30 frames a second); turn them into a GIF with ffmpeg.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_bramble_gif.gd
@@ -23,7 +23,7 @@ const WAKE: int = 12
 const BLOWS: Array[int] = [62, 80]
 const FIRST_BULB: int = 105
 const BULB_GAP: int = 32
-const SLASHES: Array[int] = [70, 95, 120, 145]
+const SLASHES: Array[int] = [70, 130, 190, 250]
 const TAIL: int = 40
 
 var camera: Camera2D
@@ -101,7 +101,7 @@ func run() -> void:
 
 
 ## A slash at the bud from the top ledge; if it does not reach, the blow lands anyway, so the
-## GIF shows all four.
+## GIF shows all four (they are far enough apart for it to have opened again).
 func _slash(heart: BrambleHeart) -> void:
 	var hp: int = heart.wound.hp
 	var slash: Slash = player.get_node("Slash") as Slash

@@ -6,8 +6,9 @@ extends Node2D
 ## back. Only while it is out does it hurt (its HitBox, as long as it is). A parry catches its
 ## lash: it recoils into the rock and stays there while stunned (its Stunner, a parry's stun), then
 ## rests before it grows again, opening the wall beside it for a while. When the bulb it feeds
-## from bursts, it withers for good (wither); the vines left rest the shorter for the bramble's
-## fury (Bramble.fury), as the burst bulb's sap reaches them.
+## from bursts, it withers (wither), until the bramble's heart is bared: then it grows back for its
+## last stand (rouse), resting first. The vines left rest the shorter for the bramble's fury
+## (Bramble.fury), as the burst bulb's sap reaches them.
 
 const STUNNER: PackedScene = preload("res://prefabs/stunner.tscn")
 const HIT_BOX: PackedScene = preload("res://prefabs/hit_box.tscn")
@@ -111,9 +112,15 @@ func hurts() -> bool:
 	return not withered and not recoiled() and length >= TOUCH_MIN
 
 
-## Its bulb has burst (or the bramble has died): it shrinks into the rock for good.
+## Its bulb has burst (or the bramble has died): it shrinks into the rock.
 func wither() -> void:
 	withered = true
+
+
+## The bramble's heart is bared: it grows back, starting its cadence part way through its rest.
+func rouse() -> void:
+	withered = false
+	t = RisoDecor.h(bramble.level_seed, cell, PHASE_DEAL + 1) * REST
 
 
 func _physics_process(delta: float) -> void:

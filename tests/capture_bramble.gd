@@ -3,8 +3,9 @@ extends TestKit
 ## no crown yet), its crown growing out of the rock and grown, quivering from a blow, a vine lashing
 ## out, a vine's shoots warning, a bulb in bloom and one shut in its bark, a seed in flight, the sap
 ## running on to the next bulb, a burst bulb and its withered vine, the crown drawn back a little to
-## show the bud, the heart bared, a barb falling from it, its death (its canes drying from the heart
-## out, drawing back into the rock, then the roots), and the relic left on the landing. Written
+## show the bud, the heart bared, a bulb opened again, wild, for its last stand, the heart shut after
+## a wound, its death (its canes drying from the heart out, drawing back into the rock, then the
+## roots), and the relic left on the landing. Written
 ## whole (bramble_*.png) and as a sheet of close-ups (bramble.png).
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_bramble.gd
 
@@ -71,8 +72,8 @@ func run() -> void:
 		await until(func() -> bool: return not is_instance_valid(seed) or seed.global_position.distance_to(bulb.mouth()) > 90.0)
 	shots.append(await _shot(camera, bulb.global_position + bulb.way * 150.0))
 	save_still("bramble_seed.png")
-	# Its time up, the bloom's sap runs on to the next bulb.
-	bramble.bloom_left = 0.0
+	# Wounded, the bloom's sap runs on to the next bulb.
+	bulb.wound.hit(1, -bulb.way)
 	await until(func() -> bool: return bramble.sap_to != null and bramble.sap_u > 0.3)
 	shots.append(await _shot(camera, bramble.sap_at()))
 	save_still("bramble_sap.png")
@@ -89,25 +90,34 @@ func run() -> void:
 	await frames(10)
 	shots.append(await _shot(camera, head))
 	save_still("bramble_peek.png")
-	# The last bulb: the knot splits and bares its heart, which drops barbs at the wizard.
+	# The last bulb: the crown draws back to bare its heart, for its last stand.
 	for b: BrambleBulb in bramble.bulbs:
 		if b.alive:
 			bramble.bloom_on(b)
 			b.wound.hit(Bramble.BULB_HP, Vector2.RIGHT)
 	var ledge: Vector2i = info.world.shaft["ledges"][0]
 	player.global_position = info.cell_position(ledge + Vector2i.UP)
-	await until(func() -> bool: return bramble.bare >= 1.0 and bramble.heart.warning() > 0.6)
+	await until(func() -> bool: return bramble.bare >= 1.0)
+	await frames(20)
 	shots.append(await _shot(camera, head + Vector2(0, 40)))
 	save_still("bramble_heart.png")
 	var heart: BrambleHeart = bramble.heart
-	var dropped: int = heart.dropped
-	# Lower in the shaft, so the barb is seen falling toward them.
-	player.global_position = info.cell_position(ledge + Vector2i(0, 3))
-	await until(func() -> bool: return heart.dropped > dropped)
-	await frames(10)
-	shots.append(await _shot(camera, head + Vector2(0, 80)))
-	save_still("bramble_barb.png")
+	# A bulb opened again, wild, spitting at the wizard.
+	var wild: BrambleBulb = bramble.bulbs[0]
+	player.global_position = wild.global_position + wild.way * bramble.cell * 2.2 + Vector2(0, 80)
+	var wild_spat: int = wild.spat
+	await until(func() -> bool: return wild.spat > wild_spat)
+	await frames(12)
+	shots.append(await _shot(camera, wild.global_position + wild.way * 150.0))
+	save_still("bramble_wild.png")
+	# The heart wounded, its sepals shut over it.
+	player.global_position = info.cell_position(ledge + Vector2i.UP)
+	heart.wound.hit(1, Vector2.UP)
+	await frames(20)
+	shots.append(await _shot(camera, head + Vector2(0, 40)))
+	save_still("bramble_closed.png")
 	player.global_position = Vector2(-9000, -9000)
+	await until(func() -> bool: return heart.open())
 	# The heart burst: its canes dry from the heart out, then draw back into the rock, the crown's
 	# first, then the roots down the walls.
 	heart.wound.hit(heart.wound.hp, Vector2.UP)

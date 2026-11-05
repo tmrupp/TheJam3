@@ -3,68 +3,38 @@ extends BrambleBulb
 ## The bramble's heart (Bramble): a bud hidden in its crown, bared when its last bulb bursts, the
 ## crown's canes drawing back from round it (Bramble.bare) as it drops down out of them over the head
 ## of the shaft, printed as a big bud wrapped in sepals of bark (Bramble._draw_bud), struck at its
-## middle. It
-## is the bramble's last weak point: always open, wounded as a bulb in bloom is (BrambleWound), by
-## any bolt, dash or slash from below, and by a barb parried back into it. While the wizard is in
-## the shaft the knot drops a barb down it every BARB_EVERY seconds, at the wizard's column (held to
-## the knot's span), its tip poking out of the knot pink for BARB_WARN seconds before it falls: a
-## shot (Bullet, its `barb` look) that bursts on the first rock it meets. Burst, the head of the
-## shaft opens and the bramble dies, its vines drying and drawing back into the rock (Bramble.burst).
+## middle. It is the bramble's last weak point, wounded as a bulb in bloom is (BrambleWound), by any
+## bolt, dash or slash from below; but each time it is wounded its sepals close over it for SHUT_TIME
+## seconds, and blows glance off them until they part again. While it is bared the bramble makes
+## its last stand (Bramble._bare_heart): every burst bulb opens again and spits seeds, and every vine
+## lashes again. Burst, the head of the shaft opens and the bramble dies, its vines drying and
+## drawing back into the rock (Bramble.burst).
 
-## How often a barb drops (seconds), how long its tip warns first, how fast it falls (px/s), how far
-## in from the knot's ends it may drop (px), and how far under the knot's underside it starts.
-const BARB_EVERY: float = 1.3
-const BARB_WARN: float = 0.6
-const BARB_SPEED: float = 430.0
-const BARB_EDGE: float = 22.0
-const BARB_FROM: float = 14.0
+## How long it stays shut after a wound (seconds), and how fast its sepals close over it and part
+## again (their full way a second, times).
+const SHUT_TIME: float = 1.6
+const SHUT_RATE: float = 6.0
 
-## Seconds into the current barb's round, and the x it will drop at (NAN until its warning).
-var barb_t: float = 0.0
-var barb_x: float = NAN
-## How many barbs it has dropped (for the tests).
-var dropped: int = 0
+## Seconds left before it opens again after a wound (0 while it is open).
+var shut_left: float = 0.0
+## How far its sepals are closed over it (0 open, 1 shut), as printed.
+var closed: float = 0.0
 
 
-## It is always open, while it lives.
+## It is open while it lives, but for a while after each wound.
 func open() -> bool:
-	return alive
+	return alive and shut_left <= 0.0
+
+
+## It has been wounded: it flashes, the bramble quivers from it, and it shuts for a while.
+func struck() -> void:
+	super()
+	shut_left = SHUT_TIME
 
 
 func _physics_process(delta: float) -> void:
 	if bramble == null:
 		return
 	opened = bramble.bare
-	if not alive or bramble.dying or bramble.map_info == null or bramble.bare < 1.0:
-		return
-	var player: Player = bramble.map_info.player
-	if player == null or not is_instance_valid(player) or not bramble.in_shaft(player.global_position):
-		barb_t = 0.0
-		barb_x = NAN
-		return
-	# A harder preset drops them sooner (Difficulty.haste).
-	barb_t += delta * Difficulty.haste()
-	if is_nan(barb_x) and barb_t >= BARB_EVERY - BARB_WARN:
-		barb_x = clampf(player.global_position.x, bramble.knot_rect.position.x + BARB_EDGE, bramble.knot_rect.end.x - BARB_EDGE)
-	if barb_t >= BARB_EVERY:
-		drop(barb_x)
-		barb_t = 0.0
-		barb_x = NAN
-
-
-## How far through the next barb's warning (0 to 1), or -1 while none is coming.
-func warning() -> float:
-	if is_nan(barb_x):
-		return -1.0
-	return clampf((barb_t - (BARB_EVERY - BARB_WARN)) / BARB_WARN, 0.0, 1.0)
-
-
-## Drop a barb from the knot's underside at `x`.
-func drop(x: float) -> void:
-	var shot: Bullet = SEED.instantiate() as Bullet
-	shot.barb = true
-	bramble.map_info.map_elements.add_child(shot)
-	shot.global_position = Vector2(x, bramble.knot_rect.end.y + BARB_FROM)
-	shot.setup(Vector2.DOWN * BARB_SPEED, [bramble.knot], self)
-	dropped += 1
-	RisoFx.burst(&"impact", shot.global_position, Vector2.DOWN, [RisoPrint.PINK, RisoPrint.BLUE])
+	shut_left = maxf(0.0, shut_left - delta)
+	closed = move_toward(closed, 0.0 if open() or not alive else 1.0, delta * SHUT_RATE)
