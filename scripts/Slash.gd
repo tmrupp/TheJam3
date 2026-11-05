@@ -47,6 +47,11 @@ func cast_spell(empowered: bool = false) -> bool:
 	return cast(Vector2.ZERO, empowered)
 
 
+## A parry's catch gives the spell back at once, ready to cast (Parry, Abilities.refill).
+func refill() -> void:
+	wait = 0.0
+
+
 func readiness() -> float:
 	return 1.0 - clampf(wait / COOLDOWN, 0.0, 1.0)
 

@@ -523,7 +523,7 @@ func _physics_process(delta: float) -> void:
 	if is_drowsy() and _presses_spell():
 		visual_event.emit(&"silenced", global_position)
 	if Input.is_action_just_pressed(Abilities.SPELL_ACTION):
-		# Every damage spell parries: the guard goes up (on its own cooldown, Parry) on the press.
+		# Every damage spell parries: the guard goes up with the cast, when the spell is ready (Parry).
 		if Abilities.spell(self) != &"" and not is_drowsy():
 			parry.emit()
 		if empower != null:

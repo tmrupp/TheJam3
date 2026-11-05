@@ -43,6 +43,7 @@ func cast_spell(empowered: bool = false) -> bool:
 	return bolt != null or not empowered
 
 
+## Every charge back at once (a parry's catch, Parry, Abilities.refill; lighting a lantern).
 func refill() -> void:
 	charges = charges_max
 	recharge = 0.0

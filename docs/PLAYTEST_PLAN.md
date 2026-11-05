@@ -2,7 +2,7 @@
 
 A plan for the owner's playtest notes of November 2026, on the garden demo and its tutorial. Each
 item says what was seen, what the code does now (where it was found), what to do, and what is still
-open. The order of work is at the end. Step 1 of it is built (marked *Done*); the rest is not yet.
+open. The order of work is at the end. Steps 1 and 2 of it are built (marked *Done*); the rest is not yet.
 
 ## 1. The tutorial
 
@@ -67,9 +67,13 @@ is. A catch gives the spell back at once (as it gives the guard back now). Remov
 and its timer; the spell orb's readiness is the spell's alone. Rework `parry_landing_test`,
 `switches_test` (its guard checks) and `docs/DEEPER_PLAN.md`'s Parry row.
 
-*Open:* does every damage spell's cooldown suit a guard? Hex and nova are slower than slash: a
-long-cooldown spell would make parrying rare. Perhaps the guard comes back with a catch whatever
-the spell's own cooldown.
+*Decided:* a catch gives the spell straight back, whatever its cooldown (owner, November 2026), so
+a slow spell (hex, nova) still parries again after a catch.
+
+*Done:* the guard goes up with the cast, only when the spell is ready (`Parry.execute`,
+`Abilities.readiness`); `Parry.COOLDOWN` is gone; a catch refills the spell (`Abilities.refill`,
+each damage spell's `refill`, checked by `unit_test`); `switches_test`, `damage_spells_test`,
+`parry_landing_test` and `ward_test` reworked.
 
 ### 2b. Parry and bounce while untouchable
 
@@ -82,10 +86,9 @@ reads not ready). A guard that is up catches every hit handed to the wizard, unt
 `hurt_guarded` alone. Whether the grace on arriving (`Player.grace`) also gets in the way is to be
 checked in play.
 
-*To do:* let the guard go up whenever the spell can be cast, whatever keeps the wizard
-untouchable; a catch then does all a catch does (the bounce, the strike, the reflected shot). Drop
-`hurt_guarded`, and check thorns still touch an untouchable wizard so a guard has something to
-catch (`Spikes`, `Damager`). Test: after a hit, a guard raised over thorns bounces.
+*Done:* `hurt_guarded` is gone; the guard rises whenever the spell is ready, untouchable or not,
+and thorns still reach a guard while the wizard is untouchable (`switches_test`: after a hit, a
+guard raised over thorns bounces).
 
 ### 2c. Bouncing off thorns feels off; no attack right after
 
@@ -96,8 +99,9 @@ nothing.
 own cooldown (`Slash.COOLDOWN`) just as the wizard bounces; the catch also starts a hit-stop
 (`Parry.HIT_STOP`) and 0.8 s untouchable (`SAFE`).
 
-*To do:* mostly follows from 2a and 2b: a catch gives the spell back, so the next press after a
-bounce casts again. Then play it and tune the bounce (`Parry.POGO`), the hit-stop and `SAFE`.
+*Done in part:* with 2a and 2b a catch gives the spell back, so the next press after a bounce
+casts (and guards) again. *To do:* play it, and tune the bounce (`Parry.POGO`), the hit-stop and
+`SAFE` if it still feels off.
 
 ### 2d. The dash comes back faster
 

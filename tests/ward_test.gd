@@ -69,7 +69,7 @@ func run() -> void:
 	var hp_before: int = wound.hp
 	player.end_invulnerable()
 	var guard: Parry = player.get_node("Parry") as Parry
-	await until(func() -> bool: return not guard.cooldown.acted, 3000)
+	Abilities.refill(player)
 	player.parry.emit()
 	player.hurt(-1, Vector2.RIGHT * 300.0, guarded.get_node("HitBox/Damager"))
 	Engine.time_scale = 1.0

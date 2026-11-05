@@ -143,10 +143,8 @@ func run() -> void:
 	player.global_position = info.cell_position(at) + Vector2(0, 16 - 31)
 	check(slash.wait > 0.0, "the Spell button slashes")
 	check(parry.guard_left() >= 0.0, "and raises the parry guard with it")
-	# The guard closed and back (its cooldown runs with the wizard's physics, held here), the slash
-	# still recharging.
+	# The guard closed, the slash still recharging: the guard has no cooldown of its own, so none rises.
 	parry.stop_parry()
-	parry.cooldown.refresh()
 	slash.wait = Slash.COOLDOWN
 	Input.action_press(Abilities.SPELL_ACTION)
 	player.set_physics_process(true)
@@ -154,7 +152,7 @@ func run() -> void:
 	Input.action_release(Abilities.SPELL_ACTION)
 	player.set_physics_process(false)
 	player.global_position = info.cell_position(at) + Vector2(0, 16 - 31)
-	check(parry.guard_left() >= 0.0, "the guard rises even while the spell is not ready (its own cooldown)")
+	check(parry.guard_left() < 0.0, "while the spell is not ready, no guard rises either (one cooldown, the spell's)")
 
 	print("nova")
 	Abilities.grant(player, &"nova")

@@ -5,7 +5,8 @@ extends TestKit
 ## big jump (never at depth 0, about
 ## PLUNGE_CHANCE % of levels deeper; drops PLUNGE_DEPTH levels for its price) and the parry that
 ## every damage spell raises (wounds and stuns what it catches, reflects shots, refunds the dash;
-## none with no damage spell held).
+## one cooldown, the spell's, and a catch gives the spell straight back; it rises and catches while
+## the wizard is untouchable too; none with no damage spell held).
 ## godot --headless --path . --script res://tests/switches_test.gd
 
 
@@ -197,7 +198,6 @@ func run() -> void:
 	var bolts_after: int = info.map_elements.get_children().filter(func(n: Node) -> bool: return n.get_script() == preload("res://scripts/HexBolt.gd")).size()
 	check(shot.is_queued_for_deletion() and bolts_after == bolts_before + 1, "a parried shot is reflected as a bolt at its shooter")
 	player.end_invulnerable()
-	await within(func() -> bool: return not guard.cooldown.acted, Parry.COOLDOWN + 1.0)
 	player.parry.emit()
 	await until(func() -> bool: return guard.guard_left() < 0.0, 2000)
 	check(not guard.glory() and guard.missed_at > guard.parried_at, "a guard that catches nothing closes as a miss")
@@ -205,24 +205,34 @@ func run() -> void:
 	var thorns: Node = placed("spikes.tscn")[0] if not placed("spikes.tscn").is_empty() else null
 	if thorns != null:
 		player.end_invulnerable()
-		await within(func() -> bool: return not guard.cooldown.acted, Parry.COOLDOWN + 1.0)
 		var hp: int = player.health.health
 		player.parry.emit()
 		player.hurt(-1, Vector2.UP * 400.0, thorns.get_node("Damager"))
 		check(player.health.health == hp and is_equal_approx(player.velocity.y, Parry.POGO), "a parry on thorns underfoot bounces the wizard up, unhurt")
-	# No guard while untouchable from a hit taken; a parry's own untouchable moment still allows one.
+	# One cooldown, the spell's: no guard while it recharges; a catch gives the spell straight back.
+	var slash: Slash = player.get_node("Slash") as Slash
 	player.end_invulnerable()
-	await within(func() -> bool: return not guard.cooldown.acted, Parry.COOLDOWN + 1.0)
-	player.hurt(-1, Vector2.RIGHT * 100.0, wisp.get_node("HitBox/Damager"))
-	check(player.invulnerable.is_acting() and guard.hurt_guarded() and guard.readiness() == 0.0, "hurt, the wizard is untouchable and the parry reads not ready (untouchable %s, gold %s, guard left %.2f, readiness %.2f)" % [player.invulnerable.is_acting(), guard.glory(), guard.guard_left(), guard.readiness()])
+	slash.wait = Slash.COOLDOWN
 	player.parry.emit()
-	check(guard.guard_left() < 0.0 and not guard.cooldown.acted, "and no guard can be raised, and the cooldown is not spent")
-	player.end_invulnerable()
+	check(guard.guard_left() < 0.0, "while the spell recharges, no guard rises")
+	slash.wait = 0.0
 	player.parry.emit()
-	check(guard.guard_left() > 0.0, "once that ends, the guard rises again")
+	slash.wait = Slash.COOLDOWN
 	player.hurt(-1, Vector2.RIGHT * 100.0, wisp.get_node("HitBox/Damager"))
 	Engine.time_scale = 1.0
-	check(guard.glory() and not guard.hurt_guarded() and guard.readiness() == 1.0, "after a catch, its own untouchable moment still allows the next guard")
+	check(guard.glory() and is_zero_approx(slash.wait), "a catch gives the spell straight back, whatever its cooldown")
+	# Untouchable from a hit taken, the guard still rises and catches: a bounce off thorns.
+	player.end_invulnerable()
+	player.hurt(-1, Vector2.RIGHT * 100.0, wisp.get_node("HitBox/Damager"))
+	check(player.invulnerable.is_acting() and not guard.glory(), "hurt, the wizard is untouchable")
+	player.parry.emit()
+	check(guard.guard_left() > 0.0, "and the guard rises all the same")
+	if thorns != null:
+		player.velocity = Vector2.ZERO
+		player.hurt(-1, Vector2.UP * 400.0, thorns.get_node("Damager"))
+		Engine.time_scale = 1.0
+		check(is_equal_approx(player.velocity.y, Parry.POGO), "and catches thorns underfoot, bouncing the wizard up")
+	player.end_invulnerable()
 	player.parry.emit()
 	# Landing on an enemy with the guard up: caught, but no bounce (a slash down is what bounces,
 	# parry_landing_test).
@@ -235,11 +245,11 @@ func run() -> void:
 	check(player.knock == Vector2.ZERO and not player.knock_back.is_acting(), "with control kept")
 	player.end_invulnerable()
 	# Every damage spell parries; with none held there is nothing to parry with.
-	await until(func() -> bool: return guard.guard_left() < 0.0 and not guard.cooldown.acted, 3000)
+	await until(func() -> bool: return guard.guard_left() < 0.0, 3000)
 	Abilities.set_tier(player, &"hex", 1)
 	player.parry.emit()
 	check(guard.guard_left() > 0.0, "hex raises the guard as slash does")
-	await until(func() -> bool: return guard.guard_left() < 0.0 and not guard.cooldown.acted, 3000)
+	await until(func() -> bool: return guard.guard_left() < 0.0, 3000)
 	Abilities.set_tier(player, &"hex", 0)
 	player.parry.emit()
 	check(guard.guard_left() < 0.0, "with no damage spell held, no guard rises")

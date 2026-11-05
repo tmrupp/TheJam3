@@ -660,6 +660,9 @@ func _ability_tables() -> void:
 		elif scene_nodes.has_node(String(entry["node"])):
 			script = scene_nodes.get_node(String(entry["node"])).get_script()
 		var spell_ok: bool = [&"cast_spell", &"readiness", &"running"].all(func(m: StringName) -> bool: return _defines(script, m)) if script != null else false
+		# A damage spell is given back by a parry's catch (refill, Abilities.refill).
+		if Abilities.slot_of(a) == &"damage":
+			spell_ok = spell_ok and _defines(script, &"refill")
 		var ok: bool = script != null and _defines(script, &"set_tier") and (not Abilities.is_spell(a) or spell_ok)
 		if not ok:
 			print("  %s: its node lacks set_tier, or (a spell) cast_spell, readiness or running" % a)
