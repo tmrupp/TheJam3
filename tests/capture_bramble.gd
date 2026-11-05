@@ -2,8 +2,8 @@ extends TestKit
 ## Stills of the bramble (Bramble) in its gate level: the head of its shaft (the knot beside the
 ## sealed way on), a vine lashing out, a vine's shoots warning, a bulb in bloom and one shut in its
 ## bark, a seed in flight, the sap running on to the next bulb, a burst bulb and its withered vine,
-## the heart bared in the split knot, a barb falling from it, the knot tearing open, and the relic
-## left on the landing. Written whole (bramble_*.png) and as a sheet of close-ups (bramble.png).
+## the heart bared in the split knot, a barb falling from it, its death (its vines drying, the
+## knot's drawing back into the rock, then the roots), and the relic left on the landing. Written whole (bramble_*.png) and as a sheet of close-ups (bramble.png).
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_bramble.gd
 
 const SIZE: int = 420
@@ -86,11 +86,19 @@ func run() -> void:
 	shots.append(await _shot(camera, head + Vector2(0, 80)))
 	save_still("bramble_barb.png")
 	player.global_position = Vector2(-9000, -9000)
-	# The heart burst: the knot tears open.
+	# The heart burst: its vines dry from the heart out, then draw back into the rock, the knot's
+	# first, then the roots down the walls.
 	heart.wound.hit(heart.wound.hp, Vector2.UP)
-	await until(func() -> bool: return not is_instance_valid(bramble) or bramble.open_u > 0.35)
+	await until(func() -> bool: return not is_instance_valid(bramble) or bramble.dying_t > 0.45)
+	shots.append(await _shot(camera, head))
+	save_still("bramble_dry.png")
+	await until(func() -> bool: return not is_instance_valid(bramble) or bramble.dying_t > 0.95)
 	shots.append(await _shot(camera, head))
 	save_still("bramble_open.png")
+	await until(func() -> bool: return not is_instance_valid(bramble) or bramble.dying_t > bramble.dying_end * 0.6)
+	if is_instance_valid(bramble):
+		shots.append(await _shot(camera, bramble.center(Vector2i(bramble.inside.get_center().x, bramble.inside.position.y + 6))))
+		save_still("bramble_roots.png")
 	if is_instance_valid(bramble):
 		await until(gone(bramble))
 	await frames(20)

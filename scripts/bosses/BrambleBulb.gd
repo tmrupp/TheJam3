@@ -116,7 +116,7 @@ func _physics_process(delta: float) -> void:
 	if bramble == null:
 		return
 	opened = move_toward(opened, 1.0 if open() else 0.0, delta * OPEN_RATE)
-	if not alive or bramble.heart != null or bramble.opening or bramble.map_info == null:
+	if not alive or bramble.heart != null or bramble.dying or bramble.map_info == null:
 		return
 	var player: Player = bramble.map_info.player
 	if player == null or not is_instance_valid(player) or not sees(player):

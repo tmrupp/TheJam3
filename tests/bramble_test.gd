@@ -180,7 +180,7 @@ func run() -> void:
 	await frames(10)
 	check(not other.alive and not other.is_in_group(&"hex_target") and bramble.bulbs_left() == bramble.bulbs.size() - 1, "burst, it is gone (%d bulbs left)" % bramble.bulbs_left())
 	check(fed.all(func(v: BrambleVine) -> bool: return v.withered and not v.hurts()) and bramble.vines.any(func(v: BrambleVine) -> bool: return not v.withered), "the %d vines it fed wither, the rest grow on" % fed.size())
-	check(not bramble.opening and not info.run.bosses.has(&"bramble"), "and the bramble lives while a bulb is left")
+	check(not bramble.dying and not info.run.bosses.has(&"bramble"), "and the bramble lives while a bulb is left")
 	var living: Array = bramble.bulbs.filter(func(b: BrambleBulb) -> bool: return b.alive)
 	var far: Callable = func(b: BrambleBulb) -> float: return b.global_position.distance_to(player.global_position)
 	var to: BrambleBulb = bramble.sap_to
@@ -198,6 +198,12 @@ func run() -> void:
 	check(moved and next != null and next != waited and living.all(func(b: BrambleBulb) -> bool: return far.call(b) <= far.call(next)), "with the wizard in it, the bloom moves on in time, to the bulb furthest from them")
 	player.global_position = Vector2(-9000, -9000)
 
+	print("its vines")
+	var knot_vines: Array[Bramble.Strand] = bramble.knot_back + bramble.knot_stems
+	check(knot_vines.all(func(s: Bramble.Strand) -> bool: return s.tear < s.length and bramble.reach(s) == s.length), "the knot's vines reach past its middle, weaving the two sides together: no seam")
+	check(not bramble.tendrils.is_empty() and not bramble.rootlets.is_empty() and bramble.tendrils.all(func(s: Bramble.Strand) -> bool: return s.parent in bramble.knot_stems), "tendrils curl off its stems (%d), rootlets off its roots (%d)" % [bramble.tendrils.size(), bramble.rootlets.size()])
+	var grown: PackedVector2Array = bramble.knot_stems[0].pts
+
 	print("a death heals it")
 	info.run.vulnerable = false
 	player.die()
@@ -207,6 +213,7 @@ func run() -> void:
 	check(bramble.bulbs_left() == bulbs.size() and bramble.bulbs.all(func(b: BrambleBulb) -> bool: return b.wound.hp == Bramble.BULB_HP) and not bramble.vines.any(func(v: BrambleVine) -> bool: return v.withered), "after a lantern death it is whole again")
 	lowest = LevelGen.best_of(bramble.bulbs, func(b: BrambleBulb) -> float: return -b.global_position.y) as BrambleBulb
 	check(bramble.fury == 0 and bramble.bloom == lowest and bramble.heart == null, "its fury gone, the lowest bulb in bloom again")
+	check(bramble.knot_stems[0].pts == grown, "its vines grow the same way every visit")
 
 	print("the heart")
 	player.health.max_health = 99
@@ -218,7 +225,9 @@ func run() -> void:
 	await frames(2)
 	var heart: BrambleHeart = bramble.heart
 	check(heart != null and heart.alive and heart.open() and heart.is_in_group(&"hex_target") and bramble.vines.all(func(v: BrambleVine) -> bool: return v.withered), "the last bulb burst, every vine withers and the knot splits to bare its heart")
-	check(not bramble.opening and not (bramble.knot.get_child(0) as CollisionShape2D).disabled, "the knot still walls off the head")
+	check(not bramble.dying and not (bramble.knot.get_child(0) as CollisionShape2D).disabled, "the knot still walls off the head")
+	var torn: Array[Bramble.Strand] = bramble.knot_back + bramble.knot_stems
+	check(torn.all(func(s: Bramble.Strand) -> bool: return is_equal_approx(bramble.reach(s), s.tear)), "split, its vines tear at the middle round the heart")
 	var top_ledge: Vector2i = shaft["ledges"][0]
 	player.global_position = info.cell_position(top_ledge + Vector2i.UP)
 	var dropped: bool = await within(func() -> bool: return heart.dropped > 0, Bramble.SPLIT_TIME + BrambleHeart.BARB_EVERY + 0.5)
@@ -240,10 +249,18 @@ func run() -> void:
 	print("slain")
 	heart.wound.hit(heart.wound.hp, Vector2.UP)
 	await frames(2)
-	check(bramble.opening, "the heart burst, the knot tears open")
+	check(bramble.dying, "the heart burst, the bramble dies")
 	await frames(3)
-	check((bramble.knot.get_child(0) as CollisionShape2D).disabled and bramble.knot_box.collision.disabled, "the head of the shaft is open")
-	var dead: bool = await until(gone(bramble), 5000)
+	check((bramble.knot.get_child(0) as CollisionShape2D).disabled and bramble.knot_box.collision.disabled, "the head of the shaft is open at once")
+	var strands: Array[Bramble.Strand] = bramble.all_strands()
+	var knot_first: Bramble.Strand = LevelGen.best_of(bramble.knot_back, func(s: Bramble.Strand) -> float: return s.dry_at) as Bramble.Strand
+	var root_dry: float = bramble.roots.reduce(func(a: float, s: Bramble.Strand) -> float: return minf(a, s.dry_at), INF)
+	check(bramble.curls.size() == bramble.vines.size() and bramble.roots.size() == 2 and not bramble.knot_back.is_empty() and not bramble.knot_stems.is_empty(), "every vine dies: the knot's %d, both roots, and %d withered vines' curls" % [bramble.knot_back.size() + bramble.knot_stems.size(), bramble.curls.size()])
+	check(knot_first.dry_at < root_dry and strands.all(func(s: Bramble.Strand) -> bool: return s.dry_at < s.back_at and s.back_at + s.back_time <= bramble.dying_end + 0.001), "a dry front from the heart reaches the knot before the roots, and each vine dries before it draws back")
+	var midway: bool = await within(func() -> bool: return not is_instance_valid(bramble) or bramble.withering(knot_first).y > 0.3, bramble.dying_end)
+	if is_instance_valid(bramble):
+		check(midway and bramble.withering(knot_first).x == 1.0 and bramble.reach(knot_first) < knot_first.length and not bramble.slain, "a knot vine, dried, draws back into the rock before the bramble is slain")
+	var dead: bool = await within(gone(bramble), bramble.dying_end + 1.0 if is_instance_valid(bramble) else 1.0)
 	await settle()
 	check(dead and info.run.bosses.has(&"bramble") and placed("bramble.tscn").is_empty(), "it is slain for the run")
 	var unlocks: Array[Node] = unlocks_lying()

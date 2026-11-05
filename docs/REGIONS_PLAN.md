@@ -190,14 +190,17 @@ points, accent) set in the walls of the shaft.
   (`BrambleVine.REST_FURY`; their warning and lash keep their time). The shaft empties as the bulbs
   burst, but what is left of it comes faster.
 - **The heart.** When the last bulb bursts every vine withers and the knot splits (0.8 s,
-  `SPLIT_TIME`) to bare its heart (`BrambleHeart`), hanging from the knot's underside over the
-  top ledge. It takes 4 hits (`HEART_HP`) from anything, and the knot still walls off the head
+  `SPLIT_TIME`) to bare its heart (`BrambleHeart`, printed as a big bud wrapped in sepals of
+  bark), hanging from the knot's underside beside the top ledge. It takes 4 hits (`HEART_HP`) from anything, and the knot still walls off the head
   meanwhile. While the wizard is in the shaft the knot drops a barb every 1.3 s (`BARB_EVERY`) down
   the wizard's column (held to the knot's span), its tip poking out pink for 0.6 s first
   (`BARB_WARN`); a barb falls at 430 px/s and bursts on the first rock, and a parried barb flies
-  back into the heart. When the heart bursts the knot tears open and shrivels away (1.4 s) and the
-  bramble dies; the seal on the way up lifts, and its relic waits on the landing beside the way
-  on.
+  back into the heart. When the heart bursts the head of the shaft is open at once, and the bramble
+  dies vine by vine: a dry front runs out from the heart (600 px/s, `DRY_SPEED`), and each vine of
+  the knot, each root and each withered vine's curl dries as it reaches it (0.45 s), then 0.5 s
+  after draws back into the rock it grows from (0.3 s plus its length at 450 px/s), the burst
+  husks pulled in with the roots. When the last is in it is slain; the seal on the way up lifts,
+  and its relic waits on the landing beside the way on.
 - **Parry.** A vine's lash can be parried: it recoils into the rock and stays there for the stun
   (`Parry.STUN`, 3 s), then rests before it grows again, opening the wall beside it. The bulbs spit
   seeds at the wizard in sight within 900 px (`BrambleBulb`, every 3 s); a parried seed flies back
@@ -815,7 +818,7 @@ Each phase ends with the full suite green and its own tests.
    its gate level, walled in, with ledges, a foot open to the caves, and the way on on a landing at
    its head; the knot walling off the head; vines lashing out on a cadence, a parried lash
    recoiling; bulbs spitting seeds a parry turns back into them, wounded by any bolt or dash, each
-   feeding the vines nearest it; the knot tearing open with the last. Tests: `bramble_test` (the
+   feeding the vines nearest it; its vines drying and drawing back into the rock with the last. Tests: `bramble_test` (the
    shaft's walls, foot, landing, knot and ledges, nothing else in it, the same every build and only
    in its gate levels, reached from the way back; in play the knot, the vines' cadence and sting, a
    parry recoiling one, seeds spat and parried back, bolts and dashes wounding bulbs, a burst bulb

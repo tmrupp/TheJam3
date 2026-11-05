@@ -1,13 +1,14 @@
 class_name BrambleHeart
 extends BrambleBulb
 ## The bramble's heart (Bramble): bared in the knot when its last bulb bursts, the knot splitting
-## open round it (Bramble.split), hanging from the knot's underside over the head of the shaft. It
+## open round it (Bramble.split), hanging from the knot's underside over the head of the shaft,
+## printed as a big bud wrapped in sepals of bark (Bramble._draw_bud), struck at its middle. It
 ## is the bramble's last weak point: always open, wounded as a bulb in bloom is (BrambleWound), by
 ## any bolt, dash or slash from below, and by a barb parried back into it. While the wizard is in
 ## the shaft the knot drops a barb down it every BARB_EVERY seconds, at the wizard's column (held to
 ## the knot's span), its tip poking out of the knot pink for BARB_WARN seconds before it falls: a
-## shot (Bullet, its `barb` look) that bursts on the first rock it meets. Burst, the knot tears
-## open and the bramble dies (Bramble.burst).
+## shot (Bullet, its `barb` look) that bursts on the first rock it meets. Burst, the head of the
+## shaft opens and the bramble dies, its vines drying and drawing back into the rock (Bramble.burst).
 
 ## How often a barb drops (seconds), how long its tip warns first, how fast it falls (px/s), how far
 ## in from the knot's ends it may drop (px), and how far under the knot's underside it starts.
@@ -33,7 +34,7 @@ func _physics_process(delta: float) -> void:
 	if bramble == null:
 		return
 	opened = bramble.split
-	if not alive or bramble.opening or bramble.map_info == null or bramble.split < 1.0:
+	if not alive or bramble.dying or bramble.map_info == null or bramble.split < 1.0:
 		return
 	var player: Player = bramble.map_info.player
 	if player == null or not is_instance_valid(player) or not bramble.in_shaft(player.global_position):
