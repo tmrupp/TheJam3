@@ -2,7 +2,7 @@
 
 A plan for the owner's playtest notes of November 2026, on the garden demo and its tutorial. Each
 item says what was seen, what the code does now (where it was found), what to do, and what is still
-open. The order of work is at the end. Steps 1 and 2 of it are built (marked *Done*); the rest is not yet.
+open. The order of work is at the end. Steps 1 to 3 of it are built (marked *Done*); the rest is not yet.
 
 ## 1. The tutorial
 
@@ -21,6 +21,12 @@ over `BUMPER`). It reads as "a shoulder", and which one is not clear at a glance
 (`RisoPad`): the trigger taller, thicker and standing clear of the bumper, the bumper flat against
 the body, so a lit trigger cannot be read as a bumper. A lit trigger's side arrow (`RisoPad.POINT`)
 thicker too, so it reads at the prompt's size. Capture the dash card on a pad and look at it zoomed in.
+
+*Done:* a trigger is a round-topped tab (`RisoShapes.arch`, `RisoPad.TRIGGER`) standing clear of
+its bumper (`TRIGGER_GAP`), the bumper a thin strip along the body's top with a hairline of paper
+between (`BUMPER_GAP`, so it does not melt into the body), all in the same room over the body as
+before, so the pad keeps its size on a card; the side arrow is broader (`POINT`). Checked on the
+dash card in `capture_tutorial`, zoomed in.
 
 ### 1b. A shooter only a parry beats
 
@@ -41,6 +47,21 @@ rises before the watcher is in view, so it reads as a second "attack" card.
   with the shot coming.
 - `tutorial_test`: the watcher cannot be reached on foot, a spell cast at it from below does not
   wound it, and a reflected shot does.
+
+*Found:* a watcher standing on a ledge cannot see down past the ledge's edge (its eye is low), so
+the old one on its slab hardly ever saw the wizard on the floor; and the view shows only about
+three cells over the floor, while a jump, a dash up and a slash reach about four, so a watcher
+cannot be both in view and out of reach.
+
+*Done:* the watcher hovers over the hall, in view near the top of it (the `hovers` mod, `Shooter`;
+its shots fly straight, unlike a sky watcher's), and is warded so that only a parried shot wounds
+it (the `parried_only` mod, `Wound.parried_only`): a slash, a bolt or a touch glances off it, so
+turning its shots back is the one way to beat it, though it can be touched. A parried shot now
+steers home to its shooter however far (`HexBolt.home`, everywhere, not only here), so it lands
+on a watcher that drifts. Its card stands where its first shot comes at the wizard. `tutorial_test`:
+it hovers, a slash and a hex bolt glance off, the card rises where it sees the wizard, a press
+alone leaves the card, and a real shot met with the guard flies home, wounds it and puts the card
+away.
 
 ### 1c. No title cards
 

@@ -126,7 +126,9 @@ class Cell:
 	var type: Type = Type.GROUND
 	var extra_info: Variant = null
 	## How an enemy here differs from the usual: {"shield": hits} (Shield), {"bounces": walls}
-	## (a watcher's rebounding shots).
+	## (a watcher's rebounding shots), {"hovers": true} (a watcher hovering, its shots straight),
+	## {"parried_only": true} (wounded only by a parried shot, Wound.parried_only); the last two the
+	## tutorial's watcher (Tutorial).
 	var mods: Dictionary = {}
 
 	func _init(_type: Type) -> void:

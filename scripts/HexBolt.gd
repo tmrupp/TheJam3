@@ -70,6 +70,10 @@ var size: float = 1.0
 ## A shot turned back by a parry (Parry): it breaks a shield (Shield) at once, and wounds a
 ## bramble's bulb shut in its bark (BrambleWound).
 var reflected: bool = false
+## What fired the shot it was turned back from (Parry): it steers straight for it as it flies,
+## however far, so a parried shot comes home even to a shooter that has drifted, until it strikes
+## something or meets rock. Null for any other bolt, or once that shooter is gone.
+var home: Node2D = null
 ## Whether the blow a bolt is dealing at this moment is a parried shot's (`reflected`), for a wound
 ## that lets only those through (BrambleWound); false between blows.
 static var parried_blow: bool = false
@@ -117,7 +121,12 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	t += delta
 	var from: Vector2 = global_position
-	if seek > 0.0:
+	if home != null and not is_instance_valid(home):
+		home = null
+		range_px = minf(range_px, travelled + RANGE)
+	if home != null and home.global_position.distance_to(from) > 1.0:
+		dir = (home.global_position - from).normalized()
+	elif seek > 0.0:
 		var aim: Vector2 = _spire_aim() if empowered else Vector2.INF
 		if not aim.is_finite():
 			var quarry: Node2D = _quarry()

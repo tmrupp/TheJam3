@@ -5,7 +5,9 @@ class_name Shooter
 ## sight the charge resets, so breaking line of sight buys a full cooldown.
 ## A sky watcher, whose shots rebound (SkyArchetype), hovers instead of growing from the floor: it
 ## rises up to HOVER_UP over the spot it was placed on (less under rock) and drifts slowly from side
-## to side there, bobbing. Its spot in the level is the same, so layouts are unchanged.
+## to side there, bobbing. Its spot in the level is the same, so layouts are unchanged. One placed
+## to hover (the `hovers` meta, the tutorial's high over its hall, Tutorial) does the same, its
+## shots flying straight.
 
 ## How high a hovering watcher rises, how far it drifts either way, and how fast it goes round.
 const HOVER_UP: float = 170.0
@@ -90,7 +92,7 @@ func range_stop_touch(other: Node) -> void:
 func _ready() -> void:
 	range_box.connect("body_entered", range_touch)
 	range_box.connect("body_exited", range_stop_touch)
-	if int(rb.get_meta(&"bounces", 0)) > 0:
+	if int(rb.get_meta(&"bounces", 0)) > 0 or bool(rb.get_meta(&"hovers", false)):
 		hovering = true
 		rb.gravity_scale = 0.0
 		rb.freeze_mode = RigidBody2D.FREEZE_MODE_KINEMATIC

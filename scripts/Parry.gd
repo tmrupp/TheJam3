@@ -7,7 +7,8 @@ class_name Parry
 ## - a touching enemy takes `damage` (double while stunned, as ever) and, if it lives, is stunned;
 ##   one behind a shield (Shield) loses a plate per point of `damage` instead, as a dash or a bolt
 ##   takes one, and is neither wounded nor stunned while the shield holds;
-## - a shot is reflected back at whoever fired it, as a bolt of spell light dealing `damage`;
+## - a shot is reflected back at whoever fired it, as a bolt of spell light dealing `damage` that
+##   steers for its shooter however far it is (HexBolt.home);
 ## - a hazard's touch (thorns) is caught too, with nothing to strike: caught underfoot, it bounces
 ##   the wizard up (a pogo, POGO, the air jump back and control kept), so they can parry their way
 ##   off thorns;
@@ -155,6 +156,9 @@ func _reflect(shot: Bullet, attacker: Node) -> void:
 	bolt.dir = aim
 	bolt.damage = DAMAGE
 	bolt.reflected = true
+	if attacker is Node2D:
+		bolt.home = attacker as Node2D
+		bolt.range_px = INF
 	var level: Node = MapInfo.instance.map_elements if MapInfo.instance != null and is_instance_valid(MapInfo.instance.map_elements) else player.get_parent()
 	level.add_child(bolt)
 	bolt.global_position = from

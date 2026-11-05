@@ -8,7 +8,10 @@ extends TestKit
 ## The stretches that need the wizard's reach (the steps, the bed of thorns a jump clears and the one
 ## only a jump and a dash clear) are crossed with the game's own controls. The utility spell's card
 ## costs a wizard at full health a heart as it rises, which pressing Utility (mend) heals. The
-## watcher's card is the parry's, gone by a catch and not by a press; past it a bed of thorns too
+## watcher hovers out of reach: a jump, a dash up and a slash at the top fall short of it, while a
+## shot of its own turned back by the guard flies home and wounds it. Its card is the parry's,
+## standing where the watcher first sees the wizard, gone by a catch and not by a press; past it a
+## bed of thorns too
 ## wide for a jump and a dash is crossed by bouncing off its thorns with the guard (a pogo), which
 ## puts the pogo's card away. Its shrine
 ## offers a strict upgrade against a swap (Tutorial.BOONS), then the usual boons once one is known.
@@ -126,29 +129,96 @@ func _card(action: StringName) -> ControlHint:
 	return null
 
 
-## The watcher's card: the parry's, on the Spell button, put away by a catch and not by a press.
+## How near (px) a watcher's shot comes before the guard goes up to meet it (the guard is up for
+## Parry.WINDOW; the shot strikes the wizard a little nearer than this), and how many game seconds
+## the watcher has to see the wizard, fire and its shot arrive.
+const MEET_AT: float = 80.0
+const SHOT_WAIT: float = 15.0
+
+
+## The watcher and its card, the parry's, on the Spell button: the watcher hovers in view, and a
+## slash or a hex bolt that strikes it glances off; its card stands where its first shot comes at
+## the wizard and is put away by a catch, not by a press; and a shot of its own, turned back, flies
+## home and wounds it.
 func _parry() -> void:
-	print("the parry card")
+	print("the watcher and the parry card")
 	var card: ControlHint = _card(ControlHint.PARRY)
 	check(card != null and ControlHint.actions(ControlHint.PARRY) == [&"Spell"], "the watcher's card is the parry's, on the Spell button")
-	if card == null:
+	var watchers: Array[Node] = placed("shooter_enemy.tscn")
+	check_eq(watchers.size(), 1, "one watcher")
+	if card == null or watchers.size() != 1:
 		return
-	var guard: Parry = player.get_node("Parry") as Parry
+	# The wisp left behind, so nothing else comes at the wizard here.
+	for n: Node in placed("mover_enemy.tscn"):
+		n.queue_free()
+	var watcher: RigidBody2D = watchers[0] as RigidBody2D
+	var eye: Shooter = watcher.get_node("Shooter") as Shooter
+	var wound: Wound = watcher.get_node("Wound") as Wound
+	var hurts: Array[int] = []
+	var glanced: Array[Vector2] = []
+	wound.hurt.connect(func(d: int) -> void: hurts.append(d))
+	wound.warded.connect(func(dir: Vector2) -> void: glanced.append(dir))
+	await _go(Vector2i(info.cell_at(watcher.global_position).x, 10))
+	check(await until(func() -> bool: return eye.home.is_finite()), "it hovers")
+	check(eye.hovering and not int(watcher.get_meta(&"bounces", 0)) > 0, "its shots flying straight")
+	check(wound.parried_only, "and only a parried shot wounds it")
+	# Held still, its shots put away: a slash that reaches it, and a hex bolt, glance off.
+	eye.set_physics_process(false)
 	player.set_physics_process(false)
-	player.global_position = card.global_position
+	player.global_position = watcher.global_position + Vector2(-90, 10)
 	still()
-	check(await until(func() -> bool: return card.showing() and card.up_for >= ControlHint.SEEN), "up as they come near")
-	await settle(4)
+	Input.action_press("Right")
+	player.get_node("Slash").call(&"cast_spell", false)
+	Input.action_release("Right")
+	await settle(10)
+	check(glanced.size() == 1 and hurts.is_empty(), "a slash glances off it, unhurt")
+	var bolt: HexBolt = HexBolt.new()
+	bolt.dir = Vector2.RIGHT
+	info.map_elements.add_child(bolt)
+	bolt.global_position = watcher.global_position + Vector2(-240, 0)
+	await until(gone(bolt))
+	check(glanced.size() == 2 and hurts.is_empty(), "and so does a hex bolt")
+	for n: Node in Stage.main().get_children():
+		if n is Bullet:
+			n.queue_free()
+	player.set_physics_process(true)
+	eye.charge = 0.0
+	eye.set_physics_process(true)
+	# The card stands where the watcher's first shot comes at the wizard: it rises as they come to it.
+	await _go(info.cell_at(card.global_position))
+	check(await until(func() -> bool: return card.showing() and card.up_for >= ControlHint.SEEN), "the card is up as they come near")
+	check(await until(func() -> bool: return eye.sees), "where the watcher sees them")
+	var guard: Parry = player.get_node("Parry") as Parry
+	player.health.health = player.health.max_health
+	await frames(2)
+	# A press with nothing coming: the card stays.
+	var spell: Node = player.get_node("Slash")
+	spell.call(&"refill")
 	_press(&"Spell", true)
 	await physics_frame
 	_press(&"Spell", false)
 	await settle(10)
 	check(card.showing() and not ControlHint.learned.has(ControlHint.PARRY), "a press alone does not put it away")
-	# A catch, as a shot turned back makes (parry_test and the watcher's own tests make real ones).
-	guard.parried_at = guard.clock
+	# Its shot, met with the guard as it comes.
+	spell.call(&"refill")
+	var meet: Callable = func() -> bool:
+		for n: Node in Stage.main().get_children():
+			var b: Bullet = n as Bullet
+			if b != null and not b.is_queued_for_deletion() and b.global_position.distance_to(player.global_position) < MEET_AT:
+				return true
+		return false
+	check(await within(meet, SHOT_WAIT), "the watcher fires at them")
+	_press(&"Spell", true)
+	await physics_frame
+	_press(&"Spell", false)
+	check(await within(func() -> bool: return guard.glory(), 1.0), "the guard catches its shot")
+	check(await within(func() -> bool: return not hurts.is_empty() or not is_instance_valid(watcher), 3.0), "which flies home and wounds it")
+	check_eq(player.health.health, player.health.max_health, "the wizard unhurt")
+	check(ControlHint.learned.has(ControlHint.PARRY) and not card.showing(), "and the catch puts the card away")
+	# Gone, so it leaves the stretches past it alone.
+	if is_instance_valid(watcher):
+		watcher.queue_free()
 	await settle(4)
-	check(ControlHint.learned.has(ControlHint.PARRY) and not card.showing(), "a catch does")
-	player.set_physics_process(true)
 
 
 ## The bed of thorns past the watcher: too wide for a jump and a dash, crossed by bouncing off its

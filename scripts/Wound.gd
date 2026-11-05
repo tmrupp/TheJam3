@@ -25,6 +25,10 @@ var least: int = 0
 var stars: bool = true
 ## Whether blows leave it unhurt (see the class note).
 var unhurt: bool = false
+## Whether only a parried shot wounds it (HexBolt.parried_blow): every other blow, a slash, a bolt,
+## a dash or a guard's touch, glances off it as off an unhurt one. The tutorial's watcher, beaten
+## only by turning its shots back (Tutorial).
+var parried_only: bool = false
 ## Its host has been slain (just before it is freed).
 signal slain
 ## A blow has struck it, unhurt, heading `dir`.
@@ -55,7 +59,7 @@ func hit(damage: int, dir: Vector2) -> void:
 	var host: Node2D = get_parent() as Node2D
 	if host == null or host.is_queued_for_deletion():
 		return
-	if unhurt:
+	if unhurt or (parried_only and not HexBolt.parried_blow):
 		RisoFx.burst(&"hit", host.global_position, dir, [RisoPrint.BLUE, RisoPrint.NIGHT])
 		Wound.shake(4.0, 0.1)
 		warded.emit(dir)

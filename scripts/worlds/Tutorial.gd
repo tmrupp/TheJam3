@@ -8,8 +8,9 @@ extends SideWorld
 ## stars over them (jump); a bed of thorns a jump clears, a star over it; a bed of thorns too wide
 ## to jump (dash), its thorns sending the wizard back to its edge as all thorns do, and a star
 ## cluster past it; a lantern to light (interact);
-## a key on a ledge and its door across a low corridor; a wisp (the spell); a watcher on a slab out
-## of reach, beaten only by turning its shots back (the spell's guard, a parry, its own card); a bed
+## a key on a ledge and its door across a low corridor; a wisp (the spell); a watcher hovering over
+## the hall, in view but warded against every blow but its own shots turned back (the spell's guard,
+## a parry, its own card, standing where its first shot comes at the wizard); a bed
 ## of thorns too wide to jump and dash over, crossed by bouncing off them (a pogo: the guard, or a
 ## slash down, catching the thorns underfoot, its own card too); the utility spell's
 ## card, which costs the wizard a heart as it rises so that mend has something to heal (ControlHint);
@@ -26,7 +27,7 @@ extends SideWorld
 
 ## The hall, row by row: rock (#), open air (.), where a run starts (S) by its lantern, lit (L), a
 ## lantern to light (l), a star (*) and a star cluster (C), thorns (^), a key (k) and its door (D),
-## a wisp (w), a watcher (s), the shrine (H, its left foot), the spots for trophy stands (T), the
+## a wisp (w), a watcher hovering (s, HOVERING), the shrine (H, its left foot), the spots for trophy stands (T), the
 ## way out (B), and the control cards (ControlHint, by the digits of HINTS).
 const MAP: Array[String] = [
 	"##################################################################################################################################",
@@ -34,11 +35,11 @@ const MAP: Array[String] = [
 	"#...........................................................###..................................................................#",
 	"#...........................................................###..................................................................#",
 	"#...........................................................###..................................................................#",
-	"#...........................................................###..................s...............................................#",
-	"#...........................................................###.................###..............................................#",
+	"#...........................................................###..................................................................#",
+	"#...........................................................###..................................................................#",
 	"#...............**..........................................###........w.........................................................#",
 	"#............*.....*...................................k....###..................................................................#",
-	"#..............###......*............*................###...###..................................................................#",
+	"#..............###......*............*................###...###....................s.............................................#",
 	"#.L.S.1...2.#########........**..3........C...5.l....####....D....4.*.....*...8.....9.............**.7...H....T.T.T.T.T.T..6...B.#",
 	"########################^^##########^^^##############################################^^^^^^^^^^###################################",
 	"##################################################################################################################################",
@@ -46,6 +47,10 @@ const MAP: Array[String] = [
 	"##################################################################################################################################",
 	"##################################################################################################################################",
 ]
+## The map's letter for its watcher: it hovers (the `hovers` mod, Shooter) rather than stands,
+## as a watcher standing on a ledge cannot see down past its edge, and only a parried shot wounds it
+## (the `parried_only` mod, Wound.parried_only), so turning its shots back is the one way to beat it.
+const HOVERING: String = "s"
 ## The things each letter of the map places (see MAP).
 const THINGS: Dictionary = {
 	"l": LevelGen.Type.CHECKPOINT,
@@ -127,6 +132,9 @@ func populate(w: LevelGen) -> void:
 			var c: String = _at(v)
 			if THINGS.has(c):
 				w.put(v, THINGS[c])
+				if c == HOVERING:
+					w.get_cell(v).mods["hovers"] = true
+					w.get_cell(v).mods["parried_only"] = true
 			elif HINTS.has(c):
 				w.put(v, LevelGen.Type.HINT, HINTS[c])
 			match c:

@@ -4,9 +4,10 @@ extends RefCounted
 ## the interact prompt, RisoPrompt): always the same pad seen from the front, so a player learns
 ## where each button is on it. Its body is faint, with grips under its ends; on it, faint, the left
 ## stick, the d-pad, back and start, the right stick and the four face buttons; on top, either side,
-## a bumper (flat) and over it a trigger (tall). The control asked for is solid in night: a button
-## or a shoulder, or the stick (walking, with an arrow either way); a shoulder gets an arrow at it
-## from the pad's side too, as it is the hardest part to see. Pressed (`press`), the control sinks a little and
+## a bumper, a thin strip lying along the body's top, and standing clear over it a trigger, a
+## round-topped tab, so the two cannot be taken for each other. The control asked for is solid in night:
+## a button or a shoulder, or the stick (walking, with an arrow either way); a shoulder gets a broad
+## arrow at it from the pad's side too, as it is the hardest part to see. Pressed (`press`), the control sinks a little and
 ## a ring of accent ink spreads from it. No words.
 ## Which device the player last used is kept here too (pad, note_device), for whatever shows one.
 
@@ -18,12 +19,18 @@ enum Part { FACE_DOWN, FACE_RIGHT, FACE_LEFT, FACE_UP, BACK, START, LEFT_STICK, 
 const BODY: Vector2 = Vector2(128, 74)
 const GRIP_R: float = 20.0
 const BODY_ROUND: float = 0.35
-## A trigger's size and a bumper's, how far in from the body's ends their middles sit, and the
-## paper left between a trigger and its bumper, and a bumper and the body.
-const TRIGGER: Vector2 = Vector2(22, 12)
-const BUMPER: Vector2 = Vector2(28, 8)
+## A trigger's size (a round-topped tab) and a bumper's (a thin strip), how far in from the body's
+## ends their middles sit, the paper left between a trigger and its bumper (a clear gap, so a
+## trigger stands apart), and the hairline between a bumper and the body (so it lies along the body
+## without melting into it). The room they take over the body is the same as before they were told
+## apart, so the pad keeps its size on a card.
+const TRIGGER: Vector2 = Vector2(17, 15)
+const BUMPER: Vector2 = Vector2(30, 5)
 const SHOULDER_IN: float = 30.0
-const SHOULDER_GAP: float = 3.0
+const TRIGGER_GAP: float = 4.0
+const BUMPER_GAP: float = 2.0
+## How round a bumper's corners are (px, unscaled).
+const BUMPER_ROUND: float = 2.0
 ## Where the body's controls sit, from the middle of its top edge (unscaled px): the left stick and
 ## the face buttons up high, the d-pad and the right stick lower and further in, back and start
 ## between them at the top.
@@ -43,7 +50,7 @@ const MIDDLE: Vector2 = Vector2(10, 5)
 ## The arrow pointing in at a shoulder asked for from the pad's side: its half height and length,
 ## and the gap between its tip and the shoulder; and the walking arrows either side of the stick:
 ## their length and half height, and the gap from the well.
-const POINT: Vector2 = Vector2(8, 12)
+const POINT: Vector2 = Vector2(10, 14)
 const POINT_GAP: float = 3.0
 const WALK: Vector2 = Vector2(9, 7)
 const WALK_GAP: float = 4.0
@@ -81,7 +88,7 @@ static func size() -> Vector2:
 
 ## The room over the body (unscaled): a trigger and a bumper.
 static func _over() -> float:
-	return TRIGGER.y + SHOULDER_GAP + BUMPER.y + SHOULDER_GAP
+	return TRIGGER.y + TRIGGER_GAP + BUMPER.y + BUMPER_GAP
 
 
 ## The part of the pad input action `action` is on (&"Move" is walking, the left stick): its first
@@ -139,19 +146,19 @@ static func draw(ink: InkCanvas, at: Vector2, s: float, action: StringName, pres
 	var solid: Array[PackedVector2Array] = []
 	var pointers: Array[PackedVector2Array] = []
 	var lit_at: Vector2 = at
-	# The shoulders: on each side a trigger over a bumper.
+	# The shoulders: on each side a trigger standing clear over a bumper flat on the body.
 	var trigger_top: float = top
-	var bumper_top: float = trigger_top + (TRIGGER.y + SHOULDER_GAP) * s
+	var bumper_top: float = trigger_top + (TRIGGER.y + TRIGGER_GAP) * s
 	for side: float in [-1.0, 1.0]:
 		var x: float = at.x + side * (BODY.x * 0.5 - SHOULDER_IN) * s
 		var right: bool = side > 0.0
 		var trig_part: Part = Part.RIGHT_TRIGGER if right else Part.LEFT_TRIGGER
 		var bump_part: Part = Part.RIGHT_BUMPER if right else Part.LEFT_BUMPER
-		for pair: Array in [[trig_part, TRIGGER, trigger_top, 5.0], [bump_part, BUMPER, bumper_top, 3.0]]:
+		for pair: Array in [[trig_part, TRIGGER, trigger_top], [bump_part, BUMPER, bumper_top]]:
 			var part: Part = pair[0]
 			var size_of: Vector2 = (pair[1] as Vector2) * s
 			var y: float = float(pair[2])
-			var shape: PackedVector2Array = RisoShapes.rrect(x - size_of.x * 0.5, y, size_of.x, size_of.y, float(pair[3]) * s)
+			var shape: PackedVector2Array = RisoShapes.arch(x - size_of.x * 0.5, y, size_of.x, size_of.y) if part == trig_part else RisoShapes.rrect(x - size_of.x * 0.5, y, size_of.x, size_of.y, BUMPER_ROUND * s)
 			if part == lit:
 				solid.append(Transform2D(0.0, sink) * shape)
 				lit_at = Vector2(x, y + size_of.y * 0.5)

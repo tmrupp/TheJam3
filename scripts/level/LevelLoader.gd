@@ -300,6 +300,10 @@ func place_cell(v: Vector2i, cell: LevelGen.Cell) -> void:
 		node.add_child(shield)
 	if cell.mods.has("bounces"):
 		node.set_meta(&"bounces", int(cell.mods["bounces"]))
+	if cell.mods.has("hovers"):
+		node.set_meta(&"hovers", true)
+	if cell.mods.has("parried_only") and node.get_node_or_null("Wound") != null:
+		(node.get_node("Wound") as Wound).parried_only = true
 	map_elements.add_child(node)
 	node.set_owner(map_elements)
 	node.position = info.cell_position(v) + jitter
