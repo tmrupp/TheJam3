@@ -1,9 +1,10 @@
 extends TestKit
-## Frames for a GIF of the bramble's finale (Bramble), played in real physics with the camera on the
-## head of its shaft: the knot at rest, the last bulb bursting and the knot splitting to bare its
-## heart (the bud), barbs dropping at the wizard on the top ledge, four slashes into the bud, and its
-## death: every vine drying from the bud out and drawing back into the rock, then the relic on the
-## landing. Frames go to the stills folder's bramble_gif/ as frame_NNN.png, a frame every EVERY
+## Frames for a GIF of the bramble's fight at the head of its shaft (Bramble), played in real
+## physics with the camera on the head: its crown asleep, then growing out of the rock as it wakes,
+## quivering from blows, drawing back a little from its hidden heart as each bulb bursts, then all
+## the way to bare the bud as the last does, barbs dropping at the wizard on the top ledge, four
+## slashes into the bud, and its death: every cane drying from the bud out and drawing back into the
+## rock, then the relic on the landing. Frames go to the stills folder's bramble_gif/ as frame_NNN.png, a frame every EVERY
 ## physics steps (played at 30 frames a second); turn them into a GIF with ffmpeg.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_bramble_gif.gd
 
@@ -15,10 +16,14 @@ const CROP: Vector2i = Vector2i(720, 720)
 const SIZE: Vector2i = Vector2i(480, 480)
 const VIEW_CELLS: float = 6.5
 const SETTLE: int = 480
-## The frames the last bulb bursts at, the wizard slashes the bud at, and how many frames are
-## recorded after the bramble is slain.
-const LAST_BULB: int = 20
-const SLASHES: Array[int] = [80, 110, 140, 170]
+## The frames it wakes at, blows strike its crown at, the first bulb bursts at and the rest after
+## each BULB_GAP frames, the wizard slashes the bud at (after the last bulb), and how many frames
+## are recorded after the bramble is slain.
+const WAKE: int = 12
+const BLOWS: Array[int] = [62, 80]
+const FIRST_BULB: int = 105
+const BULB_GAP: int = 32
+const SLASHES: Array[int] = [70, 95, 120, 145]
 const TAIL: int = 40
 
 var camera: Camera2D
@@ -45,18 +50,11 @@ func run() -> void:
 	# The shaft's middle, its roof a little under the top of the view.
 	var shaft_x: float = bramble.center(bramble.inside.position).x + float(bramble.inside.size.x - 1) * bramble.cell * 0.5
 	head = Vector2(shaft_x, bramble.knot_rect.position.y - bramble.cell * 0.4 + VIEW_CELLS * bramble.cell * 0.5)
-	# Every bulb but one burst before it starts: the shaft as it is near the fight's end.
-	var last: BrambleBulb = null
-	for b: BrambleBulb in bramble.bulbs:
-		if last == null:
-			last = b
-			continue
-		bramble.bloom_on(b)
-		b.wound.hit(Bramble.BULB_HP, Vector2.RIGHT)
-	bramble.bloom_on(last)
 	# The wizard on the top ledge, beside where the bud will hang.
 	var ledge: Vector2i = info.world.shaft["ledges"][0]
-	player.global_position = info.cell_position(ledge + Vector2i.UP)
+	var on_ledge: Vector2 = info.cell_position(ledge + Vector2i.UP)
+	# Out of the shaft until it wakes, so its crown is still asleep.
+	player.global_position = Vector2(-9000, -9000)
 	player.set_physics_process(false)
 	still()
 	for i: int in range(SETTLE):
@@ -68,10 +66,19 @@ func run() -> void:
 		DirAccess.remove_absolute(dir.path_join(old))
 	var f: int = 0
 	var slain_at: int = -1
+	var bulbs: Array[BrambleBulb] = bramble.bulbs.duplicate()
+	var last_bulb: int = FIRST_BULB + BULB_GAP * (bulbs.size() - 1)
 	while slain_at < 0 or f < slain_at + TAIL:
-		if f == LAST_BULB:
-			last.wound.hit(last.wound.hp, Vector2.RIGHT)
-		if f in SLASHES and is_instance_valid(bramble) and bramble.heart != null and bramble.heart.alive:
+		if f == WAKE:
+			player.global_position = on_ledge
+			bramble.wake()
+		if f in BLOWS and is_instance_valid(bramble):
+			bramble.quiver(bramble.knot_rect.get_center() + Vector2((-0.3 if f == BLOWS[0] else 0.3) * bramble.knot_rect.size.x, bramble.knot_rect.size.y * 0.3), Bramble.QUIVER_BURST)
+		for i: int in range(bulbs.size()):
+			if f == FIRST_BULB + BULB_GAP * i and is_instance_valid(bramble):
+				bramble.bloom_on(bulbs[i])
+				bulbs[i].wound.hit(bulbs[i].wound.hp, Vector2.RIGHT)
+		if f - last_bulb in SLASHES and is_instance_valid(bramble) and bramble.heart != null and bramble.heart.alive:
 			_slash(bramble.heart)
 		if slain_at < 0 and (not is_instance_valid(bramble) or bramble.slain):
 			slain_at = f
@@ -86,7 +93,7 @@ func run() -> void:
 		region.resize(SIZE.x, SIZE.y, Image.INTERPOLATE_LANCZOS)
 		region.save_png(dir.path_join("frame_%03d.png" % f))
 		f += 1
-		if f > 600:
+		if f > 900:
 			break
 	print("CAPTURED %d frames of the bramble's finale" % f)
 	RunState.delete_save()

@@ -38,6 +38,7 @@ const EMPOWERED_SIZE: float = 1.4
 ## checks every script with a hex_hit is listed, and takes those two).
 const ANSWERS: Array[Script] = [
 	preload("res://scripts/Bell.gd"),
+	preload("res://scripts/bosses/BrambleKnot.gd"),
 	preload("res://scripts/CrackedWall.gd"),
 	preload("res://scripts/MothSwarm.gd"),
 	preload("res://scripts/SchoolBell.gd"),

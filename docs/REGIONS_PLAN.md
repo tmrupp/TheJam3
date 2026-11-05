@@ -148,10 +148,11 @@ heart's barbs. A stun's length is not changed.
 
 ### The bramble (garden, up gate, in the level)
 
-*Built* (`Bramble`, `BrambleBulb`, `BrambleHeart`, `BrambleVine`, `BrambleWound`, `BrambleShaft`,
-`prefabs/bramble.tscn`). The way up out of the garden is a tall shaft of thorns. The bramble is
-rooted at its head: a knot of thorn and bark beside the way on, with a few **bulbs** (its weak
-points, accent) set in the walls of the shaft.
+*Built* (`Bramble`, `BrambleTangle`, `BrambleKnot`, `BrambleBulb`, `BrambleHeart`, `BrambleVine`,
+`BrambleWound`, `BrambleShaft`, `prefabs/bramble.tscn`). The way up out of the garden is a tall
+shaft of thorns. The bramble is rooted at its head: a crown of thorned canes beside the way on,
+its heart hidden in it, with a few **bulbs** (its weak points, accent) set in the walls of the
+shaft.
 
 - **The shaft.** Cut into the gate level's rock near its top (`BrambleShaft.cut`), right after the
   caves are joined and before anything else is placed, so the rest of the level lands round it
@@ -174,13 +175,13 @@ points, accent) set in the walls of the shaft.
 - **Bulbs.** 3 to 5 bulbs (`BULBS`) up the shaft, one in each of as many bands down the walls,
   from wall to wall. Each takes 3 hits (`Bramble.BULB_HP`) from hex bolts or a dash, even ones that
   only stun at their tier (`Wound.least`), and is never stunned. Each vine feeds from the bulb
-  nearest it, and a burst bulb withers its vines for good. Its health shows as accent pips on the
-  knot, one per bulb.
+  nearest it, and a burst bulb withers its vines for good. Its health shows in its crown: each
+  burst draws its canes back a little from the heart hidden in them (see the crown).
 - **The bloom.** Only one bulb is in bloom at a time (`Bramble.bloom`), the lowest first: the rest
   are shut in two sepals of bark, and a bolt, dash or slash glances off them (pale, no wound). Only
   a bulb's own seed parried back gets through its bark (`HexBolt.parried_blow`), so the parry wounds
   any bulb. A bloom lasts 6 s (`BLOOM_TIME`), counted only while the wizard is in the shaft; then,
-  or when it bursts, its sap runs up the roots, through the knot and down to the living bulb
+  or when it bursts, its sap runs up the roots, under the head and down to the living bulb
   furthest from the wizard (a drop of accent running along the way, 900 px/s, `SAP_SPEED`), which
   blooms when it arrives. So the fight keeps the wizard moving up and down the shaft, or finding a
   line of sight across it.
@@ -189,30 +190,58 @@ points, accent) set in the walls of the shaft.
   at once, 0.2 rad apart (`TWIN_FURY`, `TWIN_SPREAD`); the vines left rest 60% faster a point
   (`BrambleVine.REST_FURY`; their warning and lash keep their time). The shaft empties as the bulbs
   burst, but what is left of it comes faster.
-- **The heart.** When the last bulb bursts every vine withers and the knot splits (0.8 s,
-  `SPLIT_TIME`) to bare its heart (`BrambleHeart`, printed as a big bud wrapped in sepals of
-  bark), hanging from the knot's underside beside the top ledge. It takes 4 hits (`HEART_HP`) from anything, and the knot still walls off the head
-  meanwhile. While the wizard is in the shaft the knot drops a barb every 1.3 s (`BARB_EVERY`) down
-  the wizard's column (held to the knot's span), its tip poking out pink for 0.6 s first
-  (`BARB_WARN`); a barb falls at 430 px/s and bursts on the first rock, and a parried barb flies
-  back into the heart. When the heart bursts the head of the shaft is open at once, and the bramble
-  dies vine by vine: a dry front runs out from the heart (600 px/s, `DRY_SPEED`), and each vine of
-  the knot, each root and each withered vine's curl dries as it reaches it (0.45 s), then 0.5 s
-  after draws back into the rock it grows from (0.3 s plus its length at 450 px/s), the burst
-  husks pulled in with the roots. When the last is in it is slain; the seal on the way up lifts,
-  and its relic waits on the landing beside the way on.
+- **The crown** (`BrambleTangle`). A tangle of thick thorned canes walling off the head. It is
+  not there until the wizard climbs within 560 px of the head (`Bramble.WAKE_RANGE`): then it grows
+  out of the rock (600 px/s along its canes, `GROW_SPEED`), the tips leading, thin and thickening
+  behind, thorns budding along them, and its thorns hurt once half of it is grown (`THORNS_AT`).
+  Its canes are grown from the level seed, never the world RNG: 5 out of the rock (2 out of the
+  roof, 2 out of the far wall, 1 out of the landing's side, `FROM_ROOF`, `FROM_WALL`,
+  `FROM_LANDING`), each finding its own way into the head, turning toward the room left between the
+  canes already grown and curling of itself; then sprouts off them, each from the place along them
+  with the most room, until 85% of the head is filled (`COVER`) or there are 12 canes
+  (`CANES_MAX`). Canes out of the rock are 48 to 60 px thick at the foot, sprouts 28 to 36, all
+  keeping their width well out before they taper (`TAPER`), with a hooked pink thorn every 40 to
+  62 px. It sways a little at rest. **Quiver:** struck anywhere (a bulb or the heart wounded, a
+  blow glancing off a bulb's bark, a bulb bursting, a hex bolt into the crown itself,
+  `BrambleKnot.hex_hit`), a shudder runs out from the blow along every cane near it (700 px/s,
+  10 shakes a second, dying away over about a second), the tips shaking most; a blow far down the
+  shaft runs up the root to the crown. **Drawing back:** its heart, a bud, is hidden in the crown,
+  hanging from a stalk of its own out of the roof (`BrambleTangle.stalk`), which the hollow never
+  cuts: the bud sways and quivers with it, and dying, the stalk draws its husk up into the rock;
+  each bulb burst draws the canes back from a hollow round it (`Bramble.bare`, up to 0.4 once all
+  but the last have burst, `PEEK`), so it shows a little more each time, swelling and dropping as
+  it does: every cane that runs into the hollow ends at its edge, and all that grew off it beyond
+  is gone. Its roots down both walls past the bulbs are canes like the crown's (42 px thick near
+  the head, 28 px at the lowest bulb, thorned, with thorned sprouts into the shaft), grown from the
+  start and printed under the bulbs; their thorns do not hurt, so they are printed in bark, not pink.
+- **The heart.** When the last bulb bursts every vine withers and the crown draws right back from
+  round the heart (1.2 s, `BARE_TIME`), baring it (`BrambleHeart`, printed as a big bud wrapped in
+  sepals of bark), hanging out of the crown's underside beside the top ledge. It takes 4 hits
+  (`HEART_HP`) from anything, and the knot still walls off the head meanwhile. While the wizard is
+  in the shaft the crown drops a barb every 1.3 s (`BARB_EVERY`) down the wizard's column (held to
+  the knot's span), its tip poking out pink for 0.6 s first (`BARB_WARN`); a barb falls at 430
+  px/s and bursts on the first rock, and a parried barb flies back into the heart. When the heart
+  bursts the head of the shaft is open at once, and the bramble desiccates: a dry front runs out
+  from the heart (1600 px/s, `BrambleTangle.DRY_SPEED`), and each cane, root and withered vine
+  dries as it reaches it (0.55 s); once a cane out of the rock and all that grew off it is dry,
+  0.25 s later it draws back into the rock it grew from (0.3 s plus its reach at 450 px/s; a
+  root at 1800 px/s), its tips first, the burst husks and the heart's husk pulled in with them,
+  until nothing is left. When the last is in (about 3.5 s) it is slain; the seal on the way up
+  lifts, and its relic waits on the landing beside the way on.
 - **Parry.** A vine's lash can be parried: it recoils into the rock and stays there for the stun
   (`Parry.STUN`, 3 s), then rests before it grows again, opening the wall beside it. The bulbs spit
   seeds at the wizard in sight within 900 px (`BrambleBulb`, every 3 s); a parried seed flies back
   into the bulb that spat it (the shot's attacker) and wounds it.
-- **The knot.** Solid, on the environment's layer: nothing gets past it to the way on. Its thorns
-  hurt to touch; a parry against them only catches the hit and pushes off.
+- **The knot.** Under the crown, a solid body on the environment's layer (`BrambleKnot`): nothing
+  gets past it to the way on, and a hex bolt stops on it and makes the crown quiver. The crown's
+  thorns hurt to touch; a parry against them only catches the hit and pushes off.
 - **Procedural.** All of it comes from the level's layout and seed; the bramble's own timing
   (its vines' phases, its bulbs' first swell) is hashed from the seed and cell, and the bloom
   moves by where the wizard is, never by a draw.
 - A lantern death brings it back whole (its fury gone, the lowest bulb in bloom, its heart
-  hidden), as the level reloads. `tests/bramble_test.gd` covers it,
-  `tests/capture_bramble.gd` takes stills. Of the twelve garden gate levels the test lays out, the
+  hidden, its crown asleep and grown the same way again), as the level reloads.
+  `tests/bramble_test.gd` covers it, `tests/capture_bramble.gd` takes stills and
+  `tests/capture_bramble_gif.gd` records GIF frames of the fight at the head. Of the twelve garden gate levels the test lays out, the
   way on is reached with the wizard's own hops in ten (the climb helper, `Climb.aid`, since
   removed, saw the shaft's ledges and lent ledges toward its foot, never inside it).
 
@@ -816,9 +845,10 @@ Each phase ends with the full suite green and its own tests.
    any blow, leaving its relic; in a gate level whose boss fights elsewhere, that boss is slain
    where the wizard stands (`gate_test`). *The bramble is done* (§6): its shaft cut near the top of
    its gate level, walled in, with ledges, a foot open to the caves, and the way on on a landing at
-   its head; the knot walling off the head; vines lashing out on a cadence, a parried lash
+   its head; its crown of canes growing out of the rock to wall off the head, quivering when struck,
+   drawing back from its heart; vines lashing out on a cadence, a parried lash
    recoiling; bulbs spitting seeds a parry turns back into them, wounded by any bolt or dash, each
-   feeding the vines nearest it; its vines drying and drawing back into the rock with the last. Tests: `bramble_test` (the
+   feeding the vines nearest it; its canes drying and drawing back into the rock with the last. Tests: `bramble_test` (the
    shaft's walls, foot, landing, knot and ledges, nothing else in it, the same every build and only
    in its gate levels, reached from the way back; in play the knot, the vines' cadence and sting, a
    parry recoiling one, seeds spat and parried back, bolts and dashes wounding bulbs, a burst bulb

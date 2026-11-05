@@ -2,15 +2,17 @@ extends TestKit
 ## The bramble (Bramble, docs/REGIONS_PLAN.md §6), the boss of the garden's way up, in its gate
 ## gate level: its shaft cut into the rock (BrambleShaft), walled in, with the way on at its head beside
 ## the knot, ledges a hop apart and a foot open to the caves, the same every build and only in its
-## gate levels; in play, the knot walling off the head, the vines' cadence (warning, out and
+## gate levels; in play, the knot walling off the head, its crown asleep until the wizard climbs
+## near, then grown out of the rock, the same every visit, quivering when struck, the vines' cadence (warning, out and
 ## hurting, back), a parried lash recoiling, the bulbs spitting seeds a parry turns back into them
 ## (even a bulb shut in its bark), one bulb in bloom at a time (the lowest first; a blow glances off
 ## the rest), bolts and dashes (even ones of no damage) wounding the bulb in bloom, the bloom moving on
 ## to the bulb furthest from the wizard when its time is up or it bursts, a burst bulb withering its
-## vines and quickening the rest (its fury), a lantern death healing it, the last bulb baring the
-## heart, the heart dropping barbs at the wizard's column, a parried barb and a slash wounding it,
-## and the heart bursting to tear the knot open, slaying it, leaving its relic unlock on the landing and
-## opening the way on.
+## vines, quickening the rest (its fury) and drawing the crown back a little from the heart hidden
+## in it, a lantern death healing it, the last bulb baring the heart (the crown drawn back from all
+## round it), the heart dropping barbs at the wizard's column, a parried barb and a slash wounding
+## it, and the heart bursting to open the head, its canes drying from the heart out and drawing
+## back into the rock, slaying it, leaving its relic unlock on the landing and opening the way on.
 ## godot --headless --path . --script res://tests/bramble_test.gd
 
 
@@ -103,7 +105,29 @@ func run() -> void:
 	probe.position = bramble.knot_rect.get_center()
 	probe.collision_mask = 4
 	check(space.intersect_point(probe).any(func(hit: Dictionary) -> bool: return hit["collider"] == bramble.knot), "the knot walls off the head of the shaft")
-	check(not bramble.knot_box.collision.disabled, "and its thorns hurt to touch")
+	var tangle: BrambleTangle = bramble.tangle
+	var crown: Array[BrambleTangle.Cane] = []
+	crown.assign(tangle.canes.filter(func(c: BrambleTangle.Cane) -> bool: return c.kind == &"crown"))
+	var asleep: PackedFloat32Array = tangle.reaches()
+	var bare_crown: bool = true
+	for i: int in range(tangle.canes.size()):
+		if tangle.canes[i].kind == &"crown":
+			bare_crown = bare_crown and asleep[i] == 0.0
+	check(not tangle.awake() and bare_crown and bramble.knot_box.collision.disabled, "asleep, its crown is not grown and its thorns do not hurt")
+	player.global_position = bramble.center(Vector2i(bramble.inside.get_center().x, (shaft["ledges"][0] as Vector2i).y - 1))
+	var woke: bool = await within(func() -> bool: return tangle.awake(), 1.0)
+	player.global_position = Vector2(-9000, -9000)
+	var grew: bool = await within(func() -> bool: return tangle.grown() >= 1.0, tangle.crown_reach / BrambleTangle.GROW_SPEED + 1.0)
+	await frames(3)
+	check(woke and grew and not bramble.knot_box.collision.disabled, "the wizard climbing near, it wakes: its crown grows out of the rock, and its thorns hurt to touch")
+	var from_rock: int = crown.filter(func(c: BrambleTangle.Cane) -> bool: return c.gen == 0).size()
+	check(from_rock == BrambleTangle.FROM_ROOF + BrambleTangle.FROM_WALL + BrambleTangle.FROM_LANDING and crown.size() > from_rock and crown.size() <= BrambleTangle.CANES_MAX, "%d canes out of the rock round the head, %d sprouted off them" % [from_rock, crown.size() - from_rock])
+	check(tangle.cover() >= BrambleTangle.COVER or crown.size() == BrambleTangle.CANES_MAX, "filling the head (%d%%)" % roundi(tangle.cover() * 100.0))
+	var thorns: int = crown.reduce(func(n: int, c: BrambleTangle.Cane) -> int: return n + c.thorns.size(), 0)
+	var thinnest: float = crown.reduce(func(w: float, c: BrambleTangle.Cane) -> float: return minf(w, c.widths[0]), INF)
+	check(thorns >= crown.size() * 2 and thinnest >= BrambleTangle.WIDE_SPROUT.x * 0.8, "thick (%.0f px at the foot at the least) and thorned (%d thorns)" % [thinnest, thorns])
+	await frames(2)
+	check(tangle.stalk != null and tangle.holds_bud() and tangle.stalk_tip().distance_to(bramble._bud_top()) < BrambleTangle.SWAY * 2.0 + 1.0, "the hidden bud hangs from a stalk of its own, out of the roof")
 	var lowest: BrambleBulb = LevelGen.best_of(bramble.bulbs, func(b: BrambleBulb) -> float: return -b.global_position.y) as BrambleBulb
 	check(bramble.bloom == lowest and lowest.open() and bramble.bulbs.filter(func(b: BrambleBulb) -> bool: return b.open()).size() == 1, "one bulb in bloom, the lowest; the rest shut in their bark")
 	check(bramble.fury == 0 and bramble.heart == null, "no fury yet, and its heart hidden")
@@ -167,6 +191,10 @@ func run() -> void:
 	bramble.bloom_on(other)
 	_slash(other.global_position + other.way * 80.0, -other.way)
 	check(other.wound.hp == hp - 1 and not other.stunner.stunned(), "in bloom, a slash wounds it, and it is never stunned")
+	var near_bulb: float = await _shaken(tangle, &"root", other.global_position)
+	bramble.struck_knot(Vector2.UP)
+	var crown_shook: float = await _shaken(tangle, &"crown", Vector2.INF)
+	check(tangle.quivering() and near_bulb > BrambleTangle.SWAY * BrambleTangle.ROOT_FLEX * 2.0 and crown_shook > BrambleTangle.SWAY * 1.5, "struck, the bramble quivers: its root by a struck bulb (%.0f px), its crown from a bolt into it (%.0f px)" % [near_bulb, crown_shook])
 	var bolt: HexBolt = HexBolt.new()
 	bolt.damage = 0
 	info.map_elements.add_child(bolt)
@@ -181,6 +209,9 @@ func run() -> void:
 	check(not other.alive and not other.is_in_group(&"hex_target") and bramble.bulbs_left() == bramble.bulbs.size() - 1, "burst, it is gone (%d bulbs left)" % bramble.bulbs_left())
 	check(fed.all(func(v: BrambleVine) -> bool: return v.withered and not v.hurts()) and bramble.vines.any(func(v: BrambleVine) -> bool: return not v.withered), "the %d vines it fed wither, the rest grow on" % fed.size())
 	check(not bramble.dying and not info.run.bosses.has(&"bramble"), "and the bramble lives while a bulb is left")
+	var drawn: bool = await within(func() -> bool: return is_equal_approx(bramble.bare, bramble.bare_to()), Bramble.BARE_TIME + 0.5)
+	await frames(2)
+	check(drawn and bramble.bare > 0.0 and bramble.bare < 1.0 and _cut(tangle) > 0 and bramble.heart == null, "its crown draws back a little from the heart hidden in it (%d canes short of it), still whole" % _cut(tangle))
 	var living: Array = bramble.bulbs.filter(func(b: BrambleBulb) -> bool: return b.alive)
 	var far: Callable = func(b: BrambleBulb) -> float: return b.global_position.distance_to(player.global_position)
 	var to: BrambleBulb = bramble.sap_to
@@ -198,11 +229,10 @@ func run() -> void:
 	check(moved and next != null and next != waited and living.all(func(b: BrambleBulb) -> bool: return far.call(b) <= far.call(next)), "with the wizard in it, the bloom moves on in time, to the bulb furthest from them")
 	player.global_position = Vector2(-9000, -9000)
 
-	print("its vines")
-	var knot_vines: Array[Bramble.Strand] = bramble.knot_back + bramble.knot_stems
-	check(knot_vines.all(func(s: Bramble.Strand) -> bool: return s.tear < s.length and bramble.reach(s) == s.length), "the knot's vines reach past its middle, weaving the two sides together: no seam")
-	check(not bramble.tendrils.is_empty() and not bramble.rootlets.is_empty() and bramble.tendrils.all(func(s: Bramble.Strand) -> bool: return s.parent in bramble.knot_stems), "tendrils curl off its stems (%d), rootlets off its roots (%d)" % [bramble.tendrils.size(), bramble.rootlets.size()])
-	var grown: PackedVector2Array = bramble.knot_stems[0].pts
+	var roots: Array[BrambleTangle.Cane] = []
+	roots.assign(tangle.canes.filter(func(c: BrambleTangle.Cane) -> bool: return c.kind == &"root"))
+	check(roots.filter(func(c: BrambleTangle.Cane) -> bool: return c.gen == 0).size() == 2 and roots.size() > 2, "its roots run down both walls, rootlets curling off them")
+	var grown: PackedVector2Array = crown[crown.size() - 1].pts
 
 	print("a death heals it")
 	info.run.vulnerable = false
@@ -213,7 +243,11 @@ func run() -> void:
 	check(bramble.bulbs_left() == bulbs.size() and bramble.bulbs.all(func(b: BrambleBulb) -> bool: return b.wound.hp == Bramble.BULB_HP) and not bramble.vines.any(func(v: BrambleVine) -> bool: return v.withered), "after a lantern death it is whole again")
 	lowest = LevelGen.best_of(bramble.bulbs, func(b: BrambleBulb) -> float: return -b.global_position.y) as BrambleBulb
 	check(bramble.fury == 0 and bramble.bloom == lowest and bramble.heart == null, "its fury gone, the lowest bulb in bloom again")
-	check(bramble.knot_stems[0].pts == grown, "its vines grow the same way every visit")
+	var again_crown: Array = bramble.tangle.canes.filter(func(c: BrambleTangle.Cane) -> bool: return c.kind == &"crown")
+	check(not bramble.tangle.awake() and (again_crown[again_crown.size() - 1] as BrambleTangle.Cane).pts == grown, "asleep again, and its crown grows the same way every visit")
+	tangle = bramble.tangle
+	crown.assign(again_crown)
+	roots.assign(tangle.canes.filter(func(c: BrambleTangle.Cane) -> bool: return c.kind == &"root"))
 
 	print("the heart")
 	player.health.max_health = 99
@@ -224,13 +258,15 @@ func run() -> void:
 			b.wound.hit(Bramble.BULB_HP, Vector2.RIGHT)
 	await frames(2)
 	var heart: BrambleHeart = bramble.heart
-	check(heart != null and heart.alive and heart.open() and heart.is_in_group(&"hex_target") and bramble.vines.all(func(v: BrambleVine) -> bool: return v.withered), "the last bulb burst, every vine withers and the knot splits to bare its heart")
-	check(not bramble.dying and not (bramble.knot.get_child(0) as CollisionShape2D).disabled, "the knot still walls off the head")
-	var torn: Array[Bramble.Strand] = bramble.knot_back + bramble.knot_stems
-	check(torn.all(func(s: Bramble.Strand) -> bool: return is_equal_approx(bramble.reach(s), s.tear)), "split, its vines tear at the middle round the heart")
+	check(heart != null and heart.alive and heart.open() and heart.is_in_group(&"hex_target") and bramble.vines.all(func(v: BrambleVine) -> bool: return v.withered), "the last bulb burst, every vine withers and the heart is bared")
+	check(tangle.awake() and not bramble.dying and not (bramble.knot.get_child(0) as CollisionShape2D).disabled, "the crown awake, and the knot still walls off the head")
+	var bared: bool = await within(func() -> bool: return bramble.bare >= 1.0, Bramble.BARE_TIME + 0.5)
+	await frames(2)
+	check(bared and _clear(tangle) and _cut(tangle) > 0, "its crown draws right back from round the heart: no cane in the hollow (%d short of it)" % _cut(tangle))
+	check(tangle.holds_bud() and tangle.stalk_tip().distance_to(bramble._bud_top()) < 30.0, "the bud dropped out of it, still on its stalk (the hollow does not cut it)")
 	var top_ledge: Vector2i = shaft["ledges"][0]
 	player.global_position = info.cell_position(top_ledge + Vector2i.UP)
-	var dropped: bool = await within(func() -> bool: return heart.dropped > 0, Bramble.SPLIT_TIME + BrambleHeart.BARB_EVERY + 0.5)
+	var dropped: bool = await within(func() -> bool: return heart.dropped > 0, Bramble.BARE_TIME + BrambleHeart.BARB_EVERY + 0.5)
 	var barbs: Array[Node] = placed("bullet.tscn", true).filter(func(n: Node) -> bool: return (n as Bullet).barb)
 	check(dropped and not barbs.is_empty(), "with the wizard in the shaft, it drops barbs")
 	if not barbs.is_empty():
@@ -252,14 +288,26 @@ func run() -> void:
 	check(bramble.dying, "the heart burst, the bramble dies")
 	await frames(3)
 	check((bramble.knot.get_child(0) as CollisionShape2D).disabled and bramble.knot_box.collision.disabled, "the head of the shaft is open at once")
-	var strands: Array[Bramble.Strand] = bramble.all_strands()
-	var knot_first: Bramble.Strand = LevelGen.best_of(bramble.knot_back, func(s: Bramble.Strand) -> float: return s.dry_at) as Bramble.Strand
-	var root_dry: float = bramble.roots.reduce(func(a: float, s: Bramble.Strand) -> float: return minf(a, s.dry_at), INF)
-	check(bramble.curls.size() == bramble.vines.size() and bramble.roots.size() == 2 and not bramble.knot_back.is_empty() and not bramble.knot_stems.is_empty(), "every vine dies: the knot's %d, both roots, and %d withered vines' curls" % [bramble.knot_back.size() + bramble.knot_stems.size(), bramble.curls.size()])
-	check(knot_first.dry_at < root_dry and strands.all(func(s: Bramble.Strand) -> bool: return s.dry_at < s.back_at and s.back_at + s.back_time <= bramble.dying_end + 0.001), "a dry front from the heart reaches the knot before the roots, and each vine dries before it draws back")
-	var midway: bool = await within(func() -> bool: return not is_instance_valid(bramble) or bramble.withering(knot_first).y > 0.3, bramble.dying_end)
+	check(tangle.dying() and bramble.dying_end == tangle.end_time and tangle.end_time > 0.0, "its canes die with it, over %.1f s" % tangle.end_time)
+	var out_then: PackedFloat32Array = tangle.reaches()
+	var standing: Array = crown.filter(func(c: BrambleTangle.Cane) -> bool: return c.gen == 0 and out_then[tangle.canes.find(c)] > 0.0)
+	var first: BrambleTangle.Cane = LevelGen.best_of(standing, func(c: BrambleTangle.Cane) -> float: return c.pts[0].distance_to(tangle.dry_from)) as BrambleTangle.Cane
+	var root: BrambleTangle.Cane = roots.filter(func(c: BrambleTangle.Cane) -> bool: return c.gen == 0)[0]
+	var root_tip: Vector2 = root.pts[root.pts.size() - 1]
+	check(tangle.dry_at(first.pts[0], first) < tangle.dry_at(root_tip, root) and float(tangle.back_at[root.tree]) > float(tangle.back_at[first.tree]), "a dry front runs out from the heart: through the crown before the roots' tips, and the crown draws back first")
+	var dried: bool = await within(func() -> bool: return not is_instance_valid(bramble) or tangle.dryness(first.pts[0], first) >= 1.0, bramble.dying_end)
+	var still_out: bool = is_instance_valid(bramble) and tangle.reaches()[tangle.canes.find(first)] > 0.0
+	check(dried and still_out and not bramble.slain, "a cane of the crown dries before it draws back")
+	var drew_back: bool = await within(func() -> bool: return not is_instance_valid(bramble) or tangle.drawn_back(first) >= 1.0, bramble.dying_end)
+	var crown_in: bool = true
 	if is_instance_valid(bramble):
-		check(midway and bramble.withering(knot_first).x == 1.0 and bramble.reach(knot_first) < knot_first.length and not bramble.slain, "a knot vine, dried, draws back into the rock before the bramble is slain")
+		var now_out: PackedFloat32Array = tangle.reaches()
+		for i: int in range(tangle.canes.size()):
+			if tangle.canes[i].tree == first.tree:
+				crown_in = crown_in and now_out[i] == 0.0
+	check(drew_back and crown_in, "then draws back into the rock, all of it, before the bramble is slain")
+	var stalk_in: bool = await within(func() -> bool: return not is_instance_valid(bramble) or tangle.drawn_back(tangle.stalk) >= 1.0, bramble.dying_end)
+	check(stalk_in and (not is_instance_valid(bramble) or tangle.reaches()[tangle.canes.find(tangle.stalk)] == 0.0), "and the stalk draws the bud's husk up into the rock")
 	var dead: bool = await within(gone(bramble), bramble.dying_end + 1.0 if is_instance_valid(bramble) else 1.0)
 	await settle()
 	check(dead and info.run.bosses.has(&"bramble") and placed("bramble.tscn").is_empty(), "it is slain for the run")
@@ -270,6 +318,47 @@ func run() -> void:
 	check(placed("bramble.tscn").is_empty() and info.world.shaft["on"] == on, "it is never met again: the shaft stands open")
 	RunState.delete_save()
 	finish()
+
+
+## How far any point of `tangle`'s canes of kind `kind` is pushed across it (px), at the most over
+## the next few frames; only within 60 px of `near`, if given (not INF).
+func _shaken(tangle: BrambleTangle, kind: StringName, near: Vector2) -> float:
+	var most: float = 0.0
+	for f: int in range(12):
+		await physics_frame
+		for c: BrambleTangle.Cane in tangle.canes:
+			if c.kind != kind:
+				continue
+			for k: int in range(c.pts.size()):
+				if near.is_finite() and c.pts[k].distance_to(near) > 60.0:
+					continue
+				most = maxf(most, absf(tangle.shake_at(c, k)))
+	return most
+
+
+## How many canes of `tangle`'s crown end short of their full length, cut by the hollow round the
+## heart.
+func _cut(tangle: BrambleTangle) -> int:
+	var out: PackedFloat32Array = tangle.reaches()
+	var n: int = 0
+	for i: int in range(tangle.canes.size()):
+		var c: BrambleTangle.Cane = tangle.canes[i]
+		if c.kind == &"crown" and out[i] > 0.0 and out[i] < c.length - 1.0:
+			n += 1
+	return n
+
+
+## Whether no cane of `tangle`'s crown, as far as it is out, lies in the hollow round the heart.
+func _clear(tangle: BrambleTangle) -> bool:
+	var out: PackedFloat32Array = tangle.reaches()
+	for i: int in range(tangle.canes.size()):
+		var c: BrambleTangle.Cane = tangle.canes[i]
+		if c.kind != &"crown":
+			continue
+		for j: int in range(c.pts.size()):
+			if c.arc[j] < out[i] - 2.0 and tangle.in_hollow(c.pts[j]):
+				return false
+	return true
 
 
 ## Load level `at` (arriving at its way back) and wait for it.

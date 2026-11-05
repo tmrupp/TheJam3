@@ -91,6 +91,7 @@ func open() -> bool:
 ## A blow (heading `dir`) has glanced off its shut bark: no wound, a pale burst.
 func warded(dir: Vector2) -> void:
 	warded_t = bramble.t
+	bramble.quiver(global_position, Bramble.QUIVER_WARDED)
 	RisoFx.burst(&"hit", global_position, dir, [RisoPrint.BLUE, RisoPrint.NIGHT])
 	Wound.shake(4.0, 0.1)
 
@@ -100,9 +101,10 @@ func seed_every() -> float:
 	return SEED_EVERY / (1.0 + SEED_FURY * float(bramble.fury))
 
 
-## It has been struck: it flashes.
+## It has been struck: it flashes, and the bramble quivers from it.
 func struck() -> void:
 	struck_t = bramble.t
+	bramble.quiver(global_position, Bramble.QUIVER_STRUCK)
 
 
 ## It has burst: out of reach for good.

@@ -1,9 +1,11 @@
 extends TestKit
-## Stills of the bramble (Bramble) in its gate level: the head of its shaft (the knot beside the
-## sealed way on), a vine lashing out, a vine's shoots warning, a bulb in bloom and one shut in its
-## bark, a seed in flight, the sap running on to the next bulb, a burst bulb and its withered vine,
-## the heart bared in the split knot, a barb falling from it, its death (its vines drying, the
-## knot's drawing back into the rock, then the roots), and the relic left on the landing. Written whole (bramble_*.png) and as a sheet of close-ups (bramble.png).
+## Stills of the bramble (Bramble) in its gate level: the head of its shaft asleep (the sealed way on,
+## no crown yet), its crown growing out of the rock and grown, quivering from a blow, a vine lashing
+## out, a vine's shoots warning, a bulb in bloom and one shut in its bark, a seed in flight, the sap
+## running on to the next bulb, a burst bulb and its withered vine, the crown drawn back a little to
+## show the bud, the heart bared, a barb falling from it, its death (its canes drying from the heart
+## out, drawing back into the rock, then the roots), and the relic left on the landing. Written
+## whole (bramble_*.png) and as a sheet of close-ups (bramble.png).
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_bramble.gd
 
 const SIZE: int = 420
@@ -24,10 +26,25 @@ func run() -> void:
 	player.set_physics_process(false)
 	player.global_position = Vector2(-9000, -9000)
 	var shots: Array[Image] = []
-	# The head: the knot beside the landing and the sealed way on.
+	# The head asleep: no crown yet beside the sealed way on.
 	var head: Vector2 = bramble.knot_rect.get_center() + Vector2(0, 60)
 	shots.append(await _shot(camera, head))
+	save_still("bramble_asleep.png")
+	# Its crown growing out of the rock, and grown.
+	bramble.wake()
+	await until(func() -> bool: return bramble.tangle.grown() > 0.45)
+	shots.append(await _shot(camera, head))
+	save_still("bramble_growing.png")
+	await until(func() -> bool: return bramble.tangle.grown() >= 1.0)
+	await frames(10)
+	shots.append(await _shot(camera, head))
 	save_still("bramble_head.png")
+	# Struck: it quivers from the blow.
+	bramble.quiver(bramble.knot_rect.get_center() + Vector2(0, bramble.knot_rect.size.y * 0.4), Bramble.QUIVER_BURST)
+	var struck_at: float = bramble.t
+	await until(func() -> bool: return bramble.t - struck_at > 0.12)
+	shots.append(await _shot(camera, head))
+	save_still("bramble_quiver.png")
 	# A vine lashing out, and its shoots warning.
 	var vine: BrambleVine = bramble.vines[0]
 	await until(func() -> bool: return vine.phase()[0] == &"hold")
@@ -67,6 +84,11 @@ func run() -> void:
 	await frames(30)
 	shots.append(await _shot(camera, (fed.global_position + fed.bulb.global_position) * 0.5))
 	save_still("bramble_burst.png")
+	# A bulb burst, the crown draws back a little from the bud hidden in it.
+	await until(func() -> bool: return is_equal_approx(bramble.bare, bramble.bare_to()))
+	await frames(10)
+	shots.append(await _shot(camera, head))
+	save_still("bramble_peek.png")
 	# The last bulb: the knot splits and bares its heart, which drops barbs at the wizard.
 	for b: BrambleBulb in bramble.bulbs:
 		if b.alive:
@@ -74,7 +96,7 @@ func run() -> void:
 			b.wound.hit(Bramble.BULB_HP, Vector2.RIGHT)
 	var ledge: Vector2i = info.world.shaft["ledges"][0]
 	player.global_position = info.cell_position(ledge + Vector2i.UP)
-	await until(func() -> bool: return bramble.split >= 1.0 and bramble.heart.warning() > 0.6)
+	await until(func() -> bool: return bramble.bare >= 1.0 and bramble.heart.warning() > 0.6)
 	shots.append(await _shot(camera, head + Vector2(0, 40)))
 	save_still("bramble_heart.png")
 	var heart: BrambleHeart = bramble.heart
@@ -86,10 +108,10 @@ func run() -> void:
 	shots.append(await _shot(camera, head + Vector2(0, 80)))
 	save_still("bramble_barb.png")
 	player.global_position = Vector2(-9000, -9000)
-	# The heart burst: its vines dry from the heart out, then draw back into the rock, the knot's
+	# The heart burst: its canes dry from the heart out, then draw back into the rock, the crown's
 	# first, then the roots down the walls.
 	heart.wound.hit(heart.wound.hp, Vector2.UP)
-	await until(func() -> bool: return not is_instance_valid(bramble) or bramble.dying_t > 0.45)
+	await until(func() -> bool: return not is_instance_valid(bramble) or bramble.dying_t > 0.3)
 	shots.append(await _shot(camera, head))
 	save_still("bramble_dry.png")
 	await until(func() -> bool: return not is_instance_valid(bramble) or bramble.dying_t > 0.95)
