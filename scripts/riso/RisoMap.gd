@@ -203,7 +203,7 @@ func _nearest_tile(info: MapInfo, from: Vector2i, dir: Vector2i) -> Variant:
 
 ## The page tabs, top right: an icon for each page (the level, a tile with its rock and the
 ## wizard in it; the worlds, four tiles joined), the open one on a tinted tab, with the keys that
-## turn the page (letters of keys, as the keyboard prints them).
+## turn the page. No keys are printed by them.
 func _tabs() -> void:
 	var spots: Array[float] = [TAB_X - TAB_STEP, TAB_X]
 	for i: int in range(spots.size()):
@@ -219,7 +219,6 @@ func _tabs() -> void:
 			for d: Vector2 in [Vector2(-3.5, -2.2), Vector2(3.5, -2.2), Vector2(-3.5, 2.2), Vector2(3.5, 2.2)]:
 				tiles_at.append(RisoShapes.rrect(c.x + d.x - 2.8, c.y + d.y - 1.8, 5.6, 3.6, 1.0))
 			marks.ink(RisoPrint.NIGHT, 0.8, tiles_at, false)
-	_text("A / D", Vector2(spots[0] - 12.0, 13.0), 7.0, true)
 
 
 ## Where the page tabs sit (UI units): the last one's middle, how far apart they are, and their

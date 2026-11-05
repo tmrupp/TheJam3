@@ -25,8 +25,13 @@ func run() -> void:
 	var second: Node2D = rift.ends[1]
 	var world_a: Vector2i = info.coord
 	var natural: Array[Node] = info.map_elements.get_children().filter(func(n: Node) -> bool: return n.scene_file_path.get_file() == "portal.tscn" and not n.has_meta(&"rift"))
+	var done: Array[bool] = [false]
+	first.connect(&"trip_done", func() -> void: done[0] = true, CONNECT_ONE_SHOT)
 	first.call("use_portal")
-	await Signal(first, &"trip_done")
+	# Placed at the far end, still arriving: already untouchable (nothing waiting there hits them).
+	await until(func() -> bool: return player.global_position == second.global_position or done[0])
+	check(not done[0] and player.is_invulnerable(), "untouchable from the moment they are at the far end, still arriving")
+	await until(func() -> bool: return done[0])
 	check(player.global_position == second.global_position, "interaction travels to the partner")
 	check(player.graced.is_acting(), "a moment's grace coming out of a portal")
 	player.global_position += Vector2(700, 0)

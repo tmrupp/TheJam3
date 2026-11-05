@@ -76,9 +76,11 @@ func _process(delta: float) -> void:
 	match kind:
 		&"slash":
 			# A crescent sweeping round the arc, thick at its leading edge and drawn out to a point
-			# at its trailing one.
+			# at its trailing one: from the top down either way it heads (to the left it sweeps the
+			# other way round, the right-hand slash mirrored, so its trailing point is on top).
+			var turn: float = -1.0 if dir.x < 0.0 else 1.0
 			var sweep: float = lerpf(-half, half, minf(1.0, u * 2.2))
-			shapes.append(_crescent(from, reach * SLASH_INNER, reach, base - half, base + sweep))
+			shapes.append(_crescent(from, reach * SLASH_INNER, reach, base - half * turn, base + sweep * turn))
 		&"nova":
 			var r: float = reach * (0.35 + 0.65 * sqrt(u))
 			shapes.append(_band(from, r - 10.0, r, 0.0, TAU))

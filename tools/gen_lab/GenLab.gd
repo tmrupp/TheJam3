@@ -809,8 +809,7 @@ func _enter_game(look: bool) -> void:
 func _settled_in(info: MapInfo) -> void:
 	for i: int in range(900):
 		await get_tree().process_frame
-		var titling: bool = RisoTransition.instance != null and RisoTransition.instance.titling()
-		if info.world != null and not info.travelling and Stage.player() != null and not titling:
+		if info.world != null and not info.travelling and Stage.player() != null:
 			break
 	for i: int in range(20):
 		await get_tree().process_frame

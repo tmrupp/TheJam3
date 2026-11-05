@@ -59,9 +59,6 @@ func _strip(shots: Array[Image]) -> Image:
 
 ## Look at the wizard from `zoom`, a little above their feet.
 func _frame(zoom: float) -> void:
-	# (No title card over the view.)
-	if RisoTransition.instance != null:
-		RisoTransition.instance.title_age = -1.0
 	camera.zoom = Vector2.ONE * zoom
 	camera.global_position = player.global_position + Vector2(0, -46)
 	camera.reset_smoothing()

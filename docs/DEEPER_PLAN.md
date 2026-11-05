@@ -113,7 +113,7 @@ No level is guaranteed to be fully reachable. Places you can't reach yet are the
 
 | Ability | Start | Max | Each tier |
 | --- | --- | --- | --- |
-| Dash | I (the movement slot) | IV | dashes at 750 px/s (25 % further than the old 600), 0.25 s; each tier 0.07 s longer. It is a move, not an attack: it neither wounds nor stuns (§8). In the air it comes back on landing or from a moon; on the ground only 1 s after the last dash began (`Player.DASH_GROUND_COOLDOWN`; landing gives it back only once that has passed too) |
+| Dash | I (the movement slot) | IV | dashes at 750 px/s (25 % further than the old 600), 0.25 s; each tier 0.07 s longer. It is a move, not an attack: it neither wounds nor stuns (§8). In the air it comes back on landing or from a moon; on the ground only 0.35 s after the last dash began (`Player.DASH_GROUND_COOLDOWN`; landing gives it back only once that has passed too) |
 | Double jump | – (a relic) | III | one more air jump |
 | Wall climb | – (a relic) | III | I lets you climb (1 s); each further tier adds 0.5 s. Anyone can wall jump at 600 px/s sideways. Repeated jumps from the same wall push away without gaining height or slowing the fall; landing or jumping from the opposite side restores the upward boost, so a two-cell shaft can be climbed back and forth. Holding toward a wall while falling slides down it at `Player.WALL_SLIDE_SPEED`; a wall jump comes before an air jump, which is kept. `tests/wall_test.gd` covers repeated same-wall jumps and the shaft |
 | Blink | – (a relic) | III | takes the dash's place in the movement slot (on the Dash button); reach 300 px, +100 per tier. Every full moon on its way is spent and gives the dash back; it strikes nothing |
@@ -275,7 +275,7 @@ The last band down (rows 22 to 35, and on below): a sunken institute of magic du
 
 ## 6. Interface
 
-- **Region title cards** (`RisoTransition.title`, `MapInfo._title_region`, `Archetype.title`): coming into a region (a band of levels: the garden, the cemetery, the institute, the crags, the sky) from another, and at a run's start, its name shows on a paper banner across the top of the view once the travel sheet has gone: rising in, held 2 s, fading. Going on within a region, or into a side world and back, shows none. It is the one place words print in the UI. `tests/region_title_test.gd`.
+- **No region title cards:** coming into a region shows no card (they were taken out after the November 2026 playtest, `docs/PLAYTEST_PLAN.md`).
 
 - **Start menu:**
   - **Continue** appears when a run is saved and names where it will resume.

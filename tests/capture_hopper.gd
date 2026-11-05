@@ -11,13 +11,11 @@ func run() -> void:
 	window()
 	await boot()
 	info.debug = true
-	RisoTransition.instance.title_age = -1.0
 	var at: Vector2i = Vector2i(28, NextWorldDef.band_row(&"garden", 2))
 	info.debug_travel(at)
 	await process_frame
 	await until(func() -> bool: return info.world != null and not info.travelling and info.coord == at, 20000)
 	await frames(10)
-	RisoTransition.instance.title_age = -1.0
 	var space: PhysicsDirectSpaceState2D = player.get_world_2d().direct_space_state
 	var body: Node2D = null
 	var aim: Vector2 = Vector2.ZERO

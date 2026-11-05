@@ -15,8 +15,10 @@ func run() -> void:
 	print("laid out")
 	var bad: Array[String] = []
 	var levels: int = 0
+	# The band's first, middle and last rows (not every row: a long band would take minutes).
+	var last: int = Bands.rows_of(&"sky") - 1
 	for world: int in [28, 29, 30]:
-		for k: int in range(Bands.rows_of(&"sky")):
+		for k: int in [0, last / 2, last]:
 			var at: Vector2i = Vector2i(world, NextWorldDef.band_row(&"sky", k))
 			var w: LevelGen = build(at)
 			if w == null:

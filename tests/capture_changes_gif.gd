@@ -60,7 +60,6 @@ func run() -> void:
 				break
 		if found:
 			break
-	info.region = &"garden"
 	info.coord = level
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
@@ -73,8 +72,6 @@ func run() -> void:
 	player.health.health = 99
 	# Nothing hurts the wizard here: a touch would knock them about and flash them pink.
 	player.hurt_ability = func(_d: int, _v: Vector2, _a: Node) -> void: pass
-	# No region card over the frames.
-	await until(func() -> bool: return RisoTransition.instance == null or not RisoTransition.instance.titling(), 15000)
 	for scene: StringName in SCENES:
 		if scene in wanted:
 			await call(String(scene))
@@ -267,7 +264,6 @@ func crossbow() -> void:
 		if w.objects_of(LevelGen.Type.CROSSBOW).any(func(v: Vector2i) -> bool: return _bow_open(w, v)):
 			place = c
 			break
-	info.region = &"crags"
 	info.coord = place
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()

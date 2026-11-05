@@ -65,6 +65,8 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
   crypts, light and the necromancer, and a first pass of phase 7, the institute, its beast and its timetable),
   `RISO_PRINT.md` (the art pipeline and rules), `CLEANUP_PLAN.md` (the ten follow-ups to the
   architecture refactor, all done; kept for why the shared helpers are shaped as they are),
+  `PLAYTEST_PLAN.md` (the owner's playtest notes of November 2026 on the demo: the tutorial, the
+  guard and pogo, the print, music and teleporters; a plan, not yet built),
   `PAIRED_PLAN.md` (paired play, preliminary: two players on two machines, each seeing the
   other's map, coded messages their only channel; nothing built yet).
 - The owner's task list and notes are a Google Doc, not a file here:

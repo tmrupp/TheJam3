@@ -249,9 +249,10 @@ const Y_DASH_FACTOR: float = 1.0
 func dash_end(_timer: ActionTimer) -> void:
 	velocity = Vector2.ZERO
 var dash: ActionTimer = ActionTimer.new(0.25, dash_end)
-## On the ground the dash comes back only this long after the last one began, so it is not an
-## attack to spam; in the air it comes back on landing (once this has passed), or from a moon.
-const DASH_GROUND_COOLDOWN: float = 1.0
+## On the ground the dash comes back only this long after the last one began (a little longer than
+## the dash itself, 0.25 s, so it is quick to chain but not held down); in the air it comes back on
+## landing (once this has passed), or from a moon.
+const DASH_GROUND_COOLDOWN: float = 0.35
 var dash_rest: float = 0.0
 
 # WALL_JUMP_SPEED: how quickly and high the player jumps
