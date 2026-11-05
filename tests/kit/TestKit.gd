@@ -218,9 +218,6 @@ func still() -> void:
 	player.wall_jump.end()
 
 
-## The objects of the level being played that came from prefab `scene` (a file name such as
-## "key.tscn"), leaving out those going away, and those hidden (a key being picked up) unless
-## `hidden` (a bridge's planks are hidden until its bell is rung).
 ## The relic unlocks (KeyRing.UNLOCK, a boss's drop) lying in the level, not yet picked up.
 func unlocks_lying() -> Array[Node]:
 	var out: Array[Node] = []
@@ -235,6 +232,9 @@ func left_unlock() -> bool:
 	return unlocks_lying().size() == 1 or player.keyring.unlocks() > 0
 
 
+## The objects of the level being played that came from prefab `scene` (a file name such as
+## "key.tscn"), leaving out those going away, and those hidden (a key being picked up) unless
+## `hidden` (a bridge's planks are hidden until its bell is rung).
 func placed(scene: String, hidden: bool = false) -> Array[Node]:
 	var found: Array[Node] = []
 	for node: Node in info.map_elements.get_children():

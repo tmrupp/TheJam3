@@ -83,8 +83,10 @@ archetype's settings (`star_share`, `wisp_share`, `watcher_share`, `hoppers_per_
 is tuned, lengthened, reordered or left out there and nowhere else. The `garden` layout is the
 demo: the garden alone, the worm and the bramble at its ends, garden levels going on past them. A
 game plays `-- layout=<name>`, else `garden` in a build with the `demo` feature (an export preset's
-custom feature), else `full`; a layout other than `full` keeps its own save. A new band is one
-script extending `Archetype`, listed in a layout.
+custom feature), else `full`; a layout other than `full` keeps its own save. A layout may set
+`"relics_from"` (the demo's lets rare relics lie from depth 1). A demo build also turns off the
+developer's tools (`MapInfo.dev_tools`: the debug toggle, the F7 panel, F8, Debug-Back). A new band
+is one script extending `Archetype`, listed in a layout.
 
 Tests must hold however the bands are tuned. Ask the bands for rows rather than counting them:
 `NextWorldDef.band_row(&"cemetery", k)` (row k of the band, counting away from the start),

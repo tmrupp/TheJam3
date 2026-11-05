@@ -226,7 +226,7 @@ func trophies_all_set() -> bool:
 
 ## Take up the run saved in `data` (see read_save).
 func from_save(data: Dictionary) -> void:
-	MapInfo.debug = bool(data.get("debug", false))
+	MapInfo.debug = bool(data.get("debug", false)) and MapInfo.dev_tools()
 	run_seed = int(data["run_seed"])
 	deepest = int(data["deepest"])
 	furthest_row = int(data.get("furthest_row", deepest))

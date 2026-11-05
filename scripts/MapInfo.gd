@@ -18,6 +18,16 @@ enum Exit { DEEPER, BACK, LEFT, RIGHT, RETURN }
 ## Debug runs (from the start menu): every exit is generated right by the spawn, and the run
 ## starts with DEBUG_STARS. Saved with the run and shown in the HUD.
 static var debug: bool = false
+## Whether this is a demo build: an export with the "demo" feature (an export preset's custom
+## feature), which also plays the demo's band layout (Bands.DEMO). Tests set it to try one.
+static var demo_build: bool = OS.has_feature("demo")
+
+
+## Whether the developer's tools are at hand: the start menu's debug toggle (debug runs), the F7
+## panel and F8's realms (RisoPrint), and going back a level at a key (Debug-Back). A demo build has
+## none of them, so its players get the game alone, on the default difficulty (Difficulty).
+static func dev_tools() -> bool:
+	return not demo_build
 const DEBUG_STARS: int = 9999
 
 static var instance: MapInfo
@@ -2062,5 +2072,5 @@ func _physics_process (delta: float) -> void:
 	loader.sleep_far_chunks()
 
 func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("Debug-Back"):
+	if event.is_action_pressed("Debug-Back") and dev_tools():
 		travel(Exit.BACK)

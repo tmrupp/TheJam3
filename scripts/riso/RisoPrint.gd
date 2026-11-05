@@ -1187,13 +1187,14 @@ func _rebuild_ground(map_info: MapInfo) -> void:
 
 
 ## The keys that open and close the panel: F7, and the key left of 1 (backquote, `), which the
-## left hand reaches from the movement keys. The pause menu opens it too, in debug runs.
+## left hand reaches from the movement keys. The pause menu opens it too, in debug runs. A demo
+## build has neither the panel nor F8's realms (MapInfo.dev_tools).
 const PANEL_KEYS: Array[Key] = [KEY_F7, KEY_QUOTELEFT]
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	var key: InputEventKey = event as InputEventKey
-	if key == null or not key.pressed or key.echo:
+	if key == null or not key.pressed or key.echo or not MapInfo.dev_tools():
 		return
 	if PANEL_KEYS.has(key.keycode) or PANEL_KEYS.has(key.physical_keycode):
 		set_pad_panel(not panel.visible)
@@ -1210,7 +1211,7 @@ var _pad_paused: bool = false
 
 func _input(event: InputEvent) -> void:
 	var pad: InputEventJoypadButton = event as InputEventJoypadButton
-	if pad != null and pad.pressed and pad.button_index == JOY_BUTTON_BACK and MapInfo.debug and panel != null:
+	if pad != null and pad.pressed and pad.button_index == JOY_BUTTON_BACK and MapInfo.debug and MapInfo.dev_tools() and panel != null:
 		set_pad_panel(not panel.visible)
 		get_viewport().set_input_as_handled()
 	elif panel != null and panel.visible and event.is_action_pressed(&"ui_cancel"):

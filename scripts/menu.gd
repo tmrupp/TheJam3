@@ -242,6 +242,8 @@ func _ready() -> void:
 	paste.pressed.connect(paste_seed)
 	debug_button.toggled.connect(set_debug)
 	set_debug(false)
+	# A demo build has no debug runs (MapInfo.dev_tools).
+	debug_button.visible = MapInfo.dev_tools()
 	tutorial_button.toggled.connect(set_tutorial)
 	set_tutorial(not Tutorial.done())
 	var saved: Dictionary = RunState.read_save()

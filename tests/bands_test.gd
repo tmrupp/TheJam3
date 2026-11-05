@@ -7,7 +7,9 @@ extends TestKit
 ## held by their boss and nothing else; a way out crosses the gates past it nearest first; a gate
 ## level holds no relic of its own; a level in each band and at each gate lays out, the boss (all
 ## but the whale, which roams) in its gate level; and a band's "tune" names only Archetype's vars,
-## and dresses its levels as it says.
+## and dresses its levels as it says. Relics lie no shallower than the layout lets them
+## (Relics.min_depth), as rarely there as at MIN_DEPTH in the whole game: in the demo's garden, from
+## its first row, so one may be met before either boss.
 ## godot --headless --path . --script res://tests/bands_test.gd
 
 ## Layouts of its own, besides Bands.LAYOUTS.
@@ -49,6 +51,7 @@ func run() -> void:
 		_gates(name)
 		_levels(name)
 		_tuning(name)
+		_relics(name)
 	# Put back as it was: by name, or (a layout of the tests' own) as itself.
 	Bands.use(was_name if Bands.LAYOUTS.has(was_name) else was)
 	check_eq(Bands.layout, was, "the bands in play are put back")
@@ -157,3 +160,18 @@ func _tuning(name: StringName) -> void:
 	if garden.has("wisp_share") and float(garden["wisp_share"]) == 0.0:
 		var w: LevelGen = build(Vector2i(28, 0))
 		check(count_of(w, LevelGen.Type.ENEMY) == 0 and count_of(w, LevelGen.Type.COIN) < 40, "%s: a garden tuned to no wisps and few stars has none, and few" % name)
+
+
+## How deep relics first lie, and how rarely there.
+func _relics(name: StringName) -> void:
+	var first: int = Relics.min_depth()
+	var shallow: int = 0
+	var at_first: int = 0
+	for x: int in range(1, 400):
+		for dir: int in [1, -1]:
+			for d: int in range(0, first):
+				shallow += 1 if Relics.at(Vector2i(x, d * dir)) != &"" else 0
+			at_first += 1 if Relics.at(Vector2i(x, first * dir)) != &"" else 0
+	check(shallow == 0 and Relics.chance(first) == Relics.CHANCE, "%s: relics lie from depth %d, no shallower, as rarely as anywhere (%d of 800 levels there)" % [name, first, at_first])
+	if name == &"garden":
+		check(first < Bands.garden_rows() and at_first > 0, "garden: relics lie inside the garden, before its gates")

@@ -15,6 +15,9 @@ extends RefCounted
 ## levels thicker or thinner than its archetype does (star_share, wisp_share, watcher_share,
 ## hoppers_per_k, and the rest of Archetype's vars); bands_test checks every name is one.
 ## The outermost band each way goes on for ever past its end (the garden, when a way has none).
+## A layout may also say, as "relics_from", how deep relics first lie in it (Relics.min_depth; else
+## Relics.MIN_DEPTH): the demo's garden lets them lie from its first row, as rarely as anywhere, so
+## one may be met before either boss, though it cannot be taken until a boss leaves a relic unlock.
 ##
 ## A game plays the layout named by the "layout=<name>" option after a lone "--" on the command line,
 ## else DEMO's when the build has the "demo" feature (an export preset's custom feature), else
@@ -44,6 +47,7 @@ const LAYOUTS: Dictionary = {
 		"garden": {"arch": GARDEN, "rows": 3, "down": &"worm", "up": &"bramble"},
 		"down": [],
 		"up": [],
+		"relics_from": 1,
 	},
 }
 ## The layout a game is played on unless told otherwise, and a demo build's.
@@ -73,6 +77,11 @@ static func use(which: Variant) -> void:
 	else:
 		current = StringName(which)
 		layout = LAYOUTS[current]
+
+
+## How deep relics first lie in the layout (see the class description).
+static func relics_from() -> int:
+	return int(layout.get("relics_from", Relics.MIN_DEPTH))
 
 
 ## The rows the garden spans either side of the start.
