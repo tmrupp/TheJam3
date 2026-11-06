@@ -46,7 +46,7 @@ func run() -> void:
 	await _go(Vector2i(28, g))
 	var worm_way: LevelExit = _exit(MapInfo.Exit.DEEPER)
 	player.collect(9999)
-	check(placed("worm.tscn").size() == 1 and placed("boss.tscn").is_empty(), "in play the worm itself is there (Worm; worm_test fights it)")
+	check(placed("worm.tscn").size() == 1, "in play the worm itself is there (Worm; worm_test fights it)")
 	check(worm_way.sealed() == &"worm" and worm_way.interaction_hint().get("sealed", false), "its way on is sealed")
 	worm_way.interacted()
 	await settle()
@@ -54,18 +54,18 @@ func run() -> void:
 
 	print("the bramble's gate")
 	await _go(Vector2i(28, -g))
-	check(placed("bramble.tscn").size() == 1 and placed("boss.tscn").is_empty(), "in play the bramble itself is there (Bramble; bramble_test fights it)")
+	check(placed("bramble.tscn").size() == 1, "in play the bramble itself is there (Bramble; bramble_test fights it)")
 	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"bramble", "its way on is sealed")
 
 	print("the necromancer's gate")
 	await _go(Vector2i(28, g + b))
-	check(placed("necromancer.tscn").size() == 1 and placed("boss.tscn").is_empty() and _exit(MapInfo.Exit.DEEPER).sealed() == &"necromancer", "in play the necromancer itself is there, its way on sealed (Necromancer; necromancer_test fights it)")
+	check(placed("necromancer.tscn").size() == 1 and _exit(MapInfo.Exit.DEEPER).sealed() == &"necromancer", "in play the necromancer itself is there, its way on sealed (Necromancer; necromancer_test fights it)")
 
 	# The beast shows the gate's rules, its souls cleared away once it has sent them.
 	print("the beast, in its gate level")
 	var gate_at: Vector2i = Vector2i(28, g + 2 * b)
 	await _go(gate_at)
-	check(placed("beast.tscn").size() == 1 and placed("boss.tscn").is_empty() and _exit(MapInfo.Exit.DEEPER).sealed() == &"beast", "the beast's gate level is sealed, the beast in it (Beast)")
+	check(placed("beast.tscn").size() == 1 and _exit(MapInfo.Exit.DEEPER).sealed() == &"beast", "the beast's gate level is sealed, the beast in it (Beast)")
 	var boss: Beast = placed("beast.tscn")[0] as Beast
 	var wound: Wound = boss.get_node("Wound") as Wound
 	check(boss.boss == &"beast" and wound.hp == Beast.CORE_HP, "whole")

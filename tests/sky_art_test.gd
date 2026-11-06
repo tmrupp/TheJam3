@@ -1,17 +1,9 @@
-extends SceneTree
+extends TestKit
 ## suite: window
 ## Sparse, deterministic underside decor stays clear of obstacles; render the sky and check
 ## transition coverage at every screen edge, including small camera/print alignment shifts.
 ## Run with a renderer, --fixed-fps 60 --script res://tests/sky_art_test.gd.
 
-var failed: bool = false
-
-func _initialize() -> void:
-	call_deferred("run")
-
-func check(ok: bool, what: String) -> void:
-	print("  ok   " if ok else "FAIL  ", what)
-	failed = failed or not ok
 
 func run() -> void:
 	var solid: Dictionary = {}
@@ -36,34 +28,23 @@ func run() -> void:
 			clear = clear and bounds.has_point(cell) and not solid.has(cell) and not occupied.has(cell)
 	check(clear, "danglers stop before terrain, structures and the level edge")
 
-	root.mode = Window.MODE_WINDOWED
-	root.size = Vector2i(1280, 720)
+	window()
 	var output: String = ProjectSettings.globalize_path("res://../art-captures/sky-art")
 	DirAccess.make_dir_recursive_absolute(output)
-	RunState.save_path = "user://sky_art_test.save"
-	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	await process_frame
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	menu.start_game()
-	var info: MapInfo = main.get_node("CanvasLayer/MapInfo")
-	while info.world == null or info.travelling:
-		await process_frame
+	await boot(28)
 	info.coord = Vector2i(28, NextWorldDef.first_depth(&"sky"))
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	while info.travelling:
 		await process_frame
-	var player: Player = main.get_node("Player")
 	player.set_physics_process(false)
 	player.get_node("CameraControl").set_process(false)
-	var cam: Camera2D = main.get_node("Camera2D")
+	var cam: Camera2D = main.get_node("Camera2D") as Camera2D
 	cam.limit_left = -100000
 	cam.limit_right = 100000
 	cam.limit_top = -100000
 	cam.limit_bottom = 100000
-	var decor: RisoDecor = main.get_node("RisoDecor")
+	var decor: RisoDecor = main.get_node("RisoDecor") as RisoDecor
 	var curtain: Dictionary = {}
 	var widest: int = 0
 	for it: Dictionary in decor.items:
@@ -147,5 +128,4 @@ func run() -> void:
 	check(clean, "all four transition directions hide the previous world's edge ink")
 	root.get_texture().get_image().save_png(output.path_join("transition-covered.png"))
 	RunState.delete_save()
-	print("FAILED" if failed else "PASS: sky art and transition edges")
-	quit(1 if failed else 0)
+	finish()

@@ -3,7 +3,6 @@
 [ext_resource type="PackedScene" uid="uid://d07pxhxu1ug5i" path="res://prefabs/menu.tscn" id="1_u4qe6"]
 [ext_resource type="Script" uid="uid://dtow171waltbv" path="res://scripts/MapInfo.gd" id="2_j20rq"]
 [ext_resource type="Texture2D" uid="uid://bsvj6kbku0k16" path="res://wfc_images/levelSample3-spikes.png" id="5_3ptxv"]
-[ext_resource type="PackedScene" uid="uid://cywny0yr2evn6" path="res://prefabs/code_menu.tscn" id="6_pee7n"]
 [ext_resource type="Script" uid="uid://chkqmuvjo7jja" path="res://scripts/WaveFunctionCollapse.gd" id="8_vwnae"]
 [ext_resource type="PackedScene" uid="uid://bf08akeilq3j1" path="res://prefabs/tile_map.tscn" id="9_qh1ky"]
 [ext_resource type="AudioStream" uid="uid://dl3u7v333oha2" path="res://music/big_bossanova.wav" id="10_yprvw"]
@@ -16,10 +15,6 @@ texture_filter = 1
 
 [node name="RisoPrint" type="Node" parent="." unique_id=1761851537]
 script = ExtResource("21_riso")
-
-[node name="CodeMenu" parent="." unique_id=1125655424 instance=ExtResource("6_pee7n")]
-layer = 2
-visible = false
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=788805411]
 process_mode = 3

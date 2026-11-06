@@ -1,23 +1,10 @@
-extends SceneTree
+extends TestKit
 ## Big things get room: once any kind of place is laid out, rock and thorns in the box each thing
 ## takes (Placeables.size) are carved out, so a tall doorway, portal, shrine, lantern or ink well
 ## never prints into the rock over it. A secret room's rock and the rock sealing it, rock framing a
 ## door or gate, and rock a laser is set in are left alone.
 ## godot --headless --path . --script res://tests/room_test.gd
 
-var failed: bool = false
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
 
 
 ## Cells in big things' boxes still holding rock or thorns (outside the cases left alone).
@@ -36,10 +23,6 @@ func cramped(w: LevelGen) -> Array[Vector2i]:
 
 
 func run() -> void:
-	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	await process_frame
-	var wfc: Node = main.get_node("WaveFunctionCollapse")
 	var places: int = 0
 	var carved: int = 0
 	var all_clear: bool = true
@@ -51,9 +34,8 @@ func run() -> void:
 	for s: int in range(1, 5):
 		coords.append(Worlds.side_at(Worlds.kind_of(Hyperspace), Vector2i(s, 1)))
 	for at: Vector2i in coords:
-		var def: NextWorldDef = Rules.def_for(at)
-		var cells: Array = wfc.call("generate_level", def)
-		var w: LevelGen = LevelGen.new(cells, def)
+		var cells: Array = collapse(at)
+		var w: LevelGen = LevelGen.new(cells, Rules.def_for(at))
 		places += 1
 		carved += w.carved.size()
 		var left: Array[Vector2i] = cramped(w)
@@ -67,9 +49,4 @@ func run() -> void:
 	check(carved > 0, "rock over big things is carved out")
 	check(all_clear, "every big thing has its room, in levels and hyperspace alike")
 	check(same, "the same place always carves the same cells")
-	if failed:
-		print("FAILED")
-		quit(1)
-	else:
-		print("PASSED")
-		quit()
+	finish()

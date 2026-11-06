@@ -1,4 +1,4 @@
-extends SceneTree
+extends TestKit
 ## suite: window (reads back the rendered screen, so it needs a real window: full run only)
 ## The print's imperfections are pinned to the world: with the sheet held still, moving the
 ## camera must slide the whole printed image by exactly the camera's pixel shift (grain,
@@ -9,10 +9,6 @@ extends SceneTree
 ## the sheet's slow wobble leave about 0.02 even when it moves with the world exactly (aligned to
 ## the screen instead it differs by about 0.3), so 0.02 itself was right on the edge.
 const PINNED_MAX: float = 0.05
-
-func _initialize() -> void:
-	call_deferred("run")
-
 
 ## Pixels of `b` deep inside solid rock (the cell and its eight neighbours are ground): the
 ## parallax background never shows there, so the only change a camera move may cause is a shift.
@@ -43,25 +39,11 @@ func diff(a: Image, b: Image, pts: Array[Vector2i], dx: int, dy: int) -> float:
 
 
 func run() -> void:
-	root.mode = Window.MODE_WINDOWED
-	root.size = Vector2i(1280, 720)
-	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	RunState.save_path = "user://riso_pin_test.save"
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	for i: int in range(5):
-		await process_frame
-	menu.start_game()
-	for i: int in range(5):
-		await process_frame
-	var info: MapInfo = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	while info.world == null or info.travelling:
-		await process_frame
+	window()
+	await boot(28)
 	var riso: RisoPrint = RisoPrint.instance
 	riso.sheet_rate = 0.0
 	riso.reprint_on_motion = false
-	var player: Player = main.get_node("Player") as Player
 	player.set_physics_process(false)
 	player.get_node("CameraControl").set_process(false)
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
@@ -84,10 +66,7 @@ func run() -> void:
 	var pinned: float = diff(a, b, pts, shift.x, shift.y)
 	var still: float = diff(a, b, pts, 0, 0)
 	print("rock samples ", pts.size(), "  shift ", shift, "  diff when aligned to the world ", snappedf(pinned, 0.0001), "  diff aligned to the screen ", snappedf(still, 0.0001))
-	if pts.size() < 200 or shift == Vector2i.ZERO or pinned > PINNED_MAX or pinned * 4.0 > still:
-		push_error("FAIL: the print does not move with the world")
-		print("RISO PIN: FAIL")
-		quit(1)
-	else:
-		print("RISO PIN: PASS")
-		quit()
+	check(pts.size() >= 200, "enough solid rock in view to compare (%d samples)" % pts.size())
+	check(shift != Vector2i.ZERO, "the camera move shifts the print's pin")
+	check(pinned <= PINNED_MAX and pinned * 4.0 <= still, "the print moves with the world, not the screen")
+	finish()

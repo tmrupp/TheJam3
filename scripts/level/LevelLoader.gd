@@ -263,7 +263,7 @@ func place_cell(v: Vector2i, cell: LevelGen.Cell) -> void:
 		var cell_size: Vector2 = Vector2(info.tile_map.tile_set.tile_size) * info.tile_map.global_scale
 		var roll: Vector2 = Vector2(RisoDecor.h(w.seed_for_colors, v, JITTER_DEAL), RisoDecor.h(w.seed_for_colors, v, JITTER_DEAL + 1))
 		jitter = (roll * 2.0 - Vector2.ONE) * JITTER * cell_size
-	# A boss is fought as its own prefab once it is built, else as the stand-in (Bosses.scene).
+	# A boss is fought as its own prefab (Bosses.scene).
 	var node: Node = (Bosses.scene(StringName(cell.extra_info)) if cell.type == LevelGen.Type.BOSS else Placeables.scene(cell.type)).instantiate()
 	node.set_meta(&"cell", v)
 	# A key's or door's colour was dealt with the level (LevelGen.deal_colors).
@@ -282,10 +282,8 @@ func place_cell(v: Vector2i, cell: LevelGen.Cell) -> void:
 		# A vault's lesser cluster is worth a share of a full one (LevelGen.VAULT_LOOT).
 		var share: float = float(cell.extra_info) if cell.extra_info != null else 1.0
 		(node as Coin).value = maxi(2, roundi(Rules.cluster_value(info.here.depth) * share))
-	# A boss built for itself keeps its health on its parts (the worm's segments, the bramble's
-	# bulbs), not on itself.
-	var own_boss: bool = cell.type == LevelGen.Type.BOSS and Bosses.SCENES.has(StringName(cell.extra_info))
-	if Placeables.has_flag(cell.type, &"enemy") and not own_boss:
+	# A boss keeps its health on its parts (the worm's segments, the bramble's bulbs), not on itself.
+	if Placeables.has_flag(cell.type, &"enemy") and cell.type != LevelGen.Type.BOSS:
 		arm(node, info.here.depth)
 	if cell.mods.has("shield"):
 		var shield: Shield = Shield.new()

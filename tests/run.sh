@@ -5,7 +5,9 @@
 #   bash tests/run.sh full          everything: also tests tagged "## suite: full", then the ones
 #                                   tagged "## suite: window" one at a time in a real window
 #   bash tests/run.sh keys_test hex_test    just these (headless)
-#   options: -j N (parallel jobs), -t SECONDS (timeout per test)
+#   options: -j N (parallel jobs), -t SECONDS (timeout per test), -s N (the screen windowed
+#            tests open on: 1 by default, a second monitor, so they stay off the main one;
+#            0 is the primary screen; $TEST_SCREEN sets it too)
 #
 # A test's tier is a line near its top: "## suite: full" (slow or known broken) or
 # "## suite: window" (needs a rendered window); untagged tests are in the quick run.
@@ -27,12 +29,14 @@ jobs=$(( $(nproc 2>/dev/null || echo 4) / 2 ))
 (( jobs > 8 )) && jobs=8
 (( jobs < 1 )) && jobs=1
 limit=120
+screen=${TEST_SCREEN:-1}
 names=()
 while (( $# )); do
 	case "$1" in
 		quick|full) mode=$1 ;;
 		-j) jobs=$2; shift ;;
 		-t) limit=$2; shift ;;
+		-s) screen=$2; shift ;;
 		*) names+=("${1%.gd}") ;;
 	esac
 	shift
@@ -76,7 +80,7 @@ fi
 run_one() {
 	local t=$1 window=$2 log="$logs/$1.log" start=$SECONDS why="" code
 	local args=(--headless)
-	[[ $window == 1 ]] && args=(--windowed --resolution 1280x720)
+	[[ $window == 1 ]] && args=(--windowed --resolution 1280x720 --screen "$screen")
 	"$godot" "${args[@]}" --path . --script "res://tests/$t.gd" > "$log" 2>&1 &
 	local pid=$! errored=-1
 	while kill -0 "$pid" 2>/dev/null; do

@@ -10,17 +10,10 @@ func freeze_enemy(node: Node) -> void:
 		freeze_enemy(child)
 
 func run() -> void:
-	root.mode = Window.MODE_WINDOWED
-	root.size = Vector2i(1280, 720)
+	window()
 	output = ProjectSettings.globalize_path("res://../art-captures/fog-shapes")
 	DirAccess.make_dir_recursive_absolute(output)
-	RunState.save_path = "user://fog_styles_test.save"
-	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	main.get_node("Menu").world_seed.text = "28"
-	main.get_node("Menu").start_game()
-	player = main.get_node("Player") as Player
+	await boot(28)
 	camera = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
 	player.invulnerable.enable()

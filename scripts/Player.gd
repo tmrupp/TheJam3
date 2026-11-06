@@ -53,7 +53,6 @@ func show_invulnerable() -> void:
 		d += step
 		if not phasing:
 			sprite.modulate.a = ((sin(d*2*PI/period)+1)/2)*(1-min_value) + (min_value)
-#		print("sprite.modulate.a=", sprite.modulate.a, " sin(d*180*period)=", sin(d*180*period), " d=", d)
 	sprite.modulate.a = AstralProjection.PROJECTION_COVER if phasing else 1.0
 
 ## A short spell of invulnerability on arriving somewhere: out of a portal or rift, through a door
@@ -264,10 +263,8 @@ const HANG_FACTOR: float = 0.9
 const HANG_SPEED_TARGET: float = 40
 var hang: ActionTimer = ActionTimer.new(1000)
 
-# CLIMB_SPEED: how fast the player can climb
 # TODO: CLIMB_TIME: how long the player can hold onto a wall
 # climable: whether or not climbing is enabled
-const CLIMB_SPEED: float = 200.0
 const CLIMB_TIME: float = 1.0
 var climable: bool = false
 var climb: ActionTimer = ActionTimer.new(CLIMB_TIME)
@@ -390,8 +387,6 @@ var jump_held: bool = false
 func jump(factor: float=1.0) -> void:
 	visual_event.emit(&"jump", global_position)
 	velocity.y = JUMP_VELOCITY * factor
-	# animation_player.play("hop", -1, 4)
-	# animation_player.queue("falling")
 	jumping = true
 
 	
@@ -556,7 +551,6 @@ func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		if climb.is_acting():
 			if not walled:
-				#climb.end()
 				climb.pause()
 			else:
 				velocity.y = direction.y * SPEED
@@ -584,18 +578,7 @@ func _physics_process(delta: float) -> void:
 		last_wall_jump_side = 0.0
 		jumping = false
 		jumps = MAX_JUMPS
-		if direction.x != 0:
-			# if user is inputing a direction animate "moving"
-			# animation_player.play("scuttle")
-			pass
-		else:
-			# if on the ground stop falling and play idle
-			# if animation_player.current_animation == "falling":
-				# animation_player.stop()
-#			print("here? animation=", animation_player.assigned_animation)
-			# animation_player.play("idle")
-			pass
-		
+
 		# Arm coyote time only while grounded. Taking a jump spends it; falling cannot rearm it.
 		if dash_rest <= 0.0:
 			dash.refresh()
@@ -646,7 +629,6 @@ func _physics_process(delta: float) -> void:
 		if climb.is_acting():
 			if (direction.x):
 				do_wall_jump(wall_normal)
-			#climb.end()
 			climb.pause()
 			
 		if jumping:

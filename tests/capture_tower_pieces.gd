@@ -1,5 +1,6 @@
 extends TestKit
-## Stills of the crag towers' pieces close up, in the first crag level holding all three: a
+## Stills of the crag towers' pieces close up, in the first crag level (of worlds 28, 1, 7 and 99)
+## holding all three: a
 ## watchtower's roof with its trapdoor shut and the wizard on the roof beside it
 ## (tower_piece_trapdoor.png); a rock-bug nest with the wizard near, as it hatches a bug and once
 ## the bug is out (tower_piece_nest_0.png, _1); and a mending bowl with the hurt wizard by it
@@ -7,22 +8,28 @@ extends TestKit
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_tower_pieces.gd
 
 var camera: Camera2D
+## The worlds searched for a crag level holding all three pieces.
+const WORLDS: Array[int] = [28, 1, 7, 99]
 
 
 func run() -> void:
 	window()
-	var row: int = 0
-	for k: int in range(NextWorldDef.BAND):
-		var w: LevelGen = build(Vector2i(28, NextWorldDef.band_row(&"crags", k)))
-		if [LevelGen.Type.TRAPDOOR, LevelGen.Type.NEST, LevelGen.Type.WELL].all(func(t: LevelGen.Type) -> bool: return not w.objects_of(t).is_empty()):
-			row = NextWorldDef.band_row(&"crags", k)
-			break
-	await boot(28)
+	var at: Vector2i = Vector2i(-1, 0)
+	for x: int in WORLDS:
+		for k: int in range(NextWorldDef.BAND):
+			var w: LevelGen = build(Vector2i(x, NextWorldDef.band_row(&"crags", k)))
+			if at.x < 0 and w != null and [LevelGen.Type.TRAPDOOR, LevelGen.Type.NEST, LevelGen.Type.WELL].all(func(t: LevelGen.Type) -> bool: return not w.objects_of(t).is_empty()):
+				at = Vector2i(x, NextWorldDef.band_row(&"crags", k))
+	check(at.x >= 0, "a crag level holds a trapdoor, a nest and a mending bowl")
+	if at.x < 0:
+		finish()
+		return
+	await boot(at.x)
 	camera = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
 	player.health.max_health = 99
 	player.health.health = 99
-	info.coord = Vector2i(28, row)
+	info.coord = at
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	await settle()

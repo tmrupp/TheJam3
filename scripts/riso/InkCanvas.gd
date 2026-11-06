@@ -126,12 +126,6 @@ func bone(xf: Transform2D) -> int:
 	return i
 
 
-## Bone `i` placed by `xf` this print (one handed out by bone(), moved again).
-func set_bone(i: int, xf: Transform2D) -> void:
-	_bone_basis[i] = Vector4(xf.x.x, xf.x.y, xf.y.x, xf.y.y)
-	_bone_origin[i] = xf.origin
-
-
 ## What is printed next is drawn in bone `b`'s own space and carried by it (0: the canvas's).
 func on_bone(b: int) -> void:
 	_bind = b
@@ -226,25 +220,6 @@ func ink_graded(plate: int, polys: Array[PackedVector2Array], alphas: Array[Pack
 		_emit(1 << (RisoPrint.PLATE_BIT0 + RisoPrint.NIGHT), true, amount, polys, alphas, true)
 		if punches_wall and walls_behind and plate != RisoPrint.BLUE:
 			_emit(1 << (RisoPrint.PLATE_BIT0 + RisoPrint.BLUE), true, amount, polys, alphas, true, true)
-
-
-## Ink over a shape already cut into triangles (`indices` into `points`), each point's cover in
-## `covers` scaled by `amount`: for big graded shapes worked out once and printed again and again,
-## stronger or weaker (the lights' fades). Not punched out of the night.
-func ink_mesh(plate: int, points: PackedVector2Array, indices: PackedInt32Array, covers: PackedFloat32Array, amount: float = 1.0) -> void:
-	if indices.is_empty() or amount <= 0.001:
-		return
-	_emit_mesh(1 << (RisoPrint.PLATE_BIT0 + plate), false, amount, points, indices, covers)
-
-
-## Lift ink off `plates` over a shape already in triangles (see ink_mesh).
-func lift_ink_mesh(plates: Array[int], points: PackedVector2Array, indices: PackedInt32Array, covers: PackedFloat32Array, amount: float = 1.0) -> void:
-	if indices.is_empty() or amount <= 0.001:
-		return
-	var mask: int = 0
-	for p: int in plates:
-		mask |= 1 << (RisoPrint.PLATE_BIT0 + p)
-	_emit_mesh(mask, true, amount, points, indices, covers)
 
 
 ## Clear the listed plates to paper inside `polys`.
@@ -352,16 +327,3 @@ func _emit(mask: int, lift: bool, cover: float, polys: Array[PackedVector2Array]
 		fresh = true
 	_last_shape = shape
 	op.print_shape(shape, cover * coverage, lift, _px, fresh and op.shape != _last_shape)
-
-
-func _emit_mesh(mask: int, lift: bool, cover: float, points: PackedVector2Array, indices: PackedInt32Array, covers: PackedFloat32Array) -> void:
-	var op: RisoInkOp = _next_op(mask, lift)
-	var shape: RisoInkOp.Shape
-	if _last_shape != null and _last_shape.same_mesh(points, indices, covers):
-		shape = _last_shape
-	elif op.shape != null and op.shape.same_mesh(points, indices, covers):
-		shape = op.shape
-	else:
-		shape = RisoInkOp.Shape.mesh(points, indices, covers)
-	_last_shape = shape
-	op.print_shape(shape, cover * coverage, lift, _px)

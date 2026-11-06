@@ -1,4 +1,4 @@
-extends SceneTree
+extends TestKit
 ## Up/down steer within a vane's crosswind; leaving it restores falling, without stored drift.
 ## godot --headless --path . --script res://tests/gust_steering_test.gd
 
@@ -7,23 +7,9 @@ class TestGust extends Wind:
 	func blowing() -> float:
 		return direction
 
-var player: Player
 var gust: TestGust
-var failed: bool = false
 const STEP: float = 1.0 / 60.0
 const HOME: Vector2 = Vector2(-10000, -10000)
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
 
 
 func tick(frames: int) -> void:
@@ -44,15 +30,7 @@ func reset_player() -> void:
 
 
 func run() -> void:
-	RunState.save_path = "user://gust_steering_test.save"
-	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	menu.start_game()
-	while MapInfo.instance.world == null or MapInfo.instance.travelling:
-		await process_frame
-	player = main.get_node("Player")
+	await boot(28)
 	player.set_physics_process(false)
 	gust = TestGust.new()
 	gust.rect = Rect2(HOME, Vector2(1536, 256))
@@ -98,5 +76,4 @@ func run() -> void:
 	await tick(10)
 	check(player.velocity.y < -200.0, "updraft lift still works")
 	RunState.delete_save()
-	print("FAILED" if failed else "PASS: gust steering")
-	quit(1 if failed else 0)
+	finish()

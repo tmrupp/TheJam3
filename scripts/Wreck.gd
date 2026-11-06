@@ -53,11 +53,6 @@ func _place(at: Vector2) -> void:
 	sync_to_physics = true
 
 
-## Whether it is afloat (the acid over the floor it rests on).
-func afloat() -> bool:
-	return acid != null and acid.surface() - DRAFT < rest_y
-
-
 ## Where its deck is now (world y): resting, or riding the acid, bobbing.
 func deck_y() -> float:
 	if acid == null:

@@ -13,7 +13,8 @@ extends RefCounted
 ## - floats: a floating pickup, set anywhere inside its cell rather than on the grid (LevelLoader.JITTER).
 ## - colored: it carries a key colour (meta "key_color"), dealt with the level (LevelGen.deal_colors).
 
-## Type -> {"scene": prefab path, "art": RisoProp kind (&"" when the terrain prints it), "flags":
+## Type -> {"scene": prefab path (none for a boss, fought as its own prefab: Bosses.scene), "art":
+## RisoProp kind (&"" when the terrain prints it), "flags":
 ## [StringName], "size": cells across and up from its own cell, where more than one (LevelGen.make_room),
 ## "setup": how many things its prefab's `setup` takes as it is placed (LevelLoader.place_cell): 2
 ## for (the MapInfo, its cell), 3 for those and its cell's extra info; none when it has no setup}.
@@ -51,7 +52,7 @@ const TABLE: Dictionary = {
 	LevelGen.Type.VANE: {"scene": "res://prefabs/vane.tscn", "art": &"vane", "flags": [&"stander"], "setup": 3},
 	LevelGen.Type.WIND: {"scene": "res://prefabs/wind.tscn", "art": &"wind", "setup": 3},
 	LevelGen.Type.BIRD: {"scene": "res://prefabs/bird_enemy.tscn", "art": &"bird", "flags": [&"enemy"]},
-	LevelGen.Type.BOSS: {"scene": "res://prefabs/boss.tscn", "art": &"wisp", "flags": [&"enemy"], "setup": 3},
+	LevelGen.Type.BOSS: {"flags": [&"enemy"], "setup": 3},
 	LevelGen.Type.GONDOLA: {"scene": "res://prefabs/gondola.tscn", "art": &"gondola", "setup": 3},
 	LevelGen.Type.TOLL: {"scene": "res://prefabs/toll_gate.tscn", "art": &"toll", "setup": 3},
 	LevelGen.Type.BUG: {"scene": "res://prefabs/rock_bug.tscn", "art": &"rockbug", "flags": [&"enemy"]},
@@ -131,7 +132,8 @@ static func art_for_scene(path: String) -> StringName:
 static func type_of_scene(path: String) -> int:
 	if _by_path.is_empty():
 		for t: int in TABLE:
-			_by_path[String(TABLE[t]["scene"])] = t
+			if TABLE[t].has("scene"):
+				_by_path[String(TABLE[t]["scene"])] = t
 	return int(_by_path.get(path, -1))
 
 

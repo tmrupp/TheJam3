@@ -57,10 +57,6 @@ func _initialize() -> void:
 	quit()
 
 
-func _at(x: int, y: int) -> int:
-	return grid[x][y] if x >= 0 and y >= 0 and x < W and y < H else ROCK
-
-
 func _put(x: int, y: int, c: int) -> void:
 	if x >= 0 and y >= 0 and x < W and y < H:
 		grid[x][y] = c

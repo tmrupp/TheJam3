@@ -165,9 +165,8 @@ const THORN_BLOCK: int = 1
 const THORN_UP: float = 0.45
 const THORN_CLEAR: int = 2
 const THORN_DEAL: int = 6150
-## How far from a doorway's step (cells) its snuffing font may stand, and how far it may stand if
-## there is no floor that near (a doorway opening onto a drop).
-const FONT_REACH: int = 5
+## The furthest from a doorway's step (cells) its snuffing font may stand: the nearest free floor
+## within it is taken.
 const FONT_FAR: int = 10
 ## Salts for the level seed: how many crypts, where each goes (ties), which floors its skeletons
 ## sleep on, and where its stars lie (ties).
@@ -1112,8 +1111,8 @@ static func _sleepers(w: LevelGen, crypt: Dictionary, deep: Vector2i) -> void:
 			w.put(v, LevelGen.Type.SKELETON)
 
 
-## A snuffing font on the free floor nearest each of `crypt`'s steps out, within FONT_REACH (or,
-## failing that, FONT_FAR), outside the crypt, and another on the floor inside nearest each
+## A snuffing font on the free floor nearest each of `crypt`'s steps out, within FONT_FAR, outside
+## the crypt, and another on the floor inside nearest each
 ## doorway: laid as the crypt is built, before anything else takes the floors by its doorways, and
 ## kept whole (with the rock under it).
 static func _fonts(w: LevelGen, crypt: Dictionary) -> void:

@@ -42,7 +42,3 @@ func is_acting() -> bool:
 	
 func pause() -> void:
 	paused = true
-	
-func resume() -> void:
-	paused = false
-	

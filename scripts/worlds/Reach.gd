@@ -40,18 +40,15 @@ static func footholds(w: LevelGen) -> Dictionary:
 
 ## Spread the reach from `queue` hop by hop over every foothold and moon; `far["i"]` keeps the
 ## furthest cell of `along` (a way through: cell to index) the wizard gets to. Hops climb up to
-## `up` rows (UP for the wizard's own; more for a relic's, see Climb) and fall any way down, or at
-## most `down` rows when that is not negative (a climb has little use for long falls, and they are
-## the slow part in a big open level).
-static func grow(w: LevelGen, nodes: Dictionary, reach: Dictionary, queue: Array[Vector2i], along: Dictionary = {}, far: Dictionary = {}, across: int = ACROSS, up: int = UP, down: int = -1) -> void:
+## `up` rows (UP for the wizard's own) and fall any way down.
+static func grow(w: LevelGen, nodes: Dictionary, reach: Dictionary, queue: Array[Vector2i], along: Dictionary = {}, far: Dictionary = {}, across: int = ACROSS, up: int = UP) -> void:
 	var track: bool = not along.is_empty()
 	while not queue.is_empty():
 		var a: Vector2i = queue.pop_back()
 		var moon: bool = nodes.get(a, false)
 		if track and int(along.get(a, -1)) > int(far["i"]):
 			far["i"] = along[a]
-		var bottom: int = w.size.y if down < 0 else mini(w.size.y, a.y + down + 1)
-		for y: int in range(maxi(0, a.y - maxi(MOON_UP if moon else 0, up)), bottom):
+		for y: int in range(maxi(0, a.y - maxi(MOON_UP if moon else 0, up)), w.size.y):
 			@warning_ignore("integer_division")
 			var span: int = across + maxi(0, y - a.y) / 2
 			for x: int in range(maxi(0, a.x - span), mini(w.size.x, a.x + span + 1)):

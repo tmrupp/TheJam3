@@ -1,23 +1,9 @@
-extends SceneTree
+extends TestKit
 ## Ground jumps expire after coyote time; learned air jumps remain available.
 ## godot --headless --path . --script res://tests/jump_test.gd
 
-var player: Player
-var failed: bool = false
 const HOME: Vector2 = Vector2(-10000, -10000)
 const STEP: float = 1.0 / 60.0
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
 
 
 func tick(frames: int = 1) -> void:
@@ -59,16 +45,7 @@ func leave_ledge() -> void:
 
 
 func run() -> void:
-	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	RunState.save_path = "user://jump_test.save"
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	menu.start_game()
-	var info: MapInfo = main.get_node("CanvasLayer/MapInfo")
-	while info.world == null or info.travelling:
-		await process_frame
-	player = main.get_node("Player")
+	await boot(28)
 	player.set_physics_process(false)
 	var ledge: StaticBody2D = StaticBody2D.new()
 	ledge.collision_layer = 4
@@ -131,5 +108,4 @@ func run() -> void:
 		"a buffered jump does not leave an extra jump available")
 
 	RunState.delete_save()
-	print("FAILED" if failed else "PASS: jump availability")
-	quit(1 if failed else 0)
+	finish()

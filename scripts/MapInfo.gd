@@ -237,7 +237,7 @@ func sheltered (pos: Vector2, way: int) -> bool:
 				return true
 	return false
 
-## Boss `boss` died at `pos` (Boss): slain for the rest of the run, so every gate level of its band
+## Boss `boss` died at `pos` (Bosses): slain for the rest of the run, so every gate level of its band
 ## opens; where it fell, its relic waits (Bosses.relic_for, free), or, with every move known, a
 ## skeleton key and a star cluster.
 func boss_slain (boss: StringName, pos: Vector2) -> void:
@@ -337,7 +337,7 @@ func full_heal () -> bool:
 	return true
 
 ## Debug runs (the F7 panel): slay this place's boss at once. One here in person (the worm, the
-## bramble, the golem, the necromancer, the beast, or a stand-in) dies as by any blow, leaving its
+## bramble, the golem, the necromancer, the beast, or the whale's heart) dies as by any blow, leaving its
 ## relic; else the boss whose gate this is, if it lives (it has no place to stand here), is slain
 ## where the wizard stands.
 ## False if there is none to slay.
@@ -360,9 +360,6 @@ func slay_boss () -> bool:
 				return true
 			if node is Beast and not (node as Beast).slain:
 				(node as Beast).slay()
-				return true
-			if node is Boss:
-				(node as Boss).slay()
 				return true
 			if node is WhaleHeart:
 				(node as WhaleHeart).slay()

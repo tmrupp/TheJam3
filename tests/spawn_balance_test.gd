@@ -1,27 +1,14 @@
-extends SceneTree
+extends TestKit
 ## Generation budgets, gates, the ink well near the middle, and moon placement over both terrain
 ## families.
 
-var failed: bool = false
 var fixture: LevelGen
 
-func _initialize() -> void:
-	call_deferred("run")
-
-func check(ok: bool, message: String) -> void:
-	if not ok:
-		failed = true
-		push_error(message)
-
 func run() -> void:
-	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	await process_frame
-	var wfc: Node = main.get_node("WaveFunctionCollapse")
 	for seed_value: int in [1, 7, 28, 99, 512]:
 		for depth: int in [0, 2, 5, 9]:
 			var def: NextWorldDef = Rules.def_for(Vector2i(seed_value, depth))
-			var w: LevelGen = LevelGen.new(wfc.call("generate_level", def), def)
+			var w: LevelGen = build(Vector2i(seed_value, depth))
 			fixture = w
 			var counts: Dictionary = {}
 			for column: Array in w.cells:
@@ -64,8 +51,7 @@ func run() -> void:
 					var end: Vector2i = w.get_cell(v).extra_info
 					check(w.get_cell(end).type == LevelGen.Type.PORTAL and w.get_cell(end).extra_info == v, label + ": reciprocal portal pair")
 	moon_rules()
-	print("FAILED" if failed else "PASS: spawn balance (20 levels) and moon rules")
-	quit(1 if failed else 0)
+	finish()
 
 func moon_rules() -> void:
 	# A controlled open chamber makes support rejection and weighted choice measurable.
