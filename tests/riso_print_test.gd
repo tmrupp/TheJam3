@@ -1,56 +1,24 @@
-extends SceneTree
+extends TestKit
 ## Headless checks for the riso print integration in the generated main game.
 ## godot --headless --path . --script res://tests/riso_print_test.gd
 
-var failures: int = 0
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		push_error("FAIL: " + what)
-	else:
-		print("ok  ", what)
-
-
 func run() -> void:
-	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	RunState.save_path = "user://riso_print_test.save"
-	var menu: Node = main.get_node("Menu")
 	# A world whose first level has lifts (they are rare: about one per level).
-	menu.world_seed.text = "27"
-	menu.start_game()
-	await process_frame
-	await process_frame
-	var info: Node = main.get_node("CanvasLayer/MapInfo")
-	var deadline: int = Time.get_ticks_msec() + 20000
-	while info.world == null and Time.get_ticks_msec() < deadline:
-		await process_frame
+	await boot(27)
 	check(info.world != null, "world generated")
-	for i: int in range(20):
-		await physics_frame
-		await process_frame
+	await frames(20)
 	var riso: RisoPrint = RisoPrint.instance
 	check(riso != null and RisoPrint.is_on() and riso.print_layer.visible, "RisoPrint present and printing")
 	check(root.content_scale_mode == Window.CONTENT_SCALE_MODE_CANVAS_ITEMS and (root.canvas_cull_mask & RisoPrint.all_ink_bits()) == 0, "the window prints: canvas-items scaling, ink layers left to the print")
-	check(not main.has_node("UpgradeMenu") and not paused, "game starts without the upgrade shop")
-	check(main.get_node_or_null("CanvasLayer/HUD") == null and main.get_node_or_null("Menu/BigBossMenu") == null, "no pixel HUD or title art")
+	check(not paused, "the game starts unpaused")
 	check(main.get_node_or_null("RisoHud") != null, "printed HUD present")
 	check((load(RisoTheme.MENU_THEME) as Theme).default_font is SystemFont, "menus use the riso theme")
 	check(riso.plates.size() == RisoPrint.PLATE_COUNT, "eight ink plates, including fixed blue traveler cloth")
-	check(riso.print_layer.visible, "print layer visible")
-	check(root.content_scale_mode == Window.CONTENT_SCALE_MODE_CANVAS_ITEMS, "canvas_items stretch while printing")
 	check((root.canvas_cull_mask & RisoPrint.plate_mask(RisoPrint.BLUE)) == 0, "main view hides plate layers")
-	var player: Player = main.get_node("Player") as Player
-	var wizard: Node2D = player.get_node_or_null("RisoWizard") as Node2D
+	var wizard: RisoWizard = player.get_node_or_null("RisoWizard") as RisoWizard
 	check(wizard != null, "player wears the wizard")
-	var terrain: Node = main.get_node_or_null("RisoTerrain")
-	check(terrain != null and (terrain.get("ink") as Node).get_child_count() >= 4, "terrain printed from the tilemap")
+	var terrain: RisoTerrain = main.get_node_or_null("RisoTerrain") as RisoTerrain
+	check(terrain != null and terrain.ink.get_child_count() >= 4, "terrain printed from the tilemap")
 	var dressed: int = 0
 	var expected: int = 0
 	for node: Node in info.map_elements.get_children():
@@ -61,8 +29,8 @@ func run() -> void:
 	check(expected > 0 and dressed == expected, "all %d spawned prefabs dressed (%d)" % [expected, dressed])
 	var kinds: Dictionary = {}
 	for art: Node in get_nodes_in_group(&"riso_art"):
-		if art.get("kind") != null:
-			kinds[art.get("kind")] = true
+		if art is RisoProp:
+			kinds[(art as RisoProp).kind] = true
 	print("dressed kinds: ", kinds.keys())
 	var lift: Node2D = null
 	for node: Node in info.map_elements.get_children():
@@ -111,7 +79,7 @@ func run() -> void:
 	for i: int in range(12):
 		await physics_frame
 		await process_frame
-	check((wizard.get("echoes") as Array).size() > 0, "dash leaves afterimages")
+	check(wizard.echoes.size() > 0, "dash leaves afterimages")
 	check(riso.glow_ability == &"dash", "the glow ink is the dash's")
 	Abilities.grant(player, &"astral")
 	player.parry.emit()
@@ -123,11 +91,11 @@ func run() -> void:
 		await physics_frame
 		await process_frame
 	check(player.invulnerable.is_acting(), "hurt state reached (flash frames drawn)")
-	var projection: Node = player.get_node("AstralProjection")
+	var projection: AstralProjection = player.get_node("AstralProjection") as AstralProjection
 	projection.project()
 	await process_frame
 	await process_frame
-	check((wizard.get("ghosts") as Array).size() > 0, "astral projection leaves a ghost")
+	check(wizard.ghosts.size() > 0, "astral projection leaves a ghost")
 	projection.end_projection(projection.projection_timer)
 	# Sheets advance on the clock (motion gating off, so an idle player can't stall the check).
 	var before: int = riso.sheet_index
@@ -149,7 +117,7 @@ func run() -> void:
 	if key_node != null and door_node != null:
 		if player.keyring.newest() >= 0:
 			player.keyring.set_all([])
-		key_node.call("touch", player)
+		(key_node as KeyPickup).touch(player)
 		check(player.keyring.newest() >= 0 and player.keyring.newest() == int(key_node.get_meta(&"key_color")), "picking up a key carries its colour")
 		var other_key: Node = null
 		for node: Node in info.map_elements.get_children():
@@ -157,9 +125,9 @@ func run() -> void:
 				other_key = node
 				break
 		if other_key != null:
-			other_key.call("touch", player)
+			(other_key as KeyPickup).touch(player)
 			check(player.keyring.newest() == int(other_key.get_meta(&"key_color")), "a new key replaces the carried one")
-			key_node.call("touch", player)
+			(key_node as KeyPickup).touch(player)
 			check(player.keyring.newest() == int(other_key.get_meta(&"key_color")), "a collected key cannot be picked up again")
 			player.keyring.set_all([int(key_node.get_meta(&"key_color"))])
 		var wrong: Node = null
@@ -184,5 +152,4 @@ func run() -> void:
 	main.queue_free()
 	await process_frame
 	await process_frame
-	print("RISO TEST: ", "PASS" if failures == 0 else "FAIL (%d)" % failures)
-	quit(1 if failures > 0 else 0)
+	finish()

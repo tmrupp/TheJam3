@@ -117,11 +117,6 @@ func crawl_out(v: Vector2i) -> void:
 	_cling(v)
 
 
-## Whether it is on gondola `g`'s track or in its car.
-func riding(g: Gondola) -> bool:
-	return gondola == g and mode in [Mode.TRACK, Mode.ENTER, Mode.CAR]
-
-
 func _physics_process(delta: float) -> void:
 	t += delta
 	if map_info == null or map_info.world == null:

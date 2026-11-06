@@ -1,39 +1,22 @@
-extends SceneTree
+extends TestKit
 ## Swoops require a nearby wizard and a visible bird; camera lag cannot produce a blind dive.
 
-var failed: bool = false
-
-func _initialize() -> void:
-	call_deferred("run")
-
-func check(ok: bool, what: String) -> void:
-	print("  ok   " if ok else "FAIL  ", what)
-	failed = failed or not ok
 
 func run() -> void:
-	RunState.save_path = "user://bird_detection_test.save"
-	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	await process_frame
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	menu.start_game()
-	while MapInfo.instance.world == null or MapInfo.instance.travelling:
-		await process_frame
-	var player: Player = main.get_node("Player")
+	await boot(28)
 	player.set_physics_process(false)
 	player.get_node("CameraControl").set_process(false)
 	# Test sensing in an empty arena, independently of the collapsed terrain's arc clearance.
-	MapInfo.instance.world = null
-	var camera: Camera2D = main.get_node("Camera2D")
+	info.world = null
+	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
 	camera.limit_left = -100000
 	camera.limit_right = 100000
 	camera.limit_top = -100000
 	camera.limit_bottom = 100000
 	camera.zoom = Vector2.ONE * 0.25
-	var body: Node2D = load("res://prefabs/bird_enemy.tscn").instantiate()
+	var body: Node2D = (load("res://prefabs/bird_enemy.tscn") as PackedScene).instantiate() as Node2D
 	main.add_child(body)
-	var bird: Bird = body.get_node("Bird")
+	var bird: Bird = body.get_node("Bird") as Bird
 	bird.set_physics_process(false)
 	body.global_position = Vector2(4000, 4000)
 	bird.height = 4000
@@ -66,5 +49,4 @@ func run() -> void:
 	check(bird.swooping() and not bird.telling(), "after the warning it dives")
 	check(bird.arc.size() == 3 and bird.arc[1] == marked, "through the marked spot, not after the wizard who moved off it")
 	RunState.delete_save()
-	print("FAILED" if failed else "PASS: bird detection")
-	quit(1 if failed else 0)
+	finish()

@@ -16,3 +16,14 @@ data_*/
 ~*.dll
 *.dll~*
 *.TMP
+
+# Exported builds and native build products (the extension's sources and built libraries stay)
+builds/
+gdextension/.vs/
+gdextension/.sconsign.dblite
+gdextension/src/*.obj
+gdextension/demo/bin/*.exp
+gdextension/demo/bin/*.lib
+
+# Editor backups
+*.png~

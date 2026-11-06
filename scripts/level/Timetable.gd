@@ -232,14 +232,6 @@ static func holds_class(w: LevelGen, hall: int, rings: int) -> bool:
 	return hall >= 0 and hall < w.halls.size() and w.halls[hall]["kind"] != &"library" and in_session(w, hall, rings)
 
 
-## Whether any class of `w` is in session after `rings` rings.
-static func any_class(w: LevelGen, rings: int) -> bool:
-	for i: int in range(w.halls.size()):
-		if holds_class(w, i, rings):
-			return true
-	return false
-
-
 ## Whether `w` keeps a timetable at all (it has a hall with a class in it).
 static func kept_in(w: LevelGen) -> bool:
 	if w == null:
@@ -269,14 +261,5 @@ static func belongs(w: LevelGen, rings: int, passing: bool, v: Vector2i) -> bool
 		return passing
 	var kind: StringName = w.halls[hall]["kind"]
 	return kind in TIMETABLED and in_session(w, hall, rings)
-
-
-## The master of hall `hall` in `w` (its cell), or (-1, -1) for none.
-static func master_of(w: LevelGen, hall: int) -> Vector2i:
-	for v: Vector2i in w.objects_of(LevelGen.Type.MASTER):
-		var extra: Variant = w.get_cell(v).extra_info
-		if extra is Dictionary and int((extra as Dictionary).get("hall", -1)) == hall:
-			return v
-	return Vector2i(-1, -1)
 
 

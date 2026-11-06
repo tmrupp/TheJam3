@@ -90,8 +90,7 @@ const HEDGE_SLOTS: Array[int] = [21, 22, 23]
 const KNOCK_ALL: Array[int] = [RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE]
 const KNOCK_ROCK: Array[int] = [RisoPrint.BLUE, RisoPrint.NIGHT]
 ## How a cobweb is spun (in the sketch measures props are drawn at, see PROP_SCALE): a spoke every
-## WEB_TURN radians about its hub, WEB_REACH long on the whole (14 to 24), and rings strung straight
-## across them WEB_RINGS of the way out.
+## WEB_TURN radians about its hub, and rings strung straight across them WEB_RINGS of the way out.
 const WEB_TURN: float = PI * 0.2
 ## An arrow slit, as a crossbow's is cut (CrossbowArt) and an empty one in the crags' walls: its
 ## niche in the face toward the room, how deep into the stone and how high; the bore on from it
@@ -99,7 +98,6 @@ const WEB_TURN: float = PI * 0.2
 const SLIT_NICHE: Vector2 = Vector2(50.0, 76.0)
 const SLIT_BORE: float = 12.0
 const SLIT_SIZE: float = 1.4
-const WEB_REACH: float = 19.0
 const WEB_RINGS: Array[float] = [0.45, 0.8]
 const STRUCTURES: Array[String] = ["level_exit.tscn", "shrine.tscn", "door.tscn", "checkpoint.tscn", "spikes.tscn",
 	"portal.tscn", "inkwell.tscn", "moving_platform.tscn", "rolling_ladder.tscn", "bell.tscn", "switch.tscn", "switch_gate.tscn", "key.tscn",

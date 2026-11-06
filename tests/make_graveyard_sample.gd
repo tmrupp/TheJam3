@@ -48,10 +48,6 @@ func _initialize() -> void:
 	quit()
 
 
-func _at(x: int, y: int) -> int:
-	return grid[x][y] if x >= 0 and y >= 0 and x < N and y < N else ROCK
-
-
 ## One terrace: a hillside that runs the whole width, its surface stepping up or down a cell
 ## (now and then two) every few cells. On it, grave mounds (single cells) and mausoleums (blocks two
 ## or three wide, two high); dug into it, open graves (a pit two wide, thorns at the bottom); and

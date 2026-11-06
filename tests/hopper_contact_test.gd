@@ -1,32 +1,16 @@
-extends SceneTree
+extends TestKit
 ## Fast hopper motion cannot carry/push an invulnerable wizard; the separate hitbox still hurts.
 
-var failed: bool = false
-
-func _initialize() -> void:
-	call_deferred("run")
-
-func check(ok: bool, what: String) -> void:
-	print("  ok   " if ok else "FAIL  ", what)
-	failed = failed or not ok
 
 func run() -> void:
-	RunState.save_path = "user://hopper_contact_test.save"
-	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	var menu: Node = main.get_node("Menu")
-	menu.world_seed.text = "28"
-	menu.start_game()
-	while MapInfo.instance.world == null or MapInfo.instance.travelling:
-		await process_frame
-	var player: Player = main.get_node("Player")
+	await boot(28)
 	player.set_physics_process(false)
 	player.get_node("CameraControl").set_process(false)
 	var home: Vector2 = Vector2(-10000, -10000)
 	player.global_position = home
 	player.velocity = Vector2.ZERO
 	player.invulnerable.enable()
-	var hopper: RigidBody2D = load("res://prefabs/hopper_enemy.tscn").instantiate()
+	var hopper: RigidBody2D = (load("res://prefabs/hopper_enemy.tscn") as PackedScene).instantiate() as RigidBody2D
 	main.add_child(hopper)
 	hopper.scale = Vector2.ONE * 4.0
 	hopper.get_node("Hopper").set_physics_process(false)
@@ -78,5 +62,4 @@ func run() -> void:
 	var hit: KinematicCollision2D = hopper.move_and_collide(Vector2(0, 300))
 	check(hit != null and hit.get_collider() == floor_body, "hopper still lands on solid terrain")
 	RunState.delete_save()
-	print("FAILED" if failed else "PASS: hopper contact")
-	quit(1 if failed else 0)
+	finish()

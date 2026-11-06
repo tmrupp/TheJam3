@@ -1,5 +1,5 @@
 extends SceneTree
-## Windowed stills of phase 2: the ghost, the vulnerable wizard and HUD, and the end-of-run card.
+## Windowed stills of death: the ghost, the vulnerable wizard and HUD, and the end-of-run card.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_death.gd
 
 func _initialize() -> void:

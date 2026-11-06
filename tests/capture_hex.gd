@@ -1,6 +1,6 @@
 extends SceneTree
-## Windowed stills of phase 7: a hex bolt in flight toward a wisp, and a cracked wall before and
-## after it breaks.
+## Windowed stills of the hex bolt (the wizard is given hex first): one in flight toward a wisp,
+## and a cracked wall before and after it breaks.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_hex.gd
 
 func _initialize() -> void:
@@ -28,6 +28,8 @@ func capture() -> void:
 	var player: Player = main.get_node("Player") as Player
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
+	if not player.has_node("Hex"):
+		Abilities.grant(player, &"hex")
 	for i: int in range(20):
 		await process_frame
 	player.set_physics_process(false)

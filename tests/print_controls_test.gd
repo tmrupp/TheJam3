@@ -1,23 +1,11 @@
-extends SceneTree
+extends TestKit
 ## Real controller events change F7 choices/sliders and move between controls.
 ## godot --headless --path . --script res://tests/print_controls_test.gd
 
-var failed: bool = false
 
 
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
-
-
-func frames(count: int = 3) -> void:
+## Wait `count` process frames (the panel pauses the game, so physics frames are no measure).
+func ui_frames(count: int = 3) -> void:
 	for i: int in range(count):
 		await process_frame
 
@@ -27,11 +15,11 @@ func button(which: JoyButton) -> void:
 	event.button_index = which
 	event.pressed = true
 	Input.parse_input_event(event)
-	await frames()
+	await ui_frames()
 	event = event.duplicate()
 	event.pressed = false
 	Input.parse_input_event(event)
-	await frames()
+	await ui_frames()
 
 
 func stick(direction: float) -> void:
@@ -39,11 +27,11 @@ func stick(direction: float) -> void:
 	event.axis = JOY_AXIS_LEFT_X
 	event.axis_value = direction
 	Input.parse_input_event(event)
-	await frames()
+	await ui_frames()
 	event = event.duplicate()
 	event.axis_value = 0.0
 	Input.parse_input_event(event)
-	await frames()
+	await ui_frames()
 
 
 func f7() -> void:
@@ -51,25 +39,25 @@ func f7() -> void:
 	event.keycode = KEY_F7
 	event.pressed = true
 	Input.parse_input_event(event)
-	await frames()
+	await ui_frames()
 	event = event.duplicate()
 	event.pressed = false
 	Input.parse_input_event(event)
-	await frames()
+	await ui_frames()
 
 
 func run() -> void:
-	RunState.save_path = "user://print_controls_test.save"
-	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
+	# A debug run, so the panel's Travel section is there: started by hand rather than by boot().
+	RunState.save_path = "user://%s.save" % test_name()
+	main = (load("res://prefabs/scenes/main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
+	info = main.get_node("CanvasLayer/MapInfo") as MapInfo
 	var menu: Node = main.get_node("Menu")
-	menu.set_debug(true)
-	menu.world_seed.text = "28"
-	menu.start_game()
-	var info: MapInfo = MapInfo.instance
-	while info.world == null or info.travelling:
-		await process_frame
-	await frames(4)
+	menu.call("set_debug", true)
+	(menu.get("world_seed") as LineEdit).text = "28"
+	menu.call("start_game")
+	player = main.get_node("Player") as Player
+	await settle()
 	var riso: RisoPrint = RisoPrint.instance
 	await f7()
 	var focus: Control = root.gui_get_focus_owner()
@@ -108,7 +96,7 @@ func run() -> void:
 
 	var fog: OptionButton = riso._options[&"fog"]
 	fog.grab_focus()
-	await frames()
+	await ui_frames()
 	var selected: int = fog.selected
 	await button(JOY_BUTTON_DPAD_RIGHT)
 	check(fog.selected == selected + 1 and riso.fog_style == RisoPrint.FOG_STYLES[fog.selected],
@@ -143,7 +131,7 @@ func run() -> void:
 
 	var specks: HSlider = riso._specks_label.get_parent().get_child(1)
 	specks.grab_focus()
-	await frames()
+	await ui_frames()
 	var before: float = riso.specks
 	await button(JOY_BUTTON_DPAD_RIGHT)
 	check(is_equal_approx(riso.specks, before + specks.step), "D-pad right increases a slider")
@@ -198,5 +186,4 @@ func run() -> void:
 	check(not riso.panel.visible and not paused, "F7 closes its pause cleanly")
 
 	RunState.delete_save()
-	print("FAILED" if failed else "PASS: print controls")
-	quit(1 if failed else 0)
+	finish()

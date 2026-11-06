@@ -78,26 +78,18 @@ func run() -> void:
 		others = others and build(at).shaft.is_empty()
 	check(others, "and only in the bramble's gate levels")
 	var columns: int = 0
-	var climbed: int = 0
 	for x: int in range(1, 13):
 		var lw: LevelGen = build(Vector2i(x, -g))
-		if lw == null or lw.shaft.is_empty():
-			continue
-		columns += 1
-		var nodes: Dictionary = Climb.footholds(lw)
-		var reach: Dictionary = {lw.exits[MapInfo.Exit.BACK]: true}
-		Reach.grow(lw, nodes, reach, [lw.exits[MapInfo.Exit.BACK]], {}, {}, Reach.ACROSS, Climb.hop_up(Rules.def_for(Vector2i(x, -g))), Climb.FALL)
-		if reach.has(lw.shaft["on"]):
-			climbed += 1
+		if lw != null and not lw.shaft.is_empty():
+			columns += 1
 	check(columns == 12, "every world column's gate level has one (%d of 12)" % columns)
-	print("  (the way on climbed to with the wizard's own hops in %d of %d)" % [climbed, columns])
 
 	await boot(28)
 	player.set_physics_process(false)
 	await _go(Vector2i(28, -g))
 	print("in play")
 	var bramble: Bramble = placed("bramble.tscn")[0] as Bramble
-	check(bramble != null and bramble.boss == &"bramble" and placed("boss.tscn").is_empty(), "the bramble itself is there, no stand-in")
+	check(bramble != null and bramble.boss == &"bramble", "the bramble itself is there")
 	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"bramble", "its way on is sealed")
 	check(bramble.bulbs.size() == bulbs.size() and bramble.bulbs.all(func(b: BrambleBulb) -> bool: return b.alive and b.wound.hp == Bramble.BULB_HP and b.is_in_group(&"hex_target")), "%d bulbs, %d hits each, struck as enemies are" % [bramble.bulbs.size(), Bramble.BULB_HP])
 	check(bramble.vines.size() == vines.size() and bramble.vines.all(func(v: BrambleVine) -> bool: return v.bulb != null), "%d vines, each fed by a bulb" % bramble.vines.size())

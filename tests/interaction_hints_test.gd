@@ -61,7 +61,6 @@ func run() -> void:
 	output = ProjectSettings.globalize_path("res://../art-captures/interaction-hints")
 	DirAccess.make_dir_recursive_absolute(output)
 	await boot()
-	player = main.get_node("Player") as Player
 	camera = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
 	player.invulnerable.enable()

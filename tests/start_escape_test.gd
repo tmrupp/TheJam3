@@ -1,22 +1,9 @@
-extends SceneTree
+extends TestKit
 ## Every run can get out of its first level: at depth 0 one side door stands near the start, with a
 ## key in its lock colour, and both can be hopped to from the start (hops a little short of the
 ## wizard's reach) without passing a door or a switch gate.
 ## godot --headless --path . --script res://tests/start_escape_test.gd
 
-var failed: bool = false
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
 
 
 ## Footholds hopped to from `start`, never through a door or a switch gate.
@@ -39,24 +26,19 @@ func reach_from(w: LevelGen, start: Vector2i) -> Dictionary:
 
 
 func run() -> void:
-	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
-	root.add_child(main)
-	await process_frame
-	var wfc: Node = main.get_node("WaveFunctionCollapse")
 	var levels: int = 0
-	var placed: int = 0
+	var doors: int = 0
 	var near: int = 0
 	var keyed: int = 0
 	var escapable: int = 0
 	var worst: int = 0
 	for world_seed: int in range(1, 41):
 		var at: Vector2i = Vector2i(world_seed, 0)
-		var def: NextWorldDef = Rules.def_for(at)
-		var w: LevelGen = LevelGen.new(wfc.call("generate_level", def), def)
+		var w: LevelGen = build(at)
 		levels += 1
 		if w.start_side < 0:
 			continue
-		placed += 1
+		doors += 1
 		var start: Vector2i = w.exits[MapInfo.Exit.BACK]
 		var door: Vector2i = w.exits[w.start_side]
 		var d: int = absi(door.x - start.x) + absi(door.y - start.y)
@@ -75,35 +57,22 @@ func run() -> void:
 			escapable += 1
 		else:
 			print("  stuck: seed %d, start %s, door %s, key %s" % [world_seed, start, door, key])
-	print("  %d levels: door placed %d, near %d (furthest %d cells), keyed %d, escapable %d" % [levels, placed, near, worst, keyed, escapable])
-	check(placed == levels, "every first level has a side door near the start")
-	check(near == placed, "within 16 cells of it")
-	check(keyed == placed, "with a key in its lock colour")
-	check(escapable == placed, "and both are hopped to from the start without passing a door or gate")
+	print("  %d levels: door placed %d, near %d (furthest %d cells), keyed %d, escapable %d" % [levels, doors, near, worst, keyed, escapable])
+	check(doors == levels, "every first level has a side door near the start")
+	check(near == doors, "within 16 cells of it")
+	check(keyed == doors, "with a key in its lock colour")
+	check(escapable == doors, "and both are hopped to from the start without passing a door or gate")
 
 	print("in play")
-	var menu: Node = main.get_node("Menu")
-	RunState.save_path = "user://start_escape_test.save"
-	menu.world_seed.text = "28"
-	menu.start_game()
-	var info: MapInfo = main.get_node("CanvasLayer/MapInfo") as MapInfo
-	await process_frame
-	var deadline: int = Time.get_ticks_msec() + 30000
-	while (info.world == null or info.travelling) and Time.get_ticks_msec() < deadline:
-		await process_frame
-	await process_frame
+	await boot(28)
 	var side: int = info.world.start_side
-	var door_node: Node = null
+	var door_node: LevelExit = null
 	var key_node: Node = null
-	for n: Node in info.map_elements.get_children():
-		if n.scene_file_path.get_file() == "level_exit.tscn" and int(n.get("exit")) == side:
-			door_node = n
-		if n.scene_file_path.get_file() == "key.tscn" and n.has_meta(&"cell") and n.get_meta(&"cell") == info.world.start_key:
+	for n: Node in placed("level_exit.tscn"):
+		if (n as LevelExit).exit == side:
+			door_node = n as LevelExit
+	for n: Node in placed("key.tscn", true):
+		if n.has_meta(&"cell") and n.get_meta(&"cell") == info.world.start_key:
 			key_node = n
-	check(door_node != null and key_node != null and int(key_node.get_meta(&"key_color")) == int(door_node.call("lock")), "the key by the start is the colour the door's lock asks for")
-	if failed:
-		print("FAILED")
-		quit(1)
-	else:
-		print("PASSED")
-		quit()
+	check(door_node != null and key_node != null and int(key_node.get_meta(&"key_color")) == door_node.lock(), "the key by the start is the colour the door's lock asks for")
+	finish()

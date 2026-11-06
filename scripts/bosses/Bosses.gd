@@ -5,12 +5,12 @@ extends RefCounted
 ## world column. A boss is beaten once per run (RunState.bosses): then every gate level of its band
 ## opens for good, the boss is never met again, and where it fell a relic unlock waits (KeyRing.UNLOCK:
 ## the only way to take a relic of a move not yet known, see Relic), and beside it its trophy (Trophy), to be brought back to its stand in the tutorial (TrophyStand). Every boss
-## fights in its gate level itself (LevelGen.place_boss). Until each boss is built, a stand-in
-## fights for it (Boss); the worm (Worm), the bramble (Bramble, in its shaft: BrambleShaft), the
-## lodestone golem (Golem, in its hall: LodeHall), the necromancer (Necromancer, in a crypt: Crypts),
-## the whale (Whale) and the eldritch beast (Beast, in its chamber: Institute; its souls:
-## BeastSouls) are built, the whale the one boss not in a gate level: it roams the sky's top row
-## (WhaleHunt), fought at its heart in its belly (Belly, WhaleHeart, the prefab its name places).
+## fights in its gate level itself (LevelGen.place_boss), as its own prefab (SCENES): the worm
+## (Worm), the bramble (Bramble, in its shaft: BrambleShaft), the lodestone golem (Golem, in its
+## hall: LodeHall), the necromancer (Necromancer, in a crypt: Crypts), the whale (Whale) and the
+## eldritch beast (Beast, in its chamber: Institute; its souls: BeastSouls), the whale the one boss
+## not in a gate level: it roams the sky's top row (WhaleHunt), fought at its heart in its belly
+## (Belly, WhaleHeart, the prefab its name places).
 
 ## Who guards which gate is the band layout's (Bands.LAYOUTS): the garden's way down and way up,
 ## and the far end of each band below and above it.
@@ -20,8 +20,7 @@ const RELIC_DEAL: int = 5300
 ## golem took the spider's place). A saved run's bosses slain and relics waiting are read under the
 ## new names (RunState.gone_kinds).
 const RENAMED: Dictionary = {&"spider": &"golem"}
-## The prefab of each boss built so far; the rest are fought by the stand-in (Boss), which is the
-## boss cell's prefab in Placeables.
+## The prefab of each boss, placed for its boss cell (Placeables has none for that cell).
 const SCENES: Dictionary = {
 	&"worm": "res://prefabs/worm.tscn",
 	&"bramble": "res://prefabs/bramble.tscn",
@@ -32,11 +31,9 @@ const SCENES: Dictionary = {
 }
 
 
-## The prefab boss `name` is fought as: its own (SCENES), else the stand-in.
+## The prefab boss `name` is fought as (SCENES).
 static func scene(name: StringName) -> PackedScene:
-	if SCENES.has(name):
-		return load(String(SCENES[name])) as PackedScene
-	return Placeables.scene(LevelGen.Type.BOSS)
+	return load(String(SCENES[name])) as PackedScene
 
 
 ## The boss whose gate is the way on of row `row`'s levels, or &"" for a row with no gate.
