@@ -265,12 +265,8 @@ func decor() -> StringName:
 	return arch.decor if arch != null else &"garden"
 
 
-## How dark it is (RisoLight; Archetype.shade and gloom): out of the wizard's sight, and
-## everywhere no light falls. A side world is as dark as the garden.
-func shade() -> float:
-	return arch.shade if arch != null else Archetype.SHADE
-
-
+## How dark it is everywhere no light falls (RisoLight; Archetype.gloom). A side world is as dark
+## as the garden.
 func gloom() -> float:
 	return arch.gloom if arch != null else 0.0
 

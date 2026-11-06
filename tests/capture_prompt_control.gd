@@ -1,8 +1,8 @@
 extends TestKit
 ## The interact prompt's control (RisoPrompt) through a press (up, coming down, landing, landed with
-## its ring), on the keyboard (the interact key's cap) along the top and on a pad (the game's pad,
-## RisoPad, its interact button solid) along the bottom, close up in prompt_control.png and at the
-## game's own zoom in prompt_control_game.png.
+## its ring), on the keyboard (the interact key's cap) along the top and on a pad (the small pad,
+## RisoPad.draw_small, its interact button solid) along the bottom, close up in prompt_control.png
+## and at the game's own zoom in prompt_control_game.png.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_prompt_control.gd
 
 ## The press at each card, left to right.

@@ -2,7 +2,7 @@
 
 A plan for the owner's playtest notes of November 2026, on the garden demo and its tutorial. Each
 item says what was seen, what the code does now (where it was found), what to do, and what is still
-open. The order of work is at the end. Steps 1 to 3 of it are built (marked *Done*); the rest is not yet.
+open. The order of work is at the end. Steps 1 to 4 of it are built (marked *Done*), with 2c and 3d left to judge in play.
 
 ## 1. The tutorial
 
@@ -26,7 +26,9 @@ thicker too, so it reads at the prompt's size. Capture the dash card on a pad an
 its bumper (`TRIGGER_GAP`), the bumper a thin strip along the body's top with a hairline of paper
 between (`BUMPER_GAP`, so it does not melt into the body), all in the same room over the body as
 before, so the pad keeps its size on a card; the side arrow is broader (`POINT`). Checked on the
-dash card in `capture_tutorial`, zoomed in.
+dash card in `capture_tutorial`, zoomed in. Then, at the owner's word: the trigger as wide as the
+bumper (`RisoPad.TRIGGER` 30 by 14, a tab rounded at its top corners, `RisoPad.tab`) and the bumper
+a little thicker (6), in the same room over the body.
 
 ### 1b. A shooter only a parry beats
 
@@ -146,6 +148,14 @@ radius).
 (`Geometry2D.intersect_polygons` with the disc), so only its front and open jaws show. The same on
 the map, the stands and the won card. Capture and look at it zoomed in.
 
+*Done:* the maw is bigger and comes up off the disc's lower left (`RisoMarks.WORM_HEAD`, `WORM_R`),
+each piece cut to the disc (`Geometry2D.intersect_polygons`), so only its front and open jaws show,
+on the seal, the trophy and the won card; on the map it is cut to where its disc would be.
+`tests/capture_boss_marks.gd` prints every boss's seal, trophy and bare mark side by side.
+Then, at the owner's word: the other marks drawn bigger on their discs (`RisoMarks.MARK_GROW`, 1.3)
+but for the worm's; the bramble's vine running its disc from end to end, cut to it, with three big
+hooked rose thorns that read at the seal's size, its leaf gone.
+
 ### 3b. No A / D on the map
 
 *Now:* the map prints "A / D" by its page tabs (`RisoMap._tabs`).
@@ -165,6 +175,10 @@ asked for solid, a shoulder as the two shoulders of one side, the stick alone. T
 keep the whole pad, so it is learned there. `RisoPad.draw_small(ink, at, s, action)`, captured in
 `capture_prompt_control.gd`.
 
+*Done:* `RisoPad.draw_small` and `small_size`, as above (back and start side by side too); the
+interact prompt uses it (`RisoPrompt.PAD_SCALE` 0.65, about a key cap's size), on a card fitted to
+it. Captured in `capture_prompt_control.gd`.
+
 ### 3d. The light: soft, not sharp
 
 *Seen:* the light is still too sharp; line of sight should not light anything, and where it cuts
@@ -180,6 +194,23 @@ few coats cut to the sight polygon grown by steps (or as a graded mesh, `ink_gra
 over `SHADE_FEATHER` px), so it fades in over the edge. Watch the cost (`RisoSight.outside` per
 coat) and the flash fix (`RisoSight.SEAM`). Capture in the cemetery and the garden.
 
+*Found:* no ink is lifted for being seen; the seen area is only left unshaded.
+
+*Decided:* the wizard's own sight lights and shades nothing; the lanterns' light is a gradient,
+without costing frames (owner, November 2026).
+
+*Done:* the shade by the wizard's sight is gone, with `Archetype.shade` (a feathered shade was
+built first and dropped with it). A lantern's light, standing or carried, is a gradient from its
+flame to nothing at its reach (`RisoLight.graded`, `GRADIENT_POWER`), a mesh worked out once with
+the light and printed whole (`lift_ink_mesh`); the other things that shine keep their two-step
+pools. `bench_walk`, mean of the medians, before and after: standing 4.72 and 4.79 ms, walking 4.87
+and 4.54 ms (no sight to work out); the light 0.20 ms a frame in the garden (0.21 before).
+`sight_test` checks the gradient and that nothing is shaded. *Decided:* the crypts' deep dark keeps
+its two steps round each light; it looks good there (owner, November 2026), but it is much dimmer
+round an unlit flame: an unprotected or snuffed wizard's light only lifts `UNLIT_DARK_LIFT` (0.4)
+of the dark at the flame, fading out to its reach (`RisoLight.Fade.dim`), where it cleared it
+before.
+
 ### 3e. The slash's arc to the left
 
 *Seen:* slashing to the left, the arc is the wrong way round; its point should be on top.
@@ -194,11 +225,28 @@ top either way; captured both ways.
 
 *Seen:* the sealed door (the boss's blocker) is too distracting.
 
-*Now:* a sealed way on is dark, barred across by three pink bars, with the boss's seal pulsing on
-them (`ExitArt`, `door.sealed()`).
+*Decided:* it is not to be calmer, only laid out so that its parts do not run into each other
+(owner, November 2026). The bars, the pink and the seal's pulse stay.
 
-*To do:* calm it: thinner bars in night or blue with a little pink, the seal still and smaller,
-no pulse. Keep it readable as shut. Capture at both garden gates.
+*Now:* a sealed way on is dark, barred across by three pink bars, with the boss's seal pulsing on
+them (`ExitArt`, `door.sealed()`). The bars lie at 74, 51 and 28 px over the door's foot, 8 px
+thick; the seal, a pink disc of radius 20 (up to about 21.6 with its pulse), is centred at 52, so
+it lies over the middle bar and touches the top one, and its pink runs into theirs, the boss's mark
+in paper on top. Over them the crown's chevron clears the top bar by about 8 px; a grand door's
+falling chevrons (`exit_grand`) drop to about 74, onto the top bar and the seal's rim.
+
+*To do:* lay the parts out apart, each with dark showing round it: the seal in a clear space of its
+own (the bars stopping short either side of it, or moved above and below it), its whole pulse
+clear of the bars, and the crown's chevrons, a grand door's included, clear of the top bar and the
+seal. Keep the arch's size. Capture at both garden gates and zoom in.
+
+*Done:* the bars stop short of the seal, with dark kept clear round it at its biggest pulse
+(`ExitArt.SEAL_AT`, `SEAL_CLEAR`, the bars cut with `Geometry2D.clip_polygons`); the bars sit at
+70, 49 and 28 px, the seal at 45, under the chevron; a grand door's chevrons fall `GRAND_FALL`
+(16 px) and stay above the top bar. The capture showed one more collision: the way on's price
+printed over the seal; a sealed door no longer prints its price (it cannot be paid until the boss
+is slain), and shows it again once open. `tests/capture_sealed_door.gd` photographs both garden
+gates.
 
 ## 4. Sound
 
@@ -230,7 +278,7 @@ they can be hit there.
    (slash arc).
 2. The guard: 2a, 2b, then 2c by playing it.
 3. The tutorial: 1b (the shooter), 1a (the trigger told from the bumper).
-4. The print: 3a (worm), 3f (door), 3c (small pad), 3d (soft light; the biggest).
+4. The print: 3a (worm), 3f (the door's parts apart), 3c (small pad), 3d (soft light; the biggest).
 
 Each step: its tests, a capture where it is art, and `docs/DEEPER_PLAN.md` and
 `docs/RISO_PRINT.md` kept in step.

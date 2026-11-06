@@ -12,9 +12,6 @@ extends RefCounted
 ## falling back to the garden's decor and the night backdrop, so a new band works before it has art
 ## of its own.
 
-## The night ink over what is out of the wizard's sight (`shade`), unless a band sets its own.
-const SHADE: float = 0.3
-
 ## Its name: how levels of it are told apart (NextWorldDef.archetype), and its print realm.
 var name: StringName = &""
 ## What its title card says on the way in (RisoTransition.title).
@@ -42,11 +39,9 @@ var switch_reach: int = -1
 ## Whether its levels lie open to the sky: no rock round them, a drop below (Player.fall_back),
 ## and the camera goes past the edges (LevelLoader.SKY_MARGIN).
 var open: bool = false
-## How dark its levels are (RisoLight): how much night ink lies over what the wizard cannot see past
-## the rock (`shade`), and over everything the lanterns and glowing things do not light, in sight
-## or not (`gloom`, a deep darkness all over; no band sets it now, the darkness lying in the
-## cemetery's crypts instead, Crypts).
-var shade: float = SHADE
+## How dark its levels are (RisoLight): how much night ink lies over everything the lanterns and
+## glowing things do not light (`gloom`, a deep darkness all over; no band sets it now, the darkness
+## lying in the cemetery's crypts instead, Crypts).
 var gloom: float = 0.0
 ## How thickly an ordinary level of it is dressed (LevelGen.populate_level), before its own passes:
 ## the share of its open cells given a star (`star_share`), a wisp (`wisp_share`) and a watcher

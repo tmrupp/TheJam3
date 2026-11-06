@@ -4,8 +4,8 @@ extends RefCounted
 ## the interact prompt, RisoPrompt): always the same pad seen from the front, so a player learns
 ## where each button is on it. Its body is faint, with grips under its ends; on it, faint, the left
 ## stick, the d-pad, back and start, the right stick and the four face buttons; on top, either side,
-## a bumper, a thin strip lying along the body's top, and standing clear over it a trigger, a
-## round-topped tab, so the two cannot be taken for each other. The control asked for is solid in night:
+## a bumper, a strip lying along the body's top, and standing clear over it a trigger as wide, a
+## tab rounded at its top corners, so the two cannot be taken for each other. The control asked for is solid in night:
 ## a button or a shoulder, or the stick (walking, with an arrow either way); a shoulder gets a broad
 ## arrow at it from the pad's side too, as it is the hardest part to see. Pressed (`press`), the control sinks a little and
 ## a ring of accent ink spreads from it. No words.
@@ -19,17 +19,18 @@ enum Part { FACE_DOWN, FACE_RIGHT, FACE_LEFT, FACE_UP, BACK, START, LEFT_STICK, 
 const BODY: Vector2 = Vector2(128, 74)
 const GRIP_R: float = 20.0
 const BODY_ROUND: float = 0.35
-## A trigger's size (a round-topped tab) and a bumper's (a thin strip), how far in from the body's
+## A trigger's size (a tab, as wide as its bumper) and a bumper's (a strip), how far in from the body's
 ## ends their middles sit, the paper left between a trigger and its bumper (a clear gap, so a
 ## trigger stands apart), and the hairline between a bumper and the body (so it lies along the body
 ## without melting into it). The room they take over the body is the same as before they were told
 ## apart, so the pad keeps its size on a card.
-const TRIGGER: Vector2 = Vector2(17, 15)
-const BUMPER: Vector2 = Vector2(30, 5)
+const TRIGGER: Vector2 = Vector2(30, 14)
+const BUMPER: Vector2 = Vector2(30, 6)
 const SHOULDER_IN: float = 30.0
 const TRIGGER_GAP: float = 4.0
 const BUMPER_GAP: float = 2.0
-## How round a bumper's corners are (px, unscaled).
+## How round a trigger's top corners are and a bumper's corners (px, unscaled).
+const TRIGGER_ROUND: float = 6.0
 const BUMPER_ROUND: float = 2.0
 ## Where the body's controls sit, from the middle of its top edge (unscaled px): the left stick and
 ## the face buttons up high, the d-pad and the right stick lower and further in, back and start
@@ -50,7 +51,7 @@ const MIDDLE: Vector2 = Vector2(10, 5)
 ## The arrow pointing in at a shoulder asked for from the pad's side: its half height and length,
 ## and the gap between its tip and the shoulder; and the walking arrows either side of the stick:
 ## their length and half height, and the gap from the well.
-const POINT: Vector2 = Vector2(10, 14)
+const POINT: Vector2 = Vector2(10, 12)
 const POINT_GAP: float = 3.0
 const WALK: Vector2 = Vector2(9, 7)
 const WALK_GAP: float = 4.0
@@ -158,7 +159,7 @@ static func draw(ink: InkCanvas, at: Vector2, s: float, action: StringName, pres
 			var part: Part = pair[0]
 			var size_of: Vector2 = (pair[1] as Vector2) * s
 			var y: float = float(pair[2])
-			var shape: PackedVector2Array = RisoShapes.arch(x - size_of.x * 0.5, y, size_of.x, size_of.y) if part == trig_part else RisoShapes.rrect(x - size_of.x * 0.5, y, size_of.x, size_of.y, BUMPER_ROUND * s)
+			var shape: PackedVector2Array = RisoPad.tab(x - size_of.x * 0.5, y, size_of.x, size_of.y, TRIGGER_ROUND * s) if part == trig_part else RisoShapes.rrect(x - size_of.x * 0.5, y, size_of.x, size_of.y, BUMPER_ROUND * s)
 			if part == lit:
 				solid.append(Transform2D(0.0, sink) * shape)
 				lit_at = Vector2(x, y + size_of.y * 0.5)
@@ -211,6 +212,97 @@ static func draw(ink: InkCanvas, at: Vector2, s: float, action: StringName, pres
 	ink.ink(RisoPrint.NIGHT, 1.0, solid + pointers, false)
 	ring(ink, lit_at + sink, s, press)
 	return lit_at
+
+
+## The size (unscaled) of the small pad for input action `action` (draw_small): only the part of
+## the pad it is on.
+static func small_size(action: StringName) -> Vector2:
+	match part_of(action):
+		Part.FACE_DOWN, Part.FACE_RIGHT, Part.FACE_LEFT, Part.FACE_UP:
+			return Vector2.ONE * (FACE_OFF + FACE_R * LIT_GROW) * 2.0
+		Part.LEFT_TRIGGER, Part.RIGHT_TRIGGER, Part.LEFT_BUMPER, Part.RIGHT_BUMPER:
+			return Vector2(BUMPER.x, TRIGGER.y + TRIGGER_GAP + BUMPER.y)
+		Part.LEFT_STICK, Part.RIGHT_STICK:
+			var arrows: float = (WALK_GAP + WALK.x) * 2.0 if action == &"Move" else 0.0
+			return Vector2(STICK_WELL * 2.0 + arrows, STICK_WELL * 2.0)
+		Part.BACK, Part.START:
+			return Vector2(MIDDLE_AT.x * 2.0 + MIDDLE.x * LIT_GROW, MIDDLE.y * LIT_GROW)
+	return Vector2.ZERO
+
+
+## The small pad, for a control shown outside the tutorial (the interact prompt, RisoPrompt): only
+## the part of the pad `action` is on, as the player sees it there, centred on `at`, `s` its scale:
+## the four face buttons as a diamond, the one asked for solid; a shoulder as the trigger and bumper
+## of its side, the one asked for solid; a stick alone, its cap solid (walking, with an arrow either
+## way); back and start side by side. Pressed by `press` as the whole pad is (draw). The tutorial's
+## cards keep the whole pad, so the parts are learned there. Returns where the part's middle is.
+static func draw_small(ink: InkCanvas, at: Vector2, s: float, action: StringName, press: float = 0.0) -> Vector2:
+	var lit: Part = part_of(action)
+	var sink: Vector2 = Vector2(0, SINK * press * s)
+	var faint: Array[PackedVector2Array] = []
+	var shell: Array[PackedVector2Array] = []
+	var solid: Array[PackedVector2Array] = []
+	var pointers: Array[PackedVector2Array] = []
+	var lit_at: Vector2 = at
+	match lit:
+		Part.FACE_DOWN, Part.FACE_RIGHT, Part.FACE_LEFT, Part.FACE_UP:
+			var spots: Array[Array] = [[Part.FACE_DOWN, Vector2(0, 1)], [Part.FACE_RIGHT, Vector2(1, 0)], [Part.FACE_LEFT, Vector2(-1, 0)], [Part.FACE_UP, Vector2(0, -1)]]
+			for pair: Array in spots:
+				var c: Vector2 = at + (pair[1] as Vector2) * FACE_OFF * s
+				if pair[0] == lit:
+					solid.append(RisoShapes.circle(c + sink, FACE_R * LIT_GROW * s, 14))
+					lit_at = c
+				else:
+					faint.append(RisoShapes.circle(c, FACE_R * s, 14))
+		Part.LEFT_TRIGGER, Part.RIGHT_TRIGGER, Part.LEFT_BUMPER, Part.RIGHT_BUMPER:
+			var trigger_lit: bool = lit == Part.LEFT_TRIGGER or lit == Part.RIGHT_TRIGGER
+			var top: float = at.y - (TRIGGER.y + TRIGGER_GAP + BUMPER.y) * 0.5 * s
+			var trigger: PackedVector2Array = RisoPad.tab(at.x - TRIGGER.x * 0.5 * s, top, TRIGGER.x * s, TRIGGER.y * s, TRIGGER_ROUND * s)
+			var bumper_top: float = top + (TRIGGER.y + TRIGGER_GAP) * s
+			var bumper: PackedVector2Array = RisoShapes.rrect(at.x - BUMPER.x * 0.5 * s, bumper_top, BUMPER.x * s, BUMPER.y * s, BUMPER_ROUND * s)
+			solid.append(Transform2D(0.0, sink) * (trigger if trigger_lit else bumper))
+			shell.append(bumper if trigger_lit else trigger)
+			lit_at = Vector2(at.x, top + TRIGGER.y * 0.5 * s) if trigger_lit else Vector2(at.x, bumper_top + BUMPER.y * 0.5 * s)
+		Part.LEFT_STICK, Part.RIGHT_STICK:
+			faint.append(RisoShapes.circle(at, STICK_WELL * s, 18))
+			solid.append(RisoShapes.circle(at + sink, STICK_CAP * LIT_GROW * s, 14))
+			if action == &"Move":
+				for dir: float in [-1.0, 1.0]:
+					var base: Vector2 = at + Vector2(dir * (STICK_WELL + WALK_GAP) * s, 0)
+					pointers.append(PackedVector2Array([base + Vector2(dir * WALK.x * s, 0), base + Vector2(0, -WALK.y * s), base + Vector2(0, WALK.y * s)]))
+		Part.BACK, Part.START:
+			for pair: Array in [[Part.BACK, -1.0], [Part.START, 1.0]]:
+				var c: Vector2 = at + Vector2(float(pair[1]) * MIDDLE_AT.x * s, 0)
+				var grow: float = LIT_GROW if pair[0] == lit else 1.0
+				var bar: PackedVector2Array = RisoShapes.rrect(c.x - MIDDLE.x * 0.5 * grow * s, c.y - MIDDLE.y * 0.5 * grow * s, MIDDLE.x * grow * s, MIDDLE.y * grow * s, MIDDLE.y * 0.5 * grow * s)
+				if pair[0] == lit:
+					solid.append(Transform2D(0.0, sink) * bar)
+					lit_at = c
+				else:
+					faint.append(bar)
+		_:
+			return at
+	if not shell.is_empty():
+		ink.ink(RisoPrint.BLUE, BODY_INK, shell, false)
+	if not faint.is_empty():
+		ink.ink(RisoPrint.NIGHT, CONTROL_INK, faint, false)
+	ink.ink(RisoPrint.NIGHT, 1.0, solid + pointers, false)
+	ring(ink, lit_at + sink, s, press)
+	return lit_at
+
+
+## A trigger's tab: `w` across and `h` high from (`x`, `y`), its top corners rounded `r`, its foot
+## square.
+static func tab(x: float, y: float, w: float, h: float, r: float) -> PackedVector2Array:
+	var out: PackedVector2Array = PackedVector2Array([Vector2(x, y + h)])
+	for k: int in range(7):
+		var a: float = PI + PI * 0.5 * float(k) / 6.0
+		out.append(Vector2(x + r, y + r) + Vector2(cos(a), sin(a)) * r)
+	for k: int in range(7):
+		var a: float = PI * 1.5 + PI * 0.5 * float(k) / 6.0
+		out.append(Vector2(x + w - r, y + r) + Vector2(cos(a), sin(a)) * r)
+	out.append(Vector2(x + w, y + h))
+	return out
 
 
 ## The ring of accent ink a press spreads from `at` as it lands (`press` past 0.6), `s` its scale.

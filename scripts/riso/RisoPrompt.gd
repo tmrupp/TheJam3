@@ -2,9 +2,10 @@ extends Node2D
 class_name RisoPrompt
 ## Printed interaction prompt: a paper card with the interact control on it, pressed about every
 ## 0.8 s, that pops up above an Interactable while it is the focused one (the nearest the player is
-## touching; see Interactable.focused): on a pad the game's pad (RisoPad) with the interact button
-## solid on it, on the keyboard the interact key's cap with its letter, whichever the player last
-## used (RisoPad.pad), as the tutorial's cards show them (HintArt). The object's interaction_hint
+## touching; see Interactable.focused): on a pad the small pad (RisoPad.draw_small: only the part of
+## the pad the interact button is on, the face buttons as a diamond with it solid; the tutorial's
+## cards show the whole pad, HintArt), on the keyboard the interact key's cap with its letter,
+## whichever the player last used (RisoPad.pad). The object's interaction_hint
 ## supplies optional text, or the key or switch it needs, shown on a paper disc instead. It draws in
 ## the UI's canvas (RisoPrint.ui_canvas), printed finer than the scene, kept on this node.
 
@@ -19,9 +20,9 @@ var hint_label: Label
 var key_label: Label
 ## The input action that interacts (Interactable).
 const INTERACT: StringName = &"Discover"
-## The interact control's size on the prompt: the pad's scale, the key cap's (against HintArt's), and
-## the paper round either.
-const PAD_SCALE: float = 0.75
+## The interact control's size on the prompt: the small pad's scale (about a key cap's size), the key
+## cap's (against HintArt's), and the paper round either.
+const PAD_SCALE: float = 0.65
 const KEY_SCALE: float = 0.75
 const CARD_PAD: Vector2 = Vector2(8, 6)
 ## How far (px) the key cap sinks as it is pressed.
@@ -128,16 +129,16 @@ func _process(delta: float) -> void:
 
 ## The paper card the interact control sits on, round `at` at pop `pop`.
 func _card(at: Vector2, pop: float) -> PackedVector2Array:
-	var size: Vector2 = (RisoPad.size() * PAD_SCALE if RisoPad.pad else Vector2(HintArt.CAP_W, HintArt.CAP_H) * KEY_SCALE) + CARD_PAD * 2.0
+	var size: Vector2 = (RisoPad.small_size(INTERACT) * PAD_SCALE if RisoPad.pad else Vector2(HintArt.CAP_W, HintArt.CAP_H) * KEY_SCALE) + CARD_PAD * 2.0
 	size *= pop
 	return RisoShapes.rrect(at.x - size.x * 0.5, at.y - size.y * 0.5, size.x, size.y, 9.0 * pop)
 
 
-## The interact control on the card at `at`, pressed by `tap` (0 up .. 1 down): the pad with its
-## button solid, or the key's cap and letter, sinking as it is pressed, a ring spreading as it lands.
+## The interact control on the card at `at`, pressed by `tap` (0 up .. 1 down): the small pad with
+## its button solid, or the key's cap and letter, sinking as it is pressed, a ring spreading as it lands.
 func _interact(at: Vector2, pop: float, tap: float) -> void:
 	if RisoPad.pad:
-		RisoPad.draw(ink, at, PAD_SCALE * pop, INTERACT, tap)
+		RisoPad.draw_small(ink, at, PAD_SCALE * pop, INTERACT, tap)
 		return
 	var s: float = KEY_SCALE * pop
 	var c: Vector2 = at + Vector2(0, KEY_SINK * tap * s)
