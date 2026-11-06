@@ -12,8 +12,6 @@ func run() -> void:
 	await boot()
 	info.debug = true
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
-	# No title card over the stills.
-	RisoTransition.instance.title_age = -1.0
 	var timed: Spikes = null
 	var switched: Spikes = null
 	for k: int in range(1, 4):
@@ -22,7 +20,6 @@ func run() -> void:
 		await process_frame
 		await until(func() -> bool: return info.world != null and not info.travelling and info.coord == at, 20000)
 		await frames(10)
-		RisoTransition.instance.title_age = -1.0
 		for n: Node in placed("spikes.tscn", true):
 			var s: Spikes = n as Spikes
 			if s.mode == Spikes.Mode.TIMED and timed == null:

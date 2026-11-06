@@ -18,6 +18,16 @@ enum Exit { DEEPER, BACK, LEFT, RIGHT, RETURN }
 ## Debug runs (from the start menu): every exit is generated right by the spawn, and the run
 ## starts with DEBUG_STARS. Saved with the run and shown in the HUD.
 static var debug: bool = false
+## Whether this is a demo build: an export with the "demo" feature (an export preset's custom
+## feature), which also plays the demo's band layout (Bands.DEMO). Tests set it to try one.
+static var demo_build: bool = OS.has_feature("demo")
+
+
+## Whether the developer's tools are at hand: the start menu's debug toggle (debug runs), the F7
+## panel and F8's realms (RisoPrint), and going back a level at a key (Debug-Back). A demo build has
+## none of them, so its players get the game alone, on the default difficulty (Difficulty).
+static func dev_tools() -> bool:
+	return not demo_build
 const DEBUG_STARS: int = 9999
 
 static var instance: MapInfo
@@ -53,6 +63,14 @@ const GHOST: PackedScene = preload("res://prefabs/corpse.tscn")
 ## Seconds left on the end-of-run card (0 while playing).
 var run_ending: float = 0.0
 const RUN_END_SECONDS: float = 3.0
+## Whether the run is won (win_run): its card shows for WIN_SECONDS, then the start menu.
+var won: bool = false
+const WIN_SECONDS: float = 6.0
+## A boss's trophy (Trophy), and where it drops beside where its boss fell (trophy_spot): the cells
+## to either side tried in turn, else this far over the spot itself.
+const TROPHY: PackedScene = preload("res://prefabs/trophy.tscn")
+const TROPHY_SIDES: Array[int] = [1, -1, 2, -2]
+const TROPHY_OVER: Vector2 = Vector2(0, -110)
 
 
 func _enter_tree() -> void:
@@ -238,19 +256,22 @@ func sheltered (pos: Vector2, way: int) -> bool:
 	return false
 
 ## Boss `boss` died at `pos` (Bosses): slain for the rest of the run, so every gate level of its band
-## opens; where it fell, its relic waits (Bosses.relic_for, free), or, with every move known, a
-## skeleton key and a star cluster.
+## opens; where it fell, a relic unlock waits (KeyRing.UNLOCK, kept as a dropped key until picked
+## up), or, with every relic's move known (Bosses.relic_for finds none), a skeleton key and a star
+## cluster; and beside that, its trophy (Trophy, trophy_spot).
 func boss_slain (boss: StringName, pos: Vector2) -> void:
 	if boss == &"" or run.bosses.has(boss):
 		return
 	run.bosses[boss] = true
+	run.boss_trophies[boss] = [coord, trophy_spot(pos)]
+	_spawn_boss_trophies()
 	# The beast's souls go with it.
 	if boss == &"beast":
 		BeastSouls.end(run)
-	var move: StringName = Bosses.relic_for(boss, run.run_seed, player)
-	if move != &"":
-		run.boss_relics[boss] = [coord, pos, move]
-		_spawn_boss_relics()
+	if Bosses.relic_for(boss, run.run_seed, player) != &"":
+		var unlock: int = record().drop_key(pos, KeyRing.UNLOCK)
+		_spawn_dropped_key(unlock, pos, KeyRing.UNLOCK)
+		save_run()
 	else:
 		var id: int = record().drop_key(pos, KeyRing.SKELETON)
 		_spawn_dropped_key(id, pos, KeyRing.SKELETON)
@@ -375,6 +396,51 @@ func slay_boss () -> bool:
 		boss_slain(gate, player.global_position)
 		return true
 	return false
+
+## Where a boss's trophy drops, its boss fallen at `pos`: a cell to one side of it (the relic's
+## spot), the nearest open one, at the same height in its cell; else just over it.
+func trophy_spot (pos: Vector2) -> Vector2:
+	var at: Vector2i = cell_at(pos)
+	var within: Vector2 = pos - cell_position(at)
+	for dx: int in TROPHY_SIDES:
+		var c: Vector2i = at + Vector2i(dx, 0)
+		if world != null and world.is_valid(c) and not world.is_ground(c):
+			return cell_position(c) + within
+	return pos + TROPHY_OVER
+
+
+## The trophies slain bosses left in this place, where they fell, until picked up.
+func _spawn_boss_trophies () -> void:
+	if map_elements == null or not is_instance_valid(map_elements):
+		return
+	for boss: StringName in run.boss_trophies:
+		var entry: Array = run.boss_trophies[boss]
+		if entry[0] != coord or map_elements.get_children().any(func(n: Node) -> bool: return n is Trophy and (n as Trophy).boss == boss):
+			continue
+		var trophy: Trophy = TROPHY.instantiate() as Trophy
+		trophy.setup(self, boss)
+		map_elements.add_child(trophy)
+		trophy.global_position = entry[1]
+
+
+## The wizard picked up boss `boss`'s trophy at `pos`: theirs to carry for the rest of the run.
+func trophy_taken (boss: StringName, pos: Vector2) -> void:
+	run.boss_trophies.erase(boss)
+	run.trophies[boss] = Trophy.CARRIED
+	RisoFx.burst(&"gain", pos, Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.EYE])
+	Wound.shake(8.0, 0.2)
+	save_run()
+
+
+## The wizard set boss `boss`'s trophy on its stand at `pos` (TrophyStand); with every boss's set,
+## the run is won.
+func set_trophy (boss: StringName, pos: Vector2) -> void:
+	run.trophies[boss] = Trophy.SET
+	RisoFx.burst(&"gain", pos + Vector2(0, -80), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.GLOW])
+	save_run()
+	if run.trophies_all_set():
+		win_run()
+
 
 ## The relics slain bosses left in this place, where they fell, until taken.
 func _spawn_boss_relics () -> void:
@@ -660,12 +726,19 @@ func hint_relic () -> Variant:
 
 # ------------------------------------------------------------------ moving between places
 
-## Begin a run at depth 0 of `run_seed`; its start lantern is lit.
-func start_run (seed_value: int) -> void:
+## Begin a run at depth 0 of `run_seed`; its start lantern is lit. With a `row`, the run begins on
+## that row of the same world instead (the generation lab, tools/gen_lab, playing a level it made).
+## With `tutorial`, it begins in the tutorial (Tutorial), by its lantern, lit, and comes out into
+## depth 0 through the tutorial's way out.
+func start_run (seed_value: int, row: int = 0, tutorial: bool = false) -> void:
 	run.start(seed_value)
-	coord = Vector2i(seed_value, 0)
-	arrival = -1
-	region = &""
+	coord = Vector2i(seed_value, row)
+	# At the start, its own place for a run's first steps; elsewhere (the generation lab), its way back.
+	arrival = -1 if row == 0 else Exit.BACK
+	# With the tutorial, the run begins in it (Tutorial), and comes out by the start's door into it.
+	if tutorial and row == 0:
+		coord = Tutorial.of(seed_value)
+		ControlHint.learned.clear()
 	if wizard() != null:
 		Abilities.reset(player)
 		if debug:
@@ -682,6 +755,8 @@ func travel (exit: int) -> void:
 	if lead.is_empty():
 		return
 	record().ways_taken[exit] = true
+	if Worlds.kind_at(coord) == Tutorial.kind_number():
+		Tutorial.mark_done()
 	var next: Vector2i = lead["to"]
 	await _pass(lead["way"], next)
 	_arrive(next, lead["arrive"])
@@ -779,22 +854,6 @@ func _arrive (to: Vector2i, how: int) -> void:
 	arrival = how
 	_load_level()
 
-## The region (a band's archetype name) the wizard was last in, for its title card; none before a
-## run's first level is built, so the run opens on one.
-var region: StringName = &""
-
-## Coming into a region from another (or at a run's start): its title card (RisoTransition.title).
-## A side world is no region of its own: going into one and back shows none.
-func _title_region () -> void:
-	if Worlds.is_side(coord) or here == null or here.arch == null:
-		return
-	var now: StringName = here.arch.name
-	if now == region:
-		return
-	region = now
-	if RisoTransition.instance != null:
-		RisoTransition.instance.title(here.arch.title)
-
 ## Freeze the wizard and sweep the printed transition over the view before a level changes.
 func _pass (way: Vector2, next: Vector2i) -> void:
 	travelling = true
@@ -834,6 +893,7 @@ func _level_ready (built: LevelGen) -> void:
 		_spawn_dropped_key(id, rec.dropped[id][0], rec.dropped[id][1])
 	Rift.restore(self)
 	_spawn_boss_relics()
+	_spawn_boss_trophies()
 	_spawn_left_relics()
 	_spawn_whale()
 	_spawn_souls()
@@ -863,7 +923,10 @@ func _arrived () -> void:
 		# The side door just come through stays open behind the player: the way back is free.
 		if arrival == Exit.LEFT or arrival == Exit.RIGHT:
 			record().lateral_open[arrival] = true
-	if arrival == -1:
+	if arrival == -1 and world.is_valid(world.start):
+		at = world.start
+		_set_respawn(coord, world.start_lantern if world.is_valid(world.start_lantern) else at)
+	elif arrival == -1:
 		_set_respawn(coord, world.exit_lanterns.get(Exit.BACK, at))
 	elif arrival == -2:
 		at = run.respawn_cell
@@ -898,7 +961,6 @@ func _arrived () -> void:
 		RisoPrint.instance.world_built(self, coord.y)
 	if RisoTransition.instance != null:
 		RisoTransition.instance.reveal()
-	_title_region()
 	save_run()
 	# The new level wakes around the wizard (the camera catches up next frame).
 	loader.wake_around(player.global_position if player != null else Vector2.INF)
@@ -1276,8 +1338,8 @@ func _attend () -> StringName:
 		RisoFx.burst(&"gain", player.global_position + Vector2(0, -60), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
 	return dept
 
-## The level lecture hall `hall`'s department's portal leads to (Department, in the first classroom
-## of the department, Institute.first_of), or NO_FIELD.
+## The level lecture hall `hall`'s department's portals lead to (Department: every classroom of a
+## department leads to the same level, Institute.first_of), or NO_FIELD.
 func field_of (hall: int) -> Vector2i:
 	var dept: StringName = world.halls[hall]["dept"]
 	for v: Vector2i in world.objects_of(LevelGen.Type.DEPARTMENT):
@@ -1518,34 +1580,63 @@ func way_back_travel () -> void:
 
 ## A way back's prefab (loaded when first needed).
 const WAY_BACK: String = "res://prefabs/way_back.tscn"
-## How far (cells) from the way back the way back from a department stands: at least, and at most.
+## How far (cells) from the way back the way back from a department stands: at least, and at most
+## where a floor that far off will do.
 const WAY_BACK_NEAR: Vector2i = Vector2i(2, 8)
 ## How many cells of open air the way back from a department stands in, its own cell and those over it.
 const WAY_BACK_AIR: int = 2
+## How far (cells across) the way back from a department keeps from any other door or thing stood
+## at (a level's ways, a door, a portal, a lantern...), so it is never on one and its prompt is
+## never another's.
+const WAY_BACK_APART: int = 2
 
 ## The way back from a department (RunState.way_back), if it opened in this place: on the free floor
 ## nearest its way back, WAY_BACK_NEAR cells off, with open air over it as high as its arch
-## (WAY_BACK_AIR cells, so nothing stands on top of it), found the first time, then kept. The
-## wizard comes through the department's portal out of it (ARRIVE_WAY_BACK).
+## (WAY_BACK_AIR cells, so nothing stands on top of it), and WAY_BACK_APART cells across from any
+## other door or thing stood at (else the nearest such floor further off; else the nearest floor
+## with that air, but never the way back's own cell), found the first time, then kept. The wizard
+## comes through the department's portal out of it (ARRIVE_WAY_BACK).
 func _spawn_way_back () -> void:
 	var back: Array = run.way_back
 	if back.size() < 4 or back[0] != coord or map_elements == null or world == null:
 		return
 	if back[1] == Vector2.INF:
-		var from: Vector2i = world.exits.get(Exit.BACK, Vector2i.ZERO)
-		var fits: Callable = func(v: Vector2i) -> bool:
-			if LevelGen.dist(v, from) < WAY_BACK_NEAR.x or LevelGen.dist(v, from) > WAY_BACK_NEAR.y:
-				return false
-			for k: int in range(1, WAY_BACK_AIR):
-				if not world.is_valid(v + Vector2i(0, -k)) or world.get_cell(v + Vector2i(0, -k)).type != LevelGen.Type.EMPTY:
-					return false
-			return true
-		var spot: Variant = LevelGen.best_of(world.free_floors(), func(v: Vector2i) -> int: return LevelGen.dist(v, from), fits)
-		back[1] = cell_position(spot if spot != null else from)
+		var spot: Vector2i = way_back_spot(world)
+		back[1] = cell_position(spot)
 	var node: WayBack = (load(WAY_BACK) as PackedScene).instantiate() as WayBack
 	map_elements.add_child(node)
 	node.global_position = back[1]
 	node.setup(self)
+
+
+## Where the way back from a department stands in level `w` (see _spawn_way_back).
+static func way_back_spot (w: LevelGen) -> Vector2i:
+	var from: Vector2i = w.exits.get(Exit.BACK, Vector2i.ZERO)
+	# The cells too near something else that is stood at or passed through: a level's ways, doors,
+	# portals, lanterns and the rest (Placeables' standers), gates; and the way back's own cell.
+	var crowded: Dictionary = {}
+	for o: Vector2i in w.objects:
+		var t: LevelGen.Type = w.get_cell(o).type
+		if Placeables.has_flag(t, &"stander") or t in [LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.STATION_GATE]:
+			for dx: int in range(-WAY_BACK_APART, WAY_BACK_APART + 1):
+				for dy: int in range(-1, 2):
+					crowded[o + Vector2i(dx, dy)] = true
+	var aired: Callable = func(v: Vector2i) -> bool:
+		for k: int in range(1, WAY_BACK_AIR):
+			if not w.is_valid(v + Vector2i(0, -k)) or w.get_cell(v + Vector2i(0, -k)).type != LevelGen.Type.EMPTY:
+				return false
+		return v != from
+	var near: Callable = func(v: Vector2i) -> bool:
+		var d: int = LevelGen.dist(v, from)
+		return d >= WAY_BACK_NEAR.x and d <= WAY_BACK_NEAR.y and not crowded.has(v) and bool(aired.call(v))
+	var apart: Callable = func(v: Vector2i) -> bool: return LevelGen.dist(v, from) >= WAY_BACK_NEAR.x and not crowded.has(v) and bool(aired.call(v))
+	var floors: Array[Vector2i] = w.free_floors()
+	var score: Callable = func(v: Vector2i) -> int: return LevelGen.dist(v, from)
+	for test: Callable in [near, apart, aired]:
+		var spot: Variant = LevelGen.best_of(floors, score, test)
+		if spot != null:
+			return spot
+	return from
 
 # ------------------------------------------------------------------ lanterns
 
@@ -1785,6 +1876,22 @@ func end_run () -> void:
 	player.visible = true
 	start_run(run.run_seed)
 
+## Every boss's trophy is on its stand (set_trophy): the run is won. The wizard stops where they
+## stand, the card of a won run shows (RisoHud) for WIN_SECONDS, and the start menu comes back with
+## the save gone, so the next run begins afresh.
+func win_run () -> void:
+	if run_ending > 0.0:
+		return
+	won = true
+	RunState.delete_save()
+	run_ending = WIN_SECONDS
+	player.set_physics_process(false)
+	player.velocity = Vector2.ZERO
+	await get_tree().create_timer(WIN_SECONDS).timeout
+	var menu: Menu = Stage.menu() as Menu
+	if menu != null and is_inside_tree():
+		menu.return_to_menu()
+
 func _spawn_ghost () -> void:
 	if not run.has_ghost or run.ghost_coord != coord or map_elements == null or not is_instance_valid(map_elements):
 		return
@@ -1944,5 +2051,5 @@ func _physics_process (delta: float) -> void:
 	loader.sleep_far_chunks()
 
 func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("Debug-Back"):
+	if event.is_action_pressed("Debug-Back") and dev_tools():
 		travel(Exit.BACK)

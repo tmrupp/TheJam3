@@ -22,7 +22,7 @@ func price() -> int:
 
 
 func interaction_hint() -> Dictionary:
-	return {"text": "map · %d" % price()} if not used() else {}
+	return {"text": str(price())} if not used() else {}
 
 
 func buy() -> void:

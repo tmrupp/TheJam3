@@ -13,6 +13,8 @@ var player1_is_primary:bool = true
 var stored_volume:float 
 
 func _ready() -> void:
+	# The music plays on while the game is paused (the map, the pause menu): it is not part of play.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	music_player1.play(0)
 	stored_volume = music_player1.volume_linear
 	music_player2.stop()

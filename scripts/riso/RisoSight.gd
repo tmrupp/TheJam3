@@ -286,7 +286,10 @@ static func lit(shape: PackedVector2Array, seen: PackedVector2Array) -> Array[Pa
 
 ## The parts of `rect` outside every one of `holes`, as plain outlines with no holes in them (the
 ## print fills simple outlines only): where a cut would leave a hole, the piece is split in two
-## through the hole and each half cut again.
+## through the hole and each half cut again; and where a cut leaves a piece touching itself (a
+## hole that runs into the rect's corners, as a view's sight does where nothing stops it), the piece
+## is drawn in by SEAM, which parts it where it touched, so it can still be filled. Left as it was,
+## the print could not fill it and the shade it stands for would vanish for that moment.
 static func outside(rect: Rect2, holes: Array[PackedVector2Array]) -> Array[PackedVector2Array]:
 	var pieces: Array[PackedVector2Array] = [PackedVector2Array([rect.position, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y)])]
 	for hole: PackedVector2Array in holes:
@@ -296,7 +299,19 @@ static func outside(rect: Rect2, holes: Array[PackedVector2Array]) -> Array[Pack
 		for piece: PackedVector2Array in pieces:
 			cut.append_array(_minus(piece, hole, 0))
 		pieces = cut
-	return pieces
+	var out: Array[PackedVector2Array] = []
+	for piece: PackedVector2Array in pieces:
+		if not Geometry2D.triangulate_polygon(piece).is_empty():
+			out.append(piece)
+			continue
+		for part: PackedVector2Array in Geometry2D.offset_polygon(piece, -SEAM):
+			if not Geometry2D.is_polygon_clockwise(part):
+				out.append(part)
+	return out
+
+
+## How far (px) a piece left touching itself is drawn in (see outside): too little to see.
+const SEAM: float = 0.05
 
 
 ## `piece` less `hole`, split through any hole the cut leaves (see outside).

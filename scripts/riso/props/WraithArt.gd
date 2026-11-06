@@ -1,8 +1,9 @@
 extends CreatureArt
-## A wraith: a pale shroud streaming behind it, its eyes lit while it chases; frozen in light, it
-## cowers, still and shivering, its eyes shut, at its full size. About to dart (Wraith.DART_RANGE) it swells, its
+## A wraith: a pale shroud streaming behind it, its eyes lit while it chases; in light, it cowers
+## as it flees, shivering, its eyes shut, at its full size. About to dart (Wraith.DART_RANGE) it swells, its
 ## hem flaring wide and whipping, its hood darkening and its eyes burning bigger, shivering; darting,
-## it stretches out along the way it goes.
+## it swoops hood first, turned so its hood leads the way it goes (upright again as it slows), and
+## stretches out along it, its shroud streaming back along its own length.
 
 ## Swelling to dart: how much bigger it grows, how much wider and faster its hem waves, how far it
 ## shivers (art units), and how much bigger its eyes burn (their glow deepens, keeping its size). Darting: how far it stretches along its
@@ -12,6 +13,12 @@ const SWELL_HEM: float = 2.5
 const SWELL_SHIVER: float = 1.2
 const SWELL_EYES: float = 0.25
 const DART_STRETCH: float = 0.25
+## The shroud streams back from the way it moves: px of trail for each px/s of speed, at most
+## TRAIL_MOST px, so even a dart never drags the hem over the hood. And the middle of the shroud (art
+## units), which a swoop turns and stretches it about.
+const TRAIL_PER: float = 0.19
+const TRAIL_MOST: float = 30.0
+const MIDDLE: Vector2 = Vector2(0, -5)
 
 
 ## A wraith: a pale shroud floating over a tattered hem that streams behind it, a dark hood with
@@ -35,11 +42,15 @@ func _draw_art() -> void:
 	var shiver: Vector2 = Vector2(sin(t * 47.0 + phase), cos(t * 41.0 + phase)) * SWELL_SHIVER * 2.6 * swell
 	var xf: Transform2D = Transform2D(lean, size, 0.0, Vector2(0, -10 + bob) + shiver)
 	if dart > 0.0 and vel.length() > 1.0:
-		# Darting: stretched out along the way it goes, about its middle.
+		# Darting: it swoops hood first, turned (about its middle) so its hood leads the way it goes,
+		# coming upright as it slows, and stretched out along that way.
 		var along: Vector2 = vel.normalized()
+		var pivot: Vector2 = xf * MIDDLE
+		var swoop: float = wrapf(along.angle() + PI * 0.5, -PI, PI) * dart
 		var stretch: Transform2D = Transform2D(along * (1.0 + DART_STRETCH * dart), along.orthogonal() * (1.0 - DART_STRETCH * 0.5 * dart), Vector2.ZERO)
 		var turn: Transform2D = Transform2D(along, along.orthogonal(), Vector2.ZERO).affine_inverse()
-		xf = stretch * turn * xf
+		var about: Transform2D = Transform2D(0.0, pivot) * stretch * turn * Transform2D(swoop, Vector2.ZERO) * Transform2D(0.0, -pivot)
+		xf = about * xf
 	# The shroud: a hood narrowing to the shoulders, widening to a ragged hem that waves.
 	var outline: PackedVector2Array = PackedVector2Array([Vector2(0, -34), Vector2(9, -31), Vector2(13, -22), Vector2(12, -10), Vector2(16, 4), Vector2(19, 18)])
 	for k: int in range(6):
@@ -50,8 +61,12 @@ func _draw_art() -> void:
 		outline.append(Vector2(flare, 24.0 + wave + (5.0 if k % 2 == 0 else 0.0)))
 	outline.append_array(PackedVector2Array([Vector2(-19, 18), Vector2(-16, 4), Vector2(-12, -10), Vector2(-13, -22), Vector2(-9, -31)]))
 	# Like cloth, the shroud streams back from the way it drifts, more the lower down: the hood
-	# leads, the hem trails (in its own facing's units, before the turn).
-	var drag: Vector2 = Vector2(-absf(vel.x), -vel.y) / 95.0 * 7.0
+	# leads, the hem trails. The trail is worked out in the world (back from its way, TRAIL_PER of its
+	# speed, at most TRAIL_MOST) and turned into the shroud's own units, so it follows any swoop.
+	var trail: Vector2 = -vel * TRAIL_PER
+	if trail.length() > TRAIL_MOST:
+		trail = trail.normalized() * TRAIL_MOST
+	var drag: Vector2 = xf.affine_inverse().basis_xform(trail)
 	for k: int in range(outline.size()):
 		var low: float = clampf((outline[k].y + 30.0) / 56.0, 0.0, 1.0)
 		outline[k] += drag * low * low

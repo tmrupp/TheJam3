@@ -18,6 +18,11 @@ var stal: Stalactite:
 		return host as Stalactite
 
 
+## The rock itself (its stone is the ceiling's): printed as the rock is.
+func of_the_rock() -> bool:
+	return true
+
+
 ## Drawn from its root on the ceiling (this node's origin) down.
 func _draw_art() -> void:
 	if stal == null:

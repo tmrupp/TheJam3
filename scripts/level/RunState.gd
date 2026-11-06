@@ -6,8 +6,10 @@ extends RefCounted
 ## it (with the wizard's own state, see Player.to_save) lives here too. MapInfo keeps one (`run`)
 ## and does what happens in the scene.
 
-## Where the run is saved. Tests point this elsewhere so they never touch a player's save.
-static var save_path: String = "user://deeper_run.save"
+## Where the run is saved: a game on other bands than the whole game's (the demo's garden, Bands)
+## keeps its own save, so neither reads the other's. Tests point this elsewhere so they never touch
+## a player's save.
+static var save_path: String = "user://deeper_run.save" if Bands.current == Bands.DEFAULT else "user://deeper_run_%s.save" % Bands.current
 const SAVE_VERSION: int = 3
 
 ## The seed this run started on (coord.x drifts as the player moves sideways), the furthest from
@@ -44,9 +46,15 @@ var rift_link: Array = []
 var relics_found: Dictionary = {}
 var relic_hints: Dictionary = {}
 ## The bosses slain this run (name -> true; see Bosses), and the relics they left that wait still
-## (name -> [the place, the position, the move]).
+## (name -> [the place, the position, the move]), from a run saved before bosses dropped relic
+## unlocks instead (KeyRing.UNLOCK).
 var bosses: Dictionary = {}
 var boss_relics: Dictionary = {}
+## The bosses' trophies (Trophy): those still waiting where their boss fell (name -> [the place, the
+## position]), and those the wizard has (name -> Trophy.CARRIED, or Trophy.SET once on its stand in
+## the tutorial, TrophyStand).
+var boss_trophies: Dictionary = {}
+var trophies: Dictionary = {}
 ## The sky's whale (WhaleHunt): the world on its row it is in (WhaleHunt.NONE until it is met), and
 ## how many times it has moved.
 var whale_x: int = WhaleHunt.NONE
@@ -83,6 +91,8 @@ func start(seed_value: int) -> void:
 	relic_hints.clear()
 	bosses.clear()
 	boss_relics.clear()
+	boss_trophies.clear()
+	trophies.clear()
 	whale_x = WhaleHunt.NONE
 	whale_moves = 0
 	way_back = []
@@ -195,6 +205,7 @@ func to_save(coord: Vector2i, player: Dictionary) -> Dictionary:
 		"debug": MapInfo.debug, "rift_link": rift_link,
 		"relics_found": relics_found, "relic_hints": relic_hints,
 		"bosses": bosses, "boss_relics": boss_relics,
+		"boss_trophies": boss_trophies, "trophies": trophies,
 		"whale_x": whale_x, "whale_moves": whale_moves,
 		"way_back": way_back,
 		"souls": souls, "souls_sent": souls_sent,
@@ -205,9 +216,17 @@ func to_save(coord: Vector2i, player: Dictionary) -> Dictionary:
 	return data
 
 
+## Whether every boss in the band layout has its trophy on its stand (Trophy.SET): the run is won.
+func trophies_all_set() -> bool:
+	for boss: StringName in Bands.bosses():
+		if int(trophies.get(boss, 0)) != Trophy.SET:
+			return false
+	return true
+
+
 ## Take up the run saved in `data` (see read_save).
 func from_save(data: Dictionary) -> void:
-	MapInfo.debug = bool(data.get("debug", false))
+	MapInfo.debug = bool(data.get("debug", false)) and MapInfo.dev_tools()
 	run_seed = int(data["run_seed"])
 	deepest = int(data["deepest"])
 	furthest_row = int(data.get("furthest_row", deepest))
@@ -220,6 +239,8 @@ func from_save(data: Dictionary) -> void:
 	relic_hints = data.get("relic_hints", {})
 	bosses = data.get("bosses", {})
 	boss_relics = data.get("boss_relics", {})
+	boss_trophies = data.get("boss_trophies", {})
+	trophies = data.get("trophies", {})
 	whale_x = int(data.get("whale_x", WhaleHunt.NONE))
 	whale_moves = int(data.get("whale_moves", 0))
 	way_back = data.get("way_back", [])
@@ -272,11 +293,11 @@ static func read_save() -> Dictionary:
 
 ## A save's places in side worlds of a kind no longer made (Worlds.valid; the bosses' arenas, now
 ## that every boss fights in its gate level) moved out to the level the side world was entered
-## from, and their records dropped; and its bosses slain and relics waiting named as the bosses are
+## from, and their records dropped; and its bosses slain, relics and trophies named as the bosses are
 ## now (Bosses.RENAMED: the spider's are the golem's).
 static func gone_kinds(data: Dictionary) -> Dictionary:
 	var out: Dictionary = data.duplicate(true)
-	for key: String in ["bosses", "boss_relics"]:
+	for key: String in ["bosses", "boss_relics", "boss_trophies", "trophies"]:
 		var renamed: Dictionary = {}
 		var old_bosses: Dictionary = data.get(key, {})
 		for name: Variant in old_bosses:

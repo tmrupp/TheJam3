@@ -1,6 +1,6 @@
 class_name Worm
 extends Node2D
-## The worm (Bosses.GARDEN_DOWN): the boss of the garden's way down, fought in its gate level
+## The worm (the garden's way down's boss, Bands): the boss of the garden's way down, fought in its gate level
 ## (docs/REGIONS_PLAN.md §6). A worm of SEGMENTS segments (WormSegment), each as big as a cell of
 ## the level. It moves cell by cell, its body following its head through the cells it has been,
 ## and bends there like a pipe: straight through a cell it crosses, round a quarter turn in a cell
@@ -968,8 +968,11 @@ func _process(delta: float) -> void:
 		return
 	ink.global_position = Vector2.ZERO
 	ink.begin()
+	# The holes are the ground itself pushed up, printed as the rock is (InkCanvas.of_the_rock).
+	ink.of_the_rock = true
 	for hole: Hole in holes:
 		_draw_hole(hole)
+	ink.of_the_rock = false
 	for p: Piece in pieces:
 		if p.warn > 0.0:
 			_draw_warning(p)

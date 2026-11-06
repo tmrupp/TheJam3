@@ -9,7 +9,7 @@ func run() -> void:
 	window()
 	var place: Vector2i = Vector2i.ZERO
 	for world: int in range(28, 40):
-		for k: int in range(NextWorldDef.BAND):
+		for k: int in range(Bands.rows_of(&"sky")):
 			var at: Vector2i = Vector2i(world, NextWorldDef.band_row(&"sky", k))
 			if place == Vector2i.ZERO and not build(at).temples.is_empty():
 				place = at

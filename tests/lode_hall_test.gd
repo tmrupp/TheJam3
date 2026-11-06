@@ -14,6 +14,9 @@ extends TestKit
 
 
 func run() -> void:
+	if not needs([&"crags"]):
+		finish()
+		return
 	var gate: Vector2i = Vector2i(28, Bosses.row_of(&"golem"))
 	var w: LevelGen = build(gate)
 	var keep: Dictionary = w.keep

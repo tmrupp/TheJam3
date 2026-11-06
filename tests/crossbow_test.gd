@@ -15,6 +15,9 @@ extends TestKit
 
 
 func run() -> void:
+	if not needs([&"crags"]):
+		finish()
+		return
 	var at: Vector2i = generation()
 	check(at != Vector2i.ZERO, "a crag level with a crossbow and a nest to play (%s)" % at)
 	if at == Vector2i.ZERO:
@@ -47,7 +50,7 @@ func generation() -> Vector2i:
 	var play: Vector2i = Vector2i.ZERO
 	var most: int = maxi(1, floori(float(CragsArchetype.CROSSBOWS_MOST) * Difficulty.foes()))
 	for world: int in [28, 29, 30]:
-		for k: int in range(NextWorldDef.BAND):
+		for k: int in range(Bands.rows_of(&"crags")):
 			var place: Vector2i = Vector2i(world, NextWorldDef.band_row(&"crags", k))
 			var w: LevelGen = build(place)
 			if w == null:

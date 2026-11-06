@@ -7,6 +7,9 @@ extends TestKit
 
 
 func run() -> void:
+	if not needs([&"institute"]):
+		finish()
+		return
 	await boot()
 	check(info.flame_lit() and Lamplight.notice(1000.0) == 1000.0, "while the flame burns, an enemy notices the wizard as far off as ever")
 	info.snuff(player.global_position)

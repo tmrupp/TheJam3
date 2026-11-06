@@ -20,6 +20,8 @@ class Shape extends RefCounted:
 	var points: PackedVector2Array = PackedVector2Array()
 	var indices: PackedInt32Array = PackedInt32Array()
 	var point_alphas: PackedFloat32Array = PackedFloat32Array()
+	## Handed over already in triangles (mesh), as the lights' fades are: never triangulated here.
+	var premade: bool = false
 	## Its binding in a rig (InkCanvas.rig): -2 none; a bone, its shapes drawn in that bone's space;
 	## -1 a chain (`bind_key`), each point carried by the bones `binder` names for it (see
 	## InkCanvas.on_chain). And each triangulated point's bones as the rig's shader reads them
@@ -36,15 +38,29 @@ class Shape extends RefCounted:
 		polys = from_polys.duplicate(true)
 		alphas = from_alphas.duplicate(true)
 
+	## A shape already in triangles: `mesh_indices` into `mesh_points`, each point's cover in
+	## `mesh_covers`.
+	static func mesh(mesh_points: PackedVector2Array, mesh_indices: PackedInt32Array, mesh_covers: PackedFloat32Array) -> Shape:
+		var shape: Shape = Shape.new([] as Array[PackedVector2Array], [] as Array[PackedFloat32Array])
+		shape.premade = true
+		shape.points = mesh_points
+		shape.indices = mesh_indices
+		shape.point_alphas = mesh_covers
+		return shape
+
 	## Whether these are the same shapes and cover (and, in a rig, the same binding).
 	func same_as(other_polys: Array[PackedVector2Array], other_alphas: Array[PackedFloat32Array], other_bind: int = -2, other_key: int = 0) -> bool:
-		return bind == other_bind and bind_key == other_key and polys == other_polys and alphas == other_alphas
+		return not premade and bind == other_bind and bind_key == other_key and polys == other_polys and alphas == other_alphas
+
+	## Whether this is the same mesh (see mesh).
+	func same_mesh(mesh_points: PackedVector2Array, mesh_indices: PackedInt32Array, mesh_covers: PackedFloat32Array) -> bool:
+		return premade and points == mesh_points and indices == mesh_indices and point_alphas == mesh_covers
 
 	## Work the triangles out for world scale `at_px` (pixels per unit, squared), unless they are.
 	## Every polygon goes into one triangle array, drawn with a single command: one draw call per
 	## op and plate however many shapes it holds (the terrain holds thousands).
 	func triangulate(at_px: float) -> void:
-		if at_px == px:
+		if premade or at_px == px:
 			return
 		px = at_px
 		points = PackedVector2Array()
@@ -150,6 +166,8 @@ func print_shape(new_shape: Shape, new_cover: float, new_lift: bool, px: float, 
 	if new_shape != shape and not changed:
 		if shape == null:
 			changed = true
+		elif new_shape.premade:
+			changed = not shape.same_mesh(new_shape.points, new_shape.indices, new_shape.point_alphas)
 		else:
 			changed = not shape.same_as(new_shape.polys, new_shape.alphas)
 	shape = new_shape

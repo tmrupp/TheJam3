@@ -40,12 +40,12 @@ func run() -> void:
 	check(struck_y - highest > 60.0, "and the wizard bounces up off it (%d px), not settling on top" % int(struck_y - highest))
 	check(player.platform_floor_layers & Player.ENEMY_LAYER == 0, "an enemy is no moving platform to the wizard")
 	# A parry alone pushes nothing: landing on an enemy with the guard up stuns it, no bounce.
-	# Held clear of the wisp, so it cannot hurt them meanwhile (no guard goes up while hurt), and
-	# the guard's cooldown (run by the wizard's physics, held here) made ready.
+	# Held clear of the wisp, so it cannot hurt them meanwhile, and the spell made ready (the guard
+	# goes up with it).
 	player.set_physics_process(false)
 	player.global_position = wisp.global_position + Vector2(0, -400)
 	guard.stop_parry()
-	guard.cooldown.refresh()
+	Abilities.refill(player)
 	player.end_invulnerable()
 	player.parry.emit()
 	player.knock = Vector2.ZERO

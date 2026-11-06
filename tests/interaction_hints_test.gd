@@ -54,6 +54,9 @@ func shot(name: String) -> void:
 	root.get_texture().get_image().save_png(output.path_join(name + ".png"))
 
 func run() -> void:
+	if not needs([&"cemetery"]):
+		finish()
+		return
 	window()
 	output = ProjectSettings.globalize_path("res://../art-captures/interaction-hints")
 	DirAccess.make_dir_recursive_absolute(output)
@@ -73,14 +76,19 @@ func run() -> void:
 	check(not (prompt.get("hint_label") as Label).visible, "map price hidden outside interaction focus")
 	await shot("inkwell_idle")
 	var it: Interactable = await focus(well)
-	check(it.prompt_hint().get("text") == "map · %d" % int(well.call("price")), "generic hint contains current map price")
+	check(it.prompt_hint().get("text") == str(int(well.call("price"))), "its hint is the map's price, a number alone")
 	check((prompt.get("hint_label") as Label).visible, "map price pops up for the focused inkwell")
-	# The interact hand: its five pieces and its paper cuts, every one big enough to print (the print
-	# skips shapes under 8 square units).
-	var hand_ok: bool = RisoPrompt._hand_shapes.size() == RisoPrompt.HAND_PIECES.size() and RisoPrompt._hand_cuts.size() >= RisoPrompt.HAND_CUTS.size()
-	for poly: PackedVector2Array in RisoPrompt._hand_shapes + RisoPrompt._hand_cuts:
-		hand_ok = hand_ok and absf(RisoInkOp._area(poly)) >= 8.0
-	check(hand_ok, "the interact hand's pieces and paper cuts are all big enough to print")
+	# The interact control: on the keyboard the interact key's cap with its letter, on a pad the
+	# game's pad (RisoPad) and no letter, whichever was last used.
+	var was_pad: bool = RisoPad.pad
+	var key_label: Label = prompt.get("key_label") as Label
+	RisoPad.pad = false
+	await frames(3)
+	check(key_label.visible and key_label.text == HintArt.key_of(RisoPrompt.INTERACT), "on the keyboard it shows the interact key (%s)" % key_label.text)
+	RisoPad.pad = true
+	await frames(3)
+	check(not key_label.visible and RisoPad.part_of(RisoPrompt.INTERACT) != RisoPad.Part.NONE, "on a pad, the pad with the interact button on it, and no letter")
+	RisoPad.pad = was_pad
 	await shot("inkwell_focused")
 	player.global_position = well.global_position + Vector2(-300, 0)
 	it.untouch(player)

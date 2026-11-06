@@ -31,13 +31,13 @@ func run() -> void:
 	check(info.here.price(MapInfo.Exit.BACK, info.record()) == 0, "and the way up, once paid, is free")
 
 	print("climbing on")
-	for i: int in range(NextWorldDef.GARDEN_ROWS + 1):
+	for i: int in range(Bands.garden_rows() + 1):
 		info.here.pay(MapInfo.Exit.DEEPER if info.coord.y < 0 else MapInfo.Exit.BACK, info.record())
 		info.travel(MapInfo.Exit.DEEPER if info.coord.y < 0 else MapInfo.Exit.BACK)
 		await settle()
 		player.set_physics_process(false)
-	check(info.coord == Vector2i(28, -(NextWorldDef.GARDEN_ROWS + 1)) and info.here.archetype == &"crags", "past the garden's top row the crags begin (%s)" % info.coord)
-	check(info.here.depth == NextWorldDef.GARDEN_ROWS + 1 and info.run.deepest == NextWorldDef.GARDEN_ROWS + 1, "a level counts its distance from the start, up as down")
+	check(info.coord == Vector2i(28, -(Bands.garden_rows() + 1)) and info.here.archetype == NextWorldDef.archetype_at(-(Bands.garden_rows() + 1)) and (Bands.way(-1).is_empty() or info.here.archetype != &"garden"), "past the garden's top row the first band up begins (%s)" % info.coord)
+	check(info.here.depth == Bands.garden_rows() + 1 and info.run.deepest == Bands.garden_rows() + 1, "a level counts its distance from the start, up as down")
 
 	print("saved up here")
 	info.save_run()

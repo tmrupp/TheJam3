@@ -20,7 +20,8 @@ extends RefCounted
 ## from which the most of the inside's footholds are both got to and got back from hop by hop
 ## (_reach_in, a rough reach over the inside alone), then the shortest passage. Where it fits
 ## nowhere whole it is cut back, from the right and from the top (CROPS, CROP_HEIGHTS), keeping the
-## trials still whole in it. What the collapse cut off from the doorways is filled with rock, and so
+## trials still whole in it; a site whose doorways open onto less than REACHED_MIN of the inside is
+## passed over. What the collapse cut off from the doorways is filled with rock, and so
 ## is any pit inside the wizard could drop into but not hop out of (Reach), until there are none,
 ## but for a pit whose filling would cut air off from the doorways, which is left (and not counted
 ## among the floors), and then whatever filling the pits cut off. A trial counts as crossed: a cell
@@ -136,7 +137,9 @@ const PASSAGE_COST: int = 3
 const DARK: float = 0.94
 ## Skeletons asleep in a crypt: one for each SKELETONS_PER of its floors (more on a harder preset,
 ## Difficulty.foes), at least SKELETONS_MIN, each at least SKELETON_APART cells from another and
-## SKELETON_CLEAR from a doorway.
+## SKELETON_CLEAR from a doorway; in a crypt too small to keep that many so far apart, the rest of
+## the least are laid nearer, once its stars have their floors (_least_sleepers), as far as it has
+## floors left (a tiny crypt's few may all be taken by its cluster, prize, fonts, thorns and star).
 const SKELETONS_PER: int = 9
 const SKELETONS_MIN: int = 2
 const SKELETON_APART: int = 3
@@ -266,6 +269,10 @@ static func build(w: LevelGen) -> void:
 				shifted[v - Vector2i(0, top)] = true
 			cut = _widened(_joined(cut, shifted), shifted)
 			var site: Dictionary = _site(w, cut)
+			# A site whose doorways open onto only a corner of the inside would see the rest filled
+			# with rock, its trials too (_raise): the next size is tried instead.
+			if not site.is_empty() and _reached(w, cut, site) < REACHED_MIN:
+				site = {}
 			if not site.is_empty():
 				var kept: Array = []
 				for t: Dictionary in trials:
@@ -277,6 +284,40 @@ static func build(w: LevelGen) -> void:
 				break
 	if not w.crypts.is_empty():
 		w.connect_caves()
+
+
+## How much of a crypt's inside (its open cells, as a share) must lie open to its doorways where
+## `_site` would raise it; a site reaching less is passed over (see build).
+const REACHED_MIN: float = 0.5
+
+
+## The share of the open cells of `inside` that the doorways of `site` (see _site) reach through open
+## air, as _raise floods it.
+static func _reached(w: LevelGen, inside: Array, site: Dictionary) -> float:
+	var box: Rect2i = site["box"]
+	var size: Vector2i = Vector2i(inside.size(), (inside[0] as Array).size())
+	var seen: Dictionary = {}
+	var queue: Array[Vector2i] = []
+	for door: Array in site["doors"]:
+		var at: Vector2i = door[0]
+		var cell: Vector2i = Vector2i(0 if at.x == box.position.x else size.x - 1, at.y - box.position.y - 1)
+		if cell.y >= 0 and cell.y < size.y and _open_in(inside, cell.x, cell.y) and not seen.has(cell):
+			seen[cell] = true
+			queue.append(cell)
+	var head: int = 0
+	while head < queue.size():
+		var v: Vector2i = queue[head]
+		head += 1
+		for d: Vector2i in w.neighbor_offsets:
+			var n: Vector2i = v + d
+			if n.x >= 0 and n.y >= 0 and n.x < size.x and n.y < size.y and not seen.has(n) and _open_in(inside, n.x, n.y):
+				seen[n] = true
+				queue.append(n)
+	var open: int = 0
+	for x: int in range(size.x):
+		for y: int in range(size.y):
+			open += 1 if _open_in(inside, x, y) else 0
+	return float(seen.size()) / float(maxi(open, 1))
 
 
 ## Whether a crypt's inside (as collapsed) is open at cell (`x`, `y`) of it (thorns are open).
@@ -945,6 +986,7 @@ static func furnish(w: LevelGen, def: NextWorldDef) -> void:
 		_sleepers(w, crypt, deep)
 		_lures(w, crypt)
 		_stars(w, crypt)
+		_least_sleepers(w, crypt, deep)
 
 
 ## The prize in crypt `i` of the level with seed `level_seed` (see the class description): &"rite"
@@ -1094,21 +1136,40 @@ static func _thorns(w: LevelGen, crypt: Dictionary) -> void:
 ## those in its trials, each in an order dealt by the seed.
 static func _sleepers(w: LevelGen, crypt: Dictionary, deep: Vector2i) -> void:
 	var floors: Array[Vector2i] = crypt["floors"]
-	var doors: Array[Vector2i] = crypt["doors"]
 	var want: int = maxi(SKELETONS_MIN, roundi(float(floors.size()) / float(SKELETONS_PER) * Difficulty.foes()))
+	var chosen: Array[Vector2i] = []
+	for v: Vector2i in _sleeper_spots(w, crypt, deep):
+		if chosen.size() >= want:
+			break
+		if chosen.all(func(q: Vector2i) -> bool: return LevelGen.dist(q, v) >= SKELETON_APART):
+			chosen.append(v)
+			w.put(v, LevelGen.Type.SKELETON)
+
+
+## The free floors of `crypt` a skeleton may sleep on (not its deepest, `deep`), in the order
+## _sleepers takes them.
+static func _sleeper_spots(w: LevelGen, crypt: Dictionary, deep: Vector2i) -> Array[Vector2i]:
+	var floors: Array[Vector2i] = crypt["floors"]
+	var doors: Array[Vector2i] = crypt["doors"]
 	var spots: Array[Vector2i] = floors.filter(func(v: Vector2i) -> bool: return v != deep and w.get_cell(v).type == LevelGen.Type.EMPTY)
 	var key: Callable = func(v: Vector2i) -> int:
 		var niche: bool = w.is_ground(v + Vector2i.UP) and (w.is_ground(v + Vector2i.LEFT) or w.is_ground(v + Vector2i.RIGHT))
 		var near: bool = doors.any(func(d: Vector2i) -> bool: return LevelGen.dist(d, v) < SKELETON_CLEAR)
 		return (4 << 20 if in_trial(crypt, v) else 0) + (2 << 20 if near else 0) + (0 if niche else 1 << 20) + posmod(Rules.level_seed(w.seed_for_colors, SLEEP_DEAL + v.x * 977 + v.y), 1 << 20)
 	spots.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return key.call(a) < key.call(b))
-	var chosen: Array[Vector2i] = []
-	for v: Vector2i in spots:
-		if chosen.size() >= want:
+	return spots
+
+
+## A crypt too small for SKELETONS_MIN skeletons SKELETON_APART apart: the rest of the least, on
+## its free floors left once its stars are laid, in _sleepers' order, however near another.
+static func _least_sleepers(w: LevelGen, crypt: Dictionary, deep: Vector2i) -> void:
+	var floors: Array[Vector2i] = crypt["floors"]
+	var asleep: int = floors.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.SKELETON).size()
+	for v: Vector2i in _sleeper_spots(w, crypt, deep):
+		if asleep >= SKELETONS_MIN:
 			break
-		if chosen.all(func(q: Vector2i) -> bool: return LevelGen.dist(q, v) >= SKELETON_APART):
-			chosen.append(v)
-			w.put(v, LevelGen.Type.SKELETON)
+		w.put(v, LevelGen.Type.SKELETON)
+		asleep += 1
 
 
 ## A snuffing font on the free floor nearest each of `crypt`'s steps out, within FONT_FAR, outside

@@ -90,7 +90,9 @@ var hit_frame: int = -1
 
 func normal_hurt (damage: int, v: Vector2, _attacker: Node) -> void:
 	if not is_invulnerable():
-		hit_at = Time.get_ticks_msec() / 1000.0
+		# To the microsecond, as the catch is (Parry.parried_real): a hit in the same millisecond
+		# as a catch still counts as after it.
+		hit_at = Time.get_ticks_usec() / 1000000.0
 		hit_frame = Engine.get_physics_frames()
 		# The ward perk takes the hit, if it has a charge: knocked back and untouchable, no heart lost.
 		var ward: Ward = get_node_or_null("Ward") as Ward
@@ -168,16 +170,22 @@ func _sit(direction: Vector2, delta: float) -> void:
 		sit_held = 0.0
 
 
-## In sleep fog: drowsy for a moment more. Becoming drowsy ends whatever spell is running.
+## In sleep fog (or a librarian's hush): drowsy for a moment more. Becoming drowsy ends whatever
+## spell is running, and a spell cut off so shows it (the "silenced" visual event).
 func make_drowsy() -> void:
 	if drowsy <= 0.0:
+		var cut: bool = levitating
 		levitating = false
 		var projection: AstralProjection = get_node_or_null("AstralProjection") as AstralProjection
 		if projection != null and projection.projecting():
 			projection.end_projection(projection.projection_timer)
+			cut = true
 		var aware: Awareness = get_node_or_null("Awareness") as Awareness
 		if aware != null:
+			cut = cut or aware.sensing > 0.0
 			aware.sensing = 0.0
+		if cut:
+			visual_event.emit(&"silenced", global_position)
 	drowsy = DROWSY_LINGER
 
 ## The collision layer enemies' bodies are on. The wizard can land on one, but it is no moving
@@ -207,6 +215,16 @@ func _enter_tree() -> void:
 
 ## Whether the movement slot holds one of the wizard's own moves (the dash or blink), done on the
 ## Dash button here, rather than a spell cast from it.
+## Whether a button that casts a spell was pressed this frame: the Spell button with a damage spell
+## in its slot, the Utility button with a utility spell, or Dash with a spell in the movement slot.
+func _presses_spell() -> bool:
+	if Input.is_action_just_pressed(Abilities.SPELL_ACTION) and Abilities.spell(self) != &"":
+		return true
+	if Input.is_action_just_pressed(Abilities.UTILITY_ACTION) and Abilities.spell(self, &"utility") != &"":
+		return true
+	return Input.is_action_just_pressed("Dash") and Abilities.is_spell(Abilities.spell(self, &"move"))
+
+
 func dashes() -> bool:
 	var move: StringName = Abilities.spell(self, &"move")
 	return move != &"" and not Abilities.is_spell(move)
@@ -230,9 +248,10 @@ const Y_DASH_FACTOR: float = 1.0
 func dash_end(_timer: ActionTimer) -> void:
 	velocity = Vector2.ZERO
 var dash: ActionTimer = ActionTimer.new(0.25, dash_end)
-## On the ground the dash comes back only this long after the last one began, so it is not an
-## attack to spam; in the air it comes back on landing (once this has passed), or from a moon.
-const DASH_GROUND_COOLDOWN: float = 1.0
+## On the ground the dash comes back only this long after the last one began (a little longer than
+## the dash itself, 0.25 s, so it is quick to chain but not held down); in the air it comes back on
+## landing (once this has passed), or from a moon.
+const DASH_GROUND_COOLDOWN: float = 0.35
 var dash_rest: float = 0.0
 
 # WALL_JUMP_SPEED: how quickly and high the player jumps
@@ -361,7 +380,7 @@ func to_save() -> Dictionary:
 	var keys: Array[int] = keyring.all()
 	return {
 		"stars": coins.coins, "key": keys[-1] if not keys.is_empty() else -1, "keys": keys,
-		"skeleton_keys": keyring.skeletons(), "mend_draughts": Mend.stored(self), "resurrect_rites": Resurrect.stored(self),
+		"skeleton_keys": keyring.skeletons(), "relic_unlocks": keyring.unlocks(), "mend_draughts": Mend.stored(self), "resurrect_rites": Resurrect.stored(self),
 		"tiers": tier_names, "health": health.health,
 	}
 
@@ -378,6 +397,7 @@ func from_save(data: Dictionary) -> void:
 	# Saves from before the keyring hold one key.
 	keyring.set_all(data.get("keys", [int(data["key"])]))
 	keyring.set_skeletons(int(data.get("skeleton_keys", 0)))
+	keyring.set_unlocks(int(data.get("relic_unlocks", 0)))
 	Mend.restore(self, int(data.get("mend_draughts", -1)))
 	Resurrect.restore(self, int(data.get("resurrect_rites", -1)))
 
@@ -494,8 +514,11 @@ func _physics_process(delta: float) -> void:
 	var empower: Empower = Empower.of(self)
 	if empower != null:
 		empower.step(delta, Input.is_action_pressed(Abilities.SPELL_ACTION))
+	# Drowsy (sleep fog, a librarian's hush), a spell's button only shows the spell silenced.
+	if is_drowsy() and _presses_spell():
+		visual_event.emit(&"silenced", global_position)
 	if Input.is_action_just_pressed(Abilities.SPELL_ACTION):
-		# Every damage spell parries: the guard goes up (on its own cooldown, Parry) on the press.
+		# Every damage spell parries: the guard goes up with the cast, when the spell is ready (Parry).
 		if Abilities.spell(self) != &"" and not is_drowsy():
 			parry.emit()
 		if empower != null:
@@ -505,7 +528,7 @@ func _physics_process(delta: float) -> void:
 	# Nothing shows the utility spell standing by: pressed when it cannot work (cooling down, no
 	# draught left, nothing to heal), it sputters instead (RisoPrint: a dull puff from the bag).
 	if Input.is_action_just_pressed(Abilities.UTILITY_ACTION):
-		if not Abilities.cast(self, &"utility") and Abilities.spell(self, &"utility") != &"":
+		if not Abilities.cast(self, &"utility") and Abilities.spell(self, &"utility") != &"" and not is_drowsy():
 			visual_event.emit(&"fizzle", global_position)
 	if Input.is_action_just_pressed("Dash") and not dashes():
 		Abilities.cast(self, &"move")

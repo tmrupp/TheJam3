@@ -2,17 +2,23 @@ extends TestKit
 ## The sky's balloons (Balloon, SkyArchetype.place_balloon): one moored in every sky level of the
 ## band, on a floor with open air over it, kept clear, the same every build; how far one goes by the
 ## level's wind (a world for every Balloon.STEP vanes on its way, at most Balloon.MOST); in play,
-## becalmed it says so and goes nowhere, and with wind enough it says where it goes, rises with the
+## becalmed it shows nothing and goes nowhere, and with wind enough it shows the world it goes to (its
+## number, no words), rises with the
 ## wizard and carries them along the row to that world, where they come down by its balloon.
 ## godot --headless --path . --script res://tests/balloon_test.gd
 
 
 func run() -> void:
+	if not needs([&"sky"]):
+		finish()
+		return
 	print("laid out")
 	var bad: Array[String] = []
 	var levels: int = 0
+	# The band's first, middle and last rows (not every row: a long band would take minutes).
+	var last: int = Bands.rows_of(&"sky") - 1
 	for world: int in [28, 29, 30]:
-		for k: int in range(NextWorldDef.BAND):
+		for k: int in [0, last / 2, last]:
 			var at: Vector2i = Vector2i(world, NextWorldDef.band_row(&"sky", k))
 			var w: LevelGen = build(at)
 			if w == null:
@@ -54,22 +60,27 @@ func run() -> void:
 	player.global_position = balloon.global_position
 	info.loader.wake_around(balloon.global_position)
 	await frames(3)
-	check(str(balloon.interaction_hint().get("text", "")) == "becalmed" and balloon.destination() == null, "with no wind it is becalmed")
+	check(not balloon.interaction_hint().has("text") and balloon.destination() == null, "with no wind it is becalmed, and shows nothing")
 	balloon.use()
 	await frames(10)
 	check(balloon.rising < 0.0 and info.coord == from, "and goes nowhere")
 	info.record().vanes_on = {Vector2i(1, 1): -1, Vector2i(2, 1): -1, Vector2i(3, 1): -1}
 	info.record().wind_way = -1
 	check(info.level_wind() == -3 and balloon.destination() == from + Vector2i(-1, 0), "three vanes on to the left: one world to the left")
-	check(str(balloon.interaction_hint().get("text", "")) == "to world %d" % (from.x - 1), "it says so before boarding")
+	check(str(balloon.interaction_hint().get("text", "")) == str(from.x - 1), "it shows the world's number before boarding")
 	var start: float = player.global_position.y
 	balloon.use()
 	var rose: bool = await within(func() -> bool: return player.global_position.y < start - 100.0, Balloon.RISE_TIME + 1.0)
 	check(rose, "boarded, it rises with the wizard")
 	var there: bool = await until(func() -> bool: return info.coord == from + Vector2i(-1, 0) and not info.travelling, 15000)
-	await settle()
+	# Where they come down, as they arrive: left to play on, on a loaded machine a foe or a fall may
+	# carry them off before the check.
+	player.set_physics_process(false)
+	await frames(2)
 	check(there, "and carries them along the row to world %d" % (from.x - 1))
 	var landed: Vector2i = info.world.balloon
-	check(info.world.is_valid(landed) and player.global_position.distance_to(info.cell_position(landed)) < 140.0, "where they come down by its balloon")
+	check(info.world.is_valid(landed) and player.global_position.distance_to(info.cell_position(landed)) < 140.0, "where they come down by its balloon (%s, %.0f px off)" % [info.coord, player.global_position.distance_to(info.cell_position(landed))])
+	player.set_physics_process(true)
+	await settle()
 	RunState.delete_save()
 	finish()

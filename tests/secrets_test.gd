@@ -181,9 +181,15 @@ func run() -> void:
 	await process_frame
 	check(Abilities.tier(player, move) == before and is_instance_valid(relics[0]) and not relics[0].is_queued_for_deletion(), "a star short: it stays")
 	player.collect(1)
+	player.keyring.set_unlocks(0)
+	relics[0].call("take")
+	await process_frame
+	check(before > 0 or (Abilities.tier(player, move) == before and player.coins.coins == cost), "paid for, but a move not yet known: without a relic unlock it stays")
+	player.keyring.set_unlocks(1)
 	relics[0].call("take")
 	await process_frame
 	check(Abilities.tier(player, move) == before + 1 and info.run.relics_found.has(info.coord) and player.coins.coins == 0, "paid: it teaches %s %s" % [move, Abilities.roman(before + 1)])
+	check(before > 0 or player.keyring.unlocks() == 0, "using the relic unlock up")
 	var upgrades: bool = false
 	for s: int in range(0, 60):
 		if move in Abilities.offers(s, player, Abilities.ids().size()):

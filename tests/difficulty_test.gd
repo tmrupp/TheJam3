@@ -18,6 +18,9 @@ const FOES: Array[LevelGen.Type] = [
 
 
 func run() -> void:
+	if not needs([&"cemetery", &"institute", &"crags", &"sky"]):
+		finish()
+		return
 	MapInfo.debug = false
 	print("the presets")
 	check(Difficulty.DEFAULT == Difficulty.Preset.HARD and Difficulty.preset == Difficulty.Preset.HARD, "a game starts on Hard")

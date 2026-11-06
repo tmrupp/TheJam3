@@ -48,6 +48,9 @@ func use_portal() -> void:
 	var exit: Node2D = _far_end()
 	var to: Vector2 = exit.global_position if exit != null else go_to_pos
 	player.global_position = to
+	# Untouchable from the moment they are at the far end, through the arrival (the grace proper,
+	# with its flicker, starts once they can move: see below).
+	player.graced.enable(true)
 	_snap_camera()
 	RisoPrint.portal_arrive(self, exit, player, to)
 	await get_tree().create_timer(REVEAL).timeout

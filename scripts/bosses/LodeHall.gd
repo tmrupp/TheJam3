@@ -1,6 +1,6 @@
 class_name LodeHall
 extends RefCounted
-## The lodestone golem's hall (Bosses.UP's first, docs/REGIONS_PLAN.md §6): a wide hall of masonry
+## The lodestone golem's hall (the crags' boss, docs/REGIONS_PLAN.md §6): a wide hall of masonry
 ## at the top of the crags' gate level, two galleries over its ground floor, the golem asleep on the
 ## ground floor and the way on standing on the top gallery, so the way up out of the crags is
 ## reached only up through the hall. It is cut right after the caves are joined and before the

@@ -41,7 +41,7 @@ func run() -> void:
 		if band not in NextWorldDef.archetype_names():
 			print("  no band named ", band)
 			continue
-		var rows: int = NextWorldDef.GARDEN_ROWS + 1 if NextWorldDef.band_row(band, 0) == 0 else NextWorldDef.BAND
+		var rows: int = Bands.rows_of(band)
 		for i: int in range(count):
 			var world: int = first + i
 			var k: int = int(opts["row"]) if opts.has("row") else (hash([world, band]) % rows + rows) % rows
@@ -65,17 +65,13 @@ func run() -> void:
 	finish()
 
 
-## Go straight to place `at`, with no title card to wait out, and hold the wizard still there.
+## Go straight to place `at` and hold the wizard still there.
 func _go(at: Vector2i) -> void:
-	var def: NextWorldDef = Rules.def_for(at)
-	if def != null and def.arch != null:
-		info.region = def.arch.name
 	info.coord = at
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	await settle()
 	player.set_physics_process(false)
-	await until(func() -> bool: return RisoTransition.instance == null or not RisoTransition.instance.titling(), 10000)
 	await frames(60)
 
 

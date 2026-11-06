@@ -1,6 +1,6 @@
 class_name Necromancer
 extends Node2D
-## The necromancer (Bosses.DOWN's first): the boss at the bottom of the cemetery, fought in the
+## The necromancer (the cemetery's boss, Bands): the boss at the bottom of the cemetery, fought in the
 ## first crypt of its gate level (Crypts, LevelGen.place_boss), dark inside (docs/REGIONS_PLAN.md
 ## §6). It stands among its graves (the crypt's floors) until the wizard comes into the crypt or
 ## within WAKE_RANGE; then:

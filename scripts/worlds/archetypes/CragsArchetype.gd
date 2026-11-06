@@ -177,9 +177,10 @@ func _init() -> void:
 
 ## How many stations the gondola's line has at `depth` (see STOPS): more up the band.
 static func stops_at(depth: int) -> int:
-	var k: int = clampi(depth - absi(NextWorldDef.first_depth(&"crags")), 0, NextWorldDef.BAND - 1)
+	var last: int = maxi(1, Bands.rows_of(&"crags") - 1)
+	var k: int = clampi(depth - absi(NextWorldDef.first_depth(&"crags")), 0, last)
 	@warning_ignore("integer_division")
-	return STOPS.x + (k * (STOPS.y - STOPS.x)) / (NextWorldDef.BAND - 1)
+	return STOPS.x + (k * (STOPS.y - STOPS.x)) / last
 
 
 ## A crag level is SCALE times a cave level across, and as tall as its stations want (stops_at,

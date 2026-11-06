@@ -1,30 +1,30 @@
 extends Node2D
 class_name RisoLight
-## Light and darkness, by line of sight. Every light is a hard-edged pool in two steps, printed as
-## a riso print would: an outer pool to its reach and a brighter one round its flame (BAND_INNER of
-## the reach), each lifting the night ink flat. Your respawn lantern throws a warm one that lifts
-## the night off the rock and the sky around it, flickering softly, so the place you return to reads
-## as a destination; every other lantern gives a faint one. Everything else that shines gives the
-## same kind of light, from where it shines: open exits (doors once their way is open), portals and rifts, an
-## ink well not yet dry, hex bolts in flight, and the small things that shine (stars, keys, moons,
-## relics, shrines, a freed bell or vane, a thrown switch, an opened temple: RisoProp.light), each
-## faintly tinted in its own ink. The lantern the wizard carries lights the way too, in the same
-## way: while a lit lantern protects them it throws a warm light round its flame wherever they go;
-## while they are unprotected only a short, dim one, faintly pink (danger). Rock stops every light:
-## a light reaches only as far as its flame can see (RisoSight), so walls cast shadows.
+## Light and darkness, by line of sight. A lantern's light is a gradient: brightest at its flame and
+## fading out to nothing at its reach (GRADIENT_POWER), a mesh of rings round the flame
+## (Fade.mesh_points) worked out once with the light and printed whole. Your respawn lantern throws
+## a warm one that lifts the night off the rock and the sky around it, flickering softly, so the
+## place you return to reads as a destination; every other lantern gives a faint one. The lantern
+## the wizard carries lights the way too: while a lit lantern protects them it throws a warm light
+## round its flame wherever they go; while they are unprotected only a short, dim one, faintly pink
+## (danger). Everything else that shines throws a hard-edged pool in two steps, printed as a riso
+## print would: an outer pool to its reach and a brighter one round its flame (BAND_INNER of the
+## reach), each lifting the night ink flat: open exits (doors once their way is open), portals and
+## rifts, an ink well not yet dry, hex bolts in flight, and the small things that shine (stars,
+## keys, moons, relics, shrines, a freed bell or vane, a thrown switch, an opened temple:
+## RisoProp.light), each faintly tinted in its own ink. Rock stops every light: a light reaches
+## only as far as its flame can see (RisoSight), so walls cast shadows.
 ##
-## The wizard sees only past the rock too. What they cannot see from where they stand lies under
-## more night ink (the place's `shade`), terrain, decor and props alike, still there to make out
-## but dimmed; what they can see reaches to the edge of the view. In the deep dark (the place's
-## `gloom`, which no band sets now) night ink lies over everything no light falls on, in sight or not,
-## thinner in each light's outer pool and gone in its inner one, so most of what is seen is what a light lights. Inside a
+## The wizard's own sight lights and shades nothing: what they cannot see is printed as what they
+## can. In the deep dark (the place's `gloom`, which no band sets now) night ink lies over everything
+## no light falls on, thinner in each light's outer pool and gone in its inner one. Inside a
 ## crypt (Crypts) it is darker still, in every band: the deep dark lies there alone, Crypts.DARK
 ## deep, so the moonlit terraces outside stay as they are.
 ##
-## The lights print above the terrain and decor, under the props; the shade and the deep dark over
-## the props, under the wizard's trail and the wizard.
+## The lights print above the terrain and decor, under the props; the deep dark over the props,
+## under the wizard's trail and the wizard.
 
-## The lanterns' lights, each a pool in two steps (see BAND_INNER): how far it reaches (px) and how
+## The lanterns' lights, each a gradient (see GRADIENT_POWER): how far it reaches (px) and how
 ## much night it lifts at the flame. The respawn lantern's, and how much its
 ## lift flickers; any other lantern not yet burnt out, a faint one.
 const RESPAWN_REACH: float = 400.0
@@ -37,6 +37,10 @@ const CARRIED_REACH: float = 320.0
 const CARRIED_LIFT: float = 0.38
 const UNLIT_REACH: float = 150.0
 const UNLIT_LIFT: float = 0.1
+## In the deep dark (a crypt), how much of the dark an unlit flame's light lifts at the flame (its
+## gradient, so none at its reach), where a lit light clears the dark near its flame: the
+## unprotected or snuffed wizard sees only dimly round them.
+const UNLIT_DARK_LIFT: float = 0.4
 ## How far short of the rock's face (px) a flame swung into the rock throws its light from.
 const FLAME_GAP: float = 2.0
 ## A light's two steps: the inner pool reaches BAND_INNER of the light's reach, and each pool
@@ -45,16 +49,23 @@ const FLAME_GAP: float = 2.0
 const BAND_INNER: float = 0.5
 const BAND_LIFT: float = 0.55
 const DARK_OUTER: float = 0.45
+## A lantern's gradient: how much of its lift is taken off at the flame (GRADIENT_PEAK, about what
+## its two pools came to there), falling off as (1 - distance / reach) to GRADIENT_POWER; the rings
+## of points it is drawn with out to its edge (GRADIENT_RINGS), and how far apart (px) at most the
+## points along its edge are (GRADIENT_SEG), few enough that it costs no more than the pools did.
+const GRADIENT_PEAK: float = 1.1
+const GRADIENT_POWER: float = 1.4
+const GRADIENT_RINGS: int = 4
+const GRADIENT_SEG: float = 72.0
 ## How many times a second the respawn lantern's flicker changes: it reprints its light that often
 ## rather than every frame.
 const FLICKER_RATE: float = 12.0
-## How far apart (px) the places are that the carried light and the wizard's sight are worked out
-## from: each is worked out again only once the flame or the eyes reach another, and the carried
-## light is printed shifted to wherever its flame is in between, so it follows the lantern smoothly.
+## How far apart (px) the places are that the carried light is worked out from: it is worked out
+## again only once the flame reaches another, on even frames (a frame late at most), and is printed
+## shifted to wherever its flame is in between, so it follows the lantern smoothly. Anything that
+## changes what it sees (the rock, sight switched off, the lantern lit or not) has it worked out at
+## once.
 const LIGHT_SNAP: float = 4.0
-## They take turns: on a frame when the wizard moves, at most one of them is worked out again, the
-## carried light on even frames and sight on odd ones (a frame late at most). Anything that changes
-## what they see (the rock, sight switched off, the lantern lit or not) has them worked out at once.
 ## The lights of the other things that shine, each a pool round where it shines as a lantern's
 ## is: how far it reaches (px) and how much night it lifts there. Open exits, portals, rifts and
 ## an ink well not yet dry; and a hex bolt in flight.
@@ -91,10 +102,7 @@ const GLOW_REINDEX: float = 1.0
 const EYE_RISE: float = 24.0
 ## How far past the view (px) sight and the darkness reach, so the camera's drift shows no edge.
 const VIEW_MARGIN: float = 160.0
-## How far past the view (px) the shade is worked out, in steps of the same: the camera drifts
-## that far before it is worked out again.
-const SHADE_SLACK: float = 192.0
-## The print layer (absolute z) of the shade and the deep dark: over the props, under the trail.
+## The print layer (absolute z) of the deep dark: over the props, under the trail.
 const SHADE_Z: int = 8
 
 ## A light: a hard-edged pool in two steps round its flame, cut to what the flame sees. Where it
@@ -109,10 +117,18 @@ class Fade:
 	var box: Rect2
 	var outer: Array[PackedVector2Array] = []
 	var inner: Array[PackedVector2Array] = []
+	## A lantern's gradient (RisoLight.graded): the points, the triangles between them, and each
+	## point's share of the lift (1 at the flame, 0 at the reach). Empty for the other lights.
+	var mesh_points: PackedVector2Array = PackedVector2Array()
+	var mesh_indices: PackedInt32Array = PackedInt32Array()
+	var mesh_covers: PackedFloat32Array = PackedFloat32Array()
+	## An unlit flame's light: in the deep dark it lifts only UNLIT_DARK_LIFT of the dark at the
+	## flame, fading to none at its reach, rather than clearing it as a lit light does.
+	var dim: bool = false
 
 
 ## Whether light and sight stop at the rock (the F7 panel can turn it off to compare): off, the
-## lights are plain circles and nothing is shaded out of sight (the deep dark stays).
+## lights are plain circles.
 static var by_sight: bool = true
 ## Whether the crypts are fully dark inside (Crypts.DARK); stills of their layout lift it.
 static var crypts_dark: bool = true
@@ -139,6 +155,8 @@ var fades: Array[Fade] = []
 ## The lanterns' lights, which stay put, by where they are and how far they reach, until the rock
 ## changes (`_cache_version`).
 var _fade_cache: Dictionary = {}
+## The unlit lights whose bit of the deep dark has been lifted this frame (_deep_dark).
+var _dimmed: Array[Fade] = []
 ## The still lights as last printed, by how they print (Vector3: lift, tint plate, tint): each
 ## [the lights, their outer pools, their inner pools], kept while the same lights are in it so the
 ## very same arrays print again (see keeps_shapes).
@@ -153,17 +171,10 @@ var _glow_indexed: float = -INF
 ## switch gates), by their LevelGen.Type.
 var sight: RisoSight
 var _changing: Dictionary = {}
-## What the wizard sees, as last printed (empty with no wizard, or sight off).
-var seen: PackedVector2Array = PackedVector2Array()
 ## What the lights that stay put see (they are worked out once), by where they are and how far
 ## they reach, until the rock changes (`_cache_version`).
 var _cache: Dictionary = {}
 var _cache_version: int = -1
-## The shade's outlines as last worked out, and from where (the eye, the view and the rock's
-## version), so a wizard standing still costs nothing.
-var _shade_seen: PackedVector2Array = PackedVector2Array()
-var _shade_pieces: Array[PackedVector2Array] = []
-var _shade_key: Array = []
 
 
 func _ready() -> void:
@@ -206,7 +217,6 @@ func rebuild(info: MapInfo) -> void:
 	_fade_cache.clear()
 	_batches.clear()
 	_glow_group = []
-	_shade_key = []
 	_carried_key = []
 	_shut_or_open(info)
 
@@ -258,7 +268,6 @@ func _process(delta: float) -> void:
 	carried_ink.begin()
 	dark_ink.begin()
 	fades.clear()
-	seen = PackedVector2Array()
 	if info == null or info.world == null or cam == null or info.travelling:
 		ink.finish()
 		carried_ink.finish()
@@ -280,9 +289,9 @@ func _process(delta: float) -> void:
 		if info.is_respawn_lantern(lantern):
 			var at_t: float = floorf(t * FLICKER_RATE) / FLICKER_RATE
 			var flicker: float = 1.0 + RESPAWN_FLICKER * sin(at_t * 3.1) * sin(at_t * 1.7 + 0.6)
-			_gather(still, _faded(at, RESPAWN_REACH, true), RESPAWN_LIFT * flicker, -1, 0.0)
+			_print_graded(ink, _faded(at, RESPAWN_REACH, true, true), RESPAWN_LIFT * flicker)
 		else:
-			_gather(still, _faded(at, FAINT_REACH, true), FAINT_LIFT, -1, 0.0)
+			_print_graded(ink, _faded(at, FAINT_REACH, true, true), FAINT_LIFT)
 	for node: Node2D in _glows_near(near):
 		var glow: Array = _glow(node, info)
 		if glow.is_empty() or not near.has_point(glow[0]):
@@ -347,17 +356,13 @@ func _carried_light(info: MapInfo) -> void:
 	var due: bool = Engine.get_process_frames() % 2 == 0
 	if _carried == null or _carried_key.size() != key.size() or _carried_key.slice(1) != now or (due and key != _carried_key):
 		_carried_key = key
-		_carried = _faded(at, reach, false)
+		_carried = _faded(at, reach, false, true)
+		_carried.dim = not lit
 	carried_ink.position = at - _carried.at
 	if not lit:
-		if info.flame_snuffed():
-			carried_ink.ink(RisoPrint.BLUE, SNUFFED_BLUE, _carried.inner, false)
-		else:
-			carried_ink.ink(RisoPrint.PINK, UNLIT_PINK, _carried.inner, false)
-	var lift: float = (CARRIED_LIFT if lit else UNLIT_LIFT) * BAND_LIFT
-	carried_ink.lift_ink([RisoPrint.NIGHT], lift, _carried.outer)
-	carried_ink.lift_ink([RisoPrint.NIGHT], lift, _carried.inner)
-	fades.append(_carried)
+		var tint: int = RisoPrint.BLUE if info.flame_snuffed() else RisoPrint.PINK
+		carried_ink.ink_mesh(tint, _carried.mesh_points, _carried.mesh_indices, _carried.mesh_covers, SNUFFED_BLUE if info.flame_snuffed() else UNLIT_PINK)
+	_print_graded(carried_ink, _carried, CARRIED_LIFT if lit else UNLIT_LIFT)
 	carried_seen = _carried.outline
 	carried = Vector3(at.x, at.y, reach)
 
@@ -435,6 +440,13 @@ func _glows_near(near: Rect2) -> Array[Node2D]:
 	return out
 
 
+## Lift the night where lantern light `light` falls, on `canvas`: `lift` (GRADIENT_PEAK of it) at
+## its flame, fading out to its reach (its mesh); and keep it in `fades`.
+func _print_graded(canvas: InkCanvas, light: Fade, lift: float) -> void:
+	canvas.lift_ink_mesh([RisoPrint.NIGHT], light.mesh_points, light.mesh_indices, light.mesh_covers, lift * GRADIENT_PEAK)
+	fades.append(light)
+
+
 ## Lift the night where `light` falls (`lift` at its flame, in its two pools), and keep it in
 ## `fades`.
 func _print_fade(light: Fade, lift: float) -> void:
@@ -443,10 +455,11 @@ func _print_fade(light: Fade, lift: float) -> void:
 	fades.append(light)
 
 
-## A light at `at` reaching `reach`, cut to what its flame sees, with its two pools; `still` lights
-## keep what they light until the rock changes.
-func _faded(at: Vector2, reach: float, still: bool) -> Fade:
-	var key: Array = [roundi(at.x), roundi(at.y), roundi(reach), by_sight]
+## A light at `at` reaching `reach`, cut to what its flame sees, with its two pools, and with its
+## gradient too for a lantern's (`graded`, see RisoLight.graded); `still` lights keep what they light
+## until the rock changes.
+func _faded(at: Vector2, reach: float, still: bool, graded: bool = false) -> Fade:
+	var key: Array = [roundi(at.x), roundi(at.y), roundi(reach), by_sight, graded]
 	if still:
 		_fresh_cache()
 		if _fade_cache.has(key):
@@ -472,9 +485,46 @@ func _faded(at: Vector2, reach: float, still: bool) -> Fade:
 		for piece: PackedVector2Array in RisoSight.lit(RisoShapes.circle(at, reach * BAND_INNER, 32), light.outline):
 			if light.inner.is_empty() or piece.size() > light.inner[0].size():
 				light.inner = [piece]
+	if graded:
+		RisoLight.graded(light)
 	if still:
 		_fade_cache[key] = light
 	return light
+
+
+## Work out lantern light `light`'s gradient (Fade.mesh_points and the rest): rings of points from
+## its flame out to its outline (seen whole from the flame, so every ray out from it stays inside),
+## the outline's edges cut no longer than GRADIENT_SEG, each point's share of the lift falling off
+## from 1 at the flame to 0 at the reach.
+static func graded(light: Fade) -> void:
+	var outline: PackedVector2Array = light.outline
+	if outline.size() < 3 or light.reach <= 0.0:
+		return
+	var rim: PackedVector2Array = PackedVector2Array()
+	for i: int in range(outline.size()):
+		var a: Vector2 = outline[i]
+		var b: Vector2 = outline[(i + 1) % outline.size()]
+		var steps: int = maxi(1, ceili(a.distance_to(b) / GRADIENT_SEG))
+		for k: int in range(steps):
+			rim.append(a.lerp(b, float(k) / float(steps)))
+	var points: PackedVector2Array = PackedVector2Array([light.at])
+	var covers: PackedFloat32Array = PackedFloat32Array([1.0])
+	for p: Vector2 in rim:
+		for ring: int in range(1, GRADIENT_RINGS + 1):
+			var q: Vector2 = light.at.lerp(p, float(ring) / float(GRADIENT_RINGS))
+			points.append(q)
+			covers.append(pow(clampf(1.0 - q.distance_to(light.at) / light.reach, 0.0, 1.0), GRADIENT_POWER))
+	var indices: PackedInt32Array = PackedInt32Array()
+	var n: int = rim.size()
+	for j: int in range(n):
+		var a0: int = 1 + j * GRADIENT_RINGS
+		var b0: int = 1 + ((j + 1) % n) * GRADIENT_RINGS
+		indices.append_array([0, a0, b0])
+		for ring: int in range(GRADIENT_RINGS - 1):
+			indices.append_array([a0 + ring, a0 + ring + 1, b0 + ring + 1, a0 + ring, b0 + ring + 1, b0 + ring])
+	light.mesh_points = points
+	light.mesh_indices = indices
+	light.mesh_covers = covers
 
 
 ## Where the carried lantern's flame is. Swung against a wall it can dip into the rock, where its
@@ -533,26 +583,10 @@ func _fresh_cache() -> void:
 		_cache_version = version
 
 
-## The shade over what the wizard cannot see, and the deep dark over what no light falls on: all
-## over in a place with gloom, and inside every crypt.
+## The deep dark over what no light falls on: all over in a place with gloom, and inside every
+## crypt.
 func _darkness(info: MapInfo, view: Rect2) -> void:
-	var player: Player = Stage.player()
-	var shade: float = info.here.shade()
-	if by_sight and sight != null and shade > 0.0 and player != null and is_instance_valid(player):
-		var from: Vector2 = RisoLight.eye(player)
-		# Worked out over the view grown SHADE_SLACK and snapped to steps of it, so the camera's
-		# drift with the wizard standing still does not have it worked out again.
-		var corner: Vector2 = ((view.position - Vector2(SHADE_SLACK, SHADE_SLACK)) / SHADE_SLACK).floor() * SHADE_SLACK
-		var box: Rect2 = Rect2(corner, ((view.end + Vector2(SHADE_SLACK, SHADE_SLACK) - corner) / SHADE_SLACK).ceil() * SHADE_SLACK)
-		var key: Array = [RisoLight.snap(from), box, sight.version]
-		# Its turn on odd frames, unless the rock changed or there is none yet.
-		var due: bool = Engine.get_process_frames() % 2 == 1
-		if key != _shade_key and (due or _shade_key.size() != key.size() or _shade_key[2] != key[2]):
-			_shade_key = key
-			_shade_seen = sight.polygon(from, box)
-			_shade_pieces = RisoSight.outside(box, [_shade_seen])
-		seen = _shade_seen
-		dark_ink.ink(RisoPrint.NIGHT, shade, _shade_pieces, false)
+	_dimmed.clear()
 	var gloom: float = info.here.gloom()
 	if gloom > 0.0:
 		_deep_dark(gloom, view, false)
@@ -576,15 +610,20 @@ func crypt_rooms(info: MapInfo) -> Array[Rect2]:
 
 
 ## Night ink `gloom` deep over `area`, everywhere no light falls on it, in two steps inside each
-## light: DARK_OUTER of it in a light's outer pool, none in its inner one. `clip`: the lights are cut
+## light: DARK_OUTER of it in a light's outer pool, none in its inner one; an unlit flame's light
+## (Fade.dim) only lifts UNLIT_DARK_LIFT of it at its flame, fading out to its reach. `clip`: the lights are cut
 ## to `area` (a crypt's inside), else they lie within it. Printed as two coats, the dark outside the
 ## inner pools and then more of it outside the outer ones, which together come to `gloom` where no
 ## light falls.
 func _deep_dark(gloom: float, area: Rect2, clip: bool) -> void:
 	var outers: Array[PackedVector2Array] = []
 	var inners: Array[PackedVector2Array] = []
+	var dims: Array[Fade] = []
 	for light: Fade in fades:
 		if (not clip or light.box.intersects(area)) and not light.outer.is_empty():
+			if light.dim:
+				dims.append(light)
+				continue
 			outers.append(light.outline)
 			if not light.inner.is_empty():
 				inners.append(light.inner[0])
@@ -593,6 +632,12 @@ func _deep_dark(gloom: float, area: Rect2, clip: bool) -> void:
 	var second: float = 1.0 - (1.0 - gloom) / maxf(1.0 - first, 0.001)
 	dark_ink.ink(RisoPrint.NIGHT, first, RisoSight.outside(area, inners), false)
 	dark_ink.ink(RisoPrint.NIGHT, second, RisoSight.outside(area, outers), false)
+	# An unlit flame's light only lifts a little of the dark, fading out to its reach (once a frame,
+	# whichever crypt it is in).
+	for light: Fade in dims:
+		if not _dimmed.has(light):
+			_dimmed.append(light)
+			dark_ink.lift_ink_mesh([RisoPrint.NIGHT], light.mesh_points, light.mesh_indices, light.mesh_covers, UNLIT_DARK_LIFT)
 
 
 ## The camera's view in world space.

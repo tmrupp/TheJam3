@@ -10,10 +10,12 @@ class_name Wraith
 ##
 ## It hunts only a wizard whose flame is out (MapInfo.flame_lit): snuffed at a font (Snuffer), or
 ## unprotected. While their flame is lit it does not come at them at all, wherever they are, and
-## drifts home. It is light-shy too: while light falls on it (Lamplight: the wizard's lit flame, a
-## lantern's light), it freezes where it is, cowering (its touch still hurts, if the wizard walks
-## into it). Inside rock no light reaches it, so it comes on through the rock and freezes as it
-## comes out into a lantern's light.
+## drifts home. Light scares it off: while light falls on it (Lamplight: the wizard's lit flame, a
+## lantern's light) it cowers and flees out of it, away from the light (Lamplight.away) at FLEE_SPEED,
+## going on FLEE_ON seconds once out so it clears the light's edge (its touch still hurts, if the
+## wizard walks into it). Out of the light, it does not drift back into it: drifting home or hunting,
+## it holds at a light's edge (EDGE). Inside rock no light reaches it, so it comes on through the
+## rock and is scared off as it comes out into a lantern's light.
 
 const WAKE: float = 640.0
 const LOSE: float = 1400.0
@@ -36,6 +38,13 @@ const DART_SPEED: float = 760.0
 const DART_TIME: float = 0.4
 const DART_REST: float = 0.6
 const DART_AGAIN: float = 2.4
+## Scared off by light (see the class note): how fast it flees (px/s), how quickly it gets up to
+## that (px/s each second), how long (seconds) it goes on once out of the light, and how far ahead
+## (px) it looks for light before drifting into it.
+const FLEE_SPEED: float = 150.0
+const FLEE_ACCEL: float = 900.0
+const FLEE_ON: float = 0.35
+const EDGE: float = 28.0
 
 @onready var rb: RigidBody2D = $".."
 @onready var player: Player = Stage.player()
@@ -44,8 +53,11 @@ var awake: bool = false
 ## Seconds left falling back after a touch.
 var recoil: float = 0.0
 var velocity: Vector2 = Vector2.ZERO
-## Frozen in light now (see the class note).
+## In light now, cowering and fleeing it (see the class note); the seconds it goes on fleeing once
+## out of it, and which way.
 var shy: bool = false
+var fleeing: float = 0.0
+var flee_dir: Vector2 = Vector2.UP
 ## +1 facing right, -1 left (the art).
 var facing: float = 1.0
 ## How far into the swell (0 to 1), and into the dart (0 to 1) it is, each -1 when not; which way it
@@ -80,9 +92,12 @@ func _physics_process(delta: float) -> void:
 	if home == Vector2.ZERO:
 		home = rb.global_position
 	shy = Lamplight.at(rb.global_position)
-	if stunned or shy or player == null or not is_instance_valid(player):
+	if stunned or player == null or not is_instance_valid(player):
 		velocity = Vector2.ZERO
 		_break_off()
+		return
+	if shy or fleeing > 0.0:
+		_flee(delta)
 		return
 	var to_wizard: Vector2 = player.global_position + Vector2(0, -50) - rb.global_position
 	var info: MapInfo = MapInfo.instance
@@ -107,6 +122,9 @@ func _physics_process(delta: float) -> void:
 	else:
 		var back: Vector2 = home - rb.global_position
 		velocity = back.normalized() * minf(speed, back.length() / maxf(delta, 0.001)) if back.length() > 2.0 else Vector2.ZERO
+	# Drifting (home, or at the wizard), it holds at a light's edge rather than going into it.
+	if recoil <= 0.0 and swelling < 0.0 and darting < 0.0 and velocity != Vector2.ZERO and Lamplight.at(rb.global_position + velocity.normalized() * EDGE):
+		velocity = Vector2.ZERO
 	if swelling >= 0.0:
 		# Swelling, it faces the wizard, though it draws back from them.
 		facing = signf(to_wizard.x) if absf(to_wizard.x) > 5.0 else facing
@@ -116,6 +134,24 @@ func _physics_process(delta: float) -> void:
 	if recoil <= 0.0 and to_wizard.length() < 60.0:
 		recoil = RECOIL_TIME
 		_break_off()
+
+
+## Scared off by light, a step of it (see FLEE_SPEED): away from the light while in it, and on the
+## same way for FLEE_ON seconds once out.
+func _flee(delta: float) -> void:
+	_break_off()
+	if shy:
+		var away: Vector2 = Lamplight.away(rb.global_position)
+		if away != Vector2.ZERO:
+			flee_dir = away
+		fleeing = FLEE_ON
+	else:
+		fleeing = maxf(0.0, fleeing - delta)
+	var pace: float = 1.0 if shy else fleeing / FLEE_ON
+	velocity = velocity.move_toward(flee_dir * FLEE_SPEED * pace, FLEE_ACCEL * delta)
+	if absf(velocity.x) > 5.0:
+		facing = signf(velocity.x)
+	rb.global_position += velocity * delta
 
 
 ## The dart, a step of it (see DART_RANGE), the wizard `to` away: whether it sets the velocity this

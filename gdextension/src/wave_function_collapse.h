@@ -37,6 +37,7 @@ private:
     Vector2i output_size;
     int seed;
     int symmetry;
+    int symmetry_mask = 0;
     int pattern_size;
 
 protected:
@@ -56,6 +57,9 @@ public:
 
     int get_symmetry();
     void set_symmetry(int _symmetry);
+
+    int get_symmetry_mask();
+    void set_symmetry_mask(int _symmetry_mask);
 
     int get_pattern_size();
     void set_pattern_size(int _pattern_size);

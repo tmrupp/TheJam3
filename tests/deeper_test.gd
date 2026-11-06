@@ -41,8 +41,11 @@ func run() -> void:
 	print("level (28, 0)")
 	check(MapInfo.instance == info, "MapInfo.instance is the live MapInfo")
 	check(info.coord == Vector2i(28, 0), "a run starts at depth 0 of its seed")
-	check(info.world.exits.size() == 4, "four exits placed: %s" % [info.world.exits])
-	check(placed("level_exit.tscn").size() == 4, "the start has four doors: its way back leads up, its way on down")
+	# Side worlds' doors aside (every start level has the tutorial's, Tutorial).
+	var ordinary: Array = info.world.exits.keys().filter(func(e: int) -> bool: return Worlds.door_kind(e) < 0)
+	check(ordinary.size() == 4, "four exits placed: %s" % [info.world.exits])
+	check(placed("level_exit.tscn").size() == 4 + info.here.doors.size(), "the start has four doors: its way back leads up, its way on down")
+	check(info.here.doors.has(Tutorial.kind_number()), "and a door into its tutorial")
 	var up_door: Array[Node] = placed("level_exit.tscn").filter(func(n: Node) -> bool: return int(n.get("exit")) == MapInfo.Exit.BACK)
 	check(up_door.size() == 1 and info.here.lead(MapInfo.Exit.BACK)["to"] == Vector2i(28, -1), "the way up leads to the first level above the start")
 	check(placed("checkpoint.tscn").size() >= 2 and info.world.exit_lanterns.keys() == [MapInfo.Exit.BACK], "the start lantern beside the way up, and lanterns are scarce: none beside the other exits")

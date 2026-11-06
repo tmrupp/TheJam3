@@ -7,6 +7,9 @@ extends TestKit
 
 
 func run() -> void:
+	if not needs([&"institute"]):
+		finish()
+		return
 	_days()
 	await boot()
 	await _walking()
@@ -22,8 +25,8 @@ func _days() -> void:
 	var good: bool = true
 	var walks: bool = true
 	for world: int in [28, 7, 99]:
-		for k: int in range(2):
-			var w: LevelGen = build(Vector2i(world, NextWorldDef.band_row(&"institute", k)))
+		for row: int in band_rows(&"institute", [0, 1], false):
+			var w: LevelGen = build(Vector2i(world, row))
 			for origin: Vector2i in w.objects_of(LevelGen.Type.STUDENT):
 				var at: Vector2i = origin
 				for r: int in range(Timetable.PERIODS * 2):
@@ -55,7 +58,7 @@ func _days() -> void:
 ## their days took them.
 func _walking() -> void:
 	print("students walking")
-	var at: Vector2i = Vector2i(28, NextWorldDef.band_row(&"institute", 0))
+	var at: Vector2i = _walk_level()
 	await _go(at)
 	var rec: LevelRecord = info.record()
 	check(rec.passing, "a level is first met in passing time")
@@ -135,3 +138,19 @@ func _go(at: Vector2i) -> void:
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	await settle()
+
+
+## The first of a few institute levels (ordinary ones, by world) where a student has a walk to its
+## first class from where it was laid, as the level is first met (no bell rung yet): not every level
+## has one, however the band is tuned.
+func _walk_level() -> Vector2i:
+	for world: int in [28, 7, 99, 3, 41]:
+		for row: int in band_rows(&"institute", [0, 1, 2], false):
+			var at: Vector2i = Vector2i(world, row)
+			var w: LevelGen = build(at)
+			if w == null:
+				continue
+			for origin: Vector2i in w.objects_of(LevelGen.Type.STUDENT):
+				if not Students.route(w, origin, Students.next_seat(w, origin, 0, origin)).is_empty():
+					return at
+	return Vector2i(28, NextWorldDef.band_row(&"institute", 0))

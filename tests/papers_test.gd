@@ -17,6 +17,9 @@ const WORLD: int = 28
 
 
 func run() -> void:
+	if not needs([&"institute"]):
+		finish()
+		return
 	MapInfo.debug = false
 	await boot(WORLD)
 	process_frame.connect(func() -> void: player.health.health = player.health.max_health)
@@ -54,6 +57,10 @@ func _field_trip() -> void:
 	var start: Vector2i = info.world.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
 	var far: bool = info.world.free_floors().any(func(v: Vector2i) -> bool: return LevelGen.dist(v, start) >= MapInfo.PAPER_CLEAR)
 	check(not far or LevelGen.dist(at, start) >= MapInfo.PAPER_CLEAR, "on a floor at least %d cells from the way in" % MapInfo.PAPER_CLEAR)
+	var map: Node = main.get_node("RisoMap")
+	map.set("viewing", info.coord)
+	map.call("_level", info)
+	check((map.get("_shown") as Dictionary).has("exam paper"), "and the map marks it there%s" % (", though that floor is not yet seen" if not info.is_seen(at) else ""))
 	await _go(field)
 	check_eq(_papers(code).size(), 1, "come back, it lies there still, once")
 	player.global_position = (_papers(code)[0] as Node2D).global_position

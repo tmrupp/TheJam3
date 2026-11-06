@@ -2,13 +2,14 @@ extends Node
 class_name Nova
 ## Nova, a damage spell: the Spell button (Q, or the pad's X) bursts spell light out all round the
 ## wizard, RADIUS px, striking everything it reaches that rock does not shelter (SpellStrike):
-## wounded by its damage. It is slow to come back (COOLDOWN). Tiers (Abilities): I wounds 1; II
-## reaches further (RADIUS_II); III wounds 2; IV comes back sooner (COOLDOWN_IV). Cast empowered
-## (Empower), it shatters the cracked rock in a ring round the wizard, a cell out
+## wounded by its damage. It is slower to come back than a slash (COOLDOWN). Tiers (Abilities): I
+## wounds 1; II reaches further (RADIUS_II); III wounds 2; IV comes back sooner (COOLDOWN_IV). Cast
+## empowered (Empower), it shatters the cracked rock in a ring round the wizard, a cell out
 ## (SpellStrike.ring), wounds Empower.EXTRA more, breaks a shield at once and strikes spires.
 
-const COOLDOWN: float = 8.0
-const COOLDOWN_IV: float = 5.0
+## Seconds until it is ready again, and from tier IV.
+const COOLDOWN: float = 3.0
+const COOLDOWN_IV: float = 2.0
 const RADIUS: float = 170.0
 const RADIUS_II: float = 220.0
 
@@ -32,6 +33,11 @@ func set_tier(n: int) -> void:
 ## The Spell button, with nova in the slot (`empowered`, see Empower).
 func cast_spell(empowered: bool = false) -> bool:
 	return cast(empowered)
+
+
+## A parry's catch gives the spell back at once, ready to cast (Parry, Abilities.refill).
+func refill() -> void:
+	wait = 0.0
 
 
 func readiness() -> float:

@@ -23,6 +23,9 @@ const IN_HALLS: Array[LevelGen.Type] = [LevelGen.Type.EXAM_DOOR, LevelGen.Type.E
 
 
 func run() -> void:
+	if not needs([&"institute"]):
+		finish()
+		return
 	MapInfo.debug = false
 	generation()
 	await play()
@@ -97,12 +100,15 @@ func generation() -> void:
 						heights[v.y] = true
 					if heights.size() != 2 or not heights.has(Institute.gallery_row(inside)) or doors.size() < Institute.MIN_DOORS:
 						tiers_ok = false
+					# Every classroom has its department's portal, all of a department's leading to
+					# the same level.
 					var portals: Array[Vector2i] = w.objects_of(LevelGen.Type.DEPARTMENT).filter(func(v: Vector2i) -> bool: return inside.has_point(v))
-					if portals.size() != (1 if Institute.first_of(w, hall["dept"]) == i else 0):
+					if portals.size() != 1:
 						depts_ok = false
-					elif not portals.is_empty():
+					else:
 						var extra: Array = w.get_cell(portals[0]).extra_info
-						if StringName(extra[0]) != hall["dept"] or NextWorldDef.archetype_at(int(extra[1])) != Institute.DEPARTMENTS[hall["dept"]]:
+						var dept_row: int = int(extra[1])
+						if StringName(extra[0]) != hall["dept"] or NextWorldDef.archetype_at(dept_row) != Institute.DEPARTMENTS[hall["dept"]] or dept_row != Institute.department_row(Rules.def_for(at), hall["dept"], Institute.first_of(w, hall["dept"])):
 							depts_ok = false
 		# The bell room: walled in marble but for its doorways, its great bell on its floor.
 		if w.belfry.has_area():
@@ -138,7 +144,7 @@ func generation() -> void:
 	check(libraries > 0 and book_ladders, "every library has its %d book ladders, from its lowest gallery down to its floor" % Institute.BOOK_LADDERS)
 	check(belfries == LAID.size() and belfry_ok, "a bell room in each level (%d of %d), walled in marble, its great bell inside it" % [belfries, LAID.size()])
 	check(lectures >= LAID.size() * 3 and tiers_ok, "classrooms (%d in %d levels): a floor and a gallery, with %d doorways or more" % [lectures, LAID.size(), Institute.MIN_DOORS])
-	check(depts_ok, "the first of each department with its portal, leading into the band it studies")
+	check(depts_ok, "every classroom with its department's portal, all of a department's leading to the same level of the band it studies")
 	check(kept, "walled in marble, and nothing else laid inside them")
 	check(outside > 0, "breaches and abominations out in the level")
 	check(kits.has(&"alchemy") and kits.has(&"ritual"), "laboratories hold alchemy equipment, and sanctums ritual equipment")
@@ -256,7 +262,7 @@ func _climb() -> void:
 		found = _step_and_wall()
 	check(not found.is_empty(), "a step and a wall to try")
 	if not found.is_empty():
-		await _climb_at(found["step"], found["step_way"], found["wall"], found["wall_way"])
+		await _climb_at(found["steps"], found["wall"], found["wall_way"])
 	if info.coord != home:
 		await _go(home)
 		player.set_physics_process(false)
@@ -264,7 +270,8 @@ func _climb() -> void:
 
 ## A step a cell high and a wall two cells high (or more) out of the halls, each with a floor before it
 ## and the way up (+1 right, -1 left): {"step", "step_way", "wall", "wall_way"}, or {} if the level
-## lacks either.
+## lacks either; and under "steps" the first few steps, [cell, way] each, as a step's top may be
+## cramped where its quarry stands.
 func _step_and_wall() -> Dictionary:
 	var w: LevelGen = info.world
 	var out: Dictionary = {}
@@ -273,32 +280,49 @@ func _step_and_wall() -> Dictionary:
 			var r: Vector2i = v + Vector2i(way, 0)
 			if Institute.hall_at(w, v) >= 0 or w.is_ground(v + Vector2i.UP) or w.is_ground(v + Vector2i(0, -2)) or w.is_ground(v - Vector2i(way, 0)) or not w.is_ground(v + Vector2i(-way, 1)) or not w.is_ground(r):
 				continue
-			if not out.has("step") and not w.is_ground(r + Vector2i.UP) and not w.is_ground(r + Vector2i(0, -2)):
-				out["step"] = v
-				out["step_way"] = way
+			if not w.is_ground(r + Vector2i.UP) and not w.is_ground(r + Vector2i(0, -2)):
+				if not out.has("step"):
+					out["step"] = v
+					out["step_way"] = way
+					out["steps"] = []
+				if (out["steps"] as Array).size() < STEPS_TRIED:
+					(out["steps"] as Array).append([v, way])
 			elif not out.has("wall") and w.is_ground(r + Vector2i.UP) and w.is_ground(r + Vector2i(0, -2)):
 				out["wall"] = v
 				out["wall_way"] = way
 	return out if out.has("step") and out.has("wall") else {}
 
 
-## An abomination after its quarry up the step at `step` (rising the way `step_way` points), then at
-## the wall at `wall` (`wall_way`).
-func _climb_at(step: Vector2i, step_way: int, wall: Vector2i, wall_way: int) -> void:
+## How many steps _climb_at tries an abomination at, for one with room on top.
+const STEPS_TRIED: int = 4
+
+
+## An abomination after its quarry up one of `steps` ([cell, the way it rises] each, tried in turn
+## until one is climbed), then at the wall at `wall` (`wall_way`).
+func _climb_at(steps: Array, wall: Vector2i, wall_way: int) -> void:
 	# In passing time, when the abominations act up (Timetable), with no scholar about to fight them.
 	info.record().passing = true
 	for n: Node in get_nodes_in_group(&"scholar"):
 		var at: Vector2 = (n as Node2D).global_position
-		if at.distance_to(info.cell_position(step)) < 1500.0 or at.distance_to(info.cell_position(wall)) < 1500.0:
+		var near_step: bool = steps.any(func(pair: Array) -> bool: return at.distance_to(info.cell_position(pair[0] as Vector2i)) < 1500.0)
+		if near_step or at.distance_to(info.cell_position(wall)) < 1500.0:
 			n.queue_free()
 	await frames(2)
-	var thing: Abomination = _spawn_thing(step + Vector2i(-step_way, 0), 1)
-	player.global_position = info.cell_position(step + Vector2i(4 * step_way, -1))
-	await until(func() -> bool: return thing.grounded)
-	var start: float = thing.global_position.y
-	var climbed: bool = await within(func() -> bool: return thing.global_position.y < start - 100.0, 4.0)
-	check(climbed and thing.quarry != null, "at a step a cell high, it hops up after its quarry")
-	thing.queue_free()
+	var climbed: bool = false
+	var thing: Abomination = null
+	for pair: Array in steps:
+		var step: Vector2i = pair[0]
+		var step_way: int = pair[1]
+		thing = _spawn_thing(step + Vector2i(-step_way, 0), 1)
+		player.global_position = info.cell_position(step + Vector2i(4 * step_way, -1))
+		await until(func() -> bool: return thing.grounded)
+		var start: float = thing.global_position.y
+		climbed = await within(func() -> bool: return thing.global_position.y < start - 100.0, 4.0) and thing.quarry != null
+		thing.queue_free()
+		await frames(2)
+		if climbed:
+			break
+	check(climbed, "at a step a cell high, it hops up after its quarry")
 	var d: float = float(wall_way)
 	thing = _spawn_thing(wall + Vector2i(-wall_way, 0), 1)
 	player.global_position = info.cell_position(wall + Vector2i(3 * wall_way, -2))
@@ -400,8 +424,11 @@ func _staff() -> void:
 	check(await within(func() -> bool: return Shield.of(student) != null, 2.0), "a proctor shields a student near it")
 	proctor.queue_free()
 	student.queue_free()
-	var librarian: Scholar = _spawn("librarian.tscn", spot)
 	player.global_position = info.cell_position(spot) + Vector2(-120, 0)
+	# At rest: a move the parts before left under way (frozen while the wizard's physics was off)
+	# would carry them out of the hush as soon as it runs again.
+	still()
+	var librarian: Scholar = _spawn("librarian.tscn", spot)
 	# Just after a pulse falls.
 	await physics_frame
 	librarian.hush_t = 0.05
@@ -559,6 +586,15 @@ func _department() -> void:
 	var at: Vector2 = (backs[0] as Node2D).global_position
 	check_eq(info.cell_at(player.global_position), info.cell_at(at), "the wizard comes out of the way back, as out of a gate's partner")
 	check(info.world.get_cell(info.cell_at(at) + Vector2i.UP).type == LevelGen.Type.EMPTY, "with open air over it: nothing stands on top of it")
+	# On no other door, nor beside one: the prompt where the wizard comes out is the way back's.
+	var spot: Vector2i = info.cell_at(at)
+	var crowded: Array[Vector2i] = info.world.objects.filter(func(o: Vector2i) -> bool:
+		var t: LevelGen.Type = info.world.get_cell(o).type
+		return (Placeables.has_flag(t, &"stander") or t == LevelGen.Type.DOOR) and absi(o.x - spot.x) <= MapInfo.WAY_BACK_APART and absi(o.y - spot.y) <= 1)
+	check(spot != info.world.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1)) and crowded.is_empty(), "it stands clear of the level's way back and every other door (%s)" % [crowded])
+	await frames(3)
+	var focus: Node = Interactable.focused(self)
+	check(focus != null and focus.get_parent() is WayBack, "the prompt where the wizard comes out is the way back's")
 	await _go(Vector2i(from.x, 0))
 	await _go(to)
 	check(placed("way_back.tscn").size() == 1 and (placed("way_back.tscn")[0] as Node2D).global_position == at, "it lasts, where it was, until used")

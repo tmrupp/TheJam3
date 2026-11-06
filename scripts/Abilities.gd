@@ -9,8 +9,9 @@ class_name Abilities
 ##     nova (a burst all round), push (a gust that shoves), seeker (a homing bolt) and lunge (a
 ##     stab that throws the wizard forward). The wizard's only ways to hurt; the
 ##     dash no longer strikes (DashStrike: it passes through enemies). Whichever is held, the
-##     button also raises the parry guard (Parry, not a spell of its own: its base effect, on its
-##     own cooldown), so every damage spell parries.
+##     button also raises the parry guard as it casts (Parry, not a spell of its own: its base
+##     effect, ready when the spell is), so every damage spell parries, and a catch gives the spell
+##     straight back (refill).
 ##   - movement, on the Dash button (Shift, or the right trigger): the dash, blink, astral
 ##     projection, levitate, rift (open your own teleporters), warp (to a random floor) and ferry
 ##     (a raft that shuttles to and fro, see Ferry). The dash and blink are the wizard's own moves
@@ -160,7 +161,7 @@ static func price(depth: int, next_tier: int) -> int:
 static func cast_price(a: StringName, depth: int) -> int:
 	if not ABILITIES.has(a) or not ABILITIES[a].has("cost"):
 		return 0
-	return maxi(1, roundi(float(ABILITIES[a]["cost"]) * pow(1.25, maxi(depth, 0))))
+	return maxi(1, roundi(float(ABILITIES[a]["cost"]) * Rules.grown(depth, Rules.STAR_GROWTH)))
 
 
 ## What a cast of the spell in slot `slot` costs where the wizard is.
@@ -169,9 +170,12 @@ static func cast_price_here(player: Player, slot: StringName = &"damage") -> int
 	return cast_price(spell(player, slot), depth)
 
 
-## Stars to heal to full at `depth`: the opposite of learning, dearer deeper.
+## Stars to heal to full at `depth`: the opposite of learning, dearer deeper (Rules.grown).
+const HEAL_BASE: float = 6.0
+
+
 static func heal_price(depth: int) -> int:
-	return roundi(6.0 * pow(1.35, depth))
+	return roundi(HEAL_BASE * Rules.grown(depth, Rules.HEAL_GROWTH))
 
 
 ## What a level's shrine teaches. Starting from an ability picked by the level seed and going
@@ -325,6 +329,14 @@ static func cast(player: Player, slot: StringName = &"damage", empowered: bool =
 	if slot == &"damage":
 		player.visual_event.emit(&"cast", player.global_position)
 	return true
+
+
+## Give the damage spell back at once, ready to cast (its node's `refill`): a parry's catch does
+## (Parry), whatever the spell's own cooldown.
+static func refill(player: Player) -> void:
+	var node: Node = spell_node(player, &"damage")
+	if node != null:
+		node.call(&"refill")
 
 
 ## The node of the spell in slot `slot`, or null when there is none (the slot empty, the dash in

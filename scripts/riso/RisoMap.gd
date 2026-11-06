@@ -10,14 +10,13 @@ extends Node2D
 ## - World view: every visited level as a tile on the (world, depth) grid, joined where a side
 ##   door has been opened or a deeper door paid, with the respawn lantern, the ghost and spent
 ##   shrines marked.
-## Each page has a legend down its right edge, drawn with the same marks as the map.
+## No legend and no words: the marks speak for themselves, the map using the whole sheet.
 
 enum View { CLOSED, LEVEL, WORLD }
 
 const TEXT_PX: int = 64
 const PANEL: Rect2 = Rect2(8, 8, 304, 164)
-const AREA: Rect2 = Rect2(16, 30, 218, 136)
-const LEGEND: Rect2 = Rect2(242, 30, 64, 136)
+const AREA: Rect2 = Rect2(16, 30, 288, 136)
 const TILE: Vector2 = Vector2(34, 18)
 const PITCH: Vector2 = Vector2(42, 26)
 ## The size of a sigil (Sigils) by a switch, gate or bell on the map; a teleporter's is a little
@@ -202,21 +201,52 @@ func _nearest_tile(info: MapInfo, from: Vector2i, dir: Vector2i) -> Variant:
 	return best
 
 
-## The page tabs, top right: the open page on a tinted tab, with the keys that turn the page.
+## The page tabs, top right: an icon for each page (the level, a tile with its rock and the
+## wizard in it; the worlds, four tiles joined), the open one on a tinted tab, with the keys that
+## turn the page. No keys are printed by them.
 func _tabs() -> void:
-	var names: Array[String] = ["level", "worlds"]
-	var x: float = 302.0
-	var spots: Array[float] = []
-	for i: int in range(names.size() - 1, -1, -1):
-		var w: float = font.get_string_size(names[i], HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_PX).x * 8.0 / float(TEXT_PX)
-		spots.push_front(x - w)
-		x -= w + 12.0
-	for i: int in range(names.size()):
-		var w: float = font.get_string_size(names[i], HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_PX).x * 8.0 / float(TEXT_PX)
+	var spots: Array[float] = [TAB_X - TAB_STEP, TAB_X]
+	for i: int in range(spots.size()):
+		var c: Vector2 = Vector2(spots[i], TAB_Y)
 		if view == i + 1:
-			marks.ink(RisoPrint.BLUE, 0.25, [RisoShapes.rrect(spots[i] - 4.0, 11.0, w + 8.0, 13.0, 4.0)], false)
-		_text(names[i], Vector2(spots[i], 12.0), 8.0, false)
-	_text("A / D", Vector2(spots[0] - 9.0, 13.0), 7.0, true)
+			marks.ink(RisoPrint.BLUE, 0.25, [RisoShapes.rrect(c.x - 9.0, c.y - 6.5, 18.0, 13.0, 4.0)], false)
+		if i == 0:
+			marks.ink(RisoPrint.NIGHT, 0.55, [RisoShapes.rrect(c.x - 6.0, c.y - 4.0, 12.0, 8.0, 2.0)], false)
+			marks.knock([RisoPrint.NIGHT], [RisoShapes.rrect(c.x - 4.5, c.y - 2.5, 9.0, 4.0, 1.0)])
+			marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(c + Vector2(-1.5, -0.5), 1.4, 8)], false)
+		else:
+			var tiles_at: Array[PackedVector2Array] = []
+			for d: Vector2 in [Vector2(-3.5, -2.2), Vector2(3.5, -2.2), Vector2(-3.5, 2.2), Vector2(3.5, 2.2)]:
+				tiles_at.append(RisoShapes.rrect(c.x + d.x - 2.8, c.y + d.y - 1.8, 5.6, 3.6, 1.0))
+			marks.ink(RisoPrint.NIGHT, 0.8, tiles_at, false)
+
+
+## Where the page tabs sit (UI units): the last one's middle, how far apart they are, and their
+## height.
+const TAB_X: float = 296.0
+const TAB_STEP: float = 22.0
+const TAB_Y: float = 17.5
+## A place printed at the top left of a page (_place_header): its marks' half height, where they
+## start, and its numbers' size.
+const HEADER_R: float = 3.6
+const HEADER_AT: Vector2 = Vector2(18, 17.5)
+const HEADER_PX: float = 10.0
+
+
+## A place at the top left of the page, as marks and numbers (RisoMarks.place_marks), as the HUD
+## prints it: its world, its depth (or height), and a side world's door mark.
+func _place_header(c: Vector2i) -> void:
+	var n: Vector3i = Rules.place_numbers(c)
+	_marks_and_numbers(str(n.x), str(absi(n.y)), Worlds.is_side(c), n.y < 0)
+
+
+## A world's mark and number `a`, then a depth's mark and number `b`, at the top left of the page.
+func _marks_and_numbers(a: String, b: String, side: bool, up: bool) -> void:
+	var k: float = HEADER_PX / float(TEXT_PX)
+	var widths: Vector2 = Vector2(font.get_string_size(a, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_PX).x * k, font.get_string_size(b, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_PX).x * k)
+	var xs: Vector2 = RisoMarks.place_marks(marks, HEADER_AT, HEADER_R, widths, side, up)
+	_text(a, Vector2(xs.x, HEADER_AT.y - 5.5), HEADER_PX, false)
+	_text(b, Vector2(xs.y, HEADER_AT.y - 5.5), HEADER_PX, false)
 
 
 func _process(delta: float) -> void:
@@ -275,7 +305,7 @@ func _level(info: MapInfo) -> void:
 	if viewing != info.coord:
 		_other_level(info, viewing)
 		return
-	_text(Rules.where(info.coord), Vector2(18, 12), 10.0, false)
+	_place_header(info.coord)
 	_tabs()
 	if _built_version != info.seen_version or _built_coord != info.coord:
 		_build_textures(info)
@@ -309,73 +339,21 @@ func _level(info: MapInfo) -> void:
 		_mark_soul(to_map(info, Vector2(soul) + Vector2(0.5, 0.5)))
 	# The wizard, always, bobbing.
 	_mark_wizard(to_map(info, Vector2(info.cell_at(info.player.global_position)) + Vector2(0.5, 0.5)) + Vector2(0, sin(t * 4.0) * 0.6))
-	_legend([["you", _mark_wizard]] + _level_rows())
-
-
-## The level pages' legend rows, each listed only when the page shows it.
-func _level_rows() -> Array:
-	return [
-		["way out", func(at: Vector2) -> void: _mark_exit(at, Vector2.RIGHT, false, -1, 0), "way out"],
-		["deeper", func(at: Vector2) -> void: _mark_exit(at, Vector2.DOWN, true, -1, 0), "deeper"],
-		["sealed", func(at: Vector2) -> void: _mark_exit(at, Vector2.DOWN, true, -1, 0, 1.0, true), "sealed"],
-		["locked", func(at: Vector2) -> void: _mark_exit(at, Vector2.RIGHT, false, 1, 0), "locked"],
-		["unpaid", func(at: Vector2) -> void: _mark_exit(at, Vector2.DOWN, true, -1, 8), "unpaid"],
-		["shrine", func(at: Vector2) -> void: _mark_shrine(at, false), "shrine"],
-		["lantern", func(at: Vector2) -> void: _mark_lantern(at, false), "lantern"],
-		["respawn", func(at: Vector2) -> void: _mark_lantern(at, true), "respawn"],
-		["spent lantern", func(at: Vector2) -> void: _mark_lantern(at, false, true), "spent lantern"],
-		["teleporter", func(at: Vector2) -> void: _mark_portal(at, 1, false), "teleporter"],
-		["rift", func(at: Vector2) -> void: _mark_portal(at, 0, true), "rift"],
-		["door", func(at: Vector2) -> void: _mark_door(at, 2), "door"],
-		["gate", func(at: Vector2) -> void: _mark_gate(at, 2), "gate"],
-		["sun gate", func(at: Vector2) -> void: _mark_light_gate(at, true), "sun gate"],
-		["shade gate", func(at: Vector2) -> void: _mark_light_gate(at, false), "shade gate"],
-		["department", func(at: Vector2) -> void: _mark_department(at, 1), "department"],
-		["switch", func(at: Vector2) -> void: _mark_switch(at, false, 2), "switch"],
-		["bell", func(at: Vector2) -> void: _mark_bell(at, false), "bell"],
-		["vane", func(at: Vector2) -> void: _mark_bell(at, false, -2, "vane"), "vane"],
-		["bridge", func(at: Vector2) -> void: _mark_bridge(at, true), "bridge"],
-		["unrung bridge", func(at: Vector2) -> void: _mark_bridge(at, false), "unrung bridge"],
-		["gondola", func(at: Vector2) -> void: _mark_gondola([at + Vector2(-3.0, 3.0), at + Vector2(-3.0, 1.0), at + Vector2(-1.0, 1.0), at + Vector2(-1.0, -1.0), at + Vector2(1.0, -1.0), at + Vector2(1.0, -3.0)], [at + Vector2(-3.0, 3.0), at + Vector2(1.0, -3.0)], at + Vector2(-3.0, 3.0), [true, false]), "gondola"],
-		["tower switch", _mark_tower_switch, "tower switch"],
-		["lodestone", func(at: Vector2) -> void: _mark_lodestone(at, &"hex", false), "lodestone"],
-		["toll gate", _mark_toll, "toll gate"],
-		["relic", func(at: Vector2) -> void: _mark_relic(at, &"blink", 0.7), "relic"],
-		["soul", func(at: Vector2) -> void: _mark_soul(at), "soul"],
-	] + _door_rows() + [
-		["key", func(at: Vector2) -> void: _mark_key(at, 2), "key"],
-		["skeleton key", func(at: Vector2) -> void: _mark_key(at, KeyRing.SKELETON), "skeleton key"],
-		["exam paper", func(at: Vector2) -> void: _mark_key(at, KeyRing.paper(&"hex", 1)), "exam paper"],
-		["star cluster", _mark_cluster, "star cluster"],
-		["ink well", func(at: Vector2) -> void: _mark_inkwell(at, false), "ink well"],
-		["snuffing font", func(at: Vector2) -> void: _mark_snuffer(at), "snuffing font"],
-		["dry font", func(at: Vector2) -> void: _mark_snuffer(at, true), "dry font"],
-		["sun block", func(at: Vector2) -> void: _mark_phase_block(at, true), "sun block"],
-		["shade block", func(at: Vector2) -> void: _mark_phase_block(at, false), "shade block"],
-		["ossuary door", _mark_ossuary, "ossuary door"],
-		["ghost", func(at: Vector2) -> void: _mark_ghost(at, 0.22), "ghost"],
-	]
-
-
-## A legend row for each kind of side world's door.
-func _door_rows() -> Array:
-	var rows: Array = []
-	for k: int in range(Worlds.KINDS.size()):
-		rows.append(["%s door" % Worlds.proto(k).name, func(at: Vector2) -> void: _mark_plunge(at, 0), "plunge"])
-	return rows
+	_noting = false
 
 
 ## A level other than the one being played, picked on the worlds page: its map as far as it was
 ## seen, rebuilt from its seed, with what is in it where seen, marked from the layout and its record
 ## as the level being played is (_mark_level), and its ghost.
 func _other_level(info: MapInfo, c: Vector2i) -> void:
-	_text(Rules.where(c), Vector2(18, 12), 10.0, false)
+	_place_header(c)
 	_tabs()
 	var w: LevelGen = info.world_at(c)
 	if w == null:
 		rock.visible = false
 		open.visible = false
-		_text("inking…", AREA.get_center() + Vector2(0, -5), 9.0, false, true)
+		# Still being laid out: a drop of ink pulsing where its map will be.
+		marks.ink(RisoPrint.NIGHT, 0.5 + 0.4 * sin(t * 6.0), [RisoShapes.circle(AREA.get_center(), 3.0, 12)], false)
 		return
 	var rec: LevelRecord = info.run.records.get(c, LevelRecord.new())
 	# A map inked whole before its layout was known (MapInfo.ink_place) is all seen once it is.
@@ -404,8 +382,7 @@ func _other_level(info: MapInfo, c: Vector2i) -> void:
 		_mark_soul(spot.call(soul))
 	if info.run.has_ghost and info.run.ghost_coord == c:
 		_mark_ghost(spot.call(info.cell_at(info.run.ghost_pos)), 0.22)
-	_text("D: worlds", Vector2(AREA.position.x, AREA.end.y - 6.0), 6.5, false)
-	_legend(_level_rows())
+	_noting = false
 
 
 ## The colour of each key and door laid out in `w` ({cell: colour}), as the level dealt them
@@ -422,8 +399,10 @@ static func dealt_colors(w: LevelGen) -> Dictionary:
 ## Everything laid out in level `w` (place `c`) where `seen`, marked at `spot` as its record `rec`
 ## leaves it (taken, opened, thrown, rung, spent, paid): exits, the shrine, the ink well, lanterns,
 ## teleporters, keys, doors, gates, switches, relics, star clusters, bells and vanes, bridges, what
-## opened secret rooms hold, and the keys dropped there. The level being played is marked the same
-## way: its record changes the moment its things do. Whether a relic was marked comes back.
+## opened secret rooms hold, and the keys dropped there. An exam paper lying there is marked seen or
+## not: a class sent it there, away from the way in (MapInfo._lay_papers), to be fetched. The level
+## being played is marked the same way: its record changes the moment its things do. Whether a relic
+## was marked comes back.
 func _mark_level(info: MapInfo, c: Vector2i, w: LevelGen, rec: LevelRecord, seen: Callable, spot: Callable) -> bool:
 	var place: NextWorldDef = info.here if c == info.coord and info.here != null else Rules.def_for(c)
 	var relic_shown: bool = false
@@ -448,7 +427,7 @@ func _mark_level(info: MapInfo, c: Vector2i, w: LevelGen, rec: LevelRecord, seen
 	for id: Variant in dropped:
 		var drop: Array = dropped[id]
 		var v: Vector2i = info.cell_at(drop[0])
-		if w.is_valid(v) and seen.call(v):
+		if w.is_valid(v) and (seen.call(v) or KeyRing.is_paper(int(drop[1]))):
 			_mark_key(spot.call(v), int(drop[1]))
 	return relic_shown
 
@@ -466,9 +445,12 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 			if place.exit_grand(which):
 				_mark_plunge(at, owed)
 			else:
-				_mark_exit(at, place.exit_dir(which), place.leads_on(which), LevelExit.lock_at(c, which, rec), owed, 1.0, place.seal(which, info.run) != &"")
+				_mark_exit(at, place.exit_dir(which), place.leads_on(which), LevelExit.lock_at(c, which, rec), owed, 1.0, place.seal(which, info.run))
 		LevelGen.Type.SHRINE:
 			_mark_shrine(at, bool(rec.shrine_used))
+		LevelGen.Type.TROPHY_STAND:
+			var boss: StringName = StringName(cell.extra_info)
+			_mark_stand(at, boss, int(info.run.trophies.get(boss, 0)) == Trophy.SET)
 		LevelGen.Type.INKWELL:
 			_mark_inkwell(at, bool(rec.mapped))
 		LevelGen.Type.SNUFFER:
@@ -554,12 +536,12 @@ static func _dealt(cell: LevelGen.Cell) -> int:
 	return int(cell.extra_info) if cell.extra_info != null else 0
 
 
-# ------------------------------------------------------------------ marks (map and legend)
+# ------------------------------------------------------------------ marks
 # Marks are abstract and printed over whatever is under them (rock, ground, each other), never
 # knocking it out: they overlap and intersect as the plates do. While a page is drawn, each mark
-# notes its legend row (see _note), and the legend lists only what is on the page.
+# notes what it is (see _note), so what a page shows can be read back (the tests do).
 
-## Legend rows the page being drawn has shown (see _legend), and whether marks note theirs now.
+## What the page being drawn has marked, by name, and whether marks note themselves now.
 var _shown: Dictionary = {}
 var _noting: bool = false
 
@@ -661,20 +643,44 @@ func _mark_sigil(at: Vector2, sigil_kind: int) -> void:
 		marks.ink(RisoPrint.NIGHT, 1.0, RisoMarks.sigil(sigil_kind, at, SIGIL_MARK), false)
 
 
-## A way out: a chevron the way it leads (pink for deeper), with a boss's seal while a boss bars it
-## (Bosses), a key-colour dot while locked, or a star while unpaid.
-func _mark_exit(at: Vector2, dir: Vector2, deeper: bool, needs: int, owed: int, k: float = 1.0, sealed: bool = false) -> void:
-	_note("sealed" if sealed else ("locked" if needs >= 0 else ("unpaid" if owed > 0 else ("deeper" if deeper else "way out"))))
+## A way out: a chevron the way it leads (pink for deeper), with the mark of the boss that bars it
+## while one does (`sealed`, Bosses), a key-colour dot while locked, or a star while unpaid.
+func _mark_exit(at: Vector2, dir: Vector2, deeper: bool, needs: int, owed: int, k: float = 1.0, sealed: StringName = &"") -> void:
+	_note("sealed" if sealed != &"" else ("locked" if needs >= 0 else ("unpaid" if owed > 0 else ("deeper" if deeper else "way out"))))
 	marks.ink(RisoPrint.PINK if deeper else RisoPrint.NIGHT, 1.0, [RisoMarks.chevron(at + dir * 4.0 * EXIT_MARK * k, dir, EXIT_MARK * k)], false)
 	var badge: Vector2 = at + Vector2(3.2, -3.2) * k
-	if sealed:
-		marks.ink(RisoPrint.PINK, 1.0, [RisoShapes.circle(badge, 1.9 * k, 12)], false)
-		marks.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.circle(badge, 0.7 * k, 8)], false)
+	if sealed != &"":
+		_mark_boss(badge + Vector2(0.8, -0.8) * k, sealed, BOSS_BADGE * k, RisoPrint.PINK)
 	elif needs >= 0:
 		for plate: int in RisoPrint.key_inks(needs):
 			marks.ink(plate, 1.0, [RisoMarks.key_bow(badge, 1.6 * k, needs)], false)
 	elif owed > 0:
 		marks.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.sparkle(badge, 2.1 * k)], false)
+
+
+## How big (its unit, map px) a boss's mark is by a sealed way out, on a gate level's tile, and on
+## a trophy stand.
+const BOSS_BADGE: float = 2.6
+const BOSS_TILE: float = 2.4
+const BOSS_STAND: float = 2.8
+
+
+## Boss `boss`'s mark (RisoMarks.boss_mark) on the map at `at`, `u` its unit, in `plate`, its holes
+## cut back out of it.
+func _mark_boss(at: Vector2, boss: StringName, u: float, plate: int) -> void:
+	var mark: Array = RisoMarks.boss_mark(boss, at, u)
+	marks.ink(plate, 1.0, mark[0], false)
+	marks.knock([plate], mark[1])
+	if not (mark[2] as Array).is_empty():
+		marks.ink(plate, 1.0, mark[2], false)
+
+
+## A trophy stand (TrophyStand) on the map: its boss's mark, pink until its trophy is set, then
+## gold.
+func _mark_stand(at: Vector2, boss: StringName, set_there: bool) -> void:
+	_note("stand")
+	marks.ink(RisoPrint.BLUE, 0.6, [RisoShapes.rrect(at.x - 3.5, at.y + 3.0, 7.0, 1.6, 0.8)], false)
+	_mark_boss(at + Vector2(0, -0.5), boss, BOSS_STAND, RisoPrint.ACCENT if set_there else RisoPrint.PINK)
 
 
 func _mark_inkwell(at: Vector2, dry: bool) -> void:
@@ -742,7 +748,7 @@ func _mark_door(at: Vector2, color: int) -> void:
 
 
 func _mark_key(at: Vector2, color: int) -> void:
-	_note("skeleton key" if color == KeyRing.SKELETON else ("exam paper" if KeyRing.is_paper(color) else "key"))
+	_note("skeleton key" if color == KeyRing.SKELETON else ("relic unlock" if color == KeyRing.UNLOCK else ("exam paper" if KeyRing.is_paper(color) else "key")))
 	_key_ink(color, [RisoMarks.key_bow(at, 2.0, color)])
 
 
@@ -841,20 +847,6 @@ func _mark_ghost(at: Vector2, size: float) -> void:
 func _mark_wizard(at: Vector2) -> void:
 	marks.ink(RisoPrint.PINK, 1.0, [RisoShapes.tri(at + Vector2(-2.6, 0.6), at + Vector2(2.6, 0.6), at + Vector2(0.4, -4.2))], false)
 	marks.ink(RisoPrint.EYE, 1.0, [RisoShapes.circle(at + Vector2(0, 1.8), 1.1, 8)], false)
-
-
-## The key down the right edge: each entry's mark beside its name, behind a faint rule.
-## A row with a third entry (the name its marks note, see _note) is only listed when the page
-## showed it.
-func _legend(all: Array) -> void:
-	_noting = false
-	var entries: Array = all.filter(func(e: Array) -> bool: return e.size() < 3 or _shown.has(e[2]))
-	marks.ink(RisoPrint.BLUE, 0.3, [RisoShapes.rrect(LEGEND.position.x - 4.0, LEGEND.position.y + 2.0, 0.8, LEGEND.size.y - 4.0, 0.4)], false)
-	var step: float = minf(11.0, (LEGEND.size.y - 6.0) / float(entries.size()))
-	for i: int in range(entries.size()):
-		var y: float = LEGEND.position.y + 6.0 + step * (float(i) + 0.5)
-		(entries[i][1] as Callable).call(Vector2(LEGEND.position.x + 6.0, y))
-		_text(String(entries[i][0]), Vector2(LEGEND.position.x + 15.0, y - 4.6), 6.5, false)
 
 
 ## Seen rock and seen open ground as two one-pixel-per-cell textures on their plates.
@@ -967,8 +959,11 @@ func tile_at(_info: MapInfo, c: Vector2i) -> Vector2:
 
 
 func _world(info: MapInfo) -> void:
-	_text("world %d  ·  furthest %d" % [info.run.run_seed, info.run.deepest], Vector2(18, 12), 10.0, false)
+	# The run's world, and the furthest it has been from the start.
+	_marks_and_numbers(str(info.run.run_seed), str(info.run.deepest), false, false)
 	_tabs()
+	_shown.clear()
+	_noting = true
 	var area: Rect2 = AREA.grow(-2.0)
 	var bars: Array[PackedVector2Array] = []
 	for pair: Array in links(info):
@@ -999,6 +994,7 @@ func _world(info: MapInfo) -> void:
 			if not bounds.grow(6.0).intersects(area):
 				continue
 			_mark_side(curve, size.x, c == info.coord, area)
+			_note("side")
 			# Marks sit on the curve as far along it as they are across the world, on a clear spot.
 			if c == info.run.respawn_coord:
 				var lit: Vector2 = _along(curve, place.progress(info.run.respawn_cell))
@@ -1022,6 +1018,10 @@ func _world(info: MapInfo) -> void:
 			_mark_spent_shrine(at + Vector2(0, TILE.y * 0.5 - 4.75))
 		if info.run.has_ghost and c == info.run.ghost_coord:
 			_mark_ghost(at + Vector2(TILE.x * 0.5 - 4.0, TILE.y * 0.5 - 4.0), 0.2)
+		# A gate level: its boss's mark on the tile's bottom left, pink while it lives, gold once slain.
+		var boss: StringName = Bosses.gate_at(c.y)
+		if boss != &"":
+			_mark_boss(at + Vector2(-TILE.x * 0.5 + 3.5, TILE.y * 0.5 - 3.0), boss, BOSS_TILE, RisoPrint.ACCENT if info.run.bosses.has(boss) else RisoPrint.PINK)
 		# A lodestone the map knows of: on the middle of the tile's right edge, its spell's mark.
 		if _lodestone_known(info, c):
 			_mark_lodestone(at + Vector2(TILE.x * 0.5 - 1.5, 1.0), Rules.lodestone_at(c), info.run.lodestones.has(c), 0.8)
@@ -1075,31 +1075,12 @@ func _world(info: MapInfo) -> void:
 			marks.ink(RisoPrint.PINK, 0.12, [RisoShapes.rrect(at.x - TILE.x * 0.5, at.y - TILE.y * 0.5, TILE.x, TILE.y, 5.0)], false)
 			_text("%d · %d" % [c.x, c.y], at + Vector2(0, -3.5), 6.5, false, true)
 		_mark_soul(at + Vector2(-TILE.x * 0.5 + 1.0, -TILE.y * 0.5 + 1.0), 0.85)
-	_text("W A S D pick  ·  E open", Vector2(AREA.position.x, AREA.end.y - 6.0), 6.5, false)
-	_legend([
-		["you are here", func(at: Vector2) -> void: _mark_tile(at, Vector2(9, 6), true)],
-		["visited", func(at: Vector2) -> void: _mark_tile(at, Vector2(9, 6), false)],
-		["way opened", func(at: Vector2) -> void: marks.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(at.x - 5.0, at.y - 1.6, 10.0, 3.2, 1.6)], false)],
-	] + _side_rows() + [
-		["respawn", _mark_respawn_level],
-		["relic", func(at: Vector2) -> void: _mark_relic(at, &"blink")],
-		["lodestone", func(at: Vector2) -> void: _mark_lodestone(at, &"hex", false)],
-		["shrine used", _mark_spent_shrine],
-		["ghost", func(at: Vector2) -> void: _mark_ghost(at, 0.2)],
-	] + ([["beast's soul", func(at: Vector2) -> void: _mark_soul(at)]] if not info.run.souls.is_empty() else []))
+	_noting = false
 
 
 func _mark_tile(at: Vector2, size: Vector2, here: bool) -> void:
 	var rect: PackedVector2Array = RisoShapes.rrect(at.x - size.x * 0.5, at.y - size.y * 0.5, size.x, size.y, minf(5.0, size.y * 0.3))
 	marks.ink(RisoPrint.ACCENT if here else RisoPrint.BLUE, 0.55 if here else 0.25, [rect], false)
-
-
-## A legend row for each kind of side world.
-func _side_rows() -> Array:
-	var rows: Array = []
-	for k: int in range(Worlds.KINDS.size()):
-		rows.append([Worlds.proto(k).name, func(at: Vector2) -> void: _mark_side(_bezier(at + Vector2(-1, -5), at + Vector2(3, -2), at + Vector2(3, 2), at + Vector2(-1, 5)), 4.0, false, Rect2(), 0.0)])
-	return rows
 
 
 ## A side world on the worlds page: a smooth curve out of the middle of the bottom of the level it

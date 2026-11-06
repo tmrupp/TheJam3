@@ -6,9 +6,12 @@ extends TestKit
 ## Many tests rely on levels being laid out exactly as they were, and a draw from the world RNG
 ## added, dropped or moved upstream shifts everything after it in every level. This test says so
 ## directly, rather than leaving it to show as failures in tests about something else. When the
-## change is meant, copy the fingerprints it prints into GOLDEN, and say in the report that levels
-## changed (see AGENTS.md, "Level generation").
-## godot --headless --path . --script res://tests/layout_fingerprint_test.gd
+## change is meant, run it with "update" after a lone "--" and it writes the fingerprints now into
+## GOLDEN itself (or copy the ones it prints), and say in the report that levels changed (see
+## AGENTS.md, "Level generation"). The fingerprints are the default band layout's (Bands.DEFAULT):
+## under another, places of bands left out are skipped and the rest are only checked to be dressed
+## the same way twice.
+## godot --headless --path . --script res://tests/layout_fingerprint_test.gd [-- update]
 
 ## The places fingerprinted: [label, archetype (or &"side" for side world kind 0), seed, rows into
 ## the archetype's band counting away from the start (NextWorldDef.band_row; the garden's go down,
@@ -32,17 +35,17 @@ const PLACES: Array = [
 
 ## label -> [terrain, dressing], as printed by this test.
 const GOLDEN: Dictionary = {
-	"garden": ["3141ca88260d303e", "6d800d71aa1b359d"],
-	"garden deeper": ["fb83f8a8fba7e562", "e2b497d10d73fa3f"],
+	"garden": ["3141ca88260d303e", "7984a934b90b7529"],
+	"garden deeper": ["fb83f8a8fba7e562", "2c40c172027b845e"],
 	"garden above": ["a22845835c87543e", "7895b825bca8d5ed"],
-	"garden way up": ["d67924ee7d49c1fe", "f2ff3dccf0cc6ff8"],
-	"cemetery": ["66864e266cbd7058", "742ebb88df1c0c5f"],
-	"cemetery deeper": ["f1b78ec97a2b8f94", "b7a35184e676949d"],
-	"institute": ["b39d2a5e4c3484c8", "991df3925273850c"],
-	"institute deeper": ["95076f54d35f7650", "0b25c63f4e048da1"],
-	"crags": ["244bfc1eeee7e55f", "1da442d6964815dc"],
-	"sky": ["86785972a609d548", "70ff66db545a2244"],
-	"sky deeper": ["93cd2873db0561dd", "cd135a45578d5081"],
+	"garden way up": ["d67924ee7d49c1fe", "20fa35ccf573bea7"],
+	"cemetery": ["4452932defc2a9e3", "930538e817a7efac"],
+	"cemetery deeper": ["2839074ab4882f9a", "8a8740339e37fc12"],
+	"institute": ["a9d995259ab92f7f", "b523072b654811e9"],
+	"institute deeper": ["6cf52b589c29c86e", "4621e28f7df74c36"],
+	"crags": ["dbc0d438b49a1f90", "2b76ad82007265b5"],
+	"sky": ["16a0de55152d344b", "a1dedbf9e33572aa"],
+	"sky deeper": ["b1bec46209161dce", "f8b57fcd61d22dc7"],
 	"hyperspace": ["e9ba117f74a98ef2", "783bbb3a3067b93e"],
 	"hyperspace above": ["a4925ba108552847", "96912b05062f4142"],
 }
@@ -50,9 +53,18 @@ const GOLDEN: Dictionary = {
 
 func run() -> void:
 	MapInfo.debug = false
+	var update: bool = "update" in OS.get_cmdline_user_args()
+	var compare: bool = Bands.current == Bands.DEFAULT
+	if not compare:
+		print("  the bands in play are %s, not %s: fingerprints are not compared" % [Bands.current, Bands.DEFAULT])
 	var printed: Array[String] = []
+	var changed: bool = false
 	for place: Array in PLACES:
 		var label: String = place[0]
+		var kind: StringName = place[1]
+		if kind != &"side" and not Bands.has(kind):
+			print("  skip ", label, ": no ", kind, " in the bands in play")
+			continue
 		var at: Vector2i = _where(place)
 		var cells: Array = collapse(at)
 		check(not cells.is_empty(), "%s %s: the terrain collapses" % [label, at])
@@ -64,21 +76,45 @@ func run() -> void:
 		var dressing: String = _dressing(w)
 		check_eq(_dressing(again), dressing, "%s %s: dressed the same way twice" % [label, at])
 		printed.append('\t"%s": ["%s", "%s"],' % [label, terrain, dressing])
+		if not compare:
+			continue
 		if not GOLDEN.has(label):
-			check(false, "%s %s: no fingerprint kept yet" % [label, at])
+			changed = true
+			check(update, "%s %s: no fingerprint kept yet" % [label, at])
 			continue
 		var want: Array = GOLDEN[label]
+		changed = changed or terrain != want[0] or dressing != want[1]
+		if update:
+			continue
 		if terrain != want[0]:
 			check(false, "%s %s: the terrain changed (the WFC sample, the level's size or seed, or the collapse)" % [label, at])
 		elif dressing != want[1]:
 			check(false, "%s %s: the dressing changed (a placement rule, or an RNG draw added, dropped or moved upstream)" % [label, at])
 		else:
 			check(true, "%s %s: laid out as before" % [label, at])
-	if failed:
-		print("If the change is meant, these are the fingerprints now (for GOLDEN):")
+	if update and compare and changed:
+		_write_golden(printed)
+	elif failed:
+		print("If the change is meant, these are the fingerprints now (for GOLDEN, or run with -- update):")
 		for line: String in printed:
 			print(line)
 	finish()
+
+
+## Write `lines` (as printed) into this script's GOLDEN, in place of what it holds.
+func _write_golden(lines: Array[String]) -> void:
+	var path: String = (get_script() as Script).resource_path
+	var text: String = FileAccess.get_file_as_string(path)
+	var start: int = text.find("const GOLDEN: Dictionary = {")
+	var end: int = text.find("\n}\n", start)
+	if start < 0 or end < 0:
+		check(false, "GOLDEN found in %s to write" % path)
+		return
+	text = text.substr(0, start) + "const GOLDEN: Dictionary = {\n" + "\n".join(lines) + text.substr(end)
+	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
+	file.store_string(text)
+	file.close()
+	print("GOLDEN updated in %s: say in the report that levels changed" % path)
 
 
 ## The place a row of PLACES names.

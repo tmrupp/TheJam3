@@ -73,9 +73,9 @@ func use() -> void:
 
 func interaction_hint() -> Dictionary:
 	if can_snuff():
-		return {"text": "douse · %d" % held()}
+		return {"text": str(held())}
 	if can_fill():
-		return {"text": "pour · %d" % map_info.run.dark_charges}
+		return {"text": str(map_info.run.dark_charges)}
 	return {}
 
 

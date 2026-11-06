@@ -23,6 +23,9 @@ extends TestKit
 
 
 func run() -> void:
+	if not needs([&"crags"]):
+		finish()
+		return
 	generation()
 	await ride()
 	RunState.delete_save()
@@ -32,8 +35,8 @@ func run() -> void:
 func generation() -> void:
 	print("laid out")
 	var diagonal: int = 0
-	for k: int in [0, 2, 5]:
-		var at: Vector2i = Vector2i(28, NextWorldDef.band_row(&"crags", k))
+	for row: int in band_rows(&"crags", [0, 2, -1]):
+		var at: Vector2i = Vector2i(28, row)
 		var def: NextWorldDef = Rules.def_for(at)
 		check(def.archetype == &"crags" and def.symmetry == 1 and def.region == CragsArchetype.SAMPLE and def.realm() == &"crags", "row %d is a crag level, collapsed unturned from its own sample, in its own realm" % at.y)
 		check(def.size.y > def.size.x, "row %d is taller than wide (%s)" % [at.y, def.size])
@@ -80,8 +83,9 @@ func _circuit(w: LevelGen, at: Vector2i) -> int:
 	var gates: Array[Vector2i] = info["gates"]
 	check(stops.size() >= CragsArchetype.STATIONS_MIN, "its line has %d stations" % stops.size())
 	check(gondolas[0] == path[stops[int(info["start"])]], "its car waits at its open station")
-	# In the golem's gate level, its top is the foot of its hall there (LodeHall).
-	var top: float = float(CragsArchetype.TOP_TIER + CragsArchetype.STATION_JITTER + 8) if w.keep.is_empty() else float((w.keep["box"] as Rect2i).end.y + CragsArchetype.LEAVE + 3)
+	# In the golem's gate level, its top is the foot of its hall there (LodeHall), give or take the
+	# stations' jitter, as lay_circuit spreads them.
+	var top: float = float(CragsArchetype.TOP_TIER + CragsArchetype.STATION_JITTER + 8) if w.keep.is_empty() else float((w.keep["box"] as Rect2i).end.y + CragsArchetype.LEAVE + 3 + CragsArchetype.STATION_JITTER)
 	check(float(path[0].y) > float(w.size.y) * 0.7 and float(path[-1].y) < top, "it climbs from near the bottom of the level (row %d) to near its top, or the golem's hall (row %d)" % [path[0].y, path[-1].y])
 	var diagonal: int = 0
 	var steps_ok: bool = true

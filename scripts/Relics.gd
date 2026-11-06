@@ -5,7 +5,7 @@ extends RefCounted
 ## secret room (see LevelGen.place_secrets) or behind a bone gate in rare levels (in the institute,
 ## a master out in the level carries it instead, Institute.populate, and leaves it once beaten; and
 ## an instructor teaching levitate or astral leaves that move's relic, MapInfo.instructor_fell): from depth
-## MIN_DEPTH, CHANCE % of them rising to CHANCE_MAX deeper (see chance; about one in 15, so a big
+## min_depth (MIN_DEPTH; the demo's garden, from its first row), CHANCE % of them rising to CHANCE_MAX deeper (see chance; about one in 15, so a big
 ## move means going out of your way), each holding one of MOVES dealt by its seed (every level of a
 ## debug run holds one). Once a move is known, shrines offer its higher tiers as usual. At full
 ## health, a shrine's mending station sells the whereabouts of the nearest relic not yet found
@@ -13,8 +13,9 @@ extends RefCounted
 
 const MOVES: Array[StringName] = [&"double_jump", &"wall_climb", &"blink", &"levitate", &"astral"]
 const CHANCE: int = 5
-## Relics lie no shallower than this; from there the chance rises a point every two levels, up to
-## CHANCE_MAX, so a run meets about as many as before, only deeper.
+## Relics lie no shallower than this, unless the band layout says otherwise (min_depth); from there
+## the chance rises a point every two levels, up to CHANCE_MAX, so a run meets about as many as
+## before, only deeper.
 const MIN_DEPTH: int = 3
 const CHANCE_MAX: int = 8
 const PRICE: float = 4.0
@@ -23,12 +24,19 @@ const HINT_PRICE: float = 1.5
 const SEARCH: int = 12
 
 
-## The share (%) of levels `depth` deep that hold a relic (0 above MIN_DEPTH).
+## How deep relics first lie in the band layout in play: MIN_DEPTH, or the layout's own
+## "relics_from" (Bands.relics_from; the demo's garden lets them lie from its first row).
+static func min_depth() -> int:
+	return Bands.relics_from()
+
+
+## The share (%) of levels `depth` deep that hold a relic (0 above min_depth).
 static func chance(depth: int) -> int:
-	if depth < MIN_DEPTH:
+	var first: int = min_depth()
+	if depth < first:
 		return 0
 	@warning_ignore("integer_division")
-	return mini(CHANCE + (depth - MIN_DEPTH) / 2, CHANCE_MAX)
+	return mini(CHANCE + (depth - first) / 2, CHANCE_MAX)
 
 
 ## The move the relic in level `at` holds, or &"" for a level without one.
@@ -38,7 +46,7 @@ static func at(at: Vector2i) -> StringName:
 		return &""
 	var h: int = Rules.level_seed(Rules.level_seed(at.x, at.y), 4242)
 	var d: int = absi(at.y)
-	if not MapInfo.debug and (d < MIN_DEPTH or h % 100 >= chance(d)):
+	if not MapInfo.debug and (d < min_depth() or h % 100 >= chance(d)):
 		return &""
 	@warning_ignore("integer_division")
 	return MOVES[(h / 100) % MOVES.size()]

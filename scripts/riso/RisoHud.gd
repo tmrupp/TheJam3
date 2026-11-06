@@ -23,6 +23,9 @@ const CARD_H: float = 10.0
 ## Half the height of a place's marks on a card's row, and on the end card.
 const PLACE_R: float = 3.0
 const END_PLACE_R: float = 5.0
+## On a won run's card, each trophy's radius and how far apart they stand.
+const WON_R: float = 7.0
+const WON_STEP: float = 18.0
 const CARD_ABOVE: float = 40.0
 ## The utility spell's mark on the sitting card: the room it is fitted into (wide, high), and how
 ## faint it prints while not ready. Mend's draughts follow it as dots, DRAUGHT_R across and
@@ -211,10 +214,20 @@ func _process(delta: float) -> void:
 
 
 ## When a run ends, a card in the middle of the sheet: the ghost, and under it the world and the
-## furthest from the start reached (a depth, or a height above the start).
+## furthest from the start reached (a depth, or a height above the start). A run won (MapInfo.won)
+## shows every boss's trophy in a row on it in place of the ghost.
 func _end_card() -> void:
 	var info: MapInfo = MapInfo.instance
-	if info != null and info.run_ending > 0.0:
+	if info != null and info.run_ending > 0.0 and info.won:
+		var bosses: Array[StringName] = Bands.bosses()
+		var w: float = maxf(100.0, WON_STEP * float(bosses.size()) + 24.0)
+		_paper(RisoShapes.rrect(160.0 - w * 0.5, 54, w, 62, 10), RisoPrint.ACCENT, 0.18)
+		for i: int in range(bosses.size()):
+			RisoMarks.trophy(ink, Vector2(160.0 + (float(i) - float(bosses.size() - 1) * 0.5) * WON_STEP, 80.0), WON_R, 1.0, bosses[i])
+		var place: Vector2i = Vector2i(info.run.run_seed, info.run.furthest_row)
+		var row: Array[Label] = [end_world, end_depth]
+		_place_row(place, Vector2(160.0 - _place_w(place, END_PLACE_R, row) * 0.5, 104.0), END_PLACE_R, row, 14.0)
+	elif info != null and info.run_ending > 0.0:
 		_paper(RisoShapes.rrect(110, 54, 100, 62, 10), RisoPrint.PINK, 0.18)
 		ink.ink(RisoPrint.GLOW, 1.0, RisoMarks.ghost_shape(Transform2D(0.0, Vector2(0.5, 0.5), 0.0, Vector2(160, 84))), false)
 		var at: Vector2i = Vector2i(info.run.run_seed, info.run.furthest_row)

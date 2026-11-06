@@ -16,7 +16,7 @@ func run() -> void:
 	window()
 	var at: Vector2i = Vector2i(-1, 0)
 	for x: int in WORLDS:
-		for k: int in range(NextWorldDef.BAND):
+		for k: int in range(Bands.rows_of(&"crags")):
 			var w: LevelGen = build(Vector2i(x, NextWorldDef.band_row(&"crags", k)))
 			if at.x < 0 and w != null and [LevelGen.Type.TRAPDOOR, LevelGen.Type.NEST, LevelGen.Type.WELL].all(func(t: LevelGen.Type) -> bool: return not w.objects_of(t).is_empty()):
 				at = Vector2i(x, NextWorldDef.band_row(&"crags", k))

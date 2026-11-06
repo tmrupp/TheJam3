@@ -12,6 +12,9 @@ extends TestKit
 
 
 func run() -> void:
+	if not needs([&"cemetery"]):
+		finish()
+		return
 	print("generation")
 	var timed: int = 0
 	var switched: int = 0

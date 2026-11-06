@@ -1,9 +1,13 @@
 class_name BrambleWound
 extends Wound
-## A bulb's health (BrambleBulb). It is soft, so any hex bolt or dash wounds it, even one that only
-## stuns at its tier (least 1), and so does a seed parried back into it. It is set in the rock, so a
-## blow does not knock it about, and it is never stunned. At 0 it bursts (Bramble.burst): no stars,
-## nothing kept in the level's record.
+## The health of a bulb (BrambleBulb) or of the bramble's heart (BrambleHeart). It is soft, so any
+## hex bolt or dash wounds it, even one that only stuns at its tier (least 1), and so does a seed or
+## barb parried back into it. It is set in the rock, so a blow does not knock it about, and it is
+## never stunned. A bulb shut in its bark (not in bloom, Bramble.bloom) or the heart shut after a
+## wound shrugs blows off, pale, all but a bulb's own seed parried back into it
+## (HexBolt.parried_blow); a burst bulb opened again for the last stand (BrambleBulb.wild) shrugs off
+## everything. A wound sends the bloom on, or shuts the heart (Bramble.wounded). At 0 it bursts
+## (Bramble.burst): no stars, nothing kept in the level's record.
 
 
 func _init() -> void:
@@ -16,7 +20,13 @@ func stunned() -> bool:
 
 func hit(damage: int, dir: Vector2) -> void:
 	var bulb: BrambleBulb = get_parent() as BrambleBulb
+	if bulb != null and bulb.wild:
+		bulb.warded(dir)
+		return
 	if bulb == null or not bulb.alive:
+		return
+	if not bulb.open() and not HexBolt.parried_blow:
+		bulb.warded(dir)
 		return
 	hp -= damage
 	bulb.struck()
@@ -24,6 +34,8 @@ func hit(damage: int, dir: Vector2) -> void:
 	Wound.felt(bulb, dir, hp <= 0)
 	if hp <= 0:
 		_die(bulb)
+	elif bulb.bramble != null:
+		bulb.bramble.wounded(bulb)
 
 
 func _die(host: Node2D) -> void:

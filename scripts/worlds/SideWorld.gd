@@ -23,6 +23,10 @@ var print_realm: StringName = &""
 var plants: bool = false
 ## Its door costs this many times the deeper exit's price, in the level the door is in.
 var price_factor: float = 1.0
+## Whether its door is laid once the rest of the level holding it is laid out, nearest the way
+## in, rather than among the level's exits (LevelGen.place_side_doors): so dealing it moves nothing
+## else in that level (the tutorial's, in every start level).
+var laid_last: bool = false
 ## Its cells across and down, and its WFC sample ("" for the levels' own).
 var cells: Vector2i = Vector2i(64, 16)
 var sample: String = ""

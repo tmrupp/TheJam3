@@ -10,6 +10,9 @@ func freeze_enemy(node: Node) -> void:
 		freeze_enemy(child)
 
 func run() -> void:
+	if not needs([&"cemetery"]):
+		finish()
+		return
 	window()
 	output = ProjectSettings.globalize_path("res://../art-captures/fog-shapes")
 	DirAccess.make_dir_recursive_absolute(output)

@@ -10,7 +10,8 @@ class_name Slash
 ## two cells in front of the wizard (cleave_cells), wounds Empower.EXTRA more, breaks a shield at
 ## once and strikes spires.
 
-const COOLDOWN: float = 0.45
+## Seconds until it is ready again.
+const COOLDOWN: float = 0.7
 const REACH: float = 110.0
 const HALF: float = 1.05
 const REACH_II: float = 140.0
@@ -44,6 +45,11 @@ func set_tier(n: int) -> void:
 ## The Spell button, with slash in the slot (`empowered`, see Empower).
 func cast_spell(empowered: bool = false) -> bool:
 	return cast(Vector2.ZERO, empowered)
+
+
+## A parry's catch gives the spell back at once, ready to cast (Parry, Abilities.refill).
+func refill() -> void:
+	wait = 0.0
 
 
 func readiness() -> float:

@@ -7,8 +7,14 @@ class_name RisoShapes
 ## asks for thousands of them a frame. The unit shapes, by kind and point count (see _unit).
 static var _units: Dictionary = {}
 ## The kinds of unit shape: a circle, a rounded rectangle's four corners (clockwise from the top
-## right, in order), an almond and a sparkle.
-enum Unit { CIRCLE, CORNER_TOP_RIGHT, CORNER_BOTTOM_RIGHT, CORNER_BOTTOM_LEFT, CORNER_TOP_LEFT, ALMOND, SPARKLE }
+## right, in order), an almond, a sparkle, a spindle (a buzzing magnet: bulging in the middle and
+## tapering to a point at either end) and the cap of a spindle's pole (its last stretch, at +x).
+enum Unit { CIRCLE, CORNER_TOP_RIGHT, CORNER_BOTTOM_RIGHT, CORNER_BOTTOM_LEFT, CORNER_TOP_LEFT, ALMOND, SPARKLE, SPINDLE, SPINDLE_CAP }
+## A spindle's profile: its half width at x along its half length is (1 - x²) to this power (a half
+## gives an ellipse; nearer 1, its ends come to points).
+const SPINDLE_TAPER: float = 1.0
+## How much of a spindle's half length its pole caps take, at either end.
+const SPINDLE_POLE: float = 0.38
 
 
 ## The unit shape of kind `kind` (a Unit) with `n` points (a circle) or segments (the rest), made
@@ -31,6 +37,20 @@ static func _unit(kind: int, n: int) -> PackedVector2Array:
 			for k: int in range(n - 1, 0, -1):
 				var u: float = float(k) / float(n)
 				out.append(Vector2(-1.0 + 2.0 * u, 4.0 * u * (1.0 - u)))
+		Unit.SPINDLE, Unit.SPINDLE_CAP:
+			# Its outline along the top from one end to the other, then back along the bottom; the
+			# points crowd toward the ends, where it turns. A cap is the stretch past 1 - SPINDLE_POLE.
+			var from: float = 1.0 - SPINDLE_POLE if kind == Unit.SPINDLE_CAP else -1.0
+			var top: PackedVector2Array = PackedVector2Array()
+			for k: int in range(n + 1):
+				var x: float = -cos(PI * float(k) / float(n))
+				if kind == Unit.SPINDLE_CAP:
+					x = lerpf(from, 1.0, float(k) / float(n))
+					x = 1.0 - (1.0 - x) * (1.0 - x) / (1.0 - from)
+				top.append(Vector2(x, -pow(maxf(0.0, 1.0 - x * x), SPINDLE_TAPER)))
+			out.append_array(top)
+			for k: int in range(n - 1, -1, -1):
+				out.append(Vector2(top[k].x, -top[k].y))
 		Unit.SPARKLE:
 			var tips: Array[Vector2] = [Vector2(0, -1), Vector2(1, 0), Vector2(0, 1), Vector2(-1, 0)]
 			for k: int in range(4):
@@ -151,6 +171,27 @@ static func crescent(c: Vector2, r: float, d: Vector2, n: int = 36) -> PackedVec
 
 static func almond(c: Vector2, w: float, h: float, seg: int = 10) -> PackedVector2Array:
 	return Transform2D(Vector2(w, 0.0), Vector2(0.0, h), c) * _unit(Unit.ALMOND, seg)
+
+
+## A spindle round `c`, `half_len` along its length (turned `ang`, radians) and `half_wid` across at
+## its middle: a buzzing magnet's shape, bulging in the middle and tapering to points.
+static func spindle(c: Vector2, half_len: float, half_wid: float, ang: float, n: int = 14) -> PackedVector2Array:
+	return _spindle_xf(c, half_len, half_wid, ang) * _unit(Unit.SPINDLE, n)
+
+
+## The caps of a spindle's two poles (see spindle): the last SPINDLE_POLE of its half length at
+## either end.
+static func spindle_caps(c: Vector2, half_len: float, half_wid: float, ang: float, n: int = 6) -> Array[PackedVector2Array]:
+	var unit: PackedVector2Array = _unit(Unit.SPINDLE_CAP, n)
+	var xf: Transform2D = _spindle_xf(c, half_len, half_wid, ang)
+	var out: Array[PackedVector2Array] = [xf * unit, xf * Transform2D.FLIP_X * unit]
+	return out
+
+
+## The transform that lays a unit spindle round `c`, long `half_len` along `ang` and `half_wid` across.
+static func _spindle_xf(c: Vector2, half_len: float, half_wid: float, ang: float) -> Transform2D:
+	var along: Vector2 = Vector2.from_angle(ang)
+	return Transform2D(along * half_len, along.orthogonal() * half_wid, c)
 
 
 ## Four-point star with concave (quadratic) sides.

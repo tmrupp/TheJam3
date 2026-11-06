@@ -1,6 +1,6 @@
 class_name WhaleHunt
 extends RefCounted
-## The hunt for the whale (Bosses.UP's last, docs/REGIONS_PLAN.md §6), apart from the scene: one
+## The hunt for the whale (the sky's boss, docs/REGIONS_PLAN.md §6), apart from the scene: one
 ## whale, on the sky's top row (row()), in one world at a time (RunState.whale_x). It is met (placed,
 ## start) the first time the wizard comes into a sky level, a few worlds off; after that, each time
 ## the wizard comes into a sky level it moves (move): held where it is if it is trapped (trapped:

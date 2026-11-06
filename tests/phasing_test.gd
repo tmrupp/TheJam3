@@ -66,6 +66,9 @@ func run() -> void:
 	check(player.health.health == hp, "snapping back from open air costs nothing")
 
 	print("through enemies")
+	# Hearts back: the skeleton wakes in the wizard's light and may walk over and strike the body
+	# (unless ledges are in its way), and on the one heart the rock left a blow would end the run.
+	player.health.health = player.health.max_health
 	var bones: Node2D = (load("res://prefabs/skeleton_enemy.tscn") as PackedScene).instantiate() as Node2D
 	info.map_elements.add_child(bones)
 	bones.global_position = body_at + Vector2(160, -10)

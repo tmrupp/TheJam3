@@ -16,6 +16,9 @@ const DART_AHEAD: Vector2 = Vector2(220.0, 50.0)
 
 
 func run() -> void:
+	if not needs([&"cemetery"]):
+		finish()
+		return
 	await boot()
 	info.coord = Vector2i(28, NextWorldDef.first_depth(&"cemetery"))
 	info.arrival = MapInfo.Exit.BACK

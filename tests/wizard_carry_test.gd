@@ -10,6 +10,9 @@ var wizard: RisoWizard
 
 
 func run() -> void:
+	if not needs([&"institute"]):
+		finish()
+		return
 	await boot()
 	wizard = player.get_node("RisoWizard") as RisoWizard
 	await _paper()

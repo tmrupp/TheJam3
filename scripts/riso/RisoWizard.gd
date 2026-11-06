@@ -138,8 +138,6 @@ func _ready() -> void:
 	body = InkCanvas.new()
 	body.rig()
 	body.keeps_shapes = true
-	# Printed in its own inks over an indoor realm's back wall (InkCanvas.punches_wall).
-	body.punches_wall = true
 	add_child(body)
 	guard = InkCanvas.new()
 	guard.z_index = 1
@@ -231,12 +229,15 @@ func _physics_process(delta: float) -> void:
 
 
 ## Every key carried trails the wizard on a soft lag: the newest behind the shoulder beside the bag
-## (KEY_HANG), each older one hanging behind the one before it (a chain), skeleton keys last.
+## (KEY_HANG), each older one hanging behind the one before it (a chain), skeleton keys then relic
+## unlocks last.
 func _trail_keys(delta: float) -> void:
 	var colors: Array[int] = player.keyring.all()
 	colors.reverse()
 	for i: int in range(player.keyring.skeletons()):
 		colors.append(KeyRing.SKELETON)
+	for i: int in range(player.keyring.unlocks()):
+		colors.append(KeyRing.UNLOCK)
 	if colors != key_colors:
 		key_colors = colors
 		key_trail.resize(mini(key_trail.size(), colors.size()))

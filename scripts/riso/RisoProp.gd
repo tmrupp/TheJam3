@@ -23,6 +23,8 @@ const KINDS: Dictionary = {
 	&"switch": "res://scripts/riso/props/SwitchArt.gd",
 	&"towerswitch": "res://scripts/riso/props/TowerSwitchArt.gd",
 	&"relic": "res://scripts/riso/props/RelicArt.gd",
+	&"trophy": "res://scripts/riso/props/TrophyArt.gd",
+	&"trophystand": "res://scripts/riso/props/TrophyArt.gd",
 	&"lantern": "res://scripts/riso/props/LanternArt.gd",
 	&"exit": "res://scripts/riso/props/ExitArt.gd",
 	&"moon": "res://scripts/riso/props/MoonArt.gd",
@@ -50,6 +52,7 @@ const KINDS: Dictionary = {
 	&"laser": "res://scripts/riso/props/LaserArt.gd",
 	&"shard": "res://scripts/riso/props/ShardArt.gd",
 	&"sign": "res://scripts/riso/props/SignArt.gd",
+	&"hint": "res://scripts/riso/props/HintArt.gd",
 	&"ferry": "res://scripts/riso/props/FerryArt.gd",
 	&"gondola": "res://scripts/riso/props/GondolaArt.gd",
 	&"station": "res://scripts/riso/props/StationArt.gd",
@@ -161,6 +164,11 @@ func shines() -> bool:
 	return false
 
 
+## Whether what it prints in the rock's ink is the rock itself (InkCanvas.of_the_rock).
+func of_the_rock() -> bool:
+	return false
+
+
 ## A light at `local` (in its art's frame), of `size` (RisoLight.SPARK, GLEAM or BEACON), tinted in
 ## `plate` (-1 for none); none while its host is hidden (a chunk asleep, a key taken).
 func _light(local: Vector2, size: Vector3, plate: int) -> Array:
@@ -217,8 +225,7 @@ func _ready() -> void:
 	if tm != null and tm.tile_set != null:
 		half = float(tm.tile_set.tile_size.y) * tm.global_scale.y * 0.5
 	ink = InkCanvas.new()
-	# Printed in its own inks over an indoor realm's back wall (InkCanvas.punches_wall).
-	ink.punches_wall = true
+	ink.of_the_rock = of_the_rock()
 	add_child(ink)
 	z_index = 2
 	if shines():
@@ -405,6 +412,50 @@ func _plaque(text: String, at: Vector2, px: int, tint: int, s: float = 1.0) -> v
 	u.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE], [plate])
 	u.ink(tint, 0.2, [plate], false)
 	_text(text, at, px, s)
+
+
+## A bare-paper plaque `size` across (unscaled) with no words, centred on `at`, scaled by `s`;
+## returns the canvas it is on, for the caller's marks on it.
+func _blank_plaque(at: Vector2, size: Vector2, tint: int, s: float = 1.0) -> InkCanvas:
+	var w: float = size.x * s
+	var h: float = size.y * s
+	var plate: PackedVector2Array = RisoShapes.rrect(at.x - w * 0.5, at.y - h * 0.5, w, h, h * 0.35)
+	var u: InkCanvas = _ui()
+	u.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE], [plate])
+	u.ink(tint, 0.2, [plate], false)
+	return u
+
+
+## The size of a plaque with a swap mark on it (_swap_plaque), unscaled.
+const SWAP_PLAQUE: Vector2 = Vector2(60, 42)
+
+
+## A plaque marking a swap (taking it puts out what is in its slot): two arrows, one over the
+## other, pointing opposite ways, in pink (a cost). No words.
+func _swap_plaque(at: Vector2, s: float = 1.0) -> void:
+	var u: InkCanvas = _blank_plaque(at, SWAP_PLAQUE, RisoPrint.PINK, s)
+	var arrows: Array[PackedVector2Array] = []
+	for row: float in [-1.0, 1.0]:
+		var y: float = at.y + row * 8.0 * s
+		var dir: float = -row
+		var tail: float = at.x - dir * 18.0 * s
+		var tip: float = at.x + dir * 18.0 * s
+		var neck: float = tip - dir * 9.0 * s
+		arrows.append(RisoShapes.rrect(minf(tail, neck), y - 2.5 * s, absf(neck - tail), 5.0 * s, 2.5 * s))
+		arrows.append(PackedVector2Array([Vector2(tip, y), Vector2(neck - dir * 1.0 * s, y - 7.0 * s), Vector2(neck - dir * 1.0 * s, y + 7.0 * s)]))
+	u.ink(RisoPrint.PINK, 1.0, arrows, false)
+
+
+## A plaque with `text` (a number) and, after it, a spark of spell light: what a cast of the spell
+## costs. No words.
+func _cast_plaque(text: String, at: Vector2, px: int, s: float = 1.0) -> void:
+	var w: float = _plaque_width(text, px) + float(px) * 0.8
+	var u: InkCanvas = _blank_plaque(at, Vector2(w, float(px) * 1.25), RisoPrint.BLUE, s)
+	var text_w: float = RisoTheme.serif().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x * s
+	var spark_r: float = float(px) * 0.32 * s
+	var text_x: float = at.x - spark_r - 1.0 * s
+	_text(text, Vector2(text_x, at.y), px, s)
+	u.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.sparkle(Vector2(text_x + text_w * 0.5 + spark_r + 3.0 * s, at.y), spark_r)], false)
 
 
 ## Pop-up `i` eased toward 1 while the wizard stands within reach of `at` (local, world pixels)

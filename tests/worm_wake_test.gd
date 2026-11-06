@@ -8,30 +8,27 @@ extends TestKit
 func run() -> void:
 	MapInfo.debug = false
 	await boot(42)
-	info.coord = Vector2i(42, NextWorldDef.GARDEN_ROWS)
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
-	var worms: Array[Node] = placed("worm.tscn")
-	check(worms.size() == 1, "the gate level places its worm")
-	if worms.is_empty():
+	# Not every gate level has such a cell (the burrow may sit near the level's edge): look over a
+	# few worlds.
+	var worm: Worm = null
+	var spot: Vector2i = Vector2i(-1, -1)
+	for world: int in WORLDS:
+		info.coord = Vector2i(world, Bands.garden_rows())
+		info.arrival = MapInfo.Exit.BACK
+		info._load_level()
+		await settle()
+		player.set_physics_process(false)
+		var worms: Array[Node] = placed("worm.tscn")
+		check(worms.size() == 1, "world %d: the gate level places its worm" % world)
+		if worms.is_empty():
+			continue
+		worm = worms[0] as Worm
+		spot = _boundary(worm)
+		if spot != Vector2i(-1, -1):
+			break
+	if worm == null:
 		finish()
 		return
-	var worm: Worm = worms[0] as Worm
-	var spot: Vector2i = Vector2i(-1, -1)
-	var r: int = Worm.WAKE_RANGE
-	@warning_ignore("integer_division")
-	var half: int = r / 2
-	for d: Vector2i in [Vector2i(r, 0), Vector2i(-r, 0), Vector2i(0, -r), Vector2i(half, half - r), Vector2i(-half, half - r)]:
-		var cell: Vector2i = worm.home + d
-		if not info.world.is_valid(cell) or LevelGen.dist(cell, worm.home) != r:
-			continue
-		player.global_position = info.cell_position(cell)
-		info.loader.wake_around(player.global_position)
-		if not info.loader.is_awake(worm):
-			spot = cell
-			break
 	check(spot != Vector2i(-1, -1) and not worm.awake, "a cell at the activation boundary lies outside the burrow's awake chunks")
 	if spot == Vector2i(-1, -1):
 		finish()
@@ -45,3 +42,24 @@ func run() -> void:
 	check(worm.process_mode == Node.PROCESS_MODE_INHERIT and worm.visible, "once awakened it keeps pursuing when the player leaves the activation range")
 	RunState.delete_save()
 	finish()
+
+
+## The worlds whose gate levels are looked over, in turn.
+const WORLDS: Array[int] = [42, 28, 7, 99, 512, 3]
+
+
+## A cell exactly WAKE_RANGE from `worm`'s burrow from which its burrow's chunk stays asleep (the
+## wizard is left standing there), or (-1, -1) if the level has none.
+func _boundary(worm: Worm) -> Vector2i:
+	var r: int = Worm.WAKE_RANGE
+	@warning_ignore("integer_division")
+	var half: int = r / 2
+	for d: Vector2i in [Vector2i(r, 0), Vector2i(-r, 0), Vector2i(0, -r), Vector2i(half, half - r), Vector2i(-half, half - r)]:
+		var cell: Vector2i = worm.home + d
+		if not info.world.is_valid(cell) or LevelGen.dist(cell, worm.home) != r:
+			continue
+		player.global_position = info.cell_position(cell)
+		info.loader.wake_around(player.global_position)
+		if not info.loader.is_awake(worm):
+			return cell
+	return Vector2i(-1, -1)

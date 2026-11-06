@@ -16,7 +16,7 @@ var inner: int = 1
 
 
 func interaction_hint() -> Dictionary:
-	return {"text": "call"}
+	return {}
 
 
 func _ready() -> void:

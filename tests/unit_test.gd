@@ -2,7 +2,7 @@ extends TestKit
 ## The game's rules that are plain arithmetic, checked without the game scene (a second or so):
 ## level seeds, prices and the other numbers that grow with depth, key colours by rarity, where
 ## side worlds sit, the bands of archetypes, where each exit leads, the cemetery's darkness, the
-## shrine's offers, and the keyring. A rule that needs a level laid out belongs in a test that builds one.
+## shrine's offers, the keyring, and figures' colours reading on every realm's ground. A rule that needs a level laid out belongs in a test that builds one.
 ## godot --headless --path . --script res://tests/unit_test.gd
 
 ## level_seed of these places, as it has always been: every level of every run comes from it, so a
@@ -32,13 +32,19 @@ func run() -> void:
 	_branches()
 	_relics()
 	_wind()
-	_whale()
-	_beast()
-	_institute()
+	# The rules of a band, where it is in the bands in play (Bands).
+	if Bands.has(&"sky"):
+		_whale()
+	if Bands.has(&"institute"):
+		_beast()
+		_institute()
 	_stations()
-	_darkness()
-	_lodestones()
-	_renamed()
+	if Bands.has(&"cemetery"):
+		_darkness()
+	if Bands.has(&"crags"):
+		_lodestones()
+		_renamed()
+	_legibility()
 	var p: Player = Player.new()
 	_ability_tables()
 	_protocols()
@@ -46,6 +52,55 @@ func run() -> void:
 	_keyring(p)
 	p.free()
 	finish()
+
+
+## Figures read on every realm's ground (RisoPrint.legible): each key colour and each department's
+## colour, as printed in each realm, stands off its grounds by RisoPrint.FIGURE_CONTRAST and is
+## lighter, or has been screened as far as screening goes; in every realm a place prints in (all but
+## the F8 cycle's twilight and aurora) it stands off outright. Moss (sun over the rock's ink) would
+## be brown on the institute's brown wall unscreened; sun there needs nothing. Every canvas prints
+## its things over the rock's ink of the ground behind them in their own inks unless it is the ground, and holds
+## the rock's ink in them to what reads (InkCanvas.figure_rock) unless it is the rock.
+func _legibility() -> void:
+	var all_read: bool = true
+	var places_read: bool = true
+	var failing: Array[String] = []
+	for r: StringName in RisoPrint.REALMS:
+		var overprints: Dictionary = {}
+		for color: int in range(Rules.KEY_COLOR_COUNT):
+			overprints["key %d" % color] = RisoPrint.key_layers(color, r)
+		for dept: StringName in RisoPrint.DEPT_INKS:
+			overprints[String(dept)] = RisoPrint.legible(RisoPrint.DEPT_INKS[dept], r)
+		for what: String in overprints:
+			var layers: Array = overprints[what]
+			if RisoPrint.reads_on(RisoPrint.printed(layers, r), RisoPrint.grounds(r)):
+				continue
+			if r != &"twilight" and r != &"aurora":
+				places_read = false
+				failing.append("%s %s" % [r, what])
+			for layer: Array in layers:
+				if RisoPrint.plate_ink(int(layer[0]), r) != Color.WHITE and float(layer[1]) > RisoPrint.SCREEN_FLOOR + 0.001:
+					all_read = false
+					failing.append("%s %s unscreened" % [r, what])
+	check(all_read, "every figure colour reads on its realm's ground or is screened as far as it goes %s" % [failing])
+	check(places_read, "every figure colour reads outright in every realm a place prints in %s" % [failing])
+	var moss: Array = [[RisoPrint.ACCENT, 1.0], [RisoPrint.BLUE, 1.0]]
+	check(not RisoPrint.reads_on(RisoPrint.printed(moss, &"institute"), RisoPrint.grounds(&"institute")), "a moss key unscreened sinks into the institute's wall")
+	check(float(RisoPrint.key_layers(2, &"institute")[1][1]) < 1.0, "the institute's moss key has its rock ink screened back")
+	check_eq(RisoPrint.key_layers(0, &"institute"), [[RisoPrint.ACCENT, 1.0]], "the institute's sun key prints as it is")
+	var canvas: InkCanvas = InkCanvas.new()
+	check(canvas.punches_wall, "a canvas prints over the rock's ink of the ground in its own inks unless told it is the ground")
+	check(not canvas.of_the_rock, "a canvas's rock ink is a thing's, held to what reads, unless told it is the rock")
+	canvas.free()
+	# The rock's ink in a thing of the game (InkCanvas.figure_rock): screened in the institute, whose
+	# brown is near its night, and as it is in the sky, whose white cloud stands well off its night.
+	var rock_reads: bool = true
+	for r: StringName in RisoPrint.REALMS:
+		if r != &"twilight" and r != &"aurora" and not RisoPrint.reads_on(RisoPrint.printed(RisoPrint.legible([[RisoPrint.BLUE, 1.0]], r), r), RisoPrint.grounds(r)):
+			rock_reads = false
+	check(rock_reads, "a thing's rock ink, held to what reads, reads on the ground of every realm a place prints in")
+	check(float(RisoPrint.legible([[RisoPrint.BLUE, 1.0]], &"institute")[0][1]) < 1.0, "the institute screens a thing's rock ink")
+	check_eq(RisoPrint.legible([[RisoPrint.BLUE, 1.0]], &"sky"), [[RisoPrint.BLUE, 1.0]], "the sky prints a thing's rock ink as it is")
 
 
 ## The crags' lodestones (Rules.lodestone_at): along each crags row, every stretch of
@@ -58,7 +113,7 @@ func _lodestones() -> void:
 	var stretch: int = Rules.LODESTONE_STRETCH
 	var each_once: bool = true
 	var quarter: bool = true
-	for k: int in range(NextWorldDef.BAND):
+	for k: int in range(Bands.rows_of(&"crags")):
 		var row: int = NextWorldDef.band_row(&"crags", k)
 		for s: int in [-3, -1, 0, 1, 5]:
 			var found: Dictionary = {}
@@ -181,37 +236,39 @@ func _rarity() -> void:
 
 
 func _archetypes() -> void:
-	var band: int = NextWorldDef.BAND
-	var g: int = NextWorldDef.GARDEN_ROWS
-	# The garden is the hub, both ways from the start; then the bands of each way, in turn.
-	var bands: Array = []
-	for row: int in range(-3 * band - g, 3 * band + g + 1):
-		bands.append(NextWorldDef.archetype_at(row))
-	var want: Array = []
-	for row: int in range(-3 * band - g, 3 * band + g + 1):
-		var d: int = absi(row)
-		if d <= g:
-			want.append(&"garden")
-		elif row > 0:
-			want.append(&"cemetery" if d <= g + band else &"institute")
-		else:
-			want.append(&"crags" if d <= g + band else &"sky")
-	check_eq(bands, want, "the garden spans rows -%d to %d; down the cemetery then the institute, up the crags then the sky, %d rows each, the outermost going on" % [g, g, band])
+	var g: int = Bands.garden_rows()
+	# The garden is the hub, both ways from the start; then the bands of each way, in turn, each
+	# its rows long, the outermost going on (the garden, a way with none). Asked of the bands in
+	# play, so it holds however they are tuned (bands_test tries other layouts).
+	var spans: bool = true
+	for row: int in range(-g, g + 1):
+		spans = spans and NextWorldDef.archetype_at(row) == &"garden"
+	for dir: int in [1, -1]:
+		var row: int = g + 1
+		var last: StringName = &"garden"
+		for band: Dictionary in Bands.way(dir):
+			last = Bands.name_of(band["arch"])
+			for k: int in range(int(band["rows"])):
+				spans = spans and NextWorldDef.archetype_at(dir * row) == last and NextWorldDef.band_row(last, k) == dir * row
+				row += 1
+		spans = spans and NextWorldDef.archetype_at(dir * (row + 40)) == last
+	check(spans, "the garden spans rows -%d to %d, then each way's bands follow, their rows each, the outermost going on (%s)" % [g, g, Bands.current])
 	check_eq(NextWorldDef.archetype_at(0), &"garden", "the run starts in the garden")
 	check_eq(NextWorldDef.first_depth(&"nowhere"), -1, "no band for an archetype that does not exist")
-	var firsts: Dictionary = {&"garden": 0, &"cemetery": g + 1, &"institute": g + 1 + band, &"crags": -(g + 1), &"sky": -(g + 1 + band)}
-	for kind: StringName in firsts:
-		check_eq(NextWorldDef.first_depth(kind), int(firsts[kind]), "the %s's row nearest the start" % kind)
-	check(NextWorldDef.band_row(&"sky", 2) == -(g + 3 + band) and NextWorldDef.band_row(&"cemetery", 2) == g + 3, "band rows count away from the start, up or down")
-	for kind: StringName in [&"garden", &"cemetery", &"sky", &"crags", &"institute"]:
+	for kind: StringName in NextWorldDef.archetype_names():
 		var def: NextWorldDef = Rules.def_for(Vector2i(28, NextWorldDef.first_depth(kind)))
 		check(def.archetype == kind and def.realm() == kind and RisoPrint.REALMS.has(kind), "a %s level is printed in its own realm" % kind)
-	var sky_depth: int = NextWorldDef.first_depth(&"sky")
-	var sky: NextWorldDef = Rules.def_for(Vector2i(28, sky_depth))
-	check_eq(sky.depth, absi(sky_depth), "a level's depth is its distance from the start, whichever way")
-	check_eq(sky.size, Vector2i((Vector2(Rules.level_size(sky.depth)) * SkyArchetype.SCALE).round()), "a sky level is SkyArchetype.SCALE times a cave level of its distance")
+	var up: int = -(g + 1)
+	var above: NextWorldDef = Rules.def_for(Vector2i(28, up))
+	check_eq(above.depth, absi(up), "a level's depth is its distance from the start, whichever way")
 	check(Rules.where(Vector2i(28, -5)) == "world 28 · height 5" and Rules.where(Vector2i(28, 5)) == "world 28 · depth 5", "a level above the start is named by its height")
-	check(sky.chasmed() and Rules.def_for(Vector2i(28, NextWorldDef.first_depth(&"cemetery"))).chasmed() and not Rules.def_for(Vector2i(28, 0)).chasmed(), "the cemetery and the sky have chasms, the garden none")
+	check(not Rules.def_for(Vector2i(28, 0)).chasmed(), "the garden has no chasms")
+	if Bands.has(&"sky"):
+		var sky: NextWorldDef = Rules.def_for(Vector2i(28, NextWorldDef.first_depth(&"sky")))
+		check_eq(sky.size, Vector2i((Vector2(Rules.level_size(sky.depth)) * SkyArchetype.SCALE).round()), "a sky level is SkyArchetype.SCALE times a cave level of its distance")
+		check(sky.chasmed(), "the sky has chasms (its gaps)")
+	if Bands.has(&"cemetery"):
+		check(Rules.def_for(Vector2i(28, NextWorldDef.first_depth(&"cemetery"))).chasmed(), "and the cemetery")
 
 
 func _side_worlds() -> void:
@@ -333,7 +390,7 @@ func _renamed() -> void:
 	var old: Dictionary = {"bosses": {&"spider": true, &"worm": true}, "boss_relics": {&"spider": [Vector2i(3, -9), Vector2(10, 20), &"blink"]}}
 	var now: Dictionary = RunState.gone_kinds(old)
 	check(now["bosses"] == {&"golem": true, &"worm": true} and (now["boss_relics"] as Dictionary).keys() == [&"golem"], "a save's slain spider and its relic are the golem's")
-	check(Bosses.row_of(&"golem") == -(NextWorldDef.GARDEN_ROWS + NextWorldDef.BAND) and Bosses.row_of(&"spider") == 0, "the golem guards the crags' gate, and the spider nothing")
+	check(Bosses.row_of(&"golem") == NextWorldDef.band_row(&"crags", Bands.rows_of(&"crags") - 1) and Bosses.row_of(&"spider") == 0, "the golem guards the crags' gate, and the spider nothing")
 
 
 ## A sky level's wind (Rules.wind_of): still with no vane on; the way of the vane last switched
@@ -550,7 +607,7 @@ func _darkness() -> void:
 	check(seen[11] == Vector2i(1, 1) and seen.slice(12) == [Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0)], "down to the last charge, then a dash leaves the flame lit and spends nothing")
 	check_eq(Rules.dash_dark(true, 0), Vector2i(0, 0), "a dash out of the dark with nothing to spend lights the flame")
 	var first: int = NextWorldDef.first_depth(&"cemetery")
-	var gate: int = NextWorldDef.band_row(&"cemetery", NextWorldDef.BAND - 1)
+	var gate: int = NextWorldDef.band_row(&"cemetery", Bands.rows_of(&"cemetery") - 1)
 	var fontless: int = 0
 	var dealt: int = 0
 	var never: bool = true
@@ -564,7 +621,11 @@ func _darkness() -> void:
 	check(never, "never fontless in the band's first row, its gate level or another band, and no ossuary in the gate level")
 	var share: float = float(fontless) / float(dealt)
 	check(absf(share * 100.0 - float(Rules.FONTLESS_SHARE)) < 8.0, "%d of %d of the cemetery's other levels without fonts (%.0f %%)" % [fontless, dealt, share * 100.0])
-	check(Rules.ossuary_fill(first) == Rules.OSSUARY_FILL.x and Rules.ossuary_fill(gate - 1) == Rules.OSSUARY_FILL.y and Rules.ossuary_fill(first + 2) > Rules.ossuary_fill(first + 1), "an ossuary door drinks %d charges in the first row, more each row, %d in the last before the gate level" % [Rules.OSSUARY_FILL.x, Rules.OSSUARY_FILL.y])
+	# Never fewer a row on (a long band rises by less than a charge a row, so some rows match).
+	var rising: bool = true
+	for row: int in range(first, gate - 1):
+		rising = rising and Rules.ossuary_fill(row + 1) >= Rules.ossuary_fill(row)
+	check(Rules.ossuary_fill(first) == Rules.OSSUARY_FILL.x and Rules.ossuary_fill(gate - 1) == Rules.OSSUARY_FILL.y and rising and Rules.ossuary_fill(gate - 1) > Rules.ossuary_fill(first + 1), "an ossuary door drinks %d charges in the first row, rising row by row, %d in the last before the gate level" % [Rules.OSSUARY_FILL.x, Rules.OSSUARY_FILL.y])
 
 
 func _ability_tables() -> void:
@@ -599,6 +660,9 @@ func _ability_tables() -> void:
 		elif scene_nodes.has_node(String(entry["node"])):
 			script = scene_nodes.get_node(String(entry["node"])).get_script()
 		var spell_ok: bool = [&"cast_spell", &"readiness", &"running"].all(func(m: StringName) -> bool: return _defines(script, m)) if script != null else false
+		# A damage spell is given back by a parry's catch (refill, Abilities.refill).
+		if Abilities.slot_of(a) == &"damage":
+			spell_ok = spell_ok and _defines(script, &"refill")
 		var ok: bool = script != null and _defines(script, &"set_tier") and (not Abilities.is_spell(a) or spell_ok)
 		if not ok:
 			print("  %s: its node lacks set_tier, or (a spell) cast_spell, readiness or running" % a)

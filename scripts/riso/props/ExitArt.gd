@@ -12,6 +12,20 @@ const CHEVRON: float = 0.7
 ## it hangs beside the arch, from the exit's foot.
 const PAPER: float = 1.5
 const PAPER_AT: Vector2 = Vector2(78.0, -70.0)
+## A sealed way on (Bosses): how high its boss's seal sits over the foot and how big it is (it
+## pulses up to PULSE more); the tops of its three bars over the foot, how thick they are and how
+## far they reach either side; and the dark kept clear round the seal at its biggest, so the bars
+## stop short of it and its pink never runs into theirs.
+const SEAL_AT: float = 45.0
+const SEAL_R: float = 20.0
+const PULSE: float = 0.08
+const BAR_TOPS: Array[float] = [70.0, 49.0, 28.0]
+const BAR_H: float = 8.0
+const BAR_HALF: float = 46.0
+const SEAL_CLEAR: float = 4.0
+## How far a grand door's chevrons fall in its crown (px), short enough that they stay clear of a
+## sealed door's top bar.
+const GRAND_FALL: float = 16.0
 
 ## The LevelExit it dresses.
 var door: LevelExit:
@@ -31,7 +45,7 @@ func _draw_art() -> void:
 	var which: int = door.exit
 	var owed: int = door.price()
 	var needs: int = door.lock()
-	var pulse: float = 1.0 + 0.08 * sin(t * 2.5 + phase)
+	var pulse: float = 1.0 + PULSE * sin(t * 2.5 + phase)
 	var g: float = _ground()
 	var opening: PackedVector2Array = RisoShapes.arch(-44, g - 110, 88, 110, 14)
 	# Where it leads and how grand it is are up to the place (a side world's door, or its way on).
@@ -49,14 +63,18 @@ func _draw_art() -> void:
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], [opening])
 	var star: PackedVector2Array = Transform2D(t * 0.4, Vector2(0, g - 56)) * RisoShapes.sparkle(Vector2.ZERO, 20.0 * pulse)
 	if door.sealed() != &"":
-		# Sealed by a boss (Bosses): dark, barred across by pink bars, with the boss's seal on them.
+		# Sealed by a boss (Bosses): dark, barred across by pink bars, with the boss's seal among
+		# them; the bars stop short of the seal, dark all round it however it pulses.
 		ink.ink(RisoPrint.NIGHT, 1.0, [opening], false)
 		ink.ink(RisoPrint.BLUE, 0.35, [opening], false)
+		var seal_at: Vector2 = Vector2(0, g - SEAL_AT)
+		var clear: PackedVector2Array = RisoShapes.circle(seal_at, SEAL_R * (1.0 + PULSE) + SEAL_CLEAR, 32)
 		var bars: Array[PackedVector2Array] = []
-		for k: int in range(3):
-			bars.append(RisoShapes.rrect(-46, g - 74 + float(k) * 23.0, 92, 8, 4))
+		for top: float in BAR_TOPS:
+			var bar: PackedVector2Array = RisoShapes.rrect(-BAR_HALF, g - top, BAR_HALF * 2.0, BAR_H, BAR_H * 0.5)
+			bars.append_array(Geometry2D.clip_polygons(bar, clear))
 		ink.ink(RisoPrint.PINK, 0.85, bars, false)
-		RisoMarks.boss_seal(ink, Vector2(0, g - 52), 20.0 * pulse)
+		RisoMarks.boss_seal(ink, seal_at, SEAL_R * pulse, 1.0, door.sealed())
 	elif needs >= 0:
 		# Locked: dark, with a lock in the colour of key it needs, as on the doors.
 		ink.ink(RisoPrint.NIGHT, 1.0, [opening], false)
@@ -84,12 +102,14 @@ func _draw_art() -> void:
 		# Three chevrons falling one after another, fading as they drop: a long way down.
 		for k: int in range(3):
 			var u: float = fmod(t * 0.9 + float(k) / 3.0, 1.0)
-			var c: Vector2 = crown + dir * ((u - 0.5) * 20.0 + 4.0 * CHEVRON)
+			var c: Vector2 = crown + dir * ((u - 0.5) * GRAND_FALL + 4.0 * CHEVRON)
 			ink.ink(RisoPrint.PINK, 1.0 - u * 0.8, [RisoMarks.chevron(c, dir, CHEVRON * 0.85)])
 	else:
 		var bob: float = sin(t * 3.0 + phase) * 2.0
 		ink.ink(frame, 1.0, [RisoMarks.chevron(crown + dir * (bob + 4.0 * CHEVRON), dir, CHEVRON)])
-	if owed > 0:
+	# The price, once nothing seals the way: a sealed door's seal sits where it would print, and it
+	# cannot be paid until the boss is slain anyway.
+	if owed > 0 and door.sealed() == &"":
 		_text(str(owed), Vector2(0, g - 40), 34)
 	if which == MapInfo.Exit.DEEPER and MapInfo.instance != null and MapInfo.instance.timetabled() and MapInfo.instance.way_on_due() != 0:
 		var at: Vector2 = Vector2(PAPER_AT.x, g + PAPER_AT.y)

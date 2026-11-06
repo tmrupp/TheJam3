@@ -53,7 +53,9 @@ func run() -> void:
 	var ember_vaults: int = 0
 	var ember_keys: int = 0
 	for seed_value: int in [1, 7, 28, 99, 512]:
-		for depth: int in [0, 2, 4, 7]:
+		# The start, two garden rows and the fourth row past the garden (gate levels, with their boss
+		# in them, are the bosses' tests').
+		for depth: int in [0, 2, 4, Bands.garden_rows() + 4]:
 			var at: Vector2i = Vector2i(seed_value, depth)
 			var def: NextWorldDef = Rules.def_for(at)
 			var cells: Array = collapse(def.coord)

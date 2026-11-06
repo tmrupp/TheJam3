@@ -10,7 +10,7 @@ extends TestKit
 ## saved; a soul lies on a floor of its level, the same spot every visit, with abominations round
 ## it, and lets more out while the wizard is near; destroyed, it is gone for the run and one eye
 ## shuts; with every soul gone its great eye opens, blows wound it, and it dies, slain for the run,
-## leaving its relic.
+## leaving its relic unlock.
 ## godot --headless --path . --script res://tests/beast_test.gd
 
 const WORLD: int = 28
@@ -20,6 +20,9 @@ const VISITED: Array[Vector2i] = [Vector2i(28, 0), Vector2i(28, 1), Vector2i(28,
 
 
 func run() -> void:
+	if not needs([&"institute"]):
+		finish()
+		return
 	MapInfo.debug = false
 	_laid_out()
 	await _play()
@@ -63,8 +66,8 @@ func _laid_out() -> void:
 	var gate: LevelGen = build(Vector2i(WORLD, row))
 	var again: LevelGen = build(Vector2i(WORLD, row))
 	check(gate != null and again != null and gate.objects == again.objects and gate.halls.size() == again.halls.size(), "laid out the same twice")
-	var plain: LevelGen = build(Vector2i(WORLD, NextWorldDef.band_row(&"institute", 2)))
-	check(plain != null and Institute.chamber(plain).is_empty(), "no other level has a chamber")
+	var plain: LevelGen = build(Vector2i(WORLD, band_rows(&"institute", [0])[0]))
+	check(plain != null and (plain.gate == &"beast" or Institute.chamber(plain).is_empty()), "no other level has a chamber")
 
 
 # ------------------------------------------------------------------ in play
@@ -193,7 +196,7 @@ func _play() -> void:
 	check(await until(gone(beast)), "and is gone")
 	await settle()
 	check(info.run.bosses.has(&"beast") and info.run.souls.is_empty(), "slain for the run")
-	check(placed("relic.tscn").any(func(n: Node) -> bool: return n.get_meta(&"boss", &"") == &"beast"), "its relic left where it lay")
+	check(left_unlock(), "its relic unlock left where it lay")
 
 
 ## A level holding a soul, preferring one already visited (the first in VISITED's order).

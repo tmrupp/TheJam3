@@ -30,22 +30,23 @@ Places stay on the grid of (world, row) (§1 of `DEEPER_PLAN.md`), but rows now 
 the start. Row 0 is where a run begins; rows below it are down, rows above it (negative) are up.
 
 ```
-   sky             rows −10 … −15     whale (its belly is a level)
-   crags / castle  rows  −4 …  −9     lodestone golem (its hall, in the gate level)
- ─ garden ───────  rows  −3 …  +3     start at 0
-        up gate,   row −3:  the bramble (in the level)
-        down gate, row +3:  the worm (in the level)
-   cemetery        rows  +4 …  +9     necromancer (a crypt, in the gate level)
-   institute       rows +10 … +15     eldritch beast (its chamber, in the gate level)
+   sky             rows −22 … −35     whale (its belly is a level)
+   crags / castle  rows  −8 … −21     lodestone golem (its hall, in the gate level)
+ ─ garden ───────  rows  −7 …  +7     start at 0
+        up gate,   row −7:  the bramble (in the level)
+        down gate, row +7:  the worm (in the level)
+   cemetery        rows  +8 … +21     necromancer (a crypt, in the gate level)
+   institute       rows +22 … +35     eldritch beast (its chamber, in the gate level)
 ```
 
-- **Bands.** The garden is 7 rows (three either side of the start); every other band is 6. Each
+- **Bands.** The garden is 15 rows (seven either side of the start); every other band is 14
+  (`Bands.GARDEN_ROWS`, `BAND_ROWS`; once 7 and 6, widened in proportion in November 2026). Each
   band is an archetype (`scripts/worlds/archetypes/`), as now; what changes is how a row picks its
   archetype: by a table of bands along the signed row, instead of `(depth / BAND) % 3`.
 - **Difficulty is distance from the start.** Everything that now scales with depth (prices, star
   values, enemy health, level size, relic chances, key rarity, lantern counts) scales with the
   distance `|row|` instead. A level's definition keeps a `depth` field for this, set to `|row|`,
-  and its row in `coord.y`. Crags at rows −4 to −9 are as hard as the cemetery at +4 to +9.
+  and its row in `coord.y`. Crags at rows −8 to −21 are as hard as the cemetery at +8 to +21.
 - **Past the last bands** (below the institute, above the sky): open, see §9. Until decided, the
   outermost band repeats, harder, with no further boss.
 
@@ -137,15 +138,16 @@ The tuning numbers are first guesses for playtest. They are Normal's: on a harde
 (`Difficulty`, §"Difficulty presets" in `DEEPER_PLAN.md`) each boss runs its own clock faster
 (`Difficulty.haste`, 1.15 on Hard, the default, and 1.3 on Brutal), so its warnings, bites, rests
 and crawling all come that much sooner: the worm's whole step, the golem's whole step (its slam,
-hurl, leap and recall), the bramble's vines' cadence and its bulbs' seeds. A stun's length is not
-changed.
+hurl, leap and recall), the bramble's vines' cadence, its bulbs' seeds and its sap. A stun's length
+is not changed, nor how long the bramble's heart stays shut after a wound.
 
 ### The bramble (garden, up gate, in the level)
 
-*Built* (`Bramble`, `BrambleBulb`, `BrambleVine`, `BrambleWound`, `BrambleShaft`,
-`prefabs/bramble.tscn`). The way up out of the garden is a tall shaft of thorns. The bramble is
-rooted at its head: a knot of thorn and bark beside the way on, with a few **bulbs** (its weak
-points, accent) set in the walls of the shaft.
+*Built* (`Bramble`, `BrambleTangle`, `BrambleKnot`, `BrambleBulb`, `BrambleHeart`, `BrambleVine`,
+`BrambleWound`, `BrambleShaft`, `prefabs/bramble.tscn`). The way up out of the garden is a tall
+shaft of thorns. The bramble is rooted at its head: a crown of thorned canes beside the way on,
+its heart hidden in it, with a few **bulbs** (its weak points, accent) set in the walls of the
+shaft.
 
 - **The shaft.** Cut into the gate level's rock near its top (`BrambleShaft.cut`), right after the
   caves are joined and before anything else is placed, so the rest of the level lands round it
@@ -168,20 +170,77 @@ points, accent) set in the walls of the shaft.
 - **Bulbs.** 3 to 5 bulbs (`BULBS`) up the shaft, one in each of as many bands down the walls,
   from wall to wall. Each takes 3 hits (`Bramble.BULB_HP`) from hex bolts or a dash, even ones that
   only stun at their tier (`Wound.least`), and is never stunned. Each vine feeds from the bulb
-  nearest it, and a burst bulb withers its vines for good. Its health shows as accent pips on the
-  knot, one per bulb. When the last bulb bursts, every vine withers, the knot tears open and
-  shrivels away (1.4 s) and the bramble dies; the seal on the way up lifts, and its relic waits on
-  the landing beside the way on.
+  nearest it, and a burst bulb withers its vines (until the last stand). Its health shows in its crown: each
+  burst draws its canes back a little from the heart hidden in them (see the crown).
+- **The bloom.** Only one bulb is in bloom at a time (`Bramble.bloom`), the lowest first: the rest
+  are shut in two sepals of bark, and a bolt, dash or slash glances off them (pale, no wound). Only
+  a bulb's own seed parried back gets through its bark (`HexBolt.parried_blow`), so the parry wounds
+  any bulb. There is no timer: each wound to the bloom, or its bursting, sends its sap on to the
+  living bulb nearest it along the roots (`Bramble.wounded`, `_flow`): along its wall, or up the
+  roots, under the head and down the other wall (a drop of accent running along the way, 1100
+  px/s, at least 0.5 s, `SAP_SPEED`, `SAP_MIN`), and that one blooms when it arrives; with one bulb
+  left, the sap runs back into it. So every hit moves the wizard on along the shaft.
+- **Fury.** Each burst bulb's sap goes to the rest (`Bramble.fury`, a point a bulb): the bulbs left
+  ready their seeds 30% sooner a point (`BrambleBulb.SEED_FURY`) and from the second point spit two
+  at once, 0.2 rad apart (`TWIN_FURY`, `TWIN_SPREAD`); the vines left rest 60% faster a point
+  (`BrambleVine.REST_FURY`; their warning and lash keep their time). The shaft empties as the bulbs
+  burst, but what is left of it comes faster.
+- **The crown** (`BrambleTangle`). A tangle of thick thorned canes walling off the head. It is
+  not there until the wizard climbs within 560 px of the head (`Bramble.WAKE_RANGE`): then it grows
+  out of the rock (600 px/s along its canes, `GROW_SPEED`), the tips leading, thin and thickening
+  behind, thorns budding along them, and its thorns hurt once half of it is grown (`THORNS_AT`).
+  Its canes are grown from the level seed, never the world RNG: 5 out of the rock (2 out of the
+  roof, 2 out of the far wall, 1 out of the landing's side, `FROM_ROOF`, `FROM_WALL`,
+  `FROM_LANDING`), each finding its own way into the head, turning toward the room left between the
+  canes already grown and curling of itself; then sprouts off them, each from the place along them
+  with the most room, until 85% of the head is filled (`COVER`) or there are 12 canes
+  (`CANES_MAX`). Canes out of the rock are 48 to 60 px thick at the foot, sprouts 28 to 36, all
+  keeping their width well out before they taper (`TAPER`), with a hooked pink thorn every 40 to
+  62 px. It sways a little at rest. **Quiver:** struck anywhere (a bulb or the heart wounded, a
+  blow glancing off a bulb's bark, a bulb bursting, a hex bolt into the crown itself,
+  `BrambleKnot.hex_hit`), a shudder runs out from the blow along every cane near it (700 px/s,
+  10 shakes a second, dying away over about a second), the tips shaking most; a blow far down the
+  shaft runs up the root to the crown. **Drawing back:** its heart, a bud, is hidden in the crown,
+  hanging from a stalk of its own out of the roof (`BrambleTangle.stalk`), which the hollow never
+  cuts: the bud sways and quivers with it, and dying, the stalk draws its husk up into the rock;
+  each bulb burst draws the canes back from a hollow round it (`Bramble.bare`, up to 0.4 once all
+  but the last have burst, `PEEK`), so it shows a little more each time, swelling and dropping as
+  it does: every cane that runs into the hollow ends at its edge, and all that grew off it beyond
+  is gone. Its roots down both walls past the bulbs are canes like the crown's (42 px thick near
+  the head, 28 px at the lowest bulb, thorned, with thorned sprouts into the shaft), grown from the
+  start and printed under the bulbs; their thorns do not hurt, so they are printed in bark, not pink.
+- **The heart.** When the last bulb bursts the crown draws right back from round the heart (1.2
+  s, `BARE_TIME`), baring it (`BrambleHeart`, printed as a big bud wrapped in sepals of bark),
+  hanging out of the crown's underside beside the top ledge. It takes 4 hits (`HEART_HP`) from
+  anything, and the knot still walls off the head meanwhile. Each wound shuts it: its outer sepals
+  close over it for 1.6 s (`BrambleHeart.SHUT_TIME`), and blows glance off them until they part.
+  **The last stand:** as the heart is bared, every burst bulb opens again, wild
+  (`BrambleBulb.rouse`, printed screened with pink), and spits a seed at the wizard in sight every
+  3.4 s (`WILD_EVERY`, one at a time whatever the fury), but nothing wounds it (blows and parried
+  seeds glance off), and every withered vine grows back and lashes again on its cadence, starting
+  from its rest. There are no falling barbs. When the heart
+  bursts the head of the shaft is open at once, the wild bulbs are husks again and the vines
+  wither, and the bramble desiccates: a dry front runs out
+  from the heart (1600 px/s, `BrambleTangle.DRY_SPEED`), and each cane, root and withered vine
+  dries as it reaches it (0.55 s); once a cane out of the rock and all that grew off it is dry,
+  0.25 s later it draws back into the rock it grew from (0.3 s plus its reach at 450 px/s; a
+  root at 1800 px/s), its tips first, the burst husks and the heart's husk pulled in with them,
+  until nothing is left. When the last is in (about 3.5 s) it is slain; the seal on the way up
+  lifts, and its relic waits on the landing beside the way on.
 - **Parry.** A vine's lash can be parried: it recoils into the rock and stays there for the stun
   (`Parry.STUN`, 3 s), then rests before it grows again, opening the wall beside it. The bulbs spit
   seeds at the wizard in sight within 900 px (`BrambleBulb`, every 3 s); a parried seed flies back
   into the bulb that spat it (the shot's attacker) and wounds it.
-- **The knot.** Solid, on the environment's layer: nothing gets past it to the way on. Its thorns
-  hurt to touch; a parry against them only catches the hit and pushes off.
+- **The knot.** Under the crown, a solid body on the environment's layer (`BrambleKnot`): nothing
+  gets past it to the way on, and a hex bolt stops on it and makes the crown quiver. The crown's
+  thorns hurt to touch; a parry against them only catches the hit and pushes off.
 - **Procedural.** All of it comes from the level's layout and seed; the bramble's own timing
-  (its vines' phases, its bulbs' first swell) is hashed from the seed and cell.
-- A lantern death brings it back whole, as the level reloads. `tests/bramble_test.gd` covers it,
-  `tests/capture_bramble.gd` takes stills. Of the twelve garden gate levels the test lays out, the
+  (its vines' phases, its bulbs' first swell) is hashed from the seed and cell, and the bloom
+  moves by the wizard's blows and the roots' lengths, never by a draw.
+- A lantern death brings it back whole (its fury gone, the lowest bulb in bloom, its heart
+  hidden, its crown asleep and grown the same way again), as the level reloads.
+  `tests/bramble_test.gd` covers it, `tests/capture_bramble.gd` takes stills and
+  `tests/capture_bramble_gif.gd` records GIF frames of the fight at the head. Of the twelve garden gate levels the test lays out, the
   way on is reached with the wizard's own hops in ten.
 
 ### The worm (garden, down gate, in the level)
@@ -270,7 +329,7 @@ through the gate level's tunnels, as Tom described.
 *Built (October 2026, owner's design), in place of the spider (a black widow in a keep of broken
 floors, its webs, threads and brood), which is retired completely: its scripts are gone, and a
 saved run's slain spider and its relic are read as the golem's (`Bosses.RENAMED`,
-`RunState.gone_kinds`).* The crags' gate level (row −9, in every world) has
+`RunState.gone_kinds`).* The crags' gate level (row −21, in every world) has
 the golem's **lode hall** built at its top. The crags are the band
 of the lodestones and the empowered cast (§7), and the golem is their test: its body breaks only to
 an empowered spell, and the charge for one is won from it by parrying.
@@ -290,16 +349,31 @@ an empowered spell, and the charge for one is won from it by parrying.
   gallery's gap (`lair`). A doorway through each wall at the ground storey leads out to the caves; a
   crossbow is set in the walls on each gallery, shooting into the hall (`LodeHall.arm`); its stone
   is kept whole and nothing else is placed in it. What it holds is noted in `LevelGen.keep`.
-- **The golem** (`Golem`, `GolemWound`, `prefabs/golem.tscn`; *its body, chunks, heart and
-  shards built*, standing still in its lair: `tests/golem_test.gd`, `capture_golem.gd`). A hulking
-  figure of dark stone about 2.5 cells tall, 10 **chunks** of lodestone (`Golem.PARTS`: two legs, a
-  belly, a chest plate in two halves, two shoulders, two arms and a head) held by their pull round
-  a **heart** (accent). A `Shaped` foe: a blow meets the first part on the line from where it came
-  from to the heart (`Golem.part_met`), whatever struck it (a spell, a parry, an arrow), so what
-  stands in the way breaks first: from the side, an arm, then the chest plate. It sleeps in its lair
-  until the wizard comes into its hall (or strikes it), then walks its floor after them (120 px/s,
-  `WALK`; the wizard runs at 300), facing them, never off a floor's end nor over its gap, though it
-  steps over a stair hole.
+- **The golem** (`Golem`, `GolemWound`, `prefabs/golem.tscn`; *built*: `tests/golem_test.gd`,
+  `capture_golem.gd`, `capture_golem_motion.gd`). A hulking, hunched figure about 2.5 cells tall
+  built of buzzing magnets (October 2026, the owner's second design, in place of the first's ten
+  blocks of stone round a heart), held by their pull tip to tip: its body one great lodestone
+  leaning forward, rounded at its top, its eyes in it and its **heart** (accent) on its bulge,
+  guarded by a ward of three pink plates (as an enemy's shield is); caps jutting from its shoulders,
+  fins down its back, long arms of an upper arm, a forearm and a palm with knuckles (it walks on its
+  knuckles), and short legs of a thigh, a shin and a foot. Its 12 **chunks** (`Golem.PART_SIZE`: its
+  arms' upper arms and forearms, its ward's three plates, its two caps and its three fins) are what a blow breaks; its body, palms and legs only stop a blow, which goes on to what is
+  behind. A `Shaped` foe: a blow meets the first chunk on the line from where it came from to the
+  heart (`Golem.part_met`), whatever struck it (a spell, a parry, an arrow), so what stands in the
+  way breaks first: from the side, an arm, then its ward, which guards all the way round, gaps and all: a blow that comes
+  within its ring meets the whole plate nearest. It sleeps in its lair
+  until the wizard comes into its hall (or strikes it), then walks its floor after them on all fours
+  (85 px/s, `WALK`, gathering speed at 520 px/s² and slowing into its stops; the wizard runs at
+  300), its fists stepping in turn (0.4 s a step, a slow heavy gait) and its feet shuffling in turn
+  on their own in short, low, quick steps (0.2 s) that never pass each other (`GAITS`), each set down
+  ahead of its place by as far as it falls behind before it steps again (`STEP_LEAD`), while its
+  body goes on over it, never off a floor's end nor over its gap, though it
+  steps over a stair hole. It turns round only once the wizard is 48 px behind it (`TURN_SLACK`),
+  so it does not turn back and forth over them: it faces them at once, its body swinging over through
+  upright and its feet and fists stepping round (0.32 s, `TURN_TIME`, in which it does not slam),
+  with no flip. Its pose springs: its
+  body's lean and shift, its height and its fists and feet through the air each spring toward where
+  its pose wants them.
 - **Chunks break only to an empowered spell.** A plain blow glances off with grit, as on cracked
   rock. An empowered spell (the spells' blows tell a `Shaped` foe so: `Shaped.blow`) shatters the
   chunk it meets, and a shattered chunk leaves nothing. Not yet: each spell its own way, as it
@@ -310,34 +384,36 @@ an empowered spell, and the charge for one is won from it by parrying.
   lode hall, whatever damage spell is in the slot may be cast empowered, tempered by a lodestone or
   not; outside it the lodestones' rules are unchanged.
 - **The slam: its strong attack, and the charge** (*built*). The wizard within 300 px of it on its
-  floor (`SLAM_RANGE`), it raises both fists, pink (`SLAM_WARN`, 0.7 s), and brings them down in
-  front of it, held 0.35 s (`SLAM_HOLD`), resting 0.8 s after; a **shockwave** (`GolemShock`, pink,
+  floor (`SLAM_RANGE`) and not behind it, it rears back and raises both fists overhead, pink
+  (`SLAM_WARN`, 0.7 s; they tremble for its last 30 %), and brings them down, its near fist in front of it and its far fist behind (`SLAM_BEHIND`, so neither arm swings across its body), held 0.35 s (`SLAM_HOLD`; each fist's touch, 46 px, follows that fist as drawn, so the far one hurts behind it), resting 0.8 s after; a **shockwave** (`GolemShock`, pink,
   64 px high, 700 px/s, as far as 800 px or a wall or the floor's end) runs each way along the floor
   from where they land, jumped. Its fists' touch is its own: a guard up as they come down parries
-  them, stunning it (`Parry.STUN`, 3 s) and popping out `Golem.SHARDS` (2) **lode shards** from the
-  cracks between its chunks, scattering onto the floor near it (`Golem.shed_shards`, `LodeShard`).
+  them, stunning it (`Parry.STUN`, 3 s; its pieces sag loose) and popping out `Golem.SHARDS` (2)
+  **lode shards** from its heart, scattering onto the floor near it (`Golem.shed_shards`, `LodeShard`).
   Touching a shard while the empowered cast is spent makes it ready at once (`Empower.refill`);
   while one is ready a shard is left where it lies (the charge is one). Shards come from nothing
   else, and go when the golem dies.
 - **Recall** (*built*). Anything of it lying loose (shards, a hurled chunk) 3 s while it is not
   stunned (`RECALL_DELAY`), it calls it all back: pink lines along each way home warn for 0.8 s
   (`RECALL_WARN`), then each flies home at 900 px/s through where the wizard stood, hurting on the
-  way; a hurled chunk is whole again, and a shard regrows a shattered chunk, one over its heart
+  way; a hurled chunk is whole again, and a shard regrows a shattered chunk, a plate of its ward
   first. So each parry is a race: grab both shards and spend them.
-- **The heart** (*built*). Once its chest chunks (`Golem.COVERS`: the belly and the chest plate)
-  are gone the heart is bare, and any blow, a parry and the crossbows' arrows wound it. Its health
+- **The heart** (*built*). Once the three plates of its ward (`Golem.COVERS`) are gone the
+  heart is bare, and any blow, a parry and the crossbows' arrows wound it. Its health
   is 3 cracks on the heart itself (`Golem.HEART`); with the third it falls apart into a heap
   (`DIE_TIME`, 1.4 s), and its relic waits there (`MapInfo.boss_slain`). A lantern death brings it
   back whole. Not yet: the arrows' iron bent toward it.
 - **Its other moves** (*built*). The **hurl**: the wizard 520 px off or more (`HURL_MIN`), or on
   another storey, and in its sight, every 5 s at most (`HURL_EVERY`, the first 5 s after it wakes),
-  it tears off a chunk of its own (`HURLED`: a shoulder, then the other, then its head), holds it up
-  in pink (`HURL_WARN`, 0.6 s) and lobs it to land where the wizard is (0.9 s, `GolemStone`); the
-  chunk is gone from it while it flies and lies, until called back. The **leap**: the wizard on
+  it tears off a magnet of its own (`HURLED`: a shoulder cap, then the other, then its top fin),
+  holds it high over its head in both fists at its tips, its elbows bowed out (`HOLD_OVER`), pink (`HURL_WARN`, 0.6 s), and lobs it to land where the wizard is (0.9
+  s, `GolemStone`), drawing it back over its head before it throws and whipping its arms through after; the magnet is gone from it while it flies and lies,
+  until called back. The **leap**: the wizard on
   another storey of the hall a second (`LEAP_AFTER`), it walks to the gap between (under it, or to
   its edge), crouches 0.8 s with the spot it will land on marked in pink (`LEAP_WARN`), and leaps
-  (0.9 s, `LEAP_TIME`): up through the gap and across onto the gallery beside it on the wizard's
-  side, or across and down the gap to the floor under it; landing, a shockwave runs each way.
+  (0.9 s, `LEAP_TIME`) in an arc, tucking its feet, its arms flung wide: rising up through the gap and coming
+  down onto the gallery beside it on the wizard's side, or across and down the gap to the floor
+  under it; landing, a shockwave runs each way.
   Storey by storey, it follows the wizard all the way up the hall.
 - **Only its fists are its own touch.** The shockwave, a hurled chunk and a recalled shard each
   hurt as a hazard does: a guard catches them as it catches thorns, with nothing to strike, so only
@@ -358,7 +434,8 @@ an empowered spell, and the charge for one is won from it by parrying.
   the wizard's slowing in a web), and the stand-in the tests used meanwhile with it; the tests that
   named it moved to the golem, and these docs. Left: tuning in play, and each spell shattering
   chunks its own way.
-- **Tuning.** 10 chunks, 2 shards a parry and 3 wounds to the heart are first guesses.
+- **Tuning.** 11 chunks (2 over its heart), 2 shards a parry and 3 wounds to the heart are first
+  guesses.
 
 ### The whale (sky, roaming on its top row; inside: its belly)
 
@@ -479,7 +556,7 @@ rising into the institute's halls are its.
 
 ## 7. The new bands
 
-### Crags with castle ruins (rows −4 … −9)
+### Crags with castle ruins (rows −8 … −21)
 
 *A first pass is built* (`docs/DEEPER_PLAN.md` §4d): the sample, the structure pass (shafts, keeps,
 towers, caverns), the realm and backdrop, the decor, doors in its passages, rock-bugs (crawlers
@@ -560,7 +637,7 @@ shooting out through arrow slits at the wizard and stopped only from inside (`Cr
     rooms still open to walking in.
   - *Not built yet:* loose boulders for the push to shove.
 
-### The cemetery: crypts, light and darkness (rows +4 … +9)
+### The cemetery: crypts, light and darkness (rows +8 … +21)
 
 The cemetery stays as built (`docs/DEEPER_PLAN.md` §4b): its terraces, realm, decor, moths, fog,
 wraiths, and its chasms gated by bells. What it gains are crypts, and light that matters.
@@ -655,7 +732,7 @@ learned at lanterns, instructors who leave a top-tier paper. Not yet: tuning in 
   reading desks). Deep brown and marble: the rock printed as deep brown wood and earth, the built
   parts as pale veined marble, gold kept for rewards.
 
-### The sky reworked: the elements (rows −10 … −15)
+### The sky reworked: the elements (rows −22 … −35)
 
 *A first pass is built* (`docs/DEEPER_PLAN.md` §4c): the level's wind set by its vanes, in gusts
 (a spell of stillness, then a strong sustained gust); balloons riding it along the row; temples

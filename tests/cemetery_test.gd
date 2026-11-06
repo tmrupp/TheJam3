@@ -17,6 +17,9 @@ func count(w: LevelGen, type: LevelGen.Type) -> int:
 
 
 func run() -> void:
+	if not needs([&"cemetery"]):
+		finish()
+		return
 	bands()
 	generation()
 
@@ -42,13 +45,12 @@ func run() -> void:
 
 func bands() -> void:
 	print("archetypes by row")
-	var b: int = NextWorldDef.BAND
-	var g: int = NextWorldDef.GARDEN_ROWS
-	var kinds: Array[StringName] = []
-	for d: int in [0, g, g + 1, g + b, g + b + 1]:
-		kinds.append(NextWorldDef.archetype_at(d))
-	check(kinds == [&"garden", &"garden", &"cemetery", &"cemetery", &"institute"], "down from the start: the garden, then the cemetery for %d rows, then the institute: %s" % [b, kinds])
-	check(NextWorldDef.first_depth(&"cemetery") == g + 1, "the cemetery's first row")
+	var first: int = NextWorldDef.first_depth(&"cemetery")
+	var last: int = NextWorldDef.band_row(&"cemetery", Bands.rows_of(&"cemetery") - 1)
+	var within: bool = true
+	for row: int in range(first, last + 1):
+		within = within and NextWorldDef.archetype_at(row) == &"cemetery"
+	check(within and NextWorldDef.archetype_at(first - 1) != &"cemetery" and first > 0, "the cemetery holds its band's rows, %d to %d, below the start" % [first, last])
 	var def: NextWorldDef = Rules.def_for(Vector2i(28, NextWorldDef.first_depth(&"cemetery") + 1))
 	check(def.region == CemeteryArchetype.SAMPLE and def.symmetry == 1 and def.realm() == &"cemetery", "a cemetery collapses the graveyard sample, unturned, and prints in its realm")
 	var garden: NextWorldDef = Rules.def_for(Vector2i(28, 1))

@@ -1,42 +1,112 @@
 class_name Bramble
 extends Node2D
-## The bramble (Bosses.GARDEN_UP): the boss of the garden's way up, fought in its gate level
+## The bramble (the garden's way up's boss, Bands): the boss of the garden's way up, fought in its gate level
 ## (docs/REGIONS_PLAN.md §6). The way up is a tall shaft of rock (BrambleShaft), and the bramble is
-## rooted at its head: a knot of bark and thorns filling the head beside the landing the way on
-## stands on, so nothing gets past it to the way on. Its roots run down the shaft's walls to:
+## rooted at its head: its crown, a tangle of thorned canes (BrambleTangle) walling off the head
+## beside the landing the way on stands on, so nothing gets past it to the way on (the knot, a solid
+## body under the canes, BrambleKnot). Its roots run down the shaft's walls to:
 ## - its bulbs (BrambleBulb), BrambleShaft.BULBS.x to BULBS.y of them set in the walls, its weak
 ##   points: each takes BULB_HP hits from bolts or dashes (any strike wounds them, even one that only
-##   stuns), and spits seeds at the wizard that a parry turns back into it;
+##   stuns), and spits seeds at the wizard that a parry turns back into it. Only one is in bloom at a
+##   time (`bloom`), the lowest first: the rest are shut in their bark, and only their own seeds
+##   parried back wound them. Each wound to the bloom (or its bursting) sends its sap on, up the
+##   roots and, to the other wall, through the head (a pulse of accent along the way, SAP_SPEED), to
+##   the living bulb nearest it by the roots, which blooms when it arrives; nothing moves it on but
+##   the wizard's blows;
 ## - its thorn vines (BrambleVine), rooted in the walls between: they lash out across the shaft and
 ##   pull back on a cadence, so the climb up the shaft's ledges is a matter of timing. A parried lash
-##   recoils and stays back a while. Each vine feeds from the bulb nearest it, and withers for good
-##   when that bulb bursts.
-## Its health is its bulbs: one accent pip on the knot for each, put out as each bursts. When the
-## last bursts the knot tears open and shrivels away (OPEN_TIME), the bramble is slain, and its relic
-## waits on the landing beside the way on (MapInfo.boss_slain), whose seal lifts. A lantern death
-## brings it back whole, as the level reloads. Nothing here draws from the world RNG: the shaft and
-## everything set in it come from the level's layout, and the rest is hashed from its seed.
+##   recoils and stays back a while. Each vine feeds from the bulb nearest it, and withers when that
+##   bulb bursts.
+## Each bulb burst raises its fury (`fury`): the bulbs left spit sooner and, from
+## BrambleBulb.TWIN_FURY, two seeds at once, and the vines left rest the shorter.
+## Its crown is not grown until the wizard climbs near the head (WAKE_RANGE): then it grows out of
+## the rock to close it. Struck anywhere (a bulb, its heart, a bolt into the crown), it quivers, the
+## shudder running out along its canes from the blow. Hidden in the crown is its heart, a bud
+## (_draw_bud): each bulb burst draws the canes back from round it a little (`bare`, up to PEEK),
+## showing it; when the last bursts the canes draw right back to bare the bud (BrambleHeart,
+## HEART_HP hits), which swells and drops down out of the crown, and it makes its last stand: every
+## burst bulb opens again, wild, and spits seeds (no blow wounds a wild bulb), and every withered
+## vine grows back and lashes again. Each wound to the heart shuts its sepals over it for a moment
+## (BrambleHeart.SHUT_TIME). When the heart bursts the head of the shaft is open at once, and the
+## bramble dies: its bulbs are husks again, its vines wither, a dry front runs out from the heart,
+## each cane pales, thins and crinkles as it reaches it, then draws back into the rock it grew from,
+## the husks of its bulbs and its heart pulled in with them, the roots last. When the last is in, it
+## is slain, and its relic waits on the landing beside the way on (MapInfo.boss_slain), whose seal
+## lifts. A lantern death brings it back whole, as the level reloads. Nothing here draws from the
+## world RNG: the shaft and everything set in it come from the level's layout, and the rest is
+## hashed from its seed.
 
 const HIT_BOX: PackedScene = preload("res://prefabs/hit_box.tscn")
 ## The hits each bulb takes.
 const BULB_HP: int = 3
-## How long the knot takes to tear open and shrivel away once the last bulb has burst.
-const OPEN_TIME: float = 1.4
+## How fast a bloom's sap runs to the next bulb (px a second), and the least time the run takes.
+const SAP_SPEED: float = 1100.0
+const SAP_MIN: float = 0.5
+## The sap's pulse as printed: its radius (px), and how many drops trail it, how far apart (px).
+const SAP_R: float = 12.0
+const SAP_TRAIL: int = 4
+const SAP_GAP: float = 16.0
+## How near the knot (px) the wizard must climb, in the shaft, for its crown to grow; how much of the
+## crown must be grown before its thorns hurt.
+const WAKE_RANGE: float = 560.0
+const THORNS_AT: float = 0.5
+## The heart: the hits it takes, and how often it beats (seconds). How far its crown has drawn back
+## from round it (`bare`, 0 to 1): PEEK once every bulb but the last has burst, a share for each
+## before, and all the way once bared; it draws back BARE_TIME seconds for the whole way.
+const HEART_HP: int = 4
+const HEART_BEAT: float = 0.8
+const PEEK: float = 0.4
+const BARE_TIME: float = 1.2
+## The heart is printed as a bud (_draw_bud): BUD_LONG long and BUD_WIDE across when bared, its cap
+## BUD_TOP up inside the knot's underside, struck at BUD_MID of the way down it; hidden, it is
+## BUD_HIDDEN of that size, tucked BUD_TUCK up in the knot, its accent BUD_DIM as strong. Its two
+## long sepals flare BUD_SPREAD (radians) off it, and part BUD_PART more at each beat.
+const BUD_LONG: float = 150.0
+const BUD_WIDE: float = 116.0
+const BUD_TOP: float = 60.0
+const BUD_MID: float = 0.45
+const BUD_HIDDEN: float = 0.55
+const BUD_TUCK: float = 112.0
+const BUD_DIM: float = 0.7
+const BUD_SPREAD: float = 0.24
+const BUD_PART: float = 0.12
+## How hard (px, at the canes' tips) a blow makes the crown quiver: a bulb or the heart struck, a
+## blow glancing off a bulb's bark, a bulb bursting, a bolt into the crown itself.
+const QUIVER_STRUCK: float = 12.0
+const QUIVER_WARDED: float = 5.0
+const QUIVER_BURST: float = 22.0
+const QUIVER_KNOT: float = 10.0
+## A burst husk is pulled into the wall over this far (px) of its root's tip drawing back past it.
+const HUSK_PULL: float = 40.0
 ## How far past the knot (px) its thorns hurt.
 const KNOT_REACH: float = 10.0
-## The bark: its covers of blue and night; and the dark mass of the knot the stems twist over (a
-## darker green than the rock, darker still than the open shaft). Roots down the walls: how far out of the rock face they
-## wave (px), and how thick they are.
+## The bark of a bulb's cup and sepals, a bud's and a vine's: its covers of blue and night.
 const BARK_BLUE: float = 0.9
 const BARK_NIGHT: float = 0.55
-const KNOT_BLUE: float = 0.75
-const KNOT_NIGHT: float = 0.75
-const ROOT_SWAY: float = 10.0
-const ROOT_WIDTH: float = 16.0
+## Dry, a husk's bark: how much blue it keeps.
+const DRY_BLUE: float = 0.45
 ## A bulb: its radius (px) when still, how much it swells as it readies a seed, and how long it
 ## flashes when struck and its husk's petals fly when it bursts.
 const BULB_R: float = 40.0
 const BULB_SWELL: float = 0.22
+## A shut bulb (not in bloom): how big it is beside one in bloom, how strong its accent is in the
+## seam between its sepals, how far its sepals turn (radians) shut (in over it) and open (back
+## against the wall), and how far apart their hinges are and how wide each is (shares of BULB_R),
+## leaving a seam of accent down the middle.
+const SHUT_SIZE: float = 0.85
+const SHUT_ACCENT: float = 0.8
+const SEPAL_SHUT: float = 0.08
+const SEPAL_OPEN: float = 1.35
+const SEPAL_HINGE: float = 0.55
+const SEPAL_WIDE: float = 0.4
+## How far into the shaft past the rock face the sap runs (px).
+const SAP_OUT: float = 14.0
+## A wild bulb (BrambleBulb.wild, the last stand): the pink screened over its accent, so it reads
+## as a danger rather than a weak point.
+const WILD_PINK: float = 0.45
+## The heart shut (BrambleHeart.closed): how wide its outer sepals grow to close over it (a share of
+## the bud's width).
+const SHUT_WIDE: float = 0.62
 const FLASH_TIME: float = 0.18
 const BURST_TIME: float = 0.45
 ## A vine: its stem's half width at the root and at the tip (px), its thorns' spacing and length.
@@ -44,9 +114,6 @@ const STEM_ROOT: float = 16.0
 const STEM_TIP: float = 5.0
 const THORN_EVERY: float = 26.0
 const THORN_LEN: float = 18.0
-## How many thick stems twist across the knot, and the salt for the level seed that bends them.
-const KNOT_STEMS: int = 6
-const KNOT_DEAL: int = 6660
 
 var map_info: MapInfo
 ## Which boss it is (Bosses).
@@ -60,18 +127,33 @@ var knot_rect: Rect2 = Rect2()
 var relic_at: Vector2 = Vector2.ZERO
 var bulbs: Array[BrambleBulb] = []
 var vines: Array[BrambleVine] = []
+## The bulb in bloom (null while its sap runs to the next, and once all have burst).
+var bloom: BrambleBulb = null
+## The sap on its way: the bulb it runs to (null when none is), its way in pixels, how long that is,
+## and how far along it is (0 to 1).
+var sap_to: BrambleBulb = null
+var sap_path: PackedVector2Array = PackedVector2Array()
+var sap_len: float = 0.0
+var sap_u: float = 0.0
+## Its fury: a point for each bulb burst.
+var fury: int = 0
+## Its heart, once bared (null before), and how far its crown has drawn back from round it (0 to 1).
+var heart: BrambleHeart = null
+var bare: float = 0.0
 ## The knot's body (it walls off the head of the shaft) and its thorns' touch.
-var knot: StaticBody2D
+var knot: BrambleKnot
 var knot_box: HitBox
-## Whether the knot is tearing open (the last bulb burst), how far (0 to 1), and whether it is slain.
-var opening: bool = false
-var open_u: float = 0.0
+## Its crown and roots, as they grow, quiver, draw back and die (BrambleTangle).
+var tangle: BrambleTangle = BrambleTangle.new()
+## Whether it is dying (the heart burst), the seconds since, the seconds its death takes (its last
+## cane in), and whether it is slain.
+var dying: bool = false
+var dying_t: float = 0.0
+var dying_end: float = 0.0
 var slain: bool = false
 var ink: InkCanvas
 var t: float = 0.0
 var level_seed: int = 0
-## The knot's shapes (see _knot_parts), worked out once.
-var _knot: Dictionary = {}
 
 
 func _ready() -> void:
@@ -112,6 +194,10 @@ func setup(info: MapInfo, _v: Vector2i, which: Variant) -> void:
 		vine.place(face(v[0], v[1]), cell, level_seed)
 		vine.bulb = LevelGen.best_of(bulbs, func(b: BrambleBulb) -> float: return b.global_position.distance_to(vine.global_position)) as BrambleBulb
 		vines.append(vine)
+	_grow_tangle()
+	# The lowest bulb, nearest the foot where the wizard comes in, blooms first.
+	if not bulbs.is_empty():
+		bloom_on(LevelGen.best_of(bulbs, func(b: BrambleBulb) -> float: return -b.global_position.y) as BrambleBulb)
 
 
 ## The middle of cell `v`.
@@ -127,8 +213,9 @@ func face(wall: Vector2i, out: Vector2i) -> Vector2:
 ## The knot: a solid body filling the head of the shaft beside the landing, and the touch of its
 ## thorns a little past it.
 func _grow_knot() -> void:
-	knot = StaticBody2D.new()
+	knot = BrambleKnot.new()
 	knot.name = "Knot"
+	knot.bramble = self
 	# The environment's layer: the wizard stands on it and cannot get past it.
 	knot.collision_layer = 4
 	knot.collision_mask = 0
@@ -145,6 +232,116 @@ func _grow_knot() -> void:
 	reach.size = knot_rect.size + Vector2.ONE * KNOT_REACH * 2.0
 	(knot_box.get_node("CollisionShape2D") as CollisionShape2D).shape = reach
 	knot.add_child(knot_box)
+	# Its thorns hurt only once its crown has grown (see _physics_process).
+	knot_box.collision.disabled = true
+
+
+## Its crown over the knot and its roots down the walls, from the head to the lowest bulb or vine on
+## each (BrambleTangle.grow).
+func _grow_tangle() -> void:
+	var walls: Array[float] = []
+	var lows: Array[float] = []
+	for side: int in [0, 1]:
+		var out: float = 1.0 if side == 0 else -1.0
+		walls.append(center(Vector2i(inside.position.x - 1 if side == 0 else inside.end.x, 0)).x + out * cell * 0.5)
+		var low: float = knot_rect.end.y
+		for vine: BrambleVine in vines:
+			if signf(vine.way.x) == out:
+				low = maxf(low, vine.global_position.y)
+		for bulb: BrambleBulb in bulbs:
+			if signf(bulb.way.x) == out:
+				low = maxf(low, bulb.global_position.y)
+		lows.append(low)
+	var inner: float = 1.0 if relic_at.x >= knot_rect.get_center().x else -1.0
+	tangle.grow(knot_rect, inner, knot_rect.get_center().x, knot_rect.end.y - BUD_TUCK, knot_rect.end.y - BUD_TOP, walls, lows, knot_rect.end.y, level_seed)
+
+
+## Whether `at` (px) is in the shaft, from its foot up to the knot.
+func in_shaft(at: Vector2) -> bool:
+	var half: Vector2 = Vector2.ONE * cell * 0.5
+	return Rect2(center(inside.position) - half, Vector2(inside.size) * cell).has_point(at)
+
+
+## Its crown grows out of the rock now (the wizard has climbed near).
+func wake() -> void:
+	tangle.now = t
+	tangle.wake()
+
+
+## A blow `power` px hard at `at`: its crown and roots quiver from there.
+func quiver(at: Vector2, power: float) -> void:
+	tangle.now = t
+	tangle.quiver(at, power)
+
+
+## A bolt has struck the knot, heading `dir`: its crown quivers where it struck, as near the wizard
+## as the knot reaches.
+func struck_knot(dir: Vector2) -> void:
+	var from: Vector2 = knot_rect.get_center() - dir * knot_rect.size.length()
+	var player: Player = map_info.player if map_info != null else null
+	if player != null and is_instance_valid(player):
+		from = player.global_position
+	quiver(Vector2(clampf(from.x, knot_rect.position.x, knot_rect.end.x), clampf(from.y, knot_rect.position.y, knot_rect.end.y)), QUIVER_KNOT)
+
+
+## Bulb `bulb` blooms now, until it is wounded (the tests use it too).
+func bloom_on(bulb: BrambleBulb) -> void:
+	bloom = bulb
+	sap_to = null
+	sap_path = PackedVector2Array()
+
+
+## Bulb or heart `bulb` has been wounded and lives: the bloom moves on from it (a heart shuts
+## itself, BrambleHeart.struck).
+func wounded(bulb: BrambleBulb) -> void:
+	if bulb == bloom:
+		_flow(bulb)
+
+
+## The bloom leaves `from`: its sap runs to the living bulb nearest it along the roots (another,
+## while there is one; else back to `from`), which blooms when it arrives.
+func _flow(from: BrambleBulb) -> void:
+	bloom = null
+	var left: Array = bulbs.filter(func(b: BrambleBulb) -> bool: return b.alive and b != from)
+	if left.is_empty() and from.alive:
+		left = [from]
+	if left.is_empty():
+		return
+	var next: BrambleBulb = LevelGen.best_of(left, func(b: BrambleBulb) -> float: return _length(_sap_path(from, b))) as BrambleBulb
+	sap_to = next
+	sap_path = _sap_path(from, next)
+	sap_len = _length(sap_path)
+	sap_u = 0.0
+
+
+## How long a way is (px).
+static func _length(way: PackedVector2Array) -> float:
+	var long: float = 0.0
+	for i: int in range(1, way.size()):
+		long += way[i - 1].distance_to(way[i])
+	return long
+
+
+## The way the sap runs from bulb `a` to bulb `b` (px): along the wall's root when they share a
+## wall, else up `a`'s root to the head, across under it, and down `b`'s.
+func _sap_path(a: BrambleBulb, b: BrambleBulb) -> PackedVector2Array:
+	var from: Vector2 = a.global_position - a.way * (BrambleBulb.OUT - SAP_OUT)
+	var to: Vector2 = b.global_position - b.way * (BrambleBulb.OUT - SAP_OUT)
+	if a != b and signf(a.way.x) == signf(b.way.x):
+		return PackedVector2Array([from, to])
+	var y: float = knot_rect.end.y - cell * 0.5
+	return PackedVector2Array([from, Vector2(from.x, y), Vector2(to.x, y), to])
+
+
+## Where the sap is, `back` px behind its pulse.
+func sap_at(back: float = 0.0) -> Vector2:
+	var go: float = maxf(0.0, sap_u * sap_len - back)
+	for i: int in range(1, sap_path.size()):
+		var leg: float = sap_path[i - 1].distance_to(sap_path[i])
+		if go <= leg or i == sap_path.size() - 1:
+			return sap_path[i - 1].move_toward(sap_path[i], go)
+		go -= leg
+	return sap_path[0] if not sap_path.is_empty() else Vector2.ZERO
 
 
 ## How many bulbs are left.
@@ -152,47 +349,109 @@ func bulbs_left() -> int:
 	return bulbs.filter(func(b: BrambleBulb) -> bool: return b.alive).size()
 
 
-## Bulb `bulb` has burst: the vines it fed wither, and with the last one the knot tears open.
+## How far its crown should be drawn back from round its heart now: a share of PEEK for each bulb
+## burst, and all the way once the heart is bared.
+func bare_to() -> float:
+	if heart != null:
+		return 1.0
+	if bulbs.is_empty():
+		return 0.0
+	return PEEK * float(fury) / float(maxi(bulbs.size() - 1, 1))
+
+
+## Bulb `bulb` has burst: the vines it fed wither, its sap goes to the rest (fury) and, if it was
+## in bloom, runs on to the next; with the last one the heart is bared. The heart burst, it dies.
 func burst(bulb: BrambleBulb) -> void:
 	if not bulb.alive:
 		return
 	bulb.pop()
 	RisoFx.burst(&"gain", bulb.global_position, bulb.way, [RisoPrint.ACCENT, RisoPrint.PINK])
 	Wound.shake(12.0, 0.25)
+	quiver(bulb.global_position, QUIVER_BURST)
+	if bulb == heart:
+		_open()
+		return
+	fury += 1
 	for vine: BrambleVine in vines:
 		if vine.bulb == bulb:
 			vine.wither()
 	if bulbs_left() == 0:
-		_open()
+		_bare_heart()
+	elif bloom == bulb or sap_to == bulb:
+		_flow(bulb)
 
 
-## The last bulb has burst: every vine withers, and the knot tears open; nothing of it hurts now.
+## The last bulb has burst: its crown draws back to bare its heart, and it makes its last stand:
+## every bulb opens again, wild, and every vine grows back.
+func _bare_heart() -> void:
+	bloom = null
+	sap_to = null
+	wake()
+	for bulb: BrambleBulb in bulbs:
+		bulb.rouse()
+	for vine: BrambleVine in vines:
+		vine.rouse()
+	heart = BrambleHeart.new(self, Vector2i(roundi((knot_rect.get_center().x - origin.x) / cell), roundi((knot_rect.end.y - origin.y) / cell)), Vector2.DOWN, HEART_HP)
+	heart.name = "Heart"
+	add_child(heart)
+	heart.global_position = Vector2(knot_rect.get_center().x, knot_rect.end.y - BUD_TOP + BUD_LONG * BUD_MID)
+	Wound.shake(14.0, 0.4)
+	RisoFx.burst(&"hit", heart.global_position, Vector2.DOWN, [RisoPrint.ACCENT, RisoPrint.PINK])
+
+
+## The heart has burst: nothing of it hurts now and the head of the shaft is open, and it dies from
+## the heart out (BrambleTangle.die): every cane dries, then draws back into the rock.
 func _open() -> void:
-	opening = true
+	dying = true
+	dying_t = 0.0
+	for bulb: BrambleBulb in bulbs:
+		bulb.calm()
 	for vine: BrambleVine in vines:
 		vine.wither()
 	for part: CollisionShape2D in [knot.get_child(0) as CollisionShape2D, knot_box.collision]:
 		if part != null:
 			part.set_deferred("disabled", true)
+	var from: Vector2 = heart.global_position if heart != null else knot_rect.get_center()
+	tangle.now = t
+	tangle.wake()
+	tangle.die(from)
+	dying_end = tangle.end_time
 	Wound.shake(16.0, 0.5)
-	RisoFx.burst(&"hit", knot_rect.get_center(), Vector2.DOWN, [RisoPrint.PINK, RisoPrint.BLUE])
+	RisoFx.burst(&"hit", from, Vector2.DOWN, [RisoPrint.PINK, RisoPrint.BLUE])
 
 
 func _physics_process(delta: float) -> void:
-	if not opening or slain:
+	if slain:
 		return
-	open_u = minf(1.0, open_u + delta / OPEN_TIME)
-	if open_u >= 1.0:
-		_die()
+	if dying:
+		dying_t += delta
+		if dying_t >= dying_end:
+			_die()
+		return
+	var player: Player = map_info.player if map_info != null else null
+	if not tangle.awake() and player != null and is_instance_valid(player) and in_shaft(player.global_position) and player.global_position.distance_to(knot_rect.get_center()) <= WAKE_RANGE:
+		wake()
+	# Its thorns hurt once its crown has grown far enough.
+	var off: bool = tangle.grown() < THORNS_AT
+	if knot_box.collision != null and knot_box.collision.disabled != off:
+		knot_box.collision.set_deferred("disabled", off)
+	bare = move_toward(bare, bare_to(), delta / BARE_TIME)
+	# A harder preset runs the sap on sooner (Difficulty.haste).
+	if heart == null and sap_to != null:
+		sap_u += delta * Difficulty.haste() * SAP_SPEED / maxf(sap_len, SAP_SPEED * SAP_MIN)
+		if sap_u >= 1.0:
+			bloom_on(sap_to)
 
 
 ## Slain at once (the F7 panel's Slay boss, MapInfo.slay_boss): every bulb bursts, and it dies
-## without waiting for the knot to tear open.
+## without waiting for its canes to draw back.
 func slay() -> void:
 	if slain:
 		return
 	for bulb: BrambleBulb in bulbs:
 		burst(bulb)
+	if heart != null:
+		burst(heart)
 	_die()
 
 
@@ -206,65 +465,60 @@ func _die() -> void:
 
 # ------------------------------------------------------------------ the print
 
-## Its roots down the walls, the vines, the bulbs, and the knot over them all: bark in blue and
-## night, thorns and vines in pink (danger), bulbs in accent (its weak points). As the knot tears
-## open everything fades.
+## Its roots down the walls, the vines, the bulbs, the bud in its hollow, and its crown over them
+## all: bark in blue and night, thorns and vines in pink (danger), bulbs and the bud in accent (its
+## weak points). Dying, every cane pales and draws back into the rock.
 func _process(delta: float) -> void:
 	t += delta
+	tangle.now = t
 	if ink == null or inside.size == Vector2i.ZERO:
 		return
 	ink.global_position = Vector2.ZERO
 	ink.begin()
-	var fade: float = 1.0 - open_u
-	_draw_roots(fade)
+	tangle.set_hollow(_bud_middle(), _hollow_size())
+	tangle.bud_y = _bud_top().y
+	tangle.draw(ink, true)
 	for vine: BrambleVine in vines:
-		_draw_vine(vine, fade)
+		_draw_vine(vine)
 	for bulb: BrambleBulb in bulbs:
-		_draw_bulb(bulb, fade)
-	_draw_knot(fade)
+		_draw_bulb(bulb)
+	_draw_bud()
+	tangle.draw(ink, false)
+	_draw_sap()
 	ink.finish()
 
 
-## A root of bark creeping down the face of each wall, from the knot to the lowest bulb or vine on
-## it, which they grow from.
-func _draw_roots(fade: float) -> void:
-	var roots: Array[PackedVector2Array] = []
-	for side: int in [0, 1]:
-		var wall_x: float = center(Vector2i(inside.position.x - 1 if side == 0 else inside.end.x, 0)).x
-		var out: float = 1.0 if side == 0 else -1.0
-		var low: float = knot_rect.end.y
-		for vine: BrambleVine in vines:
-			if signf(vine.way.x) == out:
-				low = maxf(low, vine.global_position.y)
-		for bulb: BrambleBulb in bulbs:
-			if signf(bulb.way.x) == out:
-				low = maxf(low, bulb.global_position.y)
-		var left: PackedVector2Array = PackedVector2Array()
-		var right: PackedVector2Array = PackedVector2Array()
-		var y: float = knot_rect.position.y + 20.0
-		while y <= low + 16.0:
-			var k: float = clampf((low + 16.0 - y) / 120.0, 0.25, 1.0)
-			var x: float = wall_x + out * (cell * 0.5 + ROOT_SWAY * (0.5 + 0.5 * sin(y * 0.035 + float(side) * 2.0)))
-			var w: float = ROOT_WIDTH * k * (0.75 + 0.25 * sin(y * 0.09 + float(side)))
-			left.append(Vector2(x - w * 0.5, y))
-			right.append(Vector2(x + w * 0.5, y))
-			y += 10.0
-		right.reverse()
-		left.append_array(right)
-		if left.size() >= 4:
-			roots.append(left)
-	ink.lift_ink([RisoPrint.NIGHT], fade, roots)
-	ink.ink(RisoPrint.BLUE, BARK_BLUE * fade, roots)
-	ink.ink(RisoPrint.NIGHT, 0.3 * fade, roots, false)
+## How far the husk or withered vine at `at`, on the wall its root faces `out` from, is still out of
+## the rock as its root draws back past it, dying (1 out, 0 in).
+func _root_pull(at: Vector2, out: float) -> float:
+	if not dying:
+		return 1.0
+	var tip: Vector2 = tangle.root_tip(out)
+	if not tip.is_finite():
+		return 1.0
+	return clampf((tip.y - at.y + HUSK_PULL) / HUSK_PULL, 0.0, 1.0)
+
+
+## How dry a husk or withered vine at `at` is, dying (0 to 1): as dry as the root beside it.
+func _dry_at(at: Vector2) -> float:
+	if not dying:
+		return 0.0
+	return clampf((dying_t - at.distance_to(tangle.dry_from) / BrambleTangle.DRY_SPEED) / BrambleTangle.DRY_TIME, 0.0, 1.0)
 
 
 ## A vine: out, a pink stem tapering from its root with thorns along both edges and a hooked tip,
 ## writhing; warning, pink shoots poking out of the rock, trembling; resting or recoiled, a dark
-## bud at its root; withered, a short dry curl.
-func _draw_vine(vine: BrambleVine, fade: float) -> void:
+## bud at its root; withered, a short dry curl, drying and pulled into the rock with its root as
+## the bramble dies.
+func _draw_vine(vine: BrambleVine) -> void:
 	var root: Vector2 = vine.global_position
 	var xf: Transform2D = Transform2D(vine.way.angle(), root)
 	if vine.withered and vine.length < 2.0:
+		var pull: float = _root_pull(root, signf(vine.way.x))
+		if pull <= 0.01:
+			return
+		var dry: float = _dry_at(root)
+		xf = xf * Transform2D.IDENTITY.scaled(Vector2(pull, pull))
 		var curl: PackedVector2Array = PackedVector2Array()
 		for n: int in range(9):
 			var a: float = -0.4 + float(n) * 0.35
@@ -272,13 +526,13 @@ func _draw_vine(vine: BrambleVine, fade: float) -> void:
 		for n: int in range(8, -1, -1):
 			var a: float = -0.4 + float(n) * 0.35
 			curl.append(Vector2(10.0 + 12.0 * sin(a), -14.0 + 12.0 * cos(a)))
-		ink.lift_ink([RisoPrint.NIGHT], fade, [xf * curl])
-		ink.ink(RisoPrint.BLUE, 0.7 * fade, [xf * curl])
-		ink.ink(RisoPrint.NIGHT, 0.45 * fade, [xf * curl], false)
+		ink.lift_ink([RisoPrint.NIGHT], 1.0, [xf * curl])
+		ink.ink(RisoPrint.BLUE, lerpf(0.7, DRY_BLUE, dry), [xf * curl])
+		ink.ink(RisoPrint.NIGHT, lerpf(0.45, 0.1, dry), [xf * curl], false)
 		return
 	var bud: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(5.0, 0.0), 13.0, 20.0, 14)
-	ink.ink(RisoPrint.BLUE, BARK_BLUE * fade, [bud])
-	ink.ink(RisoPrint.NIGHT, BARK_NIGHT * fade, [bud], false)
+	ink.ink(RisoPrint.BLUE, BARK_BLUE, [bud])
+	ink.ink(RisoPrint.NIGHT, BARK_NIGHT, [bud], false)
 	var state: Array = vine.phase()
 	if vine.length < 2.0:
 		if state[0] == &"warn" and not vine.recoiled():
@@ -290,7 +544,7 @@ func _draw_vine(vine: BrambleVine, fade: float) -> void:
 				var dir: Vector2 = Vector2.from_angle(ang)
 				var side: Vector2 = dir.orthogonal() * 9.0
 				shoots.append(xf * PackedVector2Array([side, dir * tip, -side]))
-			ink.ink(RisoPrint.PINK, (0.55 + 0.45 * absf(sin(t * 14.0))) * fade, shoots)
+			ink.ink(RisoPrint.PINK, 0.55 + 0.45 * absf(sin(t * 14.0)), shoots)
 		return
 	# The stem, writhing, from the rock out to its tip.
 	var length: float = vine.length
@@ -326,26 +580,35 @@ func _draw_vine(vine: BrambleVine, fade: float) -> void:
 	var spikes: Array[PackedVector2Array] = []
 	for th: PackedVector2Array in thorns:
 		spikes.append(xf * th)
-	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], fade, stem)
-	ink.ink(RisoPrint.PINK, 0.8 * fade, stem)
-	ink.ink(RisoPrint.NIGHT, 0.2 * fade, stem, false)
-	ink.ink(RisoPrint.PINK, fade, spikes)
+	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 1.0, stem)
+	ink.ink(RisoPrint.PINK, 0.8, stem)
+	ink.ink(RisoPrint.NIGHT, 0.2, stem, false)
+	ink.ink(RisoPrint.PINK, 1.0, spikes)
 
 
 ## A bulb: a swelling teardrop of accent out of the rock face, cupped in bark, a paper gleam on it
 ## and its hits left as dark dots; it swells as it readies a seed and flashes pink when struck.
-## Burst: a shrivelled husk, its petals flying for a moment.
-func _draw_bulb(bulb: BrambleBulb, fade: float) -> void:
+## Shut (not in bloom), it is smaller and dimmer, and two sepals of bark close over it; they fold
+## back against the wall as it blooms. Burst: a shrivelled husk, its petals flying for a moment;
+## as the bramble dies, it dries with its root and is pulled into the wall as the root draws back
+## past it. Wild (the last stand), it is open again but screened with pink, no hits left on it, a
+## blow glancing off it blue.
+func _draw_bulb(bulb: BrambleBulb) -> void:
 	var base: Vector2 = bulb.global_position - bulb.way * BrambleBulb.OUT
 	var xf: Transform2D = Transform2D(bulb.way.angle(), base)
-	var cup: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(7.0, 0.0), 20.0, BULB_R * 0.9, 16)
-	if not bulb.alive:
+	if not bulb.alive and not bulb.wild:
+		var pull: float = _root_pull(bulb.global_position, signf(bulb.way.x))
+		if pull <= 0.01:
+			return
+		var dry: float = _dry_at(bulb.global_position)
+		xf = xf * Transform2D.IDENTITY.scaled(Vector2(pull, pull))
+		var cup0: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(7.0, 0.0), 20.0, BULB_R * 0.9, 16)
 		var since: float = t - bulb.burst_t
 		var husk: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(18.0, 0.0), 20.0, 15.0, 14)
-		ink.lift_ink([RisoPrint.NIGHT], fade, [cup, husk])
-		ink.ink(RisoPrint.BLUE, BARK_BLUE * fade, [cup, husk])
-		ink.ink(RisoPrint.NIGHT, 0.6 * fade, [cup], false)
-		ink.ink(RisoPrint.NIGHT, 0.35 * fade, [husk], false)
+		ink.lift_ink([RisoPrint.NIGHT], 1.0, [cup0, husk])
+		ink.ink(RisoPrint.BLUE, lerpf(BARK_BLUE, DRY_BLUE, dry), [cup0, husk])
+		ink.ink(RisoPrint.NIGHT, 0.6 * (1.0 - dry), [cup0], false)
+		ink.ink(RisoPrint.NIGHT, 0.35 * (1.0 - dry), [husk], false)
 		if since < BURST_TIME:
 			var u: float = since / BURST_TIME
 			var petals: Array[PackedVector2Array] = []
@@ -354,123 +617,198 @@ func _draw_bulb(bulb: BrambleBulb, fade: float) -> void:
 				petals.append(xf * RisoShapes.ellipse(Vector2(22.0, 0.0) + dir * (25.0 + 70.0 * u), 13.0 * (1.0 - u), 7.0 * (1.0 - u), 10, dir.angle()))
 			ink.ink(RisoPrint.ACCENT, 1.0 - u, petals)
 		return
+	var cup: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(7.0, 0.0), 20.0, BULB_R * 0.9, 16)
+	var open: float = bulb.opened
 	var swell: float = 1.0 + BULB_SWELL * bulb.charge * bulb.charge + 0.04 * sin(t * 3.0 + float(bulb.cell.y))
-	var r: float = BULB_R * swell
+	var r: float = BULB_R * swell * lerpf(SHUT_SIZE, 1.0, open)
 	var body: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(BrambleBulb.OUT * swell, 0.0), r * 0.95, r, 22)
-	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK], fade, [body])
-	ink.ink(RisoPrint.ACCENT, fade, [body])
+	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK], 1.0, [body])
+	ink.ink(RisoPrint.ACCENT, lerpf(SHUT_ACCENT, 1.0, open), [body])
 	var flash: float = clampf(1.0 - (t - bulb.struck_t) / FLASH_TIME, 0.0, 1.0)
 	if flash > 0.0:
-		ink.ink(RisoPrint.PINK, 0.8 * flash * fade, [body], false)
+		ink.ink(RisoPrint.PINK, 0.8 * flash, [body], false)
+	if bulb.wild:
+		ink.ink(RisoPrint.PINK, WILD_PINK * open, [body], false)
+		var glanced: float = clampf(1.0 - (t - bulb.warded_t) / FLASH_TIME, 0.0, 1.0)
+		if glanced > 0.0:
+			ink.ink(RisoPrint.BLUE, 0.6 * glanced, [body], false)
 	# Its gleam, toward the open shaft.
-	ink.lift_ink([RisoPrint.ACCENT], 0.7 * fade, [xf * RisoShapes.ellipse(Vector2(BrambleBulb.OUT * swell + r * 0.3, -r * 0.35), r * 0.22, r * 0.14, 10, 0.5)])
-	ink.ink(RisoPrint.BLUE, BARK_BLUE * fade, [cup])
-	ink.ink(RisoPrint.NIGHT, BARK_NIGHT * fade, [cup], false)
+	ink.lift_ink([RisoPrint.ACCENT], 0.7 * open, [xf * RisoShapes.ellipse(Vector2(BrambleBulb.OUT * swell + r * 0.3, -r * 0.35), r * 0.22, r * 0.14, 10, 0.5)])
+	ink.ink(RisoPrint.BLUE, BARK_BLUE, [cup])
+	ink.ink(RisoPrint.NIGHT, BARK_NIGHT, [cup], false)
 	# Its hits left, as dark dots down its middle.
 	var dots: Array[PackedVector2Array] = []
 	var n: int = bulb.hits_left()
 	for j: int in range(n):
 		var off: float = (float(j) - float(n - 1) * 0.5) * r * 0.5
 		dots.append(xf * RisoShapes.circle(Vector2(BrambleBulb.OUT * swell + 2.0, off), r * 0.13, 8))
-	ink.ink(RisoPrint.NIGHT, 0.85 * fade, dots, false)
+	ink.ink(RisoPrint.NIGHT, 0.85, dots, false)
+	# Its sepals: closed over it while shut, folded back against the wall in bloom, and blue-bright
+	# for a moment when a blow glances off them.
+	if open < 0.99:
+		var sepals: Array[PackedVector2Array] = []
+		for side: float in [-1.0, 1.0]:
+			var hinge: Vector2 = Vector2(4.0, side * BULB_R * SEPAL_HINGE)
+			var leaf: Transform2D = Transform2D(lerpf(-side * SEPAL_SHUT, side * SEPAL_OPEN, open), hinge)
+			sepals.append(xf * (leaf * RisoShapes.almond(Vector2(BULB_R * 0.95, 0.0), BULB_R, BULB_R * SEPAL_WIDE, 14)))
+		var glance: float = clampf(1.0 - (t - bulb.warded_t) / FLASH_TIME, 0.0, 1.0)
+		var shut: float = 1.0 - open
+		ink.lift_ink([RisoPrint.NIGHT, RisoPrint.ACCENT], shut, sepals)
+		ink.ink(RisoPrint.BLUE, (BARK_BLUE - 0.4 * glance) * shut, sepals)
+		ink.ink(RisoPrint.NIGHT, BARK_NIGHT * (1.0 - glance) * shut, sepals, false)
 
 
-## The knot: a dark tangle filling the head of the shaft, of thick stems twisted across one
-## another, bristling with pink thorns (longest along its underside), and a row of accent pips on a
-## dark knot-hole, one for each bulb (dark once burst). Tearing open, its two halves pull apart
-## toward the walls and shrivel.
-func _draw_knot(fade: float) -> void:
-	var r: Rect2 = knot_rect
-	if _knot.is_empty():
-		_knot = _knot_parts(r)
-	var parts: Dictionary = _knot
-	if opening:
-		# Each half pulls away toward its side and shrinks there.
-		var torn: Dictionary = {}
-		for key: String in parts:
-			var none: Array[PackedVector2Array] = []
-			torn[key] = none
-		for side: int in [-1, 1]:
-			var half: Rect2 = Rect2(r.position.x + (0.0 if side < 0 else r.size.x * 0.5), r.position.y - 40.0, r.size.x * 0.5, r.size.y + 80.0)
-			var anchor: Vector2 = Vector2(r.position.x if side < 0 else r.end.x, r.position.y)
-			var shrink: float = 1.0 - 0.6 * open_u
-			var move: Transform2D = Transform2D(0.0, anchor + Vector2(float(side) * r.size.x * 0.3 * open_u, 0.0)) * Transform2D(0.0, Vector2.ONE * shrink, 0.0, Vector2.ZERO) * Transform2D(0.0, -anchor)
-			var cut: PackedVector2Array = PackedVector2Array([half.position, Vector2(half.end.x, half.position.y), half.end, Vector2(half.position.x, half.end.y)])
-			for key: String in parts:
-				for poly: PackedVector2Array in parts[key]:
-					for piece: PackedVector2Array in Geometry2D.intersect_polygons(poly, cut):
-						(torn[key] as Array[PackedVector2Array]).append(move * piece)
-		parts = torn
-	ink.lift_ink([RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.BLUE, RisoPrint.NIGHT], fade, parts["mass"])
-	ink.ink(RisoPrint.BLUE, KNOT_BLUE * fade, parts["mass"], false)
-	ink.ink(RisoPrint.NIGHT, KNOT_NIGHT * fade, parts["mass"], false)
-	ink.lift_ink([RisoPrint.NIGHT], fade, parts["stems"])
-	ink.ink(RisoPrint.BLUE, BARK_BLUE * fade, parts["stems"])
-	ink.ink(RisoPrint.NIGHT, 0.1 * fade, parts["stems"], false)
-	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], fade, parts["thorns"])
-	ink.ink(RisoPrint.PINK, fade, parts["thorns"])
-	if opening:
+## The bud's size now (a share of BUD_LONG by BUD_WIDE): BUD_HIDDEN tucked in the crown, growing as
+## the crown draws back from it.
+func _bud_grow() -> float:
+	return lerpf(BUD_HIDDEN, 1.0, bare)
+
+
+## Where the bud's cap is now: tucked BUD_TUCK up in the knot, dropping to BUD_TOP as it is bared.
+func _bud_top() -> Vector2:
+	return Vector2(knot_rect.get_center().x, knot_rect.end.y - lerpf(BUD_TUCK, BUD_TOP, bare))
+
+
+## The middle of the bud now, which the crown's hollow is round.
+func _bud_middle() -> Vector2:
+	return _bud_top() + Vector2(0.0, BUD_LONG * _bud_grow() * 0.5)
+
+
+## How far the crown has drawn back from round the bud (half sizes, px): nothing while it is whole,
+## then round its middle, as wide as the bud and BrambleTangle.HOLLOW_PAD more once bared.
+func _hollow_size() -> Vector2:
+	if bare <= 0.001:
+		return Vector2.ZERO
+	var full: Vector2 = Vector2(BUD_WIDE * 0.5, BUD_LONG * 0.5) * _bud_grow() + Vector2.ONE * BrambleTangle.HOLLOW_PAD
+	return full * sqrt(bare)
+
+
+## The heart: a bud hanging from the tip of its own stalk (BrambleTangle.stalk_tip), hidden in the
+## crown, glimpsed through it as the canes draw back; it sways and quivers with its stalk. A long
+## teardrop of accent, point down, wrapped by two long sepals of bark hugging its sides and two
+## shorter, paler ones within, a pink thorn at each long one's tip, under a cap of bark where the
+## stalk meets it. Its accent shows down the middle, dimmer while hidden,
+## with a paper gleam and, once bared, its hits left as dark dots. With each beat it swells and its
+## sepals part a little; struck, it flashes pink, and while it is shut its outer sepals close over
+## it (BrambleHeart.closed), a blow glancing off them pale. Burst, it is a dry husk, drawn up into
+## the rock as its stalk draws back. Nothing of it shows until its stalk has grown down to it.
+func _draw_bud() -> void:
+	if not tangle.awake() or not (tangle.holds_bud() or dying):
 		return
-	# Its health: a pip for each bulb, in a row on a dark knot-hole low on the knot.
-	var n: int = bulbs.size()
-	var mid: Vector2 = Vector2(r.get_center().x, r.end.y - 46.0)
-	var hole: PackedVector2Array = RisoShapes.rrect(mid.x - float(n) * 15.0 - 6.0, mid.y - 17.0, float(n) * 30.0 + 12.0, 34.0, 17.0)
-	ink.knock([RisoPrint.BLUE], [hole])
-	ink.ink(RisoPrint.NIGHT, 1.0, [hole], false)
-	var lit: Array[PackedVector2Array] = []
-	var out: Array[PackedVector2Array] = []
-	for i: int in range(n):
-		var pip: PackedVector2Array = RisoShapes.circle(mid + Vector2((float(i) - float(n - 1) * 0.5) * 30.0, 0.0), 10.0, 14)
-		if bulbs[i].alive:
-			lit.append(pip)
-		else:
-			out.append(pip)
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], lit)
-	ink.ink(RisoPrint.ACCENT, 1.0, lit)
-	ink.ink(RisoPrint.BLUE, 0.5, out, false)
-
-
-## The knot's shapes over rectangle `r`: its dark "mass", the "stems" twisted across it, and the
-## "thorns" on them and along its underside. The same every visit (from the level seed).
-func _knot_parts(r: Rect2) -> Dictionary:
-	var box: PackedVector2Array = PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)])
-	var mass: Array[PackedVector2Array] = [box]
-	var stems: Array[PackedVector2Array] = []
+	var grow: float = _bud_grow()
+	var top0: Vector2 = tangle.stalk_tip()
+	if not top0.is_finite():
+		return
+	var long: float = BUD_LONG * grow
+	var wide: float = BUD_WIDE * grow
+	if dying or (heart != null and not heart.alive):
+		# A dry husk, drawn up into the rock with its stalk.
+		var keep: float = 1.0 - tangle.drawn_back(tangle.stalk) * 0.6
+		if tangle.reaches()[tangle.canes.find(tangle.stalk)] < 4.0:
+			return
+		var since: float = t - (heart.burst_t if heart != null else t)
+		var husk: PackedVector2Array = _teardrop(top0, long * 0.6 * keep, wide * 0.45 * keep)
+		var dry: float = clampf(dying_t / BrambleTangle.DRY_TIME, 0.0, 1.0)
+		ink.lift_ink([RisoPrint.NIGHT, RisoPrint.ACCENT], 1.0, [husk])
+		ink.ink(RisoPrint.BLUE, lerpf(BARK_BLUE, DRY_BLUE, dry), [husk])
+		ink.ink(RisoPrint.NIGHT, 0.3 * (1.0 - dry), [husk], false)
+		if since < BURST_TIME:
+			var u: float = since / BURST_TIME
+			var petals: Array[PackedVector2Array] = []
+			for n: int in range(7):
+				var dir: Vector2 = Vector2.from_angle(PI * 0.5 + (float(n) - 3.0) * 0.5)
+				petals.append(RisoShapes.ellipse(top0 + Vector2(0.0, long * 0.45) + dir * (30.0 + 90.0 * u), 16.0 * (1.0 - u), 8.0 * (1.0 - u), 10, dir.angle()))
+			ink.ink(RisoPrint.ACCENT, 1.0 - u, petals)
+		return
+	var cx: float = top0.x
+	var top: float = top0.y
+	var beat: float = pow(maxf(0.0, sin(t / HEART_BEAT * TAU)), 4.0)
+	long *= 1.0 + 0.04 * beat
+	wide *= 1.0 + 0.06 * beat
+	var body: PackedVector2Array = _teardrop(top0, long, wide)
+	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK], 1.0, [body])
+	ink.ink(RisoPrint.ACCENT, lerpf(BUD_DIM, 1.0, bare), [body])
+	ink.ink(RisoPrint.PINK, 0.15 * beat, [body], false)
+	var flash: float = clampf(1.0 - (t - heart.struck_t) / FLASH_TIME, 0.0, 1.0) if heart != null else 0.0
+	if flash > 0.0:
+		ink.ink(RisoPrint.PINK, 0.8 * flash, [body], false)
+	ink.lift_ink([RisoPrint.ACCENT], 0.7 * bare, [RisoShapes.ellipse(Vector2(cx - wide * 0.18, top + long * 0.36), wide * 0.08, wide * 0.13, 12, 0.3)])
+	# Its sepals and cap, parting with the beat; wrapped closer while it is hidden, and closed over it
+	# while it is shut.
+	var shut: float = heart.closed if heart != null else 0.0
+	var part: float = (BUD_SPREAD + BUD_PART * beat) * lerpf(0.4, 1.0, bare) * (1.0 - shut)
+	var outer: Array[PackedVector2Array] = []
+	var within: Array[PackedVector2Array] = []
 	var thorns: Array[PackedVector2Array] = []
-	for i: int in range(KNOT_STEMS):
-		var h: Callable = func(k: int) -> float: return RisoShapes.hash1(float(level_seed % 7919) * 0.37 + float(i) * 3.1 + float(k) * 1.7 + float(KNOT_DEAL))
-		# From one side to the other, slanting up or down, bowed.
-		var a: Vector2 = Vector2(r.position.x - 10.0, lerpf(r.position.y, r.end.y, float(h.call(0))))
-		var b: Vector2 = Vector2(r.end.x + 10.0, lerpf(r.position.y, r.end.y, float(h.call(1))))
-		var bow: Vector2 = (b - a).orthogonal().normalized() * (float(h.call(2)) - 0.5) * r.size.y * 0.6
-		var width: float = lerpf(18.0, 30.0, float(h.call(3)))
-		var top: PackedVector2Array = PackedVector2Array()
-		var low: PackedVector2Array = PackedVector2Array()
-		var steps: int = 14
-		var flip: float = 1.0 if i % 2 == 0 else -1.0
-		for m: int in range(steps + 1):
-			var u: float = float(m) / float(steps)
-			var at: Vector2 = a.lerp(b, u) + bow * 4.0 * u * (1.0 - u)
-			var dir: Vector2 = (b - a + bow * 4.0 * (1.0 - 2.0 * u)).normalized()
-			var side: Vector2 = dir.orthogonal() * width * 0.5 * (0.8 + 0.2 * sin(u * 9.0 + float(i)))
-			top.append(at + side)
-			low.append(at - side)
-			# A thorn now and then, on alternate edges.
-			if m % 3 == 1 and m < steps:
-				flip = -flip
-				var base: Vector2 = at + side * flip * 0.9
-				var out: Vector2 = dir.orthogonal() * flip
-				thorns.append(PackedVector2Array([base - dir * 9.0, base + out * 20.0 + dir * 4.0, base + dir * 9.0]))
-		low.reverse()
-		top.append_array(low)
-		for piece: PackedVector2Array in Geometry2D.intersect_polygons(top, box):
-			stems.append(piece)
-	thorns = thorns.filter(func(th: PackedVector2Array) -> bool: return r.grow(-4.0).has_point(th[1]))
-	# Along its underside, pointing down the shaft.
-	var count: int = maxi(3, int(r.size.x / 28.0))
-	for n: int in range(count):
-		var x: float = lerpf(r.position.x + 14.0, r.end.x - 14.0, (float(n) + 0.5) / float(count))
-		var spike: float = 24.0 + 14.0 * RisoShapes.hash1(float(n) + float(level_seed % 97))
-		var foot: float = r.end.y - 6.0
-		thorns.append(PackedVector2Array([Vector2(x - 11.0, foot), Vector2(x + 2.0, foot + spike), Vector2(x + 11.0, foot)]))
-	return {"mass": mass, "stems": stems, "thorns": thorns}
+	for s: float in [-1.0, 1.0]:
+		var base: Vector2 = Vector2(cx + s * wide * lerpf(0.16, 0.2, shut), top + 2.0)
+		outer.append(_leaf(base, long * 0.86, wide * lerpf(0.3, SHUT_WIDE, shut), -s * part))
+		within.append(_leaf(Vector2(cx + s * wide * 0.1, top + 2.0), long * 0.42, wide * 0.22, -s * (0.06 + 0.5 * (part - BUD_SPREAD))))
+		var down: Vector2 = Vector2.DOWN.rotated(-s * part)
+		var tip: Vector2 = base + down * (long * 0.86 + 2.0)
+		thorns.append(PackedVector2Array([tip - down.orthogonal() * 4.0 - down * 4.0, tip + down * 14.0, tip + down.orthogonal() * 4.0 - down * 4.0]))
+	var cap: PackedVector2Array = RisoShapes.ellipse(Vector2(cx, top + 8.0), wide * 0.24, 12.0 * grow, 20)
+	var dark: Array[PackedVector2Array] = outer.duplicate()
+	dark.append(cap)
+	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.ACCENT], 1.0, dark)
+	ink.ink(RisoPrint.BLUE, BARK_BLUE, dark)
+	ink.ink(RisoPrint.NIGHT, BARK_NIGHT, dark, false)
+	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.ACCENT], 1.0, within)
+	ink.ink(RisoPrint.BLUE, BARK_BLUE, within)
+	ink.ink(RisoPrint.NIGHT, 0.1, within, false)
+	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 1.0, thorns)
+	ink.ink(RisoPrint.PINK, 1.0, thorns)
+	if heart == null:
+		return
+	var glanced: float = clampf(1.0 - (t - heart.warded_t) / FLASH_TIME, 0.0, 1.0) * shut
+	if glanced > 0.0:
+		ink.lift_ink([RisoPrint.NIGHT], glanced, outer)
+	if shut > 0.5:
+		return
+	var dots: Array[PackedVector2Array] = []
+	var n: int = heart.hits_left()
+	for j: int in range(n):
+		dots.append(RisoShapes.circle(Vector2(cx + (float(j) - float(n - 1) * 0.5) * wide * 0.14, top + long * 0.6), wide * 0.048, 8))
+	ink.ink(RisoPrint.NIGHT, 0.85, dots, false)
+
+
+## A teardrop hanging point down from `top`, `long` long and `wide` across at its widest: a narrow
+## neck, widest a little under it, drawn to a point.
+static func _teardrop(top: Vector2, long: float, wide: float) -> PackedVector2Array:
+	var right: PackedVector2Array = PackedVector2Array()
+	var left: PackedVector2Array = PackedVector2Array()
+	var n: int = 32
+	for i: int in range(n + 1):
+		var u: float = float(i) / float(n)
+		var w: float = wide * 0.5 * pow(sin(PI * u), 0.75) * (1.2 - 0.65 * u)
+		right.append(top + Vector2(w, u * long))
+		left.append(top + Vector2(-w, u * long))
+	left.reverse()
+	right.append_array(left)
+	return right
+
+
+## A leaf (a sepal) from `base`, `long` long and `wide` across, hanging down turned `rot` radians.
+static func _leaf(base: Vector2, long: float, wide: float, rot: float) -> PackedVector2Array:
+	var xf: Transform2D = Transform2D(rot, base)
+	var out: PackedVector2Array = PackedVector2Array()
+	var n: int = 14
+	for i: int in range(n + 1):
+		var u: float = float(i) / float(n)
+		out.append(xf * Vector2(pow(sin(PI * u), 0.85) * wide * 0.5, u * long))
+	for i: int in range(n - 1, 0, -1):
+		var u: float = float(i) / float(n)
+		out.append(xf * Vector2(-pow(sin(PI * u), 0.85) * wide * 0.5, u * long))
+	return out
+
+
+## The sap on its way to the next bulb: a drop of accent running along the roots and under the
+## head, a few smaller drops trailing it.
+func _draw_sap() -> void:
+	if sap_to == null or sap_path.size() < 2:
+		return
+	var drops: Array[PackedVector2Array] = []
+	for k: int in range(SAP_TRAIL + 1):
+		drops.append(RisoShapes.circle(sap_at(float(k) * SAP_GAP), SAP_R * (1.0 - float(k) / float(SAP_TRAIL + 1)), 12))
+	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK], 1.0, drops)
+	ink.ink(RisoPrint.ACCENT, 1.0, drops)

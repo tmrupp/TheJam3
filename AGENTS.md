@@ -29,9 +29,13 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
 - `scripts/MapInfo.gd`: the place being played (`coord`, `here`, `world`), travel, and what a
   change in the record means in the scene (doors, bells, secret rooms, death). It keeps a
   `RunState` (`run`) and a `LevelLoader` (`loader`).
-- `scripts/worlds/`: what a place is. `NextWorldDef.gd` (exits, prices, realm), `Archetype.gd`
-  and `archetypes/` (one per band: sample, size, gates and its own placement pass), and side
-  worlds (`Worlds.gd`, `SideWorld.gd`, `Hyperspace.gd`).
+- `scripts/worlds/`: what a place is. `Bands.gd` (the band layout: which archetype holds which
+  rows, each band's boss and tuning, and the demo's garden-only layout), `NextWorldDef.gd` (exits,
+  prices, realm), `Archetype.gd` and `archetypes/` (one per band: sample, size, gates, how thickly
+  it is dressed and its own placement pass), and side
+  worlds (`Worlds.gd`, `SideWorld.gd`, `Hyperspace.gd`, `PracticeRange.gd`, the debug runs' range
+  for weighing the damage spells, with its tally `scripts/PracticeTally.gd`, and `Tutorial.gd`, the
+  hand-laid hall a new run can begin in, with its control cards `scripts/ControlHint.gd`).
 - `scripts/riso/`: all the art. `RisoPrint` (plates and the print shader), `RisoProp` (the base of
   one art node per prefab) with a script per kind in `props/`, `RisoMarks` (keys, locks, gates,
   chevrons shared with the map and HUD), `RisoGlyph` (ability marks), `RisoTerrain`, `RisoDecor`,
@@ -46,13 +50,24 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
   scene's wizard, TileMap, camera and menu (no `/root/Main/...` paths elsewhere).
 - `wfc_images/`: WFC samples (white open, black rock, red thorns). Drawn ones come from
   `tests/make_*_sample.gd`, so edit the script and rerun it rather than editing the PNG.
-- `gdextension/`: the C++ overlapping-WFC extension (SCons). Rarely touched.
+- `gdextension/`: the C++ overlapping-WFC extension (SCons). Rarely touched. It cuts a sample into
+  pieces and may use each in up to eight versions: `symmetry` takes the first N, `symmetry_mask` any
+  set (bit k for version k: 0 as drawn, 1 upside down, 2 a quarter turn, 3 that upside down, 4 a half
+  turn, 5 the left-right mirror, 6 three quarters, 7 that upside down; see `NextWorldDef`). Rebuild it
+  on Windows with MSVC (Visual Studio 2022 Build Tools):
+  `cd gdextension && python -m SCons platform=windows target=template_debug -j16`. Never with MinGW:
+  its maths library rounds the collapse's logarithms differently and every level in the game changes
+  (`layout_fingerprint_test` says so; run it after any rebuild). With Godot open the DLL is locked:
+  rename it aside first (Windows allows that) and the build writes the new one. The build's object
+  files, link libraries and SCons database are not kept in git (`.gitignore`); the DLL is.
 - `docs/`: `DEEPER_PLAN.md` (design, by system), `REGIONS_PLAN.md` (going up and down
   from the garden, the bands and the bosses at band ends; every phase built, the crags, institute
   and sky as first passes, with tuning and open questions left),
   `RISO_PRINT.md` (the art pipeline and rules), `HISTORY.md` (where removed plans, code and
   assets used to live, with the commits that still hold them; add a row when you take something
-  out), `PAIRED_PLAN.md` (paired play, preliminary: two players on two machines, each seeing the
+  out), `PLAYTEST_PLAN.md` (the owner's playtest notes of November 2026 on the demo: the tutorial, the
+  guard and pogo, the print, music and teleporters; a plan, not yet built),
+  `PAIRED_PLAN.md` (paired play, preliminary: two players on two machines, each seeing the
   other's map, coded messages their only channel; nothing built yet).
 - The owner's task list and notes are a Google Doc, not a file here:
   [Somnonaut: Tom's Tasks](https://docs.google.com/document/d/11vPYlA0G-_dZY2sdV8aK6qM06c1RAE2r05uHSngRHa8/edit)
@@ -63,10 +78,29 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
 
 Places are (seed, row): row 0 is the start, positive rows go down, negative rows go up, and a
 level's `depth` is its distance `|row|` (side worlds sit below `-Worlds.SIDE_BASE`). Bands come from
-a table in `NextWorldDef` (`BAND` = 6): the garden spans rows −3…+3; down, the cemetery then the
-institute; up, the crags then the sky. A new band is one script extending `Archetype`, listed in
-`DOWN` or `UP`. Tests that need a band's levels use `NextWorldDef.band_row(&"cemetery", k)` (row k
-of the band, counting away from the start) rather than a fixed row or `first_depth + k`.
+one table, `Bands.LAYOUTS`: in the whole game (`full`) the garden spans rows −7…+7; down, the
+cemetery then the institute; up, the crags then the sky, 14 rows each (`Bands.GARDEN_ROWS`,
+`BAND_ROWS`), each band's boss at its far end. Each band's line gives its archetype, its rows, its boss and optionally a `"tune"` of its
+archetype's settings (`star_share`, `wisp_share`, `watcher_share`, `hoppers_per_k`...), so a band
+is tuned, lengthened, reordered or left out there and nowhere else. The `garden` layout is the
+demo: the garden alone, the worm and the bramble at its ends, garden levels going on past them. A
+game plays `-- layout=<name>`, else `garden` in a build with the `demo` feature (an export preset's
+custom feature), else `full`; a layout other than `full` keeps its own save. A layout may set
+`"relics_from"` (the demo's lets rare relics lie from depth 1). A demo build also turns off the
+developer's tools (`MapInfo.dev_tools`: the debug toggle, the F7 panel, F8, Debug-Back). A new band
+is one script extending `Archetype`, listed in a layout.
+
+Tests must hold however the bands are tuned. Ask the bands for rows rather than counting them:
+`NextWorldDef.band_row(&"cemetery", k)` (row k of the band, counting away from the start),
+`Bands.rows_of(kind)`, `Bands.garden_rows()`, `Bosses.row_of(boss)`; never a fixed row, `6` or
+`first_depth + k`; `band_rows(kind, ks, gate)` (TestKit) holds each k to the band, a negative k
+counting back from its gate. A test of a band starts with
+`if not needs([&"cemetery"]): finish(); return` (TestKit), so it skips when that band is left out.
+A test that needs a level with something in it (two watchtowers, a student with a walk) looks for
+one over a few worlds and rows with `build`, rather than trusting one level to have it.
+`bands_test` checks the band rules under every layout and a few made-up ones;
+`bash tests/run.sh -l garden full` runs the suite on the demo's, and `-l retuned` on the tests' own
+`TestKit.RETUNED` (every band retuned), which shows a test leaning on how the bands are tuned now.
 
 ## Running and testing
 
@@ -77,6 +111,7 @@ Godot: `$GODOT`, else `godot` on the PATH, else
 bash tests/run.sh                 # quick tier: untagged tests, headless, in parallel
 bash tests/run.sh full            # also "## suite: full", then "## suite: window" one at a time
 bash tests/run.sh sky_test        # just these, headless
+bash tests/run.sh -l garden full  # the suite on another band layout (the demo's)
 ```
 
 - A test's tier is a line near its top: `## suite: full` (slow, or known broken) or
@@ -86,10 +121,27 @@ bash tests/run.sh sky_test        # just these, headless
 - `run.sh` re-imports first. After adding a `class_name` script or an image outside it, run
   `godot --headless --path . --import`.
 - Captures: `godot --path . --windowed --resolution 1280x720 --screen 1 --script res://tests/capture_x.gd`.
-  `--screen 1` opens the window on the owner's second monitor, off the main one; `run.sh` does the
-  same for windowed tests (`-s N` or `$TEST_SCREEN` to choose another, 0 for the primary).
+  `--screen 1` opens the window on the owner's second monitor, so nothing flashes up on the main
+  one before the kit moves it out of sight (below), and a `-- watch` run stays there; `run.sh` does
+  the same for windowed tests (`-s N` or `$TEST_SCREEN` to choose another, 0 for the primary).
   `capture_overview.gd` photographs whole levels, every band and a few worlds each, to look over
   many layouts at once (options after `--`, e.g. `-- bands=crags worlds=6`).
+- A test that freezes the wizard (physics off) and moves them calls `still()` (TestKit) before
+  their physics runs again, or a dash or knock-back under way carries on from the new place.
+- Windowed runs on the kit stay out of the owner's way: muted, the window off every screen
+  (`TestKit.out_of_sight`; minimized, Windows stops it drawing). Add `-- watch` to see and hear one.
+- The generation lab, `tools/gen_lab/gen_lab.tscn` (open it in the editor and press F6, or
+  `godot --path . res://tools/gen_lab/gen_lab.tscn`): paint a band's WFC sample, change the collapse
+  (pattern size, symmetry, level size), the band row it is dressed as and the band tuning knobs, and
+  see a grid of levels from consecutive seeds laid out again a moment after each change (a
+  colour key and a "How it works" note under the controls; every control has a tooltip saying what
+  it does, the symmetry's eight versions among them). Click one,
+  then Look in game (the whole level as the game prints it; P to play from there) or Play (from its
+  way in); Backspace (or F10) comes back to the lab as it was. It hands its level to the game through
+  `LevelLoader.keep` and starts the run with `Menu.start_at`, on a save of its own.
+  `tests/capture_gen_lab.gd` takes stills of it and checks the round trip.
+- `tests/dump_garden.gd` prints what every garden row holds over many worlds (foes, stars against
+  the way on's price, keys and doors).
 - Each test sets its own `RunState.save_path` (`user://<test>.save`), so they can run in parallel.
 - New tests extend `TestKit` (`tests/kit/TestKit.gd`): override `run()`, end with `finish()`, and
   use its `check`/`check_eq`, `boot(seed)` (starts a run, keeps the save apart), `until(cond)` and
@@ -144,7 +196,8 @@ bash tests/run.sh sky_test        # just these, headless
   re-check `cemetery_test`, `deeper_test`, `economy_test` and `sky_test` when a draw is added
   upstream. `layout_fingerprint_test` says so first: it fingerprints the terrain and the dressing
   of a few levels per archetype and a side world, and names which one changed. When a change to
-  the layouts is meant, copy the fingerprints it prints into its `GOLDEN` and say so in the report.
+  the layouts is meant (retuning a band's dressing is one), run it with `-- update` to write the
+  new fingerprints into its `GOLDEN`, and say so in the report.
 - Decor never touches the world RNG: it hashes the seed and cell (`RisoDecor.h`).
 - Nor does anything once a level is laid out. Its `LevelGen` is kept and reused on later visits, so
   loading it (`LevelLoader.place_cell`, a prefab's `setup`) must hash the seed and cell rather than
@@ -183,7 +236,10 @@ bash tests/run.sh sky_test        # just these, headless
   means danger, accent or yellow means reward, glow belongs to the wizard. Decor stays in blue,
   night, moss and paper.
 - Keep backgrounds dark and low-contrast, and put saturation and paper-bright knockouts on gameplay
-  objects.
+  objects. A figure's colour made by overprinting inks goes through `RisoPrint.legible`, which screens
+  it back until it reads on the realm's ground. Every canvas lifts the ground from under what it
+  prints and holds its rock ink to what reads (`InkCanvas.punches_wall`, `figure_rock`); only the
+  ground's own canvases turn the first off, and art that is the rock itself sets `of_the_rock`.
 - Layers (absolute z): sky −40, the whale cruising −30 (over the wizard, 11, while it swallows them), acid −21
   (its surface over the wizard, 11), terrain −20, hedges −17, fences −16, decor −15, lantern light −12,
   props 2, the darkness out of sight 8, the wizard's trail 9, the wizard 10, the exam papers they carry 11,

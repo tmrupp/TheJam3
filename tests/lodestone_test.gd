@@ -18,12 +18,15 @@ const WORLD: int = 28
 
 
 func run() -> void:
+	if not needs([&"crags"]):
+		finish()
+		return
 	_placement()
 	await boot(WORLD)
 	player.end_invulnerable()
 	player.health.max_health = 99
 	player.health.health = 99
-	var at: Vector2i = _lodestone_level(NextWorldDef.band_row(&"crags", 0))
+	var at: Vector2i = _play_level()
 	info.coord = at
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
@@ -50,11 +53,30 @@ func _lodestone_level(row: int) -> Vector2i:
 	return Vector2i(WORLD, row)
 
 
+## The level played in: the first lodestone level along the crags' first rows (as
+## _lodestone_level goes) that has two watchtowers or more as well, for their spires (_spires), and
+## cracked walls enough for every damage spell to break one (_breaks); else the first row's
+## lodestone level.
+func _play_level() -> Vector2i:
+	for row: int in band_rows(&"crags", [0, 1, 2], false):
+		for x: int in range(WORLD, WORLD + Rules.LODESTONE_STRETCH):
+			var at: Vector2i = Vector2i(x, row)
+			if Rules.lodestone_at(at) == &"":
+				continue
+			var w: LevelGen = build(at)
+			if w == null or w.towers.filter(func(t: Dictionary) -> bool: return not t["hoard"] and t.has("spire")).size() < 2:
+				continue
+			var across: Array[Vector2i] = _laid_walls(w, true)
+			var over: Array[Vector2i] = _laid_walls(w, false).filter(func(c: Vector2i) -> bool: return not across.has(c))
+			if not across.is_empty() and across.size() + over.size() >= 6:
+				return at
+	return _lodestone_level(NextWorldDef.band_row(&"crags", 0))
+
+
 func _placement() -> void:
 	print("where lodestones stand")
 	var levels: Array[Vector2i] = []
-	for k: int in [0, 3, 5]:
-		var row: int = NextWorldDef.band_row(&"crags", k)
+	for row: int in band_rows(&"crags", [0, 3, -1]):
 		levels.append(_lodestone_level(row))
 	var high_seen: int = 0
 	for at: Vector2i in levels:
@@ -179,6 +201,24 @@ func _walls(across: bool) -> Array:
 			if info.world.is_valid(stand) and info.world.get_cell(stand).type == LevelGen.Type.EMPTY:
 				out.append([c, stand])
 				break
+	return out
+
+
+## The cracked walls laid in `w` (secret rooms' aside) with an empty cell beside them (`across`) or
+## over or under them, as _walls finds them in play.
+static func _laid_walls(w: LevelGen, across: bool) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	var sides: Array[Vector2i] = [Vector2i.UP, Vector2i.DOWN]
+	if across:
+		sides = [Vector2i.LEFT, Vector2i.RIGHT]
+	for x: int in range(w.size.x):
+		for y: int in range(w.size.y):
+			var c: Vector2i = Vector2i(x, y)
+			var cell: LevelGen.Cell = w.get_cell(c)
+			if cell.type != LevelGen.Type.CRACKED or cell.extra_info != null:
+				continue
+			if sides.any(func(s: Vector2i) -> bool: return w.is_valid(c + s) and w.get_cell(c + s).type == LevelGen.Type.EMPTY):
+				out.append(c)
 	return out
 
 

@@ -1,6 +1,8 @@
 extends CreatureArt
 ## A watcher: an eye on a stalk that opens as it charges a shot.
 
+## Its lid's colour: pink over the rock's ink, as [plate, cover] pairs (made legible as it prints).
+const LID: Array = [[RisoPrint.PINK, 1.0], [RisoPrint.BLUE, 1.0]]
 
 var _last_shot: float = -10.0
 ## The watcher's lid: eased toward its shooter's charge, so it opens slowly and closes gently.
@@ -68,10 +70,11 @@ func _draw_art() -> void:
 		var l: float = 4.0 + sin(t * 2.0 + float(j)) * 1.5
 		drips.append(xf * PackedVector2Array([Vector2(x - 1.4, 3), Vector2(x, 6 + l), Vector2(x + 1.4, 3)]))
 	var lid: PackedVector2Array = xf * RisoShapes.almond(Vector2.ZERO, 10.0, 5.6, 12)
-	# Solid pink over solid blue: the deep purple lid of the prototype.
-	ink.ink(RisoPrint.PINK, 1.0, [lid])
+	# Pink over the rock's ink: the deep purple lid of the prototype, made legible on the realm's
+	# ground (RisoPrint.legible; plum on the garden's night, crimson on the institute's wood).
 	ink.ink(RisoPrint.PINK, 1.0, drips)
-	ink.ink(RisoPrint.BLUE, 1.0, [lid])
+	for layer: Array in RisoPrint.legible(LID):
+		ink.ink(int(layer[0]), float(layer[1]), [lid])
 	var yo: float = lerpf(2.0, 0.0, open)
 	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE], [xf * RisoShapes.almond(Vector2(0, yo), 8.2, maxf(0.3, 4.4 * open), 12)])
 	var player: Node2D = Stage.player()

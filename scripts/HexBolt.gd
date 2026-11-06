@@ -38,6 +38,7 @@ const EMPOWERED_SIZE: float = 1.4
 ## checks every script with a hex_hit is listed, and takes those two).
 const ANSWERS: Array[Script] = [
 	preload("res://scripts/Bell.gd"),
+	preload("res://scripts/bosses/BrambleKnot.gd"),
 	preload("res://scripts/CrackedWall.gd"),
 	preload("res://scripts/MothSwarm.gd"),
 	preload("res://scripts/SchoolBell.gd"),
@@ -66,8 +67,16 @@ var speed: float = SPEED
 var range_px: float = RANGE
 var seek: float = 0.0
 var size: float = 1.0
-## A shot turned back by a parry (Parry): it breaks a shield (Shield) at once.
+## A shot turned back by a parry (Parry): it breaks a shield (Shield) at once, and wounds a
+## bramble's bulb shut in its bark (BrambleWound).
 var reflected: bool = false
+## What fired the shot it was turned back from (Parry): it steers straight for it as it flies,
+## however far, so a parried shot comes home even to a shooter that has drifted, until it strikes
+## something or meets rock. Null for any other bolt, or once that shooter is gone.
+var home: Node2D = null
+## Whether the blow a bolt is dealing at this moment is a parried shot's (`reflected`), for a wound
+## that lets only those through (BrambleWound); false between blows.
+static var parried_blow: bool = false
 ## Cast empowered (Empower), and how many cells of cracked rock it has left to bore through.
 var empowered: bool = false
 var bore: int = 0
@@ -112,7 +121,12 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	t += delta
 	var from: Vector2 = global_position
-	if seek > 0.0:
+	if home != null and not is_instance_valid(home):
+		home = null
+		range_px = minf(range_px, travelled + RANGE)
+	if home != null and home.global_position.distance_to(from) > 1.0:
+		dir = (home.global_position - from).normalized()
+	elif seek > 0.0:
 		var aim: Vector2 = _spire_aim() if empowered else Vector2.INF
 		if not aim.is_finite():
 			var quarry: Node2D = _quarry()
@@ -166,7 +180,9 @@ func _physics_process(delta: float) -> void:
 		var wound: Wound = e.get_node_or_null("Wound") as Wound
 		var dealt: int = Wound.dealt(wound, damage) if wound != null else damage
 		if wound != null and dealt > 0:
+			HexBolt.parried_blow = reflected
 			wound.hit(dealt, dir)
+			HexBolt.parried_blow = false
 		elif dealt <= 0:
 			RisoFx.burst(&"hit", (e as Node2D).global_position, dir, [RisoPrint.ACCENT, RisoPrint.BLUE])
 		# Things that are not enemies answer the bolt themselves (a switch throws); a spire flips its

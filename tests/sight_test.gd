@@ -1,15 +1,18 @@
 extends TestKit
 ## Light and darkness by line of sight (RisoSight, RisoLight): sight stops at rock and reaches a
 ## little into the faces it meets, the shapes the darkness prints are whole outlines with no holes,
-## a door or wall changing redoes it, and in the game the wizard's sight, the lanterns' pools and
-## the shade follow the rock, with deep darkness inside the cemetery's crypts and no band dark all
-## over.
+## a door or wall changing redoes it, and in the game the lanterns' light follows the rock, fading
+## from its flame to its reach, the wizard's own sight shades nothing, and deep darkness lies inside
+## the cemetery's crypts with no band dark all over.
 ## godot --headless --path . --script res://tests/sight_test.gd
 
 const CELL: float = 128.0
 
 
 func run() -> void:
+	if not needs([&"cemetery"]):
+		finish()
+		return
 	_grid()
 	_against_rays()
 	_outside()
@@ -205,6 +208,22 @@ func _outside() -> void:
 	var want: float = rect.get_area() - _area(hole) - _area(other)
 	check(absf(area - want) < 1.0, "together they cover the rest exactly (%.0f of %.0f)" % [area, want])
 	check_eq(RisoSight.outside(rect, []).size(), 1, "with nothing seen, the whole view")
+	# Sight that runs out to the view's top corners, a hair inside them (as a ray aimed at a corner
+	# lands): the cut alone leaves one piece touching itself at the corners, which the print cannot
+	# fill (the shade once vanished for a frame or two as the wizard jumped by a step).
+	var corners: PackedVector2Array = PackedVector2Array([Vector2(0.0002, 0.0), Vector2(1000.0, 0.0001), Vector2(1000.0, 200.0), Vector2(600.0, 320.0), Vector2(300.0, 260.0), Vector2(0.0, 380.0)])
+	var raw: Array[PackedVector2Array] = RisoSight._minus(PackedVector2Array([rect.position, Vector2(rect.end.x, 0), rect.end, Vector2(0, rect.end.y)]), corners, 0)
+	print("  the cut alone: %d piece(s), %d of them unfillable" % [raw.size(), raw.filter(func(p: PackedVector2Array) -> bool: return Geometry2D.triangulate_polygon(p).is_empty()).size()])
+	var cleaned: Array[PackedVector2Array] = RisoSight.outside(rect, [corners])
+	var fillable: bool = not cleaned.is_empty()
+	var covered: float = 0.0
+	for p: PackedVector2Array in cleaned:
+		fillable = fillable and not Geometry2D.triangulate_polygon(p).is_empty()
+		covered += _area(p)
+	var rest: float = rect.get_area() - _area(corners)
+	# Drawn in by RisoSight.SEAM all round, it covers a hair less: its outline's length times that.
+	var seam: float = (rect.size.x + rect.size.y) * 2.0 * 2.0 * RisoSight.SEAM
+	check(fillable and absf(covered - rest) < seam, "sight running into the view's corners still leaves pieces the print can fill, covering the rest (%.0f of %.0f)" % [covered, rest])
 
 
 func _area(p: PackedVector2Array) -> float:
@@ -223,8 +242,6 @@ func _in_game() -> void:
 	var light: RisoLight = main.get_node("RisoLight") as RisoLight
 	await process_frame
 	check(light.sight != null and light.sight.solid.size() > 0, "the rock is laid out for sight")
-	var eye: Vector2 = RisoLight.eye(player)
-	check(light.seen.size() >= 3 and Geometry2D.is_point_in_polygon(eye, light.seen), "the wizard sees from their eyes")
 	# A cell of rock with rock all round it, near the wizard: its middle is out of sight.
 	var deep: Vector2 = Vector2.INF
 	var at: Vector2i = info.cell_at(player.global_position)
@@ -234,19 +251,34 @@ func _in_game() -> void:
 				var v: Vector2i = Vector2i(x, y)
 				if deep == Vector2.INF and _buried(light.sight, v):
 					deep = info.cell_position(v)
-	check(deep != Vector2.INF and not Geometry2D.is_point_in_polygon(deep, light.seen), "buried rock is out of sight")
-	check(Geometry2D.is_point_in_polygon(info.cell_position(at), light.seen), "the wizard's own cell is in sight")
+	check(deep != Vector2.INF, "there is buried rock near the wizard")
 	# The carried light is cut by the rock as well, and is thrown from the lantern's flame.
 	var flame: Vector2 = Vector2(light.carried.x, light.carried.y)
 	var lit_rock: bool = deep != Vector2.INF and Geometry2D.is_point_in_polygon(deep, light.carried_seen)
 	check(light.carried_seen.size() >= 3 and Geometry2D.is_point_in_polygon(flame, light.carried_seen) and not lit_rock, "the carried light stops at the rock")
 	check(not light.sight.blocked(flame) and flame.distance_to(player.global_position) < 80.0, "it shines from the lantern, never from inside rock")
-	check(light.dark_ink.get_child_count() > 0, "the shade prints")
-	check(is_equal_approx(info.here.shade(), Archetype.SHADE) and is_zero_approx(info.here.gloom()), "the garden is shaded out of sight, without deep darkness")
-	RisoLight.by_sight = false
-	await process_frame
-	check(light.seen.is_empty(), "with sight off on the F7 panel, nothing is shaded")
-	RisoLight.by_sight = true
+	# The carried light is a gradient: all of it at the flame, fading out along every ray from it to
+	# nothing where the ray reaches its full reach.
+	var carried: RisoLight.Fade = light._carried
+	var rings: int = RisoLight.GRADIENT_RINGS
+	check(carried != null and carried.mesh_points.size() > rings and carried.mesh_points.size() == carried.mesh_covers.size() and carried.mesh_indices.size() % 3 == 0, "the carried light is a mesh round its flame")
+	if carried != null and carried.mesh_points.size() > rings:
+		var falls: bool = is_equal_approx(carried.mesh_covers[0], 1.0)
+		var ends: bool = false
+		for ray: int in range((carried.mesh_points.size() - 1) / rings):
+			var first: int = 1 + ray * rings
+			for k: int in range(rings - 1):
+				falls = falls and carried.mesh_covers[first + k + 1] <= carried.mesh_covers[first + k] + 0.0001
+			var edge: int = first + rings - 1
+			if carried.mesh_points[edge].distance_to(carried.at) >= carried.reach - 1.0:
+				ends = true
+				falls = falls and carried.mesh_covers[edge] < 0.01
+		check(falls and ends, "fading from its flame to nothing at its reach")
+	check(carried != null and carried.dim == not info.flame_lit(), "dim in the deep dark only while the flame is out (%s, lit %s)" % [carried.dim if carried != null else null, info.flame_lit()])
+	# The wizard's own sight shades nothing: nothing prints over the level but the deep dark, and
+	# the garden has none.
+	check(light.dark_ink.get_child_count() == 0 or _printed_nothing(light.dark_ink), "nothing is shaded out of the wizard's sight")
+	check(is_zero_approx(info.here.gloom()), "and the garden has no deep darkness")
 	# A door shut in the sight's rock opens with the door.
 	var doors: Array[Vector2i] = []
 	for v: Vector2i in light._changing:
@@ -277,4 +309,13 @@ func _buried(s: RisoSight, v: Vector2i) -> bool:
 		for dy: int in range(-1, 2):
 			if not s.solid.has(v + Vector2i(dx, dy)):
 				return false
+	return true
+
+
+## Whether `canvas` printed nothing this frame (each op it holds empty).
+func _printed_nothing(canvas: InkCanvas) -> bool:
+	for op: Node in canvas.get_children():
+		var item: CanvasItem = op as CanvasItem
+		if item != null and item.visible:
+			return false
 	return true

@@ -3,8 +3,8 @@ extends RisoProp
 ## soft halo round it and fine night twists along it, hanging all the way from the ceiling to a
 ## tassel within reach; pulled, it jerks down and springs back. While the bell rings out
 ## (MapInfo.since_bell, BELL_TIME) every cord sways, fixed at the top and swinging free below,
-## less and less. A hall's cord goes up into the ceiling through a dark socket with a gold pulley.
-## The corridor's cord (`great`) hangs from the great bell itself: a big bell of accent ink on a
+## less and less. A hall's or a corridor's cord goes up into the ceiling through a dark socket with a
+## gold pulley. The bell room's cord (`great`) hangs from the great bell itself: a big bell of accent ink on a
 ## blue yoke under the ceiling, shaded in night, its clapper the cord's top; rung, it swings hard
 ## and rings out in fading accent arcs. Along its yoke the periods of a block are marked
 ## (Timetable.PERIODS small diamonds knocked to paper): the one it is now swells in accent, bobbing in

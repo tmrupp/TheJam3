@@ -18,6 +18,9 @@ func count(w: LevelGen, type: LevelGen.Type) -> int:
 
 
 func run() -> void:
+	if not needs([&"crags", &"sky"]):
+		finish()
+		return
 	bands()
 	generation()
 
@@ -57,7 +60,7 @@ func run() -> void:
 func bands() -> void:
 	print("bands")
 	var s0: int = NextWorldDef.first_depth(&"sky")
-	check(NextWorldDef.archetype_at(s0) == &"sky" and NextWorldDef.archetype_at(NextWorldDef.band_row(&"sky", NextWorldDef.BAND - 1)) == &"sky" and NextWorldDef.archetype_at(s0 + 1) == &"crags" and NextWorldDef.archetype_at(NextWorldDef.band_row(&"sky", 40)) == &"sky", "the sky is the second band up, past the crags, and goes on above")
+	check(NextWorldDef.archetype_at(s0) == &"sky" and NextWorldDef.archetype_at(NextWorldDef.band_row(&"sky", Bands.rows_of(&"sky") - 1)) == &"sky" and NextWorldDef.archetype_at(s0 + 1) == &"crags" and NextWorldDef.archetype_at(NextWorldDef.band_row(&"sky", 40)) == &"sky", "the sky is the second band up, past the crags, and goes on above")
 	var def: NextWorldDef = Rules.def_for(Vector2i(28, s0))
 	check(def.region == SkyArchetype.SAMPLE and def.realm() == &"sky" and def.chasmed(), "a sky level collapses the floating islands, prints in its realm and is gated by chasms")
 
@@ -330,10 +333,7 @@ func _cross(gap: Rect2, away: float, leap: bool, dash_too: bool = true) -> bool:
 	var near_x: float = gap.position.x + 64.0 if away > 0.0 else gap.end.x - 64.0
 	var far_x: float = gap.end.x - 64.0 if away > 0.0 else gap.position.x + 64.0
 	# Nothing in the way: enemies by the gap are cleared off first.
-	for n: Node in info.map_elements.get_children():
-		if n.has_node("Wound") and (n as Node2D).global_position.distance_to(gap.get_center()) < gap.size.x:
-			n.queue_free()
-	await physics_frame
+	await _clear_foes(gap)
 	player.global_position = Vector2(near_x - away * 128.0, info.cell_position(Vector2i(0, row)).y)
 	player.velocity = Vector2.ZERO
 	player.health.health = player.health.max_health
@@ -362,9 +362,11 @@ func _cross(gap: Rect2, away: float, leap: bool, dash_too: bool = true) -> bool:
 			dash.action = &"Dash"
 			dash.pressed = true
 			Input.parse_input_event(dash)
-		# Over the far shore, Down drops them out of a gust's bearing onto it.
+		# Over the far shore, Down drops them out of a gust's bearing onto it, and they stop pressing
+		# on (a narrow shore is easily overshot).
 		if not dash_too and (player.global_position.x - far_x) * away > -64.0:
 			Input.action_press(&"Down")
+			Input.action_release(key)
 		if player.is_on_floor() and (player.global_position.x - far_x) * away > -64.0 and absf(player.global_position.y - info.cell_position(Vector2i(0, row)).y) < 140.0:
 			over = true
 			break
@@ -398,8 +400,10 @@ func updrafts() -> void:
 	var t0: float = float(art.get("t")) if art != null else 0.0
 	await until(func() -> bool: return draft.visible and draft.can_process() and (art == null or float(art.get("t")) > t0))
 	check(draft.visible and draft.can_process() and (art == null or float(art.get("t")) > t0), "looking at the top of a %d-cell shaft, its wind still shows and moves" % draft.up)
+	# Nothing in the way: enemies by the shaft (a wisp patrolling beside it) are cleared off first.
+	await _clear_foes(draft.rect)
 	player.global_position = Vector2(draft.rect.get_center().x, draft.rect.end.y - 40.0)
-	player.velocity = Vector2.ZERO
+	still()
 	player.set_physics_process(true)
 	var start: float = player.global_position.y
 	var top: float = start
@@ -535,3 +539,17 @@ func birds() -> void:
 	check(swooped and low > float(bird.get("height")) + 300.0, "with the wizard 300 px below, it swoops down past them (%d px)" % int(low - float(bird.get("height"))))
 	await until(func() -> bool: return not bool(bird.call("swooping")) and absf(rb.global_position.y - float(bird.get("height"))) < 8.0)
 	check(not bool(bird.call("swooping")) and absf(rb.global_position.y - float(bird.get("height"))) < 8.0, "and climbs back to its height")
+
+
+## How far round a gap or a shaft enemies are cleared off before the wizard crosses or rides it (px):
+## a wisp's patrol reaches about this far.
+const FOE_CLEAR: float = 768.0
+
+
+## Clear off the enemies in or near `area`, so none knocks the wizard out of a crossing or a ride.
+func _clear_foes(area: Rect2) -> void:
+	var near: Rect2 = area.grow(FOE_CLEAR)
+	for n: Node in info.map_elements.get_children():
+		if n.has_node("Wound") and near.has_point((n as Node2D).global_position):
+			n.queue_free()
+	await physics_frame

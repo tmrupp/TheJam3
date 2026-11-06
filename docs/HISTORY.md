@@ -12,7 +12,8 @@ build products. Nothing here is lost: each entry names a commit that still holds
 
 ## The cleanup of 2026-11-06
 
-Everything below was still present at **`a1b340bffa`** (`git show a1b340bffa:<path>`).
+Everything below was still present on `game/deeper` at **`32fe6178dd`**, the commit this cleanup
+was merged onto (`git show 32fe6178dd:<path>`).
 
 ### Plans retired
 
@@ -35,8 +36,8 @@ Everything below was still present at **`a1b340bffa`** (`git show a1b340bffa:<pa
 | A quit button script | `scripts/Exit.gd` | Attached to nothing. |
 | A scratch scene | `scenes/tom.tscn` | Opened by nothing. |
 | A one-off probe | `tests/zz_probe_masonry.gd` | Counted the crags' exposed masonry; not a test. |
-| Ink meshes (`InkCanvas.ink_mesh`, `lift_ink_mesh`, `_emit_mesh`; `RisoInkOp.Shape.mesh`, `same_mesh`, `premade`) | `scripts/riso/InkCanvas.gd`, `scripts/riso/InkOp.gd` | Printed shapes handed over already in triangles; the lights' fades stopped using them. |
 | `InkCanvas.set_bone` | `scripts/riso/InkCanvas.gd` | Bones are placed by `bone()` each print. |
+| `menu.start_random`, `Bands.script_at` | `scripts/menu.gd`, `scripts/worlds/Bands.gd` | Unused (a blank world seed starts a random run through `start_game`; `Bands.archetype_at` gives a row's archetype). |
 | `RisoWizard._sm`, `STEP_LIFT`, `ALL` | `scripts/riso/RisoWizard.gd` | The figure is bowed point by point by `_smv`; the gait is `RisoCostume.gait`. |
 | `RisoShapes.xf` | `scripts/riso/RisoShapes.gd` | A transform times a polygon, written out where needed. |
 | `RisoGlyph.MARK_R` | `scripts/riso/RisoGlyph.gd` | Documented the marks' size (about 24); now said in `RisoGlyph.draw`'s comment. |
@@ -59,8 +60,9 @@ Everything below was still present at **`a1b340bffa`** (`git show a1b340bffa:<pa
 | Checks that the jam build's upgrade shop, pixel HUD and title art are gone, and two checks made twice | `tests/riso_print_test.gd` | Those parts went in 2026-09 and 2026-10. |
 | Unused helpers: `wall_test.hold`, `_at` in `make_graveyard_sample` and `make_institute_sample` | those scripts | |
 
-`capture_hex` (it no longer found the hex spell on a fresh wizard) and `capture_tower_pieces`
-(world 28's crag levels no longer hold a mending bowl) were fixed rather than removed.
+`capture_hex` (it no longer found the hex spell on a fresh wizard), `capture_tower_pieces`
+(world 28's crag levels no longer hold a mending bowl) and `capture_lodestones` (its own `still`
+clashed with `TestKit.still`, so it no longer parsed; now `photo`) were fixed rather than removed.
 
 ### Assets
 

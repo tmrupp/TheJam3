@@ -38,9 +38,9 @@ The phases at the end give an order of work.
   (`LevelRecord.opened`, `dropped`) and stars and keys carried (`Coins`, `KeyRing`) are all
   plain state. Applying a code is writing to them, with no world RNG and so no change to any
   layout.
-- **Code entry exists.** `CodeMenu` (`scripts/code_menu.gd`, `prefabs/code_menu.tscn`) still
-  takes an arrow code (`<`, `>`, `^`, `v`) with the d-pad and checks it against a list. Nothing
-  opens it now. It is the 2023 jam's, not yet printed in the riso.
+- **Code entry, from the jam.** The 2023 jam's `CodeMenu` took an arrow code (`<`, `>`, `^`,
+  `v`) with the d-pad and checked it against a list. Nothing opened it any more, so it was taken
+  out (`docs/HISTORY.md` says where it lived); a code entry will be built anew.
 
 ## Pairing
 
@@ -139,8 +139,8 @@ in the level prints for good or fades after a while.
   grid with the stick); or letters and digits (quickest with a keyboard, plain).
 - **Making and entering codes.** Both on the map: making one from the partner page (pick a door
   on their level, pick "open it", get a code) or from a send menu (stars, a key, a spell), and
-  entering one from a field on any page. `CodeMenu` is reworked and printed in the riso like
-  the other menus (`RisoMenu`).
+  entering one from a field on any page, printed in the riso like the other menus (`RisoMenu`),
+  after the jam's `CodeMenu` (`docs/HISTORY.md`).
 
 ## Gifts: what can be sent
 

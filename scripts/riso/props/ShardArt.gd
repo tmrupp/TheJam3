@@ -1,6 +1,6 @@
 extends RisoProp
-## A watcher's shot: a pink shard on paper, or a rebounding pellet of sun; or a bramble's seed; or
-## a crossbow's arrow.
+## A watcher's shot: a pink shard on paper, or a rebounding pellet of sun; or a bramble's seed;
+## or a crossbow's arrow.
 
 
 ## A watcher's shard (px): how big its four-pointed spark is, and how long and how wide its trail.

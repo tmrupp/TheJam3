@@ -3,7 +3,8 @@ extends RefCounted
 ## The bosses that guard the band ends (docs/REGIONS_PLAN.md §5). The last level of each band,
 ## toward the next, is a gate level: its way on is sealed while the band's boss lives, in every
 ## world column. A boss is beaten once per run (RunState.bosses): then every gate level of its band
-## opens for good, the boss is never met again, and where it fell a relic waits, free. Every boss
+## opens for good, the boss is never met again, and where it fell a relic unlock waits (KeyRing.UNLOCK:
+## the only way to take a relic of a move not yet known, see Relic), and beside it its trophy (Trophy), to be brought back to its stand in the tutorial (TrophyStand). Every boss
 ## fights in its gate level itself (LevelGen.place_boss), as its own prefab (SCENES): the worm
 ## (Worm), the bramble (Bramble, in its shaft: BrambleShaft), the lodestone golem (Golem, in its
 ## hall: LodeHall), the necromancer (Necromancer, in a crypt: Crypts), the whale (Whale) and the
@@ -11,12 +12,8 @@ extends RefCounted
 ## not in a gate level: it roams the sky's top row (WhaleHunt), fought at its heart in its belly
 ## (Belly, WhaleHeart, the prefab its name places).
 
-## Who guards the garden's way down and its way up, and the far end of each band below and above
-## the garden, in NextWorldDef.DOWN's and UP's order.
-const GARDEN_DOWN: StringName = &"worm"
-const GARDEN_UP: StringName = &"bramble"
-const DOWN: Array[StringName] = [&"necromancer", &"beast"]
-const UP: Array[StringName] = [&"golem", &"whale"]
+## Who guards which gate is the band layout's (Bands.LAYOUTS): the garden's way down and way up,
+## and the far end of each band below and above it.
 ## Salt for the run seed when dealing a boss's relic.
 const RELIC_DEAL: int = 5300
 ## Bosses that have given way to others since a run was saved, by the old name: the new one (the
@@ -41,32 +38,12 @@ static func scene(name: StringName) -> PackedScene:
 
 ## The boss whose gate is the way on of row `row`'s levels, or &"" for a row with no gate.
 static func gate_at(row: int) -> StringName:
-	var g: int = NextWorldDef.GARDEN_ROWS
-	if row == g:
-		return GARDEN_DOWN
-	if row == -g:
-		return GARDEN_UP
-	var past: int = absi(row) - g
-	if past <= 0 or past % NextWorldDef.BAND != 0:
-		return &""
-	@warning_ignore("integer_division")
-	var i: int = past / NextWorldDef.BAND - 1
-	var names: Array[StringName] = DOWN if row > 0 else UP
-	return names[i] if i < names.size() else &""
+	return Bands.gate_at(row)
 
 
-## The row of the gate boss `name` guards (0 for none).
+## The row of the gate boss `name` guards (0 for none, or for one left out of the bands in play).
 static func row_of(name: StringName) -> int:
-	if name == GARDEN_DOWN:
-		return NextWorldDef.GARDEN_ROWS
-	if name == GARDEN_UP:
-		return -NextWorldDef.GARDEN_ROWS
-	for way: int in [1, -1]:
-		var names: Array[StringName] = DOWN if way > 0 else UP
-		var i: int = names.find(name)
-		if i >= 0:
-			return way * (NextWorldDef.GARDEN_ROWS + (i + 1) * NextWorldDef.BAND)
-	return 0
+	return Bands.row_of(name)
 
 
 ## The gates a way from row `from` to row `to` passes out through (away from the start), nearest
@@ -87,9 +64,11 @@ static func crossed(from: int, to: int) -> Array[StringName]:
 	return out
 
 
-## The relic boss `name` leaves for the wizard of run `run_seed` with `player`'s abilities: the first
-## of the relic moves (Relics.MOVES, gone round from one dealt by the seed and the boss) not yet
-## known, or &"" when every one is.
+## A relic move the wizard of run `run_seed` with `player`'s abilities could still learn, as boss
+## `name` falls: the first of the relic moves (Relics.MOVES, gone round from one dealt by the seed
+## and the boss) not yet known, or &"" when every one is (then a boss drops no relic unlock, see
+## MapInfo.boss_slain). Bosses dropped this move's relic itself before they dropped unlocks; a saved
+## run's relic still waiting from then is kept (RunState.boss_relics).
 static func relic_for(name: StringName, run_seed: int, player: Player) -> StringName:
 	var moves: Array[StringName] = Relics.MOVES
 	var first: int = posmod(Rules.level_seed(run_seed, RELIC_DEAL + row_of(name)), moves.size())

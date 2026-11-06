@@ -6,8 +6,10 @@ extends TestKit
 ## godot --headless --path . --script res://tests/relics_needed_test.gd
 
 
-
 func run() -> void:
+	if not needs([&"cemetery", &"sky"]):
+		finish()
+		return
 	print("the share rises with depth")
 	check(Rules.relic_need(Rules.RELIC_NEED_FROM - 1) == 0 and Rules.relic_need(0) == 0, "none above depth %d" % Rules.RELIC_NEED_FROM)
 	check(Rules.relic_need(Rules.RELIC_NEED_FROM) == Rules.RELIC_NEED_STEP and Rules.relic_need(Rules.RELIC_NEED_FROM + 2) == 3 * Rules.RELIC_NEED_STEP, "then %d%% a level" % Rules.RELIC_NEED_STEP)

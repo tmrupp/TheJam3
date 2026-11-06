@@ -19,6 +19,9 @@ const FLAT: float = 6.0
 
 
 func run() -> void:
+	if not needs([&"crags"]):
+		finish()
+		return
 	await boot()
 	player.set_physics_process(false)
 	player.global_position = Vector2(-9000, -9000)
