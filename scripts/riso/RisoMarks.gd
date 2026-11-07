@@ -176,14 +176,50 @@ static func emblem(band: StringName, c: Vector2) -> Array[PackedVector2Array]:
 	return out
 
 
-## An exam paper (KeyRing.paper) centred on `o`, `s` its size: the sheet first (printed bare paper),
-## then its folded corner and three ruled lines (printed in night).
+## An exam paper (KeyRing.paper) centred on `o`, `s` its size, a scroll: its whole outline first
+## (printed bare paper), then its two rolled ends (PAPER_ROLLS: the top's and the bottom's, wider
+## than the sheet between them), then three ruled lines (printed in night).
 static func paper_shape(o: Vector2, s: float) -> Array[PackedVector2Array]:
-	var out: Array[PackedVector2Array] = [PackedVector2Array([o + Vector2(-10, -13) * s, o + Vector2(5, -13) * s, o + Vector2(10, -8) * s, o + Vector2(10, 13) * s, o + Vector2(-10, 13) * s])]
-	out.append(PackedVector2Array([o + Vector2(5, -13) * s, o + Vector2(10, -8) * s, o + Vector2(5, -8) * s]))
+	var w: float = SCROLL_SHEET.x * 0.5
+	var h: float = SCROLL_SHEET.y * 0.5
+	var r: float = SCROLL_ROLL.x * 0.5
+	var t: float = SCROLL_ROLL.y
+	# The outline: the top roll, down the sheet's right side, the bottom roll, up its left side.
+	var outline: PackedVector2Array = PackedVector2Array([
+		Vector2(-r + 1.5, -h - t * 0.5), Vector2(r - 1.5, -h - t * 0.5), Vector2(r, -h - t * 0.5 + 1.5), Vector2(r, -h + t * 0.5 - 1.5), Vector2(r - 1.5, -h + t * 0.5),
+		Vector2(w, -h + t * 0.5), Vector2(w, h - t * 0.5),
+		Vector2(r - 1.5, h - t * 0.5), Vector2(r, h - t * 0.5 + 1.5), Vector2(r, h + t * 0.5 - 1.5), Vector2(r - 1.5, h + t * 0.5), Vector2(-r + 1.5, h + t * 0.5),
+		Vector2(-r, h + t * 0.5 - 1.5), Vector2(-r, h - t * 0.5 + 1.5), Vector2(-r + 1.5, h - t * 0.5),
+		Vector2(-w, h - t * 0.5), Vector2(-w, -h + t * 0.5),
+		Vector2(-r + 1.5, -h + t * 0.5), Vector2(-r, -h + t * 0.5 - 1.5), Vector2(-r, -h - t * 0.5 + 1.5)])
+	var place: Transform2D = Transform2D(0.0, Vector2(s, s), 0.0, o)
+	var out: Array[PackedVector2Array] = [place * outline]
+	for y: float in [-h, h]:
+		out.append(place * RisoShapes.rrect(-r, y - t * 0.5, 2.0 * r, t, t * 0.5))
 	for k: int in range(3):
-		out.append(RisoShapes.rrect(o.x - 6.0 * s, o.y + (-3.0 + 5.0 * k) * s, 12.0 * s, 1.6 * s, 0.8 * s))
+		out.append(RisoShapes.rrect(o.x - 5.5 * s, o.y + (-4.5 + 4.5 * k) * s, 11.0 * s, 1.6 * s, 0.8 * s))
 	return out
+
+
+## The glints along an exam paper's two rolled ends (paper_shape) at `o`, `s` its size: a thin strip
+## of bare paper near the top of each roll, so the rolls read as round.
+static func scroll_glints(o: Vector2, s: float) -> Array[PackedVector2Array]:
+	var place: Transform2D = Transform2D(0.0, Vector2(s, s), 0.0, o)
+	var r: float = SCROLL_ROLL.x * 0.5 - 3.0
+	var out: Array[PackedVector2Array] = []
+	for y: float in [-SCROLL_SHEET.y * 0.5, SCROLL_SHEET.y * 0.5]:
+		out.append(place * RisoShapes.rrect(-r, y - SCROLL_ROLL.y * 0.5 + 1.2, 2.0 * r, 1.4, 0.7))
+	return out
+
+
+## An exam paper's scroll (paper_shape), for a size of 1 (px): its sheet between the rolls (across,
+## and from one roll's middle to the other's), and each roll (across, and thick). The rolls stand
+## out past the sheet either side, so it reads as a scroll rather than a sheet.
+const SCROLL_SHEET: Vector2 = Vector2(17, 22)
+const SCROLL_ROLL: Vector2 = Vector2(23, 6)
+## Where an exam paper's rolled ends are in paper_shape's list (from, to): printed bare paper on a
+## tinted sheet, in pink on a stolen one.
+const PAPER_ROLLS: Vector2i = Vector2i(1, 3)
 
 
 ## The wizard's astral silhouette where they died, in glow ink, with the stars it holds circling.
@@ -206,6 +242,13 @@ static func switch_emblem(c: Vector2, s: float) -> Array[PackedVector2Array]:
 		RisoShapes.circle(c + Vector2(6.6, -7.0) * s, 3.4 * s, 12)]
 
 
+## How far a portcullis's outer bars reach either side of its middle, and a bar's width (px): the
+## gates' bodies are as wide as this (switch_gate.tscn and the others: 90), so the wizard stops at
+## the iron.
+const PORTCULLIS_HALF: float = 45.0
+const PORTCULLIS_BAR: float = 12.0
+
+
 ## A portcullis filling its corridor cell: a header beam at the ceiling, four iron bars ending
 ## in spikes just above the floor, and one cross-rail hung with a padlock in the key colour it
 ## needs (padlock; a switch gate, `key_color` -1, shows the switch's emblem and its switch's
@@ -221,9 +264,10 @@ static func portcullis(ink: InkCanvas, g: float, half: float, key_color: int, li
 	var span: float = bottom - (top + 10.0)
 	if span > 6.0:
 		var iron: Array[PackedVector2Array] = []
+		var step: float = (PORTCULLIS_HALF - PORTCULLIS_BAR * 0.5) * 2.0 / 3.0
 		for k: int in range(4):
-			var x: float = -39.0 + 26.0 * float(k)
-			iron.append(RisoShapes.rrect(x - 6.0, top + 10.0, 12.0, span, 4.0))
+			var x: float = -PORTCULLIS_HALF + PORTCULLIS_BAR * 0.5 + step * float(k)
+			iron.append(RisoShapes.rrect(x - PORTCULLIS_BAR * 0.5, top + 10.0, PORTCULLIS_BAR, span, 4.0))
 			iron.append(RisoShapes.tri(Vector2(x - 8.0, bottom - 3.0), Vector2(x + 8.0, bottom - 3.0), Vector2(x, bottom + 12.0)))
 		var ly: float = top + 10.0 + span * 0.5
 		iron.append(RisoShapes.rrect(-52, ly - 6.0, 104, 12, 6))

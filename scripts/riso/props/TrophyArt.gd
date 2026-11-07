@@ -16,6 +16,12 @@ const EMPTY_INK: float = 0.25
 const AWAIT_LIFT: float = 0.4
 const AWAIT_INK: float = 0.5
 const EMPTY_MARK: float = 0.8
+## A stand's pedestal, from the ground up to its trophy, so nothing but the bob shows under the disc:
+## its foot (width, height), its shaft's width, and its cap (width, height), whose top is the lowest
+## the trophy's disc comes down to as it bobs.
+const FOOT: Vector2 = Vector2(60, 14)
+const SHAFT_W: float = 26.0
+const CAP: Vector2 = Vector2(52, 10)
 
 
 func shines() -> bool:
@@ -32,9 +38,9 @@ func light() -> Array:
 	return _light(Vector2.ZERO, RisoLight.GLEAM, RisoPrint.ACCENT)
 
 
-## Waiting, the trophy floats in its own light with two motes circling it. On a stand: a plinth,
-## the trophy floating over it once set, else a faint accent disc where it will go with its boss's
-## mark on it (pulsing brighter while the wizard carries it).
+## Waiting, the trophy floats in its own light with two motes circling it. On a stand: a pedestal
+## up from the ground, the trophy resting just over its cap once set, else a faint accent disc where
+## it will go with its boss's mark on it (pulsing brighter while the wizard carries it).
 func _draw_art() -> void:
 	var bob: float = sin(t * 2.0 + phase) * BOB
 	if kind == &"trophy":
@@ -44,8 +50,19 @@ func _draw_art() -> void:
 	var stand: TrophyStand = host as TrophyStand
 	var boss: StringName = stand.boss if stand != null else &""
 	var g: float = _ground()
-	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(-30, g - 20, 60, 20, 6)])
-	ink.ink(RisoPrint.NIGHT, 0.6, [RisoShapes.rrect(-20, g - 28, 40, 10, 4)])
+	# The pedestal: a foot on the ground, a shaft, and a cap the trophy rests over, shaded in night
+	# under the cap and down one side of the shaft.
+	var top: float = g - OVER + R + BOB
+	var shaft_top: float = top + CAP.y
+	ink.ink(RisoPrint.BLUE, 1.0, [
+		RisoShapes.rrect(-FOOT.x * 0.5, g - FOOT.y, FOOT.x, FOOT.y, 5),
+		RisoShapes.rrect(-SHAFT_W * 0.5, shaft_top - 2, SHAFT_W, g - FOOT.y - shaft_top + 4, 2),
+		RisoShapes.rrect(-CAP.x * 0.5, top, CAP.x, CAP.y, 4),
+	])
+	ink.ink(RisoPrint.NIGHT, 0.6, [
+		RisoShapes.rrect(-SHAFT_W * 0.5, shaft_top, SHAFT_W, 5, 1),
+		RisoShapes.rrect(SHAFT_W * 0.5 - 8, shaft_top, 8, g - FOOT.y - shaft_top, 1),
+	])
 	var c: Vector2 = Vector2(0, g - OVER + bob)
 	if stand != null and stand.is_set():
 		_trophy(c, boss)

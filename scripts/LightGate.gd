@@ -68,9 +68,13 @@ func _holds_wizard() -> bool:
 func _physics_process(delta: float) -> void:
 	up = lit() == sun
 	if up:
-		collision_layer = 0
-	elif not shut() and not _holds_wizard():
-		collision_layer = _layer
+		# Winched up, and open only once it is all the way up.
+		lift = move_toward(lift, UP_LIFT, LIFT_SPEED * delta)
+		if lift >= UP_LIFT:
+			collision_layer = 0
+	else:
+		if not shut() and not _holds_wizard():
+			collision_layer = _layer
+		lift = move_toward(lift, 0.0 if shut() else UP_LIFT, LIFT_SPEED * delta)
 	if map_info != null:
 		map_info.light_gates[cell] = not shut()
-	lift = move_toward(lift, 0.0 if shut() else UP_LIFT, LIFT_SPEED * delta)

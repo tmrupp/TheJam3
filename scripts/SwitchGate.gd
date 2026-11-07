@@ -4,7 +4,8 @@ class_name SwitchGate
 ## the switch is on, down while it is off. A gondola station's gate in the crags (a station gate)
 ## is worked by the towers instead: up while its station is on (MapInfo.station_on, flip_tower). It has no lock: nothing else opens it. It drops only
 ## once the wizard is clear of it, so it never shuts on them. The portcullis winches up and down
-## (`lift`, printed by GateArt).
+## (`lift`, printed by GateArt), and it blocks the way until it is all the way up. Its body is as
+## wide as its bars are printed (RisoMarks.PORTCULLIS_HALF), so the wizard stops where the iron is.
 
 ## How fast the portcullis winches up or down (its whole height a second, times this), and how far
 ## up it goes: not out of sight, so its bars still hang from the ceiling where the gate is.
@@ -34,10 +35,13 @@ func setup(info: MapInfo, _v: Vector2i, lever: Variant) -> void:
 	_block(not up)
 
 
-## Its switch was turned: up at once, or down as soon as the wizard is clear of it.
+## Its switch was turned: winched up, open once it is all the way up, or down as soon as the
+## wizard is clear of it. A gate asleep out of view (LevelLoader's chunk sleeping), which cannot
+## winch, is all the way up at once.
 func set_up(on: bool) -> void:
 	up = on
-	if on:
+	if on and not can_process():
+		lift = UP_LIFT
 		_block(false)
 
 
@@ -64,7 +68,12 @@ func _holds_wizard() -> bool:
 
 
 func _physics_process(delta: float) -> void:
-	if not up and not shut() and not _holds_wizard():
+	if up:
+		lift = move_toward(lift, UP_LIFT, LIFT_SPEED * delta)
+		if lift >= UP_LIFT:
+			_block(false)
+		return
+	if not shut() and not _holds_wizard():
 		_block(true)
 	lift = move_toward(lift, 0.0 if shut() else UP_LIFT, LIFT_SPEED * delta)
 

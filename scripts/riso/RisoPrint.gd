@@ -379,23 +379,27 @@ static func ink_key(canvas: InkCanvas, color: int, cover: float, shapes: Array[P
 		canvas.ink(ACCENT, cover, shapes.slice(0, 1), false)
 		canvas.lift_ink(ALL_PLATES, cover, shapes.slice(1))
 		return
-	# An exam paper: a sheet in its department's colour (DEPT_INKS; bare paper for a subject no
-	# department teaches), its folded corner bare paper and its ruled lines in night; a stolen one's
-	# folded corner in pink (danger: the scholars are after whoever carries it).
+	# An exam paper, a scroll: its sheet and rolled ends in its department's colour (DEPT_INKS; bare
+	# paper for a subject no department teaches), the rolls shaded darker (PAPER_ROLL_SHADE) and its
+	# ruled lines in night; a stolen one's rolls in pink (danger: the scholars are after whoever
+	# carries it).
 	if KeyRing.is_paper(color):
 		canvas.lift_ink(ALL_PLATES, cover, shapes.slice(0, 1))
-		var dept: StringName = Timetable.dept_of(KeyRing.paper_spell(color))
-		var tinted: bool = ink_dept(canvas, dept, cover, shapes.slice(0, 1))
-		if tinted:
-			canvas.knock(ALL_PLATES, shapes.slice(1, 2))
-		canvas.ink(NIGHT, 0.55 * cover, shapes.slice(2 if KeyRing.is_stolen(color) or tinted else 1), false)
+		ink_dept(canvas, Timetable.dept_of(KeyRing.paper_spell(color)), cover, shapes.slice(0, 1))
+		var rolls: Array[PackedVector2Array] = shapes.slice(RisoMarks.PAPER_ROLLS.x, RisoMarks.PAPER_ROLLS.y)
 		if KeyRing.is_stolen(color):
-			canvas.ink(PINK, cover, shapes.slice(1, 2))
+			canvas.ink(PINK, cover, rolls)
+		else:
+			canvas.ink(NIGHT, PAPER_ROLL_SHADE * cover, rolls, false)
+		canvas.ink(NIGHT, 0.55 * cover, shapes.slice(RisoMarks.PAPER_ROLLS.y), false)
 		return
 	for layer: Array in key_layers(color):
 		canvas.ink(int(layer[0]), float(layer[1]) * cover, shapes)
 
 
+## How much night shades an exam paper's rolled ends (RisoMarks.paper_shape), over its sheet's colour,
+## so they read as the scroll's curled ends.
+const PAPER_ROLL_SHADE: float = 0.35
 ## An exam paper written out in full (ink_paper), for each unit of its sheet's size: how big its
 ## subject's mark is drawn on it, and under it the tier pips' spacing, how far below the sheet's
 ## middle they sit, and their half-size (px).
@@ -405,20 +409,20 @@ const PAPER_PIPS: Vector3 = Vector3(5.9, 13.0 + 5.3, 2.35)
 
 ## Print exam paper `code` written out in full on `canvas`, centred on `o`, its sheet `s` times a
 ## key's size (RisoMarks.paper_shape), as it lies waiting (KeyArt) and as the wizard carries it
-## (RisoWizard): the sheet in its department's colour (DEPT_INKS) with a folded corner of bare paper,
+## (RisoWizard): a scroll, its sheet in its department's colour (DEPT_INKS) with its rolled ends shaded darker and a glint of bare paper along each,
 ## its subject's mark (RisoGlyph, `t` its time, `mark` times PAPER_MARK its size) knocked out to paper on it, and under it a gold pip
 ## for each tier; a paper of a subject no department teaches is bare paper with its mark in gold. A
-## stolen one's folded corner is pink (KeyRing.is_stolen).
+## stolen one's rolls are pink (KeyRing.is_stolen).
 static func ink_paper(canvas: InkCanvas, code: int, o: Vector2, s: float, t: float, mark: float = 1.0) -> void:
 	var sheet: Array[PackedVector2Array] = RisoMarks.paper_shape(o, s)
 	canvas.lift_ink(ALL_PLATES, 1.0, sheet.slice(0, 1))
 	var tinted: bool = ink_dept(canvas, Timetable.dept_of(KeyRing.paper_spell(code)), 1.0, sheet.slice(0, 1))
-	if tinted:
-		canvas.knock(ALL_PLATES, sheet.slice(1, 2))
+	var rolls: Array[PackedVector2Array] = sheet.slice(RisoMarks.PAPER_ROLLS.x, RisoMarks.PAPER_ROLLS.y)
 	if KeyRing.is_stolen(code):
-		canvas.ink(PINK, 1.0, sheet.slice(1, 2))
+		canvas.ink(PINK, 1.0, rolls)
 	else:
-		canvas.ink(NIGHT, 0.55, sheet.slice(1, 2), false)
+		canvas.ink(NIGHT, PAPER_ROLL_SHADE, rolls, false)
+	canvas.knock(ALL_PLATES, RisoMarks.scroll_glints(o, s))
 	var glyph: Array[PackedVector2Array] = []
 	var size: float = PAPER_MARK * mark * s
 	for poly: PackedVector2Array in RisoGlyph.of(KeyRing.paper_spell(code), Vector2.ZERO, t):

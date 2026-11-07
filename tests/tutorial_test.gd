@@ -5,8 +5,9 @@ extends TestKit
 ## comes out by the start level's door into it, which every start level has, laid last (nearest the
 ## way in), and leads back in at the way out. Coming out marks it done, so the start menu's toggle
 ## starts off from then on. A card rises as the wizard comes near and goes once its control is used.
-## The stretches that need the wizard's reach (the steps, the bed of thorns a jump clears and the one
-## only a jump and a dash clear) are crossed with the game's own controls. The utility spell's card
+## The stretches that need the wizard's reach (the steps, the bed of thorns a jump clears, the one
+## only a jump and a dash clear, and the wider one a jump and a dash fall short of, crossed by dashing
+## again once the moon over it has given the dash back) are crossed with the game's own controls. The utility spell's card
 ## costs a wizard at full health a heart as it rises, which pressing Utility (mend) heals. The
 ## watcher hovers out of reach: a jump, a dash up and a slash at the top fall short of it, while a
 ## shot of its own turned back by the guard flies home and wounds it. Its card is the parry's,
@@ -29,6 +30,8 @@ const THORNS_FROM: Vector2i = Vector2i(21, 10)
 const THORNS_PAST: int = 26
 const GAP_FROM: Vector2i = Vector2i(33, 10)
 const GAP_PAST: int = 39
+const MOON_FROM: Vector2i = Vector2i(42, 10)
+const MOON_PAST: int = 49
 ## How far past the middle of the last cell before a bed (px) the wizard jumps.
 const JUMP_AT: float = 30.0
 ## The pogo's bed of thorns, found in the map's floor row by its width; and how far under standing
@@ -148,6 +151,9 @@ func _parry() -> void:
 	print("the watcher and the parry card")
 	var card: ControlHint = _card(ControlHint.PARRY)
 	check(card != null and ControlHint.actions(ControlHint.PARRY) == [&"Spell"], "the watcher's card is the parry's, on the Spell button")
+	# The spell is on a face button and the left trigger alike; a pad card lights both.
+	var parts: Array[RisoPad.Part] = RisoPad.parts_of(&"Spell")
+	check(parts.size() == 2 and parts[0] == RisoPad.Part.FACE_LEFT and parts.has(RisoPad.Part.LEFT_TRIGGER), "the spell's pad card lights its face button and the left trigger")
 	var watchers: Array[Node] = placed("shooter_enemy.tscn")
 	check_eq(watchers.size(), 1, "one watcher")
 	if card == null or watchers.size() != 1:
@@ -238,7 +244,7 @@ func _pogo() -> void:
 	var card: ControlHint = _card(ControlHint.POGO)
 	check(card != null and info.cell_at(card.global_position).x < start, "the pogo's card stands at its edge")
 	Health.invincible = true
-	check(not await _leap(from, past, true), "a jump and a dash fall short of it")
+	check(not await _leap(from, past, 1), "a jump and a dash fall short of it")
 	Health.invincible = false
 	player.health.health = player.health.max_health
 	await _go(from)
@@ -398,26 +404,42 @@ func _reach() -> void:
 	_release()
 	check(steps, "the steps are climbed by jumping")
 	# Over the beds of thorns: the first by a running jump; the second only with a dash at the top.
-	check(await _leap(THORNS_FROM, THORNS_PAST, false), "the first bed of thorns is cleared by a jump")
-	check(not await _leap(GAP_FROM, GAP_PAST, false), "a jump alone falls short of the second")
-	check(await _leap(GAP_FROM, GAP_PAST, true), "which is cleared by a jump and a dash")
+	check(await _leap(THORNS_FROM, THORNS_PAST, 0), "the first bed of thorns is cleared by a jump")
+	check(not await _leap(GAP_FROM, GAP_PAST, 0), "a jump alone falls short of the second")
+	check(await _leap(GAP_FROM, GAP_PAST, 1), "which is cleared by a jump and a dash")
+	# The moon's bed: a jump and a dash fall short; the moon over it gives the dash back for another.
+	check_eq(placed("moon.tscn").size(), 1, "a moon over the third bed")
+	check(not await _leap(MOON_FROM, MOON_PAST, 1), "a jump and a dash fall short of the third bed")
+	check(await _leap(MOON_FROM, MOON_PAST, 2), "which is cleared by dashing again once the moon gives the dash back")
 	Health.invincible = false
 
 
-## Run right from `from` and jump from the edge two cells on (dashing at the top with `dash`):
-## whether the wizard lands at its height at or past column `past`.
-func _leap(from: Vector2i, past: int, dash: bool) -> bool:
+## Run right from `from` and jump from the edge two cells on, dashing at the top of the jump when
+## `dashes` is 1 or more, and again as soon as the dash is back (a moon's) when it is 2: whether the
+## wizard lands at its height at or past column `past`.
+func _leap(from: Vector2i, past: int, dashes: int) -> bool:
 	await _go(from)
 	var rose: bool = false
 	var over: bool = false
+	var dashed: int = 0
 	var edge: float = info.cell_position(from + Vector2i(2, 0)).x + JUMP_AT
 	Input.action_press("Right")
-	for i: int in range(150):
+	for i: int in range(180):
 		if player.global_position.x >= edge and not rose and not Input.is_action_pressed("Jump"):
 			_press(&"Jump", true)
 		rose = rose or player.velocity.y < -300.0
-		if dash and rose and player.velocity.y > -150.0 and not Input.is_action_pressed("Dash"):
+		if dashed == 0 and dashes >= 1 and rose and player.velocity.y > -150.0:
 			_press(&"Dash", true)
+			dashed = 1
+		elif dashed == 1 and player.velocity.x >= Player.DASH_SPEED * 0.9:
+			dashed = 4
+		elif dashed == 4 and dashes >= 2 and player.velocity.x < Player.DASH_SPEED * 0.9:
+			# The first dash under way (4) is over: let go, then dash again once it is back.
+			_press(&"Dash", false)
+			dashed = 2
+		elif dashed == 2 and not player.dash.acted:
+			_press(&"Dash", true)
+			dashed = 3
 		await physics_frame
 		if rose and player.is_on_floor():
 			var cell: Vector2i = info.cell_at(player.global_position)

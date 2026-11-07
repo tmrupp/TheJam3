@@ -89,7 +89,7 @@ func _draw_art() -> void:
 		var tc: Vector2 = Vector2(c.x + outer + TAG_GAP + tag_half, c.y)
 		var sheet: Array[PackedVector2Array] = RisoMarks.paper_shape(tc, TAG)
 		RisoPrint.ink_dept(ink, need[0], 1.0, sheet.slice(0, 1))
-		ink.knock(RisoPrint.ALL_PLATES, sheet.slice(1, 2))
+		ink.knock(RisoPrint.ALL_PLATES, sheet.slice(RisoMarks.PAPER_ROLLS.x, RisoMarks.PAPER_ROLLS.y))
 		var band: StringName = Institute.DEPARTMENTS.get(need[0], &"institute")
 		var at: Vector2 = tc + Vector2(0, -EMBLEM_UP)
 		var fit: Transform2D = Transform2D(0.0, Vector2(EMBLEM, EMBLEM), 0.0, at)

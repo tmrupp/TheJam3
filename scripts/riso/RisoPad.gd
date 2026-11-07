@@ -94,6 +94,47 @@ static func _over() -> float:
 
 ## The part of the pad input action `action` is on (&"Move" is walking, the left stick): its first
 ## pad button, else its first pad axis; NONE when it has neither, or one the pad here does not show.
+## Every part of the pad input action `action` is on, its first (part_of) first: the spell is on a
+## face button and the left trigger alike, and the whole pad (draw) lights both.
+static func parts_of(action: StringName) -> Array[Part]:
+	var out: Array[Part] = []
+	var first: Part = part_of(action)
+	if first == Part.NONE:
+		return out
+	out.append(first)
+	if action == &"Move" or not InputMap.has_action(action):
+		return out
+	for e: InputEvent in InputMap.action_get_events(action):
+		var part: Part = Part.NONE
+		var b: InputEventJoypadButton = e as InputEventJoypadButton
+		var m: InputEventJoypadMotion = e as InputEventJoypadMotion
+		if b != null:
+			part = _button_part(b.button_index)
+		elif m != null:
+			match m.axis:
+				JOY_AXIS_TRIGGER_LEFT: part = Part.LEFT_TRIGGER
+				JOY_AXIS_TRIGGER_RIGHT: part = Part.RIGHT_TRIGGER
+		if part != Part.NONE and not out.has(part):
+			out.append(part)
+	return out
+
+
+## The part of the pad a button is (NONE for one the pad does not show).
+static func _button_part(button: int) -> Part:
+	match button:
+		JOY_BUTTON_A: return Part.FACE_DOWN
+		JOY_BUTTON_B: return Part.FACE_RIGHT
+		JOY_BUTTON_X: return Part.FACE_LEFT
+		JOY_BUTTON_Y: return Part.FACE_UP
+		JOY_BUTTON_BACK: return Part.BACK
+		JOY_BUTTON_START: return Part.START
+		JOY_BUTTON_LEFT_STICK: return Part.LEFT_STICK
+		JOY_BUTTON_RIGHT_STICK: return Part.RIGHT_STICK
+		JOY_BUTTON_LEFT_SHOULDER: return Part.LEFT_BUMPER
+		JOY_BUTTON_RIGHT_SHOULDER: return Part.RIGHT_BUMPER
+	return Part.NONE
+
+
 static func part_of(action: StringName) -> Part:
 	if action == &"Move":
 		return Part.LEFT_STICK
@@ -127,11 +168,13 @@ static func part_of(action: StringName) -> Part:
 	return Part.NONE
 
 
-## Print the pad on `ink`, centred on `at`, `s` its scale, with the part `action` is on solid
-## (part_of; walking's stick with arrows either way), pressed by `press` (0 up .. 1 down; its ring
-## spreads as it lands). Returns where that part's middle is.
+## Print the pad on `ink`, centred on `at`, `s` its scale, with every part `action` is on solid
+## (parts_of; walking's stick with arrows either way), pressed by `press` (0 up .. 1 down; its ring
+## spreads from each as it lands). Returns where its first part's middle is.
 static func draw(ink: InkCanvas, at: Vector2, s: float, action: StringName, press: float = 0.0) -> Vector2:
-	var lit: Part = part_of(action)
+	var lits: Array[Part] = parts_of(action)
+	var lit: Part = lits[0] if not lits.is_empty() else Part.NONE
+	var rings: Array[Vector2] = []
 	var top: float = at.y - size().y * 0.5 * s
 	var body_top: float = top + _over() * s
 	var origin: Vector2 = Vector2(at.x, body_top)
@@ -160,9 +203,11 @@ static func draw(ink: InkCanvas, at: Vector2, s: float, action: StringName, pres
 			var size_of: Vector2 = (pair[1] as Vector2) * s
 			var y: float = float(pair[2])
 			var shape: PackedVector2Array = RisoPad.tab(x - size_of.x * 0.5, y, size_of.x, size_of.y, TRIGGER_ROUND * s) if part == trig_part else RisoShapes.rrect(x - size_of.x * 0.5, y, size_of.x, size_of.y, BUMPER_ROUND * s)
-			if part == lit:
+			if lits.has(part):
 				solid.append(Transform2D(0.0, sink) * shape)
-				lit_at = Vector2(x, y + size_of.y * 0.5)
+				rings.append(Vector2(x, y + size_of.y * 0.5))
+				if part == lit:
+					lit_at = Vector2(x, y + size_of.y * 0.5)
 				# From the pad's side, pointing in at it.
 				var tip: Vector2 = Vector2(x + side * (size_of.x * 0.5 + POINT_GAP * s), y + size_of.y * 0.5)
 				pointers.append(PackedVector2Array([tip, tip + Vector2(side * POINT.y * s, -POINT.x * s), tip + Vector2(side * POINT.y * s, POINT.x * s)]))
@@ -171,10 +216,12 @@ static func draw(ink: InkCanvas, at: Vector2, s: float, action: StringName, pres
 	# The sticks: a well and a cap each.
 	for pair: Array in [[Part.LEFT_STICK, LEFT_STICK_AT], [Part.RIGHT_STICK, RIGHT_STICK_AT]]:
 		var c: Vector2 = origin + (pair[1] as Vector2) * s
-		if pair[0] == lit:
+		if lits.has(pair[0]):
 			faint.append(RisoShapes.circle(c, STICK_WELL * s, 18))
 			solid.append(RisoShapes.circle(c + sink, STICK_CAP * LIT_GROW * s, 14))
-			lit_at = c
+			rings.append(c)
+			if pair[0] == lit:
+				lit_at = c
 			if action == &"Move":
 				for dir: float in [-1.0, 1.0]:
 					var base: Vector2 = c + Vector2(dir * (STICK_WELL + WALK_GAP) * s, 0)
@@ -188,9 +235,11 @@ static func draw(ink: InkCanvas, at: Vector2, s: float, action: StringName, pres
 	for pair: Array in [[Part.BACK, -1.0], [Part.START, 1.0]]:
 		var c: Vector2 = origin + Vector2(float(pair[1]) * MIDDLE_AT.x, MIDDLE_AT.y) * s
 		var bar: PackedVector2Array = RisoShapes.rrect(c.x - MIDDLE.x * 0.5 * s, c.y - MIDDLE.y * 0.5 * s, MIDDLE.x * s, MIDDLE.y * s, MIDDLE.y * 0.5 * s)
-		if pair[0] == lit:
+		if lits.has(pair[0]):
 			solid.append(Transform2D(0.0, sink) * bar)
-			lit_at = c
+			rings.append(c)
+			if pair[0] == lit:
+				lit_at = c
 		else:
 			faint.append(bar)
 	# The face buttons: down, right, left, up round their middle.
@@ -198,9 +247,11 @@ static func draw(ink: InkCanvas, at: Vector2, s: float, action: StringName, pres
 	var spots: Array[Array] = [[Part.FACE_DOWN, Vector2(0, 1)], [Part.FACE_RIGHT, Vector2(1, 0)], [Part.FACE_LEFT, Vector2(-1, 0)], [Part.FACE_UP, Vector2(0, -1)]]
 	for pair: Array in spots:
 		var c: Vector2 = face + (pair[1] as Vector2) * FACE_OFF * s
-		if pair[0] == lit:
+		if lits.has(pair[0]):
 			solid.append(RisoShapes.circle(c + sink, FACE_R * LIT_GROW * s, 14))
-			lit_at = c
+			rings.append(c)
+			if pair[0] == lit:
+				lit_at = c
 		else:
 			faint.append(RisoShapes.circle(c, FACE_R * s, 14))
 	ink.ink(RisoPrint.NIGHT, CONTROL_INK, faint, false)
@@ -210,7 +261,8 @@ static func draw(ink: InkCanvas, at: Vector2, s: float, action: StringName, pres
 		halos.append_array(Geometry2D.offset_polygon(shape, HALO * s))
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], halos)
 	ink.ink(RisoPrint.NIGHT, 1.0, solid + pointers, false)
-	ring(ink, lit_at + sink, s, press)
+	for c: Vector2 in rings:
+		ring(ink, c + sink, s, press)
 	return lit_at
 
 

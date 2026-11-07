@@ -5,7 +5,7 @@
 [ext_resource type="Script" path="res://scripts/TollPay.gd" id="3_pay"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_toll"]
-size = Vector2(126, 130)
+size = Vector2(90, 130)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_pay"]
 size = Vector2(300, 130)

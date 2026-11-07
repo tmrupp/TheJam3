@@ -1,6 +1,7 @@
 extends TestKit
 ## Switch gates (every level has one; its switch is reachable with the gate shut and stands well
-## away from it; some switches start on; turning it on lifts the gate and off drops it again, never on the
+## away from it; some switches start on; turning it on winches the gate up, blocking the way until it is
+## all the way up, and off drops it again, never on the
 ## wizard; a hex bolt turns one on but never off; the record keeps each as it was left), the rare
 ## big jump (never at depth 0, about
 ## PLUNGE_CHANCE % of levels deeper; drops PLUNGE_DEPTH levels for its price) and the parry that
@@ -104,13 +105,26 @@ func run() -> void:
 		if g.get_meta(&"cell") == lever.gate_cell:
 			gate = g as SwitchGate
 	check(gate != null and gate.shut() == not lever.is_on(), "the switch knows its gate, which stands as the switch is (down while off)")
+	# Every portcullis's body is as wide as its bars are printed, so the wizard stops at the iron.
+	for path: String in ["switch_gate", "toll_gate", "light_gate", "exam_door", "door"]:
+		var body: Node2D = (load("res://prefabs/%s.tscn" % path) as PackedScene).instantiate() as Node2D
+		var box: CollisionShape2D = body.get_node("CollisionShape2D") as CollisionShape2D
+		var wide: float = (box.shape as RectangleShape2D).size.x * box.scale.x * body.scale.x
+		check(is_equal_approx(wide, 2.0 * RisoMarks.PORTCULLIS_HALF), "%s: its body %.0f px wide, as its bars are printed" % [path, wide])
+		body.free()
 	if lever.is_on():
 		lever.flip()
 	await frames(3)
 	check(not lever.is_on() and gate.shut(), "off, its gate is down")
+	# In view, so that it winches (asleep, it goes straight up).
+	info.loader.wake_around(gate.global_position)
+	await frames(2)
 	lever.flip()
-	await frames(3)
-	check(lever.is_on() and not gate.shut(), "turned on, it lifts the gate")
+	await physics_frame
+	await physics_frame
+	check(lever.is_on() and gate.shut() and gate.lift > 0.0 and gate.lift < SwitchGate.UP_LIFT, "turned on, it winches the gate up, still blocking the way while it rises")
+	check(await within(func() -> bool: return not gate.shut(), 1.0), "and lets the wizard through once it is up")
+	check(gate.lift >= SwitchGate.UP_LIFT, "all the way up")
 	var gate_cell: Vector2i = lever.gate_cell
 	var lever_cell: Vector2i = lever.get_meta(&"cell")
 	info.travel(MapInfo.Exit.LEFT)

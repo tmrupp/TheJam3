@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://scripts/ExamDoor.gd" id="1_door"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_exam"]
-size = Vector2(126, 130)
+size = Vector2(90, 130)
 
 [node name="ExamDoor" type="StaticBody2D"]
 collision_layer = 4

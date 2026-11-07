@@ -142,8 +142,12 @@ func _physics_process(delta: float) -> void:
 	var lecture: bool = map_info.world != null and hall >= 0 and hall < map_info.world.halls.size() and map_info.world.halls[hall]["kind"] == &"lecture"
 	up = (map_info.hall_door_up(hall) and (not lecture or near())) or (lecture and student_near())
 	if up:
-		collision_layer = 0
-	elif not shut() and not _holds_wizard():
-		collision_layer = _layer
+		# Winched up, and open only once it is all the way up.
+		lift = move_toward(lift, UP_LIFT, LIFT_SPEED * delta)
+		if lift >= UP_LIFT:
+			collision_layer = 0
+	else:
+		if not shut() and not _holds_wizard():
+			collision_layer = _layer
+		lift = move_toward(lift, 0.0 if shut() else UP_LIFT, LIFT_SPEED * delta)
 	map_info.exam_doors[cell] = not shut()
-	lift = move_toward(lift, 0.0 if shut() else UP_LIFT, LIFT_SPEED * delta)

@@ -2,7 +2,7 @@ extends TestKit
 ## Stills of the tutorial (Tutorial, ControlHint, HintArt): the run's first moment in it, the walk
 ## card up (tutorial_start.png); the whole hall from far out (tutorial_overview.png); each control
 ## card up with the wizard by it, on the keyboard (tutorial_<control>.png) and on a pad
-## (tutorial_pad_<control>.png); the lantern by the burn card, lit and ready to burn into mend
+## (tutorial_pad_<control>.png); the moon over the third bed of thorns (tutorial_moon.png); the lantern by the burn card, lit and ready to burn into mend
 ## (tutorial_burnable.png); the trophy stands, the first boss's trophy set, the second's
 ## carried, and a trophy waiting to be picked up (tutorial_trophies.png); a relic unlock lying there
 ## and two trailing the wizard (tutorial_unlock.png); the card of a won run
@@ -31,6 +31,10 @@ func run() -> void:
 			player.global_position = hint.global_position + Vector2(-90, 0)
 			await _look(hint.global_position + Vector2(0, -120), "tutorial/%s.png" % _file(name, pad), 1.0)
 	RisoPad.pad = false
+	# The moon over the third bed of thorns, the wizard at the run-up before it.
+	var moon: Node2D = placed("moon.tscn")[0] as Node2D
+	player.global_position = info.cell_position(Vector2i(42, 10))
+	await _look(moon.global_position + Vector2(0, 60), "tutorial/tutorial_moon.png", 1.0)
 	await _burnable()
 	await _trophies()
 	player.get_node("CameraControl").set_process(true)
@@ -100,8 +104,10 @@ func _file(name: String, pad: bool) -> String:
 	return ("tutorial_pad_%s" if pad else "tutorial_%s") % name
 
 
-## The camera on `spot` (zoomed by `zoom`) while the card there rises, then a still as `file`.
+## The camera on `spot` (zoomed by `zoom`) while the card there rises, then a still as `file`. The
+## map is shut first, should a stray press have opened it (M or the pad's Y reach the window too).
 func _look(spot: Vector2, file: String, zoom: float = 1.0) -> void:
+	main.get_node("RisoMap").call("close")
 	var was: Vector2 = camera.zoom
 	camera.zoom = was * zoom
 	info.loader.wake_around(spot)

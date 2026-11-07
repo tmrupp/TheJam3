@@ -6,7 +6,7 @@
 [ext_resource type="PackedScene" uid="uid://pwmevy3urxq6" path="res://prefabs/interactable.tscn" id="4_ebgxk"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_rt2ta"]
-size = Vector2(31.5, 32.5)
+size = Vector2(22.5, 32.5)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_6rq0o"]
 atlas = ExtResource("1_ke5o0")

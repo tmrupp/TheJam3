@@ -115,7 +115,7 @@ func _draw_art() -> void:
 		var at: Vector2 = Vector2(PAPER_AT.x, g + PAPER_AT.y)
 		var sheet: Array[PackedVector2Array] = RisoMarks.paper_shape(at, PAPER)
 		ink.lift_ink(RisoPrint.ALL_PLATES, 1.0, sheet.slice(0, 1))
-		ink.ink(RisoPrint.NIGHT, 0.55, sheet.slice(1, 2), false)
+		ink.ink(RisoPrint.NIGHT, 0.55, sheet.slice(RisoMarks.PAPER_ROLLS.x, RisoMarks.PAPER_ROLLS.y), false)
 		var pips: Array[PackedVector2Array] = []
 		for i: int in range(Timetable.WAY_ON_PAPER):
 			var p: Vector2 = at + Vector2((float(i) - float(Timetable.WAY_ON_PAPER - 1) * 0.5) * 10.0, 3.0)
