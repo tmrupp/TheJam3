@@ -49,7 +49,7 @@ func run() -> void:
 const WEB_CROP: Vector2 = Vector2(0.7, 0.8)
 
 
-func still(file: String, part: Vector2 = WEB_CROP) -> void:
+func photo(file: String, part: Vector2 = WEB_CROP) -> void:
 	save_still(DIR + file)
 	var image: Image = root.get_texture().get_image()
 	var size: Vector2i = Vector2i(Vector2(image.get_size()) * part)
@@ -65,7 +65,7 @@ func look_at(at: Vector2, file: String, settle_frames: int = 20) -> void:
 		camera.global_position = at
 		camera.reset_smoothing()
 		await process_frame
-	still(file)
+	photo(file)
 
 
 ## Every foe and shot taken out of the level, so nothing strikes the wizard in a still.
@@ -151,7 +151,7 @@ func _spires(zoom: Vector2) -> void:
 	await until(func() -> bool: return warm.struck_at > 0.0, 3000)
 	await process_frame
 	await process_frame
-	still("spire_struck.png")
+	photo("spire_struck.png")
 
 
 func _bag(zoom: Vector2) -> void:
@@ -190,7 +190,7 @@ func _bolts(zoom: Vector2) -> void:
 			camera.reset_smoothing()
 			await physics_frame
 		await process_frame
-		still(("bolt_empowered.png" if empowered else "bolt_plain.png"))
+		photo(("bolt_empowered.png" if empowered else "bolt_plain.png"))
 		await frames(40)
 
 
@@ -217,12 +217,12 @@ func _break(zoom: Vector2) -> void:
 	nova.wait = 0.0
 	nova.cast(false)
 	await frames(3)
-	still("crack_plain_nova.png")
+	photo("crack_plain_nova.png")
 	await frames(40)
 	nova.wait = 0.0
 	nova.cast(true)
 	await frames(3)
-	still("crack_empowered_nova.png")
+	photo("crack_empowered_nova.png")
 	await frames(60)
 	await look_at(info.cell_position(wall).lerp(info.cell_position(by), 0.5), "crack_after.png", 10)
 
@@ -235,8 +235,8 @@ func _map() -> void:
 	var map: Node = main.get_node("RisoMap")
 	map.call("toggle")
 	await frames(20)
-	still("map_level.png", Vector2.ONE)
+	photo("map_level.png", Vector2.ONE)
 	map.call("page", 1)
 	await frames(20)
-	still("map_worlds.png", Vector2.ONE)
+	photo("map_worlds.png", Vector2.ONE)
 	map.call("toggle")

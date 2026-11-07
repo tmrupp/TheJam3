@@ -6,10 +6,9 @@ guards a relic and the way on to the next region. It builds on `docs/DEEPER_PLAN
 places, archetypes, side worlds, relics) and follows the owner's notes, now the task list linked
 from `AGENTS.md` ("can go up or down", "bosses, possibly guarding relics, must be defeated").
 
-Phases 1 (rows both ways), 2 (climbing levels), 3 (the gate, with a stand-in boss) and 4 (the
-worm and the bramble) are built, and of phase 5 a first pass of the crags and their lodestone golem
-in its hall; the rest is not yet. Each section says what is decided, what
-is proposed, and what is still open; the phases at the end give the order of work.
+Every phase is built, the crags, the institute and the sky as first passes; what is left is
+tuning and the open questions (§8, §9). Each section says what is decided, what is proposed, and
+what is still open.
 
 ## 1. Decided
 
@@ -83,14 +82,9 @@ at `(x, -(k * STRIDE + d) - 1)` (`Worlds.side_at`). The up branch needs those ro
   back near the bottom (`LevelGen.place_exits(…, climbing)`), so the up branch is climbed rather than
   crossed; the way on's chevron points up there. Climbing is harder than falling (by the rough
   reach, about 0 to 7 % of up levels could be climbed without help, against 45 to 70 % of down levels
-  crossed), so a light helper (`Climb.aid`) laid at most 12 ledges, each a hop on from somewhere
-  already reached, toward the way on: hops of the wizard's own in the garden, a relic's (about a
-  double jump) beyond it. *Since removed (the owner: traversability is not enforced in any world,
-  AGENTS.md); what follows is as it was.* **Nothing is promised**, as nothing is below the start:
-  some climbs want wall jumps or a relic and a few may not go at all. With it, about 70 % of the garden's up levels
-  can be climbed with the wizard's own hops (as many as its down levels can be crossed), and nearly
-  all the crags and sky with a relic's. No ledge goes in a chasm's or gap's kept air, so the
-  crossings left to relics stay theirs.
+  crossed). **Nothing is promised**, as nothing is below the start: some climbs want wall jumps or
+  a relic and a few may not go at all. Nothing lays ledges toward the way on (traversability is
+  not enforced in any world, `AGENTS.md`).
 - **Sideways.** Left and right exits still move a world column at the same row, in both branches.
 - **Nothing skips a seal.** Every way that crosses rows without walking them must stop at an
   unslain boss's gate: the hyperspace door (it moves `DROP` rows along the branch, never past a
@@ -123,12 +117,12 @@ at `(x, -(k * STRIDE + d) - 1)` (`Worlds.side_at`). The up branch needs those ro
   (`LodeHall`) are cut into it right after its caves are joined, before anything else is laid,
   so only the gate levels change, and hold the way on. (There were arenas, side worlds behind a
   door in the gate level; they are gone.)
-- **Code shape.** A `Boss` base (`scripts/bosses/Boss.gd`): its name, health (shown as pips or
-  plates on the boss, not a HUD bar, in keeping with §"hud reduction"), its gate band, `slain()`
-  telling `MapInfo` to record it and lift the seals, and the hooks every boss shares (hex, parry,
-  dash, stun, shield). Each boss is a script extending it, a prefab, an art script in
-  `scripts/riso/props/`, and whatever it needs built into its gate level.
-  `Placeables` and `LevelGen.Type` get a `BOSS` type and a `GATE` exit look.
+- **Code shape.** Each boss is its own script and prefab (`Bosses.SCENES`), with its health
+  shown on itself (pips or plates, not a HUD bar, in keeping with §"hud reduction"), telling
+  `MapInfo.boss_slain` when it dies so the run records it and the seals lift, plus whatever it
+  needs built into its gate level. They share no base class: the stand-in boss the tests used
+  until every boss was built is gone (`docs/HISTORY.md`). `LevelGen.Type` has a `BOSS` cell, whose
+  `Placeables` row names no prefab (the boss's own is placed for it), and a `GATE` exit look.
 
 ### What every boss must keep
 
@@ -247,8 +241,7 @@ shaft.
   hidden, its crown asleep and grown the same way again), as the level reloads.
   `tests/bramble_test.gd` covers it, `tests/capture_bramble.gd` takes stills and
   `tests/capture_bramble_gif.gd` records GIF frames of the fight at the head. Of the twelve garden gate levels the test lays out, the
-  way on is reached with the wizard's own hops in ten (the climb helper, `Climb.aid`, since
-  removed, saw the shaft's ledges and lent ledges toward its foot, never inside it).
+  way on is reached with the wizard's own hops in ten.
 
 ### The worm (garden, down gate, in the level)
 
@@ -801,105 +794,26 @@ from row 4 down (expected: `layout_fingerprint_test` is re-pinned in that phase)
 
 ## 8. Phases
 
-Each phase ends with the full suite green and its own tests.
+Each phase ended with the full suite green and its own tests. The full write-up of each (what it
+changed, which layouts were re-pinned) is in git history (`docs/HISTORY.md`).
 
-1. **Rows both ways.** *Done.* Side worlds moved to `SIDE_BASE` (`Worlds`), version-2 saves
-   migrated (`RunState.from_v2`), distance (`def.depth`) separated from the row everywhere, rows
-   above the start are levels, the start's way back is a paid way up, bands come from a table
-   (`NextWorldDef.GARDEN`, `DOWN`, `UP`) with the crags and catacombs as stand-in archetypes
-   (`CragsArchetype`, `CatacombsArchetype`), hyperspace may cross into the other branch, and the
-   map, place marks (an up arrow for heights), the travel card and the F7 travel picker know
-   heights. Tests: `unit_test` (bands, encoding, migration, the start's way up, hyperspace
-   crossing), `branches_test` (going up and home in play, the crags past the garden, saving above
-   the start), `capture_branches.gd` (stills). Levels from row 4 down, and the start level's
-   dressing (its new door up), changed; `layout_fingerprint_test` was re-pinned.
-2. **Climbing levels.** *Done.* Exits mirrored for the up branch, the chevron turned, the arrival
-   at the bottom, and the climb helper (`Climb`, no promise of a way through; the owner asked for
-   traversability to be relaxed, especially beyond the garden; since removed, with `climb_test`, as
-   traversability is not enforced in any world). `layout_fingerprint_test` re-pinned for the up levels (their dressing
-   changed; their terrain and every level below the start did not).
-3. **The gate.** *Done.* `Bosses` (which row each boss guards, in the level or in an arena, what a
-   way crosses), `RunState.bosses` and `boss_relics` (saved), `NextWorldDef.gate` and `seal`: a gate
-   level's way on, and a side door whose world leads out past a living boss's gate (a hyperspace),
-   are sealed (pink bars and the boss's eye on the door, the eye on the prompt, a seal mark on the
-   level map). The stand-in (`Boss`: a wisp twice the size, 10 hits shown as pips over it) stands in
-   the worm's and bramble's gate levels (`LevelGen.place_boss`, nearest the way on) and in the arena
-   (`Arena`, a side world: a plain hall, its door free, a dead end) for the rest. Its death
-   (`MapInfo.boss_slain`) opens every gate level of its band for the run and leaves a free relic
-   where it fell (a move not yet known, `Bosses.relic_for`; with every move known, a skeleton key
-   and a star cluster). Gate levels hold no relic of their own. Tests: `gate_test` (the rows and
-   crossings, the seal, a lantern death healing it, the kill, the relic, the other columns, the way
-   up still sealed, the arena, hyperspace sealed then opened, saved); `capture_gate.gd` (stills).
-   Every hyperspace from the garden now waits on a garden boss, since its trip crosses a gate. Not
-   yet: a seal mark on the worlds map's tiles.
-4. **The bramble and the worm** (the garden's gates, in the level). *The worm is done* (§6): its
-   lair and holes, cell-sized segments bending like a pipe, the bite, soft flesh (`Wound.least`, so
-   the starting moves can cut it), stuns holding the whole worm, cuts shortening or splitting it,
-   short worms burrowing away, and its death; one cut a move, only a parried bite stunning it, its
-   body blocking the dash; thorns on the flank facing the wizard as it comes out; crawling the walls of the whole level, burrows all
-   through it, digging through walls, and a warning (a pink bulge, dirt and a rumble) before it
-   comes out of the rock. A built boss is its own prefab (`Bosses.SCENES`,
-   `Bosses.scene`); the rest still fight as the stand-in. Tests: `worm_test` (holes and lair, lying
-   under, the warning and rumble, waking and hunting, the head never in the rock, digging through a
-   wall, its thorns (one flank, picked facing the wizard as it comes out and kept, glancing
-   strikes off), one segment cut a move, only a
-   parry stunning it, its layer, the bite, struck by a dash and a bolt that only stun, cuts, splits,
-   burrowing away, a lantern death healing it, slain, its relic on a floor, never met again);
-   `capture_worm.gd` (stills). The F7 panel's Travel section has **Slay boss**
-   (`MapInfo.slay_boss`): the boss here (the worm, the bramble, or a stand-in) dies at once as by
-   any blow, leaving its relic; in a gate level whose boss fights elsewhere, that boss is slain
-   where the wizard stands (`gate_test`). *The bramble is done* (§6): its shaft cut near the top of
-   its gate level, walled in, with ledges, a foot open to the caves, and the way on on a landing at
-   its head; its crown of canes growing out of the rock to wall off the head, quivering when struck,
-   drawing back from its heart; vines lashing out on a cadence, a parried lash
-   recoiling; bulbs spitting seeds a parry turns back into them, wounded by any bolt or dash, each
-   feeding the vines nearest it; its canes drying and drawing back into the rock with the last. Tests: `bramble_test` (the
-   shaft's walls, foot, landing, knot and ledges, nothing else in it, the same every build and only
-   in its gate levels, reached from the way back; in play the knot, the vines' cadence and sting, a
-   parry recoiling one, seeds spat and parried back, bolts and dashes wounding bulbs, a burst bulb
-   withering its vines, a lantern death healing it, slain, its relic on the landing, never met
-   again); `capture_bramble.gd` (stills). The bramble's gate levels changed (layout); every other
-   level did not. `gate_test` and `capture_gate.gd` show the stand-in in the necromancer's gate
-   level (arenas are gone).
-5. **Crags and castle**: *a first pass is done*: sample, structure pass, decor, realm, and the
-   gondola (`CragsArchetype`, `Gondola`; `crags_test`, `capture_crags.gd`; the crags' layouts
-   changed and `layout_fingerprint_test` was re-pinned for them alone). *The lodestone golem and
-   its hall are built* (§6; `golem_test`, `lode_hall_test`, `capture_golem.gd`) at the top of its
-   gate level, in place of the spider and its keep, retired (only the crags' gate levels changed;
-   `Arena` is gone and every boss fights in its gate level). *Its life is done*: stalactites (the falling rocks), nests out on the cliff,
-   and crossbows built into the towers' and keeps' walls (`crossbow_test`; the crags' dressing changed and
-   `layout_fingerprint_test` was re-pinned for them alone). Then tuning the golem in play.
-6. **Cemetery crypts and light**: *done*: crypts (collapsed by WFC, one or two a level), darkness
-   by place, snuffing fonts, light-shy wraiths and sleeping skeletons (`Crypts`, `Lamplight`,
-   `Snuffer`, `Skeleton`; `crypt_test`, `capture_crypt.gd`), the wraith's dart and the skeleton's
-   swipe each with a tell (`crypt_attacks_test`); and **the necromancer** in its crypt,
-   wounded only in light (`Necromancer`; `necromancer_test`). The cemetery's and catacombs' layouts
-   changed and `layout_fingerprint_test` was re-pinned for them alone. Then tuning in play.
-7. **The institute**: *a first pass is done*: halls and stacks, the exam as a battle, students,
-   masters (teaching tiers by lessons) and staff, abominations that multiply and the breaches they
-   come from, the departments' portals (`Institute`, `Scholar`, `Abomination`, `Breach`, `ExamDoor`,
-   `Lesson`, `Department`, `WayBack`; `institute_test`, `capture_institute.gd`). The catacombs'
-   stand-in is gone; the sight test's deep dark moved to the crypts. Only the institute's layouts
-   are new; every other level is laid out as before. *The eldritch beast: a first pass is done*
-   (§6): its chamber in its gate levels (only they changed), its souls sent across the run with
-   abominations round them, its eyes, tentacles and great eye (`beast_test`, `capture_beast.gd`).
-   *The timetable is built* (§9; settled in five passes on 2026-10-17): the great bell and its
-   cords, departments with their own rhythms and tier rules,
-   prerequisites, passing time and belonging, exam papers sent on field trips and learned at
-   lanterns, instructors, classroom lecterns as pigeonholes, glyph seals (since taken out), abominations quiet in
-   class and surging in passing time, and the beast fed by rings (`Timetable`, `SchoolBell`,
-   `Lectern`, `KeyRing.paper`, `MapInfo._attend`, `study`, `instructor_fell`;
-   `timetable_test`, `papers_test`, `capture_timetable.gd`). Only the institute's dressing changed
-   (its halls: classrooms in place of lecture halls and the exam hall; `layout_fingerprint_test`
-   re-pinned for it alone); the collapsed terrain did not. On 2026-10-18 the way on moved into a
-   classroom and the great bell into the corridors the way in opens on (the institute's dressing
-   re-pinned again, the terrain the same). Then tuning.
-8. **The sky reworked**: *a first pass is done*: the level's wind set by its vanes, in gusts;
-   balloons riding it along the row; temples opened by sequences of winds; the white realm and its
-   storm; and **the whale**, roaming the top row on the winds, trapped, its belly and heart
-   (`balloon_test`, `temple_test`, `whale_test`, `unit_test`; `capture_sky_rework.gd`; the sky's
-   dressing changed and `layout_fingerprint_test` was re-pinned for it). Then lightning strikes and
-   the wind on birds and shots, and tuning.
+1. **Rows both ways.** Done (`unit_test`, `branches_test`).
+2. **Climbing levels.** Done. Its climbing aid (`Climb`) is gone: traversability is not enforced
+   in any world.
+3. **The gate.** Done (`gate_test`). Not yet: a seal mark on the worlds map's tiles.
+4. **The bramble and the worm.** Done (`bramble_test`, `worm_test`), with **Slay boss** on the F7
+   panel's Travel section (`MapInfo.slay_boss`).
+5. **Crags and castle.** A first pass, the lodestone golem and its hall, and the crags' life
+   (stalactites, nests, crossbows) are done (`crags_test`, `golem_test`, `lode_hall_test`,
+   `crossbow_test`). Then tuning the golem in play.
+6. **Cemetery crypts and light.** Done, with the necromancer (`crypt_test`, `crypt_attacks_test`,
+   `necromancer_test`). Then tuning in play.
+7. **The institute.** A first pass is done: halls, scholars, abominations and breaches, the
+   departments' portals, the eldritch beast and the timetable (§9) (`institute_test`,
+   `beast_test`, `timetable_test`, `papers_test`). Then tuning.
+8. **The sky reworked.** A first pass is done: vanes and gusts, balloons, temples, the white realm
+   and its storm, and the whale with its belly and heart (`balloon_test`, `temple_test`,
+   `whale_test`). Not yet: lightning strikes, and the wind on birds and shots. Then tuning.
 9. **Tuning pass** with playtests: boss health and timing, relic odds now that bosses give one,
    prices by distance.
 

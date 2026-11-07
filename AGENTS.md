@@ -59,14 +59,14 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
   `cd gdextension && python -m SCons platform=windows target=template_debug -j16`. Never with MinGW:
   its maths library rounds the collapse's logarithms differently and every level in the game changes
   (`layout_fingerprint_test` says so; run it after any rebuild). With Godot open the DLL is locked:
-  rename it aside first (Windows allows that) and the build writes the new one.
-- `docs/`: `DEEPER_PLAN.md` (design, by system), `REGIONS_PLAN.md` (the plan for going up and
-  down from the garden, the new bands and the bosses at band ends; phases 1 to 4 built (the worm
-  and the bramble), a first pass of the crags and their lodestone golem of phase 5 (with the lodestones, empowered spells and spires), phase 6, the cemetery's
-  crypts, light and the necromancer, and a first pass of phase 7, the institute, its beast and its timetable),
-  `RISO_PRINT.md` (the art pipeline and rules), `CLEANUP_PLAN.md` (the ten follow-ups to the
-  architecture refactor, all done; kept for why the shared helpers are shaped as they are),
-  `PLAYTEST_PLAN.md` (the owner's playtest notes of November 2026 on the demo: the tutorial, the
+  rename it aside first (Windows allows that) and the build writes the new one. The build's object
+  files, link libraries and SCons database are not kept in git (`.gitignore`); the DLL is.
+- `docs/`: `DEEPER_PLAN.md` (design, by system), `REGIONS_PLAN.md` (going up and down
+  from the garden, the bands and the bosses at band ends; every phase built, the crags, institute
+  and sky as first passes, with tuning and open questions left),
+  `RISO_PRINT.md` (the art pipeline and rules), `HISTORY.md` (where removed plans, code and
+  assets used to live, with the commits that still hold them; add a row when you take something
+  out), `PLAYTEST_PLAN.md` (the owner's playtest notes of November 2026 on the demo: the tutorial, the
   guard and pogo, the print, music and teleporters; a plan, not yet built),
   `PAIRED_PLAN.md` (paired play, preliminary: two players on two machines, each seeing the
   other's map, coded messages their only channel; nothing built yet).
@@ -121,7 +121,10 @@ bash tests/run.sh -l garden full  # the suite on another band layout (the demo's
   fails alongside others but passes alone is reported FLAKY. Logs go to `/tmp/thejam3-tests/`.
 - `run.sh` re-imports first. After adding a `class_name` script or an image outside it, run
   `godot --headless --path . --import`.
-- Captures: `godot --path . --windowed --resolution 1280x720 --script res://tests/capture_x.gd`.
+- Captures: `godot --path . --windowed --resolution 1280x720 --screen 1 --script res://tests/capture_x.gd`.
+  `--screen 1` opens the window on the owner's second monitor, so nothing flashes up on the main
+  one before the kit moves it out of sight (below), and a `-- watch` run stays there; `run.sh` does
+  the same for windowed tests (`-s N` or `$TEST_SCREEN` to choose another, 0 for the primary).
   `capture_overview.gd` photographs whole levels, every band and a few worlds each, to look over
   many layouts at once (options after `--`, e.g. `-- bands=crags worlds=6`).
 - A test that freezes the wizard (physics off) and moves them calls `still()` (TestKit) before
@@ -153,8 +156,9 @@ bash tests/run.sh -l garden full  # the suite on another band layout (the demo's
   counts physics frames, as a busy machine runs the game slower than the clock. The kit runs one
   physics step a frame, so a press made with `Input.parse_input_event` always reaches the game
   before the next physics step, however loaded the machine. `bash tests/run.sh -j 16 full` loads
-  the machine harder, to shake out tests that depend on timing. A few small tests still carry their own `check`;
-  move them onto the kit when touching them.
+  the machine harder, to shake out tests that depend on timing. Every test is on the kit: don't give
+  one its own `check` or start the game by hand unless it needs to (`print_controls_test` starts a
+  debug run).
 - `unit_test` checks the plain rules (seeds, prices by depth, key rarity, side-world places,
   archetype bands, where exits lead, shrine offers, the keyring) without the scene, in a second
   or two. Put a rule there when it needs no level.

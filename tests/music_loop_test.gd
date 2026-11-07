@@ -1,26 +1,13 @@
-extends SceneTree
+extends TestKit
 ## The incoming music advances throughout the crossfade and survives both loop handoffs.
 ## godot --headless --path . --script res://tests/music_loop_test.gd
 
-var failed: bool = false
-
-
-func _initialize() -> void:
-	call_deferred("run")
-
-
-func check(ok: bool, what: String) -> void:
-	if ok:
-		print("  ok   ", what)
-	else:
-		failed = true
-		push_error("FAIL " + what)
 
 
 func run() -> void:
 	var music: Node = Node.new()
 	music.set_script(load("res://scripts/MusicPlayer.gd"))
-	var stream: AudioStream = load("res://music/big_bossanova.wav")
+	var stream: AudioStream = load("res://music/big_bossanova.wav") as AudioStream
 	for player_name: String in ["MusicPlayer1", "MusicPlayer2"]:
 		var player: AudioStreamPlayer = AudioStreamPlayer.new()
 		player.name = player_name
@@ -28,8 +15,8 @@ func run() -> void:
 		player.volume_db = -5.842
 		music.add_child(player)
 	root.add_child(music)
-	var a: AudioStreamPlayer = music.get_node("MusicPlayer1")
-	var b: AudioStreamPlayer = music.get_node("MusicPlayer2")
+	var a: AudioStreamPlayer = music.get_node("MusicPlayer1") as AudioStreamPlayer
+	var b: AudioStreamPlayer = music.get_node("MusicPlayer2") as AudioStreamPlayer
 	check(stream.get_length() >= 95.0, "the track reaches the loop handoff")
 	check(a.playing and not b.playing, "only the first track starts")
 	for loop_index: int in range(2):
@@ -56,5 +43,4 @@ func run() -> void:
 		b = swap
 	music.queue_free()
 	await process_frame
-	print("FAILED" if failed else "PASS: music loops")
-	quit(1 if failed else 0)
+	finish()

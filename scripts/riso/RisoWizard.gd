@@ -7,12 +7,9 @@ class_name RisoWizard
 ## scale of 4 turns them into world pixels). Presentation only; collision is untouched.
 
 const STRIDE: float = 22.0
-## How high the wizard lifts a foot mid-step; a traveler may walk differently (`RisoCostume.gait`).
-const STEP_LIFT: float = 1.9
 const MAXV: float = 88.0
 const VX_SCALE: float = 88.0 / 300.0
 const VY_SCALE: float = 0.5
-const ALL: Array[int] = [0, 1, 2, 3, 4, 5, 6, 7]
 ## Art scale around the feet: at 0.8 the robe fits the ~62 px collider. Collision is unchanged.
 const ART_SCALE: float = 0.8
 
@@ -454,27 +451,6 @@ func _smv(v: Vector2) -> Vector2:
 	var over: float = s - knee
 	var flat: float = 3.5 * tanh(over / 3.5)
 	return v.lerp(Vector2(wall_side * (knee + flat), v.y), wall)
-
-
-## `poly` bowed and laid against the wall (_smv), point by point. Bowed alone (most of the time it
-## is anything), the bow is worked out here in one loop rather than a call or two a point: the
-## figure holds over a thousand points.
-func _sm(poly: PackedVector2Array) -> PackedVector2Array:
-	var amount: float = bow * (costume.bow_scale() if costume != null else 1.0)
-	if wall <= 0.001 and absf(amount) < 0.0005:
-		return poly
-	var out: PackedVector2Array = PackedVector2Array()
-	out.resize(poly.size())
-	if wall > 0.001:
-		for i: int in range(poly.size()):
-			out[i] = _smv(poly[i])
-		return out
-	var turn: float = amount * (1.0 if fs >= 0.0 else -1.0)
-	for i: int in range(poly.size()):
-		var v: Vector2 = poly[i]
-		var u: float = clampf((WAIST - v.y) / 18.0, 0.0, 1.5)
-		out[i] = v if u <= 0.0 else Vector2(0.0, WAIST) + (v - Vector2(0.0, WAIST)).rotated(turn * u * u)
-	return out
 
 
 func _process(_delta: float) -> void:

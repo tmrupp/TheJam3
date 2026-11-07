@@ -84,11 +84,6 @@ static func ids() -> Array[StringName]:
 	return out
 
 
-## The spells (what is cast from a slot), in order.
-static func spells() -> Array[StringName]:
-	return ids().filter(func(a: StringName) -> bool: return is_spell(a))
-
-
 ## The slot `a` takes, or &"" for a perk (or anything that is not an ability).
 static func slot_of(a: StringName) -> StringName:
 	return StringName(ABILITIES[a].get("slot", &"")) if ABILITIES.has(a) else &""

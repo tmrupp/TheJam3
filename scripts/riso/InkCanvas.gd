@@ -138,12 +138,6 @@ func bone(xf: Transform2D) -> int:
 	return i
 
 
-## Bone `i` placed by `xf` this print (one handed out by bone(), moved again).
-func set_bone(i: int, xf: Transform2D) -> void:
-	_bone_basis[i] = Vector4(xf.x.x, xf.x.y, xf.y.x, xf.y.y)
-	_bone_origin[i] = xf.origin
-
-
 ## What is printed next is drawn in bone `b`'s own space and carried by it (0: the canvas's).
 func on_bone(b: int) -> void:
 	_bind = b

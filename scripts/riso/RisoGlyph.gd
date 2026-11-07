@@ -3,9 +3,6 @@ extends RefCounted
 ## The mark of each ability (Abilities): printed in a shrine's niche, on a relic, in the HUD's
 ## spell slot and on the map. A new ability gets its mark here (anything else shows a spark).
 
-## How far a mark reaches from its middle, about: each is drawn to fill this, so all print alike in
-## weight wherever they are shown at one size.
-const MARK_R: float = 24.0
 ## How far the pieces of blink's broken dot have drifted apart.
 const BLINK_APART: float = 2.6
 ## Half the gap of paper down the spine of levitate's feather.
@@ -41,7 +38,8 @@ static func fit(a: StringName, c: Vector2, radius: float, t: float) -> Array[Pac
 	return out
 
 
-## An ability's mark, centred on `c` and reaching about MARK_R from it: what a shrine teaches.
+## An ability's mark, centred on `c` and reaching about 24 from it (each is drawn to fill that, so
+## all print alike in weight wherever they are shown at one size): what a shrine teaches.
 ## Each is one bold silhouette, and what is inside one (an eye's pupil, a ring's hole, the cross on
 ## a flask) is a gap of paper between its shapes rather than a shape printed over it, so it reads
 ## in any one ink. The marks of a slot share a look: a damage spell's is sharp (a blade, a spark, a

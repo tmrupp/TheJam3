@@ -28,13 +28,6 @@ func wall_spot(tall: int) -> Variant:
 	return null
 
 
-func hold(action: StringName, frames: int) -> void:
-	Input.action_press(action)
-	for i: int in range(frames):
-		await physics_frame
-	Input.action_release(action)
-
-
 ## A tall, empty wall or two-cell shaft, clear of the generated level's hazards.
 func test_wall(at: Vector2, size: Vector2) -> void:
 	var solid: StaticBody2D = StaticBody2D.new()

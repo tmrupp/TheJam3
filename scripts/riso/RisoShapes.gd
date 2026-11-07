@@ -225,10 +225,6 @@ static func ring(c: Vector2, r0: float, r1: float, n: int = 32) -> Array[PackedV
 	return out
 
 
-static func xf(t: Transform2D, poly: PackedVector2Array) -> PackedVector2Array:
-	return t * poly
-
-
 static func hash1(n: float) -> float:
 	var v: float = sin(n * 127.1 + 311.7) * 43758.5453
 	return v - floorf(v)

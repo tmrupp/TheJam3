@@ -77,11 +77,6 @@ func start_at(at: Vector2i) -> void:
 	map_info().start_run(at.x, at.y)
 
 
-func start_random() -> void:
-	randomize_seed()
-	start_game()
-
-
 func continue_game() -> void:
 	if RunState.read_save().is_empty():
 		return

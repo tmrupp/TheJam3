@@ -134,11 +134,6 @@ static func band_at(row: int) -> Dictionary:
 	return bands.back()
 
 
-## The script of the archetype of levels on row `row`.
-static func script_at(row: int) -> Script:
-	return band_at(row)["arch"]
-
-
 ## The archetype of levels on row `row`, as its band tunes it (a new one each time: it is small).
 static func archetype_at(row: int) -> Archetype:
 	var band: Dictionary = band_at(row)

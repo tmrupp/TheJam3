@@ -716,6 +716,9 @@ func _takes(m: Dictionary, n: int) -> bool:
 func _protocols() -> void:
 	var setups_ok: bool = true
 	for t: int in Placeables.TABLE:
+		# A boss cell's prefab is the boss's own, checked below.
+		if t == LevelGen.Type.BOSS:
+			continue
 		var node: Node = Placeables.scene(t).instantiate()
 		var script: Script = node.get_script() as Script
 		node.free()

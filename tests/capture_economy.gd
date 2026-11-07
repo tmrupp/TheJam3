@@ -1,5 +1,5 @@
 extends SceneTree
-## Stills for groups 7 and 8: a star cluster, a skeleton key, the lit lantern (with a full keyring
+## Stills of the economy and of light: a star cluster, a skeleton key, the lit lantern (with a full keyring
 ## and skeleton keys trailing the wizard), the sitting card with mend II a draught short, a warp on
 ## its way in and out, and the pause menu with Give up.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_economy.gd
