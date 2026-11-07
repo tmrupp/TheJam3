@@ -3,7 +3,8 @@ class_name Menu
 ## The start menu, then the pause menu.
 ## Start: continue the saved run (at its last lit lantern), begin at the world typed in (a random
 ## one when blank), or begin at a random world; either begins in the tutorial (Tutorial) while its
-## toggle is on, which it is until a player has come out of the tutorial once. Worlds are
+## toggle is on, which it is until a player has come out of the tutorial once (always, in a demo
+## build: MapInfo.demo_build, as a demo is played by one new player after another). Worlds are
 ## shareable: the same number gives the same levels for everyone. Paused: resume, copy where you
 ## are, give up (while a lantern protects you: a death, back to the lantern, for when you are stuck), open the debug panel (in debug runs;
 ## RisoPrint's F7 panel), save and go back to the start menu, or save and exit. Works by controller: D-pad or left stick to move, A to choose, Start to pause,
@@ -333,7 +334,7 @@ func _ready() -> void:
 	# A demo build has no debug runs (MapInfo.dev_tools).
 	debug_button.visible = MapInfo.dev_tools()
 	tutorial_button.toggled.connect(set_tutorial)
-	set_tutorial(not Tutorial.done())
+	set_tutorial(MapInfo.demo_build or not Tutorial.done())
 	var saved: Dictionary = RunState.read_save()
 	continue_button.visible = not saved.is_empty()
 	if saved.is_empty():

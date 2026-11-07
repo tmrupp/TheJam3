@@ -88,7 +88,9 @@ demo: the garden alone, the worm and the bramble at its ends, garden levels goin
 game plays `-- layout=<name>`, else `garden` in a build with the `demo` feature (an export preset's
 custom feature), else `full`; a layout other than `full` keeps its own save. A layout may set
 `"relics_from"` (the demo's lets rare relics lie from depth 1). A demo build also turns off the
-developer's tools (`MapInfo.dev_tools`: the debug toggle, the F7 panel, F8, Debug-Back). A new band
+developer's tools (`MapInfo.dev_tools`: the debug toggle, the F7 panel, F8, Debug-Back), but for one
+with the `demo_dev` feature too (`MapInfo.demo_dev`), the demo kept with its tools for testing it.
+A new band
 is one script extending `Archetype`, listed in a layout.
 
 Tests must hold however the bands are tuned. Ask the bands for rows rather than counting them:

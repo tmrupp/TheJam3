@@ -21,13 +21,18 @@ static var debug: bool = false
 ## Whether this is a demo build: an export with the "demo" feature (an export preset's custom
 ## feature), which also plays the demo's band layout (Bands.DEMO). Tests set it to try one.
 static var demo_build: bool = OS.has_feature("demo")
+## Whether this is a demo build kept for testing the demo: an export with the "demo_dev" feature as
+## well as "demo" (the "Windows Demo (dev tools)" preset, into builds/demo-dev). It plays the demo
+## all the same, with the developer's tools left in. Tests set it to try one.
+static var demo_dev: bool = OS.has_feature("demo_dev")
 
 
 ## Whether the developer's tools are at hand: the start menu's debug toggle (debug runs), the F7
 ## panel and F8's realms (RisoPrint), and going back a level at a key (Debug-Back). A demo build has
-## none of them, so its players get the game alone, on the default difficulty (Difficulty).
+## none of them, so its players get the game alone, on the default difficulty (Difficulty); a demo
+## build for testing (demo_dev) keeps them.
 static func dev_tools() -> bool:
-	return not demo_build
+	return not demo_build or demo_dev
 const DEBUG_STARS: int = 9999
 
 static var instance: MapInfo
