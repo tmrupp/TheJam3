@@ -32,7 +32,7 @@ func run() -> void:
 	gif = "gif" in OS.get_cmdline_user_args()
 	window()
 	await boot(28)
-	info.coord = Vector2i(28, Bosses.row_of(&"golem"))
+	info.coord = lair(&"golem")
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	await settle()

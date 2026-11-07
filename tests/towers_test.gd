@@ -5,7 +5,7 @@ extends TestKit
 ## one end, the ends taking turns, with a one-way ledge under it, so the wizard climbs it on their
 ## own hops (Reach) from the doorway to the top room, and on through the roof's hatch onto the roof
 ## for a watchtower, where a trapdoor shuts the hatch (opened only from below, trapdoor_test). A
-## hoard tower is roofed over and holds stars in its top room; a watchtower's top room
+## hoard tower is roofed over and holds all its stars in its top room (TOWER_HOARD); a watchtower's top room
 ## holds one of the level's keys, a switch for a gate nearby, or a mending bowl (MendWell), and those
 ## turn up across the levels. Every tower in the band's levels of several worlds is whole once the
 ## level is laid out: nothing later cracks, carves, fills or tunnels through its walls, floors,
@@ -99,7 +99,7 @@ func _tower(w: LevelGen, tower: Dictionary) -> void:
 	if tower["hoard"]:
 		check(w.is_ground(Vector2i(x0 + 1, roof)) and range(x0 + 1, x1).all(func(x: int) -> bool: return w.is_ground(Vector2i(x, roof))), "%s: roofed over" % name_of)
 		var stars: int = top.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.COIN).size()
-		check(stars > 0, "%s: stars in its top room (%d)" % [name_of, stars])
+		check_eq(stars, CragsArchetype.TOWER_HOARD, "%s: its stars in its top room, ledges or foes laid there first giving way to them" % name_of)
 	else:
 		var on_roof: bool = range(x0, x1 + 1).any(func(x: int) -> bool: return reach.has(Vector2i(x, roof - 1)))
 		check(on_roof, "%s: out through the hatch onto its roof" % name_of)

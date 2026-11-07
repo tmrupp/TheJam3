@@ -225,6 +225,13 @@ func unlocks_lying() -> Array[Node]:
 	return out
 
 
+## The gate level boss `boss` is met in, in the run being played (Bosses.column: one column of its
+## gate row, near the column the run started in; world 28's run when none is).
+func lair(boss: StringName) -> Vector2i:
+	var run_seed: int = info.run.run_seed if info != null else 28
+	return Vector2i(Bosses.column(boss, run_seed), Bosses.row_of(boss))
+
+
 ## Whether a boss slain here left its relic unlock: lying in the level, or already picked up by a
 ## wizard standing where it fell (it is armed at once). Clear the wizard's unlocks before the boss
 ## falls when an earlier one may be carried.

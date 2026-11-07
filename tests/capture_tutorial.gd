@@ -2,7 +2,8 @@ extends TestKit
 ## Stills of the tutorial (Tutorial, ControlHint, HintArt): the run's first moment in it, the walk
 ## card up (tutorial_start.png); the whole hall from far out (tutorial_overview.png); each control
 ## card up with the wizard by it, on the keyboard (tutorial_<control>.png) and on a pad
-## (tutorial_pad_<control>.png); the trophy stands, the first boss's trophy set, the second's
+## (tutorial_pad_<control>.png); the lantern by the burn card, lit and ready to burn into mend
+## (tutorial_burnable.png); the trophy stands, the first boss's trophy set, the second's
 ## carried, and a trophy waiting to be picked up (tutorial_trophies.png); a relic unlock lying there
 ## and two trailing the wizard (tutorial_unlock.png); the card of a won run
 ## (tutorial_won.png); and the start level it comes out into, by its door (tutorial_door.png).
@@ -30,6 +31,7 @@ func run() -> void:
 			player.global_position = hint.global_position + Vector2(-90, 0)
 			await _look(hint.global_position + Vector2(0, -120), "tutorial/%s.png" % _file(name, pad), 1.0)
 	RisoPad.pad = false
+	await _burnable()
 	await _trophies()
 	player.get_node("CameraControl").set_process(true)
 	player.set_physics_process(true)
@@ -73,6 +75,25 @@ func _trophies() -> void:
 	await _look(first + Vector2(40, -100), "tutorial/tutorial_unlock.png", 1.6)
 	player.keyring.set_unlocks(0)
 	info.run.trophies.clear()
+
+
+## The lantern by the burn card, lit, with mend's draught drunk: it can be burned, and a drop of
+## pink light rises over it, the card up beside it.
+func _burnable() -> void:
+	var card: ControlHint = null
+	for node: Node in placed("control_hint.tscn"):
+		if (node as ControlHint).action == ControlHint.BURN:
+			card = node as ControlHint
+	var lantern: Node2D = null
+	for node: Node in placed("checkpoint.tscn"):
+		var n: Node2D = node as Node2D
+		if n.global_position.x > card.global_position.x and (lantern == null or n.global_position.x < lantern.global_position.x):
+			lantern = n
+	info.light_lantern(lantern)
+	player.mend_draughts = 0
+	player.global_position = lantern.global_position + Vector2(-140, 0)
+	await _look(lantern.global_position + Vector2(-60, -140), "tutorial/tutorial_burnable.png", 1.6)
+	player.mend_draughts = -1
 
 
 func _file(name: String, pad: bool) -> String:

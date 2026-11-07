@@ -701,20 +701,33 @@ static func place_tower_switches(w: LevelGen) -> void:
 			break
 
 
+## What a hoard tower's stars take the place of in its top room when too few of its cells are free,
+## first to last: ledges, then foes.
+const HOARD_TAKES: Array[LevelGen.Type] = [LevelGen.Type.PLATFORM, LevelGen.Type.ENEMY, LevelGen.Type.HOPPER, LevelGen.Type.SHOOTER]
+
+
 ## A hoard tower's stars (TOWER_HOARD), spread along its top room a row over its floor, in cells
-## still free.
+## still free. Where ledges or foes laid before them leave too few free, the stars take their place
+## (HOARD_TAKES, in that order, then across), so every hoard tower holds its TOWER_HOARD stars.
 static func place_hoards(w: LevelGen) -> void:
 	for tower: Dictionary in w.towers:
 		if not tower["hoard"]:
 			continue
 		var spots: Array[Vector2i] = []
-		for v: Vector2i in tower["top"]:
+		var top: Array = tower["top"]
+		for v: Vector2i in top:
 			if w.get_cell(v).type == LevelGen.Type.EMPTY and w.empties.has(v):
 				spots.append(v)
 		var n: int = mini(TOWER_HOARD, spots.size())
 		for i: int in range(n):
 			@warning_ignore("integer_division")
 			w.put(spots[(i * spots.size()) / n], LevelGen.Type.COIN)
+		var short: int = TOWER_HOARD - n
+		for kind: LevelGen.Type in HOARD_TAKES:
+			for v: Vector2i in top:
+				if short > 0 and w.get_cell(v).type == kind:
+					w.set_kind(v, LevelGen.Type.COIN)
+					short -= 1
 
 
 ## The free floor cells of a tower's room `storey` (0 the top room, counting down): open, holding
@@ -1074,7 +1087,7 @@ static func set_stations(w: LevelGen, _def: NextWorldDef) -> void:
 	# way it came in.
 	var sides: Array[int] = []
 	for exit: int in [MapInfo.Exit.LEFT, MapInfo.Exit.RIGHT]:
-		if w.exits.has(exit):
+		if w.exits.has(exit) and not w.shut.has(exit):
 			var t: int = tier_of(w, (w.exits[exit] as Vector2i).y)
 			if tiers.has(t):
 				sides.append(t)

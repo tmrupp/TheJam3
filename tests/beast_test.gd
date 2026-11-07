@@ -79,7 +79,7 @@ func _play() -> void:
 	process_frame.connect(func() -> void: player.health.health = player.health.max_health)
 	for c: Vector2i in VISITED:
 		info.run.record(c)
-	var gate: Vector2i = Vector2i(WORLD, Bosses.row_of(&"beast"))
+	var gate: Vector2i = lair(&"beast")
 	await _go(gate)
 	player.set_physics_process(false)
 	var found: Array[Node] = placed("beast.tscn")

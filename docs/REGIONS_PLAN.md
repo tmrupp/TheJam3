@@ -913,6 +913,12 @@ Each phase ends with the full suite green and its own tests.
 - **What a boss's relic is.** A move not yet known (proposed), or always the same move per boss
   (the bramble wall climb, the worm double jump...), which would make each branch's order of
   abilities designed rather than dealt.
+- **Finding the boss** (owner, November 2026; built, `docs/DEEPER_PLAN.md` §3 "One column" and
+  §4). Every boss but the whale is in one column of its band's last row, dealt for the run within
+  as many columns of the start's as its band is deep (`Bosses.column`, `spread`), there but unmarked: walking the gate row column by
+  column finds it. A shrine's third station sells, for stars and a key, which way it lies from the
+  shrine's column (left, right or this one), shown on the map and over the spent bowl. The whale
+  stays the one that moves. Giving up keys at the boss's row was weighed and set aside.
 - **Gate level size.** Whether gate levels are the band's ordinary size or larger. The worm and
   the bramble fit in the ordinary size (the bramble's shaft is half the level tall).
 - **The ward and bosses.** Whether boss hits break a ward charge like any hit, or several.

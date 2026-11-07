@@ -233,6 +233,19 @@ func _rarity() -> void:
 	check_eq(counts, Rules.KEY_RARITY, "over one turn of draws, each key colour comes up KEY_RARITY times")
 	check_eq(Rules.rarity_color(-1), Rules.rarity_color(total - 1), "a negative draw deals a colour as well")
 	check_eq(Rules.KEY_RARITY.size(), Rules.KEY_COLOR_COUNT, "a rarity for every key colour")
+	# The shrine's third station takes a carried key: any alike, or for a relic the rarer likelier.
+	check_eq(Shrine.RELIC_KEY_WEIGHT.size(), Rules.KEY_COLOR_COUNT, "a relic weight for every key colour")
+	var carried: Array[int] = [3, 0, 1]
+	var plain: Dictionary = {}
+	var relic: Dictionary = {}
+	for r: int in range(-60, 60):
+		var a: int = Shrine.pick_key(carried, false, r)
+		var b: int = Shrine.pick_key(carried, true, r)
+		plain[a] = int(plain.get(a, 0)) + 1
+		relic[b] = int(relic.get(b, 0)) + 1
+	check(plain.keys().all(func(c: int) -> bool: return carried.has(c)) and plain[0] == plain[1] and plain[1] == plain[3], "for the boss's way or a skeleton key, any carried key alike (%s)" % plain)
+	check(relic.keys().all(func(c: int) -> bool: return carried.has(c)) and relic[3] > relic[1] and relic[1] > relic[0], "for a relic, the rarer keys likelier (%s)" % relic)
+	check_eq(Shrine.pick_key([] as Array[int], true, 5), -1, "none carried, none taken")
 
 
 func _archetypes() -> void:
@@ -306,14 +319,19 @@ func _side_worlds() -> void:
 func _exits() -> void:
 	for at: Vector2i in PLACES:
 		var def: NextWorldDef = Rules.def_for(at)
+		# Where each leads, the labyrinth's ways put back (it leaves some out; maze_test).
+		def.shut.clear()
 		var left: Dictionary = def.lead(MapInfo.Exit.LEFT)
 		var right: Dictionary = def.lead(MapInfo.Exit.RIGHT)
 		var deeper: Dictionary = def.lead(MapInfo.Exit.DEEPER)
 		check(left["to"] == at + Vector2i.LEFT and int(left["arrive"]) == MapInfo.Exit.RIGHT, "%s: left leads to the next world's right-hand door" % at)
-		check(Rules.def_for(right["to"]).lead(MapInfo.Exit.LEFT)["to"] == at, "%s: right, then left, comes back" % at)
+		var beside: NextWorldDef = Rules.def_for(right["to"])
+		beside.shut.clear()
+		check(beside.lead(MapInfo.Exit.LEFT)["to"] == at, "%s: right, then left, comes back" % at)
 		var on: Vector2i = Vector2i.DOWN if at.y >= 0 else Vector2i.UP
 		check(deeper["to"] == at + on and int(deeper["arrive"]) == MapInfo.Exit.BACK and deeper["way"] == Vector2(on), "%s: the way on leads away from the start, arriving at the way back" % at)
 		var below: NextWorldDef = Rules.def_for(deeper["to"])
+		below.shut.clear()
 		if below.arrival_from == null:
 			check(below.lead(MapInfo.Exit.BACK)["to"] == at, "%s: on, then back, comes back" % at)
 		var near: Array[Vector2i] = def.neighbours()

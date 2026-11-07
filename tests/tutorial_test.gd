@@ -13,7 +13,10 @@ extends TestKit
 ## standing where the watcher first sees the wizard, gone by a catch and not by a press; past it a
 ## bed of thorns too
 ## wide for a jump and a dash is crossed by bouncing off its thorns with the guard (a pogo), which
-## puts the pogo's card away. Its shrine
+## puts the pogo's card away. Past the utility card, a lantern lit does not fill the draught mend
+## just drank; interacting with it again burns it into mend, filling it and leaving the wizard
+## unprotected, which puts the burn card away (it is not put away by a press); a lantern past it
+## protects them again. Its shrine
 ## offers a strict upgrade against a swap (Tutorial.BOONS), then the usual boons once one is known.
 ## godot --headless --path . --script res://tests/tutorial_test.gd
 
@@ -47,6 +50,7 @@ func run() -> void:
 	await _parry()
 	await _pogo()
 	await _utility()
+	await _burn()
 	await _shrine()
 	await _out_and_in(at)
 	RunState.delete_save()
@@ -312,6 +316,49 @@ func _utility() -> void:
 	check(ControlHint.learned.has(ControlHint.STRIKES) and not card.showing(), "and the card goes")
 	await _go(info.cell_at(card.global_position))
 	check_eq(player.health.health, full, "it strikes once")
+
+
+## The burn card and its lantern, then the lantern past it.
+func _burn() -> void:
+	print("burning a lantern into mend")
+	var card: ControlHint = _card(ControlHint.BURN)
+	check(card != null, "the burn card is there")
+	if card == null:
+		return
+	var mend: Mend = player.get_node("Mend") as Mend
+	check_eq(mend.draughts(), 0, "mend's draught is drunk (the utility card)")
+	var lanterns: Array[Node] = placed("checkpoint.tscn").filter(func(n: Node) -> bool: return (n as Node2D).global_position.x > card.global_position.x)
+	lanterns.sort_custom(func(a: Node, b: Node) -> bool: return (a as Node2D).global_position.x < (b as Node2D).global_position.x)
+	check_eq(lanterns.size(), 2, "a lantern by the card, and one past it")
+	if lanterns.size() < 2:
+		return
+	var first: Node2D = lanterns[0] as Node2D
+	await _go(info.cell_at(first.global_position))
+	check(await until(func() -> bool: return card.showing() and card.up_for >= ControlHint.SEEN), "the card is up by its lantern")
+	await _interact()
+	check(info.is_respawn_lantern(first), "a press lights the lantern")
+	check_eq(mend.draughts(), 0, "lighting it does not fill the draught")
+	check(info.can_burn(first), "it can be burned now")
+	check(not ControlHint.learned.has(ControlHint.BURN) and card.showing(), "the card stays up for a press")
+	await _interact()
+	check(info.is_lantern_spent(first) and info.run.vulnerable, "a second press burns it out: the wizard is unprotected")
+	check_eq(mend.draughts(), mend.draughts_max(), "and mend's draught is filled")
+	check(ControlHint.learned.has(ControlHint.BURN), "which puts the card away")
+	await settle(10)
+	check(not card.showing(), "and it is down")
+	var second: Node2D = lanterns[1] as Node2D
+	await _go(info.cell_at(second.global_position))
+	await _interact()
+	check(info.is_respawn_lantern(second) and not info.run.vulnerable, "the lantern past it protects them again")
+	check(not info.can_burn(second), "and, mend full, cannot be burned")
+
+
+## Press and let go of the interact button.
+func _interact() -> void:
+	_press(&"Discover", true)
+	await frames(2)
+	_press(&"Discover", false)
+	await frames(2)
 
 
 func _shrine() -> void:

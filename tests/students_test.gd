@@ -64,6 +64,11 @@ func _walking() -> void:
 	check(rec.passing, "a level is first met in passing time")
 	player.set_physics_process(false)
 	player.end_invulnerable()
+	# The walk is watched alone: the level's abominations (which bite a student in their way) and
+	# the breaches they come from are cleared first.
+	for n: Node in placed("abomination.tscn", true) + placed("breach.tscn", true):
+		n.queue_free()
+	await frames(2)
 	var students: Array[Scholar] = []
 	for n: Node in placed("student.tscn"):
 		students.append(n as Scholar)

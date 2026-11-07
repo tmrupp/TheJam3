@@ -61,7 +61,9 @@ script = ExtResource("11_hqvrv")
 [node name="MusicPlayer1" type="AudioStreamPlayer" parent="Music" unique_id=1102442599]
 stream = ExtResource("10_yprvw")
 volume_db = -5.842
+bus = &"Music"
 
 [node name="MusicPlayer2" type="AudioStreamPlayer" parent="Music" unique_id=1983353762]
 stream = ExtResource("10_yprvw")
 volume_db = -5.842
+bus = &"Music"

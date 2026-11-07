@@ -61,17 +61,21 @@ func run() -> void:
 
 	await boot(28)
 	player.set_physics_process(false)
-	await _go(Vector2i(28, g))
+	print("one column holds the worm")
+	var empty: Vector2i = lair(&"worm") + Vector2i(1, 0)
+	await _go(empty)
+	check(placed("worm.tscn").is_empty() and _exit(MapInfo.Exit.DEEPER) != null and _exit(MapInfo.Exit.DEEPER).sealed() == &"worm", "another column's gate level stands empty, its way on sealed all the same")
+	await _go(lair(&"worm"))
 	var worm_way: LevelExit = _exit(MapInfo.Exit.DEEPER)
 	player.collect(9999)
 	check(placed("worm.tscn").size() == 1 and placed("boss.tscn").is_empty(), "in play the worm itself is there (Worm; worm_test fights it)")
 	check(worm_way.sealed() == &"worm" and worm_way.interaction_hint().get("sealed", false), "its way on is sealed")
 	worm_way.interacted()
 	await settle()
-	check(info.coord == Vector2i(28, g), "and no stars open it")
+	check(info.coord == lair(&"worm"), "and no stars open it")
 
 	print("the bramble's gate")
-	await _go(Vector2i(28, -g))
+	await _go(lair(&"bramble"))
 	check(placed("bramble.tscn").size() == 1 and placed("boss.tscn").is_empty(), "in play the bramble itself is there (Bramble; bramble_test fights it)")
 	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"bramble", "its way on is sealed")
 
@@ -98,18 +102,18 @@ func run() -> void:
 		check(def.seal(Worlds.door(Worlds.kind_of(Hyperspace)), fresh) == &"", "and opens once it is slain")
 
 	print("slain from the F7 panel")
-	await _go(Vector2i(28, g))
+	await _go(lair(&"worm"))
 	player.keyring.set_unlocks(0)
 	check(info.slay_boss() and placed("worm.tscn").is_empty(), "Slay boss kills the worm in its gate level at once")
 	await settle()
 	check(info.run.bosses.has(&"worm") and _exit(MapInfo.Exit.DEEPER).sealed() == &"" and left_unlock(), "its gate opens and its relic unlock is left")
-	await _go(Vector2i(28, -g))
+	await _go(lair(&"bramble"))
 	player.keyring.set_unlocks(0)
 	check(info.slay_boss() and placed("bramble.tscn").is_empty(), "and the bramble in its gate level")
 	await settle()
 	check(info.run.bosses.has(&"bramble") and _exit(MapInfo.Exit.DEEPER).sealed() == &"" and left_unlock(), "its way up opens and its relic unlock is left")
 	if Bands.has(&"cemetery"):
-		await _go(Vector2i(28, Bosses.row_of(&"necromancer")))
+		await _go(lair(&"necromancer"))
 		player.keyring.set_unlocks(0)
 		check(info.slay_boss() and info.run.bosses.has(&"necromancer") and _exit(MapInfo.Exit.DEEPER).sealed() == &"", "and the necromancer in its gate level")
 		await settle()
@@ -143,7 +147,7 @@ func run() -> void:
 ## The golem and the whale, jumped to from the F7 panel (in a debug run).
 func _to_far_bosses() -> void:
 	info.debug_to_boss(&"golem", 28)
-	await until(func() -> bool: return info.coord == Vector2i(28, Bosses.row_of(&"golem")) and not info.travelling)
+	await until(func() -> bool: return info.coord == lair(&"golem") and not info.travelling)
 	await settle()
 	player.set_physics_process(false)
 	var lair: Array[Vector2i] = info.world.objects_of(LevelGen.Type.BOSS)
@@ -160,12 +164,12 @@ func _to_far_bosses() -> void:
 ## The necromancer's gate, and the gate's rules shown with the beast in its gate level.
 func _deep_gates(g: int) -> void:
 	print("the necromancer's gate")
-	await _go(Vector2i(28, Bosses.row_of(&"necromancer")))
+	await _go(lair(&"necromancer"))
 	check(placed("necromancer.tscn").size() == 1 and placed("boss.tscn").is_empty() and _exit(MapInfo.Exit.DEEPER).sealed() == &"necromancer", "in play the necromancer itself is there, its way on sealed (Necromancer; necromancer_test fights it)")
 
 	# The beast shows the gate's rules, its souls cleared away once it has sent them.
 	print("the beast, in its gate level")
-	var gate_at: Vector2i = Vector2i(28, Bosses.row_of(&"beast"))
+	var gate_at: Vector2i = lair(&"beast")
 	await _go(gate_at)
 	check(placed("beast.tscn").size() == 1 and placed("boss.tscn").is_empty() and _exit(MapInfo.Exit.DEEPER).sealed() == &"beast", "the beast's gate level is sealed, the beast in it (Beast)")
 	var boss: Beast = placed("beast.tscn")[0] as Beast
@@ -202,11 +206,11 @@ func _deep_gates(g: int) -> void:
 	var unlocks: Array[Node] = unlocks_lying()
 	check(left_unlock() and (unlocks.is_empty() or (unlocks[0] as Node2D).global_position.distance_to(fell) < 400.0), "leaving a relic unlock where it fell (relic_unlock_test takes relics with one)")
 	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"", "its gate level's way on is open")
-	await _go(Vector2i(29, Bosses.row_of(&"beast")))
+	await _go(lair(&"beast") + Vector2i(1, 0))
 	check(placed("beast.tscn").is_empty() and _exit(MapInfo.Exit.DEEPER).sealed() == &"", "and every other gate level of its band too")
-	await _go(Vector2i(28, g))
+	await _go(lair(&"worm"))
 	check(placed("worm.tscn").size() == 1 and _exit(MapInfo.Exit.DEEPER).sealed() == &"worm", "the way down still waits on the worm")
-	await _go(Vector2i(28, -g))
+	await _go(lair(&"bramble"))
 	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"bramble", "and the way up on the bramble")
 
 

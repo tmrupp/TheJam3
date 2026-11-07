@@ -720,6 +720,38 @@ func _spawn_left_relics () -> void:
 func next_relic () -> Variant:
 	return run.next_relic(coord)
 
+## A shrine's hint of boss `boss`: which way its column lies from this one (-1 left, 1 right, 0
+## this one; Bosses.column), noted for the worlds map (RunState.boss_hints). Returns the way.
+func hint_boss (boss: StringName) -> int:
+	var way: int = signi(Bosses.column(boss, run.run_seed) - coord.x)
+	var hints: Array = run.boss_hints.get(boss, [])
+	hints.append([coord.x, way])
+	run.boss_hints[boss] = hints
+	save_run()
+	return way
+
+## A shrine's door: dig this level's way on where the labyrinth left it out (RunState.dug), and put
+## its door in at the spot kept for it; the level it leads into gets its way back as well.
+func dig_way_on () -> void:
+	var into: Vector2i = coord + Vector2i(0, NextWorldDef.away(coord.y))
+	run.dug[into] = true
+	NextWorldDef.dug = run.dug
+	_spawn_dug_doors([Exit.DEEPER])
+	seen_version += 1
+	save_run()
+
+## The doors of the ways dug into this level since it was laid out (NextWorldDef.dug_ways), or of
+## `only` those of them: each at the spot kept for it.
+func _spawn_dug_doors (only: Array = []) -> void:
+	for exit: int in here.dug_ways():
+		if not only.is_empty() and not only.has(exit):
+			continue
+		if not world.exits.has(exit):
+			continue
+		var door: LevelGen.Cell = LevelGen.Cell.new(LevelGen.Type.EXIT)
+		door.extra_info = exit
+		loader.place_cell(world.exits[exit], door)
+
 ## A shrine's hint: mark that relic on the worlds map. Returns its level, or null.
 func hint_relic () -> Variant:
 	var at: Variant = run.hint_relic(coord)
@@ -799,8 +831,9 @@ const ARRIVE_BOSS: int = -6
 ## How many cells from the boss a jump to it sets the wizard down, at the least.
 const BOSS_BESIDE: int = 4
 
-## Debug runs (the F7 panel's boss row): go straight to boss `name` in world `column`, alive or
-## slain: its gate level, arriving beside it (ARRIVE_BOSS), or for the whale, its belly, by its heart.
+## Debug runs (the F7 panel's boss row): go straight to boss `name`, alive or slain: its gate level
+## in the column it is met in this run (Bosses.column), arriving beside it (ARRIVE_BOSS), or for the
+## whale, its belly in world `column`, by its heart.
 ## Nothing is paid or opened on the way.
 func debug_to_boss (name: StringName, column: int) -> void:
 	if not debug or travelling or run_ending > 0.0:
@@ -813,7 +846,7 @@ func debug_to_boss (name: StringName, column: int) -> void:
 	var row: int = Bosses.row_of(name)
 	if row == 0:
 		return
-	var to: Vector2i = Vector2i(column, row)
+	var to: Vector2i = Vector2i(Bosses.column(name, run.run_seed), row)
 	await _pass(Vector2.DOWN, to)
 	_arrive(to, ARRIVE_BOSS)
 
@@ -887,6 +920,7 @@ func _level_ready (built: LevelGen) -> void:
 	last_tower = -1
 	_deal_stations()
 	loader.build(world)
+	_spawn_dug_doors()
 	var rec: LevelRecord = record()
 	# Secret rooms already opened: their rewards (the rest of the room stays broken, see
 	# open_secret). After everything else, so the rest of the level lands where it always has.
@@ -1018,16 +1052,55 @@ func teaches_paper (code: int) -> bool:
 		return false
 	return not (Abilities.spell(player, Abilities.slot_of(a)) == a and Abilities.tier(player, a) >= KeyRing.paper_tier(code))
 
-## Studying at a lantern (Checkpoint) burns it out, as a death does: it protects the wizard no more,
-## and is not lit again this run (RunState.spend_lantern).
+## How many lanterns the wizard has burned out this game, by studying or into mend (burn_lantern),
+## so the tutorial's card for burning one knows when it has been done (ControlHint.BURN).
+var lanterns_burned: int = 0
+
+## Whether the lantern `lantern` would burn into the utility spell held if the wizard used it now:
+## it is the lantern lit as where they come back to, and they hold mend with a draught or more drunk,
+## or resurrect with a rite or more spent (burn_lantern). A lantern that can be burned shows a drop
+## of pink light over it (LanternArt).
+func can_burn (lantern: Node) -> bool:
+	if travelling or run_ending > 0.0 or player == null or not is_instance_valid(player) or not is_respawn_lantern(lantern) or is_lantern_spent(lantern):
+		return false
+	var held: StringName = Abilities.spell(player, &"utility")
+	if held == &"mend":
+		var mend: Mend = player.get_node_or_null("Mend") as Mend
+		return mend != null and mend.draughts() < mend.draughts_max()
+	if held == &"resurrect":
+		var rise: Resurrect = player.get_node_or_null("Resurrect") as Resurrect
+		return rise != null and rise.rites() < rise.rites_max()
+	return false
+
+## Burn a lantern out, by studying at it (study) or to fill the utility spell held (can_burn), as a
+## death does: it protects the wizard no more, and is not lit again this run
+## (RunState.spend_lantern). A lantern is the only thing that fills mend's draughts and resurrect's
+## rites once spent (besides learning a tier at a shrine): burning one fills the one held in the
+## utility slot, whichever way it was burned.
 func burn_lantern (lantern: Node) -> void:
 	if not lantern.has_meta(&"cell"):
 		return
 	run.spend_lantern(coord, lantern.get_meta(&"cell"))
 	if run.respawn_coord == coord and run.respawn_cell == lantern.get_meta(&"cell"):
 		run.vulnerable = true
+	refill_utility()
+	lanterns_burned += 1
+	RisoFx.burst(&"gain", (lantern as Node2D).global_position + Vector2(0, -60), Vector2.ZERO, [RisoPrint.EYE, RisoPrint.PINK])
 	_refresh_lanterns()
 	save_run()
+
+## Fill the utility spell held, mend's draughts or resurrect's rites: by burning a lantern
+## (burn_lantern), or mending at a shrine (Shrine.buy_mend).
+func refill_utility () -> void:
+	if player == null or not is_instance_valid(player):
+		return
+	var held: StringName = Abilities.spell(player, &"utility")
+	var mend: Mend = player.get_node_or_null("Mend") as Mend
+	var rise: Resurrect = player.get_node_or_null("Resurrect") as Resurrect
+	if held == &"mend" and mend != null:
+		mend.refill()
+	elif held == &"resurrect" and rise != null:
+		rise.refill()
 
 ## The paper the library's desk (StudyDesk) would teach now, or 0: in class time, to a wizard in the
 ## library who has not studied there this period (LevelRecord.studied), the oldest carried that
@@ -1651,13 +1724,10 @@ func light_lantern (lantern: Node) -> bool:
 	_set_respawn(coord, lantern.get_meta(&"cell"))
 	run.vulnerable = false
 	_refresh_lanterns()
-	# A lantern refills the hex's charges, mend's draughts and resurrect's rites.
+	# A lantern refills the hex's charges. Not mend's draughts nor resurrect's rites: only burning
+	# a lantern fills those (burn_lantern).
 	if player != null and player.has_node("Hex"):
 		(player.get_node("Hex") as Hex).refill()
-	if player != null and player.has_node("Mend"):
-		(player.get_node("Mend") as Mend).refill()
-	if player != null and player.has_node("Resurrect"):
-		(player.get_node("Resurrect") as Resurrect).refill()
 	if was_vulnerable:
 		RisoFx.burst(&"gain", (lantern as Node2D).global_position, Vector2.ZERO, [RisoPrint.EYE, RisoPrint.GLOW])
 	save_run()

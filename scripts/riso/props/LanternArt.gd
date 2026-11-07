@@ -1,13 +1,21 @@
 extends RisoProp
 ## A lantern: lit (its glass full of light in a glow that lifts the dark round it), burned out
 ## (empty glass, a charred wick, smoke) or waiting (dark glass with a small ember), swaying as the
-## wizard brushes past.
+## wizard brushes past. A lit lantern that would burn into the utility spell held, mend or
+## resurrect (MapInfo.can_burn), has a drop of its light, in pink, rising and fading over it.
 
 
 ## The lit lantern's glow round its glass: how far it reaches (px) and how much of the dark behind
 ## it it lifts, at the glass (half as much in its outer ring).
 const LIT_GLOW: float = 52.0
 const LIT_LIFT: float = 0.5
+
+## The drop over a lantern that can be burned into mend: its radius, how far over the ground it
+## starts (px) and how far it rises before it starts again, and how many times a second.
+const DROP_R: float = 7.0
+const DROP_FROM: float = 128.0
+const DROP_RISE: float = 26.0
+const DROP_RATE: float = 0.6
 
 ## A springy lean that the wizard sets going as they pass (lanterns).
 var brush_a: float = 0.0
@@ -48,6 +56,14 @@ func _draw_art() -> void:
 		ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT], [glass])
 		ink.ink(RisoPrint.EYE, 1.0, [glass], false)
 		ink.knock([RisoPrint.EYE], [hang * RisoShapes.rrect(-4, 28, 8, 12, 4)])
+		if MapInfo.instance.can_burn(host):
+			# It can be burned into mend: a drop of its light rises and fades over it, in pink, as the
+			# cost of it is its protection.
+			var rise: float = fmod(t * DROP_RATE + phase, 1.0)
+			var c: Vector2 = Vector2(30, g - DROP_FROM - rise * DROP_RISE)
+			var drop: Array[PackedVector2Array] = [RisoShapes.circle(c, DROP_R, 14), RisoShapes.tri(c + Vector2(-DROP_R + 1.0, -2.5), c + Vector2(DROP_R - 1.0, -2.5), c + Vector2(0, -DROP_R - 9.0))]
+			ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], drop)
+			ink.ink(RisoPrint.PINK, 1.0 - rise * 0.6, drop, false)
 	elif spent:
 		# Empty glass, a charred wick and a thin smoke thread: the lantern has burned out.
 		ink.ink(RisoPrint.NIGHT, 0.6, [glass], false)

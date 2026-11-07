@@ -13,7 +13,9 @@ func run() -> void:
 	var worm: Worm = null
 	var spot: Vector2i = Vector2i(-1, -1)
 	for world: int in WORLDS:
-		info.coord = Vector2i(world, Bands.garden_rows())
+		# The worm is met in one column a run (Bosses.column): the one of a run begun in this world.
+		info.run.run_seed = world
+		info.coord = lair(&"worm")
 		info.arrival = MapInfo.Exit.BACK
 		info._load_level()
 		await settle()

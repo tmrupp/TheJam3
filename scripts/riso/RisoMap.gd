@@ -412,6 +412,12 @@ func _mark_level(info: MapInfo, c: Vector2i, w: LevelGen, rec: LevelRecord, seen
 			continue
 		done[v] = true
 		relic_shown = _mark_cell(info, c, w, v, w.get_cell(v), rec, place, spot) or relic_shown
+	# The doors of ways dug since it was laid out (a shrine's door), at the spots kept for them.
+	for exit: int in place.dug_ways():
+		if w.exits.has(exit) and seen.call(w.exits[exit]):
+			var door: LevelGen.Cell = LevelGen.Cell.new(LevelGen.Type.EXIT)
+			door.extra_info = exit
+			_mark_cell(info, c, w, w.exits[exit], door, rec, place, spot)
 	# An opened secret room's rewards, which are not among the layout's cells.
 	for id: int in rec.secrets:
 		if id < 0 or id >= w.secrets.size():
@@ -663,6 +669,18 @@ func _mark_exit(at: Vector2, dir: Vector2, deeper: bool, needs: int, owed: int, 
 const BOSS_BADGE: float = 2.6
 const BOSS_TILE: float = 2.4
 const BOSS_STAND: float = 2.8
+
+
+## Which way a boss lies from a gate level (Shrine, MapInfo.hint_boss): a pink chevron at `at`
+## pointing left (`way` -1) or right (1), or a pink ring for the boss's own column (0).
+func _mark_boss_way(at: Vector2, way: int) -> void:
+	_note("boss way")
+	if way == 0:
+		var ring: PackedVector2Array = RisoShapes.circle(at, 2.5, 18)
+		marks.ink(RisoPrint.PINK, 1.0, [RisoShapes.circle(at, 4.0, 18)], false)
+		marks.knock([RisoPrint.PINK], [ring])
+		return
+	marks.ink(RisoPrint.PINK, 1.0, [RisoMarks.chevron(at, Vector2(float(way), 0.0), 0.17)], false)
 
 
 ## Boss `boss`'s mark (RisoMarks.boss_mark) on the map at `at`, `u` its unit, in `plate`, its holes
@@ -1060,6 +1078,22 @@ func _world(info: MapInfo) -> void:
 			_text("%d · %d" % [c.x, c.y], at + Vector2(0, -3.5), 6.5, false, true)
 		# The mark on the tile's top right corner, clear of its label.
 		_mark_relic(at + Vector2(TILE.x * 0.5 - 1.0, -TILE.y * 0.5 + 1.0), info.run.relic_hints[c], 0.75)
+	# Which way a boss lies, as a shrine told it (RunState.boss_hints): on the tile of its gate level
+	# in the column asked from (a faint one for a level not yet visited), a pink chevron pointing
+	# left or right, or a pink ring for the column it is in. Gone once the boss is slain.
+	for boss: StringName in info.run.boss_hints:
+		if info.run.bosses.has(boss):
+			continue
+		var row: int = Bosses.row_of(boss)
+		for hint: Array in info.run.boss_hints[boss]:
+			var c: Vector2i = Vector2i(int(hint[0]), row)
+			var at: Vector2 = tile_at(info, c)
+			if not area.encloses(Rect2(at - TILE * 0.5, TILE)):
+				continue
+			if not info.run.records.has(c):
+				marks.ink(RisoPrint.PINK, 0.12, [RisoShapes.rrect(at.x - TILE.x * 0.5, at.y - TILE.y * 0.5, TILE.x, TILE.y, 5.0)], false)
+				_text("%d · %d" % [c.x, c.y], at + Vector2(0, -3.5), 6.5, false, true)
+			_mark_boss_way(at + Vector2(0, TILE.y * 0.5 - 3.5), int(hint[1]))
 	# The beast's souls: on the top left corner of the level's tile (a faint pink one for a level
 	# not yet visited); off the page, on its edge, pointing the way.
 	for c: Vector2i in info.run.souls:

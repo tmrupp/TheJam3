@@ -112,6 +112,64 @@ static func relic_gated_at (at: Vector2i) -> bool:
 static func lateral_lock (at: Vector2i, which: int) -> int:
 	return rarity_color(level_seed(level_seed(at.x, at.y), 500 + which))
 
+# ------------------------------------------------------------------ the labyrinth
+
+## Levels do not all have every way out: the levels and the ways between them are a labyrinth, laid
+## by the place alone (the same in every run), yet every level can be reached from every other, given
+## stars and the right keys. The start's row keeps every side door, and the rows next to it their
+## ways to it; on every other row some side doors are gone (MAZE_SIDE_CUT, and at least one in every
+## MAZE_RUN), cutting the row into runs of levels joined side to side, and some ways toward the start
+## are gone too, though never the first level's of a run (left to right) nor a gate level's way on,
+## with MAZE_KEEP of the others kept. So every run has a way toward the start, and so on to the start's row, which joins
+## them all. `maze_test` checks it.
+## The share (%) of side doors gone, off the start's row.
+const MAZE_SIDE_CUT: int = 30
+## The most levels joined side to side in a row before a side door is gone.
+const MAZE_RUN: int = 7
+## The share (%) of ways toward the start kept, besides each run's first.
+const MAZE_KEEP: int = 20
+## Salts for the place's seed when dealing the labyrinth.
+const MAZE_SIDE_DEAL: int = 7100
+const MAZE_HOME_DEAL: int = 7200
+const MAZE_RUN_DEAL: int = 7300
+
+
+## Whether level `at` has its way out `exit` (MapInfo.Exit: DEEPER, BACK, LEFT, RIGHT) in the
+## labyrinth. Other exits (a side world's door, the way up from a level a side world leads into)
+## are not the labyrinth's, nor is any side world's.
+static func maze_has (at: Vector2i, exit: int) -> bool:
+	if Worlds.is_side(at):
+		return true
+	match exit:
+		MapInfo.Exit.LEFT:
+			return _side_open(at.x - 1, at.y)
+		MapInfo.Exit.RIGHT:
+			return _side_open(at.x, at.y)
+		MapInfo.Exit.BACK, MapInfo.Exit.RETURN:
+			# The start's way back leads up, to the row above's way toward it.
+			return _home_open(at.x, -1 if at.y == 0 else at.y)
+		MapInfo.Exit.DEEPER:
+			return _home_open(at.x, at.y + NextWorldDef.away(at.y))
+	return true
+
+
+## Whether the side door between levels (x, row) and (x + 1, row) is there.
+static func _side_open (x: int, row: int) -> bool:
+	if row == 0:
+		return true
+	if posmod(x - level_seed(row, MAZE_RUN_DEAL), MAZE_RUN) == 0:
+		return false
+	return posmod(level_seed(level_seed(x, row), MAZE_SIDE_DEAL), 100) >= MAZE_SIDE_CUT
+
+
+## Whether level (x, row)'s way toward the start (one row nearer it) is there; row is not 0. Every
+## gate level keeps its way on (this way, from the row past it), sealed while its boss lives.
+static func _home_open (x: int, row: int) -> bool:
+	if absi(row) <= 1 or not _side_open(x - 1, row) or Bosses.gate_at(row - NextWorldDef.away(row)) != &"":
+		return true
+	return posmod(level_seed(level_seed(x, row), MAZE_HOME_DEAL), 100) < MAZE_KEEP
+
+
 ## The key colour a draw of `roll` (any int) deals, by KEY_RARITY: common colours come up often,
 ## rare ones seldom.
 static func rarity_color (roll: int) -> int:

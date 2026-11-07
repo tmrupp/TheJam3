@@ -209,12 +209,20 @@ func run() -> void:
 	player.health.health = player.health.max_health - 1
 	check(bool(shrine.call("can_mend")) and not bool(shrine.call("reads_relic")), "while hurt, its third station mends")
 	player.health.health = player.health.max_health
+	# The boss ahead slain, the shrine sells nothing of its way.
+	var ahead: StringName = Bosses.ahead(info.coord.y)
+	var was_slain: bool = info.run.bosses.has(ahead)
+	info.run.bosses[ahead] = true
+	player.keyring.clear()
+	player.keyring.take(0)
 	var next: Variant = info.next_relic()
 	check(bool(shrine.call("reads_relic")) and next != null and next != info.coord and StringName(shrine.call("relic_move")) == Relics.at(next), "at full health it offers the whereabouts of the nearest relic not yet found (%s, at %s)" % [shrine.call("relic_move"), next])
 	var hint_cost: int = int(shrine.call("relic_price"))
 	player.collect(hint_cost - player.coins.coins)
 	shrine.call("buy_mend")
-	check(info.run.relic_hints.has(next) and player.coins.coins == 0 and bool(shrine.call("used")), "bought (%d stars): marked on the worlds map, and the shrine is spent" % hint_cost)
+	check(info.run.relic_hints.has(next) and player.coins.coins == 0 and bool(shrine.call("used")) and player.keyring.all().is_empty(), "bought (%d stars and a key): marked on the worlds map, and the shrine is spent" % hint_cost)
+	if not was_slain:
+		info.run.bosses.erase(ahead)
 	check(info.next_relic() != next, "the next shrine would point to another one")
 	check(main.get_node("RisoMap").call("pickable", info).has(next), "the marked level can be picked on the worlds map")
 

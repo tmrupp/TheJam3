@@ -18,9 +18,11 @@ func light() -> Array:
 
 
 ## The shrine: a plinth across two cells carrying three stations side by side: two niches where
-## an offered ability's mark floats over its tier pips, then a bowl with an ember bead (mending).
-## Each one's name and price pop up over it as the wizard steps up to it. Once used, the marks
-## are gone and the trim dims.
+## an offered ability's mark floats over its tier pips, then the third station (Shrine.station): a
+## bowl with an ember bead (mending, free), or at full health a medallion over the bowl (the boss
+## ahead's mark ringed in pink, a relic's move, a skeleton key, a doorway with a chevron pointing on). Each one's price pops up over it as
+## the wizard steps up to it, the third's with the key it takes beside it. Once used, the marks are gone
+## and the trim dims; a bowl that told which way the boss lies keeps a pink chevron pointing it.
 func _draw_art() -> void:
 	var g: float = _ground()
 	var used: bool = shrine.used()
@@ -39,15 +41,17 @@ func _draw_art() -> void:
 	var mx: float = xs[2]
 	if used:
 		_mend_bowl(mx, g, bob, false, true, 0)
+		_told_way(mx, g, bob)
 		return
 	var m: Vector2 = Vector2(mx, g - 94 + bob * 0.8)
-	var full: bool = not shrine.can_mend()
-	if not (full and (shrine.reads_relic() or shrine.sells_skeleton())):
-		_mend_bowl(mx, g, bob, full, false, shrine.heal_price())
+	var what: StringName = shrine.station()
+	if what == &"mend" or what == &"":
+		# Mending is free: the bowl's bead, and no price.
+		_mend_bowl(mx, g, bob, what == &"", false, -1)
 		return
 	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(mx - 9, g - 62, 18, 42, 6), RisoShapes.ellipse(Vector2(mx, g - 64), 24.0, 7.0, 22)])
-	if full and shrine.reads_relic():
-		# At full health: a small relic medallion with the move of the relic it can point to.
+	if what == &"relic":
+		# A small relic medallion with the move of the relic it can point to.
 		var move: StringName = shrine.relic_move()
 		var disc: PackedVector2Array = RisoShapes.circle(m, 18.0, 24)
 		ink.ink(RisoPrint.EYE, 0.25, [RisoShapes.circle(m, 28.0, 28)])
@@ -59,26 +63,83 @@ func _draw_art() -> void:
 		for poly: PackedVector2Array in RisoGlyph.of(move, Vector2.ZERO, t):
 			mark.append(fit * poly)
 		ink.ink(RisoPrint.NIGHT, 1.0, mark, false)
-		var sr: float = _pop(2, Vector2(mx, g - 50))
-		if sr > 0.0:
-			_plaque(str(shrine.relic_price()), Vector2(mx, g - POP_Y), 30, RisoPrint.ACCENT, sr)
-		return
-	if full and shrine.sells_skeleton():
-		# At full health: a skeleton key on a paper medallion.
+	elif what == &"skeleton":
+		# A skeleton key on a paper medallion.
 		var plate: PackedVector2Array = RisoShapes.circle(m, 20.0, 24)
 		ink.ink(RisoPrint.EYE, 0.25, [RisoShapes.circle(m, 28.0, 28)])
 		ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.circle(m, 23.0, 24)])
 		ink.knock(RisoPrint.ALL_PLATES, [plate])
 		ink.ink(RisoPrint.NIGHT, 1.0, RisoMarks.key_shape(m + Vector2(0, -2), 0.75, KeyRing.SKELETON), false)
-		var sk: float = _pop(2, Vector2(mx, g - 50))
-		if sk > 0.0:
-			_plaque(str(shrine.skeleton_price()), Vector2(mx, g - POP_Y), 30, RisoPrint.ACCENT, sk)
+	elif what == &"door":
+		# A way on: a doorway's arch on a paper medallion, a chevron in it pointing on (away from the
+		# start), as a way on reads on the map.
+		var plate: PackedVector2Array = RisoShapes.circle(m, 20.0, 24)
+		ink.ink(RisoPrint.EYE, 0.25, [RisoShapes.circle(m, 28.0, 28)])
+		ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.circle(m, 23.0, 24)])
+		ink.knock(RisoPrint.ALL_PLATES, [plate])
+		var doorway: PackedVector2Array = RisoShapes.arch(m.x - DOORWAY.x * 0.5, m.y - DOORWAY.y * 0.5, DOORWAY.x, DOORWAY.y)
+		ink.ink(RisoPrint.NIGHT, 1.0, [doorway], false)
+		var on: Vector2 = Vector2(0.0, float(NextWorldDef.away(shrine.map_info.coord.y)))
+		var mark: Array[PackedVector2Array] = [RisoMarks.chevron(m + Vector2(0.0, 3.0) + on * 3.0, on, 0.45)]
+		ink.knock(RisoPrint.ALL_PLATES, mark)
+		ink.ink(RisoPrint.ACCENT, 1.0, mark, false)
+	elif what == &"boss":
+		# The boss ahead's seal, as on the door it seals (RisoMarks.boss_seal), in a pink halo: which
+		# way it lies.
+		ink.ink(RisoPrint.PINK, 0.25, [RisoShapes.circle(m, 28.0, 28)])
+		RisoMarks.boss_seal(ink, m, BOSS_SEAL, 1.0, shrine.boss())
+	var sp: float = _pop(2, Vector2(mx, g - 50))
+	if sp > 0.0:
+		var price: String = str(shrine.station_price())
+		if shrine.keys_asked() <= 0:
+			_plaque(price, Vector2(mx, g - POP_Y), 30, RisoPrint.ACCENT, sp)
+		else:
+			# The price and, beside it, the key it takes too, the pair centred over the station.
+			var pw: float = _plaque_width(price, 30)
+			var span: float = pw + KEY_GAP + KEY_PLAQUE.x
+			var from: float = mx - span * 0.5 * sp
+			_plaque(price, Vector2(from + pw * 0.5 * sp, g - POP_Y), 30, RisoPrint.ACCENT, sp)
+			_key_plaque(Vector2(from + (pw + KEY_GAP + KEY_PLAQUE.x * 0.5) * sp, g - POP_Y), shrine.taken_key(), sp)
+
+
+## The size of the doorway on the third station's medallion when it sells a way on, centred on it.
+const DOORWAY: Vector2 = Vector2(20, 26)
+## The radius of the boss's seal on the third station's medallion.
+const BOSS_SEAL: float = 22.0
+## The size of the plaque beside a price showing the key it also takes, and the gap between them,
+## unscaled.
+const KEY_PLAQUE: Vector2 = Vector2(64, 38)
+const KEY_GAP: float = 6.0
+
+
+## A plaque beside the third station's price with the key it takes besides (Shrine.taken_key): that
+## key, or, with none carried, a faint common one. No words.
+func _key_plaque(at: Vector2, color: int, s: float) -> void:
+	var u: InkCanvas = _blank_plaque(at, KEY_PLAQUE, RisoPrint.BLUE, s)
+	var shown: int = color if color >= 0 else 0
+	u.ink(RisoPrint.NIGHT, 1.0 if color >= 0 else 0.3, RisoMarks.key_shape(at + Vector2(2.0, -2.0) * s, 0.6 * s, shown), false)
+
+
+## A spent shrine whose column was told which way the boss ahead lies (Shrine.told_way): over the
+## empty bowl, a pink chevron pointing left or right, or on toward the gate for this column.
+func _told_way(mx: float, g: float, bob: float) -> void:
+	var told: Variant = shrine.told_way()
+	if told == null:
 		return
+	var way: int = told
+	var dir: Vector2 = Vector2(float(way), 0.0)
+	if way == 0:
+		dir = Vector2(0.0, float(NextWorldDef.away(shrine.map_info.coord.y)))
+	var mark: Array[PackedVector2Array] = [RisoMarks.chevron(Vector2(mx, g - 94 + bob * 0.8), dir, 0.9)]
+	# Cut to paper first, so the pink reads over the dark.
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], mark)
+	ink.ink(RisoPrint.PINK, 1.0, mark, false)
 
 
 ## The mending station at x = `mx` over ground `g`: a bowl on a post and, unless `used`, an ember
 ## bead floating over it like the HUD's health beads (dimmer while `full`: nothing to mend), its
-## `price` popping up over it while the wizard stands at it. The shrine's third
+## `price` popping up over it while the wizard stands at it (none for a price under 0: free, as the
+## shrine's is). The shrine's third
 ## station, and a mending bowl standing on its own (MendWellArt).
 func _mend_bowl(mx: float, g: float, bob: float, full: bool, used: bool, price: int) -> void:
 	ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(mx - 9, g - 62, 18, 42, 6), RisoShapes.ellipse(Vector2(mx, g - 64), 24.0, 7.0, 22)])
@@ -92,7 +153,7 @@ func _mend_bowl(mx: float, g: float, bob: float, full: bool, used: bool, price: 
 	ink.ink(RisoPrint.PINK, 0.35, [bead], false)
 	ink.knock([RisoPrint.EYE, RisoPrint.PINK], [RisoShapes.circle(m + Vector2(-3.5, -3.5), 4.0, 12)])
 	var s: float = _pop(2, Vector2(mx, g - 50))
-	if s > 0.0:
+	if s > 0.0 and price >= 0:
 		_plaque(str(price), Vector2(mx, g - POP_Y), 30, RisoPrint.PINK, s)
 
 

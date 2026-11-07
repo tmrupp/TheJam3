@@ -17,7 +17,7 @@ class_name Abilities
 ##     (a raft that shuttles to and fro, see Ferry). The dash and blink are the wizard's own moves
 ##     (Player); the rest are cast.
 ##   - utility, on the Utility button (R, or the right shoulder button): awareness, mend (heal to
-##     full from draughts a lantern refills, see Mend) and resurrect (bind the soul to a grave mark,
+##     full from draughts refilled by burning a lantern, see Mend) and resurrect (bind the soul to a grave mark,
 ##     to rise there from a death, see Resurrect; tier I only from a crypt's reliquary, Crypts). A
 ##     utility spell never moves the wizard or hurts anything itself; it may make the other two
 ##     slots' spells better.

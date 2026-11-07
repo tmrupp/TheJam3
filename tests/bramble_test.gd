@@ -21,7 +21,9 @@ func run() -> void:
 	MapInfo.debug = false
 	var g: int = Bands.garden_rows()
 	print("the shaft")
-	var w: LevelGen = build(Vector2i(28, -g))
+	# The gate level it is met in, in the run boot(28) plays (Bosses.column).
+	var gate: Vector2i = lair(&"bramble")
+	var w: LevelGen = build(gate)
 	var shaft: Dictionary = w.shaft
 	check(not shaft.is_empty(), "the bramble's gate level has its shaft")
 	var inside: Rect2i = shaft["inside"]
@@ -71,7 +73,7 @@ func run() -> void:
 	check(bulbs.size() >= BrambleShaft.BULBS.x and bulbs.size() <= BrambleShaft.BULBS.y and sides.size() == 2 and set_ok, "%d bulbs set in both its walls, and %d vines rooted in them" % [bulbs.size(), vines.size()])
 	var back: Vector2i = w.exits[MapInfo.Exit.BACK]
 	check(w.reach_from(back).has(on), "the caves lead from the way back to its foot, and up it to the way on")
-	var again: LevelGen = build(Vector2i(28, -g))
+	var again: LevelGen = build(gate)
 	check(again.objects == w.objects and again.shaft == w.shaft, "the same every build")
 	var others: bool = true
 	for at: Vector2i in [Vector2i(28, -g + 1), Vector2i(28, g), Vector2i(28, -g - 1)]:
@@ -94,7 +96,7 @@ func run() -> void:
 
 	await boot(28)
 	player.set_physics_process(false)
-	await _go(Vector2i(28, -g))
+	await _go(gate)
 	print("in play")
 	var bramble: Bramble = placed("bramble.tscn")[0] as Bramble
 	check(bramble != null and bramble.boss == &"bramble" and placed("boss.tscn").is_empty(), "the bramble itself is there, no stand-in")
@@ -176,9 +178,13 @@ func run() -> void:
 	var spat: bool = await until(func() -> bool: return bulb.spat > spat_before, 10000)
 	var seeds: Array[Node] = placed("bullet.tscn", true).filter(func(n: Node) -> bool: return (n as Bullet).seed)
 	check(spat and not seeds.is_empty(), "a bulb spits seeds at the wizard in sight")
-	if not seeds.is_empty():
-		var seed: Bullet = seeds[0] as Bullet
-		check(Damager.attacker_of(seed.get_node("HitBox/Damager")) == bulb, "each its own")
+	# Seeds another bulb spat earlier in the test (at the wizard down by the vines) may still be
+	# flying: the one tried is this bulb's.
+	var own: Array[Node] = seeds.filter(func(n: Node) -> bool: return Damager.attacker_of(n.get_node("HitBox/Damager")) == bulb)
+	var all_bulbs: bool = seeds.all(func(n: Node) -> bool: return Damager.attacker_of(n.get_node("HitBox/Damager")) is BrambleBulb)
+	check(not own.is_empty() and all_bulbs, "each its own (%d of %d this bulb's)" % [own.size(), seeds.size()])
+	if not own.is_empty():
+		var seed: Bullet = own[0] as Bullet
 		var before: int = bulb.wound.hp
 		parry.parry(1, Vector2.ZERO, seed.get_node("HitBox/Damager"))
 		var back_in: bool = await until(func() -> bool: return bulb.wound.hp < before, 3000)
@@ -216,7 +222,8 @@ func run() -> void:
 	check(not bramble.dying and not info.run.bosses.has(&"bramble"), "and the bramble lives while a bulb is left")
 	var drawn: bool = await within(func() -> bool: return is_equal_approx(bramble.bare, bramble.bare_to()), Bramble.BARE_TIME + 0.5)
 	await frames(2)
-	check(drawn and bramble.bare > 0.0 and bramble.bare < 1.0 and _cut(tangle) > 0 and bramble.heart == null, "its crown draws back a little from the heart hidden in it (%d canes short of it), still whole" % _cut(tangle))
+	# A small hollow as yet: in a sparse crown no cane may reach into it, so none is cut short.
+	check(drawn and bramble.bare > 0.0 and bramble.bare < 1.0 and _clear(tangle) and bramble.heart == null, "its crown draws back a little from the heart hidden in it: no cane in the hollow (%d short of it), still whole" % _cut(tangle))
 	var living: Array = bramble.bulbs.filter(func(b: BrambleBulb) -> bool: return b.alive)
 	var by_root: Callable = func(b: BrambleBulb) -> float: return Bramble._length(bramble._sap_path(other, b))
 	var to: BrambleBulb = bramble.sap_to
@@ -239,7 +246,7 @@ func run() -> void:
 	info.run.vulnerable = false
 	player.die()
 	await settle()
-	await _go(Vector2i(28, -g))
+	await _go(lair(&"bramble"))
 	bramble = placed("bramble.tscn")[0] as Bramble
 	check(bramble.bulbs_left() == bulbs.size() and bramble.bulbs.all(func(b: BrambleBulb) -> bool: return b.wound.hp == Bramble.BULB_HP) and not bramble.vines.any(func(v: BrambleVine) -> bool: return v.withered), "after a lantern death it is whole again")
 	lowest = LevelGen.best_of(bramble.bulbs, func(b: BrambleBulb) -> float: return -b.global_position.y) as BrambleBulb
@@ -318,7 +325,7 @@ func run() -> void:
 	var unlocks: Array[Node] = unlocks_lying()
 	check(left_unlock() and (unlocks.is_empty() or info.cell_at((unlocks[0] as Node2D).global_position) == shaft["relic"]), "its relic unlock waits on the landing beside the way on")
 	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"", "and the way on is open")
-	await _go(Vector2i(28, -g))
+	await _go(lair(&"bramble"))
 	check(placed("bramble.tscn").is_empty() and info.world.shaft["on"] == on, "it is never met again: the shaft stands open")
 	RunState.delete_save()
 	finish()

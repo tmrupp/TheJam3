@@ -168,7 +168,7 @@ func run() -> void:
 	check(near_exit(MapInfo.Exit.BACK), "going deeper arrives at the way back")
 	var f1: int = fingerprint()
 	check(f1 != f0, "depth 1 differs from depth 0")
-	check(placed("level_exit.tscn").size() == 4, "depth 1 has all four doors")
+	check(placed("level_exit.tscn").size() == info.here.ways().size() and info.here.ways().size() >= 2, "depth 1 has a door on each of its ways (%d; the labyrinth may leave some out)" % info.here.ways().size())
 
 	print("back to (28, 0)")
 	await go(MapInfo.Exit.BACK)

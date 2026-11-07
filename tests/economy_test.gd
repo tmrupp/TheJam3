@@ -3,7 +3,8 @@ extends TestKit
 ## and the economy pass.
 ## - Lanterns are scarce: one at the way back (the start lantern at depth 0) and LANTERNS_PER_K more.
 ## - Giving up (the pause menu) is a death back to the lit lantern, offered only while protected.
-## - Mend heals to full from draughts that learning it or a lantern refills.
+## - Mend heals to full from draughts that learning it or burning a lantern refills: lighting one
+##   does not, and neither does a death.
 ## - Every level has one star cluster worth cluster_value(depth); some levels a skeleton key.
 ## - The keyring carries more keys; a skeleton key opens any one door, then crumbles.
 ## - Warp and rift cost stars each cast, paid only when they work.
@@ -215,11 +216,34 @@ func mending() -> void:
 	Abilities.set_tier(player, &"mend", 2)
 	check((player.get_node("Mend") as Mend).draughts() == 0, "swapping the spell away and back does not fill the draughts")
 	mend = player.get_node("Mend") as Mend
+	# The lanterns burned here are put back after, for giving_up.
+	var spent_before: Dictionary = info.record().spent_lanterns.duplicate()
+	var unlit: Array[Node] = lanterns().filter(func(n: Node) -> bool: return not info.is_respawn_lantern(n) and not info.is_lantern_spent(n))
+	check(not unlit.is_empty(), "a lantern to light")
+	if not unlit.is_empty():
+		unlit[0].call("interacted")
+		check(info.is_respawn_lantern(unlit[0]) and mend.draughts() == 0, "lighting a lantern does not fill the draughts")
 	var lit: Node = lanterns().filter(info.is_respawn_lantern)[0]
-	var was_vulnerable: bool = info.run.vulnerable
+	check(info.can_burn(lit), "the lit lantern can be burned into them")
 	lit.call("interacted")
-	check(mend.draughts() == 2, "the lit lantern fills the draughts")
-	check(info.run.vulnerable == was_vulnerable and not info.is_lantern_spent(lit), "and is not spent by it")
+	check(mend.draughts() == 2, "burning it fills the draughts")
+	check(info.run.vulnerable and info.is_lantern_spent(lit), "and spends it: the wizard is unprotected")
+	check(not info.can_burn(lit), "a spent lantern burns no more")
+	lit.call("interacted")
+	check(mend.draughts() == 2 and info.run.vulnerable, "and does nothing")
+	var other: Array[Node] = lanterns().filter(func(n: Node) -> bool: return not info.is_lantern_spent(n))
+	if not other.is_empty():
+		other[0].call("interacted")
+		check(not info.run.vulnerable and not info.can_burn(other[0]), "another lantern lit, mend full, it cannot be burned")
+	player.mend_draughts = 0
+	var before: int = info.lanterns_burned
+	Abilities.set_tier(player, &"mend", 0)
+	Abilities.set_tier(player, &"awareness", 1)
+	check(not info.can_burn(lanterns().filter(info.is_respawn_lantern)[0]) if not other.is_empty() else true, "not without mend in the slot")
+	check_eq(info.lanterns_burned, before, "nothing burned")
+	Abilities.set_tier(player, &"awareness", 0)
+	info.record().spent_lanterns = spent_before
+	info._refresh_lanterns()
 	player.health.health = player.health.max_health
 	Abilities.set_tier(player, &"mend", 0)
 
@@ -241,6 +265,8 @@ func giving_up() -> void:
 	check(info.can_give_up(), "now giving up is offered")
 	menu.call("pause_resume_game")
 	check(bool(menu.get("give_up_button").visible), "in the pause menu")
+	Abilities.set_tier(player, &"mend", 1)
+	player.mend_draughts = 0
 	player.collect(4)
 	# The level's stars are all taken already, so the wizard picks none up on the way back.
 	for n: Node in info.map_elements.get_children():
@@ -255,6 +281,8 @@ func giving_up() -> void:
 	# The level reloaded with the respawn: find the lantern again.
 	lantern = lanterns().filter(func(n: Node) -> bool: return n.get_meta(&"cell") == cell)[0]
 	check(info.run.vulnerable and info.is_lantern_spent(lantern), "it is a death: the lantern burns out")
+	check_eq((player.get_node("Mend") as Mend).draughts(), 0, "a death does not fill mend's draughts")
+	Abilities.set_tier(player, &"mend", 0)
 	check(info.run.has_ghost and info.run.ghost_stars == 4 and player.coins.coins == 0, "the stars drop into a ghost")
 	check(player.global_position.distance_to(info.respawn_marker.global_position) < 80.0, "back at the lantern")
 	check(player.health.health == player.health.max_health, "giving up respawns at full health")

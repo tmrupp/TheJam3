@@ -2,8 +2,10 @@ extends Node
 class_name Mend
 ## Mend, a utility spell: press Utility to heal to full health, using up a draught. The draughts
 ## left show on the sitting card (RisoHud). Tiers (Abilities) hold one draught each (I one, II two,
-## III three). Draughts come back at a lantern: lighting one, or interacting with the one already
-## lit, fills them (MapInfo.light_lantern), and so does learning a tier at a shrine.
+## III three). Drunk, draughts come back only by burning a lantern: interacting with the one lit as
+## where the wizard comes back to burns it out and fills them (MapInfo.can_burn, burn_lantern),
+## leaving them unprotected until they light another; and learning a tier at a shrine fills them.
+## Lighting a lantern does not, nor does a death.
 ## The draughts are kept on the player (Player.mend_draughts), so swapping the spell away at a
 ## shrine and back does not fill them.
 

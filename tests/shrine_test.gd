@@ -1,7 +1,8 @@
 extends TestKit
 ## Phase 4 of docs/DEEPER_PLAN.md: one shrine per level near the deeper exit, offering the
-## next tier of an ability (cheaper deeper) or healing to full (dearer deeper); taking either
-## spends it. Tiers change the abilities and reset when the run ends.
+## next tier of an ability (cheaper deeper) or, at its third station, mending (free: healing to full
+## and filling the utility spell), or at full health something else for stars and a key, which way
+## the boss ahead lies among them; taking any one spends it. Tiers change the abilities and reset when the run ends.
 ## godot --headless --path . --script res://tests/shrine_test.gd
 
 
@@ -130,13 +131,19 @@ func run() -> void:
 	player.set_physics_process(false)
 	shrine = shrines()[0]
 	player.health.health = player.health.max_health
+	player.keyring.clear()
 	shrine.call("buy_mend")
-	check(not bool(shrine.call("used")), "at full health mending costs nothing and waits")
+	check(not bool(shrine.call("used")), "at full health, with no stars nor key, nothing is bought and it waits")
 	player.health.health = 1
-	player.collect(Abilities.heal_price(0))
+	player.collect(-player.coins.coins)
+	player.mend_draughts = 0
+	var mend: Mend = player.get_node("Mend") as Mend
+	check_eq(mend.draughts(), 0, "mend's draughts drunk")
 	var before: Dictionary = player.tiers.duplicate()
+	check(StringName(shrine.call("station")) == &"mend" and int(shrine.call("keys_asked")) == 0, "hurt, it mends, and asks no key")
 	shrine.call("buy_mend")
-	check(player.health.health == player.health.max_health and bool(shrine.call("used")), "healed to full; the shrine is spent")
+	check(player.health.health == player.health.max_health and bool(shrine.call("used")), "healed to full, for nothing; the shrine is spent")
+	check_eq(mend.draughts(), mend.draughts_max(), "and mend's draughts are filled")
 	player.collect(100)
 	shrine.call("buy_boon")
 	check(player.tiers == before, "so its ability is no longer on offer")
@@ -148,6 +155,46 @@ func run() -> void:
 	print("prices")
 	check(Abilities.price(0, 2) > Abilities.price(5, 2) and Abilities.price(0, 3) > Abilities.price(0, 2), "learning: cheaper deeper, dearer per tier")
 	check(Abilities.heal_price(5) > Abilities.heal_price(0), "mending: dearer deeper (%d at 0, %d at 5)" % [Abilities.heal_price(0), Abilities.heal_price(5)])
+
+	print("at full health: a key besides the stars, and which way the boss lies")
+	var home: Vector2i = info.coord
+	var bx: int = -1
+	for x: int in range(home.x + 1, home.x + 80):
+		if Shrine.sells_boss_at(Vector2i(x, home.y)):
+			bx = x
+			break
+	check(bx >= 0, "some shrines sell which way the boss lies")
+	var told: Shrine = shrines()[0] as Shrine
+	if bx >= 0:
+		# Asked as if from that column's shrine.
+		info.coord = Vector2i(bx, home.y)
+		player.health.health = player.health.max_health
+		player.keyring.clear()
+		Abilities.set_tier(player, &"keyring", 1)
+		var boss: StringName = Bosses.ahead(home.y)
+		check(told.station() == &"boss" and told.boss() == boss and boss != &"", "it offers which way the boss ahead (%s) lies" % boss)
+		check_eq(told.keys_asked(), Shrine.KEY_COST, "for a key besides its stars")
+		var cost: int = told.boss_price()
+		player.collect(cost - player.coins.coins)
+		told.buy_mend()
+		check(not told.used() and player.coins.coins == cost, "with no key carried, nothing is bought")
+		player.keyring.take(2)
+		player.keyring.take(0)
+		var taken: int = told.taken_key()
+		check(taken == 0 or taken == 2, "it takes one of the keys carried (%d)" % taken)
+		check_eq(told.taken_key(), taken, "the same one asked again")
+		told.buy_mend()
+		var way: int = signi(Bosses.column(boss, info.run.run_seed) - bx)
+		check(told.used() and player.coins.coins == 0 and player.keyring.all().size() == 1 and not player.keyring.has(taken), "bought: the stars paid and that key given up, the other kept")
+		var hints: Array = info.run.boss_hints.get(boss, [])
+		check(hints.size() == 1 and int(hints[0][0]) == bx and int(hints[0][1]) == way and told.told_way() == way, "the way (%d) is noted for the map and the spent bowl" % way)
+		check(absi(Bosses.column(boss, info.run.run_seed) - info.run.run_seed) <= Bosses.spread(boss), "the boss's column is within its band's depth of the run's start")
+		info.run.bosses[boss] = true
+		check(told.boss() == &"", "a slain boss's way is not sold")
+		info.run.bosses.erase(boss)
+		info.coord = home
+		player.keyring.clear()
+		Abilities.set_tier(player, &"keyring", 0)
 
 	print("tiers change the abilities")
 	player.tiers = Abilities.start_tiers()

@@ -32,8 +32,15 @@ func run() -> void:
 
 	print("climbing on")
 	for i: int in range(Bands.garden_rows() + 1):
-		info.here.pay(MapInfo.Exit.DEEPER if info.coord.y < 0 else MapInfo.Exit.BACK, info.record())
-		info.travel(MapInfo.Exit.DEEPER if info.coord.y < 0 else MapInfo.Exit.BACK)
+		var up: int = MapInfo.Exit.DEEPER if info.coord.y < 0 else MapInfo.Exit.BACK
+		if info.here.ways().has(up):
+			info.here.pay(up, info.record())
+			info.travel(up)
+		else:
+			# The labyrinth left this level's way up out (Rules.maze_has): straight to the level above.
+			info.coord += Vector2i(0, -1)
+			info.arrival = MapInfo.Exit.BACK
+			info._load_level()
 		await settle()
 		player.set_physics_process(false)
 	check(info.coord == Vector2i(28, -(Bands.garden_rows() + 1)) and info.here.archetype == NextWorldDef.archetype_at(-(Bands.garden_rows() + 1)) and (Bands.way(-1).is_empty() or info.here.archetype != &"garden"), "past the garden's top row the first band up begins (%s)" % info.coord)

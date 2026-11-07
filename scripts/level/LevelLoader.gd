@@ -260,8 +260,9 @@ func place_cell(v: Vector2i, cell: LevelGen.Cell) -> void:
 	# MapInfo.class_away); its students keep days of their own (Students).
 	if cell.type in [LevelGen.Type.MASTER, LevelGen.Type.PROCTOR] and info.class_away(v):
 		return
-	# A boss slain this run is never met again (Bosses).
-	if cell.type == LevelGen.Type.BOSS and info.run.bosses.has(StringName(cell.extra_info)):
+	# A boss slain this run is never met again, and it is met in one column only (Bosses.column).
+	if cell.type == LevelGen.Type.BOSS and (info.run.bosses.has(StringName(cell.extra_info))
+			or not Worlds.is_side(info.coord) and info.coord.x != Bosses.column(StringName(cell.extra_info), info.run.run_seed)):
 		return
 	var jitter: Vector2 = Vector2.ZERO
 	if Placeables.has_flag(cell.type, &"floats"):

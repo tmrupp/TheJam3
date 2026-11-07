@@ -5,7 +5,11 @@ extends RefCounted
 ## world column. A boss is beaten once per run (RunState.bosses): then every gate level of its band
 ## opens for good, the boss is never met again, and where it fell a relic unlock waits (KeyRing.UNLOCK:
 ## the only way to take a relic of a move not yet known, see Relic), and beside it its trophy (Trophy), to be brought back to its stand in the tutorial (TrophyStand). Every boss
-## fights in its gate level itself (LevelGen.place_boss). Until each boss is built, a stand-in
+## fights in its gate level itself (LevelGen.place_boss), but in one world column only, dealt for
+## the run near the column it started in (column): every gate level of its row is laid out for it (a
+## shaft, a hall, a crypt, a chamber), but it is met in that one, and the others stand empty
+## (LevelLoader leaves it out). Nothing marks its column; a shrine sells which way it lies
+## (Shrine). Until each boss is built, a stand-in
 ## fights for it (Boss); the worm (Worm), the bramble (Bramble, in its shaft: BrambleShaft), the
 ## lodestone golem (Golem, in its hall: LodeHall), the necromancer (Necromancer, in a crypt: Crypts),
 ## the whale (Whale) and the eldritch beast (Beast, in its chamber: Institute; its souls:
@@ -37,6 +41,42 @@ static func scene(name: StringName) -> PackedScene:
 	if SCENES.has(name):
 		return load(String(SCENES[name])) as PackedScene
 	return Placeables.scene(LevelGen.Type.BOSS)
+
+
+## Salt for the run seed when dealing a boss's column.
+const COLUMN_DEAL: int = 6300
+
+
+## The world column boss `name` is met in, in run `run_seed` (which starts in column `run_seed`):
+## within spread(name) of it, dealt by the run seed and the boss. The whale roams its row instead
+## (WhaleHunt).
+static func column(name: StringName, run_seed: int) -> int:
+	var reach: int = spread(name)
+	var roll: int = Rules.level_seed(run_seed, COLUMN_DEAL + posmod(String(name).hash(), 997))
+	return run_seed + posmod(roll, reach * 2 + 1) - reach
+
+
+## How many columns either side of the run's starting column boss `name`'s column may be: as many
+## as its band is deep (Bands: the garden's half, from the start to its gate, for the garden's
+## bosses; the band's rows for a band's), so finding its column is a walk as long as the band's.
+static func spread(name: StringName) -> int:
+	var row: int = row_of(name)
+	if absi(row) <= Bands.garden_rows():
+		return Bands.garden_rows()
+	return int(Bands.band_at(row)["rows"])
+
+
+## The boss ahead of row `row`: the one whose gate is the first met going away from the start from
+## it (its own row's, if it is a gate level), or &"" with none that way. The start looks down.
+static func ahead(row: int) -> StringName:
+	var way: int = NextWorldDef.away(row)
+	var r: int = row
+	while absi(r) <= absi(row) + Bands.GARDEN_ROWS + Bands.BAND_ROWS * 4:
+		var name: StringName = gate_at(r)
+		if name != &"":
+			return name
+		r += way
+	return &""
 
 
 ## The boss whose gate is the way on of row `row`'s levels, or &"" for a row with no gate.

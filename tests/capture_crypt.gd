@@ -63,7 +63,7 @@ func run() -> void:
 		await _look(wraith.global_position + Vector2(-100, 0), "wraith_shy.png", 1.5)
 	# The necromancer, in its crypt.
 	MapInfo.debug = false
-	await _go(Vector2i(28, Bosses.row_of(&"necromancer")))
+	await _go(lair(&"necromancer"))
 	var found: Array[Node] = placed("necromancer.tscn")
 	if not found.is_empty():
 		var necro: Necromancer = found[0] as Necromancer

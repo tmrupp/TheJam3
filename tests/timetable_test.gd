@@ -161,7 +161,7 @@ func _laid_out() -> void:
 		var region: Dictionary = Institute.regions(w)
 		var way: int = Timetable.way_on_hall(w)
 		var deeper: Vector2i = w.exits[MapInfo.Exit.DEEPER]
-		way_on_ok = way_on_ok and way >= 0 and (w.halls[way]["floors"] as Array).has(deeper) and w.get_cell(deeper).type == LevelGen.Type.EXIT
+		way_on_ok = way_on_ok and way >= 0 and (w.halls[way]["floors"] as Array).has(deeper) and (w.get_cell(deeper).type == LevelGen.Type.EXIT) != w.shut.has(MapInfo.Exit.DEEPER)
 		var rooms_in: Dictionary = Institute.rooms_in(w, start)
 		way_on_ok = way_on_ok and way >= 0 and rooms_in.has(way) and rooms_in.values().all(func(n: int) -> bool: return n <= int(rooms_in[way]))
 		if not out.is_empty() and region.has(start) and out.any(func(v: Vector2i) -> bool: return region.get(v, -1) == region[start]):

@@ -15,7 +15,11 @@ func _process(delta: float) -> void:
 # sustain: the time, in seconds, that the camera will be shaking
 #
 # as the duration of the shake goes on, the intensity is linearly decayed to 0
+# the player's screen shake setting scales it, down to none at all (Settings.shake)
 func shake(intensity: float, sustain: float, _direction: Vector2 = Vector2.ZERO) -> void:
+	intensity *= Settings.shake()
+	if intensity <= 0.0:
+		return
 	var current_intensity: float = intensity
 	var accumulated_time: float = 0
 	

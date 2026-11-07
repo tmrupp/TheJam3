@@ -12,7 +12,7 @@ extends TestKit
 func run() -> void:
 	window()
 	await boot(28)
-	info.coord = Vector2i(28, Bosses.row_of(&"golem"))
+	info.coord = lair(&"golem")
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	await settle()

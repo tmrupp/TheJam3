@@ -64,7 +64,7 @@ func capture() -> void:
 	player.get_node("CameraControl").set_process(false)
 	var shots: Array[Image] = []
 	# The sealed way on, at the head of the bramble's shaft.
-	await go(Vector2i(28, -Bands.garden_rows()), player)
+	await go(Vector2i(Bosses.column(&"bramble", 28), -Bands.garden_rows()), player)
 	var on: Vector2 = info.cell_position(info.world.exits[MapInfo.Exit.DEEPER])
 	shots.append(await shot(on))
 	# The stand-in, in the necromancer's gate level: whole, struck, and the relic it leaves.

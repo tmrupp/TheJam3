@@ -22,7 +22,8 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
   - `LevelLoader.gd`: the generator cache and worker thread, building a level in the scene
     (`place_cell`), the rock and camera, and chunk sleeping.
   - `Rules.gd`: the run-wide rules, static and scene-free (`level_seed`, prices and values by
-    depth, key rarity, what a level holds by its seed, `level_size`, `def_for`, `where`).
+    depth, key rarity, what a level holds by its seed, `level_size`, `def_for`, `where`, and
+    the labyrinth: which ways out a level has, `maze_has`).
   - `Difficulty.gd`: the difficulty presets (the F7 or `` ` `` panel; Hard by default): how many foes a level holds
     (`foes`, via `LevelGen.foes_per_area`), how fast the bosses act (`haste`), and how often the
     other enemies attack (`attack`) and how fast they move (`speed`).

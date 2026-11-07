@@ -19,7 +19,7 @@ func run() -> void:
 ## The first boss slain in its gate level: its trophy drops beside its relic and is picked up.
 func _drop(boss: StringName) -> void:
 	print("a boss's trophy")
-	info.coord = Vector2i(28, Bosses.row_of(boss))
+	info.coord = lair(boss)
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	await settle()

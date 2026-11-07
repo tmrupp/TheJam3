@@ -20,6 +20,8 @@ func run() -> void:
 
 	await boot(28)
 	player.set_physics_process(false)
+	# In play, in the column it is met in this run (Bosses.column).
+	gate = lair(&"necromancer")
 	info.coord = gate
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()

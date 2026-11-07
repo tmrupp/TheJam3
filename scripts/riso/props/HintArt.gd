@@ -6,8 +6,10 @@ class_name HintArt
 ## with arrows either side for walking; on a pad, the game's one pad (RisoPad) with the control
 ## solid on it (the stick with arrows either way for walking, a shoulder with an arrow down at it).
 ## The guard's cards (ControlHint.PARRY, POGO) show the Spell button between two gold gleams, the
-## guard's own colour; the pogo's has a row of pink thorns under it. It rises and sinks as the card
-## comes and goes. No words.
+## guard's own colour; the pogo's has a row of pink thorns under it. The card for burning a lantern
+## into mend (ControlHint.BURN) shows the interact button under a drop of pink light, the drop a
+## lantern that can be burned shows (LanternArt). It rises and sinks as the card comes and goes. No
+## words.
 
 ## The ControlHint it dresses.
 var hint: ControlHint:
@@ -42,6 +44,9 @@ const GLEAM_SWEEP: float = 0.85
 const THORNS: int = 4
 const THORN: Vector2 = Vector2(16, 14)
 const THORN_GAP: float = 10.0
+## The burn card's drop over its control: its radius and the gap under it.
+const DROP_R: float = 11.0
+const DROP_GAP: float = 10.0
 ## The card's tint.
 const CARD_TINT: float = 0.1
 
@@ -73,7 +78,14 @@ func _glyph_size() -> Vector2:
 		size.y = maxf(size.y, GLEAM_R * 2.0 * sin(GLEAM_SWEEP))
 	if hint.action == ControlHint.POGO:
 		size.y += THORN_GAP + THORN.y
+	if hint.action == ControlHint.BURN:
+		size.y += DROP_GAP + _drop_height()
 	return size
+
+
+## The burn card's drop, from its point to the foot of its round, unscaled.
+func _drop_height() -> float:
+	return DROP_R * 2.0 + DROP_R + 4.0
 
 
 ## Whether the card is one of the guard's (a parry, a pogo).
@@ -93,8 +105,16 @@ func _control_size() -> Vector2:
 ## What the card shows, centred on `at`: its control, and a guard card's gleams and thorns.
 func _glyph(u: InkCanvas, at: Vector2, s: float) -> void:
 	var drop: float = (THORN_GAP + THORN.y) * s if hint.action == ControlHint.POGO else 0.0
+	if hint.action == ControlHint.BURN:
+		drop = -(DROP_GAP + _drop_height()) * s
 	var c: Vector2 = at - Vector2(0, drop * 0.5)
 	_control(u, c, s)
+	if hint.action == ControlHint.BURN:
+		# A drop of pink light over the button, as over a lantern that can be burned.
+		var r: float = DROP_R * s
+		var round_at: Vector2 = Vector2(at.x, at.y - _glyph_size().y * 0.5 * s + (DROP_R + 4.0) * s + r)
+		var shape: Array[PackedVector2Array] = [RisoShapes.circle(round_at, r, 18), RisoShapes.tri(round_at + Vector2(-r + 1.5 * s, -3.5 * s), round_at + Vector2(r - 1.5 * s, -3.5 * s), round_at + Vector2(0, -r - (DROP_R + 4.0) * s))]
+		u.ink(RisoPrint.PINK, 1.0, shape, false)
 	if _guard():
 		var half: float = (_control_size().x * 0.5 + GLEAM_GAP) * s
 		var arcs: Array[PackedVector2Array] = []

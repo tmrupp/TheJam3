@@ -7,7 +7,9 @@ class_name Menu
 ## shareable: the same number gives the same levels for everyone. Paused: resume, copy where you
 ## are, give up (while a lantern protects you: a death, back to the lantern, for when you are stuck), open the debug panel (in debug runs;
 ## RisoPrint's F7 panel), save and go back to the start menu, or save and exit. Works by controller: D-pad or left stick to move, A to choose, Start to pause,
-## B to back out of the pause menu.
+## B to back out of the pause menu. Both menus open the settings page (Settings): the volumes and
+## the screen shake are changed with left and right (or a click on either half of the row, or A to
+## step up, round to 0 from the top), fullscreen with A; B, Escape, Start or Back comes back to the menu.
 
 @onready var title: Label = $VBoxContainer/Title
 @onready var where: Label = $VBoxContainer/Where
@@ -18,9 +20,15 @@ class_name Menu
 @onready var give_up_button: Button = $VBoxContainer/GiveUp
 @onready var debug_panel_button: Button = $VBoxContainer/DebugPanel
 @onready var main_menu: Button = $VBoxContainer/MainMenu
-@onready var debug_button: Button = $VBoxContainer/Debug
-@onready var tutorial_button: Button = $VBoxContainer/Tutorial
-@onready var exit: Button = $VBoxContainer/Exit
+@onready var debug_button: Button = $VBoxContainer/Toggles/Debug
+@onready var tutorial_button: Button = $VBoxContainer/Toggles/Tutorial
+@onready var exit: Button = $VBoxContainer/Last/Exit
+@onready var toggles: HBoxContainer = $VBoxContainer/Toggles
+@onready var settings_button: Button = $VBoxContainer/Last/Settings
+@onready var list: VBoxContainer = $VBoxContainer
+@onready var settings_page: VBoxContainer = $SettingsPage
+@onready var fullscreen_button: Button = $SettingsPage/Fullscreen
+@onready var settings_back: Button = $SettingsPage/Back
 
 @onready var randomize_button: Button = $"VBoxContainer/World Seed/Randomize"
 @onready var paste: Button = $"VBoxContainer/World Seed/Paste"
@@ -34,6 +42,11 @@ var old_focus: Control = null
 var started: bool = false
 ## Whether Begin and Random world begin the run in the tutorial (Tutorial; set_tutorial).
 var tutorial: bool = false
+## The settings page's rows of steps (a volume or the shake), by the setting each changes.
+var steps: Dictionary = {}
+## What each row of steps is called on the page, by the setting it changes (its node is the
+## setting's name, capitalized).
+const STEP_NAMES: Dictionary = {&"master": "volume", &"music": "music", &"effects": "sound effects", &"shake": "screen shake"}
 
 
 func map_info() -> MapInfo:
@@ -80,7 +93,7 @@ func continue_game() -> void:
 func _enter_play() -> void:
 	visible = false
 	started = true
-	for node: Control in [continue_button, world_seed_container, random_world, debug_button, tutorial_button]:
+	for node: Control in [continue_button, world_seed_container, random_world, toggles]:
 		node.visible = false
 	copy.visible = true
 	main_menu.visible = true
@@ -130,7 +143,12 @@ func get_seed(input: LineEdit) -> int:
 
 
 func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("Menu"):
+	if visible and settings_page.visible and (event.is_action_pressed("Menu") or event.is_action_pressed("ui_cancel")):
+		# Escape, Start, B or another cancel backs out of the settings page, to the menu it was
+		# opened from.
+		close_settings()
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("Menu"):
 		pause_resume_game()
 		get_viewport().set_input_as_handled()
 	elif visible and started and event.is_action_pressed("ui_cancel"):
@@ -166,6 +184,8 @@ func pause_resume_game() -> void:
 	# Only once a run has started: before that this is the start menu.
 	if not started or not main.has_node("Player"):
 		return
+	if visible and settings_page.visible:
+		close_settings()
 	if not visible:
 		old_focus = get_viewport().gui_get_focus_owner()
 		map_info().save_run()
@@ -228,8 +248,81 @@ func paste_seed() -> void:
 		world_seed.text = m.get_string()
 
 
+## Open the settings page in place of the menu's list, the first row in focus.
+func open_settings() -> void:
+	list.visible = false
+	settings_page.visible = true
+	_show_settings()
+	(steps[&"master"] as Button).grab_focus()
+
+
+## Close the settings page, back to the menu's list with Settings in focus.
+func close_settings() -> void:
+	settings_page.visible = false
+	list.visible = true
+	settings_button.grab_focus()
+
+
+## Step setting `key` (a volume or the shake) by `by`, held to 0..Settings.STEPS, or round from the
+## top to 0 with `wrap` (A pressed on its row).
+func step_setting(key: StringName, by: int, wrap: bool = false) -> void:
+	var v: int = Settings.level(key) + by
+	if wrap:
+		v = posmod(v, Settings.STEPS + 1)
+	Settings.change(key, v)
+	_show_settings()
+
+
+## Fill the screen, or go back to a window.
+func set_fullscreen(on: bool) -> void:
+	Settings.change(&"fullscreen", on)
+	_show_settings()
+
+
+## The settings page's rows, as the settings are now.
+func _show_settings() -> void:
+	for key: StringName in steps:
+		(steps[key] as Button).text = "%s   <  %d  >" % [STEP_NAMES[key], Settings.level(key)]
+	var full: bool = bool(Settings.value(&"fullscreen"))
+	fullscreen_button.set_pressed_no_signal(full)
+	fullscreen_button.text = "fullscreen: on" if full else "fullscreen: off"
+
+
+## A row of steps takes left and right itself (they would move the focus otherwise), and a click
+## on its left half steps down, on its right half up.
+func _step_input(event: InputEvent, key: StringName, row: Button) -> void:
+	var by: int = 0
+	if event.is_action_pressed("ui_left", true):
+		by = -1
+	elif event.is_action_pressed("ui_right", true):
+		by = 1
+	elif event is InputEventMouseButton:
+		var click: InputEventMouseButton = event as InputEventMouseButton
+		if click.button_index == MOUSE_BUTTON_LEFT:
+			if click.pressed:
+				by = -1 if click.position.x < row.size.x * 0.5 else 1
+			# The click is the row's own: it does not also press it (a step up, round from the top).
+			row.accept_event()
+	if by != 0:
+		row.accept_event()
+		step_setting(key, by)
+
+
 func _ready() -> void:
 	ensure_controller_ui()
+	Settings.ensure_loaded()
+	for key: StringName in STEP_NAMES:
+		var row: Button = settings_page.get_node(String(key).capitalize()) as Button
+		steps[key] = row
+		row.gui_input.connect(_step_input.bind(key, row))
+		row.pressed.connect(step_setting.bind(key, 1, true))
+		# Left and right stay on the row (_step_input takes them).
+		row.focus_neighbor_left = row.get_path()
+		row.focus_neighbor_right = row.get_path()
+	fullscreen_button.toggled.connect(set_fullscreen)
+	settings_button.pressed.connect(open_settings)
+	settings_back.pressed.connect(close_settings)
+	_show_settings()
 	start.pressed.connect(begin)
 	continue_button.pressed.connect(continue_game)
 	random_world.pressed.connect(begin_random)

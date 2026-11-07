@@ -64,7 +64,7 @@ func run() -> void:
 	await boot(28)
 	player.health.max_health = 99
 	player.health.health = 99
-	info.coord = Vector2i(28, Bosses.row_of(&"golem"))
+	info.coord = lair(&"golem")
 	info.arrival = MapInfo.Exit.BACK
 	info._load_level()
 	await settle()
@@ -113,6 +113,9 @@ func run() -> void:
 	for n: Node in placed("mover_enemy.tscn"):
 		var mover: Mover = n.get_node("Mover") as Mover
 		await _keep_awake(n)
+		# One still falling to its floor does not walk: wait for it to land, else try the next.
+		if not await within(func() -> bool: return mover.grounded, 1.5):
+			continue
 		mover.set_physics_process(false)
 		walked.clear()
 		for p: Difficulty.Preset in [Difficulty.Preset.NORMAL, Difficulty.Preset.BRUTAL]:

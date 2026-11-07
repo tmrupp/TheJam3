@@ -1,5 +1,5 @@
 extends SceneTree
-## Stills of the start menu and the pause menu, printed.
+## Stills of the start menu, its settings page and the pause menu, printed.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_menu.gd
 
 func _initialize() -> void:
@@ -7,6 +7,7 @@ func _initialize() -> void:
 
 
 func run() -> void:
+	TestKit.out_of_sight()
 	root.mode = Window.MODE_WINDOWED
 	root.size = Vector2i(1280, 720)
 	var main: Node = load("res://prefabs/scenes/main.tscn").instantiate()
@@ -16,6 +17,12 @@ func run() -> void:
 		await process_frame
 	var output: String = ProjectSettings.globalize_path("res://../art-captures/riso-frames")
 	root.get_texture().get_image().save_png(output.path_join("menu_start.png"))
+	var menu: Menu = main.get_node("Menu") as Menu
+	menu.open_settings()
+	for i: int in range(10):
+		await process_frame
+	root.get_texture().get_image().save_png(output.path_join("menu_settings.png"))
+	menu.close_settings()
 	main.get_node("Menu").start_game()
 	var info: MapInfo = main.get_node("CanvasLayer/MapInfo") as MapInfo
 	while info.world == null or info.travelling:

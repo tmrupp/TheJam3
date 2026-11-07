@@ -360,7 +360,7 @@ func _ride() -> void:
 	g.pull()
 	check(await until(func() -> bool: return not g.running, 40000) and g.at_station == n - 1, "it runs up to the top station")
 	check(info.seen_count() > seen_at + 20, "riding up inks the map round the car (%d cells more)" % (info.seen_count() - seen_at))
-	check(round_here.size() >= 3 and round_here.all(func(c: Vector2i) -> bool: return info.run.visited(c) != null and info.run.visited(c).mapped), "at the top, the %d levels round are inked whole" % round_here.size())
+	check(not round_here.is_empty() and round_here.all(func(c: Vector2i) -> bool: return info.run.visited(c) != null and info.run.visited(c).mapped), "at the top, the %d levels round are inked whole" % round_here.size())
 	# A lodestone in one of them shows on the worlds map.
 	var map: Node = main.get_node("RisoMap")
 	var with_stone: Array[Vector2i] = round_here.filter(func(c: Vector2i) -> bool: return Rules.lodestone_at(c) != &"")

@@ -8,8 +8,10 @@ class_name Resurrect
 ## health, untouchable for a moment (Player.grace), with their stars, keys, darkness and lantern as
 ## they were; the rite is spent and the mark goes. Thorns that strike them after send them back to
 ## the mark too (it is their footing, Player.thorn_back). Tiers (Abilities) hold one rite each (I
-## one, II two, III three); rites come back at a lantern, as mend's draughts do
-## (MapInfo.light_lantern), and on learning a tier. Leaving the level loses the mark. It moves
+## one, II two, III three); spent, rites come back only by burning a lantern, as mend's draughts do
+## (MapInfo.can_burn, burn_lantern: the lantern lit as where the wizard comes back to burns out and
+## they are unprotected until they light another), and on learning a tier. Lighting a lantern does
+## not give them back. Leaving the level loses the mark. It moves
 ## nothing and hurts nothing while the wizard lives: it only keeps a death from happening.
 
 ## The grave mark a cast raises.

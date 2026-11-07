@@ -448,13 +448,15 @@ func place_start_key (def: NextWorldDef) -> void:
 					keep_clear[c] = true
 	start_reach = {}
 
-## Doors on the exit cells (at the start too, whose way back leads up), a lantern beside the way
-## back (the start lantern, at the start), then the shrine. Lanterns are scarce: the other exits
+## Doors on the exit cells (at the start too, whose way back leads up) but those the labyrinth
+## leaves out (shut), a lantern beside the way back (the start lantern, at the start; there even
+## where its door is not), then the shrine. Lanterns are scarce: the other exits
 ## have none.
 func _finish_exits (spots: Array[Vector2i], chosen: Array[Vector2i], _depth: int) -> void:
 	for which: int in [MapInfo.Exit.BACK, MapInfo.Exit.DEEPER, MapInfo.Exit.LEFT, MapInfo.Exit.RIGHT]:
 		var at: Vector2i = exits[which]
-		put(at, Type.EXIT, which)
+		if not shut.has(which):
+			put(at, Type.EXIT, which)
 		if which != MapInfo.Exit.BACK:
 			continue
 		var lantern: Variant = _nearest_free(spots, at, chosen)
@@ -757,6 +759,8 @@ func _make_ladder (run_cells: Array[Vector2i], travel: int) -> void:
 	for x: int in range(left.x, left.x + reach + 1):
 		for y: int in range(left.y + 1, left.y + rungs):
 			empties.erase(Vector2i(x, y))
+		# The floor its foot rolls along stays whole: no cracked wall is made of it.
+		kept_whole[Vector2i(x, left.y + rungs)] = true
 	set_kind(left, Type.ROLLING_LADDER, [1, Vector2i(1, 0), reach])
 
 ## How far apart (cells, across plus down) the two ends of a pair of teleporters are at least: a
@@ -809,6 +813,9 @@ func add_cell_to_container (v: Vector2i, cell: Cell) -> void:
 var seed_for_colors: int = 0
 ## The level's depth, for the rules that change with it (bone gates on the way, deal_colors).
 var depth: int = 0
+## The ways out the labyrinth leaves out of this level (NextWorldDef.shut), a set: their spots
+## are still picked (the level's start stays by its way back's), but no door stands on them.
+var shut: Dictionary = {}
 ## The boss whose gate this level is (Bosses; &"" for none, and in every side world), for the
 ## passes that build what a boss needs into its gate level (the beast's chamber, Institute).
 var gate: StringName = &""
@@ -819,6 +826,8 @@ func _init (_cells: Array, def: NextWorldDef) -> void:
 	seed_for_colors = def.gen_seed
 	depth = def.depth
 	gate = &"" if Worlds.is_side(def.coord) else def.gate
+	for exit: int in def.shut:
+		shut[exit] = true
 	# The small insides collapsed with the terrain come after its columns (WaveFunctionCollapse).
 	if not _cells.is_empty() and _cells.back() is Dictionary:
 		patches = (_cells.back() as Dictionary).get("patches", [])
@@ -1173,7 +1182,8 @@ func in_shaft (v: Vector2i) -> bool:
 	return not shaft.is_empty() and (shaft["inside"] as Rect2i).grow(1).has_point(v)
 
 ## Cells a built structure keeps as they are (a crag tower's stone, rooms, doorsteps, footing and
-## the air over its roof, CragsArchetype): nothing else cracks, carves, fills or tunnels through
+## the air over its roof, CragsArchetype; the floor a rolling ladder stands on all along its track,
+## _make_ladder): nothing else cracks, carves, fills or tunnels through
 ## them, or builds a secret room or vault into them.
 var kept_whole: Dictionary = {}
 
@@ -1759,7 +1769,9 @@ func place_return () -> void:
 	if best == null:
 		return
 	exits[MapInfo.Exit.RETURN] = best
-	put(best, Type.EXIT, MapInfo.Exit.RETURN)
+	# Its spot is kept, as the other ways', even where the labyrinth leaves it out (shut).
+	if not shut.has(MapInfo.Exit.RETURN):
+		put(best, Type.EXIT, MapInfo.Exit.RETURN)
 
 ## A door into each side world the level deals (NextWorldDef.doors): a floor far from the way
 ## in, not crowding another exit. In a debug run it is on the floor nearest the way in instead,

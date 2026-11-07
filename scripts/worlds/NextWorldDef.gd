@@ -30,6 +30,14 @@ var doors: Array[int] = []
 var arrival_from: Variant = null
 ## The move the relic in this level holds (see Relics), or &"" for none.
 var relic: StringName = &""
+## Its ordinary ways out that the labyrinth leaves out (Rules.maze_has): of DEEPER, BACK, LEFT,
+## RIGHT and RETURN. Its way back into a side world that leads into it is always there. The level is
+## laid out without them for good (LevelGen.shut); a way on dug since (dug) opens one again.
+var shut: Array[int] = []
+## The ways on the run being played has had dug where the labyrinth leaves them out (a shrine's
+## door, Shrine): each noted by the level it leads into (as Rules.maze_has keys a way toward the
+## start), shared with the run (RunState.dug).
+static var dug: Dictionary = {}
 ## The boss whose gate its way on is (Bosses), or &"" for a level that is no gate level.
 var gate: StringName = &""
 ## Whether a secret room in this level holds a skeleton key (see Rules.skeleton_at).
@@ -66,6 +74,13 @@ func setup(at: Vector2i) -> NextWorldDef:
 		if Worlds.proto(k).deals(at):
 			doors.append(k)
 	arrival_from = Worlds.arriving_at(at)
+	for exit: int in [MapInfo.Exit.DEEPER, MapInfo.Exit.BACK, MapInfo.Exit.LEFT, MapInfo.Exit.RIGHT, MapInfo.Exit.RETURN]:
+		if exit == MapInfo.Exit.BACK and arrival_from != null:
+			continue
+		if exit == MapInfo.Exit.RETURN and arrival_from == null:
+			continue
+		if not Rules.maze_has(at, exit):
+			shut.append(exit)
 	gate = Bosses.gate_at(at.y)
 	relic = Relics.at(at)
 	skeleton = Rules.skeleton_at(at)
@@ -143,19 +158,54 @@ func fallback() -> Array:
 
 # ------------------------------------------------------------------ its exits
 
-## The exits it can have, in order.
+## The exits it has, in order: its ordinary ones but those the labyrinth leaves out and the run has
+## not dug (closed).
 func ways() -> Array[int]:
-	var out: Array[int] = [MapInfo.Exit.DEEPER, MapInfo.Exit.BACK, MapInfo.Exit.LEFT, MapInfo.Exit.RIGHT]
-	if arrival_from != null:
+	var out: Array[int] = []
+	for exit: int in [MapInfo.Exit.DEEPER, MapInfo.Exit.BACK, MapInfo.Exit.LEFT, MapInfo.Exit.RIGHT]:
+		if not closed(exit):
+			out.append(exit)
+	if arrival_from != null and not closed(MapInfo.Exit.RETURN):
 		out.append(MapInfo.Exit.RETURN)
 	for k: int in doors:
 		out.append(Worlds.door(k))
 	return out
 
 
+## Whether its way out `exit` is closed: left out by the labyrinth (shut) and not dug since.
+func closed(exit: int) -> bool:
+	return shut.has(exit) and not _dug(exit)
+
+
+## Whether the run has dug its way out `exit` (dug): its way on, or its way toward the start (the
+## way back, or the way up for a level a side world leads into) from the level above's way on.
+func _dug(exit: int) -> bool:
+	match exit:
+		MapInfo.Exit.DEEPER:
+			return dug.has(coord + Vector2i(0, away(coord.y)))
+		MapInfo.Exit.BACK:
+			return arrival_from == null and coord.y != 0 and dug.has(coord)
+		MapInfo.Exit.RETURN:
+			return arrival_from != null and dug.has(coord)
+	return false
+
+
+## Its ways out the labyrinth left out that the run has dug since: doors to put in it as it is built
+## (MapInfo), at the spots kept for them (LevelGen.exits).
+func dug_ways() -> Array[int]:
+	var out: Array[int] = []
+	for exit: int in shut:
+		if _dug(exit):
+			out.append(exit)
+	return out
+
+
 ## Where leaving by `exit` leads: {"to": the place, "way": the way the transition sweeps,
-## "arrive": the exit arrived at there}, or {} when it leads nowhere.
+## "arrive": the exit arrived at there}, or {} when it leads nowhere (the labyrinth left it out, and
+## it has not been dug).
 func lead(exit: int) -> Dictionary:
+	if closed(exit):
+		return {}
 	var kind: int = Worlds.door_kind(exit)
 	if kind >= 0:
 		return _to(Worlds.side_at(kind, coord), Worlds.proto(kind).way, MapInfo.Exit.BACK)

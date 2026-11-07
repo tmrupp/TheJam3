@@ -3,8 +3,9 @@ extends TestKit
 ## does not teach it until it is found; learned from its paper at tier I, in the utility slot. Cast
 ## standing, it raises a grave mark; a death in that level raises the wizard there at full health,
 ## untouchable a moment, with nothing lost (no lantern burned, no ghost, the stars kept), the rite
-## spent and the mark gone; thorns after send them back to it. With no rite left nothing is cast; a
-## lantern gives the rites back, and the save keeps them. Leaving the level loses the mark, and a
+## spent and the mark gone; thorns after send them back to it. With no rite left nothing is cast;
+## lighting a lantern does not give the rites back, burning the lit one does (leaving the wizard
+## unprotected), and the save keeps them. Leaving the level loses the mark, and a
 ## death then is a death.
 ## godot --headless --path . --script res://tests/resurrect_test.gd
 
@@ -53,15 +54,29 @@ func run() -> void:
 	await until(func() -> bool: return player.is_on_floor())
 	check(not Abilities.cast(player, &"utility"), "with no rite left, nothing is cast")
 
-	print("a lantern gives the rites back")
-	var lantern: Node = info.map_elements.get_children().filter(func(n: Node) -> bool: return n is Checkpoint).filter(info.is_respawn_lantern)[0]
+	print("burning a lantern gives the rites back")
+	var lantern: Checkpoint = info.map_elements.get_children().filter(func(n: Node) -> bool: return n is Checkpoint).filter(info.is_respawn_lantern)[0] as Checkpoint
 	info.light_lantern(lantern)
-	check(spell.rites() == 1, "lighting a lantern gives the rite back")
+	check(spell.rites() == 0, "lighting a lantern does not give the rite back")
+	check(info.can_burn(lantern), "the lit lantern can be burned into it")
+	# Mend's paper, handed back when the rite took its slot, would be studied at the lantern first.
+	var papers: Array[int] = player.keyring.papers()
+	for code: int in papers:
+		player.keyring.spend(code)
+	lantern.interacted()
+	check(spell.rites() == 1, "burning it gives the rite back")
+	check(info.is_lantern_spent(lantern) and info.run.vulnerable, "and leaves the wizard unprotected")
 	player.resurrect_rites = 0
 	check(int(player.to_save().get("resurrect_rites", -9)) == 0, "the save keeps the rites left")
 	player.from_save(player.to_save())
 	check(spell.rites() == 0, "and takes them back up")
+	for code: int in papers:
+		player.keyring.take(code)
+	# Protected again with a rite, for what follows: the burned lantern put back and lit.
+	player.resurrect_rites = 1
+	info.record().spent_lanterns.erase(lantern.get_meta(&"cell"))
 	info.light_lantern(lantern)
+	check(not info.run.vulnerable, "lit again")
 
 	print("leaving loses the mark")
 	await until(func() -> bool: return player.is_on_floor())

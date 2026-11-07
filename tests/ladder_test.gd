@@ -36,7 +36,9 @@ func _layout() -> void:
 				# Its foot on rock in every column along its track.
 				var foot: int = v.y + RollingLadder.hang(w, v, int(extra[0]), int(extra[2]))
 				for x: int in range(v.x, v.x + int(extra[2]) + 1):
-					grounded = grounded and w.is_ground(Vector2i(x, foot))
+					if not w.is_ground(Vector2i(x, foot)):
+						grounded = false
+						print("  not grounded: %s, ladder at %s %s, under column %d: %s" % [at, v, extra, x, LevelGen.Type.keys()[w.get_cell(Vector2i(x, foot)).type]])
 			check_eq(build(at).objects, w.objects, "%s: the same every visit" % at)
 	check(ladders > 0 and lifts == 0, "the institute has rolling ladders (%d) and no lifts" % ladders)
 	check(right, "each ladder rolls along a track running right")

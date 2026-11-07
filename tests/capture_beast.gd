@@ -21,7 +21,7 @@ func run() -> void:
 	process_frame.connect(func() -> void: player.health.health = player.health.max_health)
 	for c: Vector2i in VISITED:
 		info.run.record(c)
-	var gate: Vector2i = Vector2i(28, Bosses.row_of(&"beast"))
+	var gate: Vector2i = lair(&"beast")
 	await _go(gate)
 	# The region's title card gone.
 	await frames(240)

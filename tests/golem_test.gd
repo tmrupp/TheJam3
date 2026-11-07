@@ -24,7 +24,7 @@ func run() -> void:
 		finish()
 		return
 	MapInfo.debug = false
-	var gate: Vector2i = Vector2i(28, Bosses.row_of(&"golem"))
+	var gate: Vector2i = lair(&"golem")
 	await boot(28)
 	player.set_physics_process(false)
 	player.health.max_health = 99

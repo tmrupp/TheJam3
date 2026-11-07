@@ -45,6 +45,12 @@ var rift_link: Array = []
 ## move the relic holds), shown on the worlds map.
 var relics_found: Dictionary = {}
 var relic_hints: Dictionary = {}
+## Which way bosses lie, as shrines told it: by boss, a list of [column asked from, way] (-1 left,
+## 1 right, 0 that column; MapInfo.hint_boss), shown on the worlds map.
+var boss_hints: Dictionary = {}
+## The ways on dug where the labyrinth left them out (a shrine's door): by the level each leads
+## into, as NextWorldDef.dug, which shares this run's.
+var dug: Dictionary = {}
 ## The bosses slain this run (name -> true; see Bosses), and the relics they left that wait still
 ## (name -> [the place, the position, the move]), from a run saved before bosses dropped relic
 ## unlocks instead (KeyRing.UNLOCK).
@@ -89,6 +95,9 @@ func start(seed_value: int) -> void:
 	rift_link.clear()
 	relics_found.clear()
 	relic_hints.clear()
+	boss_hints.clear()
+	dug = {}
+	NextWorldDef.dug = dug
 	bosses.clear()
 	boss_relics.clear()
 	boss_trophies.clear()
@@ -203,7 +212,7 @@ func to_save(coord: Vector2i, player: Dictionary) -> Dictionary:
 		"has_ghost": has_ghost, "ghost_coord": ghost_coord, "ghost_pos": ghost_pos, "ghost_stars": ghost_stars, "ghost_lantern": ghost_lantern,
 		"dark_charges": dark_charges, "ghost_charges": ghost_charges,
 		"debug": MapInfo.debug, "rift_link": rift_link,
-		"relics_found": relics_found, "relic_hints": relic_hints,
+		"relics_found": relics_found, "relic_hints": relic_hints, "boss_hints": boss_hints, "dug": dug,
 		"bosses": bosses, "boss_relics": boss_relics,
 		"boss_trophies": boss_trophies, "trophies": trophies,
 		"whale_x": whale_x, "whale_moves": whale_moves,
@@ -237,6 +246,9 @@ func from_save(data: Dictionary) -> void:
 	rift_link = data.get("rift_link", [])
 	relics_found = data.get("relics_found", {})
 	relic_hints = data.get("relic_hints", {})
+	boss_hints = data.get("boss_hints", {})
+	dug = data.get("dug", {})
+	NextWorldDef.dug = dug
 	bosses = data.get("bosses", {})
 	boss_relics = data.get("boss_relics", {})
 	boss_trophies = data.get("boss_trophies", {})

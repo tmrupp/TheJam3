@@ -2,7 +2,7 @@
 
 A plan for the owner's playtest notes of November 2026, on the garden demo and its tutorial. Each
 item says what was seen, what the code does now (where it was found), what to do, and what is still
-open. The order of work is at the end. Steps 1 to 4 of it are built (marked *Done*), with 2c and 3d left to judge in play.
+open. The order of work is at the end. Steps 1 to 4 of it are built (marked *Done*), and 2c and 3d were judged good in play (owner, November 2026).
 
 ## 1. The tutorial
 
@@ -122,9 +122,9 @@ nothing.
 own cooldown (`Slash.COOLDOWN`) just as the wizard bounces; the catch also starts a hit-stop
 (`Parry.HIT_STOP`) and 0.8 s untouchable (`SAFE`).
 
-*Done in part:* with 2a and 2b a catch gives the spell back, so the next press after a bounce
-casts (and guards) again. *To do:* play it, and tune the bounce (`Parry.POGO`), the hit-stop and
-`SAFE` if it still feels off.
+*Done:* with 2a and 2b a catch gives the spell back, so the next press after a bounce casts (and
+guards) again. Played and judged good as it is (owner, November 2026): the bounce (`Parry.POGO`),
+the hit-stop and `SAFE` stay.
 
 ### 2d. The dash comes back faster
 
@@ -205,7 +205,8 @@ flame to nothing at its reach (`RisoLight.graded`, `GRADIENT_POWER`), a mesh wor
 the light and printed whole (`lift_ink_mesh`); the other things that shine keep their two-step
 pools. `bench_walk`, mean of the medians, before and after: standing 4.72 and 4.79 ms, walking 4.87
 and 4.54 ms (no sight to work out); the light 0.20 ms a frame in the garden (0.21 before).
-`sight_test` checks the gradient and that nothing is shaded. *Decided:* the crypts' deep dark keeps
+`sight_test` checks the gradient and that nothing is shaded. Judged good in play (owner, November
+2026). *Decided:* the crypts' deep dark keeps
 its two steps round each light; it looks good there (owner, November 2026), but it is much dimmer
 round an unlit flame: an unprotected or snuffed wizard's light only lifts `UNLIT_DARK_LIFT` (0.4)
 of the dark at the flame, fading out to its reach (`RisoLight.Fade.dim`), where it cleared it
@@ -256,7 +257,8 @@ gates.
 `main.tscn`, `MusicPlayer.gd`) pauses with it, as it inherits the pause.
 
 *Done:* the music always processes (`MusicPlayer._ready`), so it plays on under the map and the
-pause menu (whether the pause menu should hush it is still open).
+pause menu (whether the pause menu should hush it is still open). The settings page now has a
+volume for the music of its own (`Settings`, on the `Music` bus).
 
 ## 5. Teleporters
 

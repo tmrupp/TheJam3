@@ -9,6 +9,8 @@ class_name ControlHint
 ## press: the parry (PARRY) by a catch, and the pogo off thorns (POGO) by a bounce off them
 ## (Parry.pogo_at), either made once the card has been seen (a pogo is made a few cells into its
 ## bed of thorns, past where the card is up).
+## The card for burning a lantern into mend (BURN) asks for the interact button at a lit lantern, and
+## is learned by burning one (MapInfo.lanterns_burned) once the card has been seen, not by a press.
 ## The utility spell's card (STRIKES) asks for mend, which heals only a wizard who is hurt, so as it
 ## first rises it costs a wizard at full health a heart (strike), and fills mend's draughts if they
 ## are spent, so the Utility button always has something to show there.
@@ -24,6 +26,8 @@ const HEALS: StringName = &"mend"
 ## The cards for the Spell button's guard: a parry, and a pogo off thorns (see the class description).
 const PARRY: StringName = &"Parry"
 const POGO: StringName = &"Pogo"
+## The card for burning a lantern into mend, on the interact button (see the class description).
+const BURN: StringName = &"Burn"
 
 ## The control it shows: an input action, or &"Move" for walking either way (Left and Right).
 var action: StringName = &""
@@ -35,6 +39,9 @@ var struck: bool = false
 ## When (the guard's clock, Parry.clock) a guard card was first seen (up for SEEN): a catch or a
 ## bounce after it learns it.
 var _seen_at: float = INF
+## How many lanterns had been burned (MapInfo.lanterns_burned) when the burn card was first seen,
+## or -1 before then.
+var _burned_at_seen: int = -1
 
 ## The controls used while their card was up, this run (cleared as a run begins in the tutorial).
 static var learned: Dictionary = {}
@@ -61,11 +68,13 @@ func _process(delta: float) -> void:
 		strike(player)
 	if action in [PARRY, POGO] and player != null and not learned.has(action):
 		_watch_guard(player)
+	if action == BURN and not learned.has(action):
+		_watch_burn()
 
 
 func _input(event: InputEvent) -> void:
 	RisoPad.note_device(event)
-	if action in [PARRY, POGO]:
+	if action in [PARRY, POGO, BURN]:
 		return
 	if up_for >= SEEN and _uses(event):
 		learned[action] = true
@@ -82,6 +91,19 @@ func _watch_guard(player: Player) -> void:
 			_seen_at = guard.clock
 		return
 	if (guard.parried_at if action == PARRY else guard.pogo_at) > _seen_at:
+		learned[action] = true
+
+
+## The burn card: learned by a lantern burned (MapInfo.lanterns_burned) after it was first seen.
+func _watch_burn() -> void:
+	var info: MapInfo = MapInfo.instance
+	if info == null:
+		return
+	if _burned_at_seen < 0:
+		if showing() and up_for >= SEEN:
+			_burned_at_seen = info.lanterns_burned
+		return
+	if info.lanterns_burned > _burned_at_seen:
 		learned[action] = true
 
 
@@ -116,6 +138,8 @@ static func actions(control: StringName) -> Array[StringName]:
 
 
 ## The input action whose bindings a card's control shows: the Spell button for the guard's cards
-## (PARRY, POGO), else the control itself.
+## (PARRY, POGO), the interact button for burning a lantern (BURN), else the control itself.
 static func bound(control: StringName) -> StringName:
+	if control == BURN:
+		return &"Discover"
 	return &"Spell" if control in [PARRY, POGO] else control

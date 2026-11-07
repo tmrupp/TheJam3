@@ -138,19 +138,21 @@ func run() -> void:
 	var hinted: int = 0
 	info.run.relic_hints = {}
 	for x: int in range(200):
-		info.coord = Vector2i(x, 2)
-		plain += 1 if bool(shrine.call("sells_skeleton")) else 0
+		plain += 1 if Shrine.sells_skeleton_at(Vector2i(x, 2), false) else 0
 	info.run.relic_hints = {Vector2i(999, 9): &"blink"}
 	for x: int in range(200):
-		info.coord = Vector2i(x, 2)
-		hinted += 1 if bool(shrine.call("sells_skeleton")) else 0
+		hinted += 1 if Shrine.sells_skeleton_at(Vector2i(x, 2), true) else 0
 	info.run.relic_hints = hints
 	info.coord = home
 	check(plain > 30 and plain < 100 and hinted > plain + 40, "sold in some shrines (%d of 200), and more while a marked relic waits (%d of 200)" % [plain, hinted])
 	player.health.health = player.health.max_health - 1
 	check(not bool(shrine.call("sells_skeleton")), "never while there is mending to do")
 	player.health.health = player.health.max_health
-	# Make this shrine sell one: with no relic left to point to, it always does.
+	# Make this shrine sell one: with no relic left to point to, it always does (and with the boss
+	# ahead slain, it sells nothing of its way).
+	var ahead: StringName = Bosses.ahead(home.y)
+	var was_slain: bool = info.run.bosses.has(ahead)
+	info.run.bosses[ahead] = true
 	var found: Dictionary = info.run.relics_found.duplicate()
 	for dx: int in range(-Relics.SEARCH - 1, Relics.SEARCH + 2):
 		for dy: int in range(-Relics.SEARCH - 1, Relics.SEARCH + 2):
@@ -159,10 +161,14 @@ func run() -> void:
 	var price: int = int(shrine.call("skeleton_price"))
 	check(price == roundi(2.0 * Rules.deeper_price(home.y)), "for %d stars (twice the deeper price)" % price)
 	player.collect(price + 5 - player.coins.coins)
+	player.keyring.clear()
+	player.keyring.take(0)
 	var drops_before: int = (info.record().dropped as Dictionary).size()
 	shrine.call("buy_mend")
 	await process_frame
-	check(player.coins.coins == 5 and bool(shrine.call("used")), "bought: paid, and the shrine is spent")
+	check(player.coins.coins == 5 and bool(shrine.call("used")) and player.keyring.all().is_empty(), "bought: paid, a key given up, and the shrine is spent")
+	if not was_slain:
+		info.run.bosses.erase(ahead)
 	var dropped: Dictionary = info.record().dropped
 	check(dropped.size() == drops_before + 1, "a skeleton key is laid in the level, kept in its record")
 	var sold: Node2D = null
