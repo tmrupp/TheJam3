@@ -30,8 +30,9 @@ func run() -> void:
 	Abilities.grant(player, &"levitate")
 	var lev: Levitate = player.get_node("Levitate") as Levitate
 	check(not lev.drift and not lev.free_recast, "levitate I holds height, without drift")
-	player.global_position += Vector2(0, -260)
+	player.global_position = _air()
 	player.velocity = Vector2.ZERO
+	still()
 	await physics_frame
 	await physics_frame
 	_press(&"Dash")
@@ -166,3 +167,16 @@ func _press(action: StringName) -> void:
 
 func _release(action: StringName) -> void:
 	Input.action_release(action)
+
+
+## A spot in open air near the wizard: two cells over the nearest floor with three open cells over
+## it, whatever the level's layout.
+func _air() -> Vector2:
+	var w: LevelGen = info.world
+	var floors: Array[Vector2i] = w.free_floors()
+	var here: Vector2i = info.cell_at(player.global_position)
+	floors.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return LevelGen.dist(a, here) < LevelGen.dist(b, here))
+	for v: Vector2i in floors:
+		if range(1, 4).all(func(k: int) -> bool: return w.is_valid(v + Vector2i(0, -k)) and w.get_cell(v + Vector2i(0, -k)).type == LevelGen.Type.EMPTY):
+			return info.cell_position(v + Vector2i(0, -2))
+	return player.global_position + Vector2(0, -260)

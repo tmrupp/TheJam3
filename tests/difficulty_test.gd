@@ -2,8 +2,8 @@ extends TestKit
 ## The difficulty presets (Difficulty, picked on the F7 panel): Normal changes nothing, each harder
 ## one holds more foes and runs the bosses faster, and a game starts on Hard. Levels hold more
 ## enemies and hazards on a harder preset, stay the same every build under one, are kept apart per
-## preset by the loader, and stay whole (every open cell joined to the way in, every switch reached
-## with its gate shut) even on Brutal; the golem raises its fists for less time; and picking a
+## preset by the loader, and stay as whole as on Normal (open cells joined to the way in, switches
+## reached with their gates shut) even on Brutal: the presets add foes, never cut a level up; the golem raises its fists for less time; and picking a
 ## preset on the
 ## F7 panel lays the place out again under it; and the other enemies attack more often (a hopper
 ## rests for less) and move a little faster (wisps walk faster).
@@ -41,6 +41,8 @@ func run() -> void:
 		Vector2i(28, NextWorldDef.band_row(&"institute", 1)), Vector2i(28, NextWorldDef.band_row(&"crags", 1)),
 		Vector2i(28, NextWorldDef.band_row(&"sky", 1))]
 	var totals: Array[int] = []
+	# Each level as whole as it is on Normal (the presets add foes, never cut a level up).
+	var normal: Dictionary = {}
 	for p: int in range(Difficulty.Preset.size()):
 		Difficulty.preset = p as Difficulty.Preset
 		var total: int = 0
@@ -50,10 +52,13 @@ func run() -> void:
 			var w: LevelGen = build(at)
 			total += _foes(w)
 			same = same and build(at).objects == w.objects
-			whole = whole and _whole(w)
+			var cut: Array = _cut(w)
+			if p == Difficulty.Preset.NORMAL:
+				normal[at] = cut
+			whole = whole and cut == normal[at]
 		totals.append(total)
 		check(same, "%s: the same every build" % Difficulty.NAMES[p])
-		check(whole, "%s: every level stays whole (its open air joined, its switches reached with their gates shut)" % Difficulty.NAMES[p])
+		check(whole, "%s: every level stays as whole as on Normal (its open air joined, its switches reached with their gates shut)" % Difficulty.NAMES[p])
 	check(totals[1] > totals[0] and totals[2] > totals[1], "harder presets hold more foes (%s)" % [totals])
 	Difficulty.preset = Difficulty.Preset.NORMAL
 	var normal_key: String = LevelLoader._world_key(Vector2i(28, 0))
@@ -144,21 +149,23 @@ func _foes(w: LevelGen) -> int:
 	return w.objects.filter(func(v: Vector2i) -> bool: return FOES.has(w.get_cell(v).type)).size()
 
 
-## Whether level `w` is whole: every open cell joined to its way in, and every switch reached from
-## there with its gate shut.
-func _whole(w: LevelGen) -> bool:
+## Where level `w` is not whole: its open cells not joined to its way in, and the switch gates
+## whose switch is not reached from there with the gate shut (both empty for a whole level).
+func _cut(w: LevelGen) -> Array:
 	var start: Vector2i = w.exits[MapInfo.Exit.BACK]
 	var all: Dictionary = w.reach_from(start, func(n: Vector2i) -> bool: return true)
+	var cells: Array[Vector2i] = []
 	for x: int in range(w.size.x):
 		for y: int in range(w.size.y):
 			if w._open(Vector2i(x, y)) and not all.has(Vector2i(x, y)):
-				return false
+				cells.append(Vector2i(x, y))
+	var gates: Array[Vector2i] = []
 	for v: Vector2i in w.objects:
 		if w.get_cell(v).type == LevelGen.Type.SWITCH_GATE:
 			var reach: Dictionary = w.reach_from(start, func(n: Vector2i) -> bool: return n != v)
 			if not reach.has(w.get_cell(v).extra_info):
-				return false
-	return true
+				gates.append(v)
+	return [cells, gates]
 
 
 ## How many physics steps `golem` raises its fists for, on preset `p`, the next time it slams the

@@ -6,7 +6,8 @@ extends TestKit
 
 
 
-## Footholds hopped to from `start`, never through a door or a switch gate.
+## Footholds hopped to from `start` as the level's own start reach hops (Reach.tree: any drop, and
+## higher from a moon), never through a door or a switch gate.
 func reach_from(w: LevelGen, start: Vector2i) -> Dictionary:
 	var nodes: Dictionary = Reach.footholds(w)
 	var seen: Dictionary = {start: true}
@@ -14,9 +15,10 @@ func reach_from(w: LevelGen, start: Vector2i) -> Dictionary:
 	while not queue.is_empty():
 		var a: Vector2i = queue.pop_back()
 		for b: Vector2i in nodes:
-			if seen.has(b) or absi(b.x - a.x) > 8 or absi(b.y - a.y) > 8:
+			# Hop bounds the hop; this only skips footholds far beyond any (a quicker search).
+			if seen.has(b) or absi(b.x - a.x) > w.size.y or a.y - b.y > Reach.MOON_UP:
 				continue
-			if not Reach.hop(w, a, b, false, LevelGen.START_ACROSS):
+			if not Reach.hop(w, a, b, bool(nodes.get(a, false)), LevelGen.START_ACROSS):
 				continue
 			if Reach.arc_cells(a, b).any(func(c: Vector2i) -> bool: return w.is_valid(c) and w.get_cell(c).type in [LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE]):
 				continue

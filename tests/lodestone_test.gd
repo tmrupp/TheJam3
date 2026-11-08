@@ -233,6 +233,9 @@ func _breaks() -> void:
 		var walls: Array = across if not across.is_empty() else over
 		if spell != &"lunge" and not over.is_empty():
 			walls = over
+		# A wall an earlier spell broke along with its own (cracked rock crumbles together) is passed by.
+		while not walls.is_empty() and CrackedWall.at(self, (walls[0] as Array)[0]) == null:
+			walls.pop_front()
 		if walls.is_empty():
 			break
 		var pick: Array = walls.pop_front()

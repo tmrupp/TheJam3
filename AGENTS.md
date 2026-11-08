@@ -58,10 +58,10 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
   on Windows with MSVC (Visual Studio 2022 Build Tools):
   `cd gdextension && python -m SCons platform=windows target=template_debug -j16`. Never with MinGW:
   its maths library rounds the collapse's logarithms differently and every level in the game changes
-  (`layout_fingerprint_test` says so; run it after any rebuild). As of 2026-11-08 even an MSVC
-  rebuild of the same source changes the levels: the DLL in the tree cannot be built again as it
-  is (see the demo's notes in `docs/DEEPER_PLAN.md`), so keep it unless the layouts are meant to
-  change. With Godot open the DLL is locked:
+  (`layout_fingerprint_test` says so; run it after any rebuild). Build both
+  `target=template_debug` (the editor and tests) and `target=template_release` (release exports);
+  the two lay out levels alike, and `layout_fingerprint_test` checks either (copy the release DLL
+  over the debug one's name for a run, then put the debug one back). With Godot open the DLL is locked:
   rename it aside first (Windows allows that) and the build writes the new one. The build's object
   files, link libraries and SCons database are not kept in git (`.gitignore`); the DLL is.
 - `docs/`: `DEEPER_PLAN.md` (design, by system), `REGIONS_PLAN.md` (going up and down

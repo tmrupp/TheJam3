@@ -82,6 +82,8 @@ func run() -> void:
 	await boot()
 	var thorns: Array[Node] = placed("spikes.tscn")
 	check(not thorns.is_empty(), "thorns in the level")
+	# The thorns nearest the wizard, whose chunks are awake (asleep, nothing in them runs).
+	thorns.sort_custom(func(a: Node, b: Node) -> bool: return (a as Node2D).global_position.distance_to(player.global_position) < (b as Node2D).global_position.distance_to(player.global_position))
 	var timer_thorns: Spikes = thorns[0] as Spikes
 	timer_thorns.mode = Spikes.Mode.TIMED
 	timer_thorns.phase = 0.0

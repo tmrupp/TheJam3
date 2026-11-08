@@ -97,8 +97,9 @@ func run() -> void:
 	await boot()
 	player.set_physics_process(false)
 	var target: Vector2i = Vector2i(-1, -1)
+	# One with a way on of its own, too, so its shrine (looked at below) sells no door in its place.
 	for x: int in range(28, 400):
-		if Rules.bone_vault_at(Vector2i(x, 1)) and Relics.at(Vector2i(x, 1)) == &"" and build(Vector2i(x, 1)).vaults.any(func(v: Dictionary) -> bool: return int(v["color"]) == KeyRing.SKELETON):
+		if Rules.bone_vault_at(Vector2i(x, 1)) and Relics.at(Vector2i(x, 1)) == &"" and not Rules.def_for(Vector2i(x, 1)).shut.has(MapInfo.Exit.DEEPER) and build(Vector2i(x, 1)).vaults.any(func(v: Dictionary) -> bool: return int(v["color"]) == KeyRing.SKELETON):
 			target = Vector2i(x, 1)
 			break
 	info.coord = target

@@ -360,7 +360,9 @@ func _crypt(w: LevelGen, at: Vector2i, crypt: Dictionary, lair: bool) -> void:
 	check(walled, "%s: walled all round in masonry" % at)
 	var inside: Array[Vector2i] = crypt["inside"]
 	check(inside.all(func(v: Vector2i) -> bool: return w.interiors.has(v) and not w.empties.has(v)), "%s: its %d open cells are inside, kept from the free cells" % [at, inside.size()])
-	check(floors.size() >= 6, "%s: %d floors to stand on inside" % [at, floors.size()])
+	# How many depends on its terrain (a crypt's inside need not all be reached from its doorways:
+	# traversability is not enforced), but every crypt has some.
+	check(not floors.is_empty(), "%s: %d floors to stand on inside" % [at, floors.size()])
 	# Every floor reached is got back out from: no pits (Crypts._fill_pits).
 	var stand: Array[Vector2i] = doors.duplicate()
 	stand.append_array(floors)

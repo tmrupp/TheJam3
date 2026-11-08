@@ -145,10 +145,15 @@ func _go(at: Vector2i) -> void:
 	await settle()
 
 
-## The first of a few institute levels (ordinary ones, by world) where a student has a walk to its
-## first class from where it was laid, as the level is first met (no bell rung yet): not every level
-## has one, however the band is tuned.
+## One of a few institute levels (ordinary ones, by world) where a student has a walk to its first
+## class from where it was laid, as the level is first met (no bell rung yet): not every level has
+## one, however the band is tuned.
 func _walk_level() -> Vector2i:
+	# The level whose shortest walk through a classroom door is shortest (else the first with any
+	# walk), so the walk watched is not a long one, however the levels are laid out.
+	var any: Vector2i = Vector2i(-1, -1)
+	var best: Vector2i = Vector2i(-1, -1)
+	var best_size: int = 0
 	for world: int in [28, 7, 99, 3, 41]:
 		for row: int in band_rows(&"institute", [0, 1, 2], false):
 			var at: Vector2i = Vector2i(world, row)
@@ -156,6 +161,15 @@ func _walk_level() -> Vector2i:
 			if w == null:
 				continue
 			for origin: Vector2i in w.objects_of(LevelGen.Type.STUDENT):
-				if not Students.route(w, origin, Students.next_seat(w, origin, 0, origin)).is_empty():
-					return at
-	return Vector2i(28, NextWorldDef.band_row(&"institute", 0))
+				var way: Array[Vector2i] = Students.route(w, origin, Students.next_seat(w, origin, 0, origin))
+				if way.is_empty():
+					continue
+				if any.x < 0:
+					any = at
+				var through: bool = way.any(func(c: Vector2i) -> bool: return w.get_cell(c).type == LevelGen.Type.EXAM_DOOR)
+				if through and (best.x < 0 or way.size() < best_size):
+					best = at
+					best_size = way.size()
+	if best.x >= 0:
+		return best
+	return any if any.x >= 0 else Vector2i(28, NextWorldDef.band_row(&"institute", 0))

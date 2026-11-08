@@ -367,7 +367,9 @@ func _cross(gap: Rect2, away: float, leap: bool, dash_too: bool = true) -> bool:
 		if not dash_too and (player.global_position.x - far_x) * away > -64.0:
 			Input.action_press(&"Down")
 			Input.action_release(key)
-		if player.is_on_floor() and (player.global_position.x - far_x) * away > -64.0 and absf(player.global_position.y - info.cell_position(Vector2i(0, row)).y) < 140.0:
+		# On a floor on the far side: its shore, or the ground past it (a gust may carry them on a
+		# little and set them down a step lower), never down in the gap.
+		if player.is_on_floor() and (player.global_position.x - far_x) * away > -64.0 and player.global_position.y - info.cell_position(Vector2i(0, row)).y < 2.5 * 128.0:
 			over = true
 			break
 		if player.global_position.y > info.cell_position(Vector2i(0, row + 4)).y:

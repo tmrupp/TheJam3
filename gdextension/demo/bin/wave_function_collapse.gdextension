@@ -6,5 +6,6 @@ compatibility_minimum = "4.1"
 [libraries]
 
 linux.64="res://gdextension/demo/bin/libgdexample.linux.template_debug.x86_64.so"
-windows.x86_64="res://gdextension/demo/bin/libgdexample.windows.template_debug.x86_64.dll"
+windows.release.x86_64="res://gdextension/demo/bin/libgdexample.windows.template_release.x86_64.dll"
+windows.debug.x86_64="res://gdextension/demo/bin/libgdexample.windows.template_debug.x86_64.dll"
 macos="res://gdextension/demo/bin/libgdexample.macos.framework"

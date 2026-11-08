@@ -12,28 +12,31 @@ const AIR_UP: float = 40.0
 
 
 ## Open air: nothing solid, and no thorns.
-func open_cell(v: Vector2i) -> bool:
-	if not info.world.is_valid(v):
+func open_cell(v: Vector2i, w: LevelGen = null) -> bool:
+	w = w if w != null else info.world
+	if not w.is_valid(v):
 		return false
-	if info.world.get_cell(v).type == LevelGen.Type.CRACKED:
-		return (info.record().broken as Dictionary).has(v)
-	return info.world.get_cell(v).type not in [LevelGen.Type.GROUND, LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.SPIKES, LevelGen.Type.LASER]
+	if w.get_cell(v).type == LevelGen.Type.CRACKED:
+		return info != null and w == info.world and (info.record().broken as Dictionary).has(v)
+	return w.get_cell(v).type not in [LevelGen.Type.GROUND, LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.SPIKES, LevelGen.Type.LASER]
 
 
 ## Open air, or cracked rock (not a secret room's) that `clear_round` breaks out of the way.
-func clearable(v: Vector2i) -> bool:
-	return open_cell(v) or (info.world.is_valid(v) and info.world.get_cell(v).type == LevelGen.Type.CRACKED and info.world.get_cell(v).extra_info == null)
+func clearable(v: Vector2i, w: LevelGen = null) -> bool:
+	w = w if w != null else info.world
+	return open_cell(v, w) or (w.is_valid(v) and w.get_cell(v).type == LevelGen.Type.CRACKED and w.get_cell(v).extra_info == null)
 
 
 ## A free floor cell with three open (or clearable) cells either side of it, over ground (cracked
-## rock in the floor holds the wizard up as well as rock until it is broken).
-func spot() -> Vector2i:
-	var w: LevelGen = info.world
+## rock in the floor holds the wizard up as well as rock until it is broken), in `w` (the level
+## played, by default).
+func spot(w: LevelGen = null) -> Vector2i:
+	w = w if w != null else info.world
 	for v: Vector2i in w.free_floors():
 		var ok: bool = true
 		for dx: int in range(-3, 4):
 			var under: Vector2i = v + Vector2i(dx, 1)
-			ok = ok and clearable(v + Vector2i(dx, 0)) and (w.is_ground(under) or (w.is_valid(under) and w.get_cell(under).type == LevelGen.Type.CRACKED))
+			ok = ok and clearable(v + Vector2i(dx, 0), w) and (w.is_ground(under) or (w.is_valid(under) and w.get_cell(under).type == LevelGen.Type.CRACKED))
 		if ok:
 			return v
 	return Vector2i(-1, -1)
@@ -77,7 +80,7 @@ func put(at: Vector2) -> void:
 
 
 func run() -> void:
-	await boot()
+	await boot(start_seed(func(w: LevelGen) -> bool: return spot(w) != Vector2i(-1, -1)))
 	player.health.max_health = 99
 	player.health.health = 99
 	var at: Vector2i = spot()

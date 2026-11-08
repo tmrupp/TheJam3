@@ -846,6 +846,11 @@ func _init (_cells: Array, def: NextWorldDef) -> void:
 	def.populate(self)
 	# Whatever kind of place it is, big things get room (see make_room).
 	make_room()
+	# Then thorns that come and go, on the runs room was made round (a switch never names a thorn
+	# that is gone); the last draws of the level's own laying out, as before.
+	if _thorns_due != null:
+		place_thorn_modes(_thorns_due)
+		_thorns_due = null
 	deal_colors()
 	if not Worlds.is_side(def.coord):
 		place_lift_switches()
@@ -1074,10 +1079,15 @@ func populate_level (def: NextWorldDef) -> void:
 	place_vaults(def)
 	Chasms.relax_crossings(self, def)
 	arch.finish(self, def)
-	place_thorn_modes(def)
+	# Its thorns are dealt once room is made for big things (see _init), which may clear some.
+	_thorns_due = def
+
+## The level whose thorns are still to be dealt (place_thorn_modes), set at the end of
+## populate_level and dealt once room is made for big things; null when none are due.
+var _thorns_due: NextWorldDef = null
 
 ## Thorns that come and go (Spikes): past the start, some runs of thorns are put on a timer and
-## some on a switch, once the level is laid out. A run is a group of thorn cells side by side. Each
+## some on a switch, once the level is laid out and room made for big things (make_room). A run is a group of thorn cells side by side. Each
 ## run is dealt by hashing the level seed and its first cell (no draw): THORN_TIMED_SHARE of runs go
 ## on a timer, their phase hashed too, so neighbouring runs are not in step; THORN_SWITCH_SHARE go
 ## on a switch (at most THORN_SWITCHES_MOST a level), on a floor reached from the way in some way

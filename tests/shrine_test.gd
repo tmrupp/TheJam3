@@ -34,6 +34,9 @@ func run() -> void:
 	boon.touching = true
 	boon2.touching = true
 	player.global_position = (boon2.get_parent() as Node2D).global_position + Vector2(12, 0)
+	# Wherever the shrine stands, its chunk is awake with the wizard by it (asleep, it takes no press).
+	info.loader.wake_around(player.global_position)
+	await process_frame
 	check(Interactable.focused(self) == boon2 and boon2.is_focused() and not boon.is_focused(), "touching two stations, only the nearer is focused")
 	var hits: Array[int] = []
 	boon.interacted.connect(func() -> void: hits.append(0))

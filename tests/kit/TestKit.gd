@@ -292,6 +292,20 @@ func build(at: Vector2i) -> LevelGen:
 	return LevelGen.new(cells, Rules.def_for(at))
 
 
+## Worlds a test may look over for a level that has what it needs (the usual world first).
+const START_SEEDS: Array[int] = [28, 7, 99, 3, 11, 42, 5, 64, 17, 123, 2, 77]
+
+
+## The first world of START_SEEDS whose start level (row 0, laid out without the scene) `test` holds for,
+## given the level (a LevelGen); the first of them if none does, for the test's own check to fail.
+func start_seed(test: Callable) -> int:
+	for s: int in START_SEEDS:
+		var w: LevelGen = build(Vector2i(s, 0))
+		if w != null and bool(test.call(w)):
+			return s
+	return START_SEEDS[0]
+
+
 ## How many of the objects laid in `w` are of `type`.
 static func count_of(w: LevelGen, type: LevelGen.Type) -> int:
 	return w.objects.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == type).size()

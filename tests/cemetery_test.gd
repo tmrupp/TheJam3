@@ -94,9 +94,13 @@ func generation() -> void:
 			for v: Vector2i in planks:
 				shaped = shaped and w.get_cell(v).type == LevelGen.Type.BRIDGE and int(w.get_cell(v).extra_info) == id
 				for d: int in range(-Chasms.CHASM_CLEAR, Chasms.CHASM_DEPTH):
-					# Open, and nothing placed in it (no ledge, lift or moon to cross on).
+					# Open, and nothing placed in it (no ledge, lift or moon to cross on); thorns the
+					# terrain hangs over it are nothing to cross on.
 					var c: Vector2i = v + Vector2i(0, d)
-					shaped = shaped and (d == 0 or not w.is_valid(c) or w.get_cell(c).type in [LevelGen.Type.EMPTY, LevelGen.Type.GROUND, LevelGen.Type.CRACKED])
+					var allowed: Array[LevelGen.Type] = [LevelGen.Type.EMPTY, LevelGen.Type.GROUND, LevelGen.Type.CRACKED]
+					if d < 0:
+						allowed.append(LevelGen.Type.SPIKES)
+					shaped = shaped and (d == 0 or not w.is_valid(c) or w.get_cell(c).type in allowed)
 				shaped = shaped and w.get_cell(v + Vector2i(0, Chasms.CHASM_DEPTH)).type == LevelGen.Type.SPIKES
 			for edge: Vector2i in [chasm["left"], chasm["right"]]:
 				shaped = shaped and w.get_cell(edge + Vector2i.DOWN).type in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED]

@@ -116,6 +116,8 @@ func run() -> void:
 	q.strike = -1.0
 	q.reach = 0.0
 	q.strike_wait = 99.0
+	# Nor getting over a bite (the wizard may have strayed into its reach on the way here).
+	q.recovery = 0.0
 	await frames(3)
 	check(q.cells[0] == face[1] and worm.holes.any(func(h: Worm.Hole) -> bool: return h.cell == face[1] and h.entry == face[0]) and not q.segments[0].shown, "into a wall it digs a hole, and goes on through the rock out of sight")
 	var breaking: bool = await until(func() -> bool: return q.warn > 0.0, 15000)

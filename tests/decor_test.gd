@@ -54,9 +54,13 @@ func run() -> void:
 	print("lantern light")
 	var light: RisoLight = main.get_node("RisoLight") as RisoLight
 	check(light.lanterns.size() > 0 and light.lanterns.any(func(l: Node) -> bool: return info.is_respawn_lantern(l)), "the lanterns are lit, the respawn among them")
-	await process_frame
 	var respawn: Array = light.lanterns.filter(func(l: Node) -> bool: return info.is_respawn_lantern(l))
+	# Lights are printed round the view, so the wizard goes and stands by the respawn lantern.
+	player.global_position = (respawn[0] as Node2D).global_position + Vector2(-60, 0)
+	still()
 	var flame: Vector2 = light.glass(respawn[0], info)
+	# Then waits for the view to come round to it.
+	await until(func() -> bool: return light.fades.any(func(f: RisoLight.Fade) -> bool: return f.at.is_equal_approx(flame)))
 	var lantern_light: RisoLight.Fade = null
 	for f: RisoLight.Fade in light.fades:
 		if f.at.is_equal_approx(flame):
