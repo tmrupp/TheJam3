@@ -5,7 +5,7 @@
 [ext_resource type="Texture2D" uid="uid://bsvj6kbku0k16" path="res://wfc_images/levelSample3-spikes.png" id="5_3ptxv"]
 [ext_resource type="Script" uid="uid://chkqmuvjo7jja" path="res://scripts/WaveFunctionCollapse.gd" id="8_vwnae"]
 [ext_resource type="PackedScene" uid="uid://bf08akeilq3j1" path="res://prefabs/tile_map.tscn" id="9_qh1ky"]
-[ext_resource type="AudioStream" uid="uid://dl3u7v333oha2" path="res://music/big_bossanova.wav" id="10_yprvw"]
+[ext_resource type="AudioStream" uid="uid://c5ihb6hm33ptt" path="res://music/big_bossanova.ogg" id="10_yprvw"]
 [ext_resource type="Script" uid="uid://bbfpetk7v8x2c" path="res://scripts/MusicPlayer.gd" id="11_hqvrv"]
 [ext_resource type="Script" uid="uid://rtt04jnq5311" path="res://prefabs/scenes/CameraEffects.gd" id="13_e5huw"]
 [ext_resource type="Script" uid="uid://dvw0e6ys1qdpg" path="res://scripts/riso/RisoPrint.gd" id="21_riso"]

@@ -155,6 +155,97 @@ layout_mode = 2
 toggle_mode = true
 text = "fullscreen: off"
 
-[node name="Back" type="Button" parent="SettingsPage"]
+[node name="Last" type="HBoxContainer" parent="SettingsPage"]
+layout_mode = 2
+
+[node name="Controls" type="Button" parent="SettingsPage/Last"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Controls"
+
+[node name="Credits" type="Button" parent="SettingsPage/Last"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Credits"
+
+[node name="Back" type="Button" parent="SettingsPage/Last"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Back"
+
+[node name="ControlsPage" type="VBoxContainer" parent="."]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -150.0
+offset_top = -82.0
+offset_right = 150.0
+offset_bottom = 82.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("3_6o404")
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="ControlsPage"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Controls"
+horizontal_alignment = 1
+
+[node name="Rows" type="GridContainer" parent="ControlsPage"]
+layout_mode = 2
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 4
+columns = 2
+
+[node name="Hint" type="Label" parent="ControlsPage"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "choose one, then press its new key or button"
+horizontal_alignment = 1
+
+[node name="Last" type="HBoxContainer" parent="ControlsPage"]
+layout_mode = 2
+
+[node name="Reset" type="Button" parent="ControlsPage/Last"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Reset"
+
+[node name="Back" type="Button" parent="ControlsPage/Last"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Back"
+
+[node name="CreditsPage" type="VBoxContainer" parent="."]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -130.0
+offset_top = -82.0
+offset_right = 130.0
+offset_bottom = 82.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("3_6o404")
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="CreditsPage"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Credits"
+horizontal_alignment = 1
+
+[node name="Lines" type="VBoxContainer" parent="CreditsPage"]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="Back" type="Button" parent="CreditsPage"]
 layout_mode = 2
 text = "Back"

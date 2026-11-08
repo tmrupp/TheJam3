@@ -1,9 +1,10 @@
 class_name Settings
 extends RefCounted
 ## The player's settings, kept apart from any run: how loud the game, its music and its sound
-## effects are, whether it fills the screen, and how hard the screen shakes. Chosen on the settings
-## page of the menu (menu.gd), kept in a file of their own (`user://settings.cfg`) and put into
-## effect as the game starts (ensure_loaded) and again on every change. Tests and captures never
+## effects are, whether it fills the screen, how hard the screen shakes, and the controls
+## (Controls). Chosen on the settings page of the menu (menu.gd) and the controls page off it, kept
+## in a file of their own (`user://settings.cfg`) and put into effect as the game starts
+## (ensure_loaded) and again on every change. Tests and captures never
 ## read or write the player's file: run as a script, the game keeps the defaults unless a test
 ## names a file of its own (path).
 
@@ -63,10 +64,13 @@ static func load_file() -> void:
 	values = DEFAULTS.duplicate()
 	var f: String = file()
 	if f == "":
+		Controls.load_from(null)
 		return
 	var cfg: ConfigFile = ConfigFile.new()
 	if cfg.load(f) != OK:
+		Controls.load_from(null)
 		return
+	Controls.load_from(cfg)
 	for key: StringName in DEFAULTS:
 		var v: Variant = cfg.get_value(SECTION, String(key), DEFAULTS[key])
 		if typeof(v) == typeof(DEFAULTS[key]):
@@ -86,6 +90,7 @@ static func save_file() -> void:
 	cfg.load(f)
 	for key: StringName in DEFAULTS:
 		cfg.set_value(SECTION, String(key), values[key])
+	Controls.save_to(cfg)
 	cfg.save(f)
 
 

@@ -1,5 +1,6 @@
 extends SceneTree
-## Stills of the start menu, its settings page and the pause menu, printed.
+## Stills of the start menu, its settings page, the controls page (one row waiting for its key) and
+## the credits page off it, the pause menu, and a demo build's won card with its thanks, printed.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_menu.gd
 
 func _initialize() -> void:
@@ -22,6 +23,17 @@ func run() -> void:
 	for i: int in range(10):
 		await process_frame
 	root.get_texture().get_image().save_png(output.path_join("menu_settings.png"))
+	menu.open_controls()
+	menu.listen(&"Spell")
+	for i: int in range(10):
+		await process_frame
+	root.get_texture().get_image().save_png(output.path_join("menu_controls.png"))
+	menu.close_controls()
+	menu.open_credits()
+	for i: int in range(10):
+		await process_frame
+	root.get_texture().get_image().save_png(output.path_join("menu_credits.png"))
+	menu.close_credits()
 	menu.close_settings()
 	main.get_node("Menu").start_game()
 	var info: MapInfo = main.get_node("CanvasLayer/MapInfo") as MapInfo
@@ -33,5 +45,15 @@ func run() -> void:
 	for i: int in range(20):
 		await process_frame
 	root.get_texture().get_image().save_png(output.path_join("menu_pause.png"))
+	main.get_node("Menu").call("pause_resume_game")
+	# A demo build's won card, shown without ending the run (win_run would go back to the menu).
+	MapInfo.demo_build = true
+	info.won = true
+	info.run_ending = MapInfo.WIN_SECONDS
+	for i: int in range(30):
+		await process_frame
+	root.get_texture().get_image().save_png(output.path_join("menu_won_demo.png"))
+	MapInfo.demo_build = false
+	RunState.delete_save()
 	print("CAPTURED menus to ", output)
 	quit()

@@ -26,6 +26,10 @@ const END_PLACE_R: float = 5.0
 ## On a won run's card, each trophy's radius and how far apart they stand.
 const WON_R: float = 7.0
 const WON_STEP: float = 18.0
+## What a demo build's won card says under the trophies and the place: the demo is over.
+const DEMO_THANKS: String = "Thank you for playing the demo!"
+## How much taller a demo build's won card is, for its thanks.
+const DEMO_THANKS_ROOM: float = 16.0
 const CARD_ABOVE: float = 40.0
 ## The utility spell's mark on the sitting card: the room it is fitted into (wide, high), and how
 ## faint it prints while not ready. Mend's draughts follow it as dots, DRAUGHT_R across and
@@ -60,6 +64,8 @@ var ghost_world: Label
 var ghost_depth: Label
 var end_world: Label
 var end_depth: Label
+## The won card's thanks, in a demo build (DEMO_THANKS).
+var end_thanks: Label
 var font: SystemFont
 var t: float = 0.0
 ## Set to 1 by RisoPrint on a hit or death; while above 0.5 the whole sheet takes a 15% pink
@@ -101,6 +107,7 @@ func _ready() -> void:
 	ghost_depth = _make_label(5.0)
 	end_world = _make_label(9.0)
 	end_depth = _make_label(9.0)
+	end_thanks = _make_label(7.5)
 
 
 func _make_label(px: float) -> Label:
@@ -197,7 +204,7 @@ func _process(delta: float) -> void:
 	canvas.visible = visible
 	var player: Player = Stage.player()
 	ink.begin()
-	for label: Label in [coin_label, dark_label, world_label, depth_label, ghost_label, ghost_world, ghost_depth, end_world, end_depth]:
+	for label: Label in [coin_label, dark_label, world_label, depth_label, ghost_label, ghost_world, ghost_depth, end_world, end_depth, end_thanks]:
 		label.visible = false
 	shown_utility = &""
 	shown_draughts = -1
@@ -215,13 +222,19 @@ func _process(delta: float) -> void:
 
 ## When a run ends, a card in the middle of the sheet: the ghost, and under it the world and the
 ## furthest from the start reached (a depth, or a height above the start). A run won (MapInfo.won)
-## shows every boss's trophy in a row on it in place of the ghost.
+## shows every boss's trophy in a row on it in place of the ghost, and in a demo build
+## (MapInfo.demo_build) thanks the player for playing under them, as the demo ends there.
 func _end_card() -> void:
 	var info: MapInfo = MapInfo.instance
 	if info != null and info.run_ending > 0.0 and info.won:
 		var bosses: Array[StringName] = Bands.bosses()
 		var w: float = maxf(100.0, WON_STEP * float(bosses.size()) + 24.0)
-		_paper(RisoShapes.rrect(160.0 - w * 0.5, 54, w, 62, 10), RisoPrint.ACCENT, 0.18)
+		var thanks: bool = MapInfo.demo_build
+		if thanks:
+			w = maxf(w, _text_width(end_thanks, DEMO_THANKS) + 20.0)
+		_paper(RisoShapes.rrect(160.0 - w * 0.5, 54, w, 62.0 + (DEMO_THANKS_ROOM if thanks else 0.0), 10), RisoPrint.ACCENT, 0.18)
+		if thanks:
+			_place(end_thanks, DEMO_THANKS, 160.0 - _text_width(end_thanks, DEMO_THANKS) * 0.5, 122.0)
 		for i: int in range(bosses.size()):
 			RisoMarks.trophy(ink, Vector2(160.0 + (float(i) - float(bosses.size() - 1) * 0.5) * WON_STEP, 80.0), WON_R, 1.0, bosses[i])
 		var place: Vector2i = Vector2i(info.run.run_seed, info.run.furthest_row)

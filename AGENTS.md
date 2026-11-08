@@ -58,7 +58,10 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
   on Windows with MSVC (Visual Studio 2022 Build Tools):
   `cd gdextension && python -m SCons platform=windows target=template_debug -j16`. Never with MinGW:
   its maths library rounds the collapse's logarithms differently and every level in the game changes
-  (`layout_fingerprint_test` says so; run it after any rebuild). With Godot open the DLL is locked:
+  (`layout_fingerprint_test` says so; run it after any rebuild). As of 2026-11-08 even an MSVC
+  rebuild of the same source changes the levels: the DLL in the tree cannot be built again as it
+  is (see the demo's notes in `docs/DEEPER_PLAN.md`), so keep it unless the layouts are meant to
+  change. With Godot open the DLL is locked:
   rename it aside first (Windows allows that) and the build writes the new one. The build's object
   files, link libraries and SCons database are not kept in git (`.gitignore`); the DLL is.
 - `docs/`: `DEEPER_PLAN.md` (design, by system), `REGIONS_PLAN.md` (going up and down
@@ -75,7 +78,8 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
   (see the ground rules). Open tasks are checklists under topic headings; a ticked or struck-through
   item is done, and finished items are moved to "Done" at the bottom.
 - `tests/`: `*_test.gd` regressions, `capture_*.gd` stills (written to `../art-captures/`),
-  `make_*_sample.gd` sample generators.
+  `make_*_sample.gd` sample generators, and `make_icon.gd`, which prints the game's icon and boot
+  splash (`sprites/icon.png`, `splash.png`) from the game's own art.
 
 Places are (seed, row): row 0 is the start, positive rows go down, negative rows go up, and a
 level's `depth` is its distance `|row|` (side worlds sit below `-Worlds.SIDE_BASE`). Bands come from

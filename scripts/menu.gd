@@ -11,6 +11,10 @@ class_name Menu
 ## B to back out of the pause menu. Both menus open the settings page (Settings): the volumes and
 ## the screen shake are changed with left and right (or a click on either half of the row, or A to
 ## step up, round to 0 from the top), fullscreen with A; B, Escape, Start or Back comes back to the menu.
+## Off the settings page: the controls page (Controls), where each action's row, chosen, waits for
+## the key or pad button to put it on (Escape leaves it as it was) and Reset puts every action back
+## as the game is made; and the credits page (Credits). B, Escape, Start or Back on either comes
+## back to the settings page.
 
 @onready var title: Label = $VBoxContainer/Title
 @onready var where: Label = $VBoxContainer/Where
@@ -29,7 +33,16 @@ class_name Menu
 @onready var list: VBoxContainer = $VBoxContainer
 @onready var settings_page: VBoxContainer = $SettingsPage
 @onready var fullscreen_button: Button = $SettingsPage/Fullscreen
-@onready var settings_back: Button = $SettingsPage/Back
+@onready var settings_back: Button = $SettingsPage/Last/Back
+@onready var controls_button: Button = $SettingsPage/Last/Controls
+@onready var credits_button: Button = $SettingsPage/Last/Credits
+@onready var controls_page: VBoxContainer = $ControlsPage
+@onready var control_rows: GridContainer = $ControlsPage/Rows
+@onready var controls_reset: Button = $ControlsPage/Last/Reset
+@onready var controls_back: Button = $ControlsPage/Last/Back
+@onready var credits_page: VBoxContainer = $CreditsPage
+@onready var credit_lines: VBoxContainer = $CreditsPage/Lines
+@onready var credits_back: Button = $CreditsPage/Back
 
 @onready var randomize_button: Button = $"VBoxContainer/World Seed/Randomize"
 @onready var paste: Button = $"VBoxContainer/World Seed/Paste"
@@ -48,6 +61,14 @@ var steps: Dictionary = {}
 ## What each row of steps is called on the page, by the setting it changes (its node is the
 ## setting's name, capitalized).
 const STEP_NAMES: Dictionary = {&"master": "volume", &"music": "music", &"effects": "sound effects", &"shake": "screen shake"}
+## How big a row of the controls page prints (base px), smaller than a button, so two fit across.
+const CONTROL_ROW_PX: int = 12
+## How big a line of the credits prints (base px).
+const CREDIT_LINE_PX: int = 10
+## Each action's row on the controls page, by action (Controls.ACTIONS).
+var control_buttons: Dictionary = {}
+## The action whose row is waiting for its new key or button, or none.
+var listening: StringName = &""
 
 
 func map_info() -> MapInfo:
@@ -139,7 +160,17 @@ func get_seed(input: LineEdit) -> int:
 
 
 func _input(event: InputEvent) -> void:
-	if visible and settings_page.visible and (event.is_action_pressed("Menu") or event.is_action_pressed("ui_cancel")):
+	if listening != &"":
+		_listen_input(event)
+		return
+	var back: bool = event.is_action_pressed("Menu") or event.is_action_pressed("ui_cancel")
+	if visible and back and controls_page.visible:
+		close_controls()
+		get_viewport().set_input_as_handled()
+	elif visible and back and credits_page.visible:
+		close_credits()
+		get_viewport().set_input_as_handled()
+	elif visible and settings_page.visible and back:
 		# Escape, Start, B or another cancel backs out of the settings page, to the menu it was
 		# opened from.
 		close_settings()
@@ -180,8 +211,8 @@ func pause_resume_game() -> void:
 	# Only once a run has started: before that this is the start menu.
 	if not started or not main.has_node("Player"):
 		return
-	if visible and settings_page.visible:
-		close_settings()
+	if visible and not list.visible:
+		_close_pages()
 	if not visible:
 		old_focus = get_viewport().gui_get_focus_owner()
 		map_info().save_run()
@@ -259,6 +290,95 @@ func close_settings() -> void:
 	settings_button.grab_focus()
 
 
+## Every page off the list shut (the settings and the pages off them), the list back, nothing
+## waiting for a key.
+func _close_pages() -> void:
+	listening = &""
+	controls_page.visible = false
+	credits_page.visible = false
+	settings_page.visible = false
+	list.visible = true
+
+
+## The controls page, in place of the settings page, its first row in focus.
+func open_controls() -> void:
+	settings_page.visible = false
+	controls_page.visible = true
+	_show_controls()
+	(control_buttons[Controls.ACTIONS.keys()[0]] as Button).grab_focus()
+
+
+## Back from the controls page to the settings page, Controls in focus.
+func close_controls() -> void:
+	listening = &""
+	controls_page.visible = false
+	settings_page.visible = true
+	controls_button.grab_focus()
+
+
+## The credits page, in place of the settings page.
+func open_credits() -> void:
+	settings_page.visible = false
+	credits_page.visible = true
+	credits_back.grab_focus()
+
+
+## Back from the credits page to the settings page, Credits in focus.
+func close_credits() -> void:
+	credits_page.visible = false
+	settings_page.visible = true
+	credits_button.grab_focus()
+
+
+## Wait for the key or pad button to put `action` on (its row says so).
+func listen(action: StringName) -> void:
+	listening = action
+	_show_controls()
+
+
+## While a row waits: the first key or pad button pressed is put on its action (Controls.bind),
+## Escape leaves it as it was, and a click elsewhere gives up waiting. Keys and pad presses go no
+## further meanwhile, so they neither move the focus nor back out of the page.
+func _listen_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		listening = &""
+		_show_controls()
+		return
+	if not (event is InputEventKey or Controls.is_pad(event)):
+		return
+	get_viewport().set_input_as_handled()
+	var key: InputEventKey = event as InputEventKey
+	if key != null and key.pressed and (key.keycode == KEY_ESCAPE or key.physical_keycode == KEY_ESCAPE):
+		_stop_listening()
+		return
+	if Controls.plain(event) == null:
+		return
+	Controls.bind(listening, event)
+	_stop_listening()
+
+
+## Stop waiting, the row that waited back in focus.
+func _stop_listening() -> void:
+	var row: Button = control_buttons.get(listening) as Button
+	listening = &""
+	_show_controls()
+	if row != null:
+		row.grab_focus()
+
+
+## Every action back on the game's own controls.
+func reset_controls() -> void:
+	Controls.reset()
+	_show_controls()
+
+
+## The controls page's rows, as the controls are now.
+func _show_controls() -> void:
+	for action: StringName in control_buttons:
+		var row: Button = control_buttons[action] as Button
+		row.text = "%s  press a key or button" % Controls.ACTIONS[action] if action == listening else Controls.label(action)
+
+
 ## Step setting `key` (a volume or the shake) by `by`, held to 0..Settings.STEPS, or round from the
 ## top to 0 with `wrap` (A pressed on its row).
 func step_setting(key: StringName, by: int, wrap: bool = false) -> void:
@@ -318,6 +438,25 @@ func _ready() -> void:
 	fullscreen_button.toggled.connect(set_fullscreen)
 	settings_button.pressed.connect(open_settings)
 	settings_back.pressed.connect(close_settings)
+	controls_button.pressed.connect(open_controls)
+	credits_button.pressed.connect(open_credits)
+	controls_reset.pressed.connect(reset_controls)
+	controls_back.pressed.connect(close_controls)
+	credits_back.pressed.connect(close_credits)
+	for action: StringName in Controls.ACTIONS:
+		var row: Button = Button.new()
+		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_theme_font_size_override(&"font_size", CONTROL_ROW_PX)
+		row.pressed.connect(listen.bind(action))
+		control_rows.add_child(row)
+		control_buttons[action] = row
+	_show_controls()
+	for line: String in Credits.LINES:
+		var l: Label = Label.new()
+		l.text = line
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.add_theme_font_size_override(&"font_size", CREDIT_LINE_PX)
+		credit_lines.add_child(l)
 	_show_settings()
 	start.pressed.connect(begin)
 	continue_button.pressed.connect(continue_game)

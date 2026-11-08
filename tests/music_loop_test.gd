@@ -7,7 +7,7 @@ extends TestKit
 func run() -> void:
 	var music: Node = Node.new()
 	music.set_script(load("res://scripts/MusicPlayer.gd"))
-	var stream: AudioStream = load("res://music/big_bossanova.wav") as AudioStream
+	var stream: AudioStream = load("res://music/big_bossanova.ogg") as AudioStream
 	for player_name: String in ["MusicPlayer1", "MusicPlayer2"]:
 		var player: AudioStreamPlayer = AudioStreamPlayer.new()
 		player.name = player_name
