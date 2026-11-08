@@ -1,6 +1,7 @@
 class_name Difficulty
 extends RefCounted
-## How hard the game is: one of a few presets, picked on the F7 panel (Hard unless changed). A
+## How hard the game is: one of a few presets, picked on the F7 panel (Hard unless changed; Normal
+## in a demo build). A
 ## preset sets two things:
 ## - foes: how many enemies and hazards a level is dressed with, against Normal (LevelGen.foes_per_area
 ##   and the other counts that use foes()). It changes what levels hold, so a level's layout depends
@@ -30,9 +31,19 @@ const ATTACK: Array[float] = [1.0, 1.2, 1.4]
 const SPEED: Array[float] = [1.0, 1.08, 1.15]
 ## The preset a game starts on.
 const DEFAULT: Preset = Preset.HARD
+## The preset a demo build starts on (MapInfo.demo_build): a demo is played by one new player
+## after another, with no F7 panel to make it easier.
+const DEMO_DEFAULT: Preset = Preset.NORMAL
 
-## The preset in play (F7 changes it; it lasts while the game runs).
-static var preset: Preset = DEFAULT
+## The preset in play (F7 changes it; it lasts while the game runs). It starts as start_preset
+## does, asking the build's features itself, as MapInfo.demo_build does: MapInfo may not be set
+## up yet when this is.
+static var preset: Preset = DEMO_DEFAULT if OS.has_feature("demo") else DEFAULT
+
+
+## The preset a game starts on: Normal in a demo build (DEMO_DEFAULT), else Hard (DEFAULT).
+static func start_preset() -> Preset:
+	return DEMO_DEFAULT if MapInfo.demo_build else DEFAULT
 
 
 ## How many foes a level is dressed with, against Normal.

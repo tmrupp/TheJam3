@@ -2,7 +2,8 @@ extends TestKit
 ## A demo build (MapInfo.demo_build, an export with the "demo" feature) has none of the developer's
 ## tools (MapInfo.dev_tools): no debug toggle on the start menu, no F7 or ` panel, F8 leaves the
 ## realm as it is, the Debug-Back key goes nowhere, and a debug run saved before plays as an
-## ordinary one. Its start menu's tutorial toggle starts on, though the tutorial was done before.
+## ordinary one. Its start menu's tutorial toggle starts on, though the tutorial was done before,
+## and it plays on Normal (Difficulty.DEMO_DEFAULT) where any other build starts on Hard.
 ## Outside a demo build F7 still opens the panel, and so it does in a demo build for
 ## testing (MapInfo.demo_dev, the "demo_dev" feature), which keeps every tool and still plays the
 ## demo's layout.
@@ -10,6 +11,10 @@ extends TestKit
 
 
 func run() -> void:
+	MapInfo.demo_build = true
+	check(Difficulty.start_preset() == Difficulty.Preset.NORMAL, "a demo build starts on Normal")
+	MapInfo.demo_build = false
+	check(Difficulty.start_preset() == Difficulty.DEFAULT, "any other starts on the default (%s)" % Difficulty.NAMES[Difficulty.DEFAULT])
 	MapInfo.demo_build = true
 	await boot(28)
 	Tutorial.mark_done()

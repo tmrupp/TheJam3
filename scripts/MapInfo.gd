@@ -29,7 +29,7 @@ static var demo_dev: bool = OS.has_feature("demo_dev")
 
 ## Whether the developer's tools are at hand: the start menu's debug toggle (debug runs), the F7
 ## panel and F8's realms (RisoPrint), and going back a level at a key (Debug-Back). A demo build has
-## none of them, so its players get the game alone, on the default difficulty (Difficulty); a demo
+## none of them, so its players get the game alone, on Normal (Difficulty.DEMO_DEFAULT); a demo
 ## build for testing (demo_dev) keeps them.
 static func dev_tools() -> bool:
 	return not demo_build or demo_dev

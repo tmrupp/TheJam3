@@ -24,7 +24,7 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
   - `Rules.gd`: the run-wide rules, static and scene-free (`level_seed`, prices and values by
     depth, key rarity, what a level holds by its seed, `level_size`, `def_for`, `where`, and
     the labyrinth: which ways out a level has, `maze_has`).
-  - `Difficulty.gd`: the difficulty presets (the F7 or `` ` `` panel; Hard by default): how many foes a level holds
+  - `Difficulty.gd`: the difficulty presets (the F7 or `` ` `` panel; Hard by default, Normal in a demo build): how many foes a level holds
     (`foes`, via `LevelGen.foes_per_area`), how fast the bosses act (`haste`), and how often the
     other enemies attack (`attack`) and how fast they move (`speed`).
 - `scripts/MapInfo.gd`: the place being played (`coord`, `here`, `world`), travel, and what a
@@ -147,6 +147,15 @@ bash tests/run.sh -l garden full  # the suite on another band layout (the demo's
   way in); Backspace (or F10) comes back to the lab as it was. It hands its level to the game through
   `LevelLoader.keep` and starts the run with `Menu.start_at`, on a save of its own.
   `tests/capture_gen_lab.gd` takes stills of it and checks the round trip.
+- The world atlas, `tools/world_atlas/world_atlas.tscn` (F6 in the editor, or
+  `godot --path . res://tools/world_atlas/world_atlas.tscn`): the whole grid of levels a run can
+  travel, one tile each, from the rules alone (nothing is collapsed, so it is instant): the
+  labyrinth's walls, side door locks, relics, skeleton keys, bone vaults, hyperspace doors and
+  routes, each boss in the column it is met in for the run seed shown, and each level's steps from
+  the start (with the gates sealed or not). Right of the grid, a bar a row for how often each is
+  dealt (over 600 columns); on the left, sums of what is in view and over 200 runs (steps to each
+  boss, the nearest relic and skeleton key). Pick the band layout there. `world_atlas_test` checks
+  it against the rules; `tests/capture_world_atlas.gd` takes stills.
 - `tests/dump_garden.gd` prints what every garden row holds over many worlds (foes, stars against
   the way on's price, keys and doors).
 - Each test sets its own `RunState.save_path` (`user://<test>.save`), so they can run in parallel.
