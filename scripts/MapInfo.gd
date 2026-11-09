@@ -164,11 +164,11 @@ func lay_sold_skeleton () -> Vector2:
 
 # ------------------------------------------------------------------ the garden's seeds and plants
 
-## A seed pod burst at `pos` (SeedPod): its seed falls there, kept as a dropped key (KeyRing.SEED)
-## until taken.
-func drop_seed (pos: Vector2) -> void:
+## A seed pod burst at `from` (SeedPod): its seed is flung from there to `pos` (SeedPod.shoved), and
+## kept there as a dropped key (KeyRing.SEED) until taken. Without `from` it simply lies at `pos`.
+func drop_seed (pos: Vector2, from: Vector2 = Vector2.INF) -> void:
 	var id: int = record().drop_key(pos, KeyRing.SEED)
-	_spawn_dropped_key.call_deferred(id, pos, KeyRing.SEED)
+	_spawn_dropped_key.call_deferred(id, pos, KeyRing.SEED, from)
 	save_run()
 
 ## Plant a carried seed at `plot` (Plot): it grows from here on (RunState.plants, RunState.reached).
@@ -243,7 +243,7 @@ func _spawn_plant_door () -> void:
 	door.extra_info = Worlds.door(Worlds.kind_of(Hyperspace))
 	loader.place_cell(at, door)
 
-func _spawn_dropped_key (id: int, pos: Vector2, color: int) -> void:
+func _spawn_dropped_key (id: int, pos: Vector2, color: int, from: Vector2 = Vector2.INF) -> void:
 	if map_elements == null or not is_instance_valid(map_elements):
 		return
 	var key: Node2D = Placeables.scene(LevelGen.Type.KEY).instantiate()
@@ -251,6 +251,12 @@ func _spawn_dropped_key (id: int, pos: Vector2, color: int) -> void:
 	key.set_meta(&"dropped_id", id)
 	key.position = pos
 	map_elements.add_child(key)
+	if from.is_finite() and from != pos:
+		# Flung there from `from` (a burst seed pod's seed, SeedPod.shoved), in a low arc.
+		key.position = from
+		var fling: Callable = func(k: float) -> void:
+			key.position = from.lerp(pos, k) + Vector2(0.0, -SeedPod.SHOVE_ARC * 4.0 * k * (1.0 - k))
+		key.create_tween().tween_method(fling, 0.0, 1.0, SeedPod.SHOVE_TIME).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 ## A bell of chasm `id` was rung (at cell `from`): its bridge lays itself from that side, and stays
 ## up for good.

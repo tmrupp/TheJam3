@@ -132,6 +132,15 @@ const LEAF_NIGHT: PackedFloat32Array = [0.42, 0.32, 0.05]
 const LEAF_RIB: float = 0.4
 const LEAF_VEIN: float = 0.22
 const LEAF_SWAY: float = 0.04
+## The pink on its leaves (a warning: the plant bites back): spots down each clasped leaf, LEAF_SPOTS
+## of the way along its midrib and LEAF_SPOT_OUT of the way from it to the leaf's outer edge, each
+## LEAF_SPOT_R across (in the bulb's measure, shrinking toward the tip), and a tip LEAF_BACK_TIP of
+## its length on each leaf behind; knocked back to paper and printed LEAF_PINK pink.
+const LEAF_SPOTS: PackedFloat32Array = [0.3, 0.5, 0.7]
+const LEAF_SPOT_OUT: float = 0.45
+const LEAF_SPOT_R: float = 0.115
+const LEAF_BACK_TIP: float = 0.2
+const LEAF_PINK: float = 0.85
 ## How far into the shaft past the rock face the sap runs (px).
 const SAP_OUT: float = 14.0
 ## A wild bulb (BrambleBulb.wild, the last stand): the pink screened over its accent, so it reads
@@ -712,23 +721,31 @@ static func ink_bulb(canvas: InkCanvas, xf: Transform2D, open: float, charge: fl
 			var pivot: Transform2D = bud * Transform2D(turn, Vector2(fold, fold), 0.0, root) * Transform2D(0.0, -root)
 			var shape: PackedVector2Array
 			var lines: Array[PackedVector2Array] = []
+			var pinks: Array[PackedVector2Array] = []
 			if layer == 0:
 				var out: Transform2D = Transform2D(side * LEAF_BACK_AT, root)
 				shape = out * RisoShapes.almond(Vector2(LEAF_BACK * 0.5, 0.0), LEAF_BACK * 0.5, LEAF_BACK_WIDE * 0.5, 16)
 				lines.append(out * RisoShapes.almond(Vector2(LEAF_BACK * 0.5, 0.0), LEAF_BACK * 0.42, 0.025, 8))
+				pinks.append(_back_tip(out))
 			else:
 				shape = _clasped_leaf(side)
 				lines = _leaf_veins(side)
+				pinks = _leaf_spots(side)
 			var leaf: Array[PackedVector2Array] = [pivot * shape]
 			var veins: Array[PackedVector2Array] = []
 			for line: PackedVector2Array in lines:
 				veins.append(pivot * line)
+			var marks: Array[PackedVector2Array] = []
+			for mark: PackedVector2Array in pinks:
+				marks.append(pivot * mark)
 			canvas.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], 1.0, leaf)
 			canvas.ink(RisoPrint.BLUE, LEAF_BLUE, leaf)
 			canvas.ink(RisoPrint.NIGHT, LEAF_NIGHT[layer], leaf, false)
 			if not veins.is_empty():
 				canvas.lift_ink([RisoPrint.BLUE, RisoPrint.NIGHT], LEAF_RIB, [veins[0]])
 				canvas.lift_ink([RisoPrint.BLUE, RisoPrint.NIGHT], LEAF_VEIN, veins.slice(1))
+			canvas.lift_ink([RisoPrint.BLUE, RisoPrint.NIGHT], 1.0, marks)
+			canvas.ink(RisoPrint.PINK, LEAF_PINK, marks, false)
 
 
 ## A clasped leaf of a bulb's shroud, in the bulb's measure (see LEAF_ROOT_AT): side `side` (-1 the
@@ -747,6 +764,28 @@ static func _clasped_leaf(side: float) -> PackedVector2Array:
 	for n: int in range(1, 20):
 		var u: float = float(n) / 20.0
 		out.append(tip.lerp(bow, u).lerp(bow.lerp(root, u), u))
+	return out
+
+
+## The pink tip of a leaf behind a bulb, in the frame `out` its almond is laid in (see ink_bulb): the
+## last LEAF_BACK_TIP of its length, as narrow as the leaf there.
+static func _back_tip(out: Transform2D) -> PackedVector2Array:
+	var half: float = LEAF_BACK * LEAF_BACK_TIP * 0.5
+	return out * RisoShapes.almond(Vector2(LEAF_BACK - half, 0.0), half, LEAF_BACK_WIDE * 0.15, 10)
+
+
+## The pink spots down a clasped leaf (see LEAF_SPOTS), side `side` as _clasped_leaf: between its
+## midrib and its outer edge, each a little smaller than the one before it toward the tip.
+static func _leaf_spots(side: float) -> Array[PackedVector2Array]:
+	var root: Vector2 = Vector2.from_angle(side * LEAF_ROOT_AT) * LEAF_OUT
+	var tip: Vector2 = Vector2.from_angle(-side * LEAF_TIP_AT) * LEAF_TIP
+	var bend: Vector2 = Vector2(0.0, side * 0.75)
+	var out: Array[PackedVector2Array] = []
+	for i: int in range(LEAF_SPOTS.size()):
+		var u: float = LEAF_SPOTS[i]
+		var p: Vector2 = root.lerp(bend, u).lerp(bend.lerp(tip, u), u)
+		var at: Vector2 = p.lerp(p.normalized() * LEAF_OUT, LEAF_SPOT_OUT)
+		out.append(RisoShapes.circle(at, LEAF_SPOT_R * (1.0 - 0.15 * float(i)), 10))
 	return out
 
 

@@ -386,8 +386,22 @@ func _branches() -> void:
 			var back: Variant = hyper.arriving(to)
 			inverse_ok = inverse_ok and back != null and hyper.destination_for(back) == to
 	check(inverse_ok, "hyperspace leads drop_for rows further from the start, and the level it leads to knows a hyperspace that leads there")
-	var drops: Array[int] = [Hyperspace.drop_for(Vector2i(1, 2)), Hyperspace.drop_for(Vector2i(1, g + 1)), Hyperspace.drop_for(Vector2i(1, -(g + 1))), Hyperspace.drop_for(Vector2i(1, g + Bands.BAND_ROWS + 3))]
-	check(drops[0] == Hyperspace.DROPS[0] and drops[1] == Hyperspace.DROPS[1] and drops[2] == Hyperspace.DROPS[1] and drops[3] == Hyperspace.DROPS[2] and drops[0] > drops[1] and drops[1] > drops[3], "the deeper the door, the shorter the drop (%s)" % [drops])
+	# Each drop is dealt within its band's range, every length in it turning up, and further out
+	# the drops are longer.
+	var rows: Array[int] = [2, g + 1, -(g + 1), g + Bands.BAND_ROWS + 3]
+	var spans: Array[Vector2i] = [Hyperspace.DROPS[0], Hyperspace.DROPS[1], Hyperspace.DROPS[1], Hyperspace.DROPS[2]]
+	var in_span: bool = true
+	var seen: Array[Dictionary] = [{}, {}, {}, {}]
+	var sums: Array[int] = [0, 0, 0, 0]
+	for x: int in range(1, 200):
+		for i: int in range(rows.size()):
+			var drop: int = Hyperspace.drop_for(Vector2i(x, rows[i]))
+			in_span = in_span and drop >= spans[i].x and drop <= spans[i].y
+			seen[i][drop] = true
+			sums[i] += drop
+	check(in_span and seen.all(func(s: Dictionary) -> bool: return s.size() > 1), "each drop is dealt within its band's range (%s)" % [Hyperspace.DROPS])
+	check(seen[0].size() == spans[0].y - spans[0].x + 1 and seen[3].size() == spans[3].y - spans[3].x + 1, "every length in the range turns up")
+	check(sums[0] < sums[1] and sums[1] < sums[3], "the further out the door, the further the drop (%s over 199 doors each)" % [sums])
 	check(crossed > 0 and stayed > crossed, "most stay in their branch, some cross the start into the other (%d stayed, %d crossed)" % [stayed, crossed])
 	check(not hyper.deals(Vector2i(28, 0)), "there is no hyperspace door at the start")
 

@@ -90,10 +90,15 @@ func run() -> void:
 	check(not LevelGen.new(collapse(plain.coord), plain).exits.has(Worlds.door(Worlds.kind_of(Hyperspace))), "and an ordinary run's first level has none")
 
 	print("the jump in play")
+	# A world whose level 1 deals a hyperspace door that drops on down (not crossing the start), and
+	# whose landing level's ordinary way up is not walled off by the labyrinth (it is walked below).
 	var plunge_seed: int = -1
-	for world_seed: int in range(1, 120):
+	for world_seed: int in range(1, 400):
 		var d: NextWorldDef = Rules.def_for(Vector2i(world_seed, 1))
-		if Rules.level_seed(d.gen_seed, 777) % 100 < Hyperspace.CHANCE:
+		if Rules.level_seed(d.gen_seed, 777) % 100 >= Hyperspace.CHANCE or Hyperspace.crosses(Vector2i(world_seed, 1)):
+			continue
+		var into: Vector2i = Worlds.side_at(Worlds.kind_of(Hyperspace), Vector2i(world_seed, 1))
+		if not Rules.def_for((Rules.def_for(into) as SideWorld).destination()).lead(MapInfo.Exit.RETURN).is_empty():
 			plunge_seed = world_seed
 			break
 	await boot(plunge_seed)

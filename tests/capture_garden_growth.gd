@@ -1,6 +1,6 @@
 extends TestKit
 ## The garden's seed pods and plants, close up: a pod at rest and swelling toward a seed
-## (garden_pod_rest.png, garden_pod_swelling.png), a seed lying (garden_seed.png), and a plot bare
+## (garden_pod_rest.png, garden_pod_swelling.png), a seed lying (garden_seed.png) where it was flung from the pod (garden_seed_flung.png), and a plot bare
 ## and with its plant at each tier, a sprout to the door's great bloom (garden_plot_<n>.png, -1 bare),
 ## a small worm's warning in the rock, the worm coming up out of its hole, out on the floor, and
 ## diving into a new hole (garden_worm_warn.png, garden_worm_rise.png, garden_worm_out.png,
@@ -49,11 +49,14 @@ func _pod() -> void:
 	info.loader.wake_around(body.global_position)
 	for state: Array in [["rest", 0.0], ["swelling", 0.85]]:
 		await _shoot(body.global_position, "garden_pod_%s" % state[0], func() -> void: pod.charge = float(state[1]))
-	info.drop_seed(body.global_position + Vector2(-pod.way.x * 160.0, -20.0))
+	# Its seed, flung out from it as it bursts (SeedPod.shoved), photographed where it comes to rest.
+	info.drop_seed(SeedPod.shoved(info, body.global_position, pod.way), body.global_position)
 	await settle()
+	await within(func() -> bool: return false, SeedPod.SHOVE_TIME + 0.1)
 	var seeds: Array[Node] = colored("key.tscn", KeyRing.SEED)
 	if not seeds.is_empty():
 		await _shoot((seeds[0] as Node2D).global_position, "garden_seed", Callable())
+		await _shoot(((seeds[0] as Node2D).global_position + body.global_position) * 0.5, "garden_seed_flung", Callable())
 
 
 func _plot() -> void:

@@ -19,7 +19,7 @@ what is still open.
 | Where a fight happens | Every boss is in the band's last level itself, its gate level, with whatever it needs built into that level (the bramble's shaft, the golem's hall, the necromancer's crypt). No arenas. |
 | How often a boss is beaten | **Once per run.** Until it is slain, every band-end level of its band (in every world column) holds it and is sealed; once slain, all of them open for the rest of the run, and it is never met again. |
 | Crags and castle | One band: vertical cliff levels dressed with castle ruins. The lodestone golem's hall is built at the top of its gate level. |
-| Hyperspace across branches | Yes: a hyperspace may cross the start into the other branch (35 % of them), still leading 4 rows further from the start. |
+| Hyperspace across branches | Yes: a hyperspace may cross the start into the other branch (35 % of them), still leading as many rows further from the start (`Hyperspace.DROPS`: 2 to 4 from the garden, up to 4 to 7 two bands out). |
 | The cemetery | Stays the cemetery: its terraces, decor and bell gates, with crypts (mausoleums, catacomb tunnels) added behind bell gates. Light and darkness start to matter here, within a level rather than by band (§7). |
 | The last band down | The **institute**, in place of the catacombs (which become the cemetery's crypts): a sunken institute of magic with a library among its wings; students and masters, strong spellcasters, and abominations rising from the deep, all fighting one another as well as the wizard; exams as its gates, sat with papers fetched on field trips; departments with portals to real levels of other bands, in the same column (§7). The eldritch beast stays its boss. |
 | The far bands' characters | The institute is **humanity** (people, schooling, rivalry); the sky is **the elements** (wind, storm, beasts of the air). Each speeds travel one way: the institute's portals up and down a column, the sky's balloons along a row, on its winds (§7). |
@@ -87,7 +87,7 @@ at `(x, -(k * STRIDE + d) - 1)` (`Worlds.side_at`). The up branch needs those ro
   not enforced in any world, `AGENTS.md`).
 - **Sideways.** Left and right exits still move a world column at the same row, in both branches.
 - **Nothing skips a seal.** Every way that crosses rows without walking them must stop at an
-  unslain boss's gate: the hyperspace door (it moves `DROP` rows along the branch, never past a
+  unslain boss's gate: the hyperspace door (it moves `Hyperspace.drop_for` rows along the branch, never past a
   sealed band end; a door that would is not dealt), far rifts (only to levels already visited, so
   already fine), warp (within a level), the debug picker and the institute's portals (§7)
   excepted.

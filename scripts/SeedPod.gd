@@ -6,7 +6,7 @@ extends Stunnable
 ## and every SEED_EVERY seconds (sooner on a harder preset, Difficulty.attack) it spits a seed at
 ## them: a shot (Bullet, its `seed` look) that hurts, and that a parry turns back into the pod. Only
 ## a seed of its own turned back wounds it (Wound.parried_only): a slash, a bolt or a dash glances
-## off its bark. Burst, it drops a seed to carry (KeyRing.SEED, kept by the level's record as a
+## off its bark. Burst, it flings out a seed to carry (KeyRing.SEED, kept by the level's record as a
 ## dropped key until taken) for planting at a plot (Plot), and is slain until the wizard dies, as
 ## any enemy is (Wound). Its touch hurts. Its body is frozen where it grew: it never falls or moves.
 
@@ -23,6 +23,14 @@ const OUT: float = BrambleBulb.OUT
 const MOUTH: float = BrambleBulb.MOUTH - BrambleBulb.OUT
 ## Salt for the level seed, for how far into its first swell it starts (so pods do not spit together).
 const SWELL_DEAL: int = 6650
+## Burst, its seed is flung out the way it faces: SHOVE px from its middle, stopping SHOVE_CLEAR px
+## short of any rock in the way (felt for every SHOVE_STEP px), over SHOVE_TIME seconds in an arc
+## SHOVE_ARC px high.
+const SHOVE: float = 180.0
+const SHOVE_CLEAR: float = 44.0
+const SHOVE_STEP: float = 8.0
+const SHOVE_TIME: float = 0.45
+const SHOVE_ARC: float = 40.0
 
 ## Its body (the prefab's root), the way out of the wall it grew from, its swell toward the next
 ## seed (0 to 1), how many it has spat, and whether it saw the wizard this frame.
@@ -123,8 +131,24 @@ func spit(at: Vector2) -> void:
 	RisoFx.burst(&"impact", mouth(), way, [RisoPrint.PINK, RisoPrint.ACCENT])
 
 
-## Burst: its seed falls where it hung, to be carried (KeyRing.SEED).
+## Burst: its seed is flung out away from it (shoved), to be carried (KeyRing.SEED).
 func _drop_seed() -> void:
 	var info: MapInfo = MapInfo.instance
-	if info != null:
-		info.drop_seed(rb.global_position)
+	if info != null and info.world != null:
+		info.drop_seed(SeedPod.shoved(info, rb.global_position, way), rb.global_position)
+
+
+## Where the seed of a pod at `from` facing `way` comes to rest: SHOVE px out along its way, or as
+## far as it goes short of rock (SHOVE_CLEAR from it).
+static func shoved(info: MapInfo, from: Vector2, way: Vector2) -> Vector2:
+	var w: LevelGen = info.world
+	var at: Vector2 = from
+	var d: float = SHOVE_STEP
+	while d <= SHOVE:
+		var next: Vector2 = from + way * d
+		var ahead: Vector2i = info.cell_at(next + way * SHOVE_CLEAR)
+		if w.is_ground(ahead) or not w.is_valid(ahead):
+			break
+		at = next
+		d += SHOVE_STEP
+	return at

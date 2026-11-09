@@ -20,13 +20,13 @@ extends Stunnable
 ## Difficulty.attack).
 const WAKE: int = 7
 const WARN_TIME: float = 0.7
-const RISE_TIME: float = 0.25
+const RISE_TIME: float = 0.6
 const SINK_TIME: float = 0.35
 const OUT_TIME: float = 1.6
 const REST_TIME: float = 2.5
 ## How fast it squirms along the floor (px/s; a little faster on a harder preset, Difficulty.speed),
 ## and how fast it falls from a ceiling (px/s more each second, at most MAX_FALL).
-const SQUIRM_SPEED: float = 70.0
+const SQUIRM_SPEED: float = 35.0
 const GRAVITY: float = 1800.0
 const MAX_FALL: float = 900.0
 ## One time in CEILING_CHANCE it drops from the ceiling, if there is rock over the wizard within

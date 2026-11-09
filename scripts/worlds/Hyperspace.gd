@@ -1,7 +1,7 @@
 class_name Hyperspace
 extends SideWorld
 ## Hyperspace: a side world (see SideWorld) one long level strung between a level and one a few rows
-## further from the start (drop_for: fewer the further out its band lies; give or take a world
+## further from the start (drop_for: more the further out its band lies; give or take a world
 ## sideways, see drift): in the same branch, or, in CROSS % of them, across the start in the other
 ## (down from an up level, up from a down one, see crosses). Its door is rare: from a row away from
 ## the start, in CHANCE % of levels (every level in a debug run), and costs PRICE times the deeper
@@ -21,10 +21,13 @@ extends SideWorld
 ## Its door: dealt in CHANCE % of levels a row or more from the start; leads drop_for rows further
 ## from it (crossing to the other branch in CROSS % of them); costs PRICE deeper exits.
 const CHANCE: int = 5
-## How many rows further from the start it leads, by how many bands out from the garden its door's
-## level lies (Bands.out_of_garden): from the garden, from the first band beyond it, and from any
-## band further out. The deeper the door, the shorter the drop.
-const DROPS: Array[int] = [4, 3, 2]
+## How many rows further from the start it leads (the fewest and the most, dealt between them by its
+## level's seed), by how many bands out from the garden its door's level lies (Bands.out_of_garden):
+## from the garden, from the first band beyond it (the cemetery, the crags), and from any band
+## further out (the institute, the sky). The further out the door, the further the drop.
+const DROPS: Array[Vector2i] = [Vector2i(2, 4), Vector2i(3, 5), Vector2i(4, 7)]
+## Salt for the level seed, for the drop dealt within its range.
+const DROP_DEAL: int = 997
 const CROSS: int = 35
 const PRICE: float = 5.0
 
@@ -76,10 +79,26 @@ static func crosses(from: Vector2i) -> bool:
 	return Rules.level_seed(Rules.level_seed(from.x, from.y), 993) % 100 < CROSS
 
 
-## How many rows further from the start the one entered from level `from` leads (DROPS, by the
-## bands out from the garden that level lies).
+## How many rows further from the start the one entered from level `from` leads: dealt by that
+## level's seed within its range (DROPS, by the bands out from the garden that level lies).
 static func drop_for(from: Vector2i) -> int:
-	return DROPS[mini(Bands.out_of_garden(from.y), DROPS.size() - 1)]
+	var span: Vector2i = DROPS[mini(Bands.out_of_garden(from.y), DROPS.size() - 1)]
+	return span.x + Rules.level_seed(Rules.level_seed(from.x, from.y), DROP_DEAL) % (span.y - span.x + 1)
+
+
+## The longest drop any door leads, and the shortest.
+static func longest_drop() -> int:
+	var most: int = 0
+	for span: Vector2i in DROPS:
+		most = maxi(most, span.y)
+	return most
+
+
+static func shortest_drop() -> int:
+	var least: int = longest_drop()
+	for span: Vector2i in DROPS:
+		least = mini(least, span.x)
+	return least
 
 
 ## drop_for rows further from the start than `from`, in its own branch or (crosses) the other. From
@@ -96,7 +115,7 @@ func arriving(at: Vector2i) -> Variant:
 		return null
 	for across: bool in [false, true]:
 		# Nearest the start first, where two drops (from two bands) end on the same row.
-		for drop: int in range(DROPS.max(), DROPS.min() - 1, -1):
+		for drop: int in range(longest_drop(), shortest_drop() - 1, -1):
 			var d: int = absi(at.y) - drop
 			# From the start itself (debug runs only) it leads down, never across.
 			if d < 0 or (d == 0 and across):
