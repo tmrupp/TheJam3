@@ -101,11 +101,11 @@ const SEPAL_HINGE: float = 0.55
 const SEPAL_WIDE: float = 0.4
 ## The leaves shrouding a bulb (and a seed pod, PodArt), measured by the bulb as it is now (its
 ## radius 1, its middle at 0), so they swell with it: an upper and a lower leaf clasped round it,
-## each rooted LEAF_ROOT_AT radians round from its front (behind the cup of bark, which they grow
-## out from under), running LEAF_OUT out round it to a tip LEAF_TIP out and LEAF_TIP_AT radians past
-## its middle, and back to the root along an inner edge bowed toward LEAF_CLASP (back toward the
-## root and past the middle, for the upper leaf; the lower's mirrored), so the two overlap all the
-## way to the cup and hide it whole; and behind each a narrower leaf, LEAF_BACK long and
+## each rooted LEAF_ROOT_AT radians round from its front (in the cup of bark, over which they are
+## printed, so a closed bud hides all but the back of the cup), running LEAF_OUT out round it to a
+## tip LEAF_TIP out and LEAF_TIP_AT radians past its middle, and back to the root along an inner
+## edge bowed toward LEAF_CLASP (back toward the root and past the middle, for the upper leaf; the
+## lower's mirrored), so the two overlap all the way to the cup and hide the bulb whole; and behind each a narrower leaf, LEAF_BACK long and
 ## LEAF_BACK_WIDE across, standing out LEAF_BACK_AT radians from its way out. To bare it the clasped
 ## leaves swing back LEAF_SWING radians about their roots, the ones behind LEAF_BACK_SWING, all
 ## folding in to LEAF_FOLD of their size as they go, so they do not sprawl over the rock.
@@ -698,8 +698,8 @@ static func ink_bulb(canvas: InkCanvas, xf: Transform2D, open: float, charge: fl
 		canvas.ink(RisoPrint.BLUE, (BARK_BLUE - 0.4 * glance) * shut, sepals)
 		canvas.ink(RisoPrint.NIGHT, BARK_NIGHT * (1.0 - glance) * shut, sepals, false)
 	# Its leaves, shrouding it: a narrower one behind on either side, then a lower and an upper leaf
-	# clasped round it, overlapping down its middle; all grow out from under the cup's rim, and
-	# swing back about their roots to bare it as it readies a seed (`parted`).
+	# clasped round it, overlapping down its middle; all rooted in the cup and printed over it, and
+	# swinging back about their roots to bare it as it readies a seed (`parted`).
 	var swing: float = parted * parted * (3.0 - 2.0 * parted)
 	var bud: Transform2D = xf * Transform2D(0.0, Vector2(r, r), 0.0, Vector2(BrambleBulb.OUT * swell, 0.0))
 	var k: int = 0
@@ -719,10 +719,10 @@ static func ink_bulb(canvas: InkCanvas, xf: Transform2D, open: float, charge: fl
 			else:
 				shape = _clasped_leaf(side)
 				lines = _leaf_veins(side)
-			var leaf: Array[PackedVector2Array] = Geometry2D.clip_polygons(pivot * shape, cup)
+			var leaf: Array[PackedVector2Array] = [pivot * shape]
 			var veins: Array[PackedVector2Array] = []
 			for line: PackedVector2Array in lines:
-				veins.append_array(Geometry2D.clip_polygons(pivot * line, cup))
+				veins.append(pivot * line)
 			canvas.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], 1.0, leaf)
 			canvas.ink(RisoPrint.BLUE, LEAF_BLUE, leaf)
 			canvas.ink(RisoPrint.NIGHT, LEAF_NIGHT[layer], leaf, false)
