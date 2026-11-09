@@ -41,6 +41,25 @@ func _rules() -> void:
 	check_eq(ring.seeds(), KeyRing.SEEDS_MOST, "at most %d seed carried" % KeyRing.SEEDS_MOST)
 	check(ring.spend_seed() and ring.seeds() == 0 and not ring.spend_seed(), "a seed planted is used up")
 	ring.free()
+	# A small worm's segments meet with no gap where its body bends (humped as it inches, and turning
+	# up out of a hole): across the body at each joint, every point is under one segment or another.
+	var hump: Callable = func(u: float) -> Vector2: return Vector2((u - 0.5) * (Wormlet.LENGTH - WormletArt.INCH), -WormletArt.HUMP * sin(PI * u))
+	var turn: Callable = func(u: float) -> Vector2: return WormletArt._bend(Vector2.ZERO, 1.0, (u - 0.5) * Wormlet.LENGTH)
+	var bare: int = 0
+	for pose: Callable in [hump, turn]:
+		var segments: Array[PackedVector2Array] = []
+		for i: int in range(WormletArt.SEGMENTS):
+			var span: Vector2 = WormletArt.segment_span(i, 0.0, 1.0)
+			segments.append(WormletArt.band(pose, span.x, span.y, Wormlet.GIRTH))
+		for i: int in range(1, WormletArt.SEGMENTS):
+			for du: float in [-0.004, 0.0, 0.004]:
+				var u: float = float(i) / float(WormletArt.SEGMENTS) + du
+				var normal: Vector2 = ((pose.call(u + 0.001) as Vector2) - (pose.call(u - 0.001) as Vector2)).normalized().orthogonal()
+				for across: float in [-0.45, -0.25, 0.0, 0.25, 0.45]:
+					var spot: Vector2 = (pose.call(u) as Vector2) + normal * across * Wormlet.GIRTH
+					if not segments.any(func(poly: PackedVector2Array) -> bool: return Geometry2D.is_point_in_polygon(spot, poly)):
+						bare += 1
+	check_eq(bare, 0, "a small worm's segments leave no gap at their joints where it bends")
 
 
 ## Pods and plots as the garden's levels are laid out.
@@ -207,6 +226,16 @@ func _worms() -> void:
 	var stood: Vector2 = player.global_position
 	check(await within(func() -> bool: return worm.shown(), 3.0), "then it bursts out")
 	check(not worm.burrows.is_empty(), "through a hole of its own")
+	# Its holes are sunk a little into the rock: the ground heaped round one reaches into the face.
+	if not worm.burrows.is_empty():
+		var hole: Wormlet.Burrow = worm.burrows[0]
+		var sink: float = Worm.HOLE_RIM * WormletArt.hole_size(info) * WormletArt.HOLE_SINK
+		var back: Vector2i = Vector2i(roundi(-hole.out.x), roundi(-hole.out.y))
+		var deepest: float = 0.0
+		for poly: PackedVector2Array in Worm.clip_to_air(info, RisoShapes.circle(hole.mouth, 10.0, 16), hole.mouth, 20.0, back, sink):
+			for v: Vector2 in poly:
+				deepest = maxf(deepest, (v - hole.mouth).dot(-hole.out))
+		check(sink > 0.0 and absf(deepest - sink) < 0.05, "its hole sunk %.1f px into the rock (the ground round it reaching %.1f px in)" % [sink, deepest])
 	# Its holes are the boss's made smaller to its girth: as tall on it as the boss's on the boss.
 	var rim: float = Worm.HOLE_RIM * WormletArt.hole_size(info)
 	check(is_equal_approx(rim / (Wormlet.GIRTH * 0.5), Worm.HOLE_RIM / boss_r) and rim < Worm.HOLE_RIM * 0.6, "its hole as tall for its girth as the boss's (rim %.1f px on a %.0f px radius)" % [rim, Wormlet.GIRTH * 0.5])

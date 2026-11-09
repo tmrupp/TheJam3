@@ -32,6 +32,14 @@ const CHOMP_RATE: float = 7.0
 const TEETH: float = 1.6
 ## How far back from each joint (a share of its length) the shadow under the segment ahead reaches.
 const JOINT: float = 0.07
+## How far (a share of its length) each segment runs on under the one ahead, so no gap opens between
+## them where it bends; and how far either side of a point (a share of its length) its line is read
+## for the way it runs there, so two segments meeting at a joint end square to the same line.
+const OVERLAP: float = 0.04
+const TANGENT: float = 0.01
+## How far its holes are sunk into the rock they are dug in, as a share of their rims' height: the pit
+## opens just under the face, and the ground heaped round it rises out of the floor over its edge.
+const HOLE_SINK: float = 0.5
 
 
 ## The Wormlet it dresses.
@@ -119,11 +127,14 @@ func _draw_holes(w: Wormlet, o: Vector2) -> void:
 		var k: float = w.open_of(b)
 		if k <= 0.01:
 			continue
-		var at: Transform2D = Transform2D(b.out.angle() + PI * 0.5, b.mouth)
+		var rim: float = Worm.HOLE_RIM * size * k
+		# Sunk a little into the rock, the heaped ground reaching as far into the face under it.
+		var sink: float = rim * HOLE_SINK
+		var at: Transform2D = Transform2D(b.out.angle() + PI * 0.5, b.mouth - b.out * sink)
 		# Heaped only on the floor (or ceiling) it is dug in, never out over a drop beside it.
 		var back: Vector2i = Vector2i(roundi(-b.out.x), roundi(-b.out.y))
 		var shoulders: Array[PackedVector2Array] = []
-		for poly: PackedVector2Array in Worm.clip_to_air(info, at * Worm.mound_shape(r, Worm.HOLE_RIM * size * k), b.mouth, r * Worm.HOLE_REACH + Worm.HOLE_RIM, back):
+		for poly: PackedVector2Array in Worm.clip_to_air(info, at * Worm.mound_shape(r, rim), b.mouth, r * Worm.HOLE_REACH + Worm.HOLE_RIM, back, sink):
 			shoulders.append(to_local * poly)
 		var open: Callable = func(spot: Vector2) -> bool:
 			var c: Vector2i = info.cell_at(spot + o)
@@ -159,14 +170,14 @@ func _draw_body(w: Wormlet, at: Callable, lo: float, hi: float) -> void:
 	var gape: float = Worm.MOUTH_REST if w.stunned else CHOMP * (0.5 + 0.5 * sin(t * CHOMP_RATE + phase))
 	var wound: Wound = host.get_node_or_null("Wound") as Wound
 	for i: int in range(SEGMENTS):
-		var start: float = float(i) / float(SEGMENTS)
 		var end: float = float(i + 1) / float(SEGMENTS)
-		var a: float = maxf(start, lo)
-		var b: float = minf(end, hi)
+		var span: Vector2 = segment_span(i, lo, hi)
+		var a: float = span.x
+		var b: float = span.y
 		if b - a < 0.005:
 			continue
 		var head: bool = i == SEGMENTS - 1
-		var flesh: Array[PackedVector2Array] = [_strip(_line(at, a, b), width)]
+		var flesh: Array[PackedVector2Array] = [band(at, a, b, width)]
 		if i == 0 and lo <= 0.0:
 			var tail_at: Vector2 = at.call(0.0)
 			flesh.append(Worm.cap_shape(tail_at, (tail_at - (at.call(0.03) as Vector2)).normalized(), width, width * 0.5))
@@ -181,9 +192,9 @@ func _draw_body(w: Wormlet, at: Callable, lo: float, hi: float) -> void:
 			var dot: float = 5.0 / 6.0
 			if dot >= a and dot <= b:
 				Worm.ink_hits(ink, at.call(dot), head_way, width, maxi(wound.hp, 0) if wound != null else 0, 1.0)
-		elif b >= end:
+		elif hi >= end:
 			# The joint ahead of it, in shadow under the next segment's overhang.
-			Worm.ink_joint(ink, [_strip(_line(at, maxf(end - JOINT, a), end), width)], 1.0)
+			Worm.ink_joint(ink, [band(at, maxf(end - JOINT, a), end, width)], 1.0)
 
 
 ## Lying on the floor, heading `heading` (±1), inching: stretching out with its tail planted, then
@@ -218,24 +229,28 @@ static func _bend(m: Vector2, dir: float, s: float) -> Vector2:
 	return m + Vector2(dir * (r + s - turn), -r)
 
 
-## Points along `at` from `a` to `b`.
-static func _line(at: Callable, a: float, b: float) -> PackedVector2Array:
-	var out: PackedVector2Array = PackedVector2Array()
-	for n: int in range(SEG_POINTS + 1):
-		out.append(at.call(lerpf(a, b, float(n) / float(SEG_POINTS))))
-	return out
+## Where along its body (u, 0 its tail to 1 its head) segment `i` is printed, as (from, to), when
+## only `lo` to `hi` of it is out of the rock: its own share, running on OVERLAP under the next one
+## (the head, last, runs on under nothing).
+static func segment_span(i: int, lo: float, hi: float) -> Vector2:
+	var start: float = float(i) / float(SEGMENTS)
+	var end: float = float(i + 1) / float(SEGMENTS)
+	return Vector2(maxf(start, lo), minf(end + (OVERLAP if i < SEGMENTS - 1 else 0.0), hi))
 
 
-## A strip `width` across along `points`.
-static func _strip(points: PackedVector2Array, width: float) -> PackedVector2Array:
+## A strip `width` across along its body `at` from `a` to `b`, square at each point to the way the
+## body runs there (read from `at` itself, TANGENT either side), so where two segments meet their
+## ends match.
+static func band(at: Callable, a: float, b: float, width: float) -> PackedVector2Array:
 	var left: PackedVector2Array = PackedVector2Array()
 	var right: PackedVector2Array = PackedVector2Array()
-	for n: int in range(points.size()):
-		var a: Vector2 = points[maxi(n - 1, 0)]
-		var b: Vector2 = points[mini(n + 1, points.size() - 1)]
-		var side: Vector2 = (b - a).normalized().orthogonal() * width * 0.5
-		left.append(points[n] + side)
-		right.append(points[n] - side)
+	for n: int in range(SEG_POINTS + 1):
+		var u: float = lerpf(a, b, float(n) / float(SEG_POINTS))
+		var p: Vector2 = at.call(u)
+		var way: Vector2 = (at.call(minf(u + TANGENT, 1.0)) as Vector2) - (at.call(maxf(u - TANGENT, 0.0)) as Vector2)
+		var side: Vector2 = way.normalized().orthogonal() * width * 0.5
+		left.append(p + side)
+		right.append(p - side)
 	var poly: PackedVector2Array = left
 	for n: int in range(right.size() - 1, -1, -1):
 		poly.append(right[n])

@@ -1179,9 +1179,10 @@ func _clip_to_air(poly: PackedVector2Array, at: Vector2, radius: float) -> Array
 
 ## The part of `poly` (world) over the open cells of `info`'s level within `radius` of `at`: what of a
 ## worm or its hole shows, never over rock. With `backed`, only over open cells with rock that way
-## (a small worm's hole heaps up on the floor or ceiling it is dug in, never out over a drop). The
+## (a small worm's hole heaps up on the floor or ceiling it is dug in, never out over a drop), and
+## `sink` px on into that rock (a small worm's hole sunk into the face, WormletArt.HOLE_SINK). The
 ## boss's and the small worms' alike.
-static func clip_to_air(info: MapInfo, poly: PackedVector2Array, at: Vector2, radius: float, backed: Vector2i = Vector2i.ZERO) -> Array[PackedVector2Array]:
+static func clip_to_air(info: MapInfo, poly: PackedVector2Array, at: Vector2, radius: float, backed: Vector2i = Vector2i.ZERO, sink: float = 0.0) -> Array[PackedVector2Array]:
 	var out: Array[PackedVector2Array] = []
 	var size: float = (info.cell_position(Vector2i(1, 0)) - info.cell_position(Vector2i.ZERO)).x
 	var lo: Vector2i = info.cell_at(at - Vector2.ONE * radius)
@@ -1191,8 +1192,9 @@ static func clip_to_air(info: MapInfo, poly: PackedVector2Array, at: Vector2, ra
 			var c: Vector2i = Vector2i(x, y)
 			if not passable(info.world, c) or (backed != Vector2i.ZERO and passable(info.world, c + backed)):
 				continue
-			var corner: Vector2 = info.cell_position(c) - Vector2.ONE * size * 0.5
-			var square: PackedVector2Array = PackedVector2Array([corner, corner + Vector2(size, 0), corner + Vector2.ONE * size, corner + Vector2(0, size)])
+			var box: Rect2 = Rect2(info.cell_position(c) - Vector2.ONE * size * 0.5, Vector2.ONE * size)
+			box = box.merge(Rect2(box.position + Vector2(backed) * sink, box.size))
+			var square: PackedVector2Array = PackedVector2Array([box.position, box.position + Vector2(box.size.x, 0), box.end, box.position + Vector2(0, box.size.y)])
 			out.append_array(Geometry2D.intersect_polygons(poly, square))
 	return out
 
