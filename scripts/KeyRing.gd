@@ -12,6 +12,9 @@ extends Node
 ## keys are, trailing the wizard as keys do: a relic of a move not yet known cannot be taken without
 ## one, and taking it uses one up (Relic.take). A relic of a move already known (its next tier) needs
 ## none. No door takes them.
+## Seeds (colour SEED) are dropped by the garden's seed pods (SeedPod) and kept apart as relic
+## unlocks are, trailing the wizard; at most SEEDS_MOST are carried, a seed met with the pocket full
+## left where it lies. One is planted at a garden plot (Plot) and used up so.
 ## Exam papers are carried on the ring as keys are, taking a slot each: a "colour" from PAPER up,
 ## holding an ability that takes a slot (subjects) and its tier (paper), that no door takes. A paper is
 ## a spell known but not held: earned in the institute's classes (Timetable), handed back for a spell
@@ -22,6 +25,9 @@ extends Node
 
 const SKELETON: int = 99
 const UNLOCK: int = 98
+const SEED: int = 97
+## The most seeds carried at once.
+const SEEDS_MOST: int = 1
 ## Where exam papers' codes start: PAPER, plus PAPER_SPELL for each place of the subject in
 ## subjects, plus the tier.
 const PAPER: int = 1000
@@ -70,6 +76,8 @@ var _colored: Array[int] = []
 var _skeletons: int = 0
 ## Relic unlocks carried.
 var _unlocks: int = 0
+## Seeds carried.
+var _seeds: int = 0
 
 
 ## How many coloured keys the wizard can carry.
@@ -158,8 +166,25 @@ func spend_unlock() -> bool:
 	return true
 
 
+func seeds() -> int:
+	return _seeds
+
+
+func set_seeds(n: int) -> void:
+	_seeds = clampi(n, 0, SEEDS_MOST)
+
+
+## Use up a seed (planted), if one is carried.
+func spend_seed() -> bool:
+	if _seeds <= 0:
+		return false
+	_seeds -= 1
+	return true
+
+
 ## Empty-handed: a new run.
 func clear() -> void:
 	_colored.clear()
 	_skeletons = 0
 	_unlocks = 0
+	_seeds = 0

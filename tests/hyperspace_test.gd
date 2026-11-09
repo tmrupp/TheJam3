@@ -25,7 +25,7 @@ func run() -> void:
 	var at: Vector2i = Worlds.side_at(Worlds.kind_of(Hyperspace), from)
 	check(Worlds.is_side(at) and not Worlds.is_side(from) and Worlds.origin_of(at) == from, "the chasm of (28, 3) is (28, -4), and knows where it came from")
 	var lands: Vector2i = (Rules.def_for(at) as SideWorld).destination()
-	check(lands.y == 3 + Hyperspace.DROP and absi(lands.x - 28) <= 1 and lands.x - 28 == Hyperspace.drift(from), "its gate lands %d levels below, %d worlds sideways" % [Hyperspace.DROP, lands.x - 28])
+	check(lands.y == 3 + Hyperspace.drop_for(from) and absi(lands.x - 28) <= 1 and lands.x - 28 == Hyperspace.drift(from), "its gate lands %d levels below, %d worlds sideways" % [Hyperspace.drop_for(from), lands.x - 28])
 	var drifts: Dictionary = {}
 	for s: int in range(1, 60):
 		drifts[Hyperspace.drift(Vector2i(s, 2))] = true
@@ -126,7 +126,7 @@ func run() -> void:
 	await process_frame
 	var grid_chasm: Vector2 = map.call("grid_at", chasm)
 	var grid_origin: Vector2 = map.call("grid_at", origin)
-	check(absf(grid_chasm.x - grid_origin.x) <= 0.5 and grid_chasm.y > grid_origin.y and grid_chasm.y < grid_origin.y + Hyperspace.DROP, "its tile hangs between the level and the one %d below" % Hyperspace.DROP)
+	check(absf(grid_chasm.x - grid_origin.x) <= 0.5 and grid_chasm.y > grid_origin.y and grid_chasm.y < grid_origin.y + Hyperspace.drop_for(origin), "its tile hangs between the level and the one %d below" % Hyperspace.drop_for(origin))
 	check(map.get("selected") == chasm and map.call("tile_size", chasm).y > map.call("tile_size", origin).y, "the cursor starts on it, a strip taller than a level")
 	var up: InputEventAction = InputEventAction.new()
 	up.action = &"Up"

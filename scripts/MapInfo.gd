@@ -162,6 +162,87 @@ func lay_sold_skeleton () -> Vector2:
 	save_run()
 	return pos
 
+# ------------------------------------------------------------------ the garden's seeds and plants
+
+## A seed pod burst at `pos` (SeedPod): its seed falls there, kept as a dropped key (KeyRing.SEED)
+## until taken.
+func drop_seed (pos: Vector2) -> void:
+	var id: int = record().drop_key(pos, KeyRing.SEED)
+	_spawn_dropped_key.call_deferred(id, pos, KeyRing.SEED)
+	save_run()
+
+## Plant a carried seed at `plot` (Plot): it grows from here on (RunState.plants, RunState.reached).
+func plant_seed (plot: Plot) -> void:
+	if wizard() == null or run.plants.has(coord) or not player.keyring.spend_seed():
+		return
+	run.plants[coord] = {"furthest": 0, "door": false}
+	RisoFx.burst(&"gain", plot.global_position, Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
+	save_run()
+
+## Pick the plant grown at `plot` (Plot): its reward, by how far the wizard went (Plot.tier): a star
+## cluster, a skeleton key, or a hyperspace door that stands there for the rest of the run (paid for:
+## free to go through), or a skeleton key where the level has a hyperspace door already. The plot is
+## bare again but for a door.
+func pick_plant (plot: Plot) -> void:
+	var tier: int = plot.tier()
+	if tier <= 0:
+		return
+	var pos: Vector2 = plot.global_position
+	var hyper: int = Worlds.kind_of(Hyperspace)
+	if tier >= 3 and not here.doors.has(hyper) and not Worlds.is_side(coord):
+		run.plants[coord] = {"furthest": 0, "door": true}
+		here.pay(Worlds.door(hyper), record())
+		_spawn_plant_door()
+	else:
+		run.plants.erase(coord)
+		if tier >= 2:
+			var id: int = record().drop_key(pos, KeyRing.SKELETON)
+			_spawn_dropped_key(id, pos, KeyRing.SKELETON)
+		else:
+			var cluster: Coin = Placeables.scene(LevelGen.Type.CLUSTER).instantiate() as Coin
+			cluster.value = Rules.cluster_value(here.depth)
+			map_elements.add_child(cluster)
+			cluster.global_position = pos + Vector2(0, -40)
+	RisoFx.burst(&"gain", pos, Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.PINK])
+	save_run()
+
+## The cell of this place's plot, if a plant here grew a hyperspace door (pick_plant), else null.
+func plant_door_cell () -> Variant:
+	if world == null or not bool((run.plants.get(coord, {}) as Dictionary).get("door", false)):
+		return null
+	var plots: Array[Vector2i] = world.objects_of(LevelGen.Type.PLOT)
+	return plots[0] if not plots.is_empty() else null
+
+## Small worms drawn to a plant grown big here (Wormlet.SWARM by its tier: a white flower, a great
+## bloom): in free cells within Wormlet.SWARM_REACH cells of its plot (they live in the rock, and come
+## out wherever the wizard is), chosen by hashing the level
+## seed (no draw), laid in with the level each visit until it is picked; those slain stay slain (the
+## record keeps them by their cell, as any enemy).
+func _spawn_swarm () -> void:
+	var plant: Dictionary = run.plants.get(coord, {})
+	if plant.is_empty() or bool(plant.get("door", false)):
+		return
+	var count: int = Wormlet.SWARM[Plot.tier_of(int(plant.get("furthest", 0)))]
+	var plots: Array[Vector2i] = world.objects_of(LevelGen.Type.PLOT)
+	if count <= 0 or plots.is_empty():
+		return
+	var plot: Vector2i = plots[0]
+	var homes: Array[Vector2i] = world.empties_where(func(v: Vector2i) -> bool:
+		var d: int = LevelGen.dist(v, plot)
+		return world.get_cell(v).type == LevelGen.Type.EMPTY and d >= 2 and d <= Wormlet.SWARM_REACH)
+	homes.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return RisoDecor.h(world.seed_for_colors, a, Wormlet.SWARM_DEAL) < RisoDecor.h(world.seed_for_colors, b, Wormlet.SWARM_DEAL))
+	for v: Vector2i in homes.slice(0, count):
+		loader.place_cell(v, LevelGen.Cell.new(LevelGen.Type.WORMLET))
+
+## The hyperspace door a plant grew here, standing on its plot (pick_plant).
+func _spawn_plant_door () -> void:
+	var at: Variant = plant_door_cell()
+	if at == null:
+		return
+	var door: LevelGen.Cell = LevelGen.Cell.new(LevelGen.Type.EXIT)
+	door.extra_info = Worlds.door(Worlds.kind_of(Hyperspace))
+	loader.place_cell(at, door)
+
 func _spawn_dropped_key (id: int, pos: Vector2, color: int) -> void:
 	if map_elements == null or not is_instance_valid(map_elements):
 		return
@@ -923,6 +1004,8 @@ func _level_ready (built: LevelGen) -> void:
 	_deal_stations()
 	loader.build(world)
 	_spawn_dug_doors()
+	_spawn_plant_door()
+	_spawn_swarm()
 	var rec: LevelRecord = record()
 	# Secret rooms already opened: their rewards (the rest of the room stays broken, see
 	# open_secret). After everything else, so the rest of the level lands where it always has.
@@ -962,6 +1045,9 @@ func _arrived () -> void:
 		# The side door just come through stays open behind the player: the way back is free.
 		if arrival == Exit.LEFT or arrival == Exit.RIGHT:
 			record().lateral_open[arrival] = true
+	elif arrival >= 0 and Worlds.door_kind(arrival) >= 0 and plant_door_cell() != null:
+		# Back out of the hyperspace a plant's door led into: by that door, on its plot.
+		at = plant_door_cell()
 	if arrival == -1 and world.is_valid(world.start):
 		at = world.start
 		_set_respawn(coord, world.start_lantern if world.is_valid(world.start_lantern) else at)

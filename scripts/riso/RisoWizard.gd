@@ -229,8 +229,8 @@ func _physics_process(delta: float) -> void:
 
 
 ## Every key carried trails the wizard on a soft lag: the newest behind the shoulder beside the bag
-## (KEY_HANG), each older one hanging behind the one before it (a chain), skeleton keys then relic
-## unlocks last.
+## (KEY_HANG), each older one hanging behind the one before it (a chain), skeleton keys, relic
+## unlocks, then seeds last.
 func _trail_keys(delta: float) -> void:
 	var colors: Array[int] = player.keyring.all()
 	colors.reverse()
@@ -238,6 +238,8 @@ func _trail_keys(delta: float) -> void:
 		colors.append(KeyRing.SKELETON)
 	for i: int in range(player.keyring.unlocks()):
 		colors.append(KeyRing.UNLOCK)
+	for i: int in range(player.keyring.seeds()):
+		colors.append(KeyRing.SEED)
 	if colors != key_colors:
 		key_colors = colors
 		key_trail.resize(mini(key_trail.size(), colors.size()))

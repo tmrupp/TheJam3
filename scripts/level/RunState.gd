@@ -84,6 +84,11 @@ var papers_out: Dictionary = {}
 ## count sets how soon an empowered cast comes back (Rules.empower_recharge). Kept through a death.
 var tempered: Dictionary = {}
 var lodestones: Dictionary = {}
+## The garden's plants (Plot): by the place whose plot one grows in, {"furthest": the furthest any
+## place reached since it was planted lies from it (Plot.apart), "door": whether it grew a
+## hyperspace door, which stands there for the rest of the run}. A plant picked is gone. Kept through
+## a death at a lantern, not past the end of the run.
+var plants: Dictionary = {}
 
 
 ## A fresh run from depth 0 of `seed_value`: no records, no ghost, protected.
@@ -108,6 +113,7 @@ func start(seed_value: int) -> void:
 	souls.clear()
 	souls_sent = 0
 	fed = 0
+	plants.clear()
 	papers_out.clear()
 	dark_charges = 0
 	tempered.clear()
@@ -135,6 +141,11 @@ func reached(at: Vector2i) -> void:
 	if absi(row) > deepest:
 		deepest = absi(row)
 		furthest_row = row
+	# Every plant growing grows by how far from it this place lies (Plot).
+	for place: Vector2i in plants:
+		var plant: Dictionary = plants[place]
+		if not bool(plant.get("door", false)):
+			plant["furthest"] = maxi(int(plant.get("furthest", 0)), Plot.apart(place, at))
 
 
 ## The lantern at `cell` in `at` burned out: it protects no more.
@@ -220,6 +231,7 @@ func to_save(coord: Vector2i, player: Dictionary) -> Dictionary:
 		"souls": souls, "souls_sent": souls_sent,
 		"fed": fed, "papers_out": papers_out,
 		"tempered": tempered, "lodestones": lodestones,
+		"plants": plants,
 	}
 	data.merge(player)
 	return data
@@ -262,6 +274,7 @@ func from_save(data: Dictionary) -> void:
 	papers_out = data.get("papers_out", {})
 	tempered = data.get("tempered", {})
 	lodestones = data.get("lodestones", {})
+	plants = data.get("plants", {})
 	respawn_coord = data["respawn_coord"]
 	respawn_cell = data["respawn_cell"]
 	vulnerable = bool(data["vulnerable"])

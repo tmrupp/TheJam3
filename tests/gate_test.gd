@@ -86,8 +86,8 @@ func run() -> void:
 	var hyper: Hyperspace = Worlds.proto(Worlds.kind_of(Hyperspace)) as Hyperspace
 	var found: Variant = null
 	# From above the start, near enough the start that crossing it lands past the worm's gate (a
-	# hyperspace leads Hyperspace.DROP rows further from the start than it was found).
-	var above: int = -maxi(1, g - Hyperspace.DROP + 1)
+	# hyperspace from the garden leads Hyperspace.drop_for rows further from the start than it was found).
+	var above: int = -maxi(1, g - Hyperspace.drop_for(Vector2i(0, -1)) + 1)
 	for x: int in range(1, 400):
 		var from: Vector2i = Vector2i(x, above)
 		if hyper.deals(from) and Hyperspace.crosses(from):

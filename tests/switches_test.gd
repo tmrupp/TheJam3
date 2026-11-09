@@ -83,7 +83,8 @@ func run() -> void:
 					plunges += 1
 					if plunge_seed < 0:
 						plunge_seed = world_seed
-	check(plunges > tried / 10 and plunges < tried / 3, "the hyperspace door is rare: dealt in %d of %d depth-1 levels" % [plunges, tried])
+	# About CHANCE % of them, give or take half again.
+	check(plunges > 0 and plunges * 200 > tried * Hyperspace.CHANCE and plunges * 100 < tried * Hyperspace.CHANCE * 2, "the hyperspace door is rare: dealt in %d of %d depth-1 levels (%d %%)" % [plunges, tried, Hyperspace.CHANCE])
 	var dw: LevelGen = LevelGen.new(collapse(Vector2i(plunge_seed, 1)), Rules.def_for(Vector2i(plunge_seed, 1)))
 	var d0: LevelGen = LevelGen.new(collapse(Vector2i(plunge_seed, 0)), Rules.def_for(Vector2i(plunge_seed, 0)))
 	check(dw.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1)).x >= 0 and dw.get_cell(dw.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1))).type == LevelGen.Type.EXIT and int(dw.get_cell(dw.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1))).extra_info) == Worlds.door(Worlds.kind_of(Hyperspace)) and d0.exits.get(Worlds.door(Worlds.kind_of(Hyperspace)), Vector2i(-1, -1)).x < 0, "a dealt level has its hyperspace door; depth 0 never does")
@@ -116,7 +117,10 @@ func run() -> void:
 		lever.flip()
 	await frames(3)
 	check(not lever.is_on() and gate.shut(), "off, its gate is down")
-	# In view, so that it winches (asleep, it goes straight up).
+	# In view, so that it winches (asleep, it goes straight up): the wizard stands a little way off
+	# it, so the chunk sleeping keeps it awake wherever in the level it is.
+	player.global_position = gate.global_position + Vector2(-300.0, 0.0)
+	still()
 	info.loader.wake_around(gate.global_position)
 	await frames(2)
 	lever.flip()
@@ -180,7 +184,7 @@ func run() -> void:
 	info.travel(MapInfo.Exit.DEEPER)
 	await settle()
 	player.set_physics_process(false)
-	check(info.coord == (Rules.def_for(Worlds.side_at(Worlds.kind_of(Hyperspace), Vector2i(plunge_seed, 1))) as SideWorld).destination() and info.run.deepest == 1 + Hyperspace.DROP, "its gate drops %d levels at once, to depth %d" % [Hyperspace.DROP, info.coord.y])
+	check(info.coord == (Rules.def_for(Worlds.side_at(Worlds.kind_of(Hyperspace), Vector2i(plunge_seed, 1))) as SideWorld).destination() and info.run.deepest == 1 + Hyperspace.drop_for(Vector2i(plunge_seed, 1)), "its gate drops %d levels at once, to depth %d" % [Hyperspace.drop_for(Vector2i(plunge_seed, 1)), info.coord.y])
 	check(player.global_position.distance_to(info.cell_position(info.world.exits[MapInfo.Exit.BACK])) < 80.0, "arriving by that level's way back")
 
 	print("parry")

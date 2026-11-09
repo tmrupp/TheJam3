@@ -2,10 +2,9 @@ extends TestKit
 ## The difficulty presets (Difficulty, picked on the F7 panel): Normal changes nothing, each harder
 ## one holds more foes and runs the bosses faster, and a game starts on Hard. Levels hold more
 ## enemies and hazards on a harder preset, stay the same every build under one, are kept apart per
-## preset by the loader, and stay as whole as on Normal (open cells joined to the way in, switches
-## reached with their gates shut) even on Brutal: the presets add foes, never cut a level up; the golem raises its fists for less time; and picking a
-## preset on the
-## F7 panel lays the place out again under it; and the other enemies attack more often (a hopper
+## preset by the loader, and stay whole (every open cell joined to the way in, every switch reached
+## with its gate shut) even on Brutal; the golem raises its fists for less time; and picking a
+## preset on the F7 panel lays the place out again under it; and the other enemies attack more often (a hopper
 ## rests for less) and move a little faster (wisps walk faster).
 ## godot --headless --path . --script res://tests/difficulty_test.gd
 
@@ -41,8 +40,6 @@ func run() -> void:
 		Vector2i(28, NextWorldDef.band_row(&"institute", 1)), Vector2i(28, NextWorldDef.band_row(&"crags", 1)),
 		Vector2i(28, NextWorldDef.band_row(&"sky", 1))]
 	var totals: Array[int] = []
-	# Each level as whole as it is on Normal (the presets add foes, never cut a level up).
-	var normal: Dictionary = {}
 	for p: int in range(Difficulty.Preset.size()):
 		Difficulty.preset = p as Difficulty.Preset
 		var total: int = 0
@@ -53,12 +50,12 @@ func run() -> void:
 			total += _foes(w)
 			same = same and build(at).objects == w.objects
 			var cut: Array = _cut(w)
-			if p == Difficulty.Preset.NORMAL:
-				normal[at] = cut
-			whole = whole and cut == normal[at]
+			if cut != [[], []]:
+				print("  %s at %s: cut off %s, gates %s" % [Difficulty.NAMES[p], at, cut[0], cut[1]])
+			whole = whole and cut == [[], []]
 		totals.append(total)
 		check(same, "%s: the same every build" % Difficulty.NAMES[p])
-		check(whole, "%s: every level stays as whole as on Normal (its open air joined, its switches reached with their gates shut)" % Difficulty.NAMES[p])
+		check(whole, "%s: every level stays whole (its open air joined, its switches reached with their gates shut)" % Difficulty.NAMES[p])
 	check(totals[1] > totals[0] and totals[2] > totals[1], "harder presets hold more foes (%s)" % [totals])
 	Difficulty.preset = Difficulty.Preset.NORMAL
 	var normal_key: String = LevelLoader._world_key(Vector2i(28, 0))

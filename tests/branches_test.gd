@@ -67,6 +67,6 @@ func run() -> void:
 	check(crossing != null, "some hyperspace above the start crosses into the branch below")
 	if crossing != null:
 		var to: Vector2i = hyper.destination_for(crossing)
-		check(to.y == 2 + Hyperspace.DROP and Rules.def_for(to).arrival_from == Worlds.side_at(0, crossing), "it comes out %d rows below the start, and that level's way back leads into it" % to.y)
+		check(to.y == 2 + Hyperspace.drop_for(crossing) and Rules.def_for(to).arrival_from == Worlds.side_at(0, crossing), "it comes out %d rows below the start, and that level's way back leads into it" % to.y)
 	RunState.delete_save()
 	finish()

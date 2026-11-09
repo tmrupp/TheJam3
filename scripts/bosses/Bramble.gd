@@ -617,32 +617,40 @@ func _draw_bulb(bulb: BrambleBulb) -> void:
 				petals.append(xf * RisoShapes.ellipse(Vector2(22.0, 0.0) + dir * (25.0 + 70.0 * u), 13.0 * (1.0 - u), 7.0 * (1.0 - u), 10, dir.angle()))
 			ink.ink(RisoPrint.ACCENT, 1.0 - u, petals)
 		return
+	ink_bulb(ink, xf, bulb.opened, bulb.charge, t * 3.0 + float(bulb.cell.y), clampf(1.0 - (t - bulb.struck_t) / FLASH_TIME, 0.0, 1.0),
+			bulb.wild, clampf(1.0 - (t - bulb.warded_t) / FLASH_TIME, 0.0, 1.0), bulb.hits_left())
+
+
+## A living bulb, printed on `canvas` from its root in the wall, laid out by `xf` (+x out of the rock):
+## `open` how far it is in bloom (0 shut in its sepals, 1 open), `charge` how near its next seed it is
+## (it swells), `wobble` the phase of its slow throb, `flash` how strongly it flashes pink from a
+## blow that wounded it, `wild` whether it is wild (screened pink, the bramble's last stand), `glance`
+## how strongly a blow just glanced off it, and `hits` its hits left (dark dots). The bramble's bulbs
+## (above) and the garden's seed pods (PodArt) alike.
+static func ink_bulb(canvas: InkCanvas, xf: Transform2D, open: float, charge: float, wobble: float, flash: float, wild: bool, glance: float, hits: int) -> void:
 	var cup: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(7.0, 0.0), 20.0, BULB_R * 0.9, 16)
-	var open: float = bulb.opened
-	var swell: float = 1.0 + BULB_SWELL * bulb.charge * bulb.charge + 0.04 * sin(t * 3.0 + float(bulb.cell.y))
+	var swell: float = 1.0 + BULB_SWELL * charge * charge + 0.04 * sin(wobble)
 	var r: float = BULB_R * swell * lerpf(SHUT_SIZE, 1.0, open)
 	var body: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(BrambleBulb.OUT * swell, 0.0), r * 0.95, r, 22)
-	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK], 1.0, [body])
-	ink.ink(RisoPrint.ACCENT, lerpf(SHUT_ACCENT, 1.0, open), [body])
-	var flash: float = clampf(1.0 - (t - bulb.struck_t) / FLASH_TIME, 0.0, 1.0)
+	canvas.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK], 1.0, [body])
+	canvas.ink(RisoPrint.ACCENT, lerpf(SHUT_ACCENT, 1.0, open), [body])
 	if flash > 0.0:
-		ink.ink(RisoPrint.PINK, 0.8 * flash, [body], false)
-	if bulb.wild:
-		ink.ink(RisoPrint.PINK, WILD_PINK * open, [body], false)
-		var glanced: float = clampf(1.0 - (t - bulb.warded_t) / FLASH_TIME, 0.0, 1.0)
-		if glanced > 0.0:
-			ink.ink(RisoPrint.BLUE, 0.6 * glanced, [body], false)
+		canvas.ink(RisoPrint.PINK, 0.8 * flash, [body], false)
+	if wild:
+		canvas.ink(RisoPrint.PINK, WILD_PINK * open, [body], false)
+		if glance > 0.0:
+			canvas.ink(RisoPrint.BLUE, 0.6 * glance, [body], false)
 	# Its gleam, toward the open shaft.
-	ink.lift_ink([RisoPrint.ACCENT], 0.7 * open, [xf * RisoShapes.ellipse(Vector2(BrambleBulb.OUT * swell + r * 0.3, -r * 0.35), r * 0.22, r * 0.14, 10, 0.5)])
-	ink.ink(RisoPrint.BLUE, BARK_BLUE, [cup])
-	ink.ink(RisoPrint.NIGHT, BARK_NIGHT, [cup], false)
+	canvas.lift_ink([RisoPrint.ACCENT], 0.7 * open, [xf * RisoShapes.ellipse(Vector2(BrambleBulb.OUT * swell + r * 0.3, -r * 0.35), r * 0.22, r * 0.14, 10, 0.5)])
+	canvas.ink(RisoPrint.BLUE, BARK_BLUE, [cup])
+	canvas.ink(RisoPrint.NIGHT, BARK_NIGHT, [cup], false)
 	# Its hits left, as dark dots down its middle.
 	var dots: Array[PackedVector2Array] = []
-	var n: int = bulb.hits_left()
+	var n: int = hits
 	for j: int in range(n):
 		var off: float = (float(j) - float(n - 1) * 0.5) * r * 0.5
 		dots.append(xf * RisoShapes.circle(Vector2(BrambleBulb.OUT * swell + 2.0, off), r * 0.13, 8))
-	ink.ink(RisoPrint.NIGHT, 0.85, dots, false)
+	canvas.ink(RisoPrint.NIGHT, 0.85, dots, false)
 	# Its sepals: closed over it while shut, folded back against the wall in bloom, and blue-bright
 	# for a moment when a blow glances off them.
 	if open < 0.99:
@@ -651,11 +659,10 @@ func _draw_bulb(bulb: BrambleBulb) -> void:
 			var hinge: Vector2 = Vector2(4.0, side * BULB_R * SEPAL_HINGE)
 			var leaf: Transform2D = Transform2D(lerpf(-side * SEPAL_SHUT, side * SEPAL_OPEN, open), hinge)
 			sepals.append(xf * (leaf * RisoShapes.almond(Vector2(BULB_R * 0.95, 0.0), BULB_R, BULB_R * SEPAL_WIDE, 14)))
-		var glance: float = clampf(1.0 - (t - bulb.warded_t) / FLASH_TIME, 0.0, 1.0)
 		var shut: float = 1.0 - open
-		ink.lift_ink([RisoPrint.NIGHT, RisoPrint.ACCENT], shut, sepals)
-		ink.ink(RisoPrint.BLUE, (BARK_BLUE - 0.4 * glance) * shut, sepals)
-		ink.ink(RisoPrint.NIGHT, BARK_NIGHT * (1.0 - glance) * shut, sepals, false)
+		canvas.lift_ink([RisoPrint.NIGHT, RisoPrint.ACCENT], shut, sepals)
+		canvas.ink(RisoPrint.BLUE, (BARK_BLUE - 0.4 * glance) * shut, sepals)
+		canvas.ink(RisoPrint.NIGHT, BARK_NIGHT * (1.0 - glance) * shut, sepals, false)
 
 
 ## The bud's size now (a share of BUD_LONG by BUD_WIDE): BUD_HIDDEN tucked in the crown, growing as

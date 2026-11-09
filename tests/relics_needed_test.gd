@@ -58,7 +58,7 @@ func run() -> void:
 	for world_seed: int in range(1, 13):
 		for from_depth: int in [1, 9]:
 			var w: LevelGen = build(Worlds.side_at(kind, Vector2i(world_seed, from_depth)))
-			if from_depth + Hyperspace.DROP < Rules.RELIC_NEED_FROM:
+			if from_depth + Hyperspace.drop_for(Vector2i(world_seed, from_depth)) < Rules.RELIC_NEED_FROM:
 				shallow_gaps += w.relic_gaps.size()
 				continue
 			for gap: Rect2i in w.relic_gaps:

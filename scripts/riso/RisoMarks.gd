@@ -69,12 +69,15 @@ static func place_marks(ink: InkCanvas, left: Vector2, r: float, widths: Vector2
 
 ## The same colour-to-shape identity on keys, lock faces and map marks.
 ## Sun = square, ember = triangle, moss = circle, plum = diamond; skeleton keys are a bone, and
-## relic unlocks the four-pointed star stamped on their seal (seal_shape), as a relic's motes are.
+## relic unlocks the four-pointed star stamped on their seal (seal_shape), as a relic's motes are;
+## seeds their own almond (seed_shape).
 static func key_bow(c: Vector2, r: float, color: int) -> PackedVector2Array:
 	if color == KeyRing.SKELETON:
 		return bone(c, r, r * 0.7)
 	if color == KeyRing.UNLOCK:
 		return RisoShapes.sparkle(c, r * UNLOCK_BOW)
+	if color == KeyRing.SEED:
+		return RisoShapes.almond(c, r * 0.8, r * 1.2)
 	if KeyRing.is_paper(color):
 		return paper_shape(c, r / 14.0)[0]
 	match posmod(color, Rules.KEY_COLOR_COUNT):
@@ -107,6 +110,20 @@ static func seal_shape(o: Vector2, s: float) -> Array[PackedVector2Array]:
 		RisoShapes.sparkle(o, r * SEAL_STAR)]
 
 
+## A seed (KeyRing.SEED), at `s` times a key's size, centred on `o`: an almond standing on its
+## point, leaning a little, its seam down the middle (lifted to paper), and a curl of sprout from its
+## top, in that order.
+const SEED_R: Vector2 = Vector2(10.0, 15.0)
+const SEED_LEAN: float = 0.35
+
+static func seed_shape(o: Vector2, s: float) -> Array[PackedVector2Array]:
+	var xf: Transform2D = Transform2D(SEED_LEAN, Vector2(s, s), 0.0, o)
+	var body: PackedVector2Array = xf * RisoShapes.almond(Vector2.ZERO, SEED_R.x, SEED_R.y)
+	var seam: PackedVector2Array = xf * RisoShapes.strand(Vector2(0, -SEED_R.y * 0.6), Vector2(0, SEED_R.y * 0.5), 1.6)
+	var sprout: PackedVector2Array = xf * RisoShapes.crescent(Vector2(3, -SEED_R.y - 4), 6.0, Vector2(3, 2))
+	return [body, seam, sprout]
+
+
 ## A bone `hw` across and `hh` high from its middle out, centred on `c`: a bar with two round knobs
 ## at each end.
 static func bone(c: Vector2, hw: float, hh: float) -> PackedVector2Array:
@@ -124,6 +141,8 @@ static func key_shape(o: Vector2, s: float, color: int = 0) -> Array[PackedVecto
 		return paper_shape(o, s)
 	if color == KeyRing.UNLOCK:
 		return seal_shape(o, s)
+	if color == KeyRing.SEED:
+		return seed_shape(o, s)
 	# A skeleton key has the bit of a rare key (three teeth) and a bone's knobbed base for its bow.
 	var skeleton: bool = color == KeyRing.SKELETON
 	var extra: int = SKELETON_TEETH if skeleton else clampi(color, 0, KEY_TEETH.size())

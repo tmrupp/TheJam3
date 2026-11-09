@@ -90,6 +90,12 @@ enum Type {
 	HINT,
 	## A boss's trophy stand, in the room by the tutorial's way out (Tutorial, TrophyStand).
 	TROPHY_STAND,
+	## The garden's seed pods, set in its walls (SeedPod), and its plots, where a seed is planted
+	## (Plot; GardenArchetype.finish).
+	POD,
+	PLOT,
+	## The garden's small worms, in its rock (Wormlet).
+	WORMLET,
 }
 
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).
@@ -493,7 +499,8 @@ const POCKET: int = 6
 ## Join every open space into one cave. Tiny pockets fill with rock; every other open region
 ## is joined to the largest by carving the shortest tunnel through the rock between them,
 ## nearest region first, until one region remains. Deterministic: fixed scan and BFS orders.
-## No tunnel goes through the cells in `walled` (the bramble's shaft, BrambleShaft).
+## No tunnel goes through the cells in `walled` (the bramble's shaft, BrambleShaft) or through
+## rock kept whole (kept_whole), though a tunnel may end at open air kept whole.
 func connect_caves (walled: Dictionary = {}) -> void:
 	var groups: Array = _open_regions()
 	for g: Array in groups:
@@ -529,7 +536,12 @@ func connect_caves (walled: Dictionary = {}) -> void:
 			head += 1
 			for d: Vector2i in neighbor_offsets:
 				var n: Vector2i = v + d
-				if not is_valid(n) or parent.has(n) or walled.has(n) or kept_whole.has(n):
+				if not is_valid(n) or parent.has(n) or walled.has(n):
+					continue
+				# Rock kept whole is never tunnelled through, but open air kept whole (a tower's
+				# rooms, the air at its doorway) is still reached: else a pocket of it alone stays
+				# shut off.
+				if kept_whole.has(n) and not (_open(n) and not main.has(n)):
 					continue
 				parent[n] = v
 				if _open(n) and not main.has(n):

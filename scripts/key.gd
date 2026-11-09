@@ -4,7 +4,8 @@ class_name KeyPickup
 ## The player carries one at a time (more with the keyring, see KeyRing); grabbing another with
 ## no room leaves the oldest carried one where the new one was (MapInfo records it there). A key of
 ## a colour already carried is left lying. A skeleton key (KeyRing.SKELETON) goes in the pocket
-## instead, and so does a relic unlock (KeyRing.UNLOCK). A dropped key arms only once the wizard has been more than ARM_DISTANCE from it.
+## instead, and so does a relic unlock (KeyRing.UNLOCK) and a seed (KeyRing.SEED: left lying while the
+## pocket holds KeyRing.SEEDS_MOST already). A dropped key arms only once the wizard has been more than ARM_DISTANCE from it.
 
 @onready var visuals: Sprite2D = $Sprite2D
 
@@ -30,6 +31,10 @@ func touch(other: Node) -> void:
 			player.keyring.set_skeletons(player.keyring.skeletons() + 1)
 		elif key_color() == KeyRing.UNLOCK:
 			player.keyring.set_unlocks(player.keyring.unlocks() + 1)
+		elif key_color() == KeyRing.SEED:
+			if player.keyring.seeds() >= KeyRing.SEEDS_MOST:
+				return
+			player.keyring.set_seeds(player.keyring.seeds() + 1)
 		elif player.keyring.has(key_color()):
 			# Already carried: it stays where it lies.
 			return
@@ -64,5 +69,6 @@ func destroy_on_finish_sfx() -> void:
 
 func _ready() -> void:
 	connect("body_entered", touch)
-	# A relic unlock is only ever dropped by a boss, never left for another key: armed at once.
-	armed = not has_meta(&"dropped_id") or key_color() == KeyRing.UNLOCK
+	# A relic unlock is only ever dropped by a boss, and a seed by a pod, never left for another key:
+	# armed at once.
+	armed = not has_meta(&"dropped_id") or key_color() in [KeyRing.UNLOCK, KeyRing.SEED]

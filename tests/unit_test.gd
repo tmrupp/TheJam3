@@ -369,20 +369,25 @@ func _branches() -> void:
 	var crossed: int = 0
 	var stayed: int = 0
 	var inverse_ok: bool = true
-	for x: int in range(1, 200):
-		for row: int in [2, -2, 7, -9]:
+	var g: int = Bands.garden_rows()
+	# Rows in the garden, in the first band beyond it each way (one where two drops end on the same
+	# row: from the garden's last row and the band's first), and two bands out.
+	for x: int in range(1, 400):
+		for row: int in [2, -2, g, g + 1, -(g + 1), -(g + 2), g + Bands.BAND_ROWS + 3]:
 			var from: Vector2i = Vector2i(x, row)
 			if not hyper.deals(from):
 				continue
 			var to: Vector2i = hyper.destination_for(from)
-			inverse_ok = inverse_ok and absi(to.y) == absi(row) + Hyperspace.DROP and absi(to.x - x) <= 1
+			inverse_ok = inverse_ok and absi(to.y) == absi(row) + Hyperspace.drop_for(from) and absi(to.x - x) <= 1
 			if signi(to.y) == signi(row):
 				stayed += 1
 			else:
 				crossed += 1
 			var back: Variant = hyper.arriving(to)
 			inverse_ok = inverse_ok and back != null and hyper.destination_for(back) == to
-	check(inverse_ok, "hyperspace leads %d rows further from the start, and the level it leads to knows a hyperspace that leads there" % Hyperspace.DROP)
+	check(inverse_ok, "hyperspace leads drop_for rows further from the start, and the level it leads to knows a hyperspace that leads there")
+	var drops: Array[int] = [Hyperspace.drop_for(Vector2i(1, 2)), Hyperspace.drop_for(Vector2i(1, g + 1)), Hyperspace.drop_for(Vector2i(1, -(g + 1))), Hyperspace.drop_for(Vector2i(1, g + Bands.BAND_ROWS + 3))]
+	check(drops[0] == Hyperspace.DROPS[0] and drops[1] == Hyperspace.DROPS[1] and drops[2] == Hyperspace.DROPS[1] and drops[3] == Hyperspace.DROPS[2] and drops[0] > drops[1] and drops[1] > drops[3], "the deeper the door, the shorter the drop (%s)" % [drops])
 	check(crossed > 0 and stayed > crossed, "most stay in their branch, some cross the start into the other (%d stayed, %d crossed)" % [stayed, crossed])
 	check(not hyper.deals(Vector2i(28, 0)), "there is no hyperspace door at the start")
 

@@ -1002,19 +1002,13 @@ func _process(delta: float) -> void:
 					flesh = _bite_out(flesh, _jaw(s, width, gape))
 			if flesh.is_empty():
 				continue
-			ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], flesh)
-			if i == 0:
-				ink.ink(RisoPrint.PINK, (STUNNED_FLESH if pale else 1.0) * k, flesh, false)
-				if s.shown:
-					ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], _teeth(s, width, gape))
-					_draw_bite(p, width)
-			else:
-				var cover: float = (STUNNED_FLESH if pale else 1.0) * k
-				ink.ink(RisoPrint.PINK, FLESH_PINK * cover, flesh, false)
-				ink.ink(RisoPrint.BLUE, FLESH_GREEN * cover, flesh, false)
+			ink_flesh(ink, flesh, i == 0, (STUNNED_FLESH if pale else 1.0) * k)
+			if i == 0 and s.shown:
+				ink_teeth(ink, _teeth(s, width, gape))
+				_draw_bite(p, width)
 			# The joint behind it, in shadow under the segment ahead's overhang.
 			if i != last:
-				ink.ink(RisoPrint.NIGHT, JOINT_SHADE * k, _pipe(path, back - JOINT, back, width), false)
+				ink_joint(ink, _pipe(path, back - JOINT, back, width), k)
 			if s.thorns != null:
 				_draw_scales(path, p.side * s.flank, front, back, width, k, pale)
 			if s.shown:
@@ -1026,6 +1020,112 @@ func _process(delta: float) -> void:
 		if pale and p.segments[0].shown and p.state != DYING:
 			_draw_stun(p.segments[0], width)
 	ink.finish()
+
+
+# ------------------------------------------------------------------ its look, shared
+# The worm's look, in pieces that take plain shapes and places, so the garden's small worms
+# (Wormlet, WormletArt) print exactly as the boss does.
+
+## Print `flesh` (the body's strips and caps) as a worm's: the head's in pink, the rest pale flesh
+## (pink and a little green), `cover` strong (STUNNED_FLESH of it while stunned), knocked out of
+## whatever is under it first.
+static func ink_flesh(canvas: InkCanvas, flesh: Array[PackedVector2Array], head: bool, cover: float) -> void:
+	canvas.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], flesh)
+	if head:
+		canvas.ink(RisoPrint.PINK, cover, flesh, false)
+	else:
+		canvas.ink(RisoPrint.PINK, FLESH_PINK * cover, flesh, false)
+		canvas.ink(RisoPrint.BLUE, FLESH_GREEN * cover, flesh, false)
+
+
+## Print a joint's shadow (`shade`, a strip of the body just behind a segment), `k` strong.
+static func ink_joint(canvas: InkCanvas, shade: Array[PackedVector2Array], k: float) -> void:
+	canvas.ink(RisoPrint.NIGHT, JOINT_SHADE * k, shade, false)
+
+
+## Print a head's teeth (teeth_at, or the boss's clipped to the open air) in bare paper.
+static func ink_teeth(canvas: InkCanvas, teeth: Array[PackedVector2Array]) -> void:
+	canvas.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], teeth)
+
+
+## Print a segment's `hits` left as dark dots in a row across it, at `at` heading `way`, `width`
+## across, `k` strong.
+static func ink_hits(canvas: InkCanvas, at: Vector2, way: Vector2, width: float, hits: int, k: float) -> void:
+	var dots: Array[PackedVector2Array] = []
+	var side: Vector2 = way.orthogonal()
+	for j: int in range(hits):
+		var off: float = (float(j) - float(hits - 1) * 0.5) * width * 0.22
+		dots.append(RisoShapes.circle(at - way * width * 0.08 + side * off, width * 0.075, 8))
+	canvas.ink(RisoPrint.NIGHT, 0.85 * k, dots, false)
+
+
+## A rounded end of a body `width` across at `at`, facing `way`, reaching `depth` out from `at`.
+static func cap_shape(at: Vector2, way: Vector2, width: float, depth: float) -> PackedVector2Array:
+	var side: Vector2 = way.orthogonal()
+	var half: PackedVector2Array = PackedVector2Array()
+	for n: int in range(13):
+		var a: float = -PI * 0.5 + PI * float(n) / 12.0
+		half.append(at + side * sin(a) * width * 0.5 + way * cos(a) * depth)
+	return half
+
+
+## The wedge cut out of a head's round front at `at` heading `way`, `width` across, opened `gape`
+## (0 shut, 1 wide).
+static func jaw_at(at: Vector2, way: Vector2, width: float, gape: float) -> PackedVector2Array:
+	var r: float = width * 0.5
+	var side: Vector2 = way.orthogonal()
+	return PackedVector2Array([at + way * r * MOUTH_ROOT, at + way * r * MOUTH_REACH + side * r * gape * MOUTH_SPREAD, at + way * r * MOUTH_REACH - side * r * gape * MOUTH_SPREAD])
+
+
+## Paper fangs along both edges of the mouth (jaw_at), opened `gape`, pointing into it: those of one
+## jaw between those of the other, so shut they mesh in a zigzag along the seam. `size` times the
+## boss's for the head's width (a small worm's are bigger for its head, or they would not show).
+static func teeth_at(at: Vector2, way: Vector2, width: float, gape: float, size: float = 1.0) -> Array[PackedVector2Array]:
+	var r: float = width * 0.5
+	var side: Vector2 = way.orthogonal()
+	var root: Vector2 = at + way * r * MOUTH_ROOT
+	var out: Array[PackedVector2Array] = []
+	for jaw: float in [1.0, -1.0]:
+		var dir: Vector2 = (way * r * (MOUTH_REACH - MOUTH_ROOT) + side * jaw * r * gape * MOUTH_SPREAD).normalized()
+		# Toward the middle of the mouth, square to the jaw's edge.
+		var into: Vector2 = dir.orthogonal()
+		if into.dot(side * jaw) > 0.0:
+			into = -into
+		# How far along the edge it meets the round of the head.
+		var o: Vector2 = root - at
+		var b: float = o.dot(dir)
+		var reach: float = -b + sqrt(maxf(0.0, b * b - o.length_squared() + r * r))
+		var spots: Array[float] = TEETH_UPPER if jaw > 0.0 else TEETH_LOWER
+		for frac: float in spots:
+			var base: Vector2 = root + dir * reach * frac - into * 2.0 * size
+			out.append(PackedVector2Array([base - dir * r * TOOTH_HALF * size, base + into * r * TOOTH_LEN * size, base + dir * r * TOOTH_HALF * size]))
+	return out
+
+
+## The ground bulging where a worm is about to come out: at `at` (its face, out along -y), for a
+## worm of radius `r`, `near` how close it is to coming out (0 to 1), `clock` its clock (seconds): in pink
+## (danger), throbbing faster and swelling as it nears, round a dark slit, clods of dirt jumping.
+static func ink_warning(canvas: InkCanvas, at: Transform2D, r: float, near: float, clock: float) -> void:
+	var throb: float = 0.5 + 0.5 * sin(clock * lerpf(10.0, 30.0, near))
+	var swell: float = 10.0 + 24.0 * near + 4.0 * throb
+	var bulge: PackedVector2Array = at * RisoShapes.almond(Vector2(0, -swell * 0.35), r * (1.05 + 0.1 * throb), swell, 28)
+	canvas.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], [bulge])
+	canvas.ink(RisoPrint.PINK, 0.6 + 0.4 * throb, [bulge], false)
+	canvas.ink(RisoPrint.NIGHT, 1.0, [at * RisoShapes.almond(Vector2(0, -swell * 0.3), r * 0.55, 3.0 + 4.0 * near, 16)], false)
+	var dirt: Array[PackedVector2Array] = []
+	for i: int in range(9):
+		var x: float = (float(i) / 8.0 - 0.5) * 2.4 * r
+		var hop: float = absf(sin(clock * (12.0 + float(i) * 1.7) + float(i) * 2.1)) * (14.0 + 40.0 * near)
+		dirt.append(RisoShapes.circle(at * Vector2(x, -swell * 0.5 - hop), 4.5 + 2.5 * near, 8))
+	ink_dug_earth(canvas, dirt)
+
+
+## Print `crumbs` as freshly dug earth, in the worm's pale flesh tones (HOLE_EARTH of them), over
+## whatever is under them: the crumbs round a burrow and the dirt jumping where a worm will come out.
+static func ink_dug_earth(canvas: InkCanvas, crumbs: Array[PackedVector2Array]) -> void:
+	canvas.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], crumbs)
+	canvas.ink(RisoPrint.PINK, FLESH_PINK * HOLE_EARTH, crumbs, false)
+	canvas.ink(RisoPrint.BLUE, FLESH_GREEN * HOLE_EARTH + 0.25, crumbs, false)
 
 
 ## The body along `path` from `front` to `back` (in cells), `width` across, as strips of what is
@@ -1063,11 +1163,7 @@ func _cap(path: Array[Vector2i], s: float, width: float, head: bool) -> Array[Pa
 		depth = minf(depth + CAP_STEP, width * 0.5)
 	if depth < 1.0:
 		return []
-	var side: Vector2 = way.orthogonal()
-	var half: PackedVector2Array = PackedVector2Array()
-	for n: int in range(13):
-		var a: float = -PI * 0.5 + PI * float(n) / 12.0
-		half.append(at + side * sin(a) * width * 0.5 + way * cos(a) * depth)
+	var half: PackedVector2Array = cap_shape(at, way, width, depth)
 	# On a bend the sides of the round head can meet rock too, not just its nose.
 	if head:
 		return _clip_to_air(half, at, width * 0.5)
@@ -1076,16 +1172,25 @@ func _cap(path: Array[Vector2i], s: float, width: float, head: bool) -> Array[Pa
 
 ## A rounded head's visible part, clipped to the open cells round its centre.
 func _clip_to_air(poly: PackedVector2Array, at: Vector2, radius: float) -> Array[PackedVector2Array]:
+	return clip_to_air(map_info, poly, at, radius)
+
+
+## The part of `poly` (world) over the open cells of `info`'s level within `radius` of `at`: what of a
+## worm or its hole shows, never over rock. With `backed`, only over open cells with rock that way
+## (a small worm's hole heaps up on the floor or ceiling it is dug in, never out over a drop). The
+## boss's and the small worms' alike.
+static func clip_to_air(info: MapInfo, poly: PackedVector2Array, at: Vector2, radius: float, backed: Vector2i = Vector2i.ZERO) -> Array[PackedVector2Array]:
 	var out: Array[PackedVector2Array] = []
-	var lo: Vector2i = map_info.cell_at(at - Vector2.ONE * radius)
-	var hi: Vector2i = map_info.cell_at(at + Vector2.ONE * radius)
+	var size: float = (info.cell_position(Vector2i(1, 0)) - info.cell_position(Vector2i.ZERO)).x
+	var lo: Vector2i = info.cell_at(at - Vector2.ONE * radius)
+	var hi: Vector2i = info.cell_at(at + Vector2.ONE * radius)
 	for x: int in range(lo.x, hi.x + 1):
 		for y: int in range(lo.y, hi.y + 1):
 			var c: Vector2i = Vector2i(x, y)
-			if not passable(map_info.world, c):
+			if not passable(info.world, c) or (backed != Vector2i.ZERO and passable(info.world, c + backed)):
 				continue
-			var corner: Vector2 = center(c) - Vector2.ONE * cell * 0.5
-			var square: PackedVector2Array = PackedVector2Array([corner, corner + Vector2(cell, 0), corner + Vector2.ONE * cell, corner + Vector2(0, cell)])
+			var corner: Vector2 = info.cell_position(c) - Vector2.ONE * size * 0.5
+			var square: PackedVector2Array = PackedVector2Array([corner, corner + Vector2(size, 0), corner + Vector2.ONE * size, corner + Vector2(0, size)])
 			out.append_array(Geometry2D.intersect_polygons(poly, square))
 	return out
 
@@ -1144,37 +1249,15 @@ static func _strike_gape(since: float) -> float:
 ## A wedge cut out of the head's round front, opened `gape` (see _gape), showing what is behind it,
 ## without extending the head beyond its collider.
 func _jaw(head: WormSegment, width: float, gape: float) -> PackedVector2Array:
-	var r: float = width * 0.5
-	var at: Vector2 = head.global_position
-	var way: Vector2 = head.heading
-	var side: Vector2 = way.orthogonal()
-	return PackedVector2Array([at + way * r * MOUTH_ROOT, at + way * r * MOUTH_REACH + side * r * gape * MOUTH_SPREAD, at + way * r * MOUTH_REACH - side * r * gape * MOUTH_SPREAD])
+	return jaw_at(head.global_position, head.heading, width, gape)
 
 
 ## Paper fangs along both edges of the mouth (_jaw), opened `gape`, pointing into it: those of one
 ## jaw between those of the other, so shut they mesh in a zigzag along the seam. Only in the open.
 func _teeth(head: WormSegment, width: float, gape: float) -> Array[PackedVector2Array]:
-	var r: float = width * 0.5
-	var at: Vector2 = head.global_position
-	var way: Vector2 = head.heading
-	var side: Vector2 = way.orthogonal()
-	var root: Vector2 = at + way * r * MOUTH_ROOT
 	var out: Array[PackedVector2Array] = []
-	for jaw: float in [1.0, -1.0]:
-		var dir: Vector2 = (way * r * (MOUTH_REACH - MOUTH_ROOT) + side * jaw * r * gape * MOUTH_SPREAD).normalized()
-		# Toward the middle of the mouth, square to the jaw's edge.
-		var into: Vector2 = dir.orthogonal()
-		if into.dot(side * jaw) > 0.0:
-			into = -into
-		# How far along the edge it meets the round of the head.
-		var o: Vector2 = root - at
-		var b: float = o.dot(dir)
-		var reach: float = -b + sqrt(maxf(0.0, b * b - o.length_squared() + r * r))
-		var spots: Array[float] = TEETH_UPPER if jaw > 0.0 else TEETH_LOWER
-		for frac: float in spots:
-			var base: Vector2 = root + dir * reach * frac - into * 2.0
-			var tooth: PackedVector2Array = PackedVector2Array([base - dir * r * TOOTH_HALF, base + into * r * TOOTH_LEN, base + dir * r * TOOTH_HALF])
-			out.append_array(_clip_to_air(tooth, at, r))
+	for tooth: PackedVector2Array in teeth_at(head.global_position, head.heading, width, gape):
+		out.append_array(_clip_to_air(tooth, head.global_position, width * 0.5))
 	return out
 
 
@@ -1318,13 +1401,7 @@ func scale_plates(path: Array[Vector2i], toward: float, front: float, back: floa
 
 ## A segment's hits left, as dark dots in a row across its middle.
 func _draw_hits(s: WormSegment, width: float, k: float) -> void:
-	var dots: Array[PackedVector2Array] = []
-	var n: int = maxi(s.wound.hp, 0)
-	var side: Vector2 = s.heading.orthogonal()
-	for j: int in range(n):
-		var off: float = (float(j) - float(n - 1) * 0.5) * width * 0.22
-		dots.append(RisoShapes.circle(s.global_position - s.heading * width * 0.08 + side * off, width * 0.075, 8))
-	ink.ink(RisoPrint.NIGHT, 0.85 * k, dots, false)
+	ink_hits(ink, s.global_position, s.heading, width, maxi(s.wound.hp, 0), k)
 
 
 ## A burrow hole, as wide as the worm: the ground itself pushed up round a dark pit across the rock
@@ -1338,44 +1415,55 @@ func _draw_hole(hole: Hole) -> void:
 	var r: float = cell * GIRTH * 0.5
 	# Only over open air: in a narrow shaft or tunnel the earth heaps up against its walls rather
 	# than spilling over them.
-	var shoulders: Array[PackedVector2Array] = _clip_to_air(at * _mound(r), hole.mouth, r * HOLE_REACH + HOLE_RIM)
+	var shoulders: Array[PackedVector2Array] = _clip_to_air(at * mound_shape(r), hole.mouth, r * HOLE_REACH + HOLE_RIM)
+	var info: MapInfo = map_info
+	ink_hole(ink, at, r, shoulders, hole.out.dot(Vector2.UP) > 0.5, func(spot: Vector2) -> bool: return passable(info.world, info.cell_at(spot)))
+
+
+## A burrow hole printed on `canvas` in its frame `at` (across x, out of the rock along -y, the mouth
+## at the origin), for a worm of radius `r`: `shoulders`, the ground pushed up round it
+## (mound_shape, clipped to the open air), printed as the terrain prints rock (on a floor,
+## `on_floor`, with its cap strip over it); the dark pit across the mouth; and crumbs of freshly dug
+## earth among clods of the ground's own wherever `open` (a world point) says there is air. `size`
+## scales its depth and crumbs: 1 for the boss's, less for a small worm's, and less again while one
+## opens or falls in. The boss's holes (above) and the garden's small worms' (WormletArt) alike;
+## printed with the canvas's of_the_rock on.
+static func ink_hole(canvas: InkCanvas, at: Transform2D, r: float, shoulders: Array[PackedVector2Array], on_floor: bool, open: Callable, size: float = 1.0) -> void:
 	# Printed as the terrain prints rock (and, on a floor, its cap strip over it).
-	ink.knock([RisoPrint.PINK, RisoPrint.ACCENT], shoulders)
-	ink.ink(RisoPrint.BLUE, 1.0, shoulders)
-	if hole.out.dot(Vector2.UP) > 0.5:
-		ink.ink(RisoPrint.ACCENT, 1.0, shoulders)
-	ink.ink(RisoPrint.NIGHT, 1.0, [at * RisoShapes.almond(Vector2(0, 0), r * 0.97, HOLE_PIT, 24)], false)
+	canvas.knock([RisoPrint.PINK, RisoPrint.ACCENT], shoulders)
+	canvas.ink(RisoPrint.BLUE, 1.0, shoulders)
+	if on_floor:
+		canvas.ink(RisoPrint.ACCENT, 1.0, shoulders)
+	canvas.ink(RisoPrint.NIGHT, 1.0, [at * RisoShapes.almond(Vector2(0, 0), r * 0.97, HOLE_PIT * size, 24)], false)
 	var dug: Array[PackedVector2Array] = []
 	var clods: Array[PackedVector2Array] = []
 	for k: int in range(HOLE_CRUMBS.size()):
 		var c: Vector3 = HOLE_CRUMBS[k]
-		var spot: Vector2 = at * Vector2(c.x * r, -c.y)
-		if not passable(map_info.world, map_info.cell_at(spot)):
+		var spot: Vector2 = at * Vector2(c.x * r, -c.y * size)
+		if not bool(open.call(spot)):
 			continue
-		var crumb: PackedVector2Array = RisoShapes.circle(spot, c.z, 8)
+		var crumb: PackedVector2Array = RisoShapes.circle(spot, c.z * size, 8)
 		# Every third one a clod of the ground's own; the rest freshly dug earth.
 		if k % 3 == 2:
 			clods.append(crumb)
 		else:
 			dug.append(crumb)
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], dug)
-	ink.ink(RisoPrint.PINK, FLESH_PINK * HOLE_EARTH, dug, false)
-	ink.ink(RisoPrint.BLUE, FLESH_GREEN * HOLE_EARTH + 0.25, dug, false)
-	ink.knock([RisoPrint.PINK, RisoPrint.ACCENT], clods)
-	ink.ink(RisoPrint.BLUE, 1.0, clods)
-	ink.ink(RisoPrint.NIGHT, 0.3, clods, false)
+	ink_dug_earth(canvas, dug)
+	canvas.knock([RisoPrint.PINK, RisoPrint.ACCENT], clods)
+	canvas.ink(RisoPrint.BLUE, 1.0, clods)
+	canvas.ink(RisoPrint.NIGHT, 0.3, clods, false)
 
 
 ## The ground pushed up round a hole, in the hole's frame (across x, out along -y, the mouth at the
 ## origin) for a worm of radius `r`: low at the middle, where the pit is, rising to a rim either
-## side at the worm's flanks, and easing back down to the face HOLE_REACH radii out.
-static func _mound(r: float) -> PackedVector2Array:
+## side at the worm's flanks, `rim` high (px), and easing back down to the face HOLE_REACH radii out.
+static func mound_shape(r: float, rim: float = HOLE_RIM) -> PackedVector2Array:
 	var reach: float = r * HOLE_REACH
 	var out: PackedVector2Array = PackedVector2Array([Vector2(reach, 1.0), Vector2(-reach, 1.0)])
 	for n: int in range(33):
 		var x: float = lerpf(-reach, reach, float(n) / 32.0)
 		var a: float = absf(x)
-		var h: float = HOLE_RIM * pow(a / r, 3.0) if a < r else HOLE_RIM * (0.5 + 0.5 * cos(PI * (a - r) / (reach - r)))
+		var h: float = rim * pow(a / r, 3.0) if a < r else rim * (0.5 + 0.5 * cos(PI * (a - r) / (reach - r)))
 		out.append(Vector2(x, -h))
 	return out
 
@@ -1384,23 +1472,7 @@ static func _mound(r: float) -> PackedVector2Array:
 ## faster and swelling as it nears, round a dark slit, and clods of dirt jump from it.
 func _draw_warning(p: Piece) -> void:
 	var face: Array[Vector2] = _face(p)
-	var at: Transform2D = Transform2D(face[1].angle() + PI * 0.5, face[0])
-	var r: float = cell * GIRTH * 0.5
-	var near: float = 1.0 - p.warn / EMERGE_WARN
-	var throb: float = 0.5 + 0.5 * sin(t * lerpf(10.0, 30.0, near))
-	var swell: float = 10.0 + 24.0 * near + 4.0 * throb
-	var bulge: PackedVector2Array = at * RisoShapes.almond(Vector2(0, -swell * 0.35), r * (1.05 + 0.1 * throb), swell, 28)
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], [bulge])
-	ink.ink(RisoPrint.PINK, 0.6 + 0.4 * throb, [bulge], false)
-	ink.ink(RisoPrint.NIGHT, 1.0, [at * RisoShapes.almond(Vector2(0, -swell * 0.3), r * 0.55, 3.0 + 4.0 * near, 16)], false)
-	var dirt: Array[PackedVector2Array] = []
-	for i: int in range(9):
-		var x: float = (float(i) / 8.0 - 0.5) * 2.4 * r
-		var hop: float = absf(sin(t * (12.0 + float(i) * 1.7) + float(i) * 2.1)) * (14.0 + 40.0 * near)
-		dirt.append(RisoShapes.circle(at * Vector2(x, -swell * 0.5 - hop), 4.5 + 2.5 * near, 8))
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], dirt)
-	ink.ink(RisoPrint.PINK, FLESH_PINK * HOLE_EARTH, dirt, false)
-	ink.ink(RisoPrint.BLUE, FLESH_GREEN * HOLE_EARTH + 0.25, dirt, false)
+	ink_warning(ink, Transform2D(face[1].angle() + PI * 0.5, face[0]), cell * GIRTH * 0.5, 1.0 - p.warn / EMERGE_WARN, t)
 
 
 ## Stars circling over a stunned worm's head, fewer as the stun runs out.

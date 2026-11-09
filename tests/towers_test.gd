@@ -9,7 +9,8 @@ extends TestKit
 ## holds one of the level's keys, a switch for a gate nearby, or a mending bowl (MendWell), and those
 ## turn up across the levels. Every tower in the band's levels of several worlds is whole once the
 ## level is laid out: nothing later cracks, carves, fills or tunnels through its walls, floors,
-## rooms, doorsteps, footing or the air over its roof, and nothing tall stands in its doorways. No
+## rooms, doorsteps, footing or the air over its roof, nothing tall stands in its doorways, and its
+## air is joined to the way in (one built into a corner does not seal its own doorway). No
 ## rock-bug nest is in a tower: they sit out on the cliff, away from the way in. The keeps' halls are interiors too. Two builds of a level are the same.
 ## godot --headless --path . --script res://tests/towers_test.gd
 
@@ -150,7 +151,7 @@ func _whole_everywhere() -> void:
 ## What is wrong with `tower` in `w`, laid out: a floor (or roof) broken but for its stair holes, a
 ## room or the air over the roof filled, a wall broken but for its doorways and windows (or one
 ## opening onto rock), cracked stone, the ground row or the rock under it gone, a doorstep filled, a
-## ledge under a stair hole missing, or something set in a doorway.
+## ledge under a stair hole missing, something set in a doorway, or its air shut off from the way in.
 func _faults(w: LevelGen, tower: Dictionary) -> Array[String]:
 	var out: Array[String] = []
 	var box: Rect2i = tower["box"]
@@ -212,6 +213,13 @@ func _faults(w: LevelGen, tower: Dictionary) -> Array[String]:
 		for d: int in range(1, CragsArchetype.ROOF_AIR + 1):
 			if w.is_ground(Vector2i(x, roof - d)):
 				out.append("roof buried %s" % Vector2i(x, roof - d))
+	# Its air joined to the way in (the caves joined again round it): a tower whose doorway opens
+	# into a pocket of rock is not shut off from the rest of the level.
+	var joined: Dictionary = w.reach_from(w.exits[MapInfo.Exit.BACK])
+	for y: int in range(roof, ground + 1):
+		for x: int in range(x0, x1 + 1):
+			if w._open(Vector2i(x, y)) and not joined.has(Vector2i(x, y)):
+				out.append("shut off from the way in %s" % Vector2i(x, y))
 	return out
 
 

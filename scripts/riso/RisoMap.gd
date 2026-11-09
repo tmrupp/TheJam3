@@ -766,7 +766,7 @@ func _mark_door(at: Vector2, color: int) -> void:
 
 
 func _mark_key(at: Vector2, color: int) -> void:
-	_note("skeleton key" if color == KeyRing.SKELETON else ("relic unlock" if color == KeyRing.UNLOCK else ("exam paper" if KeyRing.is_paper(color) else "key")))
+	_note("skeleton key" if color == KeyRing.SKELETON else ("relic unlock" if color == KeyRing.UNLOCK else ("seed" if color == KeyRing.SEED else ("exam paper" if KeyRing.is_paper(color) else "key"))))
 	_key_ink(color, [RisoMarks.key_bow(at, 2.0, color)])
 
 

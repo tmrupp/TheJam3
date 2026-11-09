@@ -1,10 +1,11 @@
 class_name Hyperspace
 extends SideWorld
-## Hyperspace: a side world (see SideWorld) one long level strung between a level and one DROP rows
-## further from the start (give or take a world sideways, see drift): in the same branch, or, in
-## CROSS % of them, across the start in the other (down from an up level, up from a down one, see
-## crosses). Its door is rare: from a row away from the start, in CHANCE % of levels (every level in
-## a debug run), and costs PRICE times the deeper exit. You come in at the left end (the way back,
+## Hyperspace: a side world (see SideWorld) one long level strung between a level and one a few rows
+## further from the start (drop_for: fewer the further out its band lies; give or take a world
+## sideways, see drift): in the same branch, or, in CROSS % of them, across the start in the other
+## (down from an up level, up from a down one, see crosses). Its door is rare: from a row away from
+## the start, in CHANCE % of levels (every level in a debug run), and costs PRICE times the deeper
+## exit. You come in at the left end (the way back,
 ## out of the door) and leave by its gate at the right end, which drops you at the far level's way
 ## back (and that way back leads here again).
 ##
@@ -17,10 +18,13 @@ extends SideWorld
 ## get on (see _bridge), and watchers, wisps, moons and stars are scattered along it. Everything is
 ## a pure function of the level seed.
 
-## Its door: dealt in CHANCE % of levels a row or more from the start; leads DROP rows further from
-## it (crossing to the other branch in CROSS % of them); costs PRICE deeper exits.
-const CHANCE: int = 18
-const DROP: int = 4
+## Its door: dealt in CHANCE % of levels a row or more from the start; leads drop_for rows further
+## from it (crossing to the other branch in CROSS % of them); costs PRICE deeper exits.
+const CHANCE: int = 5
+## How many rows further from the start it leads, by how many bands out from the garden its door's
+## level lies (Bands.out_of_garden): from the garden, from the first band beyond it, and from any
+## band further out. The deeper the door, the shorter the drop.
+const DROPS: Array[int] = [4, 3, 2]
 const CROSS: int = 35
 const PRICE: float = 5.0
 
@@ -72,34 +76,43 @@ static func crosses(from: Vector2i) -> bool:
 	return Rules.level_seed(Rules.level_seed(from.x, from.y), 993) % 100 < CROSS
 
 
-## DROP rows further from the start than `from`, in its own branch or (crosses) the other. From
+## How many rows further from the start the one entered from level `from` leads (DROPS, by the
+## bands out from the garden that level lies).
+static func drop_for(from: Vector2i) -> int:
+	return DROPS[mini(Bands.out_of_garden(from.y), DROPS.size() - 1)]
+
+
+## drop_for rows further from the start than `from`, in its own branch or (crosses) the other. From
 ## the start itself (debug runs only), down, or up when it crosses.
 func destination_for(from: Vector2i) -> Vector2i:
 	var way: int = NextWorldDef.away(from.y) * (-1 if crosses(from) else 1)
-	return Vector2i(from.x + drift(from), way * (absi(from.y) + DROP))
+	return Vector2i(from.x + drift(from), way * (absi(from.y) + drop_for(from)))
 
 
 ## Where two would land in the same level (one drifting onto the other's), the one from the same
 ## branch wins, then the one straight across, then the one from the left.
 func arriving(at: Vector2i) -> Variant:
-	var d: int = absi(at.y) - DROP
-	if Worlds.is_side(at) or d < 0:
+	if Worlds.is_side(at):
 		return null
-	var rows: Array[int] = [signi(at.y) * d]
-	if d != 0:
-		rows.append(-signi(at.y) * d)
-	for row: int in rows:
-		for dx: int in [0, -1, 1]:
-			var from: Vector2i = Vector2i(at.x - dx, row)
-			if deals(from) and destination_for(from) == at:
-				return from
+	for across: bool in [false, true]:
+		# Nearest the start first, where two drops (from two bands) end on the same row.
+		for drop: int in range(DROPS.max(), DROPS.min() - 1, -1):
+			var d: int = absi(at.y) - drop
+			# From the start itself (debug runs only) it leads down, never across.
+			if d < 0 or (d == 0 and across):
+				continue
+			var row: int = signi(at.y) * d * (-1 if across else 1)
+			for dx: int in [0, -1, 1]:
+				var from: Vector2i = Vector2i(at.x - dx, row)
+				if deals(from) and destination_for(from) == at:
+					return from
 	return null
 
 
 ## How far from the start it counts as: the middle of the stretch of rows it spans.
 func depth_for(from: Vector2i) -> int:
 	@warning_ignore("integer_division")
-	return absi(from.y) + DROP / 2
+	return absi(from.y) + drop_for(from) / 2
 
 
 ## An empty strip, in the generator's colours: what a collapse that never settles falls back to.
@@ -143,7 +156,7 @@ func populate(w: LevelGen) -> void:
 	w.place_moons(MOONS)
 	for i: int in range(STARS):
 		w.put_random(LevelGen.Type.COIN)
-	if Rules.level_seed(w.seed_for_colors, RELIC_DEAL) % 100 < Rules.relic_need(absi(origin().y) + DROP):
+	if Rules.level_seed(w.seed_for_colors, RELIC_DEAL) % 100 < Rules.relic_need(absi(origin().y) + drop_for(origin())):
 		_relic_gap(w)
 
 

@@ -380,7 +380,7 @@ func to_save() -> Dictionary:
 	var keys: Array[int] = keyring.all()
 	return {
 		"stars": coins.coins, "key": keys[-1] if not keys.is_empty() else -1, "keys": keys,
-		"skeleton_keys": keyring.skeletons(), "relic_unlocks": keyring.unlocks(), "mend_draughts": Mend.stored(self), "resurrect_rites": Resurrect.stored(self),
+		"skeleton_keys": keyring.skeletons(), "relic_unlocks": keyring.unlocks(), "seeds": keyring.seeds(), "mend_draughts": Mend.stored(self), "resurrect_rites": Resurrect.stored(self),
 		"tiers": tier_names, "health": health.health,
 	}
 
@@ -398,6 +398,7 @@ func from_save(data: Dictionary) -> void:
 	keyring.set_all(data.get("keys", [int(data["key"])]))
 	keyring.set_skeletons(int(data.get("skeleton_keys", 0)))
 	keyring.set_unlocks(int(data.get("relic_unlocks", 0)))
+	keyring.set_seeds(int(data.get("seeds", 0)))
 	Mend.restore(self, int(data.get("mend_draughts", -1)))
 	Resurrect.restore(self, int(data.get("resurrect_rites", -1)))
 

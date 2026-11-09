@@ -35,17 +35,17 @@ const PLACES: Array = [
 
 ## label -> [terrain, dressing], as printed by this test.
 const GOLDEN: Dictionary = {
-	"garden": ["11264057849941e4", "c10f49678f1d05dc"],
-	"garden deeper": ["6f5546b5b0d99e59", "d94377302833918c"],
-	"garden above": ["5b9200228378acd6", "b079acae12e8cda8"],
-	"garden way up": ["01779f08c0bca5bb", "529104ecdc8b88c3"],
+	"garden": ["11264057849941e4", "98a17d76bb2f7f3a"],
+	"garden deeper": ["6f5546b5b0d99e59", "2df87f86f41760d3"],
+	"garden above": ["5b9200228378acd6", "b71b19c8a7d3a890"],
+	"garden way up": ["01779f08c0bca5bb", "e15abb7b16113c54"],
 	"cemetery": ["05a943ae50921269", "2436ac8ed05300da"],
 	"cemetery deeper": ["4f1f51ea868a37c4", "4dd361894afb8946"],
-	"institute": ["abd9b575ea810d8a", "1695f53528ccc3fa"],
-	"institute deeper": ["deb63baf1d05b7b2", "05b95ce25b67e948"],
-	"crags": ["f0876d6d02e4a766", "690f30419b5b6f7d"],
+	"institute": ["abd9b575ea810d8a", "69648793631350d6"],
+	"institute deeper": ["deb63baf1d05b7b2", "8cf668b16714beed"],
+	"crags": ["f0876d6d02e4a766", "236b2bc04479bc0b"],
 	"sky": ["aafea3eeafb6bd8d", "cb0b0315540eab4a"],
-	"sky deeper": ["6c1847d97e24adb2", "64f4b7db212bc0cd"],
+	"sky deeper": ["6c1847d97e24adb2", "cebf42925295185f"],
 	"hyperspace": ["62985f1b9d0990ef", "06fcc01c4456aaec"],
 	"hyperspace above": ["76c570116e0184a9", "7752378af03ba4be"],
 }

@@ -1,8 +1,9 @@
 extends RisoProp
 ## A key, bobbing in a light of its own colour (RisoLight); a skeleton key is bone-white with a
 ## paper twinkle, in a plain light. An exam paper (KeyRing.paper) lies the same way, written out in
-## full (RisoPrint.ink_paper: its department's colour, its subject's mark and a gold pip a tier), and
-## a relic unlock as a gold seal stamped with a paper star (RisoMarks.seal_shape).
+## full (RisoPrint.ink_paper: its department's colour, its subject's mark and a gold pip a tier), a
+## relic unlock as a gold seal stamped with a paper star (RisoMarks.seal_shape), and a seed as a
+## green-gold almond with a curl of sprout (RisoMarks.seed_shape).
 
 ## How much bigger an exam paper is drawn than a key.
 const PAPER: float = 1.7

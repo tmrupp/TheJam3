@@ -118,6 +118,19 @@ static func has(kind: StringName) -> bool:
 	return scripts().any(func(s: Script) -> bool: return name_of(s) == kind)
 
 
+## How many bands out from the garden row `row` lies: 0 in the garden, 1 in the first band beyond it
+## either way, and so on. Past the outermost band (or past the garden, where a way has none) each
+## BAND_ROWS rows further counts as another band.
+static func out_of_garden(row: int) -> int:
+	var d: int = absi(row) - garden_rows()
+	var bands: Array = way(row) if row != 0 else []
+	var k: int = 0
+	while d > 0:
+		d -= int((bands[k] as Dictionary)["rows"]) if k < bands.size() else BAND_ROWS
+		k += 1
+	return k
+
+
 ## The band holding row `row` (its line in the layout; the garden's for the garden).
 static func band_at(row: int) -> Dictionary:
 	var d: int = absi(row) - garden_rows()
