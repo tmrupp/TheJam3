@@ -170,6 +170,7 @@ func run() -> void:
 	var spat: bool = await until(func() -> bool: return bulb.spat > spat_before, 10000)
 	var seeds: Array[Node] = placed("bullet.tscn", true).filter(func(n: Node) -> bool: return (n as Bullet).seed)
 	check(spat and not seeds.is_empty(), "a bulb spits seeds at the wizard in sight")
+	check(bramble.t - bulb.spat_t < Bramble.LEAF_CLOSE and Bramble.leaves_parted(bulb.charge, bramble.t - bulb.spat_t) > 0.5, "its leaves stand parted as it spits")
 	# Seeds another bulb spat earlier in the test (at the wizard down by the vines) may still be
 	# flying: the one tried is this bulb's.
 	var own: Array[Node] = seeds.filter(func(n: Node) -> bool: return Damager.attacker_of(n.get_node("HitBox/Damager")) == bulb)

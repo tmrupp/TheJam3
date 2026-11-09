@@ -1102,21 +1102,23 @@ static func teeth_at(at: Vector2, way: Vector2, width: float, gape: float, size:
 	return out
 
 
-## The ground bulging where a worm is about to come out: at `at` (its face, out along -y), for a
-## worm of radius `r`, `near` how close it is to coming out (0 to 1), `clock` its clock (seconds): in pink
+## The ground bulging where a worm is about to come out: at `at` (its face, out along -y), `r` wide
+## either side, `near` how close it is to coming out (0 to 1), `clock` its clock (seconds): in pink
 ## (danger), throbbing faster and swelling as it nears, round a dark slit, clods of dirt jumping.
-static func ink_warning(canvas: InkCanvas, at: Transform2D, r: float, near: float, clock: float) -> void:
+## `size` scales its height, its slit and its dirt: 1 for the boss's, less for a small worm's
+## (WormletArt.warn_size), so it lies as flat along the rock as the boss's does.
+static func ink_warning(canvas: InkCanvas, at: Transform2D, r: float, near: float, clock: float, size: float = 1.0) -> void:
 	var throb: float = 0.5 + 0.5 * sin(clock * lerpf(10.0, 30.0, near))
-	var swell: float = 10.0 + 24.0 * near + 4.0 * throb
+	var swell: float = (10.0 + 24.0 * near + 4.0 * throb) * size
 	var bulge: PackedVector2Array = at * RisoShapes.almond(Vector2(0, -swell * 0.35), r * (1.05 + 0.1 * throb), swell, 28)
 	canvas.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], [bulge])
 	canvas.ink(RisoPrint.PINK, 0.6 + 0.4 * throb, [bulge], false)
-	canvas.ink(RisoPrint.NIGHT, 1.0, [at * RisoShapes.almond(Vector2(0, -swell * 0.3), r * 0.55, 3.0 + 4.0 * near, 16)], false)
+	canvas.ink(RisoPrint.NIGHT, 1.0, [at * RisoShapes.almond(Vector2(0, -swell * 0.3), r * 0.55, (3.0 + 4.0 * near) * size, 16)], false)
 	var dirt: Array[PackedVector2Array] = []
 	for i: int in range(9):
 		var x: float = (float(i) / 8.0 - 0.5) * 2.4 * r
-		var hop: float = absf(sin(clock * (12.0 + float(i) * 1.7) + float(i) * 2.1)) * (14.0 + 40.0 * near)
-		dirt.append(RisoShapes.circle(at * Vector2(x, -swell * 0.5 - hop), 4.5 + 2.5 * near, 8))
+		var hop: float = absf(sin(clock * (12.0 + float(i) * 1.7) + float(i) * 2.1)) * (14.0 + 40.0 * near) * size
+		dirt.append(RisoShapes.circle(at * Vector2(x, -swell * 0.5 - hop), (4.5 + 2.5 * near) * size, 8))
 	ink_dug_earth(canvas, dirt)
 
 
@@ -1177,9 +1179,10 @@ func _clip_to_air(poly: PackedVector2Array, at: Vector2, radius: float) -> Array
 
 ## The part of `poly` (world) over the open cells of `info`'s level within `radius` of `at`: what of a
 ## worm or its hole shows, never over rock. With `backed`, only over open cells with rock that way
-## (a small worm's hole heaps up on the floor or ceiling it is dug in, never out over a drop). The
+## (a small worm's hole heaps up on the floor or ceiling it is dug in, never out over a drop), and
+## `sink` px on into that rock (a small worm's hole sunk into the face, WormletArt.HOLE_SINK). The
 ## boss's and the small worms' alike.
-static func clip_to_air(info: MapInfo, poly: PackedVector2Array, at: Vector2, radius: float, backed: Vector2i = Vector2i.ZERO) -> Array[PackedVector2Array]:
+static func clip_to_air(info: MapInfo, poly: PackedVector2Array, at: Vector2, radius: float, backed: Vector2i = Vector2i.ZERO, sink: float = 0.0) -> Array[PackedVector2Array]:
 	var out: Array[PackedVector2Array] = []
 	var size: float = (info.cell_position(Vector2i(1, 0)) - info.cell_position(Vector2i.ZERO)).x
 	var lo: Vector2i = info.cell_at(at - Vector2.ONE * radius)
@@ -1189,8 +1192,9 @@ static func clip_to_air(info: MapInfo, poly: PackedVector2Array, at: Vector2, ra
 			var c: Vector2i = Vector2i(x, y)
 			if not passable(info.world, c) or (backed != Vector2i.ZERO and passable(info.world, c + backed)):
 				continue
-			var corner: Vector2 = info.cell_position(c) - Vector2.ONE * size * 0.5
-			var square: PackedVector2Array = PackedVector2Array([corner, corner + Vector2(size, 0), corner + Vector2.ONE * size, corner + Vector2(0, size)])
+			var box: Rect2 = Rect2(info.cell_position(c) - Vector2.ONE * size * 0.5, Vector2.ONE * size)
+			box = box.merge(Rect2(box.position + Vector2(backed) * sink, box.size))
+			var square: PackedVector2Array = PackedVector2Array([box.position, box.position + Vector2(box.size.x, 0), box.end, box.position + Vector2(0, box.size.y)])
 			out.append_array(Geometry2D.intersect_polygons(poly, square))
 	return out
 

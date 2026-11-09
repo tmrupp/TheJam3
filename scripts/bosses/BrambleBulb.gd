@@ -57,6 +57,8 @@ var spat: int = 0
 var struck_t: float = -INF
 var warded_t: float = -INF
 var burst_t: float = -INF
+## When (the bramble's clock) it last spat a seed, for its leaves (Bramble.leaves_parted).
+var spat_t: float = -INF
 ## How far its bark is open (0 shut, 1 in bloom), as printed.
 var opened: float = 0.0
 
@@ -187,4 +189,5 @@ func spit(at: Vector2, bend: float = 0.0) -> void:
 	shot.global_position = mouth()
 	shot.setup((at - mouth()).normalized().rotated(bend) * SEED_SPEED, [], self)
 	spat += 1
+	spat_t = bramble.t
 	RisoFx.burst(&"impact", mouth(), way, [RisoPrint.PINK, RisoPrint.ACCENT])

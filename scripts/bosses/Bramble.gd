@@ -99,6 +99,39 @@ const SEPAL_SHUT: float = 0.08
 const SEPAL_OPEN: float = 1.35
 const SEPAL_HINGE: float = 0.55
 const SEPAL_WIDE: float = 0.4
+## The leaves shrouding a bulb (and a seed pod, PodArt), measured by the bulb as it is now (its
+## radius 1, its middle at 0), so they swell with it: an upper and a lower leaf clasped round it,
+## each rooted LEAF_ROOT_AT radians round from its front (in the cup of bark, over which they are
+## printed, so a closed bud hides all but the back of the cup), running LEAF_OUT out round it to a
+## tip LEAF_TIP out and LEAF_TIP_AT radians past its middle, and back to the root along an inner
+## edge bowed toward LEAF_CLASP (back toward the root and past the middle, for the upper leaf; the
+## lower's mirrored), so the two overlap all the way to the cup and hide the bulb whole; and behind each a narrower leaf, LEAF_BACK long and
+## LEAF_BACK_WIDE across, standing out LEAF_BACK_AT radians from its way out. To bare it the clasped
+## leaves swing back LEAF_SWING radians about their roots, the ones behind LEAF_BACK_SWING, all
+## folding in to LEAF_FOLD of their size as they go, so they do not sprawl over the rock.
+const LEAF_ROOT_AT: float = 2.6
+const LEAF_OUT: float = 1.1
+const LEAF_TIP: float = 1.24
+const LEAF_TIP_AT: float = 0.14
+const LEAF_CLASP: Vector2 = Vector2(-0.25, 0.7)
+const LEAF_BACK: float = 1.45
+const LEAF_BACK_WIDE: float = 0.42
+const LEAF_BACK_AT: float = 0.95
+const LEAF_SWING: float = 1.0
+const LEAF_BACK_SWING: float = 0.5
+const LEAF_FOLD: float = 0.8
+## When they part: from LEAF_PART_FROM of the way to its next seed, wide apart as it spits, folding
+## shut again over LEAF_CLOSE seconds after.
+const LEAF_PART_FROM: float = 0.6
+const LEAF_CLOSE: float = 0.4
+## Their inks: the realm's green (blue) in full and a little night (the ones behind, the lower
+## clasped leaf, the upper: darker further back), their midribs and veins lifted toward paper by
+## LEAF_RIB and LEAF_VEIN, and how far they sway (radians).
+const LEAF_BLUE: float = 1.0
+const LEAF_NIGHT: PackedFloat32Array = [0.42, 0.32, 0.05]
+const LEAF_RIB: float = 0.4
+const LEAF_VEIN: float = 0.22
+const LEAF_SWAY: float = 0.04
 ## How far into the shaft past the rock face the sap runs (px).
 const SAP_OUT: float = 14.0
 ## A wild bulb (BrambleBulb.wild, the last stand): the pink screened over its accent, so it reads
@@ -618,16 +651,17 @@ func _draw_bulb(bulb: BrambleBulb) -> void:
 			ink.ink(RisoPrint.ACCENT, 1.0 - u, petals)
 		return
 	ink_bulb(ink, xf, bulb.opened, bulb.charge, t * 3.0 + float(bulb.cell.y), clampf(1.0 - (t - bulb.struck_t) / FLASH_TIME, 0.0, 1.0),
-			bulb.wild, clampf(1.0 - (t - bulb.warded_t) / FLASH_TIME, 0.0, 1.0), bulb.hits_left())
+			bulb.wild, clampf(1.0 - (t - bulb.warded_t) / FLASH_TIME, 0.0, 1.0), bulb.hits_left(), leaves_parted(bulb.charge, t - bulb.spat_t))
 
 
 ## A living bulb, printed on `canvas` from its root in the wall, laid out by `xf` (+x out of the rock):
 ## `open` how far it is in bloom (0 shut in its sepals, 1 open), `charge` how near its next seed it is
 ## (it swells), `wobble` the phase of its slow throb, `flash` how strongly it flashes pink from a
 ## blow that wounded it, `wild` whether it is wild (screened pink, the bramble's last stand), `glance`
-## how strongly a blow just glanced off it, and `hits` its hits left (dark dots). The bramble's bulbs
-## (above) and the garden's seed pods (PodArt) alike.
-static func ink_bulb(canvas: InkCanvas, xf: Transform2D, open: float, charge: float, wobble: float, flash: float, wild: bool, glance: float, hits: int) -> void:
+## how strongly a blow just glanced off it, `hits` its hits left (dark dots), and `parted` how far
+## the leaves shrouding it have swung back (leaves_parted). The bramble's bulbs (above) and the
+## garden's seed pods (PodArt) alike.
+static func ink_bulb(canvas: InkCanvas, xf: Transform2D, open: float, charge: float, wobble: float, flash: float, wild: bool, glance: float, hits: int, parted: float) -> void:
 	var cup: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(7.0, 0.0), 20.0, BULB_R * 0.9, 16)
 	var swell: float = 1.0 + BULB_SWELL * charge * charge + 0.04 * sin(wobble)
 	var r: float = BULB_R * swell * lerpf(SHUT_SIZE, 1.0, open)
@@ -663,6 +697,93 @@ static func ink_bulb(canvas: InkCanvas, xf: Transform2D, open: float, charge: fl
 		canvas.lift_ink([RisoPrint.NIGHT, RisoPrint.ACCENT], shut, sepals)
 		canvas.ink(RisoPrint.BLUE, (BARK_BLUE - 0.4 * glance) * shut, sepals)
 		canvas.ink(RisoPrint.NIGHT, BARK_NIGHT * (1.0 - glance) * shut, sepals, false)
+	# Its leaves, shrouding it: a narrower one behind on either side, then a lower and an upper leaf
+	# clasped round it, overlapping down its middle; all rooted in the cup and printed over it, and
+	# swinging back about their roots to bare it as it readies a seed (`parted`).
+	var swing: float = parted * parted * (3.0 - 2.0 * parted)
+	var bud: Transform2D = xf * Transform2D(0.0, Vector2(r, r), 0.0, Vector2(BrambleBulb.OUT * swell, 0.0))
+	var k: int = 0
+	for layer: int in range(3):
+		for side: float in ([-1.0, 1.0] if layer == 0 else [1.0 if layer == 1 else -1.0]):
+			var root: Vector2 = Vector2.from_angle(side * LEAF_ROOT_AT) * (0.9 if layer == 0 else LEAF_OUT)
+			var turn: float = side * (LEAF_BACK_SWING if layer == 0 else LEAF_SWING) * swing + LEAF_SWAY * sin(wobble + float(k))
+			k += 1
+			var fold: float = lerpf(1.0, LEAF_FOLD, swing)
+			var pivot: Transform2D = bud * Transform2D(turn, Vector2(fold, fold), 0.0, root) * Transform2D(0.0, -root)
+			var shape: PackedVector2Array
+			var lines: Array[PackedVector2Array] = []
+			if layer == 0:
+				var out: Transform2D = Transform2D(side * LEAF_BACK_AT, root)
+				shape = out * RisoShapes.almond(Vector2(LEAF_BACK * 0.5, 0.0), LEAF_BACK * 0.5, LEAF_BACK_WIDE * 0.5, 16)
+				lines.append(out * RisoShapes.almond(Vector2(LEAF_BACK * 0.5, 0.0), LEAF_BACK * 0.42, 0.025, 8))
+			else:
+				shape = _clasped_leaf(side)
+				lines = _leaf_veins(side)
+			var leaf: Array[PackedVector2Array] = [pivot * shape]
+			var veins: Array[PackedVector2Array] = []
+			for line: PackedVector2Array in lines:
+				veins.append(pivot * line)
+			canvas.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], 1.0, leaf)
+			canvas.ink(RisoPrint.BLUE, LEAF_BLUE, leaf)
+			canvas.ink(RisoPrint.NIGHT, LEAF_NIGHT[layer], leaf, false)
+			if not veins.is_empty():
+				canvas.lift_ink([RisoPrint.BLUE, RisoPrint.NIGHT], LEAF_RIB, [veins[0]])
+				canvas.lift_ink([RisoPrint.BLUE, RisoPrint.NIGHT], LEAF_VEIN, veins.slice(1))
+
+
+## A clasped leaf of a bulb's shroud, in the bulb's measure (see LEAF_ROOT_AT): side `side` (-1 the
+## upper, 1 the lower), from its root round the bulb LEAF_OUT out to its tip just past the middle,
+## and back along an inner edge bowed toward LEAF_CLASP, past the middle.
+static func _clasped_leaf(side: float) -> PackedVector2Array:
+	var root_at: float = side * LEAF_ROOT_AT
+	var tip: Vector2 = Vector2.from_angle(-side * LEAF_TIP_AT) * LEAF_TIP
+	var root: Vector2 = Vector2.from_angle(root_at) * LEAF_OUT
+	var bow: Vector2 = Vector2(LEAF_CLASP.x, -side * LEAF_CLASP.y)
+	var out: PackedVector2Array = PackedVector2Array()
+	for n: int in range(21):
+		var u: float = float(n) / 20.0
+		out.append(Vector2.from_angle(lerpf(root_at, -side * LEAF_TIP_AT * 0.3, u)) * LEAF_OUT)
+	out.append(tip)
+	for n: int in range(1, 20):
+		var u: float = float(n) / 20.0
+		out.append(tip.lerp(bow, u).lerp(bow.lerp(root, u), u))
+	return out
+
+
+## A clasped leaf's midrib (first), from its root to its tip through the leaf's middle, tapering,
+## and three veins off it toward the leaf's outer edge, slanting toward the tip.
+static func _leaf_veins(side: float) -> Array[PackedVector2Array]:
+	var root: Vector2 = Vector2.from_angle(side * LEAF_ROOT_AT) * LEAF_OUT
+	var tip: Vector2 = Vector2.from_angle(-side * LEAF_TIP_AT) * LEAF_TIP
+	var bend: Vector2 = Vector2(0.0, side * 0.75)
+	var rib: Callable = func(u: float) -> Vector2: return root.lerp(bend, u).lerp(bend.lerp(tip, u), u)
+	var left: PackedVector2Array = PackedVector2Array()
+	var right: PackedVector2Array = PackedVector2Array()
+	for n: int in range(13):
+		var u: float = float(n) / 12.0
+		var p: Vector2 = rib.call(u)
+		var across: Vector2 = ((rib.call(minf(u + 0.02, 1.0)) as Vector2) - (rib.call(maxf(u - 0.02, 0.0)) as Vector2)).normalized().orthogonal()
+		var half: float = lerpf(0.03, 0.004, u)
+		left.append(p + across * half)
+		right.append(p - across * half)
+	right.reverse()
+	left.append_array(right)
+	var lines: Array[PackedVector2Array] = [left]
+	for u: float in [0.35, 0.55, 0.75]:
+		var p: Vector2 = rib.call(u)
+		var way: Vector2 = p.normalized().rotated(-side * 0.55)
+		var across: Vector2 = way.orthogonal() * 0.012
+		lines.append(PackedVector2Array([p + across, p + way * 0.32, p - across]))
+	return lines
+
+
+## How far a bulb's leaves have swung back (0 folded over it, 1 apart): parting as it nears its next
+## seed (`charge`, from LEAF_PART_FROM), wide apart as it spits, and folding shut over LEAF_CLOSE
+## seconds after (`since`, seconds since it last spat). The bramble's bulbs and the seed pods alike.
+static func leaves_parted(charge: float, since: float) -> float:
+	var nearing: float = smoothstep(LEAF_PART_FROM, 1.0, charge)
+	var after: float = 1.0 - clampf(since / LEAF_CLOSE, 0.0, 1.0)
+	return maxf(nearing, smoothstep(0.0, 1.0, after))
 
 
 ## The bud's size now (a share of BUD_LONG by BUD_WIDE): BUD_HIDDEN tucked in the crown, growing as
