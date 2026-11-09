@@ -17,8 +17,9 @@ Three rules of the project shape most of it, so they are said once here:
   hashing the seed and the cell, never by a draw from `world.rng`.
 - A new pass in the layout goes last, and a meant change to the layouts is said in the report,
   with `layout_fingerprint_test -- update`.
-- Traversability is not enforced. The marks of section 3 tell the player something; they move
-  nothing, carve nothing, and no test fails a level over them.
+- Traversability is not enforced. The barriers of section 3 guard rewards in pockets off the
+  level: none stands across a way on, nothing already laid is moved for one, and no test fails
+  a level over one.
 
 ## 1. The demo's garden: four rows either way
 
@@ -148,50 +149,110 @@ through the whole upper garden (a hazard that thickens). The first keeps them a 
 *Tests:* in `bramble_test` or the new signs test: a vine on its own lashes, hurts only while out,
 is stunned by a parry, and is the same on a revisit.
 
-## 3. What a spot wants: marks for "not yet"
+## 3. A barrier for each relic
 
 *Seen:* a spot the wizard cannot reach yet looks the same as one they have simply not worked out,
 so "come back with a move" and "try harder" are told apart only by failing.
 
-*Decided:* "This is a great idea and can be introduced generally into the procedural generation"
-(owner, 9 November 2026).
+*Decided:* "This is a great idea and can be introduced generally into the procedural generation",
+and then, on this plan's first draft (which marked such spots by working out the wizard's reach):
+"we should have bespoke barrier for each relic (a wall with a wall of spikes on the other side for
+wall climb for example)" (owner, 9 November 2026). So the generator builds the spots itself: five
+barriers, one made for each relic move, each a shape the player learns once and knows again in
+every level.
 
-*Now:* the pieces exist apart.
-- `Reach` (`scripts/worlds/Reach.gd`) is a rough reach for the wizard over a level's cells:
-  footholds, and hops of up to `UP` 2 cells up and `ACROSS` 4 across. Hyperspace already asks it
-  twice, once as the wizard is and once with a relic's longer hop (`Hyperspace.RELIC_ACROSS` 7).
-- The generator already knows some spots are left to the relic moves: `LevelGen.relic_chasms`
-  (chasms with no bell or vane, from `Rules.RELIC_NEED_FROM`, in the cemetery and the sky).
+*Now:*
+- The relic moves are five (`Relics.MOVES`): double jump, wall climb, blink, levitate and astral
+  projection. Tier I of each comes only from a relic. About one level in 15 holds one (`CHANCE` 5%
+  rising to `CHANCE_MAX` 8%), in the demo from its first row. Which move a level's relic holds is
+  dealt by the place (`Relics.at`), the same in every run.
+- Without a relic the wizard has a jump, a dash any way (up as well), a jump from one wall to the
+  wall facing it (`Player.do_wall_jump`: the same wall twice gives little, "so a lone wall cannot
+  be climbed by jumping repeatedly"), and the pogo, which bounces along a thorn bed.
+- Secret rooms are already pockets carved into the rock once everything else is laid
+  (`LevelGen.place_secrets`, `_secret_spots`, `_carve_secret`), "placed last of all, so the rest of
+  the level lands where it always has". They open to a step, a hex bolt, a projection or a warp:
+  no move is needed for them.
+- The generator already leaves some chasms to the relic moves (`LevelGen.relic_chasms`, from
+  `Rules.RELIC_NEED_FROM`, in the cemetery and the sky), with nothing to say so.
 - `RisoGlyph` draws every ability's mark, fitted to a roundel (`RisoGlyph.fit`); `RisoMarks` is
   shared by the level, the map and the HUD.
 
+### 3.1 The five barriers
+
+Each is a pocket carved into the rock off the level, as a secret room is, with a reward at its far
+end and the barrier in its mouth. All five are built from rock and thorns, which the game has: no
+new prefab, and thorns are pink already, so each reads as danger with no new art.
+
+| Move | Barrier | Why that move |
+|---|---|---|
+| Wall climb | **The one-wall shaft** (the owner's example). A shaft going up, taller than a jump, one wall bare rock and the wall facing it thorned from bottom to top. | The wizard goes up a shaft by jumping from wall to wall. Thorns on one leave a lone wall, and a lone wall cannot be climbed by jumping. Wall climb goes up the bare one. |
+| Double jump | **The high sill.** A ledge higher than a jump and an upward dash reach, under an overhang, with the rock face below it thorned. | The thorned face leaves nothing to kick off or to climb. The height has to be made in the open air. |
+| Levitate | **The thorn throat.** A low passage with thorns along its floor and its roof, longer than a dash or a blink carries. | A pogo off the floor bounces into the roof, and so does a jump. Holding height at walking pace goes straight through (a float lasts six seconds, about 1,800 px at the wizard's 300 px a second). |
+| Blink | **The thorn curtain.** The mouth filled with thorns from floor to roof, a few cells deep, with open room beyond. | A blink goes to the furthest spot with room for the wizard and touches nothing on the way (`Blink.blink` looks only at where it lands). Thinner than a first-tier blink, 300 px. |
+| Astral | **The sealed cell.** A room closed in real rock on every side, with no false wall, thicker than a blink at its top tier carries (500 px). | Only a projection passes rock, and the wizard stays where it ends. |
+
+Each barrier's measures (the shaft's height, the sill's, the throat's and the curtain's length,
+the cell's walls) live in one table of constants and are set by playing each in the generation
+lab. The bounds above are where to begin.
+
+*Care:* a barrier is made for its move. It is not proved against the other four, or against a
+clever player. The projection passes all of them; a blink aimed up may land on a high sill; a
+float at its second tier drifts upward. That is left as it is: a second way through is a find,
+not a fault. What has to hold is that a wizard with no relic does not get through by ordinary
+play, and that is checked by playing each barrier on Normal and Hard with the shrine's boons at
+their top tiers (a dash runs longer each tier), not by a test.
+
+### 3.2 Laying them
+
 *To do:*
-- A scene-free pass, run once a level is laid out, on the worker thread with the rest (say
-  `scripts/level/Wants.gd`): grow the rough reach from the level's ways in; for each thing worth
-  reaching that it misses (a way on or side door, the shrine, a lantern, a key, a star cluster, a
-  relic's room, a plot, an ink well), grow it again as each relic move would have it and note the
-  least move that gets there. The result is kept beside the layout, `LevelGen.wants` (cell to
-  move), not in `objects`: no RNG draw, no change to any layout or fingerprint.
-- One table of what each move adds to the reach. A first pass covers what `Reach` can already
-  say: higher (double jump) and further (levitate). Climbing a wall and blinking through thin
-  rock want hop rules of their own and come second. Where more than one move would do, or the
-  reach cannot say which, the mark is the relic's own, not a move's.
-- The chasms left to relics get the mark at each lip, from `relic_chasms`, with no reach needed.
-- In the level: the move's glyph in a small roundel by the spot, in the quiet inks (it is a
-  note, not a prize; settle the ink with a capture, by `docs/RISO_PRINT.md`). On the level's map:
-  the same glyph by the thing's mark once that cell is seen. Once the wizard knows the move, the
-  mark goes.
-- Cracked rock is not part of this in the demo (section 8): it stays as it is, a hint.
+- A script beside `Chasms.gd` and `Crypts.gd` (say `scripts/level/Barriers.gd`): it finds rock
+  that fits a barrier's shape beside open floor, as `_secret_spots` finds a room's, carves the
+  pocket, lays its thorns and its reward, and keeps what it laid in `LevelGen.barriers` (the move,
+  the mouth, the cells, the reward) for the map and the tests.
+- How many: `BARRIERS_PER_K` through `per_area`, to begin with about one level in two holding
+  one. None in the tutorial, a side world or a boss's own level.
+- Which one: the move of the nearest level holding a relic within `BARRIER_NEAR` levels
+  (`Relics.at`, by the rules alone, so the same in every run), else one of the five dealt by the
+  level's seed. The levels round a relic are then where its barriers stand, and finding the relic
+  pays off close by.
+- Where no rock fits the shape, none is laid. Nothing is forced.
+- The reward: a star cluster worth more than a secret room's three (`SECRET_STARS`), in the
+  reward's ink, and now and then a key.
+- The mark: the move's glyph in a small roundel on the rock by the mouth, in the quiet inks (it
+  is a note, not a prize; settle the ink with a capture, by `docs/RISO_PRINT.md`), and by the
+  barrier on the level's map once its mouth is seen. Once the wizard knows the move, the mark
+  goes. With section 4 a mark seen in one run is on the map in the next, which is what lets
+  "come back with a move" outlast a death.
+- The chasms left to relics get the same mark at each lip, from `relic_chasms`: they are the
+  barrier the cemetery and the sky already have.
+- It runs after `connect_caves`, which would fill a sealed cell or join it to the cave, and after
+  the secrets: last.
+- Cracked rock is not part of this in the demo (section 9): it stays as it is, a hint.
 
-*Care:* the reach is rough, by its own account. A mark will sometimes stand by a spot a moon, a
-pogo or a lift does reach, and miss one that is out of reach. That is a reason to begin with few,
-sure marks (the relic chasms, clear ledges too high) and widen by looking at captures
-(`capture_overview.gd`), and it is why the marks are only ever information. It also costs a few
-grows of the reach per level: measure it against `docs/PERF_PLAN.md`'s numbers before it goes in.
+*Traversability:* a barrier guards a pocket off the level and the reward in it, and nothing else.
+It is never laid across a way on, a door, a shrine or a lantern, and the pass moves nothing that
+is already laid. Nothing checks that a barrier's mouth can be reached, or that a level can be
+crossed with one in it.
 
-*Tests:* a new `wants_test` on small hand-laid levels: a ledge two cells up wants nothing, one
-four up wants the double jump, a relic chasm is marked at both lips, the same on every build, and
-`objects` is the same with the pass as without it. No test asks that a level can be crossed.
+*Layouts:* carving changes the terrain and the pass draws from the world RNG, so every level that
+takes a barrier changes, in every band. The pass goes last so nothing laid before it moves; check
+it against the start levels' tutorial door, which is laid last of all (`laid_last`).
+`layout_fingerprint_test -- update`, said in the report.
+
+*Later:* the first draft's general pass (growing the rough reach of `Reach` as each move would
+have it, and marking whatever spot in the collapsed level it misses) is put aside, not refused.
+The reach is rough by its own account, and a built barrier says what it wants with certainty.
+It is worth coming back to only if the levels' own unreachable spots go on misleading players
+once the barriers are in.
+
+*Tests:* a new `barriers_test`, looking over a few worlds and rows with `build` for a level
+holding each kind rather than trusting one level: the shaft has one wall thorned for its whole
+height and the other bare; the throat has thorns over and under every cell of it; the sealed cell
+has no open cell beside it; each holds its reward; the same on two builds; the kind is the
+nearest relic's; none stands on a way on. Booted: the mark shows by the mouth and on the map, and
+not once the move is known. `revisit_test` for the visit after. No test asks that a level can be
+crossed, or that a barrier can or cannot be passed.
 
 ## 4. The map kept from run to run
 
@@ -299,7 +360,7 @@ start levels moves.
 
 ## 7. Star sinks
 
-The review offered six. The owner kept two (and removed the other four: section 8).
+The review offered six. The owner kept two (and removed the other four: section 9).
 
 ### 7.1 Which way the boss lies, for stars alone
 
@@ -335,25 +396,142 @@ map shows it. `unit_test` for the price.
 *Now:* a shrine's two boons are dealt by its level's seed (`Shrine.offers`, through
 `Abilities.offers`): two different abilities, new ones before upgrades, one always a strict
 upgrade. They are the same on every visit, and there is nothing to do about a pair the wizard
-does not want.
+does not want. The third station's sales each take stars and one carried key (`KEY_COST`): the
+shrine deals which of the keys carried it takes (`taken_key`, by `pick_key`, hashing the level's
+seed with `KEY_DEAL`), and nothing is paid unless both can be (`_pay`).
 
-*Decided:* kept as written: "Draw a shrine's offers again for stars, the price doubling each
-time at that shrine."
+*Decided:* kept as written, "Draw a shrine's offers again for stars, the price doubling each
+time at that shrine", and then: "this should actually also cost a key" (owner, 9 November 2026).
 
 *To do:*
 - `LevelRecord.redraws`, saved with the rest (`FIELDS`). The boons are dealt from the level seed
   hashed with the count (`Rules.level_seed(seed, REDRAW_DEAL + redraws)`), so a shrine drawn
   twice shows the same pair on every visit and in every run that draws it twice. No world RNG.
 - A draw that would show the same pair again is passed over for the next, within a few tries.
-- The price: `REDRAW_PRICE` times the level's way on, doubled for each draw already made there.
-  A constant to tune; begin at a half.
+- The price in stars: `REDRAW_PRICE` times the level's way on, doubled for each draw already made
+  there. A constant to tune; begin at a half.
+- The price in keys: one carried key a draw (`KEY_COST`), as the third station takes one. Which
+  key is dealt as the station's is. `taken_key` answers only while the station has something to
+  sell, so the deal is lifted out of it into one rule both use (which of the keys carried, by
+  `pick_key` and a salt), the redraw with a salt of its own hashed with the count
+  (`REDRAW_KEY_DEAL + redraws`), so each draw's key is the same on every visit. It is paid
+  through `_pay`, so with no key carried, or too few stars, nothing is taken and nothing is drawn.
+- The place shows what it asks, the stars and the key it would take, the way the third station
+  shows its own (`keys_asked`), and reads as out of reach when no key is carried.
 - Where it is asked: a third place to interact between the two niches. No menu, as now.
 - Not in the tutorial (its boons are set, `Tutorial.BOONS`) and not once the shrine is spent.
 
-*Tests:* `shrine_test`: a draw changes the pair, costs what it says, doubles, is the same after
-leaving and coming back, and keeps one strict upgrade; `unit_test` for the price rule.
+With 7.1 taking the key off the boss's way, a carried key at a shrine now weighs four things
+against each other and against the door it opens: a redraw, a door where the labyrinth left none,
+a skeleton key, and a relic's whereabouts.
 
-## 8. Decided against, or left as it is
+*Open:* whether the stars still want to double now that every draw takes a key as well. The key
+may be brake enough; tune it in play.
+
+*Tests:* `shrine_test`: a draw changes the pair, costs the stars it says and one key, doubles its
+stars, is the same after leaving and coming back, and keeps one strict upgrade; with no key
+carried nothing is spent and the pair stays; the key taken is the same on every visit.
+`unit_test` for the price rule and the key's deal.
+
+## 8. Telegraphs: a warning before every attack
+
+*Seen:* the review's item: "every attack gets a pink wind-up timed for the guard, and hits get
+weight (hit-stop, flash, knock-back). The parry design depends on it." The guard catches a blow
+within `Parry.WINDOW`, 0.2 seconds, of being raised; a catch stuns the attacker and refills the
+spell. It can only be timed off something seen.
+
+*Decided:* "we should actually do this. Wisps and watchers have it but we should plan for the
+rest that don't" (owner, 9 November 2026).
+
+### 8.1 What a telegraph is
+
+The wisp and the watcher are the model. A wisp that sees the wizard rears its head and flares for
+`WIND_UP`, 0.55 seconds, then strikes (`Mover`, `WispArt`). A watcher's lid opens as its shot
+charges and shuts when it loses sight (`Shooter`, `WatcherArt`). From those two, the rule every
+attack is held to:
+
+- **A wait.** At least `TELL_MIN` seconds from the first sign to the blow, on every difficulty
+  preset. The presets run tells faster (`Difficulty.attack`: 1.2 on Hard, the default, and 1.4 on
+  Brutal), so a tell of 0.45 seconds is 0.375 on Hard. One rule for it, `Difficulty.tell(seconds)`:
+  the time at the preset's pace, never under the floor. Begin `TELL_MIN` at 0.4 seconds and tune.
+- **Pink that grows.** A change of pose alone is not enough. Pink builds through the wind-up and
+  is fullest the moment before the blow, printed over the darkness where the foe is met in the
+  dark (as a skeleton's sockets are, on its glow canvas).
+- **A last beat.** The final fifth of a second, the guard's window, looks different from the
+  rest of the wait (a flash to paper), so the guard is raised on a frame that can be seen.
+- **The same every time.** A foe's tell has one length, so it can be learned.
+- **A sound**, when the playtest plan's sound work reaches the foes.
+
+A touch is not an attack: what hurts only by being walked into (a rock-bug, a breach, an
+abomination's body and its slime) needs no tell.
+
+### 8.2 Foe by foe
+
+Read through for this plan, nearly every attack already waits before it lands. The gaps are
+fewer than the review supposed and are mostly in how the wait reads. Times are at Normal.
+
+The garden (the demo), first:
+
+| Foe | Now | To do |
+|---|---|---|
+| Wisp | Rears and flares for 0.55 s before a lurch. | The model. Give it the last beat. |
+| Watcher | Its lid opens as the shot charges. | The model. Give it the last beat. |
+| Hopper | Crouches for `CROUCH_TIME`, 0.45 s (0.375 on Hard, 0.32 on Brutal): it leans forward and its eyes narrow. Its body is pink at all times, so no ink changes. | **A gap.** Hold it to the floor, and give the crouch a flare that grows (it cannot turn pink, so it brightens: a paper gleam swelling in it) and the last beat. |
+| Seed pod | Its bulb swells over the whole 2.4 s between seeds, in gold, its leaves parting. | **A gap.** The wait is long but has no moment that says "now", and gold is the reward's ink. The bulb turns pink over its last `POD_TELL` seconds and flashes before it spits. |
+| Wormlet | The rock throbs pink for `WARN_TIME`, 0.7 s, before it comes out. | Has it. Check the last beat. |
+| Timed thorns | Their tips peek and flicker for `WARN` seconds. | Has it. |
+| The worm, the bramble | The worm's rumble and `EMERGE_WARN`; a vine's pink shoots for 0.8 s; the bulbs' swell. All run faster on Hard (`Difficulty.haste`, 1.15). | Go through each attack of both against 8.1. The vines on their own and the spare pods of section 2 take the same tells and the same floor. |
+
+The other bands, as each is worked on:
+
+| Foe | Now | To do |
+|---|---|---|
+| Skeleton | Winds up 0.5 s: its arm raised, a rattle, its sockets burning hotter; a pink smear on the swipe. | Has it. Check the last beat. |
+| Wraith | Swells for 0.65 s, shivering, its eyes glowing pink, before a dart. | Has it. |
+| Bird | Rears and screeches for 0.65 s before a dive. | Has it. |
+| Stalactite | Shakes before it falls. | Has it. |
+| Laser | A faint flickering sight line for 0.9 s. | Has it. |
+| Crossbow | Winds its string for 0.8 s with a pink bolt laid on it, but its first arrow at a wizard just come into sight is drawn in `FIRST_DRAW`, 0.2 s (0.17 on Hard). | **A gap.** The first arrow's wait is the guard's whole window. Hold it to the floor, or show where it looks before the wizard is in its sight (a sight line, as the laser's). See *Open*. |
+| Student | Its orb swells and brightens for 0.5 s. | Has it. |
+| Master, instructor | Raises its hand and the orb goes to it for 0.7 s, the same whichever of its six spells it casts. | **A gap.** The spells that strike near it (a slash 190 px in front, a nova 240 px all round, a push in a cone to 360 px, a lunge to 520 px) show no reach before they land. Print the reach in pink through the wind-up: a ring, a cone, a line, as the librarian's ring already does. |
+| Librarian | The ring of its hush swells for 0.8 s before it rises. | Has it. |
+| Abomination | Braces for 1.4 s, its top blob swelling, before it launches. | Has it. |
+| Bug nest | Hatches a rock-bug every so often while the wizard is near. | To look at: whether a hatch shows before the bug is out. |
+| The golem, the whale, the beast, the necromancer | Each has warnings of its own. | Gone through as the garden's bosses are, when their bands are worked on. |
+
+*Open:* the crossbow's quick first arrow reads as meant (a tower that punishes walking into its
+sight). If it is, it keeps its speed and gets the sight line instead of the wait; the owner to say.
+
+### 8.3 Hits
+
+The other half of the review's item, weight on hits, is partly there already and is not planned
+again here: a blow that wounds a foe freezes the action for a moment (`Wound.hit_stop`, 0.05
+seconds, longer for a kill), and a catch on the guard longer (`Parry.HIT_STOP`, 0.08). What the
+wizard's own hurt has was not gone through for this plan. Look at it while building 8.2, and
+write down what is missing rather than adding it unasked.
+
+### 8.4 Building it
+
+*To do, in order:*
+1. `TELL_MIN` and `Difficulty.tell`, and every wind-up in 8.2 read through it in place of
+   dividing by `Difficulty.attack` itself.
+2. A capture that prints each foe at the start, the middle and the last beat of its tell, in the
+   light and in the dark (say `tests/capture_tells.gd`), looked at zoomed in. It is the audit for
+   every "has it" above, and where the last beat is settled.
+3. The hopper and the seed pod.
+4. The worm's and the bramble's attacks, before section 2's vines and spare pods go in.
+5. The other bands' gaps (the crossbow, the masters' reach) with their bands.
+
+*Layouts:* none. A tell is timing and print: no draw, no fingerprint. It does change every fight
+it touches, so play the garden on Normal and Hard after steps 1 and 3 and note what was found.
+
+*Tests:* `unit_test`: `Difficulty.tell` is never under the floor on any preset. A new
+`tells_test`: for each foe above, from the first frame its wind-up shows to the first frame it
+can hurt is at least `TELL_MIN` of the game's own seconds on every preset (`within`, which counts
+physics frames), and a guard raised in the last 0.2 seconds catches the blow. Each foe's own test
+keeps its attack as it was but for the times.
+
+## 9. Decided against, or left as it is
 
 So that nobody builds them:
 
@@ -371,40 +549,43 @@ So that nobody builds them:
 - **The four other star sinks** (laying fewer stars, relighting a spent lantern for stars, a paid
   way home from a boss, banking stars past a run): removed from the list by the owner.
 
-## 9. Later
+## 10. Later
 
 - **Simplifying the institute and the shrine's third station:** "Out of scope for demo." The one
   piece of it that goes ahead now is 7.1, which takes the boss's way out of the third station.
 - **Logging each playtest run:** "future".
 
-## 10. Not yet decided
+## 11. Not yet decided
 
 No word was written under these, so they wait:
 
-- Telegraphs and hit feedback before any new enemies (a pink wind-up timed for the guard on every
-  attack; weight on hits).
 - Thinning the foes and setting them where the ground makes them matter.
 - The whole game: finishing one band before widening the next.
 
-The first of these touches section 2: the vines and the spare pods are new things to parry, and
-they are fair only as far as their warnings read.
+Telegraphs stood here in the first draft. They are decided now: section 8.
 
-## 11. Order of work
+## 12. Order of work
 
 1. **Four rows** (section 1). One line and a suite run; every later measurement of the demo is
    taken on it.
 2. **The tutorial's reward** (section 6). By hand, on its own, and it removes the one hard stop a
    new player meets.
-3. **The shrine's two sinks** (section 7). Small, one script and one record field, and 7.1 is the
+3. **Telegraphs in the garden** (section 8, steps 1 to 4): the floor, the capture, the hopper and
+   the pod, the two bosses. Every fight after is judged on them, and section 2's vines and spare
+   pods are fair only as far as their warnings read.
+4. **The shrine's two sinks** (section 7). Small, one script and one record field, and 7.1 is the
    short cut the signs of section 2 lean on.
-4. **The ending** (section 5). The card first; the clock field with it.
-5. **Signs of the bosses** (section 2): the nearness rule and the worm's rumble first (no layout
+5. **The ending** (section 5). The card first; the clock field with it.
+6. **Signs of the bosses** (section 2): the nearness rule and the worm's rumble first (no layout
    change), then the pods' rise by row, the spares, and the vines, with one update of the
    fingerprints for all three.
-6. **The map kept from run to run** (section 4).
-7. **What a spot wants** (section 3). The largest, and the one that most wants captures and a
-   playtest between steps: the relic chasms' marks first, then the reach.
+7. **The map kept from run to run** (section 4).
+8. **A barrier for each relic** (section 3). The largest, and the one that most wants captures
+   and playing between steps: one barrier first (the one-wall shaft), its mark and its place on
+   the map, then the other four. After the kept map, so a barrier seen is a barrier remembered.
+   Its change to the layouts is a second update of the fingerprints, in every band.
 
-`docs/DEEPER_PLAN.md` (the shrine, the garden's dressing, the bosses' signs, the economy's sinks)
-and `docs/RISO_PRINT.md` (the marks, the won card) are brought into step as each is built, and
-this plan gets a *Done* line under the item, as `docs/PLAYTEST_PLAN.md` does.
+`docs/DEEPER_PLAN.md` (the shrine, the garden's dressing, the bosses' signs, the barriers, the
+tells and their floor, the economy's sinks) and `docs/RISO_PRINT.md` (the barriers' marks, the
+tells' pink and last beat, the won card) are brought into step as each is built, and this plan
+gets a *Done* line under the item, as `docs/PLAYTEST_PLAN.md` does.
