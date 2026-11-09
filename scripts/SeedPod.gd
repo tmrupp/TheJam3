@@ -34,6 +34,8 @@ var sees: bool = false
 ## When (msec, Time.get_ticks_msec) a blow last wounded it and last glanced off it, for its flashes.
 var struck_at: int = -100000
 var warded_at: int = -100000
+## When (msec) it last spat a seed, for its leaves (Bramble.leaves_parted).
+var spat_at: int = -100000
 
 
 func _ready() -> void:
@@ -117,6 +119,7 @@ func spit(at: Vector2) -> void:
 	shot.global_position = mouth()
 	shot.setup((at - mouth()).normalized() * SEED_SPEED, [rb], rb)
 	spat += 1
+	spat_at = Time.get_ticks_msec()
 	RisoFx.burst(&"impact", mouth(), way, [RisoPrint.PINK, RisoPrint.ACCENT])
 
 

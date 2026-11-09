@@ -99,6 +99,27 @@ const SEPAL_SHUT: float = 0.08
 const SEPAL_OPEN: float = 1.35
 const SEPAL_HINGE: float = 0.55
 const SEPAL_WIDE: float = 0.4
+## The leaves shrouding a bulb (and a seed pod, PodArt): a pair either side of it, rooted at the wall
+## LEAF_ROOT px out from the rock and LEAF_HINGES (inner, outer; shares of BULB_R) from its middle,
+## folded in over its face with their tips meeting LEAF_MEET (a share of BULB_R) out from the wall,
+## each LEAF_LONG times as long as its reach to there and LEAF_WIDE (a share of BULB_R) across; to
+## bare it they swing back LEAF_SWING radians (inner, outer).
+const LEAF_ROOT: float = 8.0
+const LEAF_HINGES: PackedFloat32Array = [0.35, 1.0]
+const LEAF_MEET: float = 1.9
+const LEAF_LONG: float = 1.1
+const LEAF_WIDE: float = 0.8
+const LEAF_SWING: PackedFloat32Array = [0.95, 1.45]
+## When they part: from LEAF_PART_FROM of the way to its next seed, wide apart as it spits, folding
+## shut again over LEAF_CLOSE seconds after.
+const LEAF_PART_FROM: float = 0.6
+const LEAF_CLOSE: float = 0.4
+## Their inks: the realm's green (blue) in full, a little night (inner, outer: the outer ones behind
+## are darker), their midribs lifted toward paper by LEAF_RIB, and how far they sway (radians).
+const LEAF_BLUE: float = 1.0
+const LEAF_NIGHT: PackedFloat32Array = [0.12, 0.3]
+const LEAF_RIB: float = 0.4
+const LEAF_SWAY: float = 0.04
 ## How far into the shaft past the rock face the sap runs (px).
 const SAP_OUT: float = 14.0
 ## A wild bulb (BrambleBulb.wild, the last stand): the pink screened over its accent, so it reads
@@ -618,16 +639,17 @@ func _draw_bulb(bulb: BrambleBulb) -> void:
 			ink.ink(RisoPrint.ACCENT, 1.0 - u, petals)
 		return
 	ink_bulb(ink, xf, bulb.opened, bulb.charge, t * 3.0 + float(bulb.cell.y), clampf(1.0 - (t - bulb.struck_t) / FLASH_TIME, 0.0, 1.0),
-			bulb.wild, clampf(1.0 - (t - bulb.warded_t) / FLASH_TIME, 0.0, 1.0), bulb.hits_left())
+			bulb.wild, clampf(1.0 - (t - bulb.warded_t) / FLASH_TIME, 0.0, 1.0), bulb.hits_left(), leaves_parted(bulb.charge, t - bulb.spat_t))
 
 
 ## A living bulb, printed on `canvas` from its root in the wall, laid out by `xf` (+x out of the rock):
 ## `open` how far it is in bloom (0 shut in its sepals, 1 open), `charge` how near its next seed it is
 ## (it swells), `wobble` the phase of its slow throb, `flash` how strongly it flashes pink from a
 ## blow that wounded it, `wild` whether it is wild (screened pink, the bramble's last stand), `glance`
-## how strongly a blow just glanced off it, and `hits` its hits left (dark dots). The bramble's bulbs
-## (above) and the garden's seed pods (PodArt) alike.
-static func ink_bulb(canvas: InkCanvas, xf: Transform2D, open: float, charge: float, wobble: float, flash: float, wild: bool, glance: float, hits: int) -> void:
+## how strongly a blow just glanced off it, `hits` its hits left (dark dots), and `parted` how far
+## the leaves shrouding it have swung back (leaves_parted). The bramble's bulbs (above) and the
+## garden's seed pods (PodArt) alike.
+static func ink_bulb(canvas: InkCanvas, xf: Transform2D, open: float, charge: float, wobble: float, flash: float, wild: bool, glance: float, hits: int, parted: float) -> void:
 	var cup: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(7.0, 0.0), 20.0, BULB_R * 0.9, 16)
 	var swell: float = 1.0 + BULB_SWELL * charge * charge + 0.04 * sin(wobble)
 	var r: float = BULB_R * swell * lerpf(SHUT_SIZE, 1.0, open)
@@ -663,6 +685,34 @@ static func ink_bulb(canvas: InkCanvas, xf: Transform2D, open: float, charge: fl
 		canvas.lift_ink([RisoPrint.NIGHT, RisoPrint.ACCENT], shut, sepals)
 		canvas.ink(RisoPrint.BLUE, (BARK_BLUE - 0.4 * glance) * shut, sepals)
 		canvas.ink(RisoPrint.NIGHT, BARK_NIGHT * (1.0 - glance) * shut, sepals, false)
+	# Its leaves, shrouding it: folded in over its face, their tips meeting there, the outer pair
+	# behind the inner, swinging back to bare it as it readies a seed (`parted`).
+	var meet: Vector2 = Vector2(BULB_R * LEAF_MEET, 0.0)
+	var swing: float = parted * parted * (3.0 - 2.0 * parted)
+	for layer: int in [1, 0]:
+		var leaves: Array[PackedVector2Array] = []
+		var ribs: Array[PackedVector2Array] = []
+		for side: float in [-1.0, 1.0]:
+			var hinge: Vector2 = Vector2(LEAF_ROOT, side * BULB_R * LEAF_HINGES[layer])
+			var reach: Vector2 = meet - hinge
+			var half: float = reach.length() * LEAF_LONG * 0.5
+			var turn: float = reach.angle() + side * LEAF_SWING[layer] * swing + LEAF_SWAY * sin(wobble + side + float(layer))
+			var leaf: Transform2D = Transform2D(turn, hinge)
+			leaves.append(xf * (leaf * RisoShapes.almond(Vector2(half, 0.0), half, BULB_R * LEAF_WIDE * 0.5, 16)))
+			ribs.append(xf * (leaf * RisoShapes.almond(Vector2(half, 0.0), half * 0.85, 1.5, 10)))
+		canvas.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], 1.0, leaves)
+		canvas.ink(RisoPrint.BLUE, LEAF_BLUE, leaves)
+		canvas.ink(RisoPrint.NIGHT, LEAF_NIGHT[layer], leaves, false)
+		canvas.lift_ink([RisoPrint.BLUE, RisoPrint.NIGHT], LEAF_RIB, ribs)
+
+
+## How far a bulb's leaves have swung back (0 folded over it, 1 apart): parting as it nears its next
+## seed (`charge`, from LEAF_PART_FROM), wide apart as it spits, and folding shut over LEAF_CLOSE
+## seconds after (`since`, seconds since it last spat). The bramble's bulbs and the seed pods alike.
+static func leaves_parted(charge: float, since: float) -> float:
+	var nearing: float = smoothstep(LEAF_PART_FROM, 1.0, charge)
+	var after: float = 1.0 - clampf(since / LEAF_CLOSE, 0.0, 1.0)
+	return maxf(nearing, smoothstep(0.0, 1.0, after))
 
 
 ## The bud's size now (a share of BUD_LONG by BUD_WIDE): BUD_HIDDEN tucked in the crown, growing as

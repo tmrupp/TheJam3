@@ -41,6 +41,12 @@ func _rules() -> void:
 	check_eq(ring.seeds(), KeyRing.SEEDS_MOST, "at most %d seed carried" % KeyRing.SEEDS_MOST)
 	check(ring.spend_seed() and ring.seeds() == 0 and not ring.spend_seed(), "a seed planted is used up")
 	ring.free()
+	# The leaves shrouding a seed pod or a bramble's bulb: shut at rest and early in its charge,
+	# parting as it nears its next seed, wide apart as it spits, folding shut again after.
+	var leaves: Array[float] = []
+	for at: Vector2 in [Vector2(0.0, INF), Vector2(Bramble.LEAF_PART_FROM, INF), Vector2(0.8, INF), Vector2(1.0, INF), Vector2(0.0, 0.0), Vector2(0.0, Bramble.LEAF_CLOSE)]:
+		leaves.append(snappedf(Bramble.leaves_parted(at.x, at.y), 0.01))
+	check(leaves[0] == 0.0 and leaves[1] == 0.0 and leaves[2] > 0.0 and leaves[2] < 1.0 and leaves[3] == 1.0 and leaves[4] == 1.0 and leaves[5] == 0.0, "a pod's leaves part as it readies a seed and fold shut after it spits %s" % [leaves])
 	# A small worm's segments meet with no gap where its body bends (humped as it inches, and turning
 	# up out of a hole): across the body at each joint, every point is under one segment or another.
 	var hump: Callable = func(u: float) -> Vector2: return Vector2((u - 0.5) * (Wormlet.LENGTH - WormletArt.INCH), -WormletArt.HUMP * sin(PI * u))
