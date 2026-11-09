@@ -1,4 +1,5 @@
 extends RisoProp
+class_name WormletArt
 ## A small worm (Wormlet), printed with the boss worm's own look (Worm.ink_flesh, jaw_at,
 ## teeth_at, ink_joint, ink_hits, ink_warning, ink_hole): three segments of pale flesh, a pink head
 ## with a wedge mouth of paper teeth that chomps, a rounded tail, shadows at its joints and its one
@@ -18,8 +19,6 @@ const INCH: float = 22.0
 const HUMP: float = 12.0
 ## How long it takes to flop down onto the floor after dropping from a ceiling (seconds).
 const FLOP_TIME: float = 0.18
-## Its holes' depth and crumbs, as a share of the boss's (Worm.ink_hole).
-const HOLE_SIZE: float = 0.8
 ## How much wider than its own radius the turn its body makes out of a hole is: a little, so the
 ## flesh on the inside of the turn does not fold over itself.
 const TURN_WIDE: float = 1.3
@@ -107,6 +106,7 @@ func _draw_holes(w: Wormlet, o: Vector2) -> void:
 	if info == null or info.world == null or w.burrows.is_empty():
 		return
 	var r: float = Wormlet.GIRTH * 0.5
+	var size: float = hole_size(info)
 	var to_local: Transform2D = Transform2D(0.0, -o)
 	var was: bool = ink.of_the_rock
 	ink.of_the_rock = true
@@ -118,13 +118,21 @@ func _draw_holes(w: Wormlet, o: Vector2) -> void:
 		# Heaped only on the floor (or ceiling) it is dug in, never out over a drop beside it.
 		var back: Vector2i = Vector2i(roundi(-b.out.x), roundi(-b.out.y))
 		var shoulders: Array[PackedVector2Array] = []
-		for poly: PackedVector2Array in Worm.clip_to_air(info, at * Worm.mound_shape(r, Worm.HOLE_RIM * HOLE_SIZE * k), b.mouth, r * Worm.HOLE_REACH + Worm.HOLE_RIM, back):
+		for poly: PackedVector2Array in Worm.clip_to_air(info, at * Worm.mound_shape(r, Worm.HOLE_RIM * size * k), b.mouth, r * Worm.HOLE_REACH + Worm.HOLE_RIM, back):
 			shoulders.append(to_local * poly)
 		var open: Callable = func(spot: Vector2) -> bool:
 			var c: Vector2i = info.cell_at(spot + o)
 			return Worm.passable(info.world, c) and not Worm.passable(info.world, c + back)
-		Worm.ink_hole(ink, to_local * at, r, shoulders, b.out.dot(Vector2.UP) > 0.5, open, HOLE_SIZE * k)
+		Worm.ink_hole(ink, to_local * at, r, shoulders, b.out.dot(Vector2.UP) > 0.5, open, size * k)
 	ink.of_the_rock = was
+
+
+## How big its holes are next to the boss's (Worm.ink_hole's `size`): the boss's made smaller to its
+## girth, rims, pit and crumbs alike, by its radius over the boss's (about 0.26 in the game's 128 px
+## cell), so a hole stands as high on it as the boss's does on the boss.
+static func hole_size(info: MapInfo) -> float:
+	var cell: float = (info.cell_position(Vector2i(1, 0)) - info.cell_position(Vector2i.ZERO)).x
+	return Wormlet.GIRTH / (cell * Worm.GIRTH)
 
 
 ## Its body along `at` (u 0 its tail to 1 its head, to a local point), drawn only from `lo` to `hi`

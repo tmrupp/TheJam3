@@ -203,6 +203,10 @@ func _worms() -> void:
 	var stood: Vector2 = player.global_position
 	check(await within(func() -> bool: return worm.shown(), 3.0), "then it bursts out")
 	check(not worm.burrows.is_empty(), "through a hole of its own")
+	# Its holes are the boss's made smaller to its girth: as tall on it as the boss's on the boss.
+	var boss_r: float = (info.cell_position(Vector2i(1, 0)) - info.cell_position(Vector2i.ZERO)).x * Worm.GIRTH * 0.5
+	var rim: float = Worm.HOLE_RIM * WormletArt.hole_size(info)
+	check(is_equal_approx(rim / (Wormlet.GIRTH * 0.5), Worm.HOLE_RIM / boss_r) and rim < Worm.HOLE_RIM * 0.6, "its hole as tall for its girth as the boss's (rim %.1f px on a %.0f px radius)" % [rim, Wormlet.GIRTH * 0.5])
 	if not worm.from_ceiling and worm.face == info.cell_at(stood):
 		check(await within(func() -> bool: return player.velocity.y < Wormlet.BUMP * 0.5, 0.2), "up out of the floor under the wizard, it knocks them up")
 	player.end_invulnerable()
