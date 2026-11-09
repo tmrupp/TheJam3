@@ -16,10 +16,7 @@ func run() -> void:
 	Health.invincible = true
 	PracticeTally.still = true
 	camera = main.get_node("Camera2D") as Camera2D
-	info.coord = Worlds.side_at(Worlds.kind_of(PracticeRange), Vector2i(28, 1))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(Worlds.side_at(Worlds.kind_of(PracticeRange), Vector2i(28, 1)), false)
 	# Let the place's title pass.
 	await frames(200)
 	save_still("practice_arrival.png")

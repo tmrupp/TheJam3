@@ -16,10 +16,7 @@ func run() -> void:
 	player.get_node("CameraControl").set_process(false)
 	player.health.max_health = 99
 	player.health.health = 99
-	info.coord = Vector2i(28, NextWorldDef.band_row(&"crags", 0))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(Vector2i(28, NextWorldDef.band_row(&"crags", 0)), false)
 	var g: Gondola = placed("gondola.tscn")[0] as Gondola
 	player.global_position = g.center() + Vector2(-60, 40)
 	player.velocity = Vector2.ZERO

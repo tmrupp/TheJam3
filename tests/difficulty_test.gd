@@ -66,11 +66,7 @@ func run() -> void:
 	await boot(28)
 	player.health.max_health = 99
 	player.health.health = 99
-	info.coord = lair(&"golem")
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
+	await go(lair(&"golem"))
 	var golem: Golem = placed("golem.tscn")[0] as Golem
 	golem.hurl_wait = INF
 	for bow: Node in placed("crossbow.tscn"):
@@ -82,10 +78,7 @@ func run() -> void:
 	print("the F7 row")
 	var here: Vector2i = Vector2i(28, NextWorldDef.band_row(&"cemetery", 1))
 	Difficulty.preset = Difficulty.Preset.HARD
-	info.coord = here
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(here, false)
 	var hard_foes: int = _foes(info.world)
 	var pick: OptionButton = RisoPrint.instance._options[&"difficulty"]
 	pick.select(Difficulty.Preset.BRUTAL)

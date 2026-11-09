@@ -46,9 +46,7 @@ func capture() -> void:
 	player = main.get_node("Player") as Player
 	camera = main.get_node("Camera2D") as Camera2D
 	output = ProjectSettings.globalize_path("res://../art-captures/riso-frames")
-	info.coord = Vector2i(28, NextWorldDef.first_depth(&"sky"))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
+	info.jump_to(Vector2i(28, NextWorldDef.first_depth(&"sky")))
 	while info.world == null or info.travelling:
 		await process_frame
 	player.set_physics_process(false)

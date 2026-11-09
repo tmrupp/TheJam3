@@ -17,11 +17,7 @@ func run() -> void:
 	player.health.health = 99
 	var zoom: Vector2 = camera.zoom
 	for k: int in [0, 4]:
-		info.coord = Vector2i(28, NextWorldDef.band_row(&"crags", k))
-		info.arrival = MapInfo.Exit.BACK
-		info._load_level()
-		await settle()
-		player.set_physics_process(false)
+		await go(Vector2i(28, NextWorldDef.band_row(&"crags", k)))
 		var n: int = 0
 		for tower: Dictionary in info.world.towers:
 			var box: Rect2i = tower["box"]
@@ -54,10 +50,7 @@ func climb(zoom: Vector2) -> void:
 	var best_k: int = -1
 	var best: Rect2i = Rect2i()
 	for k: int in range(6):
-		info.coord = Vector2i(28, NextWorldDef.band_row(&"crags", k))
-		info.arrival = MapInfo.Exit.BACK
-		info._load_level()
-		await settle()
+		await go(Vector2i(28, NextWorldDef.band_row(&"crags", k)), false)
 		for tower: Dictionary in info.world.towers:
 			var box: Rect2i = tower["box"]
 			if not tower["hoard"] and box.size.y > best.size.y:
@@ -65,9 +58,7 @@ func climb(zoom: Vector2) -> void:
 				best = box
 	if best_k < 0:
 		return
-	info.coord = Vector2i(28, NextWorldDef.band_row(&"crags", best_k))
-	info._load_level()
-	await settle()
+	await go(Vector2i(28, NextWorldDef.band_row(&"crags", best_k)), false)
 	var tower: Dictionary = info.world.towers.filter(func(t: Dictionary) -> bool: return t["box"] == best)[0]
 	var box: Rect2i = tower["box"]
 	var ledges: Array = tower["ledges"]

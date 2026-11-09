@@ -17,11 +17,7 @@ func run() -> void:
 	await boot()
 	for place: Vector2i in LEVELS:
 		var at: Vector2i = Vector2i(place.x, NextWorldDef.band_row(&"institute", place.y))
-		info.coord = at
-		info.arrival = MapInfo.Exit.BACK
-		info._load_level()
-		await settle()
-		player.set_physics_process(false)
+		await go(at)
 		player.get_node("CameraControl").set_process(false)
 		# Long enough for the region's title card to come and go.
 		await _wait(420)

@@ -22,11 +22,7 @@ func run() -> void:
 	camera.position_smoothing_enabled = false
 	var done: Dictionary = {}
 	for place: Array in PLACES:
-		info.coord = Vector2i(28, NextWorldDef.band_row(StringName(place[0]), int(place[1])))
-		info.arrival = MapInfo.Exit.BACK
-		info._load_level()
-		await settle()
-		player.set_physics_process(false)
+		await go(Vector2i(28, NextWorldDef.band_row(StringName(place[0]), int(place[1]))))
 		player.global_position = Vector2(-90000, -90000)
 		RisoLight.by_sight = false
 		for n: Node in info.map_elements.get_children():

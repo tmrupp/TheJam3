@@ -20,11 +20,7 @@ func run() -> void:
 	var bow_at: Vector2 = Vector2.INF
 	# The band's levels in turn, until each kind of slit and a crossbow have been seen.
 	for k: int in range(Bands.rows_of(&"crags")):
-		info.coord = Vector2i(28, NextWorldDef.band_row(&"crags", k))
-		info.arrival = MapInfo.Exit.BACK
-		info._load_level()
-		await settle()
-		player.set_physics_process(false)
+		await go(Vector2i(28, NextWorldDef.band_row(&"crags", k)))
 		player.global_position = Vector2(-9000, -9000)
 		var decor: RisoDecor = main.get_node("RisoDecor") as RisoDecor
 		for item: Dictionary in decor.items:

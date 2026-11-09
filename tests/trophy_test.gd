@@ -19,10 +19,7 @@ func run() -> void:
 ## The first boss slain in its gate level: its trophy drops beside its relic and is picked up.
 func _drop(boss: StringName) -> void:
 	print("a boss's trophy")
-	info.coord = lair(boss)
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(lair(boss), false)
 	check(info.slay_boss(), "the %s is slain" % boss)
 	check(await until(func() -> bool: return info.run.bosses.has(boss)), "for the run")
 	check(info.run.boss_trophies.has(boss), "its trophy waits where it fell")
@@ -48,10 +45,7 @@ func _stands(bosses: Array[StringName]) -> void:
 	print("the stands")
 	for boss: StringName in bosses:
 		info.run.trophies[boss] = Trophy.CARRIED
-	info.coord = Tutorial.of(28)
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(Tutorial.of(28), false)
 	var stands: Array[Node] = placed("trophy_stand.tscn")
 	check_eq(stands.size(), bosses.size(), "a stand for each boss in the layout")
 	var held: Array[StringName] = []

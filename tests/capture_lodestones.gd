@@ -25,10 +25,7 @@ func run() -> void:
 	var at: Vector2i = Vector2i(28, row)
 	while Rules.lodestone_at(at) == &"" or [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1)].all(func(d: Vector2i) -> bool: return Rules.lodestone_at(at + d) == &""):
 		at.x += 1
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(at, false)
 	_clear_foes()
 	# The region's title card gone.
 	await within(func() -> bool: return false, 4.0)

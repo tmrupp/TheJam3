@@ -125,6 +125,9 @@ bash tests/run.sh -l garden full  # the suite on another band layout (the demo's
   `## suite: window` (needs a rendered window; never run these headless by name).
 - A test passes on exit 0 with no `FAIL`, `SCRIPT ERROR` or `Parse Error` in its log. A test that
   fails alongside others but passes alone is reported FLAKY. Logs go to `/tmp/thejam3-tests/`.
+  The runner starts the slowest tests first, by each test's seconds in its last run (kept in
+  `/tmp/thejam3-tests/durations`, a file a band layout; a test never timed starts first of all),
+  and its summary names the slowest five.
 - `run.sh` re-imports first. After adding a `class_name` script or an image outside it, run
   `godot --headless --path . --import`.
 - Captures: `godot --path . --windowed --resolution 1280x720 --screen 1 --script res://tests/capture_x.gd`.
@@ -160,12 +163,16 @@ bash tests/run.sh -l garden full  # the suite on another band layout (the demo's
   the way on's price, keys and doors).
 - Each test sets its own `RunState.save_path` (`user://<test>.save`), so they can run in parallel.
 - New tests extend `TestKit` (`tests/kit/TestKit.gd`): override `run()`, end with `finish()`, and
-  use its `check`/`check_eq`, `boot(seed)` (starts a run, keeps the save apart), `until(cond)` and
+  use its `check`/`check_eq`, `boot(seed)` (starts a run, keeps the save apart), `go(at)` (jumps
+  to a place and freezes the wizard there; `go(at, false)` leaves them free; over the public
+  `MapInfo.jump_to(at, arrival)`, never the private `_load_level`), `until(cond)` and
   `settle()` rather than counting frames (`until(gone(node))` for something being freed; a lambda
   holding the node itself errors once it is), and `placed`/`colored` (`placed(scene, true)` counts
   hidden things too: the ghost, a bridge's planks before its bell rings). For the level generator
   alone, `build(at)` and `collapse(at)` lay a place out without the game scene, which is far faster
-  than booting the game. `until` polls on process frames: a step timed in physics frames (a dash, a
+  than booting the game. In a test the loader lays out no neighbours ahead of time
+  (`LevelLoader.prefetching`, off from the kit's start): set it on for a test of the worker
+  (`revisit_test`). `until` polls on process frames: a step timed in physics frames (a dash, a
   jump) wants an `await physics_frame` after it. `until`'s timeout is wall-clock time; for
   something the game times itself (a cooldown, a regrowth) use `within(cond, game_seconds)`, which
   counts physics frames, as a busy machine runs the game slower than the clock. The kit runs one

@@ -132,10 +132,7 @@ func _pods() -> void:
 	for row: int in range(1, Bands.garden_rows()):
 		if build(Vector2i(28, row)).objects_of(LevelGen.Type.POD).is_empty():
 			continue
-		info.coord = Vector2i(28, row)
-		info.arrival = MapInfo.Exit.BACK
-		info._load_level()
-		await settle()
+		await go(Vector2i(28, row), false)
 		for n: Node in placed("seed_pod.tscn"):
 			var b: RigidBody2D = n as RigidBody2D
 			if await _stand_in_sight(b, b.get_node("SeedPod") as SeedPod):
@@ -213,10 +210,7 @@ func _worms() -> void:
 	check(at.x >= 0, "a garden level near the start with a small worm")
 	if at.x < 0:
 		return
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(at, false)
 	var found: Array[Node] = placed("wormlet.tscn")
 	check(not found.is_empty(), "its worm is placed")
 	if found.is_empty():
@@ -260,7 +254,7 @@ func _worms() -> void:
 	check(body.collision_layer != 0 and body.is_in_group(&"hex_target"), "out, it can be struck")
 	(body.get_node("Wound") as Wound).hit(1, Vector2.LEFT)
 	check(await until(gone(body)), "one blow slays it")
-	info._load_level()
+	info.jump_to(info.coord, info.arrival)
 	await settle()
 	check(placed("wormlet.tscn").filter(func(n: Node) -> bool: return n.get_meta(&"cell") == home).is_empty(), "and it stays slain")
 
@@ -274,17 +268,14 @@ func _swarm() -> void:
 	var counts: Array[int] = []
 	for tier: int in range(1, 4):
 		info.run.plants[home] = {"furthest": Plot.TIERS[tier - 1], "door": false}
-		info.coord = home
-		info.arrival = MapInfo.Exit.BACK
-		info._load_level()
-		await settle()
+		await go(home, false)
 		counts.append(placed("wormlet.tscn", true).size())
 	check_eq(counts, [Wormlet.SWARM[1], Wormlet.SWARM[2], Wormlet.SWARM[3]] as Array[int], "worms round the plot by what its plant bears: stars, a white flower, a great bloom")
 	var plots: Array[Vector2i] = info.world.objects_of(LevelGen.Type.PLOT)
 	var near: bool = placed("wormlet.tscn", true).all(func(n: Node) -> bool: return LevelGen.dist(n.get_meta(&"cell"), plots[0]) <= Wormlet.SWARM_REACH)
 	check(near, "all within %d cells of the plot" % Wormlet.SWARM_REACH)
 	info.run.plants.erase(home)
-	info._load_level()
+	info.jump_to(info.coord, info.arrival)
 	await settle()
 	check(placed("wormlet.tscn", true).is_empty(), "picked, no swarm")
 
@@ -318,10 +309,7 @@ func _stand_in_sight(body: RigidBody2D, pod: SeedPod) -> bool:
 func _plants() -> void:
 	print("plants")
 	var home: Vector2i = Vector2i(28, 0)
-	info.coord = home
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(home, false)
 	var plot: Plot = _plot()
 	check(plot != null, "the start level has its plot")
 	if plot == null:
@@ -366,7 +354,7 @@ func _plants() -> void:
 	await settle()
 	check(info.coord == home and info.cell_at(player.global_position).distance_to(info.plant_door_cell()) < 2.0, "and back out by the door on its plot")
 	# Kept through a reload of the place; gone with a new run.
-	info._load_level()
+	info.jump_to(info.coord, info.arrival)
 	await settle()
 	check_eq(placed("level_exit.tscn").filter(func(n: Node) -> bool: return int(n.get("exit")) == door_exit).size(), 1, "the door stands there on every visit")
 	info.run.start(28)

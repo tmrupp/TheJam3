@@ -22,10 +22,7 @@ func run() -> void:
 	await boot(28)
 	MapInfo.debug = true
 	Health.invincible = true
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(at, false)
 	var tally: PracticeTally = PracticeTally.instance
 	check(tally != null and is_instance_valid(tally), "the tally is in the range")
 	if tally == null:

@@ -23,11 +23,7 @@ func run() -> void:
 	var seen: Dictionary = {}
 	var wide: Dictionary = {}
 	for k: int in range(Bands.rows_of(&"institute")):
-		info.coord = Vector2i(28, NextWorldDef.band_row(&"institute", k))
-		info.arrival = MapInfo.Exit.BACK
-		info._load_level()
-		await settle()
-		player.set_physics_process(false)
+		await go(Vector2i(28, NextWorldDef.band_row(&"institute", k)))
 		player.global_position = info.cell_position(info.world.size / 2) + Vector2(0, -4000)
 		await frames(240)
 		var decor: RisoDecor = main.get_node("RisoDecor") as RisoDecor

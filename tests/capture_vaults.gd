@@ -35,9 +35,7 @@ func run() -> void:
 	for key: Node2D in keys:
 		key.queue_free()
 	for at: Vector2i in [Vector2i(28, 0), Vector2i(28, NextWorldDef.band_row(&"cemetery", 1)), Vector2i(28, NextWorldDef.band_row(&"sky", 1)), Vector2i(1, 2)]:
-		info.coord = at
-		info.arrival = MapInfo.Exit.BACK
-		info._load_level()
+		info.jump_to(at)
 		await loaded()
 		if info.world.vaults.is_empty():
 			print("no vault in ", at)

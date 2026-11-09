@@ -24,11 +24,7 @@ func run() -> void:
 	generation()
 
 	await boot()
-	info.coord = Vector2i(28, NextWorldDef.first_depth(&"cemetery"))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
+	await go(Vector2i(28, NextWorldDef.first_depth(&"cemetery")))
 	print("in a cemetery")
 	check(info.here.archetype == &"cemetery" and Rules.where(info.coord) == "world 28 · depth %d" % NextWorldDef.first_depth(&"cemetery"), "cemetery world label shows only world and depth")
 	if RisoPrint.instance != null:
@@ -270,7 +266,7 @@ func bridges() -> void:
 	player.set_physics_process(false)
 	info.snuff(player.global_position)
 	# Gone and back: the bridge is still up.
-	info._load_level()
+	info.jump_to(info.coord, info.arrival)
 	await settle()
 	player.set_physics_process(false)
 	planks = placed("bridge.tscn", true).filter(func(n: Node) -> bool: return int(n.get("chasm")) == id)

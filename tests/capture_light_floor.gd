@@ -18,11 +18,7 @@ func run() -> void:
 	await boot()
 	camera = main.get_node("Camera2D") as Camera2D
 	for band: StringName in [&"institute", &"garden"]:
-		info.coord = Vector2i(28, NextWorldDef.first_depth(band) if band != &"garden" else 0)
-		info.arrival = MapInfo.Exit.BACK
-		info._load_level()
-		await settle()
-		player.set_physics_process(false)
+		await go(Vector2i(28, NextWorldDef.first_depth(band) if band != &"garden" else 0))
 		player.get_node("CameraControl").set_process(false)
 		var spot: Variant = _low_floor()
 		if spot == null:

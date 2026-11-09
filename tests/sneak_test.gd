@@ -17,11 +17,7 @@ func run() -> void:
 	info.relight()
 	check(info.flame_lit(), "lit again")
 
-	info.coord = Vector2i(28, NextWorldDef.band_row(&"institute", 0))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
+	await go(Vector2i(28, NextWorldDef.band_row(&"institute", 0)))
 	player.invulnerable.enable()
 	var found: Array[Node] = placed("abomination.tscn")
 	check(not found.is_empty(), "an abomination in the institute")

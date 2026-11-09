@@ -29,10 +29,7 @@ func run() -> void:
 	player.get_node("CameraControl").set_process(false)
 	player.health.max_health = 99
 	player.health.health = 99
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(at, false)
 	camera.zoom *= 1.5
 	var cell: float = info.cell_position(Vector2i(1, 0)).x - info.cell_position(Vector2i.ZERO).x
 	var door: Node2D = placed("trapdoor.tscn")[0] as Node2D

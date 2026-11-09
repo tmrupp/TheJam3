@@ -133,10 +133,7 @@ func _papers() -> void:
 ## The wizard on the longest rolling ladder of the institute's first level: a strip climbing up it,
 ## one climbing down, and one holding still, each close.
 func _ladder() -> void:
-	info.coord = Vector2i(28, NextWorldDef.band_row(&"institute", 0))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(Vector2i(28, NextWorldDef.band_row(&"institute", 0)), false)
 	var best: RollingLadder = null
 	for node: Node in placed("rolling_ladder.tscn"):
 		var found: RollingLadder = node as RollingLadder

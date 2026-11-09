@@ -93,10 +93,7 @@ func _pod() -> void:
 		var w: LevelGen = build(Vector2i(28, row))
 		if w.objects_of(LevelGen.Type.POD).is_empty():
 			continue
-		info.coord = Vector2i(28, row)
-		info.arrival = MapInfo.Exit.BACK
-		info._load_level()
-		await settle()
+		await go(Vector2i(28, row), false)
 		for n: Node in placed("seed_pod.tscn"):
 			var body: RigidBody2D = n as RigidBody2D
 			var pod: SeedPod = body.get_node("SeedPod") as SeedPod
@@ -163,10 +160,7 @@ func _plant() -> void:
 	dir = "garden_plant_gif"
 	frame = 0
 	var home: Vector2i = Vector2i(28, 0)
-	info.coord = home
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(home, false)
 	var plots: Array[Node] = placed("plot.tscn")
 	if plots.is_empty():
 		check(false, "the start level has its plot")
@@ -203,10 +197,7 @@ func _worm() -> void:
 	for row: int in range(1, Bands.garden_rows()):
 		if build(Vector2i(28, row)).objects_of(LevelGen.Type.WORMLET).is_empty():
 			continue
-		info.coord = Vector2i(28, row)
-		info.arrival = MapInfo.Exit.BACK
-		info._load_level()
-		await settle()
+		await go(Vector2i(28, row), false)
 		for n: Node in placed("wormlet.tscn", true):
 			var body: RigidBody2D = n as RigidBody2D
 			var home: Vector2i = body.get_meta(&"cell")
@@ -240,10 +231,7 @@ func _swarm() -> void:
 	close = 1.3
 	var home: Vector2i = Vector2i(28, 0)
 	info.run.plants[home] = {"furthest": Plot.TIERS[2], "door": false}
-	info.coord = home
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(home, false)
 	var plots: Array[Node] = placed("plot.tscn")
 	if plots.is_empty():
 		check(false, "the start level has its plot")

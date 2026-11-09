@@ -80,8 +80,7 @@ func _play() -> void:
 	for c: Vector2i in VISITED:
 		info.run.record(c)
 	var gate: Vector2i = lair(&"beast")
-	await _go(gate)
-	player.set_physics_process(false)
+	await go(gate)
 	var found: Array[Node] = placed("beast.tscn")
 	check(found.size() == 1, "in play the beast is there")
 	if found.is_empty():
@@ -145,8 +144,7 @@ func _play() -> void:
 
 	print("a soul")
 	var at: Vector2i = _a_soul(VISITED)
-	await _go(at)
-	player.set_physics_process(false)
+	await go(at)
 	var souls: Array[Node] = placed("beast_soul.tscn")
 	check(souls.size() == 1, "a soul lies in %s" % at)
 	if souls.is_empty():
@@ -158,8 +156,8 @@ func _play() -> void:
 	var before: int = info.get_tree().get_nodes_in_group(&"abomination").size()
 	player.global_position = info.cell_position(spot + Vector2i(0, -1))
 	check(await within(func() -> bool: return info.get_tree().get_nodes_in_group(&"abomination").size() > before, Breach.FIRST + Breach.SURGE + 1.0), "and lets more out while the wizard is near")
-	await _go(VISITED[0] if VISITED[0] != at else VISITED[1])
-	await _go(at)
+	await go(VISITED[0] if VISITED[0] != at else VISITED[1], false)
+	await go(at, false)
 	souls = placed("beast_soul.tscn")
 	check(souls.size() == 1 and (souls[0] as Node2D).position == info.cell_position(spot), "the same spot on another visit")
 	if souls.is_empty():
@@ -171,14 +169,13 @@ func _play() -> void:
 	await settle()
 	check(not info.run.souls.has(at) and BeastSouls.alive(info.run) == alive - 1, "destroyed, it is gone for the run")
 	info.run.revive_slain()
-	await _go(at)
+	await go(at, false)
 	check(placed("beast_soul.tscn").is_empty(), "and stays gone")
 
 	print("its great eye")
 	for c: Vector2i in info.run.souls.keys():
 		BeastSouls.destroyed(info.run, c)
-	await _go(gate)
-	player.set_physics_process(false)
+	await go(gate)
 	found = placed("beast.tscn")
 	check(found.size() == 1, "back in its chamber, it is there")
 	if found.is_empty():
@@ -205,10 +202,3 @@ func _a_soul(order: Array[Vector2i]) -> Vector2i:
 		if info.run.souls.has(c):
 			return c
 	return info.run.souls.keys()[0]
-
-
-func _go(at: Vector2i) -> void:
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()

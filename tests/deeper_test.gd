@@ -16,7 +16,7 @@ func has_cell(scene: String, v: Vector2i) -> bool:
 	return placed(scene).any(func(n: Node) -> bool: return n.get_meta(&"cell", Vector2i(-1, -1)) == v)
 
 
-func go(exit: int) -> void:
+func through(exit: int) -> void:
 	info.travel(exit)
 	await settle()
 
@@ -171,7 +171,7 @@ func run() -> void:
 	check(placed("level_exit.tscn").size() == info.here.ways().size() and info.here.ways().size() >= 2, "depth 1 has a door on each of its ways (%d; the labyrinth may leave some out)" % info.here.ways().size())
 
 	print("back to (28, 0)")
-	await go(MapInfo.Exit.BACK)
+	await through(MapInfo.Exit.BACK)
 	check(info.coord == Vector2i(28, 0), "back is free and returns to depth 0")
 	check(near_exit(MapInfo.Exit.DEEPER), "going back arrives at the deeper exit")
 	check(fingerprint() == f0, "(28, 0) regenerates identically")
@@ -182,13 +182,13 @@ func run() -> void:
 	check(int(exit_node.call("price")) == 0, "the deeper exit stays paid")
 
 	print("sideways")
-	await go(MapInfo.Exit.RIGHT)
+	await through(MapInfo.Exit.RIGHT)
 	check(info.coord == Vector2i(29, 0), "right steps to seed 29")
 	check(near_exit(MapInfo.Exit.LEFT), "arrives at the left exit")
 	var f29: int = fingerprint()
 	check(f29 != f0, "seed 29 differs from seed 28")
-	await go(MapInfo.Exit.LEFT)
-	await go(MapInfo.Exit.LEFT)
+	await through(MapInfo.Exit.LEFT)
+	await through(MapInfo.Exit.LEFT)
 	check(info.coord == Vector2i(27, 0), "left twice reaches seed 27")
 
 	print("determinism across runs")
@@ -209,7 +209,7 @@ func run() -> void:
 	lantern.call("interacted")
 	var lit_cell: Vector2i = lantern.get_meta(&"cell")
 	check(info.run.respawn_coord == Vector2i(28, 1) and info.run.respawn_cell == lit_cell, "lighting a lantern moves the respawn")
-	await go(MapInfo.Exit.BACK)
+	await through(MapInfo.Exit.BACK)
 	player.reset_position()
 	await settle()
 	check(info.coord == Vector2i(28, 1), "dying elsewhere reloads the lantern's level")

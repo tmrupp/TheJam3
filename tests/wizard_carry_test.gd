@@ -57,10 +57,7 @@ func _climb() -> void:
 	var ladder: RollingLadder = null
 	for world: int in [28, 7, 99, 3]:
 		for k: int in range(3):
-			info.coord = Vector2i(world, NextWorldDef.band_row(&"institute", k))
-			info.arrival = MapInfo.Exit.BACK
-			info._load_level()
-			await settle()
+			await go(Vector2i(world, NextWorldDef.band_row(&"institute", k)), false)
 			for node: Node in placed("rolling_ladder.tscn"):
 				var found: RollingLadder = node as RollingLadder
 				if found.rungs >= 4:

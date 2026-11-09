@@ -36,10 +36,7 @@ func generation() -> void:
 
 func falling() -> void:
 	await boot()
-	info.coord = Vector2i(28, NextWorldDef.band_row(&"crags", 1))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(Vector2i(28, NextWorldDef.band_row(&"crags", 1)), false)
 	player.health.max_health = 99
 	player.health.health = 99
 	var all: Array[Node] = placed("stalactite.tscn")

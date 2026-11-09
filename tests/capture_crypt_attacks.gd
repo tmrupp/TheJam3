@@ -20,10 +20,7 @@ func run() -> void:
 	window()
 	await boot()
 	camera = main.get_node("Camera2D") as Camera2D
-	info.coord = Vector2i(28, NextWorldDef.first_depth(&"cemetery"))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(Vector2i(28, NextWorldDef.first_depth(&"cemetery")), false)
 	camera.zoom *= ZOOM
 	player.set_physics_process(false)
 	player.get_node("CameraControl").set_process(false)

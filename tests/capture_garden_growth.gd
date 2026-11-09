@@ -37,11 +37,7 @@ func _pod() -> void:
 	if at.x < 0:
 		check(false, "a garden level with a pod")
 		return
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
+	await go(at)
 	var body: Node2D = placed("seed_pod.tscn")[0] as Node2D
 	var pod: SeedPod = body.get_node("SeedPod") as SeedPod
 	# Far off, so it does not see the wizard and spit while it is photographed.
@@ -60,11 +56,7 @@ func _pod() -> void:
 
 
 func _plot() -> void:
-	info.coord = Vector2i(28, 0)
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
+	await go(Vector2i(28, 0))
 	var plots: Array[Node] = placed("plot.tscn")
 	if plots.is_empty():
 		check(false, "the start level has a plot")
@@ -83,11 +75,7 @@ func _worm() -> void:
 	for row: int in range(1, Bands.garden_rows()):
 		if build(Vector2i(28, row)).objects_of(LevelGen.Type.WORMLET).is_empty():
 			continue
-		info.coord = Vector2i(28, row)
-		info.arrival = MapInfo.Exit.BACK
-		info._load_level()
-		await settle()
-		player.set_physics_process(false)
+		await go(Vector2i(28, row))
 		var body: RigidBody2D = placed("wormlet.tscn", true)[0] as RigidBody2D
 		var worm: Wormlet = body.get_node("Wormlet") as Wormlet
 		var home: Vector2i = body.get_meta(&"cell")

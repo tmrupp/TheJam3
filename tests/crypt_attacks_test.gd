@@ -20,11 +20,7 @@ func run() -> void:
 		finish()
 		return
 	await boot()
-	info.coord = Vector2i(28, NextWorldDef.first_depth(&"cemetery"))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
+	await go(Vector2i(28, NextWorldDef.first_depth(&"cemetery")))
 	player.get_node("CameraControl").set_process(false)
 	var at: Variant = _run(3)
 	check(at != null, "a stretch of open floor, away from the lanterns")

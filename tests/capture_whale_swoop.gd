@@ -40,10 +40,7 @@ func run() -> void:
 		rec.vanes_on = {Vector2i(1, 1): -side}
 		rec.wind_way = -side
 	info.run.whale_x = x
-	info.coord = Vector2i(x, row)
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(Vector2i(x, row), false)
 	var whale: Whale = placed("whale.tscn")[0] as Whale
 	whale.set_physics_process(false)
 	player.global_position = info.cell_position(_perch)
@@ -92,7 +89,6 @@ func _step() -> void:
 	if tick % EVERY == 0:
 		save_still("whale_swoop/f_%04d.png" % frame)
 		frame += 1
-
 
 
 ## The first world from 28 whose level on the whale's row has a perch: a floor three cells wide in

@@ -141,10 +141,7 @@ func _tiers(w: LevelGen, at: Vector2i, path: Array[Vector2i], stops: Array[int])
 func ride() -> void:
 	var world_seed: int = 28
 	await boot(world_seed)
-	info.coord = Vector2i(world_seed, NextWorldDef.band_row(&"crags", 0))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(Vector2i(world_seed, NextWorldDef.band_row(&"crags", 0)), false)
 	print("a gondola")
 	if RisoPrint.instance != null:
 		check(RisoPrint.instance.realm == &"crags", "printed in the crags' realm")
@@ -297,10 +294,7 @@ func _turn_on(i: int) -> void:
 ## The towers' switches, in play.
 func towers() -> void:
 	print("towers")
-	info.coord = Vector2i(28, NextWorldDef.band_row(&"crags", 0))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(Vector2i(28, NextWorldDef.band_row(&"crags", 0)), false)
 	var switches: Array[Node] = placed("tower_switch.tscn", true)
 	check(switches.size() == info.world.towers.size() and switches.size() >= 2, "a switch in each tower (%d)" % switches.size())
 	if switches.size() < 2:
@@ -323,7 +317,7 @@ func towers() -> void:
 	check(info.record().stations == before ^ b.mask, "once another tower is flipped, it flips back")
 	check(a.locked() and not b.locked(), "and is the one locked now")
 	var left: int = before ^ b.mask
-	info._load_level()
+	info.jump_to(info.coord, info.arrival)
 	await settle()
 	check(info.last_tower == -1 and info.record().stations == left, "the level loading again lifts the lock and keeps the stations as left")
 
@@ -417,10 +411,7 @@ func left_behind(g: Gondola) -> void:
 		check(sw.is_on() != was, "a switch flips beside the stations' call switches")
 		sw.flip()
 	var posts: Array = g.posts.duplicate()
-	info.coord = Vector2i(28, 0)
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(Vector2i(28, 0), false)
 	check(not is_instance_valid(g) or g.stale(), "another level loaded, the gondola is left behind")
 	for i: int in range(3):
 		await process_frame

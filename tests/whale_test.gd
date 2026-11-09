@@ -36,7 +36,7 @@ func run() -> void:
 	player.health.health = 99
 	print("free")
 	info.run.whale_x = x
-	await _go(Vector2i(x, row))
+	await go(Vector2i(x, row))
 	var whales: Array[Node] = placed("whale.tscn")
 	check(whales.size() == 1, "the whale is in its world's level on its row")
 	if whales.is_empty():
@@ -91,7 +91,7 @@ func run() -> void:
 		var rec: LevelRecord = info.run.record(Vector2i(x + side, row))
 		rec.vanes_on = {Vector2i(1, 1): -side}
 		rec.wind_way = -side
-	await _go(Vector2i(x, row))
+	await go(Vector2i(x, row))
 	whale = placed("whale.tscn")[0] as Whale
 	check(whale.trapped and _exit(MapInfo.Exit.DEEPER).sealed() == &"whale", "trapped by the winds either side; its gate sealed")
 	var held: bool = await _into(whale)
@@ -221,15 +221,6 @@ func _into(whale: Whale) -> bool:
 	await settle()
 	player.set_physics_process(false)
 	return held
-
-
-## Load place `at` (arriving at its way back) and wait for it.
-func _go(at: Vector2i) -> void:
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
 
 
 ## The place's exit `which`.

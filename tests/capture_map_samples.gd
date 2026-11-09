@@ -44,9 +44,7 @@ func capture() -> void:
 			reach = maxi(reach, absi(Bands.row_of(boss)))
 		@warning_ignore("integer_division")
 		var at: Vector2i = Vector2i(rng.randi_range(1, 999), -reach + i * (2 * reach + 1) / SAMPLES)
-		info.coord = at
-		info.arrival = MapInfo.Exit.BACK
-		info._load_level()
+		info.jump_to(at)
 		while info.world == null or info.travelling:
 			await process_frame
 		player.set_physics_process(false)

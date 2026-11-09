@@ -27,10 +27,7 @@ func run() -> void:
 	player.get_node("CameraControl").set_process(false)
 	player.health.max_health = 99
 	player.health.health = 99
-	info.coord = place
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(place, false)
 	var cell: float = info.cell_position(Vector2i(1, 0)).x - info.cell_position(Vector2i.ZERO).x
 	var bow: Crossbow = null
 	for n: Node in placed("crossbow.tscn"):
@@ -54,9 +51,7 @@ func run() -> void:
 	await look_at(room, "crossbow_in.png")
 	# One in a keep's wall, the same way: from outside as it draws, and from the hall.
 	if keep_place != place:
-		info.coord = keep_place
-		info._load_level()
-		await settle()
+		await go(keep_place, false)
 	for n: Node in placed("crossbow.tscn"):
 		var d: Crossbow = n as Crossbow
 		if _in(info.world, d.cell) != &"keep" or not range(2, 5).all(func(k: int) -> bool: return not info.solid_at(info.cell_position(d.cell) + Vector2(float(d.facing) * cell * float(k), 0.0))):

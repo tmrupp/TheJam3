@@ -292,9 +292,7 @@ func _in_game() -> void:
 		check(not light.sight.solid.has(door), "once open, sight passes")
 		info.record().opened.erase(door)
 	print("the crypts")
-	info.coord = Vector2i(28, NextWorldDef.first_depth(&"cemetery"))
-	info._load_level()
-	await settle()
+	await go(Vector2i(28, NextWorldDef.first_depth(&"cemetery")), false)
 	check(info.here.gloom() == 0.0 and not light.crypt_rooms(info).is_empty(), "a cemetery is not dark all over, but its crypts are")
 	# The lights may come in a few frames after the level settles.
 	check(await until(func() -> bool: return light.fades.size() > 1), "its lights carve the dark")

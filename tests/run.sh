@@ -14,6 +14,9 @@
 # "## suite: window" (needs a rendered window); untagged tests are in the quick run.
 # A test passes when Godot exits 0 and its log has no FAIL, SCRIPT ERROR or Parse Error. A script
 # error usually leaves the test waiting forever, so it is stopped a moment after one appears.
+# The headless tests start longest first, so a slow one is not left to run alone at the end: each
+# test's seconds are kept between runs (in the file "durations" beside the logs, one per band
+# layout), and a test with none yet starts before all the others.
 # Some tests count frames and can miss under the load of running side by side: a headless test
 # that fails is run once more on its own, and if it passes then it is reported as flaky (its
 # first log is kept as <name>.flaky.log) rather than failed.
@@ -55,6 +58,9 @@ fi
 logs="${TMPDIR:-/tmp}/thejam3-tests/$mode${bands:+-$bands}"
 rm -rf "$logs"
 mkdir -p "$logs"
+# Each test's seconds in the last run it was in ("<name> <seconds>" a line), kept between runs.
+durations="${TMPDIR:-/tmp}/thejam3-tests/durations${bands:+-$bands}"
+touch "$durations"
 
 cache=.godot/global_script_class_cache.cfg
 if [[ ! -f "$cache" ]] || [[ -n "$(find scripts tests -name '*.gd' -newer "$cache" -print -quit)" ]]; then
@@ -78,6 +84,13 @@ else
 		esac
 	done
 fi
+
+# The tests named, longest first by their last durations, those never timed before all of them.
+longest_first() {
+	printf '%s\n' "$@" | awk 'FILENAME == ARGV[1] { d[$1] = $2; next } { print (($1 in d) ? d[$1] : 1e9), $1 }' "$durations" - \
+		| sort -k1,1gr -k2,2 | cut -d' ' -f2
+}
+(( ${#headless[@]} )) && mapfile -t headless < <(longest_first "${headless[@]}")
 
 # Run one test; writes "<PASS|FAIL> <seconds>s <name> <why>" to its .result file.
 run_one() {
@@ -140,10 +153,15 @@ for t in "${windowed[@]}"; do
 	run_one "$t" 1
 done
 
+# Keep this run's durations for the next one's order (the result lines read "PASS 12s name ...").
+cat "$durations" <(cat "$logs"/*.result 2>/dev/null | awk '{ sub(/s$/, "", $2); print $3, $2 }') \
+	| awk '{ d[$1] = $2 } END { for (t in d) print t, d[t] }' | sort > "$durations.$$" && mv "$durations.$$" "$durations"
+
 failed=$(cat "$logs"/*.result 2>/dev/null | grep -c '^FAIL')
 total=$(ls "$logs"/*.result 2>/dev/null | wc -l)
 echo
 echo "$(( total - failed )) of $total passed in $(( SECONDS - began ))s"
+echo "slowest: $(cat "$logs"/*.result 2>/dev/null | awk '{ sub(/s$/, "", $2); print $2, $3 }' | sort -k1,1nr | head -5 | awk '{ printf "%s%s %ss", (NR > 1 ? ", " : ""), $2, $1 }')"
 cat "$logs"/*.flaky 2>/dev/null
 if (( failed )); then
 	grep -h '^FAIL' "$logs"/*.result

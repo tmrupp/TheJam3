@@ -35,7 +35,7 @@ func run() -> void:
 func _field_trip() -> void:
 	print("a field trip")
 	var institute: Vector2i = Vector2i(WORLD, NextWorldDef.band_row(&"institute", 0))
-	await _go(institute)
+	await go(institute)
 	var hall: int = -1
 	for i: int in range(info.world.halls.size()):
 		if info.world.halls[i]["kind"] == &"lecture":
@@ -47,7 +47,7 @@ func _field_trip() -> void:
 	var field: Vector2i = info.field_of(hall)
 	var code: int = KeyRing.paper(&"hex", 2)
 	info.run.papers_out[field] = [code]
-	await _go(field)
+	await go(field)
 	var papers: Array[Node] = _papers(code)
 	check_eq(papers.size(), 1, "the paper lies in the field level (%s)" % field)
 	check(info.run.papers_out.is_empty(), "laid, it waits no more")
@@ -61,14 +61,14 @@ func _field_trip() -> void:
 	map.set("viewing", info.coord)
 	map.call("_level", info)
 	check((map.get("_shown") as Dictionary).has("exam paper"), "and the map marks it there%s" % (", though that floor is not yet seen" if not info.is_seen(at) else ""))
-	await _go(field)
+	await go(field)
 	check_eq(_papers(code).size(), 1, "come back, it lies there still, once")
 	player.global_position = (_papers(code)[0] as Node2D).global_position
 	await frames(2)
 	(_papers(code)[0] as KeyPickup).touch(player)
 	await frames(2)
 	check(player.keyring.has(code), "taken onto the key ring")
-	await _go(field)
+	await go(field)
 	check(_papers(code).is_empty(), "and gone from the level")
 	info.player_died(player.global_position)
 	await settle()
@@ -148,7 +148,7 @@ func _study() -> void:
 ## Each instructor's move (see the class description), in a classroom emptied for it.
 func _instructors() -> void:
 	print("the instructors' moves")
-	await _go(Vector2i(WORLD, NextWorldDef.band_row(&"institute", 0)))
+	await go(Vector2i(WORLD, NextWorldDef.band_row(&"institute", 0)))
 	var index: int = -1
 	for i: int in range(info.world.halls.size()):
 		if info.world.halls[i]["kind"] == &"lecture":
@@ -270,11 +270,3 @@ func _instructor(a: StringName, v: Vector2i, hall: int) -> Scholar:
 	node.move = &"" if a in Institute.MASTERIES else a
 	node.roused = true
 	return node
-
-
-func _go(at: Vector2i) -> void:
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)

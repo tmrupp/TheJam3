@@ -50,7 +50,7 @@ func run() -> void:
 	rock.free()
 
 	print("loading the level again")
-	info._load_level()
+	info.jump_to(info.coord, info.arrival)
 	await settle()
 	check(ledges_at(under_lantern) == 1 and ledges_at(under_shrine) == 1 and ledges_at(bare) == 0, "the ledges are back with the level")
 

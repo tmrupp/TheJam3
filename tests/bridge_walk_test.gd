@@ -14,11 +14,7 @@ func run() -> void:
 	await boot()
 	var walked: int = 0
 	for k: int in range(2):
-		info.coord = Vector2i(28, NextWorldDef.band_row(&"cemetery", k))
-		info.arrival = MapInfo.Exit.BACK
-		info._load_level()
-		await settle()
-		player.set_physics_process(false)
+		await go(Vector2i(28, NextWorldDef.band_row(&"cemetery", k)))
 		player.invulnerable.enable()
 		for id: int in range(info.world.chasms.size()):
 			if info.world.relic_chasms.has(id):

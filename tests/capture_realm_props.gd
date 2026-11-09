@@ -24,11 +24,7 @@ func run() -> void:
 	var sheet: Image = Image.create(REGION.size.x * KINDS.size(), REGION.size.y * BANDS.size(), false, Image.FORMAT_RGBA8)
 	sheet.fill(Color.WHITE)
 	for b: int in range(BANDS.size()):
-		info.coord = Vector2i(28, NextWorldDef.band_row(BANDS[b], 0))
-		info.arrival = MapInfo.Exit.BACK
-		info._load_level()
-		await settle()
-		player.set_physics_process(false)
+		await go(Vector2i(28, NextWorldDef.band_row(BANDS[b], 0)))
 		player.global_position = Vector2(-90000, -90000)
 		RisoLight.by_sight = false
 		for k: int in range(KINDS.size()):

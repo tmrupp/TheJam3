@@ -18,7 +18,7 @@ func run() -> void:
 	player.health.health = 99
 	# A balloon.
 	var sky: Vector2i = Vector2i(28, NextWorldDef.band_row(&"sky", 1))
-	await _go(sky)
+	await go(sky)
 	var balloon: Balloon = placed("balloon.tscn")[0] as Balloon
 	player.global_position = balloon.global_position + Vector2(-150.0, 0.0)
 	await _look(balloon.global_position + Vector2(0.0, -180.0), "sky_balloon_0.png")
@@ -32,7 +32,7 @@ func run() -> void:
 			var at: Vector2i = Vector2i(world, NextWorldDef.band_row(&"sky", k))
 			if with_temple == Vector2i.ZERO and not build(at).objects_of(LevelGen.Type.TEMPLE).is_empty():
 				with_temple = at
-	await _go(with_temple)
+	await go(with_temple)
 	var temple: Temple = placed("temple.tscn")[0] as Temple
 	info.record().temple_progress = 2
 	player.global_position = temple.global_position + Vector2(-160.0, 0.0)
@@ -44,7 +44,7 @@ func run() -> void:
 	# The whale: cruising overhead, then warning of a swoop and scooping up, mouth wide.
 	var row: int = WhaleHunt.row()
 	info.run.whale_x = 28
-	await _go(Vector2i(28, row))
+	await go(Vector2i(28, row))
 	var whale: Whale = placed("whale.tscn")[0] as Whale
 	whale.set_physics_process(false)
 	var overhead: Vector2 = Vector2(whale.global_position.x + Whale.LENGTH * 0.2, whale.top_y)
@@ -63,21 +63,12 @@ func run() -> void:
 	whale.set_physics_process(false)
 	await _look(target + Vector2(-300.0, -200.0), "sky_whale_2.png", 0.6)
 	# Its belly.
-	await _go(Worlds.side_at(Worlds.kind_of(Belly), Vector2i(28, row)))
+	await go(Worlds.side_at(Worlds.kind_of(Belly), Vector2i(28, row)))
 	var heart: WhaleHeart = placed("whale_heart.tscn")[0] as WhaleHeart
 	player.global_position = heart.global_position + Vector2(-500.0, 40.0)
 	await _look(heart.global_position + Vector2(-300.0, -40.0), "sky_belly.png", 0.8)
 	RunState.delete_save()
 	finish()
-
-
-## Load place `at` and wait for it.
-func _go(at: Vector2i) -> void:
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
 
 
 ## The camera on `at` (zoomed by `zoom`) for a moment, then a still of the window as `file`.

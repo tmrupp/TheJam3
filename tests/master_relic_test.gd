@@ -77,7 +77,7 @@ func _play(at: Vector2i) -> void:
 	print("in play")
 	await boot(at.x)
 	process_frame.connect(func() -> void: player.health.health = player.health.max_health)
-	await _go(at)
+	await go(at)
 	var move: StringName = Relics.at(at)
 	var carrier: Scholar = null
 	for n: Node in get_nodes_in_group(&"scholar"):
@@ -105,8 +105,8 @@ func _play(at: Vector2i) -> void:
 	check_eq(Abilities.tier(player, move), tier + 1, "taken, the wizard has %s a tier on" % move)
 	check(info.run.relics_found.has(at) and info.record().relics_left.is_empty(), "the level's relic found")
 	# Back again: the master carries it no more.
-	await _go(Vector2i(at.x, at.y - 1))
-	await _go(at)
+	await go(Vector2i(at.x, at.y - 1))
+	await go(at)
 	check(get_nodes_in_group(&"scholar").all(func(n: Node) -> bool: return (n as Scholar).relic == &"") and placed("relic.tscn").is_empty(), "back again, no master carries it, nor does it lie there")
 	await _instructor(at)
 
@@ -153,11 +153,3 @@ func _instructor(at: Vector2i) -> void:
 	(left[0] as Relic).take()
 	await frames(2)
 	check(Abilities.tier(player, move) == 1 and player.keyring.unlocks() == 0 and info.run.relics_found == found, "taken: %s at I, and not the level's relic" % move)
-
-
-func _go(at: Vector2i) -> void:
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)

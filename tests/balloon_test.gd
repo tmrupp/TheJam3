@@ -45,10 +45,7 @@ func run() -> void:
 	await boot(from.x)
 	player.health.max_health = 99
 	player.health.health = 99
-	info.coord = from
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(from, false)
 	var balloons: Array[Node] = placed("balloon.tscn")
 	check(balloons.size() == 1, "the level's balloon is there")
 	if balloons.is_empty():

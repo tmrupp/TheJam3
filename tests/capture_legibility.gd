@@ -15,11 +15,7 @@ func run() -> void:
 	await boot()
 	camera = main.get_node("Camera2D") as Camera2D
 	for band: StringName in BANDS:
-		info.coord = Vector2i(28, 1 if band == &"garden" else NextWorldDef.band_row(band, 1))
-		info.arrival = MapInfo.Exit.BACK
-		info._load_level()
-		await settle()
-		player.set_physics_process(false)
+		await go(Vector2i(28, 1 if band == &"garden" else NextWorldDef.band_row(band, 1)))
 		player.get_node("CameraControl").set_process(false)
 		var spot: Vector2 = _open_row(6)
 		player.global_position = spot + Vector2(-900, 0)

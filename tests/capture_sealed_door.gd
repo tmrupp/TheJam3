@@ -22,11 +22,7 @@ func run() -> void:
 		var row: int = Bosses.row_of(boss)
 		if row == 0:
 			continue
-		info.coord = Vector2i(28, row)
-		info.arrival = MapInfo.Exit.BACK
-		info._load_level()
-		await settle()
-		player.set_physics_process(false)
+		await go(Vector2i(28, row))
 		var door: LevelExit = null
 		for n: Node in placed("level_exit.tscn"):
 			if (n as LevelExit).sealed() != &"":

@@ -10,10 +10,7 @@ var camera: Camera2D
 func run() -> void:
 	window()
 	await boot(28)
-	info.coord = Vector2i(28, NextWorldDef.band_row(&"crags", 1))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(Vector2i(28, NextWorldDef.band_row(&"crags", 1)), false)
 	camera = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
 	player.health.max_health = 99

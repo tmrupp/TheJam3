@@ -25,11 +25,7 @@ func run() -> void:
 	await boot()
 	player.set_physics_process(false)
 	player.global_position = Vector2(-9000, -9000)
-	info.coord = Vector2i(28, NextWorldDef.band_row(&"crags", 0))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
+	await go(Vector2i(28, NextWorldDef.band_row(&"crags", 0)))
 	player.global_position = Vector2(-9000, -9000)
 	var g: Gondola = placed("gondola.tscn")[0] as Gondola
 	# The wizard hangs over the car, out of it, so the level about it stays awake (chunks sleep out of

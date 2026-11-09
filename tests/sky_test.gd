@@ -25,11 +25,7 @@ func run() -> void:
 	generation()
 
 	await boot()
-	info.coord = Vector2i(28, NextWorldDef.first_depth(&"sky"))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
+	await go(Vector2i(28, NextWorldDef.first_depth(&"sky")))
 	print("in the sky")
 	check(info.here.archetype == &"sky", "depth 6 is a sky level")
 	if RisoPrint.instance != null:

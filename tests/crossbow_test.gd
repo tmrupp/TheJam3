@@ -24,10 +24,7 @@ func run() -> void:
 		finish()
 		return
 	await boot(at.x)
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(at, false)
 	player.health.max_health = 99
 	player.health.health = 99
 	player.set_physics_process(false)

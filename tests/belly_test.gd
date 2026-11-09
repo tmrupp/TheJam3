@@ -31,10 +31,7 @@ func run() -> void:
 	await boot(28)
 	player.health.max_health = 99
 	player.health.health = 99
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(at, false)
 	var acids: Array[Node] = placed("acid.tscn")
 	check(acids.size() == 1, "its acid is in the scene")
 	if acids.is_empty():

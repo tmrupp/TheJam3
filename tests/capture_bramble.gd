@@ -15,10 +15,7 @@ const SIZE: int = 420
 func run() -> void:
 	window()
 	await boot(28)
-	info.coord = lair(&"bramble")
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(lair(&"bramble"), false)
 	var bramble: Bramble = placed("bramble.tscn")[0] as Bramble
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)

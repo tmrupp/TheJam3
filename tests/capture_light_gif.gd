@@ -81,10 +81,7 @@ func run() -> void:
 	info.run.vulnerable = false
 	# Into a crypt: the first of the cemetery's first level, from a floor inside it.
 	Input.action_release(&"Right")
-	info.coord = Vector2i(28, NextWorldDef.first_depth(&"cemetery"))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(Vector2i(28, NextWorldDef.first_depth(&"cemetery")), false)
 	_clear()
 	var spot: Vector2i = Vector2i(-1, -1)
 	if not info.world.crypts.is_empty():

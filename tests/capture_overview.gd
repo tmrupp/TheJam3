@@ -67,11 +67,7 @@ func run() -> void:
 
 ## Go straight to place `at` and hold the wizard still there.
 func _go(at: Vector2i) -> void:
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
+	await go(at)
 	await frames(60)
 
 

@@ -15,11 +15,7 @@ func run() -> void:
 	player.global_position = Vector2(-90000, -90000)
 	await covers("mover_enemy.tscn", "a wisp")
 	await wisp_touch()
-	info.coord = Vector2i(28, NextWorldDef.band_row(&"institute", 0))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
+	await go(Vector2i(28, NextWorldDef.band_row(&"institute", 0)))
 	player.global_position = Vector2(-90000, -90000)
 	for scene: String in ["student.tscn", "master.tscn"]:
 		await covers(scene, scene.get_basename())

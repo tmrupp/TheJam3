@@ -24,10 +24,7 @@ func run() -> void:
 			break
 	check(at != Vector2i.ZERO, "a crag level holds a trapdoor, a nest and a mending bowl (%s)" % at)
 	await boot(at.x)
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(at, false)
 	player.health.max_health = 99
 	player.health.health = 99
 	var cell: float = float(info.tile_map.tile_set.tile_size.y) * info.tile_map.global_scale.y

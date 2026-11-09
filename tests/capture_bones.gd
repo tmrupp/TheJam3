@@ -54,9 +54,7 @@ func run() -> void:
 		if Rules.bone_vault_at(Vector2i(x, 1)) and Relics.at(Vector2i(x, 1)) == &"":
 			target = Vector2i(x, 1)
 			break
-	info.coord = target
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
+	info.jump_to(target)
 	await loaded()
 	for vault: Dictionary in info.world.vaults:
 		if int(vault["color"]) != KeyRing.SKELETON:

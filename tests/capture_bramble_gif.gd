@@ -35,10 +35,7 @@ var head: Vector2 = Vector2.ZERO
 func run() -> void:
 	window()
 	await boot(28)
-	info.coord = lair(&"bramble")
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(lair(&"bramble"), false)
 	bramble = placed("bramble.tscn")[0] as Bramble
 	camera = main.get_node("Camera2D") as Camera2D
 	zoom = Vector2.ONE * root.get_visible_rect().size.y / (VIEW_CELLS * bramble.cell)

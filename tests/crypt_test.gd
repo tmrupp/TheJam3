@@ -28,11 +28,7 @@ func run() -> void:
 ## In play, in the cemetery's first level.
 func play() -> void:
 	await boot()
-	info.coord = Vector2i(28, NextWorldDef.first_depth(&"cemetery"))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
+	await go(Vector2i(28, NextWorldDef.first_depth(&"cemetery")))
 	print("in play")
 	check(info.world.crypts.size() >= 1 and placed("snuffer.tscn").size() >= 1 and placed("skeleton_enemy.tscn").size() >= Crypts.SKELETONS_MIN, "its crypt, its fonts and its sleepers are there")
 

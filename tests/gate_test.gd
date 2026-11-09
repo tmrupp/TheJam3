@@ -63,9 +63,9 @@ func run() -> void:
 	player.set_physics_process(false)
 	print("one column holds the worm")
 	var empty: Vector2i = lair(&"worm") + Vector2i(1, 0)
-	await _go(empty)
+	await go(empty)
 	check(placed("worm.tscn").is_empty() and _exit(MapInfo.Exit.DEEPER) != null and _exit(MapInfo.Exit.DEEPER).sealed() == &"worm", "another column's gate level stands empty, its way on sealed all the same")
-	await _go(lair(&"worm"))
+	await go(lair(&"worm"))
 	var worm_way: LevelExit = _exit(MapInfo.Exit.DEEPER)
 	player.collect(9999)
 	check(placed("worm.tscn").size() == 1, "in play the worm itself is there (Worm; worm_test fights it)")
@@ -75,7 +75,7 @@ func run() -> void:
 	check(info.coord == lair(&"worm"), "and no stars open it")
 
 	print("the bramble's gate")
-	await _go(lair(&"bramble"))
+	await go(lair(&"bramble"))
 	check(placed("bramble.tscn").size() == 1, "in play the bramble itself is there (Bramble; bramble_test fights it)")
 	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"bramble", "its way on is sealed")
 
@@ -102,18 +102,18 @@ func run() -> void:
 		check(def.seal(Worlds.door(Worlds.kind_of(Hyperspace)), fresh) == &"", "and opens once it is slain")
 
 	print("slain from the F7 panel")
-	await _go(lair(&"worm"))
+	await go(lair(&"worm"))
 	player.keyring.set_unlocks(0)
 	check(info.slay_boss() and placed("worm.tscn").is_empty(), "Slay boss kills the worm in its gate level at once")
 	await settle()
 	check(info.run.bosses.has(&"worm") and _exit(MapInfo.Exit.DEEPER).sealed() == &"" and left_unlock(), "its gate opens and its relic unlock is left")
-	await _go(lair(&"bramble"))
+	await go(lair(&"bramble"))
 	player.keyring.set_unlocks(0)
 	check(info.slay_boss() and placed("bramble.tscn").is_empty(), "and the bramble in its gate level")
 	await settle()
 	check(info.run.bosses.has(&"bramble") and _exit(MapInfo.Exit.DEEPER).sealed() == &"" and left_unlock(), "its way up opens and its relic unlock is left")
 	if Bands.has(&"cemetery"):
-		await _go(lair(&"necromancer"))
+		await go(lair(&"necromancer"))
 		player.keyring.set_unlocks(0)
 		check(info.slay_boss() and info.run.bosses.has(&"necromancer") and _exit(MapInfo.Exit.DEEPER).sealed() == &"", "and the necromancer in its gate level")
 		await settle()
@@ -164,13 +164,13 @@ func _to_far_bosses() -> void:
 ## The necromancer's gate, and the gate's rules shown with the beast in its gate level.
 func _deep_gates(g: int) -> void:
 	print("the necromancer's gate")
-	await _go(lair(&"necromancer"))
+	await go(lair(&"necromancer"))
 	check(placed("necromancer.tscn").size() == 1 and _exit(MapInfo.Exit.DEEPER).sealed() == &"necromancer", "in play the necromancer itself is there, its way on sealed (Necromancer; necromancer_test fights it)")
 
 	# The beast shows the gate's rules, its souls cleared away once it has sent them.
 	print("the beast, in its gate level")
 	var gate_at: Vector2i = lair(&"beast")
-	await _go(gate_at)
+	await go(gate_at)
 	check(placed("beast.tscn").size() == 1 and _exit(MapInfo.Exit.DEEPER).sealed() == &"beast", "the beast's gate level is sealed, the beast in it (Beast)")
 	var boss: Beast = placed("beast.tscn")[0] as Beast
 	var wound: Wound = boss.get_node("Wound") as Wound
@@ -186,7 +186,7 @@ func _deep_gates(g: int) -> void:
 	info.run.vulnerable = false
 	player.die()
 	await settle()
-	await _go(gate_at)
+	await go(gate_at)
 	boss = placed("beast.tscn")[0] as Beast
 	check((boss.get_node("Wound") as Wound).hp == Beast.CORE_HP and not info.run.bosses.has(&"beast"), "after a lantern death it is whole again")
 
@@ -206,21 +206,12 @@ func _deep_gates(g: int) -> void:
 	var unlocks: Array[Node] = unlocks_lying()
 	check(left_unlock() and (unlocks.is_empty() or (unlocks[0] as Node2D).global_position.distance_to(fell) < 400.0), "leaving a relic unlock where it fell (relic_unlock_test takes relics with one)")
 	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"", "its gate level's way on is open")
-	await _go(lair(&"beast") + Vector2i(1, 0))
+	await go(lair(&"beast") + Vector2i(1, 0))
 	check(placed("beast.tscn").is_empty() and _exit(MapInfo.Exit.DEEPER).sealed() == &"", "and every other gate level of its band too")
-	await _go(lair(&"worm"))
+	await go(lair(&"worm"))
 	check(placed("worm.tscn").size() == 1 and _exit(MapInfo.Exit.DEEPER).sealed() == &"worm", "the way down still waits on the worm")
-	await _go(lair(&"bramble"))
+	await go(lair(&"bramble"))
 	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"bramble", "and the way up on the bramble")
-
-
-## Load level `at` (arriving at its way back) and wait for it.
-func _go(at: Vector2i) -> void:
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
 
 
 ## The level's exit `which`.

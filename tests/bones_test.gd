@@ -102,11 +102,7 @@ func run() -> void:
 		if Rules.bone_vault_at(Vector2i(x, 1)) and Relics.at(Vector2i(x, 1)) == &"" and not Rules.def_for(Vector2i(x, 1)).shut.has(MapInfo.Exit.DEEPER) and build(Vector2i(x, 1)).vaults.any(func(v: Dictionary) -> bool: return int(v["color"]) == KeyRing.SKELETON):
 			target = Vector2i(x, 1)
 			break
-	info.coord = target
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
+	await go(target)
 	var gate: Node = null
 	for n: Node in placed("door.tscn"):
 		if int(n.get_meta(&"key_color", -1)) == KeyRing.SKELETON:

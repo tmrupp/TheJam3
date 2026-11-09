@@ -126,7 +126,7 @@ func play(at: Vector2i) -> void:
 	info.run.dark_charges = 0
 
 	print("a font, in %s" % at)
-	await _go(at)
+	await go(at)
 	var fonts: Array[Node] = placed("snuffer.tscn")
 	var font: Snuffer = fonts[0] as Snuffer
 	var cell: Vector2i = font.cell
@@ -145,7 +145,7 @@ func play(at: Vector2i) -> void:
 	check(info.run.dark_charges == 0 and info.run.ghost_charges == carried, "a death drops the %d charges carried into the ghost" % carried)
 	await settle()
 	player.set_physics_process(false)
-	await _go(at)
+	await go(at)
 	font = _font_at(cell)
 	check(font != null and font.dry() and not font.can_snuff(), "after the death, coming back, the font is still dry")
 	info.recover_ghost()
@@ -191,7 +191,7 @@ func play(at: Vector2i) -> void:
 	info.run.dark_charges = 2
 	door.pour()
 	check(door.poured() == 2 and info.run.dark_charges == 0 and not door.is_open() and info.solid_at(info.cell_position(doorway)), "it drinks the 2 charges carried, and stays shut")
-	await _go(at)
+	await go(at)
 	door = _door_at(doorway)
 	check(door != null and door.poured() == 2, "coming back, it keeps what was poured")
 	info.run.dark_charges = door.fill + 3
@@ -199,18 +199,9 @@ func play(at: Vector2i) -> void:
 	check(door.is_open() and info.run.dark_charges == 5 and not info.solid_at(info.cell_position(doorway)), "fed its fill, it opens, and takes no more than it wants")
 	var col: CollisionShape2D = door.get_node("CollisionShape2D") as CollisionShape2D
 	check(await within(func() -> bool: return col.disabled, 0.5), "and lets the wizard through")
-	await _go(at)
+	await go(at)
 	door = _door_at(doorway)
 	check(door != null and door.is_open() and door.sunk >= 1.0, "it stays open")
-
-
-## Play the level at `at`, arriving by its way back.
-func _go(at: Vector2i) -> void:
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
 
 
 ## Stand beside `node`, its chunk awake.

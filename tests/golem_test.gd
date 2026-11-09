@@ -29,7 +29,7 @@ func run() -> void:
 	player.set_physics_process(false)
 	player.health.max_health = 99
 	player.health.health = 99
-	await _go(gate)
+	await go(gate)
 	print("in its hall")
 	var golem: Golem = placed("golem.tscn")[0] as Golem
 	check(golem.state == Golem.State.SLEEP, "asleep in its lair")
@@ -99,7 +99,7 @@ func run() -> void:
 	info.run.vulnerable = false
 	player.die()
 	await settle()
-	await _go(gate)
+	await go(gate)
 	golem = placed("golem.tscn")[0] as Golem
 	check(golem.chunks_left() == Golem.PART_SIZE.size() and golem.wound.hp == Golem.HEART and golem.shards.is_empty(), "after a lantern death it is whole again")
 	for bow: Node in placed("crossbow.tscn"):
@@ -134,7 +134,7 @@ func run() -> void:
 	var unlocks: Array[Node] = unlocks_lying()
 	check(left_unlock() and (unlocks.is_empty() or info.world.is_ground(info.cell_at((unlocks[0] as Node2D).global_position) + Vector2i.DOWN)), "its relic unlock waits on the floor where it stood")
 	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"", "and the way up out of the crags is open")
-	await _go(gate)
+	await go(gate)
 	check(placed("golem.tscn").is_empty(), "it is never met again")
 	RunState.delete_save()
 	finish()
@@ -238,15 +238,6 @@ func _slash_from(at: Vector2, dir: Vector2) -> void:
 	slash.wait = 0.0
 	slash.cast(dir, true)
 	player.global_position = was
-
-
-## Load place `at` (arriving at its way back) and wait for it.
-func _go(at: Vector2i) -> void:
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
 
 
 ## The place's exit `which`.

@@ -4,7 +4,8 @@ extends SceneTree
 ## run() and ends with finish(); everything else here is optional:
 ## - check() and check_eq() print an "ok" line, or a FAIL line the runner looks for;
 ## - boot() starts a run in the real game (world 28 unless told otherwise) and waits for its first
-##   level, with the save kept apart from the player's and from every other test's;
+##   level, with the save kept apart from the player's and from every other test's; go() jumps
+##   to another place in it (the loader lays out no neighbours ahead of time in a test);
 ## - until() and settle() wait on the game rather than on a guessed number of frames;
 ## - build() lays out the level at a place without the game scene at all, for tests of the level
 ##   generator alone, which are many times faster than booting the game;
@@ -32,6 +33,10 @@ func _initialize() -> void:
 	# them all before the press arrived. With one step a frame, a busy machine runs the game slower
 	# instead, and every test sees the same order of input and physics as on an idle one.
 	Engine.max_physics_steps_per_frame = 1
+	# No laying out of neighbours ahead of time (LevelLoader.prefetching): a test jumps about, so
+	# the worker would only keep a core busy with levels never visited, and make a jump wait behind
+	# one. A test of the worker turns it back on.
+	LevelLoader.prefetching = false
 	out_of_sight()
 	if "layout=retuned" in OS.get_cmdline_user_args():
 		Bands.use(RETUNED)
@@ -205,6 +210,17 @@ func boot(world_seed: int = 28, tutorial: bool = false) -> void:
 	menu.call("start_game", tutorial)
 	player = main.get_node("Player") as Player
 	await settle()
+
+
+## Go straight to place `at` in the run being played (MapInfo.jump_to), arriving at its way back,
+## and wait for it to settle; with `freeze`, the wizard's physics is then turned off, so they stay
+## where they arrived while the test looks about or places them (call still() before turning it
+## on again after moving them).
+func go(at: Vector2i, freeze: bool = true) -> void:
+	info.jump_to(at)
+	await settle()
+	if freeze:
+		player.set_physics_process(false)
 
 
 ## Bring the wizard to rest where they are: no speed, and no dash, knock-back or wall jump under

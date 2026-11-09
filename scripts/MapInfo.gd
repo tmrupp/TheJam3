@@ -966,16 +966,22 @@ func lay_out_again () -> void:
 
 func respawn_in_other_level () -> void:
 	await _pass(Vector2.UP, run.respawn_coord)
-	coord = run.respawn_coord
-	arrival = -2
-	_load_level()
+	jump_to(run.respawn_coord, -2)
 
 ## Load place `to`, arriving at `how` (an exit there, or -3 for arrival_pos). Coming into a sky
 ## level, the whale moves (WhaleHunt.move).
 func _arrive (to: Vector2i, how: int) -> void:
-	coord = to
-	run.reached(coord)
-	WhaleHunt.move(run, coord)
+	run.reached(to)
+	WhaleHunt.move(run, to)
+	jump_to(to, how)
+
+## Go straight to place `at`, arriving at `how`: an exit there (its way back by default), -1 for a
+## run's start, -2 for the respawn lantern, -3 for arrival_pos, or one of the ARRIVE_ kinds. No
+## transition is swept over the view and nothing is paid, opened or noted on the way (not even that
+## the place was reached): the level is simply loaded, the wizard frozen until it is in the scene.
+## Travel of every kind ends here; the tests call it to put the wizard somewhere (TestKit.go).
+func jump_to (at: Vector2i, how: int = Exit.BACK) -> void:
+	coord = at
 	arrival = how
 	_load_level()
 

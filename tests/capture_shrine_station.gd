@@ -66,9 +66,7 @@ func run() -> void:
 			var c: Vector2i = Vector2i(x, k)
 			if want == Vector2i(-1, -1) and not Rules.maze_has(c, MapInfo.Exit.DEEPER) and Shrine.sells_door_at(c) and Bosses.gate_at(c.y) == &"":
 				want = c
-	info.coord = want
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
+	info.jump_to(want)
 	await settle(40)
 	player.set_physics_process(false)
 	player.visible = false

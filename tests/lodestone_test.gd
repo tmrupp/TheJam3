@@ -27,10 +27,7 @@ func run() -> void:
 	player.health.max_health = 99
 	player.health.health = 99
 	var at: Vector2i = _play_level()
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(at, false)
 	print("in %s, a lodestone of %s" % [at, Rules.lodestone_at(at)])
 	# Enemies kept out of the bolts' way (and off the wizard).
 	for foe: Node in get_nodes_in_group(&"hex_target"):

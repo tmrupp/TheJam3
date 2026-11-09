@@ -38,9 +38,7 @@ func run() -> void:
 			info.travel(up)
 		else:
 			# The labyrinth left this level's way up out (Rules.maze_has): straight to the level above.
-			info.coord += Vector2i(0, -1)
-			info.arrival = MapInfo.Exit.BACK
-			info._load_level()
+			info.jump_to(info.coord + Vector2i(0, -1))
 		await settle()
 		player.set_physics_process(false)
 	check(info.coord == Vector2i(28, -(Bands.garden_rows() + 1)) and info.here.archetype == NextWorldDef.archetype_at(-(Bands.garden_rows() + 1)) and (Bands.way(-1).is_empty() or info.here.archetype != &"garden"), "past the garden's top row the first band up begins (%s)" % info.coord)

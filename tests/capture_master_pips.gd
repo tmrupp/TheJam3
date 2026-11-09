@@ -10,11 +10,7 @@ func run() -> void:
 	window()
 	await boot()
 	camera = main.get_node("Camera2D") as Camera2D
-	info.coord = Vector2i(28, NextWorldDef.first_depth(&"institute"))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
+	await go(Vector2i(28, NextWorldDef.first_depth(&"institute")))
 	player.get_node("CameraControl").set_process(false)
 	var at: Vector2i = info.world.free_floors()[0]
 	for v: Vector2i in info.world.free_floors():

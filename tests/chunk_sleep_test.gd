@@ -12,11 +12,7 @@ func run() -> void:
 		finish()
 		return
 	await boot(28)
-	info.coord = Vector2i(28, NextWorldDef.band_row(&"cemetery", 2))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
+	await go(Vector2i(28, NextWorldDef.band_row(&"cemetery", 2)))
 	var loader: LevelLoader = info.loader
 	var near: Vector2 = player.global_position
 	var corner: Vector2 = info.cell_position(info.world.size - Vector2i.ONE)

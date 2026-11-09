@@ -17,7 +17,7 @@ func run() -> void:
 	MapInfo.debug = false
 	await boot(28)
 	player.set_physics_process(false)
-	await _go(lair(&"worm"))
+	await go(lair(&"worm"))
 	var worm: Worm = placed("worm.tscn")[0] as Worm
 
 	print("the lair and its holes")
@@ -42,7 +42,7 @@ func run() -> void:
 			holes_ok = holes_ok and LevelGen.dist(hole.cell, worm.holes[j].cell) >= Worm.HOLE_APART
 	check(holes_ok and hole_x.y - hole_x.x > w.size.x / 2, "%d burrow holes all through the level, each dug into rock beside the lair, kept apart" % worm.holes.size())
 	var holes: Array = worm.holes.map(func(h: Worm.Hole) -> Vector2i: return h.cell)
-	await _go(lair(&"worm"))
+	await go(lair(&"worm"))
 	worm = placed("worm.tscn")[0] as Worm
 	check(worm.holes.map(func(h: Worm.Hole) -> Vector2i: return h.cell) == holes, "the same holes on every visit")
 	check(worm.segments_left() == Worm.SEGMENTS and worm.pieces[0].segments.all(func(s: WormSegment) -> bool: return s.wound.hp == Worm.SEGMENT_HP), "%d segments, %d hits each" % [Worm.SEGMENTS, Worm.SEGMENT_HP])
@@ -229,7 +229,7 @@ func run() -> void:
 	info.run.vulnerable = false
 	player.die()
 	await settle()
-	await _go(lair(&"worm"))
+	await go(lair(&"worm"))
 	worm = placed("worm.tscn")[0] as Worm
 	check(worm.segments_left() == Worm.SEGMENTS and worm.pieces.size() == 1 and not info.run.bosses.has(&"worm"), "after a lantern death it is whole again")
 
@@ -251,19 +251,10 @@ func run() -> void:
 	var on_floor: bool = unlocks.is_empty() or info.world.free_floors().has(info.cell_at((unlocks[0] as Node2D).global_position))
 	check(left_unlock() and on_floor, "its relic unlock waits on a floor")
 	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"", "and the way on is open")
-	await _go(lair(&"worm"))
+	await go(lair(&"worm"))
 	check(placed("worm.tscn").is_empty(), "it is never met again")
 	RunState.delete_save()
 	finish()
-
-
-## Load level `at` (arriving at its way back) and wait for it.
-func _go(at: Vector2i) -> void:
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
 
 
 ## The level's exit `which`.

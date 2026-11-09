@@ -19,10 +19,7 @@ func run() -> void:
 		[&"garden", "hopper_enemy.tscn"], [&"sky", "bird_enemy.tscn"], [&"crags", "rock_bug.tscn"], [&"institute", "student.tscn"]]
 	for c: Array in cases:
 		var band: StringName = c[0]
-		info.coord = Vector2i(28, NextWorldDef.first_depth(band) if band != &"garden" else 1)
-		info.arrival = MapInfo.Exit.BACK
-		info._load_level()
-		await settle()
+		await go(Vector2i(28, NextWorldDef.first_depth(band) if band != &"garden" else 1), false)
 		player.get_node("CameraControl").set_process(false)
 		var w: LevelGen = info.world
 		var floors: Array[Vector2i] = w.free_floors()

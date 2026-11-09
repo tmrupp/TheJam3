@@ -39,6 +39,11 @@ var worlds: Dictionary = {}
 ## Places to lay out ahead of time, and the one waiting to be shown (or null).
 var prefetch: Array[Vector2i] = []
 var wanted: Variant = null
+## Whether arriving somewhere queues its neighbours for the worker (prefetch_neighbours). On in the
+## game; the tests turn it off (TestKit.boot), as a test that jumps about would have the worker lay
+## out levels it never visits, a core busy for each, and a jump made while it is busy waits behind
+## one. A test of the worker itself turns it back on.
+static var prefetching: bool = true
 var gen_busy: bool = false
 ## Everything placed in the level being played.
 var map_elements: Node
@@ -171,12 +176,13 @@ func laid_out(at: Vector2i) -> LevelGen:
 
 
 ## Queue the places `place` leads to for the worker (NextWorldDef.neighbours), keeping `place`
-## itself from being evicted by them.
+## itself from being evicted by them. With prefetching off, none are queued.
 func prefetch_neighbours(place: NextWorldDef) -> void:
 	prefetch.clear()
-	for c: Vector2i in place.neighbours():
-		if not cache.has(c):
-			prefetch.append(c)
+	if prefetching:
+		for c: Vector2i in place.neighbours():
+			if not cache.has(c):
+				prefetch.append(c)
 	if cache.has(place.coord):
 		cache_order.erase(place.coord)
 		cache_order.append(place.coord)

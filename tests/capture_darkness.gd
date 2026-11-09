@@ -28,10 +28,7 @@ func run() -> void:
 	camera = main.get_node("Camera2D") as Camera2D
 	base_zoom = camera.zoom
 	var at: Vector2i = Vector2i(5, NextWorldDef.band_row(&"cemetery", 4))
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(at, false)
 	player.get_node("CameraControl").set_process(false)
 	await _wait(5.0)
 	for scene: String in ["skeleton_enemy.tscn", "moths.tscn", "wraith_enemy.tscn", "sleep_fog.tscn"]:

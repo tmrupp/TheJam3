@@ -36,9 +36,7 @@ func run() -> void:
 	var output: String = ProjectSettings.globalize_path("res://../art-captures/sky-art")
 	DirAccess.make_dir_recursive_absolute(output)
 	await boot(28)
-	info.coord = Vector2i(28, NextWorldDef.first_depth(&"sky"))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
+	info.jump_to(Vector2i(28, NextWorldDef.first_depth(&"sky")))
 	while info.travelling:
 		await process_frame
 	player.set_physics_process(false)

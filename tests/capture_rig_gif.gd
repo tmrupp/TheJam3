@@ -37,10 +37,7 @@ func run() -> void:
 			band = StringName(arg.substr(5))
 	var wisp: bool = art != ""
 	if band != &"":
-		info.coord = Vector2i(28, NextWorldDef.band_row(band, 0))
-		info.arrival = MapInfo.Exit.BACK
-		info._load_level()
-		await settle()
+		await go(Vector2i(28, NextWorldDef.band_row(band, 0)), false)
 	var dir: String = ProjectSettings.globalize_path(STILLS).path_join("rig_gif_" + art.to_lower() if wisp else "rig_gif")
 	DirAccess.make_dir_recursive_absolute(dir)
 	for old: String in DirAccess.get_files_at(dir):

@@ -22,11 +22,7 @@ func run() -> void:
 	player.set_physics_process(false)
 	# In play, in the column it is met in this run (Bosses.column).
 	gate = lair(&"necromancer")
-	info.coord = gate
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
+	await go(gate)
 	var found: Array[Node] = placed("necromancer.tscn")
 	check(found.size() == 1, "in play it is there")
 	if found.is_empty():

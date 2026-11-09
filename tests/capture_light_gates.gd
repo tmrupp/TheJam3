@@ -13,10 +13,7 @@ func run() -> void:
 	await boot()
 	camera = main.get_node("Camera2D") as Camera2D
 	zoom = camera.zoom * 1.3
-	info.coord = Vector2i(28, NextWorldDef.first_depth(&"cemetery"))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(Vector2i(28, NextWorldDef.first_depth(&"cemetery")), false)
 	player.get_node("CameraControl").set_process(false)
 	(main.get_node("RisoDecor") as CanvasItem).visible = false
 	for scene: String in ["skeleton_enemy.tscn", "moths.tscn", "wraith_enemy.tscn"]:

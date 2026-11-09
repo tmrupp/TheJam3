@@ -127,11 +127,7 @@ func run() -> void:
 
 	print("a false wall")
 	player.collect(100)
-	info.coord = Vector2i(relic_seed, first_row)
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
+	await go(Vector2i(relic_seed, first_row))
 	check(info.coord == Vector2i(relic_seed, first_row) and not info.world.secrets.is_empty(), "level (%d, %d) has a secret room" % [relic_seed, first_row])
 	var secret: Dictionary = info.world.secrets[0]
 	var hidden: Array[Node] = placed("cracked_wall.tscn").filter(func(n: Node) -> bool: return int(n.get_meta(&"secret", -1)) == 0 and bool(n.get_meta(&"hidden")))

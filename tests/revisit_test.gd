@@ -17,8 +17,7 @@ func run() -> void:
 	check(first.size() - lifts > 10 and lifts > 0, "the level has pickups to compare (%d, and %d lifts)" % [first.size() - lifts, lifts])
 	var built: LevelGen = info.world
 	# Load the same level again: its kept layout is reused, as on coming back to it.
-	info.arrival = -2
-	info._load_level()
+	info.jump_to(info.coord, -2)
 	await settle()
 	check(info.world == built, "the level's kept layout was reused")
 	var again: Dictionary = _looks()
@@ -32,8 +31,26 @@ func run() -> void:
 	for k: String in first:
 		spread[snappedf((first[k] as Vector2).x, 0.1)] = true
 	check(spread.size() > 5, "pickups do not all sit at the same place in their cells")
+	await _prefetching()
 	RunState.delete_save()
 	finish()
+
+
+## The worker lays the places a level leads to out ahead of time (LevelLoader.prefetching) in the
+## game, and not in a test unless one asks for it.
+func _prefetching() -> void:
+	var next: Array[Vector2i] = info.here.neighbours()
+	check(not next.is_empty(), "the level leads somewhere (%d places)" % next.size())
+	var ahead: Callable = func() -> int:
+		return next.filter(func(c: Vector2i) -> bool: return info.loader.laid_out(c) != null).size()
+	check_eq(ahead.call(), 0, "in a test, none of them is laid out ahead of time")
+	LevelLoader.prefetching = true
+	info.jump_to(info.coord, -2)
+	await settle()
+	var idle: Callable = func() -> bool: return not info.loader.gen_busy and info.loader.prefetch.is_empty()
+	check(await until(idle, 120000), "with prefetching on, the worker lays them out and stops")
+	check_eq(ahead.call(), next.size(), "every one of them laid out ahead of time")
+	LevelLoader.prefetching = false
 
 
 ## Each floating pickup's offset from its cell's centre and each lift's phase, by kind and cell.

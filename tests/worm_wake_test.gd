@@ -15,11 +15,7 @@ func run() -> void:
 	for world: int in WORLDS:
 		# The worm is met in one column a run (Bosses.column): the one of a run begun in this world.
 		info.run.run_seed = world
-		info.coord = lair(&"worm")
-		info.arrival = MapInfo.Exit.BACK
-		info._load_level()
-		await settle()
-		player.set_physics_process(false)
+		await go(lair(&"worm"))
 		var worms: Array[Node] = placed("worm.tscn")
 		check(worms.size() == 1, "world %d: the gate level places its worm" % world)
 		if worms.is_empty():

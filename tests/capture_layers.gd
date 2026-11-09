@@ -76,9 +76,7 @@ func capture() -> void:
 		await process_frame
 	await decor_shots([&"fence_run", &"mushroom", &"stones"], "garden")
 	await prop_shots(["door.tscn", "checkpoint.tscn", "level_exit.tscn"], "garden")
-	info.coord = Vector2i(28, NextWorldDef.first_depth(&"cemetery"))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
+	info.jump_to(Vector2i(28, NextWorldDef.first_depth(&"cemetery")))
 	while info.world == null or info.travelling:
 		await process_frame
 	player.invulnerable.enable()

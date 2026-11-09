@@ -6,11 +6,7 @@ extends TestKit
 
 func run() -> void:
 	await boot(28)
-	info.coord = lair(&"worm")
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
+	await go(lair(&"worm"))
 	var worm: Worm = placed("worm.tscn")[0] as Worm
 	var far: Variant = LevelGen.best_of(info.world.free_floors(), func(v: Vector2i) -> int: return -LevelGen.dist(v, worm.home))
 	player.global_position = info.cell_position(far as Vector2i)

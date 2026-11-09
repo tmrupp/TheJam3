@@ -12,10 +12,7 @@ extends TestKit
 func run() -> void:
 	window()
 	await boot(28)
-	info.coord = lair(&"golem")
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(lair(&"golem"), false)
 	var golem: Golem = placed("golem.tscn")[0] as Golem
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)

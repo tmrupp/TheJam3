@@ -60,10 +60,7 @@ func run() -> void:
 				break
 		if found:
 			break
-	info.coord = level
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(level, false)
 	print("  scenes in ", Rules.where(level), ", a floor ", run_len, " cells long")
 	camera = main.get_node("Camera2D") as Camera2D
 	base_zoom = camera.zoom
@@ -264,10 +261,7 @@ func crossbow() -> void:
 		if w.objects_of(LevelGen.Type.CROSSBOW).any(func(v: Vector2i) -> bool: return _bow_open(w, v)):
 			place = c
 			break
-	info.coord = place
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(place, false)
 	var cell: float = info.cell_position(Vector2i(1, 0)).x - info.cell_position(Vector2i.ZERO).x
 	var bow: Crossbow = null
 	for n: Node in placed("crossbow.tscn"):

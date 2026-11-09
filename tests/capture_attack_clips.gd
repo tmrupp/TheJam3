@@ -31,11 +31,7 @@ func run() -> void:
 	player.get_node("CameraControl").set_process(false)
 	await wisp()
 	await feather()
-	info.coord = Vector2i(28, NextWorldDef.first_depth(&"cemetery"))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
+	await go(Vector2i(28, NextWorldDef.first_depth(&"cemetery")))
 	await skeleton()
 	await wraith()
 	finish()

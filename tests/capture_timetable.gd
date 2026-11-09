@@ -230,11 +230,7 @@ func _clear_for_lineup(type: LevelGen.Type) -> bool:
 
 
 func _go(at: Vector2i) -> void:
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
+	await go(at)
 	player.get_node("CameraControl").set_process(false)
 
 

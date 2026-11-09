@@ -22,7 +22,7 @@ func run() -> void:
 	for c: Vector2i in VISITED:
 		info.run.record(c)
 	var gate: Vector2i = lair(&"beast")
-	await _go(gate)
+	await go(gate)
 	# The region's title card gone.
 	await frames(240)
 	var beast: Beast = placed("beast.tscn")[0] as Beast
@@ -44,7 +44,7 @@ func run() -> void:
 	await _look(view + Vector2(-200, 0), "beast_2.png", 0.8)
 	# A soul.
 	var at: Vector2i = Vector2i(29, 2) if info.run.souls.has(Vector2i(29, 2)) else info.run.souls.keys()[0]
-	await _go(at)
+	await go(at)
 	await frames(240)
 	var soul: BeastSoul = placed("beast_soul.tscn")[0] as BeastSoul
 	player.global_position = soul.global_position + Vector2(-2000, -2000)
@@ -54,7 +54,7 @@ func run() -> void:
 	# Every soul gone: its great eye open.
 	for c: Vector2i in info.run.souls.keys():
 		BeastSouls.destroyed(info.run, c)
-	await _go(gate)
+	await go(gate)
 	await frames(240)
 	beast = placed("beast.tscn")[0] as Beast
 	player.global_position = beast.global_position + Vector2(-700, 60)
@@ -69,14 +69,6 @@ func run() -> void:
 
 ## The strike count just before a sweep (Beast.SWEEP_EVERY).
 const SWEEP_PREV: int = Beast.SWEEP_EVERY - 1
-
-
-func _go(at: Vector2i) -> void:
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
 
 
 ## The map open on this level's page (`file` with _level), then on the worlds page (`file`).

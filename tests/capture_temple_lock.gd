@@ -16,11 +16,7 @@ func run() -> void:
 	await boot(place.x)
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
-	info.coord = place
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
+	await go(place)
 	var temple: Temple = placed("temple.tscn")[0] as Temple
 	var box: Rect2i = info.world.temples[0]["box"]
 	var middle: Vector2 = (info.cell_position(box.position) + info.cell_position(box.end - Vector2i.ONE)) * 0.5 + Vector2(0.0, -60.0)

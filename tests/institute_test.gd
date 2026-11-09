@@ -157,8 +157,7 @@ func generation() -> void:
 
 func play() -> void:
 	await boot()
-	await _go(Vector2i(28, NextWorldDef.first_depth(&"institute")))
-	player.set_physics_process(false)
+	await go(Vector2i(28, NextWorldDef.first_depth(&"institute")))
 	print("in play")
 	check(placed("student.tscn").size() > 0 and placed("master.tscn").size() > 0 and placed("exam_door.tscn").size() > 0, "students, masters and hall doors are there")
 	# A class under way: the corridors are no place for the wizard.
@@ -257,15 +256,13 @@ func _climb() -> void:
 	for k: int in range(1, 4):
 		if not found.is_empty():
 			break
-		await _go(Vector2i(home.x, NextWorldDef.band_row(&"institute", k)))
-		player.set_physics_process(false)
+		await go(Vector2i(home.x, NextWorldDef.band_row(&"institute", k)))
 		found = _step_and_wall()
 	check(not found.is_empty(), "a step and a wall to try")
 	if not found.is_empty():
 		await _climb_at(found["steps"], found["wall"], found["wall_way"])
 	if info.coord != home:
-		await _go(home)
-		player.set_physics_process(false)
+		await go(home)
 
 
 ## A step a cell high and a wall two cells high (or more) out of the halls, each with a floor before it
@@ -595,8 +592,8 @@ func _department() -> void:
 	await frames(3)
 	var focus: Node = Interactable.focused(self)
 	check(focus != null and focus.get_parent() is WayBack, "the prompt where the wizard comes out is the way back's")
-	await _go(Vector2i(from.x, 0))
-	await _go(to)
+	await go(Vector2i(from.x, 0), false)
+	await go(to, false)
 	check(placed("way_back.tscn").size() == 1 and (placed("way_back.tscn")[0] as Node2D).global_position == at, "it lasts, where it was, until used")
 	(placed("way_back.tscn")[0] as WayBack).use()
 	await settle()
@@ -605,12 +602,6 @@ func _department() -> void:
 
 
 # ------------------------------------------------------------------ helpers
-
-func _go(at: Vector2i) -> void:
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
 
 
 ## Whether cell `c` of `w` holds something solid to sight and bolts (rock, a ledge, a gate).

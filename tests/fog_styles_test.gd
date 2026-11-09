@@ -21,9 +21,7 @@ func run() -> void:
 	player.get_node("CameraControl").set_process(false)
 	player.invulnerable.enable()
 	await loaded()
-	info.coord = Vector2i(28, NextWorldDef.first_depth(&"cemetery"))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
+	info.jump_to(Vector2i(28, NextWorldDef.first_depth(&"cemetery")))
 	await loaded()
 	for node: Node in info.map_elements.get_children():
 		if node.scene_file_path.get_file().contains("enemy"):

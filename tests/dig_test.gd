@@ -19,7 +19,7 @@ func run() -> void:
 		return
 	var beyond: Vector2i = at + Vector2i(0, NextWorldDef.away(at.y))
 	check(not info.run.dug.has(beyond) and not Rules.def_for(beyond).ways().has(MapInfo.Exit.BACK), "the level beyond has no way back either")
-	await _go(at)
+	await go(at)
 	var shrine: Shrine = placed("shrine.tscn")[0] as Shrine
 	check(_exit(MapInfo.Exit.DEEPER) == null and not info.here.ways().has(MapInfo.Exit.DEEPER) and info.here.lead(MapInfo.Exit.DEEPER).is_empty(), "no door on, and no way on")
 	player.health.health = 1
@@ -75,15 +75,6 @@ func _wanting() -> Vector2i:
 			if not Rules.maze_has(at, MapInfo.Exit.DEEPER) and Shrine.sells_door_at(at) and Bosses.gate_at(at.y) == &"" and Worlds.arriving_at(at + Vector2i(0, 1)) == null:
 				return at
 	return Vector2i(-1, -1)
-
-
-## Load level `at` (arriving at its way back) and wait for it.
-func _go(at: Vector2i) -> void:
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
 
 
 ## The level's exit `which` in the scene, or null.

@@ -52,7 +52,7 @@ func _climb() -> void:
 	var ladder: RollingLadder = null
 	for world: int in [28, 7, 99, 3]:
 		for row: int in band_rows(&"institute", [0, 1, 2], false):
-			await _go(Vector2i(world, row))
+			await go(Vector2i(world, row), false)
 			for node: Node in placed("rolling_ladder.tscn"):
 				var found: RollingLadder = node as RollingLadder
 				if found.rungs >= 3 and found.travel > 0.0:
@@ -131,10 +131,3 @@ func _climb() -> void:
 	check(player.ladder == null and player.velocity.y < 0.0, "a jump lets go")
 	Input.action_release(&"Jump")
 	player.set_physics_process(false)
-
-
-func _go(at: Vector2i) -> void:
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()

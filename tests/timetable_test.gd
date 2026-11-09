@@ -190,7 +190,7 @@ func _laid_out() -> void:
 func _play() -> void:
 	await boot(WORLD)
 	process_frame.connect(func() -> void: player.health.health = player.health.max_health)
-	await _go(Vector2i(WORLD, NextWorldDef.first_depth(&"institute")))
+	await go(Vector2i(WORLD, NextWorldDef.first_depth(&"institute")))
 	var rec: LevelRecord = info.record()
 	check(rec.rings == 0 and rec.passing, "first met before any ring, in passing time")
 	# The cords out of the halls, the great bell's (in the bell room) first.
@@ -981,14 +981,6 @@ func _spawn_thing(v: Vector2i, lobes: int) -> Abomination:
 	info.map_elements.add_child(node)
 	node.global_position = info.cell_position(v)
 	return node
-
-
-func _go(at: Vector2i) -> void:
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
 
 
 ## The first stretch of open floor `length` cells long with `head` rows of headroom (see _stretches):

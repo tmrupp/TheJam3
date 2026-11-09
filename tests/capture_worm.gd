@@ -22,10 +22,7 @@ const STRIP_SIZE: int = 300
 func run() -> void:
 	window()
 	await boot(28)
-	info.coord = lair(&"worm")
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(lair(&"worm"), false)
 	var worm: Worm = placed("worm.tscn")[0] as Worm
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)

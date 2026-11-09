@@ -88,7 +88,7 @@ func run() -> void:
 
 	await boot(28)
 	player.set_physics_process(false)
-	await _go(gate)
+	await go(gate)
 	print("in play")
 	var bramble: Bramble = placed("bramble.tscn")[0] as Bramble
 	check(bramble != null and bramble.boss == &"bramble", "the bramble itself is there")
@@ -239,7 +239,7 @@ func run() -> void:
 	info.run.vulnerable = false
 	player.die()
 	await settle()
-	await _go(lair(&"bramble"))
+	await go(lair(&"bramble"))
 	bramble = placed("bramble.tscn")[0] as Bramble
 	check(bramble.bulbs_left() == bulbs.size() and bramble.bulbs.all(func(b: BrambleBulb) -> bool: return b.wound.hp == Bramble.BULB_HP) and not bramble.vines.any(func(v: BrambleVine) -> bool: return v.withered), "after a lantern death it is whole again")
 	lowest = LevelGen.best_of(bramble.bulbs, func(b: BrambleBulb) -> float: return -b.global_position.y) as BrambleBulb
@@ -318,7 +318,7 @@ func run() -> void:
 	var unlocks: Array[Node] = unlocks_lying()
 	check(left_unlock() and (unlocks.is_empty() or info.cell_at((unlocks[0] as Node2D).global_position) == shaft["relic"]), "its relic unlock waits on the landing beside the way on")
 	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"", "and the way on is open")
-	await _go(lair(&"bramble"))
+	await go(lair(&"bramble"))
 	check(placed("bramble.tscn").is_empty() and info.world.shaft["on"] == on, "it is never met again: the shaft stands open")
 	RunState.delete_save()
 	finish()
@@ -363,15 +363,6 @@ func _clear(tangle: BrambleTangle) -> bool:
 			if c.arc[j] < out[i] - 2.0 and tangle.in_hollow(c.pts[j]):
 				return false
 	return true
-
-
-## Load level `at` (arriving at its way back) and wait for it.
-func _go(at: Vector2i) -> void:
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
 
 
 ## The level's exit `which`.

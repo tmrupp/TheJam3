@@ -59,7 +59,7 @@ func _days() -> void:
 func _walking() -> void:
 	print("students walking")
 	var at: Vector2i = _walk_level()
-	await _go(at)
+	await go(at, false)
 	var rec: LevelRecord = info.record()
 	check(rec.passing, "a level is first met in passing time")
 	player.set_physics_process(false)
@@ -128,7 +128,7 @@ func _walking() -> void:
 	for s: Scholar in students:
 		if is_instance_valid(s):
 			placed_at[s.origin] = Students.seat_at(info.world, s.origin, rec.rings)
-	await _go(at)
+	await go(at, false)
 	var right: bool = true
 	for n: Node in placed("student.tscn"):
 		var s: Scholar = n as Scholar
@@ -136,13 +136,6 @@ func _walking() -> void:
 			right = right and info.cell_at(s.global_position) == placed_at[s.origin]
 	check(right and not placed_at.is_empty(), "come back in class time, each student is in its class of the period")
 	rec.passing = true
-
-
-func _go(at: Vector2i) -> void:
-	info.coord = at
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
 
 
 ## One of a few institute levels (ordinary ones, by world) where a student has a walk to its first

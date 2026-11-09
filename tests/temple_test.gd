@@ -69,11 +69,7 @@ func run() -> void:
 
 	print("in play")
 	await boot(found.x)
-	info.coord = found
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
+	await go(found)
 	var temple: Temple = placed("temple.tscn")[0] as Temple
 	# The wizard well over it (off its hoard), its chunk awake.
 	player.global_position = temple.global_position + Vector2(0.0, -900.0)

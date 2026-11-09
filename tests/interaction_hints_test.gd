@@ -121,9 +121,7 @@ func run() -> void:
 	await frames(90)
 	await shot("equal_keyring")
 	player.keyring.set_all([])
-	info.coord = Vector2i(28, NextWorldDef.first_depth(&"cemetery"))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
+	info.jump_to(Vector2i(28, NextWorldDef.first_depth(&"cemetery")))
 	await loaded()
 	var captured: Dictionary = {}
 	# Bells with nothing else to interact with close by first, so focus is the bell's alone.

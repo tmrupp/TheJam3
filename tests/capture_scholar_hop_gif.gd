@@ -29,10 +29,7 @@ func run() -> void:
 	await boot(28)
 	camera = main.get_node("Camera2D") as Camera2D
 	base_zoom = camera.zoom
-	info.coord = Vector2i(28, NextWorldDef.first_depth(&"institute"))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
+	await go(Vector2i(28, NextWorldDef.first_depth(&"institute")), false)
 	player.get_node("CameraControl").set_process(false)
 	player.set_physics_process(false)
 	player.phasing = true

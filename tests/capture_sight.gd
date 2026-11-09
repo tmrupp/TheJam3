@@ -23,11 +23,7 @@ func run() -> void:
 	player.global_position = info.cell_position(info.world.exits[MapInfo.Exit.DEEPER]) + Vector2(-140, 20)
 	shots.append(await _shot(camera, "sight_exit.png"))
 	_time(light)
-	info.coord = Vector2i(28, NextWorldDef.first_depth(&"cemetery"))
-	info.arrival = MapInfo.Exit.BACK
-	info._load_level()
-	await settle()
-	player.set_physics_process(false)
+	await go(Vector2i(28, NextWorldDef.first_depth(&"cemetery")))
 	var floors: Array = info.world.crypts[0]["floors"] if not info.world.crypts.is_empty() else []
 	if not floors.is_empty():
 		player.global_position = info.cell_position(floors[mini(4, floors.size() - 1)])
