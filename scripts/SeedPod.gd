@@ -26,7 +26,7 @@ const SWELL_DEAL: int = 6650
 ## Burst, its seed is flung out the way it faces: SHOVE px from its middle, stopping SHOVE_CLEAR px
 ## short of any rock in the way (felt for every SHOVE_STEP px), over SHOVE_TIME seconds in an arc
 ## SHOVE_ARC px high.
-const SHOVE: float = 180.0
+const SHOVE: float = 280.0
 const SHOVE_CLEAR: float = 44.0
 const SHOVE_STEP: float = 8.0
 const SHOVE_TIME: float = 0.45

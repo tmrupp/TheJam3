@@ -179,12 +179,21 @@ func _pods() -> void:
 		HexBolt.parried_blow = true
 		wound.hit(99, Vector2.LEFT)
 		HexBolt.parried_blow = false
+	var hung: Vector2 = body.global_position
+	var way: Vector2 = pod.way
 	check(not is_instance_valid(body) or await until(gone(body)), "parried seeds burst it")
 	await settle()
 	var seeds: Array[Node] = colored("key.tscn", KeyRing.SEED)
 	check_eq(seeds.size(), 1, "and its seed falls")
 	if seeds.is_empty():
 		return
+	# Flung out from the wall the pod grew from, it comes to rest well clear of it, or short of rock.
+	var lying: Node2D = seeds[0] as Node2D
+	await within(func() -> bool: return false, SeedPod.SHOVE_TIME + 0.1)
+	var out: float = (lying.global_position - hung).dot(way)
+	check(lying.global_position.distance_to(SeedPod.shoved(info, hung, way)) < 1.0 and out >= 120.0, "flung %d px out from the pod, away from its wall" % out)
+	var touch: CircleShape2D = (lying.get_node("CollisionShape2D") as CollisionShape2D).shape as CircleShape2D
+	check(is_equal_approx(touch.radius, 10.0 * KeyPickup.SEED_REACH), "the seed is easier to touch than a key (%.0f)" % touch.radius)
 	player.global_position = (seeds[0] as Node2D).global_position
 	still()
 	check(await until(func() -> bool: return player.keyring.seeds() == 1), "touched, the seed is carried")

@@ -7,7 +7,7 @@ extends RisoProp
 
 ## How much bigger an exam paper is drawn than a key, and a seed (KeyRing.SEED) lying.
 const PAPER: float = 1.7
-const SEED: float = 1.6
+const SEED: float = 2.0
 
 
 func shines() -> bool:

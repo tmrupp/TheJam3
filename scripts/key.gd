@@ -15,6 +15,8 @@ class_name KeyPickup
 
 var armed: bool = true
 const ARM_DISTANCE: float = 110.0
+## How much wider a seed's (KeyRing.SEED) touch is than a key's, as it is drawn bigger (KeyArt.SEED).
+const SEED_REACH: float = 1.8
 
 func setup(_map_info: MapInfo, _v: Vector2) -> void:
 	pass
@@ -72,3 +74,9 @@ func _ready() -> void:
 	# A relic unlock is only ever dropped by a boss, and a seed by a pod, never left for another key:
 	# armed at once.
 	armed = not has_meta(&"dropped_id") or key_color() in [KeyRing.UNLOCK, KeyRing.SEED]
+	if key_color() == KeyRing.SEED:
+		# Its own copy of the shape: the prefab's is shared by every key.
+		var touch: CollisionShape2D = $CollisionShape2D
+		var circle: CircleShape2D = touch.shape.duplicate() as CircleShape2D
+		circle.radius *= SEED_REACH
+		touch.shape = circle
