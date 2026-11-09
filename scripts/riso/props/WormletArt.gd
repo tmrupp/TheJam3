@@ -19,6 +19,9 @@ const INCH: float = 22.0
 const HUMP: float = 12.0
 ## How long it takes to flop down onto the floor after dropping from a ceiling (seconds).
 const FLOP_TIME: float = 0.18
+## How much wider than its girth its warning in the rock is (Worm.ink_warning): a little, and the
+## warning the boss's made smaller to that width (warn_size), so it lies flat along the rock face.
+const WARN_WIDE: float = 1.3
 ## How much wider than its own radius the turn its body makes out of a hole is: a little, so the
 ## flesh on the inside of the turn does not fold over itself.
 const TURN_WIDE: float = 1.3
@@ -52,7 +55,9 @@ func _draw_art() -> void:
 	_track(w)
 	_draw_holes(w, o)
 	if w.state == Wormlet.State.WARN:
-		Worm.ink_warning(ink, Transform2D(w.face_way().angle() + PI * 0.5, w.mouth() - o), Wormlet.GIRTH * 0.5, w.warn_near(), t)
+		var info: MapInfo = MapInfo.instance
+		if info != null:
+			Worm.ink_warning(ink, Transform2D(w.face_way().angle() + PI * 0.5, w.mouth() - o), Wormlet.GIRTH * 0.5 * WARN_WIDE, w.warn_near(), t, warn_size(info))
 		return
 	if not w.shown():
 		return
@@ -133,6 +138,13 @@ func _draw_holes(w: Wormlet, o: Vector2) -> void:
 static func hole_size(info: MapInfo) -> float:
 	var cell: float = (info.cell_position(Vector2i(1, 0)) - info.cell_position(Vector2i.ZERO)).x
 	return Wormlet.GIRTH / (cell * Worm.GIRTH)
+
+
+## How big its warning is next to the boss's (Worm.ink_warning's `size`): the boss's made smaller to
+## its own width, WARN_WIDE times its girth (about 0.34 in the game's 128 px cell), its height, slit
+## and dirt alike, so it lies as flat as the boss's and a little wider than the worm.
+static func warn_size(info: MapInfo) -> float:
+	return hole_size(info) * WARN_WIDE
 
 
 ## Its body along `at` (u 0 its tail to 1 its head, to a local point), drawn only from `lo` to `hi`
