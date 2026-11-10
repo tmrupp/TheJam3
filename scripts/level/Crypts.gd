@@ -259,6 +259,8 @@ static func build(w: LevelGen) -> void:
 				if wide <= inside.size() and wide >= CROPS.min() and tall <= high and not sizes.has(size):
 					sizes.append(size)
 		sizes.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.x * a.y > b.x * b.y or (a.x * a.y == b.x * b.y and a.x > b.x))
+		# Nothing in the level changes until the crypt is raised: one search serves every size.
+		var sites: Sites = Sites.new(w, _blocked(w))
 		for size: Vector2i in sizes:
 			var top: int = high - size.y
 			var cut: Array = []
@@ -268,7 +270,7 @@ static func build(w: LevelGen) -> void:
 			for v: Vector2i in guard:
 				shifted[v - Vector2i(0, top)] = true
 			cut = _widened(_joined(cut, shifted), shifted)
-			var site: Dictionary = _site(w, cut)
+			var site: Dictionary = _site(w, cut, sites)
 			# A site whose doorways open onto only a corner of the inside would see the rest filled
 			# with rock, its trials too (_raise): the next size is tried instead.
 			if not site.is_empty() and _reached(w, cut, site) < REACHED_MIN:
@@ -435,12 +437,13 @@ static func _mouth(inside: Array, rect: Rect2i, at: Vector2i, guard: Dictionary)
 ## Where the crypt with `inside` goes: {"box", "doors": [[the doorway, the passage's cells, the step
 ## out]...]}, the site walling over the least open air and needing the shortest passages, ties dealt
 ## by the seed; {} if none fits.
-static func _site(w: LevelGen, inside: Array) -> Dictionary:
+## `sites` is the search over the level as it stands (made with _blocked), shared by every size
+## of one crypt tried.
+static func _site(w: LevelGen, inside: Array, sites: Sites) -> Dictionary:
 	var size: Vector2i = Vector2i(inside.size(), (inside[0] as Array).size()) + Vector2i(2, 2)
-	var blocked: Dictionary = _blocked(w)
 	var reaches: Dictionary = {}
-	var doors: Callable = func(box: Rect2i) -> Array: return _doors(w, inside, box, blocked, reaches)
-	return Sites.best(w, size, blocked, APART, SITE_DEAL, doors, PASSAGE_COST)
+	var doors: Callable = func(box: Rect2i) -> Array: return _doors(w, inside, box, sites.blocked, reaches)
+	return sites.best(size, APART, SITE_DEAL, doors, PASSAGE_COST)
 
 
 ## The cells a crypt keeps away from: every chasm's kept air (Chasms.near), what is kept whole or
@@ -640,6 +643,9 @@ static func _widened(inside: Array, guard: Dictionary) -> Array:
 	return inside
 
 
+## The steps from a cell of an inside to those side by side with it, in the order they are tried.
+const SIDE_BY_SIDE: Array[Vector2i] = [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]
+
 ## Each open cell of `inside` -> the number of the bit of it (joined through open air, side by
 ## side) it is in, the bits numbered in the order first met.
 static func _groups(inside: Array) -> Dictionary:
@@ -657,7 +663,7 @@ static func _groups(inside: Array) -> Dictionary:
 			while head < queue.size():
 				var v: Vector2i = queue[head]
 				head += 1
-				for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+				for d: Vector2i in SIDE_BY_SIDE:
 					var n: Vector2i = v + d
 					if n.x >= 0 and n.y >= 0 and n.x < wide and n.y < high and not out.has(n) and _open_in(inside, n.x, n.y):
 						out[n] = id
@@ -682,7 +688,7 @@ static func _stretches(inside: Array) -> Dictionary:
 			while head < group.size():
 				var v: Vector2i = group[head]
 				head += 1
-				for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+				for d: Vector2i in SIDE_BY_SIDE:
 					var n: Vector2i = v + d
 					if n.x >= 0 and n.y >= 0 and n.x < wide and n.y < high and not seen.has(n) and _open_in(inside, n.x, n.y):
 						seen[n] = true

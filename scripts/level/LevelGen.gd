@@ -692,6 +692,33 @@ func _to_open (v: Vector2i) -> void:
 	if not empties.has(v):
 		empties.append(v)
 
+## As _to_open on each of `at` in turn (each once), done in one pass over the lists rather than a
+## search of them for every cell: the same cells, and every list left in the same order (each
+## cell's first listing taken out, as erase does; those not yet free added to `empties` in order).
+func _to_open_all (at: Array[Vector2i]) -> void:
+	var pending: Dictionary = {}
+	for v: Vector2i in at:
+		pending[v] = true
+		set_cell(v, Cell.new(Type.EMPTY))
+		masonry.erase(v)
+	grounds = _without_first(grounds, pending)
+	objects = _without_first(objects, pending)
+	var free: Dictionary = empty_set()
+	for v: Vector2i in at:
+		if not free.has(v):
+			empties.append(v)
+
+## `list` less the first listing of each cell in `cells` (a set), the rest in order.
+static func _without_first (list: Array[Vector2i], cells: Dictionary) -> Array[Vector2i]:
+	var left: Dictionary = cells.duplicate()
+	var out: Array[Vector2i] = []
+	for v: Vector2i in list:
+		if left.has(v):
+			left.erase(v)
+			continue
+		out.append(v)
+	return out
+
 ## The shrine stands on two neighbouring floor cells a short walk from the deeper exit: two
 ## niches offering abilities, and a bowl for mending, side by side across both.
 func _place_shrine (spots: Array[Vector2i], chosen: Array[Vector2i], near: Vector2i) -> void:
@@ -1403,23 +1430,58 @@ func place_secrets (def: NextWorldDef) -> void:
 ## `enclosed`, with a cell of rock all round it too.
 func _secret_spots (room: Vector2i, enclosed: bool) -> Array:
 	var floors: Array[Vector2i] = free_floors()
-	var rock: Callable = func(v: Vector2i) -> bool: return not is_valid(v) or (is_ground(v) and not kept(v))
+	# Rock a room may be cut into: rock not kept (kept, marked here once); the level's edge counts.
+	var held: PackedByteArray = _kept_mask()
+	var rock: Callable = func(v: Vector2i) -> bool:
+		if v.x < 0 or v.y < 0 or v.x >= size.x or v.y >= size.y:
+			return true
+		var i: int = v.x * size.y + v.y
+		return types[i] == Type.GROUND and held[i] == 0
 	var out: Array = []
 	for o: Vector2i in floors:
-		for side: int in [-1, 1]:
+		for side: int in SIDES:
 			var fit: Array = _room_beside(o, side, room)
 			var r: Rect2i = fit[0]
 			var door: Vector2i = fit[1]
 			if r.position.x < 0 or r.position.y < 0 or r.end.x > size.x or r.end.y > size.y:
 				continue
-			var solid: bool = rock.call(door) and rock.call(door + Vector2i.UP)
+			if not (rock.call(door) and rock.call(door + Vector2i.UP)):
+				continue
 			var around: Rect2i = r.grow(1) if enclosed else Rect2i(r.position, r.size + Vector2i(0, 1))
+			var solid: bool = true
 			for x: int in range(around.position.x, around.end.x):
 				for y: int in range(around.position.y, around.end.y):
-					if not rock.call(Vector2i(x, y)):
+					if x >= 0 and y >= 0 and x < size.x and y < size.y and (types[x * size.y + y] != Type.GROUND or held[x * size.y + y] == 1):
 						solid = false
+						break
+				if not solid:
+					break
 			if solid:
 				out.append([r, door])
+	return out
+
+## Left, then right.
+const SIDES: Array[int] = [-1, 1]
+
+## Per cell (x * size.y + y), 1 where it is kept as it is (kept): what is kept whole, the bramble's
+## shaft and the golem's hall.
+func _kept_mask () -> PackedByteArray:
+	var out: PackedByteArray = PackedByteArray()
+	out.resize(size.x * size.y)
+	out.fill(0)
+	for v: Vector2i in kept_whole:
+		if is_valid(v):
+			out[v.x * size.y + v.y] = 1
+	var boxes: Array[Rect2i] = []
+	if not shaft.is_empty():
+		boxes.append((shaft["inside"] as Rect2i).grow(1))
+	if not keep.is_empty():
+		boxes.append(keep["box"] as Rect2i)
+	for box: Rect2i in boxes:
+		var r: Rect2i = box.intersection(Rect2i(Vector2i.ZERO, size))
+		for x: int in range(r.position.x, r.end.x):
+			for y: int in range(r.position.y, r.end.y):
+				out[x * size.y + y] = 1
 	return out
 
 ## A room `inside` (cells across and up) beside floor spot `o`, on its `side` (-1 left, 1 right):
@@ -1791,8 +1853,15 @@ func place_switch_gates (count: int) -> void:
 		var gate: Vector2i = pop_pick(spots)
 		if placed.any(func(q: Vector2i) -> bool: return dist(q, gate) < 6):
 			continue
-		# A floor reachable from the way in with this gate shut.
-		var found: Variant = switch_floor(reach_from(start, func(n: Vector2i) -> bool: return n != gate), gate)
+		# A floor reachable from the way in with this gate shut (the gate taken as walked already,
+		# so the way is never walked through it).
+		var reach: Dictionary = {}
+		if gate == start:
+			reach = reach_from(start, func(n: Vector2i) -> bool: return n != gate)
+		else:
+			reach = reach_from(start, Callable(), {gate: true})
+			reach.erase(gate)
+		var found: Variant = switch_floor(reach, gate)
 		if found == null:
 			continue
 		var lever: Vector2i = found
@@ -1965,26 +2034,30 @@ func _held_up (supports: Dictionary) -> PackedByteArray:
 	return out
 
 func _thorns_below (v: Vector2i) -> bool:
-	for dy: int in range(1, 6):
-		var n: Vector2i = v + Vector2i(0, dy)
-		if not is_valid(n) or type_at(n) in THORN_COVER:
+	if v.x < 0 or v.x >= size.x:
+		return false
+	for y: int in range(v.y + 1, v.y + 6):
+		if y < 0 or y >= size.y:
 			return false
-		if type_at(n) == Type.SPIKES:
+		var t: int = types[v.x * size.y + y]
+		if t in THORN_COVER:
+			return false
+		if t == Type.SPIKES:
 			return true
 	return false
 
 func _wide_open (v: Vector2i) -> bool:
-	for dx: int in range(-MOON_CLEARANCE, MOON_CLEARANCE + 1):
-		for dy: int in range(-MOON_CLEARANCE, MOON_CLEARANCE + 1):
-			var n: Vector2i = v + Vector2i(dx, dy)
-			if not is_valid(n) or type_at(n) == Type.GROUND:
+	# No rock within MOON_CLEARANCE cells (all inside the level), nor the cell under that: hanging
+	# in the air, not sitting just above a floor.
+	var c: int = MOON_CLEARANCE
+	if v.x - c < 0 or v.y - c < 0 or v.x + c >= size.x or v.y + c + 1 >= size.y:
+		return false
+	for x: int in range(v.x - c, v.x + c + 1):
+		var column: int = x * size.y
+		for y: int in range(v.y - c, v.y + c + 1):
+			if types[column + y] == Type.GROUND:
 				return false
-	# Hanging in the air, not sitting just above a floor.
-	for dy: int in range(MOON_CLEARANCE + 1, MOON_CLEARANCE + 2):
-		var below: Vector2i = v + Vector2i(0, dy)
-		if not is_valid(below) or type_at(below) == Type.GROUND:
-			return false
-	return true
+	return types[v.x * size.y + v.y + c + 1] != Type.GROUND
 
 func _open (v: Vector2i) -> bool:
 	if v.x < 0 or v.y < 0 or v.x >= size.x or v.y >= size.y:

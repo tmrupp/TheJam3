@@ -184,9 +184,9 @@ static func _lecture_doors() -> Array:
 ## with at least `least` doorways that find open air).
 static func _site(w: LevelGen, inside: Vector2i, spec: Array, test: Callable, least: int = 1) -> Dictionary:
 	var size: Vector2i = inside + Vector2i(2, 2)
-	var blocked: Dictionary = _blocked(w)
-	var doors: Callable = func(box: Rect2i) -> Array: return _doors(w, box, spec, blocked)
-	return Sites.best(w, size, blocked, APART, SITE_DEAL, doors, PASSAGE_COST, least, DOOR_WORTH, DOOR_WORTH * (spec.size() - least), test)
+	var sites: Sites = Sites.new(w, _blocked(w))
+	var doors: Callable = func(box: Rect2i) -> Array: return _doors(w, box, spec, sites.blocked)
+	return sites.best(size, APART, SITE_DEAL, doors, PASSAGE_COST, least, DOOR_WORTH, DOOR_WORTH * (spec.size() - least), test)
 
 
 ## The cells a hall keeps away from: what is kept whole or clear, every structure, the other halls.

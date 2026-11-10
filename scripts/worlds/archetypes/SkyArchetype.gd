@@ -149,11 +149,13 @@ static func cluster_islands(w: LevelGen) -> void:
 	# The clusters are thrown: map them, so telling whether a cell is in one (in_isle, asked tens
 	# of thousands of times below) is a lookup rather than a test against every cluster.
 	w.map_isles()
+	var cleared: Array[Vector2i] = []
 	for x: int in range(w.size.x):
 		for y: int in range(w.size.y):
 			var v: Vector2i = Vector2i(x, y)
 			if w.type_at(v) != LevelGen.Type.EMPTY and not w.in_isle(v):
-				w._to_open(v)
+				cleared.append(v)
+	w._to_open_all(cleared)
 	for isle: Array in w.isles:
 		var c: Vector2i = isle[0]
 		var r: Vector2i = isle[1]
