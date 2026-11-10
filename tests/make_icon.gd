@@ -47,7 +47,7 @@ func _splash() -> void:
 
 ## The wizard, close, on a clear floor, standing still.
 func _icon() -> void:
-	player.set_physics_process(false)
+	freeze()
 	player.end_invulnerable()
 	info.map_elements.process_mode = Node.PROCESS_MODE_DISABLED
 	var wizard: RisoWizard = player.get_node("RisoWizard") as RisoWizard

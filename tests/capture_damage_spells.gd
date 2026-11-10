@@ -37,10 +37,9 @@ func run() -> void:
 	await boot()
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	var at: Vector2i = spot()
-	player.set_physics_process(false)
+	freeze()
 	player.global_position = info.cell_position(at) + Vector2(0, 16 - 31)
 	var shots: Array[Image] = []
 	for spell: StringName in [&"slash", &"nova", &"push", &"seeker", &"lunge"]:

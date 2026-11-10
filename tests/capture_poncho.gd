@@ -14,7 +14,7 @@ const COLUMNS: int = 7
 func run() -> void:
 	window()
 	await boot()
-	player.set_physics_process(false)
+	freeze()
 	player.end_invulnerable()
 	info.map_elements.process_mode = Node.PROCESS_MODE_DISABLED
 	var wizard: RisoWizard = player.get_node("RisoWizard") as RisoWizard

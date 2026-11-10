@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The crag towers' pieces in play: the trapdoor in a watchtower's roof bears the wizard standing on
 ## it from the roof and stays shut, then swings open for good once the wizard comes up under it
 ## (Trapdoor); a rock-bug nest, an enemy for hex bolts, wakes with the wizard near, hatching bugs, no more than BROOD of its
@@ -25,8 +26,7 @@ func run() -> void:
 	check(at != Vector2i.ZERO, "a crag level holds a trapdoor, a nest and a mending bowl (%s)" % at)
 	await boot(at.x)
 	await go(at, false)
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	var cell: float = float(info.tile_map.tile_set.tile_size.y) * info.tile_map.global_scale.y
 	await trapdoor(cell)
 	await nest(cell)
@@ -68,7 +68,7 @@ func nest(cell: float) -> void:
 		return
 	var host: BugNest = all[0] as BugNest
 	check(host.is_in_group(&"hex_target") and host.get_node_or_null("Wound") is Wound, "an enemy, for hex bolts to destroy")
-	player.set_physics_process(false)
+	freeze()
 	player.global_position = host.global_position + Vector2(cell * float(BugNest.WAKE + 4), 0.0)
 	# (Any it hatched while the wizard was about the trapdoor, or was hatching then, cleared away.)
 	await frames(int(BugNest.HATCH * 60.0) + 10)
@@ -98,7 +98,7 @@ func well() -> void:
 	# Nothing about to hurt the wizard by the bowl (the nest's brood, the level's enemies).
 	for n: Node in get_nodes_in_group(&"hex_target"):
 		n.queue_free()
-	player.set_physics_process(false)
+	freeze()
 	player.global_position = bowl.global_position
 	# Wake the bowl's chunk now rather than when the camera catches up (asleep, it is not updated).
 	info.loader.wake_around(bowl.global_position)

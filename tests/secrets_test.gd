@@ -87,7 +87,7 @@ func run() -> void:
 
 	print("shrines hold the moves back")
 	await boot(relic_seed)
-	player.set_physics_process(false)
+	freeze()
 	var gated: bool = true
 	for s: int in range(0, 60):
 		for a: StringName in Abilities.offers(s, player, 2):
@@ -195,7 +195,7 @@ func run() -> void:
 	await settle()
 	info.travel(MapInfo.Exit.DEEPER)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	check(placed("cracked_wall.tscn").filter(func(n: Node) -> bool: return n.has_meta(&"secret") and int(n.get_meta(&"secret")) == 0).is_empty() and placed("relic.tscn").is_empty(), "on a revisit the room is still open and the relic gone")
 
 	print("a shrine points to a relic")

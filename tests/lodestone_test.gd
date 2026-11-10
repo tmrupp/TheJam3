@@ -24,8 +24,7 @@ func run() -> void:
 	_placement()
 	await boot(WORLD)
 	player.end_invulnerable()
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	var at: Vector2i = _play_level()
 	await go(at, false)
 	print("in %s, a lodestone of %s" % [at, Rules.lodestone_at(at)])
@@ -92,8 +91,6 @@ func _placement() -> void:
 		check(watch.all(func(t: Dictionary) -> bool: return t.has("spire") and w.get_cell(t["spire"]).type == LevelGen.Type.SPIRE and (t["spire"] as Vector2i).y == (t["box"] as Rect2i).position.y - 1), "each of its %d watchtowers has a spire on its roof" % watch.size())
 		check(w.towers.all(func(t: Dictionary) -> bool: return not t.get("cold", false) or (not t["hoard"] and CragsArchetype.tier_of(w, (t["box"] as Rect2i).end.y - 1) > 0)), "a cold tower is a watchtower above the bottom tier")
 	check(high_seen >= levels.size() - 1, "high on the cliff, in sight of the track (%d of %d)" % [high_seen, levels.size()])
-	var again: LevelGen = build(levels[0])
-	check(again.lodestone == build(levels[0]).lodestone, "in the same place every build")
 	var bare: Vector2i = Vector2i(levels[0].x + 1, levels[0].y)
 	while Rules.lodestone_at(bare) != &"":
 		bare.x += 1
@@ -225,7 +222,7 @@ func _breaks() -> void:
 	var across: Array = _walls(true)
 	var over: Array = _walls(false).filter(func(p: Array) -> bool: return not across.any(func(q: Array) -> bool: return q[0] == p[0]))
 	check(not across.is_empty() and across.size() + over.size() >= 6, "cracked walls to break (%d beside, %d over or under)" % [across.size(), over.size()])
-	player.set_physics_process(false)
+	freeze()
 	for spell: StringName in [&"lunge", &"hex", &"seeker", &"slash", &"nova", &"push"]:
 		var walls: Array = across if not across.is_empty() else over
 		if spell != &"lunge" and not over.is_empty():
@@ -291,7 +288,7 @@ func _spires() -> void:
 	var from: Vector2 = a.head() + Vector2(-150.0, 0.0)
 	if info.solid_at(from):
 		from = a.head() + Vector2(150.0, 0.0)
-	player.set_physics_process(false)
+	freeze()
 	player.global_position = from
 	info.loader.wake_around(from)
 	await frames(4)

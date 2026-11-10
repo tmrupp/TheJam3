@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The institute's timetable (Timetable, SchoolBell, ExamDoor, Lectern; docs/REGIONS_PLAN.md §9).
 ## Its rules: the needs round the ring, a tier lower, none for tier I; a class teaching its
 ## department's tier up to the spell's top; the beast weak unfed and fed by rings. Laid out: each
@@ -7,7 +8,7 @@ extends TestKit
 ## classroom; the library always open; a door in each doorway of a hall with a class, a lectern and a
 ## cord in each classroom, a cord in the library; at least two corridor bells with room over them,
 ## apart, one in the corridors the way in opens on; the way on on the floor of the classroom the most
-## classrooms in; the same every build; where the wizard belongs. In play: a level first met in
+## classrooms in; where the wizard belongs. In play: a level first met in
 ## passing time; scholars turning on a wizard seen truant and those near with them, not the whole
 ## level; a blow turning them, a spell cast at nothing not; the bells (a bell rung in passing time
 ## begins class time, the wizard out in the halls truant; another rung by them ends it; no cord twice
@@ -77,7 +78,6 @@ func _laid_out() -> void:
 	var furnished: bool = true
 	var greats: int = 0
 	var roomy: int = 0
-	var same: bool = true
 	var belongs_ok: bool = true
 	var way_on_ok: bool = true
 	var bell_near: int = 0
@@ -90,9 +90,6 @@ func _laid_out() -> void:
 		check(w != null, "%s collapses" % at)
 		if w == null:
 			continue
-		var again: LevelGen = build(at)
-		if again == null or again.objects != w.objects:
-			same = false
 		var depts: Dictionary = {}
 		for hall: Dictionary in w.halls:
 			if hall["kind"] == &"lecture":
@@ -179,7 +176,6 @@ func _laid_out() -> void:
 	check(apart_ok, "at least %d cells apart" % Institute.BELL_APART)
 	check(way_on_ok, "the way on stands on the floor of a classroom, one of those the most classrooms in from the way in")
 	check(bell_near >= LAID.size() - 1, "one in the corridors the way in opens on (%d of %d)" % [bell_near, LAID.size()])
-	check(same, "laid out the same twice")
 	check(belongs_ok, "the wizard belongs in the corridors in passing time, the library, and a class in session")
 	var plain: LevelGen = build(Vector2i(WORLD, NextWorldDef.band_row(&"cemetery", 1)))
 	check(plain != null and not Timetable.kept_in(plain) and not Timetable.belongs(plain, 0, true, plain.free_floors()[0]), "no timetable out of the institute")

@@ -92,7 +92,7 @@ func run() -> void:
 
 	print("switches in play")
 	await boot(plunge_seed)
-	player.set_physics_process(false)
+	freeze()
 	# The garden's gates are what gate_test is for: here they are passed, so its hyperspace opens.
 	info.run.bosses[Bosses.gate_at(Bands.garden_rows())] = true
 	info.run.bosses[Bosses.gate_at(-Bands.garden_rows())] = true
@@ -135,7 +135,7 @@ func run() -> void:
 	await settle()
 	info.travel(MapInfo.Exit.RIGHT)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	var back: Array[Node] = placed("switch_gate.tscn").filter(func(n: Node) -> bool: return n.get_meta(&"cell") == gate_cell)
 	check(back.size() == 1 and not (back[0] as SwitchGate).shut() and info.switch_on(lever_cell), "a revisit keeps the switch on and the gate up")
 	gate = back[0] as SwitchGate
@@ -170,7 +170,7 @@ func run() -> void:
 	print("the hyperspace door")
 	info.travel(MapInfo.Exit.DEEPER)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	var jump: Array[Node] = placed("level_exit.tscn").filter(func(n: Node) -> bool: return int(n.get("exit")) == Worlds.door(Worlds.kind_of(Hyperspace)))
 	check(info.coord == Vector2i(plunge_seed, 1) and jump.size() == 1, "the dealt level shows its hyperspace door")
 	var owed: int = int(jump[0].call("price"))
@@ -178,12 +178,12 @@ func run() -> void:
 	player.collect(owed - player.coins.coins)
 	jump[0].call("interacted")
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	check(info.coord == Worlds.side_at(Worlds.kind_of(Hyperspace), Vector2i(plunge_seed, 1)) and Worlds.is_side(info.coord), "paying enters hyperspace, the door's own world")
 	check(player.global_position.distance_to(info.cell_position(info.world.exits[MapInfo.Exit.BACK])) < 80.0 and player.coins.coins == 0, "arriving by its way back, the stars spent")
 	info.travel(MapInfo.Exit.DEEPER)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	check(info.coord == (Rules.def_for(Worlds.side_at(Worlds.kind_of(Hyperspace), Vector2i(plunge_seed, 1))) as SideWorld).destination() and info.run.deepest == 1 + Hyperspace.drop_for(Vector2i(plunge_seed, 1)), "its gate drops %d levels at once, to depth %d" % [Hyperspace.drop_for(Vector2i(plunge_seed, 1)), info.coord.y])
 	check(player.global_position.distance_to(info.cell_position(info.world.exits[MapInfo.Exit.BACK])) < 80.0, "arriving by that level's way back")
 

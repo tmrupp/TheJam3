@@ -2,7 +2,7 @@ extends TestKit
 ## The sky's temples (Temple, SkyArchetype.build_temples): in some sky levels, not all, each a
 ## building of stone standing on an island (its floor carried down to the rock), roofed, its altar on
 ## its floor, its lock's sequence of Temple.LENGTH winds dealt with the level (repeats and all), its
-## hoard of star clusters in its hall, the same every build. The lock's rule (Temple.step): the right
+## hoard of star clusters in its hall. The lock's rule (Temple.step): the right
 ## way lights the next step, the wrong way starts again (from the first step, if that is the way).
 ## In play: its hoard hidden while it is shut; its lock entered by switching on the level's vanes,
 ## each the next step (switching one off enters nothing, a repeat is two of the same way in a row);
@@ -22,13 +22,21 @@ func run() -> void:
 	var lengths: Dictionary = {}
 	var repeats: int = 0
 	var bad: Array[String] = []
+	var dealt: int = 0
+	var undealt: Vector2i = Vector2i.ZERO
 	for world: int in range(28, 32):
 		for k: int in range(Bands.rows_of(&"sky")):
 			var at: Vector2i = Vector2i(world, NextWorldDef.band_row(&"sky", k))
+			levels += 1
+			# Whether it has one is dealt by its seed (SkyArchetype.temple_dealt): only those are laid out.
+			if not SkyArchetype.temple_dealt(Rules.def_for(at).gen_seed):
+				if undealt == Vector2i.ZERO:
+					undealt = at
+				continue
+			dealt += 1
 			var w: LevelGen = build(at)
 			if w == null:
 				continue
-			levels += 1
 			var held: Array[Vector2i] = w.objects_of(LevelGen.Type.TEMPLE)
 			if held.is_empty():
 				continue
@@ -55,11 +63,10 @@ func run() -> void:
 						break
 				if not range(box.position.x, box.end.x).all(func(x: int) -> bool: return w.masonry.has(Vector2i(x, box.position.y)) and w.masonry.has(Vector2i(x, box.end.y - 1))):
 					bad.append("%s: no roof and floor of stone" % at)
-			if str(build(at).get_cell(v).extra_info) != str(winds):
-				bad.append("%s: not the same every build" % at)
 			if found == Vector2i.ZERO:
 				found = at
-	check(temples > 0 and temples < levels and bad.is_empty(), "temples in %d of %d sky levels, each standing on an island, its sequence of %d to %d winds dealt, the same every build %s" % [temples, levels, Temple.LENGTH.x, Temple.LENGTH.y, bad])
+	check(undealt != Vector2i.ZERO and build(undealt).objects_of(LevelGen.Type.TEMPLE).is_empty(), "a sky level dealt none (%s) holds none" % undealt)
+	check(temples > 0 and temples <= dealt and dealt < levels and bad.is_empty(), "temples in %d of %d sky levels, each standing on an island, its sequence of %d to %d winds dealt %s" % [temples, levels, Temple.LENGTH.x, Temple.LENGTH.y, bad])
 	check(lengths.size() > 1 and repeats > 0, "sequences of %d lengths, with repeats in them (%d)" % [lengths.size(), repeats])
 	check(Temple.step([1, 1, -1], 0, 1) == 1 and Temple.step([1, 1, -1], 1, 1) == 2 and Temple.step([1, 1, -1], 2, -1) == 3, "the right way lights the next step")
 	check(Temple.step([1, 1, -1], 2, 1) == 1 and Temple.step([-1, 1], 1, -1) == 1 and Temple.step([1, -1], 1, 1) == 1 and Temple.step([-1, -1], 1, 1) == 0, "the wrong way starts it again (from the first step, if that is the way)")

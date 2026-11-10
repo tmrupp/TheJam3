@@ -9,9 +9,8 @@ func run() -> void:
 	await boot()
 	# Held still and hard to kill: a wisp's bite on a slow run could otherwise kill the wizard, and
 	# the respawn's travel keeps the map shut.
-	player.set_physics_process(false)
-	player.health.max_health = 99
-	player.health.health = 99
+	freeze()
+	sturdy()
 	await settle(10)
 	var first: Vector2i = info.coord
 	info.reveal(info.cell_at(info.player.global_position), 6)
@@ -26,7 +25,7 @@ func run() -> void:
 	var first_seen: int = info.seen_count()
 	info.travel(MapInfo.Exit.RIGHT)
 	await settle(10)
-	player.set_physics_process(false)
+	freeze()
 	var map: Node = RisoPrint.instance.map_view
 	var why: String = "travelling %s, run ending %s, menu up %s, already open in view %s" % [info.travelling, info.run_ending, Stage.menu() != null and Stage.menu().visible, map.get("view")]
 	map.call("toggle")
@@ -48,6 +47,9 @@ func run() -> void:
 	for i: int in range(4):
 		await process_frame
 	check(int(map.get("view")) == 1 and map.get("viewing") == first, "opening it shows that level's page")
+	# Laid out on a worker, never in the frame: the page shows it once it is there.
+	await until(func() -> bool: return info.world_at(first) != null, 60000)
+	await frames(4)
 	var w: LevelGen = info.world_at(first)
 	check(w != null and w.size.x > 0, "its layout is rebuilt from its seed")
 	check(first_seen > 0 and (map.get("rock") as Sprite2D).visible and (map.get("rock") as Sprite2D).texture != null, "and its seen map is drawn (%d cells seen)" % first_seen)

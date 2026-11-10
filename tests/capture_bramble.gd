@@ -19,9 +19,8 @@ func run() -> void:
 	var bramble: Bramble = placed("bramble.tscn")[0] as Bramble
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
-	player.health.max_health = 99
-	player.health.health = 99
-	player.set_physics_process(false)
+	sturdy()
+	freeze()
 	player.global_position = Vector2(-9000, -9000)
 	var shots: Array[Image] = []
 	# The head asleep: no crown yet beside the sealed way on.

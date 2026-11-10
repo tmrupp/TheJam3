@@ -262,6 +262,8 @@ static func eye(player: Player) -> Vector2:
 
 func _process(delta: float) -> void:
 	t += delta
+	if not RisoPrint.prints_art:
+		return
 	var info: MapInfo = MapInfo.instance
 	var cam: Camera2D = get_viewport().get_camera_2d()
 	ink.begin()

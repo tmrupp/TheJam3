@@ -42,7 +42,7 @@ func run() -> void:
 	# A parry alone pushes nothing: landing on an enemy with the guard up stuns it, no bounce.
 	# Held clear of the wisp, so it cannot hurt them meanwhile, and the spell made ready (the guard
 	# goes up with it).
-	player.set_physics_process(false)
+	freeze()
 	player.global_position = wisp.global_position + Vector2(0, -400)
 	guard.stop_parry()
 	Abilities.refill(player)

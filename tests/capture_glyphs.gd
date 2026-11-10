@@ -26,7 +26,7 @@ func run() -> void:
 	window()
 	await boot()
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
-	player.set_physics_process(false)
+	freeze()
 	player.get_node("CameraControl").set_process(false)
 	var base: Vector2 = Vector2(-4000, -4000)
 	player.global_position = base + Vector2(-2000, 0)

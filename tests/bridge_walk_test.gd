@@ -1,6 +1,8 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## Walking a chasm's bridge (Bridge): in the dark, laid, the wizard walks from one shore to the
-## other and back without catching on the joins between its planks, however it sags.
+## other and back without catching on the joins between its planks, however it sags. Every bridge
+## of the cemetery's first level; bridge_walk_deeper_test walks those of its second, beside it.
 ## godot --headless --path . --script res://tests/bridge_walk_test.gd
 
 ## How many frames a walk across may take before it counts as stuck.
@@ -13,7 +15,7 @@ func run() -> void:
 		return
 	await boot()
 	var walked: int = 0
-	for k: int in range(2):
+	for k: int in levels():
 		await go(Vector2i(28, NextWorldDef.band_row(&"cemetery", k)))
 		player.invulnerable.enable()
 		for id: int in range(info.world.chasms.size()):
@@ -41,9 +43,14 @@ func run() -> void:
 			var back: float = await walk(right, left.x, &"Left")
 			check(back <= left.x + 8.0, "level %s, chasm %d: and back left (reached %.0f of %.0f)" % [info.coord, id, back, left.x])
 			walked += 1
-	check(walked >= 2, "walked %d bridges" % walked)
+	check(walked >= 1, "walked %d bridges" % walked)
 	RunState.delete_save()
 	finish()
+
+
+## The rows of the cemetery walked (k of NextWorldDef.band_row).
+func levels() -> Array[int]:
+	return [0]
 
 
 ## Stand the wizard at `from`, hold `action` until they pass `to` (or WALK_FRAMES run out), and
@@ -62,5 +69,5 @@ func walk(from: Vector2, to: float, action: StringName) -> float:
 		if (player.global_position.x - to) * sign >= 0.0:
 			break
 	Input.action_release(action)
-	player.set_physics_process(false)
+	freeze()
 	return best

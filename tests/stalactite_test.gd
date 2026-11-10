@@ -37,8 +37,7 @@ func generation() -> void:
 func falling() -> void:
 	await boot()
 	await go(Vector2i(28, NextWorldDef.band_row(&"crags", 1)), false)
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	var all: Array[Node] = placed("stalactite.tscn")
 	check(not all.is_empty(), "the level has stalactites")
 	if all.is_empty():
@@ -47,7 +46,7 @@ func falling() -> void:
 	var cell: float = float(info.tile_map.tile_set.tile_size.y) * info.tile_map.global_scale.y
 	print("hanging")
 	# The wizard off to one side, held still where they are put.
-	player.set_physics_process(false)
+	freeze()
 	player.global_position = st.home + Vector2(Stalactite.REACH * 3.0, cell * 2.0)
 	await frames(30)
 	check(st.state == Stalactite.State.HANGING and st.drop == 0.0, "with the wizard off to the side, it hangs still")
@@ -56,13 +55,13 @@ func falling() -> void:
 	# Past the untouchable moment after arriving (it runs out while the wizard moves), so the hit tells.
 	player.set_physics_process(true)
 	check(await until(func() -> bool: return not player.is_invulnerable(), 8000), "the wizard can be hurt")
-	player.set_physics_process(false)
+	freeze()
 	var health: int = player.health.health
 	player.global_position = st.home + Vector2(0.0, cell * 2.0)
 	check(await until(func() -> bool: return st.state == Stalactite.State.SHAKING), "with the wizard under it, it shakes")
-	var shook: int = Time.get_ticks_msec()
+	var shook: float = GameClock.now()
 	check(await until(func() -> bool: return st.state == Stalactite.State.FALLING), "then falls")
-	check(Time.get_ticks_msec() - shook >= int(Stalactite.SHAKE * 1000.0 * 0.8), "after shaking a moment")
+	check(GameClock.now() - shook >= Stalactite.SHAKE * 0.8, "after shaking a moment")
 	check(await until(func() -> bool: return st.state == Stalactite.State.REGROWING, 5000), "and shatters")
 	check(player.health.health < health, "on the wizard, hurting them (%d to %d)" % [health, player.health.health])
 	check(st.position == st.home and st.grown() < 0.2, "and grows back from the ceiling")

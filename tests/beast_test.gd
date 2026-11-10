@@ -1,8 +1,8 @@
 extends TestKit
 ## The eldritch beast (Beast, BeastSouls, BeastSoul; docs/REGIONS_PLAN.md §6). Laid out: in every
 ## gate level of the institute a chamber of marble (Institute.chamber) holds the beast in the middle
-## of its floor and nothing else; no other level has one;
-## the same every build. In play: it sleeps until the wizard comes in, then sends its souls out
+## of its floor and nothing else; no other level has one.
+## In play: it sleeps until the wizard comes in, then sends its souls out
 ## across the run, some into levels visited (more the more were) and the rest flung far into levels
 ## not yet visited, never into a gate
 ## level, one eye for each; while any soul lives a strike glances off it; it strikes with a
@@ -64,8 +64,6 @@ func _laid_out() -> void:
 	check(bare, "and nothing else in it")
 	check(low >= worlds.size() - 1, "in the level's lower half (%d of %d)" % [low, worlds.size()])
 	var gate: LevelGen = build(Vector2i(WORLD, row))
-	var again: LevelGen = build(Vector2i(WORLD, row))
-	check(gate != null and again != null and gate.objects == again.objects and gate.halls.size() == again.halls.size(), "laid out the same twice")
 	var plain: LevelGen = build(Vector2i(WORLD, band_rows(&"institute", [0])[0]))
 	check(plain != null and (plain.gate == &"beast" or Institute.chamber(plain).is_empty()), "no other level has a chamber")
 
@@ -74,7 +72,7 @@ func _laid_out() -> void:
 
 func _play() -> void:
 	await boot(WORLD)
-	player.set_physics_process(false)
+	freeze()
 	# The wizard never dies here: the abominations and tentacles would end the test.
 	process_frame.connect(func() -> void: player.health.health = player.health.max_health)
 	for c: Vector2i in VISITED:

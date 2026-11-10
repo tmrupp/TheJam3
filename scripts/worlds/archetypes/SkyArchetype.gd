@@ -526,7 +526,7 @@ func finish(w: LevelGen, _def: NextWorldDef) -> void:
 ## info is its lock's sequence of winds (Temple.LENGTH steps, each +1 right or -1 left, repeats and
 ## all), dealt by the level seed. Kept in LevelGen.temples.
 static func build_temples(w: LevelGen) -> void:
-	if posmod(Rules.level_seed(w.seed_for_colors, TEMPLE_DEAL), 1000) >= roundi(TEMPLE_SHARE * 1000.0):
+	if not temple_dealt(w.seed_for_colors):
 		return
 	# What a site asks of each cell, worked out once for the whole search (_temple_site).
 	var near: PackedByteArray = Chasms.near_mask(w)
@@ -566,6 +566,12 @@ static func build_temples(w: LevelGen) -> void:
 				best_score = score
 	if best != null:
 		_temple(w, best as Rect2i)
+
+
+## Whether the sky level with seed `level_seed` (NextWorldDef.gen_seed) is dealt a temple
+## (TEMPLE_SHARE of them, no draw): it is built only where it fits (build_temples).
+static func temple_dealt(level_seed: int) -> bool:
+	return posmod(Rules.level_seed(level_seed, TEMPLE_DEAL), 1000) < roundi(TEMPLE_SHARE * 1000.0)
 
 
 ## In build_temples' table of how far down each cell's column the rock is: no rock is reached

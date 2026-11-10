@@ -37,6 +37,9 @@ func _initialize() -> void:
 	# the worker would only keep a core busy with levels never visited, and make a jump wait behind
 	# one. A test of the worker turns it back on.
 	LevelLoader.prefetching = false
+	# Headless, no art prints frame by frame (RisoPrint.prints_art): nothing printed is seen, and it
+	# costs most of a frame. A test that reads what the art does turns it on (art).
+	RisoPrint.prints_art = DisplayServer.get_name() != "headless"
 	out_of_sight()
 	if "layout=retuned" in OS.get_cmdline_user_args():
 		Bands.use(RETUNED)
@@ -130,8 +133,10 @@ func check_eq(got: Variant, want: Variant, what: String) -> void:
 	check(got == want, what if got == want else "%s (got %s, wanted %s)" % [what, got, want])
 
 
-## Report and exit: 1 if any check failed. Frees anything the kit made.
+## Report and exit: 1 if any check failed. Frees anything the kit made. The levels build() laid
+## out are tallied on a line of their own (the runner sums them over a run).
 func finish(label: String = "") -> void:
+	print("KIT LAYOUTS %d %d %d" % [_built_count, _built_usec / 1000, _built_again])
 	if _wfc != null:
 		_wfc.free()
 		_wfc = null
@@ -167,6 +172,14 @@ func within(cond: Callable, seconds: float) -> bool:
 			return true
 		await physics_frame
 	return bool(cond.call())
+
+
+## Wait `seconds` by the wall clock, frames going by meanwhile: for what runs in real time whatever
+## the game's step (audio playing); the game's own waits are within() and frames().
+func wall(seconds: float) -> void:
+	var until_ms: int = Time.get_ticks_msec() + int(seconds * 1000.0)
+	while Time.get_ticks_msec() < until_ms:
+		await process_frame
 
 
 ## A condition for until(): `node` is freed or going away. (A lambda holding the node itself
@@ -213,14 +226,50 @@ func boot(world_seed: int = 28, tutorial: bool = false) -> void:
 
 
 ## Go straight to place `at` in the run being played (MapInfo.jump_to), arriving at its way back,
-## and wait for it to settle; with `freeze`, the wizard's physics is then turned off, so they stay
+## and wait for it to settle; with `frozen`, the wizard's physics is then turned off, so they stay
 ## where they arrived while the test looks about or places them (call still() before turning it
 ## on again after moving them).
-func go(at: Vector2i, freeze: bool = true) -> void:
+func go(at: Vector2i, frozen: bool = true) -> void:
 	info.jump_to(at)
 	await settle()
-	if freeze:
-		player.set_physics_process(false)
+	if frozen:
+		freeze()
+
+
+## Whether the art prints frame by frame in a headless test (RisoPrint.prints_art; it always does
+## in a window): on for a test that reads what the art does (a wisp's trail, a pod's flash).
+func art(on: bool) -> void:
+	RisoPrint.prints_art = on or DisplayServer.get_name() != "headless"
+
+
+## Turn the wizard's physics off, so they stay where they are while the test looks about or places
+## them (call still() before turning it on again after moving them).
+func freeze() -> void:
+	player.set_physics_process(false)
+
+
+## Give the wizard health enough for a fight that is not about their health (99 hearts, full).
+func sturdy() -> void:
+	player.health.max_health = 99
+	player.health.health = 99
+
+
+## Send action `action` pressed (or, with `down` false, released), as a player's press reaches the
+## game (Input.parse_input_event): before the next physics step, as the kit runs one a frame.
+func press(action: StringName, down: bool = true) -> void:
+	var e: InputEventAction = InputEventAction.new()
+	e.action = action
+	e.pressed = down
+	Input.parse_input_event(e)
+
+
+## Press `action`, hold it `steps` physics steps, let it go, and wait one step more.
+func tap(action: StringName, steps: int = 2) -> void:
+	press(action)
+	for i: int in range(steps):
+		await physics_frame
+	press(action, false)
+	await physics_frame
 
 
 ## Bring the wizard to rest where they are: no speed, and no dash, knock-back or wall jump under
@@ -302,10 +351,41 @@ static func _make_wfc() -> Node:
 ## The place at `at` laid out (terrain collapsed, then dressed), without the game scene; null if
 ## its terrain never settles.
 func build(at: Vector2i) -> LevelGen:
+	var t0: int = Time.get_ticks_usec()
 	var cells: Array = collapse(at)
-	if cells.is_empty():
-		return null
-	return LevelGen.new(cells, Rules.def_for(at))
+	var w: LevelGen = null
+	if not cells.is_empty():
+		w = LevelGen.new(cells, Rules.def_for(at))
+	_built_count += 1
+	_built_usec += Time.get_ticks_usec() - t0
+	var key: String = "%s %d %s" % [at, Difficulty.preset, MapInfo.debug]
+	if _built_places.has(key):
+		_built_again += 1
+	_built_places[key] = true
+	return w
+
+
+## The place at `at` laid out, as build() does, but kept for the rest of the test: asked again (with
+## the same preset and debug flag), the same layout comes back without laying it out again. A layout
+## is read-only once built (the loader relies on it too), so only a test that changes one wants a
+## fresh one from build().
+func built(at: Vector2i) -> LevelGen:
+	var key: String = "%s %d %s" % [at, Difficulty.preset, MapInfo.debug]
+	if not _kept_layouts.has(key):
+		_kept_layouts[key] = build(at)
+	return _kept_layouts[key]
+
+
+## The layouts built() keeps, by place, preset and debug flag.
+var _kept_layouts: Dictionary = {}
+
+
+## The levels build() has laid out in this test: how many, in how long (microseconds), and how many
+## of them were a place (with the preset and debug flag) laid out before.
+var _built_count: int = 0
+var _built_usec: int = 0
+var _built_again: int = 0
+var _built_places: Dictionary = {}
 
 
 ## Worlds a test may look over for a level that has what it needs (the usual world first).
@@ -316,10 +396,43 @@ const START_SEEDS: Array[int] = [28, 7, 99, 3, 11, 42, 5, 64, 17, 123, 2, 77]
 ## given the level (a LevelGen); the first of them if none does, for the test's own check to fail.
 func start_seed(test: Callable) -> int:
 	for s: int in START_SEEDS:
-		var w: LevelGen = build(Vector2i(s, 0))
+		var w: LevelGen = built(Vector2i(s, 0))
 		if w != null and bool(test.call(w)):
 			return s
 	return START_SEEDS[0]
+
+
+## The first place, over `worlds` and then the rows of the band of archetype `kind` (`ks` of them,
+## counted as band_rows counts; every row with none given; for the garden, `ks` are its rows, every
+## row from the start out both ways with none given), whose layout passes `holds` (given the
+## level), laid out once (built). With `dealt`, a rule asked of the place itself (what its seed
+## deals, as Rules and the archetypes say, SkyArchetype.temple_dealt), a place failing it is never
+## laid out: the cheap way to pass over the many levels that cannot hold what is looked for.
+## (-1, -1) if none does.
+func find_level(kind: StringName, holds: Callable, dealt: Callable = Callable(), worlds: Array[int] = START_SEEDS, ks: Array[int] = []) -> Vector2i:
+	var rows: Array[int] = []
+	if kind == &"garden":
+		rows = ks.duplicate()
+		if rows.is_empty():
+			for r: int in range(Bands.garden_rows() + 1):
+				rows.append(r)
+				if r > 0:
+					rows.append(-r)
+	elif Bands.has(kind):
+		var counted: Array[int] = ks.duplicate()
+		if counted.is_empty():
+			for k: int in range(Bands.rows_of(kind)):
+				counted.append(k)
+		rows = band_rows(kind, counted)
+	for world: int in worlds:
+		for row: int in rows:
+			var at: Vector2i = Vector2i(world, row)
+			if not dealt.is_null() and not bool(dealt.call(at)):
+				continue
+			var w: LevelGen = built(at)
+			if w != null and bool(holds.call(w)):
+				return at
+	return Vector2i(-1, -1)
 
 
 ## How many of the objects laid in `w` are of `type`.

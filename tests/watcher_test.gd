@@ -7,7 +7,7 @@ extends TestKit
 
 func run() -> void:
 	await boot(28)
-	player.set_physics_process(false)
+	freeze()
 	# A watcher with open air beside it, to stand in its view.
 	var shooter: Shooter = null
 	var spot: Vector2 = Vector2.ZERO

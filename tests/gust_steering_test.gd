@@ -31,7 +31,7 @@ func reset_player() -> void:
 
 func run() -> void:
 	await boot(28)
-	player.set_physics_process(false)
+	freeze()
 	gust = TestGust.new()
 	gust.rect = Rect2(HOME, Vector2(1536, 256))
 	main.add_child(gust)

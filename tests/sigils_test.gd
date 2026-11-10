@@ -2,8 +2,7 @@ extends TestKit
 ## Sigils (Sigils.gd): each pair of teleporters shares a sigil, and each switch shares one with
 ## what it works (a gate, a bell or vane, a lift); no two links in a level (pairs or switches)
 ## share one while there are sigils to go round, and past that a sigil is reused only once every
-## one is in use, by the link furthest from its others. Dealt the same on every build, and read by
-## the placed things in play.
+## one is in use, by the link furthest from its others; read by the placed things in play.
 ## godot --headless --path . --script res://tests/sigils_test.gd
 
 
@@ -26,7 +25,6 @@ func run() -> void:
 	var pairs_ok: bool = true
 	var switches_ok: bool = true
 	var apart_ok: bool = true
-	var again_ok: bool = true
 	var portals_seen: int = 0
 	var switches_seen: int = 0
 	var bells: int = 0
@@ -62,14 +60,10 @@ func run() -> void:
 			crowded = maxi(crowded, links)
 			portals_seen += portal_kinds.size()
 			switches_seen += switch_kinds.size()
-			var rebuilt: LevelGen = build(at)
-			for v: Vector2i in w.objects:
-				again_ok = again_ok and rebuilt.sigil_at(v) == w.sigil_at(v)
 	check(pairs_ok, "both ends of each of %d teleporter pairs share a sigil" % portals_seen)
 	check(switches_ok, "each of %d switches shares its sigil with what it works (%d bells or vanes, %d lifts among them)" % [switches_seen, bells, lifts])
 	check(bells > 0, "bells and vanes chained to switches are among them")
 	check(apart_ok, "no two links in a level share a sigil while there are sigils to go round (up to %d links in a level)" % crowded)
-	check(again_ok, "the sigils are dealt the same on every build")
 
 	print("more links than sigils")
 	var w0: LevelGen = build(Vector2i(28, 0))
@@ -92,7 +86,7 @@ func run() -> void:
 
 	print("in play")
 	await boot(28)
-	player.set_physics_process(false)
+	freeze()
 	var switch_nodes: Array[Node] = placed("switch.tscn")
 	var gate_nodes: Array[Node] = placed("switch_gate.tscn")
 	var play_ok: bool = not switch_nodes.is_empty()

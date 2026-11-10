@@ -115,7 +115,7 @@ func run() -> void:
 	check(with_key > 0 and with_key < 100, "ember vaults sometimes hold a moss key (%d of 100 doors)" % with_key)
 
 	await boot()
-	player.set_physics_process(false)
+	freeze()
 	var vault: Dictionary = {}
 	for step: int in range(4):
 		var keyed: Array = info.world.vaults.filter(func(vt: Dictionary) -> bool: return int(vt["color"]) < Rules.KEY_COLOR_COUNT)
@@ -124,7 +124,7 @@ func run() -> void:
 			break
 		info.travel(MapInfo.Exit.RIGHT)
 		await settle(6)
-		player.set_physics_process(false)
+		freeze()
 	check(not vault.is_empty(), "found a vault in %s" % Rules.where(info.coord))
 	if vault.is_empty():
 		finish()

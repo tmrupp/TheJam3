@@ -17,8 +17,7 @@ func run() -> void:
 	await go(Vector2i(28, NextWorldDef.band_row(&"crags", 1)), false)
 	camera = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	await frames(30)
 	await look(player.global_position + Vector2(0, -120), "crags_arrival.png")
 	# The whole cliff, zoomed out.

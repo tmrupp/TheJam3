@@ -81,11 +81,10 @@ func shot(at: Vector2i, off: float) -> Bullet:
 func run() -> void:
 	await boot(start_seed(func(w: LevelGen) -> bool: return spot(w) != Vector2i(-1, -1)))
 	player.end_invulnerable()
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	var at: Vector2i = spot()
 	check(at != Vector2i(-1, -1), "open floor to cast on")
-	player.set_physics_process(false)
+	freeze()
 	player.global_position = info.cell_position(at) + Vector2(0, 16 - 31)
 	await frames(2)
 	clear_round(at)
@@ -142,7 +141,7 @@ func run() -> void:
 	player.set_physics_process(true)
 	await frames(2)
 	Input.action_release(Abilities.SPELL_ACTION)
-	player.set_physics_process(false)
+	freeze()
 	player.global_position = info.cell_position(at) + Vector2(0, 16 - 31)
 	check(slash.wait > 0.0, "the Spell button slashes")
 	check(parry.guard_left() >= 0.0, "and raises the parry guard with it")
@@ -153,7 +152,7 @@ func run() -> void:
 	player.set_physics_process(true)
 	await frames(2)
 	Input.action_release(Abilities.SPELL_ACTION)
-	player.set_physics_process(false)
+	freeze()
 	player.global_position = info.cell_position(at) + Vector2(0, 16 - 31)
 	check(parry.guard_left() < 0.0, "while the spell is not ready, no guard rises either (one cooldown, the spell's)")
 
@@ -275,7 +274,7 @@ func run() -> void:
 	lunge.cast(1.0)
 	var stabbed: bool = await within(func() -> bool: return hp(stuck) < hp_stuck, 0.6)
 	check(stabbed and not stunned(stuck), "and stabs what it reaches on the way, wounding, not stunning")
-	player.set_physics_process(false)
+	freeze()
 	if is_instance_valid(stuck):
 		stuck.queue_free()
 

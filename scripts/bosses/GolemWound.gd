@@ -14,11 +14,6 @@ func _init() -> void:
 	stars = false
 
 
-func stunned() -> bool:
-	var stunner: Stunner = Stunner.of(get_parent())
-	return stunner != null and stunner.stunned()
-
-
 func hit(damage: int, dir: Vector2) -> void:
 	var golem: Golem = get_parent() as Golem
 	if golem == null or golem.done():

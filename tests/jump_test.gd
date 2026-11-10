@@ -46,7 +46,7 @@ func leave_ledge() -> void:
 
 func run() -> void:
 	await boot(28)
-	player.set_physics_process(false)
+	freeze()
 	var ledge: StaticBody2D = StaticBody2D.new()
 	ledge.collision_layer = 4
 	ledge.position = HOME

@@ -14,8 +14,10 @@ const REACH: float = Mover.LURCH_SPEED * Mover.LURCH_TIME * 0.5
 
 
 func run() -> void:
+	# It reads what the art does (TestKit.art).
+	art(true)
 	await boot()
-	player.set_physics_process(false)
+	freeze()
 	player.get_node("CameraControl").set_process(false)
 	player.global_position = Vector2(-9000, -9000)
 	# The test's wisp has the level to itself: no other wisp stops its lurch.

@@ -1103,8 +1103,8 @@ func _arrived () -> void:
 	loader.wake_around(player.global_position if player != null else Vector2.INF)
 	loader.prefetch_neighbours(here)
 
-## Another place's layout, for the map: the place being played, or one laid out from its seed.
-## Null while the generator is busy (try again next frame).
+## Another place's layout, for the map: the place being played, or one laid out from its seed (on
+## a worker, LevelLoader.world_at: null until it is, so ask again next frame).
 func world_at (at: Vector2i) -> LevelGen:
 	if at == coord and world != null:
 		return world

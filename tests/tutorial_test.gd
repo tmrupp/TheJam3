@@ -1,5 +1,6 @@
 extends TestKit
-## The tutorial (Tutorial): laid out by hand, the same on every visit and in every world, with its
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
+## The tutorial (Tutorial): laid out by hand, the same in every world, with its
 ## start and lantern, its control cards (ControlHint), its key and door of one colour, and stars
 ## enough for the shrine. A run begun with the tutorial starts in it by its lit lantern; its way out
 ## comes out by the start level's door into it, which every start level has, laid last (nearest the
@@ -64,9 +65,8 @@ func run() -> void:
 func _layout(at: Vector2i) -> void:
 	print("layout")
 	var w: LevelGen = build(at)
-	var again: LevelGen = build(at)
 	var elsewhere: LevelGen = build(Tutorial.of(-4013))
-	check(w != null and again != null and w.objects == again.objects, "the tutorial is laid out the same on every visit")
+	check(w != null, "the tutorial is laid out")
 	if w == null:
 		return
 	check(elsewhere != null and elsewhere.objects == w.objects, "and in every world")
@@ -121,9 +121,9 @@ func _hint() -> void:
 	player.global_position = jump.global_position
 	still()
 	check(await until(func() -> bool: return jump.showing() and jump.up_for >= ControlHint.SEEN), "up as they come near")
-	_press(&"Jump", true)
+	press(&"Jump", true)
 	await physics_frame
-	_press(&"Jump", false)
+	press(&"Jump", false)
 	await settle(30)
 	check(ControlHint.learned.has(&"Jump") and not jump.showing(), "and gone once they jump")
 
@@ -174,7 +174,7 @@ func _parry() -> void:
 	check(wound.parried_only, "and only a parried shot wounds it")
 	# Held still, its shots put away: a slash that reaches it, and a hex bolt, glance off.
 	eye.set_physics_process(false)
-	player.set_physics_process(false)
+	freeze()
 	player.global_position = watcher.global_position + Vector2(-90, 10)
 	still()
 	Input.action_press("Right")
@@ -204,9 +204,9 @@ func _parry() -> void:
 	# A press with nothing coming: the card stays.
 	var spell: Node = player.get_node("Slash")
 	spell.call(&"refill")
-	_press(&"Spell", true)
+	press(&"Spell", true)
 	await physics_frame
-	_press(&"Spell", false)
+	press(&"Spell", false)
 	await settle(10)
 	check(card.showing() and not ControlHint.learned.has(ControlHint.PARRY), "a press alone does not put it away")
 	# Its shot, met with the guard as it comes.
@@ -218,9 +218,9 @@ func _parry() -> void:
 				return true
 		return false
 	check(await within(meet, SHOT_WAIT), "the watcher fires at them")
-	_press(&"Spell", true)
+	press(&"Spell", true)
 	await physics_frame
-	_press(&"Spell", false)
+	press(&"Spell", false)
 	check(await within(func() -> bool: return guard.glory(), 1.0), "the guard catches its shot")
 	check(await within(func() -> bool: return not hurts.is_empty() or not is_instance_valid(watcher), 3.0), "which flies home and wounds it")
 	check_eq(player.health.health, player.health.max_health, "the wizard unhurt")
@@ -264,33 +264,33 @@ func _pogo() -> void:
 	Input.action_press("Right")
 	for i: int in range(600):
 		if not jumped and player.global_position.x >= edge:
-			_press(&"Jump", true)
+			press(&"Jump", true)
 			jumped = true
 		elif jumped and not player.is_on_floor():
 			# A dash at the top of each arc (a catch gives it back), the guard up just over the thorns.
 			if not dashed and player.velocity.y > -150.0 and player.velocity.y < 0.0:
-				_press(&"Dash", true)
+				press(&"Dash", true)
 				dashed = true
 			if guarding == 0 and player.velocity.y > 0.0 and player.global_position.y > stand + GUARD_AT:
-				_press(&"Spell", true)
+				press(&"Spell", true)
 				guarding = 1
 		await physics_frame
 		if guarding > 0:
 			guarding += 1
 			if guarding == 4:
-				_press(&"Spell", false)
+				press(&"Spell", false)
 			if player.velocity.y < 0.0 and guarding > 4:
 				# Bounced: the next arc gets its own dash and guard.
 				guarding = 0
 				dashed = false
-				_press(&"Dash", false)
+				press(&"Dash", false)
 		left = left or (jumped and not player.is_on_floor())
 		if left and player.is_on_floor() and player.velocity.y >= 0.0:
 			var cell: Vector2i = info.cell_at(player.global_position)
 			over = cell.x >= past and cell.y == from.y
 			break
 	_release()
-	_press(&"Spell", false)
+	press(&"Spell", false)
 	await frames(10)
 	check(guard.pogo_at > bounced_from, "the guard catches the thorns underfoot and bounces them up")
 	check(over, "bouncing off its thorns, they cross it")
@@ -314,9 +314,9 @@ func _utility() -> void:
 	check(await until(func() -> bool: return card.struck), "it strikes as it rises")
 	check(player.health.health < full, "costing the wizard a heart")
 	check(await until(func() -> bool: return card.up_for >= ControlHint.SEEN), "up long enough to be seen")
-	_press(Abilities.UTILITY_ACTION, true)
+	press(Abilities.UTILITY_ACTION, true)
 	await physics_frame
-	_press(Abilities.UTILITY_ACTION, false)
+	press(Abilities.UTILITY_ACTION, false)
 	await settle(10)
 	check_eq(player.health.health, full, "Utility heals them, with mend")
 	check(ControlHint.learned.has(ControlHint.STRIKES) and not card.showing(), "and the card goes")
@@ -361,9 +361,9 @@ func _burn() -> void:
 
 ## Press and let go of the interact button.
 func _interact() -> void:
-	_press(&"Discover", true)
+	press(&"Discover", true)
 	await frames(2)
-	_press(&"Discover", false)
+	press(&"Discover", false)
 	await frames(2)
 
 
@@ -394,9 +394,9 @@ func _reach() -> void:
 	for i: int in range(240):
 		Input.action_press("Right")
 		if i % 30 == 0:
-			_press(&"Jump", true)
+			press(&"Jump", true)
 		elif i % 30 == 18:
-			_press(&"Jump", false)
+			press(&"Jump", false)
 		await physics_frame
 		if info.cell_at(player.global_position).x >= STEPS_PAST:
 			steps = true
@@ -426,19 +426,19 @@ func _leap(from: Vector2i, past: int, dashes: int) -> bool:
 	Input.action_press("Right")
 	for i: int in range(180):
 		if player.global_position.x >= edge and not rose and not Input.is_action_pressed("Jump"):
-			_press(&"Jump", true)
+			press(&"Jump", true)
 		rose = rose or player.velocity.y < -300.0
 		if dashed == 0 and dashes >= 1 and rose and player.velocity.y > -150.0:
-			_press(&"Dash", true)
+			press(&"Dash", true)
 			dashed = 1
 		elif dashed == 1 and player.velocity.x >= Player.DASH_SPEED * 0.9:
 			dashed = 4
 		elif dashed == 4 and dashes >= 2 and player.velocity.x < Player.DASH_SPEED * 0.9:
 			# The first dash under way (4) is over: let go, then dash again once it is back.
-			_press(&"Dash", false)
+			press(&"Dash", false)
 			dashed = 2
 		elif dashed == 2 and not player.dash.acted:
-			_press(&"Dash", true)
+			press(&"Dash", true)
 			dashed = 3
 		await physics_frame
 		if rose and player.is_on_floor():
@@ -452,24 +452,17 @@ func _leap(from: Vector2i, past: int, dashes: int) -> bool:
 
 ## Put the wizard on cell `v`, at rest.
 func _go(v: Vector2i) -> void:
-	player.set_physics_process(false)
+	freeze()
 	player.global_position = info.cell_position(v)
 	still()
 	player.set_physics_process(true)
 	await settle(20)
 
 
-func _press(a: StringName, down: bool) -> void:
-	var e: InputEventAction = InputEventAction.new()
-	e.action = a
-	e.pressed = down
-	Input.parse_input_event(e)
-
-
 func _release() -> void:
 	for a: StringName in [&"Left", &"Right", &"Jump", &"Dash"]:
 		Input.action_release(a)
-		_press(a, false)
+		press(a, false)
 
 
 func _out_and_in(at: Vector2i) -> void:

@@ -25,8 +25,7 @@ func run() -> void:
 	await boot(place.x)
 	camera = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	await go(place, false)
 	var cell: float = info.cell_position(Vector2i(1, 0)).x - info.cell_position(Vector2i.ZERO).x
 	var bow: Crossbow = null
@@ -36,7 +35,7 @@ func run() -> void:
 			bow = b
 			break
 	var room: Vector2 = info.cell_position(bow.cell)
-	player.set_physics_process(false)
+	freeze()
 	var outside: Vector2 = room + Vector2(float(bow.facing) * cell * 3.5, 0.0)
 	player.global_position = outside
 	info.loader.wake_around(outside)

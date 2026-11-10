@@ -27,7 +27,7 @@ func lanterns() -> Array[Node]:
 
 func run() -> void:
 	await boot()
-	player.set_physics_process(false)
+	freeze()
 	var start_coord: Vector2i = info.coord
 	var start_cell: Vector2i = info.run.respawn_cell
 	var start_lantern: Node = lanterns().filter(info.is_respawn_lantern)[0]
@@ -41,7 +41,7 @@ func run() -> void:
 	# Checked at once: once respawned, the wizard may pick up a star by the lantern.
 	check(player.coins.coins == 0, "the player carries none")
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	check(player.health.health == player.health.max_health, "lethal damage respawns at full health")
 	check(int(RunState.read_save().get("health", 0)) == player.health.max_health, "the death save stores full health")
 	check(info.run.vulnerable, "death consumes the lantern's protection")
@@ -58,7 +58,7 @@ func run() -> void:
 	check(info.run.vulnerable and info.is_lantern_spent(start_lantern), "the same lantern cannot be relit for a free life")
 	check(info.continue_run(), "the wounded respawn can be continued")
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	check(player.health.health == player.health.max_health and info.run.has_ghost, "save/reload keeps the respawn at full health, and the ghost")
 
 	print("fresh stars")
@@ -73,7 +73,7 @@ func run() -> void:
 	check(ghosts().is_empty(), "no ghost at (29, 0)")
 	info.travel(MapInfo.Exit.LEFT)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	check(ghosts().size() == 1, "the ghost is back at (28, 0)")
 	start_lantern = lanterns().filter(func(n: Node) -> bool: return n.get_meta(&"cell") == start_cell)[0]
 	check(info.is_lantern_spent(start_lantern) and not info.light_lantern(start_lantern), "revisiting does not renew a spent lantern")
@@ -82,7 +82,7 @@ func run() -> void:
 	info.save_run()
 	check(info.continue_run(), "the unprotected run can be continued")
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	start_lantern = lanterns().filter(func(n: Node) -> bool: return n.get_meta(&"cell") == start_cell)[0]
 	check(info.run.vulnerable and info.is_lantern_spent(start_lantern) and not info.light_lantern(start_lantern), "save/reload preserves the spent lantern")
 	var legacy: Dictionary = RunState.read_save()
@@ -94,7 +94,7 @@ func run() -> void:
 	legacy_file.close()
 	check(info.continue_run(), "an older recovery-system save still loads")
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	check(info.run.vulnerable and (info.record().spent_lanterns as Dictionary).has(start_cell), "old unprotected saves migrate their respawn lantern to spent")
 
 	print("recovering the ghost")
@@ -113,7 +113,7 @@ func run() -> void:
 	info.save_run()
 	check(info.continue_run(), "the run continues")
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	start_lantern = lanterns().filter(func(n: Node) -> bool: return n.get_meta(&"cell") == start_cell)[0]
 	check(not info.run.vulnerable and info.is_respawn_lantern(start_lantern), "the relit lantern is kept through a save")
 
@@ -123,25 +123,25 @@ func run() -> void:
 	check(not info.run.vulnerable and info.is_respawn_lantern(fresh), "lighting a different lantern moves respawn")
 	info.travel(MapInfo.Exit.RIGHT)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	var other_coord: Vector2i = info.coord
 	var other: Node = lanterns()[0]
 	var other_cell: Vector2i = other.get_meta(&"cell")
 	other.call("interacted")
 	info.travel(MapInfo.Exit.LEFT)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	var carried: int = player.coins.coins
 	player.die()
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	other = lanterns().filter(func(n: Node) -> bool: return n.get_meta(&"cell") == other_cell)[0]
 	check(info.coord == other_coord and info.run.vulnerable and info.is_lantern_spent(other), "death in another world burns the lit respawn lantern and returns there")
 	check(player.health.health == player.health.max_health, "a direct cross-world death also respawns at full health")
 	check(info.run.has_ghost and info.run.ghost_coord == start_coord and info.run.ghost_stars == carried, "its ghost stays in the world where the player died")
 	info.travel(MapInfo.Exit.LEFT)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	fresh = lanterns().filter(func(n: Node) -> bool: return not info.is_lantern_spent(n))[0]
 	fresh.call("interacted")
 	check(not info.run.vulnerable and info.run.has_ghost, "a different lantern protects another death without needing the ghost")
@@ -149,7 +149,7 @@ func run() -> void:
 	player.collect(3)
 	player.die()
 	await settle(8)
-	player.set_physics_process(false)
+	freeze()
 	check(info.run.vulnerable and info.run.ghost_stars == 3 and ghosts().size() == 1, "the next protected death replaces the old ghost with the new dropped stars")
 	check(not bool(ghosts()[0].get("armed")), "a ghost on the respawn lantern waits for the player to step off")
 

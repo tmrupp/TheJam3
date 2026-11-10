@@ -1,22 +1,24 @@
 #!/usr/bin/env bash
 # Regression runner: every tests/*_test.gd, in parallel.
 #
-#   bash tests/run.sh               quick check-in run: the headless tests (about half a minute)
-#   bash tests/run.sh full          everything: also tests tagged "## suite: full", then the ones
-#                                   tagged "## suite: window" one at a time in a real window
+#   bash tests/run.sh               quick check-in run: the untagged headless tests, those that take
+#                                   15 s or less (a few minutes in all)
+#   bash tests/run.sh full          everything: also tests tagged "## suite: full" (the slow ones),
+#                                   then the ones tagged "## suite: window" one at a time in a window
 #   bash tests/run.sh keys_test hex_test    just these (headless)
 #   options: -j N (parallel jobs), -t SECONDS (timeout per test), -l LAYOUT (play the bands of
 #   Bands.LAYOUTS' LAYOUT, e.g. -l garden for the demo's: tests of bands left out skip themselves),
 #   -s N (the screen a windowed test opens on before TestKit moves it out of sight: 1 by default,
 #   a second monitor, so nothing flashes up on the main one; 0 is the primary; $TEST_SCREEN too)
 #
-# A test's tier is a line near its top: "## suite: full" (slow or known broken) or
+# A test's tier is a line near its top: "## suite: full" (over 15 s, or known broken) or
 # "## suite: window" (needs a rendered window); untagged tests are in the quick run.
 # A test passes when Godot exits 0 and its log has no FAIL, SCRIPT ERROR or Parse Error. A script
 # error usually leaves the test waiting forever, so it is stopped a moment after one appears.
 # The headless tests start longest first, so a slow one is not left to run alone at the end: each
 # test's seconds are kept between runs (in the file "durations" beside the logs, one per band
 # layout), and a test with none yet starts before all the others.
+# Headless tests run at a fixed step (--fixed-fps 60), as fast as the machine allows.
 # Some tests count frames and can miss under the load of running side by side: a headless test
 # that fails is run once more on its own, and if it passes then it is reported as flaky (its
 # first log is kept as <name>.flaky.log) rather than failed.
@@ -95,10 +97,15 @@ longest_first() {
 # Run one test; writes "<PASS|FAIL> <seconds>s <name> <why>" to its .result file.
 run_one() {
 	local t=$1 window=$2 log="$logs/$1.log" start=$SECONDS why="" code
-	local args=(--headless)
+	# Headless, at a fixed step: each frame is a 60th of a second of the game however long it takes,
+	# so the game runs as fast as the machine allows rather than waiting on the clock (the game's own
+	# time is counted in steps, GameClock; until()'s timeout stays on the clock, against a hang).
+	local args=(--headless --fixed-fps 60)
 	[[ $window == 1 ]] && args=(--windowed --resolution 1280x720 --screen "$screen")
 	local user=()
 	[[ -n "$bands" ]] && user=(-- "layout=$bands")
+	# The log is there before the test starts, so it is never looked for before it is made.
+	: > "$log"
 	"$godot" "${args[@]}" --path . --script "res://tests/$t.gd" "${user[@]}" > "$log" 2>&1 &
 	local pid=$! errored=-1
 	while kill -0 "$pid" 2>/dev/null; do
@@ -161,6 +168,9 @@ failed=$(cat "$logs"/*.result 2>/dev/null | grep -c '^FAIL')
 total=$(ls "$logs"/*.result 2>/dev/null | wc -l)
 echo
 echo "$(( total - failed )) of $total passed in $(( SECONDS - began ))s"
+# The levels the tests laid out without the game (TestKit.build), from each log's KIT LAYOUTS line.
+grep -h '^KIT LAYOUTS' "$logs"/*.log 2>/dev/null | awk -v total="$(cat "$logs"/*.result 2>/dev/null | awk '{ sub(/s$/, "", $2); t += $2 } END { print t + 0 }')" \
+	'{ n += $3; ms += $4; again += $5 } END { if (n) printf "laid out without the game: %d levels (%d again) in %.0fs, %.0f%% of %ds of tests\n", n, again, ms / 1000, total ? 100 * ms / 1000 / total : 0, total }'
 echo "slowest: $(cat "$logs"/*.result 2>/dev/null | awk '{ sub(/s$/, "", $2); print $2, $3 }' | sort -k1,1nr | head -5 | awk '{ printf "%s%s %ss", (NR > 1 ? ", " : ""), $2, $1 }')"
 cat "$logs"/*.flaky 2>/dev/null
 if (( failed )); then

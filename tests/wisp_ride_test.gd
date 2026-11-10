@@ -23,7 +23,7 @@ func run() -> void:
 		finish()
 		return
 	await boot()
-	player.set_physics_process(false)
+	freeze()
 	player.global_position = Vector2(-9000, -9000)
 	await go(Vector2i(28, NextWorldDef.band_row(&"crags", 0)))
 	player.global_position = Vector2(-9000, -9000)

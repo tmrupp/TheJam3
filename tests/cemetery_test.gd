@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The cemetery archetype (docs/DEEPER_PLAN.md, group 3): bands of depths, its own terrain sample
 ## (collapsed with no symmetry), realm and decor, its gates (chasms bridged once their bell is
 ## freed from its chain, by a key or a switch, and rung, and bearing the wizard only while their
@@ -144,7 +145,7 @@ func bridges() -> void:
 	await until(func() -> bool: return player.global_position.y > over.y + 160.0, 3000)
 	# Below where the planks' tops would be (130 px under the start, less half a cell).
 	check(player.global_position.y > over.y + 160.0, "the wizard falls into it")
-	player.set_physics_process(false)
+	freeze()
 	# A run up, a jump at the edge and a dash: still short of the far side.
 	# From the furthest open floor within three cells of the near edge (two to four are kept), and
 	# the jump right at the edge.
@@ -193,7 +194,7 @@ func bridges() -> void:
 	Input.action_release(&"Right")
 	Input.action_release(&"Jump")
 	Input.action_release(&"Dash")
-	player.set_physics_process(false)
+	freeze()
 	check(jumped and not reached, "a run, a jump and a dash do not get the wizard over it unhurt")
 	player.health.health = player.health.max_health
 	player.invulnerable.enable()
@@ -251,7 +252,7 @@ func bridges() -> void:
 	player.set_physics_process(true)
 	await until(func() -> bool: return player.global_position.y > over.y + 160.0, 3000)
 	check(player.global_position.y > over.y + 160.0, "a wizard carrying a lit flame drops through it")
-	player.set_physics_process(false)
+	freeze()
 	check(info.snuff(player.global_position), "the flame snuffed")
 	await until(func() -> bool: return planks.all(bears))
 	check(planks.all(bears), "in the dark the bridge bears the wizard")
@@ -263,12 +264,12 @@ func bridges() -> void:
 	info.relight()
 	await until(func() -> bool: return player.global_position.y > over.y + 160.0, 3000)
 	check(player.global_position.y > over.y + 160.0, "lit again (a dash), they drop through")
-	player.set_physics_process(false)
+	freeze()
 	info.snuff(player.global_position)
 	# Gone and back: the bridge is still up.
 	info.jump_to(info.coord, info.arrival)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	planks = placed("bridge.tscn", true).filter(func(n: Node) -> bool: return int(n.get("chasm")) == id)
 	check(planks.all(func(n: Node) -> bool: return bool(n.call("up"))), "it stays up when the level is loaded again")
 

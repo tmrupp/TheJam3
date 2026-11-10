@@ -124,7 +124,7 @@ func run() -> void:
 		await process_frame
 	info.travel(MapInfo.Exit.RIGHT)
 	await settle(6)
-	player.set_physics_process(false)
+	freeze()
 	check(info.world.secrets.size() > 0, "the next level has a secret room too")
 	Abilities.set_tier(player, &"warp", 3)
 	warp = player.get_node("Warp") as Warp

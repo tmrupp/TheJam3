@@ -80,7 +80,7 @@ func _clear_floor() -> Vector2i:
 
 ## Stand the wizard still on a clear floor, facing right, the rig at rest.
 func _stand() -> void:
-	player.set_physics_process(false)
+	freeze()
 	player.end_invulnerable()
 	info.map_elements.process_mode = Node.PROCESS_MODE_DISABLED
 	wizard.set_physics_process(false)

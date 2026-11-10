@@ -1,7 +1,8 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The crags (CragsArchetype, docs/REGIONS_PLAN.md §7): their own sample (collapsed unturned),
-## taller than wide, open (caverns), a structure pass (shafts, keeps and towers, kept as masonry),
-## the same every build; their realm and decor (battlements and dressed stone on the masonry only);
+## taller than wide, open (caverns), a structure pass (shafts, keeps and towers, kept as masonry);
+## their realm and decor (battlements and dressed stone on the masonry only);
 ## doors in their passages; rock-bugs; and the gondola's line: from near the bottom to near the top,
 ## straight up and up 45° diagonals only, carved and kept clear, counted as somewhere to stand, at
 ## least four stations, each a doorway onto a landing behind a station gate; the tiers (one for
@@ -41,8 +42,6 @@ func generation() -> void:
 		check(def.archetype == &"crags" and def.symmetry == 1 and def.region == CragsArchetype.SAMPLE and def.realm() == &"crags", "row %d is a crag level, collapsed unturned from its own sample, in its own realm" % at.y)
 		check(def.size.y > def.size.x, "row %d is taller than wide (%s)" % [at.y, def.size])
 		var w: LevelGen = build(at)
-		var again: LevelGen = build(at)
-		check(w.objects == again.objects and w.masonry == again.masonry, "row %d lays out the same every time" % at.y)
 		var rock: int = 0
 		for x: int in range(w.size.x):
 			for y: int in range(w.size.y):
@@ -145,8 +144,7 @@ func ride() -> void:
 	print("a gondola")
 	if RisoPrint.instance != null:
 		check(RisoPrint.instance.realm == &"crags", "printed in the crags' realm")
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	var all: Array[Node] = placed("gondola.tscn")
 	check(all.size() == 1, "the level has a gondola")
 	if all.is_empty():
@@ -362,7 +360,7 @@ func rock_bugs() -> void:
 	# The wizard a little way off, so its part of the level is awake.
 	player.global_position = bug.rb.global_position + Vector2(600.0, -40.0)
 	player.velocity = Vector2.ZERO
-	player.set_physics_process(false)
+	freeze()
 	var clinging: Callable = func() -> bool: return bug.mode == RockBug.Mode.ROCK and info.solid_at(bug.rb.global_position + Vector2(bug.normal) * (RockBug.BODY + 8.0))
 	check(await until(clinging), "it clings to rock")
 	var was: Vector2 = bug.rb.global_position

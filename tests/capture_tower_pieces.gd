@@ -27,8 +27,7 @@ func run() -> void:
 	await boot(at.x)
 	camera = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	await go(at, false)
 	camera.zoom *= 1.5
 	var cell: float = info.cell_position(Vector2i(1, 0)).x - info.cell_position(Vector2i.ZERO).x
@@ -37,7 +36,7 @@ func run() -> void:
 	player.velocity = Vector2.ZERO
 	player.global_position = door.global_position + Vector2(-cell * 1.5, -cell)
 	await frames(40)
-	player.set_physics_process(false)
+	freeze()
 	await look_at(door.global_position, "tower_piece_trapdoor.png")
 	var host: BugNest = placed("bug_nest.tscn")[0] as BugNest
 	player.global_position = host.global_position + Vector2(cell * 2.0, 0.0)

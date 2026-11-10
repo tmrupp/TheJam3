@@ -1,7 +1,8 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The bramble (Bramble, docs/REGIONS_PLAN.md §6), the boss of the garden's way up, in its gate
 ## gate level: its shaft cut into the rock (BrambleShaft), walled in, with the way on at its head beside
-## the knot, ledges a hop apart and a foot open to the caves, the same every build and only in its
+## the knot, ledges a hop apart and a foot open to the caves, and only in its
 ## gate levels; in play, the knot walling off the head, its crown asleep until the wizard climbs
 ## near, then grown out of the rock, the same every visit, quivering when struck, the vines' cadence (warning, out and
 ## hurting, back), a parried lash recoiling, the bulbs spitting seeds a parry turns back into them
@@ -73,8 +74,6 @@ func run() -> void:
 	check(bulbs.size() >= BrambleShaft.BULBS.x and bulbs.size() <= BrambleShaft.BULBS.y and sides.size() == 2 and set_ok, "%d bulbs set in both its walls, and %d vines rooted in them" % [bulbs.size(), vines.size()])
 	var back: Vector2i = w.exits[MapInfo.Exit.BACK]
 	check(w.reach_from(back).has(on), "the caves lead from the way back to its foot, and up it to the way on")
-	var again: LevelGen = build(gate)
-	check(again.objects == w.objects and again.shaft == w.shaft, "the same every build")
 	var others: bool = true
 	for at: Vector2i in [Vector2i(28, -g + 1), Vector2i(28, g), Vector2i(28, -g - 1)]:
 		others = others and build(at).shaft.is_empty()
@@ -87,7 +86,7 @@ func run() -> void:
 	check(columns == 12, "every world column's gate level has one (%d of 12)" % columns)
 
 	await boot(28)
-	player.set_physics_process(false)
+	freeze()
 	await go(gate)
 	print("in play")
 	var bramble: Bramble = placed("bramble.tscn")[0] as Bramble
@@ -144,8 +143,7 @@ func run() -> void:
 			hurt_in = hurt_in and not vine.hurts() and vine.length == 0.0
 	check(seen.size() == 5, "it rests, warns, grows, holds and pulls back on a cadence")
 	check(hurt_in and hurt_out and absf(longest - BrambleVine.REACH * bramble.cell) < 1.0, "hurting only while it is out, %.0f px across the shaft" % longest)
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	await until(func() -> bool: return vine.phase()[0] == &"hold", 10000)
 	player.end_invulnerable()
 	player.global_position = vine.global_position + vine.way * bramble.cell * 1.5
@@ -251,8 +249,7 @@ func run() -> void:
 	roots.assign(tangle.canes.filter(func(c: BrambleTangle.Cane) -> bool: return c.kind == &"root"))
 
 	print("the heart")
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	for b: BrambleBulb in bramble.bulbs:
 		if b.alive:
 			bramble.bloom_on(b)

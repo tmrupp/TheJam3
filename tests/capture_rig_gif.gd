@@ -49,7 +49,7 @@ func run() -> void:
 	subject = player
 	if wisp:
 		subject = _a_prop(art)
-		player.set_physics_process(false)
+		freeze()
 		if art == "WispArt":
 			player.phasing = true
 			player.global_position = subject.global_position + Vector2(0, -900)

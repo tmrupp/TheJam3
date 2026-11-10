@@ -1,8 +1,8 @@
 extends TestKit
 ## Relics in the institute won from masters (Relics; docs/DEEPER_PLAN.md §4e): an institute level
 ## holding a relic (Relics.at) has it carried by the master out in the level furthest from the way in
-## (Institute.populate, LevelGen.relic_carrier), not laid in a secret room, a bone vault or the open,
-## and the same every build. In play the carrier wears it; beaten by the wizard it leaves the relic
+## (Institute.populate, LevelGen.relic_carrier), not laid in a secret room, a bone vault or the open.
+## In play the carrier wears it; beaten by the wizard it leaves the relic
 ## where it fell, free, kept in the level's record until taken (MapInfo.relic_left); taken, it is the
 ## level's relic found, and the master carries it no more. An instructor teaching a big move the
 ## wizard has not found (levitate, astral) leaves that move's relic instead of a paper, which is not
@@ -47,7 +47,6 @@ func _laid_out(levels: Array[Vector2i]) -> void:
 	var carried: int = 0
 	var furthest: bool = true
 	var in_no_room: bool = true
-	var same: bool = true
 	for at: Vector2i in levels:
 		var w: LevelGen = build(at)
 		if w == null:
@@ -65,12 +64,9 @@ func _laid_out(levels: Array[Vector2i]) -> void:
 		for secret: Dictionary in w.secrets:
 			if (secret["rewards"] as Array).any(func(r: Array) -> bool: return r[1] == LevelGen.Type.RELIC):
 				in_no_room = false
-		var again: LevelGen = build(at)
-		same = same and again != null and again.objects == w.objects and again.relic_carrier == c
 	check_eq(carried, levels.size(), "in each, a master out in the level carries the level's relic")
 	check(furthest, "the one furthest from the way in")
 	check(in_no_room, "and no relic lies in a secret room, a bone vault or the open")
-	check(same, "the same every build")
 
 
 func _play(at: Vector2i) -> void:

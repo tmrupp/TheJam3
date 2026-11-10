@@ -21,20 +21,20 @@ func run() -> void:
 	check(a.playing and not b.playing, "only the first track starts")
 	for loop_index: int in range(2):
 		a.seek(85.2)
-		await create_timer(0.3).timeout
+		await wall(0.3)
 		var position_before: float = b.get_playback_position()
-		await create_timer(0.3).timeout
+		await wall(0.3)
 		var position_after: float = b.get_playback_position()
 		check(b.playing and position_after > position_before + 0.15,
 			"incoming track advances across frames (loop %d: %.3f -> %.3f)" % [loop_index + 1, position_before, position_after])
 		a.seek(90.0)
-		await create_timer(0.08).timeout
+		await wall(0.08)
 		var base_gain: float = db_to_linear(-5.842)
 		check(absf(a.volume_linear + b.volume_linear - base_gain) < 0.01,
 			"crossfade keeps the combined gain steady")
 		position_before = b.get_playback_position()
 		a.seek(95.05)
-		await create_timer(0.1).timeout
+		await wall(0.1)
 		check(not a.playing and b.playing and b.get_playback_position() >= position_before,
 			"handoff stops only the outgoing track")
 		check(is_equal_approx(b.volume_db, -5.842), "incoming track reaches its normal volume")

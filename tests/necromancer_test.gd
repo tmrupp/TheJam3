@@ -19,7 +19,7 @@ func run() -> void:
 	check(held.size() == 1 and not w.crypts.is_empty() and (w.crypts[0]["floors"] as Array).has(held[0]), "it waits in the level's first crypt")
 
 	await boot(28)
-	player.set_physics_process(false)
+	freeze()
 	# In play, in the column it is met in this run (Bosses.column).
 	gate = lair(&"necromancer")
 	await go(gate)

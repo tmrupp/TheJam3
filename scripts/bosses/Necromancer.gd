@@ -71,9 +71,12 @@ var raised: Array[Node2D] = []
 ## Seconds since a strike passed through it in the dark (the art shimmers), and since a wound.
 var glanced: float = 9.0
 var hurt: float = 9.0
-## Dying: seconds into it (-1 while not); slain once crumbled.
-var dying_t: float = -1.0
-var slain: bool = false
+## Its death (BossDeath): crumbling to dust for DIE_TIME, then slain.
+var death: BossDeath = BossDeath.new(self, DIE_TIME)
+## Whether it is slain (crumbled).
+var slain: bool:
+	get:
+		return death.slain
 var facing: float = -1.0
 var t: float = 0.0
 
@@ -139,7 +142,7 @@ func lit() -> bool:
 
 
 func dying() -> bool:
-	return dying_t >= 0.0 or slain
+	return death.dying()
 
 
 ## A strike passed through it in the dark.
@@ -159,14 +162,10 @@ func wounded(dir: Vector2) -> void:
 
 ## Its last candle is out: it crumbles, and its skeletons with it.
 func die() -> void:
-	if dying():
+	if not death.begin(14.0, 0.4, global_position + Vector2(0, -LIGHT_RISE), [RisoPrint.ACCENT, RisoPrint.PINK]):
 		return
-	dying_t = 0.0
-	remove_from_group(&"hex_target")
 	(touch.get_node("CollisionShape2D") as CollisionShape2D).set_deferred("disabled", true)
 	_unraise()
-	Wound.shake(14.0, 0.4)
-	RisoFx.burst(&"gain", global_position + Vector2(0, -LIGHT_RISE), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.PINK])
 
 
 ## Slain at once (the F7 panel's Slay boss, MapInfo.slay_boss).
@@ -186,11 +185,10 @@ func _unraise() -> void:
 
 
 func _slain() -> void:
-	slain = true
+	death.slain = true
 	_unraise()
-	if map_info != null:
-		map_info.boss_slain(boss, map_info.cell_position(map_info.cell_at(global_position + Vector2(0, -8))))
-	queue_free()
+	var feet: Vector2 = global_position + Vector2(0, -8)
+	death.fall(map_info, boss, map_info.cell_position(map_info.cell_at(feet)) if map_info != null else feet)
 
 
 func _physics_process(delta: float) -> void:
@@ -199,9 +197,8 @@ func _physics_process(delta: float) -> void:
 	hurt += delta
 	if slain:
 		return
-	if dying_t >= 0.0:
-		dying_t += delta
-		if dying_t >= DIE_TIME:
+	if death.t >= 0.0:
+		if death.step(delta):
 			_slain()
 		return
 	var player: Player = Stage.player()
@@ -301,8 +298,8 @@ func _process(_delta: float) -> void:
 	var shown: float = 1.0
 	if blinking >= 0.0:
 		shown = absf(blinking / (BLINK_TIME * 0.5) - 1.0)
-	if dying_t >= 0.0:
-		shown = maxf(0.0, 1.0 - dying_t / DIE_TIME)
+	if death.t >= 0.0:
+		shown = maxf(0.0, 1.0 - death.t / DIE_TIME)
 	var in_light: bool = lit()
 	var solid: float = (1.0 if in_light else 0.45 + 0.1 * sin(t * 6.0)) * shown
 	if glanced < 0.4:
@@ -350,10 +347,10 @@ func _process(_delta: float) -> void:
 		glow_ink.ink(RisoPrint.PINK, 0.8 * shown, flames)
 		if hurt < 0.3:
 			ink.ink(RisoPrint.PINK, 0.4 * (1.0 - hurt / 0.3), [robe], false)
-	if dying_t >= 0.0:
+	if death.t >= 0.0:
 		var dust: Array[PackedVector2Array] = []
 		for i: int in range(10):
-			var k: float = dying_t / DIE_TIME
+			var k: float = death.t / DIE_TIME
 			var p: Vector2 = Vector2((float(i) - 4.5) * 5.0, -TALL * (1.0 - k) * (0.2 + 0.08 * float(i % 4)))
 			dust.append(RisoShapes.circle((p + Vector2(0, -6.0)) * ART, 3.0 * ART * (1.0 - k * 0.5), 8))
 		ink.ink(RisoPrint.NIGHT, 0.6, dust, false)

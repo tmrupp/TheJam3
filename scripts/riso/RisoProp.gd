@@ -241,6 +241,8 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	t += delta
 	_since_print += delta
+	if not RisoPrint.prints_art:
+		return
 	if _struck_t < STRUCK_TIME:
 		_struck_t += delta
 		_jolt()

@@ -21,7 +21,7 @@ func run() -> void:
 	await frames(120)
 	save_still("tutorial/tutorial_start.png")
 	player.get_node("CameraControl").set_process(false)
-	player.set_physics_process(false)
+	freeze()
 	await overview_still("tutorial/tutorial_overview.png", 3)
 	for pad: bool in [false, true]:
 		RisoPad.pad = pad
