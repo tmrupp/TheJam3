@@ -270,6 +270,12 @@ func place_cell(v: Vector2i, cell: LevelGen.Cell) -> void:
 	if cell.type == LevelGen.Type.BOSS and (info.run.bosses.has(StringName(cell.extra_info))
 			or not Worlds.is_side(info.coord) and info.coord.x != Bosses.column(StringName(cell.extra_info), info.run.run_seed)):
 		return
+	# A spare laid for a garden boss's signs is there only as far as this run's nearness to the boss
+	# calls for, and not once it is slain (Bosses.near, spare_kept).
+	if cell.mods.has("spare"):
+		var boss: StringName = StringName(cell.mods.get("spare_of", &""))
+		if info.run.bosses.has(boss) or not Bosses.spare_kept(int(cell.mods["spare"]), int(cell.mods.get("spares", 1)), Bosses.near(boss, info.coord, info.run.run_seed)):
+			return
 	var jitter: Vector2 = Vector2.ZERO
 	if Placeables.has_flag(cell.type, &"floats"):
 		# Floating pickups sit anywhere inside their cell rather than on the grid.
@@ -307,6 +313,8 @@ func place_cell(v: Vector2i, cell: LevelGen.Cell) -> void:
 		node.set_meta(&"bounces", int(cell.mods["bounces"]))
 	if cell.mods.has("hovers"):
 		node.set_meta(&"hovers", true)
+	if cell.mods.has("spare"):
+		node.set_meta(&"spare", int(cell.mods["spare"]))
 	if cell.mods.has("parried_only") and node.get_node_or_null("Wound") != null:
 		(node.get_node("Wound") as Wound).parried_only = true
 	map_elements.add_child(node)

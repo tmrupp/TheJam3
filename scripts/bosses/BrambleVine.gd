@@ -8,7 +8,8 @@ extends Node2D
 ## rests before it grows again, opening the wall beside it for a while. When the bulb it feeds
 ## from bursts, it withers (wither), until the bramble's heart is bared: then it grows back for its
 ## last stand (rouse), resting first. The vines left rest the shorter for the bramble's fury
-## (Bramble.fury), as the burst bulb's sap reaches them.
+## (Bramble.fury), as the burst bulb's sap reaches them. A vine grown out of a garden wall on its own
+## (GardenVine, as a seed pod is a bulb on its own) has no bramble.
 
 const STUNNER: PackedScene = preload("res://prefabs/stunner.tscn")
 const HIT_BOX: PackedScene = preload("res://prefabs/hit_box.tscn")
@@ -49,7 +50,7 @@ var stunner: Stunner
 var _box: RectangleShape2D = RectangleShape2D.new()
 
 
-func _init(of: Bramble, wall: Vector2i, out: Vector2) -> void:
+func _init(of: Bramble = null, wall: Vector2i = Vector2i.ZERO, out: Vector2 = Vector2.RIGHT) -> void:
 	bramble = of
 	cell = wall
 	way = out
@@ -68,6 +69,7 @@ func _init(of: Bramble, wall: Vector2i, out: Vector2) -> void:
 ## Root it at the face of its wall cell (cells `cell_px` across), part way through its cadence.
 func place(face: Vector2, cell_px: float, level_seed: int) -> void:
 	global_position = face
+	hit_box.rotation = way.angle()
 	full = REACH * cell_px
 	t = RisoDecor.h(level_seed, cell, PHASE_DEAL) * PERIOD
 

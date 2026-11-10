@@ -1042,6 +1042,7 @@ func _level_ready (built: LevelGen) -> void:
 	_props.clear()
 	prop_up(rec.broken.keys())
 	_spawn_ghost()
+	_spawn_worm_sign()
 	_arrived()
 
 ## The place is in the scene: lay its rock, put the wizard at the way in, and carry on.
@@ -2074,6 +2075,14 @@ func win_run () -> void:
 	var menu: Menu = Stage.menu() as Menu
 	if menu != null and is_inside_tree():
 		menu.return_to_menu()
+
+## The worm's rumble in the levels near it (WormSign), with the level's other things.
+func _spawn_worm_sign () -> void:
+	if map_elements == null or not is_instance_valid(map_elements) or here == null or here.archetype != &"garden":
+		return
+	var sign: WormSign = WormSign.new()
+	sign.name = "WormSign"
+	map_elements.add_child(sign)
 
 func _spawn_ghost () -> void:
 	if not run.has_ghost or run.ghost_coord != coord or map_elements == null or not is_instance_valid(map_elements):

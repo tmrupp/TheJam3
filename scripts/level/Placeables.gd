@@ -58,6 +58,7 @@ const TABLE: Dictionary = {
 	LevelGen.Type.BUG: {"scene": "res://prefabs/rock_bug.tscn", "art": &"rockbug", "flags": [&"enemy"]},
 	LevelGen.Type.POD: {"scene": "res://prefabs/seed_pod.tscn", "art": &"pod", "flags": [&"enemy"]},
 	LevelGen.Type.WORMLET: {"scene": "res://prefabs/wormlet.tscn", "art": &"wormlet", "flags": [&"enemy"]},
+	LevelGen.Type.VINE: {"scene": "res://prefabs/garden_vine.tscn", "art": &"vine", "setup": 2},
 	LevelGen.Type.PLOT: {"scene": "res://prefabs/plot.tscn", "art": &"plot", "flags": [&"stander"], "size": Vector2i(1, 2), "setup": 2},
 	LevelGen.Type.STALACTITE: {"scene": "res://prefabs/stalactite.tscn", "art": &"stalactite", "setup": 2},
 	LevelGen.Type.TRAPDOOR: {"scene": "res://prefabs/trapdoor.tscn", "art": &"trapdoor"},

@@ -149,6 +149,19 @@ through the whole upper garden (a hazard that thickens). The first keeps them a 
 *Tests:* in `bramble_test` or the new signs test: a vine on its own lashes, hurts only while out,
 is stunned by a parry, and is the same on a revisit.
 
+*Done* (2.1 to 2.4): `Bosses.near` and `Bosses.spare_kept`; the worm's rumble (`WormSign`); the
+pods' rise toward the bramble's gate (`PODS_TOWARD`, 1.0, as the wormlets'); spare wormlets near
+the worm and spare pods and vines near the bramble, laid in the garden's last pass in the rows
+within `SIGN_REACH` of a gate (not the gate level) and kept by the loader as near as the run is;
+and the thorn vine on its own (`GardenVine`, `LevelGen.Type.VINE`, `VineArt`), laid only as a
+spare, so it is a sign of the bramble and nothing else (the *Open* above, decided that way for
+now). One test, `boss_signs_test`, covers all of it (`## suite: full`), and `capture_boss_signs`
+photographs a vine. *Layouts:* the pods' rise changes the garden levels above the start, and the
+spares those within reach of a gate, from their pass on. The fingerprints were not written again
+here: they were made on the owner's Windows build, and this session's Linux build of the
+extension lays out different terrain, so `layout_fingerprint_test -- update` is for the owner to
+run. No sound for the rumble yet. Not yet played.
+
 ## 3. A barrier for each relic
 
 *Seen:* a spot the wizard cannot reach yet looks the same as one they have simply not worked out,

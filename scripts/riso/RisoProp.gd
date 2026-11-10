@@ -60,6 +60,7 @@ const KINDS: Dictionary = {
 	&"pod": "res://scripts/riso/props/PodArt.gd",
 	&"plot": "res://scripts/riso/props/PlotArt.gd",
 	&"wormlet": "res://scripts/riso/props/WormletArt.gd",
+	&"vine": "res://scripts/riso/props/VineArt.gd",
 	&"stalactite": "res://scripts/riso/props/StalactiteArt.gd",
 	&"trapdoor": "res://scripts/riso/props/TrapdoorArt.gd",
 	&"nest": "res://scripts/riso/props/NestArt.gd",
