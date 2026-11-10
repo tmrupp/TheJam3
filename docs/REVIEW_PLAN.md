@@ -259,6 +259,23 @@ The reach is rough by its own account, and a built barrier says what it wants wi
 It is worth coming back to only if the levels' own unreachable spots go on misleading players
 once the barriers are in.
 
+*Done* (a first pass, all five; to be played): `Barriers.gd` lays the five shapes, its marks are
+`BarrierMark` and `BarrierMarkArt`, and the level's map shows them. What building it found: the
+garden's rock is thin, so cut from solid rock alone no shape fitted in any of 36 levels looked at,
+even at the smallest measures that still beat each move (the shaft 5 tall, the sill 4 up, the
+throat 4 long, the sealed cell's walls 4 thick). So a shape now fits where each of its cells is
+rock or air holding nothing, and its walls are built of rock where they meet that air; nothing
+laid before moves, and none is laid on a way out, a kept cell or the border. Even so about a
+quarter of garden levels take one (every ordinary level tries, `SHARE` 100), and the sealed cell,
+whose walls need a clear block about 10 by 9, has not fitted in any level looked at. Which move:
+as planned, the nearest relic's within 3 levels, else the seed's; where its shape does not fit,
+none. Owner to decide: thinner walls for the sealed cell (a top-tier blink would pass them),
+laying the pass before the dressing so more air is clear (it would move later placements), or
+trying another move where the chosen one does not fit. The relic chasms' marks are not done.
+`barriers_test` checks the four kinds it finds (and says which it did not), `capture_barriers`
+photographs them. *Layouts:* every level that takes one changes, in every band; the fingerprints
+want writing again on the owner's build.
+
 *Tests:* a new `barriers_test`, looking over a few worlds and rows with `build` for a level
 holding each kind rather than trusting one level: the shaft has one wall thorned for its whole
 height and the other bare; the throat has thorns over and under every cell of it; the sealed cell

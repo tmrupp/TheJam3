@@ -510,6 +510,11 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 		LevelGen.Type.CLUSTER:
 			if not gone:
 				_mark_cluster(at)
+		LevelGen.Type.BARRIER_MARK:
+			# A barrier's mouth: its move's mark, while the wizard does not know the move (Barriers).
+			var move: StringName = StringName((cell.extra_info as Dictionary).get("move", &"")) if cell.extra_info is Dictionary else &""
+			if move != &"" and (info.player == null or Abilities.tier(info.player, move) <= 0):
+				_mark_barrier(at, move)
 		LevelGen.Type.BRIDGE:
 			_mark_bridge(at, (rec.bridges as Dictionary).has(int(cell.extra_info)))
 		LevelGen.Type.GONDOLA:
@@ -573,6 +578,18 @@ func _mark_plunge(at: Vector2, owed: int, k: float = 1.0) -> void:
 	_mark_exit(at, Vector2.DOWN, true, -1, owed, k)
 	_noting = was
 	marks.ink(RisoPrint.PINK, 1.0, [RisoMarks.chevron(at + Vector2(0, 1.6) * k, Vector2.DOWN, EXIT_MARK * 0.85 * k)], false)
+
+
+## A barrier's mouth (Barriers): the move it is made for, its mark in night ink on a blue roundel,
+## quieter than a relic's accent ring (it is a note, not a prize).
+func _mark_barrier(at: Vector2, move: StringName) -> void:
+	_note("barrier")
+	marks.ink(RisoPrint.BLUE, 0.7, [RisoShapes.circle(at, 5.4, 16)], false)
+	var fit: Transform2D = Transform2D(0.0, Vector2(0.12, 0.12), 0.0, at)
+	var mark: Array[PackedVector2Array] = []
+	for poly: PackedVector2Array in RisoGlyph.of(move, Vector2.ZERO, t):
+		mark.append(fit * poly)
+	marks.ink(RisoPrint.NIGHT, 1.0, mark, false)
 
 
 ## A relic: its move's mark in night ink over an accent ring.
