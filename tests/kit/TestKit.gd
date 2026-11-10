@@ -130,8 +130,10 @@ func check_eq(got: Variant, want: Variant, what: String) -> void:
 	check(got == want, what if got == want else "%s (got %s, wanted %s)" % [what, got, want])
 
 
-## Report and exit: 1 if any check failed. Frees anything the kit made.
+## Report and exit: 1 if any check failed. Frees anything the kit made. The levels build() laid
+## out are tallied on a line of their own (the runner sums them over a run).
 func finish(label: String = "") -> void:
+	print("KIT LAYOUTS %d %d %d" % [_built_count, _built_usec / 1000, _built_again])
 	if _wfc != null:
 		_wfc.free()
 		_wfc = null
@@ -302,10 +304,26 @@ static func _make_wfc() -> Node:
 ## The place at `at` laid out (terrain collapsed, then dressed), without the game scene; null if
 ## its terrain never settles.
 func build(at: Vector2i) -> LevelGen:
+	var t0: int = Time.get_ticks_usec()
 	var cells: Array = collapse(at)
-	if cells.is_empty():
-		return null
-	return LevelGen.new(cells, Rules.def_for(at))
+	var w: LevelGen = null
+	if not cells.is_empty():
+		w = LevelGen.new(cells, Rules.def_for(at))
+	_built_count += 1
+	_built_usec += Time.get_ticks_usec() - t0
+	var key: String = "%s %d %s" % [at, Difficulty.preset, MapInfo.debug]
+	if _built_places.has(key):
+		_built_again += 1
+	_built_places[key] = true
+	return w
+
+
+## The levels build() has laid out in this test: how many, in how long (microseconds), and how many
+## of them were a place (with the preset and debug flag) laid out before.
+var _built_count: int = 0
+var _built_usec: int = 0
+var _built_again: int = 0
+var _built_places: Dictionary = {}
 
 
 ## Worlds a test may look over for a level that has what it needs (the usual world first).

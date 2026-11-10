@@ -161,6 +161,9 @@ failed=$(cat "$logs"/*.result 2>/dev/null | grep -c '^FAIL')
 total=$(ls "$logs"/*.result 2>/dev/null | wc -l)
 echo
 echo "$(( total - failed )) of $total passed in $(( SECONDS - began ))s"
+# The levels the tests laid out without the game (TestKit.build), from each log's KIT LAYOUTS line.
+grep -h '^KIT LAYOUTS' "$logs"/*.log 2>/dev/null | awk -v total="$(cat "$logs"/*.result 2>/dev/null | awk '{ sub(/s$/, "", $2); t += $2 } END { print t + 0 }')" \
+	'{ n += $3; ms += $4; again += $5 } END { if (n) printf "laid out without the game: %d levels (%d again) in %.0fs, %.0f%% of %ds of tests\n", n, again, ms / 1000, total ? 100 * ms / 1000 / total : 0, total }'
 echo "slowest: $(cat "$logs"/*.result 2>/dev/null | awk '{ sub(/s$/, "", $2); print $2, $3 }' | sort -k1,1nr | head -5 | awk '{ printf "%s%s %ss", (NR > 1 ? ", " : ""), $2, $1 }')"
 cat "$logs"/*.flaky 2>/dev/null
 if (( failed )); then
