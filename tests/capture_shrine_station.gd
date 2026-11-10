@@ -1,9 +1,9 @@
 extends TestKit
-## Stills of the shrine's stations: free mending at the third (no price); the boss's post at the far
-## end with its price (stars alone), and its chevron pointing the way once told; the dial between
-## the niches for drawing the boons again, with its stars and the key it takes, and with no key
-## carried (faint); then the worlds map with the way marked on the gate row; then, in a level with
-## no way on, the doorway the third station sells and the door bought.
+## Stills of the shrine's third station (Shrine.station): free mending (no price), which way the boss
+## lies with its price (stars alone), and the spent bowl's chevron pointing the way with the
+## refresh's dial in the first niche (Shrine.refresh_slot), its price and the key it takes popping up
+## as the wizard stands there, and faint with no key carried; then the worlds map with the way marked
+## on the gate row; then, in a level with no way on, the doorway it sells and the door bought.
 ## Written to ../art-captures/riso-frames/shrine_station_*.png.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_shrine_station.gd
 
@@ -25,28 +25,30 @@ func run() -> void:
 	await settle(40)
 	save_still("shrine_station_mend.png")
 
-	# The boss's post: its price, then the way told.
+	# Asked as if from a column whose shrine sells the boss's way.
 	var home: Vector2i = info.coord
 	var bx: int = home.x
+	for x: int in range(home.x + 1, home.x + 80):
+		if Shrine.sells_boss_at(Vector2i(x, home.y)):
+			bx = x
+			break
+	info.coord = Vector2i(bx, home.y)
 	player.health.health = player.health.max_health
 	player.collect(500)
 	Abilities.set_tier(player, &"keyring", 1)
 	player.keyring.set_all([0, 2])
-	player.global_position = (shrine.get_node("Way") as Node2D).global_position
 	await settle(40)
 	save_still("shrine_station_boss.png")
-	shrine.buy_way()
+	shrine.buy_mend()
+	player.global_position = (shrine.get_node("Boon") as Node2D).global_position
 	await settle(40)
 	save_still("shrine_station_told.png")
-	print("told way ", shrine.told_way(), " boss column ", Bosses.column(Bosses.ahead(home.y), info.run.run_seed))
-	# The redraw dial between the niches, with keys carried and with none.
-	player.global_position = (shrine.get_node("Redraw") as Node2D).global_position
-	await settle(40)
-	save_still("shrine_station_redraw.png")
 	player.keyring.clear()
 	await settle(10)
-	save_still("shrine_station_redraw_nokey.png")
+	save_still("shrine_station_refresh_nokey.png")
 	player.keyring.set_all([0, 2])
+	print("told way ", shrine.told_way(), " boss column ", Bosses.column(shrine.boss() if shrine.boss() != &"" else Bosses.ahead(home.y), info.run.run_seed))
+	info.coord = home
 
 	var map: Node = main.get_node("RisoMap")
 	map.call("toggle")

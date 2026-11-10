@@ -2,8 +2,9 @@ extends TestKit
 ## Phase 4 of docs/DEEPER_PLAN.md: one shrine per level near the deeper exit, offering the
 ## next tier of an ability (cheaper deeper) or, at its third station, mending (free: healing to full
 ## and filling the utility spell), or at full health something else for stars and a key; taking any
-## one spends it. Apart from those (docs/REVIEW_PLAN.md §7), which way the boss ahead lies, for stars
-## alone at any health, once a column; and its boons drawn again for stars, doubling, and a key. Tiers change the abilities and reset when the run ends.
+## one spends it; which way the boss ahead lies is among the third slot's, for stars alone. Once
+## spent, the slot bought from offers the refresh (docs/REVIEW_PLAN.md §7): for stars, doubling, and
+## a key, the boons drawn again and the shrine open once more; after the boss's way, in the first slot. Tiers change the abilities and reset when the run ends.
 ## godot --headless --path . --script res://tests/shrine_test.gd
 
 
@@ -160,58 +161,80 @@ func run() -> void:
 	check(Abilities.price(0, 2) > Abilities.price(5, 2) and Abilities.price(0, 3) > Abilities.price(0, 2), "learning: cheaper deeper, dearer per tier")
 	check(Abilities.heal_price(5) > Abilities.heal_price(0), "mending: dearer deeper (%d at 0, %d at 5)" % [Abilities.heal_price(0), Abilities.heal_price(5)])
 
-	print("which way the boss lies: for stars alone, at any health, not spending the shrine")
+	print("at full health, the third slot: which way the boss lies, for stars alone")
 	var home: Vector2i = info.coord
+	var bx: int = -1
+	for x: int in range(home.x + 1, home.x + 80):
+		if Shrine.sells_boss_at(Vector2i(x, home.y)):
+			bx = x
+			break
+	check(bx >= 0, "some shrines sell which way the boss lies")
 	var told: Shrine = shrines()[0] as Shrine
-	var boss: StringName = Bosses.ahead(home.y)
-	player.keyring.clear()
-	player.health.health = 1
-	check(boss != &"" and told.boss() == boss and told.sells_way(), "a shrine sells which way the boss ahead (%s) lies, the wizard hurt and carrying no key" % boss)
-	var cost: int = told.boss_price()
-	check_eq(cost, roundi(Shrine.BOSS_PRICE * float(Rules.deeper_price(told.depth()))), "for the way on's price in stars")
-	player.collect(cost - 1 - player.coins.coins)
-	told.buy_way()
-	check(told.told_way() == null and player.coins.coins == cost - 1, "a star short, nothing is told")
-	player.collect(1)
-	var spent_before: bool = told.used()
-	told.buy_way()
-	var way: int = signi(Bosses.column(boss, info.run.run_seed) - home.x)
-	var hints: Array = info.run.boss_hints.get(boss, [])
-	check(player.coins.coins == 0 and hints.size() == 1 and int(hints[0][0]) == home.x and int(hints[0][1]) == way and told.told_way() == way, "told: the stars paid and the way (%d) noted for the worlds map and the post" % way)
-	check(told.used() == spent_before, "it does not spend the shrine")
-	player.collect(cost)
-	told.buy_way()
-	check(not told.sells_way() and player.coins.coins == cost and info.run.boss_hints.get(boss, []).size() == 1, "nor is it sold twice in a column")
-	check(absi(Bosses.column(boss, info.run.run_seed) - info.run.run_seed) <= Bosses.spread(boss), "the boss's column is within its band's depth of the run's start")
-	info.run.boss_hints.erase(boss)
-	info.run.bosses[boss] = true
-	check(told.boss() == &"" and not told.sells_way(), "a slain boss's way is not sold")
-	info.run.bosses.erase(boss)
+	if bx >= 0:
+		# Asked as if from that column's shrine.
+		info.coord = Vector2i(bx, home.y)
+		player.health.health = player.health.max_health
+		player.keyring.clear()
+		Abilities.set_tier(player, &"keyring", 1)
+		var boss: StringName = Bosses.ahead(home.y)
+		check(told.station() == &"boss" and told.boss() == boss and boss != &"", "it offers which way the boss ahead (%s) lies" % boss)
+		check_eq(told.keys_asked(), 0, "for stars alone, no key")
+		var cost: int = told.boss_price()
+		player.collect(cost - 1 - player.coins.coins)
+		told.buy_mend()
+		check(not told.used(), "a star short, nothing is bought")
+		player.collect(1)
+		told.buy_mend()
+		var way: int = signi(Bosses.column(boss, info.run.run_seed) - bx)
+		check(told.used() and player.coins.coins == 0, "bought with no key carried: the stars paid, and the shrine spent")
+		var hints: Array = info.run.boss_hints.get(boss, [])
+		check(hints.size() == 1 and int(hints[0][0]) == bx and int(hints[0][1]) == way and told.told_way() == way, "the way (%d) is noted for the map and the spent bowl" % way)
+		check_eq(told.refresh_slot(), 0, "its refresh shows in the first slot, the bowl keeping the way told")
+		check(absi(Bosses.column(boss, info.run.run_seed) - info.run.run_seed) <= Bosses.spread(boss), "the boss's column is within its band's depth of the run's start")
+		info.record().shrine_used = false
+		check(told.station() != &"boss", "told once in a column, it is not sold there again")
+		info.run.boss_hints.erase(boss)
+		info.run.bosses[boss] = true
+		check(told.boss() == &"" and told.station() != &"boss", "a slain boss's way is not sold")
+		info.run.bosses.erase(boss)
+		info.coord = home
+		player.keyring.clear()
+		Abilities.set_tier(player, &"keyring", 0)
 	player.collect(-player.coins.coins)
-	player.health.health = player.health.max_health
 
-	print("drawing the boons again: stars, doubling, and a key")
+	print("the refresh, in the slot bought from")
 	var rec: LevelRecord = info.record()
 	rec.shrine_used = false
+	rec.shrine_slot = -1
 	rec.redraws = 0
+	told = shrines()[0] as Shrine
 	Abilities.set_tier(player, &"keyring", 1)
 	player.keyring.clear()
+	player.health.health = player.health.max_health
+	check_eq(told.refresh_slot(), -1, "no refresh while the shrine is unspent")
+	player.collect(500)
+	told.buy_boon(1)
+	check(told.used() and told.refresh_slot() == 1, "bought from the second niche: the refresh shows there")
 	var pair: Array[StringName] = told.offers()
 	var first_price: int = told.redraw_price()
-	check(first_price == roundi(Shrine.REDRAW_PRICE * float(Rules.deeper_price(told.depth()))), "the first draw costs %d stars (a half of the way on)" % first_price)
-	player.collect(first_price * 10)
-	told.buy_redraw()
-	check(told.offers() == pair and told.redraws() == 0 and player.coins.coins == first_price * 10, "with no key carried, nothing is spent and the pair stays")
+	check(first_price == roundi(Shrine.REDRAW_PRICE * float(Rules.deeper_price(told.depth()))), "the first refresh costs %d stars (a half of the way on)" % first_price)
+	player.collect(first_price * 10 - player.coins.coins)
+	told.buy_boon(0)
+	told.buy_boon(1)
+	check(told.used() and told.redraws() == 0 and player.coins.coins == first_price * 10, "with no key carried, nothing is spent and it stays spent")
 	player.keyring.set_all([0, 2])
 	var key: int = told.redraw_key()
 	check(key == 0 or key == 2, "it takes one of the keys carried (%d)" % key)
 	check_eq(told.redraw_key(), key, "the same one asked again")
-	told.buy_redraw()
+	told.buy_boon(1)
 	var drawn: Array[StringName] = told.offers()
-	check(drawn != pair and told.redraws() >= 1, "a draw changes the pair (%s to %s)" % [pair, drawn])
+	check(not told.used() and told.redraws() >= 1 and drawn != pair, "refreshed: the shrine open again with a new pair (%s to %s)" % [pair, drawn])
 	check(player.coins.coins == first_price * 9 and player.keyring.all().size() == 1 and not player.keyring.has(key), "for the stars it said and the key it named")
 	check(drawn.size() < 2 or not (told.swap(0) and told.swap(1)), "and keeps one strict upgrade")
-	check_eq(told.redraw_price(), first_price * 2, "the next draw costs twice as much")
+	check_eq(told.redraw_price(), first_price * 2, "the next refresh costs twice as much")
+	player.health.health = 1
+	told.buy_mend()
+	check(told.used() and told.refresh_slot() == 2, "mended at the third slot: the refresh shows there")
 	var drawn_count: int = told.redraws()
 	info.travel(MapInfo.Exit.RIGHT)
 	await settle()
@@ -219,12 +242,11 @@ func run() -> void:
 	await settle()
 	player.set_physics_process(false)
 	told = shrines()[0] as Shrine
-	check(told.redraws() == drawn_count and told.offers() == drawn, "the same pair after leaving and coming back")
-	told.buy_boon(0)
-	check(told.used() and not told.can_redraw(), "once spent, its boons cannot be drawn again")
+	check(told.redraws() == drawn_count and told.refresh_slot() == 2, "the same after leaving and coming back")
 	player.keyring.clear()
 	Abilities.set_tier(player, &"keyring", 0)
 	player.collect(-player.coins.coins)
+	player.health.health = player.health.max_health
 
 	print("tiers change the abilities")
 	player.tiers = Abilities.start_tiers()

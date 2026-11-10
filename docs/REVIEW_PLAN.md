@@ -501,17 +501,18 @@ stars, is the same after leaving and coming back, and keeps one strict upgrade; 
 carried nothing is spent and the pair stays; the key taken is the same on every visit.
 `unit_test` for the price rule and the key's deal.
 
-*Done* (7.1 and 7.2): the shrine has five places across its two cells now: the two niches
-(narrower), the redraw dial between them, the third station's bowl, and a post at the far end
-for the boss's way. Its two cells, and so every layout, are as they were. The boss's way is
-`Shrine.buy_way` (stars alone, any health, once a column, not spending the shrine; `BOSS_SALE`
-and its deal are gone). The redraw is `Shrine.buy_redraw` (`REDRAW_PRICE` a half, doubling;
-one key dealt with `REDRAW_KEY_DEAL` and the count; `LevelRecord.redraws`), and like the way it
-does not spend the shrine. The deal of which carried key is taken is shared (`carried_keys`,
-`pick_key`). Only the station the wizard would use pops up its price. `shrine_test` covers both,
-and `capture_shrine_station.gd` takes stills of the post, told and not, and of the dial with a
-key and without. The price rule and the key's deal are checked in `shrine_test` rather than
-`unit_test`, as both read the shrine's level. Not yet played.
+*Done* (7.1 and 7.2, as the owner then reshaped them): the shrine keeps its three slots. Which
+way the boss lies is one of the third slot's sales again, dealt as before (`BOSS_SALE`, 40 % of
+shrines, at full health), for stars alone, no key, and it spends the shrine as any purchase does;
+once told in a column it is not sold there again. The redraw became the refresh: once spent, the
+slot bought from shows it (`Shrine.refresh_slot`; the first slot after the boss's way, so the bowl
+goes on showing the way told), for `REDRAW_PRICE` (a half of the way on), doubling with each
+refresh there, and one carried key (`redraw_key`, dealt with `REDRAW_KEY_DEAL` and the count).
+Paid, the boons are drawn again (`LevelRecord.redraws`, `offer_seed`) and the shrine is open once
+more. Not in the tutorial. `shrine_test` covers both, and `capture_shrine_station.gd` takes the
+boss's sale, the told bowl with the refresh's dial in the first niche, and the dial with no key.
+A first pass with five places on the shrine (a post for the boss's way, a dial between the
+niches, neither spending it) was built and replaced. Not yet played.
 
 ## 8. Telegraphs: a warning before every attack
 
