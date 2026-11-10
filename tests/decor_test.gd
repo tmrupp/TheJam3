@@ -15,6 +15,8 @@ func layout(items: Array) -> Array:
 
 
 func run() -> void:
+	# It reads what the art does (TestKit.art).
+	art(true)
 	await boot()
 	player.set_physics_process(false)
 	var decor: RisoDecor = main.get_node("RisoDecor") as RisoDecor

@@ -37,6 +37,9 @@ func _initialize() -> void:
 	# the worker would only keep a core busy with levels never visited, and make a jump wait behind
 	# one. A test of the worker turns it back on.
 	LevelLoader.prefetching = false
+	# Headless, no art prints frame by frame (RisoPrint.prints_art): nothing printed is seen, and it
+	# costs most of a frame. A test that reads what the art does turns it on (art).
+	RisoPrint.prints_art = DisplayServer.get_name() != "headless"
 	out_of_sight()
 	if "layout=retuned" in OS.get_cmdline_user_args():
 		Bands.use(RETUNED)
@@ -231,6 +234,12 @@ func go(at: Vector2i, freeze: bool = true) -> void:
 	await settle()
 	if freeze:
 		player.set_physics_process(false)
+
+
+## Whether the art prints frame by frame in a headless test (RisoPrint.prints_art; it always does
+## in a window): on for a test that reads what the art does (a wisp's trail, a pod's flash).
+func art(on: bool) -> void:
+	RisoPrint.prints_art = on or DisplayServer.get_name() != "headless"
 
 
 ## Bring the wizard to rest where they are: no speed, and no dash, knock-back or wall jump under

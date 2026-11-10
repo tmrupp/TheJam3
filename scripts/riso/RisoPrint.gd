@@ -594,6 +594,12 @@ static func ui_canvas(host: Node2D) -> Node2D:
 	return canvas
 
 
+## Whether the art prints frame by frame (each prop's art, RisoProp, and the light, RisoLight):
+## always in the game. A headless test turns it off (TestKit), as nothing printed there is seen and
+## the printing costs most of a frame, unless it reads what the art does (TestKit.art).
+static var prints_art: bool = true
+
+
 ## Whether the print is running: always, wherever the game scene is (not in a bare test tree).
 static func is_on() -> bool:
 	return instance != null

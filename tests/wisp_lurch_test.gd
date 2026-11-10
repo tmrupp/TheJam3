@@ -14,6 +14,8 @@ const REACH: float = Mover.LURCH_SPEED * Mover.LURCH_TIME * 0.5
 
 
 func run() -> void:
+	# It reads what the art does (TestKit.art).
+	art(true)
 	await boot()
 	player.set_physics_process(false)
 	player.get_node("CameraControl").set_process(false)

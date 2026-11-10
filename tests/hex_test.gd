@@ -36,6 +36,8 @@ func target(scene: String, skip: Array[Node] = []) -> Array:
 
 
 func run() -> void:
+	# It reads what the art does (TestKit.art).
+	art(true)
 	await boot()
 	player.set_physics_process(false)
 

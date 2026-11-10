@@ -17,6 +17,8 @@ const WALK_FRAMES: int = 600
 
 
 func run() -> void:
+	# It reads what the art does (TestKit.art).
+	art(true)
 	drop_shape()
 	await boot()
 	player.set_physics_process(false)

@@ -7,6 +7,8 @@ extends TestKit
 
 
 func run() -> void:
+	# It reads what the art does (TestKit.art).
+	art(true)
 	if not needs([&"institute"]):
 		finish()
 		return

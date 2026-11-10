@@ -177,7 +177,9 @@ bash tests/run.sh -l garden full  # the suite on another band layout (the demo's
   alone, `build(at)` and `collapse(at)` lay a place out without the game scene, which is far faster
   than booting the game. In a test the loader lays out no neighbours ahead of time
   (`LevelLoader.prefetching`, off from the kit's start): set it on for a test of the worker
-  (`revisit_test`, `interface_test`). `until` polls on process frames: a step timed in physics frames (a dash, a
+  (`revisit_test`, `interface_test`). Headless, the art prints nothing frame by frame
+  (`RisoPrint.prints_art`, off from the kit's start; nothing printed is seen there): a test that
+  reads what the art does (a wisp's trail, the light's sight) calls `art(true)` first. `until` polls on process frames: a step timed in physics frames (a dash, a
   jump) wants an `await physics_frame` after it. `until`'s timeout is wall-clock time; for
   something the game times itself (a cooldown, a regrowth) use `within(cond, game_seconds)`, which
   counts physics frames, as a busy machine runs the game slower than the clock. `run.sh` runs the

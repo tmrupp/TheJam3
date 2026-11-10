@@ -6,6 +6,8 @@ extends TestKit
 
 
 func run() -> void:
+	# It reads what the art does (TestKit.art).
+	art(true)
 	await boot()
 	var hud: RisoHud = main.get_node("RisoHud") as RisoHud
 	await settle()
