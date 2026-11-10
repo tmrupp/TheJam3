@@ -21,6 +21,8 @@ func run() -> void:
 		return
 	RunState.save_path = "user://test_interface.save"
 	RunState.delete_save()
+	# It checks that the neighbours are laid out in the background, as in the game.
+	LevelLoader.prefetching = true
 
 	print("start menu")
 	await open_menu()
