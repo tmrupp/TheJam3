@@ -57,7 +57,7 @@ static func place_pods(w: LevelGen) -> void:
 	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
 	var vaulted: Dictionary = _vaulted(w)
 	var spots: Array[Vector2i] = w.empties_where(func(v: Vector2i) -> bool:
-		if w.get_cell(v).type != LevelGen.Type.EMPTY or vaulted.has(v) or LevelGen.dist(v, start) < POD_CLEAR:
+		if w.type_at(v) != LevelGen.Type.EMPTY or vaulted.has(v) or LevelGen.dist(v, start) < POD_CLEAR:
 			return false
 		for side: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT]:
 			if not w.is_ground(v + side):

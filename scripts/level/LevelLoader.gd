@@ -292,7 +292,7 @@ func place_cell(v: Vector2i, cell: LevelGen.Cell) -> void:
 		if not bool(node.get_meta(&"hidden")):
 			(node as CollisionObject2D).collision_layer = ENEMY_WALL
 	if cell.type == LevelGen.Type.CLUSTER:
-		# A vault's lesser cluster is worth a share of a full one (LevelGen.VAULT_LOOT).
+		# A vault's lesser cluster is worth a share of a full one (Vaults.LOOT).
 		var share: float = float(cell.extra_info) if cell.extra_info != null else 1.0
 		(node as Coin).value = maxi(2, roundi(Rules.cluster_value(info.here.depth) * share))
 	# A boss keeps its health on its parts (the worm's segments, the bramble's bulbs), not on itself.

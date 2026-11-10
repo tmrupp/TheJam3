@@ -125,7 +125,7 @@ func pick(info: MapInfo) -> Variant:
 		if v == here or not w.ground_below(v) or info.solid_at(info.cell_position(v)):
 			continue
 		# Not into thorns.
-		if [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.DOWN].any(func(d: Vector2i) -> bool: return w.is_valid(v + d) and w.get_cell(v + d).type == LevelGen.Type.SPIKES):
+		if [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.DOWN].any(func(d: Vector2i) -> bool: return w.is_valid(v + d) and w.type_at(v + d) == LevelGen.Type.SPIKES):
 			continue
 		floors.append(v)
 		if level >= 2 and not info.is_seen(v):

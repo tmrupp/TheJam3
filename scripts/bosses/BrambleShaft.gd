@@ -123,7 +123,7 @@ static func _build(w: LevelGen, inside: Rect2i) -> void:
 		walled[c] = true
 	for x: int in range(a, inside.end.x):
 		for y: int in range(top, bottom + 1):
-			if not w._open(Vector2i(x, y)) or w.get_cell(Vector2i(x, y)).type != LevelGen.Type.EMPTY:
+			if not w._open(Vector2i(x, y)) or w.type_at(Vector2i(x, y)) != LevelGen.Type.EMPTY:
 				w._to_open(Vector2i(x, y))
 	# The foot: out through each wall, as far as open air (or FOOT_REACH).
 	for side: int in [-1, 1]:
@@ -135,7 +135,7 @@ static func _build(w: LevelGen, inside: Rect2i) -> void:
 			if k > 0 and range(bottom - FOOT_ROWS + 1, bottom + 1).any(func(y: int) -> bool: return w._open(Vector2i(x, y))):
 				break
 			for y: int in range(bottom - FOOT_ROWS + 1, bottom + 1):
-				if not w._open(Vector2i(x, y)) or w.get_cell(Vector2i(x, y)).type != LevelGen.Type.EMPTY:
+				if not w._open(Vector2i(x, y)) or w.type_at(Vector2i(x, y)) != LevelGen.Type.EMPTY:
 					w._to_open(Vector2i(x, y))
 	# The landing against one wall, the knot beside it.
 	var left: bool = RisoDecor.h(w.seed_for_colors, Vector2i(a, top), SIDE_DEAL) < 0.5

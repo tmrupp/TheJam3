@@ -271,11 +271,11 @@ func _plan_step(going: int) -> bool:
 ## yet opened).
 func _blocked(v: Vector2i) -> bool:
 	var w: LevelGen = map_info.world
-	if not w.is_valid(v) or not w.get_cell(v).type in BLOCKS:
+	if not w.is_valid(v) or not w.type_at(v) in BLOCKS:
 		return false
-	if w.get_cell(v).type == LevelGen.Type.SWITCH_GATE:
+	if w.type_at(v) == LevelGen.Type.SWITCH_GATE:
 		return not map_info.gate_open(v)
-	return w.get_cell(v).type == LevelGen.Type.SPIKES or not map_info.record().opened.has(v)
+	return w.type_at(v) == LevelGen.Type.SPIKES or not map_info.record().opened.has(v)
 
 
 ## On a gondola's cable: along it to meet the car, and onto the car when the top of the car (its

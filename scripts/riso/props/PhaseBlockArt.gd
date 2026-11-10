@@ -76,7 +76,7 @@ func light() -> Array:
 ## Whether a block of the same kind stands at cell `v`.
 func _same(v: Vector2i) -> bool:
 	var w: LevelGen = block.map_info.world
-	return w.is_valid(v) and w.get_cell(v).type == LevelGen.Type.PHASE_BLOCK and bool(w.get_cell(v).extra_info) == block.sun
+	return w.is_valid(v) and w.type_at(v) == LevelGen.Type.PHASE_BLOCK and bool(w.get_cell(v).extra_info) == block.sun
 
 
 ## Its cell's share of its group's shape (see the class description), once its block knows its place.

@@ -194,7 +194,7 @@ func respawn_all() -> void:
 	if info == null or info.world == null:
 		return
 	for v: Vector2i in info.world.objects:
-		if Placeables.has_flag(info.world.get_cell(v).type, &"enemy"):
+		if Placeables.has_flag(info.world.type_at(v), &"enemy"):
 			_lay(v)
 
 

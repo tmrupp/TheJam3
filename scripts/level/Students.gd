@@ -36,15 +36,15 @@ static var _cache_of: int = 0
 static func passable(w: LevelGen, c: Vector2i) -> bool:
 	if not w.is_valid(c) or w.is_ground(c):
 		return false
-	return not w.get_cell(c).type in [LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.LIGHT_GATE, LevelGen.Type.CRACKED]
+	return not w.type_at(c) in [LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.LIGHT_GATE, LevelGen.Type.CRACKED]
 
 
 ## Whether a student can stand in cell `c`: passable, not thorns, with rock or a ledge under it.
 static func standing(w: LevelGen, c: Vector2i) -> bool:
-	if not passable(w, c) or w.get_cell(c).type == LevelGen.Type.SPIKES:
+	if not passable(w, c) or w.type_at(c) == LevelGen.Type.SPIKES:
 		return false
 	var under: Vector2i = c + Vector2i.DOWN
-	return w.is_valid(under) and (w.is_ground(under) or w.get_cell(under).type == LevelGen.Type.PLATFORM)
+	return w.is_valid(under) and (w.is_ground(under) or w.type_at(under) == LevelGen.Type.PLATFORM)
 
 
 ## The cells a student standing in `c` walks to next: along the floor either way, off an edge to
@@ -60,7 +60,7 @@ static func steps_from(w: LevelGen, c: Vector2i) -> Array[Vector2i]:
 			continue
 		for k: int in range(1, FALL_MOST + 1):
 			var f: Vector2i = n + Vector2i(0, k)
-			if not passable(w, f) or w.get_cell(f).type == LevelGen.Type.SPIKES:
+			if not passable(w, f) or w.type_at(f) == LevelGen.Type.SPIKES:
 				break
 			if standing(w, f):
 				out.append(f)

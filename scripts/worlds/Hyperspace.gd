@@ -202,7 +202,7 @@ static func _relic_gap(w: LevelGen) -> void:
 		var x0: int = starts[(first + k) % starts.size()]
 		var saved: Dictionary = {}
 		for v: Vector2i in w.objects:
-			if v.x >= x0 and v.x < x0 + RELIC_GAP and w.get_cell(v).type in [LevelGen.Type.MOVING_PLATFORM, LevelGen.Type.PLATFORM, LevelGen.Type.MOON]:
+			if v.x >= x0 and v.x < x0 + RELIC_GAP and w.type_at(v) in [LevelGen.Type.MOVING_PLATFORM, LevelGen.Type.PLATFORM, LevelGen.Type.MOON]:
 				saved[v] = w.get_cell(v)
 		if saved.is_empty():
 			continue
@@ -224,10 +224,10 @@ static func _lay_ends(w: LevelGen) -> void:
 		for y: int in range(HEIGHT):
 			var v: Vector2i = Vector2i(x, y)
 			var rock: bool = y < CEILING or y >= FLOOR
-			var is_rock: bool = w.get_cell(v).type == LevelGen.Type.GROUND
+			var is_rock: bool = w.type_at(v) == LevelGen.Type.GROUND
 			if rock and not is_rock:
 				w._to_rock(v)
-			elif not rock and w.get_cell(v).type != LevelGen.Type.EMPTY:
+			elif not rock and w.type_at(v) != LevelGen.Type.EMPTY:
 				w._to_open(v)
 
 
@@ -236,7 +236,7 @@ static func _lay_ends(w: LevelGen) -> void:
 static func _standing(w: LevelGen) -> Array[Vector2i]:
 	var crowd: Dictionary = {}
 	for o: Vector2i in w.objects:
-		if w.get_cell(o).type == LevelGen.Type.SPIKES:
+		if w.type_at(o) == LevelGen.Type.SPIKES:
 			continue
 		for dx: int in range(-1, 2):
 			for dy: int in range(-1, 2):
@@ -258,7 +258,7 @@ static func _standing_near(w: LevelGen, x: int) -> Variant:
 static func _lasers(w: LevelGen) -> void:
 	var spots: Array[Array] = []
 	for v: Vector2i in w.empties:
-		if v.x < ENDS + 1 or v.x >= WIDTH - ENDS - 1 or w.get_cell(v).type != LevelGen.Type.EMPTY:
+		if v.x < ENDS + 1 or v.x >= WIDTH - ENDS - 1 or w.type_at(v) != LevelGen.Type.EMPTY:
 			continue
 		for d: Vector2i in [Vector2i.DOWN, Vector2i.RIGHT, Vector2i.LEFT, Vector2i.UP]:
 			if not w.is_ground(v - d):
@@ -370,7 +370,7 @@ static func _bridge(w: LevelGen, free: Dictionary, placed: Array[Vector2i], moon
 	for i: int in range(path.size()):
 		along[path[i]] = i
 		# Where the only way on runs through thorns, those thorns go.
-		if w.get_cell(path[i]).type == LevelGen.Type.SPIKES:
+		if w.type_at(path[i]) == LevelGen.Type.SPIKES:
 			_unthorn(w, free, path[i])
 	var nodes: Dictionary = Reach.footholds(w)
 	var gate: Vector2i = w.exits[MapInfo.Exit.DEEPER]
@@ -416,7 +416,7 @@ static func _bridge(w: LevelGen, free: Dictionary, placed: Array[Vector2i], moon
 								best_score = score
 								best = [c, axis, travel, swept, lands, width]
 				# A ledge or a moon only where it carries a cell further than any lift.
-				if free.has(c) and w.get_cell(c).type == LevelGen.Type.EMPTY:
+				if free.has(c) and w.type_at(c) == LevelGen.Type.EMPTY:
 					var alone: Array[Vector2i] = [c]
 					var score: int = _onward(w, path, alone, best_score + 1, ahead, true)
 					if score > best_score + 1 and Reach.reached_from(w, sources, alone):
@@ -436,7 +436,7 @@ static func _bridge(w: LevelGen, free: Dictionary, placed: Array[Vector2i], moon
 			for j: int in range(at, ahead + 1):
 				for d: Vector2i in [Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP]:
 					var c: Vector2i = path[j] + d
-					if w.is_valid(c) and w.get_cell(c).type == LevelGen.Type.SPIKES:
+					if w.is_valid(c) and w.type_at(c) == LevelGen.Type.SPIKES:
 						_unthorn(w, free, c)
 			nodes = Reach.footholds(w)
 			reach = {start: true}
@@ -510,10 +510,10 @@ static func _air_path(w: LevelGen) -> Array[Vector2i]:
 				continue
 			for step: Vector2i in [Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT]:
 				var n: Vector2i = c + step
-				if not w.is_valid(n) or w.get_cell(n).type in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED]:
+				if not w.is_valid(n) or w.type_at(n) in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED]:
 					continue
 				var cost: int = 3
-				if w.get_cell(n).type == LevelGen.Type.SPIKES:
+				if w.type_at(n) == LevelGen.Type.SPIKES:
 					cost = 40
 				elif Reach.underfoot(w, n):
 					cost = 1
@@ -541,7 +541,7 @@ static func _track(w: LevelGen, free: Dictionary, at: Vector2i, axis: Vector2i, 
 	for step: int in range(travel + 1):
 		for dx: int in range(width):
 			var v: Vector2i = at + Vector2i(dx, 0) + axis * step
-			if not free.has(v) or w.get_cell(v).type != LevelGen.Type.EMPTY:
+			if not free.has(v) or w.type_at(v) != LevelGen.Type.EMPTY:
 				return []
 			if not swept.has(v):
 				swept.append(v)
@@ -550,17 +550,17 @@ static func _track(w: LevelGen, free: Dictionary, at: Vector2i, axis: Vector2i, 
 
 ## Open air with nothing to land on for the next four cells down.
 static func _hangs(w: LevelGen, v: Vector2i) -> bool:
-	if w.get_cell(v).type != LevelGen.Type.EMPTY:
+	if w.type_at(v) != LevelGen.Type.EMPTY:
 		return false
 	for k: int in range(1, 5):
-		if not w.is_valid(v + Vector2i(0, k)) or w.get_cell(v + Vector2i(0, k)).type == LevelGen.Type.GROUND:
+		if not w.is_valid(v + Vector2i(0, k)) or w.type_at(v + Vector2i(0, k)) == LevelGen.Type.GROUND:
 			return false
 	return true
 
 
 ## Open air in a tall shaft, with rock close beside it on at least one side.
 static func _walled(w: LevelGen, v: Vector2i) -> bool:
-	if w.get_cell(v).type != LevelGen.Type.EMPTY or not w.is_valid(v + Vector2i.RIGHT):
+	if w.type_at(v) != LevelGen.Type.EMPTY or not w.is_valid(v + Vector2i.RIGHT):
 		return false
 	return w.is_ground(v + Vector2i.LEFT) or w.is_ground(v + Vector2i(2, 0))
 
@@ -585,7 +585,7 @@ static func _glider(w: LevelGen, free: Dictionary, at: Vector2i, axis: Vector2i,
 ## A moon at `v` if it is free open air with nothing to stand on under it, and no other moon is
 ## within MOON_GAP cells.
 static func _moon(w: LevelGen, free: Dictionary, v: Vector2i, moons: Array[Vector2i]) -> bool:
-	if not free.has(v) or w.get_cell(v).type != LevelGen.Type.EMPTY or Reach.underfoot(w, v):
+	if not free.has(v) or w.type_at(v) != LevelGen.Type.EMPTY or Reach.underfoot(w, v):
 		return false
 	for m: Vector2i in moons:
 		if LevelGen.dist(m, v) < MOON_GAP:

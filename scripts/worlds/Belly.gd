@@ -99,9 +99,9 @@ func populate(w: LevelGen) -> void:
 		for y: int in range(size.y):
 			var v: Vector2i = Vector2i(x, y)
 			if _at(v) == "#":
-				if w.get_cell(v).type != LevelGen.Type.GROUND:
+				if w.type_at(v) != LevelGen.Type.GROUND:
 					w._to_rock(v)
-			elif w.get_cell(v).type != LevelGen.Type.EMPTY:
+			elif w.type_at(v) != LevelGen.Type.EMPTY:
 				w._to_open(v)
 	var wrecks: int = 0
 	for y: int in range(size.y):

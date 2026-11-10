@@ -2,8 +2,8 @@
 
 An analysis of where the game and its regression suite spend their time, made on 9 November 2026
 on the owner's machine (16 logical cores, Godot 4.7.2), and a plan to make both faster without
-giving up the code's composition or repeating code. Step 1 of the order of work (1.1, 1.3 and
-1.4) is built; the rest is not yet.
+giving up the code's composition or repeating code. Steps 1 and 2 of the order of work are built
+(see there); the rest is not yet.
 
 Every figure below was measured, not guessed, with throwaway probes (the per-pass timings in a
 scratch copy of the tree, so the working tree was not touched). Another session was running the
@@ -383,6 +383,30 @@ line in its summary) that prints the slowest tests and the share of the run spen
    divided by the jobs, so 1.1 matters most where the tail is long (8 jobs, a 120 s test). Still to
    measure on the owner's machine.
 2. Phase 2.1 to 2.5, with 4.3 for each pass touched, then 2.6. Measure the levels again.
+   *Done, 10 November 2026* (branch `perf/levels`), every layout as it was: checked on 158 levels
+   (every band, three worlds, both presets, side worlds), every property of each `LevelGen`
+   compared, its RNG's end state among them, after each change.
+   - 2.1: `LevelGen.types` and `type_at`; every write through `set_cell`. The passes' own
+     derived masks (`Chasms.carve`'s `floors`, `_isle_map`, `_held_up`) are not copies of the
+     types (they hold what is free, island shapes, falls), so they stay; `_held_up` reads `types`.
+   - 2.2, 2.3: `CellSums` and `Sites` (made once over a level, asked for every size of a crypt);
+     the temples' site from a mask and a column table of footing; `Chasms.near_mask`.
+   - 2.4, 2.5 as planned; `_open_count` counts `types`.
+   - 2.6: flood fills with packed marks and no test when none is given; `Reach.clear`, `free_floors`,
+     `_wide_open`, `_thorns_below` and a secret room's rock read `types`; `Chasms.carve`'s spots
+     and the sky's gaps costed with sums; the sky's clearing in one pass (`_to_open_all`); the
+     switch gates' way round without a test per cell. Tried and dropped: limiting a crypt's hop
+     tries by column (no gain).
+   - 4.3 for the secret rooms and vaults: `Secrets.gd`, `Vaults.gd`.
+   - 4.6 in part: `LevelGen.on_pass` and `bench_gen -- passes`.
+   Measured in the Linux container (4 cores), a level laid out on average, before → after:
+   garden 87 → 33 ms, cemetery 613 → 260, institute 320 → 142, crags 406 → 185, sky 1,148 → 398
+   (the 158 levels: 73.4 s → 29.4 s, 60 % less). Scaled to the owner's machine, the targets (sky
+   under 0.6 s, cemetery under 0.4 s) should hold; to be measured there. The quick run, 4 at a
+   time: 410 s → 350 s, 1,565 → 1,354 test-seconds. What is left, by `bench_gen -- passes`
+   (ms a level here): the crypts (`cut_gates`, about 150), the sky's built gaps, island stamping,
+   switch gates and bells (25 to 45 each), `connect_caves` (15 to 45, two calls in the sky and
+   crags), the crags' `populate` (about 40). 2.7 (the lists of cells) not needed yet.
 3. Phase 1.6 to 1.8 (with the owner's word on 1.7), then 1.2 and 1.9.
 4. Phase 3.4, then 1.5.
 5. Phase 3.1 (the arrival's first frame), then 3.2, 3.3, 3.5, 3.1a and 3.6 as the benches say.

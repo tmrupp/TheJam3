@@ -37,31 +37,35 @@ static func carve(w: LevelGen) -> void:
 	var floors: PackedByteArray = PackedByteArray()
 	floors.resize(w.size.x * w.size.y)
 	for v: Vector2i in w.empties:
-		if w.get_cell(v).type == LevelGen.Type.EMPTY and w.is_ground(v + Vector2i.DOWN):
+		if w.type_at(v) == LevelGen.Type.EMPTY and w.is_ground(v + Vector2i.DOWN):
 			floors[v.x * w.size.y + v.y] = 1
 	# Spots for each width of shore, widest first: a chasm takes the widest shores left. A spot
 	# is a stretch of floor (shore, chasm, shore) whose every column has its floor within a cell
 	# of one row: cutting it levels the floor to that row (see _level_floor), so the graveyard's
 	# stepping terraces still have room for wide chasms.
+	# The cells with no floor near them (_floor_near), and the thorns, counted in any box at once.
+	var floorless: PackedByteArray = PackedByteArray()
+	floorless.resize(w.size.x * w.size.y)
+	floorless.fill(0)
+	var thorns: PackedByteArray = PackedByteArray()
+	thorns.resize(w.size.x * w.size.y)
+	thorns.fill(0)
+	for x: int in range(w.size.x):
+		for y: int in range(w.size.y):
+			floorless[x * w.size.y + y] = 1 if _floor_near(w, floors, x, y) == -1 else 0
+			thorns[x * w.size.y + y] = 1 if w.types[x * w.size.y + y] == LevelGen.Type.SPIKES else 0
+	var no_floor: CellSums = CellSums.new(w.size, floorless)
+	var thorn_sum: CellSums = CellSums.new(w.size, thorns)
 	var by_shore: Array = []
 	for shore: int in CHASM_SHORES:
 		var spots: Array = []
 		for y: int in range(2, w.size.y - CHASM_DEPTH - 3):
 			for span: int in range(CHASM_WIDTH.x, CHASM_WIDTH.y + 1):
 				for a: int in range(shore, w.size.x - shore - span + 1):
-					var ok: bool = true
-					for x: int in range(a - shore, a + span + shore):
-						if _floor_near(w, floors, x, y) == -1:
-							ok = false
-							break
-					if not ok:
-						continue
-					# Under the cut, nothing but rock or air (no thorns), down to the pit's floor.
-					for x: int in range(a, a + span):
-						for d: int in range(1, CHASM_DEPTH + 2):
-							if not w.is_valid(Vector2i(x, y + d)) or w.get_cell(Vector2i(x, y + d)).type == LevelGen.Type.SPIKES:
-								ok = false
-					if ok:
+					# Every column of it (shores too) has its floor near this row, and under the
+					# cut is nothing but rock or air (no thorns), down to the pit's floor.
+					if no_floor.count(Rect2i(a - shore, y, span + 2 * shore, 1)) == 0 \
+							and thorn_sum.count(Rect2i(a, y + 1, span, CHASM_DEPTH + 1)) == 0:
 						spots.append([y, a, span, shore])
 		by_shore.append(spots)
 	while w.chasms.size() < want:
@@ -91,9 +95,9 @@ static func carve(w: LevelGen) -> void:
 			w.grounds.erase(bottom)
 			w.empties.erase(bottom)
 			w.objects.append(bottom)
-			w.cells[bottom.x][bottom.y] = LevelGen.Cell.new(LevelGen.Type.SPIKES)
+			w.set_cell(bottom, LevelGen.Cell.new(LevelGen.Type.SPIKES))
 			var under: Vector2i = bottom + Vector2i.DOWN
-			if w.is_valid(under) and w.get_cell(under).type != LevelGen.Type.GROUND:
+			if w.is_valid(under) and w.type_at(under) != LevelGen.Type.GROUND:
 				w._to_rock(under)
 			# The pit and the air over it are kept clear (out of `empties`, so nothing is placed).
 			for d: int in range(-CHASM_CLEAR, CHASM_DEPTH + 1):
@@ -134,6 +138,21 @@ static func near(w: LevelGen, c: Vector2i) -> bool:
 	return false
 
 
+## Per cell of `w` (x * size.y + y), 1 where near(w, cell) holds: each chasm's and gap's kept air
+## marked once, for a search that asks of many cells.
+static func near_mask(w: LevelGen) -> PackedByteArray:
+	var out: PackedByteArray = PackedByteArray()
+	out.resize(w.size.x * w.size.y)
+	out.fill(0)
+	for chasm: Dictionary in w.chasms:
+		var row: int = chasm["row"]
+		for plank: Vector2i in chasm["planks"]:
+			for x: int in range(maxi(0, plank.x - 2), mini(w.size.x, plank.x + 3)):
+				for y: int in range(maxi(0, row - CHASM_CLEAR - 1), mini(w.size.y, row + CHASM_DEPTH + 2)):
+					out[x * w.size.y + y] = 1
+	return out
+
+
 ## The chasm whose pit has its floor (its thorns) at cell `v`, or -1.
 static func pit_of(w: LevelGen, v: Vector2i) -> int:
 	for id: int in range(w.chasms.size()):
@@ -164,7 +183,7 @@ static func _floor_near(w: LevelGen, floors: PackedByteArray, x: int, y: int) ->
 			continue
 		if floors[x * w.size.y + r] == 1:
 			# Room to stand over the levelled floor.
-			if r == y + 1 and w.get_cell(Vector2i(x, y)).type != LevelGen.Type.EMPTY:
+			if r == y + 1 and w.type_at(Vector2i(x, y)) != LevelGen.Type.EMPTY:
 				continue
 			return r
 	return -1
@@ -194,7 +213,7 @@ static func place_bells(w: LevelGen, crossing: LevelGen.Type, switch_reach: int)
 			var at: Variant = null
 			for d: int in [2, 3, 1, 4]:
 				var v: Vector2i = edge + Vector2i(side * (d - 1), 0)
-				if w.is_valid(v) and w.get_cell(v).type == LevelGen.Type.EMPTY and w.empties.has(v) and w.ground_below(v):
+				if w.is_valid(v) and w.type_at(v) == LevelGen.Type.EMPTY and w.empties.has(v) and w.ground_below(v):
 					at = v
 					break
 			if at == null:
