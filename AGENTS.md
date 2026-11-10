@@ -14,7 +14,10 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
     handed to the layout as `LevelGen.patches`), and their prizes. `Institute.gd`: the
     institute's halls of marble (`LevelGen.halls`) and who is in them. `Timetable.gd`: its
     timetable's rules (periods, when each hall is in session, where the wizard belongs, which
-    spell a glyph seal asks for); `MapInfo` plays it out.
+    spell a glyph seal asks for); `MapInfo` plays it out. `Secrets.gd` and `Vaults.gd`: the secret
+    rooms and the vaults (the bone vault too), laid last; what they lay is kept on the level
+    (`LevelGen.secrets`, `vaults`). `Sites.gd`: the one search for where a walled box goes (a
+    crypt, a hall), over `CellSums.gd`, how many cells of a kind lie in any box, counted at once.
   - `Placeables.gd`: one table, by `LevelGen.Type`, of each thing's prefab, art kind, box size and
     flags (enemy, stander, floats, colored). Loading, the art dresser and the map read it.
   - `RunState.gd`: the run (records, the lantern to come back to, the ghost, relics) and saving it.
@@ -227,6 +230,10 @@ bash tests/run.sh -l garden full  # the suite on another band layout (the demo's
   draw from `world.rng`, or it differs from one visit to the next (`revisit_test`).
 - Key and door colours are dealt by rarity once a level is laid out (`LevelGen.deal_colors`, hashing
   the level seed, no RNG) and kept in each cell's `extra_info`; `RisoMap.dealt_colors` reads them.
+- What a cell is: `type_at(v)` (from `LevelGen.types`, a byte a cell kept in step by `set_cell`,
+  which every change of a cell goes through), `is_ground`, `_open`. A search that asks of many
+  cells or boxes makes a mask or `CellSums` once rather than testing cell by cell.
+  `bench_gen -- passes` prints what each pass of the layout costs, band by band (`LevelGen.on_pass`).
 - Placement helpers live on `LevelGen`: `put(v, type, extra)`, `put_random(type, test, force)`,
   `pop_if_random_empty(filter, force)`, `empties_where(test)` and `free_floors()` (sorted),
   `pick(items)` and `pop_pick(items)` (one draw each), `pick_apart` and `spread_out` (spots kept

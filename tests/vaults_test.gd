@@ -2,7 +2,7 @@ extends TestKit
 ## Key rarity and vaults. Key colours are dealt by rarity (Rules.KEY_RARITY): keys, corridor
 ## doors and padlocks come up in sun most often and plum least, and every level's first key is sun.
 ## Vaults are small rooms sealed in rock behind a locked door, dealt evenly among the colours, and
-## the rarer the lock the better the loot (LevelGen.VAULT_LOOT).
+## the rarer the lock the better the loot (Vaults.LOOT).
 ## godot --headless --path . --script res://tests/vaults_test.gd
 
 
@@ -87,10 +87,10 @@ func run() -> void:
 					vault_colors[color] = int(vault_colors.get(color, 0)) + 1
 				if color == 1:
 					ember_vaults += 1
-					if w.vault_loot(color, vault["door"]).has([LevelGen.Type.KEY, 2]):
+					if Vaults.loot(w, color, vault["door"]).has([LevelGen.Type.KEY, 2]):
 						ember_keys += 1
 				check(well_formed(w, vault), label + ": vault at %s is sealed in rock behind its door" % vault["door"])
-				check(loot_of(w, vault) == w.vault_loot(color, vault["door"]), label + ": colour %d vault holds its loot %s" % [color, loot_of(w, vault)])
+				check(loot_of(w, vault) == Vaults.loot(w, color, vault["door"]), label + ": colour %d vault holds its loot %s" % [color, loot_of(w, vault)])
 			var again: LevelGen = LevelGen.new(cells, def)
 			var same_colors: bool = true
 			for v: Vector2i in w.objects:
@@ -102,7 +102,7 @@ func run() -> void:
 	check(doors[0] > doors[1] and doors[1] > doors[3], "and so do doors")
 	check(with_vault * 4 >= levels * 3, "most levels have a vault")
 	check(vault_colors.size() == Rules.KEY_COLOR_COUNT, "vaults come in every colour")
-	var table: Array = LevelGen.VAULT_LOOT
+	var table: Array = Vaults.LOOT
 	check(table[0] == [[LevelGen.Type.CLUSTER, 0.5]] and table[1] == [[LevelGen.Type.CLUSTER, 1.0]] and table[2] == [[LevelGen.Type.CLUSTER, 1.5]] and (table[3] as Array).has([LevelGen.Type.KEY, KeyRing.SKELETON]), "rarer locks guard better loot: half a cluster, a cluster, a cluster and a half, a cluster and a skeleton key")
 	print("  ember vaults with a moss key: %d of %d" % [ember_keys, ember_vaults])
 	# The rule itself, over many doors rather than the few ember vaults the levels above happen to
@@ -110,7 +110,7 @@ func run() -> void:
 	var probe: LevelGen = build(Vector2i(28, 1))
 	var with_key: int = 0
 	for i: int in range(100):
-		if probe.vault_loot(1, Vector2i(i, i % 7)).has([LevelGen.Type.KEY, 2]):
+		if Vaults.loot(probe, 1, Vector2i(i, i % 7)).has([LevelGen.Type.KEY, 2]):
 			with_key += 1
 	check(with_key > 0 and with_key < 100, "ember vaults sometimes hold a moss key (%d of 100 doors)" % with_key)
 
@@ -140,7 +140,7 @@ func run() -> void:
 			loot.append(n)
 	var color: int = vault["color"]
 	check(door != null and int(door.get_meta(&"key_color", -1)) == color, "its door is locked in colour %d" % color)
-	check(loot.size() == info.world.vault_loot(color, vault["door"]).size(), "its loot lies inside (%d)" % loot.size())
+	check(loot.size() == Vaults.loot(info.world, color, vault["door"]).size(), "its loot lies inside (%d)" % loot.size())
 	player.keyring.clear()
 	player.keyring.take((color + 1) % Rules.KEY_COLOR_COUNT)
 	door.get_node("Unlock").call("try_open")

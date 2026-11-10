@@ -170,7 +170,7 @@ every level.
   wall facing it (`Player.do_wall_jump`: the same wall twice gives little, "so a lone wall cannot
   be climbed by jumping repeatedly"), and the pogo, which bounces along a thorn bed.
 - Secret rooms are already pockets carved into the rock once everything else is laid
-  (`LevelGen.place_secrets`, `_secret_spots`, `_carve_secret`), "placed last of all, so the rest of
+  (`Secrets.place`, `Secrets.spots`, `Secrets._carve`), "placed last of all, so the rest of
   the level lands where it always has". They open to a step, a hex bolt, a projection or a warp:
   no move is needed for them.
 - The generator already leaves some chasms to the relic moves (`LevelGen.relic_chasms`, from
@@ -207,7 +207,7 @@ their top tiers (a dash runs longer each tier), not by a test.
 
 *To do:*
 - A script beside `Chasms.gd` and `Crypts.gd` (say `scripts/level/Barriers.gd`): it finds rock
-  that fits a barrier's shape beside open floor, as `_secret_spots` finds a room's, carves the
+  that fits a barrier's shape beside open floor, as `Secrets.spots` finds a room's, carves the
   pocket, lays its thorns and its reward, and keeps what it laid in `LevelGen.barriers` (the move,
   the mouth, the cells, the reward) for the map and the tests.
 - How many: `BARRIERS_PER_K` through `per_area`, to begin with about one level in two holding
@@ -217,7 +217,7 @@ their top tiers (a dash runs longer each tier), not by a test.
   level's seed. The levels round a relic are then where its barriers stand, and finding the relic
   pays off close by.
 - Where no rock fits the shape, none is laid. Nothing is forced.
-- The reward: a star cluster worth more than a secret room's three (`SECRET_STARS`), in the
+- The reward: a star cluster worth more than a secret room's three (`Secrets.STARS`), in the
   reward's ink, and now and then a key.
 - The mark: the move's glyph in a small roundel on the rock by the mouth, in the quiet inks (it
   is a note, not a prize; settle the ink with a capture, by `docs/RISO_PRINT.md`), and by the
