@@ -37,7 +37,7 @@ static func carve(w: LevelGen) -> void:
 	var floors: PackedByteArray = PackedByteArray()
 	floors.resize(w.size.x * w.size.y)
 	for v: Vector2i in w.empties:
-		if w.get_cell(v).type == LevelGen.Type.EMPTY and w.is_ground(v + Vector2i.DOWN):
+		if w.type_at(v) == LevelGen.Type.EMPTY and w.is_ground(v + Vector2i.DOWN):
 			floors[v.x * w.size.y + v.y] = 1
 	# Spots for each width of shore, widest first: a chasm takes the widest shores left. A spot
 	# is a stretch of floor (shore, chasm, shore) whose every column has its floor within a cell
@@ -59,7 +59,7 @@ static func carve(w: LevelGen) -> void:
 					# Under the cut, nothing but rock or air (no thorns), down to the pit's floor.
 					for x: int in range(a, a + span):
 						for d: int in range(1, CHASM_DEPTH + 2):
-							if not w.is_valid(Vector2i(x, y + d)) or w.get_cell(Vector2i(x, y + d)).type == LevelGen.Type.SPIKES:
+							if not w.is_valid(Vector2i(x, y + d)) or w.type_at(Vector2i(x, y + d)) == LevelGen.Type.SPIKES:
 								ok = false
 					if ok:
 						spots.append([y, a, span, shore])
@@ -91,9 +91,9 @@ static func carve(w: LevelGen) -> void:
 			w.grounds.erase(bottom)
 			w.empties.erase(bottom)
 			w.objects.append(bottom)
-			w.cells[bottom.x][bottom.y] = LevelGen.Cell.new(LevelGen.Type.SPIKES)
+			w.set_cell(bottom, LevelGen.Cell.new(LevelGen.Type.SPIKES))
 			var under: Vector2i = bottom + Vector2i.DOWN
-			if w.is_valid(under) and w.get_cell(under).type != LevelGen.Type.GROUND:
+			if w.is_valid(under) and w.type_at(under) != LevelGen.Type.GROUND:
 				w._to_rock(under)
 			# The pit and the air over it are kept clear (out of `empties`, so nothing is placed).
 			for d: int in range(-CHASM_CLEAR, CHASM_DEPTH + 1):
@@ -164,7 +164,7 @@ static func _floor_near(w: LevelGen, floors: PackedByteArray, x: int, y: int) ->
 			continue
 		if floors[x * w.size.y + r] == 1:
 			# Room to stand over the levelled floor.
-			if r == y + 1 and w.get_cell(Vector2i(x, y)).type != LevelGen.Type.EMPTY:
+			if r == y + 1 and w.type_at(Vector2i(x, y)) != LevelGen.Type.EMPTY:
 				continue
 			return r
 	return -1
@@ -194,7 +194,7 @@ static func place_bells(w: LevelGen, crossing: LevelGen.Type, switch_reach: int)
 			var at: Variant = null
 			for d: int in [2, 3, 1, 4]:
 				var v: Vector2i = edge + Vector2i(side * (d - 1), 0)
-				if w.is_valid(v) and w.get_cell(v).type == LevelGen.Type.EMPTY and w.empties.has(v) and w.ground_below(v):
+				if w.is_valid(v) and w.type_at(v) == LevelGen.Type.EMPTY and w.empties.has(v) and w.ground_below(v):
 					at = v
 					break
 			if at == null:

@@ -152,7 +152,7 @@ static func cluster_islands(w: LevelGen) -> void:
 	for x: int in range(w.size.x):
 		for y: int in range(w.size.y):
 			var v: Vector2i = Vector2i(x, y)
-			if w.get_cell(v).type != LevelGen.Type.EMPTY and not w.in_isle(v):
+			if w.type_at(v) != LevelGen.Type.EMPTY and not w.in_isle(v):
 				w._to_open(v)
 	for isle: Array in w.isles:
 		var c: Vector2i = isle[0]
@@ -182,7 +182,7 @@ static func taper_islands(w: LevelGen) -> void:
 	for y: int in range(w.size.y - 1):
 		var x: int = 0
 		while x < w.size.x:
-			var under: Callable = func(cx: int) -> bool: return w.is_ground(Vector2i(cx, y)) and w.get_cell(Vector2i(cx, y + 1)).type == LevelGen.Type.EMPTY
+			var under: Callable = func(cx: int) -> bool: return w.is_ground(Vector2i(cx, y)) and w.type_at(Vector2i(cx, y + 1)) == LevelGen.Type.EMPTY
 			if not under.call(x):
 				x += 1
 				continue
@@ -203,10 +203,10 @@ static func _keel(w: LevelGen, a: int, b: int, y: int) -> void:
 			return
 		for x: int in range(a, b + 1):
 			var v: Vector2i = Vector2i(x, y)
-			if not w.is_valid(v) or w.get_cell(v).type != LevelGen.Type.EMPTY or not w.in_isle(v, 4):
+			if not w.is_valid(v) or w.type_at(v) != LevelGen.Type.EMPTY or not w.in_isle(v, 4):
 				return
 			for d: int in range(1, KEEL_CLEAR + 1):
-				if w.is_valid(v + Vector2i(0, d)) and w.get_cell(v + Vector2i(0, d)).type != LevelGen.Type.EMPTY:
+				if w.is_valid(v + Vector2i(0, d)) and w.type_at(v + Vector2i(0, d)) != LevelGen.Type.EMPTY:
 					return
 		for x: int in range(a, b + 1):
 			w._to_rock(Vector2i(x, y))
@@ -228,7 +228,7 @@ static func _stamp_islands(w: LevelGen, c: Vector2i, r: Vector2i, want: int) -> 
 		for x: int in range(at.x - 1, at.x + span + 1):
 			for y: int in range(at.y - 2, at.y + h + 1):
 				var v: Vector2i = Vector2i(x, y)
-				if not w.is_valid(v) or w.get_cell(v).type != LevelGen.Type.EMPTY:
+				if not w.is_valid(v) or w.type_at(v) != LevelGen.Type.EMPTY:
 					fits = false
 					break
 			if not fits:
@@ -251,7 +251,7 @@ static func _isle_floors(w: LevelGen, i: int) -> Array[Vector2i]:
 	for x: int in range(c.x - r.x, c.x + r.x + 1):
 		for y: int in range(c.y - r.y - 1, c.y + r.y + 1):
 			var v: Vector2i = Vector2i(x, y)
-			if w.is_valid(v) and w.get_cell(v).type == LevelGen.Type.EMPTY and w.is_ground(v + Vector2i.DOWN) and w.is_valid(v + Vector2i.UP) and w.get_cell(v + Vector2i.UP).type == LevelGen.Type.EMPTY:
+			if w.is_valid(v) and w.type_at(v) == LevelGen.Type.EMPTY and w.is_ground(v + Vector2i.DOWN) and w.is_valid(v + Vector2i.UP) and w.type_at(v + Vector2i.UP) == LevelGen.Type.EMPTY:
 				out.append(v)
 	return out
 
@@ -362,7 +362,7 @@ static func _stones(w: LevelGen, a: Vector2i, b: Vector2i) -> bool:
 		stands.append(cur)
 	if stands.is_empty() and shaft.x < 0:
 		return false
-	var open: Callable = func(v: Vector2i) -> bool: return w.is_valid(v) and w.get_cell(v).type == LevelGen.Type.EMPTY
+	var open: Callable = func(v: Vector2i) -> bool: return w.is_valid(v) and w.type_at(v) == LevelGen.Type.EMPTY
 	var stones: Array[Vector2i] = []
 	for st: Vector2i in stands:
 		for c: Vector2i in [st, st + Vector2i.UP, st + Vector2i.DOWN, st + Vector2i(dir, 1)]:
@@ -395,8 +395,8 @@ static func _stones(w: LevelGen, a: Vector2i, b: Vector2i) -> bool:
 ## is cut, up to `want`. Each is laid out as a cut chasm is, its first cell the row under the
 ## floor.
 static func _span_gaps(w: LevelGen, want: int) -> void:
-	var floor_at: Callable = func(v: Vector2i) -> bool: return w.is_valid(v) and w.get_cell(v).type == LevelGen.Type.EMPTY and w.is_ground(v + Vector2i.DOWN) and w._open(v + Vector2i.UP)
-	var air: Callable = func(v: Vector2i) -> bool: return w.is_valid(v) and w.get_cell(v).type == LevelGen.Type.EMPTY
+	var floor_at: Callable = func(v: Vector2i) -> bool: return w.is_valid(v) and w.type_at(v) == LevelGen.Type.EMPTY and w.is_ground(v + Vector2i.DOWN) and w._open(v + Vector2i.UP)
+	var air: Callable = func(v: Vector2i) -> bool: return w.is_valid(v) and w.type_at(v) == LevelGen.Type.EMPTY
 	var found: Array = []
 	for y: int in range(3, w.size.y - 3):
 		for l: int in range(GAP_SHORE, w.size.x - 1):
@@ -479,7 +479,7 @@ static func _build_gaps(w: LevelGen, want: int) -> void:
 					if w.lanes.has(c):
 						cost = -1
 						break
-					if (w.get_cell(c).type != LevelGen.Type.EMPTY) != (shore and d == 1):
+					if (w.type_at(c) != LevelGen.Type.EMPTY) != (shore and d == 1):
 						cost += 1
 				if cost < 0:
 					break
@@ -502,9 +502,9 @@ static func _build_gaps(w: LevelGen, want: int) -> void:
 			for d: int in range(-2, 3 if not shore else 2):
 				var c: Vector2i = Vector2i(x, y + d)
 				if shore and d == 1:
-					if w.get_cell(c).type != LevelGen.Type.GROUND:
+					if w.type_at(c) != LevelGen.Type.GROUND:
 						w._to_rock(c)
-				elif w.get_cell(c).type != LevelGen.Type.EMPTY:
+				elif w.type_at(c) != LevelGen.Type.EMPTY:
 					w._to_open(c)
 		# The air over the gap is kept clear, as over a cut chasm, and a wind spans it.
 		Chasms.add_gap(w, y, a, span)
@@ -547,7 +547,7 @@ static func _temple_site(w: LevelGen, box: Rect2i) -> int:
 	for x: int in range(box.position.x, box.end.x):
 		for y: int in range(box.position.y - TEMPLE_AIR, box.end.y):
 			var v: Vector2i = Vector2i(x, y)
-			if not w.is_valid(v) or not w._open(v) or w.keep_clear.has(v) or w.structures.has(v) or Chasms.near(w, v) or w.get_cell(v).type != LevelGen.Type.EMPTY:
+			if not w.is_valid(v) or not w._open(v) or w.keep_clear.has(v) or w.structures.has(v) or Chasms.near(w, v) or w.type_at(v) != LevelGen.Type.EMPTY:
 				return -1
 	var footing: int = 0
 	var on_rock: int = 0
@@ -556,7 +556,7 @@ static func _temple_site(w: LevelGen, box: Rect2i) -> int:
 		var depth: int = 0
 		var v: Vector2i = Vector2i(x, box.end.y)
 		while not w.is_ground(v):
-			if depth >= TEMPLE_FOOTING or not w.is_valid(v) or w.keep_clear.has(v) or Chasms.near(w, v) or w.get_cell(v).type != LevelGen.Type.EMPTY:
+			if depth >= TEMPLE_FOOTING or not w.is_valid(v) or w.keep_clear.has(v) or Chasms.near(w, v) or w.type_at(v) != LevelGen.Type.EMPTY:
 				return -1
 			depth += 1
 			v += Vector2i.DOWN
@@ -630,7 +630,7 @@ static func place_balloon(w: LevelGen) -> void:
 			return false
 		for k: int in range(1, BALLOON_AIR + 1):
 			var up: Vector2i = v - Vector2i(0, k)
-			if not w.is_valid(up) or w.is_ground(up) or w.keep_clear.has(up) or w.get_cell(up).type != LevelGen.Type.EMPTY:
+			if not w.is_valid(up) or w.is_ground(up) or w.keep_clear.has(up) or w.type_at(up) != LevelGen.Type.EMPTY:
 				return false
 		return true)
 	var spot: Variant = LevelGen.best_of(spots, func(v: Vector2i) -> int: return posmod(Rules.level_seed(w.seed_for_colors, BALLOON_DEAL + v.x * 977 + v.y * 31), 100000))
@@ -658,7 +658,7 @@ func populate(w: LevelGen, _def: NextWorldDef) -> void:
 			continue
 		var run: Array[Vector2i] = []
 		var c: Vector2i = v
-		while w.is_valid(c) and w.get_cell(c).type == LevelGen.Type.PLATFORM:
+		while w.is_valid(c) and w.type_at(c) == LevelGen.Type.PLATFORM:
 			run.append(c)
 			seen[c] = true
 			c += Vector2i.RIGHT
@@ -676,12 +676,12 @@ func populate(w: LevelGen, _def: NextWorldDef) -> void:
 				if w._open(top) and not w._open(top + Vector2i.DOWN):
 					return true
 		return false
-	var floors: Array[Vector2i] = w.empties_where(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.EMPTY and w.ground_below(v) and LevelGen.dist(v, start) >= 3 and shelf.call(v))
+	var floors: Array[Vector2i] = w.empties_where(func(v: Vector2i) -> bool: return w.type_at(v) == LevelGen.Type.EMPTY and w.ground_below(v) and LevelGen.dist(v, start) >= 3 and shelf.call(v))
 	var pads: Array[Vector2i] = w.pick_apart(floors, w.per_area(PADS_PER_K), 6)
 	w.put_each(pads, LevelGen.Type.PAD)
 	# At least one in every level: failing a floor under a shelf, any floor with headroom.
 	if pads.is_empty():
-		var open_floors: Array[Vector2i] = w.empties_where(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.EMPTY and w.ground_below(v) and w._open(v + Vector2i.UP) and w._open(v + Vector2i(0, -2)) and LevelGen.dist(v, start) >= 3)
+		var open_floors: Array[Vector2i] = w.empties_where(func(v: Vector2i) -> bool: return w.type_at(v) == LevelGen.Type.EMPTY and w.ground_below(v) and w._open(v + Vector2i.UP) and w._open(v + Vector2i(0, -2)) and LevelGen.dist(v, start) >= 3)
 		if not open_floors.is_empty():
 			var at: Vector2i = w.pick(open_floors)
 			pads.append(at)
@@ -689,14 +689,14 @@ func populate(w: LevelGen, _def: NextWorldDef) -> void:
 	# Updrafts: a shaft of open air over a floor, rising to just over a floor beside it.
 	var shafts: Array = []
 	for v: Vector2i in w.empties:
-		if w.get_cell(v).type != LevelGen.Type.EMPTY or not w.ground_below(v) or LevelGen.dist(v, start) < 3:
+		if w.type_at(v) != LevelGen.Type.EMPTY or not w.ground_below(v) or LevelGen.dist(v, start) < 3:
 			continue
 		for h: int in range(UPDRAFT_MIN, UPDRAFT_MAX + 1):
 			var top: Vector2i = v + Vector2i(0, -h)
 			var clear: bool = true
 			for d: int in range(0, h + 2):
 				var c: Vector2i = v + Vector2i(0, -d)
-				if not w.is_valid(c) or w.get_cell(c).type != LevelGen.Type.EMPTY:
+				if not w.is_valid(c) or w.type_at(c) != LevelGen.Type.EMPTY:
 					clear = false
 					break
 			if not clear:
@@ -730,7 +730,7 @@ func populate(w: LevelGen, _def: NextWorldDef) -> void:
 		var x: int = 0
 		while x < w.size.x:
 			var from: int = x
-			while x < w.size.x and w.get_cell(Vector2i(x, y)).type == LevelGen.Type.EMPTY and not w.in_isle(Vector2i(x, y), 1):
+			while x < w.size.x and w.type_at(Vector2i(x, y)) == LevelGen.Type.EMPTY and not w.in_isle(Vector2i(x, y), 1):
 				x += 1
 			if x - from >= BIRD_SPAN:
 				runs.append([y, from + 1, x - 2])

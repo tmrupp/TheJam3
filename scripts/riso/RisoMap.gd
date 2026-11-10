@@ -881,7 +881,7 @@ func _build_textures_for(w: LevelGen, bytes: PackedByteArray, broken: Dictionary
 		for y: int in range(w.size.y):
 			if x * w.size.y + y >= bytes.size() or bytes[x * w.size.y + y] == 0:
 				continue
-			var kind: int = w.get_cell(Vector2i(x, y)).type
+			var kind: int = w.type_at(Vector2i(x, y))
 			# Cracked walls look like rock on the map until they are broken.
 			if kind == LevelGen.Type.GROUND or (kind == LevelGen.Type.CRACKED and not broken.has(Vector2i(x, y))):
 				rock_img.set_pixel(x, y, Color(1, 1, 1, 1))
@@ -918,7 +918,7 @@ func _hinted_relic(info: MapInfo, c: Vector2i, w: LevelGen) -> Variant:
 			if reward[1] == LevelGen.Type.RELIC:
 				return reward[0]
 	for v: Vector2i in w.objects:
-		if w.get_cell(v).type == LevelGen.Type.RELIC:
+		if w.type_at(v) == LevelGen.Type.RELIC:
 			return v
 	if w.is_valid(w.relic_carrier):
 		return w.relic_carrier

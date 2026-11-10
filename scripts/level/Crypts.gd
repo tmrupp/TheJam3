@@ -521,7 +521,7 @@ static func _doors(w: LevelGen, inside: Array, box: Rect2i, blocked: Dictionary,
 				var c: Vector2i = Vector2i(wall + side * k, y)
 				if c.x < 1 or c.x >= w.size.x - 1 or blocked.has(c) or blocked.has(c + Vector2i.UP):
 					break
-				var cell: LevelGen.Type = w.get_cell(c).type
+				var cell: LevelGen.Type = w.type_at(c)
 				if cell == LevelGen.Type.EMPTY:
 					step = c
 					break
@@ -866,7 +866,7 @@ static func _step(w: LevelGen, room: Rect2i, floors: Array[Vector2i], trials: Ar
 					continue
 				if banned.has(s) or not room.has_point(s) or not room.has_point(s + Vector2i.UP * 2) or in_trials.call(s) or in_trials.call(s + Vector2i.UP):
 					continue
-				if w.is_ground(s) or w.is_ground(s + Vector2i.UP) or w.is_ground(s + Vector2i.UP * 2) or w.get_cell(s).type != LevelGen.Type.EMPTY:
+				if w.is_ground(s) or w.is_ground(s + Vector2i.UP) or w.is_ground(s + Vector2i.UP * 2) or w.type_at(s) != LevelGen.Type.EMPTY:
 					continue
 				best = score
 				step = s
@@ -1007,9 +1007,9 @@ static func _prize(w: LevelGen, crypt: Dictionary, kind: StringName) -> void:
 	var floors: Array[Vector2i] = crypt["floors"]
 	for k: int in range(floors.size() - 1, -1, -1):
 		var v: Vector2i = floors[k]
-		if v == crypt["deep"] or w.get_cell(v).type != LevelGen.Type.EMPTY:
+		if v == crypt["deep"] or w.type_at(v) != LevelGen.Type.EMPTY:
 			continue
-		if kind == &"font" and (not w.is_valid(v + Vector2i.UP) or w.get_cell(v + Vector2i.UP).type != LevelGen.Type.EMPTY or w.is_ground(v + Vector2i.UP)):
+		if kind == &"font" and (not w.is_valid(v + Vector2i.UP) or w.type_at(v + Vector2i.UP) != LevelGen.Type.EMPTY or w.is_ground(v + Vector2i.UP)):
 			continue
 		match kind:
 			&"rite":
@@ -1044,7 +1044,7 @@ static func _lures(w: LevelGen, crypt: Dictionary) -> void:
 				var v: Vector2i = Vector2i(x, y)
 				if not _free(w, v):
 					continue
-				var thorny: bool = [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.DOWN * 2].any(func(d: Vector2i) -> bool: return w.is_valid(v + d) and w.get_cell(v + d).type == LevelGen.Type.SPIKES)
+				var thorny: bool = [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.DOWN * 2].any(func(d: Vector2i) -> bool: return w.is_valid(v + d) and w.type_at(v + d) == LevelGen.Type.SPIKES)
 				if not thorny:
 					continue
 				var key: int = (y * 1000 + x) if trial["kind"] == &"well" else (LevelGen.dist(v, mid) * 1000 + x)
@@ -1060,7 +1060,7 @@ static func _lures(w: LevelGen, crypt: Dictionary) -> void:
 static func _cluster(w: LevelGen) -> Variant:
 	for v: Vector2i in w.objects:
 		var in_vault: bool = w.vaults.any(func(vault: Dictionary) -> bool: return (vault["room"] as Array).has(v))
-		if w.get_cell(v).type == LevelGen.Type.CLUSTER and w.structures.get(v, &"") != &"crypt" and not in_vault:
+		if w.type_at(v) == LevelGen.Type.CLUSTER and w.structures.get(v, &"") != &"crypt" and not in_vault:
 			return v
 	return null
 
@@ -1072,7 +1072,7 @@ static func _hoard(w: LevelGen, crypt: Dictionary) -> void:
 	for i: int in range(floors.size() - 1, -1, -1):
 		if n >= HOARD:
 			break
-		if w.get_cell(floors[i]).type == LevelGen.Type.EMPTY:
+		if w.type_at(floors[i]) == LevelGen.Type.EMPTY:
 			w.put(floors[i], LevelGen.Type.COIN)
 			n += 1
 
@@ -1083,7 +1083,7 @@ static func _stars(w: LevelGen, crypt: Dictionary) -> void:
 	var floors: Array[Vector2i] = crypt["floors"]
 	var doors: Array[Vector2i] = crypt["doors"]
 	var want: int = maxi(1, floori(float(floors.size()) / float(STARS_PER)))
-	var spots: Array[Vector2i] = floors.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.EMPTY)
+	var spots: Array[Vector2i] = floors.filter(func(v: Vector2i) -> bool: return w.type_at(v) == LevelGen.Type.EMPTY)
 	var key: Callable = func(v: Vector2i) -> int:
 		var ledge: bool = w.is_valid(v + Vector2i.DOWN * 2) and not w.is_ground(v + Vector2i.DOWN * 2)
 		var near: int = 99
@@ -1106,7 +1106,7 @@ static func _thorns(w: LevelGen, crypt: Dictionary) -> void:
 	var doors: Array[Vector2i] = crypt["doors"]
 	var free: Dictionary = {}
 	for v: Vector2i in crypt["floors"]:
-		if w.get_cell(v).type == LevelGen.Type.EMPTY and not in_trial(crypt, v) and doors.all(func(d: Vector2i) -> bool: return LevelGen.dist(d, v) > THORN_CLEAR):
+		if w.type_at(v) == LevelGen.Type.EMPTY and not in_trial(crypt, v) and doors.all(func(d: Vector2i) -> bool: return LevelGen.dist(d, v) > THORN_CLEAR):
 			free[v] = true
 	var starts: Array[Vector2i] = []
 	for v: Vector2i in free:
@@ -1151,7 +1151,7 @@ static func _sleepers(w: LevelGen, crypt: Dictionary, deep: Vector2i) -> void:
 static func _sleeper_spots(w: LevelGen, crypt: Dictionary, deep: Vector2i) -> Array[Vector2i]:
 	var floors: Array[Vector2i] = crypt["floors"]
 	var doors: Array[Vector2i] = crypt["doors"]
-	var spots: Array[Vector2i] = floors.filter(func(v: Vector2i) -> bool: return v != deep and w.get_cell(v).type == LevelGen.Type.EMPTY)
+	var spots: Array[Vector2i] = floors.filter(func(v: Vector2i) -> bool: return v != deep and w.type_at(v) == LevelGen.Type.EMPTY)
 	var key: Callable = func(v: Vector2i) -> int:
 		var niche: bool = w.is_ground(v + Vector2i.UP) and (w.is_ground(v + Vector2i.LEFT) or w.is_ground(v + Vector2i.RIGHT))
 		var near: bool = doors.any(func(d: Vector2i) -> bool: return LevelGen.dist(d, v) < SKELETON_CLEAR)
@@ -1164,7 +1164,7 @@ static func _sleeper_spots(w: LevelGen, crypt: Dictionary, deep: Vector2i) -> Ar
 ## its free floors left once its stars are laid, in _sleepers' order, however near another.
 static func _least_sleepers(w: LevelGen, crypt: Dictionary, deep: Vector2i) -> void:
 	var floors: Array[Vector2i] = crypt["floors"]
-	var asleep: int = floors.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.SKELETON).size()
+	var asleep: int = floors.filter(func(v: Vector2i) -> bool: return w.type_at(v) == LevelGen.Type.SKELETON).size()
 	for v: Vector2i in _sleeper_spots(w, crypt, deep):
 		if asleep >= SKELETONS_MIN:
 			break
@@ -1181,7 +1181,7 @@ static func _fonts(w: LevelGen, crypt: Dictionary) -> void:
 	var doors: Array[Vector2i] = crypt["doors"]
 	for door: Vector2i in doors:
 		var inner: Variant = w.best_of(crypt["floors"], func(v: Vector2i) -> int: return LevelGen.dist(v, door),
-				func(v: Vector2i) -> bool: return v != door and not doors.has(v) and w.get_cell(v).type == LevelGen.Type.EMPTY)
+				func(v: Vector2i) -> bool: return v != door and not doors.has(v) and w.type_at(v) == LevelGen.Type.EMPTY)
 		if inner != null:
 			w.put(inner, LevelGen.Type.SNUFFER)
 	for step: Vector2i in crypt["steps"]:
@@ -1212,7 +1212,7 @@ static func _rock_at(w: LevelGen, v: Vector2i) -> void:
 
 ## Open air at `v`, inside the level's edge.
 static func _open_at(w: LevelGen, v: Vector2i) -> void:
-	if w.is_valid(v) and w.get_cell(v).type != LevelGen.Type.EMPTY:
+	if w.is_valid(v) and w.type_at(v) != LevelGen.Type.EMPTY:
 		w._to_open(v)
 
 
@@ -1268,7 +1268,7 @@ static func phase(w: LevelGen, def: NextWorldDef) -> void:
 
 ## Whether cell `v` is free for a block: open, holding nothing.
 static func _free(w: LevelGen, v: Vector2i) -> bool:
-	return w.is_valid(v) and not w.is_ground(v) and w.get_cell(v).type == LevelGen.Type.EMPTY
+	return w.is_valid(v) and not w.is_ground(v) and w.type_at(v) == LevelGen.Type.EMPTY
 
 
 ## A sun block (`sun`) or a shade block at `v`, an open cell inside a crypt.
@@ -1283,7 +1283,7 @@ static func _ossuary(w: LevelGen, i: int, fill: int) -> void:
 	if (crypt["floors"] as Array).is_empty():
 		return
 	for door: Vector2i in crypt["doors"]:
-		if w.get_cell(door).type == LevelGen.Type.EMPTY:
+		if w.type_at(door) == LevelGen.Type.EMPTY:
 			w.put(door, LevelGen.Type.OSSUARY_DOOR, [i, fill])
 			w.empties.erase(door)
 		else:
@@ -1295,7 +1295,7 @@ static func _phase_stairs(w: LevelGen, crypt: Dictionary) -> void:
 	var stairs: Array[Vector2i] = []
 	for s: Vector2i in crypt["stairs"]:
 		var top: Vector2i = s + Vector2i.UP
-		if w.is_ground(s) and w.is_valid(top) and not w.is_ground(top) and w.get_cell(top).type in [LevelGen.Type.EMPTY, LevelGen.Type.COIN]:
+		if w.is_ground(s) and w.is_valid(top) and not w.is_ground(top) and w.type_at(top) in [LevelGen.Type.EMPTY, LevelGen.Type.COIN]:
 			stairs.append(s)
 	if stairs.size() < STAIRS_MIN:
 		return
@@ -1392,7 +1392,7 @@ static func _phase_crawl(w: LevelGen, rect: Rect2i, sun: bool) -> void:
 	var row: int = rect.position.y + 2
 	var spots: Array[int] = []
 	for x: int in range(rect.position.x + 2, rect.end.x - 2):
-		if _free(w, Vector2i(x, row)) and w.is_ground(Vector2i(x, row + 1)) and (_free(w, Vector2i(x, row - 1)) or w.get_cell(Vector2i(x, row - 1)).type == LevelGen.Type.SPIKES):
+		if _free(w, Vector2i(x, row)) and w.is_ground(Vector2i(x, row + 1)) and (_free(w, Vector2i(x, row - 1)) or w.type_at(Vector2i(x, row - 1)) == LevelGen.Type.SPIKES):
 			spots.append(x)
 	for g: int in range(CRAWL_GATES):
 		if spots.is_empty():
@@ -1409,7 +1409,7 @@ static func _phase_crawl(w: LevelGen, rect: Rect2i, sun: bool) -> void:
 static func _shade_floors(w: LevelGen, crypt: Dictionary) -> void:
 	var thorns: Dictionary = {}
 	for v: Vector2i in crypt["floors"]:
-		if w.get_cell(v).type == LevelGen.Type.SPIKES:
+		if w.type_at(v) == LevelGen.Type.SPIKES:
 			thorns[v] = true
 	var starts: Array[Vector2i] = []
 	for v: Vector2i in thorns:
@@ -1470,7 +1470,7 @@ static func _pocket(w: LevelGen, crypt: Dictionary) -> void:
 	var best: Variant = null
 	var best_key: float = INF
 	for v: Vector2i in crypt["floors"]:
-		if v == crypt["deep"] or w.get_cell(v).type != LevelGen.Type.COIN or in_trial(crypt, v):
+		if v == crypt["deep"] or w.type_at(v) != LevelGen.Type.COIN or in_trial(crypt, v):
 			continue
 		var around: Array[Vector2i] = []
 		var fits: bool = true
@@ -1478,7 +1478,7 @@ static func _pocket(w: LevelGen, crypt: Dictionary) -> void:
 			var c: Vector2i = v + d
 			if not w.is_valid(c) or w.is_ground(c):
 				continue
-			if w.get_cell(c).type != LevelGen.Type.EMPTY:
+			if w.type_at(c) != LevelGen.Type.EMPTY:
 				fits = false
 			around.append(c)
 		if not fits or around.size() < 2:

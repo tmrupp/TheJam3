@@ -306,7 +306,7 @@ func is_open(i: int) -> bool:
 	if stale():
 		return false
 	var g: Vector2i = gates[i]
-	var type: LevelGen.Type = map_info.world.get_cell(g).type
+	var type: LevelGen.Type = map_info.world.type_at(g)
 	if type == LevelGen.Type.SWITCH_GATE or type == LevelGen.Type.STATION_GATE:
 		return map_info.gate_open(g)
 	return not type in GATES or map_info.record().opened.has(g)

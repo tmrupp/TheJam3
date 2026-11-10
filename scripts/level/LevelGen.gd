@@ -141,6 +141,10 @@ class Cell:
 		type = _type
 
 var cells: Array
+## Every cell's type (Type), cell (x, y) at x * size.y + y: what `cells` says, kept in step by
+## set_cell (every change of a cell goes through it), for the passes that ask what a cell is
+## millions of times (type_at, is_ground, _open).
+var types: PackedByteArray = PackedByteArray()
 var size: Vector2i = Vector2i.ZERO
 var rng: RandomNumberGenerator
 var empties: Array[Vector2i] = []
@@ -220,18 +224,24 @@ func get_neighbors (v: Vector2i) -> Array[Vector2i]:
 	return vs
 
 func is_ground (v: Vector2i) -> bool:
-	return is_valid(v) and get_cell(v).type == Type.GROUND
+	return v.x >= 0 and v.y >= 0 and v.x < size.x and v.y < size.y and types[v.x * size.y + v.y] == Type.GROUND
 
 func get_cell (v: Vector2i) -> Cell:
 	return cells[v.x][v.y]
 
+## The type of cell `v` (inside the level), as get_cell(v).type, read from `types`.
+func type_at (v: Vector2i) -> Type:
+	return types[v.x * size.y + v.y] as Type
+
+## Make cell `v` (if not null) `cell`. Every change of a cell goes through here, so `types` stays
+## in step with `cells`.
 func set_cell (v: Variant, cell: Cell) -> void:
 	if v != null:
 		cells[v.x][v.y] = cell
+		types[v.x * size.y + v.y] = cell.type
 
 func ground_below (v: Vector2i) -> bool:
-	var n: Vector2i = v+Vector2i(0,1)
-	return is_ground(n)
+	return v.x >= 0 and v.y >= -1 and v.x < size.x and v.y < size.y - 1 and types[v.x * size.y + v.y + 1] == Type.GROUND
 
 func add_object_at (v: Vector2i) -> void:
 	empties.erase(v)
@@ -308,7 +318,7 @@ func empties_where (test: Callable) -> Array[Vector2i]:
 
 ## The free floors (open cells with rock under them), sorted.
 func free_floors () -> Array[Vector2i]:
-	return empties_where(func(v: Vector2i) -> bool: return ground_below(v) and get_cell(v).type == Type.EMPTY)
+	return empties_where(func(v: Vector2i) -> bool: return ground_below(v) and type_at(v) == Type.EMPTY)
 
 ## The free cells (`empties`) as a set, for looking up many times.
 func empty_set () -> Dictionary:
@@ -321,7 +331,7 @@ func empty_set () -> Dictionary:
 func objects_of (type: Type) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
 	for v: Vector2i in objects:
-		if get_cell(v).type == type:
+		if type_at(v) == type:
 			out.append(v)
 	out.sort()
 	return out
@@ -441,7 +451,7 @@ func place_start_key (def: NextWorldDef) -> void:
 		floors.append(v)
 	floors.sort()
 	var best: Variant = best_of(floors, func(v: Vector2i) -> int: return dist(v, start) + dist(v, door),
-			func(v: Vector2i) -> bool: return get_cell(v).type == Type.EMPTY and empties.has(v) and dist(v, start) >= 3 and dist(v, door) >= 2 \
+			func(v: Vector2i) -> bool: return type_at(v) == Type.EMPTY and empties.has(v) and dist(v, start) >= 3 and dist(v, door) >= 2 \
 				and not objects.any(func(o: Vector2i) -> bool: return dist(o, v) < 2))
 	if best != null:
 		var at: Vector2i = best
@@ -605,7 +615,7 @@ func reach_from (start: Vector2i, passable: Callable = func(_v: Vector2i) -> boo
 	return into
 
 func _to_rock (v: Vector2i) -> void:
-	cells[v.x][v.y] = Cell.new(Type.GROUND)
+	set_cell(v, Cell.new(Type.GROUND))
 	empties.erase(v)
 	objects.erase(v)
 	grounds.append(v)
@@ -621,13 +631,13 @@ var carved: Array[Vector2i] = []
 ## door and key (keep_clear), which every run must be able to hop.
 func make_room () -> void:
 	for v: Vector2i in objects.duplicate():
-		var size: Vector2i = Placeables.size(get_cell(v).type)
+		var size: Vector2i = Placeables.size(type_at(v))
 		if size == Vector2i.ONE:
 			continue
 		for dx: int in range(size.x):
 			for dy: int in range(size.y):
 				var c: Vector2i = v + Vector2i(dx, -dy)
-				if c == v or not is_valid(c) or not get_cell(c).type in [Type.GROUND, Type.SPIKES]:
+				if c == v or not is_valid(c) or not type_at(c) in [Type.GROUND, Type.SPIKES]:
 					continue
 				if _holds_up(c):
 					continue
@@ -642,9 +652,9 @@ func _holds_up (c: Vector2i) -> bool:
 	if vault_walls.has(c) or kept(c) or secret_steps.has(c) or keep_clear.has(c) or keep_clear.has(c + Vector2i.UP):
 		return true
 	for d: Vector2i in [Vector2i.UP, Vector2i.DOWN]:
-		if is_valid(c + d) and get_cell(c + d).type in [Type.DOOR, Type.SWITCH_GATE, Type.EXAM_DOOR]:
+		if is_valid(c + d) and type_at(c + d) in [Type.DOOR, Type.SWITCH_GATE, Type.EXAM_DOOR]:
 			return true
-	if is_valid(c + Vector2i.UP) and Placeables.has_flag(get_cell(c + Vector2i.UP).type, &"stander"):
+	if is_valid(c + Vector2i.UP) and Placeables.has_flag(type_at(c + Vector2i.UP), &"stander"):
 		return true
 	for chasm: Dictionary in chasms:
 		if c == (chasm["left"] as Vector2i) + Vector2i.DOWN or c == (chasm["right"] as Vector2i) + Vector2i.DOWN:
@@ -659,7 +669,7 @@ func _holds_up (c: Vector2i) -> bool:
 	return false
 
 func _to_open (v: Vector2i) -> void:
-	cells[v.x][v.y] = Cell.new(Type.EMPTY)
+	set_cell(v, Cell.new(Type.EMPTY))
 	grounds.erase(v)
 	objects.erase(v)
 	masonry.erase(v)
@@ -740,12 +750,12 @@ func make_moving (run_cells: Array[Vector2i], ladders: bool = false) -> void:
 			for c: Vector2i in run_cells:
 				track.append(c + Vector2i(0, k))
 	for p: Vector2i in track:
-		if not is_valid(p) or get_cell(p).type != Type.EMPTY or not empties.has(p):
+		if not is_valid(p) or type_at(p) != Type.EMPTY or not empties.has(p):
 			return
 	for p: Vector2i in track:
 		empties.erase(p)
 	for c: Vector2i in run_cells.slice(1):
-		cells[c.x][c.y] = Cell.new(Type.EMPTY)
+		set_cell(c, Cell.new(Type.EMPTY))
 		objects.erase(c)
 	set_kind(left, Type.MOVING_PLATFORM, [run_cells.size(), axis, travel])
 
@@ -757,7 +767,7 @@ func _make_ladder (run_cells: Array[Vector2i], travel: int) -> void:
 	for k: int in range(1, travel + 1):
 		track.append(run_cells[-1] + Vector2i(k, 0))
 	for p: Vector2i in track:
-		if not is_valid(p) or get_cell(p).type != Type.EMPTY or not empties.has(p):
+		if not is_valid(p) or type_at(p) != Type.EMPTY or not empties.has(p):
 			return
 	var reach: int = run_cells.size() - 1 + travel
 	var rungs: int = RollingLadder.stands(self, left, reach)
@@ -766,7 +776,7 @@ func _make_ladder (run_cells: Array[Vector2i], travel: int) -> void:
 	for p: Vector2i in track:
 		empties.erase(p)
 	for c: Vector2i in run_cells.slice(1):
-		cells[c.x][c.y] = Cell.new(Type.EMPTY)
+		set_cell(c, Cell.new(Type.EMPTY))
 		objects.erase(c)
 	for x: int in range(left.x, left.x + reach + 1):
 		for y: int in range(left.y + 1, left.y + rungs):
@@ -846,12 +856,14 @@ func _init (_cells: Array, def: NextWorldDef) -> void:
 		_cells = _cells.slice(0, _cells.size() - 1)
 	size = Vector2i(len(_cells), len(_cells[0]))
 	cells = []
+	types.resize(size.x * size.y)
 
 	for i: int in len(_cells):
 		var row: Array[Cell] = []
 		for j: int in len(_cells[i]):
 			var cell: Cell = new_cell_by_color(_cells[i][j])
 			row.append(cell)
+			types[i * size.y + j] = cell.type
 			add_cell_to_container(Vector2i(i, j), cell)
 		cells.append(row)
 
@@ -1041,7 +1053,7 @@ func populate_level (def: NextWorldDef) -> void:
 		var run_cells: Array[Vector2i] = [start]
 		for _j: int in range(rng.randi_range(1, 4)):
 			run += step
-			if platform_budget <= 0 or not is_valid(run) or get_cell(run).type != Type.EMPTY or not empties.has(run):
+			if platform_budget <= 0 or not is_valid(run) or type_at(run) != Type.EMPTY or not empties.has(run):
 				break
 			put(run, Type.PLATFORM)
 			run_cells.append(run)
@@ -1119,7 +1131,7 @@ func place_thorn_modes (def: NextWorldDef) -> void:
 		return
 	var start: Vector2i = exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
 	# Reached from the way in without passing a door (a vault's, or any locked one).
-	var reach: Dictionary = reach_from(start, func(n: Vector2i) -> bool: return get_cell(n).type != Type.DOOR) if is_valid(start) else {}
+	var reach: Dictionary = reach_from(start, func(n: Vector2i) -> bool: return type_at(n) != Type.DOOR) if is_valid(start) else {}
 	var switches: int = 0
 	for run: Array[Vector2i] in thorn_runs():
 		var first: Vector2i = run[0]
@@ -1151,7 +1163,7 @@ func thorn_runs () -> Array[Array]:
 	for x: int in range(size.x):
 		for y: int in range(size.y):
 			var v: Vector2i = Vector2i(x, y)
-			if seen.has(v) or get_cell(v).type != Type.SPIKES:
+			if seen.has(v) or type_at(v) != Type.SPIKES:
 				continue
 			var run: Array[Vector2i] = []
 			var ok: bool = true
@@ -1163,7 +1175,7 @@ func thorn_runs () -> Array[Array]:
 				ok = ok and not barred.has(c) and not kept(c)
 				for d: Vector2i in neighbor_offsets:
 					var n: Vector2i = c + d
-					if is_valid(n) and not seen.has(n) and get_cell(n).type == Type.SPIKES:
+					if is_valid(n) and not seen.has(n) and type_at(n) == Type.SPIKES:
 						seen[n] = true
 						stack.append(n)
 			if ok:
@@ -1268,7 +1280,7 @@ func place_cluster (def: NextWorldDef) -> void:
 	var start: Vector2i = exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
 	@warning_ignore("integer_division")
 	var far: int = Rules.exit_distance(def.depth) / 2
-	var spots: Array[Vector2i] = _air_spots(func(v: Vector2i) -> bool: return get_cell(v).type == Type.EMPTY and _wide_open(v) and dist(v, start) >= far)
+	var spots: Array[Vector2i] = _air_spots(func(v: Vector2i) -> bool: return type_at(v) == Type.EMPTY and _wide_open(v) and dist(v, start) >= far)
 	var at: Variant = null
 	if not spots.is_empty():
 		at = pick(spots)
@@ -1412,7 +1424,7 @@ func _carve_secret (r: Rect2i, door: Vector2i, relic: StringName) -> void:
 		objects.append(c)
 		var cell: Cell = Cell.new(Type.CRACKED)
 		cell.extra_info = id
-		cells[c.x][c.y] = cell
+		set_cell(c, cell)
 
 ## Vaults: small rooms sealed in the rock behind a locked corridor door, at floor height beside a
 ## floor (found as secret rooms are, see _secret_spots), their loot in plain sight through the
@@ -1574,7 +1586,7 @@ func _shuts_in (walls: Array) -> bool:
 	var wall: Dictionary = {}
 	for c: Vector2i in walls:
 		wall[c] = true
-	var open: Callable = func(v: Vector2i) -> bool: return _open(v) and get_cell(v).type != Type.SWITCH_GATE and not wall.has(v)
+	var open: Callable = func(v: Vector2i) -> bool: return _open(v) and type_at(v) != Type.SWITCH_GATE and not wall.has(v)
 	var beside: Dictionary = {}
 	for c: Vector2i in walls:
 		for d: Vector2i in neighbor_offsets:
@@ -1602,7 +1614,7 @@ func _shuts_in (walls: Array) -> bool:
 func _buildable (c: Vector2i, free: Dictionary) -> bool:
 	if kept(c) or secret_steps.has(c):
 		return false
-	return (free.has(c) and get_cell(c).type == Type.EMPTY) or get_cell(c).type in [Type.COIN, Type.PLATFORM]
+	return (free.has(c) and type_at(c) == Type.EMPTY) or type_at(c) in [Type.COIN, Type.PLATFORM]
 
 func _carve_vault (r: Rect2i, door: Vector2i, color: int) -> void:
 	for x: int in range(r.position.x - 1, r.end.x + 1):
@@ -1645,9 +1657,9 @@ func place_cracks (count: int) -> void:
 	var valuable: Array[Vector2i] = []
 	var doors: Array[Vector2i] = []
 	for v: Vector2i in objects:
-		if get_cell(v).type in [Type.KEY, Type.CHECKPOINT, Type.EXIT, Type.SHRINE, Type.INKWELL]:
+		if type_at(v) in [Type.KEY, Type.CHECKPOINT, Type.EXIT, Type.SHRINE, Type.INKWELL]:
 			valuable.append(v)
-		if get_cell(v).type in [Type.EXIT, Type.DOOR]:
+		if type_at(v) in [Type.EXIT, Type.DOOR]:
 			doors.append(v)
 	var walls: Array[Array] = []
 	var near: Array[Array] = []
@@ -1662,7 +1674,7 @@ func place_cracks (count: int) -> void:
 				wall = [v, v + axis]
 			# Never rock that thorns hang from (a chasm's floor, say): they would be left in the air;
 			# nor the bramble's shaft, which is climbed only from its foot.
-			if wall.is_empty() or wall.any(func(c: Vector2i) -> bool: return kept(c) or neighbor_offsets.any(func(d: Vector2i) -> bool: return is_valid(c + d) and get_cell(c + d).type == Type.SPIKES)):
+			if wall.is_empty() or wall.any(func(c: Vector2i) -> bool: return kept(c) or neighbor_offsets.any(func(d: Vector2i) -> bool: return is_valid(c + d) and type_at(c + d) == Type.SPIKES)):
 				continue
 			if wall.any(func(c: Vector2i) -> bool: return doors.any(func(d: Vector2i) -> bool: return dist(c, d) <= CRACK_DOOR_CLEAR)):
 				continue
@@ -1684,7 +1696,7 @@ func place_cracks (count: int) -> void:
 			continue
 		for c: Vector2i in wall:
 			grounds.erase(c)
-			cells[c.x][c.y] = Cell.new(Type.CRACKED)
+			set_cell(c, Cell.new(Type.CRACKED))
 			objects.append(c)
 		placed += 1
 
@@ -1707,7 +1719,7 @@ func place_doors (count: int) -> void:
 ## ways kept clear, sorted: where a door or a switch gate fits.
 func _corridors () -> Array[Vector2i]:
 	return empties_where(func(v: Vector2i) -> bool: return not keep_clear.has(v) and is_ground(v + Vector2i.UP) and is_ground(v + Vector2i.DOWN) \
-			and _open(v + Vector2i.LEFT) and _open(v + Vector2i.RIGHT) and get_cell(v + Vector2i.LEFT).type == Type.EMPTY and get_cell(v + Vector2i.RIGHT).type == Type.EMPTY)
+			and _open(v + Vector2i.LEFT) and _open(v + Vector2i.RIGHT) and type_at(v + Vector2i.LEFT) == Type.EMPTY and type_at(v + Vector2i.RIGHT) == Type.EMPTY)
 
 ## Switch gates: a gate across a corridor (rock above and below, open either side, like a door)
 ## and its switch on a floor some way off (switch_floor) reachable from the way in without passing that
@@ -1750,7 +1762,7 @@ func switch_floor (reach: Dictionary, target: Vector2i) -> Variant:
 	var far: Array[Vector2i] = []
 	var close: Array[Vector2i] = []
 	for v: Vector2i in reach:
-		if not free.has(v) or get_cell(v).type != Type.EMPTY or not ground_below(v) or dist(v, target) < 2 or locked.has(v):
+		if not free.has(v) or type_at(v) != Type.EMPTY or not ground_below(v) or dist(v, target) < 2 or locked.has(v):
 			continue
 		var d: int = dist(v, target)
 		(band if d >= SWITCH_MIN and d <= SWITCH_MAX else (far if d > SWITCH_MAX else close)).append(v)
@@ -1805,9 +1817,9 @@ func place_side_doors (def: NextWorldDef, last: bool = false) -> void:
 	var floors: Array[Vector2i] = empties_where(ground_below)
 	var nearest: Callable = func(v: Vector2i) -> int: return dist(v, from)
 	var furthest: Callable = func(v: Vector2i) -> int: return -dist(v, from)
-	var free: Callable = func(v: Vector2i) -> bool: return get_cell(v).type == Type.EMPTY and not _crowds_exit(v)
+	var free: Callable = func(v: Vector2i) -> bool: return type_at(v) == Type.EMPTY and not _crowds_exit(v)
 	var free_and_open: Callable = func(v: Vector2i) -> bool:
-		return bool(free.call(v)) and is_valid(v + Vector2i.UP) and get_cell(v + Vector2i.UP).type == Type.EMPTY
+		return bool(free.call(v)) and is_valid(v + Vector2i.UP) and type_at(v + Vector2i.UP) == Type.EMPTY
 	for kind: int in def.doors:
 		if Worlds.proto(kind).laid_last != last:
 			continue
@@ -1888,7 +1900,7 @@ func _held_up (supports: Dictionary) -> PackedByteArray:
 		var held: bool = false
 		for y: int in range(size.y - 1, -1, -1):
 			var v: Vector2i = Vector2i(x, y)
-			if (cells[x][y] as Cell).type in FALL_STOPS:
+			if types[x * size.y + y] in FALL_STOPS:
 				held = false
 				continue
 			held = held or supports.has(v)
@@ -1899,9 +1911,9 @@ func _held_up (supports: Dictionary) -> PackedByteArray:
 func _thorns_below (v: Vector2i) -> bool:
 	for dy: int in range(1, 6):
 		var n: Vector2i = v + Vector2i(0, dy)
-		if not is_valid(n) or get_cell(n).type in THORN_COVER:
+		if not is_valid(n) or type_at(n) in THORN_COVER:
 			return false
-		if get_cell(n).type == Type.SPIKES:
+		if type_at(n) == Type.SPIKES:
 			return true
 	return false
 
@@ -1909,17 +1921,20 @@ func _wide_open (v: Vector2i) -> bool:
 	for dx: int in range(-MOON_CLEARANCE, MOON_CLEARANCE + 1):
 		for dy: int in range(-MOON_CLEARANCE, MOON_CLEARANCE + 1):
 			var n: Vector2i = v + Vector2i(dx, dy)
-			if not is_valid(n) or get_cell(n).type == Type.GROUND:
+			if not is_valid(n) or type_at(n) == Type.GROUND:
 				return false
 	# Hanging in the air, not sitting just above a floor.
 	for dy: int in range(MOON_CLEARANCE + 1, MOON_CLEARANCE + 2):
 		var below: Vector2i = v + Vector2i(0, dy)
-		if not is_valid(below) or get_cell(below).type == Type.GROUND:
+		if not is_valid(below) or type_at(below) == Type.GROUND:
 			return false
 	return true
 
 func _open (v: Vector2i) -> bool:
-	return is_valid(v) and get_cell(v).type != Type.GROUND and get_cell(v).type != Type.CRACKED
+	if v.x < 0 or v.y < 0 or v.x >= size.x or v.y >= size.y:
+		return false
+	var t: int = types[v.x * size.y + v.y]
+	return t != Type.GROUND and t != Type.CRACKED
 
 ## The sigils linking this level's teleporter pairs and switches to what they work (Sigils.deal),
 ## dealt the first time one is asked for.

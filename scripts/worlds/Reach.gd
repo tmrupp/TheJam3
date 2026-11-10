@@ -98,7 +98,7 @@ static func way(parent: Dictionary, to: Vector2i) -> Array[Vector2i]:
 static func reached_from(w: LevelGen, sources: Array[Vector2i], targets: Array[Vector2i]) -> bool:
 	for b: Vector2i in targets:
 		for a: Vector2i in sources:
-			if hop(w, a, b, w.get_cell(a).type == LevelGen.Type.MOON):
+			if hop(w, a, b, w.type_at(a) == LevelGen.Type.MOON):
 				return true
 	return false
 
@@ -162,4 +162,4 @@ static func timed(cell: LevelGen.Cell) -> bool:
 ## Something to stand on under `v`: rock, a ledge, or the border rock round the world.
 static func underfoot(w: LevelGen, v: Vector2i) -> bool:
 	var below: Vector2i = v + Vector2i.DOWN
-	return not w.is_valid(below) or w.get_cell(below).type in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED, LevelGen.Type.PLATFORM]
+	return not w.is_valid(below) or w.type_at(below) in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED, LevelGen.Type.PLATFORM]

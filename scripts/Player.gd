@@ -893,7 +893,7 @@ func _safe_at(info: MapInfo, at: Vector2) -> bool:
 		reach = collider.shape.get_rect().size.x * 0.5 * absf(collider.global_scale.x)
 	for dx: float in [-reach, 0.0, reach]:
 		var v: Vector2i = info.cell_at(at + Vector2(dx, 0))
-		if info.world.is_valid(v) and info.world.get_cell(v).type == LevelGen.Type.SPIKES:
+		if info.world.is_valid(v) and info.world.type_at(v) == LevelGen.Type.SPIKES:
 			return false
 	return true
 

@@ -249,7 +249,7 @@ func setup(info: MapInfo, v: Vector2i, extra: Variant) -> void:
 			move = ability
 	# A student the level laid starts where its day has taken it (Students.seat_at): in class time in
 	# that period's class, in passing time in the last one's, setting out from there.
-	if kind == &"student" and info != null and Timetable.kept_in(info.world) and info.world.get_cell(v).type == LevelGen.Type.STUDENT:
+	if kind == &"student" and info != null and Timetable.kept_in(info.world) and info.world.type_at(v) == LevelGen.Type.STUDENT:
 		origin = v
 		var rec: LevelRecord = info.record()
 		var start: Vector2i = v
@@ -710,7 +710,7 @@ func floors() -> Array[Vector2i]:
 
 ## Whether cell `v` of `w` has room for it: no rock, door or glyph seal in it.
 static func _room(w: LevelGen, v: Vector2i) -> bool:
-	return not w.is_ground(v) and not (w.get_cell(v).type in [LevelGen.Type.EXAM_DOOR, LevelGen.Type.DOOR])
+	return not w.is_ground(v) and not (w.type_at(v) in [LevelGen.Type.EXAM_DOOR, LevelGen.Type.DOOR])
 
 
 ## Gone from where it stands and there at once, on the floor of cell `v`: where it keeps to now.

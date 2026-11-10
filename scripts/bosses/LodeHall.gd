@@ -118,7 +118,7 @@ static func arm(w: LevelGen) -> void:
 		var left: bool = (k % 2 == 0) == left_first
 		for side: bool in [left, not left]:
 			var at: Vector2i = Vector2i(inside.position.x if side else inside.end.x - 1, floors[k] - 1)
-			if w.get_cell(at).type != LevelGen.Type.EMPTY:
+			if w.type_at(at) != LevelGen.Type.EMPTY:
 				continue
 			w.put(at, LevelGen.Type.CROSSBOW, {"facing": 1 if side else -1, "inward": true})
 			bows.append(at)
@@ -160,12 +160,12 @@ static func _build(w: LevelGen, box: Rect2i) -> void:
 			var v: Vector2i = Vector2i(x, y)
 			w.structures[v] = &"golem"
 			if inside.has_point(v) and not floor_rows.has(y):
-				if not w._open(v) or w.get_cell(v).type != LevelGen.Type.EMPTY:
+				if not w._open(v) or w.type_at(v) != LevelGen.Type.EMPTY:
 					w._to_open(v)
 				w.masonry.erase(v)
 				w.interiors[v] = true
 			else:
-				if w.get_cell(v).type != LevelGen.Type.GROUND:
+				if w.type_at(v) != LevelGen.Type.GROUND:
 					w._to_rock(v)
 				w.masonry[v] = true
 				w.interiors.erase(v)
@@ -210,7 +210,7 @@ static func _build(w: LevelGen, box: Rect2i) -> void:
 				break
 			for y: int in range(bottom - DOOR_ROWS + 1, bottom + 1):
 				var v: Vector2i = Vector2i(x, y)
-				if not w._open(v) or w.get_cell(v).type != LevelGen.Type.EMPTY:
+				if not w._open(v) or w.type_at(v) != LevelGen.Type.EMPTY:
 					w._to_open(v)
 				walled.erase(v)
 				if not past:
