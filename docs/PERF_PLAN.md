@@ -2,7 +2,8 @@
 
 An analysis of where the game and its regression suite spend their time, made on 9 November 2026
 on the owner's machine (16 logical cores, Godot 4.7.2), and a plan to make both faster without
-giving up the code's composition or repeating code. Nothing here is built yet.
+giving up the code's composition or repeating code. Step 1 of the order of work (1.1, 1.3 and
+1.4) is built; the rest is not yet.
 
 Every figure below was measured, not guessed, with throwaway probes (the per-pass timings in a
 scratch copy of the tree, so the working tree was not touched). Another session was running the
@@ -158,6 +159,10 @@ shrunk them, so `bash tests/run.sh` is a real quick check again, and correct the
 `run.sh`. Agree with the owner which tests are the quick check (suggestion: everything under 15 s
 after phase 2, plus `layout_fingerprint_test` and `unit_test`).
 
+*Built:* `run.sh` keeps `durations` (a file a band layout) in `/tmp/thejam3-tests/`, starts the
+headless tests slowest first (a test never timed first of all) and names the slowest five in its
+summary.
+
 **1.3 One way to jump to a place: `TestKit.go(at, freeze)`.** Fourteen tests carry the same private
 `_go(at)` (coord, arrival, `_load_level()`, `settle()`, and in ten of them
 `player.set_physics_process(false)`), and 48 tests call the private `MapInfo._load_level()` 60
@@ -165,9 +170,18 @@ times between them. Add a public `MapInfo.jump_to(at, arrival)` (what `_load_lev
 name the tests may call) and `TestKit.go(at, freeze = true)` over it; delete the copies. Tests then
 depend on one entry point, which phase 1.4 can change for all of them at once.
 
+*Built:* `MapInfo.jump_to(at, arrival = Exit.BACK)` (travel and respawns end there too) and
+`TestKit.go(at, freeze = true)`. The fourteen copies are gone (five captures keep a `_go` of their
+own over `go`, as they also stop the camera or wait), and no test calls `_load_level` any more.
+`deeper_test`'s own `go(exit)` became `through(exit)`.
+
 **1.4 No prefetching in tests unless asked for.** Give `LevelLoader` a `prefetching` switch (on in
 the game) and have `TestKit.boot` turn it off. The few tests of the cache and the worker (`revisit_test`, the gen lab's round trip) turn it back on. This frees a core per running
 test and removes the wait behind an unwanted neighbour (1.6 fixes that wait in the game too).
+
+*Built:* the static `LevelLoader.prefetching`, turned off as the kit starts (`TestKit._initialize`,
+so a test may turn it on again before `boot`). `revisit_test` checks it off, then on (every
+neighbour laid out); `interface_test`, which checks the background pre-generation, turns it on.
 
 **1.5 Run headless tests at a fixed step.** Pass `--fixed-fps 60` to headless runs in `run.sh`,
 so a test's game runs as fast as the machine allows rather than at most in real time. First move
@@ -359,6 +373,15 @@ line in its summary) that prints the slowest tests and the share of the run spen
 ## Order of work
 
 1. Phase 1.1 and 1.3 to 1.4 (an afternoon; no layouts touched). Measure the suite again.
+   *Done, 10 November 2026.* Measured in a Linux container (4 cores, Godot 4.7.2 for Linux, the
+   extension built there with GCC; its levels differ from the MSVC build's, so
+   `layout_fingerprint_test` and `decor_test` failed there before and after alike), the quick run
+   before and after, 4 tests at a time: 436 s → 410 s of wall time, 1,620 → 1,565 test-seconds,
+   the same 107 of 109 passing. At 2 at a time, where each test's worker had a spare core, the
+   test-seconds did not change (1,583 → 1,581): the saving from 1.4 shows only on a loaded machine,
+   as the owner's 8 at a time is. With 4 jobs the run already ends within 5 % of its test-seconds
+   divided by the jobs, so 1.1 matters most where the tail is long (8 jobs, a 120 s test). Still to
+   measure on the owner's machine.
 2. Phase 2.1 to 2.5, with 4.3 for each pass touched, then 2.6. Measure the levels again.
 3. Phase 1.6 to 1.8 (with the owner's word on 1.7), then 1.2 and 1.9.
 4. Phase 3.4, then 1.5.
