@@ -587,16 +587,18 @@ func _open_count () -> int:
 
 ## Every connected open region (4-neighbour), in scan order.
 func _open_regions () -> Array:
-	var seen: Dictionary = {}
+	var seen: PackedByteArray = PackedByteArray()
+	seen.resize(types.size())
+	seen.fill(0)
 	var out: Array = []
 	for x: int in range(size.x):
 		for y: int in range(size.y):
-			var v: Vector2i = Vector2i(x, y)
-			if _open(v) and not seen.has(v):
+			var i: int = x * size.y + y
+			if seen[i] == 0 and types[i] != Type.GROUND and types[i] != Type.CRACKED:
 				var region: Dictionary = {}
-				_flood(v, region)
+				_flood(Vector2i(x, y), region)
 				for c: Vector2i in region:
-					seen[c] = true
+					seen[c.x * size.y + c.y] = 1
 				var cells_in: Array = region.keys()
 				cells_in.sort()
 				out.append(cells_in)
@@ -612,17 +614,30 @@ func _flood (from: Vector2i, into: Dictionary) -> void:
 ## order cells are found in is not kept: sort before drawing.
 func reach_from (start: Vector2i, passable: Callable = Callable(), into: Dictionary = {}) -> Dictionary:
 	var any: bool = passable.is_null()
+	# Begun afresh, the cells found are marked in a packed array, quicker to ask than `into`.
+	var fresh: bool = into.is_empty()
+	var marks: PackedByteArray = PackedByteArray()
+	if fresh:
+		marks.resize(types.size())
+		marks.fill(0)
+		if is_valid(start):
+			marks[start.x * size.y + start.y] = 1
 	var stack: Array[Vector2i] = [start]
 	into[start] = true
 	while not stack.is_empty():
 		var v: Vector2i = stack.pop_back()
 		for d: Vector2i in neighbor_offsets:
 			var n: Vector2i = v + d
-			if n.x < 0 or n.y < 0 or n.x >= size.x or n.y >= size.y or into.has(n):
+			if n.x < 0 or n.y < 0 or n.x >= size.x or n.y >= size.y:
 				continue
-			var t: int = types[n.x * size.y + n.y]
+			var i: int = n.x * size.y + n.y
+			if (marks[i] == 1) if fresh else into.has(n):
+				continue
+			var t: int = types[i]
 			if t != Type.GROUND and t != Type.CRACKED and (any or passable.call(n)):
 				into[n] = true
+				if fresh:
+					marks[i] = 1
 				stack.append(n)
 	return into
 

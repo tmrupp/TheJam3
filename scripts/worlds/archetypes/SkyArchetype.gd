@@ -465,28 +465,32 @@ static func _build_gaps(w: LevelGen, want: int) -> void:
 				@warning_ignore("integer_division")
 				var tier: int = 0 if w.in_isle(Vector2i(a - 1, y), 2) and w.in_isle(Vector2i(a + span, y), 2) and not w.in_isle(Vector2i(a + span / 2, y)) else (1 if w.in_isle(Vector2i(a - 1, y), 4) and w.in_isle(Vector2i(a + span, y), 4) else 2)
 				tiers[tier].append([y, a, span])
-	# Costed only in the first tier with any spot left.
+	# Costed only in the first tier with any spot left. A gap's cost is how many cells building it
+	# changes: across it, two rows over and under its floor row opened; on each shore, two rows over
+	# and the floor row opened and the row under it made rock. Counted in boxes with running sums.
+	var filled: PackedByteArray = PackedByteArray()
+	filled.resize(w.types.size())
+	filled.fill(0)
+	for i: int in range(w.types.size()):
+		if w.types[i] != LevelGen.Type.EMPTY:
+			filled[i] = 1
+	var full: CellSums = CellSums.new(w.size, filled)
+	var lanes: CellSums = CellSums.of_set(w, w.lanes)
 	var spots: Array = []
 	for tier: Array in tiers:
 		for sp: Array in tier:
 			var y: int = sp[0]
 			var a: int = sp[1]
 			var span: int = sp[2]
-			var cost: int = 0
-			for x: int in range(a - BUILT_SHORE, a + span + BUILT_SHORE):
-				var shore: bool = x < a or x >= a + span
-				for d: int in range(-2, 3 if not shore else 2):
-					var c: Vector2i = Vector2i(x, y + d)
-					# Never across a causeway or its updraft.
-					if w.lanes.has(c):
-						cost = -1
-						break
-					if (w.type_at(c) != LevelGen.Type.EMPTY) != (shore and d == 1):
-						cost += 1
-				if cost < 0:
-					break
-			if cost >= 0:
-				spots.append([cost, y, a, span])
+			var across: Rect2i = Rect2i(a, y - 2, span, 5)
+			var shores: Array[Rect2i] = [Rect2i(a - BUILT_SHORE, y - 2, BUILT_SHORE, 3), Rect2i(a + span, y - 2, BUILT_SHORE, 3)]
+			var footings: Array[Rect2i] = [Rect2i(a - BUILT_SHORE, y + 1, BUILT_SHORE, 1), Rect2i(a + span, y + 1, BUILT_SHORE, 1)]
+			# Never across a causeway or its updraft.
+			if lanes.count(across) + lanes.count(shores[0]) + lanes.count(shores[1]) + lanes.count(footings[0]) + lanes.count(footings[1]) > 0:
+				continue
+			var cost: int = full.count(across) + full.count(shores[0]) + full.count(shores[1]) \
+					+ 2 * BUILT_SHORE - full.count(footings[0]) - full.count(footings[1])
+			spots.append([cost, y, a, span])
 		if not spots.is_empty():
 			break
 	spots.sort()
