@@ -166,6 +166,16 @@ bash tests/run.sh -l garden full  # the suite on another band layout (the demo's
   dealt (over 600 columns); on the left, sums of what is in view and over 200 runs (steps to each
   boss, the nearest relic and skeleton key). Pick the band layout there. `world_atlas_test` checks
   it against the rules; `tests/capture_world_atlas.gd` takes stills.
+- The benches, `tests/bench_*.gd` (each prints `BENCH` lines; all but `bench_gen` want a window):
+  `bench_gen` (laying a level out, collapse and layout apart; `-- passes`, each pass of the layout,
+  band by band), `bench_load` (arriving at a level, step by step, and its first frames),
+  `bench_frame` (a steady frame by pass, then by script), `bench_walk` (standing and walking),
+  `bench_profile` (the script profiler over a steady frame; run with `-d`), `bench_gpu` (CPU or GPU
+  bound, and the GPU's passes), `bench_print` (the print's GPU passes), `bench_crowd` (an animated
+  kind's art in a crowd), `bench_rig` (a rig on the GPU against in script), `bench_chunks` (what
+  sleeping far chunks saves) and `bench_big_level` (a deep level, each printed system off in turn).
+  `run.sh`'s summary gives the share of a run spent laying levels out (`TestKit.build`'s tally).
+  Use these before writing a probe of your own (`docs/PERF_PLAN.md`).
 - `tests/dump_garden.gd` prints what every garden row holds over many worlds (foes, stars against
   the way on's price, keys and doors).
 - Each test sets its own `RunState.save_path` (`user://<test>.save`), so they can run in parallel.

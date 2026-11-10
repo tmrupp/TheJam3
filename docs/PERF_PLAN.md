@@ -2,8 +2,8 @@
 
 An analysis of where the game and its regression suite spend their time, made on 9 November 2026
 on the owner's machine (16 logical cores, Godot 4.7.2), and a plan to make both faster without
-giving up the code's composition or repeating code. Steps 1 and 2 of the order of work are built
-(see there); the rest is not yet.
+giving up the code's composition or repeating code. The order of work is built (see there, with
+what was measured and what is left: 3.5, most of 3.1, 4.4).
 
 Every figure below was measured, not guessed, with throwaway probes (the per-pass timings in a
 scratch copy of the tree, so the working tree was not touched). Another session was running the
@@ -408,9 +408,38 @@ line in its summary) that prints the slowest tests and the share of the run spen
    switch gates and bells (25 to 45 each), `connect_caves` (15 to 45, two calls in the sky and
    crags), the crags' `populate` (about 40). 2.7 (the lists of cells) not needed yet.
 3. Phase 1.6 to 1.8 (with the owner's word on 1.7), then 1.2 and 1.9.
-4. Phase 3.4, then 1.5.
-5. Phase 3.1 (the arrival's first frame), then 3.2, 3.3, 3.5, 3.1a and 3.6 as the benches say.
-6. Phase 4.1, 4.2 and 4.5 alongside, 4.4 when convenient.
+   *Done* (the owner said to go on with every step). `TestKit` tallies its layouts and `run.sh`
+   sums them (before: 778 layouts, 239 of them a place laid out again, 14 % of the tests' time).
+   - 1.7: `determinism_test` (60 places twice, every property, the sigils too; tagged full) in place
+     of 25 second builds; AGENTS.md's convention says so.
+   - 1.8: `TestKit.built`; 1.6: `SkyArchetype.temple_dealt` and `TestKit.find_level`.
+   - 1.2: the 22 tests over 15 s and `determinism_test` tagged full; the quick run is 87 tests,
+     165 s four at a time. 1.9: `bridge_walk_test` split (`bridge_walk_deeper_test`), 78 s → 49 s.
+4. Phase 3.4, then 1.5. *Done.* `GameClock`: game seconds in physics steps, an order stamp for a
+   hit against a catch. The hit-stop is timed in steps too: on the wall clock it lasted many frames
+   once the game ran faster than the clock, and slowed everything after it. `run.sh` runs headless
+   tests with `--fixed-fps 60`; `music_loop_test` waits on its audio by the clock (`TestKit.wall`),
+   `stalactite_test` times its shake in game time, and `wisp_turn_test` leaves out a turn's last
+   frame, where the mover (in steps) and the art (in frames) part by a pixel.
+5. Phase 3.1, then 3.2, 3.3, 3.5, 3.1a and 3.6 as the benches say. Measured under Xvfb with Mesa's
+   software GL, so the renderer's and the GPU's shares say nothing; the scripts' do.
+   - 3.1 in part: big ink shapes (`RisoInkOp.SOON_POLYS`) are triangulated on the thread pool as
+     they are printed; a cemetery arrival's first frame waits 14 ms for them, not 50. The rest of
+     that frame's "before" (about 200 ms there) is the engine's own (uploads, bodies), which this
+     machine cannot weigh: drawing by chunk is left for a machine with a GPU.
+   - 3.2: `LevelLoader.Worker`, two of them: the place wanted is laid out at once beside the one
+     ahead. 3.3: `world_at` asks a worker and returns null meanwhile (the map shows a drop of ink).
+   - 3.1a: `RisoSight.outside` keeps its last answers (`RisoLight` 2.6 → 1.3 ms a frame in a
+     cemetery level, standing); `Lamplight` gathers a level's lanterns once.
+   - 3.6: `RisoPrint.prints_art`, off in headless tests (`TestKit.art(true)` for the seven that read
+     the art). The full run, window tests included, four at a time: 1,088 → 843 test-seconds,
+     326 s → 254 s.
+   - 3.5 not done: building a level over several frames, or its art only as its chunk wakes, needs
+     the print looked at in a window on a real GPU, and riso_print_test checks every prefab dressed.
+6. Phase 4.1, 4.2 and 4.5 alongside, 4.4 when convenient. *Done but 4.4.* `BossDeath` for the
+   beast, necromancer and golem (the bramble's, worm's and whale's deaths share little else);
+   `Wound.stunned` asks the stunner; `TestKit.freeze`, `sturdy`, `press`, `tap`; the benches listed
+   in AGENTS.md (4.6). 4.4 (`MapInfo` in parts) left for a change that touches it anyway.
 
 ## Decisions for the owner
 
