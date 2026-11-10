@@ -48,7 +48,8 @@ const SNAP: float = 12.0
 ## first and slowing to nothing over LURCH_TIME seconds (about LURCH_SPEED * LURCH_TIME / 2 px in
 ## all), stopping short at a ledge, a wall or another wisp. It gathers itself for LURCH_REST seconds
 ## after, and walks LURCH_AGAIN seconds before it may lurch again. A harder preset winds up, rests
-## and lurches again sooner (Difficulty.attack); a stun breaks it off.
+## and lurches again sooner (Difficulty.attack; its wind-up never under Difficulty.TELL_MIN); a stun
+## breaks it off.
 const LURCH_SIGHT: Vector2 = Vector2(230.0, 48.0)
 const WIND_UP: float = 0.55
 const LURCH_SPEED: float = 880.0
@@ -154,7 +155,7 @@ func _lurch(delta: float) -> bool:
 			lurch_wait = LURCH_AGAIN
 		return true
 	if winding >= 0.0:
-		winding += delta * pace / WIND_UP
+		winding += delta / Difficulty.tell(WIND_UP)
 		if winding >= 1.0:
 			winding = -1.0
 			lurching = 0.0

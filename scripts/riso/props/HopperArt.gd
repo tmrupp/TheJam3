@@ -20,6 +20,11 @@ const TAIL_LEN: float = 90.0
 ## blob landing, and how far forward (radians) it leans over its feet as it crouches.
 const SHAPE_EASE: float = 14.0
 const CROUCH_LEAN: float = 0.35
+## Its tell, crouching (Hopper.CROUCH_TIME): the paper gleam on its round swells to GLEAM_SWELL
+## times its size (its body is pink at all times, so it brightens rather than turning pink), under
+## the tell's mark (RisoProp.tell_mark), TELL_R px round its middle.
+const GLEAM_SWELL: float = 2.2
+const TELL_R: float = 40.0
 ## The splash on landing: how many droplets, for how long (seconds), and how far they fly (art units).
 const SPLASH: int = 4
 const SPLASH_TIME: float = 0.35
@@ -33,7 +38,7 @@ var trail: Array[Vector3] = []
 
 ## The hopper: on the ground a blob of pink spell-water, wider than high, with two paper eyes and
 ## a paper gleam; crouching to leap it leans forward over its feet (the eyes narrowing) rather than
-## squashing. Leaving the ground it gathers into a round drop whose tail follows the way its head
+## squashing, its gleam swelling and its tell's mark over it. Leaving the ground it gathers into a round drop whose tail follows the way its head
 ## has come, streaming out behind the leap and curving as it arcs, then drawing back in as it lands
 ## and spreads out again, with a few droplets splashing out round it.
 func _draw_art() -> void:
@@ -83,7 +88,11 @@ func _draw_art() -> void:
 	var under: Vector2 = Vector2(0, -BLOB_H * 0.45).lerp(MIDDLE + Vector2(0, 1.5), air)
 	ink.ink(RisoPrint.NIGHT, 0.25, [xf * RisoShapes.crescent(under, lerpf(BLOB_W * 0.9, R * 0.95, air), Vector2(0, -3.0))], false)
 	var gleam_at: Vector2 = Vector2(-5.5, -BLOB_H * 0.72).lerp(MIDDLE + Vector2(-4.5, -4.0), air)
-	var eyes: Array[PackedVector2Array] = [xf * Transform2D(-0.6, gleam_at) * RisoShapes.almond(Vector2.ZERO, 1.6, 3.6, 10)]
+	var gleam: float = 1.0
+	if crouch >= 0.0 and not stunned:
+		gleam = lerpf(1.0, GLEAM_SWELL, crouch * crouch)
+		tell_mark(xf * Vector2(0, -BLOB_H * 0.5), TELL_R, crouch, Difficulty.last_beat(crouch, Difficulty.tell(Hopper.CROUCH_TIME)))
+	var eyes: Array[PackedVector2Array] = [xf * Transform2D(-0.6, gleam_at) * RisoShapes.almond(Vector2.ZERO, 1.6 * gleam, 3.6 * gleam, 10)]
 	for k: int in range(2):
 		var e: Vector2 = Vector2(2.5 + 4.5 * float(k), -BLOB_H * 0.55).lerp(MIDDLE + Vector2(2.5 + 4.0 * float(k), -1.5), air)
 		if stunned:

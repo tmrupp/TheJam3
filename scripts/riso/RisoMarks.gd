@@ -7,6 +7,43 @@ extends RefCounted
 ## InkCanvas is given.
 
 
+# ------------------------------------------------------------------ a foe's tell
+# Every attack's warning (docs/REVIEW_PLAN.md §8.1; Difficulty.tell): pink that builds through the
+# wind-up, and a flash to paper in its last beat (Difficulty.last_beat, the guard's window). Printed
+# by the foes' art (RisoProp.tell_mark) and the bosses on a canvas over the darkness
+# (tell_canvas), so it reads where the foe is met in the dark.
+
+## The tell's pink at its fullest, how big it starts against its full size, and its last beat's
+## paper star: its size against the tell's, and how far over the tell's middle it shines (against
+## its size), so it never hides the foe's own art.
+const TELL_PINK: float = 0.4
+const TELL_FROM: float = 0.55
+const TELL_STAR: float = 0.5
+const TELL_STAR_UP: float = 1.0
+
+
+## A tell into `canvas`: a bloom of pink round `c`, `r` px across, swelling and deepening as the
+## wind-up goes on (`u`, 0 to 1), fullest the moment before the blow; and in its last beat (`last`)
+## a paper star shining over it, cut out of the print. Nothing while `u` is below 0 (no wind-up under
+## way), but for the star.
+static func tell(canvas: InkCanvas, c: Vector2, r: float, u: float, last: bool) -> void:
+	if u >= 0.0:
+		var k: float = clampf(u, 0.0, 1.0)
+		canvas.ink(RisoPrint.PINK, TELL_PINK * k * k, [RisoShapes.circle(c, r * lerpf(TELL_FROM, 1.0, k), 24)])
+	if last:
+		canvas.knock(RisoPrint.ALL_PLATES, [RisoShapes.sparkle(c + Vector2(0.0, -r * TELL_STAR_UP), r * TELL_STAR)])
+
+
+## A canvas for tells, added under `parent`: over the darkness (RisoLight.SHADE_Z), at its own
+## height whatever its parent's.
+static func tell_canvas(parent: Node) -> InkCanvas:
+	var canvas: InkCanvas = InkCanvas.new()
+	canvas.z_index = RisoLight.SHADE_Z + 1
+	canvas.z_as_relative = false
+	parent.add_child(canvas)
+	return canvas
+
+
 # ------------------------------------------------------------------ places, without words
 # A place reads as marks and numbers only: a world (a globe banded by two paper latitudes) before
 # the world's number, a depth (a thick down arrow) before the depth's, and, in a side world, its

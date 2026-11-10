@@ -172,7 +172,7 @@ func _dart(delta: float, to: Vector2) -> bool:
 			dart_wait = DART_AGAIN
 		return true
 	if swelling >= 0.0:
-		swelling += delta * pace / SWELL
+		swelling += delta / Difficulty.tell(SWELL)
 		velocity = -to.normalized() * SWELL_BACK * sin(PI * minf(swelling, 1.0))
 		if swelling >= 1.0:
 			swelling = -1.0

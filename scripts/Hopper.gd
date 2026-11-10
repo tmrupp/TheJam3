@@ -6,6 +6,8 @@ class_name Hopper
 
 ## How far off (across, up or down) it notices the wizard, with a clear line between them.
 const SIGHT: Vector2 = Vector2(700, 400)
+## How long it crouches before a leap (its tell, at Normal: Difficulty.tell) and rests after landing
+## (seconds).
 const CROUCH_TIME: float = 0.45
 const REST_TIME: float = 1.1
 const JUMP_SPEED: float = 700.0
@@ -48,11 +50,12 @@ func _physics_process(delta: float) -> void:
 	if not grounded:
 		return
 	if rest > 0.0:
-		# A harder preset rests and crouches for less (Difficulty.attack).
+		# A harder preset rests and crouches for less (Difficulty.attack; its crouch, a tell, never
+		# under Difficulty.TELL_MIN).
 		rest = maxf(0.0, rest - delta * Difficulty.attack())
 		return
 	if crouch >= 0.0:
-		crouch += delta * Difficulty.attack() / CROUCH_TIME
+		crouch += delta / Difficulty.tell(CROUCH_TIME)
 		if crouch >= 1.0:
 			crouch = -1.0
 			_leap()

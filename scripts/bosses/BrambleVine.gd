@@ -12,7 +12,8 @@ extends Node2D
 
 const STUNNER: PackedScene = preload("res://prefabs/stunner.tscn")
 const HIT_BOX: PackedScene = preload("res://prefabs/hit_box.tscn")
-## Its cadence (seconds): resting in the rock, warning, growing out, holding, pulling back.
+## Its cadence (seconds): resting in the rock, warning (its tell: never under Difficulty.TELL_MIN,
+## however hasted), growing out, holding, pulling back.
 const REST: float = 1.4
 const WARN: float = 0.8
 const GROW: float = 0.25
@@ -131,8 +132,15 @@ func _physics_process(delta: float) -> void:
 		length = move_toward(length, 0.0, full * RECOIL_RATE * delta)
 	else:
 		# A harder preset runs its cadence faster (Difficulty.haste), and its rest passes faster
-		# still for the bramble's fury.
-		t += delta * Difficulty.haste() * (rest_rate() if phase()[0] == &"rest" else 1.0)
+		# still for the bramble's fury; its warning, its tell, never shorter than
+		# Difficulty.TELL_MIN (Difficulty.boss_tell).
+		match phase()[0]:
+			&"rest":
+				t += delta * Difficulty.haste() * rest_rate()
+			&"warn":
+				t += delta * WARN / Difficulty.boss_tell(WARN)
+			_:
+				t += delta * Difficulty.haste()
 		length = _target()
 	_box.size = Vector2(maxf(length, 1.0), THICK)
 	(hit_box.get_node("CollisionShape2D") as CollisionShape2D).position = Vector2(length * 0.5, 0.0)

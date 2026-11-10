@@ -198,11 +198,19 @@ var t: float = 0.0
 var level_seed: int = 0
 
 
+## Its tells' canvas, over the darkness (RisoMarks.tell_canvas); how big a tell is (px), and how far
+## out of the rock a vine's flashes.
+var tell_ink: InkCanvas
+const TELL_R: float = 56.0
+const VINE_TELL_OUT: float = 30.0
+
+
 func _ready() -> void:
 	# Over the terrain with the other things in a level (props, z 2).
 	z_index = 2
 	ink = InkCanvas.new()
 	add_child(ink)
+	tell_ink = RisoMarks.tell_canvas(self)
 
 
 func setup(info: MapInfo, _v: Vector2i, which: Variant) -> void:
@@ -528,6 +536,23 @@ func _process(delta: float) -> void:
 	tangle.draw(ink, false)
 	_draw_sap()
 	ink.finish()
+	_draw_tells()
+
+
+## Its tells over the darkness (RisoMarks.tell): a vine's warning flashes in its last beat (its pink
+## shoots are its pink), and a bulb telling a seed builds pink round it and flashes.
+func _draw_tells() -> void:
+	tell_ink.global_position = Vector2.ZERO
+	tell_ink.begin()
+	if not dying:
+		for vine: BrambleVine in vines:
+			var state: Array = vine.phase()
+			if not vine.withered and not vine.recoiled() and state[0] == &"warn" and Difficulty.last_beat(state[1], Difficulty.boss_tell(BrambleVine.WARN)):
+				RisoMarks.tell(tell_ink, vine.global_position + vine.way * VINE_TELL_OUT, TELL_R, -1.0, true)
+		for bulb: BrambleBulb in bulbs:
+			if bulb.telling >= 0.0 and (bulb.alive or bulb.wild):
+				RisoMarks.tell(tell_ink, bulb.global_position, TELL_R, bulb.telling, Difficulty.last_beat(bulb.telling, Difficulty.boss_tell(SeedPod.POD_TELL)))
+	tell_ink.finish()
 
 
 ## How far the husk or withered vine at `at`, on the wall its root faces `out` from, is still out of
@@ -659,7 +684,8 @@ func _draw_bulb(bulb: BrambleBulb) -> void:
 				petals.append(xf * RisoShapes.ellipse(Vector2(22.0, 0.0) + dir * (25.0 + 70.0 * u), 13.0 * (1.0 - u), 7.0 * (1.0 - u), 10, dir.angle()))
 			ink.ink(RisoPrint.ACCENT, 1.0 - u, petals)
 		return
-	ink_bulb(ink, xf, bulb.opened, bulb.charge, t * 3.0 + float(bulb.cell.y), clampf(1.0 - (t - bulb.struck_t) / FLASH_TIME, 0.0, 1.0),
+	# Telling a seed, it turns pink as it does when struck.
+	ink_bulb(ink, xf, bulb.opened, bulb.charge, t * 3.0 + float(bulb.cell.y), maxf(clampf(1.0 - (t - bulb.struck_t) / FLASH_TIME, 0.0, 1.0), maxf(bulb.telling, 0.0)),
 			bulb.wild, clampf(1.0 - (t - bulb.warded_t) / FLASH_TIME, 0.0, 1.0), bulb.hits_left(), leaves_parted(bulb.charge, t - bulb.spat_t))
 
 

@@ -54,6 +54,8 @@ const REAR_DROP: float = 0.45
 ## How far reared up the head was at the last print (0 to 1), and how hot its glow is now (0 to 1).
 var _rear: float = 0.0
 var _heat: float = 0.0
+## How big its tell is round its head (px; RisoProp.tell_mark).
+const TELL_R: float = 44.0
 
 ## Its rig (InkCanvas.rig): the body, veils, glow and eyes are drawn once, in the art's own units,
 ## and laid along the trail every print by chains of CHAIN bones, one every CHAIN_STEP units back
@@ -160,6 +162,9 @@ func _draw_art() -> void:
 			at_e += step
 		_drop_e = e
 	_wisp_trail_add(to_global(head))
+	# Its tell (the wind-up) over its head, and the last beat before the lurch.
+	if mover != null and not stunned:
+		tell_mark(head, TELL_R, mover.winding, Difficulty.last_beat(mover.winding, Difficulty.tell(Mover.WIND_UP)))
 	var speed: float = 0.3 if stunned else 0.7
 	if ink.rigged and InkCanvas.rig_on_gpu:
 		# Its glow's flicker steps FLICKER_RATE times a second, so the rig reprints its glow and

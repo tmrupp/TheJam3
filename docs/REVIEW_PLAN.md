@@ -534,6 +534,31 @@ write down what is missing rather than adding it unasked.
 4. The worm's and the bramble's attacks, before section 2's vines and spare pods go in.
 5. The other bands' gaps (the crossbow, the masters' reach) with their bands.
 
+*Done* (steps 1 to 4, the garden): `Difficulty.TELL_MIN` (0.4 s), `Difficulty.tell` and
+`boss_tell`, and `Difficulty.LAST_BEAT` (the guard's window) with `last_beat`. Read through them:
+the wisp's wind-up, the hopper's crouch, the watcher's charge, the pod's new tell, the small worm's
+warning, the skeleton's wind-up, the wraith's swell, the bird's tell and the crossbow's draws but
+its first (left quick, see *Open*); the worm's strike (its pause and draw back, `Worm.STRIKE_WIND`,
+were 0.35 s on Hard and 0.31 on Brutal, under the floor: now 0.4), a bramble vine's warning and a
+bulb's new tell. The floor moves the hopper's crouch on Hard (0.375 to 0.4 s) and Brutal, the
+wisp's and skeleton's on Brutal, and the worm's strike on Hard and Brutal; nothing at Normal. The
+scholars wind up in plain seconds, over the floor already, and were left as they are.
+The print (`RisoMarks.tell`, `RisoProp.tell_mark`): a bloom of pink round the foe that builds as
+the square of its wind-up, and in the last beat a paper star cut out over it, on a canvas over the
+darkness. The pod and a bramble bulb now end each swell in a tell (`SeedPod.POD_TELL`, 0.6 s): the
+full bulb turns pink (gold through orange to red), then flashes. The hopper's gleam swells through
+its crouch. `tests/capture_tells.gd` prints the garden's five foes at the start, middle and last
+beat of their tells, lit and snuffed, and was looked at: the star first sat on the foe's middle
+and hid the wisp and the pod in their last beat, so it shines over them now. The bosses' tells
+are not in that capture yet. `tests/tells_test.gd` times each garden foe on every preset, the
+bosses through their clocks, and catches a wisp's lurch with a guard raised in its last beat.
+Found while building it: a hopper's blow, a watcher's shot and a seed land after a flight (a
+hopper's leap is about a second in the air), so their last beat marks the leap or the shot, not
+the blow, and a guard raised in it is down again before the blow lands. 8.1 says the last beat
+is the guard's window; for these it is a "now" to watch for, not when to guard. The owner to say
+whether that is enough or the flight wants its own mark. 8.3 (the wizard's own hurt) was not
+looked at. Not yet played on Normal and Hard.
+
 *Layouts:* none. A tell is timing and print: no draw, no fingerprint. It does change every fight
 it touches, so play the garden on Normal and Hard after steps 1 and 3 and note what was found.
 

@@ -109,6 +109,9 @@ var half: float = 64.0
 ## (RisoPrint.ui_canvas), printed finer than the scene, made the first time a plaque is needed.
 var ui_node: Node2D = null
 var ui_ink: InkCanvas = null
+## A foe's tell (tell_mark) prints on a canvas of its own over the darkness, made the first time one
+## is printed (RisoMarks.tell_canvas).
+var tell_ink: InkCanvas = null
 ## Printed text (prices, names), reused frame to frame; see _text().
 var labels: Array[Label] = []
 var labels_used: int = 0
@@ -339,6 +342,8 @@ func _redraw() -> void:
 	if ui_ink != null:
 		ui_ink.begin()
 		_sync_ui()
+	if tell_ink != null:
+		tell_ink.begin()
 	labels_used = 0
 	_draw_art()
 	for i: int in range(labels_used, labels.size()):
@@ -346,6 +351,22 @@ func _redraw() -> void:
 	ink.finish()
 	if ui_ink != null:
 		ui_ink.finish()
+	if tell_ink != null:
+		tell_ink.finish()
+
+
+## A foe's tell (docs/REVIEW_PLAN.md §8.1; RisoMarks.tell) round `c` (this prop's pixels), `r` px
+## across, `u` (0 to 1) through its wind-up, and in its last beat (`last`: Difficulty.last_beat, the
+## guard's window) its flash to paper, so the guard is raised on a frame that can be seen. Printed
+## over the darkness, so it reads where the foe is met in the dark. Nothing while `u` is below 0 and
+## it is not in its last beat.
+func tell_mark(c: Vector2, r: float, u: float, last: bool) -> void:
+	if u < 0.0 and not last:
+		return
+	if tell_ink == null:
+		tell_ink = RisoMarks.tell_canvas(self)
+		tell_ink.begin()
+	RisoMarks.tell(tell_ink, c, r, u, last)
 
 
 ## The UI canvas, made on first use and kept on this node.
