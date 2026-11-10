@@ -1,4 +1,4 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/Shrine.gd" id="1_shrine"]
 [ext_resource type="PackedScene" uid="uid://pwmevy3urxq6" path="res://prefabs/interactable.tscn" id="2_inter"]
@@ -6,11 +6,14 @@
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_side"]
 size = Vector2(78, 110)
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_narrow"]
+size = Vector2(40, 110)
+
 [node name="Shrine" type="Node2D"]
 script = ExtResource("1_shrine")
 
 [node name="Boon" type="Area2D" parent="."]
-position = Vector2(-22, 0)
+position = Vector2(-32, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Boon"]
 position = Vector2(0, 9)
@@ -19,7 +22,7 @@ shape = SubResource("RectangleShape2D_side")
 [node name="Interactable" parent="Boon" instance=ExtResource("2_inter")]
 
 [node name="Boon2" type="Area2D" parent="."]
-position = Vector2(64, 0)
+position = Vector2(48, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Boon2"]
 position = Vector2(0, 9)
@@ -28,10 +31,28 @@ shape = SubResource("RectangleShape2D_side")
 [node name="Interactable" parent="Boon2" instance=ExtResource("2_inter")]
 
 [node name="Mend" type="Area2D" parent="."]
-position = Vector2(150, 0)
+position = Vector2(112, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Mend"]
 position = Vector2(0, 9)
 shape = SubResource("RectangleShape2D_side")
 
 [node name="Interactable" parent="Mend" instance=ExtResource("2_inter")]
+
+[node name="Redraw" type="Area2D" parent="."]
+position = Vector2(8, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Redraw"]
+position = Vector2(0, 9)
+shape = SubResource("RectangleShape2D_narrow")
+
+[node name="Interactable" parent="Redraw" instance=ExtResource("2_inter")]
+
+[node name="Way" type="Area2D" parent="."]
+position = Vector2(164, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Way"]
+position = Vector2(0, 9)
+shape = SubResource("RectangleShape2D_narrow")
+
+[node name="Interactable" parent="Way" instance=ExtResource("2_inter")]

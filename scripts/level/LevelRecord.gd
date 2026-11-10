@@ -25,8 +25,10 @@ var doors_paid: Dictionary = {}
 ## Side doors left open behind the wizard (by exit), and every exit taken (for the worlds map).
 var lateral_open: Dictionary = {}
 var ways_taken: Dictionary = {}
-## Whether the shrine has been used.
+## Whether the shrine has been used, and how many times its boons have been drawn again
+## (Shrine.buy_redraw).
 var shrine_used: bool = false
+var redraws: int = 0
 ## Whether the ink well has been paid (the whole map inked), and what has been seen: a byte per
 ## cell, 1 once seen (see MapInfo.reveal).
 var mapped: bool = false
@@ -96,7 +98,7 @@ var woken: Dictionary = {}
 ## Every field saved, in the order they are written.
 const FIELDS: Array[StringName] = [&"taken", &"opened", &"slain", &"broken", &"dropped", &"next_drop", &"deeper_paid", &"up_paid",
 	&"doors_paid", &"lateral_open", &"ways_taken", &"shrine_used", &"mapped", &"seen",
-	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended", &"lessons", &"stations", &"rings", &"passing", &"lifted", &"pigeonholes", &"prizes", &"dept_tiers", &"relics_left", &"started", &"last_bell", &"way_on_paid", &"studied", &"woken", &"fonts", &"poured"]
+	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended", &"lessons", &"stations", &"rings", &"passing", &"lifted", &"pigeonholes", &"prizes", &"dept_tiers", &"relics_left", &"started", &"last_bell", &"way_on_paid", &"studied", &"woken", &"fonts", &"poured", &"redraws"]
 
 
 ## The record as a plain dictionary, for the save file.
