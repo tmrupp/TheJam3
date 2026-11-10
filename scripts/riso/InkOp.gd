@@ -33,6 +33,9 @@ class Shape extends RefCounted:
 	## The array of shapes it was made from, as handed over (see InkCanvas.keeps_shapes).
 	var source: Array[PackedVector2Array] = []
 	var source_alphas: Array[PackedFloat32Array] = []
+	## Its triangles being worked out on a worker (triangulate_soon): the WorkerThreadPool task, or
+	## -1. Only the main thread reads or sets it.
+	var task: int = -1
 
 	func _init(from_polys: Array[PackedVector2Array], from_alphas: Array[PackedFloat32Array]) -> void:
 		polys = from_polys.duplicate(true)
@@ -56,10 +59,30 @@ class Shape extends RefCounted:
 	func same_mesh(mesh_points: PackedVector2Array, mesh_indices: PackedInt32Array, mesh_covers: PackedFloat32Array) -> bool:
 		return premade and points == mesh_points and indices == mesh_indices and point_alphas == mesh_covers
 
-	## Work the triangles out for world scale `at_px` (pixels per unit, squared), unless they are.
-	## Every polygon goes into one triangle array, drawn with a single command: one draw call per
-	## op and plate however many shapes it holds (the terrain holds thousands).
+	## Work the triangles out for world scale `at_px` (pixels per unit, squared), unless they are
+	## (or are being, on a worker: then wait for them). Every polygon goes into one triangle array,
+	## drawn with a single command: one draw call per op and plate however many shapes it holds (the
+	## terrain holds thousands).
 	func triangulate(at_px: float) -> void:
+		if task >= 0:
+			WorkerThreadPool.wait_for_task_completion(task)
+			task = -1
+			RisoInkOp._working.erase(self)
+		_work(at_px)
+
+	## Start working the triangles out for `at_px` on a worker, if this is a big shape (SOON_POLYS)
+	## not yet worked out for it: the many big shapes a level's arrival prints (its terrain, its
+	## decor) are worked out side by side on every core while the frame goes on, and the first draw
+	## of each only waits for what is left. Never a rig's (its binder is the main thread's).
+	func triangulate_soon(at_px: float) -> void:
+		if premade or at_px == px or task >= 0 or bind != -2 or polys.size() < RisoInkOp.SOON_POLYS:
+			return
+		RisoInkOp._reap()
+		task = WorkerThreadPool.add_task(RisoInkOp._work_on.bind(self, at_px), false, "ink triangles")
+		RisoInkOp._working.append(self)
+
+	## triangulate's own work, on whichever thread: nothing but this shape's own fields is touched.
+	func _work(at_px: float) -> void:
 		if premade or at_px == px:
 			return
 		px = at_px
@@ -132,6 +155,29 @@ class Shape extends RefCounted:
 			point_alphas.append(value)
 
 
+## Shapes of at least this many polygons are triangulated on a worker as soon as they are printed
+## (Shape.triangulate_soon); smaller ones, most of them new every frame, when they are drawn.
+const SOON_POLYS: int = 200
+## The shapes being triangulated on a worker (Shape.task), each kept until its task is done and
+## waited for (_reap, or its own first draw).
+static var _working: Array[Shape] = []
+
+
+## A worker's task: triangulate `shape` for world scale `at_px` (Shape._work).
+static func _work_on(shape: Shape, at_px: float) -> void:
+	shape._work(at_px)
+
+
+## Wait for (and forget) the workers' tasks already done, so none is left unwaited for.
+static func _reap() -> void:
+	for i: int in range(_working.size() - 1, -1, -1):
+		var done: Shape = _working[i]
+		if WorkerThreadPool.is_task_completed(done.task):
+			WorkerThreadPool.wait_for_task_completion(done.task)
+			done.task = -1
+			_working.remove_at(i)
+
+
 ## What it prints (shared with the ops printing the same shapes, see Shape), how much (0..1: a
 ## flat shape's cover, and what a graded one's cover at each point is scaled by), and whether it
 ## lifts ink rather than laying it.
@@ -175,6 +221,7 @@ func print_shape(new_shape: Shape, new_cover: float, new_lift: bool, px: float, 
 	lift = new_lift
 	if changed:
 		_px = -1.0
+		new_shape.triangulate_soon(px)
 		queue_redraw()
 
 
