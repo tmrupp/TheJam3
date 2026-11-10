@@ -88,7 +88,7 @@ cemetery then the institute; up, the crags then the sky, 14 rows each (`Bands.GA
 `BAND_ROWS`), each band's boss at its far end. Each band's line gives its archetype, its rows, its boss and optionally a `"tune"` of its
 archetype's settings (`star_share`, `wisp_share`, `watcher_share`, `hoppers_per_k`...), so a band
 is tuned, lengthened, reordered or left out there and nowhere else. The `garden` layout is the
-demo: the garden alone, the worm and the bramble at its ends, garden levels going on past them. A
+demo: the garden alone, rows −4…+4 (`Bands.DEMO_GARDEN_ROWS`), the worm and the bramble at its ends, garden levels going on past them. A
 game plays `-- layout=<name>`, else `garden` in a build with the `demo` feature (an export preset's
 custom feature), else `full`; a layout other than `full` keeps its own save. A layout may set
 `"relics_from"` (the demo's lets rare relics lie from depth 1). A demo build also turns off the

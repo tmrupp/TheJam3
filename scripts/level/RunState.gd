@@ -11,6 +11,9 @@ extends RefCounted
 ## a player's save.
 static var save_path: String = "user://deeper_run.save" if Bands.current == Bands.DEFAULT else "user://deeper_run_%s.save" % Bands.current
 const SAVE_VERSION: int = 3
+## How many rows either side of the start the garden spanned in every save made before saves said
+## so: the demo's garden was once as long as the whole game's.
+const SAVED_GARDEN_ROWS: int = 7
 
 ## The seed this run started on (coord.x drifts as the player moves sideways), the furthest from
 ## the start it has been (in rows, either way), and the row where it got that far (negative above
@@ -217,7 +220,7 @@ func to_save(coord: Vector2i, player: Dictionary) -> Dictionary:
 	for c: Vector2i in records:
 		recs[c] = (records[c] as LevelRecord).to_dict()
 	var data: Dictionary = {
-		"version": SAVE_VERSION, "run_seed": run_seed, "deepest": deepest, "furthest_row": furthest_row, "coord": coord, "records": recs,
+		"version": SAVE_VERSION, "garden_rows": Bands.garden_rows(), "run_seed": run_seed, "deepest": deepest, "furthest_row": furthest_row, "coord": coord, "records": recs,
 		"respawn_coord": respawn_coord, "respawn_cell": respawn_cell,
 		"vulnerable": vulnerable,
 		"has_ghost": has_ghost, "ghost_coord": ghost_coord, "ghost_pos": ghost_pos, "ghost_stars": ghost_stars, "ghost_lantern": ghost_lantern,
@@ -297,8 +300,9 @@ static func write_save(data: Dictionary) -> void:
 		file.store_var(data)
 
 
-## The saved run, or {} when there is none (or it is from a version too old to read). A version-2
-## save is brought up to date (from_v2).
+## The saved run, or {} when there is none (or it is from a version too old to read, or was played
+## on a garden of another length, whose bosses and records stand on other rows). A version-2 save is
+## brought up to date (from_v2).
 static func read_save() -> Dictionary:
 	if not FileAccess.file_exists(save_path):
 		return {}
@@ -309,6 +313,8 @@ static func read_save() -> Dictionary:
 	if not (data is Dictionary):
 		return {}
 	var version: int = int((data as Dictionary).get("version", 0))
+	if int((data as Dictionary).get("garden_rows", SAVED_GARDEN_ROWS)) != Bands.garden_rows():
+		return {}
 	if version == 2:
 		return gone_kinds(from_v2(data))
 	if version != SAVE_VERSION:
