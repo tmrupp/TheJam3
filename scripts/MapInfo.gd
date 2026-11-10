@@ -68,9 +68,13 @@ const GHOST: PackedScene = preload("res://prefabs/corpse.tscn")
 ## Seconds left on the end-of-run card (0 while playing).
 var run_ending: float = 0.0
 const RUN_END_SECONDS: float = 3.0
-## Whether the run is won (win_run): its card shows for WIN_SECONDS, then the start menu.
+## Whether the run is won (win_run): its card shows until a press, made after it has shown for
+## WIN_HOLD seconds (so a press in the fight's last moment does not skip it), then the start menu.
+## How long the card has shown (won_for), and whether a press has come for it.
 var won: bool = false
-const WIN_SECONDS: float = 6.0
+const WIN_HOLD: float = 1.5
+var won_for: float = 0.0
+var _won_pressed: bool = false
 ## A boss's trophy (Trophy), and where it drops beside where its boss fell (trophy_spot): the cells
 ## to either side tried in turn, else this far over the spot itself.
 const TROPHY: PackedScene = preload("res://prefabs/trophy.tscn")
@@ -2050,17 +2054,23 @@ func end_run () -> void:
 	start_run(run.run_seed)
 
 ## Every boss's trophy is on its stand (set_trophy): the run is won. The wizard stops where they
-## stand, the card of a won run shows (RisoHud) for WIN_SECONDS, and the start menu comes back with
-## the save gone, so the next run begins afresh.
+## stand, the card of a won run shows (RisoHud) until a press made once it has shown WIN_HOLD
+## seconds, and the start menu comes back with the save gone, so the next run begins afresh; the
+## win is kept past it (Trophy.note_won), for the menu to show the trophies.
 func win_run () -> void:
 	if run_ending > 0.0:
 		return
 	won = true
+	Trophy.note_won(Bands.bosses())
 	RunState.delete_save()
-	run_ending = WIN_SECONDS
+	run_ending = 1.0
+	won_for = 0.0
+	_won_pressed = false
 	player.set_physics_process(false)
 	player.velocity = Vector2.ZERO
-	await get_tree().create_timer(WIN_SECONDS).timeout
+	while not _won_pressed and is_inside_tree():
+		await get_tree().process_frame
+		won_for += get_process_delta_time()
 	var menu: Menu = Stage.menu() as Menu
 	if menu != null and is_inside_tree():
 		menu.return_to_menu()
@@ -2208,7 +2218,17 @@ func solid_at (pos: Vector2) -> bool:
 			return not bool(exam_doors.get(v, true))
 	return false
 
+## Whether `event` is a press of a key, a pad's button or the mouse (not one held down repeating).
+static func _a_press(event: InputEvent) -> bool:
+	if event is InputEventKey:
+		return (event as InputEventKey).pressed and not (event as InputEventKey).echo
+	if event is InputEventJoypadButton or event is InputEventMouseButton or event is InputEventAction:
+		return event.is_pressed()
+	return false
+
 func _physics_process (delta: float) -> void:
+	if world != null and run_ending <= 0.0:
+		run.play_time += delta
 	since_bell += delta
 	flare = maxf(0.0, flare - delta)
 	if world == null or travelling or player == null or not is_instance_valid(player):
@@ -2224,5 +2244,9 @@ func _physics_process (delta: float) -> void:
 	loader.sleep_far_chunks()
 
 func _input(event: InputEvent) -> void:
+	if won and run_ending > 0.0 and won_for >= WIN_HOLD and _a_press(event):
+		_won_pressed = true
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("Debug-Back") and dev_tools():
 		travel(Exit.BACK)

@@ -41,6 +41,8 @@ var ghost_lantern: Array = []
 ## cemetery's snuffing fonts, each spent as a dash takes them out of the dark. A death drops them
 ## into the ghost with the stars (`ghost_charges`), and taking the ghost back returns them.
 var dark_charges: int = 0
+## How long the run has been played (game seconds, MapInfo._physics_process), for the won card.
+var play_time: float = 0.0
 var ghost_charges: int = 0
 ## The run's cross-world rift link (Rift tier III): up to two ends, each [coord, position].
 var rift_link: Array = []
@@ -119,6 +121,7 @@ func start(seed_value: int) -> void:
 	plants.clear()
 	papers_out.clear()
 	dark_charges = 0
+	play_time = 0.0
 	tempered.clear()
 	lodestones.clear()
 	vulnerable = false
@@ -224,7 +227,7 @@ func to_save(coord: Vector2i, player: Dictionary) -> Dictionary:
 		"respawn_coord": respawn_coord, "respawn_cell": respawn_cell,
 		"vulnerable": vulnerable,
 		"has_ghost": has_ghost, "ghost_coord": ghost_coord, "ghost_pos": ghost_pos, "ghost_stars": ghost_stars, "ghost_lantern": ghost_lantern,
-		"dark_charges": dark_charges, "ghost_charges": ghost_charges,
+		"dark_charges": dark_charges, "ghost_charges": ghost_charges, "play_time": play_time,
 		"debug": MapInfo.debug, "rift_link": rift_link,
 		"relics_found": relics_found, "relic_hints": relic_hints, "boss_hints": boss_hints, "dug": dug,
 		"bosses": bosses, "boss_relics": boss_relics,
@@ -291,6 +294,7 @@ func from_save(data: Dictionary) -> void:
 	ghost_stars = int(data["ghost_stars"])
 	ghost_lantern = data.get("ghost_lantern", [])
 	dark_charges = int(data.get("dark_charges", 0))
+	play_time = float(data.get("play_time", 0.0))
 	ghost_charges = int(data.get("ghost_charges", 0))
 
 
@@ -376,3 +380,23 @@ static func from_v2(data: Dictionary) -> Dictionary:
 static func delete_save() -> void:
 	if FileAccess.file_exists(save_path):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))
+
+
+# ------------------------------------------------------------------ the run in a line
+
+## How many lanterns the run has burned out (by a death they protected from, or burned into mend or
+## studied by), over every place it has been.
+func lanterns_spent() -> int:
+	var n: int = 0
+	for c: Vector2i in records:
+		n += (records[c] as LevelRecord).spent_lanterns.size()
+	return n
+
+
+## How many levels the run has been in (not the side worlds).
+func places_visited() -> int:
+	var n: int = 0
+	for c: Vector2i in records:
+		if not Worlds.is_side(c):
+			n += 1
+	return n

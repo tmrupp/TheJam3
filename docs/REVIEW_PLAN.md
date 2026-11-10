@@ -324,6 +324,17 @@ in a playtest.
 carries its lines (under `-l garden` with the demo feature's flag set by the test); the save is
 gone and the trophies show in the menu after.
 
+*Done* (but the kept map, which comes with section 4): the won card stays up until a press made
+once it has shown `MapInfo.WIN_HOLD` (1.5 s; `WIN_SECONDS` is gone), a chevron blinking at its
+foot once one will take. It shows the run in a line (the time, `RunState.play_time`, saved; the
+lanterns burned out; the levels visited, each by a small mark). A demo build's card shows the
+bosses past its garden faint beside the two trophies (`RisoHud.beyond`) and says "This is the end
+of the demo." and "Thank you for playing!". The win is kept past the run (`Trophy.note_won`, in
+the settings file by layout), and the start menu shows its trophies either side of the line
+under the title. `trophy_test` checks the card holds 8 s past a press made at once, a later press
+brings the menu back, the win is kept, and (under `-l garden`) the demo card's bosses and line;
+`capture_menu.gd` takes the demo's card and the won menu. Not yet played.
+
 ## 6. The tutorial's pogo bed: a reward past it
 
 *Now:* `Tutorial.MAP` is one hall on one floor. The pogo bed is ten thorns wide (its card, `9`,

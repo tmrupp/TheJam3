@@ -26,10 +26,23 @@ const END_PLACE_R: float = 5.0
 ## On a won run's card, each trophy's radius and how far apart they stand.
 const WON_R: float = 7.0
 const WON_STEP: float = 18.0
-## What a demo build's won card says under the trophies and the place: the demo is over.
-const DEMO_THANKS: String = "Thank you for playing the demo!"
-## How much taller a demo build's won card is, for its thanks.
-const DEMO_THANKS_ROOM: float = 16.0
+## What a demo build's won card says under the trophies, the place and the run: plainly, that the
+## demo ends here, and thanks.
+const DEMO_END: String = "This is the end of the demo."
+const DEMO_THANKS: String = "Thank you for playing!"
+## The won card's rows (UI units from the sheet's top): its top, the trophies, the place, the run in
+## a line (the time, the lanterns burned, the levels visited), and in a demo build its two lines;
+## the room each takes, and the size of the run line's marks.
+const WON_TOP: float = 44.0
+const WON_TROPHIES: float = 60.0
+const WON_PLACE: float = 80.0
+const WON_RUN: float = 96.0
+const WON_LINES: Vector2 = Vector2(110.0, 120.0)
+const WON_BOTTOM: float = 106.0
+const DEMO_ROOM: float = 22.0
+const RUN_MARK: float = 3.2
+## How faint the bosses past the demo's garden print on its won card (unwon, unprinted).
+const BEYOND_FADE: float = 0.22
 const CARD_ABOVE: float = 40.0
 ## The utility spell's mark on the sitting card: the room it is fitted into (wide, high), and how
 ## faint it prints while not ready. Mend's draughts follow it as dots, DRAUGHT_R across and
@@ -64,8 +77,13 @@ var ghost_world: Label
 var ghost_depth: Label
 var end_world: Label
 var end_depth: Label
-## The won card's thanks, in a demo build (DEMO_THANKS).
+## The won card's lines, in a demo build (DEMO_END, DEMO_THANKS), and its run in a line: the time,
+## the lanterns burned, the levels visited.
 var end_thanks: Label
+var end_line: Label
+var end_time: Label
+var end_lanterns: Label
+var end_places: Label
 var font: SystemFont
 var t: float = 0.0
 ## Set to 1 by RisoPrint on a hit or death; while above 0.5 the whole sheet takes a 15% pink
@@ -108,6 +126,10 @@ func _ready() -> void:
 	end_world = _make_label(9.0)
 	end_depth = _make_label(9.0)
 	end_thanks = _make_label(7.5)
+	end_line = _make_label(7.5)
+	end_time = _make_label(7.0)
+	end_lanterns = _make_label(7.0)
+	end_places = _make_label(7.0)
 
 
 func _make_label(px: float) -> Label:
@@ -204,7 +226,7 @@ func _process(delta: float) -> void:
 	canvas.visible = visible
 	var player: Player = Stage.player()
 	ink.begin()
-	for label: Label in [coin_label, dark_label, world_label, depth_label, ghost_label, ghost_world, ghost_depth, end_world, end_depth, end_thanks]:
+	for label: Label in [coin_label, dark_label, world_label, depth_label, ghost_label, ghost_world, ghost_depth, end_world, end_depth, end_thanks, end_line, end_time, end_lanterns, end_places]:
 		label.visible = false
 	shown_utility = &""
 	shown_draughts = -1
@@ -222,30 +244,92 @@ func _process(delta: float) -> void:
 
 ## When a run ends, a card in the middle of the sheet: the ghost, and under it the world and the
 ## furthest from the start reached (a depth, or a height above the start). A run won (MapInfo.won)
-## shows every boss's trophy in a row on it in place of the ghost, and in a demo build
-## (MapInfo.demo_build) thanks the player for playing under them, as the demo ends there.
+## shows every boss's trophy in a row on it in place of the ghost, the place under them, and the run
+## in a line (run_line: the time it took, the lanterns burned, the levels visited); in a demo build
+## (MapInfo.demo_build) the bosses past its garden (beyond) beside the trophies, faint and unwon, and
+## under it all, plainly, that the demo ends here (DEMO_END, DEMO_THANKS). Once a press will take
+## it (MapInfo.WIN_HOLD), a chevron blinks at its foot.
 func _end_card() -> void:
 	var info: MapInfo = MapInfo.instance
 	if info != null and info.run_ending > 0.0 and info.won:
 		var bosses: Array[StringName] = Bands.bosses()
-		var w: float = maxf(100.0, WON_STEP * float(bosses.size()) + 24.0)
-		var thanks: bool = MapInfo.demo_build
-		if thanks:
-			w = maxf(w, _text_width(end_thanks, DEMO_THANKS) + 20.0)
-		_paper(RisoShapes.rrect(160.0 - w * 0.5, 54, w, 62.0 + (DEMO_THANKS_ROOM if thanks else 0.0), 10), RisoPrint.ACCENT, 0.18)
-		if thanks:
-			_place(end_thanks, DEMO_THANKS, 160.0 - _text_width(end_thanks, DEMO_THANKS) * 0.5, 122.0)
-		for i: int in range(bosses.size()):
-			RisoMarks.trophy(ink, Vector2(160.0 + (float(i) - float(bosses.size() - 1) * 0.5) * WON_STEP, 80.0), WON_R, 1.0, bosses[i])
+		var demo: bool = MapInfo.demo_build
+		var past: Array[StringName] = RisoHud.beyond() if demo else ([] as Array[StringName])
+		var count: int = bosses.size() + past.size()
+		var line: Array[String] = RisoHud.run_line(info.run)
+		var run_w: float = 0.0
+		for text: String in line:
+			run_w += RUN_MARK * 2.0 + 3.0 + _text_width(end_time, text) + 8.0
+		var w: float = maxf(110.0, maxf(WON_STEP * float(count) + 24.0, run_w + 16.0))
+		if demo:
+			w = maxf(w, maxf(_text_width(end_thanks, DEMO_END), _text_width(end_line, DEMO_THANKS)) + 20.0)
+		var bottom: float = WON_BOTTOM + (DEMO_ROOM if demo else 0.0)
+		_paper(RisoShapes.rrect(160.0 - w * 0.5, WON_TOP, w, bottom - WON_TOP + 8.0, 10), RisoPrint.ACCENT, 0.18)
+		for i: int in range(count):
+			var at: Vector2 = Vector2(160.0 + (float(i) - float(count - 1) * 0.5) * WON_STEP, WON_TROPHIES)
+			if i < bosses.size():
+				RisoMarks.trophy(ink, at, WON_R, 1.0, bosses[i])
+			else:
+				RisoMarks.boss_seal(ink, at, WON_R, BEYOND_FADE, past[i - bosses.size()])
 		var place: Vector2i = Vector2i(info.run.run_seed, info.run.furthest_row)
 		var row: Array[Label] = [end_world, end_depth]
-		_place_row(place, Vector2(160.0 - _place_w(place, END_PLACE_R, row) * 0.5, 104.0), END_PLACE_R, row, 14.0)
+		_place_row(place, Vector2(160.0 - _place_w(place, END_PLACE_R, row) * 0.5, WON_PLACE), END_PLACE_R, row, 14.0)
+		_run_row(line, Vector2(160.0 - run_w * 0.5, WON_RUN))
+		if demo:
+			_place(end_thanks, DEMO_END, 160.0 - _text_width(end_thanks, DEMO_END) * 0.5, WON_LINES.x)
+			_place(end_line, DEMO_THANKS, 160.0 - _text_width(end_line, DEMO_THANKS) * 0.5, WON_LINES.y)
+		if info.won_for >= MapInfo.WIN_HOLD and fmod(t * 1.6, 1.0) < 0.65:
+			var mark: Array[PackedVector2Array] = [RisoMarks.chevron(Vector2(160.0 + w * 0.5 - 9.0, bottom), Vector2.RIGHT, 0.35)]
+			ink.ink(RisoPrint.NIGHT, 1.0, mark, false)
 	elif info != null and info.run_ending > 0.0:
 		_paper(RisoShapes.rrect(110, 54, 100, 62, 10), RisoPrint.PINK, 0.18)
 		ink.ink(RisoPrint.GLOW, 1.0, RisoMarks.ghost_shape(Transform2D(0.0, Vector2(0.5, 0.5), 0.0, Vector2(160, 84))), false)
 		var at: Vector2i = Vector2i(info.run.run_seed, info.run.furthest_row)
 		var labels: Array[Label] = [end_world, end_depth]
 		_place_row(at, Vector2(160.0 - _place_w(at, END_PLACE_R, labels) * 0.5, 104.0), END_PLACE_R, labels, 14.0)
+
+
+## The bosses past the demo's garden: the whole game's (Bands.LAYOUTS[Bands.DEFAULT]) that the
+## layout in play leaves out, nearest the start first.
+static func beyond() -> Array[StringName]:
+	var here: Array[StringName] = Bands.bosses()
+	var out: Array[StringName] = []
+	var full: Dictionary = Bands.LAYOUTS[Bands.DEFAULT]
+	for dir: String in ["down", "up"]:
+		for band: Dictionary in (full[dir] as Array):
+			var b: StringName = band["boss"]
+			if b != &"" and not here.has(b):
+				out.append(b)
+	return out
+
+
+## A run in a line, for its won card: the time it took (minutes and seconds, or hours too), the
+## lanterns it burned out, and the levels it was in.
+static func run_line(run: RunState) -> Array[String]:
+	var s: int = int(run.play_time)
+	var time: String = "%d:%02d" % [s / 60, s % 60] if s < 3600 else "%d:%02d:%02d" % [s / 3600, (s / 60) % 60, s % 60]
+	var out: Array[String] = [time, str(run.lanterns_spent()), str(run.places_visited())]
+	return out
+
+
+## The run's line on the won card from `left` (its middle height): each number after its mark, a
+## clock (a paper face with night hands), a lantern's flame, a level's tile.
+func _run_row(line: Array[String], left: Vector2) -> void:
+	var x: float = left.x
+	var labels: Array[Label] = [end_time, end_lanterns, end_places]
+	for i: int in range(line.size()):
+		var c: Vector2 = Vector2(x + RUN_MARK, left.y)
+		match i:
+			0:
+				ink.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.circle(c, RUN_MARK, 14)], false)
+				ink.knock(KNOCK_ALL, [RisoShapes.circle(c, RUN_MARK - 0.8, 14)])
+				ink.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.rrect(c.x - 0.35, c.y - RUN_MARK + 1.2, 0.7, RUN_MARK - 1.2, 0.3), RisoShapes.rrect(c.x, c.y - 0.35, RUN_MARK - 1.4, 0.7, 0.3)], false)
+			1:
+				ink.ink(RisoPrint.EYE, 1.0, [RisoShapes.almond(c, RUN_MARK * 0.6, RUN_MARK, 10)], false)
+			2:
+				ink.ink(RisoPrint.BLUE, 1.0, [RisoShapes.rrect(c.x - RUN_MARK, c.y - RUN_MARK, RUN_MARK * 2.0, RUN_MARK * 2.0, 0.8)], false)
+		x += RUN_MARK * 2.0 + 3.0
+		x += _place(labels[i], line[i], x, left.y) + 8.0
 
 
 ## Sitting: a card over the traveler's head, the stars carried on it (and beside them, with a utility

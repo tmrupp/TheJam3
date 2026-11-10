@@ -5,7 +5,17 @@ extends Node2D
 ## HUD's plaques, the text is night ink on paper: a button is a paper plaque tinted and rimmed in
 ## blue, solid accent while focused or hovered, solid blue while pressed; a field is paper with a
 ## caret while focused, its placeholder in faint night; labels print as paper over the scene.
+## Once a run on the band layout in play has been won (Trophy.won), the start menu shows the
+## trophies it was won with either side of the line under the title, so the menu itself says the
+## game (the demo, in a demo build) has been finished.
 
+## The won trophies on the start menu, either side of the line under the title: how far down from
+## the top (UI units), how far either side of the middle the nearest stand, each trophy's radius, and
+## how far apart they stand.
+const WON_Y: float = 50.0
+const WON_SIDE: float = 34.0
+const WON_R: float = 6.0
+const WON_STEP: float = 16.0
 ## Labels are laid at this size and scaled down, so the text stays sharp on the plates.
 const TEXT_PX: int = 48
 ## Every plate a plaque clears to paper.
@@ -74,9 +84,24 @@ func _process(delta: float) -> void:
 			_field(c as LineEdit)
 		elif c is Label:
 			_label(c as Label)
+	if menu is Menu and not (menu as Menu).started:
+		_won(base)
 	ink.finish()
 	for i: int in range(labels_used, labels.size()):
 		labels[i].visible = false
+
+
+## The trophies a won run was won with (Trophy.won) on the start menu (`base`, the UI's size), half
+## either side of the line under the title, the first on the left, each on a paper disc so it reads
+## over the backdrop; nothing if none has been won.
+func _won(base: Vector2) -> void:
+	var trophies: Array[StringName] = Trophy.won()
+	var left: int = (trophies.size() + 1) / 2
+	for i: int in range(trophies.size()):
+		var x: float = base.x * 0.5 - WON_SIDE - float(left - 1 - i) * WON_STEP if i < left else base.x * 0.5 + WON_SIDE + float(i - left) * WON_STEP
+		var at: Vector2 = Vector2(x, WON_Y)
+		ink.knock(ALL, [RisoShapes.circle(at, WON_R + 2.0, 20)])
+		RisoMarks.trophy(ink, at, WON_R, 1.0, trophies[i])
 
 
 ## Every button, field and label under `node` (not the pixel-art backdrop).

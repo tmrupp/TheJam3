@@ -45,7 +45,7 @@ func run() -> void:
 	save_still("tutorial/tutorial_door.png")
 	# The card of a won run, shown without ending the run (win_run would go back to the menu).
 	info.won = true
-	info.run_ending = MapInfo.WIN_SECONDS
+	info.run_ending = 1.0
 	await frames(30)
 	save_still("tutorial/tutorial_won.png")
 	Health.invincible = false

@@ -30,3 +30,32 @@ func _process(_delta: float) -> void:
 	if d.x < REACH.x and d.y < REACH.y:
 		map_info.trophy_taken(boss, global_position)
 		queue_free()
+
+
+# ------------------------------------------------------------------ won, kept past the run
+
+## The settings' section a win is kept in (Tutorial.settings_path; tests set their own), by layout.
+const WON_SECTION: String = "won"
+
+
+## The bosses whose trophies were all set in a won run on the band layout in play (Bands.current),
+## kept past the run and its save so the start menu shows them (RisoMenu); empty if never won.
+static func won() -> Array[StringName]:
+	var out: Array[StringName] = []
+	var file: ConfigFile = ConfigFile.new()
+	if file.load(Tutorial.settings_path) != OK:
+		return out
+	for b: Variant in file.get_value(WON_SECTION, String(Bands.current), []):
+		out.append(StringName(b))
+	return out
+
+
+## Keep that a run on the layout in play was won with `bosses`' trophies.
+static func note_won(bosses: Array[StringName]) -> void:
+	var file: ConfigFile = ConfigFile.new()
+	file.load(Tutorial.settings_path)
+	var names: Array[String] = []
+	for b: StringName in bosses:
+		names.append(String(b))
+	file.set_value(WON_SECTION, String(Bands.current), names)
+	file.save(Tutorial.settings_path)
