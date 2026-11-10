@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The crags' towers (CragsArchetype.build_towers): every crag level has at least one, each tall and
 ## narrow, of built stone, standing on rock, a room of air on each storey (kept as interiors), the
 ## ground floor open through a doorway in either wall. Each floor over a room has a stair hole at

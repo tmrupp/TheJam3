@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The cemetery's crypts and its light (docs/REGIONS_PLAN.md §7): one or two crypts a level, their
 ## insides collapsed from their own sample, walled in masonry with a doorway or two (open or shut
 ## by a sun or shade block, no light gates), nothing inside

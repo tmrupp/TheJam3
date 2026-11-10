@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The sky archetype (docs/DEEPER_PLAN.md §4c): its band of depths, terrain sample and realm, the
 ## open drop under it (a fall costs a heart and puts the wizard back on the last rock), and what is
 ## up there: jump pads, clouds that give way, updrafts, the level's wind its vanes set (switched on

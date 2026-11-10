@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The cemetery's darkness (docs/DEEPER_PLAN.md, "Darkness charges"). Laid out: sun and shade blocks
 ## stand only inside the crypts or in their doorways, a crypt's stairs turned to blocks take turns, a shade floor lies over
 ## thorns, ossuary doors shut only a second crypt's doorways and want Rules.ossuary_fill, a level

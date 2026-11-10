@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 # Regression runner: every tests/*_test.gd, in parallel.
 #
-#   bash tests/run.sh               quick check-in run: the headless tests (about half a minute)
-#   bash tests/run.sh full          everything: also tests tagged "## suite: full", then the ones
-#                                   tagged "## suite: window" one at a time in a real window
+#   bash tests/run.sh               quick check-in run: the untagged headless tests, those that take
+#                                   15 s or less (a few minutes in all)
+#   bash tests/run.sh full          everything: also tests tagged "## suite: full" (the slow ones),
+#                                   then the ones tagged "## suite: window" one at a time in a window
 #   bash tests/run.sh keys_test hex_test    just these (headless)
 #   options: -j N (parallel jobs), -t SECONDS (timeout per test), -l LAYOUT (play the bands of
 #   Bands.LAYOUTS' LAYOUT, e.g. -l garden for the demo's: tests of bands left out skip themselves),
 #   -s N (the screen a windowed test opens on before TestKit moves it out of sight: 1 by default,
 #   a second monitor, so nothing flashes up on the main one; 0 is the primary; $TEST_SCREEN too)
 #
-# A test's tier is a line near its top: "## suite: full" (slow or known broken) or
+# A test's tier is a line near its top: "## suite: full" (over 15 s, or known broken) or
 # "## suite: window" (needs a rendered window); untagged tests are in the quick run.
 # A test passes when Godot exits 0 and its log has no FAIL, SCRIPT ERROR or Parse Error. A script
 # error usually leaves the test waiting forever, so it is stopped a moment after one appears.
@@ -99,6 +100,8 @@ run_one() {
 	[[ $window == 1 ]] && args=(--windowed --resolution 1280x720 --screen "$screen")
 	local user=()
 	[[ -n "$bands" ]] && user=(-- "layout=$bands")
+	# The log is there before the test starts, so it is never looked for before it is made.
+	: > "$log"
 	"$godot" "${args[@]}" --path . --script "res://tests/$t.gd" "${user[@]}" > "$log" 2>&1 &
 	local pid=$! errored=-1
 	while kill -0 "$pid" 2>/dev/null; do

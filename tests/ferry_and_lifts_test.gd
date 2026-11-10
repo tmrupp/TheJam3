@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The ferry spell (a raft that carries the wizard the way they face, shuttling to and fro) and
 ## lifts that wait for a switch (parked until it is thrown, then running for good).
 ## godot --headless --path . --script res://tests/ferry_and_lifts_test.gd

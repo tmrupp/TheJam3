@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The institute's timetable (Timetable, SchoolBell, ExamDoor, Lectern; docs/REGIONS_PLAN.md §9).
 ## Its rules: the needs round the ring, a tier lower, none for tier I; a class teaching its
 ## department's tier up to the spell's top; the beast weak unfed and fed by rings. Laid out: each

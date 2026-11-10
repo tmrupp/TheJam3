@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The crags' crossbows built into the towers' walls (Crossbow, CragsArchetype.place_crossbows) and
 ## the keeps' (place_keep_crossbows), and their rock-bug nests (BugNest). Laid out: crossbows turn up
 ## across the band in towers and keeps, each set into a cell of the building's wall that stays whole

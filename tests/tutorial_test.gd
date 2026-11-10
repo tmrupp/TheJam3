@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The tutorial (Tutorial): laid out by hand, the same in every world, with its
 ## start and lantern, its control cards (ControlHint), its key and door of one colour, and stars
 ## enough for the shrine. A run begun with the tutorial starts in it by its lit lantern; its way out

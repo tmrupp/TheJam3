@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The bramble (Bramble, docs/REGIONS_PLAN.md §6), the boss of the garden's way up, in its gate
 ## gate level: its shaft cut into the rock (BrambleShaft), walled in, with the way on at its head beside
 ## the knot, ledges a hop apart and a foot open to the caves, and only in its

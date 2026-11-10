@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The institute (docs/REGIONS_PLAN.md §7; Institute, Scholar, Abomination, Breach, ExamDoor, Lesson,
 ## Department, WayBack). Laid out: its halls of marble (no exam hall: the way on stays where the level
 ## laid it; the library's stacks, galleries of ledges, its book ladders under the lowest standing on

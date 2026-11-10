@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The crags (CragsArchetype, docs/REGIONS_PLAN.md §7): their own sample (collapsed unturned),
 ## taller than wide, open (caverns), a structure pass (shafts, keeps and towers, kept as masonry);
 ## their realm and decor (battlements and dressed stone on the masonry only);

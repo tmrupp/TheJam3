@@ -124,8 +124,10 @@ bash tests/run.sh sky_test        # just these, headless
 bash tests/run.sh -l garden full  # the suite on another band layout (the demo's)
 ```
 
-- A test's tier is a line near its top: `## suite: full` (slow, or known broken) or
-  `## suite: window` (needs a rendered window; never run these headless by name).
+- A test's tier is a line near its top: `## suite: full` (over 15 s, or known broken) or
+  `## suite: window` (needs a rendered window; never run these headless by name). The quick run is
+  the rest, a few minutes; a test that grows past 15 s is tagged full, or split along its seams
+  (`bridge_walk_deeper_test` extends `bridge_walk_test`, walking another level beside it).
 - A test passes on exit 0 with no `FAIL`, `SCRIPT ERROR` or `Parse Error` in its log. A test that
   fails alongside others but passes alone is reported FLAKY. Logs go to `/tmp/thejam3-tests/`.
   The runner starts the slowest tests first, by each test's seconds in its last run (kept in

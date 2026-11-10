@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The whale (Whale, WhaleHunt, Belly, WhaleHeart): in its world on the sky's top row, and in no
 ## gate level of its own; huge, swimming above the top of its level so only its underside hangs into
 ## view, from fully off one side to fully off the other and back; free, it cannot be struck and

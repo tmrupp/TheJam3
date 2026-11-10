@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The garden's seeds, plants and small worms (GardenArchetype.finish, SeedPod, Plot, KeyRing.SEED,
 ## Wormlet): every garden
 ## level has one plot on a floor with air over it, and from row 1 seed pods grown out of its walls,

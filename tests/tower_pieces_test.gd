@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The crag towers' pieces in play: the trapdoor in a watchtower's roof bears the wizard standing on
 ## it from the roof and stays shut, then swings open for good once the wizard comes up under it
 ## (Trapdoor); a rock-bug nest, an enemy for hex bolts, wakes with the wizard near, hatching bugs, no more than BROOD of its

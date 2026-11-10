@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The cemetery archetype (docs/DEEPER_PLAN.md, group 3): bands of depths, its own terrain sample
 ## (collapsed with no symmetry), realm and decor, its gates (chasms bridged once their bell is
 ## freed from its chain, by a key or a switch, and rung, and bearing the wizard only while their

@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The worm (Worm, docs/REGIONS_PLAN.md §6), the boss of the garden's way down, in its gate level:
 ## its lair along the walls of the whole level and its burrow holes all through it, lying under
 ## until the wizard comes near, waiting and rumbling before it comes up, hunting them, the head's
