@@ -522,12 +522,36 @@ func finish(w: LevelGen, _def: NextWorldDef) -> void:
 static func build_temples(w: LevelGen) -> void:
 	if posmod(Rules.level_seed(w.seed_for_colors, TEMPLE_DEAL), 1000) >= roundi(TEMPLE_SHARE * 1000.0):
 		return
+	# What a site asks of each cell, worked out once for the whole search (_temple_site).
+	var near: PackedByteArray = Chasms.near_mask(w)
+	var bad: PackedByteArray = PackedByteArray()
+	bad.resize(w.size.x * w.size.y)
+	bad.fill(0)
+	var down: PackedInt32Array = PackedInt32Array()
+	down.resize(w.size.x * w.size.y)
+	for x: int in range(w.size.x):
+		var below: int = NO_FOOTING
+		for y: int in range(w.size.y - 1, -1, -1):
+			var i: int = x * w.size.y + y
+			var v: Vector2i = Vector2i(x, y)
+			var t: int = w.types[i]
+			var foot_bad: bool = t != LevelGen.Type.EMPTY or near[i] == 1 or w.keep_clear.has(v)
+			if foot_bad or w.structures.has(v):
+				bad[i] = 1
+			if t == LevelGen.Type.GROUND:
+				below = 0
+			elif foot_bad or below == NO_FOOTING:
+				below = NO_FOOTING
+			else:
+				below += 1
+			down[i] = below
+	var air: CellSums = CellSums.new(w.size, bad)
 	var best: Variant = null
 	var best_score: int = 0
 	for y: int in range(TEMPLE_AIR + TEMPLE_HALL + 3, w.size.y - 2):
 		for x: int in range(2, w.size.x - TEMPLE_WIDE - 1):
 			var box: Rect2i = Rect2i(x, y - TEMPLE_HALL - 1, TEMPLE_WIDE, TEMPLE_HALL + 2)
-			var footing: int = _temple_site(w, box)
+			var footing: int = _temple_site(w, box, air, down)
 			if footing < 0:
 				continue
 			var score: int = footing * 100000 + posmod(Rules.level_seed(w.seed_for_colors, TEMPLE_DEAL + x * 977 + y * 31), 100000)
@@ -538,28 +562,28 @@ static func build_temples(w: LevelGen) -> void:
 		_temple(w, best as Rect2i)
 
 
+## In build_temples' table of how far down each cell's column the rock is: no rock is reached
+## through open air (thorns, a chasm's kept air, what is kept clear or anything else is met first,
+## or the level's bottom).
+const NO_FOOTING: int = 1 << 20
+
 ## How many cells of footing a temple in `box` (its roof's row to its stylobate's) would need, or -1
 ## where it cannot stand: it and TEMPLE_AIR rows over it all open air inside the level, clear of the
-## gaps and of every other structure; under its stylobate, every column reaching the island's rock
-## within TEMPLE_FOOTING rows (through open air), at least half of them on it at once, and one of
-## its ends, so its hall is a hop up from the island's floor there.
-static func _temple_site(w: LevelGen, box: Rect2i) -> int:
-	for x: int in range(box.position.x, box.end.x):
-		for y: int in range(box.position.y - TEMPLE_AIR, box.end.y):
-			var v: Vector2i = Vector2i(x, y)
-			if not w.is_valid(v) or not w._open(v) or w.keep_clear.has(v) or w.structures.has(v) or Chasms.near(w, v) or w.type_at(v) != LevelGen.Type.EMPTY:
-				return -1
+## gaps and of every other structure (none of them counted in `air`); under its stylobate, every
+## column reaching the island's rock within TEMPLE_FOOTING rows (through open air clear of the gaps
+## and of what is kept clear: `down`, per cell, how far below it that rock is), at least half of
+## them on it at once, and one of its ends, so its hall is a hop up from the island's floor there.
+static func _temple_site(w: LevelGen, box: Rect2i, air: CellSums, down: PackedInt32Array) -> int:
+	var over: Rect2i = Rect2i(box.position.x, box.position.y - TEMPLE_AIR, box.size.x, box.size.y + TEMPLE_AIR)
+	if not Rect2i(Vector2i.ZERO, w.size).encloses(over) or air.count(over) > 0:
+		return -1
 	var footing: int = 0
 	var on_rock: int = 0
 	var ends_on_rock: bool = false
 	for x: int in range(box.position.x, box.end.x):
-		var depth: int = 0
-		var v: Vector2i = Vector2i(x, box.end.y)
-		while not w.is_ground(v):
-			if depth >= TEMPLE_FOOTING or not w.is_valid(v) or w.keep_clear.has(v) or Chasms.near(w, v) or w.type_at(v) != LevelGen.Type.EMPTY:
-				return -1
-			depth += 1
-			v += Vector2i.DOWN
+		var depth: int = down[x * w.size.y + box.end.y]
+		if depth > TEMPLE_FOOTING:
+			return -1
 		footing += depth
 		if depth == 0:
 			on_rock += 1

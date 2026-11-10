@@ -296,7 +296,10 @@ static func best_of (spots: Array, score: Callable, test: Callable = func(_v: Va
 
 ## Whether `v` is within 3 cells of an exit, too near to hold another.
 func _crowds_exit (v: Vector2i) -> bool:
-	return exits.values().any(func(e: Vector2i) -> bool: return dist(e, v) < 3)
+	for exit: int in exits:
+		if dist(exits[exit], v) < 3:
+			return true
+	return false
 
 ## One of `items`, drawn from the world RNG (a single draw).
 func pick (items: Array) -> Variant:
@@ -528,8 +531,10 @@ func connect_caves (walled: Dictionary = {}) -> void:
 			biggest = g
 	for v: Vector2i in biggest:
 		main[v] = true
+	# The open cells in the level, counted once and kept as the tunnels are carved.
+	var open_cells: int = _open_count()
 	var guard: int = 0
-	while main.size() < _open_count() and guard < 200:
+	while main.size() < open_cells and guard < 200:
 		guard += 1
 		# Breadth-first out of the main region, through rock, to the nearest other open cell.
 		var parent: Dictionary = {}
@@ -565,17 +570,14 @@ func connect_caves (walled: Dictionary = {}) -> void:
 		while not main.has(at):
 			if is_ground(at):
 				_to_open(at)
+				open_cells += 1
 			main[at] = true
 			at = parent[at]
 		_flood(found, main)
 
+## How many cells of the level are open (_open).
 func _open_count () -> int:
-	var n: int = 0
-	for x: int in range(size.x):
-		for y: int in range(size.y):
-			if _open(Vector2i(x, y)):
-				n += 1
-	return n
+	return types.size() - types.count(Type.GROUND) - types.count(Type.CRACKED)
 
 ## Every connected open region (4-neighbour), in scan order.
 func _open_regions () -> Array:
@@ -644,6 +646,10 @@ func make_room () -> void:
 				_to_open(c)
 				carved.append(c)
 
+## The cells above and below a cell, and what rock framing it above or below holds (_holds_up).
+const UP_DOWN: Array[Vector2i] = [Vector2i.UP, Vector2i.DOWN]
+const FRAMED: Array[Type] = [Type.DOOR, Type.SWITCH_GATE, Type.EXAM_DOOR]
+
 ## Whether rock at `c` walls a vault, frames a door or gate (above or below it), is kept whole
 ## (kept), seals a secret room or holds up the floor its way in is taken from (secret_steps), has a
 ## laser set in it, is the footing of a gap's shore, holds up something stood at, or lies on or
@@ -651,15 +657,15 @@ func make_room () -> void:
 func _holds_up (c: Vector2i) -> bool:
 	if vault_walls.has(c) or kept(c) or secret_steps.has(c) or keep_clear.has(c) or keep_clear.has(c + Vector2i.UP):
 		return true
-	for d: Vector2i in [Vector2i.UP, Vector2i.DOWN]:
-		if is_valid(c + d) and type_at(c + d) in [Type.DOOR, Type.SWITCH_GATE, Type.EXAM_DOOR]:
+	for d: Vector2i in UP_DOWN:
+		if is_valid(c + d) and type_at(c + d) in FRAMED:
 			return true
 	if is_valid(c + Vector2i.UP) and Placeables.has_flag(type_at(c + Vector2i.UP), &"stander"):
 		return true
 	for chasm: Dictionary in chasms:
 		if c == (chasm["left"] as Vector2i) + Vector2i.DOWN or c == (chasm["right"] as Vector2i) + Vector2i.DOWN:
 			return true
-	for d: Vector2i in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+	for d: Vector2i in neighbor_offsets:
 		if not is_valid(c + d):
 			continue
 		var n: Cell = get_cell(c + d)
@@ -804,12 +810,12 @@ func pop_if_random_empty (f: Callable=func(_v: Vector2i) -> bool: return true, f
 	for draw: int in range(FORCE_DRAWS if force else 1):
 		var i: int = rng.randi_range(0, len(empties) - 1)
 		var v: Vector2i = empties[i]
-		if f.bind(v).call():
+		if f.call(v):
 			add_object_at(v)
 			return v
 	if force:
 		for v: Vector2i in empties:
-			if f.bind(v).call():
+			if f.call(v):
 				add_object_at(v)
 				return v
 	return null
@@ -943,6 +949,8 @@ func place_lift_switches () -> void:
 	for vault: Dictionary in vaults:
 		for c: Vector2i in vault["room"]:
 			locked[c] = true
+	# The free floors, kept as each switch takes one (nothing else here changes them).
+	var floors: Array[Vector2i] = free_floors()
 	for lift: Vector2i in objects_of(Type.MOVING_PLATFORM):
 		var info: Array = get_cell(lift).extra_info
 		if info.size() > 3:
@@ -950,12 +958,13 @@ func place_lift_switches () -> void:
 		var roll: int = posmod(Rules.level_seed(seed_for_colors, LIFT_SWITCH_DEAL + lift.x * 977 + lift.y), 1000)
 		if float(roll) / 1000.0 >= LIFT_SWITCH_SHARE:
 			continue
-		var spot: Variant = best_of(free_floors(), func(v: Vector2i) -> int: return dist(v, lift),
+		var spot: Variant = best_of(floors, func(v: Vector2i) -> int: return dist(v, lift),
 				func(v: Vector2i) -> bool: return reach.has(v) and dist(v, lift) <= LIFT_SWITCH_NEAR and not _crowds_exit(v) and not locked.has(v))
 		if spot == null:
 			continue
 		info.append(spot)
 		put(spot, Type.SWITCH, lift)
+		floors.erase(spot)
 
 ## Salts for the level seed when dealing key and door colours (deal_colors).
 const KEY_DEAL: int = 7000

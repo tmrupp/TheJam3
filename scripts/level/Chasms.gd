@@ -134,6 +134,21 @@ static func near(w: LevelGen, c: Vector2i) -> bool:
 	return false
 
 
+## Per cell of `w` (x * size.y + y), 1 where near(w, cell) holds: each chasm's and gap's kept air
+## marked once, for a search that asks of many cells.
+static func near_mask(w: LevelGen) -> PackedByteArray:
+	var out: PackedByteArray = PackedByteArray()
+	out.resize(w.size.x * w.size.y)
+	out.fill(0)
+	for chasm: Dictionary in w.chasms:
+		var row: int = chasm["row"]
+		for plank: Vector2i in chasm["planks"]:
+			for x: int in range(maxi(0, plank.x - 2), mini(w.size.x, plank.x + 3)):
+				for y: int in range(maxi(0, row - CHASM_CLEAR - 1), mini(w.size.y, row + CHASM_DEPTH + 2)):
+					out[x * w.size.y + y] = 1
+	return out
+
+
 ## The chasm whose pit has its floor (its thorns) at cell `v`, or -1.
 static func pit_of(w: LevelGen, v: Vector2i) -> int:
 	for id: int in range(w.chasms.size()):

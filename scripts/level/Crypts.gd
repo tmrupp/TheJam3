@@ -438,62 +438,20 @@ static func _mouth(inside: Array, rect: Rect2i, at: Vector2i, guard: Dictionary)
 static func _site(w: LevelGen, inside: Array) -> Dictionary:
 	var size: Vector2i = Vector2i(inside.size(), (inside[0] as Array).size()) + Vector2i(2, 2)
 	var blocked: Dictionary = _blocked(w)
-	var open_sum: PackedInt32Array = _sums(w, func(v: Vector2i) -> bool: return not w.is_ground(v))
-	var blocked_sum: PackedInt32Array = _sums(w, func(v: Vector2i) -> bool: return blocked.has(v))
-	var best: Dictionary = {}
-	var best_score: int = 1 << 30
-	var best_tie: int = 0
 	var reaches: Dictionary = {}
-	for x: int in range(1, w.size.x - size.x):
-		for y: int in range(1, w.size.y - size.y):
-			var box: Rect2i = Rect2i(Vector2i(x, y), size)
-			if _count(w, blocked_sum, box.grow(APART)) > 0:
-				continue
-			var score: int = _count(w, open_sum, box)
-			if score > best_score:
-				continue
-			var doors: Array = _doors(w, inside, box, blocked, reaches)
-			if doors.is_empty():
-				continue
-			for door: Array in doors:
-				score += (door[1] as Array).size() * PASSAGE_COST
-			var tie: int = Rules.level_seed(w.seed_for_colors, SITE_DEAL + x * 131 + y)
-			if score < best_score or (score == best_score and tie < best_tie):
-				best_score = score
-				best_tie = tie
-				best = {"box": box, "doors": doors}
-	return best
-
-
-## Running sums over `w` of the cells passing `test`, for counting them in any box at once (_count).
-static func _sums(w: LevelGen, test: Callable) -> PackedInt32Array:
-	var h: int = w.size.y + 1
-	var sums: PackedInt32Array = PackedInt32Array()
-	sums.resize((w.size.x + 1) * h)
-	for x: int in range(w.size.x):
-		for y: int in range(w.size.y):
-			var here: int = 1 if test.call(Vector2i(x, y)) else 0
-			sums[(x + 1) * h + y + 1] = here + sums[x * h + y + 1] + sums[(x + 1) * h + y] - sums[x * h + y]
-	return sums
-
-
-## How many cells in `box` (clipped to the level) `sums` counts.
-static func _count(w: LevelGen, sums: PackedInt32Array, box: Rect2i) -> int:
-	var r: Rect2i = box.intersection(Rect2i(Vector2i.ZERO, w.size))
-	if not r.has_area():
-		return 0
-	var h: int = w.size.y + 1
-	return sums[r.end.x * h + r.end.y] - sums[r.position.x * h + r.end.y] - sums[r.end.x * h + r.position.y] + sums[r.position.x * h + r.position.y]
+	var doors: Callable = func(box: Rect2i) -> Array: return _doors(w, inside, box, blocked, reaches)
+	return Sites.best(w, size, blocked, APART, SITE_DEAL, doors, PASSAGE_COST)
 
 
 ## The cells a crypt keeps away from: every chasm's kept air (Chasms.near), what is kept whole or
 ## clear, the other crypts.
 static func _blocked(w: LevelGen) -> Dictionary:
+	var near: PackedByteArray = Chasms.near_mask(w)
 	var out: Dictionary = {}
 	for x: int in range(w.size.x):
 		for y: int in range(w.size.y):
 			var v: Vector2i = Vector2i(x, y)
-			if Chasms.near(w, v) or w.kept(v) or w.keep_clear.has(v) or w.structures.has(v):
+			if near[x * w.size.y + y] == 1 or w.kept(v) or w.keep_clear.has(v) or w.structures.has(v):
 				out[v] = true
 	return out
 
