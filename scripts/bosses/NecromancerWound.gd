@@ -10,11 +10,6 @@ func _init() -> void:
 	least = 1
 
 
-func stunned() -> bool:
-	var stunner: Stunner = Stunner.of(get_parent())
-	return stunner != null and stunner.stunned()
-
-
 func hit(_damage: int, dir: Vector2) -> void:
 	var necromancer: Necromancer = get_parent() as Necromancer
 	if necromancer == null or necromancer.dying():

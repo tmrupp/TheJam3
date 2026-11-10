@@ -51,7 +51,12 @@ static func hp_for(depth: int) -> int:
 	return clampi(1 + depth / 3, 2, 3)
 
 
+## Whether its host is stunned now: as its Stunner says, where it has one (Stunner.of: every enemy
+## that can be stunned, the bosses among them), else as its HitBox does.
 func stunned() -> bool:
+	var stunner: Stunner = Stunner.of(get_parent())
+	if stunner != null:
+		return stunner.stunned()
 	var box: HitBox = get_parent().get_node_or_null("HitBox") as HitBox
 	return box != null and box.stunned
 

@@ -105,9 +105,12 @@ var attacks: int = 0
 ## Seconds since a strike glanced off it (its eyes flare), and since a wound.
 var glanced: float = 9.0
 var hurt: float = 9.0
-## Dying: seconds into it (-1 while not); slain once sunk.
-var dying_t: float = -1.0
-var slain: bool = false
+## Its death (BossDeath): sinking back into the deep for DIE_TIME, then slain.
+var death: BossDeath = BossDeath.new(self, DIE_TIME)
+## Whether it is slain (sunk).
+var slain: bool:
+	get:
+		return death.slain
 var t: float = 0.0
 
 
@@ -191,7 +194,7 @@ func eyes() -> Vector2i:
 
 
 func dying() -> bool:
-	return dying_t >= 0.0 or slain
+	return death.dying()
 
 
 ## A strike glanced off it (a soul still lives): its open eyes flare. A strike wakes it.
@@ -211,15 +214,11 @@ func wounded(dir: Vector2) -> void:
 
 ## Its last blow: it sinks back into the deep.
 func die() -> void:
-	if dying():
+	if not death.begin(16.0, 0.5, global_position, [RisoPrint.ACCENT, RisoPrint.PINK]):
 		return
-	dying_t = 0.0
-	remove_from_group(&"hex_target")
 	(touch.get_node("CollisionShape2D") as CollisionShape2D).set_deferred("disabled", true)
 	slam.stop()
 	sweep.stop()
-	Wound.shake(16.0, 0.5)
-	RisoFx.burst(&"gain", global_position, Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.PINK])
 
 
 ## Slain at once (the F7 panel's Slay boss, MapInfo.slay_boss).
@@ -231,11 +230,8 @@ func slay() -> void:
 
 
 func _slain() -> void:
-	slain = true
-	if map_info != null:
-		var feet: Vector2 = global_position + Vector2(0, RISE - 8.0)
-		map_info.boss_slain(boss, map_info.cell_position(map_info.cell_at(feet)))
-	queue_free()
+	var feet: Vector2 = global_position + Vector2(0, RISE - 8.0)
+	death.fall(map_info, boss, map_info.cell_position(map_info.cell_at(feet)) if map_info != null else feet)
 
 
 func _wake() -> void:
@@ -253,9 +249,8 @@ func _physics_process(delta: float) -> void:
 	hurt += delta
 	if slain:
 		return
-	if dying_t >= 0.0:
-		dying_t += delta
-		if dying_t >= DIE_TIME:
+	if death.t >= 0.0:
+		if death.step(delta):
 			_slain()
 		return
 	var player: Player = Stage.player()
@@ -303,7 +298,7 @@ func _process(_delta: float) -> void:
 	if ink == null:
 		return
 	ink.begin()
-	var sink: float = clampf(dying_t / DIE_TIME, 0.0, 1.0) if dying_t >= 0.0 else 0.0
+	var sink: float = death.share()
 	var breath: float = 1.0 + (0.03 if awake else 0.015) * sin(t * (2.2 if awake else 0.9))
 	var xf: Transform2D = Transform2D(0.0, Vector2(ART, ART * breath * (1.0 - 0.85 * sink)), 0.0, Vector2(0, RISE))
 	var player: Player = Stage.player()
@@ -400,7 +395,7 @@ func _process(_delta: float) -> void:
 			var p: Vector2 = xf * Vector2(cos(a) * 60.0, -PIPS_UP + 40.0 + sin(a) * 10.0)
 			stars.append(Transform2D(t * 0.9 + float(i), p) * RisoShapes.sparkle(Vector2.ZERO, 20.0))
 		ink.ink(RisoPrint.ACCENT, 1.0, stars)
-	if dying_t >= 0.0:
+	if death.t >= 0.0:
 		var dust: Array[PackedVector2Array] = []
 		for i: int in range(14):
 			var p: Vector2 = Vector2((float(i) - 6.5) * 32.0, -10.0 - 60.0 * sink * (0.4 + 0.1 * float(i % 5)))
