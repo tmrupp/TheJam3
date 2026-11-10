@@ -83,7 +83,8 @@ func generation() -> void:
 			most_lanterns = maxi(most_lanterns, lit)
 			check(lit <= 1 + w.per_area(LevelGen.LANTERNS_PER_K), label + ": %d lanterns, one at the way back and a few more" % lit)
 			check(w.exit_lanterns.keys() == [MapInfo.Exit.BACK], label + ": only the way back has a lantern beside it")
-			check(count(w, LevelGen.Type.CLUSTER) - vault_count(w, LevelGen.Type.CLUSTER) == 1, label + ": one star cluster (besides any in vaults)")
+			var barrier_rewards: int = w.barriers.filter(func(b: Dictionary) -> bool: return w.get_cell(b["reward"]).type == LevelGen.Type.CLUSTER).size()
+			check(count(w, LevelGen.Type.CLUSTER) - vault_count(w, LevelGen.Type.CLUSTER) - barrier_rewards == 1, label + ": one star cluster (besides any in vaults and barriers)")
 			var keys: int = 0
 			for v: Vector2i in w.objects:
 				var cell: LevelGen.Cell = w.get_cell(v)

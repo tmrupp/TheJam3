@@ -16,9 +16,9 @@ extends RefCounted
 ##   thicker than a blink at its top tier carries; only a projection passes rock.
 ## Which move: the nearest level holding a relic within NEAR levels (Relics.at, by the rules alone,
 ## so the same in every run), else one dealt by the level seed. Laid in SHARE % of ordinary levels
-## (by the level seed), none in a side world or a gate level, after everything else of the level's
-## own (LevelGen._init), where solid rock fits the shape beside an open floor; where none fits, none
-## is laid. It is never laid across a way on, a door, a shrine or a lantern: only into solid rock,
+## (by the level seed) of the BANDS it is laid in, none in a side world or a gate level, after
+## everything else of the level's own (LevelGen._init), where its shape fits beside an open floor and
+## keeps the level's caves joined; where none fits, none is laid. It is never laid across a way on, a door, a shrine or a lantern: only into solid rock,
 ## and nothing already laid moves. What is laid is kept in LevelGen.barriers. Its mark (BarrierMark)
 ## stands on the floor at its mouth. Each one's measures are the consts below, to be set by playing
 ## each in the generation lab.
@@ -35,6 +35,12 @@ const SHARE_DEAL: int = 7300
 const NEAR: int = 3
 ## Salt for the level seed dealing a move where no relic is near.
 const MOVE_DEAL: int = 7301
+## The bands barriers are laid in, for now the garden alone: the other bands have structures of
+## their own (the crags' towers and gondola tracks, the cemetery's crypts) the pass does not yet
+## keep clear of. And how many fits a level tries before laying none (a fit that would cut its
+## caves apart is passed over).
+const BANDS: Array[StringName] = [&"garden"]
+const TRIES: int = 8
 ## The shaft: its open width, and how many rows it rises above the way in's floor.
 const SHAFT_WIDE: int = 2
 const SHAFT_TALL: int = 5
@@ -79,7 +85,7 @@ static func move_for(at: Vector2i) -> StringName:
 ## Lay level `w`'s barrier, if it takes one (see the class description): the shape for its move,
 ## carved where solid rock fits it beside an open floor, picked with one draw of the world RNG.
 static func lay(w: LevelGen, def: NextWorldDef) -> void:
-	if Worlds.is_side(def.coord) or def.gate != &"" or def.coord.y == 0 or not takes(def.coord):
+	if Worlds.is_side(def.coord) or def.gate != &"" or def.coord.y == 0 or def.archetype not in BANDS or not takes(def.coord):
 		return
 	var move: StringName = move_for(def.coord)
 	var kind: int = MOVE.find(move)
@@ -88,9 +94,40 @@ static func lay(w: LevelGen, def: NextWorldDef) -> void:
 	var fits: Array = _fits(w, kind)
 	if fits.is_empty():
 		return
-	var choice: Dictionary = w.pick(fits)
-	_carve(w, choice)
-	w.barriers.append(choice)
+	# The level's caves as they are, from its way in: a barrier that would cut any of them off (its
+	# walls built across a passage) is passed over for another, a few times, then none is laid.
+	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	if not w.is_valid(start):
+		return
+	var open: Callable = func(v: Vector2i) -> bool: return not w.is_ground(v)
+	var before: Dictionary = w.reach_from(start, open)
+	for i: int in range(TRIES):
+		if fits.is_empty():
+			return
+		var choice: Dictionary = w.pop_pick(fits)
+		if _keeps_caves(w, choice, start, before):
+			_carve(w, choice)
+			w.barriers.append(choice)
+			return
+
+
+## Whether carving `shape` keeps every cell reached from `start` before (`before`) reached after,
+## but those its walls fill.
+static func _keeps_caves(w: LevelGen, shape: Dictionary, start: Vector2i, before: Dictionary) -> bool:
+	var opened: Dictionary = {}
+	for c: Vector2i in shape["open"]:
+		opened[c] = true
+	var filled: Dictionary = {}
+	for c: Vector2i in shape["rock"]:
+		if w.is_valid(c) and not opened.has(c) and not w.is_ground(c):
+			filled[c] = true
+	if filled.has(start):
+		return false
+	var after: Dictionary = w.reach_from(start, func(v: Vector2i) -> bool: return opened.has(v) or (not w.is_ground(v) and not filled.has(v)))
+	for c: Vector2i in before:
+		if not filled.has(c) and not after.has(c):
+			return false
+	return true
 
 
 ## Every place barrier `kind` fits in `w`: each {"kind", "move", "mouth" (the floor cell beside its

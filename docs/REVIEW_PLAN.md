@@ -265,16 +265,22 @@ garden's rock is thin, so cut from solid rock alone no shape fitted in any of 36
 even at the smallest measures that still beat each move (the shaft 5 tall, the sill 4 up, the
 throat 4 long, the sealed cell's walls 4 thick). So a shape now fits where each of its cells is
 rock or air holding nothing, and its walls are built of rock where they meet that air; nothing
-laid before moves, and none is laid on a way out, a kept cell or the border. Even so about a
-quarter of garden levels take one (every ordinary level tries, `SHARE` 100), and the sealed cell,
-whose walls need a clear block about 10 by 9, has not fitted in any level looked at. Which move:
+laid before moves, and none is laid on a way out, a kept cell or the border. The suites then
+showed walls built across passages cutting caves off (`connect_test`, `difficulty_test`), and
+barriers cut across the crags' gondola tracks and towers (`crags_test`, `towers_test`): a fit
+that would cut any cave off from the way in is now passed over (up to 8 tries), and the pass is
+laid in the garden alone for now (`Barriers.BANDS`). With both, about one garden level in ten takes
+one (8 of 80 looked at: 4 sills, 3 curtains, a throat; shafts are rarer, and the sealed cell,
+whose walls need a clear block about 10 by 9, has not fitted in any), though every one tries
+(`SHARE` 100). `economy_test` counts a barrier's cluster apart, as a vault's. Which move:
 as planned, the nearest relic's within 3 levels, else the seed's; where its shape does not fit,
 none. Owner to decide: thinner walls for the sealed cell (a top-tier blink would pass them),
 laying the pass before the dressing so more air is clear (it would move later placements), or
-trying another move where the chosen one does not fit. The relic chasms' marks are not done.
+trying another move where the chosen one does not fit, and the other bands (their towers, tracks
+and crypts kept clear of first). The relic chasms' marks are not done.
 `barriers_test` checks the four kinds it finds (and says which it did not), `capture_barriers`
-photographs them. *Layouts:* every level that takes one changes, in every band; the fingerprints
-want writing again on the owner's build.
+photographs them. *Layouts:* every garden level that takes one changes; the fingerprints want
+writing again on the owner's build.
 
 *Tests:* a new `barriers_test`, looking over a few worlds and rows with `build` for a level
 holding each kind rather than trusting one level: the shaft has one wall thorned for its whole
