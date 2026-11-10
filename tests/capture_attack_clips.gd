@@ -27,7 +27,7 @@ func run() -> void:
 	await boot()
 	camera = main.get_node("Camera2D") as Camera2D
 	base_zoom = camera.zoom
-	player.set_physics_process(false)
+	freeze()
 	player.get_node("CameraControl").set_process(false)
 	await wisp()
 	await feather()
@@ -75,7 +75,7 @@ func feather() -> void:
 	player.global_position = info.respawn_marker.global_position
 	player.set_physics_process(true)
 	await until(func() -> bool: return player.is_on_floor())
-	player.set_physics_process(false)
+	freeze()
 	camera.zoom = base_zoom * 3.5
 	look(player.global_position + Vector2(-10, -70))
 	player.dash.acted = false

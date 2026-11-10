@@ -24,8 +24,7 @@ func run() -> void:
 	_placement()
 	await boot(WORLD)
 	player.end_invulnerable()
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	var at: Vector2i = _play_level()
 	await go(at, false)
 	print("in %s, a lodestone of %s" % [at, Rules.lodestone_at(at)])
@@ -223,7 +222,7 @@ func _breaks() -> void:
 	var across: Array = _walls(true)
 	var over: Array = _walls(false).filter(func(p: Array) -> bool: return not across.any(func(q: Array) -> bool: return q[0] == p[0]))
 	check(not across.is_empty() and across.size() + over.size() >= 6, "cracked walls to break (%d beside, %d over or under)" % [across.size(), over.size()])
-	player.set_physics_process(false)
+	freeze()
 	for spell: StringName in [&"lunge", &"hex", &"seeker", &"slash", &"nova", &"push"]:
 		var walls: Array = across if not across.is_empty() else over
 		if spell != &"lunge" and not over.is_empty():
@@ -289,7 +288,7 @@ func _spires() -> void:
 	var from: Vector2 = a.head() + Vector2(-150.0, 0.0)
 	if info.solid_at(from):
 		from = a.head() + Vector2(150.0, 0.0)
-	player.set_physics_process(false)
+	freeze()
 	player.global_position = from
 	info.loader.wake_around(from)
 	await frames(4)

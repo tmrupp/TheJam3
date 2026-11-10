@@ -19,7 +19,7 @@ func run() -> void:
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
 	await go(Vector2i(28, NextWorldDef.first_depth(&"cemetery")), false)
 	camera.zoom *= ZOOM
-	player.set_physics_process(false)
+	freeze()
 	player.get_node("CameraControl").set_process(false)
 	player.global_position = Vector2(-9000, -9000)
 	var at: Vector2 = info.cell_position(_open_air())

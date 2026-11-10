@@ -68,7 +68,7 @@ func run() -> void:
 	await settle()
 
 	print("saving")
-	player.set_physics_process(false)
+	freeze()
 	var coin: Node = placed("coin.tscn")[0]
 	var coin_cell: Vector2i = coin.get_meta(&"cell")
 	coin.call("touch", player)

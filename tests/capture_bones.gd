@@ -46,7 +46,7 @@ func run() -> void:
 	camera.zoom = Vector2.ONE * 0.6
 	camera.reset_smoothing()
 	await settle(60)
-	player.set_physics_process(false)
+	freeze()
 	await shot("chain_with_bones")
 	# A bone gate: the first level along with a bone vault.
 	var target: Vector2i = Vector2i(-1, -1)

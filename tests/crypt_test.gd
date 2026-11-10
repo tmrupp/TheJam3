@@ -231,7 +231,7 @@ func _dash() -> void:
 	await physics_frame
 	await physics_frame
 	Input.action_release("Dash")
-	player.set_physics_process(false)
+	freeze()
 
 
 ## A new `scene` set at cell `v` of the level (an enemy, armed as one placed with it).

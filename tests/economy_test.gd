@@ -57,7 +57,7 @@ func vault_count(w: LevelGen, type: LevelGen.Type) -> int:
 func run() -> void:
 	generation()
 	await boot(28)
-	player.set_physics_process(false)
+	freeze()
 
 	await keys()
 	await casting()
@@ -164,10 +164,10 @@ func keys() -> void:
 		side.call("interacted")
 		check(player.keyring.skeletons() == 0 and bool(info.record().lateral_open.get(which, false)), "it opens a side door too")
 		await settle()
-		player.set_physics_process(false)
+		freeze()
 		info.travel(MapInfo.Exit.RIGHT if which == MapInfo.Exit.LEFT else MapInfo.Exit.LEFT)
 		await settle()
-		player.set_physics_process(false)
+		freeze()
 	check(info.coord == Vector2i(28, 0), "back in the first level")
 
 
@@ -189,7 +189,7 @@ func casting() -> void:
 	check(player.coins.coins == 10 - price, "a cast that fails (recharging) costs nothing")
 	while warp.warping:
 		await process_frame
-	player.set_physics_process(false)
+	freeze()
 	player.global_position = before
 	await settle(1)
 	player.collect(-player.coins.coins)
@@ -277,7 +277,7 @@ func giving_up() -> void:
 	menu.call("give_up")
 	check(not paused, "giving up closes the menu")
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	# The level reloaded with the respawn: find the lantern again.
 	lantern = lanterns().filter(func(n: Node) -> bool: return n.get_meta(&"cell") == cell)[0]
 	check(info.run.vulnerable and info.is_lantern_spent(lantern), "it is a death: the lantern burns out")

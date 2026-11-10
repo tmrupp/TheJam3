@@ -17,7 +17,7 @@ extends TestKit
 func run() -> void:
 	MapInfo.debug = false
 	await boot(28)
-	player.set_physics_process(false)
+	freeze()
 	await go(lair(&"worm"))
 	var worm: Worm = placed("worm.tscn")[0] as Worm
 
@@ -51,8 +51,7 @@ func run() -> void:
 	check(not worm.awake and worm.pieces[0].segments.all(func(s: WormSegment) -> bool: return not s.shown and not s.live), "with the wizard far off, it lies under the rock, out of reach")
 
 	print("it comes up and hunts")
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	var stand: Variant = LevelGen.best_of(info.world.free_floors(), func(v: Vector2i) -> int: return absi(LevelGen.dist(v, worm.home) - 6), func(v: Vector2i) -> bool: return worm.lair.has(v))
 	player.global_position = info.cell_position(stand as Vector2i)
 	# Standing there for real: the arrival's grace runs out only as the wizard's physics runs.

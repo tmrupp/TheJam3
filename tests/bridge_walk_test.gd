@@ -69,5 +69,5 @@ func walk(from: Vector2, to: float, action: StringName) -> float:
 		if (player.global_position.x - to) * sign >= 0.0:
 			break
 	Input.action_release(action)
-	player.set_physics_process(false)
+	freeze()
 	return best

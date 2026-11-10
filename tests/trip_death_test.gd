@@ -9,7 +9,7 @@ func run() -> void:
 	await boot(28)
 	for protected: bool in [true, false]:
 		print("protected" if protected else "unprotected")
-		player.set_physics_process(false)
+		freeze()
 		info.run.vulnerable = not protected
 		var portal: Portal = placed("portal.tscn")[0] as Portal
 		player.global_position = portal.global_position

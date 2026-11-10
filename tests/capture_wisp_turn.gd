@@ -18,7 +18,7 @@ const OVERLAY: int = 6
 func run() -> void:
 	window()
 	await boot()
-	player.set_physics_process(false)
+	freeze()
 	player.get_node("CameraControl").set_process(false)
 	player.global_position = Vector2(-9000, -9000)
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D

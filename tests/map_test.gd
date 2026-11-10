@@ -9,7 +9,7 @@ var map: Node
 
 func run() -> void:
 	await boot()
-	player.set_physics_process(false)
+	freeze()
 	map = main.get_node("RisoMap")
 
 	print("seeing the level")
@@ -35,10 +35,10 @@ func run() -> void:
 	var count: int = info.seen_count()
 	info.travel(MapInfo.Exit.RIGHT)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	info.travel(MapInfo.Exit.LEFT)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	check(info.seen_count() >= count, "a revisit keeps what was seen")
 	check(bool((info.map_elements.get_children().filter(func(n: Node) -> bool: return n.scene_file_path.get_file() == "inkwell.tscn")[0]).call("used")), "and the well stays dry")
 

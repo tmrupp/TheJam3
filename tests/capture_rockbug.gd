@@ -19,12 +19,11 @@ func run() -> void:
 	await go(Vector2i(28, NextWorldDef.band_row(&"crags", 1)), false)
 	camera = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	var g: Gondola = placed("gondola.tscn")[0] as Gondola
 	# The wizard out of the way, on the car's landing.
 	player.global_position = g.posts[g.at_station].global_position + Vector2(float(g.inner[g.at_station]) * 60.0, 0.0)
-	player.set_physics_process(false)
+	freeze()
 	var bugs: Array[RockBug] = []
 	var cabled: RockBug = _spawn()
 	cabled.ride_track(g, g.s + 1.9 if g.s + 1.9 <= float(g.path.size() - 1) else g.s - 1.9)

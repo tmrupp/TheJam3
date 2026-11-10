@@ -21,7 +21,7 @@ func run() -> void:
 	art(true)
 	drop_shape()
 	await boot()
-	player.set_physics_process(false)
+	freeze()
 	player.get_node("CameraControl").set_process(false)
 	player.global_position = Vector2(-9000, -9000)
 	wisps_meet()

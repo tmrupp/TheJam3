@@ -86,7 +86,7 @@ func run() -> void:
 	check(columns == 12, "every world column's gate level has one (%d of 12)" % columns)
 
 	await boot(28)
-	player.set_physics_process(false)
+	freeze()
 	await go(gate)
 	print("in play")
 	var bramble: Bramble = placed("bramble.tscn")[0] as Bramble
@@ -143,8 +143,7 @@ func run() -> void:
 			hurt_in = hurt_in and not vine.hurts() and vine.length == 0.0
 	check(seen.size() == 5, "it rests, warns, grows, holds and pulls back on a cadence")
 	check(hurt_in and hurt_out and absf(longest - BrambleVine.REACH * bramble.cell) < 1.0, "hurting only while it is out, %.0f px across the shaft" % longest)
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	await until(func() -> bool: return vine.phase()[0] == &"hold", 10000)
 	player.end_invulnerable()
 	player.global_position = vine.global_position + vine.way * bramble.cell * 1.5
@@ -250,8 +249,7 @@ func run() -> void:
 	roots.assign(tangle.canes.filter(func(c: BrambleTangle.Cane) -> bool: return c.kind == &"root"))
 
 	print("the heart")
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	for b: BrambleBulb in bramble.bulbs:
 		if b.alive:
 			bramble.bloom_on(b)

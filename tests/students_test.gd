@@ -63,7 +63,7 @@ func _walking() -> void:
 	await go(at, false)
 	var rec: LevelRecord = info.record()
 	check(rec.passing, "a level is first met in passing time")
-	player.set_physics_process(false)
+	freeze()
 	player.end_invulnerable()
 	# The walk is watched alone: the level's abominations (which bite a student in their way) and
 	# the breaches they come from are cleared first.

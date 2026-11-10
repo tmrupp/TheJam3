@@ -72,7 +72,7 @@ func _laid_out() -> void:
 
 func _play() -> void:
 	await boot(WORLD)
-	player.set_physics_process(false)
+	freeze()
 	# The wizard never dies here: the abominations and tentacles would end the test.
 	process_frame.connect(func() -> void: player.health.health = player.health.max_health)
 	for c: Vector2i in VISITED:

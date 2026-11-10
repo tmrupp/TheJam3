@@ -13,8 +13,7 @@ func run() -> void:
 	await go(Vector2i(28, NextWorldDef.band_row(&"crags", 1)), false)
 	camera = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	var keep: Vector2 = _castle()
 	var riso: RisoPrint = RisoPrint.instance
 	var zoom: Vector2 = camera.zoom
@@ -33,7 +32,7 @@ func run() -> void:
 	if not all.is_empty():
 		var st: Stalactite = all[0] as Stalactite
 		var at: Vector2 = st.home + Vector2(0.0, 120.0)
-		player.set_physics_process(false)
+		freeze()
 		player.global_position = st.home + Vector2(Stalactite.REACH * 4.0, 256.0)
 		await look_at(at, "stalactite_hanging.png")
 		st.state = Stalactite.State.SHAKING

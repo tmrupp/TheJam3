@@ -41,8 +41,7 @@ func run() -> void:
 	zoom = Vector2.ONE * root.get_visible_rect().size.y / (VIEW_CELLS * bramble.cell)
 	player.get_node("CameraControl").set_process(false)
 	info.run.vulnerable = false
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	Abilities.set_tier(player, &"slash", 1)
 	# The shaft's middle, its roof a little under the top of the view.
 	var shaft_x: float = bramble.center(bramble.inside.position).x + float(bramble.inside.size.x - 1) * bramble.cell * 0.5
@@ -52,7 +51,7 @@ func run() -> void:
 	var on_ledge: Vector2 = info.cell_position(ledge + Vector2i.UP)
 	# Out of the shaft until it wakes, so its crown is still asleep.
 	player.global_position = Vector2(-9000, -9000)
-	player.set_physics_process(false)
+	freeze()
 	still()
 	for i: int in range(SETTLE):
 		_aim()

@@ -8,7 +8,7 @@ extends TestKit
 
 func run() -> void:
 	await boot(28)
-	player.set_physics_process(false)
+	freeze()
 	var wisp: Node = placed("mover_enemy.tscn")[0]
 	var hit_by: Node = wisp.get_node("HitBox/Damager")
 	check(player.get_node_or_null("Ward") == null, "a run starts without the ward")

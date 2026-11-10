@@ -22,7 +22,7 @@ func run() -> void:
 	await boot()
 	camera = main.get_node("Camera2D") as Camera2D
 	var base: Vector2 = camera.zoom
-	player.set_physics_process(false)
+	freeze()
 	player.get_node("CameraControl").set_process(false)
 	player.end_invulnerable()
 	player.global_position = Vector2(-9000, -9000)
@@ -76,7 +76,7 @@ func run() -> void:
 	player.global_position = info.respawn_marker.global_position
 	player.set_physics_process(true)
 	await until(func() -> bool: return player.is_on_floor())
-	player.set_physics_process(false)
+	freeze()
 	camera.zoom = base * FEATHER_ZOOM
 	var hat: Vector2 = player.global_position + Vector2(-10, -80)
 	look(hat)

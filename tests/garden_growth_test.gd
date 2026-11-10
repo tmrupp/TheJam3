@@ -169,7 +169,7 @@ func _pods() -> void:
 	if shot != null:
 		(player.get_node("Parry") as Parry).parry(1, Vector2.ZERO, shot.get_node("HitBox/Damager"))
 		check(await within(func() -> bool: return wounded[0] > 0, 3.0), "caught by the guard, it flies home and wounds the pod")
-	player.set_physics_process(false)
+	freeze()
 	# The rest of its hits, as parried seeds.
 	if is_instance_valid(body) and not body.is_queued_for_deletion():
 		HexBolt.parried_blow = true

@@ -18,8 +18,7 @@ func run() -> void:
 	camera = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
 	player.end_invulnerable()
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	# A level holding a lodestone with another in a level beside it, so the worlds map shows one.
 	var row: int = NextWorldDef.band_row(&"crags", 0)
 	var at: Vector2i = Vector2i(28, row)
@@ -79,7 +78,7 @@ func _clear_foes() -> void:
 
 ## Stand the wizard (still) at `pos`.
 func stand(pos: Vector2) -> void:
-	player.set_physics_process(false)
+	freeze()
 	player.velocity = Vector2.ZERO
 	player.global_position = pos
 	info.loader.wake_around(pos)
@@ -166,7 +165,7 @@ func _bag(zoom: Vector2) -> void:
 	await look_at(player.global_position + Vector2(0, -50), "bag_recharging.png", 6)
 	empower.wait = 0.0
 	empower.held = Empower.HOLD * 0.75
-	player.set_physics_process(false)
+	freeze()
 	await look_at(player.global_position + Vector2(0, -50), "bag_held.png", 6)
 	empower.held = -1.0
 	player.set_physics_process(true)

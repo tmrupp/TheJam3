@@ -17,8 +17,7 @@ func run() -> void:
 	await boot(28)
 	camera = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	var zoom: Vector2 = camera.zoom
 	var seen: Dictionary = {}
 	var wide: Dictionary = {}

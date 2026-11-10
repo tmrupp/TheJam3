@@ -39,7 +39,7 @@ func run() -> void:
 	# It reads what the art does (TestKit.art).
 	art(true)
 	await boot()
-	player.set_physics_process(false)
+	freeze()
 
 	print("the hex")
 	check(Abilities.spell(player) == &"slash" and player.get_node_or_null("Hex") == null, "slash to start with: the hex is learned")
@@ -116,14 +116,14 @@ func run() -> void:
 	print("slain until death")
 	info.travel(MapInfo.Exit.RIGHT)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	info.travel(MapInfo.Exit.LEFT)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	check(not placed("mover_enemy.tscn").any(func(n: Node) -> bool: return n.get_meta(&"cell") == cell), "a revisit keeps it slain")
 	player.die()
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	check(placed("mover_enemy.tscn").any(func(n: Node) -> bool: return n.get_meta(&"cell") == cell), "dying brings it back")
 
 	print("rock stops the bolt")
@@ -180,11 +180,11 @@ func run() -> void:
 	placed("checkpoint.tscn").filter(func(n: Node) -> bool: return not info.is_lantern_spent(n))[0].call("interacted")
 	player.die()
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	check(not placed("cracked_wall.tscn").any(func(n: Node) -> bool: return n.get_meta(&"cell") == shot), "it stays broken after a death")
 	info.start_run(28)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	var again: Array[Vector2i] = []
 	for v: Vector2i in info.world.objects:
 		if info.world.get_cell(v).type == LevelGen.Type.CRACKED:

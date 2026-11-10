@@ -146,7 +146,7 @@ func falling() -> void:
 	player.global_position = Vector2(stood.x, info.level_rect().end.y + Player.FALL_MARGIN + 50.0)
 	for i: int in range(2):
 		await physics_frame
-	player.set_physics_process(false)
+	freeze()
 	check(player.global_position.distance_to(stood) < 40.0 and player.health.health == player.health.max_health - 1, "a fall out of the bottom puts the wizard back there, a heart down")
 	player.health.health = player.health.max_health
 	player.invulnerable.enable()
@@ -165,7 +165,7 @@ func pads() -> void:
 	for i: int in range(70):
 		await physics_frame
 		fastest = minf(fastest, player.velocity.y)
-	player.set_physics_process(false)
+	freeze()
 	# Thrown at the pad's speed: about four cells up where nothing is in the way.
 	check(fastest <= -1000.0, "it throws the wizard up at %d px/s" % int(-fastest))
 
@@ -193,7 +193,7 @@ func puffs() -> void:
 	await until(func() -> bool: return player.global_position.y > through + 20.0)
 	check(player.global_position.y > through + 20.0, "and the wizard drops through")
 	player.global_position = puff.global_position + Vector2(400, -2000)
-	player.set_physics_process(false)
+	freeze()
 	await within(func() -> bool: return puff.holds(), Puff.REFORM + 1.0)
 	check(puff.holds(), "it gathers again %.0f s later" % Puff.REFORM)
 	# Touched and left at once: it still goes.
@@ -202,7 +202,7 @@ func puffs() -> void:
 	player.set_physics_process(true)
 	await until(func() -> bool: return puff.worn() > 0.0)
 	player.global_position = puff.global_position + Vector2(400, -2000)
-	player.set_physics_process(false)
+	freeze()
 	for i: int in range(int(Puff.STAND * 60.0) + 10):
 		await physics_frame
 	check(not puff.holds(), "touched once and left, it gives way all the same")
@@ -317,7 +317,7 @@ func _drift(way: int) -> void:
 		await physics_frame
 		await physics_frame
 		await physics_frame
-		player.set_physics_process(false)
+		freeze()
 		check((player.global_position.x - from_x) * float(way) > 0.0, "and off the ground, they are carried with it")
 
 
@@ -375,7 +375,7 @@ func _cross(gap: Rect2, away: float, leap: bool, dash_too: bool = true) -> bool:
 	Input.action_release(&"Jump")
 	Input.action_release(&"Dash")
 	Input.action_release(&"Down")
-	player.set_physics_process(false)
+	freeze()
 	return over
 
 
@@ -409,7 +409,7 @@ func updrafts() -> void:
 	for i: int in range(int(draft.rect.size.y / Wind.LIFT_SPEED * 60.0) + 90):
 		await physics_frame
 		top = minf(top, player.global_position.y)
-	player.set_physics_process(false)
+	freeze()
 	check(start - top > float(draft.up - 1) * 128.0, "the updraft lifts the wizard up its shaft (%d of %d px)" % [int(start - top), int(draft.rect.size.y)])
 
 

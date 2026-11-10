@@ -15,7 +15,7 @@ func ledges_at(c: Vector2i) -> int:
 
 func run() -> void:
 	await boot()
-	player.set_physics_process(false)
+	freeze()
 
 	var w: LevelGen = info.world
 	var under_lantern: Variant = null

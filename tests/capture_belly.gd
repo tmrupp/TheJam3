@@ -18,7 +18,7 @@ func run() -> void:
 	await frames(200)
 	save_still("belly_mouth.png")
 	player.get_node("CameraControl").set_process(false)
-	player.set_physics_process(false)
+	freeze()
 	await overview_still("belly_overview.png", 2)
 	var acid: Acid = placed("acid.tscn")[0] as Acid
 	acid.t = 0.0

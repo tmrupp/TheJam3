@@ -95,7 +95,7 @@ func run() -> void:
 
 	print("in play: a bone gate")
 	await boot()
-	player.set_physics_process(false)
+	freeze()
 	var target: Vector2i = Vector2i(-1, -1)
 	# One with a way on of its own, too, so its shrine (looked at below) sells no door in its place.
 	for x: int in range(28, 400):

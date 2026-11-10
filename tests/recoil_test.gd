@@ -81,8 +81,7 @@ func put(at: Vector2) -> void:
 
 func run() -> void:
 	await boot(start_seed(func(w: LevelGen) -> bool: return spot(w) != Vector2i(-1, -1)))
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	var at: Vector2i = spot()
 	check(at != Vector2i(-1, -1), "open floor")
 	player.global_position = info.cell_position(at) + Vector2(0, 16 - 31)

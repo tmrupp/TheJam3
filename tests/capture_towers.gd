@@ -13,8 +13,7 @@ func run() -> void:
 	await boot(28)
 	camera = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	var zoom: Vector2 = camera.zoom
 	for k: int in [0, 4]:
 		await go(Vector2i(28, NextWorldDef.band_row(&"crags", k)))

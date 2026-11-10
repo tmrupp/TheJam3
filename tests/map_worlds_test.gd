@@ -9,9 +9,8 @@ func run() -> void:
 	await boot()
 	# Held still and hard to kill: a wisp's bite on a slow run could otherwise kill the wizard, and
 	# the respawn's travel keeps the map shut.
-	player.set_physics_process(false)
-	player.health.max_health = 99
-	player.health.health = 99
+	freeze()
+	sturdy()
 	await settle(10)
 	var first: Vector2i = info.coord
 	info.reveal(info.cell_at(info.player.global_position), 6)
@@ -26,7 +25,7 @@ func run() -> void:
 	var first_seen: int = info.seen_count()
 	info.travel(MapInfo.Exit.RIGHT)
 	await settle(10)
-	player.set_physics_process(false)
+	freeze()
 	var map: Node = RisoPrint.instance.map_view
 	var why: String = "travelling %s, run ending %s, menu up %s, already open in view %s" % [info.travelling, info.run_ending, Stage.menu() != null and Stage.menu().visible, map.get("view")]
 	map.call("toggle")

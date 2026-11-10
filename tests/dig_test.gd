@@ -9,7 +9,7 @@ extends TestKit
 func run() -> void:
 	RunState.save_path = "user://dig_test.save"
 	await boot(28)
-	player.set_physics_process(false)
+	freeze()
 
 	print("a shrine sells a way on where the labyrinth left none")
 	var at: Vector2i = _wanting()
@@ -48,7 +48,7 @@ func run() -> void:
 	info.travel(MapInfo.Exit.DEEPER)
 	await until(func() -> bool: return info.coord == beyond and not info.travelling, 20000)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	var back: LevelExit = _exit(MapInfo.Exit.BACK)
 	check(info.coord == beyond and back != null and info.cell_at(back.global_position) == info.world.exits[MapInfo.Exit.BACK], "it leads on, and a door back stands where the wizard arrives")
 	info.travel(MapInfo.Exit.BACK)

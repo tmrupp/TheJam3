@@ -11,7 +11,7 @@ const PICKUPS: Array[String] = ["coin.tscn", "key.tscn", "moon.tscn"]
 
 func run() -> void:
 	await boot(_world_with_lifts())
-	player.set_physics_process(false)
+	freeze()
 	var first: Dictionary = _looks()
 	var lifts: int = (first.keys() as Array).filter(func(k: Variant) -> bool: return (k as String).begins_with("lift")).size()
 	check(first.size() - lifts > 10 and lifts > 0, "the level has pickups to compare (%d, and %d lifts)" % [first.size() - lifts, lifts])

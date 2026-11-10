@@ -14,8 +14,7 @@ func run() -> void:
 	await boot(28)
 	camera = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	# A balloon.
 	var sky: Vector2i = Vector2i(28, NextWorldDef.band_row(&"sky", 1))
 	await go(sky)

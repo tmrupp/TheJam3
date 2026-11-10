@@ -26,13 +26,12 @@ func run() -> void:
 	var worm: Worm = placed("worm.tscn")[0] as Worm
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	# Stand the wizard on a floor in the lair, a little way from where the worm was placed.
 	var stand: Variant = LevelGen.best_of(info.world.free_floors(), func(v: Vector2i) -> int: return absi(LevelGen.dist(v, worm.home) - 6), func(v: Vector2i) -> bool: return worm.lair.has(v))
 	player.global_position = info.cell_position(stand as Vector2i)
 	player.velocity = Vector2.ZERO
-	player.set_physics_process(false)
+	freeze()
 	var shots: Array[Image] = []
 	var worm_piece: Worm.Piece = worm.pieces[0]
 	# About to come up: the hole throbs and spits dirt.

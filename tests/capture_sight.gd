@@ -13,7 +13,7 @@ func run() -> void:
 	await boot(28)
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
 	var light: RisoLight = main.get_node("RisoLight") as RisoLight
-	player.set_physics_process(false)
+	freeze()
 	player.get_node("CameraControl").set_process(false)
 	var shots: Array[Image] = []
 	shots.append(await _shot(camera, "sight_start.png"))

@@ -61,7 +61,7 @@ func run() -> void:
 	check(build(Vector2i(28, g + 1)).objects_of(LevelGen.Type.BOSS).is_empty(), "and only there")
 
 	await boot(28)
-	player.set_physics_process(false)
+	freeze()
 	print("one column holds the worm")
 	var empty: Vector2i = lair(&"worm") + Vector2i(1, 0)
 	await go(empty)
@@ -150,7 +150,7 @@ func _to_far_bosses() -> void:
 	info.debug_to_boss(&"golem", 28)
 	await until(func() -> bool: return info.coord == lair(&"golem") and not info.travelling)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	var lair: Array[Vector2i] = info.world.objects_of(LevelGen.Type.BOSS)
 	var stood: Vector2i = info.cell_at(player.global_position)
 	var way_back: Vector2i = info.world.exits[MapInfo.Exit.BACK]
@@ -158,7 +158,7 @@ func _to_far_bosses() -> void:
 	info.debug_to_boss(&"whale", 28)
 	await until(func() -> bool: return Worlds.is_side(info.coord) and not info.travelling)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	check(not placed("whale_heart.tscn").is_empty(), "a jump to the whale goes into its belly, by its heart")
 
 

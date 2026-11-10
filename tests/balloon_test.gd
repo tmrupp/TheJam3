@@ -41,8 +41,7 @@ func run() -> void:
 	print("in play")
 	var from: Vector2i = Vector2i(28, NextWorldDef.band_row(&"sky", 1))
 	await boot(from.x)
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	await go(from, false)
 	var balloons: Array[Node] = placed("balloon.tscn")
 	check(balloons.size() == 1, "the level's balloon is there")
@@ -51,7 +50,7 @@ func run() -> void:
 		return
 	var balloon: Balloon = balloons[0] as Balloon
 	# Standing by it (its chunk awake, as the wizard's always is).
-	player.set_physics_process(false)
+	freeze()
 	player.global_position = balloon.global_position
 	info.loader.wake_around(balloon.global_position)
 	await frames(3)
@@ -70,7 +69,7 @@ func run() -> void:
 	var there: bool = await until(func() -> bool: return info.coord == from + Vector2i(-1, 0) and not info.travelling, 15000)
 	# Where they come down, as they arrive: left to play on, on a loaded machine a foe or a fall may
 	# carry them off before the check.
-	player.set_physics_process(false)
+	freeze()
 	await frames(2)
 	check(there, "and carries them along the row to world %d" % (from.x - 1))
 	var landed: Vector2i = info.world.balloon

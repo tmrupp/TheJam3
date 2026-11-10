@@ -436,12 +436,12 @@ func _staff() -> void:
 	librarian.hush_t = Scholar.HUSH_EVERY - Scholar.HUSH_ON - 0.1
 	check(await within(func() -> bool: return librarian.hush_up(), 1.0), "then it rises")
 	check(await within(func() -> bool: return player.is_drowsy(), 1.0), "and in it the wizard is drowsy, their spells silenced")
-	player.set_physics_process(false)
+	freeze()
 	librarian.queue_free()
 	await frames(2)
 	player.set_physics_process(true)
 	check(await within(func() -> bool: return not player.is_drowsy(), 1.0), "and out of it, not")
-	player.set_physics_process(false)
+	freeze()
 	await frames(2)
 
 
@@ -549,7 +549,7 @@ func _three_sides() -> void:
 	player.set_physics_process(true)
 	player.global_position = Vector2(smear.x, smear.y - Slime.FEET - 4.0)
 	check(await within(func() -> bool: return player.health.health < wizard_hp, 1.0), "fresh slime hurts the wizard in it")
-	player.set_physics_process(false)
+	freeze()
 	player.health.health = player.health.max_health
 	check(await within(func() -> bool: return not is_instance_valid(trail), Slime.LIFE + 1.0), "and it fades, gone once its abomination is")
 	for n: Node in get_nodes_in_group(&"abomination"):

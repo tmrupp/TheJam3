@@ -27,9 +27,8 @@ func run() -> void:
 	MapInfo.debug = false
 	var gate: Vector2i = lair(&"golem")
 	await boot(28)
-	player.set_physics_process(false)
-	player.health.max_health = 99
-	player.health.health = 99
+	freeze()
+	sturdy()
 	await go(gate)
 	print("in its hall")
 	var golem: Golem = placed("golem.tscn")[0] as Golem

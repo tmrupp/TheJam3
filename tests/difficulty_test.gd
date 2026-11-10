@@ -61,8 +61,7 @@ func run() -> void:
 
 	print("the golem")
 	await boot(28)
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	await go(lair(&"golem"))
 	var golem: Golem = placed("golem.tscn")[0] as Golem
 	golem.hurl_wait = INF

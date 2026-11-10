@@ -35,7 +35,7 @@ func run() -> void:
 	still()
 	await physics_frame
 	await physics_frame
-	_press(&"Dash")
+	press(&"Dash")
 	await frames(2)
 	_release(&"Dash")
 	check(lev.floating() and not lev.charged, "the Dash button in the air: floating")
@@ -101,7 +101,7 @@ func run() -> void:
 			out[target["kind"]] = true
 		return out
 	check(not aware.active(), "quiet until pinged")
-	_press(Abilities.UTILITY_ACTION)
+	press(Abilities.UTILITY_ACTION)
 	await frames(2)
 	_release(Abilities.UTILITY_ACTION)
 	check(aware.active() and kinds.call().has(&"exit") and not kinds.call().has(&"inkwell"), "awareness I, from the Utility button: senses the exits")
@@ -110,7 +110,7 @@ func run() -> void:
 		if kind == &"fizzle":
 			fizzled[0] = true
 	player.visual_event.connect(on_event)
-	_press(Abilities.UTILITY_ACTION)
+	press(Abilities.UTILITY_ACTION)
 	await frames(2)
 	_release(Abilities.UTILITY_ACTION)
 	player.visual_event.disconnect(on_event)
@@ -132,7 +132,7 @@ func run() -> void:
 			plant = index
 			break
 	var anchor: Vector2 = decor.items[plant]["anchor"]
-	player.set_physics_process(false)
+	freeze()
 	player.global_position = anchor + Vector2(-40, -40)
 	player.velocity = Vector2(300, 0)
 	var cam: Camera2D = main.get_node("Camera2D") as Camera2D
@@ -158,11 +158,6 @@ func run() -> void:
 
 
 ## Press, and let go of, `action`.
-func _press(action: StringName) -> void:
-	var press: InputEventAction = InputEventAction.new()
-	press.action = action
-	press.pressed = true
-	Input.parse_input_event(press)
 
 
 func _release(action: StringName) -> void:

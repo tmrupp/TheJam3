@@ -98,7 +98,7 @@ func run() -> void:
 	check(player.global_position.x > x0 + 40.0, "it carries the wizard along (%d px)" % int(player.global_position.x - x0))
 	# Left alone, it meets rock and turns back, and it is still there long after.
 	player.global_position = info.cell_position(spot) + Vector2(0, -400)
-	player.set_physics_process(false)
+	freeze()
 	check(await within(func() -> bool: return raft.velocity.x < 0.0, 30.0), "meeting rock, it turns back")
 	check(await within(func() -> bool: return raft.velocity.x > 0.0 or raft.stopped, 60.0), "and back again: it shuttles to and fro")
 	check(is_instance_valid(raft) and not raft.fading(), "it never fades of itself")

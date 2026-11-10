@@ -226,20 +226,50 @@ func boot(world_seed: int = 28, tutorial: bool = false) -> void:
 
 
 ## Go straight to place `at` in the run being played (MapInfo.jump_to), arriving at its way back,
-## and wait for it to settle; with `freeze`, the wizard's physics is then turned off, so they stay
+## and wait for it to settle; with `frozen`, the wizard's physics is then turned off, so they stay
 ## where they arrived while the test looks about or places them (call still() before turning it
 ## on again after moving them).
-func go(at: Vector2i, freeze: bool = true) -> void:
+func go(at: Vector2i, frozen: bool = true) -> void:
 	info.jump_to(at)
 	await settle()
-	if freeze:
-		player.set_physics_process(false)
+	if frozen:
+		freeze()
 
 
 ## Whether the art prints frame by frame in a headless test (RisoPrint.prints_art; it always does
 ## in a window): on for a test that reads what the art does (a wisp's trail, a pod's flash).
 func art(on: bool) -> void:
 	RisoPrint.prints_art = on or DisplayServer.get_name() != "headless"
+
+
+## Turn the wizard's physics off, so they stay where they are while the test looks about or places
+## them (call still() before turning it on again after moving them).
+func freeze() -> void:
+	player.set_physics_process(false)
+
+
+## Give the wizard health enough for a fight that is not about their health (99 hearts, full).
+func sturdy() -> void:
+	player.health.max_health = 99
+	player.health.health = 99
+
+
+## Send action `action` pressed (or, with `down` false, released), as a player's press reaches the
+## game (Input.parse_input_event): before the next physics step, as the kit runs one a frame.
+func press(action: StringName, down: bool = true) -> void:
+	var e: InputEventAction = InputEventAction.new()
+	e.action = action
+	e.pressed = down
+	Input.parse_input_event(e)
+
+
+## Press `action`, hold it `steps` physics steps, let it go, and wait one step more.
+func tap(action: StringName, steps: int = 2) -> void:
+	press(action)
+	for i: int in range(steps):
+		await physics_frame
+	press(action, false)
+	await physics_frame
 
 
 ## Bring the wizard to rest where they are: no speed, and no dash, knock-back or wall jump under

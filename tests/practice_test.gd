@@ -79,7 +79,7 @@ func _foes(tally: PracticeTally) -> void:
 	check_eq(tally.foes.size(), laid, "every foe laid with the range is taken in")
 	var starless: bool = tally.foes.values().all(func(n: Node) -> bool: return not (n.get_node("Wound") as Wound).stars)
 	check(starless, "none drops stars")
-	player.set_physics_process(false)
+	freeze()
 	player.global_position = info.cell_position(STRIKE_FROM) + Vector2(0, 16 - 31)
 	var wisp: Node2D = tally.foes[WISP] as Node2D
 	var from: Vector2 = wisp.global_position

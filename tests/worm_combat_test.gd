@@ -34,8 +34,7 @@ func run() -> void:
 	head.set_live(true)
 	head.sync_touch()
 	player.gravity = 0.0
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	player.set_collision_mask_value(WormSegment.WORM_LAYER, true)
 	var circle: CircleShape2D = head.bite.collision.shape as CircleShape2D
 	check(circle != null and is_equal_approx(circle.radius, head.radius) and head.bite.scale == Vector2.ONE, "the bite and the solid head have the same round edge")
@@ -57,7 +56,7 @@ func run() -> void:
 		await frames(3)
 		player.set_physics_process(true)
 		var blocked: bool = await _dash(direction)
-		player.set_physics_process(false)
+		freeze()
 		check(head.wound.hp == Worm.SEGMENT_HP and blocked, "a solid edge blocks the dash, which does not cut it, heading %s (hp %d, blocked %s)" % [direction, head.wound.hp, blocked])
 		check(not head.stunned() and player.health.health == 99, "the dash neither stuns the worm nor hurts the wizard")
 		await frames(20)

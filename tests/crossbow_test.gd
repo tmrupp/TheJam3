@@ -26,9 +26,8 @@ func run() -> void:
 		return
 	await boot(at.x)
 	await go(at, false)
-	player.health.max_health = 99
-	player.health.health = 99
-	player.set_physics_process(false)
+	sturdy()
+	freeze()
 	var cell: float = float(info.tile_map.tile_set.tile_size.y) * info.tile_map.global_scale.y
 	await shooting(cell)
 	await nest(cell)

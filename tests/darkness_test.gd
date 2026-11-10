@@ -111,7 +111,7 @@ func _bearing(w: LevelGen) -> Variant:
 
 func play(at: Vector2i) -> void:
 	await boot()
-	player.set_physics_process(false)
+	freeze()
 	print("in the garden")
 	info.snuff(player.global_position)
 	info.run.dark_charges = Snuffer.CHARGES
@@ -141,7 +141,7 @@ func play(at: Vector2i) -> void:
 	player.health.modify_health(-player.health.health)
 	check(info.run.dark_charges == 0 and info.run.ghost_charges == carried, "a death drops the %d charges carried into the ghost" % carried)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	await go(at)
 	font = _font_at(cell)
 	check(font != null and font.dry() and not font.can_snuff(), "after the death, coming back, the font is still dry")
@@ -161,7 +161,7 @@ func play(at: Vector2i) -> void:
 	check(block.solid() and info.cell_at(player.global_position) == v + Vector2i.UP, "lit, a sun block bears the wizard")
 	info.snuff(player.global_position)
 	check(await within(func() -> bool: return player.global_position.y > info.cell_position(v).y, 1.5), "dark, it drops them through")
-	player.set_physics_process(false)
+	freeze()
 	player.global_position = info.cell_position(v)
 	await physics_frame
 	info.relight()
@@ -237,4 +237,4 @@ func _dash() -> void:
 	await physics_frame
 	await physics_frame
 	Input.action_release("Dash")
-	player.set_physics_process(false)
+	freeze()

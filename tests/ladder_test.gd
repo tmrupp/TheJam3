@@ -129,4 +129,4 @@ func _climb() -> void:
 	await physics_frame
 	check(player.ladder == null and player.velocity.y < 0.0, "a jump lets go")
 	Input.action_release(&"Jump")
-	player.set_physics_process(false)
+	freeze()

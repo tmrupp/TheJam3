@@ -10,7 +10,7 @@ extends TestKit
 func run() -> void:
 	window()
 	await boot(28)
-	player.set_physics_process(false)
+	freeze()
 	player.get_node("CameraControl").set_process(false)
 	var shrine: Shrine = placed("shrine.tscn")[0] as Shrine
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
@@ -68,7 +68,7 @@ func run() -> void:
 				want = c
 	info.jump_to(want)
 	await settle(40)
-	player.set_physics_process(false)
+	freeze()
 	player.visible = false
 	var sold: Shrine = placed("shrine.tscn")[0] as Shrine
 	var to: Vector2 = info.cell_position(info.world.exits[MapInfo.Exit.DEEPER])

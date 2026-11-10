@@ -13,7 +13,7 @@ func carried() -> int:
 
 func run() -> void:
 	await boot(28)
-	player.set_physics_process(false)
+	freeze()
 
 	print("a key is not used up")
 	var first: Node2D = colored("key.tscn", 0)[0] as Node2D
@@ -53,7 +53,7 @@ func run() -> void:
 	await settle()
 	info.travel(MapInfo.Exit.LEFT)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	check(dropped().size() == 1 and (dropped()[0] as Node2D).position == swap_at and int(dropped()[0].get_meta(&"key_color")) == 0, "the left key is still there")
 	check(colored("key.tscn", 1).filter(func(n: Node) -> bool: return not n.has_meta(&"dropped_id")).is_empty() or (colored("key.tscn", 1)[0] as Node2D).position != swap_at, "the grabbed key is still gone")
 	await settle(3)
@@ -68,7 +68,7 @@ func run() -> void:
 	for step: int in range(6):
 		info.travel(MapInfo.Exit.RIGHT)
 		await settle()
-		player.set_physics_process(false)
+		freeze()
 		var doors: Array[Node] = colored("door.tscn", 0)
 		if doors.is_empty():
 			continue
@@ -83,7 +83,7 @@ func run() -> void:
 	print("side doors are locked with a key colour")
 	info.start_run(28)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	var right: Node = placed("level_exit.tscn").filter(func(n: Node) -> bool: return int(n.get("exit")) == MapInfo.Exit.RIGHT)[0]
 	var needs: int = Rules.lateral_lock(Vector2i(28, 0), MapInfo.Exit.RIGHT)
 	check(int(right.call("lock")) == needs, "world 28's right door needs key colour %d" % needs)
@@ -98,7 +98,7 @@ func run() -> void:
 	player.keyring.set_all([needs])
 	right.call("interacted")
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	check(info.coord == Vector2i(29, 0) and carried() == needs, "the right key opens it, and is kept")
 	var left: Node = placed("level_exit.tscn").filter(func(n: Node) -> bool: return int(n.get("exit")) == MapInfo.Exit.LEFT)[0]
 	check(int(left.call("lock")) == -1, "the door just come through is open behind the player")

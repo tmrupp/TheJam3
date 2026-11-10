@@ -13,7 +13,7 @@ func run() -> void:
 		finish()
 		return
 	await boot()
-	player.set_physics_process(false)
+	freeze()
 	player.global_position = Vector2(-90000, -90000)
 	await covers("mover_enemy.tscn", "a wisp")
 	await wisp_touch()

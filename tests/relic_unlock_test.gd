@@ -18,7 +18,7 @@ func run() -> void:
 ## A boss's drop, picked up: in the pocket, trailing the wizard, kept in the save.
 func _drop() -> void:
 	print("a boss's drop")
-	player.set_physics_process(false)
+	freeze()
 	# On a floor a few cells from the wizard, so it is dropped out of their reach.
 	var here: Vector2i = info.cell_at(player.global_position)
 	var spot: Variant = LevelGen.best_of(info.world.free_floors(), func(v: Vector2i) -> int: return absi(LevelGen.dist(v, here) - 4))

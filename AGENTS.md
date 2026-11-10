@@ -141,8 +141,10 @@ bash tests/run.sh -l garden full  # the suite on another band layout (the demo's
   the same for windowed tests (`-s N` or `$TEST_SCREEN` to choose another, 0 for the primary).
   `capture_overview.gd` photographs whole levels, every band and a few worlds each, to look over
   many layouts at once (options after `--`, e.g. `-- bands=crags worlds=6`).
-- A test that freezes the wizard (physics off) and moves them calls `still()` (TestKit) before
-  their physics runs again, or a dash or knock-back under way carries on from the new place.
+- A test that freezes the wizard (`freeze()`, physics off) and moves them calls `still()` (TestKit)
+  before their physics runs again, or a dash or knock-back under way carries on from the new place.
+  The kit also has `sturdy()` (99 hearts, for a fight that is not about the wizard's health),
+  `press(action, down)` (a press or release, as a player's reaches the game) and `tap(action)`.
 - Windowed runs on the kit stay out of the owner's way: muted, the window off every screen
   (`TestKit.out_of_sight`; minimized, Windows stops it drawing). Add `-- watch` to see and hear one.
 - The generation lab, `tools/gen_lab/gen_lab.tscn` (open it in the editor and press F6, or

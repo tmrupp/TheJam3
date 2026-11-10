@@ -54,7 +54,7 @@ func run() -> void:
 	var space: PhysicsDirectSpaceState2D = player.get_world_2d().direct_space_state
 	var hopper: RigidBody2D = null
 	var aim: Vector2 = Vector2.ZERO
-	player.set_physics_process(false)
+	freeze()
 	for h: Node in hoppers:
 		player.global_position = (h as Node2D).global_position + Vector2(0, -600)
 		CameraControl.snap(player)
@@ -71,7 +71,7 @@ func run() -> void:
 			break
 	check(hopper != null, "a hopper with room beside it")
 	if hopper != null:
-		player.set_physics_process(false)
+		freeze()
 		player.invulnerable.enable()
 		player.global_position = aim
 		# The view on it at once, so its chunk is awake (a far hopper's would sleep while the camera
@@ -112,7 +112,7 @@ func run() -> void:
 	info.here.pay(Worlds.door(Worlds.kind_of(Hyperspace)), info.record())
 	info.travel(Worlds.door(Worlds.kind_of(Hyperspace)))
 	await settle(10)
-	player.set_physics_process(false)
+	freeze()
 	var lasers: Array[Node] = placed("laser.tscn")
 	check(lasers.size() >= 3, "%d lasers in hyperspace" % lasers.size())
 	if not lasers.is_empty():

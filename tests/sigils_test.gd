@@ -86,7 +86,7 @@ func run() -> void:
 
 	print("in play")
 	await boot(28)
-	player.set_physics_process(false)
+	freeze()
 	var switch_nodes: Array[Node] = placed("switch.tscn")
 	var gate_nodes: Array[Node] = placed("switch_gate.tscn")
 	var play_ok: bool = not switch_nodes.is_empty()
