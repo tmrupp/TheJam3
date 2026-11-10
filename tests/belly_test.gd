@@ -1,5 +1,5 @@
 extends TestKit
-## The whale's belly (Belly, Acid, Wreck): laid out by hand, the same on every visit, its way back
+## The whale's belly (Belly, Acid, Wreck): laid out by hand, its way back
 ## and lantern at its mouth, a pool of acid in its stomach, three pieces of wreckage in its pits and
 ## its heart in a chamber of its own; the acid's cycle (drained, warning, flooding, flooded,
 ## draining, over and over), starting drained; in it the wizard wades slowly, sinks slowly, strokes
@@ -16,8 +16,6 @@ func run() -> void:
 	var row: int = WhaleHunt.row()
 	var at: Vector2i = Worlds.side_at(Worlds.kind_of(Belly), Vector2i(28, row))
 	var w: LevelGen = build(at)
-	var again: LevelGen = build(at)
-	check(w.objects == again.objects, "the belly is laid out the same on every visit")
 	check(count_of(w, LevelGen.Type.ACID) == 1 and count_of(w, LevelGen.Type.WRECK) == Belly.WRECKS.size(), "a pool of acid, and %d pieces of wreckage" % Belly.WRECKS.size())
 	check(count_of(w, LevelGen.Type.BOSS) == 1 and w.exits.has(MapInfo.Exit.BACK) and w.exit_lanterns.has(MapInfo.Exit.BACK), "its heart, and its way back with a lantern")
 	check(w.exits[MapInfo.Exit.BACK].x < 10 and w.objects_of(LevelGen.Type.BOSS)[0].x > 55, "the way back at its mouth, the heart far across")

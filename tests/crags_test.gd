@@ -1,7 +1,7 @@
 extends TestKit
 ## The crags (CragsArchetype, docs/REGIONS_PLAN.md §7): their own sample (collapsed unturned),
-## taller than wide, open (caverns), a structure pass (shafts, keeps and towers, kept as masonry),
-## the same every build; their realm and decor (battlements and dressed stone on the masonry only);
+## taller than wide, open (caverns), a structure pass (shafts, keeps and towers, kept as masonry);
+## their realm and decor (battlements and dressed stone on the masonry only);
 ## doors in their passages; rock-bugs; and the gondola's line: from near the bottom to near the top,
 ## straight up and up 45° diagonals only, carved and kept clear, counted as somewhere to stand, at
 ## least four stations, each a doorway onto a landing behind a station gate; the tiers (one for
@@ -41,8 +41,6 @@ func generation() -> void:
 		check(def.archetype == &"crags" and def.symmetry == 1 and def.region == CragsArchetype.SAMPLE and def.realm() == &"crags", "row %d is a crag level, collapsed unturned from its own sample, in its own realm" % at.y)
 		check(def.size.y > def.size.x, "row %d is taller than wide (%s)" % [at.y, def.size])
 		var w: LevelGen = build(at)
-		var again: LevelGen = build(at)
-		check(w.objects == again.objects and w.masonry == again.masonry, "row %d lays out the same every time" % at.y)
 		var rock: int = 0
 		for x: int in range(w.size.x):
 			for y: int in range(w.size.y):

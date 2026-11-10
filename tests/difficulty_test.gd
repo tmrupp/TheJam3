@@ -1,7 +1,7 @@
 extends TestKit
 ## The difficulty presets (Difficulty, picked on the F7 panel): Normal changes nothing, each harder
 ## one holds more foes and runs the bosses faster, and a game starts on Hard. Levels hold more
-## enemies and hazards on a harder preset, stay the same every build under one, are kept apart per
+## enemies and hazards on a harder preset, are kept apart per
 ## preset by the loader, and stay whole (every open cell joined to the way in, every switch reached
 ## with its gate shut) even on Brutal; the golem raises its fists for less time; and picking a
 ## preset on the F7 panel lays the place out again under it; and the other enemies attack more often (a hopper
@@ -43,18 +43,15 @@ func run() -> void:
 	for p: int in range(Difficulty.Preset.size()):
 		Difficulty.preset = p as Difficulty.Preset
 		var total: int = 0
-		var same: bool = true
 		var whole: bool = true
 		for at: Vector2i in places:
 			var w: LevelGen = build(at)
 			total += _foes(w)
-			same = same and build(at).objects == w.objects
 			var cut: Array = _cut(w)
 			if cut != [[], []]:
 				print("  %s at %s: cut off %s, gates %s" % [Difficulty.NAMES[p], at, cut[0], cut[1]])
 			whole = whole and cut == [[], []]
 		totals.append(total)
-		check(same, "%s: the same every build" % Difficulty.NAMES[p])
 		check(whole, "%s: every level stays whole (its open air joined, its switches reached with their gates shut)" % Difficulty.NAMES[p])
 	check(totals[1] > totals[0] and totals[2] > totals[1], "harder presets hold more foes (%s)" % [totals])
 	Difficulty.preset = Difficulty.Preset.NORMAL

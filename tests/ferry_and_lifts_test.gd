@@ -18,7 +18,6 @@ func run() -> void:
 			var lever: Vector2i = info[3]
 			good = good and w.get_cell(lever).type == LevelGen.Type.SWITCH and w.get_cell(lever).extra_info == lift
 			good = good and LevelGen.dist(lever, lift) <= LevelGen.LIFT_SWITCH_NEAR
-		check_eq(build(at).objects, w.objects, "%s: the same every visit" % at)
 	check(paired > 0, "some lifts wait for a switch (%d)" % paired)
 	check(good, "each such lift's switch is near it and names it back")
 

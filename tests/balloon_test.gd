@@ -1,6 +1,6 @@
 extends TestKit
 ## The sky's balloons (Balloon, SkyArchetype.place_balloon): one moored in every sky level of the
-## band, on a floor with open air over it, kept clear, the same every build; how far one goes by the
+## band, on a floor with open air over it, kept clear; how far one goes by the
 ## level's wind (a world for every Balloon.STEP vanes on its way, at most Balloon.MOST); in play,
 ## becalmed it shows nothing and goes nowhere, and with wind enough it shows the world it goes to (its
 ## number, no words), rises with the
@@ -35,9 +35,7 @@ func run() -> void:
 				if w.is_ground(up) or w.get_cell(up).type != LevelGen.Type.EMPTY:
 					bad.append("%s: no open air over it" % at)
 					break
-			if build(at).balloon != v:
-				bad.append("%s: not the same every build" % at)
-	check(levels > 0 and bad.is_empty(), "a balloon moored in each of %d sky levels, on a floor with open air over it, the same every build %s" % [levels, bad])
+	check(levels > 0 and bad.is_empty(), "a balloon moored in each of %d sky levels, on a floor with open air over it %s" % [levels, bad])
 	check(Balloon.trip(0) == 0 and Balloon.trip(1) == 0 and Balloon.trip(2) == 1 and Balloon.trip(-4) == -2 and Balloon.trip(99) == Balloon.MOST, "a world for every %d vanes on its way, at most %d; less wind, nowhere" % [Balloon.STEP, Balloon.MOST])
 
 	print("in play")

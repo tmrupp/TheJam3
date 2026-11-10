@@ -56,8 +56,6 @@ func generation() -> void:
 		check(w != null, "%s collapses" % at)
 		if w == null:
 			continue
-		var again: LevelGen = build(at)
-		check(again != null and w.objects == again.objects and w.halls.size() == again.halls.size(), "%s: laid out the same twice" % at)
 		for i: int in range(w.halls.size()):
 			var hall: Dictionary = w.halls[i]
 			var box: Rect2i = hall["box"]

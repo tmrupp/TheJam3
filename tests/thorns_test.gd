@@ -1,6 +1,6 @@
 extends TestKit
 ## Thorns that come and go (Spikes, LevelGen.place_thorn_modes): past the start some runs of thorns
-## go on a timer and some on a switch, never at a chasm's foot, the same on every build; a switched
+## go on a timer and some on a switch, never at a chasm's foot; a switched
 ## run's switch stands on a floor reached from the way in, away from it, and they share a sigil. In
 ## play a timed run rises and falls together, hurting only while out; a switched run drops while
 ## its switch is on and rises again when it is turned off; a hit from thorns puts the wizard back on
@@ -22,7 +22,6 @@ func run() -> void:
 	var ok_links: bool = true
 	var ok_chasms: bool = true
 	var ok_start: bool = true
-	var same: bool = true
 	var places: Array[Vector2i] = []
 	for world_seed: int in [28, 7]:
 		places.append(Vector2i(world_seed, 0))
@@ -41,14 +40,12 @@ func run() -> void:
 			for plank: Vector2i in chasm["planks"]:
 				for d: int in range(1, Chasms.CHASM_DEPTH + 3):
 					chasm_feet[plank + Vector2i(0, d)] = true
-		var again: LevelGen = build(at)
 		for x: int in range(w.size.x):
 			for y: int in range(w.size.y):
 				var v: Vector2i = Vector2i(x, y)
 				var cell: LevelGen.Cell = w.get_cell(v)
 				if cell.type != LevelGen.Type.SPIKES:
 					continue
-				same = same and str(cell.extra_info) == str(again.get_cell(v).extra_info)
 				if not (cell.extra_info is Dictionary):
 					continue
 				var how: Dictionary = cell.extra_info
@@ -76,7 +73,6 @@ func run() -> void:
 	check(ok_start, "none at the start")
 	check(ok_chasms, "never at a chasm's foot")
 	check(ok_links, "a switched run's switch stands on a floor reached from the way in (never in a vault), works the whole run, and the run goes together")
-	check(same, "the same on every build")
 
 	print("in play")
 	await boot()

@@ -2,7 +2,7 @@ extends TestKit
 ## The garden's seeds, plants and small worms (GardenArchetype.finish, SeedPod, Plot, KeyRing.SEED,
 ## Wormlet): every garden
 ## level has one plot on a floor with air over it, and from row 1 seed pods grown out of its walls,
-## apart and away from the way in, the same every build; no other band grows them. A pod spits seeds
+## apart and away from the way in; no other band grows them. A pod spits seeds
 ## at the wizard in sight; only a seed of its own turned back wounds it (a plain blow glances off), and
 ## burst it drops a seed. A seed is carried one at a time and kept in the save. Planted at a plot, the
 ## plant grows by the furthest place reached from it (Plot.apart), and picked it gives a star cluster,
@@ -78,7 +78,7 @@ func _generation() -> void:
 	for world: int in [28, 7, 99]:
 		for row: int in range(-Bands.garden_rows(), Bands.garden_rows() + 1):
 			var at: Vector2i = Vector2i(world, row)
-			var w: LevelGen = build(at)
+			var w: LevelGen = built(at)
 			if w == null:
 				continue
 			levels += 1
@@ -94,8 +94,6 @@ func _generation() -> void:
 				pods_ok = pods_ok and walled and LevelGen.dist(v, start) >= GardenArchetype.POD_CLEAR
 				for q: Vector2i in here:
 					pods_ok = pods_ok and (q == v or LevelGen.dist(q, v) >= GardenArchetype.POD_APART)
-			if row == 1:
-				check(build(at).objects == w.objects, "%s: the same every build" % at)
 	check(plots_ok, "every garden level has one plot, on a floor with air over it (%d levels)" % levels)
 	check(pods_ok and pods * 2 >= levels, "pods grow out of walls from row 1, apart and away from the way in (%d)" % pods)
 	# Small worms: on free floors from row 1, apart and away from the way in, more toward the worm.
@@ -105,7 +103,7 @@ func _generation() -> void:
 	var gate: int = Bosses.row_of(&"worm")
 	for world: int in [28, 7, 99]:
 		for row: int in range(-Bands.garden_rows(), Bands.garden_rows() + 1):
-			var w: LevelGen = build(Vector2i(world, row))
+			var w: LevelGen = built(Vector2i(world, row))
 			var here: Array[Vector2i] = w.objects_of(LevelGen.Type.WORMLET)
 			if row == 0:
 				worms_ok = worms_ok and here.is_empty()
@@ -130,7 +128,7 @@ func _pods() -> void:
 	var body: RigidBody2D = null
 	var pod: SeedPod = null
 	for row: int in range(1, Bands.garden_rows()):
-		if build(Vector2i(28, row)).objects_of(LevelGen.Type.POD).is_empty():
+		if built(Vector2i(28, row)).objects_of(LevelGen.Type.POD).is_empty():
 			continue
 		await go(Vector2i(28, row), false)
 		for n: Node in placed("seed_pod.tscn"):
@@ -204,7 +202,7 @@ func _worms() -> void:
 	print("small worms")
 	var at: Vector2i = Vector2i(-1, -1)
 	for row: int in range(1, Bands.garden_rows()):
-		if not build(Vector2i(28, row)).objects_of(LevelGen.Type.WORMLET).is_empty():
+		if not built(Vector2i(28, row)).objects_of(LevelGen.Type.WORMLET).is_empty():
 			at = Vector2i(28, row)
 			break
 	check(at.x >= 0, "a garden level near the start with a small worm")

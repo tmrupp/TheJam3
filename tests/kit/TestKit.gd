@@ -318,6 +318,21 @@ func build(at: Vector2i) -> LevelGen:
 	return w
 
 
+## The place at `at` laid out, as build() does, but kept for the rest of the test: asked again (with
+## the same preset and debug flag), the same layout comes back without laying it out again. A layout
+## is read-only once built (the loader relies on it too), so only a test that changes one wants a
+## fresh one from build().
+func built(at: Vector2i) -> LevelGen:
+	var key: String = "%s %d %s" % [at, Difficulty.preset, MapInfo.debug]
+	if not _kept_layouts.has(key):
+		_kept_layouts[key] = build(at)
+	return _kept_layouts[key]
+
+
+## The layouts built() keeps, by place, preset and debug flag.
+var _kept_layouts: Dictionary = {}
+
+
 ## The levels build() has laid out in this test: how many, in how long (microseconds), and how many
 ## of them were a place (with the preset and debug flag) laid out before.
 var _built_count: int = 0
@@ -334,10 +349,43 @@ const START_SEEDS: Array[int] = [28, 7, 99, 3, 11, 42, 5, 64, 17, 123, 2, 77]
 ## given the level (a LevelGen); the first of them if none does, for the test's own check to fail.
 func start_seed(test: Callable) -> int:
 	for s: int in START_SEEDS:
-		var w: LevelGen = build(Vector2i(s, 0))
+		var w: LevelGen = built(Vector2i(s, 0))
 		if w != null and bool(test.call(w)):
 			return s
 	return START_SEEDS[0]
+
+
+## The first place, over `worlds` and then the rows of the band of archetype `kind` (`ks` of them,
+## counted as band_rows counts; every row with none given; for the garden, `ks` are its rows, every
+## row from the start out both ways with none given), whose layout passes `holds` (given the
+## level), laid out once (built). With `dealt`, a rule asked of the place itself (what its seed
+## deals, as Rules and the archetypes say, SkyArchetype.temple_dealt), a place failing it is never
+## laid out: the cheap way to pass over the many levels that cannot hold what is looked for.
+## (-1, -1) if none does.
+func find_level(kind: StringName, holds: Callable, dealt: Callable = Callable(), worlds: Array[int] = START_SEEDS, ks: Array[int] = []) -> Vector2i:
+	var rows: Array[int] = []
+	if kind == &"garden":
+		rows = ks.duplicate()
+		if rows.is_empty():
+			for r: int in range(Bands.garden_rows() + 1):
+				rows.append(r)
+				if r > 0:
+					rows.append(-r)
+	elif Bands.has(kind):
+		var counted: Array[int] = ks.duplicate()
+		if counted.is_empty():
+			for k: int in range(Bands.rows_of(kind)):
+				counted.append(k)
+		rows = band_rows(kind, counted)
+	for world: int in worlds:
+		for row: int in rows:
+			var at: Vector2i = Vector2i(world, row)
+			if not dealt.is_null() and not bool(dealt.call(at)):
+				continue
+			var w: LevelGen = built(at)
+			if w != null and bool(holds.call(w)):
+				return at
+	return Vector2i(-1, -1)
 
 
 ## How many of the objects laid in `w` are of `type`.

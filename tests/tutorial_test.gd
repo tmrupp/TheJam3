@@ -1,5 +1,5 @@
 extends TestKit
-## The tutorial (Tutorial): laid out by hand, the same on every visit and in every world, with its
+## The tutorial (Tutorial): laid out by hand, the same in every world, with its
 ## start and lantern, its control cards (ControlHint), its key and door of one colour, and stars
 ## enough for the shrine. A run begun with the tutorial starts in it by its lit lantern; its way out
 ## comes out by the start level's door into it, which every start level has, laid last (nearest the
@@ -64,9 +64,8 @@ func run() -> void:
 func _layout(at: Vector2i) -> void:
 	print("layout")
 	var w: LevelGen = build(at)
-	var again: LevelGen = build(at)
 	var elsewhere: LevelGen = build(Tutorial.of(-4013))
-	check(w != null and again != null and w.objects == again.objects, "the tutorial is laid out the same on every visit")
+	check(w != null, "the tutorial is laid out")
 	if w == null:
 		return
 	check(elsewhere != null and elsewhere.objects == w.objects, "and in every world")

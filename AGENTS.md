@@ -213,7 +213,9 @@ bash tests/run.sh -l garden full  # the suite on another band layout (the demo's
 ## Level generation: determinism matters
 
 - Everything comes from `level_seed(world, depth)` and the difficulty preset (`Difficulty`). A
-  level must be identical on every visit: tests compare two builds (`w.objects == again.objects`).
+  level must be identical on every visit: `determinism_test` lays a broad sample out twice and
+  compares every property of the two (`revisit_test` a level loaded twice in the game). Other tests
+  build a level once and check what it holds; they do not build it again to compare.
   The fingerprints are of the default preset (Hard); Normal lays levels out as they were before
   the presets.
 - The world RNG is shared and ordered. Adding, removing or reordering an `rng` draw (or a forced

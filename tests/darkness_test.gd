@@ -2,7 +2,7 @@ extends TestKit
 ## The cemetery's darkness (docs/DEEPER_PLAN.md, "Darkness charges"). Laid out: sun and shade blocks
 ## stand only inside the crypts or in their doorways, a crypt's stairs turned to blocks take turns, a shade floor lies over
 ## thorns, ossuary doors shut only a second crypt's doorways and want Rules.ossuary_fill, a level
-## dealt no fonts has none, and all of it the same every time. In play: outside the cemetery a dash
+## dealt no fonts has none. In play: outside the cemetery a dash
 ## spends darkness as it does in the cemetery; a font gives Snuffer.CHARGES and stays dry through a death and a revisit; a death
 ## drops the charges into the ghost and taking it back returns them; a dash out of the dark flares; a
 ## sun block bears a lit wizard and drops a dark one (a shade block the other way about), and turns
@@ -82,22 +82,18 @@ func generation() -> Variant:
 				check(Rules.ossuary_at(at) and doors.all(func(d: Vector2i) -> bool: return second.has(d) and int((w.get_cell(d).extra_info as Array)[1]) == Rules.ossuary_fill(at.y)), "%s: %d ossuary door(s), on its second crypt's doorways, wanting %d" % [at, doors.size(), Rules.ossuary_fill(at.y)])
 			if chosen == null and not doors.is_empty() and count_of(w, LevelGen.Type.SNUFFER) > 0 and _bearing(w) != null:
 				chosen = at
-				var again: LevelGen = build(at)
-				check(w.objects == again.objects and w.grounds == again.grounds, "%s: the same every time" % at)
 	check(blocked * 2 >= looked, "%d of %d levels have blocks in their crypts" % [blocked, looked])
 	check(stairs_seen >= 1 and shade_floors >= 2 and doors_seen >= 1, "stairs turned to blocks in %d crypt(s), %d shade blocks over thorns, ossuary doors in %d level(s)" % [stairs_seen, shade_floors, doors_seen])
-	# Few levels have all three: look further afield for one to play in.
-	var x: int = 100
-	while chosen == null and x < 100 + MORE_WORLDS:
-		for k: int in ROWS:
-			var at: Vector2i = Vector2i(x, NextWorldDef.band_row(&"cemetery", k))
-			if not Rules.ossuary_at(at):
-				continue
-			var w: LevelGen = build(at)
-			if w != null and not w.objects_of(LevelGen.Type.OSSUARY_DOOR).is_empty() and count_of(w, LevelGen.Type.SNUFFER) > 0 and _bearing(w) != null:
-				chosen = at
-				break
-		x += 1
+	# Few levels have all three: look further afield for one to play in, among those dealt an
+	# ossuary (Rules.ossuary_at).
+	if chosen == null:
+		var afield: Array[int] = []
+		for x: int in range(100, 100 + MORE_WORLDS):
+			afield.append(x)
+		var holds: Callable = func(w: LevelGen) -> bool: return not w.objects_of(LevelGen.Type.OSSUARY_DOOR).is_empty() and count_of(w, LevelGen.Type.SNUFFER) > 0 and _bearing(w) != null
+		var at: Vector2i = find_level(&"cemetery", holds, Rules.ossuary_at, afield, ROWS)
+		if at.x >= 0:
+			chosen = at
 	check(chosen != null, "a level to play in: %s" % [chosen])
 	return chosen
 

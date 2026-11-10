@@ -92,8 +92,6 @@ func _placement() -> void:
 		check(watch.all(func(t: Dictionary) -> bool: return t.has("spire") and w.get_cell(t["spire"]).type == LevelGen.Type.SPIRE and (t["spire"] as Vector2i).y == (t["box"] as Rect2i).position.y - 1), "each of its %d watchtowers has a spire on its roof" % watch.size())
 		check(w.towers.all(func(t: Dictionary) -> bool: return not t.get("cold", false) or (not t["hoard"] and CragsArchetype.tier_of(w, (t["box"] as Rect2i).end.y - 1) > 0)), "a cold tower is a watchtower above the bottom tier")
 	check(high_seen >= levels.size() - 1, "high on the cliff, in sight of the track (%d of %d)" % [high_seen, levels.size()])
-	var again: LevelGen = build(levels[0])
-	check(again.lodestone == build(levels[0]).lodestone, "in the same place every build")
 	var bare: Vector2i = Vector2i(levels[0].x + 1, levels[0].y)
 	while Rules.lodestone_at(bare) != &"":
 		bare.x += 1
