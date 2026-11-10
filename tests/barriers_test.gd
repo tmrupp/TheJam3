@@ -11,18 +11,20 @@ extends TestKit
 ## asks that a barrier can or cannot be passed.
 ## godot --headless --path . --script res://tests/barriers_test.gd
 
-## Where the barriers are looked for: these worlds, and every row of the garden (or as many of the
-## first band's) either side of the start.
-const WORLDS: Array[int] = [28, 7, 99, 1003, 41, 63, 5, 17, 230, 77]
+## Where the barriers are looked for: up to this many worlds from world 28 on, and every row of the
+## garden either side of the start (about one garden level in ten holds one, so a short garden, the
+## demo's, wants more worlds), until FOUND kinds have turned up.
+const WORLDS: int = 80
+const FOUND: int = 4
 
 
 func run() -> void:
 	var found: Dictionary = {}
-	for world: int in WORLDS:
+	for world: int in range(28, 28 + WORLDS):
+		if found.size() >= FOUND:
+			break
 		for row: int in range(-Bands.garden_rows(), Bands.garden_rows() + 1):
 			var at: Vector2i = Vector2i(world, row)
-			if found.size() == Barriers.MOVE.size() and found.values().all(func(a: Vector2i) -> bool: return a.x >= 0):
-				break
 			var w: LevelGen = build(at)
 			if w == null:
 				continue
