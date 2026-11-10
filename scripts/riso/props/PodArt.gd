@@ -17,10 +17,10 @@ func _draw_art() -> void:
 	if p == null:
 		return
 	var wound: Wound = host.get_node_or_null("Wound") as Wound
-	var now: int = Time.get_ticks_msec()
-	var flash: float = clampf(1.0 - float(now - p.struck_at) / 1000.0 / Bramble.FLASH_TIME, 0.0, 1.0)
-	var glance: float = clampf(1.0 - float(now - p.warded_at) / 1000.0 / Bramble.FLASH_TIME, 0.0, 1.0)
+	var now: float = GameClock.now()
+	var flash: float = clampf(1.0 - (now - p.struck_at) / Bramble.FLASH_TIME, 0.0, 1.0)
+	var glance: float = clampf(1.0 - (now - p.warded_at) / Bramble.FLASH_TIME, 0.0, 1.0)
 	# Its root at the wall's face, out of the rock along its way (the art sits on the pod's middle).
 	var xf: Transform2D = Transform2D(p.way.angle(), -p.way * SeedPod.OUT)
-	var since: float = float(now - p.spat_at) / 1000.0
+	var since: float = now - p.spat_at
 	Bramble.ink_bulb(ink, xf, 1.0, p.charge, t * 3.0 + phase, flash, false, glance, wound.hp if wound != null else 0, Bramble.leaves_parted(p.charge, since))

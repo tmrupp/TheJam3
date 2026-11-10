@@ -60,9 +60,9 @@ func falling() -> void:
 	var health: int = player.health.health
 	player.global_position = st.home + Vector2(0.0, cell * 2.0)
 	check(await until(func() -> bool: return st.state == Stalactite.State.SHAKING), "with the wizard under it, it shakes")
-	var shook: int = Time.get_ticks_msec()
+	var shook: float = GameClock.now()
 	check(await until(func() -> bool: return st.state == Stalactite.State.FALLING), "then falls")
-	check(Time.get_ticks_msec() - shook >= int(Stalactite.SHAKE * 1000.0 * 0.8), "after shaking a moment")
+	check(GameClock.now() - shook >= Stalactite.SHAKE * 0.8, "after shaking a moment")
 	check(await until(func() -> bool: return st.state == Stalactite.State.REGROWING, 5000), "and shatters")
 	check(player.health.health < health, "on the wizard, hurting them (%d to %d)" % [health, player.health.health])
 	check(st.position == st.home and st.grown() < 0.2, "and grows back from the ceiling")

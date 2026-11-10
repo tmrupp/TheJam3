@@ -18,6 +18,7 @@
 # The headless tests start longest first, so a slow one is not left to run alone at the end: each
 # test's seconds are kept between runs (in the file "durations" beside the logs, one per band
 # layout), and a test with none yet starts before all the others.
+# Headless tests run at a fixed step (--fixed-fps 60), as fast as the machine allows.
 # Some tests count frames and can miss under the load of running side by side: a headless test
 # that fails is run once more on its own, and if it passes then it is reported as flaky (its
 # first log is kept as <name>.flaky.log) rather than failed.
@@ -96,7 +97,10 @@ longest_first() {
 # Run one test; writes "<PASS|FAIL> <seconds>s <name> <why>" to its .result file.
 run_one() {
 	local t=$1 window=$2 log="$logs/$1.log" start=$SECONDS why="" code
-	local args=(--headless)
+	# Headless, at a fixed step: each frame is a 60th of a second of the game however long it takes,
+	# so the game runs as fast as the machine allows rather than waiting on the clock (the game's own
+	# time is counted in steps, GameClock; until()'s timeout stays on the clock, against a hang).
+	local args=(--headless --fixed-fps 60)
 	[[ $window == 1 ]] && args=(--windowed --resolution 1280x720 --screen "$screen")
 	local user=()
 	[[ -n "$bands" ]] && user=(-- "layout=$bands")

@@ -14,8 +14,9 @@ class_name Wound
 const HIT_STOP: float = 0.05
 const KILL_STOP: float = 0.09
 const STOP_SCALE: float = 0.05
-## When the latest hit-stop ends (msec, Time.get_ticks_msec), so overlapping ones end together.
-static var _stop_until: int = 0
+## When the latest hit-stop ends (GameClock.now: counted in physics steps, which the hit-stop's
+## slowing of the game's time does not slow), so overlapping ones end together.
+static var _stop_until: float = 0.0
 
 var hp: int = 1
 ## The least a hex bolt or a dash wounds it by, even one of no damage (0: as the
@@ -90,13 +91,10 @@ static func hit_stop(seconds: float, slow: float = STOP_SCALE) -> void:
 	var tree: SceneTree = Engine.get_main_loop() as SceneTree
 	if tree == null:
 		return
-	_stop_until = maxi(_stop_until, Time.get_ticks_msec() + int(seconds * 1000.0))
+	_stop_until = maxf(_stop_until, GameClock.now() + seconds)
 	Engine.time_scale = minf(Engine.time_scale, slow)
-	# A timer can come due a little before the clock does: wait out whatever is left.
-	var left: int = _stop_until - Time.get_ticks_msec()
-	while left > 0:
-		await tree.create_timer(float(left) / 1000.0, true, false, true).timeout
-		left = _stop_until - Time.get_ticks_msec()
+	while GameClock.now() < _stop_until:
+		await tree.physics_frame
 	Engine.time_scale = 1.0
 
 

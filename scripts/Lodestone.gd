@@ -10,14 +10,14 @@ class_name Lodestone
 var map_info: MapInfo
 ## The damage spell it tempers.
 var spell: StringName = &""
-## When it was touched (seconds since the game started, for the art's flare), and its clock.
+## When it was touched (game seconds, GameClock.now, for the art's flare), and its clock.
 var touched_at: float = -9.0
 var t: float = 0.0
 
 
-## Seconds since the game started (the clock touched_at is on).
+## The clock touched_at is on (GameClock.now).
 static func now() -> float:
-	return float(Time.get_ticks_msec()) * 0.001
+	return GameClock.now()
 
 
 func setup(info: MapInfo, _v: Vector2i, extra: Variant) -> void:

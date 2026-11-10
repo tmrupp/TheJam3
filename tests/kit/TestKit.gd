@@ -171,6 +171,14 @@ func within(cond: Callable, seconds: float) -> bool:
 	return bool(cond.call())
 
 
+## Wait `seconds` by the wall clock, frames going by meanwhile: for what runs in real time whatever
+## the game's step (audio playing); the game's own waits are within() and frames().
+func wall(seconds: float) -> void:
+	var until_ms: int = Time.get_ticks_msec() + int(seconds * 1000.0)
+	while Time.get_ticks_msec() < until_ms:
+		await process_frame
+
+
 ## A condition for until(): `node` is freed or going away. (A lambda holding the node itself
 ## would be handed null, with an error, once the node is freed: this holds its id instead.)
 func gone(node: Node) -> Callable:

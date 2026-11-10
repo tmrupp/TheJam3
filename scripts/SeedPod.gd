@@ -39,11 +39,11 @@ var way: Vector2 = Vector2.RIGHT
 var charge: float = 0.0
 var spat: int = 0
 var sees: bool = false
-## When (msec, Time.get_ticks_msec) a blow last wounded it and last glanced off it, for its flashes.
-var struck_at: int = -100000
-var warded_at: int = -100000
-## When (msec) it last spat a seed, for its leaves (Bramble.leaves_parted).
-var spat_at: int = -100000
+## When (game seconds, GameClock.now) a blow last wounded it and last glanced off it, for its flashes.
+var struck_at: float = -100.0
+var warded_at: float = -100.0
+## When (game seconds) it last spat a seed, for its leaves (Bramble.leaves_parted).
+var spat_at: float = -100.0
 
 
 func _ready() -> void:
@@ -55,8 +55,8 @@ func _ready() -> void:
 	if wound != null:
 		wound.parried_only = true
 		wound.slain.connect(_drop_seed)
-		wound.hurt.connect(func(_damage: int) -> void: struck_at = Time.get_ticks_msec())
-		wound.warded.connect(func(_dir: Vector2) -> void: warded_at = Time.get_ticks_msec())
+		wound.hurt.connect(func(_damage: int) -> void: struck_at = GameClock.now())
+		wound.warded.connect(func(_dir: Vector2) -> void: warded_at = GameClock.now())
 	# Once the loader has put it on its cell (LevelLoader.place_cell sets its place after adding it).
 	_place.call_deferred()
 
@@ -127,7 +127,7 @@ func spit(at: Vector2) -> void:
 	shot.global_position = mouth()
 	shot.setup((at - mouth()).normalized() * SEED_SPEED, [rb], rb)
 	spat += 1
-	spat_at = Time.get_ticks_msec()
+	spat_at = GameClock.now()
 	RisoFx.burst(&"impact", mouth(), way, [RisoPrint.PINK, RisoPrint.ACCENT])
 
 

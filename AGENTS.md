@@ -180,7 +180,12 @@ bash tests/run.sh -l garden full  # the suite on another band layout (the demo's
   (`revisit_test`, `interface_test`). `until` polls on process frames: a step timed in physics frames (a dash, a
   jump) wants an `await physics_frame` after it. `until`'s timeout is wall-clock time; for
   something the game times itself (a cooldown, a regrowth) use `within(cond, game_seconds)`, which
-  counts physics frames, as a busy machine runs the game slower than the clock. The kit runs one
+  counts physics frames, as a busy machine runs the game slower than the clock. `run.sh` runs the
+  headless tests at a fixed step (`--fixed-fps 60`, as fast as the machine allows), so the game's
+  own time and the clock part there too: game logic reads `GameClock` (game seconds counted in
+  physics steps, the hit-stop timed on them too; an order stamp for what happened first within a
+  step), never `Time.get_ticks_*`; a test waits on something real-time (audio) with `wall(seconds)`
+  and times the game with `GameClock.now()` or `within`, never the clock. The kit runs one
   physics step a frame, so a press made with `Input.parse_input_event` always reaches the game
   before the next physics step, however loaded the machine. `bash tests/run.sh -j 16 full` loads
   the machine harder, to shake out tests that depend on timing. Every test is on the kit: don't give
