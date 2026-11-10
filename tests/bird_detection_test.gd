@@ -4,7 +4,7 @@ extends TestKit
 
 func run() -> void:
 	await boot(28)
-	player.set_physics_process(false)
+	freeze()
 	player.get_node("CameraControl").set_process(false)
 	# Test sensing in an empty arena, independently of the collapsed terrain's arc clearance.
 	info.world = null

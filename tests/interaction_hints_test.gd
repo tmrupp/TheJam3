@@ -11,7 +11,7 @@ const PROMPT_FRAMES: int = 25
 func loaded() -> void:
 	await settle(0)
 	check(info.world != null and not info.travelling, "the level loads")
-	player.set_physics_process(false)
+	freeze()
 	camera.limit_left = -1000000
 	camera.limit_top = -1000000
 	camera.limit_right = 1000000

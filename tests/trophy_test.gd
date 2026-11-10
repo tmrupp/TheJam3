@@ -63,7 +63,7 @@ func _drop(boss: StringName) -> void:
 	var trophy: Trophy = found[0] as Trophy
 	check_eq(trophy.boss, boss, "the %s's" % boss)
 	check(not info.world.is_ground(info.cell_at(trophy.global_position)), "on open air")
-	player.set_physics_process(false)
+	freeze()
 	player.global_position = trophy.global_position
 	still()
 	check(await until(func() -> bool: return int(info.run.trophies.get(boss, 0)) == Trophy.CARRIED), "picked up by touching it")
@@ -87,7 +87,7 @@ func _stands(bosses: Array[StringName]) -> void:
 	var want: Array[StringName] = bosses.duplicate()
 	want.sort()
 	check_eq(held, want, "each its own boss's")
-	player.set_physics_process(false)
+	freeze()
 	for i: int in range(stands.size()):
 		var stand: TrophyStand = stands[i] as TrophyStand
 		player.global_position = stand.global_position

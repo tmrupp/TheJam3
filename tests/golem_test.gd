@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The lodestone golem (Golem, docs/REGIONS_PLAN.md §6), fought in its hall (LodeHall) at the top of
 ## the crags' gate level: placed in its lair whole, its heart covered; every damage spell tempered in
 ## its hall, lodestone or none, and not outside it; plain blows glancing off its chunks; an empowered
@@ -26,9 +27,8 @@ func run() -> void:
 	MapInfo.debug = false
 	var gate: Vector2i = lair(&"golem")
 	await boot(28)
-	player.set_physics_process(false)
-	player.health.max_health = 99
-	player.health.health = 99
+	freeze()
+	sturdy()
 	await go(gate)
 	print("in its hall")
 	var golem: Golem = placed("golem.tscn")[0] as Golem

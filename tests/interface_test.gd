@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## Phase 5 of docs/DEEPER_PLAN.md: start modes, background pre-generation of neighbouring
 ## levels, and saving and continuing a run. Uses its own save file.
 ## godot --headless --path . --script res://tests/interface_test.gd
@@ -67,7 +68,7 @@ func run() -> void:
 	await settle()
 
 	print("saving")
-	player.set_physics_process(false)
+	freeze()
 	var coin: Node = placed("coin.tscn")[0]
 	var coin_cell: Vector2i = coin.get_meta(&"cell")
 	coin.call("touch", player)

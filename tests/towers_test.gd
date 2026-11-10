@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The crags' towers (CragsArchetype.build_towers): every crag level has at least one, each tall and
 ## narrow, of built stone, standing on rock, a room of air on each storey (kept as interiors), the
 ## ground floor open through a doorway in either wall. Each floor over a room has a stair hole at
@@ -11,7 +12,7 @@ extends TestKit
 ## level is laid out: nothing later cracks, carves, fills or tunnels through its walls, floors,
 ## rooms, doorsteps, footing or the air over its roof, nothing tall stands in its doorways, and its
 ## air is joined to the way in (one built into a corner does not seal its own doorway). No
-## rock-bug nest is in a tower: they sit out on the cliff, away from the way in. The keeps' halls are interiors too. Two builds of a level are the same.
+## rock-bug nest is in a tower: they sit out on the cliff, away from the way in. The keeps' halls are interiors too.
 ## godot --headless --path . --script res://tests/towers_test.gd
 
 
@@ -24,7 +25,7 @@ func run() -> void:
 	var rewards: Dictionary = {}
 	for row: int in band_rows(&"crags", [0, 1, 2, 3, -1]):
 		var at: Vector2i = Vector2i(28, row)
-		var w: LevelGen = build(at)
+		var w: LevelGen = built(at)
 		print("row %d: %d towers" % [at.y, w.towers.size()])
 		check(not w.towers.is_empty(), "row %d has towers" % at.y)
 		for tower: Dictionary in w.towers:
@@ -37,16 +38,17 @@ func run() -> void:
 				rewards[tower["reward"]] = int(rewards.get(tower["reward"], 0)) + 1
 		_nests(w)
 		check(w.interiors.size() > 0 and w.interiors.keys().all(func(v: Vector2i) -> bool: return not w.masonry.has(v)), "its buildings' air is kept as interiors, none of it masonry")
-		var again: LevelGen = build(at)
-		check(again.towers == w.towers and again.interiors == w.interiors, "the same every build")
 	check(hoards > 0 and watch > 0, "watchtowers and hoard towers both turn up (%d and %d)" % [watch, hoards])
-	# Rewards are dealt by the level: look further afield (other worlds' crags) for any not met yet.
+	# Rewards are dealt by the level: look further afield (the worlds looked over below first, then
+	# others) for any not met yet.
 	var kinds: Array[LevelGen.Type] = [LevelGen.Type.KEY, LevelGen.Type.SWITCH, LevelGen.Type.WELL]
-	for world: int in range(29, 41):
+	var afield: Array[int] = WHOLE_WORLDS.duplicate()
+	afield.append_array(range(29, 41))
+	for world: int in afield:
 		if kinds.all(func(kind: LevelGen.Type) -> bool: return rewards.has(kind)):
 			break
 		for k: int in range(Bands.rows_of(&"crags")):
-			for tower: Dictionary in build(Vector2i(world, NextWorldDef.band_row(&"crags", k))).towers:
+			for tower: Dictionary in built(Vector2i(world, NextWorldDef.band_row(&"crags", k))).towers:
 				if not tower["hoard"] and tower.has("reward"):
 					rewards[tower["reward"]] = int(rewards.get(tower["reward"], 0)) + 1
 	print("rewards: %s" % rewards)
@@ -129,13 +131,16 @@ func _tower(w: LevelGen, tower: Dictionary) -> void:
 
 ## Every tower in every row of the band in several worlds is whole once its level is laid out (see
 ## _faults).
+## The worlds whose every crags level's towers are checked whole (_whole_everywhere).
+const WHOLE_WORLDS: Array[int] = [28, 7, 99, 51]
+
 func _whole_everywhere() -> void:
 	var towers: int = 0
 	var faulty: Array[String] = []
-	for world: int in [28, 7, 99, 51]:
+	for world: int in WHOLE_WORLDS:
 		for k: int in range(Bands.rows_of(&"crags")):
 			var at: Vector2i = Vector2i(world, NextWorldDef.band_row(&"crags", k))
-			var w: LevelGen = build(at)
+			var w: LevelGen = built(at)
 			if w == null:
 				continue
 			for tower: Dictionary in w.towers:

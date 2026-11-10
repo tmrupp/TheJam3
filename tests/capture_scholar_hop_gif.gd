@@ -31,7 +31,7 @@ func run() -> void:
 	base_zoom = camera.zoom
 	await go(Vector2i(28, NextWorldDef.first_depth(&"institute")), false)
 	player.get_node("CameraControl").set_process(false)
-	player.set_physics_process(false)
+	freeze()
 	player.phasing = true
 	var step: Variant = _step()
 	if step == null:

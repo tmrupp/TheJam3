@@ -6,6 +6,8 @@ extends TestKit
 
 
 func run() -> void:
+	# It reads what the art does (TestKit.art).
+	art(true)
 	await boot()
 	var hud: RisoHud = main.get_node("RisoHud") as RisoHud
 	await settle()
@@ -18,7 +20,7 @@ func run() -> void:
 	post.global_position = player.global_position
 	await settle()
 	var start: Vector2 = player.global_position
-	player.set_physics_process(false)
+	freeze()
 	player.global_position = post.global_position + Vector2(Signpost.READ_REACH.x * 3.0, 0)
 	await process_frame
 	await process_frame

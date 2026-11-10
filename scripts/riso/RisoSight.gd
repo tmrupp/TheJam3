@@ -291,6 +291,26 @@ static func lit(shape: PackedVector2Array, seen: PackedVector2Array) -> Array[Pa
 ## is drawn in by SEAM, which parts it where it touched, so it can still be filled. Left as it was,
 ## the print could not fill it and the shade it stands for would vanish for that moment.
 static func outside(rect: Rect2, holes: Array[PackedVector2Array]) -> Array[PackedVector2Array]:
+	# Asked again with the same rect and holes (nothing moved since: the wizard standing, the
+	# lanterns' pools still), the same pieces as before, rather than cutting them all again.
+	for kept: Array in _outside_kept:
+		if kept[0] == rect and kept[1] == holes:
+			return kept[2]
+	var found: Array[PackedVector2Array] = _outside(rect, holes)
+	_outside_kept.push_front([rect, holes.duplicate(), found])
+	if _outside_kept.size() > OUTSIDE_KEPT:
+		_outside_kept.pop_back()
+	return found
+
+
+## How many of outside's last answers are kept (two coats for each crypt in view and the place's
+## gloom), and the answers, newest first: [rect, holes, pieces].
+const OUTSIDE_KEPT: int = 8
+static var _outside_kept: Array = []
+
+
+## outside's own work (see there).
+static func _outside(rect: Rect2, holes: Array[PackedVector2Array]) -> Array[PackedVector2Array]:
 	var pieces: Array[PackedVector2Array] = [PackedVector2Array([rect.position, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y)])]
 	for hole: PackedVector2Array in holes:
 		if hole.size() < 3:

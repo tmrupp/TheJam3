@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## Exam papers (KeyRing.paper; docs/REGIONS_PLAN.md §9, the timetable): a paper sent to a lecture
 ## hall's field level (by attending its class, timetable_test) lies there, on a floor away from the
 ## way in, laid once and kept as a dropped key is; taken, it rides on the key ring and is kept through

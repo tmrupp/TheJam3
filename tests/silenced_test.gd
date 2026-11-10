@@ -14,12 +14,12 @@ func run() -> void:
 
 	print("pressed while drowsy")
 	events.clear()
-	await press(&"Spell")
+	await tap(&"Spell")
 	check(not events.has(&"silenced"), "awake, a cast is not silenced")
 	await within(func() -> bool: return Abilities.readiness(player) >= 1.0, 3.0)
 	player.make_drowsy()
 	events.clear()
-	await press(&"Spell")
+	await tap(&"Spell")
 	check(events.has(&"silenced") and not events.has(&"cast"), "drowsy, the Spell button casts nothing and shows it silenced: %s" % [events])
 
 	print("cut off mid-spell")
@@ -36,15 +36,3 @@ func run() -> void:
 
 
 ## Press and let go of `action`, a physics frame or two apart.
-func press(action: StringName) -> void:
-	var down: InputEventAction = InputEventAction.new()
-	down.action = action
-	down.pressed = true
-	Input.parse_input_event(down)
-	await physics_frame
-	await physics_frame
-	var up: InputEventAction = InputEventAction.new()
-	up.action = action
-	up.pressed = false
-	Input.parse_input_event(up)
-	await physics_frame

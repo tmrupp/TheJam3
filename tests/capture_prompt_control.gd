@@ -45,7 +45,7 @@ class PromptSheet extends Node2D:
 func run() -> void:
 	window()
 	await boot()
-	player.set_physics_process(false)
+	freeze()
 	player.get_node("CameraControl").set_process(false)
 	camera = main.get_node("Camera2D") as Camera2D
 	var base: Vector2 = camera.zoom

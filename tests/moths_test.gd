@@ -8,7 +8,7 @@ extends TestKit
 func run() -> void:
 	seed(28)
 	await boot(28)
-	player.set_physics_process(false)
+	freeze()
 	var lantern: Node = null
 	for node: Node in info.map_elements.get_children():
 		if node is Checkpoint and not info.is_lantern_spent(node):
@@ -68,7 +68,7 @@ func run() -> void:
 	player.hurt(-1, Vector2.RIGHT, swarm)
 	check(strike.guards(swarm) and player.health.health == hp, "moths cannot sting through the dash")
 	check(not swarm.is_scattered(), "and the dash leaves them be: it is no attack")
-	player.set_physics_process(false)
+	freeze()
 	Abilities.set_tier(player, &"slash", 1)
 	player.global_position = swarm.global_position + Vector2(-60, 24)
 	(player.get_node("Slash") as Slash).cast(Vector2.RIGHT)

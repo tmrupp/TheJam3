@@ -127,7 +127,7 @@ func _groups() -> void:
 		info.world.set_kind(at + d, LevelGen.Type.PHASE_BLOCK, sun.has(d))
 	for d: Vector2i in sun + shade:
 		_stage("res://prefabs/phase_block.tscn", at + d, sun.has(d))
-	player.set_physics_process(false)
+	freeze()
 	player.global_position = info.cell_position(at + Vector2i(2, 0))
 	info.loader.wake_around(player.global_position)
 	var mid: Vector2 = info.cell_position(at + Vector2i(2, 0)) + Vector2(64, -40)

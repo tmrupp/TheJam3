@@ -33,8 +33,7 @@ func run() -> void:
 		return
 	await boot(x)
 	camera = main.get_node("Camera2D") as Camera2D
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	for side: int in [-1, 1]:
 		var rec: LevelRecord = info.run.record(Vector2i(x + side, row))
 		rec.vanes_on = {Vector2i(1, 1): -side}

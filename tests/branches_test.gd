@@ -10,7 +10,7 @@ extends TestKit
 
 func run() -> void:
 	await boot(28)
-	player.set_physics_process(false)
+	freeze()
 	var up_door: Array[Node] = placed("level_exit.tscn").filter(func(n: Node) -> bool: return int(n.get("exit")) == MapInfo.Exit.BACK)
 	check(up_door.size() == 1, "the start has a way up")
 	var owed: int = int(up_door[0].call("price"))
@@ -18,7 +18,7 @@ func run() -> void:
 	player.collect(owed - player.coins.coins)
 	up_door[0].call("interacted")
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	check(info.coord == Vector2i(28, -1) and info.here.archetype == &"garden", "paying it leads up, to the garden's first level above the start")
 	check(player.coins.coins == 0 and info.run.deepest == 1 and info.run.furthest_row == -1, "the stars are spent, and the run has been 1 from the start, above it")
 	check(player.global_position.distance_to(info.cell_position(info.world.exits[MapInfo.Exit.BACK])) < 80.0, "arriving at its way back, which leads home")
@@ -27,7 +27,7 @@ func run() -> void:
 	print("home again")
 	info.travel(MapInfo.Exit.BACK)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	check(info.coord == Vector2i(28, 0) and player.global_position.distance_to(info.cell_position(info.world.exits[MapInfo.Exit.BACK])) < 80.0, "its way back leads down into the start, at the way up")
 	check(info.here.price(MapInfo.Exit.BACK, info.record()) == 0, "and the way up, once paid, is free")
 
@@ -41,7 +41,7 @@ func run() -> void:
 			# The labyrinth left this level's way up out (Rules.maze_has): straight to the level above.
 			info.jump_to(info.coord + Vector2i(0, -1))
 		await settle()
-		player.set_physics_process(false)
+		freeze()
 	check(info.coord == Vector2i(28, -(Bands.garden_rows() + 1)) and info.here.archetype == NextWorldDef.archetype_at(-(Bands.garden_rows() + 1)) and (Bands.way(-1).is_empty() or info.here.archetype != &"garden"), "past the garden's top row the first band up begins (%s)" % info.coord)
 	check(info.here.depth == Bands.garden_rows() + 1 and info.run.deepest == Bands.garden_rows() + 1, "a level counts its distance from the start, up as down")
 

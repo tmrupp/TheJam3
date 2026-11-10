@@ -13,7 +13,7 @@ func run() -> void:
 	await boot(28)
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
-	player.set_physics_process(false)
+	freeze()
 	var shots: Array[Image] = []
 	var want: Array[String] = ["through", "room", "outside"]
 	var found: Dictionary = {}

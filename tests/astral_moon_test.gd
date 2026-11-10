@@ -6,7 +6,7 @@ extends TestKit
 
 func run() -> void:
 	await boot()
-	player.set_physics_process(false)
+	freeze()
 	player.end_invulnerable()
 	await create_timer(0.03).timeout
 
@@ -62,7 +62,7 @@ func run() -> void:
 	for m: Node in moons:
 		if (m as Node2D).global_position.distance_to(player.global_position) < (moon as Node2D).global_position.distance_to(player.global_position):
 			moon = m
-	player.set_physics_process(false)
+	freeze()
 	player.global_position = (moon as Node2D).global_position + Vector2(0, -400)
 	await physics_frame
 	player.dash.refresh()

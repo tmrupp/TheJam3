@@ -44,7 +44,7 @@ func run() -> void:
 	var riso: RisoPrint = RisoPrint.instance
 	riso.sheet_rate = 0.0
 	riso.reprint_on_motion = false
-	player.set_physics_process(false)
+	freeze()
 	player.get_node("CameraControl").set_process(false)
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
 	camera.position_smoothing_enabled = false

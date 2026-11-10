@@ -38,7 +38,7 @@ func run() -> void:
 	var marks: Array[Node] = placed("grave_mark.tscn")
 	check(spell.marked() and marks.size() == 1, "a grave mark stands where the wizard stood")
 	var at: Vector2 = (marks[0] as Node2D).global_position
-	player.set_physics_process(false)
+	freeze()
 	player.collect(7)
 	var stars: int = player.coins.coins
 	player.global_position = at + Vector2(400, -200)
@@ -84,7 +84,7 @@ func run() -> void:
 	info.travel(MapInfo.Exit.RIGHT)
 	await settle()
 	check(not spell.marked(), "another level: the mark is lost")
-	player.set_physics_process(false)
+	freeze()
 	player.health.modify_health(-player.health.health)
 	check(info.run.vulnerable and spell.rites() == 1, "a death there is a death, the rite kept")
 	await settle()

@@ -323,7 +323,7 @@ func center(v: Vector2i) -> Vector2:
 static func passable(w: LevelGen, v: Vector2i) -> bool:
 	if not w.is_valid(v):
 		return false
-	var type: LevelGen.Type = w.get_cell(v).type
+	var type: LevelGen.Type = w.type_at(v)
 	return type not in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED, LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE]
 
 

@@ -5,7 +5,7 @@ class_name CrackedWall
 ## hex bolt or blow only chips grit off it (hex_hit), and the dash does nothing to it. So cracks
 ## passed early in a run are locks to come back to once a lodestone has tempered the damage spell
 ## (LevelGen.place_cracks keeps them off the doors). A secret room's cells are cracked rock too (meta
-## "secret", see LevelGen.place_secrets), with no cracks: they look like plain rock. Its entrance is
+## "secret", see Secrets.place), with no cracks: they look like plain rock. Its entrance is
 ## a false wall, walked and shot straight through by the wizard (enemies take it for rock,
 ## LevelLoader.ENEMY_WALL); stepping into it, or an empowered spell breaking the hidden rock behind
 ## it, opens the whole room (MapInfo.open_secret).

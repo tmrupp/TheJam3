@@ -421,7 +421,7 @@ func _fit_loop(forward: float) -> void:
 func _wisp_blocked(info: MapInfo, v: Vector2i) -> bool:
 	if not info.world.is_valid(v):
 		return true
-	var kind: int = info.world.get_cell(v).type
+	var kind: int = info.world.type_at(v)
 	return kind == LevelGen.Type.GROUND or kind == LevelGen.Type.CRACKED
 
 

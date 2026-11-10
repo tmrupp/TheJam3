@@ -14,8 +14,7 @@ func run() -> void:
 	await boot()
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	await go(Vector2i(28, NextWorldDef.band_row(&"crags", 0)), false)
 	var g: Gondola = placed("gondola.tscn")[0] as Gondola
 	player.global_position = g.center() + Vector2(-60, 40)

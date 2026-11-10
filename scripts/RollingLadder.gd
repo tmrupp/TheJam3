@@ -105,7 +105,7 @@ static func stands(w: LevelGen, v: Vector2i, travel: int) -> int:
 static func _hangs_through(w: LevelGen, c: Vector2i, depth: int) -> bool:
 	if not w.is_valid(c) or w.is_ground(c):
 		return false
-	return depth == 0 or not w.get_cell(c).type in SOLID
+	return depth == 0 or not w.type_at(c) in SOLID
 
 
 

@@ -20,7 +20,7 @@ func run() -> void:
 	var body: Node2D = null
 	var aim: Vector2 = Vector2.ZERO
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
-	player.set_physics_process(false)
+	freeze()
 	player.get_node("CameraControl").set_process(false)
 	player.invulnerable.enable()
 	# A hopper with open air beside it at its height, woken and settled with the view on it.

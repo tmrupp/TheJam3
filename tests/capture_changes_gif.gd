@@ -65,8 +65,7 @@ func run() -> void:
 	camera = main.get_node("Camera2D") as Camera2D
 	base_zoom = camera.zoom
 	player.get_node("CameraControl").set_process(false)
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	# Nothing hurts the wizard here: a touch would knock them about and flash them pink.
 	player.hurt_ability = func(_d: int, _v: Vector2, _a: Node) -> void: pass
 	for scene: StringName in SCENES:
@@ -127,7 +126,7 @@ func thorns() -> void:
 		bed.append(_lay_thorns(at + Vector2i(k, 0)))
 	var top: float = info.cell_position(at).y + Spikes.BODY.y * 4.0
 	await _put(info.cell_position(at + Vector2i(1, -1)) + Vector2(-40, 0), 1.0)
-	player.set_physics_process(false)
+	freeze()
 	follow = true
 	await record(&"thorns", 120, func(f: int) -> void:
 		if f == 2:
@@ -274,7 +273,7 @@ func crossbow() -> void:
 		return
 	var room: Vector2 = info.cell_position(bow.cell)
 	var outside: Vector2 = room + Vector2(float(bow.facing) * cell * 4.0, 0.0)
-	player.set_physics_process(false)
+	freeze()
 	player.global_position = outside + Vector2(0, 4000)
 	await frames(90)
 	follow = false

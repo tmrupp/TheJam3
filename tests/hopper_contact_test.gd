@@ -4,7 +4,7 @@ extends TestKit
 
 func run() -> void:
 	await boot(28)
-	player.set_physics_process(false)
+	freeze()
 	player.get_node("CameraControl").set_process(false)
 	var home: Vector2 = Vector2(-10000, -10000)
 	player.global_position = home

@@ -61,8 +61,8 @@ var caught_at: Vector2 = Vector2.ZERO
 ## When (game seconds, see `clock`) a catch underfoot last bounced the wizard up (_pogo; the
 ## tutorial's pogo card reads it, ControlHint).
 var pogo_at: float = -INF
-## When (real seconds) the last catch was, against Player.hit_at.
-var parried_real: float = -INF
+## When the last catch was, as an order stamp (GameClock.order), against Player.hit_order.
+var parried_order: int = -1
 ## The time the art reads these against.
 var clock: float = 0.0
 
@@ -85,7 +85,7 @@ func guard_left() -> float:
 ## Whether the wizard is untouchable because of a parry (the art shimmers gold, not hurt pink):
 ## soon enough after the last catch, and no hit taken since it.
 func glory() -> bool:
-	return player.is_invulnerable() and clock - parried_at < SAFE + 0.05 and player.hit_at < parried_real
+	return player.is_invulnerable() and clock - parried_at < SAFE + 0.05 and player.hit_order < parried_order
 
 func parry (_damage: int, v: Vector2, origin: Node) -> void:
 	var attacker: Node = Damager.attacker_of(origin)
@@ -100,7 +100,7 @@ func parry (_damage: int, v: Vector2, origin: Node) -> void:
 	var from: Vector2 = player.global_position - away * 60.0
 	caught_at = player.global_position.lerp(from, 0.6) + Vector2(0, -40)
 	parried_at = clock
-	parried_real = Time.get_ticks_usec() / 1000000.0
+	parried_order = GameClock.order()
 	if shot != null:
 		_reflect(shot, attacker)
 	else:

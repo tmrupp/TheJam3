@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The institute's students' days (Students): each period a student goes to a class in session then
 ## or the library, walking there in passing time along floors, up jumps and off edges, through the
 ## classroom doors, which open for them, or blinking there where it cannot walk; in class time it
@@ -62,7 +63,7 @@ func _walking() -> void:
 	await go(at, false)
 	var rec: LevelRecord = info.record()
 	check(rec.passing, "a level is first met in passing time")
-	player.set_physics_process(false)
+	freeze()
 	player.end_invulnerable()
 	# The walk is watched alone: the level's abominations (which bite a student in their way) and
 	# the breaches they come from are cleared first.

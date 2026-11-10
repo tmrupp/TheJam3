@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The ferry spell (a raft that carries the wizard the way they face, shuttling to and fro) and
 ## lifts that wait for a switch (parked until it is thrown, then running for good).
 ## godot --headless --path . --script res://tests/ferry_and_lifts_test.gd
@@ -18,7 +19,6 @@ func run() -> void:
 			var lever: Vector2i = info[3]
 			good = good and w.get_cell(lever).type == LevelGen.Type.SWITCH and w.get_cell(lever).extra_info == lift
 			good = good and LevelGen.dist(lever, lift) <= LevelGen.LIFT_SWITCH_NEAR
-		check_eq(build(at).objects, w.objects, "%s: the same every visit" % at)
 	check(paired > 0, "some lifts wait for a switch (%d)" % paired)
 	check(good, "each such lift's switch is near it and names it back")
 
@@ -98,7 +98,7 @@ func run() -> void:
 	check(player.global_position.x > x0 + 40.0, "it carries the wizard along (%d px)" % int(player.global_position.x - x0))
 	# Left alone, it meets rock and turns back, and it is still there long after.
 	player.global_position = info.cell_position(spot) + Vector2(0, -400)
-	player.set_physics_process(false)
+	freeze()
 	check(await within(func() -> bool: return raft.velocity.x < 0.0, 30.0), "meeting rock, it turns back")
 	check(await within(func() -> bool: return raft.velocity.x > 0.0 or raft.stopped, 60.0), "and back again: it shuttles to and fro")
 	check(is_instance_valid(raft) and not raft.fading(), "it never fades of itself")

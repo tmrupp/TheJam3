@@ -39,7 +39,7 @@ func run() -> void:
 	info.jump_to(Vector2i(28, NextWorldDef.first_depth(&"sky")))
 	while info.travelling:
 		await process_frame
-	player.set_physics_process(false)
+	freeze()
 	player.get_node("CameraControl").set_process(false)
 	var cam: Camera2D = main.get_node("Camera2D") as Camera2D
 	cam.limit_left = -100000

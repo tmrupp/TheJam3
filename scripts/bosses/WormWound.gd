@@ -21,11 +21,6 @@ func hit(damage: int, dir: Vector2) -> void:
 	super(damage, dir)
 
 
-func stunned() -> bool:
-	var stunner: Stunner = Stunner.of(get_parent())
-	return stunner != null and stunner.stunned()
-
-
 func _die(host: Node2D) -> void:
 	var segment: WormSegment = host as WormSegment
 	if segment != null and segment.worm != null:

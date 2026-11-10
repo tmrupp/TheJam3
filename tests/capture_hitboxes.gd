@@ -15,7 +15,7 @@ const SHOTS: int = 4
 func run() -> void:
 	window()
 	await boot()
-	player.set_physics_process(false)
+	freeze()
 	player.invulnerable.enable()
 	player.get_node("CameraControl").set_process(false)
 	var camera: Camera2D = Stage.camera()

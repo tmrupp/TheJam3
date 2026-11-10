@@ -7,11 +7,13 @@ extends TestKit
 
 
 func run() -> void:
+	# It reads what the art does (TestKit.art).
+	art(true)
 	if not needs([&"institute"]):
 		finish()
 		return
 	await boot()
-	player.set_physics_process(false)
+	freeze()
 	player.global_position = Vector2(-90000, -90000)
 	await covers("mover_enemy.tscn", "a wisp")
 	await wisp_touch()

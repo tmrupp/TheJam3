@@ -184,33 +184,9 @@ static func _lecture_doors() -> Array:
 ## with at least `least` doorways that find open air).
 static func _site(w: LevelGen, inside: Vector2i, spec: Array, test: Callable, least: int = 1) -> Dictionary:
 	var size: Vector2i = inside + Vector2i(2, 2)
-	var blocked: Dictionary = _blocked(w)
-	var open_sum: PackedInt32Array = Crypts._sums(w, func(v: Vector2i) -> bool: return not w.is_ground(v))
-	var blocked_sum: PackedInt32Array = Crypts._sums(w, func(v: Vector2i) -> bool: return blocked.has(v))
-	var best: Dictionary = {}
-	var best_score: int = 1 << 30
-	var best_tie: int = 0
-	for x: int in range(1, w.size.x - size.x):
-		for y: int in range(1, w.size.y - size.y):
-			var box: Rect2i = Rect2i(Vector2i(x, y), size)
-			if not test.call(box) or Crypts._count(w, blocked_sum, box.grow(APART)) > 0:
-				continue
-			var score: int = Crypts._count(w, open_sum, box)
-			if score - DOOR_WORTH * (spec.size() - least) > best_score:
-				continue
-			var doors: Array = _doors(w, box, spec, blocked)
-			if doors.size() < maxi(least, 1):
-				continue
-			if least > 1:
-				score -= DOOR_WORTH * (doors.size() - least)
-			for door: Array in doors:
-				score += (door[1] as Array).size() * PASSAGE_COST
-			var tie: int = Rules.level_seed(w.seed_for_colors, SITE_DEAL + x * 131 + y)
-			if score < best_score or (score == best_score and tie < best_tie):
-				best_score = score
-				best_tie = tie
-				best = {"box": box, "doors": doors}
-	return best
+	var sites: Sites = Sites.new(w, _blocked(w))
+	var doors: Callable = func(box: Rect2i) -> Array: return _doors(w, box, spec, sites.blocked)
+	return sites.best(size, APART, SITE_DEAL, doors, PASSAGE_COST, least, DOOR_WORTH, DOOR_WORTH * (spec.size() - least), test)
 
 
 ## The cells a hall keeps away from: what is kept whole or clear, every structure, the other halls.
@@ -301,7 +277,7 @@ static func _raise(w: LevelGen, kind: StringName, site: Dictionary, front: int) 
 	for x: int in range(inside.position.x, inside.end.x):
 		for y: int in range(inside.position.y, inside.end.y):
 			var v: Vector2i = Vector2i(x, y)
-			if not w.is_ground(v) and w.get_cell(v).type == LevelGen.Type.EMPTY and (w.is_ground(v + Vector2i.DOWN) or w.get_cell(v + Vector2i.DOWN).type == LevelGen.Type.PLATFORM):
+			if not w.is_ground(v) and w.type_at(v) == LevelGen.Type.EMPTY and (w.is_ground(v + Vector2i.DOWN) or w.type_at(v + Vector2i.DOWN) == LevelGen.Type.PLATFORM):
 				floors.append(v)
 	hall["floors"] = floors
 	w.halls.append(hall)
@@ -393,7 +369,7 @@ static func hall_at(w: LevelGen, v: Vector2i) -> int:
 static func regions(w: LevelGen) -> Dictionary:
 	var walls: Array[LevelGen.Type] = [LevelGen.Type.GROUND, LevelGen.Type.EXAM_DOOR]
 	var open: Callable = func(v: Vector2i) -> bool:
-		if not w.is_valid(v) or w.get_cell(v).type in walls:
+		if not w.is_valid(v) or w.type_at(v) in walls:
 			return false
 		var hall: int = hall_at(w, v)
 		return hall < 0 or w.halls[hall]["kind"] != &"lecture"
@@ -580,7 +556,7 @@ static func furnish(w: LevelGen, def: NextWorldDef) -> void:
 					for k: int in range(mini(HOARD, top.size())):
 						_place(w, top[k], LevelGen.Type.COIN)
 				for r: int in range(1, tops.size()):
-					var row: Array[Vector2i] = (hall["floors"] as Array[Vector2i]).filter(func(v: Vector2i) -> bool: return v.y == tops[r] and w.get_cell(v).type == LevelGen.Type.EMPTY)
+					var row: Array[Vector2i] = (hall["floors"] as Array[Vector2i]).filter(func(v: Vector2i) -> bool: return v.y == tops[r] and w.type_at(v) == LevelGen.Type.EMPTY)
 					if not row.is_empty():
 						@warning_ignore("integer_division")
 						_place(w, row[(row.size() * 2) / 3], LevelGen.Type.STUDENT)
@@ -642,14 +618,14 @@ static func _timetable(w: LevelGen) -> void:
 		bells.append(next)
 	for k: int in range(bells.size()):
 		var v: Vector2i = bells[k]
-		if w.get_cell(v).type != LevelGen.Type.SCHOOL_BELL:
+		if w.type_at(v) != LevelGen.Type.SCHOOL_BELL:
 			# Only the bell room holds the great bell (or, with no bell room, the first of these).
 			_place(w, v, LevelGen.Type.SCHOOL_BELL, {"great": k == 0})
 
 
 ## A `type` holding `extra` at `v`, if it is still free open air.
 static func _place(w: LevelGen, v: Vector2i, type: LevelGen.Type, extra: Variant = null) -> void:
-	if w.is_valid(v) and w.get_cell(v).type == LevelGen.Type.EMPTY:
+	if w.is_valid(v) and w.type_at(v) == LevelGen.Type.EMPTY:
 		w.objects.append(v)
 		w.empties.erase(v)
 		w.set_kind(v, type, extra)
@@ -663,5 +639,5 @@ static func _rock_at(w: LevelGen, v: Vector2i) -> void:
 
 ## Open air at `v`, inside the level's edge.
 static func _open_at(w: LevelGen, v: Vector2i) -> void:
-	if w.is_valid(v) and w.get_cell(v).type != LevelGen.Type.EMPTY:
+	if w.is_valid(v) and w.type_at(v) != LevelGen.Type.EMPTY:
 		w._to_open(v)

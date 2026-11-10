@@ -11,12 +11,12 @@ const KEY_COLOR_COUNT: int = 4
 ## How common each key colour is, in order of rarity: sun (about 62 %), ember (24 %), moss (10 %),
 ## then plum (about one in 30). Keys, corridor doors, side-door locks and padlocks are all dealt by these
 ## weights (see rarity_color), so a common key opens a lot and a rare one seldom; vaults (see
-## LevelGen.place_vaults) are the exception, and pay out by their lock's rarity.
+## Vaults.place) are the exception, and pay out by their lock's rarity.
 const KEY_RARITY: Array[int] = [18, 7, 3, 1]
 ## Share (%) of levels from depth 1 whose secret room holds a skeleton key (see KeyRing).
 const SKELETON_CHANCE: int = 30
-## Bone gates, which only a skeleton key opens (LevelGen.place_bone_vault, deal_colors): the share (%)
-## of levels from depth 1 with a bone vault holding rich loot (BONE_LOOT); the share of relic levels
+## Bone gates, which only a skeleton key opens (Vaults.place_bone, deal_colors): the share (%)
+## of levels from depth 1 with a bone vault holding rich loot (Vaults.BONE_LOOT); the share of relic levels
 ## whose relic waits behind a bone gate instead of in a secret room; and from SKELETON_DOOR_DEPTH,
 ## the share of corridor doors on the way that are bone gates.
 const BONE_VAULT_CHANCE: int = 25

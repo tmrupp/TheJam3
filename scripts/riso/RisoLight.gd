@@ -210,7 +210,7 @@ func rebuild(info: MapInfo) -> void:
 	if info.world != null:
 		for x: int in range(info.world.size.x):
 			for y: int in range(info.world.size.y):
-				var type: LevelGen.Type = info.world.get_cell(Vector2i(x, y)).type
+				var type: LevelGen.Type = info.world.type_at(Vector2i(x, y))
 				if type in [LevelGen.Type.CRACKED, LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.LIGHT_GATE, LevelGen.Type.EXAM_DOOR, LevelGen.Type.OSSUARY_DOOR]:
 					_changing[Vector2i(x, y)] = type
 	_cache.clear()
@@ -262,6 +262,8 @@ static func eye(player: Player) -> Vector2:
 
 func _process(delta: float) -> void:
 	t += delta
+	if not RisoPrint.prints_art:
+		return
 	var info: MapInfo = MapInfo.instance
 	var cam: Camera2D = get_viewport().get_camera_2d()
 	ink.begin()

@@ -170,6 +170,8 @@ godot --headless --path . --script res://tests/riso_print_test.gd
 godot --path . --script res://tests/capture_riso.gd
 ```
 
+In a headless test the art does not print frame by frame (`RisoPrint.prints_art`, turned off by the test kit: nothing printed is seen there, and the printing is most of a frame); every prop's art node is still made and dressed, and a test that reads what the art does turns it on with `TestKit.art(true)`. In the game and in a window it always prints.
+
 The headless test boots seed 28 and checks plates, stretch mode, cull mask, dressing of every spawned prefab, the dash smear, hat glow for dash and parry, the hurt state, the astral ghost, sheet advance, realm cycling and a clean off/on toggle. The capture script walks, jumps and dashes through the generated world in a 1280×720 window and writes frames to `../art-captures/riso-frames`.
 
 ## Limits

@@ -18,7 +18,7 @@ func shrines() -> Array[Node]:
 
 func run() -> void:
 	await boot()
-	player.set_physics_process(false)
+	freeze()
 
 	print("placement")
 	check(not main.has_node("UpgradeMenu"), "the upgrade menu is gone")
@@ -112,7 +112,7 @@ func run() -> void:
 	print("a second ability instead")
 	info.travel(MapInfo.Exit.DEEPER)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	shrine = shrines()[0]
 	var first: StringName = shrine.call("offer", 0)
 	var second: StringName = shrine.call("offer", 1)
@@ -128,12 +128,12 @@ func run() -> void:
 	player.collect(-player.coins.coins)
 	info.travel(MapInfo.Exit.BACK)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 
 	print("mending instead")
 	info.travel(MapInfo.Exit.RIGHT)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	shrine = shrines()[0]
 	player.health.health = player.health.max_health
 	player.keyring.clear()

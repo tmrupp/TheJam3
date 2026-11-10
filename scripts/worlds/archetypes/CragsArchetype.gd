@@ -230,7 +230,7 @@ func populate(w: LevelGen, def: NextWorldDef) -> void:
 ## at least BUG_CLEAR cells from the way in and BUG_APART from one another.
 static func place_bugs(w: LevelGen) -> void:
 	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
-	var spots: Array[Vector2i] = w.empties_where(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.EMPTY and LevelGen.dist(v, start) >= BUG_CLEAR \
+	var spots: Array[Vector2i] = w.empties_where(func(v: Vector2i) -> bool: return w.type_at(v) == LevelGen.Type.EMPTY and LevelGen.dist(v, start) >= BUG_CLEAR \
 			and [Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP].any(func(d: Vector2i) -> bool: return w.is_ground(v + d)))
 	w.put_each(w.pick_apart(spots, w.foes_per_area(BUGS_PER_K), BUG_APART), LevelGen.Type.BUG)
 
@@ -255,10 +255,10 @@ func finish(w: LevelGen, def: NextWorldDef) -> void:
 static func place_stalactites(w: LevelGen) -> void:
 	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
 	var spots: Array[Vector2i] = w.empties_where(func(v: Vector2i) -> bool:
-		if w.get_cell(v).type != LevelGen.Type.EMPTY or w.keep_clear.has(v) or LevelGen.dist(v, start) < STALACTITE_CLEAR:
+		if w.type_at(v) != LevelGen.Type.EMPTY or w.keep_clear.has(v) or LevelGen.dist(v, start) < STALACTITE_CLEAR:
 			return false
 		var above: Vector2i = v + Vector2i.UP
-		if not w.is_ground(above) or w.masonry.has(above) or w.get_cell(above).type == LevelGen.Type.CRACKED:
+		if not w.is_ground(above) or w.masonry.has(above) or w.type_at(above) == LevelGen.Type.CRACKED:
 			return false
 		for k: int in range(1, STALACTITE_DROP + 1):
 			var below: Vector2i = v + Vector2i(0, k)
@@ -286,12 +286,12 @@ static func place_spires(w: LevelGen) -> void:
 			if w.is_valid(v) and w.is_ground(v + Vector2i.DOWN):
 				spots.append(v)
 		spots.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return absf(float(a.x) - middle) < absf(float(b.x) - middle) or (absf(float(a.x) - middle) == absf(float(b.x) - middle) and a.x < b.x))
-		var free: Variant = LevelGen.best_of(spots, func(_v: Vector2i) -> float: return 0.0, func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.EMPTY and w.empties.has(v))
+		var free: Variant = LevelGen.best_of(spots, func(_v: Vector2i) -> float: return 0.0, func(v: Vector2i) -> bool: return w.type_at(v) == LevelGen.Type.EMPTY and w.empties.has(v))
 		if free != null:
 			w.put(free, LevelGen.Type.SPIRE, {"tower": j})
 			tower["spire"] = free
 			continue
-		var taken: Variant = LevelGen.best_of(spots, func(_v: Vector2i) -> float: return 0.0, func(v: Vector2i) -> bool: return w.get_cell(v).type in SPIRE_TAKES)
+		var taken: Variant = LevelGen.best_of(spots, func(_v: Vector2i) -> float: return 0.0, func(v: Vector2i) -> bool: return w.type_at(v) in SPIRE_TAKES)
 		if taken != null:
 			w.set_kind(taken, LevelGen.Type.SPIRE, {"tower": j})
 			tower["spire"] = taken
@@ -307,7 +307,7 @@ static func place_lodestone(w: LevelGen, spell: StringName) -> void:
 	var reached: Dictionary = w.reach_from(path[0])
 	var upper: int = ceili(float(tier_count(w)) / 2.0)
 	var floors: Array[Vector2i] = w.free_floors().filter(func(v: Vector2i) -> bool:
-		return reached.has(v) and not w.keep_clear.has(v) and not _room_of_big(w, v + Vector2i.DOWN) and not w.is_ground(v + Vector2i.UP) and w.get_cell(v + Vector2i.UP).type == LevelGen.Type.EMPTY)
+		return reached.has(v) and not w.keep_clear.has(v) and not _room_of_big(w, v + Vector2i.DOWN) and not w.is_ground(v + Vector2i.UP) and w.type_at(v + Vector2i.UP) == LevelGen.Type.EMPTY)
 	var high: Array[Vector2i] = floors.filter(func(v: Vector2i) -> bool: return tier_of(w, v.y) >= upper)
 	var seen: Array[Vector2i] = floors.filter(func(v: Vector2i) -> bool: return in_sight_of_track(w, v))
 	var high_seen: Array[Vector2i] = high.filter(func(v: Vector2i) -> bool: return seen.has(v))
@@ -716,7 +716,7 @@ static func place_hoards(w: LevelGen) -> void:
 		var spots: Array[Vector2i] = []
 		var top: Array = tower["top"]
 		for v: Vector2i in top:
-			if w.get_cell(v).type == LevelGen.Type.EMPTY and w.empties.has(v):
+			if w.type_at(v) == LevelGen.Type.EMPTY and w.empties.has(v):
 				spots.append(v)
 		var n: int = mini(TOWER_HOARD, spots.size())
 		for i: int in range(n):
@@ -725,7 +725,7 @@ static func place_hoards(w: LevelGen) -> void:
 		var short: int = TOWER_HOARD - n
 		for kind: LevelGen.Type in HOARD_TAKES:
 			for v: Vector2i in top:
-				if short > 0 and w.get_cell(v).type == kind:
+				if short > 0 and w.type_at(v) == kind:
 					w.set_kind(v, LevelGen.Type.COIN)
 					short -= 1
 
@@ -738,7 +738,7 @@ static func room_floor(w: LevelGen, tower: Dictionary, storey: int) -> Array[Vec
 	var out: Array[Vector2i] = []
 	for x: int in range(box.position.x + 1, box.end.x - 1):
 		var v: Vector2i = Vector2i(x, y)
-		if w.get_cell(v).type == LevelGen.Type.EMPTY and w.empties.has(v) and w.is_ground(v + Vector2i.DOWN):
+		if w.type_at(v) == LevelGen.Type.EMPTY and w.empties.has(v) and w.is_ground(v + Vector2i.DOWN):
 			out.append(v)
 	return out
 
@@ -757,7 +757,7 @@ static func place_tower_rewards(w: LevelGen) -> void:
 			# A full floor: over its stair hole, then.
 			var top: Array = tower["top"]
 			for v: Vector2i in top:
-				if w.get_cell(v).type == LevelGen.Type.EMPTY and w.empties.has(v):
+				if w.type_at(v) == LevelGen.Type.EMPTY and w.empties.has(v):
 					spots.append(v)
 		if spots.is_empty():
 			continue
@@ -779,7 +779,7 @@ static func place_tower_rewards(w: LevelGen) -> void:
 			if not w.is_ground(at + Vector2i.DOWN):
 				continue
 			w.put(at, LevelGen.Type.WELL)
-		tower["reward"] = w.get_cell(at).type
+		tower["reward"] = w.type_at(at)
 
 
 ## Move one of the keys the level deals (the last of them, not the start key, and not already in
@@ -787,7 +787,7 @@ static func place_tower_rewards(w: LevelGen) -> void:
 static func _bring_key(w: LevelGen, tower: Dictionary, at: Vector2i) -> bool:
 	var dealt: Array[Vector2i] = []
 	for v: Vector2i in w.objects:
-		if w.get_cell(v).type == LevelGen.Type.KEY and w.get_cell(v).extra_info == null:
+		if w.type_at(v) == LevelGen.Type.KEY and w.get_cell(v).extra_info == null:
 			dealt.append(v)
 	dealt = dealt.slice(0, w.key_count())
 	for i: int in range(dealt.size() - 1, -1, -1):
@@ -812,7 +812,7 @@ static func _bring_switch(w: LevelGen, tower: Dictionary, at: Vector2i) -> bool:
 	gates.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return LevelGen.dist(a, middle) < LevelGen.dist(b, middle) or (LevelGen.dist(a, middle) == LevelGen.dist(b, middle) and a < b))
 	for gate: Vector2i in gates:
 		var lever: Vector2i = w.get_cell(gate).extra_info
-		if w.get_cell(lever).type != LevelGen.Type.SWITCH or w.towers.any(func(t: Dictionary) -> bool: return (t["top"] as Array).has(lever)):
+		if w.type_at(lever) != LevelGen.Type.SWITCH or w.towers.any(func(t: Dictionary) -> bool: return (t["top"] as Array).has(lever)):
 			continue
 		if not w.reach_from(start, func(n: Vector2i) -> bool: return n != gate).has(at):
 			continue
@@ -852,7 +852,7 @@ static func place_crossbows(w: LevelGen) -> void:
 						continue
 					if not w.is_valid(out) or w.is_ground(out):
 						continue
-					if w.get_cell(at).type != LevelGen.Type.EMPTY or not w.empties.has(at):
+					if w.type_at(at) != LevelGen.Type.EMPTY or not w.empties.has(at):
 						continue
 					var roll: int = posmod(Rules.level_seed(w.seed_for_colors, CROSSBOW_DEAL + wall.x * 977 + wall.y * 31), 1000)
 					if float(roll) / 1000.0 < CROSSBOW_SHARE:
@@ -877,7 +877,7 @@ static func place_keep_crossbows(w: LevelGen) -> void:
 		for facing: int in [-1, 1]:
 			var at: Vector2i = wall - Vector2i(facing, 0)
 			var out: Vector2i = wall + Vector2i(facing, 0)
-			if not w.interiors.has(at) or w.get_cell(at).type != LevelGen.Type.EMPTY or not w.empties.has(at):
+			if not w.interiors.has(at) or w.type_at(at) != LevelGen.Type.EMPTY or not w.empties.has(at):
 				continue
 			if not w.is_valid(out) or w.is_ground(out) or w.interiors.has(out):
 				continue
@@ -897,7 +897,7 @@ static func _room_of_big(w: LevelGen, c: Vector2i) -> bool:
 			var o: Vector2i = c + Vector2i(-dx, dy)
 			if (dx == 0 and dy == 0) or not w.is_valid(o):
 				continue
-			var size: Vector2i = Placeables.size(w.get_cell(o).type)
+			var size: Vector2i = Placeables.size(w.type_at(o))
 			if dx < size.x and dy < size.y:
 				return true
 	return false
@@ -1048,7 +1048,7 @@ static func _landing(w: LevelGen, gate: Vector2i, inner: int) -> void:
 		var c: Vector2i = gate + Vector2i(inner * k, 0)
 		if not _inner(w, c) or w.keep_clear.has(c):
 			break
-		var was_open: bool = w.get_cell(c).type == LevelGen.Type.EMPTY and w.get_cell(c + Vector2i.UP).type == LevelGen.Type.EMPTY
+		var was_open: bool = w.type_at(c) == LevelGen.Type.EMPTY and w.type_at(c + Vector2i.UP) == LevelGen.Type.EMPTY
 		_open_at(w, c)
 		_open_at(w, c + Vector2i.UP)
 		_rock_at(w, c + Vector2i.DOWN)
@@ -1077,7 +1077,7 @@ static func set_stations(w: LevelGen, _def: NextWorldDef) -> void:
 	for i: int in range(gates.size()):
 		# The rock over and under every doorway stays whole (no cracked wall to break round a gate).
 		for d: Vector2i in [Vector2i.UP, Vector2i.DOWN]:
-			if w.get_cell(gates[i] + d).type == LevelGen.Type.CRACKED:
+			if w.type_at(gates[i] + d) == LevelGen.Type.CRACKED:
 				w._to_rock(gates[i] + d)
 		w.put(gates[i], LevelGen.Type.STATION_GATE, i)
 	var tiers: Array[int] = []
@@ -1096,7 +1096,7 @@ static func set_stations(w: LevelGen, _def: NextWorldDef) -> void:
 		masks = Stations.deal(gates.size(), tiers, w.seed_for_colors, sides)
 	for j: int in range(w.towers.size()):
 		var at: Vector2i = w.towers[j].get("switch", Vector2i(-1, -1))
-		if w.is_valid(at) and w.get_cell(at).type == LevelGen.Type.TOWER_SWITCH:
+		if w.is_valid(at) and w.type_at(at) == LevelGen.Type.TOWER_SWITCH:
 			w.get_cell(at).extra_info = {"tower": j, "mask": masks[j] if j < masks.size() else 0}
 	w.circuit["masks"] = masks
 	w.circuit["tiers"] = tiers
@@ -1160,7 +1160,7 @@ static func _build_at(w: LevelGen, v: Vector2i) -> void:
 
 ## Open air at `v`, if inside the level and not its outer edge.
 static func _open_at(w: LevelGen, v: Vector2i) -> void:
-	if _inner(w, v) and w.get_cell(v).type != LevelGen.Type.EMPTY:
+	if _inner(w, v) and w.type_at(v) != LevelGen.Type.EMPTY:
 		w._to_open(v)
 
 

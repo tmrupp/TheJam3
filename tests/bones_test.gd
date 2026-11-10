@@ -42,7 +42,7 @@ func run() -> void:
 		var vault: Dictionary = bones[0]
 		var door: Vector2i = vault["door"]
 		check(w.get_cell(door).type == LevelGen.Type.DOOR and int(w.get_cell(door).extra_info) == KeyRing.SKELETON, "%s: a bone gate at %s" % [at, door])
-		check(in_room(vault, LevelGen.Type.CLUSTER, w) and w.vault_loot(KeyRing.SKELETON, door) == LevelGen.BONE_LOOT, "%s: a hoard behind it" % at)
+		check(in_room(vault, LevelGen.Type.CLUSTER, w) and Vaults.loot(w, KeyRing.SKELETON, door) == Vaults.BONE_LOOT, "%s: a hoard behind it" % at)
 		var again: LevelGen = LevelGen.new(cells, def)
 		check(again.vaults == w.vaults, "%s: the same every visit" % at)
 		seen += 1
@@ -98,7 +98,7 @@ func run() -> void:
 
 	print("in play: a bone gate")
 	await boot()
-	player.set_physics_process(false)
+	freeze()
 	var target: Vector2i = Vector2i(-1, -1)
 	# One with a way on of its own, too, so its shrine (looked at below) sells no door in its place.
 	for x: int in range(28, 400):

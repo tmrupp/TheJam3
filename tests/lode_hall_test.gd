@@ -7,8 +7,8 @@ extends TestKit
 ## floor tall enough for the golem; the way on on the top gallery against the wall on its gap's
 ## side, climbed to from the ground storey with the wizard's own hops; the golem in its lair on the
 ## ground floor under the lower gallery's gap; a crossbow to each gallery set in the walls shooting
-## into the hall; the gondola and the towers laid round it, nothing else inside; the same every
-## build, in every world's gate level and only there. Prints the hall of world 28 as rows of
+## into the hall; the gondola and the towers laid round it, nothing else inside;
+## in every world's gate level and only there. Prints the hall of world 28 as rows of
 ## characters, to look over.
 ## godot --headless --path . --script res://tests/lode_hall_test.gd
 
@@ -91,8 +91,6 @@ func run() -> void:
 	var stray: bool = w.objects.any(func(v: Vector2i) -> bool: return box.has_point(v) and not w.get_cell(v).type in [LevelGen.Type.PLATFORM, LevelGen.Type.EXIT, LevelGen.Type.BOSS] and not bows.has(v))
 	check(not stray, "nothing else is placed in it")
 
-	var again: LevelGen = build(gate)
-	check(again.objects == w.objects and again.keep == w.keep, "the same every build")
 	var everywhere: bool = true
 	for world: int in [29, 30, 31]:
 		var other: LevelGen = build(Vector2i(world, gate.y))

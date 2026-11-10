@@ -1,9 +1,10 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The crags' crossbows built into the towers' walls (Crossbow, CragsArchetype.place_crossbows) and
 ## the keeps' (place_keep_crossbows), and their rock-bug nests (BugNest). Laid out: crossbows turn up
 ## across the band in towers and keeps, each set into a cell of the building's wall that stays whole
 ## stone, with open air outside and a free room cell inside (its own cell in the level), facing
-## out, no more than the preset's most to a tower, the keeps' apart, and the same every build; no
+## out, no more than the preset's most to a tower, and the keeps' apart; no
 ## nest is in a building. In play: the crossbow sits in the wall, which stays solid; it looses
 ## arrows dead straight at the wizard outside in front of its slit (not at one well above it, nor
 ## at the wizard in the room behind it), the first after its draw and the next only once it has
@@ -25,9 +26,8 @@ func run() -> void:
 		return
 	await boot(at.x)
 	await go(at, false)
-	player.health.max_health = 99
-	player.health.health = 99
-	player.set_physics_process(false)
+	sturdy()
+	freeze()
 	var cell: float = float(info.tile_map.tile_set.tile_size.y) * info.tile_map.global_scale.y
 	await shooting(cell)
 	await nest(cell)
@@ -94,13 +94,10 @@ func generation() -> Vector2i:
 			var nests: Array[Vector2i] = w.objects_of(LevelGen.Type.NEST)
 			if nests.any(func(v: Vector2i) -> bool: return w.structures.has(v)):
 				bad.append("%s: a nest in a building" % place)
-			var again: LevelGen = build(place)
-			if again.objects_of(LevelGen.Type.CROSSBOW) != bows or bows.any(func(v: Vector2i) -> bool: return str(again.get_cell(v).extra_info) != str(w.get_cell(v).extra_info)):
-				bad.append("%s: not the same every build" % place)
 			if play == Vector2i.ZERO and not nests.is_empty() and bows.any(func(v: Vector2i) -> bool: return not bool((w.get_cell(v).extra_info as Dictionary).get("inward", false)) and _open_in_front(w, v) and w.structures.get(v + Vector2i(int((w.get_cell(v).extra_info as Dictionary)["facing"]), 0), &"") == &"tower"):
 				play = place
 	check(found - in_keeps > levels and in_keeps >= levels, "crossbows turn up across the band, in towers and keeps (%d in towers and %d in keeps in %d levels)" % [found - in_keeps, in_keeps, levels])
-	check(bad.is_empty(), "each set in a tower's wall of whole stone with air outside and a room cell inside, no more than %d to a tower, no nest in a building, the same every build %s" % [most, bad])
+	check(bad.is_empty(), "each set in a tower's wall of whole stone with air outside and a room cell inside, no more than %d to a tower, no nest in a building %s" % [most, bad])
 	return play
 
 

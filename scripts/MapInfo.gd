@@ -233,7 +233,7 @@ func _spawn_swarm () -> void:
 	var plot: Vector2i = plots[0]
 	var homes: Array[Vector2i] = world.empties_where(func(v: Vector2i) -> bool:
 		var d: int = LevelGen.dist(v, plot)
-		return world.get_cell(v).type == LevelGen.Type.EMPTY and d >= 2 and d <= Wormlet.SWARM_REACH)
+		return world.type_at(v) == LevelGen.Type.EMPTY and d >= 2 and d <= Wormlet.SWARM_REACH)
 	homes.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return RisoDecor.h(world.seed_for_colors, a, Wormlet.SWARM_DEAL) < RisoDecor.h(world.seed_for_colors, b, Wormlet.SWARM_DEAL))
 	for v: Vector2i in homes.slice(0, count):
 		loader.place_cell(v, LevelGen.Cell.new(LevelGen.Type.WORMLET))
@@ -625,7 +625,7 @@ func strike_spire (tower: int) -> bool:
 		save_run()
 		return true
 	var at: Vector2i = world.towers[tower].get("switch", Vector2i(-1, -1))
-	if not world.is_valid(at) or world.get_cell(at).type != LevelGen.Type.TOWER_SWITCH:
+	if not world.is_valid(at) or world.type_at(at) != LevelGen.Type.TOWER_SWITCH:
 		return false
 	return flip_tower(tower, int((world.get_cell(at).extra_info as Dictionary).get("mask", 0)))
 
@@ -692,11 +692,11 @@ func holds_up_stander (c: Vector2i) -> bool:
 	var above: Vector2i = c + Vector2i.UP
 	if not world.is_valid(above):
 		return false
-	if Placeables.has_flag(world.get_cell(above).type, &"stander"):
+	if Placeables.has_flag(world.type_at(above), &"stander"):
 		return true
 	# The shrine stands across two cells: its own and the one to its right.
 	var left: Vector2i = above + Vector2i.LEFT
-	return world.is_valid(left) and world.get_cell(left).type == LevelGen.Type.SHRINE
+	return world.is_valid(left) and world.type_at(left) == LevelGen.Type.SHRINE
 
 ## A ledge in each of `cells` (broken rock) that held up something you stand at.
 func prop_up (cells: Array) -> void:
@@ -1115,8 +1115,8 @@ func _arrived () -> void:
 	loader.wake_around(player.global_position if player != null else Vector2.INF)
 	loader.prefetch_neighbours(here)
 
-## Another place's layout, for the map: the place being played, or one laid out from its seed.
-## Null while the generator is busy (try again next frame).
+## Another place's layout, for the map: the place being played, or one laid out from its seed (on
+## a worker, LevelLoader.world_at: null until it is, so ask again next frame).
 func world_at (at: Vector2i) -> LevelGen:
 	if at == coord and world != null:
 		return world
@@ -1633,7 +1633,7 @@ func _seat_classes () -> void:
 		return
 	var rec: LevelRecord = record()
 	for v: Vector2i in world.objects:
-		if world.get_cell(v).type == LevelGen.Type.STUDENT and rec.slain.has(v):
+		if world.type_at(v) == LevelGen.Type.STUDENT and rec.slain.has(v):
 			rec.slain.erase(v)
 			loader.place_cell(v, world.get_cell(v))
 	for i: int in range(world.halls.size()):
@@ -1646,7 +1646,7 @@ func _seat_classes () -> void:
 				s.get_parent().remove_child(s)
 				s.queue_free()
 		for v: Vector2i in world.objects:
-			if box.has_point(v) and world.get_cell(v).type in [LevelGen.Type.MASTER, LevelGen.Type.PROCTOR]:
+			if box.has_point(v) and world.type_at(v) in [LevelGen.Type.MASTER, LevelGen.Type.PROCTOR]:
 				rec.slain.erase(v)
 				if subject_of(i) != &"":
 					loader.place_cell(v, world.get_cell(v))
@@ -1804,14 +1804,14 @@ static func way_back_spot (w: LevelGen) -> Vector2i:
 	# portals, lanterns and the rest (Placeables' standers), gates; and the way back's own cell.
 	var crowded: Dictionary = {}
 	for o: Vector2i in w.objects:
-		var t: LevelGen.Type = w.get_cell(o).type
+		var t: LevelGen.Type = w.type_at(o)
 		if Placeables.has_flag(t, &"stander") or t in [LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.STATION_GATE]:
 			for dx: int in range(-WAY_BACK_APART, WAY_BACK_APART + 1):
 				for dy: int in range(-1, 2):
 					crowded[o + Vector2i(dx, dy)] = true
 	var aired: Callable = func(v: Vector2i) -> bool:
 		for k: int in range(1, WAY_BACK_AIR):
-			if not w.is_valid(v + Vector2i(0, -k)) or w.get_cell(v + Vector2i(0, -k)).type != LevelGen.Type.EMPTY:
+			if not w.is_valid(v + Vector2i(0, -k)) or w.type_at(v + Vector2i(0, -k)) != LevelGen.Type.EMPTY:
 				return false
 		return v != from
 	var near: Callable = func(v: Vector2i) -> bool:

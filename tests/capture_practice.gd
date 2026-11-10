@@ -21,7 +21,7 @@ func run() -> void:
 	await frames(200)
 	save_still("practice_arrival.png")
 	player.get_node("CameraControl").set_process(false)
-	player.set_physics_process(false)
+	freeze()
 	await overview_still("practice_overview.png", 2)
 	await _look(Vector2i(24, 9), "practice_wisps.png", 0.7)
 	await _look(Vector2i(50, 9), "practice_watchers.png", 0.7)

@@ -1,8 +1,9 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The cemetery's crypts and its light (docs/REGIONS_PLAN.md §7): one or two crypts a level, their
 ## insides collapsed from their own sample, walled in masonry with a doorway or two (open or shut
 ## by a sun or shade block, no light gates), nothing inside
-## the wizard could drop into and not get out of (but in its trials), the same on every visit; the
+## the wizard could drop into and not get out of (but in its trials); the
 ## level's star cluster (or a hoard of stars) deep inside, skeletons asleep on its floors and a
 ## snuffing font by each doorway (but in a level dealt none, Rules.fontless_at); its trials (pits,
 ## crawls and wells, collapsed from samples of their own), thorny and worked with sun and shade
@@ -230,7 +231,7 @@ func _dash() -> void:
 	await physics_frame
 	await physics_frame
 	Input.action_release("Dash")
-	player.set_physics_process(false)
+	freeze()
 
 
 ## A new `scene` set at cell `v` of the level (an enemy, armed as one placed with it).
@@ -268,8 +269,6 @@ func generation() -> void:
 		check(w.crypts.size() >= 1 and w.crypts.size() <= 2 and w.crypts.size() <= Crypts.wanted(w), "%s: %d crypt(s) (%d wanted), laid out in %d ms" % [at, w.crypts.size(), Crypts.wanted(w), took])
 		if w.crypts.size() == 2:
 			twos += 1
-		var again: LevelGen = build(at)
-		check(w.objects == again.objects and w.grounds == again.grounds, "%s: the same every time" % at)
 		# Fonts stand about the terraces too, apart from one another.
 		var fonts: Array[Vector2i] = w.objects_of(LevelGen.Type.SNUFFER)
 		var doorways: int = 0

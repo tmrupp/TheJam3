@@ -416,11 +416,16 @@ var shards: Array[LodeShard] = []
 var stones: Array[GolemStone] = []
 ## What it calls home, each with its way home (`way`, set by the recall) and what it regrows.
 var called: Array[Node2D] = []
-var dying: bool = false
-var slain: bool = false
+## Its death (BossDeath): falling apart for DIE_TIME, then slain; dying from its heart's last wound.
+var death: BossDeath = BossDeath.new(self, DIE_TIME)
+var dying: bool:
+	get:
+		return death.t >= 0.0
+var slain: bool:
+	get:
+		return death.slain
 var ink: InkCanvas
 var t: float = 0.0
-var dead_t: float = 0.0
 ## When each chunk was last struck and shattered (its clock, t), and its heart wounded; and where
 ## round the ring each plate of its ward broke (radians, as RisoWard lays it).
 var struck_t: Array[float] = []
@@ -872,13 +877,7 @@ func shed_shards() -> void:
 
 ## Its heart's last wound: it falls apart.
 func die() -> void:
-	if done():
-		return
-	dying = true
-	dead_t = 0.0
-	remove_from_group(&"hex_target")
-	Wound.shake(14.0, 0.4)
-	RisoFx.burst(&"gain", heart_center(), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
+	death.begin(14.0, 0.4, heart_center(), [RisoPrint.ACCENT, RisoPrint.BLUE])
 
 
 ## Slain at once (the F7 panel's Slay boss, MapInfo.slay_boss).
@@ -891,15 +890,13 @@ func slay() -> void:
 
 ## It is slain: its relic waits where it stood, and it is gone, all of it lying loose with it.
 func _slain() -> void:
-	slain = true
+	death.slain = true
 	for loose: Node2D in _loose():
 		loose.queue_free()
 	shards.clear()
 	stones.clear()
 	called.clear()
-	if map_info != null:
-		map_info.boss_slain(boss, relic_at())
-	queue_free()
+	death.fall(map_info, boss, relic_at() if map_info != null else global_position)
 
 
 ## Where its relic waits: in the middle of the cell it stands in, or, that over a hole it was
@@ -921,8 +918,7 @@ func relic_at() -> Vector2:
 func _physics_process(delta: float) -> void:
 	_let_go()
 	if dying:
-		dead_t += delta
-		if dead_t >= DIE_TIME and not slain:
+		if death.step(delta):
 			_slain()
 		sync_fists()
 		return
@@ -1661,7 +1657,7 @@ func _process(delta: float) -> void:
 		_build_pose()
 	ink.global_position = Vector2.ZERO
 	ink.begin()
-	var u: float = clampf(dead_t / DIE_TIME, 0.0, 1.0) if dying else 0.0
+	var u: float = death.share()
 	var fade: float = 1.0 - u
 	var breath: float = 0.5 + 0.5 * sin(t * 2.4)
 	var stun: bool = stunned()

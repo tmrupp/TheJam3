@@ -1,9 +1,10 @@
 class_name LevelLoader
 extends Node
-## Puts places into the scene for MapInfo (its parent). One worker thread lays levels out (the
-## WFC collapse, then LevelGen), one at a time (the collapse is not shared safely): the level being
-## travelled to always goes first, otherwise the worker lays out the current place's neighbours
-## ahead of time, so most transitions find theirs already in the cache. A laid-out level is then
+## Puts places into the scene for MapInfo (its parent). Two worker threads lay levels out (the
+## WFC collapse, then LevelGen), each with a terrain generator of its own (the collapse is not
+## shared safely): one the place being travelled to, at once, the other the current place's
+## neighbours ahead of time, so most transitions find theirs already in the cache, and one that
+## does not never waits behind a neighbour being laid out. A laid-out level is then
 ## built in the scene: rock in the TileMap, a node for each thing it holds (place_cell), the camera
 ## fitted to it. While it is played, the level is cut into chunks, and those far from the camera
 ## sleep (see sleep_far_chunks).
@@ -27,24 +28,60 @@ const JITTER: float = 0.3
 const ENEMY_WALL: int = 512
 
 var info: MapInfo
-var thread: Thread = Thread.new()
-## The worker's own terrain generator: a copy of the scene's (MapInfo.wfc), kept out of the scene
-## tree. A node in the tree may only be touched from the main thread: driven from the worker, the
-## scene's own redrew and signalled off the main thread, which can crash the game or lock it up.
-var _worker_wfc: WaveFunctionCollapse
+
+
+## A worker thread laying levels out, one at a time.
+class Worker extends RefCounted:
+	var thread: Thread = Thread.new()
+	## Its own terrain generator: a copy of the scene's (MapInfo.wfc), kept out of the scene tree.
+	## A node in the tree may only be touched from the main thread: driven from a worker, the
+	## scene's own redrew and signalled off the main thread, which can crash the game or lock it up.
+	var wfc: WaveFunctionCollapse
+	## The place it is laying out, or null while it is idle.
+	var at: Variant = null
+
+	## Wait for the thread to finish (if it was started). The terrain generator reads its sample's
+	## pixels through the RenderingServer, which a worker can only do once the main thread has
+	## served it: so while waiting, keep serving it, or the two would wait on each other for ever
+	## (as when the scene is freed, back to the start menu, while a neighbour is still being laid
+	## out).
+	func join() -> void:
+		if not thread.is_started():
+			return
+		while thread.is_alive():
+			RenderingServer.force_sync()
+			OS.delay_msec(1)
+		thread.wait_to_finish()
+
+	## Join the thread and free the generator.
+	func close() -> void:
+		join()
+		if wfc != null:
+			wfc.free()
+			wfc = null
+
+
+## The worker for the place wanted (request), and the one laying neighbours out ahead of time.
+var _first: Worker = Worker.new()
+var _ahead: Worker = Worker.new()
 ## Collapsed cells by place, and laid-out levels by _world_key.
 var cache: Dictionary = {}
 var cache_order: Array[Vector2i] = []
 var worlds: Dictionary = {}
-## Places to lay out ahead of time, and the one waiting to be shown (or null).
+## Places to lay out ahead of time, those the map has asked for (world_at, laid out before them),
+## and the one waiting to be shown (or null).
 var prefetch: Array[Vector2i] = []
+var asked: Array[Vector2i] = []
 var wanted: Variant = null
 ## Whether arriving somewhere queues its neighbours for the worker (prefetch_neighbours). On in the
 ## game; the tests turn it off (TestKit.boot), as a test that jumps about would have the worker lay
 ## out levels it never visits, a core busy for each, and a jump made while it is busy waits behind
 ## one. A test of the worker itself turns it back on.
 static var prefetching: bool = true
-var gen_busy: bool = false
+## Whether a worker is laying a level out.
+var gen_busy: bool:
+	get:
+		return _first.at != null or _ahead.at != null
 ## Everything placed in the level being played.
 var map_elements: Node
 const MAP_ELEMENTS: PackedScene = preload("res://prefabs/map_elements.tscn")
@@ -59,10 +96,8 @@ func _init(owner_info: MapInfo) -> void:
 
 
 func _exit_tree() -> void:
-	_join()
-	if _worker_wfc != null:
-		_worker_wfc.free()
-		_worker_wfc = null
+	_first.close()
+	_ahead.close()
 
 
 ## Lay out place `at` (or take it from the cache) and signal ready_to_build when it is.
@@ -76,49 +111,53 @@ func request(at: Vector2i) -> void:
 		_pump()
 
 
-## Wait for the worker to finish (if it was started). The terrain generator reads its sample's
-## pixels through the RenderingServer, which a worker can only do once the main thread has served
-## it: so while waiting, keep serving it, or the two would wait on each other for ever (as when the
-## scene is freed, back to the start menu, while a neighbour is still being laid out).
-func _join() -> void:
-	if not thread.is_started():
-		return
-	while thread.is_alive():
-		RenderingServer.force_sync()
-		OS.delay_msec(1)
-	thread.wait_to_finish()
+## The places the workers are laying out: [the wanted place's worker's, the one laying out ahead's],
+## null where one is idle.
+func working() -> Array:
+	return [_first.at, _ahead.at]
 
 
-## Start the worker on the wanted place, else on the next neighbour not yet cached.
+## Start the workers: the wanted place on its own, unless the other is laying it out already (it
+## is shown when that one is done); on the other, the next place the map asked for, else the next
+## neighbour, not yet laid out.
 func _pump() -> void:
-	if gen_busy or not is_inside_tree():
+	if not is_inside_tree():
 		return
-	var next: Variant = wanted
-	while next == null and not prefetch.is_empty():
-		var c: Vector2i = prefetch.pop_front()
-		if laid_out(c) == null:
-			next = c
-	if next == null:
+	if wanted != null and _first.at == null and _ahead.at != wanted and laid_out(wanted as Vector2i) == null:
+		_start(_first, wanted as Vector2i)
+	if _ahead.at != null:
 		return
-	gen_busy = true
-	_join()
-	if _worker_wfc == null:
-		_worker_wfc = info.wfc.duplicate() as WaveFunctionCollapse
-	# Cells already collapsed are handed over, so the worker only lays the level out.
-	thread.start(_generate_threaded.bind(next as Vector2i, cache.get(next, [])))
+	var next: Variant = null
+	for queue: Array[Vector2i] in [asked, prefetch]:
+		while next == null and not queue.is_empty():
+			var c: Vector2i = queue.pop_front()
+			if laid_out(c) == null and c != _first.at and c != wanted:
+				next = c
+	if next != null:
+		_start(_ahead, next as Vector2i)
 
 
-## On the worker: the place's cells (unless given) and its layout, so neither stalls a frame.
-func _generate_threaded(at: Vector2i, cells: Array) -> void:
+## Set `worker` laying out place `at`: cells already collapsed are handed over, so it only lays
+## the level out.
+func _start(worker: Worker, at: Vector2i) -> void:
+	worker.at = at
+	worker.join()
+	if worker.wfc == null:
+		worker.wfc = info.wfc.duplicate() as WaveFunctionCollapse
+	worker.thread.start(_generate_threaded.bind(worker, at, cache.get(at, [])))
+
+
+## On a worker: the place's cells (unless given) and its layout, so neither stalls a frame.
+func _generate_threaded(worker: Worker, at: Vector2i, cells: Array) -> void:
 	if cells.is_empty():
-		cells = _worker_wfc.generate_level(Rules.def_for(at))
+		cells = worker.wfc.generate_level(Rules.def_for(at))
 	var built: LevelGen = LevelGen.new(cells, Rules.def_for(at))
-	_generated.call_deferred(at, cells, built)
+	_generated.call_deferred(worker, at, cells, built)
 
 
-func _generated(at: Vector2i, cells: Array, built: LevelGen) -> void:
-	_join()
-	gen_busy = false
+func _generated(worker: Worker, at: Vector2i, cells: Array, built: LevelGen) -> void:
+	worker.join()
+	worker.at = null
 	# Left the scene (back to the start menu, or a test tearing down): the result is not wanted,
 	# and no further work may start, or a thread would outlive this object.
 	if not is_inside_tree():
@@ -130,20 +169,16 @@ func _generated(at: Vector2i, cells: Array, built: LevelGen) -> void:
 	_pump()
 
 
-## Another place's layout (for the map): one laid out already, or one laid out now from its seed
-## (places are deterministic). Null while the worker is busy (try again next frame).
+## Another place's layout (for the map): one laid out already, else null, and it is laid out on a
+## worker (places are deterministic), never in the frame: ask again (the map does, each frame).
 func world_at(at: Vector2i) -> LevelGen:
 	var w: LevelGen = laid_out(at)
 	if w != null:
 		return w
-	var cells: Variant = cache.get(at)
-	if cells == null:
-		if gen_busy:
-			return null
-		cells = info.wfc.generate_level(Rules.def_for(at))
-	w = LevelGen.new(cells, Rules.def_for(at))
-	_cache_put(at, cells, w)
-	return w
+	if not asked.has(at):
+		asked.append(at)
+	_pump()
+	return null
 
 
 ## Take `built`, laid out from `cells`, as place `at`'s layout, as though it had been laid out here:
@@ -298,7 +333,7 @@ func place_cell(v: Vector2i, cell: LevelGen.Cell) -> void:
 		if not bool(node.get_meta(&"hidden")):
 			(node as CollisionObject2D).collision_layer = ENEMY_WALL
 	if cell.type == LevelGen.Type.CLUSTER:
-		# A vault's lesser cluster is worth a share of a full one (LevelGen.VAULT_LOOT).
+		# A vault's lesser cluster is worth a share of a full one (Vaults.LOOT).
 		var share: float = float(cell.extra_info) if cell.extra_info != null else 1.0
 		(node as Coin).value = maxi(2, roundi(Rules.cluster_value(info.here.depth) * share))
 	# A boss keeps its health on its parts (the worm's segments, the bramble's bulbs), not on itself.

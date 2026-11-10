@@ -22,7 +22,7 @@ func run() -> void:
 	camera = main.get_node("Camera2D") as Camera2D
 	await go(Vector2i(28, NextWorldDef.first_depth(&"cemetery")), false)
 	camera.zoom *= ZOOM
-	player.set_physics_process(false)
+	freeze()
 	player.get_node("CameraControl").set_process(false)
 	var at: Vector2i = _run(3)
 	await skeleton(at)

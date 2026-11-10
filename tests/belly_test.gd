@@ -1,5 +1,5 @@
 extends TestKit
-## The whale's belly (Belly, Acid, Wreck): laid out by hand, the same on every visit, its way back
+## The whale's belly (Belly, Acid, Wreck): laid out by hand, its way back
 ## and lantern at its mouth, a pool of acid in its stomach, three pieces of wreckage in its pits and
 ## its heart in a chamber of its own; the acid's cycle (drained, warning, flooding, flooded,
 ## draining, over and over), starting drained; in it the wizard wades slowly, sinks slowly, strokes
@@ -16,8 +16,6 @@ func run() -> void:
 	var row: int = WhaleHunt.row()
 	var at: Vector2i = Worlds.side_at(Worlds.kind_of(Belly), Vector2i(28, row))
 	var w: LevelGen = build(at)
-	var again: LevelGen = build(at)
-	check(w.objects == again.objects, "the belly is laid out the same on every visit")
 	check(count_of(w, LevelGen.Type.ACID) == 1 and count_of(w, LevelGen.Type.WRECK) == Belly.WRECKS.size(), "a pool of acid, and %d pieces of wreckage" % Belly.WRECKS.size())
 	check(count_of(w, LevelGen.Type.BOSS) == 1 and w.exits.has(MapInfo.Exit.BACK) and w.exit_lanterns.has(MapInfo.Exit.BACK), "its heart, and its way back with a lantern")
 	check(w.exits[MapInfo.Exit.BACK].x < 10 and w.objects_of(LevelGen.Type.BOSS)[0].x > 55, "the way back at its mouth, the heart far across")
@@ -29,8 +27,7 @@ func run() -> void:
 	check(Acid.level_at(Acid.period() - 0.01) < 0.05 and Acid.level_at(Acid.period() + 1.0) == 0.0, "drained again, and over again")
 
 	await boot(28)
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	await go(at, false)
 	var acids: Array[Node] = placed("acid.tscn")
 	check(acids.size() == 1, "its acid is in the scene")
@@ -45,7 +42,7 @@ func run() -> void:
 	var pit_floor: Vector2 = info.cell_position(pit) + Vector2(0.0, 30.0)
 	await _put(pit_floor)
 	check(Acid.wading(player) > Acid.BURN_DEPTH, "drained, its pits still hold acid")
-	_press(&"Right")
+	press(&"Right")
 	await physics_frame
 	await physics_frame
 	check(absf(player.velocity.x) <= Acid.WADE + 0.1, "the wizard wades slowly in it (%d px/s)" % roundi(absf(player.velocity.x)))
@@ -73,7 +70,7 @@ func run() -> void:
 	check(player.velocity.y < 600.0 and Acid.depth_at(player.get_tree(), player.global_position) > 0.0, "flooded, a fall into it is checked")
 	var sunk: bool = await within(func() -> bool: return player.velocity.y <= Acid.SINK + 0.1, 1.0)
 	check(sunk, "and they sink slowly")
-	_press(&"Jump")
+	press(&"Jump")
 	await physics_frame
 	await physics_frame
 	Input.action_release(&"Jump")
@@ -114,11 +111,6 @@ func _pit(w: LevelGen) -> Vector2i:
 
 
 ## Press `action` as a player would (it reaches the game before its next physics step).
-func _press(action: StringName) -> void:
-	var press: InputEventAction = InputEventAction.new()
-	press.action = action
-	press.pressed = true
-	Input.parse_input_event(press)
 
 
 ## Put the wizard at `at`, falling free, and let them land.

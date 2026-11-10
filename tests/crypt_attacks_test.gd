@@ -16,6 +16,8 @@ const DART_AHEAD: Vector2 = Vector2(220.0, 50.0)
 
 
 func run() -> void:
+	# It reads what the art does (TestKit.art).
+	art(true)
 	if not needs([&"cemetery"]):
 		finish()
 		return

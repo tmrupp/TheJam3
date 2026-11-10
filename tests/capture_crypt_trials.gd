@@ -56,7 +56,7 @@ func run() -> void:
 	player.global_position = info.cell_position(clear[0])
 	await until(func() -> bool: return player.is_on_floor())
 	Abilities.cast(player, &"utility")
-	player.set_physics_process(false)
+	freeze()
 	var mark: Node2D = placed("grave_mark.tscn")[0] as Node2D
 	player.global_position = mark.global_position + Vector2(-110, 0)
 	await _look(mark.global_position + Vector2(-50, -50), "grave_mark.png", 2.2)

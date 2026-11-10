@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The whale (Whale, WhaleHunt, Belly, WhaleHeart): in its world on the sky's top row, and in no
 ## gate level of its own; huge, swimming above the top of its level so only its underside hangs into
 ## view, from fully off one side to fully off the other and back; free, it cannot be struck and
@@ -32,8 +33,7 @@ func run() -> void:
 		return
 	check(build(Vector2i(x, row)).objects_of(LevelGen.Type.BOSS).is_empty(), "no gate level holds the whale")
 	await boot(x)
-	player.health.max_health = 99
-	player.health.health = 99
+	sturdy()
 	print("free")
 	info.run.whale_x = x
 	await go(Vector2i(x, row))
@@ -84,7 +84,7 @@ func run() -> void:
 	check(gulped and player.health.health < hp and not Worlds.is_side(info.coord), "free, its gobble is a blow, and the belly is not reached")
 	var climbed: bool = await within(func() -> bool: return whale.phase == Whale.Phase.CRUISE, Whale.DIVE + Whale.CLIMB + 1.0)
 	check(climbed and whale.z_index == Whale.Z_CRUISE, "it climbs back and swims on behind the islands")
-	player.set_physics_process(false)
+	freeze()
 
 	print("trapped")
 	for side: int in [-1, 1]:
@@ -110,7 +110,7 @@ func run() -> void:
 		heart.wound.hit(1, Vector2.RIGHT)
 	info.travel(MapInfo.Exit.BACK)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	check(info.coord == Vector2i(x, row), "its way back leads out to its level")
 	whale = placed("whale.tscn")[0] as Whale
 	await _into(whale)
@@ -123,7 +123,7 @@ func run() -> void:
 			heart.wound.hit(1, Vector2.RIGHT)
 	var out: bool = await until(func() -> bool: return info.coord == Vector2i(x, row) and not info.travelling, 15000)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	check(out and info.run.bosses.has(&"whale"), "its heart burst, the whale is slain and the wizard spat out into its level")
 	var on: Vector2 = info.cell_position(info.world.exits[MapInfo.Exit.DEEPER])
 	check(player.global_position.distance_to(on) < 140.0 and _exit(MapInfo.Exit.DEEPER).sealed() == &"", "by the way on, now open")
@@ -219,7 +219,7 @@ func _into(whale: Whale) -> bool:
 	held = held and not player.visible and player.global_position.distance_to(whale._world(whale._resting())) < 60.0
 	await until(func() -> bool: return Worlds.is_side(info.coord) and not info.travelling, 15000)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	return held
 
 

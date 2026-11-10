@@ -14,7 +14,10 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
     handed to the layout as `LevelGen.patches`), and their prizes. `Institute.gd`: the
     institute's halls of marble (`LevelGen.halls`) and who is in them. `Timetable.gd`: its
     timetable's rules (periods, when each hall is in session, where the wizard belongs, which
-    spell a glyph seal asks for); `MapInfo` plays it out.
+    spell a glyph seal asks for); `MapInfo` plays it out. `Secrets.gd` and `Vaults.gd`: the secret
+    rooms and the vaults (the bone vault too), laid last; what they lay is kept on the level
+    (`LevelGen.secrets`, `vaults`). `Sites.gd`: the one search for where a walled box goes (a
+    crypt, a hall), over `CellSums.gd`, how many cells of a kind lie in any box, counted at once.
   - `Placeables.gd`: one table, by `LevelGen.Type`, of each thing's prefab, art kind, box size and
     flags (enemy, stander, floats, colored). Loading, the art dresser and the map read it.
   - `RunState.gd`: the run (records, the lantern to come back to, the ghost, relics) and saving it.
@@ -121,8 +124,10 @@ bash tests/run.sh sky_test        # just these, headless
 bash tests/run.sh -l garden full  # the suite on another band layout (the demo's)
 ```
 
-- A test's tier is a line near its top: `## suite: full` (slow, or known broken) or
-  `## suite: window` (needs a rendered window; never run these headless by name).
+- A test's tier is a line near its top: `## suite: full` (over 15 s, or known broken) or
+  `## suite: window` (needs a rendered window; never run these headless by name). The quick run is
+  the rest, a few minutes; a test that grows past 15 s is tagged full, or split along its seams
+  (`bridge_walk_deeper_test` extends `bridge_walk_test`, walking another level beside it).
 - A test passes on exit 0 with no `FAIL`, `SCRIPT ERROR` or `Parse Error` in its log. A test that
   fails alongside others but passes alone is reported FLAKY. Logs go to `/tmp/thejam3-tests/`.
   The runner starts the slowest tests first, by each test's seconds in its last run (kept in
@@ -136,8 +141,10 @@ bash tests/run.sh -l garden full  # the suite on another band layout (the demo's
   the same for windowed tests (`-s N` or `$TEST_SCREEN` to choose another, 0 for the primary).
   `capture_overview.gd` photographs whole levels, every band and a few worlds each, to look over
   many layouts at once (options after `--`, e.g. `-- bands=crags worlds=6`).
-- A test that freezes the wizard (physics off) and moves them calls `still()` (TestKit) before
-  their physics runs again, or a dash or knock-back under way carries on from the new place.
+- A test that freezes the wizard (`freeze()`, physics off) and moves them calls `still()` (TestKit)
+  before their physics runs again, or a dash or knock-back under way carries on from the new place.
+  The kit also has `sturdy()` (99 hearts, for a fight that is not about the wizard's health),
+  `press(action, down)` (a press or release, as a player's reaches the game) and `tap(action)`.
 - Windowed runs on the kit stay out of the owner's way: muted, the window off every screen
   (`TestKit.out_of_sight`; minimized, Windows stops it drawing). Add `-- watch` to see and hear one.
 - The generation lab, `tools/gen_lab/gen_lab.tscn` (open it in the editor and press F6, or
@@ -159,6 +166,16 @@ bash tests/run.sh -l garden full  # the suite on another band layout (the demo's
   dealt (over 600 columns); on the left, sums of what is in view and over 200 runs (steps to each
   boss, the nearest relic and skeleton key). Pick the band layout there. `world_atlas_test` checks
   it against the rules; `tests/capture_world_atlas.gd` takes stills.
+- The benches, `tests/bench_*.gd` (each prints `BENCH` lines; all but `bench_gen` want a window):
+  `bench_gen` (laying a level out, collapse and layout apart; `-- passes`, each pass of the layout,
+  band by band), `bench_load` (arriving at a level, step by step, and its first frames),
+  `bench_frame` (a steady frame by pass, then by script), `bench_walk` (standing and walking),
+  `bench_profile` (the script profiler over a steady frame; run with `-d`), `bench_gpu` (CPU or GPU
+  bound, and the GPU's passes), `bench_print` (the print's GPU passes), `bench_crowd` (an animated
+  kind's art in a crowd), `bench_rig` (a rig on the GPU against in script), `bench_chunks` (what
+  sleeping far chunks saves) and `bench_big_level` (a deep level, each printed system off in turn).
+  `run.sh`'s summary gives the share of a run spent laying levels out (`TestKit.build`'s tally).
+  Use these before writing a probe of your own (`docs/PERF_PLAN.md`).
 - `tests/dump_garden.gd` prints what every garden row holds over many worlds (foes, stars against
   the way on's price, keys and doors).
 - Each test sets its own `RunState.save_path` (`user://<test>.save`), so they can run in parallel.
@@ -172,10 +189,17 @@ bash tests/run.sh -l garden full  # the suite on another band layout (the demo's
   alone, `build(at)` and `collapse(at)` lay a place out without the game scene, which is far faster
   than booting the game. In a test the loader lays out no neighbours ahead of time
   (`LevelLoader.prefetching`, off from the kit's start): set it on for a test of the worker
-  (`revisit_test`, `interface_test`). `until` polls on process frames: a step timed in physics frames (a dash, a
+  (`revisit_test`, `interface_test`). Headless, the art prints nothing frame by frame
+  (`RisoPrint.prints_art`, off from the kit's start; nothing printed is seen there): a test that
+  reads what the art does (a wisp's trail, the light's sight) calls `art(true)` first. `until` polls on process frames: a step timed in physics frames (a dash, a
   jump) wants an `await physics_frame` after it. `until`'s timeout is wall-clock time; for
   something the game times itself (a cooldown, a regrowth) use `within(cond, game_seconds)`, which
-  counts physics frames, as a busy machine runs the game slower than the clock. The kit runs one
+  counts physics frames, as a busy machine runs the game slower than the clock. `run.sh` runs the
+  headless tests at a fixed step (`--fixed-fps 60`, as fast as the machine allows), so the game's
+  own time and the clock part there too: game logic reads `GameClock` (game seconds counted in
+  physics steps, the hit-stop timed on them too; an order stamp for what happened first within a
+  step), never `Time.get_ticks_*`; a test waits on something real-time (audio) with `wall(seconds)`
+  and times the game with `GameClock.now()` or `within`, never the clock. The kit runs one
   physics step a frame, so a press made with `Input.parse_input_event` always reaches the game
   before the next physics step, however loaded the machine. `bash tests/run.sh -j 16 full` loads
   the machine harder, to shake out tests that depend on timing. Every test is on the kit: don't give
@@ -210,7 +234,9 @@ bash tests/run.sh -l garden full  # the suite on another band layout (the demo's
 ## Level generation: determinism matters
 
 - Everything comes from `level_seed(world, depth)` and the difficulty preset (`Difficulty`). A
-  level must be identical on every visit: tests compare two builds (`w.objects == again.objects`).
+  level must be identical on every visit: `determinism_test` lays a broad sample out twice and
+  compares every property of the two (`revisit_test` a level loaded twice in the game). Other tests
+  build a level once and check what it holds; they do not build it again to compare.
   The fingerprints are of the default preset (Hard); Normal lays levels out as they were before
   the presets.
 - The world RNG is shared and ordered. Adding, removing or reordering an `rng` draw (or a forced
@@ -227,6 +253,10 @@ bash tests/run.sh -l garden full  # the suite on another band layout (the demo's
   draw from `world.rng`, or it differs from one visit to the next (`revisit_test`).
 - Key and door colours are dealt by rarity once a level is laid out (`LevelGen.deal_colors`, hashing
   the level seed, no RNG) and kept in each cell's `extra_info`; `RisoMap.dealt_colors` reads them.
+- What a cell is: `type_at(v)` (from `LevelGen.types`, a byte a cell kept in step by `set_cell`,
+  which every change of a cell goes through), `is_ground`, `_open`. A search that asks of many
+  cells or boxes makes a mask or `CellSums` once rather than testing cell by cell.
+  `bench_gen -- passes` prints what each pass of the layout costs, band by band (`LevelGen.on_pass`).
 - Placement helpers live on `LevelGen`: `put(v, type, extra)`, `put_random(type, test, force)`,
   `pop_if_random_empty(filter, force)`, `empties_where(test)` and `free_floors()` (sorted),
   `pick(items)` and `pop_pick(items)` (one draw each), `pick_apart` and `spread_out` (spots kept

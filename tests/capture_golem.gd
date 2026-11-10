@@ -16,9 +16,8 @@ func run() -> void:
 	var golem: Golem = placed("golem.tscn")[0] as Golem
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
 	player.get_node("CameraControl").set_process(false)
-	player.health.max_health = 99
-	player.health.health = 99
-	player.set_physics_process(false)
+	sturdy()
+	freeze()
 	for bow: Node in placed("crossbow.tscn"):
 		bow.set_physics_process(false)
 	var box: Rect2i = info.world.keep["box"]

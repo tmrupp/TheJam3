@@ -17,9 +17,11 @@ const WALK_FRAMES: int = 600
 
 
 func run() -> void:
+	# It reads what the art does (TestKit.art).
+	art(true)
 	drop_shape()
 	await boot()
-	player.set_physics_process(false)
+	freeze()
 	player.get_node("CameraControl").set_process(false)
 	player.global_position = Vector2(-9000, -9000)
 	wisps_meet()
@@ -88,7 +90,13 @@ func open_turn() -> void:
 	var tail_on: bool = true
 	var drop: PackedVector2Array = PackedVector2Array()
 	var round_px: float = WispArt.wisp_drop_round() * art.wisp_drop_len
+	# Not on the turn's last frame: then the mover, which times the turn in physics steps, may have
+	# ended it and stepped off, while the art, which adds up its frames' times, draws its last bit.
+	var last_frame: float = 1.0 / float(Engine.physics_ticks_per_second)
 	while art.t - art.wisp_turn_t0 < Mover.TURN_TIME:
+		if art.t - art.wisp_turn_t0 >= Mover.TURN_TIME - last_frame:
+			await process_frame
+			continue
 		# Where the drop's point is, from where the head is on it now: the same every frame while
 		# the head stays on the drop.
 		var at: Vector2 = art._trail[0] - art._drop_at(art._drop_e, side)

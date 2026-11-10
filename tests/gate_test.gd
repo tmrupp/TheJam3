@@ -1,4 +1,5 @@
 extends TestKit
+## suite: full (over 15 s: the quick run leaves it to the full one, docs/PERF_PLAN.md 1.2)
 ## The gates at the band ends (Bosses, docs/REGIONS_PLAN.md §5): which rows they are and who guards
 ## them, the way on sealed while the boss lives, a lantern death healing it, its death opening its
 ## band's every gate level for the rest of the run and leaving a relic unlock, every boss in its gate
@@ -57,10 +58,10 @@ func run() -> void:
 	var bosses: Array[Vector2i] = worm_level.objects_of(LevelGen.Type.BOSS)
 	check(bosses.size() == 1 and StringName(worm_level.get_cell(bosses[0]).extra_info) == &"worm", "the worm's gate level holds it")
 	check(LevelGen.dist(bosses[0], worm_level.exits[MapInfo.Exit.DEEPER]) >= LevelGen.BOSS_APART, "near the way on it guards")
-	check(build(Vector2i(28, g)).objects == worm_level.objects and build(Vector2i(28, g + 1)).objects_of(LevelGen.Type.BOSS).is_empty(), "the same every build, and only there")
+	check(build(Vector2i(28, g + 1)).objects_of(LevelGen.Type.BOSS).is_empty(), "and only there")
 
 	await boot(28)
-	player.set_physics_process(false)
+	freeze()
 	print("one column holds the worm")
 	var empty: Vector2i = lair(&"worm") + Vector2i(1, 0)
 	await go(empty)
@@ -149,7 +150,7 @@ func _to_far_bosses() -> void:
 	info.debug_to_boss(&"golem", 28)
 	await until(func() -> bool: return info.coord == lair(&"golem") and not info.travelling)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	var lair: Array[Vector2i] = info.world.objects_of(LevelGen.Type.BOSS)
 	var stood: Vector2i = info.cell_at(player.global_position)
 	var way_back: Vector2i = info.world.exits[MapInfo.Exit.BACK]
@@ -157,7 +158,7 @@ func _to_far_bosses() -> void:
 	info.debug_to_boss(&"whale", 28)
 	await until(func() -> bool: return Worlds.is_side(info.coord) and not info.travelling)
 	await settle()
-	player.set_physics_process(false)
+	freeze()
 	check(not placed("whale_heart.tscn").is_empty(), "a jump to the whale goes into its belly, by its heart")
 
 

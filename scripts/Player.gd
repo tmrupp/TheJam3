@@ -83,16 +83,17 @@ func end_invulnerable() -> void:
 	graced.end()
 	graced.refresh()
 
-## When (real seconds) the wizard last took a hit, wounded or on the ward (Parry.glory reads it),
-## and in which physics frame (Spikes reads it, to know its hit landed).
-var hit_at: float = -INF
+## When the wizard last took a hit, wounded or on the ward, as an order stamp (GameClock.order:
+## Parry.glory asks whether it came before the last catch), and in which physics frame (Spikes reads
+## it, to know its hit landed).
+var hit_order: int = -1
 var hit_frame: int = -1
 
 func normal_hurt (damage: int, v: Vector2, _attacker: Node) -> void:
 	if not is_invulnerable():
-		# To the microsecond, as the catch is (Parry.parried_real): a hit in the same millisecond
-		# as a catch still counts as after it.
-		hit_at = Time.get_ticks_usec() / 1000000.0
+		# Stamped in order, as the catch is (Parry.parried_order): a hit in the same physics step as
+		# a catch, after it, still counts as after it.
+		hit_order = GameClock.order()
 		hit_frame = Engine.get_physics_frames()
 		# The ward perk takes the hit, if it has a charge: knocked back and untouchable, no heart lost.
 		var ward: Ward = get_node_or_null("Ward") as Ward
@@ -893,7 +894,7 @@ func _safe_at(info: MapInfo, at: Vector2) -> bool:
 		reach = collider.shape.get_rect().size.x * 0.5 * absf(collider.global_scale.x)
 	for dx: float in [-reach, 0.0, reach]:
 		var v: Vector2i = info.cell_at(at + Vector2(dx, 0))
-		if info.world.is_valid(v) and info.world.get_cell(v).type == LevelGen.Type.SPIKES:
+		if info.world.is_valid(v) and info.world.type_at(v) == LevelGen.Type.SPIKES:
 			return false
 	return true
 
