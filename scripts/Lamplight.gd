@@ -68,6 +68,27 @@ static func away(pos: Vector2) -> Vector2:
 
 
 ## The lights of the level being played (see the class note), as (x, y, reach as lit).
+## The lanterns among `elements` (the level's things), gathered again only when they are another
+## level's or their number changed: lanterns are only placed as a level is built, and walking every
+## thing in a deep level each physics step to find them cost more than all the rest of the light.
+static func _lanterns_in(elements: Node) -> Array[Checkpoint]:
+	if elements.get_instance_id() != _lanterns_of or elements.get_child_count() != _lanterns_among:
+		_lanterns_of = elements.get_instance_id()
+		_lanterns_among = elements.get_child_count()
+		_lanterns.clear()
+		for node: Node in elements.get_children():
+			var lantern: Checkpoint = node as Checkpoint
+			if lantern != null:
+				_lanterns.append(lantern)
+	return _lanterns
+
+
+## The lanterns gathered (_lanterns_in), from which level's things, and how many things it held.
+static var _lanterns: Array[Checkpoint] = []
+static var _lanterns_of: int = 0
+static var _lanterns_among: int = -1
+
+
 static func lights(info: MapInfo) -> Array[Vector3]:
 	var frame: int = Engine.get_physics_frames()
 	if frame == _frame:
@@ -79,9 +100,8 @@ static func lights(info: MapInfo) -> Array[Vector3]:
 		var eye: Vector2 = RisoLight.eye(player)
 		_lights.append(Vector3(eye.x, eye.y, carried_reach(info) * LIT_SHARE))
 	if info.map_elements != null and is_instance_valid(info.map_elements):
-		for node: Node in info.map_elements.get_children():
-			var lantern: Checkpoint = node as Checkpoint
-			if lantern == null or lantern.is_queued_for_deletion() or info.is_lantern_spent(lantern):
+		for lantern: Checkpoint in _lanterns_in(info.map_elements):
+			if not is_instance_valid(lantern) or lantern.is_queued_for_deletion() or info.is_lantern_spent(lantern):
 				continue
 			var reach: float = RisoLight.RESPAWN_REACH if info.is_respawn_lantern(lantern) else RisoLight.FAINT_REACH
 			var at: Vector2 = info.cell_position(info.cell_at(lantern.global_position)) + Vector2(0, -LANTERN_RISE)
