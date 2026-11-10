@@ -275,11 +275,36 @@ func paste_seed() -> void:
 		world_seed.text = m.get_string()
 
 
+## The settings page's button that forgets what the map knows from run to run (Known), and what
+## it says before and after.
+var forget_map: Button
+const FORGET_MAP: String = "Forget the map"
+const MAP_FORGOTTEN: String = "Map forgotten"
+
+
+## Put the forget-the-map button on the settings page, over its last row, shaped as its Credits
+## button is.
+func _add_forget_map() -> void:
+	forget_map = Button.new()
+	forget_map.name = "ForgetMap"
+	forget_map.text = FORGET_MAP
+	forget_map.size_flags_horizontal = credits_button.size_flags_horizontal
+	forget_map.custom_minimum_size = credits_button.custom_minimum_size
+	forget_map.add_theme_font_size_override(&"font_size", credits_button.get_theme_font_size(&"font_size"))
+	var last: Node = settings_page.get_node("Last")
+	settings_page.add_child(forget_map)
+	settings_page.move_child(forget_map, last.get_index())
+	forget_map.pressed.connect(func() -> void:
+		Known.forget()
+		forget_map.text = MAP_FORGOTTEN)
+
+
 ## Open the settings page in place of the menu's list, the first row in focus.
 func open_settings() -> void:
 	list.visible = false
 	settings_page.visible = true
 	_show_settings()
+	forget_map.text = FORGET_MAP
 	(steps[&"master"] as Button).grab_focus()
 
 
@@ -440,6 +465,7 @@ func _ready() -> void:
 	settings_back.pressed.connect(close_settings)
 	controls_button.pressed.connect(open_controls)
 	credits_button.pressed.connect(open_credits)
+	_add_forget_map()
 	controls_reset.pressed.connect(reset_controls)
 	controls_back.pressed.connect(close_controls)
 	credits_back.pressed.connect(close_credits)

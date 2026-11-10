@@ -308,6 +308,15 @@ level's map and the worlds map hold what was seen; a boss's column met in one ru
 the next on that seed and not on another; a stamp that does not match drops the level; nothing is
 kept from a debug run. `map_test` and `map_worlds_test` stay as they are, on a clean file.
 
+*Done:* `Known` (`scripts/level/Known.gd`), its file apart from the save, by place and by seed as
+above; noted as the run saves, ends or is won, never from a debug run; taught to a new run at its
+start, and each level's seen cells merged back as it is laid out, if its stamp still matches. The
+first pass keeps ordinary levels only (the *Open* above). The old knowledge prints as this run's
+on a level's page; on the worlds map a level known from before and not visited this run is a pale
+blue tile (`RisoMap.KNOWN_TILE`). "Forget the map" on the start menu's settings page clears it.
+At most 300 places. `known_test` covers it; tests write theirs to `user://<test>.known`, begun
+empty. Section 5's "a won seed keeps its map" comes with it: a win notes the run too.
+
 ## 5. A firm ending for the demo
 
 *Now:* with every boss's trophy on its stand in the tutorial's trophy room, the run is won

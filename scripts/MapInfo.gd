@@ -860,6 +860,8 @@ func hint_relic () -> Variant:
 ## depth 0 through the tutorial's way out.
 func start_run (seed_value: int, row: int = 0, tutorial: bool = false) -> void:
 	run.start(seed_value)
+	# What the map knew of this world in runs before (Known).
+	Known.teach(run)
 	coord = Vector2i(seed_value, row)
 	# At the start, its own place for a run's first steps; elsewhere (the generation lab), its way back.
 	arrival = -1 if row == 0 else Exit.BACK
@@ -1023,6 +1025,11 @@ func _level_ready (built: LevelGen) -> void:
 	_spawn_plant_door()
 	_spawn_swarm()
 	var rec: LevelRecord = record()
+	# What was seen of it in runs before, if it is laid out as it was then (Known).
+	if not Worlds.is_side(coord):
+		var known: PackedByteArray = Known.seen_for(coord, world)
+		if not known.is_empty():
+			rec.seen = Known.merged(rec.seen_for(world.size.x * world.size.y), known)
 	# Secret rooms already opened: their rewards (the rest of the room stays broken, see
 	# open_secret). After everything else, so the rest of the level lands where it always has.
 	for id: int in rec.secrets:
@@ -2041,6 +2048,7 @@ func recover_ghost () -> void:
 func end_run () -> void:
 	if run_ending > 0.0:
 		return
+	Known.note(self)
 	RunState.delete_save()
 	run_ending = RUN_END_SECONDS
 	player.set_physics_process(false)
@@ -2063,6 +2071,7 @@ func win_run () -> void:
 		return
 	won = true
 	Trophy.note_won(Bands.bosses())
+	Known.note(self)
 	RunState.delete_save()
 	run_ending = 1.0
 	won_for = 0.0
@@ -2108,6 +2117,7 @@ func save_run () -> void:
 	if player == null or world == null or run_ending > 0.0:
 		return
 	RunState.write_save(run.to_save(coord, player.to_save()))
+	Known.note(self)
 
 ## Resume the saved run at its last lit lantern. False when there is nothing to continue.
 func continue_run () -> bool:
