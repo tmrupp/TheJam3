@@ -50,7 +50,21 @@ func _prefetching() -> void:
 	var idle: Callable = func() -> bool: return not info.loader.gen_busy and info.loader.prefetch.is_empty()
 	check(await until(idle, 120000), "with prefetching on, the worker lays them out and stops")
 	check_eq(ahead.call(), next.size(), "every one of them laid out ahead of time")
+	# A place wanted while the worker ahead is busy is laid out at once, by a worker of its own:
+	# the neighbours of a place further along are being laid out, and the wizard jumps elsewhere.
+	info.loader.prefetch_neighbours(Rules.def_for(info.coord + Vector2i(5, 0)))
+	var busy_ahead: Variant = info.loader.working()[1]
+	var far: Vector2i = info.coord + Vector2i(9, 0)
+	info.jump_to(far)
+	check(busy_ahead != null and info.loader.working() == [far, busy_ahead], "a place wanted while a neighbour is laid out ahead is laid out at once beside it (%s beside %s)" % [far, busy_ahead])
+	await settle()
+	check(info.coord == far and info.world == info.loader.laid_out(far), "and the wizard arrives there")
+	check(await until(idle, 120000), "then both workers stop")
 	LevelLoader.prefetching = false
+	# The map's asks for places not laid out are laid out on a worker, never in the frame.
+	var other: Vector2i = far + Vector2i(4, 0)
+	check(info.world_at(other) == null and info.loader.working()[1] == other, "a place the map asks for is laid out on a worker, not in the frame")
+	check(await until(func() -> bool: return info.world_at(other) != null, 60000), "and the map has it once it is")
 
 
 ## Each floating pickup's offset from its cell's centre and each lift's phase, by kind and cell.

@@ -48,6 +48,9 @@ func run() -> void:
 	for i: int in range(4):
 		await process_frame
 	check(int(map.get("view")) == 1 and map.get("viewing") == first, "opening it shows that level's page")
+	# Laid out on a worker, never in the frame: the page shows it once it is there.
+	await until(func() -> bool: return info.world_at(first) != null, 60000)
+	await frames(4)
 	var w: LevelGen = info.world_at(first)
 	check(w != null and w.size.x > 0, "its layout is rebuilt from its seed")
 	check(first_seen > 0 and (map.get("rock") as Sprite2D).visible and (map.get("rock") as Sprite2D).texture != null, "and its seen map is drawn (%d cells seen)" % first_seen)
