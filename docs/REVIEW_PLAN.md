@@ -352,6 +352,18 @@ buy a boon without it, so the shrine's lesson in choosing does not depend on the
 *Open:* whether the reward is stars alone or something that says more (an exam paper to learn at
 a lantern).
 
+*Done* (the roof): the bed is eleven thorns wide (once ten: at twelve, the third bounce of a
+steady rhythm came down on the far edge's corner and slid down its side onto the thorns), with
+its card at its edge. A roof of rock three rows over it (row 7, the bed's thorns in row 11) runs
+from the edge before it to the edge past it, so the jump into the bed and each bounce clear it (a
+jump rises about 1.5 cells, a bounce about 0.4 over standing height). At either end three steps a
+cell high lead up to it: the first on the floor, the other two ledges with a gap before each, so
+the floor runs on under them to the bed's edge. The reward is two star clusters (20 stars) in the
+bed's middle two cells, just over the thorns, where a bounce takes them and a jump and a dash from
+either edge (which come down on the bed's fifth cell) do not. Without them the hall holds 23
+stars, enough for the shrine's first boon (20). The hall is 169 cells long (once 153). The roof's
+height was set by measuring the jump and the bounce in the game, not by playing it: play it.
+
 *Tests:* `tutorial_test`: the way out, the shrine and the trophy stands are reached without
 touching the bed; the pogo card still stands and is cleared by a pogo; the reward is there and
 is the same on every visit. `trophy_test` for the stands' places if the hall's length changes.
