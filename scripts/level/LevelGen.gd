@@ -321,7 +321,13 @@ func empties_where (test: Callable) -> Array[Vector2i]:
 
 ## The free floors (open cells with rock under them), sorted.
 func free_floors () -> Array[Vector2i]:
-	return empties_where(func(v: Vector2i) -> bool: return ground_below(v) and type_at(v) == Type.EMPTY)
+	var out: Array[Vector2i] = []
+	for v: Vector2i in empties:
+		# Open air (not a thing) with rock straight under it.
+		if v.y + 1 < size.y and types[v.x * size.y + v.y] == Type.EMPTY and types[v.x * size.y + v.y + 1] == Type.GROUND:
+			out.append(v)
+	out.sort()
+	return out
 
 ## The free cells (`empties`) as a set, for looking up many times.
 func empty_set () -> Dictionary:
@@ -598,20 +604,24 @@ func _open_regions () -> Array:
 
 ## Add the open region containing `from` to `into`.
 func _flood (from: Vector2i, into: Dictionary) -> void:
-	reach_from(from, func(_v: Vector2i) -> bool: return true, into)
+	reach_from(from, Callable(), into)
 
 ## Every cell reached from `start` through open air (4-neighbour), where `passable(cell)` also
-## holds; a set (cell -> true), `start` among them. Given `into`, the cells already in it are not
-## walked through again and those found are added to it. The order cells are found in is not
-## kept: sort before drawing.
-func reach_from (start: Vector2i, passable: Callable = func(_v: Vector2i) -> bool: return true, into: Dictionary = {}) -> Dictionary:
+## holds (every open cell, without it); a set (cell -> true), `start` among them. Given `into`,
+## the cells already in it are not walked through again and those found are added to it. The
+## order cells are found in is not kept: sort before drawing.
+func reach_from (start: Vector2i, passable: Callable = Callable(), into: Dictionary = {}) -> Dictionary:
+	var any: bool = passable.is_null()
 	var stack: Array[Vector2i] = [start]
 	into[start] = true
 	while not stack.is_empty():
 		var v: Vector2i = stack.pop_back()
 		for d: Vector2i in neighbor_offsets:
 			var n: Vector2i = v + d
-			if not into.has(n) and _open(n) and passable.call(n):
+			if n.x < 0 or n.y < 0 or n.x >= size.x or n.y >= size.y or into.has(n):
+				continue
+			var t: int = types[n.x * size.y + n.y]
+			if t != Type.GROUND and t != Type.CRACKED and (any or passable.call(n)):
 				into[n] = true
 				stack.append(n)
 	return into
@@ -848,6 +858,15 @@ var shut: Dictionary = {}
 ## passes that build what a boss needs into its gate level (the beast's chamber, Institute).
 var gate: StringName = &""
 
+## For the benches (bench_gen -- passes): called with each pass's name as laying a level out
+## finishes it (the passes of populate_level, then those _init does after it). Empty in the game.
+static var on_pass: Callable = Callable()
+
+## Tell on_pass (if set) that pass `pass_name` is done.
+func _mark (pass_name: StringName) -> void:
+	if not on_pass.is_null():
+		on_pass.call(pass_name)
+
 func _init (_cells: Array, def: NextWorldDef) -> void:
 	rng = RandomNumberGenerator.new()
 	rng.seed = def.gen_seed
@@ -872,23 +891,29 @@ func _init (_cells: Array, def: NextWorldDef) -> void:
 			types[i * size.y + j] = cell.type
 			add_cell_to_container(Vector2i(i, j), cell)
 		cells.append(row)
+	_mark(&"cells")
 
 	def.populate(self)
 	# Whatever kind of place it is, big things get room (see make_room).
 	make_room()
+	_mark(&"make_room")
 	# Then thorns that come and go, on the runs room was made round (a switch never names a thorn
 	# that is gone); the last draws of the level's own laying out, as before.
 	if _thorns_due != null:
 		place_thorn_modes(_thorns_due)
 		_thorns_due = null
+	_mark(&"thorn_modes")
 	deal_colors()
+	_mark(&"deal_colors")
 	if not Worlds.is_side(def.coord):
 		place_lift_switches()
+	_mark(&"lift_switches")
 	# A gate level: its boss (Bosses), placed last, with no RNG draws.
 	if not Worlds.is_side(def.coord) and def.gate != &"":
 		place_boss(def.gate)
 	# Doors laid once all else is (the tutorial's), with no RNG draws, so they move nothing.
 	place_side_doors(def, true)
+	_mark(&"boss")
 
 ## A gate level's boss: on the free floor nearest the way on it guards, at least BOSS_APART cells
 ## from it; the bramble in the knot at the head of its shaft (BrambleShaft), its cell the knot's
@@ -1012,40 +1037,51 @@ func deal_colors () -> void:
 func populate_level (def: NextWorldDef) -> void:
 	var arch: Archetype = def.arch
 	arch.shape(self)
+	_mark(&"shape")
 	# One cave: every open space joined up, so everything placed below is connected to
 	# everything else through open air (gates and abilities aside).
 	connect_caves()
+	_mark(&"connect_caves")
 	# The crags' way up: the golem's hall, cut before the gondola and the towers so they are laid
 	# round it (only in its gate levels).
 	if LodeHall.wanted(def):
 		LodeHall.cut(self)
 	arch.cut_gates(self)
+	_mark(&"cut_gates")
 	# The garden's way up: the bramble's shaft, cut before anything is placed so the rest lands
 	# round it (only in its gate levels).
 	if BrambleShaft.wanted(def):
 		BrambleShaft.cut(self)
+	_mark(&"bramble_shaft")
 
 	# Exits and their lanterns first, so they get the pick of the level.
 	place_exits(def.depth, def.debug, def.coord.y < 0)
 	place_side_doors(def)
 	place_start_key(def)
+	_mark(&"exits")
 	Chasms.place_bells(self, arch.crossing, arch.switch_reach)
+	_mark(&"bells")
 	if def.arrival_from != null:
 		place_return()
 
 	# One ink well per level (the map), on the floor nearest the level's middle.
 	place_inkwell()
+	_mark(&"return_and_inkwell")
 
 	# Spots for keys: more than are kept (see KEYS_PER_K and deal_colors).
 	for i: int in range(maxi(Rules.KEY_COLOR_COUNT, per_area(KEY_SPOTS_PER_K))):
 		put_random(Type.KEY)
+	_mark(&"keys")
 
 	place_doors(per_area(DOORS_PER_K))
+	_mark(&"doors")
 	place_switch_gates(maxi(1, per_area(SWITCH_GATES_PER_K)))
+	_mark(&"switch_gates")
 
 	# Stars, where the archetype has room for them (in the sky, only in and near the clusters).
 	for i: int in range(len(empties) * arch.star_share):
 		put_random(Type.COIN, func(v: Vector2i) -> bool: return arch.room(self, v, 3))
+	_mark(&"stars")
 
 	# Platforms are laid in horizontal runs of 2-5 cells so they read as continuous ledges.
 	# Only where the archetype has room (in the sky, in and about the clusters, so the gaps stay open).
@@ -1069,9 +1105,11 @@ func populate_level (def: NextWorldDef) -> void:
 			platform_budget -= 1
 		if run_cells.size() <= 3 and rng.randf() < MOVING_PLATFORM_CHANCE:
 			make_moving(run_cells, arch.ladders)
+	_mark(&"ledges")
 
 	# Moons (dash resets) once the ledges are down: open air with nothing to stand on below.
 	place_moons(per_area(MOONS_PER_K))
+	_mark(&"moons")
 
 	for i: int in range(int(len(empties) * arch.wisp_share * Difficulty.foes())):
 		put_random(Type.ENEMY, ground_below)
@@ -1081,6 +1119,7 @@ func populate_level (def: NextWorldDef) -> void:
 
 	for i: int in range(per_area(LANTERNS_PER_K)):
 		put_random(Type.CHECKPOINT, ground_below, true)
+	_mark(&"foes_and_lanterns")
 
 	#place pairs of portals in the stage and connect them to each other
 	#by telling each portal the coords of its partner in the extra_info
@@ -1100,18 +1139,26 @@ func populate_level (def: NextWorldDef) -> void:
 		set_kind(pos1, Type.PORTAL, pos2)
 		set_kind(pos2, Type.PORTAL, pos1)
 
+	_mark(&"portals")
 	place_cracks(per_area(CRACKS_PER_K))
+	_mark(&"cracks")
 
 	# Placed last, so everything above lands where it always has.
 	if def.depth >= 1:
 		for i: int in range(foes_per_area(arch.hoppers_per_k)):
 			put_random(Type.HOPPER, ground_below, true)
+	_mark(&"hoppers")
 	arch.populate(self, def)
+	_mark(&"populate")
 	place_cluster(def)
+	_mark(&"cluster")
 	place_secrets(def)
+	_mark(&"secrets")
 	place_vaults(def)
+	_mark(&"vaults")
 	Chasms.relax_crossings(self, def)
 	arch.finish(self, def)
+	_mark(&"finish")
 	# Its thorns are dealt once room is made for big things (see _init), which may clear some.
 	_thorns_due = def
 

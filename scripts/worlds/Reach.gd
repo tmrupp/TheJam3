@@ -144,12 +144,12 @@ static func arc_cells(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
 
 ## Air the wizard can pass through: not rock and not thorns.
 static func clear(w: LevelGen, v: Vector2i) -> bool:
-	if not w.is_valid(v):
+	if v.x < 0 or v.y < 0 or v.x >= w.size.x or v.y >= w.size.y:
 		return false
-	var cell: LevelGen.Cell = w.get_cell(v)
-	if cell.type == LevelGen.Type.SPIKES:
-		return timed(cell)
-	return not cell.type in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED]
+	var t: int = w.types[v.x * w.size.y + v.y]
+	if t == LevelGen.Type.SPIKES:
+		return timed(w.get_cell(v))
+	return t != LevelGen.Type.GROUND and t != LevelGen.Type.CRACKED
 
 
 ## Whether a thorn cell comes and goes on a timer (Spikes): passed when it is down, so it does not
@@ -162,4 +162,7 @@ static func timed(cell: LevelGen.Cell) -> bool:
 ## Something to stand on under `v`: rock, a ledge, or the border rock round the world.
 static func underfoot(w: LevelGen, v: Vector2i) -> bool:
 	var below: Vector2i = v + Vector2i.DOWN
-	return not w.is_valid(below) or w.type_at(below) in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED, LevelGen.Type.PLATFORM]
+	if not w.is_valid(below):
+		return true
+	var t: int = w.types[below.x * w.size.y + below.y]
+	return t == LevelGen.Type.GROUND or t == LevelGen.Type.CRACKED or t == LevelGen.Type.PLATFORM
