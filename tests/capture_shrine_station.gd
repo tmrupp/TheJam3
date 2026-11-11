@@ -1,8 +1,9 @@
 extends TestKit
 ## Stills of the shrine's third station (Shrine.station): free mending (no price), which way the boss
-## lies with its price and the key it takes, the same with no key carried (the key faint), and the
-## spent bowl's chevron pointing the way; then the worlds map with the way marked on the gate row;
-## then, in a level with no way on, the doorway it sells and the door bought.
+## lies with its price (stars alone), and the spent bowl's chevron pointing the way with the
+## refresh's dial in the first niche (Shrine.refresh_slot), its price and the key it takes popping up
+## as the wizard stands there, and faint with no key carried; then the worlds map with the way marked
+## on the gate row; then, in a level with no way on, the doorway it sells and the door bought.
 ## Written to ../art-captures/riso-frames/shrine_station_*.png.
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/capture_shrine_station.gd
 
@@ -38,14 +39,14 @@ func run() -> void:
 	player.keyring.set_all([0, 2])
 	await settle(40)
 	save_still("shrine_station_boss.png")
-	player.keyring.clear()
-	await settle(10)
-	save_still("shrine_station_boss_nokey.png")
-	player.keyring.set_all([0, 2])
 	shrine.buy_mend()
-	player.global_position = at + Vector2(-400, 0)
+	player.global_position = (shrine.get_node("Boon") as Node2D).global_position
 	await settle(40)
 	save_still("shrine_station_told.png")
+	player.keyring.clear()
+	await settle(10)
+	save_still("shrine_station_refresh_nokey.png")
+	player.keyring.set_all([0, 2])
 	print("told way ", shrine.told_way(), " boss column ", Bosses.column(shrine.boss() if shrine.boss() != &"" else Bosses.ahead(home.y), info.run.run_seed))
 	info.coord = home
 

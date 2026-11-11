@@ -117,7 +117,7 @@ func shown() -> bool:
 
 ## How near it is to coming out while the rock throbs (0 to 1).
 func warn_near() -> float:
-	return clampf(1.0 - timer / (WARN_TIME / Difficulty.attack()), 0.0, 1.0) if state == State.WARN else 0.0
+	return clampf(1.0 - timer / Difficulty.tell(WARN_TIME), 0.0, 1.0) if state == State.WARN else 0.0
 
 
 ## Where the rock throbs or opens for it: the face of the floor under its cell, or the ceiling over
@@ -192,7 +192,7 @@ func _physics_process(delta: float) -> void:
 			timer -= delta
 			if timer <= 0.0 and LevelGen.dist(info.cell_at(player.global_position), home) <= WAKE and _choose(info, player):
 				state = State.WARN
-				timer = WARN_TIME / Difficulty.attack()
+				timer = Difficulty.tell(WARN_TIME)
 		State.WARN:
 			timer -= delta
 			if timer <= 0.0:

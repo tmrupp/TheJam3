@@ -14,6 +14,9 @@ extends Node2D
 
 enum View { CLOSED, LEVEL, WORLD }
 
+## How strongly a level known from runs before (Known) and not visited this run prints its tile on
+## the worlds map: paler than a visited one.
+const KNOWN_TILE: float = 0.3
 const TEXT_PX: int = 64
 const PANEL: Rect2 = Rect2(8, 8, 304, 164)
 const AREA: Rect2 = Rect2(16, 30, 288, 136)
@@ -176,10 +179,10 @@ func _world_input(event: InputEvent) -> void:
 				return
 
 
-## Show level `c`'s page (a visited level).
+## Show level `c`'s page (a visited level, or one known from a run before, Known).
 func open_level(c: Vector2i) -> void:
 	var info: MapInfo = MapInfo.instance
-	if info == null or not (info.run.records.has(c) or info.run.relic_hints.has(c)):
+	if info == null or not (info.run.records.has(c) or info.run.relic_hints.has(c) or Known.has(c)):
 		return
 	viewing = c
 	_show(View.LEVEL)
@@ -358,6 +361,9 @@ func _other_level(info: MapInfo, c: Vector2i) -> void:
 	var rec: LevelRecord = info.run.records.get(c, LevelRecord.new())
 	# A map inked whole before its layout was known (MapInfo.ink_place) is all seen once it is.
 	var bytes: PackedByteArray = rec.seen_for(w.size.x * w.size.y) if rec.mapped else rec.seen
+	# With what was seen of it in runs before (Known), if it is laid out as it was then.
+	if not Worlds.is_side(c):
+		bytes = Known.merged(bytes, Known.seen_for(c, w))
 	var stamp: int = bytes.size() + bytes.count(1) * 7919
 	if _built_coord != c or _built_version != stamp:
 		_build_textures_for(w, bytes, rec.broken)
@@ -504,6 +510,11 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 		LevelGen.Type.CLUSTER:
 			if not gone:
 				_mark_cluster(at)
+		LevelGen.Type.BARRIER_MARK:
+			# A barrier's mouth: its move's mark, while the wizard does not know the move (Barriers).
+			var move: StringName = StringName((cell.extra_info as Dictionary).get("move", &"")) if cell.extra_info is Dictionary else &""
+			if move != &"" and (info.player == null or Abilities.tier(info.player, move) <= 0):
+				_mark_barrier(at, move)
 		LevelGen.Type.BRIDGE:
 			_mark_bridge(at, (rec.bridges as Dictionary).has(int(cell.extra_info)))
 		LevelGen.Type.GONDOLA:
@@ -567,6 +578,18 @@ func _mark_plunge(at: Vector2, owed: int, k: float = 1.0) -> void:
 	_mark_exit(at, Vector2.DOWN, true, -1, owed, k)
 	_noting = was
 	marks.ink(RisoPrint.PINK, 1.0, [RisoMarks.chevron(at + Vector2(0, 1.6) * k, Vector2.DOWN, EXIT_MARK * 0.85 * k)], false)
+
+
+## A barrier's mouth (Barriers): the move it is made for, its mark in night ink on a blue roundel,
+## quieter than a relic's accent ring (it is a note, not a prize).
+func _mark_barrier(at: Vector2, move: StringName) -> void:
+	_note("barrier")
+	marks.ink(RisoPrint.BLUE, 0.7, [RisoShapes.circle(at, 5.4, 16)], false)
+	var fit: Transform2D = Transform2D(0.0, Vector2(0.12, 0.12), 0.0, at)
+	var mark: Array[PackedVector2Array] = []
+	for poly: PackedVector2Array in RisoGlyph.of(move, Vector2.ZERO, t):
+		mark.append(fit * poly)
+	marks.ink(RisoPrint.NIGHT, 1.0, mark, false)
 
 
 ## A relic: its move's mark in night ink over an accent ring.
@@ -898,12 +921,16 @@ func tiles(info: MapInfo) -> Dictionary:
 	return info.run.records
 
 
-## Every level the cursor can pick: the visited ones, and those an ink well has marked a relic in.
+## Every level the cursor can pick: the visited ones, those an ink well has marked a relic in, and
+## those known from runs before (Known).
 func pickable(info: MapInfo) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
 	for c: Vector2i in info.run.records:
 		out.append(c)
 	for c: Vector2i in info.run.relic_hints:
+		if not out.has(c):
+			out.append(c)
+	for c: Vector2i in Known.places():
 		if not out.has(c):
 			out.append(c)
 	return out
@@ -1058,6 +1085,16 @@ func _world(info: MapInfo) -> void:
 		inner = _clipped(hole, _box(area))
 	marks.ink(RisoPrint.NIGHT, 1.0, outer, false)
 	marks.knock([RisoPrint.NIGHT], inner)
+	# Levels known from runs before (Known) and not visited this run: a pale blue tile where each
+	# lies, labelled like the rest ("you were here before", without a word).
+	for c: Vector2i in Known.places():
+		if info.run.records.has(c):
+			continue
+		var at: Vector2 = tile_at(info, c)
+		if not area.encloses(Rect2(at - TILE * 0.5, TILE)):
+			continue
+		marks.ink(RisoPrint.BLUE, KNOWN_TILE, [RisoShapes.rrect(at.x - TILE.x * 0.5, at.y - TILE.y * 0.5, TILE.x, TILE.y, 5.0)], false)
+		_text("%d · %d" % [c.x, c.y], at + Vector2(0, -3.5), 6.5, false, true)
 	# Relics a shrine marked: on the top right corner of the level's tile (a faint one for a level
 	# not yet visited); off the page, on its edge, pointing the way.
 	var page_in: Rect2 = area.grow(-9.0)

@@ -198,11 +198,19 @@ var t: float = 0.0
 var level_seed: int = 0
 
 
+## Its tells' canvas, over the darkness (RisoMarks.tell_canvas); how big a tell is (px), and how far
+## out of the rock a vine's flashes.
+var tell_ink: InkCanvas
+const TELL_R: float = 56.0
+const VINE_TELL_OUT: float = 30.0
+
+
 func _ready() -> void:
 	# Over the terrain with the other things in a level (props, z 2).
 	z_index = 2
 	ink = InkCanvas.new()
 	add_child(ink)
+	tell_ink = RisoMarks.tell_canvas(self)
 
 
 func setup(info: MapInfo, _v: Vector2i, which: Variant) -> void:
@@ -528,6 +536,23 @@ func _process(delta: float) -> void:
 	tangle.draw(ink, false)
 	_draw_sap()
 	ink.finish()
+	_draw_tells()
+
+
+## Its tells over the darkness (RisoMarks.tell): a vine's warning flashes in its last beat (its pink
+## shoots are its pink), and a bulb telling a seed builds pink round it and flashes.
+func _draw_tells() -> void:
+	tell_ink.global_position = Vector2.ZERO
+	tell_ink.begin()
+	if not dying:
+		for vine: BrambleVine in vines:
+			var state: Array = vine.phase()
+			if not vine.withered and not vine.recoiled() and state[0] == &"warn" and Difficulty.last_beat(state[1], Difficulty.boss_tell(BrambleVine.WARN)):
+				RisoMarks.tell(tell_ink, vine.global_position + vine.way * VINE_TELL_OUT, TELL_R, -1.0, true)
+		for bulb: BrambleBulb in bulbs:
+			if bulb.telling >= 0.0 and (bulb.alive or bulb.wild):
+				RisoMarks.tell(tell_ink, bulb.global_position, TELL_R, bulb.telling, Difficulty.last_beat(bulb.telling, Difficulty.boss_tell(SeedPod.POD_TELL)))
+	tell_ink.finish()
 
 
 ## How far the husk or withered vine at `at`, on the wall its root faces `out` from, is still out of
@@ -554,12 +579,22 @@ func _dry_at(at: Vector2) -> float:
 ## the bramble dies.
 func _draw_vine(vine: BrambleVine) -> void:
 	var root: Vector2 = vine.global_position
-	var xf: Transform2D = Transform2D(vine.way.angle(), root)
+	var pull: float = 1.0
+	var dry: float = 0.0
 	if vine.withered and vine.length < 2.0:
-		var pull: float = _root_pull(root, signf(vine.way.x))
+		pull = _root_pull(root, signf(vine.way.x))
+		dry = _dry_at(root)
+	Bramble.ink_vine(ink, Transform2D(vine.way.angle(), root), vine, t, pull, dry)
+
+
+## A vine printed on `canvas`, its root laid out by `xf` (+x out of the rock), `clock` the art's
+## clock (its writhing and the shoots' trembling): as _draw_vine says, a withered one `pull` out of
+## the rock and `dry` dried (the bramble's dying). Shared by the bramble's vines and a garden's
+## vine on its own (GardenVine, VineArt).
+static func ink_vine(canvas: InkCanvas, xf: Transform2D, vine: BrambleVine, clock: float, pull: float = 1.0, dry: float = 0.0) -> void:
+	if vine.withered and vine.length < 2.0:
 		if pull <= 0.01:
 			return
-		var dry: float = _dry_at(root)
 		xf = xf * Transform2D.IDENTITY.scaled(Vector2(pull, pull))
 		var curl: PackedVector2Array = PackedVector2Array()
 		for n: int in range(9):
@@ -568,25 +603,25 @@ func _draw_vine(vine: BrambleVine) -> void:
 		for n: int in range(8, -1, -1):
 			var a: float = -0.4 + float(n) * 0.35
 			curl.append(Vector2(10.0 + 12.0 * sin(a), -14.0 + 12.0 * cos(a)))
-		ink.lift_ink([RisoPrint.NIGHT], 1.0, [xf * curl])
-		ink.ink(RisoPrint.BLUE, lerpf(0.7, DRY_BLUE, dry), [xf * curl])
-		ink.ink(RisoPrint.NIGHT, lerpf(0.45, 0.1, dry), [xf * curl], false)
+		canvas.lift_ink([RisoPrint.NIGHT], 1.0, [xf * curl])
+		canvas.ink(RisoPrint.BLUE, lerpf(0.7, DRY_BLUE, dry), [xf * curl])
+		canvas.ink(RisoPrint.NIGHT, lerpf(0.45, 0.1, dry), [xf * curl], false)
 		return
 	var bud: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(5.0, 0.0), 13.0, 20.0, 14)
-	ink.ink(RisoPrint.BLUE, BARK_BLUE, [bud])
-	ink.ink(RisoPrint.NIGHT, BARK_NIGHT, [bud], false)
+	canvas.ink(RisoPrint.BLUE, BARK_BLUE, [bud])
+	canvas.ink(RisoPrint.NIGHT, BARK_NIGHT, [bud], false)
 	var state: Array = vine.phase()
 	if vine.length < 2.0:
 		if state[0] == &"warn" and not vine.recoiled():
 			var u: float = state[1]
 			var shoots: Array[PackedVector2Array] = []
 			for n: int in range(3):
-				var ang: float = (float(n) - 1.0) * 0.6 + 0.08 * sin(t * 37.0 + float(n) * 2.0)
+				var ang: float = (float(n) - 1.0) * 0.6 + 0.08 * sin(clock * 37.0 + float(n) * 2.0)
 				var tip: float = 22.0 + 34.0 * u
 				var dir: Vector2 = Vector2.from_angle(ang)
 				var side: Vector2 = dir.orthogonal() * 9.0
 				shoots.append(xf * PackedVector2Array([side, dir * tip, -side]))
-			ink.ink(RisoPrint.PINK, 0.55 + 0.45 * absf(sin(t * 14.0)), shoots)
+			canvas.ink(RisoPrint.PINK, 0.55 + 0.45 * absf(sin(clock * 14.0)), shoots)
 		return
 	# The stem, writhing, from the rock out to its tip.
 	var length: float = vine.length
@@ -597,7 +632,7 @@ func _draw_vine(vine: BrambleVine) -> void:
 	for n: int in range(steps + 1):
 		var x: float = length * float(n) / float(steps)
 		var k: float = x / maxf(length, 1.0)
-		var y: float = sin(x * 0.04 - t * 9.0) * 9.0 * k
+		var y: float = sin(x * 0.04 - clock * 9.0) * 9.0 * k
 		var half: float = lerpf(STEM_ROOT, STEM_TIP, k)
 		spine.append(Vector2(x, y))
 		top.append(Vector2(x, y - half))
@@ -609,7 +644,7 @@ func _draw_vine(vine: BrambleVine) -> void:
 	var flip: float = 1.0
 	while along < length - 4.0:
 		var k: float = along / maxf(length, 1.0)
-		var at: Vector2 = Vector2(along, sin(along * 0.04 - t * 9.0) * 9.0 * k)
+		var at: Vector2 = Vector2(along, sin(along * 0.04 - clock * 9.0) * 9.0 * k)
 		var half: float = lerpf(STEM_ROOT, STEM_TIP, k)
 		var base: Vector2 = at + Vector2(0, flip * (half - 2.0))
 		thorns.append(PackedVector2Array([base + Vector2(-9.0, 0), base + Vector2(5.0, flip * THORN_LEN), base + Vector2(9.0, 0)]))
@@ -622,10 +657,10 @@ func _draw_vine(vine: BrambleVine) -> void:
 	var spikes: Array[PackedVector2Array] = []
 	for th: PackedVector2Array in thorns:
 		spikes.append(xf * th)
-	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 1.0, stem)
-	ink.ink(RisoPrint.PINK, 0.8, stem)
-	ink.ink(RisoPrint.NIGHT, 0.2, stem, false)
-	ink.ink(RisoPrint.PINK, 1.0, spikes)
+	canvas.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 1.0, stem)
+	canvas.ink(RisoPrint.PINK, 0.8, stem)
+	canvas.ink(RisoPrint.NIGHT, 0.2, stem, false)
+	canvas.ink(RisoPrint.PINK, 1.0, spikes)
 
 
 ## A bulb: a swelling teardrop of accent out of the rock face, cupped in bark, a paper gleam on it
@@ -659,7 +694,8 @@ func _draw_bulb(bulb: BrambleBulb) -> void:
 				petals.append(xf * RisoShapes.ellipse(Vector2(22.0, 0.0) + dir * (25.0 + 70.0 * u), 13.0 * (1.0 - u), 7.0 * (1.0 - u), 10, dir.angle()))
 			ink.ink(RisoPrint.ACCENT, 1.0 - u, petals)
 		return
-	ink_bulb(ink, xf, bulb.opened, bulb.charge, t * 3.0 + float(bulb.cell.y), clampf(1.0 - (t - bulb.struck_t) / FLASH_TIME, 0.0, 1.0),
+	# Telling a seed, it turns pink as it does when struck.
+	ink_bulb(ink, xf, bulb.opened, bulb.charge, t * 3.0 + float(bulb.cell.y), maxf(clampf(1.0 - (t - bulb.struck_t) / FLASH_TIME, 0.0, 1.0), maxf(bulb.telling, 0.0)),
 			bulb.wild, clampf(1.0 - (t - bulb.warded_t) / FLASH_TIME, 0.0, 1.0), bulb.hits_left(), leaves_parted(bulb.charge, t - bulb.spat_t))
 
 

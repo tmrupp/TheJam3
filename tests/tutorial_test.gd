@@ -15,7 +15,10 @@ extends TestKit
 ## standing where the watcher first sees the wizard, gone by a catch and not by a press; past it a
 ## bed of thorns too
 ## wide for a jump and a dash is crossed by bouncing off its thorns with the guard (a pogo), which
-## puts the pogo's card away. Past the utility card, a lantern lit does not fill the draught mend
+## puts the pogo's card away. A roof over that bed carries the hall on, up steps at either end, so
+## the rest of the hall is reached without touching it, and under the roof, low in the middle of
+## the bed, star clusters wait as the pogo's reward, out of reach of a drop from the roof and of a
+## jump and a dash from either edge. Past the utility card, a lantern lit does not fill the draught mend
 ## just drank; interacting with it again burns it into mend, filling it and leaving the wizard
 ## unprotected, which puts the burn card away (it is not put away by a press); a lantern past it
 ## protects them again. Its shrine
@@ -38,8 +41,11 @@ const JUMP_AT: float = 30.0
 ## The pogo's bed of thorns, found in the map's floor row by its width; and how far under standing
 ## height (px), falling into the bed (its thorns are a row down), the wizard raises the guard to
 ## catch them.
-const POGO_BED: String = "^^^^^^^^^^"
+const POGO_BED: String = "^^^^^^^^^^^"
 const GUARD_AT: float = 40.0
+## How many cells either side of the pogo's bed the steps up to its roof take (Tutorial.MAP): the
+## walk over the roof starts that far and one more before the bed and must come down as far past it.
+const ROOF_STEPS: int = 5
 
 
 func run() -> void:
@@ -52,6 +58,7 @@ func run() -> void:
 	await _hint()
 	await _reach()
 	await _parry()
+	await _over_the_bed()
 	await _pogo()
 	await _utility()
 	await _burn()
@@ -77,9 +84,102 @@ func _layout(at: Vector2i) -> void:
 	var keys: Array[Vector2i] = w.objects.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.KEY)
 	var doors: Array[Vector2i] = w.objects.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.DOOR)
 	check(keys.size() == 1 and doors.size() == 1 and w.get_cell(keys[0]).extra_info == w.get_cell(doors[0]).extra_info, "one key and one door, of the same colour")
-	var stars: int = count_of(w, LevelGen.Type.COIN) + count_of(w, LevelGen.Type.CLUSTER) * Rules.cluster_value(0)
-	check(stars >= Abilities.price(0, 1), "stars enough on the way for the shrine (%d, a first tier costs %d)" % [stars, Abilities.price(0, 1)])
+	var reward: Array[Vector2i] = _reward(w)
+	var stars: int = 0
+	for v: Vector2i in w.objects:
+		if reward.has(v):
+			continue
+		if w.get_cell(v).type == LevelGen.Type.COIN:
+			stars += 1
+		elif w.get_cell(v).type == LevelGen.Type.CLUSTER:
+			stars += Rules.cluster_value(0)
+	check(stars >= Abilities.price(0, 1), "stars enough on the way for the shrine without the pogo's reward (%d, a first tier costs %d)" % [stars, Abilities.price(0, 1)])
+	_roof(w, reward)
 	check_eq(count_of(w, LevelGen.Type.SHRINE), 1, "a shrine")
+
+
+## The pogo's bed: its first column and the first past it, in the map's floor row.
+func _bed() -> Vector2i:
+	var start: int = Tutorial.MAP[11].find(POGO_BED)
+	return Vector2i(start, start + POGO_BED.length())
+
+
+## The row of the roof over the pogo's bed: the first rock over its first column.
+func _roof_row() -> int:
+	var x: int = _bed().x
+	var y: int = 10
+	while y > 0 and Tutorial.MAP[y][x] != "#":
+		y -= 1
+	return y
+
+
+## The star clusters under the roof over the pogo's bed, its reward.
+func _reward(w: LevelGen) -> Array[Vector2i]:
+	var bed: Vector2i = _bed()
+	var roof: int = _roof_row()
+	return w.objects.filter(func(v: Vector2i) -> bool:
+		return w.get_cell(v).type == LevelGen.Type.CLUSTER and v.x >= bed.x and v.x < bed.y and v.y > roof)
+
+
+## The pogo's bed has a roof over it, an edge and all, and its reward under it: star clusters in
+## the middle of the bed, low over its thorns, where a drop from the roof cannot reach them.
+func _roof(w: LevelGen, reward: Array[Vector2i]) -> void:
+	var bed: Vector2i = _bed()
+	check(bed.x > 0, "a bed of %d thorns for the pogo" % POGO_BED.length())
+	var roof: int = _roof_row()
+	var whole: bool = roof > 1 and roof < 10
+	for x: int in range(bed.x - 1, bed.y + 1):
+		whole = whole and Tutorial.MAP[roof][x] == "#"
+		for y: int in range(roof + 1, 11):
+			whole = whole and Tutorial.MAP[y][x] != "#"
+	check(whole, "a roof over it (row %d), from the edge before it to the edge past it, open under it" % roof)
+	check(Tutorial.MAP[11][bed.x - 1] == "#" and Tutorial.MAP[11][bed.y] == "#", "with an edge to stand on at either end, under the roof")
+	check_eq(reward.size(), 2, "two star clusters under it, its reward")
+	var mid: float = (bed.x + bed.y - 1) * 0.5
+	check(reward.all(func(v: Vector2i) -> bool: return v.y == 10 and absf(v.x - mid) <= 1.0), "in the middle of the bed, just over its thorns")
+
+
+## The hall is walked on past the pogo's bed, either way, up the steps and over its roof, without
+## touching its thorns.
+func _over_the_bed() -> void:
+	print("over the bed")
+	var bed: Vector2i = _bed()
+	var near: Vector2i = Vector2i(bed.x - ROOF_STEPS - 2, 10)
+	var far: Vector2i = Vector2i(bed.y + ROOF_STEPS + 1, 10)
+	check(Tutorial.MAP[10][near.x] == "." and Tutorial.MAP[10][far.x] == "." and Tutorial.MAP[11][near.x] == "#" and Tutorial.MAP[11][far.x] == "#", "the hall's floor either side of its steps")
+	check(await _walk_over(near, far, "Right"), "walked right, jumping, the wizard goes over the roof without touching the bed")
+	check(await _walk_over(far, near, "Left"), "and back left")
+
+
+## Walk from `from` toward `to` (`way`, "Right" or "Left"), jumping from each floor stood on: whether
+## the wizard comes down on the hall's floor at `to` unhurt.
+func _walk_over(from: Vector2i, to: Vector2i, way: String) -> bool:
+	await _go(from)
+	player.health.health = player.health.max_health
+	var full: int = player.health.health
+	var sign: int = 1 if to.x > from.x else -1
+	var held: int = 0
+	var there: bool = false
+	Input.action_press(way)
+	for i: int in range(900):
+		if held > 0:
+			held -= 1
+			if held == 0:
+				press(&"Jump", false)
+		elif player.is_on_floor():
+			press(&"Jump", true)
+			held = 20
+		await physics_frame
+		var cell: Vector2i = info.cell_at(player.global_position)
+		if player.health.health < full:
+			break
+		if (cell.x - to.x) * sign >= 0 and player.is_on_floor() and cell.y == to.y:
+			there = true
+			break
+	_release()
+	press(&"Jump", false)
+	await frames(10)
+	return there and player.health.health == full
 
 
 func _start_levels() -> void:
@@ -235,16 +335,17 @@ func _parry() -> void:
 ## thorns, catching them underfoot with the guard; the pogo's card goes once they have.
 func _pogo() -> void:
 	print("the pogo")
-	var start: int = Tutorial.MAP[11].find(POGO_BED)
-	check(start > 0, "a bed of %d thorns" % POGO_BED.length())
+	var start: int = _bed().x
 	if start <= 0:
 		return
 	var from: Vector2i = Vector2i(start - 3, 10)
-	var past: int = start + POGO_BED.length()
+	var past: int = _bed().y
 	var card: ControlHint = _card(ControlHint.POGO)
 	check(card != null and info.cell_at(card.global_position).x < start, "the pogo's card stands at its edge")
 	Health.invincible = true
+	var had: int = player.coins.coins
 	check(not await _leap(from, past, 1), "a jump and a dash fall short of it")
+	check_eq(player.coins.coins, had, "and of its reward")
 	Health.invincible = false
 	player.health.health = player.health.max_health
 	await _go(from)
@@ -254,6 +355,7 @@ func _pogo() -> void:
 	await _go(from)
 	var guard: Parry = player.get_node("Parry") as Parry
 	var bounced_from: float = guard.pogo_at
+	var before: int = player.coins.coins
 	var stand: float = player.global_position.y
 	var edge: float = info.cell_position(from + Vector2i(2, 0)).x + JUMP_AT
 	var jumped: bool = false
@@ -294,6 +396,7 @@ func _pogo() -> void:
 	await frames(10)
 	check(guard.pogo_at > bounced_from, "the guard catches the thorns underfoot and bounces them up")
 	check(over, "bouncing off its thorns, they cross it")
+	check(player.coins.coins >= before + 2 * Rules.cluster_value(0), "taking the reward under its roof on the way (%d stars)" % (player.coins.coins - before))
 	check(ControlHint.learned.has(ControlHint.POGO), "and the pogo's card goes")
 
 

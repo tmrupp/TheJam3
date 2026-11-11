@@ -40,7 +40,9 @@ the start. Row 0 is where a run begins; rows below it are down, rows above it (n
 ```
 
 - **Bands.** The garden is 15 rows (seven either side of the start); every other band is 14
-  (`Bands.GARDEN_ROWS`, `BAND_ROWS`; once 7 and 6, widened in proportion in November 2026). Each
+  (`Bands.GARDEN_ROWS`, `BAND_ROWS`; once 7 and 6, widened in proportion in November 2026). The
+  demo's garden alone is shorter, four rows either side (`Bands.DEMO_GARDEN_ROWS`; `docs/REVIEW_PLAN.md`
+  §1), its gates at rows ±4. Each
   band is an archetype (`scripts/worlds/archetypes/`), as now; what changes is how a row picks its
   archetype: by a table of bands along the signed row, instead of `(depth / BAND) % 3`.
 - **Difficulty is distance from the start.** Everything that now scales with depth (prices, star

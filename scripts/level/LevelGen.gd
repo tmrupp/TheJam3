@@ -96,6 +96,8 @@ enum Type {
 	PLOT,
 	## The garden's small worms, in its rock (Wormlet).
 	WORMLET,
+	VINE,
+	BARRIER_MARK,
 }
 
 ## Counts per 1000 cells of level, so a level's contents scale with its size (see per_area).
@@ -950,6 +952,10 @@ func _init (_cells: Array, def: NextWorldDef) -> void:
 	if not Worlds.is_side(def.coord):
 		place_lift_switches()
 	_mark(&"lift_switches")
+	# A barrier made for a relic move, carved into solid rock off the level (Barriers): after all
+	# else of the level's own, so nothing laid before it moves.
+	Barriers.lay(self, def)
+	_mark(&"barriers")
 	# A gate level: its boss (Bosses), placed last, with no RNG draws.
 	if not Worlds.is_side(def.coord) and def.gate != &"":
 		place_boss(def.gate)
@@ -1404,6 +1410,9 @@ var secret_steps: Dictionary = {}
 ## The level's vaults, laid by Vaults (see there), each {"room": cells, "door": cell, "color": key
 ## colour}.
 var vaults: Array = []
+## The level's barrier, if it took one (Barriers): each {"kind", "move", "mouth", "side", "open",
+## "thorns", "reward"}.
+var barriers: Array = []
 ## The rock round every vault, which make_room leaves whole (it would let you in past the door).
 var vault_walls: Dictionary = {}
 ## The relic a bone vault holds instead of its hoard (relic_gated, Vaults.place_bone), or &"".

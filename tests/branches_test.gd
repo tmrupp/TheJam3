@@ -3,7 +3,8 @@ extends TestKit
 ## what its way down does; through it, the first level above the start, whose way back leads home
 ## into the start's way up; climbing on through the garden into the crags; the place shown as a
 ## height; a hyperspace that crosses the start into the other branch; and a run saved above the
-## start, and in a side world entered from there, read back where it was.
+## start, and in a side world entered from there, read back where it was; and a save made on a garden
+## of another length (the demo's, once 7 rows) not read at all.
 ## godot --headless --path . --script res://tests/branches_test.gd
 
 
@@ -53,6 +54,15 @@ func run() -> void:
 	saved["version"] = RunState.SAVE_VERSION
 	RunState.write_save(saved)
 	check(RunState.read_save().get("coord") == side and Worlds.origin_of(side) == info.coord, "and a side world entered from up here is found again")
+	check(int(saved.get("garden_rows", 0)) == Bands.garden_rows(), "a save says how long its garden is")
+	var other: Dictionary = saved.duplicate(true)
+	other["garden_rows"] = Bands.garden_rows() + 1
+	RunState.write_save(other)
+	check(RunState.read_save().is_empty(), "a save played on a garden of another length is not read: its bosses stand on other rows")
+	other.erase("garden_rows")
+	RunState.write_save(other)
+	check(RunState.read_save().is_empty() == (Bands.garden_rows() != RunState.SAVED_GARDEN_ROWS), "a save from before saves said so is read as from a garden of %d rows" % RunState.SAVED_GARDEN_ROWS)
+	RunState.write_save(saved)
 
 	print("across the start")
 	var hyper: Hyperspace = Worlds.proto(Worlds.kind_of(Hyperspace)) as Hyperspace

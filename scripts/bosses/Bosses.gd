@@ -8,8 +8,10 @@ extends RefCounted
 ## fights in its gate level itself (LevelGen.place_boss), as its own prefab (SCENES), but in one
 ## world column only, dealt for the run near the column it started in (column): every gate level of
 ## its row is laid out for it (a shaft, a hall, a crypt, a chamber), but it is met in that one, and
-## the others stand empty (LevelLoader leaves it out). Nothing marks its column; a shrine sells which
-## way it lies (Shrine). The bosses are the worm (Worm), the bramble (Bramble, in its shaft:
+## the others stand empty (LevelLoader leaves it out). Its column is felt in the levels near it
+## (near; docs/REVIEW_PLAN.md §2): the worm's rumble (WormSign), and spare small worms, seed pods and
+## thorn vines kept as the run's nearness calls for (spare_kept); a shrine sells which way it lies
+## (Shrine). The bosses are the worm (Worm), the bramble (Bramble, in its shaft:
 ## BrambleShaft), the lodestone golem (Golem, in its hall: LodeHall), the necromancer (Necromancer,
 ## in a crypt: Crypts), the whale (Whale) and the eldritch beast (Beast, in its chamber: Institute;
 ## its souls: BeastSouls), the whale the one boss not in a gate level: it roams the sky's top row
@@ -60,6 +62,31 @@ static func spread(name: StringName) -> int:
 	if absi(row) <= Bands.garden_rows():
 		return Bands.garden_rows()
 	return int(Bands.band_at(row)["rows"])
+
+
+## How many levels from a garden boss's own (columns and rows added) its signs reach (near).
+const SIGN_REACH: int = 4
+
+
+## How near level `at` is to boss `name`'s own, in run `run_seed`: 1 in its level, falling to 0
+## SIGN_REACH levels away (columns and rows added); 0 in a side world, on the far side of the start
+## from its gate (the worm's signs are below the start, the bramble's above), for the whale (it
+## roams), and for a boss left out of the bands in play. Whether it is slain is the caller's to ask.
+static func near(name: StringName, at: Vector2i, run_seed: int) -> float:
+	if name == &"whale" or Worlds.is_side(at):
+		return 0.0
+	var row: int = row_of(name)
+	if row == 0 or signi(at.y) != signi(row):
+		return 0.0
+	var d: int = absi(at.x - column(name, run_seed)) + absi(at.y - row)
+	return clampf(1.0 - float(d) / float(SIGN_REACH), 0.0, 1.0)
+
+
+## Whether spare `order` (0 first) of `count` laid in a level for a boss's signs is kept in it, the
+## level being `nearness` (near) to that boss: as many of them as its nearness calls for, the first
+## first; none at 0, every one in the boss's own column.
+static func spare_kept(order: int, count: int, nearness: float) -> bool:
+	return order < roundi(nearness * float(count))
 
 
 ## The boss ahead of row `row`: the one whose gate is the first met going away from the start from

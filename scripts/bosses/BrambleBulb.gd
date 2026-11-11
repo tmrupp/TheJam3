@@ -7,8 +7,9 @@ extends Node2D
 ## time (Bramble.bloom): the rest are shut in their bark, and a blow glances off them (warded), all
 ## but a seed of their own parried back. While the wizard is within SEED_RANGE and in sight it
 ## swells, and every SEED_EVERY seconds it spits a seed at them (sooner, and two at once, as the
-## bramble's fury grows: Bramble.fury): a shot (Bullet, its `seed` look) that a parry turns back
-## into the bulb that spat it. Each wound sends the bloom on to another bulb (Bramble.wounded).
+## bramble's fury grows: Bramble.fury), its swell ending in a tell as a pod's (SeedPod.POD_TELL,
+## turning pink): a shot (Bullet, its `seed` look) that a parry turns back into the bulb that spat
+## it. Each wound sends the bloom on to another bulb (Bramble.wounded).
 ## Burst, it is out of the fight and the vines it feeds wither (Bramble.burst), until the heart is
 ## bared: then it opens again, wild (rouse), and spits seeds at the wizard every WILD_EVERY seconds,
 ## but nothing wounds it.
@@ -51,6 +52,9 @@ var alive: bool = true
 var wild: bool = false
 ## How far toward its next seed (0 to 1), and how many it has spat (for the tests).
 var charge: float = 0.0
+## How far through its tell it is (0 to 1; SeedPod.POD_TELL, as a pod's), its swell full; -1 while
+## it is not telling.
+var telling: float = -1.0
 var spat: int = 0
 ## When (the bramble's clock) it was last struck, when a blow last glanced off its bark, and when
 ## it burst.
@@ -155,16 +159,25 @@ func _physics_process(delta: float) -> void:
 	var player: Player = bramble.map_info.player
 	if player == null or not is_instance_valid(player) or not sees(player):
 		charge = maxf(0.0, charge - delta / SEED_EVERY)
+		telling = -1.0
 		return
-	# A harder preset readies its seeds sooner (Difficulty.haste), and so does the bramble's fury.
-	charge += delta * Difficulty.haste() / seed_every()
-	if charge >= 1.0:
+	# Full, it tells (turning pink) for SeedPod.POD_TELL, never under Difficulty.TELL_MIN, then spits.
+	if telling >= 0.0:
+		telling += delta / Difficulty.boss_tell(SeedPod.POD_TELL)
+		if telling < 1.0:
+			return
+		telling = -1.0
 		charge = 0.0
 		if bramble.fury >= TWIN_FURY and not wild:
 			spit(player.global_position, -TWIN_SPREAD)
 			spit(player.global_position, TWIN_SPREAD)
 		else:
 			spit(player.global_position)
+		return
+	# A harder preset readies its seeds sooner (Difficulty.haste), and so does the bramble's fury.
+	charge = minf(1.0, charge + delta * Difficulty.haste() / (seed_every() - SeedPod.POD_TELL))
+	if charge >= 1.0:
+		telling = 0.0
 
 
 ## Whether `player` is near enough, and in sight past the rock.

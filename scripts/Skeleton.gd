@@ -169,7 +169,7 @@ func _swipe(delta: float, to: Vector2) -> bool:
 			swipe_wait = SWIPE_AGAIN
 		return true
 	if winding >= 0.0:
-		winding += delta * pace / WIND_UP
+		winding += delta / Difficulty.tell(WIND_UP)
 		if winding >= 1.0:
 			winding = -1.0
 			swiping = 0.0

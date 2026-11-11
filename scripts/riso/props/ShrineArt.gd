@@ -22,7 +22,9 @@ func light() -> Array:
 ## bowl with an ember bead (mending, free), or at full health a medallion over the bowl (the boss
 ## ahead's mark ringed in pink, a relic's move, a skeleton key, a doorway with a chevron pointing on). Each one's price pops up over it as
 ## the wizard steps up to it, the third's with the key it takes beside it. Once used, the marks are gone
-## and the trim dims; a bowl that told which way the boss lies keeps a pink chevron pointing it.
+## and the trim dims; a bowl that told which way the boss lies keeps a pink chevron pointing it; and
+## the slot bought from (the first, after the boss's way) shows the refresh's dial (_refresh_dial),
+## its price and the key it takes popping up over it.
 func _draw_art() -> void:
 	var g: float = _ground()
 	var used: bool = shrine.used()
@@ -41,7 +43,12 @@ func _draw_art() -> void:
 	var mx: float = xs[2]
 	if used:
 		_mend_bowl(mx, g, bob, false, true, 0)
-		_told_way(mx, g, bob)
+		var slot: int = shrine.refresh_slot()
+		# The way told shows over the bowl, unless the bowl offers the refresh itself.
+		if slot != 2:
+			_told_way(mx, g, bob)
+		if slot >= 0:
+			_refresh_dial(xs[slot], g, bob, slot)
 		return
 	var m: Vector2 = Vector2(mx, g - 94 + bob * 0.8)
 	var what: StringName = shrine.station()
@@ -118,6 +125,44 @@ func _key_plaque(at: Vector2, color: int, s: float) -> void:
 	var u: InkCanvas = _blank_plaque(at, KEY_PLAQUE, RisoPrint.BLUE, s)
 	var shown: int = color if color >= 0 else 0
 	u.ink(RisoPrint.NIGHT, 1.0 if color >= 0 else 0.3, RisoMarks.key_shape(at + Vector2(2.0, -2.0) * s, 0.6 * s, shown), false)
+
+
+## The radius of the refresh's dial, and how high over the ground it floats in a niche and over the
+## bowl.
+const DIAL_R: float = 15.0
+const DIAL_NICHE: float = 84.0
+const DIAL_BOWL: float = 94.0
+## Its pop-up's slot in RisoProp.pops (past the three stations').
+const DIAL_POP: int = 3
+
+
+## A spent shrine's refresh (Shrine.refresh_slot, buy_redraw), in slot `slot` at x = `cx`: a ring
+## of accent broken by an arrowhead, turning slowly, in the niche or over the empty bowl, faint
+## with no key carried; its stars and the key it takes popping up over it as the wizard steps up.
+func _refresh_dial(cx: float, g: float, bob: float, slot: int) -> void:
+	var c: Vector2 = Vector2(cx, g - (DIAL_BOWL if slot == 2 else DIAL_NICHE) + bob * 0.6)
+	var key: int = shrine.redraw_key()
+	var cover: float = 1.0 if key >= 0 else 0.3
+	var turn: float = t * 0.8
+	var ring: PackedVector2Array = PackedVector2Array()
+	var steps: int = 16
+	for k: int in range(steps + 1):
+		ring.append(c + Vector2.from_angle(turn + 0.5 + (TAU - 1.3) * float(k) / float(steps)) * DIAL_R)
+	var ends: float = turn + 0.5 + TAU - 1.3
+	var tip: Vector2 = c + Vector2.from_angle(ends) * DIAL_R
+	var along: Vector2 = Vector2.from_angle(ends + PI * 0.5)
+	var marks: Array[PackedVector2Array] = RisoDecor.strip(ring, 4.0, 4.0)
+	marks.append(PackedVector2Array([tip + along * 9.0, tip + along.orthogonal() * 6.5 - along * 2.5, tip - along.orthogonal() * 6.5 - along * 2.5]))
+	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], marks)
+	ink.ink(RisoPrint.ACCENT, cover, marks, false)
+	var s: float = _pop(DIAL_POP, Vector2(cx, g - 50))
+	if s > 0.0:
+		var price: String = str(shrine.redraw_price())
+		var pw: float = _plaque_width(price, 30)
+		var span: float = pw + KEY_GAP + KEY_PLAQUE.x
+		var from: float = cx - span * 0.5 * s
+		_plaque(price, Vector2(from + pw * 0.5 * s, g - POP_Y), 30, RisoPrint.ACCENT, s)
+		_key_plaque(Vector2(from + (pw + KEY_GAP + KEY_PLAQUE.x * 0.5) * s, g - POP_Y), key, s)
 
 
 ## A spent shrine whose column was told which way the boss ahead lies (Shrine.told_way): over the

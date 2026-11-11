@@ -84,7 +84,7 @@ func _physics_process(delta: float) -> void:
 	if tell >= 0.0:
 		# Rearing and screeching over the spot it will dive through.
 		# A harder preset tells and rests for less, and patrols a little faster (Difficulty).
-		tell = minf(1.0, tell + delta * Difficulty.attack() / TELL)
+		tell = minf(1.0, tell + delta / Difficulty.tell(TELL))
 		rb.global_position = tell_from + Vector2(sin(t * 60.0) * 1.5, -REAR * sin(tell * PI * 0.5))
 		facing = signf(mark.x - rb.global_position.x) if absf(mark.x - rb.global_position.x) > 4.0 else facing
 		if tell >= 1.0:

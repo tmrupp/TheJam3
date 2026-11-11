@@ -29,10 +29,13 @@ const INSTITUTE: Script = preload("res://scripts/worlds/archetypes/InstituteArch
 const CRAGS: Script = preload("res://scripts/worlds/archetypes/CragsArchetype.gd")
 const SKY: Script = preload("res://scripts/worlds/archetypes/SkyArchetype.gd")
 
-## How many rows the garden spans either side of the start, in the whole game and the demo alike;
-## and how many rows each band past it spans, in the same proportion to the garden (once three
-## rows and six).
+## How many rows the garden spans either side of the start in the whole game; and how many rows
+## each band past it spans, in the same proportion to the garden (once three rows and six).
 const GARDEN_ROWS: int = 7
+## How many rows the demo's garden spans either side of the start: shorter than the whole game's,
+## so a boss is looked for over fewer levels (docs/REVIEW_PLAN.md §1). Its gate levels are smaller
+## and cheaper than the whole game's, being nearer the start.
+const DEMO_GARDEN_ROWS: int = 4
 const BAND_ROWS: int = 14
 ## The layouts a game can be played on, by name: the whole game, and the garden alone (the demo),
 ## with its two bosses at its ends and the garden going on past them.
@@ -49,7 +52,7 @@ const LAYOUTS: Dictionary = {
 		],
 	},
 	&"garden": {
-		"garden": {"arch": GARDEN, "rows": GARDEN_ROWS, "down": &"worm", "up": &"bramble"},
+		"garden": {"arch": GARDEN, "rows": DEMO_GARDEN_ROWS, "down": &"worm", "up": &"bramble"},
 		"down": [],
 		"up": [],
 		"relics_from": 1,

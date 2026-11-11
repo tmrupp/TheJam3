@@ -8,6 +8,8 @@ var _last_shot: float = -10.0
 ## The watcher's lid: eased toward its shooter's charge, so it opens slowly and closes gently.
 var watch_open: float = 0.1
 var _was_firing: bool = false
+## How big its tell is round its eye (px; RisoProp.tell_mark).
+const TELL_R: float = 50.0
 
 
 func _draw_art() -> void:
@@ -88,6 +90,9 @@ func _draw_art() -> void:
 		var side: float = signf(look.x) if look.x != 0.0 else -1.0
 		var from: Vector2 = xf * Vector2(side * 9.6, -0.6)
 		RisoFx.burst(&"shot", to_global(from), (player.global_position - to_global(from)).normalized())
+	# Its tell (the charge, the eye opening) round the eye, and the last beat before the shot.
+	if charge > 0.0 and shooter != null:
+		tell_mark(xf * Vector2.ZERO, TELL_R, charge, Difficulty.last_beat(charge, Difficulty.tell(shooter.cooldown)))
 	if charge > 0.0:
 		# The charge: a solid eye-yellow ball swelling at the corner of the eye nearest the player.
 		var aim: float = signf(look.x) if look.x != 0.0 else -1.0

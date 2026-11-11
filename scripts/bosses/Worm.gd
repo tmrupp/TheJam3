@@ -57,6 +57,12 @@ const STRIKE_LUNGE: float = 0.08
 const STRIKE_HOLD: float = 0.08
 const STRIKE_RETURN: float = 0.22
 const STRIKE_REST: float = 0.6
+## Its strike's tell: the pause and the draw back before the lunge (seconds at Normal), never shorter
+## than Difficulty.TELL_MIN however hasted (Difficulty.boss_tell, _strike_step), under a tell's mark
+## round its head (RisoMarks.tell, TELL_R px across), which flashes in its last beat. Its coming out
+## of the rock flashes so in the last beat of its rumble (EMERGE_WARN).
+const STRIKE_WIND: float = STRIKE_PAUSE + STRIKE_PULL
+const TELL_R: float = 70.0
 const PULL_BACK: float = 0.3
 const LUNGE_REACH: float = 0.8
 ## How near where it lies (cells, across plus down) the wizard must come to wake it.
@@ -258,6 +264,8 @@ var slain: bool = false
 var rumbles: int = 0
 var emergences: int = 0
 var ink: InkCanvas
+## Its tells, over the darkness (RisoMarks.tell_canvas).
+var tell_ink: InkCanvas
 var t: float = 0.0
 var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 ## A cell's size in pixels, and the middle of cell (0, 0).
@@ -274,6 +282,7 @@ func _ready() -> void:
 	z_index = 2
 	ink = InkCanvas.new()
 	add_child(ink)
+	tell_ink = RisoMarks.tell_canvas(self)
 
 
 func setup(info: MapInfo, v: Vector2i, which: Variant) -> void:
@@ -464,7 +473,7 @@ func _step(p: Piece, delta: float) -> void:
 				return
 			if p.strike >= 0.0:
 				# Striking: held still while its head draws back and lunges.
-				p.strike += delta
+				p.strike += _strike_step(p.strike, delta)
 				p.reach = _strike_reach(p.strike)
 				if p.strike >= STRIKE_PAUSE + STRIKE_PULL + STRIKE_LUNGE + STRIKE_HOLD + STRIKE_RETURN:
 					p.strike = -1.0
@@ -790,6 +799,15 @@ func _place(p: Piece) -> void:
 		s.sync_touch()
 
 
+## How far a strike `since` seconds in (at Normal) goes on in a step of `delta` seconds (already
+## hasted, Difficulty.haste): through its wind-up (STRIKE_WIND, its tell) never faster than makes
+## it last Difficulty.boss_tell of it, the rest as hasted.
+static func _strike_step(since: float, delta: float) -> float:
+	if since < STRIKE_WIND:
+		return delta / Difficulty.haste() * STRIKE_WIND / Difficulty.boss_tell(STRIKE_WIND)
+	return delta
+
+
 ## How far a striking head reaches `since` seconds into its strike (cells along its path; less
 ## than 0 drawn back): still while it pauses, drawing back, lunging out quicker and quicker, held
 ## there, then easing back to where it lies.
@@ -976,6 +994,7 @@ func _process(delta: float) -> void:
 	for p: Piece in pieces:
 		if p.warn > 0.0:
 			_draw_warning(p)
+	_draw_tells()
 	var wizard: Vector2 = map_info.player.global_position if map_info != null and map_info.player != null else Vector2.INF
 	for p: Piece in pieces:
 		if p.state == UNDER or p.segments.is_empty():
@@ -1474,6 +1493,24 @@ static func mound_shape(r: float, rim: float = HOLE_RIM) -> PackedVector2Array:
 
 ## A worm about to come out at its face: the ground bulges there in pink (danger), throbbing
 ## faster and swelling as it nears, round a dark slit, and clods of dirt jump from it.
+## Its tells over the darkness (RisoMarks.tell): a strike's wind-up round its head, and the last beat
+## of a rumble where it will come out (the bulge in the rock is the rumble's pink already).
+func _draw_tells() -> void:
+	if tell_ink == null:
+		return
+	tell_ink.global_position = Vector2.ZERO
+	tell_ink.begin()
+	for p: Piece in pieces:
+		if p.warn > 0.0:
+			var near: float = 1.0 - p.warn / EMERGE_WARN
+			if Difficulty.last_beat(near, Difficulty.boss_tell(EMERGE_WARN)):
+				RisoMarks.tell(tell_ink, _face(p)[0], TELL_R, -1.0, true)
+		elif p.strike >= 0.0 and p.strike < STRIKE_WIND and not p.segments.is_empty() and p.segments[0].shown:
+			var u: float = p.strike / STRIKE_WIND
+			RisoMarks.tell(tell_ink, p.segments[0].global_position, TELL_R, u, Difficulty.last_beat(u, Difficulty.boss_tell(STRIKE_WIND)))
+	tell_ink.finish()
+
+
 func _draw_warning(p: Piece) -> void:
 	var face: Array[Vector2] = _face(p)
 	ink_warning(ink, Transform2D(face[1].angle() + PI * 0.5, face[0]), cell * GIRTH * 0.5, 1.0 - p.warn / EMERGE_WARN, t)

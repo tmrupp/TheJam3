@@ -123,7 +123,8 @@ func _physics_process(delta: float) -> void:
 	if not sees or not loaded():
 		drawn = 0.0
 		return
-	drawn += delta * Difficulty.attack() / (FIRST_DRAW if first else DRAW)
+	# Its first draw is left quick (docs/REVIEW_PLAN.md §8.2, an open question); the rest are tells.
+	drawn += delta * Difficulty.attack() / FIRST_DRAW if first else delta / Difficulty.tell(DRAW)
 	if drawn >= 1.0:
 		drawn = 0.0
 		loose()

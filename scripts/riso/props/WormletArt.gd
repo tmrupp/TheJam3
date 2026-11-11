@@ -19,6 +19,8 @@ const INCH: float = 22.0
 const HUMP: float = 12.0
 ## How long it takes to flop down onto the floor after dropping from a ceiling (seconds).
 const FLOP_TIME: float = 0.18
+## How big its tell's last beat is where it comes out (px; RisoProp.tell_mark).
+const TELL_R: float = 40.0
 ## How much wider than its girth its warning in the rock is (Worm.ink_warning): a little, and the
 ## warning the boss's made smaller to that width (warn_size), so it lies flat along the rock face.
 const WARN_WIDE: float = 1.3
@@ -66,6 +68,9 @@ func _draw_art() -> void:
 		var info: MapInfo = MapInfo.instance
 		if info != null:
 			Worm.ink_warning(ink, Transform2D(w.face_way().angle() + PI * 0.5, w.mouth() - o), Wormlet.GIRTH * 0.5 * WARN_WIDE, w.warn_near(), t, warn_size(info))
+		# Its tell's last beat, where it will come out (the throb is its pink already).
+		if Difficulty.last_beat(w.warn_near(), Difficulty.tell(Wormlet.WARN_TIME)):
+			tell_mark(w.mouth() - o, TELL_R, 0.0, true)
 		return
 	if not w.shown():
 		return

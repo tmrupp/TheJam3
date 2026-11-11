@@ -45,8 +45,13 @@ func run() -> void:
 	var relic_levels: int = 0
 	var relic_in_room: int = 0
 	var relic_seed: int = -1
+	# The first row past MIN_DEPTH that is not a gate row (whose levels hold no relic of their own:
+	# Bosses), where relics lie.
+	var first_row: int = Relics.MIN_DEPTH + 1
+	while Bosses.gate_at(first_row) != &"":
+		first_row += 1
 	for world_seed: int in range(1, 26):
-		for depth: int in [0, 1, Relics.MIN_DEPTH + 1]:
+		for depth: int in [0, 1, first_row]:
 			var def: NextWorldDef = Rules.def_for(Vector2i(world_seed, depth))
 			var w: LevelGen = LevelGen.new(collapse(def.coord), def)
 			levels += 1
@@ -61,11 +66,9 @@ func run() -> void:
 				if held or gated:
 					relic_in_room += 1
 				if held:
-					if depth == Relics.MIN_DEPTH + 1 and relic_seed < 0 and gives_hints(Vector2i(world_seed, depth)):
+					if depth == first_row and relic_seed < 0 and gives_hints(Vector2i(world_seed, depth)):
 						relic_seed = world_seed
-	# Relics are rare: if the sample had none at their first row, find one (one row past MIN_DEPTH,
-	# which is the garden's gate row, whose levels hold none of their own: Bosses).
-	var first_row: int = Relics.MIN_DEPTH + 1
+	# Relics are rare: if the sample had none at that row, find one.
 	if relic_seed < 0:
 		relic_seed = 1
 		while Relics.at(Vector2i(relic_seed, first_row)) == &"" or Rules.relic_gated_at(Vector2i(relic_seed, first_row)) or not gives_hints(Vector2i(relic_seed, first_row)):
@@ -96,7 +99,7 @@ func run() -> void:
 	check(gated, "no shrine offers a move not yet found")
 	var astral: int = 0
 	for s: int in range(1, 2000):
-		astral += 1 if Relics.at(Vector2i(s, Relics.MIN_DEPTH + 2)) == &"astral" else 0
+		astral += 1 if Relics.at(Vector2i(s, first_row + 1)) == &"astral" else 0
 	check(&"astral" in Relics.MOVES and astral > 0, "astral projection is a relic move (%d of 2000 levels hold it)" % astral)
 
 	print("an empowered hex bolt reveals a secret room (a plain one does not)")
@@ -226,9 +229,12 @@ func run() -> void:
 
 
 ## Whether the shrine in level `at` sells a relic's whereabouts rather than a skeleton key, even
-## once one relic is marked (the shrine part below buys one, then asks again).
+## once one relic is marked (the shrine part below buys one, then asks again), or a way on, in a
+## level the labyrinth left with none.
 func gives_hints(at: Vector2i) -> bool:
 	var shrine_script: GDScript = preload("res://scripts/Shrine.gd")
+	if Rules.def_for(at).shut.has(MapInfo.Exit.DEEPER) and bool(shrine_script.call("sells_door_at", at)):
+		return false
 	return not bool(shrine_script.call("sells_skeleton_at", at, true))
 
 

@@ -149,6 +149,19 @@ through the whole upper garden (a hazard that thickens). The first keeps them a 
 *Tests:* in `bramble_test` or the new signs test: a vine on its own lashes, hurts only while out,
 is stunned by a parry, and is the same on a revisit.
 
+*Done* (2.1 to 2.4): `Bosses.near` and `Bosses.spare_kept`; the worm's rumble (`WormSign`); the
+pods' rise toward the bramble's gate (`PODS_TOWARD`, 1.0, as the wormlets'); spare wormlets near
+the worm and spare pods and vines near the bramble, laid in the garden's last pass in the rows
+within `SIGN_REACH` of a gate (not the gate level) and kept by the loader as near as the run is;
+and the thorn vine on its own (`GardenVine`, `LevelGen.Type.VINE`, `VineArt`), laid only as a
+spare, so it is a sign of the bramble and nothing else (the *Open* above, decided that way for
+now). One test, `boss_signs_test`, covers all of it (`## suite: full`), and `capture_boss_signs`
+photographs a vine. *Layouts:* the pods' rise changes the garden levels above the start, and the
+spares those within reach of a gate, from their pass on. The fingerprints were not written again
+here: they were made on the owner's Windows build, and this session's Linux build of the
+extension lays out different terrain, so `layout_fingerprint_test -- update` is for the owner to
+run. No sound for the rumble yet. Not yet played.
+
 ## 3. A barrier for each relic
 
 *Seen:* a spot the wizard cannot reach yet looks the same as one they have simply not worked out,
@@ -246,6 +259,29 @@ The reach is rough by its own account, and a built barrier says what it wants wi
 It is worth coming back to only if the levels' own unreachable spots go on misleading players
 once the barriers are in.
 
+*Done* (a first pass, all five; to be played): `Barriers.gd` lays the five shapes, its marks are
+`BarrierMark` and `BarrierMarkArt`, and the level's map shows them. What building it found: the
+garden's rock is thin, so cut from solid rock alone no shape fitted in any of 36 levels looked at,
+even at the smallest measures that still beat each move (the shaft 5 tall, the sill 4 up, the
+throat 4 long, the sealed cell's walls 4 thick). So a shape now fits where each of its cells is
+rock or air holding nothing, and its walls are built of rock where they meet that air; nothing
+laid before moves, and none is laid on a way out, a kept cell or the border. The suites then
+showed walls built across passages cutting caves off (`connect_test`, `difficulty_test`), and
+barriers cut across the crags' gondola tracks and towers (`crags_test`, `towers_test`): a fit
+that would cut any cave off from the way in is now passed over (up to 8 tries), and the pass is
+laid in the garden alone for now (`Barriers.BANDS`). With both, about one garden level in ten takes
+one (8 of 80 looked at: 4 sills, 3 curtains, a throat; shafts are rarer, and the sealed cell,
+whose walls need a clear block about 10 by 9, has not fitted in any), though every one tries
+(`SHARE` 100). `economy_test` counts a barrier's cluster apart, as a vault's. Which move:
+as planned, the nearest relic's within 3 levels, else the seed's; where its shape does not fit,
+none. Owner to decide: thinner walls for the sealed cell (a top-tier blink would pass them),
+laying the pass before the dressing so more air is clear (it would move later placements), or
+trying another move where the chosen one does not fit, and the other bands (their towers, tracks
+and crypts kept clear of first). The relic chasms' marks are not done.
+`barriers_test` checks the four kinds it finds (and says which it did not), `capture_barriers`
+photographs them. *Layouts:* every garden level that takes one changes; the fingerprints want
+writing again on the owner's build.
+
 *Tests:* a new `barriers_test`, looking over a few worlds and rows with `build` for a level
 holding each kind rather than trusting one level: the shaft has one wall thorned for its whole
 height and the other bare; the throat has thorns over and under every cell of it; the sealed cell
@@ -295,6 +331,15 @@ level's map and the worlds map hold what was seen; a boss's column met in one ru
 the next on that seed and not on another; a stamp that does not match drops the level; nothing is
 kept from a debug run. `map_test` and `map_worlds_test` stay as they are, on a clean file.
 
+*Done:* `Known` (`scripts/level/Known.gd`), its file apart from the save, by place and by seed as
+above; noted as the run saves, ends or is won, never from a debug run; taught to a new run at its
+start, and each level's seen cells merged back as it is laid out, if its stamp still matches. The
+first pass keeps ordinary levels only (the *Open* above). The old knowledge prints as this run's
+on a level's page; on the worlds map a level known from before and not visited this run is a pale
+blue tile (`RisoMap.KNOWN_TILE`). "Forget the map" on the start menu's settings page clears it.
+At most 300 places. `known_test` covers it; tests write theirs to `user://<test>.known`, begun
+empty. Section 5's "a won seed keeps its map" comes with it: a win notes the run too.
+
 ## 5. A firm ending for the demo
 
 *Now:* with every boss's trophy on its stand in the tutorial's trophy room, the run is won
@@ -324,6 +369,17 @@ in a playtest.
 carries its lines (under `-l garden` with the demo feature's flag set by the test); the save is
 gone and the trophies show in the menu after.
 
+*Done* (but the kept map, which comes with section 4): the won card stays up until a press made
+once it has shown `MapInfo.WIN_HOLD` (1.5 s; `WIN_SECONDS` is gone), a chevron blinking at its
+foot once one will take. It shows the run in a line (the time, `RunState.play_time`, saved; the
+lanterns burned out; the levels visited, each by a small mark). A demo build's card shows the
+bosses past its garden faint beside the two trophies (`RisoHud.beyond`) and says "This is the end
+of the demo." and "Thank you for playing!". The win is kept past the run (`Trophy.note_won`, in
+the settings file by layout), and the start menu shows its trophies either side of the line
+under the title. `trophy_test` checks the card holds 8 s past a press made at once, a later press
+brings the menu back, the win is kept, and (under `-l garden`) the demo card's bosses and line;
+`capture_menu.gd` takes the demo's card and the won menu. Not yet played.
+
 ## 6. The tutorial's pogo bed: a reward past it
 
 *Now:* `Tutorial.MAP` is one hall on one floor. The pogo bed is ten thorns wide (its card, `9`,
@@ -351,6 +407,18 @@ buy a boon without it, so the shrine's lesson in choosing does not depend on the
 
 *Open:* whether the reward is stars alone or something that says more (an exam paper to learn at
 a lantern).
+
+*Done* (the roof): the bed is eleven thorns wide (once ten: at twelve, the third bounce of a
+steady rhythm came down on the far edge's corner and slid down its side onto the thorns), with
+its card at its edge. A roof of rock three rows over it (row 7, the bed's thorns in row 11) runs
+from the edge before it to the edge past it, so the jump into the bed and each bounce clear it (a
+jump rises about 1.5 cells, a bounce about 0.4 over standing height). At either end three steps a
+cell high lead up to it: the first on the floor, the other two ledges with a gap before each, so
+the floor runs on under them to the bed's edge. The reward is two star clusters (20 stars) in the
+bed's middle two cells, just over the thorns, where a bounce takes them and a jump and a dash from
+either edge (which come down on the bed's fifth cell) do not. Without them the hall holds 23
+stars, enough for the shrine's first boon (20). The hall is 169 cells long (once 153). The roof's
+height was set by measuring the jump and the bounce in the game, not by playing it: play it.
 
 *Tests:* `tutorial_test`: the way out, the shrine and the trophy stands are reached without
 touching the bed; the pogo card still stands and is cleared by a pogo; the reward is there and
@@ -432,6 +500,19 @@ may be brake enough; tune it in play.
 stars, is the same after leaving and coming back, and keeps one strict upgrade; with no key
 carried nothing is spent and the pair stays; the key taken is the same on every visit.
 `unit_test` for the price rule and the key's deal.
+
+*Done* (7.1 and 7.2, as the owner then reshaped them): the shrine keeps its three slots. Which
+way the boss lies is one of the third slot's sales again, dealt as before (`BOSS_SALE`, 40 % of
+shrines, at full health), for stars alone, no key, and it spends the shrine as any purchase does;
+once told in a column it is not sold there again. The redraw became the refresh: once spent, the
+slot bought from shows it (`Shrine.refresh_slot`; the first slot after the boss's way, so the bowl
+goes on showing the way told), for `REDRAW_PRICE` (a half of the way on), doubling with each
+refresh there, and one carried key (`redraw_key`, dealt with `REDRAW_KEY_DEAL` and the count).
+Paid, the boons are drawn again (`LevelRecord.redraws`, `offer_seed`) and the shrine is open once
+more. Not in the tutorial. `shrine_test` covers both, and `capture_shrine_station.gd` takes the
+boss's sale, the told bowl with the refresh's dial in the first niche, and the dial with no key.
+A first pass with five places on the shrine (a post for the boss's way, a dial between the
+niches, neither spending it) was built and replaced. Not yet played.
 
 ## 8. Telegraphs: a warning before every attack
 
@@ -521,6 +602,31 @@ write down what is missing rather than adding it unasked.
 3. The hopper and the seed pod.
 4. The worm's and the bramble's attacks, before section 2's vines and spare pods go in.
 5. The other bands' gaps (the crossbow, the masters' reach) with their bands.
+
+*Done* (steps 1 to 4, the garden): `Difficulty.TELL_MIN` (0.4 s), `Difficulty.tell` and
+`boss_tell`, and `Difficulty.LAST_BEAT` (the guard's window) with `last_beat`. Read through them:
+the wisp's wind-up, the hopper's crouch, the watcher's charge, the pod's new tell, the small worm's
+warning, the skeleton's wind-up, the wraith's swell, the bird's tell and the crossbow's draws but
+its first (left quick, see *Open*); the worm's strike (its pause and draw back, `Worm.STRIKE_WIND`,
+were 0.35 s on Hard and 0.31 on Brutal, under the floor: now 0.4), a bramble vine's warning and a
+bulb's new tell. The floor moves the hopper's crouch on Hard (0.375 to 0.4 s) and Brutal, the
+wisp's and skeleton's on Brutal, and the worm's strike on Hard and Brutal; nothing at Normal. The
+scholars wind up in plain seconds, over the floor already, and were left as they are.
+The print (`RisoMarks.tell`, `RisoProp.tell_mark`): a bloom of pink round the foe that builds as
+the square of its wind-up, and in the last beat a paper star cut out over it, on a canvas over the
+darkness. The pod and a bramble bulb now end each swell in a tell (`SeedPod.POD_TELL`, 0.6 s): the
+full bulb turns pink (gold through orange to red), then flashes. The hopper's gleam swells through
+its crouch. `tests/capture_tells.gd` prints the garden's five foes at the start, middle and last
+beat of their tells, lit and snuffed, and was looked at: the star first sat on the foe's middle
+and hid the wisp and the pod in their last beat, so it shines over them now. The bosses' tells
+are not in that capture yet. `tests/tells_test.gd` times each garden foe on every preset, the
+bosses through their clocks, and catches a wisp's lurch with a guard raised in its last beat.
+Found while building it: a hopper's blow, a watcher's shot and a seed land after a flight (a
+hopper's leap is about a second in the air), so their last beat marks the leap or the shot, not
+the blow, and a guard raised in it is down again before the blow lands. 8.1 says the last beat
+is the guard's window; for these it is a "now" to watch for, not when to guard. The owner to say
+whether that is enough or the flight wants its own mark. 8.3 (the wizard's own hurt) was not
+looked at. Not yet played on Normal and Hard.
 
 *Layouts:* none. A tell is timing and print: no draw, no fingerprint. It does change every fight
 it touches, so play the garden on Normal and Hard after steps 1 and 3 and note what was found.

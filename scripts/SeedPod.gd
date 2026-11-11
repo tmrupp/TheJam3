@@ -4,7 +4,7 @@ extends Stunnable
 ## grown out of a garden wall on its own, printed as the bramble prints its bulbs in bloom
 ## (Bramble.ink_bulb, PodArt). While the wizard is within RANGE and in sight it swells,
 ## and every SEED_EVERY seconds (sooner on a harder preset, Difficulty.attack) it spits a seed at
-## them: a shot (Bullet, its `seed` look) that hurts, and that a parry turns back into the pod. Only
+## them, its bulb turning pink over the last POD_TELL of them (its tell, Difficulty.tell): a shot (Bullet, its `seed` look) that hurts, and that a parry turns back into the pod. Only
 ## a seed of its own turned back wounds it (Wound.parried_only): a slash, a bolt or a dash glances
 ## off its bark. Burst, it flings out a seed to carry (KeyRing.SEED, kept by the level's record as a
 ## dropped key until taken) for planting at a plot (Plot), and is slain until the wizard dies, as
@@ -16,6 +16,10 @@ const SHOT: PackedScene = preload("res://prefabs/bullet.tscn")
 ## how fast a seed flies (px/s).
 const RANGE: float = 620.0
 const SEED_EVERY: float = 2.4
+## How long (seconds, at Normal) its tell lasts at the end of each swell: its bulb full, turning
+## pink, then flashing in its last beat (Difficulty.last_beat) before it spits. A harder preset runs
+## it faster, never under Difficulty.TELL_MIN, and its swell the rest of SEED_EVERY.
+const POD_TELL: float = 0.6
 const SEED_SPEED: float = 240.0
 ## How far from the wall its middle sits (px), and how far out from its middle its seeds leave it:
 ## as a bramble bulb's.
@@ -37,6 +41,8 @@ const SHOVE_ARC: float = 40.0
 var rb: RigidBody2D
 var way: Vector2 = Vector2.RIGHT
 var charge: float = 0.0
+## How far through its tell it is (0 to 1), its swell full; -1 while it is not telling.
+var telling: float = -1.0
 var spat: int = 0
 var sees: bool = false
 ## When (game seconds, GameClock.now) a blow last wounded it and last glanced off it, for its flashes.
@@ -96,13 +102,22 @@ func _physics_process(delta: float) -> void:
 	sees = player != null and is_instance_valid(player) and _sees(player)
 	if not sees:
 		charge = maxf(0.0, charge - delta / SEED_EVERY)
+		telling = -1.0
 		return
 	if stunned:
+		# A stun breaks off its tell: it tells again in full once it is over.
+		telling = -1.0
 		return
-	charge += delta * Difficulty.attack() / SEED_EVERY
+	if telling >= 0.0:
+		telling += delta / Difficulty.tell(POD_TELL)
+		if telling >= 1.0:
+			telling = -1.0
+			charge = 0.0
+			spit(player.global_position)
+		return
+	charge = minf(1.0, charge + delta * Difficulty.attack() / (SEED_EVERY - POD_TELL))
 	if charge >= 1.0:
-		charge = 0.0
-		spit(player.global_position)
+		telling = 0.0
 
 
 ## Whether `player` is near enough, on its open side, and in sight past the rock.

@@ -8,11 +8,13 @@ extends Node2D
 ## rests before it grows again, opening the wall beside it for a while. When the bulb it feeds
 ## from bursts, it withers (wither), until the bramble's heart is bared: then it grows back for its
 ## last stand (rouse), resting first. The vines left rest the shorter for the bramble's fury
-## (Bramble.fury), as the burst bulb's sap reaches them.
+## (Bramble.fury), as the burst bulb's sap reaches them. A vine grown out of a garden wall on its own
+## (GardenVine, as a seed pod is a bulb on its own) has no bramble.
 
 const STUNNER: PackedScene = preload("res://prefabs/stunner.tscn")
 const HIT_BOX: PackedScene = preload("res://prefabs/hit_box.tscn")
-## Its cadence (seconds): resting in the rock, warning, growing out, holding, pulling back.
+## Its cadence (seconds): resting in the rock, warning (its tell: never under Difficulty.TELL_MIN,
+## however hasted), growing out, holding, pulling back.
 const REST: float = 1.4
 const WARN: float = 0.8
 const GROW: float = 0.25
@@ -48,7 +50,7 @@ var stunner: Stunner
 var _box: RectangleShape2D = RectangleShape2D.new()
 
 
-func _init(of: Bramble, wall: Vector2i, out: Vector2) -> void:
+func _init(of: Bramble = null, wall: Vector2i = Vector2i.ZERO, out: Vector2 = Vector2.RIGHT) -> void:
 	bramble = of
 	cell = wall
 	way = out
@@ -67,6 +69,7 @@ func _init(of: Bramble, wall: Vector2i, out: Vector2) -> void:
 ## Root it at the face of its wall cell (cells `cell_px` across), part way through its cadence.
 func place(face: Vector2, cell_px: float, level_seed: int) -> void:
 	global_position = face
+	hit_box.rotation = way.angle()
 	full = REACH * cell_px
 	t = RisoDecor.h(level_seed, cell, PHASE_DEAL) * PERIOD
 
@@ -131,8 +134,15 @@ func _physics_process(delta: float) -> void:
 		length = move_toward(length, 0.0, full * RECOIL_RATE * delta)
 	else:
 		# A harder preset runs its cadence faster (Difficulty.haste), and its rest passes faster
-		# still for the bramble's fury.
-		t += delta * Difficulty.haste() * (rest_rate() if phase()[0] == &"rest" else 1.0)
+		# still for the bramble's fury; its warning, its tell, never shorter than
+		# Difficulty.TELL_MIN (Difficulty.boss_tell).
+		match phase()[0]:
+			&"rest":
+				t += delta * Difficulty.haste() * rest_rate()
+			&"warn":
+				t += delta * WARN / Difficulty.boss_tell(WARN)
+			_:
+				t += delta * Difficulty.haste()
 		length = _target()
 	_box.size = Vector2(maxf(length, 1.0), THICK)
 	(hit_box.get_node("CollisionShape2D") as CollisionShape2D).position = Vector2(length * 0.5, 0.0)

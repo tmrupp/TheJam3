@@ -32,6 +32,7 @@ func run() -> void:
 	_branches()
 	_relics()
 	_wind()
+	_tells()
 	# The rules of a band, where it is in the bands in play (Bands).
 	if Bands.has(&"sky"):
 		_whale()
@@ -61,6 +62,28 @@ func run() -> void:
 ## be brown on the institute's brown wall unscreened; sun there needs nothing. Every canvas prints
 ## its things over the rock's ink of the ground behind them in their own inks unless it is the ground, and holds
 ## the rock's ink in them to what reads (InkCanvas.figure_rock) unless it is the rock.
+## An attack's tell runs at the preset's pace but never under the floor, on every preset
+## (Difficulty.tell, boss_tell); at Normal a tell over the floor is its own length; and its last beat
+## is the guard's window at its end.
+func _tells() -> void:
+	print("tells")
+	var was: Difficulty.Preset = Difficulty.preset
+	var floored: bool = true
+	var normal: bool = true
+	for p: int in range(Difficulty.NAMES.size()):
+		Difficulty.preset = p as Difficulty.Preset
+		for seconds: float in [0.1, 0.3, Difficulty.TELL_MIN, 0.45, 0.55, 0.8, 2.4]:
+			floored = floored and Difficulty.tell(seconds) >= Difficulty.TELL_MIN and Difficulty.boss_tell(seconds) >= Difficulty.TELL_MIN
+			floored = floored and Difficulty.tell(seconds) <= maxf(seconds, Difficulty.TELL_MIN)
+			if Difficulty.preset == Difficulty.Preset.NORMAL and seconds >= Difficulty.TELL_MIN:
+				normal = normal and is_equal_approx(Difficulty.tell(seconds), seconds) and is_equal_approx(Difficulty.boss_tell(seconds), seconds)
+	Difficulty.preset = was
+	check(floored, "no tell is ever under %.2f s, on any preset, and none is slower than at Normal" % Difficulty.TELL_MIN)
+	check(normal, "at Normal a tell is its own length")
+	check(Difficulty.LAST_BEAT == Parry.WINDOW, "its last beat is the guard's window")
+	check(not Difficulty.last_beat(-1.0, 1.0) and not Difficulty.last_beat(0.7, 1.0) and Difficulty.last_beat(0.81, 1.0) and Difficulty.last_beat(1.0, 1.0), "the last fifth of a second of a one-second tell is its last beat, and nothing else")
+
+
 func _legibility() -> void:
 	var all_read: bool = true
 	var places_read: bool = true

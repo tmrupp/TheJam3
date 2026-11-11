@@ -211,12 +211,16 @@ func _strikes(worm: Worm, p: Worm.Piece) -> void:
 	var lunged: Vector2 = worm.point(path, p.at(0) - Worm.LUNGE_REACH)
 	var near_drawn: float = INF
 	var near_lunged: float = INF
-	var steps: int = int(total * 60.0) + 2
+	# Stepped until the strike is over: its wind-up, a tell, may run longer than its Normal length
+	# (Difficulty.boss_tell), never shorter.
+	var steps: int = int(total * 60.0 * 2.0) + 2
 	for k: int in range(steps):
 		worm._step(p, 1.0 / 60.0)
 		worm._place(p)
 		near_drawn = minf(near_drawn, head.global_position.distance_to(drawn))
 		near_lunged = minf(near_lunged, head.global_position.distance_to(lunged))
+		if p.strike < 0.0:
+			break
 	check(p.u == was_u, "it holds still while it strikes")
 	check(near_drawn < 4.0 and near_lunged < 4.0 and rest_at.distance_to(lunged) > worm.cell * 0.5, "its head draws back, then lunges out along its way past where it lay")
 	check(p.strike < 0.0 and p.strike_wait > 0.0 and is_zero_approx(p.reach), "then settles back and rests before striking again")
