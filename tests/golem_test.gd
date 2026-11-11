@@ -116,7 +116,7 @@ func run() -> void:
 	var shed: Array[int] = []
 	for s: LodeShard in golem.shards:
 		shed.append(s.get_instance_id())
-	var arrow: Bullet = Crossbow.ARROW.instantiate() as Bullet
+	var arrow: Bullet = Bullet.make()
 	arrow.arrow = true
 	info.map_elements.add_child(arrow)
 	arrow.global_position = golem.heart_center() + Vector2(-400.0, 0.0)

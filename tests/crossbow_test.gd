@@ -160,7 +160,7 @@ func shooting(cell: float) -> void:
 	wisp.global_position = bow.muzzle() + Vector2(f * cell * 0.8, 0.0)
 	var wisp_wound: Wound = wisp.get_node("Wound") as Wound
 	var wisp_hp: int = wisp_wound.hp
-	var shot: Bullet = Crossbow.ARROW.instantiate() as Bullet
+	var shot: Bullet = Bullet.make()
 	shot.arrow = true
 	info.map_elements.add_child(shot)
 	shot.global_position = bow.muzzle()

@@ -13,6 +13,12 @@
 #
 # A test's tier is a line near its top: "## suite: full" (over 15 s, or known broken) or
 # "## suite: window" (needs a rendered window); untagged tests are in the quick run.
+# Every run of the suite (quick or full, not one of named tests) starts with game_boot: the game
+# itself started headless for BOOT_FRAMES frames, the way a player starts it (its main scene, its
+# scripts loaded in the game's own order, not the kit's), failing on a parse or script error. The
+# kit names MapInfo and Player in its fields, so a test loads the scripts in another order and
+# cannot see a scene left without a part by a cycle of loads (docs/CODE_REVIEW.md 1.1, 2.6).
+# Name it to run it alone: bash tests/run.sh game_boot.
 # A test passes when Godot exits 0 and its log has no FAIL, SCRIPT ERROR or Parse Error. A script
 # error usually leaves the test waiting forever, so it is stopped a moment after one appears.
 # The headless tests start longest first, so a slow one is not left to run alone at the end: each
@@ -70,6 +76,10 @@ if [[ ! -f "$cache" ]] || [[ -n "$(find scripts tests -name '*.gd' -newer "$cach
 	"$godot" --headless --path . --import > "$logs/_import.log" 2>&1
 fi
 
+# The frames the boot check runs the game for, and its name among the tests' results.
+BOOT_FRAMES=120
+BOOT=game_boot
+
 tier() { grep -m1 -o '^## suite: [a-z]*' "tests/$1.gd" | awk '{print $3}'; }
 
 headless=()
@@ -77,6 +87,7 @@ windowed=()
 if (( ${#names[@]} )); then
 	headless=("${names[@]}")
 else
+	headless+=("$BOOT")
 	for f in tests/*_test.gd; do
 		t=$(basename "$f" .gd)
 		case "$(tier "$t")" in
@@ -104,9 +115,12 @@ run_one() {
 	[[ $window == 1 ]] && args=(--windowed --resolution 1280x720 --screen "$screen")
 	local user=()
 	[[ -n "$bands" ]] && user=(-- "layout=$bands")
+	# The boot check starts the game as a player does, with no test script, for a few frames.
+	local launch=(--script "res://tests/$t.gd")
+	[[ $t == "$BOOT" ]] && launch=(--quit-after "$BOOT_FRAMES")
 	# The log is there before the test starts, so it is never looked for before it is made.
 	: > "$log"
-	"$godot" "${args[@]}" --path . --script "res://tests/$t.gd" "${user[@]}" > "$log" 2>&1 &
+	"$godot" "${args[@]}" --path . "${launch[@]}" "${user[@]}" > "$log" 2>&1 &
 	local pid=$! errored=-1
 	while kill -0 "$pid" 2>/dev/null; do
 		if (( SECONDS - start >= limit )); then

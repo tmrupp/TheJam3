@@ -10,7 +10,6 @@ extends Stunnable
 ## dropped key until taken) for planting at a plot (Plot), and is slain until the wizard dies, as
 ## any enemy is (Wound). Its touch hurts. Its body is frozen where it grew: it never falls or moves.
 
-const SHOT: PackedScene = preload("res://prefabs/bullet.tscn")
 ## How near (px) the wizard must be for it to spit (a watcher sees much further: a pod in a bad
 ## spot never pins the wizard down from afar), how long it swells before each seed (in sight), and
 ## how fast a seed flies (px/s).
@@ -136,7 +135,7 @@ func spit(at: Vector2) -> void:
 	var info: MapInfo = MapInfo.instance
 	if info == null or info.map_elements == null:
 		return
-	var shot: Bullet = SHOT.instantiate() as Bullet
+	var shot: Bullet = Bullet.make()
 	shot.seed = true
 	info.map_elements.add_child(shot)
 	shot.global_position = mouth()

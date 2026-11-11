@@ -15,7 +15,6 @@ extends Node2D
 ## but nothing wounds it.
 
 const STUNNER: PackedScene = preload("res://prefabs/stunner.tscn")
-const SEED: PackedScene = preload("res://prefabs/bullet.tscn")
 ## How near (px) the wizard must be for it to spit, how long it swells before each seed (in sight),
 ## and how fast a seed flies (px/s; a watcher's shot flies at 260).
 const SEED_RANGE: float = 900.0
@@ -196,7 +195,7 @@ func sees(player: Player) -> bool:
 
 ## Spit a seed at `at`, turned `bend` radians off it.
 func spit(at: Vector2, bend: float = 0.0) -> void:
-	var shot: Bullet = SEED.instantiate() as Bullet
+	var shot: Bullet = Bullet.make()
 	shot.seed = true
 	bramble.map_info.map_elements.add_child(shot)
 	shot.global_position = mouth()
