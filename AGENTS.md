@@ -133,6 +133,12 @@ bash tests/run.sh -l garden full  # the suite on another band layout (the demo's
   The runner starts the slowest tests first, by each test's seconds in its last run (kept in
   `/tmp/thejam3-tests/durations`, a file a band layout; a test never timed starts first of all),
   and its summary names the slowest five.
+- Every run of the suite also starts the game itself, headless, for a few frames (`game_boot`,
+  `bash tests/run.sh game_boot` alone) and fails on a parse or script error. The kit names
+  `MapInfo` and `Player` in its fields, so the tests load the scripts in another order than the
+  game does, and a scene a cycle of loads leaves without a part (a `preload` of a prefab by a
+  script the prefab's own scripts reach) shows only there. Make shots with `Bullet.make()`, and
+  load a prefab by its path when it is first wanted rather than `preload` it from gameplay code.
 - `run.sh` re-imports first. After adding a `class_name` script or an image outside it, run
   `godot --headless --path . --import`.
 - Captures: `godot --path . --windowed --resolution 1280x720 --screen 1 --script res://tests/capture_x.gd`.

@@ -38,7 +38,6 @@ const ARROW_SPEED: float = 620.0
 const DEPTH: float = 22.0
 ## How far past the wall's outer face an arrow is loosed (pixels), clear of the stone.
 const LOOSE_OUT: float = 14.0
-const ARROW: PackedScene = preload("res://prefabs/bullet.tscn")
 
 var map_info: MapInfo
 ## Its room cell, and the way it shoots: +1 out through the wall on the room's right, -1 its left.
@@ -134,7 +133,7 @@ func _physics_process(delta: float) -> void:
 func loose() -> void:
 	if map_info == null:
 		return
-	var arrow: Bullet = ARROW.instantiate() as Bullet
+	var arrow: Bullet = Bullet.make()
 	arrow.arrow = true
 	map_info.map_elements.add_child(arrow)
 	arrow.global_position = muzzle()

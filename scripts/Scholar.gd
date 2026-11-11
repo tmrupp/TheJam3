@@ -144,10 +144,6 @@ const HOVER: float = 150.0
 const HOVER_RISE: float = 240.0
 const FERRY_SPEED: float = 170.0
 
-## The bolt it casts (loaded when first cast: preloaded, it would load in a circle with the
-## wizard's scripts, which name this one).
-const SHOT: String = "res://prefabs/bullet.tscn"
-
 ## Which kind it is (see the class description): set in its prefab.
 @export var kind: StringName = &"student"
 
@@ -839,7 +835,7 @@ func _shoot(speed: float, off: float, spell: StringName) -> Bullet:
 		return null
 	var from: Vector2 = eye() + Vector2(facing * 26.0, 0)
 	var aim: Vector2 = (foe.global_position + aim_at(foe) - from).normalized().rotated(off)
-	var shot: Bullet = (load(SHOT) as PackedScene).instantiate() as Bullet
+	var shot: Bullet = Bullet.make()
 	map_info.map_elements.add_child(shot)
 	shot.global_position = from
 	shot.setup(aim * speed, [self], self)

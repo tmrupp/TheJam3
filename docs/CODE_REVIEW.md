@@ -488,7 +488,11 @@ That is how 1.1 came to pass every test but one.
 ## 4. An order of work
 
 1. **The shots** (1.1), with the boot check (2.6): small, and the game is not playable as meant
-   without it.
+   without it. *Done:* every shot is made by `Bullet.make()`, which loads `bullet.tscn` by its
+   path the first time (no script `preload`s it now: not the watcher, the seed pod, the bramble's
+   bulb, the crossbow or the scholar), and `tests/run.sh` starts every run of the suite with
+   `game_boot`, the game itself started headless for 120 frames, failing on a parse or script
+   error. The sweep of 2.6 is left to item 5.
 2. **The barriers** (1.3, 1.4), then `beast_test` (1.2), then the fingerprints written once
    (`layout_fingerprint_test -- update`), said in the report.
 3. **The swallowed death** (1.5) and **the refresh's price** (1.8).

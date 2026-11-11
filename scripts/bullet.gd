@@ -29,6 +29,10 @@ const ARROW_DAMAGE: int = 1
 const ARROW_REACH: float = 30.0
 ## Bodies its sweep glances off: rock and ledges (as its hit box sees them).
 const SOLID_MASK: int = 32
+## The scene every shot is made from. It is loaded by its path the first time a shot is made
+## (make), never preloaded: its hit box names the wizard's scripts, and a script they name that
+## preloaded it would load it in a circle, leaving it without its hit box for the whole game.
+const SCENE: String = "res://prefabs/bullet.tscn"
 ## The spell a scholar cast it as (&"student" for a student's bolt, else the master's spell, see
 ## Scholar), or &"" for any other shot; the group of enemies it wounds as it meets them (&"" for
 ## none, an arrow's all of them); what it turns toward, the point on it (px from where it stands)
@@ -40,6 +44,12 @@ var homing: Node2D = null
 var homing_aim: Vector2 = Vector2.ZERO
 var turn: float = 0.0
 var life: float = INF
+
+## A new shot, not yet in the level: the one way shots are made (a watcher's, a pod's or a
+## bulb's seed, a crossbow's arrow, a scholar's spell).
+static func make() -> Bullet:
+	return (load(SCENE) as PackedScene).instantiate() as Bullet
+
 
 func setup(v: Vector2, ignore: Array, sender: Node) -> void:
 	velocity = v

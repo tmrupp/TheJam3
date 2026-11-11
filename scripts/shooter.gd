@@ -17,7 +17,6 @@ const HOVER_RATE: float = 0.35
 ## Seconds of charge (in sight) to a shot, and the shot's speed (px/s): few shots, but quick ones.
 var cooldown: float = 3.5
 var SPEED: int = 260
-var projectile_prefab: Resource = preload("res://prefabs/bullet.tscn")
 @onready var shoot_point: Node2D = $ShootPoint
 @onready var range_box: Area2D = $RangeBox
 @onready var player: Player = Stage.player()
@@ -54,12 +53,12 @@ func can_see() -> bool:
 
 
 func shoot() -> void:
-	var projectile: Node = projectile_prefab.instantiate()
+	var projectile: Bullet = Bullet.make()
 	main.add_child.call_deferred(projectile)
 	projectile.position = shoot_point.global_position
 	projectile.setup((player.global_position - shoot_point.global_position).normalized() * SPEED, [rb], rb)
 	# A sky level's watcher fires shots that rebound off walls (SkyArchetype.populate).
-	projectile.set("bounces", int(rb.get_meta(&"bounces", 0)))
+	projectile.bounces = int(rb.get_meta(&"bounces", 0))
 	shoot_sfx.play()
 
 
