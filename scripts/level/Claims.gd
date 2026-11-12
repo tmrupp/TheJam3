@@ -3,7 +3,7 @@ extends RefCounted
 ## The generator's one answer to "is this cell spoken for" (docs/CODE_REVIEW.md 2.3). What a cell
 ## holds is its type; what a cell is kept for is said in many places, each known to the pass that
 ## made it (the free list, a lift's track, a thing's room, a vault, a way out, a structure's cells,
-## a lane, the start's way, a secret room's step, rock kept whole). This gathers them once, for a
+## the start's way, a secret room's step, rock kept whole). This gathers them once, for a
 ## level as it stands (LevelGen.claims: ask again after changing it), so a pass that comes late asks
 ## here and need not know them all. The barriers do (Barriers._solid); a new late pass should.
 ## - held(v): what holds cell `v` (ROOM, TRACK...), or &"" when nothing does.
@@ -17,7 +17,7 @@ extends RefCounted
 
 ## What may hold a cell, as held says it: a thing's room (Placeables.size), a lift's or rolling
 ## ladder's track and body (LevelGen.tracks), a vault's room, a way out, an archetype's structure
-## (LevelGen.structures), a lane (LevelGen.lanes), the start's way (keep_clear), a secret room's
+## (LevelGen.structures), the start's way (keep_clear), a secret room's
 ## step (secret_steps), rock kept whole (LevelGen.kept), and air that is no longer on the free list
 ## for a reason not written down (TAKEN: the second cell of a shrine, a crypt's or hall's insides).
 const ROOM: StringName = &"room"
@@ -25,7 +25,6 @@ const TRACK: StringName = &"track"
 const VAULT: StringName = &"vault"
 const WAY_OUT: StringName = &"way out"
 const STRUCTURE: StringName = &"structure"
-const LANE: StringName = &"lane"
 const START_WAY: StringName = &"start's way"
 const STEP: StringName = &"secret step"
 const KEPT: StringName = &"kept whole"
@@ -67,8 +66,6 @@ func _init(w: LevelGen) -> void:
 			_held[c] = VAULT
 	for c: Vector2i in w.structures:
 		_held[c] = STRUCTURE
-	for c: Vector2i in w.lanes:
-		_held[c] = LANE
 	for c: Vector2i in w.keep_clear:
 		_held[c] = START_WAY
 	for c: Vector2i in w.secret_steps:

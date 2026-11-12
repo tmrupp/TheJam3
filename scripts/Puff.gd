@@ -1,7 +1,6 @@
 class_name Puff
 extends StaticBody2D
-## A cloud that gives way, in sky levels (SkyArchetype.populate, and the stepping stones of
-## the causeways between clusters, SkyArchetype.link_isles): a ledge of cloud (one-way, like a
+## A cloud that gives way, in sky levels (SkyArchetype.populate): a ledge of cloud (one-way, like a
 ## platform) that holds for STAND seconds once the wizard lands on it, thinning as it goes, then
 ## lets them through: once touched it goes, whether they stay or jump off. It gathers again REFORM
 ## seconds later, once the wizard is clear of it.

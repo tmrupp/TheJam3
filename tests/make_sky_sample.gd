@@ -22,10 +22,17 @@ extends SceneTree
 ## - a body of rock of 80 cells or more is a great island (WaveFunctionCollapse.GREAT_ISLAND): a
 ##   level's first cluster is collapsed from a box that holds one, and one more besides, so paint at
 ##   least one.
+## - rock painted straight onto the open sky, in no cluster's box, is the open sky's own: little
+##   islands. A level's open sky is collapsed from them too, and what the collapse lays between two
+##   clusters the level links is kept (SkyArchetype.connect_isles): the little islands that
+##   connect them. Paint them as they should be met between clusters, little and a hop or so apart;
+##   with none painted, a level has none.
 ##
 ## The sheet now, as painted: two clusters of small islands, thorns set into the middle of their
 ## tops, one of them with a hollow hull; a third of small islands thinly spread; and the great
-## island, a mass of rock 28 cells across, tunnelled through, with thorn pits in its floors.
+## island, a mass of rock 28 cells across, tunnelled through, with thorn pits in its floors. Under
+## them, a strip of open sky with little islands in it, three to five cells wide and tapered: these
+## were laid by rule to start the open sky's sample off, and are there to be painted over.
 ##
 ## As first drawn (_redraw: three rows of five clusters): a cluster is two halves with a seam of
 ## bare air between them (SEAM columns). In a half, the islands are packed close, two or three
@@ -99,6 +106,21 @@ const SHEET: PackedStringArray = [
 	"~~~....................~~~~~~............................~~~",
 	"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
 	"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
+	"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
+	"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
+	"~~~~~###~~~~~~~~~~~~#####~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
+	"~~~~~~#~~~~####~~~~~~###~~~~####~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
+	"~~~~~~~~~~~~##~~~~~~~~#~~~~~~##~~~~~~~~~~~~#####~~~~~~~~~~~~",
+	"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~###~~~~~~###~~~####~~~~~~",
+	"~~###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#~~~~~~~~#~~~~~##~~~~~~~",
+	"~~~#~~~~~~~~~~~~~~~~~~~~~~~~~~###~~~~~~~~~~~~~~~~~~~~~~~~~~~",
+	"~~~~~~~~~~~~~~~~~~~~####~~~~~~~#~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
+	"~~~~~~~~###~~~~~~~~~~##~~~~~~~~~~~~~~####~~~~~~####~~~~~~~~~",
+	"~~~~~~~~~#~~~###~~~~~~~~~~~~~~~~~~~~~~##~~~~~~~~##~~~~~~~~~~",
+	"~~###~~~~~~~~~#~~~~~~~~~~~~~~~####~~~~~~~~~~~~~~~~~~~~~~~~~~",
+	"~~~#~~~~~~~~~~~~~~####~~~~~~~~~##~~~~~~~~~~~~~~~~~~~~#####~~",
+	"~~~~~~~~###~~~~~~~~##~~~####~~~~~~~~####~~~####~~~~~~~###~~~",
+	"~~~~~~~~~#~~~~~~~~~~~~~~~##~~~~~~~~~~##~~~~~##~~~~~~~~~#~~~~",
 	"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
 ]
 

@@ -5,8 +5,10 @@ extends Archetype
 ## kept in tests/make_sky_sample.gd): each cluster painted on the sample is a sample of its own,
 ## every cluster of a level is collapsed afresh from one of them, in bands across the level
 ## (WaveFunctionCollapse.collapse_clusters), and
-## the layout reads the clusters back from what was laid (read_clusters) and links them with
-## causeways; it clears, stamps and grows nothing of its own. Its gates are gaps between islands crossed on the wind a vane
+## the layout reads the clusters back from what was laid (read_clusters) and joins them in pairs,
+## keeping between each pair the little islands the collapse laid in the open sky there
+## (connect_isles); it clears, stamps and grows nothing of its own, and builds nothing between
+## clusters: the wind carries the wizard from one to the next. Its gates are gaps between islands crossed on the wind a vane
 ## sets blowing (cut_gates, Chasms.add_gap, Vane, Wind). Pads, clouds that give way, updrafts,
 ## swooping birds, shielded enemies and rebounding shots live there (populate), and a balloon is
 ## moored in every one, to ride along the row on the level's wind, and a temple stands in some,
@@ -36,6 +38,11 @@ const BOUNCES: int = 2
 
 ## A patch of cluster with less rock than this is no cluster (read_clusters): cleared to open sky.
 const ISLE_LEAST: int = 8
+## How far past the open sky between two linked clusters' boxes their lane reaches (cells), and how
+## many cells of rock make an island too big to be one of the little ones between them
+## (connect_isles).
+const LANE_GROW: int = 3
+const LANE_ISLAND: int = 24
 
 ## Shore kept whole either side of an island gap taken as a chasm, and the narrowest gap taken
 ## (a run, a jump and a dash cover under 6 cells).
@@ -92,7 +99,7 @@ func _init() -> void:
 	open = true
 
 
-## Read the clusters of islands the collapse gave, and link them by causeways (cluster_islands).
+## Read the clusters of islands the collapse gave, and join them in pairs (cluster_islands).
 func shape(w: LevelGen) -> void:
 	cluster_islands(w)
 
@@ -123,7 +130,8 @@ func room(w: LevelGen, v: Vector2i, grow: int) -> bool:
 	return w.in_isle(v, grow)
 
 ## Sky levels: read the clusters of islands the collapse gave (read_clusters), then link them
-## (link_isles). Nothing is laid here but the causeways: the islands are the collapse's own.
+## (link_isles). Nothing is built here: the islands, in the clusters and between them, are the
+## collapse's own.
 static func cluster_islands(w: LevelGen) -> void:
 	read_clusters(w)
 	link_isles(w)
@@ -183,26 +191,13 @@ static func read_clusters(w: LevelGen) -> void:
 	w.map_isles()
 
 
-## The floors (open, rock under, open over) of cluster `i`.
-static func _isle_floors(w: LevelGen, i: int) -> Array[Vector2i]:
-	var c: Vector2i = w.isles[i][0]
-	var r: Vector2i = w.isles[i][1]
-	var out: Array[Vector2i] = []
-	for x: int in range(c.x - r.x - 1, c.x + r.x + 2):
-		for y: int in range(c.y - r.y - 1, c.y + r.y + 2):
-			var v: Vector2i = Vector2i(x, y)
-			if w.is_valid(v) and w.isle_of[x * w.size.y + y] == i and w.type_at(v) == LevelGen.Type.EMPTY and w.is_ground(v + Vector2i.DOWN) and w.is_valid(v + Vector2i.UP) and w.type_at(v + Vector2i.UP) == LevelGen.Type.EMPTY:
-				out.append(v)
-	return out
-
-
-## Link the clusters so every one can be reached: along the shortest links between them (a
-## spanning tree, stacked clusters counting as further apart), a causeway of cloud stepping
-## stones (Puff, two cells wide, a hop apart) from a floor of one to a floor of the other, and
-## an updraft (Wind) where the far floor is too high above to hop up to. A cluster no causeway
-## can reach is cleared away.
+## Join the clusters in pairs, each to the nearest already joined (a tree of the shortest links
+## between them, stacked clusters counting as further apart), and keep between each pair the
+## little islands the collapse laid in the open sky there (connect_isles). Nothing is built
+## between clusters: the way from one to the next is the wind (the gaps a vane's gust carries the
+## wizard over, cut_gates, and the level's own wind in the open air), with those little islands to
+## land on. No draw.
 static func link_isles(w: LevelGen) -> void:
-	var dropped: Array[int] = []
 	var linked: Array[int] = [0]
 	var left: Array[int] = []
 	for i: int in range(1, w.isles.size()):
@@ -217,119 +212,69 @@ static func link_isles(w: LevelGen) -> void:
 			for j: int in left:
 				if best.is_empty() or gap.call(i, j) < int(best[0]):
 					best = [gap.call(i, j), i, j]
-		var j: int = best[2]
-		left.erase(j)
-		# From the nearest cluster already linked, else the next nearest, until one can be laid.
-		var from: Array[int] = linked.duplicate()
-		from.sort_custom(func(p: int, q: int) -> bool: return gap.call(p, j) < gap.call(q, j))
-		var laid: bool = false
-		for i: int in from:
-			if _causeway(w, i, j):
-				laid = true
-				break
-		if laid:
-			w.links += 1
-			linked.append(j)
-		else:
-			dropped.append(j)
-	# A cluster no causeway reaches is cleared away, so nothing is placed out of reach: its cells
-	# are open sky, and the clusters after it move up a place.
-	if dropped.is_empty():
+		left.erase(int(best[2]))
+		linked.append(int(best[2]))
+		connect_isles(w, int(best[1]), int(best[2]))
+		w.links += 1
+
+
+## The little islands between linked clusters `i` and `j`: those the collapse laid in the level's
+## open sky (LevelGen.patches, collapsed from the islands painted on the sample's open sky,
+## WaveFunctionCollapse.collapse_clusters) that lie whole in the lane between the two, the open
+## sky between their boxes and LANE_GROW cells past it at their rounded edges, clear of both
+## clusters. Each is laid as the collapse has it, rock and
+## the thorns that touch it; one of LANE_ISLAND cells or more is left out, as is one the lane's
+## edge would cut. Nothing is drawn: what is laid is the collapse's.
+static func connect_isles(w: LevelGen, i: int, j: int) -> void:
+	if w.patches.is_empty() or not w.patches[0] is Array or (w.patches[0] as Array).size() < w.size.x:
 		return
-	dropped.sort()
-	dropped.reverse()
-	var cleared: Array[Vector2i] = []
-	for j: int in dropped:
-		w.isles.remove_at(j)
-		for i: int in range(w.isle_of.size()):
-			if w.isle_of[i] == j:
-				w.isle_of[i] = -1
-				if w.types[i] != LevelGen.Type.EMPTY:
-					@warning_ignore("integer_division")
-					cleared.append(Vector2i(i / w.size.y, i % w.size.y))
-			elif w.isle_of[i] > j:
-				w.isle_of[i] -= 1
-	w._to_open_all(cleared)
-	w.map_isles()
-
-
-## A causeway between clusters `i` and `j`: from a floor of one up or across to a floor of the
-## other (the lower of the two to the higher). Tries the nearest pairs of floors; false if none
-## can be laid.
-static func _causeway(w: LevelGen, i: int, j: int) -> bool:
-	var lo: int = i if (w.isles[i][0] as Vector2i).y >= (w.isles[j][0] as Vector2i).y else j
-	var hi: int = j if lo == i else i
-	var from: Array[Vector2i] = _isle_floors(w, lo)
-	var to: Array[Vector2i] = _isle_floors(w, hi)
-	var pairs: Array = []
-	for a: Vector2i in from:
-		for b: Vector2i in to:
-			# Always built upward, from the lower floor: every hop can be taken either way.
-			if a.y >= b.y:
-				pairs.append([LevelGen.dist(a, b), a, b])
-			else:
-				pairs.append([LevelGen.dist(a, b), b, a])
-	pairs.sort()
-	for k: int in range(pairs.size()):
-		if _stones(w, pairs[k][1], pairs[k][2]):
-			return true
-	return false
-
-
-## Stepping stones from standing at `a` up or across to standing at `b` (no lower): hops of three
-## cells across, or two across and one up, each as easily taken back down; where `b` is two or
-## more above with little room across left, an updraft beside it lifts the wizard up to it.
-## Every stone, the cell over it and the one over that must be open air; false (nothing laid)
-## if they are not.
-static func _stones(w: LevelGen, a: Vector2i, b: Vector2i) -> bool:
-	var dir: int = 1 if b.x >= a.x else -1
-	var stands: Array[Vector2i] = []
-	var shaft: Vector2i = Vector2i(-1, -1)
-	var shaft_up: int = 0
-	var cur: Vector2i = a
-	for guard: int in range(40):
-		var dx: int = b.x - cur.x
-		var dy: int = b.y - cur.y
-		# Within a last hop.
-		if absi(dx) <= 2 and dy >= -1 or absi(dx) <= 3 and dy >= 0:
-			break
-		if dy <= -2 and absi(dx) <= 3:
-			# Too high to hop up to: over to the column beside it, then an updraft.
-			if absi(dx) > 1:
-				cur = Vector2i(b.x - dir, cur.y)
-				stands.append(cur)
-			shaft = cur
-			shaft_up = cur.y - b.y + 2
-			break
-		var step: Vector2i = Vector2i(2 * dir, -1) if dy < 0 else Vector2i(mini(3, absi(dx)) * dir, 0)
-		cur += step
-		stands.append(cur)
-	if stands.is_empty() and shaft.x < 0:
-		return false
-	var open: Callable = func(v: Vector2i) -> bool: return w.is_valid(v) and w.type_at(v) == LevelGen.Type.EMPTY
-	var stones: Array[Vector2i] = []
-	for st: Vector2i in stands:
-		for c: Vector2i in [st, st + Vector2i.UP, st + Vector2i.DOWN, st + Vector2i(dir, 1)]:
-			if not open.call(c):
-				return false
-		stones.append(st + Vector2i.DOWN)
-		stones.append(st + Vector2i(dir, 1))
-	if shaft.x >= 0:
-		for d: int in range(0, shaft_up + 1):
-			if not open.call(shaft + Vector2i(0, -d)):
-				return false
-	for st: Vector2i in stands:
-		w.lanes[st] = true
-		w.lanes[st + Vector2i.UP] = true
-	for c: Vector2i in stones:
-		w.lanes[c] = true
-		w.put(c, LevelGen.Type.PUFF)
-	if shaft.x >= 0:
-		w.put(shaft, LevelGen.Type.WIND, {"up": shaft_up})
-		for d: int in range(0, shaft_up + 2):
-			w.lanes[shaft + Vector2i(0, -d)] = true
-			w.empties.erase(shaft + Vector2i(0, -d))
-	return true
+	var sky: Array = w.patches[0]
+	var lo: Vector2i = Vector2i.ZERO
+	var hi: Vector2i = Vector2i.ZERO
+	for axis: int in range(2):
+		var a0: int = (w.isles[i][0] as Vector2i)[axis] - (w.isles[i][1] as Vector2i)[axis]
+		var a1: int = (w.isles[i][0] as Vector2i)[axis] + (w.isles[i][1] as Vector2i)[axis]
+		var b0: int = (w.isles[j][0] as Vector2i)[axis] - (w.isles[j][1] as Vector2i)[axis]
+		var b1: int = (w.isles[j][0] as Vector2i)[axis] + (w.isles[j][1] as Vector2i)[axis]
+		if a1 < b0 or b1 < a0:
+			# Apart this way: the sky between them, and a little past it.
+			lo[axis] = mini(a1, b1) + 1 - LANE_GROW
+			hi[axis] = maxi(a0, b0) - 1 + LANE_GROW
+		else:
+			# Side by side this way: where they overlap.
+			lo[axis] = maxi(a0, b0)
+			hi[axis] = mini(a1, b1)
+	var lane: Rect2i = Rect2i(lo, hi - lo + Vector2i.ONE).intersection(Rect2i(Vector2i.ZERO, w.size))
+	var rock: Callable = func(v: Vector2i) -> bool: return w.is_valid(v) and Color(sky[v.x][v.y]) == Color.BLACK
+	var free: Callable = func(v: Vector2i) -> bool:
+		return lane.has_point(v) and w.isle_of[v.x * w.size.y + v.y] < 0 and w.type_at(v) == LevelGen.Type.EMPTY and not w.in_isle(v, 1)
+	var seen: Dictionary = {}
+	for x: int in range(lane.position.x, lane.end.x):
+		for y: int in range(lane.position.y, lane.end.y):
+			var start: Vector2i = Vector2i(x, y)
+			if seen.has(start) or not rock.call(start):
+				continue
+			var body: Array[Vector2i] = [start]
+			seen[start] = true
+			var head: int = 0
+			while head < body.size() and body.size() < LANE_ISLAND:
+				var v: Vector2i = body[head]
+				head += 1
+				for dx: int in range(-1, 2):
+					for dy: int in range(-1, 2):
+						var n: Vector2i = v + Vector2i(dx, dy)
+						if not seen.has(n) and rock.call(n):
+							seen[n] = true
+							body.append(n)
+			if body.size() >= LANE_ISLAND or not body.all(free):
+				continue
+			for v: Vector2i in body:
+				w._to_rock(v)
+			for v: Vector2i in body:
+				for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+					var n: Vector2i = v + d
+					if w.is_valid(n) and Color(sky[n.x][n.y]) == Color.RED and free.call(n):
+						w.put(n, LevelGen.Type.SPIKES)
 
 
 ## Sky levels: gaps between islands already about as wide as a chasm (GAP_MIN to CHASM_WIDTH and
@@ -417,7 +362,6 @@ static func _build_gaps(w: LevelGen, want: int) -> void:
 		if w.types[i] != LevelGen.Type.EMPTY:
 			filled[i] = 1
 	var full: CellSums = CellSums.new(w.size, filled)
-	var lanes: CellSums = CellSums.of_set(w, w.lanes)
 	var spots: Array = []
 	for tier: Array in tiers:
 		for sp: Array in tier:
@@ -427,9 +371,6 @@ static func _build_gaps(w: LevelGen, want: int) -> void:
 			var across: Rect2i = Rect2i(a, y - 2, span, 5)
 			var shores: Array[Rect2i] = [Rect2i(a - BUILT_SHORE, y - 2, BUILT_SHORE, 3), Rect2i(a + span, y - 2, BUILT_SHORE, 3)]
 			var footings: Array[Rect2i] = [Rect2i(a - BUILT_SHORE, y + 1, BUILT_SHORE, 1), Rect2i(a + span, y + 1, BUILT_SHORE, 1)]
-			# Never across a causeway or its updraft.
-			if lanes.count(across) + lanes.count(shores[0]) + lanes.count(shores[1]) + lanes.count(footings[0]) + lanes.count(footings[1]) > 0:
-				continue
 			var cost: int = full.count(across) + full.count(shores[0]) + full.count(shores[1]) \
 					+ 2 * BUILT_SHORE - full.count(footings[0]) - full.count(footings[1])
 			spots.append([cost, y, a, span])

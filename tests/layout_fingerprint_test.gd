@@ -44,8 +44,8 @@ const GOLDEN: Dictionary = {
 	"institute": ["a01b45b95ee65bf1", "e0f457dc2e95f40c"],
 	"institute deeper": ["4f2078ca6c86a9cc", "5fe3752622fc7798"],
 	"crags": ["ef0e44a5b82debef", "6e45c893aed34e24"],
-	"sky": ["1c6a520cb80bec99", "40e38461380022ff"],
-	"sky deeper": ["b78a62987cfb46ab", "772fa8fdd0c8ba15"],
+	"sky": ["044fc57a1630e032", "7b4653be8d8bee4b"],
+	"sky deeper": ["2af2d2ed89d54954", "8a08e402dd57face"],
 	"hyperspace": ["cd4d98d58e9b4b93", "2903529a86e37396"],
 	"hyperspace above": ["43f11c6b31fca101", "c7daee57fdce97e9"],
 }

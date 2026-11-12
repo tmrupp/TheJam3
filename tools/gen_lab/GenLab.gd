@@ -667,7 +667,9 @@ static func _level(wfc: Node, texture: ImageTexture, at: Vector2i, job: Dictiona
 		w = LevelGen.new(cells, def)
 	elif job["dress"]:
 		note = " (this band builds insides of its own: shown undressed)"
-	var img: Image = _picture(cells, w)
+	# (What is handed on after the terrain's columns, a crypt's insides or the sky's own islands,
+	# is not a column of it.)
+	var img: Image = _picture(cells.filter(func(column: Variant) -> bool: return column is Array), w)
 	var line: String = "%s  %dx%d" % [Rules.where(at), level_size.x, level_size.y]
 	if tries > 1:
 		line += ", %d tries" % tries

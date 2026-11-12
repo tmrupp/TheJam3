@@ -1393,10 +1393,8 @@ var isles: Array = []
 ## Per cell, which cluster it lies in (its place in `isles`), -1 in open sky. Empty for a level
 ## with no clusters.
 var isle_of: PackedInt32Array = PackedInt32Array()
-## The cells a causeway or its updraft uses (stones, the air over them, the shaft): kept as they are
-## by everything built after (the gaps, SkyArchetype._build_gaps).
-var lanes: Dictionary = {}
-## Causeways laid (SkyArchetype.link_isles): one fewer than the clusters when every cluster is reached.
+## How many pairs of clusters the layout joined (SkyArchetype.link_isles): one fewer than the
+## clusters.
 var links: int = 0
 
 ## Per cell, how many cells it is from the nearest cluster (0 in one, a cell diagonally counting as

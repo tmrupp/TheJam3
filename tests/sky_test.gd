@@ -81,6 +81,7 @@ func sample_clusters() -> void:
 			open_between = open_between and (other == box or not other.grow(1).intersects(box))
 	check(boxes.size() >= 2 and open_between, "the sample is clusters with open sky between them (%d)" % boxes.size())
 	check(greats >= 1, "one of them holds a great island, %d cells of rock or more in one body (%d do)" % [_great(), greats])
+	check(script.call("_between", sample) != null, "and little islands are painted on its open sky, in no cluster: the open sky's own sample")
 	# A cluster collapsed from each, twice over: cut to its outline, and not the same twice.
 	var wfc: Node = TestKit._make_wfc()
 	var outlined: bool = true
@@ -180,6 +181,15 @@ func generation() -> void:
 					kept_rock += 1 if w.is_ground(Vector2i(x, y)) else 0
 		check(float(kept_rock) >= float(drawn_rock) * 0.85 and float(rock) <= float(drawn_rock) * 1.25, "%s: the islands are the sample's own (%d of %d cells of rock kept, %d in all)" % [at, kept_rock, drawn_rock, rock])
 		check(not w.open_sky.is_empty() and w.objects_of(LevelGen.Type.SPIKES).size() >= 6, "%s: open sky between its clusters, and thorns on its islands (%d)" % [at, w.objects_of(LevelGen.Type.SPIKES).size()])
+		# Little islands between its linked clusters: rock in the open sky where the open sky's own
+		# collapse (handed on after the terrain's columns, LevelGen.patches) has rock.
+		var between: int = 0
+		if not w.patches.is_empty() and (w.patches[0] as Array).size() == w.size.x:
+			for x: int in range(w.size.x):
+				for y: int in range(w.size.y):
+					if w.isle_of[x * w.size.y + y] < 0 and w.is_ground(Vector2i(x, y)) and Color(w.patches[0][x][y]) == Color.BLACK:
+						between += 1
+		check(between >= 8, "%s: little islands between its linked clusters, collapsed with its open sky (%d cells)" % [at, between])
 		greatest.append(_largest_body(cells))
 		check(greatest.back() >= _great(), "%s: a great island in it (its largest body of rock %d cells)" % [at, greatest.back()])
 		if greatest.size() == 3:
@@ -188,7 +198,7 @@ func generation() -> void:
 		check(w.chasms.all(func(gap: Dictionary) -> bool:
 			var shore: Vector2i = gap["right"]
 			return not w.is_ground(shore) and not w.is_ground(shore + Vector2i.UP) and w.get_cell(shore + Vector2i.DOWN).type in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED]), "%s: wind landing shores are level with clear headroom" % at)
-		check(w.links == w.isles.size() - 1, "%s: every cluster linked to the rest by a causeway (%d of %d)" % [at, w.links, w.isles.size() - 1])
+		check(w.links == w.isles.size() - 1, "%s: every cluster joined to the rest, pair by pair (%d of %d)" % [at, w.links, w.isles.size() - 1])
 		var crosswinds: int = 0
 		for column: Array in w.cells:
 			for cell: LevelGen.Cell in column:

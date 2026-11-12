@@ -71,13 +71,13 @@ const STRIP: int = 3
 ## where) and collapsing each cluster (and each retry).
 const BAND_DEAL: int = Salts.WAVE_FUNCTION_COLLAPSE_BAND * Salts.STRIDE
 ## The fewest rows of open sky between one band of clusters and the next, and the most more dealt.
-const BAND_APART: int = 3
+const BAND_APART: int = 5
 const BAND_GAP: int = 2
 ## The fewest columns of open sky between two clusters in a band, and the most more dealt.
-const CLUSTER_APART: int = 5
+const CLUSTER_APART: int = 8
 const CLUSTER_GAP: int = 3
 ## How wide a cluster is collapsed, in hundredths of its sample's width (from, to).
-const CLUSTER_WIDE: Vector2i = Vector2i(100, 160)
+const CLUSTER_WIDE: Vector2i = Vector2i(90, 140)
 ## The versions of a sample's pieces a cluster's collapse uses (NextWorldDef.symmetry_mask): as
 ## painted, and mirrored left to right.
 const CLUSTER_TURNS: int = 33
@@ -95,6 +95,9 @@ const OUTLINE_CORNER: int = 2
 ## pieces smaller than SCRAP is cleared.
 const WHOLE_ISLAND: int = 40
 const SCRAP: int = 5
+## How many cells of open sky round the little islands painted on a sheet's open sky are taken with
+## them as the open sky's sample.
+const BETWEEN_ROUND: int = 3
 ## A body of rock this many cells or more (its cells touching, corners too) is a great island: a
 ## cluster sample that holds one is a great cluster, and every level has one collapsed from such a
 ## sample, kept only if it holds a great island itself.
@@ -114,7 +117,10 @@ const GREAT_ISLAND: int = 80
 ## BAND_GAP more, the stack in the middle of the level's height and open sky over and under it.
 ## The first cluster dealt is a great one (GREAT_ISLAND), and so is the second of the second band
 ## dealt; each lies anywhere in its band, which lies anywhere in the stack. So a level has two
-## great islands or more. [] if the sheet has no clusters or none fits.
+## great islands or more. Where little islands are painted straight onto the sheet's open sky,
+## the level's open sky is collapsed from them too (_between, _sky), and handed on after the
+## terrain's columns as {"patches": [it]} (LevelGen.patches), for the layout to keep what lies
+## between the clusters it links. [] if the sheet has no clusters or none fits.
 func collapse_clusters(sample: Image, size: Vector2i, level_seed: int) -> Array:
 	var boxes: Array[Rect2i] = _clusters(sample)
 	var crops: Array[Image] = []
@@ -209,14 +215,31 @@ func collapse_clusters(sample: Image, size: Vector2i, level_seed: int) -> Array:
 					map[x + px][row + drop + py] = patch[px][py]
 			x += wide
 		row += high
+	# The open sky's own islands, collapsed for the whole level and handed on after its columns:
+	# the layout keeps those that lie between two clusters it links (SkyArchetype.link_isles).
+	var between: Image = _between(sample)
+	if between != null and between.get_width() >= STRIP and between.get_height() >= STRIP:
+		map.append({"patches": [_sky(between, size, Rules.level_seed(level_seed, BAND_DEAL + 8000))]})
 	return map
 
 
 ## The clusters painted on a sheet: the box round each patch of cells that are not open sky (taken
-## with their neighbours left, right, up and down), in the order they are met reading down the
-## sheet's columns from the left.
+## with their neighbours left, right, up and down) and that has air in it, in the order they are
+## met reading down the sheet's columns from the left. A patch with no air in it is no cluster:
+## rock painted straight onto the open sky is the open sky's own, a little island of it (_between).
 static func _clusters(sample: Image) -> Array[Rect2i]:
 	var out: Array[Rect2i] = []
+	for patch: Dictionary in _patches(sample):
+		if patch["airy"]:
+			out.append(patch["box"])
+	return out
+
+
+## Every patch of a sheet that is not open sky: {"cells": its cells, "box": the box round them,
+## "airy": whether any of them is air}, in the order they are met reading down the sheet's
+## columns from the left.
+static func _patches(sample: Image) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
 	var seen: Dictionary = {}
 	for x: int in range(sample.get_width()):
 		for y: int in range(sample.get_height()):
@@ -227,20 +250,61 @@ static func _clusters(sample: Image) -> Array[Rect2i]:
 			seen[start] = true
 			var lo: Vector2i = start
 			var hi: Vector2i = start
+			var airy: bool = false
 			var head: int = 0
 			while head < patch.size():
 				var v: Vector2i = patch[head]
 				head += 1
 				lo = Vector2i(mini(lo.x, v.x), mini(lo.y, v.y))
 				hi = Vector2i(maxi(hi.x, v.x), maxi(hi.y, v.y))
+				airy = airy or sample.get_pixel(v.x, v.y).is_equal_approx(Color.WHITE)
 				for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
 					var n: Vector2i = v + d
 					if n.x < 0 or n.y < 0 or n.x >= sample.get_width() or n.y >= sample.get_height() or seen.has(n) or sample.get_pixel(n.x, n.y).is_equal_approx(LevelGen.SKY):
 						continue
 					seen[n] = true
 					patch.append(n)
-			out.append(Rect2i(lo, hi - lo + Vector2i.ONE))
+			out.append({"cells": patch, "box": Rect2i(lo, hi - lo + Vector2i.ONE), "airy": airy})
 	return out
+
+
+## The sample of a sheet's open sky: the stretch of the sheet round the little islands painted
+## straight onto its open sky (every patch with no air in it), BETWEEN_ROUND cells of sky round
+## them, the clusters in it painted over with open sky. null if none is painted.
+static func _between(sample: Image) -> Image:
+	var sky: Image = sample.duplicate() as Image
+	sky.convert(Image.FORMAT_RGBA8)
+	var lo: Vector2i = Vector2i(sample.get_width(), sample.get_height())
+	var hi: Vector2i = Vector2i(-1, -1)
+	for patch: Dictionary in _patches(sample):
+		if patch["airy"]:
+			for v: Vector2i in patch["cells"]:
+				sky.set_pixel(v.x, v.y, LevelGen.SKY)
+		else:
+			var box: Rect2i = patch["box"]
+			lo = Vector2i(mini(lo.x, box.position.x), mini(lo.y, box.position.y))
+			hi = Vector2i(maxi(hi.x, box.end.x - 1), maxi(hi.y, box.end.y - 1))
+	if hi.x < 0:
+		return null
+	var round_it: Rect2i = Rect2i(lo, hi - lo + Vector2i.ONE).grow(BETWEEN_ROUND).intersection(Rect2i(0, 0, sample.get_width(), sample.get_height()))
+	return sky.get_region(round_it)
+
+
+## The open sky of a level `size` cells across and down, collapsed from `between` (_between) on
+## `sky_seed`, three cells at a time: open sky with little islands in it, as its columns in the
+## sample's colours. Collapsed again, on the next seed, while it does not settle (CLUSTER_TRIES at
+## most); [] if it never does.
+func _sky(between: Image, size: Vector2i, sky_seed: int) -> Array:
+	texture = ImageTexture.create_from_image(between)
+	output_size = size
+	symmetry = 2
+	symmetry_mask = CLUSTER_TURNS
+	for attempt: int in range(CLUSTER_TRIES):
+		set_seed(Rules.level_seed(sky_seed, attempt))
+		var cells: Array = collapse()
+		if not cells.is_empty():
+			return cells
+	return []
 
 
 ## A cluster `size` cells across and down, collapsed from `crop` (a painted cluster, its open sky
