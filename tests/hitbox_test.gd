@@ -41,9 +41,10 @@ func art_of(enemy: Node) -> RisoProp:
 
 
 ## The first few enemies from `scene` near the camera each have their touch over the middle of
-## their printed body. A wisp is held where it stands first: walking, lurching or turning, its body
-## trails well off its origin (up to about 55 px across and 46 up) and out of its touch, so where its
-## middle is caught would hang on the moment; at rest it bobs between about 19 and 27 px up.
+## their printed body (for a wisp, the middle of its head). A wisp is held where it stands first:
+## turning it runs round a loop out ahead of where it stands and winding up it draws back
+## (WispArt), so where its head is caught would hang on the moment; at rest it bobs between about
+## 22 and 28 px up.
 func covers(scene: String, what: String) -> void:
 	var found: Array[Node] = placed(scene)
 	check(not found.is_empty(), "%s in the level" % what)

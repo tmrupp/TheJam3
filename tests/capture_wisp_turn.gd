@@ -1,7 +1,8 @@
 extends TestKit
-## Windowed close-ups of wisps turning round on their teardrops: for each of a few wisps, a strip
-## of frames through its turn (wisp_turn.png holds the first), and all of them side by side, a few
-## frames of each turn laid over one another with the head's path marked (wisp_turn_drops.png).
+## Windowed close-ups of wisps turning round (WispArt): for each of a few wisps, a strip of frames
+## through its turn (wisp_turn.png holds the first), and all of them side by side, a few frames of
+## each turn laid over one another with the paths of the middle of its head (yellow) and its tail's
+## point (white) marked: the loop its head runs round, and its tail after it (wisp_turn_arcs.png).
 ## godot --path . --windowed --resolution 1280x720 --fixed-fps 60 --script res://tests/capture_wisp_turn.gd
 ## (--fixed-fps keeps every frame a 60th of a second where drawing is slow, so a turn still has
 ## its 42 frames.)
@@ -39,13 +40,13 @@ func run() -> void:
 		var all: Image = Image.create(CROP.size.x * drops.size(), CROP.size.y, false, drops[0].get_format())
 		for k: int in range(drops.size()):
 			all.blit_rect(drops[k], Rect2i(Vector2i.ZERO, CROP.size), Vector2i(k * CROP.size.x, 0))
-		save_still("wisp_turn_drops.png", all)
+		save_still("wisp_turn_arcs.png", all)
 	finish()
 
 
 ## Follow wisp `w` until it turns round, then record the turn: [STRIP frames through it, OVERLAY
-## frames laid over one another (the lighter of each pixel) with the head's path in yellow], or []
-## if it does not turn soon.
+## frames laid over one another (the lighter of each pixel) with the paths of its round end in yellow
+## and its point in white], or [] if it does not turn soon.
 func record_turn(w: Node2D, camera: Camera2D) -> Array:
 	var mover: Mover = w.get_node("Mover") as Mover
 	var art: WispArt = null
@@ -63,13 +64,14 @@ func record_turn(w: Node2D, camera: Camera2D) -> Array:
 		return []
 	var frames_seen: Array[Image] = []
 	var heads: PackedVector2Array = PackedVector2Array()
+	var tips: PackedVector2Array = PackedVector2Array()
 	var t0: float = art.t
 	while art.t - t0 < Mover.TURN_TIME + 0.1:
 		await process_frame
 		var window_image: Image = root.get_texture().get_image()
 		frames_seen.append(window_image.get_region(CROP))
-		if not art._trail.is_empty():
-			heads.append(on_image(art._trail[0], camera, window_image.get_size()) - Vector2(CROP.position))
+		heads.append(on_image(art.head_at(), camera, window_image.get_size()) - Vector2(CROP.position))
+		tips.append(on_image(art.tip_at(), camera, window_image.get_size()) - Vector2(CROP.position))
 	# The camera holds still through the turn (so does the wisp), so the lighter of each pixel
 	# keeps the background and every pose of the pink wisp over it.
 	var lit: PackedByteArray = frames_seen[0].get_data()
@@ -81,6 +83,8 @@ func record_turn(w: Node2D, camera: Camera2D) -> Array:
 	var over: Image = Image.create_from_data(CROP.size.x, CROP.size.y, false, frames_seen[0].get_format(), lit)
 	for p: Vector2 in heads:
 		over.fill_rect(Rect2i(Vector2i(p) - Vector2i(2, 2), Vector2i(4, 4)), Color(1.0, 0.85, 0.2))
+	for p: Vector2 in tips:
+		over.fill_rect(Rect2i(Vector2i(p) - Vector2i(1, 1), Vector2i(3, 3)), Color(1.0, 1.0, 1.0))
 	var kept: Array[Image] = []
 	for k: int in range(STRIP):
 		kept.append(frames_seen[roundi(float(k) / float(STRIP - 1) * float(frames_seen.size() - 1))])

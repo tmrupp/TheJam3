@@ -526,7 +526,7 @@ rest that don't" (owner, 9 November 2026).
 
 ### 8.1 What a telegraph is
 
-The wisp and the watcher are the model. A wisp that sees the wizard rears its head and flares for
+The wisp and the watcher are the model. A wisp that sees the wizard draws back and flares for
 `WIND_UP`, 0.55 seconds, then strikes (`Mover`, `WispArt`). A watcher's lid opens as its shot
 charges and shuts when it loses sight (`Shooter`, `WatcherArt`). From those two, the rule every
 attack is held to:
@@ -555,7 +555,7 @@ The garden (the demo), first:
 
 | Foe | Now | To do |
 |---|---|---|
-| Wisp | Rears and flares for 0.55 s before a lurch. | The model. Give it the last beat. |
+| Wisp | Draws back and flares for 0.55 s before a lurch. | The model. Give it the last beat. |
 | Watcher | Its lid opens as the shot charges. | The model. Give it the last beat. |
 | Hopper | Crouches for `CROUCH_TIME`, 0.45 s (0.375 on Hard, 0.32 on Brutal): it leans forward and its eyes narrow. Its body is pink at all times, so no ink changes. | **A gap.** Hold it to the floor, and give the crouch a flare that grows (it cannot turn pink, so it brightens: a paper gleam swelling in it) and the last beat. |
 | Seed pod | Its bulb swells over the whole 2.4 s between seeds, in gold, its leaves parting. | **A gap.** The wait is long but has no moment that says "now", and gold is the reward's ink. The bulb turns pink over its last `POD_TELL` seconds and flashes before it spits. |

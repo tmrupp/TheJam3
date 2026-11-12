@@ -71,7 +71,7 @@ func _process(delta: float) -> void:
 	# Printed only near the view, as props are; off it, it keeps its last print.
 	if not RisoProp.near_view(self, global_position):
 		return
-	# Centred on what its host's art draws (a wisp's body trails behind its origin), upright.
+	# Centred on what its host's art draws (the middle of a wisp's head, which leads its origin), upright.
 	var art: RisoProp = get_parent().get_node_or_null("RisoArt") as RisoProp if get_parent() != null else null
 	ink.global_transform = Transform2D(0.0, art.guard_center() if art != null else global_position)
 	ink.begin()

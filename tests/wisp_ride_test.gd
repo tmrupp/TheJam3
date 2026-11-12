@@ -1,8 +1,8 @@
 extends TestKit
 ## A wisp riding a crag gondola's car (Mover, WispArt, Gondola): standing in the car as it runs to
 ## its next station, it is carried with the car (Mover.carried) and stays on its floor all the way,
-## never sunk more than a step of the car's into it nor lifted off it; and its body keeps lying
-## along the floor (WispArt's path carried with it), never hanging behind it as the car rises.
+## never sunk more than a step of the car's into it nor lifted off it; and its body stays level
+## (WispArt), never tipping into a fall as the car rises or sinks under it.
 ## godot --headless --path . --script res://tests/wisp_ride_test.gd
 
 ## How far a wisp's middle stands over a floor (half its collision box), and how far either way it
@@ -13,9 +13,8 @@ extends TestKit
 const REST: float = 16.0
 const SWING_REACH: float = 48.0
 var slack: float = Gondola.CALL_SPEED / 60.0 + SWING_REACH * sin(Gondola.SWING_MAX)
-## How far the path its body lies along may stray up or down (px) as it rides, past the height of
-## the drop it turns round on (WispArt), which it may well do in the car.
-const FLAT: float = 6.0
+## How far its body may tip into a fall as it rides (WispArt._dive, 0 to 1): next to nothing.
+const LEVEL: float = 0.05
 
 
 func run() -> void:
@@ -58,13 +57,8 @@ func run() -> void:
 		if not is_instance_valid(wisp):
 			return
 		worst[0] = maxf(worst[0], absf(float(floor_at.call()) - REST))
-		if art != null and art._trail.size() > 1:
-			var lo: float = INF
-			var hi: float = -INF
-			for p: Vector2 in art._trail:
-				lo = minf(lo, p.y)
-				hi = maxf(hi, p.y)
-			worst[1] = maxf(worst[1], hi - lo)
+		if art != null:
+			worst[1] = maxf(worst[1], art._dive)
 	process_frame.connect(watch)
 	var arrived: bool = await within(func() -> bool: return not g.running, 30.0)
 	process_frame.disconnect(watch)
@@ -73,7 +67,6 @@ func run() -> void:
 	check(rose > g.cell_px, "it rises (%.0f px)" % rose)
 	check(is_instance_valid(wisp) and mover.grounded and absf((from_wisp.y - wisp.global_position.y) - rose) < slack, "the wisp rides up with it, carried (%.0f px)" % (from_wisp.y - wisp.global_position.y))
 	check(worst[0] <= slack, "never sunk into its floor nor lifted off it on the way (at most %.1f px off)" % worst[0])
-	var turn_high: float = 2.0 * WispArt.WISP_DROP_LEN * WispArt.wisp_drop_half()
-	check(art != null and worst[1] <= turn_high + FLAT, "its body lies along the floor all the way (or round its turning drop), never hanging behind as it rises (its path at most %.1f px high, a turn's %.1f)" % [worst[1], turn_high])
+	check(art != null and worst[1] <= LEVEL, "its body stays level all the way, never tipping into a fall (at most %.2f of one)" % worst[1])
 	RunState.delete_save()
 	finish()

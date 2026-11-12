@@ -93,6 +93,7 @@ Each commit below deleted what its row names; the files are at the commit's pare
 
 | Commit | Date | What went |
 |---|---|---|
+| (the commit after `a9bd4fb`: `git show a9bd4fb:scripts/riso/props/WispArt.gd`) | 2026-11-11 | The wisp's body laid along the path its head had travelled (its trail, its four chains of 17 bones, its two veils and fading tail) and its turn round a teardrop fitted to the room ahead (`wisp_loop`, `_fit_loop`), for one teardrop on a spine of thirteen bones, whose tail reads its bend from a wake of headings and whose turn runs round a loop worked out once (`WispArt.turn_path`). |
 | (`git log --diff-filter=D -- music/big_bossanova.wav`) | 2026-11-07 | The music as a WAV (`music/big_bossanova.wav`, 34 MB), kept as Ogg Vorbis since (`big_bossanova.ogg`). |
 | `3ce63d4b38` | 2026-10-20 | The spider boss and its keep (`scripts/bosses/Spider*.gd`, `EggSac`, `WebShot`, `BroodWound`, `prefabs/spider.tscn`, `spider_test`), for the lodestone golem. |
 | `6dd585d084` | 2026-10-19 | The institute's glyph seals (`GlyphSeal.gd`, `glyph_seal.tscn`, `GlyphSealArt.gd`). |

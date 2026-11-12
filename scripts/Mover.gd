@@ -6,17 +6,19 @@ class_name Mover
 ## gravity until it lands, so the physics engine never bounces it on the floor. Standing on
 ## something that moves (a gondola's car, a lift), it is carried with it each step, first of all,
 ## so a rising floor never pushes into it and a sinking one never leaves it behind; how far it has
-## been carried all told is kept (carried), so its art can tell being carried from walking.
+## been carried all told is kept (carried), so its art can tell being carried from going its own
+## way. Its art (WispArt) reads from here which way it faces, how far through a turn, a wind-up or a
+## lurch it is, and whether and how fast it is falling.
 
 
 const SPEED: float = 60.0
 const JUMP_VELOCITY: float = -400.0
 const MAX_FALL: float = 900.0
-## Two wisps meeting both turn round at this distance, centre to centre, leaving each room for
-## its turning drop (WispArt) in the half of the way between them, so the drops meet nose to nose.
+## Two wisps meeting both turn round at this distance, centre to centre, leaving each room for the
+## loop it turns round (WispArt), which reaches half that way ahead of it, so the two meet nose to nose.
 const WISP_GAP: float = 100.0
 ## A wisp turns round when its front comes within WALL_ROOM of a wall, rather than at the wall, so
-## its turning drop (WispArt) swings round in the open instead of into the rock.
+## the loop it turns round (WispArt) swings out in the open instead of into the rock.
 const WALL_ROOM: float = 40.0
 ## The wall probe is lifted this far off the floor, so the floor it walks on never reads as a wall.
 const WALL_LIFT: float = 4.0
@@ -26,8 +28,9 @@ var gravity: float = ProjectSettings.get_setting("physics/2d/default_gravity")
 @onready var dcast: RayCast2D = $DownCast
 @onready var rb: RigidBody2D = $".."
 @onready var sprite: Sprite2D = $"../Sprite2D"
-## Turning round: the wisp holds still for TURN_TIME while its art swoops round its turning drop
-## (WispArt times the drop by it).
+## Turning round: the wisp holds still for TURN_TIME while its art runs round a loop out ahead of
+## it and back, its tail following its head (WispArt times the turn by it, and by how much of it
+## is left, turn_left).
 const TURN_TIME: float = 0.7
 var turn_left: float = 0.0
 var fall_speed: float = 0.0
@@ -44,7 +47,7 @@ const FALLING: float = 200.0
 const SNAP: float = 12.0
 ## The lurch: walking with the wizard in front of it, within LURCH_SIGHT.x and no more than
 ## LURCH_SIGHT.y above or below it, with no rock between, a wisp stops and winds up for WIND_UP
-## seconds (its art rears up, glowing hotter: WispArt), then lurches at them, LURCH_SPEED px/s at
+## seconds (its art draws back and gathers itself, glowing hotter: WispArt), then lurches at them, LURCH_SPEED px/s at
 ## first and slowing to nothing over LURCH_TIME seconds (about LURCH_SPEED * LURCH_TIME / 2 px in
 ## all), stopping short at a ledge, a wall or another wisp. It gathers itself for LURCH_REST seconds
 ## after, and walks LURCH_AGAIN seconds before it may lurch again. A harder preset winds up, rests

@@ -1,383 +1,586 @@
 extends CreatureArt
 class_name WispArt
-## A wisp, its body following the path its head has travelled. Carried by what it stands on (a
-## gondola's car, a lift: Mover.carried), its whole path is carried with it, so being lifted never
-## bends its body as walking would.
+## A wisp: a teardrop of pink ink floating over the floor it haunts, its round head first and its
+## tail trailing, narrowing evenly to a point like a cone. Its head leads and its body trails it:
+## its neck (where its head ends and its tail begins) goes the way it points, and each part of its
+## tail points the way its neck pointed when it was that far back, so its tail follows the path
+## its head has come. What the wisp is doing says where its neck goes and which way it points:
+## - walking, it floats along level, bobbing, its tail wagging;
+## - turning round, its neck runs round a loop out ahead of it, a tight circle, and back onto its
+##   path facing the other way, and its tail follows it round;
+## - falling, its head tips down and its tail streams up behind it, and it squashes as it lands;
+## - winding up its lurch, it draws back and gathers itself, squat and coiled, its glow heating;
+## - lurching, it lets go, long and thin, and settles as it slows.
+## Standing still, its tail swings into line behind its head.
 
 
-## Wisp turning: the wisp turns round along a teardrop lying on its path, the path cutting it in
-## half: the drop's point is where the wisp is when it turns, and its round end lies ahead. The
-## wisp dips off its path, swings up round the round end and back over the top, and comes down
-## onto its path at the point facing the other way (half a turn in all), its body following the
-## path's heading. Timed by the art's own clock from the moment its facing changes, while its Mover
-## holds still for the same time (Mover.TURN_TIME). The body is symmetric about its spine
-## (y = -8.2), so half a turn of the old facing is the new facing upright; the eyes slide to their
-## mirrored height on the way so they land exactly.
-## WISP_DROP_LEN is how far ahead the drop reaches, point to round end, at most (see _fit_loop);
-## its height keeps in proportion (wisp_drop_half).
-const WISP_DROP_LEN: float = 56.0
-## The smallest drop, where the room ahead or over the floor is tight.
-const WISP_DROP_MIN: float = 24.0
-var wisp_turn_t0: float = -100.0
-var wisp_from: float = 0.0
-var wisp_to: float = 0.0
-## This turn's drop length, fitted to the open space around the wisp when the turn starts.
-var wisp_drop_len: float = WISP_DROP_LEN
-## How far round the drop the head had come by the last frame (0..1).
-var _drop_e: float = 0.0
-## The middle of the body as last drawn (world space), where a shield round it centres.
-var _body_middle: Vector2 = Vector2.INF
-## The middle of the body, in its own art units (it runs from the tail tip at x -12.4 to the head).
-const BODY_MIDDLE: Vector2 = Vector2(-3.0, -8.2)
-## Further than this from the wizard (px) a wisp is printed every WISP_FAR_EVERY frames (twenty times
-## a second) rather than every other one: it is printed once or twice for every frame that is
-## looked at closely.
-const WISP_NEAR: float = 480.0
-const WISP_FAR_EVERY: int = 3
-## How sharply its trail may bend (the turn across 12 px of it, radians) before a shape placed along
-## it is checked for folding over itself (see _wisp_place); gentler, none can.
-const WISP_FOLD_TURN: float = 0.6
-## Whether the trail bends that sharply anywhere along the body this print.
-var _sharp: bool = false
-## The lurch (Mover.LURCH_SIGHT): winding up, the wisp rears its head up to REAR_UP px over its path,
-## along a quarter curve that leans REAR_IN px forward first (so its body hooks up smoothly rather
-## than folding), tipping it up by REAR_TILT radians like a snake about to strike, its tail kept on
-## the floor, its whole body shivering (SHIVER px) and its glow flaring to (1 + FLARE) times as
-## strong; lurching, the head strikes forward and down onto its path over the first REAR_DROP of the
-## lurch, the flare dying away as it goes.
-const REAR_UP: float = 24.0
-const REAR_IN: float = 14.0
-const REAR_TILT: float = 0.6
-const SHIVER: float = 1.4
-const FLARE: float = 3.0
-const REAR_DROP: float = 0.45
-## How far reared up the head was at the last print (0 to 1), and how hot its glow is now (0 to 1).
-var _rear: float = 0.0
-var _heat: float = 0.0
+## How long the drop is, nose to tail's point, how thick its head, and how thick its tail's point
+## (all but nothing: its flanks run straight from its head to it), in pixels.
+const LENGTH: float = 60.0
+const GIRTH: float = 26.0
+const TAIL_GIRTH: float = 2.0
+## Its neck: how far behind its nose its head ends and its tail begins. Ahead of it the body is
+## rigid and behind it the tail bends. At rest its neck floats over the wisp's origin (FLOAT, the
+## middle of its touch, HitBox), bobbing BOB up and down, so its head leads its origin and its
+## tail trails it, and a turn brings its neck back to where it began.
+const NECK_BACK: float = 22.0
+const FLOAT: Vector2 = Vector2(0.0, -25.0)
+const BOB: float = 3.0
+const BOB_RATE: float = 3.0
+## Points round its head, round its tail's point, and along each flank between.
+const ROUND_POINTS: int = 12
+const TAIL_POINTS: int = 2
+const FLANK_POINTS: int = 9
+## Its glow is a soft edge round it, GLOW of pink at the body's own edge (flickering) thinning to
+## nothing this much further out in front, at its sides and past its tail's point; up to
+## (1 + FLARE) times as strong as it winds up.
+const GLOW_GROWN: Vector3 = Vector3(4.0, 7.0, 14.0)
+const GLOW: float = 0.28
+const FLARE: float = 2.5
+const FLICKER_RATE: float = 10.0
+## The blue printed over its pink, which cools it to a dusky violet; winding up, HEAT_BARES this
+## share of it burns off, leaving it hot pink.
+const COOL: float = 0.35
+const HEAT_BARES: float = 0.85
+## Its eyes: two ovals EYE_SIZE across and high, EYE_GAP apart along its body, the middle of the
+## pair EYES_BACK behind its nose and EYE_UP over its spine; winding up they narrow by SQUINT.
+const EYE_SIZE: Vector2 = Vector2(3.4, 4.2)
+const EYE_GAP: float = 9.5
+const EYES_BACK: float = 12.5
+const EYE_UP: float = 2.0
+const SQUINT: float = 0.4
+## Its shadow on the floor: how wide and high, and how much night it lays.
+const SHADOW: Vector2 = Vector2(22.0, 4.5)
+const SHADOW_INK: float = 0.35
+## Its tail wags as it goes: a wave running down it, WAG (radians) either way at its point, WAG_RATE
+## fast, WAG_WAVE radians a pixel along it.
+const WAG: float = 0.15
+const WAG_RATE: float = 6.0
+const WAG_WAVE: float = 0.06
+## Stunned, its tail hangs down by this much at its point, and wags this share as fast.
+const DROOP: float = 0.6
+const STUNNED_PACE: float = 0.4
+## The stars of a stun circle this far over the middle of its head.
+const STARS_UP: float = 46.0
 ## How big its tell is round its head (px; RisoProp.tell_mark).
 const TELL_R: float = 44.0
 
-## Its rig (InkCanvas.rig): the body, veils, glow and eyes are drawn once, in the art's own units,
-## and laid along the trail every print by chains of CHAIN bones, one every CHAIN_STEP units back
-## from CHAIN_X0 (each point carried by the two bones either side of it, blended): a still chain for
-## the glow, the body's clearing and the eyes, and one for each veil and the body, its bones lifted
-## by that layer's wave. With the rig in script (InkCanvas.rig_on_gpu off) it is drawn as before,
-## every point placed along the trail as it is printed.
-const CHAIN: int = 17
-const CHAIN_X0: float = 8.0
-const CHAIN_STEP: float = 2.0
-## How many times a second the glow's flicker moves on, through the rig.
-const FLICKER_RATE: float = 10.0
-## The rest shapes, built once (_rest_shapes): the shadow (a unit disc its bone stretches), the two
-## glows, the body's clearing, each layer's outline and its fade, and the eyes, open and stunned.
+## Turning round (Mover.TURN_TIME, while its Mover holds still): its neck runs round a loop out
+## ahead of it and comes back to where it began, facing the other way (turn_path), going the way
+## it points all the way round and never slid aside. The loop is three arcs, each running smoothly
+## into the next: it dips under its path on a curve TURN_DIP_R in radius; swings up and round most
+## of a full circle TURN_R in radius, whose middle lies TURN_LOW under its path (so the loop hangs
+## below the path more than it stands above it, and its head clears a ceiling one cell up); and
+## comes back down onto its path on a wide curve. It leaves and rejoins its path at its walking
+## pace (Mover.SPEED) and is quickest round the far side.
+const TURN_R: float = 12.0
+const TURN_DIP_R: float = 12.0
+const TURN_LOW: float = 6.0
+
+## Its wake: the way its neck pointed at every WAKE_STEP px of the way it has come, the WAKE most
+## recent. Its tail reads its bend from it. Going slower than STILL_SPEED px/s (standing, winding
+## up, stunned), its wake eases toward the way it points now, at up to STRAIGHTEN a second, so its
+## tail swings into line behind it.
+const WAKE_STEP: float = 2.5
+const WAKE: int = 20
+const STILL_SPEED: float = 30.0
+const STRAIGHTEN: float = 8.0
+## Its origin moved further than this between prints (px), it has been put somewhere else, and its
+## wake is laid out afresh, straight behind it.
+const PUT_ELSEWHERE: float = 120.0
+
+## Falling: from FALL_FROM px/s to FALL_FULL its nose tips down, DIVE at most (radians), and it
+## stretches by FALL_STRETCH; it tips and rights itself at DIVE_PACE a second. Landing from a fall
+## it squashes, by up to LAND_SQUASH of its length a second into its length's spring.
+const FALL_FROM: float = 60.0
+const FALL_FULL: float = 420.0
+const DIVE: float = 1.25
+const DIVE_PACE: float = 9.0
+const FALL_STRETCH: float = 0.16
+const LAND_SQUASH: float = 7.0
+## The spring its length settles on: how stiff (radians a second) and how damped (1: no bounce).
+const LENGTH_SPRING: float = 22.0
+const LENGTH_DAMP: float = 0.5
+## How far its width gives as its length changes (1 would keep its area).
+const WIDTH_GIVES: float = 0.8
+
+## Winding up (Mover.WIND_UP): it draws back PULL px from where it faces and RISE up, its nose
+## lifting REAR and its tail curling up over its back, COIL at its point (radians), and squashes
+## by WIND_SQUASH of its length, easing in and out over the wind-up. Lurching it lets go at
+## RELEASE_PACE a second and stretches by LURCH_STRETCH, less as it slows; broken off (a stun), it
+## settles at SETTLE_PACE.
+const PULL: float = 11.0
+const RISE: float = 3.0
+const REAR: float = 0.22
+const COIL: float = 1.3
+const WIND_SQUASH: float = 0.16
+const LURCH_STRETCH: float = 0.5
+const WIND_PACE: float = 40.0
+const RELEASE_PACE: float = 30.0
+const SETTLE_PACE: float = 9.0
+
+## Its spine's bones (InkCanvas.rig): CHAIN of them from its nose to its tail's point, CHAIN_STEP
+## apart, each point of the drop carried by the two either side of it.
+const CHAIN: int = 13
+const CHAIN_STEP: float = LENGTH / 12.0
+## Where things lie along the body at rest, x forward from its middle: its nose, its neck, the
+## middle of its head and of its eyes; and how far its tail's point trails its neck.
+const NOSE_X: float = LENGTH * 0.5
+const NECK_X: float = NOSE_X - NECK_BACK
+const HEAD_X: float = NOSE_X - GIRTH * 0.5
+const EYES_X: float = NOSE_X - EYES_BACK
+const TAIL_BACK: float = LENGTH - NECK_BACK
+## Further than this from the wizard (px) a wisp walking is printed every WISP_FAR_EVERY frames
+## rather than every other one. Turning, falling, winding up, lurching or with its tail still bent
+## it prints every frame.
+const WISP_NEAR: float = 480.0
+const WISP_FAR_EVERY: int = 3
+## Left unprinted this long (out of view), it takes its pose up afresh rather than easing into it.
+const STALE: float = 0.3
+## The spring is stepped no coarser than this (seconds).
+const SPRING_STEP: float = 1.0 / 120.0
+## Its tail is bent while any part of it points this far (radians) off the way its head does.
+const BENT: float = 0.05
+
+## The rest shapes, built once (_rest_shapes): the shadow (a unit disc its bone stretches), the
+## glow (and how strong it is at each of its points), the body and the eyes, open and stunned.
 static var _rests: Dictionary = {}
-## The chains' binders, by their first bone (each names the two bones a point lies between).
+## The spine's binders, by its first bone (each names the two bones a point lies between).
 static var _binders: Dictionary = {}
+## The turn's loop, worked out once (_turn_loop): how far ahead the middle of its circle lies, the
+## radius of the curve that brings it back onto its path, how far the dip and that curve each
+## turn it (radians), and how long each of its three arcs is.
+static var _loop_ahead: float = -1.0
+static var _loop_back_r: float = 0.0
+static var _loop_dip: float = 0.0
+static var _loop_back: float = 0.0
+static var _loop_arcs: Vector3 = Vector3.ZERO
 
-
-func _draw_art() -> void:
-	var mover: Mover = host.get_node_or_null("Mover") as Mover
-	var dir: float = 1.0
-	var stunned: bool = false
-	var rear: float = 0.0
-	var lurching: bool = false
-	_heat = 0.0
-	if mover != null:
-		dir = mover.direction
-		stunned = mover.stunned
-		# Winding up it rears and flares; lurching it strikes back down onto its path and cools.
-		if mover.winding >= 0.0:
-			rear = smoothstep(0.0, 1.0, mover.winding)
-			_heat = mover.winding
-		elif mover.lurching >= 0.0:
-			lurching = true
-			rear = minf(_rear, 1.0 - smoothstep(0.0, REAR_DROP, mover.lurching))
-			_heat = 1.0 - mover.lurching
-		# Falling (as when it settles after spawning): keep the body straight rather than letting
-		# the trail record the drop and hang it tail-up.
-		if mover.falling():
-			_trail = PackedVector2Array()
-		# Carried since the last frame: the path it has walked goes with it.
-		var carry: Vector2 = mover.carried - _carried
-		_carried = mover.carried
-		if carry != Vector2.ZERO:
-			for n: int in range(_trail.size()):
-				_trail[n] += carry
-	var k: float = 3.6
-	var bob: float = -3.0 - sin(t * 3.0 + phase) * 1.6
-	if wisp_to == 0.0:
-		wisp_from = dir
-		wisp_to = dir
-	if dir != wisp_to:
-		wisp_from = wisp_to
-		wisp_to = dir
-		_fit_loop(wisp_from)
-		wisp_turn_t0 = t
-		_drop_e = 0.0
-	var u: float = clampf((t - wisp_turn_t0) / Mover.TURN_TIME, 0.0, 1.0)
-	var spinning: bool = u < 1.0
-	var side: float = wisp_from if spinning else wisp_to
-	var loop_at: Vector2 = Vector2.ZERO
-	var heading: float = 0.0
-	var e: float = _drop_pace(u)
-	if spinning:
-		loop_at = _drop_at(e, side)
-		heading = float(wisp_loop(e)[1])
-	var e_eyes: float = clampf(-heading / PI, 0.0, 1.0)
-	# Its shadow on the floor, shrinking as it bobs up: it belongs to the ground it haunts.
-	var g: float = _ground()
-	var reach: float = WISP_DROP_LEN * wisp_drop_half()
-	var lift: float = maxf(clampf(-loop_at.y / reach, 0.0, 1.0), rear * 0.5)
-	# And darkening as it swoops down toward it on a turn.
-	var dip: float = clampf(loop_at.y / reach, 0.0, 1.0)
-	if not (ink.rigged and InkCanvas.rig_on_gpu):
-		ink.ink(RisoPrint.NIGHT, 0.35 * (1.0 - lift * 0.6 + dip * 0.5), [RisoShapes.ellipse(Vector2(loop_at.x, g - 3.0), (26.0 + bob * 1.2) * (1.0 - lift * 0.4), 5.0, 16)], false)
-	# The body follows the path its head has travelled (see _wisp_place): the head is placed on
-	# its drop, and everything behind it lies along the recorded trail, so mid-turn the tail traces
-	# the drop and after the turn it unwinds along it as the wisp moves off.
-	_wp_k = k
-	_wp_side = side
-	_wp_bob = Vector2(0, bob * k * 0.7)
-	if _heat > 0.0 and not lurching:
-		_wp_bob.x += sin(t * 71.0) * SHIVER * _heat
-	var head_rest: Vector2 = Vector2(0, 14.0 - 3.3 * k - 8.2 * k * 0.6)
-	var curl: float = rear * PI * 0.5
-	var head: Vector2 = head_rest + loop_at + Vector2(side * REAR_IN * sin(curl), -REAR_UP * (1.0 - cos(curl)))
-	_wp_head_dir = Vector2(side * cos(heading), sin(heading)) if spinning else Vector2(side * cos(REAR_TILT * rear), -sin(REAR_TILT * rear))
-	if rear < _rear and not lurching and not _trail.is_empty():
-		# Settling back from a rear cut short (a stun): the head sinks back down the way it rose,
-		# taking the risen part of the trail with it rather than folding the body over on it.
-		var at: Vector2 = to_global(head)
-		while _trail.size() > 2 and _trail[0].y < at.y - 0.25:
-			_trail.remove_at(0)
-		_trail_measure()
-	_rear = rear
-	if spinning:
-		# The drop goes into the trail in short steps from where the head was last frame, so the
-		# tail follows its curve exactly however far round the head went in one frame.
-		var step: float = WISP_STEP / (wisp_drop_round() * wisp_drop_len)
-		var at_e: float = _drop_e + step
-		while at_e < e:
-			_wisp_trail_add(to_global(head_rest + _drop_at(at_e, side)))
-			at_e += step
-		_drop_e = e
-	_wisp_trail_add(to_global(head))
-	# Its tell (the wind-up) over its head, and the last beat before the lurch.
-	if mover != null and not stunned:
-		tell_mark(head, TELL_R, mover.winding, Difficulty.last_beat(mover.winding, Difficulty.tell(Mover.WIND_UP)))
-	var speed: float = 0.3 if stunned else 0.7
-	if ink.rigged and InkCanvas.rig_on_gpu:
-		# Its glow's flicker steps FLICKER_RATE times a second, so the rig reprints its glow and
-		# veils that often rather than every print.
-		var ft: float = floorf(t * FLICKER_RATE) / FLICKER_RATE
-		_draw_rigged(k, bob, g, loop_at, lift, dip, side, spinning, e_eyes, stunned, speed, 0.85 + 0.15 * sin(ft * 5.3 + phase) * sin(ft * 2.1 + phase * 1.7), head)
-		return
-	# Body, veils and glow reach about 22 art units back, scaled 1.1 k; plus the bend lookahead.
-	_wisp_sample(22.0 * k * 1.1 + 8.0)
-	var flicker: float = 0.85 + 0.15 * sin(t * 5.3 + phase) * sin(t * 2.1 + phase * 1.7)
-	# The glow trails the wisp: strongest behind the head, thinning out past the tail.
-	ink.ink(RisoPrint.PINK, 0.06 * flicker * (1.0 + FLARE * _heat), [_wisp_place(RisoShapes.ellipse(Vector2(-10.5, -8.4), 11.0, 7.5, 16), true)])
-	ink.ink(RisoPrint.PINK, 0.1 * flicker * (1.0 + FLARE * _heat), [_wisp_place(RisoShapes.ellipse(Vector2(-6.0, -8.2), 9.5, 8.0, 16), true)])
-	# Two lagging after-veils behind the body, then the body. The body is solid ink with only its
-	# tail tip thinning; the veils stay faint.
-	for layer: int in [2, 1, 0]:
-		var lag: float = float(layer) * 0.55
-		var w: Array[float] = []
-		for j: int in range(4):
-			w.append(sin(t * 6.0 * speed - float(j) - lag) * 1.4)
-		var back: Vector2 = Vector2(-2.6, -0.4) * float(layer)
-		var pts: PackedVector2Array = RisoShapes.smooth(PackedVector2Array([
-			Vector2(5.6, -9), Vector2(4.6, -4.6), Vector2(1.6, -3), Vector2(-2, -3.8 + w[1] * 0.3), Vector2(-5.6, -4.8 + w[1]),
-			Vector2(-9, -6.6 + w[2]), Vector2(-12.4, -8.6 + w[3]), Vector2(-8.8, -9.6 + w[2]), Vector2(-5.2, -11 + w[1] * 0.6),
-			Vector2(-1.4, -13.2), Vector2(2.6, -13.4)]), 3)
-		var fade: PackedFloat32Array = PackedFloat32Array()
-		var top: float = (1.0 if layer == 0 else 0.3 / float(layer)) * (1.0 if layer == 0 else flicker)
-		for p: Vector2 in pts:
-			# Along the body from the tail tip (0) to the head (1). The body is solid ink from about
-			# the middle forward and tapers to nothing at the tail tip; the veils stay faint.
-			var along: float = clampf((p.x + 12.4) / 18.0, 0.0, 1.0)
-			var solid: float = clampf(along / 0.45, 0.0, 1.0)
-			fade.append(top * (solid * solid * (3.0 - 2.0 * solid) if layer == 0 else lerpf(0.15, 1.0, along)))
-		var poly: PackedVector2Array = _wisp_place(Transform2D(0.0, back) * pts, true)
-		if layer == 0:
-			# Opaque: clear the inks of whatever is behind (grass, light, glow) under the body.
-			ink.knock([RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], [_wisp_place(RisoShapes.smooth(PackedVector2Array([
-				Vector2(5.6, -9), Vector2(4.6, -4.6), Vector2(1.6, -3), Vector2(-2, -3.8), Vector2(-4.5, -4.8), Vector2(-4.5, -11),
-				Vector2(-1.4, -13.2), Vector2(2.6, -13.4)]), 3), true)])
-		ink.ink_graded(RisoPrint.PINK, [poly], [fade])
-		if layer == 0:
-			var cool: PackedFloat32Array = PackedFloat32Array()
-			for a: float in fade:
-				cool.append(a * 0.35)
-			ink.ink_graded(RisoPrint.BLUE, [poly], [cool])
-	_body_middle = to_global(_wisp_place(PackedVector2Array([BODY_MIDDLE]), false)[0])
-	var eyes: Array[PackedVector2Array] = []
-	for eye: Vector2 in [Vector2(3.4, -9.2), Vector2(0.7, -9.4)]:
-		# Mid-spin the eyes slide to their mirrored height about the spine, so after half a turn
-		# they sit exactly where the upright wisp's eyes do.
-		var ep: Vector2 = Vector2(eye.x, lerpf(eye.y, -16.4 - eye.y, e_eyes)) if spinning else eye
-		var shape: PackedVector2Array = RisoShapes.rrect(ep.x - 1.0, ep.y - 0.4, 2.0, 0.8, 0.4, 2) if stunned else RisoShapes.ellipse(ep, 0.9, 1.9, 10)
-		eyes.append(_wisp_place(shape, false))
-	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE], eyes)
-	if stunned:
-		_stun_mark(head + _wp_bob + Vector2(0, -52))
+## Which way it faced when last printed (0 before its first print), and the turn it is making: the
+## way it faced before, when the turn began by this art's clock (t), and how far round the loop its
+## neck has come (px).
+var _facing: int = 0
+var _turn_from: int = 0
+var _turn_t0: float = -100.0
+var _turn_d: float = 0.0
+## The way its nose points, as an angle (0 facing right, PI facing left, PI / 2 straight up).
+var _nose: float = 0.0
+## Its wake (see WAKE_STEP), the most recent first, and how far it has gone since that one (px).
+var _wake: PackedFloat32Array = PackedFloat32Array()
+var _wake_part: float = 0.0
+## Where its origin was when last printed (world), less how far it had been carried by what it
+## stands on (Mover.carried): what is left is the way it has gone itself.
+var _was_at: Vector2 = Vector2.ZERO
+## Its length against LENGTH (1 at rest), and how fast that is changing.
+var _stretch: float = 1.0
+var _stretch_v: float = 0.0
+## How far tipped into a fall it is, how wound up, how hot its glow, and how limp (each 0 to 1).
+var _dive: float = 0.0
+var _wind: float = 0.0
+var _heat: float = 0.0
+var _limp: float = 0.0
+## How fast it was last seen falling (px/s), to squash by when it lands.
+var _fell: float = 0.0
+## When it was last printed (t), and whether it was moving then in a way worth printing every frame.
+var _printed_t: float = -100.0
+var _lively: bool = false
+## Its neck, the middle of its head and the point of its tail as last printed, in world space.
+var _neck_at: Vector2 = Vector2.INF
+var _head_at: Vector2 = Vector2.INF
+var _tip_at: Vector2 = Vector2.INF
+## The spine as last worked out: each bone's angle and place (kept, so a print makes no new arrays).
+var _angles: PackedFloat32Array = PackedFloat32Array()
+var _places: PackedVector2Array = PackedVector2Array()
 
 
 func _ready() -> void:
 	super()
 	ink.rig()
 	ink.keeps_shapes = true
+	_angles.resize(CHAIN)
+	_places.resize(CHAIN)
+	_wake.resize(WAKE)
 
 
-## The wisp through its rig (see CHAIN): the shadow on a stretched bone, then each chain's bones
-## worked out from the trail (where it was CHAIN_STEP units apart along the body, and which way it
-## ran there), and the rest shapes printed over them.
-func _draw_rigged(k: float, bob: float, g: float, loop_at: Vector2, lift: float, dip: float, side: float, spinning: bool, e_eyes: float, stunned: bool, speed: float, flicker: float, head: Vector2) -> void:
+func _draw_art() -> void:
+	var mover: Mover = host.get_node_or_null("Mover") as Mover
+	var facing: int = 1
+	var stunned: bool = false
+	var winding: float = -1.0
+	var lurching: float = -1.0
+	var falling: float = 0.0
+	var airborne: bool = false
+	var turn_done: float = Mover.TURN_TIME
+	var gone_to: Vector2 = host.global_position
+	if mover != null:
+		facing = mover.direction
+		stunned = mover.stunned
+		winding = mover.winding
+		lurching = mover.lurching
+		airborne = not mover.grounded
+		falling = mover.fall_speed if airborne else 0.0
+		turn_done = Mover.TURN_TIME - mover.turn_left
+		gone_to -= mover.carried
+	var went: float = gone_to.distance_to(_was_at)
+	var fresh: bool = _facing == 0 or t - _printed_t > STALE or went > PUT_ELSEWHERE
+	_was_at = gone_to
+	_printed_t = t
+	if fresh:
+		_turn_from = facing
+		_turn_t0 = t - Mover.TURN_TIME
+	elif facing != _facing:
+		# It has turned: the turn is timed from when its Mover began it.
+		_turn_from = _facing
+		_turn_t0 = t - turn_done
+		_turn_d = 0.0
+	_facing = facing
+	var u: float = clampf((t - _turn_t0) / Mover.TURN_TIME, 0.0, 1.0)
+	var turning: bool = u < 1.0
+
+	# How wound up, how hot, how far into a fall, how limp: each eased toward where its Mover has it.
+	var wind_to: float = 0.0
+	var wind_pace: float = SETTLE_PACE
+	var heat_to: float = 0.0
+	var lunge: float = 0.0
+	if winding >= 0.0:
+		wind_to = WispArt.eased(winding)
+		wind_pace = WIND_PACE
+		heat_to = winding
+	elif lurching >= 0.0:
+		wind_pace = RELEASE_PACE
+		heat_to = 1.0 - lurching
+		lunge = (1.0 - lurching) * (1.0 - lurching)
+	var dive_to: float = smoothstep(FALL_FROM, FALL_FULL, falling)
+	var limp_to: float = 1.0 if stunned else 0.0
+	if fresh:
+		_wind = wind_to
+		_heat = heat_to
+		_dive = dive_to
+		_limp = limp_to
+	else:
+		_wind = lerpf(_wind, wind_to, 1.0 - exp(-wind_pace * _dt))
+		_heat = lerpf(_heat, heat_to, 1.0 - exp(-WIND_PACE * _dt))
+		_dive = lerpf(_dive, dive_to, 1.0 - exp(-DIVE_PACE * _dt))
+		_limp = lerpf(_limp, limp_to, 1.0 - exp(-SETTLE_PACE * _dt))
+	# Landed since the last print: squash by how fast it came down.
+	if airborne:
+		_fell = maxf(_fell, falling)
+	elif _fell > 0.0:
+		if not fresh:
+			_stretch_v -= LAND_SQUASH * smoothstep(FALL_FROM, FALL_FULL, _fell)
+		_fell = 0.0
+	# Its length, on its spring.
+	var stretch_to: float = 1.0 - WIND_SQUASH * _wind + LURCH_STRETCH * lunge + FALL_STRETCH * _dive
+	if fresh:
+		_stretch = stretch_to
+		_stretch_v = 0.0
+	else:
+		var left: float = _dt
+		while left > 0.0:
+			var h: float = minf(left, SPRING_STEP)
+			left -= h
+			_stretch_v += (LENGTH_SPRING * LENGTH_SPRING * (stretch_to - _stretch) - 2.0 * LENGTH_DAMP * LENGTH_SPRING * _stretch_v) * h
+			_stretch += _stretch_v * h
+	_stretch = clampf(_stretch, 0.5, 1.8)
+	var sx: float = _stretch
+	var sy: float = lerpf(1.0, 1.0 / _stretch, WIDTH_GIVES)
+
+	# Its neck: where it is (over its origin, drawn back as it winds up, round its loop as it turns)
+	# and the way it points (the way it faces, or the way its loop runs; lifted as it winds up,
+	# tipped down as it falls: either by which way it faces, cos).
+	var from: float = 0.0 if _turn_from > 0 else PI
+	var to: float = 0.0 if facing > 0 else PI
+	var face: float = from if u < 0.5 else to
+	var ahead: float = cos(face)
+	var tilt: float = (REAR * _wind - DIVE * _dive) * ahead
+	var neck: Vector2 = FLOAT + Vector2(-PULL * _wind * ahead, -RISE * _wind)
+	var heading: float = face
+	if fresh:
+		_wake.fill(face + tilt)
+		_wake_part = 0.0
+	if turning:
+		# Round its loop: its wake is laid in step by step from where its neck was at the last
+		# print, so its tail follows the loop exactly however far round its neck went in a print.
+		var side: float = float(_turn_from)
+		var length: float = WispArt.turn_length()
+		var d: float = length * WispArt.turn_pace(u, length)
+		went = maxf(d - _turn_d, 0.0)
+		while _wake_part + (d - _turn_d) >= WAKE_STEP:
+			_turn_d += WAKE_STEP - _wake_part
+			_wake_lay(WispArt.turn_path(_turn_d, side).z + tilt)
+		_wake_part += d - _turn_d
+		_turn_d = d
+		var on: Vector3 = WispArt.turn_path(d, side)
+		neck += Vector2(on.x, on.y)
+		heading = on.z
+		_nose = heading + tilt
+	else:
+		_nose = heading + tilt
+		if not fresh:
+			var more: float = went
+			while _wake_part + more >= WAKE_STEP:
+				more -= WAKE_STEP - _wake_part
+				_wake_lay(_nose)
+			_wake_part += more
+	# Standing still, its tail swings into line behind its head.
+	var speed: float = went / maxf(_dt, 0.001)
+	if not turning and not fresh and speed < STILL_SPEED:
+		var ease_by: float = 1.0 - exp(-STRAIGHTEN * (1.0 - speed / STILL_SPEED) * _dt)
+		for i: int in range(WAKE):
+			_wake[i] = lerpf(_wake[i], _nose, ease_by)
+
+	# The spine. Its head is rigid: the bones ahead of its neck lie straight out the way it points.
+	# Behind its neck each bone points the way its neck did when it was that far back (its wake),
+	# and wags, hangs (stunned) or curls up over its back (winding up) a little more toward its
+	# point; each lies a step back along the spine from the one before.
+	var bob: float = sin(t * BOB_RATE + phase)
+	neck.y -= BOB * bob
+	var pointing: Vector2 = Vector2(cos(_nose), -sin(_nose))
+	var wag_at: float = t * WAG_RATE * (STUNNED_PACE if stunned else 1.0) + phase
+	var bend_tip: float = (DROOP * _limp - COIL * _wind) * ahead
+	var bent: bool = false
+	var at: Vector2 = neck
+	var last_angle: float = _nose
+	var last_x: float = NECK_X
+	for i: int in range(CHAIN):
+		var x: float = NOSE_X - CHAIN_STEP * float(i)
+		if x >= NECK_X:
+			_angles[i] = _nose
+			_places[i] = neck + pointing * ((x - NECK_X) * sx)
+			continue
+		var back: float = NECK_X - x
+		var along_tail: float = back / TAIL_BACK
+		var a: float = _wake_at(back)
+		bent = bent or absf(a - _nose) > BENT
+		a += (WAG * sin(wag_at - back * WAG_WAVE) * (1.0 - _wind) + bend_tip * along_tail) * along_tail
+		var mid: float = (last_angle + a) * 0.5
+		at -= Vector2(cos(mid), -sin(mid)) * ((last_x - x) * sx)
+		_angles[i] = a
+		_places[i] = at
+		last_angle = a
+		last_x = x
+	_lively = turning or bent or winding >= 0.0 or lurching >= 0.0 or airborne or _dive > 0.01 or _wind > 0.01 or absf(_stretch - 1.0) > 0.01 or absf(_stretch_v) > 0.05
+
 	var rests: Dictionary = WispArt._rest_shapes()
-	ink.on_bone(ink.bone(Transform2D(Vector2((26.0 + bob * 1.2) * (1.0 - lift * 0.4), 0.0), Vector2(0.0, 5.0), Vector2(loop_at.x, g - 3.0))))
-	ink.ink(RisoPrint.NIGHT, 0.35 * (1.0 - lift * 0.6 + dip * 0.5), rests[&"shadow"], false)
-	# The trail at each bone's place along the body: where it was, and its heading (easing from the
-	# head's within the first stretch behind it, as _wisp_place does).
-	var sx: float = k * 1.1
-	var sy: float = k * 0.6
-	var across: float = side * PI * 0.5
-	var at: PackedVector2Array = PackedVector2Array()
-	var heads: PackedVector2Array = PackedVector2Array()
-	at.resize(CHAIN)
-	heads.resize(CHAIN)
-	var inverse: Transform2D = get_global_transform().affine_inverse()
+	# Its shadow on the floor under it, smaller as it bobs up.
+	var g: float = _ground()
+	ink.on_bone(ink.bone(Transform2D(Vector2(SHADOW.x * sx * (1.0 - 0.08 * bob), 0.0), Vector2(0.0, SHADOW.y), Vector2(neck.x, g - 3.0))))
+	ink.ink(RisoPrint.NIGHT, SHADOW_INK, rests[&"shadow"], false)
+	var base: int = 0
 	for i: int in range(CHAIN):
-		var d: float = -(CHAIN_X0 - CHAIN_STEP * float(i)) * sx
-		var found: Array = _trail_at(d)
-		var dir: Vector2 = found[1]
-		if d < 14.0:
-			dir = _wp_head_dir.lerp(dir, clampf(d / 14.0, 0.0, 1.0)).normalized()
-		at[i] = inverse * (found[0] as Vector2)
-		heads[i] = (inverse.basis_xform(dir)).normalized()
-	# The still chain, then a chain for each layer lifted by its wave (see _wave).
-	var bases: Array[int] = []
-	for chain_i: int in range(4):
-		var lifts: PackedFloat32Array = WispArt._waves(t * 6.0 * speed - float(chain_i - 1) * 0.55, -2.6 * float(chain_i - 1)) if chain_i > 0 else PackedFloat32Array()
-		for i: int in range(CHAIN):
-			var x: float = CHAIN_X0 - CHAIN_STEP * float(i)
-			var dir: Vector2 = heads[i]
-			var perp: Vector2 = dir.rotated(across)
-			var lifted: float = lifts[i] if chain_i > 0 else 0.0
-			var b: int = ink.bone(Transform2D(dir * sx, perp * sy, at[i] - dir * sx * x + perp * sy * (8.2 + lifted) + _wp_bob))
-			if i == 0:
-				bases.append(b)
-	# The glow trails the wisp: strongest behind the head, thinning out past the tail.
-	ink.on_chain(bases[0], WispArt._binder(bases[0]))
-	ink.ink(RisoPrint.PINK, 0.06 * flicker * (1.0 + FLARE * _heat), rests[&"glow0"])
-	ink.ink(RisoPrint.PINK, 0.1 * flicker * (1.0 + FLARE * _heat), rests[&"glow1"])
-	# Two lagging after-veils behind the body, then the body. The body is solid ink with only its
-	# tail tip thinning; the veils stay faint, flickering.
-	for layer: int in [2, 1, 0]:
-		if layer == 0:
-			# Opaque: clear the inks of whatever is behind (grass, light, glow) under the body.
-			ink.on_chain(bases[0], WispArt._binder(bases[0]))
-			ink.knock([RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], rests[&"clearing"])
-		var chain: int = bases[layer + 1]
-		ink.on_chain(chain, WispArt._binder(chain))
-		ink.ink_graded(RisoPrint.PINK, rests[StringName("body%d" % layer)], rests[StringName("fade%d" % layer)], true, 1.0 if layer == 0 else flicker)
-		if layer == 0:
-			ink.ink_graded(RisoPrint.BLUE, rests[&"body0"], rests[&"fade0"], true, 0.35)
-	# The middle of the body lies on the spine, where the trail was that far back.
-	_body_middle = (_trail_at(-BODY_MIDDLE.x * sx)[0] as Vector2) + get_global_transform().basis_xform(_wp_bob)
-	# The eyes ride the still chain; mid-spin they slide to their mirrored height about the spine.
-	ink.on_chain(bases[0], WispArt._binder(bases[0]))
-	var eyes: Array[PackedVector2Array] = rests[&"eyes_stunned" if stunned else &"eyes"]
-	if spinning:
-		eyes = []
-		for eye: Vector2 in [Vector2(3.4, -9.2), Vector2(0.7, -9.4)]:
-			var ep: Vector2 = Vector2(eye.x, lerpf(eye.y, -16.4 - eye.y, e_eyes))
-			eyes.append(RisoShapes.rrect(ep.x - 1.0, ep.y - 0.4, 2.0, 0.8, 0.4, 2) if stunned else RisoShapes.ellipse(ep, 0.9, 1.9, 10))
-	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE], eyes)
+		var a: float = _angles[i]
+		var along: Vector2 = Vector2(cos(a), -sin(a))
+		var across: Vector2 = Vector2(sin(a), cos(a))
+		var x: float = NOSE_X - CHAIN_STEP * float(i)
+		var xf: Transform2D = Transform2D(along * sx, across * sy, _places[i] - along * sx * x)
+		var b: int = ink.bone(xf)
+		if i == 0:
+			base = b
+		if i == CHAIN - 1:
+			_tip_at = to_global(xf * Vector2(NOSE_X - LENGTH, 0.0))
+	var head: Vector2 = neck + pointing * ((HEAD_X - NECK_X) * sx)
+	_neck_at = to_global(neck)
+	_head_at = to_global(head)
+
+	# Its glow, flickering (the flicker steps FLICKER_RATE times a second) and flaring as it heats.
+	var ft: float = floorf(t * FLICKER_RATE) / FLICKER_RATE
+	var flicker: float = 0.85 + 0.15 * sin(ft * 5.3 + phase) * sin(ft * 2.1 + phase * 1.7)
+	ink.on_chain(base, WispArt._binder(base))
+	ink.ink_graded(RisoPrint.PINK, rests[&"glow"], rests[&"glow_fade"], true, GLOW * flicker * (1.0 + FLARE * _heat))
+	# The body is opaque: the inks of whatever is behind it (grass, light, its own glow) are cleared
+	# from under it, then its pink and the blue that cools it.
+	ink.knock([RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW], rests[&"body"])
+	ink.ink(RisoPrint.PINK, 1.0, rests[&"body"])
+	ink.ink(RisoPrint.BLUE, COOL * (1.0 - HEAT_BARES * _heat), rests[&"body"], false)
+	# Its eyes, on a bone of their own: over its spine whichever way up it is, so they cross it as
+	# it comes round (cos), and narrowed as it winds up.
+	var across_head: Vector2 = Vector2(sin(_nose), cos(_nose))
+	var eyes_at: Vector2 = neck + pointing * ((EYES_X - NECK_X) * sx) - across_head * EYE_UP * cos(_nose) * sy
+	ink.on_bone(ink.bone(Transform2D(pointing, across_head * (1.0 - SQUINT * _wind), eyes_at)))
+	ink.knock([RisoPrint.NIGHT, RisoPrint.PINK, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.EYE, RisoPrint.GLOW, RisoPrint.ROBE], rests[&"eyes_stunned" if stunned else &"eyes"])
+	ink.on_bone(0)
 	if stunned:
-		ink.on_bone(0)
-		_stun_mark(head + _wp_bob + Vector2(0, -52))
+		_stun_mark(head + Vector2(0.0, -STARS_UP))
+	# Its tell (the wind-up) round its head, and the last beat before the lurch.
+	if mover != null and not stunned:
+		tell_mark(head, TELL_R, winding, Difficulty.last_beat(winding, Difficulty.tell(Mover.WIND_UP)))
 
 
-## How far a layer's wave lifts its outline at each bone of a chain, its waves at `phase` and its
-## outline shifted `shift` units back: none at the head, then its three waves at the points they
-## lift, as the drawn outline puts them, in between from one to the next.
-static func _waves(phase: float, shift: float) -> PackedFloat32Array:
-	var w1: float = sin(phase - 1.0) * 1.4
-	var w2: float = sin(phase - 2.0) * 1.4
-	var w3: float = sin(phase - 3.0) * 1.4
-	var kx: PackedFloat32Array = PackedFloat32Array([1.6, -2.0, -5.4, -8.9, -12.4])
-	var ky: PackedFloat32Array = PackedFloat32Array([0.0, 0.3 * w1, 0.8 * w1, w2, w3])
-	var out: PackedFloat32Array = PackedFloat32Array()
-	out.resize(CHAIN)
-	for i: int in range(CHAIN):
-		var x: float = CHAIN_X0 - CHAIN_STEP * float(i) - shift
-		var lifted: float = ky[4]
-		if x >= kx[0]:
-			lifted = 0.0
-		else:
-			for j: int in range(1, 5):
-				if x >= kx[j]:
-					lifted = lerpf(ky[j - 1], ky[j], (kx[j - 1] - x) / (kx[j - 1] - kx[j]))
-					break
-		out[i] = lifted
+## Lay the way its neck points, `angle`, into its wake as its newest, a WAKE_STEP on from the last.
+func _wake_lay(angle: float) -> void:
+	for i: int in range(WAKE - 1, 0, -1):
+		_wake[i] = _wake[i - 1]
+	_wake[0] = angle
+	_wake_part = 0.0
+
+
+## The way its neck pointed when it was `back` px back along the way it has come.
+func _wake_at(back: float) -> float:
+	if back <= _wake_part:
+		return lerpf(_nose, _wake[0], back / _wake_part) if _wake_part > 0.001 else _wake[0]
+	var f: float = (back - _wake_part) / WAKE_STEP
+	var i: int = mini(int(f), WAKE - 2)
+	return lerpf(_wake[i], _wake[i + 1], minf(f - float(i), 1.0))
+
+
+## `x` (0 to 1, held to it) eased: slow away from 0, slow into 1, with no jolt at either end.
+static func eased(x: float) -> float:
+	var s: float = clampf(x, 0.0, 1.0)
+	return s * s * s * (s * (s * 6.0 - 15.0) + 10.0)
+
+
+## Work the turn's loop out, the first time (see TURN_R): where the middle of its circle must lie
+## for the dip to run into it, and the curve that brings it back onto the path from the circle.
+static func _turn_loop() -> void:
+	if _loop_ahead >= 0.0:
+		return
+	var reach: float = TURN_R + TURN_DIP_R
+	_loop_ahead = sqrt(reach * reach - (TURN_LOW - TURN_DIP_R) * (TURN_LOW - TURN_DIP_R))
+	_loop_back_r = (_loop_ahead * _loop_ahead + TURN_LOW * TURN_LOW - TURN_R * TURN_R) / (2.0 * (TURN_R - TURN_LOW))
+	_loop_dip = atan2(_loop_ahead, TURN_DIP_R - TURN_LOW)
+	_loop_back = atan2(_loop_ahead, TURN_LOW + _loop_back_r)
+	_loop_arcs = Vector3(TURN_DIP_R * _loop_dip, TURN_R * (PI + _loop_dip + _loop_back), _loop_back_r * _loop_back)
+
+
+## How far round the turn's loop is, from leaving its path to coming back onto it (px).
+static func turn_length() -> float:
+	_turn_loop()
+	return _loop_arcs.x + _loop_arcs.y + _loop_arcs.z
+
+
+## The turn's loop at `d` px round it, for a wisp that faced `side` (1 right, -1 left) before the
+## turn, from where its neck was when the turn began: Vector3(x, y, the way it runs there, an
+## angle as _nose). Before the loop (d below 0) it runs straight on along its path, and after it
+## straight back; between, the dip, the circle and the curve back (see TURN_R).
+static func turn_path(d: float, side: float) -> Vector3:
+	_turn_loop()
+	var at: Vector2
+	var angle: float
+	var round_it: float = d - _loop_arcs.x
+	var back: float = round_it - _loop_arcs.y
+	if d <= 0.0:
+		at = Vector2(d, 0.0)
+		angle = 0.0
+	elif round_it <= 0.0:
+		# The dip: a curve under the path, touching it where the turn begins.
+		var a: float = d / TURN_DIP_R
+		at = Vector2(TURN_DIP_R * sin(a), TURN_DIP_R * (1.0 - cos(a)))
+		angle = -a
+	elif back <= 0.0:
+		# The circle, from where the dip runs into it, up and round and over.
+		angle = -_loop_dip + round_it / TURN_R
+		at = Vector2(_loop_ahead + TURN_R * sin(angle), TURN_LOW + TURN_R * cos(angle))
+	elif back < _loop_arcs.z:
+		# The curve back down onto the path, touching it where the turn began.
+		angle = PI + _loop_back - back / _loop_back_r
+		at = Vector2(-_loop_back_r * sin(angle), -_loop_back_r - _loop_back_r * cos(angle))
+	else:
+		at = Vector2(-(back - _loop_arcs.z), 0.0)
+		angle = PI
+	return Vector3(at.x, at.y, angle) if side > 0.0 else Vector3(-at.x, at.y, PI - angle)
+
+
+## How far round its loop (0 to 1), `length` px round, its neck is at `u` of the turn (0 to 1): it
+## leaves its path and comes back onto it at its walking pace (Mover.SPEED), and is quickest half
+## way round.
+static func turn_pace(u: float, length: float) -> float:
+	var ends: float = clampf(Mover.SPEED * Mover.TURN_TIME / length, 0.0, 1.0)
+	return ends * u + (1.0 - ends) * (u - sin(TAU * u) / TAU)
+
+
+## A drop lying along x: its head a round end `head_r` in radius with its nose at x = `nose`, its
+## tail's a smaller one `tail_r` in radius reaching back to x = `tail`, and a flank from one to the
+## other on either side, dead straight. Round the head first, from where the upper flank meets it,
+## then back along the lower flank, round the tail's end and forward along the upper flank.
+static func drop(nose: float, head_r: float, tail: float, tail_r: float) -> PackedVector2Array:
+	var head_c: Vector2 = Vector2(nose - head_r, 0.0)
+	var tail_c: Vector2 = Vector2(tail + tail_r, 0.0)
+	# Where the flanks leave each round end: where a line touching both touches it.
+	var leave: float = PI * 0.5 + asin(clampf((head_r - tail_r) / (head_c.x - tail_c.x), -1.0, 1.0))
+	var out: PackedVector2Array = PackedVector2Array()
+	for i: int in range(ROUND_POINTS + 1):
+		var a: float = lerpf(-leave, leave, float(i) / float(ROUND_POINTS))
+		out.append(head_c + Vector2(cos(a), sin(a)) * head_r)
+	var ends: PackedVector2Array = PackedVector2Array()
+	for i: int in range(TAIL_POINTS + 1):
+		var a: float = lerpf(leave, TAU - leave, float(i) / float(TAIL_POINTS))
+		ends.append(tail_c + Vector2(cos(a), sin(a)) * tail_r)
+	for flank: int in range(2):
+		var a: Vector2 = out[ROUND_POINTS] if flank == 0 else ends[TAIL_POINTS]
+		var b: Vector2 = ends[0] if flank == 0 else out[0]
+		for k: int in range(1, FLANK_POINTS):
+			out.append(a.lerp(b, float(k) / float(FLANK_POINTS)))
+		if flank == 0:
+			out.append_array(ends)
 	return out
 
 
-## The binder for the chain whose first bone is `base`: a point lies between the two bones either
-## side of its x, carried by each in proportion to how near it is.
-static func _binder(base: int) -> Callable:
-	if not _binders.has(base):
-		_binders[base] = func(p: Vector2) -> Vector3:
-			var f: float = clampf((CHAIN_X0 - p.x) / CHAIN_STEP, 0.0, float(CHAIN - 1))
-			var i: int = mini(int(f), CHAIN - 2)
-			return Vector3(base + i, base + i + 1, 1.0 - (f - float(i)))
-	return _binders[base]
+## A drop's outline (drop) cut into the pieces it is printed as: its head, whole; then its tail
+## in rungs, each from one flank straight across to the other, a step along; and its tail's end. Cut
+## so, each piece bends with the spine under it, where triangles running the length of the body
+## would cut across a bend.
+static func rungs(outline: PackedVector2Array) -> Array[PackedVector2Array]:
+	var out: Array[PackedVector2Array] = [outline.slice(0, ROUND_POINTS + 1)]
+	var tail_from: int = ROUND_POINTS + FLANK_POINTS
+	# The flanks' points from the head back: the lower as the outline has them, the upper the
+	# other way round.
+	var lower: PackedVector2Array = outline.slice(ROUND_POINTS, tail_from + 1)
+	var upper: PackedVector2Array = PackedVector2Array([outline[0]])
+	for k: int in range(1, FLANK_POINTS + 1):
+		upper.append(outline[outline.size() - k])
+	for k: int in range(FLANK_POINTS):
+		out.append(PackedVector2Array([upper[k], upper[k + 1], lower[k + 1], lower[k]]))
+	out.append(outline.slice(tail_from, tail_from + TAIL_POINTS + 1))
+	return out
 
 
 ## The rest shapes (see _rests), built the first time.
 static func _rest_shapes() -> Dictionary:
 	if not _rests.is_empty():
 		return _rests
-	var one: Array[PackedVector2Array] = [RisoShapes.ellipse(Vector2.ZERO, 1.0, 1.0, 16)]
-	_rests[&"shadow"] = one
-	var glow0: Array[PackedVector2Array] = [RisoShapes.ellipse(Vector2(-10.5, -8.4), 11.0, 7.5, 16)]
-	var glow1: Array[PackedVector2Array] = [RisoShapes.ellipse(Vector2(-6.0, -8.2), 9.5, 8.0, 16)]
-	_rests[&"glow0"] = glow0
-	_rests[&"glow1"] = glow1
-	var clearing: Array[PackedVector2Array] = [RisoShapes.smooth(PackedVector2Array([
-		Vector2(5.6, -9), Vector2(4.6, -4.6), Vector2(1.6, -3), Vector2(-2, -3.8), Vector2(-4.5, -4.8), Vector2(-4.5, -11),
-		Vector2(-1.4, -13.2), Vector2(2.6, -13.4)]), 3)]
-	_rests[&"clearing"] = clearing
-	for layer: int in range(3):
-		var pts: PackedVector2Array = RisoShapes.smooth(PackedVector2Array([
-			Vector2(5.6, -9), Vector2(4.6, -4.6), Vector2(1.6, -3), Vector2(-2, -3.8), Vector2(-5.6, -4.8),
-			Vector2(-9, -6.6), Vector2(-12.4, -8.6), Vector2(-8.8, -9.6), Vector2(-5.2, -11),
-			Vector2(-1.4, -13.2), Vector2(2.6, -13.4)]), 3)
-		var fade: PackedFloat32Array = PackedFloat32Array()
-		var top: float = 1.0 if layer == 0 else 0.3 / float(layer)
-		for p: Vector2 in pts:
-			var along: float = clampf((p.x + 12.4) / 18.0, 0.0, 1.0)
-			var solid: float = clampf(along / 0.45, 0.0, 1.0)
-			fade.append(top * (solid * solid * (3.0 - 2.0 * solid) if layer == 0 else lerpf(0.15, 1.0, along)))
-		var body: Array[PackedVector2Array] = [Transform2D(0.0, Vector2(-2.6, -0.4) * float(layer)) * pts]
-		var fades: Array[PackedFloat32Array] = [fade]
-		_rests[StringName("body%d" % layer)] = body
-		_rests[StringName("fade%d" % layer)] = fades
+	var shadow: Array[PackedVector2Array] = [RisoShapes.ellipse(Vector2.ZERO, 1.0, 1.0, 14)]
+	var edge: PackedVector2Array = drop(NOSE_X, GIRTH * 0.5, NOSE_X - LENGTH, TAIL_GIRTH * 0.5)
+	var body: Array[PackedVector2Array] = rungs(edge)
+	# The glow: a strip from the body's edge, where it is strongest, out to a bigger drop round it,
+	# where it is nothing, point for point.
+	var rim: PackedVector2Array = drop(NOSE_X + GLOW_GROWN.x, GIRTH * 0.5 + GLOW_GROWN.y, NOSE_X - LENGTH - GLOW_GROWN.z, TAIL_GIRTH * 0.5 + GLOW_GROWN.y)
+	var glow: Array[PackedVector2Array] = []
+	var glow_fade: Array[PackedFloat32Array] = []
+	for i: int in range(edge.size()):
+		var j: int = (i + 1) % edge.size()
+		glow.append(PackedVector2Array([edge[i], edge[j], rim[j], rim[i]]))
+		glow_fade.append(PackedFloat32Array([1.0, 1.0, 0.0, 0.0]))
 	var eyes: Array[PackedVector2Array] = []
 	var dazed: Array[PackedVector2Array] = []
-	for eye: Vector2 in [Vector2(3.4, -9.2), Vector2(0.7, -9.4)]:
-		eyes.append(RisoShapes.ellipse(eye, 0.9, 1.9, 10))
-		dazed.append(RisoShapes.rrect(eye.x - 1.0, eye.y - 0.4, 2.0, 0.8, 0.4, 2))
+	for side: float in [0.5, -0.5]:
+		var at: Vector2 = Vector2(EYE_GAP * side, 0.0)
+		eyes.append(RisoShapes.ellipse(at, EYE_SIZE.x, EYE_SIZE.y, 10))
+		dazed.append(RisoShapes.rrect(at.x - EYE_SIZE.x * 1.2, -1.5, EYE_SIZE.x * 2.4, 3.0, 1.5, 2))
+	_rests[&"shadow"] = shadow
+	_rests[&"body"] = body
+	_rests[&"glow"] = glow
+	_rests[&"glow_fade"] = glow_fade
 	_rests[&"eyes"] = eyes
 	_rests[&"eyes_stunned"] = dazed
 	return _rests
 
 
-## Twenty times a second far from the wizard, thirty near (see WISP_NEAR), and every frame while it
-## lurches, its body pinned to a path it is racing along.
+## The binder for the spine whose first bone is `base`: a point lies between the two bones either
+## side of its x, carried by each in proportion to how near it is.
+static func _binder(base: int) -> Callable:
+	if not _binders.has(base):
+		_binders[base] = func(p: Vector2) -> Vector3:
+			var f: float = clampf((NOSE_X - p.x) / CHAIN_STEP, 0.0, float(CHAIN - 1))
+			var i: int = mini(int(f), CHAIN - 2)
+			return Vector3(base + i, base + i + 1, 1.0 - (f - float(i)))
+	return _binders[base]
+
+
+## Every frame while it turns, falls, winds up, lurches, is still settling from one of them or has
+## its tail still bent behind it; walking, thirty times a second near the wizard and twenty far
+## from them (see WISP_NEAR).
 func reprint_every() -> int:
-	var mover: Mover = host.get_node_or_null("Mover") as Mover if host != null else null
-	if mover != null and mover.lurching >= 0.0:
+	if _lively:
 		return 1
 	var player: Player = Stage.player()
 	if player != null and host != null and host.global_position.distance_squared_to(player.global_position) > WISP_NEAR * WISP_NEAR:
@@ -385,326 +588,21 @@ func reprint_every() -> int:
 	return REPRINT_EVERY
 
 
-## A shield centres on the middle of the body, which trails behind the wisp's origin.
+## A shield centres on the middle of its head, which leads the wisp's origin.
 func guard_center() -> Vector2:
-	return _body_middle if _body_middle != Vector2.INF else super.guard_center()
+	return _head_at if _head_at != Vector2.INF else super.guard_center()
 
 
-## Size the turning drop to the room: smaller over a near floor, and short of a wall or another
-## wisp ahead (two wisps meeting turn together, so each takes half the way between them). The head
-## floats about WISP_HEAD_Y over the wisp's origin and dips to WISP_FLOOR_GAP over the floor, and
-## the body reaches about WISP_NOSE past the head round the drop's round end.
-const WISP_HEAD_Y: float = -23.0
-const WISP_FLOOR_GAP: float = 18.0
-const WISP_NOSE: float = 14.0
-## Another wisp within this height of this one is on the same floor (as Mover counts it).
-const WISP_SAME_FLOOR: float = 24.0
+## The middle of its head as last printed, in world space (its origin's place before a print).
+func head_at() -> Vector2:
+	return _head_at if _head_at != Vector2.INF else super.guard_center()
 
 
-func _fit_loop(forward: float) -> void:
-	var at: Vector2 = host.global_position
-	var room: float = (_ground() - WISP_HEAD_Y - WISP_FLOOR_GAP) / wisp_drop_half()
-	var info: MapInfo = MapInfo.instance
-	if info != null and info.world != null:
-		var c: Vector2i = info.cell_at(at)
-		var f: Vector2i = Vector2i(int(signf(forward)), 0)
-		if _wisp_blocked(info, c + f):
-			var face: float = info.cell_position(c + f).x - forward * half
-			room = minf(room, absf(face - at.x) - WISP_NOSE)
-	for other: Node in get_tree().get_nodes_in_group(&"wisps"):
-		var d: Vector2 = (other as Node2D).global_position - at
-		if other != host and absf(d.y) < WISP_SAME_FLOOR and d.x * forward > 0.0:
-			room = minf(room, absf(d.x) * 0.5 - WISP_NOSE)
-	wisp_drop_len = clampf(room, WISP_DROP_MIN, WISP_DROP_LEN)
+## Its neck as last printed, in world space (its origin's place before a print).
+func neck_at() -> Vector2:
+	return _neck_at if _neck_at != Vector2.INF else super.guard_center()
 
 
-func _wisp_blocked(info: MapInfo, v: Vector2i) -> bool:
-	if not info.world.is_valid(v):
-		return true
-	var kind: int = info.world.type_at(v)
-	return kind == LevelGen.Type.GROUND or kind == LevelGen.Type.CRACKED
-
-
-## Where the head is on this turn's drop at `e` of the way round, from where it would be walking
-## (facing `side`).
-func _drop_at(e: float, side: float) -> Vector2:
-	var p: Vector2 = (wisp_loop(e)[0] as Vector2) * wisp_drop_len
-	return Vector2(side * p.x, p.y)
-
-
-## How far round the drop the head is (0..1) at `u` of the turn (0..1): it leaves its path and
-## comes back onto it at the wisp's walking pace (Mover.SPEED), and is quickest round the round end.
-func _drop_pace(u: float) -> float:
-	var ends: float = clampf(Mover.SPEED * Mover.TURN_TIME / (wisp_drop_round() * wisp_drop_len), 0.0, 1.0)
-	return ends * u + (1.0 - ends) * (u - sin(TAU * u) / TAU)
-
-
-## The drop's shape, by how the heading turns along each half of it (point to round end, as shares
-## of that half): it leaves the path over the first WISP_DROP_TIP, runs on straight, and the round
-## end's even curve comes in between WISP_DROP_ROUND.x and .y. The angle at the point follows.
-const WISP_DROP_TIP: float = 0.12
-const WISP_DROP_ROUND: Vector2 = Vector2(0.3, 0.5)
-## Samples along each half of the drop.
-const WISP_DROP_STEPS: int = 64
-static var _loop: PackedVector2Array = PackedVector2Array()
-static var _loop_heading: PackedFloat32Array = PackedFloat32Array()
-## The drop's half height and the way round it, in drop lengths (see _build_drop).
-static var _loop_half: float = 0.0
-static var _loop_round: float = 0.0
-
-
-## The wisp's turning drop at `e`, the share of the way round it (0..1): [position (x forward from
-## the point, 1 at the round end; y down from the path), heading in radians (0 forward, positive
-## turning down)]. The heading dips a little, then turns up round the round end and over the top,
-## and levels out at -PI, backward, as the drop comes back to its point.
-static func wisp_loop(e: float) -> Array:
-	_build_drop()
-	var f: float = clampf(e, 0.0, 1.0) * float(_loop.size() - 1)
-	var i0: int = mini(int(f), _loop.size() - 2)
-	var t0: float = f - float(i0)
-	return [_loop[i0].lerp(_loop[i0 + 1], t0), lerpf(_loop_heading[i0], _loop_heading[i0 + 1], t0)]
-
-
-## How far the drop reaches either side of its path, in drop lengths.
-static func wisp_drop_half() -> float:
-	_build_drop()
-	return _loop_half
-
-
-## The way round the drop, in drop lengths.
-static func wisp_drop_round() -> float:
-	_build_drop()
-	return _loop_round
-
-
-## Build the drop once. The half out, from the point to the round end, comes from integrating its
-## heading, dipping first by the angle that brings it back onto the path at the round end; the half
-## back is the half out mirrored across the path, run backward.
-static func _build_drop() -> void:
-	if not _loop.is_empty():
-		return
-	var n: int = WISP_DROP_STEPS
-	var lo: float = 0.0
-	var hi: float = PI * 0.5
-	var heads: PackedFloat32Array = PackedFloat32Array()
-	var pts: PackedVector2Array = PackedVector2Array()
-	for it: int in range(40):
-		var dip: float = (lo + hi) * 0.5
-		heads = _drop_half_heading(dip, n)
-		pts = _drop_trace(heads)
-		# Still ending above the path: dip more.
-		if pts[n].y < 0.0:
-			lo = dip
-		else:
-			hi = dip
-	var length: float = pts[n].x
-	_loop = PackedVector2Array()
-	_loop_heading = PackedFloat32Array()
-	for i: int in range(n + 1):
-		_loop.append(Vector2(pts[i].x, pts[i].y - pts[n].y * float(i) / float(n)) / length)
-		_loop_heading.append(heads[i])
-	for i: int in range(n - 1, -1, -1):
-		_loop.append(Vector2(_loop[i].x, -_loop[i].y))
-		_loop_heading.append(-PI - heads[i])
-	_loop_half = 0.0
-	for p: Vector2 in _loop:
-		_loop_half = maxf(_loop_half, absf(p.y))
-	_loop_round = 1.0 / length
-
-
-## The heading at each step along the half out, dipping by `dip` off the point: the round end's
-## curve ramps in (its running total, scaled so the heading is straight up at the round end).
-static func _drop_half_heading(dip: float, n: int) -> PackedFloat32Array:
-	var ramp: PackedFloat32Array = PackedFloat32Array([0.0])
-	for i: int in range(n):
-		ramp.append(ramp[i] + smoothstep(WISP_DROP_ROUND.x, WISP_DROP_ROUND.y, (float(i) + 0.5) / float(n)))
-	var heads: PackedFloat32Array = PackedFloat32Array()
-	for i: int in range(n + 1):
-		var u: float = float(i) / float(n)
-		heads.append(dip * smoothstep(0.0, WISP_DROP_TIP, u) - (PI * 0.5 + dip) * ramp[i] / ramp[n])
-	return heads
-
-
-## The points along the half out for its headings, each step a 1/(2n) share of the way round.
-static func _drop_trace(heads: PackedFloat32Array) -> PackedVector2Array:
-	var n: int = heads.size() - 1
-	var pts: PackedVector2Array = PackedVector2Array([Vector2.ZERO])
-	for i: int in range(n):
-		var h: float = (heads[i] + heads[i + 1]) * 0.5
-		pts.append(pts[i] + Vector2(cos(h), sin(h)) / float(2 * n))
-	return pts
-
-
-## Place a wisp shape on screen by following its trail. A point's local x is how far it lies
-## behind the head (x = 0) along the body, and its local y how far it sits off the spine
-## (y = -8.2). Points behind the head go where the head was that distance ago, offset across the
-## trail's direction there; points ahead of it extend along the head's heading. The head's
-## positions are recorded in world space without the bob, which is added to the whole shape.
-const WISP_TRAIL_LEN: float = 260.0
-var _wp_k: float = 3.6
-var _wp_side: float = 1.0
-var _wp_bob: Vector2 = Vector2.ZERO
-var _wp_head_dir: Vector2 = Vector2.RIGHT
-var _trail: PackedVector2Array = PackedVector2Array()
-## How far its Mover had been carried when it was last drawn (see Mover.carried).
-var _carried: Vector2 = Vector2.ZERO
-
-
-func _wisp_trail_add(at: Vector2) -> void:
-	# Start (or after a jump, restart) with a straight trail lying level behind it, whichever way
-	# its head is heading (mid-turn it may be heading up).
-	if _trail.is_empty() or _trail[0].distance_to(at) > 120.0:
-		_trail = PackedVector2Array()
-		for n: int in range(66):
-			_trail.append(at - Vector2(_wp_side, 0.0) * 4.0 * float(n))
-		_trail_measure()
-		return
-	if _trail[0].distance_to(at) < 0.5:
-		return
-	_trail.insert(0, at)
-	var total: float = 0.0
-	for n: int in range(1, _trail.size()):
-		total += _trail[n].distance_to(_trail[n - 1])
-		if total > WISP_TRAIL_LEN:
-			_trail.resize(n + 1)
-			break
-	_trail_measure()
-
-
-## The distance along the trail from the head to each of its points (for _trail_at).
-var _trail_cum: PackedFloat32Array = PackedFloat32Array()
-
-
-func _trail_measure() -> void:
-	_trail_cum.resize(_trail.size())
-	var total: float = 0.0
-	for n: int in range(_trail.size()):
-		if n > 0:
-			total += _trail[n].distance_to(_trail[n - 1])
-		_trail_cum[n] = total
-
-
-## Where the trail was `d` px behind the head: [position (world), direction of travel there].
-## A binary search over the measured trail (each wisp asks this hundreds of times a frame).
-func _trail_at(d: float) -> Array:
-	if d <= 0.0 or _trail.size() < 2:
-		return [_trail[0] - _wp_head_dir * d if not _trail.is_empty() else Vector2.ZERO, _wp_head_dir]
-	if _trail_cum.size() != _trail.size():
-		_trail_measure()
-	var n: int = _trail_cum.bsearch(d)
-	while n < _trail.size() and n > 0 and _trail_cum[n] - _trail_cum[n - 1] <= 0.0001:
-		n += 1
-	if n >= 1 and n < _trail.size():
-		var a: Vector2 = _trail[n - 1]
-		var b: Vector2 = _trail[n]
-		var f: float = (d - _trail_cum[n - 1]) / (_trail_cum[n] - _trail_cum[n - 1])
-		return [a.lerp(b, f), (a - b).normalized()]
-	var last: Vector2 = _trail[_trail.size() - 1]
-	var tail_dir: Vector2 = (_trail[_trail.size() - 2] - last).normalized()
-	return [last - tail_dir * (d - _trail_cum[_trail.size() - 1]), tail_dir]
-
-
-## The trail sampled every WISP_STEP px from the head, once a frame (_wisp_sample): positions in
-## this prop's space and directions of travel. Placing a wisp's hundreds of vertices reads this
-## table instead of walking the trail for each.
-const WISP_STEP: float = 2.0
-var _ts_pos: PackedVector2Array = PackedVector2Array()
-var _ts_dir: PackedVector2Array = PackedVector2Array()
-## How sharply the trail bends at each sample: the turn from 6 px older to 6 px newer.
-var _ts_turn: PackedFloat32Array = PackedFloat32Array()
-var _lk_turn: float = 0.0
-## The last lookup (_wisp_lookup), kept in fields so lookups allocate nothing.
-var _lk_pos: Vector2 = Vector2.ZERO
-var _lk_dir: Vector2 = Vector2.RIGHT
-
-
-func _wisp_sample(max_d: float) -> void:
-	var n: int = ceili(max_d / WISP_STEP) + 2
-	_ts_pos.resize(n)
-	_ts_dir.resize(n)
-	for i: int in range(n):
-		var at: Array = _trail_at(float(i) * WISP_STEP)
-		_ts_pos[i] = to_local(at[0] as Vector2)
-		_ts_dir[i] = at[1]
-	_ts_turn.resize(n)
-	var reach: int = ceili(6.0 / WISP_STEP)
-	_sharp = false
-	for i: int in range(n):
-		var older: Vector2 = _ts_dir[mini(i + reach, n - 1)]
-		var newer: Vector2 = _ts_dir[maxi(i - reach, 0)]
-		_ts_turn[i] = older.angle_to(newer) if i > 0 else 0.0
-		_sharp = _sharp or absf(_ts_turn[i]) > WISP_FOLD_TURN
-
-
-## Where the trail was `d` px behind the head (in this prop's space), and its direction there,
-## into _lk_pos and _lk_dir.
-func _wisp_lookup(d: float) -> void:
-	if d <= 0.0:
-		_lk_dir = _wp_head_dir
-		_lk_pos = _ts_pos[0] - _wp_head_dir * d
-		_lk_turn = 0.0
-		return
-	var f: float = d / WISP_STEP
-	var i: int = mini(int(f), _ts_pos.size() - 2)
-	var u: float = f - float(i)
-	_lk_pos = _ts_pos[i].lerp(_ts_pos[i + 1], u)
-	_lk_dir = _ts_dir[i].lerp(_ts_dir[i + 1], u).normalized()
-	_lk_turn = lerpf(_ts_turn[i], _ts_turn[i + 1], u)
-
-
-func _wisp_place(poly: PackedVector2Array, _curl: bool) -> PackedVector2Array:
-	var sx: float = _wp_k * 1.1
-	var sy: float = _wp_k * 0.6
-	var out: PackedVector2Array = PackedVector2Array()
-	out.resize(poly.size())
-	var across_turn: float = _wp_side * PI * 0.5
-	for n: int in range(poly.size()):
-		var d: float = -poly[n].x * sx
-		# On a tight bend, keep the inside edge within the bend's radius so the body bunches
-		# instead of folding over itself (a folded outline can't be printed).
-		_wisp_lookup(d)
-		var turn: float = _lk_turn
-		var dir: Vector2 = _lk_dir
-		# Within the first stretch behind the head, ease from the head's heading to the trail's.
-		if d < 14.0:
-			dir = _wp_head_dir.lerp(dir, clampf(d / 14.0, 0.0, 1.0)).normalized()
-		var off: Vector2 = dir.rotated(across_turn) * ((poly[n].y + 8.2) * sy)
-		if absf(turn) > 0.02:
-			var centre: Vector2 = dir.rotated(signf(turn) * PI * 0.5)
-			if off.dot(centre) > 0.0:
-				off = off.limit_length(0.8 * 12.0 / absf(turn))
-		out[n] = _lk_pos + off + _wp_bob
-	# Wide shapes (glow, veils) can still cross over themselves on the tightest bend: print their
-	# outline hull instead of nothing. (Only a sharp bend can fold one.)
-	if _sharp and Geometry2D.triangulate_polygon(out).is_empty():
-		var hull: PackedVector2Array = Geometry2D.convex_hull(out)
-		if hull.size() > 3:
-			hull.remove_at(hull.size() - 1)
-			return _resample_loop(hull, out.size(), out[0])
-	return out
-
-
-## `loop` resampled evenly to `count` points (so per-vertex shading still lines up), starting
-## at the point nearest `start`.
-func _resample_loop(loop: PackedVector2Array, count: int, start: Vector2) -> PackedVector2Array:
-	var m: int = loop.size()
-	var first: int = 0
-	for n: int in range(m):
-		if loop[n].distance_squared_to(start) < loop[first].distance_squared_to(start):
-			first = n
-	var total: float = 0.0
-	for n: int in range(m):
-		total += loop[n].distance_to(loop[(n + 1) % m])
-	var out: PackedVector2Array = PackedVector2Array()
-	var seg: int = first
-	var walked: float = 0.0
-	var seg_len: float = loop[seg].distance_to(loop[(seg + 1) % m])
-	for n: int in range(count):
-		var want: float = total * float(n) / float(count)
-		while walked + seg_len < want and seg_len >= 0.0:
-			walked += seg_len
-			seg = (seg + 1) % m
-			seg_len = loop[seg].distance_to(loop[(seg + 1) % m])
-		var f: float = (want - walked) / maxf(seg_len, 0.0001)
-		out.append(loop[seg].lerp(loop[(seg + 1) % m], clampf(f, 0.0, 1.0)))
-	return out
+## The point of its tail as last printed, in world space (its origin's place before a print).
+func tip_at() -> Vector2:
+	return _tip_at if _tip_at != Vector2.INF else super.guard_center()

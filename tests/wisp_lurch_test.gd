@@ -1,8 +1,8 @@
 extends TestKit
 ## The wisp's lurch (Mover.LURCH_SIGHT, WispArt): with the wizard close in front of it on its floor,
-## a wisp stops and winds up, holding still while its head rears up, then lurches at them, a good
-## way but no further than the lurch carries, and rests after; it does not lurch again at once,
-## nor at a wizard behind it, and a stun breaks a wind-up off, the head settling back down.
+## a wisp stops and winds up, holding still while it draws back and gathers itself, then lurches at
+## them, a good way but no further than the lurch carries, and rests after; it does not lurch again
+## at once, nor at a wizard behind it, and a stun breaks a wind-up off, the wisp easing back out of it.
 ## godot --headless --path . --script res://tests/wisp_lurch_test.gd
 
 ## How far in front of the wisp the wizard stands (px), within Mover.LURCH_SIGHT.x; and how far
@@ -45,7 +45,7 @@ func run() -> void:
 	await within(func() -> bool: return mover.winding >= 0.9 or mover.winding < 0.0, Mover.WIND_UP / pace + 0.2)
 	check(absf(w.global_position.x - x0) < 0.5, "it holds still while it winds up")
 	if art != null:
-		check(art._rear > 0.8 and art._heat > 0.8, "its head rears up and its glow flares (rear %.2f, heat %.2f)" % [art._rear, art._heat])
+		check(art._wind > 0.8 and art._heat > 0.8, "it gathers itself and its glow flares (wound up %.2f, heat %.2f)" % [art._wind, art._heat])
 
 	print("lurching")
 	check(await within(func() -> bool: return mover.lurching >= 0.0, 0.3), "then it lurches")
@@ -54,7 +54,7 @@ func run() -> void:
 	check(went > REACH * 0.6 and went <= REACH + 2.0, "at the wizard, %.0f px (a whole lurch is %.0f)" % [went, REACH])
 	check(mover.resting > 0.0, "and gathers itself after")
 	if art != null:
-		check(art._rear < 0.05, "its head back down on its path")
+		check(art._wind < 0.05, "let go of its wind-up")
 	var again: float = (Mover.LURCH_REST + Mover.LURCH_AGAIN) / pace
 	check(not await within(func() -> bool: return mover.winding >= 0.0, again * 0.9), "it does not wind up again at once")
 
@@ -72,7 +72,7 @@ func run() -> void:
 	await frames(3)
 	check(mover.winding < 0.0 and mover.lurching < 0.0, "stunned, it breaks off the wind-up")
 	if art != null:
-		check(art._rear < 0.05, "and its head settles back down")
+		check(art._wind > 0.05 and await within(func() -> bool: return art._wind < 0.05, 1.0), "and it eases back out of it, not all at once")
 	finish()
 
 

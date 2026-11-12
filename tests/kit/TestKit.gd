@@ -240,7 +240,7 @@ func go(at: Vector2i, frozen: bool = true) -> void:
 
 
 ## Whether the art prints frame by frame in a headless test (RisoPrint.prints_art; it always does
-## in a window): on for a test that reads what the art does (a wisp's trail, a pod's flash).
+## in a window): on for a test that reads what the art does (a wisp's turn, a pod's flash).
 func art(on: bool) -> void:
 	RisoPrint.prints_art = on or DisplayServer.get_name() != "headless"
 
