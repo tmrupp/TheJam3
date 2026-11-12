@@ -83,7 +83,7 @@ static func place_pods(w: LevelGen, row: int) -> void:
 ## The empty cells against a wall (rock left or right) with `room` cells of open air out from it, at
 ## least POD_CLEAR from the way in and outside the vaults.
 static func _wall_spots(w: LevelGen, room: int) -> Array[Vector2i]:
-	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	var start: Vector2i = w.exits.get(Ways.Exit.BACK, Vector2i(-1, -1))
 	var vaulted: Dictionary = _vaulted(w)
 	return w.empties_where(func(v: Vector2i) -> bool:
 		if w.type_at(v) != LevelGen.Type.EMPTY or vaulted.has(v) or LevelGen.dist(v, start) < POD_CLEAR:
@@ -102,7 +102,7 @@ static func _wall_spots(w: LevelGen, room: int) -> Array[Vector2i]:
 
 ## The level's plot, on a free floor with air over it (see the consts).
 static func place_plot(w: LevelGen) -> void:
-	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	var start: Vector2i = w.exits.get(Ways.Exit.BACK, Vector2i(-1, -1))
 	var vaulted: Dictionary = _vaulted(w)
 	var spots: Array[Vector2i] = w.free_floors().filter(func(v: Vector2i) -> bool:
 		return not vaulted.has(v) and LevelGen.dist(v, start) >= PLOT_CLEAR and w.is_valid(v + Vector2i.UP) and not w.is_ground(v + Vector2i.UP))
@@ -115,7 +115,7 @@ static func place_plot(w: LevelGen) -> void:
 static func place_worms(w: LevelGen, row: int) -> void:
 	var gate: int = Bosses.row_of(&"worm")
 	var toward: float = clampf(float(row) / float(gate), 0.0, 1.0) if gate != 0 else 0.0
-	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	var start: Vector2i = w.exits.get(Ways.Exit.BACK, Vector2i(-1, -1))
 	var vaulted: Dictionary = _vaulted(w)
 	var spots: Array[Vector2i] = w.free_floors().filter(func(v: Vector2i) -> bool:
 		return not vaulted.has(v) and LevelGen.dist(v, start) >= WORM_CLEAR)
@@ -130,7 +130,7 @@ static func place_spares(w: LevelGen, row: int) -> void:
 		return
 	var worm: int = Bosses.row_of(&"worm")
 	if worm != 0 and signi(row) == signi(worm) and absi(row - worm) < Bosses.SIGN_REACH:
-		var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+		var start: Vector2i = w.exits.get(Ways.Exit.BACK, Vector2i(-1, -1))
 		var vaulted: Dictionary = _vaulted(w)
 		var floors: Array[Vector2i] = w.free_floors().filter(func(v: Vector2i) -> bool:
 			return not vaulted.has(v) and LevelGen.dist(v, start) >= WORM_CLEAR)

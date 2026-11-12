@@ -24,9 +24,7 @@ func setup(info: MapInfo, _v: Vector2i) -> void:
 ## How far apart places `a` and `b` are, for a plant's growth: across plus up or down, a side
 ## world counted as the level its door is in.
 static func apart(a: Vector2i, b: Vector2i) -> int:
-	var p: Vector2i = Worlds.origin_of(a) if Worlds.is_side(a) else a
-	var q: Vector2i = Worlds.origin_of(b) if Worlds.is_side(b) else b
-	return absi(p.x - q.x) + absi(p.y - q.y)
+	return Rules.apart(a, b)
 
 
 ## What a plant grown that far (places) bears: 0 nothing yet (a sprout), 1 stars, 2 a skeleton key,

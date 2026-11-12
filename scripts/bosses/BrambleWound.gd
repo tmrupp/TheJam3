@@ -30,7 +30,7 @@ func hit(damage: int, dir: Vector2) -> void:
 		return
 	hp -= damage
 	bulb.struck()
-	RisoFx.burst(&"hit", bulb.global_position, dir, [RisoPrint.ACCENT, RisoPrint.PINK])
+	RisoFx.burst(&"hit", bulb.global_position, dir, [Plate.ACCENT, Plate.PINK])
 	Wound.felt(bulb, dir, hp <= 0)
 	if hp <= 0:
 		_die(bulb)

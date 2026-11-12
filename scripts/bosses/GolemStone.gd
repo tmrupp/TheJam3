@@ -7,7 +7,6 @@ extends Node2D
 ## is no part of the golem while it is away. Printed as the magnet it is (Golem.piece_inks), pink over
 ## it while it flies or is called home and so hurts.
 
-const HIT_BOX: PackedScene = preload("res://prefabs/hit_box.tscn")
 ## How hard it falls (px/s²), and how fast at most; how fast it tumbles (radians a second); and how
 ## far out its touch reaches, and how far out it meets rock as it flies (of its half length).
 const GRAVITY: float = 2200.0
@@ -38,7 +37,7 @@ static func lob(from: Vector2, to: Vector2, flight: float) -> Vector2:
 
 func _ready() -> void:
 	z_index = 3
-	touch = HIT_BOX.instantiate() as HitBox
+	touch = Prefabs.make(Prefabs.HIT_BOX) as HitBox
 	var reach: CircleShape2D = CircleShape2D.new()
 	reach.radius = Golem.PART_SIZE[part].x * TOUCH_REACH
 	(touch.get_node("CollisionShape2D") as CollisionShape2D).shape = reach

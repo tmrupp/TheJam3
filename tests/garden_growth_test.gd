@@ -318,6 +318,7 @@ func _plants() -> void:
 	plot.use()
 	check(plot.planted() and player.keyring.seeds() == 0 and plot.tier() == 0, "planted, a sprout, the seed used up")
 	check(not plot.can_pick(), "nothing to pick until the wizard has gone away")
+	info.save_now()
 	check(RunState.read_save().get("plants", {}).has(home), "the plant is kept in the save")
 	# Stars: a place or two away.
 	info.run.reached(home + Vector2i(1, 1))

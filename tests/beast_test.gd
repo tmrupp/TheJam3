@@ -136,7 +136,7 @@ func _play() -> void:
 	check(beast.sweep.busy() and absf(beast.sweep.way.y) < 0.01 and beast.sweep.global_position.y > beast.global_position.y, "every few strikes it lashes along the floor instead")
 
 	print("saved")
-	info.save_run()
+	info.save_now()
 	var saved: Dictionary = RunState.read_save()
 	check(saved.get("souls", {}) == info.run.souls and int(saved.get("souls_sent", 0)) == want, "its souls are saved with the run")
 
@@ -194,9 +194,22 @@ func _play() -> void:
 	check(left_unlock(), "its relic unlock left where it lay")
 
 
-## A level holding a soul, preferring one already visited (the first in VISITED's order).
+## A level holding a soul, preferring one already visited (the first in VISITED's order) whose soul
+## will lie with room round it for its guards (BeastSouls.guard_spots, asked of the spot it will be
+## dealt, on a run of its own so this run's is dealt as the game deals it): a soul alone on a ledge
+## is a fair thing for the game to deal, but not one to test its guards by. Failing that, the first
+## level holding one.
 func _a_soul(order: Array[Vector2i]) -> Vector2i:
-	for c: Vector2i in order:
-		if info.run.souls.has(c):
+	var holding: Array = order.filter(func(c: Vector2i) -> bool: return info.run.souls.has(c))
+	holding.append_array(info.run.souls.keys().filter(func(c: Vector2i) -> bool: return not holding.has(c)))
+	for c: Vector2i in holding:
+		var w: LevelGen = build(c)
+		if w == null:
+			continue
+		var probe: RunState = RunState.new()
+		probe.run_seed = info.run.run_seed
+		probe.souls[c] = BeastSouls.NO_SPOT
+		var spot: Vector2i = BeastSouls.spot(probe, c, w)
+		if spot != BeastSouls.NO_SPOT and not BeastSouls.guard_spots(w, spot).is_empty():
 			return c
-	return info.run.souls.keys()[0]
+	return holding[0]

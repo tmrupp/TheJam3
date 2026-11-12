@@ -17,7 +17,7 @@ extends RefCounted
 
 ## How many deals are tried before the best found is kept, and the salt for the level seed.
 const DEAL_TRIES: int = 1000
-const DEAL: int = 6620
+const DEAL: int = Salts.STATIONS * Salts.STRIDE
 ## The fewest flips a way up or down is wanted to take (when a deal allows it), and the most a
 ## deal may want before it is passed over for a shorter one.
 const FLIPS_LEAST: int = 3

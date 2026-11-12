@@ -16,7 +16,7 @@ class_name MovingPlatform
 @export var cell_size: float = 128.0
 var t: float = 0.0
 ## Salt for the lift's phase, hashed from the level seed and its cell (see LevelLoader.place_cell).
-const PHASE_DEAL: int = 9900
+const PHASE_DEAL: int = Salts.MOVING_PLATFORM_PHASE * Salts.STRIDE
 ## The cell of the switch that works it (none: it always runs), and whether it is stopped by it.
 var switch_cell: Vector2i = Vector2i(-1, -1)
 var waiting: bool = false

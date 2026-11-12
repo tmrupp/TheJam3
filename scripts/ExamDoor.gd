@@ -33,7 +33,7 @@ func setup(info: MapInfo, v: Vector2i, which: Variant) -> void:
 	hall = int(which)
 	up = true
 	collision_layer = 0
-	info.exam_doors[v] = true
+	info.institute.exam_doors[v] = true
 
 
 func _ready() -> void:
@@ -49,7 +49,7 @@ func subject() -> StringName:
 	if map_info == null or map_info.world == null:
 		return &""
 	if hall >= 0 and hall < map_info.world.halls.size() and map_info.world.halls[hall]["kind"] == &"lecture":
-		return map_info.subject_of(hall)
+		return map_info.institute.subject_of(hall)
 	return &""
 
 
@@ -90,7 +90,7 @@ func period() -> int:
 func tier() -> int:
 	if map_info == null or map_info.world == null or hall < 0 or hall >= map_info.world.halls.size() or map_info.world.halls[hall]["kind"] != &"lecture":
 		return 0
-	return map_info.tier_of(hall)
+	return map_info.institute.tier_of(hall)
 
 
 ## Whether it blocks the way.
@@ -140,7 +140,7 @@ func _physics_process(delta: float) -> void:
 	if map_info == null:
 		return
 	var lecture: bool = map_info.world != null and hall >= 0 and hall < map_info.world.halls.size() and map_info.world.halls[hall]["kind"] == &"lecture"
-	up = (map_info.hall_door_up(hall) and (not lecture or near())) or (lecture and student_near())
+	up = (map_info.institute.hall_door_up(hall) and (not lecture or near())) or (lecture and student_near())
 	if up:
 		# Winched up, and open only once it is all the way up.
 		lift = move_toward(lift, UP_LIFT, LIFT_SPEED * delta)
@@ -150,4 +150,4 @@ func _physics_process(delta: float) -> void:
 		if not shut() and not _holds_wizard():
 			collision_layer = _layer
 		lift = move_toward(lift, 0.0 if shut() else UP_LIFT, LIFT_SPEED * delta)
-	map_info.exam_doors[cell] = not shut()
+	map_info.institute.exam_doors[cell] = not shut()

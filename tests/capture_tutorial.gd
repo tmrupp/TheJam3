@@ -64,7 +64,7 @@ func _trophies() -> void:
 	stands.sort_custom(func(a: Node, b: Node) -> bool: return (a as Node2D).global_position.x < (b as Node2D).global_position.x)
 	var first: Vector2 = (stands[0] as Node2D).global_position
 	var last: Vector2 = (stands[stands.size() - 1] as Node2D).global_position
-	var waiting: Trophy = MapInfo.TROPHY.instantiate() as Trophy
+	var waiting: Trophy = Prefabs.make(MapInfo.TROPHY) as Trophy
 	waiting.boss = bosses[0]
 	info.map_elements.add_child(waiting)
 	waiting.global_position = first + Vector2(-260, -40)

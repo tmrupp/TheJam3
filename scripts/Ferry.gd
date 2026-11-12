@@ -7,7 +7,7 @@ class_name Ferry
 ## fading); II two; III three, and faster.
 
 ## The raft (FerryRaft) a cast conjures.
-const RAFT: PackedScene = preload("res://prefabs/ferry_raft.tscn")
+const RAFT: String = "res://prefabs/ferry_raft.tscn"
 ## Seconds between casts.
 const COOLDOWN: float = 0.6
 ## How fast a raft glides (px/s): at tiers I and II, and at III.
@@ -51,7 +51,7 @@ func cast_spell() -> bool:
 		var oldest: FerryRaft = rafts.pop_front()
 		if is_instance_valid(oldest):
 			oldest.fade_out()
-	var raft: FerryRaft = RAFT.instantiate() as FerryRaft
+	var raft: FerryRaft = Prefabs.make(RAFT) as FerryRaft
 	raft.velocity = Vector2(facing * speed, 0.0)
 	var level: Node = MapInfo.instance.map_elements if MapInfo.instance != null and is_instance_valid(MapInfo.instance.map_elements) else player.get_parent()
 	level.add_child(raft)

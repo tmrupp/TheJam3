@@ -36,7 +36,7 @@ func _draw_art() -> void:
 	ink.ink(RisoPrint.BLUE, 1.0, [base])
 	ink.ink(RisoPrint.NIGHT, 0.35, [RisoShapes.rrect(-44, g - 10, 88, 10, 5)], false)
 	ink.ink(RisoPrint.NIGHT, 0.6, [slot], false)
-	RisoMarks.sigil_plate(ink, Vector2(0, g - 19.0), 1.3, 1.0, Sigils.of(host), false)
+	RisoMarks.sigil_plate(ink, Vector2(0, g - 19.0), 1.3, 1.0, MapInfo.sigil_of(host), false)
 	var ball: PackedVector2Array = RisoShapes.circle(knob, 13.0, 20)
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], [ball])
 	ink.ink(RisoPrint.ACCENT if thrown else RisoPrint.PINK, 1.0, [ball], false)

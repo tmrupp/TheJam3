@@ -19,7 +19,7 @@ func run() -> void:
 	var boss: StringName = Bosses.ahead(1)
 	var lair: Vector2i = Vector2i(Bosses.column(boss, seed), Bosses.row_of(boss))
 	await go(lair)
-	info.save_run()
+	info.save_now()
 	check(Known.has(at) and Known.has(lair), "what the run has seen is kept as it saves")
 
 	print("a run on the seed again")
@@ -49,7 +49,7 @@ func run() -> void:
 	MapInfo.debug = true
 	var far: Vector2i = Vector2i(seed + 40, 2)
 	await go(far)
-	info.save_run()
+	info.save_now()
 	MapInfo.debug = false
 	check(not Known.has(far) and Known.places().size() == count, "nothing is kept from a debug run")
 	RunState.delete_save()

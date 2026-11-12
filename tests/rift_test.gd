@@ -12,7 +12,14 @@ func run() -> void:
 	check(player.is_on_floor(), "standing to cast tier I")
 	Abilities.cast(player, &"move")
 	check(rift.ends.size() == 1 and not bool(rift.ends[0].get("linked")), "Spell places the first end, waiting for its partner")
-	player.global_position += Vector2(0, -600)
+	# Up in open air, wherever this level has some: nothing to stand on for four rows under it.
+	var midair: Vector2i = Vector2i(-1, -1)
+	for v: Vector2i in info.world.empties:
+		if midair == Vector2i(-1, -1) and range(-1, 5).all(func(dy: int) -> bool:
+				return info.world.is_valid(v + Vector2i(0, dy)) and info.world.type_at(v + Vector2i(0, dy)) not in IN_THE_WAY):
+			midair = v
+	check(midair != Vector2i(-1, -1), "open air in the level to cast in")
+	player.global_position = info.cell_position(midair)
 	player.velocity = Vector2.ZERO
 	await physics_frame
 	await physics_frame
@@ -82,7 +89,7 @@ func run() -> void:
 	await settle(8)
 	freeze()
 	check(rift.ends.size() == 2 and rift.ends[0].global_position == pair_b[0] and rift.ends[1].global_position == pair_b[1], "world B's original pair survives recasting elsewhere")
-	info.save_run()
+	info.save_now()
 	var saved: Dictionary = RunState.read_save()
 	check(saved["records"][world_a]["rifts"] == pair_a and saved["records"][world_b]["rifts"] == pair_b, "the saved run contains both worlds' independent pairs")
 	check(info.continue_run(), "the saved run resumes")
@@ -101,7 +108,7 @@ func run() -> void:
 	var link_b: Node2D = rift.cast()
 	check(bool(link_b.get("linked")) and link_b.get_meta(&"rift_far") == [world_a, at_a], "its partner, opened in another world, links back to the first world")
 	check(rift.ends.size() == 2, "world B's own pair is untouched")
-	info.save_run()
+	info.save_now()
 	check((RunState.read_save()["rift_link"] as Array).size() == 2, "the link is saved with the run")
 	link_b.call("use_portal")
 	await Signal(link_b, &"trip_done")

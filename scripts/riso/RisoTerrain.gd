@@ -349,8 +349,8 @@ func _back_wall(tile_map: TileMap, solid: Dictionary, interiors: Dictionary, hal
 	ink.ink(RisoPrint.NIGHT, BACK_JOINT_COVER, joints, false)
 
 
-## Floating islands' tapered undersides (SkyArchetype.taper_islands lays them as rock a row at a
-## time): each step under an overhang filled on the diagonal, so the sides run smoothly in to the
+## Floating islands' tapered undersides (the sky's sample draws them as rock a row at a time,
+## tests/make_sky_sample.gd): each step under an overhang filled on the diagonal, so the sides run smoothly in to the
 ## keel, and a point under the last cell of each keel. Printed with the ground; no tiles change
 ## (the wedges only fill the corner of a cell under rock and beside it, where nothing stands).
 static func _tapers(tile_map: TileMap, solid: Dictionary, half: float) -> Array[PackedVector2Array]:

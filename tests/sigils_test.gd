@@ -92,13 +92,13 @@ func run() -> void:
 	var play_ok: bool = not switch_nodes.is_empty()
 	for lever: Node in switch_nodes:
 		var to: Vector2i = (lever as Switch).gate_cell
-		play_ok = play_ok and Sigils.of(lever) >= 0 and Sigils.of(lever) == info.world.sigil_at(to)
+		play_ok = play_ok and MapInfo.sigil_of(lever) >= 0 and MapInfo.sigil_of(lever) == info.world.sigil_at(to)
 	for g: Node in gate_nodes:
-		play_ok = play_ok and Sigils.of(g) == info.world.sigil_at((g as SwitchGate).switch_cell)
+		play_ok = play_ok and MapInfo.sigil_of(g) == info.world.sigil_at((g as SwitchGate).switch_cell)
 	check(play_ok, "placed switches and gates read their shared sigil (%d switches)" % switch_nodes.size())
 	var portal_nodes: Array[Node] = placed("portal.tscn")
 	var portals_ok: bool = not portal_nodes.is_empty()
 	for p: Node in portal_nodes:
-		portals_ok = portals_ok and Sigils.of(p) == info.world.sigil_at(info.cell_at((p as Portal).go_to_pos))
+		portals_ok = portals_ok and MapInfo.sigil_of(p) == info.world.sigil_at(info.cell_at((p as Portal).go_to_pos))
 	check(portals_ok, "placed teleporters read the sigil their partner shows (%d)" % portal_nodes.size())
 	finish()

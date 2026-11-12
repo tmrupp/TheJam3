@@ -47,14 +47,13 @@ const HOLE_OPEN: float = 0.12
 const HOLE_LINGER: float = 1.2
 const HOLE_CLOSE: float = 0.5
 ## Salt for the level seed, for where it comes out each time.
-const EMERGE_DEAL: int = 6660
+const EMERGE_DEAL: int = Salts.WORMLET_EMERGE * Salts.STRIDE
 ## How many come up round a garden plot whose plant has grown, by the plant's tier (Plot.tier: a
 ## white flower, a great bloom), how far from the plot (cells) their homes lie, and the salt for
 ## choosing them (MapInfo._spawn_swarm).
 const SWARM: Array[int] = [0, 0, 3, 6]
 const SWARM_REACH: int = 8
-const SWARM_DEAL: int = 6661
-
+const SWARM_DEAL: int = Salts.WORMLET_SWARM * Salts.STRIDE
 enum State { HIDDEN, WARN, RISE, OUT, DROP, SINK }
 
 

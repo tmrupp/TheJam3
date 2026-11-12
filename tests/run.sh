@@ -19,6 +19,9 @@
 # kit names MapInfo and Player in its fields, so a test loads the scripts in another order and
 # cannot see a scene left without a part by a cycle of loads (docs/CODE_REVIEW.md 1.1, 2.6).
 # Name it to run it alone: bash tests/run.sh game_boot.
+# The full run also makes the load-order sweep (load_sweep, tests/load_sweep.sh): every scene loaded
+# first in a process of its own, failing on any that leaves a scene without a part
+# (docs/CODE_REVIEW.md 2.1). Alone: bash tests/run.sh load_sweep.
 # A test passes when Godot exits 0 and its log has no FAIL, SCRIPT ERROR or Parse Error. A script
 # error usually leaves the test waiting forever, so it is stopped a moment after one appears.
 # The headless tests start longest first, so a slow one is not left to run alone at the end: each
@@ -79,6 +82,9 @@ fi
 # The frames the boot check runs the game for, and its name among the tests' results.
 BOOT_FRAMES=120
 BOOT=game_boot
+# The load-order sweep's name among the results (tests/load_sweep.sh), and how long it may take.
+SWEEP=load_sweep
+SWEEP_LIMIT=600
 
 tier() { grep -m1 -o '^## suite: [a-z]*' "tests/$1.gd" | awk '{print $3}'; }
 
@@ -120,7 +126,13 @@ run_one() {
 	[[ $t == "$BOOT" ]] && launch=(--quit-after "$BOOT_FRAMES")
 	# The log is there before the test starts, so it is never looked for before it is made.
 	: > "$log"
-	"$godot" "${args[@]}" --path . "${launch[@]}" "${user[@]}" > "$log" 2>&1 &
+	local limit=$limit
+	if [[ $t == "$SWEEP" ]]; then
+		limit=$SWEEP_LIMIT
+		GODOT="$godot" bash tests/load_sweep.sh > "$log" 2>&1 &
+	else
+		"$godot" "${args[@]}" --path . "${launch[@]}" "${user[@]}" > "$log" 2>&1 &
+	fi
 	local pid=$! errored=-1
 	while kill -0 "$pid" 2>/dev/null; do
 		if (( SECONDS - start >= limit )); then
@@ -170,6 +182,8 @@ for r in $(grep -l '^FAIL' "$logs"/*.result 2>/dev/null); do
 		echo "FLAKY $t (failed beside others, passed alone; see $logs/$t.flaky.log)" > "$logs/$t.flaky"
 	fi
 done
+# The sweep runs many processes of its own, so it has the machine to itself.
+[[ $mode == full && ${#names[@]} == 0 ]] && run_one "$SWEEP" 0
 for t in "${windowed[@]}"; do
 	run_one "$t" 1
 done

@@ -26,6 +26,11 @@ var symmetry: int = 5
 ## a bit each (see NextWorldDef.symmetry_mask); 0 (the usual) keeps to `symmetry`. A band's "tune"
 ## may set it (Bands.LAYOUTS), say to 33 for upright and mirrored.
 var symmetry_mask: int = 0
+## Whether its sample is a sheet of clusters, with open sky (LevelGen.SKY) between and round them,
+## not one picture to collapse. Each cluster on the sheet is then a sample of its own, and each
+## cluster of a level is collapsed afresh from one of them
+## (WaveFunctionCollapse.collapse_clusters). The sky's.
+var clustered: bool = false
 ## How much bigger than Rules.level_size its levels are, across and down (size_for).
 var scale: Vector2 = Vector2.ONE
 ## Whether its levels are gated by chasms (see Chasms), crossed at `crossing`s.

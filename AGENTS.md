@@ -20,7 +20,9 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
     crypt, a hall), over `CellSums.gd`, how many cells of a kind lie in any box, counted at once.
   - `Placeables.gd`: one table, by `LevelGen.Type`, of each thing's prefab, art kind, box size and
     flags (enemy, stander, floats, colored). Loading, the art dresser and the map read it.
-  - `RunState.gd`: the run (records, the lantern to come back to, the ghost, relics) and saving it.
+  - `RunState.gd`: the run (records, the lantern to come back to, the ghost, relics) and saving it
+    (`SafeFile.gd`: a save written whole or not at all; `MapInfo.save_run` marks the run changed
+    and it is written once a frame, `save_now` at once: a test that reads the save calls that).
     `LevelRecord.gd`: what changed in one place (taken, opened, slain, bridges...), typed.
   - `LevelLoader.gd`: the generator cache and worker thread, building a level in the scene
     (`place_cell`), the rock and camera, and chunk sleeping.
@@ -52,8 +54,16 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
   the game reads it (what wakes, freezes or can be wounded), apart from `RisoLight`, which prints
   it. `Stage.gd` finds the main
   scene's wizard, TileMap, camera and menu (no `/root/Main/...` paths elsewhere).
-- `wfc_images/`: WFC samples (white open, black rock, red thorns). Drawn ones come from
-  `tests/make_*_sample.gd`, so edit the script and rerun it rather than editing the PNG.
+- `wfc_images/`: WFC samples (white open, black rock, red thorns; in the sky's, blue the open sky
+  between its clusters, `LevelGen.SKY`: each cluster painted on that sheet is a sample of its own,
+  and each cluster of a level is collapsed afresh from one,
+  `WaveFunctionCollapse.collapse_clusters`). Drawn ones come from
+  `tests/make_*_sample.gd`, so edit the script and rerun it rather than editing the PNG. The
+  crags', the institute's and the sky's are painted by hand in the generation lab, and their
+  scripts keep the sheet as text (`SHEET`, `tests/kit/SampleSheet.gd`): after painting one and
+  saving it in the lab, run its script with `-- fold` to write the picture into the script (with
+  nothing it draws the picture from the script; `-- redraw` draws it afresh by the script's rules,
+  over what was painted).
 - `gdextension/`: the C++ overlapping-WFC extension (SCons). Rarely touched. It cuts a sample into
   pieces and may use each in up to eight versions: `symmetry` takes the first N, `symmetry_mask` any
   set (bit k for version k: 0 as drawn, 1 upside down, 2 a quarter turn, 3 that upside down, 4 a half

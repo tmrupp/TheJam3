@@ -118,9 +118,9 @@ func cast(dir: Vector2 = Vector2.ZERO, empowered: bool = false) -> bool:
 		for n: Node in MapInfo.instance.map_elements.get_children():
 			var shot: Node2D = n as Node2D
 			if shot is Bullet and not shot.is_queued_for_deletion() and in_cone(from, dir, shot.global_position):
-				RisoFx.burst(&"hit", shot.global_position, dir, [RisoPrint.ACCENT, RisoPrint.BLUE])
+				RisoFx.burst(&"hit", shot.global_position, dir, [Plate.ACCENT, Plate.BLUE])
 				shot.queue_free()
-	SpellMark.leave(&"push", from, dir, reach, half, RisoPrint.ACCENT, player)
+	SpellMark.leave(&"push", from, dir, reach, half, Plate.ACCENT, player)
 	wait = COOLDOWN
 	return true
 

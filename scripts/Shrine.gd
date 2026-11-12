@@ -13,8 +13,9 @@ class_name Shrine
 ##   whereabouts of the nearest relic not yet found (see Relics), marked on the worlds map, or a
 ##   skeleton key (sells_skeleton), laid somewhere in the level for the wizard to find.
 ## Once spent, the slot bought from offers its refresh (refresh_slot, buy_redraw; docs/REVIEW_PLAN.md
-## §7.2): for stars (REDRAW_PRICE times the way on, doubling with each refresh there) and a carried
-## key (redraw_key), the boons are drawn again and the shrine is open once more. After the boss's
+## §7.2): for stars (REDRAW_PRICE times the way on, doubling with each refresh bought there) and a
+## carried key (redraw_key), the boons are drawn again and the shrine is open once more; none is
+## offered where no other pair can be dealt (next_draw). After the boss's
 ## way is told, the refresh is in the first slot, so the third goes on showing the way told. Not in
 ## the tutorial, whose boons are its own.
 ## Pay to learn. There is no menu: interact with the one you want.
@@ -63,30 +64,67 @@ func offer_seed(draws: int) -> int:
 
 ## Salts for the level seed: the boons drawn again (offer_seed), and which carried key each refresh
 ## takes (redraw_key).
-const REDRAW_DEAL: int = 6800
-const REDRAW_KEY_DEAL: int = 6900
+const REDRAW_DEAL: int = Salts.SHRINE_REDRAW * Salts.STRIDE
+const REDRAW_KEY_DEAL: int = Salts.SHRINE_REDRAW_KEY * Salts.STRIDE
 ## A refresh's price in stars: REDRAW_PRICE times the level's way on, doubled for each refresh
-## already made at this shrine; and one carried key besides (KEY_COST).
+## already bought at this shrine; and one carried key besides (KEY_COST).
 const REDRAW_PRICE: float = 0.5
-## How many counts on a refresh looks for a pair unlike the one shown before giving up on finding
-## one.
+## How many counts on a refresh looks for a pair unlike the one shown; where none of them deals
+## another pair (few abilities left to offer), no refresh is sold.
 const REDRAW_TRIES: int = 6
 ## The shrine's slots, by number: its two niches, and its third station.
 const SLOTS: Array[String] = ["Boon", "Boon2", "Mend"]
 
 
-## How many times it has been refreshed.
+## The count its boons are dealt by (offer_seed): 0 at first, more with each refresh.
 func redraws() -> int:
 	return int(map_info.record().redraws) if map_info != null else 0
 
 
+## How many refreshes were bought here, which the next one's price goes by.
+func refreshes() -> int:
+	return int(map_info.record().refreshes) if map_info != null else 0
+
+
+## The count a refresh bought now would deal the boons by: the first after the one in use, within
+## REDRAW_TRIES, that deals another pair than the one shown (the same two the other way round are
+## no other pair); -1 when none does, and there is no refresh to sell. Kept while the count and the pair shown stay as they are (the prompt and the
+## art both ask each frame).
+func next_draw() -> int:
+	if map_info == null:
+		return -1
+	var was: Array[StringName] = offers()
+	var count: int = redraws()
+	if count == _next_draw_count and was == _next_draw_was:
+		return _next_draw
+	_next_draw_count = count
+	_next_draw_was = was
+	_next_draw = -1
+	var shown: Array[StringName] = was.duplicate()
+	shown.sort()
+	for i: int in range(1, REDRAW_TRIES + 1):
+		var dealt: Array[StringName] = Abilities.offers(offer_seed(count + i), player, BOONS)
+		dealt.sort()
+		if dealt != shown:
+			_next_draw = count + i
+			break
+	return _next_draw
+
+## What next_draw last worked out, and the count and the pair shown it was worked out for.
+var _next_draw: int = -1
+var _next_draw_count: int = -1
+var _next_draw_was: Array[StringName] = []
+
+
 ## The slot (0 and 1 its niches, 2 its third station) that offers the refresh now: the one bought
 ## from, but the first after the boss's way was told (so the third goes on showing it); -1 while it
-## is unspent, in the tutorial, or with no boons to draw.
+## is unspent, in the tutorial, with no boons to draw, or with no other pair to deal (next_draw).
 func refresh_slot() -> int:
 	if map_info == null or not used() or map_info.here is Tutorial:
 		return -1
 	if map_info.here != null and not map_info.here.boons(player).is_empty():
+		return -1
+	if next_draw() < 0:
 		return -1
 	var bought: int = int(map_info.record().shrine_slot)
 	if bought < 0 or bought >= SLOTS.size() or bought == BOSS_SLOT:
@@ -96,7 +134,7 @@ func refresh_slot() -> int:
 
 ## The stars the next refresh costs.
 func redraw_price() -> int:
-	return roundi(REDRAW_PRICE * float(Rules.deeper_price(depth())) * pow(2.0, float(redraws())))
+	return roundi(REDRAW_PRICE * float(Rules.deeper_price(depth())) * pow(2.0, float(refreshes())))
 
 
 ## The carried key the next refresh takes (dealt by the shrine and the refresh's count, so the same
@@ -107,9 +145,9 @@ func redraw_key() -> int:
 	return pick_key(carried_keys(), false, Rules.level_seed(Rules.level_seed(map_info.coord.x, map_info.coord.y), REDRAW_KEY_DEAL + redraws()))
 
 
-## Refresh the spent shrine, for redraw_price and redraw_key: the boons drawn again (a count that
-## would show the pair just shown is passed over for the next) and the shrine open once more.
-## Nothing is taken, and nothing drawn, unless both can be paid.
+## Refresh the spent shrine, for redraw_price and redraw_key: the boons drawn again (by next_draw,
+## so a count that would show the pair just shown is passed over, at no cost to the next price) and
+## the shrine open once more. Nothing is taken, and nothing drawn, unless both can be paid.
 func buy_redraw() -> void:
 	var slot: int = refresh_slot()
 	if slot < 0:
@@ -117,18 +155,16 @@ func buy_redraw() -> void:
 	var key: int = redraw_key()
 	if key < 0 or player.coins.coins < redraw_price():
 		return
-	var was: Array[StringName] = offers()
+	var draw: int = next_draw()
 	player.collect(-redraw_price())
 	player.keyring.spend(key)
 	var rec: LevelRecord = map_info.record()
-	for i: int in range(REDRAW_TRIES):
-		rec.redraws += 1
-		if offers() != was:
-			break
+	rec.redraws = draw
+	rec.refreshes += 1
 	rec.shrine_used = false
 	rec.shrine_slot = -1
 	map_info.save_run()
-	RisoFx.burst(&"gain", (get_node(SLOTS[slot]) as Node2D).global_position + Vector2(0, -40), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
+	RisoFx.burst(&"gain", (get_node(SLOTS[slot]) as Node2D).global_position + Vector2(0, -40), Vector2.ZERO, [Plate.ACCENT, Plate.BLUE])
 
 
 ## The ability in niche `i` (0 or 1), or &"" when there is nothing left to offer there.
@@ -171,7 +207,7 @@ func buy_boon(i: int = 0) -> void:
 	var niche: Node2D = get_node("Boon" if i == 0 else "Boon2") as Node2D
 	if dropped != &"":
 		map_info.put_back(dropped, dropped_tier, niche.global_position + Vector2(0, -40))
-	_spend(get_node("Boon" if i == 0 else "Boon2") as Node2D, [RisoPrint.ACCENT, RisoPrint.PINK], i)
+	_spend(get_node("Boon" if i == 0 else "Boon2") as Node2D, [Plate.ACCENT, Plate.PINK], i)
 
 
 ## What the third station offers now: &"mend" while the wizard is hurt; else &"door" (sells_door),
@@ -199,9 +235,7 @@ const KEY_COST: int = 1
 ## or a skeleton key, and for a refresh, every carried colour weighs the same.
 const RELIC_KEY_WEIGHT: Array[int] = [1, 2, 4, 8]
 ## Salt for the level seed when dealing which carried key the third station takes.
-const KEY_DEAL: int = 6600
-
-
+const KEY_DEAL: int = Salts.SHRINE_KEY * Salts.STRIDE
 ## The key the third station would take now: one of the coloured keys carried (papers and the kept
 ## skeleton keys and relic unlocks are no price), dealt by the shrine's level seed (pick_key), so a
 ## shrine asks the same key of the same ring; or -1 for none carried or none asked (mending).
@@ -255,27 +289,27 @@ func buy_mend() -> void:
 			# Free: healing to full, and the utility spell held filled.
 			player.health.health = player.health.max_health
 			map_info.refill_utility()
-			_spend($Mend as Node2D, [RisoPrint.EYE, RisoPrint.PINK], 2)
+			_spend($Mend as Node2D, [Plate.EYE, Plate.PINK], 2)
 		&"door":
 			if not _pay(door_price(), true):
 				return
 			map_info.dig_way_on()
-			_spend($Mend as Node2D, [RisoPrint.ACCENT, RisoPrint.BLUE], 2)
+			_spend($Mend as Node2D, [Plate.ACCENT, Plate.BLUE], 2)
 		&"boss":
 			if not _pay(boss_price(), true):
 				return
 			map_info.hint_boss(boss())
-			_spend($Mend as Node2D, [RisoPrint.PINK, RisoPrint.NIGHT], BOSS_SLOT)
+			_spend($Mend as Node2D, [Plate.PINK, Plate.NIGHT], BOSS_SLOT)
 		&"relic":
 			if not _pay(relic_price(), true):
 				return
 			map_info.hint_relic()
-			_spend($Mend as Node2D, [RisoPrint.ACCENT, RisoPrint.BLUE], 2)
+			_spend($Mend as Node2D, [Plate.ACCENT, Plate.BLUE], 2)
 		&"skeleton":
 			if not _pay(skeleton_price(), true):
 				return
 			map_info.lay_sold_skeleton()
-			_spend($Mend as Node2D, [RisoPrint.EYE, RisoPrint.BLUE], 2)
+			_spend($Mend as Node2D, [Plate.EYE, Plate.BLUE], 2)
 
 
 ## At full health, the third station sells the whereabouts of the nearest relic not yet found or
@@ -305,7 +339,7 @@ func sells_skeleton() -> bool:
 ## marked waits to be found.
 static func sells_skeleton_at(at: Vector2i, hinted: bool) -> bool:
 	var chance: int = SKELETON_SALE_HINTED if hinted else SKELETON_SALE
-	return Rules.level_seed(Rules.level_seed(at.x, at.y), 6100) % 100 < chance
+	return Rules.level_seed(Rules.level_seed(at.x, at.y), Salts.SHRINE_SKELETON_SALE * Salts.STRIDE) % 100 < chance
 
 
 func skeleton_price() -> int:
@@ -320,7 +354,7 @@ func skeleton_price() -> int:
 const BOSS_SALE: int = 40
 const BOSS_PRICE: float = 1.0
 ## Salt for the level seed when dealing the boss sale.
-const BOSS_SALE_DEAL: int = 6200
+const BOSS_SALE_DEAL: int = Salts.SHRINE_BOSS_SALE * Salts.STRIDE
 const BOSS_SLOT: int = 3
 
 
@@ -342,9 +376,7 @@ func boss() -> StringName:
 const DOOR_SALE: int = 60
 const DOOR_PRICE: float = 1.0
 ## Salt for the level seed when dealing the door sale.
-const DOOR_SALE_DEAL: int = 6700
-
-
+const DOOR_SALE_DEAL: int = Salts.SHRINE_DOOR_SALE * Salts.STRIDE
 ## Whether this level wants a way on: the labyrinth left it none (NextWorldDef.shut) and the run has
 ## not dug one (NextWorldDef.closed), in an ordinary level.
 func door_wanted() -> bool:

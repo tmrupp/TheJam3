@@ -24,7 +24,7 @@ func run() -> void:
 			var s: Spikes = n as Spikes
 			if s.mode == Spikes.Mode.TIMED and timed == null:
 				timed = s
-			elif s.mode == Spikes.Mode.SWITCHED and switched == null and Sigils.of(s) >= 0:
+			elif s.mode == Spikes.Mode.SWITCHED and switched == null and MapInfo.sigil_of(s) >= 0:
 				switched = s
 		if timed != null and switched != null:
 			break

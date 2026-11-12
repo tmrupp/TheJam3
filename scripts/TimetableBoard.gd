@@ -36,9 +36,9 @@ func rows() -> Array[Dictionary]:
 		var subjects: Array[StringName] = []
 		for k: int in range(Timetable.PERIODS):
 			subjects.append(Timetable.subject(w, i, dawn + k))
-		var tier: int = map_info.tier_of(i)
+		var tier: int = map_info.institute.tier_of(i)
 		out.append({"dept": w.halls[i]["dept"], "subjects": subjects, "tier": tier,
-			"need": Timetable.needs(w.halls[i]["dept"], tier) if map_info.subject_of(i) != &"" else [&"", 0],
+			"need": Timetable.needs(w.halls[i]["dept"], tier) if map_info.institute.subject_of(i) != &"" else [&"", 0],
 			"box": w.halls[i]["box"], "way_on": i == Timetable.way_on_hall(w)})
 	return out
 

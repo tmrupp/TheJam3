@@ -71,6 +71,11 @@ const THINGS: Dictionary = {
 	"m": LevelGen.Type.MOON,
 }
 ## The control card each digit of the map stands for (ControlHint.action).
+## The names of the cards that are not a control's own (ControlHint.PARRY, POGO, BURN): the Spell
+## button's guard as a parry and as a pogo off thorns, and burning a lantern into mend.
+const CARD_PARRY: StringName = &"Parry"
+const CARD_POGO: StringName = &"Pogo"
+const CARD_BURN: StringName = &"Burn"
 const HINTS: Dictionary = {
 	"1": &"Move",
 	"2": &"Jump",
@@ -79,9 +84,9 @@ const HINTS: Dictionary = {
 	"5": &"Discover",
 	"6": &"ShowMap",
 	"7": &"Utility",
-	"8": ControlHint.PARRY,
-	"9": ControlHint.POGO,
-	"0": ControlHint.BURN,
+	"8": CARD_PARRY,
+	"9": CARD_POGO,
+	"0": CARD_BURN,
 }
 ## What its shrine offers, a first lesson in choosing (boons): a strict upgrade, vigor (a heart more,
 ## as the utility card has just shown what a heart is worth), against a swap, hex (a bolt) in place
@@ -158,8 +163,8 @@ func populate(w: LevelGen) -> void:
 				"D":
 					w.put(v, LevelGen.Type.DOOR, KEY_COLOR)
 				"B":
-					w.put(v, LevelGen.Type.EXIT, MapInfo.Exit.BACK)
-					w.exits = {MapInfo.Exit.BACK: v}
+					w.put(v, LevelGen.Type.EXIT, Ways.Exit.BACK)
+					w.exits = {Ways.Exit.BACK: v}
 				STAND:
 					stands.append(v)
 	var bosses: Array[StringName] = Bands.bosses()
@@ -179,7 +184,7 @@ func boons(player: Player) -> Array[StringName]:
 
 ## Its exits: the way out alone (back out of the door it is entered by).
 func ways() -> Array[int]:
-	var out: Array[int] = [MapInfo.Exit.BACK]
+	var out: Array[int] = [Ways.Exit.BACK]
 	return out
 
 

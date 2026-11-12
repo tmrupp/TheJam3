@@ -58,12 +58,15 @@ var boss_hints: Dictionary = {}
 var dug: Dictionary = {}
 ## The bosses slain this run (name -> true; see Bosses), and the relics they left that wait still
 ## (name -> [the place, the position, the move]), from a run saved before bosses dropped relic
-## unlocks instead (KeyRing.UNLOCK).
+## unlocks instead (Keys.UNLOCK).
 var bosses: Dictionary = {}
 var boss_relics: Dictionary = {}
 ## The bosses' trophies (Trophy): those still waiting where their boss fell (name -> [the place, the
 ## position]), and those the wizard has (name -> Trophy.CARRIED, or Trophy.SET once on its stand in
 ## the tutorial, TrophyStand).
+## Where a trophy the wizard has is (trophies): carried, or set on its stand (Trophy.CARRIED, SET).
+const TROPHY_CARRIED: int = 1
+const TROPHY_SET: int = 2
 var boss_trophies: Dictionary = {}
 var trophies: Dictionary = {}
 ## The sky's whale (WhaleHunt): the world on its row it is in (WhaleHunt.NONE until it is met), and
@@ -82,7 +85,7 @@ var souls_sent: int = 0
 ## (Beast.core_hp, BeastSouls.count).
 var fed: int = 0
 ## Exam papers waiting to be laid in the levels they were sent to by classes attended (place -> codes,
-## KeyRing.paper; MapInfo._attend, _lay_papers).
+## Keys.paper; InstitutePlay._attend, _lay_papers).
 var papers_out: Dictionary = {}
 ## The crags' lodestones (Lodestone, Empower): the damage spells tempered (spell -> true), which may
 ## be cast empowered for the rest of the run, and the lodestones touched (place -> its spell), whose
@@ -151,7 +154,7 @@ func reached(at: Vector2i) -> void:
 	for place: Vector2i in plants:
 		var plant: Dictionary = plants[place]
 		if not bool(plant.get("door", false)):
-			plant["furthest"] = maxi(int(plant.get("furthest", 0)), Plot.apart(place, at))
+			plant["furthest"] = maxi(int(plant.get("furthest", 0)), Rules.apart(place, at))
 
 
 ## The lantern at `cell` in `at` burned out: it protects no more.
@@ -228,7 +231,7 @@ func to_save(coord: Vector2i, player: Dictionary) -> Dictionary:
 		"vulnerable": vulnerable,
 		"has_ghost": has_ghost, "ghost_coord": ghost_coord, "ghost_pos": ghost_pos, "ghost_stars": ghost_stars, "ghost_lantern": ghost_lantern,
 		"dark_charges": dark_charges, "ghost_charges": ghost_charges, "play_time": play_time,
-		"debug": MapInfo.debug, "rift_link": rift_link,
+		"debug": Dev.debug, "rift_link": rift_link,
 		"relics_found": relics_found, "relic_hints": relic_hints, "boss_hints": boss_hints, "dug": dug,
 		"bosses": bosses, "boss_relics": boss_relics,
 		"boss_trophies": boss_trophies, "trophies": trophies,
@@ -246,14 +249,14 @@ func to_save(coord: Vector2i, player: Dictionary) -> Dictionary:
 ## Whether every boss in the band layout has its trophy on its stand (Trophy.SET): the run is won.
 func trophies_all_set() -> bool:
 	for boss: StringName in Bands.bosses():
-		if int(trophies.get(boss, 0)) != Trophy.SET:
+		if int(trophies.get(boss, 0)) != TROPHY_SET:
 			return false
 	return true
 
 
 ## Take up the run saved in `data` (see read_save).
 func from_save(data: Dictionary) -> void:
-	MapInfo.debug = bool(data.get("debug", false)) and MapInfo.dev_tools()
+	Dev.debug = bool(data.get("debug", false)) and Dev.dev_tools()
 	run_seed = int(data["run_seed"])
 	deepest = int(data["deepest"])
 	furthest_row = int(data.get("furthest_row", deepest))
@@ -299,21 +302,14 @@ func from_save(data: Dictionary) -> void:
 
 
 static func write_save(data: Dictionary) -> void:
-	var file: FileAccess = FileAccess.open(save_path, FileAccess.WRITE)
-	if file != null:
-		file.store_var(data)
+	SafeFile.write(save_path, data)
 
 
 ## The saved run, or {} when there is none (or it is from a version too old to read, or was played
 ## on a garden of another length, whose bosses and records stand on other rows). A version-2 save is
 ## brought up to date (from_v2).
 static func read_save() -> Dictionary:
-	if not FileAccess.file_exists(save_path):
-		return {}
-	var file: FileAccess = FileAccess.open(save_path, FileAccess.READ)
-	if file == null:
-		return {}
-	var data: Variant = file.get_var()
+	var data: Variant = SafeFile.read(save_path)
 	if not (data is Dictionary):
 		return {}
 	var version: int = int((data as Dictionary).get("version", 0))
@@ -378,8 +374,7 @@ static func from_v2(data: Dictionary) -> Dictionary:
 
 
 static func delete_save() -> void:
-	if FileAccess.file_exists(save_path):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))
+	SafeFile.remove(save_path)
 
 
 # ------------------------------------------------------------------ the run in a line

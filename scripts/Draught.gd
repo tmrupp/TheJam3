@@ -23,7 +23,7 @@ func _touch(body: Node) -> void:
 	if player == null or is_queued_for_deletion() or player.health.health >= player.health.max_health:
 		return
 	player.health.health = mini(player.health.health + HEAL, player.health.max_health)
-	RisoFx.burst(&"gain", global_position, Vector2.ZERO, [RisoPrint.EYE, RisoPrint.ACCENT])
+	RisoFx.burst(&"gain", global_position, Vector2.ZERO, [Plate.EYE, Plate.ACCENT])
 	if MapInfo.instance != null:
 		MapInfo.instance.mark_taken(self)
 		MapInfo.instance.save_run()

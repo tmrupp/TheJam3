@@ -173,6 +173,9 @@ func run() -> void:
 	if bx >= 0:
 		# Asked as if from that column's shrine.
 		info.coord = Vector2i(bx, home.y)
+		# (That column's shrine as not yet used, whatever the test did there on its way.)
+		info.record().shrine_used = false
+		info.record().shrine_slot = -1
 		player.health.health = player.health.max_health
 		player.keyring.clear()
 		Abilities.set_tier(player, &"keyring", 1)
@@ -243,6 +246,27 @@ func run() -> void:
 	player.set_physics_process(false)
 	told = shrines()[0] as Shrine
 	check(told.redraws() == drawn_count and told.refresh_slot() == 2, "the same after leaving and coming back")
+	check_eq(told.refreshes(), 1, "one refresh bought, whatever counts it passed over (%d)" % drawn_count)
+	info.record().redraws = drawn_count + 3
+	check_eq(told.redraw_price(), first_price * 2, "the price goes by the refreshes bought, not the count the boons are dealt by")
+	info.record().redraws = drawn_count
+	# With two things left to learn, every count deals the same pair: there is no refresh to sell.
+	# (The tiers are written as they could not be learned, every spell of a slot at its top at once,
+	# and never applied: only what the shrine would offer is asked.)
+	var tiers: Dictionary = player.tiers.duplicate()
+	var left: Array[StringName] = []
+	for a: StringName in Abilities.ids():
+		if left.size() < 2 and Abilities.slot_of(a) == &"" and not Abilities.found_first(a) and Abilities.tier(player, a) < Abilities.max_tier(a):
+			left.append(a)
+		else:
+			player.tiers[a] = Abilities.max_tier(a)
+	player.keyring.set_all([0])
+	player.collect(told.redraw_price())
+	var stars: int = player.coins.coins
+	check(told.used() and told.next_draw() < 0 and told.refresh_slot() == -1, "no other pair to deal (only %s left to learn): no refresh is offered" % [left])
+	told.buy_redraw()
+	check(told.used() and player.coins.coins == stars and player.keyring.all().size() == 1 and told.refreshes() == 1, "and none can be bought: nothing is taken")
+	player.tiers = tiers
 	player.keyring.clear()
 	Abilities.set_tier(player, &"keyring", 0)
 	player.collect(-player.coins.coins)

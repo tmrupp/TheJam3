@@ -49,6 +49,8 @@ func run() -> void:
 	var p: Player = Player.new()
 	_ability_tables()
 	_protocols()
+	_layers()
+	_salts()
 	_offers(p)
 	_keyring(p)
 	p.free()
@@ -793,6 +795,117 @@ func _protocols() -> void:
 			print("  %s: its hex_hit is not in HexBolt.ANSWERS, or does not take (damage, dir)" % script.resource_path)
 			hex_ok = false
 	check(hex_ok and HexBolt.ANSWERS.all(func(s: Script) -> bool: return s in answering), "every script a hex bolt answers is in HexBolt.ANSWERS, and each takes (damage, dir) (%d)" % answering.size())
+
+
+## The scene-free layers stay scene-free (docs/CODE_REVIEW.md 2.1): no script of scripts/level or
+## scripts/worlds (the loader aside, which builds the scene) names a class that is a node, in its
+## code (comments and strings left out), but for the few in NODES_NAMED; and no script of the game
+## `preload`s a scene (Prefabs loads each the first time it is wanted). Either would make which
+## scripts load first decide whether a scene loads whole.
+const SCENE_FREE: Array[String] = ["res://scripts/level", "res://scripts/worlds"]
+const SCENE_BUILDERS: Array[String] = ["res://scripts/level/LevelLoader.gd"]
+## The node classes a scene-free script may name, by script: the wizard, handed to a place's
+## `boons` to ask what they know (Abilities).
+const NODES_NAMED: Dictionary = {
+	"res://scripts/worlds/NextWorldDef.gd": [&"Player"],
+	"res://scripts/worlds/Tutorial.gd": [&"Player"],
+}
+
+func _layers() -> void:
+	# Every class of the project that is a node: its base, followed down to the engine's, is one.
+	var bases: Dictionary = {}
+	for c: Dictionary in ProjectSettings.get_global_class_list():
+		bases[StringName(c["class"])] = StringName(c["base"])
+	var nodes: Array[StringName] = []
+	for c: StringName in bases:
+		var base: StringName = c
+		while bases.has(base):
+			base = bases[base]
+		if ClassDB.is_parent_class(base, &"Node"):
+			nodes.append(c)
+	check(nodes.has(&"MapInfo") and nodes.has(&"Player") and not nodes.has(&"Rules") and not nodes.has(&"LevelGen"), "the project's node classes are told from the rest (%d of %d)" % [nodes.size(), bases.size()])
+	var words: RegEx = RegEx.create_from_string("[A-Za-z_][A-Za-z0-9_]*")
+	var named: Array[String] = []
+	for dir: String in SCENE_FREE:
+		for path: String in _scripts_in(dir):
+			if path in SCENE_BUILDERS:
+				continue
+			var allowed: Array = NODES_NAMED.get(path, [])
+			var found: Dictionary = {}
+			for line: String in FileAccess.get_file_as_string(path).split("
+"):
+				var code: String = _code_of(line)
+				for m: RegExMatch in words.search_all(code):
+					var word: StringName = StringName(m.get_string())
+					if word in nodes and word not in allowed:
+						found[word] = true
+			if not found.is_empty():
+				named.append("%s names %s" % [path.get_file(), found.keys()])
+	check(named.is_empty(), "no script of the scene-free layers names a node class %s" % [named])
+	var preloads: Array[String] = []
+	for path: String in _scripts_in("res://scripts"):
+		var text: String = FileAccess.get_file_as_string(path)
+		var at: int = text.find("preload(")
+		while at >= 0:
+			var end: int = text.find(")", at)
+			if text.substr(at, end - at).contains(".tscn"):
+				preloads.append(path.get_file())
+			at = text.find("preload(", at + 1)
+	check(preloads.is_empty(), "no script of the game preloads a scene %s" % [preloads])
+
+
+## Every salt is from the one list (Salts, docs/CODE_REVIEW.md 2.4): each constant named as a deal
+## (..._DEAL) in the game's scripts is a salt of the list times its stride, never a number of its
+## own, and no salt of the list is the salt of two constants, so no two deals are one by mistake.
+func _salts() -> void:
+	var own: Array[String] = []
+	var users: Dictionary = {}
+	for path: String in _scripts_in("res://scripts") + _scripts_in("res://tools"):
+		for line: String in FileAccess.get_file_as_string(path).split("
+"):
+			var code: String = _code_of(line).strip_edges()
+			if not code.begins_with("const ") or not code.contains("DEAL") or not code.contains(": int ="):
+				continue
+			var name: String = code.trim_prefix("const ").get_slice(":", 0)
+			if not name.ends_with("DEAL"):
+				continue
+			var value: String = code.get_slice("=", 1).strip_edges()
+			if not value.begins_with("Salts.") or not value.ends_with("* Salts.STRIDE"):
+				own.append("%s in %s" % [name, path.get_file()])
+				continue
+			var salt: String = value.trim_prefix("Salts.").get_slice(" ", 0)
+			if not users.has(salt):
+				users[salt] = []
+			(users[salt] as Array).append("%s.%s" % [path.get_file().get_basename(), name])
+	check(own.is_empty(), "every deal's salt is from the one list %s" % [own])
+	var shared: Array[String] = []
+	for salt: String in users:
+		if (users[salt] as Array).size() > 1:
+			shared.append("%s: %s" % [salt, users[salt]])
+	check(shared.is_empty() and users.size() > 50, "no salt is two deals' (%d salts) %s" % [users.size(), shared])
+	check(Salts.COUNT * Salts.STRIDE < (1 << 31), "the salts fit what a seed is mixed with")
+
+
+## A line of GDScript with its strings emptied and its comment cut off: what is left is code.
+func _code_of(line: String) -> String:
+	var out: String = ""
+	var quote: String = ""
+	var i: int = 0
+	while i < line.length():
+		var ch: String = line[i]
+		if quote != "":
+			if ch == "\\":
+				i += 1
+			elif ch == quote:
+				quote = ""
+		elif ch == "\"" or ch == "'":
+			quote = ch
+		elif ch == "#":
+			break
+		else:
+			out += ch
+		i += 1
+	return out
 
 
 ## Every GDScript file under `dir`, at any depth.

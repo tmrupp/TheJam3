@@ -36,7 +36,7 @@ func _draw_art() -> void:
 	ink.ink(RisoPrint.BLUE, 1.0, [_bar(-half + 1.0, -half, x1 - 1.0, -half + 34.0, 12.0, true, true)])
 	ink.ink(RisoPrint.ACCENT, 1.0, [_bar(-half + 1.0, -half - 3.0, x1 - 1.0, -half + 14.0, 8.0, true, true)])
 	if lift.waiting:
-		RisoMarks.switch_plate(ink, mid + Vector2(0, -8.0), 1.6, 1.0, Sigils.of(host))
+		RisoMarks.switch_plate(ink, mid + Vector2(0, -8.0), 1.6, 1.0, MapInfo.sigil_of(host))
 
 
 ## A horizontal bar whose left/right ends are rounded only when free.

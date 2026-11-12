@@ -30,7 +30,7 @@ func touch(other: Node) -> void:
 		return
 	if not in_use:
 		in_use = true
-		RisoFx.burst(&"gain", global_position, Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
+		RisoFx.burst(&"gain", global_position, Vector2.ZERO, [Plate.ACCENT, Plate.BLUE])
 	var lev: Levitate = player.get_node_or_null("Levitate") as Levitate
 	if player.dash.acted:
 		player.dash.refresh()

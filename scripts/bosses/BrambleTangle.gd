@@ -144,9 +144,7 @@ const STALK_DROP: float = 50.0
 const STALK_THORNS: Vector2 = Vector2(60.0, 90.0)
 const STALK_THORN: float = 16.0
 ## Salt for the level seed.
-const DEAL: int = 6670
-
-
+const DEAL: int = Salts.BRAMBLE_TANGLE * Salts.STRIDE
 ## One cane: a line of points out of the rock (or off the cane it sprouts from), how wide it is at
 ## each and its thorns.
 class Cane:
@@ -791,26 +789,26 @@ func draw(ink: InkCanvas, roots: bool) -> void:
 			var dry: float = float(step) / float(DRY_STEPS)
 			match layer:
 				1:
-					ink.lift_ink([RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.BLUE, RisoPrint.NIGHT], 1.0, body)
-					ink.ink(RisoPrint.BLUE, lerpf(DEEP_BLUE, DRY_BLUE, dry), body, false)
-					ink.ink(RisoPrint.NIGHT, lerpf(DEEP_NIGHT, DRY_NIGHT, dry), body, false)
+					ink.lift_ink([Plate.PINK, Plate.ACCENT, Plate.BLUE, Plate.NIGHT], 1.0, body)
+					ink.ink(Plate.BLUE, lerpf(DEEP_BLUE, DRY_BLUE, dry), body, false)
+					ink.ink(Plate.NIGHT, lerpf(DEEP_NIGHT, DRY_NIGHT, dry), body, false)
 				_:
-					ink.lift_ink([RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.BLUE, RisoPrint.NIGHT], 1.0, body)
-					ink.ink(RisoPrint.BLUE, lerpf(BARK_BLUE, DRY_BLUE, dry), body, false)
-					ink.ink(RisoPrint.NIGHT, lerpf(BARK_NIGHT, 0.0, dry), body, false)
+					ink.lift_ink([Plate.PINK, Plate.ACCENT, Plate.BLUE, Plate.NIGHT], 1.0, body)
+					ink.ink(Plate.BLUE, lerpf(BARK_BLUE, DRY_BLUE, dry), body, false)
+					ink.ink(Plate.NIGHT, lerpf(BARK_NIGHT, 0.0, dry), body, false)
 	for step: int in range(DRY_STEPS + 1):
 		var spike: Array[PackedVector2Array] = spikes[step]
 		if spike.is_empty():
 			continue
 		var dry: float = float(step) / float(DRY_STEPS)
-		ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 1.0, spike)
+		ink.lift_ink([Plate.NIGHT, Plate.BLUE], 1.0, spike)
 		if roots:
 			# The roots' thorns do not hurt, so they are bark, not danger pink.
-			ink.ink(RisoPrint.BLUE, lerpf(BARK_BLUE, DRY_BLUE, dry), spike, false)
-			ink.ink(RisoPrint.NIGHT, lerpf(ROOT_THORN_NIGHT, 0.0, dry), spike, false)
+			ink.ink(Plate.BLUE, lerpf(BARK_BLUE, DRY_BLUE, dry), spike, false)
+			ink.ink(Plate.NIGHT, lerpf(ROOT_THORN_NIGHT, 0.0, dry), spike, false)
 			continue
-		ink.ink(RisoPrint.PINK, lerpf(1.0, DRY_PINK, dry), spike)
-		ink.ink(RisoPrint.BLUE, DRY_THORN_BLUE * dry, spike, false)
+		ink.ink(Plate.PINK, lerpf(1.0, DRY_PINK, dry), spike)
+		ink.ink(Plate.BLUE, DRY_THORN_BLUE * dry, spike, false)
 
 
 ## Cane `c` as it lies now, `keep` px of it out, its crown grown to `grown_to` px from the rock:

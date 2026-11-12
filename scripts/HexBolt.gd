@@ -184,7 +184,7 @@ func _physics_process(delta: float) -> void:
 			wound.hit(dealt, dir)
 			HexBolt.parried_blow = false
 		elif dealt <= 0:
-			RisoFx.burst(&"hit", (e as Node2D).global_position, dir, [RisoPrint.ACCENT, RisoPrint.BLUE])
+			RisoFx.burst(&"hit", (e as Node2D).global_position, dir, [Plate.ACCENT, Plate.BLUE])
 		# Things that are not enemies answer the bolt themselves (a switch throws); a spire flips its
 		# tower only to an empowered bolt.
 		if wound == null and empowered and e is Spire:
@@ -282,7 +282,7 @@ func _solid(from: Vector2, to: Vector2) -> Dictionary:
 
 
 func _end(at: Vector2) -> void:
-	RisoFx.burst(&"hit", at, -dir, [RisoPrint.ACCENT, RisoPrint.PINK])
+	RisoFx.burst(&"hit", at, -dir, [Plate.ACCENT, Plate.PINK])
 	Wound.shake(3.0, 0.08)
 	queue_free()
 
@@ -305,10 +305,10 @@ func _process(_delta: float) -> void:
 		tail.append(PackedVector2Array([a - n * wa, b - n * wb, b + n * wb, a + n * wa]))
 	# The tail prints on top of the decor and night it crosses, lifted to paper under it.
 	ink.lift_ink(RisoPrint.ALL_PLATES, 0.5, tail)
-	ink.ink(RisoPrint.ACCENT, 0.5, tail)
+	ink.ink(Plate.ACCENT, 0.5, tail)
 	var pulse: float = (1.0 + 0.15 * sin(t * 40.0)) * (EMPOWERED_SIZE if empowered else 1.0)
-	ink.ink(RisoPrint.ACCENT, 0.3, [RisoShapes.circle(head, 26.0 * pulse * size, 20)])
+	ink.ink(Plate.ACCENT, 0.3, [RisoShapes.circle(head, 26.0 * pulse * size, 20)])
 	var core: PackedVector2Array = Transform2D(t * 9.0, head) * RisoShapes.sparkle(Vector2.ZERO, 16.0 * pulse * size)
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], [core])
-	ink.ink(RisoPrint.ACCENT, 1.0, [core], false)
+	ink.knock([Plate.NIGHT, Plate.BLUE, Plate.PINK, Plate.ACCENT], [core])
+	ink.ink(Plate.ACCENT, 1.0, [core], false)
 	ink.finish()

@@ -37,7 +37,7 @@ const POGO: float = -600.0
 const SAFE: float = 0.8
 
 ## How long the guard stays up (seconds): short, so a catch takes timing.
-const WINDOW: float = 0.2
+const WINDOW: float = Rules.GUARD_WINDOW
 ## What a catch wounds (double while stunned, as ever: Wound).
 const DAMAGE: int = 1
 @onready var player: Player = $".."

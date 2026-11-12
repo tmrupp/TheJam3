@@ -156,7 +156,7 @@ var objects: Array[Vector2i] = []
 ## Exit -> cell, and the lantern cell placed beside each exit (the start lantern at depth 0).
 var exits: Dictionary = {}
 var exit_lanterns: Dictionary = {}
-## At depth 0, the side door placed near the start (MapInfo.Exit.LEFT or RIGHT; -1 for none), the
+## At depth 0, the side door placed near the start (Ways.Exit.LEFT or RIGHT; -1 for none), the
 ## footholds hopped to from the start (see Reach.tree), and the cells on the way from the start
 ## to that door and its key, which doors and gates keep off (see place_start_key).
 var start_side: int = -1
@@ -204,11 +204,22 @@ var lodestone: Vector2i = Vector2i(-1, -1)
 ## The shrine's cell (its boon side; mending is the cell to the right), or (-1, -1).
 var shrine: Vector2i = Vector2i(-1, -1)
 
+## The colour a sample paints open sky in: open air, as white is, but outside every cluster of
+## islands (the sky's sample, tests/make_sky_sample.gd). A level's clusters are laid with it round
+## them (WaveFunctionCollapse.collapse_clusters), and the cells laid this colour are kept in
+## `open_sky`, so the level can tell a cluster's own air from the sky between.
+const SKY: Color = Color(0.0, 0.0, 1.0)
+
 var color_to_type: Dictionary = {
 	Color.WHITE: 	Type.EMPTY,
 	Color.BLACK: 	Type.GROUND,
 	Color.RED: 		Type.SPIKES,
+	SKY: 			Type.EMPTY,
 }
+
+## Per cell, 1 where the collapse gave open sky (SKY), 0 elsewhere; empty for a level whose sample
+## paints none.
+var open_sky: PackedByteArray = PackedByteArray()
 
 func new_cell_by_color (c: Color) -> Cell:
 	return Cell.new(color_to_type[Color(c)])
@@ -331,6 +342,30 @@ func free_floors () -> Array[Vector2i]:
 	out.sort()
 	return out
 
+## The free floors of the level proper (free_floors), sorted, leaving out the vaults' rooms and the
+## barriers' pockets: where something dealt once the level is laid out (a sold skeleton key, a soul
+## of the beast and its guards, exam papers, the way back from a department) may lie, never shut
+## behind a vault's door or a barrier made for a move the wizard may lack.
+func floors_proper () -> Array[Vector2i]:
+	var shut_away: Dictionary = {}
+	for vault: Dictionary in vaults:
+		for c: Vector2i in vault["room"]:
+			shut_away[c] = true
+	for barrier: Dictionary in barriers:
+		for c: Vector2i in barrier["open"]:
+			shut_away[c] = true
+	return free_floors().filter(func(v: Vector2i) -> bool: return not shut_away.has(v))
+
+## What every cell of the level is spoken for, as it stands now (Claims): the one place a pass that
+## comes late asks before it changes a cell. Worked out afresh each time it is asked for, so ask
+## once and keep it while nothing changes.
+func claims () -> Claims:
+	return Claims.new(self)
+
+## The cells a lift's body and track sweep, and those a rolling ladder rolls and hangs through
+## (make_moving, _make_ladder), a set: open air to look at, and off the free list, but spoken for.
+var tracks: Dictionary = {}
+
 ## The free cells (`empties`) as a set, for looking up many times.
 func empty_set () -> Dictionary:
 	var out: Dictionary = {}
@@ -427,14 +462,14 @@ func place_exits (depth: int, debug: bool = false, climbing: bool = false) -> vo
 	var near: Variant = _start_door(spots, chosen, back) if depth == 0 else null
 	if near != null:
 		chosen.append(near)
-		start_side = MapInfo.Exit.LEFT if (near as Vector2i).x < back.x else MapInfo.Exit.RIGHT
-	var left: Vector2i = near if start_side == MapInfo.Exit.LEFT else _pick_spot(spots, chosen, func(v: Vector2i) -> bool: return v.x <= lo.x + band_x)
-	if start_side != MapInfo.Exit.LEFT:
+		start_side = Ways.Exit.LEFT if (near as Vector2i).x < back.x else Ways.Exit.RIGHT
+	var left: Vector2i = near if start_side == Ways.Exit.LEFT else _pick_spot(spots, chosen, func(v: Vector2i) -> bool: return v.x <= lo.x + band_x)
+	if start_side != Ways.Exit.LEFT:
 		chosen.append(left)
-	var right: Vector2i = near if start_side == MapInfo.Exit.RIGHT else _pick_spot(spots, chosen, func(v: Vector2i) -> bool: return v.x >= hi.x - band_x)
-	if start_side != MapInfo.Exit.RIGHT:
+	var right: Vector2i = near if start_side == Ways.Exit.RIGHT else _pick_spot(spots, chosen, func(v: Vector2i) -> bool: return v.x >= hi.x - band_x)
+	if start_side != Ways.Exit.RIGHT:
 		chosen.append(right)
-	exits = {MapInfo.Exit.BACK: back, MapInfo.Exit.DEEPER: deeper, MapInfo.Exit.LEFT: left, MapInfo.Exit.RIGHT: right}
+	exits = {Ways.Exit.BACK: back, Ways.Exit.DEEPER: deeper, Ways.Exit.LEFT: left, Ways.Exit.RIGHT: right}
 	_finish_exits(spots, chosen, depth)
 
 ## The start's side door and key: at least START_DOOR cells from the start, and found with hops
@@ -455,7 +490,7 @@ func _start_door (spots: Array[Vector2i], chosen: Array[Vector2i], back: Vector2
 func place_start_key (def: NextWorldDef) -> void:
 	if start_side < 0:
 		return
-	var start: Vector2i = exits[MapInfo.Exit.BACK]
+	var start: Vector2i = exits[Ways.Exit.BACK]
 	var door: Vector2i = exits[start_side]
 	var floors: Array[Vector2i] = []
 	for v: Vector2i in start_reach:
@@ -480,18 +515,18 @@ func place_start_key (def: NextWorldDef) -> void:
 ## where its door is not), then the shrine. Lanterns are scarce: the other exits
 ## have none.
 func _finish_exits (spots: Array[Vector2i], chosen: Array[Vector2i], _depth: int) -> void:
-	for which: int in [MapInfo.Exit.BACK, MapInfo.Exit.DEEPER, MapInfo.Exit.LEFT, MapInfo.Exit.RIGHT]:
+	for which: int in [Ways.Exit.BACK, Ways.Exit.DEEPER, Ways.Exit.LEFT, Ways.Exit.RIGHT]:
 		var at: Vector2i = exits[which]
 		if not shut.has(which):
 			put(at, Type.EXIT, which)
-		if which != MapInfo.Exit.BACK:
+		if which != Ways.Exit.BACK:
 			continue
 		var lantern: Variant = _nearest_free(spots, at, chosen)
 		if lantern != null:
 			chosen.append(lantern)
 			put(lantern, Type.CHECKPOINT)
 			exit_lanterns[which] = lantern
-	_place_shrine(spots, chosen, exits[MapInfo.Exit.DEEPER])
+	_place_shrine(spots, chosen, exits[Ways.Exit.DEEPER])
 
 ## Debug runs: deeper, left and right on the floor spots nearest the way back (the spawn), two
 ## cells apart.
@@ -511,7 +546,7 @@ func _place_exits_near (spots: Array[Vector2i], chosen: Array[Vector2i], back: V
 	while picks.size() < 3:
 		picks.append(_pick_spot(spots, chosen + picks, func(_v: Vector2i) -> bool: return true))
 	chosen.append_array(picks)
-	exits = {MapInfo.Exit.BACK: back, MapInfo.Exit.DEEPER: picks[0], MapInfo.Exit.LEFT: picks[1], MapInfo.Exit.RIGHT: picks[2]}
+	exits = {Ways.Exit.BACK: back, Ways.Exit.DEEPER: picks[0], Ways.Exit.LEFT: picks[1], Ways.Exit.RIGHT: picks[2]}
 	_finish_exits(spots, chosen, depth)
 
 ## Pockets of open space smaller than this are filled with rock rather than tunnelled to.
@@ -791,7 +826,7 @@ func _nearest_free (spots: Array[Vector2i], at: Vector2i, chosen: Array[Vector2i
 ## With `ladders` (Archetype.ladders) it is a rolling ladder instead (RollingLadder), whose track
 ## always runs right (the same draws are made, so the rest of the level is dealt as before): a
 ## step one cell wide at the run's left end, rolling over the run and on along the track, laid only
-## where its foot stands on solid ground all along the track (RollingLadder.stands; elsewhere the
+## where its foot stands on solid ground all along the track (Ladders.stands; elsewhere the
 ## run stays a ledge), the air it hangs through kept clear of anything laid after it.
 func make_moving (run_cells: Array[Vector2i], ladders: bool = false) -> void:
 	run_cells.sort()
@@ -814,9 +849,11 @@ func make_moving (run_cells: Array[Vector2i], ladders: bool = false) -> void:
 			return
 	for p: Vector2i in track:
 		empties.erase(p)
+		tracks[p] = true
 	for c: Vector2i in run_cells.slice(1):
 		set_cell(c, Cell.new(Type.EMPTY))
 		objects.erase(c)
+		tracks[c] = true
 	set_kind(left, Type.MOVING_PLATFORM, [run_cells.size(), axis, travel])
 
 ## A rolling ladder made of platform run `run_cells` (sorted) with `travel` cells of track past it
@@ -830,17 +867,20 @@ func _make_ladder (run_cells: Array[Vector2i], travel: int) -> void:
 		if not is_valid(p) or type_at(p) != Type.EMPTY or not empties.has(p):
 			return
 	var reach: int = run_cells.size() - 1 + travel
-	var rungs: int = RollingLadder.stands(self, left, reach)
+	var rungs: int = Ladders.stands(self, left, reach)
 	if rungs <= 0:
 		return
 	for p: Vector2i in track:
 		empties.erase(p)
+		tracks[p] = true
 	for c: Vector2i in run_cells.slice(1):
 		set_cell(c, Cell.new(Type.EMPTY))
 		objects.erase(c)
+		tracks[c] = true
 	for x: int in range(left.x, left.x + reach + 1):
 		for y: int in range(left.y + 1, left.y + rungs):
 			empties.erase(Vector2i(x, y))
+			tracks[Vector2i(x, y)] = true
 		# The floor its foot rolls along stays whole: no cracked wall is made of it.
 		kept_whole[Vector2i(x, left.y + rungs)] = true
 	set_kind(left, Type.ROLLING_LADDER, [1, Vector2i(1, 0), reach])
@@ -906,10 +946,19 @@ var gate: StringName = &""
 ## finishes it (the passes of populate_level, then those _init does after it). Empty in the game.
 static var on_pass: Callable = Callable()
 
-## Tell on_pass (if set) that pass `pass_name` is done.
+## Pass `pass_name` is done: on_pass is told (if set), and the passes after it draw from a stream of
+## their own, seeded from the level's seed and the name of the pass just done (docs/CODE_REVIEW.md
+## 2.4). So a draw added to, dropped from or moved within one pass changes what that pass lays and
+## what is built on it, but not what the passes after it draw: retuning one band's dressing does
+## not re-deal everything laid later. The name is mixed in by its letters, not by the engine's
+## hashing, which may change.
 func _mark (pass_name: StringName) -> void:
 	if not on_pass.is_null():
 		on_pass.call(pass_name)
+	var named: int = Salts.LEVEL_GEN_PASS * Salts.STRIDE
+	for code: int in String(pass_name).to_utf8_buffer():
+		named = (named * 31 + code) & 0x7fffffff
+	rng.seed = Rules.level_seed(seed_for_colors, named)
 
 func _init (_cells: Array, def: NextWorldDef) -> void:
 	rng = RandomNumberGenerator.new()
@@ -931,6 +980,11 @@ func _init (_cells: Array, def: NextWorldDef) -> void:
 		var row: Array[Cell] = []
 		for j: int in len(_cells[i]):
 			var cell: Cell = new_cell_by_color(_cells[i][j])
+			if Color(_cells[i][j]) == SKY:
+				if open_sky.is_empty():
+					open_sky.resize(size.x * size.y)
+					open_sky.fill(0)
+				open_sky[i * size.y + j] = 1
 			row.append(cell)
 			types[i * size.y + j] = cell.type
 			add_cell_to_container(Vector2i(i, j), cell)
@@ -974,7 +1028,7 @@ const BOSS_APART: int = 4
 
 func place_boss (boss: StringName) -> void:
 	# The whale is in no gate level of its own: it roams its row (WhaleHunt, Whale).
-	if not exits.has(MapInfo.Exit.DEEPER) or boss == &"whale":
+	if not exits.has(Ways.Exit.DEEPER) or boss == &"whale":
 		return
 	if not keep.is_empty():
 		put(keep["lair"], Type.BOSS, boss)
@@ -994,7 +1048,7 @@ func place_boss (boss: StringName) -> void:
 		var beside: int = knot.position.x if knot.position.x > (shaft["inside"] as Rect2i).position.x else knot.end.x - 1
 		put(Vector2i(beside, knot.end.y - 1), Type.BOSS, boss)
 		return
-	var on: Vector2i = exits[MapInfo.Exit.DEEPER]
+	var on: Vector2i = exits[Ways.Exit.DEEPER]
 	var spot: Variant = best_of(free_floors(), func(v: Vector2i) -> int: return dist(v, on),
 			func(v: Vector2i) -> bool: return dist(v, on) >= BOSS_APART and not _crowds_exit(v))
 	if spot != null:
@@ -1010,10 +1064,9 @@ func place_boss (boss: StringName) -> void:
 ## moves.
 const LIFT_SWITCH_SHARE: float = 0.5
 const LIFT_SWITCH_NEAR: int = 6
-const LIFT_SWITCH_DEAL: int = 9100
-
+const LIFT_SWITCH_DEAL: int = Salts.LEVEL_GEN_LIFT_SWITCH * Salts.STRIDE
 func place_lift_switches () -> void:
-	var start: Vector2i = exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	var start: Vector2i = exits.get(Ways.Exit.BACK, Vector2i(-1, -1))
 	if not is_valid(start):
 		return
 	var reach: Dictionary = reach_from(start)
@@ -1040,9 +1093,8 @@ func place_lift_switches () -> void:
 		floors.erase(spot)
 
 ## Salts for the level seed when dealing key and door colours (deal_colors).
-const KEY_DEAL: int = 7000
-const DOOR_DEAL: int = 8000
-
+const KEY_DEAL: int = Salts.LEVEL_GEN_KEY * Salts.STRIDE
+const DOOR_DEAL: int = Salts.LEVEL_GEN_DOOR * Salts.STRIDE
 ## How many keys a level keeps (besides the start key and skeleton keys): KEYS_PER_K,
 ## at least KEYS_MIN.
 func key_count () -> int:
@@ -1072,7 +1124,7 @@ func deal_colors () -> void:
 			var roll: int = Rules.level_seed(seed_for_colors, DOOR_DEAL + doors)
 			# Deep down, some doors on the way are bone gates.
 			if depth >= Rules.SKELETON_DOOR_DEPTH and (roll / 100) % 100 < Rules.SKELETON_DOOR_CHANCE:
-				cell.extra_info = KeyRing.SKELETON
+				cell.extra_info = Keys.SKELETON
 			else:
 				cell.extra_info = Rules.rarity_color(roll)
 			doors += 1
@@ -1228,12 +1280,11 @@ const THORN_TIMED_SHARE: float = 0.3
 const THORN_SWITCH_SHARE: float = 0.25
 const THORN_SWITCHES_MOST: int = 2
 ## Salt for the level seed when dealing thorn runs.
-const THORN_DEAL: int = 9400
-
+const THORN_DEAL: int = Salts.LEVEL_GEN_THORN * Salts.STRIDE
 func place_thorn_modes (def: NextWorldDef) -> void:
 	if def.depth < 1:
 		return
-	var start: Vector2i = exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	var start: Vector2i = exits.get(Ways.Exit.BACK, Vector2i(-1, -1))
 	# Reached from the way in without passing a door (a vault's, or any locked one).
 	var reach: Dictionary = reach_from(start, func(n: Vector2i) -> bool: return type_at(n) != Type.DOOR) if is_valid(start) else {}
 	var switches: int = 0
@@ -1241,7 +1292,7 @@ func place_thorn_modes (def: NextWorldDef) -> void:
 		var first: Vector2i = run[0]
 		var roll: float = float(posmod(Rules.level_seed(seed_for_colors, THORN_DEAL + first.x * 131 + first.y * 7919), 1000)) / 1000.0
 		if roll < THORN_TIMED_SHARE:
-			var phase: float = float(posmod(Rules.level_seed(seed_for_colors, THORN_DEAL + 1 + first.x * 53 + first.y * 389), 1000)) / 1000.0 * Spikes.CYCLE
+			var phase: float = float(posmod(Rules.level_seed(seed_for_colors, THORN_DEAL + 1 + first.x * 53 + first.y * 389), 1000)) / 1000.0 * Rules.THORN_CYCLE
 			for c: Vector2i in run:
 				get_cell(c).extra_info = {"timed": phase}
 		elif roll < THORN_TIMED_SHARE + THORN_SWITCH_SHARE and switches < THORN_SWITCHES_MOST and not reach.is_empty():
@@ -1335,53 +1386,65 @@ func kept (v: Vector2i) -> bool:
 ## first after}, numbered by their place here.
 var chasms: Array = []
 
-## The sky's islands come in clusters with wide gaps of open air between (SkyArchetype.cluster_islands): each
-## [centre, radii] of an ellipse of the collapsed islands kept, the rest of the rock cleared.
+## The sky's islands come in clusters with open sky between them, as its sample paints them and the
+## collapse lays them (SkyArchetype.read_clusters): each [centre, radii] of the box round a
+## cluster's cells (isle_of).
 var isles: Array = []
+## Per cell, which cluster it lies in (its place in `isles`), -1 in open sky. Empty for a level
+## with no clusters.
+var isle_of: PackedInt32Array = PackedInt32Array()
 ## The cells a causeway or its updraft uses (stones, the air over them, the shaft): kept as they are
 ## by everything built after (the gaps, SkyArchetype._build_gaps).
 var lanes: Dictionary = {}
 ## Causeways laid (SkyArchetype.link_isles): one fewer than the clusters when every cluster is reached.
 var links: int = 0
 
-## Per cell, the least growth (0..ISLE_REACH) of some cluster's ellipse that takes it in, 255 if
-## none does (map_isles): in_isle looks it up once the clusters are settled.
+## Per cell, how many cells it is from the nearest cluster (0 in one, a cell diagonally counting as
+## one), up to ISLE_REACH, 255 further off (map_isles): in_isle looks it up once the clusters are
+## settled.
 var _isle_map: PackedByteArray = PackedByteArray()
 const ISLE_REACH: int = 5
 
+## Work out how far each cell is from the clusters (isle_of), out to ISLE_REACH cells.
 func map_isles () -> void:
 	_isle_map = PackedByteArray()
 	_isle_map.resize(size.x * size.y)
 	_isle_map.fill(255)
-	for isle: Array in isles:
-		var c: Vector2i = isle[0]
-		var r: Vector2i = isle[1]
-		for x: int in range(maxi(0, c.x - r.x - ISLE_REACH), mini(size.x, c.x + r.x + ISLE_REACH + 1)):
-			for y: int in range(maxi(0, c.y - r.y - ISLE_REACH), mini(size.y, c.y + r.y + ISLE_REACH + 1)):
-				var i: int = x * size.y + y
-				for g: int in range(0, mini(ISLE_REACH, _isle_map[i]) + 1):
-					var d: Vector2 = Vector2(float(x - c.x) / float(r.x + g), float(y - c.y) / float(r.y + g))
-					if d.length_squared() <= 1.0:
-						_isle_map[i] = g
-						break
+	var queue: PackedInt32Array = PackedInt32Array()
+	for i: int in range(isle_of.size()):
+		if isle_of[i] >= 0:
+			_isle_map[i] = 0
+			queue.append(i)
+	var head: int = 0
+	while head < queue.size():
+		var i: int = queue[head]
+		head += 1
+		var g: int = _isle_map[i]
+		if g >= ISLE_REACH:
+			continue
+		@warning_ignore("integer_division")
+		var x: int = i / size.y
+		var y: int = i % size.y
+		for dx: int in range(-1, 2):
+			for dy: int in range(-1, 2):
+				var nx: int = x + dx
+				var ny: int = y + dy
+				if nx < 0 or ny < 0 or nx >= size.x or ny >= size.y:
+					continue
+				var n: int = nx * size.y + ny
+				if _isle_map[n] == 255:
+					_isle_map[n] = g + 1
+					queue.append(n)
 
-## Whether `v` lies in a cluster of islands (its ellipse grown by `grow` cells).
+## Whether `v` lies in a cluster of islands, or within `grow` cells of one (ISLE_REACH at most).
 func in_isle (v: Vector2i, grow: int = 0) -> bool:
-	if not _isle_map.is_empty() and grow <= ISLE_REACH:
-		return is_valid(v) and _isle_map[v.x * size.y + v.y] <= grow
-	for isle: Array in isles:
-		var c: Vector2i = isle[0]
-		var r: Vector2i = isle[1] + Vector2i(grow, grow)
-		var d: Vector2 = Vector2(float(v.x - c.x) / float(r.x), float(v.y - c.y) / float(r.y))
-		if d.length_squared() <= 1.0:
-			return true
-	return false
+	return not _isle_map.is_empty() and is_valid(v) and _isle_map[v.x * size.y + v.y] <= mini(grow, ISLE_REACH)
 
 ## The level's star cluster (worth Rules.cluster_value): hung in open air (as a moon is) at
 ## least half the exit distance from the way in, three times as likely over thorns; failing
 ## that, on the floor furthest from the way in.
 func place_cluster (def: NextWorldDef) -> void:
-	var start: Vector2i = exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	var start: Vector2i = exits.get(Ways.Exit.BACK, Vector2i(-1, -1))
 	@warning_ignore("integer_division")
 	var far: int = Rules.exit_distance(def.depth) / 2
 	var spots: Array[Vector2i] = _air_spots(func(v: Vector2i) -> bool: return type_at(v) == Type.EMPTY and _wide_open(v) and dist(v, start) >= far)
@@ -1520,7 +1583,7 @@ func _corridors () -> Array[Vector2i]:
 ## gate, so the switch is found on the way to it. Each records the other's cell in extra_info.
 
 func place_switch_gates (count: int) -> void:
-	var start: Vector2i = exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	var start: Vector2i = exits.get(Ways.Exit.BACK, Vector2i(-1, -1))
 	if not is_valid(start):
 		return
 	var spots: Array[Vector2i] = _corridors()
@@ -1580,7 +1643,7 @@ func switch_floor (reach: Dictionary, target: Vector2i) -> Variant:
 ## reached from the way in (any free floor if none is, a random one if there is none at all). No
 ## draw, unless it falls back to a random floor.
 func place_inkwell () -> void:
-	var start: Vector2i = exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	var start: Vector2i = exits.get(Ways.Exit.BACK, Vector2i(-1, -1))
 	var reach: Dictionary = reach_from(start) if is_valid(start) else {}
 	var middle: Vector2i = size / 2
 	var floors: Array[Vector2i] = empties_where(ground_below)
@@ -1596,17 +1659,17 @@ func place_inkwell () -> void:
 ## A level a side world leads into gets an ordinary way up as well, on a floor a few cells from
 ## the way back (which leads into that world).
 func place_return () -> void:
-	var start: Vector2i = exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	var start: Vector2i = exits.get(Ways.Exit.BACK, Vector2i(-1, -1))
 	if not is_valid(start):
 		return
 	var best: Variant = best_of(empties_where(ground_below), func(v: Vector2i) -> int: return dist(v, start),
 			func(v: Vector2i) -> bool: return dist(v, start) >= 4 and not _crowds_exit(v))
 	if best == null:
 		return
-	exits[MapInfo.Exit.RETURN] = best
+	exits[Ways.Exit.RETURN] = best
 	# Its spot is kept, as the other ways', even where the labyrinth leaves it out (shut).
-	if not shut.has(MapInfo.Exit.RETURN):
-		put(best, Type.EXIT, MapInfo.Exit.RETURN)
+	if not shut.has(Ways.Exit.RETURN):
+		put(best, Type.EXIT, Ways.Exit.RETURN)
 
 ## A door into each side world the level deals (NextWorldDef.doors): a floor far from the way
 ## in, not crowding another exit. In a debug run it is on the floor nearest the way in instead,
@@ -1614,7 +1677,7 @@ func place_return () -> void:
 ## A kind whose door is laid last (SideWorld.laid_last) is left out, and laid alone when `last`,
 ## once the level is otherwise laid out: on the floor nearest the way in, with open air over it.
 func place_side_doors (def: NextWorldDef, last: bool = false) -> void:
-	var from: Vector2i = exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	var from: Vector2i = exits.get(Ways.Exit.BACK, Vector2i(-1, -1))
 	var floors: Array[Vector2i] = empties_where(ground_below)
 	var nearest: Callable = func(v: Vector2i) -> int: return dist(v, from)
 	var furthest: Callable = func(v: Vector2i) -> int: return -dist(v, from)

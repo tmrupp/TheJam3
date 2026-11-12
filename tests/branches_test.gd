@@ -46,7 +46,7 @@ func run() -> void:
 	check(info.here.depth == Bands.garden_rows() + 1 and info.run.deepest == Bands.garden_rows() + 1, "a level counts its distance from the start, up as down")
 
 	print("saved up here")
-	info.save_run()
+	info.save_now()
 	var saved: Dictionary = RunState.read_save()
 	check(saved.get("coord") == info.coord and int(saved.get("furthest_row", 0)) == info.coord.y, "a run saved above the start keeps where it is")
 	var side: Vector2i = Worlds.side_at(0, info.coord)

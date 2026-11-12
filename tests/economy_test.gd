@@ -54,9 +54,13 @@ func vault_count(w: LevelGen, type: LevelGen.Type) -> int:
 	return n
 
 
+## The world the game is played in here: one whose start level has the keys the ring's checks pick up.
+var home: int = 28
+
 func run() -> void:
 	generation()
-	await boot(28)
+	home = start_seed(func(w: LevelGen) -> bool: return holds_keys(w, [0, 1]))
+	await boot(home)
 	freeze()
 
 	await keys()
@@ -74,6 +78,8 @@ func run() -> void:
 func generation() -> void:
 	print("generation")
 	var most_lanterns: int = 0
+	var with_lantern: int = 0
+	var levels: int = 0
 	for seed_value: int in [1, 7, 28, 99, 512]:
 		for depth: int in [0, 2, 5]:
 			var def: NextWorldDef = Rules.def_for(Vector2i(seed_value, depth))
@@ -82,7 +88,10 @@ func generation() -> void:
 			var lit: int = count(w, LevelGen.Type.CHECKPOINT)
 			most_lanterns = maxi(most_lanterns, lit)
 			check(lit <= 1 + w.per_area(LevelGen.LANTERNS_PER_K), label + ": %d lanterns, one at the way back and a few more" % lit)
-			check(w.exit_lanterns.keys() == [MapInfo.Exit.BACK], label + ": only the way back has a lantern beside it")
+			# (A way back with no free floor within reach has none: a few levels in a hundred.)
+			check(w.exit_lanterns.keys().all(func(e: int) -> bool: return e == MapInfo.Exit.BACK), label + ": only the way back has a lantern beside it")
+			with_lantern += w.exit_lanterns.size()
+			levels += 1
 			var barrier_rewards: int = w.barriers.filter(func(b: Dictionary) -> bool: return w.get_cell(b["reward"]).type == LevelGen.Type.CLUSTER).size()
 			check(count(w, LevelGen.Type.CLUSTER) - vault_count(w, LevelGen.Type.CLUSTER) - barrier_rewards == 1, label + ": one star cluster (besides any in vaults and barriers)")
 			var keys: int = 0
@@ -98,6 +107,7 @@ func generation() -> void:
 						keys += 1
 			check(keys == (1 if def.skeleton else 0), label + ": a skeleton key only where dealt, besides vaults (%d)" % keys)
 	check(most_lanterns <= 3, "no level has more than 3 lanterns (%d)" % most_lanterns)
+	check(with_lantern * 10 >= levels * 8, "nearly every way back has its lantern (%d of %d)" % [with_lantern, levels])
 	var dealt: int = 0
 	for x: int in range(100):
 		if Rules.skeleton_at(Vector2i(x, 3)):
@@ -169,7 +179,7 @@ func keys() -> void:
 		info.travel(MapInfo.Exit.RIGHT if which == MapInfo.Exit.LEFT else MapInfo.Exit.LEFT)
 		await settle()
 		freeze()
-	check(info.coord == Vector2i(28, 0), "back in the first level")
+	check(info.coord == Vector2i(home, 0), "back in the first level")
 
 
 func casting() -> void:
@@ -305,12 +315,13 @@ func cluster() -> void:
 
 func saving() -> void:
 	print("saving")
-	Abilities.grant(player, &"keyring")
+	# A ring of three, whatever the test learned on its way here.
+	Abilities.set_tier(player, &"keyring", 2)
 	player.keyring.set_all([0, 1, 2])
 	player.keyring.set_skeletons(2)
 	Abilities.grant(player, &"mend")
 	player.mend_draughts = 0
-	info.save_run()
+	info.save_now()
 	var data: Dictionary = RunState.read_save()
 	check(data.get("keys", []) == [0, 1, 2] and int(data.get("skeleton_keys", 0)) == 2 and int(data.get("mend_draughts", -1)) == 0, "the ring, skeleton keys and draughts are saved")
 	player.keyring.clear()

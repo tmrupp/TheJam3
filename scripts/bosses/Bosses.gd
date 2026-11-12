@@ -20,7 +20,7 @@ extends RefCounted
 ## Who guards which gate is the band layout's (Bands.LAYOUTS): the garden's way down and way up,
 ## and the far end of each band below and above it.
 ## Salt for the run seed when dealing a boss's relic.
-const RELIC_DEAL: int = 5300
+const RELIC_DEAL: int = Salts.BOSSES_RELIC * Salts.STRIDE
 ## Bosses that have given way to others since a run was saved, by the old name: the new one (the
 ## golem took the spider's place). A saved run's bosses slain and relics waiting are read under the
 ## new names (RunState.gone_kinds).
@@ -42,9 +42,7 @@ static func scene(name: StringName) -> PackedScene:
 
 
 ## Salt for the run seed when dealing a boss's column.
-const COLUMN_DEAL: int = 6300
-
-
+const COLUMN_DEAL: int = Salts.BOSSES_COLUMN * Salts.STRIDE
 ## The world column boss `name` is met in, in run `run_seed` (which starts in column `run_seed`):
 ## within spread(name) of it, dealt by the run seed and the boss. The whale roams its row instead
 ## (WhaleHunt).

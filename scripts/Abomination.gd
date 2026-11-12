@@ -299,11 +299,11 @@ func _physics_process(delta: float) -> void:
 		telling = -1.0
 		return
 	var info: MapInfo = MapInfo.instance
-	if info != null and info.abominations_quiet():
+	if info != null and info.institute.abominations_quiet():
 		telling = -1.0
 		quarry = null
 		return
-	var surge: float = info.surge() if info != null else 1.0
+	var surge: float = info.institute.surge() if info != null else 1.0
 	launch_in -= delta * Difficulty.attack() * surge
 	if telling >= 0.0:
 		telling += delta
@@ -412,7 +412,7 @@ func _fly_step(delta: float) -> void:
 		fall_speed = 0.0
 		var hit: KinematicCollision2D = move_and_collide(Vector2(0, 64))
 		grounded = hit != null and hit.get_normal().y < -0.7
-		RisoFx.burst(&"hit", global_position + Vector2(0, FEET), Vector2.UP, [RisoPrint.PINK, RisoPrint.NIGHT])
+		RisoFx.burst(&"hit", global_position + Vector2(0, FEET), Vector2.UP, [Plate.PINK, Plate.NIGHT])
 		if slime != null and is_instance_valid(slime):
 			slime.lay(global_position + Vector2(0, FEET), 1.3)
 
@@ -423,7 +423,7 @@ func _count_lobes() -> void:
 	if now < lobes:
 		for i: int in range(now, lobes):
 			var at: Vector3 = lobe_at(i)
-			RisoFx.burst(&"hit", global_position + Vector2(at.x * facing, at.y), Vector2.UP, [RisoPrint.PINK, RisoPrint.NIGHT])
+			RisoFx.burst(&"hit", global_position + Vector2(at.x * facing, at.y), Vector2.UP, [Plate.PINK, Plate.NIGHT])
 		lost_at = t
 	lobes = now
 
@@ -463,7 +463,7 @@ func shed() -> Abomination:
 	spawn.fly(from, to)
 	info.map_elements.add_child(spawn)
 	spawn.global_position = from
-	RisoFx.burst(&"hit", from, Vector2(signf(to.x - from.x), -1.0).normalized(), [RisoPrint.PINK, RisoPrint.NIGHT])
+	RisoFx.burst(&"hit", from, Vector2(signf(to.x - from.x), -1.0).normalized(), [Plate.PINK, Plate.NIGHT])
 	return spawn
 
 

@@ -16,7 +16,8 @@ const REACH: float = Mover.LURCH_SPEED * Mover.LURCH_TIME * 0.5
 func run() -> void:
 	# It reads what the art does (TestKit.art).
 	art(true)
-	await boot()
+	# A start level with a stretch of open floor for the wisp (run_of_floor).
+	await boot(start_seed(func(w: LevelGen) -> bool: return run_of_floor(w) != Vector2i(-1, -1)))
 	freeze()
 	player.get_node("CameraControl").set_process(false)
 	player.global_position = Vector2(-9000, -9000)
@@ -77,10 +78,11 @@ func run() -> void:
 
 
 ## A floor cell with three more open cells of floor to its right: room to lurch along.
-func run_of_floor() -> Vector2i:
+func run_of_floor(level: LevelGen = null) -> Vector2i:
+	var world: LevelGen = level if level != null else info.world
 	var walkable: Callable = func(c: Vector2i) -> bool:
-		return info.world.is_valid(c) and info.world.ground_below(c) and info.world.get_cell(c).type not in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED, LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.SPIKES, LevelGen.Type.PLATFORM, LevelGen.Type.LASER]
-	for v: Vector2i in info.world.free_floors():
+		return world.is_valid(c) and world.ground_below(c) and world.get_cell(c).type not in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED, LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.SPIKES, LevelGen.Type.PLATFORM, LevelGen.Type.LASER]
+	for v: Vector2i in world.free_floors():
 		if walkable.call(v) and walkable.call(v + Vector2i.RIGHT) and walkable.call(v + Vector2i.RIGHT * 2) and walkable.call(v + Vector2i.RIGHT * 3):
 			return v
 	return Vector2i(-1, -1)
@@ -92,6 +94,11 @@ func stand(w: Node2D, cell: Vector2i) -> void:
 	var mover: Mover = w.get_node("Mover") as Mover
 	player.global_position = Vector2(-9000, -9000)
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
+	# A wisp asleep in a far chunk is woken where it is first: one moved asleep stays filed under
+	# the chunk it slept in (LevelLoader.sleep_far_chunks), and would not wake at the new place.
+	camera.global_position = w.global_position
+	camera.reset_smoothing()
+	await until(func() -> bool: return w.can_process(), 3000)
 	await until(func() -> bool: return not Stunner.of(w).stunned())
 	mover.set_physics_process(false)
 	w.global_position = info.cell_position(cell)

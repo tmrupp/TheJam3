@@ -68,6 +68,8 @@ func _drop(boss: StringName) -> void:
 	still()
 	check(await until(func() -> bool: return int(info.run.trophies.get(boss, 0)) == Trophy.CARRIED), "picked up by touching it")
 	check(not info.run.boss_trophies.has(boss), "and waits there no more")
+	# The save is written as the frame is processed (MapInfo.save_run).
+	await frames(2)
 	check_eq(int((RunState.read_save().get("trophies", {}) as Dictionary).get(boss, 0)), Trophy.CARRIED, "kept in the save")
 	player.set_physics_process(true)
 
@@ -96,4 +98,4 @@ func _stands(bosses: Array[StringName]) -> void:
 		if i < stands.size() - 1:
 			check(not info.won, "not won while a trophy is still out")
 	check(await until(func() -> bool: return info.won and info.run_ending > 0.0), "every trophy set: the run is won")
-	check(not FileAccess.file_exists(RunState.save_path), "and its save is gone")
+	check(not SafeFile.exists(RunState.save_path), "and its save is gone")

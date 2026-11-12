@@ -18,9 +18,7 @@ const CHASM_SHORES: Array[int] = [4, 3, 2]
 ## the bridge (or a move found later) gets you over.
 const CHASM_CLEAR: int = 4
 ## Salt for the level seed when dealing which crossings are left to relic moves (relax_crossings).
-const RELIC_DEAL: int = 9500
-
-
+const RELIC_DEAL: int = Salts.CHASMS_RELIC * Salts.STRIDE
 ## How many chasms level `w` wants.
 static func wanted(w: LevelGen) -> int:
 	return maxi(CHASMS_MIN, w.per_area(CHASMS_PER_K))

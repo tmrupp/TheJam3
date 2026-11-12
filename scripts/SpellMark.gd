@@ -25,7 +25,7 @@ var dir: Vector2 = Vector2.RIGHT
 var reach: float = 100.0
 var half: float = PI * 0.33
 ## The plate it prints on: spell light (accent) for the wizard's, pink for a master's.
-var plate: int = RisoPrint.ACCENT
+var plate: int = Plate.ACCENT
 ## Who cast it, when it moves with them, and where it was cast from against them; null for a mark
 ## that stays put.
 var caster: Node2D = null
@@ -36,7 +36,7 @@ var ink: InkCanvas
 
 ## A mark of `kind` from `at`, pointing `toward`, `far` px out and `spread` radians either way,
 ## printed on `plate_`, put in the level; moving with `by` (its caster), if given.
-static func leave(kind_: StringName, at: Vector2, toward: Vector2, far: float, spread: float, plate_: int = RisoPrint.ACCENT, by: Node2D = null) -> SpellMark:
+static func leave(kind_: StringName, at: Vector2, toward: Vector2, far: float, spread: float, plate_: int = Plate.ACCENT, by: Node2D = null) -> SpellMark:
 	var mark: SpellMark = SpellMark.new()
 	mark.kind = kind_
 	mark.plate = plate_

@@ -38,11 +38,9 @@ const GUARDS: int = 2
 const GUARD_REACH: int = 6
 ## Salts for the run seed: which levels visited take a soul, where the far ones go, and where in its
 ## level a soul lies.
-const SOUL_DEAL: int = 7800
-const SPOT_DEAL: int = 7810
-const FAR_DEAL: int = 7820
-
-
+const SOUL_DEAL: int = Salts.BEAST_SOULS_SOUL * Salts.STRIDE
+const SPOT_DEAL: int = Salts.BEAST_SOULS_SPOT * Salts.STRIDE
+const FAR_DEAL: int = Salts.BEAST_SOULS_FAR * Salts.STRIDE
 ## Whether a soul could be sent into place `c`: an ordinary level, not a gate level, not `from`.
 static func could_hold(c: Vector2i, from: Vector2i) -> bool:
 	return not Worlds.is_side(c) and c != from and Bosses.gate_at(c.y) == &""
@@ -130,7 +128,8 @@ static func here(run: RunState, at: Vector2i) -> bool:
 	return run.souls.has(at)
 
 
-## Where the soul in place `at` lies in its layout `w`: chosen the first time (a free floor at least
+## Where the soul in place `at` lies in its layout `w`: chosen the first time (a free floor of the
+## level proper, LevelGen.floors_proper, so never in a vault or a barrier's pocket, at least
 ## SOUL_CLEAR cells from the way in, else any, dealt by the run seed) and kept. NO_SPOT when there is
 ## no soul there or no floor for it.
 static func spot(run: RunState, at: Vector2i, w: LevelGen) -> Vector2i:
@@ -139,7 +138,7 @@ static func spot(run: RunState, at: Vector2i, w: LevelGen) -> Vector2i:
 	var kept: Vector2i = run.souls[at]
 	if kept != NO_SPOT:
 		return kept
-	var floors: Array[Vector2i] = w.free_floors()
+	var floors: Array[Vector2i] = w.floors_proper()
 	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, NO_SPOT)
 	var clear: Array[Vector2i] = floors.filter(func(v: Vector2i) -> bool: return start == NO_SPOT or LevelGen.dist(v, start) >= SOUL_CLEAR)
 	if not clear.is_empty():
@@ -151,10 +150,11 @@ static func spot(run: RunState, at: Vector2i, w: LevelGen) -> Vector2i:
 	return pick
 
 
-## The free floors of `w` nearest `soul` (within GUARD_REACH cells, not its own), up to GUARDS,
+## The free floors of `w` nearest `soul` (within GUARD_REACH cells, not its own, none in a vault or
+## a barrier's pocket), up to GUARDS,
 ## where abominations are laid round it.
 static func guard_spots(w: LevelGen, soul: Vector2i) -> Array[Vector2i]:
-	var near: Array[Vector2i] = w.free_floors().filter(func(v: Vector2i) -> bool: return v != soul and LevelGen.dist(v, soul) <= GUARD_REACH and LevelGen.dist(v, soul) >= 2)
+	var near: Array[Vector2i] = w.floors_proper().filter(func(v: Vector2i) -> bool: return v != soul and LevelGen.dist(v, soul) <= GUARD_REACH and LevelGen.dist(v, soul) >= 2)
 	near.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
 		var da: int = LevelGen.dist(a, soul)
 		var db: int = LevelGen.dist(b, soul)

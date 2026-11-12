@@ -14,8 +14,6 @@ extends RigidBody2D
 ## its bare side to cut it. While it is down in the rock, or burrowing away to die, it is not live:
 ## nothing touches or strikes it.
 
-const STUNNER: PackedScene = preload("res://prefabs/stunner.tscn")
-const HIT_BOX: PackedScene = preload("res://prefabs/hit_box.tscn")
 ## Its physics layer (project settings: "Worm"; the wizard's prefab collides with it), and its bit.
 const WORM_LAYER: int = 9
 const WORM_BIT: int = 1 << (WORM_LAYER - 1)
@@ -68,14 +66,14 @@ func _init(of: Worm, r: float, hp: int) -> void:
 	wound.name = "Wound"
 	wound.hp = hp
 	add_child(wound)
-	stunner = STUNNER.instantiate() as Stunner
+	stunner = Prefabs.make(Prefabs.STUNNER) as Stunner
 	stunner.name = "Stunner"
 	stunner.parry_only = true
 	add_child(stunner)
 	thorns = Node2D.new()
 	thorns.name = "Thorns"
 	add_child(thorns)
-	thorn_box = HIT_BOX.instantiate() as HitBox
+	thorn_box = Prefabs.make(Prefabs.HIT_BOX) as HitBox
 	thorn_box.name = "ThornBox"
 	# A half disc on the thorny side (facing +x, turned with `thorns`), reaching past the body.
 	var half: PackedVector2Array = PackedVector2Array()
@@ -95,7 +93,7 @@ func make_head() -> void:
 		thorns.queue_free()
 		thorns = null
 		thorn_box = null
-	bite = HIT_BOX.instantiate() as HitBox
+	bite = Prefabs.make(Prefabs.HIT_BOX) as HitBox
 	bite.name = "HitBox"
 	var reach: CircleShape2D = CircleShape2D.new()
 	reach.radius = radius

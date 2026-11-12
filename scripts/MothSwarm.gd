@@ -106,7 +106,7 @@ func hex_hit(_damage: int, dir: Vector2) -> void:
 func scatter(dir: Vector2 = Vector2.ZERO) -> void:
 	scattered = SCATTER_TIME
 	scatter_dir = dir.normalized()
-	RisoFx.burst(&"hit", global_position, dir, [RisoPrint.ACCENT, RisoPrint.BLUE])
+	RisoFx.burst(&"hit", global_position, dir, [Plate.ACCENT, Plate.BLUE])
 
 
 func is_scattered() -> bool:

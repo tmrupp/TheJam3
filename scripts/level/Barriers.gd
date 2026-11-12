@@ -18,8 +18,12 @@ extends RefCounted
 ## so the same in every run), else one dealt by the level seed. Laid in SHARE % of ordinary levels
 ## (by the level seed) of the BANDS it is laid in, none in a side world or a gate level, after
 ## everything else of the level's own (LevelGen._init), where its shape fits beside an open floor and
-## keeps the level's caves joined; where none fits, none is laid. It is never laid across a way on, a door, a shrine or a lantern: only into solid rock,
-## and nothing already laid moves. What is laid is kept in LevelGen.barriers. Its mark (BarrierMark)
+## keeps the level's caves joined; where none fits, none is laid. It is cut into rock and built of
+## rock where its walls meet open air (_solid), but only where nothing else is: never across a way
+## on, a door, a shrine or a lantern, nor into any thing's room or a lift's track, a vault, or the
+## rock beside something set in it or stood on it (Claims, the generator's one answer to what a cell
+## is spoken for), and nothing already laid moves. What is
+## laid is kept in LevelGen.barriers. Its mark (BarrierMark)
 ## stands on the floor at its mouth. Each one's measures are the consts below, to be set by playing
 ## each in the generation lab.
 
@@ -31,10 +35,10 @@ const MOVE: Array[StringName] = [&"wall_climb", &"double_jump", &"levitate", &"b
 ## all of them for now: few levels have room for the shape their move asks, see _solid), and
 ## how far (levels, columns and rows added) a relic's level gives its move to the barriers round it.
 const SHARE: int = 100
-const SHARE_DEAL: int = 7300
+const SHARE_DEAL: int = Salts.BARRIERS_SHARE * Salts.STRIDE
 const NEAR: int = 3
 ## Salt for the level seed dealing a move where no relic is near.
-const MOVE_DEAL: int = 7301
+const MOVE_DEAL: int = Salts.BARRIERS_MOVE * Salts.STRIDE
 ## The bands barriers are laid in, for now the garden alone: the other bands have structures of
 ## their own (the crags' towers and gondola tracks, the cemetery's crypts) the pass does not yet
 ## keep clear of. And how many fits a level tries before laying none (a fit that would cut its
@@ -91,12 +95,12 @@ static func lay(w: LevelGen, def: NextWorldDef) -> void:
 	var kind: int = MOVE.find(move)
 	if kind < 0:
 		return
-	var fits: Array = _fits(w, kind)
+	var fits: Array = _fits(w, kind, w.claims())
 	if fits.is_empty():
 		return
 	# The level's caves as they are, from its way in: a barrier that would cut any of them off (its
 	# walls built across a passage) is passed over for another, a few times, then none is laid.
-	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	var start: Vector2i = w.exits.get(Ways.Exit.BACK, Vector2i(-1, -1))
 	if not w.is_valid(start):
 		return
 	var open: Callable = func(v: Vector2i) -> bool: return not w.is_ground(v)
@@ -132,14 +136,14 @@ static func _keeps_caves(w: LevelGen, shape: Dictionary, start: Vector2i, before
 
 ## Every place barrier `kind` fits in `w`: each {"kind", "move", "mouth" (the floor cell beside its
 ## way in, where its mark stands), "side" (the side of it the pocket lies to), "open" (the cells
-## carved open), "thorns", "reward"}. All of it,
-## and a cell of rock all round, solid rock now, and none of it a cell something else keeps.
-static func _fits(w: LevelGen, kind: int) -> Array:
+## carved open), "thorns", "reward"}. All of it, and a cell all round, rock or free air now, none
+## of it a cell something else keeps (`claims`).
+static func _fits(w: LevelGen, kind: int, claims: Claims) -> Array:
 	var out: Array = []
-	for o: Vector2i in _mouths(w):
+	for o: Vector2i in _mouths(w, claims):
 		for side: int in [-1, 1]:
 			var shape: Dictionary = _shape(o, side, kind)
-			if _solid(w, shape):
+			if _solid(w, shape, claims):
 				shape["kind"] = kind
 				shape["move"] = MOVE[kind]
 				shape["mouth"] = o
@@ -148,14 +152,14 @@ static func _fits(w: LevelGen, kind: int) -> Array:
 	return out
 
 
-## Every open cell on a floor (rock under it) that holds nothing but decor, sorted: where a barrier's
-## mouth may be, its mark standing there.
-static func _mouths(w: LevelGen) -> Array[Vector2i]:
+## Every free cell on a floor (rock under it) that holds nothing but decor and is no thing's room or
+## track (`claims`), sorted: where a barrier's mouth may be, its mark standing there.
+static func _mouths(w: LevelGen, claims: Claims) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
 	for x: int in range(w.size.x):
 		for y: int in range(w.size.y):
 			var v: Vector2i = Vector2i(x, y)
-			if not w.is_ground(v) and w.ground_below(v) and w.get_cell(v).type == LevelGen.Type.EMPTY:
+			if w.ground_below(v) and claims.is_free(v):
 				out.append(v)
 	return out
 
@@ -236,22 +240,42 @@ static func _shape(o: Vector2i, side: int, kind: int) -> Dictionary:
 	return {"open": open, "thorns": thorns, "reward": reward, "rock": rock.keys()}
 
 
-## Whether `shape` fits: every cell of it (its pocket and the rock round it) rock or air holding
-## nothing (past the level's edge counts as rock, as for a secret room), none of them kept by
-## something else (LevelGen.kept, secret rooms' steps) or a way out, and every cell it opens inside
-## the level, off its border. The garden's rock is too thin for most shapes to be cut from solid rock
-## alone (a block four or five cells across and seven high beside a floor is rare), so where its
-## walls meet empty air they are built of rock there (_carve): nothing already laid moves.
-static func _solid(w: LevelGen, shape: Dictionary) -> bool:
+## Whether `shape` fits: every cell of it (its pocket and the rock round it) rock or free air holding
+## nothing (past the level's edge counts as rock, as for a secret room), none of them kept whole
+## (LevelGen.kept) or spoken for by something else (`claims`: a thing's room, a vault, a way out...),
+## and every cell it opens inside the level, off its border. The garden's rock is too thin for most
+## shapes to be cut from solid rock alone (a block four or five cells across and seven high beside a
+## floor is rare), so where its walls meet empty air they are built of rock there (_carve): nothing
+## already laid moves. Rock it opens is leant on by no thing beside it, so the rock a seed pod or
+## vine grows from or thorns stand on stays, and holds nothing up (LevelGen._holds_up: a vault's
+## walls, a door's frame, a lantern's footing, a chasm's shore...); air it builds on or lays thorns
+## or the reward in is beside no thing that stays where it is laid (Claims.faced: a door's way
+## through, a pod's face).
+static func _solid(w: LevelGen, shape: Dictionary, claims: Claims) -> bool:
+	var open: Dictionary = {}
 	for c: Vector2i in shape["open"]:
 		if c.x <= 0 or c.y <= 0 or c.x >= w.size.x - 1 or c.y >= w.size.y - 1:
 			return false
+		open[c] = true
+	var laid: Dictionary = {shape["reward"]: true}
+	for c: Vector2i in shape["thorns"]:
+		laid[c] = true
 	for c: Vector2i in shape["rock"]:
 		if not w.is_valid(c):
 			continue
-		if w.kept(c) or w.secret_steps.has(c) or w.exits.values().has(c):
+		if claims.held(c) != &"":
 			return false
-		if not w.is_ground(c) and w.get_cell(c).type != LevelGen.Type.EMPTY:
+		var rock: bool = w.is_ground(c)
+		if not rock and w.type_at(c) != LevelGen.Type.EMPTY:
+			return false
+		var opened: bool = open.has(c)
+		if rock and opened and claims.leant_on(c):
+			return false
+		if not rock and (not opened or laid.has(c)) and claims.faced(c):
+			return false
+	# The costlier question last, of the rock it opens alone.
+	for c: Vector2i in shape["open"]:
+		if w.is_ground(c) and w._holds_up(c):
 			return false
 	return true
 

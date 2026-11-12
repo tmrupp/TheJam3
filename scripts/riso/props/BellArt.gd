@@ -80,4 +80,4 @@ func _bell_chain(hang: Transform2D, g: float, chained: bool, freed: float) -> vo
 	if lock >= 0:
 		RisoMarks.padlock(ink, lock_at + Vector2(0, drop), lock, 1.7, fade)
 	else:
-		RisoMarks.switch_plate(ink, lock_at + Vector2(0, drop), 1.7, fade, Sigils.of(host))
+		RisoMarks.switch_plate(ink, lock_at + Vector2(0, drop), 1.7, fade, MapInfo.sigil_of(host))

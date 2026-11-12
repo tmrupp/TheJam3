@@ -23,6 +23,7 @@ func run() -> void:
 		finish()
 		return
 	bands()
+	sample_clusters()
 	generation()
 
 	await boot()
@@ -62,8 +63,94 @@ func bands() -> void:
 	check(def.region == SkyArchetype.SAMPLE and def.realm() == &"sky" and def.chasmed(), "a sky level collapses the floating islands, prints in its realm and is gated by chasms")
 
 
+## The sky's sample, a sheet of clusters (tests/make_sky_sample.gd), each a sample of its own
+## (WaveFunctionCollapse.collapse_clusters), and a cluster collapsed from one: new each time, cut to
+## a cluster's outline. However the sheet is painted: nothing here
+## knows where its clusters are or what is in them.
+func sample_clusters() -> void:
+	print("the sample's clusters")
+	var sample: Image = (load(SkyArchetype.SAMPLE) as Texture2D).get_image()
+	var script: GDScript = load("res://scripts/WaveFunctionCollapse.gd") as GDScript
+	var consts: Dictionary = script.get_script_constant_map()
+	var boxes: Array[Rect2i] = script.call("_clusters", sample)
+	var greats: int = 0
+	var open_between: bool = true
+	for box: Rect2i in boxes:
+		greats += 1 if int(script.call("_largest_body", sample.get_region(box))) >= _great() else 0
+		for other: Rect2i in boxes:
+			open_between = open_between and (other == box or not other.grow(1).intersects(box))
+	check(boxes.size() >= 2 and open_between, "the sample is clusters with open sky between them (%d)" % boxes.size())
+	check(greats >= 1, "one of them holds a great island, %d cells of rock or more in one body (%d do)" % [_great(), greats])
+	# A cluster collapsed from each, twice over: cut to its outline, and not the same twice.
+	var wfc: Node = TestKit._make_wfc()
+	var outlined: bool = true
+	var rooted: bool = true
+	var fresh: int = 0
+	for k: int in range(boxes.size()):
+		var crop: Image = sample.get_region(boxes[k])
+		crop.convert(Image.FORMAT_RGBA8)
+		for x: int in range(crop.get_width()):
+			for y: int in range(crop.get_height()):
+				if crop.get_pixel(x, y).is_equal_approx(LevelGen.SKY):
+					crop.set_pixel(x, y, Color.WHITE)
+		var size: Vector2i = Vector2i(boxes[k].size.x + 6, boxes[k].size.y)
+		var one: Array = wfc.call("_cluster", crop, size, 1000 + k, false)
+		var two: Array = wfc.call("_cluster", crop, size, 2000 + k, false)
+		fresh += 1 if one != two else 0
+		var rock: Dictionary = {}
+		for x: int in range(size.x):
+			for y: int in range(size.y):
+				var inside: bool = script.call("_inside", x, y, size)
+				var c: Color = one[x][y]
+				outlined = outlined and (c == LevelGen.SKY) == (not inside)
+				if c == Color.BLACK:
+					rock[Vector2i(x, y)] = true
+		for x: int in range(size.x):
+			for y: int in range(size.y):
+				if Color(one[x][y]) == Color.RED:
+					rooted = rooted and [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN].any(func(d: Vector2i) -> bool: return rock.has(Vector2i(x, y) + d))
+	wfc.free()
+	check(outlined, "a cluster collapsed from one is open sky outside its outline and the cluster's own air inside")
+	check(rooted, "its thorns all touch rock")
+	check(fresh >= boxes.size() - 1, "collapsed again it is another cluster: none is copied (%d of %d differ)" % [fresh, boxes.size()])
+
+
+## How many cells of rock in one body make a great island (WaveFunctionCollapse.GREAT_ISLAND, read
+## from the script: it has no class name to ask by).
+func _great() -> int:
+	return int((load("res://scripts/WaveFunctionCollapse.gd") as GDScript).get_script_constant_map()["GREAT_ISLAND"])
+
+
+## The most cells of rock in one body (cells touching, corners too) in the laid terrain `cells`.
+func _largest_body(cells: Array) -> int:
+	var seen: Dictionary = {}
+	var best: int = 0
+	for x: int in range(cells.size()):
+		if not cells[x] is Array:
+			continue
+		for y: int in range((cells[x] as Array).size()):
+			if seen.has(Vector2i(x, y)) or Color(cells[x][y]) != Color.BLACK:
+				continue
+			var body: Array[Vector2i] = [Vector2i(x, y)]
+			seen[Vector2i(x, y)] = true
+			var head: int = 0
+			while head < body.size():
+				var v: Vector2i = body[head]
+				head += 1
+				for dx: int in range(-1, 2):
+					for dy: int in range(-1, 2):
+						var n: Vector2i = v + Vector2i(dx, dy)
+						if n.x < 0 or n.y < 0 or n.x >= cells.size() or not cells[n.x] is Array or n.y >= (cells[n.x] as Array).size() or seen.has(n) or Color(cells[n.x][n.y]) != Color.BLACK:
+							continue
+						seen[n] = true
+						body.append(n)
+			best = maxi(best, body.size())
+	return best
+
+
 func generation() -> void:
 	print("generation")
+	var greatest: Array[int] = []
 	var totals: Dictionary = {"pads": 0, "puffs": 0, "drafts": 0, "shields": 0, "bounces": 0, "birds": 0}
 	var s0: int = NextWorldDef.first_depth(&"sky")
 	for at: Vector2i in [Vector2i(28, s0), Vector2i(7, NextWorldDef.band_row(&"sky", 1)), Vector2i(99, NextWorldDef.band_row(&"sky", 2))]:
@@ -83,6 +170,20 @@ func generation() -> void:
 			if not w.in_isle(v, 4):
 				outside += 1
 		check(w.isles.size() >= 3 and float(outside) <= float(rock) * 0.1, "%s: %d clusters of islands, the rock all in them (%d of %d cells outside)" % [at, w.isles.size(), outside, rock])
+		# The layout keeps what the collapse laid: it clears no cluster for another and grows no rock.
+		var drawn_rock: int = 0
+		var kept_rock: int = 0
+		for x: int in range(w.size.x):
+			for y: int in range(w.size.y):
+				if Color(cells[x][y]) == Color.BLACK:
+					drawn_rock += 1
+					kept_rock += 1 if w.is_ground(Vector2i(x, y)) else 0
+		check(float(kept_rock) >= float(drawn_rock) * 0.85 and float(rock) <= float(drawn_rock) * 1.25, "%s: the islands are the sample's own (%d of %d cells of rock kept, %d in all)" % [at, kept_rock, drawn_rock, rock])
+		check(not w.open_sky.is_empty() and w.objects_of(LevelGen.Type.SPIKES).size() >= 6, "%s: open sky between its clusters, and thorns on its islands (%d)" % [at, w.objects_of(LevelGen.Type.SPIKES).size()])
+		greatest.append(_largest_body(cells))
+		check(greatest.back() >= _great(), "%s: a great island in it (its largest body of rock %d cells)" % [at, greatest.back()])
+		if greatest.size() == 3:
+			check(greatest[0] != greatest[1] or greatest[1] != greatest[2], "a level's great island is collapsed afresh, not copied (%s cells)" % [greatest])
 		check(float(rock) / float(w.size.x * w.size.y) >= 0.065, "%s: denser island shelves (%d terrain cells)" % [at, rock])
 		check(w.chasms.all(func(gap: Dictionary) -> bool:
 			var shore: Vector2i = gap["right"]

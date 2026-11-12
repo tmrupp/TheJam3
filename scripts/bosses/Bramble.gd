@@ -36,7 +36,6 @@ extends Node2D
 ## world RNG: the shaft and everything set in it come from the level's layout, and the rest is
 ## hashed from its seed.
 
-const HIT_BOX: PackedScene = preload("res://prefabs/hit_box.tscn")
 ## The hits each bulb takes.
 const BULB_HP: int = 3
 ## How fast a bloom's sap runs to the next bulb (px a second), and the least time the run takes.
@@ -276,7 +275,7 @@ func _grow_knot() -> void:
 	knot.add_child(shape)
 	add_child(knot)
 	knot.global_position = knot_rect.get_center()
-	knot_box = HIT_BOX.instantiate() as HitBox
+	knot_box = Prefabs.make(Prefabs.HIT_BOX) as HitBox
 	knot_box.name = "HitBox"
 	var reach: RectangleShape2D = RectangleShape2D.new()
 	reach.size = knot_rect.size + Vector2.ONE * KNOT_REACH * 2.0
@@ -415,7 +414,7 @@ func burst(bulb: BrambleBulb) -> void:
 	if not bulb.alive:
 		return
 	bulb.pop()
-	RisoFx.burst(&"gain", bulb.global_position, bulb.way, [RisoPrint.ACCENT, RisoPrint.PINK])
+	RisoFx.burst(&"gain", bulb.global_position, bulb.way, [Plate.ACCENT, Plate.PINK])
 	Wound.shake(12.0, 0.25)
 	quiver(bulb.global_position, QUIVER_BURST)
 	if bulb == heart:
@@ -446,7 +445,7 @@ func _bare_heart() -> void:
 	add_child(heart)
 	heart.global_position = Vector2(knot_rect.get_center().x, knot_rect.end.y - BUD_TOP + BUD_LONG * BUD_MID)
 	Wound.shake(14.0, 0.4)
-	RisoFx.burst(&"hit", heart.global_position, Vector2.DOWN, [RisoPrint.ACCENT, RisoPrint.PINK])
+	RisoFx.burst(&"hit", heart.global_position, Vector2.DOWN, [Plate.ACCENT, Plate.PINK])
 
 
 ## The heart has burst: nothing of it hurts now and the head of the shaft is open, and it dies from
@@ -467,7 +466,7 @@ func _open() -> void:
 	tangle.die(from)
 	dying_end = tangle.end_time
 	Wound.shake(16.0, 0.5)
-	RisoFx.burst(&"hit", from, Vector2.DOWN, [RisoPrint.PINK, RisoPrint.BLUE])
+	RisoFx.burst(&"hit", from, Vector2.DOWN, [Plate.PINK, Plate.BLUE])
 
 
 func _physics_process(delta: float) -> void:
@@ -603,13 +602,13 @@ static func ink_vine(canvas: InkCanvas, xf: Transform2D, vine: BrambleVine, cloc
 		for n: int in range(8, -1, -1):
 			var a: float = -0.4 + float(n) * 0.35
 			curl.append(Vector2(10.0 + 12.0 * sin(a), -14.0 + 12.0 * cos(a)))
-		canvas.lift_ink([RisoPrint.NIGHT], 1.0, [xf * curl])
-		canvas.ink(RisoPrint.BLUE, lerpf(0.7, DRY_BLUE, dry), [xf * curl])
-		canvas.ink(RisoPrint.NIGHT, lerpf(0.45, 0.1, dry), [xf * curl], false)
+		canvas.lift_ink([Plate.NIGHT], 1.0, [xf * curl])
+		canvas.ink(Plate.BLUE, lerpf(0.7, DRY_BLUE, dry), [xf * curl])
+		canvas.ink(Plate.NIGHT, lerpf(0.45, 0.1, dry), [xf * curl], false)
 		return
 	var bud: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(5.0, 0.0), 13.0, 20.0, 14)
-	canvas.ink(RisoPrint.BLUE, BARK_BLUE, [bud])
-	canvas.ink(RisoPrint.NIGHT, BARK_NIGHT, [bud], false)
+	canvas.ink(Plate.BLUE, BARK_BLUE, [bud])
+	canvas.ink(Plate.NIGHT, BARK_NIGHT, [bud], false)
 	var state: Array = vine.phase()
 	if vine.length < 2.0:
 		if state[0] == &"warn" and not vine.recoiled():
@@ -621,7 +620,7 @@ static func ink_vine(canvas: InkCanvas, xf: Transform2D, vine: BrambleVine, cloc
 				var dir: Vector2 = Vector2.from_angle(ang)
 				var side: Vector2 = dir.orthogonal() * 9.0
 				shoots.append(xf * PackedVector2Array([side, dir * tip, -side]))
-			canvas.ink(RisoPrint.PINK, 0.55 + 0.45 * absf(sin(clock * 14.0)), shoots)
+			canvas.ink(Plate.PINK, 0.55 + 0.45 * absf(sin(clock * 14.0)), shoots)
 		return
 	# The stem, writhing, from the rock out to its tip.
 	var length: float = vine.length
@@ -657,10 +656,10 @@ static func ink_vine(canvas: InkCanvas, xf: Transform2D, vine: BrambleVine, cloc
 	var spikes: Array[PackedVector2Array] = []
 	for th: PackedVector2Array in thorns:
 		spikes.append(xf * th)
-	canvas.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 1.0, stem)
-	canvas.ink(RisoPrint.PINK, 0.8, stem)
-	canvas.ink(RisoPrint.NIGHT, 0.2, stem, false)
-	canvas.ink(RisoPrint.PINK, 1.0, spikes)
+	canvas.lift_ink([Plate.NIGHT, Plate.BLUE], 1.0, stem)
+	canvas.ink(Plate.PINK, 0.8, stem)
+	canvas.ink(Plate.NIGHT, 0.2, stem, false)
+	canvas.ink(Plate.PINK, 1.0, spikes)
 
 
 ## A bulb: a swelling teardrop of accent out of the rock face, cupped in bark, a paper gleam on it
@@ -682,17 +681,17 @@ func _draw_bulb(bulb: BrambleBulb) -> void:
 		var cup0: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(7.0, 0.0), 20.0, BULB_R * 0.9, 16)
 		var since: float = t - bulb.burst_t
 		var husk: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(18.0, 0.0), 20.0, 15.0, 14)
-		ink.lift_ink([RisoPrint.NIGHT], 1.0, [cup0, husk])
-		ink.ink(RisoPrint.BLUE, lerpf(BARK_BLUE, DRY_BLUE, dry), [cup0, husk])
-		ink.ink(RisoPrint.NIGHT, 0.6 * (1.0 - dry), [cup0], false)
-		ink.ink(RisoPrint.NIGHT, 0.35 * (1.0 - dry), [husk], false)
+		ink.lift_ink([Plate.NIGHT], 1.0, [cup0, husk])
+		ink.ink(Plate.BLUE, lerpf(BARK_BLUE, DRY_BLUE, dry), [cup0, husk])
+		ink.ink(Plate.NIGHT, 0.6 * (1.0 - dry), [cup0], false)
+		ink.ink(Plate.NIGHT, 0.35 * (1.0 - dry), [husk], false)
 		if since < BURST_TIME:
 			var u: float = since / BURST_TIME
 			var petals: Array[PackedVector2Array] = []
 			for n: int in range(5):
 				var dir: Vector2 = Vector2.from_angle((float(n) - 2.0) * 0.55)
 				petals.append(xf * RisoShapes.ellipse(Vector2(22.0, 0.0) + dir * (25.0 + 70.0 * u), 13.0 * (1.0 - u), 7.0 * (1.0 - u), 10, dir.angle()))
-			ink.ink(RisoPrint.ACCENT, 1.0 - u, petals)
+			ink.ink(Plate.ACCENT, 1.0 - u, petals)
 		return
 	# Telling a seed, it turns pink as it does when struck.
 	ink_bulb(ink, xf, bulb.opened, bulb.charge, t * 3.0 + float(bulb.cell.y), maxf(clampf(1.0 - (t - bulb.struck_t) / FLASH_TIME, 0.0, 1.0), maxf(bulb.telling, 0.0)),
@@ -711,25 +710,25 @@ static func ink_bulb(canvas: InkCanvas, xf: Transform2D, open: float, charge: fl
 	var swell: float = 1.0 + BULB_SWELL * charge * charge + 0.04 * sin(wobble)
 	var r: float = BULB_R * swell * lerpf(SHUT_SIZE, 1.0, open)
 	var body: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(BrambleBulb.OUT * swell, 0.0), r * 0.95, r, 22)
-	canvas.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK], 1.0, [body])
-	canvas.ink(RisoPrint.ACCENT, lerpf(SHUT_ACCENT, 1.0, open), [body])
+	canvas.lift_ink([Plate.NIGHT, Plate.BLUE, Plate.PINK], 1.0, [body])
+	canvas.ink(Plate.ACCENT, lerpf(SHUT_ACCENT, 1.0, open), [body])
 	if flash > 0.0:
-		canvas.ink(RisoPrint.PINK, 0.8 * flash, [body], false)
+		canvas.ink(Plate.PINK, 0.8 * flash, [body], false)
 	if wild:
-		canvas.ink(RisoPrint.PINK, WILD_PINK * open, [body], false)
+		canvas.ink(Plate.PINK, WILD_PINK * open, [body], false)
 		if glance > 0.0:
-			canvas.ink(RisoPrint.BLUE, 0.6 * glance, [body], false)
+			canvas.ink(Plate.BLUE, 0.6 * glance, [body], false)
 	# Its gleam, toward the open shaft.
-	canvas.lift_ink([RisoPrint.ACCENT], 0.7 * open, [xf * RisoShapes.ellipse(Vector2(BrambleBulb.OUT * swell + r * 0.3, -r * 0.35), r * 0.22, r * 0.14, 10, 0.5)])
-	canvas.ink(RisoPrint.BLUE, BARK_BLUE, [cup])
-	canvas.ink(RisoPrint.NIGHT, BARK_NIGHT, [cup], false)
+	canvas.lift_ink([Plate.ACCENT], 0.7 * open, [xf * RisoShapes.ellipse(Vector2(BrambleBulb.OUT * swell + r * 0.3, -r * 0.35), r * 0.22, r * 0.14, 10, 0.5)])
+	canvas.ink(Plate.BLUE, BARK_BLUE, [cup])
+	canvas.ink(Plate.NIGHT, BARK_NIGHT, [cup], false)
 	# Its hits left, as dark dots down its middle.
 	var dots: Array[PackedVector2Array] = []
 	var n: int = hits
 	for j: int in range(n):
 		var off: float = (float(j) - float(n - 1) * 0.5) * r * 0.5
 		dots.append(xf * RisoShapes.circle(Vector2(BrambleBulb.OUT * swell + 2.0, off), r * 0.13, 8))
-	canvas.ink(RisoPrint.NIGHT, 0.85, dots, false)
+	canvas.ink(Plate.NIGHT, 0.85, dots, false)
 	# Its sepals: closed over it while shut, folded back against the wall in bloom, and blue-bright
 	# for a moment when a blow glances off them.
 	if open < 0.99:
@@ -739,9 +738,9 @@ static func ink_bulb(canvas: InkCanvas, xf: Transform2D, open: float, charge: fl
 			var leaf: Transform2D = Transform2D(lerpf(-side * SEPAL_SHUT, side * SEPAL_OPEN, open), hinge)
 			sepals.append(xf * (leaf * RisoShapes.almond(Vector2(BULB_R * 0.95, 0.0), BULB_R, BULB_R * SEPAL_WIDE, 14)))
 		var shut: float = 1.0 - open
-		canvas.lift_ink([RisoPrint.NIGHT, RisoPrint.ACCENT], shut, sepals)
-		canvas.ink(RisoPrint.BLUE, (BARK_BLUE - 0.4 * glance) * shut, sepals)
-		canvas.ink(RisoPrint.NIGHT, BARK_NIGHT * (1.0 - glance) * shut, sepals, false)
+		canvas.lift_ink([Plate.NIGHT, Plate.ACCENT], shut, sepals)
+		canvas.ink(Plate.BLUE, (BARK_BLUE - 0.4 * glance) * shut, sepals)
+		canvas.ink(Plate.NIGHT, BARK_NIGHT * (1.0 - glance) * shut, sepals, false)
 	# Its leaves, shrouding it: a narrower one behind on either side, then a lower and an upper leaf
 	# clasped round it, overlapping down its middle; all rooted in the cup and printed over it, and
 	# swinging back about their roots to bare it as it readies a seed (`parted`).
@@ -774,14 +773,14 @@ static func ink_bulb(canvas: InkCanvas, xf: Transform2D, open: float, charge: fl
 			var marks: Array[PackedVector2Array] = []
 			for mark: PackedVector2Array in pinks:
 				marks.append(pivot * mark)
-			canvas.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], 1.0, leaf)
-			canvas.ink(RisoPrint.BLUE, LEAF_BLUE, leaf)
-			canvas.ink(RisoPrint.NIGHT, LEAF_NIGHT[layer], leaf, false)
+			canvas.lift_ink([Plate.NIGHT, Plate.BLUE, Plate.PINK, Plate.ACCENT], 1.0, leaf)
+			canvas.ink(Plate.BLUE, LEAF_BLUE, leaf)
+			canvas.ink(Plate.NIGHT, LEAF_NIGHT[layer], leaf, false)
 			if not veins.is_empty():
-				canvas.lift_ink([RisoPrint.BLUE, RisoPrint.NIGHT], LEAF_RIB, [veins[0]])
-				canvas.lift_ink([RisoPrint.BLUE, RisoPrint.NIGHT], LEAF_VEIN, veins.slice(1))
-			canvas.lift_ink([RisoPrint.BLUE, RisoPrint.NIGHT], 1.0, marks)
-			canvas.ink(RisoPrint.PINK, LEAF_PINK, marks, false)
+				canvas.lift_ink([Plate.BLUE, Plate.NIGHT], LEAF_RIB, [veins[0]])
+				canvas.lift_ink([Plate.BLUE, Plate.NIGHT], LEAF_VEIN, veins.slice(1))
+			canvas.lift_ink([Plate.BLUE, Plate.NIGHT], 1.0, marks)
+			canvas.ink(Plate.PINK, LEAF_PINK, marks, false)
 
 
 ## A clasped leaf of a bulb's shroud, in the bulb's measure (see LEAF_ROOT_AT): side `side` (-1 the
@@ -912,16 +911,16 @@ func _draw_bud() -> void:
 		var since: float = t - (heart.burst_t if heart != null else t)
 		var husk: PackedVector2Array = _teardrop(top0, long * 0.6 * keep, wide * 0.45 * keep)
 		var dry: float = clampf(dying_t / BrambleTangle.DRY_TIME, 0.0, 1.0)
-		ink.lift_ink([RisoPrint.NIGHT, RisoPrint.ACCENT], 1.0, [husk])
-		ink.ink(RisoPrint.BLUE, lerpf(BARK_BLUE, DRY_BLUE, dry), [husk])
-		ink.ink(RisoPrint.NIGHT, 0.3 * (1.0 - dry), [husk], false)
+		ink.lift_ink([Plate.NIGHT, Plate.ACCENT], 1.0, [husk])
+		ink.ink(Plate.BLUE, lerpf(BARK_BLUE, DRY_BLUE, dry), [husk])
+		ink.ink(Plate.NIGHT, 0.3 * (1.0 - dry), [husk], false)
 		if since < BURST_TIME:
 			var u: float = since / BURST_TIME
 			var petals: Array[PackedVector2Array] = []
 			for n: int in range(7):
 				var dir: Vector2 = Vector2.from_angle(PI * 0.5 + (float(n) - 3.0) * 0.5)
 				petals.append(RisoShapes.ellipse(top0 + Vector2(0.0, long * 0.45) + dir * (30.0 + 90.0 * u), 16.0 * (1.0 - u), 8.0 * (1.0 - u), 10, dir.angle()))
-			ink.ink(RisoPrint.ACCENT, 1.0 - u, petals)
+			ink.ink(Plate.ACCENT, 1.0 - u, petals)
 		return
 	var cx: float = top0.x
 	var top: float = top0.y
@@ -929,13 +928,13 @@ func _draw_bud() -> void:
 	long *= 1.0 + 0.04 * beat
 	wide *= 1.0 + 0.06 * beat
 	var body: PackedVector2Array = _teardrop(top0, long, wide)
-	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK], 1.0, [body])
-	ink.ink(RisoPrint.ACCENT, lerpf(BUD_DIM, 1.0, bare), [body])
-	ink.ink(RisoPrint.PINK, 0.15 * beat, [body], false)
+	ink.lift_ink([Plate.NIGHT, Plate.BLUE, Plate.PINK], 1.0, [body])
+	ink.ink(Plate.ACCENT, lerpf(BUD_DIM, 1.0, bare), [body])
+	ink.ink(Plate.PINK, 0.15 * beat, [body], false)
 	var flash: float = clampf(1.0 - (t - heart.struck_t) / FLASH_TIME, 0.0, 1.0) if heart != null else 0.0
 	if flash > 0.0:
-		ink.ink(RisoPrint.PINK, 0.8 * flash, [body], false)
-	ink.lift_ink([RisoPrint.ACCENT], 0.7 * bare, [RisoShapes.ellipse(Vector2(cx - wide * 0.18, top + long * 0.36), wide * 0.08, wide * 0.13, 12, 0.3)])
+		ink.ink(Plate.PINK, 0.8 * flash, [body], false)
+	ink.lift_ink([Plate.ACCENT], 0.7 * bare, [RisoShapes.ellipse(Vector2(cx - wide * 0.18, top + long * 0.36), wide * 0.08, wide * 0.13, 12, 0.3)])
 	# Its sepals and cap, parting with the beat; wrapped closer while it is hidden, and closed over it
 	# while it is shut.
 	var shut: float = heart.closed if heart != null else 0.0
@@ -953,26 +952,26 @@ func _draw_bud() -> void:
 	var cap: PackedVector2Array = RisoShapes.ellipse(Vector2(cx, top + 8.0), wide * 0.24, 12.0 * grow, 20)
 	var dark: Array[PackedVector2Array] = outer.duplicate()
 	dark.append(cap)
-	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.ACCENT], 1.0, dark)
-	ink.ink(RisoPrint.BLUE, BARK_BLUE, dark)
-	ink.ink(RisoPrint.NIGHT, BARK_NIGHT, dark, false)
-	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.ACCENT], 1.0, within)
-	ink.ink(RisoPrint.BLUE, BARK_BLUE, within)
-	ink.ink(RisoPrint.NIGHT, 0.1, within, false)
-	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 1.0, thorns)
-	ink.ink(RisoPrint.PINK, 1.0, thorns)
+	ink.lift_ink([Plate.NIGHT, Plate.ACCENT], 1.0, dark)
+	ink.ink(Plate.BLUE, BARK_BLUE, dark)
+	ink.ink(Plate.NIGHT, BARK_NIGHT, dark, false)
+	ink.lift_ink([Plate.NIGHT, Plate.ACCENT], 1.0, within)
+	ink.ink(Plate.BLUE, BARK_BLUE, within)
+	ink.ink(Plate.NIGHT, 0.1, within, false)
+	ink.lift_ink([Plate.NIGHT, Plate.BLUE], 1.0, thorns)
+	ink.ink(Plate.PINK, 1.0, thorns)
 	if heart == null:
 		return
 	var glanced: float = clampf(1.0 - (t - heart.warded_t) / FLASH_TIME, 0.0, 1.0) * shut
 	if glanced > 0.0:
-		ink.lift_ink([RisoPrint.NIGHT], glanced, outer)
+		ink.lift_ink([Plate.NIGHT], glanced, outer)
 	if shut > 0.5:
 		return
 	var dots: Array[PackedVector2Array] = []
 	var n: int = heart.hits_left()
 	for j: int in range(n):
 		dots.append(RisoShapes.circle(Vector2(cx + (float(j) - float(n - 1) * 0.5) * wide * 0.14, top + long * 0.6), wide * 0.048, 8))
-	ink.ink(RisoPrint.NIGHT, 0.85, dots, false)
+	ink.ink(Plate.NIGHT, 0.85, dots, false)
 
 
 ## A teardrop hanging point down from `top`, `long` long and `wide` across at its widest: a narrow
@@ -1013,5 +1012,5 @@ func _draw_sap() -> void:
 	var drops: Array[PackedVector2Array] = []
 	for k: int in range(SAP_TRAIL + 1):
 		drops.append(RisoShapes.circle(sap_at(float(k) * SAP_GAP), SAP_R * (1.0 - float(k) / float(SAP_TRAIL + 1)), 12))
-	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK], 1.0, drops)
-	ink.ink(RisoPrint.ACCENT, 1.0, drops)
+	ink.lift_ink([Plate.NIGHT, Plate.BLUE, Plate.PINK], 1.0, drops)
+	ink.ink(Plate.ACCENT, 1.0, drops)

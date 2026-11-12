@@ -4,7 +4,8 @@ extends TestKit
 
 func run() -> void:
 	# A world whose first level has lifts (they are rare: about one per level).
-	await boot(27)
+	# A start level with a key and a door of one colour, for the checks of keys further down.
+	await boot(start_seed(func(w: LevelGen) -> bool: return range(Rules.KEY_COLOR_COUNT).any(func(c: int) -> bool: return holds_keys(w, [c], [c]))))
 	check(info.world != null, "world generated")
 	await frames(20)
 	var riso: RisoPrint = RisoPrint.instance

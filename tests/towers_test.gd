@@ -103,7 +103,9 @@ func _tower(w: LevelGen, tower: Dictionary) -> void:
 		check(w.is_ground(Vector2i(x0 + 1, roof)) and range(x0 + 1, x1).all(func(x: int) -> bool: return w.is_ground(Vector2i(x, roof))), "%s: roofed over" % name_of)
 		var stars: int = top.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.COIN).size()
 		# At least its hoard: the level's own stars may fall there too.
-		check(stars >= CragsArchetype.TOWER_HOARD, "%s: its %d stars in its top room (at least %d), ledges or foes laid there first giving way to them" % [name_of, stars, CragsArchetype.TOWER_HOARD])
+		# But where a lift (its track too) or a teleporter was laid there first: those keep their place.
+		var room: int = top.filter(func(v: Vector2i) -> bool: return not w.tracks.has(v) and w.type_at(v) not in [LevelGen.Type.MOVING_PLATFORM, LevelGen.Type.PORTAL]).size()
+		check(stars >= mini(CragsArchetype.TOWER_HOARD, room), "%s: its %d stars in its top room (at least %d, with room for %d), ledges or foes laid there first giving way to them" % [name_of, stars, CragsArchetype.TOWER_HOARD, room])
 	else:
 		var on_roof: bool = range(x0, x1 + 1).any(func(x: int) -> bool: return reach.has(Vector2i(x, roof - 1)))
 		check(on_roof, "%s: out through the hatch onto its roof" % name_of)

@@ -8,7 +8,7 @@ extends RefCounted
 ## than knowing which kind it is in. Get one with Rules.def_for (or MapInfo.here for the place being
 ## played).
 ##
-## Its way on (MapInfo.Exit.DEEPER) leads away from the start and its way back (BACK) toward it:
+## Its way on (Ways.Exit.DEEPER) leads away from the start and its way back (BACK) toward it:
 ## down and up below the start, up and down above it. The start's own way back leads up, so a run
 ## can set off either way.
 
@@ -56,12 +56,14 @@ var symmetry: int = 5
 ## Which of those eight versions to use instead, a bit each (bit k for version k: 33 is as drawn
 ## and mirrored left to right); 0 keeps to `symmetry`.
 var symmetry_mask: int = 0
+## Whether its sample is a sheet of clusters (Archetype.clustered), not one picture to collapse.
+var clustered: bool = false
 
 
 ## Fill it in for the place at `at`, and return it.
 func setup(at: Vector2i) -> NextWorldDef:
 	coord = at
-	debug = MapInfo.debug
+	debug = Dev.debug
 	depth = absi(at.y)
 	gen_seed = Rules.level_seed(at.x, at.y)
 	arch = archetype_for(at.y)
@@ -69,15 +71,16 @@ func setup(at: Vector2i) -> NextWorldDef:
 	region = arch.sample
 	symmetry = arch.symmetry
 	symmetry_mask = arch.symmetry_mask
+	clustered = arch.clustered
 	size = arch.size_for(depth)
 	for k: int in range(Worlds.KINDS.size()):
 		if Worlds.proto(k).deals(at):
 			doors.append(k)
 	arrival_from = Worlds.arriving_at(at)
-	for exit: int in [MapInfo.Exit.DEEPER, MapInfo.Exit.BACK, MapInfo.Exit.LEFT, MapInfo.Exit.RIGHT, MapInfo.Exit.RETURN]:
-		if exit == MapInfo.Exit.BACK and arrival_from != null:
+	for exit: int in [Ways.Exit.DEEPER, Ways.Exit.BACK, Ways.Exit.LEFT, Ways.Exit.RIGHT, Ways.Exit.RETURN]:
+		if exit == Ways.Exit.BACK and arrival_from != null:
 			continue
-		if exit == MapInfo.Exit.RETURN and arrival_from == null:
+		if exit == Ways.Exit.RETURN and arrival_from == null:
 			continue
 		if not Rules.maze_has(at, exit):
 			shut.append(exit)
@@ -162,11 +165,11 @@ func fallback() -> Array:
 ## not dug (closed).
 func ways() -> Array[int]:
 	var out: Array[int] = []
-	for exit: int in [MapInfo.Exit.DEEPER, MapInfo.Exit.BACK, MapInfo.Exit.LEFT, MapInfo.Exit.RIGHT]:
+	for exit: int in [Ways.Exit.DEEPER, Ways.Exit.BACK, Ways.Exit.LEFT, Ways.Exit.RIGHT]:
 		if not closed(exit):
 			out.append(exit)
-	if arrival_from != null and not closed(MapInfo.Exit.RETURN):
-		out.append(MapInfo.Exit.RETURN)
+	if arrival_from != null and not closed(Ways.Exit.RETURN):
+		out.append(Ways.Exit.RETURN)
 	for k: int in doors:
 		out.append(Worlds.door(k))
 	return out
@@ -181,11 +184,11 @@ func closed(exit: int) -> bool:
 ## way back, or the way up for a level a side world leads into) from the level above's way on.
 func _dug(exit: int) -> bool:
 	match exit:
-		MapInfo.Exit.DEEPER:
+		Ways.Exit.DEEPER:
 			return dug.has(coord + Vector2i(0, away(coord.y)))
-		MapInfo.Exit.BACK:
+		Ways.Exit.BACK:
 			return arrival_from == null and coord.y != 0 and dug.has(coord)
-		MapInfo.Exit.RETURN:
+		Ways.Exit.RETURN:
 			return arrival_from != null and dug.has(coord)
 	return false
 
@@ -208,23 +211,23 @@ func lead(exit: int) -> Dictionary:
 		return {}
 	var kind: int = Worlds.door_kind(exit)
 	if kind >= 0:
-		return _to(Worlds.side_at(kind, coord), Worlds.proto(kind).way, MapInfo.Exit.BACK)
+		return _to(Worlds.side_at(kind, coord), Worlds.proto(kind).way, Ways.Exit.BACK)
 	var on: int = away(coord.y)
 	match exit:
-		MapInfo.Exit.DEEPER:
-			return _to(coord + Vector2i(0, on), Vector2(0, on), MapInfo.Exit.BACK)
-		MapInfo.Exit.BACK:
+		Ways.Exit.DEEPER:
+			return _to(coord + Vector2i(0, on), Vector2(0, on), Ways.Exit.BACK)
+		Ways.Exit.BACK:
 			if arrival_from != null:
 				# Back into the side world that leads here, at its way on.
 				var from: Vector2i = arrival_from
-				return _to(from, -Worlds.proto(Worlds.kind_at(from)).way, MapInfo.Exit.DEEPER)
+				return _to(from, -Worlds.proto(Worlds.kind_at(from)).way, Ways.Exit.DEEPER)
 			return _homeward()
-		MapInfo.Exit.RETURN:
+		Ways.Exit.RETURN:
 			return _homeward()
-		MapInfo.Exit.LEFT:
-			return _to(coord + Vector2i(-1, 0), Vector2.LEFT, MapInfo.Exit.RIGHT)
-		MapInfo.Exit.RIGHT:
-			return _to(coord + Vector2i(1, 0), Vector2.RIGHT, MapInfo.Exit.LEFT)
+		Ways.Exit.LEFT:
+			return _to(coord + Vector2i(-1, 0), Vector2.LEFT, Ways.Exit.RIGHT)
+		Ways.Exit.RIGHT:
+			return _to(coord + Vector2i(1, 0), Vector2.RIGHT, Ways.Exit.LEFT)
 	return {}
 
 
@@ -238,7 +241,7 @@ func _to(at: Vector2i, way: Vector2, arrive: int) -> Dictionary:
 func _homeward() -> Dictionary:
 	var step: int = -away(coord.y)
 	var to: Vector2i = coord + Vector2i(0, step)
-	var arrive: int = MapInfo.Exit.BACK if coord.y == 0 or to.y == 0 and coord.y < 0 else MapInfo.Exit.DEEPER
+	var arrive: int = Ways.Exit.BACK if coord.y == 0 or to.y == 0 and coord.y < 0 else Ways.Exit.DEEPER
 	return _to(to, Vector2(0, step), arrive)
 
 
@@ -259,7 +262,7 @@ func price(exit: int, rec: LevelRecord) -> int:
 	var kind: int = Worlds.door_kind(exit)
 	if kind >= 0:
 		return 0 if rec.doors_paid.has(exit) else Worlds.proto(kind).entry_price(depth)
-	if exit == MapInfo.Exit.DEEPER and not rec.deeper_paid:
+	if exit == Ways.Exit.DEEPER and not rec.deeper_paid:
 		return Rules.deeper_price(depth)
 	if _way_up_from_start(exit) and not rec.up_paid:
 		return Rules.deeper_price(depth)
@@ -271,7 +274,7 @@ func price(exit: int, rec: LevelRecord) -> int:
 ## a seal but the boss's death: no key, no stars.
 func seal(exit: int, run: RunState) -> StringName:
 	var through: Array[StringName] = []
-	if exit == MapInfo.Exit.DEEPER and gate != &"":
+	if exit == Ways.Exit.DEEPER and gate != &"":
 		through = [gate]
 	var kind: int = Worlds.door_kind(exit)
 	if kind >= 0:
@@ -294,13 +297,13 @@ func pay(exit: int, rec: LevelRecord) -> void:
 
 ## Whether `exit` is the start's way up (its way back, unless a side world leads into it).
 func _way_up_from_start(exit: int) -> bool:
-	return coord.y == 0 and exit == MapInfo.Exit.BACK and arrival_from == null
+	return coord.y == 0 and exit == Ways.Exit.BACK and arrival_from == null
 
 
 ## Whether `exit` leads on, away from the start (printed pink, as a way on is): the way on, and
 ## the start's way up, which is as much a way on as its way down.
 func leads_on(exit: int) -> bool:
-	return exit == MapInfo.Exit.DEEPER or _way_up_from_start(exit)
+	return exit == Ways.Exit.DEEPER or _way_up_from_start(exit)
 
 
 # ------------------------------------------------------------------ how it looks
@@ -341,11 +344,11 @@ func title() -> String:
 ## start's way back, up).
 func exit_dir(exit: int) -> Vector2:
 	match exit:
-		MapInfo.Exit.BACK, MapInfo.Exit.RETURN:
+		Ways.Exit.BACK, Ways.Exit.RETURN:
 			return Vector2(0, -away(coord.y))
-		MapInfo.Exit.LEFT:
+		Ways.Exit.LEFT:
 			return Vector2.LEFT
-		MapInfo.Exit.RIGHT:
+		Ways.Exit.RIGHT:
 			return Vector2.RIGHT
 	return Vector2(0, away(coord.y))
 

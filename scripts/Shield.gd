@@ -11,7 +11,7 @@ const RADIUS: float = 46.0
 const SPIN: float = 0.6
 
 ## Hits a shield takes before it breaks (a parried shot breaks it at once).
-const HP: int = 3
+const HP: int = Rules.SHIELD_HP
 
 var hp: int = HP
 ## Hits it can take when whole (the cracks are drawn by how many it has taken).
@@ -45,10 +45,10 @@ func absorb(reflected: bool, dir: Vector2) -> bool:
 	var at: Vector2 = global_position - dir.normalized() * RADIUS * 0.8
 	if hp <= 0:
 		since_broke = 0.0
-		RisoFx.burst(&"gain", global_position, dir, [RisoPrint.PINK, RisoPrint.BLUE])
+		RisoFx.burst(&"gain", global_position, dir, [Plate.PINK, Plate.BLUE])
 		Wound.shake(8.0, 0.18)
 	else:
-		RisoFx.burst(&"hit", at, -dir, [RisoPrint.PINK, RisoPrint.NIGHT])
+		RisoFx.burst(&"hit", at, -dir, [Plate.PINK, Plate.NIGHT])
 		Wound.shake(4.0, 0.1)
 	return true
 
@@ -76,9 +76,9 @@ func _process(delta: float) -> void:
 	ink.global_transform = Transform2D(0.0, art.guard_center() if art != null else global_position)
 	ink.begin()
 	if hp > 0:
-		RisoWard.plates(ink, Vector2.ZERO, RADIUS, full, hp, _spin(), clampf(1.0 - since_hit / 0.18, 0.0, 1.0), RisoPrint.PINK)
+		RisoWard.plates(ink, Vector2.ZERO, RADIUS, full, hp, _spin(), clampf(1.0 - since_hit / 0.18, 0.0, 1.0), Plate.PINK)
 	for i: int in range(_broken.size()):
-		RisoWard.shards(ink, Vector2.ZERO, RADIUS, _broken[i].x, _broken[i].y / RisoWard.SHARD_TIME, RisoPrint.PINK)
+		RisoWard.shards(ink, Vector2.ZERO, RADIUS, _broken[i].x, _broken[i].y / RisoWard.SHARD_TIME, Plate.PINK)
 	ink.finish()
 
 

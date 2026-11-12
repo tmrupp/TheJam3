@@ -26,10 +26,13 @@ var doors_paid: Dictionary = {}
 var lateral_open: Dictionary = {}
 var ways_taken: Dictionary = {}
 ## Whether the shrine has been used, the slot it was bought from (Shrine._spend; -1 for none or a
-## save from before), and how many times it has been refreshed (Shrine.buy_redraw).
+## save from before), the count its boons are dealt by now (Shrine.offer_seed: it goes up with each
+## refresh, by more than one where a count would deal the pair just shown), and how many refreshes
+## were bought (Shrine.buy_redraw), which the next one's price goes by.
 var shrine_used: bool = false
 var shrine_slot: int = -1
 var redraws: int = 0
+var refreshes: int = 0
 ## Whether the ink well has been paid (the whole map inked), and what has been seen: a byte per
 ## cell, 1 once seen (see MapInfo.reveal).
 var mapped: bool = false
@@ -87,7 +90,7 @@ var relics_left: Dictionary = {}
 ## visit deals them: only the one nearest the way in on; MapInfo.station_on, flip_tower).
 var stations: int = -1
 ## The cemetery: the charges of darkness each snuffing font (Snuffer) holds, by cell, once one has
-## been doused or filled (an untouched font holds Snuffer.CHARGES): 0 is dry, more what was poured
+## been doused or filled (an untouched font holds Rules.FONT_CHARGES): 0 is dry, more what was poured
 ## back into it to keep (MapInfo.fill_font). And the darkness poured into each crypt's ossuary doors
 ## (OssuaryDoor), by the crypt's number: they open for good once it reaches their fill.
 var fonts: Dictionary = {}
@@ -99,7 +102,7 @@ var woken: Dictionary = {}
 ## Every field saved, in the order they are written.
 const FIELDS: Array[StringName] = [&"taken", &"opened", &"slain", &"broken", &"dropped", &"next_drop", &"deeper_paid", &"up_paid",
 	&"doors_paid", &"lateral_open", &"ways_taken", &"shrine_used", &"mapped", &"seen",
-	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended", &"lessons", &"stations", &"rings", &"passing", &"lifted", &"pigeonholes", &"prizes", &"dept_tiers", &"relics_left", &"started", &"last_bell", &"way_on_paid", &"studied", &"woken", &"fonts", &"poured", &"redraws", &"shrine_slot"]
+	&"bridges", &"vanes_on", &"wind_way", &"temple_open", &"temple_progress", &"bells_free", &"secrets", &"spent_lanterns", &"switched", &"rifts", &"mended", &"lessons", &"stations", &"rings", &"passing", &"lifted", &"pigeonholes", &"prizes", &"dept_tiers", &"relics_left", &"started", &"last_bell", &"way_on_paid", &"studied", &"woken", &"fonts", &"poured", &"redraws", &"shrine_slot", &"refreshes"]
 
 
 ## The record as a plain dictionary, for the save file.

@@ -36,12 +36,10 @@ const BULBS: Vector2i = Vector2i(3, 5)
 const VINE_APART: int = 4
 const VINE_CLEAR: int = 1
 ## Salts for the level seed: where it goes, which side its landing is on, and its bulbs and vines.
-const PLACE_DEAL: int = 6600
-const SIDE_DEAL: int = 6610
-const BULB_DEAL: int = 6620
-const VINE_DEAL: int = 6630
-
-
+const PLACE_DEAL: int = Salts.BRAMBLE_SHAFT_PLACE * Salts.STRIDE
+const SIDE_DEAL: int = Salts.BRAMBLE_SHAFT_SIDE * Salts.STRIDE
+const BULB_DEAL: int = Salts.BRAMBLE_SHAFT_BULB * Salts.STRIDE
+const VINE_DEAL: int = Salts.BRAMBLE_SHAFT_VINE * Salts.STRIDE
 ## Whether the level `def` describes has the bramble's shaft: the garden's way up, in every world
 ## column, while it is a level of its own (not a side world).
 static func wanted(def: NextWorldDef) -> bool:

@@ -37,22 +37,22 @@ const TELL_MIN: float = 0.4
 ## The last beat of every tell (seconds): the guard's window (Parry.WINDOW), the moment a guard raised
 ## catches the blow, which the foes' art prints apart from the rest of the wait (a flash to paper,
 ## CreatureArt.tell_mark).
-const LAST_BEAT: float = Parry.WINDOW
+const LAST_BEAT: float = Rules.GUARD_WINDOW
 ## The preset a game starts on.
 const DEFAULT: Preset = Preset.HARD
-## The preset a demo build starts on (MapInfo.demo_build): a demo is played by one new player
+## The preset a demo build starts on (Dev.demo_build): a demo is played by one new player
 ## after another, with no F7 panel to make it easier.
 const DEMO_DEFAULT: Preset = Preset.NORMAL
 
 ## The preset in play (F7 changes it; it lasts while the game runs). It starts as start_preset
-## does, asking the build's features itself, as MapInfo.demo_build does: MapInfo may not be set
+## does, asking the build's features itself, as Dev.demo_build does: MapInfo may not be set
 ## up yet when this is.
 static var preset: Preset = DEMO_DEFAULT if OS.has_feature("demo") else DEFAULT
 
 
 ## The preset a game starts on: Normal in a demo build (DEMO_DEFAULT), else Hard (DEFAULT).
 static func start_preset() -> Preset:
-	return DEMO_DEFAULT if MapInfo.demo_build else DEFAULT
+	return DEMO_DEFAULT if Dev.demo_build else DEFAULT
 
 
 ## How many foes a level is dressed with, against Normal.

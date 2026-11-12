@@ -489,7 +489,7 @@ func _three_sides() -> void:
 	var first: Abomination = _spawn_thing(spot, 1)
 	var count: Callable = func() -> int: return get_nodes_in_group(&"abomination").filter(func(n: Node) -> bool: return not n.is_queued_for_deletion()).size()
 	check(first.lobes == 1, "one out of a breach starts as a single blob")
-	check(await within(func() -> bool: return is_instance_valid(first) and first.lobes > 1, Abomination.GROW_EVERY * (1.0 + Abomination.GROW_SPREAD) / info.surge() + 1.0), "left alone, it grows another")
+	check(await within(func() -> bool: return is_instance_valid(first) and first.lobes > 1, Abomination.GROW_EVERY * (1.0 + Abomination.GROW_SPREAD) / info.institute.surge() + 1.0), "left alone, it grows another")
 	var wound: Wound = first.get_node("Wound") as Wound
 	var lobes: int = first.lobes
 	wound.hit(1, Vector2.UP)
@@ -586,7 +586,7 @@ func _department() -> void:
 	var spot: Vector2i = info.cell_at(at)
 	var crowded: Array[Vector2i] = info.world.objects.filter(func(o: Vector2i) -> bool:
 		var t: LevelGen.Type = info.world.get_cell(o).type
-		return (Placeables.has_flag(t, &"stander") or t == LevelGen.Type.DOOR) and absi(o.x - spot.x) <= MapInfo.WAY_BACK_APART and absi(o.y - spot.y) <= 1)
+		return (Placeables.has_flag(t, &"stander") or t == LevelGen.Type.DOOR) and absi(o.x - spot.x) <= InstitutePlay.WAY_BACK_APART and absi(o.y - spot.y) <= 1)
 	check(spot != info.world.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1)) and crowded.is_empty(), "it stands clear of the level's way back and every other door (%s)" % [crowded])
 	await frames(3)
 	var focus: Node = Interactable.focused(self)

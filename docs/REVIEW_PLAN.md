@@ -280,7 +280,10 @@ trying another move where the chosen one does not fit, and the other bands (thei
 and crypts kept clear of first). The relic chasms' marks are not done.
 `barriers_test` checks the four kinds it finds (and says which it did not), `capture_barriers`
 photographs them. *Layouts:* every garden level that takes one changes; the fingerprints want
-writing again on the owner's build.
+writing again on the owner's build. *Since* (`docs/CODE_REVIEW.md` 1.3, 1.4): a barrier keeps out
+of every thing's room, lifts' tracks, vaults and the rock things lean on (`Barriers.Claims`), and
+nothing dealt after the layout lies in its pocket (`LevelGen.floors_proper`); 50 of 480 garden
+levels take one, and the garden's fingerprints are written again.
 
 *Tests:* a new `barriers_test`, looking over a few worlds and rows with `build` for a level
 holding each kind rather than trusting one level: the shaft has one wall thorned for its whole

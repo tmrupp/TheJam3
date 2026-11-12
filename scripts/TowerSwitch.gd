@@ -46,10 +46,10 @@ func use() -> void:
 		return
 	if not cold() and map_info.flip_tower(tower, mask):
 		flipped_at = t
-		RisoFx.burst(&"gain", global_position + Vector2(0, -40), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
+		RisoFx.burst(&"gain", global_position + Vector2(0, -40), Vector2.ZERO, [Plate.ACCENT, Plate.BLUE])
 	else:
 		balked_at = t
-		RisoFx.burst(&"hit", global_position + Vector2(0, -40), Vector2.UP, [RisoPrint.PINK, RisoPrint.NIGHT])
+		RisoFx.burst(&"hit", global_position + Vector2(0, -40), Vector2.UP, [Plate.PINK, Plate.NIGHT])
 
 
 func _process(delta: float) -> void:

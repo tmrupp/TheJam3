@@ -1,4 +1,5 @@
 #include "wfc.hpp"
+#include "portable.hpp"
 #include <limits>
 
 namespace {
@@ -84,8 +85,7 @@ WFC::ObserveStatus WFC::observe() noexcept {
       s += wave.get(argmin, k) ? patterns_frequencies[k] : 0;
     }
 
-    std::uniform_real_distribution<> dis(0, s);
-    double random_value = dis(gen);
+    double random_value = portable::uniform(gen, s);
     size_t chosen_value = nb_patterns - 1;
 
     for (unsigned k = 0; k < nb_patterns; k++) {

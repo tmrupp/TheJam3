@@ -9,7 +9,6 @@ extends Node2D
 ## Printed by itself: pink flesh with paper suckers, tapering to its tip. Nothing here draws from
 ## any RNG.
 
-const HIT_BOX: PackedScene = preload("res://prefabs/hit_box.tscn")
 ## Its cadence (seconds): showing where it will come, shooting out, holding, pulling back.
 const WARN: float = 0.75
 const GROW: float = 0.2
@@ -45,7 +44,7 @@ var _clock: float = 0.0
 
 func _init(of: Beast) -> void:
 	beast = of
-	hit_box = HIT_BOX.instantiate() as HitBox
+	hit_box = Prefabs.make(Prefabs.HIT_BOX) as HitBox
 	hit_box.name = "HitBox"
 	add_child(hit_box)
 	# Its own shape: the prefab's is shared by every hit box.
@@ -149,13 +148,13 @@ func _process(_delta: float) -> void:
 		var side: Vector2 = way.orthogonal()
 		# A swelling: flat along the ground it comes out of, growing and throbbing.
 		var swell: PackedVector2Array = RisoShapes.ellipse(Vector2.ZERO, thick * (0.5 + 0.7 * u), thick * (0.15 + 0.25 * u) * (1.0 + 0.15 * sin(_clock * 30.0)), 18, side.angle())
-		ink.ink(RisoPrint.PINK, 0.35 + 0.5 * u, [swell])
+		ink.ink(Plate.PINK, 0.35 + 0.5 * u, [swell])
 		var bits: Array[PackedVector2Array] = []
 		for i: int in range(4):
 			var k: float = (float(i) - 1.5) / 1.5
 			var at: Vector2 = side * k * thick * 0.7 + way * (6.0 + 22.0 * u * fposmod(_clock * 2.0 + float(i) * 0.37, 1.0))
 			bits.append(RisoShapes.circle(at, 3.0 + 2.0 * u, 8))
-		ink.ink(RisoPrint.PINK, 0.9, bits)
+		ink.ink(Plate.PINK, 0.9, bits)
 	elif length > 1.0:
 		var side: Vector2 = way.orthogonal()
 		var pts: PackedVector2Array = PackedVector2Array()
@@ -164,13 +163,13 @@ func _process(_delta: float) -> void:
 			var bend: float = sin(_clock * 9.0 + k * 5.0) * WRITHE * k
 			pts.append(way * length * k + side * bend)
 		var body: Array[PackedVector2Array] = RisoDecor.strip(pts, thick, thick * TIP)
-		ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], body)
-		ink.ink(RisoPrint.PINK, 1.0, body, false)
-		ink.ink(RisoPrint.BLUE, 0.4, body, false)
+		ink.knock([Plate.NIGHT, Plate.BLUE, Plate.ACCENT], body)
+		ink.ink(Plate.PINK, 1.0, body, false)
+		ink.ink(Plate.BLUE, 0.4, body, false)
 		# Its suckers: paper dots down it, smaller toward the tip.
 		var suckers: Array[PackedVector2Array] = []
 		for i: int in range(1, POINTS - 2, 2):
 			var k: float = float(i) / float(POINTS - 1)
 			suckers.append(RisoShapes.circle(pts[i], thick * 0.13 * (1.0 - k * 0.6), 10))
-		ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], suckers)
+		ink.knock([Plate.NIGHT, Plate.BLUE, Plate.PINK, Plate.ACCENT], suckers)
 	ink.finish()

@@ -43,7 +43,7 @@ func touch(other: Node) -> void:
 		else:
 			had = player.keyring.take(key_color())
 		# A skeleton key bursts in pale blue (its own night would not show against the dark).
-		var inks: Array[int] = [RisoPrint.BLUE]
+		var inks: Array[int] = [Plate.BLUE]
 		if key_color() != KeyRing.SKELETON:
 			inks = RisoPrint.key_inks(key_color())
 		RisoFx.burst(&"gain", global_position, Vector2.ZERO, inks)

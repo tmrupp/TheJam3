@@ -10,7 +10,6 @@ extends Area2D
 ## in plain accent (a reward).
 ## Nothing here draws from any RNG.
 
-const HIT_BOX: PackedScene = preload("res://prefabs/hit_box.tscn")
 
 ## How hard it falls (px/s²), and how fast at most (px/s).
 const GRAVITY: float = 2200.0
@@ -48,7 +47,7 @@ func _ready() -> void:
 	round_shape.radius = SIZE
 	shape.shape = round_shape
 	add_child(shape)
-	touch = HIT_BOX.instantiate() as HitBox
+	touch = Prefabs.make(Prefabs.HIT_BOX) as HitBox
 	var reach: CircleShape2D = CircleShape2D.new()
 	reach.radius = SIZE
 	var hurt_shape: CollisionShape2D = touch.get_node("CollisionShape2D") as CollisionShape2D
@@ -96,7 +95,7 @@ func _take(wizard: Player) -> void:
 	if empower == null or empower.wait <= 0.0 or not empower.tempers_now():
 		return
 	empower.refill()
-	RisoFx.burst(&"gain", global_position, Vector2.UP, [RisoPrint.ACCENT, RisoPrint.BLUE])
+	RisoFx.burst(&"gain", global_position, Vector2.UP, [Plate.ACCENT, Plate.BLUE])
 	queue_free()
 
 
@@ -110,9 +109,9 @@ func _process(_delta: float) -> void:
 	var magnet: PackedVector2Array = RisoShapes.spindle(at, SIZE, SIZE * WIDE, ang)
 	ink.global_position = Vector2.ZERO
 	ink.begin()
-	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 1.0, [magnet])
-	ink.ink(RisoPrint.ACCENT, 1.0, [magnet])
+	ink.lift_ink([Plate.NIGHT, Plate.BLUE], 1.0, [magnet])
+	ink.ink(Plate.ACCENT, 1.0, [magnet])
 	# Called home, it hurts: pink over it.
 	if called:
-		ink.ink(RisoPrint.PINK, 0.55, [magnet], false)
+		ink.ink(Plate.PINK, 0.55, [magnet], false)
 	ink.finish()

@@ -30,7 +30,7 @@ func buy() -> void:
 		return
 	player.collect(-price())
 	map_info.ink_whole_map()
-	RisoFx.burst(&"gain", global_position + Vector2(0, -30), Vector2.ZERO, [RisoPrint.BLUE, RisoPrint.NIGHT])
+	RisoFx.burst(&"gain", global_position + Vector2(0, -30), Vector2.ZERO, [Plate.BLUE, Plate.NIGHT])
 
 
 func _ready() -> void:

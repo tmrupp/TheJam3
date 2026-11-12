@@ -43,7 +43,7 @@ func ring() -> void:
 		return
 	since_rung = 0.0
 	map_info.switch_vane(get_meta(&"cell"), way)
-	RisoFx.burst(&"gain", global_position + Vector2(0, -110), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
+	RisoFx.burst(&"gain", global_position + Vector2(0, -110), Vector2.ZERO, [Plate.ACCENT, Plate.BLUE])
 	Wound.shake(4.0, 0.2)
 
 

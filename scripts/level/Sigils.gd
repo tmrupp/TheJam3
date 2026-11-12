@@ -8,7 +8,7 @@ class_name Sigils
 ## same on every visit and on the map.
 
 ## Salt for the level seed when dealing sigils.
-const DEAL: int = 9300
+const DEAL: int = Salts.SIGILS * Salts.STRIDE
 ## Steps through the shapes, each prime to their number, so neighbouring links get unlike shapes.
 const STEPS: Array[int] = [1, 5, 7, 11]
 
@@ -72,11 +72,3 @@ static func _nearest(link: Array, others: Array) -> int:
 			for b: Vector2i in other:
 				near = mini(near, LevelGen.dist(a, b))
 	return near
-
-
-## The sigil of the thing `node` in the level being played (by its cell), or -1 if it has none.
-static func of(node: Node) -> int:
-	var info: MapInfo = MapInfo.instance
-	if info == null or info.world == null or node == null or not node.has_meta(&"cell"):
-		return -1
-	return info.world.sigil_at(node.get_meta(&"cell"))

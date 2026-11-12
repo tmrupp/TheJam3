@@ -48,7 +48,7 @@ func cold() -> bool:
 ## A plain hit: it rings, and nothing comes of it.
 func hex_hit(_damage: int, dir: Vector2) -> void:
 	rung_at = t
-	RisoFx.burst(&"hit", head(), dir, [RisoPrint.BLUE, RisoPrint.NIGHT])
+	RisoFx.burst(&"hit", head(), dir, [Plate.BLUE, Plate.NIGHT])
 
 
 ## An empowered strike: its tower's switch flips (or a cold tower wakes).
@@ -57,7 +57,7 @@ func empowered_hit(dir: Vector2) -> void:
 		return
 	if map_info.strike_spire(tower):
 		struck_at = t
-		RisoFx.burst(&"gain", head(), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
+		RisoFx.burst(&"gain", head(), Vector2.ZERO, [Plate.ACCENT, Plate.BLUE])
 		Wound.shake(6.0, 0.15)
 	else:
 		hex_hit(1, dir)

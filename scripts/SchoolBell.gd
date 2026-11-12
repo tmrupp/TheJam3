@@ -45,12 +45,12 @@ static func ceiling_over(w: LevelGen, v: Vector2i) -> int:
 ## Whether it was the cord rung last, which cannot be rung again yet (but to let out the class it
 ## began, MapInfo.dismissing).
 func spent() -> bool:
-	return map_info != null and map_info.world != null and map_info.record().last_bell == cell and not map_info.dismissing(cell)
+	return map_info != null and map_info.world != null and map_info.record().last_bell == cell and not map_info.institute.dismissing(cell)
 
 
 ## Pull it: it rings, if it can (MapInfo.pull_cord).
 func ring() -> void:
-	if map_info == null or not map_info.pull_cord(cell):
+	if map_info == null or not map_info.institute.pull_cord(cell):
 		return
 	since_rung = 0.0
 

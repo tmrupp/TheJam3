@@ -8,6 +8,18 @@ extends RefCounted
 
 ## Keys and doors come in this many colours; a key opens doors of its own colour.
 const KEY_COLOR_COUNT: int = 4
+## Numbers of things in the scene that the generator lays levels out by, kept here so that it need
+## not load their scripts to read them (docs/CODE_REVIEW.md 2.1); each thing has its own under its
+## old name. A full turn of thorns that come and go (seconds, Rules.THORN_CYCLE); the charges of darkness
+## a font never touched holds, and a large font, a crypt's prize (Rules.FONT_CHARGES, LARGE); how many
+## steps a temple's sequence has, from and to (Rules.TEMPLE_LENGTH); the hits a shield takes before it
+## breaks (Rules.SHIELD_HP); and how long the guard stays up (seconds, Parry.WINDOW).
+const THORN_CYCLE: float = 3.0
+const FONT_CHARGES: int = 3
+const FONT_LARGE: int = 8
+const TEMPLE_LENGTH: Vector2i = Vector2i(5, 9)
+const SHIELD_HP: int = 3
+const GUARD_WINDOW: float = 0.2
 ## How common each key colour is, in order of rarity: sun (about 62 %), ember (24 %), moss (10 %),
 ## then plum (about one in 30). Keys, corridor doors, side-door locks and padlocks are all dealt by these
 ## weights (see rarity_color), so a common key opens a lot and a rare one seldom; vaults (see
@@ -87,7 +99,7 @@ static func cluster_value (depth: int) -> int:
 static func skeleton_at (at: Vector2i) -> bool:
 	if absi(at.y) < 1:
 		return false
-	return level_seed(level_seed(at.x, at.y), 4711) % 100 < SKELETON_CHANCE
+	return level_seed(level_seed(at.x, at.y), Salts.RULES_SKELETON * Salts.STRIDE) % 100 < SKELETON_CHANCE
 
 ## Minimum distance in cells between a level's way back and its deeper exit.
 static func exit_distance (depth: int) -> int:
@@ -103,14 +115,14 @@ static func relic_need (depth: int) -> int:
 ## whether its relic, if it has one, waits behind a bone gate (RELIC_GATE_CHANCE %); both dealt by
 ## the level seed.
 static func bone_vault_at (at: Vector2i) -> bool:
-	return absi(at.y) >= 1 and level_seed(level_seed(at.x, at.y), 4811) % 100 < BONE_VAULT_CHANCE
+	return absi(at.y) >= 1 and level_seed(level_seed(at.x, at.y), Salts.RULES_BONE_VAULT * Salts.STRIDE) % 100 < BONE_VAULT_CHANCE
 
 static func relic_gated_at (at: Vector2i) -> bool:
-	return level_seed(level_seed(at.x, at.y), 4911) % 100 < RELIC_GATE_CHANCE
+	return level_seed(level_seed(at.x, at.y), Salts.RULES_RELIC_GATE * Salts.STRIDE) % 100 < RELIC_GATE_CHANCE
 
 ## The key colour that locks a level's left or right exit, dealt by the level seed.
 static func lateral_lock (at: Vector2i, which: int) -> int:
-	return rarity_color(level_seed(level_seed(at.x, at.y), 500 + which))
+	return rarity_color(level_seed(level_seed(at.x, at.y), Salts.RULES_SIDE_LOCK * Salts.STRIDE + which))
 
 # ------------------------------------------------------------------ the labyrinth
 
@@ -129,26 +141,24 @@ const MAZE_RUN: int = 7
 ## The share (%) of ways toward the start kept, besides each run's first.
 const MAZE_KEEP: int = 20
 ## Salts for the place's seed when dealing the labyrinth.
-const MAZE_SIDE_DEAL: int = 7100
-const MAZE_HOME_DEAL: int = 7200
-const MAZE_RUN_DEAL: int = 7300
-
-
-## Whether level `at` has its way out `exit` (MapInfo.Exit: DEEPER, BACK, LEFT, RIGHT) in the
+const MAZE_SIDE_DEAL: int = Salts.RULES_MAZE_SIDE * Salts.STRIDE
+const MAZE_HOME_DEAL: int = Salts.RULES_MAZE_HOME * Salts.STRIDE
+const MAZE_RUN_DEAL: int = Salts.RULES_MAZE_RUN * Salts.STRIDE
+## Whether level `at` has its way out `exit` (Ways.Exit: DEEPER, BACK, LEFT, RIGHT) in the
 ## labyrinth. Other exits (a side world's door, the way up from a level a side world leads into)
 ## are not the labyrinth's, nor is any side world's.
 static func maze_has (at: Vector2i, exit: int) -> bool:
 	if Worlds.is_side(at):
 		return true
 	match exit:
-		MapInfo.Exit.LEFT:
+		Ways.Exit.LEFT:
 			return _side_open(at.x - 1, at.y)
-		MapInfo.Exit.RIGHT:
+		Ways.Exit.RIGHT:
 			return _side_open(at.x, at.y)
-		MapInfo.Exit.BACK, MapInfo.Exit.RETURN:
+		Ways.Exit.BACK, Ways.Exit.RETURN:
 			# The start's way back leads up, to the row above's way toward it.
 			return _home_open(at.x, -1 if at.y == 0 else at.y)
-		MapInfo.Exit.DEEPER:
+		Ways.Exit.DEEPER:
 			return _home_open(at.x, at.y + NextWorldDef.away(at.y))
 	return true
 
@@ -201,7 +211,7 @@ static func wind_of (rec: LevelRecord) -> int:
 ## from the row and the stretch (LODESTONE_DEAL), so one crags level in four holds one and no
 ## spell's stone is ever more than LODESTONE_STRETCH - 1 worlds along a row.
 const LODESTONE_STRETCH: int = 24
-const LODESTONE_DEAL: int = 5150
+const LODESTONE_DEAL: int = Salts.RULES_LODESTONE * Salts.STRIDE
 ## How long an empowered cast takes to come back (Empower), by the lodestones touched: from the
 ## first stone, each one more cutting a quarter off, down to the last entry from the seventh on.
 const EMPOWER_RECHARGE: Array[float] = [60.0, 45.0, 34.0, 25.0, 19.0, 14.0, 10.0]
@@ -293,17 +303,31 @@ static func fontless_at (at: Vector2i) -> bool:
 		return false
 	if at.y == NextWorldDef.first_depth(&"cemetery") or Bosses.gate_at(at.y) != &"":
 		return false
-	return level_seed(level_seed(at.x, at.y), 6300) % 100 < FONTLESS_SHARE
+	return level_seed(level_seed(at.x, at.y), Salts.RULES_FONTLESS * Salts.STRIDE) % 100 < FONTLESS_SHARE
 
 ## Whether the cemetery level at `at` shuts its second crypt behind ossuary doors, if it has two
 ## (see OSSUARY_SHARE); never in the necromancer's gate level.
 static func ossuary_at (at: Vector2i) -> bool:
 	if Worlds.is_side(at) or NextWorldDef.archetype_at(at.y) != &"cemetery" or Bosses.gate_at(at.y) != &"":
 		return false
-	return level_seed(level_seed(at.x, at.y), 6310) % 100 < OSSUARY_SHARE
+	return level_seed(level_seed(at.x, at.y), Salts.RULES_OSSUARY * Salts.STRIDE) % 100 < OSSUARY_SHARE
 
 ## The charges an ossuary door in the level on `row` drinks before it opens (see OSSUARY_FILL).
 static func ossuary_fill (row: int) -> int:
 	var last: int = maxi(1, Bands.rows_of(&"cemetery") - 2)
 	var k: int = clampi(absi(row) - NextWorldDef.first_depth(&"cemetery"), 0, last)
 	return roundi(lerpf(float(OSSUARY_FILL.x), float(OSSUARY_FILL.y), float(k) / float(last)))
+
+
+## How many charges the font at cell `v` of `w` holds untouched: FONT_CHARGES, or what its cell says.
+static func font_capacity (w: LevelGen, v: Vector2i) -> int:
+	var extra: Variant = w.get_cell(v).extra_info if w.is_valid(v) else null
+	return int((extra as Dictionary).get("charges", FONT_CHARGES)) if extra is Dictionary else FONT_CHARGES
+
+
+## How far apart places `a` and `b` are, for a plant's growth: across plus up or down, a side
+## world counted as the level its door is in.
+static func apart (a: Vector2i, b: Vector2i) -> int:
+	var p: Vector2i = Worlds.origin_of(a) if Worlds.is_side(a) else a
+	var q: Vector2i = Worlds.origin_of(b) if Worlds.is_side(b) else b
+	return absi(p.x - q.x) + absi(p.y - q.y)

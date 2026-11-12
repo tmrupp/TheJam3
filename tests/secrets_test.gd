@@ -194,11 +194,10 @@ func run() -> void:
 		if move in Abilities.offers(s, player, Abilities.ids().size()):
 			upgrades = true
 	check(upgrades or Abilities.tier(player, move) >= Abilities.max_tier(move), "and shrines now offer its higher tiers")
-	info.travel(MapInfo.Exit.BACK)
-	await settle()
-	info.travel(MapInfo.Exit.DEEPER)
-	await settle()
-	freeze()
+	# Away and back again, whichever ways out the labyrinth left this level.
+	var relic_at: Vector2i = info.coord
+	await go(Vector2i(relic_at.x, 0), false)
+	await go(relic_at)
 	check(placed("cracked_wall.tscn").filter(func(n: Node) -> bool: return n.has_meta(&"secret") and int(n.get_meta(&"secret")) == 0).is_empty() and placed("relic.tscn").is_empty(), "on a revisit the room is still open and the relic gone")
 
 	print("a shrine points to a relic")

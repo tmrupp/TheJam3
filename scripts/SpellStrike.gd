@@ -145,7 +145,7 @@ static func strike(e: Node, dir: Vector2, damage: int, _spell: StringName = &"",
 	if wound != null and dealt > 0:
 		wound.hit(dealt, dir)
 	elif wound != null:
-		RisoFx.burst(&"hit", (e as Node2D).global_position, dir, [RisoPrint.ACCENT, RisoPrint.BLUE])
+		RisoFx.burst(&"hit", (e as Node2D).global_position, dir, [Plate.ACCENT, Plate.BLUE])
 	if wound == null and empowered and e is Spire:
 		(e as Spire).empowered_hit(dir)
 	elif wound == null and HexBolt.answers(e):
@@ -224,7 +224,7 @@ static func thorns_caught(tree: SceneTree, from: Vector2, catches: Callable, dir
 			var p: Vector2 = ends[0].lerp(ends[1], float(k) / 4.0)
 			if bool(catches.call(p)) and clear(from, p):
 				out.append(thorns)
-				RisoFx.burst(&"hit", p, dir, [RisoPrint.ACCENT, RisoPrint.BLUE])
+				RisoFx.burst(&"hit", p, dir, [Plate.ACCENT, Plate.BLUE])
 				break
 	return out
 

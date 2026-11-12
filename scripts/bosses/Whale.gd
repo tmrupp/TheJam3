@@ -553,8 +553,8 @@ func _process(_delta: float) -> void:
 	# Every plate cleared under it, so nothing printed under it shows through (a swallowed
 	# wizard's robe and glow among them).
 	ink.knock(RisoPrint.ALL_PLATES, dark)
-	ink.ink(RisoPrint.NIGHT, 0.75, dark, false)
-	ink.ink(RisoPrint.BLUE, 0.45, dark, false)
+	ink.ink(Plate.NIGHT, 0.75, dark, false)
+	ink.ink(Plate.BLUE, 0.45, dark, false)
 	# Its pale underside, from the tail stock to its chin, up to its lips along its head; and its
 	# fin, pale too.
 	var belly: PackedVector2Array = PackedVector2Array()
@@ -564,8 +564,8 @@ func _process(_delta: float) -> void:
 		var s: float = lerpf(0.06, 1.0, _along(i, n))
 		belly.append(_jawed(_on(s, _top(s)), s, false))
 	var pale: Array[PackedVector2Array] = [belly, fin]
-	ink.lift_ink([RisoPrint.NIGHT], 0.4, pale)
-	ink.ink(RisoPrint.BLUE, 0.3, pale, false)
+	ink.lift_ink([Plate.NIGHT], 0.4, pale)
+	ink.ink(Plate.BLUE, 0.3, pale, false)
 	# The pleats of its throat, from under its chin back toward its navel.
 	var pleats: Array[PackedVector2Array] = []
 	for k: int in range(8):
@@ -574,27 +574,27 @@ func _process(_delta: float) -> void:
 		for i: int in range(25):
 			line.append(_pt(lerpf(0.5 + float(k) * 0.025, 0.985, float(i) / 24.0), side))
 		pleats.append(_band(line, 5.0))
-	ink.ink(RisoPrint.NIGHT, 0.4, pleats, false)
+	ink.ink(Plate.NIGHT, 0.4, pleats, false)
 	# Barnacles on its chin and the fin's leading edge, in bare paper.
 	var barnacles: Array[PackedVector2Array] = []
 	for k: int in range(6):
 		barnacles.append(RisoShapes.circle(_pt(0.9 + float(k) * 0.014, 0.85 - float(k % 2) * 0.15), 11.0 + float(k % 3) * 4.0, 10))
 	for k: int in range(4):
 		barnacles.append(RisoShapes.circle(fin_xf * Vector2(60.0 - float(k) * 55.0, 40.0 + float(k) * 60.0), 9.0 + float(k % 2) * 5.0, 10))
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], barnacles)
+	ink.knock([Plate.NIGHT, Plate.BLUE], barnacles)
 	if mouth_open:
 		_draw_lining(upper, lower)
 		_draw_baleen(upper, lower)
 	# Its eye, in sun, above the corner of its mouth: seen only as its head comes down.
 	var eye: Vector2 = _pt(HINGE + 0.02, 0.02)
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], [RisoShapes.circle(eye, 30.0, 18)])
-	ink.ink(RisoPrint.ACCENT, 1.0, [RisoShapes.circle(eye, 19.0, 16)])
+	ink.knock([Plate.NIGHT, Plate.BLUE], [RisoShapes.circle(eye, 30.0, 18)])
+	ink.ink(Plate.ACCENT, 1.0, [RisoShapes.circle(eye, 19.0, 16)])
 	# The spot it will dive at: a pink disc tightening as the lunge nears.
 	if phase == Phase.TELL or (phase == Phase.DIVE and u < 0.8):
 		var warn: float = u if phase == Phase.TELL else 1.0
 		var at: Vector2 = _local(mark)
-		ink.ink(RisoPrint.PINK, 0.3 + 0.2 * warn, [RisoShapes.circle(at, lerpf(150.0, 60.0, warn), 32)])
-		ink.ink(RisoPrint.PINK, 0.7 + 0.3 * warn, [RisoShapes.circle(at, 10.0 + 6.0 * warn, 14)])
+		ink.ink(Plate.PINK, 0.3 + 0.2 * warn, [RisoShapes.circle(at, lerpf(150.0, 60.0, warn), 32)])
+		ink.ink(Plate.PINK, 0.7 + 0.3 * warn, [RisoShapes.circle(at, 10.0 + 6.0 * warn, 14)])
 	lining.finish()
 	ink.finish()
 
@@ -634,8 +634,8 @@ func _draw_lining(upper: PackedVector2Array, lower: PackedVector2Array) -> void:
 	for i: int in range(m, -1, -1):
 		inside.append(lower[i])
 	lining.knock(RisoPrint.ALL_PLATES, [inside])
-	lining.ink(RisoPrint.NIGHT, 0.5, [inside], false)
-	lining.ink(RisoPrint.PINK, 0.6, [inside], false)
+	lining.ink(Plate.NIGHT, 0.5, [inside], false)
+	lining.ink(Plate.PINK, 0.6, [inside], false)
 	# Its throat, darker, going in at the back of its mouth: the back of the mouth's own wedge, in two
 	# steps, darkest at the hinge.
 	for reach: float in [0.45, 0.22]:
@@ -645,15 +645,15 @@ func _draw_lining(upper: PackedVector2Array, lower: PackedVector2Array) -> void:
 			back.append(upper[i])
 		for i: int in range(j, -1, -1):
 			back.append(lower[i])
-		lining.ink(RisoPrint.NIGHT, 0.2, [back], false)
+		lining.ink(Plate.NIGHT, 0.2, [back], false)
 	# Its tongue: a mound along its lower jaw, highest in the middle.
 	var tongue: PackedVector2Array = lower.duplicate()
 	for i: int in range(m, -1, -1):
 		var k: float = float(i) / float(m)
 		tongue.append(lower[i] + (upper[i] - lower[i]) * 0.3 * sin(k * PI))
-	lining.knock([RisoPrint.NIGHT, RisoPrint.PINK], [tongue])
-	lining.ink(RisoPrint.PINK, 0.75, [tongue])
-	lining.ink(RisoPrint.NIGHT, 0.12, [tongue], false)
+	lining.knock([Plate.NIGHT, Plate.PINK], [tongue])
+	lining.ink(Plate.PINK, 0.75, [tongue])
+	lining.ink(Plate.NIGHT, 0.12, [tongue], false)
 
 
 ## Its baleen, printed over a swallowed wizard: a gum along its upper lip, and from it a thick
@@ -671,4 +671,4 @@ func _draw_baleen(upper: PackedVector2Array, lower: PackedVector2Array) -> void:
 		var across: Vector2 = (upper[i + 1] - upper[i - 1]).normalized()
 		plates.append(PackedVector2Array([root - across * 30.0, root + across * 30.0, root + hang * long + across * 20.0, root + hang * long - across * 20.0]))
 	ink.knock(RisoPrint.ALL_PLATES, plates)
-	ink.ink(RisoPrint.PINK, 1.0, plates)
+	ink.ink(Plate.PINK, 1.0, plates)

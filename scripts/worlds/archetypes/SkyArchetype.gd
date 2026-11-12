@@ -1,8 +1,12 @@
 class_name SkyArchetype
 extends Archetype
-## The sky: clusters of floating islands of cloud (wfc_images/sky_islands.png, drawn by
-## tests/make_sky_sample.gd, collapsed unturned) over an open drop, bigger than a cave level of its
-## depth (SCALE) and open all round. Its gates are gaps between islands crossed on the wind a vane
+## The sky: clusters of floating islands of cloud over an open drop, bigger than a cave level of its
+## depth (SCALE) and open all round. The clusters are its sample's own (wfc_images/sky_islands.png,
+## kept in tests/make_sky_sample.gd): each cluster painted on the sample is a sample of its own,
+## every cluster of a level is collapsed afresh from one of them, in bands across the level
+## (WaveFunctionCollapse.collapse_clusters), and
+## the layout reads the clusters back from what was laid (read_clusters) and links them with
+## causeways; it clears, stamps and grows nothing of its own. Its gates are gaps between islands crossed on the wind a vane
 ## sets blowing (cut_gates, Chasms.add_gap, Vane, Wind). Pads, clouds that give way, updrafts,
 ## swooping birds, shielded enemies and rebounding shots live there (populate), and a balloon is
 ## moored in every one, to ride along the row on the level's wind, and a temple stands in some,
@@ -27,19 +31,11 @@ const SKY_WATCHERS_PER_K: float = 1.2
 ## Swooping birds (Bird) patrolling stretches of open sky.
 const BIRDS_PER_K: float = 0.9
 
-## The walls a rebounding shot bounces off before it bursts (a shield's hits are Shield.HP).
+## The walls a rebounding shot bounces off before it bursts (a shield's hits are Rules.SHIELD_HP).
 const BOUNCES: int = 2
 
-## A cluster of islands is an ellipse this many cells across and down from its centre (from, to).
-const ISLE_RX: Vector2i = Vector2i(6, 9)
-const ISLE_RY: Vector2i = Vector2i(4, 6)
-## Open air at least this wide between clusters side by side, or this tall between stacked ones.
-const ISLE_GAP: Vector2i = Vector2i(4, 3)
-## A cluster with less rock than this share of its area gets more islands (_stamp_islands).
-const ISLE_ROCK: float = 0.42
-
-## Rows of air kept clear under a keel (over whatever rock is below it).
-const KEEL_CLEAR: int = 2
+## A patch of cluster with less rock than this is no cluster (read_clusters): cleared to open sky.
+const ISLE_LEAST: int = 8
 
 ## Shore kept whole either side of an island gap taken as a chasm, and the narrowest gap taken
 ## (a run, a jump and a dash cover under 6 cells).
@@ -63,7 +59,7 @@ const SKY_SWITCH_REACH: int = 24
 ## BALLOON_CLEAR cells from every exit, picked by hashing the level seed (BALLOON_DEAL, no draw).
 const BALLOON_AIR: int = 5
 const BALLOON_CLEAR: int = 4
-const BALLOON_DEAL: int = 9300
+const BALLOON_DEAL: int = Salts.SKY_ARCHETYPE_BALLOON * Salts.STRIDE
 ## Its temple (build_temples), in TEMPLE_SHARE of sky levels (TEMPLE_DEAL, no draw): a building of
 ## built stone TEMPLE_WIDE cells across, standing on an island as a crag's tower does. From the
 ## bottom: a stone floor (its stylobate) let down onto the island's rock, with a footing of built
@@ -73,7 +69,7 @@ const BALLOON_DEAL: int = 9300
 ## middle; and a roof a row thick, walkable. TEMPLE_AIR rows of open air are kept over the roof, where
 ## the art draws its pediment; nothing is built into it or placed in its hall or over its roof.
 const TEMPLE_SHARE: float = 0.4
-const TEMPLE_DEAL: int = 9400
+const TEMPLE_DEAL: int = Salts.SKY_ARCHETYPE_TEMPLE * Salts.STRIDE
 const TEMPLE_WIDE: int = 7
 const TEMPLE_HALL: int = 3
 const TEMPLE_FOOTING: int = 3
@@ -88,6 +84,7 @@ func _init() -> void:
 	decor = &"sky"
 	sample = SAMPLE
 	symmetry = 1
+	clustered = true
 	scale = SCALE
 	chasmed = true
 	crossing = LevelGen.Type.VANE
@@ -95,10 +92,9 @@ func _init() -> void:
 	open = true
 
 
-## Keep the collapsed islands only in clusters, linked by causeways (cluster_islands).
+## Read the clusters of islands the collapse gave, and link them by causeways (cluster_islands).
 func shape(w: LevelGen) -> void:
 	cluster_islands(w)
-	w.map_isles()
 
 
 ## The islands are too small and scattered for long floors to cut into: take the gaps between them
@@ -110,8 +106,8 @@ func cut_gates(w: LevelGen) -> void:
 	build_temples(w)
 	# Shores laid and air cleared can shut off a pocket of air: join (or fill) it again.
 	w.connect_caves()
-	# Joining pockets can tunnel through a shore's footing (the islands' keels leave many
-	# pockets): every gap's two shores get rock under them and air on and over them again.
+	# Joining pockets can tunnel through a shore's footing (the hulls' chambers are pockets):
+	# every gap's two shores get rock under them and air on and over them again.
 	for chasm: Dictionary in w.chasms:
 		for shore: Vector2i in [chasm["left"], chasm["right"]]:
 			if not w.is_ground(shore + Vector2i.DOWN):
@@ -126,134 +122,76 @@ func cut_gates(w: LevelGen) -> void:
 func room(w: LevelGen, v: Vector2i, grow: int) -> bool:
 	return w.in_isle(v, grow)
 
-## Sky levels: keep the collapsed islands only in clusters (ellipses ISLE_RX by ISLE_RY cells,
-## thrown at random and kept ISLE_GAP apart), clearing the rest to open air; fill out a thin
-## cluster with more islands (_stamp_islands); then link the clusters (link_isles).
+## Sky levels: read the clusters of islands the collapse gave (read_clusters), then link them
+## (link_isles). Nothing is laid here but the causeways: the islands are the collapse's own.
 static func cluster_islands(w: LevelGen) -> void:
-	for attempt: int in range(maxi(600, w.size.x * w.size.y / 4)):
-		var r: Vector2i = Vector2i(w.rng.randi_range(ISLE_RX.x, ISLE_RX.y), w.rng.randi_range(ISLE_RY.x, ISLE_RY.y))
-		if w.size.x - 2 * r.x - 4 <= 0 or w.size.y - 2 * r.y - 6 <= 0:
-			continue
-		var c: Vector2i = Vector2i(w.rng.randi_range(r.x + 2, w.size.x - r.x - 3), w.rng.randi_range(r.y + 2, w.size.y - r.y - 4))
-		var apart: bool = true
-		for isle: Array in w.isles:
-			var o: Vector2i = isle[0]
-			var q: Vector2i = isle[1]
-			var gx: int = absi(c.x - o.x) - r.x - q.x
-			var gy: int = absi(c.y - o.y) - r.y - q.y
-			if gx < ISLE_GAP.x and gy < ISLE_GAP.y:
-				apart = false
-				break
-		if apart:
-			w.isles.append([c, r])
-	# The clusters are thrown: map them, so telling whether a cell is in one (in_isle, asked tens
-	# of thousands of times below) is a lookup rather than a test against every cluster.
-	w.map_isles()
-	var cleared: Array[Vector2i] = []
-	for x: int in range(w.size.x):
-		for y: int in range(w.size.y):
-			var v: Vector2i = Vector2i(x, y)
-			if w.type_at(v) != LevelGen.Type.EMPTY and not w.in_isle(v):
-				cleared.append(v)
-	w._to_open_all(cleared)
-	for isle: Array in w.isles:
-		var c: Vector2i = isle[0]
-		var r: Vector2i = isle[1]
-		var rock: int = 0
-		var area: int = 0
-		for x: int in range(c.x - r.x, c.x + r.x + 1):
-			for y: int in range(c.y - r.y, c.y + r.y + 1):
-				if w.in_isle(Vector2i(x, y)):
-					area += 1
-					if w.is_ground(Vector2i(x, y)):
-						rock += 1
-		if float(rock) < float(area) * ISLE_ROCK:
-			_stamp_islands(w, c, r, int(float(area) * ISLE_ROCK) - rock)
-	taper_islands(w)
+	read_clusters(w)
 	link_isles(w)
 
 
-## Floating islands taper underneath: under every run of rock with open air below it (each
-## stretch of an island's underside, as the islands lie before any keel), rows of rock narrowing
-## toward a point, a cell off each side a row (now and then a side holds), as deep as the run
-## allows. A keel stops before it strays past its cluster, meets anything, or comes within
-## KEEL_CLEAR rows of rock below (room to stand on what is beneath). Laid before the clusters
-## are linked, so the causeways go round them.
-static func taper_islands(w: LevelGen) -> void:
-	var runs: Array = []
-	for y: int in range(w.size.y - 1):
-		var x: int = 0
-		while x < w.size.x:
-			var under: Callable = func(cx: int) -> bool: return w.is_ground(Vector2i(cx, y)) and w.type_at(Vector2i(cx, y + 1)) == LevelGen.Type.EMPTY
-			if not under.call(x):
-				x += 1
-				continue
-			var from: int = x
-			while x < w.size.x and under.call(x):
-				x += 1
-			runs.append([from, x - 1, y + 1])
-	for run: Array in runs:
-		_keel(w, int(run[0]), int(run[1]), int(run[2]))
-
-
-## A keel under the run of rock from `a` to `b` on the row over `y`.
-static func _keel(w: LevelGen, a: int, b: int, y: int) -> void:
-	while true:
-		a += 1 if w.rng.randf() < 0.8 else 0
-		b -= 1 if w.rng.randf() < 0.8 else 0
-		if a > b:
-			return
-		for x: int in range(a, b + 1):
-			var v: Vector2i = Vector2i(x, y)
-			if not w.is_valid(v) or w.type_at(v) != LevelGen.Type.EMPTY or not w.in_isle(v, 4):
-				return
-			for d: int in range(1, KEEL_CLEAR + 1):
-				if w.is_valid(v + Vector2i(0, d)) and w.type_at(v + Vector2i(0, d)) != LevelGen.Type.EMPTY:
-					return
-		for x: int in range(a, b + 1):
-			w._to_rock(Vector2i(x, y))
-		y += 1
-
-
-## Islands laid in the cluster at `c` (radii `r`) until about `want` more cells of rock: each as
-## the sample draws them (tests/make_sky_sample.gd), a flat top 3 to 6 cells wide over a body that
-## tapers a cell each side per row below the first (2 or 3 rows). One cell beside and below,
-## and two rows above stay open, leaving headroom and hops between the denser shelves.
-static func _stamp_islands(w: LevelGen, c: Vector2i, r: Vector2i, want: int) -> void:
-	for attempt: int in range(350):
-		if want <= 0:
-			return
-		var span: int = w.rng.randi_range(3, 6)
-		var h: int = w.rng.randi_range(2, 3)
-		var at: Vector2i = Vector2i(w.rng.randi_range(c.x - r.x, c.x + r.x - span), w.rng.randi_range(c.y - r.y + 2, c.y + r.y - h))
-		var fits: bool = true
-		for x: int in range(at.x - 1, at.x + span + 1):
-			for y: int in range(at.y - 2, at.y + h + 1):
-				var v: Vector2i = Vector2i(x, y)
-				if not w.is_valid(v) or w.type_at(v) != LevelGen.Type.EMPTY:
-					fits = false
-					break
-			if not fits:
-				break
-		for x: int in [at.x, at.x + span - 1]:
-			fits = fits and w.in_isle(Vector2i(x, at.y))
-		if not fits:
+## The clusters of islands, read from the collapse: the sky's sample paints the air of a cluster
+## white and the open sky round it another colour (LevelGen.SKY), and the collapse keeps them apart,
+## so each patch of cells that is not open sky (LevelGen.open_sky), taken with its neighbours left,
+## right, up and down, is a cluster. A patch with less than ISLE_LEAST cells of rock is no cluster:
+## it is cleared to open sky. Each cluster is noted in LevelGen.isles as the box round it, and its
+## cells in LevelGen.isle_of. No draw: the patches are found in a fixed order.
+static func read_clusters(w: LevelGen) -> void:
+	var cells: int = w.size.x * w.size.y
+	w.isle_of.resize(cells)
+	w.isle_of.fill(-1)
+	var seen: PackedByteArray = PackedByteArray()
+	seen.resize(cells)
+	seen.fill(0)
+	var cleared: Array[Vector2i] = []
+	for start: int in range(cells):
+		if seen[start] == 1 or (not w.open_sky.is_empty() and w.open_sky[start] == 1):
 			continue
-		for d: int in range(h):
-			for x: int in range(at.x + maxi(0, d - 1), at.x + span - maxi(0, d - 1)):
-				w._to_rock(Vector2i(x, at.y + d))
-				want -= 1
+		var patch: PackedInt32Array = PackedInt32Array([start])
+		seen[start] = 1
+		var rock: int = 0
+		var lo: Vector2i = w.size
+		var hi: Vector2i = Vector2i.ZERO
+		var head: int = 0
+		while head < patch.size():
+			var i: int = patch[head]
+			head += 1
+			@warning_ignore("integer_division")
+			var v: Vector2i = Vector2i(i / w.size.y, i % w.size.y)
+			if w.types[i] == LevelGen.Type.GROUND:
+				rock += 1
+			lo = Vector2i(mini(lo.x, v.x), mini(lo.y, v.y))
+			hi = Vector2i(maxi(hi.x, v.x), maxi(hi.y, v.y))
+			for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+				var n: Vector2i = v + d
+				if not w.is_valid(n):
+					continue
+				var k: int = n.x * w.size.y + n.y
+				if seen[k] == 0 and (w.open_sky.is_empty() or w.open_sky[k] == 0):
+					seen[k] = 1
+					patch.append(k)
+		if rock < ISLE_LEAST:
+			for i: int in patch:
+				if w.types[i] != LevelGen.Type.EMPTY:
+					@warning_ignore("integer_division")
+					cleared.append(Vector2i(i / w.size.y, i % w.size.y))
+			continue
+		for i: int in patch:
+			w.isle_of[i] = w.isles.size()
+		@warning_ignore("integer_division")
+		w.isles.append([(lo + hi) / 2, Vector2i(maxi(1, (hi.x - lo.x + 1) / 2), maxi(1, (hi.y - lo.y + 1) / 2))])
+	w._to_open_all(cleared)
+	w.map_isles()
 
 
-## The floors (open, rock under) of cluster `i`.
+## The floors (open, rock under, open over) of cluster `i`.
 static func _isle_floors(w: LevelGen, i: int) -> Array[Vector2i]:
 	var c: Vector2i = w.isles[i][0]
 	var r: Vector2i = w.isles[i][1]
 	var out: Array[Vector2i] = []
-	for x: int in range(c.x - r.x, c.x + r.x + 1):
-		for y: int in range(c.y - r.y - 1, c.y + r.y + 1):
+	for x: int in range(c.x - r.x - 1, c.x + r.x + 2):
+		for y: int in range(c.y - r.y - 1, c.y + r.y + 2):
 			var v: Vector2i = Vector2i(x, y)
-			if w.is_valid(v) and w.type_at(v) == LevelGen.Type.EMPTY and w.is_ground(v + Vector2i.DOWN) and w.is_valid(v + Vector2i.UP) and w.type_at(v + Vector2i.UP) == LevelGen.Type.EMPTY:
+			if w.is_valid(v) and w.isle_of[x * w.size.y + y] == i and w.type_at(v) == LevelGen.Type.EMPTY and w.is_ground(v + Vector2i.DOWN) and w.is_valid(v + Vector2i.UP) and w.type_at(v + Vector2i.UP) == LevelGen.Type.EMPTY:
 				out.append(v)
 	return out
 
@@ -294,21 +232,25 @@ static func link_isles(w: LevelGen) -> void:
 			linked.append(j)
 		else:
 			dropped.append(j)
-	# A cluster no causeway reaches is cleared away, so nothing is placed out of reach.
+	# A cluster no causeway reaches is cleared away, so nothing is placed out of reach: its cells
+	# are open sky, and the clusters after it move up a place.
+	if dropped.is_empty():
+		return
 	dropped.sort()
 	dropped.reverse()
+	var cleared: Array[Vector2i] = []
 	for j: int in dropped:
-		var c: Vector2i = w.isles[j][0]
-		var r: Vector2i = w.isles[j][1]
 		w.isles.remove_at(j)
-		w.map_isles()
-		for x: int in range(c.x - r.x, c.x + r.x + 1):
-			for y: int in range(c.y - r.y, c.y + r.y + 1):
-				var v: Vector2i = Vector2i(x, y)
-				if w.is_valid(v) and w.is_ground(v) and not w.in_isle(v):
-					var d: Vector2 = Vector2(float(v.x - c.x) / float(r.x), float(v.y - c.y) / float(r.y))
-					if d.length_squared() <= 1.0:
-						w._to_open(v)
+		for i: int in range(w.isle_of.size()):
+			if w.isle_of[i] == j:
+				w.isle_of[i] = -1
+				if w.types[i] != LevelGen.Type.EMPTY:
+					@warning_ignore("integer_division")
+					cleared.append(Vector2i(i / w.size.y, i % w.size.y))
+			elif w.isle_of[i] > j:
+				w.isle_of[i] -= 1
+	w._to_open_all(cleared)
+	w.map_isles()
 
 
 ## A causeway between clusters `i` and `j`: from a floor of one up or across to a floor of the
@@ -523,7 +465,7 @@ func finish(w: LevelGen, _def: NextWorldDef) -> void:
 
 ## A temple in TEMPLE_SHARE of sky levels (see TEMPLE_SHARE), built where it fits (_temple_site):
 ## of those, the one needing the least footing, ties by a hash of the level seed. Its altar's extra
-## info is its lock's sequence of winds (Temple.LENGTH steps, each +1 right or -1 left, repeats and
+## info is its lock's sequence of winds (Rules.TEMPLE_LENGTH steps, each +1 right or -1 left, repeats and
 ## all), dealt by the level seed. Kept in LevelGen.temples.
 static func build_temples(w: LevelGen) -> void:
 	if not temple_dealt(w.seed_for_colors):
@@ -619,6 +561,9 @@ static func _temple(w: LevelGen, box: Rect2i) -> void:
 		while not w.is_ground(under):
 			built[under] = true
 			under += Vector2i.DOWN
+		# The island's rock it stands on is kept whole, so no tunnel joining the island's pockets
+		# (connect_caves) is cut from under a column of it.
+		w.kept_whole[under] = true
 	for v: Vector2i in built:
 		w._to_rock(v)
 		w.masonry[v] = true
@@ -645,7 +590,7 @@ static func _temple(w: LevelGen, box: Rect2i) -> void:
 	@warning_ignore("integer_division")
 	var altar: Vector2i = Vector2i(x0 + box.size.x / 2, base - 1)
 	var winds: Array = []
-	var length: int = Temple.LENGTH.x + posmod(Rules.level_seed(w.seed_for_colors, TEMPLE_DEAL + 100), Temple.LENGTH.y - Temple.LENGTH.x + 1)
+	var length: int = Rules.TEMPLE_LENGTH.x + posmod(Rules.level_seed(w.seed_for_colors, TEMPLE_DEAL + 100), Rules.TEMPLE_LENGTH.y - Rules.TEMPLE_LENGTH.x + 1)
 	for i: int in range(length):
 		winds.append(1 if posmod(Rules.level_seed(w.seed_for_colors, TEMPLE_DEAL + 1 + i), 2) == 0 else -1)
 	w.put(altar, LevelGen.Type.TEMPLE, winds)
@@ -685,7 +630,7 @@ static func place_balloon(w: LevelGen) -> void:
 ##   floor beside the shaft, so it lifts you onto a ledge;
 ## - shields on a share of the wisps and hoppers, and rebounding shots for a share of watchers.
 func populate(w: LevelGen, _def: NextWorldDef) -> void:
-	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	var start: Vector2i = w.exits.get(Ways.Exit.BACK, Vector2i(-1, -1))
 	# Clouds that give way: whole runs of ledge at a time.
 	var ledges: Array[Vector2i] = w.objects_of(LevelGen.Type.PLATFORM)
 	var seen: Dictionary = {}
@@ -793,6 +738,6 @@ func populate(w: LevelGen, _def: NextWorldDef) -> void:
 	for v: Vector2i in foes:
 		var cell: LevelGen.Cell = w.get_cell(v)
 		if cell.type in [LevelGen.Type.ENEMY, LevelGen.Type.HOPPER] and w.rng.randf() < SHIELD_SHARE:
-			cell.mods["shield"] = Shield.HP
+			cell.mods["shield"] = Rules.SHIELD_HP
 		elif cell.type == LevelGen.Type.SHOOTER and w.rng.randf() < BOUNCE_SHARE:
 			cell.mods["bounces"] = BOUNCES

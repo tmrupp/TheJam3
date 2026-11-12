@@ -49,5 +49,5 @@ func _touch(body: Node) -> void:
 		return
 	if map_info.touch_lodestone(spell):
 		touched_at = now()
-		RisoFx.burst(&"gain", global_position + Vector2(0, -60), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
+		RisoFx.burst(&"gain", global_position + Vector2(0, -60), Vector2.ZERO, [Plate.ACCENT, Plate.BLUE])
 		Wound.shake(8.0, 0.25)

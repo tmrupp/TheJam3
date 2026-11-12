@@ -79,11 +79,11 @@ func _process(_delta: float) -> void:
 		else:
 			faint.append(smear)
 	# Fresh slime is solid danger pink with a wet paper glint; it thins to a faint stain as it dries.
-	ink.ink(RisoPrint.PINK, 0.85, wet)
-	ink.ink(RisoPrint.PINK, 0.35, faint)
+	ink.ink(Plate.PINK, 0.85, wet)
+	ink.ink(Plate.PINK, 0.35, faint)
 	var glints: Array[PackedVector2Array] = []
 	for s: Vector4 in smears:
 		if s.z < HURT_FOR * 0.6:
 			glints.append(RisoShapes.ellipse(Vector2(s.x - 6.0 * s.w, s.y - 4.0), 4.0 * s.w, 1.2, 8))
-	ink.knock([RisoPrint.PINK, RisoPrint.NIGHT, RisoPrint.BLUE], glints)
+	ink.knock([Plate.PINK, Plate.NIGHT, Plate.BLUE], glints)
 	ink.finish()

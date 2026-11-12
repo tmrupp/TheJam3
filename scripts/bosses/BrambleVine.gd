@@ -11,8 +11,6 @@ extends Node2D
 ## (Bramble.fury), as the burst bulb's sap reaches them. A vine grown out of a garden wall on its own
 ## (GardenVine, as a seed pod is a bulb on its own) has no bramble.
 
-const STUNNER: PackedScene = preload("res://prefabs/stunner.tscn")
-const HIT_BOX: PackedScene = preload("res://prefabs/hit_box.tscn")
 ## Its cadence (seconds): resting in the rock, warning (its tell: never under Difficulty.TELL_MIN,
 ## however hasted), growing out, holding, pulling back.
 const REST: float = 1.4
@@ -33,8 +31,7 @@ const TOUCH_MIN: float = 20.0
 ## How fast it whips back into the rock, parried or withering (its full length a second, times).
 const RECOIL_RATE: float = 5.0
 ## Salt for the level seed: how far through its cadence it starts, so vines are out of step.
-const PHASE_DEAL: int = 6650
-
+const PHASE_DEAL: int = Salts.BRAMBLE_VINE_PHASE * Salts.STRIDE
 ## The bramble it belongs to, its wall cell, the way out of the rock, and the bulb it feeds from.
 var bramble: Bramble
 var cell: Vector2i = Vector2i.ZERO
@@ -54,10 +51,10 @@ func _init(of: Bramble = null, wall: Vector2i = Vector2i.ZERO, out: Vector2 = Ve
 	bramble = of
 	cell = wall
 	way = out
-	stunner = STUNNER.instantiate() as Stunner
+	stunner = Prefabs.make(Prefabs.STUNNER) as Stunner
 	stunner.name = "Stunner"
 	add_child(stunner)
-	hit_box = HIT_BOX.instantiate() as HitBox
+	hit_box = Prefabs.make(Prefabs.HIT_BOX) as HitBox
 	hit_box.name = "HitBox"
 	hit_box.rotation = out.angle()
 	add_child(hit_box)

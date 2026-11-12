@@ -25,9 +25,7 @@ const SCALE: Vector2 = Vector2(1.35, 1.12)
 const FONTS_PER_K: float = 2.5
 const FONT_APART: int = 9
 const FONT_CLEAR: int = 4
-const FONT_DEAL: int = 6200
-
-
+const FONT_DEAL: int = Salts.CEMETERY_ARCHETYPE_FONT * Salts.STRIDE
 func _init() -> void:
 	name = &"cemetery"
 	title = "The Cemetery"
@@ -64,7 +62,7 @@ func finish(w: LevelGen, def: NextWorldDef) -> void:
 ## free again, as they were before the fonts were laid. A crypt's large font, its prize, stays.
 static func dry_up(w: LevelGen) -> void:
 	for v: Vector2i in w.objects_of(LevelGen.Type.SNUFFER):
-		if Snuffer.capacity(w, v) > Snuffer.CHARGES:
+		if Rules.font_capacity(w, v) > Rules.FONT_CHARGES:
 			continue
 		w.set_kind(v, LevelGen.Type.EMPTY)
 		w.objects.erase(v)
@@ -75,7 +73,7 @@ static func dry_up(w: LevelGen) -> void:
 ## Snuffing fonts about the terraces (see FONTS_PER_K), on free floors with room over them, in an
 ## order hashed from the level seed, each kept apart from the other fonts.
 static func scatter_fonts(w: LevelGen) -> void:
-	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	var start: Vector2i = w.exits.get(Ways.Exit.BACK, Vector2i(-1, -1))
 	var fonts: Array[Vector2i] = w.objects_of(LevelGen.Type.SNUFFER)
 	var spots: Array[Vector2i] = w.free_floors().filter(func(v: Vector2i) -> bool:
 		return w.is_valid(v + Vector2i.UP) and w._open(v + Vector2i.UP) and not w._crowds_exit(v) and LevelGen.dist(v, start) >= FONT_CLEAR)
@@ -96,7 +94,7 @@ static func scatter_fonts(w: LevelGen) -> void:
 ## lit one, see MothSwarm) and more in the open air; banks of sleep fog over floors (SleepFog); and
 ## wraiths, which drift through rock at the wizard (Wraith), never near the way in.
 func populate(w: LevelGen, _def: NextWorldDef) -> void:
-	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	var start: Vector2i = w.exits.get(Ways.Exit.BACK, Vector2i(-1, -1))
 	var air: Array[Vector2i] = w.empties_where(func(v: Vector2i) -> bool: return w.type_at(v) == LevelGen.Type.EMPTY and w._wide_open(v))
 	var swarms: Array[Vector2i] = []
 	for lantern: Vector2i in w.objects_of(LevelGen.Type.CHECKPOINT):

@@ -16,10 +16,8 @@ const NONE: int = -999999999
 const REACH: int = 3
 const TRAP: int = 1
 ## Salts for the run seed: where it is first met, and where it wanders.
-const MEET_DEAL: int = 7700
-const WANDER_DEAL: int = 7710
-
-
+const MEET_DEAL: int = Salts.WHALE_HUNT_MEET * Salts.STRIDE
+const WANDER_DEAL: int = Salts.WHALE_HUNT_WANDER * Salts.STRIDE
 ## The row it swims: the sky's top row, its gate row.
 static func row() -> int:
 	return Bosses.row_of(&"whale")

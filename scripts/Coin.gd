@@ -11,7 +11,7 @@ func touch (other: Node) -> void:
 		player.collect(value)
 		RisoFx.burst(&"gain", global_position)
 		if value > 1:
-			RisoFx.burst(&"gain", global_position, Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.EYE])
+			RisoFx.burst(&"gain", global_position, Vector2.ZERO, [Plate.ACCENT, Plate.EYE])
 		if MapInfo.instance != null:
 			MapInfo.instance.mark_taken(self)
 			if value > 1:

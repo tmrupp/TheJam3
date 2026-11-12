@@ -10,8 +10,7 @@ class_name Switch
 
 ## The share of switches that start on, and the salt for the level seed when dealing them.
 const START_ON_SHARE: float = 0.33
-const START_DEAL: int = 9200
-
+const START_DEAL: int = Salts.SWITCH_START * Salts.STRIDE
 @onready var player: Player = Stage.player()
 
 var map_info: MapInfo
@@ -78,9 +77,9 @@ func flip() -> void:
 				# back on.
 				(node as Bell).switched(on)
 	if on:
-		RisoFx.burst(&"gain", global_position + Vector2(0, -30), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
+		RisoFx.burst(&"gain", global_position + Vector2(0, -30), Vector2.ZERO, [Plate.ACCENT, Plate.BLUE])
 	else:
-		RisoFx.burst(&"hit", global_position + Vector2(0, -30), Vector2.UP, [RisoPrint.BLUE, RisoPrint.NIGHT])
+		RisoFx.burst(&"hit", global_position + Vector2(0, -30), Vector2.UP, [Plate.BLUE, Plate.NIGHT])
 
 
 ## A hex bolt turns it on, never off (HexBolt strikes everything in the hex_target group).

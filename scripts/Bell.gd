@@ -63,7 +63,7 @@ func unchained() -> bool:
 func interaction_hint() -> Dictionary:
 	if unchained():
 		return {}
-	return {"switch": true, "sigil": Sigils.of(self)} if lock == SWITCH_LOCK else {"key_color": lock}
+	return {"switch": true, "sigil": MapInfo.sigil_of(self)} if lock == SWITCH_LOCK else {"key_color": lock}
 
 
 ## Interact: unlock the padlock with a key if it has one, then ring.
@@ -83,7 +83,7 @@ func use() -> void:
 func switched(on: bool) -> void:
 	if on:
 		since_freed = 0.0
-		RisoFx.burst(&"hit", global_position + Vector2(30, -110), Vector2.DOWN, [RisoPrint.NIGHT, RisoPrint.BLUE])
+		RisoFx.burst(&"hit", global_position + Vector2(30, -110), Vector2.DOWN, [Plate.NIGHT, Plate.BLUE])
 	elif not rung():
 		rattle()
 
@@ -94,7 +94,7 @@ func open() -> void:
 		return
 	map_info.free_bell(get_meta(&"cell"))
 	since_freed = 0.0
-	RisoFx.burst(&"hit", global_position + Vector2(30, -110), Vector2.DOWN, [RisoPrint.NIGHT, RisoPrint.BLUE])
+	RisoFx.burst(&"hit", global_position + Vector2(30, -110), Vector2.DOWN, [Plate.NIGHT, Plate.BLUE])
 
 
 func rattle() -> void:
@@ -107,7 +107,7 @@ func ring() -> void:
 		return
 	since_rung = 0.0
 	map_info.ring_bell(chasm, get_meta(&"cell"))
-	RisoFx.burst(&"gain", global_position + Vector2(0, -90), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
+	RisoFx.burst(&"gain", global_position + Vector2(0, -90), Vector2.ZERO, [Plate.ACCENT, Plate.BLUE])
 	Wound.shake(6.0, 0.25)
 
 

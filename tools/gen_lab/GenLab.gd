@@ -15,9 +15,10 @@ extends Control
 ## sample and settings. Nothing here changes the game until a sample is saved.
 ## godot --path . res://tools/gen_lab/gen_lab.tscn   (or open the scene in the editor and press F6)
 
-## The sample's colours: open air, rock, thorns (LevelGen.color_to_type).
-const INKS: Array[Color] = [Color.WHITE, Color.BLACK, Color.RED]
-const INK_NAMES: Array[String] = ["Open", "Rock", "Thorns"]
+## The sample's colours: open air, rock, thorns, and the open sky between the sky's clusters
+## (LevelGen.color_to_type).
+const INKS: Array[Color] = [Color.WHITE, Color.BLACK, Color.RED, LevelGen.SKY]
+const INK_NAMES: Array[String] = ["Open", "Rock", "Thorns", "Open sky"]
 ## How a level is drawn, one pixel a cell: the terrain, then what stands in it.
 const SHOW_OPEN: Color = Color(0.93, 0.91, 0.86)
 const SHOW_ROCK: Color = Color(0.16, 0.2, 0.18)
@@ -221,7 +222,7 @@ func _build_ui() -> void:
 	var files: HBoxContainer = HBoxContainer.new()
 	left.add_child(files)
 	_button(files, "Revert", func() -> void: _load_sample(sample_path), "Back to the sample as it was last loaded or saved.")
-	_button(files, "Save", func() -> void: _save(sample_path), "Write the sample over its file in wfc_images. The game reads it once the project is imported again.\nA sample drawn by a tests/make_*_sample.gd script is remade by it: edit the script for good.")
+	_button(files, "Save", func() -> void: _save(sample_path), "Write the sample over its file in wfc_images. The game reads it once the project is imported again.\nA sample drawn by a tests/make_*_sample.gd script is remade by it: edit the script for good.\nThe crags', the institute's and the sky's are kept in theirs as painted: run the script with \"-- fold\" after saving, to write the picture into it.")
 	_save_as = LineEdit.new()
 	_save_as.placeholder_text = "new_sample"
 	_save_as.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -645,9 +646,14 @@ static func _level(wfc: Node, texture: ImageTexture, at: Vector2i, job: Dictiona
 	wfc.set("pattern_size", int(job["pattern"]))
 	var cells: Array = []
 	var tries: int = 0
-	for attempt: int in range(TRIES):
+	if def.clustered:
+		# A sheet of clusters (the sky's) is collapsed cluster by cluster, as the game does: the
+		# pattern size and symmetry above do not come into it.
+		tries = 1
+		cells = wfc.call("collapse_clusters", texture.get_image(), level_size, def.gen_seed)
+	for attempt: int in range(0 if def.clustered else TRIES):
 		tries += 1
-		wfc.call("set_seed", def.gen_seed if attempt == 0 else Rules.level_seed(def.gen_seed, 1000 + attempt))
+		wfc.call("set_seed", def.gen_seed if attempt == 0 else Rules.level_seed(def.gen_seed, Salts.COLLAPSE_RETRY * Salts.STRIDE + attempt))
 		cells = wfc.call("collapse")
 		if not cells.is_empty():
 			break

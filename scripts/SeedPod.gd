@@ -25,7 +25,7 @@ const SEED_SPEED: float = 240.0
 const OUT: float = BrambleBulb.OUT
 const MOUTH: float = BrambleBulb.MOUTH - BrambleBulb.OUT
 ## Salt for the level seed, for how far into its first swell it starts (so pods do not spit together).
-const SWELL_DEAL: int = 6650
+const SWELL_DEAL: int = Salts.SEED_POD_SWELL * Salts.STRIDE
 ## Burst, its seed is flung out the way it faces: SHOVE px from its middle, stopping SHOVE_CLEAR px
 ## short of any rock in the way (felt for every SHOVE_STEP px), over SHOVE_TIME seconds in an arc
 ## SHOVE_ARC px high.
@@ -142,7 +142,7 @@ func spit(at: Vector2) -> void:
 	shot.setup((at - mouth()).normalized() * SEED_SPEED, [rb], rb)
 	spat += 1
 	spat_at = GameClock.now()
-	RisoFx.burst(&"impact", mouth(), way, [RisoPrint.PINK, RisoPrint.ACCENT])
+	RisoFx.burst(&"impact", mouth(), way, [Plate.PINK, Plate.ACCENT])
 
 
 ## Burst: its seed is flung out away from it (shoved), to be carried (KeyRing.SEED).

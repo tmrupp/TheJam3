@@ -1,8 +1,8 @@
 extends Node
 
-var jump_particles: Resource = preload("res://prefabs/jump_particles.tscn")
+const JUMP_PARTICLES: String = "res://prefabs/jump_particles.tscn"
 
 func Jump() -> void:
-	var jp: GPUParticles2D = jump_particles.instantiate()
+	var jp: GPUParticles2D = Prefabs.make(JUMP_PARTICLES) as GPUParticles2D
 	add_child(jp)
 	jp.emitting = true

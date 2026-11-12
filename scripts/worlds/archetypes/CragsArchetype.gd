@@ -135,13 +135,13 @@ const NEST_APART: int = 8
 ## seed (CROSSBOW_DEAL, no draw), at most CROSSBOWS_MOST to a tower (more on a harder preset,
 ## Difficulty.foes).
 const CROSSBOW_SHARE: float = 0.85
-const CROSSBOW_DEAL: int = 8150
+const CROSSBOW_DEAL: int = Salts.CRAGS_ARCHETYPE_CROSSBOW * Salts.STRIDE
 const CROSSBOWS_MOST: int = 3
 ## Crossbows built into the keeps' walls: each spot where one fits (see place_keep_crossbows) holds
 ## one by a chance of KEEP_CROSSBOW_SHARE (more on a harder preset, Difficulty.foes), dealt by the
 ## level seed (KEEP_CROSSBOW_DEAL, no draw), at least KEEP_CROSSBOW_APART cells from another.
 const KEEP_CROSSBOW_SHARE: float = 0.4
-const KEEP_CROSSBOW_DEAL: int = 8230
+const KEEP_CROSSBOW_DEAL: int = Salts.CRAGS_ARCHETYPE_KEEP_CROSSBOW * Salts.STRIDE
 const KEEP_CROSSBOW_APART: int = 3
 ## What a watchtower's top room holds (place_tower_rewards), the towers taking turns down this list
 ## from a start dealt by the level seed (TOWER_DEAL, no draw): one of the level's keys, the switch of
@@ -150,13 +150,13 @@ const KEEP_CROSSBOW_APART: int = 3
 ## a mending bowl, if its top room has a floor to stand it on. (A hoard tower's top room holds its
 ## stars. The mending draught, Draught, is set aside for now: nothing places it.)
 const TOWER_REWARDS: Array[StringName] = [&"key", &"switch", &"well"]
-const TOWER_DEAL: int = 7310
+const TOWER_DEAL: int = Salts.CRAGS_ARCHETYPE_TOWER * Salts.STRIDE
 const TOWER_SWITCH_NEAR: int = 24
 ## Cold towers: a watchtower above the bottom tier is cold by a chance of COLD_SHARE, dealt by the
 ## level seed (COLD_DEAL, no draw): its switch does nothing until an empowered strike on its spire
 ## wakes it (MapInfo.tower_cold, Spire).
 const COLD_SHARE: float = 0.25
-const COLD_DEAL: int = 7420
+const COLD_DEAL: int = Salts.CRAGS_ARCHETYPE_COLD * Salts.STRIDE
 ## The lodestone (place_lodestone): on a free floor of the upper half of the tiers, reached from the
 ## gondola's track without passing cracked rock, with open air over it, and within LODESTONE_SIGHT
 ## cells of the track with no rock between (a ride past shows it); picked among those spots by the
@@ -229,7 +229,7 @@ func populate(w: LevelGen, def: NextWorldDef) -> void:
 ## Rock-bugs (RockBug): BUGS_PER_K, each in open air against rock (under it, or beside or over it),
 ## at least BUG_CLEAR cells from the way in and BUG_APART from one another.
 static func place_bugs(w: LevelGen) -> void:
-	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	var start: Vector2i = w.exits.get(Ways.Exit.BACK, Vector2i(-1, -1))
 	var spots: Array[Vector2i] = w.empties_where(func(v: Vector2i) -> bool: return w.type_at(v) == LevelGen.Type.EMPTY and LevelGen.dist(v, start) >= BUG_CLEAR \
 			and [Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP].any(func(d: Vector2i) -> bool: return w.is_ground(v + d)))
 	w.put_each(w.pick_apart(spots, w.foes_per_area(BUGS_PER_K), BUG_APART), LevelGen.Type.BUG)
@@ -253,7 +253,7 @@ func finish(w: LevelGen, def: NextWorldDef) -> void:
 ## Stalactites (Stalactite): STALACTITES_PER_K, each in an empty cell under plain rock with at least
 ## STALACTITE_DROP open cells under it, clear of the gondola's line and the way in (see the consts).
 static func place_stalactites(w: LevelGen) -> void:
-	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	var start: Vector2i = w.exits.get(Ways.Exit.BACK, Vector2i(-1, -1))
 	var spots: Array[Vector2i] = w.empties_where(func(v: Vector2i) -> bool:
 		if w.type_at(v) != LevelGen.Type.EMPTY or w.keep_clear.has(v) or LevelGen.dist(v, start) < STALACTITE_CLEAR:
 			return false
@@ -708,7 +708,8 @@ const HOARD_TAKES: Array[LevelGen.Type] = [LevelGen.Type.PLATFORM, LevelGen.Type
 
 ## A hoard tower's stars (TOWER_HOARD), spread along its top room a row over its floor, in cells
 ## still free. Where ledges or foes laid before them leave too few free, the stars take their place
-## (HOARD_TAKES, in that order, then across), so every hoard tower holds its TOWER_HOARD stars.
+## (HOARD_TAKES, in that order, then across), so every hoard tower holds its TOWER_HOARD stars,
+## but one where a lift or a teleporter was laid in its top room first: those keep their place.
 static func place_hoards(w: LevelGen) -> void:
 	for tower: Dictionary in w.towers:
 		if not tower["hoard"]:
@@ -802,7 +803,7 @@ static func _bring_key(w: LevelGen, tower: Dictionary, at: Vector2i) -> bool:
 ## and not in a tower's top room already) to `at` in it, if `at` is reached from the way in with
 ## that gate shut, so the gate can still be opened from this side; whether one was moved.
 static func _bring_switch(w: LevelGen, tower: Dictionary, at: Vector2i) -> bool:
-	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	var start: Vector2i = w.exits.get(Ways.Exit.BACK, Vector2i(-1, -1))
 	if not w.is_valid(start):
 		return false
 	var box: Rect2i = tower["box"]
@@ -825,7 +826,7 @@ static func _bring_switch(w: LevelGen, tower: Dictionary, at: Vector2i) -> bool:
 ## Rock-bug nests (see NESTS_PER_K), out on the cliff on free floors, outside every building, and
 ## not on rock a big thing under it needs for room (LevelGen.make_room carves that later).
 static func place_nests(w: LevelGen) -> void:
-	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	var start: Vector2i = w.exits.get(Ways.Exit.BACK, Vector2i(-1, -1))
 	var floors: Array[Vector2i] = w.free_floors().filter(func(v: Vector2i) -> bool:
 		return LevelGen.dist(v, start) >= NEST_CLEAR and not w.keep_clear.has(v) and not w.structures.has(v) and not _room_of_big(w, v + Vector2i.DOWN))
 	w.put_each(w.pick_apart(floors, w.foes_per_area(NESTS_PER_K), NEST_APART), LevelGen.Type.NEST)
@@ -1066,9 +1067,9 @@ static func _landing(w: LevelGen, gate: Vector2i, inner: int) -> void:
 ## the tiers they stand on (the switches were put in place_tower_switches, their sets filled in
 ## here). The circuit notes the sets as "masks" and the towers' tiers as "tiers".
 static func set_stations(w: LevelGen, _def: NextWorldDef) -> void:
-	if w.circuit.is_empty() or not w.exits.has(MapInfo.Exit.BACK):
+	if w.circuit.is_empty() or not w.exits.has(Ways.Exit.BACK):
 		return
-	var start: Vector2i = w.exits[MapInfo.Exit.BACK]
+	var start: Vector2i = w.exits[Ways.Exit.BACK]
 	var gates: Array[Vector2i] = w.circuit["gates"]
 	var open: int = 0
 	for i: int in range(gates.size()):
@@ -1086,7 +1087,7 @@ static func set_stations(w: LevelGen, _def: NextWorldDef) -> void:
 	# A side door into a tier with a tower must lead somewhere; into one without, it is left by the
 	# way it came in.
 	var sides: Array[int] = []
-	for exit: int in [MapInfo.Exit.LEFT, MapInfo.Exit.RIGHT]:
+	for exit: int in [Ways.Exit.LEFT, Ways.Exit.RIGHT]:
 		if w.exits.has(exit) and not w.shut.has(exit):
 			var t: int = tier_of(w, (w.exits[exit] as Vector2i).y)
 			if tiers.has(t):

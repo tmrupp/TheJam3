@@ -23,7 +23,7 @@ const KINDS: Array[Script] = [
 const STRIDE: int = 100000
 ## Rows at or beyond this far above the start belong to side worlds.
 const SIDE_BASE: int = 1000000
-## Exit numbers from here up are side doors (below are MapInfo.Exit's).
+## Exit numbers from here up are side doors (below are Ways.Exit's).
 const DOOR_BASE: int = 16
 
 ## An instance of kind `kind`, to ask questions about the kind as a whole (see SideWorld). Made

@@ -22,8 +22,6 @@ extends Node2D
 ## FED_QUICKEN sooner, from SLOWEST of their time down to FASTEST (attack_every), and it sends more
 ## souls (BeastSouls.count): fed little, it is weak; it is the bells that make it strong. Nothing here draws from any RNG.
 
-const STUNNER: PackedScene = preload("res://prefabs/stunner.tscn")
-const HIT_BOX: PackedScene = preload("res://prefabs/hit_box.tscn")
 ## The blows its great eye takes once every soul is destroyed, fed nothing (see core_hp): few, as it
 ## is the bells that make it strong.
 const CORE_HP: int = 3
@@ -119,10 +117,10 @@ func _init() -> void:
 	wound.name = "Wound"
 	wound.hp = CORE_HP
 	add_child(wound)
-	stunner = STUNNER.instantiate() as Stunner
+	stunner = Prefabs.make(Prefabs.STUNNER) as Stunner
 	stunner.name = "Stunner"
 	add_child(stunner)
-	touch = HIT_BOX.instantiate() as HitBox
+	touch = Prefabs.make(Prefabs.HIT_BOX) as HitBox
 	touch.name = "HitBox"
 	var reach: CircleShape2D = CircleShape2D.new()
 	reach.radius = TOUCH_R
@@ -200,7 +198,7 @@ func dying() -> bool:
 ## A strike glanced off it (a soul still lives): its open eyes flare. A strike wakes it.
 func glance(dir: Vector2) -> void:
 	glanced = 0.0
-	RisoFx.burst(&"hit", global_position, dir, [RisoPrint.BLUE, RisoPrint.NIGHT])
+	RisoFx.burst(&"hit", global_position, dir, [Plate.BLUE, Plate.NIGHT])
 	if not awake:
 		_wake()
 
@@ -208,13 +206,13 @@ func glance(dir: Vector2) -> void:
 ## A strike landed on its great eye.
 func wounded(dir: Vector2) -> void:
 	hurt = 0.0
-	RisoFx.burst(&"hit", global_position + Vector2(GREAT_EYE.x, GREAT_EYE.y + RISE), dir, [RisoPrint.PINK, RisoPrint.GLOW])
+	RisoFx.burst(&"hit", global_position + Vector2(GREAT_EYE.x, GREAT_EYE.y + RISE), dir, [Plate.PINK, Plate.GLOW])
 	Wound.shake(10.0, 0.2)
 
 
 ## Its last blow: it sinks back into the deep.
 func die() -> void:
-	if not death.begin(16.0, 0.5, global_position, [RisoPrint.ACCENT, RisoPrint.PINK]):
+	if not death.begin(16.0, 0.5, global_position, [Plate.ACCENT, Plate.PINK]):
 		return
 	(touch.get_node("CollisionShape2D") as CollisionShape2D).set_deferred("disabled", true)
 	slam.stop()
@@ -238,7 +236,7 @@ func _wake() -> void:
 	awake = true
 	attack_in = ATTACK_FIRST
 	Wound.shake(12.0, 0.4)
-	RisoFx.burst(&"rubble", global_position + Vector2(0, RISE), Vector2.UP, [RisoPrint.PINK, RisoPrint.NIGHT])
+	RisoFx.burst(&"rubble", global_position + Vector2(0, RISE), Vector2.UP, [Plate.PINK, Plate.NIGHT])
 	if map_info != null:
 		map_info.beast_woke()
 
@@ -306,7 +304,7 @@ func _process(_delta: float) -> void:
 	if player != null and is_instance_valid(player):
 		look = (player.global_position - global_position).normalized()
 	# Its underside, dark on the floor.
-	ink.ink(RisoPrint.NIGHT, 0.6, [xf * RisoShapes.ellipse(Vector2(0, -4), 230.0, 12.0, 24)], false)
+	ink.ink(Plate.NIGHT, 0.6, [xf * RisoShapes.ellipse(Vector2(0, -4), 230.0, 12.0, 24)], false)
 	# Arms writhing up off it.
 	var arms: Array[PackedVector2Array] = []
 	for arm: Vector3 in ARMS:
@@ -321,21 +319,21 @@ func _process(_delta: float) -> void:
 			at.y = minf(at.y, -3.0)
 		for poly: PackedVector2Array in RisoDecor.strip(pts, 12.0, 2.0):
 			arms.append(xf * poly)
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], arms)
-	ink.ink(RisoPrint.PINK, 1.0, arms, false)
-	ink.ink(RisoPrint.BLUE, 0.45, arms, false)
+	ink.knock([Plate.NIGHT, Plate.BLUE, Plate.ACCENT], arms)
+	ink.ink(Plate.PINK, 1.0, arms, false)
+	ink.ink(Plate.BLUE, 0.45, arms, false)
 	var body: Array[PackedVector2Array] = []
 	for i: int in range(LOBES.size()):
 		var l: Vector3 = LOBES[i]
 		var wob: Vector2 = Vector2(sin(t * 1.3 + float(i) * 1.7), cos(t * 1.1 + float(i))) * 3.0
 		body.append(xf * AbominationArt.gumdrop(Vector2(l.x, l.y) + wob, l.z))
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], body)
-	ink.ink(RisoPrint.PINK, 1.0, body, false)
-	ink.ink(RisoPrint.BLUE, 0.35, body, false)
+	ink.knock([Plate.NIGHT, Plate.BLUE, Plate.ACCENT], body)
+	ink.ink(Plate.PINK, 1.0, body, false)
+	ink.ink(Plate.BLUE, 0.35, body, false)
 	if hurt < 0.3:
-		ink.ink(RisoPrint.PINK, 0.5 * (1.0 - hurt / 0.3), body, false)
+		ink.ink(Plate.PINK, 0.5 * (1.0 - hurt / 0.3), body, false)
 	if glanced < 0.4:
-		ink.ink(RisoPrint.BLUE, 0.35 * (1.0 - glanced / 0.4), body, false)
+		ink.ink(Plate.BLUE, 0.35 * (1.0 - glanced / 0.4), body, false)
 	# Its small eyes.
 	var count: Vector2i = eyes()
 	var shown: int = count.x if count.x > 0 else EYES.size()
@@ -366,14 +364,14 @@ func _process(_delta: float) -> void:
 		whites.append(xf * RisoShapes.almond(great, r * 1.3, r * 0.85))
 	else:
 		slits.append(xf * RisoShapes.almond(great, r * 1.3, 3.0))
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], whites)
+	ink.knock([Plate.NIGHT, Plate.BLUE, Plate.PINK, Plate.ACCENT], whites)
 	if weak and not stunner.stunned():
-		ink.ink(RisoPrint.ACCENT, 1.0, [xf * RisoShapes.circle(great + look * r * 0.35, r * 0.62, 20)])
+		ink.ink(Plate.ACCENT, 1.0, [xf * RisoShapes.circle(great + look * r * 0.35, r * 0.62, 20)])
 		pupils.append(xf * RisoShapes.ellipse(great + look * r * 0.4, r * 0.18, r * 0.5, 14))
-	ink.ink(RisoPrint.NIGHT, 1.0, pupils, false)
-	ink.ink(RisoPrint.NIGHT, 0.9, slits, false)
+	ink.ink(Plate.NIGHT, 1.0, pupils, false)
+	ink.ink(Plate.NIGHT, 0.9, slits, false)
 	if not flares.is_empty():
-		ink.ink(RisoPrint.PINK, 0.8, flares)
+		ink.ink(Plate.PINK, 0.8, flares)
 	# Its blows left, as pips over it, once it can be wounded.
 	if weak:
 		var whole: Array[PackedVector2Array] = []
@@ -385,20 +383,20 @@ func _process(_delta: float) -> void:
 				whole.append(pip)
 			else:
 				gone.append(pip)
-		ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], whole)
-		ink.ink(RisoPrint.PINK, 1.0, whole, false)
-		ink.ink(RisoPrint.NIGHT, 0.35, gone, false)
+		ink.knock([Plate.NIGHT, Plate.BLUE], whole)
+		ink.ink(Plate.PINK, 1.0, whole, false)
+		ink.ink(Plate.NIGHT, 0.35, gone, false)
 	if stunner.stunned():
 		var stars: Array[PackedVector2Array] = []
 		for i: int in range(3):
 			var a: float = t * 1.3 + TAU * float(i) / 3.0
 			var p: Vector2 = xf * Vector2(cos(a) * 60.0, -PIPS_UP + 40.0 + sin(a) * 10.0)
 			stars.append(Transform2D(t * 0.9 + float(i), p) * RisoShapes.sparkle(Vector2.ZERO, 20.0))
-		ink.ink(RisoPrint.ACCENT, 1.0, stars)
+		ink.ink(Plate.ACCENT, 1.0, stars)
 	if death.t >= 0.0:
 		var dust: Array[PackedVector2Array] = []
 		for i: int in range(14):
 			var p: Vector2 = Vector2((float(i) - 6.5) * 32.0, -10.0 - 60.0 * sink * (0.4 + 0.1 * float(i % 5)))
 			dust.append(RisoShapes.circle(xf * p, 8.0 * (1.0 - sink * 0.5), 8))
-		ink.ink(RisoPrint.NIGHT, 0.6, dust, false)
+		ink.ink(Plate.NIGHT, 0.6, dust, false)
 	ink.finish()

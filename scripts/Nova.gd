@@ -67,7 +67,7 @@ func cast(empowered: bool = false) -> bool:
 		var c: Vector2i = SpellStrike.cell_of(from)
 		for n: Vector2i in SpellStrike.ring(c):
 			SpellStrike.crack(get_tree(), [n], Vector2(n - c).normalized())
-	SpellMark.leave(&"nova", from, Vector2.RIGHT, radius, PI, RisoPrint.ACCENT, player)
+	SpellMark.leave(&"nova", from, Vector2.RIGHT, radius, PI, Plate.ACCENT, player)
 	wait = cooldown
 	Wound.shake(6.0, 0.15)
 	return true

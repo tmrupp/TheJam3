@@ -112,8 +112,15 @@ func normal_hurt (damage: int, v: Vector2, _attacker: Node) -> void:
 		show_hurt()
 		show_invulnerable()
 		
+## Whether the wizard is on the way from one level to the next (MapInfo.travelling: from the
+## transition's first sweep until they stand in the new level, where arriving gives its grace).
+## Nothing hurts them then: their body is still in the old level for a shot in flight or a lurching
+## wisp, but a death met there could not be played out (MapInfo.player_died).
+func away () -> bool:
+	return MapInfo.instance != null and MapInfo.instance.travelling
+
 func hurt (damage: int, v: Vector2, attacker: Node) -> void:
-	if phasing:
+	if phasing or away():
 		return
 	# Dashing through an enemy is not a hit taken (DashStrike).
 	var strike: DashStrike = get_node_or_null("DashStrike") as DashStrike
@@ -943,7 +950,7 @@ func _appear() -> void:
 	global_position = spot if spot != null else _back_to
 	visible = true
 	CameraControl.snap(self)
-	RisoFx.burst(&"recharge", global_position, Vector2.ZERO, [RisoPrint.GLOW])
+	RisoFx.burst(&"recharge", global_position, Vector2.ZERO, [Plate.GLOW])
 
 
 ## Out of the bottom of a sky level: back where they last stood safely (_back_spot; or at the way

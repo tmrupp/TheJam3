@@ -7,8 +7,8 @@ class_name Trophy
 ## (TrophyStand). With every boss's trophy on its stand, the run is won (MapInfo.win_run).
 
 ## Where a trophy is in the run (RunState.trophies): carried by the wizard, or set on its stand.
-const CARRIED: int = 1
-const SET: int = 2
+const CARRIED: int = RunState.TROPHY_CARRIED
+const SET: int = RunState.TROPHY_SET
 ## How close the wizard must come to pick it up, across and up or down (world pixels).
 const REACH: Vector2 = Vector2(60, 100)
 

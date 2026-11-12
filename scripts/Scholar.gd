@@ -119,14 +119,14 @@ const HUSH_EVERY: float = 6.0
 const HUSH_ON: float = 2.4
 const HUSH_SWELL: float = 0.8
 ## Salt for where in its pulse a librarian starts (hashed from its cell).
-const HUSH_DEAL: int = 6500
+const HUSH_DEAL: int = Salts.SCHOLAR_HUSH * Salts.STRIDE
 ## Where it looks from and casts from (px over its feet), and where an abomination it fights is
 ## aimed at (px over its middle). The wizard is aimed at the middle of their body (see `aim_at`):
 ## aimed this high over it, a bolt flew clean over their head.
 const EYE: float = 60.0
 const AIM: float = 40.0
 ## Salt for the hash that deals a student's misfires.
-const MISFIRE_DEAL: int = 6460
+const MISFIRE_DEAL: int = Salts.SCHOLAR_MISFIRE * Salts.STRIDE
 ## How far (px) a scholar turning on the wizard takes those round it with it.
 const ROUSE_REACH: float = 640.0
 ## How far a proctor out in the corridors walks either way of its place in a period (cells).
@@ -240,7 +240,7 @@ func setup(info: MapInfo, v: Vector2i, extra: Variant) -> void:
 	var kind_of_hall: StringName = info.world.halls[hall]["kind"] if info != null and info.world != null and hall >= 0 and hall < info.world.halls.size() else &""
 	# A class's master teaches its hall's subject now.
 	if kind_of_hall == &"lecture":
-		ability = info.subject_of(hall)
+		ability = info.institute.subject_of(hall)
 		if kind == &"master" and not ability in Institute.MASTERIES:
 			move = ability
 	# A student the level laid starts where its day has taken it (Students.seat_at): in class time in
@@ -282,7 +282,7 @@ func haste() -> float:
 
 ## Whether it walks the corridors now: a proctor out of the halls, while a class is on.
 func patrolling() -> bool:
-	return kind == &"proctor" and map_info != null and map_info.abominations_quiet() and Institute.hall_at(map_info.world, cell) < 0
+	return kind == &"proctor" and map_info != null and map_info.institute.abominations_quiet() and Institute.hall_at(map_info.world, cell) < 0
 
 
 func _ready() -> void:
@@ -384,15 +384,15 @@ func _find_foe() -> Node2D:
 ## Whether it is turned on the wizard now: always where there is no timetable, else once roused.
 ## Calm, its touch and its spells leave them be.
 func hostile() -> bool:
-	return roused or map_info == null or not map_info.timetabled()
+	return roused or map_info == null or not map_info.institute.timetabled()
 
 
 ## Whether it fights the wizard (`player`): always where there is no timetable; else once roused,
 ## and it is roused here by seeing them where they do not belong.
 func _turns_on(player: Player) -> bool:
-	if map_info == null or not map_info.timetabled():
+	if map_info == null or not map_info.institute.timetabled():
 		return true
-	if not roused and not map_info.wizard_belongs() and sees(player):
+	if not roused and not map_info.institute.wizard_belongs() and sees(player):
 		rouse()
 	return roused
 
@@ -665,7 +665,7 @@ func _examine(delta: float) -> void:
 		&"astral":
 			projected = ASTRAL_TIME
 			_unhurt(true)
-			RisoFx.burst(&"gain", eye(), Vector2.ZERO, [RisoPrint.BLUE, RisoPrint.NIGHT])
+			RisoFx.burst(&"gain", eye(), Vector2.ZERO, [Plate.BLUE, Plate.NIGHT])
 		&"warp":
 			var spots: Array[Vector2i] = floors()
 			if spots.size() > 1:
@@ -711,12 +711,12 @@ static func _room(w: LevelGen, v: Vector2i) -> bool:
 
 ## Gone from where it stands and there at once, on the floor of cell `v`: where it keeps to now.
 func _jump_to(v: Vector2i) -> void:
-	RisoFx.burst(&"hit", eye(), Vector2.UP, [RisoPrint.PINK, RisoPrint.NIGHT])
+	RisoFx.burst(&"hit", eye(), Vector2.UP, [Plate.PINK, Plate.NIGHT])
 	global_position = map_info.cell_position(v)
 	move_and_collide(Vector2(0, 64))
 	home_x = global_position.x
 	fall_speed = 0.0
-	RisoFx.burst(&"gain", eye(), Vector2.ZERO, [RisoPrint.PINK, RisoPrint.NIGHT])
+	RisoFx.burst(&"gain", eye(), Vector2.ZERO, [Plate.PINK, Plate.NIGHT])
 
 
 ## Ferrying: across its hall on its raft and back, without a stop, turning at the hall's walls, a
@@ -795,7 +795,7 @@ func _release() -> void:
 		if roll < MISFIRE * 0.5:
 			# A fizzle: a puff in its hand, and nothing.
 			misfired = true
-			RisoFx.burst(&"hit", eye() + Vector2(facing * 30.0, 0), Vector2.UP, [RisoPrint.PINK, RisoPrint.NIGHT])
+			RisoFx.burst(&"hit", eye() + Vector2(facing * 30.0, 0), Vector2.UP, [Plate.PINK, Plate.NIGHT])
 			return
 		var off: float = 0.0
 		if roll < MISFIRE:
@@ -815,17 +815,17 @@ func _release() -> void:
 				shot.life = SEEKER_LIFE
 		&"slash":
 			_strike_round(SLASH_REACH, true, 0.0)
-			SpellMark.leave(&"slash", global_position + Vector2(0, -AIM), Vector2(facing, 0), SLASH_REACH, PUSH_CONE + 0.5, RisoPrint.PINK, self)
+			SpellMark.leave(&"slash", global_position + Vector2(0, -AIM), Vector2(facing, 0), SLASH_REACH, PUSH_CONE + 0.5, Plate.PINK, self)
 		&"nova":
 			_strike_round(NOVA_REACH, false, 0.0)
-			SpellMark.leave(&"nova", global_position + Vector2(0, -AIM), Vector2.RIGHT, NOVA_REACH, PI, RisoPrint.PINK, self)
+			SpellMark.leave(&"nova", global_position + Vector2(0, -AIM), Vector2.RIGHT, NOVA_REACH, PI, Plate.PINK, self)
 		&"push":
 			_strike_round(PUSH_REACH, true, PUSH_THROW)
-			SpellMark.leave(&"push", global_position + Vector2(0, -AIM), Vector2(facing, 0), PUSH_REACH, PUSH_CONE, RisoPrint.PINK, self)
+			SpellMark.leave(&"push", global_position + Vector2(0, -AIM), Vector2(facing, 0), PUSH_REACH, PUSH_CONE, Plate.PINK, self)
 		&"lunge":
 			lunging = LUNGE_TIME
 			lunge_way = facing
-			SpellMark.leave(&"lunge", global_position + Vector2(0, -AIM), Vector2(facing, 0), LUNGE_SPEED * LUNGE_TIME, 0.0, RisoPrint.PINK)
+			SpellMark.leave(&"lunge", global_position + Vector2(0, -AIM), Vector2(facing, 0), LUNGE_SPEED * LUNGE_TIME, 0.0, Plate.PINK)
 
 
 ## A bolt at its foe, `off` radians off true, printed as `spell`; it wounds the abominations it
@@ -950,7 +950,7 @@ func _fallen() -> void:
 		return
 	if instructor():
 		if wizard_blow:
-			map_info.instructor_fell(hall, global_position, ability)
+			map_info.institute.instructor_fell(hall, global_position, ability)
 	elif hall < 0 and wizard_blow:
 		if relic != &"":
 			map_info.relic_left(global_position, relic, true)

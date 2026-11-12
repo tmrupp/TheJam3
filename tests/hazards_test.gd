@@ -101,7 +101,7 @@ func run() -> void:
 	print("lasers")
 	var plunge_seed: int = -1
 	for world_seed: int in range(1, 120):
-		if Rules.level_seed(Rules.def_for(Vector2i(world_seed, 1)).gen_seed, 777) % 100 < Hyperspace.CHANCE:
+		if Rules.level_seed(Rules.def_for(Vector2i(world_seed, 1)).gen_seed, Salts.HYPERSPACE_DOOR * Salts.STRIDE) % 100 < Hyperspace.CHANCE:
 			plunge_seed = world_seed
 			break
 	menu.world_seed.text = str(plunge_seed)

@@ -11,8 +11,8 @@ extends RefCounted
 ##   levels only (not the tutorial, the side worlds or hyperspace).
 ## - By run seed, as these change with it: the column each garden or band boss was met in, and the
 ##   ways shrines told to it.
-## A run notes what it knows here (note, from MapInfo as it saves, ends or is won; never a debug
-## run), and a new run on a seed starts from it (teach): its relics and bosses' columns marked, and
+## A run notes what it knows here (note, from MapInfo as it arrives in a level, is saved on pausing
+## or leaving, ends or is won, not with every autosave; never a debug run), and a new run on a seed starts from it (teach): its relics and bosses' columns marked, and
 ## each level's map with the cells seen before as it is laid out again (MapInfo, seen_for). At most
 ## MOST places, the most lately visited. The start menu's settings can forget it all (forget).
 
@@ -31,26 +31,22 @@ static func kept() -> Dictionary:
 	if _from != path:
 		_from = path
 		_data = {"places": {}, "seeds": {}, "next": 0}
-		if FileAccess.file_exists(path):
-			var file: FileAccess = FileAccess.open(path, FileAccess.READ)
-			var read: Variant = file.get_var() if file != null else null
-			if read is Dictionary and (read as Dictionary).has("places"):
-				_data = read
+		var read: Variant = SafeFile.read(path)
+		if read is Dictionary and (read as Dictionary).has("places"):
+			_data = read
 	return _data
 
 
+## Written whole or not at all (SafeFile): it is what the game carries from run to run.
 static func _write() -> void:
-	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
-	if file != null:
-		file.store_var(kept())
+	SafeFile.write(path, kept())
 
 
 ## Forget everything kept (the start menu's settings).
 static func forget() -> void:
 	_from = path
 	_data = {"places": {}, "seeds": {}, "next": 0}
-	if FileAccess.file_exists(path):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	SafeFile.remove(path)
 
 
 ## Whether place `c` is known from a run before.
@@ -108,19 +104,20 @@ static func merged(a: PackedByteArray, b: PackedByteArray) -> PackedByteArray:
 	return out
 
 
-## Note what the run in `info` knows (not a debug run): each ordinary level it has been in (its
-## stamp from its layout where that is in hand), the most lately visited last; and its seed's
-## bosses' columns met and the ways shrines told. Kept to the MOST most lately visited places.
-static func note(info: MapInfo) -> void:
-	if MapInfo.debug or info == null or info.run == null:
+## Note what `run` knows (not a debug run), played at place `at`, whose layout is `world`: each
+## ordinary level it has been in (its stamp from its layout where that is in hand: `laid_out`
+## gives a place's if it is kept, else null, LevelLoader.laid_out), the most lately visited last;
+## and its seed's bosses' columns met and the ways shrines told. Kept to the MOST most lately
+## visited places.
+static func note(run: RunState, at: Vector2i, world: LevelGen, laid_out: Callable) -> void:
+	if Dev.debug or run == null:
 		return
-	var run: RunState = info.run
 	var data: Dictionary = kept()
 	var places: Dictionary = data["places"]
 	var order: Array = run.records.keys()
 	# The place being played last, as the most lately visited.
-	order.erase(info.coord)
-	order.append(info.coord)
+	order.erase(at)
+	order.append(at)
 	for c: Vector2i in order:
 		if Worlds.is_side(c) or not run.records.has(c):
 			continue
@@ -129,8 +126,8 @@ static func note(info: MapInfo) -> void:
 		# Its layout's stamp from the layout in hand (never laid out afresh for it): the level being
 		# played, or one the loader keeps; else the stamp kept.
 		var stamped: int = int(old.get("stamp", 0))
-		if c == info.coord or stamped == 0:
-			var w: LevelGen = info.world if c == info.coord else (info.loader.laid_out(c) if info.loader != null else null)
+		if c == at or stamped == 0:
+			var w: LevelGen = world if c == at else (laid_out.call(c) as LevelGen)
 			if w != null:
 				stamped = Known.stamp(w)
 		var place: Dictionary = {
@@ -176,7 +173,7 @@ static func _union(a: Dictionary, b: Dictionary) -> Dictionary:
 ## before marked where they lie (RunState.relic_hints, for those not yet found this run), and its
 ## seed's bosses' columns met marked (a hint of this column, [column, 0]) and the ways told.
 static func teach(run: RunState) -> void:
-	if MapInfo.debug:
+	if Dev.debug:
 		return
 	var places: Dictionary = kept()["places"]
 	for c: Vector2i in places:

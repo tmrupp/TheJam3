@@ -280,7 +280,8 @@ func generation() -> void:
 				if a != b and LevelGen.dist(a, b) < 2 :
 					apart = false
 		if Rules.fontless_at(at):
-			check(fonts.is_empty(), "%s: a level dealt no fonts has none" % at)
+			# But a large font that is a crypt's prize, which stays (checked below).
+			check(fonts.all(func(v: Vector2i) -> bool: return Snuffer.capacity(w, v) == Snuffer.LARGE), "%s: a level dealt no fonts has none" % at)
 		else:
 			check(fonts.size() > doorways + 1 and apart, "%s: %d snuffing fonts, for %d doorway(s), apart" % [at, fonts.size(), doorways])
 		# Stars to find inside its crypts, on top of the cluster or hoard.

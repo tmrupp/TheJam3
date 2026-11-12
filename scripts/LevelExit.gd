@@ -54,7 +54,7 @@ func interacted() -> void:
 		return
 	# Sealed by a boss: nothing opens it but the boss's death.
 	if sealed() != &"":
-		RisoFx.burst(&"hit", global_position + Vector2(0, -60), Vector2.UP, [RisoPrint.PINK, RisoPrint.NIGHT])
+		RisoFx.burst(&"hit", global_position + Vector2(0, -60), Vector2.UP, [Plate.PINK, Plate.NIGHT])
 		return
 	var needs: int = lock()
 	if needs >= 0:
@@ -63,9 +63,9 @@ func interacted() -> void:
 			return
 		map_info.record().lateral_open[exit] = true
 	# The institute's way on: the exam paper its classroom asks for, or no way through.
-	var paper: int = map_info.way_on_due() if exit == MapInfo.Exit.DEEPER else 0
+	var paper: int = map_info.institute.way_on_due() if exit == MapInfo.Exit.DEEPER else 0
 	if paper < 0:
-		RisoFx.burst(&"hit", global_position + Vector2(0, -60), Vector2.UP, [RisoPrint.PINK, RisoPrint.NIGHT])
+		RisoFx.burst(&"hit", global_position + Vector2(0, -60), Vector2.UP, [Plate.PINK, Plate.NIGHT])
 		return
 	var owed: int = price()
 	if owed > 0:
@@ -73,7 +73,7 @@ func interacted() -> void:
 			return
 		player.collect(-owed)
 		map_info.here.pay(exit, map_info.record())
-	map_info.hand_in_way_on(paper)
+	map_info.institute.hand_in_way_on(paper)
 	map_info.travel(exit)
 
 func _ready() -> void:

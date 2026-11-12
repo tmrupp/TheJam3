@@ -117,23 +117,23 @@ func _instructor(at: Vector2i) -> void:
 	var hall: int = -1
 	for k: int in range(Timetable.PERIODS * 4):
 		for i: int in range(info.world.halls.size()):
-			var a: StringName = info.subject_of(i)
-			if a in Relics.MOVES and info.master_in(i) != null and Abilities.tier(player, a) == 0:
+			var a: StringName = info.institute.subject_of(i)
+			if a in Relics.MOVES and info.institute.master_in(i) != null and Abilities.tier(player, a) == 0:
 				hall = i
 		if hall >= 0:
 			break
 		info.record().passing = false
-		info.since_bell = SchoolBell.RING_GAP
+		info.institute.since_bell = SchoolBell.RING_GAP
 		bell.ring()
 		await frames(2)
 	if hall < 0:
 		print("  (no class of a move the wizard lacks met here)")
 		return
-	var move: StringName = info.subject_of(hall)
+	var move: StringName = info.institute.subject_of(hall)
 	player.keyring.clear()
-	check(not info.teaches(move), "%s, not found, is not taught" % move)
+	check(not info.institute.teaches(move), "%s, not found, is not taught" % move)
 	var found: Dictionary = info.run.relics_found.duplicate()
-	var m: Scholar = info.master_in(hall)
+	var m: Scholar = info.institute.master_in(hall)
 	m.wizard_blow = true
 	(m.get_node("Wound") as Wound).hit(999, Vector2.UP)
 	await frames(4)

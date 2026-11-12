@@ -173,8 +173,8 @@ const HOLE_CRUMBS: Array[Vector3] = [
 	Vector3(-1.12, 18.0, 3.0), Vector3(0.74, 6.0, 3.0), Vector3(-1.55, 5.0, 3.5),
 ]
 ## Salts for the level seed: the holes, and the worm's own choices.
-const HOLE_DEAL: int = 6100
-const MIND_DEAL: int = 6200
+const HOLE_DEAL: int = Salts.WORM_HOLE * Salts.STRIDE
+const MIND_DEAL: int = Salts.WORM_MIND * Salts.STRIDE
 ## The four ways out of a cell.
 const DIRS: Array[Vector2i] = [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]
 
@@ -522,7 +522,7 @@ func _stepped(p: Piece) -> void:
 		# Heading into a wall: the hole where it goes in is dug as its nose reaches the face, so
 		# the body never slides into unbroken rock.
 		var dug: Hole = holes[_hole_at(p.next, head)]
-		RisoFx.burst(&"impact", dug.mouth, dug.out, [RisoPrint.BLUE, RisoPrint.NIGHT])
+		RisoFx.burst(&"impact", dug.mouth, dug.out, [Plate.BLUE, Plate.NIGHT])
 		_shake(dug.mouth, RUMBLE, 0.2)
 	p.after = _choose(p, p.next, head)
 	if not passable(w, head) and passable(w, p.next):
@@ -553,14 +553,14 @@ func _rumble(p: Piece, delta: float) -> void:
 		p.rumble = RUMBLE_EVERY
 		rumbles += 1
 		_shake(face[0], RUMBLE * (0.5 + 0.5 * (1.0 - p.warn / EMERGE_WARN)), RUMBLE_EVERY + 0.05)
-		RisoFx.burst(&"impact", face[0], face[1], [RisoPrint.BLUE, RisoPrint.NIGHT])
+		RisoFx.burst(&"impact", face[0], face[1], [Plate.BLUE, Plate.NIGHT])
 	if p.warn <= 0.0:
 		var player: Player = map_info.player
 		if player != null and is_instance_valid(player):
 			p.side = side_toward(face[1], face[0], player.global_position)
 		emergences += 1
 		_shake(face[0], BURST_SHAKE, 0.3)
-		RisoFx.burst(&"hit", face[0], face[1], [RisoPrint.PINK, RisoPrint.BLUE])
+		RisoFx.burst(&"hit", face[0], face[1], [Plate.PINK, Plate.BLUE])
 
 
 ## The flank (see Piece.side) facing `wizard` for a worm coming out at `mouth` heading `out`.
@@ -887,7 +887,7 @@ func cut(segment: WormSegment) -> void:
 		return
 	var i: int = p.segments.find(segment)
 	last_at = segment.global_position
-	RisoFx.burst(&"hit", segment.global_position, segment.heading, [RisoPrint.PINK, RisoPrint.BLUE])
+	RisoFx.burst(&"hit", segment.global_position, segment.heading, [Plate.PINK, Plate.BLUE])
 	Wound.shake(10.0, 0.18)
 	segment.set_live(false)
 	segment.queue_free()
@@ -934,7 +934,7 @@ func _bury(p: Piece) -> void:
 	for s: WormSegment in p.segments:
 		if s.shown:
 			last_at = s.global_position
-			RisoFx.burst(&"impact", s.global_position, Vector2.UP, [RisoPrint.BLUE, RisoPrint.NIGHT])
+			RisoFx.burst(&"impact", s.global_position, Vector2.UP, [Plate.BLUE, Plate.NIGHT])
 		s.queue_free()
 	pieces.erase(p)
 
@@ -1049,22 +1049,22 @@ func _process(delta: float) -> void:
 ## (pink and a little green), `cover` strong (STUNNED_FLESH of it while stunned), knocked out of
 ## whatever is under it first.
 static func ink_flesh(canvas: InkCanvas, flesh: Array[PackedVector2Array], head: bool, cover: float) -> void:
-	canvas.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], flesh)
+	canvas.knock([Plate.NIGHT, Plate.BLUE, Plate.PINK, Plate.ACCENT], flesh)
 	if head:
-		canvas.ink(RisoPrint.PINK, cover, flesh, false)
+		canvas.ink(Plate.PINK, cover, flesh, false)
 	else:
-		canvas.ink(RisoPrint.PINK, FLESH_PINK * cover, flesh, false)
-		canvas.ink(RisoPrint.BLUE, FLESH_GREEN * cover, flesh, false)
+		canvas.ink(Plate.PINK, FLESH_PINK * cover, flesh, false)
+		canvas.ink(Plate.BLUE, FLESH_GREEN * cover, flesh, false)
 
 
 ## Print a joint's shadow (`shade`, a strip of the body just behind a segment), `k` strong.
 static func ink_joint(canvas: InkCanvas, shade: Array[PackedVector2Array], k: float) -> void:
-	canvas.ink(RisoPrint.NIGHT, JOINT_SHADE * k, shade, false)
+	canvas.ink(Plate.NIGHT, JOINT_SHADE * k, shade, false)
 
 
 ## Print a head's teeth (teeth_at, or the boss's clipped to the open air) in bare paper.
 static func ink_teeth(canvas: InkCanvas, teeth: Array[PackedVector2Array]) -> void:
-	canvas.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], teeth)
+	canvas.knock([Plate.NIGHT, Plate.BLUE, Plate.PINK, Plate.ACCENT], teeth)
 
 
 ## Print a segment's `hits` left as dark dots in a row across it, at `at` heading `way`, `width`
@@ -1075,7 +1075,7 @@ static func ink_hits(canvas: InkCanvas, at: Vector2, way: Vector2, width: float,
 	for j: int in range(hits):
 		var off: float = (float(j) - float(hits - 1) * 0.5) * width * 0.22
 		dots.append(RisoShapes.circle(at - way * width * 0.08 + side * off, width * 0.075, 8))
-	canvas.ink(RisoPrint.NIGHT, 0.85 * k, dots, false)
+	canvas.ink(Plate.NIGHT, 0.85 * k, dots, false)
 
 
 ## A rounded end of a body `width` across at `at`, facing `way`, reaching `depth` out from `at`.
@@ -1130,9 +1130,9 @@ static func ink_warning(canvas: InkCanvas, at: Transform2D, r: float, near: floa
 	var throb: float = 0.5 + 0.5 * sin(clock * lerpf(10.0, 30.0, near))
 	var swell: float = (10.0 + 24.0 * near + 4.0 * throb) * size
 	var bulge: PackedVector2Array = at * RisoShapes.almond(Vector2(0, -swell * 0.35), r * (1.05 + 0.1 * throb), swell, 28)
-	canvas.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], [bulge])
-	canvas.ink(RisoPrint.PINK, 0.6 + 0.4 * throb, [bulge], false)
-	canvas.ink(RisoPrint.NIGHT, 1.0, [at * RisoShapes.almond(Vector2(0, -swell * 0.3), r * 0.55, (3.0 + 4.0 * near) * size, 16)], false)
+	canvas.knock([Plate.NIGHT, Plate.BLUE, Plate.ACCENT], [bulge])
+	canvas.ink(Plate.PINK, 0.6 + 0.4 * throb, [bulge], false)
+	canvas.ink(Plate.NIGHT, 1.0, [at * RisoShapes.almond(Vector2(0, -swell * 0.3), r * 0.55, (3.0 + 4.0 * near) * size, 16)], false)
 	var dirt: Array[PackedVector2Array] = []
 	for i: int in range(9):
 		var x: float = (float(i) / 8.0 - 0.5) * 2.4 * r
@@ -1144,9 +1144,9 @@ static func ink_warning(canvas: InkCanvas, at: Transform2D, r: float, near: floa
 ## Print `crumbs` as freshly dug earth, in the worm's pale flesh tones (HOLE_EARTH of them), over
 ## whatever is under them: the crumbs round a burrow and the dirt jumping where a worm will come out.
 static func ink_dug_earth(canvas: InkCanvas, crumbs: Array[PackedVector2Array]) -> void:
-	canvas.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], crumbs)
-	canvas.ink(RisoPrint.PINK, FLESH_PINK * HOLE_EARTH, crumbs, false)
-	canvas.ink(RisoPrint.BLUE, FLESH_GREEN * HOLE_EARTH + 0.25, crumbs, false)
+	canvas.knock([Plate.NIGHT, Plate.BLUE, Plate.PINK, Plate.ACCENT], crumbs)
+	canvas.ink(Plate.PINK, FLESH_PINK * HOLE_EARTH, crumbs, false)
+	canvas.ink(Plate.BLUE, FLESH_GREEN * HOLE_EARTH + 0.25, crumbs, false)
 
 
 ## The body along `path` from `front` to `back` (in cells), `width` across, as strips of what is
@@ -1299,8 +1299,8 @@ func _draw_bite(p: Piece, width: float) -> void:
 		var to: Vector2 = from + dir * (8.0 + 14.0 * (1.0 - u))
 		var across: Vector2 = dir.orthogonal() * 2.5
 		strokes.append(PackedVector2Array([from + across, to + across * 0.4, to - across * 0.4, from - across]))
-	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], 1.0 - u, strokes)
-	ink.ink(RisoPrint.PINK, 1.0 - u, strokes, false)
+	ink.lift_ink([Plate.NIGHT, Plate.BLUE, Plate.ACCENT], 1.0 - u, strokes)
+	ink.ink(Plate.PINK, 1.0 - u, strokes, false)
 
 
 ## Take the mouth out of the flesh. A cut that would leave a hole inside one strip is kept whole
@@ -1349,8 +1349,8 @@ func _draw_thorns(path: Array[Vector2i], s: WormSegment, front: float, back: flo
 		var tip: Vector2 = base + normal * WormSegment.THORN_LEN * (0.5 + 0.7 * w) * grown
 		spikes.append(PackedVector2Array([base - normal * 3.0 + along, tip, base - normal * 3.0 - along]))
 	# Cleared to paper first, so those over the rock print as bright as those in the open.
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], spikes)
-	ink.ink(RisoPrint.PINK, 0.35 if pale else 1.0, spikes)
+	ink.knock([Plate.NIGHT, Plate.BLUE, Plate.ACCENT], spikes)
+	ink.ink(Plate.PINK, 0.35 if pale else 1.0, spikes)
 
 
 ## Where thorns grow along both edges of the body from `front` to `back` on `path`, `width` across:
@@ -1387,8 +1387,8 @@ func thorn_spots(path: Array[Vector2i], front: float, back: float, width: float)
 func _draw_scales(path: Array[Vector2i], toward: float, front: float, back: float, width: float, k: float, pale: bool) -> void:
 	var plates: Array[PackedVector2Array] = scale_plates(path, toward, front, back, width)
 	var cover: float = (STUNNED_FLESH if pale else 1.0) * k
-	ink.ink(RisoPrint.PINK, SCALE_PINK * cover, plates, false)
-	ink.ink(RisoPrint.NIGHT, SCALE_SHADE * cover, plates, false)
+	ink.ink(Plate.PINK, SCALE_PINK * cover, plates, false)
+	ink.ink(Plate.NIGHT, SCALE_SHADE * cover, plates, false)
 
 
 ## The scales on the body from `front` to `back` along `path`, `width` across, on flank `toward`:
@@ -1453,11 +1453,11 @@ func _draw_hole(hole: Hole) -> void:
 ## printed with the canvas's of_the_rock on.
 static func ink_hole(canvas: InkCanvas, at: Transform2D, r: float, shoulders: Array[PackedVector2Array], on_floor: bool, open: Callable, size: float = 1.0) -> void:
 	# Printed as the terrain prints rock (and, on a floor, its cap strip over it).
-	canvas.knock([RisoPrint.PINK, RisoPrint.ACCENT], shoulders)
-	canvas.ink(RisoPrint.BLUE, 1.0, shoulders)
+	canvas.knock([Plate.PINK, Plate.ACCENT], shoulders)
+	canvas.ink(Plate.BLUE, 1.0, shoulders)
 	if on_floor:
-		canvas.ink(RisoPrint.ACCENT, 1.0, shoulders)
-	canvas.ink(RisoPrint.NIGHT, 1.0, [at * RisoShapes.almond(Vector2(0, 0), r * 0.97, HOLE_PIT * size, 24)], false)
+		canvas.ink(Plate.ACCENT, 1.0, shoulders)
+	canvas.ink(Plate.NIGHT, 1.0, [at * RisoShapes.almond(Vector2(0, 0), r * 0.97, HOLE_PIT * size, 24)], false)
 	var dug: Array[PackedVector2Array] = []
 	var clods: Array[PackedVector2Array] = []
 	for k: int in range(HOLE_CRUMBS.size()):
@@ -1472,9 +1472,9 @@ static func ink_hole(canvas: InkCanvas, at: Transform2D, r: float, shoulders: Ar
 		else:
 			dug.append(crumb)
 	ink_dug_earth(canvas, dug)
-	canvas.knock([RisoPrint.PINK, RisoPrint.ACCENT], clods)
-	canvas.ink(RisoPrint.BLUE, 1.0, clods)
-	canvas.ink(RisoPrint.NIGHT, 0.3, clods, false)
+	canvas.knock([Plate.PINK, Plate.ACCENT], clods)
+	canvas.ink(Plate.BLUE, 1.0, clods)
+	canvas.ink(Plate.NIGHT, 0.3, clods, false)
 
 
 ## The ground pushed up round a hole, in the hole's frame (across x, out along -y, the mouth at the
@@ -1524,4 +1524,4 @@ func _draw_stun(head: WormSegment, width: float) -> void:
 		var a: float = t * 1.3 + TAU * float(i) / 3.0
 		var at: Vector2 = head.global_position + Vector2(cos(a) * 30.0, -width * 0.5 - 16.0 + sin(a) * 8.0)
 		stars.append(Transform2D(t * 0.9 + float(i), at) * RisoShapes.sparkle(Vector2.ZERO, 8.0 + 5.0 * frac))
-	ink.ink(RisoPrint.ACCENT, 0.9, stars)
+	ink.ink(Plate.ACCENT, 0.9, stars)

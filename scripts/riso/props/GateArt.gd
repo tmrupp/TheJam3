@@ -26,7 +26,7 @@ func _draw_art() -> void:
 		_station_gate(gate)
 		return
 	# A switch gate shows the switch's emblem and sigil where a door shows its lock.
-	RisoMarks.portcullis(ink, _ground(), half, -1 if kind == &"gate" else int(host.get_meta(&"key_color", 0)), gate.lift if gate != null else 0.0, 1.0, Sigils.of(host))
+	RisoMarks.portcullis(ink, _ground(), half, -1 if kind == &"gate" else int(host.get_meta(&"key_color", 0)), gate.lift if gate != null else 0.0, 1.0, MapInfo.sigil_of(host))
 
 
 ## A gondola station's gate (see the class description): the toll gate's portcullis and its lamp.

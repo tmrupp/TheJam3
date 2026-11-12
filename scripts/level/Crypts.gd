@@ -74,7 +74,7 @@ extends RefCounted
 ## light; and a crawl is shut by CRAWL_GATES gates of blocks a passage high, taking turns.
 ##
 ## Its reliquary: past the cluster or hoard, on the deepest free floor left, each crypt holds a prize
-## dealt by the seed (prize_kind): a skeleton key, a large snuffing font holding Snuffer.LARGE
+## dealt by the seed (prize_kind): a skeleton key, a large snuffing font holding Rules.FONT_LARGE
 ## charges, or, seldom and never twice in a level, the resurrection rite, an exam paper of the
 ## resurrect spell at tier I (Resurrect), found nowhere else.
 
@@ -114,9 +114,9 @@ const SKELETON_KEY_SHARE: float = 0.5
 const RITE: StringName = &"resurrect"
 ## Salts for the level seed: the trials' order and places, which kind of block each trial's start
 ## with, and each crypt's prize.
-const TRIAL_DEAL: int = 6500
-const STONE_DEAL: int = 6520
-const PRIZE_DEAL: int = 6540
+const TRIAL_DEAL: int = Salts.CRYPTS_TRIAL * Salts.STRIDE
+const STONE_DEAL: int = Salts.CRYPTS_STONE * Salts.STRIDE
+const PRIZE_DEAL: int = Salts.CRYPTS_PRIZE * Salts.STRIDE
 ## A level of at least TWO_AREA cells has two crypts, by a chance of TWO_SHARE dealt by the level
 ## seed; a smaller one has one.
 const TWO_AREA: int = 2400
@@ -156,7 +156,7 @@ const STARS_APART: int = 3
 ## gates once were, a sun gate's doorway taking a shade block and a shade gate's a sun block.
 const SHADE_DOOR_SHARE: float = 0.3
 const SUN_DOOR_SHARE: float = 0.35
-const DOOR_DEAL: int = 6130
+const DOOR_DEAL: int = Salts.CRYPTS_DOOR * Salts.STRIDE
 ## Alternating thorns along a crypt's floors (Spikes, timed): along each stretch of floor at least
 ## THORN_STRETCH cells long, a cell clear at each end (at its start only, in a stretch of two),
 ## blocks of THORN_BLOCK cells take turns, each
@@ -167,16 +167,16 @@ const THORN_STRETCH: int = 2
 const THORN_BLOCK: int = 1
 const THORN_UP: float = 0.45
 const THORN_CLEAR: int = 2
-const THORN_DEAL: int = 6150
+const THORN_DEAL: int = Salts.CRYPTS_THORN * Salts.STRIDE
 ## The furthest from a doorway's step (cells) its snuffing font may stand: the nearest free floor
 ## within it is taken.
 const FONT_FAR: int = 10
 ## Salts for the level seed: how many crypts, where each goes (ties), which floors its skeletons
 ## sleep on, and where its stars lie (ties).
-const COUNT_DEAL: int = 6100
-const SITE_DEAL: int = 6110
-const SLEEP_DEAL: int = 6120
-const STAR_DEAL: int = 6140
+const COUNT_DEAL: int = Salts.CRYPTS_COUNT * Salts.STRIDE
+const SITE_DEAL: int = Salts.CRYPTS_SITE * Salts.STRIDE
+const SLEEP_DEAL: int = Salts.CRYPTS_SLEEP * Salts.STRIDE
+const STAR_DEAL: int = Salts.CRYPTS_STAR * Salts.STRIDE
 ## The sample its insides are collapsed from.
 const SAMPLE: String = "res://wfc_images/crypt.png"
 
@@ -294,7 +294,7 @@ const REACHED_MIN: float = 0.5
 
 
 ## The share of the open cells of `inside` that the doorways of `site` (see _site) reach through open
-## air, as _raise floods it.
+## air, as _raise floods it, from each doorway that does not open straight onto thorns.
 static func _reached(w: LevelGen, inside: Array, site: Dictionary) -> float:
 	var box: Rect2i = site["box"]
 	var size: Vector2i = Vector2i(inside.size(), (inside[0] as Array).size())
@@ -303,7 +303,8 @@ static func _reached(w: LevelGen, inside: Array, site: Dictionary) -> float:
 	for door: Array in site["doors"]:
 		var at: Vector2i = door[0]
 		var cell: Vector2i = Vector2i(0 if at.x == box.position.x else size.x - 1, at.y - box.position.y - 1)
-		if cell.y >= 0 and cell.y < size.y and _open_in(inside, cell.x, cell.y) and not seen.has(cell):
+		# A doorway that opens straight onto thorns lets nobody in: nothing is reached from it.
+		if cell.y >= 0 and cell.y < size.y and _open_in(inside, cell.x, cell.y) and not _thorn_in(inside, cell.x, cell.y) and not seen.has(cell):
 			seen[cell] = true
 			queue.append(cell)
 	var head: int = 0
@@ -785,10 +786,17 @@ static func _raise(w: LevelGen, inside: Array, site: Dictionary) -> void:
 	for v: Vector2i in steps:
 		w.kept_whole[v] = true
 		w.kept_whole[v + Vector2i.DOWN] = true
+	# A trial no doorway reaches was filled with rock with the rest out of reach (above): it is no
+	# trial of this crypt's.
 	var trials: Array = []
 	for trial: Dictionary in site.get("trials", []):
-		var rect: Rect2i = trial["rect"]
-		trials.append({"kind": trial["kind"], "rect": Rect2i(rect.position + room.position, rect.size)})
+		var rect: Rect2i = Rect2i((trial["rect"] as Rect2i).position + room.position, (trial["rect"] as Rect2i).size)
+		var left: bool = false
+		for x: int in range(rect.position.x, rect.end.x):
+			for y: int in range(rect.position.y, rect.end.y):
+				left = left or not w.is_ground(Vector2i(x, y))
+		if left:
+			trials.append({"kind": trial["kind"], "rect": rect})
 	var crypt: Dictionary = {"box": box, "inside": cells, "doors": doors, "steps": steps, "floors": floors, "deep": floors.back() if not floors.is_empty() else Vector2i(-1, -1), "stairs": stairs, "trials": trials}
 	w.crypts.append(crypt)
 	_fonts(w, crypt)
@@ -977,11 +985,11 @@ static func _prize(w: LevelGen, crypt: Dictionary, kind: StringName) -> void:
 			continue
 		match kind:
 			&"rite":
-				w.put(v, LevelGen.Type.KEY, KeyRing.paper(RITE, 1))
+				w.put(v, LevelGen.Type.KEY, Keys.paper(RITE, 1))
 			&"key":
-				w.put(v, LevelGen.Type.KEY, KeyRing.SKELETON)
+				w.put(v, LevelGen.Type.KEY, Keys.SKELETON)
 			_:
-				w.put(v, LevelGen.Type.SNUFFER, {"charges": Snuffer.LARGE})
+				w.put(v, LevelGen.Type.SNUFFER, {"charges": Rules.FONT_LARGE})
 		crypt["prize"] = v
 		return
 
@@ -1078,7 +1086,7 @@ static func _thorns(w: LevelGen, crypt: Dictionary) -> void:
 			starts.append(v)
 	starts.sort()
 	var box: Rect2i = crypt["box"]
-	var base: float = float(posmod(Rules.level_seed(w.seed_for_colors, THORN_DEAL + box.position.x * 977 + box.position.y), 1000)) / 1000.0 * Spikes.CYCLE
+	var base: float = float(posmod(Rules.level_seed(w.seed_for_colors, THORN_DEAL + box.position.x * 977 + box.position.y), 1000)) / 1000.0 * Rules.THORN_CYCLE
 	var block: int = 0
 	for start: Vector2i in starts:
 		var stretch: Array[Vector2i] = []
@@ -1091,7 +1099,7 @@ static func _thorns(w: LevelGen, crypt: Dictionary) -> void:
 		for k: int in range(1, maxi(2, stretch.size() - 1)):
 			if k > 1 and (k - 1) % THORN_BLOCK == 0:
 				block += 1
-			w.put(stretch[k], LevelGen.Type.SPIKES, {"timed": fposmod(base + float(block % 2) * Spikes.CYCLE * 0.5, Spikes.CYCLE), "up": THORN_UP * Spikes.CYCLE})
+			w.put(stretch[k], LevelGen.Type.SPIKES, {"timed": fposmod(base + float(block % 2) * Rules.THORN_CYCLE * 0.5, Rules.THORN_CYCLE), "up": THORN_UP * Rules.THORN_CYCLE})
 		block += 1
 
 
@@ -1204,12 +1212,10 @@ const PHASE_WALLS: int = 1
 const POCKET_SHARE: float = 0.5
 ## Salts for the level seed: which kind each crypt's stairs start with, which runs of thorns get a
 ## shade floor, which passages are walled and with what, and which star is shut in.
-const STAIRS_DEAL: int = 6400
-const FLOOR_DEAL: int = 6410
-const WALL_DEAL: int = 6420
-const POCKET_DEAL: int = 6430
-
-
+const STAIRS_DEAL: int = Salts.CRYPTS_STAIRS * Salts.STRIDE
+const FLOOR_DEAL: int = Salts.CRYPTS_FLOOR * Salts.STRIDE
+const WALL_DEAL: int = Salts.CRYPTS_WALL * Salts.STRIDE
+const POCKET_DEAL: int = Salts.CRYPTS_POCKET * Salts.STRIDE
 ## A number from 0 up to 1 for cell `v` of `w`, hashed from its seed and `salt`.
 static func _roll(w: LevelGen, salt: int, v: Vector2i) -> float:
 	return float(posmod(Rules.level_seed(w.seed_for_colors, salt + v.x * 977 + v.y * 31), 1000)) / 1000.0

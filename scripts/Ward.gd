@@ -53,7 +53,7 @@ func take(v: Vector2) -> bool:
 	for i: int in range(charges * PLATES, (charges + 1) * PLATES):
 		_broken.append(Vector2(RisoWard.plate_angle(i, charges_max * PLATES, t * SPIN), 0.0))
 	var at: Vector2 = global_position + CENTER
-	RisoFx.burst(&"gain", at, v.normalized(), [RisoPrint.GLOW, RisoPrint.EYE])
+	RisoFx.burst(&"gain", at, v.normalized(), [Plate.GLOW, Plate.EYE])
 	Wound.shake(6.0, 0.14)
 	return true
 
@@ -73,7 +73,7 @@ func _process(delta: float) -> void:
 		if regrowing >= recharge:
 			charges += 1
 			regrowing = 0.0
-			RisoFx.burst(&"gain", global_position + CENTER, Vector2.UP, [RisoPrint.GLOW, RisoPrint.EYE])
+			RisoFx.burst(&"gain", global_position + CENTER, Vector2.UP, [Plate.GLOW, Plate.EYE])
 	for i: int in range(_broken.size()):
 		_broken[i].y += delta
 
@@ -82,6 +82,6 @@ func _process(delta: float) -> void:
 ## (RisoWizard._draw_world), in eye-yellow, the wizard's own light (as the parry's gleam).
 func print_ring(ink: InkCanvas, at: Vector2) -> void:
 	if charges_max > 0:
-		RisoWard.plates(ink, at, RADIUS, charges_max * PLATES, charges * PLATES, t * SPIN, clampf(1.0 - since_hit / 0.18, 0.0, 1.0), RisoPrint.EYE, regrowth(), PLATES, COVER, THICK)
+		RisoWard.plates(ink, at, RADIUS, charges_max * PLATES, charges * PLATES, t * SPIN, clampf(1.0 - since_hit / 0.18, 0.0, 1.0), Plate.EYE, regrowth(), PLATES, COVER, THICK)
 	for b: Vector2 in _broken:
-		RisoWard.shards(ink, at, RADIUS, b.x, b.y / RisoWard.SHARD_TIME, RisoPrint.EYE)
+		RisoWard.shards(ink, at, RADIUS, b.x, b.y / RisoWard.SHARD_TIME, Plate.EYE)

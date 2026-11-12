@@ -13,7 +13,7 @@ class_name Temple
 ## is met then, if it was not). Nothing here draws from any RNG.
 
 ## How many steps its sequence has (from, to).
-const LENGTH: Vector2i = Vector2i(5, 9)
+const LENGTH: Vector2i = Rules.TEMPLE_LENGTH
 
 var map_info: MapInfo
 ## Its sequence: the way each step must be (+1 right, -1 left), in order.
@@ -90,7 +90,7 @@ func use() -> void:
 				map_info.loader.place_cell(v, map_info.world.get_cell(v))
 	map_info.save_run()
 	since_open = 0.0
-	RisoFx.burst(&"gain", global_position + Vector2(64.0, -120.0), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
+	RisoFx.burst(&"gain", global_position + Vector2(64.0, -120.0), Vector2.ZERO, [Plate.ACCENT, Plate.BLUE])
 	Wound.shake(6.0, 0.3)
 
 

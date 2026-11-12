@@ -88,15 +88,15 @@ func populate(w: LevelGen) -> void:
 			if FOES.has(c):
 				var cell: LevelGen.Cell = w.put(v, FOES[c])
 				if c == c.to_upper():
-					cell.mods["shield"] = Shield.HP
+					cell.mods["shield"] = Rules.SHIELD_HP
 				continue
 			match c:
 				"B":
-					w.put(v, LevelGen.Type.EXIT, MapInfo.Exit.BACK)
-					w.exits = {MapInfo.Exit.BACK: v}
+					w.put(v, LevelGen.Type.EXIT, Ways.Exit.BACK)
+					w.exits = {Ways.Exit.BACK: v}
 				"L":
 					w.put(v, LevelGen.Type.CHECKPOINT)
-					w.exit_lanterns = {MapInfo.Exit.BACK: v}
+					w.exit_lanterns = {Ways.Exit.BACK: v}
 				"T":
 					w.put(v, LevelGen.Type.TALLY)
 				">", "<":
@@ -107,7 +107,7 @@ func populate(w: LevelGen) -> void:
 
 ## Its exits: the way back alone.
 func ways() -> Array[int]:
-	var out: Array[int] = [MapInfo.Exit.BACK]
+	var out: Array[int] = [Ways.Exit.BACK]
 	return out
 
 

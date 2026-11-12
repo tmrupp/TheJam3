@@ -19,7 +19,7 @@ const SKY_MARGIN: int = 6
 ## same full-square collision.
 const PLAIN_ROCK: Vector2i = Vector2i(1, 1)
 ## Salts for where a floating pickup sits in its cell (across, then down; see place_cell).
-const JITTER_DEAL: int = 9800
+const JITTER_DEAL: int = Salts.LEVEL_LOADER_JITTER * Salts.STRIDE
 ## How far a floating pickup may sit from its cell's centre, as a share of the cell.
 const JITTER: float = 0.3
 ## The physics layer only enemies collide with (enemy.tscn's mask): a secret room's false wall is
@@ -84,7 +84,7 @@ var gen_busy: bool:
 		return _first.at != null or _ahead.at != null
 ## Everything placed in the level being played.
 var map_elements: Node
-const MAP_ELEMENTS: PackedScene = preload("res://prefabs/map_elements.tscn")
+const MAP_ELEMENTS: String = "res://prefabs/map_elements.tscn"
 
 ## Called with each laid-out level that was asked for (request), once it is ready to be built.
 signal ready_to_build(built: LevelGen)
@@ -235,7 +235,7 @@ func clear() -> void:
 
 ## Build level `w` in the scene: a node for every thing it holds (as its record leaves them).
 func build(w: LevelGen) -> void:
-	map_elements = MAP_ELEMENTS.instantiate()
+	map_elements = Prefabs.make(MAP_ELEMENTS)
 	info.main.add_child(map_elements)
 	for v: Vector2i in w.objects:
 		place_cell(v, w.get_cell(v))
@@ -299,7 +299,7 @@ func place_cell(v: Vector2i, cell: LevelGen.Cell) -> void:
 		return
 	# A lecture hall's master and proctor are away while its hall has no class (Timetable,
 	# MapInfo.class_away); its students keep days of their own (Students).
-	if cell.type in [LevelGen.Type.MASTER, LevelGen.Type.PROCTOR] and info.class_away(v):
+	if cell.type in [LevelGen.Type.MASTER, LevelGen.Type.PROCTOR] and info.institute.class_away(v):
 		return
 	# A boss slain this run is never met again, and it is met in one column only (Bosses.column).
 	if cell.type == LevelGen.Type.BOSS and (info.run.bosses.has(StringName(cell.extra_info))

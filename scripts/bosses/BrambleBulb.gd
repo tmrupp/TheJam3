@@ -14,7 +14,6 @@ extends Node2D
 ## bared: then it opens again, wild (rouse), and spits seeds at the wizard every WILD_EVERY seconds,
 ## but nothing wounds it.
 
-const STUNNER: PackedScene = preload("res://prefabs/stunner.tscn")
 ## How near (px) the wizard must be for it to spit, how long it swells before each seed (in sight),
 ## and how fast a seed flies (px/s; a watcher's shot flies at 260).
 const SEED_RANGE: float = 900.0
@@ -36,9 +35,8 @@ const OUT: float = 34.0
 const MOUTH: float = 72.0
 ## Salt for the level seed, for how far into its first swell each bulb starts (so they do not
 ## all spit together), and how far into its first swell it starts once wild.
-const SWELL_DEAL: int = 6640
-const WILD_DEAL: int = 6641
-
+const SWELL_DEAL: int = Salts.BRAMBLE_BULB_SWELL * Salts.STRIDE
+const WILD_DEAL: int = Salts.BRAMBLE_BULB_WILD * Salts.STRIDE
 ## The bramble it belongs to, its wall cell, and the way out of the rock (into the shaft).
 var bramble: Bramble
 var cell: Vector2i = Vector2i.ZERO
@@ -74,7 +72,7 @@ func _init(of: Bramble, wall: Vector2i, out: Vector2, hp: int) -> void:
 	wound.name = "Wound"
 	wound.hp = hp
 	add_child(wound)
-	stunner = STUNNER.instantiate() as Stunner
+	stunner = Prefabs.make(Prefabs.STUNNER) as Stunner
 	stunner.name = "Stunner"
 	stunner.parry_only = true
 	add_child(stunner)
@@ -106,7 +104,7 @@ func open() -> bool:
 func warded(dir: Vector2) -> void:
 	warded_t = bramble.t
 	bramble.quiver(global_position, Bramble.QUIVER_WARDED)
-	RisoFx.burst(&"hit", global_position, dir, [RisoPrint.BLUE, RisoPrint.NIGHT])
+	RisoFx.burst(&"hit", global_position, dir, [Plate.BLUE, Plate.NIGHT])
 	Wound.shake(4.0, 0.1)
 
 
@@ -202,4 +200,4 @@ func spit(at: Vector2, bend: float = 0.0) -> void:
 	shot.setup((at - mouth()).normalized().rotated(bend) * SEED_SPEED, [], self)
 	spat += 1
 	spat_t = bramble.t
-	RisoFx.burst(&"impact", mouth(), way, [RisoPrint.PINK, RisoPrint.ACCENT])
+	RisoFx.burst(&"impact", mouth(), way, [Plate.PINK, Plate.ACCENT])

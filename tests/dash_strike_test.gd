@@ -11,9 +11,22 @@ const DASH_HOLD: int = 20
 
 
 ## Open air the wizard and a wisp can pass through: nothing solid, and no thorns.
-func open_cell(v: Vector2i) -> bool:
-	return info.world.is_valid(v) and info.world.get_cell(v).type not in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED, LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.SPIKES, LevelGen.Type.LASER]
+func open_cell(v: Vector2i, w: LevelGen = null) -> bool:
+	w = w if w != null else info.world
+	return w.is_valid(v) and w.get_cell(v).type not in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED, LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE, LevelGen.Type.SPIKES, LevelGen.Type.LASER]
 
+
+## A free floor of `w` with two open cells either side of it, over ground: room to dash through a
+## wisp stood there. Null if it has none.
+func floor_for_dash(w: LevelGen) -> Variant:
+	for v: Vector2i in w.free_floors():
+		if open_cell(v + Vector2i.LEFT, w) and open_cell(v + Vector2i.LEFT * 2, w) and open_cell(v + Vector2i.RIGHT, w) and open_cell(v + Vector2i.RIGHT * 2, w) 				and w.is_ground(v + Vector2i.LEFT + Vector2i.DOWN) and w.is_ground(v + Vector2i.RIGHT + Vector2i.DOWN):
+			return v
+	return null
+
+
+## How far round the wisp dashed through other foes are moved out of the way (px).
+const AROUND: float = 400.0
 
 ## A wisp, moved onto open floor with room to dash through it (two open cells either side of it,
 ## over ground), and the side to dash from; [] if there is no such floor or wisp. Moved rather than
@@ -21,16 +34,19 @@ func open_cell(v: Vector2i) -> bool:
 func target(skip: Array[Node] = []) -> Array:
 	var w: LevelGen = info.world
 	var spot: Variant = null
-	for v: Vector2i in w.free_floors():
-		if open_cell(v + Vector2i.LEFT) and open_cell(v + Vector2i.LEFT * 2) and open_cell(v + Vector2i.RIGHT) and open_cell(v + Vector2i.RIGHT * 2) 				and w.is_ground(v + Vector2i.LEFT + Vector2i.DOWN) and w.is_ground(v + Vector2i.RIGHT + Vector2i.DOWN):
-			spot = v
-			break
+	spot = floor_for_dash(w)
 	if spot == null:
 		return []
-	for e: Node in placed("mover_enemy.tscn"):
-		if e in skip:
-			continue
+	# A wisp that is awake: one moved while asleep in a far chunk stays asleep at the new place
+	# (LevelLoader.sleep_far_chunks files it under the chunk it slept in).
+	var wisps: Array[Node] = placed("mover_enemy.tscn").filter(func(e: Node) -> bool: return e not in skip)
+	wisps.sort_custom(func(a: Node, b: Node) -> bool: return a.can_process() and not b.can_process())
+	for e: Node in wisps:
 		(e as Node2D).global_position = info.cell_position(spot)
+		# It has the floor to itself: no other foe stands where the dash comes out.
+		for other: Node in placed("mover_enemy.tscn") + placed("hopper_enemy.tscn") + placed("shooter_enemy.tscn"):
+			if other != e and (other as Node2D).global_position.distance_to((e as Node2D).global_position) < AROUND:
+				(other as Node2D).global_position = Vector2(-9000, -9000)
 		return [e, Vector2.RIGHT]
 	return []
 
@@ -58,7 +74,8 @@ func stunned(e: Node) -> bool:
 
 
 func run() -> void:
-	await boot()
+	# A start level with a stretch of open floor to dash along (target).
+	await boot(start_seed(func(w: LevelGen) -> bool: return floor_for_dash(w) != null))
 	player.end_invulnerable()
 	var strike: DashStrike = player.get_node_or_null("DashStrike") as DashStrike
 	check(strike != null and Abilities.spell(player, &"move") == &"dash" and Abilities.spell(player) == &"slash", "every wizard has the dash's way (DashStrike); the dash and slash to start with")

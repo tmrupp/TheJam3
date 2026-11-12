@@ -60,7 +60,9 @@ func run() -> void:
 		if not unlike.is_empty():
 			differ.append("%s %s: %s" % [Difficulty.NAMES[place[0]], at, ", ".join(unlike)])
 	Difficulty.preset = Difficulty.DEFAULT
-	check(compared >= 40, "%d places laid out twice" % compared)
+	# Nearly all of them (a place whose collapse does not settle is passed over), however many
+	# bands the layout in play has.
+	check(compared >= 15 and compared * 10 >= places.size() * 9, "%d of %d places laid out twice" % [compared, places.size()])
 	check(differ.is_empty(), "each the same both times, in every property%s" % ("" if differ.is_empty() else " (unlike: %s)" % "; ".join(differ.slice(0, 6))))
 	finish()
 

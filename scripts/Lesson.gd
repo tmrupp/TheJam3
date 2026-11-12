@@ -57,7 +57,7 @@ func take() -> void:
 	if dropped != &"":
 		map_info.put_back(dropped, dropped_tier, global_position + Vector2(0, -40))
 	map_info.save_run()
-	RisoFx.burst(&"gain", global_position + Vector2(0, -40), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.PINK])
+	RisoFx.burst(&"gain", global_position + Vector2(0, -40), Vector2.ZERO, [Plate.ACCENT, Plate.PINK])
 	Wound.shake(8.0, 0.2)
 	queue_free()
 

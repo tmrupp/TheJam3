@@ -52,7 +52,7 @@ func cast() -> bool:
 		return false
 	player.mend_draughts = draughts() - 1
 	player.health.health = player.health.max_health
-	RisoFx.burst(&"gain", player.global_position + Vector2(0, -40), Vector2.ZERO, [RisoPrint.EYE, RisoPrint.PINK])
+	RisoFx.burst(&"gain", player.global_position + Vector2(0, -40), Vector2.ZERO, [Plate.EYE, Plate.PINK])
 	return true
 
 

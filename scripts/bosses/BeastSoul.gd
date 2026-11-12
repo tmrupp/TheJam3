@@ -82,17 +82,17 @@ func _process(delta: float) -> void:
 			var u: float = float(j) / 5.0
 			pts.append(Vector2(side * (SIZE * 0.4 + reach * u), floor_y - 4.0 - 10.0 * (1.0 - u) * (1.0 - u) + 2.0 * sin(t * 2.0 + float(k) + u * 4.0)))
 		roots.append_array(RisoDecor.strip(pts, 9.0, 2.0))
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], roots)
-	ink.ink(RisoPrint.PINK, 1.0, roots, false)
-	ink.ink(RisoPrint.BLUE, 0.45, roots, false)
+	ink.knock([Plate.NIGHT, Plate.BLUE, Plate.ACCENT], roots)
+	ink.ink(Plate.PINK, 1.0, roots, false)
+	ink.ink(Plate.BLUE, 0.45, roots, false)
 	if surge > 0.0:
-		ink.ink(RisoPrint.PINK, 0.15 + 0.35 * surge, [RisoShapes.circle(c, SIZE * (1.6 + 0.5 * surge), 24)])
+		ink.ink(Plate.PINK, 0.15 + 0.35 * surge, [RisoShapes.circle(c, SIZE * (1.6 + 0.5 * surge), 24)])
 	var knot: PackedVector2Array = AbominationArt.gumdrop(c, SIZE * s)
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], [knot])
-	ink.ink(RisoPrint.PINK, 1.0, [knot], false)
-	ink.ink(RisoPrint.BLUE, 0.25 + 0.15 * beat, [knot], false)
+	ink.knock([Plate.NIGHT, Plate.BLUE, Plate.ACCENT], [knot])
+	ink.ink(Plate.PINK, 1.0, [knot], false)
+	ink.ink(Plate.BLUE, 0.25 + 0.15 * beat, [knot], false)
 	if _struck < 0.25:
-		ink.ink(RisoPrint.PINK, 0.6 * (1.0 - _struck / 0.25), [knot], false)
+		ink.ink(Plate.PINK, 0.6 * (1.0 - _struck / 0.25), [knot], false)
 	# Its eye, the beast's, looking at the wizard.
 	var look: Vector2 = Vector2.ZERO
 	var player: Player = Stage.player()
@@ -100,12 +100,12 @@ func _process(delta: float) -> void:
 		look = (player.global_position - global_position).normalized()
 	var e: Vector2 = c + Vector2(0, -SIZE * 0.1)
 	var white: PackedVector2Array = RisoShapes.circle(e, SIZE * 0.42, 18)
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT], [white])
-	ink.ink(RisoPrint.NIGHT, 1.0, [RisoShapes.circle(e + look * SIZE * 0.16, SIZE * 0.2, 12)], false)
+	ink.knock([Plate.NIGHT, Plate.BLUE, Plate.PINK, Plate.ACCENT], [white])
+	ink.ink(Plate.NIGHT, 1.0, [RisoShapes.circle(e + look * SIZE * 0.16, SIZE * 0.2, 12)], false)
 	# Its blows left, as notches of paper over it.
 	var notches: Array[PackedVector2Array] = []
 	for i: int in range(wound.hp):
 		notches.append(RisoShapes.circle(Vector2((float(i) - float(SOUL_HP - 1) * 0.5) * NOTCH_GAP, c.y - SIZE * 1.6), NOTCH_R, 10))
-	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE], notches)
-	ink.ink(RisoPrint.PINK, 1.0, notches, false)
+	ink.knock([Plate.NIGHT, Plate.BLUE], notches)
+	ink.ink(Plate.PINK, 1.0, notches, false)
 	ink.finish()

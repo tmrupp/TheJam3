@@ -77,13 +77,12 @@ const APART: int = 2
 ## Salts for the level seed: where each hall goes (ties), which way a classroom faces, which end
 ## the library's lowest gap is at, what each master has mastered and which department each lecture
 ## hall is and where its portal leads.
-const SITE_DEAL: int = 6400
-const RISE_DEAL: int = 6410
-const GAP_DEAL: int = 6420
-const MASTER_DEAL: int = 6430
-const DEPT_DEAL: int = 6440
-const ROW_DEAL: int = 6450
-
+const SITE_DEAL: int = Salts.INSTITUTE_SITE * Salts.STRIDE
+const RISE_DEAL: int = Salts.INSTITUTE_RISE * Salts.STRIDE
+const GAP_DEAL: int = Salts.INSTITUTE_GAP * Salts.STRIDE
+const MASTER_DEAL: int = Salts.INSTITUTE_MASTER * Salts.STRIDE
+const DEPT_DEAL: int = Salts.INSTITUTE_DEPT * Salts.STRIDE
+const ROW_DEAL: int = Salts.INSTITUTE_ROW * Salts.STRIDE
 ## What a master may have mastered: one of the wizard's damage spells (Abilities), which it casts
 ## (Scholar) and teaches once beaten (Lesson).
 const MASTERIES: Array[StringName] = [&"hex", &"seeker", &"slash", &"nova", &"push", &"lunge"]
@@ -461,7 +460,7 @@ static func way_on(w: LevelGen, back: Vector2i) -> Variant:
 ## out of their halls (see the consts). Their spots are drawn, as any archetype's dressing is. The
 ## level's relic, if it holds one, is carried by the master out in the level furthest from the way in.
 static func populate(w: LevelGen, def: NextWorldDef) -> void:
-	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	var start: Vector2i = w.exits.get(Ways.Exit.BACK, Vector2i(-1, -1))
 	var floors: Array[Vector2i] = w.free_floors()
 	var breaches: Array[Vector2i] = w.pick_apart(floors.filter(func(v: Vector2i) -> bool: return LevelGen.dist(v, start) >= BREACH_CLEAR and not w._crowds_exit(v)), w.foes_per_area(BREACHES_PER_K), BREACH_APART)
 	w.put_each(breaches, LevelGen.Type.BREACH)
@@ -583,7 +582,7 @@ static func _timetable(w: LevelGen) -> void:
 				_place(w, Vector2i(inside.position.x + inside.size.x / 2, bottom), LevelGen.Type.TIMETABLE_BOARD)
 				@warning_ignore("integer_division")
 				_place(w, Vector2i(inside.position.x + inside.size.x / 2 + DESK_OUT, bottom), LevelGen.Type.STUDY_DESK)
-	var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
+	var start: Vector2i = w.exits.get(Ways.Exit.BACK, Vector2i(-1, -1))
 	var out: Array[Vector2i] = w.free_floors().filter(func(v: Vector2i) -> bool: return hall_at(w, v) < 0 and LevelGen.dist(v, start) >= BELL_CLEAR and not w._crowds_exit(v))
 	var roomy_of: Callable = func(spots: Array[Vector2i]) -> Array[Vector2i]:
 		var roomy: Array[Vector2i] = spots.filter(func(v: Vector2i) -> bool: return range(1, BELL_ROOM + 1).all(func(k: int) -> bool: return w.is_valid(v + Vector2i(0, -k)) and not w.is_ground(v + Vector2i(0, -k))))

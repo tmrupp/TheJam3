@@ -237,7 +237,7 @@ func _shut_or_open(info: MapInfo) -> void:
 			LevelGen.Type.LIGHT_GATE:
 				shut = not bool(info.light_gates.get(v, false))
 			LevelGen.Type.EXAM_DOOR:
-				shut = not bool(info.exam_doors.get(v, true))
+				shut = not bool(info.institute.exam_doors.get(v, true))
 			LevelGen.Type.OSSUARY_DOOR:
 				shut = not info.ossuary_open(v)
 			_:

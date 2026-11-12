@@ -13,8 +13,8 @@ extends Area2D
 
 ## How many charges of darkness a font never touched holds, and a large font, a crypt's prize
 ## (Crypts._prize: its cell's extra_info says {"charges": LARGE}).
-const CHARGES: int = 3
-const LARGE: int = 8
+const CHARGES: int = Rules.FONT_CHARGES
+const LARGE: int = Rules.FONT_LARGE
 
 @onready var player: Player = Stage.player()
 var map_info: MapInfo
@@ -42,8 +42,7 @@ func large() -> bool:
 
 ## How many charges the font at cell `v` of `w` holds untouched: CHARGES, or what its cell says.
 static func capacity(w: LevelGen, v: Vector2i) -> int:
-	var extra: Variant = w.get_cell(v).extra_info if w.is_valid(v) else null
-	return int((extra as Dictionary).get("charges", CHARGES)) if extra is Dictionary else CHARGES
+	return Rules.font_capacity(w, v)
 
 
 ## Whether it has run dry.

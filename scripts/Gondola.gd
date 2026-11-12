@@ -36,8 +36,8 @@ extends AnimatableBody2D
 ## bringing a rider all the way to the top station inks the maps of every level this one's exits
 ## lead to (MapInfo.ink_neighbours): the way a lodestone (Lodestone) is found.
 
-const INTERACTABLE: PackedScene = preload("res://prefabs/interactable.tscn")
-const STATION: PackedScene = preload("res://prefabs/gondola_station.tscn")
+const INTERACTABLE: String = "res://prefabs/interactable.tscn"
+const STATION: String = "res://prefabs/gondola_station.tscn"
 ## How far round the car (cells) the map is inked as a rider rides it up.
 const RIDE_SEE: int = 8
 ## How fast it runs with a rider, and called empty (pixels a second), and how quickly it gets up to
@@ -173,7 +173,7 @@ func setup(info: MapInfo, v: Vector2i, circuit: Variant) -> void:
 	room.position = Vector2(0.0, -tall * 0.5)
 	_inside.add_child(room)
 	# The lever: interacting anywhere in the car pulls it.
-	_lever = INTERACTABLE.instantiate() as Interactable
+	_lever = Prefabs.make(INTERACTABLE) as Interactable
 	_inside.add_child(_lever)
 	add_child(_inside)
 	_lever.interacted.connect(pull)
@@ -191,7 +191,7 @@ func setup(info: MapInfo, v: Vector2i, circuit: Variant) -> void:
 		half.shape = half_box
 		half.position = Vector2(0.0, -tall * 0.5)
 		fare.add_child(half)
-		var it: Interactable = INTERACTABLE.instantiate() as Interactable
+		var it: Interactable = Prefabs.make(INTERACTABLE) as Interactable
 		it.name = "Interactable"
 		fare.add_child(it)
 		add_child(fare)
@@ -202,7 +202,7 @@ func setup(info: MapInfo, v: Vector2i, circuit: Variant) -> void:
 	_place()
 	# Each station's call switch, in its doorway.
 	for i: int in range(gates.size()):
-		var post: GondolaStation = STATION.instantiate() as GondolaStation
+		var post: GondolaStation = Prefabs.make(STATION) as GondolaStation
 		post.gondola = self
 		post.index = i
 		post.inner = inner[i]
@@ -351,7 +351,7 @@ func pull() -> void:
 		return
 	if not may_run(next_dir):
 		next_dir = -next_dir
-		RisoFx.burst(&"hit", center(), Vector2.UP, [RisoPrint.PINK, RisoPrint.NIGHT])
+		RisoFx.burst(&"hit", center(), Vector2.UP, [Plate.PINK, Plate.NIGHT])
 		return
 	var way: Array = next_station(s, next_dir)
 	_set_off(next_dir, int(way[0]), float(way[1]), has_rider())
@@ -495,4 +495,4 @@ func _call_foe() -> void:
 	map_info.map_elements.add_child(foe)
 	(foe.get_node("RockBug") as RockBug).ride_track(self, at)
 	foes.append(foe)
-	RisoFx.burst(&"impact", foe.global_position, Vector2.UP, [RisoPrint.PINK, RisoPrint.NIGHT])
+	RisoFx.burst(&"impact", foe.global_position, Vector2.UP, [Plate.PINK, Plate.NIGHT])

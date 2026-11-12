@@ -88,7 +88,7 @@ func _placement() -> void:
 		if CragsArchetype.tier_of(w, v.y) >= upper and CragsArchetype.in_sight_of_track(w, v):
 			high_seen += 1
 		var watch: Array[Dictionary] = w.towers.filter(func(t: Dictionary) -> bool: return not t["hoard"])
-		check(watch.all(func(t: Dictionary) -> bool: return t.has("spire") and w.get_cell(t["spire"]).type == LevelGen.Type.SPIRE and (t["spire"] as Vector2i).y == (t["box"] as Rect2i).position.y - 1), "each of its %d watchtowers has a spire on its roof" % watch.size())
+		check(watch.all(func(t: Dictionary) -> bool: return _roof_taken(w, t) if not t.has("spire") else w.get_cell(t["spire"]).type == LevelGen.Type.SPIRE and (t["spire"] as Vector2i).y == (t["box"] as Rect2i).position.y - 1), "each of its %d watchtowers has a spire on its roof" % watch.size())
 		check(w.towers.all(func(t: Dictionary) -> bool: return not t.get("cold", false) or (not t["hoard"] and CragsArchetype.tier_of(w, (t["box"] as Rect2i).end.y - 1) > 0)), "a cold tower is a watchtower above the bottom tier")
 	check(high_seen >= levels.size() - 1, "high on the cliff, in sight of the track (%d of %d)" % [high_seen, levels.size()])
 	var bare: Vector2i = Vector2i(levels[0].x + 1, levels[0].y)
@@ -366,3 +366,18 @@ func _ride() -> void:
 	check(not bool(map.call(&"_lodestone_known", info, far)), "a lodestone in a level not inked is not on the map")
 	info.ink_place(far)
 	check(bool(map.call(&"_lodestone_known", info, far)), "inked, it is")
+
+
+## Whether watchtower `t` of `w` has no room on its roof for a spire: every cell over its roof holds
+## something a spire does not take the place of (a lift, a teleporter, CragsArchetype.SPIRE_TAKES),
+## the one case in which a watchtower has none.
+func _roof_taken(w: LevelGen, t: Dictionary) -> bool:
+	var box: Rect2i = t["box"]
+	var free: Dictionary = w.empty_set()
+	for x: int in range(box.position.x, box.end.x):
+		var v: Vector2i = Vector2i(x, box.position.y - 1)
+		if not w.is_valid(v) or not w.is_ground(v + Vector2i.DOWN):
+			continue
+		if (w.type_at(v) == LevelGen.Type.EMPTY and free.has(v)) or w.type_at(v) in CragsArchetype.SPIRE_TAKES:
+			return false
+	return true

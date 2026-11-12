@@ -56,8 +56,8 @@ func _draw_art() -> void:
 		return
 	var g: float = _ground()
 	var info: MapInfo = bell.map_info
-	var ringing: float = info.since_bell if info != null else 99.0
-	var fade: float = clampf(1.0 - ringing / MapInfo.BELL_TIME, 0.0, 1.0)
+	var ringing: float = info.institute.since_bell if info != null else 99.0
+	var fade: float = clampf(1.0 - ringing / InstitutePlay.BELL_TIME, 0.0, 1.0)
 	var x: float = 0.0
 	var ceiling: float = g - float(bell.reach) * half * 2.0
 	var top: float = ceiling

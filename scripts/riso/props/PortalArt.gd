@@ -177,7 +177,7 @@ func _draw_art() -> void:
 	var disc: PackedVector2Array = RisoShapes.circle(top, SIGIL_DISC, 24)
 	ink.ink(ring, 1.0, [RisoShapes.circle(top, SIGIL_DISC + 3.0, 26)])
 	ink.knock([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.PINK, RisoPrint.ACCENT, RisoPrint.EYE], [disc])
-	var pair: int = -1 if rift else Sigils.of(host)
+	var pair: int = -1 if rift else MapInfo.sigil_of(host)
 	var mark: Array[PackedVector2Array] = [RisoShapes.sparkle(top, SIGIL_R * 1.1)]
 	if pair >= 0:
 		mark = RisoMarks.sigil(pair, top, SIGIL_R)

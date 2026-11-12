@@ -18,7 +18,7 @@ func run() -> void:
 	for s: int in range(400):
 		offered = offered or Abilities.offers(s, player, 3).has(Crypts.RITE)
 	check(not offered and Abilities.found_first(Crypts.RITE), "no shrine offers resurrect before it is found")
-	check(not info.teaches(Crypts.RITE), "nor does the institute teach it")
+	check(not info.institute.teaches(Crypts.RITE), "nor does the institute teach it")
 	check(Abilities.slot_of(Crypts.RITE) == &"utility" and Abilities.is_spell(Crypts.RITE), "it is a utility spell")
 	check(RisoGlyph.of(Crypts.RITE, Vector2.ZERO, 0.0).size() >= 2, "it has a mark of its own (a headstone and a spark)")
 
@@ -29,7 +29,7 @@ func run() -> void:
 	check(Abilities.tier(player, Crypts.RITE) == 1 and Abilities.spell(player, &"utility") == Crypts.RITE, "resurrect at tier I, in the utility slot")
 	var spell: Resurrect = player.get_node("Resurrect") as Resurrect
 	check(spell != null and spell.rites() == 1 and spell.readiness() == 1.0, "one rite, ready")
-	check(info.teaches(Crypts.RITE), "known, its higher tiers can be taught")
+	check(info.institute.teaches(Crypts.RITE), "known, its higher tiers can be taught")
 
 	print("binding and rising")
 	await until(func() -> bool: return player.is_on_floor())

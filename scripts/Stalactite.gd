@@ -112,7 +112,7 @@ func _wizard_under() -> bool:
 func _shatter() -> void:
 	if state != State.FALLING:
 		return
-	RisoFx.burst(&"rubble", tip(), Vector2.UP, [RisoPrint.BLUE, RisoPrint.BLUE, RisoPrint.PINK])
+	RisoFx.burst(&"rubble", tip(), Vector2.UP, [Plate.BLUE, Plate.BLUE, Plate.PINK])
 	state = State.REGROWING
 	timer = 0.0
 	drop = 0.0

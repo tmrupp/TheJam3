@@ -62,7 +62,7 @@ func _draw_art() -> void:
 	if thorns != null and thorns.pit >= 0:
 		_mist()
 	if thorns != null and thorns.mode == Spikes.Mode.SWITCHED:
-		var sigil: int = Sigils.of(host)
+		var sigil: int = MapInfo.sigil_of(host)
 		if sigil >= 0:
 			RisoMarks.sigil_plate(ink, Vector2(0, half - 4.0), 1.0, 1.0, sigil, false)
 

@@ -11,6 +11,17 @@ extends TestKit
 ## godot --headless --path . --script res://tests/thorns_test.gd
 
 
+## Whether `v` of level `w` has open air for a lift three cells long with three rows over it: nothing
+## there but air and what floats in it.
+func lift_room(w: LevelGen, v: Vector2i) -> bool:
+	for x: int in range(0, 3):
+		for y: int in range(-3, 1):
+			var c: Vector2i = v + Vector2i(x, y)
+			if not w.is_valid(c) or w.type_at(c) in IN_THE_WAY:
+				return false
+	return true
+
+
 func run() -> void:
 	if not needs([&"cemetery"]):
 		finish()
@@ -75,7 +86,8 @@ func run() -> void:
 	check(ok_links, "a switched run's switch stands on a floor reached from the way in (never in a vault), works the whole run, and the run goes together")
 
 	print("in play")
-	await boot()
+	# A start level with open air to park a lift in (lift_room).
+	await boot(start_seed(func(w: LevelGen) -> bool: return w.empties.any(func(v: Vector2i) -> bool: return lift_room(w, v))))
 	var thorns: Array[Node] = placed("spikes.tscn")
 	check(not thorns.is_empty(), "thorns in the level")
 	# The thorns nearest the wizard, whose chunks are awake (asleep, nothing in them runs).
@@ -158,12 +170,7 @@ func run() -> void:
 	var cell: float = float(info.tile_map.tile_set.tile_size.x) * info.tile_map.global_scale.x
 	var home: Vector2i = Vector2i(-1, -1)
 	for v: Vector2i in info.world.empties:
-		var room: bool = true
-		for x: int in range(0, 3):
-			for y: int in range(-3, 1):
-				var c: Vector2i = v + Vector2i(x, y)
-				room = room and info.world.is_valid(c) and info.world.get_cell(c).type != LevelGen.Type.SPIKES and not info.solid_at(info.cell_position(c))
-		if room:
+		if lift_room(info.world, v) and range(0, 3).all(func(x: int) -> bool: return range(-3, 1).all(func(y: int) -> bool: return not info.solid_at(info.cell_position(v + Vector2i(x, y))))):
 			home = v
 			break
 	check(home != Vector2i(-1, -1), "open air for a lift")

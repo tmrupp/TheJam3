@@ -40,7 +40,7 @@ func band() -> StringName:
 func use() -> void:
 	if map_info == null or map_info.travelling or map_info.run_ending > 0.0:
 		return
-	map_info.department_travel(destination(), cell)
+	map_info.institute.department_travel(destination(), cell)
 
 
 func _ready() -> void:

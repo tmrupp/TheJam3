@@ -6,7 +6,6 @@ extends Node2D
 ## guard catches it as it catches thorns, with nothing to strike (Parry), for it is no part of the
 ## golem. In pink (danger): a low ripple of the floor's dust, lifted toward its front.
 
-const HIT_BOX: PackedScene = preload("res://prefabs/hit_box.tscn")
 ## How fast it runs (px/s), how far (px), and how high (px) over the floor its touch reaches, and how
 ## wide (px) it is.
 const SPEED: float = 700.0
@@ -36,7 +35,7 @@ static func send(golem: Golem, at: Vector2, floor_top: float) -> void:
 
 func _ready() -> void:
 	z_index = 3
-	var box: HitBox = HIT_BOX.instantiate() as HitBox
+	var box: HitBox = Prefabs.make(Prefabs.HIT_BOX) as HitBox
 	var reach: RectangleShape2D = RectangleShape2D.new()
 	reach.size = Vector2(WIDE, HIGH)
 	(box.get_node("CollisionShape2D") as CollisionShape2D).shape = reach
@@ -71,5 +70,5 @@ func _process(delta: float) -> void:
 	])
 	ink.global_position = global_position
 	ink.begin()
-	ink.ink(RisoPrint.PINK, 0.85 * fade, [RisoShapes.smooth(crest, 3)])
+	ink.ink(Plate.PINK, 0.85 * fade, [RisoShapes.smooth(crest, 3)])
 	ink.finish()

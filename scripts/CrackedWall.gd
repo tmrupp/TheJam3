@@ -26,7 +26,7 @@ func _ready() -> void:
 func hex_hit(_damage: int, dir: Vector2) -> void:
 	if is_queued_for_deletion():
 		return
-	RisoFx.burst(&"hit", global_position, dir, [RisoPrint.BLUE, RisoPrint.NIGHT])
+	RisoFx.burst(&"hit", global_position, dir, [Plate.BLUE, Plate.NIGHT])
 
 
 ## Broken by an empowered spell heading `dir`: it crumbles for good, or, the hidden rock of a secret
@@ -34,13 +34,13 @@ func hex_hit(_damage: int, dir: Vector2) -> void:
 func crumble(dir: Vector2) -> void:
 	if is_queued_for_deletion():
 		return
-	RisoFx.burst(&"hit", global_position, dir, [RisoPrint.BLUE, RisoPrint.NIGHT])
+	RisoFx.burst(&"hit", global_position, dir, [Plate.BLUE, Plate.NIGHT])
 	if has_meta(&"secret") and MapInfo.instance != null:
 		MapInfo.instance.open_secret(int(get_meta(&"secret")))
 		return
 	if MapInfo.instance != null:
 		MapInfo.instance.mark_broken(self)
-	RisoFx.burst(&"gain", global_position, Vector2.ZERO, [RisoPrint.BLUE])
+	RisoFx.burst(&"gain", global_position, Vector2.ZERO, [Plate.BLUE])
 	Wound.shake(14.0, 0.3)
 	queue_free()
 	# Reprint the rock without this cell.

@@ -49,7 +49,7 @@ extends RefCounted
 ##   from the way in (Institute.way_on), and the way on takes an exam paper of any department but
 ##   that classroom's at WAY_ON_PAPER or higher as the wizard goes through (MapInfo.way_on_due), so
 ##   getting through means sitting classes.
-## - Exam papers (KeyRing.paper): a wizard who began class time in a classroom has attended its class
+## - Exam papers (Keys.paper): a wizard who began class time in a classroom has attended its class
 ##   when they ring it out from inside it (back from a field trip or not), and its paper (the subject at the tier taught) waits in the
 ##   level its department's portal leads to (MapInfo._attend), to be fetched and carried on the key
 ##   ring; one carried of that subject at a lower tier is graded up in hand instead (resitting). A
@@ -58,7 +58,7 @@ extends RefCounted
 ##   a paper left there (a pigeonhole, LevelRecord.pigeonholes); while the room is empty and its slot
 ##   bare, the next class's paper lies there to be lifted (sneaking, MapInfo.lectern_paper). A
 ##   class's master beaten by the wizard leaves a paper of its subject at the top tier, once a room
-##   (MapInfo.instructor_fell). Those two are stolen (KeyRing.stolen): while the wizard carries one,
+##   (MapInfo.instructor_fell). Those two are stolen (Keys.stolen): while the wizard carries one,
 ##   they belong nowhere, and every scholar who sees them turns on them. Papers are learned at
 ##   lanterns (MapInfo.learn_paper).
 ## Nothing here draws from any RNG: it is all hashed from the level seed.
@@ -87,11 +87,9 @@ const TOP: int = 4
 ## description).
 const WAY_ON_PAPER: int = 2
 ## Salt for the level seed: where each classroom starts in its department's subjects.
-const ROTATION_DEAL: int = 6470
+const ROTATION_DEAL: int = Salts.TIMETABLE_ROTATION * Salts.STRIDE
 ## Salt for the level seed: where each classroom starts in its cycle.
-const PHASE_DEAL: int = 6490
-
-
+const PHASE_DEAL: int = Salts.TIMETABLE_PHASE * Salts.STRIDE
 ## Where classroom `hall` of `w` stands in its cycle before any ring (0 to PERIODS - 1), dealt by
 ## the seed: it is in session while (rings + phase) counted round PERIODS is under IN_SESSION.
 static func phase(w: LevelGen, hall: int) -> int:
@@ -171,9 +169,9 @@ static func climb(tiers: Dictionary, attended: StringName, meeting: Dictionary) 
 
 ## The classroom of `w` holding the way on (the deeper exit, Institute.way_on), or -1 for none.
 static func way_on_hall(w: LevelGen) -> int:
-	if not w.exits.has(MapInfo.Exit.DEEPER):
+	if not w.exits.has(Ways.Exit.DEEPER):
 		return -1
-	var hall: int = hall_inside(w, w.exits[MapInfo.Exit.DEEPER])
+	var hall: int = hall_inside(w, w.exits[Ways.Exit.DEEPER])
 	return hall if hall >= 0 and w.halls[hall]["kind"] == &"lecture" else -1
 
 

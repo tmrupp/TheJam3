@@ -18,7 +18,7 @@ class_name Spikes
 ## drowsy (Player.make_drowsy), so no spell lifts them out.
 
 const UP: float = 1.6
-const CYCLE: float = 3.0
+const CYCLE: float = Rules.THORN_CYCLE
 const WARN: float = 0.45
 ## How fast (of the way, a second) the thorns slide out and in, for the art.
 const SLIDE: float = 9.0

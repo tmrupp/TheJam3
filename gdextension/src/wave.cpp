@@ -1,4 +1,5 @@
 #include "wave.hpp"
+#include "portable.hpp"
 
 #include <limits>
 
@@ -11,7 +12,7 @@ std::vector<double>
 get_plogp(const std::vector<double> &distribution) noexcept {
   std::vector<double> plogp;
   for (unsigned i = 0; i < distribution.size(); i++) {
-    plogp.push_back(distribution[i] * log(distribution[i]));
+    plogp.push_back(distribution[i] * portable::log(distribution[i]));
   }
   return plogp;
 }
@@ -44,7 +45,7 @@ Wave::Wave(unsigned height, unsigned width,
     base_entropy += plogp_patterns_frequencies[i];
     base_s += patterns_frequencies[i];
   }
-  double log_base_s = log(base_s);
+  double log_base_s = portable::log(base_s);
   double entropy_base = log_base_s - base_entropy / base_s;
   memoisation.plogp_sum = std::vector<double>(width * height, base_entropy);
   memoisation.sum = std::vector<double>(width * height, base_s);
@@ -65,7 +66,7 @@ void Wave::set(unsigned index, unsigned pattern, bool value) noexcept {
   data.get(index, pattern) = value;
   memoisation.plogp_sum[index] -= plogp_patterns_frequencies[pattern];
   memoisation.sum[index] -= patterns_frequencies[pattern];
-  memoisation.log_sum[index] = log(memoisation.sum[index]);
+  memoisation.log_sum[index] = portable::log(memoisation.sum[index]);
   memoisation.nb_patterns[index]--;
   memoisation.entropy[index] =
     memoisation.log_sum[index] -
@@ -82,8 +83,6 @@ int Wave::get_min_entropy(std::minstd_rand &gen) const noexcept {
   if (is_impossible) {
     return -2;
   }
-
-  std::uniform_real_distribution<> dis(0, min_abs_half_plogp);
 
   // The minimum entropy (plus a small noise)
   double min = std::numeric_limits<double>::infinity();
@@ -109,7 +108,7 @@ int Wave::get_min_entropy(std::minstd_rand &gen) const noexcept {
       // Then, we add noise to decide randomly which will be chosen.
       // noise is smaller than the smallest p * log(p), so the minimum entropy
       // will always be chosen.
-      double noise = dis(gen);
+      double noise = portable::uniform(gen, min_abs_half_plogp);
       if (entropy + noise < min) {
         min = entropy + noise;
         argmin = i;

@@ -406,7 +406,7 @@ static func dealt_colors(w: LevelGen) -> Dictionary:
 ## leaves it (taken, opened, thrown, rung, spent, paid): exits, the shrine, the ink well, lanterns,
 ## teleporters, keys, doors, gates, switches, relics, star clusters, bells and vanes, bridges, what
 ## opened secret rooms hold, and the keys dropped there. An exam paper lying there is marked seen or
-## not: a class sent it there, away from the way in (MapInfo._lay_papers), to be fetched. The level
+## not: a class sent it there, away from the way in (InstitutePlay._lay_papers), to be fetched. The level
 ## being played is marked the same way: its record changes the moment its things do. Whether a relic
 ## was marked comes back.
 func _mark_level(info: MapInfo, c: Vector2i, w: LevelGen, rec: LevelRecord, seen: Callable, spot: Callable) -> bool:

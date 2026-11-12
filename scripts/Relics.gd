@@ -44,7 +44,7 @@ static func at(at: Vector2i) -> StringName:
 	# Gate levels hold none of their own: their boss leaves one (Bosses).
 	if Worlds.is_side(at) or Bosses.gate_at(at.y) != &"":
 		return &""
-	var h: int = Rules.level_seed(Rules.level_seed(at.x, at.y), 4242)
+	var h: int = Rules.level_seed(Rules.level_seed(at.x, at.y), Salts.RELICS_AT * Salts.STRIDE)
 	var d: int = absi(at.y)
 	if not MapInfo.debug and (d < min_depth() or h % 100 >= chance(d)):
 		return &""

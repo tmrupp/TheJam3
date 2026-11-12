@@ -75,4 +75,4 @@ func _hatch() -> void:
 	bug.global_position = global_position
 	(bug.get_node("RockBug") as RockBug).crawl_out(cell)
 	brood.append(bug)
-	RisoFx.burst(&"rubble", global_position + Vector2(0.0, 40.0), Vector2.UP, [RisoPrint.PINK, RisoPrint.NIGHT])
+	RisoFx.burst(&"rubble", global_position + Vector2(0.0, 40.0), Vector2.UP, [Plate.PINK, Plate.NIGHT])

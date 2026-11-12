@@ -20,8 +20,6 @@ extends Node2D
 ##   stood (MapInfo.boss_slain).
 ## A lantern death brings it back whole, as the crypt reloads. Nothing here draws from any RNG.
 
-const STUNNER: PackedScene = preload("res://prefabs/stunner.tscn")
-const HIT_BOX: PackedScene = preload("res://prefabs/hit_box.tscn")
 const SKELETON: String = "res://prefabs/skeleton_enemy.tscn"
 ## Its candles, the wounds it takes.
 const CANDLES: int = 7
@@ -86,10 +84,10 @@ func _init() -> void:
 	wound.name = "Wound"
 	wound.hp = CANDLES
 	add_child(wound)
-	stunner = STUNNER.instantiate() as Stunner
+	stunner = Prefabs.make(Prefabs.STUNNER) as Stunner
 	stunner.name = "Stunner"
 	add_child(stunner)
-	touch = HIT_BOX.instantiate() as HitBox
+	touch = Prefabs.make(Prefabs.HIT_BOX) as HitBox
 	touch.name = "HitBox"
 	var reach: CircleShape2D = CircleShape2D.new()
 	reach.radius = BODY_R
@@ -148,13 +146,13 @@ func dying() -> bool:
 ## A strike passed through it in the dark.
 func glance(dir: Vector2) -> void:
 	glanced = 0.0
-	RisoFx.burst(&"hit", global_position + Vector2(0, -LIGHT_RISE), dir, [RisoPrint.BLUE, RisoPrint.NIGHT])
+	RisoFx.burst(&"hit", global_position + Vector2(0, -LIGHT_RISE), dir, [Plate.BLUE, Plate.NIGHT])
 
 
 ## A strike landed: a candle goes out, and it blinks away into the dark.
 func wounded(dir: Vector2) -> void:
 	hurt = 0.0
-	RisoFx.burst(&"hit", global_position + Vector2(0, -LIGHT_RISE), dir, [RisoPrint.PINK, RisoPrint.GLOW])
+	RisoFx.burst(&"hit", global_position + Vector2(0, -LIGHT_RISE), dir, [Plate.PINK, Plate.GLOW])
 	Wound.shake(9.0, 0.18)
 	if wound.hp > 0:
 		_blink()
@@ -162,7 +160,7 @@ func wounded(dir: Vector2) -> void:
 
 ## Its last candle is out: it crumbles, and its skeletons with it.
 func die() -> void:
-	if not death.begin(14.0, 0.4, global_position + Vector2(0, -LIGHT_RISE), [RisoPrint.ACCENT, RisoPrint.PINK]):
+	if not death.begin(14.0, 0.4, global_position + Vector2(0, -LIGHT_RISE), [Plate.ACCENT, Plate.PINK]):
 		return
 	(touch.get_node("CollisionShape2D") as CollisionShape2D).set_deferred("disabled", true)
 	_unraise()
@@ -255,7 +253,7 @@ func _raise(player: Player) -> void:
 	map_info.map_elements.add_child(skeleton)
 	skeleton.global_position = map_info.cell_position(spot)
 	raised.append(skeleton)
-	RisoFx.burst(&"gain", map_info.cell_position(spot) + Vector2(0, 24), Vector2.UP, [RisoPrint.NIGHT, RisoPrint.PINK])
+	RisoFx.burst(&"gain", map_info.cell_position(spot) + Vector2(0, 24), Vector2.UP, [Plate.NIGHT, Plate.PINK])
 
 
 ## Blink to the grave deepest in the dark: the furthest from every light (Lamplight.lights, the
@@ -280,7 +278,7 @@ func _blink() -> void:
 		return
 	blink_to = best
 	blinking = 0.0
-	RisoFx.burst(&"hit", global_position + Vector2(0, -LIGHT_RISE), Vector2.ZERO, [RisoPrint.NIGHT, RisoPrint.BLUE])
+	RisoFx.burst(&"hit", global_position + Vector2(0, -LIGHT_RISE), Vector2.ZERO, [Plate.NIGHT, Plate.BLUE])
 
 
 # ------------------------------------------------------------------ how it looks
@@ -312,26 +310,26 @@ func _process(_delta: float) -> void:
 	if solid > 0.0:
 		if in_light:
 			# Caught in the light: a pale robe, lifted out of the dark round it.
-			ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 0.85 * solid, [robe])
-			ink.ink(RisoPrint.BLUE, 0.35 * solid, [robe], false)
+			ink.lift_ink([Plate.NIGHT, Plate.BLUE], 0.85 * solid, [robe])
+			ink.ink(Plate.BLUE, 0.35 * solid, [robe], false)
 			# A dark fold down its front.
-			ink.ink(RisoPrint.NIGHT, 0.5 * solid, [xf * RisoShapes.rrect(-4.0, -TALL + 30.0, 4.0, TALL - 34.0, 2.0)], false)
+			ink.ink(Plate.NIGHT, 0.5 * solid, [xf * RisoShapes.rrect(-4.0, -TALL + 30.0, 4.0, TALL - 34.0, 2.0)], false)
 		else:
 			# In the dark, a shadow.
-			ink.ink(RisoPrint.NIGHT, 0.85 * solid, [robe], false)
-			ink.ink(RisoPrint.BLUE, 0.3 * solid, [robe], false)
+			ink.ink(Plate.NIGHT, 0.85 * solid, [robe], false)
+			ink.ink(Plate.BLUE, 0.3 * solid, [robe], false)
 		# The hood's hollow and its two pale points.
 		var face: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(4, -TALL + 18), 7.0, 9.0, 16)
-		ink.ink(RisoPrint.NIGHT, solid, [face], false)
+		ink.ink(Plate.NIGHT, solid, [face], false)
 		var eyes: Array[PackedVector2Array] = []
 		for e: Vector2 in [Vector2(2, -TALL + 17), Vector2(8, -TALL + 17)]:
 			eyes.append(xf * RisoShapes.circle(e, 1.6, 8))
-		glow_ink.ink(RisoPrint.PINK, 0.7 * shown, eyes)
-		ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], solid, eyes)
+		glow_ink.ink(Plate.PINK, 0.7 * shown, eyes)
+		ink.lift_ink([Plate.NIGHT, Plate.BLUE], solid, eyes)
 		# The staff, held forward, and its candles.
 		var staff: PackedVector2Array = xf * RisoShapes.rrect(22.0, -TALL - 12.0, 4.0, TALL + 12.0, 2.0)
 		var crown: PackedVector2Array = xf * RisoShapes.ellipse(Vector2(24, -TALL - 10), 14.0, 4.0, 16)
-		ink.ink(RisoPrint.NIGHT, solid, [staff, crown], false)
+		ink.ink(Plate.NIGHT, solid, [staff, crown], false)
 		var flames: Array[PackedVector2Array] = []
 		var wax: Array[PackedVector2Array] = []
 		var left: int = wound.hp if wound != null else 0
@@ -342,18 +340,18 @@ func _process(_delta: float) -> void:
 			if i < left:
 				var flick: float = 1.0 + 0.2 * sin(t * 11.0 + float(i) * 1.7)
 				flames.append(xf * RisoShapes.ellipse(base + Vector2(0, -11), 2.4, 4.2 * flick, 10))
-		ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], 0.8 * solid, wax)
-		ink.ink(RisoPrint.PINK, solid, flames)
-		glow_ink.ink(RisoPrint.PINK, 0.8 * shown, flames)
+		ink.lift_ink([Plate.NIGHT, Plate.BLUE], 0.8 * solid, wax)
+		ink.ink(Plate.PINK, solid, flames)
+		glow_ink.ink(Plate.PINK, 0.8 * shown, flames)
 		if hurt < 0.3:
-			ink.ink(RisoPrint.PINK, 0.4 * (1.0 - hurt / 0.3), [robe], false)
+			ink.ink(Plate.PINK, 0.4 * (1.0 - hurt / 0.3), [robe], false)
 	if death.t >= 0.0:
 		var dust: Array[PackedVector2Array] = []
 		for i: int in range(10):
 			var k: float = death.t / DIE_TIME
 			var p: Vector2 = Vector2((float(i) - 4.5) * 5.0, -TALL * (1.0 - k) * (0.2 + 0.08 * float(i % 4)))
 			dust.append(RisoShapes.circle((p + Vector2(0, -6.0)) * ART, 3.0 * ART * (1.0 - k * 0.5), 8))
-		ink.ink(RisoPrint.NIGHT, 0.6, dust, false)
+		ink.ink(Plate.NIGHT, 0.6, dust, false)
 	if stunner.stunned():
 		_stun_stars(Vector2(0, -(TALL + 24.0) * ART))
 	ink.finish()
@@ -367,4 +365,4 @@ func _stun_stars(c: Vector2) -> void:
 		var a: float = t * 1.3 + TAU * float(i) / 3.0
 		var p: Vector2 = c + Vector2(cos(a) * 30.0, sin(a) * 8.0)
 		stars.append(Transform2D(t * 0.9 + float(i), p) * RisoShapes.sparkle(Vector2.ZERO, 12.0))
-	ink.ink(RisoPrint.ACCENT, 1.0, stars)
+	ink.ink(Plate.ACCENT, 1.0, stars)

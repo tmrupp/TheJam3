@@ -71,7 +71,7 @@ func _physics_process(delta: float) -> void:
 	if not awake():
 		wait = FIRST
 		return
-	if get_tree().get_nodes_in_group(&"abomination").size() >= Abomination.MOST or map_info.abominations_quiet():
+	if get_tree().get_nodes_in_group(&"abomination").size() >= Abomination.MOST or map_info.institute.abominations_quiet():
 		return
 	wait -= delta * Difficulty.attack()
 	if wait <= 0.0:
@@ -96,4 +96,4 @@ func _let_out() -> void:
 	thing.global_position = global_position + Vector2(0, half - Abomination.FEET)
 	(thing as Abomination).rise(RISE)
 	brood.append(thing)
-	RisoFx.burst(&"rubble", global_position + Vector2(0.0, 40.0), Vector2.UP, [RisoPrint.PINK, RisoPrint.NIGHT])
+	RisoFx.burst(&"rubble", global_position + Vector2(0.0, 40.0), Vector2.UP, [Plate.PINK, Plate.NIGHT])

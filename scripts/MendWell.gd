@@ -37,7 +37,7 @@ func buy_mend() -> void:
 	player.health.health = player.health.max_health
 	map_info.record().mended[get_meta(&"cell")] = true
 	map_info.save_run()
-	RisoFx.burst(&"gain", global_position + Vector2(0, -40), Vector2.ZERO, [RisoPrint.EYE, RisoPrint.PINK])
+	RisoFx.burst(&"gain", global_position + Vector2(0, -40), Vector2.ZERO, [Plate.EYE, Plate.PINK])
 
 
 func _process(_delta: float) -> void:

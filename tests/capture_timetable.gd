@@ -58,7 +58,7 @@ func run() -> void:
 			_ring(bell)
 			await frames(2)
 		rec.dept_tiers[&"botany"] = 3
-		var need: Array = Timetable.needs(&"botany", info.tier_of(hall))
+		var need: Array = Timetable.needs(&"botany", info.institute.tier_of(hall))
 		for b: StringName in Timetable.LADDERS[need[0]]:
 			Abilities.set_tier(player, b, 0)
 		await frames(20)
@@ -107,7 +107,7 @@ func run() -> void:
 		_ring(bell)
 		if info.record().passing:
 			info.record().last_bell = Vector2i(-1, -1)
-			info.since_bell = SchoolBell.RING_GAP
+			info.institute.since_bell = SchoolBell.RING_GAP
 			bell.ring()
 		player.global_position = (desks[0] as Node2D).global_position + Vector2(-90, 0)
 		await frames(20)
@@ -121,7 +121,7 @@ func run() -> void:
 	var way: int = Timetable.way_on_hall(info.world)
 	if way >= 0:
 		var exit_at: Vector2 = info.cell_position(info.world.exits[MapInfo.Exit.DEEPER])
-		info.class_hall = way
+		info.institute.class_hall = way
 		player.global_position = exit_at + Vector2(-200, 0)
 		await frames(10)
 		await _look(exit_at + Vector2(30, -60), "timetable_way_on.png", 1.8)
@@ -132,7 +132,7 @@ func run() -> void:
 	var room: int = -1
 	for k: int in range(Timetable.PERIODS * 3):
 		for i: int in range(info.world.halls.size()):
-			if info.subject_of(i) == &"ferry" and info.master_in(i) != null:
+			if info.institute.subject_of(i) == &"ferry" and info.institute.master_in(i) != null:
 				room = i
 		if room >= 0:
 			break
@@ -144,7 +144,7 @@ func run() -> void:
 		var box: Rect2i = info.world.halls[room]["box"]
 		player.global_position = info.cell_position(Vector2i(inside.position.x + 1, inside.end.y - 1))
 		player.phasing = true
-		var m: Scholar = info.master_in(room)
+		var m: Scholar = info.institute.master_in(room)
 		m.rouse()
 		await frames(50)
 		await _look(info.cell_position(box.get_center()) + Vector2(0, 40), "timetable_instructor.png", 1.1)
@@ -202,7 +202,7 @@ func _ring(bell: SchoolBell) -> void:
 	# A period rung round: class time in (in passing time) and out again.
 	for k: int in range(2 if info.record().passing else 1):
 		info.record().last_bell = Vector2i(-1, -1)
-		info.since_bell = SchoolBell.RING_GAP
+		info.institute.since_bell = SchoolBell.RING_GAP
 		bell.ring()
 
 

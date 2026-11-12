@@ -438,6 +438,45 @@ func find_level(kind: StringName, holds: Callable, dealt: Callable = Callable(),
 	return Vector2i(-1, -1)
 
 
+## Whether level `w` (laid out, not in the scene) holds a key of each of `keys`' colours and a door of
+## each of `doors`': for start_seed and find_level, so a test that wants a key and its door starts
+## in a level that has them rather than trusting one level to.
+static func holds_keys(w: LevelGen, keys: Array[int], doors: Array[int] = []) -> bool:
+	var have: Dictionary = {}
+	for v: Vector2i in w.objects:
+		var cell: LevelGen.Cell = w.get_cell(v)
+		if cell.type == LevelGen.Type.KEY and cell.extra_info is int:
+			have[[LevelGen.Type.KEY, int(cell.extra_info)]] = true
+		elif cell.type == LevelGen.Type.DOOR and cell.extra_info is int:
+			have[[LevelGen.Type.DOOR, int(cell.extra_info)]] = true
+	return keys.all(func(c: int) -> bool: return have.has([LevelGen.Type.KEY, c])) and doors.all(func(c: int) -> bool: return have.has([LevelGen.Type.DOOR, c]))
+
+
+## What stands in the way on a floor: rock and the things that are solid or hurt.
+const IN_THE_WAY: Array[LevelGen.Type] = [LevelGen.Type.GROUND, LevelGen.Type.CRACKED, LevelGen.Type.DOOR, LevelGen.Type.SWITCH_GATE,
+	LevelGen.Type.SPIKES, LevelGen.Type.LASER, LevelGen.Type.PLATFORM, LevelGen.Type.MOVING_PLATFORM, LevelGen.Type.PHASE_BLOCK]
+
+
+## Whether level `w` has a run of `wide` cells of open floor in a row: over rock, with nothing in
+## the way (IN_THE_WAY; a star or a wisp lying there is not) in them or in the `high` rows over each.
+static func holds_floor(w: LevelGen, wide: int, high: int = 1) -> bool:
+	return clear_floor(w, wide, high) != Vector2i(-1, -1)
+
+
+## The left cell of the first such run in `w` (holds_floor), or (-1, -1).
+static func clear_floor(w: LevelGen, wide: int, high: int = 1) -> Vector2i:
+	for x: int in range(w.size.x - wide + 1):
+		for y: int in range(high - 1, w.size.y - 1):
+			var ok: bool = true
+			for dx: int in range(wide):
+				ok = ok and w.is_ground(Vector2i(x + dx, y + 1))
+				for dy: int in range(high):
+					ok = ok and w.type_at(Vector2i(x + dx, y - dy)) not in IN_THE_WAY
+			if ok:
+				return Vector2i(x, y)
+	return Vector2i(-1, -1)
+
+
 ## How many of the objects laid in `w` are of `type`.
 static func count_of(w: LevelGen, type: LevelGen.Type) -> int:
 	return w.objects.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == type).size()

@@ -51,7 +51,7 @@ class_name Menu
 
 @onready var main: Node = $".."
 
-var player_prefab: Resource = preload("res://prefabs/player.tscn")
+const PLAYER_PREFAB: String = "res://prefabs/player.tscn"
 var old_focus: Control = null
 var started: bool = false
 ## Whether Begin and Random world begin the run in the tutorial (Tutorial; set_tutorial).
@@ -118,7 +118,7 @@ func _enter_play() -> void:
 	start.pressed.disconnect(begin)
 	start.pressed.connect(pause_resume_game)
 	exit.text = "Save and exit"
-	var player: Player = player_prefab.instantiate()
+	var player: Player = Prefabs.make(PLAYER_PREFAB) as Player
 	main.add_child(player)
 
 
@@ -126,7 +126,7 @@ func _enter_play() -> void:
 ## so nothing of the run in progress lingers, and Continue picks it up again.
 func return_to_menu() -> void:
 	if started:
-		map_info().save_run()
+		map_info().save_now()
 	var tree: SceneTree = get_tree()
 	tree.paused = false
 	var old: Node = main
@@ -145,7 +145,7 @@ func return_to_menu() -> void:
 
 func exit_game() -> void:
 	if started:
-		map_info().save_run()
+		map_info().save_now()
 	get_tree().quit()
 
 
@@ -215,7 +215,7 @@ func pause_resume_game() -> void:
 		_close_pages()
 	if not visible:
 		old_focus = get_viewport().gui_get_focus_owner()
-		map_info().save_run()
+		map_info().save_now()
 		where.text = Rules.where(map_info().coord)
 		give_up_button.visible = map_info().can_give_up()
 		debug_panel_button.visible = MapInfo.debug and RisoPrint.instance != null

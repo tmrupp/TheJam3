@@ -23,12 +23,12 @@ const LOOT: Array = [
 	[[LevelGen.Type.CLUSTER, 0.5]],
 	[[LevelGen.Type.CLUSTER, 1.0]],
 	[[LevelGen.Type.CLUSTER, 1.5]],
-	[[LevelGen.Type.CLUSTER, 1.0], [LevelGen.Type.KEY, KeyRing.SKELETON]],
+	[[LevelGen.Type.CLUSTER, 1.0], [LevelGen.Type.KEY, Keys.SKELETON]],
 ]
 ## An ember vault also holds a moss key (the next colour up) this share (%) of the time, dealt by
 ## the level seed and the vault's door, never the world RNG.
 const KEY_CHANCE: int = 40
-const KEY_DEAL: int = 9000
+const KEY_DEAL: int = Salts.VAULTS_KEY * Salts.STRIDE
 ## A bone vault's loot, a step above a plum vault's: a hoard worth three star clusters.
 const BONE_LOOT: Array = [[LevelGen.Type.CLUSTER, 3.0]]
 ## Room sizes for a bone vault: two high, so a relic stands in it.
@@ -67,7 +67,7 @@ static func place(w: LevelGen, def: NextWorldDef) -> void:
 ## Everything the vault of `w` behind `door`, locked in `color`, holds (see LOOT; a bone vault's,
 ## locked by a skeleton key, BONE_LOOT or the relic, LevelGen.bone_relic).
 static func loot(w: LevelGen, color: int, door: Vector2i) -> Array:
-	if color == KeyRing.SKELETON:
+	if color == Keys.SKELETON:
 		return [[LevelGen.Type.RELIC, w.bone_relic]] if w.bone_relic != &"" else BONE_LOOT.duplicate()
 	var out: Array = (LOOT[color] as Array).duplicate()
 	if color == 1 and Rules.level_seed(w.seed_for_colors, KEY_DEAL + door.x * 1000 + door.y) % 100 < KEY_CHANCE:
@@ -87,13 +87,13 @@ static func place_bone(w: LevelGen, def: NextWorldDef) -> void:
 	for room: Vector2i in BONE_SIZES:
 		var spots: Array = _spots(w, room)
 		if not spots.is_empty():
-			_build(w, w.pick(spots), KeyRing.SKELETON)
+			_build(w, w.pick(spots), Keys.SKELETON)
 			return
 	# No rock to carve one into (a cemetery's terraces, the sky's islands): build a strongbox,
 	# two high so a relic stands in it.
 	var built: Array = _pick_strongbox(w, _strongbox_spots(w, BONE_STRONGBOX))
 	if not built.is_empty():
-		_build(w, built, KeyRing.SKELETON)
+		_build(w, built, Keys.SKELETON)
 		return
 	if not w.relic_gated:
 		return

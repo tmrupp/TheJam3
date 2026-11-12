@@ -20,8 +20,8 @@ extends RefCounted
 ## here draws from the world RNG: it is hashed from the level seed.
 
 ## Salt for the level seed: the order a student tries the period's classes in, and its place in one.
-const SHUFFLE_DEAL: int = 6480
-const SEAT_DEAL: int = 6490
+const SHUFFLE_DEAL: int = Salts.STUDENTS_SHUFFLE * Salts.STRIDE
+const SEAT_DEAL: int = Salts.STUDENTS_SEAT * Salts.STRIDE
 ## The furthest a student drops off an edge, and the most it jumps up (cells).
 const FALL_MOST: int = 12
 const JUMP_UP: int = 2

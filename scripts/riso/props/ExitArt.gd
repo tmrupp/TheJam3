@@ -111,7 +111,7 @@ func _draw_art() -> void:
 	# cannot be paid until the boss is slain anyway.
 	if owed > 0 and door.sealed() == &"":
 		_text(str(owed), Vector2(0, g - 40), 34)
-	if which == MapInfo.Exit.DEEPER and MapInfo.instance != null and MapInfo.instance.timetabled() and MapInfo.instance.way_on_due() != 0:
+	if which == MapInfo.Exit.DEEPER and MapInfo.instance != null and MapInfo.instance.institute.timetabled() and MapInfo.instance.institute.way_on_due() != 0:
 		var at: Vector2 = Vector2(PAPER_AT.x, g + PAPER_AT.y)
 		var sheet: Array[PackedVector2Array] = RisoMarks.paper_shape(at, PAPER)
 		ink.lift_ink(RisoPrint.ALL_PLATES, 1.0, sheet.slice(0, 1))

@@ -234,7 +234,7 @@ func _break() -> void:
 	swipe_wait = SWIPE_AGAIN
 	_reach(false)
 	_harmless(true)
-	RisoFx.burst(&"impact", rb.global_position, Vector2.UP, [RisoPrint.BLUE, RisoPrint.NIGHT])
+	RisoFx.burst(&"impact", rb.global_position, Vector2.UP, [Plate.BLUE, Plate.NIGHT])
 
 
 ## How far in pieces it is, for the art: 0 whole, 1 a heap on the floor; rising to 1 as its bones

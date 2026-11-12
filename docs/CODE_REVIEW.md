@@ -494,10 +494,46 @@ That is how 1.1 came to pass every test but one.
    `game_boot`, the game itself started headless for 120 frames, failing on a parse or script
    error. The sweep of 2.6 is left to item 5.
 2. **The barriers** (1.3, 1.4), then `beast_test` (1.2), then the fingerprints written once
-   (`layout_fingerprint_test -- update`), said in the report.
-3. **The swallowed death** (1.5) and **the refresh's price** (1.8).
+   (`layout_fingerprint_test -- update`), said in the report. *Done:* `Barriers.Claims` works out
+   once a level what a barrier keeps out of, and `_solid` asks it of every cell: the free cells
+   (`empties`, so a lift's track and a shrine's second cell are out), the cells spoken for (every
+   thing's room by `Placeables.size`, the vaults' rooms, the ways out, as a set and no longer
+   `exits.values()` a cell, structures, lanes, the start's way, secret steps), rock beside any
+   thing is never opened (the wall a pod grows from), rock opened holds nothing up
+   (`LevelGen._holds_up`), and air beside a thing that stays where it is laid is never built on
+   (a door's way through, a pod's face, the air over a ledge; floating pickups, thorns, clusters
+   and the foes that move aside). `_mouths` takes only free, unclaimed floors. Over the same 480
+   garden levels, 50 take a barrier (72 did) and none touches a lift, a thing's room or a pod's
+   wall (`garden_growth_test` passes). `LevelGen.floors_proper` (the free floors less the vaults'
+   rooms and the barriers' pockets) deals the sold skeleton key, the beast's souls and their
+   guards, the exam papers and the way back from a department. `barriers_test` checks each barrier
+   it finds keeps out of all of it. `beast_test` takes the first visited level whose soul has room
+   for guards (asked on a run of its own). The garden's two stale fingerprints (`garden above`,
+   `garden way up`: their dressing, not their terrain) were written again by hand, leaving the
+   others as they were: the sky's two fail on its terrain, from uncommitted work on its sample in
+   the tree at the time, not this.
+3. **The swallowed death** (1.5) and **the refresh's price** (1.8). *Done:* nothing hurts the
+   wizard while they travel (`Player.away`, asked by `Player.hurt`: from `_pass` until `_arrived`,
+   where arriving gives its grace), so no death is met on the way to be swallowed; `death_test`
+   takes a hit worth every heart as the transition sweeps. A shrine keeps the refreshes bought
+   (`LevelRecord.refreshes`, saved) apart from the count its boons are dealt by (`redraws`): the
+   price doubles with each refresh bought, whatever counts were passed over. `Shrine.next_draw`
+   finds the next count that deals another pair (the same two the other way round are no other
+   pair) before anything is paid, and where none of `REDRAW_TRIES` does, no refresh is offered
+   (`refresh_slot` is -1) and none can be bought. `shrine_test` checks both. A save from before
+   has no `refreshes`: its shrines' next refresh costs the first price again.
 4. **Saving** (1.6, 1.7, 2.5): the kept map noted on arriving, one place that writes, a safe
-   write.
+   write. *Done:* `MapInfo.save_run` (its 63 callers unchanged) only marks the run changed; the
+   file is written in one place, `MapInfo._process`, once a frame at most. `save_now` writes at
+   once and notes the kept map: the menu's pause, quit and return, the window closing, the scene
+   left. `Known.note` is called on arriving in a level (`_arrived`), by `save_now` and as the run
+   ends or is won, no longer with every save. Both files go through `SafeFile`: written beside
+   the old one, the old kept as the last good one, read back from that when the file is missing
+   or cut short. Timed as in 1.6 (headless, this machine): an autosave is 2 to 3 ms from 4 to 64
+   levels on record, `save_now` 4 to 7 ms. `tests/save_test.gd` checks all of it. The tests that
+   read the save straight after `save_run` call `save_now`; `trophy_test` waits a frame. Not
+   done, of 2.5: what a layout depends on besides its place (the preset, the debug flag, the
+   doors dug) carried on its definition; it goes with 1.9's worker note.
 5. **Load order as a kind** (2.1): the small classes of constants, prefabs loaded when wanted,
    the rule in `unit_test`, the sweep.
 6. **One map of what cells are spoken for** (2.3), before the barriers go to the other bands.

@@ -27,7 +27,7 @@ const CHANCE: int = 5
 ## further out (the institute, the sky). The further out the door, the further the drop.
 const DROPS: Array[Vector2i] = [Vector2i(2, 4), Vector2i(3, 5), Vector2i(4, 7)]
 ## Salt for the level seed, for the drop dealt within its range.
-const DROP_DEAL: int = 997
+const DROP_DEAL: int = Salts.HYPERSPACE_DROP * Salts.STRIDE
 const CROSS: int = 35
 const PRICE: float = 5.0
 
@@ -64,19 +64,19 @@ func _init() -> void:
 func deals(at: Vector2i) -> bool:
 	if Worlds.is_side(at):
 		return false
-	return MapInfo.debug or (at.y != 0 and Rules.level_seed(Rules.level_seed(at.x, at.y), 777) % 100 < CHANCE)
+	return Dev.debug or (at.y != 0 and Rules.level_seed(Rules.level_seed(at.x, at.y), Salts.HYPERSPACE_DOOR * Salts.STRIDE) % 100 < CHANCE)
 
 
 ## How many worlds sideways (-1, 0 or +1) the one entered from level `from` comes out, dealt by
 ## that level's seed.
 static func drift(from: Vector2i) -> int:
-	return Rules.level_seed(Rules.level_seed(from.x, from.y), 991) % 3 - 1
+	return Rules.level_seed(Rules.level_seed(from.x, from.y), Salts.HYPERSPACE_DRIFT * Salts.STRIDE) % 3 - 1
 
 
 ## Whether the one entered from level `from` crosses the start into the other branch, dealt by
 ## that level's seed.
 static func crosses(from: Vector2i) -> bool:
-	return Rules.level_seed(Rules.level_seed(from.x, from.y), 993) % 100 < CROSS
+	return Rules.level_seed(Rules.level_seed(from.x, from.y), Salts.HYPERSPACE_CROSS * Salts.STRIDE) % 100 < CROSS
 
 
 ## How many rows further from the start the one entered from level `from` leads: dealt by that
@@ -158,12 +158,12 @@ func populate(w: LevelGen) -> void:
 	for lantern: Vector2i in [back_lantern, gate_lantern]:
 		if not w.is_ground(lantern + Vector2i.DOWN):
 			w._to_rock(lantern + Vector2i.DOWN)
-	w.put(back, LevelGen.Type.EXIT, MapInfo.Exit.BACK)
+	w.put(back, LevelGen.Type.EXIT, Ways.Exit.BACK)
 	w.put(back_lantern, LevelGen.Type.CHECKPOINT)
-	w.put(gate, LevelGen.Type.EXIT, MapInfo.Exit.DEEPER)
+	w.put(gate, LevelGen.Type.EXIT, Ways.Exit.DEEPER)
 	w.put(gate_lantern, LevelGen.Type.CHECKPOINT)
-	w.exits = {MapInfo.Exit.BACK: back, MapInfo.Exit.DEEPER: gate}
-	w.exit_lanterns = {MapInfo.Exit.BACK: back_lantern, MapInfo.Exit.DEEPER: gate_lantern}
+	w.exits = {Ways.Exit.BACK: back, Ways.Exit.DEEPER: gate}
+	w.exit_lanterns = {Ways.Exit.BACK: back_lantern, Ways.Exit.DEEPER: gate_lantern}
 	for fraction: float in RESTS:
 		var at: Variant = _standing_near(w, int(fraction * WIDTH))
 		if at != null:
@@ -187,8 +187,7 @@ func populate(w: LevelGen) -> void:
 ## the strip is laid out as it always was. Kept in w.relic_gaps.
 const RELIC_GAP: int = 6
 const RELIC_ACROSS: int = 7
-const RELIC_DEAL: int = 9600
-
+const RELIC_DEAL: int = Salts.HYPERSPACE_RELIC * Salts.STRIDE
 static func _relic_gap(w: LevelGen) -> void:
 	var lo: int = ENDS + 4
 	var hi: int = WIDTH - ENDS - 4 - RELIC_GAP
@@ -352,11 +351,11 @@ static func _lifts(w: LevelGen) -> void:
 ## Whether the rough reach (hops `across` cells wide) gets from the way back to the gate.
 static func crossable(w: LevelGen, across: int = Reach.ACROSS) -> bool:
 	var nodes: Dictionary = Reach.footholds(w)
-	var start: Vector2i = w.exits[MapInfo.Exit.BACK]
+	var start: Vector2i = w.exits[Ways.Exit.BACK]
 	var reach: Dictionary = {start: true}
 	var queue: Array[Vector2i] = [start]
 	Reach.grow(w, nodes, reach, queue, {}, {}, across)
-	return reach.has(w.exits[MapInfo.Exit.DEEPER])
+	return reach.has(w.exits[Ways.Exit.DEEPER])
 
 
 ## Lay lifts (or, where none fits, a floating ledge or a moon) along the way through the open air
@@ -373,8 +372,8 @@ static func _bridge(w: LevelGen, free: Dictionary, placed: Array[Vector2i], moon
 		if w.type_at(path[i]) == LevelGen.Type.SPIKES:
 			_unthorn(w, free, path[i])
 	var nodes: Dictionary = Reach.footholds(w)
-	var gate: Vector2i = w.exits[MapInfo.Exit.DEEPER]
-	var start: Vector2i = w.exits[MapInfo.Exit.BACK]
+	var gate: Vector2i = w.exits[Ways.Exit.DEEPER]
+	var start: Vector2i = w.exits[Ways.Exit.BACK]
 	var reach: Dictionary = {start: true}
 	var far: Dictionary = {"i": 0}
 	var first: Array[Vector2i] = [start]
@@ -498,8 +497,8 @@ static func _onward(w: LevelGen, path: Array[Vector2i], lands: Array[Vector2i], 
 ## stand on costs 1, a cell of air 3, a thorn 40, so it keeps to the floors and crosses the air
 ## only where it has to.
 static func _air_path(w: LevelGen) -> Array[Vector2i]:
-	var start: Vector2i = w.exits[MapInfo.Exit.BACK]
-	var gate: Vector2i = w.exits[MapInfo.Exit.DEEPER]
+	var start: Vector2i = w.exits[Ways.Exit.BACK]
+	var gate: Vector2i = w.exits[Ways.Exit.DEEPER]
 	var dist: Dictionary = {start: 0}
 	var from: Dictionary = {}
 	var buckets: Array = [[start]]

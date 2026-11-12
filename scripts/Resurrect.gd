@@ -15,7 +15,7 @@ class_name Resurrect
 ## nothing and hurts nothing while the wizard lives: it only keeps a death from happening.
 
 ## The grave mark a cast raises.
-const MARK: PackedScene = preload("res://prefabs/grave_mark.tscn")
+const MARK: String = "res://prefabs/grave_mark.tscn"
 
 var level: int = 1
 ## The mark standing now, or null.
@@ -70,11 +70,11 @@ func bind() -> bool:
 	if not player.is_on_floor() or rites() <= 0:
 		return false
 	_clear()
-	mark = MARK.instantiate() as GraveMark
+	mark = Prefabs.make(MARK) as GraveMark
 	info.map_elements.add_child(mark)
 	mark.global_position = player.global_position
 	mark.coord = info.coord
-	RisoFx.burst(&"gain", mark.global_position + Vector2(0, -30), Vector2.UP, [RisoPrint.GLOW, RisoPrint.BLUE])
+	RisoFx.burst(&"gain", mark.global_position + Vector2(0, -30), Vector2.UP, [Plate.GLOW, Plate.BLUE])
 	return true
 
 
@@ -89,7 +89,7 @@ func rise() -> bool:
 	if player == null or not marked() or rites() <= 0:
 		return false
 	var at: Vector2 = mark.global_position
-	RisoFx.burst(&"gain", player.global_position + Vector2(0, -30), Vector2.UP, [RisoPrint.GLOW, RisoPrint.NIGHT])
+	RisoFx.burst(&"gain", player.global_position + Vector2(0, -30), Vector2.UP, [Plate.GLOW, Plate.NIGHT])
 	player.resurrect_rites = rites() - 1
 	player.velocity = Vector2.ZERO
 	player.knock = Vector2.ZERO
@@ -100,7 +100,7 @@ func rise() -> bool:
 	player.health.health = player.health.max_health
 	player.grace()
 	_clear()
-	RisoFx.burst(&"gain", at + Vector2(0, -40), Vector2.UP, [RisoPrint.EYE, RisoPrint.GLOW])
+	RisoFx.burst(&"gain", at + Vector2(0, -40), Vector2.UP, [Plate.EYE, Plate.GLOW])
 	return true
 
 

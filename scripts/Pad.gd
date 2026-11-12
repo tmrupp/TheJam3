@@ -33,4 +33,4 @@ func launch(p: Player) -> void:
 	p.dash.refresh()
 	p.jumps = p.MAX_JUMPS
 	p.visual_event.emit(&"jump", p.global_position)
-	RisoFx.burst(&"gain", global_position + Vector2(0, 40), Vector2.UP, [RisoPrint.BLUE, RisoPrint.ACCENT])
+	RisoFx.burst(&"gain", global_position + Vector2(0, 40), Vector2.UP, [Plate.BLUE, Plate.ACCENT])

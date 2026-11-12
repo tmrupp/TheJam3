@@ -66,14 +66,14 @@ func hit(damage: int, dir: Vector2) -> void:
 	if host == null or host.is_queued_for_deletion():
 		return
 	if unhurt or (parried_only and not HexBolt.parried_blow):
-		RisoFx.burst(&"hit", host.global_position, dir, [RisoPrint.BLUE, RisoPrint.NIGHT])
+		RisoFx.burst(&"hit", host.global_position, dir, [Plate.BLUE, Plate.NIGHT])
 		Wound.shake(4.0, 0.1)
 		warded.emit(dir)
 		return
 	var taken: int = damage * (2 if stunned() else 1)
 	hp -= taken
 	hurt.emit(taken)
-	RisoFx.burst(&"hit", host.global_position, dir, [RisoPrint.PINK, RisoPrint.GLOW])
+	RisoFx.burst(&"hit", host.global_position, dir, [Plate.PINK, Plate.GLOW])
 	Wound.felt(host, dir, hp <= 0)
 	host.global_position += dir * 14.0
 	if hp <= 0:
@@ -127,5 +127,5 @@ func _die(host: Node2D) -> void:
 			var star: Node2D = coin.instantiate()
 			info.map_elements.add_child(star)
 			star.global_position = host.global_position + Vector2(-18.0 + 36.0 * float(i), -10.0)
-	RisoFx.burst(&"gain", host.global_position, Vector2.ZERO, [RisoPrint.PINK, RisoPrint.NIGHT])
+	RisoFx.burst(&"gain", host.global_position, Vector2.ZERO, [Plate.PINK, Plate.NIGHT])
 	host.queue_free()

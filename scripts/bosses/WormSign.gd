@@ -17,8 +17,7 @@ const SHAKE_NEXT: float = 5.0
 const SUSTAIN: float = 0.4
 const DIRT: int = 3
 ## Salt for the level seed: how far into its first wait a level's rumble starts.
-const PHASE_DEAL: int = 7100
-
+const PHASE_DEAL: int = Salts.WORM_SIGN_PHASE * Salts.STRIDE
 ## How near the worm is (Bosses.near; 0 where it does not rumble), which way its level lies (x:
 ## -1 left, 1 right, 0 this column), the seconds to the next rumble, and how many there have been.
 var nearness: float = 0.0
@@ -70,4 +69,4 @@ func rumble() -> void:
 			at = mid + Vector2((roll * 2.0 - 1.0) * half.x * 0.8, -half.y * 0.85)
 		else:
 			at = mid + Vector2(float(side) * half.x * 0.85, (roll - 0.7) * half.y)
-		RisoFx.burst(&"rubble", at, Vector2.DOWN, [RisoPrint.BLUE, RisoPrint.NIGHT])
+		RisoFx.burst(&"rubble", at, Vector2.DOWN, [Plate.BLUE, Plate.NIGHT])

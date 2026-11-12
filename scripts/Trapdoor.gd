@@ -34,7 +34,7 @@ func _came_under(body: Node) -> void:
 func open() -> void:
 	if is_queued_for_deletion():
 		return
-	RisoFx.burst(&"rubble", global_position + Vector2(0.0, -HALF + SLAB), Vector2.UP, [RisoPrint.BLUE, RisoPrint.NIGHT])
+	RisoFx.burst(&"rubble", global_position + Vector2(0.0, -HALF + SLAB), Vector2.UP, [Plate.BLUE, Plate.NIGHT])
 	if map_info != null:
 		map_info.mark_opened(self)
 		map_info.save_run()

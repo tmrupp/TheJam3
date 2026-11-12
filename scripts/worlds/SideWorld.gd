@@ -63,7 +63,7 @@ func depth_for(from: Vector2i) -> int:
 
 func setup(at: Vector2i) -> NextWorldDef:
 	coord = at
-	debug = MapInfo.debug
+	debug = Dev.debug
 	kind = Worlds.kind_at(at)
 	depth = depth_for(origin())
 	gen_seed = Rules.level_seed(at.x, at.y)
@@ -86,18 +86,18 @@ func dead_end() -> bool:
 
 
 func ways() -> Array[int]:
-	var out: Array[int] = [MapInfo.Exit.BACK, MapInfo.Exit.DEEPER]
+	var out: Array[int] = [Ways.Exit.BACK, Ways.Exit.DEEPER]
 	return out
 
 
 func lead(exit: int) -> Dictionary:
 	match exit:
-		MapInfo.Exit.BACK:
+		Ways.Exit.BACK:
 			return _to(origin(), -way, Worlds.door(kind))
-		MapInfo.Exit.DEEPER:
+		Ways.Exit.DEEPER:
 			if dead_end():
 				return _to(origin(), -way, Worlds.door(kind))
-			return _to(destination(), exit_dir(exit), MapInfo.Exit.BACK)
+			return _to(destination(), exit_dir(exit), Ways.Exit.BACK)
 	return {}
 
 
@@ -119,13 +119,13 @@ func title() -> String:
 
 
 func exit_dir(exit: int) -> Vector2:
-	if exit == MapInfo.Exit.DEEPER and destination().y != origin().y:
+	if exit == Ways.Exit.DEEPER and destination().y != origin().y:
 		return Vector2.DOWN if destination().y > origin().y else Vector2.UP
-	return -way if exit == MapInfo.Exit.BACK else way
+	return -way if exit == Ways.Exit.BACK else way
 
 
 func exit_grand(exit: int) -> bool:
-	return exit == MapInfo.Exit.DEEPER and not dead_end()
+	return exit == Ways.Exit.DEEPER and not dead_end()
 
 
 ## Halfway between the level it is entered from and the one it leads to (just under the first,

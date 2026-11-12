@@ -24,10 +24,10 @@ const SEEN: float = 0.6
 const STRIKES: StringName = Abilities.UTILITY_ACTION
 const HEALS: StringName = &"mend"
 ## The cards for the Spell button's guard: a parry, and a pogo off thorns (see the class description).
-const PARRY: StringName = &"Parry"
-const POGO: StringName = &"Pogo"
+const PARRY: StringName = Tutorial.CARD_PARRY
+const POGO: StringName = Tutorial.CARD_POGO
 ## The card for burning a lantern into mend, on the interact button (see the class description).
-const BURN: StringName = &"Burn"
+const BURN: StringName = Tutorial.CARD_BURN
 
 ## The control it shows: an input action, or &"Move" for walking either way (Left and Right).
 var action: StringName = &""

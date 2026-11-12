@@ -23,52 +23,45 @@ extends Node
 ## A paper lifted off a lectern or left by a beaten master is stolen (stolen): while the wizard
 ## carries it, the institute's scholars turn on them (MapInfo.wizard_belongs). Learned, it is theirs.
 
-const SKELETON: int = 99
-const UNLOCK: int = 98
-const SEED: int = 97
+const SKELETON: int = Keys.SKELETON
+const UNLOCK: int = Keys.UNLOCK
+const SEED: int = Keys.SEED
 ## The most seeds carried at once.
-const SEEDS_MOST: int = 1
-## Where exam papers' codes start: PAPER, plus PAPER_SPELL for each place of the subject in
-## subjects, plus the tier.
-const PAPER: int = 1000
-const PAPER_SPELL: int = 10
-## A stolen paper's code is its paper's plus this (tiers run below it).
-const STOLEN: int = 5
+const SEEDS_MOST: int = Keys.SEEDS_MOST
+## Where exam papers' codes start, how they are packed and what marks a stolen one (see Keys).
+const PAPER: int = Keys.PAPER
+const PAPER_SPELL: int = Keys.PAPER_SPELL
+const STOLEN: int = Keys.STOLEN
 
 
-## What a paper may hold: every ability that takes a slot (Abilities.slot_of), in Abilities' order.
+## The papers' codes read and written (Keys has them, scene-free; these are the same by their old
+## names).
 static func subjects() -> Array[StringName]:
-	return Abilities.ids().filter(func(a: StringName) -> bool: return Abilities.slot_of(a) != &"")
+	return Keys.subjects()
 
 
-## The code of an exam paper for ability `a` at `tier`.
 static func paper(a: StringName, tier: int) -> int:
-	return PAPER + subjects().find(a) * PAPER_SPELL + tier
+	return Keys.paper(a, tier)
 
 
-## Whether `code` is an exam paper's, and the spell and tier it holds.
 static func is_paper(code: int) -> bool:
-	return code >= PAPER
+	return Keys.is_paper(code)
 
 
 static func paper_spell(code: int) -> StringName:
-	@warning_ignore("integer_division")
-	var i: int = (code - PAPER) / PAPER_SPELL
-	var all: Array[StringName] = subjects()
-	return all[i] if i >= 0 and i < all.size() else &""
+	return Keys.paper_spell(code)
 
 
 static func paper_tier(code: int) -> int:
-	return posmod(code - PAPER, PAPER_SPELL) % STOLEN
+	return Keys.paper_tier(code)
 
 
-## Whether exam paper `code` is stolen, and the stolen paper of the same spell and tier.
 static func is_stolen(code: int) -> bool:
-	return is_paper(code) and posmod(code - PAPER, PAPER_SPELL) >= STOLEN
+	return Keys.is_stolen(code)
 
 
 static func stolen(code: int) -> int:
-	return code if is_stolen(code) or not is_paper(code) else code + STOLEN
+	return Keys.stolen(code)
 
 ## The coloured keys carried, oldest first (the newest last).
 var _colored: Array[int] = []

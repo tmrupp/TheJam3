@@ -5,7 +5,9 @@ extends TestKit
 ## its far wall thorned for its whole height and the wall by its way in bare rock; the sill's face
 ## is thorned under it and its top is rock; the throat has thorns over and under every cell of it;
 ## the curtain fills the mouth floor to roof; the sealed cell has rock all round it, thicker than a
-## blink carries (when one is found: it fits fewest levels); each holds its reward; the level is the same on two builds; its move is the nearest
+## blink carries (when one is found: it fits fewest levels); each holds its reward; it keeps out of
+## lifts' tracks, things' rooms and the walls pods grow from, and nothing dealt later lies in its
+## pocket; the level is the same on two builds; its move is the nearest
 ## relic's (or the level's own deal); none is laid over a way on or in a gate level. Booted: the mark
 ## stands by the mouth and is on the level's map once seen, and goes once the move is known. No test
 ## asks that a barrier can or cannot be passed.
@@ -60,6 +62,7 @@ func _shape(at: Vector2i, w: LevelGen, b: Dictionary) -> void:
 	check(not w.exits.values().any(func(e: Vector2i) -> bool: return open.has(e)), "%s: on no way on" % name)
 	var thorns: Array = b["thorns"]
 	check(thorns.all(func(c: Vector2i) -> bool: return w.get_cell(c).type == LevelGen.Type.SPIKES), "%s: its thorns laid" % name)
+	_keeps_out(name, w, b)
 	var side: int = b["side"]
 	var door: Vector2i = (b["mouth"] as Vector2i) + Vector2i(side, 0)
 	match kind:
@@ -98,6 +101,48 @@ func _shape(at: Vector2i, w: LevelGen, b: Dictionary) -> void:
 						if not open.has(n) and (n - (b["mouth"] as Vector2i)).x * side > 0:
 							sealed = sealed and w.is_ground(n)
 			check(sealed, "sealed cell: rock all round it, %d cells thick" % Barriers.SEALED_WALL)
+
+
+## Barrier `b` in `w` keeps out of what else is laid (docs/CODE_REVIEW.md 1.3, 1.4): none of its
+## cells, nor its mouth, is in a lift's body or track or a thing's room (Placeables.size); every
+## seed pod and vine still grows from a wall; and nothing dealt once the level is laid out can lie
+## in its pocket (LevelGen.floors_proper).
+func _keeps_out(name: String, w: LevelGen, b: Dictionary) -> void:
+	var taken: Dictionary = {b["mouth"]: true}
+	for c: Vector2i in b["rock"]:
+		taken[c] = true
+	var crossed: Array[String] = []
+	var hanging: Array[Vector2i] = []
+	for v: Vector2i in w.objects:
+		var t: LevelGen.Type = w.type_at(v)
+		var cells: Array[Vector2i] = []
+		if t == LevelGen.Type.MOVING_PLATFORM:
+			var lift: Array = w.get_cell(v).extra_info
+			var run: int = lift[0]
+			var axis: Vector2i = lift[1]
+			var travel: int = lift[2]
+			for k: int in range(1, run):
+				cells.append(v + Vector2i(k, 0))
+			for k: int in range(1, travel + 1):
+				if axis.x != 0:
+					cells.append(v + Vector2i(run - 1 + k, 0))
+				else:
+					for j: int in range(run):
+						cells.append(v + Vector2i(j, k))
+		var room: Vector2i = Placeables.size(t)
+		for dx: int in range(room.x):
+			for dy: int in range(room.y):
+				if dx != 0 or dy != 0:
+					cells.append(v + Vector2i(dx, -dy))
+		for c: Vector2i in cells:
+			if taken.has(c):
+				crossed.append("%s at %s" % [LevelGen.Type.keys()[t], v])
+		if (t == LevelGen.Type.POD or t == LevelGen.Type.VINE) and not w.is_ground(v + Vector2i.LEFT) and not w.is_ground(v + Vector2i.RIGHT):
+			hanging.append(v)
+	check(crossed.is_empty(), "%s: in no lift's track or thing's room %s" % [name, crossed])
+	check(hanging.is_empty(), "%s: every seed pod and vine still on its wall %s" % [name, hanging])
+	var pocket: Array = b["open"]
+	check(not w.floors_proper().any(func(v: Vector2i) -> bool: return pocket.has(v)), "%s: nothing dealt later lies in its pocket" % name)
 
 
 ## In the game: the mark by the mouth, on the map once seen, gone once the move is known.

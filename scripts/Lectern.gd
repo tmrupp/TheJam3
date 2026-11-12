@@ -27,7 +27,7 @@ func pigeonhole() -> bool:
 func paper() -> int:
 	if player == null or not pigeonhole():
 		return 0
-	return map_info.lectern_slot(hall)
+	return map_info.institute.lectern_slot(hall)
 
 
 ## What is on it now, as [spell, tier]: its paper's subject and tier, or [&"", 0] for nothing.
@@ -39,7 +39,7 @@ func holds() -> Array:
 ## Used: it swaps papers with the wizard (MapInfo.lectern_swap).
 func take() -> void:
 	if pigeonhole():
-		map_info.lectern_swap(hall, global_position + Vector2(0, -40))
+		map_info.institute.lectern_swap(hall, global_position + Vector2(0, -40))
 
 
 func _process(_delta: float) -> void:

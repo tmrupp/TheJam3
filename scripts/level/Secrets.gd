@@ -47,11 +47,11 @@ static func place(w: LevelGen, def: NextWorldDef) -> void:
 			var rewards: Array = w.secrets[w.secrets.size() - 1]["rewards"]
 			for i: int in range(rewards.size() - 1, -1, -1):
 				if rewards[i][1] == LevelGen.Type.COIN:
-					rewards[i] = [rewards[i][0], LevelGen.Type.KEY, KeyRing.SKELETON]
+					rewards[i] = [rewards[i][0], LevelGen.Type.KEY, Keys.SKELETON]
 					placed = true
 					break
 		if not placed:
-			w.put_random(LevelGen.Type.KEY, w.ground_below, true, KeyRing.SKELETON)
+			w.put_random(LevelGen.Type.KEY, w.ground_below, true, Keys.SKELETON)
 
 
 ## Every place in `w` a `room` (cells across and up) fits: [its rect, its entrance]. The room's

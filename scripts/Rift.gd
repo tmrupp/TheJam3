@@ -9,7 +9,7 @@ class_name Rift
 ##   in different levels, and using one travels to the other's level. A third cast closes both
 ##   old ends, wherever they are, and starts a new link. Per-world pairs made at lower tiers stay.
 
-const PORTAL: PackedScene = preload("res://prefabs/portal.tscn")
+const PORTAL: String = "res://prefabs/portal.tscn"
 
 var level: int = 1
 var ends: Array[Portal] = []
@@ -52,7 +52,7 @@ func cast() -> Portal:
 		at.y = info.tile_map.to_global(info.tile_map.map_to_local(info.cell_at(player.global_position))).y
 	var rift: Portal = _cast_link(info, at) if level >= 3 else _cast_pair(info, at)
 	info.save_run()
-	RisoFx.burst(&"gain", rift.global_position, Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.BLUE])
+	RisoFx.burst(&"gain", rift.global_position, Vector2.ZERO, [Plate.ACCENT, Plate.BLUE])
 	return rift
 
 
@@ -132,7 +132,7 @@ static func link_ends(info: MapInfo) -> Array[Portal]:
 
 
 static func _spawn_end(info: MapInfo, at: Vector2) -> Portal:
-	var end: Portal = PORTAL.instantiate()
+	var end: Portal = Prefabs.make(PORTAL) as Portal
 	end.set_meta(&"rift", true)
 	info.map_elements.add_child(end)
 	end.global_position = at

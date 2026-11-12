@@ -78,8 +78,25 @@ func run() -> void:
 	start_lantern = lanterns().filter(func(n: Node) -> bool: return n.get_meta(&"cell") == start_cell)[0]
 	check(info.is_lantern_spent(start_lantern) and not info.light_lantern(start_lantern), "revisiting does not renew a spent lantern")
 
+	print("a hit on the way to another level")
+	player.end_invulnerable()
+	var hearts: int = player.health.health
+	info.travel(MapInfo.Exit.RIGHT)
+	check(info.travelling and player.away() and not player.is_invulnerable(), "setting off, past any grace")
+	player.hurt(-hearts, Vector2.ZERO, null)
+	check_eq(player.health.health, hearts, "a hit worth every heart, taken while the transition sweeps, does not land")
+	await settle()
+	check(info.coord == Vector2i(29, 0) and player.health.health == hearts and info.run_ending <= 0.0, "they arrive whole")
+	player.end_invulnerable()
+	player.hurt(-1, Vector2.ZERO, null)
+	check_eq(player.health.health, hearts - 1, "and can be hurt again once there")
+	player.health.health = hearts
+	info.travel(MapInfo.Exit.LEFT)
+	await settle()
+	freeze()
+
 	print("spent lantern saves")
-	info.save_run()
+	info.save_now()
 	check(info.continue_run(), "the unprotected run can be continued")
 	await settle()
 	freeze()
@@ -110,7 +127,7 @@ func run() -> void:
 	check(player.health.health == 1, "it does not heal")
 	check(ghosts().is_empty(), "the ghost is gone")
 	player.health.health = player.health.max_health
-	info.save_run()
+	info.save_now()
 	check(info.continue_run(), "the run continues")
 	await settle()
 	freeze()

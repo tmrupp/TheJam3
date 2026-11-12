@@ -15,7 +15,7 @@ func _init() -> void:
 func hit(damage: int, dir: Vector2) -> void:
 	var segment: WormSegment = get_parent() as WormSegment
 	if segment != null and segment.guarded(dir):
-		RisoFx.burst(&"hit", segment.global_position - dir.normalized() * segment.radius, -dir, [RisoPrint.PINK, RisoPrint.ACCENT])
+		RisoFx.burst(&"hit", segment.global_position - dir.normalized() * segment.radius, -dir, [Plate.PINK, Plate.ACCENT])
 		Wound.shake(4.0, 0.08)
 		return
 	super(damage, dir)

@@ -20,7 +20,7 @@ func pay() -> void:
 	if player == null or is_queued_for_deletion():
 		return
 	if player.coins.coins < price:
-		RisoFx.burst(&"hit", global_position + Vector2(0, -40), Vector2.UP, [RisoPrint.PINK, RisoPrint.NIGHT])
+		RisoFx.burst(&"hit", global_position + Vector2(0, -40), Vector2.UP, [Plate.PINK, Plate.NIGHT])
 		return
 	player.collect(-price)
 	RisoPrint.door_opened(self)

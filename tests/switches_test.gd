@@ -74,7 +74,7 @@ func run() -> void:
 	for world_seed: int in range(1, 120):
 		for depth: int in [0, 1]:
 			var def: NextWorldDef = Rules.def_for(Vector2i(world_seed, depth))
-			var deals: bool = Rules.level_seed(def.gen_seed, 777) % 100 < Hyperspace.CHANCE
+			var deals: bool = Rules.level_seed(def.gen_seed, Salts.HYPERSPACE_DOOR * Salts.STRIDE) % 100 < Hyperspace.CHANCE
 			if depth == 0 and deals:
 				surface += 1
 			if depth == 1:

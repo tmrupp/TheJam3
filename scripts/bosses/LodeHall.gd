@@ -57,13 +57,11 @@ const DOOR_REACH: int = 8
 const BUILT_COST: int = 3
 ## Salts for the level seed: where it goes, which side its top gallery's gap is on, each gap's place,
 ## each stair's place, and which wall its first crossbow is in.
-const PLACE_DEAL: int = 6800
-const SIDE_DEAL: int = 6810
-const GAP_DEAL: int = 6820
-const STAIR_DEAL: int = 6830
-const CROSSBOW_DEAL: int = 6840
-
-
+const PLACE_DEAL: int = Salts.LODE_HALL_PLACE * Salts.STRIDE
+const SIDE_DEAL: int = Salts.LODE_HALL_SIDE * Salts.STRIDE
+const GAP_DEAL: int = Salts.LODE_HALL_GAP * Salts.STRIDE
+const STAIR_DEAL: int = Salts.LODE_HALL_STAIR * Salts.STRIDE
+const CROSSBOW_DEAL: int = Salts.LODE_HALL_CROSSBOW * Salts.STRIDE
 ## Whether the level `def` describes has the lode hall: the golem's gate level, in every world
 ## column, while it is a level of its own (not a side world).
 static func wanted(def: NextWorldDef) -> bool:

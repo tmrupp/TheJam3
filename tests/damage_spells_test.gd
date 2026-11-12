@@ -137,14 +137,23 @@ func run() -> void:
 	# From the Spell button: the spell, and the parry guard with it (Parry).
 	var parry: Parry = player.get_node("Parry") as Parry
 	slash.wait = 0.0
-	Input.action_press(Abilities.SPELL_ACTION)
 	player.set_physics_process(true)
-	await frames(2)
-	Input.action_release(Abilities.SPELL_ACTION)
+	# As a player's press reaches the game (TestKit.tap), let go again so a held cast goes off.
+	# Seen as it is cast: a catch a moment later (a shot from across the level) gives the spell
+	# straight back and closes the guard, which is the guard working.
+	var cast: Dictionary = {"went": false, "guarded": false}
+	var on_event: Callable = func(what: StringName, _where: Vector2) -> void:
+		if what == &"cast":
+			cast["went"] = slash.wait > 0.0
+			cast["guarded"] = parry.guard_left() >= 0.0
+	player.visual_event.connect(on_event)
+	await tap(Abilities.SPELL_ACTION)
+	await physics_frame
+	player.visual_event.disconnect(on_event)
 	freeze()
 	player.global_position = info.cell_position(at) + Vector2(0, 16 - 31)
-	check(slash.wait > 0.0, "the Spell button slashes")
-	check(parry.guard_left() >= 0.0, "and raises the parry guard with it")
+	check(bool(cast["went"]), "the Spell button slashes")
+	check(bool(cast["guarded"]), "and raises the parry guard with it")
 	# The guard closed, the slash still recharging: the guard has no cooldown of its own, so none rises.
 	parry.stop_parry()
 	slash.wait = Slash.COOLDOWN

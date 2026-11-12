@@ -70,7 +70,7 @@ func take() -> void:
 		map_info.run.boss_relics.erase(get_meta(&"boss"))
 	queue_free()
 	map_info.save_run()
-	RisoFx.burst(&"gain", global_position + Vector2(0, -40), Vector2.ZERO, [RisoPrint.ACCENT, RisoPrint.PINK])
+	RisoFx.burst(&"gain", global_position + Vector2(0, -40), Vector2.ZERO, [Plate.ACCENT, Plate.PINK])
 	Wound.shake(8.0, 0.2)
 
 

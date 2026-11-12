@@ -300,6 +300,12 @@ func towers() -> void:
 	check(info.last_tower == -1, "loading the level lifts any lock")
 	var a: TowerSwitch = switches[0] as TowerSwitch
 	var b: TowerSwitch = switches[1] as TowerSwitch
+	# Whichever towers the layout made cold: a cold one's switch does nothing until its spire is
+	# struck, so the two worked here are woken first, as a strike would.
+	for s: TowerSwitch in [a, b]:
+		if s.cold():
+			info.strike_spire(s.tower)
+	check(not a.cold() and not b.cold(), "two towers awake (a cold one woken by a strike on its spire)")
 	var before: int = info.record().stations
 	a.use()
 	check(info.record().stations == before ^ a.mask, "a tower's switch flips its set of stations")

@@ -9,19 +9,21 @@ extends Node
 ## stay on the default layer, under the print, where nothing shows them.
 ## F7 opens print controls, F8 cycles the realm.
 
-const NIGHT: int = 0
-const BLUE: int = 1
-const PINK: int = 2
-const ACCENT: int = 3
-const EYE: int = 4
-const GLOW: int = 5
+## The plates by number (Plate has them, apart from the print; these are the same by their old
+## names).
+const NIGHT: int = Plate.NIGHT
+const BLUE: int = Plate.BLUE
+const PINK: int = Plate.PINK
+const ACCENT: int = Plate.ACCENT
+const EYE: int = Plate.EYE
+const GLOW: int = Plate.GLOW
 ## The wizard's robe and hat, in the ink of the spell they carry (ROBES).
-const ROBE: int = 6
+const ROBE: int = Plate.ROBE
 ## The travelers' clothes and glass stay federal blue even in a realm whose terrain ink is green.
-const CLOTH: int = 7
+const CLOTH: int = Plate.CLOTH
 ## Federal blue is independent of the world and of the carried spell's ink.
 const CLOTH_INK: Color = Color("#3d5588")
-const PLATE_COUNT: int = 8
+const PLATE_COUNT: int = Plate.COUNT
 const PLATE_BIT0: int = 12
 const OVERLAY_BIT: int = 20
 const PRINT_SHADER: Shader = preload("res://shaders/riso_print.gdshader")
@@ -281,7 +283,7 @@ static func door_opened(door: Node2D) -> void:
 	fx.ground = ground
 	fx.half = half
 	fx.key_color = int(door.get_meta(&"key_color", 0))
-	fx.sigil_kind = Sigils.of(door)
+	fx.sigil_kind = MapInfo.sigil_of(door)
 	door.get_parent().add_child(fx)
 	fx.global_position = door.global_position
 

@@ -45,7 +45,7 @@ func _field_trip() -> void:
 	check(hall >= 0, "a lecture hall")
 	if hall < 0:
 		return
-	var field: Vector2i = info.field_of(hall)
+	var field: Vector2i = info.institute.field_of(hall)
 	var code: int = KeyRing.paper(&"hex", 2)
 	info.run.papers_out[field] = [code]
 	await go(field)
@@ -56,8 +56,8 @@ func _field_trip() -> void:
 		return
 	var at: Vector2i = info.cell_at((papers[0] as Node2D).global_position)
 	var start: Vector2i = info.world.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
-	var far: bool = info.world.free_floors().any(func(v: Vector2i) -> bool: return LevelGen.dist(v, start) >= MapInfo.PAPER_CLEAR)
-	check(not far or LevelGen.dist(at, start) >= MapInfo.PAPER_CLEAR, "on a floor at least %d cells from the way in" % MapInfo.PAPER_CLEAR)
+	var far: bool = info.world.free_floors().any(func(v: Vector2i) -> bool: return LevelGen.dist(v, start) >= InstitutePlay.PAPER_CLEAR)
+	check(not far or LevelGen.dist(at, start) >= InstitutePlay.PAPER_CLEAR, "on a floor at least %d cells from the way in" % InstitutePlay.PAPER_CLEAR)
 	var map: Node = main.get_node("RisoMap")
 	map.set("viewing", info.coord)
 	map.call("_level", info)
@@ -169,7 +169,7 @@ func _instructors() -> void:
 	var wizard_at: Vector2 = info.cell_position(Vector2i(inside.position.x + 1, bottom))
 	var spot: Vector2i = Vector2i(inside.end.x - 3, bottom)
 	# In by right, as if they had gone in to its class (MapInfo.keep_out would put them back out).
-	info.class_hall = index
+	info.institute.class_hall = index
 	player.global_position = wizard_at
 	await frames(2)
 

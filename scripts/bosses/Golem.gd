@@ -53,8 +53,6 @@ extends Shaped
 ## not changed. A lantern death brings it back whole, as the hall reloads. Nothing here draws from any
 ## RNG: its choices follow the wizard and the hall's layout.
 
-const STUNNER: PackedScene = preload("res://prefabs/stunner.tscn")
-const HIT_BOX: PackedScene = preload("res://prefabs/hit_box.tscn")
 ## What it is doing.
 enum State { SLEEP, HUNT, SLAM_WARN, SLAM, HURL_WARN, LEAP_WARN, LEAP, RECALL_WARN, RECALL, REST }
 ## Its heart's wounds, its health.
@@ -350,10 +348,8 @@ const WARN_PINK: float = 0.7
 const MARK_H: float = 26.0
 const RECALL_W: float = 16.0
 ## Salts for the hashes that lay its heart's cracks and its bits (one look everywhere).
-const CRACK_DEAL: int = 6910
-const BITS_DEAL: int = 6920
-
-
+const CRACK_DEAL: int = Salts.GOLEM_CRACK * Salts.STRIDE
+const BITS_DEAL: int = Salts.GOLEM_BITS * Salts.STRIDE
 ## One magnet of it as posed this step, as it faces right (from its feet): which chunk it is, where
 ## its middle is and the way it lies, half its length and width, and what it is to the print.
 class Piece:
@@ -476,7 +472,7 @@ func _init() -> void:
 	wound.name = "Wound"
 	wound.hp = HEART
 	add_child(wound)
-	stunner = STUNNER.instantiate() as Stunner
+	stunner = Prefabs.make(Prefabs.STUNNER) as Stunner
 	stunner.name = "Stunner"
 	stunner.parry_only = true
 	add_child(stunner)
@@ -505,7 +501,7 @@ func _init() -> void:
 
 ## A fist's touch named `called`, off until a slam.
 func _fist_touch(called: String) -> HitBox:
-	var box: HitBox = HIT_BOX.instantiate() as HitBox
+	var box: HitBox = Prefabs.make(Prefabs.HIT_BOX) as HitBox
 	box.name = called
 	var reach: CircleShape2D = CircleShape2D.new()
 	reach.radius = FIST_R
@@ -827,7 +823,7 @@ func _strike(k: int, dir: Vector2, empowered: bool) -> void:
 ## A plain blow glanced off chunk `i`: grit, and it shows.
 func _glance(i: int, dir: Vector2) -> void:
 	struck_t[i] = t
-	RisoFx.burst(&"hit", part_center(i) - dir.normalized() * PART_SIZE[i].y, -dir, [RisoPrint.BLUE, RisoPrint.NIGHT])
+	RisoFx.burst(&"hit", part_center(i) - dir.normalized() * PART_SIZE[i].y, -dir, [Plate.BLUE, Plate.NIGHT])
 	Wound.shake(3.0, 0.06)
 
 
@@ -841,7 +837,7 @@ func shatter(i: int, dir: Vector2) -> void:
 		broke_at[i] = RisoWard.plate_angle(left - 1, COVERS.size(), _ward_spin())
 	whole[i] = false
 	shattered_t[i] = t
-	var inks: Array[int] = [RisoPrint.PINK if i in COVERS else RisoPrint.BLUE, RisoPrint.NIGHT]
+	var inks: Array[int] = [Plate.PINK if i in COVERS else Plate.BLUE, Plate.NIGHT]
 	RisoFx.burst(&"hit", part_center(i), dir, inks)
 	Wound.shake(10.0, 0.2)
 
@@ -850,7 +846,7 @@ func shatter(i: int, dir: Vector2) -> void:
 func _wound(dir: Vector2) -> void:
 	wound.hp -= 1
 	heart_t = t
-	RisoFx.burst(&"hit", heart_center(), dir, [RisoPrint.ACCENT, RisoPrint.PINK])
+	RisoFx.burst(&"hit", heart_center(), dir, [Plate.ACCENT, Plate.PINK])
 	Wound.shake(8.0, 0.16)
 	Wound.hit_stop(Wound.KILL_STOP if wound.hp <= 0 else Wound.HIT_STOP)
 	if wound.hp <= 0:
@@ -872,12 +868,12 @@ func shed_shards() -> void:
 		shard.global_position = heart_center()
 		shards.append(shard)
 	loose_t = 0.0
-	RisoFx.burst(&"gain", heart_center(), Vector2.UP, [RisoPrint.ACCENT, RisoPrint.BLUE])
+	RisoFx.burst(&"gain", heart_center(), Vector2.UP, [Plate.ACCENT, Plate.BLUE])
 
 
 ## Its heart's last wound: it falls apart.
 func die() -> void:
-	death.begin(14.0, 0.4, heart_center(), [RisoPrint.ACCENT, RisoPrint.BLUE])
+	death.begin(14.0, 0.4, heart_center(), [Plate.ACCENT, Plate.BLUE])
 
 
 ## Slain at once (the F7 panel's Slay boss, MapInfo.slay_boss).
@@ -959,7 +955,7 @@ func _physics_process(delta: float) -> void:
 					GolemShock.send(self, at, floor_y(storey()))
 					Wound.shake(12.0, 0.2)
 					squash_v -= SLAM_KICK
-					RisoFx.burst(&"rubble", at, Vector2.UP, [RisoPrint.BLUE, RisoPrint.NIGHT])
+					RisoFx.burst(&"rubble", at, Vector2.UP, [Plate.BLUE, Plate.NIGHT])
 			State.SLAM:
 				timer -= delta
 				if timer <= 0.0:
@@ -1121,7 +1117,7 @@ func _leap(delta: float) -> void:
 		Wound.shake(14.0, 0.25)
 		squash_v -= LAND_KICK
 		for i: int in [BACK_FOOT, FRONT_FOOT]:
-			RisoFx.burst(&"lurch", _world(Vector2(limb[i].x, 0.0)), Vector2(-float(face) if i == BACK_FOOT else float(face), 0.0), [RisoPrint.BLUE])
+			RisoFx.burst(&"lurch", _world(Vector2(limb[i].x, 0.0)), Vector2(-float(face) if i == BACK_FOOT else float(face), 0.0), [Plate.BLUE])
 		state = State.REST
 		timer = REST
 
@@ -1210,7 +1206,7 @@ func _home(loose: Node2D, part: int) -> void:
 	if part >= 0:
 		whole[part] = true
 		thrown[part] = false
-	RisoFx.burst(&"hit", loose.global_position, Vector2.ZERO, [RisoPrint.BLUE, RisoPrint.NIGHT])
+	RisoFx.burst(&"hit", loose.global_position, Vector2.ZERO, [Plate.BLUE, Plate.NIGHT])
 	Wound.shake(4.0, 0.08)
 	called.erase(loose)
 	loose.queue_free()
@@ -1431,7 +1427,7 @@ func _step(g: int, delta: float) -> void:
 		if u >= 1.0:
 			lift[i] = 0.0
 			if planted[i] and i >= BACK_FIST:
-				RisoFx.burst(&"lurch", Vector2(plant_x[i], global_position.y), Vector2(-signf(vel) if vel != 0.0 else -float(face), 0.0), [RisoPrint.BLUE])
+				RisoFx.burst(&"lurch", Vector2(plant_x[i], global_position.y), Vector2(-signf(vel) if vel != 0.0 else -float(face), 0.0), [Plate.BLUE])
 				Wound.shake(STEP_SHAKE, 0.06)
 				squash_v -= STEP_KICK
 			stepping[g] = -1
@@ -1704,8 +1700,8 @@ func _process(delta: float) -> void:
 	for i: int in range(PART_SIZE.size()):
 		if not whole[i] and not thrown[i] and t - shattered_t[i] < SHATTER_TIME and not i in COVERS:
 			_bits(i, (t - shattered_t[i]) / SHATTER_TIME, bits)
-	ink.ink(RisoPrint.NIGHT, STONE_NIGHT + 0.3, bits)
-	ink.ink(RisoPrint.BLUE, STONE_BLUE, bits, false)
+	ink.ink(Plate.NIGHT, STONE_NIGHT + 0.3, bits)
+	ink.ink(Plate.BLUE, STONE_BLUE, bits, false)
 	if stun and not dying:
 		_stars(_world(top_at) + Vector2(0.0, -40.0))
 	var marks: Array[PackedVector2Array] = []
@@ -1720,7 +1716,7 @@ func _process(delta: float) -> void:
 				var way: PackedVector2Array = loose.get_meta(&"way")
 				marks.append(RisoShapes.strand(loose.global_position, way[1], RECALL_W))
 				marks.append(RisoShapes.strand(way[1], way[2], RECALL_W))
-	ink.ink(RisoPrint.PINK, WARN_PINK * (0.6 + 0.4 * sin(t * 14.0)), marks)
+	ink.ink(Plate.PINK, WARN_PINK * (0.6 + 0.4 * sin(t * 14.0)), marks)
 	ink.finish()
 
 
@@ -1728,17 +1724,17 @@ func _process(delta: float) -> void:
 ## lifted (so it stands in front), then iron-blue, its poles pale, a paler rim along its lit edge; pink over it at `pink` (a warning, or a hazard on its way), and its ink lifted at `pale` (a
 ## blow glancing off).
 static func print_magnet(on: InkCanvas, shape: PackedVector2Array, poles: Array[PackedVector2Array], pink: float, pale: float, fade: float) -> void:
-	on.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT, RisoPrint.PINK], fade, [shape])
-	on.ink(RisoPrint.BLUE, STONE_BLUE * fade, [shape])
-	on.ink(RisoPrint.NIGHT, STONE_NIGHT * fade, [shape], false)
-	on.lift_ink([RisoPrint.NIGHT], POLE_LIFT * fade, poles)
-	on.lift_ink([RisoPrint.BLUE], POLE_PALE * fade, poles)
+	on.lift_ink([Plate.NIGHT, Plate.BLUE, Plate.ACCENT, Plate.PINK], fade, [shape])
+	on.ink(Plate.BLUE, STONE_BLUE * fade, [shape])
+	on.ink(Plate.NIGHT, STONE_NIGHT * fade, [shape], false)
+	on.lift_ink([Plate.NIGHT], POLE_LIFT * fade, poles)
+	on.lift_ink([Plate.BLUE], POLE_PALE * fade, poles)
 	var shaded: PackedVector2Array = Transform2D(0.0, RIM) * shape
-	on.lift_ink([RisoPrint.NIGHT], RIM_LIFT * fade, Geometry2D.clip_polygons(shape, shaded))
+	on.lift_ink([Plate.NIGHT], RIM_LIFT * fade, Geometry2D.clip_polygons(shape, shaded))
 	if pink > 0.0:
-		on.ink(RisoPrint.PINK, pink, [shape], false)
+		on.ink(Plate.PINK, pink, [shape], false)
 	if pale > 0.0:
-		on.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE], pale, [shape])
+		on.lift_ink([Plate.NIGHT, Plate.BLUE], pale, [shape])
 
 
 ## Print chunk `part` alone, round `c` lying `ang` (radians), on `ink` (GolemStone, a hurled chunk):
@@ -1760,8 +1756,8 @@ func _print_ward(fade: float) -> void:
 			intact += 1
 		flash = maxf(flash, clampf(1.0 - (t - struck_t[i]) / FLASH_TIME, 0.0, 1.0))
 		if not whole[i] and not thrown[i]:
-			RisoWard.shards(ink, hc, WARD_R, broke_at[i], (t - shattered_t[i]) / RisoWard.SHARD_TIME, RisoPrint.PINK)
-	RisoWard.plates(ink, hc, WARD_R, COVERS.size(), intact, _ward_spin(), flash, RisoPrint.PINK, 0.0, 0, fade, WARD_THICK)
+			RisoWard.shards(ink, hc, WARD_R, broke_at[i], (t - shattered_t[i]) / RisoWard.SHARD_TIME, Plate.PINK)
+	RisoWard.plates(ink, hc, WARD_R, COVERS.size(), intact, _ward_spin(), flash, Plate.PINK, 0.0, 0, fade, WARD_THICK)
 
 
 ## Its caps and fins that stand out of its body, printed as one with it (no seam where they go in, only
@@ -1796,7 +1792,7 @@ func _glow(c: Vector2, r0: float, r1: float, cover: float) -> void:
 		var b: Vector2 = Vector2.from_angle(TAU * float(i + 1) / float(n))
 		quads.append(PackedVector2Array([c + a * r0, c + a * r1, c + b * r1, c + b * r0]))
 		fades.append(PackedFloat32Array([cover, 0.0, 0.0, cover]))
-	ink.ink_graded(RisoPrint.ACCENT, quads, fades)
+	ink.ink_graded(Plate.ACCENT, quads, fades)
 
 
 ## Its heart at `hc`, at `fade` (shrinking `u` of the way as it dies): a dark rim, then paper with an
@@ -1806,17 +1802,17 @@ func _glow(c: Vector2, r0: float, r1: float, cover: float) -> void:
 func _heart(hc: Vector2, fade: float, u: float) -> void:
 	var r: float = HEART_R * (1.0 - 0.4 * u)
 	var rim: PackedVector2Array = RisoShapes.circle(hc, r * HEART_RIM, 24)
-	ink.ink(RisoPrint.NIGHT, 0.85 * fade, [rim], false)
+	ink.ink(Plate.NIGHT, 0.85 * fade, [rim], false)
 	var face_paper: PackedVector2Array = RisoShapes.circle(hc, r, 24)
 	var bare: bool = not covered()
-	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], fade * (1.0 if bare else COVERED_PAPER), [face_paper])
+	ink.lift_ink([Plate.NIGHT, Plate.BLUE, Plate.ACCENT], fade * (1.0 if bare else COVERED_PAPER), [face_paper])
 	var disc: PackedVector2Array = RisoShapes.circle(hc, r * HEART_MARK, 20)
-	ink.ink(RisoPrint.ACCENT, fade * lerpf(0.6, 1.0, rise) * (1.0 if bare else COVERED_MARK), [disc])
+	ink.ink(Plate.ACCENT, fade * lerpf(0.6, 1.0, rise) * (1.0 if bare else COVERED_MARK), [disc])
 	var cut: Vector2 = Vector2(HEART_CUT.x * float(signf(_across())), HEART_CUT.y) * r
-	ink.lift_ink([RisoPrint.ACCENT], fade, [RisoShapes.circle(hc + cut, r * HEART_CUT.z, 20)])
+	ink.lift_ink([Plate.ACCENT], fade, [RisoShapes.circle(hc + cut, r * HEART_CUT.z, 20)])
 	var flash: float = clampf(1.0 - (t - heart_t) / FLASH_TIME, 0.0, 1.0)
 	if flash > 0.0:
-		ink.ink(RisoPrint.PINK, 0.6 * flash * fade, [face_paper], false)
+		ink.ink(Plate.PINK, 0.6 * flash * fade, [face_paper], false)
 	var cracks: Array[PackedVector2Array] = []
 	for k: int in range(HEART - maxi(wound.hp, 0)):
 		var a: float = TAU * RisoDecor.h(0, Vector2i(k, 0), CRACK_DEAL)
@@ -1824,7 +1820,7 @@ func _heart(hc: Vector2, fade: float, u: float) -> void:
 		var bend: Vector2 = hc + Vector2.from_angle(a + 0.4) * r * 0.55
 		cracks.append(RisoShapes.strand(from, bend, CRACK_W))
 		cracks.append(RisoShapes.strand(bend, hc + Vector2.from_angle(a - 0.2) * r, CRACK_W * 0.7))
-	ink.ink(RisoPrint.NIGHT, fade, cracks)
+	ink.ink(Plate.NIGHT, fade, cracks)
 
 
 ## Its eyes in its body: slits of paper in a dark band, slanting in toward the way it faces, opening
@@ -1832,17 +1828,17 @@ func _heart(hc: Vector2, fade: float, u: float) -> void:
 func _eyes(warning: bool, pulse: float) -> void:
 	var xf: Transform2D = _to_world() * Transform2D(eyes_turn, eyes_at)
 	var band: PackedVector2Array = xf * PackedVector2Array([Vector2(-EYE_BAND.x, -EYE_BAND.y), Vector2(EYE_BAND.x, -EYE_BAND.y * 1.3), Vector2(EYE_BAND.x, EYE_BAND.y * 0.9), Vector2(-EYE_BAND.x, EYE_BAND.y)])
-	ink.ink(RisoPrint.NIGHT, 0.8, [band], false)
+	ink.ink(Plate.NIGHT, 0.8, [band], false)
 	var slits: Array[PackedVector2Array] = []
 	for side: float in [-1.0, 1.0]:
 		var slit: Transform2D = Transform2D(-side * EYE_SLANT, Vector2(side * EYES_APART, 0.0))
 		slits.append(xf * slit * RisoShapes.almond(Vector2.ZERO, EYE.x, maxf(EYE.y * rise, 0.8), 8))
 	if rise < 0.3:
-		ink.ink(RisoPrint.NIGHT, 0.9, slits, false)
+		ink.ink(Plate.NIGHT, 0.9, slits, false)
 		return
-	ink.lift_ink([RisoPrint.NIGHT, RisoPrint.BLUE, RisoPrint.ACCENT], 1.0, slits)
+	ink.lift_ink([Plate.NIGHT, Plate.BLUE, Plate.ACCENT], 1.0, slits)
 	if warning:
-		ink.ink(RisoPrint.PINK, pulse, slits)
+		ink.ink(Plate.PINK, pulse, slits)
 
 
 ## Stars circling over its top at `at` while it is stunned, fewer as the stun wears off.
@@ -1853,7 +1849,7 @@ func _stars(at: Vector2) -> void:
 		var a: float = t * 2.6 + TAU * float(i) / 3.0
 		var p: Vector2 = at + Vector2(cos(a) * 70.0, sin(a) * 16.0)
 		stars.append(Transform2D(t * 1.8 + float(i), p) * RisoShapes.sparkle(Vector2.ZERO, 10.0 + 6.0 * frac))
-	ink.ink(RisoPrint.ACCENT, 0.9, stars)
+	ink.ink(Plate.ACCENT, 0.9, stars)
 
 
 ## The bits of shattered chunk `i`, `u` of the way through flying off (0 to 1), into `out`.
