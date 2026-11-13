@@ -1,7 +1,8 @@
 extends TestKit
 ## What an animated kind's art costs when a crowd of it is on screen: CROWD of each kind placed
 ## together in its band's first level (world 28; abominations of five blobs), the camera on them,
-## and each one's art _process timed over 30 frames, as a total a frame and each. To judge which
+## and each one's art _process timed over 30 frames, as a total a frame and each, with how many ink
+## ops one of them prints (each is a draw on every plate it inks). To judge which
 ## kinds are worth putting on a rig (InkCanvas.rig; tests/bench_rig.gd times the ones that are).
 ## godot --path . --windowed --resolution 1280x720 --script res://tests/bench_crowd.gd
 
@@ -16,7 +17,8 @@ func run() -> void:
 	camera = main.get_node("Camera2D") as Camera2D
 	var cases: Array = [
 		[&"institute", "abomination.tscn"], [&"cemetery", "skeleton_enemy.tscn"], [&"cemetery", "wraith_enemy.tscn"],
-		[&"garden", "hopper_enemy.tscn"], [&"sky", "bird_enemy.tscn"], [&"crags", "rock_bug.tscn"], [&"institute", "student.tscn"]]
+		[&"garden", "hopper_enemy.tscn"], [&"sky", "bird_enemy.tscn"], [&"crags", "rock_bug.tscn"], [&"institute", "student.tscn"],
+			[&"institute", "master.tscn"], [&"institute", "proctor.tscn"], [&"institute", "librarian.tscn"]]
 	for c: Array in cases:
 		var band: StringName = c[0]
 		await go(Vector2i(28, NextWorldDef.first_depth(band) if band != &"garden" else 1), false)
@@ -59,7 +61,8 @@ func run() -> void:
 				total += float(Time.get_ticks_usec() - t) / 1000.0
 			reps += 1
 		var name: String = (arts[0].get_script() as Script).resource_path.get_file() if not arts.is_empty() else "?"
-		print("CROWD %-22s %d on screen: %.3f ms a frame for all, %.3f ms each" % [name, arts.size(), total / float(reps), total / float(reps) / maxf(1.0, float(arts.size()))])
+		var ops: int = (arts[0] as RisoProp).ink._used if not arts.is_empty() else 0
+		print("CROWD %-22s %-16s %d on screen: %.3f ms a frame for all, %.3f ms each, %d ink ops each" % [name, String(c[1]).get_basename(), arts.size(), total / float(reps), total / float(reps) / maxf(1.0, float(arts.size())), ops])
 		for n: Node2D in spawned:
 			if is_instance_valid(n):
 				n.queue_free()

@@ -1,8 +1,9 @@
 extends RigidBody2D
 class_name Scholar
-## The institute's people (docs/REGIONS_PLAN.md §7; Institute places them), printed after the
-## original wizard (ScholarArt): robed, faceless under a floppy hat, eyes lit, a spell's orb at the
-## shoulder. Each walks its own floor, hopping a step of a cell and stopping at a ledge, never more
+## The institute's people (docs/REGIONS_PLAN.md §7; Institute places them), four figures told
+## apart at a glance (ScholarArt): a small plum student, a tall master under a great pink hat, a
+## broad brown proctor with its staff and a hunched librarian at its book, each faceless, its eyes
+## lit. Each walks its own floor, hopping a step of a cell and stopping at a ledge, never more
 ## than HOME cells from where it was laid (a class keeps together), and fights whatever is nearest
 ## of the wizard and the abominations (Abomination) that it can see within its sight, keeping its
 ## distance from it as its spells want; with nothing to fight it goes back to its place. Every
