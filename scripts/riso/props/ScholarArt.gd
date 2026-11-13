@@ -14,13 +14,13 @@ class_name ScholarArt
 ##   spell it has mastered (RisoGlyph) in paper; winding up, its arm comes up and the orb goes to its
 ##   hand. Its health is pink pips whirling round it like motes (MoteArt), hidden by it as they pass
 ##   behind, and the relic it carries hangs over its hat.
-## - a proctor: a brown trapezium of a gown, narrow at the shoulders and broad at the floor, with a
-##   paper sash across it, under a flat board of a cap wider than its shoulders with a pink tassel.
-##   It marches, rocking from side to side, a staff taller than itself in its hand, headed with a
+## - a proctor: a pale rose trapezium of a gown, narrow at the shoulders and broad at the floor, with a
+##   near black sash across it, collar and hem, under a flat black board of a cap wider than its shoulders with a pink tassel.
+##   It marches, rocking from side to side, a pale staff taller than itself in its hand, headed with a
 ##   pink ring;
 ##   the staff lifts and pink links flash to those it shields.
 ## - a librarian: low and hunched forward, a pale tan hump with a bun at the back of its head, big
-##   round paper spectacles and a closed book held before it. It shuffles, nodding over its book.
+##   round paper spectacles, a pink ribbon on its bun and a closed pink book held before it. It shuffles, nodding over its book.
 ##   Round it the faint blue ring of its hush, rippling while it is up and swelling before it rises.
 ## - an instructor (a classroom's master, Scholar.instructor) teaching ferry stands on a raft (blue
 ##   planks, night under); projecting itself, PROJECTED_MOTES paper twinkles circle it.
@@ -71,10 +71,10 @@ const CROWN: Dictionary = {&"student": Vector2(0, -66), &"master": Vector2(-4, -
 ## from, and the shoulder its arm is raised about (px, at rest).
 const NECK: Dictionary = {&"student": Vector2(0, -36), &"master": Vector2(0, -82), &"proctor": Vector2(0, -68), &"librarian": Vector2(6, -42)}
 const SWING: Dictionary = {&"student": Vector2(-12, -36), &"master": Vector2(0, -104), &"proctor": Vector2(2, -92), &"librarian": Vector2(-8, -64)}
-const SHOULDER: Vector2 = Vector2(6, -74)
+const SHOULDER: Vector2 = Vector2(10, -75)
 ## A master's hand at rest (its orb goes to it as it winds up), and how far its arm comes up
 ## (radians).
-const HAND: Vector2 = Vector2(13, -47)
+const HAND: Vector2 = Vector2(29, -62)
 const ARM_RAISE: float = 1.5
 ## The spell's orb: where it floats at rest by kind (px), where a student's goes as it winds up,
 ## how big it is (px) and how far it bobs; its halo's reach in orbs, and how much of its ink shows.
@@ -89,6 +89,10 @@ const HALO_CLEARS: float = 2.0
 ## A proctor's staff: how far it lifts (px) as it shields those round it, and its head (px, at rest).
 const STAFF_LIFT: float = 10.0
 const STAFF_HEAD: Vector2 = Vector2(36, -124)
+## How much pink a proctor's gown prints on paper (a pale rose), and how much night its cap prints
+## over the realm's dark ink.
+const PROCTOR_ROSE: float = 0.4
+const PROCTOR_NIGHT: float = 0.8
 ## How far into the top of the floor a figure stands (px), so no gap shows under it where the
 ## floor's edge prints soft.
 const SINK: float = 3.0
@@ -225,13 +229,16 @@ func _pose(s: Scholar, kind: StringName, wind: float, stunned: bool, scared: boo
 	var ph: float = s.walked / float(gait["stride"])
 	var stride: float = sin(ph * TAU)
 	var rock: float = stride * float(gait["rock"]) * walk
-	var root: Transform2D = Transform2D(0.0, Vector2(s.facing, 1.0), 0.0, Vector2(0, _feet() + SINK)) * Transform2D(lean + rock, Vector2.ZERO)
+	# What stands on the floor (its hem, its feet, a planted staff) keeps level; its body leans and
+	# rocks over it, a gown bending between the two.
+	var level: Transform2D = Transform2D(0.0, Vector2(s.facing, 1.0), 0.0, Vector2(0, _feet() + SINK))
+	var root: Transform2D = level * Transform2D(lean + rock, Vector2.ZERO)
 	var bob: float = -absf(sin(ph * PI)) * float(gait["bob"]) * walk + sin(t * 1.6 + phase) * 0.8
 	var sway: float = float(gait["sway"])
 	var up: Transform2D = root * Transform2D(0.0, Vector2(0, bob))
 	_joints[J.BODY] = root
 	_joints[J.UP] = up
-	_joints[J.HEM] = root * Transform2D(0.0, Vector2((stride - 0.6) * sway * walk + sin(t * 1.3 + phase) * 0.8, 0))
+	_joints[J.HEM] = level * Transform2D(0.0, Vector2((stride - 0.6) * sway * walk + sin(t * 1.3 + phase) * 0.8, 0))
 	var nod: float = stride * float(gait["nod"]) * walk + sin(t * 1.1 + phase) * float(gait["nod"]) * 0.5
 	var head: Transform2D = up * ScholarArt._turn(nod, NECK.get(kind, Vector2.ZERO) as Vector2)
 	_joints[J.HEAD] = head
@@ -251,12 +258,12 @@ func _pose(s: Scholar, kind: StringName, wind: float, stunned: bool, scared: boo
 	match kind:
 		&"proctor":
 			# Its staff is planted, and lifts as it shields.
-			_joints[J.HELD] = root * Transform2D(0.0, Vector2(0, -STAFF_LIFT * clampf(1.0 - s.since_shield / 0.5, 0.0, 1.0)))
+			_joints[J.HELD] = level * Transform2D(0.0, Vector2(0, -STAFF_LIFT * clampf(1.0 - s.since_shield / 0.5, 0.0, 1.0)))
 		_:
 			_joints[J.HELD] = up * Transform2D(0.0, Vector2(0, sin(t * 1.1 + phase + 1.0) * 1.2))
 	for side: int in range(2):
 		var at: float = ph * TAU + (PI if side == 1 else 0.0)
-		_joints[J.BOOT_A + side] = root * Transform2D(0.0, Vector2(sin(at) * float(gait["step"]), -maxf(0.0, cos(at)) * float(gait["lift"])) * walk)
+		_joints[J.BOOT_A + side] = level * Transform2D(0.0, Vector2(sin(at) * float(gait["step"]), -maxf(0.0, cos(at)) * float(gait["lift"])) * walk)
 	if ORB_R.has(kind):
 		# The orb: floating, bobbing; winding up it comes to the hand (a student's, before it) and
 		# swells; just cast, its halo flares. It is not mirrored with the figure (its mark reads).
@@ -478,6 +485,9 @@ static func _student(sh: RigSheet) -> void:
 	_solid(sh, tail, _curve([-10, -39, -25, -37, -31, -30, -24, -30, -10, -32]), 0.0)
 	_solid(sh, cloak, _curve([0, -61, 9, -58, 14, -49, 13, -38, 19, -22, 20, -11, 10, -8, 0, -9, -10, -8, -20, -11, -19, -22, -13, -38, -14, -49, -9, -58]), 0.6, 0.85)
 	_face(sh, face, RisoShapes.ellipse(Vector2(3, -47), 8.5, 7.5, 20), Vector2(0.5, -47), Vector2(7, -47), 2.4, 2.7)
+	# A short sleeve held out toward its orb from the front edge of its cloak, bent at the elbow,
+	# in the cloak's tone.
+	_solid(sh, sh.slot(J.UP), _curve([13, -36, 17, -38, 21, -31, 27, -41, 31, -38, 23, -23, 17, -25], 3), 0.6, 0.85)
 	_paper(sh, cloak, _curve([-13, -39, 0, -36.5, 13, -39, 13, -35, 0, -32, -13, -35], 3))
 	_orb(sh, float(ORB_R[&"student"]), &"")
 
@@ -497,7 +507,9 @@ static func _master(sh: RigSheet, ability: StringName) -> void:
 	_solid(sh, gown, _curve([-7, -82, -11, -76, -15, -50, -20, -24, -26, -4, -24, 0, -9, -1.5, 0, 0, 9, -1.5, 24, 0, 26, -4, 20, -24, 15, -50, 11, -76, 7, -82]), 0.0)
 	sh.add(&"pink", gown, _curve([-25.5, -9, -9, -10.5, 0, -9, 9, -10.5, 25.5, -9, 24, 0, 9, -1.5, 0, 0, -9, -1.5, -24, 0], 2), 1.0)
 	_solid(sh, mantle, _curve([-5, -85, -16, -79, -21, -64, -10, -60, 0, -63, 10, -60, 21, -64, 16, -79, 5, -85]), 0.6)
-	_solid(sh, arm, _curve([3, -78, 10, -77, 16, -52, 13, -45, 8, -46, 5, -62]), 0.6)
+	# Its sleeve, in its mantle's tone, hung from the front edge of its shoulders so it stands out
+	# past the gown, bent at the elbow.
+	_solid(sh, arm, _curve([7, -79, 14, -78, 20, -61, 28, -65, 31, -59, 21, -50, 14, -54, 9, -64], 3), 0.6)
 	_face(sh, face, RisoShapes.ellipse(Vector2(2, -90), 9.5, 8.0, 20), Vector2(-1, -89.5), Vector2(6.5, -89.5), 2.6, 2.8)
 	# The hat: a wide brim and a tall point, pink, with a paper band.
 	_solid(sh, hat, RisoShapes.ellipse(Vector2(0.5, -98), 28.0, 5.0, 28), 0.0, 1.0)
@@ -517,17 +529,26 @@ static func _proctor(sh: RigSheet) -> void:
 	var face: int = sh.slot(J.HEAD)
 	var tassel: int = sh.slot(J.TIP)
 	var staff: int = sh.slot(J.HELD)
-	_solid(sh, staff, RisoShapes.rrect(STAFF_HEAD.x - 2.0, STAFF_HEAD.y + 6.0, 4.0, -STAFF_HEAD.y - 6.0, 1.5), 1.0)
+	# Its staff is bare paper, so it reads on dark wood and brown alike.
+	_solid(sh, staff, RisoShapes.rrect(STAFF_HEAD.x - 2.0, STAFF_HEAD.y + 6.0, 4.0, -STAFF_HEAD.y - 6.0, 1.5), 0.0)
 	for piece: PackedVector2Array in RisoShapes.ring(STAFF_HEAD, 5.0, 9.5, 20):
 		_solid(sh, staff, piece, 0.0, 1.0)
-	# A trapezium: narrow at the shoulders, broad at the floor.
-	_solid(sh, gown, _curve([-13, -67, -17, -60, -24, -32, -31, -5, -30, 0, 30, 0, 31, -5, 24, -32, 17, -60, 13, -67, 0, -68], 3), 1.0)
-	_solid(sh, chest, _curve([6, -62, 15, -64, 39, -48, 36, -41, 30, -42, 8, -52]), 1.0)
-	_paper(sh, gown, PackedVector2Array([Vector2(-18, -54), Vector2(-12, -65), Vector2(24, -29), Vector2(28, -11)]))
+	# A trapezium: narrow at the shoulders, broad at the floor, in pale rose (PROCTOR_ROSE of pink on
+	# paper), which stands off the dark wall and the brown of a bookcase alike; its sleeve, out
+	# to its staff from the front edge of its shoulder, bent at the elbow, the same. Its sash, collar and hem are near black over it.
+	_solid(sh, gown, _curve([-13, -67, -17, -60, -24, -32, -31, -5, -30, 0, 30, 0, 31, -5, 24, -32, 17, -60, 13, -67, 0, -68], 3), 0.0, PROCTOR_ROSE)
+	_solid(sh, chest, _curve([13, -64, 19, -65, 26, -55, 34, -61, 38, -56, 27, -45, 20, -48, 14, -56], 3), 0.0, PROCTOR_ROSE)
+	for trim: PackedVector2Array in [
+			PackedVector2Array([Vector2(-18, -54), Vector2(-12, -65), Vector2(24, -29), Vector2(28, -11)]),
+			PackedVector2Array([Vector2(-28, -9), Vector2(28, -9), Vector2(30, 0), Vector2(-30, 0)]),
+			PackedVector2Array([Vector2(-13.5, -66), Vector2(13.5, -66), Vector2(16, -60), Vector2(-16, -60)])]:
+		sh.add(&"blue", gown, trim, 1.0)
+		sh.add(&"night", gown, trim, 1.0)
 	_face(sh, face, RisoShapes.rrect(-8.0, -84.0, 20.0, 18.0, 6.0), Vector2(0, -75), Vector2(8, -75), 2.8, 1.9)
 	# The cap: a band round the head and a flat board over it.
-	_solid(sh, face, RisoShapes.rrect(-10.0, -90.0, 24.0, 8.0, 3.0), 1.0)
-	_solid(sh, face, PackedVector2Array([Vector2(-31, -92), Vector2(2, -98.5), Vector2(35, -92), Vector2(2, -86)]), 1.0, 0.0, 0.4)
+	_solid(sh, face, RisoShapes.rrect(-10.0, -90.0, 24.0, 8.0, 3.0), 1.0, 0.0, PROCTOR_NIGHT)
+	_solid(sh, face, PackedVector2Array([Vector2(-31, -92), Vector2(2, -98.5), Vector2(35, -92), Vector2(2, -86)]), 1.0, 0.0, PROCTOR_NIGHT)
+	_paper(sh, face, PackedVector2Array([Vector2(-29, -92), Vector2(2, -87.5), Vector2(33, -92), Vector2(2, -86)]))
 	_solid(sh, tassel, PackedVector2Array([Vector2(2, -93.5), Vector2(25, -89.5), Vector2(27, -73), Vector2(21, -73), Vector2(21, -86), Vector2(2, -90)]), 0.0, 1.0)
 
 
@@ -539,12 +560,15 @@ static func _librarian(sh: RigSheet) -> void:
 	var book: int = sh.slot(J.HELD)
 	_solid(sh, hump, _curve([-20, 0, -24, -18, -21, -44, -10, -62, 4, -68, 16, -62, 21, -50, 18, -40, 15, -30, 19, -10, 18, 0, 0, 0]), 0.5)
 	_solid(sh, bun, RisoShapes.circle(Vector2(-9, -70), 7.5, 16), 1.0)
-	_solid(sh, book, _curve([8, -45, 17, -44, 27, -33, 23, -28, 10, -34]), 0.5)
+	# A pink ribbon round the bun's foot.
+	_solid(sh, bun, _curve([-6, -66, 1, -69, 3, -64, -3, -61], 3), 0.0, 1.0)
+	# Its arm out to its book, from the front edge of its hump, bent at the elbow, in the hump's tone.
+	_solid(sh, book, _curve([16, -47, 21, -48, 26, -38, 31, -41, 33, -36, 26, -29, 20, -31, 16, -40], 3), 0.5)
 	_face(sh, face, RisoShapes.ellipse(Vector2(9, -52), 10.0, 9.0, 20), Vector2(4.5, -52), Vector2(14, -52), 4.4, 4.4)
-	# The book, closed: a dark cover, its pages' edge a paper strip along its front and foot, and a
+	# The book, closed: a pink cover, its pages' edge a paper strip along its front and foot, and a
 	# paper label on the cover.
-	var c: Vector2 = Vector2(27, -34)
-	_solid(sh, book, RisoShapes.rrect(c.x - 9.0, c.y - 9.0, 18.0, 17.0, 2.0), 1.0, 0.0, 1.0)
+	var c: Vector2 = Vector2(33, -35)
+	_solid(sh, book, RisoShapes.rrect(c.x - 9.0, c.y - 9.0, 18.0, 17.0, 2.0), 0.0, 1.0)
 	_paper(sh, book, PackedVector2Array([c + Vector2(6, -7.5), c + Vector2(8, -7.5), c + Vector2(8, 6.5), c + Vector2(-7.5, 6.5), c + Vector2(-7.5, 4.5), c + Vector2(6, 4.5)]))
 	_paper(sh, book, RisoShapes.rrect(c.x - 5.5, c.y - 5.5, 8.0, 3.0, 0.8))
 	# The hush: three rings and a wash, the sheet's last four parts (_hush).

@@ -25,7 +25,11 @@ func run() -> void:
 		finish()
 		return
 	var at: Vector2i = spot
+	# Where the level's librarian stands, among its library's bookcases, for the last still.
+	var library: Variant = null
 	for n: Node in get_nodes_in_group(&"scholar"):
+		if (n as Scholar).kind == &"librarian" and library == null:
+			library = (n as Scholar).global_position
 		n.queue_free()
 	var kinds: Array = [["student.tscn", &""], ["master.tscn", &"hex"], ["proctor.tscn", &""], ["librarian.tscn", &""]]
 	for i: int in range(kinds.size()):
@@ -70,6 +74,16 @@ func run() -> void:
 		s.facing = 1.0
 		Stunner.of(s).stun(30.0)
 	await _look(middle, "scholars_stunned.png", CLOSE)
+	if library != null:
+		# The four before the library's bookcases, to see each reads on them (held where the librarian
+		# stood, on its gallery, so those beside it hang in the air).
+		for i: int in range(people.size()):
+			var s: Scholar = people[i]
+			Stunner.of(s).left = 0.0
+			s.global_position = (library as Vector2) + Vector2((float(i) - 1.5) * 120.0, 0)
+		player.phasing = true
+		player.global_position = (library as Vector2) + Vector2(900, 0)
+		await _look((people[1].global_position + people[2].global_position) * 0.5 + Vector2(0, -30), "scholars_library.png", CLOSE)
 	RunState.delete_save()
 	finish()
 

@@ -6,7 +6,8 @@ extends RefCounted
 ## so one print holds every part of a layer and the rig still knows which bones carry each point
 ## (bind, handed to InkCanvas.on_chain). The art asks the canvas for each part's bones in the
 ## sheet's order every print, so a part's bones are always the same ones (base). ScholarArt keeps a
-## sheet a kind, shared by every scholar of the kind.
+## sheet a kind, shared by every scholar of the kind; AbominationArt one for each abomination, as
+## each has a shape of its own.
 
 ## Each part: the joint that carries it at height `z` (its rest y, px) and the one at `w`, as
 ## Vector4(joint, other joint, y, other y); one joint twice for a part that does not bend.
@@ -17,6 +18,10 @@ var base: PackedInt32Array = PackedInt32Array()
 ## Its layers by name: the shapes of each, and each shape's cover (empty: the print's own).
 var shapes: Dictionary = {}
 var covers: Dictionary = {}
+## Whether the art gives every joint one bone, in the joints' own order (joint j is bone j + 1),
+## rather than each part its own bones: for a figure whose parts share joints (a tentacle's two
+## halves, its middle), which would otherwise use a bone twice.
+var one_a_joint: bool = false
 ## What tells its chain from another's (InkCanvas.on_chain), and how many sheets there are.
 var key: int = 0
 static var count: int = 0
@@ -86,6 +91,10 @@ func close(reach: Rect2, wide: Array[StringName], far: Rect2) -> void:
 func bind(p: Vector2) -> Variant:
 	var part: int = clampi(RigSheet.part_of(p), 0, slots.size() - 1)
 	var spec: Vector4 = slots[part]
+	if one_a_joint:
+		if spec.x == spec.y:
+			return PackedFloat32Array([spec.x + 1.0, 1.0])
+		return Vector3(spec.x + 1.0, spec.y + 1.0, 1.0 - clampf((p.y - spec.z) / (spec.w - spec.z), 0.0, 1.0))
 	if spec.x == spec.y:
 		return PackedFloat32Array([base[part], 1.0])
 	return Vector3(base[part], base[part] + 1, 1.0 - clampf((p.y - spec.z) / (spec.w - spec.z), 0.0, 1.0))
