@@ -19,6 +19,8 @@ const CHASM_SHORES: Array[int] = [4, 3, 2]
 const CHASM_CLEAR: int = 4
 ## Salt for the level seed when dealing which crossings are left to relic moves (relax_crossings).
 const RELIC_DEAL: int = Salts.CHASMS_RELIC * Salts.STRIDE
+## Salt for the level seed: which side of a gap its crossing is set back on, and where (place_bells).
+const BACK_DEAL: int = Salts.CHASMS_SET_BACK * Salts.STRIDE
 ## How many chasms level `w` wants.
 static func wanted(w: LevelGen) -> int:
 	return maxi(CHASMS_MIN, w.per_area(CHASMS_PER_K))
@@ -203,9 +205,16 @@ static func _level_floor(w: LevelGen, floors: PackedByteArray, x: int, y: int) -
 ## chasm, and within `switch_reach` cells unless that is -1), near it (LevelGen.switch_floor;
 ## turning it on frees that one). A crossing's cell holds [chasm, lock]: lock is the key colour, or
 ## -1 for a switch.
-static func place_bells(w: LevelGen, crossing: LevelGen.Type, switch_reach: int) -> void:
+## With `back` (Archetype.crossing_back, the sky's vanes: their wind blows over the whole level, so
+## they need not face each other over every gap), one of the two, on a side dealt by the level seed,
+## stands back from the gap instead: on a free floor of its own side from back.x to back.y cells
+## from the edge (_set_back, no draw), or at the edge after all where there is none.
+static func place_bells(w: LevelGen, crossing: LevelGen.Type, switch_reach: int, back: Vector2i = Vector2i.ZERO) -> void:
 	for id: int in range(w.chasms.size()):
 		var chasm: Chasm = w.chasms[id]
+		var back_side: int = 0
+		if back != Vector2i.ZERO:
+			back_side = -1 if posmod(Rules.level_seed(w.seed_for_colors, BACK_DEAL + id * 2), 2) == 0 else 1
 		for side: int in [-1, 1]:
 			var edge: Vector2i = chasm.left if side < 0 else chasm.right
 			var at: Variant = null
@@ -216,6 +225,8 @@ static func place_bells(w: LevelGen, crossing: LevelGen.Type, switch_reach: int)
 					break
 			if at == null:
 				continue
+			if side == back_side:
+				at = _set_back(w, at, side, back, id)
 			w.add_object_at(at)
 			# One draw, as randi_range was, so the rest of the level lands where it did.
 			var lock: int = Rules.rarity_color(int(w.rng.randi()))
@@ -227,16 +238,40 @@ static func place_bells(w: LevelGen, crossing: LevelGen.Type, switch_reach: int)
 			w.set_kind(at, crossing, [id, lock])
 
 
-## A floor for the switch that frees the bell at `bell`: on its side, reachable from it through
-## open air without crossing any chasm (and within `reach` cells, unless that is -1), near it
-## (LevelGen.switch_floor); null if there is none.
-static func _bell_switch(w: LevelGen, bell: Vector2i, reach_cells: int) -> Variant:
+## Where the crossing found at `at`, by the edge of gap `id` on its `side`, stands set back from it:
+## a free floor reached from `at` without crossing any chasm, on its own side of the edge, from
+## back.x to back.y cells from `at`, dealt by the level seed (no draw); `at` itself if there is none.
+static func _set_back(w: LevelGen, at: Vector2i, side: int, back: Vector2i, id: int) -> Vector2i:
+	var blocked: Dictionary = _over_chasms(w)
+	var reach: Dictionary = w.reach_from(at, func(n: Vector2i) -> bool: return not blocked.has(n) and LevelGen.dist(n, at) <= back.y)
+	var spots: Array[Vector2i] = []
+	for v: Vector2i in reach:
+		if (v.x - at.x) * side < 0 or LevelGen.dist(v, at) < back.x:
+			continue
+		if w.type_at(v) == LevelGen.Type.EMPTY and w.empties.has(v) and w.ground_below(v):
+			spots.append(v)
+	if spots.is_empty():
+		return at
+	spots.sort()
+	return spots[posmod(Rules.level_seed(w.seed_for_colors, BACK_DEAL + id * 2 + 1), spots.size())]
+
+
+## The cells over and in every chasm, which nothing kept to one side of a gap is reached through.
+static func _over_chasms(w: LevelGen) -> Dictionary:
 	var blocked: Dictionary = {}
 	for chasm: Chasm in w.chasms:
 		var row: int = chasm.row
 		for plank: Vector2i in chasm.planks:
 			for d: int in range(-CHASM_CLEAR - 1, CHASM_DEPTH + 2):
 				blocked[Vector2i(plank.x, row + d)] = true
+	return blocked
+
+
+## A floor for the switch that frees the bell at `bell`: on its side, reachable from it through
+## open air without crossing any chasm (and within `reach` cells, unless that is -1), near it
+## (LevelGen.switch_floor); null if there is none.
+static func _bell_switch(w: LevelGen, bell: Vector2i, reach_cells: int) -> Variant:
+	var blocked: Dictionary = _over_chasms(w)
 	var reach: Dictionary = w.reach_from(bell, func(n: Vector2i) -> bool: return not blocked.has(n) and (reach_cells < 0 or LevelGen.dist(n, bell) <= reach_cells))
 	return w.switch_floor(reach, bell)
 

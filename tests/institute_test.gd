@@ -252,7 +252,7 @@ func _climb() -> void:
 	var home: Vector2i = info.coord
 	var found: Dictionary = _step_and_wall()
 	# Not every level has both: look in the band's next levels.
-	for k: int in range(1, 4):
+	for k: int in range(1, Bands.rows_of(&"institute")):
 		if not found.is_empty():
 			break
 		await go(Vector2i(home.x, NextWorldDef.band_row(&"institute", k)))

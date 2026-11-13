@@ -84,7 +84,7 @@ func _process(_delta: float) -> void:
 # time `t` and the view's centre. Each says whether the skyline and the drifting stars go over it.
 
 ## The backdrops by realm, as RisoPrint.REALMS holds colours by realm; any realm not here (the
-## garden's, the deep) gets the night's (_backdrop_night). A band with a backdrop of its own adds it.
+## deep) gets the night's (_backdrop_night). A band with a backdrop of its own adds it.
 var _backdrops: Dictionary = {}
 
 
@@ -92,6 +92,7 @@ func _init() -> void:
 	_backdrops = {
 		&"hyperspace": _backdrop_hyperspace,
 		&"twilight": _backdrop_twilight,
+		&"garden": _backdrop_garden,
 		&"cemetery": _backdrop_cemetery,
 		&"sky": _backdrop_sky,
 		&"crags": _backdrop_crags,
@@ -123,17 +124,145 @@ func _backdrop_twilight(at: Callable, view: Vector2, half: Vector2, k: float, t:
 	return true
 
 
-## The cemetery: a pale moon low over the graves, faint through the night, with banks of mist
-## drifting across.
-func _backdrop_cemetery(at: Callable, _view: Vector2, _half: Vector2, k: float, t: float, _center: Vector2) -> bool:
+## How strongly a band's far and near grounds print: that much blue ink, and as much of the night
+## lifted from under it (blue alone is lost under the night's flood), the nearer the paler, as if
+## moonlit; still dark and low in contrast, so the level in front stays the brightest thing on the
+## sheet.
+const FAR_COVER: float = 0.09
+const NEAR_COVER: float = 0.16
+
+
+## The height of rolling ground at `u` along it (px, the ground's own measure: the view's x plus how
+## far it has slid): `rise` of swell over the line `base`, a long roll `wave` across with a shorter
+## one over it, `which` telling grounds apart.
+static func _hill_y(u: float, base: float, rise: float, wave: float, which: int) -> float:
+	var a: float = RisoShapes.hash1(float(which) * 3.7) * TAU
+	var b: float = RisoShapes.hash1(float(which) * 8.3) * TAU
+	return base - rise * (0.5 + 0.32 * sin(u / wave + a) + 0.18 * sin(u / (wave * 0.37) + b))
+
+
+## Rolling ground across the view (see _hill_y), slid by `drift`, filled down past the bottom.
+static func _hills(drift: float, base: float, rise: float, wave: float, half: Vector2, which: int) -> PackedVector2Array:
+	var pts: PackedVector2Array = PackedVector2Array([Vector2(half.x, half.y + 10.0), Vector2(-half.x, half.y + 10.0)])
+	var step: float = maxf(wave * 0.12, 12.0)
+	var x: float = -half.x
+	while x <= half.x + step:
+		pts.append(Vector2(x, _hill_y(x + drift, base, rise, wave, which)))
+		x += step
+	return pts
+
+
+## The garden: a moonlit park behind the hedges. A great pale moon; far hills planted with cypresses;
+## nearer ones with clipped trees (balls on stems, cones) and now and then a domed summer house; all
+## sliding a little as the camera moves; and motes of pollen adrift, pale, blinking. Its own stars,
+## no ruined skyline.
+func _backdrop_garden(at: Callable, view: Vector2, half: Vector2, k: float, t: float, center: Vector2) -> bool:
+	var moon: Vector2 = at.call(112.0, 66.0)
+	ink.ink(RisoPrint.ACCENT, 0.07, [RisoShapes.circle(moon, 52.0 * k, 48)])
+	ink.lift_ink([RisoPrint.NIGHT], 0.26, [RisoShapes.circle(moon, 30.0 * k, 44)])
+	ink.ink(RisoPrint.BLUE, 0.1, [RisoShapes.circle(moon + Vector2(-9.0, 5.0) * k, 7.0 * k, 18), RisoShapes.circle(moon + Vector2(8.0, -9.0) * k, 4.5 * k, 14), RisoShapes.circle(moon + Vector2(6.0, 12.0) * k, 3.0 * k, 12)])
+	_stars(center, view, k, t)
+	for tier: int in range(2):
+		var drift: float = center.x * (0.03 if tier == 0 else 0.07)
+		var base: float = view.y * (0.14 if tier == 0 else 0.33) - center.y * (0.02 if tier == 0 else 0.04)
+		var rise: float = (70.0 if tier == 0 else 90.0) * k
+		var wave: float = (150.0 if tier == 0 else 105.0) * k
+		var shapes: Array[PackedVector2Array] = [_hills(drift, base, rise, wave, half, 11 + tier)]
+		var gap: float = (64.0 if tier == 0 else 86.0) * k
+		var first: int = floori((drift - half.x) / gap) - 1
+		for n: int in range(first, first + int(half.x * 2.0 / gap) + 4):
+			var r: float = RisoShapes.hash1(float(n) * 5.31 + float(tier) * 17.0)
+			var u: float = (float(n) + 0.25 + 0.5 * RisoShapes.hash1(float(n) * 2.17 + float(tier))) * gap
+			var foot: Vector2 = Vector2(u - drift, _hill_y(u, base, rise, wave, 11 + tier) + 4.0 * k)
+			var size: float = (0.7 + 0.6 * RisoShapes.hash1(float(n) * 9.7 + float(tier) * 3.0)) * k * (0.75 if tier == 0 else 1.0)
+			if tier == 0 or r < 0.3:
+				# A cypress: a tall spindle.
+				if r < 0.7 or tier == 1:
+					shapes.append(RisoShapes.spindle(foot + Vector2(0, -30.0) * size, 34.0 * size, 8.0 * size, PI * 0.5, 14))
+			elif r < 0.62:
+				# A clipped ball on its stem, sometimes a smaller one over it.
+				shapes.append(RisoShapes.strand(foot, foot + Vector2(0, -30.0) * size, 3.0 * size))
+				shapes.append(RisoShapes.circle(foot + Vector2(0, -38.0) * size, 16.0 * size, 20))
+				if r < 0.46:
+					shapes.append(RisoShapes.circle(foot + Vector2(0, -62.0) * size, 9.0 * size, 16))
+			elif r < 0.88:
+				# A clipped cone.
+				shapes.append(RisoShapes.tri(foot + Vector2(-15.0, 0.0) * size, foot + Vector2(15.0, 0.0) * size, foot + Vector2(0, -58.0) * size))
+			else:
+				# A summer house: a dome on four posts, a finial on it.
+				for post: int in range(4):
+					shapes.append(RisoShapes.rrect(foot.x + (-27.0 + 16.0 * float(post)) * size, foot.y - 40.0 * size, 5.0 * size, 42.0 * size, 0.0))
+				var dome: PackedVector2Array = PackedVector2Array()
+				for j: int in range(15):
+					var a: float = PI + PI * float(j) / 14.0
+					dome.append(foot + Vector2(cos(a) * 34.0, -40.0 + sin(a) * 26.0) * size)
+				shapes.append(dome)
+				shapes.append(RisoShapes.strand(foot + Vector2(0, -64.0) * size, foot + Vector2(0, -80.0) * size, 2.5 * size))
+		ink.ink(RisoPrint.BLUE, FAR_COVER if tier == 0 else NEAR_COVER, shapes)
+	# Pollen adrift: pale motes wandering slowly, each blinking in its own time.
+	var motes: Array[PackedVector2Array] = []
+	for i: int in range(14):
+		var h: float = RisoShapes.hash1(float(i) * 4.9 + 0.3)
+		var blink: float = 0.5 + 0.5 * sin(t * (0.5 + h) + float(i) * 2.3)
+		var p: Vector2 = Vector2(fposmod(RisoShapes.hash1(float(i) * 7.3) * 560.0 + t * (3.0 + 4.0 * h) - center.x * 0.12 / k, 560.0) - 40.0, 40.0 + 200.0 * RisoShapes.hash1(float(i) * 1.9) + sin(t * 0.4 + float(i)) * 8.0)
+		motes.append(RisoShapes.circle(at.call(p.x, p.y), (0.9 + 0.9 * h) * k * blink, 8))
+	ink.lift_ink([RisoPrint.NIGHT], 0.5, motes)
+	return false
+
+
+## The cemetery: a pale moon low over the graves in a wide halo, faint through the night; far off a
+## hill of headstones, crosses and bare trees with a chapel on it, and a nearer one, sliding a little
+## as the camera moves; and banks of mist drifting across. Its own stars, no ruined skyline.
+func _backdrop_cemetery(at: Callable, view: Vector2, half: Vector2, k: float, t: float, center: Vector2) -> bool:
 	var moon: Vector2 = at.call(352.0, 64.0)
 	ink.ink(RisoPrint.ACCENT, 0.1, [RisoShapes.circle(moon, 30.0 * k, 40)])
 	ink.lift_ink([RisoPrint.NIGHT], 0.3, [RisoShapes.circle(moon, 17.0 * k, 40)])
 	ink.ink(RisoPrint.BLUE, 0.15, [RisoShapes.circle(moon + Vector2(-4.0, 3.0) * k, 4.0 * k, 16), RisoShapes.circle(moon + Vector2(5.0, -5.0) * k, 3.0 * k, 12)])
-	for i: int in range(3):
+	ink.ink(RisoPrint.ACCENT, 0.05, [RisoShapes.circle(moon, 58.0 * k, 48)])
+	_stars(center, view, k, t)
+	for tier: int in range(2):
+		var drift: float = center.x * (0.035 if tier == 0 else 0.07)
+		var base: float = view.y * (0.16 if tier == 0 else 0.34) - center.y * (0.02 if tier == 0 else 0.04)
+		var rise: float = (56.0 if tier == 0 else 70.0) * k
+		var wave: float = (190.0 if tier == 0 else 130.0) * k
+		var shapes: Array[PackedVector2Array] = [_hills(drift, base, rise, wave, half, 21 + tier)]
+		var gap: float = (38.0 if tier == 0 else 52.0) * k
+		var first: int = floori((drift - half.x) / gap) - 1
+		for n: int in range(first, first + int(half.x * 2.0 / gap) + 4):
+			var r: float = RisoShapes.hash1(float(n) * 6.13 + float(tier) * 13.0)
+			var u: float = (float(n) + 0.2 + 0.6 * RisoShapes.hash1(float(n) * 3.3 + float(tier))) * gap
+			var foot: Vector2 = Vector2(u - drift, _hill_y(u, base, rise, wave, 21 + tier) + 3.0 * k)
+			var size: float = (0.8 + 0.5 * RisoShapes.hash1(float(n) * 8.1 + float(tier) * 5.0)) * k * (0.7 if tier == 0 else 1.0)
+			var lean: float = (RisoShapes.hash1(float(n) * 1.7) - 0.5) * 0.24
+			var up: Transform2D = Transform2D(lean, foot)
+			if r < 0.34:
+				# A headstone, round-topped.
+				shapes.append(up * RisoShapes.rrect(-6.0 * size, -17.0 * size, 12.0 * size, 19.0 * size, 5.5 * size))
+			elif r < 0.56:
+				# A cross.
+				shapes.append(up * RisoShapes.rrect(-2.0 * size, -26.0 * size, 4.0 * size, 28.0 * size, 0.0))
+				shapes.append(up * RisoShapes.rrect(-8.0 * size, -20.0 * size, 16.0 * size, 4.0 * size, 0.0))
+			elif r < 0.66:
+				# A bare tree: a trunk and a few boughs.
+				var top: Vector2 = Vector2(0, -52.0) * size
+				shapes.append(up * RisoShapes.strand(Vector2.ZERO, top, 5.0 * size))
+				for bough: int in range(4):
+					var from: Vector2 = top * (0.45 + 0.16 * float(bough))
+					var out: Vector2 = Vector2((-1.0 if bough % 2 == 0 else 1.0) * (26.0 - 4.0 * float(bough)), -18.0 - 3.0 * float(bough)) * size
+					shapes.append(up * RisoShapes.strand(from, from + out, 2.4 * size))
+			elif r > 0.955 and tier == 1:
+				# A chapel: a nave, a steeple and its cross.
+				shapes.append(RisoShapes.rrect(foot.x - 30.0 * size, foot.y - 34.0 * size, 60.0 * size, 38.0 * size, 0.0))
+				shapes.append(RisoShapes.tri(foot + Vector2(-34.0, -34.0) * size, foot + Vector2(34.0, -34.0) * size, foot + Vector2(0, -56.0) * size))
+				shapes.append(RisoShapes.rrect(foot.x + 14.0 * size, foot.y - 74.0 * size, 16.0 * size, 46.0 * size, 0.0))
+				shapes.append(RisoShapes.tri(foot + Vector2(11.0, -74.0) * size, foot + Vector2(33.0, -74.0) * size, foot + Vector2(22.0, -108.0) * size))
+				shapes.append(RisoShapes.rrect(foot.x + 20.5 * size, foot.y - 122.0 * size, 3.0 * size, 16.0 * size, 0.0))
+				shapes.append(RisoShapes.rrect(foot.x + 16.0 * size, foot.y - 117.0 * size, 12.0 * size, 3.0 * size, 0.0))
+		ink.ink(RisoPrint.BLUE, FAR_COVER if tier == 0 else NEAR_COVER, shapes)
+	for i: int in range(4):
 		var drift: float = fposmod(t * (4.0 + float(i) * 2.0) + float(i) * 170.0, 640.0) - 80.0
 		ink.ink(RisoPrint.BLUE, 0.12, [_cloud(at.call(drift, 92.0 + float(i) * 34.0), (90.0 + float(i) * 30.0) * k, (16.0 + float(i) * 4.0) * k, i)])
-	return true
+	return false
 
 
 ## How the sky's storm clouds roll (px of the sheet a second): STORM_DRIFT still, STORM_PUSH more
@@ -152,8 +281,14 @@ var _storm_way: float = 1.0
 ## The sky: up in a storm. Heavy banks of cloud in the islands' own pale ink roll over the dark,
 ## layer on layer, the way the level's wind blows, faster in a gust; now and then
 ## lightning flashes far off, a jagged bolt of bare paper down through the clouds and the sheet
-## lit pale a moment. No moon, no stars.
-func _backdrop_sky(at: Callable, _view: Vector2, half: Vector2, k: float, t: float, _center: Vector2) -> bool:
+## lit pale a moment. Behind the clouds, far islands hang in the dark, a temple or a moored balloon
+## on some, sliding a little as the camera moves; and under it all a floor of cloud thickens toward
+## the bottom of the sheet. No moon, no stars.
+func _backdrop_sky(at: Callable, view: Vector2, half: Vector2, k: float, t: float, center: Vector2) -> bool:
+	_far_isles(view, half, k, t, center)
+	# The cloud floor: the dark thinning to cloud toward the bottom of the sheet.
+	var floor_top: float = view.y * 0.08
+	ink.ink_graded(RisoPrint.BLUE, [PackedVector2Array([Vector2(-half.x, floor_top), Vector2(half.x, floor_top), Vector2(half.x, half.y), Vector2(-half.x, half.y)])], [PackedFloat32Array([0.0, 0.0, 0.16, 0.16])])
 	var info: MapInfo = MapInfo.instance if MapInfo.instance != null and MapInfo.instance.world != null else null
 	var wind: int = info.level_wind() if info != null else 0
 	var gust: int = info.gust_wind() if info != null else 0
@@ -192,6 +327,48 @@ func _backdrop_sky(at: Callable, _view: Vector2, half: Vector2, k: float, t: flo
 	return false
 
 
+## The sky's far islands: how far apart (px of the sheet) and how much of the view's movement they
+## slide by.
+const ISLE_GAP: float = 190.0
+const ISLE_SLIDE: float = 0.05
+
+
+## Far islands in the sky's dark: each a slab of cloud-rock flat on top and hanging to a point, at
+## a height of its own, bobbing slowly; on some a temple (columns under a gable), on some a balloon
+## moored over it.
+func _far_isles(view: Vector2, half: Vector2, k: float, t: float, center: Vector2) -> void:
+	var gap: float = ISLE_GAP * k
+	var drift: float = center.x * ISLE_SLIDE
+	var shapes: Array[PackedVector2Array] = []
+	var first: int = floori((drift - half.x) / gap) - 1
+	for n: int in range(first, first + int(half.x * 2.0 / gap) + 4):
+		var r: float = RisoShapes.hash1(float(n) * 4.7 + 2.1)
+		var w: float = (70.0 + 70.0 * RisoShapes.hash1(float(n) * 2.3)) * k
+		var top: Vector2 = Vector2((float(n) + 0.5) * gap - drift, view.y * (-0.32 + 0.6 * RisoShapes.hash1(float(n) * 7.9)) - center.y * 0.03 + sin(t * 0.3 + float(n)) * 3.0 * k)
+		var rock: PackedVector2Array = PackedVector2Array([top + Vector2(-w * 0.5, 0.0), top + Vector2(w * 0.5, 0.0)])
+		for j: int in range(1, 8):
+			var f: float = float(j) / 8.0
+			rock.append(top + Vector2(w * 0.5 * (1.0 - f) * (1.0 - 0.3 * f), w * (0.12 + 0.5 * f * f)))
+		for j: int in range(7, 0, -1):
+			var f: float = float(j) / 8.0
+			rock.append(top + Vector2(-w * 0.5 * (1.0 - f) * (1.0 - 0.1 * f), w * (0.1 + 0.42 * f * f)))
+		shapes.append(rock)
+		if r < 0.4:
+			# A temple: columns on a step, under a gable.
+			var tw: float = w * 0.46
+			for col: int in range(4):
+				shapes.append(RisoShapes.rrect(top.x - tw * 0.5 + tw * float(col) / 3.0 - 1.5 * k, top.y - 16.0 * k, 3.0 * k, 16.0 * k, 0.0))
+			shapes.append(RisoShapes.rrect(top.x - tw * 0.6, top.y - 19.0 * k, tw * 1.2, 3.5 * k, 0.0))
+			shapes.append(RisoShapes.tri(top + Vector2(-tw * 0.62, -19.0 * k), top + Vector2(tw * 0.62, -19.0 * k), top + Vector2(0.0, -30.0 * k)))
+		elif r < 0.62:
+			# A balloon moored over it.
+			var at_b: Vector2 = top + Vector2(w * 0.18, -38.0 * k)
+			shapes.append(RisoShapes.ellipse(at_b, 10.0 * k, 12.0 * k, 18))
+			shapes.append(RisoShapes.rrect(at_b.x - 3.0 * k, at_b.y + 17.0 * k, 6.0 * k, 5.0 * k, 1.0))
+			shapes.append(RisoShapes.strand(at_b + Vector2(0, 22.0 * k), top + Vector2(w * 0.18, 0.0), 1.0 * k))
+	ink.ink(RisoPrint.BLUE, 0.09, shapes)
+
+
 ## The belly's backdrop: seconds a breath; and its ribs, how far apart (sheet px), how much of the
 ## view's movement they slide by (they are far off), and how faint.
 const BREATH: float = 4.0
@@ -223,8 +400,9 @@ func _backdrop_belly(at: Callable, _view: Vector2, _half: Vector2, k: float, t: 
 
 
 ## The crags: dawn over the mountains. A faint sun just rising at the bottom of the sheet, its
-## warmth rising with it; two ranges of jagged peaks, the nearer with a ruined castle on its summits,
-## sliding a little as the camera climbs; and streaks of cloud torn along by the wind below the
+## warmth rising with it; two ranges of jagged peaks capped with snow, the nearer with a ruined
+## castle on its summits, and under them dark foothills bristling with pines, each sliding a little
+## as the camera climbs; and streaks of cloud torn along by the wind below the
 ## cliffs.
 func _backdrop_crags(at: Callable, view: Vector2, half: Vector2, k: float, t: float, center: Vector2) -> bool:
 	# Dawn warms toward the bottom of the sheet: a graded sun-ink screen, no hard edge.
@@ -237,10 +415,26 @@ func _backdrop_crags(at: Callable, view: Vector2, half: Vector2, k: float, t: fl
 	# The far range, then the near one with its castle, each sliding a little as the camera moves.
 	var far: float = view.y * 0.18 - center.y * 0.02
 	var near: float = view.y * 0.3 - center.y * 0.035
-	ink.ink(RisoPrint.BLUE, 0.1, [_peaks(center.x * 0.03, far, 90.0 * k, 150.0 * k, half, 1)], false)
+	ink.ink(RisoPrint.BLUE, FAR_COVER, [_peaks(center.x * 0.03, far, 90.0 * k, 150.0 * k, half, 1)])
+	ink.lift_ink([RisoPrint.NIGHT], SNOW_LIFT, _snow(center.x * 0.03, far, 90.0 * k, 150.0 * k, half, 1))
 	var ridge: PackedVector2Array = _peaks(center.x * 0.06, near, 70.0 * k, 110.0 * k, half, 2)
-	ink.ink(RisoPrint.BLUE, 0.16, [ridge], false)
-	ink.ink(RisoPrint.BLUE, 0.16, _castle(center.x * 0.06, near, 70.0 * k, half, k), false)
+	ink.ink(RisoPrint.BLUE, NEAR_COVER, [ridge])
+	ink.lift_ink([RisoPrint.NIGHT], SNOW_LIFT, _snow(center.x * 0.06, near, 70.0 * k, 110.0 * k, half, 2))
+	ink.ink(RisoPrint.BLUE, NEAR_COVER, _castle(center.x * 0.06, near, 70.0 * k, half, k))
+	# The foothills, nearest and darkest, low on the sheet, bristling with pines.
+	var foot_drift: float = center.x * 0.1
+	var foot_base: float = view.y * 0.46 - center.y * 0.05
+	var foothills: Array[PackedVector2Array] = [_hills(foot_drift, foot_base, 46.0 * k, 90.0 * k, half, 31)]
+	var gap: float = 30.0 * k
+	var first: int = floori((foot_drift - half.x) / gap) - 1
+	for n: int in range(first, first + int(half.x * 2.0 / gap) + 4):
+		if RisoShapes.hash1(float(n) * 3.9 + 1.1) < 0.35:
+			continue
+		var u: float = (float(n) + 0.5 * RisoShapes.hash1(float(n) * 2.7)) * gap
+		var foot: Vector2 = Vector2(u - foot_drift, _hill_y(u, foot_base, 46.0 * k, 90.0 * k, 31) + 3.0 * k)
+		var tall: float = (22.0 + 20.0 * RisoShapes.hash1(float(n) * 6.1)) * k
+		foothills.append(RisoShapes.tri(foot + Vector2(-tall * 0.28, 0.0), foot + Vector2(tall * 0.28, 0.0), foot + Vector2(0.0, -tall)))
+	ink.ink(RisoPrint.BLUE, 0.17, foothills)
 	# Cloud torn along by the wind, low down: long thin streaks, fast, the lower the fainter.
 	var streaks: Array[PackedVector2Array] = []
 	for i: int in range(6):
@@ -266,6 +460,29 @@ static func _peaks(drift: float, base: float, low: float, high: float, half: Vec
 		pts.append(Vector2(x - step * 0.5, base - tall * 0.35))
 		pts.append(Vector2(x + lean, base - tall))
 	return pts
+
+
+## How much of the night a summit's snow sheds.
+const SNOW_LIFT: float = 0.2
+
+
+## The snow on a range's summits (as _peaks lays them, with the same `drift`, `base`, `low`, `high`
+## and `which`): a cap over the top of each, its lower edge ragged.
+static func _snow(drift: float, base: float, low: float, high: float, half: Vector2, which: int) -> Array[PackedVector2Array]:
+	var out: Array[PackedVector2Array] = []
+	var step: float = (high + low) * 0.45
+	var first: int = floori((-half.x + drift) / step) - 1
+	for n: int in range(first, first + int(half.x * 2.0 / step) + 4):
+		var x: float = float(n) * step - drift
+		var tall: float = lerpf(low, high, RisoShapes.hash1(float(n) * 1.37 + float(which) * 9.1))
+		var lean: float = (RisoShapes.hash1(float(n) * 2.91 + float(which) * 4.3) - 0.5) * step * 0.4
+		var summit: Vector2 = Vector2(x + lean, base - tall)
+		# Down each flank a share of the way to the saddles either side (_peaks: 0.35 of its height).
+		var left: Vector2 = summit.lerp(Vector2(x - step * 0.5, base - tall * 0.35), 0.3)
+		var right: Vector2 = summit.lerp(Vector2(x + step * 0.5, base - tall * 0.35), 0.24)
+		var mid: Vector2 = (left + right) * 0.5
+		out.append(PackedVector2Array([summit, right, mid + Vector2(step * 0.07, -tall * 0.07), mid + Vector2(0.0, tall * 0.04), mid + Vector2(-step * 0.08, -tall * 0.06), left]))
+	return out
 
 
 ## A ruined castle on the summits of the near range (every fourth one): a keep with a broken top and
@@ -300,15 +517,16 @@ func _backdrop_aurora(at: Callable, _view: Vector2, _half: Vector2, k: float, t:
 
 ## The institute, sunk in the earth: no sky, but the dark of a great vaulted hall. Two arcades of
 ## round arches on columns recede behind the level, the far one fainter and slower, sliding with
-## the camera; a coffered vault spans the top of the sheet; and a few lamps hang far off in the
-## dark, their glow faint gold. No stars, no skyline.
+## the camera; a coffered vault spans the top of the sheet, shafts of light slanting down from it
+## and fading as they fall; and lamps hang far off in the dark on their chains, their glow faint
+## gold. No stars, no skyline.
 func _backdrop_institute(_at: Callable, view: Vector2, half: Vector2, k: float, t: float, center: Vector2) -> bool:
 	for tier: int in range(2):
 		var slide: float = 0.04 if tier == 0 else 0.08
 		var span: float = (120.0 if tier == 0 else 170.0) * k
 		var base: float = view.y * (0.05 if tier == 0 else 0.32) - center.y * slide * 0.5
 		var tall: float = (110.0 if tier == 0 else 160.0) * k
-		var cover: float = 0.07 if tier == 0 else 0.11
+		var cover: float = FAR_COVER if tier == 0 else 0.16
 		var shapes: Array[PackedVector2Array] = []
 		var x0: float = -fposmod(center.x * slide, span) - half.x - span
 		var x: float = x0
@@ -329,7 +547,7 @@ func _backdrop_institute(_at: Callable, view: Vector2, half: Vector2, k: float, 
 				arch.append(c + Vector2(cos(a), sin(a)) * r_in)
 			shapes.append(arch)
 			x += span
-		ink.ink(RisoPrint.BLUE, cover, shapes, false)
+		ink.ink(RisoPrint.BLUE, cover, shapes)
 	# The vault: rows of coffers across the top of the sheet.
 	var coffers: Array[PackedVector2Array] = []
 	var size: float = 46.0 * k
@@ -340,16 +558,32 @@ func _backdrop_institute(_at: Callable, view: Vector2, half: Vector2, k: float, 
 		while cx < half.x:
 			coffers.append(RisoShapes.rrect(cx + size * 0.15, y + size * 0.15, size * 0.7, size * 0.7, size * 0.08))
 			cx += size
-	ink.ink(RisoPrint.BLUE, 0.06, coffers, false)
+	ink.ink(RisoPrint.BLUE, 0.1, coffers)
+	# Shafts of light slanting down from openings in the vault, fading as they fall.
+	var shafts: Array[PackedVector2Array] = []
+	var fades: Array[PackedFloat32Array] = []
+	var shaft_gap: float = 260.0 * k
+	var sx: float = -fposmod(center.x * 0.06, shaft_gap) - half.x - shaft_gap
+	while sx < half.x + shaft_gap:
+		var wide: float = 34.0 * k
+		var fall: Vector2 = Vector2(110.0 * k, half.y * 1.5)
+		shafts.append(PackedVector2Array([Vector2(sx, -half.y), Vector2(sx + wide, -half.y), Vector2(sx + wide * 2.2, -half.y) + fall, Vector2(sx - wide * 0.4, -half.y) + fall]))
+		fades.append(PackedFloat32Array([0.16, 0.16, 0.0, 0.0]))
+		sx += shaft_gap
+	ink.lift_ink_graded([RisoPrint.NIGHT], shafts, fades)
+	ink.ink_graded(RisoPrint.ACCENT, shafts, fades, false, 0.35)
 	# Lamps far off in the dark, swaying a little.
 	var lamps: Array[PackedVector2Array] = []
 	var glows: Array[PackedVector2Array] = []
-	for i: int in range(4):
+	var chains: Array[PackedVector2Array] = []
+	for i: int in range(7):
 		var lx: float = fposmod(float(i) * 197.0 * k - center.x * 0.05, view.x + 200.0 * k) - half.x
-		var ly: float = view.y * (0.1 + 0.08 * float(i % 2)) - center.y * 0.03 - half.y * 0.4 + sin(t * 0.6 + float(i)) * 3.0 * k
+		var ly: float = view.y * (0.1 + 0.08 * float(i % 3)) - center.y * 0.03 - half.y * 0.4 + sin(t * 0.6 + float(i)) * 3.0 * k
 		lamps.append(RisoShapes.circle(Vector2(lx, ly), 2.6 * k, 10))
 		glows.append(RisoShapes.circle(Vector2(lx, ly), 16.0 * k, 20))
-	ink.ink(RisoPrint.ACCENT, 0.08, glows, false)
+		chains.append(RisoShapes.strand(Vector2(lx, -half.y), Vector2(lx, ly - 3.0 * k), 1.0 * k))
+	ink.ink(RisoPrint.BLUE, 0.12, chains)
+	ink.ink(RisoPrint.ACCENT, 0.1, glows, false)
 	ink.ink(RisoPrint.ACCENT, 0.35, lamps, false)
 	return false
 

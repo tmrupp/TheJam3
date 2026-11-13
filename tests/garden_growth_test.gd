@@ -313,8 +313,14 @@ func _plants() -> void:
 	check(plot != null, "the start level has its plot")
 	if plot == null:
 		return
+	var box: Interactable = plot.get_node("Interactable") as Interactable
+	player.keyring.set_seeds(0)
+	await frames(2)
+	check(box.available and int(plot.interaction_hint().get("key_color", -1)) == KeyRing.SEED, "bare, with no seed carried, it prompts all the same, showing the seed it wants")
+	plot.use()
+	check(not plot.planted(), "and used with none, nothing is planted")
 	player.keyring.set_seeds(1)
-	check(plot.can_plant(), "carrying a seed, the plot takes it")
+	check(plot.can_plant() and plot.interaction_hint().is_empty(), "carrying a seed, the plot takes it (the plain prompt)")
 	plot.use()
 	check(plot.planted() and player.keyring.seeds() == 0 and plot.tier() == 0, "planted, a sprout, the seed used up")
 	check(not plot.can_pick(), "nothing to pick until the wizard has gone away")

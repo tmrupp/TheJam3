@@ -151,6 +151,8 @@ static func seal_shape(o: Vector2, s: float) -> Array[PackedVector2Array]:
 ## point, leaning a little, its seam down the middle (lifted to paper), and a curl of sprout from its
 ## top, in that order.
 const SEED_R: Vector2 = Vector2(10.0, 15.0)
+## How much bigger than a key a seed is drawn, lying (KeyArt) and carried (RisoWizard) alike.
+const SEED_SIZE: float = 2.0
 const SEED_LEAN: float = 0.35
 
 static func seed_shape(o: Vector2, s: float) -> Array[PackedVector2Array]:
@@ -159,6 +161,33 @@ static func seed_shape(o: Vector2, s: float) -> Array[PackedVector2Array]:
 	var seam: PackedVector2Array = xf * RisoShapes.strand(Vector2(0, -SEED_R.y * 0.6), Vector2(0, SEED_R.y * 0.5), 1.6)
 	var sprout: PackedVector2Array = xf * RisoShapes.crescent(Vector2(3, -SEED_R.y - 4), 6.0, Vector2(3, 2))
 	return [body, seam, sprout]
+
+
+## The wizard's mark: their head alone, in a few flat shapes, for the simplified icon
+## (tests/make_icon.gd) and the passage between levels (RisoTransition). Centred on `o`, `r` from its
+## middle to its edge: two bobs of pale hair hanging either side of the dark face, the cap and its brim over
+## it, the feather standing from the cap (leaning `sway` radians further), and two eyes (`open` 0 to
+## 1: shut in a blink). A list of shapes for each part, by WizardMark.
+enum WizardMark { HAIR, FACE, CAP, FEATHER, EYES }
+
+static func wizard_mark(o: Vector2, r: float, sway: float = 0.0, open: float = 1.0) -> Array[Array]:
+	var xf: Transform2D = Transform2D(0.0, Vector2(r, r), 0.0, o)
+	var hair: Array[PackedVector2Array] = []
+	var eyes: Array[PackedVector2Array] = []
+	for side: float in [-1.0, 1.0]:
+		hair.append(xf * RisoShapes.ellipse(Vector2(side * 0.44, 0.22), 0.2, 0.33, 22, side * -0.12))
+		eyes.append(xf * RisoShapes.ellipse(Vector2(side * 0.16, 0.22), 0.075, 0.115 * maxf(open, 0.12), 14))
+	var face: Array[PackedVector2Array] = [xf * RisoShapes.circle(Vector2(0.0, 0.2), 0.4, 28)]
+	var cap: Array[PackedVector2Array] = [
+		xf * RisoShapes.ellipse(Vector2(0.0, -0.3), 0.6, 0.3, 28),
+		xf * RisoShapes.rrect(-0.78, -0.26, 1.56, 0.2, 0.1, 5)]
+	# The feather: a quill from the cap's crown, bowed over toward the wizard's back.
+	var root: Vector2 = Vector2(0.12, -0.5)
+	var lean: float = -2.0 + sway
+	var feather: Array[PackedVector2Array] = [xf * (Transform2D(lean, Vector2(0.85, 0.85), 0.0, root) * RisoShapes.smooth(PackedVector2Array([
+		Vector2(0.0, 0.05), Vector2(0.22, 0.2), Vector2(0.52, 0.27), Vector2(0.78, 0.2), Vector2(0.92, 0.0),
+		Vector2(0.86, -0.2), Vector2(0.7, -0.06), Vector2(0.36, -0.08), Vector2(0.0, -0.05)])))]
+	return [hair, face, cap, feather, eyes]
 
 
 ## A bone `hw` across and `hh` high from its middle out, centred on `c`: a bar with two round knobs

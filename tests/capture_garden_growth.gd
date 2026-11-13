@@ -2,6 +2,8 @@ extends TestKit
 ## The garden's seed pods and plants, close up: a pod at rest and swelling toward a seed
 ## (garden_pod_rest.png, garden_pod_swelling.png), a seed lying (garden_seed.png) where it was flung from the pod (garden_seed_flung.png), and a plot bare
 ## and with its plant at each tier, a sprout to the door's great bloom (garden_plot_<n>.png, -1 bare),
+## the wizard at the bare plot with no seed and carrying one beside one lying (garden_plot_prompt.png,
+## garden_seed_carried.png),
 ## a small worm's warning in the rock, the worm coming up out of its hole, out on the floor, and
 ## diving into a new hole (garden_worm_warn.png, garden_worm_rise.png, garden_worm_out.png,
 ## garden_worm_sink.png), each also at the game's own zoom (…_game.png).
@@ -69,6 +71,18 @@ func _plot() -> void:
 		info.run.plants[info.coord] = {"furthest": 0 if tier == 0 else Plot.TIERS[tier - 1], "door": false}
 		await _shoot(plot.global_position + Vector2(0, -20), "garden_plot_%d" % tier, Callable())
 	info.run.plants.clear()
+	# The wizard at the bare plot with no seed (its prompt shows the seed it wants), then carrying one
+	# beside one lying (the two the same size).
+	player.global_position = plot.global_position
+	still()
+	await settle(10)
+	await _shoot(plot.global_position + Vector2(0, -60), "garden_plot_prompt", Callable())
+	player.keyring.set_seeds(1)
+	var lying: Vector2 = plot.global_position + Vector2(-170, -20)
+	info.drop_seed(lying, lying)
+	await settle(30)
+	await _shoot(plot.global_position + Vector2(-60, -60), "garden_seed_carried", Callable())
+	player.keyring.set_seeds(0)
 
 
 func _worm() -> void:

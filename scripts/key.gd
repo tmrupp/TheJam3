@@ -15,7 +15,7 @@ class_name KeyPickup
 
 var armed: bool = true
 const ARM_DISTANCE: float = 110.0
-## How much wider a seed's (KeyRing.SEED) touch is than a key's, as it is drawn bigger (KeyArt.SEED).
+## How much wider a seed's (KeyRing.SEED) touch is than a key's, as it is drawn bigger (RisoMarks.SEED_SIZE).
 const SEED_REACH: float = 1.8
 
 func setup(_map_info: MapInfo, _v: Vector2) -> void:

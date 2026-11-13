@@ -211,6 +211,14 @@ func generation() -> void:
 					totals["bounces"] += 1
 		var blown: int = w.chasms.size() - w.relic_chasms.size()
 		check(crosswinds == 0 and count(w, LevelGen.Type.VANE) >= blown, "%s: no crosswind of its own over a gap (set aside: the gusts cross them), and vanes by the gaps not left to relics (%d by %d of %d)" % [at, count(w, LevelGen.Type.VANE), blown, w.chasms.size()])
+		# Its vanes do not stand in pairs over the gaps: of a gap's two, one is set back from it.
+		var by_gap: Dictionary = {}
+		for v: Vector2i in w.objects_of(LevelGen.Type.VANE):
+			var gap: Chasm = w.chasms[int((w.get_cell(v).extra_info as Array)[0])]
+			var edge: Vector2i = gap.left if v.x <= gap.left.x else gap.right
+			by_gap[gap] = int(by_gap.get(gap, 0)) + (1 if LevelGen.dist(v, edge) < SkyArchetype.VANE_BACK.x - 3 else 0)
+		var facing: int = by_gap.values().count(2)
+		check(facing * 2 <= by_gap.size(), "%s: of a gap's two vanes one stands back from it (both at the edge of %d gaps of %d)" % [at, facing, by_gap.size()])
 		check(count(w, LevelGen.Type.SHOOTER) == 0 or w.objects.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.SHOOTER).all(func(v: Vector2i) -> bool: return w.get_cell(v).mods.has("bounces")), "%s: every watcher's shots rebound (%d watchers)" % [at, count(w, LevelGen.Type.SHOOTER)])
 		totals["birds"] += count(w, LevelGen.Type.BIRD)
 		check(_portals_apart(w), "%s: each pair of teleporters at least %d cells apart" % [at, w.portal_apart()])

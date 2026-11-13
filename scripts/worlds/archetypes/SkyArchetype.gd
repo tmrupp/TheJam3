@@ -62,6 +62,9 @@ const BIRD_SPAN: int = 10
 
 ## How far from its vane a sky level looks for a vane's switch.
 const SKY_SWITCH_REACH: int = 24
+## How far back from its gap (cells, from and to) one of each gap's two vanes stands, so the two do
+## not face each other over it as a pair (Chasms.place_bells): the wind is the whole level's.
+const VANE_BACK: Vector2i = Vector2i(7, 18)
 ## Its balloon (Balloon): on a free floor with BALLOON_AIR rows of open air over it, at least
 ## BALLOON_CLEAR cells from every exit, picked by hashing the level seed (BALLOON_DEAL, no draw).
 const BALLOON_AIR: int = 5
@@ -96,6 +99,7 @@ func _init() -> void:
 	chasmed = true
 	crossing = LevelGen.Type.VANE
 	switch_reach = SKY_SWITCH_REACH
+	crossing_back = VANE_BACK
 	open = true
 
 

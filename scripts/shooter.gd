@@ -14,8 +14,9 @@ const HOVER_UP: float = 170.0
 const HOVER_DRIFT: float = 70.0
 const HOVER_RATE: float = 0.35
 
-## Seconds of charge (in sight) to a shot, and the shot's speed (px/s): few shots, but quick ones.
-var cooldown: float = 3.5
+## Seconds of charge (in sight) to a shot at Normal (sooner on a harder preset, Difficulty.tell),
+## and the shot's speed (px/s).
+var cooldown: float = 2.4
 var SPEED: int = 260
 @onready var shoot_point: Node2D = $ShootPoint
 @onready var range_box: Area2D = $RangeBox

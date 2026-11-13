@@ -3,7 +3,7 @@ class_name RisoTransition
 ## The printed passage between levels: a sheet of night ink with a ragged, inky edge sweeps
 ## across the view like scenery going by (up when you go deeper, down when you go back,
 ## sideways for the side doors), holds while the next level is laid out, showing where you are
-## going on a paper plaque, then sweeps on and away. Printed in the 320 x 180 UI space, above
+## going on a paper plaque under the wizard's mark (the simplified icon, blinking), then sweeps on and away. Printed in the 320 x 180 UI space, above
 ## the world and below the HUD. Regions have no title cards (docs/PLAYTEST_PLAN.md, 1c).
 
 const COVER_TIME: float = 0.28
@@ -32,6 +32,15 @@ var sweep: Vector2 = Vector2.UP
 var destination: Vector2i = Vector2i.ZERO
 ## Half the height of its marks on the card.
 const PLACE_R: float = 5.0
+## The wizard's mark over the card while the next level is laid out (RisoMarks.wizard_mark, the
+## simplified icon): where its middle is and how big (UI units), how far it bobs, how far its
+## feather sways (radians), and how often and how long it blinks (seconds).
+const MARK_AT: Vector2 = Vector2(160.0, 54.0)
+const MARK_R: float = 20.0
+const MARK_BOB: float = 1.2
+const MARK_SWAY: float = 0.14
+const BLINK_EVERY: float = 2.6
+const BLINK_TIME: float = 0.16
 var covered_at: float = 0.0
 var reveal_wanted: bool = false
 var ink: InkCanvas
@@ -170,6 +179,7 @@ func _draw_sheet() -> void:
 	ink.ink(RisoPrint.BLUE, 0.25, [sheet], false)
 	# Where you are going, once the sheet has the middle of the view.
 	if state == State.COVERED or (state == State.COVERING and lead > 0.7) or (state == State.REVEALING and trail < 0.3):
+		_draw_mark()
 		var n: Vector3i = Rules.place_numbers(destination)
 		var texts: PackedStringArray = PackedStringArray([str(n.x), str(absi(n.y))])
 		var widths: Vector2 = Vector2(_width(texts[0]), _width(texts[1]))
@@ -185,6 +195,23 @@ func _draw_sheet() -> void:
 			label.text = texts[k]
 			label.size = Vector2((widths[k] + 4.0) / label.scale.x, 18.0 / label.scale.y)
 			label.position = Vector2(xs[k], 81.0)
+
+
+## The wizard's mark over the card, bobbing, its feather swaying, blinking now and then: something
+## alive to look at while the level is laid out. Paper hair, the face the sheet's own night, the cap
+## in the wizard's cloth, the feather pink, the eyes in their own ink.
+func _draw_mark() -> void:
+	var blink: float = fposmod(t, BLINK_EVERY)
+	var open: float = absf(blink / BLINK_TIME * 2.0 - 1.0) if blink < BLINK_TIME else 1.0
+	var at: Vector2 = MARK_AT + Vector2(0.0, sin(t * 2.4) * MARK_BOB)
+	var mark: Array[Array] = RisoMarks.wizard_mark(at, MARK_R, sin(t * 1.7) * MARK_SWAY, open)
+	var inks: Dictionary = {RisoMarks.WizardMark.CAP: RisoPrint.CLOTH, RisoMarks.WizardMark.FEATHER: RisoPrint.PINK, RisoMarks.WizardMark.EYES: RisoPrint.EYE, RisoMarks.WizardMark.FACE: RisoPrint.NIGHT}
+	for part: int in range(mark.size()):
+		var shapes: Array[PackedVector2Array] = []
+		shapes.assign(mark[part])
+		ink.knock(KNOCK_ALL, shapes)
+		if inks.has(part):
+			ink.ink(int(inks[part]), 1.0, shapes, false)
 
 
 ## Width of a number on the card, in UI units.

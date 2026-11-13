@@ -131,13 +131,17 @@ const LEAF_NIGHT: PackedFloat32Array = [0.42, 0.32, 0.05]
 const LEAF_RIB: float = 0.4
 const LEAF_VEIN: float = 0.22
 const LEAF_SWAY: float = 0.04
-## The pink on its leaves (a warning: the plant bites back): spots down each clasped leaf, LEAF_SPOTS
-## of the way along its midrib and LEAF_SPOT_OUT of the way from it to the leaf's outer edge, each
-## LEAF_SPOT_R across (in the bulb's measure, shrinking toward the tip), and a tip LEAF_BACK_TIP of
-## its length on each leaf behind; knocked back to paper and printed LEAF_PINK pink.
-const LEAF_SPOTS: PackedFloat32Array = [0.3, 0.5, 0.7]
-const LEAF_SPOT_OUT: float = 0.45
-const LEAF_SPOT_R: float = 0.115
+## The pink on its leaves (a warning: the plant bites back, as the bramble's own thorns are pink):
+## thorns along each clasped leaf's outer edge, LEAF_THORNS of the way round it from root to tip,
+## each LEAF_THORN_LONG out from the edge and LEAF_THORN_WIDE across at its foot (in the bulb's
+## measure, smaller toward the tip by LEAF_THORN_TAPER a thorn), hooked LEAF_THORN_HOOK radians
+## round toward the tip; and a tip LEAF_BACK_TIP of its length on each leaf behind; knocked back to
+## paper and printed LEAF_PINK pink.
+const LEAF_THORNS: PackedFloat32Array = [0.26, 0.45, 0.64, 0.83]
+const LEAF_THORN_LONG: float = 0.3
+const LEAF_THORN_WIDE: float = 0.2
+const LEAF_THORN_TAPER: float = 0.1
+const LEAF_THORN_HOOK: float = 0.16
 const LEAF_BACK_TIP: float = 0.2
 const LEAF_PINK: float = 0.85
 ## How far into the shaft past the rock face the sap runs (px).
@@ -765,7 +769,7 @@ static func ink_bulb(canvas: InkCanvas, xf: Transform2D, open: float, charge: fl
 			else:
 				shape = _clasped_leaf(side)
 				lines = _leaf_veins(side)
-				pinks = _leaf_spots(side)
+				pinks = _leaf_thorns(side)
 			var leaf: Array[PackedVector2Array] = [pivot * shape]
 			var veins: Array[PackedVector2Array] = []
 			for line: PackedVector2Array in lines:
@@ -809,18 +813,22 @@ static func _back_tip(out: Transform2D) -> PackedVector2Array:
 	return out * RisoShapes.almond(Vector2(LEAF_BACK - half, 0.0), half, LEAF_BACK_WIDE * 0.15, 10)
 
 
-## The pink spots down a clasped leaf (see LEAF_SPOTS), side `side` as _clasped_leaf: between its
-## midrib and its outer edge, each a little smaller than the one before it toward the tip.
-static func _leaf_spots(side: float) -> Array[PackedVector2Array]:
-	var root: Vector2 = Vector2.from_angle(side * LEAF_ROOT_AT) * LEAF_OUT
-	var tip: Vector2 = Vector2.from_angle(-side * LEAF_TIP_AT) * LEAF_TIP
-	var bend: Vector2 = Vector2(0.0, side * 0.75)
+## The pink thorns along a clasped leaf's outer edge (see LEAF_THORNS), side `side` as
+## _clasped_leaf: each a spike rooted just inside the edge, hooked toward the leaf's tip.
+static func _leaf_thorns(side: float) -> Array[PackedVector2Array]:
+	var root_at: float = side * LEAF_ROOT_AT
+	var end_at: float = -side * LEAF_TIP_AT * 0.3
+	var toward: float = signf(end_at - root_at)
 	var out: Array[PackedVector2Array] = []
-	for i: int in range(LEAF_SPOTS.size()):
-		var u: float = LEAF_SPOTS[i]
-		var p: Vector2 = root.lerp(bend, u).lerp(bend.lerp(tip, u), u)
-		var at: Vector2 = p.lerp(p.normalized() * LEAF_OUT, LEAF_SPOT_OUT)
-		out.append(RisoShapes.circle(at, LEAF_SPOT_R * (1.0 - 0.15 * float(i)), 10))
+	for i: int in range(LEAF_THORNS.size()):
+		var at: float = lerpf(root_at, end_at, LEAF_THORNS[i])
+		var size: float = 1.0 - LEAF_THORN_TAPER * float(i)
+		var half: float = LEAF_THORN_WIDE * 0.5 * size / LEAF_OUT
+		var foot: float = LEAF_OUT - 0.05
+		out.append(PackedVector2Array([
+			Vector2.from_angle(at - half) * foot,
+			Vector2.from_angle(at + toward * LEAF_THORN_HOOK) * (LEAF_OUT + LEAF_THORN_LONG * size),
+			Vector2.from_angle(at + half) * foot]))
 	return out
 
 

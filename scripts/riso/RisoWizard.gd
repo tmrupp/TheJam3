@@ -542,7 +542,9 @@ func _draw_world() -> void:
 		if KeyRing.is_paper(key_colors[i]):
 			RisoPrint.ink_paper(papers, key_colors[i], key_trail[i] + bob, CARRIED_PAPER, t, CARRIED_MARK)
 		else:
-			RisoPrint.ink_key(world, key_colors[i], 1.0, RisoMarks.key_shape(key_trail[i] + bob, 1.0, key_colors[i]))
+			# A seed is carried as big as it lay.
+			var size: float = RisoMarks.SEED_SIZE if key_colors[i] == KeyRing.SEED else 1.0
+			RisoPrint.ink_key(world, key_colors[i], 1.0, RisoMarks.key_shape(key_trail[i] + bob, size, key_colors[i]))
 	papers.finish()
 	for g: Vector4 in marks:
 		var at: Transform2D = Transform2D(0.0, Vector2(s, s), 0.0, Vector2(g.x, g.y - (1.0 - g.w) * 6.0 * s))

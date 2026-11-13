@@ -5,9 +5,8 @@ extends RisoProp
 ## relic unlock as a gold seal stamped with a paper star (RisoMarks.seal_shape), and a seed as a
 ## green-gold almond with a curl of sprout (RisoMarks.seed_shape).
 
-## How much bigger an exam paper is drawn than a key, and a seed (KeyRing.SEED) lying.
+## How much bigger an exam paper is drawn than a key (a seed, KeyRing.SEED: RisoMarks.SEED_SIZE).
 const PAPER: float = 1.7
-const SEED: float = 2.0
 
 
 func shines() -> bool:
@@ -31,7 +30,7 @@ func _draw_art() -> void:
 	if KeyRing.is_paper(color):
 		RisoPrint.ink_paper(ink, color, o, PAPER, t)
 		return
-	var size: float = SEED if color == KeyRing.SEED else 1.0
+	var size: float = RisoMarks.SEED_SIZE if color == KeyRing.SEED else 1.0
 	var shape: Array[PackedVector2Array] = RisoMarks.key_shape(o, size, color)
 	RisoPrint.ink_key(ink, color, 1.0, shape)
 	if color == KeyRing.SKELETON:

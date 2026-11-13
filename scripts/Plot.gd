@@ -1,7 +1,8 @@
 extends Area2D
 class_name Plot
 ## A garden plot (GardenArchetype.finish): a bed of turned earth on a floor, one to a garden level.
-## Carrying a seed (KeyRing.SEED, from a seed pod, SeedPod), the wizard plants it here with Discover;
+## Carrying a seed (KeyRing.SEED, from a seed pod, SeedPod), the wizard plants it here with Discover
+## (with none, its prompt shows the seed it wants, interaction_hint);
 ## then it grows while they are away, and the further they go before coming back, the more it
 ## bears (RunState.plants keeps how far: the furthest place reached from here since it was planted,
 ## counted in places across and up or down, away). Back again, a grown plant is picked with Discover
@@ -73,6 +74,19 @@ func can_pick() -> bool:
 	return tier() > 0
 
 
+## Whether it is bare: nothing planted, waiting for a seed.
+func bare() -> bool:
+	return not planted()
+
+
+## Its prompt: bare with no seed carried, the seed it asks for, as a lock shows its key (so the
+## wizard learns what a plot is for before they have one); with a seed to plant or a plant to pick,
+## the plain prompt.
+func interaction_hint() -> Dictionary:
+	return {"key_color": KeyRing.SEED} if bare() and not can_plant() else {}
+
+
+## Discover: pick its grown plant, or plant a seed carried; bare with no seed carried, nothing.
 func use() -> void:
 	if map_info == null:
 		return
@@ -83,7 +97,8 @@ func use() -> void:
 
 
 func _process(_delta: float) -> void:
-	$Interactable.available = can_plant() or can_pick()
+	# A bare plot prompts whether or not a seed is carried (interaction_hint).
+	$Interactable.available = bare() or can_pick()
 
 
 func _ready() -> void:

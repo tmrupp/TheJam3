@@ -756,11 +756,14 @@ func make_room () -> void:
 ## The cells above and below a cell, and what rock framing it above or below holds (_holds_up).
 const UP_DOWN: Array[Vector2i] = [Vector2i.UP, Vector2i.DOWN]
 const FRAMED: Array[Type] = [Type.DOOR, Type.SWITCH_GATE, Type.EXAM_DOOR]
+## What grows out of the wall beside it (a seed pod, a thorn vine): that rock is held too.
+const WALL_GROWN: Array[Type] = [Type.POD, Type.VINE]
+const LEFT_RIGHT: Array[Vector2i] = [Vector2i.LEFT, Vector2i.RIGHT]
 
 ## Whether rock at `c` walls a vault, frames a door or gate (above or below it), is kept whole
 ## (kept), seals a secret room or holds up the floor its way in is taken from (secret_steps), has a
-## laser set in it, is the footing of a gap's shore, holds up something stood at, or lies on or
-## under the start's way (keep_clear).
+## laser set in it, is the footing of a gap's shore, holds up something stood at, has a pod or a
+## vine grown out of it (WALL_GROWN, beside it), or lies on or under the start's way (keep_clear).
 func _holds_up (c: Vector2i) -> bool:
 	if vault_walls.has(c) or kept(c) or secret_steps.has(c) or keep_clear.has(c) or keep_clear.has(c + Vector2i.UP):
 		return true
@@ -769,6 +772,9 @@ func _holds_up (c: Vector2i) -> bool:
 			return true
 	if is_valid(c + Vector2i.UP) and Placeables.has_flag(type_at(c + Vector2i.UP), &"stander"):
 		return true
+	for d: Vector2i in LEFT_RIGHT:
+		if is_valid(c + d) and type_at(c + d) in WALL_GROWN:
+			return true
 	for chasm: Chasm in chasms:
 		if c == chasm.left + Vector2i.DOWN or c == chasm.right + Vector2i.DOWN:
 			return true
@@ -867,7 +873,7 @@ func _nearest_free (spots: Array[Vector2i], at: Vector2i, chosen: Array[Vector2i
 			func(v: Vector2i) -> bool: return dist(v, at) > 0 and dist(v, at) <= 4 and not chosen.has(v) and empties.has(v))
 
 ## Turns a platform run into one moving platform (stored on its leftmost cell), if the track
-## it would sweep, 2-4 cells right or down, is open. The track is kept clear of other objects.
+## it would sweep, 2-4 cells right or down, is open (and, going right, not right under rock). The track is kept clear of other objects.
 ## With `ladders` (Archetype.ladders) it is a rolling ladder instead (RollingLadder), whose track
 ## always runs right (the same draws are made, so the rest of the level is dealt as before): a
 ## step one cell wide at the run's left end, rolling over the run and on along the track, laid only
@@ -891,6 +897,9 @@ func make_moving (run_cells: Array[Vector2i], ladders: bool = false) -> void:
 				track.append(c + Vector2i(0, k))
 	for p: Vector2i in track:
 		if not is_valid(p) or type_at(p) != Type.EMPTY or not empties.has(p):
+			return
+		# Gliding sideways, it never passes right under rock (as a ledge is never laid there).
+		if axis.x != 0 and is_ground(p + Vector2i.UP):
 			return
 	for p: Vector2i in track:
 		empties.erase(p)
@@ -1204,7 +1213,7 @@ func populate_level (def: NextWorldDef) -> void:
 	place_side_doors(def)
 	place_start_key(def)
 	_mark(&"exits")
-	Chasms.place_bells(self, arch.crossing, arch.switch_reach)
+	Chasms.place_bells(self, arch.crossing, arch.switch_reach, arch.crossing_back)
 	_mark(&"bells")
 	if def.arrival_from != null:
 		place_return()
@@ -1230,7 +1239,8 @@ func populate_level (def: NextWorldDef) -> void:
 
 	# Platforms are laid in horizontal runs of 2-5 cells so they read as continuous ledges.
 	# Only where the archetype has room (in the sky, in and about the clusters, so the gaps stay open).
-	var ledge_room: Callable = func(v: Vector2i) -> bool: return arch.room(self, v, 1)
+	# Never right under rock: a ledge against a ceiling is nothing to stand on.
+	var ledge_room: Callable = func(v: Vector2i) -> bool: return arch.room(self, v, 1) and not is_ground(v + Vector2i.UP)
 	var platform_budget: int = int(float(empties.filter(ledge_room).size()) * 0.2)
 	while platform_budget > 0 and len(empties) > 0:
 		var start: Variant = pop_if_random_empty(ledge_room)
@@ -1243,7 +1253,7 @@ func populate_level (def: NextWorldDef) -> void:
 		var run_cells: Array[Vector2i] = [start]
 		for _j: int in range(rng.randi_range(1, 4)):
 			run += step
-			if platform_budget <= 0 or not is_valid(run) or type_at(run) != Type.EMPTY or not empties.has(run):
+			if platform_budget <= 0 or not is_valid(run) or type_at(run) != Type.EMPTY or not empties.has(run) or is_ground(run + Vector2i.UP):
 				break
 			put(run, Type.PLATFORM)
 			run_cells.append(run)
@@ -1724,7 +1734,12 @@ func place_side_doors (def: NextWorldDef, last: bool = false) -> void:
 	var floors: Array[Vector2i] = empties_where(ground_below)
 	var nearest: Callable = func(v: Vector2i) -> int: return dist(v, from)
 	var furthest: Callable = func(v: Vector2i) -> int: return -dist(v, from)
-	var free: Callable = func(v: Vector2i) -> bool: return type_at(v) == Type.EMPTY and not _crowds_exit(v)
+	# Never inside a vault (a door laid last comes after them: it would stand locked in with the loot).
+	var vaulted: Dictionary = {}
+	for vault: Vault in vaults:
+		for c: Vector2i in vault.room:
+			vaulted[c] = true
+	var free: Callable = func(v: Vector2i) -> bool: return type_at(v) == Type.EMPTY and not _crowds_exit(v) and not vaulted.has(v)
 	var free_and_open: Callable = func(v: Vector2i) -> bool:
 		return bool(free.call(v)) and is_valid(v + Vector2i.UP) and type_at(v + Vector2i.UP) == Type.EMPTY
 	for kind: int in def.doors:

@@ -25,6 +25,8 @@ const INTERACT: StringName = &"Discover"
 const PAD_SCALE: float = 0.65
 const KEY_SCALE: float = 0.75
 const CARD_PAD: Vector2 = Vector2(8, 6)
+## How big the seed a bare plot asks for is on its disc (times a key's size).
+const SEED_SIZE: float = 1.3
 ## How far (px) the key cap sinks as it is pressed.
 const KEY_SINK: float = 2.5
 
@@ -94,6 +96,9 @@ func _process(delta: float) -> void:
 				if needs == KeyRing.SKELETON:
 					# On the prompt's paper disc a bone-white key would vanish: print it in night.
 					ink.ink(RisoPrint.NIGHT, 1.0, RisoMarks.key_shape(at, pop, needs), false)
+				elif needs == KeyRing.SEED:
+					# A seed (a bare plot's, Plot): printed as it lies, its seam and sprout its own inks.
+					RisoPrint.ink_key(ink, needs, 1.0, RisoMarks.key_shape(at + Vector2(0, 3.0) * pop, pop * SEED_SIZE, needs))
 				else:
 					ink.ink_overprint(RisoPrint.key_inks(needs), 1.0, RisoMarks.key_shape(at, pop, needs))
 			elif bool(hint.get("sealed", false)):

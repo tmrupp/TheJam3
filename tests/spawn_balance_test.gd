@@ -44,6 +44,8 @@ func run() -> void:
 				if w.get_cell(v).type == LevelGen.Type.INKWELL:
 					wells.append(v)
 			check(wells.size() == 1 and LevelGen.dist(wells[0], w.size / 2) <= (w.size.x + w.size.y) / 4, label + ": the ink well near the middle of the level")
+			var roofed: Array[Vector2i] = w.objects_of(LevelGen.Type.PLATFORM).filter(func(v: Vector2i) -> bool: return w.is_ground(v + Vector2i.UP))
+			check(roofed.is_empty(), label + ": no ledge right under rock (%s)" % str(roofed.slice(0, 4)))
 			for v: Vector2i in w.objects:
 				if w.get_cell(v).type == LevelGen.Type.MOON:
 					check(not w._ledge_below(v), label + ": moon above platform at " + str(v))

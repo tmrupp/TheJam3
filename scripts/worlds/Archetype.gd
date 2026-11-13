@@ -41,6 +41,9 @@ var ladders: bool = false
 var crossing: LevelGen.Type = LevelGen.Type.BELL
 ## How far (cells) from its crossing a crossing's switch may be, or -1 for anywhere on its side.
 var switch_reach: int = -1
+## How far back from its gap (cells, from and to) one of each gap's two crossings stands, on a side
+## dealt by the level seed (Chasms.place_bells); zero for both at the gap's edges.
+var crossing_back: Vector2i = Vector2i.ZERO
 ## Whether its levels lie open to the sky: no rock round them, a drop below (Player.fall_back),
 ## and the camera goes past the edges (LevelLoader.SKY_MARGIN).
 var open: bool = false

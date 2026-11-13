@@ -17,8 +17,8 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 config/name="Somnonaut"
 run/main_scene="res://prefabs/scenes/main.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
-config/icon="res://sprites/icon.png"
-boot_splash/bg_color=Color(0.129, 0.141, 0.247, 1)
+config/icon="res://sprites/icon_simple.png"
+boot_splash/bg_color=Color(0.0745, 0.1412, 0.1098, 1)
 boot_splash/image="res://sprites/splash.png"
 
 [debug]
