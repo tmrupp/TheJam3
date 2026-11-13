@@ -91,9 +91,11 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
   on Windows with MSVC (Visual Studio 2022 Build Tools):
   `cd gdextension && python -m SCons platform=windows target=template_debug -j16`. The collapse's
   maths is its own (`src/portable.hpp`: its logarithm and its draws, so that every compiler lays
-  out the same levels), but only MSVC has been tried: after a build with any other, or any
-  rebuild, run `layout_fingerprint_test`, which says if a level moved. The Linux library kept in
-  git is from before `Collapse` and must be rebuilt before the game lays out a level on Linux. Build both
+  out the same levels): MSVC's build and GCC 13's give the same cells on four of the game's samples
+  over 80 seeds each (`gdextension/tests/collapse_xcheck.cpp`, the collapse alone built with each
+  and the two outputs compared). After any rebuild, run `layout_fingerprint_test`, which says if a
+  level moved. The Linux library (`linux.template_debug`, the one a Linux game loads) is built
+  with `scons platform=linux target=template_debug` in a copy of `gdextension` on Linux or WSL. Build both
   `target=template_debug` (the editor and tests) and `target=template_release` (release exports);
   the two lay out levels alike, and `layout_fingerprint_test` checks either (copy the release DLL
   over the debug one's name for a run, then put the debug one back). With Godot open the DLL is locked:

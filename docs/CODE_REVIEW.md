@@ -574,10 +574,10 @@ That is how 1.1 came to pass every test but one.
    - By compiler: the collapse's logarithm and its draws are its own (`gdextension/src/portable.hpp`:
      IEEE's four operations in a fixed order, and `minstd_rand` turned into a number by hand), and
      the build turns fused multiply-add off for other compilers (`SConstruct`). Both Windows
-     libraries were rebuilt with MSVC. No other compiler was tried: that a Linux or MinGW build
-     now lays out the same levels is by reasoning, to be checked with `layout_fingerprint_test`
-     the first time one is built. The Linux library in the repository is the old one and wants
-     rebuilding: until then a Linux session lays out other levels.
+     libraries were rebuilt with MSVC, and the Linux one with GCC 13 (in WSL). The collapse alone,
+     built with each compiler, gives the same cells on four of the game's samples over 80 seeds
+     each, 320 collapses (`gdextension/tests/collapse_xcheck.cpp`). The game itself was not run on
+     Linux: `layout_fingerprint_test` there is still to do. MinGW was not tried.
    - By order: each pass draws from a stream of its own (`LevelGen._mark` seeds the next from the
      level's seed and the pass's name), so a draw added to one pass no longer moves what the
      passes after it draw.
@@ -601,8 +601,8 @@ That is how 1.1 came to pass every test but one.
      (the script) is a plain object over it, one a thread; the main scene has no generator node,
      `MapInfo.wfc` is gone, the loader's workers, the kit and the generation lab make their own
      with `WaveFunctionCollapse.new()`. The sprite class is out of the extension (`docs/HISTORY.md`).
-     Both Windows libraries were rebuilt and the fingerprints did not move. The Linux library in
-     git has no `Collapse`: until it is rebuilt, the game lays out no level on Linux at all. Still
+     Both Windows libraries were rebuilt and the fingerprints did not move; the Linux library
+     was rebuilt with it. Still
      as it was: the patches come back as a dictionary after the terrain's columns
      (`LevelGen._init` tells them apart by asking).
 8. **The institute out of `MapInfo`** (2.2), when that band is next worked on. *Done:* the
