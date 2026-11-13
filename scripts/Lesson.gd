@@ -5,7 +5,7 @@ class_name Lesson
 ## of that spell, free (the fight was its price), as a shrine teaches one. A spell learned in place
 ## of the one in its slot hands the old one back as an exam paper, at its tier (MapInfo.put_back), as
 ## a shrine does. A master teaches once: beaten again after a death, it leaves nothing more. The level
-## record keeps each lesson by its master's cell (LevelRecord.lessons: {"at": where it lies,
+## record keeps each lesson by its master's cell (InstituteRecord.lessons: {"at": where it lies,
 ## "ability", "taken"}); taken, it is gone for good.
 
 @onready var player: Player = Stage.player()
@@ -24,7 +24,7 @@ func setup(info: MapInfo, master_cell: Vector2i) -> void:
 func entry() -> Dictionary:
 	if map_info == null:
 		return {}
-	return map_info.record().lessons.get(cell, {})
+	return map_info.record().institute.lessons.get(cell, {})
 
 
 ## What it teaches now, as [ability, the tier taking it gives]: its master's spell, the next tier;
@@ -53,9 +53,9 @@ func take() -> void:
 	var dropped_tier: int = Abilities.tier(player, dropped) if dropped != &"" else 0
 	Abilities.set_tier(player, a, int(held[1]))
 	e["taken"] = true
-	map_info.record().lessons[cell] = e
+	map_info.record().institute.lessons[cell] = e
 	if dropped != &"":
-		map_info.put_back(dropped, dropped_tier, global_position + Vector2(0, -40))
+		map_info.institute.put_back(dropped, dropped_tier, global_position + Vector2(0, -40))
 	map_info.save_run()
 	RisoFx.burst(&"gain", global_position + Vector2(0, -40), Vector2.ZERO, [Plate.ACCENT, Plate.PINK])
 	Wound.shake(8.0, 0.2)

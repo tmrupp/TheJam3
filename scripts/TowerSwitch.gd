@@ -27,7 +27,7 @@ func setup(info: MapInfo, _v: Vector2i, extra: Dictionary) -> void:
 func station_count() -> int:
 	if map_info == null or map_info.world == null or map_info.world.circuit.is_empty():
 		return 0
-	return (map_info.world.circuit["gates"] as Array).size()
+	return map_info.world.circuit.gates.size()
 
 
 ## Whether it is locked: the tower flipped last.

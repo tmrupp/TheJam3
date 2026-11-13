@@ -109,8 +109,8 @@ func _spires(zoom: Vector2) -> void:
 		return
 	var warm: Spire = spires[0] as Spire
 	var cold: Spire = spires[1] as Spire
-	info.world.towers[warm.tower]["cold"] = false
-	info.world.towers[cold.tower]["cold"] = true
+	info.world.towers[warm.tower].cold = false
+	info.world.towers[cold.tower].cold = true
 	info.record().woken.erase(cold.tower)
 	camera.zoom = zoom * 1.8
 	stand(warm.global_position + Vector2(-200, 0))

@@ -44,7 +44,7 @@ static func place(w: LevelGen, def: NextWorldDef) -> void:
 	if def.skeleton:
 		var placed: bool = false
 		if not w.secrets.is_empty():
-			var rewards: Array = w.secrets[w.secrets.size() - 1]["rewards"]
+			var rewards: Array = w.secrets[w.secrets.size() - 1].rewards
 			for i: int in range(rewards.size() - 1, -1, -1):
 				if rewards[i][1] == LevelGen.Type.COIN:
 					rewards[i] = [rewards[i][0], LevelGen.Type.KEY, Keys.SKELETON]
@@ -106,8 +106,8 @@ static func _carve(w: LevelGen, r: Rect2i, door: Vector2i, relic: StringName) ->
 	for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT]:
 		var o: Vector2i = door + d
 		if w.is_valid(o) and not r.has_point(o) and w._open(o) and w.ground_below(o):
-			w.secret_steps[o] = true
-			w.secret_steps[o + Vector2i.DOWN] = true
+			w.claim(o, Claims.STEP)
+			w.claim(o + Vector2i.DOWN, Claims.STEP)
 	var id: int = w.secrets.size()
 	var room: Array[Vector2i] = []
 	for x: int in range(r.position.x, r.end.x):
@@ -127,7 +127,7 @@ static func _carve(w: LevelGen, r: Rect2i, door: Vector2i, relic: StringName) ->
 			break
 		if rewards.all(func(rw: Array) -> bool: return rw[0] != c):
 			rewards.append([c, LevelGen.Type.COIN, null])
-	w.secrets.append({"room": room, "entrance": [door], "rewards": rewards})
+	w.secrets.append(SecretRoom.make(room, [door], rewards))
 	for c: Vector2i in room + [door]:
 		w.grounds.erase(c)
 		w.objects.append(c)

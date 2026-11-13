@@ -2,8 +2,6 @@
 
 [ext_resource type="PackedScene" uid="uid://d07pxhxu1ug5i" path="res://prefabs/menu.tscn" id="1_u4qe6"]
 [ext_resource type="Script" uid="uid://dtow171waltbv" path="res://scripts/MapInfo.gd" id="2_j20rq"]
-[ext_resource type="Texture2D" uid="uid://bsvj6kbku0k16" path="res://wfc_images/levelSample3-spikes.png" id="5_3ptxv"]
-[ext_resource type="Script" uid="uid://chkqmuvjo7jja" path="res://scripts/WaveFunctionCollapse.gd" id="8_vwnae"]
 [ext_resource type="PackedScene" uid="uid://bf08akeilq3j1" path="res://prefabs/tile_map.tscn" id="9_qh1ky"]
 [ext_resource type="AudioStream" uid="uid://c5ihb6hm33ptt" path="res://music/big_bossanova.ogg" id="10_yprvw"]
 [ext_resource type="Script" uid="uid://bbfpetk7v8x2c" path="res://scripts/MusicPlayer.gd" id="11_hqvrv"]
@@ -32,16 +30,6 @@ script = ExtResource("2_j20rq")
 [node name="Menu" parent="." unique_id=570075829 instance=ExtResource("1_u4qe6")]
 process_mode = 3
 layer = 2
-
-[node name="WaveFunctionCollapse" type="WaveFunctionCollapse" parent="." unique_id=216287758]
-output_size = Vector2i(64, 64)
-seed = 28
-symmetry = 5
-pattern_size = 3
-visible = false
-position = Vector2(0.08390665, 17.514223)
-texture = ExtResource("5_3ptxv")
-script = ExtResource("8_vwnae")
 
 [node name="TileMap" parent="." unique_id=1351268669 instance=ExtResource("9_qh1ky")]
 scale = Vector2(4, 4)

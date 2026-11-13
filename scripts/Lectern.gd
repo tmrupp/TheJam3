@@ -20,7 +20,7 @@ func setup(info: MapInfo, _v: Vector2i, extra: Variant) -> void:
 
 ## Whether it is a classroom's, a pigeonhole (see the class description).
 func pigeonhole() -> bool:
-	return map_info != null and map_info.world != null and hall >= 0 and hall < map_info.world.halls.size() and map_info.world.halls[hall]["kind"] == &"lecture"
+	return map_info != null and map_info.world != null and hall >= 0 and hall < map_info.world.halls.size() and map_info.world.halls[hall].kind == &"lecture"
 
 
 ## The exam paper on it now (MapInfo.lectern_slot), or 0.

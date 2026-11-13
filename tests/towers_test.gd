@@ -28,14 +28,14 @@ func run() -> void:
 		var w: LevelGen = built(at)
 		print("row %d: %d towers" % [at.y, w.towers.size()])
 		check(not w.towers.is_empty(), "row %d has towers" % at.y)
-		for tower: Dictionary in w.towers:
-			if tower["hoard"]:
+		for tower: Tower in w.towers:
+			if tower.hoard:
 				hoards += 1
 			else:
 				watch += 1
 			_tower(w, tower)
-			if not tower["hoard"] and tower.has("reward"):
-				rewards[tower["reward"]] = int(rewards.get(tower["reward"], 0)) + 1
+			if not tower.hoard and tower.reward >= 0:
+				rewards[tower.reward] = int(rewards.get(tower.reward, 0)) + 1
 		_nests(w)
 		check(w.interiors.size() > 0 and w.interiors.keys().all(func(v: Vector2i) -> bool: return not w.masonry.has(v)), "its buildings' air is kept as interiors, none of it masonry")
 	check(hoards > 0 and watch > 0, "watchtowers and hoard towers both turn up (%d and %d)" % [watch, hoards])
@@ -48,9 +48,9 @@ func run() -> void:
 		if kinds.all(func(kind: LevelGen.Type) -> bool: return rewards.has(kind)):
 			break
 		for k: int in range(Bands.rows_of(&"crags")):
-			for tower: Dictionary in built(Vector2i(world, NextWorldDef.band_row(&"crags", k))).towers:
-				if not tower["hoard"] and tower.has("reward"):
-					rewards[tower["reward"]] = int(rewards.get(tower["reward"], 0)) + 1
+			for tower: Tower in built(Vector2i(world, NextWorldDef.band_row(&"crags", k))).towers:
+				if not tower.hoard and tower.reward >= 0:
+					rewards[tower.reward] = int(rewards.get(tower.reward, 0)) + 1
 	print("rewards: %s" % rewards)
 	for kind: LevelGen.Type in kinds:
 		check(rewards.has(kind), "a tower's top room holds a %s somewhere" % LevelGen.Type.keys()[kind])
@@ -61,13 +61,13 @@ func run() -> void:
 
 
 ## One tower's build and climb.
-func _tower(w: LevelGen, tower: Dictionary) -> void:
-	var box: Rect2i = tower["box"]
+func _tower(w: LevelGen, tower: Tower) -> void:
+	var box: Rect2i = tower.box
 	var x0: int = box.position.x
 	var x1: int = box.end.x - 1
 	var roof: int = box.position.y
 	var ground: int = box.end.y - 1
-	var name_of: String = "tower at %s (%s)" % [box.position, "hoard" if tower["hoard"] else "watch"]
+	var name_of: String = "tower at %s (%s)" % [box.position, "hoard" if tower.hoard else "watch"]
 	var storeys: int = (box.size.y - 1) / CragsArchetype.STOREY
 	check(box.size.x >= CragsArchetype.TOWER_WIDE.x and storeys >= CragsArchetype.TOWER_STOREYS.x, "%s: %d wide, %d storeys" % [name_of, box.size.x, storeys])
 	# Standing on rock: under its footing, down from each column, rock within TOWER_FOOTING rows.
@@ -79,8 +79,8 @@ func _tower(w: LevelGen, tower: Dictionary) -> void:
 		grounded = grounded and (not w.is_valid(Vector2i(x, y)) or w.is_ground(Vector2i(x, y)) or w.is_ground(Vector2i(x, y - 1)))
 	check(grounded, "%s: stands on rock" % name_of)
 	# Its ledges: one-way platforms under its stair holes.
-	var holes: Array = tower["holes"]
-	var ledges: Array = tower["ledges"]
+	var holes: Array = tower.holes
+	var ledges: Array = tower.ledges
 	var ok_stair: bool = holes.size() == ledges.size() and holes.size() >= CragsArchetype.STAIR * (storeys - 1)
 	for i: int in range(holes.size()):
 		var hole: Vector2i = holes[i]
@@ -97,9 +97,9 @@ func _tower(w: LevelGen, tower: Dictionary) -> void:
 			inside[v] = nodes[v]
 	var reach: Dictionary = {door: true}
 	Reach.grow(w, inside, reach, [door], {}, {}, Reach.ACROSS, Reach.UP)
-	var top: Array = tower["top"]
+	var top: Array = tower.top
 	check(top.any(func(v: Vector2i) -> bool: return reach.has(v)), "%s: its top room reached on the wizard's own hops" % name_of)
-	if tower["hoard"]:
+	if tower.hoard:
 		check(w.is_ground(Vector2i(x0 + 1, roof)) and range(x0 + 1, x1).all(func(x: int) -> bool: return w.is_ground(Vector2i(x, roof))), "%s: roofed over" % name_of)
 		var stars: int = top.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.COIN).size()
 		# At least its hoard: the level's own stars may fall there too.
@@ -116,9 +116,9 @@ func _tower(w: LevelGen, tower: Dictionary) -> void:
 		for y: int in range(roof + 1, ground):
 			nest = nest or w.get_cell(Vector2i(x, y)).type == LevelGen.Type.NEST
 	check(not nest, "%s: no rock-bug nest inside" % name_of)
-	if tower["hoard"] or not tower.has("reward"):
+	if tower.hoard or not (tower.reward >= 0):
 		return
-	var reward: LevelGen.Type = tower["reward"]
+	var reward: LevelGen.Type = tower.reward
 	var held: Array = top.filter(func(v: Vector2i) -> bool: return w.get_cell(v).type == reward)
 	# Over the floor, or over its stair hole (taken standing in the hole, on the ledge under it).
 	check(reward in [LevelGen.Type.KEY, LevelGen.Type.SWITCH, LevelGen.Type.WELL] and not held.is_empty() and (reach.has(held[0]) or reach.has(held[0] + Vector2i.DOWN)), "%s: a %s in its top room, reached" % [name_of, LevelGen.Type.keys()[reward]])
@@ -145,11 +145,11 @@ func _whole_everywhere() -> void:
 			var w: LevelGen = built(at)
 			if w == null:
 				continue
-			for tower: Dictionary in w.towers:
+			for tower: Tower in w.towers:
 				towers += 1
 				var faults: Array[String] = _faults(w, tower)
 				if not faults.is_empty():
-					faulty.append("%s tower at %s: %s" % [at, (tower["box"] as Rect2i).position, ", ".join(faults.slice(0, 4))])
+					faulty.append("%s tower at %s: %s" % [at, tower.box.position, ", ".join(faults.slice(0, 4))])
 	for f: String in faulty:
 		print("  ", f)
 	check(towers > 20 and faulty.is_empty(), "every tower is whole once its level is laid out (%d towers, %d not)" % [towers, faulty.size()])
@@ -159,14 +159,14 @@ func _whole_everywhere() -> void:
 ## room or the air over the roof filled, a wall broken but for its doorways and windows (or one
 ## opening onto rock), cracked stone, the ground row or the rock under it gone, a doorstep filled, a
 ## ledge under a stair hole missing, something set in a doorway, or its air shut off from the way in.
-func _faults(w: LevelGen, tower: Dictionary) -> Array[String]:
+func _faults(w: LevelGen, tower: Tower) -> Array[String]:
 	var out: Array[String] = []
-	var box: Rect2i = tower["box"]
+	var box: Rect2i = tower.box
 	var x0: int = box.position.x
 	var x1: int = box.end.x - 1
 	var roof: int = box.position.y
 	var ground: int = box.end.y - 1
-	var holes: Array = tower["holes"]
+	var holes: Array = tower.holes
 	var stone: Callable = func(v: Vector2i) -> bool: return w.is_ground(v) or w.get_cell(v).type == LevelGen.Type.CRACKED
 	for y: int in range(roof, ground + 1):
 		for x: int in range(x0, x1 + 1):
@@ -212,7 +212,7 @@ func _faults(w: LevelGen, tower: Dictionary) -> Array[String]:
 		for y: int in [ground - 1, ground - 2]:
 			if w.is_valid(Vector2i(x, y)) and w.is_ground(Vector2i(x, y)):
 				out.append("doorstep filled %s" % Vector2i(x, y))
-	for v: Vector2i in tower["ledges"]:
+	for v: Vector2i in tower.ledges:
 		if w.get_cell(v).type != LevelGen.Type.PLATFORM:
 			out.append("ledge gone %s" % v)
 	# Over a tower built into the level's edge, the edge column itself stays rock.

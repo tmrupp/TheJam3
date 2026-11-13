@@ -59,8 +59,8 @@ func run() -> void:
 func _run() -> Vector2i:
 	var w: LevelGen = info.world
 	var pools: Array = []
-	for crypt: Dictionary in w.crypts:
-		pools.append(crypt["floors"])
+	for crypt: Crypt in w.crypts:
+		pools.append(crypt.floors)
 	pools.append(w.free_floors())
 	for pool: Array in pools:
 		for v: Vector2i in pool:

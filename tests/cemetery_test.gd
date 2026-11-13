@@ -81,12 +81,12 @@ func generation() -> void:
 		check(kinds.has(&"headstone") and not kinds.has(&"mushroom"), "%s: graveyard decor (%s)" % [at, kinds.keys()])
 		check(w.chasms.size() >= Chasms.CHASMS_MIN, "%s: %d chasms, and as many bells" % [at, w.chasms.size()])
 		for id: int in range(w.chasms.size()):
-			var chasm: Dictionary = w.chasms[id]
+			var chasm: Chasm = w.chasms[id]
 			if id in w.relic_chasms:
 				# Left to the relic moves (relics_needed_test): no planks, bells or switches.
 				continue
-			var planks: Array = chasm["planks"]
-			var row: int = chasm["row"]
+			var planks: Array = chasm.planks
+			var row: int = chasm.row
 			var shaped: bool = planks.size() >= Chasms.CHASM_WIDTH.x and planks.size() <= Chasms.CHASM_WIDTH.y
 			for v: Vector2i in planks:
 				shaped = shaped and w.get_cell(v).type == LevelGen.Type.BRIDGE and int(w.get_cell(v).extra_info) == id
@@ -99,7 +99,7 @@ func generation() -> void:
 						allowed.append(LevelGen.Type.SPIKES)
 					shaped = shaped and (d == 0 or not w.is_valid(c) or w.get_cell(c).type in allowed)
 				shaped = shaped and w.get_cell(v + Vector2i(0, Chasms.CHASM_DEPTH)).type == LevelGen.Type.SPIKES
-			for edge: Vector2i in [chasm["left"], chasm["right"]]:
+			for edge: Vector2i in [chasm.left, chasm.right]:
 				shaped = shaped and w.get_cell(edge + Vector2i.DOWN).type in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED]
 			check(shaped, "%s: chasm %d is %d across between floors, thorns at its bottom, planks over it" % [at, id, planks.size()])
 			var bells: int = 0

@@ -16,7 +16,7 @@ func run() -> void:
 	print("in its gate level")
 	var w: LevelGen = build(gate)
 	var held: Array[Vector2i] = w.objects_of(LevelGen.Type.BOSS)
-	check(held.size() == 1 and not w.crypts.is_empty() and (w.crypts[0]["floors"] as Array).has(held[0]), "it waits in the level's first crypt")
+	check(held.size() == 1 and not w.crypts.is_empty() and w.crypts[0].floors.has(held[0]), "it waits in the level's first crypt")
 
 	await boot(28)
 	freeze()

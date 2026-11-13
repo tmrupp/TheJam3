@@ -34,8 +34,8 @@ func run() -> void:
 	var golem: Golem = placed("golem.tscn")[0] as Golem
 	check(golem.state == Golem.State.SLEEP, "asleep in its lair")
 	_hold(golem)
-	var keep: Dictionary = info.world.keep
-	var lair: Vector2 = info.cell_position(keep["lair"])
+	var keep: KeepSite = info.world.keep
+	var lair: Vector2 = info.cell_position(keep.lair)
 	check(golem.boss == &"golem" and is_equal_approx(golem.global_position.x, lair.x) and info.world.is_ground(info.cell_at(golem.global_position + Vector2(0.0, 8.0))), "in its lair, standing on the ground floor")
 	check(golem.chunks_left() == Golem.PART_SIZE.size() and golem.covered() and golem.wound.hp == Golem.HEART and golem.is_in_group(&"hex_target"), "whole: %d chunks, its heart covered, %d wounds to go" % [Golem.PART_SIZE.size(), Golem.HEART])
 	for bow: Node in placed("crossbow.tscn"):
@@ -46,7 +46,7 @@ func run() -> void:
 	check(info.run.tempered.is_empty(), "no lodestone touched this run")
 	player.global_position = golem.global_position + Vector2(-400.0, -20.0)
 	check(empower.tempers_now(), "in its hall the spell in the slot may be cast empowered all the same")
-	var outside: Vector2 = info.cell_position(Vector2i((keep["box"] as Rect2i).end.x + 2, (keep["box"] as Rect2i).end.y + 2))
+	var outside: Vector2 = info.cell_position(Vector2i(keep.box.end.x + 2, keep.box.end.y + 2))
 	player.global_position = outside
 	check(not empower.tempers_now(), "and not outside it")
 
@@ -142,15 +142,15 @@ func run() -> void:
 
 ## Its moves, from asleep in its lair with the wizard out of its hall.
 func _moves(golem: Golem) -> void:
-	var keep: Dictionary = info.world.keep
-	var inside: Rect2i = keep["inside"]
-	var floors: Array[int] = keep["floors"]
+	var keep: KeepSite = info.world.keep
+	var inside: Rect2i = keep.inside
+	var floors: Array[int] = keep.floors
 	var ground: int = inside.end.y - 1
 	print("waking")
-	player.global_position = info.cell_position(Vector2i((keep["box"] as Rect2i).end.x + 2, (keep["box"] as Rect2i).end.y + 2))
+	player.global_position = info.cell_position(Vector2i(keep.box.end.x + 2, keep.box.end.y + 2))
 	await within(func() -> bool: return false, 0.5)
 	check(golem.state == Golem.State.SLEEP, "asleep while the wizard is out of its hall")
-	var lair: Vector2i = keep["lair"]
+	var lair: Vector2i = keep.lair
 	var far_x: int = inside.position.x + 1 if lair.x - inside.position.x > inside.end.x - lair.x else inside.end.x - 2
 	golem.hurl_wait = INF
 	player.global_position = info.cell_position(Vector2i(far_x, ground))
@@ -212,7 +212,7 @@ func _moves(golem: Golem) -> void:
 	check(back and not golem.thrown[held], "until it is called home, whole again")
 
 	print("the leap")
-	var stair_x: int = (keep["stairs"] as Array[Rect2i])[0].position.x
+	var stair_x: int = keep.stairs[0].position.x
 	player.global_position = info.cell_position(Vector2i(stair_x + 4 if stair_x + 4 < inside.end.x - 1 else stair_x - 3, floors[0] - 1))
 	var crouched: bool = await within(func() -> bool: return golem.state == Golem.State.LEAP_WARN, 15.0)
 	check(crouched and golem.storey() == 2 and absf(golem.leap_to.y - golem.floor_y(1)) < 1.0, "the wizard on the top gallery, it goes to the gap over it, the spot it will land on marked")

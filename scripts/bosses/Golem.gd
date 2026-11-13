@@ -528,11 +528,11 @@ func setup(info: MapInfo, _v: Vector2i, which: Variant) -> void:
 	cell = float(tm.tile_set.tile_size.x) * tm.global_scale.x
 	# It stands on the floor of its cell.
 	global_position.y += cell * 0.5
-	var keep: Dictionary = info.world.keep
-	if keep.has("lair"):
-		inside = keep["inside"]
-		floors = keep["floors"]
-		gaps = keep["gaps"]
+	var keep: KeepSite = info.world.keep
+	if keep.laid:
+		inside = keep.inside
+		floors = keep.floors
+		gaps = keep.gaps
 		hall_left = info.cell_position(inside.position).x - cell * 0.5
 		hall_right = info.cell_position(Vector2i(inside.end.x - 1, inside.position.y)).x + cell * 0.5
 	for i: int in range(STANCE.size()):
@@ -770,7 +770,7 @@ func _gap_right(g: Rect2i) -> float:
 
 ## Whether the wizard is in its hall.
 func _in_hall(player: Player) -> bool:
-	return not floors.is_empty() and (map_info.world.keep["box"] as Rect2i).has_point(map_info.cell_at(player.global_position))
+	return not floors.is_empty() and map_info.world.keep.box.has_point(map_info.cell_at(player.global_position))
 
 
 ## Whether it sees `at` from its heart: no rock between.

@@ -159,15 +159,8 @@ static func _build(w: LevelGen, inside: Rect2i) -> void:
 		turn += 1
 		w.put(ledge, LevelGen.Type.PLATFORM)
 		ledges.append(ledge)
-	w.shaft = {
-		"inside": inside,
-		"on": on,
-		"relic": relic,
-		"knot": Rect2i(knot_x, top, WIDTH - LANDING, KNOT_ROWS),
-		"ledges": ledges,
-		"bulbs": _bulbs(w, inside),
-	}
-	w.shaft["vines"] = _vines(w, inside, w.shaft["bulbs"])
+	w.shaft = ShaftSite.make(inside, on, relic, Rect2i(knot_x, top, WIDTH - LANDING, KNOT_ROWS), ledges, _bulbs(w, inside))
+	w.shaft.vines = _vines(w, inside, w.shaft.bulbs)
 
 
 ## The rows of the walls between the knot and the foot, where bulbs and vines go.

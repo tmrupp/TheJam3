@@ -25,7 +25,7 @@ func run() -> void:
 	print("learning the rite")
 	var rite: int = KeyRing.paper(Crypts.RITE, 1)
 	player.keyring.take(rite)
-	check(info.learn_paper(rite, player.global_position), "its paper is learned")
+	check(info.institute.learn_paper(rite, player.global_position), "its paper is learned")
 	check(Abilities.tier(player, Crypts.RITE) == 1 and Abilities.spell(player, &"utility") == Crypts.RITE, "resurrect at tier I, in the utility slot")
 	var spell: Resurrect = player.get_node("Resurrect") as Resurrect
 	check(spell != null and spell.rites() == 1 and spell.readiness() == 1.0, "one rite, ready")

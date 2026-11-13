@@ -108,7 +108,7 @@ static func lay(w: LevelGen, def: NextWorldDef) -> void:
 	for i: int in range(TRIES):
 		if fits.is_empty():
 			return
-		var choice: Dictionary = w.pop_pick(fits)
+		var choice: Barrier = w.pop_pick(fits)
 		if _keeps_caves(w, choice, start, before):
 			_carve(w, choice)
 			w.barriers.append(choice)
@@ -117,12 +117,12 @@ static func lay(w: LevelGen, def: NextWorldDef) -> void:
 
 ## Whether carving `shape` keeps every cell reached from `start` before (`before`) reached after,
 ## but those its walls fill.
-static func _keeps_caves(w: LevelGen, shape: Dictionary, start: Vector2i, before: Dictionary) -> bool:
+static func _keeps_caves(w: LevelGen, shape: Barrier, start: Vector2i, before: Dictionary) -> bool:
 	var opened: Dictionary = {}
-	for c: Vector2i in shape["open"]:
+	for c: Vector2i in shape.open:
 		opened[c] = true
 	var filled: Dictionary = {}
-	for c: Vector2i in shape["rock"]:
+	for c: Vector2i in shape.rock:
 		if w.is_valid(c) and not opened.has(c) and not w.is_ground(c):
 			filled[c] = true
 	if filled.has(start):
@@ -142,12 +142,12 @@ static func _fits(w: LevelGen, kind: int, claims: Claims) -> Array:
 	var out: Array = []
 	for o: Vector2i in _mouths(w, claims):
 		for side: int in [-1, 1]:
-			var shape: Dictionary = _shape(o, side, kind)
+			var shape: Barrier = _shape(o, side, kind)
 			if _solid(w, shape, claims):
-				shape["kind"] = kind
-				shape["move"] = MOVE[kind]
-				shape["mouth"] = o
-				shape["side"] = side
+				shape.kind = kind
+				shape.move = MOVE[kind]
+				shape.mouth = o
+				shape.side = side
 				out.append(shape)
 	return out
 
@@ -167,7 +167,7 @@ static func _mouths(w: LevelGen, claims: Claims) -> Array[Vector2i]:
 ## Barrier `kind` beside floor `o`, on its `side`: {"open", "thorns", "reward", "rock"} (the cells to
 ## carve open, the open cells to lay thorns in, the reward's cell, and the cells that must be solid
 ## rock for it to fit: all of these and those round them, and for a sealed cell its thick walls).
-static func _shape(o: Vector2i, side: int, kind: int) -> Dictionary:
+static func _shape(o: Vector2i, side: int, kind: int) -> Barrier:
 	var open: Array[Vector2i] = []
 	var thorns: Array[Vector2i] = []
 	var reward: Vector2i = o
@@ -237,7 +237,7 @@ static func _shape(o: Vector2i, side: int, kind: int) -> Dictionary:
 				if (n - o).x * side <= 0:
 					continue
 				rock[n] = true
-	return {"open": open, "thorns": thorns, "reward": reward, "rock": rock.keys()}
+	return Barrier.make(open, thorns, reward, rock.keys())
 
 
 ## Whether `shape` fits: every cell of it (its pocket and the rock round it) rock or free air holding
@@ -251,19 +251,21 @@ static func _shape(o: Vector2i, side: int, kind: int) -> Dictionary:
 ## walls, a door's frame, a lantern's footing, a chasm's shore...); air it builds on or lays thorns
 ## or the reward in is beside no thing that stays where it is laid (Claims.faced: a door's way
 ## through, a pod's face).
-static func _solid(w: LevelGen, shape: Dictionary, claims: Claims) -> bool:
+static func _solid(w: LevelGen, shape: Barrier, claims: Claims) -> bool:
 	var open: Dictionary = {}
-	for c: Vector2i in shape["open"]:
+	for c: Vector2i in shape.open:
 		if c.x <= 0 or c.y <= 0 or c.x >= w.size.x - 1 or c.y >= w.size.y - 1:
 			return false
 		open[c] = true
-	var laid: Dictionary = {shape["reward"]: true}
-	for c: Vector2i in shape["thorns"]:
+	var laid: Dictionary = {shape.reward: true}
+	for c: Vector2i in shape.thorns:
 		laid[c] = true
-	for c: Vector2i in shape["rock"]:
+	for c: Vector2i in shape.rock:
 		if not w.is_valid(c):
 			continue
-		if claims.held(c) != &"":
+		# (The rock walling a vault may wall a barrier too: it is only never opened, _holds_up.)
+		var by: StringName = claims.held(c)
+		if by != &"" and by != Claims.HELD_VAULT_WALL:
 			return false
 		var rock: bool = w.is_ground(c)
 		if not rock and w.type_at(c) != LevelGen.Type.EMPTY:
@@ -274,7 +276,7 @@ static func _solid(w: LevelGen, shape: Dictionary, claims: Claims) -> bool:
 		if not rock and (not opened or laid.has(c)) and claims.faced(c):
 			return false
 	# The costlier question last, of the rock it opens alone.
-	for c: Vector2i in shape["open"]:
+	for c: Vector2i in shape.open:
 		if w.is_ground(c) and w._holds_up(c):
 			return false
 	return true
@@ -282,14 +284,14 @@ static func _solid(w: LevelGen, shape: Dictionary, claims: Claims) -> bool:
 
 ## Carve `shape`: the rock round it made whole (empty air there built of rock), its cells opened,
 ## thorns laid, the reward (a star cluster) at its far end, and its mark at its mouth.
-static func _carve(w: LevelGen, shape: Dictionary) -> void:
-	var open: Array = shape["open"]
-	for c: Vector2i in shape["rock"]:
+static func _carve(w: LevelGen, shape: Barrier) -> void:
+	var open: Array = shape.open
+	for c: Vector2i in shape.rock:
 		if w.is_valid(c) and not open.has(c) and not w.is_ground(c):
 			w._to_rock(c)
 	for c: Vector2i in open:
 		w._to_open(c)
-	for c: Vector2i in shape["thorns"]:
+	for c: Vector2i in shape.thorns:
 		w.put(c, LevelGen.Type.SPIKES)
-	w.put(shape["reward"], LevelGen.Type.CLUSTER)
-	w.put(shape["mouth"], LevelGen.Type.BARRIER_MARK, {"move": shape["move"], "side": shape["side"]})
+	w.put(shape.reward, LevelGen.Type.CLUSTER)
+	w.put(shape.mouth, LevelGen.Type.BARRIER_MARK, {"move": shape.move, "side": shape.side})

@@ -9,6 +9,7 @@ extends TestKit
 
 func run() -> void:
 	_safe_file()
+	_records()
 	await boot(28)
 	freeze()
 
@@ -90,3 +91,20 @@ func _safe_file() -> void:
 	check(SafeFile.write(path, {"n": 3}) and SafeFile.read(path) == {"n": 3}, "and the next write goes through")
 	SafeFile.remove(path)
 	check(not SafeFile.exists(path) and not FileAccess.file_exists(path + SafeFile.NEW) and SafeFile.read(path) == null, "removed: the file, the last good one and the half written one")
+
+
+## A level's record keeps the institute's part under its own name (InstituteRecord), and reads a
+## save from before it did, whose fields lay among the level's.
+func _records() -> void:
+	print("the institute's part of a record")
+	var rec: LevelRecord = LevelRecord.new()
+	rec.institute.rings = 3
+	rec.institute.passing = false
+	rec.institute.dept_tiers = {&"hex": 2}
+	rec.mapped = true
+	var saved: Dictionary = rec.to_dict()
+	check(saved.has("institute") and not saved.has("rings") and int((saved["institute"] as Dictionary)["rings"]) == 3, "saved under its own name, not among the level's fields")
+	var back: LevelRecord = LevelRecord.from_dict(saved)
+	check(back.mapped and back.institute.rings == 3 and not back.institute.passing and back.institute.dept_tiers == {&"hex": 2}, "and read back")
+	var old: LevelRecord = LevelRecord.from_dict({"mapped": true, "rings": 5, "passing": false, "started": 2})
+	check(old.mapped and old.institute.rings == 5 and not old.institute.passing and old.institute.started == 2, "a save from before, its fields among the level's, is read all the same")

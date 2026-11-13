@@ -4,18 +4,18 @@ extends RefCounted
 ## cemetery's and the tower switches are the crags'. There is no clock: nothing in it happens until
 ## a bell is rung (SchoolBell) or the wizard goes somewhere.
 ## - The bells and the classes go passing time, class time, passing time, class time. A level is first
-##   met in passing time (LevelRecord.passing). Any bell rung in passing time begins class time
+##   met in passing time (InstituteRecord.passing). Any bell rung in passing time begins class time
 ##   (MapInfo.pull_cord): a wizard in a classroom then, enrolled in its class, attends it
-##   (LevelRecord.started); anywhere else they are truant. Any bell rung in class time ends it and
+##   (InstituteRecord.started); anywhere else they are truant. Any bell rung in class time ends it and
 ##   passing time begins (MapInfo.ring_period): a wizard in a classroom rings its own cord to be let
 ##   out, attending its class if they began class time in it; one truant in the halls rings any
 ##   other. Either way the period is over: the level moves on a period. A wizard who gets into a
 ##   class in session in class time (a warp, a rift) is late: no longer truant, but attending
 ##   nothing; one who gets out of one (the same ways) forfeits its class (MapInfo._left_class) and
-##   is truant. No cord can be rung twice running (LevelRecord.last_bell), as a crags tower cannot be
+##   is truant. No cord can be rung twice running (InstituteRecord.last_bell), as a crags tower cannot be
 ##   flipped twice running, but for a classroom's own cord letting out the class it began
 ##   (MapInfo.dismissing). How many periods have passed is kept in the level's record
-##   (LevelRecord.rings).
+##   (InstituteRecord.rings).
 ## - Classroom doors stay shut until the wizard walks up to them (ExamDoor.near), and open then only
 ##   in passing time, and only if they may go through (MapInfo.hall_door_up): from inside always;
 ##   from outside to a wizard enrolled in its class. In class time every classroom is shut both
@@ -26,7 +26,7 @@ extends RefCounted
 ##   its doors (ExamDoor.cycle). In session it steps through its department's three subjects (LADDERS)
 ##   one a session, or one every HOLDS sessions (geology's double periods), from a place dealt by the
 ##   seed (subject). A department meets in a period when any of its classrooms is in session (meets).
-## - Each department has a tier in the level (LevelRecord.dept_tiers, I at first, up to TOP), the tier
+## - Each department has a tier in the level (InstituteRecord.dept_tiers, I at first, up to TOP), the tier
 ##   its classes teach (tier_taught, up to each spell's own top). When the bell rings a period out,
 ##   each department that met in it climbs by its own rule or falls back to I (climb), as they stood
 ##   at the start of the period: botany rises when its class was attended; astronomy when another
@@ -55,7 +55,7 @@ extends RefCounted
 ##   ring; one carried of that subject at a lower tier is graded up in hand instead (resitting). A
 ##   class the wizard cannot be taught (a relic's move they lack) counts as attended all the same,
 ##   with no paper. Each classroom's lectern holds
-##   a paper left there (a pigeonhole, LevelRecord.pigeonholes); while the room is empty and its slot
+##   a paper left there (a pigeonhole, InstituteRecord.pigeonholes); while the room is empty and its slot
 ##   bare, the next class's paper lies there to be lifted (sneaking, MapInfo.lectern_paper). A
 ##   class's master beaten by the wizard leaves a paper of its subject at the top tier, once a room
 ##   (MapInfo.instructor_fell). Those two are stolen (Keys.stolen): while the wizard carries one,
@@ -116,7 +116,7 @@ static func sessions_before(w: LevelGen, hall: int, rings: int) -> int:
 ## Whether department `dept` meets in `w` after `rings` rings: any of its classrooms is in session.
 static func meets(w: LevelGen, dept: StringName, rings: int) -> bool:
 	for i: int in range(w.halls.size()):
-		if w.halls[i]["kind"] == &"lecture" and w.halls[i]["dept"] == dept and in_cycle(w, i, rings):
+		if w.halls[i].kind == &"lecture" and w.halls[i].dept == dept and in_cycle(w, i, rings):
 			return true
 	return false
 
@@ -172,7 +172,7 @@ static func way_on_hall(w: LevelGen) -> int:
 	if not w.exits.has(Ways.Exit.DEEPER):
 		return -1
 	var hall: int = hall_inside(w, w.exits[Ways.Exit.DEEPER])
-	return hall if hall >= 0 and w.halls[hall]["kind"] == &"lecture" else -1
+	return hall if hall >= 0 and w.halls[hall].kind == &"lecture" else -1
 
 
 ## The damage spell of the department that teaches `a` (the first rung of its ladder), &"hex" for one
@@ -193,9 +193,9 @@ static func period(rings: int) -> int:
 ## What classroom `hall` of `w` teaches after `rings` rings: &"" while it is closed (in_cycle), else
 ## its subject then, one a session (or HOLDS), from a place dealt by the seed; &"" for any other hall.
 static func subject(w: LevelGen, hall: int, rings: int) -> StringName:
-	if hall < 0 or hall >= w.halls.size() or w.halls[hall]["kind"] != &"lecture":
+	if hall < 0 or hall >= w.halls.size() or w.halls[hall].kind != &"lecture":
 		return &""
-	var dept: StringName = w.halls[hall]["dept"]
+	var dept: StringName = w.halls[hall].dept
 	var ladder: Array = LADDERS.get(dept, [])
 	if ladder.is_empty() or not in_cycle(w, hall, rings):
 		return &""
@@ -216,7 +216,7 @@ static func tier_taught(a: StringName, dept_tier: int) -> int:
 static func in_session(w: LevelGen, hall: int, rings: int) -> bool:
 	if hall < 0 or hall >= w.halls.size():
 		return false
-	match w.halls[hall]["kind"]:
+	match w.halls[hall].kind:
 		&"lecture":
 			return subject(w, hall, rings) != &""
 		&"library":
@@ -227,15 +227,15 @@ static func in_session(w: LevelGen, hall: int, rings: int) -> bool:
 ## Whether hall `hall` holds a class in session after `rings` rings (going into one ends passing
 ## time): a classroom with a subject. The library is open, but it is no class.
 static func holds_class(w: LevelGen, hall: int, rings: int) -> bool:
-	return hall >= 0 and hall < w.halls.size() and w.halls[hall]["kind"] != &"library" and in_session(w, hall, rings)
+	return hall >= 0 and hall < w.halls.size() and w.halls[hall].kind != &"library" and in_session(w, hall, rings)
 
 
 ## Whether `w` keeps a timetable at all (it has a hall with a class in it).
 static func kept_in(w: LevelGen) -> bool:
 	if w == null:
 		return false
-	for hall: Dictionary in w.halls:
-		if hall["kind"] in TIMETABLED:
+	for hall: Hall in w.halls:
+		if hall.kind in TIMETABLED:
 			return true
 	return false
 
@@ -244,7 +244,7 @@ static func kept_in(w: LevelGen) -> bool:
 ## (in their walls and doorways too).
 static func hall_inside(w: LevelGen, v: Vector2i) -> int:
 	for i: int in range(w.halls.size()):
-		if (w.halls[i]["inside"] as Rect2i).has_point(v):
+		if w.halls[i].inside.has_point(v):
 			return i
 	return -1
 
@@ -257,7 +257,7 @@ static func belongs(w: LevelGen, rings: int, passing: bool, v: Vector2i) -> bool
 	var hall: int = hall_inside(w, v)
 	if hall < 0:
 		return passing
-	var kind: StringName = w.halls[hall]["kind"]
+	var kind: StringName = w.halls[hall].kind
 	return kind in TIMETABLED and in_session(w, hall, rings)
 
 

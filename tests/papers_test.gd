@@ -39,7 +39,7 @@ func _field_trip() -> void:
 	await go(institute)
 	var hall: int = -1
 	for i: int in range(info.world.halls.size()):
-		if info.world.halls[i]["kind"] == &"lecture":
+		if info.world.halls[i].kind == &"lecture":
 			hall = i
 			break
 	check(hall >= 0, "a lecture hall")
@@ -86,27 +86,27 @@ func _study() -> void:
 	var at: Vector2 = player.global_position
 	var hex: int = KeyRing.paper(&"hex", 3)
 	player.keyring.take(hex)
-	check(info.study(at), "a hex III paper studied")
+	check(info.institute.study(at), "a hex III paper studied")
 	var slash_back: Array[int] = [KeyRing.paper(&"slash", 1)]
 	check(Abilities.spell(player) == &"hex" and Abilities.tier(player, &"hex") == 3 and player.keyring.papers() == slash_back, "hex III takes the damage slot, and slash I comes back as a paper")
-	check(info.study(at), "studied again")
+	check(info.institute.study(at), "studied again")
 	var hex_back: Array[int] = [hex]
 	check(Abilities.spell(player) == &"slash" and Abilities.tier(player, &"slash") == 1 and player.keyring.papers() == hex_back, "slash is back, and the hex III paper with it: round and round")
-	info.study(at)
+	info.institute.study(at)
 	player.keyring.clear()
 	player.keyring.take(KeyRing.paper(&"hex", 2))
-	check(not info.study(at), "a hex II paper teaches a wizard who knows hex III nothing")
+	check(not info.institute.study(at), "a hex II paper teaches a wizard who knows hex III nothing")
 	player.keyring.take(KeyRing.paper(&"hex", 4))
-	check(info.study(at) and Abilities.tier(player, &"hex") == 4, "a hex IV paper raises it")
+	check(info.institute.study(at) and Abilities.tier(player, &"hex") == 4, "a hex IV paper raises it")
 	var stays: Array[int] = [KeyRing.paper(&"hex", 2)]
 	check(player.keyring.papers() == stays, "with nothing back, the hex II paper still carried")
 	player.keyring.clear()
 	Abilities.set_tier(player, &"dash", 2)
 	player.keyring.take(KeyRing.paper(&"warp", 2))
-	info.study(at)
+	info.institute.study(at)
 	var dash_back: Array[int] = [KeyRing.paper(&"dash", 2)]
 	check(Abilities.spell(player, &"move") == &"warp" and player.keyring.papers() == dash_back, "a move too: warp II in, the dash back as a dash II paper")
-	info.study(at)
+	info.institute.study(at)
 	check(Abilities.spell(player, &"move") == &"dash" and Abilities.tier(player, &"dash") == 2, "and the dash learned again from it")
 	player.keyring.clear()
 	# A lantern: the first use lights it; used again, it studies.
@@ -132,7 +132,7 @@ func _study() -> void:
 	player.keyring.clear()
 	print("a lesson")
 	Abilities.set_tier(player, &"hex", 2)
-	info.leave_lesson(info.cell_at(player.global_position), player.global_position, &"nova")
+	info.institute.leave_lesson(info.cell_at(player.global_position), player.global_position, &"nova")
 	await frames(2)
 	var lessons: Array[Node] = placed("lesson.tscn")
 	check(lessons.size() == 1, "a master's lesson")
@@ -152,14 +152,14 @@ func _instructors() -> void:
 	await go(Vector2i(WORLD, NextWorldDef.band_row(&"institute", 0)))
 	var index: int = -1
 	for i: int in range(info.world.halls.size()):
-		if info.world.halls[i]["kind"] == &"lecture":
+		if info.world.halls[i].kind == &"lecture":
 			index = i
 			break
 	check(index >= 0, "a classroom")
 	if index < 0:
 		return
-	var inside: Rect2i = info.world.halls[index]["inside"]
-	var box: Rect2i = info.world.halls[index]["box"]
+	var inside: Rect2i = info.world.halls[index].inside
+	var box: Rect2i = info.world.halls[index].box
 	for n: Node in get_nodes_in_group(&"scholar"):
 		if box.has_point(info.cell_at((n as Node2D).global_position)):
 			n.queue_free()

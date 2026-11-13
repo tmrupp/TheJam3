@@ -17,9 +17,9 @@ func run() -> void:
 			var w: LevelGen = build(Vector2i(world, row))
 			if w == null:
 				continue
-			for b: Dictionary in w.barriers:
-				if not found.has(int(b["kind"])):
-					found[int(b["kind"])] = Vector2i(world, row)
+			for b: Barrier in w.barriers:
+				if not found.has(int(b.kind)):
+					found[int(b.kind)] = Vector2i(world, row)
 	await boot(28)
 	Health.invincible = true
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
@@ -27,11 +27,11 @@ func run() -> void:
 	for kind: int in found:
 		await go(found[kind])
 		player.set_physics_process(false)
-		var b: Dictionary = info.world.barriers[0]
+		var b: Barrier = info.world.barriers[0]
 		var middle: Vector2 = Vector2.ZERO
-		for c: Vector2i in b["open"]:
+		for c: Vector2i in b.open:
 			middle += info.cell_position(c)
-		middle /= float((b["open"] as Array).size())
+		middle /= float(b.open.size())
 		player.global_position = middle + Vector2(0, -2000)
 		camera.limit_left = -10000000
 		camera.limit_top = -10000000

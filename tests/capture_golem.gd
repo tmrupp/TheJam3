@@ -20,7 +20,7 @@ func run() -> void:
 	freeze()
 	for bow: Node in placed("crossbow.tscn"):
 		bow.set_physics_process(false)
-	var box: Rect2i = info.world.keep["box"]
+	var box: Rect2i = info.world.keep.box
 	# Asleep in its lair, the wizard out of the hall.
 	player.global_position = Vector2(-9000.0, -9000.0)
 	camera.global_position = golem.global_position + Vector2(0.0, -180.0)
@@ -69,8 +69,8 @@ func run() -> void:
 	golem.hurl_wait = INF
 	await within(func() -> bool: return golem.called.is_empty() and golem.stones.is_empty() and golem.state == Golem.State.HUNT, 12.0)
 	# A leap marked: the wizard on the gallery over it.
-	var floors: Array[int] = info.world.keep["floors"]
-	var stair: Rect2i = (info.world.keep["stairs"] as Array[Rect2i])[1]
+	var floors: Array[int] = info.world.keep.floors
+	var stair: Rect2i = info.world.keep.stairs[1]
 	player.global_position = info.cell_position(Vector2i(stair.position.x + (3 if stair.position.x < box.get_center().x else -2), floors[1] - 1))
 	await within(func() -> bool: return golem.state == Golem.State.LEAP_WARN, 12.0)
 	camera.global_position = (golem.global_position + golem.leap_to) * 0.5 + Vector2(0.0, -120.0)

@@ -46,12 +46,12 @@ func capture() -> void:
 	for i: int in range(90):
 		await process_frame
 	var camera: Camera2D = main.get_node("Camera2D") as Camera2D
-	var secret: Dictionary = info.world.secrets[0]
-	var door: Vector2i = secret["entrance"][0]
+	var secret: SecretRoom = info.world.secrets[0]
+	var door: Vector2i = secret.entrance[0]
 	var beside: Vector2i = door + Vector2i.LEFT
 	if not info.world.is_valid(beside) or info.world.get_cell(beside).type == LevelGen.Type.GROUND or info.world.get_cell(beside).type == LevelGen.Type.CRACKED:
 		beside = door + Vector2i.RIGHT
-	var middle: Vector2 = (info.cell_position(door) + info.cell_position(secret["room"][0])) * 0.5
+	var middle: Vector2 = (info.cell_position(door) + info.cell_position(secret.room[0])) * 0.5
 	player.global_position = info.cell_position(beside)
 	var shots: Array[Image] = []
 	shots.append(await shot(camera, middle))

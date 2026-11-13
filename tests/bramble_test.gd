@@ -25,9 +25,9 @@ func run() -> void:
 	# The gate level it is met in, in the run boot(28) plays (Bosses.column).
 	var gate: Vector2i = lair(&"bramble")
 	var w: LevelGen = build(gate)
-	var shaft: Dictionary = w.shaft
+	var shaft: ShaftSite = w.shaft
 	check(not shaft.is_empty(), "the bramble's gate level has its shaft")
-	var inside: Rect2i = shaft["inside"]
+	var inside: Rect2i = shaft.inside
 	var top: int = inside.position.y
 	var bottom: int = inside.end.y - 1
 	check(inside.size.x == BrambleShaft.WIDTH and inside.size.y >= BrambleShaft.HEIGHT_MIN and inside.position.y <= BrambleShaft.ROOF + 1, "%d cells wide and %d tall, at the top of the level" % [inside.size.x, inside.size.y])
@@ -41,9 +41,9 @@ func run() -> void:
 		foot_ok = foot_ok and w._open(Vector2i(inside.position.x - 1, y)) and w._open(Vector2i(inside.end.x, y))
 	var built: Array[Vector2i] = w.objects.filter(func(v: Vector2i) -> bool: return inside.grow(1).has_point(v) and w.get_cell(v).type == LevelGen.Type.CRACKED)
 	check(walls_ok and foot_ok and built.is_empty(), "walled in by rock, roof and floor (no cracked wall in them), but for a passage through both walls at its foot")
-	var on: Vector2i = shaft["on"]
-	var knot: Rect2i = shaft["knot"]
-	check(w.exits[MapInfo.Exit.DEEPER] == on and w.is_ground(on + Vector2i.DOWN) and w.is_ground(shaft["relic"] + Vector2i.DOWN) and inside.has_point(on), "the way on stands on a landing at its head")
+	var on: Vector2i = shaft.on
+	var knot: Rect2i = shaft.knot
+	check(w.exits[MapInfo.Exit.DEEPER] == on and w.is_ground(on + Vector2i.DOWN) and w.is_ground(shaft.relic + Vector2i.DOWN) and inside.has_point(on), "the way on stands on a landing at its head")
 	var bosses: Array[Vector2i] = w.objects_of(LevelGen.Type.BOSS)
 	check(bosses.size() == 1 and knot.has_point(bosses[0]) and StringName(w.get_cell(bosses[0]).extra_info) == &"bramble" and knot.size.x == BrambleShaft.WIDTH - BrambleShaft.LANDING and knot.position.y == top, "the bramble rooted in the knot beside it, filling the rest of the head")
 	var strays: Array[Vector2i] = w.objects.filter(func(v: Vector2i) -> bool: return inside.has_point(v) and not w.get_cell(v).type in [LevelGen.Type.EXIT, LevelGen.Type.PLATFORM, LevelGen.Type.BOSS])
@@ -54,7 +54,7 @@ func run() -> void:
 			if y != top + 2 or knot.has_point(v):
 				open_ok = open_ok and w._open(v) and not w.empties.has(v)
 	check(strays.is_empty() and open_ok, "open inside, with nothing else placed in it (%d strays)" % strays.size())
-	var ledges: Array[Vector2i] = shaft["ledges"]
+	var ledges: Array[Vector2i] = shaft.ledges
 	var ledges_ok: bool = not ledges.is_empty() and ledges[0].y == knot.end.y + 1 and knot.has_point(Vector2i(ledges[0].x, knot.position.y))
 	for i: int in range(ledges.size()):
 		ledges_ok = ledges_ok and w.get_cell(ledges[i]).type == LevelGen.Type.PLATFORM
@@ -62,8 +62,8 @@ func run() -> void:
 			ledges_ok = ledges_ok and ledges[i].y - ledges[i - 1].y <= Reach.UP and ledges[i].x != ledges[i - 1].x
 	ledges_ok = ledges_ok and (bottom - (ledges[ledges.size() - 1].y - 1)) <= Reach.UP and (ledges[0].y - 1) - (on.y) <= Reach.UP
 	check(ledges_ok, "%d ledges up it from side to side, each a hop on from the last, from its floor to the landing" % ledges.size())
-	var bulbs: Array = shaft["bulbs"]
-	var vines: Array = shaft["vines"]
+	var bulbs: Array = shaft.bulbs
+	var vines: Array = shaft.vines
 	var sides: Dictionary = {}
 	var set_ok: bool = true
 	for b: Array in bulbs + vines:
@@ -108,7 +108,7 @@ func run() -> void:
 		if tangle.canes[i].kind == &"crown":
 			bare_crown = bare_crown and asleep[i] == 0.0
 	check(not tangle.awake() and bare_crown and bramble.knot_box.collision.disabled, "asleep, its crown is not grown and its thorns do not hurt")
-	player.global_position = bramble.center(Vector2i(bramble.inside.get_center().x, (shaft["ledges"][0] as Vector2i).y - 1))
+	player.global_position = bramble.center(Vector2i(bramble.inside.get_center().x, (shaft.ledges[0] as Vector2i).y - 1))
 	var woke: bool = await within(func() -> bool: return tangle.awake(), 1.0)
 	player.global_position = Vector2(-9000, -9000)
 	var grew: bool = await within(func() -> bool: return tangle.grown() >= 1.0, tangle.crown_reach / BrambleTangle.GROW_SPEED + 1.0)
@@ -313,10 +313,10 @@ func run() -> void:
 	await settle()
 	check(dead and info.run.bosses.has(&"bramble") and placed("bramble.tscn").is_empty(), "it is slain for the run")
 	var unlocks: Array[Node] = unlocks_lying()
-	check(left_unlock() and (unlocks.is_empty() or info.cell_at((unlocks[0] as Node2D).global_position) == shaft["relic"]), "its relic unlock waits on the landing beside the way on")
+	check(left_unlock() and (unlocks.is_empty() or info.cell_at((unlocks[0] as Node2D).global_position) == shaft.relic), "its relic unlock waits on the landing beside the way on")
 	check(_exit(MapInfo.Exit.DEEPER).sealed() == &"", "and the way on is open")
 	await go(lair(&"bramble"))
-	check(placed("bramble.tscn").is_empty() and info.world.shaft["on"] == on, "it is never met again: the shaft stands open")
+	check(placed("bramble.tscn").is_empty() and info.world.shaft.on == on, "it is never met again: the shaft stands open")
 	RunState.delete_save()
 	finish()
 

@@ -58,10 +58,10 @@ func generation() -> void:
 		if w == null:
 			continue
 		for i: int in range(w.halls.size()):
-			var hall: Dictionary = w.halls[i]
-			var box: Rect2i = hall["box"]
-			var inside: Rect2i = hall["inside"]
-			var doors: Array = hall["doors"]
+			var hall: Hall = w.halls[i]
+			var box: Rect2i = hall.box
+			var inside: Rect2i = hall.inside
+			var doors: Array = hall.doors
 			# Walls of marble all round but for the doorways.
 			for x: int in range(box.position.x, box.end.x):
 				for y: int in range(box.position.y, box.end.y):
@@ -73,11 +73,11 @@ func generation() -> void:
 						kept = false
 			if doors.is_empty():
 				doors_ok = false
-			match hall["kind"]:
+			match hall.kind:
 				&"library":
 					libraries += 1
 					var rows: Dictionary = {}
-					for v: Vector2i in hall["floors"]:
+					for v: Vector2i in hall.floors:
 						rows[v.y] = true
 					if rows.size() < 3 or w.objects_of(LevelGen.Type.PLATFORM).filter(func(v: Vector2i) -> bool: return inside.has_point(v)).size() < inside.size.x:
 						stacks_ok = false
@@ -95,7 +95,7 @@ func generation() -> void:
 				&"lecture":
 					lectures += 1
 					var heights: Dictionary = {}
-					for v: Vector2i in hall["floors"]:
+					for v: Vector2i in hall.floors:
 						heights[v.y] = true
 					if heights.size() != 2 or not heights.has(Institute.gallery_row(inside)) or doors.size() < Institute.MIN_DOORS:
 						tiers_ok = false
@@ -107,7 +107,7 @@ func generation() -> void:
 					else:
 						var extra: Array = w.get_cell(portals[0]).extra_info
 						var dept_row: int = int(extra[1])
-						if StringName(extra[0]) != hall["dept"] or NextWorldDef.archetype_at(dept_row) != Institute.DEPARTMENTS[hall["dept"]] or dept_row != Institute.department_row(Rules.def_for(at), hall["dept"], Institute.first_of(w, hall["dept"])):
+						if StringName(extra[0]) != hall.dept or NextWorldDef.archetype_at(dept_row) != Institute.DEPARTMENTS[hall.dept] or dept_row != Institute.department_row(Rules.def_for(at), hall.dept, Institute.first_of(w, hall.dept)):
 							depts_ok = false
 		# The bell room: walled in marble but for its doorways, its great bell on its floor.
 		if w.belfry.has_area():
@@ -160,13 +160,13 @@ func play() -> void:
 	print("in play")
 	check(placed("student.tscn").size() > 0 and placed("master.tscn").size() > 0 and placed("exam_door.tscn").size() > 0, "students, masters and hall doors are there")
 	# A class under way: the corridors are no place for the wizard.
-	info.record().passing = false
+	info.record().institute.passing = false
 	await _students()
 	await _hop()
 	await _climb()
-	info.record().passing = false
+	info.record().institute.passing = false
 	await _apart()
-	info.record().passing = false
+	info.record().institute.passing = false
 	await _masters()
 	await _staff()
 	await _three_sides()
@@ -297,7 +297,7 @@ const STEPS_TRIED: int = 4
 ## until one is climbed), then at the wall at `wall` (`wall_way`).
 func _climb_at(steps: Array, wall: Vector2i, wall_way: int) -> void:
 	# In passing time, when the abominations act up (Timetable), with no scholar about to fight them.
-	info.record().passing = true
+	info.record().institute.passing = true
 	for n: Node in get_nodes_in_group(&"scholar"):
 		var at: Vector2 = (n as Node2D).global_position
 		var near_step: bool = steps.any(func(pair: Array) -> bool: return at.distance_to(info.cell_position(pair[0] as Vector2i)) < 1500.0)
@@ -341,7 +341,7 @@ func _climb_at(steps: Array, wall: Vector2i, wall_way: int) -> void:
 func _apart() -> void:
 	print("abominations keep apart")
 	# In passing time, when the abominations act up (Timetable).
-	info.record().passing = true
+	info.record().institute.passing = true
 	var at: Vector2i = _open_floor()
 	# Nothing else about to get in the way: no scholar to fight them, no other foe on the floor.
 	var here: Vector2 = info.cell_position(at + Vector2i(3, 0))
@@ -449,7 +449,7 @@ func _staff() -> void:
 func _three_sides() -> void:
 	print("three sides")
 	# In passing time, when the abominations act up (Timetable).
-	info.record().passing = true
+	info.record().institute.passing = true
 	var spot: Vector2i = _open_floor()
 	player.global_position = info.cell_position(spot) + Vector2(0, -6000)
 	player.phasing = true

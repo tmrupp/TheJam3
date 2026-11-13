@@ -83,7 +83,7 @@ func sample_clusters() -> void:
 	check(greats >= 1, "one of them holds a great island, %d cells of rock or more in one body (%d do)" % [_great(), greats])
 	check(script.call("_between", sample) != null, "and little islands are painted on its open sky, in no cluster: the open sky's own sample")
 	# A cluster collapsed from each, twice over: cut to its outline, and not the same twice.
-	var wfc: Node = TestKit._make_wfc()
+	var wfc: WaveFunctionCollapse = WaveFunctionCollapse.new()
 	var outlined: bool = true
 	var rooted: bool = true
 	var fresh: int = 0
@@ -95,8 +95,8 @@ func sample_clusters() -> void:
 				if crop.get_pixel(x, y).is_equal_approx(LevelGen.SKY):
 					crop.set_pixel(x, y, Color.WHITE)
 		var size: Vector2i = Vector2i(boxes[k].size.x + 6, boxes[k].size.y)
-		var one: Array = wfc.call("_cluster", crop, size, 1000 + k, false)
-		var two: Array = wfc.call("_cluster", crop, size, 2000 + k, false)
+		var one: Array = wfc._cluster(crop, size, 1000 + k, false)
+		var two: Array = wfc._cluster(crop, size, 2000 + k, false)
 		fresh += 1 if one != two else 0
 		var rock: Dictionary = {}
 		for x: int in range(size.x):
@@ -110,7 +110,6 @@ func sample_clusters() -> void:
 			for y: int in range(size.y):
 				if Color(one[x][y]) == Color.RED:
 					rooted = rooted and [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN].any(func(d: Vector2i) -> bool: return rock.has(Vector2i(x, y) + d))
-	wfc.free()
 	check(outlined, "a cluster collapsed from one is open sky outside its outline and the cluster's own air inside")
 	check(rooted, "its thorns all touch rock")
 	check(fresh >= boxes.size() - 1, "collapsed again it is another cluster: none is copied (%d of %d differ)" % [fresh, boxes.size()])
@@ -195,8 +194,8 @@ func generation() -> void:
 		if greatest.size() == 3:
 			check(greatest[0] != greatest[1] or greatest[1] != greatest[2], "a level's great island is collapsed afresh, not copied (%s cells)" % [greatest])
 		check(float(rock) / float(w.size.x * w.size.y) >= 0.065, "%s: denser island shelves (%d terrain cells)" % [at, rock])
-		check(w.chasms.all(func(gap: Dictionary) -> bool:
-			var shore: Vector2i = gap["right"]
+		check(w.chasms.all(func(gap: Chasm) -> bool:
+			var shore: Vector2i = gap.right
 			return not w.is_ground(shore) and not w.is_ground(shore + Vector2i.UP) and w.get_cell(shore + Vector2i.DOWN).type in [LevelGen.Type.GROUND, LevelGen.Type.CRACKED]), "%s: wind landing shores are level with clear headroom" % at)
 		check(w.links == w.isles.size() - 1, "%s: every cluster joined to the rest, pair by pair (%d of %d)" % [at, w.links, w.isles.size() - 1])
 		var crosswinds: int = 0
@@ -380,9 +379,9 @@ func vanes() -> void:
 ## Gap `id`'s air (world space), as its crosswind would have filled it: from the last cell of floor
 ## on one side to the first on the other, the three rows over the floor and the one under it.
 func _gap(id: int) -> Rect2:
-	var chasm: Dictionary = info.world.chasms[id]
-	var left: Vector2i = chasm["left"]
-	var right: Vector2i = chasm["right"]
+	var chasm: Chasm = info.world.chasms[id]
+	var left: Vector2i = chasm.left
+	var right: Vector2i = chasm.right
 	var corner: Vector2 = info.cell_position(Vector2i(left.x, left.y - 2)) - Vector2(64.0, 64.0)
 	return Rect2(corner, Vector2(float(right.x - left.x + 1) * 128.0, 4.0 * 128.0))
 

@@ -33,15 +33,14 @@ var info: MapInfo
 ## A worker thread laying levels out, one at a time.
 class Worker extends RefCounted:
 	var thread: Thread = Thread.new()
-	## Its own terrain generator: a copy of the scene's (MapInfo.wfc), kept out of the scene tree.
-	## A node in the tree may only be touched from the main thread: driven from a worker, the
-	## scene's own redrew and signalled off the main thread, which can crash the game or lock it up.
+	## Its own terrain generator: a plain object (WaveFunctionCollapse), one a thread, as it holds
+	## what it is asked with from one collapse to the next.
 	var wfc: WaveFunctionCollapse
 	## The place it is laying out, or null while it is idle.
 	var at: Variant = null
 
-	## Wait for the thread to finish (if it was started). The terrain generator reads its sample's
-	## pixels through the RenderingServer, which a worker can only do once the main thread has
+	## Wait for the thread to finish (if it was started). A sample loaded on the worker may ask
+	## the RenderingServer for its pixels, which a worker can only do once the main thread has
 	## served it: so while waiting, keep serving it, or the two would wait on each other for ever
 	## (as when the scene is freed, back to the start menu, while a neighbour is still being laid
 	## out).
@@ -53,12 +52,10 @@ class Worker extends RefCounted:
 			OS.delay_msec(1)
 		thread.wait_to_finish()
 
-	## Join the thread and free the generator.
+	## Join the thread and let the generator go.
 	func close() -> void:
 		join()
-		if wfc != null:
-			wfc.free()
-			wfc = null
+		wfc = null
 
 
 ## The worker for the place wanted (request), and the one laying neighbours out ahead of time.
@@ -143,7 +140,7 @@ func _start(worker: Worker, at: Vector2i) -> void:
 	worker.at = at
 	worker.join()
 	if worker.wfc == null:
-		worker.wfc = info.wfc.duplicate() as WaveFunctionCollapse
+		worker.wfc = WaveFunctionCollapse.new()
 	worker.thread.start(_generate_threaded.bind(worker, at, cache.get(at, [])))
 
 
@@ -329,7 +326,7 @@ func place_cell(v: Vector2i, cell: LevelGen.Cell) -> void:
 		# is walked (and shot) straight through by the wizard, though enemies take it for rock
 		# (ENEMY_WALL).
 		node.set_meta(&"secret", int(cell.extra_info))
-		node.set_meta(&"hidden", not (w.secrets[int(cell.extra_info)]["entrance"] as Array).has(v))
+		node.set_meta(&"hidden", not w.secrets[int(cell.extra_info)].entrance.has(v))
 		if not bool(node.get_meta(&"hidden")):
 			(node as CollisionObject2D).collision_layer = ENEMY_WALL
 	if cell.type == LevelGen.Type.CLUSTER:

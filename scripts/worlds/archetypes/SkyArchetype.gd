@@ -115,8 +115,8 @@ func cut_gates(w: LevelGen) -> void:
 	w.connect_caves()
 	# Joining pockets can tunnel through a shore's footing (the hulls' chambers are pockets):
 	# every gap's two shores get rock under them and air on and over them again.
-	for chasm: Dictionary in w.chasms:
-		for shore: Vector2i in [chasm["left"], chasm["right"]]:
+	for chasm: Chasm in w.chasms:
+		for shore: Vector2i in [chasm.left, chasm.right]:
 			if not w.is_ground(shore + Vector2i.DOWN):
 				w._to_rock(shore + Vector2i.DOWN)
 			for d: Vector2i in [Vector2i.ZERO, Vector2i.UP]:
@@ -377,8 +377,8 @@ static func _build_gaps(w: LevelGen, want: int) -> void:
 		if not spots.is_empty():
 			break
 	spots.sort()
-	for chasm: Dictionary in w.chasms:
-		spots = Chasms.apart(spots, chasm["row"], (chasm["left"] as Vector2i).x + 1, (chasm["planks"] as Array).size())
+	for chasm: Chasm in w.chasms:
+		spots = Chasms.apart(spots, chasm.row, chasm.left.x + 1, chasm.planks.size())
 	while w.chasms.size() < want and not spots.is_empty():
 		# Among the cheapest few, by the level's draw.
 		var choice: Array = w.pick(spots.slice(0, 8))
@@ -504,7 +504,7 @@ static func _temple(w: LevelGen, box: Rect2i) -> void:
 			under += Vector2i.DOWN
 		# The island's rock it stands on is kept whole, so no tunnel joining the island's pockets
 		# (connect_caves) is cut from under a column of it.
-		w.kept_whole[under] = true
+		w.claim(under, Claims.KEPT)
 	for v: Vector2i in built:
 		w._to_rock(v)
 		w.masonry[v] = true
@@ -523,11 +523,11 @@ static func _temple(w: LevelGen, box: Rect2i) -> void:
 		for y: int in range(box.position.y - TEMPLE_AIR, box.end.y):
 			var v: Vector2i = Vector2i(x, y)
 			if w.is_valid(v):
-				w.structures[v] = &"temple"
-				w.kept_whole[v] = true
+				w.claim(v, Claims.STRUCTURE, &"temple")
+				w.claim(v, Claims.KEPT)
 	for v: Vector2i in built:
-		w.structures[v] = &"temple"
-		w.kept_whole[v] = true
+		w.claim(v, Claims.STRUCTURE, &"temple")
+		w.claim(v, Claims.KEPT)
 	@warning_ignore("integer_division")
 	var altar: Vector2i = Vector2i(x0 + box.size.x / 2, base - 1)
 	var winds: Array = []
@@ -541,7 +541,7 @@ static func _temple(w: LevelGen, box: Rect2i) -> void:
 		if hall.has_point(at):
 			w.put(at, LevelGen.Type.CLUSTER)
 			hoard.append(at)
-	w.temples.append({"box": box, "hall": hall, "altar": altar, "hoard": hoard})
+	w.temples.append(TempleSite.make(box, hall, altar, hoard))
 
 
 ## The balloon moored in every sky level (see BALLOON_AIR), and kept in LevelGen.balloon, the air
@@ -561,7 +561,7 @@ static func place_balloon(w: LevelGen) -> void:
 		w.balloon = spot
 		# The air its envelope fills is kept clear of what comes after (climbing ledges).
 		for k: int in range(1, BALLOON_AIR + 1):
-			w.keep_clear[(spot as Vector2i) - Vector2i(0, k)] = true
+			w.claim((spot as Vector2i) - Vector2i(0, k), Claims.START_WAY)
 
 
 ## What lives in the sky, on top of an ordinary level's dressing:

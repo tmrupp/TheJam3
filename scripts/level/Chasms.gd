@@ -119,18 +119,18 @@ static func add_gap(w: LevelGen, y: int, a: int, span: int) -> void:
 
 
 ## The record kept of a chasm `span` cells across from cell `a` on floor row `y`.
-static func _record(planks: Array[Vector2i], y: int, a: int, span: int) -> Dictionary:
-	return {"planks": planks, "row": y, "left": Vector2i(a - 1, y), "right": Vector2i(a + span, y)}
+static func _record(planks: Array[Vector2i], y: int, a: int, span: int) -> Chasm:
+	return Chasm.make(planks, y, Vector2i(a - 1, y), Vector2i(a + span, y))
 
 
 ## Whether cell `c` is in or beside any chasm's or gap's kept air: within two columns of a plank,
 ## from a row over the air kept clear above it to a row under its pit.
 static func near(w: LevelGen, c: Vector2i) -> bool:
-	for chasm: Dictionary in w.chasms:
-		var row: int = chasm["row"]
+	for chasm: Chasm in w.chasms:
+		var row: int = chasm.row
 		if c.y < row - CHASM_CLEAR - 1 or c.y > row + CHASM_DEPTH + 1:
 			continue
-		for plank: Vector2i in chasm["planks"]:
+		for plank: Vector2i in chasm.planks:
 			if absi(plank.x - c.x) <= 2:
 				return true
 	return false
@@ -142,9 +142,9 @@ static func near_mask(w: LevelGen) -> PackedByteArray:
 	var out: PackedByteArray = PackedByteArray()
 	out.resize(w.size.x * w.size.y)
 	out.fill(0)
-	for chasm: Dictionary in w.chasms:
-		var row: int = chasm["row"]
-		for plank: Vector2i in chasm["planks"]:
+	for chasm: Chasm in w.chasms:
+		var row: int = chasm.row
+		for plank: Vector2i in chasm.planks:
 			for x: int in range(maxi(0, plank.x - 2), mini(w.size.x, plank.x + 3)):
 				for y: int in range(maxi(0, row - CHASM_CLEAR - 1), mini(w.size.y, row + CHASM_DEPTH + 2)):
 					out[x * w.size.y + y] = 1
@@ -154,10 +154,10 @@ static func near_mask(w: LevelGen) -> PackedByteArray:
 ## The chasm whose pit has its floor (its thorns) at cell `v`, or -1.
 static func pit_of(w: LevelGen, v: Vector2i) -> int:
 	for id: int in range(w.chasms.size()):
-		var chasm: Dictionary = w.chasms[id]
-		if v.y != int(chasm["row"]) + CHASM_DEPTH + 1:
+		var chasm: Chasm = w.chasms[id]
+		if v.y != int(chasm.row) + CHASM_DEPTH + 1:
 			continue
-		for plank: Vector2i in chasm["planks"]:
+		for plank: Vector2i in chasm.planks:
 			if plank.x == v.x:
 				return id
 	return -1
@@ -205,9 +205,9 @@ static func _level_floor(w: LevelGen, floors: PackedByteArray, x: int, y: int) -
 ## -1 for a switch.
 static func place_bells(w: LevelGen, crossing: LevelGen.Type, switch_reach: int) -> void:
 	for id: int in range(w.chasms.size()):
-		var chasm: Dictionary = w.chasms[id]
+		var chasm: Chasm = w.chasms[id]
 		for side: int in [-1, 1]:
-			var edge: Vector2i = chasm["left"] if side < 0 else chasm["right"]
+			var edge: Vector2i = chasm.left if side < 0 else chasm.right
 			var at: Variant = null
 			for d: int in [2, 3, 1, 4]:
 				var v: Vector2i = edge + Vector2i(side * (d - 1), 0)
@@ -232,9 +232,9 @@ static func place_bells(w: LevelGen, crossing: LevelGen.Type, switch_reach: int)
 ## (LevelGen.switch_floor); null if there is none.
 static func _bell_switch(w: LevelGen, bell: Vector2i, reach_cells: int) -> Variant:
 	var blocked: Dictionary = {}
-	for chasm: Dictionary in w.chasms:
-		var row: int = chasm["row"]
-		for plank: Vector2i in chasm["planks"]:
+	for chasm: Chasm in w.chasms:
+		var row: int = chasm.row
+		for plank: Vector2i in chasm.planks:
 			for d: int in range(-CHASM_CLEAR - 1, CHASM_DEPTH + 2):
 				blocked[Vector2i(plank.x, row + d)] = true
 	var reach: Dictionary = w.reach_from(bell, func(n: Vector2i) -> bool: return not blocked.has(n) and (reach_cells < 0 or LevelGen.dist(n, bell) <= reach_cells))

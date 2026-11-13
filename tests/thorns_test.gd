@@ -47,8 +47,8 @@ func run() -> void:
 		var start: Vector2i = w.exits.get(MapInfo.Exit.BACK, Vector2i(-1, -1))
 		var reach: Dictionary = w.reach_from(start) if w.is_valid(start) else {}
 		var chasm_feet: Dictionary = {}
-		for chasm: Dictionary in w.chasms:
-			for plank: Vector2i in chasm["planks"]:
+		for chasm: Chasm in w.chasms:
+			for plank: Vector2i in chasm.planks:
 				for d: int in range(1, Chasms.CHASM_DEPTH + 3):
 					chasm_feet[plank + Vector2i(0, d)] = true
 		for x: int in range(w.size.x):
@@ -66,7 +66,7 @@ func run() -> void:
 					ok_chasms = false
 				if how.has("switch"):
 					var lever: Vector2i = how["switch"]
-					ok_links = ok_links and w.get_cell(lever).type == LevelGen.Type.SWITCH and reach.has(lever) and LevelGen.dist(lever, v) >= 2 							and not w.vaults.any(func(d: Dictionary) -> bool: return (d["room"] as Array).has(lever))
+					ok_links = ok_links and w.get_cell(lever).type == LevelGen.Type.SWITCH and reach.has(lever) and LevelGen.dist(lever, v) >= 2 							and not w.vaults.any(func(d: Vault) -> bool: return d.room.has(lever))
 		for run_: Array in w.thorn_runs():
 			var first: LevelGen.Cell = w.get_cell(run_[0] as Vector2i)
 			runs_seen += 1

@@ -47,8 +47,8 @@ func _hall_side() -> Variant:
 	var w: LevelGen = info.world
 	var best: Variant = null
 	var most: int = 0
-	for hall: Dictionary in w.halls:
-		var box: Rect2i = hall["box"]
+	for hall: Hall in w.halls:
+		var box: Rect2i = hall.box
 		for side: int in [-1, 1]:
 			var x: int = box.position.x - 1 if side < 0 else box.end.x
 			var n: int = 0

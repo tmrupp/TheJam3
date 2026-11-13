@@ -428,7 +428,7 @@ func _mark_level(info: MapInfo, c: Vector2i, w: LevelGen, rec: LevelRecord, seen
 	for id: int in rec.secrets:
 		if id < 0 or id >= w.secrets.size():
 			continue
-		for reward: Array in w.secrets[id]["rewards"]:
+		for reward: Array in w.secrets[id].rewards:
 			var v: Vector2i = reward[0]
 			if not seen.call(v):
 				continue
@@ -519,13 +519,13 @@ func _mark_cell(info: MapInfo, c: Vector2i, w: LevelGen, v: Vector2i, cell: Leve
 			_mark_bridge(at, (rec.bridges as Dictionary).has(int(cell.extra_info)))
 		LevelGen.Type.GONDOLA:
 			var circuit: Dictionary = cell.extra_info
-			var track: Array[Vector2i] = circuit["path"]
+			var track: Array[Vector2i] = circuit.path
 			var corners: Array[Vector2] = []
 			for i: int in CragsArchetype.turns(track):
 				corners.append(spot.call(track[i]))
 			var stops: Array[Vector2] = []
 			var on: Array[bool] = []
-			for i: int in circuit["stops"]:
+			for i: int in circuit.stops:
 				stops.append(spot.call(track[i]))
 				# Each station on (lit) or off as the towers left it (LevelRecord.stations).
 				on.append(rec.stations >= 0 and rec.stations & (1 << on.size()) != 0)
@@ -940,8 +940,8 @@ func pickable(info: MapInfo) -> Array[Vector2i]:
 func _hinted_relic(info: MapInfo, c: Vector2i, w: LevelGen) -> Variant:
 	if w == null or not info.run.relic_hints.has(c) or info.run.relics_found.has(c):
 		return null
-	for secret: Dictionary in w.secrets:
-		for reward: Array in secret["rewards"]:
+	for secret: SecretRoom in w.secrets:
+		for reward: Array in secret.rewards:
 			if reward[1] == LevelGen.Type.RELIC:
 				return reward[0]
 	for v: Vector2i in w.objects:

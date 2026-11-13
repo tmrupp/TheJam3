@@ -17,7 +17,7 @@ class_name SchoolBell
 const RING_GAP: float = 1.0
 
 var map_info: MapInfo
-## Its cell (what the level's record knows it by: LevelRecord.last_bell).
+## Its cell (what the level's record knows it by: InstituteRecord.last_bell).
 var cell: Vector2i = Vector2i(-1, -1)
 ## Whether it hangs from the great bell itself (in the bell room).
 var great: bool = false
@@ -45,7 +45,7 @@ static func ceiling_over(w: LevelGen, v: Vector2i) -> int:
 ## Whether it was the cord rung last, which cannot be rung again yet (but to let out the class it
 ## began, MapInfo.dismissing).
 func spent() -> bool:
-	return map_info != null and map_info.world != null and map_info.record().last_bell == cell and not map_info.institute.dismissing(cell)
+	return map_info != null and map_info.world != null and map_info.record().institute.last_bell == cell and not map_info.institute.dismissing(cell)
 
 
 ## Pull it: it rings, if it can (MapInfo.pull_cord).

@@ -63,7 +63,7 @@ func take() -> void:
 	else:
 		map_info.relic_taken()
 	if dropped != &"":
-		map_info.put_back(dropped, dropped_tier, global_position + Vector2(0, -40))
+		map_info.institute.put_back(dropped, dropped_tier, global_position + Vector2(0, -40))
 	map_info.mark_taken(self)
 	# A boss's relic, taken: it waits there no more.
 	if has_meta(&"boss"):

@@ -47,7 +47,7 @@ func run() -> void:
 	var shaft_x: float = bramble.center(bramble.inside.position).x + float(bramble.inside.size.x - 1) * bramble.cell * 0.5
 	head = Vector2(shaft_x, bramble.knot_rect.position.y - bramble.cell * 0.4 + VIEW_CELLS * bramble.cell * 0.5)
 	# The wizard on the top ledge, beside where the bud will hang.
-	var ledge: Vector2i = info.world.shaft["ledges"][0]
+	var ledge: Vector2i = info.world.shaft.ledges[0]
 	var on_ledge: Vector2 = info.cell_position(ledge + Vector2i.UP)
 	# Out of the shaft until it wakes, so its crown is still asleep.
 	player.global_position = Vector2(-9000, -9000)

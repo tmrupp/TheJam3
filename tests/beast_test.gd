@@ -45,12 +45,12 @@ func _laid_out() -> void:
 		var w: LevelGen = build(Vector2i(x, row))
 		if w == null:
 			continue
-		var chamber: Dictionary = Institute.chamber(w)
+		var chamber: Hall = Institute.chamber(w)
 		if chamber.is_empty():
 			continue
 		chambers += 1
-		var inside: Rect2i = chamber["inside"]
-		var box: Rect2i = chamber["box"]
+		var inside: Rect2i = chamber.inside
+		var box: Rect2i = chamber.box
 		if box.position.y * 2 >= w.size.y:
 			low += 1
 		var bosses: Array[Vector2i] = w.objects_of(LevelGen.Type.BOSS)

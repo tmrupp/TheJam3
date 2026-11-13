@@ -28,9 +28,9 @@ func run() -> void:
 				continue
 			await until(func() -> bool: return planks.all(func(n: Node) -> bool: return (n as Bridge).bears()))
 			await frames(2)
-			var gap: Dictionary = info.world.chasms[id]
-			var left: Vector2 = info.cell_position((gap["left"] as Vector2i) + Vector2i.UP)
-			var right: Vector2 = info.cell_position((gap["right"] as Vector2i) + Vector2i.UP)
+			var gap: Chasm = info.world.chasms[id]
+			var left: Vector2 = info.cell_position(gap.left + Vector2i.UP)
+			var right: Vector2 = info.cell_position(gap.right + Vector2i.UP)
 			# Only the bridge is being walked: anything that moves and stands in the way (enemies are
 			# solid to the wizard) is taken away first.
 			for n: Node in info.map_elements.get_children():

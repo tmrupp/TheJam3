@@ -18,8 +18,8 @@ func run() -> void:
 	for k: int in [0, 4]:
 		await go(Vector2i(28, NextWorldDef.band_row(&"crags", k)))
 		var n: int = 0
-		for tower: Dictionary in info.world.towers:
-			var box: Rect2i = tower["box"]
+		for tower: Tower in info.world.towers:
+			var box: Rect2i = tower.box
 			var mid: Vector2 = (info.cell_position(box.position) + info.cell_position(box.end - Vector2i.ONE)) * 0.5
 			player.global_position = info.cell_position(Vector2i(box.position.x - 1, box.end.y - 2))
 			camera.zoom = zoom * 0.42
@@ -50,17 +50,17 @@ func climb(zoom: Vector2) -> void:
 	var best: Rect2i = Rect2i()
 	for k: int in range(6):
 		await go(Vector2i(28, NextWorldDef.band_row(&"crags", k)), false)
-		for tower: Dictionary in info.world.towers:
-			var box: Rect2i = tower["box"]
-			if not tower["hoard"] and box.size.y > best.size.y:
+		for tower: Tower in info.world.towers:
+			var box: Rect2i = tower.box
+			if not tower.hoard and box.size.y > best.size.y:
 				best_k = k
 				best = box
 	if best_k < 0:
 		return
 	await go(Vector2i(28, NextWorldDef.band_row(&"crags", best_k)), false)
-	var tower: Dictionary = info.world.towers.filter(func(t: Dictionary) -> bool: return t["box"] == best)[0]
-	var box: Rect2i = tower["box"]
-	var ledges: Array = tower["ledges"]
+	var tower: Tower = info.world.towers.filter(func(t: Tower) -> bool: return t.box == best)[0]
+	var box: Rect2i = tower.box
+	var ledges: Array = tower.ledges
 	var steps: Array[Vector2i] = [Vector2i(box.position.x - 1, box.end.y - 2)]
 	# Ledges are listed from the bottom floor up, STAIR to a floor.
 	for i: int in range(0, ledges.size(), CragsArchetype.STAIR):

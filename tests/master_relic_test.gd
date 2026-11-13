@@ -61,8 +61,8 @@ func _laid_out(levels: Array[Vector2i]) -> void:
 				furthest = false
 		if not w.objects_of(LevelGen.Type.RELIC).is_empty():
 			in_no_room = false
-		for secret: Dictionary in w.secrets:
-			if (secret["rewards"] as Array).any(func(r: Array) -> bool: return r[1] == LevelGen.Type.RELIC):
+		for secret: SecretRoom in w.secrets:
+			if secret.rewards.any(func(r: Array) -> bool: return r[1] == LevelGen.Type.RELIC):
 				in_no_room = false
 	check_eq(carried, levels.size(), "in each, a master out in the level carries the level's relic")
 	check(furthest, "the one furthest from the way in")
@@ -90,7 +90,7 @@ func _play(at: Vector2i) -> void:
 	await frames(4)
 	var left: Array[Node] = placed("relic.tscn").filter(func(n: Node) -> bool: return n.has_meta(&"left"))
 	check(left.size() == 1 and (left[0] as Node2D).global_position.distance_to(pos) < 200.0 and placed("lesson.tscn").is_empty(), "beaten, it leaves the relic where it fell, no lesson")
-	check(info.record().relics_left.size() == 1 and not info.relic_carried(), "kept in the level's record")
+	check(info.record().institute.relics_left.size() == 1 and not info.relic_carried(), "kept in the level's record")
 	if left.is_empty():
 		return
 	var relic: Relic = left[0] as Relic
@@ -99,7 +99,7 @@ func _play(at: Vector2i) -> void:
 	relic.take()
 	await frames(2)
 	check_eq(Abilities.tier(player, move), tier + 1, "taken, the wizard has %s a tier on" % move)
-	check(info.run.relics_found.has(at) and info.record().relics_left.is_empty(), "the level's relic found")
+	check(info.run.relics_found.has(at) and info.record().institute.relics_left.is_empty(), "the level's relic found")
 	# Back again: the master carries it no more.
 	await go(Vector2i(at.x, at.y - 1))
 	await go(at)
@@ -122,7 +122,7 @@ func _instructor(at: Vector2i) -> void:
 				hall = i
 		if hall >= 0:
 			break
-		info.record().passing = false
+		info.record().institute.passing = false
 		info.institute.since_bell = SchoolBell.RING_GAP
 		bell.ring()
 		await frames(2)

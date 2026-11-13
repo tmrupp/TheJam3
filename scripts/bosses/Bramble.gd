@@ -222,21 +222,21 @@ func setup(info: MapInfo, _v: Vector2i, which: Variant) -> void:
 	origin = info.cell_position(Vector2i.ZERO)
 	var w: LevelGen = info.world
 	level_seed = w.seed_for_colors
-	var shaft: Dictionary = w.shaft
+	var shaft: ShaftSite = w.shaft
 	if shaft.is_empty():
 		return
-	inside = shaft["inside"]
-	relic_at = info.cell_position(shaft["relic"] as Vector2i)
-	var k: Rect2i = shaft["knot"]
+	inside = shaft.inside
+	relic_at = info.cell_position(shaft.relic)
+	var k: Rect2i = shaft.knot
 	knot_rect = Rect2(center(k.position) - Vector2.ONE * cell * 0.5, Vector2(k.size) * cell)
 	_grow_knot()
-	for b: Array in shaft["bulbs"]:
+	for b: Array in shaft.bulbs:
 		var bulb: BrambleBulb = BrambleBulb.new(self, b[0], Vector2(b[1] as Vector2i), BULB_HP)
 		bulb.name = "Bulb%d" % bulbs.size()
 		add_child(bulb)
 		bulb.place(face(b[0], b[1]), level_seed)
 		bulbs.append(bulb)
-	for v: Array in shaft["vines"]:
+	for v: Array in shaft.vines:
 		var vine: BrambleVine = BrambleVine.new(self, v[0], Vector2(v[1] as Vector2i))
 		vine.name = "Vine%d" % vines.size()
 		add_child(vine)

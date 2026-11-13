@@ -206,7 +206,7 @@ func buy_boon(i: int = 0) -> void:
 	Abilities.grant(player, a)
 	var niche: Node2D = get_node("Boon" if i == 0 else "Boon2") as Node2D
 	if dropped != &"":
-		map_info.put_back(dropped, dropped_tier, niche.global_position + Vector2(0, -40))
+		map_info.institute.put_back(dropped, dropped_tier, niche.global_position + Vector2(0, -40))
 	_spend(get_node("Boon" if i == 0 else "Boon2") as Node2D, [Plate.ACCENT, Plate.PINK], i)
 
 

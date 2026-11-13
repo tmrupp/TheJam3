@@ -604,8 +604,8 @@ func crypt_rooms(info: MapInfo) -> Array[Rect2]:
 	var out: Array[Rect2] = []
 	if info.world == null:
 		return out
-	for crypt: Dictionary in info.world.crypts:
-		var room: Rect2i = (crypt["box"] as Rect2i).grow(-1)
+	for crypt: Crypt in info.world.crypts:
+		var room: Rect2i = crypt.box.grow(-1)
 		var top_left: Vector2 = info.cell_position(room.position) - Vector2(half, half)
 		out.append(Rect2(top_left, Vector2(room.size) * half * 2.0))
 	return out

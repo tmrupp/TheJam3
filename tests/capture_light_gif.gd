@@ -85,7 +85,7 @@ func run() -> void:
 	_clear()
 	var spot: Vector2i = Vector2i(-1, -1)
 	if not info.world.crypts.is_empty():
-		var floors: Array[Vector2i] = info.world.crypts[0]["floors"]
+		var floors: Array[Vector2i] = info.world.crypts[0].floors
 		if not floors.is_empty():
 			spot = floors[floors.size() / 2]
 	check(spot.x >= 0, "a floor inside a crypt")

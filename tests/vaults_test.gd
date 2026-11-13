@@ -7,20 +7,20 @@ extends TestKit
 
 
 ## The things in `w`'s vault, as [type, extra info], in the order they were laid.
-func loot_of(w: LevelGen, vault: Dictionary) -> Array:
+func loot_of(w: LevelGen, vault: Vault) -> Array:
 	var out: Array = []
 	for v: Vector2i in w.objects:
-		if (vault["room"] as Array).has(v):
+		if vault.room.has(v):
 			out.append([w.get_cell(v).type, w.get_cell(v).extra_info])
 	return out
 
 
 ## Whether `vault` is open inside, walled in rock all round but for its door, and entered at floor
 ## height from a floor outside.
-func well_formed(w: LevelGen, vault: Dictionary) -> bool:
-	var room: Array = vault["room"]
-	var door: Vector2i = vault["door"]
-	if w.get_cell(door).type != LevelGen.Type.DOOR or int(w.get_cell(door).extra_info) != int(vault["color"]):
+func well_formed(w: LevelGen, vault: Vault) -> bool:
+	var room: Array = vault.room
+	var door: Vector2i = vault.door
+	if w.get_cell(door).type != LevelGen.Type.DOOR or int(w.get_cell(door).extra_info) != int(vault.color):
 		return false
 	for c: Vector2i in room:
 		if w.is_ground(c):
@@ -64,11 +64,11 @@ func run() -> void:
 			levels += 1
 			var first_key: int = -1
 			var vault_doors: Dictionary = {}
-			for vault: Dictionary in w.vaults:
-				vault_doors[vault["door"]] = true
+			for vault: Vault in w.vaults:
+				vault_doors[vault.door] = true
 			for v: Vector2i in w.objects:
 				var cell: LevelGen.Cell = w.get_cell(v)
-				if cell.type == LevelGen.Type.KEY and cell.extra_info != null and int(cell.extra_info) != KeyRing.SKELETON and not KeyRing.is_paper(int(cell.extra_info)) and not w.vaults.any(func(vt: Dictionary) -> bool: return (vt["room"] as Array).has(v)):
+				if cell.type == LevelGen.Type.KEY and cell.extra_info != null and int(cell.extra_info) != KeyRing.SKELETON and not KeyRing.is_paper(int(cell.extra_info)) and not w.vaults.any(func(vt: Vault) -> bool: return vt.room.has(v)):
 					if v != w.start_key:
 						keys[int(cell.extra_info)] += 1
 						if first_key < 0:
@@ -80,23 +80,23 @@ func run() -> void:
 				with_vault += 1
 			else:
 				print("  no vault: ", label)
-			for vault: Dictionary in w.vaults:
-				var color: int = vault["color"]
+			for vault: Vault in w.vaults:
+				var color: int = vault.color
 				# Bone vaults are bones_test's.
 				if color < Rules.KEY_COLOR_COUNT:
 					vault_colors[color] = int(vault_colors.get(color, 0)) + 1
 				if color == 1:
 					ember_vaults += 1
-					if Vaults.loot(w, color, vault["door"]).has([LevelGen.Type.KEY, 2]):
+					if Vaults.loot(w, color, vault.door).has([LevelGen.Type.KEY, 2]):
 						ember_keys += 1
-				check(well_formed(w, vault), label + ": vault at %s is sealed in rock behind its door" % vault["door"])
-				check(loot_of(w, vault) == Vaults.loot(w, color, vault["door"]), label + ": colour %d vault holds its loot %s" % [color, loot_of(w, vault)])
+				check(well_formed(w, vault), label + ": vault at %s is sealed in rock behind its door" % vault.door)
+				check(loot_of(w, vault) == Vaults.loot(w, color, vault.door), label + ": colour %d vault holds its loot %s" % [color, loot_of(w, vault)])
 			var again: LevelGen = LevelGen.new(cells, def)
 			var same_colors: bool = true
 			for v: Vector2i in w.objects:
 				if w.get_cell(v).extra_info != again.get_cell(v).extra_info and w.get_cell(v).type in [LevelGen.Type.KEY, LevelGen.Type.DOOR]:
 					same_colors = false
-			check(w.objects == again.objects and w.vaults == again.vaults and same_colors, label + ": vaults and colours are the same every visit")
+			check(w.objects == again.objects and Structure.alike(w.vaults, again.vaults) and same_colors, label + ": vaults and colours are the same every visit")
 	print("  keys by colour %s, doors %s, vaults %s, %d of %d levels with a vault" % [keys, doors, vault_colors, with_vault, levels])
 	check(keys[0] > keys[1] and keys[1] > keys[3], "keys come in common colours far more than rare ones")
 	check(doors[0] > doors[1] and doors[1] > doors[3], "and so do doors")
@@ -116,17 +116,17 @@ func run() -> void:
 
 	await boot()
 	freeze()
-	var vault: Dictionary = {}
+	var vault: Vault = null
 	for step: int in range(4):
-		var keyed: Array = info.world.vaults.filter(func(vt: Dictionary) -> bool: return int(vt["color"]) < Rules.KEY_COLOR_COUNT)
+		var keyed: Array = info.world.vaults.filter(func(vt: Vault) -> bool: return int(vt.color) < Rules.KEY_COLOR_COUNT)
 		if not keyed.is_empty():
 			vault = keyed[0]
 			break
 		info.travel(MapInfo.Exit.RIGHT)
 		await settle(6)
 		freeze()
-	check(not vault.is_empty(), "found a vault in %s" % Rules.where(info.coord))
-	if vault.is_empty():
+	check(vault != null, "found a vault in %s" % Rules.where(info.coord))
+	if vault == null:
 		finish()
 		return
 	var door: Node = null
@@ -134,13 +134,13 @@ func run() -> void:
 	for n: Node in info.map_elements.get_children():
 		if not n.has_meta(&"cell"):
 			continue
-		if n.get_meta(&"cell") == vault["door"] and n.scene_file_path.get_file() == "door.tscn":
+		if n.get_meta(&"cell") == vault.door and n.scene_file_path.get_file() == "door.tscn":
 			door = n
-		elif (vault["room"] as Array).has(n.get_meta(&"cell")):
+		elif vault.room.has(n.get_meta(&"cell")):
 			loot.append(n)
-	var color: int = vault["color"]
+	var color: int = vault.color
 	check(door != null and int(door.get_meta(&"key_color", -1)) == color, "its door is locked in colour %d" % color)
-	check(loot.size() == Vaults.loot(info.world, color, vault["door"]).size(), "its loot lies inside (%d)" % loot.size())
+	check(loot.size() == Vaults.loot(info.world, color, vault.door).size(), "its loot lies inside (%d)" % loot.size())
 	player.keyring.clear()
 	player.keyring.take((color + 1) % Rules.KEY_COLOR_COUNT)
 	door.get_node("Unlock").call("try_open")
@@ -150,7 +150,7 @@ func run() -> void:
 	door.get_node("Unlock").call("try_open")
 	await settle(1)
 	check(not is_instance_valid(door) or door.is_queued_for_deletion(), "its own colour does")
-	check((info.record().opened as Dictionary).has(vault["door"]), "and it stays open")
+	check((info.record().opened as Dictionary).has(vault.door), "and it stays open")
 	finish()
 
 

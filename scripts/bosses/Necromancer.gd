@@ -118,9 +118,9 @@ func setup(info: MapInfo, v: Vector2i, which: Variant) -> void:
 	if info.world == null or info.world.crypts.is_empty():
 		graves = [v]
 		return
-	var crypt: Dictionary = info.world.crypts[0]
-	box = crypt["box"]
-	for g: Vector2i in crypt["floors"]:
+	var crypt: Crypt = info.world.crypts[0]
+	box = crypt.box
+	for g: Vector2i in crypt.floors:
 		graves.append(g)
 	if graves.is_empty():
 		graves = [v]

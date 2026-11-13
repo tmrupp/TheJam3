@@ -14,12 +14,12 @@ func run() -> void:
 	await boot()
 	camera = main.get_node("Camera2D") as Camera2D
 	await _go(Vector2i(28, NextWorldDef.first_depth(&"institute")))
-	for hall: Dictionary in info.world.halls:
-		var box: Rect2i = hall["box"]
-		var floors: Array = hall["floors"]
+	for hall: Hall in info.world.halls:
+		var box: Rect2i = hall.box
+		var floors: Array = hall.floors
 		if not floors.is_empty():
 			player.global_position = info.cell_position(floors[0])
-		await _look(info.cell_position(box.get_center()), "institute_%s.png" % hall["kind"], 0.9)
+		await _look(info.cell_position(box.get_center()), "institute_%s.png" % hall.kind, 0.9)
 	if info.world.belfry.has_area():
 		var room: Rect2i = info.world.belfry
 		player.global_position = info.cell_position(Vector2i(room.position.x, room.end.y - 1))

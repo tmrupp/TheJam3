@@ -19,14 +19,14 @@ func run() -> void:
 		return
 	var gate: Vector2i = Vector2i(28, Bosses.row_of(&"golem"))
 	var w: LevelGen = build(gate)
-	var keep: Dictionary = w.keep
-	check(keep.has("lair") and (keep["box"] as Rect2i).size == LodeHall.SIZE and (keep["box"] as Rect2i).position.y == LodeHall.TOP, "the golem's gate level has its hall at the top, %d by %d cells" % [LodeHall.SIZE.x, LodeHall.SIZE.y])
-	var box: Rect2i = keep["box"]
-	var inside: Rect2i = keep["inside"]
-	var floors: Array[int] = keep["floors"]
-	var doors: Array[Vector2i] = keep["doors"]
-	var gaps: Array[Rect2i] = keep["gaps"]
-	var stairs: Array[Rect2i] = keep["stairs"]
+	var keep: KeepSite = w.keep
+	check(keep.laid and keep.box.size == LodeHall.SIZE and keep.box.position.y == LodeHall.TOP, "the golem's gate level has its hall at the top, %d by %d cells" % [LodeHall.SIZE.x, LodeHall.SIZE.y])
+	var box: Rect2i = keep.box
+	var inside: Rect2i = keep.inside
+	var floors: Array[int] = keep.floors
+	var doors: Array[Vector2i] = keep.doors
+	var gaps: Array[Rect2i] = keep.gaps
+	var stairs: Array[Rect2i] = keep.stairs
 	_print_hall(w)
 	var walls_ok: bool = true
 	for y: int in range(box.position.y, box.end.y):
@@ -59,7 +59,7 @@ func run() -> void:
 		for x: int in range(inside.position.x, inside.end.x):
 			air_ok = air_ok and not w.is_ground(Vector2i(x, y))
 	check(air_ok, "%d rows of air over every floor, for the golem" % LodeHall.ROOM)
-	var ledges: Array[Vector2i] = keep["ledges"]
+	var ledges: Array[Vector2i] = keep.ledges
 	var ledges_ok: bool = ledges.size() == LodeHall.GALLERIES * 2 * LodeHall.STAIR
 	for stair: Rect2i in stairs:
 		var toward: int = 1 if stair.position.x < mid else -1
@@ -70,17 +70,17 @@ func run() -> void:
 
 	var on: Vector2i = w.exits.get(MapInfo.Exit.DEEPER, Vector2i(-1, -1))
 	var gap_left: bool = gaps[0].end.x <= mid
-	check(on == keep["on"] and on.y == floors[0] - 1 and on.x == (inside.position.x if gap_left else inside.end.x - 1) and w.get_cell(on).type == LevelGen.Type.EXIT and w.is_ground(on + Vector2i.DOWN), "the way on on the top gallery, against the wall on its gap's side")
+	check(on == keep.on and on.y == floors[0] - 1 and on.x == (inside.position.x if gap_left else inside.end.x - 1) and w.get_cell(on).type == LevelGen.Type.EXIT and w.is_ground(on + Vector2i.DOWN), "the way on on the top gallery, against the wall on its gap's side")
 	var parent: Dictionary = Reach.tree(w, Vector2i(inside.position.x + 1, inside.end.y - 1))
 	var top: bool = parent.keys().any(func(v: Vector2i) -> bool: return v.y == floors[0] - 1)
 	var out: bool = parent.keys().any(func(v: Vector2i) -> bool: return not box.has_point(v))
 	check(top and out, "the top gallery climbed to from the ground storey with the wizard's own hops, and out through its doorways")
 	var bosses: Array[Vector2i] = w.objects_of(LevelGen.Type.BOSS)
-	check(bosses.size() == 1 and StringName(w.get_cell(bosses[0]).extra_info) == &"golem" and bosses[0] == keep["lair"] and bosses[0].y == inside.end.y - 1 and w.is_ground(bosses[0] + Vector2i.DOWN) and gaps[-1].has_point(Vector2i(bosses[0].x, gaps[-1].position.y)), "the golem in its lair on the ground floor, under the lower gallery's gap")
-	var path: Array = w.circuit.get("path", [])
+	check(bosses.size() == 1 and StringName(w.get_cell(bosses[0]).extra_info) == &"golem" and bosses[0] == keep.lair and bosses[0].y == inside.end.y - 1 and w.is_ground(bosses[0] + Vector2i.DOWN) and gaps[-1].has_point(Vector2i(bosses[0].x, gaps[-1].position.y)), "the golem in its lair on the ground floor, under the lower gallery's gap")
+	var path: Array = w.circuit.path
 	check(not path.is_empty() and path.all(func(v: Vector2i) -> bool: return v.y > box.end.y), "the gondola runs below it")
-	check(w.towers.all(func(t: Dictionary) -> bool: return not (t["box"] as Rect2i).intersects(box)), "and no tower stands in it")
-	var bows: Array[Vector2i] = keep["crossbows"]
+	check(w.towers.all(func(t: Tower) -> bool: return not t.box.intersects(box)), "and no tower stands in it")
+	var bows: Array[Vector2i] = keep.crossbows
 	var bows_ok: bool = bows.size() == LodeHall.GALLERIES
 	for v: Vector2i in bows:
 		var how: Dictionary = w.get_cell(v).extra_info
@@ -94,7 +94,7 @@ func run() -> void:
 	var everywhere: bool = true
 	for world: int in [29, 30, 31]:
 		var other: LevelGen = build(Vector2i(world, gate.y))
-		everywhere = everywhere and other.keep.has("lair") and other.objects_of(LevelGen.Type.BOSS) == [other.keep["lair"]]
+		everywhere = everywhere and other.keep.laid and other.objects_of(LevelGen.Type.BOSS) == [other.keep.lair]
 	check(everywhere, "in every world's gate level")
 	check(build(Vector2i(28, gate.y + 1)).keep.is_empty(), "and only there")
 	finish()
@@ -103,8 +103,8 @@ func run() -> void:
 ## Print the hall in `w` as rows of characters: # stone, . air, = a ledge, > the way on, G the
 ## golem, B a crossbow, + a doorway.
 func _print_hall(w: LevelGen) -> void:
-	var box: Rect2i = w.keep["box"]
-	var doors: Array[Vector2i] = w.keep["doors"]
+	var box: Rect2i = w.keep.box
+	var doors: Array[Vector2i] = w.keep.doors
 	for y: int in range(box.position.y - 1, box.end.y + 1):
 		var line: String = ""
 		for x: int in range(box.position.x - 3, box.end.x + 3):

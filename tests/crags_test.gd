@@ -84,7 +84,7 @@ func _circuit(w: LevelGen, at: Vector2i) -> int:
 	check(gondolas[0] == path[stops[int(info["start"])]], "its car waits at its open station")
 	# In the golem's gate level, its top is the foot of its hall there (LodeHall), give or take the
 	# stations' jitter, as lay_circuit spreads them.
-	var top: float = float(CragsArchetype.TOP_TIER + CragsArchetype.STATION_JITTER + 8) if w.keep.is_empty() else float((w.keep["box"] as Rect2i).end.y + CragsArchetype.LEAVE + 3 + CragsArchetype.STATION_JITTER)
+	var top: float = float(CragsArchetype.TOP_TIER + CragsArchetype.STATION_JITTER + 8) if w.keep.is_empty() else float(w.keep.box.end.y + CragsArchetype.LEAVE + 3 + CragsArchetype.STATION_JITTER)
 	check(float(path[0].y) > float(w.size.y) * 0.7 and float(path[-1].y) < top, "it climbs from near the bottom of the level (row %d) to near its top, or the golem's hall (row %d)" % [path[0].y, path[-1].y])
 	var diagonal: int = 0
 	var steps_ok: bool = true
@@ -120,14 +120,14 @@ func _tiers(w: LevelGen, at: Vector2i, path: Array[Vector2i], stops: Array[int])
 		marked = marked and (w.tiers[i]["rows"] as Vector2i).x == path[stops[i + 1]].y + 1
 	check(marked, "each line between tiers lies under the station over it, nothing built there")
 	var tiers: Array[int] = []
-	tiers.assign(w.circuit.get("tiers", []))
+	tiers.assign(w.circuit.tiers)
 	var masks: Array[int] = []
-	masks.assign(w.circuit.get("masks", []))
+	masks.assign(w.circuit.masks)
 	check(w.towers.size() >= 2 and w.towers.size() <= CragsArchetype.TOWERS_MOST, "%d towers (at most %d)" % [w.towers.size(), CragsArchetype.TOWERS_MOST])
 	check(tiers.has(0) and tiers.has(stops.size() - 1), "the bottom and top tiers have a tower each (towers on %s)" % [tiers])
 	var switched: bool = true
 	for j: int in range(w.towers.size()):
-		var cell: Vector2i = w.towers[j].get("switch", Vector2i(-1, -1))
+		var cell: Vector2i = w.towers[j].switch
 		switched = switched and w.is_valid(cell) and w.get_cell(cell).type == LevelGen.Type.TOWER_SWITCH and int(w.get_cell(cell).extra_info["mask"]) == masks[j] and masks[j] & (1 << tiers[j]) == 0
 	check(switched, "each tower has its switch, flipping a set that leaves its own tier's station be")
 	var n: int = stops.size()

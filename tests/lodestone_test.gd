@@ -60,7 +60,7 @@ func _play_level() -> Vector2i:
 			if Rules.lodestone_at(at) == &"":
 				continue
 			var w: LevelGen = build(at)
-			if w == null or w.towers.filter(func(t: Dictionary) -> bool: return not t["hoard"] and t.has("spire")).size() < 2:
+			if w == null or w.towers.filter(func(t: Tower) -> bool: return not t.hoard and t.spire != Structure.NONE).size() < 2:
 				continue
 			var across: Array[Vector2i] = _laid_walls(w, true)
 			var over: Array[Vector2i] = _laid_walls(w, false).filter(func(c: Vector2i) -> bool: return not across.has(c))
@@ -82,14 +82,14 @@ func _placement() -> void:
 		check(w.is_valid(v) and w.get_cell(v).type == LevelGen.Type.LODESTONE and StringName(w.get_cell(v).extra_info) == spell, "%s holds its lodestone (%s) at %s" % [at, spell, v])
 		if not w.is_valid(v):
 			continue
-		var path: Array[Vector2i] = w.circuit["path"]
+		var path: Array[Vector2i] = w.circuit.path
 		check(w.reach_from(path[0]).has(v) and w.is_ground(v + Vector2i.DOWN) and not w.is_ground(v + Vector2i.UP), "on a floor reached from the track without breaking cracked rock")
 		var upper: int = ceili(float(CragsArchetype.tier_count(w)) / 2.0)
 		if CragsArchetype.tier_of(w, v.y) >= upper and CragsArchetype.in_sight_of_track(w, v):
 			high_seen += 1
-		var watch: Array[Dictionary] = w.towers.filter(func(t: Dictionary) -> bool: return not t["hoard"])
-		check(watch.all(func(t: Dictionary) -> bool: return _roof_taken(w, t) if not t.has("spire") else w.get_cell(t["spire"]).type == LevelGen.Type.SPIRE and (t["spire"] as Vector2i).y == (t["box"] as Rect2i).position.y - 1), "each of its %d watchtowers has a spire on its roof" % watch.size())
-		check(w.towers.all(func(t: Dictionary) -> bool: return not t.get("cold", false) or (not t["hoard"] and CragsArchetype.tier_of(w, (t["box"] as Rect2i).end.y - 1) > 0)), "a cold tower is a watchtower above the bottom tier")
+		var watch: Array[Tower] = w.towers.filter(func(t: Tower) -> bool: return not t.hoard)
+		check(watch.all(func(t: Tower) -> bool: return _roof_taken(w, t) if not (t.spire != Structure.NONE) else w.get_cell(t.spire).type == LevelGen.Type.SPIRE and t.spire.y == t.box.position.y - 1), "each of its %d watchtowers has a spire on its roof" % watch.size())
+		check(w.towers.all(func(t: Tower) -> bool: return not t.cold or (not t.hoard and CragsArchetype.tier_of(w, t.box.end.y - 1) > 0)), "a cold tower is a watchtower above the bottom tier")
 	check(high_seen >= levels.size() - 1, "high on the cliff, in sight of the track (%d of %d)" % [high_seen, levels.size()])
 	var bare: Vector2i = Vector2i(levels[0].x + 1, levels[0].y)
 	while Rules.lodestone_at(bare) != &"":
@@ -272,19 +272,19 @@ func _ready_spell(node: Node) -> void:
 func _spires() -> void:
 	print("spires")
 	var spires: Array[Node] = placed("spire.tscn")
-	var watch: int = info.world.towers.filter(func(t: Dictionary) -> bool: return not t["hoard"] and t.has("spire")).size()
+	var watch: int = info.world.towers.filter(func(t: Tower) -> bool: return not t.hoard and t.spire != Structure.NONE).size()
 	check(spires.size() == watch and watch >= 2, "a spire on each watchtower (%d)" % watch)
 	if spires.size() < 2:
 		return
 	var a: Spire = spires[0] as Spire
 	var b: Spire = spires[1] as Spire
 	var rec: LevelRecord = info.record()
-	info.world.towers[a.tower]["cold"] = false
+	info.world.towers[a.tower].cold = false
 	info.last_tower = -1
 	var before: int = rec.stations
 	a.hex_hit(1, Vector2.RIGHT)
 	check(rec.stations == before, "a plain hit rings off it and does nothing")
-	var mask: int = int((info.world.get_cell(info.world.towers[a.tower]["switch"]).extra_info as Dictionary)["mask"])
+	var mask: int = int((info.world.get_cell(info.world.towers[a.tower].switch).extra_info as Dictionary)["mask"])
 	var from: Vector2 = a.head() + Vector2(-150.0, 0.0)
 	if info.solid_at(from):
 		from = a.head() + Vector2(150.0, 0.0)
@@ -302,7 +302,7 @@ func _spires() -> void:
 	a.empowered_hit(Vector2.RIGHT)
 	check(rec.stations == before ^ mask, "struck again at once, nothing changes")
 	# A cold tower.
-	info.world.towers[b.tower]["cold"] = true
+	info.world.towers[b.tower].cold = true
 	rec.woken.erase(b.tower)
 	var lever: TowerSwitch = null
 	for n: Node in placed("tower_switch.tscn", true):
@@ -371,8 +371,8 @@ func _ride() -> void:
 ## Whether watchtower `t` of `w` has no room on its roof for a spire: every cell over its roof holds
 ## something a spire does not take the place of (a lift, a teleporter, CragsArchetype.SPIRE_TAKES),
 ## the one case in which a watchtower has none.
-func _roof_taken(w: LevelGen, t: Dictionary) -> bool:
-	var box: Rect2i = t["box"]
+func _roof_taken(w: LevelGen, t: Tower) -> bool:
+	var box: Rect2i = t.box
 	var free: Dictionary = w.empty_set()
 	for x: int in range(box.position.x, box.end.x):
 		var v: Vector2i = Vector2i(x, box.position.y - 1)

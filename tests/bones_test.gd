@@ -7,11 +7,11 @@ extends TestKit
 
 
 func bone_vaults(w: LevelGen) -> Array:
-	return w.vaults.filter(func(v: Dictionary) -> bool: return int(v["color"]) == KeyRing.SKELETON)
+	return w.vaults.filter(func(v: Vault) -> bool: return int(v.color) == KeyRing.SKELETON)
 
 
-func in_room(vault: Dictionary, type: LevelGen.Type, w: LevelGen) -> bool:
-	return (vault["room"] as Array).any(func(c: Vector2i) -> bool: return w.get_cell(c).type == type)
+func in_room(vault: Vault, type: LevelGen.Type, w: LevelGen) -> bool:
+	return vault.room.any(func(c: Vector2i) -> bool: return w.get_cell(c).type == type)
 
 
 func run() -> void:
@@ -39,12 +39,12 @@ func run() -> void:
 		var bones: Array = bone_vaults(w)
 		if bones.is_empty():
 			continue
-		var vault: Dictionary = bones[0]
-		var door: Vector2i = vault["door"]
+		var vault: Vault = bones[0]
+		var door: Vector2i = vault.door
 		check(w.get_cell(door).type == LevelGen.Type.DOOR and int(w.get_cell(door).extra_info) == KeyRing.SKELETON, "%s: a bone gate at %s" % [at, door])
 		check(in_room(vault, LevelGen.Type.CLUSTER, w) and Vaults.loot(w, KeyRing.SKELETON, door) == Vaults.BONE_LOOT, "%s: a hoard behind it" % at)
 		var again: LevelGen = LevelGen.new(cells, def)
-		check(again.vaults == w.vaults, "%s: the same every visit" % at)
+		check(Structure.alike(again.vaults, w.vaults), "%s: the same every visit" % at)
 		seen += 1
 		if seen >= 3:
 			break
@@ -62,13 +62,13 @@ func run() -> void:
 			continue
 		var def: NextWorldDef = Rules.def_for(at)
 		var w: LevelGen = LevelGen.new(collapse(def.coord), def)
-		var in_secret: bool = w.secrets.any(func(s: Dictionary) -> bool: return (s["rewards"] as Array).any(func(r: Array) -> bool: return r[1] == LevelGen.Type.RELIC))
+		var in_secret: bool = w.secrets.any(func(s: SecretRoom) -> bool: return s.rewards.any(func(r: Array) -> bool: return r[1] == LevelGen.Type.RELIC))
 		var bones: Array = bone_vaults(w)
 		if bones.is_empty():
 			check(in_secret or w.objects.any(func(v: Vector2i) -> bool: return w.get_cell(v).type == LevelGen.Type.RELIC), "%s: no room for a bone vault, so the relic is still in the level" % at)
 		else:
 			check(in_room(bones[0], LevelGen.Type.RELIC, w) and not in_secret, "%s: the relic waits behind the bone gate, not in a secret room" % at)
-			check((bones[0]["room"] as Array).size() >= 4, "%s: in a room two high" % at)
+			check((bones[0] as Vault).room.size() >= 4, "%s: in a room two high" % at)
 		relics += 1
 		if relics >= 3:
 			break
@@ -82,7 +82,7 @@ func run() -> void:
 		for d: int in [2, 7]:
 			var def: NextWorldDef = Rules.def_for(Vector2i(x, d))
 			var w: LevelGen = LevelGen.new(collapse(def.coord), def)
-			var vault_doors: Array = w.vaults.map(func(v: Dictionary) -> Vector2i: return v["door"])
+			var vault_doors: Array = w.vaults.map(func(v: Vault) -> Vector2i: return v.door)
 			for v: Vector2i in w.objects:
 				var cell: LevelGen.Cell = w.get_cell(v)
 				if cell.type != LevelGen.Type.DOOR or v in vault_doors:
@@ -102,7 +102,7 @@ func run() -> void:
 	var target: Vector2i = Vector2i(-1, -1)
 	# One with a way on of its own, too, so its shrine (looked at below) sells no door in its place.
 	for x: int in range(28, 400):
-		if Rules.bone_vault_at(Vector2i(x, 1)) and Relics.at(Vector2i(x, 1)) == &"" and not Rules.def_for(Vector2i(x, 1)).shut.has(MapInfo.Exit.DEEPER) and build(Vector2i(x, 1)).vaults.any(func(v: Dictionary) -> bool: return int(v["color"]) == KeyRing.SKELETON):
+		if Rules.bone_vault_at(Vector2i(x, 1)) and Relics.at(Vector2i(x, 1)) == &"" and not Rules.def_for(Vector2i(x, 1)).shut.has(MapInfo.Exit.DEEPER) and build(Vector2i(x, 1)).vaults.any(func(v: Vault) -> bool: return int(v.color) == KeyRing.SKELETON):
 			target = Vector2i(x, 1)
 			break
 	await go(target)

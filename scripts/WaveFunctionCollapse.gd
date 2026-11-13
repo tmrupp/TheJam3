@@ -1,4 +1,5 @@
-extends WaveFunctionCollapse
+class_name WaveFunctionCollapse
+extends RefCounted
 
 ## Collapses the terrain for one level. A failed collapse retries on a seed derived from the
 ## level seed and the attempt, so the same (seed, depth) always gives the same level. A place whose
@@ -13,20 +14,48 @@ extends WaveFunctionCollapse
 ## A place whose sample is a sheet of clusters (NextWorldDef.clustered, the sky's) has each cluster
 ## of its terrain collapsed from one cluster of the sheet (collapse_clusters).
 
+## It is no node (docs/CODE_REVIEW.md 2.3): the collapse itself is a plain function (Collapse.run,
+## gdextension/src/collapse.cpp) from a picture, a size and a seed to cells, and this holds what
+## it is asked with from one call to the next. Each thread that lays levels out makes its own.
+
+## How many cells across the pieces a sample is cut into are.
+const PATTERN: int = 3
+
+## What the next collapse is asked with (collapse): the sample, how many cells to lay, the seed,
+## the piece's size, and which of a piece's eight versions are used (the first `symmetry`, or
+## those of `symmetry_mask`, a bit each, when it is not 0; see NextWorldDef).
+var sample: Image
+var output_size: Vector2i = Vector2i(64, 64)
+var seed: int = 0
+var pattern_size: int = PATTERN
+var symmetry: int = 5
+var symmetry_mask: int = 0
+
+
+## Collapse `sample` as set: the cells as columns of colours, [] where it never settled.
+func collapse() -> Array:
+	return Collapse.run(sample, output_size, seed, pattern_size, symmetry, symmetry_mask)
+
+
+## The picture kept at `path` (a sample).
+static func picture(path: String) -> Image:
+	return (load(path) as Texture2D).get_image()
+
+
 ## Salt for the level seed when collapsing each inside (and each retry).
 const PATCH_DEAL: int = Salts.WAVE_FUNCTION_COLLAPSE_PATCH * Salts.STRIDE
 const PATCH_TRIES: int = 16
 func generate_level(def: NextWorldDef) -> Array:
 	if def.clustered:
-		var laid: Array = collapse_clusters((load(def.region) as Texture2D).get_image(), def.size, def.gen_seed)
+		var laid: Array = collapse_clusters(picture(def.region), def.size, def.gen_seed)
 		return laid if not laid.is_empty() else def.fallback()
-	texture = load(def.region)
+	sample = picture(def.region)
 	output_size = def.size
 	symmetry = def.symmetry
 	symmetry_mask = def.symmetry_mask
 	var map: Array = []
 	for attempt: int in range(32):
-		set_seed(def.gen_seed if attempt == 0 else Rules.level_seed(def.gen_seed, Salts.COLLAPSE_RETRY * Salts.STRIDE + attempt))
+		seed = def.gen_seed if attempt == 0 else Rules.level_seed(def.gen_seed, Salts.COLLAPSE_RETRY * Salts.STRIDE + attempt)
 		map = collapse()
 		if len(map) > 0:
 			break
@@ -38,22 +67,22 @@ func generate_level(def: NextWorldDef) -> Array:
 		return map
 	var patches: Array = []
 	for i: int in range(specs.size()):
-		var sample: Texture2D = load(String(specs[i]["sample"]))
+		var inside_sample: Image = picture(String(specs[i]["sample"]))
 		var size: Vector2i = specs[i]["size"]
 		var slices: StringName = StringName(specs[i].get("slices", &""))
 		var kinds: Array = []
-		texture = sample
+		sample = inside_sample
 		output_size = size
 		if slices != &"":
-			var strip: Array = _strip(sample.get_image(), slices == &"columns")
-			texture = ImageTexture.create_from_image(strip[0])
+			var strip: Array = _strip(inside_sample, slices == &"columns")
+			sample = strip[0]
 			kinds = strip[1]
 			output_size = Vector2i(size.x, STRIP) if slices == &"columns" else Vector2i(STRIP, size.y)
 		symmetry = 1
 		symmetry_mask = 0
 		var inside: Array = []
 		for attempt: int in range(PATCH_TRIES):
-			set_seed(Rules.level_seed(def.gen_seed, PATCH_DEAL + i * 100 + attempt))
+			seed = Rules.level_seed(def.gen_seed, PATCH_DEAL + i * 100 + attempt)
 			inside = collapse()
 			if len(inside) > 0:
 				break
@@ -295,12 +324,12 @@ static func _between(sample: Image) -> Image:
 ## sample's colours. Collapsed again, on the next seed, while it does not settle (CLUSTER_TRIES at
 ## most); [] if it never does.
 func _sky(between: Image, size: Vector2i, sky_seed: int) -> Array:
-	texture = ImageTexture.create_from_image(between)
+	sample = between
 	output_size = size
 	symmetry = 2
 	symmetry_mask = CLUSTER_TURNS
 	for attempt: int in range(CLUSTER_TRIES):
-		set_seed(Rules.level_seed(sky_seed, attempt))
+		seed = Rules.level_seed(sky_seed, attempt)
 		var cells: Array = collapse()
 		if not cells.is_empty():
 			return cells
@@ -313,14 +342,14 @@ func _sky(between: Image, size: Vector2i, sky_seed: int) -> Array:
 ## not settle or holds too little (CLUSTER_LEAST cells of rock; a great island, if `want_great`):
 ## after CLUSTER_TRIES, the one that held the most rock, or all open sky if none settled.
 func _cluster(crop: Image, size: Vector2i, cluster_seed: int, want_great: bool) -> Array:
-	texture = ImageTexture.create_from_image(crop)
+	sample = crop
 	output_size = size
 	symmetry = 2
 	symmetry_mask = CLUSTER_TURNS
 	var best: Array = []
 	var most: int = -1
 	for attempt: int in range(CLUSTER_TRIES):
-		set_seed(Rules.level_seed(cluster_seed, attempt))
+		seed = Rules.level_seed(cluster_seed, attempt)
 		var cells: Array = collapse()
 		if cells.is_empty():
 			continue

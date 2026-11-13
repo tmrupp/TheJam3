@@ -56,11 +56,11 @@ func run() -> void:
 			break
 	info.jump_to(target)
 	await loaded()
-	for vault: Dictionary in info.world.vaults:
-		if int(vault["color"]) != KeyRing.SKELETON:
+	for vault: Vault in info.world.vaults:
+		if int(vault.color) != KeyRing.SKELETON:
 			continue
-		var door: Vector2i = vault["door"]
-		var room: Array = vault["room"]
+		var door: Vector2i = vault.door
+		var room: Array = vault.room
 		var outside: Vector2i = door + (Vector2i.LEFT if room.has(door + Vector2i.RIGHT) else Vector2i.RIGHT)
 		player.global_position = info.cell_position(outside)
 		camera.global_position = info.cell_position(door)

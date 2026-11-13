@@ -153,9 +153,9 @@ static func build(w: LevelGen) -> void:
 		_raise(w, &"library", library, 0)
 	for i: int in range(LECTURES):
 		var front: int = 1 if posmod(Rules.level_seed(w.seed_for_colors, RISE_DEAL + i), 2) == 0 else -1
-		var hall: Dictionary = _site(w, LECTURE_INSIDE, _lecture_doors(), func(_box: Rect2i) -> bool: return true, MIN_DOORS)
-		if not hall.is_empty():
-			_raise(w, &"lecture", hall, front)
+		var lecture: Dictionary = _site(w, LECTURE_INSIDE, _lecture_doors(), func(_box: Rect2i) -> bool: return true, MIN_DOORS)
+		if not lecture.is_empty():
+			_raise(w, &"lecture", lecture, front)
 	if Timetable.kept_in(w):
 		var belfry: Dictionary = _site(w, BELFRY_INSIDE, _flat_doors(BELFRY_INSIDE), func(_box: Rect2i) -> bool: return true)
 		if not belfry.is_empty():
@@ -250,25 +250,25 @@ static func _raise(w: LevelGen, kind: StringName, site: Dictionary, front: int) 
 			passages.append(c)
 		doors.append(door[0])
 		steps.append(door[2])
-	var hall: Dictionary = {"kind": kind, "box": box, "inside": inside, "doors": doors, "steps": steps, "floors": [], "front": front, "dept": &""}
+	var hall: Hall = Hall.make(kind, box, inside, doors, steps, front)
 	match kind:
 		&"library":
 			_stacks(w, inside)
 		&"lecture":
 			_gallery(w, inside)
-			hall["dept"] = _deal_dept(w)
+			hall.dept = _deal_dept(w)
 	for x: int in range(box.position.x, box.end.x):
 		for y: int in range(box.position.y, box.end.y):
-			w.kept_whole[Vector2i(x, y)] = true
-			w.structures[Vector2i(x, y)] = &"hall"
+			w.claim(Vector2i(x, y), Claims.KEPT)
+			w.claim(Vector2i(x, y), Claims.STRUCTURE, &"hall")
 			w.empties.erase(Vector2i(x, y))
 	for c: Vector2i in passages:
-		w.kept_whole[c] = true
+		w.claim(c, Claims.KEPT)
 		w.empties.erase(c)
-		w.kept_whole[c + Vector2i.DOWN] = true
+		w.claim(c + Vector2i.DOWN, Claims.KEPT)
 	for v: Vector2i in steps:
-		w.kept_whole[v] = true
-		w.kept_whole[v + Vector2i.DOWN] = true
+		w.claim(v, Claims.KEPT)
+		w.claim(v + Vector2i.DOWN, Claims.KEPT)
 	if kind == &"belfry":
 		w.belfry = inside
 		return
@@ -278,7 +278,7 @@ static func _raise(w: LevelGen, kind: StringName, site: Dictionary, front: int) 
 			var v: Vector2i = Vector2i(x, y)
 			if not w.is_ground(v) and w.type_at(v) == LevelGen.Type.EMPTY and (w.is_ground(v + Vector2i.DOWN) or w.type_at(v + Vector2i.DOWN) == LevelGen.Type.PLATFORM):
 				floors.append(v)
-	hall["floors"] = floors
+	hall.floors = floors
 	w.halls.append(hall)
 	# A hall with a class in it has a door in each doorway (ExamDoor), kept by the timetable.
 	if kind in Timetable.TIMETABLED:
@@ -323,7 +323,7 @@ static func _book_ladders(w: LevelGen, inside: Rect2i, g: int, left: bool) -> vo
 ## Timetable.NEEDS), any after them one dealt by the seed.
 static func _deal_dept(w: LevelGen) -> StringName:
 	var depts: Array = DEPARTMENTS.keys()
-	var k: int = w.halls.filter(func(h: Dictionary) -> bool: return h["kind"] == &"lecture").size()
+	var k: int = w.halls.filter(func(h: Hall) -> bool: return h.kind == &"lecture").size()
 	if k >= depts.size():
 		return depts[posmod(Rules.level_seed(w.seed_for_colors, DEPT_DEAL + k), depts.size())]
 	var order: Array = depts.duplicate()
@@ -346,17 +346,17 @@ static func gallery_row(inside: Rect2i) -> int:
 
 ## The beast's chamber in `w` (LevelGen.halls), or {} when it has none (every level but the beast's
 ## gate levels).
-static func chamber(w: LevelGen) -> Dictionary:
-	for hall: Dictionary in w.halls:
-		if hall["kind"] == &"chamber":
+static func chamber(w: LevelGen) -> Hall:
+	for hall: Hall in w.halls:
+		if hall.kind == &"chamber":
 			return hall
-	return {}
+	return Hall.none()
 
 
 ## The hall of `w` whose box holds cell `v`, as its index in LevelGen.halls, or -1.
 static func hall_at(w: LevelGen, v: Vector2i) -> int:
 	for i: int in range(w.halls.size()):
-		if (w.halls[i]["box"] as Rect2i).has_point(v):
+		if w.halls[i].box.has_point(v):
 			return i
 	return -1
 
@@ -371,7 +371,7 @@ static func regions(w: LevelGen) -> Dictionary:
 		if not w.is_valid(v) or w.type_at(v) in walls:
 			return false
 		var hall: int = hall_at(w, v)
-		return hall < 0 or w.halls[hall]["kind"] != &"lecture"
+		return hall < 0 or w.halls[hall].kind != &"lecture"
 	var out: Dictionary = {}
 	var next: int = 0
 	for x: int in range(w.size.x):
@@ -395,7 +395,7 @@ static func regions(w: LevelGen) -> Dictionary:
 ## The stretches of corridor (regions, `region`) classroom `hall` of `w` opens on.
 static func opens_on(w: LevelGen, hall: int, region: Dictionary) -> Array[int]:
 	var out: Array[int] = []
-	for step: Vector2i in w.halls[hall]["steps"]:
+	for step: Vector2i in w.halls[hall].steps:
 		if region.has(step) and not out.has(int(region[step])):
 			out.append(int(region[step]))
 	return out
@@ -415,7 +415,7 @@ static func rooms_in(w: LevelGen, back: Vector2i) -> Dictionary:
 		var later: Array[int] = []
 		for g: int in frontier:
 			for i: int in range(w.halls.size()):
-				if w.halls[i]["kind"] != &"lecture" or crossed.has(i):
+				if w.halls[i].kind != &"lecture" or crossed.has(i):
 					continue
 				var opens: Array[int] = opens_on(w, i, region)
 				if not opens.has(g):
@@ -440,16 +440,16 @@ static func way_on(w: LevelGen, back: Vector2i) -> Variant:
 	var crossed: Dictionary = rooms_in(w, back)
 	var best: int = -1
 	var score: Callable = func(i: int) -> Vector2i:
-		var off: Vector2i = (w.halls[i]["inside"] as Rect2i).get_center() - back
+		var off: Vector2i = w.halls[i].inside.get_center() - back
 		return Vector2i(int(crossed[i]), off.x * off.x + off.y * off.y)
 	for i: int in range(w.halls.size()):
 		if crossed.has(i) and (best < 0 or score.call(i) > score.call(best)):
 			best = i
 	if best < 0:
 		return null
-	var hall: Dictionary = w.halls[best]
-	var inside: Rect2i = hall["inside"]
-	var front: int = hall["front"]
+	var hall: Hall = w.halls[best]
+	var inside: Rect2i = hall.inside
+	var front: int = hall.front
 	var wall: int = inside.position.x if front > 0 else inside.end.x - 1
 	return Vector2i(wall + front * WAY_ON_SEAT, inside.end.y - 1)
 
@@ -488,7 +488,7 @@ static func populate(w: LevelGen, def: NextWorldDef) -> void:
 ## where the department's portals lead), or -1 for none.
 static func first_of(w: LevelGen, dept: StringName) -> int:
 	for i: int in range(w.halls.size()):
-		if w.halls[i]["kind"] == &"lecture" and w.halls[i]["dept"] == dept:
+		if w.halls[i].kind == &"lecture" and w.halls[i].dept == dept:
 			return i
 	return -1
 
@@ -523,16 +523,16 @@ static func department_row(def: NextWorldDef, dept: StringName, i: int) -> int:
 ## desk (StudyDesk) before the board's right end; and the corridor bells over their cords (see BELL_CLEAR).
 static func furnish(w: LevelGen, def: NextWorldDef) -> void:
 	for i: int in range(w.halls.size()):
-		var hall: Dictionary = w.halls[i]
-		var inside: Rect2i = hall["inside"]
+		var hall: Hall = w.halls[i]
+		var inside: Rect2i = hall.inside
 		var bottom: int = inside.end.y - 1
-		match hall["kind"]:
+		match hall.kind:
 			&"lecture":
-				var front: int = hall["front"]
+				var front: int = hall.front
 				var wall: int = inside.position.x if front > 0 else inside.end.x - 1
 				# Every classroom has its department's portal, all of a department's leading to the
 				# level its first classroom's deals.
-				_place(w, Vector2i(wall + front, bottom), LevelGen.Type.DEPARTMENT, [hall["dept"], department_row(def, hall["dept"], first_of(w, hall["dept"]))])
+				_place(w, Vector2i(wall + front, bottom), LevelGen.Type.DEPARTMENT, [hall.dept, department_row(def, hall.dept, first_of(w, hall.dept))])
 				# Its master teaches the hall's subject now (Timetable.subject; Scholar.setup).
 				var head: Vector2i = Vector2i(wall + front * 5, bottom)
 				_place(w, head, LevelGen.Type.MASTER, {"ability": Timetable.subject(w, i, 0), "hall": i})
@@ -542,20 +542,20 @@ static func furnish(w: LevelGen, def: NextWorldDef) -> void:
 					_place(w, Vector2i(wall + front * SEATS[k], seats), kind)
 			&"library":
 				var tops: Array[int] = []
-				for v: Vector2i in hall["floors"]:
+				for v: Vector2i in hall.floors:
 					if not tops.has(v.y):
 						tops.append(v.y)
 				tops.sort()
 				if tops.is_empty():
 					continue
-				var top: Array[Vector2i] = (hall["floors"] as Array[Vector2i]).filter(func(v: Vector2i) -> bool: return v.y == tops[0])
+				var top: Array[Vector2i] = hall.floors.filter(func(v: Vector2i) -> bool: return v.y == tops[0])
 				if not top.is_empty():
 					@warning_ignore("integer_division")
 					_place(w, top[top.size() / 2], LevelGen.Type.LIBRARIAN)
 					for k: int in range(mini(HOARD, top.size())):
 						_place(w, top[k], LevelGen.Type.COIN)
 				for r: int in range(1, tops.size()):
-					var row: Array[Vector2i] = (hall["floors"] as Array[Vector2i]).filter(func(v: Vector2i) -> bool: return v.y == tops[r] and w.type_at(v) == LevelGen.Type.EMPTY)
+					var row: Array[Vector2i] = hall.floors.filter(func(v: Vector2i) -> bool: return v.y == tops[r] and w.type_at(v) == LevelGen.Type.EMPTY)
 					if not row.is_empty():
 						@warning_ignore("integer_division")
 						_place(w, row[(row.size() * 2) / 3], LevelGen.Type.STUDENT)
@@ -567,12 +567,12 @@ static func _timetable(w: LevelGen) -> void:
 	if not Timetable.kept_in(w):
 		return
 	for i: int in range(w.halls.size()):
-		var hall: Dictionary = w.halls[i]
-		var inside: Rect2i = hall["inside"]
+		var hall: Hall = w.halls[i]
+		var inside: Rect2i = hall.inside
 		var bottom: int = inside.end.y - 1
-		match hall["kind"]:
+		match hall.kind:
 			&"lecture":
-				var front: int = hall["front"]
+				var front: int = hall.front
 				var wall: int = inside.position.x if front > 0 else inside.end.x - 1
 				_place(w, Vector2i(wall + front * 2, bottom), LevelGen.Type.LECTERN, i)
 				_place(w, Vector2i(wall + front * 3, bottom), LevelGen.Type.SCHOOL_BELL, {"great": false})

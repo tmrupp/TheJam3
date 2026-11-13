@@ -28,8 +28,8 @@ func run() -> void:
 			node.queue_free()
 	# Wait out the region's title.
 	await create_timer(5.0).timeout
-	var crypt: Dictionary = info.world.crypts[0]
-	var floors: Array[Vector2i] = crypt["floors"]
+	var crypt: Crypt = info.world.crypts[0]
+	var floors: Array[Vector2i] = crypt.floors
 	var inside: Vector2 = info.cell_position(floors[mini(4, floors.size() - 1)])
 	# The font, with the wizard a step away, lit, snuffed and unprotected.
 	player.global_position = font.global_position + Vector2(-70, 0)

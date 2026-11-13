@@ -115,12 +115,12 @@ static func route(w: LevelGen, from: Vector2i, to: Vector2i) -> Array[Vector2i]:
 ## those in the half away from its lectern, from the left.
 static func seats(w: LevelGen, hall: int) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
-	var floors: Array = w.halls[hall]["floors"]
+	var floors: Array = w.halls[hall].floors
 	var bottom: int = -1
 	for v: Vector2i in floors:
 		bottom = maxi(bottom, v.y)
-	var inside: Rect2i = w.halls[hall]["inside"]
-	var front: int = int(w.halls[hall].get("front", 0))
+	var inside: Rect2i = w.halls[hall].inside
+	var front: int = int(w.halls[hall].front)
 	@warning_ignore("integer_division")
 	var middle: int = inside.position.x + inside.size.x / 2
 	for v: Vector2i in floors:
@@ -140,7 +140,7 @@ static func seats(w: LevelGen, hall: int) -> Array[Vector2i]:
 static func next_seat(w: LevelGen, origin: Vector2i, rings: int, from: Vector2i) -> Vector2i:
 	var halls: Array[int] = []
 	for i: int in range(w.halls.size()):
-		var kind: StringName = w.halls[i]["kind"]
+		var kind: StringName = w.halls[i].kind
 		if kind == &"library" or (kind == &"lecture" and Timetable.in_session(w, i, rings)):
 			halls.append(i)
 	var key: Callable = func(i: int) -> int: return posmod(Rules.level_seed(w.seed_for_colors, SHUFFLE_DEAL + rings * 131 + i * 17 + origin.x * 977 + origin.y), 1 << 24)

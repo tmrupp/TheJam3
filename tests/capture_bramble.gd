@@ -91,7 +91,7 @@ func run() -> void:
 		if b.alive:
 			bramble.bloom_on(b)
 			b.wound.hit(Bramble.BULB_HP, Vector2.RIGHT)
-	var ledge: Vector2i = info.world.shaft["ledges"][0]
+	var ledge: Vector2i = info.world.shaft.ledges[0]
 	player.global_position = info.cell_position(ledge + Vector2i.UP)
 	await until(func() -> bool: return bramble.bare >= 1.0)
 	await frames(20)

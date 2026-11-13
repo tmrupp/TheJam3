@@ -147,6 +147,7 @@ func setup(info: MapInfo, v: Vector2i, circuit: Variant) -> void:
 	var tm: TileMap = info.tile_map
 	cell_px = float(tm.tile_set.tile_size.x) * tm.global_scale.x
 	origin = info.cell_position(Vector2i.ZERO)
+	# The circuit as its cell keeps it: a copy by name (CragsArchetype.lay_circuit), with its start.
 	var c: Dictionary = circuit
 	path = c["path"]
 	gates = c["gates"]

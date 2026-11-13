@@ -18,8 +18,8 @@ func run() -> void:
 		var w: LevelGen = build(at)
 		if w == null:
 			continue
-		for crypt: Dictionary in w.crypts:
-			var box: Rect2i = crypt["box"]
+		for crypt: Crypt in w.crypts:
+			var box: Rect2i = crypt.box
 			var rows: Array[String] = []
 			for y: int in range(box.position.y - 1, box.end.y + 1):
 				var row: String = ""
@@ -27,8 +27,8 @@ func run() -> void:
 					row += _char(w, Vector2i(x, y))
 				rows.append(row)
 			var trials: Array = []
-			for trial: Dictionary in crypt.get("trials", []):
-				trials.append([String(trial["kind"]), str(trial["rect"])])
+			for trial: CryptTrial in crypt.trials:
+				trials.append([String(trial.kind), str(trial.rect)])
 			out.append({"place": [at.x, at.y], "fontless": Rules.fontless_at(at), "rows": rows, "trials": trials})
 	print("JSON ", JSON.stringify(out))
 	finish()

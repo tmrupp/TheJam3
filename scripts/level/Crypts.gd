@@ -250,7 +250,7 @@ static func build(w: LevelGen) -> void:
 		var high: int = (inside[0] as Array).size()
 		var widths: Array[int] = [inside.size()]
 		for k: int in range(trials.size() - 1):
-			widths.append((trials[k]["rect"] as Rect2i).end.x + TRIAL_MARGIN)
+			widths.append(trials[k].rect.end.x + TRIAL_MARGIN)
 		widths.append_array(CROPS)
 		var sizes: Array[Vector2i] = []
 		for wide: int in widths:
@@ -277,10 +277,10 @@ static func build(w: LevelGen) -> void:
 				site = {}
 			if not site.is_empty():
 				var kept: Array = []
-				for t: Dictionary in trials:
-					var rect: Rect2i = t["rect"]
+				for t: CryptTrial in trials:
+					var rect: Rect2i = t.rect
 					if rect.end.x <= size.x and rect.position.y >= top:
-						kept.append({"kind": t["kind"], "rect": Rect2i(rect.position - Vector2i(0, top), rect.size)})
+						kept.append(CryptTrial.make(t.kind, Rect2i(rect.position - Vector2i(0, top), rect.size)))
 				site["trials"] = kept
 				_raise(w, cut, site)
 				break
@@ -362,7 +362,7 @@ static func _set_trials(w: LevelGen, inside: Array, i: int, guard: Dictionary) -
 				guard[Vector2i(x + dx, y + dy)] = true
 		for mouth: Vector2i in _frame(kinds[k], inside, rect):
 			_mouth(inside, rect, mouth, guard)
-		out.append({"kind": kinds[k], "rect": rect})
+		out.append(CryptTrial.make(kinds[k], rect))
 		x = rect.end.x + TRIAL_GAP + posmod(Rules.level_seed(w.seed_for_colors, TRIAL_DEAL + 70 + i * 10 + k), 3)
 	return out
 
@@ -736,8 +736,8 @@ static func _raise(w: LevelGen, inside: Array, site: Dictionary) -> void:
 				_rock_at(w, v)
 				w.masonry[v] = true
 	var spare: Array = []
-	for trial: Dictionary in site.get("trials", []):
-		var rect: Rect2i = trial["rect"]
+	for trial: CryptTrial in site.get("trials", []):
+		var rect: Rect2i = trial.rect
 		spare.append(Rect2i(rect.position + room.position, rect.size))
 	var floors: Array[Vector2i] = _fill_pits(w, room, doors, spare, inner)
 	var stairs: Array[Vector2i] = []
@@ -776,28 +776,28 @@ static func _raise(w: LevelGen, inside: Array, site: Dictionary) -> void:
 				w.interiors[v] = true
 	for x: int in range(box.position.x, box.end.x):
 		for y: int in range(box.position.y, box.end.y):
-			w.kept_whole[Vector2i(x, y)] = true
-			w.structures[Vector2i(x, y)] = &"crypt"
+			w.claim(Vector2i(x, y), Claims.KEPT)
+			w.claim(Vector2i(x, y), Claims.STRUCTURE, &"crypt")
 			w.empties.erase(Vector2i(x, y))
 	for c: Vector2i in passages:
-		w.kept_whole[c] = true
+		w.claim(c, Claims.KEPT)
 		w.empties.erase(c)
-		w.kept_whole[c + Vector2i.DOWN] = true
+		w.claim(c + Vector2i.DOWN, Claims.KEPT)
 	for v: Vector2i in steps:
-		w.kept_whole[v] = true
-		w.kept_whole[v + Vector2i.DOWN] = true
+		w.claim(v, Claims.KEPT)
+		w.claim(v + Vector2i.DOWN, Claims.KEPT)
 	# A trial no doorway reaches was filled with rock with the rest out of reach (above): it is no
 	# trial of this crypt's.
 	var trials: Array = []
-	for trial: Dictionary in site.get("trials", []):
-		var rect: Rect2i = Rect2i((trial["rect"] as Rect2i).position + room.position, (trial["rect"] as Rect2i).size)
+	for trial: CryptTrial in site.get("trials", []):
+		var rect: Rect2i = Rect2i(trial.rect.position + room.position, trial.rect.size)
 		var left: bool = false
 		for x: int in range(rect.position.x, rect.end.x):
 			for y: int in range(rect.position.y, rect.end.y):
 				left = left or not w.is_ground(Vector2i(x, y))
 		if left:
-			trials.append({"kind": trial["kind"], "rect": rect})
-	var crypt: Dictionary = {"box": box, "inside": cells, "doors": doors, "steps": steps, "floors": floors, "deep": floors.back() if not floors.is_empty() else Vector2i(-1, -1), "stairs": stairs, "trials": trials}
+			trials.append(CryptTrial.make(trial.kind, rect))
+	var crypt: Crypt = Crypt.make(box, cells, doors, steps, floors, floors.back() if not floors.is_empty() else Structure.NONE, stairs, trials)
 	w.crypts.append(crypt)
 	_fonts(w, crypt)
 	_door_blocks(w, crypt)
@@ -941,13 +941,13 @@ static func _hops(w: LevelGen, stand: Array[Vector2i], from: Array[Vector2i], ba
 ## level's, for the necromancer's gate level.
 static func furnish(w: LevelGen, def: NextWorldDef) -> void:
 	for i: int in range(w.crypts.size()):
-		var crypt: Dictionary = w.crypts[i]
-		var floors: Array[Vector2i] = crypt["floors"]
+		var crypt: Crypt = w.crypts[i]
+		var floors: Array[Vector2i] = crypt.floors
 		if floors.is_empty():
 			continue
 		if i == 0 and def.gate == &"necromancer" and not Worlds.is_side(def.coord):
 			continue
-		var deep: Vector2i = crypt["deep"]
+		var deep: Vector2i = crypt.deep
 		var cluster: Variant = _cluster(w)
 		if cluster != null:
 			w.move_object(cluster, deep)
@@ -975,11 +975,11 @@ static func prize_kind(level_seed: int, i: int) -> StringName:
 
 ## Lay `crypt`'s prize of `kind` on its deepest free floor (not its deepest floor, the cluster's or
 ## hoard's; for a large font, with air over it too).
-static func _prize(w: LevelGen, crypt: Dictionary, kind: StringName) -> void:
-	var floors: Array[Vector2i] = crypt["floors"]
+static func _prize(w: LevelGen, crypt: Crypt, kind: StringName) -> void:
+	var floors: Array[Vector2i] = crypt.floors
 	for k: int in range(floors.size() - 1, -1, -1):
 		var v: Vector2i = floors[k]
-		if v == crypt["deep"] or w.type_at(v) != LevelGen.Type.EMPTY:
+		if v == crypt.deep or w.type_at(v) != LevelGen.Type.EMPTY:
 			continue
 		if kind == &"font" and (not w.is_valid(v + Vector2i.UP) or w.type_at(v + Vector2i.UP) != LevelGen.Type.EMPTY or w.is_ground(v + Vector2i.UP)):
 			continue
@@ -990,14 +990,14 @@ static func _prize(w: LevelGen, crypt: Dictionary, kind: StringName) -> void:
 				w.put(v, LevelGen.Type.KEY, Keys.SKELETON)
 			_:
 				w.put(v, LevelGen.Type.SNUFFER, {"charges": Rules.FONT_LARGE})
-		crypt["prize"] = v
+		crypt.prize = v
 		return
 
 
 ## Whether cell `v` lies in one of `crypt`'s trials.
-static func in_trial(crypt: Dictionary, v: Vector2i) -> bool:
-	for trial: Dictionary in crypt.get("trials", []):
-		if (trial["rect"] as Rect2i).has_point(v):
+static func in_trial(crypt: Crypt, v: Vector2i) -> bool:
+	for trial: CryptTrial in crypt.trials:
+		if trial.rect.has_point(v):
 			return true
 	return false
 
@@ -1005,9 +1005,9 @@ static func in_trial(crypt: Dictionary, v: Vector2i) -> bool:
 ## A star in each of `crypt`'s trials where it is hardest to reach: on a free cell of it with thorns
 ## beside or under it (or two under), the nearest its middle (for a well, the highest), ties to the
 ## left.
-static func _lures(w: LevelGen, crypt: Dictionary) -> void:
-	for trial: Dictionary in crypt.get("trials", []):
-		var rect: Rect2i = trial["rect"]
+static func _lures(w: LevelGen, crypt: Crypt) -> void:
+	for trial: CryptTrial in crypt.trials:
+		var rect: Rect2i = trial.rect
 		var mid: Vector2i = rect.get_center()
 		var best: Variant = null
 		var best_key: int = 1 << 30
@@ -1019,7 +1019,7 @@ static func _lures(w: LevelGen, crypt: Dictionary) -> void:
 				var thorny: bool = [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.DOWN * 2].any(func(d: Vector2i) -> bool: return w.is_valid(v + d) and w.type_at(v + d) == LevelGen.Type.SPIKES)
 				if not thorny:
 					continue
-				var key: int = (y * 1000 + x) if trial["kind"] == &"well" else (LevelGen.dist(v, mid) * 1000 + x)
+				var key: int = (y * 1000 + x) if trial.kind == &"well" else (LevelGen.dist(v, mid) * 1000 + x)
 				if key < best_key:
 					best_key = key
 					best = v
@@ -1031,15 +1031,15 @@ static func _lures(w: LevelGen, crypt: Dictionary) -> void:
 ## crypt already; or null.
 static func _cluster(w: LevelGen) -> Variant:
 	for v: Vector2i in w.objects:
-		var in_vault: bool = w.vaults.any(func(vault: Dictionary) -> bool: return (vault["room"] as Array).has(v))
+		var in_vault: bool = w.vaults.any(func(vault: Vault) -> bool: return vault.room.has(v))
 		if w.type_at(v) == LevelGen.Type.CLUSTER and w.structures.get(v, &"") != &"crypt" and not in_vault:
 			return v
 	return null
 
 
 ## A hoard of HOARD stars on `crypt`'s deepest free floors.
-static func _hoard(w: LevelGen, crypt: Dictionary) -> void:
-	var floors: Array[Vector2i] = crypt["floors"]
+static func _hoard(w: LevelGen, crypt: Crypt) -> void:
+	var floors: Array[Vector2i] = crypt.floors
 	var n: int = 0
 	for i: int in range(floors.size() - 1, -1, -1):
 		if n >= HOARD:
@@ -1051,9 +1051,9 @@ static func _hoard(w: LevelGen, crypt: Dictionary) -> void:
 
 ## The stars to find in `crypt` (see STARS_PER), on its free floors: ledges first, then the floors
 ## furthest from a doorway, ties dealt by the seed.
-static func _stars(w: LevelGen, crypt: Dictionary) -> void:
-	var floors: Array[Vector2i] = crypt["floors"]
-	var doors: Array[Vector2i] = crypt["doors"]
+static func _stars(w: LevelGen, crypt: Crypt) -> void:
+	var floors: Array[Vector2i] = crypt.floors
+	var doors: Array[Vector2i] = crypt.doors
 	var want: int = maxi(1, floori(float(floors.size()) / float(STARS_PER)))
 	var spots: Array[Vector2i] = floors.filter(func(v: Vector2i) -> bool: return w.type_at(v) == LevelGen.Type.EMPTY)
 	var key: Callable = func(v: Vector2i) -> int:
@@ -1074,10 +1074,10 @@ static func _stars(w: LevelGen, crypt: Dictionary) -> void:
 
 ## The alternating thorns along `crypt`'s floors (see THORN_STRETCH): each stretch of free floor
 ## side by side, a cell clear at each end (or the start), in blocks taking turns.
-static func _thorns(w: LevelGen, crypt: Dictionary) -> void:
-	var doors: Array[Vector2i] = crypt["doors"]
+static func _thorns(w: LevelGen, crypt: Crypt) -> void:
+	var doors: Array[Vector2i] = crypt.doors
 	var free: Dictionary = {}
-	for v: Vector2i in crypt["floors"]:
+	for v: Vector2i in crypt.floors:
 		if w.type_at(v) == LevelGen.Type.EMPTY and not in_trial(crypt, v) and doors.all(func(d: Vector2i) -> bool: return LevelGen.dist(d, v) > THORN_CLEAR):
 			free[v] = true
 	var starts: Array[Vector2i] = []
@@ -1085,7 +1085,7 @@ static func _thorns(w: LevelGen, crypt: Dictionary) -> void:
 		if not free.has(v + Vector2i.LEFT):
 			starts.append(v)
 	starts.sort()
-	var box: Rect2i = crypt["box"]
+	var box: Rect2i = crypt.box
 	var base: float = float(posmod(Rules.level_seed(w.seed_for_colors, THORN_DEAL + box.position.x * 977 + box.position.y), 1000)) / 1000.0 * Rules.THORN_CYCLE
 	var block: int = 0
 	for start: Vector2i in starts:
@@ -1106,8 +1106,8 @@ static func _thorns(w: LevelGen, crypt: Dictionary) -> void:
 ## The skeletons asleep in `crypt` (see the consts), on free floors: niches (rock over them and on
 ## one side) first, then the rest, then those nearer a doorway than SKELETON_CLEAR, and only then
 ## those in its trials, each in an order dealt by the seed.
-static func _sleepers(w: LevelGen, crypt: Dictionary, deep: Vector2i) -> void:
-	var floors: Array[Vector2i] = crypt["floors"]
+static func _sleepers(w: LevelGen, crypt: Crypt, deep: Vector2i) -> void:
+	var floors: Array[Vector2i] = crypt.floors
 	var want: int = maxi(SKELETONS_MIN, roundi(float(floors.size()) / float(SKELETONS_PER) * Difficulty.foes()))
 	var chosen: Array[Vector2i] = []
 	for v: Vector2i in _sleeper_spots(w, crypt, deep):
@@ -1120,9 +1120,9 @@ static func _sleepers(w: LevelGen, crypt: Dictionary, deep: Vector2i) -> void:
 
 ## The free floors of `crypt` a skeleton may sleep on (not its deepest, `deep`), in the order
 ## _sleepers takes them.
-static func _sleeper_spots(w: LevelGen, crypt: Dictionary, deep: Vector2i) -> Array[Vector2i]:
-	var floors: Array[Vector2i] = crypt["floors"]
-	var doors: Array[Vector2i] = crypt["doors"]
+static func _sleeper_spots(w: LevelGen, crypt: Crypt, deep: Vector2i) -> Array[Vector2i]:
+	var floors: Array[Vector2i] = crypt.floors
+	var doors: Array[Vector2i] = crypt.doors
 	var spots: Array[Vector2i] = floors.filter(func(v: Vector2i) -> bool: return v != deep and w.type_at(v) == LevelGen.Type.EMPTY)
 	var key: Callable = func(v: Vector2i) -> int:
 		var niche: bool = w.is_ground(v + Vector2i.UP) and (w.is_ground(v + Vector2i.LEFT) or w.is_ground(v + Vector2i.RIGHT))
@@ -1134,8 +1134,8 @@ static func _sleeper_spots(w: LevelGen, crypt: Dictionary, deep: Vector2i) -> Ar
 
 ## A crypt too small for SKELETONS_MIN skeletons SKELETON_APART apart: the rest of the least, on
 ## its free floors left once its stars are laid, in _sleepers' order, however near another.
-static func _least_sleepers(w: LevelGen, crypt: Dictionary, deep: Vector2i) -> void:
-	var floors: Array[Vector2i] = crypt["floors"]
+static func _least_sleepers(w: LevelGen, crypt: Crypt, deep: Vector2i) -> void:
+	var floors: Array[Vector2i] = crypt.floors
 	var asleep: int = floors.filter(func(v: Vector2i) -> bool: return w.type_at(v) == LevelGen.Type.SKELETON).size()
 	for v: Vector2i in _sleeper_spots(w, crypt, deep):
 		if asleep >= SKELETONS_MIN:
@@ -1148,27 +1148,27 @@ static func _least_sleepers(w: LevelGen, crypt: Dictionary, deep: Vector2i) -> v
 ## the crypt, and another on the floor inside nearest each
 ## doorway: laid as the crypt is built, before anything else takes the floors by its doorways, and
 ## kept whole (with the rock under it).
-static func _fonts(w: LevelGen, crypt: Dictionary) -> void:
-	var box: Rect2i = crypt["box"]
-	var doors: Array[Vector2i] = crypt["doors"]
+static func _fonts(w: LevelGen, crypt: Crypt) -> void:
+	var box: Rect2i = crypt.box
+	var doors: Array[Vector2i] = crypt.doors
 	for door: Vector2i in doors:
-		var inner: Variant = w.best_of(crypt["floors"], func(v: Vector2i) -> int: return LevelGen.dist(v, door),
+		var inner: Variant = w.best_of(crypt.floors, func(v: Vector2i) -> int: return LevelGen.dist(v, door),
 				func(v: Vector2i) -> bool: return v != door and not doors.has(v) and w.type_at(v) == LevelGen.Type.EMPTY)
 		if inner != null:
 			w.put(inner, LevelGen.Type.SNUFFER)
-	for step: Vector2i in crypt["steps"]:
+	for step: Vector2i in crypt.steps:
 		var spot: Variant = w.best_of(w.free_floors(), func(v: Vector2i) -> int: return LevelGen.dist(v, step),
 				func(v: Vector2i) -> bool: return LevelGen.dist(v, step) <= FONT_FAR and not box.grow(1).has_point(v) and not w._crowds_exit(v))
 		if spot != null:
 			w.put(spot, LevelGen.Type.SNUFFER)
-			w.kept_whole[spot] = true
-			w.kept_whole[(spot as Vector2i) + Vector2i.DOWN] = true
+			w.claim(spot, Claims.KEPT)
+			w.claim((spot as Vector2i) + Vector2i.DOWN, Claims.KEPT)
 
 
 ## Each of `crypt`'s doorways a shade block, a sun block or open, dealt by the seed (see
 ## SHADE_DOOR_SHARE).
-static func _door_blocks(w: LevelGen, crypt: Dictionary) -> void:
-	for door: Vector2i in crypt["doors"]:
+static func _door_blocks(w: LevelGen, crypt: Crypt) -> void:
+	for door: Vector2i in crypt.doors:
 		var roll: float = float(posmod(Rules.level_seed(w.seed_for_colors, DOOR_DEAL + door.x * 977 + door.y), 1000)) / 1000.0
 		if roll < SHADE_DOOR_SHARE:
 			w.put(door, LevelGen.Type.PHASE_BLOCK, false)
@@ -1226,8 +1226,8 @@ static func phase(w: LevelGen, def: NextWorldDef) -> void:
 	if Rules.ossuary_at(def.coord) and w.crypts.size() >= 2:
 		_ossuary(w, 1, Rules.ossuary_fill(def.coord.y))
 	for i: int in range(w.crypts.size()):
-		var crypt: Dictionary = w.crypts[i]
-		if (crypt["floors"] as Array).is_empty() or (i == 0 and def.gate == &"necromancer" and not Worlds.is_side(def.coord)):
+		var crypt: Crypt = w.crypts[i]
+		if crypt.floors.is_empty() or (i == 0 and def.gate == &"necromancer" and not Worlds.is_side(def.coord)):
 			continue
 		_phase_stairs(w, crypt)
 		_phase_trials(w, crypt)
@@ -1249,10 +1249,10 @@ static func _block(w: LevelGen, v: Vector2i, sun: bool) -> void:
 
 ## Each doorway of crypt `i` an ossuary door drinking `fill` charges.
 static func _ossuary(w: LevelGen, i: int, fill: int) -> void:
-	var crypt: Dictionary = w.crypts[i]
-	if (crypt["floors"] as Array).is_empty():
+	var crypt: Crypt = w.crypts[i]
+	if crypt.floors.is_empty():
 		return
-	for door: Vector2i in crypt["doors"]:
+	for door: Vector2i in crypt.doors:
 		if w.type_at(door) == LevelGen.Type.EMPTY:
 			w.put(door, LevelGen.Type.OSSUARY_DOOR, [i, fill])
 			w.empties.erase(door)
@@ -1261,32 +1261,32 @@ static func _ossuary(w: LevelGen, i: int, fill: int) -> void:
 
 
 ## The crypt's steps turned to blocks of each kind in turn, from the lowest (see STAIRS_MIN).
-static func _phase_stairs(w: LevelGen, crypt: Dictionary) -> void:
+static func _phase_stairs(w: LevelGen, crypt: Crypt) -> void:
 	var stairs: Array[Vector2i] = []
-	for s: Vector2i in crypt["stairs"]:
+	for s: Vector2i in crypt.stairs:
 		var top: Vector2i = s + Vector2i.UP
 		if w.is_ground(s) and w.is_valid(top) and not w.is_ground(top) and w.type_at(top) in [LevelGen.Type.EMPTY, LevelGen.Type.COIN]:
 			stairs.append(s)
 	if stairs.size() < STAIRS_MIN:
 		return
 	stairs.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y > b.y or (a.y == b.y and a.x < b.x))
-	var box: Rect2i = crypt["box"]
+	var box: Rect2i = crypt.box
 	var sun: bool = _roll(w, STAIRS_DEAL, box.position) < 0.5
 	for s: Vector2i in stairs:
 		w._to_open(s)
 		w.interiors[s] = true
-		(crypt["inside"] as Array[Vector2i]).append(s)
+		crypt.inside.append(s)
 		_block(w, s, sun)
 		sun = not sun
 
 
 ## The sun and shade blocks of the crypt's trials (see the class description), the kinds taking
 ## turns from a kind dealt by the seed for each trial (STONE_DEAL).
-static func _phase_trials(w: LevelGen, crypt: Dictionary) -> void:
-	for trial: Dictionary in crypt.get("trials", []):
-		var rect: Rect2i = trial["rect"]
+static func _phase_trials(w: LevelGen, crypt: Crypt) -> void:
+	for trial: CryptTrial in crypt.trials:
+		var rect: Rect2i = trial.rect
 		var sun: bool = _roll(w, STONE_DEAL, rect.position) < 0.5
-		match trial["kind"]:
+		match trial.kind:
 			&"pit":
 				_phase_pit(w, crypt, rect, sun)
 			&"well":
@@ -1296,11 +1296,11 @@ static func _phase_trials(w: LevelGen, crypt: Dictionary) -> void:
 
 
 ## Rock at `v` in `crypt` made open air, to set a block in (or leave open).
-static func _hollow(w: LevelGen, crypt: Dictionary, v: Vector2i) -> void:
+static func _hollow(w: LevelGen, crypt: Crypt, v: Vector2i) -> void:
 	w._to_open(v)
 	w.interiors[v] = true
 	w.empties.erase(v)
-	(crypt["inside"] as Array[Vector2i]).append(v)
+	crypt.inside.append(v)
 
 
 ## A pit worn down to stones: each pillar between its ends (the highest rock in each column, on the
@@ -1308,7 +1308,7 @@ static func _hollow(w: LevelGen, crypt: Dictionary, v: Vector2i) -> void:
 ## nothing, the rest of that column air and, on its thorn row, thorns, the kinds taking turns from
 ## the left (from `sun`). So a pillar a cell across is a stone, and a wider one keeps rock to rest
 ## on beside its stone.
-static func _phase_pit(w: LevelGen, crypt: Dictionary, rect: Rect2i, sun: bool) -> void:
+static func _phase_pit(w: LevelGen, crypt: Crypt, rect: Rect2i, sun: bool) -> void:
 	var thorn_row: int = rect.end.y - 2
 	var tops: Dictionary = {}
 	for x: int in range(rect.position.x + 1, rect.end.x - 1):
@@ -1335,7 +1335,7 @@ static func _phase_pit(w: LevelGen, crypt: Dictionary, rect: Rect2i, sun: bool) 
 ## A well's ledges made blocks: each ledge (the rock out from a wall, open over it), but its foot's
 ## and those its head exits open over, of one kind on the left wall (`sun`) and the other on the
 ## right, so each hop up switches the light.
-static func _phase_well(w: LevelGen, crypt: Dictionary, rect: Rect2i, sun: bool) -> void:
+static func _phase_well(w: LevelGen, crypt: Crypt, rect: Rect2i, sun: bool) -> void:
 	for left: bool in [true, false]:
 		var col: int = rect.position.x + 1 if left else rect.end.x - 2
 		var out: int = 1 if left else -1
@@ -1376,9 +1376,9 @@ static func _phase_crawl(w: LevelGen, rect: Rect2i, sun: bool) -> void:
 
 
 ## Shade floors over the crypt's runs of thorns (see SHADE_FLOOR_SHARE).
-static func _shade_floors(w: LevelGen, crypt: Dictionary) -> void:
+static func _shade_floors(w: LevelGen, crypt: Crypt) -> void:
 	var thorns: Dictionary = {}
-	for v: Vector2i in crypt["floors"]:
+	for v: Vector2i in crypt.floors:
 		if w.type_at(v) == LevelGen.Type.SPIKES:
 			thorns[v] = true
 	var starts: Array[Vector2i] = []
@@ -1403,11 +1403,11 @@ static func _shade_floors(w: LevelGen, crypt: Dictionary) -> void:
 ## Phase walls across the crypt's low passages (see PHASE_WALLS): the cells of each, a run of one or
 ## two open cells with rock over and under, open to either side at its foot, away from a doorway;
 ## the lowest passages first, then by the seed.
-static func _phase_walls(w: LevelGen, crypt: Dictionary) -> void:
-	var doors: Array[Vector2i] = crypt["doors"]
+static func _phase_walls(w: LevelGen, crypt: Crypt) -> void:
+	var doors: Array[Vector2i] = crypt.doors
 	var walls: Array = []
-	for v: Vector2i in crypt["floors"]:
-		if not _free(w, v) or v == crypt["deep"] or in_trial(crypt, v) or doors.any(func(d: Vector2i) -> bool: return LevelGen.dist(d, v) <= 2):
+	for v: Vector2i in crypt.floors:
+		if not _free(w, v) or v == crypt.deep or in_trial(crypt, v) or doors.any(func(d: Vector2i) -> bool: return LevelGen.dist(d, v) <= 2):
 			continue
 		if w.is_ground(v + Vector2i.LEFT) or w.is_ground(v + Vector2i.RIGHT):
 			continue
@@ -1433,14 +1433,14 @@ static func _phase_walls(w: LevelGen, crypt: Dictionary) -> void:
 
 ## A star of the crypt shut in sun blocks (see POCKET_SHARE): one standing on a floor, walled
 ## wherever it is open beside and over it, with at least two sides to wall; by the seed.
-static func _pocket(w: LevelGen, crypt: Dictionary) -> void:
-	var box: Rect2i = crypt["box"]
+static func _pocket(w: LevelGen, crypt: Crypt) -> void:
+	var box: Rect2i = crypt.box
 	if _roll(w, POCKET_DEAL, box.position) >= POCKET_SHARE:
 		return
 	var best: Variant = null
 	var best_key: float = INF
-	for v: Vector2i in crypt["floors"]:
-		if v == crypt["deep"] or w.type_at(v) != LevelGen.Type.COIN or in_trial(crypt, v):
+	for v: Vector2i in crypt.floors:
+		if v == crypt.deep or w.type_at(v) != LevelGen.Type.COIN or in_trial(crypt, v):
 			continue
 		var around: Array[Vector2i] = []
 		var fits: bool = true

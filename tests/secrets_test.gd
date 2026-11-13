@@ -10,20 +10,20 @@ extends TestKit
 ## Whether every secret in `w` is a pocket of rock with rock under it, entered from a floor.
 func well_formed(w: LevelGen) -> bool:
 	for id: int in range(w.secrets.size()):
-		var s: Dictionary = w.secrets[id]
+		var s: SecretRoom = w.secrets[id]
 		var cells: Dictionary = {}
-		for c: Vector2i in s["room"] + s["entrance"]:
+		for c: Vector2i in s.room + s.entrance:
 			cells[c] = true
 			if w.get_cell(c).type != LevelGen.Type.CRACKED or int(w.get_cell(c).extra_info) != id:
 				return false
 		# Rock under its floor, so it has one once opened.
-		for c: Vector2i in s["room"]:
+		for c: Vector2i in s.room:
 			var n: Vector2i = c + Vector2i.DOWN
 			if cells.has(n) or not w.is_valid(n):
 				continue
 			if w.get_cell(n).type != LevelGen.Type.GROUND and w.get_cell(n).type != LevelGen.Type.CRACKED:
 				return false
-		var door: Vector2i = s["entrance"][0]
+		var door: Vector2i = s.entrance[0]
 		var beside: bool = false
 		for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT]:
 			var o: Vector2i = door + d
@@ -31,8 +31,8 @@ func well_formed(w: LevelGen) -> bool:
 				beside = true
 		if not beside:
 			return false
-		for r: Array in s["rewards"]:
-			if not (s["room"] as Array).has(r[0]):
+		for r: Array in s.rewards:
+			if not s.room.has(r[0]):
 				return false
 	return true
 
@@ -60,9 +60,9 @@ func run() -> void:
 			formed = formed and well_formed(w)
 			if def.relic != &"":
 				relic_levels += 1
-				var held: bool = w.secrets.any(func(s: Dictionary) -> bool: return (s["rewards"] as Array).any(func(r: Array) -> bool: return r[1] == LevelGen.Type.RELIC and StringName(r[2]) == def.relic))
+				var held: bool = w.secrets.any(func(s: SecretRoom) -> bool: return s.rewards.any(func(r: Array) -> bool: return r[1] == LevelGen.Type.RELIC and StringName(r[2]) == def.relic))
 				# Or behind a bone gate instead (bones_test).
-				var gated: bool = w.vaults.any(func(v: Dictionary) -> bool: return int(v["color"]) == KeyRing.SKELETON and (v["room"] as Array).any(func(c: Vector2i) -> bool: return w.get_cell(c).type == LevelGen.Type.RELIC))
+				var gated: bool = w.vaults.any(func(v: Vault) -> bool: return int(v.color) == KeyRing.SKELETON and v.room.any(func(c: Vector2i) -> bool: return w.get_cell(c).type == LevelGen.Type.RELIC))
 				if held or gated:
 					relic_in_room += 1
 				if held:
@@ -76,7 +76,7 @@ func run() -> void:
 		var def: NextWorldDef = Rules.def_for(Vector2i(relic_seed, first_row))
 		var w: LevelGen = LevelGen.new(collapse(def.coord), def)
 		relic_levels += 1
-		if w.secrets.any(func(s: Dictionary) -> bool: return (s["rewards"] as Array).any(func(r: Array) -> bool: return r[1] == LevelGen.Type.RELIC and StringName(r[2]) == def.relic)):
+		if w.secrets.any(func(s: SecretRoom) -> bool: return s.rewards.any(func(r: Array) -> bool: return r[1] == LevelGen.Type.RELIC and StringName(r[2]) == def.relic)):
 			relic_in_room += 1
 	print("  %d levels, %d with a secret room; %d relic levels, %d with the relic in a room" % [levels, with_secret, relic_levels, relic_in_room])
 	check(with_secret >= levels * 9 / 10, "nearly every level has a secret room")
@@ -104,8 +104,8 @@ func run() -> void:
 
 	print("an empowered hex bolt reveals a secret room (a plain one does not)")
 	check(not info.world.secrets.is_empty(), "the first level has a secret room")
-	var first: Dictionary = info.world.secrets[0]
-	var entry: Vector2i = first["entrance"][0]
+	var first: SecretRoom = info.world.secrets[0]
+	var entry: Vector2i = first.entrance[0]
 	var stand: Vector2i = beside(entry)
 	player.global_position = info.cell_position(stand)
 	await physics_frame
@@ -126,26 +126,26 @@ func run() -> void:
 	check((info.record().secrets as Dictionary).has(0), "an empowered bolt, striking the rock behind it, opens the room")
 	await process_frame
 	check(placed("cracked_wall.tscn").filter(func(n: Node) -> bool: return int(n.get_meta(&"secret", -1)) == 0).is_empty(), "the whole room crumbles")
-	check((first["room"] as Array).all(func(c: Vector2i) -> bool: return (info.record().broken as Dictionary).has(c)), "and stays broken in the record")
+	check(first.room.all(func(c: Vector2i) -> bool: return (info.record().broken as Dictionary).has(c)), "and stays broken in the record")
 
 	print("a false wall")
 	player.collect(100)
 	await go(Vector2i(relic_seed, first_row))
 	check(info.coord == Vector2i(relic_seed, first_row) and not info.world.secrets.is_empty(), "level (%d, %d) has a secret room" % [relic_seed, first_row])
-	var secret: Dictionary = info.world.secrets[0]
+	var secret: SecretRoom = info.world.secrets[0]
 	var hidden: Array[Node] = placed("cracked_wall.tscn").filter(func(n: Node) -> bool: return int(n.get_meta(&"secret", -1)) == 0 and bool(n.get_meta(&"hidden")))
 	var door_node: Array[Node] = placed("cracked_wall.tscn").filter(func(n: Node) -> bool: return int(n.get_meta(&"secret", -1)) == 0 and not bool(n.get_meta(&"hidden")))
-	check(hidden.size() == (secret["room"] as Array).size() and door_node.size() == 1, "its room is %d cells of hidden rock behind one false wall" % hidden.size())
+	check(hidden.size() == secret.room.size() and door_node.size() == 1, "its room is %d cells of hidden rock behind one false wall" % hidden.size())
 	check((door_node[0] as CollisionObject2D).collision_layer & player.collision_mask == 0 and (hidden[0] as CollisionObject2D).collision_layer != 0, "the false wall can be walked through; the rock behind it is solid")
 	# An enemy beside it takes it for rock, and does not wander in and give the room away.
 	# Near the wizard, as an enemy that meets it would be (far off, a chunk sleeps, its walls with it).
-	info.loader.wake_around(info.cell_position(secret["entrance"][0]))
+	info.loader.wake_around(info.cell_position(secret.entrance[0]))
 	var walker: RigidBody2D = (load("res://prefabs/abomination.tscn") as PackedScene).instantiate() as RigidBody2D
 	info.map_elements.add_child(walker)
 	walker.set_physics_process(false)
-	walker.global_position = info.cell_position(beside(secret["entrance"][0]))
+	walker.global_position = info.cell_position(beside(secret.entrance[0]))
 	await physics_frame
-	var into: Vector2 = info.cell_position(secret["entrance"][0]) - walker.global_position
+	var into: Vector2 = info.cell_position(secret.entrance[0]) - walker.global_position
 	check(walker.test_move(walker.global_transform, into), "an enemy walking at it is stopped, as by rock")
 	walker.queue_free()
 	check(placed("relic.tscn").is_empty(), "its relic is not out until it opens")
@@ -153,8 +153,8 @@ func run() -> void:
 	var map: Node = main.get_node("RisoMap")
 	map.call("_build_textures_for", info.world, info.seen(), info.record().broken)
 	var img: Image = (map.get("rock") as Sprite2D).texture.get_image()
-	var room_cell: Vector2i = secret["room"][0]
-	var door: Vector2i = secret["entrance"][0]
+	var room_cell: Vector2i = secret.room[0]
+	var door: Vector2i = secret.entrance[0]
 	check(img.get_pixel(room_cell.x, room_cell.y).a > 0.5 and img.get_pixel(door.x, door.y).a > 0.5, "an inked map shows the room and its false wall as rock")
 	player.global_position = info.cell_position(beside(door))
 	await frames(3)
@@ -166,8 +166,8 @@ func run() -> void:
 	var relics: Array[Node] = placed("relic.tscn")
 	check(relics.size() == 1 and StringName(relics[0].get("ability")) == info.here.relic, "the relic (%s) is out" % info.here.relic)
 	# Stars beside it, or, in a room too small for more, the skeleton key that took a star's place.
-	var stars_in_room: int = placed("coin.tscn").filter(func(n: Node) -> bool: return (secret["room"] as Array).has(n.get_meta(&"cell"))).size()
-	var keys_in_room: int = placed("key.tscn").filter(func(n: Node) -> bool: return (secret["room"] as Array).has(n.get_meta(&"cell"))).size()
+	var stars_in_room: int = placed("coin.tscn").filter(func(n: Node) -> bool: return secret.room.has(n.get_meta(&"cell"))).size()
+	var keys_in_room: int = placed("key.tscn").filter(func(n: Node) -> bool: return secret.room.has(n.get_meta(&"cell"))).size()
 	check(stars_in_room + keys_in_room > 0, "with %d stars and %d key(s)" % [stars_in_room, keys_in_room])
 
 	print("the relic")

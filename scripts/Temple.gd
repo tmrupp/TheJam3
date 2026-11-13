@@ -84,9 +84,9 @@ func use() -> void:
 	map_info.record().temple_open = true
 	WhaleHunt.start(map_info.run, map_info.coord)
 	# Its hoard appears in its hall.
-	for b: Dictionary in map_info.world.temples:
-		if has_meta(&"cell") and b["altar"] == get_meta(&"cell"):
-			for v: Vector2i in b["hoard"]:
+	for b: TempleSite in map_info.world.temples:
+		if has_meta(&"cell") and b.altar == get_meta(&"cell"):
+			for v: Vector2i in b.hoard:
 				map_info.loader.place_cell(v, map_info.world.get_cell(v))
 	map_info.save_run()
 	since_open = 0.0

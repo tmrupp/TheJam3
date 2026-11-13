@@ -42,13 +42,13 @@ func count(w: LevelGen, type: LevelGen.Type) -> int:
 
 ## Whether `v` is inside one of the level's vaults (whose loot is checked in vaults_test).
 func in_vault(w: LevelGen, v: Vector2i) -> bool:
-	return w.vaults.any(func(vault: Dictionary) -> bool: return (vault["room"] as Array).has(v))
+	return w.vaults.any(func(vault: Vault) -> bool: return vault.room.has(v))
 
 
 func vault_count(w: LevelGen, type: LevelGen.Type) -> int:
 	var n: int = 0
-	for vault: Dictionary in w.vaults:
-		for v: Vector2i in vault["room"]:
+	for vault: Vault in w.vaults:
+		for v: Vector2i in vault.room:
 			if w.get_cell(v).type == type:
 				n += 1
 	return n
@@ -92,17 +92,17 @@ func generation() -> void:
 			check(w.exit_lanterns.keys().all(func(e: int) -> bool: return e == MapInfo.Exit.BACK), label + ": only the way back has a lantern beside it")
 			with_lantern += w.exit_lanterns.size()
 			levels += 1
-			var barrier_rewards: int = w.barriers.filter(func(b: Dictionary) -> bool: return w.get_cell(b["reward"]).type == LevelGen.Type.CLUSTER).size()
+			var barrier_rewards: int = w.barriers.filter(func(b: Barrier) -> bool: return w.get_cell(b.reward).type == LevelGen.Type.CLUSTER).size()
 			check(count(w, LevelGen.Type.CLUSTER) - vault_count(w, LevelGen.Type.CLUSTER) - barrier_rewards == 1, label + ": one star cluster (besides any in vaults and barriers)")
 			var keys: int = 0
 			for v: Vector2i in w.objects:
 				var cell: LevelGen.Cell = w.get_cell(v)
 				# A crypt's prize (Crypts._prize) is its own.
-				var prize: bool = w.crypts.any(func(c: Dictionary) -> bool: return c.get("prize", Vector2i(-1, -1)) == v)
+				var prize: bool = w.crypts.any(func(c: Crypt) -> bool: return c.prize == v)
 				if cell.type == LevelGen.Type.KEY and cell.extra_info != null and int(cell.extra_info) == KeyRing.SKELETON and not in_vault(w, v) and not prize:
 					keys += 1
-			for secret: Dictionary in w.secrets:
-				for reward: Array in secret["rewards"]:
+			for secret: SecretRoom in w.secrets:
+				for reward: Array in secret.rewards:
 					if reward[1] == LevelGen.Type.KEY and int(reward[2]) == KeyRing.SKELETON:
 						keys += 1
 			check(keys == (1 if def.skeleton else 0), label + ": a skeleton key only where dealt, besides vaults (%d)" % keys)

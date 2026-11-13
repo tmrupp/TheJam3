@@ -44,8 +44,8 @@ func run() -> void:
 			for t: LevelGen.Type in FOES:
 				foes += count_of(w, t)
 			var stars: int = count_of(w, LevelGen.Type.COIN) + Rules.cluster_value(def.depth) * count_of(w, LevelGen.Type.CLUSTER)
-			for s: Dictionary in w.secrets:
-				for r: Array in s["rewards"]:
+			for s: SecretRoom in w.secrets:
+				for r: Array in s.rewards:
 					if r[1] == LevelGen.Type.COIN:
 						stars += 1
 			var keys: Dictionary = {}

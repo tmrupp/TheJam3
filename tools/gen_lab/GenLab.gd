@@ -10,8 +10,8 @@ extends Control
 ## the game itself (the whole level, as it prints) or played, the wizard at its way in. Backspace
 ## (or F10) comes back to the lab as it was left.
 ##
-## It collapses with the game's own generator (the WaveFunctionCollapse node, set as the game scene
-## sets it) and dresses with LevelGen, so what it shows is what the game would make with the same
+## It collapses with the game's own generator (WaveFunctionCollapse, a plain object of its own here)
+## and dresses with LevelGen, so what it shows is what the game would make with the same
 ## sample and settings. Nothing here changes the game until a sample is saved.
 ## godot --path . res://tools/gen_lab/gen_lab.tscn   (or open the scene in the editor and press F6)
 
@@ -612,49 +612,48 @@ func _launch() -> void:
 
 ## The worker: each level in turn, handed to the panel as it is done.
 func _work(job: Dictionary) -> void:
-	var wfc: Node = _make_wfc()
-	var texture: ImageTexture = ImageTexture.create_from_image(job["sample"])
+	var wfc: WaveFunctionCollapse = WaveFunctionCollapse.new()
+	var sample: Image = job["sample"]
 	var total: int = 0
 	for i: int in range(int(job["count"])):
 		if job["id"] != _wanted:
 			break
 		var started: int = Time.get_ticks_msec()
 		var at: Vector2i = Vector2i(int(job["first"]) + i, int(job["row"]))
-		var out: Dictionary = _level(wfc, texture, at, job)
+		var out: Dictionary = _level(wfc, sample, at, job)
 		out["ms"] = Time.get_ticks_msec() - started
 		total += int(out["ms"])
 		_got.call_deferred(job["id"], out)
-	wfc.free()
 	_finished.call_deferred(job["id"], total)
 
 
 ## Level `at` collapsed from the job's sample and settings, dressed if asked: {"at", "image" (a pixel
 ## a cell), "note", "settled"}.
-static func _level(wfc: Node, texture: ImageTexture, at: Vector2i, job: Dictionary) -> Dictionary:
+static func _level(wfc: WaveFunctionCollapse, sample: Image, at: Vector2i, job: Dictionary) -> Dictionary:
 	var def: NextWorldDef = Rules.def_for(at)
 	var level_size: Vector2i = job["size"] if job["size"] != Vector2i.ZERO else def.size
-	wfc.set("texture", texture)
-	wfc.set("output_size", level_size)
+	wfc.sample = sample
+	wfc.output_size = level_size
 	# The versions picked, by mask (the count kept to match, for an extension without masks).
 	var mask: int = int(job["symmetry_mask"])
 	var count: int = 0
 	for k: int in range(8):
 		if (mask >> k) & 1 != 0:
 			count += 1
-	wfc.set("symmetry", count)
-	wfc.set("symmetry_mask", mask)
-	wfc.set("pattern_size", int(job["pattern"]))
+	wfc.symmetry = count
+	wfc.symmetry_mask = mask
+	wfc.pattern_size = int(job["pattern"])
 	var cells: Array = []
 	var tries: int = 0
 	if def.clustered:
 		# A sheet of clusters (the sky's) is collapsed cluster by cluster, as the game does: the
 		# pattern size and symmetry above do not come into it.
 		tries = 1
-		cells = wfc.call("collapse_clusters", texture.get_image(), level_size, def.gen_seed)
+		cells = wfc.collapse_clusters(sample, level_size, def.gen_seed)
 	for attempt: int in range(0 if def.clustered else TRIES):
 		tries += 1
-		wfc.call("set_seed", def.gen_seed if attempt == 0 else Rules.level_seed(def.gen_seed, Salts.COLLAPSE_RETRY * Salts.STRIDE + attempt))
-		cells = wfc.call("collapse")
+		wfc.seed = def.gen_seed if attempt == 0 else Rules.level_seed(def.gen_seed, Salts.COLLAPSE_RETRY * Salts.STRIDE + attempt)
+		cells = wfc.collapse()
 		if not cells.is_empty():
 			break
 	if cells.is_empty():
@@ -719,20 +718,6 @@ static func _picture(cells: Array, w: LevelGen) -> Image:
 			elif t == LevelGen.Type.COIN or t == LevelGen.Type.CLUSTER:
 				img.set_pixel(x, y, SHOW_STAR)
 	return img
-
-
-## A generator set as the game scene sets its own (pattern size and the rest), out of any tree.
-static func _make_wfc() -> Node:
-	var wfc: Node = (load("res://scripts/WaveFunctionCollapse.gd") as GDScript).new() as Node
-	var state: SceneState = (load("res://prefabs/scenes/main.tscn") as PackedScene).get_state()
-	for i: int in range(state.get_node_count()):
-		if state.get_node_name(i) != &"WaveFunctionCollapse":
-			continue
-		for p: int in range(state.get_node_property_count(i)):
-			var prop: StringName = state.get_node_property_name(i, p)
-			if prop != &"script":
-				wfc.set(prop, state.get_node_property_value(i, p))
-	return wfc
 
 
 ## A level done by job `id`: shown, unless a newer job has been asked for.

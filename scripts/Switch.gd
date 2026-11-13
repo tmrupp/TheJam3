@@ -27,7 +27,7 @@ func setup(info: MapInfo, _v: Vector2i, gate: Vector2i) -> void:
 ## of the circuit's stations start shut (Gondola).
 static func starts_on(w: LevelGen, cell: Vector2i) -> bool:
 	var target: Variant = w.get_cell(cell).extra_info if w.is_valid(cell) else null
-	if target is Vector2i and (w.circuit.get("gates", []) as Array).has(target):
+	if target is Vector2i and (w.circuit.gates as Array).has(target):
 		return false
 	var roll: int = posmod(Rules.level_seed(w.seed_for_colors, START_DEAL + cell.x * 977 + cell.y), 1000)
 	return float(roll) / 1000.0 < START_ON_SHARE

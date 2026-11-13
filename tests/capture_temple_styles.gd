@@ -18,7 +18,7 @@ func run() -> void:
 	player.get_node("CameraControl").set_process(false)
 	await go(place)
 	var temple: Temple = placed("temple.tscn")[0] as Temple
-	var box: Rect2i = info.world.temples[0]["box"]
+	var box: Rect2i = info.world.temples[0].box
 	var middle: Vector2 = (info.cell_position(box.position) + info.cell_position(box.end - Vector2i.ONE)) * 0.5
 	player.global_position = info.cell_position(temple.get_meta(&"cell")) + Vector2(-260.0, 0.0)
 	info.record().temple_progress = temple.sequence.size()

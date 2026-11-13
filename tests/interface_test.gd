@@ -48,7 +48,7 @@ func run() -> void:
 	await until(func() -> bool: return neighbours.all(func(c: Vector2i) -> bool: return info.loader.cache.has(c)), 60000)
 	check(neighbours.all(func(c: Vector2i) -> bool: return info.loader.cache.has(c)), "deeper, left and right are generated in the background")
 	await until(func() -> bool: return not info.loader.gen_busy)
-	var fresh: Array = info.wfc.generate_level(Rules.def_for(Vector2i(s + 1, 0)))
+	var fresh: Array = WaveFunctionCollapse.new().generate_level(Rules.def_for(Vector2i(s + 1, 0)))
 	check(fresh == info.loader.cache[Vector2i(s + 1, 0)], "a cached level is exactly the level generated fresh")
 	var took: int = 0
 	info.travel(MapInfo.Exit.RIGHT)

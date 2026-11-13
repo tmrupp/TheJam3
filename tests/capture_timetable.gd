@@ -39,25 +39,25 @@ func run() -> void:
 	# A classroom of a department with a break in its day (botany's), shut and then in session.
 	var hall: int = -1
 	for i: int in range(info.world.halls.size()):
-		if info.world.halls[i]["kind"] == &"lecture" and info.world.halls[i]["dept"] == &"botany":
+		if info.world.halls[i].kind == &"lecture" and info.world.halls[i].dept == &"botany":
 			hall = i
 			break
 	if hall >= 0:
-		var box: Rect2i = info.world.halls[hall]["box"]
-		var door: Vector2 = info.cell_position(info.world.halls[hall]["doors"][0])
-		player.global_position = info.cell_position(info.world.halls[hall]["steps"][0])
-		while Timetable.in_session(info.world, hall, rec.rings):
+		var box: Rect2i = info.world.halls[hall].box
+		var door: Vector2 = info.cell_position(info.world.halls[hall].doors[0])
+		player.global_position = info.cell_position(info.world.halls[hall].steps[0])
+		while Timetable.in_session(info.world, hall, rec.institute.rings):
 			_ring(bell)
 			await frames(2)
 		await _look(door + Vector2(0, -60), "timetable_door_shut.png", 1.8)
 		# In session at tier III, asking for a necrology II paper the wizard lacks: shut to them, the
 		# department it wants by its plate.
 		for k: int in range(Timetable.PERIODS * 2):
-			if Timetable.in_session(info.world, hall, rec.rings):
+			if Timetable.in_session(info.world, hall, rec.institute.rings):
 				break
 			_ring(bell)
 			await frames(2)
-		rec.dept_tiers[&"botany"] = 3
+		rec.institute.dept_tiers[&"botany"] = 3
 		var need: Array = Timetable.needs(&"botany", info.institute.tier_of(hall))
 		for b: StringName in Timetable.LADDERS[need[0]]:
 			Abilities.set_tier(player, b, 0)
@@ -70,8 +70,8 @@ func run() -> void:
 		await _look(door + Vector2(0, -60), "timetable_door_open.png", 1.8)
 		await _look(info.cell_position(box.get_center()), "timetable_hall_open.png", 1.1)
 		# In: the period begins.
-		var inside: Rect2i = info.world.halls[hall]["inside"]
-		var front: int = info.world.halls[hall]["front"]
+		var inside: Rect2i = info.world.halls[hall].inside
+		var front: int = info.world.halls[hall].front
 		var wall: int = inside.position.x if front > 0 else inside.end.x - 1
 		player.global_position = info.cell_position(Vector2i(wall + front * 6, inside.end.y - 1))
 		await frames(10)
@@ -105,8 +105,8 @@ func run() -> void:
 		player.global_position = (desks[0] as Node2D).global_position + Vector2(-90, 0)
 		await frames(4)
 		_ring(bell)
-		if info.record().passing:
-			info.record().last_bell = Vector2i(-1, -1)
+		if info.record().institute.passing:
+			info.record().institute.last_bell = Vector2i(-1, -1)
 			info.institute.since_bell = SchoolBell.RING_GAP
 			bell.ring()
 		player.global_position = (desks[0] as Node2D).global_position + Vector2(-90, 0)
@@ -140,8 +140,8 @@ func run() -> void:
 		await frames(2)
 	if room >= 0:
 		Abilities.set_tier(player, &"levitate", 1)
-		var inside: Rect2i = info.world.halls[room]["inside"]
-		var box: Rect2i = info.world.halls[room]["box"]
+		var inside: Rect2i = info.world.halls[room].inside
+		var box: Rect2i = info.world.halls[room].box
 		player.global_position = info.cell_position(Vector2i(inside.position.x + 1, inside.end.y - 1))
 		player.phasing = true
 		var m: Scholar = info.institute.master_in(room)
@@ -171,7 +171,7 @@ func _lineups(bell: SchoolBell) -> void:
 	for n: Node in info.map_elements.get_children():
 		if (n is Scholar or n is Abomination or n is Coin) and (n as Node2D).global_position.distance_to(info.cell_position(at + Vector2i(4, 0))) < 900.0:
 			n.queue_free()
-	if not rec.passing:
+	if not rec.institute.passing:
 		_ring(bell)
 	var people: Array[Scholar] = []
 	var kinds: Array[String] = ["student.tscn", "master.tscn", "student.tscn", "proctor.tscn"]
@@ -200,8 +200,8 @@ func _lineups(bell: SchoolBell) -> void:
 ## Ring `bell`, as soon as it can be rung again.
 func _ring(bell: SchoolBell) -> void:
 	# A period rung round: class time in (in passing time) and out again.
-	for k: int in range(2 if info.record().passing else 1):
-		info.record().last_bell = Vector2i(-1, -1)
+	for k: int in range(2 if info.record().institute.passing else 1):
+		info.record().institute.last_bell = Vector2i(-1, -1)
 		info.institute.since_bell = SchoolBell.RING_GAP
 		bell.ring()
 

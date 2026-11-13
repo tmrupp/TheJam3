@@ -97,7 +97,7 @@ func run() -> void:
 	print("drifting into a secret room")
 	check(not info.world.secrets.is_empty(), "the level has a secret room")
 	projection.call("toggle")
-	var room: Array = info.world.secrets[0]["room"]
+	var room: Array = info.world.secrets[0].room
 	player.global_position = info.cell_position(room[0])
 	await frames(3)
 	check((info.record().secrets as Dictionary).has(0), "a projection drifting into its rock opens it")
@@ -132,6 +132,6 @@ func run() -> void:
 	landed = warp.cast()
 	while warp.warping:
 		await process_frame
-	check(landed != null and (info.world.secrets[0]["room"] as Array).has(landed) and (info.record().secrets as Dictionary).has(0), "tier III lands in a secret room not yet opened, and opens it")
+	check(landed != null and info.world.secrets[0].room.has(landed) and (info.record().secrets as Dictionary).has(0), "tier III lands in a secret room not yet opened, and opens it")
 
 	finish()

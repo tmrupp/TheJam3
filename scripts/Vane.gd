@@ -14,8 +14,8 @@ var way: int = 1
 func setup(info: MapInfo, v: Vector2i, extra: Variant) -> void:
 	super(info, v, extra)
 	if chasm >= 0 and chasm < info.world.chasms.size():
-		var gap: Dictionary = info.world.chasms[chasm]
-		var middle: float = float((gap["left"] as Vector2i).x + (gap["right"] as Vector2i).x) * 0.5
+		var gap: Chasm = info.world.chasms[chasm]
+		var middle: float = float(gap.left.x + gap.right.x) * 0.5
 		way = 1 if float(v.x) < middle else -1
 
 

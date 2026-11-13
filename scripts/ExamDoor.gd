@@ -48,7 +48,7 @@ func _ready() -> void:
 func subject() -> StringName:
 	if map_info == null or map_info.world == null:
 		return &""
-	if hall >= 0 and hall < map_info.world.halls.size() and map_info.world.halls[hall]["kind"] == &"lecture":
+	if hall >= 0 and hall < map_info.world.halls.size() and map_info.world.halls[hall].kind == &"lecture":
 		return map_info.institute.subject_of(hall)
 	return &""
 
@@ -58,23 +58,23 @@ func subject() -> StringName:
 func prereq() -> Array:
 	if subject() == &"":
 		return [&"", 0]
-	return Timetable.needs(map_info.world.halls[hall]["dept"], tier())
+	return Timetable.needs(map_info.world.halls[hall].dept, tier())
 
 
 ## Its classroom's department (Institute.DEPARTMENTS), or &"" for any other hall.
 func dept() -> StringName:
-	if map_info == null or map_info.world == null or hall < 0 or hall >= map_info.world.halls.size() or map_info.world.halls[hall]["kind"] != &"lecture":
+	if map_info == null or map_info.world == null or hall < 0 or hall >= map_info.world.halls.size() or map_info.world.halls[hall].kind != &"lecture":
 		return &""
-	return map_info.world.halls[hall]["dept"]
+	return map_info.world.halls[hall].dept
 
 
 ## Its classroom's day (Timetable.in_cycle): whether it is in session in each of the day's periods,
 ## first to last (the same every day); empty for any other hall.
 func cycle() -> Array[bool]:
 	var out: Array[bool] = []
-	if map_info == null or map_info.world == null or hall < 0 or hall >= map_info.world.halls.size() or map_info.world.halls[hall]["kind"] != &"lecture":
+	if map_info == null or map_info.world == null or hall < 0 or hall >= map_info.world.halls.size() or map_info.world.halls[hall].kind != &"lecture":
 		return out
-	var rings: int = map_info.record().rings
+	var rings: int = map_info.record().institute.rings
 	var dawn: int = rings - Timetable.period(rings)
 	for k: int in range(Timetable.PERIODS):
 		out.append(Timetable.in_cycle(map_info.world, hall, dawn + k))
@@ -83,12 +83,12 @@ func cycle() -> Array[bool]:
 
 ## The period of the day it is now (Timetable.period): where the notch on its plate's rim stands.
 func period() -> int:
-	return Timetable.period(map_info.record().rings) if map_info != null and map_info.world != null else 0
+	return Timetable.period(map_info.record().institute.rings) if map_info != null and map_info.world != null else 0
 
 
 ## The tier its lecture hall teaches its subject at now (pips under its plate), or 0.
 func tier() -> int:
-	if map_info == null or map_info.world == null or hall < 0 or hall >= map_info.world.halls.size() or map_info.world.halls[hall]["kind"] != &"lecture":
+	if map_info == null or map_info.world == null or hall < 0 or hall >= map_info.world.halls.size() or map_info.world.halls[hall].kind != &"lecture":
 		return 0
 	return map_info.institute.tier_of(hall)
 
@@ -124,7 +124,7 @@ func near() -> bool:
 ## Whether a student on its way to a class (Scholar.shuffling) is within NEAR cells of it, in passing
 ## time.
 func student_near() -> bool:
-	if not map_info.record().passing:
+	if not map_info.record().institute.passing:
 		return false
 	for node: Node in get_tree().get_nodes_in_group(&"student"):
 		var s: Scholar = node as Scholar
@@ -139,7 +139,7 @@ func student_near() -> bool:
 func _physics_process(delta: float) -> void:
 	if map_info == null:
 		return
-	var lecture: bool = map_info.world != null and hall >= 0 and hall < map_info.world.halls.size() and map_info.world.halls[hall]["kind"] == &"lecture"
+	var lecture: bool = map_info.world != null and hall >= 0 and hall < map_info.world.halls.size() and map_info.world.halls[hall].kind == &"lecture"
 	up = (map_info.institute.hall_door_up(hall) and (not lecture or near())) or (lecture and student_near())
 	if up:
 		# Winched up, and open only once it is all the way up.

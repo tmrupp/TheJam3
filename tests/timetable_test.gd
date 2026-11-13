@@ -91,20 +91,20 @@ func _laid_out() -> void:
 		if w == null:
 			continue
 		var depts: Dictionary = {}
-		for hall: Dictionary in w.halls:
-			if hall["kind"] == &"lecture":
-				depts[hall["dept"]] = true
-		var rooms: int = w.halls.filter(func(h: Dictionary) -> bool: return h["kind"] == &"lecture").size()
+		for hall: Hall in w.halls:
+			if hall.kind == &"lecture":
+				depts[hall.dept] = true
+		var rooms: int = w.halls.filter(func(h: Hall) -> bool: return h.kind == &"lecture").size()
 		all_depts = all_depts and depts.size() == mini(rooms, Institute.DEPARTMENTS.size())
 		for i: int in range(w.halls.size()):
-			var hall: Dictionary = w.halls[i]
-			var kind: StringName = hall["kind"]
-			var inside: Rect2i = hall["inside"]
+			var hall: Hall = w.halls[i]
+			var kind: StringName = hall.kind
+			var inside: Rect2i = hall.inside
 			match kind:
 				&"lecture":
 					# A class while its department meets, none while it does not; its subjects one a
 					# session (geology's two), all three over a few days, the same again a whole round on.
-					var dept: StringName = hall["dept"]
+					var dept: StringName = hall.dept
 					var seen: Dictionary = {}
 					var span: int = Timetable.PERIODS * 3 * int(Timetable.HOLDS[dept])
 					for r: int in range(span):
@@ -124,7 +124,7 @@ func _laid_out() -> void:
 					for r: int in range(Timetable.PERIODS):
 						sessions_ok = sessions_ok and Timetable.in_session(w, i, r) and not Timetable.holds_class(w, i, r)
 			if kind in Timetable.TIMETABLED:
-				for d: Vector2i in hall["doors"]:
+				for d: Vector2i in hall.doors:
 					if w.get_cell(d).type != LevelGen.Type.EXAM_DOOR or int(w.get_cell(d).extra_info) != i:
 						doors_ok = false
 			var lecterns: int = w.objects_of(LevelGen.Type.LECTERN).filter(func(v: Vector2i) -> bool: return inside.has_point(v)).size()
@@ -158,7 +158,7 @@ func _laid_out() -> void:
 		var region: Dictionary = Institute.regions(w)
 		var way: int = Timetable.way_on_hall(w)
 		var deeper: Vector2i = w.exits[MapInfo.Exit.DEEPER]
-		way_on_ok = way_on_ok and way >= 0 and (w.halls[way]["floors"] as Array).has(deeper) and (w.get_cell(deeper).type == LevelGen.Type.EXIT) != w.shut.has(MapInfo.Exit.DEEPER)
+		way_on_ok = way_on_ok and way >= 0 and w.halls[way].floors.has(deeper) and (w.get_cell(deeper).type == LevelGen.Type.EXIT) != w.shut.has(MapInfo.Exit.DEEPER)
 		var rooms_in: Dictionary = Institute.rooms_in(w, start)
 		way_on_ok = way_on_ok and way >= 0 and rooms_in.has(way) and rooms_in.values().all(func(n: int) -> bool: return n <= int(rooms_in[way]))
 		if not out.is_empty() and region.has(start) and out.any(func(v: Vector2i) -> bool: return region.get(v, -1) == region[start]):
@@ -188,7 +188,7 @@ func _play() -> void:
 	process_frame.connect(func() -> void: player.health.health = player.health.max_health)
 	await go(Vector2i(WORLD, NextWorldDef.first_depth(&"institute")))
 	var rec: LevelRecord = info.record()
-	check(rec.rings == 0 and rec.passing, "first met before any ring, in passing time")
+	check(rec.institute.rings == 0 and rec.institute.passing, "first met before any ring, in passing time")
 	# The cords out of the halls, the great bell's (in the bell room) first.
 	var cords: Array[Node] = placed("school_bell.tscn").filter(func(n: Node) -> bool: return Institute.hall_at(info.world, (n as SchoolBell).cell) < 0)
 	cords.sort_custom(func(a: Node, b: Node) -> bool: return (a as SchoolBell).great and not (b as SchoolBell).great)
@@ -228,7 +228,7 @@ func _belonging(rec: LevelRecord, bell: SchoolBell) -> void:
 		return
 	player.global_position = info.cell_position(floor_at)
 	# A class under way.
-	rec.passing = false
+	rec.institute.passing = false
 	var near: Scholar = _spawn("student.tscn", floor_at + Vector2i(2, 0))
 	var by: Scholar = _spawn("student.tscn", hidden)
 	check(await within(func() -> bool: return near.roused, 1.0), "seen truant in the corridors in a period, a scholar turns on the wizard")
@@ -240,7 +240,7 @@ func _belonging(rec: LevelRecord, bell: SchoolBell) -> void:
 	check(calm > 0, "not the whole level: %d far off stay calm" % calm)
 	var fed: int = info.run.fed
 	await _ring(bell)
-	check(rec.rings == 1 and rec.passing, "a ring: the next period, and passing time")
+	check(rec.institute.rings == 1 and rec.institute.passing, "a ring: the next period, and passing time")
 	check(info.run.fed == fed + 1, "the beast fed")
 	check(info.institute.since_bell < InstitutePlay.BELL_TIME, "the great bell rings out")
 	for n: Node in placed("school_bell.tscn"):
@@ -277,27 +277,27 @@ func _bells(rec: LevelRecord, a: SchoolBell, b: SchoolBell) -> void:
 	print("the bells")
 	player.global_position = a.global_position
 	await frames(2)
-	rec.last_bell = Vector2i(-1, -1)
-	var rings: int = rec.rings
+	rec.institute.last_bell = Vector2i(-1, -1)
+	var rings: int = rec.institute.rings
 	var fed: int = info.run.fed
-	check(rec.passing, "passing time to begin with")
+	check(rec.institute.passing, "passing time to begin with")
 	info.institute.since_bell = SchoolBell.RING_GAP
 	a.ring()
 	await frames(2)
-	check(not rec.passing and rec.started < 0 and rec.rings == rings and info.run.fed == fed + 1, "a bell rung in passing time: class time, the beast fed")
+	check(not rec.institute.passing and rec.institute.started < 0 and rec.institute.rings == rings and info.run.fed == fed + 1, "a bell rung in passing time: class time, the beast fed")
 	check(not info.institute.wizard_belongs() and a.spent(), "out in the halls the wizard is truant; that cord was rung last")
 	info.institute.since_bell = SchoolBell.RING_GAP
 	a.ring()
-	check(not rec.passing, "pulled again at once, it does not ring")
+	check(not rec.institute.passing, "pulled again at once, it does not ring")
 	info.institute.since_bell = SchoolBell.RING_GAP
 	b.ring()
 	await frames(2)
-	check(rec.passing and rec.rings == rings + 1 and not a.spent() and b.spent(), "another rung by them in the halls: passing time, the period over")
+	check(rec.institute.passing and rec.institute.rings == rings + 1 and not a.spent() and b.spent(), "another rung by them in the halls: passing time, the period over")
 	var hall: int = _hall_with_class()
 	if hall < 0:
 		for i: int in range(info.world.halls.size()):
 			if info.institute.subject_of(i) != &"":
-				var need: Array = Timetable.needs(info.world.halls[i]["dept"], info.institute.tier_of(i))
+				var need: Array = Timetable.needs(info.world.halls[i].dept, info.institute.tier_of(i))
 				player.keyring.take(KeyRing.paper(Timetable.LADDERS[need[0]][0], need[1]))
 				hall = i
 				break
@@ -306,7 +306,7 @@ func _bells(rec: LevelRecord, a: SchoolBell, b: SchoolBell) -> void:
 	var doors: Array[Node] = placed("exam_door.tscn").filter(func(n: Node) -> bool: return (n as ExamDoor).hall == hall)
 	if not doors.is_empty():
 		var door: ExamDoor = doors[0] as ExamDoor
-		var box: Rect2i = info.world.halls[hall]["box"]
+		var box: Rect2i = info.world.halls[hall].box
 		var out: int = -1 if door.cell.x == box.position.x else 1
 		player.global_position = info.cell_position(door.cell + Vector2i(out * (ExamDoor.NEAR + 3), 0))
 		check(await within(func() -> bool: return door.shut(), 1.0), "its classroom open to them, a door stays shut while they are a few steps off")
@@ -314,11 +314,11 @@ func _bells(rec: LevelRecord, a: SchoolBell, b: SchoolBell) -> void:
 		check(await within(func() -> bool: return not door.shut(), 1.0), "and opens as they walk up to it")
 	player.global_position = _in_hall(hall)
 	await frames(2)
-	check(rec.passing and info.institute.class_hall == hall, "going in starts nothing")
+	check(rec.institute.passing and info.institute.class_hall == hall, "going in starts nothing")
 	info.institute.since_bell = SchoolBell.RING_GAP
 	a.ring()
 	await frames(2)
-	check(not rec.passing and rec.started == hall and rec.rings == rings + 1 and info.institute.wizard_belongs(), "a bell rung (struck from in the classroom): class time, and they attend its class")
+	check(not rec.institute.passing and rec.institute.started == hall and rec.institute.rings == rings + 1 and info.institute.wizard_belongs(), "a bell rung (struck from in the classroom): class time, and they attend its class")
 	var other: int = -1
 	for i: int in range(info.world.halls.size()):
 		if i != hall and info.institute.subject_of(i) != &"" and info.institute.enrolled(i):
@@ -328,11 +328,11 @@ func _bells(rec: LevelRecord, a: SchoolBell, b: SchoolBell) -> void:
 	check(not info.institute.hall_door_up(hall), "and its own keeps them in")
 	if not doors.is_empty():
 		var door: ExamDoor = doors[0] as ExamDoor
-		var box: Rect2i = info.world.halls[hall]["box"]
+		var box: Rect2i = info.world.halls[hall].box
 		var out: int = -1 if door.cell.x == box.position.x else 1
 		player.global_position = info.cell_position(door.cell - Vector2i(out, 0))
 		await within(func() -> bool: return false, 0.5)
-		check(door.shut() and not rec.passing, "walked up to its door from inside, it stays shut in class time")
+		check(door.shut() and not rec.institute.passing, "walked up to its door from inside, it stays shut in class time")
 		player.global_position = _in_hall(hall)
 		await frames(2)
 	var cord: SchoolBell = _cord_in(hall)
@@ -341,30 +341,30 @@ func _bells(rec: LevelRecord, a: SchoolBell, b: SchoolBell) -> void:
 		info.institute.since_bell = SchoolBell.RING_GAP
 		cord.ring()
 		await frames(2)
-		check(rec.passing and rec.started < 0 and rec.rings == rings + 2 and cord.spent(), "its own cord rung: the class let out, passing time, the next period")
+		check(rec.institute.passing and rec.institute.started < 0 and rec.institute.rings == rings + 2 and cord.spent(), "its own cord rung: the class let out, passing time, the next period")
 		check(info.institute.hall_door_up(hall), "and its doors open to them again")
 	player.global_position = b.global_position
 	await frames(2)
-	check(rec.passing and rec.rings == rings + 2, "walking out in passing time ends nothing")
-	rec.last_bell = Vector2i(-1, -1)
+	check(rec.institute.passing and rec.institute.rings == rings + 2, "walking out in passing time ends nothing")
+	rec.institute.last_bell = Vector2i(-1, -1)
 	info.institute.since_bell = SchoolBell.RING_GAP
 	a.ring()
 	await frames(2)
 	var late: int = _hall_with_class()
-	if late >= 0 and not rec.passing:
+	if late >= 0 and not rec.institute.passing:
 		player.global_position = _in_hall(late)
 		await frames(2)
-		check(info.institute.wizard_belongs() and rec.started < 0 and info.institute.class_hall == late, "got into a class in session in class time (a warp): late, no longer truant, attending nothing")
+		check(info.institute.wizard_belongs() and rec.institute.started < 0 and info.institute.class_hall == late, "got into a class in session in class time (a warp): late, no longer truant, attending nothing")
 		check(not info.institute.hall_door_up(late), "its doors shut on them as on the class")
 		player.global_position = b.global_position
 		await frames(2)
-		check(not rec.passing and rec.rings == rings + 2 and not info.institute.wizard_belongs(), "out of it again the same way: class time goes on, and they are truant")
+		check(not rec.institute.passing and rec.institute.rings == rings + 2 and not info.institute.wizard_belongs(), "out of it again the same way: class time goes on, and they are truant")
 		info.institute.since_bell = SchoolBell.RING_GAP
 		b.ring()
 		await frames(2)
-		check(rec.passing and rec.rings == rings + 3, "until they ring a bell in the halls: passing time")
+		check(rec.institute.passing and rec.institute.rings == rings + 3, "until they ring a bell in the halls: passing time")
 	player.keyring.clear()
-	if not rec.passing:
+	if not rec.institute.passing:
 		await _ring(b)
 	for n: Node in get_nodes_in_group(&"scholar"):
 		(n as Scholar).calm()
@@ -388,21 +388,21 @@ func _doors(rec: LevelRecord, bell: SchoolBell) -> void:
 	player.keyring.take(paper)
 	for k: int in range(Timetable.PERIODS):
 		for i: int in range(info.world.halls.size()):
-			var hall: Dictionary = info.world.halls[i]
-			if not hall["kind"] in Timetable.TIMETABLED:
+			var hall: Hall = info.world.halls[i]
+			if not hall.kind in Timetable.TIMETABLED:
 				continue
-			var open: bool = Timetable.in_session(info.world, i, rec.rings) and (hall["kind"] != &"lecture" or info.institute.enrolled(i))
-			for j: int in range((hall["doors"] as Array).size()):
-				var door: ExamDoor = doors.get(hall["doors"][j]) as ExamDoor
+			var open: bool = Timetable.in_session(info.world, i, rec.institute.rings) and (hall.kind != &"lecture" or info.institute.enrolled(i))
+			for j: int in range(hall.doors.size()):
+				var door: ExamDoor = doors.get(hall.doors[j]) as ExamDoor
 				if door == null:
 					ok = false
 					continue
-				var box: Rect2i = hall["box"]
-				var d: Vector2i = hall["doors"][j]
+				var box: Rect2i = hall.box
+				var d: Vector2i = hall.doors[j]
 				player.global_position = info.cell_position(d + Vector2i(-1 if d.x == box.position.x else 1, 0))
 				if not await within(func() -> bool: return door.shut() != open, 1.5):
 					ok = false
-				if hall["kind"] == &"lecture" and door.subject() != info.institute.subject_of(i):
+				if hall.kind == &"lecture" and door.subject() != info.institute.subject_of(i):
 					ok = false
 		await _ring(bell)
 	player.keyring.spend(paper)
@@ -422,9 +422,9 @@ func _classes(rec: LevelRecord, bell: SchoolBell) -> void:
 	for k: int in range(Timetable.PERIODS):
 		await _ring(bell)
 		for i: int in range(info.world.halls.size()):
-			if info.world.halls[i]["kind"] != &"lecture":
+			if info.world.halls[i].kind != &"lecture":
 				continue
-			var box: Rect2i = info.world.halls[i]["box"]
+			var box: Rect2i = info.world.halls[i].box
 			# Its staff: its students keep days of their own (Students, students_test).
 			var seated: Array[Node] = get_nodes_in_group(&"scholar").filter(func(n: Node) -> bool: return (n as Scholar).kind != &"student" and box.has_point((n as Scholar).cell) and not n.is_queued_for_deletion())
 			var a: StringName = info.institute.subject_of(i)
@@ -433,7 +433,7 @@ func _classes(rec: LevelRecord, bell: SchoolBell) -> void:
 				if empty < 0:
 					empty = i
 					# In a period, in a hall with no class: trespassing.
-					rec.passing = false
+					rec.institute.passing = false
 					player.global_position = _in_hall(i)
 					await frames(2)
 					check(not info.institute.wizard_belongs(), "in a hall with no class, the wizard is trespassing")
@@ -449,7 +449,7 @@ func _classes(rec: LevelRecord, bell: SchoolBell) -> void:
 	var a: StringName = info.institute.subject_of(hall)
 	var m: Scholar = info.institute.master_in(hall)
 	check(m.instructor() and (m.get_node("Wound") as Wound).hp >= int(Scholar.HP[&"master"]) + Scholar.INSTRUCTOR_HP and m.haste() > 1.0, "a classroom's master is an instructor: far tougher, and quicker")
-	var box: Rect2i = info.world.halls[hall]["box"]
+	var box: Rect2i = info.world.halls[hall].box
 	m.rouse()
 	var room: Array[Node] = get_nodes_in_group(&"scholar").filter(func(n: Node) -> bool: return box.has_point(info.cell_at((n as Node2D).global_position)))
 	check(room.size() > 1 and room.all(func(n: Node) -> bool: return (n as Scholar).roused), "turning on the wizard, its whole class turns with it (%d)" % room.size())
@@ -506,7 +506,7 @@ func _attend(rec: LevelRecord, bell: SchoolBell) -> void:
 		return
 	var a: StringName = info.institute.subject_of(hall)
 	var tier: int = info.institute.tier_of(hall)
-	check(tier == Timetable.tier_taught(a, int(info.institute.dept_tiers()[info.world.halls[hall]["dept"]])), "taught at its department's tier (%d)" % tier)
+	check(tier == Timetable.tier_taught(a, int(info.institute.dept_tiers()[info.world.halls[hall].dept])), "taught at its department's tier (%d)" % tier)
 	var field: Vector2i = info.institute.field_of(hall)
 	check(field != InstitutePlay.NO_FIELD and field.x == info.coord.x and field.y != info.coord.y, "its department's portal leads to a field level (%s)" % field)
 	info.run.papers_out.clear()
@@ -515,9 +515,9 @@ func _attend(rec: LevelRecord, bell: SchoolBell) -> void:
 	var master: Scholar = info.institute.master_in(hall)
 	check(master != null and not master.roused, "the class leaves the wizard be")
 	check(not info.institute.hall_door_up(hall) and not _cord_in(hall).spent(), "its doors keep them in; its cord, rung last, will let them out")
-	var rings: int = rec.rings
+	var rings: int = rec.institute.rings
 	await _leave(bell)
-	check(rec.rings == rings + 1 and rec.passing, "its cord rung again, the class is over: passing time, the next period")
+	check(rec.institute.rings == rings + 1 and rec.institute.passing, "its cord rung again, the class is over: passing time, the next period")
 	check(info.run.papers_out.get(field, []) == [KeyRing.paper(a, tier)], "its paper (%s %d) sent to the field level" % [a, tier])
 	print("a class turned on the wizard, and the corridors")
 	info.run.papers_out.clear()
@@ -534,9 +534,9 @@ func _attend(rec: LevelRecord, bell: SchoolBell) -> void:
 		await _start(hall)
 		player.global_position = bell.global_position
 		await frames(2)
-		check(not rec.passing and rec.started < 0, "a class got out of by a warp is forfeit, class time going on")
+		check(not rec.institute.passing and rec.institute.started < 0, "a class got out of by a warp is forfeit, class time going on")
 		await _pull(bell)
-		check(rec.passing and info.run.papers_out.is_empty(), "rung out from the halls, it sends no paper")
+		check(rec.institute.passing and info.run.papers_out.is_empty(), "rung out from the halls, it sends no paper")
 	player.global_position = bell.global_position
 	await frames(2)
 	await _ring(bell)
@@ -554,7 +554,7 @@ func _sneak(rec: LevelRecord, bell: SchoolBell) -> void:
 	for k: int in range(Timetable.PERIODS * 2):
 		await _ring(bell)
 		for i: int in range(info.world.halls.size()):
-			if info.world.halls[i]["kind"] == &"lecture" and info.institute.subject_of(i) == &"" and info.institute.lectern_paper(i) != 0:
+			if info.world.halls[i].kind == &"lecture" and info.institute.subject_of(i) == &"" and info.institute.lectern_paper(i) != 0:
 				hall = i
 				break
 		if hall >= 0:
@@ -562,8 +562,8 @@ func _sneak(rec: LevelRecord, bell: SchoolBell) -> void:
 	check(hall >= 0, "an empty lecture hall whose next class is taught")
 	if hall < 0:
 		return
-	var next: StringName = Timetable.subject(info.world, hall, rec.rings + 1)
-	var code: int = KeyRing.paper(next, Timetable.tier_taught(next, int(info.institute.dept_tiers()[info.world.halls[hall]["dept"]])))
+	var next: StringName = Timetable.subject(info.world, hall, rec.institute.rings + 1)
+	var code: int = KeyRing.paper(next, Timetable.tier_taught(next, int(info.institute.dept_tiers()[info.world.halls[hall].dept])))
 	check_eq(info.institute.lectern_paper(hall), code, "its lectern holds the next class's paper (%s %d)" % [next, KeyRing.paper_tier(code)])
 	var lecterns: Array[Node] = placed("lectern.tscn").filter(func(n: Node) -> bool: return (n as Lectern).hall == hall)
 	check(lecterns.size() == 1, "its lectern")
@@ -592,9 +592,9 @@ func _sneak(rec: LevelRecord, bell: SchoolBell) -> void:
 	player.keyring.take(theirs)
 	lectern.take()
 	check(player.keyring.has(mine) and not player.keyring.has(theirs) and lectern.paper() == theirs, "the paper picked up last swapped for the one it holds")
-	check(int(rec.pigeonholes.get(hall, 0)) == theirs, "kept in the level's record")
+	check(int(rec.institute.pigeonholes.get(hall, 0)) == theirs, "kept in the level's record")
 	player.keyring.spend(mine)
-	rec.pigeonholes.erase(hall)
+	rec.institute.pigeonholes.erase(hall)
 	player.global_position = bell.global_position
 	for n: Node in get_nodes_in_group(&"scholar"):
 		(n as Scholar).calm()
@@ -622,8 +622,8 @@ func _prereqs(rec: LevelRecord, bell: SchoolBell) -> void:
 	check(hall >= 0, "a class to try")
 	if hall < 0:
 		return
-	var dept: StringName = info.world.halls[hall]["dept"]
-	rec.dept_tiers[dept] = 3
+	var dept: StringName = info.world.halls[hall].dept
+	rec.institute.dept_tiers[dept] = 3
 	var a: StringName = info.institute.subject_of(hall)
 	var tier: int = info.institute.tier_of(hall)
 	var need: Array = Timetable.needs(dept, tier)
@@ -660,7 +660,7 @@ func _prereqs(rec: LevelRecord, bell: SchoolBell) -> void:
 	player.keyring.clear()
 	Abilities.set_tier(player, ladder[0], 0)
 	Abilities.set_tier(player, &"slash", 1)
-	rec.dept_tiers.clear()
+	rec.institute.dept_tiers.clear()
 	player.global_position = bell.global_position
 	for n: Node in get_nodes_in_group(&"scholar"):
 		(n as Scholar).calm()
@@ -672,7 +672,7 @@ func _prereqs(rec: LevelRecord, bell: SchoolBell) -> void:
 ## that department was.
 func _climbing(rec: LevelRecord, bell: SchoolBell) -> void:
 	print("departments climbing")
-	rec.dept_tiers = {&"astronomy": 2, &"botany": 2, &"geology": 1, &"necrology": 2}
+	rec.institute.dept_tiers = {&"astronomy": 2, &"botany": 2, &"geology": 1, &"necrology": 2}
 	player.global_position = bell.global_position
 	var before: Dictionary = info.institute.dept_tiers()
 	var meeting: Dictionary = info.institute._meeting()
@@ -690,7 +690,7 @@ func _climbing(rec: LevelRecord, bell: SchoolBell) -> void:
 	check(hall >= 0, "a class to attend")
 	if hall < 0:
 		return
-	var dept: StringName = info.world.halls[hall]["dept"]
+	var dept: StringName = info.world.halls[hall].dept
 	await _start(hall)
 	for n: Node in get_nodes_in_group(&"scholar"):
 		(n as Scholar).calm()
@@ -699,7 +699,7 @@ func _climbing(rec: LevelRecord, bell: SchoolBell) -> void:
 	await _leave(bell)
 	check(info.institute.dept_tiers() == Timetable.climb(before, dept, meeting), "rung out of a %s class, they climb as it was attended (%s)" % [dept, info.institute.dept_tiers()])
 	info.run.papers_out.clear()
-	rec.dept_tiers.clear()
+	rec.institute.dept_tiers.clear()
 	# A class of a relic's move the wizard lacks: sat, it counts, with no paper.
 	player.global_position = bell.global_position
 	await frames(2)
@@ -707,7 +707,7 @@ func _climbing(rec: LevelRecord, bell: SchoolBell) -> void:
 		Abilities.set_tier(player, m, 0)
 	hall = await _ring_to(bell, func(s: StringName) -> bool: return not info.institute.teaches(s))
 	if hall >= 0:
-		dept = info.world.halls[hall]["dept"]
+		dept = info.world.halls[hall].dept
 		var move: StringName = info.institute.subject_of(hall)
 		await _start(hall)
 		for n: Node in get_nodes_in_group(&"scholar"):
@@ -718,7 +718,7 @@ func _climbing(rec: LevelRecord, bell: SchoolBell) -> void:
 		check(info.institute.dept_tiers() == Timetable.climb(before, dept, meeting) and info.run.papers_out.is_empty(), "a %s class the wizard cannot be taught, sat: attended all the same, with no paper" % move)
 	else:
 		print("  (no class of a move the wizard lacks met here)")
-	rec.dept_tiers.clear()
+	rec.institute.dept_tiers.clear()
 	player.global_position = bell.global_position
 	for n: Node in get_nodes_in_group(&"scholar"):
 		(n as Scholar).calm()
@@ -732,7 +732,7 @@ func _library(rec: LevelRecord, bell: SchoolBell) -> void:
 	print("the library")
 	var library: int = -1
 	for i: int in range(info.world.halls.size()):
-		if info.world.halls[i]["kind"] == &"library":
+		if info.world.halls[i].kind == &"library":
 			library = i
 	var boards: Array[Node] = placed("timetable_board.tscn")
 	var desks: Array[Node] = placed("study_desk.tscn")
@@ -740,8 +740,8 @@ func _library(rec: LevelRecord, bell: SchoolBell) -> void:
 	if library < 0 or boards.is_empty() or desks.is_empty():
 		return
 	var rows: Array[Dictionary] = (boards[0] as TimetableBoard).rows()
-	var lectures: Array = range(info.world.halls.size()).filter(func(i: int) -> bool: return info.world.halls[i]["kind"] == &"lecture")
-	var dawn: int = rec.rings - Timetable.period(rec.rings)
+	var lectures: Array = range(info.world.halls.size()).filter(func(i: int) -> bool: return info.world.halls[i].kind == &"lecture")
+	var dawn: int = rec.institute.rings - Timetable.period(rec.institute.rings)
 	var same: bool = rows.size() == lectures.size()
 	for k: int in range(mini(rows.size(), lectures.size())):
 		for p: int in range(Timetable.PERIODS):
@@ -754,7 +754,7 @@ func _library(rec: LevelRecord, bell: SchoolBell) -> void:
 	player.keyring.take(seeker)
 	player.global_position = desk.global_position
 	await frames(2)
-	if not rec.passing:
+	if not rec.institute.passing:
 		await _ring(bell)
 		player.global_position = desk.global_position
 		await frames(2)
@@ -766,7 +766,7 @@ func _library(rec: LevelRecord, bell: SchoolBell) -> void:
 	if cord == null:
 		return
 	await _pull(cord)
-	check(not rec.passing and info.institute.wizard_belongs(), "class time rung in from the library: the wizard belongs there")
+	check(not rec.institute.passing and info.institute.wizard_belongs(), "class time rung in from the library: the wizard belongs there")
 	check(desk.paper() == seeker, "now its desk would teach the seeker paper")
 	desk.study()
 	check(Abilities.spell(player) == &"seeker" and not player.keyring.has(seeker), "studied: seeker takes the slot, free")
@@ -774,7 +774,7 @@ func _library(rec: LevelRecord, bell: SchoolBell) -> void:
 	player.keyring.take(KeyRing.paper(&"hex", 2))
 	check(desk.paper() == 0, "once a period")
 	await _pull(bell)
-	check(rec.passing, "another bell rung by them ends class time")
+	check(rec.institute.passing, "another bell rung by them ends class time")
 	player.keyring.clear()
 	Abilities.set_tier(player, &"seeker", 0)
 	Abilities.set_tier(player, &"slash", 1)
@@ -794,14 +794,14 @@ func _way_on(rec: LevelRecord, bell: SchoolBell) -> void:
 		return
 	player.global_position = bell.global_position
 	player.keyring.clear()
-	rec.dept_tiers.clear()
+	rec.institute.dept_tiers.clear()
 	for k: int in range(Timetable.PERIODS * 2):
 		if info.institute.subject_of(way) != &"":
 			break
 		await _ring(bell)
 	if info.institute.subject_of(way) == &"":
 		return
-	var own: StringName = info.world.halls[way]["dept"]
+	var own: StringName = info.world.halls[way].dept
 	var other: StringName = Timetable.NEEDS[own]
 	check(info.institute.tier_of(way) == 1 and info.institute.enrolled(way) and info.institute.hall_door_up(way), "a tier I class there opens to a wizard with no paper, like any other")
 	check_eq(info.institute.way_on_due(), -1, "but the way on would take a paper they lack")
@@ -822,11 +822,11 @@ func _way_on(rec: LevelRecord, bell: SchoolBell) -> void:
 	player.keyring.take(low)
 	check_eq(info.institute.way_on_due(), low, "of a %s paper at %d and one at %d, it would take the lower" % [other, Timetable.WAY_ON_PAPER, Timetable.WAY_ON_PAPER + 1])
 	info.institute.hand_in_way_on(info.institute.way_on_due())
-	check(not player.keyring.has(low) and player.keyring.has(high) and rec.way_on_paid, "going through, it takes that paper, and only that")
+	check(not player.keyring.has(low) and player.keyring.has(high) and rec.institute.way_on_paid, "going through, it takes that paper, and only that")
 	player.keyring.clear()
 	Abilities.set_tier(player, &"keyring", 0)
 	check_eq(info.institute.way_on_due(), 0, "then it asks for none again here")
-	rec.way_on_paid = false
+	rec.institute.way_on_paid = false
 	var exits: Array[Node] = placed("level_exit.tscn").filter(func(n: Node) -> bool: return (n as LevelExit).exit == MapInfo.Exit.DEEPER)
 	if not exits.is_empty():
 		var at: Vector2i = info.coord
@@ -847,16 +847,16 @@ func _abominations(rec: LevelRecord) -> void:
 	for n: Node in info.map_elements.get_children():
 		if n is Scholar:
 			n.queue_free()
-	rec.passing = false
+	rec.institute.passing = false
 	var thing: Abomination = _spawn_thing(at + Vector2i(4, 0), 1)
 	await until(func() -> bool: return thing.grounded)
 	var from: float = thing.global_position.x
 	var lobes: int = thing.lobes
 	await within(func() -> bool: return false, 1.5)
 	check(absf(thing.global_position.x - from) < 4.0 and thing.lobes == lobes and thing.quarry == null, "during a class an abomination keeps still")
-	rec.passing = true
+	rec.institute.passing = true
 	check(await within(func() -> bool: return thing.global_position.x < from - 30.0, 2.0), "in passing time it acts up, after the wizard")
-	check(is_equal_approx(info.institute.surge(), InstitutePlay.SURGE_LEAST + InstitutePlay.SURGE_PER_RING * float(rec.rings)), "growing and launching the sooner for every period rung out (%.2f times, %d rings)" % [info.institute.surge(), rec.rings])
+	check(is_equal_approx(info.institute.surge(), InstitutePlay.SURGE_LEAST + InstitutePlay.SURGE_PER_RING * float(rec.institute.rings)), "growing and launching the sooner for every period rung out (%.2f times, %d rings)" % [info.institute.surge(), rec.institute.rings])
 	check(Breach.every(0) > Breach.every(4) and Breach.every(99) == Breach.EVERY_LEAST, "and breaches letting them out the sooner too: every %.0f s before any ring, %.0f s after 4, %.0f s at most" % [Breach.every(0), Breach.every(4), Breach.EVERY_LEAST])
 	thing.queue_free()
 	var breaches: Array[Node] = placed("breach.tscn")
@@ -864,10 +864,10 @@ func _abominations(rec: LevelRecord) -> void:
 		return
 	var breach: Breach = breaches[0] as Breach
 	player.global_position = breach.global_position + Vector2(-300, 0)
-	rec.passing = false
+	rec.institute.passing = false
 	await within(func() -> bool: return false, Breach.FIRST + Breach.SURGE + 0.5)
 	check(breach.brood.is_empty(), "a breach lets none out during a class")
-	rec.passing = true
+	rec.institute.passing = true
 	check(await within(func() -> bool: return not breach.brood.is_empty(), Breach.FIRST + Breach.SURGE + 1.0), "and in passing time does")
 	for n: Node2D in breach.brood:
 		n.queue_free()
@@ -881,11 +881,11 @@ func _proctor(rec: LevelRecord, bell: SchoolBell) -> void:
 	player.global_position = bell.global_position
 	player.phasing = true
 	var p: Scholar = _spawn("proctor.tscn", at + Vector2i(2, 0))
-	rec.passing = false
+	rec.institute.passing = false
 	await until(func() -> bool: return p.grounded)
 	var home: float = p.global_position.x
 	check(await within(func() -> bool: return absf(p.global_position.x - home) > 100.0, 3.0), "during a class a proctor walks the corridors")
-	rec.passing = true
+	rec.institute.passing = true
 	check(await within(func() -> bool: return absf(p.global_position.x - p.home_x) <= Scholar.HOME_SLACK + 4.0, 6.0), "in passing time it goes back to its place")
 	p.queue_free()
 	player.phasing = false
@@ -894,14 +894,14 @@ func _proctor(rec: LevelRecord, bell: SchoolBell) -> void:
 ## A period rung round from corridor bell `bell` (whichever cord was rung last), the wizard truant out
 ## of the classrooms: in passing time it rings class time in and then out; in class time just out.
 func _ring(bell: SchoolBell) -> void:
-	if info.record().passing:
+	if info.record().institute.passing:
 		await _pull(bell)
 	await _pull(bell)
 
 
 ## Pull `bell`'s cord, whichever was rung last.
 func _pull(bell: SchoolBell) -> void:
-	info.record().last_bell = Vector2i(-1, -1)
+	info.record().institute.last_bell = Vector2i(-1, -1)
 	info.institute.since_bell = SchoolBell.RING_GAP
 	bell.ring()
 	await frames(2)
@@ -926,11 +926,11 @@ func _start(hall: int) -> bool:
 	var cord: SchoolBell = _cord_in(hall)
 	if cord == null:
 		return false
-	info.record().last_bell = Vector2i(-1, -1)
+	info.record().institute.last_bell = Vector2i(-1, -1)
 	info.institute.since_bell = SchoolBell.RING_GAP
 	cord.ring()
 	await frames(1)
-	return info.record().started == hall
+	return info.record().institute.started == hall
 
 
 ## The cord on classroom `hall`'s floor, or null.
@@ -963,8 +963,8 @@ func _hall_with_class() -> int:
 
 ## A spot on classroom `hall`'s floor, just past its master.
 func _in_hall(hall: int) -> Vector2:
-	var inside: Rect2i = info.world.halls[hall]["inside"]
-	var front: int = info.world.halls[hall]["front"]
+	var inside: Rect2i = info.world.halls[hall].inside
+	var front: int = info.world.halls[hall].front
 	var wall: int = inside.position.x if front > 0 else inside.end.x - 1
 	return info.cell_position(Vector2i(wall + front * 6, inside.end.y - 1))
 

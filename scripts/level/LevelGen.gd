@@ -177,25 +177,25 @@ var structures: Dictionary = {}
 ## generator's colours, [] where one never settled.
 var patches: Array = []
 ## The crypts a cemetery level built (Crypts), each a Dictionary (see Crypts).
-var crypts: Array[Dictionary] = []
+var crypts: Array[Crypt] = []
 ## The halls an institute level built (Institute), each a Dictionary (see Institute).
-var halls: Array[Dictionary] = []
+var halls: Array[Hall] = []
 ## The open box inside an institute level's bell room (Institute.BELFRY_INSIDE), where its first
 ## great bell hangs; empty where it has none.
 var belfry: Rect2i = Rect2i()
 ## The towers an archetype built (CragsArchetype.build_towers), each a Dictionary (see
 ## CragsArchetype._tower).
-var towers: Array[Dictionary] = []
+var towers: Array[Tower] = []
 ## The temples a sky level built (SkyArchetype.build_temples), each {"box": its cells, Rect2i;
 ## "hall": the open hall's rows, Rect2i; "altar": the altar's cell; "hoard": its star clusters'
 ## cells, there once it is opened}.
-var temples: Array[Dictionary] = []
+var temples: Array[TempleSite] = []
 
 ## Whether cell `v` holds a temple's hoard (there only once it is opened, Temple).
 func in_temple_hoard (v: Vector2i) -> bool:
-	return temples.any(func(t: Dictionary) -> bool: return (t["hoard"] as Array).has(v))
+	return temples.any(func(t: TempleSite) -> bool: return t.hoard.has(v))
 ## The gondola's circuit an archetype laid (CragsArchetype.lay_circuit), or {} for none.
-var circuit: Dictionary = {}
+var circuit: Circuit = Circuit.none()
 ## The lines between a crags level's tiers, bottom up (CragsArchetype.cut_tiers): each {"rows": the
 ## row under the upper station's landing and the one under that}. Empty for none.
 var tiers: Array[Dictionary] = []
@@ -348,11 +348,11 @@ func free_floors () -> Array[Vector2i]:
 ## behind a vault's door or a barrier made for a move the wizard may lack.
 func floors_proper () -> Array[Vector2i]:
 	var shut_away: Dictionary = {}
-	for vault: Dictionary in vaults:
-		for c: Vector2i in vault["room"]:
+	for vault: Vault in vaults:
+		for c: Vector2i in vault.room:
 			shut_away[c] = true
-	for barrier: Dictionary in barriers:
-		for c: Vector2i in barrier["open"]:
+	for barrier: Barrier in barriers:
+		for c: Vector2i in barrier.open:
 			shut_away[c] = true
 	return free_floors().filter(func(v: Vector2i) -> bool: return not shut_away.has(v))
 
@@ -361,6 +361,51 @@ func floors_proper () -> Array[Vector2i]:
 ## once and keep it while nothing changes.
 func claims () -> Claims:
 	return Claims.new(self)
+
+## The one map of what cells are kept for (docs/CODE_REVIEW.md 2.3): cell -> the claims on it, a bit
+## each (Claims.KEPT, START_WAY, STRUCTURE, STEP, VAULT_WALL, TRACK, VAULT). Every pass that keeps
+## a cell writes it here, through claim, as it works; Claims reads it. The lists each kind of claim
+## has always been kept in (kept_whole, keep_clear, structures, secret_steps, vault_walls, tracks)
+## are written by claim too, and nowhere else: they are this map, a kind at a time.
+var spoken: Dictionary = {}
+
+## Cell `v` is kept for `by` (one of Claims' bits), from now on: written in the one map and in that
+## kind's own list. A structure says which (`what`: &"crypt", &"tower"...).
+func claim (v: Vector2i, by: int, what: Variant = true) -> void:
+	spoken[v] = int(spoken.get(v, 0)) | by
+	match by:
+		Claims.KEPT:
+			kept_whole[v] = true
+		Claims.START_WAY:
+			keep_clear[v] = true
+		Claims.STRUCTURE:
+			structures[v] = what
+		Claims.STEP:
+			secret_steps[v] = true
+		Claims.VAULT_WALL:
+			vault_walls[v] = true
+		Claims.TRACK:
+			tracks[v] = true
+
+## Cell `v` is no longer kept for `by` (a vault's wall where its door goes).
+func unclaim (v: Vector2i, by: int) -> void:
+	if spoken.has(v):
+		spoken[v] = int(spoken[v]) & ~by
+		if int(spoken[v]) == 0:
+			spoken.erase(v)
+	match by:
+		Claims.KEPT:
+			kept_whole.erase(v)
+		Claims.START_WAY:
+			keep_clear.erase(v)
+		Claims.STRUCTURE:
+			structures.erase(v)
+		Claims.STEP:
+			secret_steps.erase(v)
+		Claims.VAULT_WALL:
+			vault_walls.erase(v)
+		Claims.TRACK:
+			tracks.erase(v)
 
 ## The cells a lift's body and track sweep, and those a rolling ladder rolls and hangs through
 ## (make_moving, _make_ladder), a set: open air to look at, and off the free list, but spoken for.
@@ -428,7 +473,7 @@ func place_exits (depth: int, debug: bool = false, climbing: bool = false) -> vo
 	var chosen: Array[Vector2i] = []
 	# The bramble's gate level: the way on stands at the head of its shaft (BrambleShaft); the
 	# golem's, on its hall's top gallery (LodeHall).
-	var fixed_on: Variant = shaft.get("on", keep.get("on"))
+	var fixed_on: Variant = shaft.on if not shaft.is_empty() else keep.on
 	if fixed_on != null:
 		chosen.append(fixed_on)
 	var near_top: Callable = func(v: Vector2i) -> bool: return v.y <= lo.y + band_y
@@ -507,7 +552,7 @@ func place_start_key (def: NextWorldDef) -> void:
 			var steps: Array[Vector2i] = Reach.way(start_reach, target)
 			for i: int in range(1, steps.size()):
 				for c: Vector2i in Reach.arc_cells(steps[i - 1], steps[i]):
-					keep_clear[c] = true
+					claim(c, Claims.START_WAY)
 	start_reach = {}
 
 ## Doors on the exit cells (at the start too, whose way back leads up) but those the labyrinth
@@ -724,8 +769,8 @@ func _holds_up (c: Vector2i) -> bool:
 			return true
 	if is_valid(c + Vector2i.UP) and Placeables.has_flag(type_at(c + Vector2i.UP), &"stander"):
 		return true
-	for chasm: Dictionary in chasms:
-		if c == (chasm["left"] as Vector2i) + Vector2i.DOWN or c == (chasm["right"] as Vector2i) + Vector2i.DOWN:
+	for chasm: Chasm in chasms:
+		if c == chasm.left + Vector2i.DOWN or c == chasm.right + Vector2i.DOWN:
 			return true
 	for d: Vector2i in neighbor_offsets:
 		if not is_valid(c + d):
@@ -849,11 +894,11 @@ func make_moving (run_cells: Array[Vector2i], ladders: bool = false) -> void:
 			return
 	for p: Vector2i in track:
 		empties.erase(p)
-		tracks[p] = true
+		claim(p, Claims.TRACK)
 	for c: Vector2i in run_cells.slice(1):
 		set_cell(c, Cell.new(Type.EMPTY))
 		objects.erase(c)
-		tracks[c] = true
+		claim(c, Claims.TRACK)
 	set_kind(left, Type.MOVING_PLATFORM, [run_cells.size(), axis, travel])
 
 ## A rolling ladder made of platform run `run_cells` (sorted) with `travel` cells of track past it
@@ -872,17 +917,17 @@ func _make_ladder (run_cells: Array[Vector2i], travel: int) -> void:
 		return
 	for p: Vector2i in track:
 		empties.erase(p)
-		tracks[p] = true
+		claim(p, Claims.TRACK)
 	for c: Vector2i in run_cells.slice(1):
 		set_cell(c, Cell.new(Type.EMPTY))
 		objects.erase(c)
-		tracks[c] = true
+		claim(c, Claims.TRACK)
 	for x: int in range(left.x, left.x + reach + 1):
 		for y: int in range(left.y + 1, left.y + rungs):
 			empties.erase(Vector2i(x, y))
-			tracks[Vector2i(x, y)] = true
+			claim(Vector2i(x, y), Claims.TRACK)
 		# The floor its foot rolls along stays whole: no cracked wall is made of it.
-		kept_whole[Vector2i(x, left.y + rungs)] = true
+		claim(Vector2i(x, left.y + rungs), Claims.KEPT)
 	set_kind(left, Type.ROLLING_LADDER, [1, Vector2i(1, 0), reach])
 
 ## How far apart (cells, across plus down) the two ends of a pair of teleporters are at least: a
@@ -1031,21 +1076,21 @@ func place_boss (boss: StringName) -> void:
 	if not exits.has(Ways.Exit.DEEPER) or boss == &"whale":
 		return
 	if not keep.is_empty():
-		put(keep["lair"], Type.BOSS, boss)
+		put(keep.lair, Type.BOSS, boss)
 		LodeHall.arm(self)
 		return
-	if boss == &"necromancer" and not crypts.is_empty() and not (crypts[0]["floors"] as Array).is_empty():
-		put(crypts[0]["deep"], Type.BOSS, boss)
+	if boss == &"necromancer" and not crypts.is_empty() and not crypts[0].floors.is_empty():
+		put(crypts[0].deep, Type.BOSS, boss)
 		return
-	var chamber: Dictionary = Institute.chamber(self) if boss == &"beast" else {}
+	var chamber: Hall = Institute.chamber(self) if boss == &"beast" else Hall.none()
 	if not chamber.is_empty():
-		var inside: Rect2i = chamber["inside"]
+		var inside: Rect2i = chamber.inside
 		@warning_ignore("integer_division")
 		put(Vector2i(inside.position.x + inside.size.x / 2, inside.end.y - 1), Type.BOSS, boss)
 		return
 	if not shaft.is_empty():
-		var knot: Rect2i = shaft["knot"]
-		var beside: int = knot.position.x if knot.position.x > (shaft["inside"] as Rect2i).position.x else knot.end.x - 1
+		var knot: Rect2i = shaft.knot
+		var beside: int = knot.position.x if knot.position.x > shaft.inside.position.x else knot.end.x - 1
 		put(Vector2i(beside, knot.end.y - 1), Type.BOSS, boss)
 		return
 	var on: Vector2i = exits[Ways.Exit.DEEPER]
@@ -1072,8 +1117,8 @@ func place_lift_switches () -> void:
 	var reach: Dictionary = reach_from(start)
 	# Never in a vault, as switch_floor keeps out of them.
 	var locked: Dictionary = {}
-	for vault: Dictionary in vaults:
-		for c: Vector2i in vault["room"]:
+	for vault: Vault in vaults:
+		for c: Vector2i in vault.room:
 			locked[c] = true
 	# The free floors, kept as each switch takes one (nothing else here changes them).
 	var floors: Array[Vector2i] = free_floors()
@@ -1309,8 +1354,8 @@ func place_thorn_modes (def: NextWorldDef) -> void:
 ## side, each sorted, in order of their first cell; none at a chasm's foot or in a kept cell.
 func thorn_runs () -> Array[Array]:
 	var barred: Dictionary = {}
-	for chasm: Dictionary in chasms:
-		for plank: Vector2i in chasm["planks"]:
+	for chasm: Chasm in chasms:
+		for plank: Vector2i in chasm.planks:
 			for d: int in range(1, Chasms.CHASM_DEPTH + 3):
 				barred[plank + Vector2i(0, d)] = true
 	var seen: Dictionary = {}
@@ -1346,11 +1391,11 @@ var relic_gaps: Array[Rect2i] = []
 
 ## The bramble's shaft, in its gate levels (BrambleShaft.cut, which says what it holds); empty in
 ## every other level.
-var shaft: Dictionary = {}
+var shaft: ShaftSite = ShaftSite.none()
 
 ## The golem's lode hall at the top of the crags' gate levels (LodeHall.cut, which says what it
 ## holds); empty in every other place.
-var keep: Dictionary = {}
+var keep: KeepSite = KeepSite.none()
 
 ## The cell of a sky level's balloon (SkyArchetype.place_balloon), else (-1, -1).
 var balloon: Vector2i = Vector2i(-1, -1)
@@ -1363,12 +1408,12 @@ var start_lantern: Vector2i = Vector2i(-1, -1)
 ## Whether cell `v` is part of the golem's hall (keep): inside it, or its walls, roof or ground.
 ## Nothing else is built into it (secret rooms, vaults, cracked walls, climbing ledges).
 func in_keep (v: Vector2i) -> bool:
-	return not keep.is_empty() and (keep["box"] as Rect2i).has_point(v)
+	return not keep.is_empty() and keep.box.has_point(v)
 
 ## Whether cell `v` is part of the bramble's shaft: inside it, or its walls, roof or floor. Nothing
 ## else is built into it (secret rooms, vaults, cracked walls, climbing ledges).
 func in_shaft (v: Vector2i) -> bool:
-	return not shaft.is_empty() and (shaft["inside"] as Rect2i).grow(1).has_point(v)
+	return not shaft.is_empty() and shaft.inside.grow(1).has_point(v)
 
 ## Cells a built structure keeps as they are (a crag tower's stone, rooms, doorsteps, footing and
 ## the air over its roof, CragsArchetype; the floor a rolling ladder stands on all along its track,
@@ -1384,7 +1429,7 @@ func kept (v: Vector2i) -> bool:
 ## The level's chasms and gaps, its gates where the archetype has them (see Chasms): each
 ## {"planks": cells, "row": the floor row, "left": the last floor cell before it, "right": the
 ## first after}, numbered by their place here.
-var chasms: Array = []
+var chasms: Array[Chasm] = []
 
 ## The sky's islands come in clusters with open sky between them, as its sample paints them and the
 ## collapse lays them (SkyArchetype.read_clusters): each [centre, radii] of the box round a
@@ -1457,7 +1502,7 @@ func place_cluster (def: NextWorldDef) -> void:
 
 ## The level's secret rooms, laid by Secrets (see there), each {"room": cells, "entrance": cells,
 ## "rewards": [[cell, type, extra], ...]}.
-var secrets: Array = []
+var secrets: Array[SecretRoom] = []
 ## The master carrying the level's relic (Institute.populate: in the institute, a master out in the
 ## level carries it rather than a secret room or a bone vault), or (-1, -1) for none.
 var relic_carrier: Vector2i = Vector2i(-1, -1)
@@ -1470,10 +1515,10 @@ var relic_gated: bool = false
 var secret_steps: Dictionary = {}
 ## The level's vaults, laid by Vaults (see there), each {"room": cells, "door": cell, "color": key
 ## colour}.
-var vaults: Array = []
+var vaults: Array[Vault] = []
 ## The level's barrier, if it took one (Barriers): each {"kind", "move", "mouth", "side", "open",
 ## "thorns", "reward"}.
-var barriers: Array = []
+var barriers: Array[Barrier] = []
 ## The rock round every vault, which make_room leaves whole (it would let you in past the door).
 var vault_walls: Dictionary = {}
 ## The relic a bone vault holds instead of its hoard (relic_gated, Vaults.place_bone), or &"".
@@ -1490,9 +1535,9 @@ func kept_mask () -> PackedByteArray:
 			out[v.x * size.y + v.y] = 1
 	var boxes: Array[Rect2i] = []
 	if not shaft.is_empty():
-		boxes.append((shaft["inside"] as Rect2i).grow(1))
+		boxes.append(shaft.inside.grow(1))
 	if not keep.is_empty():
-		boxes.append(keep["box"] as Rect2i)
+		boxes.append(keep.box)
 	for box: Rect2i in boxes:
 		var r: Rect2i = box.intersection(Rect2i(Vector2i.ZERO, size))
 		for x: int in range(r.position.x, r.end.x):
@@ -1617,8 +1662,8 @@ const SWITCH_MIN: int = 8
 func switch_floor (reach: Dictionary, target: Vector2i) -> Variant:
 	var free: Dictionary = empty_set()
 	var locked: Dictionary = {}
-	for vault: Dictionary in vaults:
-		for c: Vector2i in vault["room"]:
+	for vault: Vault in vaults:
+		for c: Vector2i in vault.room:
 			locked[c] = true
 	var band: Array[Vector2i] = []
 	var far: Array[Vector2i] = []

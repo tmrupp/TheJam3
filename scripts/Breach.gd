@@ -75,7 +75,7 @@ func _physics_process(delta: float) -> void:
 		return
 	wait -= delta * Difficulty.attack()
 	if wait <= 0.0:
-		wait = every(map_info.record().rings)
+		wait = every(map_info.record().institute.rings)
 		surging = 0.0
 
 

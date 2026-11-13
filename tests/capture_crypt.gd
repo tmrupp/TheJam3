@@ -15,9 +15,9 @@ func run() -> void:
 	await _go(Vector2i(28, NextWorldDef.first_depth(&"cemetery")))
 	# Wait out the region's title.
 	await create_timer(5.0).timeout
-	var crypt: Dictionary = info.world.crypts[0]
-	var box: Rect2i = crypt["box"]
-	var step: Vector2i = (crypt["steps"] as Array)[0]
+	var crypt: Crypt = info.world.crypts[0]
+	var box: Rect2i = crypt.box
+	var step: Vector2i = crypt.steps[0]
 	# Outside, at its doorway, the font beside it.
 	player.global_position = info.cell_position(step)
 	var fonts: Array[Node] = placed("snuffer.tscn")
@@ -26,7 +26,7 @@ func run() -> void:
 		at = ((fonts[0] as Node2D).global_position + at) * 0.5
 	await _look(at + Vector2(0, -60), "crypt_doorway.png")
 	# Inside, lit and snuffed, the camera on the crypt's middle.
-	var floors: Array[Vector2i] = crypt["floors"]
+	var floors: Array[Vector2i] = crypt.floors
 	var mid: Vector2 = info.cell_position(box.get_center())
 	player.global_position = info.cell_position(floors[mini(4, floors.size() - 1)])
 	await _look(mid, "crypt_inside_lit.png")

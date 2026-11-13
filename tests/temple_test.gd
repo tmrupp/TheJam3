@@ -49,8 +49,8 @@ func run() -> void:
 			for i: int in range(1, winds.size()):
 				if winds[i] == winds[i - 1]:
 					repeats += 1
-			var box: Rect2i = w.temples[0]["box"] if w.temples.size() == 1 else Rect2i()
-			if box.size == Vector2i.ZERO or w.temples[0]["altar"] != v or not w.is_ground(v + Vector2i.DOWN):
+			var box: Rect2i = w.temples[0].box if w.temples.size() == 1 else Rect2i()
+			if box.size == Vector2i.ZERO or w.temples[0].altar != v or not w.is_ground(v + Vector2i.DOWN):
 				bad.append("%s: its altar not on its floor in its building" % at)
 			else:
 				# Its stylobate stands on the island: every column of it carried down to rock.
@@ -81,7 +81,7 @@ func run() -> void:
 	# The wizard well over it (off its hoard), its chunk awake.
 	player.global_position = temple.global_position + Vector2(0.0, -900.0)
 	info.loader.wake_around(temple.global_position)
-	var hoard: Array = info.world.temples[0]["hoard"]
+	var hoard: Array = info.world.temples[0].hoard
 	var steps: Array[int] = temple.sequence
 	check(hoard.size() == SkyArchetype.TEMPLE_HOARD and _clusters(hoard) == 0, "its hoard (%d star clusters) is hidden while it is shut" % hoard.size())
 	check(not temple.opened() and temple.progress() == 0 and str(temple.interaction_hint().get("text", "")) == "0 / %d" % steps.size(), "shut, none of its %d winds lit, and it shows so (0 / %d)" % [steps.size(), steps.size()])

@@ -114,7 +114,7 @@ func pick(info: MapInfo) -> Variant:
 		for id: int in range(w.secrets.size()):
 			if (info.record().secrets as Dictionary).has(id):
 				continue
-			var room: Array = w.secrets[id]["room"]
+			var room: Array = w.secrets[id].room
 			rooms.append(room[room.size() - 1])
 		if not rooms.is_empty():
 			return rooms[randi() % rooms.size()]

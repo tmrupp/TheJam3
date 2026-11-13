@@ -34,7 +34,7 @@ func _days() -> void:
 					var next: Vector2i = Students.next_seat(w, origin, r, at)
 					var hall: int = Timetable.hall_inside(w, next)
 					# Where it goes is a class in session then or the library.
-					good = good and hall >= 0 and (w.halls[hall]["kind"] == &"library" or Timetable.in_session(w, hall, r))
+					good = good and hall >= 0 and (w.halls[hall].kind == &"library" or Timetable.in_session(w, hall, r))
 					# Walking there, a step at a time, where it walks.
 					var from: Vector2i = at
 					var way: Array[Vector2i] = Students.route(w, at, next)
@@ -66,7 +66,7 @@ func _walking() -> void:
 	var at: Vector2i = _walk_level()
 	await go(at, false)
 	var rec: LevelRecord = info.record()
-	check(rec.passing, "a level is first met in passing time")
+	check(rec.institute.passing, "a level is first met in passing time")
 	freeze()
 	player.end_invulnerable()
 	# The walk is watched alone: the level's abominations (which bite a student in their way) and
@@ -99,7 +99,7 @@ func _walking() -> void:
 		for s: Scholar in students:
 			if tried.has(s) or not is_instance_valid(s):
 				continue
-			var way: Array[Vector2i] = Students.route(w, info.cell_at(s.global_position), Students.next_seat(w, s.origin, rec.rings, s.origin)) if attempt > 0 else Students.route(w, s.origin, Students.next_seat(w, s.origin, rec.rings, s.origin))
+			var way: Array[Vector2i] = Students.route(w, info.cell_at(s.global_position), Students.next_seat(w, s.origin, rec.institute.rings, s.origin)) if attempt > 0 else Students.route(w, s.origin, Students.next_seat(w, s.origin, rec.institute.rings, s.origin))
 			var through: ExamDoor = null
 			for c: Vector2i in way:
 				if doors.has(c):
@@ -143,7 +143,7 @@ func _walking() -> void:
 	for s: Scholar in students:
 		if s != best and is_instance_valid(s) and s.shuffling() and s.can_process():
 			other = s
-	rec.passing = false
+	rec.institute.passing = false
 	await frames(5)
 	if other != null:
 		# (Landed first, if class time caught it in a jump.)
@@ -155,7 +155,7 @@ func _walking() -> void:
 	var placed_at: Dictionary = {}
 	for s: Scholar in students:
 		if is_instance_valid(s):
-			placed_at[s.origin] = Students.seat_at(info.world, s.origin, rec.rings)
+			placed_at[s.origin] = Students.seat_at(info.world, s.origin, rec.institute.rings)
 	await go(at, false)
 	var right: bool = true
 	for n: Node in placed("student.tscn"):
@@ -163,7 +163,7 @@ func _walking() -> void:
 		if placed_at.has(s.origin):
 			right = right and info.cell_at(s.global_position) == placed_at[s.origin]
 	check(right and not placed_at.is_empty(), "come back in class time, each student is in its class of the period")
-	rec.passing = true
+	rec.institute.passing = true
 
 
 ## One of a few institute levels (ordinary ones, by world) where a student has a walk to its first

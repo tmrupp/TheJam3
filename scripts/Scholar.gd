@@ -237,7 +237,7 @@ func setup(info: MapInfo, v: Vector2i, extra: Variant) -> void:
 		relic = StringName((extra as Dictionary).get("relic", &""))
 		if relic != &"" and info != null and not info.relic_carried():
 			relic = &""
-	var kind_of_hall: StringName = info.world.halls[hall]["kind"] if info != null and info.world != null and hall >= 0 and hall < info.world.halls.size() else &""
+	var kind_of_hall: StringName = info.world.halls[hall].kind if info != null and info.world != null and hall >= 0 and hall < info.world.halls.size() else &""
 	# A class's master teaches its hall's subject now.
 	if kind_of_hall == &"lecture":
 		ability = info.institute.subject_of(hall)
@@ -249,10 +249,10 @@ func setup(info: MapInfo, v: Vector2i, extra: Variant) -> void:
 		origin = v
 		var rec: LevelRecord = info.record()
 		var start: Vector2i = v
-		if not rec.passing:
-			start = Students.seat_at(info.world, v, rec.rings)
-		elif rec.rings > 0:
-			start = Students.seat_at(info.world, v, rec.rings - 1)
+		if not rec.institute.passing:
+			start = Students.seat_at(info.world, v, rec.institute.rings)
+		elif rec.institute.rings > 0:
+			start = Students.seat_at(info.world, v, rec.institute.rings - 1)
 		if start != v:
 			global_position = info.cell_position(start)
 	var wound: Wound = get_node_or_null("Wound") as Wound
@@ -272,7 +272,7 @@ func spell_cast() -> StringName:
 
 ## Whether it is an instructor, a classroom's master (see the class description).
 func instructor() -> bool:
-	return kind == &"master" and map_info != null and map_info.world != null and hall >= 0 and hall < map_info.world.halls.size() and map_info.world.halls[hall]["kind"] == &"lecture"
+	return kind == &"master" and map_info != null and map_info.world != null and hall >= 0 and hall < map_info.world.halls.size() and map_info.world.halls[hall].kind == &"lecture"
 
 
 ## How much sooner it casts (and moves): an instructor INSTRUCTOR_HASTE, anyone else 1.
@@ -538,24 +538,24 @@ func _shuffle(delta: float) -> bool:
 	if origin.x < 0 or map_info == null or map_info.world == null:
 		return false
 	var rec: LevelRecord = map_info.record()
-	if not rec.passing:
+	if not rec.institute.passing:
 		blink_in = -1.0
 		if not route.is_empty():
 			_arrive()
 		return false
 	var here: Vector2i = map_info.cell_at(global_position)
-	if planned != rec.rings:
+	if planned != rec.institute.rings:
 		if not grounded:
 			return false
-		planned = rec.rings
-		var seat: Vector2i = Students.next_seat(map_info.world, origin, rec.rings, here)
+		planned = rec.institute.rings
+		var seat: Vector2i = Students.next_seat(map_info.world, origin, rec.institute.rings, here)
 		route = Students.route(map_info.world, here, seat)
 		route_at = 0
 		stuck = 0.0
 		blink_in = -1.0
 		if route.is_empty() and seat != here:
 			blink_to = seat
-			blink_in = lerpf(BLINK_AFTER.x, BLINK_AFTER.y, RisoDecor.h(rec.rings, origin, 2))
+			blink_in = lerpf(BLINK_AFTER.x, BLINK_AFTER.y, RisoDecor.h(rec.institute.rings, origin, 2))
 	if blink_in >= 0.0:
 		blink_in -= delta
 		if blink_in < 0.0:
@@ -695,7 +695,7 @@ func floors() -> Array[Vector2i]:
 	if map_info == null or map_info.world == null or hall < 0 or hall >= map_info.world.halls.size():
 		return out
 	var w: LevelGen = map_info.world
-	var inside: Rect2i = w.halls[hall]["inside"]
+	var inside: Rect2i = w.halls[hall].inside
 	for x: int in range(inside.position.x, inside.end.x):
 		for y: int in range(inside.position.y, inside.end.y):
 			var v: Vector2i = Vector2i(x, y)
@@ -725,7 +725,7 @@ func _ferry(delta: float) -> void:
 	var stuck: bool = _last_x != INF and absf(global_position.x - _last_x) < 0.01 and grounded
 	_last_x = global_position.x
 	if map_info != null and map_info.world != null and hall >= 0 and hall < map_info.world.halls.size():
-		var inside: Rect2i = map_info.world.halls[hall]["inside"]
+		var inside: Rect2i = map_info.world.halls[hall].inside
 		var left: float = map_info.cell_position(inside.position).x
 		var right: float = map_info.cell_position(Vector2i(inside.end.x - 1, inside.position.y)).x
 		if (patrol_way < 0.0 and global_position.x <= left) or (patrol_way > 0.0 and global_position.x >= right):
@@ -956,4 +956,4 @@ func _fallen() -> void:
 			map_info.relic_left(global_position, relic, true)
 			relic = &""
 		else:
-			map_info.leave_lesson(cell, global_position, ability)
+			map_info.institute.leave_lesson(cell, global_position, ability)

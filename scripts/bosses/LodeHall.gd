@@ -108,8 +108,8 @@ static func _inside(box: Rect2i) -> Rect2i:
 static func arm(w: LevelGen) -> void:
 	if w.keep.is_empty():
 		return
-	var inside: Rect2i = w.keep["inside"]
-	var floors: Array[int] = w.keep["floors"]
+	var inside: Rect2i = w.keep.inside
+	var floors: Array[int] = w.keep.floors
 	var left_first: bool = _h(w, inside.position, CROSSBOW_DEAL) < 0.5
 	var bows: Array[Vector2i] = []
 	for k: int in range(floors.size()):
@@ -121,16 +121,16 @@ static func arm(w: LevelGen) -> void:
 			w.put(at, LevelGen.Type.CROSSBOW, {"facing": 1 if side else -1, "inward": true})
 			bows.append(at)
 			break
-	w.keep["crossbows"] = bows
+	w.keep.crossbows = bows
 
 
 ## Whether the world point `at` is in the golem's hall of the place being played: there every damage
 ## spell is tempered (Empower.tempers_now), lodestone or none.
 static func tempers(at: Vector2) -> bool:
 	var info: MapInfo = MapInfo.instance
-	if info == null or info.world == null or not info.world.keep.has("lair"):
+	if info == null or info.world == null or not (info.world.keep.laid):
 		return false
-	return (info.world.keep["box"] as Rect2i).has_point(info.cell_at(at))
+	return info.world.keep.box.has_point(info.cell_at(at))
 
 
 ## A number in [0, 1) dealt by the level seed and `v` with `salt`.
@@ -156,7 +156,7 @@ static func _build(w: LevelGen, box: Rect2i) -> void:
 	for x: int in range(box.position.x, box.end.x):
 		for y: int in range(box.position.y, box.end.y):
 			var v: Vector2i = Vector2i(x, y)
-			w.structures[v] = &"golem"
+			w.claim(v, Claims.STRUCTURE, &"golem")
 			if inside.has_point(v) and not floor_rows.has(y):
 				if not w._open(v) or w.type_at(v) != LevelGen.Type.EMPTY:
 					w._to_open(v)
@@ -215,7 +215,7 @@ static func _build(w: LevelGen, box: Rect2i) -> void:
 					w.interiors[v] = true
 					doors.append(v)
 	for v: Vector2i in walled:
-		w.kept_whole[v] = true
+		w.claim(v, Claims.KEPT)
 	# Whatever the new walls cut off is joined up again round the hall, never through it.
 	w.connect_caves(walled)
 	# Nothing else is placed inside it.
@@ -234,7 +234,4 @@ static func _build(w: LevelGen, box: Rect2i) -> void:
 	var on: Vector2i = Vector2i(inside.position.x if on_left else inside.end.x - 1, floor_rows[0] - 1)
 	@warning_ignore("integer_division")
 	var lair: Vector2i = Vector2i(gaps[-1].position.x + GAP / 2, inside.end.y - 1)
-	w.keep = {
-		"box": box, "inside": inside, "floors": floor_rows, "gaps": gaps, "stairs": stairs,
-		"ledges": ledges, "on": on, "lair": lair, "doors": doors,
-	}
+	w.keep = KeepSite.make(box, inside, floor_rows, gaps, stairs, ledges, on, lair, doors)

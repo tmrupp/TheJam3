@@ -143,13 +143,13 @@ func _great_bell(at: Vector2, h: float, swing: float, fade: float, ringing: floa
 ## description).
 func _marks(info: MapInfo, at: Vector2) -> void:
 	var rec: LevelRecord = info.record()
-	var now: int = Timetable.period(rec.rings)
+	var now: int = Timetable.period(rec.institute.rings)
 	var marks: Array[PackedVector2Array] = []
 	var lit: PackedVector2Array = PackedVector2Array()
 	for p: int in range(Timetable.PERIODS):
 		var c: Vector2 = at + Vector2((float(p) - float(Timetable.PERIODS - 1) * 0.5) * MARK_GAP, 0.0)
 		var r: float = MARK_R * (1.5 if p == now else 1.0)
-		if p == now and rec.passing:
+		if p == now and rec.institute.passing:
 			c.y += absf(sin(t * 4.0)) * 3.0
 		var mark: PackedVector2Array = PackedVector2Array([c + Vector2(0, -r), c + Vector2(r, 0), c + Vector2(0, r), c + Vector2(-r, 0)])
 		marks.append(mark)

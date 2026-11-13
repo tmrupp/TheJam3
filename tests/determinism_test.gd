@@ -90,6 +90,8 @@ func _written(v: Variant, depth: int) -> String:
 	if v is LevelGen.Cell:
 		var c: LevelGen.Cell = v
 		return "C(%d,%s,%s)" % [c.type, _written(c.extra_info, depth + 1), _written(c.mods, depth + 1)]
+	if v is Structure:
+		return "S(%s,%s)" % [(v as Structure).get_script().get_global_name(), _written((v as Structure).to_dict(), depth + 1)]
 	if v is RandomNumberGenerator:
 		var r: RandomNumberGenerator = v
 		return "R(%d,%d)" % [r.seed, r.state]

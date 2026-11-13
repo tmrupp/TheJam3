@@ -75,9 +75,9 @@ func _terrace() -> void:
 ## light there, and a flare.
 func _stairs() -> void:
 	var best: Array[Vector2i] = []
-	for crypt: Dictionary in info.world.crypts:
+	for crypt: Crypt in info.world.crypts:
 		var steps: Array[Vector2i] = []
-		for s: Vector2i in crypt["stairs"]:
+		for s: Vector2i in crypt.stairs:
 			if info.world.get_cell(s).type == LevelGen.Type.PHASE_BLOCK:
 				steps.append(s)
 		if steps.size() > best.size():
@@ -160,8 +160,8 @@ func _open_box(w: int, h: int) -> Vector2i:
 ## A crypt's doorway shut by a block, from outside, lit and snuffed (darkness_doorway_lit.png,
 ## darkness_doorway_dark.png).
 func _doorway() -> void:
-	for crypt: Dictionary in info.world.crypts:
-		for d: Vector2i in crypt["doors"]:
+	for crypt: Crypt in info.world.crypts:
+		for d: Vector2i in crypt.doors:
 			if info.world.get_cell(d).type != LevelGen.Type.PHASE_BLOCK:
 				continue
 			var out: int = -1 if not info.world.interiors.has(d + Vector2i.LEFT) else 1

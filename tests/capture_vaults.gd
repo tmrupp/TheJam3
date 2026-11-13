@@ -40,9 +40,9 @@ func run() -> void:
 		if info.world.vaults.is_empty():
 			print("no vault in ", at)
 			continue
-		var vault: Dictionary = info.world.vaults[0]
-		var door: Vector2i = vault["door"]
-		var room: Array = vault["room"]
+		var vault: Vault = info.world.vaults[0]
+		var door: Vector2i = vault.door
+		var room: Array = vault.room
 		var outside: Vector2i = door + (Vector2i.LEFT if room.has(door + Vector2i.RIGHT) else Vector2i.RIGHT)
 		var door_px: Vector2 = info.tile_map.to_global(info.tile_map.map_to_local(door))
 		player.global_position = info.tile_map.to_global(info.tile_map.map_to_local(outside))
@@ -50,6 +50,6 @@ func run() -> void:
 		camera.zoom = Vector2.ONE * 0.28
 		camera.reset_smoothing()
 		await settle(40)
-		await shot("vault_%d_%d_color%d" % [at.x, at.y, int(vault["color"])])
+		await shot("vault_%d_%d_color%d" % [at.x, at.y, int(vault.color)])
 	print("CAPTURED keys by rarity and vaults")
 	quit()

@@ -27,7 +27,7 @@ func interacted () -> void:
 	if MapInfo.instance != null:
 		var lit: bool = MapInfo.instance.is_respawn_lantern(self)
 		MapInfo.instance.light_lantern(self)
-		if lit and MapInfo.instance.study(global_position + Vector2(0, -40)):
+		if lit and MapInfo.instance.institute.study(global_position + Vector2(0, -40)):
 			MapInfo.instance.burn_lantern(self)
 		elif lit and MapInfo.instance.can_burn(self):
 			MapInfo.instance.burn_lantern(self)

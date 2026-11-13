@@ -18,7 +18,7 @@ var main: Node
 var info: MapInfo
 var player: Player
 ## The terrain generator collapse() and build() use (made on first use, freed by finish()).
-var _wfc: Node
+var _wfc: WaveFunctionCollapse
 
 ## Where the captures write their stills.
 const STILLS: String = "res://../art-captures/riso-frames"
@@ -137,9 +137,7 @@ func check_eq(got: Variant, want: Variant, what: String) -> void:
 ## out are tallied on a line of their own (the runner sums them over a run).
 func finish(label: String = "") -> void:
 	print("KIT LAYOUTS %d %d %d" % [_built_count, _built_usec / 1000, _built_again])
-	if _wfc != null:
-		_wfc.free()
-		_wfc = null
+	_wfc = null
 	var title: String = label if label != "" else test_name()
 	if failed:
 		print("FAILED: ", title)
@@ -332,23 +330,8 @@ func colored(scene: String, color: int) -> Array[Node]:
 ## and the place has no fallback).
 func collapse(at: Vector2i) -> Array:
 	if _wfc == null:
-		_wfc = _make_wfc()
-	return _wfc.call("generate_level", Rules.def_for(at))
-
-
-## A terrain generator with the game's own settings, read from the game scene's generator node
-## without making the scene (pattern size and the rest stay in step with the game).
-static func _make_wfc() -> Node:
-	var wfc: Node = (load("res://scripts/WaveFunctionCollapse.gd") as GDScript).new() as Node
-	var state: SceneState = (load("res://prefabs/scenes/main.tscn") as PackedScene).get_state()
-	for i: int in range(state.get_node_count()):
-		if state.get_node_name(i) != &"WaveFunctionCollapse":
-			continue
-		for p: int in range(state.get_node_property_count(i)):
-			var prop: StringName = state.get_node_property_name(i, p)
-			if prop != &"script":
-				wfc.set(prop, state.get_node_property_value(i, p))
-	return wfc
+		_wfc = WaveFunctionCollapse.new()
+	return _wfc.generate_level(Rules.def_for(at))
 
 
 ## The place at `at` laid out (terrain collapsed, then dressed), without the game scene; null if

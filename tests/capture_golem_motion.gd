@@ -73,9 +73,9 @@ func run() -> void:
 	await within(func() -> bool: return golem.called.is_empty() and golem.shards.is_empty() and golem.state == Golem.State.HUNT, 12.0)
 	player.end_invulnerable()
 	# A leap: the wizard on the gallery over it.
-	var box: Rect2i = info.world.keep["box"]
-	var floors: Array[int] = info.world.keep["floors"]
-	var stair: Rect2i = (info.world.keep["stairs"] as Array[Rect2i])[1]
+	var box: Rect2i = info.world.keep.box
+	var floors: Array[int] = info.world.keep.floors
+	var stair: Rect2i = info.world.keep.stairs[1]
 	player.global_position = info.cell_position(Vector2i(stair.position.x + (3 if stair.position.x < box.get_center().x else -2), floors[1] - 1))
 	await within(func() -> bool: return golem.state == Golem.State.LEAP_WARN and golem.timer < Golem.LEAP_WARN * 0.5, 15.0)
 	await _row(9)

@@ -168,8 +168,8 @@ func setup(info: MapInfo, v: Vector2i, which: Variant) -> void:
 	var feet: Vector2 = info.cell_position(v) + Vector2(0, cell_px * 0.5)
 	global_position = feet + Vector2(0, -RISE)
 	floor_y = feet.y
-	var chamber: Dictionary = Institute.chamber(info.world) if info.world != null else {}
-	box = chamber["inside"] if not chamber.is_empty() else Rect2i(v - Vector2i(8, 4), Vector2i(17, 5))
+	var chamber: Hall = Institute.chamber(info.world) if info.world != null else {}
+	box = chamber.inside if not chamber.is_empty() else Rect2i(v - Vector2i(8, 4), Vector2i(17, 5))
 	x_min = info.cell_position(Vector2i(box.position.x, v.y)).x - cell_px * 0.5
 	x_max = info.cell_position(Vector2i(box.end.x - 1, v.y)).x + cell_px * 0.5
 

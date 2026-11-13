@@ -78,7 +78,7 @@ func generation() -> Vector2i:
 					continue
 				var tower: int = -1
 				for i: int in range(w.towers.size()):
-					if (w.towers[i]["box"] as Rect2i).has_point(v):
+					if w.towers[i].box.has_point(v):
 						tower = i
 				if tower < 0:
 					bad.append("%s %s not in a tower" % [place, v])

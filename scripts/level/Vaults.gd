@@ -98,7 +98,7 @@ static func place_bone(w: LevelGen, def: NextWorldDef) -> void:
 	if not w.relic_gated:
 		return
 	if not w.secrets.is_empty():
-		var rewards: Array = w.secrets[0]["rewards"]
+		var rewards: Array = w.secrets[0].rewards
 		rewards[0] = [rewards[0][0], LevelGen.Type.RELIC, def.relic]
 	else:
 		w.put_random(LevelGen.Type.RELIC, w.ground_below, true, def.relic)
@@ -219,8 +219,8 @@ static func _carve(w: LevelGen, r: Rect2i, door: Vector2i, color: int) -> void:
 	for x: int in range(r.position.x - 1, r.end.x + 1):
 		for y: int in range(r.position.y - 1, r.end.y + 1):
 			if w.is_ground(Vector2i(x, y)):
-				w.vault_walls[Vector2i(x, y)] = true
-	w.vault_walls.erase(door)
+				w.claim(Vector2i(x, y), Claims.VAULT_WALL)
+	w.unclaim(door, Claims.VAULT_WALL)
 	var room: Array[Vector2i] = []
 	for x: int in range(r.position.x, r.end.x):
 		for y: int in range(r.position.y, r.end.y):
@@ -242,4 +242,6 @@ static func _carve(w: LevelGen, r: Rect2i, door: Vector2i, color: int) -> void:
 	for i: int in range(mini(held.size(), slots.size())):
 		var at: Vector2i = slots[i]
 		w.put(at, held[i][0], held[i][1])
-	w.vaults.append({"room": room, "door": door, "color": color})
+	w.vaults.append(Vault.make(room, door, color))
+	for c: Vector2i in room:
+		w.claim(c, Claims.VAULT)

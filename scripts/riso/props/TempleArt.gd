@@ -38,21 +38,21 @@ func of_the_rock() -> bool:
 	return true
 
 
-## Its temple's building (LevelGen.temples), or {} where it has none.
-func _building() -> Dictionary:
+## Its temple's building (LevelGen.temples), or none (is_empty) where it has none.
+func _building() -> TempleSite:
 	if temple == null or temple.map_info == null or temple.map_info.world == null or not host.has_meta(&"cell"):
-		return {}
+		return TempleSite.none()
 	var at: Vector2i = host.get_meta(&"cell")
-	for b: Dictionary in temple.map_info.world.temples:
-		if b["altar"] == at:
+	for b: TempleSite in temple.map_info.world.temples:
+		if b.altar == at:
 			return b
-	return {}
+	return TempleSite.none()
 
 
 func _draw_art() -> void:
 	if temple == null:
 		return
-	var building: Dictionary = _building()
+	var building: TempleSite = _building()
 	if not building.is_empty():
 		_dress(building)
 		_frieze(building)
@@ -71,9 +71,9 @@ func _h(box: Rect2i, salt: int) -> float:
 
 
 ## Its columns, pediment and ornament, as `style` has them.
-func _dress(building: Dictionary) -> void:
-	var box: Rect2i = building["box"]
-	var hall: Rect2i = building["hall"]
+func _dress(building: TempleSite) -> void:
+	var box: Rect2i = building.box
+	var hall: Rect2i = building.hall
 	var x0: int = box.position.x
 	var x1: int = box.end.x - 1
 	var top_y: float = _at(Vector2i(0, hall.position.y)).y - half
@@ -203,8 +203,8 @@ func _growth(box: Rect2i, roof_y: float, top_y: float, foot_y: float, left: floa
 ## face, as many as fit, an arrow on each the way that step's vane must point. One lit (temple.progress) is a sun
 ## disc glowing, its arrow knocked to paper; one not yet lit is dark, its arrow faint. As the
 ## sequence breaks (temple.since_broken) the medallions flash pink and go dark.
-func _frieze(building: Dictionary) -> void:
-	var box: Rect2i = building["box"]
+func _frieze(building: TempleSite) -> void:
+	var box: Rect2i = building.box
 	@warning_ignore("integer_division")
 	var roof: Vector2 = _at(Vector2i((box.position.x + box.end.x - 1) / 2, box.position.y))
 	var lit: int = temple.progress()

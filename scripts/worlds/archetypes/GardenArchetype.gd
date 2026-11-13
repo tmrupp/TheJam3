@@ -66,8 +66,8 @@ func finish(w: LevelGen, def: NextWorldDef) -> void:
 ## The cells inside the level's vaults, where nothing of the garden's grows.
 static func _vaulted(w: LevelGen) -> Dictionary:
 	var out: Dictionary = {}
-	for vault: Dictionary in w.vaults:
-		for c: Vector2i in vault["room"]:
+	for vault: Vault in w.vaults:
+		for c: Vector2i in vault.room:
 			out[c] = true
 	return out
 

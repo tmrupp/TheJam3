@@ -728,8 +728,8 @@ func rebuild(info: MapInfo, cracked_positions: Array[Vector2] = []) -> void:
 				for dy: int in range(0, Institute.LIBRARY_GROUND + 1):
 					occupied[c + Vector2i(dx, -dy)] = true
 	# A sky temple is dressed by its own art (TempleArt): no decor on it, in it or over it.
-	for temple: Dictionary in info.world.temples:
-		var box: Rect2i = (temple["box"] as Rect2i).grow(1)
+	for temple: TempleSite in info.world.temples:
+		var box: Rect2i = temple.box.grow(1)
 		for x: int in range(box.position.x, box.end.x):
 			for y: int in range(box.position.y - SkyArchetype.TEMPLE_AIR, box.end.y + 1):
 				occupied[Vector2i(x, y)] = true

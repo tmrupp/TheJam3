@@ -57,7 +57,7 @@ func run() -> void:
 			var rooms: Array = []
 			var way_on: int = -1
 			for i: int in range(w.halls.size()):
-				if w.halls[i]["kind"] != &"lecture":
+				if w.halls[i].kind != &"lecture":
 					continue
 				if i == Timetable.way_on_hall(w):
 					way_on = rooms.size()
@@ -65,14 +65,14 @@ func run() -> void:
 				for r: int in range(RINGS):
 					subjects.append(String(Timetable.subject(w, i, r)))
 				var opens: Array = []
-				for step: Vector2i in w.halls[i]["steps"]:
+				for step: Vector2i in w.halls[i].steps:
 					if region.has(step) and not opens.has(region[step]):
 						opens.append(region[step])
-				var centre: Vector2i = (w.halls[i]["inside"] as Rect2i).get_center()
-				rooms.append({"dept": String(w.halls[i]["dept"]), "subjects": subjects, "regions": opens, "at": [centre.x, centre.y], "phase": Timetable.phase(w, i)})
+				var centre: Vector2i = w.halls[i].inside.get_center()
+				rooms.append({"dept": String(w.halls[i].dept), "subjects": subjects, "regions": opens, "at": [centre.x, centre.y], "phase": Timetable.phase(w, i)})
 			var cords: Array = []
 			for v: Vector2i in w.objects_of(LevelGen.Type.SCHOOL_BELL):
-				if Institute.hall_at(w, v) < 0 or w.halls[Institute.hall_at(w, v)]["kind"] == &"library":
+				if Institute.hall_at(w, v) < 0 or w.halls[Institute.hall_at(w, v)].kind == &"library":
 					if region.has(v) and not cords.has(region[v]):
 						cords.append(region[v])
 			# What joins regions besides classrooms: locked doors and gates.
@@ -108,7 +108,7 @@ func _regions(w: LevelGen) -> Dictionary:
 		if not w.is_valid(v) or w.get_cell(v).type in walls:
 			return false
 		var hall: int = Institute.hall_at(w, v)
-		return hall < 0 or w.halls[hall]["kind"] != &"lecture"
+		return hall < 0 or w.halls[hall].kind != &"lecture"
 	var next: int = 0
 	for x: int in range(w.size.x):
 		for y: int in range(w.size.y):

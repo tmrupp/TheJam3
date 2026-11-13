@@ -49,7 +49,6 @@ const DEBUG_STARS: int = 9999
 
 static var instance: MapInfo
 
-@onready var wfc: WaveFunctionCollapse = $"../../WaveFunctionCollapse"
 @onready var tile_map: TileMap = $"../../TileMap"
 @onready var main: Node = Stage.main()
 var player: Player
@@ -319,8 +318,8 @@ func switch_vane (cell: Vector2i, way: int) -> void:
 		rec.vanes_on[cell] = way
 		rec.wind_way = way
 		if world != null and not rec.temple_open:
-			for t: Dictionary in world.temples:
-				rec.temple_progress = Temple.step(world.get_cell(t["altar"]).extra_info, rec.temple_progress, way)
+			for t: TempleSite in world.temples:
+				rec.temple_progress = Temple.step(world.get_cell(t.altar).extra_info, rec.temple_progress, way)
 	save_run()
 
 ## Whether the vane at `cell` is switched on.
@@ -614,7 +613,7 @@ func _deal_stations () -> void:
 	var rec: LevelRecord = record()
 	if rec.stations >= 0 or world == null or world.circuit.is_empty():
 		return
-	var gates: Array[Vector2i] = world.circuit["gates"]
+	var gates: Array[Vector2i] = world.circuit.gates
 	var came: Vector2i = world.exits.get(arrival, world.exits.get(Exit.BACK, Vector2i.ZERO)) if arrival >= 0 else world.exits.get(Exit.BACK, Vector2i.ZERO)
 	var nearest: int = 0
 	for i: int in range(gates.size()):
@@ -642,7 +641,7 @@ func flip_tower (tower: int, mask: int) -> bool:
 func tower_cold (tower: int) -> bool:
 	if world == null or tower < 0 or tower >= world.towers.size():
 		return false
-	return bool(world.towers[tower].get("cold", false)) and not record().woken.has(tower)
+	return bool(world.towers[tower].cold) and not record().woken.has(tower)
 
 ## An empowered strike on tower `tower`'s spire (Spire): a cold tower wakes for good; any other
 ## flips its switch, under the same lock as by hand (flip_tower). Whether anything came of it.
@@ -653,7 +652,7 @@ func strike_spire (tower: int) -> bool:
 		record().woken[tower] = true
 		save_run()
 		return true
-	var at: Vector2i = world.towers[tower].get("switch", Vector2i(-1, -1))
+	var at: Vector2i = world.towers[tower].switch
 	if not world.is_valid(at) or world.type_at(at) != LevelGen.Type.TOWER_SWITCH:
 		return false
 	return flip_tower(tower, int((world.get_cell(at).extra_info as Dictionary).get("mask", 0)))
@@ -762,17 +761,17 @@ func open_secret (id: int) -> void:
 	if rec.secrets.has(id):
 		return
 	rec.secrets[id] = true
-	var secret: Dictionary = world.secrets[id]
+	var secret: SecretRoom = world.secrets[id]
 	var middle: Vector2 = Vector2.ZERO
-	for c: Vector2i in secret["room"] + secret["entrance"]:
+	for c: Vector2i in secret.room + secret.entrance:
 		rec.broken[c] = true
-		middle += cell_position(c) / float(secret["room"].size() + secret["entrance"].size())
+		middle += cell_position(c) / float(secret.room.size() + secret.entrance.size())
 	if map_elements != null and is_instance_valid(map_elements):
 		for node: Node in map_elements.get_children():
 			if int(node.get_meta(&"secret", -1)) == id:
 				node.queue_free()
 	_spawn_secret_rewards(id)
-	prop_up(secret["room"] + secret["entrance"])
+	prop_up(secret.room + secret.entrance)
 	RisoFx.burst(&"gain", middle, Vector2.ZERO, [Plate.ACCENT, Plate.BLUE])
 	RisoFx.burst(&"hit", middle, Vector2.UP, [Plate.BLUE, Plate.NIGHT])
 	Wound.shake(14.0, 0.3)
@@ -785,7 +784,7 @@ func open_secret (id: int) -> void:
 func _spawn_secret_rewards (id: int) -> void:
 	if world == null or id < 0 or id >= world.secrets.size():
 		return
-	for reward: Array in world.secrets[id]["rewards"]:
+	for reward: Array in world.secrets[id].rewards:
 		var cell: LevelGen.Cell = LevelGen.Cell.new(reward[1])
 		cell.extra_info = reward[2]
 		loader.place_cell(reward[0], cell)
@@ -800,17 +799,17 @@ func relic_taken () -> void:
 func relic_carried () -> bool:
 	if run.relics_found.has(coord):
 		return false
-	var left: Dictionary = record().relics_left
+	var left: Dictionary = record().institute.relics_left
 	return not left.keys().any(func(id: int) -> bool: return bool(left[id][2]))
 
 ## A beaten master left relic `move` lying at `pos`, free (the fight was its price): the level's own
 ## when `own` (a master out in the level carried it), else an instructor's. Kept in the record until
-## taken (LevelRecord.relics_left).
+## taken (InstituteRecord.relics_left).
 func relic_left (pos: Vector2, move: StringName, own: bool) -> void:
 	var rec: LevelRecord = record()
 	var id: int = rec.next_drop
 	rec.next_drop = id + 1
-	rec.relics_left[id] = [pos, move, own]
+	rec.institute.relics_left[id] = [pos, move, own]
 	_spawn_left_relics.call_deferred()
 	RisoFx.burst(&"gain", pos, Vector2.ZERO, [Plate.ACCENT, Plate.PINK])
 	save_run()
@@ -819,9 +818,9 @@ func relic_left (pos: Vector2, move: StringName, own: bool) -> void:
 ## found (relic_taken).
 func left_relic_taken (id: int) -> void:
 	var rec: LevelRecord = record()
-	if rec.relics_left.has(id) and bool(rec.relics_left[id][2]):
+	if rec.institute.relics_left.has(id) and bool(rec.institute.relics_left[id][2]):
 		run.relic_taken(coord)
-	rec.relics_left.erase(id)
+	rec.institute.relics_left.erase(id)
 	save_run()
 
 ## Every relic left lying here (relic_left) not yet standing.
@@ -829,14 +828,14 @@ func _spawn_left_relics () -> void:
 	if map_elements == null or not is_instance_valid(map_elements):
 		return
 	var rec: LevelRecord = record()
-	for id: int in rec.relics_left:
+	for id: int in rec.institute.relics_left:
 		if map_elements.get_children().any(func(n: Node) -> bool: return int(n.get_meta(&"left", -1)) == id):
 			continue
 		var relic: Relic = Placeables.scene(LevelGen.Type.RELIC).instantiate() as Relic
 		relic.set_meta(&"left", id)
 		map_elements.add_child(relic)
-		relic.global_position = rec.relics_left[id][0]
-		relic.setup(self, Vector2i.ZERO, rec.relics_left[id][1])
+		relic.global_position = rec.institute.relics_left[id][0]
+		relic.setup(self, Vector2i.ZERO, rec.institute.relics_left[id][1])
 
 ## The relic a shrine would point to: the nearest one neither found nor already marked, or null.
 func next_relic () -> Variant:
@@ -1071,7 +1070,6 @@ func _level_ready (built: LevelGen) -> void:
 	_spawn_left_relics()
 	_spawn_whale()
 	_spawn_souls()
-	_spawn_lessons()
 	institute.level_ready()
 	# Rock broken before, under things you stand at: their ledges.
 	_props.clear()
@@ -1154,26 +1152,6 @@ func world_at (at: Vector2i) -> LevelGen:
 # ------------------------------------------------------------------ the institute
 
 
-
-## Studying, at `at` (a lit lantern, Checkpoint, which it burns out; the library's desk,
-## study_at_desk): the oldest paper carried that teaches something (learn_paper) is learned. Returns
-## whether one was.
-func study (at: Vector2) -> bool:
-	if player == null or not is_instance_valid(player):
-		return false
-	for code: int in player.keyring.papers():
-		if learn_paper(code, at):
-			return true
-	return false
-
-## Whether exam paper `code` would teach something learned now (learn_paper): a spell that takes a
-## slot, not one held there already at that tier or higher.
-func teaches_paper (code: int) -> bool:
-	var a: StringName = KeyRing.paper_spell(code)
-	if a == &"" or Abilities.slot_of(a) == &"" or player == null or not is_instance_valid(player):
-		return false
-	return not (Abilities.spell(player, Abilities.slot_of(a)) == a and Abilities.tier(player, a) >= KeyRing.paper_tier(code))
-
 ## How many lanterns the wizard has burned out this game, by studying or into mend (burn_lantern),
 ## so the tutorial's card for burning one knows when it has been done (ControlHint.BURN).
 var lanterns_burned: int = 0
@@ -1224,89 +1202,6 @@ func refill_utility () -> void:
 	elif held == &"resurrect" and rise != null:
 		rise.refill()
 
-## The paper the library's desk (StudyDesk) would teach now, or 0: in class time, to a wizard in the
-## library who has not studied there this period (LevelRecord.studied), the oldest carried that
-## teaches something (teaches_paper). Free: the price is the bell that began class time.
-func desk_paper () -> int:
-	if not institute.timetabled() or player == null or not is_instance_valid(player):
-		return 0
-	var rec: LevelRecord = record()
-	if rec.passing or rec.studied == rec.rings:
-		return 0
-	var hall: int = Timetable.hall_inside(world, cell_at(player.global_position))
-	if hall < 0 or world.halls[hall]["kind"] != &"library":
-		return 0
-	for code: int in player.keyring.papers():
-		if teaches_paper(code):
-			return code
-	return 0
-
-## Study at the library's desk, at `at` (desk_paper): its paper learned, once this period. Returns
-## whether one was.
-func study_at_desk (at: Vector2) -> bool:
-	var code: int = desk_paper()
-	if code == 0 or not learn_paper(code, at):
-		return false
-	record().studied = record().rings
-	save_run()
-	return true
-
-## Exam paper `code` learned, at `at`: its spell takes its slot at the paper's tier, and the spell it
-## puts out of the slot comes back as a paper (put_back). A paper of the spell already held, at a tier
-## no higher than it is known, teaches nothing (and stays on the ring). Returns whether it taught.
-func learn_paper (code: int, at: Vector2) -> bool:
-	if not teaches_paper(code):
-		return false
-	var a: StringName = KeyRing.paper_spell(code)
-	var tier: int = KeyRing.paper_tier(code)
-	var held: StringName = Abilities.spell(player, Abilities.slot_of(a))
-	var held_tier: int = Abilities.tier(player, held) if held != &"" else 0
-	player.keyring.spend(code)
-	Abilities.set_tier(player, a, tier)
-	if held != &"" and held != a:
-		put_back(held, held_tier, at)
-	RisoFx.burst(&"gain", at, Vector2.ZERO, [Plate.ACCENT, Plate.GLOW])
-	Wound.shake(6.0, 0.15)
-	save_run()
-	return true
-
-## Spell `a`, known at `tier`, put out of its slot (a lantern's study, a shrine's boon, a lesson): it
-## comes back as an exam paper (KeyRing.paper), onto the key ring (one put off a full ring is left
-## lying at `at`).
-func put_back (a: StringName, tier: int, at: Vector2) -> void:
-	if a != &"" and tier > 0:
-		institute.give_paper(KeyRing.paper(a, tier), at)
-
-## A master fell at `pos`, having mastered `ability`: its lesson (Lesson) waits where it fell, once
-## a master (the one at `cell`): beaten again after a death, it leaves nothing more.
-func leave_lesson (cell: Vector2i, pos: Vector2, ability: StringName) -> void:
-	var rec: LevelRecord = record()
-	if ability == &"" or rec.lessons.has(cell):
-		return
-	rec.lessons[cell] = {"at": pos, "ability": ability, "taken": false, "left": []}
-	_spawn_lesson(cell)
-	save_run()
-
-## Every lesson here with something still on it.
-func _spawn_lessons () -> void:
-	for cell: Vector2i in record().lessons:
-		_spawn_lesson(cell)
-
-## A lesson's prefab (loaded when first needed, not preloaded: it would load in a circle).
-const LESSON: String = "res://prefabs/lesson.tscn"
-
-func _spawn_lesson (cell: Vector2i) -> void:
-	var e: Dictionary = record().lessons.get(cell, {})
-	if e.is_empty() or (bool(e.get("taken", false)) and (e.get("left", []) as Array).is_empty()):
-		return
-	if map_elements == null or not is_instance_valid(map_elements):
-		return
-	var lesson: Lesson = (load(LESSON) as PackedScene).instantiate() as Lesson
-	map_elements.add_child(lesson)
-	# On the floor under where the master fell.
-	var at: Vector2 = e["at"]
-	lesson.global_position = cell_position(cell_at(at + Vector2(0, -8)))
-	lesson.setup(self, cell)
 
 # ------------------------------------------------------------------ lanterns
 
@@ -1729,7 +1624,7 @@ func solid_at (pos: Vector2) -> bool:
 		LevelGen.Type.CRACKED:
 			if rec.broken.has(v):
 				return false
-			return cell.extra_info == null or not (world.secrets[int(cell.extra_info)]["entrance"] as Array).has(v)
+			return cell.extra_info == null or not world.secrets[int(cell.extra_info)].entrance.has(v)
 		LevelGen.Type.DOOR, LevelGen.Type.TRAPDOOR:
 			return not rec.opened.has(v)
 		LevelGen.Type.SWITCH_GATE:

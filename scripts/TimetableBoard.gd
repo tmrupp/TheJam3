@@ -16,7 +16,7 @@ func setup(info: MapInfo, v: Vector2i, _extra: Variant) -> void:
 
 ## The period of the day it is now (Timetable.period).
 func period() -> int:
-	return Timetable.period(map_info.record().rings) if map_info != null and map_info.world != null else 0
+	return Timetable.period(map_info.record().institute.rings) if map_info != null and map_info.world != null else 0
 
 
 ## Each classroom of the level, in the halls' order, as {"dept", "subjects": what it teaches in each
@@ -28,18 +28,18 @@ func rows() -> Array[Dictionary]:
 	if map_info == null or map_info.world == null:
 		return out
 	var w: LevelGen = map_info.world
-	var rings: int = map_info.record().rings
+	var rings: int = map_info.record().institute.rings
 	var dawn: int = rings - Timetable.period(rings)
 	for i: int in range(w.halls.size()):
-		if w.halls[i]["kind"] != &"lecture":
+		if w.halls[i].kind != &"lecture":
 			continue
 		var subjects: Array[StringName] = []
 		for k: int in range(Timetable.PERIODS):
 			subjects.append(Timetable.subject(w, i, dawn + k))
 		var tier: int = map_info.institute.tier_of(i)
-		out.append({"dept": w.halls[i]["dept"], "subjects": subjects, "tier": tier,
-			"need": Timetable.needs(w.halls[i]["dept"], tier) if map_info.institute.subject_of(i) != &"" else [&"", 0],
-			"box": w.halls[i]["box"], "way_on": i == Timetable.way_on_hall(w)})
+		out.append({"dept": w.halls[i].dept, "subjects": subjects, "tier": tier,
+			"need": Timetable.needs(w.halls[i].dept, tier) if map_info.institute.subject_of(i) != &"" else [&"", 0],
+			"box": w.halls[i].box, "way_on": i == Timetable.way_on_hall(w)})
 	return out
 
 
@@ -48,16 +48,16 @@ func rows() -> Array[Dictionary]:
 func halls_bounds() -> Rect2i:
 	if map_info == null or map_info.world == null or map_info.world.halls.is_empty():
 		return Rect2i(0, 0, 1, 1)
-	var out: Rect2i = map_info.world.halls[0]["box"]
-	for hall: Dictionary in map_info.world.halls:
-		out = out.merge(hall["box"])
+	var out: Rect2i = map_info.world.halls[0].box
+	for hall: Hall in map_info.world.halls:
+		out = out.merge(hall.box)
 	return out.grow(1)
 
 
 func library_box() -> Rect2i:
 	if map_info == null or map_info.world == null:
 		return Rect2i()
-	for hall: Dictionary in map_info.world.halls:
-		if hall["kind"] == &"library":
-			return hall["box"]
+	for hall: Hall in map_info.world.halls:
+		if hall.kind == &"library":
+			return hall.box
 	return Rect2i()

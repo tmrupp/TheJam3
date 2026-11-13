@@ -25,7 +25,10 @@ func fire(from: Vector2, dir: Vector2, damage: int = 1, empowered: bool = false)
 ## An enemy with open ground beside it, and the side to shoot from: the two cells that way are
 ## empty, so nothing else (another enemy, a switch) takes the bolt first.
 func target(scene: String, skip: Array[Node] = []) -> Array:
-	for e: Node in placed(scene):
+	# Those awake first: one asleep in a far chunk neither moves nor settles its art.
+	var all: Array[Node] = placed(scene)
+	all.sort_custom(func(a: Node, b: Node) -> bool: return a.can_process() and not b.can_process())
+	for e: Node in all:
 		if e in skip:
 			continue
 		var c: Vector2i = e.get_meta(&"cell")

@@ -39,7 +39,7 @@ func setup(info: MapInfo, v: Vector2i, id: int) -> void:
 	if info.bridge_up(id):
 		laid = 1.0
 	if info.world != null and id >= 0 and id < info.world.chasms.size():
-		var planks: Array = info.world.chasms[id]["planks"]
+		var planks: Array = info.world.chasms[id].planks
 		var i: int = planks.find(v)
 		if i >= 0:
 			sag_left = sag_at(float(i) / float(planks.size()))

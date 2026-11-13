@@ -535,16 +535,95 @@ That is how 1.1 came to pass every test but one.
    done, of 2.5: what a layout depends on besides its place (the preset, the debug flag, the
    doors dug) carried on its definition; it goes with 1.9's worker note.
 5. **Load order as a kind** (2.1): the small classes of constants, prefabs loaded when wanted,
-   the rule in `unit_test`, the sweep.
+   the rule in `unit_test`, the sweep. *Done:* the scene-free layers ask scene-free classes:
+   `Ways` (the `Exit` list; `MapInfo.Exit` is the same list), `Dev` (`debug`, `demo_build`,
+   `demo_dev`, `dev_tools`; `MapInfo`'s are properties over them), `Keys` (the key codes and the
+   papers; `KeyRing` has them under the same names), `Ladders` (where a rolling ladder stands) and
+   `Plate` (the plates by number; gameplay names `Plate.PINK`, the print keeps `RisoPrint.PINK`).
+   The numbers the generator reads live in `Rules` (`THORN_CYCLE`, `FONT_CHARGES`, `FONT_LARGE`,
+   `TEMPLE_LENGTH`, `SHIELD_HP`, `GUARD_WINDOW`, `font_capacity`, `apart`), `RunState`
+   (`TROPHY_CARRIED`, `TROPHY_SET`) and `Tutorial` (the cards' names), and the scene scripts read
+   them from there. `Known.note` takes the run, the place and its layout, not the session;
+   `Sigils.of` is `MapInfo.sigil_of`. No script `preload`s a scene: `Prefabs` loads each the
+   first time it is wanted (26 preloads of 13 scenes gone). `unit_test` checks that no script of
+   `scripts/level` or `scripts/worlds` (the loader aside) names a node class (but `Player`, handed
+   to a place's `boons`), and that none of the game preloads a scene. The sweep is
+   `tests/load_sweep.sh` (every scene loaded first in a process of its own; `all` for every
+   script too), made by the full run as `load_sweep`: all 108 scenes and all 412 with the scripts
+   load whole, where 254 of 329 first loads broke a scene before.
 6. **One map of what cells are spoken for** (2.3), before the barriers go to the other bands.
+   *Done:* the passes write what they keep in one map as they work: `LevelGen.claim(v, by)`
+   (and `unclaim`) writes `LevelGen.spoken`, a cell's claims a bit each (kept whole, the start's
+   way, a structure, a secret step, a vault's wall, a track, a vault), and the list each kind has
+   always had (`kept_whole`, `keep_clear`, `structures`, `secret_steps`, `vault_walls`, `tracks`),
+   which nothing else writes now (42 writes rerouted; `unit_test` checks no script writes one
+   itself). `Claims` (`LevelGen.claims()`) reads the map, with what follows from the level as it
+   stands (a thing's room, the ways out, air off the free list): `held(v)` says what holds a
+   cell, with `is_free`, `leant_on` and `faced`. The barriers ask it and nothing else. No layout
+   moved for it. The structures are typed: a class for each kind a level keeps
+   (`scripts/level/structures/`: `Crypt`, `CryptTrial`, `Hall`, `Tower`, `Vault`, `SecretRoom`,
+   `Barrier`, `Chasm`, `Circuit`, `TempleSite`, `ShaftSite`, `KeepSite`, over `Structure`), each
+   with a field for what it holds, in place of dictionaries: 569 lookups by a string in 91 files
+   became fields, so one mistyped fails as the script is read. `Structure.alike` compares two
+   lists of them (`==` asks only whether they are the one), and `determinism_test` writes each
+   out by its fields. Left as dictionaries: a site still being searched for (`Crypts._site`,
+   `Institute._site`), a crags tier's rows, and the gondola's own copy of its circuit, kept on
+   its cell by name so the fingerprints can write it out.
 7. **The planned break of the layouts** (2.4, with the collapse of 2.3), before the demo is out.
-8. **The institute out of `MapInfo`** (2.2), when that band is next worked on.
+   *Done, but for the collapse as a plain function:* every level changed, once.
+   - By compiler: the collapse's logarithm and its draws are its own (`gdextension/src/portable.hpp`:
+     IEEE's four operations in a fixed order, and `minstd_rand` turned into a number by hand), and
+     the build turns fused multiply-add off for other compilers (`SConstruct`). Both Windows
+     libraries were rebuilt with MSVC. No other compiler was tried: that a Linux or MinGW build
+     now lays out the same levels is by reasoning, to be checked with `layout_fingerprint_test`
+     the first time one is built. The Linux library in the repository is the old one and wants
+     rebuilding: until then a Linux session lays out other levels.
+   - By order: each pass draws from a stream of its own (`LevelGen._mark` seeds the next from the
+     level's seed and the pass's name), so a draw added to one pass no longer moves what the
+     passes after it draw.
+   - By salt: `Salts` lists every salt (101), each numbered by its place and spread `STRIDE` apart;
+     every `..._DEAL` constant is one of them, and the bare numbers in `Rules`, `Relics`, `Shrine`,
+     `Hyperspace` and the collapse's retries are too. `unit_test` checks that every deal's salt is
+     from the list and none is two deals'. A new salt goes at the end.
+   - The fingerprints were written again (`layout_fingerprint_test -- update`). Sixteen tests that
+     leaned on one level were made to look for what they need or to say what they allow
+     (`TestKit.holds_keys`, `holds_floor`, `clear_floor`), five that wrote a salt out as a number
+     now name it, and two rules of the generator came out of it: a crypt's trial that was filled
+     with rock is no longer listed as its trial, and a crypt site whose doorway opens straight
+     onto thorns is passed over as one that reaches too little is (`Crypts._reached`).
+   - Seen on the way, not mended: three students in one institute level stop at the same jump
+     their route counts on (`students_test` watches up to four); a hoard tower with a lift or a
+     teleporter in its top room, and a watchtower with a full roof, go without their stars or
+     spire; a first level with no floor to hop to has no side door by its start (3 of 40).
+   - The collapse is a plain function (2.3): `Collapse.run(sample, size, seed, pattern_size,
+     symmetry, symmetry_mask)` in the extension (`gdextension/src/collapse.cpp`), from a picture
+     and a seed to cells, with no node and nothing kept between calls. `WaveFunctionCollapse`
+     (the script) is a plain object over it, one a thread; the main scene has no generator node,
+     `MapInfo.wfc` is gone, the loader's workers, the kit and the generation lab make their own
+     with `WaveFunctionCollapse.new()`. The sprite class is out of the extension (`docs/HISTORY.md`).
+     Both Windows libraries were rebuilt and the fingerprints did not move. The Linux library in
+     git has no `Collapse`: until it is rebuilt, the game lays out no level on Linux at all. Still
+     as it was: the patches come back as a dictionary after the terrain's columns
+     (`LevelGen._init` tells them apart by asking).
+8. **The institute out of `MapInfo`** (2.2), when that band is next worked on. *Done:* the
+   timetable as it is played (periods and bells, who is enrolled and belongs where, classes and
+   papers, lecterns, hall doors, departments, the way back) and its papers and lessons wherever
+   they are met (studying at a lantern or the library's desk, a spell put back as a paper, a
+   master's lesson) are `InstitutePlay` (`scripts/InstitutePlay.gd`, 720 lines), kept by `MapInfo`
+   as `institute` and handed the moments (`level_begun`, `level_ready`, `arriving`, `arrived`,
+   `settled`, `tick`, `step`); the institute's prefabs and tests call `info.institute`. `MapInfo`
+   is 1,672 lines (2,270 at the review). What a lantern is burned for stayed with the lanterns
+   (`burn_lantern`, `refill_utility`). The institute's twelve fields are its own record,
+   `InstituteRecord` (`LevelRecord.institute`), saved under its own name; a save from before,
+   with those fields among the level's, is read all the same (`save_test`).
 
 ## 5. Not looked at
 
 The art as printed (no captures were taken), the print's shaders, performance beyond the saves,
-the bosses' scripts in depth, the suite under the `garden` and `retuned` layouts, and anything
-that needs the game played in a window.
+the bosses' scripts in depth, and anything that needs the game played in a window. (The suite
+under the `garden` and `retuned` layouts was run with item 7: on `retuned`, `dig_test`,
+`maze_test` and `trophy_test` fail as they did before any of this, each on a row counted for a
+longer garden.)
 
 ## 6. Making each check again
 

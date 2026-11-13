@@ -31,18 +31,18 @@ func run() -> void:
 			await create_timer(5.0).timeout
 			first = false
 		for n: int in range(info.world.crypts.size()):
-			var crypt: Dictionary = info.world.crypts[n]
+			var crypt: Crypt = info.world.crypts[n]
 			var tag: String = "%d_%d_%d" % [at.x, at.y, n]
-			for trial: Dictionary in crypt.get("trials", []):
-				var rect: Rect2i = trial["rect"]
+			for trial: CryptTrial in crypt.trials:
+				var rect: Rect2i = trial.rect
 				var mid: Vector2 = info.cell_position(rect.get_center())
 				player.global_position = mid
-				await _look(mid, "trial_%s_%s.png" % [tag, trial["kind"]], 1.6)
-			if crypt.has("prize"):
-				var v: Vector2i = crypt["prize"]
+				await _look(mid, "trial_%s_%s.png" % [tag, trial.kind], 1.6)
+			if crypt.prize != Structure.NONE:
+				var v: Vector2i = crypt.prize
 				player.global_position = info.cell_position(v) + Vector2(-90, 0)
 				await _look(info.cell_position(v) + Vector2(0, -40), "prize_%s_%s.png" % [tag, Crypts.prize_kind(info.world.seed_for_colors, n)], 2.2)
-			print("CRYPT %s %s" % [tag, crypt["box"]])
+			print("CRYPT %s %s" % [tag, crypt.box])
 		# The whole level with the crypts' darkness lifted, to crop each crypt out of (see CRYPT).
 		RisoLight.crypts_dark = false
 		await overview_still("crypts_%d_%d.png" % [at.x, at.y], 4)
@@ -51,7 +51,7 @@ func run() -> void:
 	# A grave mark (Resurrect), raised where the wizard stands, in the dark.
 	Abilities.set_tier(player, Crypts.RITE, 1)
 	player.set_physics_process(true)
-	var clear: Array = (info.world.crypts[0]["floors"] as Array).filter(func(v: Vector2i) -> bool:
+	var clear: Array = info.world.crypts[0].floors.filter(func(v: Vector2i) -> bool:
 		return info.world.get_cell(v).type == LevelGen.Type.EMPTY and info.world.get_cell(v + Vector2i.LEFT).type == LevelGen.Type.EMPTY and info.world.get_cell(v + Vector2i.RIGHT).type == LevelGen.Type.EMPTY)
 	player.global_position = info.cell_position(clear[0])
 	await until(func() -> bool: return player.is_on_floor())

@@ -23,18 +23,32 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
   - `RunState.gd`: the run (records, the lantern to come back to, the ghost, relics) and saving it
     (`SafeFile.gd`: a save written whole or not at all; `MapInfo.save_run` marks the run changed
     and it is written once a frame, `save_now` at once: a test that reads the save calls that).
-    `LevelRecord.gd`: what changed in one place (taken, opened, slain, bridges...), typed.
+    `LevelRecord.gd`: what changed in one place (taken, opened, slain, bridges...), typed; the
+    institute's part of it is `InstituteRecord.gd` (`rec.institute.rings`).
   - `LevelLoader.gd`: the generator cache and worker thread, building a level in the scene
     (`place_cell`), the rock and camera, and chunk sleeping.
   - `Rules.gd`: the run-wide rules, static and scene-free (`level_seed`, prices and values by
     depth, key rarity, what a level holds by its seed, `level_size`, `def_for`, `where`, and
     the labyrinth: which ways out a level has, `maze_has`).
+  - Scene-free names the rules and the generator ask, so they need not load the scene's scripts
+    (`unit_test` checks none of `scripts/level` or `scripts/worlds` names a node class, the loader
+    aside): `Ways.gd` (the `Exit` list; `MapInfo.Exit` is the same), `Dev.gd` (`debug`, the demo
+    flags, `dev_tools`), `Keys.gd` (key codes and exam papers), `Ladders.gd`, and in `Rules` the
+    numbers of things in the scene that levels are laid out by. `Salts.gd`: every salt a deal is
+    hashed with, in one list (a new one goes at its end). `Claims.gd` (`LevelGen.claims()`): what
+    each cell is spoken for, the one thing a late pass asks before it changes a cell; a pass that
+    keeps a cell writes it with `LevelGen.claim(v, Claims.KEPT)` (never the lists themselves).
+    `structures/`: a typed class for each thing a level builds and keeps (`Crypt`, `Hall`,
+    `Tower`, `Vault`, `SecretRoom`, `Barrier`, `Chasm`, `Circuit`...), read by its fields
+    (`crypt.floors`), made with its `make`; compare two lists with `Structure.alike`.
   - `Difficulty.gd`: the difficulty presets (the F7 or `` ` `` panel; Hard by default, Normal in a demo build): how many foes a level holds
     (`foes`, via `LevelGen.foes_per_area`), how fast the bosses act (`haste`), and how often the
     other enemies attack (`attack`) and how fast they move (`speed`).
 - `scripts/MapInfo.gd`: the place being played (`coord`, `here`, `world`), travel, and what a
   change in the record means in the scene (doors, bells, secret rooms, death). It keeps a
-  `RunState` (`run`) and a `LevelLoader` (`loader`).
+  `RunState` (`run`), a `LevelLoader` (`loader`) and the institute as it is played
+  (`institute`, `scripts/InstitutePlay.gd`: the timetable, classes, papers and departments, which
+  the institute's prefabs call as `info.institute`).
 - `scripts/worlds/`: what a place is. `Bands.gd` (the band layout: which archetype holds which
   rows, each band's boss and tuning, and the demo's garden-only layout), `NextWorldDef.gd` (exits,
   prices, realm), `Archetype.gd` and `archetypes/` (one per band: sample, size, gates, how thickly
@@ -46,14 +60,17 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
   one art node per prefab) with a script per kind in `props/`, `RisoMarks` (keys, locks, gates,
   chevrons shared with the map and HUD), `RisoGlyph` (ability marks), `RisoTerrain`, `RisoDecor`,
   `RisoWizard`, `RisoMap`, `RisoLight` (light and darkness, cut by line of sight over the cells in
-  `RisoSight`), the HUD and menus.
+  `RisoSight`), the HUD and menus. `Plate.gd` is the plates by number, for gameplay that only
+  names an ink (`Plate.PINK`), apart from the print.
 - `scripts/*.gd`: gameplay (Player, enemies, hazards, spells, pickups). `prefabs/*.tscn` pair
   with them. `Abilities.gd` lists every ability in one table (`ABILITIES`); an ability's node says
   what its tier does (`set_tier`) and, for a spell, casts (`cast_spell`) and tells the spell orb
   how ready it is (`readiness`) and how long it has left (`running`). `Lamplight.gd` is light as
   the game reads it (what wakes, freezes or can be wounded), apart from `RisoLight`, which prints
   it. `Stage.gd` finds the main
-  scene's wizard, TileMap, camera and menu (no `/root/Main/...` paths elsewhere).
+  scene's wizard, TileMap, camera and menu (no `/root/Main/...` paths elsewhere). `Prefabs.gd`
+  loads a prefab the first time it is wanted (`Prefabs.make(path)`): no script `preload`s a scene
+  (`unit_test` checks).
 - `wfc_images/`: WFC samples (white open, black rock, red thorns; in the sky's, blue the open sky
   between its clusters, `LevelGen.SKY`: each cluster painted on that sheet is a sample of its own,
   and each cluster of a level is collapsed afresh from one,
@@ -64,14 +81,19 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
   saving it in the lab, run its script with `-- fold` to write the picture into the script (with
   nothing it draws the picture from the script; `-- redraw` draws it afresh by the script's rules,
   over what was painted).
-- `gdextension/`: the C++ overlapping-WFC extension (SCons). Rarely touched. It cuts a sample into
+- `gdextension/`: the C++ overlapping-WFC extension (SCons). Rarely touched. Its one class is
+  `Collapse`, a plain function (`Collapse.run(sample, size, seed, pattern_size, symmetry,
+  symmetry_mask)`), which `scripts/WaveFunctionCollapse.gd` (a plain object, no node: make one
+  with `WaveFunctionCollapse.new()`, one a thread) drives. It cuts a sample into
   pieces and may use each in up to eight versions: `symmetry` takes the first N, `symmetry_mask` any
   set (bit k for version k: 0 as drawn, 1 upside down, 2 a quarter turn, 3 that upside down, 4 a half
   turn, 5 the left-right mirror, 6 three quarters, 7 that upside down; see `NextWorldDef`). Rebuild it
   on Windows with MSVC (Visual Studio 2022 Build Tools):
-  `cd gdextension && python -m SCons platform=windows target=template_debug -j16`. Never with MinGW:
-  its maths library rounds the collapse's logarithms differently and every level in the game changes
-  (`layout_fingerprint_test` says so; run it after any rebuild). Build both
+  `cd gdextension && python -m SCons platform=windows target=template_debug -j16`. The collapse's
+  maths is its own (`src/portable.hpp`: its logarithm and its draws, so that every compiler lays
+  out the same levels), but only MSVC has been tried: after a build with any other, or any
+  rebuild, run `layout_fingerprint_test`, which says if a level moved. The Linux library kept in
+  git is from before `Collapse` and must be rebuilt before the game lays out a level on Linux. Build both
   `target=template_debug` (the editor and tests) and `target=template_release` (release exports);
   the two lay out levels alike, and `layout_fingerprint_test` checks either (copy the release DLL
   over the debug one's name for a run, then put the debug one back). With Godot open the DLL is locked:
@@ -148,7 +170,9 @@ bash tests/run.sh -l garden full  # the suite on another band layout (the demo's
   `MapInfo` and `Player` in its fields, so the tests load the scripts in another order than the
   game does, and a scene a cycle of loads leaves without a part (a `preload` of a prefab by a
   script the prefab's own scripts reach) shows only there. Make shots with `Bullet.make()`, and
-  load a prefab by its path when it is first wanted rather than `preload` it from gameplay code.
+  load a prefab by its path when it is first wanted (`Prefabs.make`) rather than `preload` it. The
+  full run also makes the load-order sweep (`load_sweep`, `tests/load_sweep.sh`): every scene
+  loaded first in a process of its own, failing on one left without a part.
 - `run.sh` re-imports first. After adding a `class_name` script or an image outside it, run
   `godot --headless --path . --import`.
 - Captures: `godot --path . --windowed --resolution 1280x720 --screen 1 --script res://tests/capture_x.gd`.
@@ -199,7 +223,9 @@ bash tests/run.sh -l garden full  # the suite on another band layout (the demo's
   use its `check`/`check_eq`, `boot(seed)` (starts a run, keeps the save apart), `go(at)` (jumps
   to a place and freezes the wizard there; `go(at, false)` leaves them free; over the public
   `MapInfo.jump_to(at, arrival)`, never the private `_load_level`), `until(cond)` and
-  `settle()` rather than counting frames (`until(gone(node))` for something being freed; a lambda
+  `settle()` rather than counting frames (and `start_seed(test)` or `find_level` with
+  `holds_keys`, `holds_floor` for a level that has what the test needs; a foe a test moves should
+  be awake, `can_process()`: one moved asleep stays asleep at the new place) (`until(gone(node))` for something being freed; a lambda
   holding the node itself errors once it is), and `placed`/`colored` (`placed(scene, true)` counts
   hidden things too: the ghost, a bridge's planks before its bell rings). For the level generator
   alone, `build(at)` and `collapse(at)` lay a place out without the game scene, which is far faster
@@ -255,11 +281,13 @@ bash tests/run.sh -l garden full  # the suite on another band layout (the demo's
   build a level once and check what it holds; they do not build it again to compare.
   The fingerprints are of the default preset (Hard); Normal lays levels out as they were before
   the presets.
-- The world RNG is shared and ordered. Adding, removing or reordering an `rng` draw (or a forced
-  `pop_if_random_empty`) shifts every later placement in every level, and that breaks
-  layout-sensitive tests. Put new passes last, draw from the RNG only where needed, and expect to
-  re-check `cemetery_test`, `deeper_test`, `economy_test` and `sky_test` when a draw is added
-  upstream. `layout_fingerprint_test` says so first: it fingerprints the terrain and the dressing
+- The world RNG is ordered within a pass, and each pass has a stream of its own: `LevelGen._mark`
+  seeds the passes after it from the level's seed and the name of the pass just done. Adding,
+  removing or reordering an `rng` draw (or a forced `pop_if_random_empty`) shifts the later
+  placements of that pass, and whatever is built on what it lays, but not what the passes after it
+  draw. Still put new passes last, draw from the RNG only where needed, and expect to re-check
+  `cemetery_test`, `deeper_test`, `economy_test` and `sky_test` when a draw is added upstream.
+  What is hashed and not drawn takes its salt from `Salts` (one list, a new salt at its end). `layout_fingerprint_test` says so first: it fingerprints the terrain and the dressing
   of a few levels per archetype and a side world, and names which one changed. When a change to
   the layouts is meant (retuning a band's dressing is one), run it with `-- update` to write the
   new fingerprints into its `GOLDEN`, and say so in the report.

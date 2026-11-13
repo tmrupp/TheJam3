@@ -51,6 +51,7 @@ func run() -> void:
 	_protocols()
 	_layers()
 	_salts()
+	_claims()
 	_offers(p)
 	_keyring(p)
 	p.free()
@@ -884,6 +885,46 @@ func _salts() -> void:
 			shared.append("%s: %s" % [salt, users[salt]])
 	check(shared.is_empty() and users.size() > 50, "no salt is two deals' (%d salts) %s" % [users.size(), shared])
 	check(Salts.COUNT * Salts.STRIDE < (1 << 31), "the salts fit what a seed is mixed with")
+
+
+## The one map of what cells are kept for has one writer (docs/CODE_REVIEW.md 2.3): no script
+## writes a kept-cell list itself (kept_whole, keep_clear, structures, secret_steps, vault_walls,
+## tracks), but LevelGen.claim and unclaim, which write the list and the map (LevelGen.spoken)
+## together; and each claim written is in the map and read back by Claims.
+const KEPT_LISTS: Array[String] = ["kept_whole", "keep_clear", "structures", "secret_steps", "vault_walls", "tracks"]
+
+func _claims() -> void:
+	var writers: Array[String] = []
+	for path: String in _scripts_in("res://scripts"):
+		var inside: String = ""
+		for line: String in FileAccess.get_file_as_string(path).split("
+"):
+			if line.begins_with("func "):
+				inside = line.trim_prefix("func ").get_slice("(", 0).strip_edges()
+			if path.ends_with("LevelGen.gd") and inside in ["claim", "unclaim"]:
+				continue
+			var code: String = _code_of(line)
+			for list: String in KEPT_LISTS:
+				for write: String in [list + "[", list + ".erase(", list + ".clear("]:
+					var at: int = code.find(write)
+					if at < 0 or (at > 0 and (code[at - 1] == "_" or code[at - 1].is_valid_identifier())):
+						continue
+					var rest: String = code.substr(at)
+					if write.ends_with("[") and not (rest.contains("] =") and not rest.contains("] ==")):
+						continue
+					writers.append("%s: %s" % [path.get_file(), code.strip_edges()])
+	check(writers.is_empty(), "every kept cell is written through LevelGen.claim %s" % [writers])
+	var w: LevelGen = build(Vector2i(28, 1))
+	w.unclaim(Vector2i(2, 3), Claims.KEPT)
+	w.unclaim(Vector2i(2, 3), Claims.STRUCTURE)
+	w.spoken.erase(Vector2i(2, 3))
+	w.claim(Vector2i(2, 3), Claims.KEPT)
+	w.claim(Vector2i(2, 3), Claims.STRUCTURE, &"tower")
+	w.claim(Vector2i(4, 4), Claims.VAULT_WALL)
+	w.unclaim(Vector2i(4, 4), Claims.VAULT_WALL)
+	check(w.kept_whole.has(Vector2i(2, 3)) and w.structures.get(Vector2i(2, 3)) == &"tower" and int(w.spoken[Vector2i(2, 3)]) == Claims.KEPT | Claims.STRUCTURE, "a claim is written in its list and in the one map")
+	check(not w.vault_walls.has(Vector2i(4, 4)) and not w.spoken.has(Vector2i(4, 4)), "and taken out of both")
+	check_eq(w.claims().held(Vector2i(2, 3)), Claims.HELD_STRUCTURE, "Claims says what holds a cell, the claim that says most first")
 
 
 ## A line of GDScript with its strings emptied and its comment cut off: what is left is code.

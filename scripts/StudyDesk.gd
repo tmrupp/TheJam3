@@ -17,7 +17,7 @@ func setup(info: MapInfo, _v: Vector2i, _extra: Variant) -> void:
 
 ## The exam paper studying here now would teach, or 0 (MapInfo.desk_paper).
 func paper() -> int:
-	return map_info.desk_paper() if map_info != null and player != null else 0
+	return map_info.institute.desk_paper() if map_info != null and player != null else 0
 
 
 ## What it would teach now, as [spell, tier], or [&"", 0] for nothing.
@@ -28,7 +28,7 @@ func holds() -> Array:
 
 func study() -> void:
 	if map_info != null:
-		map_info.study_at_desk(global_position + Vector2(0, -40))
+		map_info.institute.study_at_desk(global_position + Vector2(0, -40))
 
 
 func _process(_delta: float) -> void:

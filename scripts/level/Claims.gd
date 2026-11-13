@@ -3,9 +3,11 @@ extends RefCounted
 ## The generator's one answer to "is this cell spoken for" (docs/CODE_REVIEW.md 2.3). What a cell
 ## holds is its type; what a cell is kept for is said in many places, each known to the pass that
 ## made it (the free list, a lift's track, a thing's room, a vault, a way out, a structure's cells,
-## the start's way, a secret room's step, rock kept whole). This gathers them once, for a
-## level as it stands (LevelGen.claims: ask again after changing it), so a pass that comes late asks
-## here and need not know them all. The barriers do (Barriers._solid); a new late pass should.
+## the start's way, a secret room's step, rock kept whole). The passes write what they keep in one
+## map as they work (LevelGen.claim, LevelGen.spoken); this reads it, with what follows from the
+## level as it stands (a thing's room, the ways out, air off the free list), so a pass that comes
+## late asks here (LevelGen.claims: ask again after changing the level) and need not know them
+## all. The barriers do (Barriers._solid); a new late pass should.
 ## - held(v): what holds cell `v` (ROOM, TRACK...), or &"" when nothing does.
 ## - is_free(v): open air nothing holds and nothing is laid in.
 ## - leant_on(v): a thing beside `v` may lean on its rock (a seed pod or vine grows from it, thorns
@@ -20,15 +22,28 @@ extends RefCounted
 ## (LevelGen.structures), the start's way (keep_clear), a secret room's
 ## step (secret_steps), rock kept whole (LevelGen.kept), and air that is no longer on the free list
 ## for a reason not written down (TAKEN: the second cell of a shrine, a crypt's or hall's insides).
-const ROOM: StringName = &"room"
-const TRACK: StringName = &"track"
-const VAULT: StringName = &"vault"
-const WAY_OUT: StringName = &"way out"
-const STRUCTURE: StringName = &"structure"
-const START_WAY: StringName = &"start's way"
-const STEP: StringName = &"secret step"
-const KEPT: StringName = &"kept whole"
-const TAKEN: StringName = &"taken"
+const HELD_ROOM: StringName = &"room"
+const HELD_TRACK: StringName = &"track"
+const HELD_VAULT: StringName = &"vault"
+const HELD_WAY_OUT: StringName = &"way out"
+const HELD_STRUCTURE: StringName = &"structure"
+const HELD_START_WAY: StringName = &"start's way"
+const HELD_STEP: StringName = &"secret step"
+const HELD_KEPT: StringName = &"kept whole"
+const HELD_VAULT_WALL: StringName = &"vault wall"
+const HELD_TAKEN: StringName = &"taken"
+
+## The claims a pass writes as it works (LevelGen.claim), a bit each in LevelGen.spoken, and the
+## name `held` gives each, the one that says most first.
+const KEPT: int = 1
+const START_WAY: int = 2
+const STRUCTURE: int = 4
+const STEP: int = 8
+const VAULT_WALL: int = 16
+const TRACK: int = 32
+const VAULT: int = 64
+const WRITTEN: Array = [[STEP, HELD_STEP], [START_WAY, HELD_START_WAY], [STRUCTURE, HELD_STRUCTURE], [VAULT, HELD_VAULT],
+	[TRACK, HELD_TRACK], [KEPT, HELD_KEPT], [VAULT_WALL, HELD_VAULT_WALL]]
 
 ## The bits of `_beside`.
 const LEANS: int = 1
@@ -58,20 +73,9 @@ func _init(w: LevelGen) -> void:
 		var room: Vector2i = Placeables.size(w.type_at(v))
 		for dx: int in range(room.x):
 			for dy: int in range(room.y):
-				_held[v + Vector2i(dx, -dy)] = ROOM
-	for c: Vector2i in w.tracks:
-		_held[c] = TRACK
-	for vault: Dictionary in w.vaults:
-		for c: Vector2i in vault["room"]:
-			_held[c] = VAULT
-	for c: Vector2i in w.structures:
-		_held[c] = STRUCTURE
-	for c: Vector2i in w.keep_clear:
-		_held[c] = START_WAY
-	for c: Vector2i in w.secret_steps:
-		_held[c] = STEP
+				_held[v + Vector2i(dx, -dy)] = HELD_ROOM
 	for e: Vector2i in w.exits.values():
-		_held[e] = WAY_OUT
+		_held[e] = HELD_WAY_OUT
 	_beside.resize(w.size.x * w.size.y)
 	_beside.fill(0)
 	for x: int in range(w.size.x):
@@ -92,18 +96,24 @@ func _init(w: LevelGen) -> void:
 func held(v: Vector2i) -> StringName:
 	if _held.has(v):
 		return _held[v]
+	var bits: int = _w.spoken.get(v, 0)
+	if bits != 0:
+		for claim: Array in WRITTEN:
+			if bits & int(claim[0]) != 0:
+				return claim[1]
 	if not _w.is_valid(v):
 		return &""
+	# A shaft's and a keep's cells are kept whole by where they are, not written down (LevelGen.kept).
 	if _w.kept(v):
-		return KEPT
+		return HELD_KEPT
 	if _w.type_at(v) == LevelGen.Type.EMPTY and not _free.has(v):
-		return TAKEN
+		return HELD_TAKEN
 	return &""
 
 
 ## Whether `v` is open air that nothing holds and nothing is laid in.
 func is_free(v: Vector2i) -> bool:
-	return _w.is_valid(v) and _w.type_at(v) == LevelGen.Type.EMPTY and _free.has(v) and not _held.has(v) and not _w.kept(v)
+	return _w.is_valid(v) and _w.type_at(v) == LevelGen.Type.EMPTY and _free.has(v) and held(v) == &""
 
 
 ## Whether a thing beside `v` leans on it, so that its rock may not be opened.
