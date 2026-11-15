@@ -110,8 +110,8 @@ sample image, then dressed with exits, keys, enemies and hazards by `LevelGen`.
   guard and pogo, the print, music and teleporters; a plan, not yet built),
   `PAIRED_PLAN.md` (paired play: two players on two machines, in two copies of the one grid of
   levels, with codes their only channel: codes that update the partner's map and codes that send
-  stars and items; a plan in phases, nothing built yet; and the larger goal, partly decided: allied
-  characters, knowledge as the only progression, a true end in a huge linear level).
+  stars and items; a plan in phases, nothing built yet; and the larger goal, partly decided: the major
+  arcana as allies, knowledge as the only progression, a true end in a huge linear level).
 - The owner's task list and notes are a Google Doc, not a file here:
   [Somnonaut: Tom's Tasks](https://docs.google.com/document/d/11vPYlA0G-_dZY2sdV8aK6qM06c1RAE2r05uHSngRHa8/edit)
   (see the ground rules). Open tasks are checklists under topic headings; a ticked or struck-through

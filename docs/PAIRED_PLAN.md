@@ -294,8 +294,10 @@ and delivering things to them brings the **true end** nearer: another level and 
 - **No words.** Allies say what they want in marks, as the map and the tutorial do.
 - **The true end is procedural, huge and linear:** one long level laid like the others, with
   its boss at the end.
-- **The theme is open.** Whose dream this is (or whether it is a dream) is not settled; nothing
-  below depends on it.
+- **The allies are the major arcana** (said after the answers above): the Fool, as the wizard is
+  printed, meets the other cards on the way to the World.
+- **The theme is otherwise open.** Whose dream this is (or whether it is a dream) is not settled;
+  nothing below depends on it.
 
 ### What "knowledge only" asks of the design
 
@@ -333,39 +335,98 @@ and delivering things to them brings the **true end** nearer: another level and 
   one as B. Steps that need both copies at once (a code made in one while the other stands at a
   door) would need a hot seat. Open (below).
 
-### No words: a language of marks
+### No words: the labelling problem
 
-- Allies speak in marks put together: the 12 sigils (`RisoMarks.SIGILS`), ability glyphs
-  (`RisoGlyph`), key colours, the place marks and the boss seals, with a few marks of their own
-  for "bring", "go", "with", "without", "when".
-- Each mark's meaning is learned from where it is seen: printed beside the thing it names, again
-  and again across the world (as Tunic teaches with its manual).
-- Learning to read it is itself knowledge progression, and the true end's instructions are
-  written in it at fixed places for anyone who can read.
+Speaking only in marks is the hardest part of the idea. An ally that wants "bring a moss key
+here with your flame out, during the second period" has to say it with no words, and a player
+has to read it without a manual. Most of that can be made easy, and the rest taught.
 
-### Who the allies might be
+- **Match, don't mean.** The surest wordless ask is a match: the ally shows a mark, and what it
+  wants wears the same mark somewhere in the world. Matching needs nothing learned. The game
+  already does this: a switch and its gate, a bell and its lock, share a sigil
+  (`RisoMarks.sigil`, `switch_plate`, `sigil_plate`). Make every ask a match where it can be.
+- **The nouns are the map's.** The marks for keys, seeds, papers, lanterns, ghosts, boss seals,
+  trophies, the bands' emblems and places as numbers are one set, shared by the map, the HUD and
+  the world (`RisoMarks`). A player who has used the map can already read them, so an ally draws
+  its ask in those marks, never new ones for old things.
+- **Show the deed, as a card.** For what a match cannot say (a condition, an order), the ally
+  holds up a card: a small printed picture of the Fool doing it (the flame out by this ally; a
+  seed carried to a plot; the bell rung before the door). The control cards teach the controls
+  this way already (`ControlHint`), and a tarot card is a picture by nature.
+- **Label the world.** Whatever an ask names wears its label where it stands: an arcanum's
+  numeral over the things it cares about (on the plot, the font, the tower), its emblem stamped
+  where it can be seen from the way. A place is named as the map names one (`place_marks`:
+  world, row and side world as numbers, no words).
+- **Numbers are not words.** Roman numerals on the cards and the places' numbers are allowed,
+  as the map prints numbers now. They do most of the labelling.
+- **The few relations are taught once.** "Bring", "without", "before", "when" have no thing to
+  match. Keep them to a handful, and teach them early and wordlessly, as the tutorial teaches the
+  controls: each shown with its deed done in front of the player (the Magician's part, below).
+  Or do without them: an ask as two pictures, before and after.
+- **The tarot helps.** Its pictures are known outside the game and can be looked up (the Hermit's
+  lantern, the Tower struck by lightning, the Star pouring water), which suits an ARG: a player
+  who knows them reads faster. The game must still be solvable without knowing any tarot, by
+  matching and by the cards' pictures.
+- **Words as a last resort** (for the owner): real tarot cards print their names at their foot.
+  Printing them would be the only words in the game.
+- **Tested on strangers.** Whether an ask is read is only learned by watching someone new try
+  it, as `docs/PLAYTEST_PLAN.md`'s notes on the tutorial were.
 
-One to a band is the natural number, each from what its band already has. Theme-neutral first
-guesses; who they are waits on the theme.
+### The allies: the major arcana
 
-| Where | Who | What they deal in | What they might teach |
-|---|---|---|---|
-| Garden | A gardener by a plot | Seeds, what grows from them | Where a plant's door leads |
-| Cemetery | A gravedigger, or a skeleton that does not rise | Darkness from the fonts | Going with the flame out |
-| Institute | A truant student | Papers, stolen or earned | The timetable: when to come |
-| Crags | The gondola's keeper, or a smith at a lodestone | Tolls, stations, tempered spells | The towers' switches |
-| Sky | A balloonist | The wind, vanes, rides | Where the wind takes you |
-| Ink wells | A cartographer | Charts (the map codes) | The marks for places |
-| Everywhere | A courier | Things carried between the two copies | The codes themselves |
+The allies are the major arcana (the owner, 15 November 2026). The game is a tarot print
+already (`RisoPrint`: "tarot-print presentation"), and the wizard is printed as the Fool
+(`RisoCostume`), so the allies complete a deck that is half there. The Fool's journey through
+the other twenty-one cards, from the Magician (I) to the World (XXI), is the old story of the
+major arcana and the shape of the larger goal: twenty allies to meet, the Fool as the player, the
+World at the true end.
 
-A boss met again after it falls, at a place, could be one too, which ties the larger goal to the
-ordinary one.
+**Five bands of four.** The twenty between the Fool and the World fall four to a band, each
+where the game already has their picture:
 
-**Kinds of errand,** from a small table: *bring* a thing (a rare key, a seed, a named paper, a
-count of stars, darkness); *carry* a sealed thing from one ally to another, perhaps only openable
-in the other copy; *come as asked* (flame out, unhurt, nothing slain here, in a named period, the
-wind one way); a *chain of swaps*; a *riddle in marks* answered elsewhere. Deliveries are new
-"colours" on the ring (`Keys`), so they are carried, dropped, saved and sent with nothing new.
+| Band | Arcanum | What of theirs the band already has |
+|---|---|---|
+| Garden | I The Magician | The four tools on his table: the four key colours (as the four suits); stands near the start and teaches the marks |
+| Garden | III The Empress | Plots, seeds and what grows from them |
+| Garden | VI The Lovers | Two figures: the pair itself; an ask only both sides together can answer |
+| Garden | VIII Strength | Taming the beast: the worm or the bramble |
+| Cemetery | XIII Death | The graves, the crypts |
+| Cemetery | XVIII The Moon | Night, the moons that give the dash back |
+| Cemetery | XIX The Sun | The sun and shade blocks; light that wakes the dead |
+| Cemetery | XX Judgement | The dead rising (skeletons rise in light) |
+| Institute | II The High Priestess | The librarian's book and hush |
+| Institute | V The Hierophant | The timetable, the classes, the institute's rule |
+| Institute | XI Justice | The proctor's staff; stolen papers |
+| Institute | XV The Devil | The eldritch beast and its souls |
+| Crags | IV The Emperor | Stone, mountains, the castle ruins |
+| Crags | X The Wheel of Fortune | The gondola's wheel and its stations |
+| Crags | XIV Temperance | Tempered spells at the lodestones |
+| Crags | XVI The Tower | The watchtowers, their spires struck awake |
+| Sky | VII The Chariot | The balloon, carried by the wind |
+| Sky | IX The Hermit | His lantern, on a high island |
+| Sky | XII The Hanged Man | Hanging under an island: falling, waiting |
+| Sky | XVII The Star | The stars, the open sky |
+
+The demo's garden holds four of them, the Lovers among them, so the first step can be the
+garden's alone. The bosses (worm, bramble, necromancer, beast, golem, whale) stay bosses; the
+Devil and Strength name what is already there rather than replacing it.
+
+**Where each stands.** "The same for everyone" and a random start conflict if an arcanum stands
+at one place in the whole grid: a run starting thousands of columns away could never reach it.
+So each is laid as the lodestones are (`Rules.lodestone_at`): once in every stretch of so many
+worlds along its band's rows, at a place hashed from the stretch. Every player meets the same
+Hermit at the same places, and one is always within reach.
+
+**What each asks,** from a small table of kinds: *bring* a thing (a rare key, a seed, a named
+paper, a count of stars, darkness); *carry* a sealed thing from one arcanum to another, perhaps
+only openable in the other copy; *come as asked* (flame out, unhurt, nothing slain here, in a
+named period, the wind one way); a *chain of swaps*; a *riddle in marks* answered elsewhere.
+Deliveries are new "colours" on the ring (`Keys`), so they are carried, dropped, saved and sent
+with nothing new. An arcanum's ask fits its card where it can: the Hermit wants the flame
+brought up to him lit, Death wants it out, Temperance a tempered spell.
+
+**Met in any order, proven in order.** The arcana in the grid can be met and learned from in
+any order, as Outer Wilds' planets are. The true end's level is the journey in order (below).
 
 ### The true end: a huge, linear level
 
@@ -375,15 +436,19 @@ wind one way); a *chain of swaps*; a *riddle in marks* answered elsewhere. Deliv
   16 cells; this would be many times that, a string of strips joined end to end with lanterns
   between, or one strip that the loader's chunk sleeping already makes affordable (see
   `bench_big_level`).
-- **It could pass through every realm in turn,** garden to sky, each stretch asking what that
-  band taught.
+- **The Fool's journey, in order.** Twenty stretches, I to XX in the cards' order (the Magician's
+  first, Judgement's last), each printed in its arcanum's band and asking what that arcanum taught. What was
+  learned in any order in the grid is proven in order here: the linear level is a test of
+  knowledge, card by card.
 - **Paired,** in two copies split by side: a door in one copy opened by a code from the other, a
   crossing only the other copy shows, the two players going through side by side.
-- **Its boss,** fought in both copies at once: its tells or its weak point printed only in the
-  other copy, so each player guards for the other.
-- **The way in** opens by deeds in this run: the seventh stand in the trophy room (one more
-  stand, with no boss's seal, already asks the question from the tutorial's end), or a place in
-  the grid that is only found by learning.
+- **Its boss, and the World.** The World (XXI) waits at the end. Whether the World is the boss,
+  or what the boss keeps the Fool from, is the theme's to say. The fight is in both copies at
+  once: its tells or its weak point printed only in the other copy, so each player guards for the
+  other.
+- **The way in** opens by deeds in this run: the seventh stand in the trophy room, marked XXI
+  (one more stand, with no boss's seal, already asks the question from the tutorial's end), or a
+  place in the grid that is only found by learning.
 
 ### What these answers rule out
 
@@ -404,13 +469,17 @@ everything solved by knowledge.
    (hyperspace's own dressing lays ledges where a rough reach cannot get on, `Hyperspace._bridge`,
    which may want a look under the rule too).
 5. **How long the doing part is** once known: one sitting?
-6. **The theme:** who the allies are and who waits at the end.
+6. **The theme:** whose story the Fool's journey tells here, and what waits with the World.
+7. **The cards' names:** printed at their foot as on real cards (the game's only words), or not.
+8. **The arcana in the bands:** the table above is a first fit; which card goes where, and what
+   each asks, is the owner's.
 
 ### A first step
 
 The smallest thing that tries the idea, after code phases 1 to 3: in the demo's garden, two
-allies laid by place, a dozen marks of the language, one puzzle split between the sides, and a
-short linear side world opened by it, without its boss. A paired playtest of that says whether
+arcana laid by place (the Magician, teaching the few relation marks, and the Lovers, whose ask
+is split between the sides), asks made as matches and cards, and a short linear side world opened
+by them, two stretches long, without its boss. A paired playtest of that says whether
 the split halves and the wordless asks work before anything is laid across the bands.
 
 Keep this file in step as phases land, with `DEEPER_PLAN.md` (a section for paired play, its
