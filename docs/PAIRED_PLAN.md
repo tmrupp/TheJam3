@@ -17,8 +17,8 @@ its goal needed a code). An earlier, preliminary version of this file planned it
 lent, paired seals). This version is the plan to build: the two things above first, on the game
 as it is now, with the rest kept under "Later". Nothing is built yet.
 
-Its last section, "The larger goal", is a brainstorm and not yet a plan: allied characters with
-errands, and a true end past the bosses.
+Its last section, "The larger goal", is not yet a plan: allied characters with errands, and a
+true end past the bosses, partly decided (knowledge only, paired, the same for everyone).
 
 ## What the owner has decided
 
@@ -105,7 +105,7 @@ same cell for the other on the same preset. The pair code carries it (below).
 
 | Code | Symbols | Bits |
 |---|---|---|
-| Pair | 10 | seed 20, run stamp 8, preset 2, build and band layout 8, check 12 |
+| Pair | 10 | seed 20, run stamp 8, preset 2, build and band layout 8, side 1, check 11 |
 | Gift | 8 | kind 4, number 8, what 12, check 16 |
 | Chart | 8 | kind 4, place 17, how many along the row 3, check 16 |
 | Find | 8 | kind 4, place 17, what 4, check 15 |
@@ -272,153 +272,146 @@ above.
   code and gifts on the way are lost. Whether a pair should outlast a run (the stamp kept, the
   gift numbers carried on).
 
-## The larger goal: a brainstorm
+## The larger goal
 
-*The owner's, November 2026, and very uncertain: this section is ideas to choose among, not a
-plan. Nothing in the phases above depends on it.*
+*A brainstorm, narrowed by the owner's answers of 15 November 2026. Still not a plan to build:
+nothing in the phases above depends on it.*
 
 Beating every boss and setting their trophies on the stands wins a run "normally". Over that
-there should be a larger goal in the manner of an alternate reality game: the wizard meets
-**allied characters** who have errands, conditions and other dealings; meeting them, doing things
-for them and delivering things to them brings the **true end** nearer, which may be another level
-and another boss.
+there is a larger goal in the manner of an alternate reality game: the wizard meets **allied
+characters** who have errands, conditions and other dealings; meeting them, doing things for them
+and delivering things to them brings the **true end** nearer: another level and another boss.
 
-### What the game already gives it
+### Decided (the owner, 15 November 2026)
 
-- **A place to show it from the first minute.** The tutorial ends in the room of trophy stands,
-  one a boss. One stand more, with no boss's seal on it, asks the question before any ally is met.
-- **Things to deliver, with no new way of carrying.** Seeds, exam papers, skeleton keys, relic
-  unlocks and coloured keys are already carried on the ring, dropped, swapped, saved, and (by this
-  plan) sent to a partner. A letter, a token or a parcel can be one more "colour" in `Keys`.
-- **Conditions the game already reads.** The flame lit or snuffed (`MapInfo.flame_lit`), the
-  darkness carried, the institute's period and whether the wizard belongs there, a stolen paper
-  on the ring, the way the wind blows in a sky level, a lantern spent, hearts, what was slain in
-  a level (`LevelRecord.slain`), which bosses have fallen.
-- **People who are not always foes.** The institute's scholars leave a wizard who belongs alone
-  (`Scholar`), so "someone who stands there and does not attack" has a start, and `Interactable`
-  is how the wizard deals with a thing they touch.
-- **One world for everyone.** A level is the same in every run, so whatever is laid by its place
-  is found at the same place by every player, and "world 28, depth 3" can already be copied and
-  passed on. That is what an ARG wants: discoveries one player makes are true for all.
-- **A place for what outlasts a run.** `Known` keeps the map from run to run, and the trophies won
-  are kept apart from any save (`Trophy.note_won`).
-- **Codes.** The entry field can take more than the partner's codes: a code found carved in a
-  level, or outside the game altogether, is one more kind.
+- **Knowledge only, as in Outer Wilds.** What carries from run to run is what the players know.
+  Nothing done for an ally is kept past the run. (This follows the owner's earlier choice of
+  knowledge as the progression between runs, 9 November, `docs/REVIEW_PLAN.md` §4, built as
+  `Known`.)
+- **Probably paired.** The true end is what paired play is for.
+- **The same for everyone.** Allies, errands and the true end are laid by place, as relics are,
+  so every player meets the same ones at the same places.
+- **No words.** Allies say what they want in marks, as the map and the tutorial do.
+- **The true end is procedural, huge and linear:** one long level laid like the others, with
+  its boss at the end.
+- **The theme is open.** Whose dream this is (or whether it is a dream) is not settled; nothing
+  below depends on it.
 
-### What it must respect
+### What "knowledge only" asks of the design
 
-- **No words.** The map has no legend and the tutorial is taught without a word. An ally says
-  what it wants in marks: the thing wanted printed over it as a plot shows its seed, sigils
-  (`RisoMarks.SIGILS`), ability glyphs, key colours, a place as the map prints one. Working out
-  what an ally means is part of the puzzle, and suits an ARG better than a quest log would.
-- **Procedural.** Allies and errands are dealt by hashing (the place, the run's seed or the pair
-  codes), as relics and lodestones are. A hand-made last level is the one exception worth
-  considering, as the tutorial is.
-- **Never the way on.** An errand guards rewards and the true end, never the ordinary game, in
-  keeping with the traversability rule. A player who ignores every ally still wins normally.
-- **Layouts.** An ally standing in a level is a change to its dressing: laid by a last pass so
-  nothing else moves, with the fingerprints written again, and said so.
+- **The true end opens within one run.** Everything that opens it is done in that run: the
+  things delivered, the conditions met, the codes passed. The test of the design: a pair with
+  nothing kept (no save, no `Known`) who know everything can reach the true end in one run.
+- **Long to learn, short to do.** The first time takes many runs of finding out; once known, it
+  is a handful of places and deeds, as Outer Wilds is minutes for a player who knows it. A run
+  here is hours, not 22 minutes, so the doing part must stay short.
+- **What a player learns** is of three kinds: *where* (a place in the grid), *how* (a condition:
+  come with the flame out, carry darkness, arrive in a named period) and *what a mark means*.
+  The map teaches where; allies teach how and what.
+- **What the game may keep.** `Known` is this game's ship log: it may keep what was *seen* (a
+  place, an ally met there, the marks it showed), never what was *done* (an errand finished, a
+  piece won). Nothing in the save or `Known` opens anything.
+- **What allies give**, then, is in-run (passage, a token to carry to the end in this run, a
+  thing to deliver to another ally) or knowledge (a place marked on the map, a mark explained by
+  being shown beside its thing).
+
+### The same for everyone, split between two
+
+- **Laid by place alone,** with a salt from `Salts`, as `Relics.at` and `Rules.lodestone_at`
+  deal theirs: the same in every run and for every player. The answers will end up on a wiki;
+  Outer Wilds accepted the same.
+- **Two sides.** At pairing each run takes a side, A or B (printed as two marks, not letters).
+  Every place holds its things for both sides, but each side's copy shows its own half: where A
+  sees a lock of marks, B sees what opens it. The same for every A and every B, so the halves are
+  shared knowledge too.
+- **The pair code carries the side** (one bit, see "Codes"). The joiner takes the side the
+  host did not; two players on one seed need it, as nothing else tells them apart.
+- **Talking.** Codes stay the game's only channel, but players will talk too. The split halves
+  should hold either way: hard to put in words (marks with no names), easy to pass as a code,
+  as in Keep Talking and Nobody Explodes. A code becomes the translation between the halves.
+- **Alone?** Knowledge only makes a solo pass thinkable: play a run as A to learn A's half, then
+  one as B. Steps that need both copies at once (a code made in one while the other stands at a
+  door) would need a hot seat. Open (below).
+
+### No words: a language of marks
+
+- Allies speak in marks put together: the 12 sigils (`RisoMarks.SIGILS`), ability glyphs
+  (`RisoGlyph`), key colours, the place marks and the boss seals, with a few marks of their own
+  for "bring", "go", "with", "without", "when".
+- Each mark's meaning is learned from where it is seen: printed beside the thing it names, again
+  and again across the world (as Tunic teaches with its manual).
+- Learning to read it is itself knowledge progression, and the true end's instructions are
+  written in it at fixed places for anyone who can read.
 
 ### Who the allies might be
 
-One to a band is the natural number, each built from what its band already has.
+One to a band is the natural number, each from what its band already has. Theme-neutral first
+guesses; who they are waits on the theme.
 
-| Where | Who | What they deal in |
-|---|---|---|
-| Garden | A gardener by a plot | Seeds and what grows from them (`Plot` already grows a hyperspace door) |
-| Cemetery | A gravedigger, or a skeleton that does not rise against the light | Darkness carried from the fonts; visits with the flame out |
-| Institute | A truant student hiding from the proctors | Papers, stolen or earned; turning up in the right period |
-| Crags | The gondola's keeper, or a smith at a lodestone | Tolls, stations switched on, tempered spells |
-| Sky | A balloonist | The wind, vanes, a ride along the row |
-| Ink wells | A cartographer | Charts: the map codes above, wanted and given |
-| Hyperspace | Another somnonaut, lost | In a paired run, the partner's own figure |
-| Everywhere | A courier | The face of the codes: letters carried between the two copies |
+| Where | Who | What they deal in | What they might teach |
+|---|---|---|---|
+| Garden | A gardener by a plot | Seeds, what grows from them | Where a plant's door leads |
+| Cemetery | A gravedigger, or a skeleton that does not rise | Darkness from the fonts | Going with the flame out |
+| Institute | A truant student | Papers, stolen or earned | The timetable: when to come |
+| Crags | The gondola's keeper, or a smith at a lodestone | Tolls, stations, tempered spells | The towers' switches |
+| Sky | A balloonist | The wind, vanes, rides | Where the wind takes you |
+| Ink wells | A cartographer | Charts (the map codes) | The marks for places |
+| Everywhere | A courier | Things carried between the two copies | The codes themselves |
 
-A different kind of ally: the bosses' leavings. A boss spared, or met again after it falls, could
-be one, which would tie the larger goal to the ordinary one.
+A boss met again after it falls, at a place, could be one too, which ties the larger goal to the
+ordinary one.
 
-### What they ask
+**Kinds of errand,** from a small table: *bring* a thing (a rare key, a seed, a named paper, a
+count of stars, darkness); *carry* a sealed thing from one ally to another, perhaps only openable
+in the other copy; *come as asked* (flame out, unhurt, nothing slain here, in a named period, the
+wind one way); a *chain of swaps*; a *riddle in marks* answered elsewhere. Deliveries are new
+"colours" on the ring (`Keys`), so they are carried, dropped, saved and sent with nothing new.
 
-Kinds of errand, each dealt from a small table so that a run's set differs:
+### The true end: a huge, linear level
 
-- **Bring** a thing: a key of a rare colour, a seed, a paper of a named spell, a count of stars,
-  darkness, a trophy shown but not given.
-- **Carry** a sealed thing from one ally to another at a place the first one marks on the map.
-  The place may be far along a row or in another band.
-- **Come as asked:** with the flame out, unhurt, having slain nothing in this level, during a
-  named period, with the wind blowing one way, with no lantern lit behind you.
-- **A chain of swaps:** each ally gives what another wants.
-- **A riddle in marks:** an ally shows a row of sigils and the answer is printed somewhere else.
+- **Laid like any level,** from a fixed seed, so the same for everyone: a side world of its own
+  kind (`Worlds.KINDS`), as the belly and hyperspace are, so it moves no other level.
+- **Hyperspace is the model:** one long strip whose way on is always one way. Hyperspace is 64 by
+  16 cells; this would be many times that, a string of strips joined end to end with lanterns
+  between, or one strip that the loader's chunk sleeping already makes affordable (see
+  `bench_big_level`).
+- **It could pass through every realm in turn,** garden to sky, each stretch asking what that
+  band taught.
+- **Paired,** in two copies split by side: a door in one copy opened by a code from the other, a
+  crossing only the other copy shows, the two players going through side by side.
+- **Its boss,** fought in both copies at once: its tells or its weak point printed only in the
+  other copy, so each player guards for the other.
+- **The way in** opens by deeds in this run: the seventh stand in the trophy room (one more
+  stand, with no boss's seal, already asks the question from the tutorial's end), or a place in
+  the grid that is only found by learning.
 
-### What makes it an ARG and not a quest log
+### What these answers rule out
 
-Three levers, which can be used together or one at a time.
+Pieces kept from run to run; errands dealt by the run's seed or the pair; a few words for the
+allies; a hand-made last level; the dream as a settled theme. The "three sizes" of the first
+brainstorm fold into one: the seventh stand's allies, with letters between the two copies, and
+everything solved by knowledge.
 
-- **Split knowledge, between a pair.** An ally's question is shown in one copy and its answer only
-  in the other, dealt by hashing both pair codes (the paired seals idea, given faces). A sealed
-  letter is a gift code that the sender's own game cannot open. The deliveries cross between the
-  two copies, and the true end's door opens only with a code the partner makes standing at theirs.
-- **Fixed places, for everyone.** Some allies or steps stand at one place in the whole grid, far
-  from where anyone starts, and are found by putting together what several players have seen.
-  Players trade coordinates and charts as they already can. Errands dealt by place are solved
-  once by the community; errands dealt by the run's seed are each player's own. The mix decides
-  how much is a shared mystery and how much stays a game.
-- **Things outside the game.** Codes in the code alphabet printed where a player is not looking
-  for them: on one plate of the print only, in the margin of the map, on the icon or the store
-  page, in a level's decor. Entered in the same field, they mark a place or wake an ally.
+### Still to settle
 
-A fourth, to be wary of: conditions on the real clock or calendar. They are what ARGs do, but the
-game's time is its own (`GameClock`) so that it plays and tests the same everywhere.
+1. **Alone:** can a solo player reach the true end (one side after the other, or a hot seat), or
+   only a pair?
+2. **What `Known` keeps of an ally:** its marks as seen (a log), or nothing.
+3. **The bosses:** must they be beaten on the way (their gates sealed while they live), or can a
+   pair who knows go straight to the true end?
+4. **Traversability in the last level.** The owner's rule is that no level is made crossable. A
+   huge linear level that cannot be crossed stops the true end. Whether the rule holds there
+   (hyperspace's own dressing lays ledges where a rough reach cannot get on, `Hyperspace._bridge`,
+   which may want a look under the rule too).
+5. **How long the doing part is** once known: one sitting?
+6. **The theme:** who the allies are and who waits at the end.
 
-### The true end
+### A first step
 
-- **How it opens.** Each ally satisfied gives a piece: of a seventh trophy, of a key, or one sigil
-  of a name. All pieces set on the seventh stand open a door in the trophy room.
-- **Where it leads.** A side world of its own (`Worlds.KINDS`), as the whale's belly is: the place
-  the dream is being dreamt from, printed as nothing else in the game is (the print's negative,
-  paper where ink was). Or past the far end of a band, where levels now go on for ever.
-- **Who is there.** The sleeper whose dream this is; the thing that keeps them asleep; the
-  wizard's own ghost, which the game already keeps; or, paired, the partner's wizard as they are,
-  their spells and tiers carried in by a code.
-- **Alone or only paired.** Either the true end can be reached alone and a partner makes it
-  quicker, or it is what paired play is for and a solo run cannot have it.
-
-### Three sizes it could be
-
-1. **The seventh stand** (small). Five or six allies, one a band, one errand each, each giving a
-   piece. A solo run can finish it; a pair is quicker by gifts. All of it within one run.
-2. **Letters** (medium, built on the pair). Allies' sealed things can only be opened in the other
-   copy, the chain crosses between the two several times, and both must stand at their doors.
-3. **The long dream** (large). Fixed places in the grid, codes outside the game, pieces kept from
-   run to run as `Known` is, solved by many players over weeks.
-
-Each is a step on the way to the next: the same allies, errands and pieces, with more of the
-levers pulled. The first could be tried in the demo's garden with two allies (the gardener and
-the courier) before anything larger is decided.
-
-### How it would sit in the code, whichever is chosen
-
-- An ally is what any new thing is: a prefab, a script, a `LevelGen.Type` with its `Placeables`
-  entry (a stander), art in `scripts/riso/props/`, laid by a last pass.
-- `scripts/level/Allies.gd`, scene-free, as `Relics` is: who stands where (`Allies.at(place)`),
-  what each asks and gives, checked in `unit_test`. The world atlas can then show them as it
-  shows relics.
-- What has been done for them in the run on `RunState`, typed; what outlasts a run beside
-  `Known`.
-- Things delivered as codes on the ring (`Keys`), so they need nothing new to be carried,
-  dropped, saved or sent.
-
-### What to settle first
-
-1. **Per run, or kept from run to run?** A roguelike's answer and an ARG's differ here, and it
-   decides the most.
-2. **Alone, or only paired?** Whether the true end is the reason to pair.
-3. **The same for everyone, or each player's own?** Dealt by place (a shared mystery, solved once
-   and then on a wiki) or by the run's seed or the pair (fresh each time, never a community's).
-4. **How wordless?** Marks only, or a few words for the allies alone.
-5. **How big a last level and boss?** Hand-made like the tutorial, or procedural like the rest.
-6. **Who the allies are.** The table above is a first guess, and the theme (whose dream this is)
-   is the owner's.
+The smallest thing that tries the idea, after code phases 1 to 3: in the demo's garden, two
+allies laid by place, a dozen marks of the language, one puzzle split between the sides, and a
+short linear side world opened by it, without its boss. A paired playtest of that says whether
+the split halves and the wordless asks work before anything is laid across the bands.
 
 Keep this file in step as phases land, with `DEEPER_PLAN.md` (a section for paired play, its
 numbers and its tests) and the "Where things live" notes in `AGENTS.md`.
