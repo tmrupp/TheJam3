@@ -437,9 +437,9 @@ any order, as Outer Wilds' planets are. The true end's level is the journey in o
   between, or one strip that the loader's chunk sleeping already makes affordable (see
   `bench_big_level`).
 - **The Fool's journey, in order.** Twenty stretches, I to XX in the cards' order (the Magician's
-  first, Judgement's last), each printed in its arcanum's band and asking what that arcanum taught. What was
-  learned in any order in the grid is proven in order here: the linear level is a test of
-  knowledge, card by card.
+  first, Judgement's last), each printed in its arcanum's band and asking what that arcanum
+  taught. What was learned in any order in the grid is proven in order here: the linear level is
+  a test of knowledge, card by card.
 - **Paired,** in two copies split by side: a door in one copy opened by a code from the other, a
   crossing only the other copy shows, the two players going through side by side.
 - **Its boss, and the World.** The World (XXI) waits at the end. Whether the World is the boss,
