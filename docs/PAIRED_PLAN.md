@@ -18,7 +18,8 @@ lent, paired seals). This version is the plan to build: the two things above fir
 as it is now, with the rest kept under "Later". Nothing is built yet.
 
 Its last section, "The larger goal", is not yet a plan: allied characters with errands, and a
-true end past the bosses, partly decided (knowledge only, paired, the same for everyone).
+true end past the bosses, partly decided (knowledge only, paired, the same for everyone, the
+major arcana moving by rules), with the garden demo's four arcana worked out to build.
 
 ## What the owner has decided
 
@@ -296,6 +297,9 @@ and delivering things to them brings the **true end** nearer: another level and 
   its boss at the end.
 - **The allies are the major arcana** (said after the answers above): the Fool, as the wizard is
   printed, meets the other cards on the way to the World.
+- **The arcana move by rules** (said after): meeting one may send it elsewhere, some move after
+  so many crossings, and what the Fool gets can change the world. A run or two spent on one
+  arcanum pins its rules down, and knowing them is what lets a run be planned.
 - **The theme is otherwise open.** Whose dream this is (or whether it is a dream) is not settled;
   nothing below depends on it.
 
@@ -411,22 +415,46 @@ The demo's garden holds four of them, the Lovers among them, so the first step c
 garden's alone. The bosses (worm, bramble, necromancer, beast, golem, whale) stay bosses; the
 Devil and Strength name what is already there rather than replacing it.
 
-**Where each stands.** "The same for everyone" and a random start conflict if an arcanum stands
-at one place in the whole grid: a run starting thousands of columns away could never reach it.
-So each is laid as the lodestones are (`Rules.lodestone_at`): once in every stretch of so many
-worlds along its band's rows, at a place hashed from the stretch. Every player meets the same
-Hermit at the same places, and one is always within reach.
+### How the arcana behave
 
-**What each asks,** from a small table of kinds: *bring* a thing (a rare key, a seed, a named
-paper, a count of stars, darkness); *carry* a sealed thing from one arcanum to another, perhaps
-only openable in the other copy; *come as asked* (flame out, unhurt, nothing slain here, in a
-named period, the wind one way); a *chain of swaps*; a *riddle in marks* answered elsewhere.
-Deliveries are new "colours" on the ring (`Keys`), so they are carried, dropped, saved and sent
-with nothing new. An arcanum's ask fits its card where it can: the Hermit wants the flame
-brought up to him lit, Death wants it out, Temperance a tempered spell.
+Not met in order, and not standing still (the owner, 15 November 2026). Each arcanum lives by a
+few rules: meeting one may send it somewhere else, some move after so many of the Fool's
+crossings, and some answer what the Fool gets or does elsewhere, which can change the world.
+The rules are what is learned. A player who follows one arcanum on purpose for a run or two
+should be able to pin its rules down, and knowing them lets a run be planned: be where it will
+be, with what it will want, before it gets there.
 
-**Met in any order, proven in order.** The arcana in the grid can be met and learned from in
-any order, as Outer Wilds' planets are. The true end's level is the journey in order (below).
+- **What moves an arcanum,** one or two of these each:
+  - *being met:* it moves on once the Fool leaves its level, by a fixed pattern;
+  - *crossings:* every so many levels the Fool comes into (any way: a door, a warp, a rift, the
+    balloon), it takes a step;
+  - *deeds elsewhere:* the Fool plants a seed, takes a relic, lights a lantern, enters a code;
+  - *the world changing:* a boss falls, a plant grows a door, another arcanum's ask is met.
+- **What it never depends on:** chance. No rule draws from an RNG or hashes the run's seed, so
+  the same deeds always bring the same moves for everyone. Where a rule must pick (which floor of
+  a level it stands on), it hashes the place and the card, as the beast's souls pick their spot
+  (`BeastSouls.spot`).
+- **Where each starts** is relative to what every run has: the start, a boss, the plots. "The
+  Empress first stands at the plot one row up from the start" is the same rule in every run on
+  every seed, and always within reach, which an absolute place in an endless grid is not.
+  (The lodestones' way, once in every stretch of so many worlds, stays an option for the bands.)
+- **Learnable means visible.** Every move leaves a trace where it was (its table left bare, a ring
+  of flowers on a plot, a dropped ribbon) for the rest of the run, and every rule is one plain
+  sentence. Each arcanum has at most three rules. The map marks where each was seen this run,
+  numbered in order, so its path shows.
+- **Asks to prepare for.** What an arcanum wants is something to bring or a state to arrive in
+  (a key of a colour, a grown plant, full hearts, a trophy), so knowing its next place and its
+  next ask is what makes a run efficient.
+- **Cards won.** An ask met gives its card, an in-run token kept apart on the ring as skeleton
+  keys are (never taking a slot, never dropped), kept through a death at a lantern, gone with the
+  run as everything is. The cards open the true end's way in.
+- **Met in any order, proven in order.** The arcana in the grid are met and learned from in any
+  order, as Outer Wilds' planets are. The true end's level is the journey in order (below).
+- **No layouts move.** An arcanum is run state (`RunState.arcana`: where each is and how far its
+  rules have run) placed as a level loads, as the ghost, the trophies and the beast's souls are.
+  Nothing is laid by the generator, so `layout_fingerprint_test` stays as it is. The whale's hunt
+  is the model of a thing that roams by rule (`WhaleHunt.move`, called from `MapInfo._arrive`,
+  which is where crossings are counted).
 
 ### The true end: a huge, linear level
 
@@ -473,14 +501,154 @@ everything solved by knowledge.
 7. **The cards' names:** printed at their foot as on real cards (the game's only words), or not.
 8. **The arcana in the bands:** the table above is a first fit; which card goes where, and what
    each asks, is the owner's.
+9. **What `Known` keeps of where arcana were seen:** the map's numbered sightings kept as a log
+   from run to run (seeing, not doing), or only within a run.
 
-### A first step
+## The garden demo
 
-The smallest thing that tries the idea, after code phases 1 to 3: in the demo's garden, two
-arcana laid by place (the Magician, teaching the few relation marks, and the Lovers, whose ask
-is split between the sides), asks made as matches and cards, and a short linear side world opened
-by them, two stretches long, without its boss. A paired playtest of that says whether
-the split halves and the wordless asks work before anything is laid across the bands.
+The first build of the larger goal, specific enough to build and to playtest: the demo's garden
+(rows −4 to +4, the worm at the gate four rows down, the bramble at the gate four rows up, each in
+a column within four of the start), its four arcana, and a short true end. It comes after code
+phases 1 to 3, as the Lovers need codes.
+
+The four garden arcana each teach one kind of rule, so a player who has met all four knows the
+kinds the rest of the deck is built from:
+
+| Arcanum | Moves when | Asks for | Teaches |
+|---|---|---|---|
+| I The Magician | it is met (a fixed zigzag) | a key of the meeting's colour, shown | the marks the others' asks use |
+| III The Empress | the Fool plants a seed anywhere | a plant grown to its door, picked beside her | a deed elsewhere moves an arcanum |
+| VI The Lovers | its own player's crossings, steered by codes | the two Lovers brought together, one in each copy | the two copies together |
+| VIII Strength | a garden boss falls | the fallen beast's trophy, shown with hearts full | the world changing moves an arcanum |
+
+### I The Magician: the zigzag
+
+- **Starts** in the start level, beside the start lantern: the first arcanum every run meets.
+- **His table** has four tools on it, one in each key colour (the four suits), the meeting's tool
+  lit. **He asks** to be shown a key of that colour: sun at the first meeting, then ember, moss,
+  plum. A key is shown, not given: keys are never used up.
+- **Each meeting teaches one mark** by acting it out on his table, with the Fool's own figure in
+  small: *show* (a thing held up), *whole* (hearts full), *far* (a plant grown while its planter
+  was away), *together* (two Fools). These are exactly the marks the other three arcana's asks are
+  drawn with, so he is the primer, and meeting him first is the easy way in. The mark is taught
+  whether or not the key was shown.
+- **Rule 1: met, he moves.** Once the Fool leaves his level he goes one row further from the
+  start than the last time, down and up by turns, in the column he was met in: row 0, then +1,
+  −2, +3, −4. The last is the bramble's gate level: he waits beside the sealed way up.
+- **Rule 2: met without the key,** he still moves on, and that tool stays unlit for the run. Four
+  meetings with the four keys give card I; any meeting without its key, and after −4 he goes back
+  to the start lantern and his table is laid out afresh from sun, so a careless run can start
+  over but loses the crossings.
+- **Learned in:** one run (follow him: he is always a row or two away), and a second to plan the
+  keys. Key colours are dealt by place, the same for everyone, so a player who knows which nearby
+  levels hold an ember and a moss key routes through them; plum is rare (about one in 30), and
+  knowing where one lies near the start is the real prize of his puzzle. A keyring tier carries
+  two at once.
+- **Trace:** where he stood, a bare table.
+
+### III The Empress: the plots
+
+- **Starts** at the plot of the level one row up from the start, in the start column.
+- **Rule 1: she goes where the Fool last planted.** When a seed is planted at any plot, she is at
+  that plot by the time the Fool comes back into its level (she is never seen walking). Every
+  garden level has one plot, and a seed comes from bursting a seed pod with its own seed turned
+  back; one is carried at a time.
+- **Rule 2: she stays while the plant grows.** A plant grows by how far the Fool goes before
+  coming back (`Plot.TIERS`: 1, 4 and 8 places away for stars, a skeleton key and a hyperspace
+  door). Planting another seed elsewhere meanwhile moves her to the newer plant, and the first
+  grows on without her.
+- **She asks** (her card: the plant at its tallest, the *far* mark, the Fool picking it beside
+  her) for a plant grown to its door and picked while she stands by it. Done, she gives card III,
+  and the door is the plant's as now.
+- **Learned in:** one run to see she follows the planting; a second to plant once, early, at a
+  plot on the way the run will take anyway, and come back to it after the far end of the run
+  (eight places is about a boss and back). Planting twice is the mistake the second run teaches.
+- **While she stands at a plot,** the seed pods in that level are still (a small change to the
+  world, which is a clue that she has been there).
+- **Trace:** a ring of moss flowers left on the plot she left.
+
+### VI The Lovers: one in each copy
+
+- **Two figures, one to a copy:** side A's copy holds the first Lover, side B's the second. Each
+  holds half a ribbon.
+- **Start:** A's Lover two rows up from the start, B's two rows down, both in the start column.
+  (On two seeds, each in its own run's start column; the meeting place is then counted from each
+  start.)
+- **Rule 1: crossings.** Every four levels its player comes into, a Lover takes a step: one level
+  toward where it is going.
+- **Rule 2: steered by codes.** Where it is going is the partner's place from the last "here I am"
+  code entered in that copy. Before any, it stays put. So each player steers their own Lover
+  toward the other's place, and each pair of players must agree where to meet.
+- **They ask** (their card: two Fools with the *together* mark between them) for both Lovers to be
+  at the same place, each in its copy, with both players there. Then each player makes a gift
+  code at their Lover (a ribbon half) and the other enters it there: both halves joined, both get
+  card VI.
+- **Learned in:** a paired run or two: seeing a Lover step after crossings, and that it heads for
+  the last place sent. Planning: send "here I am" from the meeting place you mean, then each
+  travel the crossings it needs.
+- **Alone,** only one Lover is ever seen and card VI cannot be won (unless a hot seat is built).
+- **Trace:** a dropped thread of ribbon where it stood.
+
+### VIII Strength: the beasts
+
+- **Starts** one row nearer the start than the worm's gate level, in the worm's column (row +3):
+  she is found by following the worm's rumble (`WormSign`), which is already the garden's way of
+  telling where its boss is.
+- **Rule 1: she watches the strongest beast still living.** When the worm falls she moves to row
+  −3 in the bramble's column; when both have fallen, to the tutorial's trophy room.
+- **She asks** (her card: the Fool holding up a trophy, the *show* and *whole* marks) to be shown
+  the trophy of the beast she was watching, with hearts full. Since the worm's fall moves her to
+  the bramble's side, the worm's trophy is carried there before it is set on its stand, so the
+  ask is learned only by following her after the fight.
+- **Done, the world changes:** the small worms in the garden's rock (`Wormlet`) are tamed for the
+  rest of the run and no longer bite, and she gives card VIII.
+- **Learned in:** one run that beats the worm and goes looking for her. Planning: beat the worm,
+  mend before going on, and pass by the bramble's side with the trophy before the bramble fight
+  rather than after.
+- **Trace:** a paw print of pink ink in the level she left.
+
+### The demo's true end
+
+- **The way in:** a third stand in the tutorial's trophy room, beside the worm's and the
+  bramble's, marked XXI, with four slots. The four cards set on it open a door behind it. Nothing
+  says that the stand is there to be filled; it is there from the first run.
+- **The level:** a linear side world in the manner of hyperspace, four stretches long, I, III, VI
+  and VIII in order, each printed and dressed after its arcanum and asking what it taught: the
+  Magician's four coloured doors in his order; the Empress's stretch of plots grown by going and
+  coming back; the Lovers' stretch, whose doors in each copy are opened by codes from the other;
+  Strength's stretch, a beast that is passed, not fought, with hearts full.
+- **Its end in the demo:** a door marked II, shut. The numbers so far skip II, IV, V and VII: the
+  demo's last sight is the deck going on without it, and the full game picks up there.
+- **Alone,** the Lovers' card cannot be won, so a solo demo player never opens the door; they can
+  still learn the other three. Whether the demo should let them in without it is the owner's.
+
+### What it takes to build
+
+- `scripts/level/Arcana.gd`, scene-free, as `WhaleHunt` and `Relics` are: each card's start, its
+  rules as functions from the run's state and an event (met, a crossing, planted, slain, a code
+  taken) to its next place, its ask, and whether the ask is met. Checked in `unit_test` with
+  made-up runs: the Magician's zigzag and reset, the Empress following the last planting, a Lover
+  stepping every fourth crossing toward the last place sent, Strength moving as each boss falls.
+- `RunState.arcana`, typed and saved: where each is, how many crossings since its last step, its
+  meetings, the tools lit, the cards won. `MapInfo` feeds it the events (in `_arrive` with the
+  whale, in planting, in `boss_slain`, in `take_code`).
+- A prefab (`arcanum.tscn`, `setup` by card) placed at load on a floor hashed from the place and
+  the card, an `Interactable` to meet, and art in `scripts/riso/props/`: four figures in the
+  print, each with its card's picture held up as its ask. No pink on them (they are not danger);
+  accent for what they offer.
+- The cards on the ring (`Keys`), the stand with four slots (`TrophyStand`'s kind), the four
+  marks (`RisoMarks`), the traces, and the map's marks for arcana seen.
+- The linear side world (`Worlds.KINDS`), from a sample of its own.
+- Tests: `arcana_test` in the scene, two runs on two saves for the Lovers as `pair_test` does; a
+  capture of each figure and its ask, looked at zoomed in. `layout_fingerprint_test` unchanged.
+
+### Playtest questions
+
+- Does a new player notice an arcanum has moved, and look for it? (The traces.)
+- Is each ask read without words? (Watch, as the tutorial was watched.)
+- Do the rules feel learnable rather than random after two runs?
+- Is the Magician's plum key too rare for a demo, or the prize it should be?
+- How long does a pair that knows everything take, start to door II?
 
 Keep this file in step as phases land, with `DEEPER_PLAN.md` (a section for paired play, its
 numbers and its tests) and the "Where things live" notes in `AGENTS.md`.
