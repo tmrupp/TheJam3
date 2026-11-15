@@ -114,3 +114,9 @@ Each commit below deleted what its row names; the files are at the commit's pare
 | `9f258593d3` | 2026-09-30 | `StartGame.gd`, for the start menu. |
 | `b080f28cbe` | 2026-09-30 | The jam's upgrade menu and shop (`Upgrade*.gd`, `upgrade_menu`, `WallClimb.gd`, `DoubleJump`), for shrines and tiered abilities. |
 | `81ae343358` | 2026-09-30 | The jam's goal and backtracking (`goal.gd`, `respawn.gd`), for levels by (seed, depth). |
+
+## Later removals
+
+| What | Where it was | Notes |
+|---|---|---|
+| The preliminary paired plan (a Partner map page showing the partner's levels as laid out, doors opened and the partner moved by code, spells lent, paired seals, in seven phases) | `docs/PAIRED_PLAN.md` at `3bc2839` | Rewritten on 2026-11-15 as a plan to build map codes and gift codes first. The Partner page was dropped (every run is in the one grid, so it would be a free map of any level); the rest is kept in brief under its "Later". |

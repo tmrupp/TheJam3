@@ -1,218 +1,273 @@
-# Paired play: a preliminary plan
+# Paired play: the plan
 
-Two players, each on their own machine and in their own run, play paired. Nothing is networked,
-and the game counts on no other channel: **the only way the two communicate is by coded message.**
-One game prints a code, its player passes it on (however the players like: aloud, by text, on
-paper), and the other player types it in. Each enters their own seed and their partner's, and
-from then on each game can lay out the other's world, so each player can look at the partner's
-map. Everything else crosses as a code: where a player is, an instruction marked on the partner's
-map, and help (stars, a key, a spell, a move to another spot, a door opened).
+Two players, each on their own machine and in their own run, play paired. Nothing is networked:
+**the only thing that passes between them is a code.** One game prints a short code, its player
+passes it on however they like (pasted into a chat, read aloud, written down), and the other
+player enters it. A code does one of two things in the game that takes it:
+
+- it **updates the map**: a level the sender has charted is inked on the receiver's map, a find
+  (a relic, a lodestone, a skeleton key) is marked on it, or a pin says where the sender is or
+  where to go;
+- it **gives something**: stars, a key, or another thing the sender carried, which leaves the
+  sender's game as the code is made.
 
 This was the idea the game began with (the 2023 jam build dealt an arrow code with each key, and
-its goal needed a code). This plan brings it back on top of the game as it is now. It is
-preliminary: each section says what the owner has decided, what is proposed, and what is open.
-The phases at the end give an order of work.
+its goal needed a code). An earlier, preliminary version of this file planned it more broadly
+(a page showing the partner's whole world, doors opened and the partner moved by code, spells
+lent, paired seals). This version is the plan to build: the two things above first, on the game
+as it is now, with the rest kept under "Later". Nothing is built yet.
 
-## Decided (the owner)
+## What the owner has decided
 
-- **Non-networked.** The two games never talk to each other. Everything passes through the
-  players: seeds at the start, codes during play.
-- **Coded messages are the only channel.** Nothing is assumed to pass between the players but
-  codes, so anything one needs to tell the other (where they are, where to go) is a code too.
-- **Two seeds.** A paired run is started with the player's own seed and the partner's.
-- **The partner's map.** Each player can look at the partner's map, to give instructions (sent as
-  codes).
-- **Codes for help.** Things are sent by codes, made in one game and entered in the other:
-  stars, keys, spells, moving the partner (teleporting them) and opening doors are the first ideas.
+- **Non-networked.** The two games never talk to each other.
+- **Codes are the only channel**, made in one game and entered in the other.
+- **Codes update the map** and **codes send items and stars.**
 
-## Why it fits the game as built
+Everything else here is proposed. The choices that are the owner's to make are gathered under
+"For the owner to decide", each with what this plan assumes until told otherwise.
 
-- **A world is its seed.** Every level comes from `Rules.level_seed(run_seed, depth)` and the
-  difficulty preset, and must be identical on every visit (see AGENTS.md, "Level generation").
-  So either game can lay out any level of the partner's world without being told anything more.
-  The generator already builds levels off the scene (`LevelLoader`'s worker, `TestKit.build`).
-- **The map draws from layout and record.** `RisoMap._other_level` marks any level from its
-  layout and its `LevelRecord` (cleanup item 4). A partner's level is a layout with an empty
-  record: everything as it was laid out, nothing taken or opened.
-- **Records already hold what changes.** A door opened, a key taken or a key dropped
-  (`LevelRecord.opened`, `dropped`) and stars and keys carried (`Coins`, `KeyRing`) are all
-  plain state. Applying a code is writing to them, with no world RNG and so no change to any
-  layout.
-- **Code entry, from the jam.** The 2023 jam's `CodeMenu` took an arrow code (`<`, `>`, `^`,
-  `v`) with the d-pad and checked it against a list. Nothing opened it any more, so it was taken
-  out (`docs/HISTORY.md` says where it lived); a code entry will be built anew.
+## What has changed since the preliminary plan
+
+Four things in the game as built change the plan, the first of them a good deal.
+
+- **Every run is in the same world.** A place is (column, row), and a level comes from its place
+  alone (`Rules.level_seed`, the labyrinth in `Rules.maze_has`: "laid by the place alone, the
+  same in every run"). A run's seed is only the column it starts in. So there is no "partner's
+  world" to lay out: the two players are in two copies of one grid of levels, perhaps in the same
+  columns, perhaps thousands apart. What differs between the copies is what each run has done
+  (its `LevelRecord`s) and the few things dealt by the run's seed (which column each boss is met
+  in, `Bosses.column`; the whale's wandering; the beast's souls).
+  - What one player learns about a place is true for the other: the level at (30, 4) holds the
+    same relic in the same secret room in both copies. And it is still there in the partner's
+    copy after the first player has taken it in their own. **Scouting for each other is the
+    co-operation**, and a map code is how its result crosses.
+  - The preliminary plan's Partner page (the partner's levels shown fully inked, as laid out) is
+    dropped. In one grid it would be a free map of any level, the player's own surroundings
+    among them. Maps cross only as charts of what a player really has.
+  - How far apart the two start now matters, which it did not before (see "Pairing").
+- **The collapse is the same on every compiler** (`gdextension/src/portable.hpp`, checked by
+  `collapse_xcheck`). The code review's worry (§2.4) that a pair on Windows and Linux could never
+  play is answered; a check of the build is still wanted, as two versions of the game may lay
+  levels out differently.
+- **The map already knows how to learn a place from outside.** `MapInfo.ink_place(at)` inks a
+  level never visited (an ink well's neighbours, the gondola's top station), `RunState.relic_hints`
+  marks a relic on the worlds page, and `Known` keeps place knowledge from run to run with a stamp
+  of each layout. A map code writes to the same places; little of the map's printing is new.
+- **The run and its records are typed and scene-free** (`RunState`, `LevelRecord`, `KeyRing`,
+  `Coins`), and the start menu already copies a place to the clipboard and reads a pasted seed
+  (`menu.copy_location`, `paste_seed`). Giving and taking are small writes to state that is
+  already saved.
+
+One snag from the preliminary plan still stands: the difficulty preset is a global
+(`Difficulty.preset`) and changes what levels hold, so a cell named by one player is only the
+same cell for the other on the same preset. The pair code carries it (below).
 
 ## Pairing
 
-*Proposed.*
-
-- **The pair code, not the bare seed.** What a player sends the partner at the start is a
-  short code holding their seed, their difficulty preset and a check of the build. The preset
-  matters because it changes layouts (`Difficulty.foes`, through `LevelGen.foes_per_area`): the
-  same seed on Normal and on Hard gives different levels. The build check (say, a few bits
-  hashed from the layout fingerprints) catches two players on builds whose generators differ,
-  which would otherwise show a map that does not match the partner's world.
-- **The start menu** gets a "paired" start beside the seed field: your pair code shown, the
-  partner's typed in. A solo run is a paired run with no partner. The pair is kept in the save
-  (`RunState`).
-- **Who is who.** The lower seed is side A and the higher is side B, so each side numbers its
-  codes apart from the other's. Two players on one seed (racing the same world) would need a side
-  picked by hand.
-- **No layout changes.** Pairing draws nothing from the world RNG and lays nothing new, so a seed
-  is the same world paired or alone, and `layout_fingerprint_test` stays as it is. Paired seals
-  (below) are the exception, if the owner wants them.
-
-*Snag found while planning.* The preset is a global (`Difficulty.preset`, set with F7) and is not
-saved with the run. Laying out the partner's levels with their preset means passing the preset
-into each build rather than reading the global. It also means a solo run's layouts change if F7 is
-switched mid-run. Whether that is meant is worth deciding separately.
-
-## The partner's map
-
-*Proposed.*
-
-- A third map page, **Partner**, after the worlds page: their worlds grid and, picked on it, any
-  of their levels on the level page, drawn with the same marks and legend.
-- **Fully inked, as laid out.** The helper sees every cell of the partner's levels (their ink is
-  the partner's to buy, not the helper's), but sees each level as it was laid out: doors shut,
-  keys and stars in place, bosses alive. The page says so. Nothing the partner does reaches it
-  except by code: their place from a "where I am" message (below), and whatever the helper's own
-  codes changed for them (a door the helper opened shows open, as the helper's game made that code
-  and remembers it).
-- **The partner's marks.** Where the partner was last reported, and the marks the partner has
-  sent (below), print on this page as the ghost does on yours, each noting how many codes ago it
-  came, since nothing says how stale it is.
-- **Cost.** Laying out a partner's level costs what any level costs, on the worker thread, and
-  only when looked at. The cache can keep the partner's levels apart from the player's.
-
-*Open.* Whether the helper sees the partner's levels fully inked from the start, or only the
-levels the partner has said they reached, or must pay to ink them. Fully inked is the simplest and
-closest to "view their map to give instructions".
-
-## Messages: telling, not giving
-
-*Proposed.* With codes the only channel, instructions are codes too. A message carries
-information and costs nothing to send. Entered twice it only says the same thing again, so it needs
-no number (no replay guard), only the check.
-
-- **Where I am.** The sender's place: world column, row and cell. It marks them on the receiver's
-  partner page.
-- **A mark on your map.** Picked on the partner page: a cell in one of the partner's levels and a
-  word from a short fixed list (go here, look here, danger, a key, a door, a secret, wait). It
-  prints on the receiver's own map at that cell, and in the level itself as a small printed sign
-  where the receiver will come across it (accent ink, as a reward mark; pink for danger). This is
-  how "view their map to give instructions" works without talking: the helper studies the
-  partner's level and leaves them signs.
-- **A route.** Perhaps later: a few marks in one code, numbered 1, 2, 3, so the way through a
-  level fits in one message.
-- **What I did.** Perhaps later: "I opened the door at...", "I took the key at...", one thing a
-  code, so the helper's page can catch up with the partner's level. Without it the helper sees the
-  level as laid out and has to ask.
-- **Asking.** A message can also be a request: "send stars", "open this door" (picked on your own
-  map), "where are you?". The receiver's game shows it as a note on the map, and the partner
-  answers with a code of their own or not at all.
-
-*Open.* How long the word list is (each extra bit is part of a longer code), and whether a mark
-in the level prints for good or fades after a while.
+- **The pair code.** Each player starts a paired run and is shown a pair code for it: the run's
+  seed, a stamp drawn at random when the run starts, the preset, and a check of the build and the
+  band layout. They swap pair codes once. From then on every code is checked against both pair
+  codes, so a code works only between these two runs and only one way (the sender's own game
+  refuses it). A new run draws a new stamp, so codes left over from an old run do nothing.
+- **The build check** is a few bits of a `LAYOUTS_STAMP` constant kept beside the rules, which
+  `layout_fingerprint_test -- update` writes whenever a level moves (and the test fails if the
+  constant and its `GOLDEN` disagree, so it cannot be forgotten). Two builds that lay levels out
+  differently are told so when pair codes are swapped, not when a mark lands in rock.
+- **Which seeds.** Any two seeds can pair, and gifts work at any distance. Maps are only worth
+  sending where the two can both walk, so the join screen fills in the partner's seed as the
+  joiner's own: the two start in the same level of their two copies, split up, and trade what
+  they find. A player who would rather start elsewhere types another seed. (Bosses are dealt by
+  the run's seed, so on one seed the pair hunts the same bosses in the same columns; on two
+  seeds each has their own.)
+- **Where it is done.** A "Paired" row on the start menu beside the world seed: your pair code
+  with a copy button, a field for the partner's with a paste button. A run can also be paired
+  after it has begun, from the pause menu's Partner page (below). A solo run is a run with no
+  partner; nothing in it changes.
+- **Kept in the save.** A small typed, scene-free `Pair` (`scripts/level/Pair.gd`, held as
+  `RunState.pair`): the two pair codes, the gifts taken and the next gift's number, the codes
+  made (so one can be read again after the page is closed), and the pins and finds received.
+  Saved under its own name as `InstituteRecord` is; an older save has none and reads as solo.
+- **No layout changes.** Pairing draws nothing from the world RNG and lays nothing, so a place is
+  the same paired or alone and `layout_fingerprint_test` stays as it is.
 
 ## Codes
 
-*Proposed.*
+- **Symbols.** 32 symbols, five bits each: the digits and the letters without I, L, O and U
+  (typed in either case; I and L read as 1, O as 0), printed in groups of four or five. A code
+  is copied to the clipboard as it is made and can be pasted in, which is how most will cross;
+  it is short enough to read aloud. Arrows, as in 2023, would take twenty presses for what eight
+  letters carry, and the printed sigils cannot be typed into a chat.
+- **Lengths.** A pair code is 10 symbols, typed once a run. Most codes in play are 8; a pin in a
+  level, which names a cell, is 10.
 
-- **What a code holds.** Its kind (a message, or a gift: stars, key, spell, move, door...), what it carries (an amount,
-  a key colour, a spell and tier, a place and cell), the sender's side and the code's number, and
-  a check. The check is a hash of all of that and both seeds, so a code works only in its own
-  pair, only from its sender, and a mistyped symbol is caught rather than doing something else.
-- **Once only, for gifts.** A code that gives something (stars, a key, a spell, a move, a door) is
-  numbered; a message is not (above). Each side numbers its gifts from 1. The receiving game keeps which numbers it has
-  taken (a high-water mark and a small window behind it, in the save), so a code read twice, or
-  typed again later, does nothing. Codes can be entered out of order.
-- **Sending costs the sender.** Making a code spends what it sends: the stars leave your purse,
-  the key leaves your ring, the spell leaves your slot. Help is a trade, not a copy. The receiving
-  game cannot check that the sender paid; with two players working together, that is fine.
-- **Length.** About 48 bits: 4 for the kind, 8 for the number, up to 24 for what it carries (a
-  place and cell is the largest: world column, row, and x and y in the level), and 12 for the
-  check (a typo slips through about once in 4,000). That is 12 symbols from an alphabet of 16, or
-  24 arrows.
-- **The alphabet** (*open*): arrows, as in 2023 (easy on a pad, long to pass on); 16 printed
-  shapes, such as the 12 `RisoMarks.SIGILS` and four more (short, readable, entered from a 4×4
-  grid with the stick); or letters and digits (quickest with a keyboard, plain).
-- **Making and entering codes.** Both on the map: making one from the partner page (pick a door
-  on their level, pick "open it", get a code) or from a send menu (stars, a key, a spell), and
-  entering one from a field on any page, printed in the riso like the other menus (`RisoMenu`),
-  after the jam's `CodeMenu` (`docs/HISTORY.md`).
+| Code | Symbols | Bits |
+|---|---|---|
+| Pair | 10 | seed 20, run stamp 8, preset 2, build and band layout 8, check 12 |
+| Gift | 8 | kind 4, number 8, what 12, check 16 |
+| Chart | 8 | kind 4, place 17, how many along the row 3, check 16 |
+| Find | 8 | kind 4, place 17, what 4, check 15 |
+| Pin | 10 | kind 4, place 17, cell 12, word 3, check 14 |
 
-## Gifts: what can be sent
+- **A place** is 17 bits: whose start it is counted from (the sender's or the receiver's), up to
+  255 columns either way, and the row (63 either way; the whole game's bands reach 35). Side
+  worlds are not sent at first. **A cell** is 6 bits across and 6 down (a level is at most 60 by
+  48, `Rules.level_size`). A paired run's seed must fit 20 bits (the menu's random seeds are
+  under 100,000).
+- **The check** is a hash of the code's fields, the sender's pair code and the receiver's, in
+  that order, by a hash of the game's own (as `Rules.level_seed`, not the engine's), salted from
+  `Salts` (a new salt at its end). A mistyped gift slips through once in 65,000; a code from
+  another pair, another run or the wrong way round is refused, and the game says which.
+- **Scene-free.** `scripts/level/Codes.gd` packs and unpacks the bits, turns them to symbols and
+  back, and checks them. It names no node, so `unit_test` covers it in a second.
+- **Trust.** Nothing stops a player who wants to forge a code; the two are on the same side.
+  The checks are against slips, stale codes and mismatched builds, not against cheating.
 
-*Proposed, in rough order of how simple they are.*
+## Map codes: updating the partner's map
 
-- **Stars.** An amount from your purse to theirs.
-- **A key.** A coloured key, the skeleton key, or an exam paper, off your ring onto theirs (a full
-  ring drops the oldest at their feet, as now). Key colours mean the same in both worlds, so a red
-  key from one opens a red door in the other. Papers sent across make the institute a two-player
-  puzzle: one attends, the other sits the exam.
-- **Open a door.** Picked on the partner page: a locked door, a paid deeper door, a toll gate or a
-  shut gate in their level. The helper pays its price (the key or the stars) and the code opens it
-  in the partner's record (`LevelRecord.opened`). It opens whether or not the partner is there.
-- **Move them** (teleport). Picked on the partner page: a floor in one of their levels. The code
-  moves the partner there, as a warp does, for stars by distance (as `Warp` costs stars).
-  *Open:* any level, or only levels the partner has visited (the receiving game can refuse a level
-  it has never seen, before taking the code's number, so the code is not wasted).
-- **A spell.** Lent: the spell leaves the sender's slot and goes into the partner's, at the
-  sender's tier, until a return code gives it back. *Open:* lent with a return, or given for good,
-  or taught (the sender keeps it, as the institute's teaching does, at a high price).
-- **Later ideas.** Relighting the partner's lantern; ringing an institute bell or throwing a crag
-  tower switch in their level (both are level puzzles that a second pair of eyes could solve
-  together); a boss's relic passed on.
+A map code says something about the world, which is as true in the partner's copy as in the
+sender's. It costs nothing, and entered twice it only says the same again, so it carries no
+number.
 
-## Paired seals: the original idea
+- **A chart.** Made on the worlds page with the cursor on a level whose whole map the sender has
+  (inked at a well or by a chart, or with at least `CHART_SHARE` of its open cells seen). Entered,
+  it inks that level whole on the receiver's map (`MapInfo.ink_place`), where it shows as an
+  inked neighbour does now: a tile on the worlds page, its level page to look over. One code can
+  carry up to eight levels side by side along a row. A level's seen cells are far too many bits
+  for a code, which is why a chart is all or nothing.
+- **A find.** Also made on the worlds page, from what the sender's map shows in that level: its
+  relic (the receiver's `relic_hints`, as a shrine's hint), its lodestone, a skeleton key, a bone
+  vault, a shrine, an ink well, a lantern, a hyperspace door. The receiving game asks its own
+  rules and layout whether the place holds such a thing (`Relics.at`, `Rules.lodestone_at`,
+  `skeleton_at`, `bone_vault_at`) and refuses a find that is not there, then marks it on the
+  worlds page with the mark it would have if found there.
+- **A pin.** A cell in a level and one of eight words: here I am, come here, look here, danger,
+  and four to be chosen in play. "Here I am" is made from the pause menu in one press; the others
+  are made on the level page with a cursor (the page has none now; `Warp.pick` picks cells in the
+  level itself and is the model). A pin prints on the receiver's worlds page and level page as
+  the ghost's mark does, in accent ink (pink for danger), each kind replacing the last of its
+  kind. Pins do not print in the level itself at first.
+- **What does not cross.** What a player has done in their own copy (doors opened, keys taken,
+  bosses slain) is theirs alone and is not sent; the partner's copy still has all of it.
+- **Told apart.** What came by code prints with a small mark of the partner on its tile, so a
+  player can tell what they found from what they were told. `Known` keeps a charted place for
+  later runs as it keeps a visited one.
 
-*Proposed, optional.* In the 2023 build the goal needed a code. The game could again have things
-that only the partner can open: a **paired seal** in your level whose code is printed on a stone in
-a level of the partner's world. The partner finds the stone and sends you its code. This is
-information only one side has, which makes the messages the game, not just the help.
+## Gift codes: sending items and stars
 
-- They would appear only in paired runs, laid by hashing both seeds and the cell (no world RNG),
-  and laid last, so solo layouts do not move. Each game lays out both its own seals and the
-  partner's stones, so neither needs telling.
-- What they guard: optional rewards (a vault, a relic hint), not the way on, so that a pair
-  playing apart is never stuck. That fits the owner's traversability rule (no pass makes a level
-  crossable, and none makes one uncrossable for want of a partner either).
+A gift leaves the sender as its code is made and arrives when the code is entered.
 
-## Open questions
+- **Stars.** An amount from the sender's purse (`Coins`) to the receiver's, up to 4,095 a code.
+- **Keys.** A coloured key off the ring onto the partner's (`KeyRing`; a full ring drops its
+  oldest key at the receiver's feet, as picking one up does, `MapInfo.key_taken`). Colours mean
+  the same in both copies, so a plum key found by one opens the other's plum doors.
+- **The things kept apart on the ring.** A skeleton key, a relic unlock, a garden seed; a count
+  of each. A seed arriving with the pocket full, or anything that cannot be carried, is laid at
+  the receiver's feet as a dropped key is (`LevelRecord.drop_key`).
+- **Exam papers.** A paper (a spell known but not held) is carried on the ring as a key is and is
+  sent the same way, its spell and tier in the code. One attends the class, the other learns the
+  spell. A stolen paper arrives stolen.
+- **Not at first:** spells in their slots, the relic moves, health, lanterns, the darkness
+  carried. See "Later".
+- **Numbered, so taken once.** Each side numbers its gifts from 1 in the run. The receiving game
+  keeps which numbers it has taken (in `Pair`), so a code entered twice, or typed again an hour
+  later, does nothing and says so. Gifts can be entered in any order.
+- **A code never entered is lost,** as a thing dropped down a well is. The sender's Partner page
+  keeps every code made this run, so one can be found and sent again; there is no taking a gift
+  back, since the sender's game cannot know it was not taken.
+- **No world RNG.** Giving and taking write to the purse, the ring and the record only.
 
-- **Balance.** Two purses and two key rings make a pair richer than one player. Whether prices,
-  key rarity or foes should rise in a paired run, or whether the costs of sending are enough.
-- **Pace.** The two runs drift apart in depth. Whether anything should pull them together (help
-  costing more across a big gap in depth, or paired seals at matching depths).
-- **Deaths and the ghost.** Whether codes can be entered while a run is over, and whether a
-  partner can do anything about the other's ghost.
-- **Replays and codes.** Whether a code's number should run per run (reset on a new run) or per
-  pair (kept across runs), and what happens to codes made but never entered.
-- **Hot seat.** Whether two runs on one machine (two saves, taking turns) should be supported. Now
-  there is one save (`RunState.save_path`).
+## Where the player does it
+
+- **The pause menu's Partner page** (a page beside Settings and Controls, in `menu.gd`'s own
+  controls): the two pair codes; a field to enter a code, with a paste button and a line saying
+  what the code did or why it was refused; Send (stars with an amount, then each thing carried
+  that can be sent); "Here I am"; and the codes made this run. A made code is shown large and is
+  already on the clipboard.
+- **The map.** On the worlds page, with the cursor on a level: Chart and Find, each showing the
+  code on the sheet. On the level page: a cursor for pins. The map prints what came by code
+  (above).
+- **On a pad.** Pasting needs a keyboard. A pad enters a code on a printed grid of the 32
+  symbols (8 by 4), picked with the stick, built last (phase 4); until then a paired run wants a
+  keyboard for entering.
+- **In the scene.** `MapInfo` gains `make_gift`, `make_chart`, `make_find`, `make_pin` and
+  `take_code(text)`, which do in the scene what `Pair` and `Codes` decide (the purse, the ring, a
+  key laid at the feet, the map's version bumped, `save_now`, as a gift must not be lost to a
+  crash after its code is shown).
+
+## For the owner to decide
+
+Each has what the plan assumes until told otherwise.
+
+1. **How far apart the pair starts.** Assumed: any seeds may pair, and joining fills in the
+   partner's seed, so by default the two play the same columns in two copies. The other choices
+   are neighbours a few columns apart, or wherever each likes (gifts only, in effect).
+2. **What may be charted.** Assumed: only a level whose whole map the sender has, free to send.
+   The other choices: any visited level (which makes the ink wells worth half as much to a pair),
+   or a price in stars to make a chart.
+3. **The alphabet.** Assumed: letters and digits, pasted or typed. The other choices are arrows
+   or printed sigils, both far longer to pass on.
+4. **What can be given.** Assumed: stars, the four keys, skeleton keys, relic unlocks, seeds and
+   exam papers. Spells and relic moves wait.
+5. **The preset.** Assumed: the two must be on the same preset to pair (a release build has one
+   anyway; only the developer's F7 panel changes it).
+6. **Stars as a bank.** A death leaves the stars with the ghost; stars sent to the partner first
+   are safe. Assumed: allowed, and looked at in the playtest. A toll on stars sent (a share lost
+   on the way) is the lever if it wants one.
 
 ## Phases
 
-1. **Pairing and the partner's map.** The pair code (seed, preset, build check), the paired
-   start, the pair in the save, the preset passed into builds, and the Partner map page fully
-   inked as laid out. Tests: a pair code round trip in `unit_test`; a level laid out for the
-   partner's seed and preset matching a build of that seed alone; the partner page's marks
-   matching the partner's layout; `layout_fingerprint_test` unchanged.
-2. **The code system and messages.** Encoding, decoding and the check; the entry and making
-   screens printed in the riso. Messages come first, as the pair cannot help each other without
-   them: where I am, and marks picked on the partner page that print on the receiver's map and in
-   their level. Tests in `unit_test` (round trip, a typo caught, a code from the wrong pair or side
-   refused) and a scene test of a mark arriving on the map and in the level.
-3. **Gifts: stars and keys.** Numbering and the replay window in the save; the sender paying.
-   Tests: a gift taken twice doing nothing; a key and stars leaving one ring and purse and arriving
-   on the other.
-4. **Doors and moves.** Gifts made by picking on the partner page. Tests: a door opened by a code
-   staying open on a revisit, and showing open on the sender's partner page; a move landing on a
-   floor.
-5. **Spells and papers.** Lending and returning; papers across. Tests with the shrine and
-   institute tests.
-6. **Paired seals**, if wanted.
-7. **A paired playtest**, and tuning from it.
+1. **Codes, pairing, and stars end to end.** `Codes` and `Pair`; the pair code and
+   `LAYOUTS_STAMP`; the pair in the save; the start menu's Paired row and the pause menu's
+   Partner page (pair codes, enter a code, send stars, the codes made). Tests: in `unit_test`,
+   every code's round trip, each single mistyped symbol of a sample of codes refused, a code from
+   another pair, another run and the wrong way round refused, I, L and O read as digits; a new
+   `pair_test` on the kit, two runs on two saves taking turns: stars leave one purse and arrive
+   in the other, a gift entered twice does nothing, a paired run saved and continued still takes
+   its partner's codes; `layout_fingerprint_test` unchanged.
+2. **The other gifts.** Keys, skeleton keys, relic unlocks, seeds, papers. Tests in `pair_test`
+   (a key onto a full ring drops the oldest at the feet and it is there on a revisit; a sent
+   paper is learned at a lantern), with the keyring's rules in `unit_test`.
+3. **Map codes.** Charts and finds from the worlds page, "here I am", pins from the level page
+   with its new cursor, and the partner's marks on both pages. Tests: a chart inks the place and
+   up to eight along the row; a find of something that is not there is refused; a pin shows at
+   its cell; `known_test` (or its like) for a charted place kept to the next run. A capture
+   (`tests/capture_pair.gd`) of both pages with the partner's marks, looked at zoomed in.
+4. **Entry on a pad, and the print.** The symbol grid; the Partner page and the codes printed in
+   the riso like the other menus (`RisoMenu`), rather than plain controls.
+5. **A paired playtest,** then tuning: the stars bank, how useful charts are against the ink
+   wells' prices, whether keys crossing makes the rare colours too easy.
 
-Keep this file in step as phases land, as for `DEEPER_PLAN.md` and `REGIONS_PLAN.md`.
+Phase 1 is useful to play on its own; each later phase adds kinds of code without changing
+those already made (a kind is four bits, and seven of the sixteen are spoken for).
+
+## Later
+
+Kept from the preliminary plan, each a new kind of code on the same system, none needed for the
+above.
+
+- **A door opened in the partner's copy** (the sender pays its key or its price; the code writes
+  `LevelRecord.opened` there), and **the partner moved** to a floor the sender picks, for stars
+  by distance as `Warp` costs.
+- **A spell lent** out of a slot and given back by a return code, or taught for a high price.
+- **A route:** a few numbered pins in one code.
+- **Pins printed in the level** as small signs (`Signpost` and its art are kept and unused).
+- **Charts of side worlds,** and a boss's column told (on two seeds the partner's game can work
+  it out, `Bosses.column`, so it would be sold at a shrine as the player's own hint is).
+- **Paired seals,** the 2023 idea: a seal in one copy whose answer is printed on a stone that
+  only stands in the partner's, laid by hashing both pair codes and the cell (no world RNG), laid
+  last, guarding rewards and never the way on.
+- **Hot seat:** two runs on one machine taking turns. `pair_test` does this already with two
+  save paths; offering it to players is a menu and a second save.
+
+## Open questions for the playtest
+
+- **Balance.** Two purses and two rings make a pair richer than one player, and prices rise
+  with the square of the depth (`Rules.grown`), so the deeper player can pay the other's way with
+  small change. Whether prices or foes should rise in a paired run, or sending should cost.
+- **Pace.** The two drift apart in depth. Whether anything should pull them together.
+- **A run that ends.** A new run draws a new stamp, so the partner must be given the new pair
+  code and gifts on the way are lost. Whether a pair should outlast a run (the stamp kept, the
+  gift numbers carried on).
+
+Keep this file in step as phases land, with `DEEPER_PLAN.md` (a section for paired play, its
+numbers and its tests) and the "Where things live" notes in `AGENTS.md`.
